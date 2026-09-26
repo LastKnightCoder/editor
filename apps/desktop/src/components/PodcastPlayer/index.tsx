@@ -1,7 +1,7 @@
 import useLocalPath from "@/hooks/useLocalPath";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { IPodcast, PodcastScriptLine } from "@/types/podcast";
-import { ConfirmDialog, Dialog, IconButton, Menu, Spinner, Tooltip, cn } from "@tau/ui";
+import { ConfirmDialog, Dialog, DialogBody, IconButton, Menu, Spinner, Tooltip, cn } from "@tau/ui";
 import {
   Download,
   MoreHorizontal,
@@ -354,27 +354,29 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
         context={podcast.name || undefined}
         width={800}
       >
-        {podcast.scriptLines && podcast.scriptLines.length > 0 ? (
-          <div className="flex flex-col gap-4">
-            {podcast.scriptLines.map((line: PodcastScriptLine, index: number) => (
-              <div key={index} className="flex flex-col gap-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-ink-2 text-tau-meta font-semibold">{line.speaker}</span>
-                  <span className="text-ink-3 text-tau-micro tabular-nums">
-                    {formatTime(line.startTime)}
-                  </span>
+        <DialogBody>
+          {podcast.scriptLines && podcast.scriptLines.length > 0 ? (
+            <div className="flex flex-col gap-4">
+              {podcast.scriptLines.map((line: PodcastScriptLine, index: number) => (
+                <div key={index} className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-ink-2 text-tau-meta font-semibold">{line.speaker}</span>
+                    <span className="text-ink-3 text-tau-micro tabular-nums">
+                      {formatTime(line.startTime)}
+                    </span>
+                  </div>
+                  <div className="text-ink-1 text-tau-body whitespace-pre-wrap">{line.text}</div>
                 </div>
-                <div className="text-ink-1 text-tau-body whitespace-pre-wrap">{line.text}</div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-ink-1 text-tau-body flex flex-col gap-3 whitespace-pre-wrap">
-            {podcast.script.split("\n").map((line, index) => (
-              <div key={index}>{line}</div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          ) : (
+            <div className="text-ink-1 text-tau-body flex flex-col gap-3 whitespace-pre-wrap">
+              {podcast.script.split("\n").map((line, index) => (
+                <div key={index}>{line}</div>
+              ))}
+            </div>
+          )}
+        </DialogBody>
       </Dialog>
       <ConfirmDialog
         open={deleteConfirmOpen}

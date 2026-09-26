@@ -23,9 +23,9 @@ export function ChatLibraryDialog() {
       title="全部会话"
       icon={<MessagesSquare size={16} strokeWidth={1.75} />}
       width={560}
-      fill
+      height={760}
     >
-      <div className="min-h-0 flex-1 overflow-hidden px-3 pb-3">
+      <div className="border-line-2 mt-[14px] min-h-0 flex-1 overflow-hidden border-t px-3 pb-3">
         <ChatManagementSidebar
           selectedChatId={parseChatId(id)}
           onChatSelect={chatId => {

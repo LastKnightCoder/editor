@@ -22,6 +22,7 @@ import {
   Button,
   ConfirmDialog,
   Dialog,
+  DialogBody,
   IconButton,
   Input,
   Segmented,
@@ -297,7 +298,9 @@ function ServiceDialog({
           </>
         }
       >
-        <div className="flex flex-col gap-3">{children}</div>
+        <DialogBody>
+          <div className="flex flex-col gap-3">{children}</div>
+        </DialogBody>
       </Dialog>
       <ConfirmDialog
         open={confirmOpen}

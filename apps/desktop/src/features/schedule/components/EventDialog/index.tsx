@@ -4,7 +4,7 @@
 
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
-import { Button, ConfirmDialog, Dialog } from "@tau/ui";
+import { Button, ConfirmDialog, Dialog, DialogBody } from "@tau/ui";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { useEventForm } from "./useEventForm";
 
@@ -54,7 +54,7 @@ const EventDialog = () => {
           </>
         }
       >
-        {form.fields}
+        <DialogBody>{form.fields}</DialogBody>
       </Dialog>
 
       <ConfirmDialog

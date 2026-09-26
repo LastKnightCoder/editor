@@ -25,6 +25,7 @@ import {
   ConfirmDialog,
   ContextMenu,
   Dialog,
+  DialogBody,
   IconButton,
   Input,
   Menu,
@@ -747,18 +748,20 @@ const ChatManagementSidebar = memo(
             </>
           }
         >
-          <Input
-            data-autofocus
-            placeholder="请输入分组名称"
-            value={groupName}
-            onChange={e => setGroupName(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-                e.preventDefault();
-                void handleGroupDialogOk();
-              }
-            }}
-          />
+          <DialogBody>
+            <Input
+              data-autofocus
+              placeholder="请输入分组名称"
+              value={groupName}
+              onChange={e => setGroupName(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  void handleGroupDialogOk();
+                }
+              }}
+            />
+          </DialogBody>
         </Dialog>
 
         <ConfirmDialog

@@ -6,6 +6,7 @@ import {
   Checkbox,
   ConfirmDialog,
   Dialog,
+  DialogBody,
   IconButton,
   Input,
   Radio,
@@ -167,125 +168,129 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
       icon={<Pencil className="size-4" strokeWidth={1.75} />}
       width={700}
     >
-      <div className="flex flex-col gap-5 pt-1">
-        {/* 测验名称编辑 */}
-        <div>
-          <FieldLabel>测验名称</FieldLabel>
-          {isEditingName ? (
-            <div className="flex items-center gap-1.5">
-              <Input
-                data-autofocus
-                autoFocus
-                value={quizName}
-                onChange={e => setQuizName(e.target.value)}
-                wrapperClassName="flex-1"
-                onKeyDown={e => {
-                  if (e.key === "Enter") handleSaveName();
-                  if (e.key === "Escape") {
-                    // Esc 只退出名称编辑，不关闭弹窗
-                    e.stopPropagation();
-                    e.preventDefault();
-                    handleCancelEditName();
-                  }
-                }}
-              />
-              <Button
-                variant="primary"
-                size="sm"
-                icon={Check}
-                loading={savingName}
-                disabled={savingName || !quizName.trim()}
-                onClick={handleSaveName}
-              >
-                保存
-              </Button>
-              <IconButton aria-label="取消" title="取消" onClick={handleCancelEditName}>
-                <X className="size-4" strokeWidth={1.75} />
-              </IconButton>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setIsEditingName(true)}
-              className={cn(
-                "border-line-1 bg-surface rounded-tau-sm group flex h-[34px] w-full cursor-pointer",
-                "items-center justify-between border px-3 text-left",
-                "hover:bg-hover ease-tau-out transition-[background-color] duration-[140ms]"
-              )}
-            >
-              <span className="text-ink-1 text-tau-body truncate">{quizSet?.name || "未命名"}</span>
-              <Pencil
-                className="text-ink-3 group-hover:text-ink-2 size-3.5 shrink-0"
-                strokeWidth={1.75}
-              />
-            </button>
-          )}
-        </div>
-
-        {/* 题目列表 */}
-        <div>
-          <FieldLabel
-            extra={<span className="text-ink-3 text-tau-meta">共 {items.length} 题</span>}
-          >
-            题目列表
-          </FieldLabel>
-
-          {loadingItems ? (
-            <div className="flex flex-col items-center justify-center gap-3 py-12">
-              <Spinner className="size-5" />
-              <p className="text-ink-3 text-tau-meta m-0">加载题目中...</p>
-            </div>
-          ) : items.length === 0 ? (
-            <div className="border-line-1 rounded-tau-md flex flex-col items-center justify-center gap-2 border border-dashed py-12">
-              <CircleAlert className="text-ink-3 size-6" strokeWidth={1.75} />
-              <p className="text-ink-3 text-tau-meta m-0">暂无题目</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-1">
-              {items.map((item, index) => (
-                <QuizItemCard
-                  key={item.id}
-                  item={item}
-                  index={index}
-                  isExpanded={expandedItemId === item.id}
-                  isEditing={editingItemId === item.id}
-                  onToggleExpand={() => handleToggleExpand(item.id)}
-                  onStartEdit={() => handleStartEdit(item.id)}
-                  onCloseEdit={handleCloseEdit}
-                  onDelete={() => handleDeleteItem(item)}
-                  updateItem={updateItem}
+      <DialogBody>
+        <div className="flex flex-col gap-5 pt-1">
+          {/* 测验名称编辑 */}
+          <div>
+            <FieldLabel>测验名称</FieldLabel>
+            {isEditingName ? (
+              <div className="flex items-center gap-1.5">
+                <Input
+                  data-autofocus
+                  autoFocus
+                  value={quizName}
+                  onChange={e => setQuizName(e.target.value)}
+                  wrapperClassName="flex-1"
+                  onKeyDown={e => {
+                    if (e.key === "Enter") handleSaveName();
+                    if (e.key === "Escape") {
+                      // Esc 只退出名称编辑，不关闭弹窗
+                      e.stopPropagation();
+                      e.preventDefault();
+                      handleCancelEditName();
+                    }
+                  }}
                 />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  icon={Check}
+                  loading={savingName}
+                  disabled={savingName || !quizName.trim()}
+                  onClick={handleSaveName}
+                >
+                  保存
+                </Button>
+                <IconButton aria-label="取消" title="取消" onClick={handleCancelEditName}>
+                  <X className="size-4" strokeWidth={1.75} />
+                </IconButton>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsEditingName(true)}
+                className={cn(
+                  "border-line-1 bg-surface rounded-tau-sm group flex h-[34px] w-full cursor-pointer",
+                  "items-center justify-between border px-3 text-left",
+                  "hover:bg-hover ease-tau-out transition-[background-color] duration-[140ms]"
+                )}
+              >
+                <span className="text-ink-1 text-tau-body truncate">
+                  {quizSet?.name || "未命名"}
+                </span>
+                <Pencil
+                  className="text-ink-3 group-hover:text-ink-2 size-3.5 shrink-0"
+                  strokeWidth={1.75}
+                />
+              </button>
+            )}
+          </div>
 
-      <ConfirmDialog
-        open={deleteItemConfirm !== null}
-        onOpenChange={next => {
-          if (!next) setDeleteItemConfirm(null);
-        }}
-        title="删除题目"
-        description="确定要删除这道题目吗？此操作无法撤销。"
-        danger
-        confirmText="删除"
-        onConfirm={async () => {
-          const item = deleteItemConfirm;
-          setDeleteItemConfirm(null);
-          if (!item) return;
-          try {
-            await deleteItem(item.id);
-            toast.success("题目已删除");
-            // 刷新测验集列表以更新题目数量
-            if (currentProjectId) {
-              fetchQuizSets(currentProjectId);
+          {/* 题目列表 */}
+          <div>
+            <FieldLabel
+              extra={<span className="text-ink-3 text-tau-meta">共 {items.length} 题</span>}
+            >
+              题目列表
+            </FieldLabel>
+
+            {loadingItems ? (
+              <div className="flex flex-col items-center justify-center gap-3 py-12">
+                <Spinner className="size-5" />
+                <p className="text-ink-3 text-tau-meta m-0">加载题目中...</p>
+              </div>
+            ) : items.length === 0 ? (
+              <div className="border-line-1 rounded-tau-md flex flex-col items-center justify-center gap-2 border border-dashed py-12">
+                <CircleAlert className="text-ink-3 size-6" strokeWidth={1.75} />
+                <p className="text-ink-3 text-tau-meta m-0">暂无题目</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1">
+                {items.map((item, index) => (
+                  <QuizItemCard
+                    key={item.id}
+                    item={item}
+                    index={index}
+                    isExpanded={expandedItemId === item.id}
+                    isEditing={editingItemId === item.id}
+                    onToggleExpand={() => handleToggleExpand(item.id)}
+                    onStartEdit={() => handleStartEdit(item.id)}
+                    onCloseEdit={handleCloseEdit}
+                    onDelete={() => handleDeleteItem(item)}
+                    updateItem={updateItem}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <ConfirmDialog
+          open={deleteItemConfirm !== null}
+          onOpenChange={next => {
+            if (!next) setDeleteItemConfirm(null);
+          }}
+          title="删除题目"
+          description="确定要删除这道题目吗？此操作无法撤销。"
+          danger
+          confirmText="删除"
+          onConfirm={async () => {
+            const item = deleteItemConfirm;
+            setDeleteItemConfirm(null);
+            if (!item) return;
+            try {
+              await deleteItem(item.id);
+              toast.success("题目已删除");
+              // 刷新测验集列表以更新题目数量
+              if (currentProjectId) {
+                fetchQuizSets(currentProjectId);
+              }
+            } catch (error) {
+              toast.error("删除失败");
             }
-          } catch (error) {
-            toast.error("删除失败");
-          }
-        }}
-      />
+          }}
+        />
+      </DialogBody>
     </Dialog>
   );
 });

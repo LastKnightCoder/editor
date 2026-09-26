@@ -10,7 +10,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Descendant } from "slate";
 import type { EditorRef } from "@tau/editor/src";
-import { Button, Dialog } from "@tau/ui";
+import { Button, Dialog, DialogBody } from "@tau/ui";
 import ContentEditor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import useEditContent from "@/hooks/useEditContent";
@@ -76,34 +76,36 @@ export function ContentEditDialog({
         </>
       }
     >
-      {contentId != null && (
-        <div className="flex flex-col gap-2">
-          {title !== undefined && (
-            <TitleField
-              key={contentId}
-              value={title}
-              placeholder={titlePlaceholder}
-              onCommit={onTitleChange}
-              onEnter={() => editorRef.current?.focus()}
-            />
-          )}
-          <ErrorBoundary>
-            <ContentEditor
-              key={contentId}
-              ref={editorRef}
-              contentId={contentId}
-              initValue={EMPTY}
-              readonly={false}
-              onChange={value => {
-                setCount(getContentLength(value));
-                throttleHandleEditorContentChange(value);
-              }}
-              placeHolder={placeholder}
-              className="min-h-[260px]"
-            />
-          </ErrorBoundary>
-        </div>
-      )}
+      <DialogBody>
+        {contentId != null && (
+          <div className="flex flex-col gap-2">
+            {title !== undefined && (
+              <TitleField
+                key={contentId}
+                value={title}
+                placeholder={titlePlaceholder}
+                onCommit={onTitleChange}
+                onEnter={() => editorRef.current?.focus()}
+              />
+            )}
+            <ErrorBoundary>
+              <ContentEditor
+                key={contentId}
+                ref={editorRef}
+                contentId={contentId}
+                initValue={EMPTY}
+                readonly={false}
+                onChange={value => {
+                  setCount(getContentLength(value));
+                  throttleHandleEditorContentChange(value);
+                }}
+                placeHolder={placeholder}
+                className="min-h-[260px]"
+              />
+            </ErrorBoundary>
+          </div>
+        )}
+      </DialogBody>
     </Dialog>
   );
 }

@@ -14,7 +14,7 @@ import {
   Search,
   type LucideIcon,
 } from "lucide-react";
-import { Button, Dialog, Input, Loading, Segmented } from "@tau/ui";
+import { Button, Dialog, DialogBody, Input, Loading, Segmented } from "@tau/ui";
 import type { CollaborationSession, SourceType } from "@tau/collaboration";
 import { createSharedContent } from "@/commands";
 import { InvitationCode } from "@/components/CollaborationUI";
@@ -125,78 +125,80 @@ export function ShareLocalDialog({
         ) : undefined
       }
     >
-      {phase.kind === "pick" && (
-        <div className="flex flex-col gap-2.5">
-          <Input
-            data-autofocus
-            lead={Search}
-            clearable
-            value={query}
-            placeholder="搜索标题或正文"
-            onChange={event => setQuery(event.target.value)}
-          />
-          <Segmented label="内容类型" value={type} onValueChange={setType} className="self-start">
-            <Segmented.Item value="all" label="全部" />
-            {(Object.keys(TYPE_META) as IndexType[]).map(key => (
-              <Segmented.Item key={key} value={key} label={TYPE_META[key].label} />
-            ))}
-          </Segmented>
-          {error && (
-            <p
-              role="alert"
-              className="bg-danger-soft text-danger text-tau-meta rounded-tau-sm px-3 py-2"
-            >
-              {error}
-            </p>
-          )}
-          <div className="-mx-2 h-[280px] overflow-y-auto px-2">
-            {!keyword.trim() ? (
-              <p className="text-ink-3 text-tau-meta pt-16 text-center">
-                输入关键词，搜索文章、卡片、项目文档或日记
+      <DialogBody>
+        {phase.kind === "pick" && (
+          <div className="flex flex-col gap-2.5">
+            <Input
+              data-autofocus
+              lead={Search}
+              clearable
+              value={query}
+              placeholder="搜索标题或正文"
+              onChange={event => setQuery(event.target.value)}
+            />
+            <Segmented label="内容类型" value={type} onValueChange={setType} className="self-start">
+              <Segmented.Item value="all" label="全部" />
+              {(Object.keys(TYPE_META) as IndexType[]).map(key => (
+                <Segmented.Item key={key} value={key} label={TYPE_META[key].label} />
+              ))}
+            </Segmented>
+            {error && (
+              <p
+                role="alert"
+                className="bg-danger-soft text-danger text-tau-meta rounded-tau-sm px-3 py-2"
+              >
+                {error}
               </p>
-            ) : candidates.isPending ? (
-              <Loading />
-            ) : list.length === 0 ? (
-              <p className="text-ink-3 text-tau-meta pt-16 text-center">没有找到可共享的内容</p>
-            ) : (
-              <ul className="flex flex-col">
-                {list.map(item => {
-                  const Icon = TYPE_META[item.type].icon;
-                  return (
-                    <li key={`${item.type}-${item.id}`}>
-                      <button
-                        type="button"
-                        onClick={() => void share(item)}
-                        className="rounded-tau-sm hover:bg-hover group flex min-h-11 w-full cursor-pointer items-center gap-2.5 px-2 text-left"
-                      >
-                        <span className="bg-hover text-ink-2 grid size-7 flex-none place-items-center rounded-[8px]">
-                          <Icon className="size-[15px]" strokeWidth={1.75} />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="text-tau-body block truncate">{titleOf(item)}</span>
-                          <span className="text-ink-3 text-tau-sm">
-                            {TYPE_META[item.type].label}
-                          </span>
-                        </span>
-                        <ArrowRight
-                          className="text-ink-3 size-4 flex-none opacity-0 group-hover:opacity-100"
-                          strokeWidth={1.75}
-                        />
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
             )}
+            <div className="-mx-2 h-[280px] overflow-y-auto px-2">
+              {!keyword.trim() ? (
+                <p className="text-ink-3 text-tau-meta pt-16 text-center">
+                  输入关键词，搜索文章、卡片、项目文档或日记
+                </p>
+              ) : candidates.isPending ? (
+                <Loading />
+              ) : list.length === 0 ? (
+                <p className="text-ink-3 text-tau-meta pt-16 text-center">没有找到可共享的内容</p>
+              ) : (
+                <ul className="flex flex-col">
+                  {list.map(item => {
+                    const Icon = TYPE_META[item.type].icon;
+                    return (
+                      <li key={`${item.type}-${item.id}`}>
+                        <button
+                          type="button"
+                          onClick={() => void share(item)}
+                          className="rounded-tau-sm hover:bg-hover group flex min-h-11 w-full cursor-pointer items-center gap-2.5 px-2 text-left"
+                        >
+                          <span className="bg-hover text-ink-2 grid size-7 flex-none place-items-center rounded-[8px]">
+                            <Icon className="size-[15px]" strokeWidth={1.75} />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="text-tau-body block truncate">{titleOf(item)}</span>
+                            <span className="text-ink-3 text-tau-sm">
+                              {TYPE_META[item.type].label}
+                            </span>
+                          </span>
+                          <ArrowRight
+                            className="text-ink-3 size-4 flex-none opacity-0 group-hover:opacity-100"
+                            strokeWidth={1.75}
+                          />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
           </div>
-        </div>
-      )}
-      {phase.kind === "sharing" && (
-        <div className="grid h-[120px] place-items-center">
-          <Loading />
-        </div>
-      )}
-      {phase.kind === "done" && (shared ? <InvitationCode session={shared} /> : <Loading />)}
+        )}
+        {phase.kind === "sharing" && (
+          <div className="grid h-[120px] place-items-center">
+            <Loading />
+          </div>
+        )}
+        {phase.kind === "done" && (shared ? <InvitationCode session={shared} /> : <Loading />)}
+      </DialogBody>
     </Dialog>
   );
 }

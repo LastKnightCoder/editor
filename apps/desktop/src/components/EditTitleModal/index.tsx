@@ -6,7 +6,7 @@
 import React, { useEffect, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { PenLine } from "lucide-react";
-import { Button, Dialog, Textarea } from "@tau/ui";
+import { Button, Dialog, DialogBody, Textarea } from "@tau/ui";
 
 export interface EditTitleResult {
   title: string;
@@ -61,20 +61,22 @@ const EditTitleModal: React.FC<EditTitleModalProps> = ({
         </>
       }
     >
-      <Textarea
-        data-autofocus
-        value={title}
-        rows={3}
-        placeholder={placeholder}
-        onChange={e => setTitle(e.target.value)}
-        onFocus={e => e.currentTarget.select()}
-        onKeyDown={e => {
-          if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !e.nativeEvent.isComposing) {
-            e.preventDefault();
-            handleSubmit();
-          }
-        }}
-      />
+      <DialogBody>
+        <Textarea
+          data-autofocus
+          value={title}
+          rows={3}
+          placeholder={placeholder}
+          onChange={e => setTitle(e.target.value)}
+          onFocus={e => e.currentTarget.select()}
+          onKeyDown={e => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              handleSubmit();
+            }
+          }}
+        />
+      </DialogBody>
     </Dialog>
   );
 };

@@ -6,7 +6,7 @@
 
 import { useState } from "react";
 import clsx from "clsx";
-import { Dialog, ConfirmDialog } from "@tau/ui";
+import { Dialog, DialogBody, ConfirmDialog } from "@tau/ui";
 import {
   ApiCard,
   BlockTitle,
@@ -132,18 +132,20 @@ export default function DialogSection() {
           </>
         }
       >
-        <label className="text-ink-2 mb-1.5 block text-[12px] font-[550]">名称</label>
-        <input
-          type="text"
-          value={bookName}
-          onChange={e => setBookName(e.target.value)}
-          placeholder="给笔记本起个名字"
-          data-autofocus
-          className="border-line-1 bg-surface text-ink-1 placeholder:text-ink-3 rounded-tau-sm focus:border-accent ease-tau-out h-[34px] w-full border px-3 outline-none transition-[border-color,box-shadow] duration-[160ms] focus:shadow-[var(--tau-focus-ring)]"
-        />
-        <div className="text-ink-3 mt-1.5 text-[11.5px]">
-          首输入框 data-autofocus；Enter 走表单原生提交；空名时主按钮禁用
-        </div>
+        <DialogBody>
+          <label className="text-ink-2 mb-1.5 block text-[12px] font-[550]">名称</label>
+          <input
+            type="text"
+            value={bookName}
+            onChange={e => setBookName(e.target.value)}
+            placeholder="给笔记本起个名字"
+            data-autofocus
+            className="border-line-1 bg-surface text-ink-1 placeholder:text-ink-3 rounded-tau-sm focus:border-accent ease-tau-out h-[34px] w-full border px-3 outline-none transition-[border-color,box-shadow] duration-[160ms] focus:shadow-[var(--tau-focus-ring)]"
+          />
+          <div className="text-ink-3 mt-1.5 text-[11.5px]">
+            首输入框 data-autofocus；Enter 走表单原生提交；空名时主按钮禁用
+          </div>
+        </DialogBody>
       </Dialog>
       <ConfirmDialog
         open={exporting}
@@ -167,13 +169,15 @@ export default function DialogSection() {
           </button>
         }
       >
-        <div className="divide-line-2 divide-y">
-          {CHANGELOG.map((text, i) => (
-            <div key={i} className="text-ink-2 py-2.5 text-[12.5px] leading-[1.6]">
-              {text}
-            </div>
-          ))}
-        </div>
+        <DialogBody>
+          <div className="divide-line-2 divide-y">
+            {CHANGELOG.map((text, i) => (
+              <div key={i} className="text-ink-2 py-2.5 text-[12.5px] leading-[1.6]">
+                {text}
+              </div>
+            ))}
+          </div>
+        </DialogBody>
       </Dialog>
 
       <BlockTitle en="行为标本">状态矩阵</BlockTitle>
@@ -259,10 +263,20 @@ export default function DialogSection() {
             </tr>
             <tr>
               <td>
-                <code>Dialog · size / width</code>
+                <code>Dialog · size / width / height</code>
               </td>
               <td>
-                档位 <code>sm | md | lg</code>；width 像素数覆盖档位
+                档位 <code>sm | md | lg</code>；width 像素数覆盖档位；height 定高（不超
+                82vh），给内容自管滚动的工作台型弹窗
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>DialogBody</code>
+              </td>
+              <td>
+                正文滚动区（edge fade + 内缩滚动条 + 标准内边距）；放在它之外的 children
+                钉住不随正文滚动
               </td>
             </tr>
             <tr>

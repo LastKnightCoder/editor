@@ -12,7 +12,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, Search } from "lucide-react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useDebounce } from "ahooks";
-import { Button, Dialog, Input, Loading, Segmented, cn, useEdgeFade } from "@tau/ui";
+import { Button, Dialog, DialogBody, Input, Loading, Segmented, cn, useEdgeFade } from "@tau/ui";
 import { searchEntities } from "@/commands";
 import type { EntityCandidate, EntityKind } from "@/types";
 import { ENTITY_KIND_META, entityKey, entityTime } from "./meta";
@@ -157,100 +157,102 @@ export function EntityPicker({
         </>
       }
     >
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-2.5">
-          <Input
-            data-autofocus
-            value={keyword}
-            onChange={e => setKeyword(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder={`搜索${meta.label}…`}
-            aria-label={`搜索${meta.label}`}
-            lead={Search}
-            wrapperClassName="flex-1"
-          />
-          {kinds.length > 1 && (
-            <Segmented
-              label="类型"
-              size="sm"
-              value={kind}
-              onValueChange={(v: EntityKind) => setKind(v)}
-            >
-              {kinds.map(k => (
-                <Segmented.Item key={k} value={k} label={ENTITY_KIND_META[k].label} />
-              ))}
-            </Segmented>
-          )}
-        </div>
-        {/* 列表直接铺在弹窗正文上（不套卡片）；-mr/pr 借位把滚动条挪进正文右侧留白，
+      <DialogBody>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2.5">
+            <Input
+              data-autofocus
+              value={keyword}
+              onChange={e => setKeyword(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder={`搜索${meta.label}…`}
+              aria-label={`搜索${meta.label}`}
+              lead={Search}
+              wrapperClassName="flex-1"
+            />
+            {kinds.length > 1 && (
+              <Segmented
+                label="类型"
+                size="sm"
+                value={kind}
+                onValueChange={(v: EntityKind) => setKind(v)}
+              >
+                {kinds.map(k => (
+                  <Segmented.Item key={k} value={k} label={ENTITY_KIND_META[k].label} />
+                ))}
+              </Segmented>
+            )}
+          </div>
+          {/* 列表直接铺在弹窗正文上（不套卡片）；-mr/pr 借位把滚动条挪进正文右侧留白，
             与行内容隔开 8px，行右缘仍与搜索框对齐 */}
-        <div
-          ref={setListEl}
-          role="listbox"
-          aria-multiselectable={multiple || undefined}
-          className="edge-fade-scroll scrollbar-inset -mr-5 h-[400px] overflow-y-auto border-r-4 border-r-transparent pr-2"
-        >
-          {isPending || !items ? (
-            <Loading />
-          ) : !items.length ? (
-            <p className="text-ink-3 py-10 text-center text-[12.5px]">
-              {debounced ? `没有匹配的${meta.label}` : `还没有${meta.label}`}
-            </p>
-          ) : (
-            items.map((candidate, index) => {
-              const key = entityKey(candidate);
-              const on = picked.has(key);
-              const linked = isLinked?.(candidate) ?? false;
-              const Icon = ENTITY_KIND_META[candidate.kind].icon;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  role="option"
-                  aria-selected={on}
-                  aria-disabled={linked || undefined}
-                  data-index={index}
-                  tabIndex={-1}
-                  onClick={() => choose(candidate)}
-                  onMouseMove={() => index !== active && setActive(index)}
-                  className={cn(
-                    "flex w-full items-center gap-[11px] rounded-[10px] px-2.5 py-[9px] text-left outline-none",
-                    on ? "bg-selected" : index === active && !linked && "bg-hover",
-                    linked && "cursor-default opacity-50"
-                  )}
-                >
-                  {multiple && (
-                    <span
-                      className={cn(
-                        "grid size-4 shrink-0 place-items-center rounded-[5px] border-[1.5px]",
-                        on
-                          ? "bg-accent border-accent text-ink-inverse"
-                          : "border-ink-3 text-transparent"
-                      )}
-                    >
-                      <Check className="size-[11px]" strokeWidth={3} />
-                    </span>
-                  )}
-                  <Icon className="text-ink-3 size-[14px] shrink-0" strokeWidth={1.75} />
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate text-[13px] font-medium">{candidate.title}</span>
-                    {candidate.excerpt && (
-                      <span className="text-ink-3 truncate text-[12px]">{candidate.excerpt}</span>
+          <div
+            ref={setListEl}
+            role="listbox"
+            aria-multiselectable={multiple || undefined}
+            className="edge-fade-scroll scrollbar-inset -mr-3.5 h-[400px] overflow-y-auto border-r-4 border-r-transparent pr-2"
+          >
+            {isPending || !items ? (
+              <Loading />
+            ) : !items.length ? (
+              <p className="text-ink-3 py-10 text-center text-[12.5px]">
+                {debounced ? `没有匹配的${meta.label}` : `还没有${meta.label}`}
+              </p>
+            ) : (
+              items.map((candidate, index) => {
+                const key = entityKey(candidate);
+                const on = picked.has(key);
+                const linked = isLinked?.(candidate) ?? false;
+                const Icon = ENTITY_KIND_META[candidate.kind].icon;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    role="option"
+                    aria-selected={on}
+                    aria-disabled={linked || undefined}
+                    data-index={index}
+                    tabIndex={-1}
+                    onClick={() => choose(candidate)}
+                    onMouseMove={() => index !== active && setActive(index)}
+                    className={cn(
+                      "flex w-full items-center gap-[11px] rounded-[10px] px-2.5 py-[9px] text-left outline-none",
+                      on ? "bg-selected" : index === active && !linked && "bg-hover",
+                      linked && "cursor-default opacity-50"
                     )}
-                  </span>
-                  <span className="text-ink-3 shrink-0 text-[11.5px]">
-                    {linked
-                      ? "已关联"
-                      : [candidate.meta, entityTime(candidate.time, now.current)]
-                          .filter(Boolean)
-                          .join(" · ")}
-                  </span>
-                </button>
-              );
-            })
-          )}
+                  >
+                    {multiple && (
+                      <span
+                        className={cn(
+                          "grid size-4 shrink-0 place-items-center rounded-[5px] border-[1.5px]",
+                          on
+                            ? "bg-accent border-accent text-ink-inverse"
+                            : "border-ink-3 text-transparent"
+                        )}
+                      >
+                        <Check className="size-[11px]" strokeWidth={3} />
+                      </span>
+                    )}
+                    <Icon className="text-ink-3 size-[14px] shrink-0" strokeWidth={1.75} />
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate text-[13px] font-medium">{candidate.title}</span>
+                      {candidate.excerpt && (
+                        <span className="text-ink-3 truncate text-[12px]">{candidate.excerpt}</span>
+                      )}
+                    </span>
+                    <span className="text-ink-3 shrink-0 text-[11.5px]">
+                      {linked
+                        ? "已关联"
+                        : [candidate.meta, entityTime(candidate.time, now.current)]
+                            .filter(Boolean)
+                            .join(" · ")}
+                    </span>
+                  </button>
+                );
+              })
+            )}
+          </div>
         </div>
-      </div>
+      </DialogBody>
     </Dialog>
   );
 }

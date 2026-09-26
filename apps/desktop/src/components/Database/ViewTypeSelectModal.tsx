@@ -1,6 +1,6 @@
 import React, { memo, useEffect, useState } from "react";
 import { CalendarDays, LayoutGrid, SquareKanban, Table2 } from "lucide-react";
-import { cn, Button, Dialog, Input, Select } from "@tau/ui";
+import { cn, Button, Dialog, DialogBody, Input, Select } from "@tau/ui";
 import { DataTableViewType } from "@/types";
 
 interface ViewType {
@@ -106,82 +106,86 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
           </>
         }
       >
-        <div className="flex flex-col gap-5 py-1">
-          <div className="grid grid-cols-2 gap-3">
-            {viewTypes.map(viewType => {
-              const Icon = viewType.icon;
-              const selected = selectedType === viewType.type;
-              return (
-                <button
-                  key={viewType.type}
-                  type="button"
-                  disabled={viewType.disabled}
-                  title={viewType.disabled ? viewType.disabledReason : undefined}
-                  onClick={() => handleSelectType(viewType.type as DataTableViewType)}
-                  className={cn(
-                    "ease-tau-out rounded-tau-md flex flex-col items-center justify-center gap-1.5 border p-5 transition-colors duration-[160ms]",
-                    viewType.disabled
-                      ? "text-ink-3 border-line-2 bg-page cursor-not-allowed opacity-60"
-                      : selected
-                        ? "border-accent bg-accent-soft text-accent-text cursor-pointer"
-                        : "border-line-1 bg-surface text-ink-2 hover:border-ink-3 hover:bg-hover cursor-pointer"
-                  )}
-                >
-                  <Icon
-                    className={cn("size-8", selected ? "text-accent" : "text-ink-2")}
-                    strokeWidth={1.5}
-                  />
-                  <span className={cn("text-tau-body font-medium", selected && "text-accent-text")}>
-                    {viewType.name}
-                  </span>
-                  {viewType.disabled && viewType.disabledReason && (
-                    <span className="text-tau-micro text-ink-3">{viewType.disabledReason}</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-          {selectedType && (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <span className="text-tau-meta text-ink-2 font-medium">视图名称</span>
-                <Input
-                  value={name}
-                  onChange={e => {
-                    setName(e.target.value);
-                    setUserModifiedName(true);
-                  }}
-                  placeholder="请输入视图名称"
-                  maxLength={50}
-                />
-              </div>
-
-              {selectedType === "calendar" && (
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-tau-meta text-ink-2 font-medium">日期列</span>
-                  <Select
-                    value={dateColumnId}
-                    onValueChange={setDateColumnId}
-                    placeholder="选择用于日历的日期列"
-                    options={dateColumns.map(col => ({ value: col.id, label: col.title }))}
-                  />
-                </div>
-              )}
-
-              {selectedType === "kanban" && (
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-tau-meta text-ink-2 font-medium">分组列</span>
-                  <Select
-                    value={groupColumnId}
-                    onValueChange={setGroupColumnId}
-                    placeholder="选择用于看板分组的单选列"
-                    options={selectColumns.map(col => ({ value: col.id, label: col.title }))}
-                  />
-                </div>
-              )}
+        <DialogBody>
+          <div className="flex flex-col gap-5 py-1">
+            <div className="grid grid-cols-2 gap-3">
+              {viewTypes.map(viewType => {
+                const Icon = viewType.icon;
+                const selected = selectedType === viewType.type;
+                return (
+                  <button
+                    key={viewType.type}
+                    type="button"
+                    disabled={viewType.disabled}
+                    title={viewType.disabled ? viewType.disabledReason : undefined}
+                    onClick={() => handleSelectType(viewType.type as DataTableViewType)}
+                    className={cn(
+                      "ease-tau-out rounded-tau-md flex flex-col items-center justify-center gap-1.5 border p-5 transition-colors duration-[160ms]",
+                      viewType.disabled
+                        ? "text-ink-3 border-line-2 bg-page cursor-not-allowed opacity-60"
+                        : selected
+                          ? "border-accent bg-accent-soft text-accent-text cursor-pointer"
+                          : "border-line-1 bg-surface text-ink-2 hover:border-ink-3 hover:bg-hover cursor-pointer"
+                    )}
+                  >
+                    <Icon
+                      className={cn("size-8", selected ? "text-accent" : "text-ink-2")}
+                      strokeWidth={1.5}
+                    />
+                    <span
+                      className={cn("text-tau-body font-medium", selected && "text-accent-text")}
+                    >
+                      {viewType.name}
+                    </span>
+                    {viewType.disabled && viewType.disabledReason && (
+                      <span className="text-tau-micro text-ink-3">{viewType.disabledReason}</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
-          )}
-        </div>
+            {selectedType && (
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-tau-meta text-ink-2 font-medium">视图名称</span>
+                  <Input
+                    value={name}
+                    onChange={e => {
+                      setName(e.target.value);
+                      setUserModifiedName(true);
+                    }}
+                    placeholder="请输入视图名称"
+                    maxLength={50}
+                  />
+                </div>
+
+                {selectedType === "calendar" && (
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-tau-meta text-ink-2 font-medium">日期列</span>
+                    <Select
+                      value={dateColumnId}
+                      onValueChange={setDateColumnId}
+                      placeholder="选择用于日历的日期列"
+                      options={dateColumns.map(col => ({ value: col.id, label: col.title }))}
+                    />
+                  </div>
+                )}
+
+                {selectedType === "kanban" && (
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-tau-meta text-ink-2 font-medium">分组列</span>
+                    <Select
+                      value={groupColumnId}
+                      onValueChange={setGroupColumnId}
+                      placeholder="选择用于看板分组的单选列"
+                      options={selectColumns.map(col => ({ value: col.id, label: col.title }))}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </DialogBody>
       </Dialog>
     );
   }

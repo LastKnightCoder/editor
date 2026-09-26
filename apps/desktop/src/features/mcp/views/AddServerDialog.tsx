@@ -5,7 +5,7 @@
 
 import { useMemo, useState } from "react";
 import { TriangleAlert } from "lucide-react";
-import { Button, Checkbox, Dialog, Segmented, Textarea } from "@tau/ui";
+import { Button, Checkbox, Dialog, DialogBody, Segmented, Textarea } from "@tau/ui";
 import useMCPStore from "@/stores/useMCPStore";
 import {
   emptyDraft,
@@ -185,28 +185,30 @@ export function AddServerDialog({
         </>
       }
     >
-      <Segmented
-        label="添加方式"
-        size="sm"
-        value={tab}
-        onValueChange={(v: AddTab) => setTab(v)}
-        className="mb-4"
-      >
-        <Segmented.Item value="form" label="手动填写" />
-        <Segmented.Item value="json" label="粘贴 JSON" />
-      </Segmented>
+      <DialogBody>
+        <Segmented
+          label="添加方式"
+          size="sm"
+          value={tab}
+          onValueChange={(v: AddTab) => setTab(v)}
+          className="mb-4"
+        >
+          <Segmented.Item value="form" label="手动填写" />
+          <Segmented.Item value="json" label="粘贴 JSON" />
+        </Segmented>
 
-      <div className="h-[440px] overflow-y-auto pr-1">
-        {tab === "form" && <ServerForm draft={draft} onChange={setDraft} />}
-        {tab === "json" && (
-          <JsonImport
-            text={jsonText}
-            onTextChange={setJsonText}
-            selected={unchecked}
-            onSelectedChange={setUnchecked}
-          />
-        )}
-      </div>
+        <div className="h-[440px] overflow-y-auto pr-1">
+          {tab === "form" && <ServerForm draft={draft} onChange={setDraft} />}
+          {tab === "json" && (
+            <JsonImport
+              text={jsonText}
+              onTextChange={setJsonText}
+              selected={unchecked}
+              onSelectedChange={setUnchecked}
+            />
+          )}
+        </div>
+      </DialogBody>
     </Dialog>
   );
 }

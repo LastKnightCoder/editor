@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
 import { EditorRef } from "@tau/editor/src";
-import { Dialog, Spinner } from "@tau/ui";
+import { Dialog, DialogBody, Spinner } from "@tau/ui";
 import Editor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import useEditContent from "@/hooks/useEditContent";
@@ -60,26 +60,28 @@ const ContentDetailModal = ({
       context={typeName || undefined}
       width={800}
     >
-      {loading || !initValue ? (
-        <div className="text-ink-3 text-tau-meta flex h-48 items-center justify-center gap-2">
-          <Spinner />
-          加载中…
-        </div>
-      ) : (
-        <div className="text-ink-1 min-h-50 pb-2">
-          <ErrorBoundary>
-            <Editor
-              contentId={contentId}
-              key={contentId}
-              ref={editorRef}
-              initValue={initValue}
-              onChange={onContentChange}
-              extensions={dynamicExtensions}
-              readonly={false}
-            />
-          </ErrorBoundary>
-        </div>
-      )}
+      <DialogBody>
+        {loading || !initValue ? (
+          <div className="text-ink-3 text-tau-meta flex h-48 items-center justify-center gap-2">
+            <Spinner />
+            加载中…
+          </div>
+        ) : (
+          <div className="text-ink-1 min-h-50 pb-2">
+            <ErrorBoundary>
+              <Editor
+                contentId={contentId}
+                key={contentId}
+                ref={editorRef}
+                initValue={initValue}
+                onChange={onContentChange}
+                extensions={dynamicExtensions}
+                readonly={false}
+              />
+            </ErrorBoundary>
+          </div>
+        )}
+      </DialogBody>
     </Dialog>
   );
 };

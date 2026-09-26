@@ -1,7 +1,7 @@
 import { memo, useState, useEffect, useCallback } from "react";
 import { Descendant } from "slate";
 import { ChevronRight, FileText, Folder, FolderInput } from "lucide-react";
-import { Button, Dialog, Loading, cn, toast, useEdgeFade } from "@tau/ui";
+import { Button, Dialog, DialogBody, Loading, cn, toast, useEdgeFade } from "@tau/ui";
 import { getProjectList } from "@/commands/project";
 import {
   addRootProjectItem,
@@ -380,96 +380,98 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
           </>
         }
       >
-        {/* 左右布局：左侧项目，右侧插入位置 */}
-        <div className="flex h-[400px] gap-3">
-          {/* 左侧：项目列表 */}
-          <div className="border-line-2 flex w-56 shrink-0 flex-col gap-1.5 border-r pr-3">
-            <span className="text-ink-2 text-[12px]">项目</span>
-            <div
-              ref={setEntityListEl}
-              className="edge-fade-scroll scrollbar-inset min-h-0 flex-1 overflow-y-auto"
-            >
-              {loading ? (
-                <Loading minHeight={0} />
-              ) : entityList.length === 0 ? (
-                <p className="text-tau-sm text-ink-3 py-10 text-center">暂无文档类型项目</p>
-              ) : (
-                <div className="flex flex-col gap-px">
-                  {entityList.map(entity => {
-                    const title = entity.title || `#${entity.id}`;
-                    return (
-                      <div
-                        key={entity.id}
-                        role="button"
-                        tabIndex={0}
-                        title={title}
-                        className={cn(rowClass(selectedEntityId === entity.id), "pl-2")}
-                        onClick={() => handleSelectEntity(entity)}
-                        onKeyDown={e => {
-                          if (e.key === "Enter" && e.target === e.currentTarget)
-                            handleSelectEntity(entity);
-                        }}
-                      >
-                        <span className="min-w-0 flex-1 truncate">{title}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* 右侧：文档树 */}
-          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-            <span className="text-ink-2 text-[12px]">{isAddMode ? "添加位置" : "插入位置"}</span>
-            <div
-              ref={setTreeEl}
-              className="edge-fade-scroll scrollbar-inset min-h-0 flex-1 overflow-y-auto"
-            >
-              {!selectedEntityId ? (
-                <p className="text-tau-sm text-ink-3 py-10 text-center">先在左侧选择一个项目</p>
-              ) : treeLoading ? (
-                <Loading minHeight={0} />
-              ) : (
-                <div className="flex flex-col gap-px">
-                  {/* 根目录选项 */}
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    className={rowClass(selectedNodeId === null)}
-                    style={{ paddingLeft: 4 }}
-                    onClick={() => setSelectedNodeId(null)}
-                    onKeyDown={e => {
-                      if (e.key === "Enter" && e.target === e.currentTarget)
-                        setSelectedNodeId(null);
-                    }}
-                  >
-                    <span className="size-4 shrink-0" />
-                    <Folder
-                      className={cn(
-                        "size-[14px] shrink-0",
-                        selectedNodeId === null ? "text-ink-2" : "text-ink-3"
-                      )}
-                      strokeWidth={1.75}
-                    />
-                    <span className="min-w-0 flex-1 truncate">
-                      {isAddMode ? "添加到根目录" : "插入到根目录"}
-                    </span>
+        <DialogBody>
+          {/* 左右布局：左侧项目，右侧插入位置 */}
+          <div className="flex h-[400px] gap-3">
+            {/* 左侧：项目列表 */}
+            <div className="border-line-2 flex w-56 shrink-0 flex-col gap-1.5 border-r pr-3">
+              <span className="text-ink-2 text-[12px]">项目</span>
+              <div
+                ref={setEntityListEl}
+                className="edge-fade-scroll scrollbar-inset min-h-0 flex-1 overflow-y-auto"
+              >
+                {loading ? (
+                  <Loading minHeight={0} />
+                ) : entityList.length === 0 ? (
+                  <p className="text-tau-sm text-ink-3 py-10 text-center">暂无文档类型项目</p>
+                ) : (
+                  <div className="flex flex-col gap-px">
+                    {entityList.map(entity => {
+                      const title = entity.title || `#${entity.id}`;
+                      return (
+                        <div
+                          key={entity.id}
+                          role="button"
+                          tabIndex={0}
+                          title={title}
+                          className={cn(rowClass(selectedEntityId === entity.id), "pl-2")}
+                          onClick={() => handleSelectEntity(entity)}
+                          onKeyDown={e => {
+                            if (e.key === "Enter" && e.target === e.currentTarget)
+                              handleSelectEntity(entity);
+                          }}
+                        >
+                          <span className="min-w-0 flex-1 truncate">{title}</span>
+                        </div>
+                      );
+                    })}
                   </div>
-                  {/* 文档树节点 */}
-                  {treeNodes.map(node => (
-                    <TreeNodeItem
-                      key={node.id}
-                      node={node}
-                      selectedNodeId={selectedNodeId}
-                      onSelect={setSelectedNodeId}
-                    />
-                  ))}
-                </div>
-              )}
+                )}
+              </div>
+            </div>
+
+            {/* 右侧：文档树 */}
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <span className="text-ink-2 text-[12px]">{isAddMode ? "添加位置" : "插入位置"}</span>
+              <div
+                ref={setTreeEl}
+                className="edge-fade-scroll scrollbar-inset min-h-0 flex-1 overflow-y-auto"
+              >
+                {!selectedEntityId ? (
+                  <p className="text-tau-sm text-ink-3 py-10 text-center">先在左侧选择一个项目</p>
+                ) : treeLoading ? (
+                  <Loading minHeight={0} />
+                ) : (
+                  <div className="flex flex-col gap-px">
+                    {/* 根目录选项 */}
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      className={rowClass(selectedNodeId === null)}
+                      style={{ paddingLeft: 4 }}
+                      onClick={() => setSelectedNodeId(null)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter" && e.target === e.currentTarget)
+                          setSelectedNodeId(null);
+                      }}
+                    >
+                      <span className="size-4 shrink-0" />
+                      <Folder
+                        className={cn(
+                          "size-[14px] shrink-0",
+                          selectedNodeId === null ? "text-ink-2" : "text-ink-3"
+                        )}
+                        strokeWidth={1.75}
+                      />
+                      <span className="min-w-0 flex-1 truncate">
+                        {isAddMode ? "添加到根目录" : "插入到根目录"}
+                      </span>
+                    </div>
+                    {/* 文档树节点 */}
+                    {treeNodes.map(node => (
+                      <TreeNodeItem
+                        key={node.id}
+                        node={node}
+                        selectedNodeId={selectedNodeId}
+                        onSelect={setSelectedNodeId}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        </DialogBody>
       </Dialog>
     );
   }

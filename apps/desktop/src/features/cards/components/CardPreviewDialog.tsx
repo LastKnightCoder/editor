@@ -25,7 +25,7 @@ import type { ICard } from "@/types";
 import { cardCategoryName } from "@/constants/card";
 import { CardActionMenu } from "./CardActionMenu";
 import type { CardItemActions } from "../types";
-import { Dialog, IconButton, Button } from "@tau/ui";
+import { Dialog, DialogBody, IconButton, Button } from "@tau/ui";
 
 const SAVE_INTERVAL = 500;
 
@@ -158,6 +158,8 @@ export function CardPreviewDialog({
     if (editing) actions.onOpenDetail(editing);
   };
 
+  const loadFailed = Boolean(displayError && !card);
+
   return (
     <Dialog
       open={open && (Boolean(card && editing?.id === card.id) || Boolean(error))}
@@ -183,17 +185,20 @@ export function CardPreviewDialog({
       width={680}
     >
       {!card && displayError && (
-        <div className="text-ink-2 flex min-h-[240px] flex-col items-center justify-center gap-3">
-          <p role="alert" className="text-danger">
-            读取卡片失败：{displayError}
-          </p>
-          <Button onClick={onRetry}>重试</Button>
-        </div>
+        <DialogBody>
+          <div className="flex min-h-[240px] flex-col items-center justify-center gap-3">
+            <p role="alert" className="text-danger">
+              读取卡片失败：{displayError}
+            </p>
+            <Button onClick={onRetry}>重试</Button>
+          </div>
+        </DialogBody>
       )}
-      {editing && !(displayError && !card) && (
-        <div className="flex flex-col gap-3">
+      {/* 只有正文滚动：meta 行与标签栏放在 DialogBody 之外，钉在滚动区上下 */}
+      {editing && !loadFailed && (
+        <>
           {/* meta 与操作组同行：左 = 创建/修改/字数，右 = 进入详情 + More 菜单（与卡面 ⋯ 同源） */}
-          <div className="text-ink-3 flex items-center gap-3.5">
+          <div className="text-ink-3 flex shrink-0 items-center gap-3.5 px-6 pt-[8px]">
             <span className="min-w-0 flex-1 truncate">{meta}</span>
             <span className="flex items-center gap-0.5">
               <IconButton
@@ -226,44 +231,47 @@ export function CardPreviewDialog({
               />
             </span>
           </div>
-
-          <ErrorBoundary>
-            <ContentEditor
-              contentId={editing.contentId}
-              ref={editorRef}
-              key={editing.id}
-              initValue={initValue}
-              onInit={handleInit}
-              onLoadError={() => setReadyEditorId(editing.id)}
-              onChange={handleContentChange}
-              extensions={dynamicExtensions}
-              readonly={false}
-              source={{ sourceType: "card", sourceId: editing.id }}
-              className="min-h-[240px]"
-            />
-          </ErrorBoundary>
-          <AddTag
-            tags={editing.tags}
-            addTag={tag => {
-              if (editing.tags.includes(tag)) return;
-              setEditing(produce(editing, draft => void draft.tags.push(tag)));
-            }}
-            removeTag={tag =>
-              setEditing(
-                produce(editing, draft => void (draft.tags = draft.tags.filter(t => t !== tag)))
-              )
-            }
-            editTag={(oldTag, newTag) => {
-              if (!newTag || newTag === oldTag || editing.tags.includes(newTag)) return;
-              setEditing(
-                produce(
-                  editing,
-                  draft => void (draft.tags = draft.tags.map(t => (t === oldTag ? newTag : t)))
+          <DialogBody className="mb-0 pt-3">
+            <ErrorBoundary>
+              <ContentEditor
+                contentId={editing.contentId}
+                ref={editorRef}
+                key={editing.id}
+                initValue={initValue}
+                onInit={handleInit}
+                onLoadError={() => setReadyEditorId(editing.id)}
+                onChange={handleContentChange}
+                extensions={dynamicExtensions}
+                readonly={false}
+                source={{ sourceType: "card", sourceId: editing.id }}
+                className="min-h-[240px]"
+              />
+            </ErrorBoundary>
+          </DialogBody>
+          <div className="shrink-0 px-6 pb-[22px] pt-3">
+            <AddTag
+              tags={editing.tags}
+              addTag={tag => {
+                if (editing.tags.includes(tag)) return;
+                setEditing(produce(editing, draft => void draft.tags.push(tag)));
+              }}
+              removeTag={tag =>
+                setEditing(
+                  produce(editing, draft => void (draft.tags = draft.tags.filter(t => t !== tag)))
                 )
-              );
-            }}
-          />
-        </div>
+              }
+              editTag={(oldTag, newTag) => {
+                if (!newTag || newTag === oldTag || editing.tags.includes(newTag)) return;
+                setEditing(
+                  produce(
+                    editing,
+                    draft => void (draft.tags = draft.tags.map(t => (t === oldTag ? newTag : t)))
+                  )
+                );
+              }}
+            />
+          </div>
+        </>
       )}
     </Dialog>
   );

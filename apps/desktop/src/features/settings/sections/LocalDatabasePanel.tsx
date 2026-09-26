@@ -13,7 +13,16 @@ import { useQuery } from "@tanstack/react-query";
 import { Database, Info, Plus, Trash2 } from "lucide-react";
 import clsx from "clsx";
 import { produce } from "immer";
-import { Button, ConfirmDialog, Dialog, IconButton, Input, Select, toast } from "@tau/ui";
+import {
+  Button,
+  ConfirmDialog,
+  Dialog,
+  DialogBody,
+  IconButton,
+  Input,
+  Select,
+  toast,
+} from "@tau/ui";
 import useSettingStore from "@/stores/useSettingStore";
 import { closeDatabase, getDatabasePath, removeFile } from "@/commands";
 import { ROW_DIVIDER } from "../components/rowDivider";
@@ -154,24 +163,26 @@ export function LocalDatabasePanel() {
           </>
         }
       >
-        <div className="flex flex-col gap-1.5">
-          <label className="text-tau-sm text-ink-2" htmlFor="new-database-name">
-            数据库名称
-          </label>
-          <Input
-            id="new-database-name"
-            autoFocus
-            value={newName}
-            placeholder="例如：work-notes"
-            spellCheck={false}
-            aria-invalid={duplicate || undefined}
-            onChange={e => setNewName(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === "Enter") handleCreate();
-            }}
-          />
-          {duplicate && <div className="text-tau-meta text-danger">同名数据库已存在</div>}
-        </div>
+        <DialogBody>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-tau-sm text-ink-2" htmlFor="new-database-name">
+              数据库名称
+            </label>
+            <Input
+              id="new-database-name"
+              autoFocus
+              value={newName}
+              placeholder="例如：work-notes"
+              spellCheck={false}
+              aria-invalid={duplicate || undefined}
+              onChange={e => setNewName(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter") handleCreate();
+              }}
+            />
+            {duplicate && <div className="text-tau-meta text-danger">同名数据库已存在</div>}
+          </div>
+        </DialogBody>
       </Dialog>
 
       <ConfirmDialog

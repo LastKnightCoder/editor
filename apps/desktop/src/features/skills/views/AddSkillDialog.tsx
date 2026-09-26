@@ -15,7 +15,18 @@ import {
   TriangleAlert,
   Wand2,
 } from "lucide-react";
-import { Button, Checkbox, Dialog, Input, Segmented, Switch, Textarea, cn, toast } from "@tau/ui";
+import {
+  Button,
+  Checkbox,
+  Dialog,
+  DialogBody,
+  Input,
+  Segmented,
+  Switch,
+  Textarea,
+  cn,
+  toast,
+} from "@tau/ui";
 import { FadeScroll } from "@/components/FadeScroll";
 import { usePage } from "@/page/PageProvider";
 import useSkillStore from "@/stores/useSkillStore";
@@ -588,68 +599,70 @@ export function AddSkillDialog({
         </>
       }
     >
-      <Segmented
-        label="添加方式"
-        size="sm"
-        value={current}
-        onValueChange={(v: AddSkillTab) => onTabChange(v)}
-        className="mb-4"
-      >
-        <Segmented.Item value="new" label="新建" />
-        <Segmented.Item value="ai" label="用 AI 创建" />
-        <Segmented.Item value="import" label="导入" />
-        <Segmented.Item value="link" label="关联目录" />
-      </Segmented>
-      <FadeScroll className="-mr-1.5 h-[460px]">
-        {current === "new" && (
-          <NewPane
-            name={name}
-            setName={setName}
-            description={description}
-            setDescription={setDescription}
-            template={template}
-            setTemplate={setTemplate}
-            manual={manual}
-            setManual={setManual}
-          />
-        )}
-        {current === "ai" && (
-          <AiPane
-            prompt={prompt}
-            setPrompt={setPrompt}
-            draft={draft}
-            generating={generating}
-            onGenerate={generate}
-            onStop={() => {
-              controller?.abort();
-              setGenerating(false);
-            }}
-          />
-        )}
-        {current === "import" && (
-          <ImportPane
-            inspection={inspection}
-            loading={inspecting}
-            onInspect={source => void inspect(source)}
-            checked={checked}
-            setChecked={setChecked}
-          />
-        )}
-        {current === "link" && (
-          <LinkPane
-            links={links}
-            onChange={(path, enabled) =>
-              void saveLinks(links.map(l => (l.path === path ? { ...l, enabled } : l)))
-            }
-            onAddCustom={async () => {
-              const dir = await selectDirectoryWithDialog();
-              if (!dir) return;
-              if (links.some(l => l.path === dir)) return;
-              await saveLinks([...links, { path: dir, enabled: true }]);
-            }}
-          />
-        )}
-      </FadeScroll>
+      <DialogBody>
+        <Segmented
+          label="添加方式"
+          size="sm"
+          value={current}
+          onValueChange={(v: AddSkillTab) => onTabChange(v)}
+          className="mb-4"
+        >
+          <Segmented.Item value="new" label="新建" />
+          <Segmented.Item value="ai" label="用 AI 创建" />
+          <Segmented.Item value="import" label="导入" />
+          <Segmented.Item value="link" label="关联目录" />
+        </Segmented>
+        <FadeScroll className="-mr-1.5 h-[460px]">
+          {current === "new" && (
+            <NewPane
+              name={name}
+              setName={setName}
+              description={description}
+              setDescription={setDescription}
+              template={template}
+              setTemplate={setTemplate}
+              manual={manual}
+              setManual={setManual}
+            />
+          )}
+          {current === "ai" && (
+            <AiPane
+              prompt={prompt}
+              setPrompt={setPrompt}
+              draft={draft}
+              generating={generating}
+              onGenerate={generate}
+              onStop={() => {
+                controller?.abort();
+                setGenerating(false);
+              }}
+            />
+          )}
+          {current === "import" && (
+            <ImportPane
+              inspection={inspection}
+              loading={inspecting}
+              onInspect={source => void inspect(source)}
+              checked={checked}
+              setChecked={setChecked}
+            />
+          )}
+          {current === "link" && (
+            <LinkPane
+              links={links}
+              onChange={(path, enabled) =>
+                void saveLinks(links.map(l => (l.path === path ? { ...l, enabled } : l)))
+              }
+              onAddCustom={async () => {
+                const dir = await selectDirectoryWithDialog();
+                if (!dir) return;
+                if (links.some(l => l.path === dir)) return;
+                await saveLinks([...links, { path: dir, enabled: true }]);
+              }}
+            />
+          )}
+        </FadeScroll>
+      </DialogBody>
     </Dialog>
   );
 }
