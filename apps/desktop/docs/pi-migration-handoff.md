@@ -136,6 +136,21 @@ agent_settled 持久化整行覆盖数据库/actualChatRef，吞掉新消息；p
   （"already processing"）改为等该会话 agent_settled 事件后自动提交（15s 兜底），
   停止收尾期间的消息在 UI 显示后自动排队提交，不吞不丢。
 
+### 归约运行时下沉模块级（后台运行）
+
+用户指出：归约链绑在组件上，卸载（切页/关面板）即断——pi 会话在主进程继续跑，
+但事件没人消费落库，流式后半段丢；旧订阅残留在闭包里还构成泄漏与重挂载双写。
+**修正**：新增 `services/piChatRuntime`（模块级单例），把"事件 → 聊天行"整体下沉：
+
+- 每 conversationKey 一份常驻条目：**chat 容器（单一事实源，组件的 actualChatRef 直接
+  复用容器的 {current} 对象，新对话 id 0→N 时容器对象不变随 key 迁移）** + 常驻 reducer
+  - streaming 位（agent_start/agent_settled 事件驱动，subscribe 通知组件刷新 sendLoading）；
+- 写入链：produce(容器 current) → publish（store 更新驱动 UI 订阅链，withStreamingUpdateTime
+  拨时间戳）→ settled 时 persist（含标题生成，UI 副作用均 null 安全，卸载后调用无害）；
+- deps（publish/persist/UI 钩子）由挂载组件每次渲染刷新注册——必须是无组件生命周期的引用；
+- 组件退居 UI：卸载/切页后 runtime 继续归约落库（后台运行），重挂载拿回同一容器无缝接续；
+  stopStreaming 用 forceStopStreaming 立即清 streaming 位（即时反馈）+ 后台 abort 收尾。
+
 ## 五、后续里程碑
 
 - **M3 工具体系+设置页产品化**：ask_user、MCP 桥（现有主进程 mcp.ts→registerTool 包装，保 D-058 管理页）、
