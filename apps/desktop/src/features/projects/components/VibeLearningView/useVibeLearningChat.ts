@@ -1,12 +1,16 @@
 import { useEffect } from "react";
 import toolRegistry from "@/tools";
 import { createUnifiedVibeLearningTool } from "@/tools/vibeLearningSearchTool";
+import { createVibeLearningProductTools } from "./chat/productTools";
 
 /** 注册页面专属工具，返回工具作用域：交给本页对话的 ChatContainer toolScope，别的对话拿不到 */
 export const useVibeLearningChat = (projectId: number, mainDbName: string) => {
   const sourceId = `vibe-learning-${projectId}`;
   useEffect(() => {
-    const tools = [createUnifiedVibeLearningTool(projectId, mainDbName)];
+    const tools = [
+      createUnifiedVibeLearningTool(projectId, mainDbName),
+      ...createVibeLearningProductTools(projectId, mainDbName),
+    ];
     toolRegistry.registerScopedTools(sourceId, "学习项目资料", tools);
 
     return () => {

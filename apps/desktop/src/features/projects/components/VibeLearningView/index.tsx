@@ -219,6 +219,21 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
     }
   });
 
+  // 对话里的产物卡片请求打开：笔记不在列表里（刚建、列表还没刷新）先拉一次
+  const openRequest = useVLTaskStore(s =>
+    s.openRequest?.projectId === projectId ? s.openRequest : null
+  );
+  const handledOpenSeq = useRef(openRequest?.seq ?? 0);
+  useEffect(() => {
+    if (!openRequest || openRequest.seq === handledOpenSeq.current) return;
+    handledOpenSeq.current = openRequest.seq;
+    const { target } = openRequest;
+    if (target.kind === "task") openStage({ kind: "task", id: target.id });
+    else if (target.kind === "quiz") outputRef.current?.startQuiz(target.id);
+    else if (notes.some(n => n.id === target.id)) openStage({ kind: "note", id: target.id });
+    else void refreshNotes().then(() => openStage({ kind: "note", id: target.id }));
+  }, [openRequest, notes, openStage, refreshNotes]);
+
   const closeStage = useMemoizedFn(() => {
     setOpened(null);
     void refreshNotes();

@@ -39,6 +39,8 @@ export interface VLTaskInput {
   templateId?: string;
   /** 测验集名称 */
   quizName?: string;
+  /** 笔记类产物的标题（缺省用类型名；PPT / 报告落库时改用 HTML 里的标题） */
+  title?: string;
   podcast?: { name: string; speakers: PodcastSpeaker[]; durationMin: number; durationMax: number };
   /** AI 编辑的目标笔记 */
   note?: VLNote;
@@ -230,7 +232,10 @@ export async function startVLTask(
   } else {
     const meta = NOTE_KIND[input.kind];
     if (!meta) throw new Error(`不支持的生成类型：${input.kind}`);
-    title = input.kind === "podcast" ? input.podcast?.name.trim() || meta.title : meta.title;
+    title =
+      input.kind === "podcast"
+        ? input.podcast?.name.trim() || meta.title
+        : input.title?.trim() || meta.title;
     if (!reuse?.noteId) {
       const newContentId = await createContent(EMPTY_CONTENT, getContentLength(EMPTY_CONTENT));
       if (!newContentId) throw new Error("创建内容失败");

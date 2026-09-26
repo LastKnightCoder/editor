@@ -47,8 +47,14 @@ export interface VLTask {
   userPrompt?: string;
 }
 
+/** 请阅读区打开的产物（对话里的产物卡片发起，项目页订阅） */
+export type VLOpenTarget =
+  { kind: "note"; id: number } | { kind: "task"; id: string } | { kind: "quiz"; id: number };
+
 interface VLTaskState {
   tasks: Record<string, VLTask>;
+  openRequest: { projectId: number; target: VLOpenTarget; seq: number } | null;
+  requestOpen: (projectId: number, target: VLOpenTarget) => void;
   /** 每个项目的产物版本：任务落库后 +1，页面据此刷新列表 */
   productVersion: Record<number, number>;
   put: (task: VLTask) => void;
@@ -60,6 +66,9 @@ interface VLTaskState {
 export const useVLTaskStore = create<VLTaskState>(set => ({
   tasks: {},
   productVersion: {},
+  openRequest: null,
+  requestOpen: (projectId, target) =>
+    set(s => ({ openRequest: { projectId, target, seq: (s.openRequest?.seq ?? 0) + 1 } })),
   put: task => set(s => ({ tasks: { ...s.tasks, [task.id]: task } })),
   patch: (id, patch) =>
     set(s => {
