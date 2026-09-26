@@ -1,17 +1,21 @@
 /**
- * 卡片库主视图：工具栏（导入 / 新建右上角）→ 筛选行（分类 chips）→
- * 左侧分类标签树 + 主体三视图（卡片墙 / 图谱 / 表格）。
+ * 卡片库主视图 · 一整张纸（mockups/cards/plan-sheet.html 方案 B 定稿）：
+ * 纸顶工具栏（标题 / 当前标签 + 摘要 + 导入 / 新建）→ 分类分段 → 纸内三视图（卡片墙 / 图谱 / 表格）。
+ *
+ * 筛选：标签在侧栏「卡片库」入口的子项里（CardsNav 层级树，页面参数 id），页内不放标签树；
+ * 分类（4 个，常用且少）留在纸顶分段，按库记忆。两者叠加，三视图同一套筛选——
+ * 卡片墙只列命中、图谱高亮命中其余淡出、表格经 CardDatabaseView 外部查询收窄。
  *
  * 视图分工：卡片墙 = 等高网格 + 时间分组 + 行级虚拟滚动（本域实现）；
  * 图谱 = 既有 LinkGraph 复用；表格 = 既有 CardDatabaseView（Database 组件）复用。
- * 视图切换在标题栏面包屑（「卡片库 / [卡片墙 ▾]」，usePageBreadcrumb 注入），
- * 筛选行只留内容筛选；本页只做分类与标签筛选，不设页内搜索——语义检索由全局命令面板（Ctrl+K）承担。
+ * 视图切换在标题栏面包屑（「卡片库 / [卡片墙 ▾]」，usePageBreadcrumb 注入）。
+ * 不设页内搜索——卡片没有标题，语义检索由全局命令面板（Ctrl+K）承担。
  */
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { usePage, usePageBreadcrumb } from "@/page/PageProvider";
-import { Download, Layers, PanelLeft, Plus } from "lucide-react";
+import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
+import { Import, Layers, Plus, X } from "lucide-react";
 import type { Descendant } from "slate";
 import "../cards.css";
 import { ECardCategory, type ICard } from "@/types";
@@ -27,9 +31,8 @@ import { getScopedCard, openCardInNewWindow } from "@/commands/card";
 import { readTextFile, selectFile } from "@/commands";
 import { downloadMarkdown, getContentLength, getMarkdown, importFromMarkdown } from "@/utils";
 import { getEditorText } from "@/utils/editor";
-import { Button, ConfirmDialog, IconButton, Loading, toast, cn } from "@tau/ui";
+import { Button, ConfirmDialog, Loading, Segmented, toast } from "@tau/ui";
 import {
-  buildTagTree,
   cardDetailKey,
   filterCards,
   sortCards,
@@ -38,7 +41,6 @@ import {
   useCardsMutations,
 } from "../queries";
 import { CardWallList } from "../components/CardWallList";
-import { CardTreePanel } from "../components/CardTreePanel";
 import { CardPreviewDialog } from "../components/CardPreviewDialog";
 import { CardViewSwitcher } from "../components/CardViewSwitcher";
 import { CreateCardDialog } from "../components/CreateCardDialog";
@@ -61,6 +63,8 @@ const CATEGORY_ORDER: ("all" | ECardCategory)[] = [
 
 export function CardsView() {
   const { navigator } = usePage();
+  const params = usePageParams<{ id?: string }>();
+  const tag = params.id ?? "";
   const feed = useCardsFeed();
   const mutations = useCardsMutations();
   const queryClient = useQueryClient();
@@ -70,14 +74,15 @@ export function CardsView() {
     state => state.byDatabase[databaseName] ?? DEFAULT_CARDS_PREFERENCES
   );
   const updatePreferences = useCardsPreferencesStore(state => state.update);
-  const { view, category, tag, treeCollapsed } = preferences;
+  const { view, category } = preferences;
   const filter = useMemo<CardFilter>(() => ({ category, tag }), [category, tag]);
   const setView = useCallback(
     (next: CardsViewMode) => updatePreferences(databaseName, { view: next }),
     [updatePreferences, databaseName]
   );
-  const setFilter = (update: (current: CardFilter) => CardFilter) =>
-    updatePreferences(databaseName, update(filter));
+  const setCategory = (next: CardFilter["category"]) =>
+    updatePreferences(databaseName, { category: next });
+  const clearTag = () => navigator.push("cards", { id: "" });
   const resetScrollKey = JSON.stringify([category, tag]);
   const [previewCardId, setPreviewCardId] = useState<number | null>(null);
   const openPreview = useCallback((card: ICard) => setPreviewCardId(card.id), []);
@@ -91,8 +96,6 @@ export function CardsView() {
   /** 数据库视图删除确认桥：其 onDeleteCard 约定 Promise resolve 即删行、reject 即取消 */
   const deleteBridge = useRef<{ resolve(): void; reject(error: Error): void } | null>(null);
 
-  /* 标签树只派生一次（左树） */
-  const tagTree = useMemo(() => buildTagTree(feed.cards), [feed.cards]);
   /* sorted = 排序全集（图谱全集 / 表格 allCards），filtered = 分类 / 标签过滤结果 */
   const sorted = useMemo(() => sortCards(feed.cards), [feed.cards]);
   const filtered = useMemo(() => filterCards(feed.cards, filter), [feed.cards, filter]);
@@ -102,10 +105,16 @@ export function CardsView() {
     for (const card of feed.cards) counts.set(card.category, (counts.get(card.category) ?? 0) + 1);
     return counts;
   }, [feed.cards]);
+  const filtering = category !== "all" || Boolean(tag);
+  /* 摘要跟随筛选：筛选中读命中集，否则读全集 */
+  const summaryCards = filtering ? filtered : feed.cards;
   const totalWords = useMemo(
-    () => feed.cards.reduce((sum, card) => sum + card.count, 0),
-    [feed.cards]
+    () => summaryCards.reduce((sum, card) => sum + card.count, 0),
+    [summaryCards]
   );
+  /* 新建 / 导入的默认分类：跟随当前分类筛选（三视图同一套筛选，表格也不例外） */
+  const defaultCategory =
+    category === "all" ? ECardCategory.Temporary : (category as ECardCategory);
   /* 弹窗基准卡 = 单卡全量按需拉取（列表缓存只有预览块，弹窗可编辑需全文） */
   const previewCardQuery = useCardDetail(previewCardId);
   const previewCard = previewCardId == null ? null : (previewCardQuery.data ?? null);
@@ -191,10 +200,7 @@ export function CardsView() {
           content,
           tags: [],
           links: [],
-          category:
-            view === "database" || filter.category === "all"
-              ? ECardCategory.Temporary
-              : (filter.category as ECardCategory),
+          category: defaultCategory,
           count: getContentLength(content),
           isTop: false,
         });
@@ -204,23 +210,6 @@ export function CardsView() {
       toast.error("导入失败");
     }
   };
-
-  /* 标签树面板：wall / graph 共用。收起 = 外层容器宽度过渡归零裁剪面板，
-     内层面板恒定 236px 宽避免收起过程中内容重排；容器 gap 不参与过渡（20px 跳变不可感知） */
-  const treePanel = (
-    <div
-      className={cn(
-        "ease-tau-out min-h-0 flex-none overflow-hidden transition-[width] duration-200",
-        treeCollapsed ? "w-0" : "w-[236px]"
-      )}
-    >
-      <CardTreePanel
-        tree={tagTree}
-        tag={filter.tag}
-        onSelectTag={tag => setFilter(prev => ({ ...prev, tag: prev.tag === tag ? "" : tag }))}
-      />
-    </div>
-  );
 
   if (feed.loading) return <Loading />;
   if (feed.error)
@@ -235,72 +224,85 @@ export function CardsView() {
     card ? getEditorText(card.content, 20) || `卡片 #${card.id}` : "";
 
   return (
-    <div className="mx-auto flex h-full min-w-0 max-w-[1760px] flex-col px-4 pb-4">
-      {/* 工具栏：标题与读数 + 导入 / 新建（右上角） */}
-      <div className="flex h-[44px] flex-none items-center gap-3.5">
-        <h1 className="text-[19px] font-semibold tracking-[-0.01em]">卡片库</h1>
-        <span className="text-ink-2 text-[12px] tabular-nums">
-          共 <b className="text-ink-1 font-semibold">{feed.cards.length}</b> 张 ·{" "}
-          <b className="text-ink-1 font-semibold">{totalWords.toLocaleString("zh-CN")}</b> 字
-        </span>
-        <span className="flex-1" />
-        <IconButton title="导入 Markdown" onClick={() => void handleImport()}>
-          <Download className="size-[15px]" strokeWidth={1.75} />
-        </IconButton>
-        <Button variant="primary" size="sm" icon={Plus} onClick={() => setCreating(true)}>
-          新建卡片
-        </Button>
-      </div>
-
-      {/* 卡片墙与图谱的筛选行；数据库使用内置筛选。 */}
-      {view !== "database" && (
-        <div className="flex h-[36px] flex-none items-center gap-1.5 pb-1.5">
-          <IconButton
-            title={treeCollapsed ? "展开标签树" : "收起标签树"}
-            onClick={() => updatePreferences(databaseName, { treeCollapsed: !treeCollapsed })}
+    <div className="mx-auto flex h-full min-h-0 w-full min-w-0 max-w-[1760px] flex-col px-4 pb-4 pt-1">
+      {/* 一整张纸：工具栏与分类分段固定在纸顶，视图在纸内滚动 */}
+      <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
+        {/* 工具栏：标题 / 当前标签 + 摘要 + 导入 / 新建 */}
+        <div className="mb-2 mt-5 flex h-10 flex-none items-center gap-3 px-8">
+          <h1 className="text-tau-title-lg shrink-0 whitespace-nowrap font-semibold tracking-[-0.01em]">
+            卡片库
+          </h1>
+          {tag && (
+            <button
+              type="button"
+              title="清除标签筛选"
+              onClick={clearTag}
+              className="bg-selected text-accent-text inline-flex h-6 max-w-[200px] shrink-0 items-center gap-1 rounded-full pl-2.5 pr-1.5 text-[12px] font-medium"
+            >
+              <span className="truncate">{tag}</span>
+              <X className="size-3 shrink-0" strokeWidth={2} />
+            </button>
+          )}
+          <span className="text-tau-meta text-ink-2 w-0 flex-1 truncate whitespace-nowrap tabular-nums">
+            {filtering ? "找到" : "共"}{" "}
+            <b className="text-ink-1 font-semibold">{summaryCards.length}</b> 张 · 累计{" "}
+            <b className="text-ink-1 font-semibold">{totalWords.toLocaleString("zh-CN")}</b> 字
+          </span>
+          {/* 导入：带文字的次要按钮（同文章页），不用「下载」语义的裸图标 */}
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={Import}
+            title="从本地 Markdown 文件导入"
+            className="shrink-0 whitespace-nowrap"
+            onClick={() => void handleImport()}
           >
-            <PanelLeft className="size-[15px]" strokeWidth={1.75} />
-          </IconButton>
-          {CATEGORY_ORDER.map(key => {
-            const active = filter.category === key;
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setFilter(prev => ({ ...prev, category: key }))}
-                className={cn(
-                  "shadow-card ease-tau-out flex h-7 items-center gap-1.5 rounded-full px-3 text-[12.5px] transition-[background,color] duration-150",
-                  active
-                    ? "bg-selected text-ink-1 font-semibold"
-                    : "bg-surface text-ink-2 hover:text-ink-1"
-                )}
-              >
-                {key !== "all" && (
-                  <span
-                    className="size-2 shrink-0 rounded-full"
-                    style={{ background: CATEGORY_COLORS[key].text }}
-                  />
-                )}
-                {key === "all" ? "全部" : cardCategoryName[key].slice(0, 2)}
-                <span
-                  className={cn(
-                    "text-[11px] tabular-nums",
-                    active ? "text-accent-text" : "text-ink-3"
-                  )}
-                >
-                  {key === "all" ? feed.cards.length : (categoryCount.get(key) ?? 0)}
-                </span>
-              </button>
-            );
-          })}
+            导入
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            icon={Plus}
+            className="shrink-0 whitespace-nowrap"
+            onClick={() => setCreating(true)}
+          >
+            新建卡片
+          </Button>
         </div>
-      )}
 
-      {/* 主体三视图 */}
-      {view === "wall" && (
-        <div className={cn("flex min-h-0 flex-1", !treeCollapsed && "gap-5")}>
-          {treePanel}
-          <div className="flex min-w-0 flex-1 flex-col">
+        {/* 分类分段：三视图共用（表格也跟随） */}
+        <div className="mb-3 flex flex-none items-center px-8">
+          <Segmented
+            label="卡片分类"
+            value={category}
+            onValueChange={value => setCategory(value as CardFilter["category"])}
+          >
+            {CATEGORY_ORDER.map(key => (
+              <Segmented.Item
+                key={key}
+                value={key}
+                label={
+                  <span className="flex items-center gap-1.5">
+                    {key !== "all" && (
+                      <span
+                        className="size-[7px] shrink-0 rounded-full"
+                        style={{ background: CATEGORY_COLORS[key].text }}
+                      />
+                    )}
+                    {key === "all" ? "全部" : cardCategoryName[key].slice(0, 2)}
+                    <span className="text-ink-3 text-[11px] font-normal tabular-nums">
+                      {key === "all" ? feed.cards.length : (categoryCount.get(key) ?? 0)}
+                    </span>
+                  </span>
+                }
+              />
+            ))}
+          </Segmented>
+        </div>
+
+        {/* 主体三视图 */}
+        {view === "wall" && (
+          <div className="flex min-h-0 flex-1 flex-col pb-4 pl-8 pr-8">
             {filtered.length === 0 ? (
               <div className="flex flex-col items-center gap-2 px-0 py-20 text-center">
                 <Layers className="text-ink-3 size-6" strokeWidth={1.75} />
@@ -313,11 +315,8 @@ export function CardsView() {
               <CardWallList cards={filtered} actions={actions} resetScrollKey={resetScrollKey} />
             )}
           </div>
-        </div>
-      )}
-      {view === "graph" && (
-        <div className={cn("flex min-h-0 flex-1", !treeCollapsed && "gap-5")}>
-          {treePanel}
+        )}
+        {view === "graph" && (
           <CardGraphSection
             cards={sorted}
             highlightIds={highlightIds}
@@ -332,23 +331,24 @@ export function CardsView() {
               !exportingPdf
             }
           />
-        </div>
-      )}
-      {view === "database" && (
-        <div className="flex min-h-0 flex-1 flex-col">
-          <CardDatabaseView
-            cards={sorted}
-            selectCategory="all"
-            onCardClick={card => setPreviewCardId(card.id)}
-            onOpenCreateCard={defaultCategory => {
-              setCreateDefaultCategory(defaultCategory);
-              setCreating(true);
-            }}
-            onDeleteCard={handleDatabaseDelete}
-            onUpdateCard={(id, patch) => mutations.patch.mutateAsync({ id, patch })}
-          />
-        </div>
-      )}
+        )}
+        {view === "database" && (
+          <div className="flex min-h-0 flex-1 flex-col px-8 pb-4">
+            <CardDatabaseView
+              cards={sorted}
+              selectCategory={category}
+              tag={tag}
+              onCardClick={card => setPreviewCardId(card.id)}
+              onOpenCreateCard={defaultCategory => {
+                setCreateDefaultCategory(defaultCategory);
+                setCreating(true);
+              }}
+              onDeleteCard={handleDatabaseDelete}
+              onUpdateCard={(id, patch) => mutations.patch.mutateAsync({ id, patch })}
+            />
+          </div>
+        )}
+      </div>
 
       {/* 浮层：预览（编辑） / 新建 / 删除确认 / 演示 / 导出×3 */}
       <CardPreviewDialog
@@ -363,12 +363,7 @@ export function CardsView() {
       />
       <CreateCardDialog
         open={creating}
-        defaultCategory={
-          createDefaultCategory ??
-          (view === "database" || filter.category === "all"
-            ? ECardCategory.Temporary
-            : (filter.category as ECardCategory))
-        }
+        defaultCategory={createDefaultCategory ?? defaultCategory}
         onClose={() => {
           setCreating(false);
           setCreateDefaultCategory(null);

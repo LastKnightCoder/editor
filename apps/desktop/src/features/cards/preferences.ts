@@ -4,17 +4,14 @@ import type { CardFilter } from "./types";
 
 export type CardsViewMode = "wall" | "graph" | "database";
 
-interface CardsPreferences extends CardFilter {
+/** 按库记忆视图与分类；标签筛选走页面参数（侧栏「卡片库」子项），不在此持久化 */
+interface CardsPreferences extends Pick<CardFilter, "category"> {
   view: CardsViewMode;
-  /** 标签树面板收起（wall / graph 视图共用，跨会话记忆） */
-  treeCollapsed: boolean;
 }
 
 export const DEFAULT_CARDS_PREFERENCES: CardsPreferences = {
   view: "wall",
   category: "all",
-  tag: "",
-  treeCollapsed: false,
 };
 
 interface CardsPreferencesState {
@@ -39,7 +36,21 @@ export const useCardsPreferencesStore = create<CardsPreferencesState>()(
     }),
     {
       name: "tau-cards-preferences",
+      version: 1,
       partialize: state => ({ byDatabase: state.byDatabase }),
+      /* v0 → v1：标签筛选移到页面参数、页内标签树删除，丢弃 tag / treeCollapsed */
+      migrate: persisted => {
+        const byDatabase = (persisted as { byDatabase?: Record<string, CardsPreferences> })
+          ?.byDatabase;
+        return {
+          byDatabase: Object.fromEntries(
+            Object.entries(byDatabase ?? {}).map(([name, { view, category }]) => [
+              name,
+              { view, category },
+            ])
+          ),
+        };
+      },
     }
   )
 );
