@@ -122,4 +122,40 @@ describe("pi-session-host-core", () => {
       rmSync(workDir, { recursive: true, force: true });
     }
   });
+
+  it("全部 AgentSessionEvent 可通过 IPC 结构化克隆（pi-session-event 通道契约）", async () => {
+    const workDir = mkdtempSync(join(tmpdir(), "pi-host-clone-"));
+    const agentDir = join(workDir, ".pi-agent");
+    try {
+      const faux = fauxProvider({});
+      faux.setResponses([
+        fauxAssistantMessage([fauxToolCall("bash", { command: "echo 克隆验证" })], {
+          stopReason: "toolUse",
+        }),
+        fauxAssistantMessage([fauxText("克隆完成。")]),
+      ]);
+      const modelRuntime = await createFauxModelRuntime(join(agentDir, "auth.json"), faux);
+      const session = await assembleHostSession({
+        cwd: workDir,
+        agentDir,
+        modelRuntime,
+        modelRef: { providerId: faux.provider.id, modelId: faux.getModel().id },
+        shellPath: detectBashShellPath(),
+      });
+      const events: AgentSessionEvent[] = [];
+      const unsubscribe = session.subscribe(event => events.push(event));
+      try {
+        await session.prompt("克隆验证");
+      } finally {
+        unsubscribe();
+        session.dispose();
+      }
+      expect(events.length).toBeGreaterThan(0);
+      for (const event of events) {
+        expect(() => structuredClone(event), `事件不可克隆：${event.type}`).not.toThrow();
+      }
+    } finally {
+      rmSync(workDir, { recursive: true, force: true });
+    }
+  });
 });
