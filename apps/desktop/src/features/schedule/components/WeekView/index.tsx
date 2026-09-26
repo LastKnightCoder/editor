@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
-import { cn, toast, useEdgeFade } from "@tau/ui";
+import { cn, toast } from "@tau/ui";
+import { FadeScroll } from "@/components/FadeScroll";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { useTimeSlotDrag } from "@/hooks/useTimeSlotDrag";
@@ -46,8 +47,6 @@ const WeekView = () => {
   const [pendingEvent, setPendingEvent] = useState<PendingWeekEvent | null>(null);
   const nowMinutes = useNowMinutes();
   const scrollRef = useScrollToNow(currentDate);
-  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
-  useEdgeFade(scrollEl);
   const decorOf = useEventDecor(events);
 
   // 当编辑对话框关闭时，清除待创建事件高亮
@@ -189,15 +188,9 @@ const WeekView = () => {
         </div>
       </div>
 
-      {/* 时间网格：滚动容器上右下留隙，滚动条不贴卡片边缘与圆角；
-          右侧 mr-1.5 + pr-1.5 合计仍为 12px，与日期头 / 全天车道的 pr-3 对齐 */}
-      <div
-        ref={el => {
-          scrollRef.current = el;
-          setScrollEl(el);
-        }}
-        className="edge-fade-scroll mb-2.5 mr-1.5 mt-2 min-h-0 flex-1 overflow-y-auto pr-1.5"
-      >
+      {/* 时间网格：离纸底留 16px，滚动条不贴纸缘；
+          FadeScroll 右侧 6px 透明边 + pr-1.5 合计 12px，与日期头 / 全天车道的 pr-3 对齐 */}
+      <FadeScroll scrollRef={scrollRef} className="mb-4 mt-2 min-h-0 flex-1 pr-1.5">
         <div className="flex" style={{ height: GRID_HEIGHT }}>
           <HourGutter />
           {weekDays.map((day, dayIndex) => (
@@ -215,7 +208,7 @@ const WeekView = () => {
             />
           ))}
         </div>
-      </div>
+      </FadeScroll>
     </div>
   );
 };

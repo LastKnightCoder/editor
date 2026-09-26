@@ -7,7 +7,8 @@
 
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, CornerDownLeft, Plus } from "lucide-react";
-import { IconButton, cn, toast, useEdgeFade } from "@tau/ui";
+import { IconButton, cn, toast } from "@tau/ui";
+import { FadeScroll } from "@/components/FadeScroll";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { formatTime, getDateStart } from "@/utils/calendar";
@@ -38,8 +39,6 @@ export function DayColumn() {
   const peek = usePeekStore(s => s.peek);
   const { events } = useCalendarEvents();
   const nowMinutes = useNowMinutes();
-  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
-  useEdgeFade(scrollEl);
 
   const day = getDateStart(currentDate);
   const date = new Date(day);
@@ -119,8 +118,10 @@ export function DayColumn() {
   };
 
   return (
-    <div className="bg-surface shadow-card rounded-tau-lg flex w-[340px] flex-none flex-col overflow-hidden">
-      <div className="flex items-end gap-3 px-5 pb-2 pt-[18px]">
+    // 对开右栏：全高贴纸右缘，与左栏同一纸色，只靠一条通顶到底的细线分开（Notion Calendar / Google 口径）
+    <div className="border-line-1 flex h-full w-[360px] flex-none flex-col border-l">
+      {/* pt-5 与左栏页头同一上沿 */}
+      <div className="flex items-end gap-3 px-6 pb-2 pt-5">
         <span
           className={cn(
             "font-tau-mono text-[44px] font-medium tabular-nums leading-[0.95] tracking-[-0.02em]",
@@ -156,14 +157,12 @@ export function DayColumn() {
           <ChevronRight className="size-4" strokeWidth={1.75} />
         </IconButton>
       </div>
-      <p className="text-ink-3 text-tau-sm px-5 pb-2.5">
+      <p className="text-ink-3 text-tau-sm px-6 pb-2.5">
         {total === 0 ? "这一天还没有安排" : `${total} 项${busy ? ` · 已排 ${hours(busy)}` : ""}`}
       </p>
 
-      <div
-        ref={setScrollEl}
-        className="edge-fade-scroll min-h-0 flex-1 overflow-y-auto pb-3 pl-5 pr-4"
-      >
+      {/* FadeScroll 右侧 6px 透明边 + pr-[18px] = 24px，与标题行的 px-6 对齐 */}
+      <FadeScroll className="min-h-0 flex-1 pb-3 pl-6 pr-[18px]">
         {allDay.length > 0 && (
           <div className="flex flex-col gap-1 pb-2.5 pl-[70px]">
             {allDay.map(event => (
@@ -194,7 +193,7 @@ export function DayColumn() {
             decorOf={decorOf}
           />
         ))}
-      </div>
+      </FadeScroll>
 
       <QuickAdd day={day} />
     </div>
@@ -275,8 +274,8 @@ function TimelineRow({
         <div
           onClick={e => onPeek(item.event, e.currentTarget)}
           className={cn(
-            "my-[3px] cursor-pointer rounded-[10px] px-2.5 py-1.5 transition-[filter] hover:brightness-[0.97]",
-            TONE_SOFT_BG,
+            // 白底细描边落在淡暖底上（不再色块叠色块）；日历色由时间线圆点承担
+            "bg-surface border-line-1 ease-tau-out hover:shadow-lift my-[3px] cursor-pointer rounded-[10px] border px-2.5 py-1.5 transition-[box-shadow,border-color] duration-200 hover:border-transparent",
             past && "opacity-55"
           )}
         >
@@ -375,10 +374,10 @@ function QuickAdd({ day }: { day: number }) {
     : "";
 
   return (
-    <div className="flex-none px-3.5 pb-3.5">
+    <div className="flex-none px-6 pb-5">
       <div
         className={cn(
-          "border-line-1 flex min-h-[38px] items-center gap-2 rounded-[10px] border pl-3 pr-2 transition-shadow",
+          "border-line-1 bg-surface flex min-h-[38px] items-center gap-2 rounded-[10px] border pl-3 pr-2 transition-shadow",
           focused && "border-accent shadow-[var(--tau-focus-ring)]"
         )}
       >

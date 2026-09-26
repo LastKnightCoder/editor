@@ -1,6 +1,13 @@
 import { useState } from "react";
 import dayjs from "dayjs";
-import { ChevronDown, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  PanelRightClose,
+  PanelRightOpen,
+  Plus,
+} from "lucide-react";
 import { Button, DatePickerPanel, IconButton, Popover, Segmented, cn, toast } from "@tau/ui";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { getDateStart, getWeekStart } from "@/utils/calendar";
@@ -81,8 +88,16 @@ const CalendarHeader = () => {
   const currentView = useCalendarStore(s => s.currentView);
   const currentDate = useCalendarStore(s => s.currentDate);
   const calendars = useCalendarStore(s => s.calendars);
-  const { setCurrentView, setCurrentDate, goToToday, goToPrevious, goToNext, setEditingEvent } =
-    useCalendarStore.getState();
+  const showDayPanel = useCalendarStore(s => s.showDayPanel);
+  const {
+    setCurrentView,
+    setCurrentDate,
+    goToToday,
+    goToPrevious,
+    goToNext,
+    setEditingEvent,
+    setShowDayPanel,
+  } = useCalendarStore.getState();
   const [jumpOpen, setJumpOpen] = useState(false);
 
   const title = formatTitle(currentView, currentDate);
@@ -112,7 +127,7 @@ const CalendarHeader = () => {
   };
 
   return (
-    <div className="flex h-[44px] flex-none items-center gap-2">
+    <div className="mb-2 flex h-10 flex-none items-center gap-2">
       {/* 标题即跳转入口：点开小日历选任意一天，主视图翻到对应月 / 周，右栏跟随这一天 */}
       <Popover
         open={jumpOpen}
@@ -126,7 +141,7 @@ const CalendarHeader = () => {
             title="跳转到日期"
             className={cn(
               "hover:bg-hover -ml-2 flex shrink-0 items-baseline gap-2 whitespace-nowrap rounded-[10px] px-2 py-0.5",
-              "text-[19px] font-semibold tracking-[-0.01em] transition-colors",
+              "text-tau-title-lg font-semibold tracking-[-0.01em] transition-colors",
               jumpOpen && "bg-hover"
             )}
           >
@@ -179,6 +194,19 @@ const CalendarHeader = () => {
       <Button variant="primary" size="sm" icon={Plus} onClick={handleCreate}>
         新建日程
       </Button>
+      {/* 当日面板开关：左栏工具条末尾、紧挨右栏（Notion Calendar 口径），收起后入口仍在原处 */}
+      <IconButton
+        title={showDayPanel ? "收起当日面板" : "展开当日面板"}
+        aria-label={showDayPanel ? "收起当日面板" : "展开当日面板"}
+        aria-pressed={showDayPanel}
+        onClick={() => setShowDayPanel(!showDayPanel)}
+      >
+        {showDayPanel ? (
+          <PanelRightClose className="size-4" strokeWidth={1.75} />
+        ) : (
+          <PanelRightOpen className="size-4" strokeWidth={1.75} />
+        )}
+      </IconButton>
     </div>
   );
 };
