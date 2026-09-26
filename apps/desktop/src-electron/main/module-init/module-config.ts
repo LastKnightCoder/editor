@@ -11,6 +11,7 @@ import databaseModule from "../modules/database";
 import collaborationModule from "../modules/collaboration";
 import llmModule from "../modules/llm";
 import streamFetchModule from "../modules/stream-fetch";
+import piAiRuntimeModule from "../modules/pi-ai-runtime";
 import mcpModule from "../modules/mcp";
 import aliOssModule from "../modules/ali-oss";
 import s3Module from "../modules/s3";
@@ -233,6 +234,15 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "setting"],
     init: () => llmModule.init(),
+  },
+  {
+    name: "pi-ai",
+    group: ModuleGroup.AI,
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["logger"],
+    init: async () => {
+      piAiRuntimeModule.init();
+    },
   },
   {
     name: "mcp",
