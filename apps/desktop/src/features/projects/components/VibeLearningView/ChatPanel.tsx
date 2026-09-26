@@ -27,7 +27,7 @@ import type { VLResource } from "@/types/vibe-learning";
 
 import useVLChatStore, { EVLChatStatus } from "@/stores/useVLChatStore";
 import { useVibeLearningChat } from "./useVibeLearningChat";
-import { Loading, toast } from "@tau/ui";
+import { Loading, cn, toast } from "@tau/ui";
 
 const ChatContainer = lazy(
   () => import("@/layouts/ContentLayout/components/ChatSidebar/ChatContainer")
@@ -142,9 +142,11 @@ interface ChatPanelProps {
   projectId: number;
   mainDbName: string;
   resources: VLResource[];
+  /** 停靠在阅读区右侧（窄栏）；否则占满纸面中间 */
+  docked?: boolean;
 }
 
-const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources }) => {
+const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources, docked }) => {
   const { isDark } = useTheme();
   const editTitleRef = useRef<EditTextHandle>(null);
   const chatContainerRef = useRef<ChatContainerHandle>(null);
@@ -152,8 +154,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources 
   const database = useSettingStore(state => state.setting.database.active);
   const isConnected = useDatabaseConnected();
 
-  // 注册项目专属搜索工具
-  useVibeLearningChat(projectId, mainDbName);
+  // 注册项目专属搜索工具（只给本页对话）
+  const toolScope = useVibeLearningChat(projectId, mainDbName);
 
   // 根据资源列表动态构建系统提示词
   const systemPrompt = useMemo(() => buildVLSystemPrompt(resources), [resources]);
@@ -369,9 +371,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources 
 
   return (
     <MarkdownProvider isDark={isDark} isVisible={true}>
-      <div className="box-border h-full">
-        <div className="box-border flex h-full flex-col p-4">
-          <div className="mb-2 flex items-center justify-between">
+      <div className="box-border h-full min-h-0">
+        <div className={cn("box-border flex h-full flex-col pb-3", docked ? "px-3" : "px-5")}>
+          <div className="flex h-[52px] shrink-0 items-center justify-between">
             <ChatDropdownSelector
               chatSource="vibe-learning-chat"
               chats={chatsAsMessages}
@@ -393,6 +395,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources 
                 markdownComponents={markdownComponents}
                 isVisible={true}
                 chatScope={`vibe-learning-chat:${projectId}`}
+                toolScope={toolScope}
                 updateChatMessage={handleUpdateChatMessage}
                 updateCurrentChat={handleUpdateCurrentChat}
                 sendLoading={sendLoading}

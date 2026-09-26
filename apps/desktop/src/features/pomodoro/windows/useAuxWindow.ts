@@ -4,9 +4,8 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { THEME_STORAGE_KEY } from "@tau/ui/theme";
-import { initThemeRuntime, useThemeStore } from "@tau/ui/theme/runtime";
 import { ensureDatabaseReady } from "@/app/databaseReady";
+import { useThemeRuntime } from "@/app/useThemeRuntime";
 import useSettingStore from "@/stores/useSettingStore";
 import { syncPomodoroTimer, usePomodoroTimer, type PomodoroEndResult } from "../timerStore";
 
@@ -28,35 +27,21 @@ export function useAuxWindowBoot({ forceTheme }: { forceTheme?: "cocoa" } = {}):
     };
   }, [settingInited, database]);
 
+  // 窗口常驻隐藏复用：主题跟随其它窗口的切换（沉浸窗固定深色除外）
+  useThemeRuntime({ enabled: !forceTheme });
+
   useEffect(() => {
-    let stopTheme: (() => void) | null = null;
     if (forceTheme) {
       const root = document.documentElement;
       root.dataset.theme = forceTheme;
       root.style.colorScheme = "dark";
       root.classList.add("dark");
-    } else {
-      stopTheme = initThemeRuntime();
     }
-    // 窗口常驻隐藏复用，主题只在启动时读过一次：主窗口改主题（写 localStorage）时经 storage 事件跟上
-    const onStorage = (e: StorageEvent) => {
-      if (forceTheme || e.key !== THEME_STORAGE_KEY || !e.newValue) return;
-      try {
-        useThemeStore.getState().setMode(e.newValue);
-      } catch {
-        /* 未注册的主题：保持当前 */
-      }
-    };
     const onVisible = () => {
       if (document.visibilityState === "visible") void syncPomodoroTimer().catch(() => undefined);
     };
-    window.addEventListener("storage", onStorage);
     document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      stopTheme?.();
-      window.removeEventListener("storage", onStorage);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, [forceTheme]);
   return { dbReady };
 }

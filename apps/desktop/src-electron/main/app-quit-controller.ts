@@ -1,6 +1,5 @@
 import { app, BrowserWindow, globalShortcut, ipcMain } from "electron";
 import log from "electron-log";
-import type { WindowManager } from "./modules/window-manager";
 import collaborationModule from "./modules/collaboration";
 import mcpModule from "./modules/mcp";
 
@@ -20,7 +19,6 @@ export function isAppQuitting(): boolean {
 }
 
 interface QuitControllerDeps {
-  getWindowManager: () => WindowManager | undefined;
   getTrayManager: () => { destroyTray: () => void } | undefined;
 }
 
@@ -58,7 +56,6 @@ async function runControlledQuit(deps: QuitControllerDeps): Promise<void> {
     await collaborationModule.prepareQuit();
 
     globalShortcut.unregisterAll();
-    deps.getWindowManager()?.destroySingletonWindows();
     deps.getTrayManager()?.destroyTray();
 
     // destroy 绕过 beforeunload 与窗口 close 拦截器，退出流程不会被再次中止

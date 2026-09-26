@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, memo, useRef } from "react";
-import { Dialog, toast } from "@tau/ui";
-import { Button, SectionTitle, TextInput, TextStrong, TextSecondary } from "./ui";
+import { AudioLines, Mic, Save, Sparkles } from "lucide-react";
+import { Button, Dialog, DialogBody, Input, NumberInput, toast } from "@tau/ui";
+import { Field, LogPanel } from "./ui";
 import { usePodcastGeneration } from "@/hooks/usePodcastGeneration";
 import type { PodcastSpeaker, IPodcast, PodcastScriptLine } from "@/types/podcast";
 import { SpeakerRole } from "@/types/podcast";
@@ -191,19 +192,53 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
       }
     }, [audioUrl, script, scriptLines, duration, speakers, onSuccess, podcastName, handleClose]);
 
+    const isEditingScript = status === "loading" && stage === "script" && scriptLines.length > 0;
+
+    const blocker =
+      status === "idle" || status === "error"
+        ? speakers.some(s => !s.voiceId)
+          ? "为每位说话人选择音色"
+          : !podcastName.trim()
+            ? "给这期播客起个名字"
+            : null
+        : null;
+
+    const subtitle =
+      status === "complete"
+        ? "试听结果，单段可以改稿后重新合成"
+        : isEditingScript
+          ? "检查并调整脚本，确认后开始合成语音"
+          : status === "loading"
+            ? "正在生成，请稍候"
+            : status === "error"
+              ? "生成没有完成，可以查看日志后重试"
+              : "把当前内容改写成一期多人对话播客";
+
+    const impact = isEditingScript
+      ? `共 ${scriptLines.length} 段对话，可拖动调整顺序`
+      : status === "loading"
+        ? "生成过程中无法关闭"
+        : (blocker ?? undefined);
+
     const footerNode =
       status === "complete" ? (
-        <div className="flex justify-end gap-3">
-          <Button onClick={handleClose}>关闭</Button>
-          <Button variant="primary" onClick={handleSuccess}>
+        <>
+          <Button variant="secondary" size="sm" onClick={handleClose}>
+            关闭
+          </Button>
+          <Button variant="primary" size="sm" icon={Save} onClick={handleSuccess}>
             {saveText ?? "保存到卡片"}
           </Button>
-        </div>
-      ) : status === "loading" && stage === "script" && scriptLines.length > 0 ? (
-        <div className="flex justify-end gap-3">
-          <Button onClick={() => reset()}>取消</Button>
+        </>
+      ) : isEditingScript ? (
+        <>
+          <Button variant="secondary" size="sm" onClick={() => reset()}>
+            取消
+          </Button>
           <Button
             variant="primary"
+            size="sm"
+            icon={AudioLines}
             onClick={async () => {
               const error = await continueWithTTS(scriptLines, generateMusic);
               if (error) {
@@ -213,190 +248,156 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
           >
             确认并生成音频
           </Button>
-        </div>
+        </>
       ) : status === "loading" ? null : (
-        <div className="flex justify-end gap-3">
-          <Button onClick={handleClose}>取消</Button>
+        <>
+          <Button variant="secondary" size="sm" onClick={handleClose}>
+            取消
+          </Button>
           <Button
             variant="primary"
+            size="sm"
+            icon={Sparkles}
             onClick={handleGenerate}
-            disabled={speakers.some(s => !s.voiceId) || !podcastName.trim()}
+            disabled={!!blocker}
           >
             开始生成
           </Button>
-        </div>
+        </>
       );
+
+    const nameField = (
+      <Field label="播客名称" hint={`${podcastName.length}/100`}>
+        <Input
+          data-autofocus
+          placeholder="这一期叫什么"
+          value={podcastName}
+          onChange={e => setPodcastName(e.target.value)}
+          maxLength={100}
+        />
+      </Field>
+    );
+
+    const speakerField = (
+      <Field label="说话人">
+        <SpeakerConfig
+          speakers={speakers}
+          setSpeakers={setSpeakers}
+          voices={voices as VoiceOption[]}
+          voicesLoading={voicesLoading}
+          notify={notify}
+        />
+      </Field>
+    );
 
     return (
       <Dialog
         title="生成播客"
+        icon={<Mic className="size-4" strokeWidth={1.75} />}
+        subtitle={subtitle}
         open={open}
         onOpenChange={next => {
           if (!next) handleClose();
         }}
-        width={800}
+        width={720}
         locked={status === "loading"}
+        impact={impact}
         footer={footerNode}
       >
-        <div className="space-y-6">
-          {/* 初始配置阶段 */}
-          {status === "idle" && (
-            <div className="space-y-4">
-              <SectionTitle>基础信息</SectionTitle>
-              <div>
-                <TextStrong className="mb-2 block">播客名称</TextStrong>
-                <TextInput
-                  placeholder="请输入播客名称"
-                  value={podcastName}
-                  onChange={setPodcastName}
-                  maxLength={100}
-                />
-                <div className="text-ink-3 text-tau-sm mt-1 text-right tabular-nums">
-                  {podcastName.length}/100
-                </div>
-              </div>
-
-              <SectionTitle>说话人配置</SectionTitle>
-              <SpeakerConfig
-                speakers={speakers}
-                setSpeakers={setSpeakers}
-                voices={voices as VoiceOption[]}
-                voicesLoading={voicesLoading}
-                notify={notify}
-              />
-
-              <VoiceClonePanel
-                showCloneForm={showCloneForm}
-                setShowCloneForm={setShowCloneForm}
-                cloneItems={cloneItems}
-                setCloneItems={setCloneItems}
-                cloneLoading={cloneLoading}
-                setCloneLoading={setCloneLoading}
-                minimaxApiKey={minimaxApiKey}
-                voices={voices as VoiceOption[]}
-                addVoiceToList={addVoiceToList}
-                notify={notify}
-              />
-            </div>
-          )}
-
-          {/* 其他选项 */}
-          {status === "idle" && (
-            <div className="space-y-4">
-              <SectionTitle>其他选项</SectionTitle>
-
-              <div className="flex items-center gap-3">
-                <TextSecondary className="whitespace-nowrap text-sm">播客时长</TextSecondary>
-                <div className="flex items-center gap-2">
-                  <TextInput
-                    type="number"
-                    value={String(durationRange[0])}
-                    onChange={value => {
-                      const nextMin = Number(value);
-                      setDurationRange(prev => normalizeDurationRange(nextMin, prev[1]));
-                    }}
-                    className="w-16"
+        <DialogBody>
+          <div className="flex flex-col gap-5 pt-2">
+            {/* 初始配置阶段 */}
+            {status === "idle" && (
+              <>
+                {nameField}
+                <div className="flex flex-col gap-2">
+                  {speakerField}
+                  <VoiceClonePanel
+                    showCloneForm={showCloneForm}
+                    setShowCloneForm={setShowCloneForm}
+                    cloneItems={cloneItems}
+                    setCloneItems={setCloneItems}
+                    cloneLoading={cloneLoading}
+                    setCloneLoading={setCloneLoading}
+                    minimaxApiKey={minimaxApiKey}
+                    voices={voices as VoiceOption[]}
+                    addVoiceToList={addVoiceToList}
+                    notify={notify}
                   />
-                  <TextSecondary className="text-xs">~</TextSecondary>
-                  <TextInput
-                    type="number"
-                    value={String(durationRange[1])}
-                    onChange={value => {
-                      const nextMax = Number(value);
-                      setDurationRange(prev => normalizeDurationRange(prev[0], nextMax));
-                    }}
-                    className="w-16"
-                  />
-                  <TextSecondary className="text-xs">分钟</TextSecondary>
                 </div>
-              </div>
-            </div>
-          )}
+                <Field label="时长（分钟）">
+                  <div className="flex items-center gap-2">
+                    <NumberInput
+                      aria-label="最短时长"
+                      wrapperClassName="w-24"
+                      value={durationRange[0]}
+                      onValueChange={v =>
+                        setDurationRange(prev => normalizeDurationRange(v ?? 1, prev[1]))
+                      }
+                    />
+                    <span className="text-tau-meta text-ink-3">到</span>
+                    <NumberInput
+                      aria-label="最长时长"
+                      wrapperClassName="w-24"
+                      value={durationRange[1]}
+                      onValueChange={v =>
+                        setDurationRange(prev => normalizeDurationRange(prev[0], v ?? 1))
+                      }
+                    />
+                  </div>
+                </Field>
+              </>
+            )}
 
-          {/* 脚本编辑阶段 */}
-          {status === "loading" && stage === "script" && scriptLines.length > 0 && (
-            <ScriptEditor
-              scriptLines={scriptLines}
-              speakers={speakers}
-              updateScriptLines={updateScriptLines}
-            />
-          )}
-
-          {/* 进度显示 (非脚本编辑阶段) */}
-          {status === "loading" && (stage !== "script" || scriptLines.length === 0) && (
-            <ProgressView
-              stage={stage}
-              stageProgress={stageProgress}
-              ttsCompleted={ttsCompleted}
-              ttsTotal={ttsTotal}
-              logs={logs}
-            />
-          )}
-
-          {/* 结果预览 */}
-          {status === "complete" && audioUrl && (
-            <div className="space-y-4">
-              <div>
-                <TextStrong className="mb-2 block">播客名称</TextStrong>
-                <TextInput
-                  placeholder="请输入播客名称"
-                  value={podcastName}
-                  onChange={setPodcastName}
-                  maxLength={100}
-                />
-                <div className="text-ink-3 text-tau-sm mt-1 text-right tabular-nums">
-                  {podcastName.length}/100
-                </div>
-              </div>
-
-              {/* 说话人配置 */}
-              <SectionTitle>说话人配置</SectionTitle>
-              <SpeakerConfig
-                speakers={speakers}
-                setSpeakers={setSpeakers}
-                voices={voices as VoiceOption[]}
-                voicesLoading={voicesLoading}
-                notify={notify}
-              />
-
-              <ResultPreview
-                audioUrl={audioUrl}
-                duration={duration}
+            {/* 脚本编辑阶段 */}
+            {isEditingScript && (
+              <ScriptEditor
                 scriptLines={scriptLines}
-                segmentAudios={segmentAudios}
-                regenerateSegment={regenerateSegment}
-                notify={notify}
+                speakers={speakers}
+                updateScriptLines={updateScriptLines}
               />
-            </div>
-          )}
+            )}
 
-          {/* 错误显示 */}
-          {status === "error" && (
-            <div className="space-y-4">
-              <SectionTitle>生成失败</SectionTitle>
-              {error && (
-                <div className="bg-danger-soft text-danger rounded-tau-md text-tau-body whitespace-pre-wrap p-3">
-                  {error}
-                </div>
-              )}
-              <details open className="mt-4">
-                <summary className="text-ink-3 text-tau-sm cursor-pointer select-none font-medium">
-                  详细日志
-                </summary>
-                <div className="border-line-1 rounded-tau-md mt-2 max-h-64 space-y-0.5 overflow-y-auto border p-3">
-                  {logs.map((log, index) => (
-                    <div
-                      key={index}
-                      className="text-ink-2 font-tau-mono text-tau-sm leading-relaxed"
-                    >
-                      {log}
-                    </div>
-                  ))}
-                </div>
-              </details>
-            </div>
-          )}
-        </div>
+            {/* 进度显示 (非脚本编辑阶段) */}
+            {status === "loading" && !isEditingScript && (
+              <ProgressView
+                stage={stage}
+                stageProgress={stageProgress}
+                ttsCompleted={ttsCompleted}
+                ttsTotal={ttsTotal}
+                logs={logs}
+              />
+            )}
+
+            {/* 结果预览 */}
+            {status === "complete" && audioUrl && (
+              <>
+                {nameField}
+                {speakerField}
+                <ResultPreview
+                  audioUrl={audioUrl}
+                  duration={duration}
+                  scriptLines={scriptLines}
+                  segmentAudios={segmentAudios}
+                  regenerateSegment={regenerateSegment}
+                  notify={notify}
+                />
+              </>
+            )}
+
+            {/* 错误显示 */}
+            {status === "error" && (
+              <>
+                {error && (
+                  <div className="bg-danger-soft text-danger rounded-tau-sm text-tau-body whitespace-pre-wrap px-3 py-2">
+                    {error}
+                  </div>
+                )}
+                <LogPanel logs={logs} />
+              </>
+            )}
+          </div>
+        </DialogBody>
       </Dialog>
     );
   }

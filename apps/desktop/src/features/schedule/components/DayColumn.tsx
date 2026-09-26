@@ -1,5 +1,5 @@
 /**
- * 右栏 · 当日时间线（方案 C）：选中日 = store.currentDate（月视图点格子 / 周视图点日期头切换）。
+ * 当日时间线（方案 C，承载在日程页右侧非模态抽屉里）：选中日 = store.currentDate（月视图点格子 / 周视图点日期头切换）。
  *
  * 大号日期 → 全天条 → 定时日程时间线（08:00–22:00 内 ≥1 小时的空档显示「点击安排」，
  * 今天插入「现在」）→ 底部自然语言快速添加（quickAdd.ts 解析，回车直接创建）。
@@ -7,7 +7,8 @@
 
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, CornerDownLeft, Plus } from "lucide-react";
-import { IconButton, cn, toast, useEdgeFade } from "@tau/ui";
+import { IconButton, cn, toast } from "@tau/ui";
+import { FadeScroll } from "@/components/FadeScroll";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { formatTime, getDateStart } from "@/utils/calendar";
@@ -31,20 +32,12 @@ type TimelineItem =
 
 const hours = (minutes: number) => `${Number((minutes / 60).toFixed(1))} 小时`;
 
-export function DayColumn() {
+/** 选中日（store.currentDate）及其日程：当日时间线与工具条的当日按钮共用 */
+export function useDayEvents() {
   const currentDate = useCalendarStore(s => s.currentDate);
-  const calendars = useCalendarStore(s => s.calendars);
-  const { setCurrentDate, setEditingEvent } = useCalendarStore.getState();
-  const peek = usePeekStore(s => s.peek);
   const { events } = useCalendarEvents();
-  const nowMinutes = useNowMinutes();
-  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
-  useEdgeFade(scrollEl);
-
   const day = getDateStart(currentDate);
-  const date = new Date(day);
   const isToday = day === getDateStart(Date.now());
-
   const dayEvents = useMemo(
     () =>
       (events ?? []).filter(event => {
@@ -54,6 +47,16 @@ export function DayColumn() {
       }),
     [events, day]
   );
+  return { day, isToday, dayEvents };
+}
+
+export function DayColumn() {
+  const calendars = useCalendarStore(s => s.calendars);
+  const { setCurrentDate, setEditingEvent } = useCalendarStore.getState();
+  const peek = usePeekStore(s => s.peek);
+  const nowMinutes = useNowMinutes();
+  const { day, isToday, dayEvents } = useDayEvents();
+  const date = new Date(day);
   const decorOf = useEventDecor(dayEvents);
   const allDay = dayEvents.filter(e => e.allDay);
 
@@ -119,8 +122,9 @@ export function DayColumn() {
   };
 
   return (
-    <div className="bg-surface shadow-card rounded-tau-lg flex w-[340px] flex-none flex-col overflow-hidden">
-      <div className="flex items-end gap-3 px-5 pb-2 pt-[18px]">
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* pr-12：给抽屉右上角浮着的 × 让位 */}
+      <div className="flex items-end gap-3 pb-2 pl-6 pr-12 pt-5">
         <span
           className={cn(
             "font-tau-mono text-[44px] font-medium tabular-nums leading-[0.95] tracking-[-0.02em]",
@@ -156,14 +160,12 @@ export function DayColumn() {
           <ChevronRight className="size-4" strokeWidth={1.75} />
         </IconButton>
       </div>
-      <p className="text-ink-3 text-tau-sm px-5 pb-2.5">
+      <p className="text-ink-3 text-tau-sm px-6 pb-2.5">
         {total === 0 ? "这一天还没有安排" : `${total} 项${busy ? ` · 已排 ${hours(busy)}` : ""}`}
       </p>
 
-      <div
-        ref={setScrollEl}
-        className="edge-fade-scroll min-h-0 flex-1 overflow-y-auto pb-3 pl-5 pr-4"
-      >
+      {/* FadeScroll 右侧 6px 透明边 + pr-[18px] = 24px，与标题行的 px-6 对齐 */}
+      <FadeScroll className="mb-4 min-h-0 flex-1 pb-1 pl-6 pr-[18px]">
         {allDay.length > 0 && (
           <div className="flex flex-col gap-1 pb-2.5 pl-[70px]">
             {allDay.map(event => (
@@ -172,7 +174,7 @@ export function DayColumn() {
                 event={event}
                 calendars={calendars}
                 decor={decorOf(event)}
-                onClick={anchor => peek(event, anchor)}
+                onClick={() => peek(event)}
               />
             ))}
           </div>
@@ -194,7 +196,7 @@ export function DayColumn() {
             decorOf={decorOf}
           />
         ))}
-      </div>
+      </FadeScroll>
 
       <QuickAdd day={day} />
     </div>
@@ -275,8 +277,8 @@ function TimelineRow({
         <div
           onClick={e => onPeek(item.event, e.currentTarget)}
           className={cn(
-            "my-[3px] cursor-pointer rounded-[10px] px-2.5 py-1.5 transition-[filter] hover:brightness-[0.97]",
-            TONE_SOFT_BG,
+            // 白底细描边落在淡暖底上（不再色块叠色块）；日历色由时间线圆点承担
+            "bg-surface border-line-1 ease-tau-out hover:shadow-lift my-[3px] cursor-pointer rounded-[10px] border px-2.5 py-1.5 transition-[box-shadow,border-color] duration-200 hover:border-transparent",
             past && "opacity-55"
           )}
         >
@@ -375,10 +377,10 @@ function QuickAdd({ day }: { day: number }) {
     : "";
 
   return (
-    <div className="flex-none px-3.5 pb-3.5">
+    <div className="flex-none px-6 pb-5">
       <div
         className={cn(
-          "border-line-1 flex min-h-[38px] items-center gap-2 rounded-[10px] border pl-3 pr-2 transition-shadow",
+          "border-line-1 bg-surface flex min-h-[38px] items-center gap-2 rounded-[10px] border pl-3 pr-2 transition-shadow",
           focused && "border-accent shadow-[var(--tau-focus-ring)]"
         )}
       >

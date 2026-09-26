@@ -7,9 +7,7 @@ import { MODULE_CONFIGS } from "./module-config";
 export type WindowType =
   | "main"
   | "markdown"
-  | "card"
-  | "article"
-  | "project-item"
+  | "editor"
   | "todo"
   | "pomodoro"
   | "pomodoro-mini"
@@ -37,34 +35,14 @@ export const WINDOW_MODULE_GROUPS: Record<WindowType, ModuleGroup[]> = {
   // Markdown 编辑器只需要基本模块（不需要数据库）
   markdown: [ModuleGroup.ESSENTIAL, ModuleGroup.CORE],
 
-  // 卡片编辑器
-  card: [
-    ModuleGroup.ESSENTIAL,
-    ModuleGroup.CORE,
-    ModuleGroup.DATABASE,
-    ModuleGroup.SERVER,
-    ModuleGroup.RENDER,
-    ModuleGroup.AI,
-  ],
-
-  // 文章编辑器
-  article: [
+  // 内容编辑窗口（卡片 / 文章 / 项目文档）
+  editor: [
     ModuleGroup.ESSENTIAL,
     ModuleGroup.CORE,
     ModuleGroup.DATABASE,
     ModuleGroup.SERVER,
     ModuleGroup.RENDER,
     ModuleGroup.CACHE,
-    ModuleGroup.AI,
-  ],
-
-  // 项目编辑器
-  "project-item": [
-    ModuleGroup.ESSENTIAL,
-    ModuleGroup.CORE,
-    ModuleGroup.DATABASE,
-    ModuleGroup.SERVER,
-    ModuleGroup.RENDER,
     ModuleGroup.AI,
   ],
 

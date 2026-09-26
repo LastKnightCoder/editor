@@ -1,4 +1,5 @@
 import { cardCommands } from "@/commands/contracts/card";
+import { openEditorWindow } from "@/commands/window";
 import type { CardContentResult } from "@/commands/contracts/card";
 import { ICard, ICreateCard, IUpdateCard } from "@/types";
 import type { CardMetadataPatch } from "@/types/card";
@@ -70,10 +71,7 @@ export async function getRandomPermanentCards(seed: number, count = 5): Promise<
 }
 
 export const openCardInNewWindow = (databaseName: string, cardId: number) => {
-  return cardCommands.openInNewWindow.call(databaseName, cardId, {
-    showTitlebar: true,
-    isDefaultTop: true,
-  });
+  return openEditorWindow({ kind: "card", databaseName, id: cardId });
 };
 
 export async function getRecentTemporaryAndLiteratureCards(count = 10): Promise<ICard[]> {

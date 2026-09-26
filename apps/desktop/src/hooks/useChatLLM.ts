@@ -7,19 +7,15 @@ import {
   ToolExecutionMetadata,
   ToolExecutionResult,
 } from "@/types";
-import {
-  Agent,
-  composeAgentModel,
-  type AgentEvent,
-  type AgentModelUsage,
-} from "@tau/agent";
+import { Agent, composeAgentModel, type AgentEvent, type AgentModelUsage } from "@tau/agent";
 import { useMemoizedFn } from "ahooks";
 import type { ProviderConfig, ModelConfig } from "@/types/llm";
 import { ensureToolingReady } from "@/tools";
 import { toolIntegrationRegistry } from "@/tools/toolIntegrationRegistry";
 import { DesktopModelProtocolAdapter } from "@/agent/DesktopModelProtocolAdapter";
 import { DesktopModelTransport } from "@/agent/DesktopModelTransport";
-import { toAgentSkills } from "@/agent/desktopSkillAdapter";
+import { resolveAgentSkills, toAgentSkills } from "@/agent/desktopSkillAdapter";
+import { createToolPermissionPolicies } from "@/services/tool-permission/policy";
 import { toExternalAgentTools } from "@/agent/externalAgentTools";
 import { getToolRegistryAgentTools } from "@/agent/toolRegistryAgentTools";
 import { SUBAGENT_RESEARCH_TOOL_NAME } from "@/agent/subagentResearch";
@@ -42,19 +38,15 @@ interface IChatStreamOptions {
       turnId?: string;
       finishReason?: string | null;
       resultType?: "response" | "tool_calls";
-    },
+    }
   ) => void;
   onUpdate?: (
     responseText: string,
     fetchText: string,
     reasoningText?: string,
-    turnId?: string,
+    turnId?: string
   ) => void;
-  onReasoning?: (
-    responseText: string,
-    fetchText: string,
-    turnId?: string,
-  ) => void;
+  onReasoning?: (responseText: string, fetchText: string, turnId?: string) => void;
   onUsage?: (usage: AgentModelUsage, turnId?: string) => void;
   onError?: (e: Error) => void;
   onNotice?: (notice: ChatRuntimeNotice) => void;
@@ -63,7 +55,7 @@ interface IChatStreamOptions {
   onToolCallsUpdate?: (
     executions: ToolCallExecutionState[],
     turnId?: string,
-    toolCalls?: ToolCallPayload[],
+    toolCalls?: ToolCallPayload[]
   ) => void;
   onAssistantTurnEnd?: (params: {
     turnId: string;
@@ -76,8 +68,14 @@ interface IChatStreamOptions {
   conversationKey?: string;
   /** 当前轮次工具执行附加上下文 */
   toolContext?: ToolExecutionMetadata;
+  /** 工具作用域：带上该作用域的页面专属工具（见 toolRegistry.registerScopedTools） */
+  toolScope?: string;
   /** 当前 Agent 可见的 Skills，传入后才会注入 skill 内置工具 */
   skills?: Skill[];
+  /** 本条消息里 `$` 点名的 Skill（folderName）：注入全文，仅手动的 Skill 也因此可用 */
+  forcedSkills?: string[];
+  /** 调用方能在对话里渲染工具确认条（否则需要确认的工具直接拒绝） */
+  interactiveApproval?: boolean;
   /** 延迟 assistant 正文到 onFinish 才提交，避免工具审阅前出现正文 */
   deferAssistantTextUntilFinish?: boolean;
   /** 禁用 requestAnimationFrame 动画缓冲，SSE 数据直接透传回调 */
@@ -96,19 +94,15 @@ export interface ChatStreamCoreOptions {
       turnId?: string;
       finishReason?: string | null;
       resultType?: "response" | "tool_calls";
-    },
+    }
   ) => void;
   onUpdate?: (
     responseText: string,
     fetchText: string,
     reasoningText?: string,
-    turnId?: string,
+    turnId?: string
   ) => void;
-  onReasoning?: (
-    responseText: string,
-    fetchText: string,
-    turnId?: string,
-  ) => void;
+  onReasoning?: (responseText: string, fetchText: string, turnId?: string) => void;
   onUsage?: (usage: AgentModelUsage, turnId?: string) => void;
   onError?: (e: Error) => void;
   onNotice?: (notice: ChatRuntimeNotice) => void;
@@ -116,7 +110,7 @@ export interface ChatStreamCoreOptions {
   onToolCallsUpdate?: (
     executions: ToolCallExecutionState[],
     turnId?: string,
-    toolCalls?: ToolCallPayload[],
+    toolCalls?: ToolCallPayload[]
   ) => void;
   onAssistantTurnEnd?: (params: {
     turnId: string;
@@ -129,7 +123,11 @@ export interface ChatStreamCoreOptions {
   enableTools?: boolean;
   conversationKey?: string;
   toolContext?: ToolExecutionMetadata;
+  /** 工具作用域：带上该作用域的页面专属工具 */
+  toolScope?: string;
   skills?: Skill[];
+  forcedSkills?: string[];
+  interactiveApproval?: boolean;
   deferAssistantTextUntilFinish?: boolean;
   // 外部工具扩展
   additionalTools?: Array<{
@@ -147,7 +145,7 @@ export interface ChatStreamCoreOptions {
       signal?: AbortSignal;
       conversationKey?: string;
       toolContext?: ToolExecutionMetadata;
-    },
+    }
   ) => Promise<ToolExecutionResult | null>;
   /** 禁用 requestAnimationFrame 动画缓冲，SSE 数据直接透传回调（用于 WebSocket 转发场景） */
   disableAnimation?: boolean;
@@ -160,7 +158,8 @@ const TOOL_EXECUTION_TIMEOUT = 30000; // 单个工具执行超时时间 30 秒
 export const shouldSkipDesktopToolTimeout = (toolName: string): boolean =>
   toolName === SUBAGENT_RESEARCH_TOOL_NAME;
 
-export const createDesktopAgentPolicies = () => ({
+export const createDesktopAgentPolicies = (options?: { interactiveApproval?: boolean }) => ({
+  ...createToolPermissionPolicies({ interactive: Boolean(options?.interactiveApproval) }),
   maxToolCallLoops: MAX_TOOL_CALL_LOOPS,
   maxToolRetries: MAX_EXECUTION_RETRY,
   defaultToolTimeoutMs: TOOL_EXECUTION_TIMEOUT,
@@ -194,13 +193,11 @@ const isTransientError = (error: Error): boolean => {
     "503",
     "504",
   ];
-  return transientPatterns.some((p) => msg.includes(p));
+  return transientPatterns.some(p => msg.includes(p));
 };
 
-const buildToolCallPlaceholders = (
-  toolCalls: ToolCallPayload[],
-): ToolCallPayload[] =>
-  toolCalls.map((call) => ({
+const buildToolCallPlaceholders = (toolCalls: ToolCallPayload[]): ToolCallPayload[] =>
+  toolCalls.map(call => ({
     ...call,
     function: {
       ...call.function,
@@ -210,13 +207,11 @@ const buildToolCallPlaceholders = (
 
 const upsertPendingToolExecutions = (
   currentExecutions: ToolCallExecutionState[],
-  toolCalls: ToolCallPayload[],
+  toolCalls: ToolCallPayload[]
 ): ToolCallExecutionState[] => {
   const nextExecutions = [...currentExecutions];
   for (const call of toolCalls) {
-    const existingIndex = nextExecutions.findIndex(
-      (execution) => execution.toolCallId === call.id,
-    );
+    const existingIndex = nextExecutions.findIndex(execution => execution.toolCallId === call.id);
     const nextExecution: ToolCallExecutionState = {
       toolCallId: call.id,
       toolName: call.function.name,
@@ -242,10 +237,8 @@ const upsertPendingToolExecutions = (
 const mapAgentExecutionToToolState = (
   execution: Extract<
     AgentEvent,
-    | { type: "tool-call-started" }
-    | { type: "tool-call-updated" }
-    | { type: "tool-call-finished" }
-  >["execution"],
+    { type: "tool-call-started" } | { type: "tool-call-updated" } | { type: "tool-call-finished" }
+  >["execution"]
 ): ToolCallExecutionState => ({
   toolCallId: execution.toolCallId,
   toolName: execution.toolName,
@@ -263,33 +256,32 @@ const mapAgentExecutionToToolState = (
 const mapAgentExecutionsToToolStates = (
   executions: Extract<
     AgentEvent,
-    | { type: "tool-call-started" }
-    | { type: "tool-call-updated" }
-    | { type: "tool-call-finished" }
+    { type: "tool-call-started" } | { type: "tool-call-updated" } | { type: "tool-call-finished" }
   >["executions"],
-  previousExecutions: ToolCallExecutionState[] = [],
+  previousExecutions: ToolCallExecutionState[] = []
 ): ToolCallExecutionState[] =>
-  executions.map((execution) => {
-    const previous = previousExecutions.find(
-      (item) => item.toolCallId === execution.toolCallId,
-    );
+  executions.map(execution => {
+    const previous = previousExecutions.find(item => item.toolCallId === execution.toolCallId);
     const mapped = mapAgentExecutionToToolState(execution);
     return toolIntegrationRegistry.reconcileExecutionState(previous, mapped);
   });
 
 const createDesktopToolSource = (options?: {
+  toolScope?: string;
   additionalTools?: ChatStreamCoreOptions["additionalTools"];
   executeToolCall?: ChatStreamCoreOptions["executeToolCall"];
 }) => ({
   getTools: () => {
-    const baseTools = getToolRegistryAgentTools();
+    const baseTools = getToolRegistryAgentTools({ toolScope: options?.toolScope });
     const externalTools = options?.additionalTools || [];
     if (externalTools.length === 0 || !options?.executeToolCall) {
       return baseTools;
     }
 
+    // 本次调用传入的工具覆盖全局注册表里的同名工具（如按项目绑定的资料检索）
+    const externalNames = new Set(externalTools.map(tool => tool.function.name));
     return [
-      ...baseTools,
+      ...baseTools.filter(tool => !externalNames.has(tool.name)),
       ...toExternalAgentTools(externalTools, options.executeToolCall),
     ];
   },
@@ -299,23 +291,28 @@ const createDesktopAgent = (options: {
   providerConfig: ProviderConfig;
   modelConfig: ModelConfig;
   skills?: Skill[];
+  forcedSkills?: string[];
+  interactiveApproval?: boolean;
+  conversationKey?: string;
+  toolScope?: string;
   additionalTools?: ChatStreamCoreOptions["additionalTools"];
   executeToolCall?: ChatStreamCoreOptions["executeToolCall"];
 }) =>
   new Agent({
     model: composeAgentModel({
-      protocol: new DesktopModelProtocolAdapter(
-        options.providerConfig,
-        options.modelConfig,
-      ),
+      protocol: new DesktopModelProtocolAdapter(options.providerConfig, options.modelConfig),
       transport: new DesktopModelTransport(),
     }),
     tools: createDesktopToolSource({
+      toolScope: options.toolScope,
       additionalTools: options.additionalTools,
       executeToolCall: options.executeToolCall,
     }),
-    skills: toAgentSkills(options.skills || []),
-    policies: createDesktopAgentPolicies(),
+    skills: toAgentSkills(options.skills || [], {
+      forced: options.forcedSkills,
+      conversationKey: options.conversationKey,
+    }),
+    policies: createDesktopAgentPolicies({ interactiveApproval: options.interactiveApproval }),
   });
 
 const chatInner = async (
@@ -326,7 +323,7 @@ const chatInner = async (
     reasoningEffort?: ReasoningEffort;
     enableTools?: boolean;
     onNotice?: (notice: ChatRuntimeNotice) => void;
-  },
+  }
 ) => {
   if (!providerConfig) {
     options?.onNotice?.({
@@ -392,9 +389,7 @@ const chatInner = async (
   }
 };
 
-export const chatStreamCore = async (
-  options: ChatStreamCoreOptions,
-): Promise<void> => {
+export const chatStreamCore = async (options: ChatStreamCoreOptions): Promise<void> => {
   const {
     providerConfig,
     modelConfig,
@@ -412,7 +407,10 @@ export const chatStreamCore = async (
     enableTools,
     conversationKey,
     toolContext,
-    skills = [],
+    toolScope,
+    skills: allSkills = [],
+    forcedSkills = [],
+    interactiveApproval,
     deferAssistantTextUntilFinish,
     additionalTools,
     executeToolCall: customExecuteToolCall,
@@ -430,10 +428,16 @@ export const chatStreamCore = async (
   }
   const controller = new AbortController();
   onController?.(controller);
+  // 停用的不给；仅手动的只在本条消息点名时给
+  const skills = resolveAgentSkills(allSkills, forcedSkills);
   const agent = createDesktopAgent({
     providerConfig,
     modelConfig,
     skills,
+    forcedSkills,
+    interactiveApproval,
+    conversationKey,
+    toolScope,
     additionalTools,
     executeToolCall: customExecuteToolCall,
   });
@@ -443,6 +447,7 @@ export const chatStreamCore = async (
       providerConfig,
       modelConfig,
       skills,
+      toolScope,
     },
   };
 
@@ -452,15 +457,11 @@ export const chatStreamCore = async (
     const publishedStreamingToolCallIds = new Set<string>();
 
     const getCurrentTurnExecutions = () => {
-      const currentToolCallIds = new Set(
-        currentTurnToolCalls.map((call) => call.id),
-      );
+      const currentToolCallIds = new Set(currentTurnToolCalls.map(call => call.id));
       if (currentToolCallIds.size === 0) {
         return toolExecutions;
       }
-      return toolExecutions.filter((execution) =>
-        currentToolCallIds.has(execution.toolCallId),
-      );
+      return toolExecutions.filter(execution => currentToolCallIds.has(execution.toolCallId));
     };
 
     for await (const event of agent.run({
@@ -472,14 +473,10 @@ export const chatStreamCore = async (
       deferAssistantTextUntilFinish,
       disableAnimation,
       controller,
+      metadata: forcedSkills.length > 0 ? { forcedSkillIds: forcedSkills } : undefined,
     })) {
       if (event.type === "text-delta") {
-        onUpdate?.(
-          event.text,
-          event.delta,
-          event.reasoningContent,
-          event.turnId,
-        );
+        onUpdate?.(event.text, event.delta, event.reasoningContent, event.turnId);
         continue;
       }
 
@@ -498,11 +495,8 @@ export const chatStreamCore = async (
         const eventToolCalls = event.toolCalls as ToolCallPayload[];
         const shouldPublishStreamingPlaceholder =
           streamingPhase &&
-          eventToolCalls.some(
-            (call) => !publishedStreamingToolCallIds.has(call.id),
-          );
-        const shouldPublishStreamingPlan =
-          !streamingPhase || shouldPublishStreamingPlaceholder;
+          eventToolCalls.some(call => !publishedStreamingToolCallIds.has(call.id));
+        const shouldPublishStreamingPlan = !streamingPhase || shouldPublishStreamingPlaceholder;
         if (!shouldPublishStreamingPlan) {
           continue;
         }
@@ -510,27 +504,17 @@ export const chatStreamCore = async (
           ? buildToolCallPlaceholders(eventToolCalls)
           : eventToolCalls;
         if (shouldPublishStreamingPlaceholder) {
-          eventToolCalls.forEach((call) =>
-            publishedStreamingToolCallIds.add(call.id),
-          );
+          eventToolCalls.forEach(call => publishedStreamingToolCallIds.add(call.id));
         }
-        const integratedExecutions =
-          toolIntegrationRegistry.upsertStreamingExecutions(
-            toolExecutions,
-            currentTurnToolCalls,
-            streamingPhase ? "streaming" : "preview",
-          );
-        toolExecutions = shouldPublishStreamingPlaceholder
-          ? upsertPendingToolExecutions(
-              integratedExecutions,
-              currentTurnToolCalls,
-            )
-          : integratedExecutions;
-        onToolCallsUpdate?.(
-          getCurrentTurnExecutions(),
-          event.turnId,
+        const integratedExecutions = toolIntegrationRegistry.upsertStreamingExecutions(
+          toolExecutions,
           currentTurnToolCalls,
+          streamingPhase ? "streaming" : "preview"
         );
+        toolExecutions = shouldPublishStreamingPlaceholder
+          ? upsertPendingToolExecutions(integratedExecutions, currentTurnToolCalls)
+          : integratedExecutions;
+        onToolCallsUpdate?.(getCurrentTurnExecutions(), event.turnId, currentTurnToolCalls);
         continue;
       }
 
@@ -540,15 +524,8 @@ export const chatStreamCore = async (
         event.type === "tool-call-finished"
       ) {
         currentTurnToolCalls = event.toolCalls as ToolCallPayload[];
-        toolExecutions = mapAgentExecutionsToToolStates(
-          event.executions,
-          toolExecutions,
-        );
-        onToolCallsUpdate?.(
-          getCurrentTurnExecutions(),
-          event.turnId,
-          currentTurnToolCalls,
-        );
+        toolExecutions = mapAgentExecutionsToToolStates(event.executions, toolExecutions);
+        onToolCallsUpdate?.(getCurrentTurnExecutions(), event.turnId, currentTurnToolCalls);
         continue;
       }
 
@@ -592,7 +569,7 @@ export const chatStreamInner = async (
   providerConfig: ProviderConfig,
   modelConfig: ModelConfig,
   messages: RequestMessage[],
-  options: IChatStreamOptions,
+  options: IChatStreamOptions
 ) => {
   return chatStreamCore({
     providerConfig,
@@ -613,7 +590,10 @@ export const chatStreamInner = async (
     enableTools: options.enableTools,
     conversationKey: options.conversationKey,
     toolContext: options.toolContext,
+    toolScope: options.toolScope,
     skills: options.skills,
+    forcedSkills: options.forcedSkills,
+    interactiveApproval: options.interactiveApproval,
     deferAssistantTextUntilFinish: options.deferAssistantTextUntilFinish,
   });
 };
@@ -628,10 +608,10 @@ const useChatLLM = () => {
         reasoningEffort?: ReasoningEffort;
         enableTools?: boolean;
         onNotice?: (notice: ChatRuntimeNotice) => void;
-      },
+      }
     ) => {
       return await chatInner(providerConfig, modelConfig, messages, options);
-    },
+    }
   );
 
   const chatLLMStream = useMemoizedFn(
@@ -639,10 +619,10 @@ const useChatLLM = () => {
       providerConfig: ProviderConfig,
       modelConfig: ModelConfig,
       messages: RequestMessage[],
-      options: IChatStreamOptions,
+      options: IChatStreamOptions
     ) => {
       return chatStreamInner(providerConfig, modelConfig, messages, options);
-    },
+    }
   );
 
   return {
@@ -659,7 +639,7 @@ export const chatLLM = async (
     reasoningEffort?: ReasoningEffort;
     enableTools?: boolean;
     onNotice?: (notice: ChatRuntimeNotice) => void;
-  },
+  }
 ) => {
   return await chatInner(providerConfig, modelConfig, messages, options);
 };
@@ -668,7 +648,7 @@ export const chatLLMStream = (
   providerConfig: ProviderConfig,
   modelConfig: ModelConfig,
   messages: RequestMessage[],
-  options: IChatStreamOptions,
+  options: IChatStreamOptions
 ) => {
   chatStreamInner(providerConfig, modelConfig, messages, options);
 };

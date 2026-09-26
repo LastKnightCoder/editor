@@ -1,565 +1,483 @@
-import { ipcMain } from "electron";
-import { join } from "node:path";
-import { promises as fs } from "node:fs";
-import { existsSync } from "node:fs";
+import { ipcMain, net, shell } from "electron";
+import { join, resolve, relative, isAbsolute, basename, sep } from "node:path";
+import { homedir } from "node:os";
+import { promises as fs, existsSync } from "node:fs";
 import log from "electron-log";
-import { parse as parseYaml } from "yaml";
 import PathUtil from "../utils/PathUtil";
 import { Module } from "../types/module";
-import { Skill, SkillFile, SkillDetail, SkillMeta } from "@/types";
+import { parseSkillFrontMatter } from "../utils/skill-frontmatter";
+import {
+  SKILL_README,
+  copyDir,
+  countFiles,
+  createStageDir,
+  describeCandidates,
+  extractZip,
+  findSkillDirs,
+  parseGithubUrl,
+  sanitizeFolderName,
+  zipDirectory,
+} from "../utils/skill-import";
+import { cancelSkillScript, runSkillScript } from "../utils/skill-script-runner";
+import type {
+  Skill,
+  SkillDetail,
+  SkillFile,
+  SkillImportInspection,
+  SkillImportSource,
+  SkillLinkedDir,
+  SkillScriptRunRequest,
+} from "@/types";
 
 const SKILLS_DIR = ".skills";
-const SKILL_README = "SKILL.md";
+const LINKS_FILE = "skill-links.json";
 
-const DEFAULT_SKILL_README = (name: string, description?: string) => `---
-description: "${description || "在这里填写 Skill 的简短描述"}"
+/** 预置的关联目录（其它 AI 工具的 skills 目录），默认关闭 */
+const PRESET_LINKS: Array<{ path: string; label: string }> = [
+  { path: "~/.claude/skills", label: "Claude Code" },
+  { path: "~/.codex/skills", label: "Codex" },
+  { path: "~/.agents/skills", label: "通用 Agent Skills" },
+];
+
+const expandHome = (p: string) =>
+  p === "~" || p.startsWith("~/") ? join(homedir(), p.slice(1)) : p;
+
+/** 真正的「位于目录内」判断（原实现用 startsWith，`.skills-evil` 会被放行） */
+export const isInside = (root: string, target: string): boolean => {
+  const rel = relative(resolve(root), resolve(target));
+  return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
+};
+
+const DEFAULT_SKILL_README = (name: string, description = "", manual = false, body?: string) => `---
+name: ${JSON.stringify(name)}
+description: ${JSON.stringify(description)}${manual ? "\ndisable-model-invocation: true" : ""}
 ---
-# ${name}
 
-## 描述
+${body ?? `# ${name}\n\n## 步骤\n\n1. \n`}`;
 
-${description || "在这里描述这个 Skill 的用途..."}
-
-## 使用方法
-
-在这里说明如何使用这个 Skill...
-`;
+interface StoredLink {
+  path: string;
+  enabled: boolean;
+}
 
 class SkillModule implements Module {
   name = "skill";
   private skillsDir = "";
+  private linksFile = "";
+  private stages = new Map<string, { root: string; temp: boolean }>();
 
   async init() {
     const appDir = PathUtil.getAppDir();
     this.skillsDir = join(appDir, SKILLS_DIR);
+    this.linksFile = join(appDir, LINKS_FILE);
+    await fs.mkdir(this.skillsDir, { recursive: true });
 
-    await this.ensureSkillsDir();
-
-    // 列出所有 Skills
-    ipcMain.handle("skill:list", async () => {
-      return await this.listSkills();
-    });
-
-    // 获取 Skill 详情
-    ipcMain.handle("skill:detail", async (_, folderName: string) => {
-      return await this.getSkillDetail(folderName);
-    });
-
-    // 获取 SKILL.md 内容
-    ipcMain.handle("skill:readme", async (_, folderName: string) => {
-      return await this.getSkillReadme(folderName);
-    });
-
-    // 获取文件列表
-    ipcMain.handle("skill:files", async (_, folderName: string) => {
-      return await this.getSkillFiles(folderName);
-    });
-
-    // 创建 Skill 文件夹
-    ipcMain.handle(
-      "skill:create-folder",
-      async (_, name: string, description?: string) => {
-        return await this.createSkillFolder(name, description);
-      },
+    ipcMain.handle("skill:list", () => this.listSkills());
+    ipcMain.handle("skill:detail", (_, skillPath: string) => this.getSkillDetail(skillPath));
+    ipcMain.handle("skill:readme", (_, skillPath: string) => this.getSkillReadme(skillPath));
+    ipcMain.handle("skill:tree", (_, skillPath: string) => this.getSkillTree(skillPath));
+    ipcMain.handle("skill:get-skills-dir", () => this.skillsDir);
+    ipcMain.handle("skill:read-file", (_, filePath: string) => this.readFile(filePath));
+    ipcMain.handle("skill:write-file", (_, filePath: string, content: string) =>
+      this.writeFile(filePath, content)
     );
-
-    // 写入文件
     ipcMain.handle(
-      "skill:write-file",
-      async (_, filePath: string, content: string) => {
-        return await this.writeSkillFile(filePath, content);
-      },
+      "skill:create",
+      (_, payload: { name: string; description?: string; manual?: boolean; body?: string }) =>
+        this.createSkill(payload)
     );
-
-    // 删除 Skill 文件夹
-    ipcMain.handle("skill:delete-folder", async (_, folderName: string) => {
-      return await this.deleteSkillFolder(folderName);
-    });
-
-    // 获取 skills 目录路径
-    ipcMain.handle("skill:get-skills-dir", async () => {
-      return this.skillsDir;
-    });
-
-    // 读取文件内容
-    ipcMain.handle("skill:read-file", async (_, filePath: string) => {
-      return await this.readSkillFile(filePath);
-    });
-
-    // 创建文件夹
+    ipcMain.handle("skill:delete-skill", (_, skillPath: string) => this.deleteSkill(skillPath));
+    ipcMain.handle("skill:create-entry", (_, dirPath: string, name: string, isDirectory: boolean) =>
+      this.createEntry(dirPath, name, isDirectory)
+    );
+    ipcMain.handle("skill:rename", (_, oldPath: string, newName: string) =>
+      this.renameEntry(oldPath, newName)
+    );
+    ipcMain.handle("skill:delete-entry", (_, targetPath: string) => this.deleteEntry(targetPath));
+    ipcMain.handle("skill:show-in-folder", (_, filePath: string) => this.showInFolder(filePath));
+    ipcMain.handle("skill:export-zip", (_, skillPath: string) => this.exportZip(skillPath));
+    ipcMain.handle("skill:links:get", () => this.getLinks());
+    ipcMain.handle("skill:links:set", (_, links: StoredLink[]) => this.setLinks(links));
+    ipcMain.handle("skill:import:inspect", (_, source: SkillImportSource) =>
+      this.inspectImport(source)
+    );
     ipcMain.handle(
-      "skill:create-directory",
-      async (_, dirPath: string, dirName: string) => {
-        return await this.createDirectory(dirPath, dirName);
-      },
+      "skill:import:commit",
+      (_, token: string, items: Array<{ relPath: string; overwrite?: boolean }>) =>
+        this.commitImport(token, items)
     );
-
-    // 删除文件或文件夹
-    ipcMain.handle("skill:delete", async (_, targetPath: string) => {
-      return await this.deleteFileOrFolder(targetPath);
-    });
-
-    // 重命名文件或文件夹
-    ipcMain.handle(
-      "skill:rename",
-      async (_, oldPath: string, newName: string) => {
-        return await this.renameFileOrFolder(oldPath, newName);
-      },
+    ipcMain.handle("skill:import:discard", (_, token: string) => this.discardImport(token));
+    ipcMain.handle("skill:run-script", (_, request: SkillScriptRunRequest, runId?: string) =>
+      this.runScript(request, runId)
     );
-
-    // 创建文件
-    ipcMain.handle(
-      "skill:create-file",
-      async (_, dirPath: string, fileName: string) => {
-        return await this.createFile(dirPath, fileName);
-      },
-    );
-
-    // 获取整个 skills 目录的文件树
-    ipcMain.handle("skill:get-file-tree", async (_, dirPath?: string) => {
-      return await this.getFileTree(dirPath);
-    });
-
-    // 在文件系统中显示文件或文件夹
-    ipcMain.handle("skill:show-in-folder", async (_, filePath: string) => {
-      return await this.showInFolder(filePath);
-    });
-
-    // 获取 Skill 的树形结构
-    ipcMain.handle("skill:tree", async (_, folderName: string) => {
-      return await this.getSkillTree(folderName);
-    });
+    ipcMain.handle("skill:cancel-script", (_, runId: string) => cancelSkillScript(runId));
 
     log.info("Skill module initialized");
   }
 
-  private async ensureSkillsDir(): Promise<void> {
-    if (!existsSync(this.skillsDir)) {
-      await fs.mkdir(this.skillsDir, { recursive: true });
-      log.info(`Created skills directory: ${this.skillsDir}`);
+  // ── 根目录 ──
+
+  private async readStoredLinks(): Promise<StoredLink[]> {
+    try {
+      const raw = JSON.parse(await fs.readFile(this.linksFile, "utf-8")) as {
+        links?: StoredLink[];
+      };
+      return Array.isArray(raw.links) ? raw.links : [];
+    } catch {
+      return [];
     }
   }
 
-  // 列出所有 Skills
-  async listSkills(): Promise<Skill[]> {
-    await this.ensureSkillsDir();
+  private async enabledLinkRoots(): Promise<string[]> {
+    const links = await this.readStoredLinks();
+    return links
+      .filter(l => l.enabled)
+      .map(l => resolve(expandHome(l.path)))
+      .filter(p => existsSync(p) && !isInside(this.skillsDir, p));
+  }
 
-    const entries = await fs.readdir(this.skillsDir, { withFileTypes: true });
-    const skills: Skill[] = [];
+  /** 可读根：我的 + 已启用的关联目录 */
+  private async readableRoots(): Promise<string[]> {
+    return [this.skillsDir, ...(await this.enabledLinkRoots())];
+  }
 
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-
-      const skillPath = join(this.skillsDir, entry.name);
-      const readmePath = join(skillPath, SKILL_README);
-
-      try {
-        const readmeContent = await fs.readFile(readmePath, "utf-8");
-        const meta = this.parseSkillReadme(readmeContent);
-
-        // name 始终使用文件夹名称
-        skills.push({
-          folderName: entry.name,
-          name: entry.name,
-          description: meta.description || "",
-          path: skillPath,
-        });
-      } catch {
-        // SKILL.md 不存在，跳过
-        continue;
-      }
+  private async assertReadable(target: string): Promise<void> {
+    const roots = await this.readableRoots();
+    if (!roots.some(root => isInside(root, target))) {
+      throw new Error("路径不在 Skill 目录内");
     }
+  }
 
+  private assertWritable(target: string): void {
+    if (!isInside(this.skillsDir, target)) {
+      throw new Error("只能修改「我的」Skill；内置与关联目录的 Skill 只读");
+    }
+  }
+
+  /** 路径必须是某个根下的一级 Skill 目录 */
+  private async assertSkillDir(skillPath: string): Promise<void> {
+    const roots = await this.readableRoots();
+    const ok = roots.some(root => resolve(join(skillPath, "..")) === resolve(root));
+    if (!ok || !existsSync(join(skillPath, SKILL_README))) {
+      throw new Error("不是有效的 Skill 目录");
+    }
+  }
+
+  async getLinks(): Promise<SkillLinkedDir[]> {
+    const stored = await this.readStoredLinks();
+    const byPath = new Map(stored.map(l => [l.path, l]));
+    const presets = PRESET_LINKS.map(p => ({
+      path: p.path,
+      label: p.label,
+      preset: true,
+      enabled: byPath.get(p.path)?.enabled ?? false,
+    }));
+    const custom = stored
+      .filter(l => !PRESET_LINKS.some(p => p.path === l.path))
+      .map(l => ({ path: l.path, enabled: l.enabled, preset: false }));
+    return Promise.all(
+      [...presets, ...custom].map(async link => {
+        const abs = resolve(expandHome(link.path));
+        const exists = existsSync(abs);
+        const count = exists ? (await this.scanRoot(abs, "linked")).length : 0;
+        return { ...link, exists, count };
+      })
+    );
+  }
+
+  async setLinks(links: StoredLink[]): Promise<void> {
+    const clean = links
+      .filter(l => typeof l.path === "string" && l.path.trim())
+      .map(l => ({ path: l.path.trim(), enabled: Boolean(l.enabled) }));
+    await fs.writeFile(this.linksFile, JSON.stringify({ links: clean }, null, 2), "utf-8");
+  }
+
+  // ── 列表 / 详情 ──
+
+  private async scanRoot(root: string, source: "mine" | "linked"): Promise<Skill[]> {
+    const entries = await fs.readdir(root, { withFileTypes: true }).catch(() => []);
+    const skills: Skill[] = [];
+    for (const entry of entries) {
+      if (entry.name.startsWith(".")) continue;
+      const skillPath = join(root, entry.name);
+      // 关联目录常用软链接，stat 跟随链接判断是否目录
+      const stat = await fs.stat(skillPath).catch(() => null);
+      if (!stat?.isDirectory()) continue;
+      const readme = await fs.readFile(join(skillPath, SKILL_README), "utf-8").catch(() => null);
+      if (readme === null) continue;
+      const meta = parseSkillFrontMatter(readme);
+      const { count, hasScripts } = await countFiles(skillPath).catch(() => ({
+        count: 1,
+        hasScripts: false,
+      }));
+      skills.push({
+        folderName: entry.name,
+        name: meta.name ?? entry.name,
+        description: meta.description,
+        path: skillPath,
+        source,
+        rootPath: source === "linked" ? root : undefined,
+        defaultInvocation: meta.disableModelInvocation ? "manual" : "auto",
+        allowedTools: meta.allowedTools,
+        fileCount: count,
+        hasScripts,
+        updatedAt: stat.mtimeMs,
+      });
+    }
     return skills;
   }
 
-  // 从内容中提取描述（回退方法）
-  private extractDescriptionFromContent(content: string): string {
-    // 跳过 front-matter 后查找描述
-    const contentWithoutFrontMatter = content.replace(
-      /^---\n[\s\S]*?\n---\n?/,
-      "",
-    );
-    const lines = contentWithoutFrontMatter.split("\n");
-    let foundTitle = false;
-
-    for (const line of lines) {
-      if (!foundTitle) {
-        if (line.match(/^#\s+/)) {
-          foundTitle = true;
-        }
-        continue;
-      }
-
-      const trimmedLine = line.trim();
-      if (!trimmedLine || trimmedLine.startsWith("#")) continue;
-
-      return trimmedLine;
-    }
-
-    return "";
+  async listSkills(): Promise<Skill[]> {
+    await fs.mkdir(this.skillsDir, { recursive: true });
+    const mine = await this.scanRoot(this.skillsDir, "mine");
+    const linked = (
+      await Promise.all((await this.enabledLinkRoots()).map(root => this.scanRoot(root, "linked")))
+    ).flat();
+    return [...mine, ...linked];
   }
 
-  // 解析 SKILL.md 的 front-matter，只提取 description
-  // name 始终使用文件夹名称，不从 front-matter 中读取
-  private parseSkillReadme(content: string): Pick<SkillMeta, "description"> {
-    // 匹配 front-matter（以 --- 开头和结尾）
-    const frontMatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
-
-    if (frontMatterMatch) {
-      try {
-        const yamlContent = frontMatterMatch[1];
-        const meta = parseYaml(yamlContent) as { description?: string };
-
-        return {
-          description: meta.description || "",
-        };
-      } catch (error) {
-        log.warn("Failed to parse SKILL.md front-matter:", error);
-        // 解析失败，回退到正则解析
-      }
-    }
-
-    // 回退：从内容提取描述
-    return {
-      description: this.extractDescriptionFromContent(content),
-    };
+  async getSkillReadme(skillPath: string): Promise<string | null> {
+    await this.assertReadable(skillPath);
+    return fs.readFile(join(skillPath, SKILL_README), "utf-8").catch(() => null);
   }
 
-  // 获取 Skill 详情
-  async getSkillDetail(folderName: string): Promise<SkillDetail | null> {
-    const skillPath = join(this.skillsDir, folderName);
-    const readmePath = join(skillPath, SKILL_README);
-
-    if (!existsSync(skillPath)) {
-      return null;
-    }
-
-    let readmeContent = "";
-    let description = "";
-
-    try {
-      readmeContent = await fs.readFile(readmePath, "utf-8");
-      const meta = this.parseSkillReadme(readmeContent);
-      description = meta.description;
-    } catch {
-      // SKILL.md 不存在
-    }
-
-    const files = await this.getSkillFiles(folderName);
-
-    // name 始终使用文件夹名称
-    return {
-      folderName,
-      name: folderName,
-      description,
-      path: skillPath,
-      readmeContent,
-      files,
-    };
-  }
-
-  // 获取 SKILL.md 内容
-  async getSkillReadme(
-    folderName: string,
-  ): Promise<{ name: string; readmeContent: string } | null> {
-    const skillPath = join(this.skillsDir, folderName);
-    const readmePath = join(skillPath, SKILL_README);
-
-    try {
-      const readmeContent = await fs.readFile(readmePath, "utf-8");
-      // name 始终使用文件夹名称
-      return { name: folderName, readmeContent };
-    } catch {
-      return null;
-    }
-  }
-
-  // 获取文件列表
-  async getSkillFiles(folderName: string): Promise<SkillFile[]> {
-    const skillPath = join(this.skillsDir, folderName);
-
-    if (!existsSync(skillPath)) {
-      return [];
-    }
-
-    return await this.scanDirectory(skillPath);
-  }
-
-  private async scanDirectory(currentPath: string): Promise<SkillFile[]> {
-    const entries = await fs.readdir(currentPath, { withFileTypes: true });
+  private async walkFiles(root: string, current: string): Promise<SkillFile[]> {
+    const entries = await fs.readdir(current, { withFileTypes: true });
+    const sorted = entries
+      .filter(e => !e.name.startsWith(".") && e.name !== "node_modules" && e.name !== "__pycache__")
+      .sort((a, b) =>
+        a.isDirectory() === b.isDirectory()
+          ? a.name.localeCompare(b.name)
+          : a.isDirectory()
+            ? -1
+            : 1
+      );
     const files: SkillFile[] = [];
-
-    for (const entry of entries) {
-      const fullPath = join(currentPath, entry.name);
-      const isMarkdown = entry.name.endsWith(".md");
-
+    for (const entry of sorted) {
+      const full = join(current, entry.name);
       files.push({
         name: entry.name,
-        path: fullPath,
+        path: full,
+        relativePath: relative(root, full).split(sep).join("/"),
         isDirectory: entry.isDirectory(),
-        isMarkdown,
+        isMarkdown: entry.name.endsWith(".md"),
       });
-
-      if (entry.isDirectory()) {
-        const subFiles = await this.scanDirectory(fullPath);
-        files.push(...subFiles);
-      }
+      if (entry.isDirectory()) files.push(...(await this.walkFiles(root, full)));
     }
-
     return files;
   }
 
-  // 创建 Skill 文件夹
-  async createSkillFolder(name: string, description?: string): Promise<string> {
-    const folderName = name
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9-\u4e00-\u9fa5]/g, "");
-
-    const skillPath = join(this.skillsDir, folderName);
-
-    if (existsSync(skillPath)) {
-      throw new Error(`Skill "${folderName}" 已存在`);
-    }
-
-    await fs.mkdir(skillPath, { recursive: true });
-    await fs.writeFile(
-      join(skillPath, SKILL_README),
-      DEFAULT_SKILL_README(name, description),
-      "utf-8",
-    );
-
-    log.info(`Created skill: ${folderName}`);
-    return folderName;
+  async getSkillDetail(skillPath: string): Promise<SkillDetail | null> {
+    await this.assertReadable(skillPath);
+    if (!existsSync(skillPath)) return null;
+    const readmeContent = await fs.readFile(join(skillPath, SKILL_README), "utf-8").catch(() => "");
+    const meta = parseSkillFrontMatter(readmeContent);
+    const folderName = basename(skillPath);
+    return {
+      folderName,
+      name: meta.name ?? folderName,
+      description: meta.description,
+      path: skillPath,
+      source: isInside(this.skillsDir, skillPath) ? "mine" : "linked",
+      defaultInvocation: meta.disableModelInvocation ? "manual" : "auto",
+      allowedTools: meta.allowedTools,
+      readmeContent,
+      files: await this.walkFiles(skillPath, skillPath),
+    };
   }
 
-  // 写入文件
-  async writeSkillFile(filePath: string, content: string): Promise<void> {
-    if (!filePath.startsWith(this.skillsDir)) {
-      throw new Error("路径必须在 skills 目录下");
-    }
+  async getSkillTree(skillPath: string): Promise<string> {
+    await this.assertReadable(skillPath);
+    const files = await this.walkFiles(skillPath, skillPath);
+    const lines = [`${basename(skillPath)}/`];
+    const depthOf = (f: SkillFile) => (f.relativePath ?? "").split("/").length - 1;
+    files.forEach((file, index) => {
+      const depth = depthOf(file);
+      const next = files.slice(index + 1).find(f => depthOf(f) <= depth);
+      const isLast = !next || depthOf(next) < depth;
+      lines.push(
+        `${"│   ".repeat(depth)}${isLast ? "└── " : "├── "}${file.name}${file.isDirectory ? "/" : ""}`
+      );
+    });
+    return lines.join("\n");
+  }
 
-    const parentDir = join(filePath, "..");
-    await fs.mkdir(parentDir, { recursive: true });
+  // ── 读写 ──
+
+  async readFile(filePath: string): Promise<string> {
+    await this.assertReadable(filePath);
+    if (!existsSync(filePath)) throw new Error("文件不存在");
+    return fs.readFile(filePath, "utf-8");
+  }
+
+  async writeFile(filePath: string, content: string): Promise<void> {
+    this.assertWritable(filePath);
+    await fs.mkdir(join(filePath, ".."), { recursive: true });
     await fs.writeFile(filePath, content, "utf-8");
   }
 
-  // 删除 Skill 文件夹
-  async deleteSkillFolder(folderName: string): Promise<void> {
+  async createSkill(payload: {
+    name: string;
+    description?: string;
+    manual?: boolean;
+    body?: string;
+  }): Promise<Skill> {
+    const folderName = sanitizeFolderName(payload.name);
+    if (!folderName) throw new Error("名称至少要包含一个字母、数字或汉字");
     const skillPath = join(this.skillsDir, folderName);
-
-    if (!existsSync(skillPath)) {
-      throw new Error(`Skill "${folderName}" 不存在`);
-    }
-
-    await fs.rm(skillPath, { recursive: true, force: true });
-    log.info(`Deleted skill: ${folderName}`);
+    if (existsSync(skillPath)) throw new Error(`已存在名为「${folderName}」的 Skill`);
+    await fs.mkdir(skillPath, { recursive: true });
+    await fs.writeFile(
+      join(skillPath, SKILL_README),
+      DEFAULT_SKILL_README(
+        payload.name.trim(),
+        payload.description?.trim(),
+        payload.manual,
+        payload.body
+      ),
+      "utf-8"
+    );
+    log.info(`Created skill: ${folderName}`);
+    return (await this.scanRoot(this.skillsDir, "mine")).find(s => s.folderName === folderName)!;
   }
 
-  // 读取文件内容
-  async readSkillFile(filePath: string): Promise<string> {
-    if (!filePath.startsWith(this.skillsDir)) {
-      throw new Error("路径必须在 skills 目录下");
-    }
-
-    if (!existsSync(filePath)) {
-      throw new Error("文件不存在");
-    }
-
-    return await fs.readFile(filePath, "utf-8");
+  async deleteSkill(skillPath: string): Promise<void> {
+    this.assertWritable(skillPath);
+    if (resolve(join(skillPath, "..")) !== resolve(this.skillsDir))
+      throw new Error("不是 Skill 目录");
+    await shell.trashItem(skillPath);
+    log.info(`Trashed skill: ${skillPath}`);
   }
 
-  // 创建文件夹
-  async createDirectory(dirPath: string, dirName: string): Promise<string> {
-    if (!dirPath.startsWith(this.skillsDir)) {
-      throw new Error("路径必须在 skills 目录下");
-    }
-
-    const newDirPath = join(dirPath, dirName);
-
-    if (existsSync(newDirPath)) {
-      throw new Error(`文件夹 "${dirName}" 已存在`);
-    }
-
-    await fs.mkdir(newDirPath, { recursive: true });
-    log.info(`Created directory: ${newDirPath}`);
-    return newDirPath;
+  async createEntry(dirPath: string, name: string, isDirectory: boolean): Promise<string> {
+    const target = join(dirPath, name);
+    this.assertWritable(target);
+    if (!name.trim() || name.includes("/") || name.includes("\\")) throw new Error("名称不合法");
+    if (existsSync(target)) throw new Error(`「${name}」已存在`);
+    if (isDirectory) await fs.mkdir(target, { recursive: true });
+    else await fs.writeFile(target, "", "utf-8");
+    return target;
   }
 
-  // 删除文件或文件夹
-  async deleteFileOrFolder(targetPath: string): Promise<void> {
-    if (!targetPath.startsWith(this.skillsDir)) {
-      throw new Error("路径必须在 skills 目录下");
-    }
-
-    if (!existsSync(targetPath)) {
-      throw new Error("文件或文件夹不存在");
-    }
-
-    // 禁止删除 SKILL.md
-    const fileName = targetPath.split("/").pop() || "";
-    if (fileName === SKILL_README) {
-      throw new Error("SKILL.md 是必需文件，不允许删除");
-    }
-
-    const stat = await fs.stat(targetPath);
-    if (stat.isDirectory()) {
-      await fs.rm(targetPath, { recursive: true, force: true });
-    } else {
-      await fs.unlink(targetPath);
-    }
-    log.info(`Deleted: ${targetPath}`);
-  }
-
-  // 重命名文件或文件夹
-  async renameFileOrFolder(oldPath: string, newName: string): Promise<string> {
-    if (!oldPath.startsWith(this.skillsDir)) {
-      throw new Error("路径必须在 skills 目录下");
-    }
-
-    if (!existsSync(oldPath)) {
-      throw new Error("文件或文件夹不存在");
-    }
-
-    // 禁止重命名 SKILL.md
-    const oldFileName = oldPath.split("/").pop() || "";
-    if (oldFileName === SKILL_README) {
-      throw new Error("SKILL.md 是必需文件，不允许重命名");
-    }
-
-    const parentDir = join(oldPath, "..");
-    const newPath = join(parentDir, newName);
-
-    if (existsSync(newPath)) {
-      throw new Error(`"${newName}" 已存在`);
-    }
-
+  async renameEntry(oldPath: string, newName: string): Promise<string> {
+    this.assertWritable(oldPath);
+    if (basename(oldPath) === SKILL_README) throw new Error("SKILL.md 是必需文件，不能重命名");
+    const newPath = join(oldPath, "..", newName);
+    this.assertWritable(newPath);
+    if (existsSync(newPath)) throw new Error(`「${newName}」已存在`);
     await fs.rename(oldPath, newPath);
-    log.info(`Renamed: ${oldPath} -> ${newPath}`);
     return newPath;
   }
 
-  // 创建文件
-  async createFile(dirPath: string, fileName: string): Promise<string> {
-    if (!dirPath.startsWith(this.skillsDir)) {
-      throw new Error("路径必须在 skills 目录下");
-    }
-
-    const filePath = join(dirPath, fileName);
-
-    if (existsSync(filePath)) {
-      throw new Error(`文件 "${fileName}" 已存在`);
-    }
-
-    await fs.writeFile(filePath, "", "utf-8");
-    log.info(`Created file: ${filePath}`);
-    return filePath;
+  async deleteEntry(targetPath: string): Promise<void> {
+    this.assertWritable(targetPath);
+    if (basename(targetPath) === SKILL_README) throw new Error("SKILL.md 是必需文件，不能删除");
+    if (resolve(targetPath) === resolve(this.skillsDir)) throw new Error("不能删除 skills 目录");
+    await shell.trashItem(targetPath);
   }
 
-  // 获取整个 skills 目录的文件树
-  async getFileTree(dirPath?: string): Promise<SkillFile[]> {
-    await this.ensureSkillsDir();
-    const targetPath = dirPath || this.skillsDir;
-
-    // 验证路径在 skills 目录下
-    if (!targetPath.startsWith(this.skillsDir)) {
-      throw new Error("路径必须在 skills 目录下");
-    }
-
-    return await this.buildFileTree(targetPath);
-  }
-
-  private async buildFileTree(currentPath: string): Promise<SkillFile[]> {
-    if (!existsSync(currentPath)) {
-      return [];
-    }
-
-    const entries = await fs.readdir(currentPath, { withFileTypes: true });
-    const files: SkillFile[] = [];
-
-    for (const entry of entries) {
-      const fullPath = join(currentPath, entry.name);
-      const isMarkdown = entry.name.endsWith(".md");
-
-      const fileNode: SkillFile = {
-        name: entry.name,
-        path: fullPath,
-        isDirectory: entry.isDirectory(),
-        isMarkdown,
-      };
-
-      files.push(fileNode);
-    }
-
-    return files;
-  }
-
-  // 在文件系统中显示文件或文件夹
   async showInFolder(filePath: string): Promise<void> {
-    if (!filePath.startsWith(this.skillsDir)) {
-      throw new Error("路径必须在 skills 目录下");
-    }
-
-    if (!existsSync(filePath)) {
-      throw new Error("文件或文件夹不存在");
-    }
-
-    const { shell } = await import("electron");
+    await this.assertReadable(filePath);
     shell.showItemInFolder(filePath);
-    log.info(`Showed in folder: ${filePath}`);
   }
 
-  // 获取 Skill 的树形结构
-  async getSkillTree(folderName: string): Promise<string> {
-    const skillPath = join(this.skillsDir, folderName);
-
-    if (!existsSync(skillPath)) {
-      throw new Error(`Skill "${folderName}" 不存在`);
-    }
-
-    const stat = await fs.stat(skillPath);
-    if (!stat.isDirectory()) {
-      throw new Error(`"${folderName}" 不是一个目录`);
-    }
-
-    // 显示根目录名
-    let result = `${folderName}/\n`;
-    result += await this.buildTreeString(skillPath, "");
-    return result;
+  async exportZip(skillPath: string): Promise<Uint8Array> {
+    await this.assertSkillDir(skillPath);
+    return new Uint8Array(zipDirectory(skillPath));
   }
 
-  private async buildTreeString(
-    currentPath: string,
-    prefix: string,
-  ): Promise<string> {
-    const entries = await fs.readdir(currentPath, { withFileTypes: true });
-    const sortedEntries = entries.sort((a, b) => {
-      // 目录优先
-      if (a.isDirectory() && !b.isDirectory()) return -1;
-      if (!a.isDirectory() && b.isDirectory()) return 1;
-      return a.name.localeCompare(b.name);
-    });
+  // ── 导入：先解到暂存目录列出候选，再按勾选复制进「我的」 ──
 
-    let result = "";
+  async inspectImport(source: SkillImportSource): Promise<SkillImportInspection> {
+    let root: string;
+    let temp = true;
+    if (source.type === "folder") {
+      root = resolve(source.path);
+      temp = false;
+    } else if (source.type === "zip") {
+      root = await createStageDir();
+      await extractZip(await fs.readFile(source.path), root);
+    } else {
+      const gh = parseGithubUrl(source.url);
+      const response = await net.fetch(
+        `https://github.com/${gh.owner}/${gh.repo}/archive/${encodeURIComponent(gh.ref)}.zip`
+      );
+      if (!response.ok) throw new Error(`下载仓库失败（HTTP ${response.status}）`);
+      const stage = await createStageDir();
+      await extractZip(Buffer.from(await response.arrayBuffer()), stage);
+      // 归档顶层是 <repo>-<ref>/ 一层目录
+      const [top] = (await fs.readdir(stage, { withFileTypes: true })).filter(e => e.isDirectory());
+      root = top ? join(stage, top.name, gh.subPath) : stage;
+      if (!existsSync(root)) throw new Error(`仓库里没有目录「${gh.subPath}」`);
+      this.stages.set(`cleanup:${stage}`, { root: stage, temp: true });
+    }
 
-    for (let i = 0; i < sortedEntries.length; i++) {
-      const entry = sortedEntries[i];
-      const isLastEntry = i === sortedEntries.length - 1;
-      const connector = isLastEntry ? "└── " : "├── ";
-      const childPrefix = prefix + (isLastEntry ? "    " : "│   ");
+    const dirs = await findSkillDirs(root);
+    if (dirs.length === 0) {
+      if (temp) await fs.rm(root, { recursive: true, force: true }).catch(() => undefined);
+      throw new Error("没有找到 SKILL.md");
+    }
+    const token = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    this.stages.set(token, { root, temp });
+    const candidates = (await describeCandidates(root, dirs)).map(c => ({
+      ...c,
+      exists: existsSync(join(this.skillsDir, sanitizeFolderName(c.folderName) || c.folderName)),
+    }));
+    return { token, candidates };
+  }
 
-      const displayName = entry.isDirectory() ? `${entry.name}/` : entry.name;
-      result += `${prefix}${connector}${displayName}\n`;
+  async commitImport(
+    token: string,
+    items: Array<{ relPath: string; overwrite?: boolean }>
+  ): Promise<string[]> {
+    const stage = this.stages.get(token);
+    if (!stage) throw new Error("导入已过期，请重新选择");
+    const imported: string[] = [];
+    for (const item of items) {
+      const from = resolve(stage.root, item.relPath);
+      if (!isInside(stage.root, from)) continue;
+      const folderName = sanitizeFolderName(basename(from)) || basename(from);
+      const to = join(this.skillsDir, folderName);
+      if (existsSync(to)) {
+        if (!item.overwrite) continue;
+        await shell.trashItem(to);
+      }
+      await copyDir(from, to);
+      imported.push(folderName);
+    }
+    await this.discardImport(token);
+    return imported;
+  }
 
-      if (entry.isDirectory()) {
-        const childPath = join(currentPath, entry.name);
-        const childTree = await this.buildTreeString(childPath, childPrefix);
-        result += childTree;
+  async discardImport(token: string): Promise<void> {
+    const stage = this.stages.get(token);
+    this.stages.delete(token);
+    if (!stage?.temp) return;
+    // GitHub 导入的暂存根是解压目录，候选根只是其子目录
+    for (const [key, value] of this.stages) {
+      if (key.startsWith("cleanup:") && isInside(value.root, stage.root)) {
+        this.stages.delete(key);
+        await fs.rm(value.root, { recursive: true, force: true }).catch(() => undefined);
+        return;
       }
     }
+    await fs.rm(stage.root, { recursive: true, force: true }).catch(() => undefined);
+  }
 
-    return result;
+  // ── 脚本执行（权限确认在渲染端的工具权限层完成） ──
+
+  async runScript(request: SkillScriptRunRequest, runId?: string) {
+    await this.assertSkillDir(request.skillPath);
+    return runSkillScript(
+      {
+        skillDir: request.skillPath,
+        script: request.script,
+        args: request.args,
+        stdin: request.stdin,
+        timeoutMs: request.timeoutMs,
+      },
+      runId
+    );
   }
 }
 

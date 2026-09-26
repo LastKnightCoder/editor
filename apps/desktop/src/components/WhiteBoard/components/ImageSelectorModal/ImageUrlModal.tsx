@@ -6,7 +6,7 @@
 import React, { useEffect, useState } from "react";
 import { ImageIcon } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
-import { Button, Dialog, Input, cn } from "@tau/ui";
+import { Button, Dialog, DialogBody, Input, cn } from "@tau/ui";
 import { validateImageUrl } from "./imageActions";
 
 interface ImageUrlModalProps {
@@ -93,57 +93,59 @@ const ImageUrlModal: React.FC<ImageUrlModalProps> = ({ open, onCancel, onConfirm
         </>
       }
     >
-      <div className="flex flex-col gap-3">
-        <label className="flex flex-col gap-1.5">
-          <span className="text-ink-2 text-[12px]">图片地址</span>
-          <Input
-            data-autofocus
-            value={url}
-            onChange={e => {
-              setUrl(e.target.value);
-              setError(null);
-            }}
-            onKeyDown={handleKeyDown}
-            placeholder="https://example.com/image.png"
-            aria-invalid={error ? true : undefined}
-          />
-        </label>
-
-        {/* 预览：常驻占位，地址变化只换内容，不顶开布局 */}
-        <div className="bg-page ring-line-1 rounded-tau-md relative grid h-40 place-items-center overflow-hidden ring-1 ring-inset">
-          {previewUrl && (
-            <img
-              key={previewUrl}
-              src={previewUrl}
-              alt=""
-              onLoad={() => setResult({ url: previewUrl, ok: true })}
-              onError={() => setResult({ url: previewUrl, ok: false })}
-              className={cn(
-                "absolute inset-0 size-full object-contain p-2",
-                preview === "ok" ? "opacity-100" : "opacity-0"
-              )}
+      <DialogBody>
+        <div className="flex flex-col gap-3">
+          <label className="flex flex-col gap-1.5">
+            <span className="text-ink-2 text-[12px]">图片地址</span>
+            <Input
+              data-autofocus
+              value={url}
+              onChange={e => {
+                setUrl(e.target.value);
+                setError(null);
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder="https://example.com/image.png"
+              aria-invalid={error ? true : undefined}
             />
-          )}
-          {preview !== "ok" && (
-            <div className="text-ink-3 flex flex-col items-center gap-1.5 text-[12px]">
-              <ImageIcon className="size-[22px]" strokeWidth={1.5} />
-              <span>
-                {preview === "loading"
-                  ? "正在加载预览…"
-                  : preview === "error"
-                    ? "无法加载这张图片"
-                    : "粘贴地址后在这里预览"}
-              </span>
-            </div>
+          </label>
+
+          {/* 预览：常驻占位，地址变化只换内容，不顶开布局 */}
+          <div className="bg-page ring-line-1 rounded-tau-md relative grid h-40 place-items-center overflow-hidden ring-1 ring-inset">
+            {previewUrl && (
+              <img
+                key={previewUrl}
+                src={previewUrl}
+                alt=""
+                onLoad={() => setResult({ url: previewUrl, ok: true })}
+                onError={() => setResult({ url: previewUrl, ok: false })}
+                className={cn(
+                  "absolute inset-0 size-full object-contain p-2",
+                  preview === "ok" ? "opacity-100" : "opacity-0"
+                )}
+              />
+            )}
+            {preview !== "ok" && (
+              <div className="text-ink-3 flex flex-col items-center gap-1.5 text-[12px]">
+                <ImageIcon className="size-[22px]" strokeWidth={1.5} />
+                <span>
+                  {preview === "loading"
+                    ? "正在加载预览…"
+                    : preview === "error"
+                      ? "无法加载这张图片"
+                      : "粘贴地址后在这里预览"}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {error && (
+            <p className="bg-danger-soft text-danger rounded-tau-sm px-3 py-2 text-[12.5px]">
+              {error}
+            </p>
           )}
         </div>
-
-        {error && (
-          <p className="bg-danger-soft text-danger rounded-tau-sm px-3 py-2 text-[12.5px]">
-            {error}
-          </p>
-        )}
-      </div>
+      </DialogBody>
     </Dialog>
   );
 };

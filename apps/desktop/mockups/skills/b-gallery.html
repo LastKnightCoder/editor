@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>方案 B · 卡片库 + 编辑页</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="../mcp/mcp.css?v=1" />
+<link rel="stylesheet" href="skills.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div class="mock-note">
+  <h3>方案 B · 卡片库 + 预览抽屉 + 整页编辑器（参考 Claude.ai「设置 → Capabilities → Skills」、与 MCP 页 D-058 同构）</h3>
+  整页卡片网格（我的 / 内置 / 关联目录 / 示例），卡片上直接开关、看调用方式与使用次数。点卡片从右侧滑出<b>预览抽屉</b>（概览 / 设置 / 使用记录）；点「编辑」推入<b>整页编辑器</b>：左文件树、中间 SKILL.md（表单 + 正文）、右侧「试一试」对话用未保存版本实时验证。
+  <ul>
+    <li>「示例」区放几份写得好的 Skill，一键「复制为我的」再改——比空白模板更容易上手。</li>
+    <li class="pro">＋ 与 MCP 页交互完全一致（卡片 + 抽屉），AI 组两页一套心智；浏览 / 管理轻、编辑重，分开后各自都舒展；「试一试」让写 Skill 有即时反馈。</li>
+    <li class="con">－ 层级多一层（卡片 → 抽屉 → 编辑页）；Skill 很多时卡片网格的信息密度不如列表。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mockBar, sidebar, titlebar, anno, icons, ic, tg, SKILLS, byId, bySrc, modeBadge, srcBadge, budget, detailHead, tabs, pane, addDialog, slashMenu, slashScene, editPage } from "./skills.js?v=1";
+
+mockBar("b-gallery.html", `<span class="seg"><button data-m="grid">卡片库</button><button data-m="drawer">预览抽屉</button><button data-m="edit">编辑页</button><button data-m="add">添加</button><button data-m="slash">输入框 /</button></span>`);
+
+const EXAMPLES = [
+  ["mic", "c2", "会议纪要", "把会议转写整理成结论 / 待办 / 讨论要点"],
+  ["languages", "c3", "中英对照翻译", "术语表 + 段落对照，保留原文格式"],
+  ["sun", "c5", "每日回顾", "晚间根据今日日记与待办生成三问复盘"],
+  ["pen-tool", "c1", "文章润色", "按你的写作风格指南改稿，列出修改理由"],
+];
+
+const win = document.getElementById("win");
+const state = { m: "grid", id: "weekly-report", tab: "overview", add: null, source: false };
+
+function card(s) {
+  const foot = s.warn && !s.desc
+    ? `<span class="s-warn"><i data-lucide="circle-alert"></i>缺少描述</span>`
+    : `${modeBadge(s)}<span class="sp"></span>${s.uses ? `<span class="num">用过 ${s.uses} 次</span>` : "未使用"}${s.warn ? `<i data-lucide="triangle-alert" style="width:13px;color:var(--warn)" title="${s.warn}"></i>` : ""}`;
+  return `
+  <div class="x-card ${s.on ? "" : "off"} ${state.m === "drawer" && s.id === state.id ? "on" : ""}" data-id="${s.id}">
+    <div class="top">${ic(s)}<div style="flex:1;min-width:0"><div class="n">${s.title}</div><div class="s" style="display:flex;align-items:center;gap:6px;margin-top:2px">${srcBadge(s)}<span class="mono">${s.id}</span></div></div>${tg(s.on, true)}</div>
+    <div class="d">${s.desc || `<span style="color:var(--ink-3)">（没有描述）</span>`}</div>
+    <div class="ft">${foot}</div>
+  </div>`;
+}
+
+function page() {
+  return `
+  <div class="x-wide">
+    <div class="x-wide-head"><h1>Skill</h1><span class="sp"></span>
+      <div class="x-search" style="width:240px"><i data-lucide="search"></i>搜索 Skill</div>
+      <button class="btn" data-add="link"><i data-lucide="folder-symlink"></i>关联目录</button>
+      <button class="btn primary" id="add"><i data-lucide="plus"></i>添加 Skill</button></div>
+    <p class="x-lead">Skill 是一份说明文档，教 AI 按你的方式完成特定任务。自动模式的 Skill 只把描述放进对话，需要时才读取全文。</p>
+    <div class="x-filter">
+      <span class="chip on">全部 <span class="num">${SKILLS.length}</span></span>
+      <span class="chip">已启用 <span class="num">${SKILLS.filter(s => s.on).length}</span></span>
+      <span class="chip">仅手动 <span class="num">2</span></span>
+      <span class="chip" style="color:var(--warn)"><i data-lucide="triangle-alert"></i>需要处理 <span class="num">2</span></span>
+      <span class="sp"></span>
+      <div style="width:470px">${budget()}</div>
+    </div>
+    <div class="x-section-t">我的<span class="h">${bySrc("mine").length}</span></div>
+    <div class="x-grid">${bySrc("mine").map(card).join("")}<div class="x-card add-card" id="add2"><i data-lucide="plus"></i>新建 Skill</div></div>
+    <div class="x-section-t">内置<span class="h">随应用更新，可停用、可复制后修改</span></div>
+    <div class="x-grid">${bySrc("builtin").map(card).join("")}</div>
+    <div class="x-section-t"><i data-lucide="link-2" style="width:14px"></i>关联目录<span class="h">~/.claude/skills · 只读</span></div>
+    <div class="x-grid">${bySrc("linked").map(card).join("")}</div>
+    <div class="x-section-t">示例<span class="h">写得好的 Skill 范本，复制后按需修改</span></div>
+    <div class="x-grid">${EXAMPLES.map(([i, c, n, d]) => `
+      <div class="x-card dir"><div class="top"><span class="x-ic ${c}"><i data-lucide="${i}"></i></span><div style="flex:1"><div class="n">${n}</div><div class="s">示例</div></div></div>
+      <div class="d">${d}</div><div class="ft"><span class="x-link" style="font-size:11.5px">预览</span><span class="sp"></span><button class="btn" style="border:1px solid var(--line-1)"><i data-lucide="copy"></i>复制为我的</button></div></div>`).join("")}</div>
+  </div>`;
+}
+
+function render() {
+  const { m, id, tab, add } = state;
+  const s = byId(id);
+  let main;
+  if (m === "slash") main = slashScene();
+  else if (m === "edit") main = `<section class="paper x-paper">${editPage(s, { source: state.source })}</section>`;
+  else main = `<section class="paper x-paper">${page()}</section>`;
+  const crumb = m === "slash" ? `<b>AI 对话</b>` : m === "edit" ? `<span>Skill</span><i data-lucide="chevron-right"></i><b>${s.title}</b>` : `<b>Skill</b>`;
+  win.innerHTML = `
+    ${sidebar()}
+    <div class="col">${titlebar(crumb)}<div class="main">${main}</div></div>
+    ${m === "drawer" ? `<div class="x-drawer">${detailHead(s, { extraActs: '<button class="ib" data-close title="关闭 Esc"><i data-lucide="x"></i></button>' }).replace(/<button class="btn" title="新建对话[^]*?<\/button>/, "")}${tabs(s, tab, ["overview", "settings", "usage"])}<div class="x-pane">${pane(s, tab)}</div></div>` : ""}
+    ${add ? addDialog(add) : ""}
+    ${m === "slash" ? slashMenu("left:470px;bottom:150px") : ""}
+    ${m === "grid" && !add ? anno(1, "卡片直接给开关 / 调用方式 / 使用次数，问题项标黄", "left:300px;top:250px") + anno(2, "上下文预算：自动 Skill 描述合计", "left:1080px;top:160px") + anno(3, "示例区：复制即得一份可改的范本", "left:300px;top:730px") : ""}
+    ${m === "edit" ? anno(1, "描述单独做成表单字段，带字数与「是否写了触发场景」提示", "left:520px;top:200px;max-width:250px") + anno(2, "「试一试」用未保存版本跑一轮，看 AI 会不会自动加载、结果对不对", "left:1100px;top:250px;max-width:250px") : ""}`;
+  icons();
+  document.querySelectorAll(".mock-bar .seg button").forEach(b => b.classList.toggle("on", b.dataset.m === (add ? "add" : m)));
+  win.querySelectorAll(".x-card[data-id]").forEach(c => (c.onclick = () => { Object.assign(state, { m: "drawer", id: c.dataset.id, tab: "overview" }); render(); }));
+  win.querySelectorAll("[data-tab]").forEach(t => (t.onclick = () => { state.tab = t.dataset.tab; render(); }));
+  win.querySelectorAll("[data-edit]").forEach(t => (t.onclick = () => { state.m = "edit"; render(); }));
+  win.querySelectorAll("[data-back]").forEach(t => (t.onclick = () => { state.m = "grid"; render(); }));
+  win.querySelectorAll("[data-src]").forEach(t => (t.onclick = () => { state.source = t.dataset.src === "1"; render(); }));
+  win.querySelectorAll("[data-add]").forEach(t => (t.onclick = e => { e.stopPropagation(); state.add = t.dataset.add; render(); }));
+  win.querySelectorAll("[data-close]").forEach(t => (t.onclick = () => { if (state.add) state.add = null; else state.m = "grid"; render(); }));
+  ["#add", "#add2"].forEach(q => { const a = win.querySelector(q); if (a) a.onclick = () => { state.add = "new"; render(); }; });
+}
+document.querySelectorAll(".mock-bar .seg button").forEach(b => (b.onclick = () => {
+  const m = b.dataset.m;
+  state.add = m === "add" ? "new" : null;
+  state.m = m === "add" ? "grid" : m;
+  state.id = "weekly-report";
+  state.tab = "overview";
+  render();
+}));
+render();
+</script>
+</body>
+</html>

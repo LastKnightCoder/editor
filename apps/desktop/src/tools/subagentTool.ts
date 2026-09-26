@@ -1,8 +1,4 @@
-import {
-  Agent,
-  composeAgentModel,
-  type AgentToolExecutionState,
-} from "@tau/agent";
+import { Agent, composeAgentModel, type AgentToolExecutionState } from "@tau/agent";
 
 import { DesktopModelProtocolAdapter } from "@/agent/DesktopModelProtocolAdapter";
 import { DesktopModelTransport } from "@/agent/DesktopModelTransport";
@@ -54,14 +50,14 @@ interface SubAgentRuntimeContext {
   providerConfig?: ProviderConfig;
   modelConfig?: ModelConfig;
   skills?: Skill[];
+  /** 父对话的工具作用域：子 Agent 同样可用页面专属工具 */
+  toolScope?: string;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object";
 
-const normalizeTasks = (
-  rawTasks: SubAgentToolArgs["tasks"],
-): SubAgentResearchTask[] | null => {
+const normalizeTasks = (rawTasks: SubAgentToolArgs["tasks"]): SubAgentResearchTask[] | null => {
   if (!Array.isArray(rawTasks) || rawTasks.length === 0) {
     return null;
   }
@@ -87,11 +83,7 @@ const normalizeTasks = (
   return tasks;
 };
 
-const normalizePositiveInteger = (
-  value: unknown,
-  fallback: number,
-  max: number,
-) => {
+const normalizePositiveInteger = (value: unknown, fallback: number, max: number) => {
   const numeric = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(numeric) || numeric <= 0) {
     return fallback;
@@ -100,27 +92,27 @@ const normalizePositiveInteger = (
 };
 
 const buildSummary = (payload: SubAgentResearchPayload) => {
-  const successful = payload.tasks.filter((task) => task.status === "success");
-  const failed = payload.tasks.filter((task) => task.status === "failed");
-  const cancelled = payload.tasks.filter((task) => task.status === "cancelled");
+  const successful = payload.tasks.filter(task => task.status === "success");
+  const failed = payload.tasks.filter(task => task.status === "failed");
+  const cancelled = payload.tasks.filter(task => task.status === "cancelled");
   const lines = [
     `SubAgent 调研状态：${payload.status}`,
     `完成 ${successful.length} 个，失败 ${failed.length} 个，取消 ${cancelled.length} 个。`,
-    ...successful.map((task) => `- ${task.title}: ${task.answer || "无结论"}`),
+    ...successful.map(task => `- ${task.title}: ${task.answer || "无结论"}`),
   ];
 
   if (failed.length > 0) {
-    lines.push(...failed.map((task) => `- ${task.title} 失败: ${task.error}`));
+    lines.push(...failed.map(task => `- ${task.title} 失败: ${task.error}`));
   }
   if (cancelled.length > 0) {
-    lines.push(...cancelled.map((task) => `- ${task.title}: 已取消`));
+    lines.push(...cancelled.map(task => `- ${task.title}: 已取消`));
   }
 
   return lines.join("\n");
 };
 
 const mapExecution = (
-  execution: AgentToolExecutionState,
+  execution: AgentToolExecutionState
 ): SubAgentTaskView["toolExecutions"][number] => ({
   toolCallId: execution.toolCallId,
   toolName: execution.toolName,
@@ -137,23 +129,19 @@ const mapExecution = (
 });
 
 const createSubAgent = (
-  runtime: Required<
-    Pick<SubAgentRuntimeContext, "providerConfig" | "modelConfig">
-  > &
-    Pick<SubAgentRuntimeContext, "skills">,
+  runtime: Required<Pick<SubAgentRuntimeContext, "providerConfig" | "modelConfig">> &
+    Pick<SubAgentRuntimeContext, "skills" | "toolScope">,
   maxToolCallLoops: number,
-  toolTimeoutMs: number,
+  toolTimeoutMs: number
 ) =>
   new Agent({
     model: composeAgentModel({
-      protocol: new DesktopModelProtocolAdapter(
-        runtime.providerConfig,
-        runtime.modelConfig,
-      ),
+      protocol: new DesktopModelProtocolAdapter(runtime.providerConfig, runtime.modelConfig),
       transport: new DesktopModelTransport(),
     }),
     tools: {
-      getTools: () => filterSubAgentTools(getToolRegistryAgentTools()),
+      getTools: () =>
+        filterSubAgentTools(getToolRegistryAgentTools({ toolScope: runtime.toolScope })),
     },
     skills: toAgentSkills(runtime.skills || []),
     policies: buildSubAgentAgentPolicies({
@@ -162,9 +150,7 @@ const createSubAgent = (
     }),
   });
 
-const resolveRuntimeContext = (
-  context?: ToolExecutionContext,
-): SubAgentRuntimeContext => {
+const resolveRuntimeContext = (context?: ToolExecutionContext): SubAgentRuntimeContext => {
   const runtime =
     isRecord(context?.toolContext) && isRecord(context.toolContext.agentRuntime)
       ? (context.toolContext.agentRuntime as SubAgentRuntimeContext)
@@ -172,22 +158,13 @@ const resolveRuntimeContext = (
   return runtime;
 };
 
-export const buildSubAgentResearchMetadataFromInput = (
-  toolCallId: string,
-  rawInput: string,
-) => {
+export const buildSubAgentResearchMetadataFromInput = (toolCallId: string, rawInput: string) => {
   try {
-    const parsed = rawInput.trim()
-      ? (JSON.parse(rawInput) as SubAgentToolArgs)
-      : {};
+    const parsed = rawInput.trim() ? (JSON.parse(rawInput) as SubAgentToolArgs) : {};
     const tasks = normalizeTasks(parsed.tasks) || [];
-    return buildSubAgentResearchMetadata(
-      createInitialSubAgentResearchPayload(toolCallId, tasks),
-    );
+    return buildSubAgentResearchMetadata(createInitialSubAgentResearchPayload(toolCallId, tasks));
   } catch {
-    return buildSubAgentResearchMetadata(
-      createInitialSubAgentResearchPayload(toolCallId, []),
-    );
+    return buildSubAgentResearchMetadata(createInitialSubAgentResearchPayload(toolCallId, []));
   }
 };
 
@@ -226,8 +203,7 @@ export const createSubAgentResearchTool = (): ToolDefinition => ({
       },
       timeoutMs: {
         type: "number",
-        description:
-          "SubAgent 内部单次工具调用超时时间，默认 30000，最大 300000。",
+        description: "SubAgent 内部单次工具调用超时时间，默认 30000，最大 300000。",
       },
     },
     required: ["tasks"],
@@ -238,8 +214,7 @@ export const createSubAgentResearchTool = (): ToolDefinition => ({
     const tasks = normalizeTasks(parsed.tasks);
     if (!tasks) {
       return {
-        content:
-          "参数错误：tasks 必须是非空数组，且每个任务需要唯一 id、title 和 prompt。",
+        content: "参数错误：tasks 必须是非空数组，且每个任务需要唯一 id、title 和 prompt。",
         isParameterError: true,
       };
     }
@@ -253,26 +228,19 @@ export const createSubAgentResearchTool = (): ToolDefinition => ({
     }
 
     const sessionId = context?.toolCallId || `subagent-${Date.now()}`;
-    const maxConcurrency = normalizePositiveInteger(
-      parsed.maxConcurrency,
-      3,
-      5,
-    );
+    const maxConcurrency = normalizePositiveInteger(parsed.maxConcurrency, 3, 5);
     const maxToolCallLoops = normalizePositiveInteger(
       parsed.maxToolCallLoops,
       DEFAULT_MAX_TOOL_CALL_LOOPS,
-      MAX_TOOL_CALL_LOOPS,
+      MAX_TOOL_CALL_LOOPS
     );
     const toolTimeoutMs = normalizePositiveInteger(
       parsed.timeoutMs,
       DEFAULT_TOOL_TIMEOUT_MS,
-      MAX_TOOL_TIMEOUT_MS,
+      MAX_TOOL_TIMEOUT_MS
     );
 
-    const initialPayload = createInitialSubAgentResearchPayload(
-      sessionId,
-      tasks,
-    );
+    const initialPayload = createInitialSubAgentResearchPayload(sessionId, tasks);
     subAgentResearchStore.setSession(initialPayload);
 
     const payload = await runSubAgentResearch({
@@ -280,7 +248,7 @@ export const createSubAgentResearchTool = (): ToolDefinition => ({
       tasks,
       maxConcurrency,
       signal: context?.signal,
-      onUpdate: (nextPayload) => {
+      onUpdate: nextPayload => {
         subAgentResearchStore.setSession(nextPayload);
       },
       runTask: async ({ task, signal, updateTask }) => {
@@ -296,9 +264,10 @@ export const createSubAgentResearchTool = (): ToolDefinition => ({
               providerConfig: runtime.providerConfig!,
               modelConfig: runtime.modelConfig!,
               skills: runtime.skills,
+              toolScope: runtime.toolScope,
             },
             maxToolCallLoops,
-            toolTimeoutMs,
+            toolTimeoutMs
           );
 
           for await (const event of agent.run({
@@ -353,7 +322,7 @@ export const createSubAgentResearchTool = (): ToolDefinition => ({
                   time: Date.now(),
                   type: "tool",
                   message: `调用 ${event.execution.toolName}: ${event.execution.status}`,
-                },
+                }
               );
               continue;
             }

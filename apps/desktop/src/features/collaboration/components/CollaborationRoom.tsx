@@ -1,5 +1,6 @@
 /**
- * 协作副本面板（方案 A3）：一整块面板直接编辑共享内容——我发起的与我加入的都在这里改。
+ * 协作副本（方案 A3）：直接编辑共享内容——我发起的与我加入的都在这里改。
+ * 落在协作页那张纸内，不自带卡片外壳；顶栏 / 横幅 / 底栏与页头同为 32px 左右边距。
  *
  * 顶栏：来源 · 在线成员（Popover：协作码 / 待审批 / 成员）· 协作码 chip（点击复制）·
  * 在原内容中打开 · 更多（复制 / 轮换协作码、结束共享 / 退出 / 清理）。
@@ -24,8 +25,9 @@ import {
   WifiOff,
   type LucideIcon,
 } from "lucide-react";
-import { IconButton, Loading, Menu, Popover, Tooltip, cn, toast, useEdgeFade } from "@tau/ui";
+import { IconButton, Loading, Menu, Popover, Tooltip, cn, toast } from "@tau/ui";
 import type { CollaborationSession, JoinRequest } from "@tau/collaboration";
+import { FadeScroll } from "@/components/FadeScroll";
 import useCollaborationDocument from "@/hooks/useCollaborationDocument";
 import CollaborationEditor from "@/components/CollaborationEditor";
 import { CollaborativeTitleField } from "@/components/CollaborativeTitle";
@@ -67,8 +69,6 @@ export function CollaborationRoom({
 }) {
   const { binding, article, error, frozen } = useCollaborationDocument(session.id);
   const [leaving, setLeaving] = useState(false);
-  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
-  useEdgeFade(scrollEl);
 
   const ownerActive = session.role === "owner" && session.status === "active";
   const readonly = session.status !== "active" || frozen;
@@ -109,8 +109,9 @@ export function CollaborationRoom({
   }, [session.error, session.status, session.pending, session.connection]);
 
   return (
-    <section className="rounded-tau-lg bg-surface shadow-card flex min-h-0 flex-1 flex-col overflow-hidden">
-      <header className="flex h-[52px] flex-none items-center gap-2 pl-5 pr-3">
+    <section className="flex min-h-0 flex-1 flex-col">
+      {/* 右侧 26px：末尾图标按钮自带内边距，图形右缘与页头按钮对齐 */}
+      <header className="flex h-[44px] flex-none items-center gap-2 pl-8 pr-[26px]">
         <span className="text-ink-3 text-tau-sm flex min-w-0 items-center gap-1.5">
           <SourceIcon className="size-3.5 flex-none" strokeWidth={1.75} />
           <span className="truncate">
@@ -219,7 +220,7 @@ export function CollaborationRoom({
       </header>
 
       {(banner || (ownerActive && pending.length > 0)) && (
-        <div className="flex flex-none flex-col gap-1.5 px-5 pb-1">
+        <div className="flex flex-none flex-col gap-1.5 px-8 pb-1">
           {banner && (
             <div
               role="status"
@@ -253,10 +254,8 @@ export function CollaborationRoom({
         </div>
       )}
 
-      <div
-        ref={setScrollEl}
-        className="edge-fade-scroll mr-1.5 min-h-0 flex-1 overflow-y-auto pb-[120px] pl-10 pr-[34px] pt-7"
-      >
+      {/* FadeScroll 右侧 6px 透明边 + pr-[34px] = 左侧 pl-10，正文居中不偏 */}
+      <FadeScroll className="mb-4 min-h-0 flex-1 pb-[104px] pl-10 pr-[34px] pt-7">
         {binding && article ? (
           <div className="mx-auto w-full max-w-[720px]">
             <CollaborativeTitleField
@@ -280,9 +279,9 @@ export function CollaborationRoom({
         ) : (
           <Loading />
         )}
-      </div>
+      </FadeScroll>
 
-      <footer className="text-ink-3 text-tau-sm flex h-[34px] flex-none items-center gap-3.5 px-5">
+      <footer className="text-ink-3 text-tau-sm flex h-[38px] flex-none items-center gap-3.5 px-8 pb-1">
         <SessionStatus session={session} />
         <span className="flex-1" />
         <span>更新于 {formatAgo(session.updatedAt)}</span>

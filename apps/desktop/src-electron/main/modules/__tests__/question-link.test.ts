@@ -18,6 +18,7 @@ import QuestionGroupTable from "../tables/question-group";
 import QuestionTable from "../tables/question";
 import QuestionLinkTable from "../tables/question-link";
 import QuestionEventTable from "../tables/question-event";
+import EntitySearchTable from "../tables/entity-search";
 
 const doc = (...lines: string[]) =>
   lines.map(text => ({ type: "paragraph", children: [{ type: "formatted", text }] })) as never;
@@ -267,22 +268,47 @@ describe("问题材料关联与探究轨迹", () => {
     expect(preview.id).toBe(question.id);
     expect(preview.lastEventTitle).toBe("数据少时差别不大");
   });
-  it("材料选择器：按关键字检索卡片并标出已关联", () => {
-    const question = QuestionTable.createQuestion(db, "q", groupId, doc(""));
-    const hit = insertCard("B+ 树扇出");
+  it("通用实体检索：按关键字检索卡片，空关键字按最近更新", () => {
+    insertCard("B+ 树扇出", Date.now() - 1000);
     insertCard("TCP 握手");
-    QuestionLinkTable.linkTargets(db, question.id, [{ targetType: "card", targetId: hit.cardId }], {
-      incRef: true,
+    const found = EntitySearchTable.search(db, { kind: "card", keyword: "扇出" });
+    expect(found.map(c => [c.kind, c.title])).toEqual([["card", "B+ 树扇出"]]);
+    expect(found[0].contentId).not.toBeNull();
+    expect(EntitySearchTable.search(db, { kind: "card" }).map(c => c.title)).toEqual([
+      "TCP 握手",
+      "B+ 树扇出",
+    ]);
+  });
+  it("通用实体检索：日记按段落正文命中，关联落在首段", () => {
+    const now = Date.now();
+    const diaryId = Number(
+      db
+        .prepare(
+          `INSERT INTO diary_entries (type, date, create_time, update_time) VALUES ('daily', '2026-09-20', ?, ?)`
+        )
+        .run(now, now).lastInsertRowid
+    );
+    const first = ContentTable.createContent(db, { content: doc("上午读了 B 树") });
+    const second = ContentTable.createContent(db, { content: doc("下午写了扇出的笔记") });
+    const seg = db.prepare(
+      `INSERT INTO diary_segments (diary_id, content_id, create_time, update_time) VALUES (?, ?, ?, ?)`
+    );
+    seg.run(diaryId, first, now, now);
+    seg.run(diaryId, second, now + 1, now + 1);
+    const [hit] = EntitySearchTable.search(db, { kind: "diary", keyword: "扇出" });
+    expect(hit).toMatchObject({
+      kind: "diary",
+      id: diaryId,
+      contentId: first,
+      title: "2026-09-20 日记",
     });
-    const found = QuestionLinkTable.searchTargets(db, {
-      questionId: question.id,
-      targetType: "card",
-      keyword: "扇出",
+    expect(EntitySearchTable.search(db, { kind: "diary", keyword: "不存在" })).toEqual([]);
+    expect(EntitySearchTable.locate(db, { contentId: second })).toEqual({
+      kind: "diary",
+      id: diaryId,
+      date: "2026-09-20",
     });
-    expect(found.map(c => [c.title, c.linked])).toEqual([["B+ 树扇出", true]]);
-    expect(
-      QuestionLinkTable.searchTargets(db, { questionId: question.id, targetType: "card" })
-    ).toHaveLength(2);
+    expect(EntitySearchTable.locate(db, { contentId: 999999 })).toBeNull();
   });
   it("只改标题时保留背景", () => {
     const question = QuestionTable.createQuestion(db, "旧标题", groupId, doc("背景说明"));

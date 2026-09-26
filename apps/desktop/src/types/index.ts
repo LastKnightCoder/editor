@@ -21,6 +21,7 @@ export * from "./video-note-item";
 export * from "./audio-note";
 export * from "./sync";
 export * from "./question";
+export * from "./entity";
 export * from "./content";
 // Data table types are now exported from @tau/shared
 export type {

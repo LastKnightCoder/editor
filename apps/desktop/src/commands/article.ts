@@ -1,4 +1,5 @@
 import { articleCommands } from "@/commands/contracts/article";
+import { closeEditorWindow, openEditorWindow } from "@/commands/window";
 import type { ArticleContentResult } from "@/commands/contracts/article";
 import {
   IArticle,
@@ -39,9 +40,10 @@ export async function getAllArticles(): Promise<IArticle[]> {
 export async function getArticlePage(
   offset: number,
   limit: number,
-  tag?: string
+  tag?: string,
+  query?: string
 ): Promise<{ items: ArticlePageItem[]; total: number; totalWords: number }> {
-  return articleCommands.listPage.call(offset, limit, tag);
+  return articleCommands.listPage.call(offset, limit, tag, query);
 }
 
 export async function getArticleTagCounts(): Promise<ArticleTagCount[]> {
@@ -60,14 +62,11 @@ export async function openArticleInNewWindow(
   databaseName: string,
   articleId: number
 ): Promise<void> {
-  return articleCommands.openInNewWindow.call(databaseName, articleId, {
-    showTitlebar: true,
-    isDefaultTop: true,
-  });
+  return openEditorWindow({ kind: "article", databaseName, id: articleId });
 }
 
 export async function closeArticleWindow(databaseName: string, articleId: number): Promise<void> {
-  return articleCommands.closeWindow.call(databaseName, articleId);
+  return closeEditorWindow({ kind: "article", databaseName, id: articleId });
 }
 
 export async function getArticlesByDates(dates: string[]): Promise<Record<string, IArticle[]>> {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Descendant } from "slate";
 import { CreditCard, Trash2 } from "lucide-react";
-import { Button, Checkbox, Dialog, Input, Radio, Tag, Textarea } from "@tau/ui";
+import { Button, Checkbox, Dialog, DialogBody, Input, Radio, Tag, Textarea } from "@tau/ui";
 import type { Flashcard, FlashcardReferenceInput, FlashcardType } from "@/types";
 import useFlashcardStore from "@/stores/useFlashcardStore";
 import {
@@ -365,225 +365,229 @@ const FlashcardEditor = ({
         </>
       }
     >
-      <>
-        {deckMissing && (
-          <div className="bg-warn-soft text-warn rounded-tau-md text-tau-body mb-4 px-3.5 py-2.5">
-            请先创建并选择一个卡组后再添加闪卡。
-          </div>
-        )}
-
-        <div className="space-y-4">
-          {/* Prompt */}
-          <div className="flex flex-col gap-1.5">
-            <label className={FIELD_LABEL}>题干</label>
-            {isEditorReady ? (
-              <RichTextEditor
-                key={`prompt-${currentKey}`}
-                value={form.prompt}
-                onChange={value =>
-                  setForm(prev => ({
-                    ...prev,
-                    prompt:
-                      !value || value.length === 0
-                        ? [
-                            {
-                              type: "paragraph",
-                              children: [{ type: "formatted", text: "" }],
-                            },
-                          ]
-                        : value,
-                  }))
-                }
-                allowBlanks={form.type === "cloze"}
-                isDark={isDark}
-                placeholder="闪卡问题或提示"
-                minHeight="100px"
-              />
-            ) : (
-              <div
-                className="bg-surface border-line-1 rounded-tau-sm animate-pulse border"
-                style={{ minHeight: "100px" }}
-              />
-            )}
-          </div>
-
-          {/* Detail */}
-          <div className="flex flex-col gap-1.5">
-            <label className={FIELD_LABEL}>详细说明 / 提示</label>
-            {isEditorReady ? (
-              <RichTextEditor
-                key={`detail-${currentKey}`}
-                value={form.detail}
-                onChange={value =>
-                  setForm(prev => ({
-                    ...prev,
-                    detail:
-                      !value || value.length === 0
-                        ? [
-                            {
-                              type: "paragraph",
-                              children: [{ type: "formatted", text: "" }],
-                            },
-                          ]
-                        : value,
-                  }))
-                }
-                allowBlanks={false}
-                isDark={isDark}
-                placeholder="额外的说明或提示信息"
-                minHeight="80px"
-              />
-            ) : (
-              <div
-                className="bg-surface border-line-1 rounded-tau-sm animate-pulse border"
-                style={{ minHeight: "80px" }}
-              />
-            )}
-          </div>
-
-          {/* Type Selection */}
-          <div className="flex flex-col gap-1.5">
-            <label className={FIELD_LABEL}>问题类型</label>
-            <div className="grid grid-cols-2 gap-3">
-              {(Object.keys(FLASHCARD_TYPE_META) as FlashcardType[]).map(type => {
-                const meta = FLASHCARD_TYPE_META[type];
-                const active = form.type === type;
-                return (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => handleTypeChange(type)}
-                    className={`rounded-tau-md ease-tau-out border-[1.5px] px-3 py-2.5 text-left transition-colors ${
-                      active
-                        ? "border-accent bg-accent-soft"
-                        : "border-line-1 hover:border-ink-3/50"
-                    }`}
-                  >
-                    <div className="text-ink-1 text-tau-body font-[600]">{meta.label}</div>
-                    <p className="text-ink-3 text-tau-sm mt-0.5 line-clamp-2">{meta.description}</p>
-                  </button>
-                );
-              })}
+      <DialogBody>
+        <>
+          {deckMissing && (
+            <div className="bg-warn-soft text-warn rounded-tau-md text-tau-body mb-4 px-3.5 py-2.5">
+              请先创建并选择一个卡组后再添加闪卡。
             </div>
-          </div>
+          )}
 
-          {/* Type-specific fields */}
-          <div className="flex flex-col gap-1.5">
-            <label className={FIELD_LABEL}>
-              {form.type === "single-choice" || form.type === "multiple-choice"
-                ? "选项"
-                : form.type === "cloze"
-                  ? "填空内容"
-                  : form.type === "qa"
-                    ? "参考答案"
-                    : "正确答案"}
-            </label>
-            {renderTypeFields()}
-          </div>
-
-          {/* Tags */}
-          <div className="flex flex-col gap-1.5">
-            <label className={FIELD_LABEL}>标签</label>
-            <div className="mb-2 flex flex-wrap gap-2">
-              {form.tags.map(tag => (
-                <Tag
-                  key={tag}
-                  onRemove={() =>
+          <div className="space-y-4">
+            {/* Prompt */}
+            <div className="flex flex-col gap-1.5">
+              <label className={FIELD_LABEL}>题干</label>
+              {isEditorReady ? (
+                <RichTextEditor
+                  key={`prompt-${currentKey}`}
+                  value={form.prompt}
+                  onChange={value =>
                     setForm(prev => ({
                       ...prev,
-                      tags: prev.tags.filter(item => item !== tag),
+                      prompt:
+                        !value || value.length === 0
+                          ? [
+                              {
+                                type: "paragraph",
+                                children: [{ type: "formatted", text: "" }],
+                              },
+                            ]
+                          : value,
                     }))
                   }
-                >
-                  {tag}
-                </Tag>
-              ))}
+                  allowBlanks={form.type === "cloze"}
+                  isDark={isDark}
+                  placeholder="闪卡问题或提示"
+                  minHeight="100px"
+                />
+              ) : (
+                <div
+                  className="bg-surface border-line-1 rounded-tau-sm animate-pulse border"
+                  style={{ minHeight: "100px" }}
+                />
+              )}
             </div>
-            <Input
-              value={tagInput}
-              onChange={e => setTagInput(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  if (tagInput.trim() && !form.tags.includes(tagInput.trim())) {
+
+            {/* Detail */}
+            <div className="flex flex-col gap-1.5">
+              <label className={FIELD_LABEL}>详细说明 / 提示</label>
+              {isEditorReady ? (
+                <RichTextEditor
+                  key={`detail-${currentKey}`}
+                  value={form.detail}
+                  onChange={value =>
                     setForm(prev => ({
                       ...prev,
-                      tags: [...prev.tags, tagInput.trim()],
-                    }));
-                    setTagInput("");
+                      detail:
+                        !value || value.length === 0
+                          ? [
+                              {
+                                type: "paragraph",
+                                children: [{ type: "formatted", text: "" }],
+                              },
+                            ]
+                          : value,
+                    }))
                   }
-                }
-              }}
-              placeholder="输入标签后按回车添加"
-            />
-          </div>
-
-          {/* Difficulty */}
-          <div className="flex flex-col gap-1.5">
-            <label className={FIELD_LABEL}>难度</label>
-            <div className="grid grid-cols-3 gap-3">
-              {(["foundation", "standard", "advanced"] as const).map(level => (
-                <button
-                  key={level}
-                  type="button"
-                  onClick={() => setForm(prev => ({ ...prev, difficulty: level }))}
-                  className={`rounded-tau-md text-tau-body ease-tau-out border-[1.5px] px-4 py-2.5 font-medium transition-colors ${
-                    form.difficulty === level
-                      ? "border-accent bg-accent-soft text-accent-text"
-                      : "border-line-1 text-ink-2 hover:border-ink-3/50"
-                  }`}
-                >
-                  {level === "foundation" ? "基础" : level === "advanced" ? "进阶" : "常规"}
-                </button>
-              ))}
+                  allowBlanks={false}
+                  isDark={isDark}
+                  placeholder="额外的说明或提示信息"
+                  minHeight="80px"
+                />
+              ) : (
+                <div
+                  className="bg-surface border-line-1 rounded-tau-sm animate-pulse border"
+                  style={{ minHeight: "80px" }}
+                />
+              )}
             </div>
-          </div>
 
-          {/* References */}
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
+            {/* Type Selection */}
+            <div className="flex flex-col gap-1.5">
+              <label className={FIELD_LABEL}>问题类型</label>
+              <div className="grid grid-cols-2 gap-3">
+                {(Object.keys(FLASHCARD_TYPE_META) as FlashcardType[]).map(type => {
+                  const meta = FLASHCARD_TYPE_META[type];
+                  const active = form.type === type;
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => handleTypeChange(type)}
+                      className={`rounded-tau-md ease-tau-out border-[1.5px] px-3 py-2.5 text-left transition-colors ${
+                        active
+                          ? "border-accent bg-accent-soft"
+                          : "border-line-1 hover:border-ink-3/50"
+                      }`}
+                    >
+                      <div className="text-ink-1 text-tau-body font-[600]">{meta.label}</div>
+                      <p className="text-ink-3 text-tau-sm mt-0.5 line-clamp-2">
+                        {meta.description}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Type-specific fields */}
+            <div className="flex flex-col gap-1.5">
               <label className={FIELD_LABEL}>
-                参考资料 {referenceList.length > 0 && `(${referenceList.length})`}
+                {form.type === "single-choice" || form.type === "multiple-choice"
+                  ? "选项"
+                  : form.type === "cloze"
+                    ? "填空内容"
+                    : form.type === "qa"
+                      ? "参考答案"
+                      : "正确答案"}
               </label>
-              <button
-                type="button"
-                onClick={addReference}
-                className="text-accent hover:text-accent-hover text-tau-sm font-medium transition-colors"
-              >
-                + 添加参考
-              </button>
+              {renderTypeFields()}
             </div>
-            {referenceList.length > 0 ? (
-              <div className="space-y-5">
-                {referenceList.map((ref, index) => (
-                  <ReferenceEditor
-                    key={index}
-                    reference={ref}
-                    onChange={updatedRef => {
-                      setForm(prev => {
-                        const next = [...prev.references];
-                        next[index] = updatedRef;
-                        return { ...prev, references: next };
-                      });
-                    }}
-                    onRemove={() => {
+
+            {/* Tags */}
+            <div className="flex flex-col gap-1.5">
+              <label className={FIELD_LABEL}>标签</label>
+              <div className="mb-2 flex flex-wrap gap-2">
+                {form.tags.map(tag => (
+                  <Tag
+                    key={tag}
+                    onRemove={() =>
                       setForm(prev => ({
                         ...prev,
-                        references: prev.references.filter((_, i) => i !== index),
-                      }));
-                    }}
-                    isDark={isDark}
-                  />
+                        tags: prev.tags.filter(item => item !== tag),
+                      }))
+                    }
+                  >
+                    {tag}
+                  </Tag>
                 ))}
               </div>
-            ) : (
-              <div className="border-line-2 text-ink-3 rounded-tau-md text-tau-body border border-dashed px-4 py-6 text-center">
-                暂无参考资料
+              <Input
+                value={tagInput}
+                onChange={e => setTagInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (tagInput.trim() && !form.tags.includes(tagInput.trim())) {
+                      setForm(prev => ({
+                        ...prev,
+                        tags: [...prev.tags, tagInput.trim()],
+                      }));
+                      setTagInput("");
+                    }
+                  }
+                }}
+                placeholder="输入标签后按回车添加"
+              />
+            </div>
+
+            {/* Difficulty */}
+            <div className="flex flex-col gap-1.5">
+              <label className={FIELD_LABEL}>难度</label>
+              <div className="grid grid-cols-3 gap-3">
+                {(["foundation", "standard", "advanced"] as const).map(level => (
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() => setForm(prev => ({ ...prev, difficulty: level }))}
+                    className={`rounded-tau-md text-tau-body ease-tau-out border-[1.5px] px-4 py-2.5 font-medium transition-colors ${
+                      form.difficulty === level
+                        ? "border-accent bg-accent-soft text-accent-text"
+                        : "border-line-1 text-ink-2 hover:border-ink-3/50"
+                    }`}
+                  >
+                    {level === "foundation" ? "基础" : level === "advanced" ? "进阶" : "常规"}
+                  </button>
+                ))}
               </div>
-            )}
+            </div>
+
+            {/* References */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <label className={FIELD_LABEL}>
+                  参考资料 {referenceList.length > 0 && `(${referenceList.length})`}
+                </label>
+                <button
+                  type="button"
+                  onClick={addReference}
+                  className="text-accent hover:text-accent-hover text-tau-sm font-medium transition-colors"
+                >
+                  + 添加参考
+                </button>
+              </div>
+              {referenceList.length > 0 ? (
+                <div className="space-y-5">
+                  {referenceList.map((ref, index) => (
+                    <ReferenceEditor
+                      key={index}
+                      reference={ref}
+                      onChange={updatedRef => {
+                        setForm(prev => {
+                          const next = [...prev.references];
+                          next[index] = updatedRef;
+                          return { ...prev, references: next };
+                        });
+                      }}
+                      onRemove={() => {
+                        setForm(prev => ({
+                          ...prev,
+                          references: prev.references.filter((_, i) => i !== index),
+                        }));
+                      }}
+                      isDark={isDark}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="border-line-2 text-ink-3 rounded-tau-md text-tau-body border border-dashed px-4 py-6 text-center">
+                  暂无参考资料
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </>
+        </>
+      </DialogBody>
     </Dialog>
   );
 };

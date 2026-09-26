@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>Skill 管理页 · 总览与决策</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="../mcp/mcp.css?v=1" />
+<link rel="stylesheet" href="skills.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  [data-theme] body { background: var(--page); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 24px 60px; }
+  h1 { font-size: 25px; font-weight: 600; margin: 0 0 6px; }
+  .lead { color: var(--ink-2); margin: 0 0 26px; max-width: 920px; }
+  h2 { font-size: 16px; font-weight: 600; margin: 30px 0 4px; }
+  h2 + p { color: var(--ink-2); margin: 0 0 14px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .card { display: block; text-decoration: none; color: inherit; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 16px 18px; transition: box-shadow var(--fast); }
+  a.card:hover { box-shadow: var(--shadow-lift); }
+  .card h3 { margin: 0 0 4px; font-size: 14.5px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .card p { margin: 0; color: var(--ink-2); font-size: 12.5px; }
+  .rec { font-size: 11px; font-weight: 500; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); }
+  .wf { height: 110px; border-radius: 10px; background: var(--page); display: flex; gap: 4px; padding: 6px; margin-bottom: 12px; }
+  .wf i { display: block; border-radius: 5px; }
+  .wf .s { width: 22px; } .wf .p { flex: 1; background: var(--surface); box-shadow: var(--shadow-card); display: flex; gap: 4px; padding: 5px; }
+  .wf .a { background: var(--accent-soft); } .wf .b { background: var(--sunken); }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); overflow: hidden; font-size: 12.5px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { color: var(--ink-3); font-weight: 500; white-space: nowrap; }
+  tr + tr td { border-top: 1px solid var(--line-2); }
+  td b { font-weight: 600; }
+  td.y { color: var(--ok); } td.n { color: var(--ink-3); }
+  td.me { background: var(--accent-soft); }
+  td:first-child { white-space: nowrap; }
+  code { font: 12px var(--mono); padding: 1px 5px; border-radius: 5px; border: 1px solid var(--line-1); background: var(--surface); }
+  .dec { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 4px 0; }
+  .dec .q { display: grid; grid-template-columns: 34px 170px 1fr; gap: 12px; padding: 12px 18px; }
+  .dec .q + .q { border-top: 1px solid var(--line-2); }
+  .dec .q .no { width: 24px; height: 24px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-text); display: grid; place-items: center; font-weight: 600; font-size: 12px; }
+  .dec .q .t { font-weight: 600; }
+  .dec .opt { display: flex; gap: 8px; flex-wrap: wrap; }
+  .dec .o { padding: 6px 10px; border-radius: var(--r-sm); border: 1px solid var(--line-1); font-size: 12.5px; max-width: 320px; }
+  .dec .o.r { border-color: var(--accent); background: var(--accent-soft); }
+  .dec .o b { display: block; font-weight: 600; margin-bottom: 1px; }
+  .dec .o span { color: var(--ink-2); font-size: 12px; }
+  .ph { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 16px 20px; }
+  .ph ol { margin: 0; padding-left: 20px; } .ph li { margin: 6px 0; }
+  .gap { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .gap > div { background: var(--surface); border-radius: var(--r-md); box-shadow: var(--shadow-card); padding: 12px 16px; font-size: 12.5px; }
+  .gap b { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+  .gap b svg.lucide { width: 15px; height: 15px; color: var(--accent-text); }
+  .gap span { color: var(--ink-2); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Skill 管理页 · 方案与决策</h1>
+  <p class="lead">现状：<code>pages/SkillManagement</code>（895 行 legacy，antd + react-icons）是<b>整个 skills 目录的一棵文件树 + 编辑器</b>（md 用 Tau 编辑器、其它用 CodeMirror）；4 个内置 Skill 不在树里；<b>没有逐 Skill 开关</b>，所有 Skill 的描述无差别注入系统提示词；frontmatter 只解析 <code>description</code>，名字取文件夹名。目标：和 MCP 页（D-058）一样换新壳层，并借鉴主流平台补齐<b>开关与调用方式、编写体验、跨工具复用</b>三块。</p>
+
+  <h2>① 主流平台怎么做</h2>
+  <p>2025 年底 Anthropic 把 Agent Skills（<code>SKILL.md</code> 文件夹）发布为开放标准，到 2026 年 Claude / Cursor / Codex / VS Code Copilot 都已支持同一格式。</p>
+  <table>
+    <tr><th></th><th>Claude.ai / Desktop</th><th>Claude Code</th><th>Cursor</th><th>Codex</th><th>VS Code Copilot</th></tr>
+    <tr><td><b>入口</b></td><td>设置 → Capabilities → Skills</td><td>文件目录 + <code>/skills</code> 列表</td><td>Customize 面板（与 Rules / MCP 并列）</td><td>文件目录 + <code>/skills</code></td><td>文件目录 + Chat 里 <code>/skills</code></td></tr>
+    <tr><td><b>布局</b></td><td>列表 + 开关，点开预览</td><td>无 UI（纯文件）</td><td>设置列表</td><td>无 UI（纯文件）</td><td>无独立页</td></tr>
+    <tr><td><b>添加</b></td><td class="y">上传 .zip / 官方示例 / 对话中让 Claude 帮你写</td><td>手写 / 插件市场安装</td><td>手写 / 旧 Rules 一键迁移</td><td>手写 / 内置安装器与创建器</td><td>手写 / 仓库作为技能市场（VS 2026）</td></tr>
+    <tr><td><b>调用方式</b></td><td>开关，自动触发</td><td class="y">自动 + <code>/名称</code> 手动；<code>disable-model-invocation</code> 仅手动、<code>user-invocable: false</code> 仅自动</td><td class="y">Skill 自动 + <code>/</code> 手动；同页的 Rules 有 Always / Auto Attached / Agent Requested / Manual 四档</td><td>自动 + 显式提及</td><td>自动 + <code>/</code> 手动</td></tr>
+    <tr><td><b>工具授权</b></td><td class="n">—</td><td class="y"><code>allowed-tools</code> 预授权</td><td class="n">—</td><td class="n">—</td><td>扩展字段</td></tr>
+    <tr><td><b>存放位置</b></td><td>云端账号</td><td><code>~/.claude/skills</code>、项目 <code>.claude/skills</code></td><td>项目 / 用户目录</td><td><code>~/.codex/skills</code>、<code>.agents/skills</code></td><td><code>.github/skills</code></td></tr>
+  </table>
+  <p style="margin-top:10px;color:var(--ink-2);font-size:12.5px">共识：<b>逐 Skill 开关</b>是底线；<b>自动 / 手动（<code>/</code>）两种调用</b>已成标配；<b>描述决定触发</b>，好产品都在帮用户写好描述（Claude 的「让 AI 帮你写」）。本应用的独特机会：桌面端 + 本机文件 → 可以直接<b>关联其它工具的 skills 目录</b>，一份 Skill 多处用。</p>
+
+  <h2>② 相比现状要补的能力</h2>
+  <p>三套布局都包含这些，区别只在「怎么排」。</p>
+  <div class="gap">
+    <div><b><i data-lucide="toggle-right"></i>逐 Skill 开关 + 调用方式</b><span>自动（默认）/ 仅手动 / 常驻（可选）；仅手动与停用的不占系统提示词。</span></div>
+    <div><b><i data-lucide="gauge"></i>上下文预算</b><span>显示自动 Skill 描述合计多少 tokens，描述过长 / 缺失标黄提醒。</span></div>
+    <div><b><i data-lucide="slash"></i>输入框 <code>/</code> 手动调用</b><span>斜杠菜单选 Skill，挂成芯片；AI 自动加载时回复顶部显示「已加载 Skill」。</span></div>
+    <div><b><i data-lucide="file-pen-line"></i>单 Skill 编辑器</b><span>文件树只显示这个 Skill；SKILL.md 上半截是表单（名称 / 标识 / 描述 + 字数与触发提示），下面是正文，可切源码。</span></div>
+    <div><b><i data-lucide="wand-sparkles"></i>四种添加方式</b><span>新建（空白 / 模板）· 用 AI 创建 · 导入 .zip / 文件夹 / GitHub 链接 · 关联目录。</span></div>
+    <div><b><i data-lucide="history"></i>试一试 + 使用记录</b><span>用未保存版本跑一轮验证；统计哪些对话加载过、自动触发占比。</span></div>
+  </div>
+
+  <h2>③ 页面布局：三选一</h2>
+  <p>三套都做成了可点的样板间，添加弹窗、编辑器、斜杠菜单三者共用。</p>
+  <div class="grid3">
+    <a class="card" href="a-split.html">
+      <div class="wf"><i class="s"></i><div class="p"><i class="b" style="width:30%"></i><div style="flex:1;display:flex;flex-direction:column;gap:4px"><i class="a" style="height:22px"></i><div style="flex:1;display:flex;gap:4px"><i class="b" style="width:22%"></i><i class="b" style="flex:1"></i></div></div></div></div>
+      <h3>A 列表 + 工作区</h3>
+      <p>左列 Skill 清单，右侧概览 / 文件 / 设置 / 使用记录。最接近现有页面，切换查看最快；但编辑区偏窄、放不下「试一试」。</p>
+    </a>
+    <a class="card" href="b-gallery.html">
+      <div class="wf"><i class="s"></i><div class="p" style="flex-wrap:wrap;align-content:flex-start"><i class="b" style="width:30%;height:28px"></i><i class="b" style="width:30%;height:28px"></i><i class="b" style="width:30%;height:28px"></i><i class="a" style="width:30%;height:28px"></i><i class="b" style="width:30%;height:28px"></i><i class="b" style="width:30%;height:28px"></i></div></div>
+      <h3>B 卡片库 + 编辑页 <span class="rec">推荐</span></h3>
+      <p>与 MCP 页同构（卡片 + 抽屉预览），编辑推入整页：文件树 + SKILL.md + 「试一试」三栏。浏览轻、编辑舒展，AI 组两页一套心智。</p>
+    </a>
+    <a class="card" href="c-rows.html">
+      <div class="wf"><i class="s"></i><div class="p" style="flex-direction:column;align-items:center"><i class="b" style="width:70%;height:14px"></i><i class="a" style="width:70%;height:34px"></i><i class="b" style="width:70%;height:14px"></i><i class="b" style="width:70%;height:14px"></i></div></div>
+      <h3>C 设置式单列</h3>
+      <p>一行一个 Skill，调用方式下拉合并开关，展开看文件 / 工具。最轻最密，但看不到正文，与 MCP 页不一致。</p>
+    </a>
+  </div>
+
+  <h2>④ 需要你拍板的点</h2>
+  <p>高亮的是我的推荐。</p>
+  <div class="dec">
+    <div class="q"><span class="no">1</span><div class="t">页面布局</div><div class="opt">
+      <div class="o"><b>A 列表 + 工作区</b><span>迁移最省，切换最快</span></div>
+      <div class="o r"><b>B 卡片库 + 编辑页</b><span>与 MCP 页一致；编辑有独立空间和「试一试」</span></div>
+      <div class="o"><b>C 设置式单列</b><span>最轻，适合 Skill 很少的情况</span></div></div></div>
+    <div class="q"><span class="no">2</span><div class="t">调用方式</div><div class="opt">
+      <div class="o r"><b>开关 + 自动 / 仅手动</b><span>对齐 Claude Code 语义，仅手动写 <code>disable-model-invocation</code></span></div>
+      <div class="o"><b>再加「常驻」</b><span>Cursor Always 式，每次注入全文；费 tokens，易被滥用</span></div>
+      <div class="o"><b>只做开关</b><span>最简单，但无法「只在我要时用」</span></div></div></div>
+    <div class="q"><span class="no">3</span><div class="t">手动调用入口</div><div class="opt">
+      <div class="o r"><b>输入框 <code>/</code> 斜杠菜单</b><span>主流做法；选中后以芯片挂在输入框</span></div>
+      <div class="o"><b>放进 ＋ 面板</b><span>和 MCP 二级列表放一起，但多一步</span></div>
+      <div class="o"><b>两者都有</b><span>＋ 面板里给 Skill 开关，<code>/</code> 负责本条消息强制加载</span></div></div></div>
+    <div class="q"><span class="no">4</span><div class="t">添加方式</div><div class="opt">
+      <div class="o r"><b>新建（模板）+ 导入 + 用 AI 创建</b><span>AI 创建 = 内置一个 skill-creator Skill + 对话式起草</span></div>
+      <div class="o"><b>加 GitHub 链接导入</b><span>需要联网拉取与解析目录，可放二期</span></div>
+      <div class="o"><b>只做新建</b><span>保持现状</span></div></div></div>
+    <div class="q"><span class="no">5</span><div class="t">关联外部目录</div><div class="opt">
+      <div class="o r"><b>做，只读</b><span><code>~/.claude/skills</code> 等只读挂载，想改就「复制为我的」</span></div>
+      <div class="o"><b>不做</b><span>只管理应用自己的 skills 目录</span></div></div></div>
+    <div class="q"><span class="no">6</span><div class="t">内置 Skill</div><div class="opt">
+      <div class="o r"><b>可停用 + 可复制为我的</b><span>原件只读随应用更新；同名时内置优先的规则不变</span></div>
+      <div class="o"><b>保持现状</b><span>永远开启、不可见正文</span></div></div></div>
+    <div class="q"><span class="no">7</span><div class="t">SKILL.md 编辑</div><div class="opt">
+      <div class="o r"><b>frontmatter 表单 + 富文本正文</b><span>沿用 Tau 编辑器，可切源码；补解析 <code>name</code> 字段</span></div>
+      <div class="o"><b>纯源码</b><span>CodeMirror 编辑整份 md，最省</span></div></div></div>
+    <div class="q"><span class="no">8</span><div class="t">试一试 / 使用记录</div><div class="opt">
+      <div class="o r"><b>一期：使用记录</b><span>从对话里的 Skill 加载记录统计，改动小</span></div>
+      <div class="o r"><b>二期：试一试</b><span>编辑页右侧用未保存版本起一个临时对话</span></div>
+      <div class="o"><b>都不做</b><span></span></div></div></div>
+    <div class="q"><span class="no">9</span><div class="t">scripts/ 目录</div><div class="opt">
+      <div class="o r"><b>只作参考资料，不执行</b><span>导入时提示；应用内无代码执行沙箱</span></div>
+      <div class="o"><b>支持执行</b><span>需要沙箱与权限确认，工作量大、风险高</span></div></div></div>
+  </div>
+
+  <h2>⑤ 落地分期（按推荐组合）</h2>
+  <div class="ph"><ol>
+    <li><b>一期 · 换页</b>：<code>features/skills</code> 新建页面（definePage key <code>skills</code>），替换 <code>TabType.SkillManagement</code> 与 navigation.ts 的 legacy 注释；<code>useSkillStore</code> 增加 <code>disabled</code> / <code>mode</code> 偏好（本机持久化，不改内置与关联目录的原文件）；编辑器改为单 Skill 文件树 + frontmatter 表单；删除 <code>pages/SkillManagement</code> 三个文件。</li>
+    <li><b>一期 · 补能力</b>：开关与调用方式在 <code>toAgentSkills</code> 前过滤（仅手动的不进系统提示词）；输入框 <code>/</code> 斜杠菜单与「已加载 Skill」标记；上下文预算与描述校验；添加弹窗（新建 / 模板 / 导入 .zip·文件夹 / 用 AI 创建）；关联目录只读挂载；使用记录。</li>
+    <li><b>二期</b>：编辑页「试一试」、GitHub 链接导入、<code>allowed-tools</code> 与 MCP 执行确认联动、按场景（对话 / 项目学习 / 行内 AI）启用。</li>
+  </ol></div>
+  <p style="font-size:11.5px;color:var(--ink-3);margin-top:14px">参考：<a href="https://code.claude.com/docs/en/skills" style="color:inherit">Claude Code Skills 文档</a> · <a href="https://meshlaunch.com/en/blog/2026-cursor-agent-skills-complete-guide.html" style="color:inherit">Cursor Agent Skills 指南</a> · <a href="https://www.agensi.io/learn/skill-md-cross-agent-compatibility-tested" style="color:inherit">SKILL.md 跨工具兼容测试</a></p>
+</div>
+<script>lucide.createIcons();document.documentElement.dataset.theme = localStorage.getItem("chat-mock-theme") || "cream";</script>
+</body>
+</html>

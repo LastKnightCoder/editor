@@ -1,0 +1,830 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>独立编辑窗口 · 合并方案 mockup</title>
+<style>
+  /* ============ 主题 token（取自 packages/ui/src/theme/tokens.css） ============ */
+  .cream {
+    --page: #f3eee2; --surface: #fffdf9; --surface-hover: #f6f3ef; --sunken: #e7dbc8; --track: #e0d6c3;
+    --hover: rgba(67,57,44,.05); --press: rgba(67,57,44,.09); --selected: rgba(217,119,87,.12);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85;
+    --line-1: #e9e1d2; --line-2: rgba(233,225,210,.55);
+    --accent: hsl(22 58% 42%); --accent-soft: hsla(22,58%,42%,.12); --accent-text: #a05236;
+    --ok: #61795f;
+    --t1: #61795f; --t1s: #e5ede2; --t2: #5c7d99; --t2s: #e2ebf3; --t3: #8a7aa6; --t3s: #ebe6f3; --t4: #a38c4d; --t4s: #f6efd6;
+    --shadow-card: 0 1px 2px rgba(120,100,70,.05), 0 10px 24px -14px rgba(120,100,70,.18);
+    --shadow-float: 0 16px 40px -12px rgba(120,100,70,.4);
+    --win-shadow: 0 2px 6px rgba(67,57,44,.08), 0 24px 60px rgba(67,57,44,.16);
+    --code-kw: #a05236; --code-str: #61795f; --code-mark: #b8a88f;
+  }
+  .cocoa {
+    --page: #221d16; --surface: #2e2820; --surface-hover: #39332b; --sunken: #100d08; --track: #463d31;
+    --hover: rgba(236,226,208,.06); --press: rgba(236,226,208,.11); --selected: hsla(22,62%,65%,.2);
+    --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768;
+    --line-1: #3a3227; --line-2: rgba(58,50,39,.55);
+    --accent: hsl(22 62% 65%); --accent-soft: hsla(22,62%,65%,.16); --accent-text: hsl(22 66% 70%);
+    --ok: #8cab87;
+    --t1: #8cab87; --t1s: #243023; --t2: #83aecf; --t2s: #1e2a35; --t3: #a596c8; --t3s: #292335; --t4: #c4a458; --t4s: #302917;
+    --shadow-card: 0 1px 2px rgba(0,0,0,.24), 0 10px 24px -14px rgba(0,0,0,.5);
+    --shadow-float: 0 16px 40px -12px rgba(0,0,0,.65);
+    --win-shadow: 0 2px 6px rgba(0,0,0,.3), 0 24px 60px rgba(0,0,0,.45);
+    --code-kw: hsl(22 66% 70%); --code-str: #8cab87; --code-mark: #6b5f50;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #e8e1d1; color: #43392c;
+    font: 14px/1.7 -apple-system, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; padding: 40px 5vw 120px;
+  }
+  code, .mono { font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace; }
+  header.top h1 { font-size: 22px; font-weight: 650; }
+  header.top p { color: #6a5c49; max-width: 92ch; margin-top: 6px; font-size: 13.5px; }
+  .toc-page { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .toc-page a { font-size: 12px; color: #a05236; background: hsla(22,58%,42%,.1); border-radius: 99px; padding: 2px 11px; text-decoration: none; }
+  section { margin-top: 64px; }
+  section > h2 { font-size: 17px; font-weight: 650; display: flex; align-items: baseline; gap: 10px; color: #43392c; }
+  section > h2 .no { font: 600 13px ui-monospace, monospace; color: #a05236; }
+  section > h2 .tag { font-size: 11.5px; font-weight: 500; color: #a05236; background: hsla(22,58%,42%,.12); border-radius: 99px; padding: 1px 10px; }
+  .desc { color: #6a5c49; max-width: 92ch; margin: 6px 0 18px; font-size: 13.5px; }
+  .desc b { color: #43392c; }
+  .row { display: flex; gap: 32px; align-items: flex-start; flex-wrap: wrap; }
+  .caption { font-size: 12px; color: #857768; margin-top: 10px; }
+  .list { color: #6a5c49; font-size: 13px; padding-left: 20px; max-width: 92ch; }
+  .list li { margin: 3px 0; } .list b { color: #43392c; }
+
+  /* ============ 窗口骨架 ============ */
+  .win {
+    position: relative; width: 1040px; height: 660px; border-radius: 12px; overflow: hidden;
+    background: var(--page); color: var(--ink-1); box-shadow: var(--win-shadow);
+    display: flex; flex-direction: column; font-size: 13px;
+  }
+  .win.sm { width: 560px; height: 660px; }
+  .win.md { width: 760px; }
+
+  /* 标题栏：与主窗口同高 46px、同底色、同 IconButton 体系 */
+  .tb { height: 46px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 12px 0 16px; user-select: none; }
+  .lights { display: flex; gap: 8px; margin-right: 6px; }
+  .lights i { width: 12px; height: 12px; border-radius: 50%; }
+  .lights i:nth-child(1) { background: #ff5f57; } .lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+  .kind { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 6px; font-size: 11.5px; color: var(--ink-2); background: var(--hover); flex: none; }
+  .kind svg { width: 12px; height: 12px; }
+  .crumbs { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 12.5px; color: var(--ink-3); }
+  .crumbs b { color: var(--ink-1); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .crumbs .sep { opacity: .6; }
+  .spacer { flex: 1; }
+  .ib { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-2); flex: none; }
+  .ib svg { width: 17px; height: 17px; stroke-width: 1.75; }
+  .ib.on { background: var(--selected); color: var(--accent-text); }
+  .ib.hover { background: var(--hover); color: var(--ink-1); }
+  .seg { display: flex; padding: 2px; border-radius: 9px; background: var(--hover); gap: 2px; flex: none; }
+  .seg span { height: 24px; padding: 0 10px; border-radius: 7px; display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ink-2); }
+  .seg span svg { width: 13px; height: 13px; }
+  .seg span.on { background: var(--surface); color: var(--ink-1); box-shadow: var(--shadow-card); font-weight: 500; }
+  .divider { width: 1px; height: 16px; background: var(--line-1); margin: 0 2px; flex: none; }
+  .winctl { display: flex; gap: 2px; margin-left: 4px; }
+  .winctl i { width: 36px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-2); font-style: normal; font-size: 12px; }
+  .winctl i.x:hover, .winctl i.x.h { background: #c25450; color: #fff; }
+
+  /* 纸面：与主窗口 AppShell 同一张「纸」（圆角 + card 阴影） */
+  .sheet { flex: 1; min-height: 0; margin: 0 8px 8px; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-card); display: flex; flex-direction: column; position: relative; overflow: hidden; }
+  .win.bleed .sheet { margin: 0; border-radius: 0; box-shadow: none; border-top: 1px solid var(--line-1); }
+  .win.bleed .tb { background: var(--surface); }
+  .win.bleed { background: var(--surface); }
+
+  .scroll { flex: 1; min-height: 0; position: relative; overflow: hidden; display: grid; grid-template-columns: 1fr minmax(0, 680px) 1fr; }
+  /* FadeScroll：上下边缘渐隐（mask），滚动条上下内缩 */
+  .scroll.fade { -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 28px, #000 calc(100% - 36px), transparent 100%); }
+  .scrollbar { position: absolute; right: 4px; top: 14px; bottom: 14px; width: 6px; }
+  .scrollbar i { position: absolute; left: 0; right: 0; top: 18%; height: 26%; border-radius: 99px; background: var(--track); }
+
+  .col { grid-column: 2; padding: 34px 40px 60px; min-width: 0; }
+  .title { font-size: 25px; font-weight: 650; letter-spacing: .01em; line-height: 1.35; }
+  .meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 12px 0 22px; font-size: 12px; color: var(--ink-3); }
+  .chip { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 99px; font-size: 11.5px; }
+  .chip.c1 { background: var(--t1s); color: var(--t1); } .chip.c2 { background: var(--t2s); color: var(--t2); }
+  .chip.c3 { background: var(--t3s); color: var(--t3); } .chip.c4 { background: var(--t4s); color: var(--t4); }
+  .chip.add { border: 1px dashed var(--line-1); color: var(--ink-3); background: transparent; }
+  .chip.input { border: 1px solid var(--accent); color: var(--ink-1); background: var(--surface); min-width: 110px; }
+  .chip.input::after { content: ""; width: 1px; height: 13px; background: var(--accent); margin-left: 2px; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .dotsep { opacity: .5; }
+
+  .doc h3 { font-size: 18px; font-weight: 650; margin: 22px 0 8px; }
+  .doc h4 { font-size: 15px; font-weight: 600; margin: 16px 0 6px; }
+  .doc p { color: var(--ink-1); font-size: 14px; line-height: 1.85; margin-bottom: 10px; opacity: .92; }
+  .doc p .hl { background: var(--accent-soft); border-radius: 3px; }
+  .doc blockquote { border-left: 3px solid var(--line-1); padding: 2px 0 2px 14px; color: var(--ink-2); font-size: 13.5px; margin: 10px 0; }
+  .doc ul { padding-left: 20px; font-size: 14px; line-height: 1.85; margin-bottom: 10px; }
+  .doc pre { background: var(--hover); border-radius: 8px; padding: 10px 14px; font-size: 12px; line-height: 1.7; color: var(--ink-2); margin: 10px 0; }
+  .caret { display: inline-block; width: 1.5px; height: 17px; background: var(--accent); vertical-align: -3px; animation: blink 1s steps(1) infinite; }
+
+  /* 大纲：贴正文右缘 sticky，与文章详情页同一套 ContentOutline */
+  .outline { grid-column: 3; padding: 96px 20px 0 8px; font-size: 12px; color: var(--ink-3); max-width: 200px; }
+  .outline .h { font-size: 11px; letter-spacing: .06em; color: var(--ink-3); margin: 0 0 8px 10px; }
+  .outline div.i { padding: 3px 10px; border-left: 2px solid transparent; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .outline div.i.l2 { padding-left: 22px; }
+  .outline div.i.on { color: var(--accent-text); border-left-color: var(--accent); }
+
+  /* 状态栏：纸面内底部，极轻 */
+  .status { height: 30px; flex: none; display: flex; align-items: center; gap: 14px; padding: 0 14px; font-size: 11.5px; color: var(--ink-3); border-top: 1px solid var(--line-2); }
+  .status .ok { display: inline-flex; align-items: center; gap: 5px; }
+  .status .ok::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+  .status .sync::before { background: var(--accent); }
+  .status b { color: var(--ink-2); font-weight: 500; }
+  .status .btn { padding: 1px 7px; border-radius: 6px; }
+  .status .btn.h { background: var(--hover); color: var(--ink-1); }
+
+  /* 源码模式 */
+  .src { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr minmax(0, 760px) 1fr; }
+  .src .code { grid-column: 2; padding: 26px 24px 60px 0; font: 13px/1.85 ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace; display: grid; grid-template-columns: 48px 1fr; }
+  .src .ln { color: var(--ink-3); opacity: .55; text-align: right; padding-right: 16px; user-select: none; }
+  .src .ln .cur { opacity: 1; color: var(--ink-2); }
+  .src .tx { white-space: pre-wrap; color: var(--ink-1); }
+  .src .tx .curline { background: var(--hover); display: block; margin: 0 -8px; padding: 0 8px; border-radius: 4px; }
+  .src .m { color: var(--code-mark); } .src .k { color: var(--code-kw); font-weight: 600; } .src .s { color: var(--code-str); }
+  .src .fm { color: var(--ink-3); }
+
+  /* 浮层（菜单 / 大纲 popover / 查找） */
+  .pop { position: absolute; background: var(--surface); border-radius: 12px; box-shadow: var(--shadow-float); border: 1px solid var(--line-2); padding: 5px; font-size: 12.5px; color: var(--ink-1); z-index: 5; }
+  .pop .it { display: flex; align-items: center; gap: 9px; height: 30px; padding: 0 10px; border-radius: 8px; }
+  .pop .it svg { width: 14px; height: 14px; color: var(--ink-2); }
+  .pop .it.h { background: var(--hover); }
+  .pop .it kbd { margin-left: auto; font: 11px ui-monospace, monospace; color: var(--ink-3); }
+  .pop .it .sw { margin-left: auto; width: 26px; height: 15px; border-radius: 99px; background: var(--track); position: relative; }
+  .pop .it .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 11px; height: 11px; border-radius: 50%; background: var(--surface); }
+  .pop .it .sw.on { background: var(--accent); } .pop .it .sw.on::after { left: 13px; }
+  .pop hr { border: 0; border-top: 1px solid var(--line-1); margin: 4px 6px; }
+  .pop .it.danger, .pop .it.danger svg { color: #b0564d; }
+  .find { position: absolute; top: 10px; right: 18px; display: flex; align-items: center; gap: 6px; padding: 5px 6px 5px 10px; border-radius: 10px; background: var(--surface); box-shadow: var(--shadow-float); border: 1px solid var(--line-2); font-size: 12px; z-index: 5; }
+  .find .inp { width: 170px; height: 24px; border-radius: 6px; background: var(--hover); display: flex; align-items: center; padding: 0 8px; color: var(--ink-1); }
+  .find .cnt { color: var(--ink-3); font-size: 11px; min-width: 38px; }
+
+  /* 批注 */
+  .note { position: absolute; font-size: 11px; background: #43392c; color: #fff8ef; padding: 3px 9px; border-radius: 6px; pointer-events: none; white-space: nowrap; z-index: 9; line-height: 1.6; }
+  .note::after { content: ""; position: absolute; left: 12px; top: -4px; width: 8px; height: 8px; background: inherit; transform: rotate(45deg); }
+  .note.up::after { top: auto; bottom: -4px; }
+  .note.r::after { left: auto; right: 12px; }
+
+  /* 多开示意 */
+  .stage { position: relative; width: 1040px; height: 520px; border-radius: 14px; background: linear-gradient(135deg, #cfc4ae, #b9ab91); overflow: hidden; }
+  .mini { position: absolute; border-radius: 10px; overflow: hidden; background: var(--page); box-shadow: var(--win-shadow); display: flex; flex-direction: column; }
+  .mini .tb { height: 34px; padding: 0 10px; gap: 8px; }
+  .mini .lights i { width: 9px; height: 9px; } .mini .lights { gap: 6px; }
+  .mini .sheet { margin: 0 6px 6px; border-radius: 9px; padding: 16px 20px; font-size: 11px; color: var(--ink-2); line-height: 1.8; }
+  .mini .sheet b { display: block; font-size: 15px; color: var(--ink-1); margin-bottom: 6px; }
+  .mini .kind { height: 18px; font-size: 10.5px; }
+  .mini.dim { filter: saturate(.85); opacity: .92; }
+  .mini.focus { outline: 2px solid hsl(22 58% 42%); outline-offset: 2px; }
+
+  /* 表格 */
+  table { border-collapse: collapse; font-size: 12.5px; margin-top: 8px; background: #fffdf9; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 2px rgba(120,100,70,.05), 0 10px 24px -14px rgba(120,100,70,.18); }
+  th, td { text-align: left; padding: 8px 14px; border-bottom: 1px solid #e9e1d2; vertical-align: top; }
+  th { background: #faf6ec; color: #6a5c49; font-weight: 600; }
+  td { color: #43392c; } td.c { text-align: center; color: #61795f; } td.no { color: #b8a88f; text-align: center; }
+
+  .rec { margin-top: 72px; background: #fffdf9; border-radius: 14px; padding: 22px 26px; box-shadow: 0 1px 2px rgba(120,100,70,.05), 0 10px 24px -14px rgba(120,100,70,.18); border-left: 3px solid hsl(22 58% 42%); max-width: 1040px; }
+  .rec h2 { font-size: 16px; margin-bottom: 8px; }
+  .rec p, .rec li { color: #6a5c49; font-size: 13.5px; } .rec ol, .rec ul { padding-left: 20px; margin-top: 6px; } .rec b { color: #43392c; }
+  pre.arch { background: #faf6ec; border-radius: 10px; padding: 14px 18px; font-size: 12px; line-height: 1.75; color: #43392c; margin-top: 10px; overflow-x: auto; }
+
+  /* 协作 */
+  .avs { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px 0 4px; border-radius: 99px; background: var(--hover); font-size: 11.5px; color: var(--ink-2); flex: none; position: relative; }
+  .avs .st { display: flex; } .avs .st i { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--page); margin-left: -6px; display: grid; place-items: center; font-style: normal; font-size: 10px; color: #fff; font-weight: 600; }
+  .avs .st i:first-child { margin-left: 0; }
+  .avs .badge { position: absolute; top: -3px; right: -3px; min-width: 15px; height: 15px; border-radius: 99px; background: #b0564d; color: #fff; font-size: 9.5px; display: grid; place-items: center; padding: 0 4px; border: 2px solid var(--page); }
+  .rcur { display: inline-block; position: relative; width: 2px; height: 18px; vertical-align: -4px; }
+  .rcur span { position: absolute; left: -1px; top: -16px; font-size: 10px; line-height: 1; color: #fff; padding: 2px 5px; border-radius: 4px 4px 4px 0; white-space: nowrap; }
+  .banner { display: flex; align-items: center; gap: 10px; margin: 10px 12px 0; padding: 8px 12px; border-radius: 10px; font-size: 12px; background: var(--t4s); color: var(--t4); }
+  .banner .sp { flex: 1; }
+  .banner .bt { padding: 2px 10px; border-radius: 7px; background: var(--surface); color: var(--ink-1); box-shadow: var(--shadow-card); }
+  .seg span.dis { opacity: .4; }
+  .tip { position: absolute; background: var(--ink-1); color: var(--page); font-size: 11.5px; padding: 6px 10px; border-radius: 8px; max-width: 260px; line-height: 1.55; z-index: 6; }
+</style>
+</head>
+<body>
+
+<!-- ============ SVG icon sprite (lucide 同款路径) ============ -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="i-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/></symbol>
+    <symbol id="i-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h10M7 14h6"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12H9M21 6H9M21 18H9M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></symbol>
+    <symbol id="i-rich" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></symbol>
+    <symbol id="i-main" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-focus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-type" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M4 7V4h16v3M9 20h6"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></symbol>
+  </defs>
+</svg>
+
+<header class="top">
+  <h1>独立编辑窗口 · 合并为一个「Editor Window」的 mockup</h1>
+  <p>现状：卡片 / 文章 / 项目文档各自一个窗口页面（<code>SingleCardEditor</code> / <code>SingleArticleEditor</code> / <code>SingleProjectItemEditor</code>），内部都是同一个 ContentEditor，样式还是 legacy less。
+  方案：合并成<b>一个窗口页面</b>，按 <code>kind</code>（card / article / project-item）只切换「头部字段」和「数据适配器」；外壳（标题栏、纸面、FadeScroll、大纲、状态栏、源码模式）完全共用，且与主窗口同一套 token、同一 46px 标题栏、同一张「纸」。</p>
+  <div class="toc-page">
+    <a href="#s1">① 外壳：纸面 vs 满铺</a><a href="#s2">② 文章 · 浅色</a><a href="#s3">③ 深色 + ⋯ 菜单</a><a href="#s4">④ 源码模式</a>
+    <a href="#s5">⑤ 卡片 / 项目文档</a><a href="#s6">⑥ 窄窗 + 查找</a><a href="#s7">⑦ Windows 标题栏</a><a href="#s8">⑧ 多开规则</a><a href="#s9">⑨ 功能清单</a><a href="#s10">⑩ 主进程重写</a><a href="#s11">⑪ 协作</a>
+  </div>
+</header>
+
+<!-- ================= ① 外壳 ================= -->
+<section id="s1">
+  <h2><span class="no">①</span>外壳选型：纸面托盘 vs 满铺纸面<span class="tag">先定这个</span></h2>
+  <p class="desc"><b>A 纸面托盘</b>：标题栏落在 page 底色上，正文是一张内缩 8px、圆角 12、card 阴影的「纸」——和主窗口 AppShell 右列完全一致，一眼看出是同一个 App。
+  <b>B 满铺纸面</b>：整窗都是 surface，标题栏下一根 1px 线分隔——更像 Typora/iA Writer 的纯写作窗口，正文多出 16px 宽度。</p>
+  <div class="row">
+    <div>
+      <div class="win cream md" style="height:360px">
+        <div class="tb">
+          <div class="lights"><i></i><i></i><i></i></div>
+          <span class="kind"><svg><use href="#i-file"/></svg>文章</span>
+          <div class="crumbs"><b>源潮增长期的世界观推演</b></div>
+          <div class="spacer"></div>
+          <div class="ib"><svg><use href="#i-list"/></svg></div><div class="ib"><svg><use href="#i-sun"/></svg></div><div class="ib"><svg><use href="#i-more"/></svg></div>
+        </div>
+        <div class="sheet">
+          <div class="scroll"><div class="col doc"><div class="title">源潮增长期的世界观推演</div><p style="margin-top:16px">主世界是一个天炁充盈、强者辈出、道争激烈的玄幻世界。本地人认为天地之间流动着一种超凡根基，称为天炁……</p></div></div>
+        </div>
+      </div>
+      <div class="caption">A · 纸面托盘（推荐）—— 与主窗口同构；多窗口并排时边界清楚</div>
+    </div>
+    <div>
+      <div class="win cream md bleed" style="height:360px;width:520px">
+        <div class="tb">
+          <div class="lights"><i></i><i></i><i></i></div>
+          <span class="kind"><svg><use href="#i-file"/></svg>文章</span>
+          <div class="crumbs"><b>源潮增长期的世界观推演</b></div>
+          <div class="spacer"></div>
+          <div class="ib"><svg><use href="#i-list"/></svg></div><div class="ib"><svg><use href="#i-more"/></svg></div>
+        </div>
+        <div class="sheet">
+          <div class="scroll" style="grid-template-columns: 0 1fr 0"><div class="col doc" style="padding:28px 36px"><div class="title">源潮增长期的世界观推演</div><p style="margin-top:16px">主世界是一个天炁充盈、强者辈出、道争激烈的玄幻世界……</p></div></div>
+        </div>
+      </div>
+      <div class="caption">B · 满铺纸面 —— 更「纯写作」，但与主窗口语言略有差异</div>
+    </div>
+  </div>
+  <p class="desc" style="margin-top:14px">下面所有 mockup 都按 <b>A</b> 画。</p>
+</section>
+
+<!-- ================= ② 文章浅色 ================= -->
+<section id="s2">
+  <h2><span class="no">②</span>文章 · 浅色（cream）· 完整形态<span class="tag">默认 1040×660</span></h2>
+  <p class="desc">标题栏：自绘信号灯 → 类型徽标 → 标题（随正文标题实时变）→ 右侧 <b>富文本/源码</b> 分段切换、<b>大纲</b>开关、<b>置顶</b>、<b>主题</b>（同主窗口循环：浅 → 深 → 跟随系统，多窗口同步）、<b>⋯</b> 菜单。
+  纸面内：标题 + 元信息行（标签 chip 直接增删、创建/修改时间）→ 正文列 680 居中 → 大纲贴正文右缘 sticky（当前节高亮）。滚动区上下 <b>FadeScroll</b> 渐隐 + 内缩滚动条。底部状态栏：字数 / 阅读时长 / 选中字数 / 同步状态。</p>
+  <div class="win cream">
+    <div class="tb">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <span class="kind"><svg><use href="#i-file"/></svg>文章</span>
+      <div class="crumbs"><b>源潮增长期的世界观推演</b></div>
+      <div class="spacer"></div>
+      <div class="seg"><span class="on"><svg><use href="#i-rich"/></svg>富文本</span><span><svg><use href="#i-code"/></svg>源码</span></div>
+      <div class="divider"></div>
+      <div class="ib on" title="大纲"><svg><use href="#i-list"/></svg></div>
+      <div class="ib" title="窗口置顶"><svg><use href="#i-pin"/></svg></div>
+      <div class="ib" title="主题"><svg><use href="#i-sun"/></svg></div>
+      <div class="ib" title="更多"><svg><use href="#i-more"/></svg></div>
+    </div>
+    <div class="sheet">
+      <div class="scroll fade">
+        <div class="col">
+          <div class="title">源潮增长期的世界观推演</div>
+          <div class="meta">
+            <span class="chip c1">世界观</span><span class="chip c2">源核</span><span class="chip c3">设定集</span><span class="chip add">＋ 标签</span>
+            <span class="dotsep">·</span><span>创建于 08-02 10:46</span><span class="dotsep">·</span><span>修改于 刚刚</span>
+          </div>
+          <div class="doc">
+            <p>主世界是一个天炁充盈、强者辈出、道争激烈的玄幻世界。本地人认为天地之间流动着一种超凡根基，称为天炁。修士以天炁淬体、开脉、施术、摄象、辟域，最终一步步走向登天。</p>
+            <h3>世界基底</h3>
+            <p>从更高层视角看，天炁是主世界源核活跃后的外显。<span class="hl">主世界正处在源潮增长期，天地超凡活性不断上升</span>，各地秘境、异象、强者遗迹、古战场也随之频繁出现。<span class="caret"></span></p>
+            <blockquote>这个世界并不缺少天炁。真正稀缺的，是那些能够让修士看见高境道路的天地痕迹。</blockquote>
+            <h3>天痕</h3>
+            <p>天痕不是普通资源，也不是可以随意搬运的灵物。它更像天地曾经被某种强大力量刻下的痕迹。</p>
+            <ul><li>可感知：高境修士能在天痕附近「看见」道路</li><li>不可搬运：离开原地即消散</li></ul>
+            <h4>争道</h4>
+            <p>围绕天痕的争夺，构成了主世界大部分势力冲突的根源……</p>
+          </div>
+        </div>
+        <div class="outline">
+          <div class="h">目录</div>
+          <div class="i on">世界基底</div><div class="i">天痕</div><div class="i l2">争道</div><div class="i">开脉登天体系</div><div class="i l2">淬体</div><div class="i l2">开脉</div><div class="i">势力格局</div><div class="i">城市与生活</div>
+        </div>
+        <div class="scrollbar"><i></i></div>
+      </div>
+      <div class="status">
+        <span><b>3,284</b> 字</span><span>约 11 分钟</span><span>选中 <b>24</b> 字</span>
+        <div class="spacer"></div>
+        <span class="ok">已保存</span>
+        <span class="btn">Markdown</span>
+      </div>
+    </div>
+    <div class="note up" style="left:330px;top:4px;transform:translateY(-110%)">标题随正文实时同步；窗口 title（Dock / 任务栏）同名</div>
+    <div class="note" style="left:640px;top:48px">分段切换 ⌘/ ；源码模式见 ④</div>
+    <div class="note r" style="right:24px;top:92px">大纲开关（窄窗时变 popover，见 ⑥）</div>
+    <div class="note" style="left:130px;top:196px">标签：点 ＋ 原地输入，回车落定，⌫ 删最后一个</div>
+    <div class="note up" style="left:250px;bottom:40px">上下 FadeScroll 渐隐 · 滚动条上下内缩（同 Dialog FADE_SCROLL_CLASS）</div>
+    <div class="note up r" style="right:16px;bottom:40px">点「已保存」看同步详情；另一窗口也在编辑时变「同步中」</div>
+  </div>
+</section>
+
+<!-- ================= ③ 深色 + 菜单 ================= -->
+<section id="s3">
+  <h2><span class="no">③</span>深色（cocoa）+ ⋯ 菜单</h2>
+  <p class="desc">主题完全走 <code>data-theme</code> token，零额外样式；在任一窗口切主题，主窗口与其它编辑窗口同步切换。⋯ 菜单收纳低频操作：在主窗口打开、专注模式、打字机滚动、查找替换、复制 Markdown、导出、关闭窗口。</p>
+  <div class="win cocoa">
+    <div class="tb">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <span class="kind"><svg><use href="#i-file"/></svg>文章</span>
+      <div class="crumbs"><b>源潮增长期的世界观推演</b></div>
+      <div class="spacer"></div>
+      <div class="seg"><span class="on"><svg><use href="#i-rich"/></svg>富文本</span><span><svg><use href="#i-code"/></svg>源码</span></div>
+      <div class="divider"></div>
+      <div class="ib on"><svg><use href="#i-list"/></svg></div>
+      <div class="ib on" title="已置顶"><svg><use href="#i-pin"/></svg></div>
+      <div class="ib"><svg><use href="#i-moon"/></svg></div>
+      <div class="ib hover"><svg><use href="#i-more"/></svg></div>
+    </div>
+    <div class="sheet">
+      <div class="scroll fade">
+        <div class="col">
+          <div class="title">源潮增长期的世界观推演</div>
+          <div class="meta">
+            <span class="chip c1">世界观</span><span class="chip c2">源核</span><span class="chip c3">设定集</span><span class="chip input">修炼</span>
+            <span class="dotsep">·</span><span>修改于 刚刚</span>
+          </div>
+          <div class="doc">
+            <p>主世界是一个天炁充盈、强者辈出、道争激烈的玄幻世界。本地人认为天地之间流动着一种超凡根基，称为天炁。</p>
+            <h3>世界基底</h3>
+            <p>从更高层视角看，天炁是主世界源核活跃后的外显。主世界正处在源潮增长期，天地超凡活性不断上升，各地秘境、异象、强者遗迹、古战场也随之频繁出现。</p>
+            <pre>天炁 → 淬体 → 开脉 → 施术 → 摄象 → 辟域 → 登天</pre>
+            <h3>天痕</h3>
+            <p>天痕不是普通资源，也不是可以随意搬运的灵物。它更像天地曾经被某种强大力量刻下的痕迹。</p>
+          </div>
+        </div>
+        <div class="outline">
+          <div class="h">目录</div>
+          <div class="i">世界基底</div><div class="i on">天痕</div><div class="i l2">争道</div><div class="i">开脉登天体系</div><div class="i">势力格局</div>
+        </div>
+        <div class="scrollbar"><i style="top:30%"></i></div>
+      </div>
+      <div class="status">
+        <span><b>3,291</b> 字</span><span>约 11 分钟</span>
+        <div class="spacer"></div>
+        <span class="ok sync">同步中 · 主窗口也打开了此文章</span>
+        <span class="btn">Markdown</span>
+      </div>
+    </div>
+    <div class="pop" style="right:14px;top:44px;width:236px">
+      <div class="it h"><svg><use href="#i-main"/></svg>在主窗口中打开<kbd>⌘⇧O</kbd></div>
+      <hr>
+      <div class="it"><svg><use href="#i-focus"/></svg>专注模式<kbd>⌘.</kbd></div>
+      <div class="it"><svg><use href="#i-type"/></svg>打字机滚动<span class="sw on"></span></div>
+      <div class="it"><svg><use href="#i-search"/></svg>查找与替换<kbd>⌘F</kbd></div>
+      <hr>
+      <div class="it"><svg><use href="#i-copy"/></svg>复制为 Markdown</div>
+      <div class="it"><svg><use href="#i-download"/></svg>导出…<kbd style="font-family:inherit">MD / PDF / 图片</kbd></div>
+      <hr>
+      <div class="it"><svg><use href="#i-x"/></svg>关闭窗口<kbd>⌘W</kbd></div>
+    </div>
+    <div class="note up r" style="right:118px;top:4px;transform:translateY(-110%)">置顶开：accent 轻染（同侧栏选中语言）</div>
+    <div class="note" style="left:370px;top:168px">标签输入态</div>
+  </div>
+</section>
+
+<!-- ================= ④ 源码模式 ================= -->
+<section id="s4">
+  <h2><span class="no">④</span>Markdown 源码模式</h2>
+  <p class="desc">分段切到「源码」：同一张纸换成 CodeMirror（等宽、行号、当前行底色、Markdown 语法着色），<b>标题与标签也进入 front-matter</b>，便于整篇复制/粘贴。切回富文本时解析回 Slate，光标按块映射；解析失败则停留源码并在状态栏提示。
+  大纲在源码模式照样可用（按 <code>#</code> 行解析），状态栏右侧多出行列号。</p>
+  <div class="win cream">
+    <div class="tb">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <span class="kind"><svg><use href="#i-file"/></svg>文章</span>
+      <div class="crumbs"><b>源潮增长期的世界观推演</b></div>
+      <div class="spacer"></div>
+      <div class="seg"><span><svg><use href="#i-rich"/></svg>富文本</span><span class="on"><svg><use href="#i-code"/></svg>源码</span></div>
+      <div class="divider"></div>
+      <div class="ib"><svg><use href="#i-list"/></svg></div>
+      <div class="ib"><svg><use href="#i-pin"/></svg></div>
+      <div class="ib"><svg><use href="#i-sun"/></svg></div>
+      <div class="ib"><svg><use href="#i-more"/></svg></div>
+    </div>
+    <div class="sheet">
+      <div class="scroll fade">
+        <div class="src"><div class="code">
+<div class="ln">1<br>2<br>3<br>4<br>5<br>6<br>7<br>8<br>9<br>10<br>11<br><span class="cur">12</span><br>13<br>14<br>15<br>16<br>17<br>18<br>19<br>20</div><div class="tx"><span class="fm">---
+title: 源潮增长期的世界观推演
+tags: [世界观, 源核, 设定集]
+---</span>
+
+主世界是一个天炁充盈、强者辈出、道争激烈的玄幻世界。本地人认为天地之间流动着一种超凡根基，称为<span class="m">**</span>天炁<span class="m">**</span>。
+
+<span class="k"><span class="m">##</span> 世界基底</span>
+
+从更高层视角看，天炁是主世界源核活跃后的外显。
+<span class="curline">主世界正处在源潮增长期，天地超凡活性不断上升<span class="caret"></span></span>
+<span class="m">&gt;</span> 这个世界并不缺少天炁。真正稀缺的，是那些能够让修士看见高境道路的天地痕迹。
+
+<span class="k"><span class="m">##</span> 天痕</span>
+
+<span class="m">-</span> 可感知：高境修士能在天痕附近「看见」道路
+<span class="m">-</span> 不可搬运：离开原地即消散
+<span class="m">```</span><span class="s">text</span>
+天炁 → 淬体 → 开脉 → 施术 → 摄象 → 辟域 → 登天
+<span class="m">```</span></div>
+        </div></div>
+        <div class="scrollbar"><i></i></div>
+      </div>
+      <div class="status">
+        <span><b>3,284</b> 字</span><span>约 11 分钟</span>
+        <div class="spacer"></div>
+        <span>行 12，列 23</span>
+        <span class="ok">已保存</span>
+        <span class="btn h">Markdown</span>
+      </div>
+    </div>
+    <div class="note" style="left:210px;top:56px">front-matter 承载标题 / 标签（卡片无标题则只有 tags）</div>
+    <div class="note up r" style="right:14px;bottom:40px">源码模式多出行列号</div>
+  </div>
+</section>
+
+<!-- ================= ⑤ 卡片 / 项目文档 ================= -->
+<section id="s5">
+  <h2><span class="no">⑤</span>kind 差异：卡片 · 项目文档</h2>
+  <p class="desc">外壳不变，只换「头部字段」和默认尺寸：
+  <b>卡片</b>没有标题 → 标题栏显示首行摘要，头部只有标签，默认窄窗 560×660、大纲默认关（短内容）；
+  <b>项目文档</b>标题栏显示「项目 / 父级 / 当前」路径，正文支持项目专属扩展（项目卡片列表块），大纲默认开。</p>
+  <div class="row">
+    <div>
+      <div class="win cream sm">
+        <div class="tb">
+          <div class="lights"><i></i><i></i><i></i></div>
+          <span class="kind"><svg><use href="#i-card"/></svg>卡片</span>
+          <div class="crumbs"><b>间隔重复的核心是「在快忘时复习」</b></div>
+          <div class="spacer"></div>
+          <div class="ib"><svg><use href="#i-list"/></svg></div>
+          <div class="ib"><svg><use href="#i-more"/></svg></div>
+        </div>
+        <div class="sheet">
+          <div class="scroll fade" style="grid-template-columns: 0 1fr 0">
+            <div class="col" style="padding:26px 32px">
+              <div class="meta" style="margin-top:0"><span class="chip c4">学习方法</span><span class="chip c2">记忆</span><span class="chip add">＋ 标签</span></div>
+              <div class="doc">
+                <p><b>间隔重复的核心是「在快忘时复习」</b>。每次成功回忆都会让遗忘曲线变缓，下一次复习间隔随之拉长。</p>
+                <p>实践中不必追求精确的最优间隔，重要的是：</p>
+                <ul><li>复习时先尝试主动回忆，再看答案</li><li>把卡片拆到「一问一答」的粒度</li><li>答错的卡片当天再过一遍</li></ul>
+                <p>相关：[[遗忘曲线]] · [[主动回忆]]<span class="caret"></span></p>
+              </div>
+            </div>
+          </div>
+          <div class="status"><span><b>186</b> 字</span><div class="spacer"></div><span class="ok">已保存</span></div>
+        </div>
+        <div class="note up" style="left:120px;top:4px;transform:translateY(-110%)">无标题：取首行摘要</div>
+        <div class="note" style="right:60px;top:48px;left:auto" >窄窗隐藏分段/置顶/主题 → 进 ⋯</div>
+      </div>
+      <div class="caption">卡片 · 560×660</div>
+    </div>
+
+    <div>
+      <div class="win cream" style="width:760px">
+        <div class="tb">
+          <div class="lights"><i></i><i></i><i></i></div>
+          <span class="kind"><svg><use href="#i-folder"/></svg>项目</span>
+          <div class="crumbs"><span>源核</span><span class="sep">/</span><span>主世界相关设定</span><span class="sep">/</span><b>主世界修炼体系</b></div>
+          <div class="spacer"></div>
+          <div class="seg"><span class="on"><svg><use href="#i-rich"/></svg></span><span><svg><use href="#i-code"/></svg></span></div>
+          <div class="ib on"><svg><use href="#i-list"/></svg></div>
+          <div class="ib"><svg><use href="#i-sun"/></svg></div>
+          <div class="ib"><svg><use href="#i-more"/></svg></div>
+        </div>
+        <div class="sheet">
+          <div class="scroll fade" style="grid-template-columns: 0 minmax(0,1fr) 170px">
+            <div class="col" style="padding:30px 20px 60px 44px">
+              <div class="title">主世界修炼体系</div>
+              <div class="meta"><span>创建于 08-02</span><span class="dotsep">·</span><span>修改于 09-06 22:00</span></div>
+              <div class="doc">
+                <h3>淬体</h3>
+                <p>以天炁洗练肉身，分九重。第九重圆满者肉身可硬抗低阶术法……</p>
+                <h3>开脉</h3>
+                <p>打通周身十二正脉，天炁得以在体内周天运转，为施术之基。</p>
+                <div style="border:1px solid var(--line-1);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--ink-2);margin:10px 0">
+                  <div style="font-weight:600;color:var(--ink-1);margin-bottom:6px">📇 关联卡片（3）</div>
+                  <div>· 淬体九重分界 &nbsp; · 十二正脉 &nbsp; · 周天运转</div>
+                </div>
+              </div>
+            </div>
+            <div class="outline" style="grid-column:3;padding-top:90px"><div class="h">目录</div><div class="i on">淬体</div><div class="i">开脉</div><div class="i">施术</div><div class="i">摄象</div></div>
+          </div>
+          <div class="status"><span><b>1,902</b> 字</span><span>约 6 分钟</span><div class="spacer"></div><span class="ok">已保存</span></div>
+        </div>
+        <div class="note up" style="left:170px;top:4px;transform:translateY(-110%)">项目路径面包屑（点击父级 = 在主窗口打开）</div>
+        <div class="note up" style="left:60px;bottom:230px">项目专属块（ProjectCardList 扩展）按 kind 注入</div>
+      </div>
+      <div class="caption">项目文档 · 中等宽度时分段控件收成纯图标</div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ⑥ 窄窗 + 查找 ================= -->
+<section id="s6">
+  <h2><span class="no">⑥</span>窄窗自适应 + 查找替换</h2>
+  <p class="desc">窗口宽度 &lt; 900：大纲从常驻列变为 popover（点标题栏大纲按钮弹出，点条目跳转后自动收起）；&lt; 640：分段/置顶/主题收进 ⋯。
+  ⌘F 查找条浮在纸面右上角，⌘⌥F 展开替换行；匹配项 accent-soft 高亮。</p>
+  <div class="row">
+    <div>
+      <div class="win cream md" style="width:680px">
+        <div class="tb">
+          <div class="lights"><i></i><i></i><i></i></div>
+          <span class="kind"><svg><use href="#i-file"/></svg>文章</span>
+          <div class="crumbs"><b>源潮增长期的世界观推演</b></div>
+          <div class="spacer"></div>
+          <div class="seg"><span class="on"><svg><use href="#i-rich"/></svg></span><span><svg><use href="#i-code"/></svg></span></div>
+          <div class="ib on"><svg><use href="#i-list"/></svg></div>
+          <div class="ib"><svg><use href="#i-sun"/></svg></div>
+          <div class="ib"><svg><use href="#i-more"/></svg></div>
+        </div>
+        <div class="sheet">
+          <div class="scroll fade" style="grid-template-columns: 0 1fr 0">
+            <div class="col" style="padding:30px 44px">
+              <div class="title">源潮增长期的世界观推演</div>
+              <div class="meta"><span class="chip c1">世界观</span><span class="chip c2">源核</span><span class="chip add">＋</span></div>
+              <div class="doc">
+                <p>主世界是一个天炁充盈、强者辈出、道争激烈的玄幻世界。本地人认为天地之间流动着一种超凡根基，称为天炁。</p>
+                <h3>世界基底</h3>
+                <p>从更高层视角看，天炁是主世界源核活跃后的外显。主世界正处在源潮增长期……</p>
+                <h3>天痕</h3>
+                <p>天痕不是普通资源，也不是可以随意搬运的灵物……</p>
+              </div>
+            </div>
+          </div>
+          <div class="status"><span><b>3,284</b> 字</span><div class="spacer"></div><span class="ok">已保存</span></div>
+        </div>
+        <div class="pop" style="right:84px;top:44px;width:210px;padding:8px 5px">
+          <div style="font-size:11px;color:var(--ink-3);padding:0 10px 4px">目录</div>
+          <div class="it" style="height:26px">世界基底</div>
+          <div class="it h" style="height:26px;color:var(--accent-text)">天痕</div>
+          <div class="it" style="height:26px;padding-left:22px">争道</div>
+          <div class="it" style="height:26px">开脉登天体系</div>
+          <div class="it" style="height:26px">势力格局</div>
+        </div>
+      </div>
+      <div class="caption">680 宽 · 大纲 popover</div>
+    </div>
+    <div>
+      <div class="win cocoa md" style="width:680px">
+        <div class="tb">
+          <div class="lights"><i></i><i></i><i></i></div>
+          <span class="kind"><svg><use href="#i-file"/></svg>文章</span>
+          <div class="crumbs"><b>源潮增长期的世界观推演</b></div>
+          <div class="spacer"></div>
+          <div class="ib"><svg><use href="#i-list"/></svg></div>
+          <div class="ib"><svg><use href="#i-more"/></svg></div>
+        </div>
+        <div class="sheet">
+          <div class="find">
+            <div class="inp">天炁<span class="caret" style="height:13px;margin-left:1px"></span></div>
+            <span class="cnt">2 / 14</span>
+            <div class="ib" style="width:24px;height:24px"><svg style="width:14px;height:14px"><use href="#i-up"/></svg></div>
+            <div class="ib" style="width:24px;height:24px"><svg style="width:14px;height:14px"><use href="#i-down"/></svg></div>
+            <div class="ib" style="width:24px;height:24px"><svg style="width:14px;height:14px"><use href="#i-x"/></svg></div>
+          </div>
+          <div class="scroll fade" style="grid-template-columns: 0 1fr 0">
+            <div class="col" style="padding:30px 44px">
+              <div class="title">源潮增长期的世界观推演</div>
+              <div class="doc" style="margin-top:18px">
+                <p>主世界是一个<span class="hl">天炁</span>充盈、强者辈出、道争激烈的玄幻世界。本地人认为天地之间流动着一种超凡根基，称为<span class="hl" style="outline:1.5px solid var(--accent)">天炁</span>。修士以<span class="hl">天炁</span>淬体、开脉、施术……</p>
+                <h3>世界基底</h3>
+                <p>从更高层视角看，<span class="hl">天炁</span>是主世界源核活跃后的外显……</p>
+              </div>
+            </div>
+          </div>
+          <div class="status"><span><b>3,284</b> 字</span><div class="spacer"></div><span class="ok">已保存</span></div>
+        </div>
+      </div>
+      <div class="caption">&lt; 640 行为预览 · ⌘F 查找条（深色）</div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ⑦ Windows ================= -->
+<section id="s7">
+  <h2><span class="no">⑦</span>Windows / Linux 标题栏</h2>
+  <p class="desc">复用主窗口 <code>WindowControls</code>：左侧不画信号灯，右端是最小化 / 最大化 / 关闭三键（关闭 hover 平台红）。其余与 mac 一致。</p>
+  <div class="win cream" style="height:170px">
+    <div class="tb" style="padding-left:14px">
+      <span class="kind"><svg><use href="#i-file"/></svg>文章</span>
+      <div class="crumbs"><b>源潮增长期的世界观推演</b></div>
+      <div class="spacer"></div>
+      <div class="seg"><span class="on"><svg><use href="#i-rich"/></svg>富文本</span><span><svg><use href="#i-code"/></svg>源码</span></div>
+      <div class="divider"></div>
+      <div class="ib on"><svg><use href="#i-list"/></svg></div>
+      <div class="ib"><svg><use href="#i-pin"/></svg></div>
+      <div class="ib"><svg><use href="#i-sun"/></svg></div>
+      <div class="ib"><svg><use href="#i-more"/></svg></div>
+      <div class="winctl"><i>—</i><i>☐</i><i class="x h">✕</i></div>
+    </div>
+    <div class="sheet"><div class="scroll"><div class="col doc"><div class="title">源潮增长期的世界观推演</div></div></div></div>
+  </div>
+</section>
+
+<!-- ================= ⑧ 多开 ================= -->
+<section id="s8">
+  <h2><span class="no">⑧</span>多开规则</h2>
+  <p class="desc">一个窗口 = 一篇文档。窗口身份键 <code>kind:db:id</code>：</p>
+  <ul class="list">
+    <li><b>同一文档再次「新窗口打开」</b> → 聚焦已有窗口（闪一下 accent 描边），不重复开；</li>
+    <li><b>不同文档</b> → 新窗口，相对当前焦点窗口级联偏移 28px；超出屏幕回绕到左上；</li>
+    <li><b>尺寸 / 位置 / 大纲开关 / 源码模式</b> 按 kind 记忆（下次打开卡片还是窄窗）；</li>
+    <li>任一窗口与主窗口编辑同一文档 → 实时同步（沿用 <code>content:updated</code> 广播），状态栏显示「同步中」；</li>
+    <li>切换数据库 / 文档被删除 → 编辑窗口显示空态「文档已不存在」并提供关闭，而不是白屏；</li>
+    <li>主窗口全部关闭而编辑窗口还开着 → App 不退出（mac 语义）；Windows 下全部窗口关闭才退出。</li>
+  </ul>
+  <div class="stage" style="margin-top:18px">
+    <div class="mini cream dim" style="left:40px;top:40px;width:560px;height:380px">
+      <div class="tb"><div class="lights"><i></i><i></i><i></i></div><span class="kind">主窗口</span><div class="crumbs"><b>文章 / 源潮增长期的世界观推演</b></div></div>
+      <div class="sheet"><b>源潮增长期的世界观推演</b>主世界是一个天炁充盈、强者辈出……</div>
+    </div>
+    <div class="mini cream dim" style="left:330px;top:80px;width:430px;height:360px">
+      <div class="tb"><div class="lights"><i></i><i></i><i></i></div><span class="kind">文章</span><div class="crumbs"><b>源潮增长期的世界观推演</b></div></div>
+      <div class="sheet"><b>源潮增长期的世界观推演</b>主世界是一个天炁充盈、强者辈出……<br><span style="color:var(--ok)">● 同步中 · 主窗口也打开了此文章</span></div>
+    </div>
+    <div class="mini cream focus" style="left:588px;top:120px;width:300px;height:340px">
+      <div class="tb"><div class="lights"><i></i><i></i><i></i></div><span class="kind">卡片</span><div class="crumbs"><b>间隔重复的核心…</b></div></div>
+      <div class="sheet"><b>间隔重复</b>每次成功回忆都会让遗忘曲线变缓……</div>
+    </div>
+    <div class="mini cream" style="left:616px;top:148px;width:380px;height:340px">
+      <div class="tb"><div class="lights"><i></i><i></i><i></i></div><span class="kind">项目</span><div class="crumbs"><span>源核 /</span><b>主世界修炼体系</b></div></div>
+      <div class="sheet"><b>主世界修炼体系</b>淬体 · 开脉 · 施术 · 摄象 · 辟域</div>
+    </div>
+    <div class="note up" style="left:600px;top:100px">级联 +28px</div>
+    <div class="note" style="left:40px;top:430px">同一文档：主窗口 + 编辑窗口实时同步</div>
+  </div>
+  <p class="caption">描边 = 再次「新窗口打开」同一张卡片时，聚焦已有窗口并闪一下 accent 描边。</p>
+</section>
+
+<!-- ================= ⑨ 功能清单 ================= -->
+<section id="s9">
+  <h2><span class="no">⑨</span>功能清单（你提的 + 我补的）</h2>
+  <table>
+    <tr><th>功能</th><th>入口</th><th>文章</th><th>卡片</th><th>项目文档</th><th>备注</th></tr>
+    <tr><td>主题切换（浅/深/跟随系统）</td><td>标题栏</td><td class="c">✓</td><td class="c">✓</td><td class="c">✓</td><td>全窗口同步，复用 themeStore</td></tr>
+    <tr><td>字数统计 / 阅读时长 / 选中字数</td><td>状态栏</td><td class="c">✓</td><td class="c">✓</td><td class="c">✓</td><td>卡片不显示阅读时长</td></tr>
+    <tr><td>目录大纲</td><td>标题栏开关</td><td class="c">默认开</td><td class="c">默认关</td><td class="c">默认开</td><td>复用 ContentOutline；窄窗 popover</td></tr>
+    <tr><td>标签</td><td>头部 chip</td><td class="c">✓</td><td class="c">✓</td><td class="no">—</td><td>项目文档无标签字段</td></tr>
+    <tr><td>FadeScroll</td><td>滚动区</td><td class="c">✓</td><td class="c">✓</td><td class="c">✓</td><td>useEdgeFade / FADE_SCROLL_CLASS</td></tr>
+    <tr><td>Markdown 源码模式</td><td>分段 ⌘/</td><td class="c">✓</td><td class="c">✓</td><td class="c">✓</td><td>front-matter 承载标题/标签</td></tr>
+    <tr><td><b>+</b> 窗口置顶</td><td>标题栏</td><td class="c">✓</td><td class="c">✓</td><td class="c">✓</td><td>对照资料写作时常用</td></tr>
+    <tr><td><b>+</b> 同步状态</td><td>状态栏</td><td class="c">✓</td><td class="c">✓</td><td class="c">✓</td><td>已保存 / 保存中 / 同步中 / 保存失败</td></tr>
+    <tr><td><b>+</b> 查找替换</td><td>⌘F / ⌘⌥F</td><td class="c">✓</td><td class="c">✓</td><td class="c">✓</td><td>源码模式用 CodeMirror 自带</td></tr>
+    <tr><td><b>+</b> 专注模式 / 打字机滚动</td><td>⋯ 菜单</td><td class="c">✓</td><td class="c">✓</td><td class="c">✓</td><td>专注 = 隐藏标题栏按钮/大纲/状态栏</td></tr>
+    <tr><td><b>+</b> 在主窗口打开</td><td>⋯ / 面包屑</td><td class="c">✓</td><td class="c">✓</td><td class="c">✓</td><td>主窗口跳详情页并聚焦</td></tr>
+    <tr><td><b>+</b> 复制 Markdown / 导出</td><td>⋯ 菜单</td><td class="c">✓</td><td class="c">复制</td><td class="c">✓</td><td>复用现有导出弹窗</td></tr>
+    <tr><td><b>+</b> 尺寸/位置/偏好记忆</td><td>—</td><td class="c">✓</td><td class="c">✓</td><td class="c">✓</td><td>按 kind 记忆</td></tr>
+    <tr><td><b>+</b> 文档不存在空态</td><td>—</td><td class="c">✓</td><td class="c">✓</td><td class="c">✓</td><td>替代现在的白屏 / Loading 卡死</td></tr>
+    <tr><td><b>+</b> 字号缩放 ⌘+/⌘−</td><td>快捷键</td><td class="c">✓</td><td class="c">✓</td><td class="c">✓</td><td>仅本窗口正文，可选</td></tr>
+  </table>
+  <p class="caption">刻意不放：封面 / 播客 / 演示模式 / 制卡 / 协作——这些是「文章详情页」的重功能，编辑窗口定位是轻量写作；需要时「在主窗口打开」。</p>
+</section>
+
+<!-- ================= ⑩ 主进程 ================= -->
+<section id="s10">
+  <h2><span class="no">⑩</span>主进程重写思路（供对齐，不是 mockup）</h2>
+  <p class="desc">现在 <code>window-manager.ts</code> 932 行：主窗口、番茄钟两种、背景音频、待办、快速卡片、四种编辑器窗口都堆在一个类里，<code>getEditorRoute / getParamName / getEditorName</code> 三个 switch 按类型分发，还有三个 <code>createXxxEditorWindow</code> 包装。建议拆成：</p>
+<pre class="arch">src-electron/main/windows/
+├── createWindow.ts        # 唯一的 BrowserWindow 工厂：preset(基础配置/无边框/信号灯移出/preload) + loadRoute
+├── windowRegistry.ts      # key → BrowserWindow；focusOrCreate(key, factory)；关闭自动注销
+├── windowState.ts         # 按 key 前缀持久化 bounds（+ 级联偏移计算）
+├── main-window.ts         # 主窗口（多实例）
+├── editor-window.ts       # 编辑窗口：openEditorWindow({ kind, db, id }) → key = `editor:${kind}:${db}:${id}`
+├── pomodoro-windows.ts    # 番茄钟 mini / 沉浸（单例，隐藏复用）
+├── utility-windows.ts     # 待办 / 快速卡片 / 背景音频
+└── ipc.ts                 # 窗口相关 IPC 一处注册（open / close / setAlwaysOnTop / setTitle）
+
+渲染端：一个路由 /editor-window?kind=article&db=xxx&id=42
+  EditorWindowPage → EditorWindowShell（标题栏/纸面/大纲/状态栏/源码切换）
+                   → adapters[kind]（load / save / subscribe / 头部字段 / 额外扩展）
+删除：SingleArticleEditor / SingleCardEditor / SingleProjectItemEditor 三个页面 + 各自 less</pre>
+</section>
+
+<!-- ================= ⑪ 协作 ================= -->
+<section id="s11">
+  <h2><span class="no">⑪</span>协作（发起 / 进行中 / 切换 / 断线）</h2>
+  <p class="desc">底层不用改：主进程协作模块按 <b>窗口</b> 登记文档订阅（views → windowId），ContentEditor 传入 <code>source</code> 后自动绑定共享 Y 文档；主窗口和编辑窗口同时打开同一篇共享文档时，两个窗口都能实时编辑。同一台设备按 deviceId 只算一个「我」。
+  这里要设计的是 <b>入口</b> 和几种 <b>状态</b>：</p>
+  <ul class="list">
+    <li><b>发起</b>：⋯ 菜单「发起协作」→ 在本窗口弹出现有「发起协作」对话框（说明 → 确认共享），不跳回主窗口；</li>
+    <li><b>进行中</b>：标题栏出现成员条（头像叠放 + 在线人数，待审批用红色数字角标），点开「成员与邀请」Popover（复用 ContentCollaborationControl 的 presence 模式）；正文显示远端光标；状态栏的「已保存」换成「协作中 · 已同步 / 连接中…」；⋯ 菜单文案变成「协作成员」；</li>
+    <li><b>源码模式</b>：共享期间源码 <b>只读</b>（可以看、可以复制）。切回富文本时会整篇替换，这会覆盖他人的并发编辑，所以不能编辑；分段控件上的「源码」项加锁图标并给出说明；</li>
+    <li><b>front-matter</b>：共享期间 title 跟随共享文档（CollaborativeTitle），tags 仍是本地元数据，不共享；</li>
+    <li><b>切换期（frozen）</b>：发起 / 结束共享时，主进程要冻结文档，并等 <b>所有窗口</b> 的视图把本地改动刷完、回执 freeze-ack 才继续。所以编辑窗口必须登记视图、关窗时注销，否则切换会卡住。这段时间纸面顶部显示横幅「正在切换共享状态…」，正文只读，通常不到一秒；</li>
+    <li><b>结束共享</b>：编辑窗口打开的一定是本机实体（本机就是所有者），结束后自动回到本地编辑，toast 提示「共享已结束」，不需要额外操作；</li>
+    <li><b>断线</b>：不打断编辑，状态栏显示「离线 · 恢复后自动同步」，成员条头像变灰；</li>
+    <li><b>访客文档</b>（加入别人的共享、本机没有对应实体）：这次 <b>不</b> 支持弹出编辑窗口，仍在主窗口协作页编辑；以后需要时再加 <code>kind: "shared"</code> 适配器，外壳不用动。</li>
+  </ul>
+  <div class="row" style="margin-top:18px">
+    <div>
+      <div class="win cream">
+        <div class="tb">
+          <div class="lights"><i></i><i></i><i></i></div>
+          <span class="kind"><svg><use href="#i-file"/></svg>文章</span>
+          <div class="crumbs"><b>源潮增长期的世界观推演</b></div>
+          <div class="spacer"></div>
+          <div class="avs">
+            <div class="st"><i style="background:#61795f">我</i><i style="background:#5c7d99">林</i><i style="background:#8a7aa6">周</i></div>
+            <span>3 人在线</span>
+            <span class="badge">1</span>
+          </div>
+          <div class="seg"><span class="on"><svg><use href="#i-rich"/></svg>富文本</span><span class="dis"><svg><use href="#i-code"/></svg>源码 🔒</span></div>
+          <div class="divider"></div>
+          <div class="ib on"><svg><use href="#i-list"/></svg></div>
+          <div class="ib"><svg><use href="#i-pin"/></svg></div>
+          <div class="ib"><svg><use href="#i-sun"/></svg></div>
+          <div class="ib"><svg><use href="#i-more"/></svg></div>
+        </div>
+        <div class="sheet">
+          <div class="scroll fade">
+            <div class="col">
+              <div class="title">源潮增长期的世界观推演</div>
+              <div class="meta"><span class="chip c1">世界观</span><span class="chip c2">源核</span><span class="chip add">＋ 标签</span><span class="dotsep">·</span><span>修改于 刚刚</span></div>
+              <div class="doc">
+                <p>主世界是一个天炁充盈、强者辈出、道争激烈的玄幻世界。本地人认为天地之间流动着一种超凡根基，称为天炁<span class="rcur" style="background:#5c7d99"><span style="background:#5c7d99">林</span></span>。修士以天炁淬体、开脉、施术、摄象、辟域，最终一步步走向登天。</p>
+                <h3>世界基底</h3>
+                <p>从更高层视角看，天炁是主世界源核活跃后的外显。主世界正处在源潮增长期<span class="caret"></span>，天地超凡活性不断上升，各地秘境、异象、<span style="background:rgba(138,122,166,.18)">强者遗迹、古战场</span><span class="rcur" style="background:#8a7aa6"><span style="background:#8a7aa6">周</span></span>也随之频繁出现。</p>
+                <h3>天痕</h3>
+                <p>天痕不是普通资源，也不是可以随意搬运的灵物。它更像天地曾经被某种强大力量刻下的痕迹。</p>
+              </div>
+            </div>
+            <div class="outline"><div class="h">目录</div><div class="i on">世界基底</div><div class="i">天痕</div><div class="i l2">争道</div></div>
+          </div>
+          <div class="status">
+            <span><b>3,284</b> 字</span><span>约 11 分钟</span>
+            <div class="spacer"></div>
+            <span class="ok">协作中 · 已同步</span>
+            <span class="btn">Markdown</span>
+          </div>
+        </div>
+        <div class="pop" style="right:250px;top:44px;width:280px;padding:10px">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:0 4px 8px"><b style="font-size:12.5px">成员与邀请</b><span style="font-size:11px;color:var(--ink-3)">协作码 <span class="mono" style="color:var(--ink-1)">K7Q2-M9XA-4TPE</span></span></div>
+          <div class="it" style="background:var(--t4s)"><span style="flex:1;color:var(--t4)">小吴 请求加入</span><span style="font-size:11px;color:var(--accent-text)">同意</span><span style="font-size:11px;color:var(--ink-3)">拒绝</span></div>
+          <hr>
+          <div class="it"><span style="color:var(--ok)">●</span>我（此设备）<kbd style="font-family:inherit">所有者</kbd></div>
+          <div class="it"><span style="color:var(--ok)">●</span>林间<kbd style="font-family:inherit">编辑中</kbd></div>
+          <div class="it"><span style="color:var(--ok)">●</span>周末<kbd style="font-family:inherit">编辑中</kbd></div>
+          <hr>
+          <div class="it danger"><svg><use href="#i-x"/></svg>结束共享</div>
+        </div>
+        <div class="tip" style="right:16px;top:88px;max-width:220px">共享期间源码模式只读：切回富文本会整篇替换，覆盖他人的并发编辑</div>
+        <div class="note" style="left:600px;top:4px;transform:translateY(-110%)">成员条（红角标 = 待审批）</div>
+      </div>
+      <div class="caption">进行中：成员条 + 成员 Popover + 远端光标 + 源码加锁</div>
+    </div>
+    <div>
+      <div class="win cocoa md" style="width:680px;height:420px">
+        <div class="tb">
+          <div class="lights"><i></i><i></i><i></i></div>
+          <span class="kind"><svg><use href="#i-file"/></svg>文章</span>
+          <div class="crumbs"><b>源潮增长期的世界观推演</b></div>
+          <div class="spacer"></div>
+          <div class="avs"><div class="st"><i style="background:#8cab87">我</i><i style="background:#83aecf">林</i></div><span>2 人在线</span></div>
+          <div class="ib"><svg><use href="#i-list"/></svg></div>
+          <div class="ib"><svg><use href="#i-more"/></svg></div>
+        </div>
+        <div class="sheet">
+          <div class="banner">正在切换共享状态… 正文暂时只读<span class="sp"></span></div>
+          <div class="scroll fade" style="grid-template-columns: 0 1fr 0">
+            <div class="col" style="padding:24px 44px;opacity:.85">
+              <div class="title">源潮增长期的世界观推演</div>
+              <div class="doc" style="margin-top:14px"><p>主世界是一个天炁充盈、强者辈出、道争激烈的玄幻世界……</p></div>
+            </div>
+          </div>
+          <div class="status"><span><b>3,284</b> 字</span><div class="spacer"></div><span class="ok sync">切换中</span></div>
+        </div>
+      </div>
+      <div class="caption">切换期（frozen）：横幅 + 短暂只读；结束共享后自动回到本地编辑</div>
+    </div>
+  </div>
+</section>
+
+<div class="rec">
+  <h2>已定</h2>
+  <ul>
+    <li>外壳 <b>A 纸面托盘</b>；Markdown 文件窗口 <b>不并</b>（只换新标题栏外壳，主进程走新的窗口工厂）；<b>编辑窗口不做源码模式</b>（④ 作废：Markdown 往返会让白板 / 数据库等块无法编辑，源码模式只留在 Markdown 文件窗口）；功能取舍按 ⑨；协作按 ⑪。</li>
+  </ul>
+</div>
+
+</body>
+</html>

@@ -5,7 +5,7 @@
 
 import { memo, useEffect, useState } from "react";
 import { Check, X } from "lucide-react";
-import { Button, ConfirmDialog, Dialog, IconButton, cn, toast } from "@tau/ui";
+import { Button, ConfirmDialog, Dialog, DialogBody, IconButton, cn, toast } from "@tau/ui";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { getEventsByCalendarId } from "@/commands";
 import { TONE, toneStyle } from "../../eventTone";
@@ -83,68 +83,72 @@ const MergeCalendarsDialog = memo(
             </>
           }
         >
-          <div className="flex flex-col gap-4">
-            <section className="flex flex-col gap-1">
-              <span className="text-ink-2 text-[12px]">要合并的日历</span>
-              {sourceCalendars.map(calendar => (
-                <div
-                  key={calendar.id}
-                  style={toneStyle(calendar.color)}
-                  className={cn("flex h-8 items-center gap-2.5 rounded-[8px] px-2", TONE)}
-                >
-                  <i className="size-2.5 rounded-[3px] bg-[var(--cal)]" />
-                  <span className="text-tau-body flex-1">{calendar.title}</span>
-                  <span className="text-ink-3 font-tau-mono text-[11.5px]">
-                    {eventCounts[calendar.id] ?? "…"} 项
-                  </span>
-                  <IconButton
-                    className="size-6"
-                    title="移出合并"
-                    aria-label={`移出 ${calendar.title}`}
-                    onClick={() => toggleCalendarForMerge(calendar.id)}
+          <DialogBody>
+            <div className="flex flex-col gap-4">
+              <section className="flex flex-col gap-1">
+                <span className="text-ink-2 text-[12px]">要合并的日历</span>
+                {sourceCalendars.map(calendar => (
+                  <div
+                    key={calendar.id}
+                    style={toneStyle(calendar.color)}
+                    className={cn("flex h-8 items-center gap-2.5 rounded-[8px] px-2", TONE)}
                   >
-                    <X className="size-3.5" strokeWidth={1.75} />
-                  </IconButton>
-                </div>
-              ))}
-            </section>
+                    <i className="size-2.5 rounded-[3px] bg-[var(--cal)]" />
+                    <span className="text-tau-body flex-1">{calendar.title}</span>
+                    <span className="text-ink-3 font-tau-mono text-[11.5px]">
+                      {eventCounts[calendar.id] ?? "…"} 项
+                    </span>
+                    <IconButton
+                      className="size-6"
+                      title="移出合并"
+                      aria-label={`移出 ${calendar.title}`}
+                      onClick={() => toggleCalendarForMerge(calendar.id)}
+                    >
+                      <X className="size-3.5" strokeWidth={1.75} />
+                    </IconButton>
+                  </div>
+                ))}
+              </section>
 
-            <section className="flex flex-col gap-1">
-              <span className="text-ink-2 text-[12px]">合并到</span>
-              {targetCalendars.length === 0 ? (
-                <p className="border-line-1 text-ink-3 text-tau-meta rounded-[10px] border px-3 py-4 text-center">
-                  没有可用的目标日历
-                </p>
-              ) : (
-                <div className="flex max-h-64 flex-col gap-0.5 overflow-y-auto">
-                  {targetCalendars.map(calendar => {
-                    const selected = targetCalendarId === calendar.id;
-                    const group = calendarGroups.find(g => g.id === calendar.groupId);
-                    return (
-                      <button
-                        key={calendar.id}
-                        type="button"
-                        aria-pressed={selected}
-                        onClick={() => setTargetCalendarId(calendar.id)}
-                        style={toneStyle(calendar.color)}
-                        className={cn(
-                          "flex h-8 items-center gap-2.5 rounded-[8px] px-2 text-left",
-                          selected ? "bg-selected" : "hover:bg-hover",
-                          TONE
-                        )}
-                      >
-                        <i className="size-2.5 rounded-[3px] bg-[var(--cal)]" />
-                        <span className="text-tau-body">{calendar.title}</span>
-                        {group && <span className="text-ink-3 text-tau-sm">{group.name}</span>}
-                        <span className="flex-1" />
-                        {selected && <Check className="text-accent-text size-4" strokeWidth={2} />}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-          </div>
+              <section className="flex flex-col gap-1">
+                <span className="text-ink-2 text-[12px]">合并到</span>
+                {targetCalendars.length === 0 ? (
+                  <p className="border-line-1 text-ink-3 text-tau-meta rounded-[10px] border px-3 py-4 text-center">
+                    没有可用的目标日历
+                  </p>
+                ) : (
+                  <div className="flex max-h-64 flex-col gap-0.5 overflow-y-auto">
+                    {targetCalendars.map(calendar => {
+                      const selected = targetCalendarId === calendar.id;
+                      const group = calendarGroups.find(g => g.id === calendar.groupId);
+                      return (
+                        <button
+                          key={calendar.id}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => setTargetCalendarId(calendar.id)}
+                          style={toneStyle(calendar.color)}
+                          className={cn(
+                            "flex h-8 items-center gap-2.5 rounded-[8px] px-2 text-left",
+                            selected ? "bg-selected" : "hover:bg-hover",
+                            TONE
+                          )}
+                        >
+                          <i className="size-2.5 rounded-[3px] bg-[var(--cal)]" />
+                          <span className="text-tau-body">{calendar.title}</span>
+                          {group && <span className="text-ink-3 text-tau-sm">{group.name}</span>}
+                          <span className="flex-1" />
+                          {selected && (
+                            <Check className="text-accent-text size-4" strokeWidth={2} />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            </div>
+          </DialogBody>
         </Dialog>
 
         <ConfirmDialog

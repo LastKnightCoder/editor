@@ -8,7 +8,7 @@ import {
   MoreVertical,
   StickyNote,
 } from "lucide-react";
-import { Button, Dialog, IconButton, Input, Menu, toast } from "@tau/ui";
+import { Button, Dialog, DialogBody, IconButton, Input, Menu, toast } from "@tau/ui";
 import { IAnswer } from "@/types";
 import { IExtension, EditorRef } from "@tau/editor/src";
 import Editor from "@/components/ContentEditor";
@@ -214,140 +214,144 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
       title={customTitle}
       icon={<FileText size={16} strokeWidth={1.75} />}
       width={800}
-      fill
+      height={760}
       onKeyDown={swallowEscape}
       className="answer-modal"
     >
-      {selectedAnswer && (
-        <div className="flex min-h-0 flex-1 flex-col">
-          {/* 元信息与操作 */}
-          <div className="flex shrink-0 items-center justify-between gap-4 px-6 py-2.5">
-            <div className="text-tau-sm text-ink-3 flex min-w-0 flex-wrap gap-x-3 gap-y-1 tabular-nums">
-              {currentContent && (
+      <div className="border-line-2 mt-[14px] flex min-h-0 flex-1 flex-col overflow-hidden border-t">
+        {selectedAnswer && (
+          <div className="flex min-h-0 flex-1 flex-col">
+            {/* 元信息与操作 */}
+            <div className="flex shrink-0 items-center justify-between gap-4 px-6 py-2.5">
+              <div className="text-tau-sm text-ink-3 flex min-w-0 flex-wrap gap-x-3 gap-y-1 tabular-nums">
+                {currentContent && (
+                  <>
+                    <span>创建于 {formatDate(selectedAnswer.createTime, true)}</span>
+                    <span>最后修改于 {formatDate(selectedAnswer.updateTime, true)}</span>
+                    <span>字数 {getContentLength(currentContent)}</span>
+                  </>
+                )}
+              </div>
+
+              <Menu
+                align="end"
+                trigger={
+                  <Button size="sm" variant="secondary" icon={MoreVertical}>
+                    创建为
+                  </Button>
+                }
+              >
+                {!isCard && (
+                  <Menu.Item icon={<StickyNote {...ICON} />} onSelect={handleBuildCard}>
+                    创建卡片
+                  </Menu.Item>
+                )}
+                {!isArticle && (
+                  <Menu.Item
+                    icon={<FileText {...ICON} />}
+                    onSelect={() => handleOpenTitleModal("article")}
+                  >
+                    创建文章
+                  </Menu.Item>
+                )}
+                <Menu.Item
+                  icon={<FolderOpen {...ICON} />}
+                  onSelect={() => handleOpenTitleModal("project")}
+                >
+                  创建项目文档
+                </Menu.Item>
+              </Menu>
+            </div>
+
+            <div className="relative min-h-0 flex-1">
+              {showNavigation && (
                 <>
-                  <span>创建于 {formatDate(selectedAnswer.createTime, true)}</span>
-                  <span>最后修改于 {formatDate(selectedAnswer.updateTime, true)}</span>
-                  <span>字数 {getContentLength(currentContent)}</span>
+                  <IconButton
+                    aria-label="上一个"
+                    className="text-ink-3 absolute left-2 top-1/2 z-10 -translate-y-1/2"
+                    onClick={() => {
+                      if (!onPrev) return;
+                      setDirection(-1);
+                      onPrev();
+                    }}
+                  >
+                    <ChevronLeft size={18} strokeWidth={1.75} />
+                  </IconButton>
+                  <IconButton
+                    aria-label="下一个"
+                    className="text-ink-3 absolute right-2 top-1/2 z-10 -translate-y-1/2"
+                    onClick={() => {
+                      if (!onNext) return;
+                      setDirection(1);
+                      onNext();
+                    }}
+                  >
+                    <ChevronRight size={18} strokeWidth={1.75} />
+                  </IconButton>
                 </>
               )}
-            </div>
-
-            <Menu
-              align="end"
-              trigger={
-                <Button size="sm" variant="secondary" icon={MoreVertical}>
-                  创建为
-                </Button>
-              }
-            >
-              {!isCard && (
-                <Menu.Item icon={<StickyNote {...ICON} />} onSelect={handleBuildCard}>
-                  创建卡片
-                </Menu.Item>
-              )}
-              {!isArticle && (
-                <Menu.Item
-                  icon={<FileText {...ICON} />}
-                  onSelect={() => handleOpenTitleModal("article")}
-                >
-                  创建文章
-                </Menu.Item>
-              )}
-              <Menu.Item
-                icon={<FolderOpen {...ICON} />}
-                onSelect={() => handleOpenTitleModal("project")}
-              >
-                创建项目文档
-              </Menu.Item>
-            </Menu>
-          </div>
-
-          <div className="relative min-h-0 flex-1">
-            {showNavigation && (
-              <>
-                <IconButton
-                  aria-label="上一个"
-                  className="text-ink-3 absolute left-2 top-1/2 z-10 -translate-y-1/2"
-                  onClick={() => {
-                    if (!onPrev) return;
-                    setDirection(-1);
-                    onPrev();
-                  }}
-                >
-                  <ChevronLeft size={18} strokeWidth={1.75} />
-                </IconButton>
-                <IconButton
-                  aria-label="下一个"
-                  className="text-ink-3 absolute right-2 top-1/2 z-10 -translate-y-1/2"
-                  onClick={() => {
-                    if (!onNext) return;
-                    setDirection(1);
-                    onNext();
-                  }}
-                >
-                  <ChevronRight size={18} strokeWidth={1.75} />
-                </IconButton>
-              </>
-            )}
-            <div className="h-full overflow-y-auto overflow-x-hidden">
-              <AnimatePresence initial={false} custom={direction}>
-                <motion.div
-                  key={selectedAnswer.id}
-                  custom={direction}
-                  initial={{ x: direction >= 0 ? 40 : -40, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={{ x: direction >= 0 ? -40 : 40, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <Editor
-                    contentId={selectedAnswer?.id}
-                    key={`answer-${selectedAnswer.id}`}
-                    className={showNavigation ? "px-12 py-5" : "px-6 py-5"}
-                    ref={editorRef}
-                    readonly={readOnly}
-                    initValue={selectedAnswer.content}
-                    extensions={extensions}
-                    onChange={handleAnswerContentChange}
-                  />
-                </motion.div>
-              </AnimatePresence>
+              <div className="h-full overflow-y-auto overflow-x-hidden">
+                <AnimatePresence initial={false} custom={direction}>
+                  <motion.div
+                    key={selectedAnswer.id}
+                    custom={direction}
+                    initial={{ x: direction >= 0 ? 40 : -40, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    exit={{ x: direction >= 0 ? -40 : 40, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Editor
+                      contentId={selectedAnswer?.id}
+                      key={`answer-${selectedAnswer.id}`}
+                      className={showNavigation ? "px-12 py-5" : "px-6 py-5"}
+                      ref={editorRef}
+                      readonly={readOnly}
+                      initValue={selectedAnswer.content}
+                      extensions={extensions}
+                      onChange={handleAnswerContentChange}
+                    />
+                  </motion.div>
+                </AnimatePresence>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <Dialog
-        open={titleModalTarget !== null}
-        onOpenChange={open => {
-          if (!open) setTitleModalTarget(null);
-        }}
-        title={`创建${titleTargetLabel}`}
-        subtitle={`请输入${titleTargetLabel}标题`}
-        size="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setTitleModalTarget(null)}>
-              取消
-            </Button>
-            <Button variant="primary" onClick={handleConfirmTitle}>
-              确定
-            </Button>
-          </>
-        }
-      >
-        <Input
-          data-autofocus
-          placeholder={`请输入${titleTargetLabel}标题`}
-          value={draftTitle}
-          onChange={e => setDraftTitle(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-              e.preventDefault();
-              handleConfirmTitle();
-            }
+        <Dialog
+          open={titleModalTarget !== null}
+          onOpenChange={open => {
+            if (!open) setTitleModalTarget(null);
           }}
-        />
-      </Dialog>
+          title={`创建${titleTargetLabel}`}
+          subtitle={`请输入${titleTargetLabel}标题`}
+          size="sm"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setTitleModalTarget(null)}>
+                取消
+              </Button>
+              <Button variant="primary" onClick={handleConfirmTitle}>
+                确定
+              </Button>
+            </>
+          }
+        >
+          <DialogBody>
+            <Input
+              data-autofocus
+              placeholder={`请输入${titleTargetLabel}标题`}
+              value={draftTitle}
+              onChange={e => setDraftTitle(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  handleConfirmTitle();
+                }
+              }}
+            />
+          </DialogBody>
+        </Dialog>
+      </div>
     </Dialog>
   );
 };

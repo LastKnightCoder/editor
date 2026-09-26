@@ -1,6 +1,7 @@
 import { useCallback, useRef } from "react";
-import { Plus, Trash2, Upload, Volume2 } from "lucide-react";
-import { Button, TextInput, TextSecondary, TextStrong } from "./ui";
+import { AudioLines, Check, ChevronDown, FileAudio, Plus, Trash2, Upload, X } from "lucide-react";
+import { Button, IconButton, Input, cn } from "@tau/ui";
+import { Field } from "./ui";
 import type { CloneVoiceItem, NoticeType } from "./types";
 import type { VoiceOption } from "./types";
 import { uploadReferenceAudio, cloneVoice } from "@/services/minimax";
@@ -278,68 +279,76 @@ export const VoiceClonePanel = ({
     setCloneItems,
   ]);
 
+  const cloneDisabled = cloneItems.some(
+    item =>
+      !item.voiceId.trim() ||
+      item.audioFiles.length === 0 ||
+      !!item.voiceIdError ||
+      item.voiceId.length < 8
+  );
+
   return (
-    <div className="border-line-1 mt-4 border-t pt-4">
+    <div className="flex flex-col gap-2">
       <Button
-        icon={<Volume2 size={14} />}
+        variant="ghost"
+        size="sm"
+        icon={AudioLines}
         onClick={() => setShowCloneForm(!showCloneForm)}
-        variant="dashed"
-        block
+        aria-expanded={showCloneForm}
+        className="-ml-2 self-start"
       >
-        {showCloneForm ? "隐藏音色克隆" : "克隆自定义音色"}
+        {showCloneForm ? "收起音色克隆" : "克隆自定义音色"}
+        <ChevronDown
+          className={cn(
+            "text-ink-3 ease-tau-out size-3.5 transition-transform duration-150",
+            showCloneForm && "rotate-180"
+          )}
+          strokeWidth={1.75}
+        />
       </Button>
 
       {showCloneForm && (
-        <div className="border-line-1 rounded-tau-md mt-3 space-y-4 border p-4">
-          <TextStrong className="mb-2 block">音色克隆列表</TextStrong>
-
-          <div className="max-h-[40vh] space-y-3 overflow-y-auto pr-1">
-            {cloneItems.map((item, index) => (
+        <div className="flex flex-col gap-3">
+          {cloneItems.map((item, index) => {
+            const voiceIdOk = !!item.voiceId && !item.voiceIdError && item.voiceId.length >= 8;
+            return (
               <div
                 key={item.id}
-                className="border-line-1 bg-surface rounded-tau-md space-y-3 border p-4"
+                className="border-line-1 rounded-tau-md flex flex-col gap-3 border px-3.5 py-3"
               >
-                <div className="flex items-center justify-between">
-                  <TextStrong>音色 {index + 1}</TextStrong>
+                <div className="flex h-[26px] items-center justify-between">
+                  <span className="text-ink-1 text-tau-meta font-medium">音色 {index + 1}</span>
                   {cloneItems.length > 1 && (
-                    <Button
-                      size="small"
-                      variant="danger"
-                      icon={<Trash2 size={14} />}
+                    <IconButton
+                      aria-label={`删除音色 ${index + 1}`}
+                      className="enabled:hover:text-danger -mr-1.5 size-[26px]"
                       onClick={() => removeCloneItem(item.id)}
                     >
-                      删除
-                    </Button>
+                      <Trash2 className="size-[14px]" strokeWidth={1.75} />
+                    </IconButton>
                   )}
                 </div>
 
-                <div>
-                  <TextStrong className="text-sm">Voice ID</TextStrong>
-                  <TextSecondary className="ml-2 text-xs">
-                    （8-20字符，字母数字下划线连字符）
-                  </TextSecondary>
-                  <TextInput
-                    placeholder="例如: my_voice_001"
+                <Field label="Voice ID" hint="8–20 个字符，限字母、数字、下划线与连字符">
+                  <Input
+                    placeholder="例如：my_voice_001"
                     value={item.voiceId}
-                    onChange={value => updateCloneItemVoiceId(item.id, value)}
+                    onChange={e => updateCloneItemVoiceId(item.id, e.target.value)}
                     maxLength={20}
-                    className="mt-1"
-                    error={!!item.voiceIdError}
+                    aria-invalid={!!item.voiceIdError || undefined}
                   />
                   {item.voiceIdError && (
-                    <div className="text-danger text-tau-sm mt-1">{item.voiceIdError}</div>
+                    <span className="text-danger text-tau-meta">{item.voiceIdError}</span>
                   )}
-                  {item.voiceId && !item.voiceIdError && item.voiceId.length >= 8 && (
-                    <div className="text-ok text-tau-sm mt-1">✓ Voice ID 格式正确</div>
+                  {voiceIdOk && (
+                    <span className="text-ok text-tau-meta flex items-center gap-1">
+                      <Check className="size-3.5" strokeWidth={1.75} />
+                      Voice ID 格式正确
+                    </span>
                   )}
-                </div>
+                </Field>
 
-                <div>
-                  <TextStrong className="text-sm">参考音频</TextStrong>
-                  <TextSecondary className="ml-2 text-xs">
-                    (mp3/m4a/wav, 10秒-5分钟, &lt;20MB)
-                  </TextSecondary>
-
+                <Field label="参考音频" hint="mp3 / m4a / wav，10 秒–5 分钟，小于 20MB">
                   <input
                     ref={el => {
                       fileInputRefs.current[item.id] = el;
@@ -353,74 +362,89 @@ export const VoiceClonePanel = ({
                       e.currentTarget.value = "";
                     }}
                   />
-                  <div className="mt-1 flex items-center gap-2">
-                    <Button
-                      icon={<Upload size={14} />}
-                      size="small"
-                      onClick={() => openFilePicker(item.id)}
-                    >
-                      选择音频 {item.audioFiles.length > 0 && `(${item.audioFiles.length}/5)`}
-                    </Button>
-                  </div>
-
                   {item.audioFiles.length > 0 && (
-                    <div className="mt-2 space-y-1">
+                    <div className="flex flex-col">
                       {item.audioFiles.map(file => (
                         <div
                           key={file.id}
-                          className="border-line-1 rounded-tau-sm text-tau-sm flex items-center justify-between gap-2 border px-2.5 py-1.5"
+                          className="hover:bg-hover rounded-tau-sm text-tau-meta text-ink-1 -mx-1.5 flex h-8 items-center gap-2 px-1.5"
                         >
-                          <span className="flex-1 truncate">{file.name}</span>
-                          <Button
-                            size="small"
-                            variant="text"
-                            icon={<Trash2 size={12} />}
-                            className="h-6 w-6 rounded-md px-0"
-                            onClick={() => handleRemoveCloneFile(item.id, file.id)}
+                          <FileAudio
+                            className="text-ink-3 size-[15px] shrink-0"
+                            strokeWidth={1.75}
                           />
+                          <span className="min-w-0 flex-1 truncate">{file.name}</span>
+                          <span className="text-ink-3 text-tau-micro shrink-0 tabular-nums">
+                            {formatFileSize(file.size)}
+                          </span>
+                          <IconButton
+                            aria-label={`移除 ${file.name}`}
+                            className="size-6 shrink-0"
+                            onClick={() => handleRemoveCloneFile(item.id, file.id)}
+                          >
+                            <X className="size-3.5" strokeWidth={1.75} />
+                          </IconButton>
                         </div>
                       ))}
                     </div>
                   )}
-                </div>
+                  <Button
+                    size="sm"
+                    icon={Upload}
+                    onClick={() => openFilePicker(item.id)}
+                    className="self-start"
+                  >
+                    选择音频
+                    {item.audioFiles.length > 0 && (
+                      <span className="text-ink-3 tabular-nums">{item.audioFiles.length}/5</span>
+                    )}
+                  </Button>
+                </Field>
               </div>
-            ))}
-          </div>
+            );
+          })}
 
-          {cloneItems.length < 5 && (
-            <Button icon={<Plus size={14} />} onClick={addCloneItem} block variant="dashed">
-              添加音色克隆项 ({cloneItems.length}/5)
-            </Button>
-          )}
+          <ul className="text-ink-3 text-tau-meta m-0 flex list-disc flex-col gap-0.5 pl-4">
+            <li>每个音色都需要独立的 Voice ID</li>
+            <li>每个音色可上传多个音频（最多 5 个），会自动合并</li>
+            <li>音频要求：清晰的单人语音，时长 10 秒–5 分钟</li>
+            <li>可同时克隆最多 5 个不同的音色</li>
+          </ul>
 
-          <TextSecondary className="block text-xs">
-            <div className="space-y-1">
-              <div>✓ 每个音色都需要独立的 Voice ID</div>
-              <div>✓ 每个音色可上传多个音频（最多5个），会自动合并</div>
-              <div>✓ 音频要求：清晰的单人语音，时长 10秒-5分钟</div>
-              <div>✓ 可同时克隆最多 5 个不同的音色</div>
-            </div>
-          </TextSecondary>
-
-          <Button
-            variant="primary"
-            onClick={handleCloneVoice}
-            loading={cloneLoading}
-            disabled={cloneItems.some(
-              item =>
-                !item.voiceId.trim() ||
-                item.audioFiles.length === 0 ||
-                !!item.voiceIdError ||
-                item.voiceId.length < 8
+          <div className="flex items-center gap-2">
+            {cloneItems.length < 5 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={Plus}
+                onClick={addCloneItem}
+                className="-ml-2"
+              >
+                添加克隆项
+                <span className="text-ink-3 tabular-nums">{cloneItems.length}/5</span>
+              </Button>
             )}
-            block
-          >
-            开始批量克隆 ({cloneItems.length} 个音色)
-          </Button>
+            <span className="flex-1" />
+            <Button
+              variant="soft"
+              size="sm"
+              onClick={handleCloneVoice}
+              loading={cloneLoading}
+              disabled={cloneDisabled}
+            >
+              开始批量克隆（{cloneItems.length} 个音色）
+            </Button>
+          </div>
         </div>
       )}
     </div>
   );
 };
+
+/** 字节数 → 1.2 MB / 340 KB */
+function formatFileSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
 
 export default VoiceClonePanel;

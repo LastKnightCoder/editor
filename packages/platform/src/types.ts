@@ -65,6 +65,16 @@ export interface MarkdownWindowOptions {
   isDefaultTop?: boolean;
 }
 
+/** 内容编辑窗口承载的内容类型：一个窗口 = 一份数据库文档 */
+export type EditorWindowKind = "card" | "article" | "project-item";
+
+/** 内容编辑窗口的身份：同一 target 只开一个窗口（再次打开即聚焦） */
+export interface EditorWindowTarget {
+  kind: EditorWindowKind;
+  databaseName: string;
+  id: number;
+}
+
 export interface WindowApi {
   close(): Promise<void>;
   minimize(): Promise<void>;
@@ -75,6 +85,10 @@ export interface WindowApi {
   /** 恢复、显示并聚焦主窗口（从最小化恢复、移至最前方） */
   showAndFocus(): Promise<void>;
   openMarkdownWindow(filePath: string, options?: MarkdownWindowOptions): Promise<void>;
+  /** 在独立窗口编辑卡片 / 文章 / 项目文档；已打开则聚焦 */
+  openEditorWindow(target: EditorWindowTarget): Promise<void>;
+  /** 关闭编辑该文档的窗口（文档被删除时收尾）；未打开则无操作 */
+  closeEditorWindow(target: EditorWindowTarget): Promise<void>;
   openPomodoroWindow(): Promise<void>;
   openPomodoroMiniWindow(): Promise<void>;
   hidePomodoroMiniWindow(): Promise<void>;

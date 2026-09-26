@@ -130,9 +130,6 @@ class MainContentFtsIndexQueue implements Module {
     let removed = 0;
     let processed = 0;
 
-    removed += FTSTable.removeIndexesByType(indexDb, "diary-weekly");
-    removed += FTSTable.removeIndexesByType(indexDb, "diary-monthly");
-
     for (const card of CardTable.getAllCards(mainDb)) {
       removed += this.appendTask(indexDb, tasks, {
         id: card.id,

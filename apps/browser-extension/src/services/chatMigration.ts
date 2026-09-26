@@ -1,5 +1,5 @@
 /**
- * chrome.storage 旧会话一次性迁移到桌面 sqlite（D-059 阶段 3）。
+ * chrome.storage 旧会话一次性迁移到桌面 sqlite（D-064 阶段 3）。
  * 按 URL 分组逐组导入（组粒度断点续传）；成功仅在迁移状态里打标，
  * 不清除 chrome.storage 原始数据（保留回滚窗口，稳定后再清理）。
  */

@@ -309,3 +309,8 @@ export function scheduleSnapshot(card: Flashcard) {
     status: card.status,
   };
 }
+
+/** 选即提交的题型（单选 / 判断）：作答前没有提交按钮，键位提示独占操作区一行 */
+export function submitsOnPick(card: Flashcard): boolean {
+  return card.type === "single-choice" || card.type === "boolean";
+}

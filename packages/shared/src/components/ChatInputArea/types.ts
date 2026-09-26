@@ -17,7 +17,7 @@ export interface MentionRef {
 
 /** 消息内容类型；resourceId 仅兼容历史数据，新附件只写入路径。 */
 export type MessageContentItem =
-  | { type: "text"; text: string; mentions?: MentionRef[] }
+  | { type: "text"; text: string; mentions?: MentionRef[]; skills?: string[] }
   | { type: "image"; image: string; path?: string; resourceId?: number }
   | { type: "file"; file: string; resourceId?: number; fileName?: string };
 

@@ -38,7 +38,15 @@ export type NavItemBadge =
   "review-due" | "pomodoro-live" | "collab-requests" | "questions-active" | "mcp-errors";
 /** 子项槽 key：所属页在栈顶时于条目下方展开的列表（渲染组件注册于 navSlots.tsx） */
 export type NavItemChildren =
-  "collaboration-sessions" | "diary-tags" | "whiteboard-tags" | "question-groups" | "chat-sessions";
+  | "collaboration-sessions"
+  | "todo-groups"
+  | "project-types"
+  | "card-tags"
+  | "article-tags"
+  | "diary-tags"
+  | "whiteboard-tags"
+  | "question-groups"
+  | "chat-sessions";
 
 export interface NavItem {
   key: string;
@@ -48,7 +56,7 @@ export interface NavItem {
    *  collab-requests = 待审批的加入申请数；mcp-errors = 连接失败的 MCP 服务器数） */
   badge?: NavItemBadge;
   /** 该页在栈顶时于条目下方展开的子项（collaboration-sessions = 共享内容列表，协作页 A3；
-   *  diary-tags = 日记标签频道，D-044；whiteboard-tags = 白板标签，D-047；question-groups = 问题分组；chat-sessions = 置顶与最近 AI 会话，D-047） */
+   *  todo-groups = 待办项目；project-types = 项目类型；card-tags = 卡片标签树（限高滚动）；article-tags = 文章标签（限高滚动）；diary-tags = 日记标签频道，D-044；whiteboard-tags = 白板标签，D-047；question-groups = 问题分组；chat-sessions = 置顶与最近 AI 会话，D-047） */
   children?: NavItemChildren;
   /** 不导航页面、打开壳层浮层的入口（当前仅设置弹窗，D-028） */
   opensOverlay?: "settings";
@@ -66,7 +74,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { key: "home", label: "今日", icon: Flame },
       { key: "schedule", label: "日程", icon: Calendar }, // legacy: Calendar + TimeRecordView
-      { key: "todos", label: "待办", icon: ListTodo }, // features/todos（独立页，不并入 schedule，D-040）
+      { key: "todos", label: "待办", icon: ListTodo, children: "todo-groups" }, // features/todos（独立页，不并入 schedule，D-040；项目嵌在此入口下）
       { key: "pomodoro", label: "番茄专注", icon: Timer, badge: "pomodoro-live" }, // features/pomodoro（独立页；小窗与沉浸为辅助窗口）
       {
         key: "collaboration",
@@ -80,8 +88,8 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: "知识",
     items: [
-      { key: "cards", label: "卡片库", icon: Layers }, // features/cards
-      { key: "articles", label: "文章", icon: FileText }, // legacy: ArticleListView
+      { key: "cards", label: "卡片库", icon: Layers, children: "card-tags" }, // features/cards（一整张纸，标签树嵌在此入口下）
+      { key: "articles", label: "文章", icon: FileText, children: "article-tags" }, // features/articles（一整张纸，标签嵌在此入口下）
       { key: "diary", label: "日记", icon: PenLine, children: "diary-tags" }, // features/diary（一整张纸，标签频道嵌在此入口下，D-044）
       { key: "whiteboard", label: "白板", icon: Presentation, children: "whiteboard-tags" }, // features/whiteboards（画廊，标签嵌在此入口下，D-047）
     ],
@@ -90,7 +98,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "学习",
     items: [
       // 项目即学习容器（文档树/数据表格/Vibe Learning 三型皆学习导向），归学习组
-      { key: "projects", label: "项目", icon: FolderKanban }, // features/projects（学习驾驶舱 + 三型详情工作台）
+      { key: "projects", label: "项目", icon: FolderKanban, children: "project-types" }, // features/projects（学习驾驶舱 + 三型详情工作台；类型嵌在此入口下）
       { key: "review", label: "闪卡复习", icon: Repeat, badge: "review-due" }, // features/flashcards（复习台，D-041）
       {
         key: "questions",
@@ -99,14 +107,14 @@ export const NAV_SECTIONS: NavSection[] = [
         badge: "questions-active",
         children: "question-groups",
       }, // features/questions（A2 三栏清单，D-044；分组嵌在此入口下）
-      { key: "weread", label: "微信读书", icon: BookOpen }, // legacy: WeRead
+      { key: "weread", label: "微信读书", icon: BookOpen }, // features/weread（书架 + 整页笔记，D-059）
     ],
   },
   {
     label: "AI",
     items: [
       { key: "chat", label: "AI 对话", icon: MessageCircle, children: "chat-sessions" }, // features/chat（会话嵌侧栏 + 右侧停靠栏，D-047）
-      { key: "skills", label: "Skill 管理", icon: Sparkles }, // legacy: SkillManagement
+      { key: "skills", label: "Skill", icon: Sparkles }, // features/skills（卡片库 + 抽屉 + 整页编辑，D-060）
       { key: "mcp", label: "MCP 服务器", icon: Plug, badge: "mcp-errors" }, // features/mcp（连接失败数作徽标）
     ],
   },

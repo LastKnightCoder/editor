@@ -45,10 +45,10 @@ function MenuIcon({ icon: Icon }: { icon: LucideIcon }) {
 const OPS_BTN =
   "shadow-card size-[23px] rounded-[7px] bg-surface-hover outline-1 -outline-offset-1 outline-line-1 enabled:hover:bg-surface-hover";
 
-/** 卡片 hover 反馈：lift 轻抬阴影（2026-09-23 用户校准——float 浮层档又大又重，
-    新增 lift 档贴近纸面的浅晕）+ 1px 描边亮起（双主题都醒目，无位移） */
+/** 卡片落在项目页那张纸上：细描边分隔，hover 时 lift 轻抬阴影、描边隐去（同 Skill 页卡片；
+    纸上再叠阴影卡会糊成一片） */
 const CARD_HOVER =
-  "transition-[box-shadow,outline-color] duration-200 outline-line-1 hover:shadow-lift outline-0 -outline-offset-1 hover:outline-1";
+  "border border-line-1 transition-[box-shadow,border-color] duration-200 hover:shadow-lift hover:border-transparent";
 
 function CardOps({
   project,
@@ -133,7 +133,7 @@ export function ProjectHeroCard({
       tabIndex={0}
       onClick={() => handlers.onOpen(project)}
       className={cn(
-        "bg-surface shadow-card ease-tau-out group relative flex cursor-pointer flex-col overflow-hidden rounded-[var(--tau-radius-lg)] px-[22px] pb-[17px] pt-[19px]",
+        "bg-surface ease-tau-out group relative flex cursor-pointer flex-col overflow-hidden rounded-[var(--tau-radius-lg)] px-[22px] pb-[17px] pt-[19px]",
         CARD_HOVER,
         project.archived && "opacity-60 hover:opacity-100"
       )}
@@ -215,7 +215,7 @@ export function ProjectMiniCard({
       tabIndex={0}
       onClick={() => handlers.onOpen(project)}
       className={cn(
-        "bg-surface shadow-card ease-tau-out group relative flex cursor-pointer flex-col rounded-[var(--tau-radius-md)] px-[13px] pb-[10px] pt-[11px]",
+        "bg-surface ease-tau-out group relative flex cursor-pointer flex-col rounded-[var(--tau-radius-md)] px-[13px] pb-[10px] pt-[11px]",
         CARD_HOVER,
         project.archived && "opacity-60 hover:opacity-100"
       )}

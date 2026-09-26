@@ -16,6 +16,8 @@ export interface TextContent {
   type: "text";
   text: string;
   mentions?: MentionRef[];
+  /** 本条消息用 `$` 点名的 Skill（folderName），发送时注入全文（D-060） */
+  skills?: string[];
 }
 
 export interface ImageContent {
@@ -46,7 +48,7 @@ export interface ToolCallPayload {
 }
 
 export type ToolCallStatus =
-  "pending" | "executing" | "success" | "failed" | "retrying" | "cancelled";
+  "pending" | "executing" | "success" | "failed" | "retrying" | "cancelled" | "awaiting-approval";
 
 /** 工具调用执行状态详情 */
 export interface ToolCallExecutionState {

@@ -12,33 +12,36 @@ const LABEL_GAP = 3;
 type CursorUser = { id?: string; name: string; color: string };
 
 // 标签默认在光标上方；第一行放不下时翻转到下方，上下都放不下（单行文档）时退到光标右侧，
-// 避免被外层 overflow 容器截断。
+// 避免被外层 overflow 容器截断。光标靠近右边缘时改为标签右边对齐光标（用 right 定位），
+// 不能按 LABEL_MAX_WIDTH 估算左移，否则短名字会被推得离光标很远。
 function getLabelPlacementStyle(
   caret: { top: number; left: number; height: number },
   containerWidth: number,
   containerHeight: number
 ): CSSProperties {
-  const clampedLeft = Math.max(
-    -caret.left,
-    Math.min(-2, containerWidth - caret.left - LABEL_MAX_WIDTH)
-  );
   const fitsAbove = caret.top >= LABEL_HEIGHT + LABEL_GAP;
   const fitsBelow = containerHeight - caret.top - caret.height >= LABEL_HEIGHT + LABEL_GAP;
   if (!fitsAbove && !fitsBelow) {
     return { top: 0, left: 4, borderRadius: 7 };
   }
+  const alignRight = caret.left + LABEL_MAX_WIDTH > containerWidth;
+  const horizontal: CSSProperties = alignRight
+    ? { right: 0, maxWidth: Math.min(LABEL_MAX_WIDTH, caret.left + 2) }
+    : { left: -2, maxWidth: Math.min(LABEL_MAX_WIDTH, containerWidth) };
+  const tail = alignRight ? "7px" : "2px";
+  const tailOpposite = alignRight ? "2px" : "7px";
   return fitsAbove
     ? {
         bottom: "100%",
         marginBottom: LABEL_GAP,
-        left: clampedLeft,
-        borderRadius: "7px 7px 7px 2px",
+        ...horizontal,
+        borderRadius: `7px 7px ${tailOpposite} ${tail}`,
       }
     : {
         top: "100%",
         marginTop: LABEL_GAP,
-        left: clampedLeft,
-        borderRadius: "7px 7px 2px 7px",
+        ...horizontal,
+        borderRadius: `${tail} ${tailOpposite} 7px 7px`,
       };
 }
 
@@ -111,7 +114,6 @@ const CollaborationCursors = memo(function CollaborationCursors({
                       background: color,
                       boxShadow: "0 2px 6px rgba(0, 0, 0, 0.2)",
                       whiteSpace: "nowrap",
-                      maxWidth: Math.min(LABEL_MAX_WIDTH, containerWidth),
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                     }}

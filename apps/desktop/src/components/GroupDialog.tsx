@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { Button, Dialog, Input, cn, toast } from "@tau/ui";
+import { Button, Dialog, DialogBody, Input, cn, toast } from "@tau/ui";
 import { TONE_DOT, TONE_OPTIONS, groupTone } from "@/utils/groupTone";
 
 export function GroupDialog({
@@ -70,43 +70,45 @@ export function GroupDialog({
         </>
       }
     >
-      <div className="flex flex-col gap-3.5">
-        <label className="flex flex-col gap-1.5">
-          <span className="text-ink-2 text-[12px]">名称</span>
-          <Input
-            data-autofocus
-            value={title}
-            maxLength={120}
-            onChange={e => setTitle(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === "Enter" && !e.nativeEvent.isComposing) save();
-            }}
-            placeholder={placeholder}
-          />
-        </label>
-        <div className="flex flex-col gap-1.5">
-          <span className="text-ink-2 text-[12px]">颜色</span>
-          <div role="radiogroup" aria-label={`${noun}颜色`} className="flex gap-2">
-            {TONE_OPTIONS.map(option => (
-              <button
-                key={option.tone}
-                type="button"
-                role="radio"
-                aria-checked={activeTone === option.tone}
-                aria-label={option.label}
-                title={option.label}
-                onClick={() => setColor(option.color)}
-                className={cn(
-                  "relative size-[22px] rounded-[7px] outline-none focus-visible:shadow-[var(--tau-focus-ring)]",
-                  TONE_DOT[option.tone],
-                  activeTone === option.tone &&
-                    "after:border-ink-1 after:absolute after:-inset-[3px] after:rounded-[9px] after:border-[1.5px] after:content-['']"
-                )}
-              />
-            ))}
+      <DialogBody>
+        <div className="flex flex-col gap-3.5">
+          <label className="flex flex-col gap-1.5">
+            <span className="text-ink-2 text-[12px]">名称</span>
+            <Input
+              data-autofocus
+              value={title}
+              maxLength={120}
+              onChange={e => setTitle(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter" && !e.nativeEvent.isComposing) save();
+              }}
+              placeholder={placeholder}
+            />
+          </label>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-ink-2 text-[12px]">颜色</span>
+            <div role="radiogroup" aria-label={`${noun}颜色`} className="flex gap-2">
+              {TONE_OPTIONS.map(option => (
+                <button
+                  key={option.tone}
+                  type="button"
+                  role="radio"
+                  aria-checked={activeTone === option.tone}
+                  aria-label={option.label}
+                  title={option.label}
+                  onClick={() => setColor(option.color)}
+                  className={cn(
+                    "relative size-[22px] rounded-[7px] outline-none focus-visible:shadow-[var(--tau-focus-ring)]",
+                    TONE_DOT[option.tone],
+                    activeTone === option.tone &&
+                      "after:border-ink-1 after:absolute after:-inset-[3px] after:rounded-[9px] after:border-[1.5px] after:content-['']"
+                  )}
+                />
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      </DialogBody>
     </Dialog>
   );
 }

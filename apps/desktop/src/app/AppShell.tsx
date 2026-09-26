@@ -15,7 +15,6 @@ import clsx from "clsx";
 import { PageProvider, usePage } from "@/page/PageProvider";
 import { PageHost } from "@/page/PageHost";
 import { PageNavigationBridge } from "./PageNavigationBridge";
-import { initThemeRuntime } from "@tau/ui/theme/runtime";
 import { Loading, NotificationHost, ToastHost, initScrollbarAutoHide } from "@tau/ui";
 import { SearchPalette } from "@/features/search/SearchPalette";
 import { SettingsDialog } from "@/features/settings/SettingsDialog";
@@ -23,6 +22,7 @@ import { useSearchStore } from "@/features/search/searchStore";
 import { isReplayableVisit } from "@/features/search/searchMeta";
 import useSettingStore from "@/stores/useSettingStore";
 import useSyncFont from "@/hooks/useSyncFont";
+import { useThemeRuntime } from "./useThemeRuntime";
 import { Sidebar } from "./Sidebar";
 import { Titlebar } from "./Titlebar";
 import { AssistDock } from "./AssistDock";
@@ -60,6 +60,7 @@ function ShellBody() {
   // 字体设置 → body CSS 变量（--font/--font-size/--mono-font）。legacy 挂在 App.tsx，
   // 新壳层不渲染它——不挂则 /shell 下字体设置全部失效（2026-09-21 外观页接线发现）
   useSyncFont();
+  useThemeRuntime();
 
   const connect = useCallback(() => {
     setBoot("connecting");
@@ -70,13 +71,9 @@ function ShellBody() {
   }, []);
 
   useEffect(() => {
-    const stopTheme = initThemeRuntime();
     const stopScrollbars = initScrollbarAutoHide();
     connect();
-    return () => {
-      stopTheme();
-      stopScrollbars();
-    };
+    return stopScrollbars;
   }, [connect]);
 
   /* 页面缩放（Ctrl±/Ctrl+滚轮）压缩 CSS 视口，壳层 min-w 会超出视口被裁：zoom

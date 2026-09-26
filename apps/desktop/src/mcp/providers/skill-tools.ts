@@ -1,57 +1,133 @@
-import type { ToolParameterSchema, Skill } from "@/types";
+import type { Skill, ToolDefinition, ToolParameterSchema } from "@/types";
 import {
-  listSkills,
+  cancelSkillScript,
   getSkillReadme,
   getSkillTree,
-  getSkillsDir,
   readSkillFile,
+  runSkillScript,
 } from "@/commands/skill";
-import {
-  isInternalSkill,
-  getInternalSkill,
-  getAllInternalSkills,
-} from "@/constants/internal-skills";
+import useSkillStore, { dedupeSkills, isSkillEnabled } from "@/stores/useSkillStore";
 import type { MCPProviderDefinition } from "./types";
 
-/**
- * 获取合并后的所有 Skills（内部 + 外部）
- */
-async function getMergedSkills(): Promise<Skill[]> {
-  // 获取外部 skill
-  const externalSkills = await listSkills();
+const ok = (payload: Record<string, unknown>) => ({
+  content: JSON.stringify({ success: true, ...payload }, null, 2),
+});
+const fail = (error: string) => ({
+  content: JSON.stringify({ success: false, error }, null, 2),
+});
 
-  // 获取内部 skill 并转换为 Skill 类型
-  const internalSkills: Skill[] = getAllInternalSkills().map((skill) => ({
-    folderName: skill.folderName,
-    name: skill.name,
-    description: skill.description,
-    path: `internal://${skill.folderName}`,
-    isInternal: true,
-    readmeContent: skill.readmeContent,
-  }));
-
-  // 合并内部和外部 skill（内部优先，同名时跳过外部）
-  const internalFolderNames = new Set(internalSkills.map((s) => s.folderName));
-  const filteredExternalSkills = externalSkills.filter(
-    (s) => !internalFolderNames.has(s.folderName),
-  );
-
-  return [...internalSkills, ...filteredExternalSkills];
+/** 可用 Skill：内置 + 我的 + 关联目录，同名去重、去掉停用的 */
+async function getEnabledSkills(): Promise<Skill[]> {
+  const store = useSkillStore.getState();
+  if (!store.loaded) await store.loadSkills();
+  const { skills, preferences } = useSkillStore.getState();
+  return dedupeSkills(skills).filter(skill => isSkillEnabled(skill, preferences));
 }
+
+async function findSkill(folderName: unknown): Promise<Skill | string> {
+  const name = typeof folderName === "string" ? folderName.trim() : "";
+  if (!name) return "必须提供 folderName";
+  const skill = (await getEnabledSkills()).find(s => s.folderName === name);
+  return skill ?? `未找到可用的 Skill「${name}」（可能不存在或已停用）`;
+}
+
+const FOLDER_PARAM: ToolParameterSchema = {
+  type: "string",
+  description: "Skill 的文件夹名称，可通过 list_skills 获取",
+};
+
+const normalizeRelative = (p: string) => p.replace(/\\/g, "/").replace(/^\.?\//, "");
+
+export const RUN_SKILL_SCRIPT_TOOL_NAME = "run_skill_script";
+
+const runSkillScriptTool: ToolDefinition = {
+  name: RUN_SKILL_SCRIPT_TOOL_NAME,
+  description:
+    "执行某个 Skill 目录里附带的脚本（如 scripts/xxx.py），返回退出码与标准输出 / 错误。" +
+    "按扩展名选解释器：.py 用 python3、.js/.mjs/.cjs 用 Node、.sh 用 bash，其它需有可执行权限。" +
+    "工作目录为该 Skill 目录。只在 SKILL.md 说明需要执行脚本时使用；执行前可能需要用户确认。",
+  risk: "execute",
+  // 等待确认不计时；脚本本身在主进程有 120s 超时
+  execution: { timeoutMs: 150_000 },
+  parameters: {
+    type: "object",
+    properties: {
+      folderName: FOLDER_PARAM,
+      script: { type: "string", description: "相对 Skill 目录的脚本路径，如 scripts/extract.py" },
+      args: {
+        type: "array",
+        items: { type: "string" },
+        description: "传给脚本的命令行参数",
+      },
+      stdin: { type: "string", description: "可选，写入脚本标准输入的文本" },
+    },
+    required: ["folderName", "script"],
+    additionalProperties: false,
+  },
+  executor: async (args, context) => {
+    const skill = await findSkill(args.folderName);
+    if (typeof skill === "string") return fail(skill);
+    if (skill.isInternal) return fail("内置 Skill 不包含脚本");
+    const script = normalizeRelative(String(args.script ?? ""));
+    if (!script) return fail("必须提供 script");
+    const runId = context?.toolCallId;
+    const onAbort = () => {
+      if (runId) void cancelSkillScript(runId);
+    };
+    context?.signal?.addEventListener("abort", onAbort, { once: true });
+    try {
+      const result = await runSkillScript(
+        {
+          skillPath: skill.path,
+          script,
+          args: Array.isArray(args.args) ? args.args.map(String) : [],
+          stdin: typeof args.stdin === "string" ? args.stdin : undefined,
+        },
+        runId
+      );
+      const payload = {
+        folderName: skill.folderName,
+        script,
+        exitCode: result.exitCode,
+        timedOut: result.timedOut,
+        truncated: result.truncated,
+        durationMs: result.durationMs,
+        stdout: result.stdout,
+        stderr: result.stderr,
+      };
+      if (result.cancelled) return { ...fail("脚本已被取消"), isCancelled: true };
+      return result.exitCode === 0 && !result.timedOut
+        ? ok(payload)
+        : {
+            content: JSON.stringify(
+              {
+                success: false,
+                error: result.timedOut ? "脚本执行超时" : "脚本退出码非 0",
+                ...payload,
+              },
+              null,
+              2
+            ),
+          };
+    } catch (error) {
+      return fail((error as Error).message);
+    } finally {
+      context?.signal?.removeEventListener("abort", onAbort);
+    }
+  },
+};
 
 export const skillToolsProvider: MCPProviderDefinition = {
   id: "skill-tools",
   name: "Skill 工具",
   description:
-    "提供 Skill 列表查询和 SKILL.md 内容获取工具。Skills 是预定义的知识和流程，教会模型如何完成特定任务。",
+    "提供 Skill 列表查询、SKILL.md 读取与脚本执行。Skills 是预定义的知识和流程，教会模型如何完成特定任务。",
   defaultEnabled: true,
-  tools: () => [
+  tools: (): ToolDefinition[] => [
     {
       name: "list_skills",
       description:
-        "获取所有可用的 Skills 列表。返回每个 Skill 的文件夹名、名称、描述和完整路径。" +
-        "Skills 是预定义的知识和流程，教会模型如何完成特定任务。" +
-        "使用此工具了解有哪些可用的 Skills，然后使用 get_skill_readme 获取详细说明。",
+        "获取所有可用的 Skills 列表。返回每个 Skill 的文件夹名、名称与描述，再用 get_skill_readme 获取详细说明。",
       parameters: {
         type: "object",
         properties: {} as Record<string, ToolParameterSchema>,
@@ -59,344 +135,92 @@ export const skillToolsProvider: MCPProviderDefinition = {
         additionalProperties: false,
       },
       executor: async () => {
-        try {
-          const skills = await getMergedSkills();
-
-          return {
-            content: JSON.stringify(
-              {
-                success: true,
-                count: skills.length,
-                skills: skills.map((skill) => ({
-                  folderName: skill.folderName,
-                  name: skill.name,
-                  description: skill.description,
-                  path: skill.path,
-                  isInternal: skill.isInternal ?? false,
-                })),
-              },
-              null,
-              2,
-            ),
-          };
-        } catch (error) {
-          return {
-            content: JSON.stringify(
-              {
-                success: false,
-                error: `获取 Skills 列表失败: ${(error as Error).message}`,
-              },
-              null,
-              2,
-            ),
-          };
-        }
+        const skills = await getEnabledSkills();
+        return ok({
+          count: skills.length,
+          skills: skills.map(skill => ({
+            folderName: skill.folderName,
+            name: skill.name,
+            description: skill.description,
+            source: skill.source,
+            hasScripts: Boolean(skill.hasScripts),
+          })),
+        });
       },
     },
     {
       name: "get_skill_readme",
-      description:
-        "获取指定 Skill 的 SKILL.md 内容。SKILL.md 包含该 Skill 的详细说明、" +
-        "使用方法和相关知识。使用此工具了解如何执行特定任务。",
+      description: "获取指定 Skill 的 SKILL.md 内容（详细说明、使用方法和相关知识）。",
       parameters: {
         type: "object",
-        properties: {
-          folderName: {
-            type: "string",
-            description: "Skill 的文件夹名称，可通过 list_skills 获取",
-          },
-        } as Record<string, ToolParameterSchema>,
+        properties: { folderName: FOLDER_PARAM },
         required: ["folderName"],
         additionalProperties: false,
       },
-      executor: async (args) => {
-        const folderName = args.folderName as string;
-
-        if (!folderName) {
-          return {
-            content: JSON.stringify(
-              {
-                success: false,
-                error: "必须提供 folderName",
-              },
-              null,
-              2,
-            ),
-          };
-        }
-
+      executor: async args => {
+        const skill = await findSkill(args.folderName);
+        if (typeof skill === "string") return fail(skill);
         try {
-          // 检查是否为内部 skill
-          if (isInternalSkill(folderName)) {
-            const internalSkill = getInternalSkill(folderName);
-            if (!internalSkill) {
-              return {
-                content: JSON.stringify(
-                  {
-                    success: false,
-                    error: "未找到指定的内部 Skill",
-                  },
-                  null,
-                  2,
-                ),
-              };
-            }
-
-            return {
-              content: JSON.stringify(
-                {
-                  success: true,
-                  skillName: internalSkill.name,
-                  content: internalSkill.readmeContent,
-                  isInternal: true,
-                },
-                null,
-                2,
-              ),
-            };
-          }
-
-          // 外部 skill 保持原有逻辑
-          const result = await getSkillReadme(folderName);
-
-          if (!result) {
-            return {
-              content: JSON.stringify(
-                {
-                  success: false,
-                  error: "未找到指定的 Skill 或 SKILL.md 文件不存在",
-                },
-                null,
-                2,
-              ),
-            };
-          }
-
-          return {
-            content: JSON.stringify(
-              {
-                success: true,
-                skillName: result.name,
-                content: result.readmeContent,
-                isInternal: false,
-              },
-              null,
-              2,
-            ),
-          };
+          const content = skill.readmeContent ?? (await getSkillReadme(skill.path));
+          if (!content) return fail("该 Skill 没有 SKILL.md");
+          return ok({ folderName: skill.folderName, skillName: skill.name, content });
         } catch (error) {
-          return {
-            content: JSON.stringify(
-              {
-                success: false,
-                error: `获取 SKILL.md 失败: ${(error as Error).message}`,
-              },
-              null,
-              2,
-            ),
-          };
+          return fail(`获取 SKILL.md 失败: ${(error as Error).message}`);
         }
       },
     },
     {
       name: "get_skill_tree",
-      description:
-        "以树形结构展示指定 Skill 的文件和目录结构，类似于 tree 命令的输出。" +
-        "这对于了解 Skill 的组织结构和包含的文件非常有用。",
+      description: "以树形结构展示指定 Skill 目录下的文件，了解附带的参考资料、模板与脚本。",
       parameters: {
         type: "object",
-        properties: {
-          folderName: {
-            type: "string",
-            description: "Skill 的文件夹名称，可通过 list_skills 获取",
-          },
-        } as Record<string, ToolParameterSchema>,
+        properties: { folderName: FOLDER_PARAM },
         required: ["folderName"],
         additionalProperties: false,
       },
-      executor: async (args) => {
-        const folderName = args.folderName as string;
-
-        if (!folderName) {
-          return {
-            content: JSON.stringify(
-              {
-                success: false,
-                error: "必须提供 folderName",
-              },
-              null,
-              2,
-            ),
-          };
-        }
-
+      executor: async args => {
+        const skill = await findSkill(args.folderName);
+        if (typeof skill === "string") return fail(skill);
+        if (skill.isInternal) return ok({ tree: `${skill.folderName}/ [内置]\n└── SKILL.md` });
         try {
-          // 检查是否为内部 skill
-          if (isInternalSkill(folderName)) {
-            const internalSkill = getInternalSkill(folderName);
-            if (!internalSkill) {
-              return {
-                content: JSON.stringify(
-                  {
-                    success: false,
-                    error: "未找到指定的内部 Skill",
-                  },
-                  null,
-                  2,
-                ),
-              };
-            }
-
-            // 返回虚拟的目录结构
-            const treeString = `${folderName}/ [内置]\n└── SKILL.md`;
-            return {
-              content: treeString,
-            };
-          }
-
-          // 外部 skill 保持原有逻辑
-          const treeString = await getSkillTree(folderName);
-
-          // 直接返回树形结构文本，不使用 JSON.stringify 避免换行符被转义
-          return {
-            content: treeString,
-          };
+          return ok({ tree: await getSkillTree(skill.path) });
         } catch (error) {
-          return {
-            content: JSON.stringify(
-              {
-                success: false,
-                error: `获取 Skill 树形结构失败: ${(error as Error).message}`,
-              },
-              null,
-              2,
-            ),
-          };
+          return fail(`获取文件树失败: ${(error as Error).message}`);
         }
       },
     },
     {
       name: "read_skill_file",
       description:
-        "通过相对路径读取指定 Skill 目录下的文件内容。" +
-        "例如，要读取 my-skill 目录下的 templates/example.md 文件，" +
-        "传入 folderName='my-skill' 和 relativePath='templates/example.md'。",
+        "通过相对路径读取指定 Skill 目录下的文件内容，例如 folderName='my-skill'、relativePath='templates/example.md'。",
       parameters: {
         type: "object",
         properties: {
-          folderName: {
-            type: "string",
-            description: "Skill 的文件夹名称，可通过 list_skills 获取",
-          },
-          relativePath: {
-            type: "string",
-            description:
-              "相对于 Skill 目录的文件路径，如 'templates/example.md'",
-          },
-        } as Record<string, ToolParameterSchema>,
+          folderName: FOLDER_PARAM,
+          relativePath: { type: "string", description: "相对于 Skill 目录的文件路径" },
+        },
         required: ["folderName", "relativePath"],
         additionalProperties: false,
       },
-      executor: async (args) => {
-        const folderName = args.folderName as string;
-        const relativePath = args.relativePath as string;
-
-        if (!folderName || !relativePath) {
-          return {
-            content: JSON.stringify(
-              {
-                success: false,
-                error: "必须提供 folderName 和 relativePath",
-              },
-              null,
-              2,
-            ),
-          };
+      executor: async args => {
+        const skill = await findSkill(args.folderName);
+        if (typeof skill === "string") return fail(skill);
+        const relativePath = normalizeRelative(String(args.relativePath ?? ""));
+        if (!relativePath || relativePath.split("/").includes("..")) {
+          return fail("relativePath 必须是 Skill 目录内的相对路径");
         }
-
         try {
-          // 检查是否为内部 skill
-          if (isInternalSkill(folderName)) {
-            const internalSkill = getInternalSkill(folderName);
-            if (!internalSkill) {
-              return {
-                content: JSON.stringify(
-                  {
-                    success: false,
-                    error: "未找到指定的内部 Skill",
-                  },
-                  null,
-                  2,
-                ),
-              };
-            }
-
-            // 内部 skill 只支持读取 SKILL.md
-            if (relativePath === "SKILL.md" || relativePath === "./SKILL.md") {
-              return {
-                content: JSON.stringify(
-                  {
-                    success: true,
-                    folderName,
-                    relativePath,
-                    fullPath: `internal://${folderName}/SKILL.md`,
-                    content: internalSkill.readmeContent,
-                    isInternal: true,
-                  },
-                  null,
-                  2,
-                ),
-              };
-            }
-
-            return {
-              content: JSON.stringify(
-                {
-                  success: false,
-                  folderName,
-                  relativePath,
-                  error: "内置 Skill 只包含 SKILL.md 文件",
-                },
-                null,
-                2,
-              ),
-            };
+          if (skill.isInternal) {
+            if (relativePath !== "SKILL.md") return fail("内置 Skill 只包含 SKILL.md");
+            return ok({ folderName: skill.folderName, relativePath, content: skill.readmeContent });
           }
-
-          // 外部 skill 保持原有逻辑
-          const skillsDir = await getSkillsDir();
-          const fullPath = `${skillsDir}/${folderName}/${relativePath}`;
-          const content = await readSkillFile(fullPath);
-
-          return {
-            content: JSON.stringify(
-              {
-                success: true,
-                folderName,
-                relativePath,
-                fullPath,
-                content,
-                isInternal: false,
-              },
-              null,
-              2,
-            ),
-          };
+          const content = await readSkillFile(`${skill.path}/${relativePath}`);
+          return ok({ folderName: skill.folderName, relativePath, content });
         } catch (error) {
-          return {
-            content: JSON.stringify(
-              {
-                success: false,
-                folderName,
-                relativePath,
-                error: `读取文件失败: ${(error as Error).message}`,
-              },
-              null,
-              2,
-            ),
-          };
+          return fail(`读取文件失败: ${(error as Error).message}`);
         }
       },
     },
+    runSkillScriptTool,
   ],
 };

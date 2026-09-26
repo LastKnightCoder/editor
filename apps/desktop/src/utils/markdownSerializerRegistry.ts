@@ -217,6 +217,15 @@ export class MarkdownSerializerRegistry {
         },
       },
       {
+        // `$` 点名的 Skill 芯片：正文里保留成 `$名称`，点名信息另由 ChatInputArea 提取
+        type: "skill-ref",
+        toMarkdown: element => `$${element.name}`,
+        toMarkdownStructured: element => ({
+          output: `$${element.name}`,
+          childrenStart: { line: 0, ch: 0 },
+        }),
+      },
+      {
         type: "content-link",
         toMarkdown: (element, childrenStr) => {
           const attributes = [];

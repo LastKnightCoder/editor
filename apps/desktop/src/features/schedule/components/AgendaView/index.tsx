@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import dayjs from "dayjs";
 import { CalendarRange } from "lucide-react";
-import { cn, useEdgeFade } from "@tau/ui";
+import { cn } from "@tau/ui";
+import { FadeScroll } from "@/components/FadeScroll";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import type { CalendarEvent } from "@/types";
@@ -38,8 +39,6 @@ const AgendaView = () => {
   const peek = usePeekStore(s => s.peek);
   const { events } = useCalendarEvents();
   const decorOf = useEventDecor(events);
-  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
-  useEdgeFade(scrollEl);
 
   const date = new Date(currentDate);
   const year = date.getFullYear();
@@ -61,12 +60,9 @@ const AgendaView = () => {
     );
   }
 
-  // 滚动容器上右下留隙，滚动条不贴卡片边缘与圆角；内边距相应减去，内容位置不变
+  // 离纸底留 16px，滚动条不贴纸缘；外层 8px + FadeScroll 右侧 6px 透明边 + pr-[18px] = 内容离右栏 32px
   return (
-    <div
-      ref={setScrollEl}
-      className="edge-fade-scroll my-2.5 mr-1.5 h-[calc(100%-20px)] overflow-y-auto pb-2.5 pl-[22px] pr-4"
-    >
+    <FadeScroll className="mb-4 h-[calc(100%-16px)] pb-2.5 pl-1.5 pr-[18px] pt-1">
       {days.map(({ key, date: day, events: dayEvents }, index) => {
         const isToday = day.isSame(today, "day");
         return (
@@ -98,14 +94,14 @@ const AgendaView = () => {
                   event={event}
                   calendars={calendars}
                   decor={decorOf(event)}
-                  onClick={anchor => peek(event, anchor)}
+                  onClick={() => peek(event)}
                 />
               ))}
             </div>
           </div>
         );
       })}
-    </div>
+    </FadeScroll>
   );
 };
 

@@ -84,6 +84,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8800", "-d", "apps/desktop/mockups/chat"],
       "port": 8800
+    },
+    {
+      "name": "editor-window-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8812", "-d", "apps/desktop/mockups/editor-window"],
+      "port": 8812
     }
   ]
 }

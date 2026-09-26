@@ -1,7 +1,8 @@
 /**
  * 新建 / 编辑项目弹窗（tau Dialog 皮，字段对齐 legacy EditProjectInfoModal：
- * 标题 + 富文本描述 + 类型三选）。
- * - 新建：类型可选，创建成功后由宿主跳转项目详情；
+ * 类型三选 + 标题 + 富文本描述）。
+ * - 新建：项目页唯一的新建入口，类型在这里选——排在最前，三张可选卡片（图标 + 名称 + 一句说明）；
+ *   创建成功后由宿主跳转项目详情；
  * - 编辑：类型不可改（三型的工作台形态不同，创建后改型会破坏子项语义），
  *   只改标题与描述。
  */
@@ -11,10 +12,11 @@ import type { Descendant } from "slate";
 import type { EditorRef } from "@tau/editor/src";
 import ContentEditor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import { EProjectType, type Project } from "@/types/project";
-import { Button, Dialog, Input, toast } from "@tau/ui";
+import type { Project } from "@/types/project";
+import { Button, Dialog, DialogBody, Input, cn, toast } from "@tau/ui";
 import { PROJECT_TYPE_META } from "../projectTypeMeta";
 import { useProjectMutations, type CreateProjectInput } from "../queries";
+import { PROJECT_TYPE_KEYS } from "../types";
 
 const EMPTY_DESC: Descendant[] = [
   { type: "paragraph", children: [{ type: "formatted", text: "" }] },
@@ -32,12 +34,6 @@ export interface CreateProjectDialogProps {
   /** 编辑保存成功 */
   onSaved?(): void;
 }
-
-const TYPE_KEYS = [
-  EProjectType.DocumentTree,
-  EProjectType.DataTable,
-  EProjectType.VibeLearning,
-] as const;
 
 export function CreateProjectDialog({
   open,
@@ -111,57 +107,101 @@ export function CreateProjectDialog({
         </>
       }
     >
-      <div className="flex flex-col gap-3.5">
-        <label className="flex flex-col gap-1.5">
-          <span className="text-ink-2 text-[12px]">名称</span>
-          <Input
-            data-autofocus
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            placeholder="项目名称"
-            clearable
-          />
-        </label>
-        <div className="flex flex-col gap-1.5">
-          <span className="text-ink-2 text-[12px]">类型</span>
-          <div className="flex items-center gap-1.5">
-            {TYPE_KEYS.map(key => {
-              const active = projectType === key;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  disabled={editing}
-                  onClick={() => setProjectType(key)}
-                  className={
-                    active
-                      ? "bg-selected text-ink-1 rounded-full px-2.5 py-0.5 text-[12.5px] font-medium"
-                      : "text-ink-2 hover:bg-hover hover:text-ink-1 rounded-full px-2.5 py-0.5 text-[12.5px]"
-                  }
-                >
-                  {PROJECT_TYPE_META[key].label}
-                </button>
-              );
-            })}
-          </div>
-          <p className="text-ink-3 text-[11.5px]">
-            {PROJECT_TYPE_META[projectType].description}
-            {editing && " · 类型创建后不可更改"}
-          </p>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <span className="text-ink-2 text-[12px]">描述（可选）</span>
-          <ErrorBoundary>
-            <ContentEditor
-              ref={editorRef}
-              initValue={desc}
-              readonly={false}
-              onChange={setDesc}
-              className="min-h-[160px]"
+      <DialogBody>
+        <div className="flex flex-col gap-3.5">
+          {editing ? (
+            <div className="text-ink-2 flex items-center gap-2 text-[12.5px]">
+              <TypeBadge type={projectType} />
+              <span className="text-ink-3">类型创建后不可更改</span>
+            </div>
+          ) : (
+            <div role="radiogroup" aria-label="项目类型" className="grid grid-cols-3 gap-2">
+              {PROJECT_TYPE_KEYS.map(key => {
+                const meta = PROJECT_TYPE_META[key];
+                const active = projectType === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setProjectType(key)}
+                    className={cn(
+                      "ease-tau-out flex flex-col items-start gap-2 rounded-[12px] border px-3 pb-2.5 pt-3 text-left outline-none transition-[background,border-color,box-shadow] duration-150 focus-visible:shadow-[var(--tau-focus-ring)]",
+                      active ? "border-accent bg-accent-soft" : "border-line-1 hover:bg-hover"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "grid size-8 place-items-center rounded-[9px]",
+                        meta.softClass,
+                        meta.textClass
+                      )}
+                    >
+                      <meta.icon className="size-4" strokeWidth={1.75} />
+                    </span>
+                    <span>
+                      <span className="text-ink-1 block text-[13px] font-semibold">
+                        {meta.label}
+                      </span>
+                      <span className="text-ink-3 mt-0.5 block text-[11.5px] leading-[1.5]">
+                        {meta.description}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <label className="flex flex-col gap-1.5">
+            <span className="text-ink-2 text-[12px]">名称</span>
+            <Input
+              data-autofocus
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="项目名称"
+              clearable
             />
-          </ErrorBoundary>
+          </label>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-ink-2 text-[12px]">描述（可选）</span>
+            {/* 与 Textarea 同形的输入框外观（描边 / 圆角 / 聚焦环）。块拖拽把手绝对定位在正文左侧，
+              编辑器 overflow-hidden 把它裁掉（同聊天输入框），描述框里不需要拖拽排序；
+              最小高度放外层——写在编辑器类名上会与空态 Slate 的内联 min-height 打架（同聊天输入框注释） */}
+            <div className="border-line-1 bg-surface rounded-tau-sm ease-tau-out hover:not-focus-within:border-ink-3/50 focus-within:border-accent min-h-[136px] border px-3 py-2 transition-[border-color,box-shadow] duration-[160ms] focus-within:shadow-[var(--tau-focus-ring)]">
+              <ErrorBoundary>
+                <ContentEditor
+                  ref={editorRef}
+                  initValue={desc}
+                  readonly={false}
+                  onChange={setDesc}
+                  placeHolder="介绍一下这个项目（/ 唤起块菜单）"
+                  className="text-tau-body overflow-hidden"
+                />
+              </ErrorBoundary>
+            </div>
+          </div>
         </div>
-      </div>
+      </DialogBody>
     </Dialog>
+  );
+}
+
+/** 编辑态的类型只读徽章（类型色图标 + 名称） */
+function TypeBadge({ type }: { type: CreateProjectInput["projectType"] }) {
+  const meta = PROJECT_TYPE_META[type];
+  return (
+    <span className="text-ink-1 inline-flex items-center gap-1.5 font-medium">
+      <span
+        className={cn(
+          "grid size-5 place-items-center rounded-[6px]",
+          meta.softClass,
+          meta.textClass
+        )}
+      >
+        <meta.icon className="size-3" strokeWidth={1.75} />
+      </span>
+      {meta.label}
+    </span>
   );
 }

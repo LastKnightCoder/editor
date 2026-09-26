@@ -1,4 +1,5 @@
-import { SectionTitle } from "./ui";
+import { Spinner } from "@tau/ui";
+import { LogPanel } from "./ui";
 import { stageNames } from "./utils";
 
 export interface ProgressViewProps {
@@ -16,31 +17,33 @@ export const ProgressView = ({
   ttsTotal,
   logs,
 }: ProgressViewProps) => {
+  const percent = Math.max(0, Math.min(100, Math.round(stageProgress)));
+
   return (
-    <div className="space-y-4">
-      <SectionTitle>
-        {stageNames[stage] || stage}
-        {stage === "tts" && ` (${ttsCompleted}/${ttsTotal})`}
-      </SectionTitle>
-      <div className="bg-track h-1.5 w-full overflow-hidden rounded-full">
-        <div
-          className="bg-accent ease-tau-out h-full rounded-full transition-all duration-300"
-          style={{ width: `${stageProgress}%` }}
-        />
+    <div className="flex flex-col gap-5 pt-1">
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <Spinner className="size-3.5" />
+          <span className="text-ink-1 text-tau-body font-semibold">
+            {stageNames[stage] || stage}
+          </span>
+          {stage === "tts" && (
+            <span className="text-ink-3 text-tau-meta tabular-nums">
+              {ttsCompleted}/{ttsTotal} 段
+            </span>
+          )}
+          <span className="flex-1" />
+          <span className="text-ink-3 text-tau-meta tabular-nums">{percent}%</span>
+        </div>
+        <div className="bg-hover h-1 w-full overflow-hidden rounded-full">
+          <div
+            className="bg-accent ease-tau-out h-full rounded-full transition-[width] duration-300"
+            style={{ width: `${stageProgress}%` }}
+          />
+        </div>
       </div>
 
-      <details open className="mt-4">
-        <summary className="text-ink-3 text-tau-sm cursor-pointer select-none font-medium">
-          详细日志
-        </summary>
-        <div className="border-line-1 rounded-tau-md mt-2 max-h-64 space-y-0.5 overflow-y-auto border p-3">
-          {logs.map((log, index) => (
-            <div key={index} className="text-ink-2 font-tau-mono text-tau-sm leading-relaxed">
-              {log}
-            </div>
-          ))}
-        </div>
-      </details>
+      <LogPanel logs={logs} />
     </div>
   );
 };

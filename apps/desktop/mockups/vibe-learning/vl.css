@@ -1,0 +1,543 @@
+/* Vibe Learning 样板间 · 页面专属样式（主题 / 窗口 / 侧栏 / 标题栏复用 ../chat/shared.css） */
+
+.vl-paper {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* 纸内栏：透明，靠留白与一道极淡的内阴影分开，不画横线 */
+.vl-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.vl-col.side {
+  flex: none;
+}
+.vl-col.side.l {
+  box-shadow: inset -1px 0 0 var(--line-2);
+}
+.vl-col.side.r {
+  box-shadow: inset 1px 0 0 var(--line-2);
+}
+.vl-col.grow {
+  flex: 1;
+}
+.vl-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden auto;
+}
+
+/* 栏头：中文 semibold + 数字 */
+.vl-h {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 48px;
+  padding: 0 10px 0 18px;
+  flex: none;
+}
+.vl-h h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.vl-h .n {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+.vl-h .sp {
+  flex: 1;
+}
+.vl-sec {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 18px 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-1);
+}
+.vl-sec .n {
+  font-weight: 400;
+  color: var(--ink-3);
+  font-size: 11.5px;
+}
+.vl-sec .sp {
+  flex: 1;
+}
+.vl-sec .ib {
+  width: 24px;
+  height: 24px;
+}
+.vl-sec .ib svg.lucide {
+  width: 14px;
+  height: 14px;
+}
+
+/* 行：资料 / 产物 */
+.vl-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 8px;
+  padding: 7px 10px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  position: relative;
+}
+.vl-row:hover {
+  background: var(--hover);
+}
+.vl-row.on {
+  background: var(--selected);
+}
+.vl-row .ic {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--ink-2);
+  border: 1px solid var(--line-1);
+  background: var(--surface);
+}
+.vl-row .ic svg.lucide {
+  width: 15px;
+  height: 15px;
+}
+.vl-row .tx {
+  min-width: 0;
+  flex: 1;
+}
+.vl-row .t {
+  font-size: 12.5px;
+  line-height: 1.45;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vl-row .m {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.vl-row .m .err {
+  color: var(--danger);
+}
+.vl-row .m .busy {
+  color: var(--accent-text);
+}
+.vl-row .bar {
+  width: 48px;
+  height: 3px;
+  border-radius: 99px;
+  background: var(--line-1);
+  overflow: hidden;
+}
+.vl-row .bar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+.vl-row .act {
+  opacity: 0;
+  transition: opacity var(--fast);
+}
+.vl-row:hover .act {
+  opacity: 1;
+}
+.vl-row .act .ib {
+  width: 24px;
+  height: 24px;
+}
+.vl-row.compact {
+  padding: 5px 10px;
+  gap: 8px;
+}
+.vl-row.compact .ic {
+  width: auto;
+  height: auto;
+  border: 0;
+  background: none;
+  color: var(--ink-3);
+}
+
+/* 工作室：应用格（细描边，不叠阴影） */
+.vl-apps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 2px 14px 4px;
+}
+.vl-app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 2px 8px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line-1);
+  font-size: 11.5px;
+  color: var(--ink-2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.vl-app svg.lucide {
+  width: 17px;
+  height: 17px;
+  color: var(--ink-1);
+}
+.vl-app:hover {
+  background: var(--hover);
+  color: var(--ink-1);
+}
+.vl-apps.list {
+  grid-template-columns: repeat(2, 1fr);
+}
+.vl-apps.list .vl-app {
+  flex-direction: row;
+  justify-content: flex-start;
+  padding: 7px 10px;
+  gap: 8px;
+}
+.vl-apps.list .vl-app svg.lucide {
+  width: 15px;
+  height: 15px;
+}
+
+/* 空态：纯文字 + 一个动作，不用插画盒子 */
+.vl-empty {
+  padding: 28px 22px;
+  text-align: center;
+  color: var(--ink-3);
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+.vl-empty b {
+  display: block;
+  color: var(--ink-1);
+  font-weight: 600;
+  font-size: 13.5px;
+  margin-bottom: 2px;
+}
+.vl-empty .btn {
+  margin-top: 12px;
+  border: 1px solid var(--line-1);
+}
+
+/* 对话 */
+.vl-chat-h {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 48px;
+  padding: 0 12px 0 14px;
+  flex: none;
+}
+.vl-chat-h .sess {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: var(--r-sm);
+  font-weight: 600;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.vl-chat-h .sess:hover {
+  background: var(--hover);
+}
+.vl-chat-h .sess svg.lucide {
+  width: 14px;
+  height: 14px;
+  color: var(--ink-3);
+}
+.vl-chat-h .sp {
+  flex: 1;
+}
+.vl-thread {
+  margin: 0 auto;
+  padding: 8px 28px 12px;
+}
+.cite {
+  display: inline-grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  margin: 0 1px;
+  border-radius: 5px;
+  font-size: 10.5px;
+  line-height: 1;
+  vertical-align: 2px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  cursor: pointer;
+}
+.vl-src-line {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.vl-src-line .chip {
+  height: 22px;
+  font-size: 11.5px;
+}
+.vl-hero {
+  margin: 0 auto;
+  padding: 90px 28px 20px;
+  text-align: center;
+}
+.vl-hero h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  font-weight: 600;
+}
+.vl-hero p {
+  margin: 0 0 18px;
+  color: var(--ink-2);
+}
+.vl-hero .sug {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.vl-hero .sug .chip {
+  height: 28px;
+  padding: 0 12px;
+}
+.vl-hero .sug .chip.dis {
+  color: var(--ink-3);
+  cursor: default;
+}
+
+/* 输入框：保留现有的四个控件（＋ / 执行确认 / 模型 / 思考强度） */
+.vl-composer .row .model b {
+  font-weight: 500;
+  color: var(--ink-1);
+}
+
+/* 阅读 / 编辑区：大画面 */
+.vl-stage-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 10px 0 16px;
+  flex: none;
+}
+.vl-stage-h .ic {
+  color: var(--ink-2);
+  display: grid;
+}
+.vl-stage-h .t {
+  font-weight: 600;
+  font-size: 13.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vl-stage-h .m {
+  color: var(--ink-3);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.vl-stage-h .sp {
+  flex: 1;
+}
+.vl-doc {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 18px 40px 60px;
+  font-size: 14px;
+  line-height: 1.85;
+}
+.vl-doc h1 {
+  font-size: 22px;
+  margin: 6px 0 4px;
+  font-weight: 600;
+}
+.vl-doc h2 {
+  font-size: 16px;
+  margin: 22px 0 6px;
+  font-weight: 600;
+}
+.vl-doc p {
+  margin: 0 0 12px;
+}
+.vl-doc .sub {
+  color: var(--ink-3);
+  font-size: 12.5px;
+  margin-bottom: 18px;
+}
+.vl-doc ul {
+  margin: 0 0 12px;
+  padding-left: 20px;
+}
+.vl-doc mark {
+  background: var(--accent-soft);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 2px;
+}
+.vl-doc .caret-line {
+  border-left: 2px solid var(--accent);
+  margin-left: -1px;
+  animation: blink 1s steps(1) infinite;
+}
+@keyframes blink {
+  50% {
+    border-color: transparent;
+  }
+}
+
+/* 分段切换（右栏：工作室 / 对话） */
+.vl-seg {
+  display: inline-flex;
+  gap: 2px;
+}
+.vl-seg span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--r-sm);
+  font-size: 12.5px;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.vl-seg span:hover {
+  background: var(--hover);
+}
+.vl-seg span.on {
+  background: var(--selected);
+  color: var(--ink-1);
+  font-weight: 500;
+}
+.vl-seg svg.lucide {
+  width: 14px;
+  height: 14px;
+}
+
+/* 方案 B：资料 chips 条 + 抽屉 */
+.vl-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 0 auto 8px;
+  padding: 0 4px;
+}
+.vl-strip .lb {
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-right: 2px;
+}
+.vl-strip .chip .busy {
+  color: var(--accent-text);
+}
+.vl-strip .chip .err {
+  color: var(--danger);
+}
+.vl-drawer {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  width: 340px;
+  z-index: 36;
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-float);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.vl-drawer.r {
+  right: 8px;
+}
+.vl-drawer.l {
+  left: 8px;
+}
+
+/* 方案 C：目录树 */
+.vl-tree-g {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 14px 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.vl-tree-g svg.lucide {
+  width: 13px;
+  height: 13px;
+  color: var(--ink-3);
+}
+.vl-tree-g .n {
+  font-weight: 400;
+  color: var(--ink-3);
+}
+.vl-tree-g .sp {
+  flex: 1;
+}
+.vl-tree-g .ib {
+  width: 22px;
+  height: 22px;
+}
+.vl-tree-g .ib svg.lucide {
+  width: 14px;
+  height: 14px;
+  color: var(--ink-2);
+}
+.vl-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 16px;
+  justify-content: center;
+  flex: none;
+}
+.vl-toolbar .btn {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+.vl-toolbar .btn svg.lucide {
+  width: 14px;
+  height: 14px;
+}
+.vl-stage-h .btn,
+.vl-stage-h .ib {
+  flex: none;
+  white-space: nowrap;
+}
+.vl-stage-h .t {
+  min-width: 0;
+}
+.vl-toolbar .btn {
+  white-space: nowrap;
+  flex: none;
+}
+.vl-row .flag {
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--accent-text);
+}
+.vl-row .flag.err {
+  color: var(--danger);
+}

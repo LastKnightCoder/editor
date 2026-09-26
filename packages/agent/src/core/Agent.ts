@@ -31,10 +31,7 @@ const DEFAULT_MAX_TOOL_RETRIES = 2;
 const DEFAULT_TOOL_TIMEOUT_MS = 30000;
 
 const createId = (prefix: string) => {
-  if (
-    typeof crypto !== "undefined" &&
-    typeof crypto.randomUUID === "function"
-  ) {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return `${prefix}:${crypto.randomUUID()}`;
   }
   return `${prefix}:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
@@ -44,8 +41,7 @@ const cloneExecution = (execution: AgentToolExecutionState) => ({
   ...execution,
 });
 
-const cloneExecutions = (executions: AgentToolExecutionState[]) =>
-  executions.map(cloneExecution);
+const cloneExecutions = (executions: AgentToolExecutionState[]) => executions.map(cloneExecution);
 
 const toErrorPayload = (error: unknown): AgentErrorPayload => {
   if (error instanceof Error) {
@@ -70,7 +66,7 @@ const buildAssistantToolCallMessage = (
     content?: string;
     reasoningContent?: string;
     providerMetadata?: Record<string, unknown>;
-  },
+  }
 ): AgentMessage => ({
   role: "assistant",
   content: buildTextMessageContent(options?.content ?? ""),
@@ -82,7 +78,7 @@ const buildAssistantToolCallMessage = (
 const buildToolResultMessage = (
   call: AgentToolCall,
   content: string,
-  modelContent?: AgentMessage["content"],
+  modelContent?: AgentMessage["content"]
 ): AgentMessage => ({
   role: "tool",
   content: modelContent ?? [{ type: "text", text: content }],
@@ -91,7 +87,7 @@ const buildToolResultMessage = (
 });
 
 const delay = (ms: number) =>
-  new Promise<void>((resolve) => {
+  new Promise<void>(resolve => {
     if (ms <= 0) {
       resolve();
       return;
@@ -102,8 +98,8 @@ const delay = (ms: number) =>
 const mergeTools = (...groups: AgentTool[][]): AgentTool[] => {
   const tools = new Map<string, AgentTool>();
 
-  groups.forEach((group) => {
-    group.forEach((tool) => {
+  groups.forEach(group => {
+    group.forEach(tool => {
       if (!tools.has(tool.name)) {
         tools.set(tool.name, tool);
       }
@@ -114,7 +110,7 @@ const mergeTools = (...groups: AgentTool[][]): AgentTool[] => {
 };
 
 const resolveConfiguredTools = async (
-  source?: AgentTool[] | AgentToolSource,
+  source?: AgentTool[] | AgentToolSource
 ): Promise<AgentTool[]> => {
   if (!source) {
     return [];
@@ -131,37 +127,24 @@ const sortByOrder = <T extends { order?: number }>(items: T[]): T[] =>
   items
     .map((item, index) => ({ item, index }))
     .sort(
-      (left, right) =>
-        (left.item.order ?? 0) - (right.item.order ?? 0) ||
-        left.index - right.index,
+      (left, right) => (left.item.order ?? 0) - (right.item.order ?? 0) || left.index - right.index
     )
     .map(({ item }) => item);
 
 const resolveContributors = (
   skills: AgentSkill[] | undefined,
-  contributors: AgentMessageContributor[] | undefined,
+  contributors: AgentMessageContributor[] | undefined
 ) => {
-  const skillContributors =
-    skills?.flatMap((skill) => skill.contributors ?? []) ?? [];
-  const builtinContributors = skills?.length
-    ? [createSkillMessageContributor(skills)]
-    : [];
+  const skillContributors = skills?.flatMap(skill => skill.contributors ?? []) ?? [];
+  const builtinContributors = skills?.length ? [createSkillMessageContributor(skills)] : [];
 
-  return sortByOrder([
-    ...builtinContributors,
-    ...skillContributors,
-    ...(contributors ?? []),
-  ]);
+  return sortByOrder([...builtinContributors, ...skillContributors, ...(contributors ?? [])]);
 };
 
 const resolveRuntimeHooks = (
   skills: AgentSkill[] | undefined,
-  hooks: AgentRuntimeHook[] | undefined,
-) =>
-  sortByOrder([
-    ...(skills?.flatMap((skill) => skill.hooks ?? []) ?? []),
-    ...(hooks ?? []),
-  ]);
+  hooks: AgentRuntimeHook[] | undefined
+) => sortByOrder([...(skills?.flatMap(skill => skill.hooks ?? []) ?? []), ...(hooks ?? [])]);
 
 export class Agent {
   constructor(private readonly config: AgentConfig) {}
@@ -170,8 +153,7 @@ export class Agent {
     const traceId = createId("trace");
     const runId = createId("run");
     const sessionId = this.config.session?.id;
-    const conversationKey =
-      request.conversationKey ?? this.config.session?.conversationKey;
+    const conversationKey = request.conversationKey ?? this.config.session?.conversationKey;
     const snapshot = await this.resolveSnapshot();
     const hasTools = snapshot.getTools().length > 0;
     const state: AgentMutableState = {
@@ -183,14 +165,8 @@ export class Agent {
     let toolLoopCount = 0;
     let toolModeFallbackNotified = false;
     const controller = request.controller ?? new AbortController();
-    const contributors = resolveContributors(
-      this.config.skills,
-      this.config.contributors,
-    );
-    const runtimeHooks = resolveRuntimeHooks(
-      this.config.skills,
-      this.config.hooks,
-    );
+    const contributors = resolveContributors(this.config.skills, this.config.contributors);
+    const runtimeHooks = resolveRuntimeHooks(this.config.skills, this.config.hooks);
     const runtime = createAgentRuntimeAPI(this.config.runtime);
     const pendingNotices: AgentNotice[] = [];
 
@@ -230,10 +206,7 @@ export class Agent {
       pendingNotices.push(notice);
     };
 
-    const recordTelemetry = async (
-      name: string,
-      attributes?: Record<string, unknown>,
-    ) => {
+    const recordTelemetry = async (name: string, attributes?: Record<string, unknown>) => {
       await runtime.telemetry.record({
         name,
         attributes,
@@ -242,7 +215,7 @@ export class Agent {
 
     const closeSpan = async (
       span: AgentTraceSpan | null | undefined,
-      attributes?: Record<string, unknown>,
+      attributes?: Record<string, unknown>
     ) => {
       if (!span) {
         return;
@@ -263,7 +236,7 @@ export class Agent {
 
     const runContributors = async (
       stage: "run-init" | "before-turn",
-      context: AgentHookBaseContext,
+      context: AgentHookBaseContext
     ) => {
       for (const contributor of contributors) {
         if ((contributor.stage ?? "run-init") !== stage) {
@@ -274,10 +247,8 @@ export class Agent {
     };
 
     const runRuntimeHooks = async <TContext>(
-      select: (
-        hook: AgentRuntimeHook,
-      ) => ((context: TContext) => void | Promise<void>) | undefined,
-      context: TContext,
+      select: (hook: AgentRuntimeHook) => ((context: TContext) => void | Promise<void>) | undefined,
+      context: TContext
     ) => {
       for (const hook of runtimeHooks) {
         const handler = select(hook);
@@ -292,9 +263,9 @@ export class Agent {
       error: AgentErrorPayload,
       runSpan: AgentTraceSpan | null,
       turnSpan?: AgentTraceSpan | null,
-      turnId?: string,
+      turnId?: string
     ) {
-      await runRuntimeHooks((hook) => hook.onRunError, {
+      await runRuntimeHooks(hook => hook.onRunError, {
         system: buildSystemState(turnId),
         state,
         runtime,
@@ -344,7 +315,7 @@ export class Agent {
       },
     });
     await runContributors("run-init", initContext);
-    await runRuntimeHooks((hook) => hook.onRunInit, initContext);
+    await runRuntimeHooks(hook => hook.onRunInit, initContext);
 
     await recordTelemetry("agent.run.start", {
       traceId,
@@ -381,7 +352,7 @@ export class Agent {
         publishNotice,
       };
       await runContributors("before-turn", turnContext);
-      await runRuntimeHooks((hook) => hook.onBeforeTurn, {
+      await runRuntimeHooks(hook => hook.onBeforeTurn, {
         ...turnContext,
         turnId,
       });
@@ -401,9 +372,7 @@ export class Agent {
       yield* flushPublishedNotices(turnId);
 
       try {
-        const turnToolSchemas = state.toolModeActive
-          ? turnContext.system.toolSchemas
-          : undefined;
+        const turnToolSchemas = state.toolModeActive ? turnContext.system.toolSchemas : undefined;
         logAgentTokenBudget({
           traceId,
           runId,
@@ -527,12 +496,12 @@ export class Agent {
           },
           runSpan,
           turnSpan,
-          turnId,
+          turnId
         );
         return;
       }
 
-      await runRuntimeHooks((hook) => hook.onAfterModelTurn, {
+      await runRuntimeHooks(hook => hook.onAfterModelTurn, {
         ...turnContext,
         turnId,
         result: turnResult,
@@ -551,8 +520,7 @@ export class Agent {
         content: turnResult.content,
         reasoningContent: turnResult.reasoningContent,
         providerMetadata: turnResult.providerMetadata,
-        toolCalls:
-          turnResult.type === "tool_calls" ? turnResult.toolCalls : undefined,
+        toolCalls: turnResult.type === "tool_calls" ? turnResult.toolCalls : undefined,
       });
       await recordTelemetry("agent.turn.finish", {
         turnId,
@@ -583,7 +551,7 @@ export class Agent {
           providerMetadata: turnResult.providerMetadata,
           finalMessage,
         };
-        await runRuntimeHooks((hook) => hook.onRunFinish, {
+        await runRuntimeHooks(hook => hook.onRunFinish, {
           ...turnContext,
           turnId,
           result,
@@ -619,14 +587,13 @@ export class Agent {
           },
           runSpan,
           turnSpan,
-          turnId,
+          turnId
         );
         return;
       }
 
       if (
-        toolLoopCount >=
-        (this.config.policies?.maxToolCallLoops ?? DEFAULT_MAX_TOOL_CALL_LOOPS)
+        toolLoopCount >= (this.config.policies?.maxToolCallLoops ?? DEFAULT_MAX_TOOL_CALL_LOOPS)
       ) {
         yield* emitRunError(
           {
@@ -635,13 +602,13 @@ export class Agent {
           },
           runSpan,
           turnSpan,
-          turnId,
+          turnId
         );
         return;
       }
 
       const currentToolCalls = turnResult.toolCalls;
-      let executions = currentToolCalls.map<AgentToolExecutionState>((call) => {
+      let executions = currentToolCalls.map<AgentToolExecutionState>(call => {
         const tool = snapshot.findTool(call.function.name);
         return {
           toolCallId: call.id,
@@ -671,9 +638,7 @@ export class Agent {
       ];
 
       for (const call of currentToolCalls) {
-        const execIndex = executions.findIndex(
-          (execution) => execution.toolCallId === call.id,
-        );
+        const execIndex = executions.findIndex(execution => execution.toolCallId === call.id);
         const executionStartTime = Date.now();
         const toolSpan = await runtime.tracing.startSpan({
           name: "agent.tool_call",
@@ -686,7 +651,7 @@ export class Agent {
           },
         });
         const currentExecution = executions[execIndex];
-        await runRuntimeHooks((hook) => hook.onBeforeToolCall, {
+        await runRuntimeHooks(hook => hook.onBeforeToolCall, {
           ...turnContext,
           turnId,
           call,
@@ -694,6 +659,78 @@ export class Agent {
           executions,
         });
         const resolvedTool = snapshot.findTool(call.function.name);
+        const authorization = {
+          call,
+          tool: resolvedTool,
+          execution: currentExecution,
+          conversationKey,
+          toolContext: request.toolContext,
+          signal: controller.signal,
+        };
+        if (
+          this.config.policies?.authorizeToolCall &&
+          this.config.policies.shouldAuthorizeToolCall?.(authorization)
+        ) {
+          executions = executions.map((execution, index) =>
+            index === execIndex ? { ...execution, status: "awaiting-approval" as const } : execution
+          );
+          yield await emit({
+            type: "tool-call-updated",
+            ...buildBaseEvent(),
+            turnId,
+            toolCalls: currentToolCalls,
+            execution: cloneExecution(executions[execIndex]),
+            executions: cloneExecutions(executions),
+          });
+          let decision;
+          try {
+            decision = await this.config.policies.authorizeToolCall(authorization);
+          } catch (error) {
+            if (isAbortError(error as Error) || controller.signal.aborted) {
+              await closeSpan(toolSpan, { status: "cancelled" });
+              yield* emitRunError(toErrorPayload(error as Error), runSpan, undefined, turnId);
+              return;
+            }
+            decision = {
+              approved: false as const,
+              reason: (error as Error).message,
+            };
+          }
+          if (!decision.approved) {
+            const content = `用户拒绝执行工具 ${call.function.name}${
+              decision.reason ? `：${decision.reason}` : ""
+            }。不要重试同一操作，请换一种方式或询问用户。`;
+            state.messages = [...state.messages, buildToolResultMessage(call, content)];
+            executions = executions.map((execution, index) =>
+              index === execIndex
+                ? {
+                    ...execution,
+                    status: "cancelled" as const,
+                    error: content,
+                    metadata: { ...execution.metadata, denied: true },
+                    duration: Date.now() - executionStartTime,
+                  }
+                : execution
+            );
+            await runRuntimeHooks(hook => hook.onAfterToolCall, {
+              ...turnContext,
+              turnId,
+              call,
+              execution: executions[execIndex],
+              executions,
+            });
+            yield await emit({
+              type: "tool-call-finished",
+              ...buildBaseEvent(),
+              turnId,
+              toolCalls: currentToolCalls,
+              execution: cloneExecution(executions[execIndex]),
+              executions: cloneExecutions(executions),
+            });
+            await closeSpan(toolSpan, { status: "denied" });
+            continue;
+          }
+        }
         const nextExecution = {
           ...currentExecution,
           toolName: call.function.name,
@@ -702,24 +739,20 @@ export class Agent {
           status: "executing" as const,
         };
         executions = executions.map((execution, index) =>
-          index === execIndex ? nextExecution : execution,
+          index === execIndex ? nextExecution : execution
         );
         const defaultTimeoutMs =
           this.config.policies?.defaultToolTimeoutMs ?? DEFAULT_TOOL_TIMEOUT_MS;
         const toolExecutionPolicy = resolvedTool?.execution;
         const toolTimeoutOverride = toolExecutionPolicy?.timeoutMs;
         const shouldSkipTimeoutByPolicy =
-          this.config.policies?.shouldSkipToolTimeout?.(call.function.name) ??
-          false;
-        const shouldSkipTimeout =
-          toolTimeoutOverride === null || shouldSkipTimeoutByPolicy;
+          this.config.policies?.shouldSkipToolTimeout?.(call.function.name) ?? false;
+        const shouldSkipTimeout = toolTimeoutOverride === null || shouldSkipTimeoutByPolicy;
         const timeoutMs =
           typeof toolTimeoutOverride === "number"
             ? toolTimeoutOverride
-            : (this.config.policies?.getToolTimeoutMs?.(
-                call.function.name,
-                defaultTimeoutMs,
-              ) ?? defaultTimeoutMs);
+            : (this.config.policies?.getToolTimeoutMs?.(call.function.name, defaultTimeoutMs) ??
+              defaultTimeoutMs);
         const maxRetry = shouldSkipTimeoutByPolicy
           ? 0
           : (this.config.policies?.maxToolRetries ?? DEFAULT_MAX_TOOL_RETRIES);
@@ -764,8 +797,7 @@ export class Agent {
                   }),
                 ]);
 
-            const content =
-              toolResult?.content ?? "工具没有返回内容，已返回默认提示。";
+            const content = toolResult?.content ?? "工具没有返回内容，已返回默认提示。";
             const duration = Date.now() - executionStartTime;
             state.messages = [
               ...state.messages,
@@ -782,22 +814,16 @@ export class Agent {
                         ? "failed"
                         : "success",
                     output:
-                      toolResult?.isParameterError || toolResult?.isCancelled
-                        ? undefined
-                        : content,
+                      toolResult?.isParameterError || toolResult?.isCancelled ? undefined : content,
                     error:
-                      toolResult?.isParameterError || toolResult?.isCancelled
-                        ? content
-                        : undefined,
-                    errorType: toolResult?.isParameterError
-                      ? "parameter"
-                      : undefined,
+                      toolResult?.isParameterError || toolResult?.isCancelled ? content : undefined,
+                    errorType: toolResult?.isParameterError ? "parameter" : undefined,
                     metadata: toolResult?.metadata,
                     duration,
                   }
-                : execution,
+                : execution
             );
-            await runRuntimeHooks((hook) => hook.onAfterToolCall, {
+            await runRuntimeHooks(hook => hook.onAfterToolCall, {
               ...turnContext,
               turnId,
               call,
@@ -838,19 +864,11 @@ export class Agent {
                 errorMessage: currentError.message,
                 duration: Date.now() - executionStartTime,
               });
-              yield* emitRunError(
-                toErrorPayload(currentError),
-                runSpan,
-                undefined,
-                turnId,
-              );
+              yield* emitRunError(toErrorPayload(currentError), runSpan, undefined, turnId);
               return;
             }
             const isTransient =
-              this.config.policies?.isTransientToolError?.(
-                currentError,
-                call,
-              ) ?? false;
+              this.config.policies?.isTransientToolError?.(currentError, call) ?? false;
 
             if (attempt < maxRetry && isTransient) {
               executions = executions.map((execution, index) =>
@@ -863,7 +881,7 @@ export class Agent {
                       retryCount: attempt + 1,
                       duration: Date.now() - executionStartTime,
                     }
-                  : execution,
+                  : execution
               );
 
               yield await emit({
@@ -876,11 +894,8 @@ export class Agent {
               });
 
               const retryDelay =
-                this.config.policies?.retryDelayMs?.(
-                  attempt + 1,
-                  currentError,
-                  call,
-                ) ?? 1000 * (attempt + 1);
+                this.config.policies?.retryDelayMs?.(attempt + 1, currentError, call) ??
+                1000 * (attempt + 1);
               await delay(retryDelay);
 
               executions = executions.map((execution, index) =>
@@ -889,7 +904,7 @@ export class Agent {
                       ...execution,
                       status: "executing",
                     }
-                  : execution,
+                  : execution
               );
 
               yield await emit({
@@ -923,9 +938,9 @@ export class Agent {
                   retryCount: maxRetry,
                   duration: Date.now() - executionStartTime,
                 }
-              : execution,
+              : execution
           );
-          await runRuntimeHooks((hook) => hook.onAfterToolCall, {
+          await runRuntimeHooks(hook => hook.onAfterToolCall, {
             ...turnContext,
             turnId,
             call,

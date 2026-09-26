@@ -38,8 +38,7 @@ import useLLMConfig from "@/hooks/useLLMConfig";
 import useSettingStore from "@/stores/useSettingStore";
 import useSkillStore from "@/stores/useSkillStore";
 import type { EditTextHandle } from "@/components/EditText";
-import { cn, toast, useEdgeFade } from "@tau/ui";
-import { FADE_SCROLL_CLASS } from "@/components/FadeScroll/fadeScrollClass";
+import { FADE_SCROLL_CLASS, cn, toast, useEdgeFade } from "@tau/ui";
 import {
   ChatContainerCore,
   type ChatContainerCoreHandle,
@@ -91,6 +90,15 @@ import {
   isContextLengthError,
 } from "@/utils/chat-retry";
 
+/** 本条用户消息里 `$` 点名的 Skill（folderName，去重） */
+const extractForcedSkills = (requestMessage: RequestMessage): string[] => {
+  const content = requestMessage.content;
+  if (!Array.isArray(content)) return [];
+  return Array.from(
+    new Set(content.flatMap(item => (item.type === "text" && item.skills ? item.skills : [])))
+  );
+};
+
 const ENABLE_TITLE_SUMMARY = true;
 interface ChatScrollAnchor {
   index: number;
@@ -124,6 +132,8 @@ interface ChatContainerProps {
   createMessageLoading: boolean;
   hideInput?: boolean; // 控制是否隐藏输入框
   chatScope?: string; // 对话作用域，用于构建 ask-question 会话键
+  /** 工具作用域：只有本对话能用该作用域注册的页面专属工具，输入框 MCP 面板也只列它们 */
+  toolScope?: string;
   preserveScrollPosition?: boolean; // 侧边栏收起后重新打开时恢复滚动位置
   scrollPositionScope?: string; // 滚动位置缓存作用域，不影响模型会话键
   onChatCreated?: (chatId: number) => void; // 新对话创建后的回调
@@ -215,6 +225,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       createMessageLoading,
       hideInput = false,
       chatScope = "main-chat",
+      toolScope,
       preserveScrollPosition = false,
       scrollPositionScope,
       onChatCreated,
@@ -842,7 +853,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               enableTools: true,
               conversationKey,
               toolContext: options?.toolContext,
+              toolScope,
               skills,
+              forcedSkills: extractForcedSkills(requestMessage),
+              interactiveApproval: true,
               reasoningEffort: chatModelConfig?.features?.thinking
                 ? normalizedReasoningEffort
                 : undefined,
@@ -1017,10 +1031,14 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                       execution.status === "executing" ||
                       execution.status === "retrying")
                 );
+                // 工具等待用户确认（权限模式）同样算等待输入
+                const awaitingApproval = executions.some(
+                  execution => execution.status === "awaiting-approval"
+                );
                 if (activeRunId) {
                   const currentRun = chatRunManager.getSnapshot(conversationKey as ChatSessionKey);
                   const nextStatus =
-                    pendingAskQuestionExecutions.length > 0
+                    pendingAskQuestionExecutions.length > 0 || awaitingApproval
                       ? "waiting_input"
                       : currentRun?.status === "waiting_input"
                         ? "running"
@@ -2055,6 +2073,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                   ref={chatInputRef}
                   {...desktopInputProps}
                   compact={compact}
+                  toolScope={toolScope}
                   modelGroups={modelGroups}
                   currentModelKey={currentModelKey}
                   onModelSelect={handleModelSelect}

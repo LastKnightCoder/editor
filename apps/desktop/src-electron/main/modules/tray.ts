@@ -2,13 +2,11 @@ import { app, Tray, Menu, nativeImage } from "electron";
 import path from "node:path";
 import { existsSync } from "node:fs";
 import log from "electron-log";
+import { createMainWindow, showOrCreateMainWindow } from "../windows";
 
 let tray: Tray | null = null;
-let windowManager: any = null;
 
-export const init = async (winManager: any, preloadPath: string) => {
-  windowManager = winManager;
-
+export const init = async (preloadPath: string) => {
   // macOS 使用 Dock 和状态栏图标
   if (process.platform === "darwin") {
     createDockMenu();
@@ -57,9 +55,7 @@ function createMacOSStatusBarIcon(preloadPath: string) {
   // 绑定点击事件（只绑定一次）
   tray.on("click", () => {
     log.debug("状态栏图标被点击");
-    if (windowManager) {
-      windowManager.showOrCreateMainWindow();
-    }
+    showOrCreateMainWindow();
   });
 
   // 设置菜单
@@ -72,10 +68,8 @@ function createMacOSStatusBarIcon(preloadPath: string) {
 function getMacOSStatusBarIconPath(preloadPath: string) {
   // 首选模板图标，macOS 状态栏建议使用模板图标
   const templateIconPath = path.join(
-    app.isPackaged
-      ? process.resourcesPath
-      : path.join(process.env.APP_ROOT || "", "build"),
-    "icon-template.png",
+    app.isPackaged ? process.resourcesPath : path.join(process.env.APP_ROOT || "", "build"),
+    "icon-template.png"
   );
 
   // 检查模板图标是否存在
@@ -85,10 +79,8 @@ function getMacOSStatusBarIconPath(preloadPath: string) {
 
   // 使用标准图标作为备选
   const standardIconPath = path.join(
-    app.isPackaged
-      ? process.resourcesPath
-      : path.join(process.env.APP_ROOT || "", "build"),
-    "icon.png",
+    app.isPackaged ? process.resourcesPath : path.join(process.env.APP_ROOT || "", "build"),
+    "icon.png"
   );
 
   // 检查标准图标是否存在
@@ -97,11 +89,7 @@ function getMacOSStatusBarIconPath(preloadPath: string) {
   }
 
   // 尝试备用路径
-  const alternativeIconPath = path.join(
-    path.dirname(preloadPath),
-    "../../build",
-    "icon.png",
-  );
+  const alternativeIconPath = path.join(path.dirname(preloadPath), "../../build", "icon.png");
 
   if (existsSync(alternativeIconPath)) {
     return alternativeIconPath;
@@ -116,9 +104,7 @@ function createDockMenu() {
     {
       label: "打开新窗口",
       click: () => {
-        if (windowManager) {
-          windowManager.createMainWindow();
-        }
+        createMainWindow();
       },
     },
   ]);
@@ -131,10 +117,8 @@ function createTray(preloadPath: string) {
 
   // 托盘图标路径，根据平台选择适当的图标
   const iconPath = path.join(
-    app.isPackaged
-      ? process.resourcesPath
-      : path.join(process.env.APP_ROOT || "", "build"),
-    process.platform === "win32" ? "icon.ico" : "icon.png",
+    app.isPackaged ? process.resourcesPath : path.join(process.env.APP_ROOT || "", "build"),
+    process.platform === "win32" ? "icon.ico" : "icon.png"
   );
 
   // 检查图标文件是否存在
@@ -147,7 +131,7 @@ function createTray(preloadPath: string) {
     const alternativeIconPath = path.join(
       path.dirname(preloadPath),
       "../../build",
-      process.platform === "win32" ? "icon.ico" : "icon.png",
+      process.platform === "win32" ? "icon.ico" : "icon.png"
     );
 
     if (existsSync(alternativeIconPath)) {
@@ -175,9 +159,7 @@ function createTray(preloadPath: string) {
 
     // 绑定点击事件（只绑定一次）
     tray.on("click", () => {
-      if (windowManager) {
-        windowManager.showOrCreateMainWindow();
-      }
+      showOrCreateMainWindow();
     });
 
     // 创建托盘上下文菜单
@@ -200,9 +182,7 @@ function updateTrayMenu() {
       label: "打开新窗口",
       click: () => {
         log.info("从托盘菜单打开新窗口");
-        if (windowManager) {
-          windowManager.createMainWindow();
-        }
+        createMainWindow();
       },
     },
     { type: "separator" },

@@ -1,0 +1,975 @@
+/* Skill 管理页样板间 · 页面专属样式（主题 / 壳层复用 ../chat/shared.css，原子复用 ../mcp/mcp.css） */
+
+/* 调用方式 / 来源徽标 */
+.s-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  white-space: nowrap;
+  background: var(--sunken);
+  color: var(--ink-2);
+}
+.s-mode svg.lucide {
+  width: 11px;
+  height: 11px;
+}
+.s-mode.auto {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+.s-mode.manual {
+  background: var(--info-soft);
+  color: var(--info);
+}
+.s-mode.always {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.s-mode.off {
+  background: transparent;
+  border: 1px dashed var(--line-1);
+  color: var(--ink-3);
+}
+.s-src {
+  font-size: 10.5px;
+  line-height: 18px;
+  padding: 0 6px;
+  border-radius: 5px;
+  border: 1px solid var(--line-1);
+  color: var(--ink-3);
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.s-src svg.lucide {
+  width: 10px;
+  height: 10px;
+}
+.s-warn {
+  color: var(--warn);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.s-warn svg.lucide {
+  width: 12px;
+  height: 12px;
+}
+
+/* 上下文预算条 */
+.s-budget {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.s-budget .bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--sunken);
+  overflow: hidden;
+  display: flex;
+  min-width: 80px;
+}
+.s-budget .bar i {
+  display: block;
+  height: 100%;
+}
+.s-budget .bar .a {
+  background: var(--ok);
+}
+.s-budget .bar .w {
+  background: var(--warn);
+}
+.s-budget .lg {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink-3);
+  font-size: 11.5px;
+}
+.s-budget .lg i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+/* 概览：两栏 */
+.s-ov {
+  display: grid;
+  grid-template-columns: 1fr 230px;
+  gap: 22px;
+  align-items: start;
+}
+.s-trigger {
+  border-radius: var(--r-md);
+  background: var(--page);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+.s-trigger .h {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.s-trigger .h svg.lucide {
+  width: 13px;
+  height: 13px;
+}
+.s-trigger .t {
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--ink-1);
+}
+.s-trigger .kw {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.s-trigger .kw span {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-2);
+}
+.s-doc {
+  border: 1px solid var(--line-1);
+  border-radius: var(--r-md);
+  padding: 16px 20px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.s-doc h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+}
+.s-doc h4 {
+  margin: 14px 0 4px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.s-doc p {
+  margin: 0 0 8px;
+}
+.s-doc ol,
+.s-doc ul {
+  margin: 0 0 8px;
+  padding-left: 20px;
+}
+.s-doc code {
+  font: 11.5px var(--mono);
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--page);
+}
+.s-doc .ref {
+  color: var(--accent-text);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+.s-doc-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.s-doc-bar .sp {
+  flex: 1;
+}
+.s-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-size: 12px;
+}
+.s-meta .k {
+  color: var(--ink-3);
+  font-size: 11.5px;
+  margin-bottom: 3px;
+}
+.s-meta .v {
+  color: var(--ink-1);
+}
+.s-meta .v.mono {
+  font: 11.5px var(--mono);
+  word-break: break-all;
+  color: var(--ink-2);
+}
+.s-meta .chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.s-meta .chips span {
+  font: 10.5px/18px var(--mono);
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--page);
+  color: var(--ink-2);
+}
+.s-meta .files div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  color: var(--ink-2);
+  font: 11.5px var(--mono);
+}
+.s-meta .files svg.lucide {
+  width: 13px;
+  height: 13px;
+  color: var(--ink-3);
+}
+
+/* 编辑器：文件树 + 编辑区 */
+.s-editor {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  border-top: 1px solid var(--line-2);
+}
+.s-editor.boxed {
+  border: 1px solid var(--line-1);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  min-height: 520px;
+}
+.s-tree {
+  width: 210px;
+  flex: none;
+  border-right: 1px solid var(--line-2);
+  padding: 10px 6px;
+  font-size: 12.5px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--page);
+}
+.s-tree .th {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px 8px;
+  color: var(--ink-3);
+  font-size: 11.5px;
+}
+.s-tree .th .sp {
+  flex: 1;
+}
+.s-tree .th svg.lucide {
+  width: 14px;
+  height: 14px;
+}
+.s-tree .f {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 6px;
+  color: var(--ink-2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.s-tree .f:hover {
+  background: var(--hover);
+}
+.s-tree .f.on {
+  background: var(--selected);
+  color: var(--ink-1);
+  font-weight: 500;
+}
+.s-tree .f svg.lucide {
+  width: 14px;
+  height: 14px;
+  color: var(--ink-3);
+  flex: none;
+}
+.s-tree .f .dirty {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-left: auto;
+}
+.s-tree .tip {
+  margin-top: auto;
+  padding: 8px;
+  font-size: 11px;
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+.s-edit {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.s-edit-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line-2);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.s-edit-bar .sp {
+  flex: 1;
+}
+.s-edit-bar .path {
+  font: 12px var(--mono);
+  color: var(--ink-2);
+}
+.s-edit-body {
+  flex: 1;
+  overflow: auto;
+  padding: 16px 22px 24px;
+}
+.s-fm {
+  border-radius: var(--r-md);
+  border: 1px solid var(--line-1);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.s-fm .hd {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.s-fm .hd .sp {
+  flex: 1;
+}
+.s-fm .hd svg.lucide {
+  width: 13px;
+  height: 13px;
+}
+.s-fm .row2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.s-count {
+  margin-left: auto;
+  font-weight: 400;
+  color: var(--ink-3);
+  font-size: 11px;
+}
+.s-hint {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.s-hint svg.lucide {
+  width: 12px;
+  height: 12px;
+}
+.s-hint.ok {
+  color: var(--ok);
+}
+.s-body {
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--ink-1);
+}
+.s-body h3 {
+  font-size: 17px;
+  margin: 0 0 8px;
+}
+.s-body h4 {
+  font-size: 14px;
+  margin: 14px 0 4px;
+}
+.s-body p,
+.s-body ol,
+.s-body ul {
+  margin: 0 0 8px;
+}
+.s-body ol,
+.s-body ul {
+  padding-left: 22px;
+}
+.s-body code {
+  font: 12px var(--mono);
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--page);
+}
+.s-body .caret {
+  display: inline-block;
+  width: 1.5px;
+  height: 16px;
+  background: var(--accent);
+  vertical-align: -3px;
+  margin-left: 1px;
+}
+.s-src-code {
+  font: 12px/1.75 var(--mono);
+  white-space: pre;
+  color: var(--ink-1);
+}
+.s-src-code .fm {
+  color: var(--ink-3);
+}
+.s-src-code .k {
+  color: var(--accent-text);
+}
+
+/* 设置页 */
+.s-set {
+  max-width: 660px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.s-set h4 {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.s-set .d {
+  font-size: 12px;
+  color: var(--ink-3);
+  margin: 0 0 10px;
+}
+.s-modes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.s-modes .o {
+  border: 1px solid var(--line-1);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+.s-modes .o b {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-1);
+  font-weight: 600;
+  font-size: 12.5px;
+  margin-bottom: 2px;
+}
+.s-modes .o b svg.lucide {
+  width: 14px;
+  height: 14px;
+}
+.s-modes .o.on {
+  border-color: var(--accent);
+  box-shadow: var(--focus);
+}
+.s-modes .o .fm {
+  font: 10.5px var(--mono);
+  color: var(--ink-3);
+  margin-top: 4px;
+}
+.s-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.s-checks label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+}
+.s-checks .cb {
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  border: 1.5px solid var(--line-1);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.s-checks .cb.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--ink-inv);
+}
+.s-checks .cb svg.lucide {
+  width: 11px;
+  height: 11px;
+}
+.s-checks .h {
+  color: var(--ink-3);
+  font-size: 11.5px;
+}
+.s-danger {
+  border: 1px solid var(--danger-soft);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+.s-danger .sp {
+  flex: 1;
+}
+.s-danger .btn.d {
+  color: var(--danger);
+}
+
+/* 使用记录 */
+.s-use {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  border-top: 1px solid var(--line-2);
+  font-size: 12.5px;
+}
+.s-use:first-of-type {
+  border-top: 0;
+}
+.s-use .m {
+  flex: 1;
+  min-width: 0;
+}
+.s-use .t {
+  font-weight: 500;
+}
+.s-use .s {
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.s-use .how {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--page);
+  color: var(--ink-2);
+}
+.s-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.s-stats > div {
+  border-radius: var(--r-md);
+  background: var(--page);
+  padding: 10px 14px;
+}
+.s-stats .n {
+  font-size: 20px;
+  font-weight: 600;
+}
+.s-stats .k {
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.s-spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 36px;
+  margin-top: 6px;
+}
+.s-spark i {
+  flex: 1;
+  background: var(--accent-soft);
+  border-radius: 2px 2px 0 0;
+}
+.s-spark i.hi {
+  background: var(--accent);
+}
+
+/* 添加弹窗：新建模板 / 导入落区 / 关联目录 */
+.s-tpl {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.s-drop {
+  border: 1.5px dashed var(--line-1);
+  border-radius: var(--r-lg);
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-2);
+  font-size: 12.5px;
+  text-align: center;
+}
+.s-drop svg.lucide {
+  width: 26px;
+  height: 26px;
+  color: var(--ink-3);
+}
+.s-drop b {
+  color: var(--ink-1);
+  font-size: 13.5px;
+}
+.s-or {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-3);
+  font-size: 11.5px;
+  margin: 14px 0;
+}
+.s-or::before,
+.s-or::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line-2);
+}
+.s-link-dir {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border: 1px solid var(--line-1);
+  border-radius: var(--r-md);
+  margin-bottom: 8px;
+}
+.s-link-dir .m {
+  flex: 1;
+  min-width: 0;
+}
+.s-link-dir .n {
+  font-weight: 500;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.s-link-dir .p {
+  font: 11.5px var(--mono);
+  color: var(--ink-3);
+}
+.s-link-dir .c {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.s-ai-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.s-ai-chat .u,
+.s-ai-chat .a {
+  font-size: 12.5px;
+  line-height: 1.65;
+  padding: 9px 12px;
+  border-radius: 12px;
+  max-width: 88%;
+}
+.s-ai-chat .u {
+  align-self: flex-end;
+  background: var(--accent-soft);
+  color: var(--ink-1);
+}
+.s-ai-chat .a {
+  background: var(--page);
+}
+.s-ai-chat .draft {
+  border: 1px solid var(--line-1);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  padding: 10px 12px;
+  margin-top: 8px;
+}
+.s-ai-chat .draft .dh {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.s-ai-chat .draft .dh .sp {
+  flex: 1;
+}
+
+/* 输入框：斜杠菜单 / 对话里的 Skill 加载卡 */
+.s-slash {
+  position: absolute;
+  z-index: 38;
+  width: 380px;
+  background: var(--surface);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-float);
+  padding: 6px;
+}
+.s-slash .ph {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.s-slash .ph .sp {
+  flex: 1;
+}
+.s-slash .r {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: var(--r-sm);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.s-slash .r.on {
+  background: var(--selected);
+}
+.s-slash .r .x-ic {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+}
+.s-slash .r .x-ic svg.lucide {
+  width: 13px;
+  height: 13px;
+}
+.s-slash .r .m {
+  flex: 1;
+  min-width: 0;
+}
+.s-slash .r .n {
+  font-weight: 500;
+}
+.s-slash .r .n .k {
+  font: 11.5px var(--mono);
+  color: var(--ink-3);
+  margin-left: 6px;
+  font-weight: 400;
+}
+.s-slash .r .d {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.s-slash .sep {
+  height: 1px;
+  background: var(--line-2);
+  margin: 4px 6px;
+}
+.s-slash .foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  color: var(--ink-3);
+  font-size: 11.5px;
+}
+.s-slash .foot .sp {
+  flex: 1;
+}
+.s-loaded {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line-1);
+  font-size: 12px;
+  color: var(--ink-2);
+  margin: 2px 0 10px;
+}
+.s-loaded svg.lucide {
+  width: 13px;
+  height: 13px;
+}
+.s-loaded b {
+  font-weight: 500;
+  color: var(--ink-1);
+}
+
+/* 方案 C：设置式单列 */
+.s-row-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 8px 0 10px;
+  border-radius: 7px;
+  border: 1px solid var(--line-1);
+  font-size: 12px;
+  color: var(--ink-2);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.s-row-mode svg.lucide {
+  width: 12px;
+  height: 12px;
+}
+.s-menu {
+  position: absolute;
+  z-index: 38;
+  width: 280px;
+  background: var(--surface);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-float);
+  padding: 5px;
+}
+.s-menu .it {
+  display: flex;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.s-menu .it:hover,
+.s-menu .it.on {
+  background: var(--hover);
+}
+.s-menu .it svg.lucide {
+  width: 15px;
+  height: 15px;
+  margin-top: 2px;
+  color: var(--ink-2);
+  flex: none;
+}
+.s-menu .it .m {
+  flex: 1;
+}
+.s-menu .it b {
+  font-weight: 500;
+  display: block;
+}
+.s-menu .it span {
+  color: var(--ink-3);
+  font-size: 11.5px;
+}
+.s-menu .it .ck {
+  color: var(--accent);
+}
+.s-menu .sep {
+  height: 1px;
+  background: var(--line-2);
+  margin: 4px 6px;
+}
+
+/* 编辑页（方案 B / C 推入的整页编辑器） */
+.s-page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.s-page-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--line-2);
+}
+.s-page-head .t {
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.s-page-head .sp {
+  flex: 1;
+}
+.s-page-head .saved {
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.s-try {
+  width: 320px;
+  flex: none;
+  border-left: 1px solid var(--line-2);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.s-try .hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line-2);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.s-try .hd .sp {
+  flex: 1;
+}
+.s-try .bd {
+  flex: 1;
+  overflow: auto;
+  padding: 12px 14px;
+}
+.s-try .ft {
+  padding: 10px 12px;
+}
+.s-try .ft .composer {
+  padding: 8px 10px 6px;
+}
+.s-try .ft textarea {
+  min-height: 28px;
+}
+
+/* 卡片库：示例 Skill 卡片的「复制」按钮 & 卡片上的调用方式 */
+.x-card .ft .btn {
+  height: 26px;
+  padding: 0 10px;
+}
+.x-card.off .top .n,
+.x-card.off .x-ic,
+.x-card.off .d {
+  opacity: 0.55;
+}
+.s-budget > span {
+  white-space: nowrap;
+}
+.x-drawer .s-ov {
+  grid-template-columns: 1fr;
+}
+.x-drawer .s-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  order: -1;
+  background: var(--page);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+}
+.x-drawer .s-ov > div:first-child {
+  order: 1;
+}

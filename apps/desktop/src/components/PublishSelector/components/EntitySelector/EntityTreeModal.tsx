@@ -108,7 +108,7 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
         context={typeLabel}
         subtitle="勾选要公开的文档，点击标题预览内容"
         width={1040}
-        fill
+        height={760}
         impact={
           selectedCount === 0 && totalIds.length > 0
             ? `未勾选任何文档，保存后将不再发布此${typeLabel}`
@@ -131,91 +131,93 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
           </>
         }
       >
-        <div className="grid min-h-0 flex-1 grid-cols-[280px_minmax(0,1fr)]">
-          {/* 左侧：文档树——列表自身滚动，头部钉住 */}
-          <div className="border-line-2 flex min-h-0 flex-col border-r">
-            <div className="flex shrink-0 items-center gap-2 pb-1.5 pl-[18px] pr-2.5 pt-3">
-              <span className="text-ink-3 text-[11.5px] font-medium">文档结构</span>
-              <span className="font-tau-mono text-ink-3 text-[11px] tabular-nums">
-                {selectedCount}/{totalIds.length}
-              </span>
-              {!loading && totalIds.length > 0 && (
-                <span className="ml-auto">
-                  <SelectAllButton allSelected={allSelected} onClick={handleSelectAll} />
+        <div className="border-line-2 mt-[14px] flex min-h-0 flex-1 flex-col overflow-hidden border-t">
+          <div className="grid min-h-0 flex-1 grid-cols-[280px_minmax(0,1fr)]">
+            {/* 左侧：文档树——列表自身滚动，头部钉住 */}
+            <div className="border-line-2 flex min-h-0 flex-col border-r">
+              <div className="flex shrink-0 items-center gap-2 pb-1.5 pl-[18px] pr-2.5 pt-3">
+                <span className="text-ink-3 text-[11.5px] font-medium">文档结构</span>
+                <span className="font-tau-mono text-ink-3 text-[11px] tabular-nums">
+                  {selectedCount}/{totalIds.length}
                 </span>
+                {!loading && totalIds.length > 0 && (
+                  <span className="ml-auto">
+                    <SelectAllButton allSelected={allSelected} onClick={handleSelectAll} />
+                  </span>
+                )}
+              </div>
+              {loading ? (
+                <div className="flex flex-1 items-center justify-center">
+                  <Spinner className="size-6" />
+                </div>
+              ) : nodes.length === 0 ? (
+                <div className="text-ink-3 flex flex-1 items-center justify-center text-[13px]">
+                  暂无可发布的文档
+                </div>
+              ) : (
+                <FadeScroll className="mb-3 min-h-0 flex-1 px-1.5 pb-1">
+                  {nodes.map(node => (
+                    <DocTreeNodeItem
+                      key={node.id}
+                      node={node}
+                      selectedIds={selectedIds}
+                      onToggle={handleToggleNode}
+                      onClick={handleClickNode}
+                      activeNodeId={activeNodeId}
+                    />
+                  ))}
+                </FadeScroll>
               )}
             </div>
-            {loading ? (
-              <div className="flex flex-1 items-center justify-center">
-                <Spinner className="size-6" />
-              </div>
-            ) : nodes.length === 0 ? (
-              <div className="text-ink-3 flex flex-1 items-center justify-center text-[13px]">
-                暂无可发布的文档
-              </div>
-            ) : (
-              <FadeScroll className="mb-3 min-h-0 flex-1 px-1.5 pb-1">
-                {nodes.map(node => (
-                  <DocTreeNodeItem
-                    key={node.id}
-                    node={node}
-                    selectedIds={selectedIds}
-                    onToggle={handleToggleNode}
-                    onClick={handleClickNode}
-                    activeNodeId={activeNodeId}
-                  />
-                ))}
-              </FadeScroll>
-            )}
-          </div>
 
-          {/* 右侧：预览——仅正文区滚动；空态/文件夹态居中不滚动 */}
-          <div className="flex min-h-0 min-w-0 flex-col">
-            {previewNode ? (
-              <>
-                <div className="border-line-2 flex shrink-0 items-center gap-2.5 border-b px-7 py-3">
-                  <span
-                    className={clsx(
-                      "size-2 shrink-0 rounded-full",
-                      selectedIds.has(previewNode.id) ? "bg-accent" : "bg-track"
-                    )}
-                  />
-                  <h3 className="text-tau-body text-ink-1 min-w-0 truncate font-medium">
-                    {previewNode.title}
-                  </h3>
-                  <span className="text-tau-micro text-ink-3 ml-auto shrink-0">
-                    {!previewNode.hasContent
-                      ? "文件夹"
-                      : selectedIds.has(previewNode.id)
-                        ? "将发布"
-                        : "未勾选"}
-                  </span>
-                </div>
-                {previewNode.hasContent ? (
-                  <FadeScroll className="min-h-0 flex-1 px-7 pb-6 pt-4">
-                    <Editor
-                      key={previewNode.id}
-                      initValue={previewNode.content}
-                      readonly
-                      extensions={dynamicExtensions}
-                      className="text-tau-body text-ink-1"
+            {/* 右侧：预览——仅正文区滚动；空态/文件夹态居中不滚动 */}
+            <div className="flex min-h-0 min-w-0 flex-col">
+              {previewNode ? (
+                <>
+                  <div className="border-line-2 flex shrink-0 items-center gap-2.5 border-b px-7 py-3">
+                    <span
+                      className={clsx(
+                        "size-2 shrink-0 rounded-full",
+                        selectedIds.has(previewNode.id) ? "bg-accent" : "bg-track"
+                      )}
                     />
-                  </FadeScroll>
-                ) : (
-                  <div className="text-ink-3 flex flex-1 flex-col items-center justify-center gap-2.5">
-                    <Folder size={32} strokeWidth={1.25} className="opacity-50" />
-                    <span className="text-[13px]">
-                      文件夹，包含 {collectDocNodeIds(previewNode.children).length} 篇文档
+                    <h3 className="text-tau-body text-ink-1 min-w-0 truncate font-medium">
+                      {previewNode.title}
+                    </h3>
+                    <span className="text-tau-micro text-ink-3 ml-auto shrink-0">
+                      {!previewNode.hasContent
+                        ? "文件夹"
+                        : selectedIds.has(previewNode.id)
+                          ? "将发布"
+                          : "未勾选"}
                     </span>
                   </div>
-                )}
-              </>
-            ) : (
-              <div className="text-ink-3 flex flex-1 flex-col items-center justify-center gap-2.5">
-                <FileText size={32} strokeWidth={1.25} className="opacity-50" />
-                <span className="text-[13px]">点击左侧文档查看预览</span>
-              </div>
-            )}
+                  {previewNode.hasContent ? (
+                    <FadeScroll className="mb-4 min-h-0 flex-1 px-7 pb-2 pt-4">
+                      <Editor
+                        key={previewNode.id}
+                        initValue={previewNode.content}
+                        readonly
+                        extensions={dynamicExtensions}
+                        className="text-tau-body text-ink-1"
+                      />
+                    </FadeScroll>
+                  ) : (
+                    <div className="text-ink-3 flex flex-1 flex-col items-center justify-center gap-2.5">
+                      <Folder size={32} strokeWidth={1.25} className="opacity-50" />
+                      <span className="text-[13px]">
+                        文件夹，包含 {collectDocNodeIds(previewNode.children).length} 篇文档
+                      </span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-ink-3 flex flex-1 flex-col items-center justify-center gap-2.5">
+                  <FileText size={32} strokeWidth={1.25} className="opacity-50" />
+                  <span className="text-[13px]">点击左侧文档查看预览</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </Dialog>

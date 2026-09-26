@@ -13,6 +13,14 @@ import {
 import { ReviewDueBadge } from "@/features/flashcards/components/ReviewDueBadge";
 import { QuestionsNavBadge } from "@/features/questions/components/QuestionsNavBadge";
 import { QuestionsNavGroups } from "@/features/questions/components/QuestionsNav";
+import { TodosNavGroups } from "@/features/todos/components/TodosNav";
+import { useTodoSnapshot } from "@/features/todos/queries";
+import { ProjectsNavTypes } from "@/features/projects/components/ProjectsNav";
+import { useProjectTypeCounts } from "@/features/projects/queries";
+import { CardsNavTags } from "@/features/cards/components/CardsNav";
+import { useCardTagTree } from "@/features/cards/queries";
+import { ArticlesNavTags } from "@/features/articles/components/ArticlesNav";
+import { useArticleTagCounts } from "@/features/articles/queries";
 import { McpNavBadge } from "@/features/mcp/components/McpNavBadge";
 import { useQuestionsSnapshot } from "@/features/questions/queries";
 import { DiaryNavTags } from "@/features/diary/components/DiaryNav";
@@ -53,6 +61,30 @@ export interface NavChildrenSlot {
 export const NAV_CHILDREN_SLOTS: Record<NavItemChildren, NavChildrenSlot> = {
   // 协作：当前内容缺省时落到第一份，恒有子项选中
   "collaboration-sessions": { Component: CollaborationNavSessions, selected: () => true },
+  // 待办：项目是收窄视图，参数 id 为空 = 全部
+  "todo-groups": {
+    Component: TodosNavGroups,
+    selected: params => Boolean(params.id),
+    parentResets: true,
+  },
+  // 项目：类型是收窄视图，参数 id 为空 = 全部
+  "project-types": {
+    Component: ProjectsNavTypes,
+    selected: params => Boolean(params.id),
+    parentResets: true,
+  },
+  // 卡片库：标签（层级树）是收窄视图，参数 id 为空 = 全部；分类留在页内纸顶
+  "card-tags": {
+    Component: CardsNavTags,
+    selected: params => Boolean(params.id),
+    parentResets: true,
+  },
+  // 文章：标签是收窄视图，参数 id 为空 = 全部；标签多时子项列表限高滚动
+  "article-tags": {
+    Component: ArticlesNavTags,
+    selected: params => Boolean(params.id),
+    parentResets: true,
+  },
   // 日记：标签频道是收窄视图，参数 id 为空 = 全部（D-044）
   "diary-tags": {
     Component: DiaryNavTags,
@@ -87,8 +119,16 @@ export function useNavChildrenContent(): Record<NavItemChildren, boolean> {
   const hasChats = useChatNavHasContent();
   // 恒有默认分组；快照到位即展开（含「新建分组」入口）
   const hasQuestionGroups = Boolean(useQuestionsSnapshot().snapshot);
+  const hasTodoGroups = Boolean(useTodoSnapshot().snapshot);
+  const hasProjectTypes = Boolean(useProjectTypeCounts());
+  const hasCardTags = useCardTagTree().length > 0;
+  const hasArticleTags = useArticleTagCounts().tags.length > 0;
   return {
     "collaboration-sessions": hasSessions,
+    "todo-groups": hasTodoGroups,
+    "project-types": hasProjectTypes,
+    "card-tags": hasCardTags,
+    "article-tags": hasArticleTags,
     "diary-tags": hasDiary,
     "whiteboard-tags": hasWhiteboardTags,
     "question-groups": hasQuestionGroups,

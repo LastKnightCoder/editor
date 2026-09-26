@@ -45,6 +45,10 @@ export enum EPublishProvider {
 }
 
 import type { ProviderConfig, ModelConfig, LLMUsageConfig } from "@/types/llm";
+import {
+  DEFAULT_TOOL_PERMISSION_MODE,
+  type ToolPermissionMode,
+} from "@/services/tool-permission/mode";
 import { useBackendWebsocketStore } from "./useBackendWebsocketStore";
 
 export type { ProviderConfig, ModelConfig, LLMUsageConfig };
@@ -229,6 +233,10 @@ export interface ISetting {
   };
   llmConfigs: ProviderConfig[];
   imageGeneration: ImageGenerationStoreShape;
+  /** 通用工具权限模式（D-060）：manual 手动确认 / acceptEdits 自动允许编辑 / bypass 跳过确认 */
+  agentPermission: {
+    mode: ToolPermissionMode;
+  };
   llmUsageSettings: {
     chat: LLMUsageConfig | null;
     titleSummary: LLMUsageConfig | null;
@@ -396,6 +404,7 @@ interface IActions {
     feature: keyof ISetting["llmUsageSettings"],
     config: LLMUsageConfig | null
   ) => void;
+  setToolPermissionMode: (mode: ToolPermissionMode) => void;
   updateBilibiliCredentials: (
     credentials: ISetting["integration"]["bilibili"]["credentials"]
   ) => void;
@@ -628,6 +637,9 @@ const initialState: IState = {
         },
       ],
     },
+    agentPermission: {
+      mode: DEFAULT_TOOL_PERMISSION_MODE,
+    },
     llmUsageSettings: {
       chat: null,
       titleSummary: null,
@@ -856,6 +868,14 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     });
     // 旧入口（legacy 侧边栏/演示模式等）转发到主题 runtime，保证 DOM 主题只有一个写者
     useThemeStore.getState().setMode(darkMode ? "cocoa" : "cream");
+  },
+  setToolPermissionMode: mode => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, draft => {
+        draft.agentPermission = { ...draft.agentPermission, mode };
+      }),
+    });
   },
   updateLLMUsageSetting: (feature, config) => {
     const { setting } = get();

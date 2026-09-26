@@ -23,7 +23,7 @@ import {
   type ReactNode,
 } from "react";
 import clsx from "clsx";
-import { Dialog } from "./Dialog";
+import { Dialog, DialogBody } from "./Dialog";
 import { Button } from "./Button";
 
 export interface ConfirmDialogProps {
@@ -150,29 +150,31 @@ export function ConfirmDialog({
         </>
       }
     >
-      {description}
-      {typeToConfirm && (
-        <div className="mt-3">
-          <input
-            type="text"
-            value={confirmInput}
-            onChange={e => setConfirmInput(e.target.value)}
-            placeholder="输入名称以确认"
-            autoComplete="off"
-            disabled={busy}
-            className={clsx(
-              "border-line-1 bg-surface text-ink-1 placeholder:text-ink-3",
-              "rounded-tau-sm focus:border-accent h-[36px] w-full border px-3 outline-none",
-              "ease-tau-out transition-[border-color,box-shadow] duration-[160ms]",
-              "focus:shadow-[var(--tau-focus-ring)]"
-            )}
-          />
-          <div className="text-ink-3 mt-1.5 text-[11.5px]">
-            输入 <code className="font-tau-mono text-accent-text">{typeToConfirm}</code> 解锁
-            {confirmText}按钮
+      <DialogBody>
+        {description}
+        {typeToConfirm && (
+          <div className="mt-3">
+            <input
+              type="text"
+              value={confirmInput}
+              onChange={e => setConfirmInput(e.target.value)}
+              placeholder="输入名称以确认"
+              autoComplete="off"
+              disabled={busy}
+              className={clsx(
+                "border-line-1 bg-surface text-ink-1 placeholder:text-ink-3",
+                "rounded-tau-sm focus:border-accent h-[36px] w-full border px-3 outline-none",
+                "ease-tau-out transition-[border-color,box-shadow] duration-[160ms]",
+                "focus:shadow-[var(--tau-focus-ring)]"
+              )}
+            />
+            <div className="text-ink-3 mt-1.5 text-[11.5px]">
+              输入 <code className="font-tau-mono text-accent-text">{typeToConfirm}</code> 解锁
+              {confirmText}按钮
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </DialogBody>
     </Dialog>
   );
 }

@@ -1,6 +1,6 @@
 /**
  * 白板卡片（方案 A 画廊，mockups/whiteboards/plan-a2-gallery.html）：
- * 缩略图 + 标题 + 一行描述 + 「N 页 · N 个元素 · 更新时间」。
+ * 缩略图 + 标题 + 一行描述 + 「N 页 · N 个元素 · 更新时间」；标签作徽标压在缩略图左下角。
  * 缩略图：自定义封面优先，否则第一页的结构示意图（schematic.ts，由页数据直接生成）；多页白板在缩略图上横向移动即翻页，
  * 点下去打开的就是看到的那页。悬停件（页名、页码刻度、更多）都占固定槽位原位淡入，不顶开布局。
  */
@@ -10,6 +10,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   CornerDownLeft,
   Files,
+  Hash,
   ImageMinus,
   ImagePlus,
   MoreHorizontal,
@@ -33,6 +34,13 @@ import { PageSchematic } from "@/components/WhiteBoard/schematic/PageSchematic";
 function MenuIcon({ icon: Icon }: { icon: LucideIcon }) {
   return <Icon className="size-[15px] shrink-0" strokeWidth={1.75} />;
 }
+
+/** 缩略图上最多平铺的标签数，其余折成 +N */
+const MAX_TAGS = 3;
+
+/** 缩略图角上的小徽标（页数 / 标签共用） */
+const BADGE =
+  "text-tau-tiny text-ink-2 bg-surface/90 inline-flex h-5 items-center gap-1 rounded-[6px] px-[7px]";
 
 /** 画布纸底 + 点阵（示意图的底） */
 const CANVAS_BG =
@@ -130,10 +138,36 @@ export function WhiteboardCard(props: WhiteboardCardProps) {
         onMouseLeave={multi ? () => setScrub(null) : undefined}
       >
         {visual}
+        {item.tags.length > 0 && (
+          // 与页数同理：悬停时让位给底部页码刻度
+          <div
+            className={cn(
+              "ease-tau-out pointer-events-none absolute bottom-2 left-2 flex min-w-0 gap-1 transition-opacity duration-150",
+              multi ? "right-[64px] group-hover:opacity-0" : "right-2"
+            )}
+          >
+            {item.tags.slice(0, MAX_TAGS).map(tag => (
+              <span key={tag} className={cn(BADGE, "min-w-0")}>
+                <Hash className="size-[10px] shrink-0" strokeWidth={1.75} />
+                <span className="truncate">{tag}</span>
+              </span>
+            ))}
+            {item.tags.length > MAX_TAGS && (
+              <span className={cn(BADGE, "shrink-0 tabular-nums")}>
+                +{item.tags.length - MAX_TAGS}
+              </span>
+            )}
+          </div>
+        )}
         {multi && (
           <>
             {/* 常态：右下页数；悬停：换成左上页名 + 底部页码刻度 */}
-            <span className="text-tau-tiny text-ink-2 bg-surface/90 ease-tau-out absolute bottom-2 right-2 inline-flex h-5 items-center gap-1 rounded-[6px] px-[7px] tabular-nums transition-opacity duration-150 group-hover:opacity-0">
+            <span
+              className={cn(
+                BADGE,
+                "ease-tau-out absolute bottom-2 right-2 tabular-nums transition-opacity duration-150 group-hover:opacity-0"
+              )}
+            >
               <Files className="size-[11px]" strokeWidth={1.75} />
               {item.pages.length} 页
             </span>
