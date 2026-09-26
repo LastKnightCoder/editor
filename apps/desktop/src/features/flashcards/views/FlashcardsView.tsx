@@ -1,9 +1,11 @@
 /**
- * 闪卡复习页 · 复习台（两块板，与待办页同构）：
- * 工具栏（标题 + 今日摘要 + 新建卡组 / 新建闪卡）→ 卡组 pills（今日总览 + 各卡组）→
- * 左板（今日总览 = 今日块 + 卡组行；选中卡组 = 卡组的卡片列表）+ 右板（近 7 天评分 / 未来 7 天到期；卡组概况）。
+ * 闪卡复习页 · 复习台（一整张纸，与待办页同构）：
+ * 纸顶工具栏（标题 + 今日摘要 + 新建卡组 / 新建闪卡）与卡组 pills（今日总览 + 各卡组）→
+ * 纸内列表占满宽度（今日总览 = 今日块 + 卡组行；选中卡组 = 卡组的卡片列表）；
+ * 概况（近 7 天评分 / 未来 7 天到期；卡组概况）是右侧非模态抽屉，由工具栏「概况」按钮开关。
  *
- * 复习 = 沉浸模式：页面换成 ReviewSession，导航侧栏收成图标列（mac 信号灯画在侧栏里，不整列隐藏），
+ * 复习 = 沉浸模式：页面换成 ReviewSession（同样一整张纸，纸即题卡），
+ * 导航侧栏收成图标列（mac 信号灯画在侧栏里，不整列隐藏），
  * 结束后恢复进入前的侧栏状态。编辑 = CardEditorDialog；删除卡片不确认，Toast 撤销 5 秒后才落库。
  * 键位（本页在栈顶、无浮层、不在输入框时）：R 复习当前范围 · N 新建闪卡。
  */
@@ -12,8 +14,9 @@ import { usePage, usePageBreadcrumb } from "@/page/PageProvider";
 import { isEditableTarget } from "@/page/dom";
 import type { Flashcard, FlashcardDeck, FlashcardType } from "@/types";
 import { useQueryClient } from "@tanstack/react-query";
-import { Button, IconButton, Loading, toast, useEdgeFade } from "@tau/ui";
-import { FolderPlus, Plus } from "lucide-react";
+import { Button, IconButton, Loading, toast } from "@tau/ui";
+import { FadeScroll } from "@/components/FadeScroll";
+import { BarChart3, FolderPlus, Plus } from "lucide-react";
 import { MotionConfig } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CardEditorDialog } from "../components/CardEditorDialog";
@@ -25,6 +28,7 @@ import { DeleteDeckDialog } from "../components/DeleteDeckDialog";
 import { OverviewBoard } from "../components/OverviewBoard";
 import { OverviewSide } from "../components/OverviewSide";
 import { ReviewSession } from "../components/ReviewSession";
+import { StatsDrawer } from "../components/StatsDrawer";
 import {
   renderCardMenu as cardMenuItems,
   renderDeckMenu as deckMenuItems,
@@ -53,6 +57,7 @@ export function FlashcardsView() {
   const now = useNow(snapshot);
 
   const [deckId, setDeckId] = useState<number | null>(null);
+  const [statsOpen, setStatsOpen] = useState(false);
   const [status, setStatus] = useState<StatusFilter>("all");
   const [type, setType] = useState<FlashcardType | "all">("all");
   const [review, setReview] = useState<{ queue: number[]; scopeId: number | null } | null>(null);
@@ -61,11 +66,6 @@ export function FlashcardsView() {
   );
   const [deckDialog, setDeckDialog] = useState<{ deck: FlashcardDeck | null } | null>(null);
   const [deletingDeck, setDeletingDeck] = useState<FlashcardDeck | null>(null);
-  /* 左板段头 sticky 吸顶：只做底部渐隐，顶部渐隐会把吸住的段头淡掉（同待办议程板） */
-  const [boardScrollEl, setBoardScrollEl] = useState<HTMLDivElement | null>(null);
-  useEdgeFade(boardScrollEl, { top: false });
-  const [sideScrollEl, setSideScrollEl] = useState<HTMLDivElement | null>(null);
-  useEdgeFade(sideScrollEl);
 
   const { pendingDelete, scheduleDelete } = useDeferredCardDelete(mutations);
 
@@ -266,119 +266,136 @@ export function FlashcardsView() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="mx-auto flex h-full max-w-[1720px] flex-col px-4 pb-4">
-        <div className="flex h-[44px] flex-none items-center gap-3">
-          <h1 className="text-[19px] font-semibold tracking-[-0.01em]">闪卡复习</h1>
-          <span className="text-ink-2 text-tau-meta tabular-nums">
-            今天 <b className="text-ink-1 font-semibold">{derived.queue.length}</b> 张待复习 ·{" "}
-            {derived.cards.length} 张 · {snapshot.decks.length} 个卡组
-          </span>
-          <span className="flex-1" />
-          <IconButton
-            aria-label="新建卡组"
-            title="新建卡组"
-            onClick={() => setDeckDialog({ deck: null })}
-          >
-            <FolderPlus size={16} strokeWidth={1.75} />
-          </IconButton>
-          <Button variant="soft" icon={Plus} onClick={() => openNewCard(deckId)}>
-            新建闪卡
-          </Button>
-        </div>
-
-        {snapshot.decks.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 pb-16 text-center">
-            <p className="text-ink-2 text-[15px] font-medium">还没有卡组</p>
-            <p className="text-ink-3 text-[12.5px]">
-              闪卡归属于卡组——先建一个，比如「操作系统」「英语词汇」
-            </p>
-            <Button
-              className="mt-3"
-              variant="primary"
-              size="sm"
-              icon={FolderPlus}
-              onClick={() => setDeckDialog({ deck: null })}
-            >
-              新建卡组
-            </Button>
-          </div>
-        ) : (
-          <>
-            <DeckPills
-              decks={snapshot.decks}
-              dueByDeck={derived.dueByDeck}
-              totalDue={derived.queue.length}
-              value={deck?.id ?? null}
-              onChange={id => {
-                setDeckId(id);
-                setStatus("all");
-                setType("all");
-              }}
-              renderDeckMenu={renderDeckMenu}
-            />
-            <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_clamp(260px,24vw,320px)] gap-4 pt-1">
-              {/* 同右板：滚动容器上下右留隙，滚动条不贴卡片边缘与圆角；board 内上下内边距相应减去 10px */}
-              <div className="bg-surface shadow-card flex min-h-0 flex-col overflow-hidden rounded-[16px]">
-                <div
-                  ref={setBoardScrollEl}
-                  className="edge-fade-scroll my-2.5 mr-1.5 min-h-0 flex-1 overflow-y-auto"
-                >
-                  {deck ? (
-                    <DeckBoard
-                      deck={deck}
-                      cards={deckCards}
-                      stats={currentStats ?? derived.allStats}
-                      now={now}
-                      status={status}
-                      type={type}
-                      onStatusChange={setStatus}
-                      onTypeChange={setType}
-                      onStart={() => startReview(deck.id)}
-                      onAddCard={() => openNewCard(deck.id)}
-                      onOpenCard={card => setEditor({ card, deckId: card.deckId })}
-                      deckMenu={renderDeckMenu(deck)}
-                      renderCardMenu={renderCardMenu}
-                    />
-                  ) : (
-                    <OverviewBoard
-                      decks={snapshot.decks}
-                      stats={derived.stats}
-                      queue={derived.queue}
-                      cards={derived.cards}
-                      now={now}
-                      onStart={startReview}
-                      onOpenDeck={setDeckId}
-                      onAddCard={openNewCard}
-                      renderDeckMenu={renderDeckMenu}
-                    />
-                  )}
-                </div>
-              </div>
-              {/* 卡片不滚动，内层滚动容器离边缘留隙：滚动条不贴卡片圆角（同待办右板） */}
-              <div className="bg-surface shadow-card flex min-h-0 flex-col overflow-hidden rounded-[16px]">
-                <div
-                  ref={setSideScrollEl}
-                  className="edge-fade-scroll my-2.5 mr-1.5 min-h-0 flex-1 overflow-y-auto"
-                >
-                  {deck ? (
-                    <DeckSide
-                      stats={currentStats ?? derived.allStats}
-                      typeCounts={deckTypeCounts}
-                      now={now}
-                      createTime={deck.createTime}
-                    />
-                  ) : (
-                    <OverviewSide
-                      reviewStats={reviewStats}
-                      forecast={derived.allStats.forecast}
-                      now={now}
-                    />
-                  )}
-                </div>
-              </div>
+      <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+        {/* 一整张纸：工具栏与卡组 pills 固定在纸顶，左右两栏在纸内各自滚动（同待办页） */}
+        <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="flex flex-none flex-col px-8 pt-5">
+            <div className="mb-1 flex h-10 flex-none items-center gap-3">
+              <h1 className="text-tau-title-lg shrink-0 whitespace-nowrap font-semibold tracking-[-0.01em]">
+                闪卡复习
+              </h1>
+              <span className="text-ink-2 text-tau-meta w-0 flex-1 truncate whitespace-nowrap tabular-nums">
+                今天 <b className="text-ink-1 font-semibold">{derived.queue.length}</b> 张待复习 ·{" "}
+                {derived.cards.length} 张 · {snapshot.decks.length} 个卡组
+              </span>
+              <Button
+                variant={statsOpen ? "soft" : "ghost"}
+                size="sm"
+                icon={BarChart3}
+                aria-pressed={statsOpen}
+                title={deck ? "卡组概况" : "近 7 天评分 · 未来 7 天到期"}
+                className="shrink-0 whitespace-nowrap"
+                onClick={() => setStatsOpen(open => !open)}
+              >
+                概况
+              </Button>
+              <IconButton
+                aria-label="新建卡组"
+                title="新建卡组"
+                onClick={() => setDeckDialog({ deck: null })}
+              >
+                <FolderPlus size={16} strokeWidth={1.75} />
+              </IconButton>
+              <Button
+                variant="soft"
+                icon={Plus}
+                className="shrink-0 whitespace-nowrap"
+                onClick={() => openNewCard(deckId)}
+              >
+                新建闪卡
+              </Button>
             </div>
-          </>
-        )}
+            {snapshot.decks.length > 0 && (
+              <DeckPills
+                decks={snapshot.decks}
+                dueByDeck={derived.dueByDeck}
+                totalDue={derived.queue.length}
+                value={deck?.id ?? null}
+                onChange={id => {
+                  setDeckId(id);
+                  setStatus("all");
+                  setType("all");
+                }}
+                renderDeckMenu={renderDeckMenu}
+              />
+            )}
+          </div>
+
+          {snapshot.decks.length === 0 ? (
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 pb-16 text-center">
+              <p className="text-ink-2 text-[15px] font-medium">还没有卡组</p>
+              <p className="text-ink-3 text-[12.5px]">
+                闪卡归属于卡组——先建一个，比如「操作系统」「英语词汇」
+              </p>
+              <Button
+                className="mt-3"
+                variant="primary"
+                size="sm"
+                icon={FolderPlus}
+                onClick={() => setDeckDialog({ deck: null })}
+              >
+                新建卡组
+              </Button>
+            </div>
+          ) : (
+            // 左栏 pl-2.5 + 板内 pl-[22px] = 页头的 px-8；两栏滚动区离纸底 16px，滚动条不贴纸缘
+            // 概况抽屉在此绝对定位盖在右侧
+            <div className="relative grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)]">
+              <FadeScroll className="mb-4 min-h-0 pl-2.5">
+                {deck ? (
+                  <DeckBoard
+                    deck={deck}
+                    cards={deckCards}
+                    stats={currentStats ?? derived.allStats}
+                    now={now}
+                    status={status}
+                    type={type}
+                    onStatusChange={setStatus}
+                    onTypeChange={setType}
+                    onStart={() => startReview(deck.id)}
+                    onAddCard={() => openNewCard(deck.id)}
+                    onOpenCard={card => setEditor({ card, deckId: card.deckId })}
+                    deckMenu={renderDeckMenu(deck)}
+                    renderCardMenu={renderCardMenu}
+                  />
+                ) : (
+                  <OverviewBoard
+                    decks={snapshot.decks}
+                    stats={derived.stats}
+                    queue={derived.queue}
+                    cards={derived.cards}
+                    now={now}
+                    onStart={startReview}
+                    onOpenDeck={setDeckId}
+                    onAddCard={openNewCard}
+                    renderDeckMenu={renderDeckMenu}
+                  />
+                )}
+              </FadeScroll>
+              <StatsDrawer
+                open={statsOpen}
+                onClose={() => setStatsOpen(false)}
+                title={deck ? "卡组概况" : "近况"}
+                subtitle={deck ? deck.name : "近 7 天评分 · 未来 7 天到期"}
+              >
+                {deck ? (
+                  <DeckSide
+                    stats={currentStats ?? derived.allStats}
+                    typeCounts={deckTypeCounts}
+                    now={now}
+                    createTime={deck.createTime}
+                  />
+                ) : (
+                  <OverviewSide
+                    reviewStats={reviewStats}
+                    forecast={derived.allStats.forecast}
+                    now={now}
+                  />
+                )}
+              </StatsDrawer>
+            </div>
+          )}
+        </div>
         {dialogs}
       </div>
     </MotionConfig>
