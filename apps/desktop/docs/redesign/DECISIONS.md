@@ -405,6 +405,7 @@
 - 未迁移（legacy 有、本页不提供）：手动拖拽排序与拖拽嵌套（议程按时间排序，子任务在详情里添加）、项目拖拽排序与置顶、任务级归档入口、Ctrl+Enter / ⌘N·D·P·R 类型快捷键（由自然语言输入取代）。
 - 实现：`features/todos/`（types / model——分段、排序、周期打卡统计纯函数 / quickAdd / groupColors / queries——一次拉全量快照（项目 + 未归档任务 + 周期规则 + 近一年打卡 + 关联笔记，IN 查询 500 分批）+ 订阅 todo mutation 事件统一失效（首页 `["home"]` 一并失效）/ components——AgendaPanel、HabitRail、TodoDrawer + DetailFields + DetailSections、QuickAddBar、GroupPills、GroupDialog、TodoBits / views——TodosView / pages——todos）；`page/legacy.tsx` 删 todos 占位；主进程 `tables/todo-item.ts`、`tables/todo-group.ts`；`commands/todo.ts` 增 `listArchivedTodoGroups`。
 - 验证：tsc 0 错误；eslint 0 error；vitest `features/todos` 18 例（model 分段 / 逾期 / 周期文案 / 连续打卡 / 热力格对齐 / 完成率；quickAdd 6 组）；主进程 `todo-calendar-consistency.test.ts` 6 例（新建写日历、普通 ⇄ 截止增删映射、改时间标题同步 + 改类型重建映射、单条删除清映射、跨项目子树迁移、归档列表）——注：本机 `better-sqlite3` 为 Electron ABI，sqlite 类测试需 `ELECTRON_RUN_AS_NODE=1 <electron> vitest run` 执行（既有 answer-content 测试同况）；实机：隔离 HOME / user-data-dir 启动 Electron 灌测试数据，截图核对议程分段、抽屉热力格、自然语言新建（计划任务落「生活」并在日历映射表写入 planned）、行内打卡、删除 + 撤销、cocoa 深色。
+- **追记（2026-09-26，今日改抽屉）**：用户要求右栏「今日」同番茄页一样改为右侧 Drawer。常驻 312px 右板去掉，议程占满宽度；HabitRail（今日打卡 / 本周负荷 / 最近完成）移进非模态 `TodayDrawer`（与任务详情同位 top-0，Esc 经 `useOverlayDismiss`），由工具栏「今日」按钮开关（打开时按钮 soft 态），默认关闭。从今日里点任务 → 详情抽屉接替；关掉详情回到今日（`open = todayOpen && 无选中`）。
 
 ## D-041 闪卡复习页定稿（方案 A 复习台）+ 撤销评分下沉主进程
 
