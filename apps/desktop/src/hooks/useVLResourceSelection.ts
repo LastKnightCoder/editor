@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
-import { App } from "antd";
+import { toast } from "@tau/ui";
 import { getVLResourcesByProjectId } from "@/commands/vibe-learning";
 import type { VLResource } from "@/types/vibe-learning";
 
@@ -39,15 +39,23 @@ interface UseVLResourceSelectionResult {
 }
 
 /**
+ * 「基于这份资料」生成：打开生成弹窗前写入要预选的资源；null = 按 defaultSelectAll 处理。
+ * 由生成入口在每次打开时覆盖，弹窗内加载资源时读取。
+ */
+let generationScope: number[] | null = null;
+export const setVLGenerationScope = (ids: number[] | null) => {
+  generationScope = ids;
+};
+
+/**
  * VibeLearning 资源选择状态管理 Hook
  * 用于管理资源列表的加载和选择状态
  */
 export const useVLResourceSelection = (
   projectId: number,
-  options?: UseVLResourceSelectionOptions,
+  options?: UseVLResourceSelectionOptions
 ): UseVLResourceSelectionResult => {
   const { onlyReady = true, defaultSelectAll = true } = options || {};
-  const { message } = App.useApp();
 
   const [resources, setResources] = useState<VLResource[]>([]);
   const [selectedResourceIds, setSelectedResourceIds] = useState<number[]>([]);
@@ -55,9 +63,8 @@ export const useVLResourceSelection = (
 
   // 是否全部选中
   const isAllSelected = useMemo(
-    () =>
-      resources.length > 0 && selectedResourceIds.length === resources.length,
-    [resources.length, selectedResourceIds.length],
+    () => resources.length > 0 && selectedResourceIds.length === resources.length,
+    [resources.length, selectedResourceIds.length]
   );
 
   // 选中的资源数量
@@ -71,19 +78,22 @@ export const useVLResourceSelection = (
     try {
       const data = await getVLResourcesByProjectId(projectId);
       // 根据选项过滤资源
-      const filteredResources = onlyReady
-        ? data.filter((r) => r.markdownPath)
-        : data;
+      const filteredResources = onlyReady ? data.filter(r => r.markdownPath) : data;
       setResources(filteredResources);
       // 根据选项决定是否默认全选
-      if (defaultSelectAll) {
-        setSelectedResourceIds(filteredResources.map((r) => r.id));
+      const scoped = generationScope
+        ? filteredResources.filter(r => generationScope?.includes(r.id))
+        : [];
+      if (scoped.length > 0) {
+        setSelectedResourceIds(scoped.map(r => r.id));
+      } else if (defaultSelectAll) {
+        setSelectedResourceIds(filteredResources.map(r => r.id));
       } else {
         setSelectedResourceIds([]);
       }
     } catch (error) {
       console.error("Failed to load resources:", error);
-      message.error("加载资源失败");
+      toast.error("加载资源失败");
     } finally {
       setLoading(false);
     }
@@ -91,10 +101,8 @@ export const useVLResourceSelection = (
 
   // 切换单个资源的选择状态
   const toggleResource = useMemoizedFn((resourceId: number) => {
-    setSelectedResourceIds((prev) =>
-      prev.includes(resourceId)
-        ? prev.filter((id) => id !== resourceId)
-        : [...prev, resourceId],
+    setSelectedResourceIds(prev =>
+      prev.includes(resourceId) ? prev.filter(id => id !== resourceId) : [...prev, resourceId]
     );
   });
 
@@ -103,20 +111,18 @@ export const useVLResourceSelection = (
     if (isAllSelected) {
       setSelectedResourceIds([]);
     } else {
-      setSelectedResourceIds(resources.map((r) => r.id));
+      setSelectedResourceIds(resources.map(r => r.id));
     }
   });
 
   // 获取选中资源的名称列表
   const getSelectedResourceNames = useMemoizedFn((): string[] => {
-    return resources
-      .filter((r) => selectedResourceIds.includes(r.id))
-      .map((r) => r.name);
+    return resources.filter(r => selectedResourceIds.includes(r.id)).map(r => r.name);
   });
 
   // 获取选中的资源列表
   const getSelectedResources = useMemoizedFn((): VLResource[] => {
-    return resources.filter((r) => selectedResourceIds.includes(r.id));
+    return resources.filter(r => selectedResourceIds.includes(r.id));
   });
 
   // 重置状态

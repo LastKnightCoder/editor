@@ -52,12 +52,8 @@ const ProjectView = ({ projectId, itemId }: ProjectViewProps) => {
     return () => observer.disconnect();
   }, [project]);
 
-  // 文档树项目：进入时全局侧栏收成图标列，文档树接替「侧栏」位置；离开不自动展开
-  const hasDocumentTree =
-    !!project &&
-    project.projectType !== EProjectType.DataTable &&
-    project.projectType !== EProjectType.VibeLearning;
-  useCollapseSidebarOnEnter(hasDocumentTree);
+  // 文档树 / Vibe Learning 项目：进入时全局侧栏收成图标列，纸内目录接替「侧栏」位置；离开不自动展开
+  useCollapseSidebarOnEnter(!!project && project.projectType !== EProjectType.DataTable);
 
   // 数据库连接或切换时整域失效（detail/tree/列表/关联源一并按新库重拉）
   useDatabaseChangeEffect(() => {

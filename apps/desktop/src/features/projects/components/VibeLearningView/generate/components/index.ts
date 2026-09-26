@@ -1,7 +1,5 @@
 // 原有组件
 export { default as LoadingSpinner } from "@/components/InsertNoteToTreeModal/LoadingSpinner";
-export { default as EmptyState } from "./EmptyState";
-export { default as SimpleButton } from "./SimpleButton";
 
 // 新增公共组件
 export { default as ResourceSelector } from "./ResourceSelector";

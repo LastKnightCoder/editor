@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>方案 B · 对话为主</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="vl.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div class="mock-note">
+  <h3>方案 B · 对话为主（和 AI 对话页同构）</h3>
+  整张纸就是一个对话页：对话列居中，<b>资料缩成输入框上方的一行 chips</b>（处理中 / 失败直接标在 chip 上，点 chip 预览，「管理」打开左抽屉看完整列表）。工作室放进纸右上角的按钮，打开右侧<b>非模态抽屉</b>（同待办 / 问题页），不打开时一点都不占宽度。
+  <ul>
+    <li><b>打开资料或笔记</b>：走块预览方案 B——大画面占正文，对话收成右侧停靠栏继续追问。</li>
+    <li class="pro">＋ 最沉浸，和 AI 对话页一套心智；窄窗口也宽裕。</li>
+    <li class="con">－ 资料和产物平时被藏起来，产物多了以后要多点一下才能找到；资料 10+ 份时 chips 行要折叠成「+6」。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mockBar, sidebar, titlebar, crumb, icons, RESOURCES, OUTPUTS, resRow, outRow, apps, resEmpty, outEmpty, chatHead, thread, hero, composer, stageHead, stageBody } from "./vl.js?v=1";
+
+const win = document.getElementById("win");
+let s = "default";
+let drawer = "none";
+
+const strip = () => s === "empty"
+  ? `<div class="vl-strip" style="max-width:700px"><span class="lb">资料</span><span class="chip"><i data-lucide="plus"></i>添加资料</span></div>`
+  : `<div class="vl-strip" style="max-width:700px">
+      <span class="lb">资料 <span class="num">${RESOURCES.length}</span></span>
+      ${RESOURCES.map(r => `<span class="chip" title="${r.t}"><i data-lucide="${r.ic}"></i>${r.t.length > 8 ? r.t.slice(0, 8) + "…" : r.t}${r.busy ? `<span class="busy num">${r.p}%</span>` : ""}${r.err ? `<span class="err">!</span>` : ""}</span>`).join("")}
+      <span class="chip" data-d="res" title="管理 / 添加资料"><i data-lucide="panel-left"></i>管理</span>
+    </div>`;
+
+const studioDrawer = () => `
+  <div class="vl-drawer r">
+    <div class="vl-h"><h3>工作室</h3><span class="sp"></span><button class="ib" data-d="none" title="关闭"><i data-lucide="x"></i></button></div>
+    <div class="vl-scroll">
+      <div class="vl-sec">生成</div>${apps()}
+      <div class="vl-sec">产物<span class="n num">${s === "empty" ? 0 : OUTPUTS.length}</span><span class="sp"></span><button class="ib" title="新建笔记"><i data-lucide="plus"></i></button></div>
+      ${s === "empty" ? outEmpty() : OUTPUTS.map(o => outRow(o)).join("")}
+    </div>
+  </div>`;
+
+const resDrawer = () => `
+  <div class="vl-drawer l" style="left:236px">
+    <div class="vl-h"><h3>资料</h3><span class="n num">${RESOURCES.length}</span><span class="sp"></span><button class="ib" title="添加资料"><i data-lucide="plus"></i></button><button class="ib" data-d="none" title="关闭"><i data-lucide="x"></i></button></div>
+    <div class="vl-scroll">${RESOURCES.map(r => resRow(r)).join("")}</div>
+  </div>`;
+
+function render() {
+  const stage = s === "preview" || s === "note";
+  const tools = `<button class="ib ${drawer === "studio" ? "on" : ""}" data-d="studio" title="工作室"><i data-lucide="layout-grid"></i></button>`;
+  const body = stage
+    ? `<div class="vl-col grow">${stageHead(s)}<div class="vl-scroll">${stageBody(s)}</div></div>
+       <div class="vl-col side r" style="width:380px">${chatHead()}<div class="vl-scroll">${thread({ maxW: 380, compact: true })}</div>${composer({ compact: true })}</div>`
+    : `<div class="vl-col grow">${chatHead(tools)}<div class="vl-scroll">${s === "empty" ? hero() : thread()}</div>${strip()}${composer()}</div>`;
+
+  win.innerHTML = `
+    ${sidebar()}
+    <div class="col">
+      ${titlebar(crumb)}
+      <div class="main"><section class="paper vl-paper">${body}</section></div>
+    </div>
+    ${!stage && drawer === "studio" ? studioDrawer() : ""}
+    ${!stage && drawer === "res" ? resDrawer() : ""}`;
+  win.querySelectorAll("[data-d]").forEach(el => (el.onclick = () => { drawer = drawer === el.dataset.d ? "none" : el.dataset.d; render(); }));
+  icons();
+}
+mockBar("b-chat.html", k => { s = k; render(); });
+render();
+</script>
+</body>
+</html>

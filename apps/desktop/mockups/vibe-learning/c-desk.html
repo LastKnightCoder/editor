@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>方案 C · 学习台</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="vl.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div class="mock-note">
+  <h3>方案 C · 学习台（阅读为主，同项目文档页的「纸内目录 + 正文」）</h3>
+  左栏是一棵目录：<b>资料</b>和<b>产物</b>两组合在一起（同 Skill 编辑页的纸内文件树），中间常驻阅读 / 编辑区，右边是对话栏。8 个应用不再占一整块格子，收进产物组的「生成」菜单，以及阅读区底部的一行快捷操作（针对当前资料生成）。
+  <ul>
+    <li><b>默认</b>：打开最近看的那份资料；没有打开任何东西时，中间显示对话（右栏收起）。</li>
+    <li class="pro">＋ 「看资料 → 问 → 生成」都围着当前这份资料，阅读面积最大；左栏一列就能找到所有东西。</li>
+    <li class="con">－ 应用入口变深了一层；对话栏常驻 380px，只想聊天时不如 B 宽。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mockBar, sidebar, titlebar, crumb, icons, RESOURCES, OUTPUTS, APPS, resRow, outRow, resEmpty, outEmpty, chatHead, thread, hero, composer, stageHead, stageBody } from "./vl.js?v=1";
+
+const win = document.getElementById("win");
+let s = "default";
+
+const tree = () => `
+  <div class="vl-col side l" style="width:256px">
+    <div class="vl-scroll" style="padding-top:6px">
+      <div class="vl-tree-g"><i data-lucide="chevron-down"></i>资料<span class="n num">${s === "empty" ? 0 : RESOURCES.length}</span><span class="sp"></span><button class="ib" title="添加资料"><i data-lucide="plus"></i></button></div>
+      ${s === "empty" ? resEmpty() : RESOURCES.map(r => resRow(r, { compact: true, on: (s === "default" || s === "preview") && r.id === "r1" })).join("")}
+      <div class="vl-tree-g" style="margin-top:8px"><i data-lucide="chevron-down"></i>产物<span class="n num">${s === "empty" ? 0 : OUTPUTS.length}</span><span class="sp"></span><button class="ib" title="生成 / 新建笔记"><i data-lucide="plus"></i></button></div>
+      ${s === "empty" ? outEmpty() : OUTPUTS.map(o => outRow(o, { compact: true, on: s === "note" && o.id === "n1" })).join("")}
+    </div>
+  </div>`;
+
+const quick = () => `
+  <div class="vl-toolbar">
+    <span style="font-size:12px;color:var(--ink-3);margin-right:4px">基于这份资料</span>
+    ${[APPS[0], APPS[1], APPS[3], APPS[6]].map(([ic, l]) => `<button class="btn"><i data-lucide="${ic}"></i>${l}</button>`).join("")}
+    <button class="btn"><i data-lucide="more-horizontal"></i></button>
+  </div>`;
+
+function render() {
+  const kind = s === "note" ? "note" : "preview";
+  const body = s === "empty"
+    ? `${tree()}<div class="vl-col grow">${chatHead()}<div class="vl-scroll">${hero()}</div>${composer()}</div>`
+    : `${tree()}
+       <div class="vl-col grow">${stageHead(kind)}<div class="vl-scroll">${stageBody(kind)}</div>${kind === "preview" ? quick() : ""}</div>
+       <div class="vl-col side r" style="width:380px">${chatHead()}<div class="vl-scroll">${thread({ maxW: 380, compact: true })}</div>${composer({ compact: true })}</div>`;
+
+  win.innerHTML = `
+    ${sidebar()}
+    <div class="col">
+      ${titlebar(crumb)}
+      <div class="main"><section class="paper vl-paper">${body}</section></div>
+    </div>`;
+  icons();
+}
+mockBar("c-desk.html", k => { s = k; render(); });
+render();
+</script>
+</body>
+</html>

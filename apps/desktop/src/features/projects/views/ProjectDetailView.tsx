@@ -23,11 +23,8 @@ export function ProjectDetailView() {
   const treeCollapsed = useProjectTreeStore(s => s.collapsed);
   const toggleTree = useProjectTreeStore(s => s.toggle);
 
-  // 只有文档树型项目有侧栏；数据表格 / Vibe Learning 不出切换按钮
-  const hasDocumentTree =
-    !!project &&
-    project.projectType !== EProjectType.DataTable &&
-    project.projectType !== EProjectType.VibeLearning;
+  // 文档树型与 Vibe Learning（纸内资料目录）有侧栏；数据表格不出切换按钮
+  const hasDocumentTree = !!project && project.projectType !== EProjectType.DataTable;
 
   /* 标题栏面包屑（node 须 useMemo 稳定化）：文档树切换按钮 + 项目标题。
      按钮钉在标题栏固定位置，收起/展开只换图标，不随侧栏移动 */

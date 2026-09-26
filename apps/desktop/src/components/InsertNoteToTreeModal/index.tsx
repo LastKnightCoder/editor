@@ -1,6 +1,6 @@
+import { toast } from "@tau/ui";
 import { memo, useState, useEffect, useCallback } from "react";
 import { Descendant } from "slate";
-import { App } from "antd";
 import classNames from "classnames";
 import {
   FolderOutlined,
@@ -135,7 +135,6 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
     onCancel,
     onSuccess,
   }) => {
-    const { message } = App.useApp();
     const themeColors = useThemeColors();
 
     const [projects, setProjects] = useState<Project[]>([]);
@@ -157,9 +156,9 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
             allProjects.filter(p => p.projectType === EProjectType.DocumentTree && !p.archived)
           );
         })
-        .catch(() => message.error("加载列表失败"))
+        .catch(() => toast.error("加载列表失败"))
         .finally(() => setLoading(false));
-    }, [open, mode, message]);
+    }, [open, mode]);
 
     // 关闭时重置状态
     useEffect(() => {
@@ -225,7 +224,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
           } else {
             [, createdItem] = await addRootProjectItem(selectedEntityId, newItem);
           }
-          message.success("网页已添加到项目");
+          toast.success("网页已添加到项目");
           onSuccess(createdItem);
           return;
         } else if (insertMode === "video-note") {
@@ -261,7 +260,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
           } else {
             [, createdItem] = await addRootProjectItem(selectedEntityId, newItem);
           }
-          message.success("视频笔记已添加到项目");
+          toast.success("视频笔记已添加到项目");
           onSuccess(createdItem);
           return;
         } else if (insertMode === "shared-content") {
@@ -277,7 +276,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
             parentProjectItemId: selectedNodeId,
             title,
           });
-          message.success("内容已挂载");
+          toast.success("内容已挂载");
         } else {
           let contentToInsert = noteContent;
           if (sourceContentId) {
@@ -303,12 +302,12 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
           } else {
             await addRootProjectItem(selectedEntityId, newItem);
           }
-          message.success("笔记已插入");
+          toast.success("笔记已插入");
         }
         onSuccess();
       } catch (error) {
         console.error("Failed to insert note:", error);
-        message.error(
+        toast.error(
           insertMode === "webview"
             ? "添加网页失败"
             : insertMode === "video-note"
@@ -330,7 +329,6 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
       insertMode,
       webviewPayload,
       videoNotePayload,
-      message,
       onSuccess,
     ]);
 

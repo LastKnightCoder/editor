@@ -36,7 +36,7 @@ import useSettingStore from "@/stores/useSettingStore";
 import type { VLResourceType, BilibiliSourceMeta, YoutubeSourceMeta } from "@/types/vibe-learning";
 import type { StreamOption } from "@/types/youtube";
 import type { SearchResult } from "@/types/search";
-import NoteSelector from "./AppSidebar/components/NoteSelector";
+import NoteSelector from "./generate/components/NoteSelector";
 import useEditorExtensions from "@/hooks/useDynamicExtensions";
 import { toast } from "@tau/ui";
 
