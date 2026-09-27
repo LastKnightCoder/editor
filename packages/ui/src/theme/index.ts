@@ -1,5 +1,5 @@
 export * from "./tokenContract";
-export { THEME_MODES, defineTheme, getTheme, getThemeRegistry } from "./defineTheme";
+export { THEME_MODES, defineTheme, getTheme, getThemeRegistry, listThemes } from "./defineTheme";
 export type {
   ThemeDefinition,
   ThemeDefinitionArgs,

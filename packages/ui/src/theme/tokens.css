@@ -412,32 +412,32 @@
 [data-theme="mint"][data-mode="dark"] {
   color-scheme: dark;
 
-  --tau-bg-page: #171a19;
-  --tau-bg-surface: #202423;
-  --tau-bg-surface-hover: #2c302f;
-  --tau-bg-sunken: #0c0e0d;
-  --tau-bg-track: #363c3a;
+  --tau-bg-page: #151b18;
+  --tau-bg-surface: #1e2521;
+  --tau-bg-surface-hover: #2a312d;
+  --tau-bg-sunken: #0a0f0c;
+  --tau-bg-track: #34403a;
 
-  --tau-bg-hover: rgba(226, 232, 228, 0.06);
-  --tau-bg-press: rgba(226, 232, 228, 0.11);
-  --tau-bg-selected: hsla(158, 28%, 60%, 0.2);
+  --tau-bg-hover: rgba(224, 234, 227, 0.06);
+  --tau-bg-press: rgba(224, 234, 227, 0.11);
+  --tau-bg-selected: hsla(155, 36%, 58%, 0.2);
 
-  --tau-ink-1: #e2e8e4;
-  --tau-ink-2: #9ba49e;
-  --tau-ink-3: #747d77;
-  --tau-ink-inverse: #111513;
+  --tau-ink-1: #e0eae3;
+  --tau-ink-2: #98a69c;
+  --tau-ink-3: #728078;
+  --tau-ink-inverse: #0f1612;
 
-  --tau-line-1: #2a2f2d;
-  --tau-line-2: rgba(42, 47, 45, 0.55);
+  --tau-line-1: #29322d;
+  --tau-line-2: rgba(41, 50, 45, 0.55);
 
-  --tau-accent: hsl(158 28% 60%);
-  --tau-accent-hover: hsl(158 28% 67%);
-  --tau-accent-soft: hsla(158, 28%, 60%, 0.16);
-  --tau-accent-text: hsl(158 34% 66%);
-  --tau-focus-ring: 0 0 0 3px hsla(158, 28%, 60%, 0.4);
+  --tau-accent: hsl(155 36% 58%);
+  --tau-accent-hover: hsl(155 36% 65%);
+  --tau-accent-soft: hsla(155, 36%, 58%, 0.16);
+  --tau-accent-text: hsl(155 42% 64%);
+  --tau-focus-ring: 0 0 0 3px hsla(155, 36%, 58%, 0.4);
 
-  --tau-ok: #8aab95;
-  --tau-ok-soft: #1e2923;
+  --tau-ok: #84b294;
+  --tau-ok-soft: #1d2b23;
   --tau-warn: #c8b56e;
   --tau-warn-soft: #2d2a1a;
   --tau-danger: #df8a80;
@@ -445,8 +445,8 @@
   --tau-info: #87b3c9;
   --tau-info-soft: #1b2a31;
 
-  --tau-tag-1: #8aab95;
-  --tau-tag-1-soft: #1e2923;
+  --tau-tag-1: #84b294;
+  --tau-tag-1-soft: #1d2b23;
   --tau-tag-2: #87b3c9;
   --tau-tag-2-soft: #1b2a31;
   --tau-tag-3: #a99fd0;
@@ -456,7 +456,7 @@
   --tau-tag-5: #d49488;
   --tau-tag-5-soft: #33221f;
 
-  --tau-overlay: rgba(4, 6, 5, 0.55);
+  --tau-overlay: rgba(4, 7, 5, 0.55);
   --tau-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
   --tau-shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.26), 0 6px 16px -10px rgba(0, 0, 0, 0.52);
   --tau-shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
@@ -570,109 +570,109 @@
   --tau-shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
 }
 
-/* 主题「石墨」· 浅色（晴） */
-[data-theme="graphite"][data-mode="light"] {
+/* 主题「樱花」· 浅色（晴） */
+[data-theme="sakura"][data-mode="light"] {
   color-scheme: light;
 
-  --tau-bg-page: #eeeeec;
-  --tau-bg-surface: #fdfdfc;
-  --tau-bg-surface-hover: #f2f2f1;
-  --tau-bg-sunken: #dadad7;
-  --tau-bg-track: #d6d6d3;
+  --tau-bg-page: #f9eef1;
+  --tau-bg-surface: #fffafb;
+  --tau-bg-surface-hover: #f6f0f1;
+  --tau-bg-sunken: #eddde2;
+  --tau-bg-track: #e8d6dc;
 
-  --tau-bg-hover: rgba(38, 38, 38, 0.05);
-  --tau-bg-press: rgba(38, 38, 38, 0.09);
-  --tau-bg-selected: rgba(187, 63, 44, 0.12);
+  --tau-bg-hover: rgba(66, 45, 53, 0.05);
+  --tau-bg-press: rgba(66, 45, 53, 0.09);
+  --tau-bg-selected: rgba(194, 46, 95, 0.14);
 
-  --tau-ink-1: #262626;
-  --tau-ink-2: #595957;
-  --tau-ink-3: #a3a3a0;
-  --tau-ink-inverse: #fcfcfb;
+  --tau-ink-1: #422d35;
+  --tau-ink-2: #6d5560;
+  --tau-ink-3: #b3a2a8;
+  --tau-ink-inverse: #fffafb;
 
-  --tau-line-1: #e3e3e0;
-  --tau-line-2: rgba(227, 227, 224, 0.55);
+  --tau-line-1: #f0e2e6;
+  --tau-line-2: rgba(240, 226, 230, 0.55);
 
-  --tau-accent: hsl(6 62% 45%);
-  --tau-accent-hover: hsl(6 62% 38%);
-  --tau-accent-soft: hsla(6, 62%, 45%, 0.12);
-  --tau-accent-text: #a93a29;
-  --tau-focus-ring: 0 0 0 3px rgba(187, 63, 44, 0.28);
+  --tau-accent: hsl(340 62% 47%);
+  --tau-accent-hover: hsl(340 62% 40%);
+  --tau-accent-soft: hsla(340, 62%, 47%, 0.14);
+  --tau-accent-text: #a8295a;
+  --tau-focus-ring: 0 0 0 3px rgba(194, 46, 95, 0.28);
 
-  --tau-ok: #5b7a5f;
-  --tau-ok-soft: #e4ece4;
-  --tau-warn: #98844a;
-  --tau-warn-soft: #f3eed9;
-  --tau-danger: #b5344b;
-  --tau-danger-soft: #f6e1e4;
-  --tau-info: #52739a;
-  --tau-info-soft: #e1e8f1;
+  --tau-ok: #5f7d67;
+  --tau-ok-soft: #e3ede5;
+  --tau-warn: #9f8850;
+  --tau-warn-soft: #f5eed9;
+  --tau-danger: #b3483f;
+  --tau-danger-soft: #f7e2de;
+  --tau-info: #58739a;
+  --tau-info-soft: #e2e8f2;
 
-  --tau-tag-1: #5b7a5f;
-  --tau-tag-1-soft: #e4ece4;
-  --tau-tag-2: #52739a;
-  --tau-tag-2-soft: #e1e8f1;
-  --tau-tag-3: #7d71a1;
-  --tau-tag-3-soft: #e8e5f1;
-  --tau-tag-4: #98844a;
-  --tau-tag-4-soft: #f3eed9;
-  --tau-tag-5: #a8615a;
-  --tau-tag-5-soft: #f4e3e1;
+  --tau-tag-1: #5f7d67;
+  --tau-tag-1-soft: #e3ede5;
+  --tau-tag-2: #58739a;
+  --tau-tag-2-soft: #e2e8f2;
+  --tau-tag-3: #8873a6;
+  --tau-tag-3-soft: #ebe5f3;
+  --tau-tag-4: #9f8850;
+  --tau-tag-4-soft: #f5eed9;
+  --tau-tag-5: #b0606e;
+  --tau-tag-5-soft: #f6e3e7;
 
-  --tau-overlay: rgba(38, 38, 38, 0.35);
-  --tau-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.06), 0 10px 24px -14px rgba(0, 0, 0, 0.2);
-  --tau-shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.07), 0 6px 16px -10px rgba(0, 0, 0, 0.24);
-  --tau-shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.4);
+  --tau-overlay: rgba(66, 45, 53, 0.35);
+  --tau-shadow-card: 0 1px 2px rgba(110, 70, 85, 0.06), 0 10px 24px -14px rgba(110, 70, 85, 0.2);
+  --tau-shadow-lift: 0 1px 2px rgba(110, 70, 85, 0.07), 0 6px 16px -10px rgba(110, 70, 85, 0.24);
+  --tau-shadow-float: 0 16px 40px -12px rgba(110, 70, 85, 0.4);
 }
 
-/* 主题「石墨」· 深色（夜） */
-[data-theme="graphite"][data-mode="dark"] {
+/* 主题「樱花」· 深色（夜樱） */
+[data-theme="sakura"][data-mode="dark"] {
   color-scheme: dark;
 
-  --tau-bg-page: #171717;
-  --tau-bg-surface: #212121;
-  --tau-bg-surface-hover: #2d2d2d;
-  --tau-bg-sunken: #0a0a0a;
-  --tau-bg-track: #383838;
+  --tau-bg-page: #1c1719;
+  --tau-bg-surface: #271f23;
+  --tau-bg-surface-hover: #332b2f;
+  --tau-bg-sunken: #100b0d;
+  --tau-bg-track: #42363b;
 
-  --tau-bg-hover: rgba(234, 234, 232, 0.06);
-  --tau-bg-press: rgba(234, 234, 232, 0.11);
-  --tau-bg-selected: hsla(8, 70%, 64%, 0.2);
+  --tau-bg-hover: rgba(240, 226, 232, 0.06);
+  --tau-bg-press: rgba(240, 226, 232, 0.11);
+  --tau-bg-selected: hsla(340, 62%, 72%, 0.22);
 
-  --tau-ink-1: #ebebe9;
-  --tau-ink-2: #a3a3a0;
-  --tau-ink-3: #7a7a77;
-  --tau-ink-inverse: #1a1a1a;
+  --tau-ink-1: #f0e2e8;
+  --tau-ink-2: #ae9ea6;
+  --tau-ink-3: #85767d;
+  --tau-ink-inverse: #1a1216;
 
-  --tau-line-1: #2c2c2c;
-  --tau-line-2: rgba(44, 44, 44, 0.55);
+  --tau-line-1: #34292e;
+  --tau-line-2: rgba(52, 41, 46, 0.55);
 
-  --tau-accent: hsl(8 70% 64%);
-  --tau-accent-hover: hsl(8 70% 71%);
-  --tau-accent-soft: hsla(8, 70%, 64%, 0.16);
-  --tau-accent-text: hsl(8 76% 70%);
-  --tau-focus-ring: 0 0 0 3px hsla(8, 70%, 64%, 0.4);
+  --tau-accent: hsl(340 62% 72%);
+  --tau-accent-hover: hsl(340 62% 79%);
+  --tau-accent-soft: hsla(340, 62%, 72%, 0.18);
+  --tau-accent-text: hsl(340 68% 78%);
+  --tau-focus-ring: 0 0 0 3px hsla(340, 62%, 72%, 0.4);
 
-  --tau-ok: #8bb08f;
-  --tau-ok-soft: #1f2b21;
-  --tau-warn: #c9b26c;
-  --tau-warn-soft: #2d2a1b;
-  --tau-danger: #e6828f;
-  --tau-danger-soft: #361f24;
-  --tau-info: #8eaad0;
-  --tau-info-soft: #1e2633;
+  --tau-ok: #8cb094;
+  --tau-ok-soft: #1f2a22;
+  --tau-warn: #cbb26f;
+  --tau-warn-soft: #2e2a1b;
+  --tau-danger: #e3897c;
+  --tau-danger-soft: #36211d;
+  --tau-info: #8fa9d4;
+  --tau-info-soft: #1e2533;
 
-  --tau-tag-1: #8bb08f;
-  --tau-tag-1-soft: #1f2b21;
-  --tau-tag-2: #8eaad0;
-  --tau-tag-2-soft: #1e2633;
-  --tau-tag-3: #a99dd0;
-  --tau-tag-3-soft: #262335;
-  --tau-tag-4: #c9b26c;
-  --tau-tag-4-soft: #2d2a1b;
-  --tau-tag-5: #d69188;
-  --tau-tag-5-soft: #33221f;
+  --tau-tag-1: #8cb094;
+  --tau-tag-1-soft: #1f2a22;
+  --tau-tag-2: #8fa9d4;
+  --tau-tag-2-soft: #1e2533;
+  --tau-tag-3: #b39fd6;
+  --tau-tag-3-soft: #29233a;
+  --tau-tag-4: #cbb26f;
+  --tau-tag-4-soft: #2e2a1b;
+  --tau-tag-5: #d992a0;
+  --tau-tag-5-soft: #352127;
 
-  --tau-overlay: rgba(0, 0, 0, 0.6);
+  --tau-overlay: rgba(6, 4, 5, 0.55);
   --tau-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
   --tau-shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.26), 0 6px 16px -10px rgba(0, 0, 0, 0.52);
   --tau-shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);

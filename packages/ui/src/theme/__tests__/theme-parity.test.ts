@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ALL_TOKEN_WORDS, cssVarName, type TokenWord } from "../tokenContract";
-import { THEME_MODES, getThemeRegistry } from "../defineTheme";
+import { THEME_MODES, defineTheme, getThemeRegistry, listThemes } from "../defineTheme";
 import "../themes"; // 副作用注册全部主题
 
 // jsdom 环境下 import.meta.url 非 file:// 协议，按 vitest 运行根（apps/desktop）解析
@@ -50,6 +50,32 @@ describe("theme 数据块与 defineTheme 产物一致", () => {
       });
     }
   }
+});
+
+describe("主题列表排序", () => {
+  it("水墨（素色）始终排在最后，其余按注册顺序", () => {
+    const keys = listThemes().map(t => t.key);
+    expect(keys.at(-1)).toBe("ink");
+    const rest = [...getThemeRegistry().keys()].filter(k => k !== "ink");
+    expect(keys.slice(0, -1)).toEqual(rest);
+  });
+
+  it("晚于水墨注册的主题也排在水墨之前", () => {
+    const { light } = listThemes()[0];
+    const late = defineTheme({
+      key: "__late__",
+      name: "迟到",
+      light: { palette: light.palette, tokens: () => light.tokens },
+      dark: { palette: light.palette, tokens: () => light.tokens },
+    });
+    try {
+      const keys = listThemes().map(t => t.key);
+      expect(keys.indexOf(late.key)).toBeLessThan(keys.indexOf("ink"));
+      expect(keys.at(-1)).toBe("ink");
+    } finally {
+      (getThemeRegistry() as Map<string, unknown>).delete(late.key);
+    }
+  });
 });
 
 // ── WCAG 对比度工具（02 规范 §2.5 硬指标的测试化，codegen 门禁前的手工守护）──

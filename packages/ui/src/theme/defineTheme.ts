@@ -32,6 +32,8 @@ export interface ThemeVariant {
 export interface ThemeDefinition extends Record<ThemeMode, ThemeVariant> {
   key: string;
   name: string;
+  /** 设置页等列表中的排序权重（升序，同权重按注册顺序）；缺省 0 */
+  order: number;
 }
 
 export interface ThemeVariantArgs {
@@ -42,6 +44,7 @@ export interface ThemeVariantArgs {
 export interface ThemeDefinitionArgs extends Record<ThemeMode, ThemeVariantArgs> {
   key: string;
   name: string;
+  order?: number;
 }
 
 const themeRegistry = new Map<string, ThemeDefinition>();
@@ -62,6 +65,7 @@ export function defineTheme(args: ThemeDefinitionArgs): ThemeDefinition {
   const definition: ThemeDefinition = {
     key: args.key,
     name: args.name,
+    order: args.order ?? 0,
     light: buildVariant(args.light),
     dark: buildVariant(args.dark),
   };
@@ -71,6 +75,11 @@ export function defineTheme(args: ThemeDefinitionArgs): ThemeDefinition {
 
 export function getThemeRegistry(): ReadonlyMap<string, ThemeDefinition> {
   return themeRegistry;
+}
+
+/** 按 order 排序的主题列表（供设置页等枚举展示；不依赖注册 / import 顺序） */
+export function listThemes(): ThemeDefinition[] {
+  return [...themeRegistry.values()].sort((a, b) => (a.order === b.order ? 0 : a.order - b.order));
 }
 
 export function getTheme(key: string): ThemeDefinition | undefined {
