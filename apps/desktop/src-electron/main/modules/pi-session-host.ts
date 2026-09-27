@@ -30,6 +30,7 @@ import {
   deleteBrowserSession,
   listBrowserSessions,
   packSessionDir,
+  readConversationTree,
   readTranscript,
   renameBrowserSession,
   replaceSessionDir,
@@ -42,7 +43,7 @@ import {
   findSessionFileById,
   resolveSessionFile,
 } from "./pi-session-paths";
-import type { DesktopDisplayData } from "./pi-session-files";
+import { conversationTreeOf, type DesktopDisplayData } from "./pi-session-files";
 import type {
   PiHostToolSpec,
   PiPromptDisplay,
@@ -289,6 +290,18 @@ class PiSessionHostModule {
       PiSessionHostModule.guard(async () => {
         const { file, sessionDir } = await PiSessionHostModule.locate(location);
         return { messages: readTranscript(file, sessionDir) };
+      })
+    );
+    // 树谱视图（M4-d）：只含用户消息的精简树。宿主开着就读它的 SessionManager（内存里最新），否则读文件
+    ipcMain.handle("pi-session:tree", async (_event, location: PiSessionLocation) =>
+      PiSessionHostModule.guard(async () => {
+        const { file, sessionDir } = await PiSessionHostModule.locate(location);
+        const hosted = file ? PiSessionHostModule.findByFile(file) : undefined;
+        return {
+          nodes: hosted
+            ? conversationTreeOf(hosted.session.sessionManager)
+            : readConversationTree(file, sessionDir),
+        };
       })
     );
     // 改会话树（M4-d）：编辑重发/重新生成 = 回退，从这里建分支 = 分叉，切版本，删除 = 省略。

@@ -10,7 +10,7 @@ import React, {
 import { produce } from "immer";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { useDrop } from "react-dnd";
-import { CornerDownRight, Pencil, RotateCw, Trash2, TriangleAlert } from "lucide-react";
+import { CornerDownRight, GitBranch, Pencil, RotateCw, Trash2, TriangleAlert } from "lucide-react";
 
 import ChatInputArea from "@/components/ChatInputArea";
 import type { ChatInputAreaHandle } from "@/components/ChatInputArea";
@@ -53,7 +53,10 @@ import useLLMConfig from "@/hooks/useLLMConfig";
 import useSettingStore from "@/stores/useSettingStore";
 import useSkillStore from "@/stores/useSkillStore";
 import type { EditTextHandle } from "@/components/EditText";
-import { FADE_SCROLL_CLASS, cn, toast, useEdgeFade } from "@tau/ui";
+import { FADE_SCROLL_CLASS, Popover, cn, toast, useEdgeFade } from "@tau/ui";
+import { useConversationTree } from "@/features/chat/useConversationTree";
+import { ConversationTreePanel } from "@/features/chat/components/ConversationTreePanel";
+import type { ConversationTreeRow } from "@/features/chat/conversationTree";
 import {
   ChatContainerCore,
   type ChatContainerCoreHandle,
@@ -881,6 +884,14 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       [actualChatRef, updateCounter]
     );
 
+    // 树谱（M4-d）：分叉点在对话流里标出来，全貌在「N 条分支」浮层里
+    const conversationTree = useConversationTree({
+      id: actualChatRef.current.id,
+      sessionFile: actualChatRef.current.sessionFile,
+      messages: visibleMessages,
+    });
+    const [treeOpen, setTreeOpen] = useState(false);
+
     const contextUsage = useMemo(() => {
       for (let index = actualChatRef.current.messages.length - 1; index >= 0; index -= 1) {
         const chatMessage = actualChatRef.current.messages[index];
@@ -1348,6 +1359,24 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       }
     );
 
+    /** 树谱里点一条分支：切过去，并在对话流里定位到这条分支的起点 */
+    const handleTreeSelect = useMemoizedFn(async (row: ConversationTreeRow) => {
+      setTreeOpen(false);
+      if (sendLoading) return;
+      const onPathAlready = row.onPath && row.isLeaf;
+      const next = onPathAlready
+        ? actualChatRef.current
+        : await editSessionHistory({ kind: "switch", entryId: row.tail.id });
+      if (!next) return;
+      setEditingDraft(null);
+      const index = visibleMessagesOf(next).findIndex(
+        message => message.piEntryIds?.[0] === row.node.id
+      );
+      if (index >= 0) {
+        setTimeout(() => coreRef.current?.scrollToIndex(index, { align: "start" }), 0);
+      }
+    });
+
     if (!currentChat) {
       return null;
     }
@@ -1413,6 +1442,35 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               "bg-accent-soft shadow-[inset_0_0_0_2px_var(--tau-accent)]"
           )}
         >
+          {conversationTree.branchCount > 1 && (
+            <div className={cn("flex flex-none justify-end pt-1.5", chatGutter)}>
+              <Popover
+                open={treeOpen}
+                onOpenChange={setTreeOpen}
+                placement="bottom-end"
+                arrow={false}
+                // 覆盖卡片默认的 max-w-[340px]：窄停靠栏里不超出视口
+                className="w-[min(360px,calc(100vw-32px))] max-w-none p-1.5"
+                trigger={
+                  <button
+                    type="button"
+                    title="查看对话分支"
+                    className="hover:bg-hover aria-expanded:bg-hover text-tau-sm text-ink-2 ease-tau-out flex h-7 items-center gap-1.5 rounded-[8px] px-2 transition-colors duration-[160ms]"
+                  >
+                    <GitBranch size={13} strokeWidth={1.75} />
+                    <span className="tabular-nums">{conversationTree.branchCount} 条分支</span>
+                  </button>
+                }
+              >
+                <ConversationTreePanel
+                  rows={conversationTree.rows}
+                  branchCount={conversationTree.branchCount}
+                  disabled={sendLoading}
+                  onSelect={row => void handleTreeSelect(row)}
+                />
+              </Popover>
+            </div>
+          )}
           <ChatContainerCore
             ref={coreRef}
             isDark={isDark}
@@ -1636,6 +1694,19 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               const streamingIndex = sendLoading ? visibleMessages.length - 1 : -1;
               const isStreaming =
                 sendLoading && messageIndex === streamingIndex && item.role === Role.Assistant;
+              // 分叉标记：这条回答之后分出了多条下一问（它前面那条用户消息是分叉点）
+              const forkHere =
+                item.role === Role.Assistant &&
+                (() => {
+                  for (let index = messageIndex - 1; index >= 0; index -= 1) {
+                    const previous = visibleMessages[index];
+                    if (previous.role === Role.User) {
+                      const entryId = previous.piEntryIds?.[0];
+                      return Boolean(entryId && conversationTree.forkPoints.has(entryId));
+                    }
+                  }
+                  return false;
+                })();
 
               return column(
                 <div
@@ -1666,6 +1737,18 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                       isStreaming,
                     }}
                   />
+                  {forkHere && (
+                    <button
+                      type="button"
+                      onClick={() => setTreeOpen(true)}
+                      className="text-tau-tiny text-ink-3 hover:text-ink-1 ease-tau-out mt-2 flex w-full items-center gap-2 transition-colors duration-[160ms]"
+                    >
+                      <span aria-hidden className="bg-line-1 h-px flex-1" />
+                      <GitBranch size={12} strokeWidth={1.75} aria-hidden />
+                      <span>从这里分出了多条分支 · 查看</span>
+                      <span aria-hidden className="bg-line-1 h-px flex-1" />
+                    </button>
+                  )}
                 </div>
               );
             }}

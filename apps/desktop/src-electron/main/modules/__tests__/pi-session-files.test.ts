@@ -15,6 +15,7 @@ import {
   loadSessionTranscript,
 } from "../pi-session-host-core";
 import {
+  conversationTreeOf,
   forkAfterEntry,
   omitEntries,
   rewindToBeforeEntry,
@@ -338,6 +339,27 @@ describe("会话树（M4-d）", () => {
     expect(() =>
       applySessionEditToFile(join(sessionDir, "missing.jsonl"), { kind: "omit", entryIds: ["x"] })
     ).toThrow();
+  });
+
+  it("树谱数据：只含用户消息，父为上一条用户消息；当前路径、回答、删除标记正确", () => {
+    const sessionDir = setup();
+    const file = join(sessionDir, writeTwoTurns(sessionDir));
+    const [first, second] = [0, 1].map(index => userEntryId(file, sessionDir, index));
+    rewindToBeforeEntry(SessionManager.open(file), second);
+    appendTurn(file, "第二问（改）", "第二答（改）", 10);
+    omitEntries(SessionManager.open(file), [first]);
+
+    const nodes = conversationTreeOf(SessionManager.open(file));
+    expect(nodes.map(item => [item.text, item.parentId === null ? null : "first"])).toEqual([
+      ["第一问", null],
+      ["第二问", "first"],
+      ["第二问（改）", "first"],
+    ]);
+    expect(nodes.every(item => item.parentId === null || item.parentId === first)).toBe(true);
+    expect(nodes.map(item => item.onPath)).toEqual([true, false, true]);
+    expect(nodes.every(item => item.answered)).toBe(true);
+    // 删除按当前路径判定
+    expect(nodes.map(item => item.omitted)).toEqual([true, false, false]);
   });
 
   it("活会话上改树 + refreshContext：不重建会话，模型下一轮看到的是切换后的路径", async () => {

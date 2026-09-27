@@ -90,6 +90,21 @@ export interface PiPromptDisplay {
  */
 export type PiSessionLocation = { sessionFile: string } | { pageUrl: string; sessionId: string };
 
+/**
+ * 树谱视图的一个节点（M4-d）：一条用户消息，回答折叠进去。父 = 上一条用户消息（根上为 null），
+ * 同一父下的多个节点就是分叉。主进程 conversationTreeOf 产出。
+ */
+export interface ConversationTreeNode {
+  id: string;
+  parentId: string | null;
+  text: string;
+  answered: boolean;
+  /** 最后活动时间（毫秒） */
+  time: number;
+  onPath: boolean;
+  omitted: boolean;
+}
+
 /** 浏览器扩展的一个对话（直接取自 pi 会话文件，无目录表） */
 export interface PiBrowserSessionInfo {
   id: string;
