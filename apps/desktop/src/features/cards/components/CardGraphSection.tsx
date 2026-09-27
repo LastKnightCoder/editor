@@ -36,6 +36,7 @@ export function CardGraphSection({
     () => (card: ICard) => [...new Set([...getInlineLinks(card), ...card.links])],
     []
   );
+  // 地图还在首次构建（大库要分钟级）时先画链接图谱：让用户能看能点，算完自动换上地图
   const graphShown = !(knowledgeMap.isPending && knowledgeMap.isFetching);
 
   const databaseName = useSettingStore(state => state.setting.database.active);
@@ -94,7 +95,7 @@ export function CardGraphSection({
           // 全库图谱是用户反复回看的那张「地图」：优先用主进程离线算好的知识地图；
           // 取不到时退回链接图谱，其布局坐标照旧跨重启保持
           persistKey="cards-library"
-          knowledgeMap={knowledgeMap.data ?? null}
+          knowledgeMap={knowledgeMap.data?.map ?? null}
         />
       )}
     </div>

@@ -105,6 +105,31 @@ describe("knn", () => {
     expect(knn(vectors, 3, 0.35)[0]).toEqual([]);
   });
 
+  it("与「每个点独立扫全表」的朴素实现结果一致（只算上三角不改变语义）", () => {
+    const random = seeded(11);
+    // 刻意造成团的向量：相似度有高有低，前 k 的边界才会被真正考验
+    const vectors: CardVector[] = Array.from({ length: 120 }, (_, i) => {
+      const v = new Float32Array(24);
+      v[i % 6] = 1;
+      for (let d = 0; d < 24; d++) v[d] += (random() - 0.5) * 0.8;
+      return { id: i, vector: normalize(v) };
+    });
+    const naive = vectors.map((self, i) => {
+      const all = vectors
+        .map((other, j) => ({
+          index: j,
+          similarity: self.vector.reduce((sum, x, d) => sum + x * other.vector[d], 0),
+        }))
+        .filter(n => n.index !== i && n.similarity >= 0.3);
+      all.sort((x, y) => y.similarity - x.similarity || x.index - y.index);
+      return all.slice(0, 8).map(n => n.index);
+    });
+    expect(knn(vectors, 8, 0.3).map(list => list.map(n => n.index))).toEqual(naive);
+  });
+
+  // 只留一条时间门禁，而且只在当前真实规模上：更大规模的绝对耗时断言在
+  // 全量测试（350 个文件并行）里会被 CPU 抢占拖垮，2000 张那条见过 3.3s / 5.2s 的抖动。
+  // 防算法退化主要靠上面那条「与朴素实现结果一致」，性能靠 §7.3 记录的压测数字盯
   it("700 张 × 1024 维在 3 秒内（当前真实规模）", () => {
     const random = seeded(3);
     const vectors: CardVector[] = Array.from({ length: 700 }, (_, i) => ({

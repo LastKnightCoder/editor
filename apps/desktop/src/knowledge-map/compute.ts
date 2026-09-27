@@ -52,12 +52,11 @@ const LINK_WEIGHT = 1.5;
  */
 const CROSS_LINK_BOOST = 4;
 /**
- * 最终松弛时跨主题显式链接的弹簧强度（静长为 0）。要比锚点力（0.14）弱：
- * 卡片只在自己的岛内挪到朝外的边缘，不被拽进水道。
- * 真实数据上扫过 0.04 / 0.08 / 0.1 / 0.15：0.1 时跨主题连线均长 201→155，
- * 再大收益变小，JS 这类大岛里的桥接卡开始被拉离自己的子主题。
+ * 桥接卡片朝对方主题挪多远（相对两岛中心距的比例，上限见 bridgePull 处）。
+ * 原来是最终松弛里的一条弱弹簧（强度 0.1，静长 0），真实数据上跨主题连线均长 201→155；
+ * 但那要求松弛跨岛进行。改成直接挪锚点后效果等价，松弛就能按岛切开跑（快得多）。
  */
-const BRIDGE_STRENGTH = 0.1;
+const BRIDGE_ANCHOR_SHIFT = 0.25;
 const RESOLUTIONS = [0.15, 0.25, 0.35, 0.5, 0.7, 1, 1.4];
 
 /**
@@ -765,6 +764,41 @@ export function topicAffinity(
   return result;
 }
 
+/**
+ * 子主题内部每张卡的锚点：按向日葵螺旋（黄金角）铺在圆盘里，间距取成员的平均直径。
+ *
+ * 先前所有成员共用一个锚点（子主题中心），松弛就成了「锚点往里拉、碰撞往外推」的拉锯：
+ * 画面松不松完全取决于迭代次数，而那一轮占了整条管线 60% 的时间（5000 张的剖析：
+ * collide + manyBody + 四叉树）。改成一卡一锚点后，卡片起步就铺开、也不会被拽回中心，
+ * 力模拟只做局部微调，迭代次数可以大幅降低。
+ * 向日葵而不是网格：圆盘边缘不出现直角，密度也更均匀，看起来仍是自然的一团。
+ */
+function seedWithinDisc(
+  members: number[],
+  nodeRadius: number[],
+  seedX: Float64Array,
+  seedY: Float64Array,
+  center: { cx: number; cy: number; radius: number }
+) {
+  if (members.length === 0) return;
+  let radiusSum = 0;
+  for (const node of members) radiusSum += nodeRadius[node];
+  const average = radiusSum / members.length;
+  // 铺到圆盘内为止：越界的话相邻的岛会贴上（岛之间的水道只由 packDiscs 的 gap 保证，
+  // 松弛已经按岛切开、不再有跨岛斥力把它们推开）
+  const limit = Math.max(0, center.radius - average - 2);
+  const last = Math.max(1, members.length - 1);
+  // 黄金角：相邻点的角差 ≈ 137.5°，任意半径处都不会排成放射线
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  members.forEach((node, i) => {
+    // 半径按 √(i/last) 增长：面积均匀，最后一个正好落在边缘
+    const r = limit * Math.sqrt(i / last);
+    const angle = i * golden;
+    seedX[node] = center.cx + Math.cos(angle) * r;
+    seedY[node] = center.cy + Math.sin(angle) * r;
+  });
+}
+
 /** 把一组圆（主题或子主题）按亲近关系摆开：亲近的挨着，互不重叠 */
 function packDiscs(
   discs: Disc[],
@@ -801,7 +835,12 @@ function packDiscs(
 }
 
 interface MapNodeDatum extends SimulationNodeDatum {
-  index: number;
+  /**
+   * 卡片在 cards 里的下标。不能叫 index：d3-force 会把 node.index 重写成
+   * 「该节点在本次模拟数组里的位置」——全图一次模拟时两者恰好相等，
+   * 按岛切开跑之后就错位了（forceLink 按 id 就找不到节点）
+   */
+  card: number;
   radius: number;
   anchorX: number;
   anchorY: number;
@@ -979,10 +1018,24 @@ export function computeKnowledgeMap(
       id => topicDiscs[id]
     );
     const subCenter = new Map(subDiscs.map(d => [d.key, d]));
-    for (const node of members) {
-      const sub = subCenter.get(subtopicIndex[node]);
-      anchorX[node] = (center.x ?? 0) + (sub?.x ?? 0);
-      anchorY[node] = (center.y ?? 0) + (sub?.y ?? 0);
+    // 每张卡的锚点是它自己在（子）主题圆盘里的螺旋位置（不是圆盘中心，见 seedWithinDisc）
+    for (const sub of subs) {
+      const disc = subCenter.get(sub.id);
+      if (!disc) continue;
+      seedWithinDisc(sub.members, nodeRadius, anchorX, anchorY, {
+        cx: (center.x ?? 0) + (disc.x ?? 0),
+        cy: (center.y ?? 0) + (disc.y ?? 0),
+        radius: disc.radius,
+      });
+    }
+    // 没分出子主题的卡片（主题太小，或语义上切不开）直接铺在主题圆盘里
+    const bare = members.filter(node => subtopicIndex[node] < 0);
+    if (bare.length > 0) {
+      seedWithinDisc(bare, nodeRadius, anchorX, anchorY, {
+        cx: center.x ?? 0,
+        cy: center.y ?? 0,
+        radius: center.radius,
+      });
     }
   });
 
@@ -995,69 +1048,125 @@ export function computeKnowledgeMap(
   const datums: MapNodeDatum[] = cards.map((_, index) => {
     const loose = topicIndex[index] < 0;
     const angle = random() * Math.PI * 2;
-    const spread = loose ? outerRing + random() * 60 : random() * 30;
-    const baseX = loose ? 0 : anchorX[index];
-    const baseY = loose ? 0 : anchorY[index];
+    if (loose) {
+      return {
+        card: index,
+        radius: nodeRadius[index],
+        anchorX: Math.cos(angle) * outerRing,
+        anchorY: Math.sin(angle) * outerRing,
+        loose,
+        x: Math.cos(angle) * (outerRing + random() * 60),
+        y: Math.sin(angle) * (outerRing + random() * 60),
+      };
+    }
     return {
-      index,
+      card: index,
       radius: nodeRadius[index],
-      anchorX: loose ? Math.cos(angle) * outerRing : baseX,
-      anchorY: loose ? Math.sin(angle) * outerRing : baseY,
+      anchorX: anchorX[index],
+      anchorY: anchorY[index],
       loose,
-      x: baseX + Math.cos(angle) * spread,
-      y: baseY + Math.sin(angle) * spread,
+      x: anchorX[index],
+      y: anchorY[index],
     };
   });
 
-  const simLinks = graph.edges
-    .filter(e => topicIndex[e.source] >= 0 && topicIndex[e.source] === topicIndex[e.target])
-    .map(e => ({ source: e.source, target: e.target, weight: e.weight, explicit: e.explicit }));
-  // 跨主题的显式链接作为弱力：桥接卡片被拉到两个岛相对的边缘，连线变短。
-  // 只取显式链接——跨主题的语义边有几百条，全加进来岛就糊成一片；
-  // 力要弱到锚点力始终占上风，卡片只在自己岛内挪到靠外的一侧，不会被拽进水道
-  const bridgeLinks = graph.edges
-    .filter(
-      e =>
-        e.explicit &&
-        topicIndex[e.source] >= 0 &&
-        topicIndex[e.target] >= 0 &&
-        topicIndex[e.source] !== topicIndex[e.target]
-    )
-    .map(e => ({ source: e.source, target: e.target }));
+  // 桥接：跨主题的显式链接，作为弱力把桥接卡片拉到两个岛相对的边缘。
+  // 只取显式链接——跨主题的语义边有几百条，全加进来岛就糊成一片。
+  // 岛与岛之间被水道隔开、互不重叠，所以桥接只改锚点（把卡片的锚点朝对方主题挪一点），
+  // 不进力模拟：这样松弛可以按岛切开跑，省掉一棵横跨全图的四叉树
+  const bridgePull = new Map<number, { x: number; y: number }>();
+  for (const edge of graph.edges) {
+    if (!edge.explicit) continue;
+    const a = topicIndex[edge.source];
+    const b = topicIndex[edge.target];
+    if (a < 0 || b < 0 || a === b) continue;
+    for (const [from, toTopic] of [
+      [edge.source, b],
+      [edge.target, a],
+    ] as const) {
+      const target = topicDiscs[toTopic];
+      const own = bridgePull.get(from) ?? { x: 0, y: 0 };
+      own.x += (target.x ?? 0) - anchorX[from];
+      own.y += (target.y ?? 0) - anchorY[from];
+      bridgePull.set(from, own);
+    }
+  }
+  for (const [node, pull] of bridgePull) {
+    const length = Math.hypot(pull.x, pull.y) || 1;
+    // 上限按节点半径给：挪到岛朝外的一侧就够，再远会被拽出自己的（子）主题。
+    // 真实数据上扫过 4r+10 / 8r+20 / 14r+30：跨主题连线均长 182 / 169 / 160
+    //（原来的跨岛弹簧是 155，不加桥接是 201），岛内链接 p50 始终是 26
+    const step = Math.min(length * BRIDGE_ANCHOR_SHIFT, nodeRadius[node] * 14 + 30);
+    datums[node].anchorX += (pull.x / length) * step;
+    datums[node].anchorY += (pull.y / length) * step;
+    datums[node].x = datums[node].anchorX;
+    datums[node].y = datums[node].anchorY;
+  }
 
-  forceSimulation<MapNodeDatum>(datums)
-    .randomSource(random)
-    .force(
-      "link",
-      forceLink<
-        MapNodeDatum,
-        SimulationLinkDatum<MapNodeDatum> & { weight: number; explicit: boolean }
-      >(simLinks)
-        .id(d => d.index)
-        .distance(l => (l.explicit ? 16 : 22))
-        .strength(l => Math.min(0.6, 0.08 + 0.2 * l.weight))
-    )
-    .force(
-      "bridge",
-      forceLink<MapNodeDatum, SimulationLinkDatum<MapNodeDatum>>(bridgeLinks)
-        .id(d => d.index)
-        .distance(0)
-        .strength(BRIDGE_STRENGTH)
-    )
-    .force("charge", forceManyBody<MapNodeDatum>().strength(-14).distanceMax(90))
-    .force("collide", forceCollide<MapNodeDatum>(d => d.radius + 2).iterations(2))
-    // 锚点力把节点留在所属（子）主题的圆盘里：岛与岛之间有清楚的水道
-    .force(
-      "x",
-      forceX<MapNodeDatum>(d => d.anchorX).strength(d => (d.loose ? 0.06 : 0.14))
-    )
-    .force(
-      "y",
-      forceY<MapNodeDatum>(d => d.anchorY).strength(d => (d.loose ? 0.06 : 0.14))
-    )
-    .velocityDecay(0.4)
-    .stop()
-    .tick(options.ticks ?? 260);
+  /**
+   * 最后一轮松弛按主题岛分别跑。
+   *
+   * 岛与岛之间有 70 世界单位的水道（packDiscs 的 gap），卡片受锚点力约束不会越界，
+   * 所以一个岛内的碰撞与斥力不会影响别的岛。切开跑省掉的是「横跨全图的四叉树」：
+   * 剖析显示 5000 张时 collide + manyBody + 四叉树占整条管线 60%，而四叉树的
+   * 遍历成本随图的总规模涨。切开后每棵树只有一个岛那么大，缓存命中也好得多。
+   * 未归类的卡片（外圈）单独作为一组。
+   */
+  const islands = new Map<number, MapNodeDatum[]>();
+  for (const datum of datums) {
+    const key = topicIndex[datum.card];
+    const list = islands.get(key);
+    if (list) list.push(datum);
+    else islands.set(key, [datum]);
+  }
+  const islandLinks = new Map<
+    number,
+    Array<{ source: number; target: number; weight: number; explicit: boolean }>
+  >();
+  for (const edge of graph.edges) {
+    const topic = topicIndex[edge.source];
+    if (topic < 0 || topic !== topicIndex[edge.target]) continue;
+    const list = islandLinks.get(topic);
+    const link = {
+      source: edge.source,
+      target: edge.target,
+      weight: edge.weight,
+      explicit: edge.explicit,
+    };
+    if (list) list.push(link);
+    else islandLinks.set(topic, [link]);
+  }
+
+  const ticks = options.ticks ?? 260;
+  for (const [topic, members] of islands) {
+    const links = (islandLinks.get(topic) ?? []).map(l => ({ ...l }));
+    forceSimulation<MapNodeDatum>(members)
+      .randomSource(random)
+      .force(
+        "link",
+        forceLink<
+          MapNodeDatum,
+          SimulationLinkDatum<MapNodeDatum> & { weight: number; explicit: boolean }
+        >(links)
+          .id(d => d.card)
+          .distance(l => (l.explicit ? 16 : 22))
+          .strength(l => Math.min(0.6, 0.08 + 0.2 * l.weight))
+      )
+      .force("charge", forceManyBody<MapNodeDatum>().strength(-14).distanceMax(90))
+      .force("collide", forceCollide<MapNodeDatum>(d => d.radius + 2).iterations(2))
+      // 锚点力把节点留在自己的螺旋位置附近：岛与岛之间有清楚的水道
+      .force(
+        "x",
+        forceX<MapNodeDatum>(d => d.anchorX).strength(d => (d.loose ? 0.06 : 0.14))
+      )
+      .force(
+        "y",
+        forceY<MapNodeDatum>(d => d.anchorY).strength(d => (d.loose ? 0.06 : 0.14))
+      )
+      .velocityDecay(0.4)
+      .stop()
+      .tick(ticks);
+  }
 
   const nodes: KnowledgeMapNode[] = cards.map((card, index) => ({
     cardId: card.id,

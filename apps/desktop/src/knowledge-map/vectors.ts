@@ -47,10 +47,16 @@ export interface Neighbor {
 }
 
 /**
- * 暴力 kNN。
- * 为什么不上 ANN：700 张卡 × 1024 维 ≈ 5 亿次乘加，Node 里 1 秒内；
- * 2 万张卡约 4000 亿次，离线跑可以接受，且结果精确（ANN 的近似误差会让
- * 主题边界抖动）。真到 10 万级再换 HNSW，调用方不受影响。
+ * 暴力 kNN（精确）。
+ *
+ * 三个关键优化，都是为了万级规模（2 万张的裸实现要 5 分钟，见压测）：
+ *  1. **只算上三角**：余弦相似度对称，算一次同时喂给两端，乘加次数减半；
+ *  2. **向量打包成一块连续内存**：原本每张卡一个独立 Float32Array，
+ *     内循环跨对象访问，缓存命中差；打包后内层是顺序读；
+ *  3. **点积按 4 路展开**：减少循环开销，也让引擎更容易用 SIMD。
+ *
+ * 为什么仍不上 ANN：结果精确（ANN 的近似误差会让主题边界抖动），
+ * 而这是离线一次性成本。真到十万级再换 HNSW，调用方不受影响。
  *
  * @param minSimilarity 低于它的不算邻居：语义上八竿子打不着的卡片硬连上，
  *   只会把孤立卡片拽进随便哪个簇
@@ -61,32 +67,58 @@ export function knn(vectors: CardVector[], k: number, minSimilarity = 0.35): Nei
   if (count < 2 || k <= 0) return result;
   const dim = vectors[0].vector.length;
 
-  // 每个点维护一个大小为 k 的「最弱在头」的有序缓冲，避免对全部 n 个相似度排序
+  // 打包：第 i 个向量占 [i*dim, (i+1)*dim)
+  const flat = new Float32Array(count * dim);
   for (let i = 0; i < count; i++) {
-    const a = vectors[i].vector;
-    const top: Neighbor[] = [];
-    for (let j = 0; j < count; j++) {
-      if (i === j) continue;
-      const b = vectors[j].vector;
-      let dot = 0;
-      for (let d = 0; d < dim; d++) dot += a[d] * b[d];
-      if (dot < minSimilarity) continue;
-      if (top.length < k) {
-        top.push({ index: j, similarity: dot });
-        if (top.length === k) top.sort((x, y) => x.similarity - y.similarity);
-        continue;
-      }
-      if (dot <= top[0].similarity) continue;
-      // 插入到正确位置，保持升序
-      top[0] = { index: j, similarity: dot };
-      for (let p = 0; p + 1 < top.length && top[p].similarity > top[p + 1].similarity; p++) {
-        const tmp = top[p];
-        top[p] = top[p + 1];
-        top[p + 1] = tmp;
-      }
+    const v = vectors[i].vector;
+    // 维度不一致的（换模型后的残留）留成零向量：点积恒为 0，自然不会成为邻居
+    if (v.length === dim) flat.set(v, i * dim);
+  }
+
+  /** 每个点一个「最弱在头」的升序缓冲，长度上限 k；插入时保持有序 */
+  const tops: Neighbor[][] = result;
+  const offer = (owner: number, index: number, similarity: number) => {
+    const top = tops[owner];
+    if (top.length < k) {
+      top.push({ index, similarity });
+      // 装满时排一次，之后靠插入维持有序
+      if (top.length === k) top.sort((x, y) => x.similarity - y.similarity);
+      return;
     }
-    top.sort((x, y) => y.similarity - x.similarity || x.index - y.index);
-    result[i] = top;
+    if (similarity <= top[0].similarity) return;
+    top[0] = { index, similarity };
+    for (let p = 0; p + 1 < top.length && top[p].similarity > top[p + 1].similarity; p++) {
+      const tmp = top[p];
+      top[p] = top[p + 1];
+      top[p + 1] = tmp;
+    }
+  };
+
+  const tail = dim - (dim % 4);
+  for (let i = 0; i < count; i++) {
+    const base = i * dim;
+    for (let j = i + 1; j < count; j++) {
+      const other = j * dim;
+      let d0 = 0;
+      let d1 = 0;
+      let d2 = 0;
+      let d3 = 0;
+      for (let d = 0; d < tail; d += 4) {
+        d0 += flat[base + d] * flat[other + d];
+        d1 += flat[base + d + 1] * flat[other + d + 1];
+        d2 += flat[base + d + 2] * flat[other + d + 2];
+        d3 += flat[base + d + 3] * flat[other + d + 3];
+      }
+      let dot = d0 + d1 + d2 + d3;
+      for (let d = tail; d < dim; d++) dot += flat[base + d] * flat[other + d];
+      if (dot < minSimilarity) continue;
+      offer(i, j, dot);
+      offer(j, i, dot);
+    }
+  }
+
+  for (let i = 0; i < count; i++) {
+    tops[i].sort((x, y) => y.similarity - x.similarity || x.index - y.index);
   }
   return result;
 }

@@ -20,6 +20,11 @@ import type Database from "better-sqlite3";
 import { BrowserWindow, ipcMain } from "electron";
 import log from "electron-log";
 import { placeIncrementally } from "@/knowledge-map/compute";
+import {
+  REBUILD_DRIFT_RATIO,
+  syncPlaceLimit,
+  WAIT_FIRST_BUILD_CARDS,
+} from "@/knowledge-map/schedule";
 import type { KnowledgeMap } from "@/knowledge-map/types";
 import type { Module } from "../types/module";
 import type { KnowledgeMapWorkerResult } from "../workers/knowledge-map.worker";
@@ -27,14 +32,7 @@ import databaseModule from "./database";
 import KnowledgeMapTable from "./tables/knowledge-map";
 
 const WORKER_PATH = join(__dirname, "knowledge-map-worker.js");
-/** 增量放置累计超过地图规模的这个比例，就在下次打开时整体重算 */
-const REBUILD_DRIFT_RATIO = 0.15;
 const NEIGHBORS = 8;
-/**
- * 一次打开最多同步放置这么多张新卡。每张要跑一次 sqlite-vec 近邻查询（真实库约 80ms），
- * 在主进程里做太多会卡住所有窗口的 IPC；超过就改为后台整体重算。
- */
-const SYNC_PLACE_LIMIT = 10;
 
 export type KnowledgeMapStatus = "missing" | "stale" | "ready" | "building";
 
@@ -131,8 +129,13 @@ class KnowledgeMapBuilder implements Module {
   }
 
   /**
-   * 有可用的地图就立即返回（哪怕已过时，并在后台重算）；
-   * 完全没有才等这一次重算——首次打开图谱会多等约 1 秒，之后都是秒开。
+   * 有可用的地图就立即返回（哪怕已过时，并在后台重算）。
+   *
+   * 完全没有时也不干等：万级库的首次重算是分钟级的（压测：2 万张约 4 分钟），
+   * 干等意味着几分钟的空白 Loading。改为立刻回 `building` + 空地图，渲染层退回
+   * 链接图谱先让用户能看能点；算完由 `knowledge-map:updated` 推给窗口换上。
+   * 小库（约 700 张，1 秒）等一下反而更好——省掉「链接图谱闪一下再换成地图」，
+   * 所以按库里的卡片数分流。
    */
   private handleGet(sender: Electron.WebContents, force: boolean): Promise<KnowledgeMapPayload> {
     return this.withDatabases(sender, async (mainDb, indexDb, dbName) => {
@@ -147,7 +150,13 @@ class KnowledgeMapBuilder implements Module {
           );
         return { status, map };
       }
-      const fresh = await this.rebuild(mainDb, indexDb, dbName);
+      const task = this.rebuild(mainDb, indexDb, dbName);
+      if (!force && KnowledgeMapTable.cardIds(mainDb).length > WAIT_FIRST_BUILD_CARDS) {
+        // 不 await：渲染层拿到 building 后退回链接图谱，并轮询等这次算完
+        task.catch(error => log.error("[KnowledgeMapBuilder] first build failed:", error));
+        return { status: "building", map: null };
+      }
+      const fresh = await task;
       return { status: "ready", map: fresh };
     });
   }
@@ -171,7 +180,7 @@ class KnowledgeMapBuilder implements Module {
     if (removed.length === 0 && missing.length === 0) return map;
 
     for (const node of removed) KnowledgeMapTable.removeNode(indexDb, node.cardId);
-    if (missing.length > SYNC_PLACE_LIMIT) {
+    if (missing.length > syncPlaceLimit(map.nodes.length)) {
       void this.rebuild(mainDb, indexDb, dbName).catch(error =>
         log.error("[KnowledgeMapBuilder] background rebuild failed:", error)
       );
