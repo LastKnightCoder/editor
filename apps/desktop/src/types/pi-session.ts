@@ -95,7 +95,6 @@ export interface PiBrowserSessionInfo {
   id: string;
   /** pi session name；没起名时为首条用户消息 */
   title: string;
-  parentId: string | null;
   createTime: number;
   updateTime: number;
   messageCount: number;

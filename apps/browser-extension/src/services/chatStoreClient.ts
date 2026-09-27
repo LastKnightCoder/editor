@@ -11,11 +11,10 @@ import type { ChatSessionMessage } from "@tau/shared";
 
 const RECONNECT_INTERVAL = 3000;
 
-/** 某页面的一个对话（直接取自 pi 会话文件） */
+/** 某页面的一个对话（直接取自 pi 会话文件；分支在文件内部的会话树上） */
 export interface ChatListEntry {
   id: string;
   title: string;
-  parentId: string | null;
   createTime: number;
   updateTime: number;
   messageCount: number;
@@ -96,7 +95,7 @@ const request = <T>(method: string, params?: unknown, timeout = 15_000): Promise
   return client.sendRequest(method, params, timeout) as Promise<T>;
 };
 
-/** 某页面的全部对话（含分支），按最近活动降序 */
+/** 某页面的全部对话，按最近活动降序 */
 export const listChats = async (pageUrl: string): Promise<ChatListEntry[]> => {
   const { chats } = await request<{ chats: ChatListEntry[] }>("chat.list", { pageUrl });
   return chats;
@@ -115,29 +114,37 @@ export const renameChat = async (pageUrl: string, id: string, title: string) => 
   await request("chat.rename", { pageUrl, id, title });
 };
 
-/** 删除对话连带分支子树，返回全部被删 id */
-export const deleteChat = async (pageUrl: string, id: string): Promise<string[]> => {
-  const { deletedIds } = await request<{ deletedIds: string[] }>("chat.delete", { pageUrl, id });
-  return deletedIds;
+/** 删除对话（分支在文件里，一起删掉） */
+export const deleteChat = async (pageUrl: string, id: string): Promise<void> => {
+  await request("chat.delete", { pageUrl, id });
 };
 
-/** 建分支：截到 throughEntryId（缺省整条），返回新对话 id 与内容 */
-export const branchChat = async (pageUrl: string, id: string, throughEntryId?: string) =>
-  request<{ id: string; messages: ChatSessionMessage[] }>("chat.branch", {
-    pageUrl,
-    id,
-    ...(throughEntryId ? { throughEntryId } : {}),
-  });
-
-/** 回退到这条用户消息（entry id）之前：编辑重发/重新生成的前半步 */
-export const rewindChat = async (pageUrl: string, id: string, entryId: string) => {
-  const { messages } = await request<{ messages: ChatSessionMessage[] }>("chat.rewind", {
+/** 会话树上按一个 entry 导航（M4-d），返回改后的投影 */
+const navigate = async (
+  method: "chat.rewind" | "chat.fork" | "chat.switch",
+  pageUrl: string,
+  id: string,
+  entryId: string
+) => {
+  const { messages } = await request<{ messages: ChatSessionMessage[] }>(method, {
     pageUrl,
     id,
     entryId,
   });
   return messages;
 };
+
+/** 回退到这条用户消息（entry id）之前：编辑重发/重新生成的前半步 */
+export const rewindChat = (pageUrl: string, id: string, entryId: string) =>
+  navigate("chat.rewind", pageUrl, id, entryId);
+
+/** 从这里建分支：回到这条回答（它最后一个 entry）之后，下一条消息成为新版本 */
+export const forkChat = (pageUrl: string, id: string, entryId: string) =>
+  navigate("chat.fork", pageUrl, id, entryId);
+
+/** 切到一条用户消息所在的版本（entry id 取 piVersions.ids） */
+export const switchChatVersion = (pageUrl: string, id: string, entryId: string) =>
+  navigate("chat.switch", pageUrl, id, entryId);
 
 /** 删除消息：省略这些 entry（一条回答传它全部 entry id） */
 export const omitChatEntries = async (pageUrl: string, id: string, entryIds: string[]) => {

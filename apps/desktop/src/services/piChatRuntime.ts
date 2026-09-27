@@ -105,7 +105,9 @@ const hasUnresolvedToolCall = (message: ResponseMessage): boolean =>
 
 /**
  * 投影回写容器：投影是事实源，但按位置沿用原 clientId（列表按 clientId 做 key，
- * 换成 `pi:<entryId>` 会让每条消息重挂载、滚动位置跳动）。只在角色对得上时沿用。
+ * 换成 `pi:<entryId>` 会让每条消息重挂载、滚动位置跳动）。只在角色对得上、且是**同一条**消息时
+ * 沿用：两边都带 entry id 却不同（切了版本，这个位置换成了另一条消息），就用投影的 clientId，
+ * 否则组件局部状态（工具卡展开、编辑态）会串到另一个版本上。
  * 只换消息，元数据（标题等）以容器为准——生成中的标题回写不能被收尾冲掉。
  */
 export const adoptTranscript = (
@@ -115,9 +117,11 @@ export const adoptTranscript = (
   ...current,
   messages: messages.map((message, index) => {
     const previous = current.messages[index];
-    return previous?.clientId && previous.role === message.role
-      ? { ...message, clientId: previous.clientId }
-      : message;
+    if (!previous?.clientId || previous.role !== message.role) return message;
+    const previousEntry = previous.piEntryIds?.[0];
+    const nextEntry = message.piEntryIds?.[0];
+    if (previousEntry && nextEntry && previousEntry !== nextEntry) return message;
+    return { ...message, clientId: previous.clientId };
   }),
 });
 

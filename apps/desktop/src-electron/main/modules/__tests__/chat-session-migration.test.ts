@@ -170,15 +170,15 @@ describe.skipIf(!nativeAvailable)("老对话迁移到 pi 会话", () => {
     expect((db.prepare("SELECT COUNT(*) AS n FROM chat_message").get() as { n: number }).n).toBe(2);
   });
 
-  it("分支父子关系保留：子行指向父会话、分支序号不变", async () => {
+  it("分支父子关系先原样迁过来（子行指向父会话、分支序号不变），由树合并迁移再并进父文件", async () => {
     insertMain(1, [{ role: "user", content: "主干" }]);
     insertMain(2, [{ role: "user", content: "分支" }], { parent: 1, branch: 3 });
     await migrate();
 
-    const [root] = ChatSessionTable.list(db, { scope: "main-chat" });
-    const branches = ChatSessionTable.listBranches(db, root.id);
-    expect(branches).toHaveLength(1);
-    expect(branches[0]).toMatchObject({ parentSessionId: root.id, branchIndex: 3 });
+    const rows = ChatSessionTable.list(db, { scope: "main-chat" });
+    const root = rows.find(row => row.parentSessionId === null)!;
+    const branch = rows.find(row => row.parentSessionId !== null)!;
+    expect(branch).toMatchObject({ parentSessionId: root.id, branchIndex: 3 });
   });
 
   it("重开老对话：文件卡片原样显示，工具卡结果保留，思考内容不迁", async () => {

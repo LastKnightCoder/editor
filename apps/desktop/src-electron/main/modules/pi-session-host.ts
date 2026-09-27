@@ -19,10 +19,13 @@ import {
   detectBashShellPath,
   resolveAgentShellPath,
   steerHostSession,
+  transcriptOf,
 } from "./pi-session-host-core";
+import { piEntriesToDesktopMessages } from "./pi-session-transcript";
 import { desktopMessagesToPi, PiToolCallBridge } from "./pi-session-bridge";
 import {
   applySessionEdit,
+  applySessionEditToFile,
   browserSessionFile,
   deleteBrowserSession,
   listBrowserSessions,
@@ -288,26 +291,29 @@ class PiSessionHostModule {
         return { messages: readTranscript(file, sessionDir) };
       })
     );
-    // 改历史（M4）：编辑重发/重新生成 = 回退叶子，删除 = context_edit 省略，建分支 = 拷新文件。
-    // 调用方必须先 dispose 这个文件上的宿主会话（两个 SessionManager 同时写同一文件会互相覆盖），
-    // 这里再兜底一次：还开着就拒绝
+    // 改会话树（M4-d）：编辑重发/重新生成 = 回退，从这里建分支 = 分叉，切版本，删除 = 省略。
+    // 宿主开着这个文件时直接在它的 SessionManager 上改（两个 SessionManager 同时写一个文件会互相
+    // 覆盖），改完 refreshContext——会话不重建，本会话的工具授权不丢；运行中不允许改。
+    // 没开着就直接打开文件改
     ipcMain.handle(
       "pi-session:edit",
       async (_event, { location, edit }: { location: PiSessionLocation; edit: SessionEdit }) =>
         PiSessionHostModule.guard(async () => {
           const { file, sessionDir } = await PiSessionHostModule.locate(location);
           if (!file) throw new Error("对话还没有保存下来，暂时不能修改历史");
-          if (PiSessionHostModule.isFileOpen(file)) {
-            throw new Error("对话仍在运行，请先停止再修改历史");
+          const hosted = PiSessionHostModule.findByFile(file);
+          if (!hosted) {
+            applySessionEditToFile(file, edit);
+            return { messages: readTranscript(file, sessionDir) };
           }
-          if (edit.kind === "branch") assertSafeSessionId(edit.newSessionId);
-          const result = applySessionEdit(file, sessionDir, edit);
+          const { session } = hosted;
+          if (session.isStreaming || session.isCompacting) {
+            throw new Error("回答进行中，请先停止再修改历史");
+          }
+          applySessionEdit(session.sessionManager, edit);
+          session.refreshContext();
           return {
-            ...result,
-            messages: readTranscript(
-              result.sessionFile ? join(sessionDir, result.sessionFile) : file,
-              sessionDir
-            ),
+            messages: piEntriesToDesktopMessages(transcriptOf(session.sessionManager)),
           };
         })
     );
@@ -330,12 +336,10 @@ class PiSessionHostModule {
       "pi-session:browser-delete",
       async (_event, { pageUrl, sessionId }: { pageUrl: string; sessionId: string }) =>
         PiSessionHostModule.guard(async () => {
-          const dir = browserSessionDirOf(pageUrl);
-          for (const hosted of [...PiSessionHostModule.sessions.entries()]) {
-            const file = hosted[1].session.sessionFile;
-            if (file && file.startsWith(dir)) PiSessionHostModule.disposeByFile(file);
-          }
-          return { deletedIds: await deleteBrowserSession(pageUrl, sessionId) };
+          const file = browserSessionFile(pageUrl, sessionId);
+          if (file) PiSessionHostModule.disposeByFile(file);
+          deleteBrowserSession(pageUrl, sessionId);
+          return {};
         })
     );
     // 同步（M4.4）：当前库的会话目录打包 / 用下载的包替换（先整体备份）
@@ -641,11 +645,11 @@ class PiSessionHostModule {
     return { file: resolveSessionFile(sessionDir, location.sessionFile), sessionDir };
   }
 
-  private static isFileOpen(file: string): boolean {
+  private static findByFile(file: string): HostedSession | undefined {
     for (const hosted of PiSessionHostModule.sessions.values()) {
-      if (hosted.session.sessionFile === file) return true;
+      if (hosted.session.sessionFile === file) return hosted;
     }
-    return false;
+    return undefined;
   }
 
   private static disposeByFile(file: string): void {

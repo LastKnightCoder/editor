@@ -26,6 +26,7 @@ interface MessageItemProps {
   onRegenerateMessage?: (messageIndex: number) => void;
   onEditMessage?: (messageIndex: number, content: string) => void;
   onCreateBranch?: (messageIndex: number) => void;
+  onSwitchVersion?: (messageIndex: number, versionIndex: number) => void;
   messageIndex: number;
   messageMeta?: MarkdownMessageMeta;
 }
@@ -98,10 +99,15 @@ const MessageItem: React.FC<MessageItemProps> = memo(
     onRegenerateMessage,
     onEditMessage,
     onCreateBranch,
+    onSwitchVersion,
     messageIndex,
     messageMeta,
   }) => {
     const isUser = message.role === Role.User;
+    const piVersions = isUser ? (message as RequestMessage).piVersions : undefined;
+    const versions = piVersions
+      ? { index: piVersions.index, count: piVersions.ids.length }
+      : undefined;
     const [pendingDelete, setPendingDelete] = useState<number | null>(null);
 
     const userMessage = isUser ? (message as RequestMessage) : undefined;
@@ -164,6 +170,8 @@ const MessageItem: React.FC<MessageItemProps> = memo(
           onRegenerate={onRegenerateMessage}
           onEditUserMessage={onEditMessage}
           onCreateBranch={onCreateBranch}
+          {...(versions ? { versions } : {})}
+          onSwitchVersion={onSwitchVersion}
           onOpenFile={file => void openFileInExplorer(file)}
           renderMarkdown={renderMarkdown}
           renderImage={(image, index, className) => (

@@ -94,23 +94,15 @@ export function useScopedChat(bucket: ChatBucketRef, options: UseScopedChatOptio
     useChatSessionStore.getState().renameChat(id, title)
   );
 
-  /** 删除对话（连分支子树）：先释放宿主会话与运行态，再删目录行（主进程连会话文件一起删） */
+  /** 删除对话：先释放宿主会话与运行态，再删目录行（主进程连会话文件一起删） */
   const remove = useMemoizedFn(async (id: string) => {
     const { piChatRuntime } = await import("@/services/piChatRuntime");
-    const subtree = collectSubtree(useChatSessionStore.getState().buckets[key]?.rows ?? [], id);
-    await Promise.all(
-      subtree.map(chatId => piChatSessionManager.disposeChatSession(bucket.scope, chatId))
-    );
+    await piChatSessionManager.disposeChatSession(bucket.scope, id);
     // 会话终态：归约条目必须一起清，否则删掉的对话仍在后台归约
-    subtree.forEach(chatId =>
-      piChatRuntime.disposeConversation(chatSessionKey(bucket.scope, chatId))
-    );
+    piChatRuntime.disposeConversation(chatSessionKey(bucket.scope, id));
     await useChatSessionStore.getState().deleteChat(id);
-    if (selectedId && subtree.includes(selectedId)) select(null);
+    if (selectedId === id) select(null);
   });
-
-  /** 子分支数（删除确认用：会连带删除） */
-  const branchCount = useMemoizedFn(async (id: string) => collectSubtree(rows, id).length - 1);
 
   return {
     rows,
@@ -121,15 +113,5 @@ export function useScopedChat(bucket: ChatBucketRef, options: UseScopedChatOptio
     newChat,
     rename,
     remove,
-    branchCount,
   };
 }
-
-/** 以 id 为根的分支子树（含自身） */
-const collectSubtree = (rows: { id: string; parentSessionId: string | null }[], id: string) => {
-  const out = [id];
-  for (let index = 0; index < out.length; index += 1) {
-    for (const row of rows) if (row.parentSessionId === out[index]) out.push(row.id);
-  }
-  return out;
-};

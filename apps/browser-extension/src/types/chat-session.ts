@@ -3,6 +3,7 @@ import type { ChatMessageType } from "@tau/shared";
 /**
  * 扩展对话元数据（M4.5）：对话是桌面按页面存放的 pi 会话文件，见 services/chatStoreClient。
  * 新对话在首轮回答之前是本地草稿（id 已生成，桌面还没有文件），不出现在列表里。
+ * 分支在会话文件内部的会话树上（M4-d），在用户消息的 ‹ i/n › 切换。
  */
 export interface ChatSession {
   /** pi 会话 id */
@@ -13,8 +14,6 @@ export interface ChatSession {
   createTime: number;
   /** 最后更新时间戳 */
   updateTime: number;
-  /** 父会话 id（分支关系，来自会话头 parentSession） */
-  parentChatId?: string | null;
   /** 本地草稿（还没发过消息） */
   draft?: boolean;
 }

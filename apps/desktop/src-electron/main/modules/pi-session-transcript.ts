@@ -51,6 +51,8 @@ export interface PiTranscriptEntry {
    * 有它就按原样展示（文件卡片、mention），没有才退回用模型文本拼。
    */
   display?: { content: MessageContent[]; clientId?: string };
+  /** 用户消息在会话树上的全部版本（M4-d；只有一个版本时不带） */
+  versions?: { ids: string[]; index: number };
 }
 
 type PiContentBlock = {
@@ -79,6 +81,14 @@ const turnIdOf = (entryId: string) => `pi:jsonl:${entryId}`;
 
 /** pi 的 user message → 桌面用户消息（图片没有本地路径，按 dataURL 展示） */
 const toRequestMessage = (entry: PiTranscriptEntry): RequestMessage | null => {
+  const request = toRequestContent(entry);
+  if (request && entry.versions) {
+    request.piVersions = { ids: entry.versions.ids, index: entry.versions.index };
+  }
+  return request;
+};
+
+const toRequestContent = (entry: PiTranscriptEntry): RequestMessage | null => {
   const entryId = entry.id;
   const piEntryIds = [entryId];
   if (entry.display && entry.display.content.length > 0) {

@@ -3,7 +3,8 @@
  * - ensureChatSession：无会话则创建（工具桥清单 + systemPrompt）；模型变化自动重建；
  *   systemPrompt 每轮经 set-system-prompt 热替换（不重建）
  * 会话事实源是 pi JSONL（M4）：创建时传会话文件，pi 自己从文件恢复上下文，不再灌历史。
- * 改历史（编辑重发/重新生成/删除）先 disposeChatSession，改完文件下一轮 ensure 自然从新文件恢复。
+ * 改会话树（编辑重发/重新生成/删除/建分支/切版本）不经这里：pi-session:edit 在主进程直接改
+ * 宿主会话（空闲时）或文件，宿主不重建（M4-d）。
  */
 import type { ImageContent } from "@earendil-works/pi-ai";
 import type { LLMModelSetting, LLMProviderSetting, PiThinkingLevel } from "@/types/pi-llm";
@@ -12,10 +13,8 @@ import type { Skill } from "@/types";
 import {
   piSessionCreate,
   piSessionDispose,
-  piSessionEdit,
   piSessionSetActiveTools,
   piSessionSetSystemPrompt,
-  type PiSessionEdit,
 } from "@/commands/piSession";
 import { getToolRegistryAgentTools } from "@/agent/toolRegistryAgentTools";
 import { resolveAgentSkills } from "@/agent/desktopSkillAdapter";
@@ -159,20 +158,6 @@ class PiChatSessionManager {
 
   public async disposeChatSession(chatScope: string, chatId: string): Promise<void> {
     return this.disposeByKey(chatSessionKey(chatScope, chatId));
-  }
-
-  /**
-   * 改历史（编辑重发/重新生成/删除）：先释放宿主会话再改文件——主进程不允许文件仍被
-   * 宿主打开时改历史。下一轮 ensure 从改后的文件恢复。
-   */
-  public async editChatHistory(
-    chatScope: string,
-    chatId: string,
-    sessionFile: string,
-    edit: PiSessionEdit
-  ): ReturnType<typeof piSessionEdit> {
-    await this.disposeChatSession(chatScope, chatId);
-    return piSessionEdit({ sessionFile }, edit);
   }
 
   public async disposeByKey(key: string): Promise<void> {

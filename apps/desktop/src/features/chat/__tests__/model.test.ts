@@ -51,21 +51,15 @@ describe("navSessions", () => {
     expect(total).toBe(6);
   });
 
-  it("排除归档与分支", () => {
-    const chats = [chat(1, { archived: true }), chat(2, { parentSessionId: "chat-3" }), chat(3)];
+  it("排除归档", () => {
+    const chats = [chat(1, { archived: true }), chat(3)];
     const { recent, total } = navSessions(chats, null);
     expect(ids(recent)).toEqual(["chat-3"]);
     expect(total).toBe(1);
   });
 
   it("当前会话不在露出范围时补到最近的最前", () => {
-    const chats = [
-      chat(1),
-      chat(2),
-      chat(3),
-      chat(4),
-      chat(9, { parentSessionId: "chat-4", updateTime: 0 }),
-    ];
+    const chats = [chat(1), chat(2), chat(3), chat(4), chat(9, { updateTime: 0 })];
     expect(ids(navSessions(chats, "chat-1").recent)).toEqual([
       "chat-1",
       "chat-4",

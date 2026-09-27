@@ -748,34 +748,26 @@ const handleChatRename = async (request: RpcRequestMessage) => {
 
 const handleChatDelete = async (request: RpcRequestMessage) => {
   const { pageUrl, id } = request.params as unknown as BrowserChatParams;
-  return { deletedIds: expectOk(await piBrowserSessionDelete(pageUrl, id)).deletedIds ?? [] };
+  expectOk(await piBrowserSessionDelete(pageUrl, id));
+  return { success: true };
 };
 
-/** 建分支：截到 throughEntryId（缺省整条），返回新对话 id 与投影 */
-const handleChatBranch = async (request: RpcRequestMessage) => {
-  const { pageUrl, id, throughEntryId } = request.params as unknown as BrowserChatParams & {
-    throughEntryId?: string;
+/** 会话树上的导航（M4-d）：rewind / fork / switch 都按一个 entry id，返回改后的投影 */
+const treeNavigation =
+  (kind: "rewind" | "fork" | "switch") => async (request: RpcRequestMessage) => {
+    const { pageUrl, id, entryId } = request.params as unknown as BrowserChatParams & {
+      entryId: string;
+    };
+    const outcome = expectOk(await piSessionEdit({ pageUrl, sessionId: id }, { kind, entryId }));
+    return { messages: outcome.messages ?? [] };
   };
-  const newSessionId = crypto.randomUUID();
-  const outcome = expectOk(
-    await piSessionEdit(
-      { pageUrl, sessionId: id },
-      { kind: "branch", newSessionId, ...(throughEntryId ? { throughEntryId } : {}) }
-    )
-  );
-  return { id: newSessionId, messages: outcome.messages ?? [] };
-};
 
 /** 编辑重发/重新生成的前半步：回退到这条用户消息之前（扩展随后以新内容发 ai.chat） */
-const handleChatRewind = async (request: RpcRequestMessage) => {
-  const { pageUrl, id, entryId } = request.params as unknown as BrowserChatParams & {
-    entryId: string;
-  };
-  const outcome = expectOk(
-    await piSessionEdit({ pageUrl, sessionId: id }, { kind: "rewind", entryId })
-  );
-  return { messages: outcome.messages ?? [] };
-};
+const handleChatRewind = treeNavigation("rewind");
+/** 从这里建分支：回到这条回答之后，下一条消息成为新版本 */
+const handleChatFork = treeNavigation("fork");
+/** 切到一条用户消息所在的版本 */
+const handleChatSwitch = treeNavigation("switch");
 
 /** 删除消息：省略这些 entry（一条回答传它全部 entry id） */
 const handleChatOmit = async (request: RpcRequestMessage) => {
@@ -854,7 +846,8 @@ export const initAiServer = () => {
   aiServer.addRequestHandler("chat.get", handleChatGet);
   aiServer.addRequestHandler("chat.rename", handleChatRename);
   aiServer.addRequestHandler("chat.delete", handleChatDelete);
-  aiServer.addRequestHandler("chat.branch", handleChatBranch);
+  aiServer.addRequestHandler("chat.fork", handleChatFork);
+  aiServer.addRequestHandler("chat.switch", handleChatSwitch);
   aiServer.addRequestHandler("chat.rewind", handleChatRewind);
   aiServer.addRequestHandler("chat.omit", handleChatOmit);
 

@@ -1,5 +1,5 @@
 /**
- * 统一会话 store（M4）：草稿首发登记、建分支、五个场景的分桶互不串。
+ * 统一会话 store（M4）：草稿首发登记、改会话树、五个场景的分桶互不串。
  * 目录命令与 pi 会话命令都 mock，只测 store 的编排与状态。
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -11,13 +11,12 @@ import useChatSessionStore, {
   selectRows,
   type ChatBucketRef,
 } from "../useChatSessionStore";
-import { createChatSession, listChatSessions } from "@/commands/chat-session";
+import { createChatSession, listChatSessions, updateChatSession } from "@/commands/chat-session";
 import { piSessionEdit, piSessionTranscript } from "@/commands/piSession";
 
 vi.mock("@/commands/chat-session", () => ({
   createChatSession: vi.fn(),
   deleteChatSession: vi.fn(),
-  getNextChatSessionBranchIndex: vi.fn().mockResolvedValue(1),
   listChatSessions: vi.fn(),
   pinChatSession: vi.fn(),
   unpinChatSession: vi.fn(),
@@ -64,8 +63,6 @@ const echoInsert = (input: ChatSessionInsert): Promise<ChatSessionRow> =>
       title: input.title ?? "新对话",
       titleDirty: input.titleDirty ?? false,
       groupId: input.groupId ?? null,
-      parentSessionId: input.parentSessionId ?? null,
-      branchIndex: input.branchIndex ?? 0,
       messageCount: input.messageCount ?? 0,
     })
   );
@@ -148,40 +145,58 @@ describe("新对话首发登记", () => {
   });
 });
 
-describe("建分支", () => {
-  it("拷出会话文件并登记为子对话，投影直接打开", async () => {
-    seedCatalog([row({ id: "p1", title: "原对话", groupId: 3 })]);
+describe("改会话树（M4-d：分支都在同一个对话文件里）", () => {
+  it("按目录行的会话文件发 edit，返回投影；不新建对话", async () => {
+    seedCatalog([row({ id: "p1", messageCount: 2 })]);
     await useChatSessionStore.getState().loadBucket(MAIN);
-    const branchMessages = [{ clientId: "pi:e1", role: "user", content: "你好" }];
-    vi.mocked(piSessionEdit).mockResolvedValue({
-      ok: true,
-      sessionFile: "f_branch.jsonl",
-      messages: branchMessages as never,
-    });
+    const projectedMessages = [
+      { clientId: "pi:e1", role: "user", content: "你好" },
+      { clientId: "pi:e2", role: "assistant", content: "嗨" },
+    ];
+    vi.mocked(piSessionEdit).mockResolvedValue({ ok: true, messages: projectedMessages as never });
 
-    const branch = await useChatSessionStore.getState().branchChat("p1", "e1");
+    const messages = await useChatSessionStore
+      .getState()
+      .editChat("p1", { kind: "switch", entryId: "e1" });
 
-    const edit = vi.mocked(piSessionEdit).mock.calls[0];
-    expect(edit[0]).toEqual({ sessionFile: "f_p1.jsonl" });
-    expect(edit[1]).toMatchObject({ kind: "branch", throughEntryId: "e1" });
-    const newSessionId = (edit[1] as { newSessionId: string }).newSessionId;
-    expect(branch).toMatchObject({
-      id: newSessionId,
-      sessionFile: "f_branch.jsonl",
-      parentChatId: "p1",
-      branchIndex: 1,
-      groupId: 3,
-      title: "原对话 - 分支 1",
-    });
-    expect(createChatSession).toHaveBeenCalledWith(expect.objectContaining({ messageCount: 1 }));
-    expect(ids(MAIN)).toContain(newSessionId);
-    expect(useChatSessionStore.getState().opened[newSessionId].messages).toEqual(branchMessages);
+    expect(piSessionEdit).toHaveBeenCalledWith(
+      { sessionFile: "f_p1.jsonl" },
+      { kind: "switch", entryId: "e1" }
+    );
+    expect(messages).toEqual(projectedMessages);
+    expect(createChatSession).not.toHaveBeenCalled();
+    expect(ids(MAIN)).toEqual(["p1"]);
   });
 
-  it("草稿不能建分支", async () => {
+  it("切到的路径更短/更长：目录行消息数跟着当前路径，更新时间不动", async () => {
+    seedCatalog([row({ id: "p1", messageCount: 2, updateTime: 77 })]);
+    await useChatSessionStore.getState().loadBucket(MAIN);
+    vi.mocked(piSessionEdit).mockResolvedValue({
+      ok: true,
+      messages: [{ role: "user", content: "只剩一问" }] as never,
+    });
+    vi.mocked(updateChatSession).mockResolvedValue(null);
+
+    await useChatSessionStore.getState().editChat("p1", { kind: "rewind", entryId: "e3" });
+
+    expect(updateChatSession).toHaveBeenCalledWith("p1", { messageCount: 1, updateTime: 77 });
+  });
+
+  it("主进程拒绝（回答进行中）时抛错，调用方提示", async () => {
+    seedCatalog([row({ id: "p1" })]);
+    await useChatSessionStore.getState().loadBucket(MAIN);
+    vi.mocked(piSessionEdit).mockResolvedValue({ ok: false, error: "回答进行中" });
+    await expect(
+      useChatSessionStore.getState().editChat("p1", { kind: "omit", entryIds: ["e1"] })
+    ).rejects.toThrow("回答进行中");
+  });
+
+  it("草稿（还没登记）不能改历史", async () => {
     await useChatSessionStore.getState().loadBucket(MAIN);
     const draft = draftFor("page|main-chat|", MAIN);
-    await expect(useChatSessionStore.getState().branchChat(draft.id)).rejects.toThrow();
+    await expect(
+      useChatSessionStore.getState().editChat(draft.id, { kind: "fork", entryId: "e1" })
+    ).rejects.toThrow();
     expect(piSessionEdit).not.toHaveBeenCalled();
   });
 });

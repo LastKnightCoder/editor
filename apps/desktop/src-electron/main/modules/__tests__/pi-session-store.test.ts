@@ -2,20 +2,12 @@
  * 会话存储层（M4）：扩展对话按目录列出/改名/删除（全部取自 pi 会话文件本身，无索引表），
  * 页面键的规范化与防路径穿越，以及同步用的会话目录打包/解包（含整体备份与失败回滚）。
  */
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
-  deleteSessionTreeInDir,
+  deleteSessionInDir,
   listSessionsInDir,
   packSessionDir,
   renameSessionInDir,
@@ -52,14 +44,9 @@ const assistant = (text: string, at: number) => ({
   timestamp: at,
 });
 
-/** 在目录里写一个对话；parentSessionFile 非空时按 pi 的 fork 约定记父会话（分支） */
-const writeChat = (
-  sessionDir: string,
-  sessionId: string,
-  question: string,
-  parentSessionFile?: string
-) => {
-  const file = writeSessionFile({
+/** 在目录里写一个一问一答的对话 */
+const writeChat = (sessionDir: string, sessionId: string, question: string) =>
+  writeSessionFile({
     sessionDir,
     sessionId,
     cwd: sessionDir,
@@ -72,17 +59,6 @@ const writeChat = (
       { message: assistant("答", 2) },
     ],
   });
-  if (parentSessionFile) {
-    const path = join(sessionDir, file);
-    const lines = readFileSync(path, "utf8").split("\n");
-    lines[0] = JSON.stringify({
-      ...JSON.parse(lines[0]),
-      parentSession: join(sessionDir, parentSessionFile),
-    });
-    writeFileSync(path, lines.join("\n"));
-  }
-  return file;
-};
 
 describe("页面键", () => {
   it("同一页面的锚点跳转算同一组对话；不同页面互不相干", () => {
@@ -98,31 +74,27 @@ describe("页面键", () => {
 });
 
 describe("扩展对话（无索引表，事实源是会话文件）", () => {
-  it("列表标题取 pi session name（没起名时取首条用户消息），分支关系来自会话头", async () => {
+  it("列表标题取 pi session name（没起名时取首条用户消息），消息数按用户提问数", async () => {
     const dir = join(setup(), "page");
     mkdirSync(dir, { recursive: true });
-    const parentFile = writeChat(dir, "parent-1", "第一问");
-    writeChat(dir, "branch-1", "第一问", parentFile);
+    writeChat(dir, "parent-1", "第一问");
 
     const before = await listSessionsInDir(dir);
     expect(before.find(item => item.id === "parent-1")?.title).toBe("第一问");
-    expect(before.find(item => item.id === "branch-1")?.parentId).toBe("parent-1");
-    expect(before.find(item => item.id === "parent-1")?.messageCount).toBe(2);
+    expect(before.find(item => item.id === "parent-1")?.messageCount).toBe(1);
 
     renameSessionInDir(dir, "parent-1", "我的对话");
     const after = await listSessionsInDir(dir);
     expect(after.find(item => item.id === "parent-1")?.title).toBe("我的对话");
   });
 
-  it("删除对话连带分支子树，其它对话不受影响", async () => {
+  it("删除对话只删它自己的文件，其它对话不受影响", async () => {
     const dir = join(setup(), "page");
     mkdirSync(dir, { recursive: true });
-    const parentFile = writeChat(dir, "parent-1", "第一问");
-    writeChat(dir, "branch-1", "第一问", parentFile);
+    writeChat(dir, "parent-1", "第一问");
     writeChat(dir, "other-1", "无关对话");
 
-    const deleted = await deleteSessionTreeInDir(dir, "parent-1");
-    expect(deleted.sort()).toEqual(["branch-1", "parent-1"]);
+    deleteSessionInDir(dir, "parent-1");
     expect((await listSessionsInDir(dir)).map(item => item.id)).toEqual(["other-1"]);
   });
 });

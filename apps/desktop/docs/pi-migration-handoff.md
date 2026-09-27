@@ -1,13 +1,13 @@
 # pi 迁移交接文档（refactor/pi-harness 分支）
 
 > 2026-09-28 交接（M2-f 完成；M3 全部完成——M3-a~h 已提交，**第 6 项 WSL 手动选项用户裁决不做**；
-> **M4 本批完成**：目录表 + JSONL 事实源切换 + 五场景接入 + 同步带会话包 + 扩展改页面会话，见「M4 实施记录」。
-> 下一步：先做 M4 实机走查（第七节「M4 专项」，需要真实模型与双机，尚未做），
-> 再做 M4-d（分支改 pi 会话树）/M4-e（治理与重启恢复），见第六节）。
+> **M4 本批完成**：目录表 + JSONL 事实源切换 + 五场景接入 + 同步带会话包 + 扩展改页面会话，见「M4 实施记录」；
+> 用户初步验证正常（第七节「M4 专项」逐项走查未做）。**M4-d 完成**：分支改为同一文件内的 pi 会话树，见「M4-d 实施记录」
+> （实机走查见第七节「M4-d 专项」，未做）。下一步是 M4-e（治理与重启恢复），见第六节）。
 > 新会话续接方式：读完本文档 + `git log --oneline -15` 对照提交历史。本文档随每步同步更新。
 > 验证三件套：`cd apps/desktop && npx tsc --noEmit`、
-> `npx vitest run`（342 文件、1637 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
-> 改了 `packages/shared` 要另跑 `packages/shared`（5 文件 13 用例）与 `apps/browser-extension`（11 文件 44 用例）的 vitest + tsc
+> `npx vitest run`（344 文件、1657 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
+> 改了 `packages/shared` 要另跑 `packages/shared`（5 文件 15 用例）与 `apps/browser-extension`（11 文件 44 用例）的 vitest + tsc
 > （思考档位类型与 `ChatSessionRecord` 定义在 shared，三端共用）。
 > **注意 cwd 必须在 apps/desktop**——vitest 从仓库根跑会整体失败（vite 别名解析不到）。
 > 权威背景：调研报告与迁移计划在本项目最初会话中形成（对话内）；本文档是执行态的完整快照。
@@ -45,7 +45,7 @@ M4 = 会话管理。本批 = 原计划 M4-a（目录表 + resume）+ M4-b（投�
 | 目录表主键 | **字符串 = pi 会话 id**（目录表 id = JSONL 头部 id = 会话键后半段），不沿用自增 int                                                                                                                                                |
 | 目录表     | **新建** `chat_session`，不扩 `chat_message`（旧表带 messages 大字段与旧分支语义）                                                                                                                                                 |
 | 分批       | a+b+c 同批。理由：`ChatContainer` 是五场景共用的，只迁主聊天会让组件内分叉成两条渲染路径                                                                                                                                           |
-| 迁移粒度   | **一行一会话**，分支族**不合并**成 pi 树；父子关系靠 `parent_session_id` + `branch_index` 保留，分支 chip 行为不变（会话树留 M4-d）                                                                                                |
+| 迁移粒度   | **一行一会话**，分支族先**不合并**；父子关系靠 `parent_session_id` + `branch_index` 保留（M4-d 的树合并迁移再并进父文件）                                                                                                          |
 | 思考内容   | **不迁**（方案 1）：老 reasoning 无签名，pi 重放无签名 thinking 时会降级成正文喂回模型；与迁移前 `desktopMessagesToPi` 不回放 thinking 一致。只影响老对话看不到当时的思考过程；新对话由 pi 原生写带签名的 thinking，正常显示与回放 |
 | 旧表       | **不删**（留 M8），迁移可回退                                                                                                                                                                                                      |
 | 同步       | **方案 A**：`sessions/<库名>/` 打 zip，与 `.db` 共用同一个版本号一起上传/下载（见 M4.4）。增量 manifest 留 M7                                                                                                                      |
@@ -85,7 +85,7 @@ M4 = 会话管理。本批 = 原计划 M4-a（目录表 + resume）+ M4-b（投�
       编辑重发/重新生成 = 挪叶子 + 追加 `desktop-leaf` 标记落盘（pi 加载时取文件**末条 entry** 为叶子，
       不落盘重开就回到旧分支末尾）；旧回答留在树上。
     - `omitEntries(file, entryIds)`：删除单条消息 = pi 原生 `context_edit(target, null)`，投影同样隐藏。
-    - `branchSessionFile({sessionDir, sourceFile, newSessionId, throughEntryId})`：建分支 = 拷路径到新文件，id 为指定值。
+    - `branchSessionFile`：建分支 = 拷路径到新文件（M4-d 已删，建分支改为同文件内分叉）。
     - `writeSessionFile`：直接写整文件（迁移器用，不走 `appendMessage`——只有用户消息的老对话写不出文件）。
   - 测试：`chat-session.test.ts`、`pi-session-resume.test.ts`、`chat-session-migration.test.ts`、`pi-session-files.test.ts`
     （真实 pi 会话 + faux：落盘投影、resume 模型看得到历史、迁移文件能 resume、挪叶子重开生效、删除对模型与界面都隐藏）。
@@ -121,11 +121,10 @@ M4 = 会话管理。本批 = 原计划 M4-a（目录表 + resume）+ M4-b（投�
   按位置沿用原 clientId 回写容器（避免列表重挂载），再更新目录行 `messageCount/updateTime`；标题走 `saveTitle`。
   删掉两处立即落库：等待审批/提问时的快照、插话送达时（pi 送达即写 JSONL）。`restorePendingInteractions` 改判
   「最后一条回答里有没有**没有结果**的 tool_call」，是不是真在等由宿主交互快照决定。
-- **改历史**：新 IPC `pi-session:edit`（`rewind`/`omit`/`branch`；文件仍被宿主打开时拒绝）。渲染端统一走
-  `piChatSessionManager.editChatHistory`（先 dispose 再改，下一轮 ensure 从改后文件恢复）；建分支走 store 的
-  `branchChat`（调用方先 dispose 源会话）。两处与原计划不同：①`rewindToBeforeUser(下标)` → **`rewindToBeforeEntry(entryId)`**，
-  被省略的消息仍在路径上，下标会错位；②回退后把仍在新路径上的 `context_edit` 省略**重新挂一遍**——省略只作用于
-  它所在的分支，不重挂删过的消息会复活。`recreateChatSession` 已删。
+- **改历史**（M4-d 已改写，现状见「M4-d 实施记录」）：新 IPC `pi-session:edit`。两处与原计划不同，M4-d 沿用：
+  ①`rewindToBeforeUser(下标)` → **`rewindToBeforeEntry(entryId)`**，被省略的消息仍在路径上，下标会错位；
+  ②挪叶子后把仍在新路径上的 `context_edit` 省略**重新挂一遍**——省略只作用于它所在的分支，不重挂删过的消息会复活。
+  `recreateChatSession` 已删。
 - **级联删除下沉到表**：`ChatSessionTable.remove/removeByDomain` 连会话文件一起删；`chat-group` 删组改 `clearGroup`；
   PDF 删除调 `removeByDomain`。会话目录的唯一取法在 `pi-session-paths.ts`（`chatSessionDirOf`/`chatSessionDirOfDb`/
   `browserSessionDirOf`，`resolveSessionFile`/`assertSafeSessionId` 防路径穿越）；投影、改历史入口、扩展列表、
@@ -134,10 +133,9 @@ M4 = 会话管理。本批 = 原计划 M4-a（目录表 + resume）+ M4-b（投�
   `commands/pdf.ts`/`vibe-learning.ts` 的对话命令、`components/ModelSidebar`（本就无引用但依赖旧 store）、
   `editingUtils` 的 `buildResetBaseChat`/`buildFullHistoryMessages`。旧表与主进程 handler 按计划留到 M8，渲染端零调用。
 
-**测试**：`pi-session-store.test.ts`（页面键、扩展列表/删分支子树、打包解包与回滚）、`pi-session-display.test.ts`
+**测试**：`pi-session-store.test.ts`（页面键、扩展列表/删除、打包解包与回滚）、`pi-session-display.test.ts`
 （展示 entry 端到端）、`piChatRuntime.settle.test.ts`（投影回写与标题）、`useChatSessionStore.test.ts`
-（首发登记与文件名回写、建分支、五场景分桶互不串、草稿槽）、`piChatSession.test.ts` 的「改历史」组（先 dispose 再 edit、
-改后重建宿主）；扩展侧 `chatStoreClient.test.ts`（chat.* RPC 形状）。
+（首发登记与文件名回写、五场景分桶互不串、草稿槽）；扩展侧 `chatStoreClient.test.ts`（chat.* RPC 形状）。
 
 ### M4.4 同步（方案 A）
 
@@ -161,6 +159,56 @@ M4 = 会话管理。本批 = 原计划 M4-a（目录表 + resume）+ M4-b（投�
   不带则保留原一次性路径。扩展不再拼历史、不再整包写消息，`useAiChat` 结束后经 `onFinish` 重读投影。
 - 已删：扩展 `chatMigration.ts` 及测试、ask-question 续流（pi 没法事后注入工具结果，与桌面 M3-b 一致）、system prompt 快照机制。
 
+## M4-d 实施记录（分支 = 同一文件内的会话树，2026-09-28）
+
+**用户裁决**：保留树结构（不走 Claude/Codex 那种 fork 出去互不相干的做法），将来的树谱视图读同一份数据；
+旧的多文件分支族**合并进父对话的树**；编辑重发**放开到任意一条用户消息**。
+
+**语义**：一个对话 = 一个会话文件 = 一行目录。编辑重发、重新生成、「从这里建分支」都是同一文件树上的分叉，
+区别只在分叉点——前两者回到用户消息之前（`rewind`），建分支回到那条回答之后（`fork`，下一条消息成为原下一问的新版本）。
+同一位置的多条用户消息互为**版本**，用户消息下常显 `‹ i/n ›`，切换（`switch`）后整段后续对话一起换。
+对话下拉的分支 chip、「全部会话」的分支树、删除时的「子分支数」确认全部去掉。
+
+**主进程**：
+
+- `pi-session-files.ts`：改树操作统一接收一个 `SessionManager`（`rewindToBeforeEntry`/`forkAfterEntry`/`switchToVersion`/
+  `omitEntries`），共用 `moveLeafTo`：挪叶子 → 重挂旧路径上的省略（新路径上已有的不重复挂）→ 写 `desktop-leaf` 落盘。
+  `switchToVersion` 落到该版本子树里**最近写入**的 entry（用户最后在那个版本看到的位置），不是用户消息本身。
+  `branchSessionFile` 已删。
+- **版本归组** `messageVersionsOf`：按「最近的**对话消息**祖先」归组，不按直接父节点——回退/分叉在分叉点写叶子标记、
+  重挂省略，**pi 活会话发送前还会写一条 `role: "system"` 的 message entry**（系统提示与工具集快照），新版本的直接父节点是
+  这些结构性 entry。`isConversationMessage` 排除 system（见坑 15）。投影给多版本的用户消息带 `piVersions {ids, index}`。
+- `pi-session:edit` 改为：宿主开着这个文件时**直接在它的 `SessionManager` 上改**，改完 `session.refreshContext()`——
+  会话不重建，本会话的工具授权保留；`isStreaming`/`isCompacting` 时拒绝。没开着就打开文件改（`applySessionEditToFile`）。
+  渲染端的 `piChatSessionManager.editChatHistory`（先 dispose 再改）已删。已有测试证明活会话上改完下一轮模型看到的是新路径。
+- **树合并迁移** `chat-session-tree-migration.ts`（`migration_meta` key `chat-session-tree:v1`）：开库时在老对话迁移之后跑，
+  同步下载后重连（`sync_download_reconnect`）也跑——下载来的 `.db` 与会话包配对，对面没合并过这里补上。
+  按分支深度从深到浅，逐个 `graftSessionFile(父, 分支)` 后删分支文件与目录行；对不上（第一条消息就不同）或出错的降级成
+  独立对话（清父子关系，不丢数据）。合并前 `cpSync` 备份会话目录 + `VACUUM INTO` 备份库。
+- **嫁接** `pi-session-graft.ts`：公共前缀按 entry id（M4 建的分支拷贝时保留了 id）或按内容（老迁移数据 id 随机，比
+  角色 + 内容 + toolCallId）认；候选穿过结构性 entry 找。分叉后的内容追加到目标文件末尾，最后补一条叶子标记指回目标原叶子
+  （否则一打开就落到嫁接进来的分支）。源分支在公共前缀上的删除在分叉点补挂；源的叶子标记/改名/标签不带过去。
+- 扩展页面目录没有开库时机：`listSessionsInDir` 先 `mergeBranchFilesInDir`（按会话头 `parentSession` 合并，对不上的去掉
+  `parentSession`）。扩展列表的 `messageCount` 改为用户提问数（原来是 pi 全文件 message 数，混进了所有分支）。
+- 目录表：`list` 不再按 `parent_session_id` 过滤，`listBranches`/`nextBranchIndex`/子树级联删除与对应 IPC 删掉；
+  `remove` 只删一行一文件。两列留到 M8（只剩树合并迁移读）。
+
+**渲染端**：store 的 `branchChat` → `editChat(id, edit)`（返回投影；消息数跟当前路径走，更新时间不动）；
+`ChatContainer.editSessionHistory` 走它；`handleCreateBranch` 改 `fork`（最后一条回答上提示直接发送即可），新增
+`handleSwitchVersion`；`onBranchCreated` 从五个面板删掉；编辑态文案改为「发送后生成这条消息的新版本」。
+`adoptTranscript` 沿用 clientId 时多一条规则：两边都有 entry id 且不同（切了版本）就用投影的 clientId，组件状态不串到别的版本。
+`MessageView`（桌面）与 shared `ChatMessageView`（扩展）加 `versions`/`onSwitchVersion`，按钮带 `aria-label`，
+运行中不传回调即禁用。shared `ChatSessionRecord` 去掉 `parentChatId/branchIndex`，`RequestMessage` 加 `piVersions`。
+
+**扩展**：RPC `chat.branch` → `chat.fork`（同一对话内）+ 新增 `chat.switch`；`chat.delete` 不再返回 `deletedIds`；
+下拉的分支切换器去掉，消息上 `‹ i/n ›`。
+
+**测试**：`pi-session-files.test.ts`「会话树」组 8 例（版本投影、切回原版本、落到最近位置、根上的版本、fork、
+删除跨版本保持、文件入口、**活会话上改树 + refreshContext 模型看到新路径**）；`chat-session-tree-migration.test.ts` 10 例
+（按内容/按 id 嫁接、空合并、无关、前缀删除补挂、多层分支族、降级、未落盘、**老数据 → v1 迁移 → 树合并端到端**、扩展目录合并）；
+`useChatSessionStore.test.ts`「改会话树」组；`piChatRuntime.settle.test.ts` 的 clientId 规则；
+`MessageView.versions.test.tsx` 与 shared `ChatMessageView.test.tsx` 的版本切换；扩展 `chatStoreClient.test.ts` 的 fork/switch。
+
 ## 二、架构现状（M2-f + M3 + M4）
 
 **会话存储（M4）**：
@@ -169,11 +217,13 @@ M4 = 会话管理。本批 = 原计划 M4-a（目录表 + resume）+ M4-b（投�
 ~/.editor/sessions/<库名>/*.jsonl        ★对话内容事实源（pi JSONL；展示 entry / 叶子标记是 custom entry）
 ~/.editor/browser-sessions/<页面键>/     扩展对话（页面键 = URL 去 hash 的 sha256 前 32 位；无索引表，不同步）
 <库>.db · chat_session                   目录表：id = pi 会话 id，scope + domainRef 分桶，只存元数据
-                                         （标题/分组/置顶/归档/分支父子/消息数），sessionFile 为相对文件名
+                                         （标题/分组/置顶/归档/消息数），sessionFile 为相对文件名；
+                                         一行一对话一文件，分支在文件内部的会话树上（M4-d）
 同步                                     .db → <库名>.sessions.zip → 版本信息（共用一个版本号）
 
 主进程：pi-session-paths.ts（目录取法 + 防穿越）、pi-session-store.ts（投影/改历史入口/扩展列表/打包）、
-        pi-session-files.ts（展示 entry、rewindToBeforeEntry、omitEntries、branchSessionFile）、
+        pi-session-files.ts（展示 entry、rewind/fork/switch/omit、版本归组 messageVersionsOf）、
+        pi-session-graft.ts + chat-session-tree-migration.ts（旧分支族并进树，M4-d）、
         pi-session-transcript.ts（entries → 桌面展示消息，带 piEntryIds）、chat-session-migration.ts（开库迁移）
 渲染端：useChatSessionStore（目录行分桶 + 已打开对话 + 草稿槽）→ useScopedChat（五场景面板接线）
         → ChatContainer（发送/改历史编排）→ piChatRuntime.settle（settled 后重读投影回写）
@@ -215,7 +265,7 @@ M4 = 会话管理。本批 = 原计划 M4-a（目录表 + resume）+ M4-b（投�
 │                                  （partial 文本快照流）/piCompleteChat；PiChatResult 带 aborted
 ├─ services/piChatSession.ts       chat↔pi 会话生命周期（piChatSessionManager）：
 │                                  ensure（模型/档位变化自动重建；传 sessionFile 从文件恢复）/
-│                                  editChatHistory（先 dispose 再 pi-session:edit，M4）/
+│                                  （改会话树不经这里：pi-session:edit 在主进程直接改空闲宿主，M4-d）/
 │                                  adoptOrResolveSession（find-by-scope 收养）/
 │                                  buildPiChatSystemPrompt（skills 清单+$点名全文）
 ├─ services/piChatEvents.ts        PiChatEventReducer：AgentSessionEvent→assistant_blocks 快照归约；
@@ -566,6 +616,7 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
 - **M4 地基** `524edebd2`：chat_session 目录表 + JSONL resume + 内容投影（无调用方）
 - **M4 迁移器** `3d394bf83`：老对话迁移器 + 展示 entry + 会话文件改历史操作（无调用方）
 - **M4 事实源切换** `68affe879`：事实源切到 JSONL + 五场景接统一 store + 同步带会话包 + 扩展改页面会话（一个提交，见「M4 实施记录」M4.2–M4.5）
+- **M4-d** 会话树：分支改同一文件内的 pi 会话树 + 消息上 ‹ i/n › + 旧分支族合并迁移 + 改树在空闲宿主上直接做（一个提交，见「M4-d 实施记录」）
 - **修正一** `784d59ebb`：去闭包快照+会话常驻 reducer（修吞消息）
 - **修正二** `d3bc61c33`：piChatRuntime 下沉模块级（后台运行）
 - **验收状态**：用户确认"大部分没问题"——M2-f 基本通过；后台运行场景（切页回来
@@ -610,6 +661,13 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
     user/assistant/toolResult/custom_message。
 14. **`createAgentSession` 不透出 `ToolsOptions`**（内置 bash 的 `operations`/`spawnHook` 进不去；`baseToolsOverride`
     只在 AgentSession 构造层）。要替换内置工具只能注册**同名 customTool**——`_refreshToolRegistry` 里 custom 按名覆盖 builtin。
+15. **活会话发送前会往树上写 `role: "system"` 的 message entry**（系统提示与工具集快照，提示词或工具变化时写一条），
+    它挂在当前叶子下、新用户消息挂在它下面。凡是「按父节点找兄弟」「按 message entry 比内容」的逻辑都要把它当结构性
+    entry 跳过（M4-d 的版本归组就栽在这里：测试里迁移文件没有 system entry 全过，活会话一跑就归不到一组）。
+16. **会话树 API 的落盘与上下文**：`branch()`/`resetLeaf()` 只改内存（坑 11）；在活会话上直接调它们后必须
+    `session.refreshContext()`，否则 `agent.state.messages` 还是旧路径。`navigateTree` 运行中会抛错、传 `summarize` 会调
+    LLM 并写进上下文的 `branch_summary`——本项目不用它，自己挪叶子 + 写 `desktop-leaf` + `refreshContext`。
+    `getChildren` 不排序、`listAll` 的 `messageCount`/`firstMessage` 是整文件口径（混进所有分支）。
 
 **本项目事故与修复（按发生顺序）**：
 
@@ -706,8 +764,13 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
 - **扩展重载后「提问卡作答续流」已删**：卡片显示中断（与桌面 M3-b 同类边界）
 - **旧表**：`chat_message`/`pdf_chats`/`video_note_chats`/`vibe_learning_chats` 与主进程 handler 留到 M8，渲染端零调用；
   `audio_note_chats` 整条链（无面板）、`reorderChatMessage`（无 UI 调用方）同为积灰
-- **分支仍是独立文件**（`parent_session_id` + `branch_index`），会话树导航留 M4-d；主进程重启后的交互恢复、
-  runtime 条目治理留 M4-e
+- **会话树（M4-d 已接）**：分支在同一文件内。遗留：
+  - 没有树谱视图（用户提过「画一棵树看分叉点与各分支进度」，另做；数据已就绪，pi `getTree()`）；
+  - 不能删除某个版本（pi append-only，只能省略消息或切走）；
+  - 旧分支行的标题/分组/归档在合并后丢失（只保留父对话的）；嫁接按内容比对，内容一模一样但本意不同的前缀会被认作公共前缀；
+  - 目录行 `update_time` 切版本不变、`message_count` 跟当前路径（列表排序不因切换而跳动）；
+  - `parent_session_id`/`branch_index` 两列留到 M8。
+- 主进程重启后的交互恢复、runtime 条目治理留 M4-e
 - **subagent 的 maxToolCallLoops/timeoutMs 参数**留 schema 但 pi 无对应配置（不生效），M3 清理
 - **单发 IPC 全量透传 partial 的带宽**：百 KB 正文×千次 delta 理论放大，实测未见问题；
   若卡做主进程 per-request 合并节流（传输层优化，非语义层）
@@ -741,8 +804,9 @@ agent_settled 触发排空；用户按停止则暂停排空。
 
 - 事实源切换 + 五场景接入 + 同步带会话包（原 M7 的整包部分提前）+ 扩展页面会话（原 M5 的会话部分提前）。
 
-* 之后：**M4-d** 分支改 pi 会话树（`navigateTree` 在同一文件挪叶子、旧 `parent_session_id` 分支族合并成树）；
-  **M4-e** 治理（runtime 会话条目清理、主进程重启后的交互恢复、队列与插话的恢复边界）。
+* **M4-d 已完成**：分支改 pi 会话树（同一文件挪叶子、旧分支族合并成树），见「M4-d 实施记录」。
+  下一步：**M4-e** 治理（runtime 会话条目清理、主进程重启后的交互恢复、队列与插话的恢复边界）。
+  另有待排期：会话树的树谱视图（用户提出，非迁移范围）。
   **M5（浏览器扩展）**：aiServer 迁主进程、WS 协议 v2（扩展未上线直接 breaking）、
   useAiChat/SharedChatTab 改 pi 事件（会话部分已在 M4.5 完成）。
   **M6（老数据迁移器）**：已并入 M4（`chat-session-migration.ts`）。与原计划的差异：一行一会话、分支族不合并；
@@ -811,13 +875,22 @@ agent_settled 触发排空；用户按停止则暂停排空。
     五个场景的老对话都在，打开能看到内容（没有思考过程属预期），续聊模型看得到历史；再开一次库不重跑。
   - 新对话：「新对话」→ 发送 → 列表出现且 id 不变；首轮在出回答前就失败 → 重开看不到（已知边界）。
   - 文件卡片 / mention / 图片编辑上下文：发送后重开，卡片原样（展示 entry），模型收到的是提示文本。
-  - 编辑重发 / 重新生成：重开后落在新分支；先删一条再回退到它之前的消息 → 删过的不复活。
+  - 编辑重发 / 重新生成：重开后落在新版本；先删一条再回退到它之前的消息 → 删过的不复活。
   - 删除单条消息（用户消息、带工具调用的回答）→ 界面与模型上下文都没了，重开仍没了。
-  - 建分支：从中间一条回答建分支 → 分支 chip `n/m` 正确、内容截到那里；删父对话连带删分支与文件。
   - 分组删除后对话回到未分组；删 PDF 后其对话与会话文件一起删。
   - 五个场景互不串：两个 PDF 各自的列表、主聊天停靠栏与对话页各自的新对话。
   - 双机同步往返：A 上传 → B 下载，列表与内容一致；B 连旧版本远程（无会话包）下载不清本地。
-  - 扩展：同一页面多个对话与分支、改名、删除；刷新页面后能恢复；换一个 hash 不同的同页 URL 看到同一组对话；桌面列表看不到它们。
+  - 扩展：同一页面多个对话、改名、删除；刷新页面后能恢复；换一个 hash 不同的同页 URL 看到同一组对话；桌面列表看不到它们。
+- **M4-d 专项（未做实机走查）**：
+  - 旧分支族合并：用 M4 时建过分支的库开库 → 日志有 `chat session tree migration done`（merged/detached 计数）、
+    会话目录备份生成；列表里分支行消失，原对话在分叉那条用户消息下出现 `‹ 1/2 ›`，切过去是分支的内容；再开一次库不重跑。
+  - 编辑中间一条用户消息（不只最后一条）→ 发送后出现 `‹ 2/2 ›`，点 `‹` 回到原版本，后面整段对话一起换回去；重开仍在切到的版本。
+  - 重新生成：同一问的多个回答在 `‹ i/n ›` 间切换；从中间一条回答「创建分支」→ 提示已分叉，发一条消息后下一问出现新版本。
+  - **切版本不丢会话授权**：manual 模式下给某工具「本会话始终允许」→ 切版本 / 编辑重发 → 再调该工具不再弹审批。
+  - 回答进行中 `‹ ›` 按钮禁用；停止后可切。删过的消息切到别的版本再切回来仍是删除状态。
+  - 双机：A 合并后上传 → B 下载，B 直接是合并后的树；B 连一个未合并过的远程下载 → 重连后自动合并。
+  - 扩展：M4 时在某页面建过分支 → 打开侧栏后分支文件并进原对话，消息上可切版本；从回答创建分支、切版本、删除对话。
+  - 读屏：`‹ ›` 按钮读出「上一个版本 / 下一个版本」，中间读出「版本 i / n」（完整无障碍需人工用读屏软件复核）。
 
 ## 八、工作约定（用户明确要求，违反会返工）
 

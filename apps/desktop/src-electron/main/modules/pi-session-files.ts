@@ -1,6 +1,11 @@
 /**
- * pi 会话文件的直接读写（M4）：迁移器、改历史操作（编辑重发/重新生成/删消息）、建分支共用。
+ * pi 会话文件的直接读写（M4）：迁移器、改历史操作（编辑重发/重新生成/删消息/建分支/切版本）共用。
  * electron-free，可单测。
+ *
+ * 分支 = 会话树（M4-d）：一个对话一个文件，编辑重发、重新生成、从这里建分支都是在同一文件的
+ * 树上分叉；同一位置的多条用户消息互为「版本」（messageVersionsOf），界面上 ‹ i/n › 切换。
+ * 改树的操作都接收一个 SessionManager：宿主会话空闲时直接用它的（改完 refreshContext，
+ * 会话授权不丢），没开着时由调用方 SessionManager.open。
  *
  * 两个约定：
  * - **展示 entry**（customType = desktop-display）：用户消息的桌面展示形态（文件卡片、mention、
@@ -17,6 +22,7 @@ import {
   CURRENT_SESSION_VERSION,
   SessionManager,
   parseSessionEntries,
+  type SessionEntry,
 } from "@earendil-works/pi-coding-agent";
 import type { Message } from "@earendil-works/pi-ai";
 import type { MessageContent } from "@/types";
@@ -95,97 +101,148 @@ export function appendDisplayEntry(manager: SessionManager, display: DesktopDisp
   manager.appendCustomEntry(DISPLAY_ENTRY_TYPE, display);
 }
 
-const isDisplayEntry = (entry: { type: string }) =>
-  entry.type === "custom" && (entry as { customType?: string }).customType === DISPLAY_ENTRY_TYPE;
-
-/**
- * 编辑重发 / 重新生成：把叶子挪到 entryId（一条用户消息）之前。定位用投影带回的 entry id，
- * 不用消息下标——被删除（省略）的消息仍在路径上，下标会错位。旧的回答留在树上（M4-d 分支导航
- * 可见），下一次 prompt 从新叶子接着写。挪完追加叶子标记，让重开时 pi 也落在这里。
- */
-export function rewindToBeforeEntry(sessionFile: string, entryId: string): void {
-  const manager = SessionManager.open(sessionFile);
-  const oldBranch = manager.getBranch();
-  const target = oldBranch.find(entry => entry.id === entryId);
-  if (!target) throw new Error("要回退的消息已不在当前对话里");
-  // 删除（context_edit）只作用于它所在的路径：回退到它之前，删过的消息会重新出现。
-  // 把目标仍在新路径上的省略重新挂到新叶子上
-  const omitted = oldBranch
+const omittedTargetsOn = (path: SessionEntry[]) =>
+  path
     .filter(entry => entry.type === "context_edit")
     .filter(entry => (entry as { replacement: unknown }).replacement === null)
     .map(entry => (entry as { targetId: string }).targetId);
-  if (target.parentId === null) manager.resetLeaf();
-  else manager.branch(target.parentId);
-  const kept = new Set(manager.getBranch().map(entry => entry.id));
-  for (const targetId of omitted) {
-    if (kept.has(targetId)) manager.appendContextEdit(targetId, null);
+
+/**
+ * 会话树上的所有导航（回退、分叉、切版本）共用的一步：把叶子挪到 targetId（null = 回到根之前），
+ * 追加叶子标记落盘。
+ *
+ * 删除（context_edit）只作用于它所在的路径：挪到别的路径上，删过的消息会重新出现。
+ * 所以把旧路径上的省略里、目标仍在新路径上且新路径还没省略的，重新挂到新叶子上——
+ * 删过的消息在所有版本里都保持删除。
+ */
+function moveLeafTo(manager: SessionManager, targetId: string | null, reason: string): void {
+  const omitted = omittedTargetsOn(manager.getBranch());
+  if (targetId === null) manager.resetLeaf();
+  else manager.branch(targetId);
+  const newPath = manager.getBranch();
+  const onPath = new Set(newPath.map(entry => entry.id));
+  const alreadyOmitted = new Set(omittedTargetsOn(newPath));
+  for (const target of new Set(omitted)) {
+    if (onPath.has(target) && !alreadyOmitted.has(target)) manager.appendContextEdit(target, null);
   }
-  manager.appendCustomEntry(LEAF_ENTRY_TYPE, { reason: "rewind" });
+  manager.appendCustomEntry(LEAF_ENTRY_TYPE, { reason });
   ensureFlushed(manager);
+}
+
+const entryOnPath = (manager: SessionManager, entryId: string): SessionEntry => {
+  const target = manager.getBranch().find(entry => entry.id === entryId);
+  if (!target) throw new Error("这条消息已不在当前对话里");
+  return target;
+};
+
+/**
+ * 编辑重发 / 重新生成：回到这条用户消息（entryId）之前，下一次 prompt 写出它的一个新版本。
+ * 定位用投影带回的 entry id，不用消息下标——被删除（省略）的消息仍在路径上，下标会错位。
+ * 旧的版本留在树上，可以切回去（switchToVersion）。
+ */
+export function rewindToBeforeEntry(manager: SessionManager, entryId: string): void {
+  moveLeafTo(manager, entryOnPath(manager, entryId).parentId, "rewind");
+}
+
+/**
+ * 从这里建分支：回到这条 entry（一条回答的最后一个 entry）之后，接下来发送的消息
+ * 成为原来下一条用户消息的另一个版本。
+ */
+export function forkAfterEntry(manager: SessionManager, entryId: string): void {
+  moveLeafTo(manager, entryOnPath(manager, entryId).id, "fork");
+}
+
+/**
+ * 切到一条用户消息所在的版本：落到它子树里**最近写入**的 entry（用户最后在这个版本里看到的位置），
+ * 而不是它自己——切回去应该看到这个版本当时的完整对话。
+ */
+export function switchToVersion(manager: SessionManager, userEntryId: string): void {
+  const entries = manager.getEntries();
+  if (!entries.some(entry => entry.id === userEntryId)) throw new Error("这个版本已不存在");
+  // 文件顺序即写入顺序，父一定在子之前：一遍扫描收集子树并取最后一个
+  const subtree = new Set([userEntryId]);
+  let latest = userEntryId;
+  for (const entry of entries) {
+    if (entry.parentId && subtree.has(entry.parentId)) {
+      subtree.add(entry.id);
+      latest = entry.id;
+    }
+  }
+  moveLeafTo(manager, latest, "switch");
+}
+
+/** 一条用户消息的全部版本（按写入顺序）与它自己是第几个 */
+export interface MessageVersions {
+  ids: string[];
+  index: number;
+}
+
+/**
+ * 对话里的消息（user / assistant / toolResult）。pi 的 system 消息 entry（系统提示与工具集快照，
+ * 活会话每次提示词或工具变化前写一条）不算——它和叶子标记一样是结构性的，不是对话内容。
+ */
+export const isConversationMessage = (entry: SessionEntry): boolean =>
+  entry.type === "message" && (entry as { message: { role?: string } }).message.role !== "system";
+
+/**
+ * 同一位置的用户消息版本：以「最近的**对话消息**祖先」归组，而不是直接父节点——
+ * 回退/分叉会在分叉点写叶子标记、重挂省略，pi 发送前还可能写一条 system 快照，新版本的直接父节点
+ * 是这些结构性 entry，与原版本并不是 pi 树上的直接兄弟。只返回有多个版本的用户消息。
+ */
+export function messageVersionsOf(
+  entries: ReadonlyArray<SessionEntry>
+): Map<string, MessageVersions> {
+  const byId = new Map(entries.map(entry => [entry.id, entry]));
+  const anchorCache = new Map<string, string | null>();
+  const messageAnchorOf = (entry: SessionEntry): string | null => {
+    const cached = anchorCache.get(entry.id);
+    if (cached !== undefined) return cached;
+    let parent = entry.parentId ? byId.get(entry.parentId) : undefined;
+    const walked: string[] = [];
+    let anchor: string | null = null;
+    while (parent) {
+      if (isConversationMessage(parent)) {
+        anchor = parent.id;
+        break;
+      }
+      const known = anchorCache.get(parent.id);
+      if (known !== undefined) {
+        anchor = known;
+        break;
+      }
+      walked.push(parent.id);
+      parent = parent.parentId ? byId.get(parent.parentId) : undefined;
+    }
+    // 途经的非消息 entry 的消息祖先相同，一起缓存（长链上避免重复回溯）
+    for (const id of walked) anchorCache.set(id, anchor);
+    anchorCache.set(entry.id, anchor);
+    return anchor;
+  };
+
+  const groups = new Map<string, string[]>();
+  for (const entry of entries) {
+    if (entry.type !== "message") continue;
+    if ((entry as { message: { role?: string } }).message.role !== "user") continue;
+    const key = messageAnchorOf(entry) ?? "";
+    const group = groups.get(key);
+    if (group) group.push(entry.id);
+    else groups.set(key, [entry.id]);
+  }
+  const out = new Map<string, MessageVersions>();
+  for (const ids of groups.values()) {
+    if (ids.length < 2) continue;
+    ids.forEach((id, index) => out.set(id, { ids, index }));
+  }
+  return out;
 }
 
 /**
  * 删除单条消息：pi 原生的 context_edit(target, null)，把它从模型上下文里去掉；
  * 展示投影同样尊重这条编辑（见 loadSessionTranscript）。用户消息连带它的展示 entry 一起隐藏。
  */
-export function omitEntries(sessionFile: string, entryIds: string[]): void {
-  const manager = SessionManager.open(sessionFile);
+export function omitEntries(manager: SessionManager, entryIds: string[]): void {
   for (const entryId of entryIds) manager.appendContextEdit(entryId, null);
   ensureFlushed(manager);
-}
-
-/**
- * 从当前路径拷出一个分支文件（建分支）：pi 的 createBranchedSession 会给新文件一个随机 id，
- * 这里要求新文件 id = 目录表主键，所以自己写头部。
- * 返回新会话文件名（相对会话目录）。
- */
-export function branchSessionFile(options: {
-  sessionDir: string;
-  sourceFile: string;
-  newSessionId: string;
-  /** 保留到哪条 entry（含）：一条用户消息自身，或一条回答的最后一个 entry；缺省保留整条路径 */
-  throughEntryId?: string;
-}): string {
-  const manager = SessionManager.open(options.sourceFile, options.sessionDir);
-  const branch = manager.getBranch();
-  let cut = branch.length;
-  if (options.throughEntryId !== undefined) {
-    const index = branch.findIndex(entry => entry.id === options.throughEntryId);
-    if (index < 0) throw new Error("要分支的消息已不在当前对话里");
-    cut = index + 1;
-    // 用户消息的展示 entry 紧随其后写入，截断点落在用户消息上时要一起带走
-    while (cut < branch.length && isDisplayEntry(branch[cut])) cut += 1;
-  }
-  const kept = branch.slice(0, cut);
-  const now = new Date();
-  const fileName = sessionFileNameFor(options.newSessionId, now);
-  const header = {
-    type: "session",
-    version: CURRENT_SESSION_VERSION,
-    id: options.newSessionId,
-    timestamp: now.toISOString(),
-    cwd: manager.getCwd(),
-    // 与 pi 的 fork 同一约定：父会话记绝对路径（扩展据此还原分支关系）
-    parentSession: options.sourceFile,
-  };
-  // 拷贝时重新成链：路径上可能夹着 label/leaf 之类的 entry，跳过的要把父指针接上
-  let parentId: string | null = null;
-  const lines: RawEntry[] = [header];
-  for (const entry of kept) {
-    if (entry.type === "label") continue;
-    if (
-      entry.type === "custom" &&
-      (entry as { customType?: string }).customType === LEAF_ENTRY_TYPE
-    )
-      continue;
-    lines.push({ ...(entry as unknown as RawEntry), parentId });
-    parentId = entry.id;
-  }
-  writeFileSync(
-    join(options.sessionDir, fileName),
-    `${lines.map(line => JSON.stringify(line)).join("\n")}\n`
-  );
-  return fileName;
 }
 
 /**

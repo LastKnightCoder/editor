@@ -316,3 +316,49 @@
     transform: translateY(0);
   }
 }
+
+// 会话树版本切换 ‹ i/n ›（M4-d）：常显，不随悬停淡入
+.versionSwitcher {
+  display: flex;
+  align-items: center;
+  align-self: flex-end;
+  gap: 2px;
+  margin-top: 6px;
+  padding: 0 4px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(0, 0, 0, 0.45);
+
+  button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: inherit;
+    font-size: 14px;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      background: rgba(0, 0, 0, 0.06);
+      color: rgba(0, 0, 0, 0.85);
+    }
+
+    &:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+  }
+
+  &.dark {
+    color: rgba(255, 255, 255, 0.45);
+
+    button:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.85);
+    }
+  }
+}

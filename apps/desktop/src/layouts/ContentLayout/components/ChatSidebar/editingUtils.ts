@@ -15,14 +15,6 @@ export const getRequestMessageText = (message: RequestMessage): string => {
     .join("\n");
 };
 
-export const getLastUserMessageIndex = (messages: ChatMessage["messages"]): number =>
-  messages.reduce((lastIndex, message, index) => {
-    if (message.role === Role.User) {
-      return index;
-    }
-    return lastIndex;
-  }, -1);
-
 export const formatGeneratedChatTitle = (title: string): string => title.trim().slice(0, 20);
 
 export const shouldGenerateChatTitle = (

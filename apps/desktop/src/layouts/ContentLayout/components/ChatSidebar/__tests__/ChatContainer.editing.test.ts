@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   buildTitleSummaryMessages,
   formatGeneratedChatTitle,
-  getLastUserMessageIndex,
   getRequestMessageText,
   shouldRestoreInputAfterSendError,
   shouldGenerateChatTitle,
@@ -21,18 +20,6 @@ const createAssistantMessage = (content: string): ResponseMessage => ({
 });
 
 describe("ChatContainer 编辑辅助逻辑", () => {
-  it("应找到最后一条用户消息索引", () => {
-    const messages: ChatMessage["messages"] = [
-      { role: Role.System, content: "system" },
-      createUserMessage([{ type: "text", text: "问题 1" }]),
-      createAssistantMessage("回答 1"),
-      createUserMessage([{ type: "text", text: "问题 2" }]),
-      createAssistantMessage("回答 2"),
-    ];
-
-    expect(getLastUserMessageIndex(messages)).toBe(3);
-  });
-
   it("应正确提取用户消息中的纯文本内容", () => {
     const message = createUserMessage([
       { type: "image", image: "file://image.png" },

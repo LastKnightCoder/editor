@@ -25,7 +25,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { buildPiProvider } from "./pi-ai-runtime-core";
 import type { PiTranscriptEntry, PiTranscriptMessage } from "./pi-session-transcript";
-import { DISPLAY_ENTRY_TYPE, type DesktopDisplayData } from "./pi-session-files";
+import { DISPLAY_ENTRY_TYPE, messageVersionsOf, type DesktopDisplayData } from "./pi-session-files";
 import type { LLMProviderSetting } from "@/types/pi-llm";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { PiThinkingLevel } from "@/types/pi-llm";
@@ -82,8 +82,16 @@ export function loadSessionTranscript(
   sessionDir?: string,
   cwd?: string
 ): PiTranscriptEntry[] {
-  const manager = SessionManager.open(sessionFile, sessionDir, cwd);
+  return transcriptOf(SessionManager.open(sessionFile, sessionDir, cwd));
+}
+
+/** 同上，读已打开的 SessionManager（宿主会话改完树后直接读它，不再开一次文件） */
+export function transcriptOf(
+  manager: Pick<SessionManager, "getBranch" | "getEntries">
+): PiTranscriptEntry[] {
   const branch = manager.getBranch();
+  // 会话树（M4-d）：同一位置有多个版本的用户消息带上版本信息，界面据此显示 ‹ i/n ›
+  const versions = messageVersionsOf(manager.getEntries());
   // 删除单条消息 = pi 原生 context_edit(target, null)：模型看不到，界面也不该再显示
   const omitted = new Set(
     branch
@@ -98,9 +106,11 @@ export function loadSessionTranscript(
   for (const entry of branch) {
     if (entry.type === "message") {
       if (omitted.has(entry.id)) continue;
+      const version = versions.get(entry.id);
       const item: PiTranscriptEntry = {
         id: entry.id,
         message: (entry as { message: PiTranscriptMessage }).message,
+        ...(version ? { versions: version } : {}),
       };
       out.push(item);
       if (item.message.role === "user") pendingUsers.push(item);

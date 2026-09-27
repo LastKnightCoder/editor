@@ -2,7 +2,6 @@ import { memo, useMemo, useRef, useState } from "react";
 import {
   Check,
   ChevronDown,
-  GitBranch,
   Library,
   MoreHorizontal,
   Pencil,
@@ -21,14 +20,13 @@ import type { ChatSessionRow } from "@/types/chat-session";
 import { isDraftChat } from "@/stores/useChatSessionStore";
 
 interface ChatDropdownSelectorProps {
-  /** 对话列表（会话目录行，含分支与归档） */
+  /** 对话列表（会话目录行，含归档） */
   chats: ChatSessionRow[];
-  /** 当前对话；草稿（还没发过消息）没有重命名/删除/分支 */
+  /** 当前对话；草稿（还没发过消息）没有重命名/删除 */
   currentChat: ChatMessage;
   onChatSelect: (chatId: string) => void;
   onTitleChange: (title: string) => void;
   onChatDelete?: (chatId: string) => void;
-  getChildBranchesCount?: (chatId: string) => Promise<number>;
   disabled?: boolean;
   titleRef?: React.RefObject<EditTextHandle | null>;
   /** 列表末行「全部会话…」（有全量管理入口的宿主才传） */
@@ -37,8 +35,9 @@ interface ChatDropdownSelectorProps {
 
 /**
  * 对话标题行（D-048 tau 化，停靠栏 / 项目 / PDF / 视频笔记对话共用）：
- * 标题 ▾ = 会话切换 Popover（搜索 + 置顶在前的会话列表；新建对话走输入框 ＋）；分支 chip = 分支切换 Menu；
- * ⋯ = 重命名 / 删除（删除走 ConfirmDialog，含子分支数）。
+ * 标题 ▾ = 会话切换 Popover（搜索 + 置顶在前的会话列表；新建对话走输入框 ＋）；
+ * ⋯ = 重命名 / 删除（删除走 ConfirmDialog）。
+ * 分支在对话内部的会话树上（M4-d），在用户消息的 ‹ i/n › 切换，不在这里。
  */
 const ChatDropdownSelector = memo(
   ({
@@ -47,7 +46,6 @@ const ChatDropdownSelector = memo(
     onChatSelect,
     onTitleChange,
     onChatDelete,
-    getChildBranchesCount,
     disabled,
     titleRef,
     onOpenLibrary,
@@ -56,45 +54,13 @@ const ChatDropdownSelector = memo(
     const [query, setQuery] = useState("");
     const [renaming, setRenaming] = useState(false);
     const draftTitle = useRef("");
-    const [pendingDelete, setPendingDelete] = useState<{ id: string; branches: number } | null>(
-      null
-    );
+    const [pendingDelete, setPendingDelete] = useState<string | null>(null);
     const hasChat = !isDraftChat(currentChat);
 
-    // 相关分支：主干 + 兄弟分支 + 子分支（都取目录行）
-    const siblingBranches = useMemo(() => {
-      const current = chats.find(c => c.id === currentChat.id);
-      if (!hasChat || !current) return [];
-      const result: ChatSessionRow[] = [];
-      const findRoot = (chat: ChatSessionRow): ChatSessionRow => {
-        if (!chat.parentSessionId) return chat;
-        const parent = chats.find(c => c.id === chat.parentSessionId);
-        return parent ? findRoot(parent) : chat;
-      };
-      const root = findRoot(current);
-      if (root.id !== current.id) result.push(root);
-      if (current.parentSessionId) {
-        result.push(
-          ...chats
-            .filter(c => c.parentSessionId === current.parentSessionId)
-            .sort((a, b) => a.branchIndex - b.branchIndex)
-        );
-      } else {
-        result.push(current);
-      }
-      result.push(
-        ...chats
-          .filter(c => c.parentSessionId === current.id)
-          .sort((a, b) => a.branchIndex - b.branchIndex)
-      );
-      return result.length > 1 ? result : [];
-    }, [chats, currentChat.id, hasChat]);
-    const currentBranchIndex = siblingBranches.findIndex(c => c.id === currentChat.id);
-
-    // 会话列表：未归档主干，置顶（orderNum）在前，其余按更新时间
+    // 会话列表：未归档对话，置顶（orderNum）在前，其余按更新时间
     const rows = useMemo(() => {
       const q = query.trim().toLowerCase();
-      const roots = chats.filter(c => !c.archived && !c.parentSessionId);
+      const roots = chats.filter(c => !c.archived);
       const pinned = roots
         .filter(c => c.orderNum != null)
         .sort((a, b) => (a.orderNum ?? 0) - (b.orderNum ?? 0));
@@ -103,11 +69,7 @@ const ChatDropdownSelector = memo(
         .sort((a, b) => b.updateTime - a.updateTime);
       return [...pinned, ...rest]
         .filter(c => !q || (c.title || "").toLowerCase().includes(q))
-        .map(chat => ({
-          chat,
-          pinned: chat.orderNum != null,
-          hasBranches: chats.some(c => c.parentSessionId === chat.id),
-        }));
+        .map(chat => ({ chat, pinned: chat.orderNum != null }));
     }, [chats, query]);
 
     const select = (chatId: string) => {
@@ -116,15 +78,9 @@ const ChatDropdownSelector = memo(
       if (chatId !== currentChat.id) onChatSelect(chatId);
     };
 
-    const askDelete = useMemoizedFn(async () => {
+    const askDelete = useMemoizedFn(() => {
       if (!onChatDelete || !hasChat) return;
-      let branches = 0;
-      try {
-        branches = (await getChildBranchesCount?.(currentChat.id)) ?? 0;
-      } catch (error) {
-        console.error("Failed to get child branches count:", error);
-      }
-      setPendingDelete({ id: currentChat.id, branches });
+      setPendingDelete(currentChat.id);
     });
 
     const title = hasChat ? currentChat.title || "新对话" : "新对话";
@@ -187,8 +143,8 @@ const ChatDropdownSelector = memo(
               {rows.length === 0 ? (
                 <p className="text-tau-sm text-ink-3 px-2.5 py-3">没有匹配的对话</p>
               ) : (
-                rows.map(({ chat, pinned, hasBranches }) => {
-                  const active = chat.id === currentChat.id || chat.id === currentChat.parentChatId;
+                rows.map(({ chat, pinned }) => {
+                  const active = chat.id === currentChat.id;
                   return (
                     <button
                       type="button"
@@ -205,9 +161,6 @@ const ChatDropdownSelector = memo(
                       {pinned ? (
                         <Pin size={12} strokeWidth={1.75} className="text-ink-3 shrink-0" />
                       ) : null}
-                      {hasBranches && (
-                        <GitBranch size={12} strokeWidth={1.75} className="text-ink-3 shrink-0" />
-                      )}
                       {active && (
                         <Check size={13} strokeWidth={2} className="text-accent-text shrink-0" />
                       )}
@@ -234,45 +187,6 @@ const ChatDropdownSelector = memo(
         )}
 
         <span className="min-w-0 flex-1" />
-
-        {siblingBranches.length > 1 && (
-          <Menu
-            align="end"
-            className="w-[220px]"
-            trigger={
-              <button
-                type="button"
-                title="切换分支"
-                className="hover:bg-hover aria-expanded:bg-hover text-tau-sm text-ink-2 flex h-7 shrink-0 items-center gap-1 rounded-[8px] px-2"
-              >
-                <GitBranch size={13} strokeWidth={1.75} />
-                <span className="tabular-nums">
-                  {currentBranchIndex + 1}/{siblingBranches.length}
-                </span>
-                <ChevronDown size={12} strokeWidth={1.75} className="text-ink-3" />
-              </button>
-            }
-          >
-            <Menu.Group>分支</Menu.Group>
-            <Menu.RadioGroup
-              value={currentChat.id}
-              onValueChange={value => {
-                if (value !== currentChat.id) onChatSelect(value);
-              }}
-            >
-              {siblingBranches.map(chat => (
-                <Menu.RadioItem key={chat.id} value={chat.id}>
-                  {!chat.parentSessionId
-                    ? "主干 · "
-                    : chat.parentSessionId === currentChat.id
-                      ? "↳ "
-                      : ""}
-                  {chat.title}
-                </Menu.RadioItem>
-              ))}
-            </Menu.RadioGroup>
-          </Menu>
-        )}
 
         {hasChat && (
           <Menu
@@ -301,7 +215,7 @@ const ChatDropdownSelector = memo(
             {onChatDelete && (
               <>
                 <Menu.Separator />
-                <Menu.Item danger icon={<Trash2 />} onSelect={() => void askDelete()}>
+                <Menu.Item danger icon={<Trash2 />} onSelect={askDelete}>
                   删除对话
                 </Menu.Item>
               </>
@@ -314,18 +228,14 @@ const ChatDropdownSelector = memo(
           onOpenChange={open => !open && setPendingDelete(null)}
           title="删除这个对话？"
           context={currentChat.title}
-          description={
-            pendingDelete?.branches
-              ? `此对话包含 ${pendingDelete.branches} 个子分支，删除后将同时删除所有子分支。`
-              : "删除后无法恢复。"
-          }
+          description="对话里的所有版本会一起删除，删除后无法恢复。"
           confirmText="删除"
           danger
           size="sm"
           onConfirm={async () => {
             if (!pendingDelete || !onChatDelete) return;
             try {
-              await onChatDelete(pendingDelete.id);
+              await onChatDelete(pendingDelete);
               toast.success("对话已删除");
             } catch (error) {
               toast.error("删除对话失败");

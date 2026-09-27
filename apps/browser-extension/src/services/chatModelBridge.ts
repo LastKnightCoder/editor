@@ -1,7 +1,8 @@
 /**
  * 桌面会话投影（ChatSessionMessage，assistant_blocks 形状）→ 扩展渲染模型（ChatMessageType）。
  * M4.5 起扩展只读投影、不再写消息（内容由桌面 pi 会话落盘），所以只有这一个方向。
- * 消息带回的 piEntryIds 保留下来，改历史操作（删除/重新生成/建分支）按它定位。
+ * 消息带回的 piEntryIds 保留下来，改历史操作（删除/重新生成/建分支）按它定位；
+ * 用户消息的 piVersions（会话树上同一位置的版本）保留下来，‹ i/n › 切换用。
  */
 import type {
   ChatMessageType,
@@ -26,9 +27,11 @@ export const toDisplayMessages = (messages: ChatSessionMessage[]): ChatMessageTy
     const id = message.clientId || "";
 
     if (message.role === Role.User) {
+      const { piVersions } = message as RequestMessage;
       const display: ChatMessageType = {
         id,
         ...(message.piEntryIds ? { piEntryIds: message.piEntryIds } : {}),
+        ...(piVersions ? { piVersions } : {}),
         role: "user",
         content:
           typeof message.content === "string" ? message.content : previewContent(message.content),

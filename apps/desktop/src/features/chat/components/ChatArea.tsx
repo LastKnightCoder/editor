@@ -94,10 +94,12 @@ const ChatArea = memo(
       const chatContainerRef = useRef<ChatContainerHandle>(null);
 
       // 当前对话由页面参数驱动；列表由应用启动时加载（主聊天）
-      const { rows, currentChat, newChat, rename, remove, branchCount } = useScopedChat(
-        MAIN_CHAT_BUCKET,
-        { draftSlot, selectedId: selectedChatId, onSelect: onSelectChat, autoLoad: false }
-      );
+      const { rows, currentChat, newChat, rename, remove } = useScopedChat(MAIN_CHAT_BUCKET, {
+        draftSlot,
+        selectedId: selectedChatId,
+        onSelect: onSelectChat,
+        autoLoad: false,
+      });
 
       const onTitleChange = useMemoizedFn(async (title: string) => {
         try {
@@ -130,7 +132,6 @@ const ChatArea = memo(
                   onChatSelect={onSelectChat}
                   onTitleChange={onTitleChange}
                   onChatDelete={remove}
-                  getChildBranchesCount={branchCount}
                   titleRef={editTitleRef}
                   // 运行中（含等待作答）不禁用切换/改名/删除：运行态在模块级 runtime，
                   // 后台继续归约；删除会一并释放会话与归约条目（与停靠栏一致）
@@ -154,7 +155,6 @@ const ChatArea = memo(
                   onCreateNewMessage={newChat}
                   createMessageLoading={false}
                   onChatCreated={chatId => onSelectChat(chatId)}
-                  onBranchCreated={chatId => onSelectChat(chatId)}
                   contentMaxWidth={READING_WIDTH}
                   emptyState={<EmptyHint />}
                 />

@@ -122,8 +122,10 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
       () => ({ scope: "pdf-chat" as const, domainRef: String(pdf.id) }),
       [pdf.id]
     );
-    const { rows, loaded, currentChat, select, newChat, rename, remove, branchCount } =
-      useScopedChat(bucket, { draftSlot: "pdf", autoLoad: isConnected });
+    const { rows, loaded, currentChat, select, newChat, rename, remove } = useScopedChat(bucket, {
+      draftSlot: "pdf",
+      autoLoad: isConnected,
+    });
 
     const [sendLoading, setSendLoading] = useState(false);
     const [indexPreparing, setIndexPreparing] = useState(false);
@@ -428,7 +430,6 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
                   onChatSelect={handleChatSelect}
                   onTitleChange={onTitleChange}
                   onChatDelete={remove}
-                  getChildBranchesCount={branchCount}
                   titleRef={editTitleRef}
                 />
               </div>
@@ -448,7 +449,6 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
                   onCreateNewMessage={newChat}
                   createMessageLoading={false}
                   onChatCreated={select}
-                  onBranchCreated={select}
                   customSystemPrompt={systemPrompt}
                   beforeSendUserMessage={ensureIndexReadyBeforeSend}
                 />
