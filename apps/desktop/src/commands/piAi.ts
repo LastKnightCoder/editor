@@ -5,9 +5,42 @@
  */
 import { invoke, on, off } from "@/electron";
 import type { AssistantMessageEvent } from "@earendil-works/pi-ai";
-import type { PiSingleShotOutcome, PiSingleShotRequest } from "@/types/pi-llm";
+import type {
+  LLMProviderSetting,
+  PiCatalogModel,
+  PiCatalogProvider,
+  PiSingleShotOutcome,
+  PiSingleShotRequest,
+  PiThinkingLevel,
+} from "@/types/pi-llm";
 
 export type PiStreamEvent = AssistantMessageEvent;
+
+/** pi 内置服务商目录（纯读、不联网）：只含本运行时支持的线协议能跑的服务商 */
+export function piCatalogProviders(): Promise<{
+  ok: boolean;
+  error?: string;
+  providers: PiCatalogProvider[];
+}> {
+  return invoke("pi-ai:catalog-providers");
+}
+
+/** 某内置服务商下受支持的模型（含上下文窗口、能力、推理档位等元数据） */
+export function piCatalogModels(builtin: string): Promise<{
+  ok: boolean;
+  error?: string;
+  models: PiCatalogModel[];
+}> {
+  return invoke("pi-ai:catalog-models", { builtin });
+}
+
+/** 已配置模型真实支持的推理档位；fromCatalog=false 表示目录未命中、返回的是通用档 */
+export function piThinkingLevels(
+  provider: LLMProviderSetting,
+  modelId: string
+): Promise<{ ok: boolean; error?: string; levels: PiThinkingLevel[]; fromCatalog: boolean }> {
+  return invoke("pi-ai:thinking-levels", { provider, modelId });
+}
 type PiStreamEventEnvelope = PiStreamEvent & { requestId: string };
 
 export type PiSingleShotOptions = Omit<PiSingleShotRequest, "requestId">;

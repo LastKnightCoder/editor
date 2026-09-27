@@ -12,9 +12,14 @@ import { rewriteThinkTagStream } from "./think-stream-rewriter";
 import {
   createProviderRegistry,
   buildSingleShotContext,
+  listCatalogModels,
+  listCatalogProviders,
+  resolveThinkingLevels,
   resolveV2Providers,
   type ProviderRegistry,
 } from "./pi-ai-runtime-core";
+
+const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
 import type { LLMProviderSetting, PiSingleShotOutcome, PiSingleShotRequest } from "@/types/pi-llm";
 
 class PiAiRuntimeModule {
@@ -38,6 +43,31 @@ class PiAiRuntimeModule {
       PiAiRuntimeModule.activeShots.get(requestId)?.abort();
       return true;
     });
+    // 内置目录查询（纯读、不联网）：设置页据此选服务商、勾模型、按模型能力给推理档位
+    ipcMain.handle("pi-ai:catalog-providers", async () => {
+      try {
+        return { ok: true, providers: await listCatalogProviders() };
+      } catch (error) {
+        return { ok: false, error: errorMessage(error), providers: [] };
+      }
+    });
+    ipcMain.handle("pi-ai:catalog-models", async (_event, { builtin }: { builtin: string }) => {
+      try {
+        return { ok: true, models: await listCatalogModels(builtin) };
+      } catch (error) {
+        return { ok: false, error: errorMessage(error), models: [] };
+      }
+    });
+    ipcMain.handle(
+      "pi-ai:thinking-levels",
+      async (_event, { provider, modelId }: { provider: LLMProviderSetting; modelId: string }) => {
+        try {
+          return { ok: true, ...(await resolveThinkingLevels(provider, modelId)) };
+        } catch (error) {
+          return { ok: false, error: errorMessage(error), levels: [], fromCatalog: false };
+        }
+      }
+    );
   }
 
   private static async syncProviders(providers: LLMProviderSetting[] | undefined) {

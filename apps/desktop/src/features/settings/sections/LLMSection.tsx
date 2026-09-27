@@ -22,6 +22,7 @@ import {
   Plus,
   SlidersHorizontal,
   Sparkle,
+  Sparkles,
   Trash2,
   type LucideIcon,
 } from "lucide-react";
@@ -47,6 +48,9 @@ import {
   SecretInput,
 } from "../components/ProviderLayout";
 import { SettingsTabs } from "../components/SettingsTabs";
+import { ProviderCreateDialog, type NewProviderDraft } from "../components/ProviderCreateDialog";
+import { ModelPickerDialog } from "../components/ModelPickerDialog";
+import { useThinkingLevels } from "../llmCatalog";
 import { ToolPermissionGroup } from "./ToolPermissionGroup";
 
 type FeatureKey = keyof ISetting["llmUsageSettings"];
@@ -303,35 +307,48 @@ export function LLMSection() {
     }
   };
 
-  /* ── 新建服务商（浮层表单） ── */
+  /* ── 新建服务商（先选内置目录 / 自定义，见 ProviderCreateDialog） ── */
   const [providerCreateOpen, setProviderCreateOpen] = useState(false);
-  const [providerForm, setProviderForm] = useState({ name: "", baseUrl: "", apiKey: "" });
 
-  const openProviderCreate = () => {
-    setProviderForm({ name: "", baseUrl: "", apiKey: "" });
-    setProviderCreateOpen(true);
-  };
-
-  const submitProviderCreate = () => {
-    const name = providerForm.name.trim();
-    const baseUrl = providerForm.baseUrl.trim();
-    if (!name || !baseUrl) {
-      toast.warning("请填写名称与 Base URL");
-      return;
-    }
+  const submitProviderCreate = (draft: NewProviderDraft) => {
     const id = uuidv4();
     mutateProviders(providers => {
-      providers.push({
-        id,
-        name,
-        baseUrl,
-        apiKey: providerForm.apiKey,
-        api: "openai-completions",
-        models: [],
-      });
+      providers.push({ id, ...draft, models: [] });
     });
     setEditingId(id);
-    setProviderCreateOpen(false);
+  };
+
+  /* ── 从内置目录勾选模型（仅内置服务商；自定义仍走手填表单） ── */
+  const [modelPickerOpen, setModelPickerOpen] = useState(false);
+
+  const applyModelPick = (change: { add: LLMModelSetting[]; remove: string[] }) => {
+    if (!editing) return;
+    const providerId = editing.id;
+    // 移除模型要一并清掉引用它的分配槽位，否则留悬空引用
+    const orphaned = featuresUsing(
+      llmUsageSettings,
+      usage => usage.providerId === providerId && change.remove.includes(usage.modelId)
+    );
+    if (orphaned.length > 0) {
+      mutateUsage(slots => {
+        orphaned.forEach(key => {
+          slots[key] = null;
+        });
+      });
+    }
+    mutateProviders(providers => {
+      const target = providers.find(p => p.id === providerId);
+      if (!target) return;
+      target.models = target.models.filter(model => !change.remove.includes(model.id));
+      target.models.push(...change.add);
+    });
+    const summary = [
+      change.add.length > 0 ? `新增 ${change.add.length} 个模型` : "",
+      change.remove.length > 0 ? `移除 ${change.remove.length} 个` : "",
+    ]
+      .filter(Boolean)
+      .join("，");
+    if (summary) toast.success(summary);
   };
 
   /* ── 删除服务商（确认弹层，引用槽位一并清空） ── */
@@ -366,6 +383,23 @@ export function LLMSection() {
   const [modelForm, setModelForm] = useState<ModelFormState>(blankModelForm);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [modelDelete, setModelDelete] = useState<LLMModelSetting | null>(null);
+
+  // 推理档位按该模型真实能力生成（pi getSupportedThinkingLevels）：静态七项会给出模型不支持的档位
+  const thinking = useThinkingLevels(editing, modelForm.initialId || modelForm.id);
+  const thinkingOptions = useMemo(
+    () => [
+      { value: "", label: "默认（按模型能力）" },
+      ...thinking.levels.map(level => ({ value: level, label: level })),
+    ],
+    [thinking.levels]
+  );
+  const thinkingHint = !modelForm.reasoning
+    ? "（该模型未标记支持推理）"
+    : thinking.loading
+      ? "（读取中…）"
+      : thinking.fromCatalog
+        ? "（来自 pi 目录）"
+        : "（目录未收录，通用档）";
 
   const openModelCreate = () => {
     setModelForm(blankModelForm());
@@ -552,7 +586,7 @@ export function LLMSection() {
             activeId={editing?.id}
             onSelect={setEditingId}
             addLabel="添加服务商"
-            onAdd={openProviderCreate}
+            onAdd={() => setProviderCreateOpen(true)}
           />
           {!editing ? (
             <div className="text-tau-meta text-ink-2 px-3 py-8 text-center">
@@ -611,14 +645,29 @@ export function LLMSection() {
                 title="模型"
                 description={`${editing.models.length} 个 · 在「功能分配」中指定给各项功能`}
                 action={
-                  <Button variant="ghost" size="sm" icon={Plus} onClick={openModelCreate}>
-                    添加模型
-                  </Button>
+                  <>
+                    {/* 内置服务商优先走目录勾选：元数据自动带入，不必手填 */}
+                    {editing.builtin && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        icon={Sparkles}
+                        onClick={() => setModelPickerOpen(true)}
+                      >
+                        从目录选择
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="sm" icon={Plus} onClick={openModelCreate}>
+                      手动添加
+                    </Button>
+                  </>
                 }
               >
                 {editing.models.length === 0 ? (
                   <div className="text-tau-meta text-ink-2 px-3 py-6 text-center">
-                    暂无模型——点击「添加模型」创建第一个条目
+                    {editing.builtin
+                      ? "暂无模型——点击「从目录选择」勾选该服务商的模型"
+                      : "暂无模型——点击「手动添加」创建第一个条目"}
                   </div>
                 ) : (
                   editing.models.map(model => (
@@ -645,58 +694,24 @@ export function LLMSection() {
         ))
       )}
 
-      {/* ── 浮层：新建服务商 ── */}
-      <Dialog
+      {/* ── 浮层：新建服务商（内置目录 / 自定义） ── */}
+      <ProviderCreateDialog
         open={providerCreateOpen}
         onOpenChange={setProviderCreateOpen}
-        onAfterClose={() => setProviderForm({ name: "", baseUrl: "", apiKey: "" })}
-        title="新建服务商"
-        subtitle="填入名称与凭据，创建后即可添加模型"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setProviderCreateOpen(false)}>
-              取消
-            </Button>
-            <Button variant="primary" onClick={submitProviderCreate}>
-              创建
-            </Button>
-          </>
-        }
-      >
-        <DialogBody>
-          <div className="flex flex-col gap-3">
-            <label className="flex min-w-0 flex-col gap-1.5">
-              <span className="text-tau-meta text-ink-2 font-medium">名称</span>
-              <Input
-                value={providerForm.name}
-                placeholder="如 DeepSeek"
-                onChange={e => setProviderForm(f => ({ ...f, name: e.target.value }))}
-              />
-            </label>
-            <label className="flex min-w-0 flex-col gap-1.5">
-              <span className="text-tau-meta text-ink-2 font-medium">Base URL</span>
-              <Input
-                className="font-tau-mono"
-                value={providerForm.baseUrl}
-                placeholder="https://api.example.com/v1"
-                spellCheck={false}
-                onChange={e => setProviderForm(f => ({ ...f, baseUrl: e.target.value }))}
-              />
-            </label>
-            <label className="flex min-w-0 flex-col gap-1.5">
-              <span className="text-tau-meta text-ink-2 font-medium">API Key（可稍后补填）</span>
-              <Input
-                className="font-tau-mono"
-                type="password"
-                value={providerForm.apiKey}
-                placeholder="sk-…"
-                spellCheck={false}
-                onChange={e => setProviderForm(f => ({ ...f, apiKey: e.target.value }))}
-              />
-            </label>
-          </div>
-        </DialogBody>
-      </Dialog>
+        onCreate={submitProviderCreate}
+      />
+
+      {/* ── 浮层：从内置目录勾选模型 ── */}
+      {editing?.builtin && (
+        <ModelPickerDialog
+          open={modelPickerOpen}
+          onOpenChange={setModelPickerOpen}
+          builtin={editing.builtin}
+          providerName={editing.name}
+          existingIds={editing.models.map(model => model.id)}
+          onConfirm={applyModelPick}
+        />
+      )}
 
       {/* ── 浮层：模型编辑表单 ── */}
       <Dialog
@@ -791,20 +806,18 @@ export function LLMSection() {
             {advancedOpen && (
               <div className="grid grid-cols-2 gap-x-3 gap-y-3 pb-1">
                 <label className="flex min-w-0 flex-col gap-1.5">
-                  <span className="text-tau-meta text-ink-2 font-medium">推理档位</span>
+                  <span className="text-tau-meta text-ink-2 font-medium">
+                    推理档位
+                    {thinkingHint && (
+                      <span className="text-ink-3 ml-1 font-normal">{thinkingHint}</span>
+                    )}
+                  </span>
                   <Select
                     aria-label="推理档位"
                     className="w-full"
                     value={modelForm.thinkingLevel}
-                    options={[
-                      { value: "", label: "默认（按模型能力）" },
-                      { value: "off", label: "off" },
-                      { value: "low", label: "low" },
-                      { value: "medium", label: "medium" },
-                      { value: "high", label: "high" },
-                      { value: "xhigh", label: "xhigh" },
-                      { value: "max", label: "max" },
-                    ]}
+                    disabled={!modelForm.reasoning}
+                    options={thinkingOptions}
                     onValueChange={v => setModelForm(f => ({ ...f, thinkingLevel: v }))}
                   />
                 </label>
