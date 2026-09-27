@@ -327,7 +327,6 @@ ${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}..
     onRetryStatus: () => {},
     onStreamError: () => {},
     onSettled: () => {},
-    onQueueUpdate: () => {},
   });
 
   const run = runPiAgent(

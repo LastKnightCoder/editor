@@ -2,11 +2,12 @@
 
 > 2026-09-27 交接（M2-f 完成；M3-a 工具权限与队列交互、M3-b ask-question 宿主原生化、
 > M3-c MCP 工具集动态化、M3-d/e 设置页接内置目录、M3-f 模型实时获取、
-> M3-g（shellPath 设置 + chat 侧档位接目录 + 档位双类型收敛）均已完成并提交；
-> **M3 只剩第 5 项 steer 交互与第 6 项 WSL 手动选项**，下一步可开 M4 会话管理）。
+> M3-g（shellPath 设置 + chat 侧档位接目录 + 档位双类型收敛）、
+> M3-h（steer 交互：运行中插话 + 队列下沉运行时）均已完成并提交；
+> **M3 只剩第 6 项 WSL 手动选项**，下一步可开 M4 会话管理）。
 > 新会话续接方式：读完本文档 +
 > `git log --oneline -15` 对照提交历史。验证三件套：`cd apps/desktop && npx tsc --noEmit`、
-> `npx vitest run`（336 文件、1582 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
+> `npx vitest run`（336 文件、1589 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
 > 改了 `packages/shared` 要另跑 `packages/shared` 与 `apps/browser-extension` 的 vitest + tsc
 > （思考档位类型现在唯一定义在 shared，三端共用）。
 > **注意 cwd 必须在 apps/desktop**——vitest 从仓库根跑会整体失败（vite 别名解析不到）。
@@ -54,7 +55,8 @@
 │                                    与 pi-session-interactions 通道；hostTools() 只给交互会话注册 ask-question
 ├─ modules/pi-tool-permissions.ts  工具审批等待与会话授权（beforeToolCall 拦截）
 ├─ modules/pi-user-questions.ts    宿主原生 ask-question（customTool execute 挂起到用户作答）
-└─ modules/pi-session-host.ts      会话宿主：create/prompt/steer/abort/dispose/set-system-prompt/
+└─ modules/pi-session-host.ts      会话宿主：create/prompt/steer（运行中插话，见 M3-h）/
+                                   abort（顺带 clearQueue 清未送达插话）/dispose/set-system-prompt/
                                    tool-*/find-by-scope/interactions/approve-tool/answer-question IPC；
                                    AgentSessionEvent 原样透传（pi-session-event 按 sessionId 路由；
                                    scope=会话键，见坑 1）
@@ -68,7 +70,8 @@
 │                                  ensure（模型/档位变化自动重建）/recreate（编辑重发等显式重建）/
 │                                  adoptOrResolveSession（find-by-scope 收养）/
 │                                  buildPiChatSystemPrompt（skills 清单+$点名全文）
-├─ services/piChatEvents.ts        PiChatEventReducer：AgentSessionEvent→assistant_blocks 快照归约。
+├─ services/piChatEvents.ts        PiChatEventReducer：AgentSessionEvent→assistant_blocks 快照归约；
+│                                  运行中送达的 user 消息上报 onUserMessageDelivered（插话，M3-h）。
 │                                  关键机制：50ms trailing 节流（message_update 每 delta 全量
 │                                  produce 直驱渲染会卡顿；message_end/工具事件前 flush 保终态）；
 │                                  turnId 全局递增（多轮/恢复各建 reducer 撞 `${turnId}:reasoning`
@@ -81,7 +84,8 @@
 │                                  都读它；提交经 IPC，不乐观伪造；readySessions 控制恢复期禁用
 ├─ services/piAgentRunner.ts       一次性 pi 会话运行器（inMemory+工具桥+历史灌入+settled 后
 │                                  dispose + excludeToolNames 防子代理递归）
-├─ services/piChatRuntime.ts       ★模块级归约运行时（最后落地的核心，见下节）
+├─ services/piChatRuntime.ts       ★模块级归约运行时（最后落地的核心，见下节）：
+│                                  除归约外还持有待发送队列与已提交插话（M3-h）
 ├─ services/llmCatalog.ts          目录/档位的渲染端读取层（缓存 + hooks）+ 档位归一与 clamp；
 │                                  设置页与聊天输入框共用（原在 features/settings，M3-g 下沉）
 ├─ ChatContainer.tsx               纯 UI + 发送编排（5 场景共用：主聊天/停靠栏/PDF/视频笔记/
@@ -92,6 +96,9 @@
 思考档位类型：`packages/shared` 的 `ThinkingLevel` 是全仓唯一定义（桌面 `PiThinkingLevel` 为其别名，
 扩展侧镜像同源），与 pi ThinkingLevel 逐项对齐——见 M3-g 与坑 18。
 
+**M3-h 删除**：`ChatSidebar/messageQueue.ts`（ConversationMessageQueue 类，与 runtime 的
+conversations map 重复，队列已并入 runtime 条目）及其两个测试文件、`PiChatEventSink.onQueueUpdate`
+（零真实消费者，六处空实现一并清）。
 **已删除（M2-f）**：useChatLLM/chatStreamCore、DesktopModelProtocolAdapter(1118行)/Transport、
 llmSettingsDowngrade、openai-reasoning-effort、commands/stream-fetch、subagentAgentPolicies、
 chatRunManager/useChatRunStore/commands:chat-run/types:chat-run（渲染端链路）。
@@ -126,10 +133,14 @@ schema/parity 常量、`knowledge-migration.ts` 与 mobile 的 Rust 迁移分支
   卸载后调用无害）；
 - **deps 由挂载组件每次渲染刷新**——必须是无组件生命周期引用（store action/IPC command）。
 
+4. 修正三（M3-h）：待发送队列从组件 useRef 下沉进条目——切页卸载不再丢排队消息；
+   顺带把队列键与 runtime/会话键两套键空间收敛为一套。
+
 **sendLoading 双源**：pending（本轮提交中，含停止后排队等待）|| runtime streaming。
 只约束「本对话能否发送」——**不禁用新建/切换/删除对话**（见坑 13）。
 **stopStreaming**：setSessionPending(false) + forceStopStreaming（立即反馈 + 置 stopRequested
-抑制收尾报错）+ 后台 piSessionAbort 自行收尾（settled 落库幂等）。
+抑制收尾报错 + 暂停待发送队列）+ 后台 piSessionAbort 自行收尾（settled 落库幂等、
+未送达插话退回队首）。
 
 ### M3-a 工具审批（2026-09-27）
 
@@ -242,6 +253,75 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
 检测结果是本机事实，写进去等于把机器特定路径固化，换机/重装 Git 后会留个错路径；
 界面改为把检测值显示为占位与说明，效果相同且没有过期状态。
 
+### M3-h steer 交互：运行中插话 + 队列下沉运行时（2026-09-27）
+
+**pi 的实际行为（读源码核实，0.87.1）**：`steer` 的消息在当前 assistant 轮的工具调用全部执行完
+之后、下一次请求模型之前送达，**与本轮同属一次运行**（中间没有 agent_settled）；`followUp`
+等 agent 本来要停下时才送达，也在同一次运行内。送达时 pi 发 `message_start(role=user)`
+并发 `queue_update`（只带文本），出队靠文本 `indexOf` 匹配。**abort 不清队列**——没送达的插话会
+滞留，等下一次 prompt 开跑时被一起吞进去（pi 自己的 TUI 在 abort 时 `clearQueue()` 退回输入框）。
+`before_agent_start` 只在 `prompt()` 时触发，所以插话沿用本轮的模型/档位/systemPrompt，
+**插话里的 `$skill` 点名不会注入全文**（模型仍能看到清单，可自己 `get_skill_readme`）。
+
+**裁决：排队仍由桌面端编排，只有插话接 pi 原生**。排队的消息不交 pi 的 followUp——桌面每次发送
+要走 `ensureChatSession`（切模型/档位要重建）、刷新 systemPrompt 与 `$skill` 全文、
+`beforeSendUserMessage`（PDF 索引就绪）、附件转本地路径；followUp 在同一次运行内送达会绕过这整套，
+用户排队期间换了模型、下一条却还用旧模型就是实打实的回退。真正离不开原生的只有 steer。
+
+**主进程**：`steerHostSession`（core 模块，electron-free 可单测）——
+
+- **必须先判 `session.isStreaming`**：pi 的 `prompt()` 在空闲时会起一轮新运行，而且**要等整轮跑完
+  才返回**（IPC 会一直挂着），还绕过渲染端发送编排。空闲一律返回 `not-streaming`，渲染端按普通消息排队。
+- **`expandPromptTemplates: false`**：关掉斜杠命令/模板/skill 展开，送达文本与提交文本逐字一致，
+  渲染端才能按文本认领自己的插话。
+- 只等 `preflightResult`（pi 排完队就回调）而不等 prompt 的 promise，免得将来 pi 改返回时机拖住 IPC。
+- `pi-session:abort` 在 abort 后 `clearQueue()`，未送达文本随响应返回（`stranded`），
+  防止漏进下一轮；渲染端不依赖它退回队列（见下）。
+
+**渲染端**：
+
+- `PiChatEventReducer` 处理 `message_start(role=user)`：**跳过本轮的发起消息**
+  （`awaitingInitialUserMessage`，agent_start 置位），其后的用户消息即插话 → `onUserMessageDelivered`。
+  重载收养会话时没有 agent_start，标志为 false——那时收到的用户消息必然是插话，判定天然正确。
+  送达时清空工具执行映射：否则上一轮工具的迟到事件会认领旧 turn，把工具卡写进新的助手占位。
+- `piChatRuntime` 每个对话条目新增 `queue`（待发送）、`queuePaused`、`pendingSteers`：
+  - 送达 → 认领 pendingSteer（按文本）→ 聊天行追加用户消息 + 新助手占位 → **立即落库**
+    （重载后这条用户消息必须在，否则模型在回答一条聊天记录里不存在的话）；
+  - **未送达的插话在 `agent_settled` 退回队首**——这是唯一的对账点，race-free：到 settled 时
+    pi 要么送达了（reducer 已认领），要么没送达（仍挂着）。不用 abort 返回的 stranded 对账，
+    因为插话 IPC 可能还在飞、abort 的 clearQueue 会把它清掉，只有 settled 兜底覆盖得全；
+  - 提交插话**先登记再发 IPC**（送达事件可能先于 IPC 返回到达）；失败走
+    `returnPendingSteerToQueue`（幂等，只在该条仍挂着时退回，避免与 settled 兜底重复入队）。
+- **停止 = 暂停队列**（用户裁决）：`forceStopStreaming` 置 `queuePaused`，`dequeueMessage` 暂停期间
+  不交出内容；未送达插话由 settled 退回队首，用户逐条编辑/删除，或手动发送恢复排空
+  （`submitMessageContent` 调 `resumeQueue`）。此前的行为是停止后队列**自动发出去**，与停止意图冲突。
+- 界面：待发送每条多一个「插话」按钮（仅会话真在运行、且不在编辑重发/图片编辑上下文时出现）；
+  输入框多一个插话按钮与 `⌘/Ctrl + Shift + Enter`（`is-hotkey` 未指定的修饰键按 false 比较，
+  按住 shift 不会误触发送）。已提交的插话单独一组显示「插话 · 当前步骤结束后送达」。
+- 插话可撤回：提交后 pi 无按条删除接口，但没送达前它只在 `pendingSteers` 里，
+  停止/本轮结束都会退回队列，所以撤回等价于「停止后从队列里删」。
+
+**设计层修正（顺带修掉的两处）**：
+
+1. **队列原先是组件 `useRef`**（`ConversationMessageQueue` 实例 + 排空 effect 都在 ChatContainer），
+   切页/关面板组件卸载时排队消息静默丢失——违反「跨页面状态必须模块级」。现在队列在 runtime 条目里，
+   排空仍由挂载中的组件执行（发送编排在组件里），切页不排空、回来自动继续。
+2. **两套 conversationKey 收敛为一套**：队列键原先是 `${chatScope}:${chatId}`（带参数前缀，
+   如 `pdf-chat:12:5`），runtime/会话键是 `${prefix}:${chatId}`（`pdf-chat:5`），两个键空间并行，
+   任何交叉引用都会错。现在只有一套（chatId 全局唯一，collapse 安全），`ConversationMessageQueue`
+   类连同它的两个测试文件一并删除——它的 per-key map 与 runtime 的 conversations map 重复，
+   留着就是第二个键空间。新对话 id 0→N 时队列/插话随 `adoptConversation` 迁移，不再单独搬运。
+3. **`PiChatEventSink.onQueueUpdate` 删除**（连同六处空实现）：pi 的 `queue_update` 只有文本，
+   插话事实源是 `pendingSteers`（带原始附件内容），两套并行必然对不齐；零真实消费者的钩子不留
+   （坑 18 的教训）。
+
+**验证**：`pi-steer.test.ts`（真实 pi 会话 + faux + 卡住的桥接工具）——工具执行中插话在下一次请求
+模型前送达且只有一次 agent_settled、空闲时拒绝且不起新一轮、中止后清队列且不漏进下一轮；
+`piChatRuntime.steer.test.ts`——队列跨重挂载存活、停止暂停/恢复、送达追加行并落库、
+未送达退回队首保序、退回幂等、重载收养后按插话处理；`piChatEvents.test.ts`——发起消息不上报、
+送达清工具映射；冒烟脚本新增 `[3b]` 插话场景（送达顺序 + 同一轮）。
+**尚未做真实模型下的 Electron 实机走查**（清单见第七节「插话专项」）。
+
 ### M3-c MCP 工具集动态化（2026-09-27）
 
 **设计缺陷**：pi 会话的工具注册表在装配时定死（`setActiveToolsByName` 只能在已注册名字里
@@ -334,6 +414,7 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
 - **M3-f/g** `8d9e05c34`：模型实时获取（`/models`）+ shellPath 设置 + chat 侧档位接目录 + 档位类型收敛
 - **死代码清理** `6d53b26b5`+`21252edc8`：档位死参数链（LegacyReasoningEffort/toPiThinking）、
   openai-responses 死链、chat-core runtime/types、externalAgentTools（见坑 18 与第二节末尾）
+- **M3-h**：steer 交互（运行中插话接 pi 原生 + 队列下沉 runtime + 键空间收敛 + 停止暂停队列）
 - **修正一** `784d59ebb`：去闭包快照+会话常驻 reducer（修吞消息）
 - **修正二** `d3bc61c33`：piChatRuntime 下沉模块级（后台运行）
 - **验收状态**：用户确认"大部分没问题"——M2-f 基本通过；后台运行场景（切页回来
@@ -358,6 +439,13 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
 5. SessionManager：create 后 appendMessage 灌历史，createAgentSession 内部
    buildSessionContext 自动恢复进 Agent；分支树（branch/navigateTree/fork）留给 M4。
 6. think-stream-rewriter 重排事件后需手动重建 partial（pi 每个事件原生带 partial 全量快照）。
+7. **`prompt()` 在会话空闲时要等整轮跑完才返回**（内部 `_runAgentPrompt` 全程 await），
+   流式中才是排完队就返回。任何「可能空闲也可能在跑」的调用点必须先判 `isStreaming` 分流，
+   否则 IPC 一直挂着（插话就踩在这里，见 M3-h）。要更早的时机可用 `preflightResult` 回调。
+8. **abort 不清 steer/followUp 队列**：`clearQueue()` 得自己调，否则滞留消息会在下一次
+   prompt 开跑时被吞进去。pi 的 TUI 也是 abort 时 clearQueue 退回输入框。
+9. **`queue_update` 只有文本**，且 pi 出队按文本 `indexOf` 匹配——要携带附件/原始内容就必须
+   自己维护一份待送达清单，不能拿 pi 的队列当事实源。
 
 **本项目事故与修复（按发生顺序）**：
 
@@ -387,6 +475,9 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
 10. **vitest cwd**：必须在 apps/desktop 下跑（见文档头）。
 11. **队列只显示计数**：旧实现只在发送按钮显示数量，回答结束时若状态更新交错会出现停止按钮与
     队列数字残留；现已改为输入框上方渲染待发送摘要，并由 agent_settled 主动触发 drain。
+    **M3-h 的两处后续**：①队列原先存在组件 useRef 里，切页卸载即丢——运行态必须在模块级
+    （第三条工作约定又一次被触发）；②队列键 `${chatScope}:${chatId}` 与 runtime/会话键
+    `${prefix}:${chatId}` 是两个并行键空间，交叉引用必错，已收敛为一套。
 12. **ask-question 字符串选项被 pi 拒绝**：pi 执行前按 JSON Schema 校验参数，schema 必须与
     描述一致（见 M3-b）。新增宿主工具时 schema 要按真实可接受的输入写，不能只写宽泛的 object。
 13. **运行中禁止新建/切换对话的过期护栏**：`新建对话` 菜单项与主视图 ChatDropdownSelector
@@ -435,8 +526,10 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
 
 ## 五、遗留边界（有意留下，归属明确）
 
-- **steer 未接**：流式中发送仍走本地队列（现已可见、可编辑、可删除并在 agent_settled 后 drain），
-  pi 原生 steer/followUp 留 M3 交互升级；队列本身仍是渲染进程内存态，不做重启恢复
+- **steer（M3-h 已接）**：运行中插话走 pi 原生 steer（同一轮内送达）；排队仍由桌面端编排、
+  **不用** pi 的 followUp（会绕过会话确保/systemPrompt 刷新/附件转换，见 M3-h）。
+  队列与已提交插话在 runtime 内存态，**不做主进程重启恢复**（属待发送草稿，非已提交消息）；
+  主进程也重启时挂着的插话不会退回队列（渲染端拿不到 settled），与 ask-question 同类边界，M4 一起治
 - **工具审批（D-060）已接**：M3-a 完成执行前拦截与主聊天审批；一次性入口没有审批
   UI 时按模式明确拒绝。完整主进程重启恢复仍待 M4，需在 Electron 实机复验审批交互。
 - **档位（M3-g 已接）**：两侧下拉均按模型真实能力生成，全仓一套 `ThinkingLevel` 类型；
@@ -463,12 +556,13 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
    会话创建后的工具变化对该对话隐形）。主进程 mcp.ts 的 D-058 管理页保留；下一步从第 4 项继续
 4. **设置页产品化（M3-d/e/f/g 全部完成）**：服务商类型选择、模型勾选与实时获取、
    两侧档位接目录、档位类型收敛、shellPath 设置 —— 见上面三节。下一步从第 5 项继续。
-5. **steer 交互（M3 剩余项，下一步就从这里开始）**：将当前本地队列与 pi 原生 steer/followUp 对齐（当前队列展示、编辑、删除和
-   agent_settled drain 已完成；`queue_update` 事件驱动的 pi 原生排队尚未接管发送）
-6. WSL 手动选项（BashOperations 路径翻译）
+5. **steer 交互（M3-h 已完成）**：运行中插话接 pi 原生 steer、队列下沉运行时、停止暂停队列，
+   见上面 M3-h 一节。下一步从第 6 项继续。
+6. **WSL 手动选项（M3 剩余项，下一步就从这里开始）**：BashOperations 路径翻译
 
-**队列交互（M3-a 已完成）**：待发送消息在输入区上方显示文本/附件摘要；每条可编辑或删除；
-队列按 conversationKey 隔离，入队、出队、迁移、删除刷新版本；agent_settled 触发排空。
+**队列交互（M3-a 起，M3-h 重构归属）**：待发送消息在输入区上方显示文本/附件摘要；每条可编辑、
+删除、改为插话；队列在 piChatRuntime 条目里按 conversationKey 隔离（切页不丢），
+agent_settled 触发排空；用户按停止则暂停排空。
 
 **M4（会话管理）**：sqlite 目录表（scope/域引用/group/pin/order/title/source/cwd/session_path，
 **改表同步 scripts/db/check-schema-parity.mjs 常量+跑 pnpm db:schema:build/check**）、列表/
@@ -524,6 +618,19 @@ modules/llm.ts、卫星表 messages 写路径；DECISIONS.md 追加条目；03 �
   删除正在运行的对话后不再有落库（控制台无该行的持久化日志）。
 - 队列专项：流式中发送多条消息；查看每条待发送内容；编辑后重新发送；删除指定条目；
   agent_settled 后自动排空；切换会话后队列互不串台；停止后队列保留且可继续编辑/删除。
+  **M3-h 追加**：流式中排队几条后切页再回来，队列还在且回来后继续排空（此前切页即丢）。
+- **插话专项（M3-h，未做实机走查）**：让模型跑一个多步任务（多轮工具），中途用
+  `⌘/Ctrl + Shift + Enter` 或插话按钮插一句 → 插话卡出现在输入区上方 →
+  当前工具/步骤跑完后它作为用户消息出现在聊天流里、模型据此调整，且**回答没有断成两轮**
+  （没有第二个「思考中」重新开始、没有多余的 settled）；
+  待发送里的条目点「插话」→ 从待发送转到插话组；
+  等待审批/等待作答时插话 → 处理完那一步后才送达；
+  插话后立刻按停止 → 插话退回待发送队列（队列显示「已暂停」），可编辑/删除，
+  手动发送一条后剩下的继续排空；
+  会话刚好结束的瞬间插话 → 提示「这轮回答已结束，已加入待发送」，不新起一轮；
+  编辑重发/图片编辑上下文里插话按钮不出现；
+  插话带图片/文件附件 → 模型能看到（图片直传、文件给路径让它 read）；
+  插话送达后刷新渲染层 → 那条用户消息还在（已落库）。
 
 ## 八、工作约定（用户明确要求，违反会返工）
 

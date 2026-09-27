@@ -69,15 +69,21 @@ export function piSessionPrompt(
   return invoke<Outcome>("pi-session:prompt", { sessionId, text, images });
 }
 
+/**
+ * 运行中插话：交 pi 原生 steer 队列，在当前轮工具跑完后、下一次请求模型前送达。
+ * reason=not-streaming 表示这轮已经结束（会话空闲），调用方应改走普通发送/排队。
+ */
 export function piSessionSteer(
   sessionId: string,
-  text: string
-): Promise<Outcome & { disposition?: string }> {
-  return invoke("pi-session:steer", { sessionId, text });
+  text: string,
+  images?: PiPromptImage[]
+): Promise<Outcome & { reason?: "not-streaming" | "error" }> {
+  return invoke("pi-session:steer", { sessionId, text, images });
 }
 
-export function piSessionAbort(sessionId: string): Promise<Outcome> {
-  return invoke<Outcome>("pi-session:abort", { sessionId });
+/** 中止会话；stranded = 中止时还没送达、已被清出 pi 队列的插话文本 */
+export function piSessionAbort(sessionId: string): Promise<Outcome & { stranded?: string[] }> {
+  return invoke("pi-session:abort", { sessionId });
 }
 
 export function piSessionDispose(sessionId: string): Promise<Outcome> {

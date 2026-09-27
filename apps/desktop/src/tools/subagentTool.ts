@@ -212,7 +212,6 @@ export const createSubAgentResearchTool = (): ToolDefinition => ({
           onRetryStatus: noop,
           onStreamError: noop,
           onSettled: noop,
-          onQueueUpdate: noop,
         });
         const handle = runPiAgent(
           {

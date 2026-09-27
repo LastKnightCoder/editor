@@ -73,7 +73,10 @@ export const usePiSessionStore = create<PiSessionState>(set => ({
   },
   steerText: async (sessionId, text) => {
     const outcome = await piSessionSteer(sessionId, text);
-    if (!outcome.ok) set(state => ({ errors: { ...state.errors, [sessionId]: outcome.error } }));
+    if (outcome.ok) return;
+    const error =
+      outcome.error ?? (outcome.reason === "not-streaming" ? "会话已空闲，无法插话" : "插话失败");
+    set(state => ({ errors: { ...state.errors, [sessionId]: error } }));
   },
   abortSession: async sessionId => {
     await piSessionAbort(sessionId);

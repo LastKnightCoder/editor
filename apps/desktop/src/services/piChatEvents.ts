@@ -26,12 +26,16 @@ export interface PiChatEventSink {
   }): void;
   /** agent 循环开始（含等待提交后真正起跑）：主聊天据此置运行态（可选钩子） */
   onAgentStart?(): void;
+  /**
+   * 运行中送达的用户消息（pi 原生插话 steer 落地）：本轮已有的用户消息由发送方乐观写入，
+   * 这里只报「运行开始之后」才出现的那些，聊天行据此追加用户消息与新的助手占位。
+   */
+  onUserMessageDelivered?(text: string): void;
   /** pi auto_retry 状态（null = 结束重试等待） */
   onRetryStatus(status: { attempt: number; maxAttempts: number; delayMs: number } | null): void;
   onStreamError(message: string): void;
   /** agent_settled：本轮运行完全沉淀（含重试/压缩结束） */
   onSettled(): void;
-  onQueueUpdate(queued: { steering: readonly string[]; followUp: readonly string[] }): void;
 }
 
 const contentTextOf = (blocks: Array<{ type: string; text?: string }> | undefined): string =>
@@ -39,6 +43,16 @@ const contentTextOf = (blocks: Array<{ type: string; text?: string }> | undefine
     .filter(block => block.type === "text")
     .map(block => block.text ?? "")
     .join("\n\n");
+
+/** 用户消息文本：与 pi 出队时的取法一致（只取 text 块、直接相接），插话据此按文本认领 */
+const userTextOf = (content: unknown): string => {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  return (content as Array<{ type: string; text?: string }>)
+    .filter(block => block.type === "text")
+    .map(block => block.text ?? "")
+    .join("");
+};
 
 const contentThinkingOf = (
   blocks: Array<{ type: string; thinking?: string }> | undefined
@@ -71,6 +85,12 @@ export class PiChatEventReducer {
   private pendingText: string | null = null;
   private pendingReasoning: string | null = null;
   private publishTimer: ReturnType<typeof setTimeout> | null = null;
+  /**
+   * 本轮运行的首条用户消息尚未到达：它就是发起本轮的那条（发送方已乐观写入聊天行），
+   * 必须跳过，其后的用户消息才是运行中送达的插话。重载后收养会话时没有 agent_start，
+   * 此标志为 false——那时收到的用户消息必然是插话（发起消息在重载前就过去了）。
+   */
+  private awaitingInitialUserMessage = false;
 
   constructor(
     private readonly sink: PiChatEventSink,
@@ -152,6 +172,7 @@ export class PiChatEventReducer {
   public handle(event: AgentSessionEvent): void {
     switch (event.type) {
       case "agent_start": {
+        this.awaitingInitialUserMessage = true;
         this.sink.onAgentStart?.();
         return;
       }
@@ -160,6 +181,20 @@ export class PiChatEventReducer {
           this.flushPendingSnapshots();
           globalTurnCounter += 1;
           this.currentTurnId = `pi:${globalTurnCounter}`;
+          return;
+        }
+        if (event.message.role === "user") {
+          if (this.awaitingInitialUserMessage) {
+            this.awaitingInitialUserMessage = false;
+            return;
+          }
+          // 插话送达：先落定上一轮的快照，再清工具执行映射——新用户消息之后到达的
+          // 工具事件若还认领旧 turn，会把工具卡写进新的助手占位里
+          this.flushPendingSnapshots();
+          this.currentTurnId = null;
+          this.executions.clear();
+          this.executionsByTurn.clear();
+          this.sink.onUserMessageDelivered?.(userTextOf(event.message.content));
         }
         return;
       }
@@ -341,10 +376,8 @@ export class PiChatEventReducer {
         }
         return;
       }
-      case "queue_update": {
-        this.sink.onQueueUpdate({ steering: event.steering, followUp: event.followUp });
-        return;
-      }
+      // pi 的 queue_update 不消费：插话的事实源是 runtime 的 pendingSteers（带原始附件内容），
+      // pi 的队列只有文本，两套并行必然对不齐——送达/退回都以 pendingSteers 为准
       case "agent_settled": {
         this.sink.onSettled();
         return;

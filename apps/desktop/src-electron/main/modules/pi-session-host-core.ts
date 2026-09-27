@@ -69,6 +69,56 @@ export function applyActiveTools(
   session.setActiveToolsByName(next);
 }
 
+/** 插话结果：not-streaming 表示这轮已经结束，渲染端据此退回待发送队列 */
+export interface SteerOutcome {
+  ok: boolean;
+  reason?: "not-streaming" | "error";
+  error?: string;
+}
+
+/** steerHostSession 需要的会话能力（便于单测用最小替身） */
+type SteerableSession = Pick<AgentSession, "isStreaming" | "prompt">;
+
+/**
+ * 运行中插话（M3 第 5 项）：交 pi 原生 steer 队列——消息在当前轮的工具调用跑完之后、
+ * 下一次请求模型之前送达，与本轮同属一次运行（中间没有 agent_settled）。
+ *
+ * 两处细节是硬约束：
+ * - **必须先判 isStreaming**：pi 的 prompt() 在会话空闲时会开一轮新运行，而且要等整轮跑完才返回
+ *   （IPC 会一直挂着），且绕过渲染端的发送编排（会话确保、systemPrompt 刷新、附件转换）。
+ *   空闲一律返回 not-streaming，由渲染端按普通消息排队。
+ * - **expandPromptTemplates: false**：关掉 pi 的斜杠命令/模板/skill 展开，送达文本与提交文本
+ *   逐字一致，渲染端才能按文本认领自己的插话（pi 的队列出队也是按文本匹配的）。
+ *
+ * prompt() 在排队分支里一排完就调 preflightResult 并返回，但这里仍只等 preflight——
+ * 免得将来 pi 调整返回时机把 IPC 一起拖住。
+ */
+export async function steerHostSession(
+  session: SteerableSession,
+  text: string,
+  images?: unknown[]
+): Promise<SteerOutcome> {
+  if (!session.isStreaming) return { ok: false, reason: "not-streaming" };
+  let settlePreflight: (accepted: boolean) => void = () => undefined;
+  const preflight = new Promise<boolean>(resolve => {
+    settlePreflight = resolve;
+  });
+  const failure = session
+    .prompt(text, {
+      streamingBehavior: "steer",
+      expandPromptTemplates: false,
+      preflightResult: settlePreflight,
+      ...(images && images.length > 0 ? { images: images as never } : {}),
+    })
+    .then(() => undefined)
+    .catch((error: unknown) => {
+      settlePreflight(false);
+      return error instanceof Error ? error.message : String(error);
+    });
+  if (await preflight) return { ok: true };
+  return { ok: false, reason: "error", error: (await failure) ?? "插话失败" };
+}
+
 /**
  * 选定 AI 执行命令用的 shell（M3-g）：用户在设置里填的优先，但路径不存在就忽略——
  * 让 pi 拿着坏路径去起 bash 只会得到一个没头没尾的失败。两者皆空时返回 undefined，

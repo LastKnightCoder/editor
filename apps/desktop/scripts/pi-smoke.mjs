@@ -136,6 +136,42 @@ try {
   await session.prompt("跑冒烟");
 } finally {
   unsubscribe();
+}
+
+// 3b. 运行中插话（steer）：工具执行中交一条，验证它在同一轮内、下一次请求模型前送达
+console.log("[3b] 运行中插话（steer）：");
+const steerText = "顺便把结论一句话总结";
+faux.setResponses([
+  fauxAssistantMessage([fauxToolCall("bash", { command: "echo 插话前的命令" })], {
+    stopReason: "toolUse",
+  }),
+  fauxAssistantMessage([fauxText("插话已处理。")]),
+]);
+const steerUserMessages = [];
+const steerOrder = [];
+let steerSettledCount = 0;
+const unsubscribeSteer = session.subscribe(event => {
+  if (event.type === "message_start") steerOrder.push(`message_start:${event.message?.role}`);
+  else steerOrder.push(event.type);
+  if (event.type === "message_start" && event.message?.role === "user") {
+    steerUserMessages.push(
+      (event.message.content ?? [])
+        .filter(b => b.type === "text")
+        .map(b => b.text)
+        .join("")
+    );
+  }
+  if (event.type === "agent_settled") steerSettledCount += 1;
+});
+try {
+  const steerRun = session.prompt("先执行一个命令");
+  while (!steerOrder.includes("tool_execution_start")) {
+    await new Promise(resolve => setTimeout(resolve, 5));
+  }
+  await session.prompt(steerText, { streamingBehavior: "steer", expandPromptTemplates: false });
+  await steerRun;
+} finally {
+  unsubscribeSteer();
   session.dispose();
 }
 
@@ -158,6 +194,20 @@ check(
 check("流式事件含 text_delta 与 thinking_delta", eventTypes.has("message_update"));
 check("最终 assistant 文本落地", finalText.includes("冒烟完成"), finalText || "空");
 check("agent_settled 事件到达", eventTypes.has("agent_settled"));
+// 第二条用户消息就是插话（第一条是发起本轮的那条）
+const steerIndex = steerOrder.lastIndexOf("message_start:user");
+check(
+  "插话按顺序送达（工具执行之后、下一次 assistant 消息之前）",
+  steerUserMessages[1] === steerText &&
+    steerIndex > steerOrder.indexOf("tool_execution_end") &&
+    steerOrder.slice(steerIndex).includes("message_start:assistant"),
+  steerUserMessages.join(" | ")
+);
+check(
+  "插话与本轮同属一次运行（只有一次 agent_settled）",
+  steerSettledCount === 1,
+  `${steerSettledCount} 次`
+);
 
 // 7. 清理
 rmSync(workDir, { recursive: true, force: true });

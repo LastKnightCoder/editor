@@ -219,7 +219,6 @@ export function runGenerationTask(
       streamError = errorMessage;
     },
     onSettled: () => {},
-    onQueueUpdate: () => {},
   });
   const handle = runPiAgent(
     {

@@ -1,6 +1,7 @@
 /**
  * PiSessionHost 模块（会话 harness 宿主）：
- * 渲染进程的会话生命周期经 IPC 驱动（create/prompt/steer/abort/dispose），
+ * 渲染进程的会话生命周期经 IPC 驱动（create/prompt/steer/abort/dispose；steer = 运行中插话，
+ * 见 steerHostSession），
  * AgentSessionEvent 经 pi-session-event 通道按 sessionId 路由回创建窗口。
  * 桌面工具经 pi-tool-call 桥回渲染端 ToolRegistry 执行（结果经 pi-session:tool-* 回传）；
  * 历史（桌面 chat-core 消息）在 create 时转换灌入（desktopMessagesToPi）。
@@ -16,6 +17,7 @@ import {
   createHostResourceLoader,
   detectBashShellPath,
   resolveAgentShellPath,
+  steerHostSession,
 } from "./pi-session-host-core";
 import { desktopMessagesToPi, PiToolCallBridge } from "./pi-session-bridge";
 import type { PiHostToolSpec, PiToolApprovalChoice } from "@/types/pi-session";
@@ -172,17 +174,30 @@ class PiSessionHostModule {
     );
     ipcMain.handle(
       "pi-session:steer",
-      async (_event, { sessionId, text }: { sessionId: string; text: string }) => {
+      async (
+        event,
+        {
+          sessionId,
+          text,
+          images,
+        }: { sessionId: string; text: string; images?: Array<{ path?: string; dataUrl?: string }> }
+      ) => {
         const hosted = PiSessionHostModule.sessions.get(sessionId);
-        if (!hosted) return { ok: false, error: "会话不存在" };
-        return { ok: true, disposition: await hosted.session.steer(text) };
+        if (!hosted || hosted.sender !== event.sender) return { ok: false, error: "会话不存在" };
+        const piImages = (
+          await Promise.all((images ?? []).map(image => readPromptImage(image)))
+        ).filter(Boolean);
+        return steerHostSession(hosted.session, text, piImages);
       }
     );
     ipcMain.handle("pi-session:abort", async (event, { sessionId }: { sessionId: string }) => {
       const hosted = PiSessionHostModule.sessions.get(sessionId);
       if (!hosted || hosted.sender !== event.sender) return { ok: false, error: "会话不存在" };
       await hosted.session.abort();
-      return { ok: true };
+      // 中止不清 pi 的插话队列：没送达的插话会滞留，等下一次 prompt 开跑时被一起吞进去。
+      // 停止的语义是「这些都别发了」，所以这里清空，未送达的文本交渲染端退回待发送队列。
+      const cleared = hosted.session.clearQueue();
+      return { ok: true, stranded: [...cleared.steering, ...cleared.followUp] };
     });
     ipcMain.handle("pi-session:dispose", async (event, { sessionId }: { sessionId: string }) => {
       if (PiSessionHostModule.sessions.get(sessionId)?.sender !== event.sender)

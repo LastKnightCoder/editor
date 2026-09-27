@@ -386,7 +386,6 @@ const InlineAIComposerPanel = ({
           chatHandleRef.current = null;
         },
         onSettled: () => {},
-        onQueueUpdate: () => {},
       });
       const handle = runPiAgent(
         {
