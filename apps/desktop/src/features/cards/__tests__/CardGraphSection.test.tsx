@@ -46,7 +46,8 @@ it("悬停随浮层开关恢复，筛选只改变高亮而不删除图谱节点"
       );
       const props = mocks.graph.mock.lastCall![0];
       expect(props.initCards).toEqual(cards);
-      expect(props.currentCardIds).toEqual([1]);
+      expect(props.filterCardIds).toEqual([1]);
+      expect(props.currentCardIds).toBeUndefined();
       expect(props.enableHoverPreview).toBe(enableHoverPreview);
       expect(props.getCardLinks(cards[0])).toEqual([2, 3]);
     }

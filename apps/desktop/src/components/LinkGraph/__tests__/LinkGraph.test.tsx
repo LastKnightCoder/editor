@@ -171,6 +171,22 @@ describe("LinkGraph", () => {
     expect(mocks.getCardById).not.toHaveBeenCalled();
   });
 
+  it("鼠标从节点挪到它的标题上不断开悬停（否则标题一消失、鼠标又落回节点，来回闪）", async () => {
+    mount(<LinkGraph initCards={[card(1)]} enableHoverPreview={false} />);
+    pointer("pointermove", 400, 300);
+    // 等一帧：悬停标题的范围是渲染时算出来的
+    act(() => {
+      vi.advanceTimersByTime(50);
+    });
+    expect(canvas().style.cursor).toBe("pointer");
+    // 挪到节点正下方的标题区：已离开节点命中圆，仍保持悬停
+    for (let y = 300; y <= 360; y += 4) pointer("pointermove", 400, y);
+    expect(canvas().style.cursor).toBe("pointer");
+    // 离开标题范围才断开
+    pointer("pointermove", 5, 5);
+    expect(canvas().style.cursor).toBe("grab");
+  });
+
   it("卡片增删后不重建整个组件，也不抛错", () => {
     const first = [card(1, [2]), card(2, [1])];
     mount(<LinkGraph initCards={first} />);

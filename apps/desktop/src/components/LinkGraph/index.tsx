@@ -31,7 +31,13 @@ interface ILinkGraphProps {
   cardWidth?: number;
   cardMaxHeight?: number;
   cardFontSize?: number;
+  /** 当前卡片（通常一两张，如正在编辑的那张）：accent 强调 */
   currentCardIds?: number[];
+  /**
+   * 筛选命中的卡片；null / 不传表示没有筛选。命中的保持主题色，未命中的降淡。
+   * 筛选结果可能是几百张，不要走 currentCardIds（那会把整张图刷成 accent）
+   */
+  filterCardIds?: number[] | null;
   fitView?: boolean;
   /** 兼容旧签名（G6 的 padding 数组）；自研版只用第一个值 */
   fitViewPadding?: number[];
@@ -60,6 +66,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     cardMaxHeight = 360,
     cardFontSize,
     currentCardIds,
+    filterCardIds,
     getCardLinks = defaultGetCardLinks,
     fitView = true,
     fitViewPadding = defaultFitViewPadding,
@@ -76,6 +83,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
   const [previewId, setPreviewId] = useState<number | null>(null);
   // 锚点是一个零尺寸空 div：AnchoredPanel 要的是 DOM 元素，而我们只有 canvas 坐标
   const anchorRef = useRef<HTMLDivElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
 
   const padding = fitViewPadding[0] ?? 40;
 
@@ -101,10 +109,17 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     onClickCard?.(card);
   });
 
+  // 指针从画布移进预览面板时保持悬停：用户是去读 / 滚动正文的
+  const keepHoverOnLeave = useMemoizedFn(
+    (target: EventTarget | null) =>
+      target instanceof Node && Boolean(panelRef.current?.contains(target))
+  );
+
   const engine = useGraphEngine({
     cards: initCards,
     getCardLinks,
     currentCardIds,
+    filterCardIds,
     fitView,
     fitViewPadding: padding,
     enableHoverPreview,
@@ -113,6 +128,13 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     onClusters,
     onClickNode: handleClickNode,
     onHoverNode: handleHoverNode,
+    keepHoverOnLeave,
+  });
+
+  // 离开面板：回到画布就交还给画布的悬停判定，去别处就收起
+  const handlePanelLeave = useMemoizedFn((event: React.PointerEvent) => {
+    if (event.relatedTarget === engine.canvasRef.current) return;
+    engine.clearHover();
   });
 
   useEffect(() => {
@@ -160,7 +182,13 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
         </div>
       )}
       {anchor && previewId !== null && (
-        <AnchoredPanel anchor={anchor} placement="bottom-start" style={panelStyle}>
+        <AnchoredPanel
+          ref={panelRef}
+          anchor={anchor}
+          placement="bottom-start"
+          style={panelStyle}
+          onPointerLeave={handlePanelLeave}
+        >
           <AnchoredPanel.Body className="max-h-[var(--graph-preview-max-h)]">
             <Editor key={previewId} ref={editorRef} readonly extensions={extensions} />
           </AnchoredPanel.Body>

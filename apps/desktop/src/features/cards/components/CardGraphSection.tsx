@@ -17,8 +17,8 @@ export function CardGraphSection({
   enableHoverPreview,
 }: {
   cards: ICard[];
-  /** 当前筛选命中的卡片 id（未命中节点降淡，同旧版 currentCardIds） */
-  highlightIds: number[];
+  /** 当前筛选命中的卡片 id；null 表示没有筛选（「全部」）。命中的保持主题色，未命中的降淡 */
+  highlightIds: number[] | null;
   onOpenCard(card: ICard): void;
   enableHoverPreview: boolean;
 }) {
@@ -36,7 +36,7 @@ export function CardGraphSection({
           getCardLinks={getCardLinks}
           onClickCard={onOpenCard}
           enableHoverPreview={enableHoverPreview}
-          currentCardIds={highlightIds}
+          filterCardIds={highlightIds}
           // 全库图谱是用户反复回看的那张「地图」：优先用主进程离线算好的知识地图；
           // 取不到时退回链接图谱，其布局坐标照旧跨重启保持
           persistKey="cards-library"
