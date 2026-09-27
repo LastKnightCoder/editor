@@ -4,6 +4,8 @@ import { BoardElement, ColumnElement, Board, Operation } from "../types";
 import { COLUMN_DEFAULTS } from "../types/column";
 import { PathUtil } from "./PathUtil";
 import BoardUtil from "./BoardUtil";
+import { RichTextUtil } from "./RichTextUtil";
+import type { RichTextElement } from "../plugins/RichTextPlugin";
 
 const TITLE_HEIGHT = COLUMN_DEFAULTS.titleHeight;
 
@@ -252,6 +254,46 @@ export class ColumnUtil {
     const ops = BoardUtil.diffNode(column, next, path);
     BoardUtil.normalizeOperations(ops);
     board.apply(ops, true);
+  }
+
+  /**
+   * 在列末尾追加一段空白文字并自动进入编辑（沿用上次的富文本样式）。
+   * 插入与 relayout 同步执行，历史合并为一条撤销记录。
+   */
+  static appendRichText(board: Board, column: ColumnElement): string | null {
+    const path = PathUtil.getPathByElement(board, column);
+    if (!path) return null;
+
+    const contentWidth = column.width - column.padding * 2;
+    const element: RichTextElement = {
+      id: getUuid(),
+      type: "richtext",
+      x: column.x + column.padding,
+      y: column.y + this.calculateHeightFromChildren(column),
+      width: contentWidth,
+      height: 40,
+      maxWidth: contentWidth,
+      maxHeight: 1000,
+      readonly: false,
+      resized: false,
+      resizable: false,
+      autoHeight: true,
+      content: [{ type: "paragraph", children: [{ type: "formatted", text: "" }] }],
+      paddingWidth: 16,
+      paddingHeight: 8,
+      autoFocus: true,
+      ...RichTextUtil.getPrevRichtextStyle(),
+    };
+
+    board.apply({
+      type: "insert_node",
+      path: [...path, column.children.length],
+      node: element,
+    });
+
+    const latest = BoardUtil.getElementById(board, column.id) as ColumnElement | null;
+    if (latest) this.relayout(board, latest);
+    return element.id;
   }
 
   /**
