@@ -18,10 +18,20 @@ export interface RenderState {
   hoveredId: number | null;
   /** 外部高亮（筛选命中 / 当前卡片） */
   currentIds: Set<number>;
-  /** 悬停节点的一度邻居 */
+  /** 降淡的中心节点的一度邻居（通常就是悬停节点的邻居） */
   adjacentIds: Set<number>;
+  /**
+   * 降淡以谁为中心；不传时等于 hoveredId。悬停结束后的淡出期间悬停已为 null，
+   * 但降淡还要以刚离开的节点为中心退回去，所以两者分开。
+   */
+  focusId?: number | null;
   /** 簇 id → 颜色（由宿主按主题算好缓存，渲染器不做取色） */
   clusterColors?: Map<number, string>;
+  /**
+   * 悬停强调的程度 0..1（非邻居降淡、簇背景隐去都按它插值）。不传时有悬停即 1。
+   * 由宿主做短时渐变：鼠标在密集节点上扫过时悬停频繁开关，硬切会整屏频闪。
+   */
+  emphasis?: number;
 }
 
 /** 缩放小于此值时不画卡片标签，改画簇标签（语义缩放的雏形） */
@@ -37,6 +47,9 @@ const MAP_CARD_LABEL_SCALE = 2.4;
 /** 簇背景色块的不透明度：只做「这一片是一起的」的暗示，不能盖住节点 */
 const CLUSTER_BLOB_ALPHA = 0.1;
 
+/** 悬停时非邻居节点的不透明度（强调程度为 1 时） */
+const DIMMED_ALPHA = 0.25;
+
 /** 标签显示的缩放阈值：太小时全是糊字，不如不画 */
 const LABEL_MIN_SCALE = 0.55;
 /** 缩放较小时只给度数高的节点显示标签 */
@@ -44,8 +57,12 @@ const LABEL_DEGREE_GATE = 3;
 /** 标签占位高度，用于网格避让 */
 const LABEL_CELL = 18;
 
+type Box = { left: number; right: number; top: number; bottom: number };
+
 export class Canvas2DRenderer {
   private ctx: CanvasRenderingContext2D;
+  /** 最近一帧调色板的字体栈（算标签占位时用，ctx.font 不认 var()） */
+  private fontFamily = "sans-serif";
   private dpr = 1;
   private width = 0;
   private height = 0;
@@ -68,18 +85,22 @@ export class Canvas2DRenderer {
 
   draw(scene: GraphScene, camera: Camera, palette: GraphPalette, state: RenderState) {
     const ctx = this.ctx;
+    this.fontFamily = palette.fontFamily;
     ctx.save();
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.clearRect(0, 0, this.width, this.height);
 
     const hovering = state.hoveredId !== null;
+    const focusId = state.focusId === undefined ? state.hoveredId : state.focusId;
+    const emphasis = focusId !== null ? Math.min(1, Math.max(0, state.emphasis ?? 1)) : 0;
+    const dimming = emphasis > 0;
     const scale = camera.scale;
     const geometry = this.clusterGeometry(scene);
     const mapMode = isMapScene(scene);
 
     // ---- 簇的背景色块：画在最底层，只给出「岛」的轮廓暗示。
     // 离线地图模式不画：主题在空间上已经分成了清楚的岛，再叠一层彩色光晕只会发脏
-    if (!mapMode && !hovering && state.clusterColors) {
+    if (!mapMode && emphasis < 1 && state.clusterColors) {
       for (const [cluster, shape] of geometry) {
         const color = state.clusterColors.get(cluster);
         if (!color) continue;
@@ -89,7 +110,7 @@ export class Canvas2DRenderer {
           continue;
         }
         const blob = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r);
-        blob.addColorStop(0, withAlpha(color, CLUSTER_BLOB_ALPHA));
+        blob.addColorStop(0, withAlpha(color, CLUSTER_BLOB_ALPHA * (1 - emphasis)));
         blob.addColorStop(1, withAlpha(color, 0));
         ctx.fillStyle = blob;
         ctx.beginPath();
@@ -101,13 +122,13 @@ export class Canvas2DRenderer {
     // ---- 连线：淡线一遍，高亮线一遍
     const highlighted: Array<[GraphNode, GraphNode]> = [];
     ctx.lineWidth = Math.max(0.5, 1.1 * Math.min(1, scale));
-    ctx.strokeStyle = hovering ? withAlpha(palette.edge, 0.4) : palette.edge;
+    ctx.strokeStyle = dimming ? withAlpha(palette.edge, 1 - 0.6 * emphasis) : palette.edge;
     ctx.beginPath();
     for (const edge of scene.edges) {
       const a = scene.nodeById.get(edge.source);
       const b = scene.nodeById.get(edge.target);
       if (!a || !b) continue;
-      if (hovering && (edge.source === state.hoveredId || edge.target === state.hoveredId)) {
+      if (dimming && (edge.source === focusId || edge.target === focusId)) {
         highlighted.push([a, b]);
         continue;
       }
@@ -120,7 +141,9 @@ export class Canvas2DRenderer {
     ctx.stroke();
 
     if (highlighted.length > 0) {
-      ctx.strokeStyle = palette.edgeHighlight;
+      // 强调满格时是纯高亮色；渐变途中叠在淡线上按强调程度透出
+      ctx.strokeStyle =
+        emphasis >= 1 ? palette.edgeHighlight : withAlpha(palette.edgeHighlight, emphasis);
       ctx.lineWidth = Math.max(1, 1.8 * Math.min(1, scale));
       ctx.beginPath();
       for (const [a, b] of highlighted) {
@@ -142,7 +165,7 @@ export class Canvas2DRenderer {
       const isHovered = node.id === state.hoveredId;
       const isAdjacent = state.adjacentIds.has(node.id);
       const isCurrent = state.currentIds.has(node.id);
-      const dimmed = hovering && !isHovered && !isAdjacent;
+      const dimmed = dimming && node.id !== focusId && !isAdjacent;
 
       // 辉光只给强调节点：全场辉光既慢又糊
       if (isHovered || isCurrent) {
@@ -163,14 +186,14 @@ export class Canvas2DRenderer {
         : isCurrent
           ? palette.nodeFillCurrent
           : dimmed
-            ? withAlpha(base, 0.25)
+            ? withAlpha(base, 1 - (1 - DIMMED_ALPHA) * emphasis)
             : base;
       ctx.beginPath();
       ctx.arc(cx, cy, r, 0, Math.PI * 2);
       ctx.fill();
 
       // 描边用底色，作用是在节点密集处切出间隙（而不是当轮廓看）
-      if (r > 2.5 && !dimmed) {
+      if (r > 2.5 && (!dimmed || emphasis < 0.5)) {
         ctx.lineWidth = Math.min(2, r * 0.35);
         ctx.strokeStyle = isCurrent ? palette.nodeStrokeCurrent : palette.nodeStroke;
         ctx.stroke();
@@ -203,25 +226,28 @@ export class Canvas2DRenderer {
       if (isCurrent || this.labelAllowed(node, scale)) labelCandidates.push(node);
     }
 
+    // 悬停标签先占位：它是用户正指着的东西，主题名与它重叠时让位（只让那一个，其余不动）
+    const hoveredNode = hovering ? labelCandidates.find(n => n.id === state.hoveredId) : undefined;
+    const hoverBox = hoveredNode ? this.nodeLabelBox(hoveredNode, camera) : null;
+    const reserved = hoverBox ? [hoverBox] : [];
+
     // ---- 离线地图的主题名：三级语义缩放
     //   远：只有大主题名；中：子主题名；近：卡片标题（上面已入候选）
-    if (mapMode && !hovering && scale < MAP_CARD_LABEL_SCALE) {
-      this.drawMapLabels(scene, camera, palette, geometry, scale);
+    // 主题名是地图的底层信息，不随悬停出现/消失：鼠标在密集的岛上扫过时悬停在
+    // 「有 / 无」之间来回切，主题名跟着一亮一灭就是整屏闪烁（用户反馈过）
+    if (mapMode && scale < MAP_CARD_LABEL_SCALE) {
+      this.drawMapLabels(scene, camera, palette, geometry, scale, reserved);
+      if (hoveredNode) this.drawNodeLabels([hoveredNode], camera, palette, state);
       ctx.restore();
       return;
     }
 
     // ---- 簇标签：缩得太小时卡片标题一律糊成一片，这时改显示主题名
     // （语义缩放的第一步：同一块地方在不同缩放下承载不同粒度的信息）
-    if (!mapMode && !hovering && scale < CLUSTER_LABEL_MAX_SCALE && scene.clusters.length > 0) {
+    if (!mapMode && scale < CLUSTER_LABEL_MAX_SCALE && scene.clusters.length > 0) {
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      const placedClusters: Array<{
-        left: number;
-        right: number;
-        top: number;
-        bottom: number;
-      }> = [];
+      const placedClusters: Box[] = [...reserved];
       // 大簇优先占位
       for (const cluster of scene.clusters) {
         const shape = geometry.get(cluster.id);
@@ -241,39 +267,58 @@ export class Canvas2DRenderer {
         ctx.fillStyle = state.clusterColors?.get(cluster.id) ?? palette.label;
         ctx.fillText(text, cx, cy);
       }
+      if (hoveredNode) this.drawNodeLabels([hoveredNode], camera, palette, state);
       ctx.restore();
       return;
     }
 
     // ---- 标签：按重要度排序后避让
-    ctx.font = `12px ${palette.fontFamily}`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
     labelCandidates.sort((a, b) => this.labelPriority(b, state) - this.labelPriority(a, state));
-    // 按实测文字宽度做矩形避让：先前用固定网格（90px 一格），而中文标签实际宽度
-    // 经常超过一格，相邻格的两条标签会叠在一起
-    const placed: Array<{ left: number; right: number; top: number; bottom: number }> = [];
-    for (const node of labelCandidates) {
-      const [cx, cy] = camera.toCanvas(node.x, node.y);
-      const r = Math.max(1.2, node.radius * scale);
-      const text = this.truncate(node.label);
-      const halfWidth = ctx.measureText(text).width / 2 + 2;
-      const top = cy + r + 4;
-      const box = { left: cx - halfWidth, right: cx + halfWidth, top, bottom: top + LABEL_CELL };
+    this.drawNodeLabels(labelCandidates, camera, palette, state);
+    ctx.restore();
+  }
+
+  /** 卡片标题的占位框（画布坐标），标题画在节点正下方 */
+  private nodeLabelBox(node: GraphNode, camera: Camera): Box {
+    const ctx = this.ctx;
+    ctx.font = `12px ${this.fontFamily}`;
+    const [cx, cy] = camera.toCanvas(node.x, node.y);
+    const r = Math.max(1.2, node.radius * camera.scale);
+    const halfWidth = ctx.measureText(this.truncate(node.label)).width / 2 + 2;
+    const top = cy + r + 4;
+    return { left: cx - halfWidth, right: cx + halfWidth, top, bottom: top + LABEL_CELL };
+  }
+
+  /**
+   * 按顺序画卡片标题并避让。按实测文字宽度做矩形避让：先前用固定网格（90px 一格），
+   * 而中文标签实际宽度经常超过一格，相邻格的两条标签会叠在一起。
+   */
+  private drawNodeLabels(
+    nodes: GraphNode[],
+    camera: Camera,
+    palette: GraphPalette,
+    state: RenderState
+  ) {
+    const ctx = this.ctx;
+    const placed: Box[] = [];
+    for (const node of nodes) {
+      const box = this.nodeLabelBox(node, camera);
       const isHovered = node.id === state.hoveredId;
       // 悬停标签必须显示（用户正指着它），其余让位
       if (!isHovered && placed.some(other => this.overlaps(box, other))) continue;
       placed.push(box);
-      // 悬停标签垫一层底色：它常常落在连线与其他节点上方，没有底板会糊在一起
+      ctx.font = `12px ${palette.fontFamily}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      // 悬停标签垫一层底色：它常常落在连线、节点与主题名上方，没有底板会糊在一起
       if (isHovered) {
         ctx.fillStyle = withAlpha(palette.background, 0.88);
-        this.plate(ctx, box.left - 4, top - 3, box.right - box.left + 8, LABEL_CELL);
+        this.plate(ctx, box.left - 4, box.top - 3, box.right - box.left + 8, LABEL_CELL);
       }
       ctx.fillStyle = palette.label;
-      ctx.fillText(text, cx, top);
+      const [cx] = camera.toCanvas(node.x, node.y);
+      ctx.fillText(this.truncate(node.label), cx, box.top);
     }
-
-    ctx.restore();
   }
 
   /**
@@ -290,13 +335,15 @@ export class Canvas2DRenderer {
     camera: Camera,
     palette: GraphPalette,
     geometry: Map<number, { x: number; y: number; radius: number }>,
-    scale: number
+    scale: number,
+    reserved: Box[]
   ) {
     const ctx = this.ctx;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.lineJoin = "round";
-    const placed: Array<{ left: number; right: number; top: number; bottom: number }> = [];
+    const placed: Box[] = [];
+    const blocked = (box: Box) => reserved.some(other => this.overlaps(box, other));
     const showSubtopics = scale >= MAP_SUBTOPIC_LABEL_SCALE;
 
     const draw = (
@@ -318,6 +365,8 @@ export class Canvas2DRenderer {
         top: cy - size * 0.8,
         bottom: cy + size * 0.8,
       };
+      // 大主题名在远景强制显示（不互相避让），但仍给悬停标签让位
+      if (blocked(box)) return false;
       if (!force && placed.some(other => this.overlaps(box, other))) return false;
       placed.push(box);
       ctx.lineWidth = Math.max(3, size * 0.32);
@@ -372,10 +421,7 @@ export class Canvas2DRenderer {
     return true;
   }
 
-  private overlaps(
-    a: { left: number; right: number; top: number; bottom: number },
-    b: { left: number; right: number; top: number; bottom: number }
-  ): boolean {
+  private overlaps(a: Box, b: Box): boolean {
     return !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
   }
 

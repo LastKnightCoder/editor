@@ -25,7 +25,7 @@ export interface MapSubtopic {
 }
 
 export interface MapScene extends GraphScene {
-  /** 大主题 id（簇 id）→ 色槽 */
+  /** 大主题 id（簇 id）→ 色槽；没有色槽的主题不在表里（用中性色画） */
   colorSlots: Map<number, number>;
   subtopics: MapSubtopic[];
 }
@@ -119,7 +119,12 @@ export function buildMapScene(
     ...base,
     clusters,
     summary: { isolated, scattered: [], modularity: base.summary.modularity },
-    colorSlots: new Map(topics.map((topic, index) => [index, topic.colorSlot])),
+    // 没有色槽的主题（兜底，离线计算不会产出）不进表：渲染层据此回落到中性色
+    colorSlots: new Map(
+      topics.flatMap((topic, index) =>
+        topic.colorSlot >= 0 ? [[index, topic.colorSlot] as [number, number]] : []
+      )
+    ),
     subtopics,
   };
 }

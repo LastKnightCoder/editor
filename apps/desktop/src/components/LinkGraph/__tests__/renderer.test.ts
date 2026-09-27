@@ -211,6 +211,35 @@ describe("Canvas2DRenderer", () => {
     expect(fills.some(f => f.startsWith("rgba(119, 119, 119"))).toBe(true);
   });
 
+  it("降淡按强调程度插值：渐变途中比满格淡得少", () => {
+    const alphaOf3 = (emphasis: number) => {
+      const calls = render(
+        [node(1, -50, 0), node(2, 0, 0), node(3, 50, 0)],
+        [[1, 2]],
+        state({ hoveredId: 1, adjacentIds: new Set([2]), emphasis })
+      );
+      const fill = calls
+        .filter(c => c.op === "fillStyle")
+        .map(c => String(c.args[0]))
+        .find(f => f.startsWith("rgba(119, 119, 119"))!;
+      return Number(fill.match(/, ([\d.]+)\)$/)![1]);
+    };
+    expect(alphaOf3(1)).toBeCloseTo(0.25, 2);
+    expect(alphaOf3(0.5)).toBeCloseTo(0.625, 2);
+  });
+
+  it("悬停结束后的淡出期仍以刚离开的节点为中心降淡，但不再画它的标签", () => {
+    const calls = render(
+      [node(1, -50, 0, "刚离开"), node(2, 0, 0), node(3, 50, 0)],
+      [[1, 2]],
+      state({ hoveredId: null, focusId: 1, adjacentIds: new Set([2]), emphasis: 0.4 }),
+      camera => camera.flyTo({ x: 0, y: 0, scale: 0.2 }, 0, 0)
+    );
+    const fills = calls.filter(c => c.op === "fillStyle").map(c => String(c.args[0]));
+    expect(fills.some(f => f.startsWith("rgba(119, 119, 119"))).toBe(true);
+    expect(calls.filter(c => c.op === "fillText")).toHaveLength(0);
+  });
+
   it("只有悬停与当前态节点画辉光", () => {
     const plain = render([node(1, 0, 0), node(2, 40, 0)], [], state());
     expect(plain.filter(c => c.op === "createRadialGradient")).toHaveLength(0);
@@ -383,6 +412,22 @@ describe("主题簇的视觉表达", () => {
       ).filter(c => c.op === "arc").length;
     // 放大后多出一个 arc（环）
     expect(arcsAt(2)).toBe(arcsAt(0.3) + 1);
+  });
+
+  it("悬停时簇标签不消失，只多出被指的那张卡的标题", () => {
+    const { nodes, clusters } = clustered(10, "间隔重复");
+    // 被指的卡片远离簇中心：只有与悬停标题重叠的簇名才让位
+    nodes[9].x = -400;
+    nodes[9].y = 300;
+    const calls = render(
+      nodes,
+      [],
+      state({ clusterColors: colors, hoveredId: 10 }),
+      camera => camera.flyTo({ x: 0, y: 0, scale: 0.3 }, 0, 0),
+      clusters
+    );
+    const texts = calls.filter(c => c.op === "fillText").map(c => String(c.args[0]));
+    expect(texts).toEqual(expect.arrayContaining(["间隔重复", "卡片10"]));
   });
 
   it("簇标签垫底板保证压在节点上也读得清", () => {

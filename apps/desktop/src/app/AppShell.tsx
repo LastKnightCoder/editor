@@ -10,7 +10,7 @@
  * 挂载：主窗口 / 默认重定向 /shell（router.tsx）；旧主界面在 /legacy。
  */
 
-import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
 import clsx from "clsx";
 import { PageProvider, usePage } from "@/page/PageProvider";
 import { PageHost } from "@/page/PageHost";
@@ -43,6 +43,11 @@ import "../pages";
 const shellRootClass =
   "app relative grid h-screen min-w-0 grid-cols-[auto_4px_minmax(0,1fr)] grid-rows-[100vh] " +
   "overflow-hidden bg-page font-tau text-tau-body text-ink-1 antialiased";
+
+// 开发悬浮球：只在开发构建里加载（import.meta.env.DEV 为常量，生产包里整段被摇掉）
+const DevFloatingBall = import.meta.env.DEV
+  ? lazy(() => import("@/devtools").then(m => ({ default: m.DevFloatingBall })))
+  : null;
 
 // legacy 模块占位注册（真实 page 注册后自动让位）
 ensureLegacyPages();
@@ -189,6 +194,11 @@ function ShellLayout() {
       <NotificationHost />
       {/* 全局 toast（z 高于命令面板与通知卡栈，面板打开时反馈仍可见） */}
       <ToastHost />
+      {DevFloatingBall && (
+        <Suspense fallback={null}>
+          <DevFloatingBall />
+        </Suspense>
+      )}
     </div>
   );
 }

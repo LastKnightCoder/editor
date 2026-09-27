@@ -81,6 +81,16 @@ describe("buildMapScene", () => {
     expect(partial.subtopics[0]?.members ?? []).toEqual([1]);
   });
 
+  it("排在色槽之外的主题（colorSlot = -1）不进色槽表，名字与簇照常保留", () => {
+    const neutral: KnowledgeMap = {
+      ...map,
+      topics: map.topics.map(t => (t.label === "CSS" ? { ...t, colorSlot: -1 } : t)),
+    };
+    const next = buildMapScene(cards, links, neutral);
+    expect([...next.colorSlots.entries()]).toEqual([[0, 4]]);
+    expect(next.clusters.map(c => c.label)).toEqual(["JavaScript", "CSS"]);
+  });
+
   it("isMapScene 能区分地图场景与链接场景", () => {
     expect(isMapScene(scene)).toBe(true);
     expect(isMapScene(buildScene(cards, links))).toBe(false);
@@ -188,6 +198,18 @@ describe("地图模式渲染", () => {
     expect(shown).toEqual(expect.arrayContaining(["JavaScript", "CSS"]));
     expect(shown.some(t => t.startsWith("卡片"))).toBe(false);
     expect(shown.some(t => t.endsWith("…"))).toBe(false);
+  });
+
+  it("悬停时主题名照常显示，不随悬停出现/消失（否则扫过密集岛时整屏闪烁）", () => {
+    const idle = texts(renderAt(0.8));
+    const hovering = texts(renderAt(0.8, 4));
+    expect(hovering).toEqual(expect.arrayContaining(["JavaScript"]));
+    // 多出来的只有被指的那张卡的标题
+    expect(hovering.filter(t => !idle.includes(t))).toEqual(["卡片4"]);
+  });
+
+  it("中景悬停时子主题名也保留", () => {
+    expect(texts(renderAt(1.6, 1, { x: -95, y: 0 }))).toContain("Symbol");
   });
 
   it("主题名用正文色而非主题色", () => {

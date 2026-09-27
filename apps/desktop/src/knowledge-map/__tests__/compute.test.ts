@@ -5,9 +5,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { computeKnowledgeMap, placeIncrementally } from "../compute";
+import { computeKnowledgeMap, placeIncrementally, topicAffinity, topicTarget } from "../compute";
 import { subtopicLabel, tagPath, topicLabel } from "../labels";
-import { TOPIC_PALETTE_SIZE, type KnowledgeMapCardInput } from "../types";
+import { NO_COLOR_SLOT, TOPIC_PALETTE_SIZE, type KnowledgeMapCardInput } from "../types";
 import { knn, meanPool, type CardVector } from "../vectors";
 
 const DIM = 32;
@@ -283,6 +283,11 @@ describe("computeKnowledgeMap", () => {
     }
   });
 
+  it("子主题沿用父主题色槽", () => {
+    const byId = new Map(map.topics.map(t => [t.id, t]));
+    for (const sub of subtopics) expect(sub.colorSlot).toBe(byId.get(sub.parent)!.colorSlot);
+  });
+
   it("没有向量的卡片（未配置 embedding）只靠显式链接也能跑，不抛错", () => {
     const linked: KnowledgeMapCardInput[] = Array.from({ length: 30 }, (_, i) => ({
       id: i + 1,
@@ -293,24 +298,236 @@ describe("computeKnowledgeMap", () => {
     expect(result.nodes).toHaveLength(30);
   });
 
-  it("主题数超过色槽、且主题间在图上互不相连时，合并靠向量相似度，绝不丢卡片", () => {
-    // 14 个互不相连的语义孤岛，远超 10 个色槽
-    const many = syntheticLibrary(
-      Array.from({ length: 14 }, (_, i) => ({ name: `主题${i}`, subs: ["甲"], perSub: 10 })),
-      11
-    );
-    const result = computeKnowledgeMap(many.cards, many.vectors, { now: 0, ticks: 60 });
-    const topicCount = result.topics.filter(t => t.parent === -1).length;
-    expect(topicCount).toBeLessThanOrEqual(TOPIC_PALETTE_SIZE);
-    expect(result.nodes.every(n => n.topic >= 0)).toBe(true);
-  });
-
   it("空输入返回空地图", () => {
     expect(computeKnowledgeMap([], [], { now: 5 })).toEqual({
       nodes: [],
       topics: [],
       computedAt: 5,
     });
+  });
+});
+
+describe("topicTarget：目标主题数随规模按对数变化", () => {
+  it("小库少、大库多，但不线性膨胀", () => {
+    expect(topicTarget(50).ideal).toBe(5);
+    expect(topicTarget(700).ideal).toBe(9);
+    expect(topicTarget(20000).ideal).toBe(13);
+    expect(topicTarget(1_000_000).ideal).toBe(16);
+    expect(topicTarget(3).ideal).toBe(4);
+  });
+
+  it("区间包住 ideal", () => {
+    for (const n of [10, 674, 20000]) {
+      const t = topicTarget(n);
+      expect(t.min).toBeLessThanOrEqual(t.ideal);
+      expect(t.max).toBeGreaterThanOrEqual(t.ideal);
+    }
+  });
+});
+
+/**
+ * 多种数据形状：门槛不能只在一份真实数据上校准。
+ * 每种形状都断言三条不变量——不丢卡、名字只来自 tag、每个主题都有颜色（前 10 个互不相同，
+ * 多出的循环复用但不与地图上的邻居同色）。
+ */
+/** 两个主题的岛之间最近的两张卡的距离 */
+function islandGap(map: ReturnType<typeof computeKnowledgeMap>, a: number, b: number) {
+  const left = map.nodes.filter(n => n.topic === a);
+  const right = map.nodes.filter(n => n.topic === b);
+  let best = Infinity;
+  for (const p of left)
+    for (const q of right) best = Math.min(best, Math.hypot(p.x - q.x, p.y - q.y));
+  return best;
+}
+
+describe("computeKnowledgeMap：多种数据形状", () => {
+  const invariants = (cards: KnowledgeMapCardInput[], vectors: CardVector[]) => {
+    const result = computeKnowledgeMap(cards, vectors, { now: 0, ticks: 60 });
+    // 不丢卡：每张卡都在地图上，坐标有限
+    expect(result.nodes.map(n => n.cardId).sort((a, b) => a - b)).toEqual(
+      cards.map(c => c.id).sort((a, b) => a - b)
+    );
+    for (const node of result.nodes) expect(Number.isFinite(node.x + node.y)).toBe(true);
+    // 名字只来自 tag：大主题名是某个 tag 首段，子主题名是某个 tag 的某一段
+    const heads = new Set(cards.flatMap(c => c.tags.map(t => tagPath(t)[0])));
+    const parts = new Set(cards.flatMap(c => c.tags.flatMap(t => tagPath(t))));
+    const tops = result.topics.filter(t => t.parent === -1);
+    for (const t of tops) if (t.label) expect(heads.has(t.label)).toBe(true);
+    for (const t of result.topics.filter(t => t.parent !== -1)) {
+      if (t.label) expect(parts.has(t.label)).toBe(true);
+    }
+    // 色槽：每个主题都有颜色，前 TOPIC_PALETTE_SIZE 大的互不相同
+    const ranked = [...tops].sort((a, b) => b.size - a.size || a.id - b.id);
+    for (const t of tops) {
+      expect(t.colorSlot).toBeGreaterThanOrEqual(0);
+      expect(t.colorSlot).toBeLessThan(TOPIC_PALETTE_SIZE);
+    }
+    const colored = ranked.slice(0, TOPIC_PALETTE_SIZE).map(t => t.colorSlot);
+    expect(new Set(colored).size).toBe(colored.length);
+    // 同色的两个主题在地图上不挨着：两岛之间最近的两张卡也隔着一段距离
+    for (let i = 0; i < tops.length; i++) {
+      for (let j = i + 1; j < tops.length; j++) {
+        if (tops[i].colorSlot !== tops[j].colorSlot) continue;
+        // 相邻的岛之间约 100（圆盘间距 70 + 边缘松弛），同色的至少隔开一个岛
+        expect(islandGap(result, tops[i].id, tops[j].id)).toBeGreaterThan(150);
+      }
+    }
+    return { result, tops };
+  };
+
+  it("小库（约 50 张）：分出少量主题，不硬凑到 9 个", () => {
+    const { cards, vectors } = syntheticLibrary(
+      [
+        { name: "JavaScript", subs: ["Promise", "原型"], perSub: 9 },
+        { name: "CSS", subs: ["布局", "动画"], perSub: 8 },
+        { name: "读书", subs: ["方法"], perSub: 16 },
+      ],
+      21
+    );
+    const { tops } = invariants(cards, vectors);
+    expect(tops.length).toBeGreaterThanOrEqual(2);
+    expect(tops.length).toBeLessThanOrEqual(5);
+    expect(new Set(tops.map(t => t.label))).toEqual(new Set(["JavaScript", "CSS", "读书"]));
+  });
+
+  it("主题天然多于色槽：得到 >10 个主题，颜色循环复用而不是被并掉或变灰", () => {
+    // 14 个互不相连的语义孤岛
+    const many = syntheticLibrary(
+      Array.from({ length: 14 }, (_, i) => ({ name: `主题${i}`, subs: ["甲"], perSub: 10 })),
+      11
+    );
+    const { result, tops } = invariants(many.cards, many.vectors);
+    expect(tops.length).toBe(14);
+    expect(tops.every(t => t.colorSlot !== NO_COLOR_SLOT)).toBe(true);
+    expect(new Set(tops.map(t => t.colorSlot)).size).toBe(TOPIC_PALETTE_SIZE);
+    expect(result.nodes.every(n => n.topic >= 0)).toBe(true);
+  });
+
+  it("单一主题的库：一个主题，不为了凑数而拆", () => {
+    const { cards, vectors } = syntheticLibrary(
+      [{ name: "JavaScript", subs: ["Promise", "原型", "Symbol"], perSub: 20 }],
+      5
+    );
+    const { tops } = invariants(cards, vectors);
+    expect(tops.map(t => t.label)).toEqual(["JavaScript"]);
+  });
+
+  it("没有分层 tag（全是一段）：主题照分，只是没有子主题名", () => {
+    const { cards, vectors } = syntheticLibrary(LIBRARY.slice(0, 4), 9);
+    for (const card of cards) card.tags = card.tags.map(tag => tagPath(tag)[0]);
+    const { result, tops } = invariants(cards, vectors);
+    expect(tops.length).toBeGreaterThanOrEqual(3);
+    expect(result.topics.filter(t => t.parent !== -1 && t.label)).toHaveLength(0);
+  });
+
+  it("tag 很少：取不到名字的主题宁可无名，绝不拿正文凑", () => {
+    const { cards, vectors } = syntheticLibrary(LIBRARY.slice(0, 4), 13);
+    // 只有前两个主题的一半卡片保留 tag
+    cards.forEach((card, i) => {
+      if (!card.tags[0].startsWith("JavaScript/") || i % 2 === 1) card.tags = [];
+    });
+    const { tops } = invariants(cards, vectors);
+    expect(tops.some(t => t.label === "JavaScript")).toBe(true);
+    expect(tops.every(t => t.label === "" || t.label === "JavaScript")).toBe(true);
+  });
+
+  it("名字没因拆分变准就不拆：一片首段分散但语义连成一块的主题保持完整", () => {
+    // 同一个语义方向，tag 首段五花八门（真实数据里的人文类卡片）
+    const { cards, vectors } = syntheticLibrary(
+      [{ name: "杂", subs: ["一", "二", "三"], perSub: 20 }],
+      17
+    );
+    const heads = ["经济", "概念", "随笔", "心理学", "读书"];
+    cards.forEach((card, i) => (card.tags = [`${heads[i % heads.length]}/x`]));
+    const { tops } = invariants(cards, vectors);
+    expect(tops).toHaveLength(1);
+  });
+});
+
+describe("computeKnowledgeMap：主题摆放与跨主题连线", () => {
+  const centerOf = (map: ReturnType<typeof computeKnowledgeMap>, topic: number) => {
+    const members = map.nodes.filter(n => n.topic === topic);
+    return {
+      x: members.reduce((s, n) => s + n.x, 0) / members.length,
+      y: members.reduce((s, n) => s + n.y, 0) / members.length,
+    };
+  };
+
+  /**
+   * 在 JavaScript/Symbol 与 Linux/命令 之间连几条链接：语义上两个主题互不相关，本来不会挨着。
+   * 只连同一对子主题：岛内朝向会把这两个子主题转到相对的一侧；落在背面子主题里的卡片
+   * 留在自己的子主题里（锚点力占上风），不在这条断言的范围内
+   */
+  function linkedLibrary() {
+    const { cards, vectors } = syntheticLibrary(LIBRARY);
+    const js = cards.filter(c => c.tags[0] === "JavaScript/Symbol");
+    const linux = cards.filter(c => c.tags[0] === "Linux/命令");
+    const pairs = Array.from({ length: 4 }, (_, i) => [js[i * 3], linux[i * 3]] as const);
+    for (const [a, b] of pairs) a.links.push(b.id);
+    return { cards, vectors, pairs };
+  }
+
+  it("亲近度按较小一方的规模归一：小主题的关系大半指向谁，谁就是它最亲近的", () => {
+    // 主题 0、1 各 100 张，互相 30 条边；主题 2 只有 5 张，与主题 0 有 4 条边
+    const sizes = [100, 100, 5];
+    const topicOf = [0, 1, 2];
+    const edges = [
+      ...Array.from({ length: 30 }, () => ({ source: 0, target: 1, weight: 1, explicit: false })),
+      ...Array.from({ length: 4 }, () => ({ source: 2, target: 0, weight: 1, explicit: false })),
+    ];
+    const affinity = topicAffinity(edges, topicOf, sizes);
+    // 原始边权 30 : 4，归一后 0.3 : 0.8——小主题 2 与 0 才是最亲近的一对
+    expect(affinity.get("0-1")!.weight).toBeCloseTo(0.3);
+    expect(affinity.get("0-2")!.weight).toBeCloseTo(0.8);
+  });
+
+  it("亲近度：显式链接额外加权，主题内部的边与未归类的卡片不计", () => {
+    const affinity = topicAffinity(
+      [
+        { source: 0, target: 1, weight: 1, explicit: true },
+        { source: 0, target: 2, weight: 1, explicit: false },
+        { source: 0, target: 3, weight: 1, explicit: false },
+        { source: 1, target: 4, weight: 1, explicit: false },
+      ],
+      [0, 1, 2, 0, -1],
+      [10, 10, 10]
+    );
+    expect(affinity.get("0-1")!.weight).toBeGreaterThan(affinity.get("0-2")!.weight * 2);
+    expect([...affinity.keys()].sort()).toEqual(["0-1", "0-2"]);
+  });
+
+  it("用户亲手连过的两个主题摆在一起", () => {
+    const plain = syntheticLibrary(LIBRARY);
+    const before = computeKnowledgeMap(plain.cards, plain.vectors, { now: 0, ticks: 80 });
+    const { cards, vectors } = linkedLibrary();
+    const after = computeKnowledgeMap(cards, vectors, { now: 0, ticks: 80 });
+    const topicOf = (map: typeof after, label: string) =>
+      map.topics.find(t => t.parent === -1 && t.label === label)!.id;
+    const gap = (map: typeof after) =>
+      islandGap(map, topicOf(map, "JavaScript"), topicOf(map, "Linux"));
+    expect(gap(after)).toBeLessThan(gap(before));
+    // 相邻岛约 100（见上方色槽断言的注释）
+    expect(gap(after)).toBeLessThan(100);
+  });
+
+  it("桥接卡片落在岛上面向对方主题的一侧，连线远短于两岛中心距离", () => {
+    const { cards, vectors, pairs } = linkedLibrary();
+    const map = computeKnowledgeMap(cards, vectors, { now: 0, ticks: 80 });
+    const node = new Map(map.nodes.map(n => [n.cardId, n]));
+    for (const [a, b] of pairs) {
+      const p = node.get(a.id)!;
+      const q = node.get(b.id)!;
+      const cp = centerOf(map, p.topic);
+      const cq = centerOf(map, q.topic);
+      const span = Math.hypot(cq.x - cp.x, cq.y - cp.y);
+      const ux = (cq.x - cp.x) / span;
+      const uy = (cq.y - cp.y) / span;
+      // 两端各自在「朝向对方」方向上的投影为正
+      expect((p.x - cp.x) * ux + (p.y - cp.y) * uy).toBeGreaterThan(0);
+      expect((cq.x - q.x) * ux + (cq.y - q.y) * uy).toBeGreaterThan(0);
+      // 只靠岛内朝向（不加桥接弱力）时最长的一条约为中心距的 0.53，加上后约 0.33
+      expect(Math.hypot(p.x - q.x, p.y - q.y)).toBeLessThan(span * 0.45);
+    }
   });
 });
 

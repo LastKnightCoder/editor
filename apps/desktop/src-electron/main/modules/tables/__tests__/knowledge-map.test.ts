@@ -20,7 +20,10 @@ let indexDb: Database.Database;
 beforeEach(() => {
   mainDb = new Database(":memory:");
   mainDb.exec(`
-    CREATE TABLE cards (id INTEGER PRIMARY KEY, tags TEXT, links TEXT, content_id INTEGER);
+    CREATE TABLE cards (
+      id INTEGER PRIMARY KEY, tags TEXT, links TEXT, content_id INTEGER,
+      update_time INTEGER NOT NULL DEFAULT 0
+    );
     CREATE TABLE contents (id INTEGER PRIMARY KEY, content TEXT);
   `);
   indexDb = new Database(":memory:");
@@ -89,10 +92,23 @@ describe("KnowledgeMapTable", () => {
   it("driftCount 只数整体重算之后增量写入的节点", () => {
     KnowledgeMapTable.save(indexDb, { ...sample, computedAt: Date.now() - 1000 }, "fp");
     const computedAt = KnowledgeMapTable.load(indexDb)!.computedAt;
-    expect(KnowledgeMapTable.driftCount(indexDb, computedAt)).toBe(0);
+    expect(KnowledgeMapTable.driftCount(mainDb, indexDb, computedAt)).toBe(0);
     KnowledgeMapTable.upsertNode(indexDb, { cardId: 3, x: 0, y: 0, topic: 0, subtopic: -1 });
     KnowledgeMapTable.upsertNode(indexDb, { cardId: 4, x: 0, y: 0, topic: 0, subtopic: -1 });
-    expect(KnowledgeMapTable.driftCount(indexDb, computedAt)).toBe(2);
+    expect(KnowledgeMapTable.driftCount(mainDb, indexDb, computedAt)).toBe(2);
+  });
+
+  it("driftCount 也数重算之后编辑过的卡片，与增量放置按卡片去重", () => {
+    const computedAt = Date.now() - 1000;
+    KnowledgeMapTable.save(indexDb, { ...sample, computedAt }, "fp");
+    const insert = mainDb.prepare(
+      "INSERT INTO cards (id, tags, links, update_time) VALUES (?, '[]', '[]', ?)"
+    );
+    insert.run(1, computedAt - 5000); // 重算前改的：不算
+    insert.run(2, computedAt + 10); // 重算后编辑过
+    insert.run(3, computedAt + 20); // 新建且已增量放置：只算一次
+    KnowledgeMapTable.upsertNode(indexDb, { cardId: 3, x: 0, y: 0, topic: 0, subtopic: -1 });
+    expect(KnowledgeMapTable.driftCount(mainDb, indexDb, computedAt)).toBe(2);
   });
 
   it("没有向量表时 hasVectors 为 false、neighborsOf 为空，不抛错", () => {
