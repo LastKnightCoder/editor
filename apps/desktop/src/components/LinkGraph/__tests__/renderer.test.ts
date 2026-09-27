@@ -497,3 +497,35 @@ describe("悬停标题的命中范围", () => {
     expect(renderer.hoverLabelBox()).toBeNull();
   });
 });
+
+describe("入场播放（reveal）", () => {
+  it("没出现的节点不画，连线要两端都出现才画", () => {
+    const nodes = [node(1, -20, 0), node(2, 20, 0)];
+    const hidden = render(nodes, [[1, 2]], state({ reveal: new Map([[2, 0]]) }));
+    expect(hidden.filter(c => c.op === "arc")).toHaveLength(1);
+    expect(hidden.filter(c => c.op === "lineTo")).toHaveLength(0);
+    const both = render(nodes, [[1, 2]], state({ reveal: new Map() }));
+    expect(both.filter(c => c.op === "lineTo")).toHaveLength(1);
+  });
+
+  it("正在长出来的节点半径小于长满时，且不画标题", () => {
+    const radiusOf = (calls: ReturnType<typeof render>) =>
+      Number(calls.find(c => c.op === "arc")!.args[2]);
+    const full = render([node(1, 0, 0, "标题")], [], state(), camera => camera.zoomAt(400, 300, 3));
+    const half = render(
+      [node(1, 0, 0, "标题")],
+      [],
+      state({ reveal: new Map([[1, 0.05]]) }),
+      camera => camera.zoomAt(400, 300, 3)
+    );
+    expect(radiusOf(half)).toBeLessThan(radiusOf(full));
+    expect(half.filter(c => c.op === "fillText")).toHaveLength(0);
+  });
+
+  it("不传 reveal 时与播放前画得一模一样", () => {
+    const nodes = [node(1, -20, 0), node(2, 20, 0)];
+    const plain = render(nodes, [[1, 2]], state());
+    const done = render(nodes, [[1, 2]], state({ reveal: null }));
+    expect(JSON.stringify(done)).toBe(JSON.stringify(plain));
+  });
+});

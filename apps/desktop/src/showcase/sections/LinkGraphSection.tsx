@@ -100,8 +100,9 @@ function fixtureMap(): { cards: ICard[]; map: KnowledgeMap } | null {
     links,
     tags: [],
     content: [{ type: "paragraph", children: [{ type: "formatted", text: title }] }],
-    create_time: id,
-    update_time: id,
+    // 导出里没有创建时间：按 id 铺成约三年（id 大致随创建递增），样板间的生长动画才有日期可看
+    create_time: 1610000000000 + id * 36 * 3600_000,
+    update_time: 1610000000000 + id * 36 * 3600_000,
     count: 0,
     contentId: id,
     isTop: false,
@@ -158,6 +159,8 @@ export default function LinkGraphSection() {
           enableHoverPreview={false}
           persistKey={`showcase-${shape}`}
           knowledgeMap={fixture?.map ?? null}
+          // 左下角说明行，点一下播放生长动画（同卡片库）
+          caption
         />
       </CanvasCard>
     </>

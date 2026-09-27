@@ -12,6 +12,7 @@ import type { Camera } from "../core/camera";
 import { isMapScene, type MapScene } from "../core/mapScene";
 import type { GraphNode, GraphPalette, GraphScene } from "../core/types";
 import { withAlpha } from "../core/palette";
+import { springScale } from "../core/timeline";
 
 export interface RenderState {
   /** 悬停节点 id，null 表示无悬停（此时不降淡任何节点） */
@@ -38,6 +39,11 @@ export interface RenderState {
    * 由宿主做短时渐变：鼠标在密集节点上扫过时悬停频繁开关，硬切会整屏频闪。
    */
   emphasis?: number;
+  /**
+   * 入场播放时每个节点的显现程度 0..1（0 未出现，1 长满）；不在表里的按 1 处理，
+   * 不传表示没在播放。时间逻辑在 core/timeline.ts，渲染器只读这张表。
+   */
+  reveal?: Map<number, number> | null;
 }
 
 /** 缩放小于此值时不画卡片标签，改画簇标签（语义缩放的雏形） */
@@ -110,10 +116,12 @@ export class Canvas2DRenderer {
     const mapMode = isMapScene(scene);
     const filter = state.filterIds ?? null;
     const filteredOut = (id: number) => filter !== null && !filter.has(id);
+    const reveal = state.reveal ?? null;
+    const shown = (id: number) => (reveal ? (reveal.get(id) ?? 1) : 1);
 
     // ---- 簇的背景色块：画在最底层，只给出「岛」的轮廓暗示。
     // 离线地图模式不画：主题在空间上已经分成了清楚的岛，再叠一层彩色光晕只会发脏
-    if (!mapMode && emphasis < 1 && state.clusterColors) {
+    if (!mapMode && !reveal && emphasis < 1 && state.clusterColors) {
       for (const [cluster, shape] of geometry) {
         const color = state.clusterColors.get(cluster);
         if (!color) continue;
@@ -135,6 +143,7 @@ export class Canvas2DRenderer {
     // ---- 连线：淡线一遍，高亮线一遍。筛选时一端未命中的线再淡一档，单独一遍
     const highlighted: Array<[GraphNode, GraphNode]> = [];
     const faded: Array<[GraphNode, GraphNode]> = [];
+    const growing: Array<[GraphNode, GraphNode, number]> = [];
     ctx.lineWidth = Math.max(0.5, 1.1 * Math.min(1, scale));
     const edgeColor = dimming ? withAlpha(palette.edge, 1 - 0.6 * emphasis) : palette.edge;
     ctx.strokeStyle = edgeColor;
@@ -143,6 +152,14 @@ export class Canvas2DRenderer {
       const a = scene.nodeById.get(edge.source);
       const b = scene.nodeById.get(edge.target);
       if (!a || !b) continue;
+      // 播放中：两端都出现后才画，从先出现的一端向后出现的一端画出来
+      const showA = shown(a.id);
+      const showB = shown(b.id);
+      if (showA <= 0 || showB <= 0) continue;
+      if (showA < 1 || showB < 1) {
+        growing.push(showA >= showB ? [a, b, showB] : [b, a, showA]);
+        continue;
+      }
       if (dimming && (edge.source === focusId || edge.target === focusId)) {
         highlighted.push([a, b]);
         continue;
@@ -158,6 +175,21 @@ export class Canvas2DRenderer {
       ctx.lineTo(bx, by);
     }
     ctx.stroke();
+
+    if (growing.length > 0) {
+      ctx.strokeStyle = edgeColor;
+      ctx.beginPath();
+      for (const [from, to, amount] of growing) {
+        const [ax, ay] = camera.toCanvas(from.x, from.y);
+        const [tx, ty] = camera.toCanvas(to.x, to.y);
+        const bx = ax + (tx - ax) * amount;
+        const by = ay + (ty - ay) * amount;
+        if (!this.segmentVisible(ax, ay, bx, by)) continue;
+        ctx.moveTo(ax, ay);
+        ctx.lineTo(bx, by);
+      }
+      ctx.stroke();
+    }
 
     if (faded.length > 0) {
       ctx.strokeStyle = withAlpha(edgeColor, FILTERED_OUT_ALPHA);
@@ -190,8 +222,13 @@ export class Canvas2DRenderer {
     // ---- 节点
     const labelCandidates: GraphNode[] = [];
     for (const node of scene.nodes) {
+      const appear = shown(node.id);
+      if (appear <= 0) continue;
+      const growing = appear < 1;
       const [cx, cy] = camera.toCanvas(node.x, node.y);
-      const r = Math.max(1.2, node.radius * scale);
+      // 播放中半径走弹簧曲线（冲过头再回落，像「长出来」），透明度线性跟上
+      const r = Math.max(1.2, node.radius * scale) * (growing ? springScale(appear) : 1);
+      if (r <= 0) continue;
       if (cx + r < 0 || cy + r < 0 || cx - r > this.width || cy - r > this.height) continue;
 
       const isHovered = node.id === state.hoveredId;
@@ -217,6 +254,7 @@ export class Canvas2DRenderer {
       const base = state.clusterColors?.get(node.cluster) ?? palette.nodeFill;
       let alpha = outOfFilter ? FILTERED_OUT_ALPHA : 1;
       if (dimmed) alpha *= 1 - (1 - DIMMED_ALPHA) * emphasis;
+      if (growing) alpha *= Math.min(1, appear * 2);
       ctx.fillStyle = isHovered
         ? palette.nodeFillHover
         : isCurrent
@@ -229,7 +267,7 @@ export class Canvas2DRenderer {
       ctx.fill();
 
       // 描边用底色，作用是在节点密集处切出间隙（而不是当轮廓看）
-      if (r > 2.5 && !outOfFilter && (!dimmed || emphasis < 0.5)) {
+      if (r > 2.5 && !outOfFilter && !growing && (!dimmed || emphasis < 0.5)) {
         ctx.lineWidth = Math.min(2, r * 0.35);
         ctx.strokeStyle = isCurrent ? palette.nodeStrokeCurrent : palette.nodeStroke;
         ctx.stroke();
@@ -240,6 +278,7 @@ export class Canvas2DRenderer {
       // 只在放大到能看清卡片时画，缩小时全是环反而成了噪点。
       if (
         node.isBridge &&
+        !growing &&
         !dimmed &&
         !outOfFilter &&
         !isHovered &&
@@ -256,7 +295,7 @@ export class Canvas2DRenderer {
       // 悬停时只留指着的那一个标签：先前连一度邻居的标签一起强显，
       // 而枢纽节点邻居一多就在同一片区域堆成糊成一团，反而看不清指的是谁。
       // 邻居的身份已经由提亮的连线和节点色表达，不需要再靠文字重复一遍。
-      if (!node.label) continue;
+      if (!node.label || growing) continue;
       if (hovering) {
         if (isHovered) labelCandidates.push(node);
         continue;
@@ -281,7 +320,7 @@ export class Canvas2DRenderer {
     // 主题名是地图的底层信息，不随悬停出现/消失：鼠标在密集的岛上扫过时悬停在
     // 「有 / 无」之间来回切，主题名跟着一亮一灭就是整屏闪烁（用户反馈过）
     if (mapMode && scale < MAP_CARD_LABEL_SCALE) {
-      this.drawMapLabels(scene, camera, palette, geometry, scale, reserved);
+      this.drawMapLabels(scene, camera, palette, geometry, scale, reserved, shown);
       if (hoveredNode) this.drawNodeLabels([hoveredNode], camera, palette, state);
       ctx.restore();
       return;
@@ -297,6 +336,7 @@ export class Canvas2DRenderer {
       for (const cluster of scene.clusters) {
         const shape = geometry.get(cluster.id);
         if (!shape || !cluster.label) continue;
+        if (reveal && !cluster.members.some(id => shown(id) > 0)) continue;
         const [cx, cy] = camera.toCanvas(shape.x, shape.y);
         if (cx < 0 || cy < 0 || cx > this.width || cy > this.height) continue;
         // 字号随簇规模走，大主题更醒目
@@ -392,12 +432,20 @@ export class Canvas2DRenderer {
     palette: GraphPalette,
     geometry: Map<number, { x: number; y: number; radius: number }>,
     scale: number,
-    reserved: Box[]
+    reserved: Box[],
+    shown: (id: number) => number = () => 1
   ) {
     const ctx = this.ctx;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.lineJoin = "round";
+    // 播放中：名字随主题一起长出来。位置仍按全部成员算（按已出现的算，名字会跟着质心一路漂），
+    // 只按已出现的比例决定出不出现、多淡——前几张卡出现时名字还很淡，岛长到一定规模才清楚
+    const presence = (members: readonly number[]) => {
+      let sum = 0;
+      for (const id of members) sum += shown(id);
+      return members.length === 0 ? 0 : Math.min(1, (sum / members.length) * 3);
+    };
     const placed: Box[] = [];
     const blocked = (box: Box) => reserved.some(other => this.overlaps(box, other));
     const showSubtopics = scale >= MAP_SUBTOPIC_LABEL_SCALE;
@@ -438,13 +486,16 @@ export class Canvas2DRenderer {
     for (const cluster of scene.clusters) {
       const shape = geometry.get(cluster.id);
       if (!shape || !cluster.label) continue;
+      const alpha = presence(cluster.members);
+      if (alpha <= 0) continue;
       const size = Math.round(Math.min(18, 13 + Math.sqrt(cluster.members.length) * 0.3));
       if (showSubtopics) {
         // 名字挪到岛的上沿，不压住中间的子主题名
         const top = shape.y - shape.radius * 0.72;
-        draw(cluster.label, shape.x, top, size, 600, withAlpha(palette.label, 0.55), false);
+        draw(cluster.label, shape.x, top, size, 600, withAlpha(palette.label, 0.55 * alpha), false);
       } else {
-        draw(cluster.label, shape.x, shape.y, size, 600, palette.label, true);
+        const color = alpha < 1 ? withAlpha(palette.label, alpha) : palette.label;
+        draw(cluster.label, shape.x, shape.y, size, 600, color, true);
       }
     }
 
@@ -462,7 +513,17 @@ export class Canvas2DRenderer {
         count += 1;
       }
       if (count < 3) continue;
-      draw(sub.label, sumX / count, sumY / count, 12, 500, withAlpha(palette.label, 0.85), false);
+      const alpha = presence(sub.members);
+      if (alpha <= 0) continue;
+      draw(
+        sub.label,
+        sumX / count,
+        sumY / count,
+        12,
+        500,
+        withAlpha(palette.label, 0.85 * alpha),
+        false
+      );
     }
   }
 

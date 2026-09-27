@@ -9,7 +9,7 @@
  * props 与旧版完全一致，三个调用点无需改动。
  */
 
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from "react";
 import classnames from "classnames";
 import { useMemoizedFn } from "ahooks";
 import { AnchoredPanel } from "@tau/ui";
@@ -19,9 +19,16 @@ import Loading from "@/components/Loading";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import type { KnowledgeMap } from "@/knowledge-map/types";
 import { ICard } from "@/types";
-import { useGraphEngine, type GraphInsight } from "./useGraphEngine";
+import { GraphCaption } from "./GraphCaption";
+import { useGraphEngine, type GraphInsight, type PlaybackState } from "./useGraphEngine";
 
-export type { GraphInsight };
+export type { GraphInsight, PlaybackState };
+
+/** 宿主手里的动画把手：用于「第一次进入自动播一次」这类时机触发 */
+export interface LinkGraphPlaybackHandle {
+  play: () => void;
+  stop: () => void;
+}
 
 interface ILinkGraphProps {
   initCards: ICard[];
@@ -52,6 +59,17 @@ interface ILinkGraphProps {
   onClusters?: (insight: GraphInsight) => void;
   /** 离线知识地图；传了就按它的坐标与主题画，不跑布局（见 useGraphEngine） */
   knowledgeMap?: KnowledgeMap | null;
+  /**
+   * 画布左下角的说明行（「674 张卡片 · 始于 2021 年 3 月」），同时是入场动画的入口：
+   * 点一下按创建时间播放卡片的生长过程。不开就没有动画——局部子图没有回放的意义
+   */
+  caption?: boolean;
+  /** 临时替换说明行的邀请语（卡片数跨过里程碑时），null 表示显示平常的描述 */
+  captionHint?: string | null;
+  /** 动画把手：宿主据此做时机触发（第一次进入自动播一次） */
+  playbackRef?: Ref<LinkGraphPlaybackHandle>;
+  /** 播放开始 / 结束 */
+  onPlaybackChange?: (state: PlaybackState) => void;
 }
 
 const defaultFitViewPadding = [40];
@@ -75,7 +93,21 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     persistKey,
     onClusters,
     knowledgeMap,
+    caption = false,
+    captionHint = null,
+    playbackRef,
+    onPlaybackChange,
   } = props;
+
+  // 说明行的「始于」：最早一张卡的创建时间
+  const since = useMemo(() => {
+    let earliest = 0;
+    for (const card of initCards) {
+      const time = card.create_time ?? 0;
+      if (time > 0 && (earliest === 0 || time < earliest)) earliest = time;
+    }
+    return earliest;
+  }, [initCards]);
 
   const extensions = useDynamicExtensionsStore(state => state.extensions);
   const editorRef = useRef<EditorRef>(null);
@@ -131,6 +163,15 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     keepHoverOnLeave,
   });
 
+  useImperativeHandle(
+    playbackRef,
+    () => ({ play: engine.playback.play, stop: engine.playback.stop }),
+    [engine.playback.play, engine.playback.stop]
+  );
+  const playbackActive = engine.playback.state.active;
+  const emitPlayback = useMemoizedFn(() => onPlaybackChange?.(engine.playback.state));
+  useEffect(emitPlayback, [playbackActive, emitPlayback]);
+
   // 离开面板：回到画布就交还给画布的悬停判定，去别处就收起
   const handlePanelLeave = useMemoizedFn((event: React.PointerEvent) => {
     if (event.relatedTarget === engine.canvasRef.current) return;
@@ -176,6 +217,14 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     >
       <canvas ref={engine.canvasRef} className="block h-full w-full touch-none" />
       <div ref={anchorRef} className="pointer-events-none absolute h-0 w-0" />
+      {caption && engine.ready && (
+        <GraphCaption
+          playback={engine.playback}
+          total={initCards.length}
+          since={since}
+          hint={captionHint}
+        />
+      )}
       {!engine.ready && (
         <div className="bg-page/60 absolute inset-0 flex items-center justify-center">
           <Loading />
