@@ -3,7 +3,7 @@
  */
 
 import { getKnowledgeMap } from "@/commands/knowledge-map";
-import { knowledgeMapKey } from "@/features/cards/queries";
+import { setKnowledgeMapCache } from "@/features/cards/queries";
 import { queryClient } from "@/queryClient";
 import useSettingStore from "@/stores/useSettingStore";
 import { registerDevAction } from "./registry";
@@ -18,9 +18,9 @@ export function registerBuiltinDevActions() {
       const started = performance.now();
       const payload = await getKnowledgeMap({ rebuild: true });
       const map = payload.map;
-      // 打开着的图谱直接换上新地图，不用切视图
+      // 打开着的图谱直接换上新地图，不用切视图。写整个 payload，不是裸地图（见 setKnowledgeMapCache）
       const databaseName = useSettingStore.getState().setting.database.active;
-      queryClient.setQueryData(knowledgeMapKey(databaseName), map);
+      setKnowledgeMapCache(queryClient, databaseName, payload);
       if (!map) return "没有算出地图（库为空或索引未就绪）";
       const topics = map.topics.filter(t => t.parent === -1).length;
       const elapsed = Math.round(performance.now() - started);
