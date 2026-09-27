@@ -26,6 +26,9 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import type { Message } from "@earendil-works/pi-ai";
 import type { MessageContent } from "@/types";
+import type { ConversationTreeNode } from "@/types/pi-session";
+
+export type { ConversationTreeNode };
 
 export const DISPLAY_ENTRY_TYPE = "desktop-display";
 export const LEAF_ENTRY_TYPE = "desktop-leaf";
@@ -234,6 +237,103 @@ export function messageVersionsOf(
     ids.forEach((id, index) => out.set(id, { ids, index }));
   }
   return out;
+}
+
+/** 用户消息文本截断长度（展示形态优先；删除的节点界面淡化，树的形状不变） */
+const TREE_TEXT_LIMIT = 80;
+
+/**
+ * 会话树 → 只含用户消息的精简树（M4-d 树谱视图）。结构性 entry、回答、工具结果都折叠：
+ * 节点的父 = 最近的**用户消息**祖先；回答计到它前面那条用户消息上。
+ * 删除判定按**当前路径**上的省略（省略只作用于它所在的分支，别的分支上的节点不淡化）。
+ */
+export function conversationTreeOf(
+  manager: Pick<SessionManager, "getEntries" | "getBranch">
+): ConversationTreeNode[] {
+  const entries = manager.getEntries();
+  const byId = new Map(entries.map(entry => [entry.id, entry]));
+  const path = manager.getBranch();
+  const onPath = new Set(path.map(entry => entry.id));
+  const omitted = new Set(omittedTargetsOn(path));
+  const isUser = (entry: SessionEntry) =>
+    entry.type === "message" && (entry as { message: { role?: string } }).message.role === "user";
+
+  // 最近的用户消息祖先（迭代 + 缓存：长对话的链有上千条 entry，递归会爆栈）
+  const userAnchor = new Map<string, string | null>();
+  const anchorOf = (entry: SessionEntry): string | null => {
+    const walked: string[] = [];
+    let anchor: string | null = null;
+    let parent = entry.parentId ? byId.get(entry.parentId) : undefined;
+    while (parent) {
+      if (isUser(parent)) {
+        anchor = parent.id;
+        break;
+      }
+      const cached = userAnchor.get(parent.id);
+      if (cached !== undefined) {
+        anchor = cached;
+        break;
+      }
+      walked.push(parent.id);
+      parent = parent.parentId ? byId.get(parent.parentId) : undefined;
+    }
+    for (const id of walked) userAnchor.set(id, anchor);
+    return anchor;
+  };
+
+  // 展示形态：展示 entry 按模型文本认领紧随其后的用户消息（与投影同一规则的简化版）
+  const displayText = new Map<string, string>();
+  for (const entry of entries) {
+    if (
+      entry.type !== "custom" ||
+      (entry as { customType?: string }).customType !== DISPLAY_ENTRY_TYPE
+    )
+      continue;
+    const anchor = anchorOf(entry);
+    const data = (entry as { data?: DesktopDisplayData }).data;
+    if (!anchor || !data || displayText.has(anchor)) continue;
+    const text = data.content
+      .map(item => (item.type === "text" ? item.text : item.type === "file" ? `[文件]` : ""))
+      .filter(Boolean)
+      .join(" ");
+    if (text) displayText.set(anchor, text);
+  }
+
+  const nodes = new Map<string, ConversationTreeNode>();
+  for (const entry of entries) {
+    if (!isUser(entry)) continue;
+    const content = (entry as { message: { content: unknown } }).message.content;
+    const raw =
+      displayText.get(entry.id) ??
+      (typeof content === "string"
+        ? content
+        : Array.isArray(content)
+          ? content
+              .filter((block: { type: string }) => block.type === "text")
+              .map((block: { text?: string }) => block.text ?? "")
+              .join(" ")
+          : "");
+    const text = raw.replace(/\s+/g, " ").trim();
+    nodes.set(entry.id, {
+      id: entry.id,
+      parentId: anchorOf(entry),
+      text: text.length > TREE_TEXT_LIMIT ? `${text.slice(0, TREE_TEXT_LIMIT)}…` : text,
+      answered: false,
+      time: Date.parse(entry.timestamp) || 0,
+      onPath: onPath.has(entry.id),
+      omitted: omitted.has(entry.id),
+    });
+  }
+  for (const entry of entries) {
+    if (entry.type !== "message") continue;
+    if ((entry as { message: { role?: string } }).message.role !== "assistant") continue;
+    const anchor = anchorOf(entry);
+    const node = anchor ? nodes.get(anchor) : undefined;
+    if (!node) continue;
+    node.answered = true;
+    node.time = Math.max(node.time, Date.parse(entry.timestamp) || 0);
+  }
+  return [...nodes.values()];
 }
 
 /**

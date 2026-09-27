@@ -6,7 +6,7 @@
 > （实机走查见第七节「M4-d 专项」，未做）。下一步是 M4-e（治理与重启恢复），见第六节）。
 > 新会话续接方式：读完本文档 + `git log --oneline -15` 对照提交历史。本文档随每步同步更新。
 > 验证三件套：`cd apps/desktop && npx tsc --noEmit`、
-> `npx vitest run`（344 文件、1657 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
+> `npx vitest run`（346 文件、1665 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
 > 改了 `packages/shared` 要另跑 `packages/shared`（5 文件 15 用例）与 `apps/browser-extension`（11 文件 44 用例）的 vitest + tsc
 > （思考档位类型与 `ChatSessionRecord` 定义在 shared，三端共用）。
 > **注意 cwd 必须在 apps/desktop**——vitest 从仓库根跑会整体失败（vite 别名解析不到）。
@@ -208,6 +208,21 @@ M4 = 会话管理。本批 = 原计划 M4-a（目录表 + resume）+ M4-b（投�
 （按内容/按 id 嫁接、空合并、无关、前缀删除补挂、多层分支族、降级、未落盘、**老数据 → v1 迁移 → 树合并端到端**、扩展目录合并）；
 `useChatSessionStore.test.ts`「改会话树」组；`piChatRuntime.settle.test.ts` 的 clientId 规则；
 `MessageView.versions.test.tsx` 与 shared `ChatMessageView.test.tsx` 的版本切换；扩展 `chatStoreClient.test.ts` 的 fork/switch。
+
+### 树谱与分叉标记（M4-d 追加）
+
+用户反馈：`‹ i/n ›` 只挂在分叉点，不翻记录不知道从哪分的叉。做了两层：
+
+- **数据**：主进程 `pi-session:tree`（`conversationTreeOf`）把会话树压成只含用户消息的节点
+  `{id, parentId(上一条用户消息), text, answered, time, onPath, omitted}`；回答、工具结果、结构性 entry 全折叠。
+  宿主开着时读它内存里的 SessionManager。祖先查找是迭代 + 缓存（长链递归会爆栈）。
+- **排版** `features/chat/conversationTree.ts`（纯函数）：直链压成一行（`length`）、分叉点下的兄弟「当前路径所在的在前，
+  其余按最近活动倒序」、分支末端带进度（`turnsToLeaf`/`lastActive`）；产出 `branchCount` 与 `forkPoints`。
+- **界面**：`useConversationTree` 以当前路径的 entry id 串为重读键（流式期间树不变、不重读）；对话右上角有分叉时显示
+  「N 条分支」浮层（`ConversationTreePanel`，`role=tree`/`aria-level`），点一行 = `switch` 到这条分支最近写入的位置并滚到分支起点；
+  分叉点那条回答下方画一行「从这里分出了多条分支 · 查看」。
+- **坑**：Popover 卡片自带 `max-w-[340px]` + 内边距，内部再写死宽度会溢出卡片——宽度只交给卡片（`className` 覆盖 max-w），内部撑满。
+- 测试：`conversationTree.test.ts`（5 例）、`ConversationTreePanel.test.tsx`（2 例）、`pi-session-files.test.ts` 的树谱数据（1 例）。
 
 ## 二、架构现状（M2-f + M3 + M4）
 
@@ -616,7 +631,7 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
 - **M4 地基** `524edebd2`：chat_session 目录表 + JSONL resume + 内容投影（无调用方）
 - **M4 迁移器** `3d394bf83`：老对话迁移器 + 展示 entry + 会话文件改历史操作（无调用方）
 - **M4 事实源切换** `68affe879`：事实源切到 JSONL + 五场景接统一 store + 同步带会话包 + 扩展改页面会话（一个提交，见「M4 实施记录」M4.2–M4.5）
-- **M4-d** 会话树：分支改同一文件内的 pi 会话树 + 消息上 ‹ i/n › + 旧分支族合并迁移 + 改树在空闲宿主上直接做（一个提交，见「M4-d 实施记录」）
+- **M4-d** `6a1aee924` 会话树：分支改同一文件内的 pi 会话树 + 消息上 ‹ i/n › + 旧分支族合并迁移 + 改树在空闲宿主上直接做（一个提交，见「M4-d 实施记录」）
 - **修正一** `784d59ebb`：去闭包快照+会话常驻 reducer（修吞消息）
 - **修正二** `d3bc61c33`：piChatRuntime 下沉模块级（后台运行）
 - **验收状态**：用户确认"大部分没问题"——M2-f 基本通过；后台运行场景（切页回来
@@ -765,7 +780,9 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
 - **旧表**：`chat_message`/`pdf_chats`/`video_note_chats`/`vibe_learning_chats` 与主进程 handler 留到 M8，渲染端零调用；
   `audio_note_chats` 整条链（无面板）、`reorderChatMessage`（无 UI 调用方）同为积灰
 - **会话树（M4-d 已接）**：分支在同一文件内。遗留：
-  - 没有树谱视图（用户提过「画一棵树看分叉点与各分支进度」，另做；数据已就绪，pi `getTree()`）；
+  - 树谱浮层只在桌面（扩展未做）；分支不能起名（pi 原生 `label` entry 可用，未接）；滚动条小地图未做；
+  - **同一对话多个分支同时运行**未做（难点：pi 一个会话只有一个叶子，两个 SessionManager 并发写同一文件会互相覆盖），
+    可行性调研中，结论记到「M4-d 实施记录」；
   - 不能删除某个版本（pi append-only，只能省略消息或切走）；
   - 旧分支行的标题/分组/归档在合并后丢失（只保留父对话的）；嫁接按内容比对，内容一模一样但本意不同的前缀会被认作公共前缀；
   - 目录行 `update_time` 切版本不变、`message_count` 跟当前路径（列表排序不因切换而跳动）；
@@ -806,7 +823,7 @@ agent_settled 触发排空；用户按停止则暂停排空。
 
 * **M4-d 已完成**：分支改 pi 会话树（同一文件挪叶子、旧分支族合并成树），见「M4-d 实施记录」。
   下一步：**M4-e** 治理（runtime 会话条目清理、主进程重启后的交互恢复、队列与插话的恢复边界）。
-  另有待排期：会话树的树谱视图（用户提出，非迁移范围）。
+  另有待排期（非迁移范围，用户提出）：分支并行运行、分支命名、扩展树谱、并排对照两个分支。
   **M5（浏览器扩展）**：aiServer 迁主进程、WS 协议 v2（扩展未上线直接 breaking）、
   useAiChat/SharedChatTab 改 pi 事件（会话部分已在 M4.5 完成）。
   **M6（老数据迁移器）**：已并入 M4（`chat-session-migration.ts`）。与原计划的差异：一行一会话、分支族不合并；
@@ -891,6 +908,8 @@ agent_settled 触发排空；用户按停止则暂停排空。
   - 双机：A 合并后上传 → B 下载，B 直接是合并后的树；B 连一个未合并过的远程下载 → 重连后自动合并。
   - 扩展：M4 时在某页面建过分支 → 打开侧栏后分支文件并进原对话，消息上可切版本；从回答创建分支、切版本、删除对话。
   - 读屏：`‹ ›` 按钮读出「上一个版本 / 下一个版本」，中间读出「版本 i / n」（完整无障碍需人工用读屏软件复核）。
+  - 树谱：有分叉时对话右上角出现「N 条分支」；浮层里直链压成一行（+N）、当前分支标「当前」、其余显示最后活动时间；
+    点一行切过去并滚到分支起点；分叉点那条回答下方有「从这里分出了多条分支 · 查看」；停靠栏里浮层不超出窗口（已修一次溢出）。
 
 ## 八、工作约定（用户明确要求，违反会返工）
 

@@ -24,10 +24,12 @@ import type { PiBrowserSessionInfo } from "@/types/pi-session";
 import { loadSessionTranscript } from "./pi-session-host-core";
 import { piEntriesToDesktopMessages } from "./pi-session-transcript";
 import {
+  conversationTreeOf,
   forkAfterEntry,
   omitEntries,
   rewindToBeforeEntry,
   switchToVersion,
+  type ConversationTreeNode,
 } from "./pi-session-files";
 import { graftSessionFile } from "./pi-session-graft";
 import { browserSessionDirOf, findSessionFileById } from "./pi-session-paths";
@@ -36,6 +38,15 @@ import { browserSessionDirOf, findSessionFileById } from "./pi-session-paths";
 export function readTranscript(file: string | undefined, sessionDir: string): ChatSessionMessage[] {
   if (!file || !existsSync(file)) return [];
   return piEntriesToDesktopMessages(loadSessionTranscript(file, sessionDir));
+}
+
+/** 树谱视图（M4-d）：只含用户消息的精简树；文件不存在 = 空 */
+export function readConversationTree(
+  file: string | undefined,
+  sessionDir: string
+): ConversationTreeNode[] {
+  if (!file || !existsSync(file)) return [];
+  return conversationTreeOf(SessionManager.open(file, sessionDir));
 }
 
 /** 投影里的用户消息数（目录行 messageCount 的口径：用户提问次数） */

@@ -7,6 +7,7 @@ import { invoke, on, off } from "@/electron";
 import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 import type { PiThinkingLevel } from "@/types/pi-llm";
 import type {
+  ConversationTreeNode,
   PiBrowserSessionInfo,
   PiHostToolCallResult,
   PiPromptDisplay,
@@ -131,6 +132,13 @@ export function piSessionEdit(
   edit: PiSessionEdit
 ): Promise<Outcome & { messages?: ChatSessionMessage[] }> {
   return invoke("pi-session:edit", { location, edit });
+}
+
+/** 树谱视图（M4-d）：对话里全部用户消息组成的树（回答折叠），切换节点用 switch */
+export function piSessionTree(
+  location: PiSessionLocation
+): Promise<Outcome & { nodes?: ConversationTreeNode[] }> {
+  return invoke("pi-session:tree", location);
 }
 
 /** 浏览器扩展对话（M4.5）：按页面列出（按最近活动降序） */
