@@ -16,8 +16,14 @@ import { withAlpha } from "../core/palette";
 export interface RenderState {
   /** 悬停节点 id，null 表示无悬停（此时不降淡任何节点） */
   hoveredId: number | null;
-  /** 外部高亮（筛选命中 / 当前卡片） */
+  /** 当前卡片（编辑中的那一张等，通常只有一两个）：accent 填色 + 辉光 */
   currentIds: Set<number>;
+  /**
+   * 筛选命中；null 表示没有筛选。命中的保持自己的主题色，未命中的降淡。
+   * 与 currentIds 分开：筛选命中可能是几百张甚至全部，全刷成 accent 加辉光，
+   * 整张图就成了一片蓝雾，主题色全没了（用户反馈过，「全部」时尤其难看）
+   */
+  filterIds?: Set<number> | null;
   /** 降淡的中心节点的一度邻居（通常就是悬停节点的邻居） */
   adjacentIds: Set<number>;
   /**
@@ -49,6 +55,8 @@ const CLUSTER_BLOB_ALPHA = 0.1;
 
 /** 悬停时非邻居节点的不透明度（强调程度为 1 时） */
 const DIMMED_ALPHA = 0.25;
+/** 筛选未命中的节点的不透明度：比悬停降淡更轻，筛选是常驻状态，要能看出命中落在哪几个岛 */
+const FILTERED_OUT_ALPHA = 0.2;
 
 /** 标签显示的缩放阈值：太小时全是糊字，不如不画 */
 const LABEL_MIN_SCALE = 0.55;
@@ -57,7 +65,7 @@ const LABEL_DEGREE_GATE = 3;
 /** 标签占位高度，用于网格避让 */
 const LABEL_CELL = 18;
 
-type Box = { left: number; right: number; top: number; bottom: number };
+export type Box = { left: number; right: number; top: number; bottom: number };
 
 export class Canvas2DRenderer {
   private ctx: CanvasRenderingContext2D;
@@ -66,6 +74,9 @@ export class Canvas2DRenderer {
   private dpr = 1;
   private width = 0;
   private height = 0;
+
+  /** 最近一帧悬停标题的占位框（画布坐标，含底板）；没有悬停标题时为 null */
+  private lastHoverLabelBox: Box | null = null;
 
   constructor(private canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext("2d");
@@ -97,6 +108,8 @@ export class Canvas2DRenderer {
     const scale = camera.scale;
     const geometry = this.clusterGeometry(scene);
     const mapMode = isMapScene(scene);
+    const filter = state.filterIds ?? null;
+    const filteredOut = (id: number) => filter !== null && !filter.has(id);
 
     // ---- 簇的背景色块：画在最底层，只给出「岛」的轮廓暗示。
     // 离线地图模式不画：主题在空间上已经分成了清楚的岛，再叠一层彩色光晕只会发脏
@@ -119,10 +132,12 @@ export class Canvas2DRenderer {
       }
     }
 
-    // ---- 连线：淡线一遍，高亮线一遍
+    // ---- 连线：淡线一遍，高亮线一遍。筛选时一端未命中的线再淡一档，单独一遍
     const highlighted: Array<[GraphNode, GraphNode]> = [];
+    const faded: Array<[GraphNode, GraphNode]> = [];
     ctx.lineWidth = Math.max(0.5, 1.1 * Math.min(1, scale));
-    ctx.strokeStyle = dimming ? withAlpha(palette.edge, 1 - 0.6 * emphasis) : palette.edge;
+    const edgeColor = dimming ? withAlpha(palette.edge, 1 - 0.6 * emphasis) : palette.edge;
+    ctx.strokeStyle = edgeColor;
     ctx.beginPath();
     for (const edge of scene.edges) {
       const a = scene.nodeById.get(edge.source);
@@ -132,6 +147,10 @@ export class Canvas2DRenderer {
         highlighted.push([a, b]);
         continue;
       }
+      if (filteredOut(a.id) || filteredOut(b.id)) {
+        faded.push([a, b]);
+        continue;
+      }
       const [ax, ay] = camera.toCanvas(a.x, a.y);
       const [bx, by] = camera.toCanvas(b.x, b.y);
       if (!this.segmentVisible(ax, ay, bx, by)) continue;
@@ -139,6 +158,19 @@ export class Canvas2DRenderer {
       ctx.lineTo(bx, by);
     }
     ctx.stroke();
+
+    if (faded.length > 0) {
+      ctx.strokeStyle = withAlpha(edgeColor, FILTERED_OUT_ALPHA);
+      ctx.beginPath();
+      for (const [a, b] of faded) {
+        const [ax, ay] = camera.toCanvas(a.x, a.y);
+        const [bx, by] = camera.toCanvas(b.x, b.y);
+        if (!this.segmentVisible(ax, ay, bx, by)) continue;
+        ctx.moveTo(ax, ay);
+        ctx.lineTo(bx, by);
+      }
+      ctx.stroke();
+    }
 
     if (highlighted.length > 0) {
       // 强调满格时是纯高亮色；渐变途中叠在淡线上按强调程度透出
@@ -166,6 +198,7 @@ export class Canvas2DRenderer {
       const isAdjacent = state.adjacentIds.has(node.id);
       const isCurrent = state.currentIds.has(node.id);
       const dimmed = dimming && node.id !== focusId && !isAdjacent;
+      const outOfFilter = filteredOut(node.id) && !isHovered && !isCurrent;
 
       // 辉光只给强调节点：全场辉光既慢又糊
       if (isHovered || isCurrent) {
@@ -180,20 +213,23 @@ export class Canvas2DRenderer {
 
       // 簇色只用于普通态：强调态（悬停/当前）必须是 accent，否则用户分不清
       // 「这是我选中的」和「这是某个主题的」
+      // 筛选命中的节点保持主题色（「命中」靠未命中的降淡来表达，不靠换色）
       const base = state.clusterColors?.get(node.cluster) ?? palette.nodeFill;
+      let alpha = outOfFilter ? FILTERED_OUT_ALPHA : 1;
+      if (dimmed) alpha *= 1 - (1 - DIMMED_ALPHA) * emphasis;
       ctx.fillStyle = isHovered
         ? palette.nodeFillHover
         : isCurrent
           ? palette.nodeFillCurrent
-          : dimmed
-            ? withAlpha(base, 1 - (1 - DIMMED_ALPHA) * emphasis)
+          : alpha < 1
+            ? withAlpha(base, alpha)
             : base;
       ctx.beginPath();
       ctx.arc(cx, cy, r, 0, Math.PI * 2);
       ctx.fill();
 
       // 描边用底色，作用是在节点密集处切出间隙（而不是当轮廓看）
-      if (r > 2.5 && (!dimmed || emphasis < 0.5)) {
+      if (r > 2.5 && !outOfFilter && (!dimmed || emphasis < 0.5)) {
         ctx.lineWidth = Math.min(2, r * 0.35);
         ctx.strokeStyle = isCurrent ? palette.nodeStrokeCurrent : palette.nodeStroke;
         ctx.stroke();
@@ -202,7 +238,14 @@ export class Canvas2DRenderer {
       // 桥接卡片（连接了两个主题）加一圈细环：这类卡片往往是洞见所在，值得能被找到。
       // 用中性的正文色而不是 accent——accent 已经表示「选中/悬停」，不能一色两义。
       // 只在放大到能看清卡片时画，缩小时全是环反而成了噪点。
-      if (node.isBridge && !dimmed && !isHovered && !isCurrent && scale >= LABEL_MIN_SCALE) {
+      if (
+        node.isBridge &&
+        !dimmed &&
+        !outOfFilter &&
+        !isHovered &&
+        !isCurrent &&
+        scale >= LABEL_MIN_SCALE
+      ) {
         ctx.beginPath();
         ctx.arc(cx, cy, r + 2.5, 0, Math.PI * 2);
         ctx.lineWidth = 1;
@@ -218,6 +261,7 @@ export class Canvas2DRenderer {
         if (isHovered) labelCandidates.push(node);
         continue;
       }
+      if (outOfFilter) continue;
       if (mapMode) {
         // 地图模式：卡片标题只在放大到卡片层时出现（中低缩放交给主题名）
         if (isCurrent || scale >= MAP_CARD_LABEL_SCALE) labelCandidates.push(node);
@@ -229,6 +273,7 @@ export class Canvas2DRenderer {
     // 悬停标签先占位：它是用户正指着的东西，主题名与它重叠时让位（只让那一个，其余不动）
     const hoveredNode = hovering ? labelCandidates.find(n => n.id === state.hoveredId) : undefined;
     const hoverBox = hoveredNode ? this.nodeLabelBox(hoveredNode, camera) : null;
+    this.lastHoverLabelBox = hoverBox;
     const reserved = hoverBox ? [hoverBox] : [];
 
     // ---- 离线地图的主题名：三级语义缩放
@@ -276,6 +321,17 @@ export class Canvas2DRenderer {
     labelCandidates.sort((a, b) => this.labelPriority(b, state) - this.labelPriority(a, state));
     this.drawNodeLabels(labelCandidates, camera, palette, state);
     ctx.restore();
+  }
+
+  /**
+   * 悬停标题的占位框（画布坐标，按底板外扩）。宿主把它当作悬停节点命中范围的一部分：
+   * 标题画在节点正下方，鼠标挪到标题上就离开了节点的命中圆，悬停一断标题就消失，
+   * 鼠标又落回节点上再次悬停——来回闪（用户反馈过）
+   */
+  hoverLabelBox(): Box | null {
+    const box = this.lastHoverLabelBox;
+    if (!box) return null;
+    return { left: box.left - 4, right: box.right + 4, top: box.top - 3, bottom: box.bottom };
   }
 
   /** 卡片标题的占位框（画布坐标），标题画在节点正下方 */

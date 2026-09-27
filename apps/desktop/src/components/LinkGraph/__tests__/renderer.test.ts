@@ -442,3 +442,58 @@ describe("主题簇的视觉表达", () => {
     expect(calls.some(c => c.op === "rect")).toBe(true);
   });
 });
+
+describe("筛选命中（filterIds）", () => {
+  const colors = new Map([[0, "#7a9e6f"]]);
+
+  it("命中的保持主题色、不画辉光，未命中的降淡——不是把命中刷成 accent", () => {
+    const { nodes, clusters } = clustered(6);
+    const calls = render(
+      nodes,
+      [],
+      state({ clusterColors: colors, filterIds: new Set([1, 2, 3]) }),
+      undefined,
+      clusters
+    );
+    const fills = calls.filter(c => c.op === "fillStyle").map(c => String(c.args[0]));
+    expect(fills.filter(f => f === "#7a9e6f")).toHaveLength(3);
+    expect(fills.filter(f => f.startsWith("rgba(122, 158, 111"))).toHaveLength(3);
+    // 唯一的径向渐变是簇背景色块，不是节点辉光
+    expect(fills).not.toContain(palette.nodeFillCurrent);
+    const plain = render(nodes, [], state({ clusterColors: colors }), undefined, clusters);
+    const gradients = (list: typeof calls) =>
+      list.filter(c => c.op === "createRadialGradient").length;
+    expect(gradients(calls)).toBe(gradients(plain));
+  });
+
+  it("全部命中时和没有筛选画得一模一样", () => {
+    const { nodes, clusters } = clustered(6);
+    const plain = render(nodes, [], state({ clusterColors: colors }), undefined, clusters);
+    const all = render(
+      nodes,
+      [],
+      state({ clusterColors: colors, filterIds: new Set(nodes.map(n => n.id)) }),
+      undefined,
+      clusters
+    );
+    expect(JSON.stringify(all)).toBe(JSON.stringify(plain));
+  });
+});
+
+describe("悬停标题的命中范围", () => {
+  it("有悬停标题时给出它的范围（在节点下方），没有悬停时为 null", () => {
+    const { canvas } = fakeCanvas();
+    const renderer = new Canvas2DRenderer(canvas);
+    renderer.resize(800, 600, 1);
+    const camera = new Camera(800, 600);
+    camera.fit({ minX: -100, minY: -100, maxX: 100, maxY: 100 }, 40);
+    const graph = scene([node(1, 0, 0, "悬停的卡片")], []);
+    renderer.draw(graph, camera, palette, state({ hoveredId: 1 }));
+    const box = renderer.hoverLabelBox()!;
+    const [, cy] = camera.toCanvas(0, 0);
+    expect(box.top).toBeGreaterThan(cy);
+    expect(box.right - box.left).toBeGreaterThan(0);
+    renderer.draw(graph, camera, palette, state());
+    expect(renderer.hoverLabelBox()).toBeNull();
+  });
+});

@@ -99,13 +99,17 @@ export function CardsView() {
   /* sorted = 排序全集（图谱全集 / 表格 allCards），filtered = 分类 / 标签过滤结果 */
   const sorted = useMemo(() => sortCards(feed.cards), [feed.cards]);
   const filtered = useMemo(() => filterCards(feed.cards, filter), [feed.cards, filter]);
-  const highlightIds = useMemo(() => filtered.map(card => card.id), [filtered]);
   const categoryCount = useMemo(() => {
     const counts = new Map<string, number>();
     for (const card of feed.cards) counts.set(card.category, (counts.get(card.category) ?? 0) + 1);
     return counts;
   }, [feed.cards]);
   const filtering = category !== "all" || Boolean(tag);
+  /* 图谱的筛选命中：没在筛选（「全部」）时为 null，图谱就是平时的样子，不是「全员命中」 */
+  const highlightIds = useMemo(
+    () => (filtering ? filtered.map(card => card.id) : null),
+    [filtering, filtered]
+  );
   /* 摘要跟随筛选：筛选中读命中集，否则读全集 */
   const summaryCards = filtering ? filtered : feed.cards;
   const totalWords = useMemo(

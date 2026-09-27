@@ -54,7 +54,10 @@ const PERSIST_DEBOUNCE = 800;
 export interface GraphEngineOptions {
   cards: ICard[];
   getCardLinks: (card: ICard) => number[];
+  /** 当前卡片（通常一两张）：accent 强调 */
   currentCardIds?: number[];
+  /** 筛选命中；null / 不传表示没有筛选。命中的保持主题色，未命中的降淡 */
+  filterCardIds?: number[] | null;
   fitView: boolean;
   fitViewPadding: number;
   enableHoverPreview: boolean;
@@ -77,6 +80,11 @@ export interface GraphEngineOptions {
   onClusters?: (insight: GraphInsight) => void;
   /** 悬停达到延迟后回调，宿主据此挂预览面板；id 为 null 表示收起 */
   onHoverNode?: (payload: { id: number; canvasX: number; canvasY: number } | null) => void;
+  /**
+   * 指针离开画布时，去往的元素若返回 true 就保持悬停（宿主用来放行自己的预览面板）。
+   * 保持期间悬停的结束由宿主调 clearHover 决定
+   */
+  keepHoverOnLeave?: (target: EventTarget | null) => boolean;
 }
 
 /** 给宿主看的簇信息快照 */
@@ -100,6 +108,8 @@ export interface GraphEngineHandle {
   fitView: () => void;
   /** 悬停节点在画布上的实时位置，供预览面板跟随 */
   anchorOf: (id: number) => { x: number; y: number } | null;
+  /** 结束悬停（收起预览、撤掉高亮） */
+  clearHover: () => void;
 }
 
 export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
@@ -107,6 +117,7 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
     cards,
     getCardLinks,
     currentCardIds,
+    filterCardIds,
     fitView,
     fitViewPadding,
     enableHoverPreview,
@@ -115,6 +126,7 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
     onClickNode,
     onClusters,
     onHoverNode,
+    keepHoverOnLeave,
   } = options;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -136,6 +148,7 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
   const emphasisTimeRef = useRef(0);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentIdsRef = useRef<Set<number>>(new Set());
+  const filterIdsRef = useRef<Set<number> | null>(null);
   const cardsRef = useRef<ICard[]>(cards);
   const fitOnNextSettle = useRef(fitView);
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -168,6 +181,16 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
     currentIdsRef.current = new Set(currentCardIds ?? []);
     dirtyRef.current = true;
   }, [currentIdsKey, currentCardIds]);
+
+  const filterIdsKey = useMemo(
+    () => (filterCardIds ? [...filterCardIds].sort((a, b) => a - b).join(",") : null),
+    [filterCardIds]
+  );
+
+  useEffect(() => {
+    filterIdsRef.current = filterCardIds ? new Set(filterCardIds) : null;
+    dirtyRef.current = true;
+  }, [filterIdsKey, filterCardIds]);
 
   const markDirty = useMemoizedFn(() => {
     dirtyRef.current = true;
@@ -234,6 +257,7 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
       focusId,
       emphasis: emphasisRef.current,
       currentIds: currentIdsRef.current,
+      filterIds: filterIdsRef.current,
       adjacentIds: focusId === null ? new Set() : (scene.adjacency.get(focusId) ?? new Set()),
       clusterColors: clusterColorsRef.current,
     });
@@ -444,6 +468,14 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
     return () => cancelAnimationFrame(frameRef.current);
   }, [advanceEmphasis, drawNow]);
 
+  const anchorOf = useMemoizedFn((id: number) => {
+    const node = sceneRef.current?.nodeById.get(id);
+    const camera = cameraRef.current;
+    if (!node || !camera) return null;
+    const [x, y] = camera.toCanvas(node.x, node.y);
+    return { x, y: y + node.radius * camera.scale };
+  });
+
   // ---- 指针交互
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -452,6 +484,15 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
     const localPoint = (event: PointerEvent | WheelEvent) => {
       const rect = canvas.getBoundingClientRect();
       return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    };
+
+    /** 悬停节点的标题范围，向上延伸到节点中心，盖住节点与标题之间的缝 */
+    const insideHoverLabel = (canvasX: number, canvasY: number) => {
+      const box = rendererRef.current?.hoverLabelBox();
+      const anchor = hoveredRef.current === null ? null : anchorOf(hoveredRef.current);
+      if (!box || !anchor) return false;
+      const top = Math.min(box.top, anchor.y);
+      return canvasX >= box.left && canvasX <= box.right && canvasY >= top && canvasY <= box.bottom;
     };
 
     const pickAt = (canvasX: number, canvasY: number) => {
@@ -511,6 +552,9 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
       }
 
       const node = pickAt(x, y);
+      // 鼠标从节点挪到它自己的标题上（或两者之间的缝）时保持悬停：
+      // 否则悬停一断标题就消失，鼠标又落回节点上，标题再出现，来回闪
+      if (!node && hoveredRef.current !== null && insideHoverLabel(x, y)) return;
       const nextId = node?.id ?? null;
       if (nextId === hoveredRef.current) return;
       hoveredRef.current = nextId;
@@ -529,7 +573,15 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
       hoverTimerRef.current = setTimeout(() => {
         hoverTimerRef.current = null;
         if (hoveredRef.current !== nextId) return;
-        onHoverNode?.({ id: nextId, canvasX: x, canvasY: y });
+        // 预览面板挂在标题下方而不是光标处：挂在光标处时面板正好压在标题上，
+        // 鼠标一碰面板画布就收到 pointerleave，悬停断开、面板消失，又回到悬停……
+        const box = rendererRef.current?.hoverLabelBox();
+        const below = anchorOf(nextId);
+        onHoverNode?.({
+          id: nextId,
+          canvasX: box?.left ?? below?.x ?? x,
+          canvasY: box?.bottom ?? below?.y ?? y,
+        });
       }, HOVER_DELAY);
     };
 
@@ -559,8 +611,10 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
       }
     };
 
-    const onPointerLeave = () => {
+    const onPointerLeave = (event: PointerEvent) => {
       if (dragRef.current) return;
+      // 移进预览面板不算离开：用户要去滚动 / 阅读正文。离开面板时由宿主调 clearHover
+      if (keepHoverOnLeave?.(event.relatedTarget)) return;
       hoveredRef.current = null;
       dirtyRef.current = true;
       clearHover();
@@ -592,7 +646,7 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
       canvas.removeEventListener("pointerleave", onPointerLeave);
       canvas.removeEventListener("wheel", onWheel);
     };
-  }, [clearHover, enableHoverPreview, onClickNode, onHoverNode]);
+  }, [anchorOf, clearHover, enableHoverPreview, keepHoverOnLeave, onClickNode, onHoverNode]);
 
   useEffect(() => {
     if (enableHoverPreview) return;
@@ -621,13 +675,5 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
     dirtyRef.current = true;
   });
 
-  const anchorOf = useMemoizedFn((id: number) => {
-    const node = sceneRef.current?.nodeById.get(id);
-    const camera = cameraRef.current;
-    if (!node || !camera) return null;
-    const [x, y] = camera.toCanvas(node.x, node.y);
-    return { x, y: y + node.radius * camera.scale };
-  });
-
-  return { containerRef, canvasRef, ready, focusNode, fitView: doFitView, anchorOf };
+  return { containerRef, canvasRef, ready, focusNode, fitView: doFitView, anchorOf, clearHover };
 }
