@@ -7,14 +7,12 @@ import type {
 import type { ResponseCreateParamsNonStreaming } from "openai/resources/responses/responses";
 import { RequestMessage, ToolFunctionSchema } from "@/types";
 import { Module } from "../types/module";
-import { getModelRequestOverrides, type LegacyReasoningEffort } from "@/utils/model-overrides";
+import { getModelRequestOverrides } from "@/utils/model-overrides";
 import { buildResponsesPayload } from "@/utils/openai-responses-adapter";
 import { smartChunk } from "../utils/smart-chunk";
 import { normalizeThinkTaggedText } from "@/utils/thinkTagNormalizer";
 
-type ChatCompletionParams = Omit<ChatCompletionCreateParamsNonStreaming, "reasoning_effort"> & {
-  reasoning_effort?: Exclude<LegacyReasoningEffort, "none">;
-};
+type ChatCompletionParams = ChatCompletionCreateParamsNonStreaming;
 
 class LLMModule implements Module {
   name: string;
@@ -51,7 +49,6 @@ class LLMModule implements Module {
         model: string,
         messages: RequestMessage[],
         options?: {
-          reasoningEffort?: LegacyReasoningEffort;
           tools?: ToolFunctionSchema[];
         }
       ) => {
@@ -68,7 +65,6 @@ class LLMModule implements Module {
         model: string,
         messages: RequestMessage[],
         options?: {
-          reasoningEffort?: LegacyReasoningEffort;
           tools?: ToolFunctionSchema[];
         }
       ) => {
@@ -113,7 +109,6 @@ class LLMModule implements Module {
     model: string,
     messages: RequestMessage[],
     options?: {
-      reasoningEffort?: LegacyReasoningEffort;
       tools?: ToolFunctionSchema[];
     }
   ): Promise<{
@@ -125,21 +120,9 @@ class LLMModule implements Module {
       baseURL: baseUrl,
     });
 
-    const { reasoningEffort, tools } = options || {};
-    const normalizedReasoningEffort =
-      reasoningEffort && ["low", "medium", "high"].includes(reasoningEffort)
-        ? reasoningEffort
-        : undefined;
-
-    // 获取模型特定的参数覆盖配置
-    const modelOverrides = getModelRequestOverrides({
-      modelName: model,
-      reasoningEffort,
-    });
-
-    // 分离 reasoning_effort，因为 OpenAI SDK 的类型定义与我们的不完全一致
-    const { reasoning_effort: overrideReasoningEffort, ...restOverrides } = modelOverrides;
-    const effectiveReasoningEffort = overrideReasoningEffort ?? normalizedReasoningEffort;
+    const { tools } = options || {};
+    // 模型特定的参数覆盖（某些渠道不接受 temperature/top_p 同时出现等）
+    const modelOverrides = getModelRequestOverrides({ modelName: model });
 
     const params: ChatCompletionParams = {
       model,
@@ -147,17 +130,13 @@ class LLMModule implements Module {
       temperature: 0.3,
       top_p: 1,
       stream: false,
-      reasoning_effort: effectiveReasoningEffort as "low" | "medium" | "high" | undefined,
       frequency_penalty: 0,
       tools: tools as ChatCompletionTool[] | undefined,
       tool_choice: tools && tools.length > 0 ? "auto" : undefined,
-      // 应用模型特定的参数覆盖（不包含 reasoning_effort）
-      ...restOverrides,
+      ...modelOverrides,
     };
 
-    const res = await client.chat.completions.create(
-      params as ChatCompletionCreateParamsNonStreaming
-    );
+    const res = await client.chat.completions.create(params);
 
     const responseMessage = res.choices[0].message;
     const responseReasoningContent =
@@ -186,7 +165,6 @@ class LLMModule implements Module {
     model: string,
     messages: RequestMessage[],
     options?: {
-      reasoningEffort?: LegacyReasoningEffort;
       tools?: ToolFunctionSchema[];
     }
   ): Promise<{
@@ -202,7 +180,6 @@ class LLMModule implements Module {
       model,
       messages,
       stream: false,
-      reasoningEffort: options?.reasoningEffort,
       tools: options?.tools,
     }) as ResponseCreateParamsNonStreaming;
 

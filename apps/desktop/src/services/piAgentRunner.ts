@@ -6,7 +6,7 @@
  */
 import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 import type { RequestMessage } from "@/types";
-import type { LLMModelSetting, LLMProviderSetting } from "@/types/pi-llm";
+import type { LLMModelSetting, LLMProviderSetting, PiThinkingLevel } from "@/types/pi-llm";
 import type { PiHostToolSpec } from "@/types/pi-session";
 import {
   onPiSessionEvent,
@@ -15,7 +15,7 @@ import {
   piSessionDispose,
   piSessionPrompt,
 } from "@/commands/piSession";
-import { toPiChatMessages, toPiThinking } from "@/services/piLLM";
+import { toPiChatMessages } from "@/services/piLLM";
 import { getToolRegistryAgentTools } from "@/agent/toolRegistryAgentTools";
 import {
   initPiToolBridge,
@@ -28,8 +28,8 @@ export interface PiAgentRunOptions {
   model: LLMModelSetting;
   /** chat-core 消息（system 抽出为会话 systemPrompt；最后一条 user 作为 prompt 文本） */
   messages: RequestMessage[];
-  /** 推理档位（旧 ReasoningEffort 枚举或 PiThinkingLevel） */
-  thinking?: string;
+  /** 思考档位；缺省交给 pi 按模型能力取默认 */
+  thinking?: PiThinkingLevel;
   toolScope?: string;
   /** 工具名排除清单（子代理防递归等） */
   excludeToolNames?: string[];
@@ -86,7 +86,7 @@ export function runPiAgent(
       // 历史灌入排除最后一条 user（其文本作为 prompt 单独发送）
       const initialMessages = options.messages.slice(0, -1);
       const customTools = buildToolSpecs(options);
-      const thinkingLevel = toPiThinking(options.thinking);
+      const thinkingLevel = options.thinking;
 
       const created = await piSessionCreate(sessionId, {
         scope: options.conversationKey ?? `one-shot:${sessionId}`,

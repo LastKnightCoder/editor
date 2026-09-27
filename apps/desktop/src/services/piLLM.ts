@@ -15,8 +15,8 @@ export interface PiChatOptions {
   provider: LLMProviderSetting;
   model: LLMModelSetting;
   messages: RequestMessage[];
-  /** 推理档位：PiThinkingLevel 或旧 ReasoningEffort 枚举（none 自动转 off） */
-  thinking?: string;
+  /** 思考档位；缺省交给 pi 按模型能力取默认 */
+  thinking?: PiThinkingLevel;
 }
 
 export interface PiChatResult {
@@ -55,10 +55,6 @@ export function piThinkingOf(message: AssistantMessage | null | undefined): stri
     .map(block => block.thinking)
     .join("\n\n");
 }
-
-/** ReasoningEffort（旧枚举）→ PiThinkingLevel：none→off，其余同名对齐 */
-export const toPiThinking = (effort: string | undefined): PiThinkingLevel | undefined =>
-  effort ? ((effort === "none" ? "off" : effort) as PiThinkingLevel) : undefined;
 
 /** chat-core RequestMessage → pi 单发消息：system 抽出拼接，正文块文本化（图片/文件降级为占位） */
 export function toPiChatMessages(messages: RequestMessage[]): {
@@ -106,7 +102,7 @@ export function toPiChatMessages(messages: RequestMessage[]): {
 
 function buildRequest(options: PiChatOptions): PiChatRequest {
   const { system, messages } = toPiChatMessages(options.messages);
-  const thinking = toPiThinking(options.thinking);
+  const thinking = options.thinking;
   const temperature = options.model.samplingParams?.temperature;
   return {
     providerId: options.provider.id,
