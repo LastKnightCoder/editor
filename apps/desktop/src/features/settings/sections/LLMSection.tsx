@@ -296,6 +296,21 @@ export function LLMSection() {
     }));
   };
 
+  /**
+   * 服务商/模型与分配槽位一起改：**一次用户操作只能产生一次设置写入**。
+   * 拆成两次会广播出「槽位已清、服务商还在」这样的中间态，多窗口互相回灌时旧快照可能
+   * 盖回新状态，表现为删掉的服务商又冒出来（见交接文档坑 16）。
+   */
+  const mutateProvidersAndUsage = (
+    fn: (providers: LLMProviderSetting[], slots: Record<string, LLMUsageConfigV2 | null>) => void
+  ) => {
+    useSettingStore.setState(s => ({
+      setting: produce(s.setting, draft =>
+        fn(draft.llmProviders, draft.llmUsageSettings as Record<string, LLMUsageConfigV2 | null>)
+      ),
+    }));
+  };
+
   const mutateUsage = (fn: (slots: Record<string, LLMUsageConfigV2 | null>) => void) => {
     useSettingStore.setState(s => ({
       setting: produce(s.setting, draft => fn(draft.llmUsageSettings)),
@@ -340,23 +355,17 @@ export function LLMSection() {
   const applyModelPick = (change: { add: LLMModelSetting[]; remove: string[] }) => {
     if (!editing) return;
     const providerId = editing.id;
-    // 移除模型要一并清掉引用它的分配槽位，否则留悬空引用
-    const orphaned = featuresUsing(
-      llmUsageSettings,
-      usage => usage.providerId === providerId && change.remove.includes(usage.modelId)
-    );
-    if (orphaned.length > 0) {
-      mutateUsage(slots => {
-        orphaned.forEach(key => {
-          slots[key] = null;
-        });
-      });
-    }
-    mutateProviders(providers => {
+    mutateProvidersAndUsage((providers, slots) => {
       const target = providers.find(p => p.id === providerId);
       if (!target) return;
       target.models = target.models.filter(model => !change.remove.includes(model.id));
       target.models.push(...change.add);
+      // 移除模型要一并清掉引用它的分配槽位，否则留悬空引用
+      for (const [key, usage] of Object.entries(slots)) {
+        if (usage?.providerId === providerId && change.remove.includes(usage.modelId)) {
+          slots[key] = null;
+        }
+      }
     });
     const summary = [
       change.add.length > 0 ? `新增 ${change.add.length} 个模型` : "",
@@ -376,16 +385,13 @@ export function LLMSection() {
   const confirmProviderDelete = () => {
     if (!editing) return;
     const id = editing.id;
-    if (affectedByProvider.length > 0) {
-      mutateUsage(slots => {
-        affectedByProvider.forEach(key => {
-          slots[key] = null;
-        });
-      });
-    }
-    mutateProviders(providers => {
+    mutateProvidersAndUsage((providers, slots) => {
       const index = providers.findIndex(p => p.id === id);
       if (index !== -1) providers.splice(index, 1);
+      // 清掉引用它的分配槽位（含被删服务商的任意模型），与删除同一次写入
+      for (const [key, usage] of Object.entries(slots)) {
+        if (usage?.providerId === id) slots[key] = null;
+      }
     });
     setEditingId(null);
     setProviderDeleteOpen(false);
@@ -511,16 +517,12 @@ export function LLMSection() {
     if (!editing || !modelDelete) return;
     const providerId = editing.id;
     const modelId = modelDelete.id;
-    if (affectedByModel.length > 0) {
-      mutateUsage(slots => {
-        affectedByModel.forEach(key => {
-          slots[key] = null;
-        });
-      });
-    }
-    mutateProviders(providers => {
+    mutateProvidersAndUsage((providers, slots) => {
       const provider = providers.find(p => p.id === providerId);
       if (provider) provider.models = provider.models.filter(m => m.id !== modelId);
+      for (const [key, usage] of Object.entries(slots)) {
+        if (usage?.providerId === providerId && usage.modelId === modelId) slots[key] = null;
+      }
     });
     setModelDelete(null);
   };

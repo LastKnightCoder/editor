@@ -5,7 +5,7 @@
 > M3 下一步：第 4 项剩余的 M3-f fetchModels 与 M3-g（shellPath + chat 侧档位/双类型收敛））。
 > 新会话续接方式：读完本文档 +
 > `git log --oneline -15` 对照提交历史。验证三件套：`cd apps/desktop && npx tsc --noEmit`、
-> `npx vitest run`（330 文件、1550 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
+> `npx vitest run`（333 文件、1562 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
 > **注意 cwd 必须在 apps/desktop**——vitest 从仓库根跑会整体失败（vite 别名解析不到）。
 > 权威背景：调研报告与迁移计划在本项目最初会话中形成（对话内）；本文档是执行态的完整快照。
 
@@ -329,6 +329,22 @@ utils/openai-responses-adapter（llm.ts 依赖）。chat_run 主进程表与 han
     异步连接先后，不排就每个会话白丢缓存；②只在用户真改了工具时推送变更，别每轮同步；
     ③重建会话与切活跃集的缓存代价相同，选方案要看别的（授权是否保留、是否要重灌历史）。
     pi 未暴露 Anthropic 的 `tool_addition`/`tool_removal` 保缓存机制。
+16. **设置写入风暴把 setting.json 写坏（真实事故，2026-09-27）**：用户删服务商时它「消失又出现、
+    无限循环」，`~/.editor/setting.json` 被写成「完整 JSON + 旧内容尾巴」无法解析。日志实证：
+    11 分钟内保存 3463 次（用户改动实际只触发 220 次发送）、248 次「应用远端设置」、
+    满屏 `rename setting.json.tmp ENOENT`。三层缺陷，缺一不可：
+    - **放大器**：多窗口共用一份设置，任一窗口改动经主进程广播给其余窗口，而收到广播的窗口
+      应用后其同步器又把它发回主进程 → 一次改动放大成 N 次保存，窗口间任何细微差异都变成
+      永不收敛的来回写。修：`markRemoteSettingApplied`/`isRemoteAppliedSnapshot`，远端快照不回灌。
+    - **中间态**：`confirmProviderDelete` 等把一次用户操作拆成两次 store 写入（先清分配槽位、
+      再删服务商），广播出「槽位已清、服务商还在」的中间态；顺序一乱旧快照盖回新状态，
+      服务商「复活」。修：`mutateProvidersAndUsage` 一次写入（删服务商/删模型/勾选模型都改单次）。
+    - **非原子写**：主进程 `saveSetting` 用固定 `setting.json.tmp`，并发保存互相截断
+      （较短的新内容覆盖较长的旧内容后留下旧尾巴）。修：落盘串行链 + 按进程独占 tmp 名。
+      另修数据丢失放大器：解析失败原先直接返回 `{}`，下一次保存就把默认值写回去＝静默清空全部设置；
+      现在先备份 `setting.json.corrupt-<ts>.bak`，再用 `salvageLeadingJsonObject` 抢救开头的完整对象。
+      **教训**：凡「多端共享一份文件 + 广播」的状态，必须区分「本地改动」与「远端应用」，否则
+      必成回灌风暴；一次用户操作只产生一次持久化写入；原子写不能共用固定临时路径。
 
 ## 五、遗留边界（有意留下，归属明确）
 

@@ -86,7 +86,8 @@ async function getCatalogRuntime(): Promise<ModelRuntimeLike | null> {
       const os = await import("node:os");
       const { join } = await import("node:path");
       return ModelRuntime.create({
-        authPath: join(os.tmpdir(), "tau-pi-catalog.json"),
+        // 按进程隔离：共用固定路径时多个进程（并行测试 worker、多实例）会抢同一个 auth 文件
+        authPath: join(os.tmpdir(), `tau-pi-catalog-${process.pid}.json`),
         allowModelNetwork: false,
       }) as unknown as ModelRuntimeLike;
     })

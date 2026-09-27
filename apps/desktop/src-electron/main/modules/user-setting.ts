@@ -14,11 +14,50 @@ export interface SettingChangedPayload {
 
 type SettingChangedListener = (payload: SettingChangedPayload) => void;
 
+/**
+ * 从「完整 JSON + 尾部残留」的文件里取出开头那个完整对象（并发写截断的典型形态：
+ * 较短的新内容覆盖较长的旧内容，旧内容尾巴留在后面）。取不到返回 null。
+ */
+export const salvageLeadingJsonObject = (raw: string): Record<string, any> | null => {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = 0; index < raw.length; index += 1) {
+    const char = raw[index];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+    if (char === "{" || char === "[") depth += 1;
+    else if (char === "}" || char === "]") {
+      depth -= 1;
+      if (depth === 0) {
+        try {
+          const parsed = JSON.parse(raw.slice(0, index + 1));
+          return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+  return null;
+};
+
 class UserSettingModule {
   private backendServer: BackendWebSocketServer | null = null;
   private userSetting: UserSetting = {};
   private settingLoaded = false;
   private settingChangeListeners: Set<SettingChangedListener> = new Set();
+  /** 落盘串行链：并发写会互相截断文件（见 saveSetting） */
+  private savingChain: Promise<void> = Promise.resolve();
+  private saveSequence = 0;
 
   onSettingChanged(listener: SettingChangedListener): () => void {
     this.settingChangeListeners.add(listener);
@@ -33,14 +72,11 @@ class UserSettingModule {
   }
 
   private notifySettingChanged(payload: SettingChangedPayload) {
-    this.settingChangeListeners.forEach((listener) => {
+    this.settingChangeListeners.forEach(listener => {
       try {
         listener(payload);
       } catch (error) {
-        console.error(
-          "[UserSettingModule] onSettingChanged listener error:",
-          error,
-        );
+        console.error("[UserSettingModule] onSettingChanged listener error:", error);
       }
     });
   }
@@ -57,55 +93,49 @@ class UserSettingModule {
   async init(backendServer: BackendWebSocketServer) {
     this.backendServer = backendServer;
     await this.ensureSettingLoaded();
-    this.backendServer.addMessageHandler(
-      "set-user-setting",
-      async (message: RpcRequestMessage) => {
-        const { id, method } = message;
-        const params = message.params as unknown;
+    this.backendServer.addMessageHandler("set-user-setting", async (message: RpcRequestMessage) => {
+      const { id, method } = message;
+      const params = message.params as unknown;
 
-        if (params && typeof params === "object") {
-          let clientId: string | undefined;
-          let payloadSetting: UserSetting | null = null;
+      if (params && typeof params === "object") {
+        let clientId: string | undefined;
+        let payloadSetting: UserSetting | null = null;
 
-          if (this.isSetUserSettingPayload(params)) {
-            payloadSetting = params.setting;
-            clientId = params.clientId;
-          } else {
-            payloadSetting = params as UserSetting;
-          }
-
-          if (payloadSetting) {
-            this.handleSetUserSetting(payloadSetting, clientId);
-          }
+        if (this.isSetUserSettingPayload(params)) {
+          payloadSetting = params.setting;
+          clientId = params.clientId;
+        } else {
+          payloadSetting = params as UserSetting;
         }
 
-        const res: RpcResponseMessage = {
-          type: RpcMessageType.Response,
-          id,
-          method,
-          result: { Ok: true },
-          error: null,
-        };
+        if (payloadSetting) {
+          this.handleSetUserSetting(payloadSetting, clientId);
+        }
+      }
 
-        return res;
-      },
-    );
+      const res: RpcResponseMessage = {
+        type: RpcMessageType.Response,
+        id,
+        method,
+        result: { Ok: true },
+        error: null,
+      };
 
-    this.backendServer.addMessageHandler(
-      "get-user-setting",
-      async (message: RpcRequestMessage) => {
-        const { id, method } = message;
-        const res: RpcResponseMessage = {
-          type: RpcMessageType.Response,
-          id,
-          method,
-          result: this.userSetting,
-          error: null,
-        };
+      return res;
+    });
 
-        return res;
-      },
-    );
+    this.backendServer.addMessageHandler("get-user-setting", async (message: RpcRequestMessage) => {
+      const { id, method } = message;
+      const res: RpcResponseMessage = {
+        type: RpcMessageType.Response,
+        id,
+        method,
+        result: this.userSetting,
+        error: null,
+      };
+
+      return res;
+    });
   }
 
   handleSetUserSetting(newSettings: UserSetting, clientId?: string) {
@@ -148,23 +178,56 @@ class UserSettingModule {
       });
       return parsedSetting;
     } catch (e) {
-      console.error(e);
+      console.error("[UserSettingModule] 设置文件解析失败，尝试抢救", e);
+      // 直接返回 {} 会让下一次保存把默认值写回去，等于静默清空用户全部设置：
+      // 先留一份原始损坏文件，再尝试取出开头的完整 JSON 文档（并发写残留的典型形态）
+      const backupPath = join(appDir, `setting.json.corrupt-${Date.now()}.bak`);
+      await fs.writeFile(backupPath, setting, "utf-8").catch(error => {
+        console.error("[UserSettingModule] 备份损坏设置失败", error);
+      });
+      const salvaged = salvageLeadingJsonObject(setting);
+      if (salvaged) {
+        console.info("[UserSettingModule] 已从损坏文件抢救设置", {
+          backupPath,
+          keys: Object.keys(salvaged).length,
+        });
+        this.userSetting = salvaged;
+        await this.saveSetting(JSON.stringify(salvaged, null, 2)).catch(() => undefined);
+        return salvaged;
+      }
+      console.error("[UserSettingModule] 无法抢救设置文件，已保留备份", { backupPath });
       return {};
     }
   }
 
+  /**
+   * 落盘设置。**必须串行 + 独占临时文件**：多窗口同时改设置时，共用固定 tmp 路径的并发写会
+   * 互相截断（较短的新内容覆盖较长的旧内容后留下旧尾巴），产出无法解析的 setting.json，
+   * 并伴随大量 rename ENOENT（前一次已把 tmp 移走）。事故记录见交接文档坑 16。
+   */
   private async saveSetting(setting: string) {
-    const appDir = PathUtil.getAppDir();
-    const settingPath = join(appDir, "setting.json");
-    const tempPath = join(appDir, "setting.json.tmp");
-    await fs.writeFile(tempPath, setting, "utf-8");
-    await fsExtra.move(tempPath, settingPath, { overwrite: true });
+    this.savingChain = this.savingChain
+      .catch(() => undefined)
+      .then(() => this.writeSettingFile(setting));
+    return this.savingChain;
   }
 
-  private getSettingDiff(
-    oldSetting: UserSetting,
-    newSetting: UserSetting,
-  ): Partial<object> {
+  private async writeSettingFile(setting: string) {
+    const appDir = PathUtil.getAppDir();
+    const settingPath = join(appDir, "setting.json");
+    // 独占临时名：即便有别的进程/历史遗留在写，也不会共用同一个 tmp
+    const tempPath = join(appDir, `setting.json.${process.pid}.${++this.saveSequence}.tmp`);
+    try {
+      await fs.writeFile(tempPath, setting, "utf-8");
+      await fsExtra.move(tempPath, settingPath, { overwrite: true });
+    } catch (error) {
+      await fs.rm(tempPath, { force: true }).catch(() => undefined);
+      console.error("[UserSettingModule] 保存用户设置失败", error);
+      throw error;
+    }
+  }
+
+  private getSettingDiff(oldSetting: UserSetting, newSetting: UserSetting): Partial<object> {
     const diff: Partial<UserSetting> = {};
     let hasChanges = false;
 
@@ -184,7 +247,7 @@ class UserSettingModule {
   }
 
   private isSetUserSettingPayload(
-    params: object,
+    params: object
   ): params is { setting: UserSetting; clientId?: string } {
     return Object.prototype.hasOwnProperty.call(params, "setting");
   }
@@ -198,12 +261,8 @@ const summarizeWeReadSetting = (setting: UserSetting) => {
   return {
     enabled: Boolean(weread.enabled),
     hasApiKey: typeof weread.apiKey === "string" && weread.apiKey.length > 0,
-    connectionStatus:
-      typeof weread.connectionStatus === "string"
-        ? weread.connectionStatus
-        : "",
-    lastValidatedAt:
-      typeof weread.lastValidatedAt === "number" ? weread.lastValidatedAt : 0,
+    connectionStatus: typeof weread.connectionStatus === "string" ? weread.connectionStatus : "",
+    lastValidatedAt: typeof weread.lastValidatedAt === "number" ? weread.lastValidatedAt : 0,
   };
 };
 
