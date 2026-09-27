@@ -258,18 +258,18 @@ const RichTextSetter = (props: RichTextSetterProps) => {
   const handleFitHeight = useMemoizedFn(() => {
     const richTextContainer = document.getElementById(`rich-text-container-${element.id}`);
     if (!richTextContainer) return;
-    const editor = richTextContainer.querySelector(
-      ":scope > [data-slate-editor]"
-    ) as HTMLDivElement;
+    // 编辑器外有包裹层，不是容器的直接子节点；首个匹配即外层编辑器（内嵌块的编辑器在其内部）
+    const editor = richTextContainer.querySelector<HTMLDivElement>("[data-slate-editor]");
     if (!editor) return;
 
     editor.style.height = "auto";
 
-    // 获取滚动高度
-    const scrollHeight = editor.scrollHeight;
+    // 高度放开后取编辑器自身的布局高度（与 ResizeObserver 的 borderBox 同口径）；
+    // scrollHeight 会把内部溢出的装饰节点也算进去，比内容高出几像素
+    const contentHeight = Math.ceil(editor.offsetHeight);
     const newElement = produce(element, draft => {
-      draft.height = Math.ceil(scrollHeight);
-      draft.maxHeight = Math.max(Math.ceil(scrollHeight), 3000);
+      draft.height = contentHeight;
+      draft.maxHeight = Math.max(contentHeight, 3000);
       // 如果宽度大于300，则不进行调整
       draft.resized = Math.round(element.width) !== richTextContainer.scrollWidth;
     });
