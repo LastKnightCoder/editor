@@ -48,6 +48,27 @@ const isWslBash = (bashPath: string): boolean => {
   );
 };
 
+/**
+ * 收敛会话的活跃工具集（下一轮生效）：只增删桥接工具，pi 自己的内置活跃默认
+ * （read/edit/write + bash 或 powershell 兜底；grep/find/ls 等默认不活跃）原样保留。
+ * pi 的工具注册表装配后不可追加定义，所以桥接工具按全集注册、用启用名单取子集；
+ * 集合没变就不动——工具定义渲染在请求最前，无谓的变更会整条作废提示缓存。
+ */
+export function applyActiveTools(
+  session: Pick<AgentSession, "getActiveToolNames" | "setActiveToolsByName">,
+  bridgedToolNames: Set<string>,
+  activeToolNames: string[]
+): void {
+  const enabled = new Set(activeToolNames);
+  const current = session.getActiveToolNames();
+  const next = current
+    .filter(name => !bridgedToolNames.has(name))
+    .concat([...bridgedToolNames].filter(name => enabled.has(name)));
+  if (next.length === current.length && next.every((name, index) => name === current[index]))
+    return;
+  session.setActiveToolsByName(next);
+}
+
 export function detectBashShellPath(): string | undefined {
   if (process.env.PI_SMOKE_SHELL && existsSync(process.env.PI_SMOKE_SHELL)) {
     logShellProbe("env", process.env.PI_SMOKE_SHELL);

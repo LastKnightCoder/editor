@@ -10,7 +10,12 @@ import type { ImageContent } from "@earendil-works/pi-ai";
 import type { LLMModelSetting, LLMProviderSetting, PiThinkingLevel } from "@/types/pi-llm";
 import type { PiHostToolSpec } from "@/types/pi-session";
 import type { Skill } from "@/types";
-import { piSessionCreate, piSessionDispose, piSessionSetSystemPrompt } from "@/commands/piSession";
+import {
+  piSessionCreate,
+  piSessionDispose,
+  piSessionSetActiveTools,
+  piSessionSetSystemPrompt,
+} from "@/commands/piSession";
 import { getToolRegistryAgentTools } from "@/agent/toolRegistryAgentTools";
 import { resolveAgentSkills } from "@/agent/desktopSkillAdapter";
 import {
@@ -57,7 +62,14 @@ interface ChatSessionDescriptor {
   providerId: string;
   modelId: string;
   thinkingLevel?: PiThinkingLevel;
+  /** 交 pi 注册的工具全集指纹（变化才重建） */
+  toolUniverse?: string;
+  /** 最近一次推给宿主的活跃工具集（仅在真变化时推送，避免白丢提示缓存） */
+  activeToolNames?: string[];
 }
+
+const sameNames = (a: string[] | undefined, b: string[]): boolean =>
+  Boolean(a) && a!.length === b.length && a!.every((name, index) => name === b[index]);
 
 /** chatScope 带 `"main-chat:123"` 形态的参数前缀，会话键取冒号前缀（与 conversationKey 约定一致） */
 export const chatSessionKey = (chatScope: string, chatId: number): string =>
@@ -100,7 +112,11 @@ class PiChatSessionManager {
     return this.sessions.has(chatSessionKey(chatScope, chatId));
   }
 
-  /** 确保 chat 有可用 pi 会话：模型/档位变化自动重建；systemPrompt 每轮热替换 */
+  /**
+   * 确保 chat 有可用 pi 会话：模型/档位变化自动重建；systemPrompt 每轮热替换。
+   * 工具集变化分两档——启用/停用已注册的工具只切活跃集（不重建、保留本会话授权）；
+   * 出现新的工具定义（新连 MCP 服务器、schema 变更）才重建，因为 pi 注册表装配后不可追加。
+   */
   public async ensureChatSession(options: EnsureChatSessionOptions): Promise<string> {
     const key = chatSessionKey(options.chatScope, options.chatId);
     const existing = this.sessions.get(key);
@@ -110,6 +126,15 @@ class PiChatSessionManager {
       existing.modelId === options.model.id &&
       existing.thinkingLevel === options.thinkingLevel
     ) {
+      const loadout = buildToolLoadout(options);
+      if (existing.toolUniverse !== undefined && existing.toolUniverse !== loadout.universe) {
+        return this.createSession(key, options, loadout, { dispose: true });
+      }
+      if (!sameNames(existing.activeToolNames, loadout.activeToolNames)) {
+        const outcome = await piSessionSetActiveTools(existing.sessionId, loadout.activeToolNames);
+        if (outcome.ok) existing.activeToolNames = loadout.activeToolNames;
+        else console.error("同步活跃工具集失败:", outcome.error);
+      }
       await piSessionSetSystemPrompt(existing.sessionId, options.systemPrompt);
       return existing.sessionId;
     }
@@ -142,10 +167,17 @@ class PiChatSessionManager {
     await Promise.all([...this.sessions.keys()].map(key => this.disposeByKey(key)));
   }
 
-  private async createSession(key: string, options: EnsureChatSessionOptions): Promise<string> {
+  private async createSession(
+    key: string,
+    options: EnsureChatSessionOptions,
+    prebuilt?: ChatToolLoadout,
+    lifecycle?: { dispose?: boolean }
+  ): Promise<string> {
+    if (lifecycle?.dispose) await this.disposeByKey(key);
     initPiToolBridge();
     const sessionId = crypto.randomUUID();
-    const customTools = buildToolSpecs(options);
+    const loadout = prebuilt ?? buildToolLoadout(options);
+    const customTools = loadout.specs;
     const outcome = await piSessionCreate(sessionId, {
       // scope 用会话键（`<scope前缀>:<chatId>`）：渲染层重载后 find-by-scope 靠它收养会话
       scope: key,
@@ -154,7 +186,7 @@ class PiChatSessionManager {
       systemPrompt: options.systemPrompt,
       interactive: true,
       ...(options.persist === false ? { persist: false } : {}),
-      ...(customTools.length > 0 ? { customTools } : {}),
+      ...(customTools.length > 0 ? { customTools, activeToolNames: loadout.activeToolNames } : {}),
       ...(options.thinkingLevel ? { thinkingLevel: options.thinkingLevel } : {}),
       ...(options.history.length > 0 ? { initialMessages: options.history } : {}),
     });
@@ -169,37 +201,67 @@ class PiChatSessionManager {
       sessionId,
       providerId: options.provider.id,
       modelId: options.model.id,
+      toolUniverse: loadout.universe,
+      activeToolNames: loadout.activeToolNames,
       ...(options.thinkingLevel ? { thinkingLevel: options.thinkingLevel } : {}),
     });
     return sessionId;
   }
 }
 
-/** 组装 pi customTools 清单：注册表（含 scoped，含 skill 工具）+ 额外工具覆盖同名 */
-function buildToolSpecs(options: EnsureChatSessionOptions): PiHostToolSpec[] {
+/** 工具装配结果：specs = 交 pi 注册的全集（含停用项），activeToolNames = 本轮活跃子集 */
+export interface ChatToolLoadout {
+  specs: PiHostToolSpec[];
+  activeToolNames: string[];
+  /** 全集指纹：只有它变化才需要重建会话（pi 注册表装配后不可追加定义） */
+  universe: string;
+}
+
+/**
+ * 组装 pi 工具清单：注册表（含 scoped/skill/停用项）+ 额外工具覆盖同名。
+ * **按名字排序**——工具定义渲染在请求最前，顺序变化会整条作废提示缓存，而注册表顺序
+ * 取决于各 MCP 服务器异步连接完成的先后，必须在这里定死。
+ */
+function buildToolLoadout(options: EnsureChatSessionOptions): ChatToolLoadout {
   const registryTools = getToolRegistryAgentTools({
     includeBuiltinSkillTools: true,
+    includeDisabled: true,
     ...(options.toolScope ? { toolScope: options.toolScope } : {}),
   });
   const additional = options.additionalTools ?? [];
   const additionalNames = new Set(additional.map(tool => tool.function.name));
-  const specs: PiHostToolSpec[] = registryTools
+  const entries: Array<{ enabled: boolean; spec: PiHostToolSpec }> = registryTools
     .filter(tool => !additionalNames.has(tool.name))
     .map(tool => ({
-      name: tool.name,
-      description: tool.description,
-      parameters: tool.parameters as Record<string, unknown>,
-      risk: tool.risk ?? "read",
-      source: tool.source,
+      enabled: tool.enabled,
+      spec: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters as Record<string, unknown>,
+        risk: tool.risk ?? "read",
+        source: tool.source,
+      },
     }));
   for (const tool of additional) {
-    specs.push({
-      name: tool.function.name,
-      description: tool.function.description,
-      parameters: tool.function.parameters,
+    entries.push({
+      enabled: true,
+      spec: {
+        name: tool.function.name,
+        description: tool.function.description,
+        parameters: tool.function.parameters,
+      },
     });
   }
-  return specs;
+  entries.sort((a, b) => (a.spec.name < b.spec.name ? -1 : a.spec.name > b.spec.name ? 1 : 0));
+  const specs = entries.map(entry => entry.spec);
+  return {
+    specs,
+    activeToolNames: entries.filter(entry => entry.enabled).map(entry => entry.spec.name),
+    // 描述与参数也进指纹：schema 变了（MCP 服务器升级）同样得重建
+    universe: specs
+      .map(spec => `${spec.name}\u0001${spec.description}\u0001${JSON.stringify(spec.parameters)}`)
+      .join("\u0000"),
+  };
 }
 
 /** 桌面图片块 → pi ImageContent（dataURL 解析；http/base64 原样交主进程处理） */

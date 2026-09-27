@@ -83,7 +83,10 @@ export interface PiSessionCreateRequestV2 {
   systemPrompt?: string;
   persist?: boolean;
   shellPath?: string;
+  /** 交 pi 注册的工具全集（含当前停用项），按名字排序 */
   customTools?: PiHostToolSpec[];
+  /** 其中本轮活跃的桥接工具名；缺省时全部活跃 */
+  activeToolNames?: string[];
   thinkingLevel?: PiThinkingLevel;
   /** 历史灌入（桌面 chat-core 消息；system/tool 消息由主进程转换器忽略） */
   initialMessages?: RequestMessage[];

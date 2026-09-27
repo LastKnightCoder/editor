@@ -216,5 +216,8 @@ function buildToolSpecs(options: PiAgentRunOptions): PiHostToolSpec[] {
       parameters: tool.function.parameters,
     });
   }
+  // 按名字排序：工具定义渲染在请求最前，注册表顺序（MCP 异步连接先后）会让同类
+  // 一次性调用之间反复丢提示缓存
+  specs.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   return specs;
 }
