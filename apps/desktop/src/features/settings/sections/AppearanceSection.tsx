@@ -19,7 +19,7 @@ import type { CSSProperties, ReactNode } from "react";
 import {
   DEFAULT_THEME_KEY,
   getTheme,
-  getThemeRegistry,
+  listThemes,
   type SemanticTokens,
   type ThemeDefinition,
 } from "@tau/ui/theme";
@@ -65,7 +65,7 @@ export function AppearanceSection() {
   const setTheme = useThemeStore(s => s.setTheme);
   const setAppearance = useThemeStore(s => s.setAppearance);
   const currentTheme = getTheme(themeKey) ?? getTheme(DEFAULT_THEME_KEY)!;
-  const themes = [...getThemeRegistry().values()];
+  const themes = listThemes();
 
   /* 系统字体清单：一次性查询（staleTime Infinity，不随窗口聚焦重拉） */
   const { data: fonts } = useQuery({

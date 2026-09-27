@@ -5,5 +5,5 @@ import "./themes/paper.theme";
 import "./themes/ocean.theme";
 import "./themes/mint.theme";
 import "./themes/wisteria.theme";
-import "./themes/graphite.theme";
+import "./themes/sakura.theme";
 import "./themes/ink.theme";
