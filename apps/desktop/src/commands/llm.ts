@@ -22,15 +22,3 @@ export const chat = async (
 ): Promise<ChatCompletionResult> => {
   return await invoke("chat-openai", apiKey, baseUrl, model, messages, options);
 };
-
-export const chatResponses = async (
-  apiKey: string,
-  baseUrl: string,
-  model: string,
-  messages: RequestMessage[],
-  options?: {
-    tools?: ToolFunctionSchema[];
-  }
-): Promise<ChatCompletionResult> => {
-  return await invoke("chat-openai-responses", apiKey, baseUrl, model, messages, options);
-};

@@ -266,18 +266,6 @@ export {
   type RemoteVideoCacheProgress,
 } from "./hooks/useRemoteVideo";
 
-export type {
-  ChatSessionCore,
-  ChatModelCore,
-  ChatModelFeaturesCore,
-  ChatProviderCore,
-} from "./chat-core/types";
-export type {
-  ChatRuntimeAdapter,
-  ChatRuntimeSettings,
-  ChatRuntimeCallbacks,
-  ChatRuntimeStream,
-} from "./chat-core/runtime";
 export {
   default as ChatContainerCore,
   type ChatContainerCoreProps,
