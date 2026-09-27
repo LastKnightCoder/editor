@@ -610,6 +610,8 @@
 - 评审追记（2026-09-26）：列表页与编辑页都改为「一整张纸」（同微信读书），纸内卡片细描边不叠阴影；编辑页文件树是纸内透明左栏、开关在面包屑，SKILL.md 头部改为文档式（大标题 + 「AI 看到的描述」描边块，不用米灰填充）；编辑页原「默认仅手动」开关与卡片开关语义冲突，改为与卡片 / 抽屉同一份状态的「自动 / 仅手动 / 停用」分段（front-matter 的 `disable-model-invocation` 只在源码视图改）；源码视图用 CodeMirror 5 语法高亮（配色取主题 token），代码框撑满剩余高度、框内 FadeScroll 滚动。
 - 退役：`pages/SkillManagement`（index / CreateSkillModal / SkillDetailModal）、`TabType.SkillManagement` 的 TabContent 分支、`LEGACY_PAGES.skills` 占位。
 
+- pi 迁移追记（2026-09-27，M3-a）：上述权限语义保留，旧 agent policies 与渲染端审批 resolver 退役。统一在主进程包装 pi 原生 `beforeToolCall`，先执行 pi 扩展钩子，再按最终参数审批；原生 signal 用于中止挂起。待审批请求与会话授权归 pi 宿主，渲染端只消费带版本快照，切页不清理、重载可收养；恢复续流监听就绪后才开放审批按钮。内置文件写入、shell、Skill 脚本与外部 MCP 接入同一入口，外部 MCP 默认按 execute 审批；交互场景已有内容审阅卡免除重复审批，无交互界面的入口需要确认时直接拒绝。授权按 pi 会话实例 + 工具名记忆，仅当前进程有效，真正重建会话时重置；渲染层重载不重建同模型宿主。主进程重启后的完整 JSONL 恢复留 M4。
+
 ## D-061 日程页当日时间线改为非模态抽屉
 
 - 背景：日程页第一版（方案 C 月刊）为对开两栏，右栏 360px 当日时间线全高贴纸右缘、宽度动画收起。用户在番茄 / 待办 / 闪卡相继把常驻右栏改为 Drawer 后，要求日程页同样处理。

@@ -8,6 +8,7 @@ import { onPiToolCall, piSessionToolError, piSessionToolResult } from "@/command
 import toolRegistry, { ensureToolingReady } from "@/tools";
 import type { MessageContent, ToolCallPayload } from "@/types";
 import type { PiHostToolCallResult, PiToolCallPayload } from "@/types/pi-session";
+import { initToolApprovals } from "./tool-permission/approvalStore";
 
 /** 会话级执行器（一次性会话的 additionalTools 路由）：返回 null 表示未接管，落回 ToolRegistry */
 export type PiToolCallExecutor = (
@@ -68,6 +69,7 @@ let initialized = false;
 export function initPiToolBridge(): void {
   if (initialized) return;
   initialized = true;
+  initToolApprovals();
   ensureToolingReady();
 
   onPiToolCall(payload => {

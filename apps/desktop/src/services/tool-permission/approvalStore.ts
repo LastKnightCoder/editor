@@ -1,96 +1,60 @@
 /**
- * 工具确认队列：agent 策略在执行前挂起一个待确认项，对话里的工具行渲染确认条并回填决定。
- * 「本会话始终允许」按会话（conversationKey）+ 工具名记忆，只存内存、重启即失效。
+ * 主进程审批快照的只读投影；等待与会话授权均由 pi 宿主持有。
  */
 
 import { create } from "zustand";
-import type { AgentToolAuthorizationDecision } from "@tau/agent";
-import { createAbortError } from "@tau/agent";
-import type { ToolRisk } from "@/types/tool";
-
-export type ToolApprovalChoice = "allow" | "allow-session" | "deny";
-
-export interface PendingToolApproval {
-  toolCallId: string;
-  toolName: string;
-  risk: ToolRisk;
-  input: string;
-  conversationKey?: string;
-  requestedAt: number;
-}
+import type {
+  PiToolApprovalChoice,
+  PiToolApprovalRequest,
+  PiToolApprovalSnapshot,
+} from "@/types/pi-session";
+import { onPiToolApprovals, piSessionApprovals, piSessionApproveTool } from "@/commands/piSession";
 
 interface State {
-  pending: Record<string, PendingToolApproval>;
-  /** conversationKey → 已「本会话始终允许」的工具名 */
-  sessionAllowed: Record<string, string[]>;
+  sessions: Record<string, PiToolApprovalSnapshot>;
+  readySessions: Record<string, boolean>;
 }
 
-const resolvers = new Map<string, (decision: AgentToolAuthorizationDecision) => void>();
-
-const GLOBAL_SESSION = "__global__";
-
 export const useToolApprovalStore = create<State>(() => ({
-  pending: {},
-  sessionAllowed: {},
+  sessions: {},
+  readySessions: {},
 }));
 
-export const isSessionAllowed = (conversationKey: string | undefined, toolName: string): boolean =>
-  (
-    useToolApprovalStore.getState().sessionAllowed[conversationKey ?? GLOBAL_SESSION] ?? []
-  ).includes(toolName);
+/** 先接好归约订阅再允许提交，避免恢复期间审批先于续流监听。 */
+export const setApprovalSessionReady = (sessionId: string, ready: boolean): void => {
+  useToolApprovalStore.setState(state => ({
+    readySessions: { ...state.readySessions, [sessionId]: ready },
+  }));
+};
 
-const removePending = (toolCallId: string) => {
-  resolvers.delete(toolCallId);
+export const receiveToolApprovals = (snapshot: PiToolApprovalSnapshot): void => {
   useToolApprovalStore.setState(state => {
-    const { [toolCallId]: _removed, ...rest } = state.pending;
-    return { pending: rest };
+    if ((state.sessions[snapshot.sessionId]?.revision ?? -1) >= snapshot.revision) return state;
+    return { sessions: { ...state.sessions, [snapshot.sessionId]: snapshot } };
   });
 };
 
-/** 挂起一次确认；signal 中止时以 AbortError 拒绝（agent 据此结束整轮） */
-export const requestToolApproval = (
-  request: Omit<PendingToolApproval, "requestedAt">,
-  signal?: AbortSignal
-): Promise<AgentToolAuthorizationDecision> =>
-  new Promise((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(createAbortError());
-      return;
-    }
-    const onAbort = () => {
-      removePending(request.toolCallId);
-      reject(createAbortError());
-    };
-    signal?.addEventListener("abort", onAbort, { once: true });
-    resolvers.set(request.toolCallId, decision => {
-      signal?.removeEventListener("abort", onAbort);
-      resolve(decision);
-    });
-    useToolApprovalStore.setState(state => ({
-      pending: { ...state.pending, [request.toolCallId]: { ...request, requestedAt: Date.now() } },
-    }));
-  });
+export const refreshToolApprovals = async (): Promise<void> => {
+  const result = await piSessionApprovals();
+  if (!result.ok) throw new Error(result.error ?? "读取工具审批失败");
+  result.snapshots.forEach(receiveToolApprovals);
+};
 
-export const decideToolApproval = (
-  toolCallId: string,
-  choice: ToolApprovalChoice,
-  reason?: string
-) => {
-  const item = useToolApprovalStore.getState().pending[toolCallId];
-  const resolve = resolvers.get(toolCallId);
-  if (!item || !resolve) return;
-  if (choice === "allow-session") {
-    const key = item.conversationKey ?? GLOBAL_SESSION;
-    useToolApprovalStore.setState(state => ({
-      sessionAllowed: {
-        ...state.sessionAllowed,
-        [key]: Array.from(new Set([...(state.sessionAllowed[key] ?? []), item.toolName])),
-      },
-    }));
+let initialized = false;
+export const initToolApprovals = (): void => {
+  if (initialized) return;
+  initialized = true;
+  onPiToolApprovals(receiveToolApprovals);
+  void refreshToolApprovals().catch(error => console.error("恢复工具审批失败:", error));
+};
+
+export const decideToolApproval = async (
+  request: PiToolApprovalRequest,
+  choice: PiToolApprovalChoice
+): Promise<void> => {
+  const result = await piSessionApproveTool(request.sessionId, request.requestId, choice);
+  if (!result.ok) {
+    await refreshToolApprovals();
+    throw new Error(result.error ?? "提交工具审批失败");
   }
-  removePending(toolCallId);
-  resolve(choice === "deny" ? { approved: false, reason } : { approved: true });
 };
-
-/** 是否有仍在等待的确认（重启后遗留的 awaiting-approval 执行没有活的等待项） */
-export const hasLiveApproval = (toolCallId: string) => resolvers.has(toolCallId);

@@ -4,12 +4,35 @@
  */
 import type { RequestMessage } from "@/types";
 import type { PiThinkingLevel } from "./pi-llm";
+import type { ToolRisk } from "./tool";
 
 /** 桌面工具清单项（渲染端 ToolRegistry 序列化）：JSON Schema 直通 pi */
 export interface PiHostToolSpec {
   name: string;
   description: string;
   parameters: Record<string, unknown>;
+  risk?: ToolRisk;
+  /** 内容编辑工具已自带确认应用卡，交互会话中不再重复审批。 */
+  source?: string;
+}
+
+export type PiToolApprovalChoice = "allow" | "allow-session" | "deny";
+
+export interface PiToolApprovalRequest {
+  requestId: string;
+  sessionId: string;
+  toolCallId: string;
+  toolName: string;
+  risk: ToolRisk;
+  input: string;
+  requestedAt: number;
+}
+
+/** 主进程会话内递增版本，防止恢复查询覆盖较新的事件快照。 */
+export interface PiToolApprovalSnapshot {
+  sessionId: string;
+  revision: number;
+  pending: PiToolApprovalRequest[];
 }
 
 /** 渲染端执行结果（toolRegistry ToolExecutionResult 的桥形状） */
@@ -51,4 +74,6 @@ export interface PiSessionCreateRequestV2 {
   /** 历史灌入（桌面 chat-core 消息；system/tool 消息由主进程转换器忽略） */
   initialMessages?: RequestMessage[];
   retryMaxRetries?: number;
+  /** 只有能展示工具审批条的入口显式开启，其余入口需审批时直接拒绝。 */
+  interactiveApprovals?: boolean;
 }

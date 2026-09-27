@@ -9,6 +9,9 @@ import ChatInputArea, { type ChatInputAreaHandle } from "../ChatInputArea";
 import { ChatInputArea as SharedChatInputArea } from "@tau/shared";
 
 const uploadFileMock = vi.hoisted(() => vi.fn(async (file: File) => `/saved/${file.name}`));
+const copyFileToLocalMock = vi.hoisted(() => vi.fn(async (file: File) => `/local/${file.name}`));
+
+vi.mock("@/utils", () => ({ copyFileToLocal: copyFileToLocalMock }));
 
 vi.mock("@/hooks/useUploadResource", () => ({ default: () => uploadFileMock }));
 
@@ -177,6 +180,7 @@ const renderChatInputArea = async (ref: React.RefObject<ChatInputAreaHandle | nu
 describe("桌面端 ChatInputArea Editor 输入", () => {
   afterEach(async () => {
     uploadFileMock.mockClear();
+    copyFileToLocalMock.mockClear();
     capturedHotkeyConfigs = [];
     wrapContentLinkMock.mockReset();
     insertTextMock.mockReset();
@@ -228,7 +232,7 @@ describe("桌面端 ChatInputArea Editor 输入", () => {
       });
       for (const [accept, name, type] of [
         ["image/png, image/jpeg, image/webp", "image.png", "image/png"],
-        ["application/pdf", "document.pdf", "application/pdf"],
+        [variant === "desktop" ? "*/*" : "application/pdf", "document.pdf", "application/pdf"],
       ]) {
         const input = container.querySelector<HTMLInputElement>(
           `input[type="file"][accept="${accept}"]`
@@ -246,7 +250,9 @@ describe("桌面端 ChatInputArea Editor 输入", () => {
           expect(ref.current?.getValue()).toEqual(
             expect.arrayContaining([
               expect.objectContaining(
-                type === "image/png" ? { path: `/saved/${name}` } : { file: `/saved/${name}` }
+                type === "image/png"
+                  ? { path: `/saved/${name}` }
+                  : { file: `/${variant === "desktop" ? "local" : "saved"}/${name}` }
               ),
             ])
           );
@@ -254,9 +260,14 @@ describe("桌面端 ChatInputArea Editor 输入", () => {
       }
       expect(ref.current?.getValue()).toEqual([
         { type: "image", image: "file:///saved/image.png", path: "/saved/image.png" },
-        { type: "file", file: "/saved/document.pdf", fileName: "document.pdf" },
+        {
+          type: "file",
+          file: `/${variant === "desktop" ? "local" : "saved"}/document.pdf`,
+          fileName: "document.pdf",
+        },
       ]);
-      expect(uploadFileMock).toHaveBeenCalledTimes(2);
+      expect(uploadFileMock).toHaveBeenCalledTimes(variant === "desktop" ? 1 : 2);
+      expect(copyFileToLocalMock).toHaveBeenCalledTimes(variant === "desktop" ? 1 : 0);
       await act(async () => ref.current?.clear());
       expect(ref.current?.getValue()).toEqual([]);
     }

@@ -10,7 +10,7 @@ import React, {
 import { produce } from "immer";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { useDrop } from "react-dnd";
-import { RotateCw, TriangleAlert } from "lucide-react";
+import { Pencil, RotateCw, Trash2, TriangleAlert } from "lucide-react";
 
 import ChatInputArea from "@/components/ChatInputArea";
 import type { ChatInputAreaHandle } from "@/components/ChatInputArea";
@@ -33,6 +33,7 @@ import {
   buildSessionAwareSystemPrompt,
 } from "@/constants";
 import { piCompleteChat, toPiThinking } from "@/services/piLLM";
+import { remoteResourceToLocal } from "@/utils/resouce";
 import { buildPiChatSystemPrompt, piChatSessionManager } from "@/services/piChatSession";
 import { piChatRuntime, type PiChatRuntimeDeps } from "@/services/piChatRuntime";
 import {
@@ -122,6 +123,8 @@ interface ChatContainerProps {
   createMessageLoading: boolean;
   hideInput?: boolean; // 控制是否隐藏输入框
   chatScope?: string; // 对话作用域，用于构建 ask-question 会话键
+  /** 当前页面实例的运行时会话键；新对话在落库前使用独立键，避免共享 id=0 哨兵。 */
+  runtimeKey?: string;
   /** 工具作用域：只有本对话能用该作用域注册的页面专属工具，输入框 MCP 面板也只列它们 */
   toolScope?: string;
   preserveScrollPosition?: boolean; // 侧边栏收起后重新打开时恢复滚动位置
@@ -212,6 +215,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       createMessageLoading,
       hideInput = false,
       chatScope = "main-chat",
+      runtimeKey,
       toolScope,
       preserveScrollPosition = false,
       scrollPositionScope,
@@ -230,7 +234,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const { provider: chatProviderConfig, model: chatModelConfig } = useLLMConfig("chat");
     const { provider: titleProviderConfig, model: titleModelConfig } = useLLMConfig("titleSummary");
 
-    const sessionKey = `${chatScope.split(":")[0]}:${currentChat.id}`;
+    const persistedRuntimeKey = `${chatScope.split(":")[0]}:${currentChat.id}`;
+    const sessionKey = runtimeKey ?? persistedRuntimeKey;
     const [pendingSessionKeys, setPendingSessionKeys] = useState<Set<string>>(() => new Set());
     const setSessionPending = useMemoizedFn((key: string, pending: boolean) => {
       setPendingSessionKeys(current => {
@@ -350,7 +355,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     // deps 每次渲染刷新（均为无组件生命周期的引用：store action / IPC command / 安全闭包）
     const runtimeDeps: PiChatRuntimeDeps = {
       publish: updateCurrentChat,
-      persist: async chat => persistFinishedChatAndGenerateTitle(chat),
+      persist: chat => updateChatMessage(chat),
+      generateTitle: chat => generateChatTitle(chat),
       ui: {
         onRetryStatus: status =>
           setChatRetryStatus(
@@ -359,7 +365,13 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         onStreamError: errorMessage => setChatError(errorMessage),
         onSettled: key => {
           setSessionPending(key, false);
+          setQueueDrainRevision(revision => revision + 1);
           setChatError(null);
+        },
+        onTitleGenerated: (chatId, title) => {
+          if (displayedChatIdRef.current === chatId) {
+            titleRef.current?.setValue(title);
+          }
         },
       },
       ...(chatProviderConfig && chatModelConfig
@@ -372,23 +384,32 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         : {}),
     };
     const actualChatRef = piChatRuntime.ensureConversation(sessionKey, currentChat, runtimeDeps);
+    useEffect(() => {
+      void piChatRuntime
+        .restorePendingApprovals(sessionKey, chatScope, currentChat.id)
+        .catch(error => console.error("恢复工具审批会话失败:", error));
+    }, [sessionKey, chatScope, currentChat.id]);
 
     // 强制更新计数器，用于触发visibleMessages重新计算
     const [updateCounter, setUpdateCounter] = useState(0);
 
-    // 聊天上传以 pi 为准：仅文本与图片；文件由模型用 read 工具读取
+    // 聊天上传以 pi 为准：文本、图片与文件；文件由模型用 read 工具读取
     const supportImage = chatModelConfig?.input.includes("image") ?? false;
-    const supportFile = false;
+    const supportFile = true;
 
     const displayedChatIdRef = useRef(currentChat.id);
     const messageQueueRef = useRef(new ConversationMessageQueue<MessageContentItem[]>());
-    const queueConversationKeyRef = useRef(`${chatScope}:${currentChat.id}`);
+    const queueConversationKeyRef = useRef(runtimeKey ?? `${chatScope}:${currentChat.id}`);
     const queueDrainInProgressRef = useRef(false);
     const [queueConversationKey, setQueueConversationKey] = useState(
       queueConversationKeyRef.current
     );
     const [queuedMessageCount, setQueuedMessageCount] = useState(0);
     const [queueDrainRevision, setQueueDrainRevision] = useState(0);
+    const queuedMessages = useMemo(
+      () => messageQueueRef.current.list(queueConversationKey),
+      [queueConversationKey, queueDrainRevision, queuedMessageCount]
+    );
     const activeAssistantTurnIdRef = useRef<string | null>(null);
     const resumingAskQuestionRef = useRef<Set<string>>(new Set());
     const hasRestoredScrollPositionRef = useRef(false);
@@ -410,7 +431,48 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       }
     });
 
-    const getQueueConversationKey = useMemoizedFn((chatId: number) => `${chatScope}:${chatId}`);
+    const enqueueQueuedMessage = useMemoizedFn(
+      (conversationKey: string, content: MessageContentItem[]) => {
+        const count = messageQueueRef.current.enqueue(conversationKey, content);
+        if (queueConversationKeyRef.current === conversationKey) {
+          setQueuedMessageCount(count);
+          setQueueDrainRevision(revision => revision + 1);
+        }
+        return count;
+      }
+    );
+
+    const queuedMessageText = useMemoizedFn((content: MessageContentItem[]) =>
+      content
+        .map(item =>
+          item.type === "text"
+            ? item.text
+            : item.type === "file"
+              ? `[文件：${item.fileName ?? item.file}]`
+              : "[图片]"
+        )
+        .join("\n")
+    );
+
+    const editQueuedMessage = useMemoizedFn((index: number) => {
+      const content = messageQueueRef.current.list(queueConversationKey)[index];
+      if (!content) return;
+      messageQueueRef.current.removeAt(queueConversationKey, index);
+      setQueuedMessageCount(messageQueueRef.current.size(queueConversationKey));
+      setQueueDrainRevision(revision => revision + 1);
+      editTextRef.current?.setValue(queuedMessageText(content));
+      editTextRef.current?.focusEnd();
+    });
+
+    const removeQueuedMessage = useMemoizedFn((index: number) => {
+      messageQueueRef.current.removeAt(queueConversationKey, index);
+      setQueuedMessageCount(messageQueueRef.current.size(queueConversationKey));
+      setQueueDrainRevision(revision => revision + 1);
+    });
+
+    const getQueueConversationKey = useMemoizedFn((chatId: number) =>
+      chatId === currentChat.id ? sessionKey : `${chatScope}:${chatId}`
+    );
 
     const getScrollPositionKey = useMemoizedFn((chatId: number) => {
       if (!preserveScrollPosition || chatId === 0) {
@@ -511,11 +573,18 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       });
     });
 
+    // 上次同步到视图的 runtime 容器：容器按 sessionKey 分条目，切换会话时 ensureConversation
+    // 返回的是另一个已用 currentChat 初始化的容器，只比对 id/快照会漏判——必须比对容器身份。
+    // 新对话落库（adoptConversation）容器对象不变，不算切换。
+    const syncedConversationRef = useRef(actualChatRef);
+
     // 当切换聊天或收到同一聊天的外部最新快照时同步 ref
     useEffect(() => {
       displayedChatIdRef.current = currentChat.id;
+      const isDifferentConversation = syncedConversationRef.current !== actualChatRef;
+      syncedConversationRef.current = actualChatRef;
       const actualChat = actualChatRef.current;
-      const isDifferentChat = currentChat.id !== actualChat.id;
+      const isDifferentChat = isDifferentConversation || currentChat.id !== actualChat.id;
       const hasExternalSnapshot = currentChat !== actualChat;
       const nextConversationKey = getQueueConversationKey(currentChat.id);
       const isDifferentQueue = nextConversationKey !== queueConversationKeyRef.current;
@@ -536,7 +605,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       if (isDifferentQueue) {
         activateConversationQueue(nextConversationKey);
       }
-    }, [activateConversationQueue, currentChat, getQueueConversationKey]);
+    }, [activateConversationQueue, actualChatRef, currentChat, getQueueConversationKey]);
 
     useEffect(() => {
       if (hideInput) {
@@ -544,9 +613,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       }
     }, [hideInput]);
 
-    const getConversationKey = useMemoizedFn((chatId: number) => {
-      return `${chatScope.split(":")[0]}:${chatId}`;
-    });
+    const getConversationKey = useMemoizedFn((chatId: number) =>
+      chatId === currentChat.id ? sessionKey : `${chatScope.split(":")[0]}:${chatId}`
+    );
 
     const buildSystemMessageWithRequest = useMemoizedFn((chat: ChatMessage) => {
       const defaultSystemPromptForSend = customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
@@ -578,74 +647,46 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       ) => buildFullHistoryMessages(chat, options)
     );
 
-    const persistFinishedChatAndGenerateTitle = useMemoizedFn(async (finishedChat: ChatMessage) => {
-      const updatedChatMessage = await updateChatMessage(finishedChat);
-      updateCurrentChat(updatedChatMessage);
-      if (displayedChatIdRef.current === updatedChatMessage.id) {
-        actualChatRef.current = updatedChatMessage;
-        setUpdateCounter(prev => prev + 1);
-        scrollToBottom();
+    /** 标题生成（纯计算，不写聊天行）：回写与落库由 piChatRuntime 在最新快照上补丁完成 */
+    const generateChatTitle = useMemoizedFn(async (chat: ChatMessage): Promise<string | null> => {
+      if (
+        !ENABLE_TITLE_SUMMARY ||
+        !titleProviderConfig ||
+        !titleModelConfig ||
+        !shouldGenerateChatTitle(chat, true)
+      ) {
+        return null;
       }
 
-      try {
-        if (
-          ENABLE_TITLE_SUMMARY &&
-          shouldGenerateChatTitle(
-            updatedChatMessage,
-            Boolean(titleProviderConfig && titleModelConfig)
-          )
-        ) {
-          if (!titleProviderConfig || !titleModelConfig) {
-            return updatedChatMessage;
-          }
+      const titleMessages = buildTitleSummaryMessages(chat);
+      if (titleMessages.length === 0) {
+        return null;
+      }
 
-          const titleMessages = buildTitleSummaryMessages(updatedChatMessage);
-          if (titleMessages.length === 0) {
-            return updatedChatMessage;
-          }
-
-          const titleResult = await piCompleteChat({
-            provider: titleProviderConfig,
-            model: titleModelConfig,
-            messages: [
+      const titleResult = await piCompleteChat({
+        provider: titleProviderConfig,
+        model: titleModelConfig,
+        messages: [
+          {
+            role: Role.System,
+            content: [{ type: "text", text: SUMMARY_TITLE_PROMPT }],
+          },
+          ...titleMessages,
+          {
+            role: Role.User,
+            content: [
               {
-                role: Role.System,
-                content: [{ type: "text", text: SUMMARY_TITLE_PROMPT }],
-              },
-              ...titleMessages,
-              {
-                role: Role.User,
-                content: [
-                  {
-                    type: "text",
-                    text: "请根据以上对话内容生成一个简洁的标题",
-                  },
-                ],
+                type: "text",
+                text: "请根据以上对话内容生成一个简洁的标题",
               },
             ],
-          });
-          if (titleResult.ok && !titleResult.aborted) {
-            const nextTitle = titleResult.text ? formatGeneratedChatTitle(titleResult.text) : "";
-            if (nextTitle) {
-              const updateChat = produce(updatedChatMessage, draft => {
-                draft.title = nextTitle;
-                draft.titleDirty = true;
-              });
-              const saved = await updateChatMessage(updateChat);
-              updateCurrentChat(saved);
-              if (displayedChatIdRef.current === saved.id) {
-                actualChatRef.current = saved;
-                setUpdateCounter(prev => prev + 1);
-                titleRef.current?.setValue(nextTitle);
-              }
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Failed to generate title:", e);
+          },
+        ],
+      });
+      if (!titleResult.ok || titleResult.aborted || !titleResult.text) {
+        return null;
       }
-
-      return updatedChatMessage;
+      return formatGeneratedChatTitle(titleResult.text) || null;
     });
 
     // 抽离的公共方法：处理消息发送逻辑（pi 会话驱动）
@@ -689,7 +730,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         // 如果当前没有真实的对话（id为0），则先创建一个新对话
         if (shouldCreateNewChat && actualCurrentChat.id === 0) {
           const provisionalConversationKey = queueConversationKeyRef.current;
-          const runtimeConversationKey = getConversationKey(0);
+          const runtimeConversationKey = sessionKey;
           try {
             const defaultSystemPrompt = customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
             const systemContent =
@@ -801,10 +842,20 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           const contentItems = Array.isArray(requestMessage.content)
             ? requestMessage.content
             : [{ type: "text" as const, text: requestMessage.content as string }];
-          const promptText = contentItems
-            .filter(item => item.type === "text")
-            .map(item => item.text)
-            .join("\n");
+          const fileReferences = await Promise.all(
+            contentItems
+              .filter(item => item.type === "file")
+              .map(async item => {
+                const localPath = /^https?:\/\//i.test(item.file)
+                  ? await remoteResourceToLocal(item.file, item.fileName)
+                  : item.file;
+                return `[文件：${item.fileName ?? item.file}]\n路径：${localPath}\n请使用 pi 的 read 工具读取该文件。`;
+              })
+          );
+          const promptText = [
+            ...contentItems.filter(item => item.type === "text").map(item => item.text),
+            ...fileReferences,
+          ].join("\n");
           // 图片只传定位信息（image 字段是 protocol URL，path 才是真实路径），主进程读文件转 base64
           const images = supportImage
             ? contentItems
@@ -877,7 +928,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             Boolean(record.submittedAnswers)
         )
         .sort((a, b) => a.updatedAt - b.updatedAt);
-    }, [askQuestionRecords, getConversationKey, updateCounter]);
+    }, [actualChatRef, askQuestionRecords, getConversationKey, updateCounter]);
 
     useEffect(() => {
       if (hideInput || sendLoading) {
@@ -1000,7 +1051,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
     const visibleMessages = useMemo(() => {
       return actualChatRef.current.messages.filter(message => message.role !== Role.System);
-    }, [updateCounter]);
+    }, [actualChatRef, updateCounter]);
 
     const contextUsage = useMemo(() => {
       for (let index = actualChatRef.current.messages.length - 1; index >= 0; index -= 1) {
@@ -1018,7 +1069,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         return matchesCurrentModel ? usage : null;
       }
       return null;
-    }, [chatModelConfig?.name, chatProviderConfig?.id, updateCounter]);
+    }, [actualChatRef, chatModelConfig?.name, chatProviderConfig?.id, updateCounter]);
 
     const lastUserMessageIndex = useMemo(
       () => getLastUserMessageIndex(visibleMessages),
@@ -1248,12 +1299,12 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       async (content: MessageContentItem[]): Promise<boolean> => {
         const conversationKey = queueConversationKeyRef.current;
         if (sendLoading) {
-          setQueuedMessageCount(messageQueueRef.current.enqueue(conversationKey, content));
+          enqueueQueuedMessage(conversationKey, content);
           return true;
         }
 
         if (conversationKey !== getQueueConversationKey(actualChatRef.current.id)) {
-          setQueuedMessageCount(messageQueueRef.current.enqueue(conversationKey, content));
+          enqueueQueuedMessage(conversationKey, content);
           return true;
         }
 
@@ -1265,6 +1316,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           const queueSize = messageQueueRef.current.enqueue(conversationKey, content);
           if (queueConversationKeyRef.current === conversationKey) {
             setQueuedMessageCount(queueSize);
+            setQueueDrainRevision(revision => revision + 1);
           }
           return true;
         }
@@ -1291,6 +1343,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         ) {
           const nextMessage = messageQueueRef.current.dequeue(conversationKey);
           setQueuedMessageCount(messageQueueRef.current.size(conversationKey));
+          setQueueDrainRevision(revision => revision + 1);
           if (!nextMessage) {
             return;
           }
@@ -1303,6 +1356,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             const queueSize = messageQueueRef.current.prepend(conversationKey, nextMessage);
             if (queueConversationKeyRef.current === conversationKey) {
               setQueuedMessageCount(queueSize);
+              setQueueDrainRevision(revision => revision + 1);
             }
             return;
           }
@@ -1569,6 +1623,41 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               >
                 {column(
                   <>
+                    {queuedMessages.length > 0 ? (
+                      <div className="mb-2 space-y-1.5" aria-label="待发送消息">
+                        <div className="text-tau-meta text-ink-3 px-1">
+                          待发送 · {queuedMessages.length}
+                        </div>
+                        {queuedMessages.map((content, index) => (
+                          <div
+                            key={`queued-${index}`}
+                            className="bg-accent-soft border-line-1 rounded-tau-md flex items-start gap-2 border px-3 py-2"
+                          >
+                            <div className="text-tau-sm text-ink-1 min-w-0 flex-1 whitespace-pre-wrap break-words">
+                              {queuedMessageText(content) || "（附件消息）"}
+                            </div>
+                            <div className="flex shrink-0 items-center gap-0.5">
+                              <button
+                                type="button"
+                                aria-label="编辑待发送消息"
+                                className="text-ink-3 hover:bg-hover rounded p-1"
+                                onClick={() => editQueuedMessage(index)}
+                              >
+                                <Pencil size={13} strokeWidth={1.75} />
+                              </button>
+                              <button
+                                type="button"
+                                aria-label="删除待发送消息"
+                                className="text-ink-3 hover:bg-hover rounded p-1"
+                                onClick={() => removeQueuedMessage(index)}
+                              >
+                                <Trash2 size={13} strokeWidth={1.75} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
                     {editingDraft || hiddenPromptContext ? (
                       <div className="bg-accent-soft text-tau-sm -mb-2 flex items-center justify-between gap-3 rounded-t-[16px] px-3.5 pb-4 pt-2">
                         <div className="text-accent-text min-w-0">

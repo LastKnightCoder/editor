@@ -22,6 +22,8 @@ interface ChatDropdownSelectorProps {
   /** 对话列表 */
   chats: ChatMessage[];
   currentChat: ChatMessage;
+  /** 新对话页面实例的运行时键，由宿主用于区分未落库会话。 */
+  runtimeKey?: string;
   onChatSelect: (chatId: number) => void;
   onTitleChange: (title: string) => void;
   onChatDelete?: (chatId: number) => void;

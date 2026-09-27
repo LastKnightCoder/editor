@@ -5,7 +5,8 @@
  * turn 粒度 = pi 的一次 assistant message（工具循环内多次 LLM 调用 = 多 turn）。
  */
 import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
-import type { ToolCallPayload, ToolCallExecutionState } from "@/types";
+import type { ToolCallPayload, ToolCallExecutionState, ResponseMessage } from "@/types";
+import type { PiToolApprovalSnapshot } from "@/types/pi-session";
 import type { AgentModelUsage } from "@tau/agent";
 
 export interface PiChatEventSink {
@@ -71,7 +72,44 @@ export class PiChatEventReducer {
   private pendingReasoning: string | null = null;
   private publishTimer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(private readonly sink: PiChatEventSink) {}
+  constructor(
+    private readonly sink: PiChatEventSink,
+    private readonly sessionId?: string
+  ) {}
+
+  /** 重载后沿用落库的 turn 标识，后续工具事件更新原卡片。 */
+  public restoreToolExecutions(message: ResponseMessage): void {
+    for (const block of message.assistant_blocks ?? []) {
+      const counter = /^pi:(\d+)$/.exec(block.turnId);
+      if (counter) globalTurnCounter = Math.max(globalTurnCounter, Number(counter[1]));
+      if (block.type !== "tool_call" || !block.execution) continue;
+      this.executions.set(block.toolCall.id, block.execution);
+      const ids = this.executionsByTurn.get(block.turnId) ?? [];
+      if (!ids.includes(block.toolCall.id)) ids.push(block.toolCall.id);
+      this.executionsByTurn.set(block.turnId, ids);
+    }
+  }
+
+  public applyApprovals(snapshot: PiToolApprovalSnapshot): void {
+    if (snapshot.sessionId !== this.sessionId) return;
+    const pending = new Set(snapshot.pending.map(request => request.toolCallId));
+    for (const [id, execution] of this.executions) {
+      if (!["pending", "executing", "awaiting-approval"].includes(execution.status)) continue;
+      const status = pending.has(id)
+        ? "awaiting-approval"
+        : execution.status === "awaiting-approval"
+          ? "executing"
+          : execution.status;
+      if (status === execution.status && execution.metadata?.piSessionId === this.sessionId)
+        continue;
+      this.executions.set(id, {
+        ...execution,
+        status,
+        metadata: { ...execution.metadata, piSessionId: this.sessionId },
+      });
+      this.publishTurnExecutions(id);
+    }
+  }
 
   /** 当前会话累计的工具执行快照（含历史 turn） */
   public getExecutions(): ToolCallExecutionState[] {
@@ -179,6 +217,19 @@ export class PiChatEventReducer {
         if (thinking) this.sink.applyReasoning(turnId, thinking);
         if (text) this.sink.applyText(turnId, text);
         const hadToolCalls = message.content.some(block => block.type === "toolCall");
+        const toolCalls: ToolCallPayload[] = message.content
+          .filter(block => block.type === "toolCall")
+          .map(block => ({
+            id: block.id as string,
+            function: {
+              name: block.name as string,
+              arguments: JSON.stringify(block.arguments ?? {}),
+            },
+          }));
+        if (toolCalls.length > 0) {
+          this.upsertPendingExecutions(turnId, toolCalls);
+          this.sink.applyToolCalls(turnId, this.turnExecutions(turnId), toolCalls);
+        }
         if (message.usage) {
           this.sink.applyUsage(
             {
@@ -227,6 +278,7 @@ export class PiChatEventReducer {
           toolCallId,
           toolName,
           status: "executing",
+          metadata: { ...existing?.metadata, piSessionId: this.sessionId },
           input: args === undefined ? (existing?.input ?? "") : JSON.stringify(args),
           timestamp: existing?.timestamp ?? Date.now(),
         });
@@ -253,10 +305,11 @@ export class PiChatEventReducer {
           event.result && typeof event.result === "object"
             ? (event.result as { details?: unknown }).details
             : undefined;
-        const metadata =
-          details && typeof details === "object"
-            ? (details as Record<string, unknown>)
-            : execution?.metadata;
+        const metadata = {
+          ...execution?.metadata,
+          ...(details && typeof details === "object" ? (details as Record<string, unknown>) : {}),
+          piSessionId: this.sessionId,
+        };
         const timestamp = execution?.timestamp ?? Date.now();
         this.executions.set(event.toolCallId, {
           toolCallId: event.toolCallId,
@@ -308,6 +361,7 @@ export class PiChatEventReducer {
           toolCallId: call.id,
           toolName: call.function.name,
           status: "pending",
+          metadata: { piSessionId: this.sessionId },
           input: call.function.arguments || "",
           timestamp: Date.now(),
         });

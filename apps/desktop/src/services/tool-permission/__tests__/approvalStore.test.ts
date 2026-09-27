@@ -1,49 +1,74 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   decideToolApproval,
-  hasLiveApproval,
-  isSessionAllowed,
-  requestToolApproval,
+  receiveToolApprovals,
+  refreshToolApprovals,
   useToolApprovalStore,
 } from "../approvalStore";
+import { piSessionApprovals, piSessionApproveTool } from "@/commands/piSession";
+import type { PiToolApprovalRequest } from "@/types/pi-session";
 
-const request = (id: string, conversationKey = "chat:1") => ({
+vi.mock("@/commands/piSession", () => ({
+  onPiToolApprovals: vi.fn(),
+  piSessionApprovals: vi.fn(),
+  piSessionApproveTool: vi.fn(),
+}));
+
+const request = (id: string, sessionId = "session-1"): PiToolApprovalRequest => ({
+  requestId: `${sessionId}/${id}`,
+  sessionId,
   toolCallId: id,
   toolName: "run_skill_script",
-  risk: "execute" as const,
+  risk: "execute",
   input: "{}",
-  conversationKey,
+  requestedAt: 1,
 });
 
-describe("工具确认队列", () => {
-  beforeEach(() => useToolApprovalStore.setState({ pending: {}, sessionAllowed: {} }));
-
-  it("允许 / 拒绝回填决定并清掉等待项", async () => {
-    const allowed = requestToolApproval(request("a"));
-    expect(hasLiveApproval("a")).toBe(true);
-    decideToolApproval("a", "allow");
-    await expect(allowed).resolves.toEqual({ approved: true });
-    expect(useToolApprovalStore.getState().pending.a).toBeUndefined();
-
-    const denied = requestToolApproval(request("b"));
-    decideToolApproval("b", "deny", "不要");
-    await expect(denied).resolves.toEqual({ approved: false, reason: "不要" });
+describe("pi 工具审批投影", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useToolApprovalStore.setState({ sessions: {}, readySessions: {} });
   });
 
-  it("本会话始终允许只作用于同一会话的同一工具", async () => {
-    const p = requestToolApproval(request("c"));
-    decideToolApproval("c", "allow-session");
-    await p;
-    expect(isSessionAllowed("chat:1", "run_skill_script")).toBe(true);
-    expect(isSessionAllowed("chat:2", "run_skill_script")).toBe(false);
-    expect(isSessionAllowed("chat:1", "other_tool")).toBe(false);
+  it("不同会话的同名工具调用不串台", () => {
+    for (const sessionId of ["session-1", "session-2"]) {
+      receiveToolApprovals({ sessionId, revision: 1, pending: [request("call-1", sessionId)] });
+    }
+    receiveToolApprovals({ sessionId: "session-1", revision: 2, pending: [] });
+    expect(useToolApprovalStore.getState().sessions["session-1"].pending).toEqual([]);
+    expect(useToolApprovalStore.getState().sessions["session-2"].pending).toHaveLength(1);
   });
 
-  it("中止时以 AbortError 拒绝", async () => {
-    const controller = new AbortController();
-    const p = requestToolApproval(request("d"), controller.signal);
-    controller.abort();
-    await expect(p).rejects.toMatchObject({ name: "AbortError" });
-    expect(hasLiveApproval("d")).toBe(false);
+  it("重载恢复查询晚于事件返回时不复活旧审批", async () => {
+    vi.mocked(piSessionApprovals).mockResolvedValue({
+      ok: true,
+      snapshots: [{ sessionId: "session-1", revision: 1, pending: [request("a")] }],
+    });
+    const refreshing = refreshToolApprovals();
+    receiveToolApprovals({ sessionId: "session-1", revision: 2, pending: [] });
+    await refreshing;
+    expect(useToolApprovalStore.getState().sessions["session-1"].pending).toEqual([]);
+  });
+
+  it.each(["allow", "allow-session", "deny"] as const)(
+    "%s 只向宿主提交，不乐观伪造授权",
+    async choice => {
+      const item = request("a");
+      receiveToolApprovals({ sessionId: item.sessionId, revision: 1, pending: [item] });
+      vi.mocked(piSessionApproveTool).mockResolvedValue({ ok: true });
+      await decideToolApproval(item, choice);
+      expect(piSessionApproveTool).toHaveBeenCalledWith(item.sessionId, item.requestId, choice);
+      expect(useToolApprovalStore.getState().sessions[item.sessionId].pending).toEqual([item]);
+    }
+  );
+
+  it("过期审批返回可见错误，并同步主进程最新状态", async () => {
+    vi.mocked(piSessionApproveTool).mockResolvedValue({ ok: false, error: "审批已结束" });
+    vi.mocked(piSessionApprovals).mockResolvedValue({
+      ok: true,
+      snapshots: [{ sessionId: "session-1", revision: 2, pending: [] }],
+    });
+    await expect(decideToolApproval(request("a"), "allow")).rejects.toThrow("审批已结束");
+    expect(useToolApprovalStore.getState().sessions["session-1"].pending).toEqual([]);
   });
 });
