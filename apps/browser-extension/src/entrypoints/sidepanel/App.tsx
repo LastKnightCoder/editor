@@ -9,7 +9,6 @@ import { useTheme } from "../../hooks/useTheme";
 import { useSyncFont } from "../../hooks/useSyncFont";
 import { initExtToolServer } from "../../services/extToolServer";
 import { initChatStoreService } from "../../services/chatStoreClient";
-import { runChatMigration } from "../../services/chatMigration";
 import MainLayout from "./components/MainLayout";
 import WelcomePage from "./components/WelcomePage";
 
@@ -37,10 +36,9 @@ export default function App() {
     initExtToolServer();
   }, []);
 
-  // 会话存储统一到桌面端：建立 chat.* 通道并执行旧数据迁移（幂等，桌面离线时下次重试）
+  // 对话存在桌面端（按页面的 pi 会话文件）：建立 chat.* 通道，断线自动重连
   useEffect(() => {
     initChatStoreService();
-    void runChatMigration();
   }, []);
 
   console.log("isDark", isDark);

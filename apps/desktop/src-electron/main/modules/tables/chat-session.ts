@@ -5,6 +5,8 @@
  * id 即 pi 会话 id；scope + domain_ref 区分五个聊天场景与所属对象。
  */
 import Database from "better-sqlite3";
+import { rmSync } from "node:fs";
+import { chatSessionDirOfDb, resolveSessionFile } from "../pi-session-paths";
 import type {
   ChatSessionInsert,
   ChatSessionListFilter,
@@ -236,11 +238,55 @@ export default class ChatSessionTable {
     return this.update(db, id, { orderNum: null });
   }
 
-  /** 删除目录行；JSONL 文件的删除由会话宿主负责（文件生命周期不在表里） */
+  /**
+   * 删除目录行（连同分支子树）与它们的会话文件，返回全部被删 id。
+   * 文件在主进程这里一并删，调用方只删目录行就会留下孤儿文件（同步时还会被打包带走）。
+   * 调用方负责先释放这些会话的宿主（渲染端删除流程先 dispose）。
+   */
   static remove(db: Database.Database, id: string): { deletedIds: string[] } {
-    const branches = this.listBranches(db, id);
-    const deletedIds = [id, ...branches.flatMap(branch => this.remove(db, branch.id).deletedIds)];
-    db.prepare("DELETE FROM chat_session WHERE id = ?").run(id);
-    return { deletedIds };
+    const doomed = this.collectSubtree(db, id);
+    this.deleteRows(db, doomed);
+    return { deletedIds: doomed.map(row => row.id) };
+  }
+
+  /** 所属对象被删（PDF 等）：该对象下的全部对话连文件一起删 */
+  static removeByDomain(db: Database.Database, scope: string, domainRef: string): string[] {
+    const rows = (
+      db
+        .prepare("SELECT * FROM chat_session WHERE scope = ? AND domain_ref = ?")
+        .all(scope, domainRef) as RawRow[]
+    ).map(row => this.parse(row));
+    this.deleteRows(db, rows);
+    return rows.map(row => row.id);
+  }
+
+  /** 分组被删：对话移到未分组 */
+  static clearGroup(db: Database.Database, groupId: number): void {
+    db.prepare("UPDATE chat_session SET group_id = NULL WHERE group_id = ?").run(groupId);
+  }
+
+  private static collectSubtree(db: Database.Database, id: string): ChatSessionRow[] {
+    const root = this.getById(db, id);
+    if (!root) return [];
+    const out: ChatSessionRow[] = [root];
+    for (let index = 0; index < out.length; index += 1) {
+      out.push(...this.listBranches(db, out[index].id));
+    }
+    return out;
+  }
+
+  private static deleteRows(db: Database.Database, rows: ChatSessionRow[]): void {
+    if (rows.length === 0) return;
+    const remove = db.prepare("DELETE FROM chat_session WHERE id = ?");
+    for (const row of rows) remove.run(row.id);
+    const sessionDir = chatSessionDirOfDb(db);
+    if (!sessionDir) return;
+    for (const row of rows) {
+      try {
+        rmSync(resolveSessionFile(sessionDir, row.sessionFile), { force: true });
+      } catch (error) {
+        console.error("[chat-session] 删除会话文件失败:", row.sessionFile, error);
+      }
+    }
   }
 }

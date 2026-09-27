@@ -14,22 +14,16 @@ import {
   type ThinkingLevel,
 } from "@tau/shared";
 import { useAiChat } from "../../../../hooks/useAiChat";
-import type { AiChatRequestMessage } from "../../../../hooks/useAiChat";
 import { useChatSessions } from "../../../../hooks/useChatSessions";
 import { useLlmConfigs } from "../../../../hooks/useLlmConfigs";
 import { useAiServerWebSocket } from "../../../../hooks/useAiServerWebSocket";
 import { useSkills } from "../../../../hooks/useSkills";
-import {
-  ASK_QUESTION_TOOL_NAME,
-  buildAskQuestionToolResult,
-} from "../../../../tools/askQuestionTypes";
-import { useAskQuestionSessionStore } from "../../../../tools/askQuestionSessionStore";
 import { buildSessionAwareSystemPrompt } from "../../../../utils/systemPrompt";
 import ChatMessage from "../../../../components/ChatMessage";
 import ChatDropdownSelector from "../../../../components/ChatDropdownSelector";
 import { useTheme } from "../../../../hooks/useTheme";
 import { useThemeStore } from "../../../../stores/useThemeStore";
-import type { ChatMessageType, ToolCallExecutionState, ToolCallPayload } from "@tau/shared";
+import type { ChatMessageType } from "@tau/shared";
 import classNames from "classnames";
 
 export interface ChatTabProps {
@@ -37,77 +31,6 @@ export interface ChatTabProps {
   url: string | null;
   additionalSystemPrompt?: string;
 }
-
-const normalizeAskQuestionExecutionInput = (input: string) => {
-  try {
-    return JSON.stringify(JSON.parse(input));
-  } catch {
-    return input.trim();
-  }
-};
-
-const isMatchedAskQuestionExecution = (
-  execution: ToolCallExecutionState,
-  toolCallId: string,
-  expectedInput: string
-) =>
-  execution.toolCallId === toolCallId &&
-  execution.toolName === ASK_QUESTION_TOOL_NAME &&
-  normalizeAskQuestionExecutionInput(execution.input) ===
-    normalizeAskQuestionExecutionInput(expectedInput);
-
-const markAskQuestionExecutionResolved = (
-  targetMessages: ChatMessageType[],
-  toolCallId: string,
-  expectedInput: string,
-  output: string
-) => {
-  const now = Date.now();
-  return targetMessages.map(message => {
-    if (message.role !== "assistant" || !message.contentBlocks?.length) {
-      return message;
-    }
-
-    let changed = false;
-    const nextBlocks = message.contentBlocks.map(block => {
-      if (block.type !== "tool_calls") {
-        return block;
-      }
-
-      let blockChanged = false;
-      const nextExecutions = block.executions.map(execution => {
-        if (!isMatchedAskQuestionExecution(execution, toolCallId, expectedInput)) {
-          return execution;
-        }
-        blockChanged = true;
-        return {
-          ...execution,
-          status: "success" as const,
-          output,
-          duration:
-            execution.duration || (execution.timestamp ? now - execution.timestamp : undefined),
-        };
-      });
-
-      if (!blockChanged) {
-        return block;
-      }
-      changed = true;
-      return {
-        ...block,
-        executions: nextExecutions as ToolCallExecutionState[],
-      };
-    });
-
-    if (!changed) {
-      return message;
-    }
-    return {
-      ...message,
-      contentBlocks: nextBlocks,
-    };
-  });
-};
 
 export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }: ChatTabProps) {
   const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>("off");
@@ -128,9 +51,6 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
     currentModelConfig,
   } = useLlmConfigs(aiWsClient);
   const { skills } = useSkills(aiWsClient);
-  const askQuestionRecords = useAskQuestionSessionStore(state => state.records);
-  const completeAskQuestionSession = useAskQuestionSessionStore(state => state.completeSession);
-  const resumingAskQuestionRef = useRef<Set<string>>(new Set());
   const coreRef = useRef<ChatContainerCoreHandle>(null);
   const {
     containerRef: messagesContainerRef,
@@ -153,14 +73,13 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
     messages,
     isLoading: isSessionsLoading,
     createSession,
-    ensureSessionSystemPrompt,
     deleteSession,
     updateSessionTitle,
     selectSession,
-    saveMessages,
+    reloadCurrent,
     getChildBranchesCount,
     deleteMessage,
-    regenerateMessage,
+    rewindBefore,
     createBranch,
   } = useChatSessions(url);
 
@@ -200,30 +119,18 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
     return promptParts.join("\n\n");
   }, [defaultSystemPrompt, skillPrompt, additionalSystemPrompt]);
 
-  const sessionSystemPrompt = useMemo(() => {
-    return (
-      currentSession.systemPromptSnapshot || buildSessionAwareSystemPrompt(effectiveSystemPrompt)
-    );
-  }, [currentSession.systemPromptSnapshot, effectiveSystemPrompt]);
+  // system prompt 每轮由桌面替换进会话（不再在消息里存快照）；时间上下文按对话固定，
+  // 同一对话内 system 段不变，提示缓存才不会每轮失效
+  const sessionSystemPrompt = useMemo(
+    () => buildSessionAwareSystemPrompt(effectiveSystemPrompt),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [effectiveSystemPrompt, currentSession.id]
+  );
 
-  useEffect(() => {
-    if (!currentSession?.id || !effectiveSystemPrompt.trim()) {
-      return;
-    }
-    if (currentSession.systemPromptSnapshot) {
-      return;
-    }
-
-    void ensureSessionSystemPrompt(
-      currentSession.id,
-      buildSessionAwareSystemPrompt(effectiveSystemPrompt)
-    );
-  }, [
-    currentSession?.id,
-    currentSession.systemPromptSnapshot,
-    effectiveSystemPrompt,
-    ensureSessionSystemPrompt,
-  ]);
+  const aiSession = useMemo(
+    () => (url ? { id: currentSession.id, pageUrl: url } : undefined),
+    [url, currentSession.id]
+  );
 
   const {
     isLoading,
@@ -238,7 +145,9 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
     conversationKey,
     systemPrompt: sessionSystemPrompt,
     initialMessages: messages,
-    onMessagesChange: saveMessages,
+    ...(aiSession ? { session: aiSession } : {}),
+    // 一轮结束：以桌面会话文件的投影为准（流式期间是本地归约的快照）
+    onFinish: () => void reloadCurrent(),
     wsClient: aiWsClient,
     wsConnected: aiWsStatus === "connected",
   });
@@ -287,35 +196,43 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
 
   const handleDeleteMessage = useCallback(
     (messageIndex: number) => {
-      deleteMessage(messageIndex);
+      if (isLoading) return;
+      void deleteMessage(messageIndex);
     },
-    [deleteMessage]
+    [deleteMessage, isLoading]
   );
 
+  // 重新生成：桌面把会话回退到这条用户消息之前，再以原内容重发
   const handleRegenerateMessage = useCallback(
     (messageIndex: number) => {
-      regenerateMessage(messageIndex, (content, baseMessages) => {
+      if (isLoading) return;
+      const target = messages[messageIndex] as ChatMessageType & {
+        requestContent?: MessageContentItem[];
+      };
+      if (target?.role !== "user") return;
+      const content =
+        target.requestContent && target.requestContent.length > 0
+          ? target.requestContent
+          : target.content;
+      void (async () => {
+        const baseMessages = await rewindBefore(messageIndex);
+        if (!baseMessages) return;
         if (typeof content === "string") {
-          void sendMessage(content, baseMessages);
+          await sendMessage(content, baseMessages);
           return;
         }
-        void sendRequestMessage({
-          requestMessage: {
-            role: "user",
-            content,
-          },
-          baseMessages,
-        });
-      });
+        await sendRequestMessage({ requestMessage: { role: "user", content }, baseMessages });
+      })();
     },
-    [regenerateMessage, sendMessage, sendRequestMessage]
+    [isLoading, messages, rewindBefore, sendMessage, sendRequestMessage]
   );
 
   const handleCreateBranch = useCallback(
     (messageIndex: number) => {
+      if (isLoading) return;
       void createBranch(messageIndex);
     },
-    [createBranch]
+    [createBranch, isLoading]
   );
 
   const handleDeleteConfirm = useCallback((): Promise<boolean> => {
@@ -394,117 +311,6 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
     setTimeout(forceScrollToBottom, 0);
   }, [enableAutoScroll, forceScrollToBottom]);
 
-  const submittedAskQuestionSessions = useMemo(() => {
-    return Object.values(askQuestionRecords)
-      .filter(
-        record =>
-          record.conversationKey === conversationKey &&
-          record.status === "submitted" &&
-          Boolean(record.submittedAnswers)
-      )
-      .sort((a, b) => a.updatedAt - b.updatedAt);
-  }, [askQuestionRecords, conversationKey]);
-
-  useEffect(() => {
-    if (isLoading) {
-      return;
-    }
-
-    const pendingSession = submittedAskQuestionSessions.find(
-      session =>
-        !resumingAskQuestionRef.current.has(session.sessionId) &&
-        !messages.some(message =>
-          message.contentBlocks?.some(
-            block =>
-              block.type === "tool_calls" &&
-              block.executions.some(
-                execution =>
-                  execution.toolCallId === session.toolCallId &&
-                  typeof execution.metadata?.codexItemType === "string"
-              )
-          )
-        )
-    );
-    if (!pendingSession || !pendingSession.submittedAnswers) {
-      return;
-    }
-
-    resumingAskQuestionRef.current.add(pendingSession.sessionId);
-
-    const askQuestionResult = buildAskQuestionToolResult(
-      pendingSession.payload,
-      pendingSession.submittedAnswers
-    );
-    const answerJson = JSON.stringify(askQuestionResult, null, 2);
-
-    const resolvedMessages = markAskQuestionExecutionResolved(
-      messages,
-      pendingSession.toolCallId,
-      pendingSession.rawInput,
-      answerJson
-    );
-    saveMessages(resolvedMessages);
-
-    const hasAssistantToolCallMessage = resolvedMessages.some(message => {
-      const withToolContext = message as ChatMessageType & {
-        tool_calls?: ToolCallPayload[];
-      };
-      if (withToolContext.role !== "assistant" || !withToolContext.tool_calls) {
-        return false;
-      }
-      return withToolContext.tool_calls.some(
-        call =>
-          call.id === pendingSession.toolCallId && call.function.name === ASK_QUESTION_TOOL_NAME
-      );
-    });
-
-    const bridgeAssistantToolCallMessage: AiChatRequestMessage = {
-      role: "assistant",
-      content: "",
-      tool_calls: [
-        {
-          id: pendingSession.toolCallId,
-          type: "function",
-          function: {
-            name: ASK_QUESTION_TOOL_NAME,
-            arguments: pendingSession.rawInput,
-          },
-        },
-      ],
-    };
-
-    void (async () => {
-      try {
-        const resumed = await sendRequestMessage({
-          requestMessage: {
-            role: "tool",
-            content: answerJson,
-            tool_call_id: pendingSession.toolCallId,
-            name: ASK_QUESTION_TOOL_NAME,
-          },
-          baseMessages: resolvedMessages,
-          extraHistoryMessages: hasAssistantToolCallMessage ? [] : [bridgeAssistantToolCallMessage],
-        });
-
-        if (resumed) {
-          completeAskQuestionSession(pendingSession.sessionId);
-        } else {
-          resumingAskQuestionRef.current.delete(pendingSession.sessionId);
-        }
-      } catch (error) {
-        console.error("恢复 ask-question 请求失败:", error);
-        resumingAskQuestionRef.current.delete(pendingSession.sessionId);
-      }
-    })();
-  }, [
-    isLoading,
-    submittedAskQuestionSessions,
-    messages,
-    sendRequestMessage,
-    saveMessages,
-    completeAskQuestionSession,
-  ]);
-
   const chatHeader = useMemo(() => {
     if (isSessionsLoading) {
       return null;
@@ -558,9 +364,7 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
       isSupportImage={isSupportImage}
 
       createMessageLoading={false}
-      onCreateNewMessage={() => {
-        void createSession(buildSessionAwareSystemPrompt(effectiveSystemPrompt));
-      }}
+      onCreateNewMessage={createSession}
       onMcpManagerClick={handleMcpManagerClick}
       currentPageUrl={url}
       onSendMessageContent={handleSendMessageContent}

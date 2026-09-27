@@ -17,9 +17,16 @@ import {
 import {
   branchSessionFile,
   omitEntries,
-  rewindToBeforeUser,
+  rewindToBeforeEntry,
   writeSessionFile,
 } from "../pi-session-files";
+
+/** 投影里第 n 条用户消息 / 回答带回的 entry id（界面按它们调改历史操作） */
+const projected = (sessionFile: string, sessionDir: string) =>
+  piEntriesToDesktopMessages(loadSessionTranscript(sessionFile, sessionDir));
+const userEntryId = (sessionFile: string, sessionDir: string, index: number) =>
+  projected(sessionFile, sessionDir).filter(message => message.role === "user")[index]
+    .piEntryIds![0];
 import { piEntriesToDesktopMessages } from "../pi-session-transcript";
 
 if (typeof AbortSignal.any !== "function") {
@@ -146,7 +153,7 @@ describe("会话文件操作", () => {
   it("编辑重发：挪到第二问之前，重开后叶子仍在那里，旧回答留在树上", () => {
     const sessionDir = setup();
     const file = join(sessionDir, writeTwoTurns(sessionDir));
-    rewindToBeforeUser(file, 1);
+    rewindToBeforeEntry(file, userEntryId(file, sessionDir, 1));
 
     expect(userTexts(file, sessionDir)).toEqual(["第一问"]);
     // 旧分支没丢：整棵树里还有第二问
@@ -163,7 +170,31 @@ describe("会话文件操作", () => {
   it("挪到第一条用户消息之前（重新生成第一问）：界面为空", () => {
     const sessionDir = setup();
     const file = join(sessionDir, writeTwoTurns(sessionDir));
-    rewindToBeforeUser(file, 0);
+    rewindToBeforeEntry(file, userEntryId(file, sessionDir, 0));
+    expect(userTexts(file, sessionDir)).toEqual([]);
+  });
+
+  it("删除一条回答：按投影带回的全部 entry id 省略，回答整条消失", () => {
+    const sessionDir = setup();
+    const file = join(sessionDir, writeTwoTurns(sessionDir));
+    const firstAnswer = projected(file, sessionDir).find(message => message.role === "assistant")!;
+    expect(firstAnswer.piEntryIds?.length).toBeGreaterThan(0);
+    omitEntries(file, firstAnswer.piEntryIds!);
+    expect(projected(file, sessionDir).map(message => message.role)).toEqual([
+      "user",
+      "user",
+      "assistant",
+    ]);
+  });
+
+  it("被删的消息仍在路径上时，按 entry id 回退不会错位", () => {
+    const sessionDir = setup();
+    const file = join(sessionDir, writeTwoTurns(sessionDir));
+    omitEntries(file, [userEntryId(file, sessionDir, 0)]);
+    // 删掉第一问后界面上只剩第二问；对它重新生成要回退到第二问之前，而不是第一问之前
+    rewindToBeforeEntry(file, userEntryId(file, sessionDir, 0));
+    const answers = projected(file, sessionDir).filter(message => message.role === "assistant");
+    expect(answers).toHaveLength(1);
     expect(userTexts(file, sessionDir)).toEqual([]);
   });
 
@@ -189,11 +220,12 @@ describe("会话文件操作", () => {
   it("建分支：截到第一问的回答为止，新文件 id 为指定值，原文件不变", () => {
     const sessionDir = setup();
     const file = join(sessionDir, writeTwoTurns(sessionDir));
+    const firstAnswer = projected(file, sessionDir).find(message => message.role === "assistant")!;
     const branchName = branchSessionFile({
       sessionDir,
       sourceFile: file,
       newSessionId: "branch-1",
-      throughUserIndex: 0,
+      throughEntryId: firstAnswer.piEntryIds!.at(-1),
     });
     const branchFile = join(sessionDir, branchName);
 

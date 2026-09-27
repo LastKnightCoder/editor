@@ -2,7 +2,7 @@
  * pi 会话宿主（主进程）与渲染端共享的桥类型：
  * 工具桥（ToolRegistry ↔ pi customTools）与会话创建参数中跨进程的字段。
  */
-import type { RequestMessage } from "@/types";
+import type { MessageContent, RequestMessage } from "@/types";
 import type { PiThinkingLevel } from "./pi-llm";
 import type { ToolRisk } from "./tool";
 import type { AskQuestionPayload } from "@/tools/askQuestionTypes";
@@ -74,6 +74,33 @@ export interface PiPromptImage {
   dataUrl?: string;
 }
 
+/**
+ * 用户消息的桌面展示形态（M4）：prompt/steer 时一并交给主进程，写成会话文件里的展示 entry
+ * （文件卡片、mention、skills、图片编辑前的原话）。模型文本由主进程取实际送给 pi 的文本，
+ * 渲染端不传，两边不可能对不上。
+ */
+export interface PiPromptDisplay {
+  content: MessageContent[];
+  clientId?: string;
+}
+
+/**
+ * 会话文件的位置（M4）：应用对话按当前库会话目录下的文件名；浏览器扩展对话按页面 + 会话 id
+ * （目录由主进程按页面哈希算出，文件按 id 查找，外部输入不拼进路径）。
+ */
+export type PiSessionLocation = { sessionFile: string } | { pageUrl: string; sessionId: string };
+
+/** 浏览器扩展的一个对话（直接取自 pi 会话文件，无目录表） */
+export interface PiBrowserSessionInfo {
+  id: string;
+  /** pi session name；没起名时为首条用户消息 */
+  title: string;
+  parentId: string | null;
+  createTime: number;
+  updateTime: number;
+  messageCount: number;
+}
+
 /** 会话创建参数（PiSessionCreateRequest 的渲染端形状） */
 export interface PiSessionCreateRequestV2 {
   sessionId: string;
@@ -86,6 +113,11 @@ export interface PiSessionCreateRequestV2 {
   sessionFile?: string;
   /** 新建时指定 pi 会话 id（= 目录表主键） */
   piSessionId?: string;
+  /**
+   * 浏览器扩展对话（M4.5）：会话落在 `browser-sessions/<页面键>/`，按 piSessionId 找文件 resume。
+   * 与 sessionFile 互斥。
+   */
+  browserPageUrl?: string;
   shellPath?: string;
   /** 交 pi 注册的工具全集（含当前停用项），按名字排序 */
   customTools?: PiHostToolSpec[];

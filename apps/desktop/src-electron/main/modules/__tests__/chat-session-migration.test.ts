@@ -132,7 +132,6 @@ describe.skipIf(!nativeAvailable)("老对话迁移到 pi 会话", () => {
       {
         group: 5,
         order: 2,
-        source: "browser",
       }
     );
     db.prepare(
@@ -148,7 +147,7 @@ describe.skipIf(!nativeAvailable)("老对话迁移到 pi 会话", () => {
       title: "对话 1",
       groupId: 5,
       orderNum: 2,
-      source: "browser",
+      source: "desktop",
       createTime: 1001,
       updateTime: 2001,
       messageCount: 1,
@@ -156,6 +155,19 @@ describe.skipIf(!nativeAvailable)("老对话迁移到 pi 会话", () => {
     const pdf = ChatSessionTable.list(db, { scope: "pdf-chat", domainRef: "42" });
     expect(pdf.map(row => row.title)).toEqual(["PDF 对话"]);
     expect(readdirSync(sessionDir)).toHaveLength(2);
+  });
+
+  it("浏览器扩展的对话不迁：扩展对话与应用对话拆开，旧行原样留在旧表", async () => {
+    insertMain(1, [{ role: "user", content: "桌面" }]);
+    insertMain(2, [{ role: "user", content: "扩展" }], { source: "browser" });
+
+    const result = await migrate();
+    expect(result).toMatchObject({ migrated: 1, failed: [] });
+    expect(ChatSessionTable.list(db, { includeArchived: true }).map(row => row.title)).toEqual([
+      "对话 1",
+    ]);
+    expect(readdirSync(sessionDir)).toHaveLength(1);
+    expect((db.prepare("SELECT COUNT(*) AS n FROM chat_message").get() as { n: number }).n).toBe(2);
   });
 
   it("分支父子关系保留：子行指向父会话、分支序号不变", async () => {

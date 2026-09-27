@@ -13,16 +13,39 @@ import PathUtil from "../utils/PathUtil";
 import {
   applyActiveTools,
   assembleHostSession,
+  createDisplayEntryWriter,
   createHostModelRuntime,
   createHostResourceLoader,
   detectBashShellPath,
-  loadSessionTranscript,
   resolveAgentShellPath,
   steerHostSession,
 } from "./pi-session-host-core";
 import { desktopMessagesToPi, PiToolCallBridge } from "./pi-session-bridge";
-import { piEntriesToDesktopMessages } from "./pi-session-transcript";
-import type { PiHostToolSpec, PiToolApprovalChoice } from "@/types/pi-session";
+import {
+  applySessionEdit,
+  browserSessionFile,
+  deleteBrowserSession,
+  listBrowserSessions,
+  packSessionDir,
+  readTranscript,
+  renameBrowserSession,
+  replaceSessionDir,
+  type SessionEdit,
+} from "./pi-session-store";
+import {
+  assertSafeSessionId,
+  browserSessionDirOf,
+  chatSessionDirOf,
+  findSessionFileById,
+  resolveSessionFile,
+} from "./pi-session-paths";
+import type { DesktopDisplayData } from "./pi-session-files";
+import type {
+  PiHostToolSpec,
+  PiPromptDisplay,
+  PiSessionLocation,
+  PiToolApprovalChoice,
+} from "@/types/pi-session";
 import { PiSessionInteractions } from "./pi-session-interactions";
 import { normalizePermissionMode } from "@/services/tool-permission/mode";
 import { resolveV2Providers } from "./pi-ai-runtime-core";
@@ -46,6 +69,8 @@ interface HostedSession {
   scope: string;
   modelRef: { providerId: string; modelId: string };
   thinkingLevel?: PiThinkingLevel;
+  /** 展示 entry 写入器：prompt/steer 登记，用户消息落盘后紧跟着写 */
+  displayWriter: ReturnType<typeof createDisplayEntryWriter>;
 }
 
 export interface PiSessionCreateRequest {
@@ -66,6 +91,8 @@ export interface PiSessionCreateRequest {
    * 每次重建都换）是两回事：前者标识「这条对话」，后者标识「这一次打开」。
    */
   piSessionId?: string;
+  /** 浏览器扩展对话：会话落在 browser-sessions/<页面键>/，按 piSessionId 找文件（与 sessionFile 互斥） */
+  browserPageUrl?: string;
   /** 手动指定 bash.exe（pi-dev 面板联调用；产品化的设置项在 M3 工具管理落地） */
   shellPath?: string;
   /** 渲染端 ToolRegistry 工具清单（桥接为 pi customTools），含当前停用项 */
@@ -166,20 +193,32 @@ class PiSessionHostModule {
           sessionId,
           text,
           images,
-        }: { sessionId: string; text: string; images?: Array<{ path?: string; dataUrl?: string }> }
+          display,
+        }: {
+          sessionId: string;
+          text: string;
+          images?: Array<{ path?: string; dataUrl?: string }>;
+          display?: PiPromptDisplay;
+        }
       ) => {
         const hosted = PiSessionHostModule.sessions.get(sessionId);
         if (!hosted) return { ok: false, error: "会话不存在" };
+        // 展示 entry 的模型文本取实际送给 pi 的 text（逐字相同，投影才认领得上）
+        const displayData = toDisplayData(text, display);
         try {
           // 渲染端只传定位信息（path/dataUrl），主进程读文件转 pi 的 base64 ImageContent
           const piImages = (
             await Promise.all((images ?? []).map(image => readPromptImage(image)))
           ).filter(Boolean);
+          if (displayData) hosted.displayWriter.expect(displayData);
           await hosted.session.prompt(text, {
+            // 与插话同理：关掉模板/技能展开，落盘的用户消息与送出文本逐字一致，展示 entry 才认领得上
+            expandPromptTemplates: false,
             ...(piImages.length > 0 ? { images: piImages as never } : {}),
           });
           return { ok: true };
         } catch (error) {
+          if (displayData) hosted.displayWriter.discard(displayData);
           return { ok: false, error: error instanceof Error ? error.message : String(error) };
         }
       }
@@ -192,14 +231,24 @@ class PiSessionHostModule {
           sessionId,
           text,
           images,
-        }: { sessionId: string; text: string; images?: Array<{ path?: string; dataUrl?: string }> }
+          display,
+        }: {
+          sessionId: string;
+          text: string;
+          images?: Array<{ path?: string; dataUrl?: string }>;
+          display?: PiPromptDisplay;
+        }
       ) => {
         const hosted = PiSessionHostModule.sessions.get(sessionId);
         if (!hosted || hosted.sender !== event.sender) return { ok: false, error: "会话不存在" };
         const piImages = (
           await Promise.all((images ?? []).map(image => readPromptImage(image)))
         ).filter(Boolean);
-        return steerHostSession(hosted.session, text, piImages);
+        const displayData = toDisplayData(text, display);
+        if (displayData) hosted.displayWriter.expect(displayData);
+        const outcome = await steerHostSession(hosted.session, text, piImages);
+        if (!outcome.ok && displayData) hosted.displayWriter.discard(displayData);
+        return outcome;
       }
     );
     ipcMain.handle("pi-session:abort", async (event, { sessionId }: { sessionId: string }) => {
@@ -233,26 +282,84 @@ class PiSessionHostModule {
       };
     });
     // 打开对话（M4）：读会话文件当前叶子路径，投影成桌面展示消息。纯读，不起 pi 会话
+    ipcMain.handle("pi-session:transcript", async (_event, location: PiSessionLocation) =>
+      PiSessionHostModule.guard(async () => {
+        const { file, sessionDir } = await PiSessionHostModule.locate(location);
+        return { messages: readTranscript(file, sessionDir) };
+      })
+    );
+    // 改历史（M4）：编辑重发/重新生成 = 回退叶子，删除 = context_edit 省略，建分支 = 拷新文件。
+    // 调用方必须先 dispose 这个文件上的宿主会话（两个 SessionManager 同时写同一文件会互相覆盖），
+    // 这里再兜底一次：还开着就拒绝
     ipcMain.handle(
-      "pi-session:transcript",
-      async (_event, { sessionFile }: { sessionFile: string }) => {
-        try {
-          const sessionDir = join(
-            PathUtil.getAppDir(),
-            "sessions",
-            await PiSessionHostModule.currentDatabaseName()
-          );
-          const path = join(sessionDir, sessionFile);
-          // 首轮还没等到 assistant 消息 pi 不落盘：没有文件就是空对话，不是错误
-          if (!existsSync(path)) return { ok: true, messages: [] };
+      "pi-session:edit",
+      async (_event, { location, edit }: { location: PiSessionLocation; edit: SessionEdit }) =>
+        PiSessionHostModule.guard(async () => {
+          const { file, sessionDir } = await PiSessionHostModule.locate(location);
+          if (!file) throw new Error("对话还没有保存下来，暂时不能修改历史");
+          if (PiSessionHostModule.isFileOpen(file)) {
+            throw new Error("对话仍在运行，请先停止再修改历史");
+          }
+          if (edit.kind === "branch") assertSafeSessionId(edit.newSessionId);
+          const result = applySessionEdit(file, sessionDir, edit);
           return {
-            ok: true,
-            messages: piEntriesToDesktopMessages(loadSessionTranscript(path, sessionDir)),
+            ...result,
+            messages: readTranscript(
+              result.sessionFile ? join(sessionDir, result.sessionFile) : file,
+              sessionDir
+            ),
           };
-        } catch (error) {
-          return { ok: false, error: error instanceof Error ? error.message : String(error) };
-        }
-      }
+        })
+    );
+    // 浏览器扩展对话（M4.5）：按页面列出/改名/删除，全部取自 pi 会话文件本身
+    ipcMain.handle("pi-session:browser-list", async (_event, { pageUrl }: { pageUrl: string }) =>
+      PiSessionHostModule.guard(async () => ({ sessions: await listBrowserSessions(pageUrl) }))
+    );
+    ipcMain.handle(
+      "pi-session:browser-rename",
+      async (
+        _event,
+        { pageUrl, sessionId, title }: { pageUrl: string; sessionId: string; title: string }
+      ) =>
+        PiSessionHostModule.guard(async () => {
+          renameBrowserSession(pageUrl, sessionId, title);
+          return {};
+        })
+    );
+    ipcMain.handle(
+      "pi-session:browser-delete",
+      async (_event, { pageUrl, sessionId }: { pageUrl: string; sessionId: string }) =>
+        PiSessionHostModule.guard(async () => {
+          const dir = browserSessionDirOf(pageUrl);
+          for (const hosted of [...PiSessionHostModule.sessions.entries()]) {
+            const file = hosted[1].session.sessionFile;
+            if (file && file.startsWith(dir)) PiSessionHostModule.disposeByFile(file);
+          }
+          return { deletedIds: await deleteBrowserSession(pageUrl, sessionId) };
+        })
+    );
+    // 同步（M4.4）：当前库的会话目录打包 / 用下载的包替换（先整体备份）
+    ipcMain.handle("pi-session:pack", async (_event, { databaseName }: { databaseName: string }) =>
+      PiSessionHostModule.guard(async () => ({
+        archive: packSessionDir(chatSessionDirOf(databaseName)),
+      }))
+    );
+    ipcMain.handle(
+      "pi-session:unpack",
+      async (_event, { databaseName, archive }: { databaseName: string; archive: Uint8Array }) =>
+        PiSessionHostModule.guard(async () => {
+          const sessionDir = chatSessionDirOf(databaseName);
+          // 替换期间不能有宿主会话开着这个目录里的文件
+          for (const [id, hosted] of [...PiSessionHostModule.sessions.entries()]) {
+            if (hosted.session.sessionFile?.startsWith(sessionDir))
+              PiSessionHostModule.disposeSession(id);
+          }
+          return replaceSessionDir(
+            sessionDir,
+            Buffer.from(archive),
+            join(PathUtil.getAppDir(), "backup")
+          );
+        })
     );
     ipcMain.handle("pi-session:find-by-scope", async (event, { scope }: { scope: string }) => {
       // 渲染层重载后本地会话表丢失：按 scope 找主进程仍持有的会话（取最近创建的一个）
@@ -348,10 +455,13 @@ class PiSessionHostModule {
         authPath,
         PiSessionHostModule.latestProviders
       );
+      // 会话目录：浏览器扩展对话跟页面走（与库无关），其余跟当前库
       const sessionDir =
         request.persist === false
           ? undefined
-          : join(PathUtil.getAppDir(), "sessions", await PiSessionHostModule.currentDatabaseName());
+          : request.browserPageUrl
+            ? browserSessionDirOf(request.browserPageUrl)
+            : await PiSessionHostModule.currentSessionDir();
       bridge = new PiToolCallBridge(sender, request.sessionId);
       interactions = new PiSessionInteractions({
         sessionId: request.sessionId,
@@ -370,9 +480,17 @@ class PiSessionHostModule {
       ];
       const systemPromptRef = { current: request.systemPrompt ?? "" };
       // 文件可能还不存在：pi 等第一条 assistant 消息出现才落盘（首轮预检失败就没有文件），
-      // SessionManager.open 对不存在的路径会在该路径上起一个新会话，不需要这里特判
-      const sessionFile =
-        request.sessionFile && sessionDir ? join(sessionDir, request.sessionFile) : undefined;
+      // 不存在时 assembleHostSession 按 piSessionId 新建（见其注释）
+      if (request.piSessionId) assertSafeSessionId(request.piSessionId);
+      const sessionFile = !sessionDir
+        ? undefined
+        : request.browserPageUrl
+          ? request.piSessionId
+            ? findSessionFileById(sessionDir, request.piSessionId)
+            : undefined
+          : request.sessionFile
+            ? resolveSessionFile(sessionDir, request.sessionFile)
+            : undefined;
       // resume 时历史已在 JSONL 里，灌入会重复
       const initialMessages =
         !sessionFile && request.initialMessages?.length
@@ -428,6 +546,7 @@ class PiSessionHostModule {
         bridge.dispose();
         return { ok: false, error: "会话窗口已关闭" };
       }
+      const displayWriter = createDisplayEntryWriter(session);
       const onSenderClosed = () => PiSessionHostModule.disposeSession(request.sessionId);
       sender.once("destroyed", onSenderClosed);
       sender.once("render-process-gone", onSenderClosed);
@@ -454,6 +573,7 @@ class PiSessionHostModule {
         scope: request.scope,
         modelRef: request.modelRef,
         thinkingLevel: request.thinkingLevel,
+        displayWriter,
       });
       // 回传会话文件（相对会话目录）与 pi 会话 id：目录表据此登记，下次打开走 resume
       return {
@@ -488,6 +608,7 @@ class PiSessionHostModule {
     if (!hosted) return;
     hosted.detachSender();
     void hosted.session.abort();
+    hosted.displayWriter.dispose();
     hosted.interactions.dispose();
     hosted.unsubscribe();
     hosted.session.dispose();
@@ -495,16 +616,67 @@ class PiSessionHostModule {
     PiSessionHostModule.sessions.delete(sessionId);
   }
 
-  private static async currentDatabaseName(): Promise<string> {
+  /** 当前库的会话目录：与开库迁移同一取法（chatSessionDirOf），两处不一致迁移写出的文件就找不到 */
+  private static async currentSessionDir(): Promise<string> {
     try {
       const setting = await userSettingModule.getSettingSnapshot();
       const name = setting?.database?.active;
-      return typeof name === "string" && name ? name.replace(/\.db$/, "") : "data";
+      return chatSessionDirOf(typeof name === "string" && name ? name : "data");
     } catch {
-      return "data";
+      return chatSessionDirOf("data");
+    }
+  }
+
+  /** 会话位置 → 绝对路径（浏览器对话还没落盘时 file 为空） */
+  private static async locate(
+    location: PiSessionLocation
+  ): Promise<{ file: string | undefined; sessionDir: string }> {
+    if ("pageUrl" in location) {
+      return {
+        file: browserSessionFile(location.pageUrl, location.sessionId),
+        sessionDir: browserSessionDirOf(location.pageUrl),
+      };
+    }
+    const sessionDir = await PiSessionHostModule.currentSessionDir();
+    return { file: resolveSessionFile(sessionDir, location.sessionFile), sessionDir };
+  }
+
+  private static isFileOpen(file: string): boolean {
+    for (const hosted of PiSessionHostModule.sessions.values()) {
+      if (hosted.session.sessionFile === file) return true;
+    }
+    return false;
+  }
+
+  private static disposeByFile(file: string): void {
+    for (const [id, hosted] of [...PiSessionHostModule.sessions.entries()]) {
+      if (hosted.session.sessionFile === file) PiSessionHostModule.disposeSession(id);
+    }
+  }
+
+  private static async guard<T extends object>(
+    run: () => Promise<T>
+  ): Promise<({ ok: true } & T) | { ok: false; error: string }> {
+    try {
+      return { ok: true, ...(await run()) };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   }
 }
+
+/** 渲染端传来的展示形态 + 实际送给 pi 的文本 → 展示 entry 载荷 */
+const toDisplayData = (
+  text: string,
+  display: PiPromptDisplay | undefined
+): DesktopDisplayData | undefined =>
+  display && Array.isArray(display.content) && display.content.length > 0
+    ? {
+        modelText: text,
+        content: display.content,
+        ...(display.clientId ? { clientId: display.clientId } : {}),
+      }
+    : undefined;
 
 /** 动态 systemPrompt 扩展：每轮 agent start 前用宿主当前值替换（渲染端 set-system-prompt 更新） */
 const createDynamicSystemPromptExtension = (systemPromptRef: {

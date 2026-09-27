@@ -501,7 +501,6 @@ const InlineAIComposerPanel = ({
                     isVisible={true}
                     messageIndex={index}
                     messageMeta={{
-                      chatId: 0,
                       messageIndex: index,
                       isStreaming: sending && index === renderMessages.length - 1,
                     }}

@@ -4,7 +4,7 @@ import type { ChatMessage, ResponseMessage } from "@/types";
 import { withStreamingUpdateTime } from "../streamingUtils";
 
 const createChat = (assistantMessage: ResponseMessage): ChatMessage => ({
-  id: 1,
+  id: "chat-1",
   createTime: 100,
   updateTime: 200,
   title: "测试对话",

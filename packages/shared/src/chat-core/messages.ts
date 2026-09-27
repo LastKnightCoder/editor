@@ -133,6 +133,11 @@ export interface ModelUsage {
 
 export interface RequestMessage {
   clientId?: string;
+  /**
+   * 对应的 pi 会话 entry id（M4：从 JSONL 投影出来的消息才有）。改历史操作（删除/编辑重发/
+   * 重新生成）按它定位，不能靠 clientId——迁移数据的 clientId 是旧值。
+   */
+  piEntryIds?: string[];
   role: Role;
   content: MessageContent[] | string;
   reasoning_content?: string;
@@ -144,6 +149,8 @@ export interface RequestMessage {
 
 export interface ResponseMessage {
   clientId?: string;
+  /** 一条回答的全部 pi entry id（assistant + toolResult）：删除回答要全部省略，否则只删一半 */
+  piEntryIds?: string[];
   role: Role;
   content: string;
   reasoning_content?: string;
@@ -156,11 +163,14 @@ export interface ResponseMessage {
 export type ChatSessionMessage = RequestMessage | ResponseMessage;
 
 /**
- * 会话记录（数据库行结构）。注意与 ChatComponents 的 ChatMessage（单条消息）区分，
- * 桌面历史代码以 `ChatMessage` 名字消费本类型，经 re-export 别名保持兼容。
+ * 一个已打开的对话（M4：会话目录行 + pi JSONL 投影出的消息）。注意与 ChatComponents 的
+ * ChatMessage（单条消息）区分，桌面历史代码以 `ChatMessage` 名字消费本类型。
+ *
+ * id 即 pi 会话 id（字符串）：新对话在渲染端生成 id，目录表里查不到就是草稿，
+ * 首轮发送后才登记目录行，id 从头到尾不变。
  */
 export interface ChatSessionRecord {
-  id: number;
+  id: string;
   createTime: number;
   updateTime: number;
   messages: ChatSessionMessage[];
@@ -169,11 +179,16 @@ export interface ChatSessionRecord {
   titleDirty?: boolean;
   groupId?: number | null;
   archived?: boolean;
-  parentChatId?: number | null; // 父对话 ID（用于分支关系）
+  parentChatId?: string | null; // 父对话 id（用于分支关系）
   branchIndex?: number; // 分支序号（同一父对话下的第几个分支）
   orderNum?: number | null; // 排序序号（用于置顶和拖拽排序）
   /** 会话来源：desktop 为桌面端创建，browser 为浏览器插件创建 */
   source?: "desktop" | "browser";
+  /** 相对会话目录的 JSONL 文件名；草稿（尚未登记）为空 */
+  sessionFile?: string;
+  /** 聊天场景（main-chat / pdf-chat / …）与所属对象 */
+  scope?: string;
+  domainRef?: string | null;
 }
 
 export interface ChatGroup {

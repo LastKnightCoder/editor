@@ -25,12 +25,12 @@ vi.mock("@/commands/piSession", () => ({
   piSessionAnswerQuestion: vi.fn(),
 }));
 
-const key = "main-chat:31";
+const key = "main-chat:chat-31";
 const sessionId = "steer-session";
 const text = (value: string): MessageContentItem[] => [{ type: "text", text: value }];
 const baseChat = (): ChatMessage =>
   ({
-    id: 31,
+    id: "chat-31",
     title: "新对话",
     titleDirty: true,
     createTime: 1,
@@ -50,7 +50,7 @@ const flush = async () => {
 const setup = () => {
   const deps: PiChatRuntimeDeps = {
     publish: vi.fn(),
-    persist: vi.fn(async (chat: ChatMessage) => chat),
+    settle: vi.fn(async (chat: ChatMessage) => chat.messages),
   };
   const container = piChatRuntime.ensureConversation(key, baseChat(), deps);
   piChatRuntime.bindSession(key, sessionId);
@@ -68,7 +68,10 @@ describe("待发送队列归属运行时", () => {
     expect(piChatRuntime.listQueue(key)).toEqual([text("第一条"), text("第二条")]);
 
     // 组件重挂载：ensureConversation 只刷新 deps，队列不受影响
-    piChatRuntime.ensureConversation(key, baseChat(), { publish: vi.fn(), persist: vi.fn() });
+    piChatRuntime.ensureConversation(key, baseChat(), {
+      publish: vi.fn(),
+      settle: vi.fn(async () => null),
+    });
     expect(piChatRuntime.queueSize(key)).toBe(2);
 
     expect(piChatRuntime.takeQueuedMessage(key, 0)).toEqual(text("第一条"));
@@ -105,8 +108,8 @@ describe("运行中插话", () => {
     expect(piChatRuntime.canSteer(key)).toBe(false);
   });
 
-  it("送达时聊天行追加用户消息与新助手占位并立即落库，本轮发起消息不重复追加", async () => {
-    const { container, deps } = setup();
+  it("送达时聊天行追加用户消息与新助手占位，本轮发起消息不重复追加", async () => {
+    const { container } = setup();
     emit({ type: "agent_start" });
     // 本轮的发起消息（发送方已乐观写入聊天行）：不得再追加一条
     emit({ type: "message_start", message: { role: "user", content: text("原始问题") } });
@@ -128,8 +131,7 @@ describe("运行中插话", () => {
       content: text("插一句"),
     });
     expect(container.current.messages[4]).toMatchObject({ role: "assistant" });
-    // 渲染层重载后这条用户消息必须还在，所以送达即落库
-    expect(deps.persist).toHaveBeenCalled();
+    // 这条用户消息由 pi 在送达时写进 JSONL（展示 entry 由主进程紧跟着写），runtime 不另外落库
     expect(piChatRuntime.listPendingSteers(key)).toEqual([]);
     expect(piChatRuntime.queueSize(key)).toBe(0);
   });

@@ -3,6 +3,7 @@ import { piChatSessionManager, type EnsureChatSessionOptions } from "../piChatSe
 import {
   piSessionCreate,
   piSessionDispose,
+  piSessionEdit,
   piSessionFindByScope,
   piSessionSetActiveTools,
   piSessionSetSystemPrompt,
@@ -11,6 +12,7 @@ import {
 vi.mock("@/commands/piSession", () => ({
   piSessionCreate: vi.fn().mockResolvedValue({ ok: true }),
   piSessionDispose: vi.fn().mockResolvedValue({ ok: true }),
+  piSessionEdit: vi.fn().mockResolvedValue({ ok: true, messages: [] }),
   piSessionSetSystemPrompt: vi.fn().mockResolvedValue({ ok: true }),
   piSessionSetActiveTools: vi.fn().mockResolvedValue({ ok: true }),
   piSessionFindByScope: vi.fn(),
@@ -37,9 +39,11 @@ vi.mock("@/services/piToolBridge", () => ({
   unregisterPiToolSessionContext: vi.fn(),
 }));
 
+const chatId = "chat-11";
 const options = {
   chatScope: "main-chat",
-  chatId: 11,
+  chatId,
+  sessionFile: "f_chat-11.jsonl",
   provider: {
     id: "provider-1",
     name: "测试服务商",
@@ -49,7 +53,6 @@ const options = {
     models: [],
   },
   model: { id: "model-1", reasoning: true, input: ["text"] },
-  history: [],
   systemPrompt: "提示词",
   thinkingLevel: "high",
 } as EnsureChatSessionOptions;
@@ -67,8 +70,10 @@ describe("pi 会话收养", () => {
       modelRef: { providerId: "provider-1", modelId: "model-1" },
       thinkingLevel: "high",
     });
-    await piChatSessionManager.adoptOrResolveSession("main-chat", 11);
-    expect(await piChatSessionManager.ensureChatSession(options)).toBe("existing-session");
+    await piChatSessionManager.adoptOrResolveSession("main-chat", chatId);
+    expect((await piChatSessionManager.ensureChatSession(options)).sessionId).toBe(
+      "existing-session"
+    );
     expect(piSessionCreate).not.toHaveBeenCalled();
     expect(piSessionDispose).not.toHaveBeenCalled();
     expect(piSessionSetSystemPrompt).toHaveBeenCalledWith("existing-session", "提示词");
@@ -80,6 +85,9 @@ describe("pi 会话收养", () => {
       expect.any(String),
       expect.objectContaining({
         interactive: true,
+        // 会话内容由 pi 从会话文件恢复：传对话 id 与文件名，不再灌历史
+        piSessionId: chatId,
+        sessionFile: "f_chat-11.jsonl",
         customTools: [expect.objectContaining({ risk: "write", source: "content-edit-tools" })],
         activeToolNames: ["write_content"],
       })
@@ -117,11 +125,11 @@ describe("pi 会话工具集同步", () => {
 
   it("停用已注册工具只切活跃集，不重建会话", async () => {
     registryTools.current = [tool("alpha"), tool("beta")];
-    const sessionId = await piChatSessionManager.ensureChatSession(options);
+    const { sessionId } = await piChatSessionManager.ensureChatSession(options);
     vi.mocked(piSessionCreate).mockClear();
 
     registryTools.current = [tool("alpha"), tool("beta", false)];
-    expect(await piChatSessionManager.ensureChatSession(options)).toBe(sessionId);
+    expect((await piChatSessionManager.ensureChatSession(options)).sessionId).toBe(sessionId);
     expect(piSessionSetActiveTools).toHaveBeenCalledWith(sessionId, ["alpha"]);
     expect(piSessionCreate).not.toHaveBeenCalled();
     expect(piSessionDispose).not.toHaveBeenCalled();
@@ -136,11 +144,11 @@ describe("pi 会话工具集同步", () => {
 
   it("出现新工具定义（新连 MCP 服务器）时重建会话——pi 注册表装配后不可追加", async () => {
     registryTools.current = [tool("alpha")];
-    const first = await piChatSessionManager.ensureChatSession(options);
+    const { sessionId: first } = await piChatSessionManager.ensureChatSession(options);
     vi.mocked(piSessionCreate).mockClear();
 
     registryTools.current = [tool("alpha"), tool("newcomer")];
-    const second = await piChatSessionManager.ensureChatSession(options);
+    const { sessionId: second } = await piChatSessionManager.ensureChatSession(options);
     expect(second).not.toBe(first);
     expect(piSessionDispose).toHaveBeenCalledWith(first);
     expect(piSessionCreate).toHaveBeenCalledWith(
@@ -152,8 +160,62 @@ describe("pi 会话工具集同步", () => {
 
   it("schema/描述变化（MCP 服务器升级）同样重建", async () => {
     registryTools.current = [tool("alpha", true, "旧说明")];
-    const first = await piChatSessionManager.ensureChatSession(options);
+    const { sessionId: first } = await piChatSessionManager.ensureChatSession(options);
     registryTools.current = [tool("alpha", true, "新说明")];
-    expect(await piChatSessionManager.ensureChatSession(options)).not.toBe(first);
+    expect((await piChatSessionManager.ensureChatSession(options)).sessionId).not.toBe(first);
+  });
+});
+
+describe("改历史（M4）", () => {
+  afterEach(async () => {
+    await piChatSessionManager.disposeAll();
+    vi.clearAllMocks();
+  });
+
+  it("先释放宿主会话再改文件（主进程拒绝改仍被打开的文件）", async () => {
+    const { sessionId: hostId } = await piChatSessionManager.ensureChatSession(options);
+    const order: string[] = [];
+    vi.mocked(piSessionDispose).mockImplementationOnce(async id => {
+      order.push(`dispose:${id}`);
+      return { ok: true };
+    });
+    vi.mocked(piSessionEdit).mockImplementationOnce(async (location, edit) => {
+      order.push(`edit:${edit.kind}`);
+      expect(location).toEqual({ sessionFile: "f_chat-11.jsonl" });
+      return { ok: true, messages: [] };
+    });
+
+    await piChatSessionManager.editChatHistory("main-chat", chatId, "f_chat-11.jsonl", {
+      kind: "rewind",
+      entryId: "e1",
+    });
+
+    expect(order).toEqual([`dispose:${hostId}`, "edit:rewind"]);
+  });
+
+  it("改完之后下一轮 ensure 重新建会话（从改后的文件恢复），不复用旧宿主", async () => {
+    const { sessionId: first } = await piChatSessionManager.ensureChatSession(options);
+    await piChatSessionManager.editChatHistory("main-chat", chatId, "f_chat-11.jsonl", {
+      kind: "omit",
+      entryIds: ["e2"],
+    });
+    const { sessionId } = await piChatSessionManager.ensureChatSession(options);
+    expect(sessionId).not.toBe(first);
+    expect(piSessionDispose).toHaveBeenCalledWith(first);
+    expect(vi.mocked(piSessionCreate).mock.calls[1][1]).toMatchObject({
+      sessionFile: "f_chat-11.jsonl",
+    });
+  });
+
+  it("没有开着的宿主会话也能直接改（不调 dispose）", async () => {
+    await piChatSessionManager.editChatHistory("main-chat", "idle-chat", "f_idle.jsonl", {
+      kind: "omit",
+      entryIds: ["e9"],
+    });
+    expect(piSessionDispose).not.toHaveBeenCalled();
+    expect(piSessionEdit).toHaveBeenCalledWith(
+      { sessionFile: "f_idle.jsonl" },
+      { kind: "omit", entryIds: ["e9"] }
+    );
   });
 });

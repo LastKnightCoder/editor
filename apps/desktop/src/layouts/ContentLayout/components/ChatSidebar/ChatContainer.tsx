@@ -20,6 +20,7 @@ import { measurePerformance } from "./hooks/usePerformanceMonitor";
 import MessageItem from "./MessageItem";
 
 import { ChatMessage, RequestMessage, ResponseMessage } from "@/types";
+import type { PiPromptDisplay } from "@/types/pi-session";
 import {
   clampThinkingLevel,
   normalizeStoredThinkingLevel,
@@ -34,14 +35,20 @@ import {
 } from "@/constants";
 import { piCompleteChat } from "@/services/piLLM";
 import { remoteResourceToLocal } from "@/utils/resouce";
-import { buildPiChatSystemPrompt, piChatSessionManager } from "@/services/piChatSession";
-import { piChatRuntime, type PiChatRuntimeDeps } from "@/services/piChatRuntime";
+import {
+  buildPiChatSystemPrompt,
+  chatSessionKey,
+  piChatSessionManager,
+} from "@/services/piChatSession";
+import { adoptTranscript, piChatRuntime, type PiChatRuntimeDeps } from "@/services/piChatRuntime";
 import {
   onPiSessionEvent,
   piSessionAbort,
   piSessionPrompt,
   piSessionSteer,
+  type PiSessionEdit,
 } from "@/commands/piSession";
+import useChatSessionStore, { bucketOfChatScope, isDraftChat } from "@/stores/useChatSessionStore";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useSettingStore from "@/stores/useSettingStore";
 import useSkillStore from "@/stores/useSkillStore";
@@ -58,8 +65,6 @@ import { ToolRendererInteractionProvider } from "@/tool-call-renderers/ToolRende
 import { createAssistantMessage } from "@/services/assistantMessageBlocks";
 import { createChatMessageClientId } from "@/services/chatMessageSchema";
 import {
-  buildFullHistoryMessages,
-  buildResetBaseChat,
   buildTitleSummaryMessages,
   formatGeneratedChatTitle,
   getLastUserMessageIndex,
@@ -93,6 +98,40 @@ interface ChatScrollAnchor {
 
 const CHAT_SCROLL_POSITION_CACHE = new Map<string, ChatScrollAnchor>();
 
+/**
+ * 每个对话的基础 system prompt（含会话时间上下文）在本次运行内固定：时间精确到分钟，
+ * 每轮重算会让 system 段每轮都变、整条提示缓存作废。重载后重新生成一次（只丢一次缓存）。
+ */
+const SESSION_SYSTEM_PROMPTS = new Map<string, { base: string; prompt: string }>();
+const sessionSystemPromptOf = (chatId: string, base: string): string => {
+  const cached = SESSION_SYSTEM_PROMPTS.get(chatId);
+  if (cached && cached.base === base) return cached.prompt;
+  const prompt = buildSessionAwareSystemPrompt(base);
+  SESSION_SYSTEM_PROMPTS.set(chatId, { base, prompt });
+  return prompt;
+};
+
+/** 界面上的消息序列（投影不含 system；旧快照可能还带着，一并滤掉） */
+const visibleMessagesOf = (chat: ChatMessage) =>
+  chat.messages.filter(message => message.role !== Role.System);
+
+/** 第 index 条可见消息（须为用户消息）对应的 pi entry id */
+const userEntryIdAt = (messages: ChatMessage["messages"], index: number): string | undefined => {
+  const target = messages[index];
+  return target?.role === Role.User ? target.piEntryIds?.[0] : undefined;
+};
+
+/** 用户消息 → 展示 entry 载荷（文件卡片、mention、skills 原样保留，重开对话照原样显示） */
+const toPromptDisplay = (message: RequestMessage): PiPromptDisplay | undefined => {
+  const content =
+    typeof message.content === "string"
+      ? [{ type: "text" as const, text: message.content }]
+      : message.content;
+  return content.length > 0
+    ? { content, ...(message.clientId ? { clientId: message.clientId } : {}) }
+    : undefined;
+};
+
 interface EditingDraftState {
   messageIndex: number;
 }
@@ -103,29 +142,28 @@ interface HiddenPromptContextState {
 }
 
 interface ChatContainerProps {
+  /** 当前对话（统一会话 store 里已打开的对话；新对话是草稿：真 id、尚无 sessionFile） */
   currentChat: ChatMessage;
   isDark: boolean;
   markdownComponents: any;
   isVisible: boolean; // 控制是否应该渲染内容
-  updateChatMessage: (chat: ChatMessage) => Promise<ChatMessage>;
-  updateCurrentChat: (chat: ChatMessage) => void;
   sendLoading: boolean;
   setSendLoading: (loading: boolean) => void;
   titleRef: React.RefObject<EditTextHandle | null>;
   onCreateNewMessage: () => void;
   createMessageLoading: boolean;
   hideInput?: boolean; // 控制是否隐藏输入框
-  chatScope?: string; // 对话作用域，用于构建 ask-question 会话键
-  /** 当前页面实例的运行时会话键；新对话在落库前使用独立键，避免共享 id=0 哨兵。 */
-  runtimeKey?: string;
+  /** 对话作用域（`main-chat` / `pdf-chat:<pdfId>` …）：会话键前缀 + 统一 store 的分桶 */
+  chatScope?: string;
   /** 工具作用域：只有本对话能用该作用域注册的页面专属工具，输入框 MCP 面板也只列它们 */
   toolScope?: string;
   preserveScrollPosition?: boolean; // 侧边栏收起后重新打开时恢复滚动位置
   scrollPositionScope?: string; // 滚动位置缓存作用域，不影响模型会话键
-  onChatCreated?: (chatId: number) => void; // 新对话创建后的回调
+  /** 草稿首轮发送后登记为正式对话（id 不变），宿主据此把它设为当前 */
+  onChatCreated?: (chatId: string) => void;
+  /** 建分支后切到新分支 */
+  onBranchCreated?: (chatId: string) => void;
   customSystemPrompt?: string; // 自定义系统提示（覆盖默认）
-  onCreateChat: (messages: ChatMessage["messages"], title?: string) => Promise<ChatMessage>;
-  onCreateBranch: (parentChatId: number, messages: ChatMessage["messages"]) => Promise<ChatMessage>;
   beforeSendUserMessage?: (content: MessageContentItem[]) => Promise<boolean | void>;
   /** 阅读列最大宽度（对话页 760 居中；停靠栏缺省 = 撑满） */
   contentMaxWidth?: number;
@@ -149,8 +187,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       isDark,
       markdownComponents,
       isVisible,
-      updateChatMessage,
-      updateCurrentChat,
       sendLoading: _externalSendLoading,
       setSendLoading: setExternalSendLoading,
       titleRef,
@@ -158,14 +194,12 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       createMessageLoading,
       hideInput = false,
       chatScope = "main-chat",
-      runtimeKey,
       toolScope,
       preserveScrollPosition = false,
       scrollPositionScope,
       onChatCreated,
+      onBranchCreated,
       customSystemPrompt,
-      onCreateChat,
-      onCreateBranch,
       beforeSendUserMessage,
       contentMaxWidth,
       compact = false,
@@ -177,8 +211,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const { provider: chatProviderConfig, model: chatModelConfig } = useLLMConfig("chat");
     const { provider: titleProviderConfig, model: titleModelConfig } = useLLMConfig("titleSummary");
 
-    const persistedRuntimeKey = `${chatScope.split(":")[0]}:${currentChat.id}`;
-    const sessionKey = runtimeKey ?? persistedRuntimeKey;
+    // 草稿也有真 id，会话键从头到尾不变（不再有 id 0→N 的迁移）
+    const sessionKey = chatSessionKey(chatScope, currentChat.id);
     const [pendingSessionKeys, setPendingSessionKeys] = useState<Set<string>>(() => new Set());
     const setSessionPending = useMemoizedFn((key: string, pending: boolean) => {
       setPendingSessionKeys(current => {
@@ -301,9 +335,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     // 事件归约与持久化仍在 runtime 中继续（后台运行），重挂载时拿回同一容器无缝接续。
     // deps 每次渲染刷新（均为无组件生命周期的引用：store action / IPC command / 安全闭包）
     const runtimeDeps: PiChatRuntimeDeps = {
-      publish: updateCurrentChat,
-      persist: chat => updateChatMessage(chat),
+      publish: chat => useChatSessionStore.getState().publishChat(chat),
+      settle: chat => useChatSessionStore.getState().settleChat(chat.id),
       generateTitle: chat => generateChatTitle(chat),
+      saveTitle: (chatId, title) => useChatSessionStore.getState().renameChat(chatId, title),
       ui: {
         onRetryStatus: status =>
           setChatRetryStatus(
@@ -351,9 +386,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const hasRestoredScrollPositionRef = useRef(false);
     const isRestoringScrollPositionRef = useRef(false);
 
-    const getConversationKey = useMemoizedFn((chatId: number) =>
-      chatId === currentChat.id ? sessionKey : `${chatScope.split(":")[0]}:${chatId}`
-    );
+    const getConversationKey = useMemoizedFn((chatId: string) => chatSessionKey(chatScope, chatId));
 
     // 待发送队列与已提交插话都归模块级 runtime（切页/卸载不丢）；
     // 变更经 runtime.subscribe → runtimeTick 触发重渲染，这里每次渲染取最新快照
@@ -386,8 +419,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       piChatRuntime.removeQueuedMessage(sessionKey, index);
     });
 
-    const getScrollPositionKey = useMemoizedFn((chatId: number) => {
-      if (!preserveScrollPosition || chatId === 0) {
+    const getScrollPositionKey = useMemoizedFn((chatId: string) => {
+      // 草稿没有历史位置可恢复
+      if (!preserveScrollPosition || isDraftChat(actualChatRef.current)) {
         return null;
       }
       return `${scrollPositionScope || chatScope}:${chatId}`;
@@ -487,7 +521,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
     // 上次同步到视图的 runtime 容器：容器按 sessionKey 分条目，切换会话时 ensureConversation
     // 返回的是另一个已用 currentChat 初始化的容器，只比对 id/快照会漏判——必须比对容器身份。
-    // 新对话落库（adoptConversation）容器对象不变，不算切换。
     const syncedConversationRef = useRef(actualChatRef);
 
     // 当切换聊天或收到同一聊天的外部最新快照时同步 ref
@@ -520,35 +553,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       }
     }, [hideInput]);
 
-    const buildSystemMessageWithRequest = useMemoizedFn((chat: ChatMessage) => {
-      const defaultSystemPromptForSend = customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
-      const baseSystemContent =
-        (chat.messages[0] as ResponseMessage | undefined)?.content || defaultSystemPromptForSend;
-      return {
-        role: Role.System,
-        content: [
-          {
-            type: "text",
-            text: baseSystemContent,
-          },
-        ],
-      } as RequestMessage;
-    });
-
     /**
-     * pi 会话事件归约与持久化已下沉到模块级 services/piChatRuntime（后台运行）：
+     * pi 会话事件归约与收尾已下沉到模块级 services/piChatRuntime（后台运行）：
      * 组件只负责发送编排（ensure 会话 + prompt）与 UI 展示，事件 → 聊天行的写入
      * 经 runtime 的常驻 reducer（单一事实源容器 + store 发布），卸载/切页不中断。
      */
-
-    const buildHistoryMessages = useMemoizedFn(
-      (
-        chat: ChatMessage,
-        options?: {
-          excludeMessageIndex?: number;
-        }
-      ) => buildFullHistoryMessages(chat, options)
-    );
 
     /** 标题生成（纯计算，不写聊天行）：回写与落库由 piChatRuntime 在最新快照上补丁完成 */
     const generateChatTitle = useMemoizedFn(async (chat: ChatMessage): Promise<string | null> => {
@@ -624,16 +633,45 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       return { promptText, images };
     });
 
+    /**
+     * 改历史（M4）：先释放宿主会话（主进程不允许两个 SessionManager 同时写一个文件），
+     * 再改会话文件，把改后的投影写回容器。下一轮发送时 ensure 会从改后的文件恢复。
+     */
+    const editSessionHistory = useMemoizedFn(
+      async (edit: PiSessionEdit): Promise<ChatMessage | null> => {
+        const chat = actualChatRef.current;
+        if (!chat.sessionFile) {
+          message.warning("对话还没有保存下来，暂时不能修改历史");
+          return null;
+        }
+        const outcome = await piChatSessionManager.editChatHistory(
+          chatScope,
+          chat.id,
+          chat.sessionFile,
+          edit
+        );
+        if (!outcome.ok || !outcome.messages) {
+          message.error(outcome.error ?? "修改对话历史失败");
+          return null;
+        }
+        const next = adoptTranscript(actualChatRef.current, outcome.messages);
+        actualChatRef.current = next;
+        setUpdateCounter(prev => prev + 1);
+        useChatSessionStore.getState().publishChat(next);
+        return next;
+      }
+    );
+
     // 抽离的公共方法：处理消息发送逻辑（pi 会话驱动）
     const processMessageSending = useMemoizedFn(
       async (
         requestMessage: RequestMessage,
         options?: {
           shouldClearInput?: boolean;
-          shouldCreateNewChat?: boolean;
-          persistRequestMessage?: boolean;
+          /** 聊天流里展示的那一版（图片编辑时模型收到的文本拼了隐藏上下文） */
           persistedRequestMessage?: RequestMessage;
-          baseChatOverride?: ChatMessage;
+          /** 编辑重发 / 重新生成：先把会话回退到这条用户消息（entry id）之前再发 */
+          rewindBeforeEntryId?: string;
           toolContext?: {
             flags?: {
               forceReview?: boolean;
@@ -647,88 +685,39 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           return false;
         }
         const shouldClearInput = options?.shouldClearInput ?? true;
-        const shouldCreateNewChat = options?.shouldCreateNewChat ?? true;
-        const persistRequestMessage = options?.persistRequestMessage ?? true;
         const persistedRequestMessage = options?.persistedRequestMessage ?? requestMessage;
         const perf = measurePerformance("sendMessage");
-        let actualCurrentChat = options?.baseChatOverride || actualChatRef.current;
-        let pendingSessionKey = getConversationKey(actualCurrentChat.id);
-        const clearPending = () => setSessionPending(pendingSessionKey, false);
+        const conversationKey = getConversationKey(actualChatRef.current.id);
+        const clearPending = () => setSessionPending(conversationKey, false);
         setChatError(null);
         setChatRetryStatus(null);
-        setSessionPending(pendingSessionKey, true);
+        setSessionPending(conversationKey, true);
 
-        scrollToBottom();
-
-        const responseMessage = createAssistantMessage();
-
-        // 如果当前没有真实的对话（id为0），则先创建一个新对话
-        if (shouldCreateNewChat && actualCurrentChat.id === 0) {
-          const runtimeConversationKey = sessionKey;
-          try {
-            const defaultSystemPrompt = customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
-            const systemContent =
-              (actualCurrentChat.messages[0] as ResponseMessage | undefined)?.content ||
-              defaultSystemPrompt;
-            const systemMessage: ResponseMessage = {
-              role: Role.System,
-              content: buildSessionAwareSystemPrompt(systemContent || defaultSystemPrompt),
-            };
-
-            const newChatMessages = [systemMessage];
-
-            // 使用外部传入的创建对话回调
-            actualCurrentChat = await onCreateChat(
-              newChatMessages,
-              actualCurrentChat.title || "新对话"
-            );
-            const createdSessionKey = getConversationKey(actualCurrentChat.id);
-            setSessionPending(pendingSessionKey, false);
-            pendingSessionKey = createdSessionKey;
-            setSessionPending(pendingSessionKey, true);
-
-            // 立即更新ref，确保UI使用新创建的对话（runtime 容器随 id 0→N 迁移，对象不变；
-            // 待发送队列与已提交插话在同一条目里，跟着一起迁移，无需单独搬运）
-            piChatRuntime.adoptConversation(
-              runtimeConversationKey,
-              createdSessionKey,
-              actualCurrentChat,
-              runtimeDeps
-            );
-            conversationKeyRef.current = createdSessionKey;
-            actualChatRef.current = actualCurrentChat;
-            setUpdateCounter(prev => prev + 1);
-
-            // 通知父组件新对话已创建
-            onChatCreated?.(actualCurrentChat.id);
-          } catch (error) {
-            message.error("创建新对话失败");
+        if (options?.rewindBeforeEntryId) {
+          const rewound = await editSessionHistory({
+            kind: "rewind",
+            entryId: options.rewindBeforeEntryId,
+          });
+          if (!rewound) {
             clearPending();
             return false;
           }
         }
 
-        // 本次请求之前的对话历史（乐观写入前取，作为 pi 会话的灌入/对账基准）
-        const historyBeforeThisTurn: RequestMessage[] = buildHistoryMessages(actualCurrentChat);
+        scrollToBottom();
 
-        // 立即添加用户消息和初始的助手回复到状态中
-        const chatWithNewMessages = {
-          ...actualCurrentChat,
+        // 乐观写入用户消息与助手占位（界面立即反馈）；事实源是 pi 写的 JSONL，settled 后以投影为准
+        let actualCurrentChat: ChatMessage = {
+          ...actualChatRef.current,
           messages: [
-            ...actualCurrentChat.messages,
-            ...(persistRequestMessage ? [persistedRequestMessage] : []),
-            responseMessage,
+            ...actualChatRef.current.messages,
+            persistedRequestMessage,
+            createAssistantMessage(),
           ],
         };
-
-        // 更新当前聊天状态
-        actualCurrentChat = chatWithNewMessages;
-        actualChatRef.current = chatWithNewMessages;
-        setUpdateCounter(prev => prev + 1);
-        updateCurrentChat(chatWithNewMessages);
-        // 先写入用户消息和助手占位符，后台任务即使在组件卸载后也能恢复。
-        actualCurrentChat = await updateChatMessage(chatWithNewMessages);
         actualChatRef.current = actualCurrentChat;
+        setUpdateCounter(prev => prev + 1);
+        useChatSessionStore.getState().publishChat(actualCurrentChat);
 
         // 添加新消息后立即强制贴底，避免虚拟列表测量期间被 scroll 监听误判为用户离开底部。
         enableAutoScroll();
@@ -739,35 +728,48 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         }
 
         try {
-          const baseSystem = buildSystemMessageWithRequest(actualCurrentChat);
-          const forcedSkills = extractForcedSkills(requestMessage);
-          const systemPrompt = buildPiChatSystemPrompt(
-            typeof baseSystem.content === "string"
-              ? baseSystem.content
-              : baseSystem.content.map(block => (block.type === "text" ? block.text : "")).join(""),
-            skills,
-            forcedSkills
+          const baseSystem = sessionSystemPromptOf(
+            actualCurrentChat.id,
+            customSystemPrompt || DEFAULT_SYSTEM_PROMPT
           );
-          const ensureOptions = {
+          const forcedSkills = extractForcedSkills(requestMessage);
+          const systemPrompt = buildPiChatSystemPrompt(baseSystem, skills, forcedSkills);
+          // 不传历史：pi 从会话文件恢复上下文（草稿首轮以对话 id 新建会话）
+          const ensured = await piChatSessionManager.ensureChatSession({
             chatScope,
             chatId: actualCurrentChat.id,
+            ...(actualCurrentChat.sessionFile
+              ? { sessionFile: actualCurrentChat.sessionFile }
+              : {}),
             provider: chatProviderConfig,
             model: chatModelConfig,
             systemPrompt,
-            history: historyBeforeThisTurn,
             ...(chatModelConfig.reasoning ? { thinkingLevel } : {}),
             ...(toolScope ? { toolScope } : {}),
             ...(options?.toolContext
               ? { toolContext: options.toolContext as Record<string, unknown> }
               : {}),
-          };
-          // 编辑重发/重新生成传入截断历史（baseChatOverride）：pi 会话必须重建对齐
-          const sessionId = options?.baseChatOverride
-            ? await piChatSessionManager.recreateChatSession(ensureOptions)
-            : await piChatSessionManager.ensureChatSession(ensureOptions);
+          });
+          const sessionId = ensured.sessionId;
 
-          // runtime 常驻绑定：同一会话多轮发送共享归约器（recreate 换了 sessionId 自动重建）
-          piChatRuntime.bindSession(getConversationKey(actualCurrentChat.id), sessionId);
+          // 草稿首轮：宿主回传了会话文件名，登记目录行（id 不变，只是从草稿变成正式对话）。
+          // 必须在 prompt 之前——会话空闲时 prompt 要等整轮跑完才返回
+          if (!actualCurrentChat.sessionFile && ensured.sessionFile) {
+            const bucket = bucketOfChatScope(chatScope);
+            const row = await useChatSessionStore
+              .getState()
+              .registerChat(
+                { ...actualChatRef.current, scope: bucket.scope, domainRef: bucket.domainRef },
+                ensured.sessionFile
+              );
+            actualCurrentChat = { ...actualChatRef.current, sessionFile: row.sessionFile };
+            actualChatRef.current = actualCurrentChat;
+            useChatSessionStore.getState().publishChat(actualCurrentChat);
+            onChatCreated?.(actualCurrentChat.id);
+          }
+
+          // runtime 常驻绑定：同一会话多轮发送共享归约器（重建换了 sessionId 自动重建）
+          piChatRuntime.bindSession(conversationKey, sessionId);
 
           const contentItems = Array.isArray(requestMessage.content)
             ? requestMessage.content
@@ -775,8 +777,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           const { promptText, images } = await buildPromptPayload(
             contentItems as MessageContentItem[]
           );
+          const display = toPromptDisplay(persistedRequestMessage);
 
-          let promptOutcome = await piSessionPrompt(sessionId, promptText, images);
+          let promptOutcome = await piSessionPrompt(sessionId, promptText, images, display);
           // 停止后立即发送（pi 仍在收尾）会被拒：等该会话沉淀事件后自动提交，15s 兜底放弃
           if (!promptOutcome.ok && /already processing|正在处理/i.test(promptOutcome.error ?? "")) {
             promptOutcome = await new Promise<typeof promptOutcome>(resolve => {
@@ -788,7 +791,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               const unsubscribeSettled = onPiSessionEvent(sessionId, event => {
                 if (settled || event.type !== "agent_settled") return;
                 settled = true;
-                void piSessionPrompt(sessionId, promptText, images).then(outcome => {
+                void piSessionPrompt(sessionId, promptText, images, display).then(outcome => {
                   cleanup();
                   resolve(outcome);
                 });
@@ -801,7 +804,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           }
           if (!promptOutcome.ok) {
             setChatError(promptOutcome.error ?? "发送失败");
-            setSessionPending(getConversationKey(actualCurrentChat.id), false);
+            clearPending();
             const shouldRestoreInput = shouldRestoreInputAfterSendError(
               new Error(promptOutcome.error ?? "")
             );
@@ -879,9 +882,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       onSelectModel(providerId, modelId);
     });
 
-    const visibleMessages = useMemo(() => {
-      return actualChatRef.current.messages.filter(message => message.role !== Role.System);
-    }, [actualChatRef, updateCounter]);
+    const visibleMessages = useMemo(
+      () => visibleMessagesOf(actualChatRef.current),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [actualChatRef, updateCounter]
+    );
 
     const contextUsage = useMemo(() => {
       for (let index = actualChatRef.current.messages.length - 1; index >= 0; index -= 1) {
@@ -1100,22 +1105,22 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             }
           : newMessage;
 
-        const resetBaseChat = editingDraft
-          ? buildResetBaseChat(actualChatRef.current, editingDraft.messageIndex)
-          : null;
+        // 编辑重发：会话回退到被编辑的那条用户消息之前，再以新内容发送
+        const editedEntryId = editingDraft
+          ? userEntryIdAt(visibleMessagesOf(actualChatRef.current), editingDraft.messageIndex)
+          : undefined;
 
-        if (editingDraft && !resetBaseChat) {
+        if (editingDraft && !editedEntryId) {
           setEditingDraft(null);
-          message.warning("只能编辑最后一条用户消息");
+          message.warning("这条消息还没有保存下来，暂时不能编辑");
           return false;
         }
 
         setEditingDraft(null);
         const sent = await processMessageSending(requestMessageForModel, {
           shouldClearInput: true,
-          shouldCreateNewChat: true,
           persistedRequestMessage: newMessage,
-          baseChatOverride: resetBaseChat || undefined,
+          ...(editedEntryId ? { rewindBeforeEntryId: editedEntryId } : {}),
         });
 
         if (sent) {
@@ -1182,7 +1187,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           content,
         });
         if (!steerId) return "rejected";
-        const outcome = await piSessionSteer(sessionId, promptText, images);
+        const outcome = await piSessionSteer(sessionId, promptText, images, { content });
         if (outcome.ok) return "steered";
         // 失败退回待发送（settled 兜底可能已经退过，returnPendingSteerToQueue 幂等）
         const returned = piChatRuntime.returnPendingSteerToQueue(conversationKey, steerId);
@@ -1252,49 +1257,38 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       });
     }, [runtimeTick, sendLoading, sendMessageContent, sessionKey, updateCounter]);
 
-    // 删除消息
+    // 删除消息：pi 原生 context_edit 省略（只删那一条；一条回答要把它全部 entry 一起省略）
     const handleDeleteMessage = useMemoizedFn(async (messageIndex: number) => {
-      try {
-        const updatedChat = produce(actualChatRef.current, draft => {
-          // 过滤掉要删除的消息（需要加上系统消息的偏移）
-          const actualIndex = messageIndex + 1; // +1 因为跳过了系统消息
-          draft.messages = draft.messages.filter((_, index) => index !== actualIndex);
-        });
-
-        const saved = await updateChatMessage(updatedChat);
-        actualChatRef.current = saved;
-        setUpdateCounter(prev => prev + 1);
-        updateCurrentChat(saved);
-        message.success("消息已删除");
-      } catch (error) {
-        message.error("删除消息失败");
-        console.error("Delete message error:", error);
+      if (sendLoading) {
+        message.warning("回答进行中，请先停止再删除消息");
+        return;
       }
+      const target = visibleMessagesOf(actualChatRef.current)[messageIndex];
+      const entryIds = target?.piEntryIds ?? [];
+      if (entryIds.length === 0) {
+        message.warning("这条消息还没有保存下来，暂时不能删除");
+        return;
+      }
+      const edited = await editSessionHistory({ kind: "omit", entryIds });
+      if (edited) message.success("消息已删除");
     });
 
-    // 重新生成消息
+    // 重新生成：会话回退到这条用户消息之前，以原内容重发
     const handleRegenerateMessage = useMemoizedFn(async (messageIndex: number) => {
-      const actualIndex = messageIndex + 1; // +1 因为跳过了系统消息
-      const targetMessage = actualChatRef.current.messages[actualIndex];
+      if (sendLoading) return;
+      const targetMessage = visibleMessagesOf(actualChatRef.current)[messageIndex];
       if (!targetMessage || targetMessage.role !== Role.User) {
         message.warning("只能重新生成用户消息");
         return;
       }
-
-      // 删除目标消息之后的所有消息（包括目标消息本身）
-      const updatedChat = produce(actualChatRef.current, draft => {
-        draft.messages = draft.messages.slice(0, actualIndex);
-      });
-
-      actualChatRef.current = updatedChat;
-      setUpdateCounter(prev => prev + 1);
-      updateCurrentChat(updatedChat);
-
-      // 直接调用公共方法发送消息
-      const userMessage = targetMessage as RequestMessage;
-      await processMessageSending(userMessage, {
+      const entryId = targetMessage.piEntryIds?.[0];
+      if (!entryId) {
+        message.warning("这条消息还没有保存下来，暂时不能重新生成");
+        return;
+      }
+      await processMessageSending(targetMessage as RequestMessage, {
         shouldClearInput: false,
-        shouldCreateNewChat: false,
+        rewindBeforeEntryId: entryId,
       });
     });
 
@@ -1323,25 +1317,33 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       }, 0);
     });
 
-    // 创建分支
+    // 创建分支：拷出会话文件截到这条消息（含它的全部 entry），登记为子对话并切过去
     const handleCreateBranch = useMemoizedFn(async (messageIndex: number) => {
+      const currentChat = actualChatRef.current;
+      if (isDraftChat(currentChat)) {
+        message.warning("请先发送一条消息再建分支");
+        return;
+      }
+      if (sendLoading) {
+        message.warning("回答进行中，请先停止再建分支");
+        return;
+      }
+      const target = visibleMessagesOf(currentChat)[messageIndex];
+      const throughEntryId = target?.piEntryIds?.at(-1);
+      if (!throughEntryId) {
+        message.warning("这条消息还没有保存下来，暂时不能建分支");
+        return;
+      }
       try {
-        const currentChat = actualChatRef.current;
-
-        if (currentChat.id === 0) {
-          message.warning("请先保存当前对话");
-          return;
-        }
-
-        // 复制从开头到指定消息的所有消息（包括系统消息）
-        const actualIndex = messageIndex + 1; // +1 因为跳过了系统消息
-        const branchMessages = currentChat.messages.slice(0, actualIndex + 1);
-
-        // 使用外部传入的创建分支回调
-        await onCreateBranch(currentChat.id, branchMessages);
+        // 源对话的宿主不能同时开着文件（建分支只读源文件，但主进程统一要求先释放）
+        await piChatSessionManager.disposeChatSession(chatScope, currentChat.id);
+        const branch = await useChatSessionStore
+          .getState()
+          .branchChat(currentChat.id, throughEntryId);
         message.success("分支已创建");
+        onBranchCreated?.(branch.id);
       } catch (error) {
-        message.error("创建分支失败");
+        message.error(getErrorMessage(error) || "创建分支失败");
         console.error("Create branch error:", error);
       }
     });

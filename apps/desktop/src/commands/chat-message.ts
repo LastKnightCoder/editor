@@ -1,70 +1,9 @@
+/**
+ * 对话分组（chat_group）的渲染端封装。M4 起对话本身在 chat_session 目录表 + pi JSONL
+ * （见 commands/chat-session.ts），旧 chat_message 行的读写命令已退役（主进程 handler 留到 M8）。
+ */
 import { invoke } from "@/electron";
-import {
-  ChatMessage,
-  ChatSessionMessage,
-  ChatGroup,
-  CreateChatGroup,
-  UpdateChatGroup,
-} from "@/types";
-
-export const createChatMessage = (
-  messages: ChatSessionMessage[],
-  title = "新对话",
-  groupId?: number | null,
-  parentChatId?: number | null,
-  branchIndex?: number,
-  orderNum?: number | null,
-  titleDirty?: boolean,
-  source?: "desktop" | "browser"
-): Promise<ChatMessage> => {
-  return invoke(
-    "create-chat-message",
-    messages,
-    title,
-    groupId,
-    parentChatId,
-    branchIndex,
-    orderNum,
-    titleDirty,
-    source
-  );
-};
-
-export const getChatMessageById = (id: number): Promise<ChatMessage> => {
-  return invoke("get-chat-message-by-id", id);
-};
-
-export const updateChatMessage = (
-  chatMessage: Partial<Omit<ChatMessage, "updateTime">> & Pick<ChatMessage, "id">
-): Promise<ChatMessage> => {
-  return invoke("update-chat-message", chatMessage);
-};
-
-export const deleteChatMessage = (id: number): Promise<number> => {
-  return invoke("delete-chat-message", id);
-};
-
-export const getAllChatMessages = (): Promise<ChatMessage[]> => {
-  return invoke("get-all-chat-messages");
-};
-
-export type ChatMessageListItem = Omit<ChatMessage, "messages">;
-
-export const getChatMessageList = (groupId?: number): Promise<ChatMessageListItem[]> => {
-  return invoke("get-chat-message-list", groupId);
-};
-
-export const getChatBranches = (parentChatId: number): Promise<ChatMessage[]> => {
-  return invoke("get-chat-branches", parentChatId);
-};
-
-export const getNextBranchIndex = (parentChatId: number): Promise<number> => {
-  return invoke("get-next-branch-index", parentChatId);
-};
-
-export const getChildBranchesCount = (parentChatId: number): Promise<number> => {
-  return invoke("get-child-branches-count", parentChatId);
-};
+import { ChatGroup, CreateChatGroup, UpdateChatGroup } from "@/types";
 
 export const createChatGroup = (data: CreateChatGroup): Promise<ChatGroup> => {
   return invoke("chat-group:create", data);
@@ -84,16 +23,4 @@ export const getAllChatGroups = (): Promise<ChatGroup[]> => {
 
 export const getChatGroupById = (id: number): Promise<ChatGroup> => {
   return invoke("chat-group:get-by-id", id);
-};
-
-export const pinChatMessage = (id: number): Promise<ChatMessage> => {
-  return invoke("pin-chat-message", id);
-};
-
-export const unpinChatMessage = (id: number): Promise<ChatMessage> => {
-  return invoke("unpin-chat-message", id);
-};
-
-export const reorderChatMessage = (id: number, newOrder: number): Promise<ChatMessage> => {
-  return invoke("reorder-chat-message", id, newOrder);
 };

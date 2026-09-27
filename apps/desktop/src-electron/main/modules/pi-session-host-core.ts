@@ -126,8 +126,50 @@ export function loadSessionTranscript(
   return out;
 }
 
+/**
+ * 展示 entry 写入器（M4）：发送/插话前登记桌面展示形态，pi 把对应的用户消息落盘后紧跟着写一条
+ * desktop-display entry。按文本认领（插话送达时机由 pi 决定，不能按调用顺序配对）。
+ *
+ * 时序：pi 的 _handleAgentEvent 先通知监听者、**再**同步 appendMessage，所以监听到 user
+ * message_end 时用户消息还没写进去——推迟一个微任务再写，展示 entry 才落在用户消息之后。
+ * agent_settled 时还没认领的就是没送达的插话（渲染端会退回待发送、重发时重新登记），直接丢弃。
+ */
+export function createDisplayEntryWriter(
+  session: Pick<AgentSession, "subscribe" | "sessionManager">
+) {
+  const pending: DesktopDisplayData[] = [];
+  const unsubscribe = session.subscribe(event => {
+    if (event.type === "agent_settled") {
+      pending.length = 0;
+      return;
+    }
+    if (event.type !== "message_end" || event.message.role !== "user") return;
+    const text = userModelTextOf((event.message as { content: unknown }).content);
+    const index = pending.findIndex(display => display.modelText === text);
+    if (index < 0) return;
+    const [display] = pending.splice(index, 1);
+    queueMicrotask(() => {
+      try {
+        session.sessionManager.appendCustomEntry(DISPLAY_ENTRY_TYPE, display);
+      } catch (error) {
+        console.error("[PiSessionHost] 写展示 entry 失败:", error);
+      }
+    });
+  });
+  return {
+    expect(display: DesktopDisplayData) {
+      pending.push(display);
+    },
+    discard(display: DesktopDisplayData) {
+      const index = pending.indexOf(display);
+      if (index >= 0) pending.splice(index, 1);
+    },
+    dispose: unsubscribe,
+  };
+}
+
 /** 与 pi 出队/展示 entry 认领同一取法：只取 text 块、直接相接 */
-const userModelTextOf = (content: unknown): string =>
+export const userModelTextOf = (content: unknown): string =>
   typeof content === "string"
     ? content
     : Array.isArray(content)

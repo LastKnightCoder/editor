@@ -33,14 +33,19 @@ import {
   cn,
   toast,
 } from "@tau/ui";
-import useChatMessageStore from "@/stores/useChatMessageStore";
-import type { ChatMessage, ChatGroup, ResponseMessage } from "@/types";
-import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
+import useChatSessionStore, { MAIN_CHAT_BUCKET, selectRows } from "@/stores/useChatSessionStore";
+import { chatSessionKey, piChatSessionManager } from "@/services/piChatSession";
+import type { ChatGroup } from "@/types";
+import type { ChatSessionRow } from "@/types/chat-session";
+
+type ChatMessage = ChatSessionRow;
 
 interface ChatManagementSidebarProps {
-  selectedChatId: number | null;
-  onChatSelect?: (chatId: number) => void;
+  selectedChatId: string | null;
+  onChatSelect?: (chatId: string) => void;
 }
+
+const selectMainRows = selectRows(MAIN_CHAT_BUCKET);
 
 const ICON = { size: 14, strokeWidth: 1.75 } as const;
 /** 缩进：每层 16px，行内左内边距 8px */
@@ -71,47 +76,45 @@ type GroupDialogState = {
  */
 const ChatManagementSidebar = memo(
   ({ selectedChatId, onChatSelect }: ChatManagementSidebarProps) => {
+    const chats = useChatSessionStore(selectMainRows);
+    const groups = useChatSessionStore(state => state.groups);
     const {
-      chats,
-      groups,
-      createChatMessage,
-      createChatGroup,
-      updateChatGroup,
-      deleteChatGroup,
-      deleteChatMessage,
-      archiveChatMessage,
+      createGroup: createChatGroup,
+      renameGroup: updateChatGroup,
+      deleteGroup: deleteChatGroup,
+      archiveChat: archiveChatMessage,
       moveChatToGroup,
-      createChatBranch,
-      pinChatMessage,
-      unpinChatMessage,
-      getChildBranchesCount,
-    } = useChatMessageStore(
+      pinChat: pinChatMessage,
+      unpinChat: unpinChatMessage,
+    } = useChatSessionStore(
       useShallow(state => ({
-        chats: state.chats,
-        groups: state.groups,
-        createChatMessage: state.createChatMessage,
-        createChatGroup: state.createChatGroup,
-        updateChatGroup: state.updateChatGroup,
-        deleteChatGroup: state.deleteChatGroup,
-        deleteChatMessage: state.deleteChatMessage,
-        archiveChatMessage: state.archiveChatMessage,
+        createGroup: state.createGroup,
+        renameGroup: state.renameGroup,
+        deleteGroup: state.deleteGroup,
+        archiveChat: state.archiveChat,
         moveChatToGroup: state.moveChatToGroup,
-        createChatBranch: state.createChatBranch,
-        pinChatMessage: state.pinChatMessage,
-        unpinChatMessage: state.unpinChatMessage,
-        getChildBranchesCount: state.getChildBranchesCount,
+        pinChat: state.pinChat,
+        unpinChat: state.unpinChat,
       }))
     );
 
+    const collectSubtree = (id: string) => {
+      const out = [id];
+      for (let index = 0; index < out.length; index += 1) {
+        for (const chat of chats) if (chat.parentSessionId === out[index]) out.push(chat.id);
+      }
+      return out;
+    };
+
     const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
     const [expandedArchived, setExpandedArchived] = useState(false);
-    const [draggedChatId, setDraggedChatId] = useState<number | null>(null);
+    const [draggedChatId, setDraggedChatId] = useState<string | null>(null);
     const [dragOverTarget, setDragOverTarget] = useState<number | null | "root">(null);
     const [groupDialog, setGroupDialog] = useState<GroupDialogState>(null);
     const [groupName, setGroupName] = useState("");
     const [pendingDeleteGroup, setPendingDeleteGroup] = useState<number | null>(null);
     const [pendingDeleteChat, setPendingDeleteChat] = useState<{
-      id: number;
+      id: string;
       branches: number;
     } | null>(null);
 
@@ -127,19 +130,14 @@ const ChatManagementSidebar = memo(
       });
     });
 
-    const handleChatSelect = useMemoizedFn((chatId: number) => {
+    const handleChatSelect = useMemoizedFn((chatId: string) => {
       onChatSelect?.(chatId);
     });
 
-    const createChatIn = useMemoizedFn(async (groupId: number | null) => {
-      const messages: ResponseMessage[] = [{ role: Role.System, content: DEFAULT_SYSTEM_PROMPT }];
-      try {
-        const newChat = await createChatMessage(messages, "新对话", groupId, false);
-        onChatSelect?.(newChat.id);
-      } catch (error) {
-        toast.error("创建失败");
-        console.error(error);
-      }
+    // 新对话是草稿（带上分组），首轮发送后才出现在列表里
+    const createChatIn = useMemoizedFn((groupId: number | null) => {
+      const draftId = useChatSessionStore.getState().openDraftInGroup(MAIN_CHAT_BUCKET, groupId);
+      onChatSelect?.(draftId);
     });
 
     const handleCreateGroup = useMemoizedFn((parentId?: number | null) => {
@@ -189,26 +187,29 @@ const ChatManagementSidebar = memo(
       }
     });
 
-    const askDeleteChat = useMemoizedFn(async (chatId: number) => {
-      let branches = 0;
-      try {
-        branches = await getChildBranchesCount(chatId);
-      } catch (error) {
-        console.error("Failed to get child branches count:", error);
-      }
-      setPendingDeleteChat({ id: chatId, branches });
+    const askDeleteChat = useMemoizedFn((chatId: string) => {
+      setPendingDeleteChat({ id: chatId, branches: collectSubtree(chatId).length - 1 });
     });
 
+    // 删除连分支子树：先释放宿主会话与运行态，再删目录行（主进程连会话文件一起删）
     const confirmDeleteChat = useMemoizedFn(async () => {
       if (!pendingDeleteChat) return;
       try {
-        await deleteChatMessage(pendingDeleteChat.id);
+        const { piChatRuntime } = await import("@/services/piChatRuntime");
+        const subtree = collectSubtree(pendingDeleteChat.id);
+        await Promise.all(
+          subtree.map(id => piChatSessionManager.disposeChatSession(MAIN_CHAT_BUCKET.scope, id))
+        );
+        subtree.forEach(id =>
+          piChatRuntime.disposeConversation(chatSessionKey(MAIN_CHAT_BUCKET.scope, id))
+        );
+        await useChatSessionStore.getState().deleteChat(pendingDeleteChat.id);
       } catch (error) {
         toast.error("删除失败");
       }
     });
 
-    const handleArchiveChat = useMemoizedFn(async (chatId: number, archived: boolean) => {
+    const handleArchiveChat = useMemoizedFn(async (chatId: string, archived: boolean) => {
       try {
         await archiveChatMessage(chatId, archived);
       } catch (error) {
@@ -216,7 +217,7 @@ const ChatManagementSidebar = memo(
       }
     });
 
-    const handleTogglePin = useMemoizedFn(async (chatId: number, pinned: boolean) => {
+    const handleTogglePin = useMemoizedFn(async (chatId: string, pinned: boolean) => {
       try {
         if (pinned) {
           await unpinChatMessage(chatId);
@@ -228,19 +229,21 @@ const ChatManagementSidebar = memo(
       }
     });
 
-    // 创建分支（基于当前对话的所有消息，新分支是当前对话的子级）
-    const handleCreateBranchFromChat = useMemoizedFn(async (chatId: number) => {
+    // 创建分支（拷整条对话，新分支是当前对话的子级）
+    const handleCreateBranchFromChat = useMemoizedFn(async (chatId: string) => {
       const chat = chats.find(c => c.id === chatId);
       if (!chat) {
         toast.error("对话不存在");
         return;
       }
-      if (chat.messages.length <= 1) {
+      if (chat.messageCount === 0) {
         toast.warning("对话没有足够的消息来创建分支");
         return;
       }
       try {
-        await createChatBranch(chat.id, chat.messages);
+        // 源对话的宿主不能同时开着文件
+        await piChatSessionManager.disposeChatSession(MAIN_CHAT_BUCKET.scope, chat.id);
+        await useChatSessionStore.getState().branchChat(chat.id);
       } catch (error) {
         toast.error("创建分支失败");
         console.error("Create branch error:", error);
@@ -248,7 +251,7 @@ const ChatManagementSidebar = memo(
     });
 
     const handleMoveToGroup = useMemoizedFn(
-      async (chatId: number, targetGroupId: number | null) => {
+      async (chatId: string, targetGroupId: number | null) => {
         const chat = chats.find(c => c.id === chatId);
         // 分组未发生改变则不操作
         if (!chat || chat.groupId === targetGroupId) return;
@@ -285,7 +288,7 @@ const ChatManagementSidebar = memo(
     );
 
     // 递归构建「移动至分组」子菜单：有子分组的分组本身也可选（子菜单首项）
-    const renderMoveTargets = (parentId: number | null, chatId: number): ReactNode =>
+    const renderMoveTargets = (parentId: number | null, chatId: string): ReactNode =>
       groups
         .filter(g => g.parentId === parentId)
         .map(group => {
@@ -377,10 +380,10 @@ const ChatManagementSidebar = memo(
 
     /* ───────── 拖拽（拖入分组 / 根区域 = 未分组） ───────── */
 
-    const handleDragStart = useMemoizedFn((e: React.DragEvent, chatId: number) => {
+    const handleDragStart = useMemoizedFn((e: React.DragEvent, chatId: string) => {
       setDraggedChatId(chatId);
       e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", chatId.toString());
+      e.dataTransfer.setData("text/plain", chatId);
     });
 
     const handleDragEnd = useMemoizedFn(() => {
@@ -436,7 +439,7 @@ const ChatManagementSidebar = memo(
     const renderChatItem = (chat: ChatMessage, isArchived: boolean, depth: number) => {
       const isSelected = selectedChatId === chat.id;
       const isDragging = draggedChatId === chat.id;
-      const isBranch = chat.parentChatId != null;
+      const isBranch = chat.parentSessionId != null;
       const isPinned = chat.orderNum !== null;
       const canDrag = !isArchived && !isBranch;
       const menuItems = renderChatMenuItems(chat, isArchived, isBranch);
@@ -530,8 +533,8 @@ const ChatManagementSidebar = memo(
       depth = 0
     ): ReactNode => {
       const branches = chats
-        .filter(c => c.parentChatId === chat.id && !c.archived)
-        .sort((a, b) => (a.branchIndex ?? 0) - (b.branchIndex ?? 0));
+        .filter(c => c.parentSessionId === chat.id && !c.archived)
+        .sort((a, b) => a.branchIndex - b.branchIndex);
 
       return (
         <div key={chat.id} className="flex flex-col gap-px">
@@ -601,7 +604,7 @@ const ChatManagementSidebar = memo(
       const isExpanded = expandedGroups.has(group.id);
       // 只获取根对话（不包含分支），置顶在前
       const groupChats = chats
-        .filter(c => c.groupId === group.id && !c.archived && !c.parentChatId)
+        .filter(c => c.groupId === group.id && !c.archived && !c.parentSessionId)
         .sort(sortByPinThenTime);
       const childGroups = groups.filter(g => g.parentId === group.id);
       const isDragOver = dragOverTarget === group.id;
@@ -657,12 +660,12 @@ const ChatManagementSidebar = memo(
 
     // 未分组的根对话（置顶在前，不包含分支）
     const ungroupedChats = chats
-      .filter(c => !c.groupId && !c.archived && !c.parentChatId)
+      .filter(c => !c.groupId && !c.archived && !c.parentSessionId)
       .sort(sortByPinThenTime);
     const rootGroups = groups.filter(g => g.parentId === null);
     // 归档的根对话（按更新时间倒序，不包含分支）
     const archivedChats = chats
-      .filter(c => c.archived && !c.parentChatId)
+      .filter(c => c.archived && !c.parentSessionId)
       .sort((a, b) => b.updateTime - a.updateTime);
     const isEmpty =
       rootGroups.length === 0 && ungroupedChats.length === 0 && archivedChats.length === 0;

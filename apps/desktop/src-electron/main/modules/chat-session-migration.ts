@@ -192,6 +192,9 @@ export async function migrateLegacyChatsToSessions(options: {
     // 父行先迁（按 id 升序即可：分支总比父对话后建），父 id → 新会话 id
     const idMap = new Map<number, string>();
     for (const row of rows) {
+      // 浏览器扩展的对话不进桌面目录表（用户裁决：扩展对话与应用对话拆开、跟着页面走，
+      // 旧数据不迁）。行原样留在旧表，M8 随旧表一起删
+      if (row.source === "browser") continue;
       try {
         const parsed = migrateChatSessionMessages(JSON.parse(row.messages || "[]"));
         const session = await legacyMessagesToSession(
