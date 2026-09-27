@@ -7,6 +7,16 @@ import BoardUtil from "./BoardUtil";
 
 const TITLE_HEIGHT = COLUMN_DEFAULTS.titleHeight;
 
+/** 各类子元素的数量量词 */
+const COLUMN_COUNT_UNITS: Record<string, string> = {
+  richtext: "段文字",
+  image: "张图片",
+  video: "个视频",
+  audio: "段音频",
+  card: "张卡片",
+  whiteboard: "个白板",
+};
+
 // 高度缓存，避免频繁重新计算导致性能问题
 const heightCache = new Map<string, { height: number; timestamp: number }>();
 const CACHE_DURATION = 100; // 100ms 内使用缓存
@@ -170,44 +180,11 @@ export class ColumnUtil {
   }
 
   /**
-   * Calculate child position within column
-   * Returns the y offset for each child based on stacking order
-   */
-  static calculateChildPositions(
-    board: Board,
-    column: ColumnElement
-  ): Map<string, { x: number; y: number; width: number }> {
-    const positions = new Map<string, { x: number; y: number; width: number }>();
-    const childWidth = column.width - column.padding * 2;
-    const titleHeight = TITLE_HEIGHT;
-    let currentY = column.y + titleHeight + column.padding;
-
-    column.children.forEach((child, index) => {
-      const bounds = board.getBounds(child);
-      const childHeight = bounds ? bounds.maxY - bounds.minY : 50;
-
-      positions.set(child.id, {
-        x: column.x + column.padding,
-        y: currentY,
-        width: childWidth,
-      });
-
-      currentY += childHeight + column.gap;
-
-      // Don't add gap after last child (consistent with layout method)
-      if (index === column.children.length - 1) {
-        currentY -= column.gap;
-      }
-    });
-
-    return positions;
-  }
-
-  /**
    * Check if point is within column bounds
    */
   static isPointInColumn(board: Board, column: ColumnElement, x: number, y: number): boolean {
-    const height = this.calculateHeight(board, column);
+    // 拖入占位时托盘视觉变高，命中区域同步
+    const height = this.calculateHeight(board, column) + this.getDropGrowth(column);
     return x >= column.x && x <= column.x + column.width && y >= column.y && y <= column.y + height;
   }
 
@@ -237,55 +214,122 @@ export class ColumnUtil {
     dropY: number,
     excludeElementId?: string
   ): number {
-    const positions = this.calculateChildPositions(board, column);
+    // 与拖拽时的视觉布局一致：被排除的元素不占位，其余元素依次紧排
+    let currentY = column.y + TITLE_HEIGHT + column.padding;
     let dropIndex = 0;
 
     column.children.forEach((child, index) => {
-      // 跳过被排除的元素（同一容器内拖拽时，排除被拖拽的元素）
-      if (excludeElementId && child.id === excludeElementId) {
-        return;
-      }
+      if (excludeElementId && child.id === excludeElementId) return;
 
-      const pos = positions.get(child.id);
       const bounds = board.getBounds(child);
-      if (pos && bounds) {
-        const childCenterY = pos.y + (bounds.maxY - bounds.minY) / 2;
-        if (dropY > childCenterY) {
-          dropIndex = index + 1;
-        }
+      const childHeight = bounds ? bounds.maxY - bounds.minY : child.height || 50;
+      if (dropY > currentY + childHeight / 2) {
+        dropIndex = index + 1;
       }
+      currentY += childHeight + column.gap;
     });
 
     return dropIndex;
   }
 
   /**
-   * Get drop y position for visual indicator
+   * 标题下方的数量文案：同类元素用对应量词（「3 张图片」），混合时统称「个元素」
    */
-  static getDropY(board: Board, column: ColumnElement, dropIndex: number): number {
-    const positions = this.calculateChildPositions(board, column);
-    const titleHeight = TITLE_HEIGHT;
+  static getCountLabel(column: ColumnElement): string {
+    const { children } = column;
+    if (children.length === 0) return "空";
+    const type = children[0].type;
+    const unit =
+      children.every(child => child.type === type) && COLUMN_COUNT_UNITS[type]
+        ? COLUMN_COUNT_UNITS[type]
+        : "个元素";
+    return `${children.length} ${unit}`;
+  }
 
-    if (column.children.length === 0 || dropIndex === 0) {
-      return column.y + titleHeight + column.padding;
+  /**
+   * 拖入占位块的高度：列内元素取自身高度；外部元素按列内容宽度估算
+   * （图片 / 视频按宽高比，其余取当前高度并限制在范围内）
+   */
+  static getPlaceholderHeight(column: ColumnElement, element: BoardElement): number {
+    if (column.children.some(c => c.id === element.id)) {
+      return element.height || 50;
     }
-
-    if (dropIndex >= column.children.length) {
-      const lastChild = column.children[column.children.length - 1];
-      const pos = positions.get(lastChild.id);
-      const bounds = board.getBounds(lastChild);
-      if (pos && bounds) {
-        return pos.y + (bounds.maxY - bounds.minY) + column.gap / 2;
-      }
+    const contentWidth = column.width - column.padding * 2;
+    if (element.naturalWidth && element.naturalHeight && element.naturalWidth > 0) {
+      return (contentWidth * element.naturalHeight) / element.naturalWidth;
     }
+    return Math.min(
+      COLUMN_DEFAULTS.placeholderMaxHeight,
+      Math.max(COLUMN_DEFAULTS.placeholderMinHeight, element.height || 50)
+    );
+  }
 
-    const targetChild = column.children[dropIndex];
-    const pos = positions.get(targetChild.id);
-    if (pos) {
-      return pos.y - column.gap / 2;
-    }
+  /**
+   * 外部元素拖入时托盘多出的高度（列内拖拽是「原位合拢 + 落点占位」，总高不变）
+   */
+  static getDropGrowth(column: ColumnElement): number {
+    if (!column.isChildDraggingOver || !column.dropPlaceholderHeight) return 0;
+    const isInternal =
+      !!column.draggingChildId && column.children.some(c => c.id === column.draggingChildId);
+    if (isInternal) return 0;
+    return column.dropPlaceholderHeight + (column.children.length > 0 ? column.gap : 0);
+  }
 
-    return column.y + titleHeight + column.padding;
+  /**
+   * 拖拽中的视觉布局：被拖出的子元素原位合拢，落点处空出占位块。
+   * 返回每个可见子元素的目标 y、占位块 y，以及托盘高度；存储坐标不变。
+   */
+  static getVisualLayout(column: ColumnElement): {
+    childYs: Map<string, number>;
+    placeholderY: number | null;
+    placeholderHeight: number;
+    height: number;
+    isVisuallyEmpty: boolean;
+  } {
+    const {
+      children,
+      draggingChildId,
+      dropIndex,
+      isChildDraggingOver,
+      dropPlaceholderHeight = 0,
+      padding,
+      gap,
+    } = column;
+    const showPlaceholder =
+      !!isChildDraggingOver && dropIndex !== undefined && dropPlaceholderHeight > 0;
+
+    const childYs = new Map<string, number>();
+    let currentY = column.y + TITLE_HEIGHT + padding;
+    let placeholderY: number | null = null;
+    let itemCount = 0;
+
+    const placePlaceholder = () => {
+      placeholderY = currentY;
+      currentY += dropPlaceholderHeight + gap;
+      itemCount++;
+    };
+
+    children.forEach((child, index) => {
+      if (showPlaceholder && dropIndex === index) placePlaceholder();
+      if (child.id === draggingChildId) return;
+      childYs.set(child.id, currentY);
+      currentY += (child.height || 50) + gap;
+      itemCount++;
+    });
+    if (showPlaceholder && placeholderY === null) placePlaceholder();
+
+    const isVisuallyEmpty = itemCount === 0;
+    const height = isVisuallyEmpty
+      ? TITLE_HEIGHT + padding * 2 + COLUMN_DEFAULTS.emptyHeight
+      : currentY - gap + padding - column.y;
+
+    return {
+      childYs,
+      placeholderY,
+      placeholderHeight: dropPlaceholderHeight,
+      height,
+      isVisuallyEmpty,
+    };
   }
 
   /**

@@ -85,6 +85,8 @@ export interface ContainerDragFeedback {
   isCurrent: boolean;
   /** 正从该容器拖出的元素（预览显示用），无则 null */
   draggingElement: BoardElement | null;
+  /** 悬停于该容器的元素（占位尺寸用），isTarget 为 false 时为 null */
+  hoveringElement: BoardElement | null;
   /** 鼠标位置（计算插入索引用），无则 undefined */
   pointer: Point | undefined;
 }
@@ -122,7 +124,7 @@ export interface IContainmentCapability {
     board: Board,
     container: BoardElement,
     childId: string,
-    position: { x: number; y: number },
+    position: { x: number; y: number }
   ) => Operation[];
 
   /**
@@ -131,7 +133,7 @@ export interface IContainmentCapability {
   buildDragFeedbackOps?: (
     board: Board,
     container: BoardElement,
-    feedback: ContainerDragFeedback | null,
+    feedback: ContainerDragFeedback | null
   ) => Operation[];
 
   /**
@@ -145,7 +147,7 @@ export interface IContainmentCapability {
    */
   calculateBounds?: (
     board: Board,
-    container: BoardElement,
+    container: BoardElement
   ) => { x: number; y: number; width: number; height: number } | null;
 
   // ============ 容器协议方法 ============
@@ -158,16 +160,13 @@ export interface IContainmentCapability {
     board: Board,
     container: BoardElement,
     element: BoardElement,
-    pointerPosition?: Point,
+    pointerPosition?: Point
   ) => boolean;
 
   /**
    * 检查元素是否是容器的子元素
    */
-  isChildInContainer?: (
-    container: BoardElement,
-    child: BoardElement,
-  ) => boolean;
+  isChildInContainer?: (container: BoardElement, child: BoardElement) => boolean;
 
   /**
    * 获取插入位置索引
@@ -177,7 +176,7 @@ export interface IContainmentCapability {
     board: Board,
     container: BoardElement,
     dropY: number,
-    excludeElementId?: string,
+    excludeElementId?: string
   ) => number;
 
   /**
@@ -187,7 +186,7 @@ export interface IContainmentCapability {
   prepareElementForInsertion?: (
     board: Board,
     container: BoardElement,
-    element: BoardElement,
+    element: BoardElement
   ) => Promise<BoardElement>;
 
   /**
@@ -199,11 +198,7 @@ export interface IContainmentCapability {
    * 元素移出后的回调
    * @param removedChild 被移除的子元素（可选，用于恢复属性等）
    */
-  onChildRemoved?: (
-    board: Board,
-    container: BoardElement,
-    removedChild?: BoardElement,
-  ) => void;
+  onChildRemoved?: (board: Board, container: BoardElement, removedChild?: BoardElement) => void;
 }
 
 /**
@@ -236,10 +231,7 @@ export interface IRenderCapability {
   /**
    * 过滤渲染期可见的子元素（如思维导图按折叠方向隐藏子树），默认全部可见
    */
-  filterVisibleChildren?: (
-    element: BoardElement,
-    children: BoardElement[],
-  ) => BoardElement[];
+  filterVisibleChildren?: (element: BoardElement, children: BoardElement[]) => BoardElement[];
 
   /**
    * 获取显示名称
@@ -295,10 +287,7 @@ export interface IMeasurementCapability {
    * 测量元素在指定宽度下的高度
    * 返回 Promise 因为可能需要 DOM 渲染
    */
-  measureHeightForWidth?: (
-    element: BoardElement,
-    targetWidth: number,
-  ) => Promise<number>;
+  measureHeightForWidth?: (element: BoardElement, targetWidth: number) => Promise<number>;
 }
 
 // =============================================================================

@@ -15,11 +15,13 @@ export interface ColumnElement extends CommonElement {
   draggingChildId?: string;
   /** 被拖拽元素当前的位置（用于显示拖拽预览） */
   draggingPosition?: { x: number; y: number };
+  /** 拖入占位块高度（isChildDraggingOver 时有效） */
+  dropPlaceholderHeight?: number;
 }
 
 export const COLUMN_DEFAULTS = {
   width: 300,
-  titleHeight: 40,
+  titleHeight: 52,
   padding: 8,
   gap: 8,
   minWidth: 200,
@@ -29,6 +31,12 @@ export const COLUMN_DEFAULTS = {
   slotRadius: 4,
   /** 空列占位框高度 */
   emptyHeight: 60,
+  /** 外部元素拖入时占位块的高度范围（真实高度要落位后才能测出） */
+  placeholderMinHeight: 40,
+  placeholderMaxHeight: 240,
+  /** 让位 / 落位动画 */
+  animationDuration: 180,
+  animationEasing: "cubic-bezier(0.2, 0, 0, 1)",
 } as const;
 
 /**
@@ -41,7 +49,8 @@ export const COLUMN_COLORS = {
   line: "color-mix(in srgb, var(--tau-ink-1) 11%, transparent)",
   lineDropOver: "color-mix(in srgb, var(--tau-accent) 45%, transparent)",
   emptyLine: "color-mix(in srgb, var(--tau-ink-3) 45%, transparent)",
+  placeholder: "color-mix(in srgb, var(--tau-ink-1) 6%, transparent)",
+  dragShadow: "color-mix(in srgb, var(--tau-ink-1) 22%, transparent)",
   title: "var(--tau-ink-1)",
   muted: "var(--tau-ink-3)",
-  dropIndicator: "var(--tau-accent)",
 } as const;

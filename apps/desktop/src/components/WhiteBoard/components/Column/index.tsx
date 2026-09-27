@@ -1,7 +1,7 @@
-import React, { memo, useState, useRef, useEffect } from "react";
+import React, { memo, useState, useRef, useEffect, useLayoutEffect } from "react";
 import { useMemoizedFn } from "ahooks";
 
-import { EHandlerPosition, Point, Board, ColumnElement } from "../../types";
+import { EHandlerPosition, Point, Board, BoardElement, ColumnElement } from "../../types";
 import { COLUMN_DEFAULTS, COLUMN_COLORS } from "../../types/column";
 import { useSelectState, useDropArrow, useColumnChildrenWatch } from "../../hooks";
 import { PathUtil, ColumnUtil, PointUtil } from "../../utils";
@@ -11,6 +11,8 @@ import If from "@/components/If";
 import EditText, { EditTextHandle } from "@/components/EditText";
 
 import { SELECT_RECT_STROKE, SELECT_RECT_STROKE_WIDTH } from "../../constants";
+
+const PLACEHOLDER_KEY = "__placeholder__";
 
 interface ColumnProps {
   element: ColumnElement;
@@ -35,18 +37,8 @@ const Column = memo(
     const titleRef = useRef<EditTextHandle>(null);
     const columnRef = useRef<SVGGElement>(null);
 
-    const {
-      x,
-      y,
-      width,
-      title,
-      padding,
-      gap,
-      isChildDraggingOver,
-      dropIndex,
-      draggingChildId,
-      draggingPosition,
-    } = element;
+    const { x, y, width, title, padding, isChildDraggingOver, draggingChildId, draggingPosition } =
+      element;
 
     const height = element.height || ColumnUtil.calculateHeight(board, element);
 
@@ -112,26 +104,77 @@ const Column = memo(
       }
     }, [isEditingTitle]);
 
-    const { titleHeight, borderRadius, slotRadius, emptyHeight } = COLUMN_DEFAULTS;
-    const isEmpty = element.children.length === 0;
+    const {
+      titleHeight,
+      borderRadius,
+      slotRadius,
+      emptyHeight,
+      animationDuration,
+      animationEasing,
+    } = COLUMN_DEFAULTS;
 
-    const getDropIndicatorY = () => {
-      if (dropIndex === undefined) return 0;
+    // 拖拽中的视觉布局：被拖出的子元素原位合拢，落点处空出占位块
+    const layout = ColumnUtil.getVisualLayout(element);
+    const visualHeight = height + layout.height - ColumnUtil.calculateHeightFromChildren(element);
 
-      if (element.children.length === 0 || dropIndex === 0) {
-        return y + titleHeight + padding;
+    /** 子元素的视觉位置（相对列原点）：被拖拽的跟随指针，其余取视觉布局 */
+    const getVisualOffset = (child: BoardElement) => {
+      if (child.id === draggingChildId && draggingPosition) {
+        return { x: draggingPosition.x - x, y: draggingPosition.y - y };
       }
-
-      if (dropIndex >= element.children.length) {
-        const lastChild = element.children[element.children.length - 1];
-        return lastChild.y + (lastChild.height || 50) + gap / 2;
-      }
-
-      const targetChild = element.children[dropIndex];
-      return targetChild.y - gap / 2;
+      return { x: child.x - x, y: (layout.childYs.get(child.id) ?? child.y) - y };
     };
 
-    const dropIndicatorY = getDropIndicatorY();
+    // FLIP：视觉位置变化时从旧位置滑到新位置（相对列原点，整列拖动不触发）
+    const itemRefs = useRef(new Map<string, SVGGElement>());
+    const placeholderRef = useRef<SVGRectElement>(null);
+    const prevOffsetsRef = useRef(new Map<string, { x: number; y: number }>());
+
+    useLayoutEffect(() => {
+      const nextOffsets = new Map<string, { x: number; y: number }>();
+      const animateFrom = (node: Element, dx: number, dy: number) => {
+        // 动画进行中被打断时，从当前插值位置接着滑
+        const current = getComputedStyle(node).transform;
+        if (current && current !== "none") {
+          const matrix = new DOMMatrixReadOnly(current);
+          dx += matrix.e;
+          dy += matrix.f;
+        }
+        node.getAnimations().forEach(animation => animation.cancel());
+        if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+        node.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], {
+          duration: animationDuration,
+          easing: animationEasing,
+        });
+      };
+
+      element.children.forEach(child => {
+        const offset = getVisualOffset(child);
+        nextOffsets.set(child.id, offset);
+        const prev = prevOffsetsRef.current.get(child.id);
+        const node = itemRefs.current.get(child.id);
+        if (!prev || !node || child.id === draggingChildId) return;
+        if (prev.x === offset.x && prev.y === offset.y) return;
+        animateFrom(node, prev.x - offset.x, prev.y - offset.y);
+      });
+
+      const placeholder = placeholderRef.current;
+      if (placeholder && layout.placeholderY !== null) {
+        const offset = { x: 0, y: layout.placeholderY - y };
+        const prev = prevOffsetsRef.current.get(PLACEHOLDER_KEY);
+        if (!prev) {
+          placeholder.animate([{ opacity: 0 }, { opacity: 1 }], {
+            duration: animationDuration,
+            easing: animationEasing,
+          });
+        } else if (prev.y !== offset.y) {
+          animateFrom(placeholder, 0, prev.y - offset.y);
+        }
+        nextOffsets.set(PLACEHOLDER_KEY, offset);
+      }
+
+      prevOffsetsRef.current = nextOffsets;
+    });
 
     return (
       <g ref={columnRef}>
@@ -141,10 +184,11 @@ const Column = memo(
           x={x}
           y={y}
           width={width}
-          height={height}
           rx={borderRadius}
           ry={borderRadius}
           style={{
+            height: visualHeight,
+            transition: `height ${animationDuration}ms ${animationEasing}`,
             fill: isChildDraggingOver ? COLUMN_COLORS.trayDropOver : COLUMN_COLORS.tray,
             stroke: isChildDraggingOver ? COLUMN_COLORS.lineDropOver : COLUMN_COLORS.line,
             strokeWidth: 1,
@@ -154,7 +198,7 @@ const Column = memo(
         {/* 标题栏：标题 + 数量居中 */}
         <foreignObject x={x} y={y} width={width} height={titleHeight} className="border-none">
           <div
-            className="pointer-events-auto flex h-full cursor-move items-center justify-center gap-1.5"
+            className="pointer-events-auto flex h-full cursor-move flex-col items-center justify-center"
             style={{ padding: `0 ${padding + 20}px` }}
             onWheel={e => e.stopPropagation()}
             onDoubleClick={e => {
@@ -169,17 +213,17 @@ const Column = memo(
               id={`column-title-${element.id}`}
               ref={titleRef}
               defaultValue={title || "Column"}
-              className="text-tau-body-lg min-w-5 cursor-pointer select-none truncate font-semibold outline-none"
+              className="text-tau-body-lg min-w-5 max-w-full cursor-pointer select-none truncate font-semibold leading-5 outline-none"
               style={{ color: COLUMN_COLORS.title }}
               contentEditable={isEditingTitle}
               onBlur={handleTitleBlur}
               onPressEnter={handleTitleBlur}
             />
             <span
-              className="text-tau-sm pointer-events-none shrink-0 select-none tabular-nums"
+              className="text-tau-micro pointer-events-none select-none tabular-nums leading-4"
               style={{ color: COLUMN_COLORS.muted }}
             >
-              {element.children.length}
+              {ColumnUtil.getCountLabel(element)}
             </span>
           </div>
         </foreignObject>
@@ -194,7 +238,7 @@ const Column = memo(
         />
 
         {/* 空列占位 */}
-        <If condition={isEmpty && !isChildDraggingOver}>
+        <If condition={layout.isVisuallyEmpty}>
           <g className="pointer-events-none">
             <rect
               x={x + padding}
@@ -223,96 +267,72 @@ const Column = memo(
           </g>
         </If>
 
-        {/* 子元素：每个子元素下垫一张 surface 槽位（发丝线框），子元素自身背景画在其上 */}
-        <g>
-          {React.Children.map(children, (child, index) => {
-            const childElement = element.children[index];
-            if (!childElement) return null;
-
-            const isDragging = draggingChildId === childElement.id;
-
-            return (
-              <g
-                key={childElement.id}
-                style={{
-                  opacity: isDragging ? 0.5 : 1,
-                  transition: "opacity 0.15s ease",
-                }}
-              >
-                <rect
-                  className="pointer-events-none"
-                  x={childElement.x}
-                  y={childElement.y}
-                  width={childElement.width || width - padding * 2}
-                  height={childElement.height || 50}
-                  rx={slotRadius}
-                  ry={slotRadius}
-                  style={{
-                    fill: COLUMN_COLORS.tray,
-                    stroke: COLUMN_COLORS.line,
-                    strokeWidth: 1,
-                  }}
-                />
-                {child}
-              </g>
-            );
-          })}
-        </g>
-
-        {/* Drop zone indicator */}
-        <If condition={!!isChildDraggingOver && dropIndex !== undefined}>
+        {/* 落点占位块 */}
+        {layout.placeholderY !== null && (
           <rect
-            x={x + padding}
-            y={dropIndicatorY - 1}
-            width={width - padding * 2}
-            height={2}
-            style={{ fill: COLUMN_COLORS.dropIndicator }}
-            rx={1}
-            ry={1}
+            ref={placeholderRef}
             className="pointer-events-none"
+            x={x + padding}
+            y={layout.placeholderY}
+            width={width - padding * 2}
+            height={layout.placeholderHeight}
+            rx={slotRadius}
+            ry={slotRadius}
+            style={{ fill: COLUMN_COLORS.placeholder }}
           />
-        </If>
+        )}
 
-        {/* Drag preview - shows the actual element being dragged at its current position */}
-        {draggingChildId &&
-          draggingPosition &&
-          (() => {
-            const draggingChildIndex = element.children.findIndex(c => c.id === draggingChildId);
-            const draggingChild = element.children[draggingChildIndex];
-            if (!draggingChild || draggingChildIndex === -1) return null;
+        {/* 子元素：每个子元素下垫一张 surface 槽位（发丝线框），子元素自身背景画在其上。
+            外层 g 把存储坐标平移到视觉位置，内层 g 承载 FLIP 动画；被拖拽的子元素最后渲染以浮在最上 */}
+        <g>
+          {React.Children.toArray(children)
+            .map((child, index) => ({ child, childElement: element.children[index] }))
+            .filter(({ childElement }) => !!childElement)
+            .sort(
+              (a, b) =>
+                Number(a.childElement.id === draggingChildId) -
+                Number(b.childElement.id === draggingChildId)
+            )
+            .map(({ child, childElement }) => {
+              const isDragging = childElement.id === draggingChildId && !!draggingPosition;
+              const offset = getVisualOffset(childElement);
+              const dx = offset.x - (childElement.x - x);
+              const dy = offset.y - (childElement.y - y);
 
-            const previewWidth = draggingChild.width || width - padding * 2;
-            const previewHeight = draggingChild.height || 50;
-
-            // 找到对应的 React 子元素
-            const childrenArray = React.Children.toArray(children);
-            const draggingReactChild = childrenArray[draggingChildIndex];
-
-            // 计算偏移量（从原位置到拖拽位置）
-            const offsetX = draggingPosition.x - draggingChild.x;
-            const offsetY = draggingPosition.y - draggingChild.y;
-
-            return (
-              <g className="pointer-events-none" style={{ opacity: 0.9 }}>
-                {/* 槽位底 */}
-                <rect
-                  x={draggingPosition.x}
-                  y={draggingPosition.y}
-                  width={previewWidth}
-                  height={previewHeight}
-                  rx={slotRadius}
-                  ry={slotRadius}
-                  style={{
-                    fill: COLUMN_COLORS.tray,
-                    stroke: COLUMN_COLORS.line,
-                    strokeWidth: 1,
-                  }}
-                />
-                {/* 实际元素内容（通过 transform 移动到拖拽位置） */}
-                <g transform={`translate(${offsetX}, ${offsetY})`}>{draggingReactChild}</g>
-              </g>
-            );
-          })()}
+              return (
+                <g key={childElement.id} transform={`translate(${dx}, ${dy})`}>
+                  <g
+                    ref={node => {
+                      if (node) itemRefs.current.set(childElement.id, node);
+                      else itemRefs.current.delete(childElement.id);
+                    }}
+                    className={isDragging ? "pointer-events-none" : undefined}
+                    style={
+                      isDragging
+                        ? { filter: `drop-shadow(0 10px 18px ${COLUMN_COLORS.dragShadow})` }
+                        : undefined
+                    }
+                  >
+                    <rect
+                      className="pointer-events-none"
+                      x={childElement.x}
+                      y={childElement.y}
+                      width={childElement.width || width - padding * 2}
+                      height={childElement.height || 50}
+                      rx={slotRadius}
+                      ry={slotRadius}
+                      style={{
+                        fill: COLUMN_COLORS.tray,
+                        stroke: COLUMN_COLORS.line,
+                        strokeWidth: 1,
+                      }}
+                    />
+                    {child}
+                  </g>
+                </g>
+              );
+            })}
+        </g>
 
         {/* Selection border and resize handles */}
         <If condition={isSelected}>
@@ -322,7 +342,7 @@ const Column = memo(
               x={x}
               y={y}
               width={width}
-              height={height}
+              height={visualHeight}
               fill="none"
               stroke={SELECT_RECT_STROKE}
               strokeWidth={SELECT_RECT_STROKE_WIDTH}
@@ -333,7 +353,7 @@ const Column = memo(
             <ColumnResizeHandle
               x={x}
               y={y}
-              height={height}
+              height={visualHeight}
               position={EHandlerPosition.Left}
               board={board}
               onResizeStart={handleOnResizeStart}
@@ -344,7 +364,7 @@ const Column = memo(
             <ColumnResizeHandle
               x={x + width}
               y={y}
-              height={height}
+              height={visualHeight}
               position={EHandlerPosition.Right}
               board={board}
               onResizeStart={handleOnResizeStart}
