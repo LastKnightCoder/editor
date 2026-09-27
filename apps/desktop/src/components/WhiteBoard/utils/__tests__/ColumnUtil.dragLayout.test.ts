@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ColumnUtil } from "../ColumnUtil";
 import { COLUMN_DEFAULTS } from "../../types/column";
 import type { Board, BoardElement, ColumnElement } from "../../types";
@@ -179,5 +179,66 @@ describe("ColumnUtil.getCountLabel", () => {
     expect(
       ColumnUtil.getCountLabel(createColumn({ children: [typed("i1", "image"), card("t1", 40)] }))
     ).toBe("2 个元素");
+  });
+});
+
+describe("Column 折叠", () => {
+  it("折叠态高度为标题栏 + 纸边，空列无纸边", () => {
+    const column = createColumn({ collapsed: true });
+    expect(ColumnUtil.calculateHeightFromChildren(column)).toBe(
+      TITLE + COLUMN_DEFAULTS.collapsedStackHeight
+    );
+    expect(column.height).toBe(TITLE + COLUMN_DEFAULTS.collapsedStackHeight);
+    expect(
+      ColumnUtil.calculateHeightFromChildren(createColumn({ collapsed: true, children: [] }))
+    ).toBe(TITLE);
+  });
+
+  it("折叠态视觉布局无占位、不显示空列，子元素保持存储位置", () => {
+    const base = createColumn({ collapsed: true });
+    const layout = ColumnUtil.getVisualLayout({
+      ...base,
+      isChildDraggingOver: true,
+      dropIndex: 0,
+      dropPlaceholderHeight: 40,
+    });
+    expect(layout.placeholderY).toBeNull();
+    expect(layout.isVisuallyEmpty).toBe(false);
+    expect(layout.height).toBe(ColumnUtil.calculateHeightFromChildren(base));
+    base.children.forEach(child => expect(layout.childYs.get(child.id)).toBe(child.y));
+  });
+
+  it("折叠的列不接受拖入", () => {
+    const column = createColumn({ collapsed: true });
+    const inside = { x: 10, y: 10 };
+    expect(ColumnUtil.isElementInColumn(boardStub, card("x", 40), column, inside)).toBe(false);
+    expect(
+      ColumnUtil.isElementInColumn(
+        boardStub,
+        card("x", 40),
+        { ...column, collapsed: false },
+        inside
+      )
+    ).toBe(true);
+  });
+
+  it("切换折叠与重新布局合并为一次带历史的操作", () => {
+    const column = createColumn();
+    const apply = vi.fn();
+    const board = { ...boardStub, children: [column], apply } as unknown as Board;
+
+    ColumnUtil.toggleCollapsed(board, column);
+
+    expect(apply).toHaveBeenCalledTimes(1);
+    const [ops, updateHistory] = apply.mock.calls[0];
+    expect(updateHistory).toBe(true);
+    const patch = Object.assign(
+      {},
+      ...ops.map((op: { newProperties?: object }) => op.newProperties)
+    );
+    expect(patch).toMatchObject({
+      collapsed: true,
+      height: TITLE + COLUMN_DEFAULTS.collapsedStackHeight,
+    });
   });
 });

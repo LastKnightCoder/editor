@@ -1,8 +1,10 @@
 import React, { memo, useState, useRef, useEffect, useLayoutEffect } from "react";
 import { useMemoizedFn } from "ahooks";
+import { ChevronDown } from "lucide-react";
+import { cn } from "@tau/ui";
 
 import { EHandlerPosition, Point, Board, BoardElement, ColumnElement } from "../../types";
-import { COLUMN_DEFAULTS, COLUMN_COLORS } from "../../types/column";
+import { COLUMN_DEFAULTS, COLUMN_COLORS, COLUMN_COLOR_OPTIONS } from "../../types/column";
 import { useSelectState, useDropArrow, useColumnChildrenWatch } from "../../hooks";
 import { PathUtil, ColumnUtil, PointUtil } from "../../utils";
 import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
@@ -37,8 +39,17 @@ const Column = memo(
     const titleRef = useRef<EditTextHandle>(null);
     const columnRef = useRef<SVGGElement>(null);
 
-    const { x, y, width, title, padding, isChildDraggingOver, draggingChildId, draggingPosition } =
-      element;
+    const {
+      x,
+      y,
+      width,
+      title,
+      padding,
+      collapsed,
+      isChildDraggingOver,
+      draggingChildId,
+      draggingPosition,
+    } = element;
 
     const height = element.height || ColumnUtil.calculateHeight(board, element);
 
@@ -109,13 +120,19 @@ const Column = memo(
       borderRadius,
       slotRadius,
       emptyHeight,
+      colorBandHeight,
+      collapsedStackHeight,
       animationDuration,
       animationEasing,
     } = COLUMN_DEFAULTS;
+    const colorToken = COLUMN_COLOR_OPTIONS.find(o => o.value === element.color)?.token;
+    const hasStack = !!collapsed && element.children.length > 0;
 
     // 拖拽中的视觉布局：被拖出的子元素原位合拢，落点处空出占位块
     const layout = ColumnUtil.getVisualLayout(element);
     const visualHeight = height + layout.height - ColumnUtil.calculateHeightFromChildren(element);
+    // 折叠态托盘只到标题栏，纸边露在下方
+    const trayHeight = collapsed ? titleHeight : visualHeight;
 
     /** 子元素的视觉位置（相对列原点）：被拖拽的跟随指针，其余取视觉布局 */
     const getVisualOffset = (child: BoardElement) => {
@@ -129,6 +146,7 @@ const Column = memo(
     const itemRefs = useRef(new Map<string, SVGGElement>());
     const placeholderRef = useRef<SVGRectElement>(null);
     const prevOffsetsRef = useRef(new Map<string, { x: number; y: number }>());
+    const prevCollapsedRef = useRef(!!collapsed);
 
     useLayoutEffect(() => {
       const nextOffsets = new Map<string, { x: number; y: number }>();
@@ -173,11 +191,44 @@ const Column = memo(
         nextOffsets.set(PLACEHOLDER_KEY, offset);
       }
 
+      // 展开：子元素随托盘增高淡入
+      if (prevCollapsedRef.current && !collapsed) {
+        itemRefs.current.forEach(node =>
+          node.animate([{ opacity: 0 }, { opacity: 1 }], {
+            duration: animationDuration,
+            easing: animationEasing,
+          })
+        );
+      }
+      prevCollapsedRef.current = !!collapsed;
+
       prevOffsetsRef.current = nextOffsets;
     });
 
     return (
       <g ref={columnRef}>
+        {/* 折叠态纸边：两层卡片边露在标题栏下方，暗示有内容 */}
+        <If condition={hasStack}>
+          <g className="pointer-events-none">
+            {[2, 1].map(level => (
+              <rect
+                key={level}
+                x={x + level * 6}
+                y={y + titleHeight - slotRadius * 2}
+                width={width - level * 12}
+                height={slotRadius * 2 + (collapsedStackHeight / 2) * level}
+                rx={slotRadius}
+                ry={slotRadius}
+                style={{
+                  fill: COLUMN_COLORS.tray,
+                  stroke: COLUMN_COLORS.line,
+                  strokeWidth: 1,
+                }}
+              />
+            ))}
+          </g>
+        </If>
+
         {/* 托盘：surface 实底 + 发丝线，拖入时边线转 accent */}
         <rect
           className="cursor-move"
@@ -187,7 +238,7 @@ const Column = memo(
           rx={borderRadius}
           ry={borderRadius}
           style={{
-            height: visualHeight,
+            height: trayHeight,
             transition: `height ${animationDuration}ms ${animationEasing}`,
             fill: isChildDraggingOver ? COLUMN_COLORS.trayDropOver : COLUMN_COLORS.tray,
             stroke: isChildDraggingOver ? COLUMN_COLORS.lineDropOver : COLUMN_COLORS.line,
@@ -195,10 +246,35 @@ const Column = memo(
           }}
         />
 
+        {/* 顶部色带：裁成托盘的上圆角 */}
+        {colorToken && (
+          <>
+            <clipPath id={`column-band-clip-${element.id}`}>
+              <rect
+                x={x}
+                y={y}
+                width={width}
+                height={borderRadius * 2 + colorBandHeight}
+                rx={borderRadius}
+                ry={borderRadius}
+              />
+            </clipPath>
+            <rect
+              className="pointer-events-none"
+              x={x}
+              y={y}
+              width={width}
+              height={colorBandHeight}
+              clipPath={`url(#column-band-clip-${element.id})`}
+              style={{ fill: colorToken }}
+            />
+          </>
+        )}
+
         {/* 标题栏：标题 + 数量居中 */}
         <foreignObject x={x} y={y} width={width} height={titleHeight} className="border-none">
           <div
-            className="pointer-events-auto flex h-full cursor-move flex-col items-center justify-center"
+            className="group/column-head pointer-events-auto relative flex h-full cursor-move flex-col items-center justify-center"
             style={{ padding: `0 ${padding + 20}px` }}
             onWheel={e => e.stopPropagation()}
             onDoubleClick={e => {
@@ -225,10 +301,35 @@ const Column = memo(
             >
               {ColumnUtil.getCountLabel(element)}
             </span>
+            {!board.readonly && (
+              <button
+                type="button"
+                title={collapsed ? "展开" : "折叠"}
+                className={cn(
+                  "text-ink-3 hover:bg-hover hover:text-ink-1 absolute right-2 top-1/2 grid size-[22px] -translate-y-1/2 cursor-pointer place-items-center rounded-[4px] transition-opacity duration-150",
+                  collapsed ? "opacity-100" : "opacity-0 group-hover/column-head:opacity-100"
+                )}
+                onPointerDown={e => e.stopPropagation()}
+                onMouseDown={e => e.stopPropagation()}
+                onDoubleClick={e => e.stopPropagation()}
+                onClick={e => {
+                  e.stopPropagation();
+                  ColumnUtil.toggleCollapsed(board, element);
+                }}
+              >
+                <ChevronDown
+                  size={14}
+                  strokeWidth={1.75}
+                  className="transition-transform duration-200"
+                  style={{ transform: collapsed ? "rotate(-90deg)" : undefined }}
+                />
+              </button>
+            )}
           </div>
         </foreignObject>
 
         <line
+          visibility={collapsed ? "hidden" : undefined}
           x1={x}
           y1={y + titleHeight}
           x2={x + width}

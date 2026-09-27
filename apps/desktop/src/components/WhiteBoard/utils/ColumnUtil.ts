@@ -119,6 +119,8 @@ export class ColumnUtil {
   static calculateHeightFromChildren(column: ColumnElement): number {
     const titleHeight = TITLE_HEIGHT;
 
+    if (column.collapsed) return this.getCollapsedHeight(column);
+
     if (column.children.length === 0) {
       return titleHeight + column.padding * 2 + COLUMN_DEFAULTS.emptyHeight;
     }
@@ -150,6 +152,8 @@ export class ColumnUtil {
     if (cached && now - cached.timestamp < CACHE_DURATION) {
       return cached.height;
     }
+
+    if (column.collapsed) return this.getCollapsedHeight(column);
 
     const titleHeight = TITLE_HEIGHT;
 
@@ -198,7 +202,7 @@ export class ColumnUtil {
     column: ColumnElement,
     pointerPosition?: { x: number; y: number }
   ): boolean {
-    if (!pointerPosition) {
+    if (!pointerPosition || column.collapsed) {
       return false;
     }
     return this.isPointInColumn(board, column, pointerPosition.x, pointerPosition.y);
@@ -230,6 +234,24 @@ export class ColumnUtil {
     });
 
     return dropIndex;
+  }
+
+  /** 折叠态高度：标题栏 + 露出的纸边（空列无纸边） */
+  static getCollapsedHeight(column: ColumnElement): number {
+    return TITLE_HEIGHT + (column.children.length > 0 ? COLUMN_DEFAULTS.collapsedStackHeight : 0);
+  }
+
+  /**
+   * 切换折叠：与布局合并为一次操作（单条撤销记录）
+   */
+  static toggleCollapsed(board: Board, column: ColumnElement): void {
+    const path = PathUtil.getPathByElement(board, column);
+    if (!path) return;
+    heightCache.delete(column.id);
+    const next = this.layout(board, { ...column, collapsed: !column.collapsed });
+    const ops = BoardUtil.diffNode(column, next, path);
+    BoardUtil.normalizeOperations(ops);
+    board.apply(ops, true);
   }
 
   /**
@@ -295,6 +317,16 @@ export class ColumnUtil {
       padding,
       gap,
     } = column;
+    if (column.collapsed) {
+      return {
+        childYs: new Map(children.map(child => [child.id, child.y])),
+        placeholderY: null,
+        placeholderHeight: 0,
+        height: this.getCollapsedHeight(column),
+        isVisuallyEmpty: false,
+      };
+    }
+
     const showPlaceholder =
       !!isChildDraggingOver && dropIndex !== undefined && dropPlaceholderHeight > 0;
 

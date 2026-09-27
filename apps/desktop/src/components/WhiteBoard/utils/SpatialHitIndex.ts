@@ -2,6 +2,18 @@ import RBush from "rbush";
 import Board from "../Board";
 import { BoardElement } from "../types";
 
+/**
+ * 参与命中 / 框选的子元素：由元素的 render 能力过滤（折叠隐藏的子元素不参与）
+ */
+export const getHitTestChildren = (
+  board: Board,
+  element: BoardElement
+): BoardElement[] | undefined => {
+  const { children } = element;
+  if (!children || children.length === 0) return children;
+  return board.capabilityService?.getVisibleChildren(element, children) ?? children;
+};
+
 type SpatialBounds = {
   minX: number;
   minY: number;
@@ -26,12 +38,7 @@ const BOUNDS_PADDING = 12;
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
-const normalizeBounds = (
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-): SpatialBounds => {
+const normalizeBounds = (x: number, y: number, width: number, height: number): SpatialBounds => {
   const maxX = x + width;
   const maxY = y + height;
   return {
@@ -42,10 +49,7 @@ const normalizeBounds = (
   };
 };
 
-const expandBounds = (
-  bounds: SpatialBounds,
-  padding: number,
-): SpatialBounds => {
+const expandBounds = (bounds: SpatialBounds, padding: number): SpatialBounds => {
   return {
     minX: bounds.minX - padding,
     minY: bounds.minY - padding,
@@ -55,7 +59,7 @@ const expandBounds = (
 };
 
 const hasBoundsCoordinates = (
-  element: BoardElement,
+  element: BoardElement
 ): element is BoardElement & {
   x: number;
   y: number;
@@ -85,7 +89,7 @@ export class SpatialHitIndex {
     const entries: SpatialIndexItem[] = [];
     let order = 0;
 
-    this.traverseElements(board.children, (element) => {
+    this.traverseElements(board, board.children, element => {
       const currentOrder = order++;
       const bounds = this.resolveElementBounds(board, element);
       if (!bounds) {
@@ -120,12 +124,7 @@ export class SpatialHitIndex {
     return this.mergeCandidates(candidates);
   }
 
-  queryRect(
-    minX: number,
-    minY: number,
-    maxX: number,
-    maxY: number,
-  ): BoardElement[] {
+  queryRect(minX: number, minY: number, maxX: number, maxY: number): BoardElement[] {
     const candidates = this.tree.search({ minX, minY, maxX, maxY });
     return this.mergeCandidates(candidates);
   }
@@ -153,17 +152,9 @@ export class SpatialHitIndex {
     return orderedElements;
   }
 
-  private resolveElementBounds(
-    board: Board,
-    element: BoardElement,
-  ): SpatialBounds | null {
+  private resolveElementBounds(board: Board, element: BoardElement): SpatialBounds | null {
     if (hasBoundsCoordinates(element)) {
-      return normalizeBounds(
-        element.x,
-        element.y,
-        element.width,
-        element.height,
-      );
+      return normalizeBounds(element.x, element.y, element.width, element.height);
     }
 
     try {
@@ -188,16 +179,18 @@ export class SpatialHitIndex {
     }
   }
 
+  /** 只遍历可见子元素：折叠隐藏的子元素不渲染，也不参与命中 / 框选 */
   private traverseElements(
+    board: Board,
     elements: BoardElement[] | undefined,
-    visit: (element: BoardElement) => void,
+    visit: (element: BoardElement) => void
   ): void {
     if (!elements || elements.length === 0) return;
 
     for (let i = 0; i < elements.length; i++) {
       const element = elements[i];
       visit(element);
-      this.traverseElements(element.children, visit);
+      this.traverseElements(board, getHitTestChildren(board, element), visit);
     }
   }
 }

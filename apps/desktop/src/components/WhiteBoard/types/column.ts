@@ -1,9 +1,16 @@
 import { BoardElement } from "./board";
 import { CommonElement } from "../plugins/CommonPlugin";
 
+/** 列颜色（映射到主题标签色 token，各主题族色相顺序一致） */
+export type ColumnColor = "green" | "blue" | "purple" | "yellow" | "red";
+
 export interface ColumnElement extends CommonElement {
   type: "column";
   title: string;
+  /** 顶部色带，缺省无色 */
+  color?: ColumnColor;
+  /** 折叠：只显示标题栏，子元素不渲染、不参与命中 */
+  collapsed?: boolean;
   children: BoardElement[];
   padding: number;
   gap: number;
@@ -31,6 +38,10 @@ export const COLUMN_DEFAULTS = {
   slotRadius: 4,
   /** 空列占位框高度 */
   emptyHeight: 60,
+  /** 顶部色带高度 */
+  colorBandHeight: 3,
+  /** 折叠态标题栏下露出的纸边高度（有子元素时） */
+  collapsedStackHeight: 10,
   /** 外部元素拖入时占位块的高度范围（真实高度要落位后才能测出） */
   placeholderMinHeight: 40,
   placeholderMaxHeight: 240,
@@ -38,6 +49,14 @@ export const COLUMN_DEFAULTS = {
   animationDuration: 180,
   animationEasing: "cubic-bezier(0.2, 0, 0, 1)",
 } as const;
+
+export const COLUMN_COLOR_OPTIONS: Array<{ value: ColumnColor; label: string; token: string }> = [
+  { value: "green", label: "绿", token: "var(--tau-tag-1)" },
+  { value: "blue", label: "蓝", token: "var(--tau-tag-2)" },
+  { value: "purple", label: "紫", token: "var(--tau-tag-3)" },
+  { value: "yellow", label: "黄", token: "var(--tau-tag-4)" },
+  { value: "red", label: "红", token: "var(--tau-tag-5)" },
+];
 
 /**
  * Column 配色：托盘与子元素槽位都是 surface 实底，靠发丝线分层，不用阴影。
