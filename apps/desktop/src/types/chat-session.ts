@@ -21,6 +21,7 @@ export interface ChatSessionRow {
   archived: boolean;
   source: "desktop" | "browser";
   messageCount: number;
+  /** M4 的多文件分支关系；M4-d 起分支在文件内部，树合并迁移后恒为空（列留到 M8） */
   parentSessionId: string | null;
   branchIndex: number;
   createTime: number;
@@ -54,6 +55,5 @@ export interface ChatSessionListFilter {
   /** undefined = 不按对象过滤；null = 只要无所属对象的（主聊天） */
   domainRef?: string | null;
   includeArchived?: boolean;
-  includeBranches?: boolean;
   limit?: number;
 }

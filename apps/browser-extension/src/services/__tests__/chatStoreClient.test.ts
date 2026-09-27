@@ -24,15 +24,16 @@ vi.mock("@/utils/WebSocketClient", () => ({
 vi.mock("@/utils/aiServerAddress", () => ({ AI_SERVER_WS_URL: "ws://test" }));
 
 import {
-  branchChat,
   closeChatStoreService,
   deleteChat,
+  forkChat,
   getChatMessages,
   initChatStoreService,
   listChats,
   omitChatEntries,
   renameChat,
   rewindChat,
+  switchChatVersion,
 } from "../chatStoreClient";
 
 const PAGE = "https://example.com/post";
@@ -56,9 +57,7 @@ const expectRequest = (method: string, params: unknown) => {
 
 describe("chatStoreClient RPC 形状", () => {
   it("列表按页面取，解包 chats", async () => {
-    const chats = [
-      { id: "s1", title: "对话", parentId: null, createTime: 1, updateTime: 2, messageCount: 1 },
-    ];
+    const chats = [{ id: "s1", title: "对话", createTime: 1, updateTime: 2, messageCount: 1 }];
     mocks.sendRequest.mockResolvedValue({ chats });
     expect(await listChats(PAGE)).toEqual(chats);
     expectRequest("chat.list", { pageUrl: PAGE });
@@ -70,25 +69,25 @@ describe("chatStoreClient RPC 形状", () => {
     expectRequest("chat.get", { pageUrl: PAGE, id: "s1" });
   });
 
-  it("改名 / 删除（返回连带删除的分支 id）", async () => {
+  it("改名 / 删除", async () => {
     mocks.sendRequest.mockResolvedValueOnce({ success: true });
     await renameChat(PAGE, "s1", "新标题");
     expectRequest("chat.rename", { pageUrl: PAGE, id: "s1", title: "新标题" });
 
     mocks.sendRequest.mockClear();
-    mocks.sendRequest.mockResolvedValueOnce({ deletedIds: ["s1", "s2"] });
-    expect(await deleteChat(PAGE, "s1")).toEqual(["s1", "s2"]);
+    mocks.sendRequest.mockResolvedValueOnce({ success: true });
+    await deleteChat(PAGE, "s1");
     expectRequest("chat.delete", { pageUrl: PAGE, id: "s1" });
   });
 
-  it("建分支：缺省整条不带 throughEntryId，截断时带上", async () => {
-    mocks.sendRequest.mockResolvedValue({ id: "b1", messages });
-    expect(await branchChat(PAGE, "s1")).toEqual({ id: "b1", messages });
-    expectRequest("chat.branch", { pageUrl: PAGE, id: "s1" });
+  it("会话树（M4-d）：从这里建分支、切版本都在同一个对话里，按 entry id，返回投影", async () => {
+    mocks.sendRequest.mockResolvedValue({ messages });
+    expect(await forkChat(PAGE, "s1", "e3")).toEqual(messages);
+    expectRequest("chat.fork", { pageUrl: PAGE, id: "s1", entryId: "e3" });
 
     mocks.sendRequest.mockClear();
-    await branchChat(PAGE, "s1", "e3");
-    expectRequest("chat.branch", { pageUrl: PAGE, id: "s1", throughEntryId: "e3" });
+    expect(await switchChatVersion(PAGE, "s1", "e7")).toEqual(messages);
+    expectRequest("chat.switch", { pageUrl: PAGE, id: "s1", entryId: "e7" });
   });
 
   it("改历史：回退按 entry id，删除按一组 entry id，都返回改后的投影", async () => {

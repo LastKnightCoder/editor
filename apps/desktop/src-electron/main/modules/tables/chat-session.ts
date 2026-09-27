@@ -3,6 +3,9 @@
  * 与旧的 chat_message / pdf_chats / video_note_chats / vibe_learning_chats 的区别：
  * 这里**不存消息载荷**，所以列表查询是常数级的，不会把整库消息拉进内存。
  * id 即 pi 会话 id；scope + domain_ref 区分五个聊天场景与所属对象。
+ *
+ * 一行 = 一个对话 = 一个会话文件；分支在文件内部的会话树上（M4-d）。parent_session_id /
+ * branch_index 两列只剩树合并迁移（chat-session-tree-migration）读，迁完恒为空，列留到 M8 随旧表一起删。
  */
 import Database from "better-sqlite3";
 import { rmSync } from "node:fs";
@@ -91,8 +94,6 @@ export default class ChatSessionTable {
       "chat-session:delete": this.remove.bind(this),
       "chat-session:get": this.getById.bind(this),
       "chat-session:list": this.list.bind(this),
-      "chat-session:branches": this.listBranches.bind(this),
-      "chat-session:next-branch-index": this.nextBranchIndex.bind(this),
       "chat-session:pin": this.pin.bind(this),
       "chat-session:unpin": this.unpin.bind(this),
     };
@@ -172,10 +173,7 @@ export default class ChatSessionTable {
     return row ? this.parse(row) : null;
   }
 
-  /**
-   * 按场景列出会话：置顶（order_num 非空）在前、其余按最近更新降序——与旧列表语义一致。
-   * 分支行（parent_session_id 非空）默认不出现在列表里，由 branches 查询单独取。
-   */
+  /** 按场景列出会话：置顶（order_num 非空）在前、其余按最近更新降序——与旧列表语义一致 */
   static list(db: Database.Database, filter?: ChatSessionListFilter): ChatSessionRow[] {
     const where: string[] = [];
     const params: unknown[] = [];
@@ -192,7 +190,6 @@ export default class ChatSessionTable {
       }
     }
     if (!filter?.includeArchived) where.push("archived = 0");
-    if (!filter?.includeBranches) where.push("parent_session_id IS NULL");
     const rows = db
       .prepare(
         `SELECT * FROM chat_session
@@ -202,20 +199,6 @@ export default class ChatSessionTable {
       )
       .all(...params, ...(filter?.limit ? [filter.limit] : [])) as RawRow[];
     return rows.map(row => this.parse(row));
-  }
-
-  static listBranches(db: Database.Database, parentSessionId: string): ChatSessionRow[] {
-    const rows = db
-      .prepare("SELECT * FROM chat_session WHERE parent_session_id = ? ORDER BY branch_index ASC")
-      .all(parentSessionId) as RawRow[];
-    return rows.map(row => this.parse(row));
-  }
-
-  static nextBranchIndex(db: Database.Database, parentSessionId: string): number {
-    const row = db
-      .prepare("SELECT MAX(branch_index) AS maxIndex FROM chat_session WHERE parent_session_id = ?")
-      .get(parentSessionId) as { maxIndex: number | null };
-    return (row?.maxIndex ?? 0) + 1;
   }
 
   /** 置顶：同组内取最大 order_num + 1（沿用旧表语义，order_num 兼任置顶标记与排序） */
@@ -239,14 +222,13 @@ export default class ChatSessionTable {
   }
 
   /**
-   * 删除目录行（连同分支子树）与它们的会话文件，返回全部被删 id。
+   * 删除目录行与它的会话文件（分支都在文件里，一起没了）。
    * 文件在主进程这里一并删，调用方只删目录行就会留下孤儿文件（同步时还会被打包带走）。
-   * 调用方负责先释放这些会话的宿主（渲染端删除流程先 dispose）。
+   * 调用方负责先释放这个会话的宿主（渲染端删除流程先 dispose）。
    */
-  static remove(db: Database.Database, id: string): { deletedIds: string[] } {
-    const doomed = this.collectSubtree(db, id);
-    this.deleteRows(db, doomed);
-    return { deletedIds: doomed.map(row => row.id) };
+  static remove(db: Database.Database, id: string): void {
+    const row = this.getById(db, id);
+    if (row) this.deleteRows(db, [row]);
   }
 
   /** 所属对象被删（PDF 等）：该对象下的全部对话连文件一起删 */
@@ -263,16 +245,6 @@ export default class ChatSessionTable {
   /** 分组被删：对话移到未分组 */
   static clearGroup(db: Database.Database, groupId: number): void {
     db.prepare("UPDATE chat_session SET group_id = NULL WHERE group_id = ?").run(groupId);
-  }
-
-  private static collectSubtree(db: Database.Database, id: string): ChatSessionRow[] {
-    const root = this.getById(db, id);
-    if (!root) return [];
-    const out: ChatSessionRow[] = [root];
-    for (let index = 0; index < out.length; index += 1) {
-      out.push(...this.listBranches(db, out[index].id));
-    }
-    return out;
   }
 
   private static deleteRows(db: Database.Database, rows: ChatSessionRow[]): void {

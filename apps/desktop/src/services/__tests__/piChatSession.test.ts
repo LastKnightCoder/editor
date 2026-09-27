@@ -3,7 +3,6 @@ import { piChatSessionManager, type EnsureChatSessionOptions } from "../piChatSe
 import {
   piSessionCreate,
   piSessionDispose,
-  piSessionEdit,
   piSessionFindByScope,
   piSessionSetActiveTools,
   piSessionSetSystemPrompt,
@@ -12,7 +11,6 @@ import {
 vi.mock("@/commands/piSession", () => ({
   piSessionCreate: vi.fn().mockResolvedValue({ ok: true }),
   piSessionDispose: vi.fn().mockResolvedValue({ ok: true }),
-  piSessionEdit: vi.fn().mockResolvedValue({ ok: true, messages: [] }),
   piSessionSetSystemPrompt: vi.fn().mockResolvedValue({ ok: true }),
   piSessionSetActiveTools: vi.fn().mockResolvedValue({ ok: true }),
   piSessionFindByScope: vi.fn(),
@@ -163,59 +161,5 @@ describe("pi 会话工具集同步", () => {
     const { sessionId: first } = await piChatSessionManager.ensureChatSession(options);
     registryTools.current = [tool("alpha", true, "新说明")];
     expect((await piChatSessionManager.ensureChatSession(options)).sessionId).not.toBe(first);
-  });
-});
-
-describe("改历史（M4）", () => {
-  afterEach(async () => {
-    await piChatSessionManager.disposeAll();
-    vi.clearAllMocks();
-  });
-
-  it("先释放宿主会话再改文件（主进程拒绝改仍被打开的文件）", async () => {
-    const { sessionId: hostId } = await piChatSessionManager.ensureChatSession(options);
-    const order: string[] = [];
-    vi.mocked(piSessionDispose).mockImplementationOnce(async id => {
-      order.push(`dispose:${id}`);
-      return { ok: true };
-    });
-    vi.mocked(piSessionEdit).mockImplementationOnce(async (location, edit) => {
-      order.push(`edit:${edit.kind}`);
-      expect(location).toEqual({ sessionFile: "f_chat-11.jsonl" });
-      return { ok: true, messages: [] };
-    });
-
-    await piChatSessionManager.editChatHistory("main-chat", chatId, "f_chat-11.jsonl", {
-      kind: "rewind",
-      entryId: "e1",
-    });
-
-    expect(order).toEqual([`dispose:${hostId}`, "edit:rewind"]);
-  });
-
-  it("改完之后下一轮 ensure 重新建会话（从改后的文件恢复），不复用旧宿主", async () => {
-    const { sessionId: first } = await piChatSessionManager.ensureChatSession(options);
-    await piChatSessionManager.editChatHistory("main-chat", chatId, "f_chat-11.jsonl", {
-      kind: "omit",
-      entryIds: ["e2"],
-    });
-    const { sessionId } = await piChatSessionManager.ensureChatSession(options);
-    expect(sessionId).not.toBe(first);
-    expect(piSessionDispose).toHaveBeenCalledWith(first);
-    expect(vi.mocked(piSessionCreate).mock.calls[1][1]).toMatchObject({
-      sessionFile: "f_chat-11.jsonl",
-    });
-  });
-
-  it("没有开着的宿主会话也能直接改（不调 dispose）", async () => {
-    await piChatSessionManager.editChatHistory("main-chat", "idle-chat", "f_idle.jsonl", {
-      kind: "omit",
-      entryIds: ["e9"],
-    });
-    expect(piSessionDispose).not.toHaveBeenCalled();
-    expect(piSessionEdit).toHaveBeenCalledWith(
-      { sessionFile: "f_idle.jsonl" },
-      { kind: "omit", entryIds: ["e9"] }
-    );
   });
 });

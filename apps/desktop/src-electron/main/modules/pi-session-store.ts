@@ -4,10 +4,18 @@
  *
  * 两类会话目录：
  * - 应用对话：`sessions/<库名>/`，目录行在 chat_session 表里，文件名存在目录行；
- * - 浏览器扩展对话：`browser-sessions/<页面键>/`，无索引表——列表、标题（pi session name）、
- *   分支关系（会话头 parentSession）全部取自会话文件本身。
+ * - 浏览器扩展对话：`browser-sessions/<页面键>/`，无索引表——列表、标题（pi session name）
+ *   全部取自会话文件本身；分支在文件内部的会话树上（M4-d）。
  */
-import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { basename, dirname, join } from "node:path";
 import AdmZip from "adm-zip";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
@@ -15,7 +23,13 @@ import type { ChatSessionMessage } from "@/types";
 import type { PiBrowserSessionInfo } from "@/types/pi-session";
 import { loadSessionTranscript } from "./pi-session-host-core";
 import { piEntriesToDesktopMessages } from "./pi-session-transcript";
-import { branchSessionFile, omitEntries, rewindToBeforeEntry } from "./pi-session-files";
+import {
+  forkAfterEntry,
+  omitEntries,
+  rewindToBeforeEntry,
+  switchToVersion,
+} from "./pi-session-files";
+import { graftSessionFile } from "./pi-session-graft";
 import { browserSessionDirOf, findSessionFileById } from "./pi-session-paths";
 
 /** 读会话投影；文件不存在（首轮没等到回答 pi 不落盘）= 空对话 */
@@ -28,52 +42,99 @@ export function readTranscript(file: string | undefined, sessionDir: string): Ch
 export const countUserMessages = (messages: ChatSessionMessage[]) =>
   messages.filter(message => message.role === "user").length;
 
-/** 改历史操作（编辑重发/重新生成、删除、建分支）的统一入口，调用方保证宿主会话已 dispose */
+/**
+ * 改会话树的操作（M4-d：分支都在同一文件里）：
+ * - rewind：编辑重发/重新生成，回到这条用户消息之前；
+ * - fork：从这里建分支，回到这条回答之后（下一条消息成为新版本）；
+ * - switch：切到一条用户消息所在的版本；
+ * - omit：删除消息（context_edit 省略）。
+ */
 export type SessionEdit =
   | { kind: "rewind"; entryId: string }
-  | { kind: "omit"; entryIds: string[] }
-  | { kind: "branch"; newSessionId: string; throughEntryId?: string };
+  | { kind: "fork"; entryId: string }
+  | { kind: "switch"; entryId: string }
+  | { kind: "omit"; entryIds: string[] };
 
-export function applySessionEdit(
-  file: string,
-  sessionDir: string,
-  edit: SessionEdit
-): { sessionFile?: string } {
+/** 在一个 SessionManager 上执行改树操作（宿主会话的或新打开的；调用方负责刷新宿主上下文） */
+export function applySessionEdit(manager: SessionManager, edit: SessionEdit): void {
+  if (edit.kind === "rewind") rewindToBeforeEntry(manager, edit.entryId);
+  else if (edit.kind === "fork") forkAfterEntry(manager, edit.entryId);
+  else if (edit.kind === "switch") switchToVersion(manager, edit.entryId);
+  else if (edit.entryIds.length > 0) omitEntries(manager, edit.entryIds);
+}
+
+/** 没有宿主开着这个文件时：直接打开文件改 */
+export function applySessionEditToFile(file: string, edit: SessionEdit): void {
   if (!existsSync(file)) throw new Error("对话还没有保存下来，暂时不能修改历史");
-  if (edit.kind === "rewind") {
-    rewindToBeforeEntry(file, edit.entryId);
-    return {};
-  }
-  if (edit.kind === "omit") {
-    if (edit.entryIds.length > 0) omitEntries(file, edit.entryIds);
-    return {};
-  }
-  return {
-    sessionFile: branchSessionFile({
-      sessionDir,
-      sourceFile: file,
-      newSessionId: edit.newSessionId,
-      ...(edit.throughEntryId ? { throughEntryId: edit.throughEntryId } : {}),
-    }),
-  };
+  applySessionEdit(SessionManager.open(file), edit);
 }
 
 // ── 浏览器扩展会话 ────────────────────────────────────────────────────────────
 
 const sessionIdOfPath = (path: string) => /_([^_]+)\.jsonl$/.exec(basename(path))?.[1] ?? "";
 
-/** 一个目录里的全部对话（含分支），按最近活动降序 */
+/**
+ * 页面目录里 M4 留下的分支文件（会话头带 parentSession）并进父文件的树（M4-d）。
+ * 扩展会话没有目录表与开库时机，列表时顺手合并；父文件对不上的把 parentSession 去掉、成为独立对话。
+ */
+export async function mergeBranchFilesInDir(dir: string): Promise<void> {
+  if (!existsSync(dir)) return;
+  const infos = await SessionManager.listAll(dir);
+  const pathById = new Map(infos.map(info => [info.id, info.path]));
+  const parentOf = new Map(
+    infos
+      .filter(info => info.parentSessionPath)
+      .map(info => [info.id, sessionIdOfPath(info.parentSessionPath!)])
+  );
+  const depthOf = (id: string) => {
+    let depth = 0;
+    for (
+      let cursor = parentOf.get(id);
+      cursor && depth < infos.length;
+      cursor = parentOf.get(cursor)
+    )
+      depth += 1;
+    return depth;
+  };
+  for (const id of [...parentOf.keys()].sort((a, b) => depthOf(b) - depthOf(a))) {
+    const branchPath = pathById.get(id)!;
+    const parentPath = pathById.get(parentOf.get(id)!);
+    try {
+      if (
+        parentPath &&
+        existsSync(parentPath) &&
+        graftSessionFile(parentPath, branchPath).kind === "merged"
+      ) {
+        rmSync(branchPath, { force: true });
+        continue;
+      }
+    } catch (error) {
+      console.error("[pi-session] 合并扩展分支失败:", branchPath, error);
+    }
+    detachSessionHeader(branchPath);
+  }
+}
+
+/** 去掉会话头的 parentSession：分支降级为独立对话 */
+function detachSessionHeader(file: string): void {
+  const [head, ...rest] = readFileSync(file, "utf8").split("\n");
+  const header = JSON.parse(head) as Record<string, unknown>;
+  delete header.parentSession;
+  writeFileSync(file, [JSON.stringify(header), ...rest].join("\n"));
+}
+
+/** 一个目录里的全部对话，按最近活动降序（先把 M4 留下的分支文件并进树） */
 export async function listSessionsInDir(dir: string): Promise<PiBrowserSessionInfo[]> {
   if (!existsSync(dir)) return [];
+  await mergeBranchFilesInDir(dir);
   // listAll(dir) 不按 cwd 过滤（list 会拿 cwd 比对会话头，扩展会话的 cwd 是应用目录）
   const infos = await SessionManager.listAll(dir);
   return infos.map(info => ({
     id: info.id,
     title: info.name || (info.firstMessage !== "(no messages)" ? info.firstMessage : "新对话"),
-    parentId: info.parentSessionPath ? sessionIdOfPath(info.parentSessionPath) || null : null,
     createTime: info.created.getTime(),
     updateTime: info.modified.getTime(),
-    messageCount: info.messageCount,
+    messageCount: countUserMessages(readTranscript(info.path, dir)),
   }));
 }
 
@@ -84,25 +145,10 @@ export function renameSessionInDir(dir: string, sessionId: string, title: string
   SessionManager.open(file).appendSessionInfo(title);
 }
 
-/** 删除对话连带它的分支子树（按会话头 parentSession 还原的树），返回被删的 id */
-export async function deleteSessionTreeInDir(dir: string, sessionId: string): Promise<string[]> {
-  const sessions = await listSessionsInDir(dir);
-  const doomed = new Set([sessionId]);
-  let grew = true;
-  while (grew) {
-    grew = false;
-    for (const session of sessions) {
-      if (session.parentId && doomed.has(session.parentId) && !doomed.has(session.id)) {
-        doomed.add(session.id);
-        grew = true;
-      }
-    }
-  }
-  for (const id of doomed) {
-    const file = findSessionFileById(dir, id);
-    if (file) rmSync(file, { force: true });
-  }
-  return [...doomed];
+/** 删除对话（分支都在同一文件里，删文件即可） */
+export function deleteSessionInDir(dir: string, sessionId: string): void {
+  const file = findSessionFileById(dir, sessionId);
+  if (file) rmSync(file, { force: true });
 }
 
 // 页面 → 目录的包装（IPC 壳用）
@@ -113,7 +159,7 @@ export const browserSessionFile = (pageUrl: string, sessionId: string) =>
 export const renameBrowserSession = (pageUrl: string, sessionId: string, title: string) =>
   renameSessionInDir(browserSessionDirOf(pageUrl), sessionId, title);
 export const deleteBrowserSession = (pageUrl: string, sessionId: string) =>
-  deleteSessionTreeInDir(browserSessionDirOf(pageUrl), sessionId);
+  deleteSessionInDir(browserSessionDirOf(pageUrl), sessionId);
 
 // ── 同步：会话目录打包 / 解包 ───────────────────────────────────────────────────
 

@@ -21,7 +21,6 @@ import type { ChatSessionRow, ChatSessionScope } from "@/types/chat-session";
 import {
   createChatSession,
   deleteChatSession,
-  getNextChatSessionBranchIndex,
   listChatSessions,
   pinChatSession,
   unpinChatSession,
@@ -33,7 +32,7 @@ import {
   getAllChatGroups,
   updateChatGroup,
 } from "@/commands/chat-message";
-import { piSessionEdit, piSessionTranscript } from "@/commands/piSession";
+import { piSessionEdit, piSessionTranscript, type PiSessionEdit } from "@/commands/piSession";
 
 /** 场景 + 所属对象：一个列表 */
 export interface ChatBucketRef {
@@ -77,8 +76,6 @@ export const rowToChat = (
   titleDirty: row.titleDirty,
   groupId: row.groupId,
   archived: row.archived,
-  parentChatId: row.parentSessionId,
-  branchIndex: row.branchIndex,
   orderNum: row.orderNum,
   source: row.source,
   sessionFile: row.sessionFile,
@@ -98,8 +95,6 @@ export const createDraftChat = (bucket: ChatBucketRef): ChatMessage => {
     titleDirty: false,
     groupId: null,
     archived: false,
-    parentChatId: null,
-    branchIndex: 0,
     orderNum: null,
     scope: bucket.scope,
     domainRef: bucket.domainRef,
@@ -139,12 +134,12 @@ interface ChatSessionActions {
   moveChatToGroup(id: string, groupId: number | null): Promise<void>;
   pinChat(id: string): Promise<void>;
   unpinChat(id: string): Promise<void>;
-  deleteChat(id: string): Promise<string[]>;
+  deleteChat(id: string): Promise<void>;
   /**
-   * 建分支：拷出会话文件（截到 throughEntryId）并登记为子对话。
-   * 调用方负责先 dispose 源对话的宿主会话。
+   * 改会话树（回退/分叉/切版本/删除，M4-d）：返回改后的投影，由调用方（聊天容器）回写。
+   * 运行中主进程会拒绝（抛错）。
    */
-  branchChat(id: string, throughEntryId?: string): Promise<ChatMessage>;
+  editChat(id: string, edit: PiSessionEdit): Promise<ChatSessionMessage[]>;
   createGroup(name: string, parentId?: number | null): Promise<ChatGroup>;
   renameGroup(id: number, name: string): Promise<ChatGroup>;
   deleteGroup(id: number): Promise<void>;
@@ -223,12 +218,11 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
             },
           }));
           try {
-            // 分支也要（下拉的分支 chip、全部会话的分支树）；归档由 UI 自己分组
+            // 归档由 UI 自己分组
             const rows = await listChatSessions({
               scope: bucket.scope,
               domainRef: bucket.domainRef,
               includeArchived: true,
-              includeBranches: true,
             });
             if (bucketSequences.get(key) !== sequence) return;
             set(state => ({
@@ -305,8 +299,6 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
             title: chat.title,
             titleDirty: chat.titleDirty ?? false,
             groupId: chat.groupId ?? null,
-            parentSessionId: chat.parentChatId ?? null,
-            branchIndex: chat.branchIndex ?? 0,
             messageCount: 0,
           });
           releaseDraft(chat.id);
@@ -355,55 +347,37 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
         },
 
         deleteChat: async id => {
-          const row = findRow(id);
           // 目录里没有 = 草稿，直接丢
-          const deletedIds = row ? (await deleteChatSession(id)).deletedIds : [id];
-          const doomed = new Set(deletedIds);
+          if (findRow(id)) await deleteChatSession(id);
           set(state => {
             const buckets: Record<string, ChatBucket> = {};
             for (const [key, bucket] of Object.entries(state.buckets)) {
-              buckets[key] = { ...bucket, rows: bucket.rows.filter(item => !doomed.has(item.id)) };
+              buckets[key] = { ...bucket, rows: bucket.rows.filter(item => item.id !== id) };
             }
             const opened = { ...state.opened };
-            deletedIds.forEach(deleted => delete opened[deleted]);
+            delete opened[id];
             const currentIds = { ...state.currentIds };
             for (const [key, current] of Object.entries(currentIds)) {
-              if (current && doomed.has(current)) currentIds[key] = null;
+              if (current === id) currentIds[key] = null;
             }
             return { buckets, opened, currentIds };
           });
-          return deletedIds;
         },
 
-        branchChat: async (id, throughEntryId) => {
-          const parent = findRow(id);
-          if (!parent) throw new Error("请先发送一条消息再建分支");
-          const newSessionId = crypto.randomUUID();
-          const outcome = await piSessionEdit(
-            { sessionFile: parent.sessionFile },
-            { kind: "branch", newSessionId, ...(throughEntryId ? { throughEntryId } : {}) }
-          );
-          if (!outcome.ok || !outcome.sessionFile) {
-            throw new Error(outcome.error ?? "创建分支失败");
+        editChat: async (id, edit) => {
+          const row = findRow(id);
+          if (!row) throw new Error("对话还没有保存下来，暂时不能修改历史");
+          const outcome = await piSessionEdit({ sessionFile: row.sessionFile }, edit);
+          if (!outcome.ok || !outcome.messages) {
+            throw new Error(outcome.error ?? "修改对话历史失败");
           }
-          const branchIndex = await getNextChatSessionBranchIndex(parent.id);
-          const messages = outcome.messages ?? [];
-          const row = await createChatSession({
-            id: newSessionId,
-            scope: parent.scope,
-            domainRef: parent.domainRef,
-            sessionFile: outcome.sessionFile,
-            title: `${parent.title || "新对话"} - 分支 ${branchIndex}`,
-            titleDirty: true,
-            groupId: parent.groupId,
-            parentSessionId: parent.id,
-            branchIndex,
-            messageCount: messages.filter(message => message.role === "user").length,
-          });
-          upsertRow(row);
-          const chat = rowToChat(row, messages);
-          set(state => ({ opened: { ...state.opened, [chat.id]: chat } }));
-          return chat;
+          const messages = outcome.messages;
+          // 切版本/回退改变了当前路径：目录行的消息数跟着当前路径走（时间不动，只是换了个视角）
+          const messageCount = messages.filter(message => message.role === "user").length;
+          if (messageCount !== row.messageCount) {
+            await patchRow(id, { messageCount, updateTime: row.updateTime });
+          }
+          return messages;
         },
 
         createGroup: async (name, parentId) => {

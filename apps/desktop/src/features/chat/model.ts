@@ -26,11 +26,11 @@ export interface NavSessions {
 }
 
 /**
- * 侧栏子项：置顶（按 orderNum，与会话库同序）+ 最近更新的主干会话 N 条。
- * 当前会话不在其中（分支、较早的会话）时补进「最近」，保证选中项总是可见。
+ * 侧栏子项：置顶（按 orderNum，与会话库同序）+ 最近更新的会话 N 条。
+ * 当前会话不在其中（较早的会话）时补进「最近」，保证选中项总是可见。
  */
 export function navSessions(chats: ChatSessionRow[], currentId: string | null): NavSessions {
-  const roots = chats.filter(chat => !chat.archived && !chat.parentSessionId);
+  const roots = chats.filter(chat => !chat.archived);
   const pinned = roots.filter(isPinned).sort((a, b) => (a.orderNum ?? 0) - (b.orderNum ?? 0));
   const recent = roots
     .filter(chat => !isPinned(chat))

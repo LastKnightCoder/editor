@@ -54,15 +54,12 @@ export const RightChatPanel = memo(
     );
 
     // 停靠栏与对话页同属主聊天（同一份目录），各自有自己的新对话草稿；列表由应用启动时加载
-    const { rows, currentChat, select, newChat, rename, remove, branchCount } = useScopedChat(
-      MAIN_CHAT_BUCKET,
-      {
-        draftSlot: "dock",
-        selectedId: currentChatId,
-        onSelect: setCurrentChatId,
-        autoLoad: false,
-      }
-    );
+    const { rows, currentChat, select, newChat, rename, remove } = useScopedChat(MAIN_CHAT_BUCKET, {
+      draftSlot: "dock",
+      selectedId: currentChatId,
+      onSelect: setCurrentChatId,
+      autoLoad: false,
+    });
 
     const [sendLoading, setSendLoading] = useState(false);
 
@@ -117,7 +114,6 @@ export const RightChatPanel = memo(
                 onChatSelect={handleChatSelect}
                 onTitleChange={onTitleChange}
                 onChatDelete={handleChatDelete}
-                getChildBranchesCount={branchCount}
                 titleRef={editTitleRef}
                 onOpenLibrary={onOpenLibrary}
               />
@@ -141,7 +137,6 @@ export const RightChatPanel = memo(
                 preserveScrollPosition
                 scrollPositionScope="right-chat-sidebar"
                 onChatCreated={select}
-                onBranchCreated={select}
                 compact
               />
             </Suspense>

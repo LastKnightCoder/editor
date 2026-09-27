@@ -7,7 +7,6 @@ import {
   Folder,
   FolderInput,
   FolderPlus,
-  GitBranch,
   GripVertical,
   MessageSquare,
   MessageSquarePlus,
@@ -71,7 +70,7 @@ type GroupDialogState = {
 
 /**
  * 「全部会话」管理面板（D-048 tau 化）：分组 / 子分组树、未分组、已归档折叠、置顶、
- * 拖入分组、归档、移动、分支、分组重命名 / 删除。放在 ChatLibraryDialog 里，也作 legacy
+ * 拖入分组、归档、移动、分组重命名 / 删除。分支在对话内部（M4-d），不在列表里。放在 ChatLibraryDialog 里，也作 legacy
  * 对话管理页左栏（撑满高度、内部滚动）。
  */
 const ChatManagementSidebar = memo(
@@ -98,14 +97,6 @@ const ChatManagementSidebar = memo(
       }))
     );
 
-    const collectSubtree = (id: string) => {
-      const out = [id];
-      for (let index = 0; index < out.length; index += 1) {
-        for (const chat of chats) if (chat.parentSessionId === out[index]) out.push(chat.id);
-      }
-      return out;
-    };
-
     const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
     const [expandedArchived, setExpandedArchived] = useState(false);
     const [draggedChatId, setDraggedChatId] = useState<string | null>(null);
@@ -113,10 +104,7 @@ const ChatManagementSidebar = memo(
     const [groupDialog, setGroupDialog] = useState<GroupDialogState>(null);
     const [groupName, setGroupName] = useState("");
     const [pendingDeleteGroup, setPendingDeleteGroup] = useState<number | null>(null);
-    const [pendingDeleteChat, setPendingDeleteChat] = useState<{
-      id: string;
-      branches: number;
-    } | null>(null);
+    const [pendingDeleteChat, setPendingDeleteChat] = useState<string | null>(null);
 
     const toggleGroup = useMemoizedFn((groupId: number) => {
       setExpandedGroups(prev => {
@@ -188,22 +176,19 @@ const ChatManagementSidebar = memo(
     });
 
     const askDeleteChat = useMemoizedFn((chatId: string) => {
-      setPendingDeleteChat({ id: chatId, branches: collectSubtree(chatId).length - 1 });
+      setPendingDeleteChat(chatId);
     });
 
-    // 删除连分支子树：先释放宿主会话与运行态，再删目录行（主进程连会话文件一起删）
+    // 先释放宿主会话与运行态，再删目录行（主进程连会话文件一起删）
     const confirmDeleteChat = useMemoizedFn(async () => {
       if (!pendingDeleteChat) return;
       try {
         const { piChatRuntime } = await import("@/services/piChatRuntime");
-        const subtree = collectSubtree(pendingDeleteChat.id);
-        await Promise.all(
-          subtree.map(id => piChatSessionManager.disposeChatSession(MAIN_CHAT_BUCKET.scope, id))
+        await piChatSessionManager.disposeChatSession(MAIN_CHAT_BUCKET.scope, pendingDeleteChat);
+        piChatRuntime.disposeConversation(
+          chatSessionKey(MAIN_CHAT_BUCKET.scope, pendingDeleteChat)
         );
-        subtree.forEach(id =>
-          piChatRuntime.disposeConversation(chatSessionKey(MAIN_CHAT_BUCKET.scope, id))
-        );
-        await useChatSessionStore.getState().deleteChat(pendingDeleteChat.id);
+        await useChatSessionStore.getState().deleteChat(pendingDeleteChat);
       } catch (error) {
         toast.error("删除失败");
       }
@@ -226,27 +211,6 @@ const ChatManagementSidebar = memo(
         }
       } catch (error) {
         toast.error(pinned ? "取消置顶失败" : "置顶失败");
-      }
-    });
-
-    // 创建分支（拷整条对话，新分支是当前对话的子级）
-    const handleCreateBranchFromChat = useMemoizedFn(async (chatId: string) => {
-      const chat = chats.find(c => c.id === chatId);
-      if (!chat) {
-        toast.error("对话不存在");
-        return;
-      }
-      if (chat.messageCount === 0) {
-        toast.warning("对话没有足够的消息来创建分支");
-        return;
-      }
-      try {
-        // 源对话的宿主不能同时开着文件
-        await piChatSessionManager.disposeChatSession(MAIN_CHAT_BUCKET.scope, chat.id);
-        await useChatSessionStore.getState().branchChat(chat.id);
-      } catch (error) {
-        toast.error("创建分支失败");
-        console.error("Create branch error:", error);
       }
     });
 
@@ -315,22 +279,17 @@ const ChatManagementSidebar = memo(
           );
         });
 
-    const renderChatMenuItems = (chat: ChatMessage, isArchived: boolean, isBranch: boolean) => {
+    const renderChatMenuItems = (chat: ChatMessage, isArchived: boolean) => {
       const isPinned = chat.orderNum !== null;
       return (
         <>
-          {/* 分支不能置顶 */}
-          {!isBranch && (
-            <Menu.Item
-              icon={isPinned ? <PinOff {...ICON} /> : <Pin {...ICON} />}
-              onSelect={() => handleTogglePin(chat.id, isPinned)}
-            >
-              {isPinned ? "取消置顶" : "置顶"}
-            </Menu.Item>
-          )}
-          {/* 分支不能移动到分组或归档 */}
+          <Menu.Item
+            icon={isPinned ? <PinOff {...ICON} /> : <Pin {...ICON} />}
+            onSelect={() => handleTogglePin(chat.id, isPinned)}
+          >
+            {isPinned ? "取消置顶" : "置顶"}
+          </Menu.Item>
           {!isArchived &&
-            !isBranch &&
             (groups.length > 0 ? (
               <Menu.Submenu icon={<FolderInput {...ICON} />} label="移动至分组">
                 <Menu.Item onSelect={() => handleMoveToGroup(chat.id, null)}>未分组</Menu.Item>
@@ -345,7 +304,7 @@ const ChatManagementSidebar = memo(
                 移到未分组
               </Menu.Item>
             ))}
-          {!isArchived && !isBranch && (
+          {!isArchived && (
             <Menu.Item
               icon={<Archive {...ICON} />}
               onSelect={() => handleArchiveChat(chat.id, true)}
@@ -353,21 +312,12 @@ const ChatManagementSidebar = memo(
               归档
             </Menu.Item>
           )}
-          {isArchived && !isBranch && (
+          {isArchived && (
             <Menu.Item
               icon={<ArchiveRestore {...ICON} />}
               onSelect={() => handleArchiveChat(chat.id, false)}
             >
               取消归档
-            </Menu.Item>
-          )}
-          {/* 所有对话（包括分支）都可以创建分支 */}
-          {!isArchived && (
-            <Menu.Item
-              icon={<GitBranch {...ICON} />}
-              onSelect={() => handleCreateBranchFromChat(chat.id)}
-            >
-              创建分支
             </Menu.Item>
           )}
           <Menu.Separator />
@@ -439,10 +389,9 @@ const ChatManagementSidebar = memo(
     const renderChatItem = (chat: ChatMessage, isArchived: boolean, depth: number) => {
       const isSelected = selectedChatId === chat.id;
       const isDragging = draggedChatId === chat.id;
-      const isBranch = chat.parentSessionId != null;
       const isPinned = chat.orderNum !== null;
-      const canDrag = !isArchived && !isBranch;
-      const menuItems = renderChatMenuItems(chat, isArchived, isBranch);
+      const canDrag = !isArchived;
+      const menuItems = renderChatMenuItems(chat, isArchived);
 
       return (
         <ContextMenu key={chat.id} content={menuItems}>
@@ -481,32 +430,24 @@ const ChatManagementSidebar = memo(
                 className="text-ink-3 ease-tau-out pointer-events-none absolute top-1/2 -translate-x-[11px] -translate-y-1/2 opacity-0 transition-opacity duration-[160ms] group-hover/row:opacity-100"
               />
             )}
-            {isBranch ? (
-              <GitBranch {...ICON} className="text-ink-3 shrink-0" />
-            ) : (
-              <MessageSquare {...ICON} className="text-ink-3 shrink-0" />
-            )}
+            <MessageSquare {...ICON} className="text-ink-3 shrink-0" />
             <span className="min-w-0 flex-1 truncate">{chat.title || "新对话"}</span>
             <span className="text-tau-sm text-ink-3 shrink-0 font-normal tabular-nums">
               {dayjs(chat.updateTime).format("MM-DD HH:mm")}
             </span>
-            {/* 置顶槽：已置顶常显，未置顶悬停淡入；分支不可置顶，留等宽空位 */}
-            {isBranch ? (
-              <span className="size-6 shrink-0" />
-            ) : (
-              <Tooltip content={isPinned ? "取消置顶" : "置顶"}>
-                <IconButton
-                  aria-label={isPinned ? "取消置顶" : "置顶"}
-                  className={cn(hoverSlot, isPinned && "text-ink-2 opacity-100")}
-                  onClick={e => {
-                    e.stopPropagation();
-                    void handleTogglePin(chat.id, isPinned);
-                  }}
-                >
-                  <Pin size={13} strokeWidth={1.75} className={cn(isPinned && "fill-current")} />
-                </IconButton>
-              </Tooltip>
-            )}
+            {/* 置顶槽：已置顶常显，未置顶悬停淡入 */}
+            <Tooltip content={isPinned ? "取消置顶" : "置顶"}>
+              <IconButton
+                aria-label={isPinned ? "取消置顶" : "置顶"}
+                className={cn(hoverSlot, isPinned && "text-ink-2 opacity-100")}
+                onClick={e => {
+                  e.stopPropagation();
+                  void handleTogglePin(chat.id, isPinned);
+                }}
+              >
+                <Pin size={13} strokeWidth={1.75} className={cn(isPinned && "fill-current")} />
+              </IconButton>
+            </Tooltip>
             <Menu
               align="end"
               trigger={
@@ -523,24 +464,6 @@ const ChatManagementSidebar = memo(
             </Menu>
           </div>
         </ContextMenu>
-      );
-    };
-
-    // 递归渲染对话及其分支
-    const renderChatWithBranches = (
-      chat: ChatMessage,
-      isArchived = false,
-      depth = 0
-    ): ReactNode => {
-      const branches = chats
-        .filter(c => c.parentSessionId === chat.id && !c.archived)
-        .sort((a, b) => a.branchIndex - b.branchIndex);
-
-      return (
-        <div key={chat.id} className="flex flex-col gap-px">
-          {renderChatItem(chat, isArchived, depth)}
-          {branches.map(branch => renderChatWithBranches(branch, isArchived, depth + 1))}
-        </div>
       );
     };
 
@@ -602,9 +525,9 @@ const ChatManagementSidebar = memo(
     // 递归渲染分组
     const renderGroup = (group: ChatGroup, level = 0): ReactNode => {
       const isExpanded = expandedGroups.has(group.id);
-      // 只获取根对话（不包含分支），置顶在前
+      // 置顶在前
       const groupChats = chats
-        .filter(c => c.groupId === group.id && !c.archived && !c.parentSessionId)
+        .filter(c => c.groupId === group.id && !c.archived)
         .sort(sortByPinThenTime);
       const childGroups = groups.filter(g => g.parentId === group.id);
       const isDragOver = dragOverTarget === group.id;
@@ -651,26 +574,20 @@ const ChatManagementSidebar = memo(
           {isExpanded && (
             <>
               {childGroups.map(childGroup => renderGroup(childGroup, level + 1))}
-              {groupChats.map(chat => renderChatWithBranches(chat, false, level + 1))}
+              {groupChats.map(chat => renderChatItem(chat, false, level + 1))}
             </>
           )}
         </div>
       );
     };
 
-    // 未分组的根对话（置顶在前，不包含分支）
-    const ungroupedChats = chats
-      .filter(c => !c.groupId && !c.archived && !c.parentSessionId)
-      .sort(sortByPinThenTime);
+    // 未分组的对话（置顶在前）
+    const ungroupedChats = chats.filter(c => !c.groupId && !c.archived).sort(sortByPinThenTime);
     const rootGroups = groups.filter(g => g.parentId === null);
-    // 归档的根对话（按更新时间倒序，不包含分支）
-    const archivedChats = chats
-      .filter(c => c.archived && !c.parentSessionId)
-      .sort((a, b) => b.updateTime - a.updateTime);
+    // 归档的对话（按更新时间倒序）
+    const archivedChats = chats.filter(c => c.archived).sort((a, b) => b.updateTime - a.updateTime);
     const isEmpty =
       rootGroups.length === 0 && ungroupedChats.length === 0 && archivedChats.length === 0;
-
-    const deletingBranches = pendingDeleteChat?.branches ?? 0;
 
     return (
       <div className="flex h-full min-h-0 flex-col">
@@ -708,7 +625,7 @@ const ChatManagementSidebar = memo(
                   未分组
                 </div>
               )}
-              {ungroupedChats.map(chat => renderChatWithBranches(chat))}
+              {ungroupedChats.map(chat => renderChatItem(chat, false, 0))}
             </div>
           )}
 
@@ -722,7 +639,7 @@ const ChatManagementSidebar = memo(
                 depth: 0,
                 onToggle: () => setExpandedArchived(v => !v),
               })}
-              {expandedArchived && archivedChats.map(chat => renderChatWithBranches(chat, true, 1))}
+              {expandedArchived && archivedChats.map(chat => renderChatItem(chat, true, 1))}
             </div>
           )}
         </div>
@@ -785,11 +702,7 @@ const ChatManagementSidebar = memo(
             if (!open) setPendingDeleteChat(null);
           }}
           title="删除对话"
-          description={
-            deletingBranches > 0
-              ? `此对话包含 ${deletingBranches} 个子分支，删除后将同时删除所有子分支。此操作不可恢复。`
-              : "确定要删除这个对话吗？此操作不可恢复。"
-          }
+          description="对话里的所有版本会一起删除，此操作不可恢复。"
           confirmText="删除"
           danger
           onConfirm={confirmDeleteChat}

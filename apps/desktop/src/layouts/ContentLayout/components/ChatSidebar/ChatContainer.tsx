@@ -19,7 +19,7 @@ import { COMPOSER_ANCHOR_ATTR } from "@/components/ChatInputArea/ComposerPanel";
 import { measurePerformance } from "./hooks/usePerformanceMonitor";
 import MessageItem from "./MessageItem";
 
-import { ChatMessage, RequestMessage, ResponseMessage } from "@/types";
+import { ChatMessage, ChatSessionMessage, RequestMessage, ResponseMessage } from "@/types";
 import type { PiPromptDisplay } from "@/types/pi-session";
 import {
   clampThinkingLevel,
@@ -67,7 +67,6 @@ import { createChatMessageClientId } from "@/services/chatMessageSchema";
 import {
   buildTitleSummaryMessages,
   formatGeneratedChatTitle,
-  getLastUserMessageIndex,
   getRequestMessageText,
   shouldRestoreInputAfterSendError,
   shouldGenerateChatTitle,
@@ -161,8 +160,6 @@ interface ChatContainerProps {
   scrollPositionScope?: string; // 滚动位置缓存作用域，不影响模型会话键
   /** 草稿首轮发送后登记为正式对话（id 不变），宿主据此把它设为当前 */
   onChatCreated?: (chatId: string) => void;
-  /** 建分支后切到新分支 */
-  onBranchCreated?: (chatId: string) => void;
   customSystemPrompt?: string; // 自定义系统提示（覆盖默认）
   beforeSendUserMessage?: (content: MessageContentItem[]) => Promise<boolean | void>;
   /** 阅读列最大宽度（对话页 760 居中；停靠栏缺省 = 撑满） */
@@ -198,7 +195,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       preserveScrollPosition = false,
       scrollPositionScope,
       onChatCreated,
-      onBranchCreated,
       customSystemPrompt,
       beforeSendUserMessage,
       contentMaxWidth,
@@ -634,8 +630,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     });
 
     /**
-     * 改历史（M4）：先释放宿主会话（主进程不允许两个 SessionManager 同时写一个文件），
-     * 再改会话文件，把改后的投影写回容器。下一轮发送时 ensure 会从改后的文件恢复。
+     * 改会话树（M4-d）：回退/分叉/切版本/删除都在同一文件的树上。宿主会话开着且空闲时主进程
+     * 直接改它（不重建，本会话的工具授权保留），把改后的投影写回容器。
      */
     const editSessionHistory = useMemoizedFn(
       async (edit: PiSessionEdit): Promise<ChatMessage | null> => {
@@ -644,17 +640,14 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           message.warning("对话还没有保存下来，暂时不能修改历史");
           return null;
         }
-        const outcome = await piChatSessionManager.editChatHistory(
-          chatScope,
-          chat.id,
-          chat.sessionFile,
-          edit
-        );
-        if (!outcome.ok || !outcome.messages) {
-          message.error(outcome.error ?? "修改对话历史失败");
+        let messages: ChatSessionMessage[];
+        try {
+          messages = await useChatSessionStore.getState().editChat(chat.id, edit);
+        } catch (error) {
+          message.error(getErrorMessage(error) || "修改对话历史失败");
           return null;
         }
-        const next = adoptTranscript(actualChatRef.current, outcome.messages);
+        const next = adoptTranscript(actualChatRef.current, messages);
         actualChatRef.current = next;
         setUpdateCounter(prev => prev + 1);
         useChatSessionStore.getState().publishChat(next);
@@ -906,10 +899,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       return null;
     }, [actualChatRef, chatModelConfig?.name, chatProviderConfig?.id, updateCounter]);
 
-    const lastUserMessageIndex = useMemo(
-      () => getLastUserMessageIndex(visibleMessages),
-      [visibleMessages]
-    );
     const lastVisibleMessageRole =
       visibleMessages.length > 0 ? visibleMessages[visibleMessages.length - 1]?.role : undefined;
 
@@ -918,14 +907,14 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         return;
       }
 
+      // 任意一条用户消息都能编辑（M4-d：原内容作为一个版本留在树上）
       const targetMessage = visibleMessages[editingDraft.messageIndex];
-      const isEditingTargetStillValid =
-        editingDraft.messageIndex === lastUserMessageIndex && targetMessage?.role === Role.User;
+      const isEditingTargetStillValid = targetMessage?.role === Role.User;
 
       if (!isEditingTargetStillValid) {
         setEditingDraft(null);
       }
-    }, [editingDraft, lastUserMessageIndex, visibleMessages]);
+    }, [editingDraft, visibleMessages]);
 
     // 停止流式请求：pi 会话 abort（半成品由 agent_settled 流程持久化）。
     // 乐观清 pending 让输入区立即恢复；settled 后的清理是幂等的
@@ -1297,11 +1286,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         return;
       }
 
-      if (messageIndex !== lastUserMessageIndex) {
-        message.warning("只能编辑最后一条用户消息");
-        return;
-      }
-
       const targetMessage = visibleMessages[messageIndex];
       if (!targetMessage || targetMessage.role !== Role.User) {
         message.warning("只能编辑用户消息");
@@ -1317,7 +1301,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       }, 0);
     });
 
-    // 创建分支：拷出会话文件截到这条消息（含它的全部 entry），登记为子对话并切过去
+    /**
+     * 从这里建分支（M4-d）：回到这条回答之后，之后的对话留在树上成为另一个版本；
+     * 接下来发送的消息就是新分支，可以在那条用户消息上 ‹ i/n › 切回去。
+     */
     const handleCreateBranch = useMemoizedFn(async (messageIndex: number) => {
       const currentChat = actualChatRef.current;
       if (isDraftChat(currentChat)) {
@@ -1329,24 +1316,37 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         return;
       }
       const target = visibleMessagesOf(currentChat)[messageIndex];
-      const throughEntryId = target?.piEntryIds?.at(-1);
-      if (!throughEntryId) {
+      const entryId = target?.piEntryIds?.at(-1);
+      if (!entryId) {
         message.warning("这条消息还没有保存下来，暂时不能建分支");
         return;
       }
-      try {
-        // 源对话的宿主不能同时开着文件（建分支只读源文件，但主进程统一要求先释放）
-        await piChatSessionManager.disposeChatSession(chatScope, currentChat.id);
-        const branch = await useChatSessionStore
-          .getState()
-          .branchChat(currentChat.id, throughEntryId);
-        message.success("分支已创建");
-        onBranchCreated?.(branch.id);
-      } catch (error) {
-        message.error(getErrorMessage(error) || "创建分支失败");
-        console.error("Create branch error:", error);
+      if (messageIndex === visibleMessagesOf(currentChat).length - 1) {
+        message.info("已经是最新的回答，直接发送消息即可继续");
+        return;
+      }
+      const edited = await editSessionHistory({ kind: "fork", entryId });
+      if (edited) {
+        message.success("已从这里分叉，发送的消息会成为新分支");
+        editTextRef.current?.focusEnd();
       }
     });
+
+    /** 切到这条用户消息的另一个版本：后面的整段对话一起换成那个版本的 */
+    const handleSwitchVersion = useMemoizedFn(
+      async (messageIndex: number, versionIndex: number) => {
+        if (sendLoading) {
+          message.warning("回答进行中，请先停止再切换版本");
+          return;
+        }
+        const target = visibleMessagesOf(actualChatRef.current)[messageIndex] as
+          RequestMessage | undefined;
+        const entryId = target?.piVersions?.ids[versionIndex];
+        if (!entryId) return;
+        setEditingDraft(null);
+        await editSessionHistory({ kind: "switch", entryId });
+      }
+    );
 
     if (!currentChat) {
       return null;
@@ -1571,11 +1571,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                       <div className="bg-accent-soft text-tau-sm -mb-2 flex items-center justify-between gap-3 rounded-t-[16px] px-3.5 pb-4 pt-2">
                         <div className="text-accent-text min-w-0">
                           <span className="font-semibold">
-                            {editingDraft ? "正在编辑最后一条消息" : "正在编辑生成的图片"}
+                            {editingDraft ? "正在编辑消息" : "正在编辑生成的图片"}
                           </span>
                           <span className="text-ink-2 ml-2">
                             {editingDraft
-                              ? "发送后将替换这条消息及其后的回复"
+                              ? "发送后生成这条消息的新版本，原来的内容可以切回去"
                               : "输入调整要求，发送后基于选中的图片调用编辑工具"}
                           </span>
                         </div>
@@ -1654,12 +1654,12 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                       !hideInput &&
                       !sendLoading &&
                       item.role === Role.User &&
-                      messageIndex === lastUserMessageIndex &&
                       getRequestMessageText(item as RequestMessage).trim().length > 0
                         ? handleEditMessage
                         : undefined
                     }
                     onCreateBranch={handleCreateBranch}
+                    {...(!sendLoading ? { onSwitchVersion: handleSwitchVersion } : {})}
                     messageMeta={{
                       chatId: actualChatRef.current.id,
                       messageIndex,

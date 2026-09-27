@@ -141,10 +141,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources,
     () => ({ scope: "vibe-learning-chat" as const, domainRef: String(projectId) }),
     [projectId]
   );
-  const { rows, loaded, currentChat, select, newChat, rename, remove, branchCount } = useScopedChat(
-    bucket,
-    { draftSlot: "vibe-learning", autoLoad: isConnected }
-  );
+  const { rows, loaded, currentChat, select, newChat, rename, remove } = useScopedChat(bucket, {
+    draftSlot: "vibe-learning",
+    autoLoad: isConnected,
+  });
 
   const [sendLoading, setSendLoading] = useState(false);
 
@@ -194,7 +194,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources,
               onChatSelect={handleChatSelect}
               onTitleChange={onTitleChange}
               onChatDelete={handleChatDelete}
-              getChildBranchesCount={branchCount}
               titleRef={editTitleRef}
             />
           </div>
@@ -214,7 +213,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources,
               onCreateNewMessage={newChat}
               createMessageLoading={false}
               onChatCreated={select}
-              onBranchCreated={select}
               customSystemPrompt={systemPrompt}
             />
           </Suspense>

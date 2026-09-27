@@ -43,10 +43,10 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
     () => ({ scope: "video-note-chat" as const, domainRef: String(videoNoteId) }),
     [videoNoteId]
   );
-  const { rows, loaded, currentChat, select, newChat, rename, remove, branchCount } = useScopedChat(
-    bucket,
-    { draftSlot: "video-note", autoLoad: isConnected }
-  );
+  const { rows, loaded, currentChat, select, newChat, rename, remove } = useScopedChat(bucket, {
+    draftSlot: "video-note",
+    autoLoad: isConnected,
+  });
 
   const [sendLoading, setSendLoading] = useState(false);
 
@@ -81,7 +81,6 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
             onChatSelect={handleChatSelect}
             onTitleChange={onTitleChange}
             onChatDelete={remove}
-            getChildBranchesCount={branchCount}
             titleRef={editTitleRef}
           />
         </div>
@@ -101,7 +100,6 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
             onCreateNewMessage={newChat}
             createMessageLoading={false}
             onChatCreated={select}
-            onBranchCreated={select}
             customSystemPrompt={systemPrompt}
           />
         </Suspense>

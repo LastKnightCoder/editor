@@ -111,24 +111,29 @@ export function piSessionTranscript(
   return invoke("pi-session:transcript", location);
 }
 
-/** 改历史操作：回退叶子（编辑重发/重新生成）、省略 entry（删除）、拷分支文件（建分支） */
+/**
+ * 改会话树（M4-d，分支都在同一文件里）：回退到用户消息之前（编辑重发/重新生成）、
+ * 分叉到回答之后（从这里建分支）、切到某个版本、省略 entry（删除）。entryId 取投影的 piEntryIds /
+ * piVersions。
+ */
 export type PiSessionEdit =
   | { kind: "rewind"; entryId: string }
-  | { kind: "omit"; entryIds: string[] }
-  | { kind: "branch"; newSessionId: string; throughEntryId?: string };
+  | { kind: "fork"; entryId: string }
+  | { kind: "switch"; entryId: string }
+  | { kind: "omit"; entryIds: string[] };
 
 /**
- * 改历史（M4）：调用前**必须**先 dispose 这个文件上的宿主会话（主进程发现还开着会拒绝）。
- * 返回改后的投影；建分支时另返回新会话文件名与新分支的投影。
+ * 改会话树：宿主会话开着且空闲时主进程直接改它（不重建、会话授权保留），运行中会被拒绝；
+ * 没开着就改文件。返回改后的投影。
  */
 export function piSessionEdit(
   location: PiSessionLocation,
   edit: PiSessionEdit
-): Promise<Outcome & { messages?: ChatSessionMessage[]; sessionFile?: string }> {
+): Promise<Outcome & { messages?: ChatSessionMessage[] }> {
   return invoke("pi-session:edit", { location, edit });
 }
 
-/** 浏览器扩展对话（M4.5）：按页面列出（含分支，按最近活动降序） */
+/** 浏览器扩展对话（M4.5）：按页面列出（按最近活动降序） */
 export function piBrowserSessionList(
   pageUrl: string
 ): Promise<Outcome & { sessions?: PiBrowserSessionInfo[] }> {
@@ -143,11 +148,8 @@ export function piBrowserSessionRename(
   return invoke("pi-session:browser-rename", { pageUrl, sessionId, title });
 }
 
-/** 删除对话连带分支子树 */
-export function piBrowserSessionDelete(
-  pageUrl: string,
-  sessionId: string
-): Promise<Outcome & { deletedIds?: string[] }> {
+/** 删除对话（分支在文件里，一起删掉） */
+export function piBrowserSessionDelete(pageUrl: string, sessionId: string): Promise<Outcome> {
   return invoke("pi-session:browser-delete", { pageUrl, sessionId });
 }
 

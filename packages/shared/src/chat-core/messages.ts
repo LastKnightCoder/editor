@@ -131,6 +131,11 @@ export interface ModelUsage {
   modelName?: string;
 }
 
+export interface MessageVersions {
+  ids: string[];
+  index: number;
+}
+
 export interface RequestMessage {
   clientId?: string;
   /**
@@ -138,6 +143,11 @@ export interface RequestMessage {
    * 重新生成）按它定位，不能靠 clientId——迁移数据的 clientId 是旧值。
    */
   piEntryIds?: string[];
+  /**
+   * 会话树上同一位置的全部版本（M4-d：编辑重发/重新生成/从这里建分支产生的兄弟）。
+   * ids 为各版本用户消息的 entry id（写入顺序），index 是本条是第几个；只有一个版本时不带。
+   */
+  piVersions?: MessageVersions;
   role: Role;
   content: MessageContent[] | string;
   reasoning_content?: string;
@@ -179,8 +189,6 @@ export interface ChatSessionRecord {
   titleDirty?: boolean;
   groupId?: number | null;
   archived?: boolean;
-  parentChatId?: string | null; // 父对话 id（用于分支关系）
-  branchIndex?: number; // 分支序号（同一父对话下的第几个分支）
   orderNum?: number | null; // 排序序号（用于置顶和拖拽排序）
   /** 会话来源：desktop 为桌面端创建，browser 为浏览器插件创建 */
   source?: "desktop" | "browser";

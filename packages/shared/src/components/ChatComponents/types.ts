@@ -56,6 +56,8 @@ export interface ChatMessageType {
   tool_calls?: ToolCallPayload[];
   /** 对应的 pi 会话 entry id（从桌面会话文件投影而来的消息才有），改历史操作按它定位 */
   piEntryIds?: string[];
+  /** 会话树上同一位置的全部版本（用户消息，有多个版本时才有），‹ i/n › 切换 */
+  piVersions?: { ids: string[]; index: number };
 }
 
 /**

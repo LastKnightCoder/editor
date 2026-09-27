@@ -48,12 +48,11 @@ describe.skipIf(!nativeAvailable)("ChatSessionTable", () => {
     ).toEqual(["main-1"]);
   });
 
-  it("置顶在前（按置顶顺序），其余按最近更新降序；归档与分支默认不出现", () => {
+  it("置顶在前（按置顶顺序），其余按最近更新降序；归档默认不出现", () => {
     create("old", { updateTime: 1, createTime: 1 });
     create("new", { updateTime: 3, createTime: 3 });
     create("pinned", { updateTime: 2, createTime: 2 });
     create("archived", { archived: true, updateTime: 9, createTime: 9 });
-    create("branch", { parentSessionId: "old", branchIndex: 1, updateTime: 8, createTime: 8 });
     ChatSessionTable.pin(db, "pinned");
 
     expect(ChatSessionTable.list(db, { scope: "main-chat" }).map(row => row.id)).toEqual([
@@ -83,14 +82,11 @@ describe.skipIf(!nativeAvailable)("ChatSessionTable", () => {
     expect(updated).toMatchObject({ title: "新标题", titleDirty: true, groupId: 3 });
   });
 
-  it("删除级联分支子树并返回全部被删 id", () => {
-    create("root");
-    create("child", { parentSessionId: "root", branchIndex: 1 });
-    create("grandchild", { parentSessionId: "child", branchIndex: 1 });
-    expect(ChatSessionTable.nextBranchIndex(db, "root")).toBe(2);
-
-    const { deletedIds } = ChatSessionTable.remove(db, "root");
-    expect(deletedIds.sort()).toEqual(["child", "grandchild", "root"]);
-    expect(ChatSessionTable.getById(db, "child")).toBeNull();
+  it("删除只删这一行（分支都在会话文件内部），其它对话不受影响", () => {
+    create("a");
+    create("b");
+    ChatSessionTable.remove(db, "a");
+    expect(ChatSessionTable.getById(db, "a")).toBeNull();
+    expect(ChatSessionTable.getById(db, "b")).not.toBeNull();
   });
 });

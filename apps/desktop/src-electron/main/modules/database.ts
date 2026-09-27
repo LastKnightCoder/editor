@@ -92,6 +92,7 @@ import { migrateContentBindings } from "./collaboration/content-repository";
 import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 import { executeReadOnlySql, type SqlQueryInput } from "./sql-query";
 import { migrateLegacyChatsToSessions } from "./chat-session-migration";
+import { mergeChatSessionBranches } from "./chat-session-tree-migration";
 import { chatSessionDirOf } from "./pi-session-paths";
 
 export type DatabaseConnectMode = "normal" | "maintenance";
@@ -498,6 +499,33 @@ class DatabaseModule implements Module {
       // 整体失败不阻塞开库：旧表原样保留，migration_meta 没记账，下次开库重试
       log.error(`[database] chat session migration failed: db=${name}`, error);
     }
+    this.mergeChatSessionTrees(database, name, dbPath);
+  }
+
+  /**
+   * 分支族合并成会话树（M4-d）：在老对话迁移之后跑（迁移出来的分支族一起并）。
+   * 同步下载后重连也要跑：下载来的 .db 与会话包是配对的，对面若还没合并过，这里补上
+   */
+  private mergeChatSessionTrees(database: Database.Database, name: string, dbPath: string) {
+    const startedAt = Date.now();
+    try {
+      const result = mergeChatSessionBranches({
+        db: database,
+        databasePath: dbPath,
+        sessionDir: chatSessionDirOf(this.formatDatabaseName(name)),
+      });
+      if (result.skipped) return;
+      log.info(
+        `[database] chat session tree migration done: db=${name}, merged=${result.merged}, detached=${result.detached}, failed=${result.failed.length}, backup=${result.backupPath ?? "none"}, elapsedMs=${Date.now() - startedAt}`
+      );
+      for (const failure of result.failed) {
+        log.error(
+          `[database] chat session tree migration branch failed (kept as standalone): db=${name}, id=${failure.id}, error=${failure.error}`
+        );
+      }
+    } catch (error) {
+      log.error(`[database] chat session tree migration failed: db=${name}`, error);
+    }
   }
 
   reconnectForSync(name: string, source: DatabaseReconnectSource) {
@@ -508,6 +536,13 @@ class DatabaseModule implements Module {
     }
     const database = this.openDatabase(name, "normal");
     this.databases.set(name, database);
+    if (source === "sync_download_reconnect") {
+      this.mergeChatSessionTrees(
+        database,
+        name,
+        join(PathUtil.getAppDir(), `${this.formatDatabaseName(name)}.db`)
+      );
+    }
     this.warmIndexDatabaseInBackground(name, "connect_or_reconnect");
     this.currentDatabaseName = name;
     this.notifyDatabaseConnected(name, source);

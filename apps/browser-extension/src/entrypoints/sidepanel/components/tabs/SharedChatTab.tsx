@@ -77,10 +77,10 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
     updateSessionTitle,
     selectSession,
     reloadCurrent,
-    getChildBranchesCount,
     deleteMessage,
     rewindBefore,
     createBranch,
+    switchVersion,
   } = useChatSessions(url);
 
   const conversationKey = useMemo(
@@ -227,12 +227,27 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
     [isLoading, messages, rewindBefore, sendMessage, sendRequestMessage]
   );
 
+  // 从这里建分支（M4-d）：回到这条回答之后，接下来发的消息成为新版本
   const handleCreateBranch = useCallback(
     (messageIndex: number) => {
       if (isLoading) return;
-      void createBranch(messageIndex);
+      if (messageIndex === messages.length - 1) {
+        antdMessage.info("已经是最新的回答，直接发送消息即可继续");
+        return;
+      }
+      void createBranch(messageIndex).then(ok => {
+        if (ok) antdMessage.success("已从这里分叉，发送的消息会成为新分支");
+      });
     },
-    [createBranch, isLoading]
+    [antdMessage, createBranch, isLoading, messages.length]
+  );
+
+  const handleSwitchVersion = useCallback(
+    (messageIndex: number, versionIndex: number) => {
+      if (isLoading) return;
+      void switchVersion(messageIndex, versionIndex);
+    },
+    [isLoading, switchVersion]
   );
 
   const handleDeleteConfirm = useCallback((): Promise<boolean> => {
@@ -323,14 +338,12 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
         onTitleChange={title => updateSessionTitle(currentSession.id, title)}
         onCreateNewChat={() => createSession()}
         onChatDelete={deleteSession}
-        getChildBranchesCount={getChildBranchesCount}
       />
     );
   }, [
     createSession,
     currentSession,
     deleteSession,
-    getChildBranchesCount,
     isSessionsLoading,
     selectSession,
     sessions,
@@ -415,6 +428,7 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
             onDeleteMessage={handleDeleteMessage}
             onRegenerateMessage={handleRegenerateMessage}
             onCreateBranch={handleCreateBranch}
+            {...(!isLoading ? { onSwitchVersion: handleSwitchVersion } : {})}
             onCopySuccess={handleCopySuccess}
             onCopyError={handleCopyError}
             onDeleteConfirm={handleDeleteConfirm}

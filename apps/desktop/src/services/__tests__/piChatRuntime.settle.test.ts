@@ -5,7 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 import type { ChatMessage, ChatSessionMessage } from "@/types";
-import { piChatRuntime, type PiChatRuntimeDeps } from "../piChatRuntime";
+import { adoptTranscript, piChatRuntime, type PiChatRuntimeDeps } from "../piChatRuntime";
 import { usePiInteractionStore } from "../piInteractions";
 
 const mocks = vi.hoisted(() => ({
@@ -184,5 +184,27 @@ describe("piChatRuntime settled 投影回写与标题", () => {
     settleEvent();
     await flush();
     expect(generateTitle).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("投影回写沿用 clientId（M4-d 会话树）", () => {
+  it("同一条消息（entry id 相同或本地乐观消息还没有 entry id）沿用原 clientId", () => {
+    const next = adoptTranscript(baseChat(), transcript());
+    expect(next.messages.map(message => message.clientId)).toEqual(["local-user", "local-answer"]);
+  });
+
+  it("切了版本：同一位置换成了另一条消息（entry id 不同），用投影的 clientId，组件状态不串", () => {
+    const current = { ...baseChat(), messages: transcript() } as ChatMessage;
+    const switched = [
+      {
+        clientId: "pi:e9",
+        piEntryIds: ["e9"],
+        role: "user",
+        content: [{ type: "text", text: "改过的" }],
+      },
+      { clientId: "pi:e10", piEntryIds: ["e10"], role: "assistant", content: "另一个回答" },
+    ] as unknown as ChatSessionMessage[];
+    const next = adoptTranscript(current, switched);
+    expect(next.messages.map(message => message.clientId)).toEqual(["pi:e9", "pi:e10"]);
   });
 });

@@ -3,14 +3,15 @@ import { v4 as uuidv4 } from "uuid";
 import type { ChatSession } from "../types/chat-session";
 import type { ChatMessageType } from "@tau/shared";
 import {
-  branchChat,
   deleteChat,
+  forkChat,
   getChatMessages,
   listChats,
   omitChatEntries,
   renameChat,
   rewindChat,
   subscribeChatStoreConnection,
+  switchChatVersion,
   type ChatListEntry,
 } from "../services/chatStoreClient";
 import { toDisplayMessages } from "../services/chatModelBridge";
@@ -27,11 +28,13 @@ interface UseChatSessionsReturn {
   selectSession: (sessionId: string) => Promise<void>;
   /** 一轮结束后：重读当前对话的投影与列表（事实源是桌面的会话文件） */
   reloadCurrent: () => Promise<void>;
-  getChildBranchesCount: (sessionId: string) => Promise<number>;
   deleteMessage: (messageIndex: number) => Promise<void>;
   /** 回退到这条用户消息之前（重新生成/编辑重发的前半步）；返回回退后的消息，失败返回 null */
   rewindBefore: (messageIndex: number) => Promise<ChatMessageType[] | null>;
-  createBranch: (messageIndex: number) => Promise<void>;
+  /** 从这里建分支：回到这条回答之后（M4-d，同一对话内），返回是否成功 */
+  createBranch: (messageIndex: number) => Promise<boolean>;
+  /** 切到这条用户消息的另一个版本 */
+  switchVersion: (messageIndex: number, versionIndex: number) => Promise<void>;
 }
 
 const newDraft = (): ChatSession => {
@@ -44,7 +47,6 @@ const toSession = (entry: ChatListEntry): ChatSession => ({
   title: entry.title,
   createTime: entry.createTime,
   updateTime: entry.updateTime,
-  parentChatId: entry.parentId,
 });
 
 /**
@@ -92,7 +94,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
       try {
         const list = await loadList(url);
         if (cancelled) return;
-        const target = list.find(session => !session.parentChatId) ?? list[0];
+        const target = list[0];
         if (!target) {
           setCurrentSession(newDraft());
           setMessages([]);
@@ -159,33 +161,20 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
     }
   }, [loadList, loadMessages]);
 
-  const getChildBranchesCount = useCallback(
-    async (sessionId: string): Promise<number> => {
-      const countChildren = (id: string): number =>
-        sessions
-          .filter(session => session.parentChatId === id)
-          .reduce((total, child) => total + 1 + countChildren(child.id), 0);
-      return countChildren(sessionId);
-    },
-    [sessions]
-  );
-
   const deleteSession = useCallback(
     async (sessionId: string) => {
       const pageUrl = urlRef.current;
       if (!pageUrl) return;
-      let deletedIds: string[];
       try {
-        deletedIds = await deleteChat(pageUrl, sessionId);
+        await deleteChat(pageUrl, sessionId);
       } catch (error) {
         console.warn("[useChatSessions] 删除对话失败:", error);
         throw error;
       }
-      const doomed = new Set(deletedIds);
-      const remaining = sessions.filter(session => !doomed.has(session.id));
+      const remaining = sessions.filter(session => session.id !== sessionId);
       setSessions(remaining);
-      if (doomed.has(currentRef.current.id)) {
-        const next = remaining.find(session => !session.parentChatId) ?? remaining[0];
+      if (currentRef.current.id === sessionId) {
+        const next = remaining[0];
         if (next) {
           setCurrentSession(next);
           setMessages(await loadMessages(pageUrl, next.id).catch(() => []));
@@ -249,22 +238,38 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
     [messages]
   );
 
+  /** 从这里建分支（M4-d）：回到这条回答之后，接下来发的消息成为新版本；返回是否成功 */
   const createBranch = useCallback(
     async (messageIndex: number) => {
       const pageUrl = urlRef.current;
-      const throughEntryId = messages[messageIndex]?.piEntryIds?.at(-1);
-      if (!pageUrl || !throughEntryId) return;
+      const entryId = messages[messageIndex]?.piEntryIds?.at(-1);
+      if (!pageUrl || !entryId) return false;
       try {
-        const branch = await branchChat(pageUrl, currentRef.current.id, throughEntryId);
-        const list = await loadList(pageUrl);
-        const session = list.find(item => item.id === branch.id);
-        if (session) setCurrentSession(session);
-        setMessages(toDisplayMessages(branch.messages));
+        setMessages(toDisplayMessages(await forkChat(pageUrl, currentRef.current.id, entryId)));
+        return true;
       } catch (error) {
         console.warn("[useChatSessions] 创建分支失败:", error);
+        return false;
       }
     },
-    [messages, loadList]
+    [messages]
+  );
+
+  /** 切到这条用户消息的第 versionIndex 个版本 */
+  const switchVersion = useCallback(
+    async (messageIndex: number, versionIndex: number) => {
+      const pageUrl = urlRef.current;
+      const entryId = messages[messageIndex]?.piVersions?.ids[versionIndex];
+      if (!pageUrl || !entryId) return;
+      try {
+        setMessages(
+          toDisplayMessages(await switchChatVersion(pageUrl, currentRef.current.id, entryId))
+        );
+      } catch (error) {
+        console.warn("[useChatSessions] 切换版本失败:", error);
+      }
+    },
+    [messages]
   );
 
   return {
@@ -277,9 +282,9 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
     updateSessionTitle,
     selectSession,
     reloadCurrent,
-    getChildBranchesCount,
     deleteMessage,
     rewindBefore,
     createBranch,
+    switchVersion,
   };
 }
