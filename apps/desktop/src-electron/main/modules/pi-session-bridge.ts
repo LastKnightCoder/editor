@@ -47,7 +47,8 @@ const MIME_BY_EXTENSION: Record<string, string> = {
 async function toPiImageContent(
   image: string,
   imagePath?: string,
-  fallbackMime = "image/png"
+  fallbackMime = "image/png",
+  allowNetwork = true
 ): Promise<ImageContent | null> {
   if (imagePath && existsSync(imagePath)) {
     try {
@@ -66,7 +67,7 @@ async function toPiImageContent(
   if (dataUrlMatch) {
     return { type: "image", data: dataUrlMatch[2], mimeType: dataUrlMatch[1] };
   }
-  if (/^https?:\/\//.test(image)) {
+  if (allowNetwork && /^https?:\/\//.test(image)) {
     try {
       const response = await fetch(image);
       const buffer = Buffer.from(await response.arrayBuffer());
@@ -204,8 +205,15 @@ function buildAssistantMessage(
 export async function desktopMessagesToPi(
   messages: RequestMessage[],
   provider: string,
-  modelId: string
+  modelId: string,
+  /**
+   * 是否允许为远程图片发起下载。启动迁移时必须关掉：迁移跑在开库路径上，
+   * 几百张远程图挨个下载会把开库卡住（断网时每张还要等超时）。关掉时远程图不进模型上下文，
+   * 界面仍按展示 entry 显示原图。
+   */
+  options: { allowNetwork?: boolean } = {}
 ): Promise<Message[]> {
+  const allowNetwork = options.allowNetwork ?? true;
   const out: Message[] = [];
   for (const message of messages) {
     if (message.role === Role.System || message.role === Role.Tool) continue;
@@ -220,7 +228,7 @@ export async function desktopMessagesToPi(
         if (block.type === "text") {
           if (block.text) content.push({ type: "text", text: block.text });
         } else if (block.type === "image") {
-          const image = await toPiImageContent(block.image, block.path);
+          const image = await toPiImageContent(block.image, block.path, "image/png", allowNetwork);
           if (image) content.push(image);
         } else if (block.type === "file") {
           content.push({
