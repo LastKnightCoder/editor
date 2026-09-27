@@ -1,6 +1,5 @@
 import React, { useMemo, lazy, Suspense, useCallback, forwardRef } from "react";
 import { useDebounce, useLocalStorageState } from "ahooks";
-import useTheme from "@/hooks/useTheme";
 import classNames from "classnames";
 import { parseMindMapList } from "./parseMindMapList";
 import { MindMapRef } from "@/components/MindMap";
@@ -31,11 +30,6 @@ interface MindMapRendererProps {
 
 const MindMapRenderer = forwardRef<MindMapRef, MindMapRendererProps>(
   ({ code, fillContainer = false }, ref) => {
-    const { isDark } = useTheme();
-    const themeId = useMemo(() => {
-      return isDark ? "dance" : "hawaii";
-    }, [isDark]);
-
     // 500ms 节流，防止流式输出时频繁渲染
     const debouncedCode = useDebounce(code, { wait: 500 });
 
@@ -108,7 +102,7 @@ const MindMapRenderer = forwardRef<MindMapRef, MindMapRendererProps>(
               })}
               style={fillContainer ? undefined : { height: height ?? DEFAULT_HEIGHT }}
             >
-              <MindMap ref={ref} data={data} themeId={themeId} />
+              <MindMap ref={ref} data={data} />
             </div>
             {/* 拖拽调整高度的手柄 - 填充模式下不显示 */}
             {!fillContainer && (

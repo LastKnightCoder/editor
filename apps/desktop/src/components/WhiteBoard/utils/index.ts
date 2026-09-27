@@ -13,6 +13,7 @@ export * from "./RefLineUtil";
 export * from "./ArrowUtil.ts";
 export * from "./ConnectPointUtil.ts";
 export * from "./MindUtil.ts";
+export * from "./MindThemeUtil.ts";
 export * from "./FrameUtil.ts";
 export * from "./ColumnUtil.ts";
 export * from "./Constraints";
