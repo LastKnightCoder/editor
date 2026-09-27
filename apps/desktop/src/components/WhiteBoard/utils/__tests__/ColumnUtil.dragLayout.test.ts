@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { ColumnUtil } from "../ColumnUtil";
 import { COLUMN_DEFAULTS } from "../../types/column";
+import BoardClass from "../../Board";
 import type { Board, BoardElement, ColumnElement } from "../../types";
 
 const { titleHeight: TITLE, padding: PAD, gap: GAP } = COLUMN_DEFAULTS;
@@ -225,13 +226,19 @@ describe("Column 折叠", () => {
   it("切换折叠与重新布局合并为一次带历史的操作", () => {
     const column = createColumn();
     const apply = vi.fn();
-    const board = { ...boardStub, children: [column], apply } as unknown as Board;
+    const board = {
+      ...boardStub,
+      boardFlag: BoardClass.boardFlag,
+      children: [column],
+      apply,
+    } as unknown as Board;
 
     ColumnUtil.toggleCollapsed(board, column);
 
     expect(apply).toHaveBeenCalledTimes(1);
     const [ops, updateHistory] = apply.mock.calls[0];
     expect(updateHistory).toBe(true);
+    ops.forEach((op: { path: number[] }) => expect(op.path).toEqual([0]));
     const patch = Object.assign(
       {},
       ...ops.map((op: { newProperties?: object }) => op.newProperties)
@@ -239,6 +246,35 @@ describe("Column 折叠", () => {
     expect(patch).toMatchObject({
       collapsed: true,
       height: TITLE + COLUMN_DEFAULTS.collapsedStackHeight,
+    });
+  });
+});
+
+describe("ColumnUtil.appendRichText", () => {
+  it("在列末尾插入自动聚焦的文字，宽度贴合内容区", () => {
+    const column = createColumn();
+    const apply = vi.fn();
+    const board = {
+      ...boardStub,
+      boardFlag: BoardClass.boardFlag,
+      children: [column],
+      apply,
+    } as unknown as Board;
+
+    const id = ColumnUtil.appendRichText(board, column);
+
+    const insert = apply.mock.calls
+      .map(([ops]) => (Array.isArray(ops) ? ops : [ops]))
+      .flat()
+      .find((op: { type: string }) => op.type === "insert_node");
+    expect(insert.path).toEqual([0, 3]);
+    expect(insert.node).toMatchObject({
+      id,
+      type: "richtext",
+      width: 300 - PAD * 2,
+      autoFocus: true,
+      autoHeight: true,
+      resizable: false,
     });
   });
 });

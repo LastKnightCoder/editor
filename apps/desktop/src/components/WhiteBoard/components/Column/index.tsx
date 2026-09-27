@@ -1,6 +1,6 @@
 import React, { memo, useState, useRef, useEffect, useLayoutEffect } from "react";
 import { useMemoizedFn } from "ahooks";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Plus } from "lucide-react";
 import { cn } from "@tau/ui";
 
 import { EHandlerPosition, Point, Board, BoardElement, ColumnElement } from "../../types";
@@ -15,6 +15,7 @@ import EditText, { EditTextHandle } from "@/components/EditText";
 import { SELECT_RECT_STROKE, SELECT_RECT_STROKE_WIDTH } from "../../constants";
 
 const PLACEHOLDER_KEY = "__placeholder__";
+const APPEND_BUTTON_HEIGHT = 32;
 
 interface ColumnProps {
   element: ColumnElement;
@@ -133,6 +134,7 @@ const Column = memo(
     const visualHeight = height + layout.height - ColumnUtil.calculateHeightFromChildren(element);
     // 折叠态托盘只到标题栏，纸边露在下方
     const trayHeight = collapsed ? titleHeight : visualHeight;
+    const canAppend = !board.readonly && !collapsed && !isChildDraggingOver && !draggingChildId;
 
     /** 子元素的视觉位置（相对列原点）：被拖拽的跟随指针，其余取视觉布局 */
     const getVisualOffset = (child: BoardElement) => {
@@ -206,7 +208,7 @@ const Column = memo(
     });
 
     return (
-      <g ref={columnRef}>
+      <g ref={columnRef} className="group/column">
         {/* 折叠态纸边：两层卡片边露在标题栏下方，暗示有内容 */}
         <If condition={hasStack}>
           <g className="pointer-events-none">
@@ -434,6 +436,34 @@ const Column = memo(
               );
             })}
         </g>
+
+        {/* 底部「添加卡片」：悬停列时淡入，挂在托盘正下方（不占布局高度） */}
+        <If condition={canAppend}>
+          <foreignObject
+            x={x}
+            y={y + trayHeight}
+            width={width}
+            height={APPEND_BUTTON_HEIGHT}
+            className="pointer-events-none overflow-visible"
+          >
+            <div className="flex h-full items-center">
+              <button
+                type="button"
+                className="text-ink-3 hover:bg-hover hover:text-ink-1 text-tau-meta pointer-events-auto flex h-7 cursor-pointer items-center gap-1.5 rounded-[4px] px-2 opacity-0 transition-opacity duration-150 focus-visible:opacity-100 group-hover/column:opacity-100"
+                onPointerDown={e => e.stopPropagation()}
+                onMouseDown={e => e.stopPropagation()}
+                onDoubleClick={e => e.stopPropagation()}
+                onClick={e => {
+                  e.stopPropagation();
+                  ColumnUtil.appendRichText(board, element);
+                }}
+              >
+                <Plus size={14} strokeWidth={1.75} />
+                添加卡片
+              </button>
+            </div>
+          </foreignObject>
+        </If>
 
         {/* Selection border and resize handles */}
         <If condition={isSelected}>
