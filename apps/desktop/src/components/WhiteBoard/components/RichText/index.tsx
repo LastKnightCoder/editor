@@ -30,8 +30,16 @@ import {
 } from "../../constants";
 import { Board, ECreateBoardElementType, EHandlerPosition, Point } from "../../types";
 import { RichTextElement, CommonElement } from "../../plugins";
-import { PointUtil } from "../../utils";
-import { getShadowStyle } from "../../constants";
+import { PointUtil, deleteEmptyRichText, isRichTextContentEmpty } from "../../utils";
+import {
+  TEXT_BOX,
+  TEXT_COLORS,
+  getTextBandColor,
+  getTextBoxPadding,
+  getTextSurface,
+  resolveTextStyle,
+  toCssPadding,
+} from "../../constants";
 import {
   useBoard,
   useElementMoving,
@@ -43,8 +51,7 @@ import {
 } from "../../hooks";
 import { useBoardState } from "../../hooks/useBoardState";
 import { useViewPort } from "../../hooks/useViewPort";
-import useTheme from "@/hooks/useTheme";
-import { cn, toast } from "@tau/ui";
+import { toast, useEdgeFade } from "@tau/ui";
 
 import styles from "./index.module.less";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
@@ -89,8 +96,8 @@ export interface RichtextRef {
   setEditorValue: (value: Descendant[]) => void;
 }
 
-const PADDING_WIDTH = 20;
-const PADDING_HEIGHT = 20;
+/** 留白内沿的渐隐带高度 */
+const EDGE_FADE_SIZE = 16;
 const isSameContent = (a: Descendant[], b: Descendant[]) => JSON.stringify(a) === JSON.stringify(b);
 
 const Richtext = forwardRef<RichtextRef, RichTextProps>((props: RichTextProps, ref) => {
@@ -118,19 +125,15 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>((props: RichTextProps, r
     resized,
     readonly,
     autoFocus,
-    paddingWidth = PADDING_WIDTH,
-    paddingHeight = PADDING_HEIGHT,
-    topColor,
-    background,
-    color,
-    theme,
-    shadowSize,
     resizable = true,
     autoHeight = false,
   } = element;
   const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
-  const textColor = color || "#1f1f1f";
-  const { isDark } = useTheme();
+  const { variant, tone } = resolveTextStyle(element);
+  const textStyle = useMemo(() => ({ variant, tone }), [variant, tone]);
+  const padding = useMemo(() => getTextBoxPadding(textStyle), [textStyle]);
+  const surface = getTextSurface(textStyle);
+  const bandColor = getTextBandColor(textStyle);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<EditorRef>(null);
@@ -177,7 +180,7 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>((props: RichTextProps, r
   const simplifiedSkeletonMeta = useMemo(() => {
     if (!useSimplifiedRender) return null;
 
-    const contentHeight = Math.max(height - paddingHeight * 2, 8);
+    const contentHeight = Math.max(height - padding.top - padding.bottom, 8);
     const lineHeight = Math.max(6, Math.min(12, Math.round(contentHeight / 22)));
     const lineGap = Math.max(4, Math.min(10, Math.round(lineHeight * 0.8)));
     const maxLinesByHeight = Math.max(
@@ -198,7 +201,7 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>((props: RichTextProps, r
       lineGap,
       lineWidths,
     };
-  }, [height, paddingHeight, useSimplifiedRender]);
+  }, [height, padding, useSimplifiedRender]);
 
   const ensureContentId = useMemoizedFn(async () => {
     if (contentId) return contentId;
@@ -268,6 +271,8 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>((props: RichTextProps, r
     handleResize.flush();
     setTimeout(() => {
       setFocus(false);
+      // 一个字都没打就点走：元素连同 content 一起回收。仍被选中说明用户是去点属性栏，留着
+      if (!isSelected && deleteEmptyRichText(board, element)) return;
       board.isEditingElements = board.isEditingElements.filter(eid => eid !== elementId);
       // 按道理 blur 的时候取消选中，但是这个时候如果想通过工具栏改变样式就没法做到了
       // 暂时不 deselect 了，后续改为右键菜单的时候在改回来
@@ -317,30 +322,71 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>((props: RichTextProps, r
   const containerStyle = useMemo(() => {
     return {
       background: "transparent",
-      color: textColor,
+      color: TEXT_COLORS.ink,
       cursor: isSelected ? "move" : "auto",
     } as React.CSSProperties;
-  }, [isSelected, textColor]);
+  }, [isSelected]);
 
-  const handleAutoFocus = useMemoizedFn(() => {
-    if (autoFocus) {
-      editorRef.current?.focus();
-      handleRemoveAutoFocus();
-    }
-  });
-
+  // 编辑器 DOM 的挂载时机不确定：contentId 对应的协作会话就绪前 ContentEditor 只渲染占位，
+  // 简化渲染切回时又会重建。用 MutationObserver 跟住它，聚焦与渐隐都挂在这个时机上
+  const [editorEl, setEditorEl] = useState<HTMLElement | null>(null);
   useEffect(() => {
-    handleAutoFocus();
-  }, [handleAutoFocus]);
+    const container = containerRef.current;
+    if (!container) return;
 
+    const sync = () =>
+      setEditorEl(prev => {
+        const next = container.querySelector<HTMLElement>("[data-slate-editor]") ?? null;
+        return next === prev ? prev : next;
+      });
+
+    sync();
+    const observer = typeof MutationObserver === "undefined" ? null : new MutationObserver(sync);
+    observer?.observe(container, { childList: true, subtree: true });
+    return () => observer?.disconnect();
+  }, []);
+  useEdgeFade(editorEl);
+
+  // 底板实时跟住编辑器盒子：写回元素尺寸带防抖，打字时底板会慢半拍。
+  // 这里直接改 DOM，不走 state，避免每帧重渲染；编辑器卸载时还原成元素上存的尺寸
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  const storedSizeRef = useRef({ width, height });
+  storedSizeRef.current = { width, height };
+  useEffect(() => {
+    const paint = (w: number, h: number) => {
+      const surface = surfaceRef.current;
+      if (!surface) return;
+      surface.style.width = `${w}px`;
+      surface.style.height = `${h}px`;
+    };
+    if (!editorEl) return;
+
+    const observer = new ResizeObserver(entries => {
+      const box = entries[0]?.borderBoxSize?.[0];
+      if (box) paint(box.inlineSize, box.blockSize);
+    });
+    observer.observe(editorEl);
+
+    return () => {
+      observer.disconnect();
+      paint(storedSizeRef.current.width, storedSizeRef.current.height);
+    };
+  }, [editorEl]);
+
+  // 新建元素自动进入编辑：等编辑器真正挂上再聚焦，否则 ref 还是空的，焦点就丢了
+  useEffect(() => {
+    if (!autoFocus || !editorEl) return;
+    editorRef.current?.focus();
+    handleRemoveAutoFocus();
+  }, [autoFocus, editorEl, handleRemoveAutoFocus]);
   const { handleResize, editorStyle } = useHandleResize({
     handleOnEditorSizeChange,
     maxWidth,
     maxHeight,
-    container: containerRef.current,
+    editor: editorEl,
     resized,
-    paddingWidth,
-    paddingHeight,
+    padding,
+    isEmpty: isRichTextContentEmpty(latestContentRef.current),
     focus,
     isSelected,
     autoHeight,
@@ -349,12 +395,22 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>((props: RichTextProps, r
 
   useHandlePointer({
     container: containerRef.current,
-    paddingWidth,
-    paddingHeight,
+    padding,
     isSelected,
     width,
     height,
   });
+
+  const fadeStyle = useMemo(
+    () =>
+      ({
+        ...editorStyle,
+        "--gap-top": `${padding.top}px`,
+        "--gap-bottom": `${padding.bottom}px`,
+        "--fade-size": `${EDGE_FADE_SIZE}px`,
+      }) as React.CSSProperties,
+    [editorStyle, padding]
+  );
 
   useEffect(() => {
     const container = containerRef.current;
@@ -398,39 +454,41 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>((props: RichTextProps, r
       >
         <div
           id={`rich-text-container-${elementId}`}
-          className={cn(
-            styles.richTextContainer,
-            // 元素自带明暗（浅色/深色底）时局部重算 --th-*，不随全局主题走
-            theme && `th-scope-${theme}`
-          )}
+          className={styles.richTextContainer}
           ref={containerRef}
           style={containerStyle}
           onDoubleClick={e => {
             e.stopPropagation();
           }}
         >
-          <div
-            style={{
-              position: "absolute",
-              left: 0,
-              top: 0,
-              width,
-              height,
-              background: background || "transparent",
-              borderRadius: 4,
-              boxShadow: getShadowStyle(shadowSize, isDark),
-              zIndex: -1,
-            }}
-          />
-          {topColor && (
-            <div className={styles.borderTop} style={{ background: topColor, width }}></div>
+          {surface && (
+            <div
+              ref={surfaceRef}
+              className={styles.surface}
+              style={
+                {
+                  width,
+                  height,
+                  borderRadius: TEXT_BOX.radius,
+                  background: surface.background,
+                  "--text-edge": surface.edge,
+                } as React.CSSProperties
+              }
+            >
+              {bandColor && (
+                <div
+                  className={styles.band}
+                  style={{ height: TEXT_BOX.bandHeight, background: bandColor }}
+                />
+              )}
+            </div>
           )}
           {useSimplifiedRender && simplifiedSkeletonMeta ? (
             <div
               className={styles.simplifiedSkeleton}
               style={{
-                padding: `${paddingHeight}px ${paddingWidth}px`,
-                color: textColor,
+                padding: toCssPadding(padding),
+                color: TEXT_COLORS.ink,
                 gap: `${simplifiedSkeletonMeta.lineGap}px`,
               }}
             >
@@ -450,7 +508,7 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>((props: RichTextProps, r
               <Editor
                 contentId={contentId}
                 ref={editorRef}
-                style={editorStyle}
+                style={fadeStyle}
                 className={styles.editor}
                 initValue={initValue}
                 onChange={handleOnContentChange}
@@ -458,7 +516,6 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>((props: RichTextProps, r
                 onFocus={handleFocus}
                 onBlur={handleBlur}
                 extensions={dynamicExtensions}
-                theme={theme}
               />
             </ErrorBoundary>
           )}
@@ -469,8 +526,8 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>((props: RichTextProps, r
           <rect
             x={x}
             y={y}
-            rx={4}
-            ry={4}
+            rx={TEXT_BOX.radius}
+            ry={TEXT_BOX.radius}
             width={width}
             height={height}
             fillOpacity={SELECT_RECT_FILL_OPACITY}

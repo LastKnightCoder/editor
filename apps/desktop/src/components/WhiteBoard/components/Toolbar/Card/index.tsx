@@ -80,10 +80,8 @@ const Card = () => {
       resized: true,
       maxWidth: 300,
       maxHeight: 300,
-      paddingHeight: 20,
-      paddingWidth: 20,
       readonly: false,
-      ...CardUtil.getPrevCardStyle(),
+      ...CardUtil.load(),
     };
 
     board.apply([
