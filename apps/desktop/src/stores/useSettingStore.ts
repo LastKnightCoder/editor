@@ -504,6 +504,24 @@ export const buildPersistedSettingSnapshot = (setting: ISetting): ISetting => {
   return normalizeTransientSettingState(structuredClone(setting));
 };
 
+/**
+ * 最近一次「由远端广播应用进来」的设置快照。
+ *
+ * 多窗口共用一份 setting.json：任一窗口改动 → 主进程保存并广播 → 其余窗口应用。
+ * 若应用后各窗口的同步器再把它发回主进程，一次用户改动就会被放大成 N 次保存，
+ * 且任意窗口间的细微差异都会变成永不收敛的来回写（实测 220 次发送放大成 3463 次保存，
+ * 并把 setting.json 写坏，见交接文档坑 16）。所以远端来的快照不回灌。
+ */
+let lastRemoteAppliedSnapshotJson: string | null = null;
+
+export const markRemoteSettingApplied = (setting: ISetting): void => {
+  lastRemoteAppliedSnapshotJson = JSON.stringify(buildPersistedSettingSnapshot(setting));
+};
+
+/** 该快照是否正是刚刚从远端应用进来的（是则不该再发回去） */
+export const isRemoteAppliedSnapshot = (snapshotJson: string): boolean =>
+  lastRemoteAppliedSnapshotJson === snapshotJson;
+
 export const getWeReadSettingDebugSummary = (weread: ISetting["integration"]["weread"]) => {
   return {
     enabled: weread.enabled,
@@ -846,6 +864,8 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
         sourceClientId: sourceClientId || "unknown",
         weread: getWeReadSettingDebugSummary(mergedSetting.integration.weread),
       });
+      // 先登记再写入：同步器据此跳过这一次，避免把远端广播原样发回去（见 markRemoteSettingApplied）
+      markRemoteSettingApplied(mergedSetting);
       set({
         setting: mergedSetting,
       });
