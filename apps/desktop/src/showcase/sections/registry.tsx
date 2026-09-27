@@ -20,6 +20,7 @@ import {
   PanelTop,
   RectangleHorizontal,
   Ruler,
+  Share2,
   SquareCheck,
   SquarePlus,
   Tag as TagIcon,
@@ -56,6 +57,7 @@ import ScaleSection from "./ScaleSection";
 import TagSection from "./TagSection";
 import ToolCallSection from "./ToolCallSection";
 import BlockPreviewSection from "./BlockPreviewSection";
+import LinkGraphSection from "./LinkGraphSection";
 
 export interface SectionMeta {
   key: string;
@@ -184,6 +186,13 @@ export const SECTIONS: SectionMeta[] = [
     group: "对话",
     icon: PanelsTopLeft,
     component: BlockPreviewSection,
+  },
+  {
+    key: "link-graph",
+    label: "关联图谱",
+    group: "数据展示",
+    icon: Share2,
+    component: LinkGraphSection,
   },
   { key: "token", label: "Token 色板", group: "设计基底", icon: Palette, component: TokenSection },
   { key: "scale", label: "尺度与动效", group: "设计基底", icon: Ruler, component: ScaleSection },

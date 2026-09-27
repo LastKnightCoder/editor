@@ -1,74 +1,51 @@
+/**
+ * 挂载级测试：验证 React 壳与引擎的接线（指针事件 → 命中 → 回调/预览），
+ * 几何与配色由 core 的单测覆盖，这里不重复。
+ */
+
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { EdgeData, NodeData } from "@antv/g6";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ICard } from "@/types";
 import LinkGraph from "..";
 
-const mocks = vi.hoisted(() => ({ instances: [] as any[] }));
-vi.mock("@antv/g6", () => ({
-  NodeEvent: { CLICK: "click", POINTER_ENTER: "enter", POINTER_LEAVE: "leave" },
-  CanvasEvent: { CLICK: "canvas-click" },
-  Graph: class {
-    data: { nodes: NodeData[]; edges: EdgeData[] } = { nodes: [], edges: [] };
-    events = new Map<string, (...args: any[]) => void>();
-    zoom = 1.7;
-    constructor() {
-      mocks.instances.push(this);
-    }
-    setData = vi.fn((data: typeof this.data) => {
-      this.data = data;
-    });
-    getNodeData = (id?: string) =>
-      id === undefined ? this.data.nodes : this.data.nodes.find(node => node.id === id);
-    getZoom = () => this.zoom;
-    getViewportByCanvas = vi.fn(() => [300, 200]);
-    getElementState = (id: string) => this.data.nodes.find(node => node.id === id)?.states ?? [];
-    setElementState = vi.fn((updates: Record<string, string[]>) => {
-      for (const node of this.data.nodes) if (updates[node.id]) node.states = updates[node.id];
-      return Promise.resolve();
-    });
-    on = (event: string, callback: (...args: any[]) => void) => {
-      this.events.set(event, callback);
-    };
-    once = this.on;
-    off = vi.fn();
-    render = vi.fn(() => {
-      this.events.get("afterrender")?.();
-      return Promise.resolve();
-    });
-    draw = vi.fn(() => Promise.resolve());
-    destroy = vi.fn();
-    setNode = vi.fn();
-    setEdge = vi.fn();
-    setSize = vi.fn();
-    fitView = vi.fn();
-  },
-}));
-vi.mock("@/commands", () => ({ getCardById: vi.fn(async () => ({ content: [] })) }));
-vi.mock("@/hooks/useTheme.ts", () => ({ default: () => ({ isDark: false }) }));
-vi.mock("@/hooks", () => ({ useThemeColors: () => ({}) }));
+const mocks = vi.hoisted(() => ({ getCardById: vi.fn() }));
+
+vi.mock("@/commands", () => ({ getCardById: mocks.getCardById }));
 vi.mock("@/stores/useDynamicExtensionsStore", () => ({ default: () => [] }));
 vi.mock("@tau/editor/src", () => ({ Editor: () => null }));
 vi.mock("@/components/Loading", () => ({ default: () => <span>加载中</span> }));
 
 let root: Root;
 let host: HTMLDivElement;
-const cards = (count: number): ICard[] =>
-  Array.from(
-    { length: count },
-    (_, index) =>
-      ({
-        id: index + 1,
-        links: index + 1 < count ? [index + 2] : [],
-        content: [],
-        tags: [],
-      }) as unknown as ICard
-  );
+
+const card = (id: number, links: number[] = []): ICard =>
+  ({
+    id,
+    links,
+    content: [{ type: "paragraph", children: [{ type: "formatted", text: `卡片${id}` }] }],
+    create_time: id,
+    tags: [],
+  }) as unknown as ICard;
+
+const canvas = () => host.querySelector("canvas")!;
+
+/**
+ * 在画布上派发指针事件。必须包 act：事件处理器会同步收起预览面板（setState），
+ * 不包就是 React 的「update not wrapped in act」告警。
+ */
+const pointer = (type: string, x: number, y: number, init: PointerEventInit = {}) => {
+  const event = new MouseEvent(type, { clientX: x, clientY: y, bubbles: true, ...init });
+  Object.defineProperty(event, "pointerId", { value: 1 });
+  act(() => {
+    canvas().dispatchEvent(event);
+  });
+};
 
 beforeEach(() => {
+  mocks.getCardById.mockReset();
+  mocks.getCardById.mockResolvedValue({ content: [] });
   vi.useFakeTimers();
-  mocks.instances.length = 0;
   vi.stubGlobal(
     "ResizeObserver",
     class {
@@ -76,145 +53,169 @@ beforeEach(() => {
       disconnect() {}
     }
   );
+  // jsdom 下 clientWidth/Height 恒为 0，引擎会算出退化的视口
   vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(800);
   vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(600);
-  host = document.createElement("div");
-  document.body.append(host);
-  root = createRoot(host);
-});
-afterEach(async () => {
-  await act(async () => root.unmount());
-  host.remove();
-  vi.restoreAllMocks();
-  vi.unstubAllGlobals();
-  vi.useRealTimers();
-});
-async function initialize(props: React.ComponentProps<typeof LinkGraph>) {
-  await act(async () => root.render(<LinkGraph {...props} />));
-  await act(async () => vi.advanceTimersByTime(40));
-  return mocks.instances[0];
-}
-
-it("千节点高亮批量提交，开关预览及等值新数组不重新绘制或布局", async () => {
-  const initCards = cards(1000);
-  const ids = initCards.map(card => card.id);
-  const graph = await initialize({ initCards, currentCardIds: ids });
-  expect(graph.setElementState).toHaveBeenCalledTimes(1);
-  expect(Object.keys(graph.setElementState.mock.calls[0][0])).toHaveLength(1000);
-  graph.setElementState.mockClear();
-  graph.draw.mockClear();
-  for (const enableHoverPreview of [false, true]) {
-    await act(async () =>
-      root.render(
-        <LinkGraph
-          initCards={initCards}
-          currentCardIds={[...ids]}
-          enableHoverPreview={enableHoverPreview}
-        />
-      )
-    );
-  }
-  expect(mocks.instances).toHaveLength(1);
-  expect(graph.destroy).not.toHaveBeenCalled();
-  expect(graph.render).toHaveBeenCalledTimes(1);
-  expect(graph.draw).not.toHaveBeenCalled();
-  expect(graph.setElementState).not.toHaveBeenCalled();
-  await act(async () => root.render(<LinkGraph initCards={initCards} currentCardIds={[2, 3]} />));
-  expect(graph.setElementState).toHaveBeenCalledTimes(1);
-  expect(graph.getElementState("1")).toEqual([]);
-  expect(graph.getElementState("2")).toEqual(["current"]);
-});
-
-it("正文、标签及顺序更新保留图实例，点击使用最新卡片", async () => {
-  const initCards = cards(3);
-  const onClickCard = vi.fn();
-  const graph = await initialize({ initCards, onClickCard });
-  const updated = { ...initCards[0], tags: ["新标签"], count: 99 };
-  graph.draw.mockClear();
-  await act(async () =>
-    root.render(
-      <LinkGraph
-        initCards={[initCards[2], initCards[1], updated]}
-        onClickCard={onClickCard}
-        fitViewPadding={[40]}
-      />
-    )
-  );
-  await act(async () => graph.events.get("click")({ target: { id: "1" } }));
-  expect(onClickCard).toHaveBeenCalledWith(updated);
-  expect(graph.setData).toHaveBeenCalledTimes(1);
-  expect(graph.draw).not.toHaveBeenCalled();
-  expect(graph.destroy).not.toHaveBeenCalled();
-});
-
-it("节点与连线变更就地更新，保留已有位置、选择和视口", async () => {
-  const initCards = cards(3);
-  const graph = await initialize({ initCards, currentCardIds: [1] });
-  graph.data.nodes[0].style = { ...graph.data.nodes[0].style, x: 123, y: 456 };
-  graph.data.nodes[0].states.push("selected");
-  graph.draw.mockClear();
-  await act(async () =>
-    root.render(
-      <LinkGraph
-        initCards={[
-          { ...initCards[0], links: [4] },
-          { ...initCards[1], id: 4, links: [] },
-        ]}
-        currentCardIds={[1, 4]}
-      />
-    )
-  );
-  expect(graph.destroy).not.toHaveBeenCalled();
-  expect(graph.render).toHaveBeenCalledTimes(1);
-  expect(graph.draw).toHaveBeenCalledTimes(1);
-  expect(graph.data.nodes.map((node: NodeData) => node.id)).toEqual(["1", "4"]);
-  expect(graph.data.nodes[0].style).toMatchObject({ x: 123, y: 456 });
-  expect(graph.data.nodes[0].states).toEqual(["selected", "current"]);
-  expect(graph.data.nodes[1].states).toEqual(["current"]);
-  expect(graph.data.edges).toEqual([{ id: "1->4", source: "1", target: "4" }]);
-  expect(graph.zoom).toBe(1.7);
-  expect(graph.fitView).not.toHaveBeenCalled();
-});
-
-it("容器有偏移时，悬停预览在拖动画布和缩放后仍位于节点右下方", async () => {
-  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
-    left: 260,
-    top: 100,
+  vi.spyOn(HTMLCanvasElement.prototype, "getBoundingClientRect").mockReturnValue({
+    left: 0,
+    top: 0,
     width: 800,
     height: 600,
-    right: 1060,
-    bottom: 700,
-    x: 260,
-    y: 100,
+    right: 800,
+    bottom: 600,
+    x: 0,
+    y: 0,
     toJSON: () => ({}),
+  } as DOMRect);
+  Object.defineProperty(HTMLCanvasElement.prototype, "setPointerCapture", {
+    value: () => {},
+    configurable: true,
   });
-  const graph = await initialize({ initCards: cards(2) });
-  graph.data.nodes[0].style = { x: 50, y: 80, size: 20 };
-  graph.zoom = 1;
-  await act(async () => {
-    graph.events.get("enter")({ target: { id: "1" }, client: { x: 560, y: 300 } });
-    await vi.advanceTimersByTimeAsync(300);
+  Object.defineProperty(HTMLCanvasElement.prototype, "releasePointerCapture", {
+    value: () => {},
+    configurable: true,
   });
-  const preview = host.querySelector<HTMLDivElement>(".absolute")!;
-  expect(preview.style.left).toBe("310px");
-  expect(preview.style.top).toBe("210px");
-  graph.getViewportByCanvas.mockReturnValue([340, 220]);
-  await act(async () => graph.events.get("canvas:drag")());
-  expect(preview.style.left).toBe("350px");
-  expect(preview.style.top).toBe("230px");
-  graph.zoom = 2;
-  graph.getViewportByCanvas.mockReturnValue([400, 260]);
-  await act(async () => graph.events.get("wheel")());
-  expect(preview.style.left).toBe("420px");
-  expect(preview.style.top).toBe("280px");
+  Object.defineProperty(HTMLCanvasElement.prototype, "hasPointerCapture", {
+    value: () => true,
+    configurable: true,
+  });
+  host = document.createElement("div");
+  document.body.appendChild(host);
+  root = createRoot(host);
 });
 
-it("卸载时销毁图实例并取消待执行的初始化", async () => {
-  await act(async () => root.render(<LinkGraph initCards={cards(2)} />));
-  await act(async () => root.render(null));
-  await act(async () => vi.advanceTimersByTime(40));
-  expect(mocks.instances).toHaveLength(0);
-  const graph = await initialize({ initCards: cards(2) });
-  await act(async () => root.render(null));
-  expect(graph.destroy).toHaveBeenCalledTimes(1);
+afterEach(() => {
+  act(() => root.unmount());
+  host.remove();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
+
+const mount = (element: React.ReactElement) => {
+  act(() => root.render(element));
+  // 布局收敛 + 首帧
+  act(() => {
+    vi.advanceTimersByTime(50);
+  });
+};
+
+describe("LinkGraph", () => {
+  it("渲染 canvas，布局收敛后撤掉 Loading", () => {
+    mount(<LinkGraph initCards={[card(1, [2]), card(2, [1])]} />);
+    expect(canvas()).toBeTruthy();
+    expect(host.textContent).not.toContain("加载中");
+  });
+
+  it("空卡片集不报错，也不卡在 Loading", () => {
+    mount(<LinkGraph initCards={[]} />);
+    expect(canvas()).toBeTruthy();
+    expect(host.textContent).not.toContain("加载中");
+  });
+
+  it("点击节点回调对应卡片", () => {
+    const onClickCard = vi.fn();
+    // 单节点场景：fitView 把它放到视口正中，(400,300) 必然命中
+    mount(<LinkGraph initCards={[card(1)]} onClickCard={onClickCard} />);
+
+    pointer("pointerdown", 400, 300);
+    pointer("pointerup", 400, 300);
+    expect(onClickCard).toHaveBeenCalledTimes(1);
+    expect(onClickCard.mock.calls[0][0].id).toBe(1);
+  });
+
+  it("画布空白处点击不触发回调", () => {
+    const onClickCard = vi.fn();
+    mount(<LinkGraph initCards={[card(1)]} onClickCard={onClickCard} />);
+    pointer("pointerdown", 5, 5);
+    pointer("pointerup", 5, 5);
+    expect(onClickCard).not.toHaveBeenCalled();
+  });
+
+  it("拖拽超过阈值后松手算拖拽，不算点击", () => {
+    const onClickCard = vi.fn();
+    mount(<LinkGraph initCards={[card(1)]} onClickCard={onClickCard} />);
+    pointer("pointerdown", 400, 300);
+    pointer("pointermove", 460, 360);
+    pointer("pointerup", 460, 360);
+    expect(onClickCard).not.toHaveBeenCalled();
+  });
+
+  it("悬停达到延迟后拉取卡片正文", async () => {
+    mount(<LinkGraph initCards={[card(1)]} />);
+    pointer("pointermove", 400, 300);
+    await act(async () => {
+      vi.advanceTimersByTime(400);
+    });
+    expect(mocks.getCardById).toHaveBeenCalledWith(1);
+  });
+
+  it("enableHoverPreview 为 false 时不拉取正文", async () => {
+    mount(<LinkGraph initCards={[card(1)]} enableHoverPreview={false} />);
+    pointer("pointermove", 400, 300);
+    await act(async () => {
+      vi.advanceTimersByTime(400);
+    });
+    expect(mocks.getCardById).not.toHaveBeenCalled();
+  });
+
+  it("悬停未满延迟就移开不会拉取正文", async () => {
+    mount(<LinkGraph initCards={[card(1)]} />);
+    pointer("pointermove", 400, 300);
+    await act(async () => {
+      vi.advanceTimersByTime(100);
+    });
+    pointer("pointermove", 5, 5);
+    await act(async () => {
+      vi.advanceTimersByTime(400);
+    });
+    expect(mocks.getCardById).not.toHaveBeenCalled();
+  });
+
+  it("卡片增删后不重建整个组件，也不抛错", () => {
+    const first = [card(1, [2]), card(2, [1])];
+    mount(<LinkGraph initCards={first} />);
+    act(() => root.render(<LinkGraph initCards={[...first, card(3, [1])]} />));
+    act(() => {
+      vi.advanceTimersByTime(50);
+    });
+    expect(canvas()).toBeTruthy();
+  });
+
+  it("簇划分算完后回调给宿主，带主题簇、孤立卡片与模块度", () => {
+    const onClusters = vi.fn();
+    // 两个三角形 + 一张孤立卡片
+    const cards = [
+      card(1, [2, 3]),
+      card(2, [1, 3]),
+      card(3, [1, 2]),
+      card(4, [5, 6]),
+      card(5, [4, 6]),
+      card(6, [4, 5, 1]),
+      card(7),
+    ];
+    mount(<LinkGraph initCards={cards} onClusters={onClusters} />);
+    expect(onClusters).toHaveBeenCalledTimes(1);
+    const insight = onClusters.mock.calls[0][0];
+    expect(insight.clusters.length).toBe(2);
+    expect(insight.isolated).toEqual([7]);
+    expect(insight.modularity).toBeGreaterThan(0);
+  });
+
+  it("宿主每次渲染传新的 onClusters 不会触发重算", () => {
+    const cards = [card(1, [2]), card(2, [1])];
+    const first = vi.fn();
+    mount(<LinkGraph initCards={cards} onClusters={first} />);
+    const second = vi.fn();
+    act(() => root.render(<LinkGraph initCards={cards} onClusters={second} />));
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(second).not.toHaveBeenCalled();
+  });
+
+  it("currentCardIds 变化不重建画布元素", () => {
+    const cards = [card(1, [2]), card(2, [1])];
+    mount(<LinkGraph initCards={cards} currentCardIds={[1]} />);
+    const before = canvas();
+    act(() => root.render(<LinkGraph initCards={cards} currentCardIds={[2]} />));
+    expect(canvas()).toBe(before);
+  });
 });

@@ -7,7 +7,7 @@ import {
   MindThemeUtil,
   type MindMode,
 } from "../MindThemeUtil";
-import { contrast, hexTone } from "../oklch";
+import { contrast, hexTone } from "@/utils/oklch";
 
 const MODES: MindMode[] = ["light", "dark"];
 const LEVELS = [1, 2, 3, 4];

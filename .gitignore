@@ -61,3 +61,4 @@ apps/mobile-rn/**
 
 # 本地生成物（playwright 截图/报告等）
 output/
+apps/desktop/src/showcase/sections/linkGraphMapFixture.json
