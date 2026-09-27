@@ -3,11 +3,11 @@
  * 几何与配色由 core 的单测覆盖，这里不重复。
  */
 
-import { act } from "react";
+import { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ICard } from "@/types";
-import LinkGraph from "..";
+import LinkGraph, { type LinkGraphPlaybackHandle } from "..";
 
 const mocks = vi.hoisted(() => ({ getCardById: vi.fn() }));
 
@@ -233,5 +233,73 @@ describe("LinkGraph", () => {
     const before = canvas();
     act(() => root.render(<LinkGraph initCards={cards} currentCardIds={[2]} />));
     expect(canvas()).toBe(before);
+  });
+
+  describe("说明行与生长动画", () => {
+    const DAY = 86_400_000;
+    const dated = (id: number, time: number) => ({ ...card(id), create_time: time }) as ICard;
+    const cards = [
+      dated(1, Date.UTC(2021, 2, 5)),
+      dated(2, Date.UTC(2021, 2, 5) + DAY),
+      dated(3, Date.UTC(2022, 0, 1)),
+    ];
+    const caption = () => host.querySelector<HTMLButtonElement>("button");
+
+    it("不开 caption 时画布上没有任何入口，也不会播", () => {
+      mount(<LinkGraph initCards={cards} />);
+      expect(caption()).toBeNull();
+    });
+
+    it("平时是一行描述：张数 + 始于哪个月；进入图谱不自动播", () => {
+      const onPlaybackChange = vi.fn();
+      mount(<LinkGraph initCards={cards} caption onPlaybackChange={onPlaybackChange} />);
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(caption()!.textContent).toBe("3 张卡片 · 始于 2021年3月");
+      expect(onPlaybackChange).not.toHaveBeenCalledWith(expect.objectContaining({ active: true }));
+    });
+
+    it("点一下开始播放，文字变成进度；没有进度条、暂停与倍速；播完变回描述", () => {
+      const onPlaybackChange = vi.fn();
+      mount(<LinkGraph initCards={cards} caption onPlaybackChange={onPlaybackChange} />);
+      act(() => caption()!.click());
+      expect(onPlaybackChange).toHaveBeenLastCalledWith(expect.objectContaining({ active: true }));
+      expect(caption()!.textContent).toContain("0 张");
+      expect(host.querySelector('input[type="range"]')).toBeNull();
+      expect(host.querySelectorAll("button")).toHaveLength(1);
+      act(() => {
+        vi.advanceTimersByTime(10_000);
+      });
+      expect(caption()!.textContent).toBe("3 张卡片 · 始于 2021年3月");
+      expect(onPlaybackChange).toHaveBeenLastCalledWith(expect.objectContaining({ active: false }));
+    });
+
+    it("播放中再点一下或按 Esc 直接跳到结尾", () => {
+      mount(<LinkGraph initCards={cards} caption />);
+      act(() => caption()!.click());
+      act(() => caption()!.click());
+      expect(caption()!.textContent).toContain("3 张卡片");
+      act(() => caption()!.click());
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      });
+      expect(caption()!.textContent).toContain("3 张卡片");
+    });
+
+    it("宿主传的邀请语替换描述；宿主也能经把手直接播放", () => {
+      const handle = createRef<LinkGraphPlaybackHandle>();
+      mount(
+        <LinkGraph
+          initCards={cards}
+          caption
+          captionHint="长到 500 张了 · 看看它是怎么长出来的"
+          playbackRef={handle}
+        />
+      );
+      expect(caption()!.textContent).toBe("长到 500 张了 · 看看它是怎么长出来的");
+      act(() => handle.current!.play());
+      expect(caption()!.textContent).toContain("0 张");
+    });
   });
 });

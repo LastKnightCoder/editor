@@ -34,6 +34,7 @@ import {
   recordToMap,
   type PositionBackend,
 } from "./core/positionStore";
+import { buildTimeline, revealAt, shownCount, timeAt, type Timeline } from "./core/timeline";
 import type { GraphNode, GraphPalette, GraphScene } from "./core/types";
 import { Canvas2DRenderer } from "./renderers/Canvas2DRenderer";
 
@@ -41,6 +42,9 @@ import { Canvas2DRenderer } from "./renderers/Canvas2DRenderer";
 const DRAG_THRESHOLD = 3;
 /** 悬停预览的延迟，与内容链接 hover 预览保持一致的手感 */
 export const HOVER_DELAY = 300;
+/** 播放状态同步给 React 的最小间隔：日期与张数不需要 60fps 地重渲染整个壳 */
+const PLAYBACK_UI_INTERVAL = 100;
+
 /** 落盘坐标命中率低于此值就不沿用（卡片集换了一批，旧布局没有参考价值） */
 export const POSITION_REUSE_MIN_COVERAGE = 0.6;
 /**
@@ -87,6 +91,30 @@ export interface GraphEngineOptions {
   keepHoverOnLeave?: (target: EventTarget | null) => boolean;
 }
 
+/**
+ * 入场动画的状态快照。动画是「看」不是「查」：没有暂停、进度、倍速，
+ * 开始后直接播完（时长按卡片数取对数封顶，不会播很久），只能中途跳到结尾。
+ */
+export interface PlaybackState {
+  /** 是否正在播；false 时图谱是完整的静态图 */
+  active: boolean;
+  /** 已出现的卡片数 / 总数 */
+  shown: number;
+  total: number;
+  /** 当前播到的创建时间（毫秒时间戳） */
+  time: number;
+}
+
+export interface PlaybackControls {
+  state: PlaybackState;
+  /** 从头播放 */
+  play: () => void;
+  /** 跳到结尾：立即显示完整的图 */
+  stop: () => void;
+}
+
+const IDLE_PLAYBACK: PlaybackState = { active: false, shown: 0, total: 0, time: 0 };
+
 /** 给宿主看的簇信息快照 */
 export interface GraphInsight {
   clusters: ClusterInfo[];
@@ -110,6 +138,8 @@ export interface GraphEngineHandle {
   anchorOf: (id: number) => { x: number; y: number } | null;
   /** 结束悬停（收起预览、撤掉高亮） */
   clearHover: () => void;
+  /** 按创建时间的入场播放 */
+  playback: PlaybackControls;
 }
 
 export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
@@ -156,6 +186,75 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
   backendRef.current ??= createPositionBackend();
 
   const [ready, setReady] = useState(false);
+
+  // ---- 入场播放：逐帧状态放 ref（raf 里读写），React state 只做节流后的快照给控件
+  const playbackRef = useRef<{
+    timeline: Timeline;
+    progress: number;
+    lastTime: number;
+  } | null>(null);
+  const revealRef = useRef<Map<number, number> | null>(null);
+  const playbackSyncRef = useRef(0);
+  const [playbackState, setPlaybackState] = useState<PlaybackState>(IDLE_PLAYBACK);
+
+  const syncPlayback = useMemoizedFn((force = false) => {
+    const session = playbackRef.current;
+    if (!session) {
+      setPlaybackState(IDLE_PLAYBACK);
+      return;
+    }
+    const now = performance.now();
+    if (!force && now - playbackSyncRef.current < PLAYBACK_UI_INTERVAL) return;
+    playbackSyncRef.current = now;
+    setPlaybackState({
+      active: true,
+      shown: shownCount(session.timeline, session.progress),
+      total: session.timeline.order.length,
+      time: timeAt(session.timeline, session.progress),
+    });
+  });
+
+  const applyProgress = useMemoizedFn((progress: number) => {
+    const session = playbackRef.current;
+    if (!session) return;
+    session.progress = Math.min(1, Math.max(0, progress));
+    revealRef.current = revealAt(session.timeline, session.progress);
+    dirtyRef.current = true;
+  });
+
+  const stopPlayback = useMemoizedFn(() => {
+    if (!playbackRef.current) return;
+    playbackRef.current = null;
+    revealRef.current = null;
+    dirtyRef.current = true;
+    syncPlayback(true);
+  });
+
+  const play = useMemoizedFn(() => {
+    const scene = sceneRef.current;
+    if (!scene || scene.nodes.length === 0) return;
+    playbackRef.current = { timeline: buildTimeline(scene.nodes), progress: 0, lastTime: 0 };
+    clearHover();
+    applyProgress(0);
+    syncPlayback(true);
+  });
+
+  /** 推进播放进度；还在播返回 true，raf 循环据此继续画 */
+  const advancePlayback = useMemoizedFn((now: number) => {
+    const session = playbackRef.current;
+    if (!session) return false;
+    const last = session.lastTime || now;
+    session.lastTime = now;
+    const step = (now - last) / session.timeline.duration;
+    applyProgress(session.progress + step);
+    if (session.progress >= 1) {
+      // 播完即回到完整的静态图：不留一个停在 100% 的「会话」，图谱交互照常
+      stopPlayback();
+      return false;
+    }
+    syncPlayback();
+    return true;
+  });
 
   // 拖拽状态（画布或节点），放 ref 里避免事件里读到过期闭包
   const dragRef = useRef<{
@@ -258,6 +357,7 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
       emphasis: emphasisRef.current,
       currentIds: currentIdsRef.current,
       filterIds: filterIdsRef.current,
+      reveal: revealRef.current,
       adjacentIds: focusId === null ? new Set() : (scene.adjacency.get(focusId) ?? new Set()),
       clusterColors: clusterColorsRef.current,
     });
@@ -304,6 +404,8 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
       : buildScene(cardsRef.current, getCardLinks);
     if (previous && !knowledgeMap) inheritPositions(scene, previous);
     sceneRef.current = scene;
+    // 卡片集变了，旧时间轴对不上新节点：结束播放，回到完整的图
+    stopPlayback();
 
     pickerRef.current?.replaceScene(scene);
     pickerRef.current ??= new NodePicker(scene);
@@ -400,6 +502,7 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
     persist,
     persistKey,
     rebuildClusterColors,
+    stopPlayback,
     workerFactory,
   ]);
 
@@ -460,13 +563,14 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
       frameRef.current = requestAnimationFrame(loop);
       const flying = cameraRef.current?.advance(now) ?? false;
       const fading = advanceEmphasis(now);
-      if (!dirtyRef.current && !flying && !fading) return;
+      const playing = advancePlayback(now);
+      if (!dirtyRef.current && !flying && !fading && !playing) return;
       dirtyRef.current = false;
       drawNow();
     };
     frameRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frameRef.current);
-  }, [advanceEmphasis, drawNow]);
+  }, [advanceEmphasis, advancePlayback, drawNow]);
 
   const anchorOf = useMemoizedFn((id: number) => {
     const node = sceneRef.current?.nodeById.get(id);
@@ -500,7 +604,10 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
       const picker = pickerRef.current;
       if (!camera || !picker) return null;
       const [worldX, worldY] = camera.toWorld(canvasX, canvasY);
-      return picker.pick(worldX, worldY, camera.scale);
+      const node = picker.pick(worldX, worldY, camera.scale);
+      // 播放中还没出现的卡片不可悬停 / 点击
+      if (node && (revealRef.current?.get(node.id) ?? 1) <= 0) return null;
+      return node;
     };
 
     const onPointerDown = (event: PointerEvent) => {
@@ -675,5 +782,19 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
     dirtyRef.current = true;
   });
 
-  return { containerRef, canvasRef, ready, focusNode, fitView: doFitView, anchorOf, clearHover };
+  const playback = useMemo<PlaybackControls>(
+    () => ({ state: playbackState, play, stop: stopPlayback }),
+    [playbackState, play, stopPlayback]
+  );
+
+  return {
+    containerRef,
+    canvasRef,
+    ready,
+    focusNode,
+    fitView: doFitView,
+    anchorOf,
+    clearHover,
+    playback,
+  };
 }
