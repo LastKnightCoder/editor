@@ -68,12 +68,12 @@ describe("pi 会话收养", () => {
     expect(piSessionSetSystemPrompt).toHaveBeenCalledWith("existing-session", "提示词");
   });
 
-  it("新交互会话声明审批能力并携带工具风险与来源", async () => {
+  it("新交互会话声明交互能力并携带工具风险与来源", async () => {
     await piChatSessionManager.ensureChatSession(options);
     expect(piSessionCreate).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
-        interactiveApprovals: true,
+        interactive: true,
         customTools: [expect.objectContaining({ risk: "write", source: "content-edit-tools" })],
       })
     );

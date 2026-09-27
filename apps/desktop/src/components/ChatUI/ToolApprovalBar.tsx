@@ -8,7 +8,7 @@ import { memo, useState } from "react";
 import { ShieldAlert } from "lucide-react";
 import type { ToolCallExecutionState } from "@tau/shared";
 import { Button, toast } from "@tau/ui";
-import { decideToolApproval, useToolApprovalStore } from "@/services/tool-permission/approvalStore";
+import { decideToolApproval, usePiInteractionStore } from "@/services/piInteractions";
 import { RISK_LABEL } from "@/services/tool-permission/mode";
 import type { PiToolApprovalChoice } from "@/types/pi-session";
 
@@ -42,13 +42,13 @@ export const ToolApprovalBar = memo(function ToolApprovalBar({
   execution: ToolCallExecutionState;
 }) {
   const sessionId = execution.metadata?.piSessionId;
-  const pending = useToolApprovalStore(s =>
+  const pending = usePiInteractionStore(s =>
     typeof sessionId === "string"
-      ? s.sessions[sessionId]?.pending.find(item => item.toolCallId === execution.toolCallId)
+      ? s.sessions[sessionId]?.approvals.find(item => item.toolCallId === execution.toolCallId)
       : undefined
   );
   const [submitting, setSubmitting] = useState(false);
-  const ready = useToolApprovalStore(
+  const ready = usePiInteractionStore(
     s => typeof sessionId === "string" && s.readySessions[sessionId] === true
   );
   const live = Boolean(pending) && ready;

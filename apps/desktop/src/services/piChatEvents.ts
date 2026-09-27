@@ -6,7 +6,7 @@
  */
 import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 import type { ToolCallPayload, ToolCallExecutionState, ResponseMessage } from "@/types";
-import type { PiToolApprovalSnapshot } from "@/types/pi-session";
+import type { PiSessionInteractionSnapshot } from "@/types/pi-session";
 import type { AgentModelUsage } from "@tau/agent";
 
 export interface PiChatEventSink {
@@ -90,9 +90,10 @@ export class PiChatEventReducer {
     }
   }
 
-  public applyApprovals(snapshot: PiToolApprovalSnapshot): void {
+  /** 审批等待映射为 awaiting-approval；提问卡直接读快照，不改执行状态 */
+  public applyInteractions(snapshot: PiSessionInteractionSnapshot): void {
     if (snapshot.sessionId !== this.sessionId) return;
-    const pending = new Set(snapshot.pending.map(request => request.toolCallId));
+    const pending = new Set(snapshot.approvals.map(request => request.toolCallId));
     for (const [id, execution] of this.executions) {
       if (!["pending", "executing", "awaiting-approval"].includes(execution.status)) continue;
       const status = pending.has(id)

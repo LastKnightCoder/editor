@@ -1,14 +1,14 @@
 /**
  * pi 工具桥（渲染端）：主进程 pi customTools 的 execute 经 pi-tool-call 事件派发到此，
  * 路由 ToolRegistry 执行后经 pi-session:tool-* 回传。会话上下文（conversationKey/toolScope）
- * 由 piChatSession 在创建会话时注册——ask_question 等工具靠 conversationKey 定位会话记录。
+ * 由 piChatSession 在创建会话时注册。
  * 一次性会话（piAgentRunner）可经 executeToolCall 上下文接管 additionalTools 的执行。
  */
 import { onPiToolCall, piSessionToolError, piSessionToolResult } from "@/commands/piSession";
 import toolRegistry, { ensureToolingReady } from "@/tools";
 import type { MessageContent, ToolCallPayload } from "@/types";
 import type { PiHostToolCallResult, PiToolCallPayload } from "@/types/pi-session";
-import { initToolApprovals } from "./tool-permission/approvalStore";
+import { initPiInteractions } from "./piInteractions";
 
 /** 会话级执行器（一次性会话的 additionalTools 路由）：返回 null 表示未接管，落回 ToolRegistry */
 export type PiToolCallExecutor = (
@@ -69,7 +69,7 @@ let initialized = false;
 export function initPiToolBridge(): void {
   if (initialized) return;
   initialized = true;
-  initToolApprovals();
+  initPiInteractions();
   ensureToolingReady();
 
   onPiToolCall(payload => {

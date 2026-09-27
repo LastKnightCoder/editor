@@ -208,7 +208,8 @@ const ChatArea = memo(
                   onChatDelete={onChatDelete}
                   getChildBranchesCount={getChildBranchesCount}
                   titleRef={editTitleRef}
-                  disabled={sendLoading}
+                  // 运行中（含等待作答）不禁用切换/改名/删除：运行态在模块级 runtime，
+                  // 后台继续归约；删除会一并释放会话与归约条目（与停靠栏一致）
                   onOpenLibrary={onOpenLibrary}
                 />
               </div>

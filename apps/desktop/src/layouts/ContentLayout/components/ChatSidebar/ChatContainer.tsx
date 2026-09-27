@@ -19,13 +19,7 @@ import { COMPOSER_ANCHOR_ATTR } from "@/components/ChatInputArea/ComposerPanel";
 import { measurePerformance } from "./hooks/usePerformanceMonitor";
 import MessageItem from "./MessageItem";
 
-import {
-  ChatMessage,
-  RequestMessage,
-  ResponseMessage,
-  ReasoningEffort,
-  ToolCallExecutionState,
-} from "@/types";
+import { ChatMessage, RequestMessage, ResponseMessage, ReasoningEffort } from "@/types";
 import {
   Role,
   SUMMARY_TITLE_PROMPT,
@@ -36,12 +30,7 @@ import { piCompleteChat, toPiThinking } from "@/services/piLLM";
 import { remoteResourceToLocal } from "@/utils/resouce";
 import { buildPiChatSystemPrompt, piChatSessionManager } from "@/services/piChatSession";
 import { piChatRuntime, type PiChatRuntimeDeps } from "@/services/piChatRuntime";
-import {
-  onPiSessionEvent,
-  piSessionAbort,
-  piSessionPrompt,
-  piSessionToolResult,
-} from "@/commands/piSession";
+import { onPiSessionEvent, piSessionAbort, piSessionPrompt } from "@/commands/piSession";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useSettingStore from "@/stores/useSettingStore";
 import useSkillStore from "@/stores/useSkillStore";
@@ -54,14 +43,8 @@ import {
   type MessageContentItem,
   useChatAutoScroll,
 } from "@tau/shared";
-import { ASK_QUESTION_TOOL_NAME, buildAskQuestionToolResult } from "@/tools/askQuestionTypes";
 import { ToolRendererInteractionProvider } from "@/tool-call-renderers/ToolRendererInteractionContext";
-import { useAskQuestionSessionStore } from "@/tools/askQuestionSessionStore";
-import {
-  createAssistantMessage,
-  ensureAssistantMessage,
-  syncAssistantDerivedFields,
-} from "@/services/assistantMessageBlocks";
+import { createAssistantMessage } from "@/services/assistantMessageBlocks";
 import { createChatMessageClientId } from "@/services/chatMessageSchema";
 import {
   buildFullHistoryMessages,
@@ -149,56 +132,6 @@ export type ChatContainerHandle = {
   sendUserMessage: (content: MessageContentItem[]) => Promise<boolean>;
 };
 
-const normalizeAskQuestionExecutionInput = (input: string) => {
-  try {
-    return JSON.stringify(JSON.parse(input));
-  } catch {
-    return input.trim();
-  }
-};
-
-const markAskQuestionExecutionResolved = (
-  chat: ChatMessage,
-  toolCallId: string,
-  expectedInput: string,
-  output: string
-) => {
-  const normalizedExpectedInput = normalizeAskQuestionExecutionInput(expectedInput);
-
-  return produce(chat, draft => {
-    const isMatchedExecution = (execution: ToolCallExecutionState) =>
-      execution.toolCallId === toolCallId &&
-      execution.toolName === ASK_QUESTION_TOOL_NAME &&
-      normalizeAskQuestionExecutionInput(execution.input) === normalizedExpectedInput;
-
-    draft.messages.forEach(message => {
-      if (message.role !== Role.Assistant) {
-        return;
-      }
-
-      const assistant = ensureAssistantMessage(message as ResponseMessage);
-      assistant.assistant_blocks = assistant.assistant_blocks?.map(block => {
-        if (block.type !== "tool_call" || !block.execution) {
-          return block;
-        }
-
-        return {
-          ...block,
-          execution: isMatchedExecution(block.execution)
-            ? {
-                ...block.execution,
-                status: "success",
-                output,
-                duration: block.execution.duration || Date.now() - block.execution.timestamp,
-              }
-            : block.execution,
-        };
-      });
-      syncAssistantDerivedFields(assistant);
-    });
-  });
-};
-
 const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
   (
     {
@@ -265,8 +198,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const llmConfigs = useSettingStore(state => state.setting.llmProviders);
     const skills = useSkillStore(state => state.skills);
     const loadSkills = useSkillStore(state => state.loadSkills);
-    const askQuestionRecords = useAskQuestionSessionStore(state => state.records);
-    const completeAskQuestionSession = useAskQuestionSessionStore(state => state.completeSession);
 
     // 加载 Skills 数据（用于注入系统 Prompt）
     useEffect(() => {
@@ -386,8 +317,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const actualChatRef = piChatRuntime.ensureConversation(sessionKey, currentChat, runtimeDeps);
     useEffect(() => {
       void piChatRuntime
-        .restorePendingApprovals(sessionKey, chatScope, currentChat.id)
-        .catch(error => console.error("恢复工具审批会话失败:", error));
+        .restorePendingInteractions(sessionKey, chatScope, currentChat.id)
+        .catch(error => console.error("恢复待处理交互会话失败:", error));
     }, [sessionKey, chatScope, currentChat.id]);
 
     // 强制更新计数器，用于触发visibleMessages重新计算
@@ -411,7 +342,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       [queueConversationKey, queueDrainRevision, queuedMessageCount]
     );
     const activeAssistantTurnIdRef = useRef<string | null>(null);
-    const resumingAskQuestionRef = useRef<Set<string>>(new Set());
     const hasRestoredScrollPositionRef = useRef(false);
     const isRestoringScrollPositionRef = useRef(false);
 
@@ -597,7 +527,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         }
         if (isDifferentChat) {
           activeAssistantTurnIdRef.current = null;
-          resumingAskQuestionRef.current.clear();
           hasRestoredScrollPositionRef.current = false;
         }
         setUpdateCounter(prev => prev + 1);
@@ -916,85 +845,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         }
       }
     );
-
-    const submittedAskQuestionSessions = useMemo(() => {
-      const activeChat = actualChatRef.current;
-      const conversationKey = getConversationKey(activeChat.id);
-      return Object.values(askQuestionRecords)
-        .filter(
-          record =>
-            record.conversationKey === conversationKey &&
-            record.status === "submitted" &&
-            Boolean(record.submittedAnswers)
-        )
-        .sort((a, b) => a.updatedAt - b.updatedAt);
-    }, [actualChatRef, askQuestionRecords, getConversationKey, updateCounter]);
-
-    useEffect(() => {
-      if (hideInput || sendLoading) {
-        return;
-      }
-
-      const pendingSession = submittedAskQuestionSessions.find(
-        session => !resumingAskQuestionRef.current.has(session.sessionId)
-      );
-      if (!pendingSession || !pendingSession.submittedAnswers) {
-        return;
-      }
-
-      resumingAskQuestionRef.current.add(pendingSession.sessionId);
-
-      void (async () => {
-        const askQuestionResult = buildAskQuestionToolResult(
-          pendingSession.payload,
-          pendingSession.submittedAnswers!
-        );
-        const answerJson = JSON.stringify(askQuestionResult, null, 2);
-        completeAskQuestionSession(pendingSession.sessionId);
-
-        // pi 会话恢复：主进程的工具 execute 仍挂起——直接回传答案让它续流
-        // （渲染层重载后本地会话表丢失，经 find-by-scope 收养主进程仍持有的会话）
-        const activeChat = actualChatRef.current;
-        const sessionId = await piChatSessionManager.adoptOrResolveSession(
-          chatScope,
-          activeChat.id
-        );
-        if (sessionId) {
-          // 收养后续流：runtime 绑定后回传答案，事件流写回最后一条 assistant 消息
-          piChatRuntime.bindSession(getConversationKey(activeChat.id), sessionId);
-          setSessionPending(getConversationKey(activeChat.id), true);
-          await piSessionToolResult(sessionId, pendingSession.toolCallId, {
-            content: answerJson,
-          });
-          return;
-        }
-
-        // 兜底（主进程也已重启，pi 会话丢失）：把答案写进 chat 行终态，续流由 M4 会话恢复承接
-        const resolvedChat = markAskQuestionExecutionResolved(
-          activeChat,
-          pendingSession.toolCallId,
-          pendingSession.rawInput,
-          answerJson
-        );
-        actualChatRef.current = resolvedChat;
-        setUpdateCounter(prev => prev + 1);
-        updateCurrentChat(resolvedChat);
-        void updateChatMessage(resolvedChat).catch(error => {
-          console.error("恢复 ask-question 快照持久化失败:", error);
-        });
-      })();
-    }, [
-      hideInput,
-      sendLoading,
-      submittedAskQuestionSessions,
-      completeAskQuestionSession,
-      updateCurrentChat,
-      updateChatMessage,
-      chatScope,
-      getConversationKey,
-      getConversationKey,
-      setSessionPending,
-    ]);
 
     useImperativeHandle(ref, () => ({
       scrollToTop: () => {

@@ -12,8 +12,9 @@ import type {
   PiSessionCreateRequestV2,
   PiToolCallPayload,
   PiToolApprovalChoice,
-  PiToolApprovalSnapshot,
+  PiSessionInteractionSnapshot,
 } from "@/types/pi-session";
+import type { AskQuestionAnswerItem } from "@/tools/askQuestionTypes";
 
 export type PiSessionCreateOptions = Omit<PiSessionCreateRequestV2, "sessionId">;
 
@@ -22,8 +23,11 @@ interface Outcome {
   error?: string;
 }
 
-export function piSessionApprovals(): Promise<Outcome & { snapshots: PiToolApprovalSnapshot[] }> {
-  return invoke("pi-session:approvals");
+/** 本窗口全部宿主会话的待处理交互（工具审批 + 提问）快照 */
+export function piSessionInteractions(): Promise<
+  Outcome & { snapshots: PiSessionInteractionSnapshot[] }
+> {
+  return invoke("pi-session:interactions");
 }
 
 export function piSessionApproveTool(
@@ -34,12 +38,20 @@ export function piSessionApproveTool(
   return invoke("pi-session:approve-tool", { sessionId, requestId, choice });
 }
 
-export function onPiToolApprovals(
-  listener: (snapshot: PiToolApprovalSnapshot) => void
+export function piSessionAnswerQuestion(
+  sessionId: string,
+  requestId: string,
+  answers: AskQuestionAnswerItem[]
+): Promise<Outcome> {
+  return invoke("pi-session:answer-question", { sessionId, requestId, answers });
+}
+
+export function onPiSessionInteractions(
+  listener: (snapshot: PiSessionInteractionSnapshot) => void
 ): () => void {
-  const handler = (_event: unknown, snapshot: PiToolApprovalSnapshot) => listener(snapshot);
-  on("pi-tool-approvals", handler);
-  return () => off("pi-tool-approvals", handler);
+  const handler = (_event: unknown, snapshot: PiSessionInteractionSnapshot) => listener(snapshot);
+  on("pi-session-interactions", handler);
+  return () => off("pi-session-interactions", handler);
 }
 
 export function piSessionCreate(
@@ -72,7 +84,7 @@ export function piSessionDispose(sessionId: string): Promise<Outcome> {
   return invoke<Outcome>("pi-session:dispose", { sessionId });
 }
 
-/** 渲染层重载后按 scope 找主进程仍持有的会话（ask-question 挂起恢复用） */
+/** 渲染层重载后按 scope 找主进程仍持有的会话（待审批/待回答交互恢复用） */
 export function piSessionFindByScope(scope: string): Promise<
   Outcome & {
     sessionId?: string;

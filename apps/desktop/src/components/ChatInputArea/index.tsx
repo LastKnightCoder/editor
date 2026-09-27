@@ -563,8 +563,9 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
               group: "对话",
               icon: <SquarePen />,
               label: "新建对话",
+              // 不因 sendLoading 禁用：归约运行时是模块级的，上一轮（含等待作答）在后台继续
               description: "当前对话保留在会话列表里",
-              disabled: sendLoading || createMessageLoading,
+              disabled: createMessageLoading,
               onSelect: onCreateNewMessage,
             },
           ]

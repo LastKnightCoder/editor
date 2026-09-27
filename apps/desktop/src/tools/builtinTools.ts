@@ -1,7 +1,6 @@
 import dayjs from "dayjs";
 import { skillToolsProvider } from "@/mcp/providers/skill-tools";
 import type { ToolRegistry } from "./toolRegistry";
-import { createAskQuestionTool } from "./askQuestionTool";
 import { createKnowledgeSearchTool } from "./knowledgeSearchTool";
 import { createSubAgentResearchTool } from "./subagentTool";
 
@@ -11,7 +10,6 @@ export const registerBuiltinTools = (registry: ToolRegistry) => {
   registry.registerTools(
     BUILTIN_SOURCE,
     [
-      createAskQuestionTool(),
       createKnowledgeSearchTool(),
       createSubAgentResearchTool(),
       {
@@ -37,6 +35,6 @@ export const registerBuiltinTools = (registry: ToolRegistry) => {
       },
       ...skillToolsProvider.tools(),
     ],
-    true,
+    true
   );
 };

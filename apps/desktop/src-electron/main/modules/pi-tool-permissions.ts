@@ -4,10 +4,10 @@ import type {
   PiHostToolSpec,
   PiToolApprovalChoice,
   PiToolApprovalRequest,
-  PiToolApprovalSnapshot,
 } from "@/types/pi-session";
 import type { ToolRisk } from "@/types/tool";
 import { requiresApproval, type ToolPermissionMode } from "@/services/tool-permission/mode";
+import { ASK_QUESTION_TOOL_NAME } from "@/tools/askQuestionTypes";
 
 type ToolHook = NonNullable<AgentSession["agent"]["beforeToolCall"]>;
 type ToolDecision = Awaited<ReturnType<ToolHook>>;
@@ -21,6 +21,7 @@ const BUILTIN_RISKS: Record<string, ToolRisk> = {
   write: "write",
   bash: "execute",
   powershell: "execute",
+  [ASK_QUESTION_TOOL_NAME]: "read",
 };
 
 /** 等待与授权归会话宿主所有；页面切换、渲染层重载都不改变授权事实。 */
@@ -33,7 +34,6 @@ export class PiToolPermissions {
       settle: (decision: ToolDecision) => void;
     }
   >();
-  private revision = 0;
   private disposed = false;
 
   constructor(
@@ -42,16 +42,13 @@ export class PiToolPermissions {
       interactive: boolean;
       tools: PiHostToolSpec[];
       getMode: () => ToolPermissionMode;
-      publish: (snapshot: PiToolApprovalSnapshot) => void;
+      /** 等待集合变化时通知宿主发布交互快照；通知失败（窗口已关闭）会抛出 */
+      onChange: () => void;
     }
   ) {}
 
-  public snapshot(): PiToolApprovalSnapshot {
-    return {
-      sessionId: this.options.sessionId,
-      revision: this.revision,
-      pending: [...this.pending.values()].map(item => item.request),
-    };
+  public pendingRequests(): PiToolApprovalRequest[] {
+    return [...this.pending.values()].map(item => item.request);
   }
 
   /** 保留 pi 已安装的扩展钩子；宿主审批最后执行，覆盖扩展修改后的最终参数。 */
@@ -94,7 +91,7 @@ export class PiToolPermissions {
         if (!this.pending.delete(request.requestId)) return;
         signal?.removeEventListener("abort", onAbort);
         try {
-          this.publish();
+          this.options.onChange();
         } catch {
           // 窗口关闭后仍须结束等待，不能让通知失败阻塞会话收尾。
         } finally {
@@ -105,7 +102,7 @@ export class PiToolPermissions {
       this.pending.set(request.requestId, { request, settle });
       signal?.addEventListener("abort", onAbort, { once: true });
       try {
-        this.publish();
+        this.options.onChange();
       } catch {
         settle({ block: true, reason: "审批界面不可用，工具未执行" });
       }
@@ -137,10 +134,5 @@ export class PiToolPermissions {
       item.settle({ block: true, reason: "会话已关闭，工具未执行" });
     }
     this.allowed.clear();
-  }
-
-  private publish(): void {
-    this.revision += 1;
-    this.options.publish(this.snapshot());
   }
 }
