@@ -1,11 +1,14 @@
 # pi 迁移交接文档（refactor/pi-harness 分支）
 
 > 2026-09-27 交接（M2-f 完成；M3-a 工具权限与队列交互、M3-b ask-question 宿主原生化、
-> M3-c MCP 工具集动态化、M3-d/e 设置页接内置目录均已完成并提交；
-> M3 下一步：第 4 项剩余的 M3-f fetchModels 与 M3-g（shellPath + chat 侧档位/双类型收敛））。
+> M3-c MCP 工具集动态化、M3-d/e 设置页接内置目录、M3-f 模型实时获取、
+> M3-g（shellPath 设置 + chat 侧档位接目录 + 档位双类型收敛）均已完成并提交；
+> **M3 只剩第 5 项 steer 交互与第 6 项 WSL 手动选项**，下一步可开 M4 会话管理）。
 > 新会话续接方式：读完本文档 +
 > `git log --oneline -15` 对照提交历史。验证三件套：`cd apps/desktop && npx tsc --noEmit`、
-> `npx vitest run`（333 文件、1562 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
+> `npx vitest run`（337 文件、1586 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
+> 改了 `packages/shared` 要另跑 `packages/shared` 与 `apps/browser-extension` 的 vitest + tsc
+> （思考档位类型现在唯一定义在 shared，三端共用）。
 > **注意 cwd 必须在 apps/desktop**——vitest 从仓库根跑会整体失败（vite 别名解析不到）。
 > 权威背景：调研报告与迁移计划在本项目最初会话中形成（对话内）；本文档是执行态的完整快照。
 
@@ -33,7 +36,10 @@
 ```
 主进程（Electron，node 24.18）：
 ├─ modules/pi-ai-runtime-core.ts   v2设置→pi Provider（内置目录兜底）、注册表、单发上下文
-├─ modules/pi-ai-runtime.ts        单发 IPC：pi-ai:single-shot + 流事件（含 partial 全量快照原样透传）
+├─ modules/pi-ai-runtime.ts        单发 IPC：pi-ai:single-shot + 流事件（含 partial 全量快照原样透传）；
+│                                  目录查询 IPC（catalog-providers/models、thinking-levels、discover-models）
+├─ modules/pi-model-discovery.ts   服务商 /models 实时获取（M3-f）：地址/鉴权/分页/三种返回形状，
+│                                  目录命中取目录元数据、未命中只取自报字段（缺的留空不猜）
 ├─ modules/think-stream-rewriter.ts <think>兜底剥离；为重排后事件重建 partial 快照
 ├─ modules/pi-session-bridge.ts    ①desktopMessagesToPi：chat-core 消息→pi 消息（历史灌入；
 │                                    assistant_blocks 按 turn 还原 assistant/toolResult 对，
@@ -41,7 +47,8 @@
 │                                  ②PiToolCallBridge：customTools execute 经 pi-tool-call 事件
 │                                    挂起渲染端，结果经 pi-session:tool-* 回传，断连中止
 ├─ modules/pi-session-host-core.ts 会话装配：ResourceLoader/Git Bash 探测（WSL 排除/where git
-│                                    反推/powershell 兜底）/历史灌入/thinkingLevel/retry(默认5)/
+│                                    反推/powershell 兜底）+ resolveAgentShellPath（设置覆盖优先、
+│                                    坏路径退回检测）/历史灌入/thinkingLevel/retry(默认5)/
 │                                    动态 systemPrompt 扩展（before_agent_start 每轮替换）
 ├─ modules/pi-session-interactions.ts 会话待用户处理交互（审批+提问）的组合持有者：共用 revision
 │                                    与 pi-session-interactions 通道；hostTools() 只给交互会话注册 ask-question
@@ -75,9 +82,15 @@
 ├─ services/piAgentRunner.ts       一次性 pi 会话运行器（inMemory+工具桥+历史灌入+settled 后
 │                                  dispose + excludeToolNames 防子代理递归）
 ├─ services/piChatRuntime.ts       ★模块级归约运行时（最后落地的核心，见下节）
+├─ services/llmCatalog.ts          目录/档位的渲染端读取层（缓存 + hooks）+ 档位归一与 clamp；
+│                                  设置页与聊天输入框共用（原在 features/settings，M3-g 下沉）
 ├─ ChatContainer.tsx               纯 UI + 发送编排（5 场景共用：主聊天/停靠栏/PDF/视频笔记/
 │                                  学习项目）；ask_question 恢复经 find-by-scope 收养续流
-└─ stores/useSettingStore.ts       llmProviders v2 上线（迁移挂载于 mergeSettingWithDefaults）
+└─ stores/useSettingStore.ts       llmProviders v2 上线（迁移挂载于 mergeSettingWithDefaults）；
+                                   agentPermission.mode / agentShell.path；远端广播不回灌（坑 16）
+
+思考档位类型：`packages/shared` 的 `ThinkingLevel` 是全仓唯一定义（桌面 `PiThinkingLevel` 为其别名，
+扩展侧镜像同源），与 pi ThinkingLevel 逐项对齐——见 M3-g 与坑 18。
 
 **已删除（M2-f）**：useChatLLM/chatStreamCore、DesktopModelProtocolAdapter(1118行)/Transport、
 llmSettingsDowngrade、openai-reasoning-effort、commands/stream-fetch、subagentAgentPolicies、
@@ -172,6 +185,56 @@ utils/openai-responses-adapter（llm.ts 依赖）。chat_run 主进程表与 han
 - 验证：真实目录跑通过滤/排序/混合 api/推理档位（gpt-5 无 `off`、Anthropic 有）与端到端
   （勾选形状在主进程命中目录、上下文窗口取目录值而非 128k）。
 
+### M3-f 模型实时获取（2026-09-27）
+
+**动机**：目录只覆盖公开服务商的已知型号。自建服务（Ollama/LM Studio/私有网关）在目录里根本
+没有，目录也总落后于服务商发新模型——这两种情况此前只能一个个手打模型 id。
+
+`modules/pi-model-discovery.ts`（electron-free，可单测）请求服务商的模型列表接口：
+
+- 地址：OpenAI 系在 baseUrl 后接 `/models`（baseUrl 自带版本段）；Anthropic 补 `/v1`
+  并按 `has_more`/`last_id` 分页（上限 10 页防服务端一直说还有）。
+- 鉴权：OpenAI 系 `Authorization: Bearer`，Anthropic `x-api-key` + `anthropic-version`；
+  **无 key 时不发鉴权头**（本地服务）。凭据只发往用户自己配置的 baseUrl。
+- 返回形状三兼容：`{data:[…]}`（OpenAI）、`{models:[…]}`（Ollama 原生）、裸数组。
+- **元数据策略与 toPiModel 一致**：目录命中 → 取目录（与勾选目录同等可信，`fromCatalog: true`）；
+  未命中 → 只认少数常见自报字段（`context_length`/`max_context_length`/`max_input_tokens`、
+  OpenRouter 的 `architecture.input_modalities` 与 `supported_parameters`），
+  **认不出的一律留空**，不写 128k/8192 这种猜测值（猜错会让 pi 按错误上下文窗口裁历史）。
+- 失败原因面向用户：401/403「API Key 无效或没有权限」、404「该服务不支持获取模型列表，
+  请手动添加」、连不上/超时/格式不对各有说法；非预期异常才打日志。
+- IPC `pi-ai:discover-models`（唯一联网的目录类 IPC，其余仍是纯读）。
+
+界面：`ModelPickerDialog` 从「仅内置服务商」扩为所有服务商——内置服务商先列目录、可再点
+「从服务商获取」把目录未收录的新模型追加在末尾（并提示追加了几个）；其他服务商打开即获取。
+只有部分能力未知的条目才提示「添加后可在编辑中补充」。「手动添加」保留为最终兜底。
+
+### M3-g shellPath 设置 + chat 侧档位 + 档位双类型收敛（2026-09-27）
+
+**档位双类型收敛（原 M3-g 的第三项，影响面最大）**：此前 `ReasoningEffort`（packages/shared，
+`"none"` 且**没有 `minimal`**）与 `PiThinkingLevel`（桌面端，pi 词汇）并存，每处都要记得
+`none→off`，`minimal` 在渲染端根本不可达。现在**唯一定义**是
+`packages/shared` 的 `ThinkingLevel`（`off` + 六档，与 pi `ThinkingLevel` 逐项对齐）；
+桌面端 `PiThinkingLevel` 就是它的别名，`toPiThinking` 转换在 chat 侧不再需要。
+组件属性同步更名（`reasoningEffort*` → `thinkingLevel*`，shared/桌面/扩展三端）。
+旧链路（`modules/llm.ts` 连接测试路径 + `model-overrides`/`openai-responses-adapter`）改用
+本地 `LegacyReasoningEffort`——那是 OpenAI 的线协议字段而非产品档位，**故意不与产品档位共用类型**，
+随 M8 一起删。本地存储里的旧值 `"none"` 读出时归一为 `"off"`。
+
+**chat 侧档位接目录**：输入框档位不再硬编码四档，改由模型真实能力生成（经
+`pi-ai:thinking-levels`）；目录未收录的模型退回通用档；选中档位不被当前模型支持时落到
+它支持的第一档（pi 也会 clamp，这样界面显示与实际一致）。
+`llmCatalog.ts` 从 `features/settings` 移到 `services/`——聊天输入框也读它，不再是设置页私有。
+
+**shellPath 设置项**：新增设置 `agentShell.path`（空 = 自动检测），会话装配取值顺序为
+请求显式指定（pi-dev 面板）→ 用户设置 → 启动时自动检测；**用户填的路径不存在则忽略并退回检测**
+（让 pi 拿着坏路径起 bash 只会得到没有说明的失败）。判定逻辑 `resolveAgentShellPath` 放在
+core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到什么 / 实际用哪个 / 填的路径是否存在」。
+设置页「工具权限」标签下新增「命令执行环境」分组（输入 + 浏览 + 恢复自动）。
+**与交接文档原计划的偏差**：原写「首启检测写入」，实际**不把检测结果写进设置**——
+检测结果是本机事实，写进去等于把机器特定路径固化，换机/重装 Git 后会留个错路径；
+界面改为把检测值显示为占位与说明，效果相同且没有过期状态。
+
 ### M3-c MCP 工具集动态化（2026-09-27）
 
 **设计缺陷**：pi 会话的工具注册表在装配时定死（`setActiveToolsByName` 只能在已注册名字里
@@ -259,6 +322,8 @@ utils/openai-responses-adapter（llm.ts 依赖）。chat_run 主进程表与 han
   运行中不可新建/切换对话两项验收修复）
 - **M3-c** `cac05397a`：MCP 工具集动态化（全集注册 + 活跃子集、工具按名排序修缓存、两档同步）
 - **M3-d/e**：内置目录 IPC + 设置页服务商选型/模型勾选/档位按能力（修「界面加不了 Anthropic」）
+- **设置事故修复** `a0fef9ddf`：设置写入风暴与 setting.json 损坏（三层缺陷，见坑 16）
+- **M3-f/g**：模型实时获取（`/models`）+ shellPath 设置 + chat 侧档位接目录 + 档位类型收敛
 - **修正一** `784d59ebb`：去闭包快照+会话常驻 reducer（修吞消息）
 - **修正二** `d3bc61c33`：piChatRuntime 下沉模块级（后台运行）
 - **验收状态**：用户确认"大部分没问题"——M2-f 基本通过；后台运行场景（切页回来
@@ -275,8 +340,8 @@ utils/openai-responses-adapter（llm.ts 依赖）。chat_run 主进程表与 han
    `isRetryableAssistantError` 要求 `stopReason==="error"` 且匹配可重试正则。用户 abort
    后 message_end 会带 `stopReason:"aborted"` + errorMessage——**不要当错误显示**（曾造成
    "停止后一闪而逝错误"）。
-3. `getSupportedThinkingLevels(model)` 需要 Model 对象（在主进程）——渲染端拿不到，
-   reasoning 档位暂时用通用档（M3 经目录元数据接入）。
+3. `getSupportedThinkingLevels(model)` 需要 Model 对象（只在主进程有）——渲染端要档位必须过
+   `pi-ai:thinking-levels` IPC（M3-d 起，设置页与聊天输入框都走它）。
 4. pi 无内建 subagent/websearch；customTools 用 TypeBox TSchema（JSON Schema 直接 cast 即可）；
    execute 可无限期挂起（ask_question 审批的实现基础），signal abort 会 reject。
 5. SessionManager：create 后 appendMessage 灌历史，createAgentSession 内部
@@ -345,6 +410,14 @@ utils/openai-responses-adapter（llm.ts 依赖）。chat_run 主进程表与 han
       现在先备份 `setting.json.corrupt-<ts>.bak`，再用 `salvageLeadingJsonObject` 抢救开头的完整对象。
       **教训**：凡「多端共享一份文件 + 广播」的状态，必须区分「本地改动」与「远端应用」，否则
       必成回灌风暴；一次用户操作只产生一次持久化写入；原子写不能共用固定临时路径。
+17. **目录外模型的元数据只能留空，不能猜**（M3-f）：服务商的 `/models` 接口各家字段不统一，
+    多数只给一个 id。此时**不要填 128k/8192 之类的默认值**——上下文窗口是 pi 裁历史的依据，
+    猜大了会让请求超限、猜小了白丢上下文。留空（界面提示可后续补充）比猜一个值安全。
+18. **同一概念不要在两个包各定义一套取值**（M3-g）：`ReasoningEffort`（"none"、无 minimal）
+    与 `PiThinkingLevel`（pi 词汇）并存的后果不是「多写一个转换函数」，而是**一整档位在界面上
+    不可达**，且每个新增调用点都可能忘记转换。现在唯一定义在 `packages/shared` 的 `ThinkingLevel`。
+    旧链路（M8 待删）刻意使用独立的 `LegacyReasoningEffort`——那是线协议字段不是产品档位，
+    **区分"看起来一样"和"是同一个概念"**：前者不该共用类型。
 
 ## 五、遗留边界（有意留下，归属明确）
 
@@ -352,7 +425,8 @@ utils/openai-responses-adapter（llm.ts 依赖）。chat_run 主进程表与 han
   pi 原生 steer/followUp 留 M3 交互升级；队列本身仍是渲染进程内存态，不做重启恢复
 - **工具审批（D-060）已接**：M3-a 完成执行前拦截与主聊天审批；一次性入口没有审批
   UI 时按模式明确拒绝。完整主进程重启恢复仍待 M4，需在 Electron 实机复验审批交互。
-- **reasoning 档位**：通用档 none/low/medium/high，模型特有档（minimal/xhigh/max）M3 接
+- **档位（M3-g 已接）**：两侧下拉均按模型真实能力生成，全仓一套 `ThinkingLevel` 类型；
+  目录未收录的模型仍只能给通用档（服务商不提供能力元数据，无从得知）
 - **主进程重启后的 ask-question 半成品**：渲染层重载可恢复（宿主仍持有等待，收养后直接作答）；
   主进程也重启则卡片显示中断、不伪造答案，完整恢复等 M4（pi JSONL resume）
 - **ChatDropdownSelector 运行态标记**：随 chat_run 退役（会话列表无 Spinner/失败图标），M4 目录表带状态列
@@ -370,14 +444,9 @@ utils/openai-responses-adapter（llm.ts 依赖）。chat_run 主进程表与 han
 2. **ask_user（M3-b 已完成）**：ask-question 改宿主原生 customTool，见上节；下一步从第 3 项继续。
 3. **MCP 桥（M3-c 已完成）**：工具集动态化见上节（此前文档说「工具桥自动可用」并不准确：
    会话创建后的工具变化对该对话隐形）。主进程 mcp.ts 的 D-058 管理页保留；下一步从第 4 项继续
-4. **设置页产品化（M3-d/e 已完成其三）**：服务商类型选择（内置/自定义）、模型勾选、
-   设置页 reasoning 档位接目录 —— 见上节。**剩两项**：
-   - **M3-f fetchModels**：目录外的自建服务（Ollama/LM Studio/私有网关）与目录落后于服务商
-     新模型时，走 `/v1/models` 拉取；
-   - **M3-g**：shellPath 设置项 + 首启检测写入；chat 侧 reasoning 档位接目录（现硬编码四档，
-     见 ChatContainer「pi ThinkingLevel 通用档」注释），并收敛 `ReasoningEffort`（packages/shared）
-     与 `PiThinkingLevel` 双类型——`minimal` 目前在渲染端不可达。
-5. **steer 交互**：将当前本地队列与 pi 原生 steer/followUp 对齐（当前队列展示、编辑、删除和
+4. **设置页产品化（M3-d/e/f/g 全部完成）**：服务商类型选择、模型勾选与实时获取、
+   两侧档位接目录、档位类型收敛、shellPath 设置 —— 见上面三节。下一步从第 5 项继续。
+5. **steer 交互（M3 剩余项，下一步就从这里开始）**：将当前本地队列与 pi 原生 steer/followUp 对齐（当前队列展示、编辑、删除和
    agent_settled drain 已完成；`queue_update` 事件驱动的 pi 原生排队尚未接管发送）
 6. WSL 手动选项（BashOperations 路径翻译）
 
@@ -407,6 +476,14 @@ openai-responses-adapter、卫星表 messages 写路径；DECISIONS.md 追加条
 - 请求取证：`PI_DUMP_REQUESTS=1` 环境变量重启，出站 payload 写 `~/.editor/pi-request-dumps/`
 - 常见验收场景：发送/流式/工具卡/ask_question 闭环与刷新恢复/停止/重试/图片/旧对话续聊
   （历史灌入）/编辑重发/重新生成/分支/模型切换/切页后台运行/停止后立即发送
+- M3-f 专项（需真实服务，未做实机走查）：本地 Ollama（无 key）建「其他服务商」→ 打开「选择模型」
+  自动列出本机模型；OpenRouter/DeepSeek 等内置服务商点「从服务商获取」→ 目录未收录的新模型
+  追加在末尾；key 填错 → 提示 API Key 无效；地址写错 → 提示连不上；不支持列表的服务 → 提示手动添加。
+  勾选后确认上下文窗口：目录命中的用目录值，目录外的留空（不应出现 128k 猜测值）。
+- M3-g 专项：设置页「工具权限」标签底部「命令执行环境」——留空时显示检测到的 Git Bash 路径、
+  填个不存在的路径应提示且实际仍用检测值（主进程日志有一行 warn）、填对后新建对话让 AI 执行命令
+  确认用的是它；聊天输入框档位下拉只出现当前模型真实支持的档（gpt-5 无「不思考」、Anthropic 有，
+  支持 minimal 的模型能看到「极简思考」）；换到不支持所选档的模型后显示自动落到第一档。
 - M3-c 专项：对话进行中用输入框 MCP 面板关掉某个 provider → 下一轮模型不再有那些工具且
   **不重建会话**（本会话工具授权仍在）；重新打开 → 工具回来；对话中途新连一个 MCP 服务器
   → 会话重建后可用；连着几轮不动工具 → 不应有多余的工具集同步（缓存不该反复失效）。

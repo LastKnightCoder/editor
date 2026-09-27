@@ -18,6 +18,7 @@ import {
   resolveV2Providers,
   type ProviderRegistry,
 } from "./pi-ai-runtime-core";
+import { discoverProviderModels, ModelDiscoveryError } from "./pi-model-discovery";
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
 import type { LLMProviderSetting, PiSingleShotOutcome, PiSingleShotRequest } from "@/types/pi-llm";
@@ -58,6 +59,20 @@ class PiAiRuntimeModule {
         return { ok: false, error: errorMessage(error), models: [] };
       }
     });
+    // 实时拉取服务商模型列表（联网，仅发往用户配置的 baseUrl）：目录外服务与目录滞后时用
+    ipcMain.handle(
+      "pi-ai:discover-models",
+      async (_event, { provider }: { provider: LLMProviderSetting }) => {
+        try {
+          return { ok: true, models: await discoverProviderModels(provider) };
+        } catch (error) {
+          if (!(error instanceof ModelDiscoveryError)) {
+            console.error("[PiAiRuntime] discover-models error:", error);
+          }
+          return { ok: false, error: errorMessage(error), models: [] };
+        }
+      }
+    );
     ipcMain.handle(
       "pi-ai:thinking-levels",
       async (_event, { provider, modelId }: { provider: LLMProviderSetting; modelId: string }) => {

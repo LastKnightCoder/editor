@@ -69,6 +69,25 @@ export function applyActiveTools(
   session.setActiveToolsByName(next);
 }
 
+/**
+ * 选定 AI 执行命令用的 shell（M3-g）：用户在设置里填的优先，但路径不存在就忽略——
+ * 让 pi 拿着坏路径去起 bash 只会得到一个没头没尾的失败。两者皆空时返回 undefined，
+ * 由 pi 走 PowerShell 兜底（见本文件顶部说明）。
+ */
+export function resolveAgentShellPath(options: {
+  configured?: string;
+  detected?: string;
+  exists?: (path: string) => boolean;
+}): { path?: string; ignoredConfigured?: string } {
+  const configured = options.configured?.trim();
+  const exists = options.exists ?? existsSync;
+  if (configured && exists(configured)) return { path: configured };
+  return {
+    ...(options.detected ? { path: options.detected } : {}),
+    ...(configured ? { ignoredConfigured: configured } : {}),
+  };
+}
+
 export function detectBashShellPath(): string | undefined {
   if (process.env.PI_SMOKE_SHELL && existsSync(process.env.PI_SMOKE_SHELL)) {
     logShellProbe("env", process.env.PI_SMOKE_SHELL);

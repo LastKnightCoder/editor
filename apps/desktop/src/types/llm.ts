@@ -9,7 +9,6 @@ export type {
   ImageContent,
   FileContent,
   MessageContent,
-  ReasoningEffort,
   ProviderMetadata,
   ToolCallPayload,
   ToolCallExecutionState,

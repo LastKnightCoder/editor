@@ -1,11 +1,16 @@
-import type { ReasoningEffort } from "@/types/llm";
+/**
+ * OpenAI 系接口的 `reasoning_effort` 取值（旧链路专用：modules/llm.ts 的连接测试路径）。
+ * 与界面/运行时的思考档位（@tau/shared ThinkingLevel，"off" 而非 "none"）刻意不共用类型——
+ * 这是线协议字段，不是产品档位；旧链路随 M8 一起删除。
+ */
+export type LegacyReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh" | "max";
 
 /**
  * 模型请求上下文，用于确定模型特定的参数设置
  */
 export interface ModelRequestContext {
   modelName: string;
-  reasoningEffort?: ReasoningEffort;
+  reasoningEffort?: LegacyReasoningEffort;
 }
 
 /**
@@ -15,7 +20,7 @@ export interface ModelRequestContext {
 export interface ModelRequestOverrides {
   temperature?: number;
   top_p?: number;
-  reasoning_effort?: Exclude<ReasoningEffort, "none">;
+  reasoning_effort?: Exclude<LegacyReasoningEffort, "none">;
   frequency_penalty?: number;
 }
 
@@ -30,9 +35,7 @@ export interface ModelRequestOverrides {
  * @param context - 模型请求上下文
  * @returns 需要覆盖的参数配置
  */
-export function getModelRequestOverrides(
-  context: ModelRequestContext,
-): ModelRequestOverrides {
+export function getModelRequestOverrides(context: ModelRequestContext): ModelRequestOverrides {
   const { modelName } = context;
   const normalizedModelName = modelName.toLowerCase();
 
@@ -44,9 +47,7 @@ export function getModelRequestOverrides(
   }
 
   // OpenAI o 系列和 GPT-5（不支持温度）
-  if (
-    ["o1", "o3", "o4", "gpt-5"].some((p) => normalizedModelName.startsWith(p))
-  ) {
+  if (["o1", "o3", "o4", "gpt-5"].some(p => normalizedModelName.startsWith(p))) {
     return {
       temperature: undefined,
     };

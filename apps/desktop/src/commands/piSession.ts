@@ -95,6 +95,23 @@ export function piSessionFindByScope(scope: string): Promise<
   return invoke("pi-session:find-by-scope", { scope });
 }
 
+export interface PiShellInfo {
+  ok: boolean;
+  /** 本机自动检测到的 shell（Windows 上的 Git Bash） */
+  detected?: string;
+  /** 用户在设置里填的路径 */
+  configured?: string;
+  /** probe（或已填路径）是否存在；未填时为 undefined */
+  configuredExists?: boolean;
+  /** 实际会用的路径；为空表示 pi 走 PowerShell 兜底 */
+  effective?: string;
+}
+
+/** 命令执行环境状态；probe 传入待校验的路径（设置页边输入边提示） */
+export function piSessionShellInfo(probe?: string): Promise<PiShellInfo> {
+  return invoke("pi-session:shell-info", probe === undefined ? {} : { probe });
+}
+
 /**
  * 切换会话的活跃工具集（下一轮生效）。注册全集在创建时定死，这里只改启用子集，
  * 用户开关工具无需重建会话。工具定义渲染在请求最前，只在真变化时调用。

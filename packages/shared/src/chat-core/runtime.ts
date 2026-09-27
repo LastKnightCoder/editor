@@ -1,7 +1,4 @@
-import type {
-  ChatInputAreaServices,
-  ReasoningEffort,
-} from "../components/ChatInputArea/types";
+import type { ChatInputAreaServices, ThinkingLevel } from "../components/ChatInputArea/types";
 import type { ChatModelCore, ChatProviderCore, ChatSessionCore } from "./types";
 
 export interface ChatRuntimeSettings {
@@ -12,13 +9,10 @@ export interface ChatRuntimeSettings {
 }
 
 export interface ChatRuntimeCallbacks {
-  createChat: (
-    messages: ChatSessionCore["messages"],
-    title?: string,
-  ) => Promise<ChatSessionCore>;
+  createChat: (messages: ChatSessionCore["messages"], title?: string) => Promise<ChatSessionCore>;
   createBranch: (
     parentChatId: ChatSessionCore["id"],
-    messages: ChatSessionCore["messages"],
+    messages: ChatSessionCore["messages"]
   ) => Promise<ChatSessionCore>;
   updateChat: (chat: ChatSessionCore) => Promise<ChatSessionCore>;
   updateCurrentChat: (chat: ChatSessionCore) => void;
@@ -28,8 +22,8 @@ export interface ChatRuntimeStream {
   sendMessage: (
     input: string,
     options?: {
-      reasoningEffort?: ReasoningEffort;
-    },
+      thinkingLevel?: ThinkingLevel;
+    }
   ) => Promise<void>;
   stopGeneration: () => void;
 }

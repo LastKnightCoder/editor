@@ -9,6 +9,7 @@ import type {
   LLMProviderSetting,
   PiCatalogModel,
   PiCatalogProvider,
+  PiDiscoveredModel,
   PiSingleShotOutcome,
   PiSingleShotRequest,
   PiThinkingLevel,
@@ -32,6 +33,15 @@ export function piCatalogModels(builtin: string): Promise<{
   models: PiCatalogModel[];
 }> {
   return invoke("pi-ai:catalog-models", { builtin });
+}
+
+/** 实时拉取服务商 `/models` 列表（联网）；失败时 error 是可直接展示的原因 */
+export function piDiscoverModels(provider: LLMProviderSetting): Promise<{
+  ok: boolean;
+  error?: string;
+  models: PiDiscoveredModel[];
+}> {
+  return invoke("pi-ai:discover-models", { provider });
 }
 
 /** 已配置模型真实支持的推理档位；fromCatalog=false 表示目录未命中、返回的是通用档 */

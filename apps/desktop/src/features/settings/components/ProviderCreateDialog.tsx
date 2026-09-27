@@ -8,7 +8,7 @@ import { useMemo, useState } from "react";
 import { ArrowLeft, Server, Sparkles } from "lucide-react";
 import { Button, Dialog, DialogBody, Input, Select, cn, toast } from "@tau/ui";
 import type { LLMProviderSetting, PiApiKind, PiCatalogProvider } from "@/types/pi-llm";
-import { useCatalogProviders } from "../llmCatalog";
+import { useCatalogProviders } from "@/services/llmCatalog";
 
 export const API_KIND_OPTIONS: Array<{ value: PiApiKind; label: string }> = [
   { value: "openai-completions", label: "OpenAI 兼容（最常见）" },

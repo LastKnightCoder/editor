@@ -15,6 +15,7 @@ import {
   createHostModelRuntime,
   createHostResourceLoader,
   detectBashShellPath,
+  resolveAgentShellPath,
 } from "./pi-session-host-core";
 import { desktopMessagesToPi, PiToolCallBridge } from "./pi-session-bridge";
 import type { PiHostToolSpec, PiToolApprovalChoice } from "@/types/pi-session";
@@ -189,6 +190,21 @@ class PiSessionHostModule {
       PiSessionHostModule.disposeSession(sessionId);
       return { ok: true };
     });
+    // 命令执行环境（M3-g）：设置页据此显示自动检测到什么、实际会用哪个，并校验用户填的路径
+    ipcMain.handle("pi-session:shell-info", async (_event, payload?: { probe?: string }) => {
+      const probe = payload?.probe?.trim();
+      const setting = await userSettingModule.getSettingSnapshot();
+      const configured = (setting.agentShell?.path as string | undefined)?.trim() || undefined;
+      const target = probe ?? configured;
+      return {
+        ok: true,
+        detected: PiSessionHostModule.shellPath,
+        configured,
+        /** 用户填的路径是否真实存在（空表示没填，不作判断） */
+        configuredExists: target ? existsSync(target) : undefined,
+        effective: PiSessionHostModule.resolveShellPath(setting),
+      };
+    });
     ipcMain.handle("pi-session:find-by-scope", async (event, { scope }: { scope: string }) => {
       // 渲染层重载后本地会话表丢失：按 scope 找主进程仍持有的会话（取最近创建的一个）
       let found: string | undefined;
@@ -319,7 +335,7 @@ class PiSessionHostModule {
         modelRef: request.modelRef,
         sessionDir,
         systemPrompt: request.systemPrompt,
-        shellPath: request.shellPath || PiSessionHostModule.shellPath,
+        shellPath: request.shellPath || PiSessionHostModule.resolveShellPath(setting),
         ...(customTools.length > 0 ? { customTools } : {}),
         ...(request.thinkingLevel ? { thinkingLevel: request.thinkingLevel } : {}),
         ...(initialMessages.length > 0 ? { initialMessages } : {}),
@@ -388,6 +404,21 @@ class PiSessionHostModule {
       bridge?.dispose();
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
+  }
+
+  /**
+   * 实际使用的 shell（M3-g）：用户在设置里填的优先（路径不存在则忽略，避免 pi 拿着坏路径
+   * 起不来 bash 又不说明原因），否则用启动时的自动检测；两者皆空由 pi 走 powershell 兜底。
+   */
+  private static resolveShellPath(setting: { agentShell?: { path?: string } }): string | undefined {
+    const { path, ignoredConfigured } = resolveAgentShellPath({
+      ...(setting.agentShell?.path ? { configured: setting.agentShell.path } : {}),
+      ...(PiSessionHostModule.shellPath ? { detected: PiSessionHostModule.shellPath } : {}),
+    });
+    if (ignoredConfigured) {
+      console.warn(`[PiSessionHost] 设置里的 shell 路径不存在，改用自动检测：${ignoredConfigured}`);
+    }
+    return path;
   }
 
   private static disposeSession(sessionId: string) {

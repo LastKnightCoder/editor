@@ -99,7 +99,7 @@ async function getCatalogRuntime(): Promise<ModelRuntimeLike | null> {
 }
 
 /** 解析 provider 的 builtin 标识：显式设置优先，否则按 baseUrl 匹配内置目录（官方域名确定性映射） */
-async function resolveBuiltinId(setting: LLMProviderSetting): Promise<string | undefined> {
+export async function resolveBuiltinId(setting: LLMProviderSetting): Promise<string | undefined> {
   if (setting.builtin) return setting.builtin;
   const runtime = await getCatalogRuntime();
   if (!runtime) return undefined;
@@ -117,10 +117,10 @@ const SUPPORTED_APIS = new Set<string>([
   "anthropic-messages",
 ]);
 
-const isSupportedModel = (model: Model<Api>): boolean => SUPPORTED_APIS.has(model.api);
+export const isSupportedModel = (model: Model<Api>): boolean => SUPPORTED_APIS.has(model.api);
 
 /** 目录模型 → 渲染端形状（含真实推理档位；不支持推理时为空数组） */
-function toCatalogModel(model: Model<Api>): PiCatalogModel {
+export function toCatalogModel(model: Model<Api>): PiCatalogModel {
   const levels = model.reasoning
     ? (getSupportedThinkingLevels(model) as PiThinkingLevel[])
     : ([] as PiThinkingLevel[]);

@@ -77,7 +77,7 @@ export {
   type ChatInputAreaHandle,
   type ChatInputAreaProps,
   type ChatInputAreaServices,
-  type ReasoningEffort,
+  type ThinkingLevel,
   type MessageContentItem,
   type MentionEntityType,
   type MentionRef,

@@ -260,6 +260,13 @@ export interface ISetting {
   agentPermission: {
     mode: ToolPermissionMode;
   };
+  /**
+   * AI 执行命令用的 shell（M3-g）。空 = 自动检测（Windows 找 Git Bash，失败退 PowerShell）。
+   * 只存用户覆盖：检测结果是本机事实，不入设置，免得换机器/重装后留个错路径。
+   */
+  agentShell: {
+    path: string;
+  };
   llmUsageSettings: {
     chat: LLMUsageConfigV2 | null;
     titleSummary: LLMUsageConfigV2 | null;
@@ -428,6 +435,8 @@ interface IActions {
     config: LLMUsageConfigV2 | null
   ) => void;
   setToolPermissionMode: (mode: ToolPermissionMode) => void;
+  /** AI 执行命令用的 shell 路径（空串 = 交回自动检测） */
+  setAgentShellPath: (path: string) => void;
   updateBilibiliCredentials: (
     credentials: ISetting["integration"]["bilibili"]["credentials"]
   ) => void;
@@ -681,6 +690,9 @@ const initialState: IState = {
     agentPermission: {
       mode: DEFAULT_TOOL_PERMISSION_MODE,
     },
+    agentShell: {
+      path: "",
+    },
     llmUsageSettings: {
       chat: null,
       titleSummary: null,
@@ -911,6 +923,14 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     });
     // 旧入口（legacy 侧边栏/演示模式等）转发到主题 runtime，保证 DOM 主题只有一个写者
     useThemeStore.getState().setMode(darkMode ? "cocoa" : "cream");
+  },
+  setAgentShellPath: path => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, draft => {
+        draft.agentShell = { ...draft.agentShell, path };
+      }),
+    });
   },
   setToolPermissionMode: mode => {
     const { setting } = get();

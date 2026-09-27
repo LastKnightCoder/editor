@@ -11,7 +11,7 @@ import {
   type ChatInputAreaHandle,
   type ChatInputAreaServices,
   type MessageContentItem,
-  type ReasoningEffort,
+  type ThinkingLevel,
 } from "@tau/shared";
 import { useAiChat } from "../../../../hooks/useAiChat";
 import type { AiChatRequestMessage } from "../../../../hooks/useAiChat";
@@ -110,7 +110,7 @@ const markAskQuestionExecutionResolved = (
 };
 
 export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }: ChatTabProps) {
-  const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>("none");
+  const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>("off");
   const { message: antdMessage, modal } = App.useApp();
 
   const { themeMode } = useThemeStore();
@@ -549,9 +549,9 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
       messages={messages}
       isLoading={isLoading}
       error={error}
-      reasoningEffort={reasoningEffort}
-      onReasoningEffortChange={setReasoningEffort}
-      reasoningEffortDisabled={!currentModelConfig?.reasoning}
+      thinkingLevel={thinkingLevel}
+      onThinkingLevelChange={setThinkingLevel}
+      thinkingLevelDisabled={!currentModelConfig?.reasoning}
       currentModelName={currentModelName}
       modelSelectItems={modelSelectItems}
       onModelSelect={handleModelSelect}
