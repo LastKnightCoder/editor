@@ -14,7 +14,7 @@ const setup = () => {
     onRetryStatus: vi.fn(),
     onStreamError: vi.fn(),
     onSettled: vi.fn(),
-    onQueueUpdate: vi.fn(),
+    onUserMessageDelivered: vi.fn(),
   };
   const reducer = new PiChatEventReducer(sink, "s1");
   const handle = (event: unknown) => reducer.handle(event as AgentSessionEvent);
@@ -115,5 +115,45 @@ describe("pi 审批工具行归约", () => {
       message: { ...message, content: [{ type: "text", text: "后续回答" }] },
     });
     expect(sink.applyText).toHaveBeenCalledWith("pi:10000", "后续回答");
+  });
+});
+
+describe("运行中送达的用户消息（插话）", () => {
+  const userMessage = (value: string) => ({
+    role: "user",
+    content: [{ type: "text", text: value }],
+  });
+
+  it("本轮发起消息不上报，其后的用户消息按插话上报", () => {
+    const { handle, sink } = setup();
+    handle({ type: "agent_start" });
+    handle({ type: "message_start", message: userMessage("发起本轮的问题") });
+    expect(sink.onUserMessageDelivered).not.toHaveBeenCalled();
+
+    handle({ type: "message_start", message: userMessage("插一句") });
+    expect(sink.onUserMessageDelivered).toHaveBeenCalledWith("插一句");
+  });
+
+  it("插话送达即清空工具执行映射，避免上一轮的工具事件写进新助手占位", () => {
+    const { reducer, handle, sink, message } = setup();
+    handle({ type: "agent_start" });
+    handle({ type: "message_start", message: userMessage("发起本轮的问题") });
+    handle({ type: "message_start", message });
+    handle({ type: "message_end", message });
+    expect(reducer.getExecutions()).toHaveLength(1);
+
+    handle({ type: "message_start", message: userMessage("插一句") });
+    expect(reducer.getExecutions()).toEqual([]);
+
+    // 上一轮工具的迟到事件不再认领任何 turn，不会污染新的助手占位
+    vi.mocked(sink.applyToolCalls).mockClear();
+    handle({
+      type: "tool_execution_end",
+      toolCallId: "call-1",
+      toolName: "write",
+      isError: false,
+      result: { content: [{ type: "text", text: "迟到的结果" }] },
+    });
+    expect(sink.applyToolCalls).not.toHaveBeenCalled();
   });
 });

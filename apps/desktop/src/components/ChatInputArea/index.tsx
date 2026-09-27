@@ -13,6 +13,7 @@ import {
   AtSign,
   Brain,
   ChevronDown,
+  CornerDownRight,
   FileText,
   ImagePlus,
   Plug,
@@ -70,6 +71,11 @@ interface ChatInputAreaProps {
   className?: string;
   contentEditable?: boolean;
   onPressEnter?: () => void;
+  /**
+   * 插话（⌘/Ctrl + Shift + Enter 或插话按钮）：内容送进正在进行的这一轮，
+   * 当前步骤结束后交给模型。缺省表示当前不能插话（会话空闲或在编辑上下文里）。
+   */
+  onSteer?: () => void;
   onStop?: () => void;
   placeholder?: string;
   sendLoading?: boolean;
@@ -230,6 +236,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       className,
       contentEditable = true,
       onPressEnter,
+      onSteer,
       onStop,
       placeholder = DEFAULT_CHAT_INPUT_PLACEHOLDER,
       sendLoading = false,
@@ -422,6 +429,14 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
 
     const hotkeyConfigs = useMemo<IHotKeyConfig[]>(
       () => [
+        // 插话（未指定的修饰键按 false 比较，按住 shift 不会误触发送）
+        {
+          hotKey: "mod+shift+enter",
+          action: (_editor, event) => {
+            event.preventDefault();
+            onSteer?.();
+          },
+        },
         {
           hotKey: "mod+enter",
           action: (_editor, event) => {
@@ -430,7 +445,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           },
         },
       ],
-      [onPressEnter]
+      [onPressEnter, onSteer]
     );
 
     useImperativeHandle(ref, () => ({
@@ -784,6 +799,26 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 className="bg-ink-1 text-surface ml-1 grid size-[30px] shrink-0 place-items-center rounded-[10px] hover:opacity-90"
               >
                 <Square size={11} strokeWidth={0} fill="currentColor" />
+              </button>
+            </Tooltip>
+          )}
+          {onSteer && (
+            <Tooltip
+              content="插话：当前步骤结束后交给模型（⌘/Ctrl + Shift + Enter）"
+              placement="top"
+              delay={300}
+            >
+              <button
+                type="button"
+                aria-label="插话"
+                onClick={onSteer}
+                disabled={!hasText && images.length === 0 && files.length === 0}
+                className={cn(
+                  "ease-tau-out border-line-1 text-ink-2 ml-1 grid size-[30px] shrink-0 place-items-center rounded-[10px] border transition-[background,color] duration-[160ms]",
+                  "enabled:hover:bg-hover enabled:hover:text-ink-1 disabled:text-ink-3 disabled:cursor-default"
+                )}
+              >
+                <CornerDownRight size={15} strokeWidth={2} />
               </button>
             </Tooltip>
           )}

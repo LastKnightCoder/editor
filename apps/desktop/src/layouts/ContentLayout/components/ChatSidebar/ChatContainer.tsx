@@ -10,7 +10,7 @@ import React, {
 import { produce } from "immer";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { useDrop } from "react-dnd";
-import { Pencil, RotateCw, Trash2, TriangleAlert } from "lucide-react";
+import { CornerDownRight, Pencil, RotateCw, Trash2, TriangleAlert } from "lucide-react";
 
 import ChatInputArea from "@/components/ChatInputArea";
 import type { ChatInputAreaHandle } from "@/components/ChatInputArea";
@@ -36,7 +36,12 @@ import { piCompleteChat } from "@/services/piLLM";
 import { remoteResourceToLocal } from "@/utils/resouce";
 import { buildPiChatSystemPrompt, piChatSessionManager } from "@/services/piChatSession";
 import { piChatRuntime, type PiChatRuntimeDeps } from "@/services/piChatRuntime";
-import { onPiSessionEvent, piSessionAbort, piSessionPrompt } from "@/commands/piSession";
+import {
+  onPiSessionEvent,
+  piSessionAbort,
+  piSessionPrompt,
+  piSessionSteer,
+} from "@/commands/piSession";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useSettingStore from "@/stores/useSettingStore";
 import useSkillStore from "@/stores/useSkillStore";
@@ -62,7 +67,6 @@ import {
   shouldRestoreInputAfterSendError,
   shouldGenerateChatTitle,
 } from "./editingUtils";
-import { ConversationMessageQueue } from "./messageQueue";
 import {
   CHAT_CONTENT_DND_TYPE,
   SIDEBAR_ITEM_DND_TYPE,
@@ -195,7 +199,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         if (key === sessionKey) setRuntimeTick(tick => tick + 1);
       });
     }, [sessionKey]);
-    void runtimeTick;
 
     useEffect(() => {
       setExternalSendLoading(sendLoading);
@@ -309,7 +312,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         onStreamError: errorMessage => setChatError(errorMessage),
         onSettled: key => {
           setSessionPending(key, false);
-          setQueueDrainRevision(revision => revision + 1);
           setChatError(null);
         },
         onTitleGenerated: (chatId, title) => {
@@ -342,48 +344,24 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const supportFile = true;
 
     const displayedChatIdRef = useRef(currentChat.id);
-    const messageQueueRef = useRef(new ConversationMessageQueue<MessageContentItem[]>());
-    const queueConversationKeyRef = useRef(runtimeKey ?? `${chatScope}:${currentChat.id}`);
+    /** 当前对话键（与 runtime/会话键同一套取值）：发送期间对话可能切换，异步流程据此对账 */
+    const conversationKeyRef = useRef(sessionKey);
     const queueDrainInProgressRef = useRef(false);
-    const [queueConversationKey, setQueueConversationKey] = useState(
-      queueConversationKeyRef.current
-    );
-    const [queuedMessageCount, setQueuedMessageCount] = useState(0);
-    const [queueDrainRevision, setQueueDrainRevision] = useState(0);
-    const queuedMessages = useMemo(
-      () => messageQueueRef.current.list(queueConversationKey),
-      [queueConversationKey, queueDrainRevision, queuedMessageCount]
-    );
     const activeAssistantTurnIdRef = useRef<string | null>(null);
     const hasRestoredScrollPositionRef = useRef(false);
     const isRestoringScrollPositionRef = useRef(false);
 
-    const activateConversationQueue = useMemoizedFn((conversationKey: string) => {
-      queueConversationKeyRef.current = conversationKey;
-      setQueueConversationKey(conversationKey);
-      setQueuedMessageCount(messageQueueRef.current.size(conversationKey));
-    });
-
-    const migrateConversationQueue = useMemoizedFn((sourceKey: string, targetKey: string) => {
-      const shouldActivateTarget = queueConversationKeyRef.current === sourceKey;
-      messageQueueRef.current.move(sourceKey, targetKey);
-      if (shouldActivateTarget) {
-        activateConversationQueue(targetKey);
-      } else if (queueConversationKeyRef.current === targetKey) {
-        setQueuedMessageCount(messageQueueRef.current.size(targetKey));
-      }
-    });
-
-    const enqueueQueuedMessage = useMemoizedFn(
-      (conversationKey: string, content: MessageContentItem[]) => {
-        const count = messageQueueRef.current.enqueue(conversationKey, content);
-        if (queueConversationKeyRef.current === conversationKey) {
-          setQueuedMessageCount(count);
-          setQueueDrainRevision(revision => revision + 1);
-        }
-        return count;
-      }
+    const getConversationKey = useMemoizedFn((chatId: number) =>
+      chatId === currentChat.id ? sessionKey : `${chatScope.split(":")[0]}:${chatId}`
     );
+
+    // 待发送队列与已提交插话都归模块级 runtime（切页/卸载不丢）；
+    // 变更经 runtime.subscribe → runtimeTick 触发重渲染，这里每次渲染取最新快照
+    const queuedMessages = piChatRuntime.listQueue(sessionKey);
+    const pendingSteers = piChatRuntime.listPendingSteers(sessionKey);
+    const queuePaused = piChatRuntime.isQueuePaused(sessionKey);
+    // 能否插话：会话在运行中，且不在「编辑重发/图片编辑」这类要重建会话的上下文里
+    const canSteerNow = piChatRuntime.canSteer(sessionKey) && !editingDraft && !hiddenPromptContext;
 
     const queuedMessageText = useMemoizedFn((content: MessageContentItem[]) =>
       content
@@ -398,24 +376,15 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     );
 
     const editQueuedMessage = useMemoizedFn((index: number) => {
-      const content = messageQueueRef.current.list(queueConversationKey)[index];
+      const content = piChatRuntime.takeQueuedMessage(sessionKey, index);
       if (!content) return;
-      messageQueueRef.current.removeAt(queueConversationKey, index);
-      setQueuedMessageCount(messageQueueRef.current.size(queueConversationKey));
-      setQueueDrainRevision(revision => revision + 1);
       editTextRef.current?.setValue(queuedMessageText(content));
       editTextRef.current?.focusEnd();
     });
 
     const removeQueuedMessage = useMemoizedFn((index: number) => {
-      messageQueueRef.current.removeAt(queueConversationKey, index);
-      setQueuedMessageCount(messageQueueRef.current.size(queueConversationKey));
-      setQueueDrainRevision(revision => revision + 1);
+      piChatRuntime.removeQueuedMessage(sessionKey, index);
     });
-
-    const getQueueConversationKey = useMemoizedFn((chatId: number) =>
-      chatId === currentChat.id ? sessionKey : `${chatScope}:${chatId}`
-    );
 
     const getScrollPositionKey = useMemoizedFn((chatId: number) => {
       if (!preserveScrollPosition || chatId === 0) {
@@ -529,8 +498,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       const actualChat = actualChatRef.current;
       const isDifferentChat = isDifferentConversation || currentChat.id !== actualChat.id;
       const hasExternalSnapshot = currentChat !== actualChat;
-      const nextConversationKey = getQueueConversationKey(currentChat.id);
-      const isDifferentQueue = nextConversationKey !== queueConversationKeyRef.current;
 
       if (isDifferentChat || hasExternalSnapshot) {
         actualChatRef.current = currentChat;
@@ -544,20 +511,14 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         }
         setUpdateCounter(prev => prev + 1);
       }
-      if (isDifferentQueue) {
-        activateConversationQueue(nextConversationKey);
-      }
-    }, [activateConversationQueue, actualChatRef, currentChat, getQueueConversationKey]);
+      conversationKeyRef.current = sessionKey;
+    }, [actualChatRef, currentChat, sessionKey]);
 
     useEffect(() => {
       if (hideInput) {
         setEditingDraft(null);
       }
     }, [hideInput]);
-
-    const getConversationKey = useMemoizedFn((chatId: number) =>
-      chatId === currentChat.id ? sessionKey : `${chatScope.split(":")[0]}:${chatId}`
-    );
 
     const buildSystemMessageWithRequest = useMemoizedFn((chat: ChatMessage) => {
       const defaultSystemPromptForSend = customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
@@ -631,6 +592,38 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       return formatGeneratedChatTitle(titleResult.text) || null;
     });
 
+    /**
+     * 用户输入内容 → pi prompt 载荷（发送与插话共用）：
+     * 文件转成本地路径提示交模型自己 read；图片只传定位信息（image 是 protocol URL，
+     * path 才是真实路径），主进程读文件转 base64。
+     */
+    const buildPromptPayload = useMemoizedFn(async (contentItems: MessageContentItem[]) => {
+      const fileReferences = await Promise.all(
+        contentItems
+          .filter(item => item.type === "file")
+          .map(async item => {
+            const localPath = /^https?:\/\//i.test(item.file)
+              ? await remoteResourceToLocal(item.file, item.fileName)
+              : item.file;
+            return `[文件：${item.fileName ?? item.file}]\n路径：${localPath}\n请使用 pi 的 read 工具读取该文件。`;
+          })
+      );
+      const promptText = [
+        ...contentItems.filter(item => item.type === "text").map(item => item.text),
+        ...fileReferences,
+      ].join("\n");
+      const images = supportImage
+        ? contentItems
+            .filter(item => item.type === "image")
+            .map(item =>
+              item.image.startsWith("data:")
+                ? { dataUrl: item.image }
+                : { path: item.path ?? item.image }
+            )
+        : [];
+      return { promptText, images };
+    });
+
     // 抽离的公共方法：处理消息发送逻辑（pi 会话驱动）
     const processMessageSending = useMemoizedFn(
       async (
@@ -671,7 +664,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
         // 如果当前没有真实的对话（id为0），则先创建一个新对话
         if (shouldCreateNewChat && actualCurrentChat.id === 0) {
-          const provisionalConversationKey = queueConversationKeyRef.current;
           const runtimeConversationKey = sessionKey;
           try {
             const defaultSystemPrompt = customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
@@ -694,18 +686,16 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             setSessionPending(pendingSessionKey, false);
             pendingSessionKey = createdSessionKey;
             setSessionPending(pendingSessionKey, true);
-            migrateConversationQueue(
-              provisionalConversationKey,
-              getQueueConversationKey(actualCurrentChat.id)
-            );
 
-            // 立即更新ref，确保UI使用新创建的对话（runtime 容器随 id 0→N 迁移，对象不变）
+            // 立即更新ref，确保UI使用新创建的对话（runtime 容器随 id 0→N 迁移，对象不变；
+            // 待发送队列与已提交插话在同一条目里，跟着一起迁移，无需单独搬运）
             piChatRuntime.adoptConversation(
               runtimeConversationKey,
               createdSessionKey,
               actualCurrentChat,
               runtimeDeps
             );
+            conversationKeyRef.current = createdSessionKey;
             actualChatRef.current = actualCurrentChat;
             setUpdateCounter(prev => prev + 1);
 
@@ -782,30 +772,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           const contentItems = Array.isArray(requestMessage.content)
             ? requestMessage.content
             : [{ type: "text" as const, text: requestMessage.content as string }];
-          const fileReferences = await Promise.all(
-            contentItems
-              .filter(item => item.type === "file")
-              .map(async item => {
-                const localPath = /^https?:\/\//i.test(item.file)
-                  ? await remoteResourceToLocal(item.file, item.fileName)
-                  : item.file;
-                return `[文件：${item.fileName ?? item.file}]\n路径：${localPath}\n请使用 pi 的 read 工具读取该文件。`;
-              })
+          const { promptText, images } = await buildPromptPayload(
+            contentItems as MessageContentItem[]
           );
-          const promptText = [
-            ...contentItems.filter(item => item.type === "text").map(item => item.text),
-            ...fileReferences,
-          ].join("\n");
-          // 图片只传定位信息（image 字段是 protocol URL，path 才是真实路径），主进程读文件转 base64
-          const images = supportImage
-            ? contentItems
-                .filter(item => item.type === "image")
-                .map(item =>
-                  item.image.startsWith("data:")
-                    ? { dataUrl: item.image }
-                    : { path: item.path ?? item.image }
-                )
-            : [];
 
           let promptOutcome = await piSessionPrompt(sessionId, promptText, images);
           // 停止后立即发送（pi 仍在收尾）会被拒：等该会话沉淀事件后自动提交，15s 兜底放弃
@@ -1070,11 +1039,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const sendMessageContent = useMemoizedFn(
       async (
         userContent: MessageContentItem[],
-        expectedConversationKey = queueConversationKeyRef.current
+        expectedConversationKey = conversationKeyRef.current
       ) => {
         if (
-          expectedConversationKey !== queueConversationKeyRef.current ||
-          expectedConversationKey !== getQueueConversationKey(actualChatRef.current.id)
+          expectedConversationKey !== conversationKeyRef.current ||
+          expectedConversationKey !== getConversationKey(actualChatRef.current.id)
         ) {
           return false;
         }
@@ -1101,8 +1070,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             return false;
           }
           if (
-            expectedConversationKey !== queueConversationKeyRef.current ||
-            expectedConversationKey !== getQueueConversationKey(actualChatRef.current.id)
+            expectedConversationKey !== conversationKeyRef.current ||
+            expectedConversationKey !== getConversationKey(actualChatRef.current.id)
           ) {
             return false;
           }
@@ -1158,87 +1127,130 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
     const submitMessageContent = useMemoizedFn(
       async (content: MessageContentItem[]): Promise<boolean> => {
-        const conversationKey = queueConversationKeyRef.current;
+        const conversationKey = conversationKeyRef.current;
         if (sendLoading) {
-          enqueueQueuedMessage(conversationKey, content);
+          piChatRuntime.enqueueMessage(conversationKey, content);
           return true;
         }
 
-        if (conversationKey !== getQueueConversationKey(actualChatRef.current.id)) {
-          enqueueQueuedMessage(conversationKey, content);
+        if (conversationKey !== getConversationKey(actualChatRef.current.id)) {
+          piChatRuntime.enqueueMessage(conversationKey, content);
           return true;
         }
 
+        // 手动发送即恢复排空：停止只是暂停队列，用户自己继续发说明可以接着排
+        piChatRuntime.resumeQueue(conversationKey);
         const sent = await sendMessageContent(content, conversationKey);
         const isConversationInactive =
-          conversationKey !== queueConversationKeyRef.current ||
-          conversationKey !== getQueueConversationKey(actualChatRef.current.id);
+          conversationKey !== conversationKeyRef.current ||
+          conversationKey !== getConversationKey(actualChatRef.current.id);
         if (!sent && isConversationInactive) {
-          const queueSize = messageQueueRef.current.enqueue(conversationKey, content);
-          if (queueConversationKeyRef.current === conversationKey) {
-            setQueuedMessageCount(queueSize);
-            setQueueDrainRevision(revision => revision + 1);
-          }
+          piChatRuntime.enqueueMessage(conversationKey, content);
           return true;
         }
         return sent;
       }
     );
 
+    /**
+     * 运行中插话（pi 原生 steer）：消息在当前步骤跑完后、下一次请求模型前送达本轮，
+     * 不新起一轮。送达时由 runtime 把用户消息写进聊天行（见 onUserMessageDelivered）。
+     * 返回 requeued 表示这轮已结束、已退回待发送队列；rejected 表示调用方自己处置内容。
+     */
+    const steerMessageContent = useMemoizedFn(
+      async (content: MessageContentItem[]): Promise<"steered" | "requeued" | "rejected"> => {
+        const conversationKey = conversationKeyRef.current;
+        // 编辑重发/图片编辑上下文都要重建会话，插进当前这轮语义就错了
+        if (editingDraft || hiddenPromptContext) {
+          message.warning("正在编辑消息，插话请先取消编辑");
+          return "rejected";
+        }
+        if (!piChatRuntime.canSteer(conversationKey)) return "rejected";
+        const sessionId = piChatSessionManager.resolveSessionId(
+          chatScope,
+          actualChatRef.current.id
+        );
+        if (!sessionId) return "rejected";
+        const { promptText, images } = await buildPromptPayload(content);
+        if (!promptText.trim() && images.length === 0) {
+          message.warning("请输入内容");
+          return "rejected";
+        }
+        // 先登记再发 IPC：送达事件可能先于 IPC 返回到达
+        const steerId = piChatRuntime.addPendingSteer(conversationKey, {
+          text: promptText,
+          content,
+        });
+        if (!steerId) return "rejected";
+        const outcome = await piSessionSteer(sessionId, promptText, images);
+        if (outcome.ok) return "steered";
+        // 失败退回待发送（settled 兜底可能已经退过，returnPendingSteerToQueue 幂等）
+        const returned = piChatRuntime.returnPendingSteerToQueue(conversationKey, steerId);
+        if (outcome.reason !== "not-streaming") {
+          message.error(outcome.error ?? "插话失败，已退回待发送");
+        }
+        return returned ? "requeued" : "rejected";
+      }
+    );
+
+    /** 输入框直接插话（⌘/Ctrl + Shift + Enter 或插话按钮）：只有成功交出去才清输入框 */
+    const steerFromInput = useMemoizedFn(async () => {
+      const content = editTextRef.current?.getValue() ?? [];
+      if (content.length === 0) return;
+      const result = await steerMessageContent(content);
+      if (result === "rejected") return;
+      editTextRef.current?.clear();
+      if (result === "requeued") {
+        message.info("这轮回答已结束，已加入待发送");
+      }
+    });
+
+    /** 待发送消息改为插话：先移出队列（UI 立即从「待发送」转到「插话」），失败再退回 */
+    const steerQueuedMessage = useMemoizedFn(async (index: number) => {
+      const conversationKey = conversationKeyRef.current;
+      const content = piChatRuntime.takeQueuedMessage(conversationKey, index);
+      if (!content) return;
+      const result = await steerMessageContent(content);
+      if (result === "rejected") {
+        piChatRuntime.requeueMessage(conversationKey, content);
+      }
+    });
+
+    // 队列排空：发送编排在组件里，所以由挂载中的组件执行；队列本身在 runtime，
+    // 切页期间不排空、回到页面自动继续。用户按过停止时队列是暂停的（dequeue 不交出内容）。
     useEffect(() => {
+      const conversationKey = sessionKey;
       if (
         sendLoading ||
-        queuedMessageCount === 0 ||
         queueDrainInProgressRef.current ||
-        queueConversationKey !== getQueueConversationKey(actualChatRef.current.id)
+        piChatRuntime.isQueuePaused(conversationKey) ||
+        piChatRuntime.queueSize(conversationKey) === 0 ||
+        conversationKey !== getConversationKey(actualChatRef.current.id)
       ) {
         return;
       }
 
-      const conversationKey = queueConversationKey;
       queueDrainInProgressRef.current = true;
       void (async () => {
-        while (
-          queueConversationKeyRef.current === conversationKey &&
-          messageQueueRef.current.size(conversationKey) > 0
-        ) {
-          const nextMessage = messageQueueRef.current.dequeue(conversationKey);
-          setQueuedMessageCount(messageQueueRef.current.size(conversationKey));
-          setQueueDrainRevision(revision => revision + 1);
-          if (!nextMessage) {
-            return;
-          }
+        while (conversationKeyRef.current === conversationKey) {
+          const nextMessage = piChatRuntime.dequeueMessage(conversationKey);
+          if (!nextMessage) return;
 
           const sent = await sendMessageContent(nextMessage, conversationKey);
           const isConversationInactive =
-            queueConversationKeyRef.current !== conversationKey ||
-            getQueueConversationKey(actualChatRef.current.id) !== conversationKey;
+            conversationKeyRef.current !== conversationKey ||
+            getConversationKey(actualChatRef.current.id) !== conversationKey;
           if (!sent && isConversationInactive) {
-            const queueSize = messageQueueRef.current.prepend(conversationKey, nextMessage);
-            if (queueConversationKeyRef.current === conversationKey) {
-              setQueuedMessageCount(queueSize);
-              setQueueDrainRevision(revision => revision + 1);
-            }
+            piChatRuntime.requeueMessage(conversationKey, nextMessage);
             return;
           }
-          if (sent) {
-            return;
-          }
+          if (sent) return;
+          // 仍是当前对话却没发出（内容不合法等）：丢弃这条继续下一条，避免原地死循环
         }
       })().finally(() => {
         queueDrainInProgressRef.current = false;
-        if (queueConversationKeyRef.current !== conversationKey) {
-          setQueueDrainRevision(revision => revision + 1);
-        }
       });
-    }, [
-      queueConversationKey,
-      queueDrainRevision,
-      queuedMessageCount,
-      sendLoading,
-      sendMessageContent,
-      updateCounter,
-    ]);
+    }, [runtimeTick, sendLoading, sendMessageContent, sessionKey, updateCounter]);
 
     // 删除消息
     const handleDeleteMessage = useMemoizedFn(async (messageIndex: number) => {
@@ -1406,7 +1418,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             messages={coreMessages}
             isLoading={sendLoading}
             allowSendWhileLoading
-            queuedMessageCount={queuedMessageCount}
+            queuedMessageCount={queuedMessages.length}
             error={chatError}
             retryStatus={chatRetryStatus}
             forceScrollToBottomKey={
@@ -1484,10 +1496,33 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               >
                 {column(
                   <>
+                    {pendingSteers.length > 0 ? (
+                      <div className="mb-2 space-y-1.5" aria-label="插话消息">
+                        <div className="text-tau-meta text-ink-3 px-1">
+                          插话 · 当前步骤结束后送达
+                        </div>
+                        {pendingSteers.map(steer => (
+                          <div
+                            key={steer.id}
+                            className="bg-warn-soft border-line-1 rounded-tau-md flex items-start gap-2 border px-3 py-2"
+                          >
+                            <CornerDownRight
+                              size={13}
+                              strokeWidth={1.75}
+                              className="text-ink-3 mt-0.5 shrink-0"
+                            />
+                            <div className="text-tau-sm text-ink-1 min-w-0 flex-1 whitespace-pre-wrap break-words">
+                              {queuedMessageText(steer.content) || "（附件消息）"}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
                     {queuedMessages.length > 0 ? (
                       <div className="mb-2 space-y-1.5" aria-label="待发送消息">
                         <div className="text-tau-meta text-ink-3 px-1">
                           待发送 · {queuedMessages.length}
+                          {queuePaused ? "（已暂停，发送或删除）" : ""}
                         </div>
                         {queuedMessages.map((content, index) => (
                           <div
@@ -1498,6 +1533,17 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                               {queuedMessageText(content) || "（附件消息）"}
                             </div>
                             <div className="flex shrink-0 items-center gap-0.5">
+                              {canSteerNow ? (
+                                <button
+                                  type="button"
+                                  aria-label="插话：当前步骤结束后送达"
+                                  title="插话：当前步骤结束后送达本轮"
+                                  className="text-ink-3 hover:bg-hover rounded p-1"
+                                  onClick={() => void steerQueuedMessage(index)}
+                                >
+                                  <CornerDownRight size={13} strokeWidth={1.75} />
+                                </button>
+                              ) : null}
                               <button
                                 type="button"
                                 aria-label="编辑待发送消息"
@@ -1574,6 +1620,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                   currentModelKey={currentModelKey}
                   onModelSelect={handleModelSelect}
                   placeholder={hiddenPromptContext?.label || desktopInputProps.placeholder}
+                  {...(canSteerNow ? { onSteer: () => void steerFromInput() } : {})}
                 />
               );
             }}
