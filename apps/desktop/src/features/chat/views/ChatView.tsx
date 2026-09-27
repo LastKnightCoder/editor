@@ -19,7 +19,6 @@ import {
   releaseDockOpenedForPreview,
 } from "@/features/previews/openBlock";
 import ChatArea, { type ChatAreaHandle } from "../components/ChatArea";
-import useChatMessageStore, { EStatus } from "@/stores/useChatMessageStore";
 import { parseChatId } from "../model";
 import { ChatLibraryDialog } from "../components/ChatLibraryDialog";
 import { useChatLibraryStore } from "../libraryStore";
@@ -39,25 +38,15 @@ export function ChatView() {
 function ChatPaper() {
   const { navigator } = usePage();
   const { id } = usePageParams<{ id?: string }>();
-  const chats = useChatMessageStore(s => s.chats);
-  const loaded = useChatMessageStore(s => s.status === EStatus.SUCCESS);
+  // 会话删除后参数失效由 useScopedChat 处理（列表加载完查不到就退回新对话草稿）
   const chatId = parseChatId(id);
-  // 每次从已存在会话切回新对话，都创建一个新的运行时实例身份；
-  // 该身份与数据库 chatId 解耦，待首次发送后再迁移到真实会话键。
-  const previousChatIdRef = useRef<number | null>(chatId);
-  const newChatVersionRef = useRef(0);
-  if (chatId !== previousChatIdRef.current) {
-    if (chatId === null) newChatVersionRef.current += 1;
-    previousChatIdRef.current = chatId;
-  }
-  const newChatRuntimeKey = `main-chat:new:${newChatVersionRef.current}`;
   const chatAreaRef = useRef<ChatAreaHandle>(null);
   const openLibrary = useChatLibraryStore(s => s.setOpen);
   const [sendLoading, setSendLoading] = useState(false);
 
   const select = useCallback(
-    (next: number | null) => {
-      navigator.push("chat", next === null ? undefined : { id: String(next) });
+    (next: string | null) => {
+      navigator.push("chat", next === null ? undefined : { id: next });
       chatAreaRef.current?.scrollToTop();
     },
     [navigator]
@@ -79,13 +68,6 @@ function ChatPaper() {
   // 保活页重新可见时 effect 重跑（Activity）：从预览后退回来，收回因预览而打开的停靠栏
   useEffect(() => releaseDockOpenedForPreview(), []);
 
-  // 会话被删除（侧栏 / 弹窗 / 停靠栏任一处）后参数失效：回到新对话空态
-  useEffect(() => {
-    if (loaded && chatId !== null && !chats.some(chat => chat.id === chatId)) {
-      navigator.push("chat");
-    }
-  }, [loaded, chats, chatId, navigator]);
-
   return (
     <div className="flex h-full min-h-0 flex-col px-4 pb-4">
       <section
@@ -94,7 +76,6 @@ function ChatPaper() {
         <ChatArea
           ref={chatAreaRef}
           selectedChatId={chatId}
-          newChatRuntimeKey={newChatRuntimeKey}
           onSelectChat={select}
           sendLoading={sendLoading}
           setSendLoading={setSendLoading}

@@ -54,6 +54,8 @@ export interface ChatMessageType {
   name?: string;
   tool_call_id?: string;
   tool_calls?: ToolCallPayload[];
+  /** 对应的 pi 会话 entry id（从桌面会话文件投影而来的消息才有），改历史操作按它定位 */
+  piEntryIds?: string[];
 }
 
 /**

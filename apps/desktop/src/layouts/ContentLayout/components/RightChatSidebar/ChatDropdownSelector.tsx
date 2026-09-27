@@ -16,18 +16,19 @@ import { ConfirmDialog, IconButton, Menu, Popover, cn, toast } from "@tau/ui";
 import EditText from "@/components/EditText";
 import { FadeScroll } from "@/components/FadeScroll";
 import type { EditTextHandle } from "@/components/EditText";
-import { ChatMessage } from "@/types";
+import type { ChatMessage } from "@/types";
+import type { ChatSessionRow } from "@/types/chat-session";
+import { isDraftChat } from "@/stores/useChatSessionStore";
 
 interface ChatDropdownSelectorProps {
-  /** 对话列表 */
-  chats: ChatMessage[];
+  /** 对话列表（会话目录行，含分支与归档） */
+  chats: ChatSessionRow[];
+  /** 当前对话；草稿（还没发过消息）没有重命名/删除/分支 */
   currentChat: ChatMessage;
-  /** 新对话页面实例的运行时键，由宿主用于区分未落库会话。 */
-  runtimeKey?: string;
-  onChatSelect: (chatId: number) => void;
+  onChatSelect: (chatId: string) => void;
   onTitleChange: (title: string) => void;
-  onChatDelete?: (chatId: number) => void;
-  getChildBranchesCount?: (chatId: number) => Promise<number>;
+  onChatDelete?: (chatId: string) => void;
+  getChildBranchesCount?: (chatId: string) => Promise<number>;
   disabled?: boolean;
   titleRef?: React.RefObject<EditTextHandle | null>;
   /** 列表末行「全部会话…」（有全量管理入口的宿主才传） */
@@ -55,44 +56,45 @@ const ChatDropdownSelector = memo(
     const [query, setQuery] = useState("");
     const [renaming, setRenaming] = useState(false);
     const draftTitle = useRef("");
-    const [pendingDelete, setPendingDelete] = useState<{ id: number; branches: number } | null>(
+    const [pendingDelete, setPendingDelete] = useState<{ id: string; branches: number } | null>(
       null
     );
-    const hasChat = currentChat.id !== 0;
+    const hasChat = !isDraftChat(currentChat);
 
-    // 相关分支：主干 + 兄弟分支 + 子分支
+    // 相关分支：主干 + 兄弟分支 + 子分支（都取目录行）
     const siblingBranches = useMemo(() => {
-      if (!hasChat) return [];
-      const result: ChatMessage[] = [];
-      const findRoot = (chat: ChatMessage): ChatMessage => {
-        if (!chat.parentChatId) return chat;
-        const parent = chats.find(c => c.id === chat.parentChatId);
+      const current = chats.find(c => c.id === currentChat.id);
+      if (!hasChat || !current) return [];
+      const result: ChatSessionRow[] = [];
+      const findRoot = (chat: ChatSessionRow): ChatSessionRow => {
+        if (!chat.parentSessionId) return chat;
+        const parent = chats.find(c => c.id === chat.parentSessionId);
         return parent ? findRoot(parent) : chat;
       };
-      const root = findRoot(currentChat);
-      if (root.id !== currentChat.id) result.push(root);
-      if (currentChat.parentChatId) {
+      const root = findRoot(current);
+      if (root.id !== current.id) result.push(root);
+      if (current.parentSessionId) {
         result.push(
           ...chats
-            .filter(c => c.parentChatId === currentChat.parentChatId)
-            .sort((a, b) => (a.branchIndex ?? 0) - (b.branchIndex ?? 0))
+            .filter(c => c.parentSessionId === current.parentSessionId)
+            .sort((a, b) => a.branchIndex - b.branchIndex)
         );
       } else {
-        result.push(currentChat);
+        result.push(current);
       }
       result.push(
         ...chats
-          .filter(c => c.parentChatId === currentChat.id)
-          .sort((a, b) => (a.branchIndex ?? 0) - (b.branchIndex ?? 0))
+          .filter(c => c.parentSessionId === current.id)
+          .sort((a, b) => a.branchIndex - b.branchIndex)
       );
       return result.length > 1 ? result : [];
-    }, [chats, currentChat, hasChat]);
+    }, [chats, currentChat.id, hasChat]);
     const currentBranchIndex = siblingBranches.findIndex(c => c.id === currentChat.id);
 
     // 会话列表：未归档主干，置顶（orderNum）在前，其余按更新时间
     const rows = useMemo(() => {
       const q = query.trim().toLowerCase();
-      const roots = chats.filter(c => !c.archived && !c.parentChatId);
+      const roots = chats.filter(c => !c.archived && !c.parentSessionId);
       const pinned = roots
         .filter(c => c.orderNum != null)
         .sort((a, b) => (a.orderNum ?? 0) - (b.orderNum ?? 0));
@@ -104,11 +106,11 @@ const ChatDropdownSelector = memo(
         .map(chat => ({
           chat,
           pinned: chat.orderNum != null,
-          hasBranches: chats.some(c => c.parentChatId === chat.id),
+          hasBranches: chats.some(c => c.parentSessionId === chat.id),
         }));
     }, [chats, query]);
 
-    const select = (chatId: number) => {
+    const select = (chatId: string) => {
       setListOpen(false);
       setQuery("");
       if (chatId !== currentChat.id) onChatSelect(chatId);
@@ -253,17 +255,16 @@ const ChatDropdownSelector = memo(
           >
             <Menu.Group>分支</Menu.Group>
             <Menu.RadioGroup
-              value={String(currentChat.id)}
+              value={currentChat.id}
               onValueChange={value => {
-                const id = Number(value);
-                if (id !== currentChat.id) onChatSelect(id);
+                if (value !== currentChat.id) onChatSelect(value);
               }}
             >
               {siblingBranches.map(chat => (
-                <Menu.RadioItem key={chat.id} value={String(chat.id)}>
-                  {!chat.parentChatId
+                <Menu.RadioItem key={chat.id} value={chat.id}>
+                  {!chat.parentSessionId
                     ? "主干 · "
-                    : chat.parentChatId === currentChat.id
+                    : chat.parentSessionId === currentChat.id
                       ? "↳ "
                       : ""}
                   {chat.title}

@@ -1,6 +1,6 @@
 import WebSocketServer from "@/utils/WebSocketServer";
 import WebSocketClient from "@/utils/WebSocketClient";
-import { runPiAgent } from "@/services/piAgentRunner";
+import { runBrowserSessionTurn, runPiAgent } from "@/services/piAgentRunner";
 import { PiChatEventReducer } from "@/services/piChatEvents";
 import { piStreamChat, piTextOf, piThinkingOf } from "@/services/piLLM";
 import useSettingStore from "@/stores/useSettingStore";
@@ -11,22 +11,14 @@ import { openPage } from "./page-navigation";
 import { produce } from "immer";
 import { ensureToolingReady } from "@/tools";
 import { Role } from "@/constants";
-import type {
-  ChatMessage as ChatMessageType,
-  RequestMessage,
-  ToolCallPayload,
-  ToolCallExecutionState,
-} from "@/types";
+import type { RequestMessage, ToolCallPayload, ToolCallExecutionState } from "@/types";
 import {
-  createChatGroup,
-  createChatMessage,
-  deleteChatMessage,
-  getAllChatGroups,
-  getChatMessageById,
-  getChatMessageList,
-  getNextBranchIndex,
-  updateChatMessage,
-} from "@/commands/chat-message";
+  piBrowserSessionDelete,
+  piBrowserSessionList,
+  piBrowserSessionRename,
+  piSessionEdit,
+  piSessionTranscript,
+} from "@/commands/piSession";
 import type { RpcRequestMessage } from "@/types/rpc";
 import {
   createSmartExtractProvider,
@@ -67,7 +59,14 @@ interface ToolDefinition {
 
 interface AiChatParams {
   requestId: string;
+  /**
+   * 持久对话（扩展侧栏，M4.5）：只带本轮的用户消息，历史由 pi 从页面会话文件恢复。
+   * 一次性调用（概览页、行内问答）：带全量历史，最后一条为 user。
+   */
   messages: RequestMessage[];
+  /** 扩展对话 id（pi 会话 id）；与 pageUrl 一起给出时走持久会话 */
+  sessionId?: string;
+  pageUrl?: string;
   systemPrompt?: string;
   enableTools?: boolean;
   conversationKey?: string;
@@ -294,8 +293,7 @@ ${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}..
     };
   }
 
-  // 带工具路径：一次性 pi 会话（浏览器工具经 executeAdditionalTool 路由，
-  // 本地工具经工具桥走渲染端 ToolRegistry）
+  // 带工具路径（浏览器工具经 executeAdditionalTool 路由，本地工具经工具桥走渲染端 ToolRegistry）。
   // 通知载荷为快照语义（全量文本 + turnId），插件端经 @tau/shared 的
   // applyChatStreamEvent 归约，与桌面本地块组装走同一套逻辑
   const reducer = new PiChatEventReducer({
@@ -329,35 +327,52 @@ ${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}..
     onSettled: () => {},
   });
 
-  const run = runPiAgent(
-    {
-      provider,
-      model,
-      messages: finalMessages,
-      ...(conversationKey ? { conversationKey } : {}),
-      ...(browserTools && browserTools.length > 0
-        ? {
-            additionalTools: browserTools,
-            executeAdditionalTool: async ({ toolName, args }) => {
-              if (!browserToolNames.has(toolName)) return null;
-              const outcome = await executeBrowserTool(
-                {
-                  id: "",
-                  function: {
-                    name: toolName,
-                    arguments: args === undefined ? "" : JSON.stringify(args),
-                  },
-                },
-                requestId,
-                conversationKey
-              );
-              return { content: outcome?.content ?? "" };
-            },
-          }
-        : {}),
-    },
-    event => reducer.handle(event)
-  );
+  const executeAdditionalTool = async ({ toolName, args }: { toolName: string; args: unknown }) => {
+    if (!browserToolNames.has(toolName)) return null;
+    const outcome = await executeBrowserTool(
+      {
+        id: "",
+        function: {
+          name: toolName,
+          arguments: args === undefined ? "" : JSON.stringify(args),
+        },
+      },
+      requestId,
+      conversationKey
+    );
+    return { content: outcome?.content ?? "" };
+  };
+
+  // 扩展侧栏的持久对话（M4.5）：会话落在页面目录的 pi 会话文件里，每轮从文件恢复、跑完释放
+  const run =
+    params.sessionId && params.pageUrl
+      ? runBrowserSessionTurn(
+          {
+            provider,
+            model,
+            sessionId: params.sessionId,
+            pageUrl: params.pageUrl,
+            systemPrompt: systemSections.join("\n\n"),
+            message: messages.at(-1),
+            ...(conversationKey ? { conversationKey } : {}),
+            ...(browserTools && browserTools.length > 0
+              ? { additionalTools: browserTools, executeAdditionalTool }
+              : {}),
+          },
+          event => reducer.handle(event)
+        )
+      : runPiAgent(
+          {
+            provider,
+            model,
+            messages: finalMessages,
+            ...(conversationKey ? { conversationKey } : {}),
+            ...(browserTools && browserTools.length > 0
+              ? { additionalTools: browserTools, executeAdditionalTool }
+              : {}),
+          },
+          event => reducer.handle(event)
+        );
 
   const result = await run.result;
   if (!result.ok && !result.aborted) {
@@ -697,93 +712,80 @@ const handleTabOpen = async (request: RpcRequestMessage) => {
   }
 };
 
-// —— 聊天会话存储 RPC（浏览器插件接入桌面 sqlite，与桌面同库同表；D-064 阶段 3）——
+// —— 扩展对话 RPC（M4.5）：扩展对话是桌面主进程里按页面存放的 pi 会话文件
+// （`browser-sessions/<页面键>/`，与库无关、不参与同步），全部以页面为单位、id 为 pi 会话 id。
+// 没有索引表：列表/标题/分支关系取自会话文件本身。
 
-interface ChatCreateParams {
-  messages: RequestMessage[];
-  title?: string;
-  groupId?: number | null;
-  parentChatId?: number | null;
-  branchIndex?: number;
+interface BrowserChatParams {
+  pageUrl: string;
+  id: string;
 }
 
-interface ChatUpdateParams {
-  chat: Partial<Omit<ChatMessageType, "updateTime">> & Pick<ChatMessageType, "id">;
-}
+const expectOk = <T extends { ok: boolean; error?: string }>(outcome: T): T => {
+  if (!outcome.ok) throw new Error(outcome.error ?? "操作失败");
+  return outcome;
+};
 
 const handleChatList = async (request: RpcRequestMessage) => {
-  const { groupId } = (request.params ?? {}) as unknown as { groupId?: number };
-  const chats = await getChatMessageList(typeof groupId === "number" ? groupId : undefined);
-  return { chats };
+  const { pageUrl } = request.params as unknown as { pageUrl: string };
+  return { chats: expectOk(await piBrowserSessionList(pageUrl)).sessions ?? [] };
 };
 
 const handleChatGet = async (request: RpcRequestMessage) => {
-  const { id } = request.params as unknown as { id: number };
-  return { chat: await getChatMessageById(id) };
+  const { pageUrl, id } = request.params as unknown as BrowserChatParams;
+  return {
+    messages: expectOk(await piSessionTranscript({ pageUrl, sessionId: id })).messages ?? [],
+  };
 };
 
-const handleChatCreate = async (request: RpcRequestMessage) => {
-  const { messages, title, groupId, parentChatId, branchIndex } =
-    request.params as unknown as ChatCreateParams;
-  const chat = await createChatMessage(
-    messages,
-    title || "新对话",
-    groupId ?? null,
-    parentChatId ?? null,
-    branchIndex,
-    undefined,
-    undefined,
-    "browser"
-  );
-  return { chat };
-};
-
-const handleChatUpdate = async (request: RpcRequestMessage) => {
-  const { chat } = request.params as unknown as ChatUpdateParams;
-  return { chat: await updateChatMessage(chat) };
-};
-
-const handleChatDelete = async (request: RpcRequestMessage) => {
-  const { id } = request.params as unknown as { id: number };
-  await deleteChatMessage(id);
+const handleChatRename = async (request: RpcRequestMessage) => {
+  const { pageUrl, id, title } = request.params as unknown as BrowserChatParams & {
+    title: string;
+  };
+  expectOk(await piBrowserSessionRename(pageUrl, id, title));
   return { success: true };
 };
 
+const handleChatDelete = async (request: RpcRequestMessage) => {
+  const { pageUrl, id } = request.params as unknown as BrowserChatParams;
+  return { deletedIds: expectOk(await piBrowserSessionDelete(pageUrl, id)).deletedIds ?? [] };
+};
+
+/** 建分支：截到 throughEntryId（缺省整条），返回新对话 id 与投影 */
 const handleChatBranch = async (request: RpcRequestMessage) => {
-  const { parentChatId, messages, title } = request.params as unknown as {
-    parentChatId: number;
-    messages: RequestMessage[];
-    title?: string;
+  const { pageUrl, id, throughEntryId } = request.params as unknown as BrowserChatParams & {
+    throughEntryId?: string;
   };
-  // 分支继承父会话的分组，保证按 URL 过滤时与父会话同组
-  const parent = await getChatMessageById(parentChatId);
-  const branchIndex = await getNextBranchIndex(parentChatId);
-  const chat = await createChatMessage(
-    messages,
-    title || "新分支",
-    parent.groupId ?? null,
-    parentChatId,
-    branchIndex,
-    undefined,
-    undefined,
-    "browser"
+  const newSessionId = crypto.randomUUID();
+  const outcome = expectOk(
+    await piSessionEdit(
+      { pageUrl, sessionId: id },
+      { kind: "branch", newSessionId, ...(throughEntryId ? { throughEntryId } : {}) }
+    )
   );
-  return { chat };
+  return { id: newSessionId, messages: outcome.messages ?? [] };
 };
 
-const handleChatGroupsList = async () => {
-  return { groups: await getAllChatGroups() };
+/** 编辑重发/重新生成的前半步：回退到这条用户消息之前（扩展随后以新内容发 ai.chat） */
+const handleChatRewind = async (request: RpcRequestMessage) => {
+  const { pageUrl, id, entryId } = request.params as unknown as BrowserChatParams & {
+    entryId: string;
+  };
+  const outcome = expectOk(
+    await piSessionEdit({ pageUrl, sessionId: id }, { kind: "rewind", entryId })
+  );
+  return { messages: outcome.messages ?? [] };
 };
 
-/** 按名查找顶层分组，不存在则创建（浏览器插件按 URL 归组会话用） */
-const handleChatGroupEnsure = async (request: RpcRequestMessage) => {
-  const { name } = request.params as unknown as { name: string };
-  const groups = await getAllChatGroups();
-  const existing = groups.find(group => group.parentId === null && group.name === name);
-  if (existing) {
-    return { group: existing, created: false };
-  }
-  return { group: await createChatGroup({ name, parentId: null }), created: true };
+/** 删除消息：省略这些 entry（一条回答传它全部 entry id） */
+const handleChatOmit = async (request: RpcRequestMessage) => {
+  const { pageUrl, id, entryIds } = request.params as unknown as BrowserChatParams & {
+    entryIds: string[];
+  };
+  const outcome = expectOk(
+    await piSessionEdit({ pageUrl, sessionId: id }, { kind: "omit", entryIds })
+  );
+  return { messages: outcome.messages ?? [] };
 };
 
 /**
@@ -847,15 +849,14 @@ export const initAiServer = () => {
   // 注册 Tab 操作 RPC 处理器
   aiServer.addRequestHandler("tab.open", handleTabOpen);
 
-  // 注册聊天会话存储 RPC 处理器（浏览器插件 → 桌面 sqlite）
+  // 注册扩展对话 RPC 处理器（浏览器插件 → 桌面按页面存放的 pi 会话文件）
   aiServer.addRequestHandler("chat.list", handleChatList);
   aiServer.addRequestHandler("chat.get", handleChatGet);
-  aiServer.addRequestHandler("chat.create", handleChatCreate);
-  aiServer.addRequestHandler("chat.update", handleChatUpdate);
+  aiServer.addRequestHandler("chat.rename", handleChatRename);
   aiServer.addRequestHandler("chat.delete", handleChatDelete);
   aiServer.addRequestHandler("chat.branch", handleChatBranch);
-  aiServer.addRequestHandler("chat.groups.list", handleChatGroupsList);
-  aiServer.addRequestHandler("chat.group.ensure", handleChatGroupEnsure);
+  aiServer.addRequestHandler("chat.rewind", handleChatRewind);
+  aiServer.addRequestHandler("chat.omit", handleChatOmit);
 
   // 连接浏览器工具服务（作为客户端）
   // 延迟连接，等待浏览器扩展连接

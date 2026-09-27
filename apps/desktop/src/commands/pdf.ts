@@ -12,13 +12,10 @@ import {
   PdfOutlineNode,
   PdfDocumentMap,
   PdfSectionDetail,
-  PdfChatMessage,
-  CreatePdfChat,
-  UpdatePdfChat,
 } from "@/types";
 
 export const createPdf = async (
-  pdf: Omit<Pdf, "id" | "createTime" | "updateTime">,
+  pdf: Omit<Pdf, "id" | "createTime" | "updateTime">
 ): Promise<Pdf> => {
   return await invoke("create-pdf", pdf);
 };
@@ -39,21 +36,15 @@ export const removePdf = async (id: number): Promise<number> => {
   return await invoke("delete-pdf", id);
 };
 
-export const addPdfAnnotation = async (
-  annotation: CreatePdfAnnotation,
-): Promise<PdfAnnotation> => {
+export const addPdfAnnotation = async (annotation: CreatePdfAnnotation): Promise<PdfAnnotation> => {
   return await invoke("add-pdf-annotation", annotation);
 };
 
-export const updatePdfAnnotation = async (
-  annotation: PdfAnnotation,
-): Promise<PdfAnnotation> => {
+export const updatePdfAnnotation = async (annotation: PdfAnnotation): Promise<PdfAnnotation> => {
   return await invoke("update-pdf-annotation", annotation);
 };
 
-export const getPdfAnnotations = async (
-  pdfId: number,
-): Promise<PdfAnnotation[]> => {
+export const getPdfAnnotations = async (pdfId: number): Promise<PdfAnnotation[]> => {
   return await invoke("get-pdf-annotations", pdfId);
 };
 
@@ -61,21 +52,15 @@ export const removePdfAnnotation = async (id: number): Promise<number> => {
   return await invoke("delete-pdf-annotation", id);
 };
 
-export const addPdfBookmark = async (
-  bookmark: CreatePdfBookmark,
-): Promise<PdfBookmark> => {
+export const addPdfBookmark = async (bookmark: CreatePdfBookmark): Promise<PdfBookmark> => {
   return await invoke("add-pdf-bookmark", bookmark);
 };
 
-export const updatePdfBookmark = async (
-  bookmark: PdfBookmark,
-): Promise<PdfBookmark> => {
+export const updatePdfBookmark = async (bookmark: PdfBookmark): Promise<PdfBookmark> => {
   return await invoke("update-pdf-bookmark", bookmark);
 };
 
-export const getPdfBookmarks = async (
-  pdfId: number,
-): Promise<PdfBookmark[]> => {
+export const getPdfBookmarks = async (pdfId: number): Promise<PdfBookmark[]> => {
   return await invoke("get-pdf-bookmarks", pdfId);
 };
 
@@ -163,50 +148,4 @@ export const readPdfSection = async (params: {
   sectionId: string;
 }): Promise<PdfSectionDetail | null> => {
   return await invoke("pdf-index:section-detail", params);
-};
-
-export const createPdfChat = async (
-  params: CreatePdfChat,
-): Promise<PdfChatMessage> => {
-  return await invoke("pdf-chat:create", params);
-};
-
-export const updatePdfChat = async (
-  params: UpdatePdfChat,
-): Promise<PdfChatMessage | null> => {
-  return await invoke("pdf-chat:update", params);
-};
-
-export const deletePdfChat = async (id: number): Promise<boolean> => {
-  return await invoke("pdf-chat:delete", id);
-};
-
-export const getPdfChatById = async (
-  id: number,
-): Promise<PdfChatMessage | null> => {
-  return await invoke("pdf-chat:get", id);
-};
-
-export const getPdfChatsByPdfId = async (
-  pdfId: number,
-): Promise<PdfChatMessage[]> => {
-  return await invoke("pdf-chat:list-by-pdf-id", pdfId);
-};
-
-export const getPdfChatBranches = async (
-  parentChatId: number,
-): Promise<PdfChatMessage[]> => {
-  return await invoke("pdf-chat:get-branches", parentChatId);
-};
-
-export const getPdfNextBranchIndex = async (
-  parentChatId: number,
-): Promise<number> => {
-  return await invoke("pdf-chat:get-next-branch-index", parentChatId);
-};
-
-export const getPdfChildBranchesCount = async (
-  parentChatId: number,
-): Promise<number> => {
-  return await invoke("pdf-chat:get-child-branches-count", parentChatId);
 };

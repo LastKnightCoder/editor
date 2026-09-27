@@ -23,11 +23,12 @@ vi.mock("../piChatSession", () => ({
   piChatSessionManager: { adoptOrResolveSession: mocks.adopt },
 }));
 
-const key = "main-chat:11";
+const chatId = "chat-11";
+const key = `main-chat:${chatId}`;
 const sessionId = "restored-session";
 const waitingChat = (execution: Partial<ToolCallExecutionState> = {}): ChatMessage =>
   ({
-    id: 11,
+    id: chatId,
     title: "测试会话",
     createTime: 1,
     updateTime: 1,
@@ -104,13 +105,13 @@ describe("pi 待处理交互恢复与后台归约", () => {
         resolveSession = resolve;
       })
     );
-    const persist = vi.fn(async (chat: ChatMessage) => chat);
+    const settle = vi.fn(async (chat: ChatMessage) => chat.messages);
     const container = piChatRuntime.ensureConversation(key, waitingChat(), {
       publish: vi.fn(),
-      persist,
+      settle,
     });
     pendingApproval();
-    const restoring = piChatRuntime.restorePendingInteractions(key, "main-chat", 11);
+    const restoring = piChatRuntime.restorePendingInteractions(key, "main-chat", chatId);
     expect(usePiInteractionStore.getState().readySessions[sessionId]).not.toBe(true);
     resolveSession(sessionId);
     await restoring;
@@ -127,7 +128,7 @@ describe("pi 待处理交互恢复与后台归约", () => {
       turnId: "pi:20",
       execution: { status: "success", output: "落盘完成" },
     });
-    expect(persist).toHaveBeenCalled();
+    expect(settle).toHaveBeenCalled();
     expect(piChatRuntime.isStreaming(key)).toBe(false);
   });
 
@@ -136,7 +137,7 @@ describe("pi 待处理交互恢复与后台归约", () => {
     const onStreamError = vi.fn();
     piChatRuntime.ensureConversation(key, waitingChat({ toolName: "ask-question" }), {
       publish: vi.fn(),
-      persist: async chat => chat,
+      settle: async chat => chat.messages,
       ui: { onStreamError },
     });
     piChatRuntime.bindSession(key, sessionId);
@@ -168,7 +169,7 @@ describe("pi 待处理交互恢复与后台归约", () => {
     const container = piChatRuntime.ensureConversation(
       key,
       waitingChat({ toolName: "ask-question", status: "executing" }),
-      { publish: vi.fn(), persist: async chat => chat }
+      { publish: vi.fn(), settle: async chat => chat.messages }
     );
     receiveInteractions({
       sessionId,
@@ -184,8 +185,8 @@ describe("pi 待处理交互恢复与后台归约", () => {
         },
       ],
     });
-    await piChatRuntime.restorePendingInteractions(key, "main-chat", 11);
-    expect(mocks.adopt).toHaveBeenCalledWith("main-chat", 11);
+    await piChatRuntime.restorePendingInteractions(key, "main-chat", chatId);
+    expect(mocks.adopt).toHaveBeenCalledWith("main-chat", chatId);
     expect(piChatRuntime.isStreaming(key)).toBe(true);
     const execution = () =>
       (container.current.messages.at(-1) as ResponseMessage).assistant_blocks?.[0];
@@ -197,19 +198,20 @@ describe("pi 待处理交互恢复与后台归约", () => {
     });
   });
 
-  it("没有等待用户的工具卡时不收养会话", async () => {
+  // M4 起判定是「有没有结果的 tool_call」：JSONL 在等待期间还没有 toolResult，投影没有 execution
+  it("工具已完成（有结果）时不收养会话", async () => {
     piChatRuntime.ensureConversation(key, waitingChat({ status: "success" }), {
       publish: vi.fn(),
-      persist: async chat => chat,
+      settle: async chat => chat.messages,
     });
-    await piChatRuntime.restorePendingInteractions(key, "main-chat", 11);
+    await piChatRuntime.restorePendingInteractions(key, "main-chat", chatId);
     expect(mocks.adopt).not.toHaveBeenCalled();
   });
 
   it("没有 UI 钩子时仍持续归约审批，卸载视图不需要重建会话", () => {
     const container = piChatRuntime.ensureConversation(key, waitingChat(), {
       publish: vi.fn(),
-      persist: async chat => chat,
+      settle: async chat => chat.messages,
     });
     piChatRuntime.bindSession(key, sessionId);
     pendingApproval();

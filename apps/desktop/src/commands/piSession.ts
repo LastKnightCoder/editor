@@ -7,9 +7,12 @@ import { invoke, on, off } from "@/electron";
 import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 import type { PiThinkingLevel } from "@/types/pi-llm";
 import type {
+  PiBrowserSessionInfo,
   PiHostToolCallResult,
+  PiPromptDisplay,
   PiPromptImage,
   PiSessionCreateRequestV2,
+  PiSessionLocation,
   PiToolCallPayload,
   PiToolApprovalChoice,
   PiSessionInteractionSnapshot,
@@ -63,12 +66,17 @@ export function piSessionCreate(
   return invoke("pi-session:create", { sessionId, ...options });
 }
 
+/**
+ * 发送一轮。display = 这条用户消息的桌面展示形态：主进程在它落盘后紧跟着写展示 entry，
+ * 重开对话时文件卡片、mention 照原样显示（一次性会话不传）。
+ */
 export function piSessionPrompt(
   sessionId: string,
   text: string,
-  images?: PiPromptImage[]
+  images?: PiPromptImage[],
+  display?: PiPromptDisplay
 ): Promise<Outcome> {
-  return invoke<Outcome>("pi-session:prompt", { sessionId, text, images });
+  return invoke<Outcome>("pi-session:prompt", { sessionId, text, images, display });
 }
 
 /**
@@ -78,9 +86,10 @@ export function piSessionPrompt(
 export function piSessionSteer(
   sessionId: string,
   text: string,
-  images?: PiPromptImage[]
+  images?: PiPromptImage[],
+  display?: PiPromptDisplay
 ): Promise<Outcome & { reason?: "not-streaming" | "error" }> {
-  return invoke("pi-session:steer", { sessionId, text, images });
+  return invoke("pi-session:steer", { sessionId, text, images, display });
 }
 
 /** 中止会话；stranded = 中止时还没送达、已被清出 pi 队列的插话文本 */
@@ -94,12 +103,65 @@ export function piSessionDispose(sessionId: string): Promise<Outcome> {
 
 /**
  * 读对话内容（M4）：会话文件当前叶子路径 → 桌面展示消息。纯读，不起 pi 会话。
- * sessionFile 为目录表里存的相对文件名；文件尚不存在（首轮没等到回答）返回空数组。
+ * 文件尚不存在（首轮没等到回答 pi 不落盘）返回空数组。
  */
 export function piSessionTranscript(
-  sessionFile: string
+  location: PiSessionLocation
 ): Promise<Outcome & { messages?: ChatSessionMessage[] }> {
-  return invoke("pi-session:transcript", { sessionFile });
+  return invoke("pi-session:transcript", location);
+}
+
+/** 改历史操作：回退叶子（编辑重发/重新生成）、省略 entry（删除）、拷分支文件（建分支） */
+export type PiSessionEdit =
+  | { kind: "rewind"; entryId: string }
+  | { kind: "omit"; entryIds: string[] }
+  | { kind: "branch"; newSessionId: string; throughEntryId?: string };
+
+/**
+ * 改历史（M4）：调用前**必须**先 dispose 这个文件上的宿主会话（主进程发现还开着会拒绝）。
+ * 返回改后的投影；建分支时另返回新会话文件名与新分支的投影。
+ */
+export function piSessionEdit(
+  location: PiSessionLocation,
+  edit: PiSessionEdit
+): Promise<Outcome & { messages?: ChatSessionMessage[]; sessionFile?: string }> {
+  return invoke("pi-session:edit", { location, edit });
+}
+
+/** 浏览器扩展对话（M4.5）：按页面列出（含分支，按最近活动降序） */
+export function piBrowserSessionList(
+  pageUrl: string
+): Promise<Outcome & { sessions?: PiBrowserSessionInfo[] }> {
+  return invoke("pi-session:browser-list", { pageUrl });
+}
+
+export function piBrowserSessionRename(
+  pageUrl: string,
+  sessionId: string,
+  title: string
+): Promise<Outcome> {
+  return invoke("pi-session:browser-rename", { pageUrl, sessionId, title });
+}
+
+/** 删除对话连带分支子树 */
+export function piBrowserSessionDelete(
+  pageUrl: string,
+  sessionId: string
+): Promise<Outcome & { deletedIds?: string[] }> {
+  return invoke("pi-session:browser-delete", { pageUrl, sessionId });
+}
+
+/** 同步（M4.4）：库的会话目录打成 zip */
+export function piSessionPack(databaseName: string): Promise<Outcome & { archive?: Uint8Array }> {
+  return invoke("pi-session:pack", { databaseName });
+}
+
+/** 同步（M4.4）：用下载的会话包替换库的会话目录（主进程先整体备份） */
+export function piSessionUnpack(
+  databaseName: string,
+  archive: Uint8Array
+): Promise<Outcome & { backupPath?: string }> {
+  return invoke("pi-session:unpack", { databaseName, archive });
 }
 
 /** 渲染层重载后按 scope 找主进程仍持有的会话（待审批/待回答交互恢复用） */

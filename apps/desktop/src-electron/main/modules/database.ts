@@ -91,6 +91,8 @@ import {
 import { migrateContentBindings } from "./collaboration/content-repository";
 import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 import { executeReadOnlySql, type SqlQueryInput } from "./sql-query";
+import { migrateLegacyChatsToSessions } from "./chat-session-migration";
+import { chatSessionDirOf } from "./pi-session-paths";
 
 export type DatabaseConnectMode = "normal" | "maintenance";
 export type DatabaseReconnectSource = "sync_upload_reconnect" | "sync_download_reconnect";
@@ -469,6 +471,35 @@ class DatabaseModule implements Module {
     });
   }
 
+  /**
+   * 老对话一次性迁移到 pi 会话（M4）。会话目录取法与 pi-session-host 的 currentDatabaseName
+   * 一致（库名去 .db）——两处不一致的话迁移写出的文件宿主找不到。
+   */
+  private async migrateChatSessions(database: Database.Database, name: string, dbPath: string) {
+    const startedAt = Date.now();
+    try {
+      const appDir = PathUtil.getAppDir();
+      const result = await migrateLegacyChatsToSessions({
+        db: database,
+        databasePath: dbPath,
+        sessionDir: chatSessionDirOf(this.formatDatabaseName(name)),
+        cwd: appDir,
+      });
+      if (result.skipped) return;
+      log.info(
+        `[database] chat session migration done: db=${name}, migrated=${result.migrated}, failed=${result.failed.length}, backup=${result.backupPath ?? "none"}, elapsedMs=${Date.now() - startedAt}`
+      );
+      for (const failure of result.failed) {
+        log.error(
+          `[database] chat session migration row failed: db=${name}, table=${failure.table}, id=${failure.id}, error=${failure.error}`
+        );
+      }
+    } catch (error) {
+      // 整体失败不阻塞开库：旧表原样保留，migration_meta 没记账，下次开库重试
+      log.error(`[database] chat session migration failed: db=${name}`, error);
+    }
+  }
+
   reconnectForSync(name: string, source: DatabaseReconnectSource) {
     log.info(`[database] reconnectForSync: db=${name}, source=${source}`);
     if (this.databases.has(name)) {
@@ -549,6 +580,11 @@ class DatabaseModule implements Module {
         }
         const database = this.openDatabase(name, connectMode);
         this.databases.set(name, database);
+        // 老对话迁到 pi 会话文件（M4）：必须在 notifyDatabaseConnected 之前跑完——
+        // 渲染端一连上就查目录表，迁移没完成会看到空列表
+        if (connectMode === "maintenance") {
+          await this.migrateChatSessions(database, name, dbPath);
+        }
       }
 
       const database = this.getDatabase(name);

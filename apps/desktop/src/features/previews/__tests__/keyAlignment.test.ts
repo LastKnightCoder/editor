@@ -62,7 +62,7 @@ describe("渲染期 key 与预览页 key 一致", () => {
             code: fence.content,
             idPrefix: "t",
             liveChat: true,
-            chatId: 7,
+            chatId: "chat-7",
             messageIndex,
             segmentIndex,
             segmentText: segment.content,
@@ -72,7 +72,7 @@ describe("渲染期 key 与预览页 key 一致", () => {
         }
       });
     });
-    expect(rendered).toEqual(derived.map(b => chatBlockId(7, b.key)));
+    expect(rendered).toEqual(derived.map(b => chatBlockId("chat-7", b.key)));
   });
 
   it("非会话仓库的对话面（liveChat=false）按快照：不带 blockKey", () => {
@@ -83,7 +83,7 @@ describe("渲染期 key 与预览页 key 一致", () => {
       code: "- 根",
       idPrefix: "vl-block",
       liveChat: false,
-      chatId: 3,
+      chatId: "chat-3",
       messageIndex: 0,
       segmentIndex: 0,
       segmentText: "```mind-map\n- 根",

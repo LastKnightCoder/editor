@@ -1,9 +1,9 @@
 /**
- * 会话块的实时派生（D-057）：订阅对话仓库里的会话，流式写入时随之重算。
+ * 会话块的实时派生（D-057）：订阅统一会话 store 里已打开的对话，流式写入时随之重算。
  * 预览页、块卡片（版本号）共用；解析口径见 model/chatBlocks。
  */
 
-import useChatMessageStore from "@/stores/useChatMessageStore";
+import useChatSessionStore from "@/stores/useChatSessionStore";
 import type { ChatMessage } from "@/types";
 import { resolveBlockType } from "@/utils/blockRegistry";
 import type { BlockData } from "@/types/block-preview";
@@ -20,15 +20,13 @@ export function chatBlocksOf(chat: ChatMessage | undefined): ChatBlock[] {
   return blocks;
 }
 
-export function useChatBlocks(chatId: number | null | undefined): ChatBlock[] {
-  return useChatMessageStore(s =>
-    chatBlocksOf(chatId == null ? undefined : s.chats.find(c => c.id === chatId))
-  );
+export function useChatBlocks(chatId: string | null | undefined): ChatBlock[] {
+  return useChatSessionStore(s => chatBlocksOf(chatId == null ? undefined : s.opened[chatId]));
 }
 
-export const chatBlockId = (chatId: number, key: string) => `chat:${chatId}:${key}`;
+export const chatBlockId = (chatId: string, key: string) => `chat:${chatId}:${key}`;
 
-export function toBlockData(chatId: number, block: ChatBlock): BlockData {
+export function toBlockData(chatId: string, block: ChatBlock): BlockData {
   return {
     id: chatBlockId(chatId, block.key),
     type: block.type,

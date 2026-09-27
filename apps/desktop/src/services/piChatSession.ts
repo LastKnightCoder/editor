@@ -1,11 +1,10 @@
 /**
  * pi 会话生命周期管理（渲染端）：桌面 chat（scope + chatId）↔ pi 会话的绑定与重建。
- * - ensureChatSession：无会话则创建（灌历史 + 工具桥清单 + systemPrompt）；模型变化自动重建；
+ * - ensureChatSession：无会话则创建（工具桥清单 + systemPrompt）；模型变化自动重建；
  *   systemPrompt 每轮经 set-system-prompt 热替换（不重建）
- * - recreateChatSession：编辑历史/重试/模型切换等非 append-only 变更时显式重建
- * 会话事实源渐进切向 pi JSONL（M4）；M2-f 期间 chat 行仍是 UI 展示源。
+ * 会话事实源是 pi JSONL（M4）：创建时传会话文件，pi 自己从文件恢复上下文，不再灌历史。
+ * 改历史（编辑重发/重新生成/删除）先 disposeChatSession，改完文件下一轮 ensure 自然从新文件恢复。
  */
-import type { RequestMessage } from "@/types";
 import type { ImageContent } from "@earendil-works/pi-ai";
 import type { LLMModelSetting, LLMProviderSetting, PiThinkingLevel } from "@/types/pi-llm";
 import type { PiHostToolSpec } from "@/types/pi-session";
@@ -13,8 +12,10 @@ import type { Skill } from "@/types";
 import {
   piSessionCreate,
   piSessionDispose,
+  piSessionEdit,
   piSessionSetActiveTools,
   piSessionSetSystemPrompt,
+  type PiSessionEdit,
 } from "@/commands/piSession";
 import { getToolRegistryAgentTools } from "@/agent/toolRegistryAgentTools";
 import { resolveAgentSkills } from "@/agent/desktopSkillAdapter";
@@ -26,14 +27,19 @@ import {
 
 export interface EnsureChatSessionOptions {
   chatScope: string;
-  chatId: number;
+  /** 对话 id = pi 会话 id（草稿首轮以它新建会话，之后从文件恢复） */
+  chatId: string;
+  /** 会话文件（目录行里存的相对文件名）；草稿为空 */
+  sessionFile?: string;
+  /** 浏览器扩展对话：会话落在页面目录，按 chatId 找文件（与 sessionFile 互斥） */
+  browserPageUrl?: string;
   provider: LLMProviderSetting;
   model: LLMModelSetting;
   /** 本轮完整 system prompt（拼好 skills/隐藏上下文）；每轮热替换 */
   systemPrompt: string;
-  /** 灌入历史（仅创建时消费；chat-core 消息序列） */
-  history: RequestMessage[];
   thinkingLevel?: PiThinkingLevel;
+  /** 是否有审批条与提问卡（缺省 true；浏览器扩展没有，需确认的工具直接拒绝） */
+  interactive?: boolean;
   toolScope?: string;
   /** 工具执行附加上下文（渲染端执行时的 toolContext） */
   toolContext?: Record<string, unknown>;
@@ -57,8 +63,15 @@ export interface EnsureChatSessionOptions {
   } | null>;
 }
 
+export interface EnsuredChatSession {
+  sessionId: string;
+  /** 宿主回传的会话文件名（草稿首轮据此登记目录行）；收养的会话没有 */
+  sessionFile?: string;
+}
+
 interface ChatSessionDescriptor {
   sessionId: string;
+  sessionFile?: string;
   providerId: string;
   modelId: string;
   thinkingLevel?: PiThinkingLevel;
@@ -71,14 +84,14 @@ interface ChatSessionDescriptor {
 const sameNames = (a: string[] | undefined, b: string[]): boolean =>
   Boolean(a) && a!.length === b.length && a!.every((name, index) => name === b[index]);
 
-/** chatScope 带 `"main-chat:123"` 形态的参数前缀，会话键取冒号前缀（与 conversationKey 约定一致） */
-export const chatSessionKey = (chatScope: string, chatId: number): string =>
+/** chatScope 带 `"pdf-chat:12"` 形态的参数前缀，会话键取冒号前缀（与 conversationKey 约定一致） */
+export const chatSessionKey = (chatScope: string, chatId: string): string =>
   `${chatScope.split(":")[0]}:${chatId}`;
 
 class PiChatSessionManager {
   private readonly sessions = new Map<string, ChatSessionDescriptor>();
 
-  public resolveSessionId(chatScope: string, chatId: number): string | undefined {
+  public resolveSessionId(chatScope: string, chatId: string): string | undefined {
     return this.sessions.get(chatSessionKey(chatScope, chatId))?.sessionId;
   }
 
@@ -88,7 +101,7 @@ class PiChatSessionManager {
    */
   public async adoptOrResolveSession(
     chatScope: string,
-    chatId: number
+    chatId: string
   ): Promise<string | undefined> {
     initPiToolBridge();
     const local = this.resolveSessionId(chatScope, chatId);
@@ -108,16 +121,13 @@ class PiChatSessionManager {
     return found.sessionId;
   }
 
-  public isStreamingKnown(chatScope: string, chatId: number): boolean {
-    return this.sessions.has(chatSessionKey(chatScope, chatId));
-  }
-
   /**
    * 确保 chat 有可用 pi 会话：模型/档位变化自动重建；systemPrompt 每轮热替换。
    * 工具集变化分两档——启用/停用已注册的工具只切活跃集（不重建、保留本会话授权）；
    * 出现新的工具定义（新连 MCP 服务器、schema 变更）才重建，因为 pi 注册表装配后不可追加。
+   * 重建不丢历史：pi 从会话文件恢复。
    */
-  public async ensureChatSession(options: EnsureChatSessionOptions): Promise<string> {
+  public async ensureChatSession(options: EnsureChatSessionOptions): Promise<EnsuredChatSession> {
     const key = chatSessionKey(options.chatScope, options.chatId);
     const existing = this.sessions.get(key);
     if (
@@ -136,7 +146,10 @@ class PiChatSessionManager {
         else console.error("同步活跃工具集失败:", outcome.error);
       }
       await piSessionSetSystemPrompt(existing.sessionId, options.systemPrompt);
-      return existing.sessionId;
+      return {
+        sessionId: existing.sessionId,
+        ...(existing.sessionFile ? { sessionFile: existing.sessionFile } : {}),
+      };
     }
     if (existing) {
       await this.disposeChatSession(options.chatScope, options.chatId);
@@ -144,15 +157,22 @@ class PiChatSessionManager {
     return this.createSession(key, options);
   }
 
-  /** 强制重建（编辑历史/重试/分支回退等非 append-only 变更） */
-  public async recreateChatSession(options: EnsureChatSessionOptions): Promise<string> {
-    const key = chatSessionKey(options.chatScope, options.chatId);
-    await this.disposeChatSession(options.chatScope, options.chatId);
-    return this.createSession(key, options);
+  public async disposeChatSession(chatScope: string, chatId: string): Promise<void> {
+    return this.disposeByKey(chatSessionKey(chatScope, chatId));
   }
 
-  public async disposeChatSession(chatScope: string, chatId: number): Promise<void> {
-    return this.disposeByKey(chatSessionKey(chatScope, chatId));
+  /**
+   * 改历史（编辑重发/重新生成/删除）：先释放宿主会话再改文件——主进程不允许文件仍被
+   * 宿主打开时改历史。下一轮 ensure 从改后的文件恢复。
+   */
+  public async editChatHistory(
+    chatScope: string,
+    chatId: string,
+    sessionFile: string,
+    edit: PiSessionEdit
+  ): ReturnType<typeof piSessionEdit> {
+    await this.disposeChatSession(chatScope, chatId);
+    return piSessionEdit({ sessionFile }, edit);
   }
 
   public async disposeByKey(key: string): Promise<void> {
@@ -172,9 +192,10 @@ class PiChatSessionManager {
     options: EnsureChatSessionOptions,
     prebuilt?: ChatToolLoadout,
     lifecycle?: { dispose?: boolean }
-  ): Promise<string> {
+  ): Promise<EnsuredChatSession> {
     if (lifecycle?.dispose) await this.disposeByKey(key);
     initPiToolBridge();
+    // 宿主登记键（这一次打开）与 pi 会话 id（这条对话）是两回事：前者每次重建都换
     const sessionId = crypto.randomUUID();
     const loadout = prebuilt ?? buildToolLoadout(options);
     const customTools = loadout.specs;
@@ -184,11 +205,13 @@ class PiChatSessionManager {
       cwd: options.cwd ?? "",
       modelRef: { providerId: options.provider.id, modelId: options.model.id },
       systemPrompt: options.systemPrompt,
-      interactive: true,
+      interactive: options.interactive ?? true,
+      piSessionId: options.chatId,
+      ...(options.sessionFile ? { sessionFile: options.sessionFile } : {}),
+      ...(options.browserPageUrl ? { browserPageUrl: options.browserPageUrl } : {}),
       ...(options.persist === false ? { persist: false } : {}),
       ...(customTools.length > 0 ? { customTools, activeToolNames: loadout.activeToolNames } : {}),
       ...(options.thinkingLevel ? { thinkingLevel: options.thinkingLevel } : {}),
-      ...(options.history.length > 0 ? { initialMessages: options.history } : {}),
     });
     if (!outcome.ok) {
       throw new Error(outcome.error ?? "pi 会话创建失败");
@@ -199,13 +222,14 @@ class PiChatSessionManager {
     });
     this.sessions.set(key, {
       sessionId,
+      ...(outcome.sessionFile ? { sessionFile: outcome.sessionFile } : {}),
       providerId: options.provider.id,
       modelId: options.model.id,
       toolUniverse: loadout.universe,
       activeToolNames: loadout.activeToolNames,
       ...(options.thinkingLevel ? { thinkingLevel: options.thinkingLevel } : {}),
     });
-    return sessionId;
+    return { sessionId, ...(outcome.sessionFile ? { sessionFile: outcome.sessionFile } : {}) };
   }
 }
 

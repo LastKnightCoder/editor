@@ -193,7 +193,148 @@ export function runPiAgent(
   };
 }
 
-function buildToolSpecs(options: PiAgentRunOptions): PiHostToolSpec[] {
+export interface BrowserSessionTurnOptions extends Pick<
+  PiAgentRunOptions,
+  "provider" | "model" | "conversationKey" | "additionalTools" | "executeAdditionalTool"
+> {
+  /** 扩展对话 id = pi 会话 id（首轮以它新建，之后按它在页面目录里找文件恢复） */
+  sessionId: string;
+  pageUrl: string;
+  systemPrompt: string;
+  /** 本轮的用户消息（历史由 pi 从会话文件恢复，扩展不再拼历史） */
+  message: RequestMessage | undefined;
+}
+
+/**
+ * 浏览器扩展侧栏的一轮持久对话（M4.5）：会话落在 `browser-sessions/<页面键>/`，
+ * 每轮从文件恢复宿主会话、prompt、agent_settled 后释放（扩展没有常驻宿主）。
+ * 用户消息的展示形态随 prompt 写成展示 entry，重开时照原样显示。
+ * 标题：用户改名写 pi session name；没改过时列表取首条用户消息（SessionManager.list 自带）。
+ */
+export function runBrowserSessionTurn(
+  options: BrowserSessionTurnOptions,
+  onEvent?: (event: AgentSessionEvent) => void
+): PiAgentRunHandle {
+  initPiToolBridge();
+  const hostId = crypto.randomUUID();
+  let settled = false;
+  let aborted = false;
+  const result = (async (): Promise<PiAgentRunResult> => {
+    const message = options.message;
+    if (!message || message.role !== ("user" as never)) {
+      return { ok: false, error: "缺少本轮的用户消息", lastAssistantText: "", aborted: false };
+    }
+    try {
+      const customTools = buildToolSpecs(options);
+      const created = await piSessionCreate(hostId, {
+        scope: options.conversationKey ?? `browser:${options.sessionId}`,
+        cwd: "",
+        modelRef: { providerId: options.provider.id, modelId: options.model.id },
+        systemPrompt: options.systemPrompt,
+        // 扩展没有审批条与提问卡：需确认的工具直接拒绝，不注册 ask-question
+        interactive: false,
+        piSessionId: options.sessionId,
+        browserPageUrl: options.pageUrl,
+        ...(customTools.length > 0 ? { customTools } : {}),
+      });
+      if (!created.ok) {
+        return { ok: false, error: created.error, lastAssistantText: "", aborted: false };
+      }
+      registerPiToolSessionContext(hostId, {
+        ...(options.conversationKey ? { conversationKey: options.conversationKey } : {}),
+        ...(options.additionalTools && options.executeAdditionalTool
+          ? {
+              executeToolCall: async payload => {
+                const names = new Set(options.additionalTools!.map(tool => tool.function.name));
+                if (!names.has(payload.toolName)) return null;
+                return (
+                  (await options.executeAdditionalTool!({
+                    toolName: payload.toolName,
+                    args: payload.args,
+                  })) ?? null
+                );
+              },
+            }
+          : {}),
+      });
+      let lastAssistantText = "";
+      const unsubscribe = onPiSessionEvent(hostId, event => {
+        if (event.type === "message_end" && event.message.role === "assistant") {
+          const text = (
+            event.message as unknown as { content: Array<{ type: string; text?: string }> }
+          ).content
+            .filter(block => block.type === "text")
+            .map(block => block.text ?? "")
+            .join("\n\n");
+          if (text) lastAssistantText = text;
+        }
+        if (event.type === "agent_settled") settled = true;
+        onEvent?.(event);
+      });
+      const contentItems = Array.isArray(message.content)
+        ? message.content
+        : [{ type: "text" as const, text: message.content as string }];
+      const promptText = contentItems
+        .map(item =>
+          item.type === "text"
+            ? item.text
+            : item.type === "file"
+              ? `[文件：${item.fileName ?? item.file}]\n路径：${item.file}\n请使用 pi 的 read 工具读取该文件。`
+              : ""
+        )
+        .filter(Boolean)
+        .join("\n");
+      const images = contentItems
+        .filter(item => item.type === "image")
+        .map(item =>
+          item.image.startsWith("data:")
+            ? { dataUrl: item.image }
+            : { path: item.path ?? item.image }
+        );
+      const release = async () => {
+        unsubscribe();
+        unregisterPiToolSessionContext(hostId);
+        await piSessionDispose(hostId);
+      };
+      const prompted = await piSessionPrompt(hostId, promptText, images, {
+        content: contentItems,
+        ...(message.clientId ? { clientId: message.clientId } : {}),
+      });
+      if (!prompted.ok) {
+        await release();
+        return { ok: false, error: prompted.error, lastAssistantText: "", aborted: false };
+      }
+      await new Promise<void>(resolve => {
+        const check = () => (settled ? resolve() : setTimeout(check, 50));
+        check();
+      });
+      await release();
+      return { ok: true, lastAssistantText, aborted };
+    } catch (error) {
+      unregisterPiToolSessionContext(hostId);
+      void piSessionDispose(hostId);
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+        lastAssistantText: "",
+        aborted,
+      };
+    }
+  })();
+  return {
+    result,
+    abort: () => {
+      if (!settled) {
+        aborted = true;
+        void piSessionAbort(hostId);
+      }
+    },
+  };
+}
+
+function buildToolSpecs(
+  options: Pick<PiAgentRunOptions, "toolScope" | "excludeToolNames" | "additionalTools">
+): PiHostToolSpec[] {
   const registryTools = getToolRegistryAgentTools({
     includeBuiltinSkillTools: true,
     ...(options.toolScope ? { toolScope: options.toolScope } : {}),

@@ -80,16 +80,20 @@ const turnIdOf = (entryId: string) => `pi:jsonl:${entryId}`;
 /** pi 的 user message → 桌面用户消息（图片没有本地路径，按 dataURL 展示） */
 const toRequestMessage = (entry: PiTranscriptEntry): RequestMessage | null => {
   const entryId = entry.id;
+  const piEntryIds = [entryId];
   if (entry.display && entry.display.content.length > 0) {
     return {
       clientId: entry.display.clientId ?? `pi:${entryId}`,
+      piEntryIds,
       role: Role.User,
       content: entry.display.content,
     };
   }
   const raw = entry.message.content;
   if (typeof raw === "string") {
-    return raw.trim() ? { clientId: `pi:${entryId}`, role: Role.User, content: raw } : null;
+    return raw.trim()
+      ? { clientId: `pi:${entryId}`, piEntryIds, role: Role.User, content: raw }
+      : null;
   }
   const content: MessageContent[] = [];
   for (const block of contentBlocksOf(raw)) {
@@ -103,7 +107,7 @@ const toRequestMessage = (entry: PiTranscriptEntry): RequestMessage | null => {
     }
   }
   if (content.length === 0) return null;
-  return { clientId: `pi:${entryId}`, role: Role.User, content };
+  return { clientId: `pi:${entryId}`, piEntryIds, role: Role.User, content };
 };
 
 /** pi 的 assistant message → 一个 turn 的块序列（顺序保持：thinking/text/toolCall 原样） */
@@ -223,20 +227,24 @@ export function piEntriesToDesktopMessages(entries: PiTranscriptEntry[]): ChatSe
     }
     if (role === "assistant") {
       const blocks = toAssistantBlocks(entry.id, entry.message);
-      if (blocks.length === 0) continue;
       if (!assistant) {
         assistant = {
           clientId: `pi:${entry.id}`,
+          piEntryIds: [],
           role: Role.Assistant,
           content: "",
           assistant_blocks: [],
         };
       }
+      // 空内容的 assistant（中止/报错的收尾轮）也记 entry id：删除回答时要一起省略
+      assistant.piEntryIds!.push(entry.id);
+      if (blocks.length === 0) continue;
       assistant.assistant_blocks = [...(assistant.assistant_blocks ?? []), ...blocks];
       accumulateUsage(assistant, entry.message);
       continue;
     }
     if (role === "toolResult" && assistant) {
+      assistant.piEntryIds!.push(entry.id);
       applyToolResult(assistant, entry.message);
     }
   }

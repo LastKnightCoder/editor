@@ -5,9 +5,6 @@ import type {
   TaskProgress,
   CreateVLResource,
   UpdateVLResource,
-  VLChatMessage,
-  CreateVLChat,
-  UpdateVLChat,
   VLNote,
   CreateVLNote,
   UpdateVLNote,
@@ -244,62 +241,6 @@ export const vlRebuildAfterEmbeddingSwitch = async (
     reason,
     mainDbName,
   });
-};
-
-/**
- * 创建 VL 对话
- */
-export const createVLChat = async (params: CreateVLChat): Promise<VLChatMessage> => {
-  return await invoke("vl-create-chat", params);
-};
-
-/**
- * 更新 VL 对话
- */
-export const updateVLChat = async (params: UpdateVLChat): Promise<VLChatMessage | null> => {
-  return await invoke("vl-update-chat", params);
-};
-
-/**
- * 删除 VL 对话
- */
-export const deleteVLChat = async (id: number): Promise<boolean> => {
-  return await invoke("vl-delete-chat", id);
-};
-
-/**
- * 根据 ID 获取 VL 对话
- */
-export const getVLChatById = async (id: number): Promise<VLChatMessage | null> => {
-  return await invoke("vl-get-chat", id);
-};
-
-/**
- * 根据项目 ID 获取所有 VL 对话
- */
-export const getVLChatsByProjectId = async (projectId: number): Promise<VLChatMessage[]> => {
-  return await invoke("vl-get-chats-by-project", projectId);
-};
-
-/**
- * 获取 VL 对话分支
- */
-export const getVLChatBranches = async (parentChatId: number): Promise<VLChatMessage[]> => {
-  return await invoke("vl-get-chat-branches", parentChatId);
-};
-
-/**
- * 获取下一个分支索引
- */
-export const getVLNextBranchIndex = async (parentChatId: number): Promise<number> => {
-  return await invoke("vl-get-next-branch-index", parentChatId);
-};
-
-/**
- * 获取子分支数量（包括所有层级的子分支）
- */
-export const getVLChildBranchesCount = async (parentChatId: number): Promise<number> => {
-  return await invoke("vl-get-child-branches-count", parentChatId);
 };
 
 /**

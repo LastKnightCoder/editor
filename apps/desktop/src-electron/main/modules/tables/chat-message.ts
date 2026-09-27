@@ -1,5 +1,15 @@
 import Database from "better-sqlite3";
-import { ChatSessionMessage, ChatMessage } from "@/types";
+import type { ChatSessionRecord } from "@tau/shared";
+import { ChatSessionMessage } from "@/types";
+
+/**
+ * 旧 chat_message 表的行形状（M4 起对话事实源是 chat_session + pi JSONL，本表只剩迁移器读取，
+ * 渲染端已零调用方；handler 与表按计划留到 M8）。id 仍是自增整数，与新目录表的字符串 id 无关。
+ */
+type ChatMessage = Omit<ChatSessionRecord, "id" | "parentChatId"> & {
+  id: number;
+  parentChatId?: number | null;
+};
 import {
   CHAT_MESSAGE_SCHEMA_VERSION,
   migrateChatSessionMessages,

@@ -10,7 +10,7 @@ import { useEffect, useMemo, useState } from "react";
 import { FileQuestion } from "lucide-react";
 import { Button } from "@tau/ui";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
-import useChatMessageStore from "@/stores/useChatMessageStore";
+import useChatSessionStore from "@/stores/useChatSessionStore";
 import { blockRegistry } from "@/utils/blockRegistry";
 import type { BlockData } from "@/types/block-preview";
 import { BlockPreviewFrame } from "../components/BlockPreviewFrame";
@@ -19,7 +19,8 @@ import { versionsOf } from "../model/chatBlocks";
 
 type Params = {
   id: string;
-  chat?: number;
+  /** 来源会话 id（pi 会话 id）；旧版本存的 number 参数按不存在处理 */
+  chat?: string;
   key?: string;
   block?: string;
 };
@@ -44,9 +45,13 @@ export function BlockPreviewView() {
   const { navigator } = usePage();
   const close = () => (navigator.canBack() ? navigator.back() : navigator.push("home"));
 
-  const chatId = params.chat ?? null;
+  const chatId = typeof params.chat === "string" && params.chat ? params.chat : null;
   const blocks = useChatBlocks(chatId);
-  const chatTitle = useChatMessageStore(s => s.chats.find(c => c.id === chatId)?.title);
+  const chatTitle = useChatSessionStore(s => (chatId ? s.opened[chatId]?.title : undefined));
+  // 预览页可能先于对话被打开（历史记录后退回来）：按需打开对话读投影
+  useEffect(() => {
+    if (chatId) void useChatSessionStore.getState().openChat(chatId);
+  }, [chatId]);
   const [activeKey, setActiveKey] = useState(params.key);
   useEffect(() => setActiveKey(params.key), [params.key]);
 
@@ -75,7 +80,7 @@ export function BlockPreviewView() {
           <>
             <button
               type="button"
-              onClick={() => navigator.push("chat", { id: String(chatId) })}
+              onClick={() => navigator.push("chat", { id: chatId })}
               title="在对话页打开"
               className="ease-tau-out hover:text-accent-text rounded-tau-sm hover:bg-hover max-w-[28ch] truncate px-1.5 py-0.5 transition-colors"
             >

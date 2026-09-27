@@ -95,27 +95,31 @@ export function appendDisplayEntry(manager: SessionManager, display: DesktopDisp
   manager.appendCustomEntry(DISPLAY_ENTRY_TYPE, display);
 }
 
-/** 叶子路径上「第 N 条用户消息」对应的 entry（改历史操作按桌面消息下标定位） */
-function findUserEntryAt(manager: SessionManager, userIndex: number) {
-  const users = manager
-    .getBranch()
-    .filter(
-      entry =>
-        entry.type === "message" && (entry as { message: { role: string } }).message.role === "user"
-    );
-  return users[userIndex];
-}
+const isDisplayEntry = (entry: { type: string }) =>
+  entry.type === "custom" && (entry as { customType?: string }).customType === DISPLAY_ENTRY_TYPE;
 
 /**
- * 编辑重发 / 重新生成：把叶子挪到第 userIndex 条用户消息之前。旧的回答留在树上（M4-d 分支导航
+ * 编辑重发 / 重新生成：把叶子挪到 entryId（一条用户消息）之前。定位用投影带回的 entry id，
+ * 不用消息下标——被删除（省略）的消息仍在路径上，下标会错位。旧的回答留在树上（M4-d 分支导航
  * 可见），下一次 prompt 从新叶子接着写。挪完追加叶子标记，让重开时 pi 也落在这里。
  */
-export function rewindToBeforeUser(sessionFile: string, userIndex: number): void {
+export function rewindToBeforeEntry(sessionFile: string, entryId: string): void {
   const manager = SessionManager.open(sessionFile);
-  const target = findUserEntryAt(manager, userIndex);
-  if (!target) throw new Error(`找不到第 ${userIndex + 1} 条用户消息`);
+  const oldBranch = manager.getBranch();
+  const target = oldBranch.find(entry => entry.id === entryId);
+  if (!target) throw new Error("要回退的消息已不在当前对话里");
+  // 删除（context_edit）只作用于它所在的路径：回退到它之前，删过的消息会重新出现。
+  // 把目标仍在新路径上的省略重新挂到新叶子上
+  const omitted = oldBranch
+    .filter(entry => entry.type === "context_edit")
+    .filter(entry => (entry as { replacement: unknown }).replacement === null)
+    .map(entry => (entry as { targetId: string }).targetId);
   if (target.parentId === null) manager.resetLeaf();
   else manager.branch(target.parentId);
+  const kept = new Set(manager.getBranch().map(entry => entry.id));
+  for (const targetId of omitted) {
+    if (kept.has(targetId)) manager.appendContextEdit(targetId, null);
+  }
   manager.appendCustomEntry(LEAF_ENTRY_TYPE, { reason: "rewind" });
   ensureFlushed(manager);
 }
@@ -132,27 +136,27 @@ export function omitEntries(sessionFile: string, entryIds: string[]): void {
 
 /**
  * 从当前路径拷出一个分支文件（建分支）：pi 的 createBranchedSession 会给新文件一个随机 id，
- * 这里要求新文件 id = 目录表主键，所以按文本重写头部 id。
+ * 这里要求新文件 id = 目录表主键，所以自己写头部。
  * 返回新会话文件名（相对会话目录）。
  */
 export function branchSessionFile(options: {
   sessionDir: string;
   sourceFile: string;
   newSessionId: string;
-  /** 保留到第几条用户消息（含其后的回答）；缺省保留整条路径 */
-  throughUserIndex?: number;
+  /** 保留到哪条 entry（含）：一条用户消息自身，或一条回答的最后一个 entry；缺省保留整条路径 */
+  throughEntryId?: string;
 }): string {
   const manager = SessionManager.open(options.sourceFile, options.sessionDir);
   const branch = manager.getBranch();
-  let leafId = branch.at(-1)?.id;
-  if (options.throughUserIndex !== undefined) {
-    const nextUser = findUserEntryAt(manager, options.throughUserIndex + 1);
-    // 截到下一条用户消息之前：保留第 N 条用户消息与它的全部回答
-    leafId = nextUser ? (nextUser.parentId ?? undefined) : leafId;
+  let cut = branch.length;
+  if (options.throughEntryId !== undefined) {
+    const index = branch.findIndex(entry => entry.id === options.throughEntryId);
+    if (index < 0) throw new Error("要分支的消息已不在当前对话里");
+    cut = index + 1;
+    // 用户消息的展示 entry 紧随其后写入，截断点落在用户消息上时要一起带走
+    while (cut < branch.length && isDisplayEntry(branch[cut])) cut += 1;
   }
-  const kept = leafId
-    ? branch.slice(0, branch.findIndex(entry => entry.id === leafId) + 1)
-    : branch;
+  const kept = branch.slice(0, cut);
   const now = new Date();
   const fileName = sessionFileNameFor(options.newSessionId, now);
   const header = {
@@ -161,6 +165,7 @@ export function branchSessionFile(options: {
     id: options.newSessionId,
     timestamp: now.toISOString(),
     cwd: manager.getCwd(),
+    // 与 pi 的 fork 同一约定：父会话记绝对路径（扩展据此还原分支关系）
     parentSession: options.sourceFile,
   };
   // 拷贝时重新成链：路径上可能夹着 label/leaf 之类的 entry，跳过的要把父指针接上

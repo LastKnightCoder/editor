@@ -20,8 +20,12 @@ import {
 import useSettingStore from "@/stores/useSettingStore.ts";
 import useGlobalStateStore, { DatabaseConnectionStatus } from "@/stores/useGlobalStateStore";
 import { SyncProviderFactory } from "@/utils/sync";
+import { piSessionPack, piSessionUnpack } from "@/commands/piSession";
 import type { IDatabaseInfo } from "@/types/sync";
 import { DATA_MODEL_VERSION, assertCompatibleDataModel } from "@tau/db-schema/src/model-version";
+
+/** 会话包的远程对象名（与 .db 同名前缀，共用 database_<库名>.json 里的版本号） */
+export const sessionArchiveObjectName = (databaseName: string) => `${databaseName}.sessions.zip`;
 
 interface SyncCommandOptions {
   onProgress?: (payload: { value: number; status: string }) => void;
@@ -144,7 +148,24 @@ export const upload = async (options?: SyncCommandOptions) => {
       return false;
     }
 
-    // 数据库上传成功后再发布新版本，避免失败时远程版本提前生效。
+    // 会话包（M4）：对话内容在 pi 会话文件里，目录表随 .db 过去、文件得一起过去，
+    // 否则对面「列表同步过去、点开全空」。与 .db 共用同一个版本号
+    emitProgress(options, 60, "正在上传对话记录...");
+    const packed = await piSessionPack(databaseName);
+    if (!packed.ok || !packed.archive) {
+      message.error(`打包对话记录失败：${packed.error ?? "未知错误"}`);
+      return false;
+    }
+    const sessionsSuccess = await syncProvider.uploadFile(
+      sessionArchiveObjectName(databaseName),
+      packed.archive
+    );
+    if (!sessionsSuccess) {
+      message.error("上传对话记录失败");
+      return false;
+    }
+
+    // 数据库与会话包都上传成功后再发布新版本，避免失败时远程版本提前生效。
     emitProgress(options, 75, "正在上传版本信息...");
     const infoSuccess = await syncProvider.uploadFile(
       databaseInfoObjectName,
@@ -268,6 +289,24 @@ export const download = async (options?: SyncCommandOptions) => {
     } catch (e) {
       databaseDownloadSuccess = false;
       console.error("下载数据库文件失败:", e);
+    }
+
+    // 会话包（M4）：远程没有（旧版本上传的、迁移前的远程）就不动本地——
+    // 那份 .db 开库时会自己跑迁移；有则先整体备份本地会话目录再替换
+    if (databaseDownloadSuccess) {
+      try {
+        const archiveName = sessionArchiveObjectName(databaseName);
+        if (await syncProvider.fileExists(archiveName)) {
+          emitProgress(options, 90, "正在更新对话记录...");
+          const archive = await syncProvider.downloadFile(archiveName);
+          const unpacked = await piSessionUnpack(databaseName, archive);
+          if (!unpacked.ok) throw new Error(unpacked.error ?? "解包失败");
+        }
+      } catch (e) {
+        // 数据库已替换、会话没跟上：对话列表会指向缺失的文件，提示用户重试而不是静默
+        console.error("下载对话记录失败:", e);
+        message.warning("对话记录同步失败，部分对话可能打不开，请稍后重新同步");
+      }
     }
 
     const isSuccessful = databaseDownloadSuccess;

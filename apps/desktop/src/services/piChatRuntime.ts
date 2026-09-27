@@ -8,13 +8,14 @@
  * - streaming 态：agent_start/agent_settled 事件驱动（组件据此算 sendLoading）；
  * - 待发送队列与已提交插话：流式中提交的消息在这里排队（切页不丢），交给 pi 原生 steer
  *   的插话在这里挂着直到送达；送达时把用户消息写进聊天行，未送达的在 settled 退回队列；
- * - 写入链：produce(chat.current) → publish（store 更新驱动 UI 订阅）→ settled 时 persist 落库。
+ * - 写入链：produce(chat.current) → publish（store 更新驱动 UI 订阅）→ settled 时 settle
+ *   重读 JSONL 投影回写容器（M4：内容由 pi 自己落盘，运行时不再整行写库）。
  *
- * deps（publish/persist/UI 钩子）由挂载的组件每次渲染刷新注册——它们必须是
+ * deps（publish/settle/UI 钩子）由挂载的组件每次渲染刷新注册——它们必须是
  * 无组件生命周期的引用（store action / IPC command），组件卸载后调用依然安全。
  */
 import { produce } from "immer";
-import type { ChatMessage, RequestMessage, ResponseMessage } from "@/types";
+import type { ChatMessage, ChatSessionMessage, RequestMessage, ResponseMessage } from "@/types";
 // 类型导入（运行时不引入 @tau/shared，避免把编辑器包拉进测试模块图，见坑 9）
 import type { MessageContentItem } from "@tau/shared";
 import { Role } from "@/constants";
@@ -33,24 +34,28 @@ import {
   setInteractionSessionReady,
   usePiInteractionStore,
 } from "./piInteractions";
-import { ASK_QUESTION_TOOL_NAME } from "@/tools/askQuestionTypes";
-import type { ToolCallExecutionState } from "@/types";
 import { withStreamingUpdateTime } from "@/layouts/ContentLayout/components/ChatSidebar/streamingUtils";
 
 /** 组件提供的会话依赖（必须无组件生命周期：store action / IPC command） */
 export interface PiChatRuntimeDeps {
   /** 聊天行更新进 store（驱动 UI 订阅） */
   publish(chat: ChatMessage): void;
-  /** 聊天行落库（纯存库，不含标题生成等耗时副作用） */
-  persist(chat: ChatMessage): Promise<ChatMessage>;
-  /** 可选：settled 落库后生成标题；返回 null 表示不需要/失败。回写由 runtime 在最新快照上补丁 */
+  /**
+   * 一轮结束后的收尾（M4）：JSONL 已由 pi 自己写完，这里重读投影（并更新目录行消息数/时间），
+   * 返回投影出的对话；返回 null 表示没有可读的（草稿首轮就失败、文件未落盘）。
+   * runtime 按位置沿用原 clientId 回写容器，避免列表重挂载。
+   */
+  settle(chat: ChatMessage): Promise<ChatSessionMessage[] | null>;
+  /** 可选：settled 后生成标题；返回 null 表示不需要/失败 */
   generateTitle?(chat: ChatMessage): Promise<string | null>;
+  /** 可选：标题写进目录行（生成成功后调用） */
+  saveTitle?(chatId: string, title: string): Promise<void>;
   /** 可选 UI 钩子（组件挂载时有效；卸载后 runtime 继续跑，钩子自动失效） */
   ui?: {
     onRetryStatus?(status: { attempt: number; maxAttempts: number } | null): void;
     onStreamError?(message: string): void;
     onSettled?(conversationKey: string): void;
-    onTitleGenerated?(chatId: number, title: string): void;
+    onTitleGenerated?(chatId: string, title: string): void;
   };
   /** usage 落地时的模型标识（每轮发送刷新） */
   usageModel?: { providerId: string; modelName?: string };
@@ -84,21 +89,37 @@ interface ConversationEntry {
   unsubscribe: (() => void) | null;
   streaming: boolean;
   deps: PiChatRuntimeDeps;
-  /** 等待用户（审批/提问）快照的持久化去重 */
-  persistedExecutionKeys: Set<string>;
   /** 标题生成进行中（防同一会话并发重复生成） */
   titleGenerating: boolean;
   /** 用户已请求停止，收尾轮的报错不展示（下一轮 agent_start 复位） */
   stopRequested: boolean;
 }
 
-/** 工具卡处于等待用户处理的状态（审批等待，或提问尚未作答） */
-const isAwaitingUser = (execution: ToolCallExecutionState): boolean =>
-  execution.status === "awaiting-approval" ||
-  (execution.toolName === ASK_QUESTION_TOOL_NAME &&
-    (execution.status === "pending" ||
-      execution.status === "executing" ||
-      execution.status === "retrying"));
+/** 最后一条回答里有没有结果的工具调用（等待审批/作答，或中断在工具执行中） */
+const hasUnresolvedToolCall = (message: ResponseMessage): boolean =>
+  (message.assistant_blocks ?? []).some(
+    block =>
+      block.type === "tool_call" &&
+      (!block.execution || !["success", "failed", "cancelled"].includes(block.execution.status))
+  );
+
+/**
+ * 投影回写容器：投影是事实源，但按位置沿用原 clientId（列表按 clientId 做 key，
+ * 换成 `pi:<entryId>` 会让每条消息重挂载、滚动位置跳动）。只在角色对得上时沿用。
+ * 只换消息，元数据（标题等）以容器为准——生成中的标题回写不能被收尾冲掉。
+ */
+export const adoptTranscript = (
+  current: ChatMessage,
+  messages: ChatSessionMessage[]
+): ChatMessage => ({
+  ...current,
+  messages: messages.map((message, index) => {
+    const previous = current.messages[index];
+    return previous?.clientId && previous.role === message.role
+      ? { ...message, clientId: previous.clientId }
+      : message;
+  }),
+});
 
 class PiChatRuntime {
   private readonly conversations = new Map<string, ConversationEntry>();
@@ -128,7 +149,6 @@ class PiChatRuntime {
         unsubscribe: null,
         streaming: false,
         deps,
-        persistedExecutionKeys: new Set<string>(),
         titleGenerating: false,
         stopRequested: false,
       };
@@ -137,24 +157,6 @@ class PiChatRuntime {
       entry.deps = deps;
     }
     return entry.chat;
-  }
-
-  /** 新对话落库后（id 0→N）迁移条目——容器对象保持不变（组件持有的 ref 持续有效） */
-  public adoptConversation(
-    oldKey: string,
-    newKey: string,
-    chat: ChatMessage,
-    deps: PiChatRuntimeDeps
-  ) {
-    const entry = this.conversations.get(oldKey);
-    if (entry) {
-      entry.chat.current = chat;
-      entry.deps = deps;
-      this.conversations.delete(oldKey);
-      this.conversations.set(newKey, entry);
-      return entry.chat;
-    }
-    return this.ensureConversation(newKey, chat, deps);
   }
 
   /** 绑定 pi 会话（常驻 reducer；切换/recreate 会话时重建订阅） */
@@ -301,23 +303,20 @@ class PiChatRuntime {
   }
 
   /**
-   * 渲染层重载后恢复已落库的等待（审批/提问）：收养主进程仍持有的会话并接上归约订阅。
-   * 主进程也重启时收养不到，工具卡显示中断；完整 JSONL 恢复由会话管理（M4）负责。
+   * 渲染层重载后恢复等待（审批/提问）：收养主进程仍持有的会话并接上归约订阅。
+   * 判定口径（M4）：JSONL 在等待期间只有带 toolCall 的 assistant message、还没有 toolResult，
+   * 投影出的工具卡没有 execution——所以看「最后一条回答里有没有结果的 tool_call」，
+   * 是不是真在等交给宿主交互快照决定（收养不到 = 主进程也重启了，卡片显示中断）。
    */
   public async restorePendingInteractions(
     key: string,
     chatScope: string,
-    chatId: number
+    chatId: string
   ): Promise<void> {
     const entry = this.conversations.get(key);
     if (!entry || entry.sessionId) return;
     const message = entry.chat.current.messages.at(-1) as ResponseMessage | undefined;
-    if (
-      !message?.assistant_blocks?.some(
-        block => block.type === "tool_call" && block.execution && isAwaitingUser(block.execution)
-      )
-    )
-      return;
+    if (message?.role !== Role.Assistant || !hasUnresolvedToolCall(message)) return;
     initPiInteractions();
     const { piChatSessionManager } = await import("./piChatSession");
     const sessionId = await piChatSessionManager.adoptOrResolveSession(chatScope, chatId);
@@ -369,24 +368,9 @@ class PiChatRuntime {
           );
         },
         applyToolCalls: (turnId, executions, toolCalls) => {
-          const published = this.mutateLastAssistant(key, message =>
+          this.mutateLastAssistant(key, message =>
             applyAssistantToolCallsSnapshot(message, turnId, executions, toolCalls)
           );
-          if (!published) return;
-          // 进入等待用户态时立即落库快照，确保渲染层重载后可恢复
-          const awaitingUser = executions.filter(isAwaitingUser);
-          const shouldPersist = awaitingUser.some(
-            execution =>
-              !entry.persistedExecutionKeys.has(`${execution.toolCallId}::${execution.input}`)
-          );
-          if (shouldPersist) {
-            awaitingUser.forEach(execution =>
-              entry.persistedExecutionKeys.add(`${execution.toolCallId}::${execution.input}`)
-            );
-            void entry.deps.persist(published).catch(error => {
-              console.error("持久化工具等待快照失败:", error);
-            });
-          }
         },
         finalizeTurn: turnId => {
           this.mutateLastAssistant(key, message => finalizeAssistantTurn(message, turnId));
@@ -410,8 +394,8 @@ class PiChatRuntime {
         },
         /**
          * pi 送达了运行中插入的用户消息（原生 steer 落地）：聊天行追加这条用户消息
-         * 与新的助手占位，后续本轮事件自然写进新占位。立即落库——渲染层重载后这条
-         * 用户消息必须还在（否则模型在回答一条聊天记录里不存在的话）。
+         * 与新的助手占位，后续本轮事件自然写进新占位。不用另外落库：pi 在送达时就把它写进
+         * JSONL（展示 entry 由主进程紧跟着写），重载后投影里就有。
          */
         onUserMessageDelivered: text => {
           const index = entry.pendingSteers.findIndex(steer => steer.text === text);
@@ -456,7 +440,7 @@ class PiChatRuntime {
           // 退回待发送队首，由排空按普通消息发出（用户按过停止时队列是暂停的，等他处置）
           this.requeuePendingSteers(entry, key);
           entry.deps.ui?.onSettled?.(key);
-          void this.persistSettled(entry);
+          void this.settleFromTranscript(entry);
         },
       },
       entry.sessionId ?? undefined
@@ -470,7 +454,7 @@ class PiChatRuntime {
     this.notify(key);
   }
 
-  /** 插话送达：追加用户消息 + 新助手占位（单一事实源 produce → publish → 立即落库） */
+  /** 插话送达：追加用户消息 + 新助手占位（单一事实源 produce → publish；JSONL 由 pi 写） */
   private appendDeliveredUserTurn(
     entry: ConversationEntry,
     content: MessageContentItem[] | undefined,
@@ -486,36 +470,28 @@ class PiChatRuntime {
     });
     entry.chat.current = next;
     entry.deps.publish(withStreamingUpdateTime(next));
-    void entry.deps.persist(next).catch(error => {
-      console.error("[piChatRuntime] 插话消息落库失败:", error);
-    });
   }
 
-  /** settled 收尾：先落库，再（异步、不阻塞下一轮）生成标题 */
-  private async persistSettled(entry: ConversationEntry): Promise<void> {
+  /** settled 收尾：重读投影回写容器，再（异步、不阻塞下一轮）生成标题 */
+  private async settleFromTranscript(entry: ConversationEntry): Promise<void> {
+    const snapshot = entry.chat.current;
     try {
-      await this.persistLatest(entry);
+      const settled = await entry.deps.settle(snapshot);
+      // 收尾是异步的：期间容器可能已前进（排队消息开了新一轮、插话送达），那一轮的收尾会再读。
+      // 比对消息数组而不是容器对象：目录行元数据更新（消息数/标题）会换容器对象但不动消息
+      if (settled && entry.chat.current.messages === snapshot.messages) {
+        const next = adoptTranscript(entry.chat.current, settled);
+        entry.chat.current = next;
+        entry.deps.publish(next);
+      }
     } catch (error) {
-      console.error("[piChatRuntime] 聊天持久化失败:", error);
+      console.error("[piChatRuntime] 读取会话投影失败:", error);
       return;
     }
     await this.generateTitle(entry);
   }
 
-  /**
-   * 落库当前快照。落库是异步的，期间容器可能已前进（排队消息开新一轮、标题回写、外部快照），
-   * 只有容器仍是交去落库的那个对象时才采纳落库结果——否则整体替换会冲掉新内容。
-   */
-  private async persistLatest(entry: ConversationEntry): Promise<void> {
-    const snapshot = entry.chat.current;
-    const persisted = await entry.deps.persist(snapshot);
-    if (entry.chat.current === snapshot) {
-      entry.chat.current = persisted;
-      entry.deps.publish(persisted);
-    }
-  }
-
-  /** 标题生成：结果只补丁 title/titleDirty 到最新快照（不替换整行），再落库 */
+  /** 标题生成：结果只补丁 title/titleDirty 到最新快照（不替换整行），再写目录行 */
   private async generateTitle(entry: ConversationEntry): Promise<void> {
     const generate = entry.deps.generateTitle;
     if (!generate || entry.titleGenerating || entry.chat.current.titleDirty !== false) return;
@@ -531,7 +507,7 @@ class PiChatRuntime {
       entry.chat.current = titled;
       entry.deps.publish(titled);
       entry.deps.ui?.onTitleGenerated?.(titled.id, title);
-      await this.persistLatest(entry);
+      await entry.deps.saveTitle?.(titled.id, title);
     } catch (error) {
       console.error("[piChatRuntime] 标题生成失败:", error);
     } finally {

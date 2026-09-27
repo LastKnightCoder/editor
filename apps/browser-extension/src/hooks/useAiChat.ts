@@ -44,6 +44,13 @@ interface UseAiChatOptions {
   systemPrompt?: string;
   initialMessages?: ChatMessageType[];
   onMessagesChange?: (messages: ChatMessageType[]) => void;
+  /**
+   * 持久对话（M4.5，侧栏）：对话落在桌面按页面存放的 pi 会话文件里，每轮只发本轮的用户消息，
+   * 历史由桌面从文件恢复。不传则为一次性调用（概览页、行内问答：带全量历史）。
+   */
+  session?: { id: string; pageUrl: string };
+  /** 一轮结束（含失败）：持久对话据此重读投影 */
+  onFinish?: () => void;
   wsClient?: WebSocketClient | null;
   wsConnected?: boolean;
 }
@@ -79,6 +86,8 @@ interface BuildAiChatRpcPayloadOptions {
   systemPrompt?: string;
   enableTools: boolean;
   conversationKey?: string;
+  /** 持久对话：桌面按页面 + 会话 id 从文件恢复会话 */
+  session?: { id: string; pageUrl: string };
   pageContext?: {
     url: string;
     title: string;
@@ -157,6 +166,7 @@ export const buildAiChatRpcPayload = ({
   systemPrompt,
   enableTools,
   conversationKey,
+  session,
   pageContext,
 }: BuildAiChatRpcPayloadOptions) => ({
   requestId,
@@ -164,6 +174,7 @@ export const buildAiChatRpcPayload = ({
   systemPrompt,
   enableTools,
   conversationKey,
+  ...(session ? { sessionId: session.id, pageUrl: session.pageUrl } : {}),
   browserTools: enableTools ? BROWSER_TOOLS : undefined,
   pageContext,
 });
@@ -200,9 +211,13 @@ export function useAiChat(options: UseAiChatOptions = {}) {
     systemPrompt,
     initialMessages = [],
     onMessagesChange,
+    session,
+    onFinish,
     wsClient: externalWsClient = null,
     wsConnected,
   } = options;
+  const onFinishRef = useRef(onFinish);
+  onFinishRef.current = onFinish;
 
   // 状态
   const [messages, setMessages] = useState<ChatMessageType[]>(initialMessages);
@@ -360,6 +375,7 @@ export function useAiChat(options: UseAiChatOptions = {}) {
 
       setIsLoading(false);
       requestIdRef.current = null;
+      onFinishRef.current?.();
     };
 
     client.registerNotificationHandler("ai.stream.text", handleTextStream);
@@ -448,11 +464,11 @@ export function useAiChat(options: UseAiChatOptions = {}) {
         : [...currentMessages, assistantMessage];
       updateMessages(newMessages);
 
-      const requestMessages: AiChatRequestMessage[] = [
-        ...currentMessages.map(mapMessageToRequest),
-        ...extraHistoryMessages,
-      ];
-      if (persistRequestMessage) {
+      // 持久对话只发本轮的用户消息（历史在桌面的会话文件里）；一次性调用带全量历史
+      const requestMessages: AiChatRequestMessage[] = session
+        ? [requestMessage]
+        : [...currentMessages.map(mapMessageToRequest), ...extraHistoryMessages];
+      if (!session && persistRequestMessage) {
         requestMessages.push(requestMessage);
       }
 
@@ -466,6 +482,7 @@ export function useAiChat(options: UseAiChatOptions = {}) {
             systemPrompt,
             enableTools,
             conversationKey,
+            ...(session ? { session } : {}),
             pageContext,
           }),
           600 * 1000
@@ -474,6 +491,7 @@ export function useAiChat(options: UseAiChatOptions = {}) {
       } catch (error) {
         setError((error as Error).message);
         setIsLoading(false);
+        onFinishRef.current?.();
         return false;
       }
     },
@@ -485,6 +503,7 @@ export function useAiChat(options: UseAiChatOptions = {}) {
       systemPrompt,
       enableTools,
       conversationKey,
+      session,
       updateMessages,
     ]
   );

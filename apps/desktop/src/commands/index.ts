@@ -27,7 +27,6 @@ export * from "./operation";
 export * from "./fts";
 export * from "./video-notes";
 export * from "./video-note-item";
-export * from "./video-note-chat";
 export * from "./video-note-index";
 export * from "./audio-notes";
 export * from "./audio-note-item";
