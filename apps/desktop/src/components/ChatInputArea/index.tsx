@@ -534,7 +534,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
               group: "添加",
               icon: <FileText />,
               label: "文件",
-              description: "由 pi read 工具读取",
+              description: "AI 会自行读取文件内容",
               disabled: attachDisabled,
               onSelect: () => pdfInputRef.current?.click(),
             },
