@@ -455,7 +455,7 @@ const Column = memo(
                 onDoubleClick={e => e.stopPropagation()}
                 onClick={e => {
                   e.stopPropagation();
-                  ColumnUtil.appendRichText(board, element);
+                  void ColumnUtil.appendRichText(board, element);
                 }}
               >
                 <Plus size={14} strokeWidth={1.75} />

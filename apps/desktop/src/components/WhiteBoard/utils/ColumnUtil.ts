@@ -258,20 +258,18 @@ export class ColumnUtil {
 
   /**
    * 在列末尾追加一段空白文字并自动进入编辑（沿用上次的富文本样式）。
-   * 插入与 relayout 同步执行，历史合并为一条撤销记录。
+   * 插入前按内容宽度实测初始高度，避免插入后再跳高；插入与 relayout 历史合并为一条撤销记录。
    */
-  static appendRichText(board: Board, column: ColumnElement): string | null {
-    const path = PathUtil.getPathByElement(board, column);
-    if (!path) return null;
-
+  static async appendRichText(board: Board, column: ColumnElement): Promise<string | null> {
     const contentWidth = column.width - column.padding * 2;
     const element: RichTextElement = {
       id: getUuid(),
       type: "richtext",
-      x: column.x + column.padding,
-      y: column.y + this.calculateHeightFromChildren(column),
+      // 坐标与高度在测量后按列的最新状态填入
+      x: 0,
+      y: 0,
       width: contentWidth,
-      height: 40,
+      height: 0,
       maxWidth: contentWidth,
       maxHeight: 1000,
       readonly: false,
@@ -280,14 +278,22 @@ export class ColumnUtil {
       autoHeight: true,
       content: [{ type: "paragraph", children: [{ type: "formatted", text: "" }] }],
       paddingWidth: 16,
-      paddingHeight: 8,
+      paddingHeight: 16,
       autoFocus: true,
       ...RichTextUtil.getPrevRichtextStyle(),
     };
+    element.height = await board.capabilityService.measureElementHeight(element, contentWidth);
+
+    // 测量期间列可能被移动 / 删除，按最新状态插入
+    const current = BoardUtil.getElementById(board, column.id) as ColumnElement | null;
+    const currentPath = current && PathUtil.getPathByElement(board, current);
+    if (!current || !currentPath) return null;
+    element.x = current.x + current.padding;
+    element.y = current.y + this.calculateHeightFromChildren(current);
 
     board.apply({
       type: "insert_node",
-      path: [...path, column.children.length],
+      path: [...currentPath, current.children.length],
       node: element,
     });
 

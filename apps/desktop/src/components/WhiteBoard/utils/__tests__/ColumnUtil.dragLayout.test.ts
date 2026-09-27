@@ -251,17 +251,19 @@ describe("Column 折叠", () => {
 });
 
 describe("ColumnUtil.appendRichText", () => {
-  it("在列末尾插入自动聚焦的文字，宽度贴合内容区", () => {
+  it("在列末尾插入自动聚焦的文字，宽度贴合内容区、高度取实测值", async () => {
     const column = createColumn();
     const apply = vi.fn();
+    const measureElementHeight = vi.fn().mockResolvedValue(56);
     const board = {
       ...boardStub,
       boardFlag: BoardClass.boardFlag,
       children: [column],
       apply,
+      capabilityService: { measureElementHeight },
     } as unknown as Board;
 
-    const id = ColumnUtil.appendRichText(board, column);
+    const id = await ColumnUtil.appendRichText(board, column);
 
     const insert = apply.mock.calls
       .map(([ops]) => (Array.isArray(ops) ? ops : [ops]))
@@ -272,6 +274,10 @@ describe("ColumnUtil.appendRichText", () => {
       id,
       type: "richtext",
       width: 300 - PAD * 2,
+      height: 56,
+      x: PAD,
+      y: ColumnUtil.calculateHeightFromChildren(column),
+      paddingHeight: 16,
       autoFocus: true,
       autoHeight: true,
       resizable: false,
