@@ -14,6 +14,28 @@ CREATE TABLE IF NOT EXISTS chat_message (
             update_time INTEGER NOT NULL,
             messages TEXT
         , title TEXT, group_id INTEGER, archived INTEGER DEFAULT 0, parent_chat_id INTEGER, branch_index INTEGER DEFAULT 0, order_num INTEGER, message_schema_version INTEGER DEFAULT 3, title_dirty INTEGER DEFAULT 0, agent_type TEXT DEFAULT 'local', agent_session_id TEXT, source TEXT DEFAULT 'desktop');
+-- pi 会话目录表（M4）：会话内容的事实源是 pi JSONL（~/.editor/sessions/<库名>/），
+-- 本表只存列表与管理需要的轻量元数据。id 即 pi 会话 id；session_file 是相对会话目录的文件名
+-- （不存绝对路径：换机/换库不该带着别人的磁盘布局）。
+-- scope 区分五个聊天场景，domain_ref 指向所属对象（PDF/视频笔记/学习项目的 id；主聊天为 NULL）。
+CREATE TABLE IF NOT EXISTS chat_session (
+        id TEXT PRIMARY KEY,
+        scope TEXT NOT NULL,
+        domain_ref TEXT,
+        session_file TEXT NOT NULL,
+        cwd TEXT NOT NULL DEFAULT '',
+        title TEXT NOT NULL DEFAULT '',
+        title_dirty INTEGER NOT NULL DEFAULT 0,
+        group_id INTEGER,
+        order_num INTEGER,
+        archived INTEGER NOT NULL DEFAULT 0,
+        source TEXT NOT NULL DEFAULT 'desktop',
+        message_count INTEGER NOT NULL DEFAULT 0,
+        parent_session_id TEXT,
+        branch_index INTEGER NOT NULL DEFAULT 0,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      );
 CREATE TABLE IF NOT EXISTS question_group (
         id INTEGER PRIMARY KEY,
         title TEXT NOT NULL,
