@@ -8,7 +8,7 @@
  */
 
 import type { BoardElement } from "@/components/WhiteBoard/types";
-import { getThemeById, DEFAULT_THEME_ID } from "@/components/WhiteBoard/constants/mind-themes";
+import MindThemeUtil from "@/components/WhiteBoard/utils/MindThemeUtil";
 import { getThemeColorById } from "@/components/WhiteBoard/constants/theme-colors";
 import { outlineToSvgPath } from "@/components/WhiteBoard/utils/HandwriteUtil";
 import {
@@ -253,22 +253,34 @@ function media(ctx: Ctx, e: AnyElement, glyph: "image" | "video" | "audio" | "we
 /* ───────── 思维导图 ───────── */
 
 function mindTree(ctx: Ctx, root: AnyElement) {
-  const theme = getThemeById(root.themeId || DEFAULT_THEME_ID);
-  const colorOf = (level: number) =>
-    level <= 1
-      ? theme.root.background
-      : (theme.palette[(level - 2) % theme.palette.length]?.background ?? theme.root.background);
+  const theme = MindThemeUtil.getThemeOf(root as { themeId?: string; themeStyle?: string });
+  const mode = ctx.dark ? "dark" : "light";
+  const visualOf = (node: AnyElement) =>
+    MindThemeUtil.getNodeVisual(
+      theme,
+      node.level ?? 1,
+      MindThemeUtil.getBranchIndex(root, node.id),
+      mode
+    );
   const nodes: SchematicShape[] = [];
   const lines: SchematicShape[] = [];
 
   const visit = (node: AnyElement) => {
     const { x, y, width: w, height: h } = node;
     const level = node.level ?? 1;
-    const color = colorOf(level);
+    const visual = visualOf(node);
     grow(ctx, x, y, w, h);
-    nodes.push({ kind: "rect", x, y, w, h, r: Math.min(h / 2, level <= 1 ? 14 : 10), fill: color });
-    const text =
-      level <= 1 ? theme.root.color : theme.palette[(level - 2) % theme.palette.length]?.color;
+    nodes.push({
+      kind: "rect",
+      x,
+      y,
+      w,
+      h,
+      r: Math.min(h / 2, level <= 1 ? 14 : 10),
+      fill: visual.background,
+      ...(visual.borderWidth > 0 ? { stroke: visual.borderColor, strokeWidth: 1 } : {}),
+    });
+    const text = visual.textColor;
     const bar = Math.min(8, h * 0.18);
     nodes.push({
       kind: "rect",
@@ -294,7 +306,7 @@ function mindTree(ctx: Ctx, root: AnyElement) {
       lines.push({
         kind: "path",
         d: `M ${sx} ${sy} C ${mx} ${sy} ${mx} ${ey} ${ex} ${ey}`,
-        stroke: colorOf(child.level ?? level + 1),
+        stroke: visualOf(child).lineColor,
         strokeWidth: 1.4,
       });
       visit(child);
