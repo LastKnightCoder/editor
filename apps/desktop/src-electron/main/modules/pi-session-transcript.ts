@@ -34,6 +34,8 @@ export interface PiTranscriptMessage {
   toolCallId?: string;
   toolName?: string;
   isError?: boolean;
+  /** 工具结果的结构化载荷：桌面工具卡（审阅卡/结构化结果/生图/子代理）靠它渲染 */
+  details?: unknown;
   timestamp?: number;
   provider?: string;
   model?: string;
@@ -44,6 +46,11 @@ export interface PiTranscriptEntry {
   /** pi 会话 entry id（投影后作为 turnId/clientId 的来源，供后续会话树导航定位） */
   id: string;
   message: PiTranscriptMessage;
+  /**
+   * 该用户消息的桌面展示形态（来自紧随的 desktop-display entry）：
+   * 有它就按原样展示（文件卡片、mention），没有才退回用模型文本拼。
+   */
+  display?: { content: MessageContent[]; clientId?: string };
 }
 
 type PiContentBlock = {
@@ -71,8 +78,16 @@ const textOf = (content: unknown): string => {
 const turnIdOf = (entryId: string) => `pi:jsonl:${entryId}`;
 
 /** pi 的 user message → 桌面用户消息（图片没有本地路径，按 dataURL 展示） */
-const toRequestMessage = (entryId: string, message: PiTranscriptMessage): RequestMessage | null => {
-  const raw = message.content;
+const toRequestMessage = (entry: PiTranscriptEntry): RequestMessage | null => {
+  const entryId = entry.id;
+  if (entry.display && entry.display.content.length > 0) {
+    return {
+      clientId: entry.display.clientId ?? `pi:${entryId}`,
+      role: Role.User,
+      content: entry.display.content,
+    };
+  }
+  const raw = entry.message.content;
   if (typeof raw === "string") {
     return raw.trim() ? { clientId: `pi:${entryId}`, role: Role.User, content: raw } : null;
   }
@@ -133,16 +148,7 @@ const toAssistantBlocks = (entryId: string, message: PiTranscriptMessage): Assis
 };
 
 /** 工具结果回填进对应的 tool_call 块（pi 里工具结果是独立消息，桌面里挂在块上） */
-const applyToolResult = (
-  message: ResponseMessage,
-  result: {
-    toolCallId?: string;
-    toolName?: string;
-    content?: unknown;
-    isError?: boolean;
-    timestamp?: number;
-  }
-): void => {
+const applyToolResult = (message: ResponseMessage, result: PiTranscriptMessage): void => {
   const toolCallId = result.toolCallId;
   if (!toolCallId) return;
   const block = (message.assistant_blocks ?? []).find(
@@ -151,6 +157,11 @@ const applyToolResult = (
   );
   if (!block) return;
   const output = textOf(result.content);
+  // 与运行时归约（piChatEvents tool_execution_end）同一口径：details 平铺进 metadata
+  const details =
+    result.details && typeof result.details === "object" && !Array.isArray(result.details)
+      ? (result.details as Record<string, unknown>)
+      : undefined;
   const execution: ToolCallExecutionState = {
     toolCallId,
     toolName: result.toolName ?? block.toolCall.function.name,
@@ -158,6 +169,7 @@ const applyToolResult = (
     input: block.toolCall.function.arguments ?? "",
     timestamp: result.timestamp ?? Date.now(),
     ...(output ? { output } : {}),
+    ...(details ? { metadata: details } : {}),
     ...(result.isError && !output ? { error: "工具执行失败" } : {}),
   };
   block.execution = execution;
@@ -205,7 +217,7 @@ export function piEntriesToDesktopMessages(entries: PiTranscriptEntry[]): ChatSe
     const role = (entry.message as { role?: string }).role;
     if (role === "user") {
       flushAssistant();
-      const request = toRequestMessage(entry.id, entry.message);
+      const request = toRequestMessage(entry);
       if (request) out.push(request);
       continue;
     }
@@ -225,7 +237,7 @@ export function piEntriesToDesktopMessages(entries: PiTranscriptEntry[]): ChatSe
       continue;
     }
     if (role === "toolResult" && assistant) {
-      applyToolResult(assistant, entry.message as Parameters<typeof applyToolResult>[1]);
+      applyToolResult(assistant, entry.message);
     }
   }
   flushAssistant();
