@@ -5,18 +5,15 @@ import type {
   ChatCompletionCreateParamsNonStreaming,
 } from "openai/resources/chat/completions";
 import type { ResponseCreateParamsNonStreaming } from "openai/resources/responses/responses";
-import { RequestMessage, ReasoningEffort, ToolFunctionSchema } from "@/types";
+import { RequestMessage, ToolFunctionSchema } from "@/types";
 import { Module } from "../types/module";
-import { getModelRequestOverrides } from "@/utils/model-overrides";
+import { getModelRequestOverrides, type LegacyReasoningEffort } from "@/utils/model-overrides";
 import { buildResponsesPayload } from "@/utils/openai-responses-adapter";
 import { smartChunk } from "../utils/smart-chunk";
 import { normalizeThinkTaggedText } from "@/utils/thinkTagNormalizer";
 
-type ChatCompletionParams = Omit<
-  ChatCompletionCreateParamsNonStreaming,
-  "reasoning_effort"
-> & {
-  reasoning_effort?: Exclude<ReasoningEffort, "none">;
+type ChatCompletionParams = Omit<ChatCompletionCreateParamsNonStreaming, "reasoning_effort"> & {
+  reasoning_effort?: Exclude<LegacyReasoningEffort, "none">;
 };
 
 class LLMModule implements Module {
@@ -35,10 +32,10 @@ class LLMModule implements Module {
         baseUrl: string,
         model: string,
         input: string,
-        dimensions?: number,
+        dimensions?: number
       ) => {
         return this.embedding(apiKey, baseUrl, model, input, dimensions);
-      },
+      }
     );
 
     ipcMain.handle("markdown-split", (_event, text: string) => {
@@ -54,12 +51,12 @@ class LLMModule implements Module {
         model: string,
         messages: RequestMessage[],
         options?: {
-          reasoningEffort?: ReasoningEffort;
+          reasoningEffort?: LegacyReasoningEffort;
           tools?: ToolFunctionSchema[];
-        },
+        }
       ) => {
         return this.chat(apiKey, baseUrl, model, messages, options);
-      },
+      }
     );
 
     ipcMain.handle(
@@ -71,12 +68,12 @@ class LLMModule implements Module {
         model: string,
         messages: RequestMessage[],
         options?: {
-          reasoningEffort?: ReasoningEffort;
+          reasoningEffort?: LegacyReasoningEffort;
           tools?: ToolFunctionSchema[];
-        },
+        }
       ) => {
         return this.chatResponses(apiKey, baseUrl, model, messages, options);
-      },
+      }
     );
   }
 
@@ -85,7 +82,7 @@ class LLMModule implements Module {
     baseUrl: string,
     model: string,
     input: string,
-    dimensions?: number,
+    dimensions?: number
   ): Promise<number[]> {
     const client = new OpenAI({
       apiKey,
@@ -116,9 +113,9 @@ class LLMModule implements Module {
     model: string,
     messages: RequestMessage[],
     options?: {
-      reasoningEffort?: ReasoningEffort;
+      reasoningEffort?: LegacyReasoningEffort;
       tools?: ToolFunctionSchema[];
-    },
+    }
   ): Promise<{
     message: OpenAI.Chat.ChatCompletionMessage;
     finish_reason: string | null;
@@ -141,10 +138,8 @@ class LLMModule implements Module {
     });
 
     // 分离 reasoning_effort，因为 OpenAI SDK 的类型定义与我们的不完全一致
-    const { reasoning_effort: overrideReasoningEffort, ...restOverrides } =
-      modelOverrides;
-    const effectiveReasoningEffort =
-      overrideReasoningEffort ?? normalizedReasoningEffort;
+    const { reasoning_effort: overrideReasoningEffort, ...restOverrides } = modelOverrides;
+    const effectiveReasoningEffort = overrideReasoningEffort ?? normalizedReasoningEffort;
 
     const params: ChatCompletionParams = {
       model,
@@ -152,11 +147,7 @@ class LLMModule implements Module {
       temperature: 0.3,
       top_p: 1,
       stream: false,
-      reasoning_effort: effectiveReasoningEffort as
-        | "low"
-        | "medium"
-        | "high"
-        | undefined,
+      reasoning_effort: effectiveReasoningEffort as "low" | "medium" | "high" | undefined,
       frequency_penalty: 0,
       tools: tools as ChatCompletionTool[] | undefined,
       tool_choice: tools && tools.length > 0 ? "auto" : undefined,
@@ -165,20 +156,16 @@ class LLMModule implements Module {
     };
 
     const res = await client.chat.completions.create(
-      params as ChatCompletionCreateParamsNonStreaming,
+      params as ChatCompletionCreateParamsNonStreaming
     );
 
     const responseMessage = res.choices[0].message;
     const responseReasoningContent =
-      typeof (responseMessage as { reasoning_content?: unknown })
-        .reasoning_content === "string"
-        ? ((responseMessage as { reasoning_content?: string })
-            .reasoning_content ?? "")
+      typeof (responseMessage as { reasoning_content?: unknown }).reasoning_content === "string"
+        ? ((responseMessage as { reasoning_content?: string }).reasoning_content ?? "")
         : undefined;
     const normalizedContent = normalizeThinkTaggedText(
-      typeof responseMessage.content === "string"
-        ? responseMessage.content
-        : "",
+      typeof responseMessage.content === "string" ? responseMessage.content : ""
     );
 
     return {
@@ -199,9 +186,9 @@ class LLMModule implements Module {
     model: string,
     messages: RequestMessage[],
     options?: {
-      reasoningEffort?: ReasoningEffort;
+      reasoningEffort?: LegacyReasoningEffort;
       tools?: ToolFunctionSchema[];
-    },
+    }
   ): Promise<{
     message: OpenAI.Chat.ChatCompletionMessage;
     finish_reason: string | null;
@@ -222,8 +209,8 @@ class LLMModule implements Module {
     const res = await client.responses.create(params);
     const output = Array.isArray(res.output) ? res.output : [];
     const toolCalls = output
-      .filter((item) => item.type === "function_call")
-      .map<OpenAI.Chat.ChatCompletionMessageToolCall>((item) => ({
+      .filter(item => item.type === "function_call")
+      .map<OpenAI.Chat.ChatCompletionMessageToolCall>(item => ({
         id: item.call_id,
         type: "function",
         function: {
@@ -232,9 +219,9 @@ class LLMModule implements Module {
         },
       }));
     const reasoningContent = output
-      .filter((item) => item.type === "reasoning")
-      .flatMap((item) => item.summary ?? [])
-      .map((summary) => summary.text)
+      .filter(item => item.type === "reasoning")
+      .flatMap(item => item.summary ?? [])
+      .map(summary => summary.text)
       .filter(Boolean)
       .join("\n");
     const normalizedContent = normalizeThinkTaggedText(res.output_text ?? "");
@@ -247,14 +234,12 @@ class LLMModule implements Module {
         refusal: null,
         ...(reasoningContent || normalizedContent.reasoning_content
           ? {
-              reasoning_content:
-                reasoningContent || normalizedContent.reasoning_content,
+              reasoning_content: reasoningContent || normalizedContent.reasoning_content,
             }
           : {}),
         ...(toolCalls.length > 0 ? { tool_calls: toolCalls } : {}),
       },
-      finish_reason:
-        finishReason === "completed" ? "stop" : (finishReason ?? null),
+      finish_reason: finishReason === "completed" ? "stop" : (finishReason ?? null),
     };
   }
 }

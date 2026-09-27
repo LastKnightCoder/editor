@@ -19,14 +19,20 @@ import { COMPOSER_ANCHOR_ATTR } from "@/components/ChatInputArea/ComposerPanel";
 import { measurePerformance } from "./hooks/usePerformanceMonitor";
 import MessageItem from "./MessageItem";
 
-import { ChatMessage, RequestMessage, ResponseMessage, ReasoningEffort } from "@/types";
+import { ChatMessage, RequestMessage, ResponseMessage } from "@/types";
+import {
+  clampThinkingLevel,
+  normalizeStoredThinkingLevel,
+  resolveThinkingLevelOptions,
+  useThinkingLevels,
+} from "@/services/llmCatalog";
 import {
   Role,
   SUMMARY_TITLE_PROMPT,
   DEFAULT_SYSTEM_PROMPT,
   buildSessionAwareSystemPrompt,
 } from "@/constants";
-import { piCompleteChat, toPiThinking } from "@/services/piLLM";
+import { piCompleteChat } from "@/services/piLLM";
 import { remoteResourceToLocal } from "@/utils/resouce";
 import { buildPiChatSystemPrompt, piChatSessionManager } from "@/services/piChatSession";
 import { piChatRuntime, type PiChatRuntimeDeps } from "@/services/piChatRuntime";
@@ -204,21 +210,28 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       loadSkills();
     }, [loadSkills]);
 
-    const [reasoningEffort, setReasoningEffort] = useLocalStorageState<ReasoningEffort>(
+    // 档位取值即运行时档位（旧键存过 "none"，读出时归一为 "off"）
+    const [storedThinkingLevel, setStoredThinkingLevel] = useLocalStorageState<string>(
       "reasoningEffort",
-      {
-        defaultValue: "none",
-      }
+      { defaultValue: "off" }
     );
-    const effectiveReasoningEffort = reasoningEffort ?? "none";
-    // pi ThinkingLevel 通用档（模型特有档位目录 M3 设置页产品化时接入）
-    const reasoningEffortOptions = useMemo<ReasoningEffort[]>(
-      () => (chatModelConfig?.reasoning ? ["none", "low", "medium", "high"] : ["none"]),
-      [chatModelConfig?.reasoning]
+    // 档位按模型真实能力给（经主进程查预设目录）：目录未收录的模型退回通用档
+    const { levels: catalogLevels } = useThinkingLevels(
+      chatProviderConfig ?? undefined,
+      chatModelConfig?.id ?? ""
     );
-    const normalizedReasoningEffort = reasoningEffortOptions.includes(effectiveReasoningEffort)
-      ? effectiveReasoningEffort
-      : (reasoningEffortOptions[0] ?? "none");
+    const thinkingLevelOptions = useMemo(
+      () =>
+        resolveThinkingLevelOptions({
+          reasoning: chatModelConfig?.reasoning,
+          catalogLevels,
+        }),
+      [chatModelConfig?.reasoning, catalogLevels]
+    );
+    const thinkingLevel = clampThinkingLevel(
+      normalizeStoredThinkingLevel(storedThinkingLevel),
+      thinkingLevelOptions
+    );
 
     const editTextRef = useRef<ChatInputAreaHandle>(null);
     const messagesRef = useRef<HTMLDivElement>(null);
@@ -752,9 +765,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             model: chatModelConfig,
             systemPrompt,
             history: historyBeforeThisTurn,
-            ...(chatModelConfig.reasoning
-              ? { thinkingLevel: toPiThinking(normalizedReasoningEffort) }
-              : {}),
+            ...(chatModelConfig.reasoning ? { thinkingLevel } : {}),
             ...(toolScope ? { toolScope } : {}),
             ...(options?.toolContext
               ? { toolContext: options.toolContext as Record<string, unknown> }
@@ -1402,12 +1413,12 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               sendLoading ? `${actualChatRef.current.id}:${coreMessages.length}` : undefined
             }
             hideInput={hideInput}
-            reasoningEffort={chatModelConfig?.reasoning ? normalizedReasoningEffort : undefined}
-            reasoningEffortOptions={reasoningEffortOptions}
-            onReasoningEffortChange={
-              chatModelConfig?.reasoning ? value => setReasoningEffort(value) : undefined
+            thinkingLevel={chatModelConfig?.reasoning ? thinkingLevel : undefined}
+            thinkingLevelOptions={thinkingLevelOptions}
+            onThinkingLevelChange={
+              chatModelConfig?.reasoning ? value => setStoredThinkingLevel(value) : undefined
             }
-            reasoningEffortDisabled={!chatModelConfig?.reasoning}
+            thinkingLevelDisabled={!chatModelConfig?.reasoning}
             currentModelName={chatModelConfig?.name ?? chatModelConfig?.id}
             contextWindowK={
               chatModelConfig?.contextWindow

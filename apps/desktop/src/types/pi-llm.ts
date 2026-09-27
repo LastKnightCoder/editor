@@ -5,11 +5,17 @@
  * 旧 ProviderConfig/ModelConfig 由 llmSettingsMigration 一次性转化，不留兼容层。
  */
 
+import type { ThinkingLevel } from "@tau/shared";
+
 /** pi 的线协议实现（原 messageFormat × apiProtocol 二维组合的收敛） */
 export type PiApiKind = "openai-completions" | "openai-responses" | "anthropic-messages";
 
-/** pi ThinkingLevel（off + 六档），映射模型侧推理力度 */
-export type PiThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+/**
+ * 思考档位（off + 六档），与 pi 的 ThinkingLevel 逐项对齐。
+ * 唯一定义在 @tau/shared（输入框组件也要用，且那边不能依赖 pi 包），
+ * 此处只是桌面端沿用的名字——不是另一套取值。
+ */
+export type PiThinkingLevel = ThinkingLevel;
 
 /**
  * pi 内置服务商目录项（主进程查询、渲染端只读）。
@@ -41,6 +47,23 @@ export interface PiCatalogModel {
   cost?: { input: number; output: number };
   /** 该模型真实支持的推理档位（pi getSupportedThinkingLevels），空数组表示不支持推理 */
   thinkingLevels: PiThinkingLevel[];
+}
+
+/**
+ * 从服务商 `/models` 接口实时拉到的模型（M3-f）：覆盖目录外的自建服务（Ollama/LM Studio/私有网关）
+ * 与目录落后于服务商新模型的情况。目录命中时元数据取目录（fromCatalog=true，与勾选目录同等可信）；
+ * 否则只有接口自报的字段，缺的保持为空，不瞎猜默认值。
+ */
+export interface PiDiscoveredModel {
+  id: string;
+  name: string;
+  fromCatalog: boolean;
+  api?: PiApiKind;
+  reasoning?: boolean;
+  input?: ("text" | "image")[];
+  contextWindow?: number;
+  maxTokens?: number;
+  cost?: { input: number; output: number };
 }
 
 export interface LLMModelSetting {

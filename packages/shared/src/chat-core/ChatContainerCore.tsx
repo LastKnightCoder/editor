@@ -23,7 +23,7 @@ import ChatInputArea, {
   type ChatInputAreaHandle,
   type ChatInputAreaServices,
   type MessageContentItem,
-  type ReasoningEffort,
+  type ThinkingLevel,
   type ChatContextUsage,
 } from "../components/ChatInputArea";
 import { ChatMessage, type ChatMessageType } from "../components/ChatComponents";
@@ -137,9 +137,9 @@ export interface ChatContainerCoreProps {
   isLoading: boolean;
   error?: string | null;
   retryStatus?: { attempt: number; maxRetries: number } | null;
-  reasoningEffort?: ReasoningEffort;
-  reasoningEffortOptions?: readonly ReasoningEffort[];
-  reasoningEffortDisabled?: boolean;
+  thinkingLevel?: ThinkingLevel;
+  thinkingLevelOptions?: readonly ThinkingLevel[];
+  thinkingLevelDisabled?: boolean;
   currentModelName?: string;
   contextWindowK?: number;
   contextUsage?: ChatContextUsage | null;
@@ -162,7 +162,7 @@ export interface ChatContainerCoreProps {
   queuedMessageCount?: number;
   onCreateNewMessage?: () => void;
   onMcpManagerClick?: () => void;
-  onReasoningEffortChange?: (value: ReasoningEffort) => void;
+  onThinkingLevelChange?: (value: ThinkingLevel) => void;
   onModelSelect?: (info: { key: string }) => void;
   onSendTextMessage?: (content: string) => void | Promise<void>;
   onSendMessageContent?: (content: MessageContentItem[]) => void | Promise<void>;
@@ -204,9 +204,9 @@ export const ChatContainerCore = forwardRef<ChatContainerCoreHandle, ChatContain
       isLoading,
       error = null,
       retryStatus = null,
-      reasoningEffort,
-      reasoningEffortOptions,
-      reasoningEffortDisabled = false,
+      thinkingLevel,
+      thinkingLevelOptions,
+      thinkingLevelDisabled = false,
       currentModelName = "未选择模型",
       contextWindowK,
       contextUsage,
@@ -229,7 +229,7 @@ export const ChatContainerCore = forwardRef<ChatContainerCoreHandle, ChatContain
       queuedMessageCount = 0,
       onCreateNewMessage,
       onMcpManagerClick,
-      onReasoningEffortChange,
+      onThinkingLevelChange,
       onModelSelect,
       onSendTextMessage,
       onSendMessageContent,
@@ -520,10 +520,10 @@ export const ChatContainerCore = forwardRef<ChatContainerCoreHandle, ChatContain
       contextUsage,
       isSupportImage,
       isSupportFile,
-      reasoningEffort,
-      reasoningEffortOptions,
-      onReasoningEffortChange,
-      reasoningEffortDisabled,
+      thinkingLevel,
+      thinkingLevelOptions,
+      onThinkingLevelChange,
+      thinkingLevelDisabled,
       onMcpManagerClick,
       extraToolbarButtons: toolbarButtons,
     };

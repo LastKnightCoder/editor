@@ -1,10 +1,6 @@
 import { invoke } from "@/electron";
-import {
-  RequestMessage,
-  ReasoningEffort,
-  ToolCallPayload,
-  ToolFunctionSchema,
-} from "@/types";
+import { RequestMessage, ToolCallPayload, ToolFunctionSchema } from "@/types";
+import type { LegacyReasoningEffort } from "@/utils/model-overrides";
 
 export interface ChatCompletionResult {
   message: {
@@ -22,9 +18,9 @@ export const chat = async (
   model: string,
   messages: RequestMessage[],
   options?: {
-    reasoningEffort?: ReasoningEffort;
+    reasoningEffort?: LegacyReasoningEffort;
     tools?: ToolFunctionSchema[];
-  },
+  }
 ): Promise<ChatCompletionResult> => {
   return await invoke("chat-openai", apiKey, baseUrl, model, messages, options);
 };
@@ -35,16 +31,9 @@ export const chatResponses = async (
   model: string,
   messages: RequestMessage[],
   options?: {
-    reasoningEffort?: ReasoningEffort;
+    reasoningEffort?: LegacyReasoningEffort;
     tools?: ToolFunctionSchema[];
-  },
+  }
 ): Promise<ChatCompletionResult> => {
-  return await invoke(
-    "chat-openai-responses",
-    apiKey,
-    baseUrl,
-    model,
-    messages,
-    options,
-  );
+  return await invoke("chat-openai-responses", apiKey, baseUrl, model, messages, options);
 };

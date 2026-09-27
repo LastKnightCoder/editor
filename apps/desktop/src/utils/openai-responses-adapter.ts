@@ -1,5 +1,6 @@
 import { Role } from "@/constants/llm";
-import type { RequestMessage, ReasoningEffort } from "@/types";
+import type { RequestMessage } from "@/types";
+import type { LegacyReasoningEffort } from "@/utils/model-overrides";
 
 export interface OpenAIToolSchema {
   type: "function";
@@ -29,8 +30,7 @@ export type ResponsesInputItem =
     };
 
 export type ResponsesContentPart =
-  | { type: "input_text"; text: string }
-  | { type: "input_image"; image_url: string };
+  { type: "input_text"; text: string } | { type: "input_image"; image_url: string };
 
 export interface ResponsesFunctionTool {
   type: "function";
@@ -44,7 +44,7 @@ const contentToText = (content: RequestMessage["content"]): string => {
     return content;
   }
   return content
-    .map((item) => {
+    .map(item => {
       if (item.type === "text") {
         return item.text;
       }
@@ -61,7 +61,7 @@ const contentToText = (content: RequestMessage["content"]): string => {
 };
 
 const contentToResponsesParts = (
-  content: RequestMessage["content"],
+  content: RequestMessage["content"]
 ): ResponsesContentPart[] | string => {
   if (typeof content === "string") {
     return content;
@@ -93,10 +93,8 @@ const contentToResponsesParts = (
   return parts;
 };
 
-export const toResponsesInput = (
-  messages: RequestMessage[],
-): ResponsesInputItem[] =>
-  messages.flatMap((message) => {
+export const toResponsesInput = (messages: RequestMessage[]): ResponsesInputItem[] =>
+  messages.flatMap(message => {
     if (message.role === Role.System) {
       return [];
     }
@@ -117,18 +115,15 @@ export const toResponsesInput = (
     const items: ResponsesInputItem[] = [];
     if (message.tool_calls?.length) {
       items.push(
-        ...message.tool_calls.map((call) => ({
+        ...message.tool_calls.map(call => ({
           type: "function_call" as const,
           call_id: call.id,
           name: call.function.name,
           arguments: call.function.arguments ?? "{}",
-        })),
+        }))
       );
     }
-    if (
-      (typeof content === "string" ? content : content.length > 0) ||
-      items.length === 0
-    ) {
+    if ((typeof content === "string" ? content : content.length > 0) || items.length === 0) {
       items.unshift({
         type: "message",
         role: message.role,
@@ -138,12 +133,10 @@ export const toResponsesInput = (
     return items;
   });
 
-export const toResponsesInstructions = (
-  messages: RequestMessage[],
-): string | undefined => {
+export const toResponsesInstructions = (messages: RequestMessage[]): string | undefined => {
   const instructions = messages
-    .filter((message) => message.role === Role.System)
-    .map((message) => contentToText(message.content).trim())
+    .filter(message => message.role === Role.System)
+    .map(message => contentToText(message.content).trim())
     .filter(Boolean)
     .join("\n\n");
 
@@ -151,12 +144,12 @@ export const toResponsesInstructions = (
 };
 
 export const toResponsesTools = (
-  tools?: OpenAIToolSchema[],
+  tools?: OpenAIToolSchema[]
 ): ResponsesFunctionTool[] | undefined => {
   if (!tools?.length) {
     return undefined;
   }
-  return tools.map((tool) => ({
+  return tools.map(tool => ({
     type: "function",
     name: tool.function.name,
     description: tool.function.description,
@@ -168,7 +161,7 @@ export const buildResponsesPayload = (params: {
   model: string;
   messages: RequestMessage[];
   stream: boolean;
-  reasoningEffort?: ReasoningEffort;
+  reasoningEffort?: LegacyReasoningEffort;
   temperature?: number;
   tools?: OpenAIToolSchema[];
 }) => {
@@ -186,12 +179,8 @@ export const buildResponsesPayload = (params: {
       : {}),
     stream: params.stream,
     store: false,
-    ...(params.temperature !== undefined
-      ? { temperature: params.temperature }
-      : {}),
+    ...(params.temperature !== undefined ? { temperature: params.temperature } : {}),
     ...(reasoningEffort ? { reasoning: { effort: reasoningEffort } } : {}),
-    ...(tools?.length
-      ? { tools, tool_choice: "auto", parallel_tool_calls: true }
-      : {}),
+    ...(tools?.length ? { tools, tool_choice: "auto", parallel_tool_calls: true } : {}),
   };
 };

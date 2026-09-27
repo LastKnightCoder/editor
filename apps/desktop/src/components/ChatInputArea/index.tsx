@@ -34,7 +34,7 @@ import {
   type MentionEntityType,
   type MentionRef,
   type MessageContentItem,
-  type ReasoningEffort,
+  type ThinkingLevel,
   type ChatContextUsage,
 } from "@tau/shared";
 import { IconButton, ImagePreview, Menu, Tooltip, cn, toast } from "@tau/ui";
@@ -86,10 +86,11 @@ interface ChatInputAreaProps {
   contextUsage?: ChatContextUsage | null;
   isSupportImage?: boolean;
   isSupportFile?: boolean;
-  reasoningEffort?: ReasoningEffort;
-  reasoningEffortOptions?: readonly ReasoningEffort[];
-  onReasoningEffortChange?: (level: ReasoningEffort) => void;
-  reasoningEffortDisabled?: boolean;
+  thinkingLevel?: ThinkingLevel;
+  /** 当前模型真实支持的档位（由模型能力决定） */
+  thinkingLevelOptions?: readonly ThinkingLevel[];
+  onThinkingLevelChange?: (level: ThinkingLevel) => void;
+  thinkingLevelDisabled?: boolean;
   showMcpManager?: boolean;
   /** 工具作用域：MCP 面板额外列出该作用域的页面专属工具 */
   toolScope?: string;
@@ -112,14 +113,16 @@ interface ChatFileItem {
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 const IMAGE_ACCEPT = "image/png, image/jpeg, image/webp";
 
-const REASONING_EFFORT_OPTIONS: Array<{
-  value: ReasoningEffort;
+/** 全部档位的文案（与设置页同一套说法）；实际可选项由模型能力决定 */
+const THINKING_LEVEL_OPTIONS: Array<{
+  value: ThinkingLevel;
   label: string;
   /** 紧凑档（停靠栏）工具行上的两字短名 */
   short: string;
   description: string;
 }> = [
-  { value: "none", label: "立答如流", short: "立答", description: "关闭思考以提升响应速度" },
+  { value: "off", label: "立答如流", short: "立答", description: "关闭思考以提升响应速度" },
+  { value: "minimal", label: "极简思考", short: "极简", description: "只做最低限度的思考" },
   { value: "low", label: "略作沉吟", short: "略思", description: "轻量推理，少量思考即可作答" },
   {
     value: "medium",
@@ -132,12 +135,8 @@ const REASONING_EFFORT_OPTIONS: Array<{
   { value: "max", label: "极尽推演", short: "极尽", description: "使用模型允许的最高推理强度" },
 ];
 
-const DEFAULT_REASONING_EFFORT_OPTIONS: readonly ReasoningEffort[] = [
-  "none",
-  "low",
-  "medium",
-  "high",
-];
+/** 调用方没给可选档位时的兜底（模型能力未知，只给各家都有的几档） */
+const DEFAULT_THINKING_LEVEL_OPTIONS: readonly ThinkingLevel[] = ["off", "low", "medium", "high"];
 
 const createEmptyEditorContent = (): Descendant[] => [
   {
@@ -246,10 +245,10 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       contextUsage,
       isSupportImage = false,
       isSupportFile = false,
-      reasoningEffort,
-      reasoningEffortOptions,
-      onReasoningEffortChange,
-      reasoningEffortDisabled = false,
+      thinkingLevel,
+      thinkingLevelOptions,
+      onThinkingLevelChange,
+      thinkingLevelDisabled = false,
       showMcpManager = true,
       toolScope,
       compact = false,
@@ -499,15 +498,15 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       },
     }));
 
-    const showReasoningEffortControl =
-      typeof reasoningEffort !== "undefined" && typeof onReasoningEffortChange === "function";
-    const availableReasoningEffortOptions = REASONING_EFFORT_OPTIONS.filter(option =>
-      (reasoningEffortOptions ?? DEFAULT_REASONING_EFFORT_OPTIONS).includes(option.value)
+    const showThinkingLevelControl =
+      typeof thinkingLevel !== "undefined" && typeof onThinkingLevelChange === "function";
+    const availableThinkingLevelOptions = THINKING_LEVEL_OPTIONS.filter(option =>
+      (thinkingLevelOptions ?? DEFAULT_THINKING_LEVEL_OPTIONS).includes(option.value)
     );
-    const currentReasoningOption = availableReasoningEffortOptions.find(
-      option => option.value === reasoningEffort
+    const currentThinkingOption = availableThinkingLevelOptions.find(
+      option => option.value === thinkingLevel
     );
-    const reasoningControlDisabled = reasoningEffortDisabled || sendLoading || !contentEditable;
+    const thinkingControlDisabled = thinkingLevelDisabled || sendLoading || !contentEditable;
     const attachDisabled = !contentEditable || sendLoading;
     // 序列化成本随草稿增长，避免每次按键/任意状态变化都全量执行
     const hasText = useMemo(() => getMarkdown(editorContent).trim().length > 0, [editorContent]);
@@ -631,16 +630,16 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         </Menu>
       ) : null;
 
-    const reasoningMenu = showReasoningEffortControl ? (
+    const thinkingMenu = showThinkingLevelControl ? (
       <Menu
         align="end"
         // 双行选项 ×5 超出 Menu 默认 300px 上限；选项数固定，放开高度免出滚动条
         className="max-h-none w-[240px]"
         trigger={
-          <ToolbarChip disabled={reasoningControlDisabled} title="思考强度">
+          <ToolbarChip disabled={thinkingControlDisabled} title="思考强度">
             <Brain size={15} strokeWidth={1.75} className="text-ink-2" />
             <span className="min-w-0 truncate">
-              {(compact ? currentReasoningOption?.short : currentReasoningOption?.label) ??
+              {(compact ? currentThinkingOption?.short : currentThinkingOption?.label) ??
                 (compact ? "立答" : "立答如流")}
             </span>
             <ChipCaret />
@@ -649,10 +648,10 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       >
         <Menu.Group>思考强度</Menu.Group>
         <Menu.RadioGroup
-          value={reasoningEffort}
-          onValueChange={value => onReasoningEffortChange?.(value as ReasoningEffort)}
+          value={thinkingLevel}
+          onValueChange={value => onThinkingLevelChange?.(value as ThinkingLevel)}
         >
-          {availableReasoningEffortOptions.map(option => (
+          {availableThinkingLevelOptions.map(option => (
             <Menu.RadioItem key={option.value} value={option.value} className="h-auto py-1.5">
               <span className="flex min-w-0 flex-col">
                 <span>{option.label}</span>
@@ -775,7 +774,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           <span className="min-w-1 flex-1" />
           <ContextUsageRing contextWindowK={contextWindowK} usage={contextUsage} />
           {modelMenu}
-          {reasoningMenu}
+          {thinkingMenu}
           {sendLoading && (
             <Tooltip content="停止生成" placement="top" delay={300}>
               <button

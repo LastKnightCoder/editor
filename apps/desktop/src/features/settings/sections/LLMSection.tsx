@@ -55,8 +55,9 @@ import {
 import { SettingsTabs } from "../components/SettingsTabs";
 import { ProviderCreateDialog, type NewProviderDraft } from "../components/ProviderCreateDialog";
 import { ModelPickerDialog } from "../components/ModelPickerDialog";
-import { useThinkingLevels } from "../llmCatalog";
+import { useThinkingLevels } from "@/services/llmCatalog";
 import { ToolPermissionGroup } from "./ToolPermissionGroup";
+import { AgentShellGroup } from "./AgentShellGroup";
 
 type FeatureKey = keyof ISetting["llmUsageSettings"];
 
@@ -349,7 +350,7 @@ export function LLMSection() {
     setEditingId(id);
   };
 
-  /* ── 从内置目录勾选模型（仅内置服务商；自定义仍走手填表单） ── */
+  /* ── 勾选模型（内置服务商带预设目录；所有服务商都可向服务商实时获取，手填表单兜底） ── */
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
 
   const applyModelPick = (change: { add: LLMModelSetting[]; remove: string[] }) => {
@@ -664,17 +665,17 @@ export function LLMSection() {
                 description={`${editing.models.length} 个 · 在「功能分配」中指定给各项功能`}
                 action={
                   <>
-                    {/* 内置服务商优先走目录勾选：元数据自动带入，不必手填 */}
-                    {editing.builtin && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        icon={Sparkles}
-                        onClick={() => setModelPickerOpen(true)}
-                      >
-                        选择模型
-                      </Button>
-                    )}
+                    {/* 勾选优先：内置服务商带预设元数据，其他服务商向服务商实时获取 */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon={Sparkles}
+                      disabled={!editing.baseUrl.trim()}
+                      title={editing.baseUrl.trim() ? undefined : "请先填写 Base URL"}
+                      onClick={() => setModelPickerOpen(true)}
+                    >
+                      选择模型
+                    </Button>
                     <Button variant="ghost" size="sm" icon={Plus} onClick={openModelCreate}>
                       手动添加
                     </Button>
@@ -683,9 +684,7 @@ export function LLMSection() {
               >
                 {editing.models.length === 0 ? (
                   <div className="text-tau-meta text-ink-2 px-3 py-6 text-center">
-                    {editing.builtin
-                      ? "暂无模型——点击「选择模型」勾选要使用的模型"
-                      : "暂无模型——点击「手动添加」创建第一个条目"}
+                    暂无模型——点击「选择模型」勾选要使用的模型，列表里没有的可「手动添加」
                   </div>
                 ) : (
                   editing.models.map(model => (
@@ -703,7 +702,10 @@ export function LLMSection() {
           )}
         </SettingsGroup>
       ) : tab === "permission" ? (
-        <ToolPermissionGroup />
+        <>
+          <ToolPermissionGroup />
+          <AgentShellGroup />
+        </>
       ) : (
         ASSIGNMENT_CATEGORIES.map(cat => (
           <SettingsGroup key={cat.label} title={cat.label}>
@@ -719,14 +721,12 @@ export function LLMSection() {
         onCreate={submitProviderCreate}
       />
 
-      {/* ── 浮层：从内置目录勾选模型 ── */}
-      {editing?.builtin && (
+      {/* ── 浮层：勾选模型（预设目录 + 向服务商实时获取） ── */}
+      {editing && (
         <ModelPickerDialog
           open={modelPickerOpen}
           onOpenChange={setModelPickerOpen}
-          builtin={editing.builtin}
-          providerName={editing.name}
-          existingIds={editing.models.map(model => model.id)}
+          provider={editing}
           onConfirm={applyModelPick}
         />
       )}

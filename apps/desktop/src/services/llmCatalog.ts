@@ -1,7 +1,10 @@
 /**
- * pi 内置服务商目录的渲染端读取层（M3-e）：目录在主进程、纯读不联网，这里只做
- * 「取一次缓存住」——设置页反复开关浮层不该每次过 IPC。
+ * 预设服务商目录的渲染端读取层（M3-e）：目录在主进程、纯读不联网，这里只做
+ * 「取一次缓存住」——反复开关浮层不该每次过 IPC。
  * 目录只含本运行时支持的三种线协议能跑的服务商，因此界面可以直接把结果当可选项。
+ *
+ * 放在 services 而非 features/settings：聊天输入框的思考档位也读它（M3-g），
+ * 不属于设置页私有。
  */
 import { useEffect, useState } from "react";
 import { piCatalogModels, piCatalogProviders, piThinkingLevels } from "@/commands/piAi";
@@ -38,6 +41,36 @@ export const loadCatalogModels = (builtin: string): Promise<PiCatalogModel[]> =>
   }
   return pending;
 };
+
+/** 目录未收录模型时的通用档（与主进程 GENERIC_THINKING_LEVELS 一致） */
+const GENERIC_THINKING_LEVELS: PiThinkingLevel[] = ["off", "low", "medium", "high"];
+
+/**
+ * 旧本地存储里的档位值归一：早期存的是旧枚举（"none" 而非 "off"），
+ * 类型收敛后统一为运行时档位（M3-g）。
+ */
+export const normalizeStoredThinkingLevel = (stored: string | undefined): PiThinkingLevel =>
+  !stored || stored === "none" ? "off" : (stored as PiThinkingLevel);
+
+/**
+ * 某模型能选的档位：不支持推理只有「不思考」；支持则用目录给的真实档位，
+ * 目录没收录该模型时退回通用档（pi 侧仍会按模型能力 clamp）。
+ */
+export const resolveThinkingLevelOptions = (options: {
+  reasoning: boolean | undefined;
+  catalogLevels: PiThinkingLevel[];
+}): PiThinkingLevel[] =>
+  !options.reasoning
+    ? ["off"]
+    : options.catalogLevels.length > 0
+      ? options.catalogLevels
+      : GENERIC_THINKING_LEVELS;
+
+/** 选中的档位落到可选集合内（换模型后旧选择可能不被支持，界面显示要与实际一致） */
+export const clampThinkingLevel = (
+  picked: PiThinkingLevel,
+  options: readonly PiThinkingLevel[]
+): PiThinkingLevel => (options.includes(picked) ? picked : (options[0] ?? "off"));
 
 /** 内置服务商列表（首次渲染异步填充；目录不可用时为空数组，界面退回自定义） */
 export function useCatalogProviders(): { providers: PiCatalogProvider[]; loading: boolean } {
