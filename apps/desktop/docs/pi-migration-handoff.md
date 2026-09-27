@@ -95,9 +95,13 @@
 **已删除（M2-f）**：useChatLLM/chatStreamCore、DesktopModelProtocolAdapter(1118行)/Transport、
 llmSettingsDowngrade、openai-reasoning-effort、commands/stream-fetch、subagentAgentPolicies、
 chatRunManager/useChatRunStore/commands:chat-run/types:chat-run（渲染端链路）。
-保留待 M8 复查：主进程 modules/llm.ts（`chat-openai` 仍被 Integration/Minimax 设置的 Key 连接测试用；
-`chat-openai-responses` 已无调用方，可直接删）、utils/openai-responses-adapter（仅被上面那个无调用方的
-handler 依赖，同批删）。chat_run 主进程表与 handler 留存至 M8。
+**M3 收尾追加删除（死代码审计）**：`chat-openai-responses` handler + 渲染端 `chatResponses` +
+`utils/openai-responses-adapter`（整条链零调用方）、`packages/shared/src/chat-core/runtime.ts` 与
+`types.ts`（`ChatRuntimeAdapter/Stream/Settings/Callbacks`、`ChatSessionCore` 等生产代码零消费，
+连带 shared barrel 两段导出）、`agent/externalAgentTools.ts`（零引用，顺带少一处 `@tau/agent` 依赖）。
+保留待 M8：主进程 modules/llm.ts（`chat-openai` 仍被 Integration/Minimax 设置的 Key 连接测试用）、
+chat_run 主进程表与 7 个 handler（渲染端已零调用，但删表要同批动 db-schema 的
+schema/parity 常量、`knowledge-migration.ts` 与 mobile 的 Rust 迁移分支）。
 ```
 
 ### piChatRuntime（模块级运行时，理解现状的核心）
@@ -440,6 +444,9 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
 - **单发 IPC 全量透传 partial 的带宽**：百 KB 正文×千次 delta 理论放大，实测未见问题；
   若卡做主进程 per-request 合并节流（传输层优化，非语义层）
 - **runtime 内存**：会话条目常驻不主动清理（量级可控），M4 会话管理统一治理
+- **工具执行进度回传**：`piSessionToolUpdate` + `pi-session:tool-update` 链路是通的
+  （渲染端 → bridge.handleUpdate → pi 的 `onUpdate`），但桌面桥接工具目前都不报进度，
+  故零调用方。**有意保留**（与已删的死参数不同：这条真调用会生效），工具卡要做进度显示时直接用
 
 ## 六、下一步：M3（工具体系+设置页产品化）
 
@@ -467,10 +474,21 @@ useAiChat/SharedChatTab 改 pi 事件、chat.* RPC 改目录表+session。
 **M6（老数据迁移器）**：chat-core v4→pi entry（user 图片转 base64、assistant 按 turnId 分组、
 分支族合并树）、5 张表、启动任务（备份+队列+打开优先）、无签名 thinking 的 Anthropic 重放验证。
 **M7（同步）**：sync.ts 捎带 sessions/<库名>/ + manifest（per-file hash/mtime）、双机往返。
-**M8（删旧收尾）**：packages/agent、@tau/agent 类型引用清零、chat-core 展示层（保留
-messageSchema 供迁移器）、chat_run 表与主进程 handler、modules/llm.ts、
-openai-responses-adapter、卫星表 messages 写路径；DECISIONS.md 追加条目；03 指南数据
-协议节同步；rg 复核清零。
+**M8（删旧收尾）**：packages/agent 整包——**实测比原计划便宜**：桌面端只剩 4 个类型导入
+（`AgentModelUsage`×2 / `AgentTool` / `AgentSkill`）+ 一个值导入 `isAbortError`（editingUtils），
+其他 app 与 package 全无引用；内联这 5 个符号 + 清 vite/vitest/tsconfig 别名与 package.json 依赖即可删包。
+chat-core 展示层（保留 messageSchema 供迁移器；`syncAssistantDerivedFields`/`ensureAssistantMessage`/
+`getAssistantToolExecutions`/`migrateAssistantMessage`/`sanitizeToolMessages`/
+`applyAssistantProviderMetadataSnapshot` 目前只剩桌面 barrel 转出、无真实消费者）、
+chat_run 表与主进程 handler（含 db-schema/knowledge-migration/mobile Rust 的同批处理）、
+modules/llm.ts、卫星表 messages 写路径；DECISIONS.md 追加条目；03 指南数据协议节同步；rg 复核清零。
+
+**与 pi 迁移无关的仓库积灰（另开一次，不要混进迁移提交）**：全仓广扫发现约 40 个无引用的
+组件/hooks/工具文件（`components/AdvanceTable` 只是个占位 `<h1>`）与两个成片死目录
+（`pages/DailyNoteView`、`pages/TimeRecordView`，后者 `app/navigation.ts` 注释已标 legacy）。
+注意 `pages/Settings` **不是**死代码：`/legacy` 路由的 ContentLayout + `TabType.Settings` 都在用，
+新旧两套设置界面并存（旧界面没有 pi 的新设置项）。落地前建议跑 `knip`/`ts-prune` 交叉验证——
+按模块名末段做差集会漏掉与活模块同名的死文件。
 
 ## 七、验证与调试
 
