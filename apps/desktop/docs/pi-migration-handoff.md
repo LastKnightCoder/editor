@@ -1,13 +1,11 @@
 # pi 迁移交接文档（refactor/pi-harness 分支）
 
-> 2026-09-27 交接（M2-f 完成；M3-a 工具权限与队列交互、M3-b ask-question 宿主原生化、
-> M3-c MCP 工具集动态化、M3-d/e 设置页接内置目录、M3-f 模型实时获取、
-> M3-g（shellPath 设置 + chat 侧档位接目录 + 档位双类型收敛）、
-> M3-h（steer 交互：运行中插话 + 队列下沉运行时）均已完成并提交；
-> **M3 只剩第 6 项 WSL 手动选项**，下一步可开 M4 会话管理）。
-> 新会话续接方式：读完本文档 +
+> 2026-09-27 交接（M2-f 完成；M3 全部完成——M3-a~h 已提交，**第 6 项 WSL 手动选项用户裁决不做**；
+> **M4 会话管理进行中：地基与迁移器两个提交已落地（纯增量、尚无调用方），
+> 下一步是「事实源切换」大提交，直接从本文档「M4 执行手册」一节开始**）。
+> 新会话续接方式：读完本文档（先读 M4 执行手册）+
 > `git log --oneline -15` 对照提交历史。验证三件套：`cd apps/desktop && npx tsc --noEmit`、
-> `npx vitest run`（336 文件、1589 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
+> `npx vitest run`（338 文件、1608 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
 > 改了 `packages/shared` 要另跑 `packages/shared` 与 `apps/browser-extension` 的 vitest + tsc
 > （思考档位类型现在唯一定义在 shared，三端共用）。
 > **注意 cwd 必须在 apps/desktop**——vitest 从仓库根跑会整体失败（vite 别名解析不到）。
@@ -31,6 +29,222 @@
 - 发现 bug 时先问"是不是设计层缺陷"，禁止往错误设计上叠护栏打补丁；
 - 有生命周期的组件不得持有跨轮次/跨页面的运行状态——运行态归属模块级服务，
   组件只是 UI 视图。
+
+## M4 执行手册（新会话从这里开始）
+
+### M4.0 范围与已定裁决（用户已拍板，不要再问）
+
+M4 = 会话管理。本批范围 = 原计划 M4-a（目录表 + resume）+ M4-b（投影 + 迁移器 + 事实源切到 JSONL）
+
+- M4-c（五个场景全部接目录表、旧表读写路径退役）。**不含** M4-d（分支改 pi 会话树导航）与
+  M4-e（runtime 条目治理、主进程重启后的交互恢复）。
+
+| 裁决       | 内容                                                                                                                                                                                                                               |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 目录表主键 | **字符串 = pi 会话 id**（目录表 id = JSONL 头部 id = 会话键后半段），不沿用自增 int                                                                                                                                                |
+| 目录表     | **新建** `chat_session`，不扩 `chat_message`（旧表带 messages 大字段与旧分支语义）                                                                                                                                                 |
+| 分批       | a+b+c 同批。理由：`ChatContainer` 是五场景共用的，只迁主聊天会让组件内分叉成两条渲染路径                                                                                                                                           |
+| 迁移粒度   | **一行一会话**，分支族**不合并**成 pi 树；父子关系靠 `parent_session_id` + `branch_index` 保留，分支 chip 行为不变（会话树留 M4-d）                                                                                                |
+| 思考内容   | **不迁**（方案 1）：老 reasoning 无签名，pi 重放无签名 thinking 时会降级成正文喂回模型；与迁移前 `desktopMessagesToPi` 不回放 thinking 一致。只影响老对话看不到当时的思考过程；新对话由 pi 原生写带签名的 thinking，正常显示与回放 |
+| 旧表       | **不删**（留 M8），迁移可回退                                                                                                                                                                                                      |
+| 同步       | **方案 A**：`sessions/<库名>/` 打 zip，与 `.db` 共用同一个版本号一起上传/下载（见 M4.4）。增量 manifest 留 M7                                                                                                                      |
+| 浏览器扩展 | **一起改**，复用已有 pi 能力（见 M4.5，有一处待确认）                                                                                                                                                                              |
+| 提交粒度   | 事实源切换**一次性一个提交**（中间态会让同一场景读两套事实源，无法拆出可运行的中间提交）                                                                                                                                           |
+| WSL        | M3 第 6 项不做                                                                                                                                                                                                                     |
+
+### M4.1 已落地（两个提交，纯增量，尚无调用方，行为不变）
+
+- `524edebd2` 地基：
+  - `chat_session` 表（schema 分片 `20_content.sql` + 4 个索引 `90_indexes.sql`，bundle 已重生成，
+    parity 常量 69→70 表 / 116→120 索引）。mobile 的 `main_upgrade.rs` 对缺失表按 baseline 自动建，**无需 Rust 改动**。
+  - `tables/chat-session.ts`：CRUD、`list`（按 scope/domainRef 过滤，置顶在前再按 update_time 降序，
+    默认排除归档与分支）、`listBranches`、`nextBranchIndex`、`pin/unpin`（同 scope+domainRef 内 max+1）、
+    `remove`（级联分支子树，返回全部被删 id）。IPC 通道 `chat-session:*`，已注册进 `database.ts` 表数组。
+  - 跨进程类型 `src/types/chat-session.ts`；渲染端 `src/commands/chat-session.ts`。
+  - `assembleHostSession` 支持 `sessionFile`（resume，走 `SessionManager.open`）与 `sessionId`（新建时指定 id）；
+    **文件不存在时按 `sessionId` 新建**（pi 等第一条 assistant 消息才落盘，首轮失败就没有文件；
+    `SessionManager.open` 对不存在路径会起随机 id，目录表就对不上了）。
+  - `pi-session:create` 新增入参 `sessionFile`（相对会话目录的文件名）/`piSessionId`，回传 `piSessionId` 与 `sessionFile`；
+    resume 时忽略 `initialMessages`。
+  - `pi-session:transcript`（渲染端 `piSessionTranscript(sessionFile)`）：读叶子路径 → 桌面展示消息，纯读不起会话，文件不存在返回空数组。
+  - `pi-session-transcript.ts` 的 `piEntriesToDesktopMessages`：`desktopMessagesToPi` 的逆。两条用户消息间的多个
+    assistant message 合并成一条回答的多个 turn；turnId = `pi:jsonl:<entryId>`（与运行时 `pi:<序号>` 形状不同，不撞）；
+    clientId = `pi:<entryId>`；工具结果回填 tool_call 块（含 details→metadata）；usage 累加。
+- `3d394bf83` 迁移器 + 会话文件操作：
+  - `chat-session-migration.ts` 的 `migrateLegacyChatsToSessions({db, databasePath, sessionDir, cwd})`：
+    四张表（`chat_message`/`pdf_chats`/`video_note_chats`/`vibe_learning_chats`；`audio_note_chats` 无活 UI，不迁）
+    逐行 → 会话文件 + 目录行。migration_meta key `chat-session-pi-jsonl:v1`；有数据时先 `VACUUM INTO` 备份；
+    单行失败记入 `failed` 不中断；远程图片不下载（`desktopMessagesToPi` 新增 `{allowNetwork:false}`）。
+  - `pi-session-files.ts`：
+    - **展示 entry**（`custom`，customType `desktop-display`，data = `{modelText, content, clientId}`）：
+      JSONL 里的用户消息是**发给模型的那一版**（文件附件是「请用 read 工具读取」提示、图片编辑拼了隐藏上下文），
+      展示 entry 存桌面展示形态；custom entry 不进模型上下文，事实源仍是同一份文件。
+      投影（`loadSessionTranscript`）**按模型文本认领**用户消息，不按位置（插话的用户消息与展示 entry 不紧挨）。
+    - `rewindToBeforeUser(file, userIndex)`：编辑重发/重新生成 = 挪叶子 + 追加 `desktop-leaf` 标记落盘
+      （pi 加载时取文件**末条 entry** 为叶子，不落盘重开就回到旧分支末尾）；旧回答留在树上。
+    - `omitEntries(file, entryIds)`：删除单条消息 = pi 原生 `context_edit(target, null)`，投影同样隐藏。
+    - `branchSessionFile({sessionDir, sourceFile, newSessionId, throughUserIndex})`：建分支 = 拷路径到新文件，id 为指定值。
+    - `writeSessionFile`：直接写整文件（迁移器用，不走 `appendMessage`——只有用户消息的老对话写不出文件）。
+  - 测试：`chat-session.test.ts`、`pi-session-resume.test.ts`、`chat-session-migration.test.ts`、`pi-session-files.test.ts`
+    （真实 pi 会话 + faux：落盘投影、resume 模型看得到历史、迁移文件能 resume、挪叶子重开生效、删除对模型与界面都隐藏）。
+
+**两处提醒**：`pi-session-files.ts` 里的 `appendDisplayEntry` 已写好但**还没有调用方**——新发送的用户消息要在
+主进程 prompt 时写展示 entry（M4.3 第 2 步）。改历史的三个函数都要求**宿主会话已 dispose**（直接开文件写，
+与活会话的 SessionManager 并发会互相覆盖），调用顺序见 M4.3。
+
+### M4.2 开库接线（已写好但**刻意未提交**，与切换同批提交）
+
+在 `database.ts` 的 `create-or-connect-database` handler 里、`this.openDatabase(...)` 与 `this.databases.set(...)` 之后，
+`notifyDatabaseConnected` 之前调用迁移器（渲染端一连上就会查目录表，迁移没跑完会看到空列表）：
+
+```ts
+// import { migrateLegacyChatsToSessions } from "./chat-session-migration";
+if (connectMode === "maintenance") {
+  await this.migrateChatSessions(database, name, dbPath);
+}
+
+private async migrateChatSessions(database: Database.Database, name: string, dbPath: string) {
+  const startedAt = Date.now();
+  try {
+    const appDir = PathUtil.getAppDir();
+    const result = await migrateLegacyChatsToSessions({
+      db: database,
+      databasePath: dbPath,
+      sessionDir: join(appDir, "sessions", this.formatDatabaseName(name)),
+      cwd: appDir,
+    });
+    if (result.skipped) return;
+    log.info(`[database] chat session migration done: db=${name}, migrated=${result.migrated}, failed=${result.failed.length}, backup=${result.backupPath ?? "none"}, elapsedMs=${Date.now() - startedAt}`);
+    for (const f of result.failed) log.error(`[database] chat session migration row failed: db=${name}, table=${f.table}, id=${f.id}, error=${f.error}`);
+  } catch (error) {
+    // 整体失败不阻塞开库：旧表原样保留，migration_meta 没记账，下次开库重试
+    log.error(`[database] chat session migration failed: db=${name}`, error);
+  }
+}
+```
+
+**为什么不能先单独提交**：一旦跑过就记账，之后再改迁移器不会重跑；而切换前渲染端还在读旧表，
+迁移后新发的消息写进旧表、目录表里看不到。必须和切换同批上线。
+会话目录与 `pi-session-host.ts` 的 `currentDatabaseName()` 同一取法（库名去 `.db`）——两处若不一致，
+迁移写出的文件宿主找不到，接线时核对一次。
+
+### M4.3 事实源切换：渲染端（本批主体，一个提交）
+
+**现状地图（调研已核实，file:line 以 `3d394bf83` 为准）**：
+
+- 五个场景四套存储：主聊天+停靠栏共用 `chat_message`（`useChatMessageStore`，`initChatMessage` → `getAllChatMessages`
+  = `SELECT *` 连 messages 大字段全量进内存）；PDF `pdf_chats`（`usePdfChatStore`）；视频笔记 `video_note_chats`
+  （`useVideoNoteChatStore`）；学习项目 `vibe_learning_chats`（`useVLChatStore`，IPC 前缀 `vl-*`）。
+  四个 store 共约 940 行、结构几乎相同。卫星三表没有 group/order/title_dirty/source 列。
+- `chatScope` 取值：主聊天/停靠栏 `"main-chat"`（ChatArea、RightChatSidebar 都不传 prop 走默认）；
+  `` `pdf-chat:${pdf.id}` ``、`` `video-note-chat:${videoNoteId}` ``、`` `vibe-learning-chat:${projectId}` ``。
+  会话键 `chatSessionKey = ${chatScope.split(":")[0]}:${chatId}`（`piChatSession.ts`）。
+- 列表 UI（全读 `useChatMessageStore.chats`）：`features/chat/components/ChatNav.tsx`（`model.ts` 的 `navSessions`：
+  置顶全量 + 最近 3 条）、`RightChatSidebar/index.tsx`、`features/chat/components/ChatArea.tsx`、
+  `ChatManagementSidebar.tsx`（「全部会话」弹窗，分组树/拖拽分组/归档段）；三个场景共用
+  `RightChatSidebar/ChatDropdownSelector.tsx`（置顶在前 + updateTime 降序、分支 chip `n/m`）。
+  另有 `pages/ChatManagement/index.tsx`。
+- numeric id 依赖：`features/chat/model.ts` 的 `parseChatId`（只认纯数字）、`ChatContainer.tsx` 里
+  `actualCurrentChat.id === 0` 表示「未落库的新对话」（约 666、1331 行）、`getScrollPositionKey` 的 `chatId === 0`、
+  `ChatDropdownSelector` 的 `currentChat.id !== 0`、`useRightChatSidebarStore.currentChatId`（persist 到 localStorage）、
+  `useChatMessageStore.currentChatId`（persist）、块预览 `types/block-preview.ts` 的 `sourceChatId?: number`
+  （`useChatBlocks`/`BlockCard`/`openBlock`/`BlockPreviewView`/`useChatMarkdownComponents`）。
+  全仓 `grep "\.id === 0\|chatId: number\|currentChatId: number"` 约 57 处。
+- 旧级联删除：`tables/pdf.ts:221` 删 PDF 时 `DELETE FROM pdf_chats WHERE pdf_id=?`；视频笔记与项目删除**不**级联其对话。
+  `chat-group.ts:117` 删分组时 `UPDATE chat_message SET group_id=NULL`——切换后要改成更新 `chat_session`。
+- 死代码（不迁、记入积灰清单，别混进本提交）：`components/ModelSidebar`（无引用）、`audio_note_chats` 整条链（无面板）、
+  `reorderChatMessage`（无 UI 调用方）。
+
+**建议实施顺序**（每步 tsc 通过再下一步，最后一次性提交）：
+
+1. **统一会话 store**：新建一个模块级、按 scope（+domainRef）参数化的会话 store（取代四个 store），
+   列表来自 `listChatSessions`（只有元数据），当前会话的消息来自 `piSessionTranscript(row.sessionFile)`。
+   「新对话」不再用 `id === 0`：用一个显式的草稿态（例如 `id: null` 或独立的 `draft` 标记），
+   首次发送时 `createChatSession` 登记目录行（id 由渲染端 `crypto.randomUUID()` 生成并作为 `piSessionId` 传给宿主）。
+   `ChatSessionRecord`（shared）的 `id: number` 改 string 并带上 `sessionFile`、`scope`、`domainRef`、`parentSessionId`；
+   shared 改完要跑 `packages/shared` 与 `apps/browser-extension` 的 tsc + vitest。
+2. **发送链**（`ChatContainer.processMessageSending` + `piChatSession.ensureChatSession/createSession`）：
+   创建宿主会话时传 `piSessionId = 目录行 id` 与 `sessionFile = 目录行 sessionFile`（首轮新建时文件名由宿主回传，
+   回写目录行）；**不再传 `history`/`initialMessages`**（pi 从文件恢复）。
+   主进程 `pi-session:prompt` 增加可选 `display` 参数：prompt 完成后 `appendDisplayEntry(session.sessionManager, display)`
+   （`display.modelText` 必须与实际送给 pi 的 promptText 逐字相同，插话 `pi-session:steer` 同样处理）。
+   标题：`generateTitle` 结果写目录行 `title/titleDirty`（并可 `session.setSessionName`）。
+3. **运行时落库改写**（`piChatRuntime`）：`deps.persist` 不再整行写 messages。
+   `agent_settled` 后用 `piSessionTranscript` 的投影**回写聊天容器**（按位置沿用原 clientId，避免列表重挂载），
+   再 `updateChatSession(id, {messageCount, updateTime})`。流式期间仍是 reducer 的快照（界面实时）。
+   **注意等待审批/提问的恢复**：`applyToolCalls` 里「进入等待用户态时立即落库快照」原本写的是 sqlite 行；
+   切换后没有行可写，而 JSONL 在等待期间只有带 toolCall 的 assistant message、**还没有 toolResult**，
+   投影出的 tool_call 块没有 `execution`——`restorePendingInteractions` 现在的判定
+   （`block.execution && isAwaitingUser(...)`）会漏掉它。要改成「最后一条回答里有没有结果的 tool_call 块
+   → 尝试 `adoptOrResolveSession` 收养」，由宿主交互快照决定它是不是真在等（收养不到就是中断，与现状一致）。
+   然后删掉那段立即落库，不留空实现。
+4. **改历史操作**（`ChatContainer` 的编辑重发 `baseChatOverride`、`handleRegenerateMessage`、`handleDeleteMessage`、
+   `handleCreateBranch`）：先 `piChatSessionManager.disposeChatSession`（宿主不能同时开着这个文件），
+   再调主进程新 IPC（包一层 `pi-session-files.ts` 的 `rewindToBeforeUser`/`omitEntries`/`branchSessionFile`），
+   然后重读 transcript。编辑重发 = rewind 到那条用户消息之前后正常发送；重新生成 = rewind 后以原用户消息重发；
+   删除 = omit，保持现有语义「只删那一条」。定位 entryId 不能靠 clientId：迁移数据的用户消息 clientId 来自展示 entry，
+   是旧值，不是 `pi:<entryId>`。投影要**另带 entryId 字段**：用户消息带它自己的 entry id，
+   一条回答带它全部 assistant/toolResult 的 entry id 列表（删一条回答要全部 omit，否则只删一半）。
+   用户消息的展示 entry 不用 omit——投影只在认领到用户消息时用它；建分支 = `branchSessionFile` + `createChatSession({parentSessionId, branchIndex: nextBranchIndex})`。
+   `recreateChatSession` 在这些场景不再需要（它会另起文件、目录表指错），删除该路径。
+5. **五个面板接统一 store**：`ChatArea`、`RightChatSidebar`、`PdfChatPanel`、`VideoNoteChatPanel`、`VibeLearningView/ChatPanel`；
+   列表 UI（`ChatNav`/`ChatManagementSidebar`/`ChatDropdownSelector`/`pages/ChatManagement`）改读目录行；
+   分组删除、PDF 删除的级联改到 `chat_session`（PDF 删除时连会话文件一起删）；删除会话时删会话文件
+   （主进程按 `deleteChatSession` 返回的 `deletedIds` 删文件，别只删目录行）。
+6. **id 相关**：`parseChatId` 接受 uuid 字符串；持久化的 `currentChatId`（两个 store）读出时丢弃旧 number 值；
+   `sourceChatId` 改 string（块预览是内存态派生，不持久化进文档，改类型即可）；`CHAT_SCROLL_POSITION_CACHE` 键同步。
+7. **旧表写路径退役**：五套 handler 的写 IPC 不再有调用方——**删除调用方与渲染端 commands**；主进程 handler 与表
+   按 M8 计划保留（`chat_run` 同理）。`useInitChatData` 改初始化统一 store。
+
+**验证清单（单测覆盖，提交前全过）**：新对话首发登记目录行且文件名回写；重开对话从 JSONL 恢复且续聊模型看得到历史；
+文件附件/mention 重开后原样；编辑重发/重新生成/删除/建分支后重开仍正确；五个场景列表互不串；删除会话连文件删；
+切页后台运行（M2-f 专项）仍成立；插话送达后重开仍在（M3-h）。
+
+### M4.4 同步（方案 A，同批）
+
+**事实**：现行同步（`src/commands/sync.ts` 的 `upload`/`download`）是**整个 `.db` 文件**上传/下载覆盖，
+聊天内容在 sqlite 里所以一直跟着同步。切到 JSONL 后，目录表随 `.db` 过去、它指向的会话文件对面没有——
+**列表同步过去、点开全空**。所以同步必须同批改，不能等 M7。
+
+**做法**：`sessions/<库名>/` 打一个 zip（依赖里已有 `adm-zip`，在主进程做，新增 IPC），对象名如 `${databaseName}.sessions.zip`，
+与 `.db` 共用同一个版本号（`IDatabaseInfo.version`）：
+
+- upload：现有顺序是「传 .db → 传版本信息」，改为「传 .db → 传会话包 → 传版本信息」——版本信息最后发布，
+  任一步失败远程版本不前进（沿用现有「数据库上传成功后再发布新版本」的原则）。
+- download：现有流程先备份本地 `.db` 再覆盖；会话目录同样先整体备份（目录改名或打包到 `backup/`），
+  再解包替换。远程没有会话包（旧版本上传的）时**不要清空本地会话目录**——那是迁移前的远程，
+  对面开库时会自己跑迁移。
+- 移动端不读聊天表（已核实），不受影响。
+- 测试：`src/commands/__tests__/sync.test.ts` 已有 provider mock，补「上传含会话包、下载解包、远程无会话包不清本地、
+  会话包上传失败不发布版本」。
+
+### M4.5 浏览器扩展（同批，**一处待向用户确认**）
+
+**事实（用户的记忆与代码不符，已向用户说明）**：扩展聊天**早已不在 chrome.storage**——D-064 阶段 3（`7fb1052e3`）
+已把它迁进桌面 sqlite `chat_message` 表（`source='browser'`，按页面 URL 映射到 `chat_group`；
+URL→分组的映射存在 chrome.storage `tau-chat-url-group-map`）。「按页面分组」的记忆是对的，存储在桌面。
+扩展经 aiServer WS 的 RPC 读写：`chat.list/get/create/update/delete/branch/groups.list/group.ensure`
+（`src/services/aiServer.ts` 约 700–787、851–858 行）；扩展侧 `services/chatStoreClient.ts`、`hooks/useChatSessions.ts`
+（`chatId: number` 约 20 处）、`components/ChatDropdownSelector`、`services/chatMigration.ts`（chrome.storage 旧数据一次性导入，
+`sessionIdMap: Record<string, number>`）。AI 问答 `ai.chat` 在桌面走 `runPiAgent`（一次性 pi 会话 + 扩展传来的全量历史）。
+
+**用户裁决**：扩展一起改，「直接复用已有的 pi 的能力」。**有两种理解，开工前先问用户**：
+
+- (a) 最小：`chat.*` RPC 改读写目录表 + JSONL（id 改 string，`chat.get` 返回投影、`chat.update` 不再接受整包 messages），
+  `ai.chat` 仍是 `runPiAgent` 一次性会话。问题：扩展的消息是它自己拼的，写回 JSONL 要么由桌面在 `ai.chat` 结束后
+  追加（需要知道对应哪个会话），要么扩展继续整包提交（与 append-only 冲突）。
+- (b) 推荐：扩展的对话直接变成**桌面的 pi 持久会话**——`chat.create` 在桌面登记目录行（`scope: "browser-chat"`，
+  `domainRef` = 页面 URL 或其分组），`ai.chat` 改为按会话 id 在桌面 `ensure/resume` 宿主会话并 `prompt`，
+  事件流经 WS 回扩展（与主聊天同一套会话、同一份 JSONL），`chat.get` 返回投影。
+  扩展不再自己拼历史、不再整包写 messages。这是原计划 M5 的核心，工作量明显更大，需确认是否纳入本批。
+- `chatMigration.ts` 的 `sessionIdMap` 值类型改 string；已迁移过的扩展会话随桌面迁移器进目录表
+  （`source='browser'` 已被迁移器保留）。
+
+### M4.6 交付后更新本文档
+
+切换提交落地后：把 M4 执行手册压缩成「M4 实施记录」（参照 M3 各节写法），更新第二节架构图（目录表/事实源/同步）、
+第三节进度、第五节遗留边界（M4-d 会话树、M4-e 治理、audio_note_chats/ModelSidebar 积灰）、第七节加「M4 专项」走查清单
+（老对话迁移后打开、文件卡片、编辑重发、删除、分支、双机同步往返、扩展聊天）。
 
 ## 二、架构现状（M2-f + M3-a）
 
@@ -414,7 +628,10 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
 - **M3-f/g** `8d9e05c34`：模型实时获取（`/models`）+ shellPath 设置 + chat 侧档位接目录 + 档位类型收敛
 - **死代码清理** `6d53b26b5`+`21252edc8`：档位死参数链（LegacyReasoningEffort/toPiThinking）、
   openai-responses 死链、chat-core runtime/types、externalAgentTools（见坑 18 与第二节末尾）
-- **M3-h**：steer 交互（运行中插话接 pi 原生 + 队列下沉 runtime + 键空间收敛 + 停止暂停队列）
+- **M3-h** `94a32f485`：steer 交互（运行中插话接 pi 原生 + 队列下沉 runtime + 键空间收敛 + 停止暂停队列）
+- **M4 地基** `524edebd2`：chat_session 目录表 + JSONL resume + 内容投影（无调用方）
+- **M4 迁移器** `3d394bf83`：老对话迁移器 + 展示 entry + 会话文件改历史操作（无调用方）
+- **M4 事实源切换**：待做，见「M4 执行手册」M4.2–M4.5
 - **修正一** `784d59ebb`：去闭包快照+会话常驻 reducer（修吞消息）
 - **修正二** `d3bc61c33`：piChatRuntime 下沉模块级（后台运行）
 - **验收状态**：用户确认"大部分没问题"——M2-f 基本通过；后台运行场景（切页回来
@@ -446,6 +663,19 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
    prompt 开跑时被吞进去。pi 的 TUI 也是 abort 时 clearQueue 退回输入框。
 9. **`queue_update` 只有文本**，且 pi 出队按文本 `indexOf` 匹配——要携带附件/原始内容就必须
    自己维护一份待送达清单，不能拿 pi 的队列当事实源。
+10. **会话文件要等第一条 assistant 消息才落盘**（`_persist` 的 hasAssistant 判断）。首轮就失败的对话没有文件；
+    `SessionManager.open(不存在的路径)` 会以**随机 id** 起新会话。直接写文件的场景（迁移、改历史）要自己保证写下去
+    （见 `pi-session-files.ts` 的 `writeSessionFile`/`ensureFlushed`）。
+11. **叶子 = 加载时文件的最后一条 entry**（`_buildIndex`）。`branch()`/`resetLeaf()` 只改内存，
+    不追加 entry 的话重开就回到旧分支末尾——挪叶子后必须追加一条（本项目用 `desktop-leaf` custom entry）。
+12. **pi 重放无签名 thinking 的规则**（`pi-ai` 的 `transform-messages.js` / `anthropic-messages.js`）：同模型保留；
+    Anthropic 无签名 → 降级成 text 块；跨模型 → 转成 text。所以「把老 reasoning 当 thinking 迁进去」
+    等于让旧思考以正文重新进入上下文。
+13. **`custom` entry 不进模型上下文**，`custom_message` 进（`sessionEntryToContextMessages`）。桌面自有的旁路信息
+    （展示形态、叶子标记）一律用 `custom`。`context_edit(target, null)` 是原生的「从上下文省略」，只能作用于当前分支上的
+    user/assistant/toolResult/custom_message。
+14. **`createAgentSession` 不透出 `ToolsOptions`**（内置 bash 的 `operations`/`spawnHook` 进不去；`baseToolsOverride`
+    只在 AgentSession 构造层）。要替换内置工具只能注册**同名 customTool**——`_refreshToolRegistry` 里 custom 按名覆盖 builtin。
 
 **本项目事故与修复（按发生顺序）**：
 
@@ -537,7 +767,7 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
 - **主进程重启后的 ask-question 半成品**：渲染层重载可恢复（宿主仍持有等待，收养后直接作答）；
   主进程也重启则卡片显示中断、不伪造答案，完整恢复等 M4（pi JSONL resume）
 - **ChatDropdownSelector 运行态标记**：随 chat_run 退役（会话列表无 Spinner/失败图标），M4 目录表带状态列
-- **删除单条消息**未联动 pi 会话重建（非 append-only 变更需 recreate；M4 会话树 navigateTree 替代）
+- **删除单条消息**未联动 pi 会话（M4 切换提交用 `context_edit(null)` 解决，见 M4.3 第 4 步）
 - **subagent 的 maxToolCallLoops/timeoutMs 参数**留 schema 但 pi 无对应配置（不生效），M3 清理
 - **单发 IPC 全量透传 partial 的带宽**：百 KB 正文×千次 delta 理论放大，实测未见问题；
   若卡做主进程 per-request 合并节流（传输层优化，非语义层）
@@ -546,7 +776,7 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
   （渲染端 → bridge.handleUpdate → pi 的 `onUpdate`），但桌面桥接工具目前都不报进度，
   故零调用方。**有意保留**（与已删的死参数不同：这条真调用会生效），工具卡要做进度显示时直接用
 
-## 六、下一步：M3（工具体系+设置页产品化）
+## 六、路线：M3（已完成）与后续里程碑
 
 优先级从高到低：
 
@@ -558,29 +788,33 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
    两侧档位接目录、档位类型收敛、shellPath 设置 —— 见上面三节。下一步从第 5 项继续。
 5. **steer 交互（M3-h 已完成）**：运行中插话接 pi 原生 steer、队列下沉运行时、停止暂停队列，
    见上面 M3-h 一节。下一步从第 6 项继续。
-6. **WSL 手动选项（M3 剩余项，下一步就从这里开始）**：BashOperations 路径翻译
+6. **WSL 手动选项：用户裁决不做**（2026-09-27）。调研结论留档：pi 无「从 Windows 调 WSL」能力
+   （`utils/wsl.ts` 只判断 pi 自己是否跑在 WSL 里）；可行路线是注册同名 `bash` customTool + 自实现
+   `BashOperations.exec`（spawn `wsl.exe -e bash -ls`、命令走 stdin、cwd/命令里的 `X:\` 翻译成 `/mnt/x/`、
+   `WSLENV` 透传 `PI_*`）；`wsl.exe -l -q` 输出是 UTF-16LE。将来要做从这里接。
 
 **队列交互（M3-a 起，M3-h 重构归属）**：待发送消息在输入区上方显示文本/附件摘要；每条可编辑、
 删除、改为插话；队列在 piChatRuntime 条目里按 conversationKey 隔离（切页不丢），
 agent_settled 触发排空；用户按停止则暂停排空。
 
-**M4（会话管理）**：sqlite 目录表（scope/域引用/group/pin/order/title/source/cwd/session_path，
-**改表同步 scripts/db/check-schema-parity.mjs 常量+跑 pnpm db:schema:build/check**）、列表/
-分组/置顶/标题、分支改 pi 会话树（branch/getBranch/navigateTree/runtime.fork）、pi JSONL
-resume 打开旧会话、卫星面板按 scope 接入、runtime 会话条目治理。
-**M5（浏览器扩展）**：aiServer 迁主进程、WS 协议 v2（扩展未上线直接 breaking）、
-useAiChat/SharedChatTab 改 pi 事件、chat.* RPC 改目录表+session。
-**M6（老数据迁移器）**：chat-core v4→pi entry（user 图片转 base64、assistant 按 turnId 分组、
-分支族合并树）、5 张表、启动任务（备份+队列+打开优先）、无签名 thinking 的 Anthropic 重放验证。
-**M7（同步）**：sync.ts 捎带 sessions/<库名>/ + manifest（per-file hash/mtime）、双机往返。
-**M8（删旧收尾）**：packages/agent 整包——**实测比原计划便宜**：桌面端只剩 4 个类型导入
-（`AgentModelUsage`×2 / `AgentTool` / `AgentSkill`）+ 一个值导入 `isAbortError`（editingUtils），
-其他 app 与 package 全无引用；内联这 5 个符号 + 清 vite/vitest/tsconfig 别名与 package.json 依赖即可删包。
-chat-core 展示层（保留 messageSchema 供迁移器；`syncAssistantDerivedFields`/`ensureAssistantMessage`/
-`getAssistantToolExecutions`/`migrateAssistantMessage`/`sanitizeToolMessages`/
-`applyAssistantProviderMetadataSnapshot` 目前只剩桌面 barrel 转出、无真实消费者）、
-chat_run 表与主进程 handler（含 db-schema/knowledge-migration/mobile Rust 的同批处理）、
-modules/llm.ts、卫星表 messages 写路径；DECISIONS.md 追加条目；03 指南数据协议节同步；rg 复核清零。
+**M4（会话管理，进行中）**：见文首「M4 执行手册」。本批 = 目录表 + resume + 投影 + 迁移器（原 M6 提前）
+
+- 事实源切换 + 五场景接入 + 同步带会话包（原 M7 的整包部分提前）+ 扩展 `chat.*`。
+  之后：**M4-d** 分支改 pi 会话树（`navigateTree` 在同一文件挪叶子、旧 `parent_session_id` 分支族合并成树）；
+  **M4-e** 治理（runtime 会话条目清理、主进程重启后的交互恢复、队列与插话的恢复边界）。
+  **M5（浏览器扩展）**：aiServer 迁主进程、WS 协议 v2（扩展未上线直接 breaking）、
+  useAiChat/SharedChatTab 改 pi 事件（若 M4.5 选了方案 b，会话部分已在 M4 完成）。
+  **M6（老数据迁移器）**：已并入 M4（`chat-session-migration.ts`）。与原计划的差异：一行一会话、分支族不合并；
+  思考不迁；audio_note_chats 不迁。
+  **M7（同步）**：整包同步已并入 M4（M4.4）；剩增量 manifest（per-file hash/mtime，只传变化的文件）、双机往返验证。
+  **M8（删旧收尾）**：packages/agent 整包——**实测比原计划便宜**：桌面端只剩 4 个类型导入
+  （`AgentModelUsage`×2 / `AgentTool` / `AgentSkill`）+ 一个值导入 `isAbortError`（editingUtils），
+  其他 app 与 package 全无引用；内联这 5 个符号 + 清 vite/vitest/tsconfig 别名与 package.json 依赖即可删包。
+  chat-core 展示层（保留 messageSchema 供迁移器；`syncAssistantDerivedFields`/`ensureAssistantMessage`/
+  `getAssistantToolExecutions`/`migrateAssistantMessage`/`sanitizeToolMessages`/
+  `applyAssistantProviderMetadataSnapshot` 目前只剩桌面 barrel 转出、无真实消费者）、
+  chat_run 表与主进程 handler（含 db-schema/knowledge-migration/mobile Rust 的同批处理）、
+  modules/llm.ts、卫星表 messages 写路径；DECISIONS.md 追加条目；03 指南数据协议节同步；rg 复核清零。
 
 **与 pi 迁移无关的仓库积灰（另开一次，不要混进迁移提交）**：全仓广扫发现约 40 个无引用的
 组件/hooks/工具文件（`components/AdvanceTable` 只是个占位 `<h1>`）与两个成片死目录
