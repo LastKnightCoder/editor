@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>白板 Column 重设计 · 静态原型</title>
+<!--
+  白板 Column 重设计原型：容器退为「托盘」——实底浅色、小圆角、无阴影无描边；层次只由内部白卡片制造。
+  交互：卡片可在列间 / 画布间拖拽（邻居让位 FLIP 动画）、列可折叠、底部 hover 出现「添加」、点击列头选中。
+  视觉参考，非导出源（D-001）。
+-->
+<link rel="stylesheet" href="../whiteboards/base.css">
+<style>
+  [data-theme="cream"] {
+    --canvas: #fbf7ef;
+    --canvas-dot: rgba(67, 57, 44, 0.13);
+    --tray: #f1eee9;
+    --tray-over: #e9e5de;
+    --tray-ink-count: #a89a85;
+    --card-shadow: 0 1px 1px rgba(90, 70, 40, 0.06), 0 1px 3px rgba(90, 70, 40, 0.08);
+    --card-lift: 0 2px 4px rgba(90, 70, 40, 0.08), 0 18px 36px -12px rgba(90, 70, 40, 0.35);
+    --ph: rgba(67, 57, 44, 0.07);
+  }
+  [data-theme="cocoa"] {
+    --canvas: #1b1712;
+    --canvas-dot: rgba(236, 226, 208, 0.09);
+    --tray: #252220;
+    --tray-over: #2c2926;
+    --tray-ink-count: #857768;
+    --card-shadow: 0 1px 1px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.3);
+    --card-lift: 0 2px 4px rgba(0, 0, 0, 0.3), 0 18px 36px -12px rgba(0, 0, 0, 0.7);
+    --ph: rgba(236, 226, 208, 0.06);
+  }
+
+
+  /* ───── 托盘方案（body[data-tray]）───── */
+  /* B 纸上纸：托盘是一张白纸 + 发丝线；内部卡片也用发丝线、不投影，靠间隙分开 */
+  body[data-tray^="b"] { --tray: var(--bg-surface); --tray-over: color-mix(in srgb, var(--bg-surface), var(--accent) 4%); --paper-line: color-mix(in srgb, var(--ink-1) 11%, transparent); }
+  body[data-tray^="b"] .col { box-shadow: 0 0 0 1px var(--paper-line); }
+  body[data-tray^="b"] .col.over { box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent); }
+  body[data-tray^="b"] .col.selected { box-shadow: 0 0 0 2px var(--accent); }
+  body[data-tray^="b"] .col-head { border-bottom: 1px solid var(--paper-line); margin: 0 -8px 8px; }
+  body[data-tray^="b"] .col.collapsed .col-head { border-bottom: none; margin-bottom: 0; }
+  body[data-tray^="b"] .col.collapsed .stack i { box-shadow: 0 0 0 1px var(--paper-line); }
+  body[data-tray="b"] .col .card { box-shadow: 0 0 0 1px var(--paper-line); }
+  body[data-tray="b"] .col .card:hover { box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink-1) 28%, transparent); }
+  /* B2 清单式：托盘内无间隙，卡片之间一条分隔线，整列像一张纸 */
+  body[data-tray="b2"] .col { padding: 0; overflow: visible; }
+  body[data-tray="b2"] .col-head { margin: 0; }
+  body[data-tray="b2"] .col-body { gap: 0; }
+  body[data-tray="b2"] .col .card { box-shadow: none; border-radius: 0; }
+  body[data-tray="b2"] .col .card + .card, body[data-tray="b2"] .col .ph + .card, body[data-tray="b2"] .col .card + .ph { border-top: 1px solid var(--paper-line); }
+  body[data-tray="b2"] .col .card:last-child { border-radius: 0 0 6px 6px; }
+  body[data-tray="b2"] .col .card:hover { background: var(--bg-surface-hover); }
+  body[data-tray="b2"] .col .card .img { border-radius: 0; margin: 10px 12px 0; border-radius: 3px; height: 108px; }
+  body[data-tray="b2"] .col .ph { border-radius: 0; }
+  body[data-tray="b2"] .col-empty { margin: 8px; }
+  /* C 线框：画布同色实底（遮住点阵），只有一圈细线 + 标题，卡片照常浮起 */
+  body[data-tray="c"] { --tray: var(--canvas); --tray-over: color-mix(in srgb, var(--canvas), var(--ink-1) 3%); }
+  body[data-tray="c"] .col { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink-1) 14%, transparent); }
+  body[data-tray="c"] .col.selected { box-shadow: 0 0 0 2px var(--accent); }
+  /* F 无托盘：标题 + 色线界定列，卡片直接落在画布上；拖入时才显出区域 */
+  body[data-tray="f"] { --tray: transparent; --tray-over: color-mix(in srgb, var(--canvas), var(--ink-1) 5%); }
+  body[data-tray="f"] .col { padding: 0 0 8px; border-radius: 6px; }
+  body[data-tray="f"] .col.over { box-shadow: 0 0 0 8px var(--tray-over); }
+  body[data-tray="f"] .col.selected { box-shadow: 0 0 0 6px var(--canvas), 0 0 0 8px var(--accent); }
+  body[data-tray="f"] .col[data-color]::before { display: none; }
+  body[data-tray="f"] .col-head { margin-bottom: 10px; border-bottom: 2px solid var(--tag-color, color-mix(in srgb, var(--ink-1) 18%, transparent)); }
+  body[data-tray="f"] .col.collapsed .col-head { margin-bottom: 0; }
+  body[data-tray="f"] .col-empty { background: transparent; }
+
+  body { overflow: auto; min-width: 0; }
+  .shell { display: flex; flex-direction: column; height: 100vh; }
+
+  /* ───── 顶部说明条 ───── */
+  .topbar {
+    flex: none; display: flex; align-items: center; gap: 14px;
+    padding: 12px 20px; background: var(--bg-page); border-bottom: 1px solid var(--line-1);
+  }
+  .topbar h1 { font-size: 14.5px; font-weight: 600; }
+  .topbar .hint { color: var(--ink-3); font-size: 12.5px; }
+  .topbar .sp { flex: 1; }
+  .seg { display: inline-flex; background: var(--bg-hover); border-radius: 8px; padding: 2px; }
+  .seg button { padding: 3px 10px; border-radius: 6px; font-size: 12.5px; color: var(--ink-2); }
+  .seg button.on { background: var(--bg-surface); color: var(--ink-1); box-shadow: var(--shadow-lift); }
+  .lbl { font-size: 12px; color: var(--ink-3); }
+
+  /* ───── 画布 ───── */
+  .canvas {
+    position: relative; flex: 1; overflow: auto;
+    background-color: var(--canvas);
+    background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px);
+    background-size: 16px 16px;
+    transition: background-color 200ms var(--ease-out);
+  }
+  .world { position: relative; width: 1760px; height: 1060px; }
+  .group { position: absolute; display: flex; flex-direction: column; gap: 10px; }
+  .group > .col { position: relative; left: auto !important; top: auto !important; }
+  .group > .col + .note-label { margin-top: 44px; }
+  .group > .col + .col { margin-top: 30px; }
+  .group > .note-label { position: static; }
+  .note-label {
+    position: absolute; font-size: 11.5px; color: var(--ink-3); letter-spacing: 0.02em;
+    user-select: none; pointer-events: none;
+  }
+  .note-label b { color: var(--ink-2); font-weight: 600; }
+
+  /* ───── Column：托盘 ───── */
+  .col {
+    position: absolute; width: 272px;
+    background: var(--tray);
+    border-radius: 6px;
+    padding: 0 8px 8px;
+    transition: background-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out);
+  }
+  .col.over { background: var(--tray-over); }
+  .col.selected { box-shadow: 0 0 0 2px var(--accent); }
+
+  /* 颜色：顶部 3px 色带 */
+  .col[data-color="green"]  { --tag-color: var(--tag-1); }
+  .col[data-color="blue"]   { --tag-color: var(--tag-2); }
+  .col[data-color="purple"] { --tag-color: var(--tag-3); }
+  .col[data-color="yellow"] { --tag-color: var(--tag-4); }
+  .col[data-color="red"]    { --tag-color: var(--tag-5); }
+  .col[data-color]::before {
+    content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px;
+    border-radius: 6px 6px 0 0; background: var(--tag-color);
+  }
+
+  .col-head {
+    position: relative; display: flex; align-items: baseline; justify-content: center; gap: 6px;
+    height: 40px; padding: 0 28px; line-height: 40px; cursor: grab; user-select: none;
+  }
+  .col-title {
+    min-width: 0; font-size: 13.5px; font-weight: 600; color: var(--ink-1);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; outline: none; border-radius: 3px;
+  }
+  .col-title[contenteditable="true"] { cursor: text; box-shadow: 0 0 0 2px var(--accent-soft); background: var(--bg-surface); padding: 0 4px; }
+  .col-count { font-size: 12px; color: var(--tray-ink-count); font-variant-numeric: tabular-nums; }
+  .col-btn {
+    position: absolute; right: 2px; top: 9px;
+    width: 22px; height: 22px; border-radius: 4px; display: grid; place-items: center;
+    color: var(--ink-3); opacity: 0; transition: opacity 120ms, background 120ms, transform 200ms var(--ease-out);
+  }
+  .col:hover .col-btn, .col.collapsed .col-btn.chev { opacity: 1; }
+  .col-btn:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .col.collapsed .col-btn.chev { transform: rotate(-90deg); }
+  .col-btn .icon { width: 14px; height: 14px; }
+
+  .col-body { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+  .col.collapsed .col-body, .col.collapsed .col-add, .col.collapsed .col-empty { display: none; }
+
+  /* 折叠态：两层纸边暗示内容 */
+  .col.collapsed { padding-bottom: 0; }
+  .col .stack { display: none; }
+  .col.collapsed .stack { display: block; position: relative; height: 12px; margin: -4px 0 0; }
+  .col.collapsed .stack i {
+    position: absolute; left: 6px; right: 6px; height: 6px; top: 0;
+    background: var(--bg-surface); border-radius: 0 0 4px 4px; box-shadow: var(--card-shadow);
+  }
+  .col.collapsed .stack i + i { left: 12px; right: 12px; top: 5px; opacity: 0.7; }
+
+  /* 空态 */
+  .col-empty {
+    height: 84px; border: 1.5px dashed color-mix(in srgb, var(--ink-3) 45%, transparent);
+    border-radius: 4px; display: grid; place-items: center;
+    color: var(--ink-3); font-size: 12.5px; user-select: none;
+  }
+  .col-body:not(:empty) + .col-empty, .col.has-ph .col-empty { display: none; }
+
+  /* 底部添加：hover 淡入 */
+  .col::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 36px; }
+  .col-add {
+    position: absolute; left: 0; top: calc(100% + 4px); z-index: 1;
+    display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px;
+    border-radius: 4px; color: var(--ink-3); font-size: 12.5px;
+    opacity: 0; transition: opacity 140ms, background 140ms;
+  }
+  .col:hover .col-add { opacity: 1; }
+  .col-add:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .col-add .icon { width: 14px; height: 14px; }
+  .col.static-hover .col-add, .col.static-hover .col-btn { opacity: 1; }
+
+  /* ───── 卡片 ───── */
+  .card {
+    position: relative; background: var(--bg-surface); border-radius: 4px;
+    box-shadow: var(--card-shadow); cursor: grab; user-select: none;
+    color: var(--ink-1); font-size: 13px; line-height: 1.6;
+  }
+  .card.free { position: absolute; width: 256px; }
+  .card:hover { box-shadow: var(--card-shadow), 0 0 0 1px color-mix(in srgb, var(--ink-3) 35%, transparent); }
+  .card .pad { padding: 10px 12px; }
+  .card h4 { font-size: 13.5px; font-weight: 600; margin-bottom: 2px; }
+  .card p { color: var(--ink-2); }
+  .card .img { height: 124px; border-radius: 4px 4px 0 0; background-size: cover; background-position: center; }
+  .card .cap { padding: 6px 12px 8px; font-size: 12px; color: var(--ink-3); }
+  .card .todo { display: flex; gap: 8px; align-items: flex-start; padding: 1px 0; }
+  .card .todo i { flex: none; width: 13px; height: 13px; margin-top: 4px; border-radius: 3px; border: 1.5px solid var(--ink-3); }
+  .card .todo.done i { background: var(--ok); border-color: var(--ok); }
+  .card .todo.done span { color: var(--ink-3); text-decoration: line-through; }
+  .card .link { display: flex; gap: 10px; align-items: center; }
+  .card .link .fav { width: 32px; height: 32px; border-radius: 6px; flex: none; display: grid; place-items: center; font: 600 13px/1 var(--mono); color: #fff; }
+  .card .link .u { font-size: 11.5px; color: var(--ink-3); }
+  .card .board { display: flex; gap: 10px; align-items: center; }
+  .card .board .thumb {
+    width: 40px; height: 32px; border-radius: 4px; flex: none;
+    background-color: var(--canvas); background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px); background-size: 5px 5px;
+    box-shadow: inset 0 0 0 1px var(--line-1); position: relative;
+  }
+  .card .board .thumb::after { content: ""; position: absolute; left: 7px; top: 7px; width: 12px; height: 9px; border-radius: 2px; background: var(--accent-soft); box-shadow: 14px 6px 0 -1px var(--accent-soft); }
+  .card .tag { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 3px; margin-top: 6px; }
+
+  /* 拖拽 */
+  .card.ghost { visibility: hidden; }
+  .drag-float {
+    position: fixed; z-index: 100; pointer-events: none; cursor: grabbing;
+    box-shadow: var(--card-lift); transform: rotate(1.5deg) scale(1.02);
+    transition: transform 120ms var(--ease-out);
+  }
+  .ph { background: var(--ph); border-radius: 4px; flex: none; }
+  body.dragging, body.dragging * { cursor: grabbing !important; }
+
+  /* 对照：旧版 */
+  .old {
+    position: absolute; width: 300px; border-radius: 12px;
+    background: rgba(248, 250, 252, 0.88); border: 1px solid rgba(15, 23, 42, 0.06);
+    filter: drop-shadow(0 6px 16px rgba(15,23,42,0.08)) drop-shadow(0 1px 3px rgba(15,23,42,0.05));
+    padding: 0 16px 16px; color: rgba(15,23,42,.85);
+  }
+  [data-theme="cocoa"] .old { background: rgba(30,35,45,.85); border-color: rgba(255,255,255,.08); color: rgba(241,245,249,.9); }
+  .old .h { height: 76px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-bottom: .5px solid rgba(15,23,42,.08); margin-bottom: 16px; }
+  .old .h b { font-size: 18px; } .old .h span { font-size: 12px; opacity: .45; }
+  .old .card { margin-bottom: 8px; cursor: default; }
+</style>
+</head>
+<body data-tray="b">
+<div class="shell">
+  <div class="topbar">
+    <h1>白板 Column 重设计</h1>
+    <span class="hint">拖动卡片进出列 · 点 ▾ 折叠 · 双击标题改名 · 点列头选中</span>
+    <span class="sp"></span>
+    <span class="lbl">托盘方案</span>
+    <div class="seg" id="tray">
+      <button data-v="b" class="on">B 纸上纸</button>
+      <button data-v="b2">B2 清单式</button>
+      <button data-v="c">C 线框</button>
+      <button data-v="f">F 无托盘</button>
+    </div>
+    <span class="lbl">主题</span>
+    <div class="seg" id="theme">
+      <button data-v="cream" class="on">亮</button>
+      <button data-v="cocoa">暗</button>
+    </div>
+  </div>
+
+  <div class="canvas">
+    <div class="world" id="world">
+
+      <!-- ① 默认：多种卡片 -->
+      <div class="group" style="left:60px;top:40px">
+      <div class="note-label" style="left:60px;top:40px"><b>① 默认</b> · 托盘实底，只有卡片浮起</div>
+      <div class="col" style="left:60px;top:66px" data-col>
+        <div class="col-head">
+          <div class="col-title">灵感收集</div>
+          <span class="col-count">5</span>
+          <button class="col-btn chev" title="折叠"><svg class="icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+        </div>
+        <div class="col-body">
+          <div class="card"><div class="pad"><h4>白板要像纸，不像软件</h4><p>容器越安静，内容越清楚。去掉一切不承担信息的装饰。</p></div></div>
+          <div class="card"><div class="img" style="background-image:linear-gradient(135deg,#d8c3a5 0%,#b98b6a 45%,#6f5847 100%)"></div><div class="cap">参考：Milanote 的列</div></div>
+          <div class="card"><div class="pad link"><div class="fav" style="background:#5c7d99">M</div><div><div>Milanote — Organize your ideas</div><div class="u">milanote.com</div></div></div></div>
+          <div class="card"><div class="pad"><div class="todo done"><i></i><span>去掉阴影和描边</span></div><div class="todo done"><i></i><span>托盘改实底</span></div><div class="todo"><i></i><span>拖拽让位动画</span></div></div></div>
+          <div class="card"><div class="pad board"><div class="thumb"></div><div><div>视觉参考板</div><div style="font-size:11.5px;color:var(--ink-3)">12 个元素</div></div></div></div>
+        </div>
+        <div class="col-empty">拖入卡片</div>
+        <button class="col-add"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>添加卡片</button>
+        <div class="stack"><i></i><i></i></div>
+      </div>
+
+      </div>
+
+      <!-- ② 颜色 -->
+      <div class="group" style="left:372px;top:40px">
+      <div class="note-label" style="left:372px;top:40px"><b>② 颜色标记</b> · 顶部 3px 色带</div>
+      <div class="col" style="left:372px;top:66px" data-col data-color="blue">
+        <div class="col-head">
+          <div class="col-title">本周</div>
+          <span class="col-count">3</span>
+          <button class="col-btn chev"><svg class="icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+        </div>
+        <div class="col-body">
+          <div class="card"><div class="pad"><h4>整理白板 Column</h4><p>先出原型，确认后改组件。</p><span class="tag" style="background:var(--tag-2-soft);color:var(--tag-2)">设计</span></div></div>
+          <div class="card"><div class="pad"><p>主题族 token 接入白板元素</p></div></div>
+          <div class="card"><div class="pad"><p>检查暗色下的卡片对比度</p></div></div>
+        </div>
+        <div class="col-empty">拖入卡片</div>
+        <button class="col-add"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>添加卡片</button>
+        <div class="stack"><i></i><i></i></div>
+      </div>
+      <div class="col" style="left:372px;top:360px" data-col data-color="green">
+        <div class="col-head">
+          <div class="col-title">已完成</div>
+          <span class="col-count">1</span>
+          <button class="col-btn chev"><svg class="icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+        </div>
+        <div class="col-body">
+          <div class="card"><div class="pad"><p>主题拆为「主题族 × 明暗」</p></div></div>
+        </div>
+        <div class="col-empty">拖入卡片</div>
+        <button class="col-add"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>添加卡片</button>
+        <div class="stack"><i></i><i></i></div>
+      </div>
+      <div class="col" style="left:372px;top:490px" data-col data-color="red">
+        <div class="col-head">
+          <div class="col-title">待讨论</div>
+          <span class="col-count">1</span>
+          <button class="col-btn chev"><svg class="icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+        </div>
+        <div class="col-body">
+          <div class="card"><div class="pad"><p>Column 是否支持嵌套 Column？</p></div></div>
+        </div>
+        <div class="col-empty">拖入卡片</div>
+        <button class="col-add"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>添加卡片</button>
+        <div class="stack"><i></i><i></i></div>
+      </div>
+
+      </div>
+
+      <!-- ③ 空态 + hover -->
+      <div class="group" style="left:684px;top:40px">
+      <div class="note-label" style="left:684px;top:40px"><b>③ 空态</b> · 虚线占位，hover 出现添加</div>
+      <div class="col static-hover" style="left:684px;top:66px" data-col>
+        <div class="col-head">
+          <div class="col-title">未命名</div>
+          <span class="col-count">0</span>
+          <button class="col-btn chev"><svg class="icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+        </div>
+        <div class="col-body"></div>
+        <div class="col-empty">拖入卡片</div>
+        <button class="col-add"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>添加卡片</button>
+        <div class="stack"><i></i><i></i></div>
+      </div>
+
+      <!-- ④ 折叠 -->
+      <div class="note-label" style="left:684px;top:230px"><b>④ 折叠</b> · 只留标题 + 纸边</div>
+      <div class="col collapsed" style="left:684px;top:256px" data-col data-color="purple">
+        <div class="col-head">
+          <div class="col-title">阅读清单</div>
+          <span class="col-count">4</span>
+          <button class="col-btn chev"><svg class="icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+        </div>
+        <div class="col-body">
+          <div class="card"><div class="pad"><p>《设计中的设计》</p></div></div>
+          <div class="card"><div class="pad"><p>《写给大家看的设计书》</p></div></div>
+          <div class="card"><div class="pad"><p>Refactoring UI</p></div></div>
+          <div class="card"><div class="pad"><p>The Shape of Design</p></div></div>
+        </div>
+        <div class="col-empty">拖入卡片</div>
+        <button class="col-add"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>添加卡片</button>
+        <div class="stack"><i></i><i></i></div>
+      </div>
+
+      <!-- ⑤ 选中 -->
+      <div class="note-label" style="left:684px;top:360px"><b>⑤ 选中</b> · 外描边 2px accent，背景不变</div>
+      <div class="col selected" style="left:684px;top:386px" data-col>
+        <div class="col-head">
+          <div class="col-title">素材</div>
+          <span class="col-count">2</span>
+          <button class="col-btn chev"><svg class="icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+        </div>
+        <div class="col-body">
+          <div class="card"><div class="img" style="height:92px;background-image:linear-gradient(160deg,#a8b9a4,#61795f)"></div><div class="cap">封面候选 A</div></div>
+          <div class="card"><div class="img" style="height:92px;background-image:linear-gradient(160deg,#c9b6d8,#8a7aa6)"></div><div class="cap">封面候选 B</div></div>
+        </div>
+        <div class="col-empty">拖入卡片</div>
+        <button class="col-add"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>添加卡片</button>
+        <div class="stack"><i></i><i></i></div>
+      </div>
+
+      </div>
+
+      <!-- 画布上的自由卡片 -->
+      <div class="note-label" style="left:1010px;top:40px"><b>⑥ 画布自由卡片</b> · 拖进任意列试试</div>
+      <div class="card free" style="left:1010px;top:66px"><div class="pad"><h4>拖我进列</h4><p>悬停时邻居会让出位置，放手即吸附。</p></div></div>
+      <div class="card free" style="left:1010px;top:170px"><div class="pad"><p>把列里的卡片拖到空白处，它会留在画布上。</p></div></div>
+      <div class="card free" style="left:1010px;top:250px"><div class="img" style="background-image:linear-gradient(135deg,#e2ebf3,#83aecf 60%,#5c7d99)"></div><div class="cap">一张图片卡片</div></div>
+
+      <!-- 旧版对照 -->
+      <div class="note-label" style="left:1330px;top:40px"><b>对照 · 旧版</b></div>
+      <div class="old" style="left:1330px;top:66px">
+        <div class="h"><b>Column</b><span>2 项</span></div>
+        <div class="card"><div class="pad"><p>半透明底 + 双层阴影 + 描边</p></div></div>
+        <div class="card"><div class="pad"><p>白卡片几乎融进容器</p></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const world = $('#world');
+
+  // 切换器
+  const bindSeg = (id, fn) => $$('#' + id + ' button').forEach(b => b.onclick = () => {
+    $$('#' + id + ' button').forEach(x => x.classList.toggle('on', x === b)); fn(b.dataset.v);
+  });
+  bindSeg('theme', v => document.documentElement.dataset.theme = v);
+  bindSeg('tray', v => document.body.dataset.tray = v);
+  const q = new URLSearchParams(location.search);
+  q.get('tray') && $(`#tray [data-v="${q.get('tray')}"]`)?.click();
+  q.get('theme') && $(`#theme [data-v="${q.get('theme')}"]`)?.click();
+
+  const updateCounts = () => $$('[data-col]').forEach(c => $('.col-count', c).textContent = $$('.col-body > .card', c).length);
+
+  // 折叠 / 选中 / 改名 / 添加
+  world.addEventListener('click', e => {
+    const col = e.target.closest('[data-col]');
+    if (e.target.closest('.chev')) { col.classList.toggle('collapsed'); return; }
+    if (e.target.closest('.col-add')) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = '<div class="pad"><p contenteditable="true" style="outline:none">新卡片</p></div>';
+      $('.col-body', col).appendChild(card);
+      const p = $('p', card); p.focus(); document.getSelection().selectAllChildren(p);
+      updateCounts(); return;
+    }
+    $$('.col.selected').forEach(c => c !== col && c.classList.remove('selected'));
+    if (col && e.target.closest('.col-head')) col.classList.add('selected');
+  });
+  world.addEventListener('dblclick', e => {
+    const t = e.target.closest('.col-title'); if (!t) return;
+    t.contentEditable = 'true'; t.focus(); document.getSelection().selectAllChildren(t);
+    const done = () => { t.contentEditable = 'false'; t.removeEventListener('blur', done); };
+    t.addEventListener('blur', done);
+    t.addEventListener('keydown', ev => ev.key === 'Enter' && (ev.preventDefault(), t.blur()));
+  });
+
+  // ───── 拖拽：浮起副本 + 占位块 + 邻居 FLIP 让位 ─────
+  let drag = null;
+  const ph = document.createElement('div'); ph.className = 'ph';
+
+  const flip = (cols, mutate) => {
+    const els = cols.flatMap(c => $$('.col-body > .card:not(.ghost), .col-body > .ph', c).concat([c]));
+    const before = new Map(els.map(el => [el, el.getBoundingClientRect()]));
+    mutate();
+    els.forEach(el => {
+      const a = before.get(el), b = el.getBoundingClientRect();
+      if (el.classList.contains('col')) return; // 列高度自然变化
+      const dy = a.top - b.top; if (!dy || !b.height) return;
+      el.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: 180, easing: 'cubic-bezier(0.2,0,0,1)' });
+    });
+  };
+
+  const colAt = (x, y) => $$('[data-col]:not(.collapsed)').find(c => {
+    const r = c.getBoundingClientRect(); return x >= r.left - 12 && x <= r.right + 12 && y >= r.top - 12 && y <= r.bottom + 24;
+  });
+
+  const indexIn = (col, y) => {
+    const cards = $$('.col-body > .card:not(.ghost)', col);
+    for (let i = 0; i < cards.length; i++) {
+      const r = cards[i].getBoundingClientRect(); if (y < r.top + r.height / 2) return i;
+    }
+    return cards.length;
+  };
+
+  const placePh = (col, idx) => {
+    const cur = ph.parentElement ? ph.closest('[data-col]') : null;
+    const body = col && $('.col-body', col);
+    const ref = col ? $$('.col-body > .card:not(.ghost)', col)[idx] || null : null;
+    if (cur === col) {
+      if (!col) return;
+      let next = ph.nextElementSibling;
+      while (next && next.classList.contains('ghost')) next = next.nextElementSibling;
+      if (next === ref) return;
+    }
+    const affected = [cur, col].filter(Boolean);
+    flip(affected, () => {
+      if (col) { body.insertBefore(ph, ref); col.classList.add('has-ph'); }
+      else ph.remove();
+      if (cur && cur !== col) cur.classList.remove('has-ph');
+      // 原卡片在列内：离开原位即合拢
+      if (drag.card.classList.contains('ghost') && drag.card.parentElement?.classList.contains('col-body')) drag.card.style.display = 'none';
+    });
+    $$('[data-col]').forEach(c => c.classList.toggle('over', c === col));
+  };
+
+  world.addEventListener('pointerdown', e => {
+    const card = e.target.closest('.card'); if (!card || e.button !== 0 || e.target.isContentEditable) return;
+    if (card.closest('.old')) return;
+    const r = card.getBoundingClientRect();
+    drag = { card, ox: e.clientX - r.left, oy: e.clientY - r.top, sx: e.clientX, sy: e.clientY, started: false, w: r.width, h: r.height };
+    card.setPointerCapture(e.pointerId);
+  });
+
+  world.addEventListener('pointermove', e => {
+    if (!drag) return;
+    if (!drag.started) {
+      if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 4) return;
+      drag.started = true;
+      document.body.classList.add('dragging');
+      const f = drag.card.cloneNode(true);
+      f.classList.remove('free'); f.classList.add('drag-float');
+      f.style.width = drag.w + 'px'; f.style.left = ''; f.style.top = '';
+      document.body.appendChild(f); drag.float = f;
+      ph.style.height = drag.h + 'px';
+      const srcCol = drag.card.closest('[data-col]');
+      if (srcCol) {
+        // 占位块原地替换
+        drag.card.parentElement.insertBefore(ph, drag.card);
+        srcCol.classList.add('has-ph', 'over');
+        drag.card.classList.add('ghost'); drag.card.style.display = 'none';
+      } else drag.card.classList.add('ghost');
+    }
+    drag.float.style.left = e.clientX - drag.ox + 'px';
+    drag.float.style.top = e.clientY - drag.oy + 'px';
+    const col = colAt(e.clientX, e.clientY);
+    placePh(col, col ? indexIn(col, e.clientY) : 0);
+  });
+
+  const end = e => {
+    if (!drag) return;
+    const { card, float, started } = drag;
+    if (started) {
+      const col = ph.parentElement ? ph.closest('[data-col]') : null;
+      card.classList.remove('ghost'); card.style.display = '';
+      if (col) {
+        card.classList.remove('free'); card.style.left = card.style.top = card.style.width = '';
+        ph.replaceWith(card); col.classList.remove('has-ph');
+      } else {
+        const wr = world.getBoundingClientRect();
+        card.classList.add('free');
+        card.style.width = Math.max(drag.w, 256) + 'px';
+        card.style.left = e.clientX - drag.ox - wr.left + 'px';
+        card.style.top = e.clientY - drag.oy - wr.top + 'px';
+        world.appendChild(card);
+      }
+      // 落位动画：从浮起副本位置滑到最终位置
+      const fr = float.getBoundingClientRect(), cr = card.getBoundingClientRect();
+      card.animate([{ transform: `translate(${fr.left - cr.left}px, ${fr.top - cr.top}px) rotate(1.5deg)` }, { transform: 'none' }], { duration: 160, easing: 'cubic-bezier(0.22,1,0.36,1)' });
+      float.remove();
+      $$('[data-col]').forEach(c => c.classList.remove('over', 'has-ph'));
+      document.body.classList.remove('dragging');
+      updateCounts();
+    }
+    drag = null;
+  };
+  world.addEventListener('pointerup', end);
+  world.addEventListener('pointercancel', end);
+})();
+</script>
+</body>
+</html>

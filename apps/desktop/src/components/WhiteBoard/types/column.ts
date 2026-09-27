@@ -7,9 +7,6 @@ export interface ColumnElement extends CommonElement {
   children: BoardElement[];
   padding: number;
   gap: number;
-  backgroundColor: string;
-  borderRadius: number;
-  shadowEnabled: boolean;
   minWidth: number;
   maxWidth: number;
   isChildDraggingOver?: boolean;
@@ -20,53 +17,31 @@ export interface ColumnElement extends CommonElement {
   draggingPosition?: { x: number; y: number };
 }
 
-export interface ColumnStyle {
-  backgroundColor: string;
-  borderRadius: number;
-  shadowEnabled: boolean;
-}
-
 export const COLUMN_DEFAULTS = {
   width: 300,
-  titleHeight: 76,
-  padding: 16,
+  titleHeight: 40,
+  padding: 8,
   gap: 8,
   minWidth: 200,
   maxWidth: 600,
-  backgroundColor: "#ffffff",
-  borderRadius: 12,
-  shadowEnabled: true,
+  borderRadius: 6,
+  /** 子元素槽位圆角 */
+  slotRadius: 4,
+  /** 空列占位框高度 */
+  emptyHeight: 60,
 } as const;
 
 /**
- * Column 主题色板（贴近 Milanote 的冷白半透明基调）
- * 容器退让、靠圆角+柔和投影浮起，强调色克制为单一柔和蓝
+ * Column 配色：托盘与子元素槽位都是 surface 实底，靠发丝线分层，不用阴影。
+ * 全部取自主题 token，随主题族与明暗切换。
  */
-export const columnTheme = {
-  light: {
-    backgroundColor: "rgba(248, 250, 252, 0.88)",
-    border: "rgba(15, 23, 42, 0.06)",
-    titleText: "rgba(15, 23, 42, 0.85)",
-    descriptionText: "rgba(15, 23, 42, 0.45)",
-    separator: "rgba(15, 23, 42, 0.05)",
-    shadow:
-      "drop-shadow(0 6px 16px rgba(15,23,42,0.08)) drop-shadow(0 1px 3px rgba(15,23,42,0.05))",
-    dropHighlightFill: "rgba(59, 130, 246, 0.06)",
-    dropHighlightBorder: "rgba(59, 130, 246, 0.4)",
-    dropIndicator: "#3b82f6",
-    dragPreviewStroke: "rgba(59, 130, 246, 0.5)",
-  },
-  dark: {
-    backgroundColor: "rgba(30, 35, 45, 0.85)",
-    border: "rgba(255, 255, 255, 0.08)",
-    titleText: "rgba(241, 245, 249, 0.9)",
-    descriptionText: "rgba(241, 245, 249, 0.4)",
-    separator: "rgba(255, 255, 255, 0.06)",
-    shadow:
-      "drop-shadow(0 6px 16px rgba(0,0,0,0.35)) drop-shadow(0 1px 3px rgba(0,0,0,0.2))",
-    dropHighlightFill: "rgba(59, 130, 246, 0.1)",
-    dropHighlightBorder: "rgba(96, 165, 250, 0.4)",
-    dropIndicator: "#60a5fa",
-    dragPreviewStroke: "rgba(96, 165, 250, 0.5)",
-  },
+export const COLUMN_COLORS = {
+  tray: "var(--tau-bg-surface)",
+  trayDropOver: "color-mix(in srgb, var(--tau-bg-surface), var(--tau-accent) 4%)",
+  line: "color-mix(in srgb, var(--tau-ink-1) 11%, transparent)",
+  lineDropOver: "color-mix(in srgb, var(--tau-accent) 45%, transparent)",
+  emptyLine: "color-mix(in srgb, var(--tau-ink-3) 45%, transparent)",
+  title: "var(--tau-ink-1)",
+  muted: "var(--tau-ink-3)",
+  dropIndicator: "var(--tau-accent)",
 } as const;
