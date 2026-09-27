@@ -16,10 +16,12 @@ import {
   createHostModelRuntime,
   createHostResourceLoader,
   detectBashShellPath,
+  loadSessionTranscript,
   resolveAgentShellPath,
   steerHostSession,
 } from "./pi-session-host-core";
 import { desktopMessagesToPi, PiToolCallBridge } from "./pi-session-bridge";
+import { piEntriesToDesktopMessages } from "./pi-session-transcript";
 import type { PiHostToolSpec, PiToolApprovalChoice } from "@/types/pi-session";
 import { PiSessionInteractions } from "./pi-session-interactions";
 import { normalizePermissionMode } from "@/services/tool-permission/mode";
@@ -27,7 +29,7 @@ import { resolveV2Providers } from "./pi-ai-runtime-core";
 import type { LLMProviderSetting, PiThinkingLevel } from "@/types/pi-llm";
 import type { RequestMessage } from "@/types";
 import type { AgentSession, ExtensionAPI, InlineExtension } from "@earendil-works/pi-coding-agent";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 
 interface HostedSession {
@@ -54,6 +56,16 @@ export interface PiSessionCreateRequest {
   systemPrompt?: string;
   /** 持久会话目录相对库名（默认当前活跃库）；传 null 强制 inMemory（测试/单轮） */
   persist?: boolean;
+  /**
+   * 打开已有会话（M4 resume）：相对当前库会话目录的文件名。
+   * pi 从 JSONL 自己恢复上下文，所以这条路不需要 initialMessages。
+   */
+  sessionFile?: string;
+  /**
+   * 新建时的 pi 会话 id（= 目录表主键，跨重建稳定）。与 sessionId（本进程内的宿主登记键，
+   * 每次重建都换）是两回事：前者标识「这条对话」，后者标识「这一次打开」。
+   */
+  piSessionId?: string;
   /** 手动指定 bash.exe（pi-dev 面板联调用；产品化的设置项在 M3 工具管理落地） */
   shellPath?: string;
   /** 渲染端 ToolRegistry 工具清单（桥接为 pi customTools），含当前停用项 */
@@ -220,6 +232,28 @@ class PiSessionHostModule {
         effective: PiSessionHostModule.resolveShellPath(setting),
       };
     });
+    // 打开对话（M4）：读会话文件当前叶子路径，投影成桌面展示消息。纯读，不起 pi 会话
+    ipcMain.handle(
+      "pi-session:transcript",
+      async (_event, { sessionFile }: { sessionFile: string }) => {
+        try {
+          const sessionDir = join(
+            PathUtil.getAppDir(),
+            "sessions",
+            await PiSessionHostModule.currentDatabaseName()
+          );
+          const path = join(sessionDir, sessionFile);
+          // 首轮还没等到 assistant 消息 pi 不落盘：没有文件就是空对话，不是错误
+          if (!existsSync(path)) return { ok: true, messages: [] };
+          return {
+            ok: true,
+            messages: piEntriesToDesktopMessages(loadSessionTranscript(path, sessionDir)),
+          };
+        } catch (error) {
+          return { ok: false, error: error instanceof Error ? error.message : String(error) };
+        }
+      }
+    );
     ipcMain.handle("pi-session:find-by-scope", async (event, { scope }: { scope: string }) => {
       // 渲染层重载后本地会话表丢失：按 scope 找主进程仍持有的会话（取最近创建的一个）
       let found: string | undefined;
@@ -335,13 +369,19 @@ class PiSessionHostModule {
         ...interactions.hostTools(),
       ];
       const systemPromptRef = { current: request.systemPrompt ?? "" };
-      const initialMessages = request.initialMessages?.length
-        ? await desktopMessagesToPi(
-            request.initialMessages,
-            request.modelRef.providerId,
-            request.modelRef.modelId
-          )
-        : [];
+      // 文件可能还不存在：pi 等第一条 assistant 消息出现才落盘（首轮预检失败就没有文件），
+      // SessionManager.open 对不存在的路径会在该路径上起一个新会话，不需要这里特判
+      const sessionFile =
+        request.sessionFile && sessionDir ? join(sessionDir, request.sessionFile) : undefined;
+      // resume 时历史已在 JSONL 里，灌入会重复
+      const initialMessages =
+        !sessionFile && request.initialMessages?.length
+          ? await desktopMessagesToPi(
+              request.initialMessages,
+              request.modelRef.providerId,
+              request.modelRef.modelId
+            )
+          : [];
       const session = await assembleHostSession({
         // cwd 为空时落到应用数据目录（正式会话的「当前项目根」绑定在 M4 接入）
         cwd: request.cwd || PathUtil.getAppDir(),
@@ -349,6 +389,8 @@ class PiSessionHostModule {
         modelRuntime,
         modelRef: request.modelRef,
         sessionDir,
+        ...(sessionFile ? { sessionFile } : {}),
+        ...(request.piSessionId ? { sessionId: request.piSessionId } : {}),
         systemPrompt: request.systemPrompt,
         shellPath: request.shellPath || PiSessionHostModule.resolveShellPath(setting),
         ...(customTools.length > 0 ? { customTools } : {}),
@@ -413,7 +455,12 @@ class PiSessionHostModule {
         modelRef: request.modelRef,
         thinkingLevel: request.thinkingLevel,
       });
-      return { ok: true };
+      // 回传会话文件（相对会话目录）与 pi 会话 id：目录表据此登记，下次打开走 resume
+      return {
+        ok: true,
+        piSessionId: session.sessionId,
+        ...(session.sessionFile ? { sessionFile: basename(session.sessionFile) } : {}),
+      };
     } catch (error) {
       interactions?.dispose();
       bridge?.dispose();

@@ -15,6 +15,7 @@ import type {
   PiSessionInteractionSnapshot,
 } from "@/types/pi-session";
 import type { AskQuestionAnswerItem } from "@/tools/askQuestionTypes";
+import type { ChatSessionMessage } from "@/types";
 
 export type PiSessionCreateOptions = Omit<PiSessionCreateRequestV2, "sessionId">;
 
@@ -54,11 +55,12 @@ export function onPiSessionInteractions(
   return () => off("pi-session-interactions", handler);
 }
 
+/** 创建/打开会话；返回 pi 会话 id 与会话文件名（目录表据此登记，下次打开走 resume） */
 export function piSessionCreate(
   sessionId: string,
   options: PiSessionCreateOptions
-): Promise<Outcome> {
-  return invoke<Outcome>("pi-session:create", { sessionId, ...options });
+): Promise<Outcome & { piSessionId?: string; sessionFile?: string }> {
+  return invoke("pi-session:create", { sessionId, ...options });
 }
 
 export function piSessionPrompt(
@@ -88,6 +90,16 @@ export function piSessionAbort(sessionId: string): Promise<Outcome & { stranded?
 
 export function piSessionDispose(sessionId: string): Promise<Outcome> {
   return invoke<Outcome>("pi-session:dispose", { sessionId });
+}
+
+/**
+ * 读对话内容（M4）：会话文件当前叶子路径 → 桌面展示消息。纯读，不起 pi 会话。
+ * sessionFile 为目录表里存的相对文件名；文件尚不存在（首轮没等到回答）返回空数组。
+ */
+export function piSessionTranscript(
+  sessionFile: string
+): Promise<Outcome & { messages?: ChatSessionMessage[] }> {
+  return invoke("pi-session:transcript", { sessionFile });
 }
 
 /** 渲染层重载后按 scope 找主进程仍持有的会话（待审批/待回答交互恢复用） */

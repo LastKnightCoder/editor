@@ -82,6 +82,10 @@ export interface PiSessionCreateRequestV2 {
   modelRef: { providerId: string; modelId: string };
   systemPrompt?: string;
   persist?: boolean;
+  /** 打开已有会话（M4 resume）：目录表里的相对文件名；与 initialMessages 互斥 */
+  sessionFile?: string;
+  /** 新建时指定 pi 会话 id（= 目录表主键） */
+  piSessionId?: string;
   shellPath?: string;
   /** 交 pi 注册的工具全集（含当前停用项），按名字排序 */
   customTools?: PiHostToolSpec[];

@@ -24,6 +24,7 @@ import type {
   ResourceLoader,
 } from "@earendil-works/pi-coding-agent";
 import { buildPiProvider } from "./pi-ai-runtime-core";
+import type { PiTranscriptEntry, PiTranscriptMessage } from "./pi-session-transcript";
 import type { LLMProviderSetting } from "@/types/pi-llm";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { PiThinkingLevel } from "@/types/pi-llm";
@@ -67,6 +68,27 @@ export function applyActiveTools(
   if (next.length === current.length && next.every((name, index) => name === current[index]))
     return;
   session.setActiveToolsByName(next);
+}
+
+/**
+ * 读取会话文件里当前叶子路径上的消息（M4：打开对话用）。
+ * 只解析不落笔：SessionManager.open 在没有 append 之前不会写文件。
+ * 用 getBranch 而不是 buildContextEntries——后者是给模型用的、会把压缩掉的历史省略，
+ * 而界面要展示完整对话。
+ */
+export function loadSessionTranscript(
+  sessionFile: string,
+  sessionDir?: string,
+  cwd?: string
+): PiTranscriptEntry[] {
+  const manager = SessionManager.open(sessionFile, sessionDir, cwd);
+  return manager
+    .getBranch()
+    .filter(entry => entry.type === "message")
+    .map(entry => ({
+      id: entry.id,
+      message: (entry as { message: PiTranscriptMessage }).message,
+    }));
 }
 
 /** 插话结果：not-streaming 表示这轮已经结束，渲染端据此退回待发送队列 */
@@ -281,6 +303,13 @@ export interface AssembleHostSessionOptions {
   modelRef: { providerId: string; modelId: string };
   /** 持久会话目录（~/.editor/sessions/<库名>/）；省略 = inMemory（测试/单轮场景） */
   sessionDir?: string;
+  /**
+   * 打开已有会话文件（M4 resume）：pi 自己从 JSONL 恢复上下文，
+   * 所以走这条路时**不要**再传 initialMessages（历史已经在文件里）。
+   */
+  sessionFile?: string;
+  /** 新建会话时指定 pi 会话 id（M4：与目录表主键一致） */
+  sessionId?: string;
   resourceLoader?: ResourceLoader;
   systemPrompt?: string;
   shellPath?: string;
@@ -314,9 +343,16 @@ export async function assembleHostSession(
       systemPrompt: options.systemPrompt,
       ...(options.dumpRequestDir ? { dumpRequestDir: options.dumpRequestDir } : {}),
     }));
-  const sessionManager = options.sessionDir
-    ? SessionManager.create(options.cwd, options.sessionDir)
-    : SessionManager.inMemory(options.cwd);
+  // resume：打开已有 JSONL（createAgentSession 内部 buildSessionContext 会把历史恢复进 Agent）。
+  // 文件不存在（首轮没等到 assistant 消息就失败了，pi 不落盘）就按新会话建，并沿用目录表的 id——
+  // SessionManager.open 对不存在的路径会起一个随机 id 的新会话，目录表 id 与会话 id 就对不上了
+  const newSessionOptions = options.sessionId ? { id: options.sessionId } : undefined;
+  const sessionManager =
+    options.sessionFile && existsSync(options.sessionFile)
+      ? SessionManager.open(options.sessionFile, options.sessionDir, options.cwd)
+      : options.sessionDir
+        ? SessionManager.create(options.cwd, options.sessionDir, newSessionOptions)
+        : SessionManager.inMemory(options.cwd, newSessionOptions);
   // 历史灌入：sessionManager 落 entry，createAgentSession 内部 buildSessionContext 恢复进 Agent
   for (const message of options.initialMessages ?? []) {
     sessionManager.appendMessage(message);

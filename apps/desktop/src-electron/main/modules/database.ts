@@ -15,6 +15,7 @@ import PdfChatTable from "./tables/pdf-chat";
 import DailyNoteTable from "./tables/daily-note";
 import DiaryTable from "./tables/diary";
 import ChatMessageTable from "./tables/chat-message";
+import ChatSessionTable from "./tables/chat-session";
 import ChatRunTable from "./tables/chat-run";
 import ChatGroupTable from "./tables/chat-group";
 import OperationTable from "./tables/operation";
@@ -220,6 +221,7 @@ class DatabaseModule implements Module {
       DiaryTable,
       ChatGroupTable,
       ChatMessageTable,
+      ChatSessionTable,
       ChatRunTable,
       OperationTable,
       StatisticTable,
