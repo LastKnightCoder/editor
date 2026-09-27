@@ -16,7 +16,9 @@ import {
   detectBashShellPath,
 } from "./pi-session-host-core";
 import { desktopMessagesToPi, PiToolCallBridge } from "./pi-session-bridge";
-import type { PiHostToolSpec } from "@/types/pi-session";
+import type { PiHostToolSpec, PiToolApprovalChoice } from "@/types/pi-session";
+import { PiToolPermissions } from "./pi-tool-permissions";
+import { normalizePermissionMode } from "@/services/tool-permission/mode";
 import { resolveV2Providers } from "./pi-ai-runtime-core";
 import type { LLMProviderSetting, PiThinkingLevel } from "@/types/pi-llm";
 import type { RequestMessage } from "@/types";
@@ -29,9 +31,13 @@ interface HostedSession {
   unsubscribe: () => void;
   sender: Electron.WebContents;
   bridge: PiToolCallBridge;
+  permissions: PiToolPermissions;
+  detachSender: () => void;
   /** 动态 systemPrompt（before_agent_start 每轮替换，渲染端经 set-system-prompt 更新） */
   systemPromptRef: { current: string };
   scope: string;
+  modelRef: { providerId: string; modelId: string };
+  thinkingLevel?: PiThinkingLevel;
 }
 
 export interface PiSessionCreateRequest {
@@ -52,12 +58,14 @@ export interface PiSessionCreateRequest {
   initialMessages?: RequestMessage[];
   /** agent 层自动重试上限（默认 5，对齐旧链路 DEFAULT_CHAT_MAX_RETRIES） */
   retryMaxRetries?: number;
+  interactiveApprovals?: boolean;
 }
 
 class PiSessionHostModule {
   private static readonly sessions = new Map<string, HostedSession>();
   private static latestProviders: LLMProviderSetting[] = [];
   private static shellPath: string | undefined;
+  private static permissionMode = normalizePermissionMode(undefined);
   /** 取证开关：PI_DUMP_REQUESTS=1 时出站请求写 ~/.editor/pi-request-dumps/（image_url 截断防膨胀） */
   private static readonly requestDumpDir: string | undefined = process.env.PI_DUMP_REQUESTS
     ? join(PathUtil.getAppDir(), "pi-request-dumps")
@@ -72,14 +80,46 @@ class PiSessionHostModule {
 
     userSettingModule.onSettingChanged(({ newSetting }) => {
       PiSessionHostModule.latestProviders = resolveV2Providers(newSetting);
+      PiSessionHostModule.permissionMode = normalizePermissionMode(
+        newSetting.agentPermission?.mode
+      );
+      for (const hosted of PiSessionHostModule.sessions.values()) hosted.permissions.modeChanged();
     });
     void userSettingModule.getSettingSnapshot().then(setting => {
       PiSessionHostModule.latestProviders = resolveV2Providers(setting);
+      PiSessionHostModule.permissionMode = normalizePermissionMode(setting.agentPermission?.mode);
     });
 
     ipcMain.handle("pi-session:create", async (event, request: PiSessionCreateRequest) => {
       return PiSessionHostModule.createSession(event.sender, request);
     });
+    ipcMain.handle("pi-session:approvals", event => ({
+      ok: true,
+      snapshots: [...PiSessionHostModule.sessions.values()]
+        .filter(hosted => hosted.sender === event.sender)
+        .map(hosted => hosted.permissions.snapshot()),
+    }));
+    ipcMain.handle(
+      "pi-session:approve-tool",
+      (
+        event,
+        {
+          sessionId,
+          requestId,
+          choice,
+        }: {
+          sessionId: string;
+          requestId: string;
+          choice: PiToolApprovalChoice;
+        }
+      ) => {
+        const hosted = PiSessionHostModule.sessions.get(sessionId);
+        if (!hosted || hosted.sender !== event.sender) return { ok: false, error: "会话不存在" };
+        return hosted.permissions.decide(requestId, choice)
+          ? { ok: true }
+          : { ok: false, error: "审批已结束，请刷新会话状态" };
+      }
+    );
     ipcMain.handle(
       "pi-session:prompt",
       async (
@@ -94,7 +134,9 @@ class PiSessionHostModule {
         if (!hosted) return { ok: false, error: "会话不存在" };
         try {
           // 渲染端只传定位信息（path/dataUrl），主进程读文件转 pi 的 base64 ImageContent
-          const piImages = (images ?? []).map(image => readPromptImage(image)).filter(Boolean);
+          const piImages = (
+            await Promise.all((images ?? []).map(image => readPromptImage(image)))
+          ).filter(Boolean);
           await hosted.session.prompt(text, {
             ...(piImages.length > 0 ? { images: piImages as never } : {}),
           });
@@ -112,23 +154,31 @@ class PiSessionHostModule {
         return { ok: true, disposition: await hosted.session.steer(text) };
       }
     );
-    ipcMain.handle("pi-session:abort", async (_event, { sessionId }: { sessionId: string }) => {
+    ipcMain.handle("pi-session:abort", async (event, { sessionId }: { sessionId: string }) => {
       const hosted = PiSessionHostModule.sessions.get(sessionId);
-      if (!hosted) return { ok: false, error: "会话不存在" };
+      if (!hosted || hosted.sender !== event.sender) return { ok: false, error: "会话不存在" };
       await hosted.session.abort();
       return { ok: true };
     });
-    ipcMain.handle("pi-session:dispose", async (_event, { sessionId }: { sessionId: string }) => {
+    ipcMain.handle("pi-session:dispose", async (event, { sessionId }: { sessionId: string }) => {
+      if (PiSessionHostModule.sessions.get(sessionId)?.sender !== event.sender)
+        return { ok: false, error: "会话不存在" };
       PiSessionHostModule.disposeSession(sessionId);
       return { ok: true };
     });
-    ipcMain.handle("pi-session:find-by-scope", async (_event, { scope }: { scope: string }) => {
+    ipcMain.handle("pi-session:find-by-scope", async (event, { scope }: { scope: string }) => {
       // 渲染层重载后本地会话表丢失：按 scope 找主进程仍持有的会话（取最近创建的一个）
       let found: string | undefined;
       for (const [sessionId, hosted] of PiSessionHostModule.sessions) {
-        if (hosted.scope === scope) found = sessionId;
+        if (hosted.scope === scope && hosted.sender === event.sender) found = sessionId;
       }
-      return { ok: true, sessionId: found };
+      const hosted = found ? PiSessionHostModule.sessions.get(found) : undefined;
+      return {
+        ok: true,
+        sessionId: found,
+        modelRef: hosted?.modelRef,
+        thinkingLevel: hosted?.thinkingLevel,
+      };
     });
     ipcMain.handle(
       "pi-session:set-system-prompt",
@@ -188,7 +238,11 @@ class PiSessionHostModule {
     if (PiSessionHostModule.sessions.has(request.sessionId)) {
       return { ok: false, error: "会话已存在" };
     }
+    let permissions: PiToolPermissions | undefined;
+    let bridge: PiToolCallBridge | undefined;
     try {
+      const setting = await userSettingModule.getSettingSnapshot();
+      PiSessionHostModule.permissionMode = normalizePermissionMode(setting.agentPermission?.mode);
       const authPath = join(PathUtil.getAppDir(), "pi", "auth.json");
       const modelRuntime = await createHostModelRuntime(
         authPath,
@@ -198,7 +252,17 @@ class PiSessionHostModule {
         request.persist === false
           ? undefined
           : join(PathUtil.getAppDir(), "sessions", await PiSessionHostModule.currentDatabaseName());
-      const bridge = new PiToolCallBridge(sender, request.sessionId);
+      bridge = new PiToolCallBridge(sender, request.sessionId);
+      permissions = new PiToolPermissions({
+        sessionId: request.sessionId,
+        interactive: request.interactiveApprovals === true,
+        tools: request.customTools ?? [],
+        getMode: () => PiSessionHostModule.permissionMode,
+        publish: snapshot => {
+          if (sender.isDestroyed()) throw new Error("审批窗口已关闭");
+          sender.send("pi-tool-approvals", snapshot);
+        },
+      });
       const systemPromptRef = { current: request.systemPrompt ?? "" };
       const initialMessages = request.initialMessages?.length
         ? await desktopMessagesToPi(
@@ -242,6 +306,16 @@ class PiSessionHostModule {
             }
           : {}),
       });
+      permissions.install(session);
+      if (sender.isDestroyed()) {
+        permissions.dispose();
+        session.dispose();
+        bridge.dispose();
+        return { ok: false, error: "会话窗口已关闭" };
+      }
+      const onSenderClosed = () => PiSessionHostModule.disposeSession(request.sessionId);
+      sender.once("destroyed", onSenderClosed);
+      sender.once("render-process-gone", onSenderClosed);
       const unsubscribe = session.subscribe(sessionEvent => {
         if (sender.isDestroyed()) return;
         try {
@@ -255,11 +329,20 @@ class PiSessionHostModule {
         unsubscribe,
         sender,
         bridge,
+        permissions,
+        detachSender: () => {
+          sender.removeListener("destroyed", onSenderClosed);
+          sender.removeListener("render-process-gone", onSenderClosed);
+        },
         systemPromptRef,
         scope: request.scope,
+        modelRef: request.modelRef,
+        thinkingLevel: request.thinkingLevel,
       });
       return { ok: true };
     } catch (error) {
+      permissions?.dispose();
+      bridge?.dispose();
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   }
@@ -267,6 +350,9 @@ class PiSessionHostModule {
   private static disposeSession(sessionId: string) {
     const hosted = PiSessionHostModule.sessions.get(sessionId);
     if (!hosted) return;
+    hosted.detachSender();
+    void hosted.session.abort();
+    hosted.permissions.dispose();
     hosted.unsubscribe();
     hosted.session.dispose();
     hosted.bridge.dispose();
@@ -308,7 +394,10 @@ const MIME_BY_EXTENSION: Record<string, string> = {
 };
 
 /** prompt 附带图片 → pi ImageContent（path 读文件 / dataURL 解析；失败返回 null 跳过） */
-function readPromptImage(image: { path?: string; dataUrl?: string }): unknown | null {
+async function readPromptImage(image: {
+  path?: string;
+  dataUrl?: string;
+}): Promise<unknown | null> {
   try {
     if (image.dataUrl) {
       const match = image.dataUrl.match(/^data:([^;]+);base64,(.+)$/s);
@@ -322,6 +411,16 @@ function readPromptImage(image: { path?: string; dataUrl?: string }): unknown | 
         type: "image",
         data: buffer.toString("base64"),
         mimeType: MIME_BY_EXTENSION[extension] ?? "image/png",
+      };
+    }
+    if (/^https?:\/\//i.test(image.path ?? "")) {
+      const response = await fetch(image.path!);
+      if (!response.ok) return null;
+      const buffer = Buffer.from(await response.arrayBuffer());
+      return {
+        type: "image",
+        data: buffer.toString("base64"),
+        mimeType: response.headers.get("content-type")?.split(";", 1)[0] || "image/png",
       };
     }
     return null;

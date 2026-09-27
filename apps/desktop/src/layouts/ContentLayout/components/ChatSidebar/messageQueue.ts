@@ -28,6 +28,25 @@ export class ConversationMessageQueue<T> {
     return this.queues.get(conversationKey)?.length || 0;
   }
 
+  list(conversationKey: string): T[] {
+    return [...(this.queues.get(conversationKey) ?? [])];
+  }
+
+  removeAt(conversationKey: string, index: number): number {
+    const queue = this.queues.get(conversationKey);
+    if (!queue || index < 0 || index >= queue.length) return queue?.length ?? 0;
+    queue.splice(index, 1);
+    if (queue.length === 0) this.queues.delete(conversationKey);
+    return queue.length;
+  }
+
+  replaceAt(conversationKey: string, index: number, message: T): boolean {
+    const queue = this.queues.get(conversationKey);
+    if (!queue || index < 0 || index >= queue.length) return false;
+    queue[index] = message;
+    return true;
+  }
+
   move(sourceKey: string, targetKey: string): number {
     if (sourceKey === targetKey) {
       return this.size(targetKey);

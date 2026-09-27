@@ -41,6 +41,7 @@ import { IconButton, ImagePreview, Menu, Tooltip, cn, toast } from "@tau/ui";
 
 import useUploadResource from "@/hooks/useUploadResource";
 import { convertFileSrc, getHomeDir } from "@/commands";
+import { copyFileToLocal } from "@/utils";
 import { McpQuickPanel } from "@/features/mcp/components/McpQuickPanel";
 import useTheme from "@/hooks/useTheme";
 import { contentLinkExtension, skillRefExtension } from "@/editor-extensions";
@@ -110,7 +111,6 @@ interface ChatFileItem {
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 const IMAGE_ACCEPT = "image/png, image/jpeg, image/webp";
-const PDF_ACCEPT = "application/pdf";
 
 const REASONING_EFFORT_OPTIONS: Array<{
   value: ReasoningEffort;
@@ -221,7 +221,7 @@ function ChipCaret() {
 
 /**
  * 对话输入区（D-048 tau 化 · 二轮 mockups/chat/composer.html）：附件预览 → 编辑器
- * （⌘/Ctrl+Enter 发送、@ 引用内容）→ 工具行：左 ＋（图片 / PDF / 引用 / 新对话 / MCP 收进
+ * （⌘/Ctrl+Enter 发送、@ 引用内容）→ 工具行：左 ＋（图片 / 文件 / 引用 / 新对话 / MCP 收进
  * 一个向上展开的面板）｜ 右 上下文用量环 · 模型 · 思考强度 · 停止 / 发送，任何宽度都只占一行。
  * 外框（surface + line-1，聚焦 accent 线 + 焦点环）由容器负责，本组件只排内容。
  */
@@ -339,38 +339,37 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       }
     };
 
-    const handlePdfUpload = async (file: File) => {
-      if (file.type.toLowerCase() !== "application/pdf") {
-        toast.error("仅支持 PDF 文件");
+    const handleFileUpload = async (file: File) => {
+      if (
+        file.type.toLowerCase().startsWith("audio/") ||
+        file.type.toLowerCase().startsWith("video/")
+      ) {
+        toast.error("暂不支持音视频文件");
         return;
       }
       if (file.size > MAX_FILE_SIZE) {
-        toast.error("PDF 文件需小于 50MB");
+        toast.error("文件需小于 50MB");
         return;
       }
 
       try {
         setUploadingPdf(true);
-        const uploadedPath = await uploadFile(file);
-        if (!uploadedPath) {
-          toast.error("PDF 上传失败");
-          return;
-        }
-        appendFileAttachment({ name: file.name, path: uploadedPath });
+        const localPath = await copyFileToLocal(file);
+        appendFileAttachment({ name: file.name, path: localPath });
       } catch (error) {
-        console.error("PDF 上传失败:", error);
-        toast.error("PDF 上传失败");
+        console.error("文件上传失败:", error);
+        toast.error("文件上传失败");
       } finally {
         setUploadingPdf(false);
       }
     };
 
-    const onPickFiles = (kind: "image" | "pdf") => (event: ChangeEvent<HTMLInputElement>) => {
+    const onPickFiles = (kind: "image" | "file") => (event: ChangeEvent<HTMLInputElement>) => {
       const picked = Array.from(event.target.files ?? []);
       event.target.value = "";
       void (async () => {
         for (const file of picked) {
-          await (kind === "image" ? handleImageUpload(file) : handlePdfUpload(file));
+          await (kind === "image" ? handleImageUpload(file) : handleFileUpload(file));
         }
       })();
     };
@@ -385,13 +384,16 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
             item => item.kind === "file" && item.type.startsWith("image/")
           )
         : [];
-      const pdfItems = isSupportFile
+      const fileItems = isSupportFile
         ? Array.from(clipboardData.items).filter(
-            item => item.kind === "file" && item.type.toLowerCase() === "application/pdf"
+            item =>
+              item.kind === "file" &&
+              !item.type.toLowerCase().startsWith("audio/") &&
+              !item.type.toLowerCase().startsWith("video/")
           )
         : [];
 
-      if (imageItems.length === 0 && pdfItems.length === 0) return;
+      if (imageItems.length === 0 && fileItems.length === 0) return;
 
       event.preventDefault();
       void (async () => {
@@ -399,9 +401,9 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           const file = item.getAsFile();
           if (file) await handleImageUpload(file);
         }
-        for (const item of pdfItems) {
+        for (const item of fileItems) {
           const file = item.getAsFile();
-          if (file) await handlePdfUpload(file);
+          if (file) await handleFileUpload(file);
         }
       })();
     });
@@ -528,11 +530,11 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       ...(isSupportFile
         ? [
             {
-              key: "pdf",
+              key: "file",
               group: "添加",
               icon: <FileText />,
-              label: "PDF",
-              description: "作为上下文随消息发送",
+              label: "文件",
+              description: "由 pi read 工具读取",
               disabled: attachDisabled,
               onSelect: () => pdfInputRef.current?.click(),
             },
@@ -827,9 +829,9 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           <input
             ref={pdfInputRef}
             type="file"
-            accept={PDF_ACCEPT}
+            accept="*/*"
             className="hidden"
-            onChange={onPickFiles("pdf")}
+            onChange={onPickFiles("file")}
           />
         )}
 

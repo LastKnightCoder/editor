@@ -159,6 +159,8 @@ export const fetchToolsFromServer = async (server: CustomMCPServer): Promise<Too
     name: tool.name,
     description: tool.description || "",
     parameters: tool.inputSchema,
+    // 远端工具无法由本地确认副作用，默认按执行级别审批。
+    risk: "execute",
     executor: async args => {
       // 从 store 获取最新的服务器配置
       const currentServer = useMCPStore.getState().getCustomServer(server.id);

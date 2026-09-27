@@ -42,6 +42,15 @@ function ChatPaper() {
   const chats = useChatMessageStore(s => s.chats);
   const loaded = useChatMessageStore(s => s.status === EStatus.SUCCESS);
   const chatId = parseChatId(id);
+  // 每次从已存在会话切回新对话，都创建一个新的运行时实例身份；
+  // 该身份与数据库 chatId 解耦，待首次发送后再迁移到真实会话键。
+  const previousChatIdRef = useRef<number | null>(chatId);
+  const newChatVersionRef = useRef(0);
+  if (chatId !== previousChatIdRef.current) {
+    if (chatId === null) newChatVersionRef.current += 1;
+    previousChatIdRef.current = chatId;
+  }
+  const newChatRuntimeKey = `main-chat:new:${newChatVersionRef.current}`;
   const chatAreaRef = useRef<ChatAreaHandle>(null);
   const openLibrary = useChatLibraryStore(s => s.setOpen);
   const [sendLoading, setSendLoading] = useState(false);
@@ -85,6 +94,7 @@ function ChatPaper() {
         <ChatArea
           ref={chatAreaRef}
           selectedChatId={chatId}
+          newChatRuntimeKey={newChatRuntimeKey}
           onSelectChat={select}
           sendLoading={sendLoading}
           setSendLoading={setSendLoading}

@@ -5,11 +5,14 @@
  */
 import { invoke, on, off } from "@/electron";
 import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
+import type { PiThinkingLevel } from "@/types/pi-llm";
 import type {
   PiHostToolCallResult,
   PiPromptImage,
   PiSessionCreateRequestV2,
   PiToolCallPayload,
+  PiToolApprovalChoice,
+  PiToolApprovalSnapshot,
 } from "@/types/pi-session";
 
 export type PiSessionCreateOptions = Omit<PiSessionCreateRequestV2, "sessionId">;
@@ -17,6 +20,26 @@ export type PiSessionCreateOptions = Omit<PiSessionCreateRequestV2, "sessionId">
 interface Outcome {
   ok: boolean;
   error?: string;
+}
+
+export function piSessionApprovals(): Promise<Outcome & { snapshots: PiToolApprovalSnapshot[] }> {
+  return invoke("pi-session:approvals");
+}
+
+export function piSessionApproveTool(
+  sessionId: string,
+  requestId: string,
+  choice: PiToolApprovalChoice
+): Promise<Outcome> {
+  return invoke("pi-session:approve-tool", { sessionId, requestId, choice });
+}
+
+export function onPiToolApprovals(
+  listener: (snapshot: PiToolApprovalSnapshot) => void
+): () => void {
+  const handler = (_event: unknown, snapshot: PiToolApprovalSnapshot) => listener(snapshot);
+  on("pi-tool-approvals", handler);
+  return () => off("pi-tool-approvals", handler);
 }
 
 export function piSessionCreate(
@@ -50,7 +73,13 @@ export function piSessionDispose(sessionId: string): Promise<Outcome> {
 }
 
 /** 渲染层重载后按 scope 找主进程仍持有的会话（ask-question 挂起恢复用） */
-export function piSessionFindByScope(scope: string): Promise<Outcome & { sessionId?: string }> {
+export function piSessionFindByScope(scope: string): Promise<
+  Outcome & {
+    sessionId?: string;
+    modelRef?: { providerId: string; modelId: string };
+    thinkingLevel?: PiThinkingLevel;
+  }
+> {
   return invoke("pi-session:find-by-scope", { scope });
 }
 

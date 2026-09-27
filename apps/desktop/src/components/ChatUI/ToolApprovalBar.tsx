@@ -4,16 +4,13 @@
  * 应用重启后遗留的等待态没有活的等待项，只显示「已中断」。
  */
 
-import { memo } from "react";
+import { memo, useState } from "react";
 import { ShieldAlert } from "lucide-react";
 import type { ToolCallExecutionState } from "@tau/shared";
-import { Button } from "@tau/ui";
-import {
-  decideToolApproval,
-  hasLiveApproval,
-  useToolApprovalStore,
-} from "@/services/tool-permission/approvalStore";
+import { Button, toast } from "@tau/ui";
+import { decideToolApproval, useToolApprovalStore } from "@/services/tool-permission/approvalStore";
 import { RISK_LABEL } from "@/services/tool-permission/mode";
+import type { PiToolApprovalChoice } from "@/types/pi-session";
 
 const parseInput = (input: string): Record<string, unknown> => {
   try {
@@ -44,9 +41,29 @@ export const ToolApprovalBar = memo(function ToolApprovalBar({
 }: {
   execution: ToolCallExecutionState;
 }) {
-  const pending = useToolApprovalStore(s => s.pending[execution.toolCallId]);
-  const live = Boolean(pending) && hasLiveApproval(execution.toolCallId);
+  const sessionId = execution.metadata?.piSessionId;
+  const pending = useToolApprovalStore(s =>
+    typeof sessionId === "string"
+      ? s.sessions[sessionId]?.pending.find(item => item.toolCallId === execution.toolCallId)
+      : undefined
+  );
+  const [submitting, setSubmitting] = useState(false);
+  const ready = useToolApprovalStore(
+    s => typeof sessionId === "string" && s.readySessions[sessionId] === true
+  );
+  const live = Boolean(pending) && ready;
   const risk = pending?.risk ?? "execute";
+  const decide = async (choice: PiToolApprovalChoice) => {
+    if (!pending || !ready || submitting) return;
+    setSubmitting(true);
+    try {
+      await decideToolApproval(pending, choice);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "提交工具审批失败");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="bg-warn-soft rounded-tau-md mb-1 ml-5 mt-1 px-3 py-2.5">
@@ -57,34 +74,42 @@ export const ToolApprovalBar = memo(function ToolApprovalBar({
             <>
               AI 想要<b className="font-semibold">{RISK_LABEL[risk]}</b>，需要你确认
             </>
+          ) : pending ? (
+            "正在恢复工具审批…"
           ) : (
             "等待确认时对话已中断，这次调用没有执行"
           )}
         </span>
       </div>
       <pre className="font-tau-mono text-ink-1 bg-surface rounded-tau-sm m-0 mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-all px-2.5 py-1.5 text-[12px] leading-[1.6]">
-        {summarizeToolInput(execution.toolName, execution.input)}
+        {summarizeToolInput(
+          pending?.toolName ?? execution.toolName,
+          pending?.input ?? execution.input
+        )}
       </pre>
       {live && (
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <Button
             size="sm"
             variant="primary"
-            onClick={() => decideToolApproval(execution.toolCallId, "allow")}
+            disabled={submitting}
+            onClick={() => void decide("allow")}
           >
             允许
           </Button>
           <Button
             size="sm"
             variant="secondary"
-            onClick={() => decideToolApproval(execution.toolCallId, "allow-session")}
+            disabled={submitting}
+            onClick={() => void decide("allow-session")}
           >
             本会话始终允许
           </Button>
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => decideToolApproval(execution.toolCallId, "deny")}
+            disabled={submitting}
+            onClick={() => void decide("deny")}
           >
             拒绝
           </Button>

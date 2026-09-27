@@ -94,6 +94,7 @@ export function runPiAgent(
         modelRef: { providerId: options.provider.id, modelId: options.model.id },
         ...(system !== undefined ? { systemPrompt: system } : {}),
         persist: false,
+        interactiveApprovals: false,
         ...(customTools.length > 0 ? { customTools } : {}),
         ...(thinkingLevel ? { thinkingLevel } : {}),
         ...(initialMessages.length > 0 ? { initialMessages } : {}),
@@ -205,6 +206,8 @@ function buildToolSpecs(options: PiAgentRunOptions): PiHostToolSpec[] {
       name: tool.name,
       description: tool.description,
       parameters: tool.parameters as Record<string, unknown>,
+      risk: tool.risk ?? "read",
+      source: tool.source,
     }));
   for (const tool of additional) {
     specs.push({

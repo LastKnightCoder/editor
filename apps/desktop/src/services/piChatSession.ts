@@ -78,15 +78,17 @@ class PiChatSessionManager {
     chatScope: string,
     chatId: number
   ): Promise<string | undefined> {
+    initPiToolBridge();
     const local = this.resolveSessionId(chatScope, chatId);
     if (local) return local;
     const { piSessionFindByScope } = await import("@/commands/piSession");
     const found = await piSessionFindByScope(chatSessionKey(chatScope, chatId));
-    if (!found.ok || !found.sessionId) return undefined;
+    if (!found.ok || !found.sessionId || !found.modelRef) return undefined;
     this.sessions.set(chatSessionKey(chatScope, chatId), {
       sessionId: found.sessionId,
-      providerId: "",
-      modelId: "",
+      providerId: found.modelRef.providerId,
+      modelId: found.modelRef.modelId,
+      thinkingLevel: found.thinkingLevel,
     });
     registerPiToolSessionContext(found.sessionId, {
       conversationKey: chatSessionKey(chatScope, chatId),
@@ -150,6 +152,7 @@ class PiChatSessionManager {
       cwd: options.cwd ?? "",
       modelRef: { providerId: options.provider.id, modelId: options.model.id },
       systemPrompt: options.systemPrompt,
+      interactiveApprovals: true,
       ...(options.persist === false ? { persist: false } : {}),
       ...(customTools.length > 0 ? { customTools } : {}),
       ...(options.thinkingLevel ? { thinkingLevel: options.thinkingLevel } : {}),
@@ -186,6 +189,8 @@ function buildToolSpecs(options: EnsureChatSessionOptions): PiHostToolSpec[] {
       name: tool.name,
       description: tool.description,
       parameters: tool.parameters as Record<string, unknown>,
+      risk: tool.risk ?? "read",
+      source: tool.source,
     }));
   for (const tool of additional) {
     specs.push({

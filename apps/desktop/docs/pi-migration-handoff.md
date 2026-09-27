@@ -1,8 +1,8 @@
 # pi 迁移交接文档（refactor/pi-harness 分支）
 
-> 2026-09-27 交接（M2-f 完成 + 三轮验收修复后）。新会话续接方式：读完本文档 +
+> 2026-09-27 交接（M2-f 完成；M3-a 工具权限与队列交互闭环已接入，尚未提交）。新会话续接方式：读完本文档 +
 > `git log --oneline -15` 对照提交历史。验证三件套：`cd apps/desktop && npx tsc --noEmit`、
-> `npx vitest run`（320 文件 1486 用例）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
+> `npx vitest run`（325 文件、1515 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
 > **注意 cwd 必须在 apps/desktop**——vitest 从仓库根跑会整体失败（vite 别名解析不到）。
 > 权威背景：调研报告与迁移计划在本项目最初会话中形成（对话内）；本文档是执行态的完整快照。
 
@@ -25,7 +25,7 @@
 - 有生命周期的组件不得持有跨轮次/跨页面的运行状态——运行态归属模块级服务，
   组件只是 UI 视图。
 
-## 二、架构现状（M2-f 完成态）
+## 二、架构现状（M2-f + M3-a）
 
 ```
 主进程（Electron，node 24.18）：
@@ -100,6 +100,41 @@ utils/openai-responses-adapter（llm.ts 依赖）。chat_run 主进程表与 han
 **stopStreaming**：setSessionPending(false) + forceStopStreaming（立即反馈）+ 后台
 piSessionAbort 自行收尾（settled 落库幂等）。
 
+### M3-a 工具审批（2026-09-27）
+
+- `modules/pi-tool-permissions.ts` 按 pi 宿主会话持有待审批请求与「本会话始终允许」。
+  装配后包装 `session.agent.beforeToolCall`，保留 pi 扩展的决定，再审批最终参数；
+  使用原生钩子的 AbortSignal 取消等待，避免 `tool_call` 扩展事件没有 signal 导致停止死锁。
+- 内置 read/grep/find/ls = read、edit/write = write、bash/powershell = execute；
+  注册表工具透传 risk/source；远端 MCP 默认 execute；未声明风险的额外工具也按 execute。
+  有交互界面的内容编辑工具仍使用自己的审阅卡，不双重确认。
+- 主聊天五场景显式传 `interactiveApprovals: true`；一次性生成、子代理等无审批界面的
+  入口默认 false，需要确认时返回明确拒绝结果，不偷偷执行或无限等待。
+- `pi-session:approvals` 查询与 `pi-tool-approvals` 事件只向创建窗口发送快照；
+  `pi-session:approve-tool` 按 sender + sessionId + 随机 requestId 校验，迟到/重复审批失效。
+  模式变更即时释放已无需确认的等待；abort/dispose/窗口销毁清理待审批，销毁清除会话授权。
+- 渲染端 `approvalStore` 仅保存带版本号的快照投影，不再持有 Promise resolver 或授权事实，
+  无 `@tau/agent` 依赖；旧 `createToolPermissionPolicies` 已删除。
+  `PiChatEventReducer` 映射 awaiting-approval，`piChatRuntime` 持久化等待工具卡，
+  切页后台持续归约；重载后先收养宿主、恢复原 turn 工具卡和事件订阅，再开放审批按钮。
+- `find-by-scope` 同时返回创建时的模型/推理档位，收养后继续复用宿主，避免下一轮
+  因空模型身份误重建而丢掉会话授权；真正切模型/重建/删除会话时授权清空。
+- 主进程重启后的完整恢复仍属于 M4；只剩历史等待卡时显示中断，不伪造可用审批。
+  本轮保留接手时已有的附件上传与聊天切换改动，未将其计为 M3-a 新功能。
+- 验证：`npx tsc --noEmit`、全量 Vitest、Electron pi 冒烟与 `git diff --check` 均通过。
+  新增覆盖真实 pi write 审批前不落盘、允许/拒绝/中止、桥接工具拦截、授权隔离、
+  迟到审批、快照版本、后台归约与渲染层重载收养；附件测试同步现有通用文件/本地路径行为。
+  尚未做真实模型下的 Electron 审批界面人工走查。
+
+### M3-a 队列交互修复（2026-09-27）
+
+- 流式期间提交的消息仍按 conversationKey 排队，但队列不再只显示发送按钮上的数字。
+  输入区上方显示待发送消息的文本/附件摘要，每项支持编辑（移出队列并回填输入框）和删除。
+- `agent_settled` 会主动触发队列 drain；队列的入队、出队、迁移和删除均刷新版本号，
+  避免回答已结束但 pending/队列 UI 没有再渲染而卡住的假象。
+- 队列仍是当前渲染进程内存态；切换会话会按 conversationKey 隔离，主进程重启不恢复，
+  属于待发送草稿而非已提交消息。
+
 ## 三、进度（提交序列，全部 tsc+测试+冒烟验证）
 
 - **M0-M2e**（接手前）：冒烟/v2 设置/会话宿主/pi-dev 面板/设置页切换/业务单发切 pi
@@ -154,12 +189,15 @@ piSessionAbort 自行收尾（settled 落库幂等）。
    slate-react）会把编辑器包拉进测试导致 mock 失效——store 里的会话 dispose 用惰性
    `await import()`；InlineAIComposerPanel.test 需 mock piAgentRunner/piChatSession/piChatEvents。
 10. **vitest cwd**：必须在 apps/desktop 下跑（见文档头）。
+11. **队列只显示计数**：旧实现只在发送按钮显示数量，回答结束时若状态更新交错会出现停止按钮与
+    队列数字残留；现已改为输入框上方渲染待发送摘要，并由 agent_settled 主动触发 drain。
 
 ## 五、遗留边界（有意留下，归属明确）
 
-- **steer 未接**：流式中发送走本地队列（drain），pi 原生 steer/followUp 留 M3 交互升级
-- **工具审批（D-060）未接**：pi 侧工具直接执行（含内置 read/bash/edit/write），拦截扩展在
-  M3（旧 awaiting-approval 状态链已随 adapter 删除——这是当前唯一的行为回退）
+- **steer 未接**：流式中发送仍走本地队列（现已可见、可编辑、可删除并在 agent_settled 后 drain），
+  pi 原生 steer/followUp 留 M3 交互升级；队列本身仍是渲染进程内存态，不做重启恢复
+- **工具审批（D-060）已接**：M3-a 完成执行前拦截与主聊天审批；一次性入口没有审批
+  UI 时按模式明确拒绝。完整主进程重启恢复仍待 M4，需在 Electron 实机复验审批交互。
 - **reasoning 档位**：通用档 none/low/medium/high，模型特有档（minimal/xhigh/max）M3 接
 - **主进程重启后的 ask_question 半成品**：渲染层重载可恢复（find-by-scope+resolve 续流）；
   主进程也重启则写终态兜底，完整恢复等 M4（pi JSONL resume）
@@ -174,15 +212,18 @@ piSessionAbort 自行收尾（settled 落库幂等）。
 
 优先级从高到低：
 
-1. **D-060 权限映射**：pi 扩展 tool_call 拦截（async 可挂起弹审批 UI）或 beforeToolCall；
-   现有渲染端 approvalStore（tool-permission/）可参考语义
+1. **D-060 权限映射（M3-a 已完成）**：实现与生命周期边界见上节；下一步从第 2 项继续。
 2. **ask_user**：pi 无内置则 customTools 实现（execute 挂起模式已被 ask_question 验证）
 3. **MCP 桥**：渲染端 mcp provider 已经 ToolRegistry 化（工具桥自动可用），主进程 mcp.ts
    的 D-058 管理页保留
 4. **设置页产品化**：服务商类型选择（内置/自定义）+ 模型勾选 + fetchModels 拉取 +
    shellPath 首启检测 + reasoning 档位接 pi 目录（主进程加查询 IPC 或目录元数据下发）
-5. **steer 交互**：替换本地队列（queue_update 事件驱动排队 UI 已就绪）
+5. **steer 交互**：将当前本地队列与 pi 原生 steer/followUp 对齐（当前队列展示、编辑、删除和
+   agent_settled drain 已完成；`queue_update` 事件驱动的 pi 原生排队尚未接管发送）
 6. WSL 手动选项（BashOperations 路径翻译）
+
+**队列交互（M3-a 已完成）**：待发送消息在输入区上方显示文本/附件摘要；每条可编辑或删除；
+队列按 conversationKey 隔离，入队、出队、迁移、删除刷新版本；agent_settled 触发排空。
 
 **M4（会话管理）**：sqlite 目录表（scope/域引用/group/pin/order/title/source/cwd/session_path，
 **改表同步 scripts/db/check-schema-parity.mjs 常量+跑 pnpm db:schema:build/check**）、列表/
@@ -207,6 +248,11 @@ openai-responses-adapter、卫星表 messages 写路径；DECISIONS.md 追加条
 - 请求取证：`PI_DUMP_REQUESTS=1` 环境变量重启，出站 payload 写 `~/.editor/pi-request-dumps/`
 - 常见验收场景：发送/流式/工具卡/ask_question 闭环与刷新恢复/停止/重试/图片/旧对话续聊
   （历史灌入）/编辑重发/重新生成/分支/模型切换/切页后台运行/停止后立即发送
+- M3-a 专项：manual 下 write/bash 等待且不执行；允许/拒绝/本会话始终允许；
+  acceptEdits 放行 write 但拦 shell；bypass 放行；审批中停止、切页、渲染层重载；
+  两会话同名工具不串授权；无审批界面的一次性入口拒绝高风险操作。
+- 队列专项：流式中发送多条消息；查看每条待发送内容；编辑后重新发送；删除指定条目；
+  agent_settled 后自动排空；切换会话后队列互不串台；停止后队列保留且可继续编辑/删除。
 
 ## 八、工作约定（用户明确要求，违反会返工）
 

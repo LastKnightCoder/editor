@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import http from "node:http";
 import { AddressInfo } from "node:net";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { fauxProvider, fauxAssistantMessage, fauxText, fauxToolCall } from "@earendil-works/pi-ai";
 import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 import {
@@ -18,6 +18,7 @@ import {
   detectBashShellPath,
 } from "../pi-session-host-core";
 import type { LLMProviderSetting } from "@/types/pi-llm";
+import { PiToolPermissions } from "../pi-tool-permissions";
 
 // jsdom 环境的 AbortSignal 缺 any()（Node 24 / Electron 主进程原生可用）；pi 的 ModelRuntime.create 依赖它
 if (typeof AbortSignal.any !== "function") {
@@ -37,6 +38,109 @@ if (typeof AbortSignal.any !== "function") {
 }
 
 describe("pi-session-host-core", () => {
+  it.each(["allow", "deny", "abort"] as const)(
+    "真实 pi 内置 write 的审批闭环：%s",
+    async choice => {
+      const workDir = mkdtempSync(join(tmpdir(), "pi-permission-"));
+      const agentDir = join(workDir, ".pi-agent");
+      let session: Awaited<ReturnType<typeof assembleHostSession>> | undefined;
+      const permissions = new PiToolPermissions({
+        sessionId: "approval-session",
+        interactive: true,
+        tools: [],
+        getMode: () => "manual",
+        publish: () => {},
+      });
+      try {
+        const faux = fauxProvider({});
+        faux.setResponses([
+          fauxAssistantMessage(
+            [fauxToolCall("write", { path: "审批.md", content: "允许后才落盘" })],
+            { stopReason: "toolUse" }
+          ),
+          fauxAssistantMessage([fauxText("已收到工具结果")]),
+        ]);
+        const modelRuntime = await createFauxModelRuntime(join(agentDir, "auth.json"), faux);
+        session = await assembleHostSession({
+          cwd: workDir,
+          agentDir,
+          modelRuntime,
+          modelRef: { providerId: faux.provider.id, modelId: faux.getModel().id },
+        });
+        permissions.install(session);
+        const events: AgentSessionEvent[] = [];
+        session.subscribe(event => events.push(event));
+        const running = session.prompt("写文件");
+        await vi.waitFor(() => expect(permissions.snapshot().pending).toHaveLength(1));
+        expect(existsSync(join(workDir, "审批.md"))).toBe(false);
+        const request = permissions.snapshot().pending[0];
+        if (choice === "abort") await session.abort();
+        else permissions.decide(request.requestId, choice);
+        await running;
+        expect(existsSync(join(workDir, "审批.md"))).toBe(choice === "allow");
+        expect(permissions.snapshot().pending).toEqual([]);
+        expect(events.some(event => event.type === "agent_settled")).toBe(true);
+        const end = events.find(event => event.type === "tool_execution_end");
+        expect(end).toMatchObject({ isError: choice !== "allow" });
+        if (choice === "deny") expect(JSON.stringify(end)).toContain("用户拒绝执行此工具");
+        expect(permissions.decide(request.requestId, "allow")).toBe(false);
+      } finally {
+        permissions.dispose();
+        await session?.abort();
+        session?.dispose();
+        rmSync(workDir, { recursive: true, force: true });
+      }
+    }
+  );
+
+  it("非交互 pi 会话在桥接工具 execute 前拒绝高风险调用", async () => {
+    const workDir = mkdtempSync(join(tmpdir(), "pi-permission-custom-"));
+    const agentDir = join(workDir, ".pi-agent");
+    let session: Awaited<ReturnType<typeof assembleHostSession>> | undefined;
+    try {
+      const faux = fauxProvider({});
+      faux.setResponses([
+        fauxAssistantMessage([fauxToolCall("mcp_write", {})], { stopReason: "toolUse" }),
+        fauxAssistantMessage([fauxText("没有执行")]),
+      ]);
+      const execute = vi.fn().mockResolvedValue({ content: [{ type: "text", text: "不应执行" }] });
+      const spec = {
+        name: "mcp_write",
+        description: "外部写操作",
+        parameters: { type: "object", properties: {} },
+        risk: "write" as const,
+      };
+      const modelRuntime = await createFauxModelRuntime(join(agentDir, "auth.json"), faux);
+      session = await assembleHostSession({
+        cwd: workDir,
+        agentDir,
+        modelRuntime,
+        modelRef: { providerId: faux.provider.id, modelId: faux.getModel().id },
+        customTools: [{ ...spec, label: spec.name, parameters: spec.parameters as never, execute }],
+      });
+      const permissions = new PiToolPermissions({
+        sessionId: "one-shot",
+        interactive: false,
+        tools: [spec],
+        getMode: () => "manual",
+        publish: () => {},
+      });
+      permissions.install(session);
+      const events: AgentSessionEvent[] = [];
+      session.subscribe(event => events.push(event));
+      await session.prompt("执行写操作");
+      expect(execute).not.toHaveBeenCalled();
+      expect(JSON.stringify(events.find(event => event.type === "tool_execution_end"))).toContain(
+        "当前入口无法向用户确认"
+      );
+      expect(permissions.snapshot().pending).toEqual([]);
+    } finally {
+      await session?.abort();
+      session?.dispose();
+      rmSync(workDir, { recursive: true, force: true });
+    }
+  });
+
   it("faux 端到端：装配 → prompt → bash/write/read 真实执行 → agent_settled", async () => {
     const workDir = mkdtempSync(join(tmpdir(), "pi-host-测试-"));
     const agentDir = join(workDir, ".pi-agent");

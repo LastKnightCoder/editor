@@ -64,6 +64,8 @@ type ChatAreaProps = {
   /** 可预览块的打开方式（缺省走块预览上下文） */
   onOpenBlock?: (block: BlockData) => void;
   onOpenLibrary?: () => void;
+  /** 新对话尚未落库时使用的页面实例运行时键。 */
+  newChatRuntimeKey?: string;
   /** 标题行右侧的附加操作 */
   headerActions?: ReactNode;
 };
@@ -104,6 +106,7 @@ const ChatArea = memo(
         setSendLoading,
         onOpenBlock,
         onOpenLibrary,
+        newChatRuntimeKey,
         headerActions,
       },
       ref
@@ -217,6 +220,7 @@ const ChatArea = memo(
                 <ChatContainer
                   ref={chatContainerRef}
                   currentChat={chatToUse}
+                  runtimeKey={selectedChatId === null ? newChatRuntimeKey : undefined}
                   isDark={isDark}
                   markdownComponents={markdownComponents}
                   isVisible={true}
