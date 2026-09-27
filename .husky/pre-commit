@@ -1,1 +1,2 @@
 pnpm exec lint-staged
+node scripts/editor-refactor-baseline.mjs --check --quiet

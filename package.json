@@ -29,7 +29,8 @@
     "test": "pnpm -r test",
     "prepare": "husky",
     "postinstall": "node scripts/postinstall.mjs",
-    "test:collaboration:desktop": "pnpm --filter desktop exec vitest run src-electron/main/modules/collaboration/__tests__"
+    "test:collaboration:desktop": "pnpm --filter desktop exec vitest run src-electron/main/modules/collaboration/__tests__",
+    "check:editor-refactor": "node scripts/editor-refactor-baseline.mjs --check --quiet"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.0",
