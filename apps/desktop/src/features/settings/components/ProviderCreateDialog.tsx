@@ -11,9 +11,9 @@ import type { LLMProviderSetting, PiApiKind, PiCatalogProvider } from "@/types/p
 import { useCatalogProviders } from "../llmCatalog";
 
 export const API_KIND_OPTIONS: Array<{ value: PiApiKind; label: string }> = [
-  { value: "openai-completions", label: "OpenAI Chat Completions（兼容网关多用这种）" },
-  { value: "openai-responses", label: "OpenAI Responses" },
-  { value: "anthropic-messages", label: "Anthropic Messages" },
+  { value: "openai-completions", label: "OpenAI 兼容（最常见）" },
+  { value: "openai-responses", label: "OpenAI Responses（新版接口）" },
+  { value: "anthropic-messages", label: "Anthropic（Claude）" },
 ];
 
 export type NewProviderDraft = Omit<LLMProviderSetting, "id" | "models">;
@@ -88,7 +88,11 @@ export function ProviderCreateDialog({
       onAfterClose={reset}
       title="新建服务商"
       subtitle={
-        picked === null ? "选择服务商类型" : isBuiltin ? "内置服务商：填入凭据即可" : "自定义服务商"
+        picked === null
+          ? "选择要接入的服务商"
+          : isBuiltin
+            ? "填入 API Key 即可使用"
+            : "手动填写服务地址"
       }
       footer={
         picked === null ? (
@@ -126,18 +130,20 @@ export function ProviderCreateDialog({
             >
               <Server className="text-ink-3 size-4 shrink-0" strokeWidth={1.75} />
               <span className="min-w-0 flex-1">
-                <span className="text-tau-body text-ink-1 block font-medium">自定义服务商</span>
+                <span className="text-tau-body text-ink-1 block font-medium">其他服务商</span>
                 <span className="text-tau-meta text-ink-3 block">
-                  自建或目录未收录：手填 Base URL 与接口协议
+                  自己搭建的服务，或上面列表里没有的服务商
                 </span>
               </span>
             </button>
             <div className="bg-line h-px" role="separator" />
             {loading ? (
-              <div className="text-tau-meta text-ink-3 px-2.5 py-3">正在读取内置目录…</div>
+              <div className="text-tau-meta text-ink-3 px-2.5 py-3">正在加载…</div>
             ) : filtered.length === 0 ? (
               <div className="text-tau-meta text-ink-3 px-2.5 py-3">
-                {catalog.length === 0 ? "内置目录不可用，请用「自定义服务商」" : "没有匹配的服务商"}
+                {catalog.length === 0
+                  ? "暂时无法加载服务商列表，可选「其他服务商」手动填写"
+                  : "没有匹配的服务商"}
               </div>
             ) : (
               <div className="max-h-[320px] overflow-auto">
@@ -154,7 +160,7 @@ export function ProviderCreateDialog({
                         {item.name}
                       </span>
                       <span className="text-tau-meta text-ink-3 block truncate">
-                        {item.baseUrl ?? "需自填 Base URL"}
+                        {item.baseUrl ?? "需要填写服务地址"}
                       </span>
                     </span>
                     <span className="text-tau-tiny text-ink-3 shrink-0 tabular-nums">
@@ -179,7 +185,7 @@ export function ProviderCreateDialog({
               <span className="text-tau-meta text-ink-2 font-medium">
                 Base URL
                 {isBuiltin && !picked.baseUrl && (
-                  <span className="text-warn ml-1">（该服务商需自填）</span>
+                  <span className="text-warn ml-1">（该服务商需要你填写）</span>
                 )}
               </span>
               <Input
@@ -192,9 +198,9 @@ export function ProviderCreateDialog({
             </label>
             {!isBuiltin && (
               <label className="flex min-w-0 flex-col gap-1.5">
-                <span className="text-tau-meta text-ink-2 font-medium">接口协议</span>
+                <span className="text-tau-meta text-ink-2 font-medium">接口类型</span>
                 <Select
-                  aria-label="接口协议"
+                  aria-label="接口类型"
                   className="w-full"
                   value={form.api}
                   options={API_KIND_OPTIONS}

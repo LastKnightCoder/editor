@@ -37,7 +37,12 @@ import {
   toast,
 } from "@tau/ui";
 import useSettingStore, { type ISetting } from "@/stores/useSettingStore";
-import type { LLMModelSetting, LLMProviderSetting, LLMUsageConfigV2 } from "@/types/pi-llm";
+import type {
+  LLMModelSetting,
+  LLMProviderSetting,
+  LLMUsageConfigV2,
+  PiThinkingLevel,
+} from "@/types/pi-llm";
 import { SettingRow } from "../components/SettingRow";
 import { ROW_DIVIDER } from "../components/rowDivider";
 import { SettingsGroup } from "../components/SettingsGroup";
@@ -100,7 +105,18 @@ const FEATURE_LABELS = Object.fromEntries(
   ASSIGNMENT_CATEGORIES.flatMap(category => category.features.map(f => [f.key, f.label]))
 ) as Record<FeatureKey, string>;
 
-/** 能力 = pi 的模型元数据：推理开关 + 输入模态（图片）；联网/音视频等不再作为模型能力标注 */
+/** 推理档位的界面文案：与输入框的档位选择同一套说法，不暴露内部档位名 */
+const THINKING_LEVEL_LABELS: Record<PiThinkingLevel, string> = {
+  off: "不思考",
+  minimal: "极简思考",
+  low: "略作沉吟",
+  medium: "细致推演",
+  high: "穷尽求索",
+  xhigh: "远谋深算",
+  max: "极尽推演",
+};
+
+/** 能力 = 模型支持的推理开关 + 输入模态（图片）；联网/音视频等不再作为模型能力标注 */
 const CAPABILITY_DEFS: Array<{ key: string; label: string; icon: LucideIcon }> = [
   { key: "reasoning", label: "推理", icon: Sparkle },
   { key: "image", label: "图片", icon: ImageIcon },
@@ -209,7 +225,7 @@ function ModelRow({
             <MetaChip>上下文 {Math.round(model.contextWindow / 1024)}k</MetaChip>
           )}
           {model.maxTokens != null && <MetaChip>输出 {model.maxTokens}</MetaChip>}
-          {model.stripThinkTags && <MetaChip>剥离思考标签</MetaChip>}
+          {model.stripThinkTags && <MetaChip>清除思考内容</MetaChip>}
         </div>
         {description && description !== model.name && (
           <div className="text-tau-meta text-ink-2 mt-0.5 truncate">{description}</div>
@@ -388,18 +404,18 @@ export function LLMSection() {
   const thinking = useThinkingLevels(editing, modelForm.initialId || modelForm.id);
   const thinkingOptions = useMemo(
     () => [
-      { value: "", label: "默认（按模型能力）" },
-      ...thinking.levels.map(level => ({ value: level, label: level })),
+      { value: "", label: "自动（跟随模型默认）" },
+      ...thinking.levels.map(level => ({ value: level, label: THINKING_LEVEL_LABELS[level] })),
     ],
     [thinking.levels]
   );
   const thinkingHint = !modelForm.reasoning
-    ? "（该模型未标记支持推理）"
+    ? "（该模型不支持推理）"
     : thinking.loading
-      ? "（读取中…）"
+      ? "（加载中…）"
       : thinking.fromCatalog
-        ? "（来自 pi 目录）"
-        : "（目录未收录，通用档）";
+        ? ""
+        : "（未能识别此模型，档位可能不生效）";
 
   const openModelCreate = () => {
     setModelForm(blankModelForm());
@@ -628,7 +644,7 @@ export function LLMSection() {
                     />
                   </FieldBox>
                 </SettingRow>
-                <SettingRow title="Base URL" description="OpenAI 兼容的接口地址">
+                <SettingRow title="Base URL" description="服务商提供的接口地址">
                   <FieldBox>
                     <Input
                       className="font-tau-mono"
@@ -654,7 +670,7 @@ export function LLMSection() {
                         icon={Sparkles}
                         onClick={() => setModelPickerOpen(true)}
                       >
-                        从目录选择
+                        选择模型
                       </Button>
                     )}
                     <Button variant="ghost" size="sm" icon={Plus} onClick={openModelCreate}>
@@ -666,7 +682,7 @@ export function LLMSection() {
                 {editing.models.length === 0 ? (
                   <div className="text-tau-meta text-ink-2 px-3 py-6 text-center">
                     {editing.builtin
-                      ? "暂无模型——点击「从目录选择」勾选该服务商的模型"
+                      ? "暂无模型——点击「选择模型」勾选要使用的模型"
                       : "暂无模型——点击「手动添加」创建第一个条目"}
                   </div>
                 ) : (
@@ -743,7 +759,7 @@ export function LLMSection() {
               <Input
                 className="font-tau-mono"
                 value={modelForm.id}
-                placeholder="如 deepseek-chat（请求体 model 名）"
+                placeholder="如 deepseek-chat（服务商给出的模型 ID）"
                 spellCheck={false}
                 onChange={e => setModelForm(f => ({ ...f, id: e.target.value }))}
               />
@@ -862,7 +878,7 @@ export function LLMSection() {
                   />
                 </label>
                 <label className="flex min-w-0 flex-col gap-1.5">
-                  <span className="text-tau-meta text-ink-2 font-medium">思考标签兜底</span>
+                  <span className="text-tau-meta text-ink-2 font-medium">思考内容处理</span>
                   <button
                     type="button"
                     aria-pressed={modelForm.stripThinkTags}
@@ -875,7 +891,7 @@ export function LLMSection() {
                         : "border-line-1 text-ink-2 hover:border-ink-3 hover:text-ink-1"
                     )}
                   >
-                    剥离正文里的 &lt;think&gt; 标签
+                    自动清除回答里的思考内容
                   </button>
                 </label>
               </div>

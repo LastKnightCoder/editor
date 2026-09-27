@@ -85,8 +85,8 @@ export function ModelPickerDialog({
       open={open}
       onOpenChange={onOpenChange}
       onAfterClose={() => setQuery("")}
-      title="从内置目录选择模型"
-      subtitle={`${providerName} · 元数据由 pi 目录提供，无需手填`}
+      title="选择模型"
+      subtitle={`${providerName} · 勾选要使用的模型`}
       footer={
         <>
           <Button variant="secondary" onClick={() => onOpenChange(false)}>
@@ -109,10 +109,10 @@ export function ModelPickerDialog({
             onChange={event => setQuery(event.target.value)}
           />
           {loading ? (
-            <div className="text-tau-meta text-ink-3 px-2.5 py-3">正在读取模型目录…</div>
+            <div className="text-tau-meta text-ink-3 px-2.5 py-3">正在加载模型…</div>
           ) : filtered.length === 0 ? (
             <div className="text-tau-meta text-ink-3 px-2.5 py-3">
-              {models.length === 0 ? "目录里没有该服务商的可用模型" : "没有匹配的模型"}
+              {models.length === 0 ? "该服务商暂时没有可用模型" : "没有匹配的模型"}
             </div>
           ) : (
             <div className="max-h-[360px] overflow-auto">
@@ -162,7 +162,7 @@ export function ModelPickerDialog({
                           </span>
                           {model.cost && (
                             <span className="tabular-nums">
-                              ${model.cost.input}/${model.cost.output} 每百万 token
+                              ${model.cost.input}/${model.cost.output} 每百万 tokens
                             </span>
                           )}
                         </span>
