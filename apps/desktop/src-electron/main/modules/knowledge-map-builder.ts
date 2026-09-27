@@ -4,7 +4,8 @@
  * 什么时候整体重算：
  *  - 从没算过；
  *  - embedding 指纹变了（换了模型，旧向量空间作废）；
- *  - 增量放置累计到一定比例（新卡越来越多地「贴」在旧地图上，主题划分会过时）；
+ *  - 增量放置与编辑累计到一定比例（新卡越来越多地「贴」在旧地图上、旧卡的内容与 tag
+ *    改了而主题名还是旧的，主题划分会过时）；
  *  - 用户手动要求。
  * 否则打开图谱直接读库，并顺手对账：库里新增的卡片按语义近邻增量落位、已删除的移出。
  * 不挂在「卡片保存」事件上做：新卡保存时向量还没算（embedding 队列是异步的），
@@ -88,6 +89,7 @@ class KnowledgeMapBuilder implements Module {
   }
 
   private status(
+    mainDb: Database.Database,
     indexDb: Database.Database,
     dbName: string,
     map: KnowledgeMap | null
@@ -99,7 +101,8 @@ class KnowledgeMapBuilder implements Module {
     ) {
       return "stale";
     }
-    const drift = KnowledgeMapTable.driftCount(indexDb, map.computedAt);
+    // 漂移 = 增量放置 ∪ 编辑过的卡片（按行时间戳算，重启后仍准）
+    const drift = KnowledgeMapTable.driftCount(mainDb, indexDb, map.computedAt);
     if (map.nodes.length > 0 && drift / map.nodes.length > REBUILD_DRIFT_RATIO) return "stale";
     return "ready";
   }
@@ -136,7 +139,7 @@ class KnowledgeMapBuilder implements Module {
       let map = KnowledgeMapTable.load(indexDb);
       if (map && !force && !this.building.has(dbName))
         map = this.reconcile(mainDb, indexDb, dbName, map);
-      const status = this.status(indexDb, dbName, map);
+      const status = this.status(mainDb, indexDb, dbName, map);
       if (map && !force) {
         if (status === "stale")
           void this.rebuild(mainDb, indexDb, dbName).catch(error =>

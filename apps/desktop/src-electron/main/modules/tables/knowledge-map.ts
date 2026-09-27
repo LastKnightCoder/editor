@@ -216,14 +216,31 @@ export default class KnowledgeMapTable {
   }
 
   /**
-   * 自上次整体重算以来增量放置的卡片数。按行的 update_time 算而不是记在内存里：
-   * 重启后仍然准确，「放置累计过多 → 该重算了」的判断不会因为重启而失效。
+   * 自上次整体重算以来「变过」的卡片数：增量放置的 ∪ 编辑过的（正文、tag、链接）。
+   *
+   * 编辑不做即时重新落位：改个错别字就让卡片在地图上挪位置，用户看着会觉得地图在乱跳；
+   * 而且编辑刚保存时向量多半还没重算，这时按旧向量落位等于没挪。编辑的效果（主题名、
+   * 归属、位置）留给整体重算，这里只把它计入漂移，编辑够多了自然触发重算。
+   * 两边按卡片 id 去重：新建的卡既被放置过、update_time 也晚于重算时间，只算一次。
    */
-  static driftCount(indexDb: Database.Database, computedAt: number): number {
-    const row = indexDb
-      .prepare("SELECT COUNT(*) AS count FROM knowledge_map_nodes WHERE update_time > ?")
-      .get(computedAt) as { count: number };
-    return row.count;
+  static driftCount(
+    mainDb: Database.Database,
+    indexDb: Database.Database,
+    computedAt: number
+  ): number {
+    const changed = new Set(
+      (
+        indexDb
+          .prepare("SELECT card_id FROM knowledge_map_nodes WHERE update_time > ?")
+          .all(computedAt) as Array<{ card_id: number }>
+      ).map(row => row.card_id)
+    );
+    for (const row of mainDb
+      .prepare("SELECT id FROM cards WHERE update_time > ?")
+      .all(computedAt) as Array<{ id: number }>) {
+      changed.add(row.id);
+    }
+    return changed.size;
   }
 
   static upsertNode(indexDb: Database.Database, node: KnowledgeMapNode) {

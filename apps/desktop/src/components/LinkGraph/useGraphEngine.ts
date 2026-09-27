@@ -43,6 +43,11 @@ const DRAG_THRESHOLD = 3;
 export const HOVER_DELAY = 300;
 /** 落盘坐标命中率低于此值就不沿用（卡片集换了一批，旧布局没有参考价值） */
 export const POSITION_REUSE_MIN_COVERAGE = 0.6;
+/**
+ * 悬停降淡的渐变时长。鼠标在密集节点上扫过时悬停频繁开关，硬切会整屏频闪；
+ * 太长又显得迟钝。在两个节点间直接换指向时不经过 0，只换中心。
+ */
+export const EMPHASIS_FADE_MS = 120;
 /** 收敛后延迟落盘，避免连续增删卡片时反复写库 */
 const PERSIST_DEBOUNCE = 800;
 
@@ -125,6 +130,10 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
   const frameRef = useRef(0);
   const dirtyRef = useRef(true);
   const hoveredRef = useRef<number | null>(null);
+  /** 降淡的中心与强调程度：悬停结束后中心保留到淡出完成 */
+  const focusRef = useRef<number | null>(null);
+  const emphasisRef = useRef(0);
+  const emphasisTimeRef = useRef(0);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentIdsRef = useRef<Set<number>>(new Set());
   const cardsRef = useRef<ICard[]>(cards);
@@ -174,14 +183,14 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
     if (!palette || !scene) return;
     const colors = new Map<number, string>();
     for (const cluster of scene.clusters) {
-      // 地图模式按离线算好的色槽取色（主题名不变颜色就不变）；链接图谱按锚点哈希到同一套色板
-      const slot = isMapScene(scene) ? scene.colorSlots.get(cluster.id) : undefined;
-      colors.set(
-        cluster.id,
-        slot === undefined
-          ? clusterColor(cluster.anchor, palette.background)
-          : topicColor(slot, palette.background)
-      );
+      // 地图模式按离线算好的色槽取色（主题名不变颜色就不变），没有色槽的（兜底）
+      // 由渲染器回落到中性节点色；链接图谱按锚点哈希到同一套色板
+      if (isMapScene(scene)) {
+        const slot = scene.colorSlots.get(cluster.id);
+        if (slot !== undefined) colors.set(cluster.id, topicColor(slot, palette.background));
+        continue;
+      }
+      colors.set(cluster.id, clusterColor(cluster.anchor, palette.background));
     }
     clusterColorsRef.current = colors;
   });
@@ -219,12 +228,35 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
     const palette = paletteRef.current;
     if (!renderer || !scene || !camera || !palette) return;
     const hoveredId = hoveredRef.current;
+    const focusId = focusRef.current;
     renderer.draw(scene, camera, palette, {
       hoveredId,
+      focusId,
+      emphasis: emphasisRef.current,
       currentIds: currentIdsRef.current,
-      adjacentIds: hoveredId === null ? new Set() : (scene.adjacency.get(hoveredId) ?? new Set()),
+      adjacentIds: focusId === null ? new Set() : (scene.adjacency.get(focusId) ?? new Set()),
       clusterColors: clusterColorsRef.current,
     });
+  });
+
+  /** 推进悬停强调的渐变；还没到终点返回 true，raf 循环据此继续画 */
+  const advanceEmphasis = useMemoizedFn((now: number) => {
+    const hovered = hoveredRef.current;
+    if (hovered !== null) focusRef.current = hovered;
+    const target = hovered === null ? 0 : 1;
+    const last = emphasisTimeRef.current || now;
+    emphasisTimeRef.current = now;
+    const current = emphasisRef.current;
+    if (current === target) {
+      if (target === 0) focusRef.current = null;
+      emphasisTimeRef.current = 0;
+      return false;
+    }
+    const step = (now - last) / EMPHASIS_FADE_MS;
+    const next = target > current ? Math.min(1, current + step) : Math.max(0, current - step);
+    emphasisRef.current = next;
+    if (next === 0) focusRef.current = null;
+    return true;
   });
 
   // ---- 构建场景：卡片拓扑变化时重建，坐标从旧场景继承
@@ -403,13 +435,14 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
     const loop = (now: number) => {
       frameRef.current = requestAnimationFrame(loop);
       const flying = cameraRef.current?.advance(now) ?? false;
-      if (!dirtyRef.current && !flying) return;
+      const fading = advanceEmphasis(now);
+      if (!dirtyRef.current && !flying && !fading) return;
       dirtyRef.current = false;
       drawNow();
     };
     frameRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frameRef.current);
-  }, [drawNow]);
+  }, [advanceEmphasis, drawNow]);
 
   // ---- 指针交互
   useEffect(() => {

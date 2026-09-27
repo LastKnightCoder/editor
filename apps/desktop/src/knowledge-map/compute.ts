@@ -24,6 +24,7 @@ import {
 import { buildCompactGraph, louvain } from "@/components/LinkGraph/core/louvain";
 import { subtopicLabel, tagPath, topicLabel, type LabelMember } from "./labels";
 import {
+  NO_COLOR_SLOT,
   TOPIC_PALETTE_SIZE,
   type KnowledgeMap,
   type KnowledgeMapCardInput,
@@ -44,9 +45,31 @@ export interface ComputeOptions {
 
 /** 显式链接的权重：用户亲手连的，比算法推测的语义相似更可信 */
 const LINK_WEIGHT = 1.5;
-/** 大主题数量的目标区间：少于 6 个信息量不够，多于 12 个颜色就区分不开 */
-const TOPIC_TARGET = { min: 6, max: 12, ideal: 9 };
+/**
+ * 摆大主题时，跨主题的显式链接再额外放大这么多倍。
+ * 跨主题链接很少（真实数据 324 条里只有 6 条），不放大就淹没在几百条语义边里；
+ * 但它们是画面上唯一会被画出来的跨岛连线，太长就是一道横穿地图的划痕。
+ */
+const CROSS_LINK_BOOST = 4;
+/**
+ * 最终松弛时跨主题显式链接的弹簧强度（静长为 0）。要比锚点力（0.14）弱：
+ * 卡片只在自己的岛内挪到朝外的边缘，不被拽进水道。
+ * 真实数据上扫过 0.04 / 0.08 / 0.1 / 0.15：0.1 时跨主题连线均长 201→155，
+ * 再大收益变小，JS 这类大岛里的桥接卡开始被拉离自己的子主题。
+ */
+const BRIDGE_STRENGTH = 0.1;
 const RESOLUTIONS = [0.15, 0.25, 0.35, 0.5, 0.7, 1, 1.4];
+
+/**
+ * 大主题数量的目标区间，随规模按对数增长：50 张约 5 个、700 张约 8 个、2 万张约 13 个。
+ * 只是「挑哪一档分辨率」的偏好，不是硬约束——数据天然分成 20 块就是 20 块。
+ * 规模再大时细节交给子主题层，大主题数不该跟着线性膨胀（一眼看不过来）。
+ * 这里与色槽数（视觉约束）无关：主题多于色槽时颜色循环复用、邻居避让，见 assignColorSlots。
+ */
+export function topicTarget(count: number) {
+  const ideal = Math.min(16, Math.max(4, Math.round(3 * Math.log10(Math.max(1, count)))));
+  return { min: Math.max(2, ideal - 3), max: ideal + 3, ideal };
+}
 
 /** 地图上的节点半径（世界坐标）：比链接图谱小一档，语义岛屿是密的 */
 export function mapNodeRadius(degree: number): number {
@@ -189,105 +212,124 @@ function absorbSmall(assignment: Int32Array, graph: WeightedGraph, minSize: numb
   }
 }
 
-/** 按分辨率扫描，挑大主题数最接近目标的划分 */
-function detectTopics(graph: WeightedGraph): Int32Array {
-  const compact = buildCompactGraph(graph.count, graph.edges);
-  const minTopic = Math.max(4, Math.ceil(graph.count * 0.012));
-  let best: { assignment: Int32Array; score: number } | null = null;
+/**
+ * 往细一档分辨率走，每多一个主题至少要让这么多比例的卡片「名副其实」（名字覆盖率）。
+ * 分得越细覆盖率总会涨（块越小越纯），所以不能直接取覆盖率最高的——那等于永远取上限；
+ * 要看边际收益：多出来的主题换不来足够多被正确命名的卡片，就停在粗的那一档。
+ * 按比例而不是张数：700 张时约 14 张，2 万张时约 400 张。
+ */
+const RESOLUTION_MIN_GAIN_PER_TOPIC = 0.02;
 
-  for (const resolution of RESOLUTIONS) {
+/**
+ * 按分辨率扫描挑大主题划分。
+ *
+ * 每档都先做同名合并再评估：用户看到的是合并后的主题（两块都叫「JavaScript」就是一个），
+ * 按原始分块数挑会被 Louvain 的碎块误导。评估用两样：主题数（落在随规模变化的目标区间里）
+ * 与名字覆盖率（成员里真带这个 tag 首段的比例，按人数加权）。
+ * 在区间内从最粗的一档起步，只有边际收益够才往细走；区间里一档都没有时退回离 ideal 最近的。
+ */
+function detectTopics(
+  graph: WeightedGraph,
+  labelFor: (members: number[]) => string,
+  headCoverage: (members: number[], label: string) => number
+): Int32Array {
+  const compact = buildCompactGraph(graph.count, graph.edges);
+  const minTopic = minTopicSize(graph.count);
+  const target = topicTarget(graph.count);
+
+  const candidates = RESOLUTIONS.map(resolution => {
     const { membership } = louvain(compact, resolution);
     const assignment = Int32Array.from(membership);
     // 孤立节点（加权度 0）不属于任何主题
     for (let i = 0; i < graph.count; i++) if (graph.adjacency[i].size === 0) assignment[i] = -1;
     absorbSmall(assignment, graph, minTopic);
-    const count = groupsOf(assignment).size;
-    const inRange = count >= TOPIC_TARGET.min && count <= TOPIC_TARGET.max;
-    const score = (inRange ? 0 : 100) + Math.abs(count - TOPIC_TARGET.ideal);
-    if (!best || score < best.score) best = { assignment, score };
-  }
-  return best!.assignment;
-}
-
-/** 各分组的向量质心（未归一化的均值即可，比较时用余弦） */
-function centroids(assignment: Int32Array, vectorOf: Array<Float32Array | undefined>) {
-  const result = new Map<number, Float32Array>();
-  const counts = new Map<number, number>();
-  assignment.forEach((group, node) => {
-    const vector = vectorOf[node];
-    if (group < 0 || !vector) return;
-    let sum = result.get(group);
-    if (!sum) {
-      sum = new Float32Array(vector.length);
-      result.set(group, sum);
+    mergeByLabel(assignment, labelFor);
+    const groups = groupsOf(assignment);
+    let covered = 0;
+    for (const members of groups.values()) {
+      const label = labelFor(members);
+      if (label) covered += headCoverage(members, label) * members.length;
     }
-    for (let i = 0; i < vector.length; i++) sum[i] += vector[i];
-    counts.set(group, (counts.get(group) ?? 0) + 1);
+    return { assignment, count: groups.size, coverage: covered / Math.max(1, graph.count) };
   });
-  return result;
+
+  const inRange = candidates
+    .filter(c => c.count >= target.min && c.count <= target.max)
+    .sort((a, b) => a.count - b.count);
+  if (inRange.length === 0) {
+    return candidates.reduce((best, c) =>
+      Math.abs(c.count - target.ideal) < Math.abs(best.count - target.ideal) ? c : best
+    ).assignment;
+  }
+  let chosen = inRange[0];
+  for (const next of inRange.slice(1)) {
+    const added = next.count - chosen.count;
+    // 主题数没变但覆盖率更高：同样多的名字、更准，直接换
+    if (added === 0) {
+      if (next.coverage > chosen.coverage) chosen = next;
+      continue;
+    }
+    if ((next.coverage - chosen.coverage) / added < RESOLUTION_MIN_GAIN_PER_TOPIC) break;
+    chosen = next;
+  }
+  return chosen.assignment;
 }
 
-function cosine(a: Float32Array, b: Float32Array) {
-  let dot = 0;
-  let na = 0;
-  let nb = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    na += a[i] * a[i];
-    nb += b[i] * b[i];
-  }
-  return dot / (Math.sqrt(na * nb) || 1);
+/** 一个大主题至少要有这么多张卡；再小的并进最亲近的主题（按规模缩放，万级时不出现几十个碎主题） */
+function minTopicSize(count: number) {
+  return Math.max(4, Math.ceil(count * 0.012));
 }
 
 /**
- * 大主题超过色槽数时，把最小的并进最亲近的主题。
+ * 小主题的连接有一半以上都通向另一个主题，才并过去。
  *
- * 亲近度先看图上的连接；两个主题在图上完全不连通（语义孤岛很常见）时，
- * 退到主题向量质心的余弦相似度。两样都没有（用户没配 embedding、且主题间
- * 没有任何链接）就停手——多出来的主题用中性色，也绝不为了凑颜色数丢卡片。
+ * 只看图上的实际连接，不再为了凑色槽数强行合并：上一版超过 10 个就把最小的并进
+ * 「最亲近」的主题，图上不连通时还退到向量质心去找，结果是把不相干的主题揉在一起。
+ * 主题数多于色槽时颜色循环复用、相邻的不同色（见 assignColorSlots），名字和岛都保留。
+ * 这一步主要兜住同名合并之后的形态：两个主题靠名字并过一次，第三个挂在它们之间的小块
+ * 可能因此变成「几乎全连着同一边」。
  */
-function capTopics(
-  assignment: Int32Array,
-  graph: WeightedGraph,
-  vectorOf: Array<Float32Array | undefined>
-) {
+const MERGE_AFFINITY_SHARE = 0.5;
+
+function mergeStronglyConnected(assignment: Int32Array, graph: WeightedGraph) {
   for (;;) {
     const groups = [...groupsOf(assignment).entries()].sort(
       (a, b) => a[1].length - b[1].length || a[0] - b[0]
     );
-    if (groups.length <= TOPIC_PALETTE_SIZE) return;
-    const [group, members] = groups[0];
-    let target = strongest(affinity(members, assignment, graph), group);
-    if (target < 0) {
-      const centers = centroids(assignment, vectorOf);
-      const own = centers.get(group);
-      let best = -Infinity;
-      if (own) {
-        for (const [other, center] of centers) {
-          if (other === group) continue;
-          const similarity = cosine(own, center);
-          if (similarity > best || (similarity === best && other < target)) {
-            best = similarity;
-            target = other;
-          }
-        }
-      }
+    let merged = false;
+    for (const [group, members] of groups) {
+      let total = 0;
+      for (const node of members)
+        for (const weight of graph.adjacency[node].values()) total += weight;
+      if (total <= 0) continue;
+      const scores = affinity(members, assignment, graph);
+      const target = strongest(scores, group);
+      if (target < 0 || (scores.get(target) ?? 0) / total <= MERGE_AFFINITY_SHARE) continue;
+      for (const node of members) assignment[node] = target;
+      merged = true;
+      break;
     }
-    if (target < 0) return;
-    for (const node of members) assignment[node] = target;
+    if (!merged) return;
   }
 }
 
-/** 大主题名的覆盖率低于它就算「名不副实」，考虑拆开 */
+/** 大主题名的覆盖率低于它就算「名不副实」，考虑拆开；拆出的每一块也都要达到它 */
 const TOPIC_COHERENCE = 0.4;
+/**
+ * 拆完后名字覆盖率（按人数加权）至少要提高这么多才拆。
+ * 这是「拆分是否值得」的唯一驱动：拆得动但名字没因此变准，就说明原主题本来就是
+ * 一片连着的内容，硬拆只会多出一个名字、少掉一份真实。
+ */
+const SPLIT_MIN_GAIN = 0.15;
 
 /**
  * 拆开名不副实的大主题。
  *
  * 真实数据里人文类卡片（经济、概念、学习方法、随笔、读书……）在向量空间里连成一片，
  * 分出来是一个大主题，却只能取占 27% 的「经济」当名字——名字在误导人。
- * 这时按主题内部的子结构拆：各子块自己取名，同名的并起来，能成为独立大主题的
- * 就提升上去，直到用满色槽。拆不出至少两块像样的就保持原样。
+ * 这时按主题内部的子结构拆：各子块自己取名，同名的并起来，本身名副其实的提升为
+ * 独立大主题；只有拆完后名字整体明显变准才真的拆，拆多少块完全由数据决定，
+ * 与色槽数无关。
  */
 function splitIncoherent(
   assignment: Int32Array,
@@ -299,14 +341,13 @@ function splitIncoherent(
   const groups = [...groupsOf(assignment).entries()].sort(
     (a, b) => b[1].length - a[1].length || a[0] - b[0]
   );
-  let budget = TOPIC_PALETTE_SIZE - groups.length;
-  const minTopic = Math.max(4, Math.ceil(graph.count * 0.012));
+  const minTopic = minTopicSize(graph.count);
 
   for (const [, members] of groups) {
-    if (budget <= 0) return;
     const label = labelFor(members);
     if (!label || members.length < minTopic * 3) continue;
-    if (headCoverage(members, label) >= TOPIC_COHERENCE) continue;
+    const before = headCoverage(members, label);
+    if (before >= TOPIC_COHERENCE) continue;
 
     const local = detectSubtopics(members, graph);
     // 子块按名字归拢
@@ -325,12 +366,22 @@ function splitIncoherent(
           nodes.length >= minTopic && headCoverage(nodes, subLabel) >= TOPIC_COHERENCE
       )
       .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
-    // 最大的一块留在原主题里（它继承原来的分组 id），其余提升
     if (candidates.length < 2) continue;
-    for (const [, nodes] of candidates.slice(1, 1 + budget)) {
+
+    // 最大的一块留在原主题里（继承原来的分组 id，连同没能独立的零散成员），其余提升。
+    // 拆后覆盖率按「每块用自己的新名字」算；留下的那块要重新取名再算
+    const promoted = candidates.slice(1);
+    const moved = new Set(promoted.flatMap(([, nodes]) => nodes));
+    const rest = members.filter(node => !moved.has(node));
+    const restLabel = labelFor(rest);
+    let covered = restLabel ? headCoverage(rest, restLabel) * rest.length : 0;
+    for (const [subLabel, nodes] of promoted)
+      covered += headCoverage(nodes, subLabel) * nodes.length;
+    if (covered / members.length - before < SPLIT_MIN_GAIN) continue;
+
+    for (const [, nodes] of promoted) {
       const group = nextGroup++;
       for (const node of nodes) assignment[node] = group;
-      budget -= 1;
     }
   }
 }
@@ -404,19 +455,73 @@ function hashLabel(label: string): number {
 /**
  * 色槽按名字哈希优先、冲突顺延：重算后主题 id 会变，但名字不变颜色就不变，
  * 用户记住的「JavaScript 是蓝色」不会因为加了几张卡就失效。大主题先挑。
+ *
+ * 色槽只有 TOPIC_PALETTE_SIZE 个（再多颜色就分不开），主题多于色槽时循环复用，
+ * 但像给地图着色一样避开相邻主题已用的颜色：同色的两个主题不会挨在一起，
+ * 一眼仍分得清边界。每个主题都有颜色，中性色只留给未归类的卡片。
+ *
+ * 挑选顺序（从名字哈希的那一格起顺延）：
+ *  1) 全图还没人用、邻居也没用的；
+ *  2) 邻居没用的；
+ *  3) 都用过了（邻居比色槽还多）就取邻居里用得最少的。
+ * 前 TOPIC_PALETTE_SIZE 个主题总能落在第 1 档，所以与只有 10 个主题时的分配完全一致。
  */
-function assignColorSlots(topics: Array<{ id: number; label: string; size: number }>) {
-  const taken = new Set<number>();
+function assignColorSlots(
+  topics: Array<{ id: number; label: string; size: number }>,
+  neighborsOf: (id: number) => Iterable<number>
+) {
   const slots = new Map<number, number>();
-  for (const topic of [...topics].sort((a, b) => b.size - a.size || a.id - b.id)) {
-    let slot = hashLabel(topic.label) % TOPIC_PALETTE_SIZE;
-    for (let i = 0; i < TOPIC_PALETTE_SIZE && taken.has(slot); i++) {
-      slot = (slot + 1) % TOPIC_PALETTE_SIZE;
+  const usage = new Array<number>(TOPIC_PALETTE_SIZE).fill(0);
+  const ranked = [...topics].sort((a, b) => b.size - a.size || a.id - b.id);
+  for (const topic of ranked) {
+    const nearby = new Array<number>(TOPIC_PALETTE_SIZE).fill(0);
+    for (const other of neighborsOf(topic.id)) {
+      const slot = slots.get(other);
+      if (slot !== undefined) nearby[slot] += 1;
     }
-    taken.add(slot);
-    slots.set(topic.id, slot);
+    const start = hashLabel(topic.label) % TOPIC_PALETTE_SIZE;
+    let best = start;
+    let bestScore = Infinity;
+    for (let i = 0; i < TOPIC_PALETTE_SIZE; i++) {
+      const slot = (start + i) % TOPIC_PALETTE_SIZE;
+      // 邻居冲突压倒一切，其次才是全图是否用过；同分取顺延更早的一格
+      const score = nearby[slot] * TOPIC_PALETTE_SIZE * 1000 + usage[slot];
+      if (score < bestScore) {
+        best = slot;
+        bestScore = score;
+      }
+    }
+    usage[best] += 1;
+    slots.set(topic.id, best);
   }
   return slots;
+}
+
+/**
+ * 地图上相邻的主题：圆盘边缘间距小于 reach，或两者之间有连边。
+ * 看空间而不只看连边：两个互不相连的语义孤岛也可能被摆在一起，同色就会糊成一块。
+ */
+function topicNeighbors(
+  discs: Disc[],
+  links: Array<{ source: number; target: number }>,
+  reach: number
+): Map<number, Set<number>> {
+  const result = new Map(discs.map(d => [d.key, new Set<number>()]));
+  const link = (a: number, b: number) => {
+    result.get(a)?.add(b);
+    result.get(b)?.add(a);
+  };
+  for (const { source, target } of links) link(source, target);
+  for (let i = 0; i < discs.length; i++) {
+    for (let j = i + 1; j < discs.length; j++) {
+      const a = discs[i];
+      const b = discs[j];
+      const gap =
+        Math.hypot((a.x ?? 0) - (b.x ?? 0), (a.y ?? 0) - (b.y ?? 0)) - a.radius - b.radius;
+      if (gap < reach) link(a.key, b.key);
+    }
+  }
+  return result;
 }
 
 /* ───────── 布局 ───────── */
@@ -435,6 +540,231 @@ interface Disc extends SimulationNodeDatum {
   radius: number;
 }
 
+/** 摆大主题时每个主题只被它最亲近的这么几个主题拉 */
+const TOPIC_LAYOUT_NEIGHBORS = 3;
+
+/**
+ * 每个主题只保留最亲近的 k 条关系（取两端各自前 k 的并集）。
+ * 主题两两之间几乎都有些语义边：全部当弹簧时每个主题被所有人往中间拽，
+ * 结果是谁也挨不着谁；只留最强的几条，亲近的才真的挨在一起。
+ */
+function strongestPairs<T extends { source: number; target: number; weight: number }>(
+  pairs: Iterable<T>,
+  k: number
+): T[] {
+  const list = [...pairs];
+  const byTopic = new Map<number, T[]>();
+  for (const pair of list) {
+    for (const end of [pair.source, pair.target]) {
+      const own = byTopic.get(end) ?? [];
+      own.push(pair);
+      byTopic.set(end, own);
+    }
+  }
+  const kept = new Set<T>();
+  for (const own of byTopic.values()) {
+    own.sort((a, b) => b.weight - a.weight || a.source - b.source || a.target - b.target);
+    for (const pair of own.slice(0, k)) kept.add(pair);
+  }
+  return list.filter(pair => kept.has(pair));
+}
+
+/**
+ * 按亲近关系贪心地给圆盘找初始位置：最大的放中间，之后每次挑与已放置者关系最强的那个，
+ * 贴着它最亲近的已放置圆盘摆，在一圈候选角度里取不重叠、且离其他亲近者最近的位置。
+ *
+ * 为什么不用螺旋起步再靠力拉：圆盘互相碰撞，穿不过彼此。螺旋起步时两个最亲近的主题
+ * 若一开始隔着几个岛，弹簧再强也拉不过来（真实数据里 CSS↔DOM 就卡在隔了一个岛的位置）。
+ * 起步就摆对，后面的力模拟只做微调。
+ */
+function seedByAffinity(
+  discs: Disc[],
+  links: Array<{ source: number; target: number; weight: number }>,
+  gap: number
+) {
+  const byKey = new Map(discs.map(d => [d.key, d]));
+  const weightOf = new Map<number, Map<number, number>>();
+  for (const { source, target, weight } of links) {
+    if (!byKey.has(source) || !byKey.has(target)) continue;
+    for (const [a, b] of [
+      [source, target],
+      [target, source],
+    ]) {
+      const own = weightOf.get(a) ?? new Map<number, number>();
+      own.set(b, (own.get(b) ?? 0) + weight);
+      weightOf.set(a, own);
+    }
+  }
+  const placed: Disc[] = [];
+  const pending = new Set(discs);
+  const place = (disc: Disc, x: number, y: number) => {
+    disc.x = x;
+    disc.y = y;
+    placed.push(disc);
+    pending.delete(disc);
+  };
+  const first = [...discs].sort((a, b) => b.radius - a.radius || a.key - b.key)[0];
+  place(first, 0, 0);
+
+  const ANGLES = 24;
+  while (pending.size > 0) {
+    // 下一个：与已放置者关系总和最大的；都没关系就挑最大的（放到外圈）
+    let next: Disc | null = null;
+    let nextScore = -1;
+    for (const disc of pending) {
+      const own = weightOf.get(disc.key);
+      let score = 0;
+      if (own) for (const other of placed) score += own.get(other.key) ?? 0;
+      if (
+        score > nextScore ||
+        (score === nextScore && next && (disc.radius > next.radius || disc.key < next.key))
+      ) {
+        next = disc;
+        nextScore = score;
+      }
+    }
+    const disc = next!;
+    const own = weightOf.get(disc.key) ?? new Map<number, number>();
+    const partners = placed
+      .map(other => ({ other, weight: own.get(other.key) ?? 0 }))
+      .filter(p => p.weight > 0)
+      .sort((a, b) => b.weight - a.weight || a.other.key - b.other.key);
+    // 没有亲近者：贴着已放置整体的外沿（离原点最近的不重叠位置）
+    const anchors = partners.length > 0 ? partners.slice(0, 3).map(p => p.other) : placed;
+
+    let best: { x: number; y: number; cost: number } | null = null;
+    for (const anchor of anchors) {
+      const reach = anchor.radius + disc.radius + gap;
+      for (let i = 0; i < ANGLES; i++) {
+        const angle = (i / ANGLES) * Math.PI * 2;
+        const x = (anchor.x ?? 0) + Math.cos(angle) * reach;
+        const y = (anchor.y ?? 0) + Math.sin(angle) * reach;
+        const overlaps = placed.some(
+          other =>
+            Math.hypot(x - (other.x ?? 0), y - (other.y ?? 0)) <
+            other.radius + disc.radius + gap * 0.9
+        );
+        if (overlaps) continue;
+        // 代价：到各亲近者的边缘距离按关系强度加权；没有亲近者时离原点越近越好（紧凑）
+        let cost = 0;
+        if (partners.length > 0) {
+          for (const { other, weight } of partners) {
+            const edgeGap =
+              Math.hypot(x - (other.x ?? 0), y - (other.y ?? 0)) - other.radius - disc.radius;
+            cost += weight * edgeGap;
+          }
+        } else {
+          cost = Math.hypot(x, y);
+        }
+        if (!best || cost < best.cost) best = { x, y, cost };
+      }
+    }
+    if (best) {
+      place(disc, best.x, best.y);
+      continue;
+    }
+    // 一圈都挤满了：放到整体外沿
+    let extent = 0;
+    for (const other of placed) {
+      extent = Math.max(extent, Math.hypot(other.x ?? 0, other.y ?? 0) + other.radius);
+    }
+    const angle = placed.length * 2.39996;
+    place(
+      disc,
+      Math.cos(angle) * (extent + disc.radius + gap),
+      Math.sin(angle) * (extent + disc.radius + gap)
+    );
+  }
+}
+
+/**
+ * 岛内朝向：把一个主题内的子主题圆盘（相对主题中心的坐标）整体旋转、必要时镜像，
+ * 让连向外部主题的子主题落在岛上面向那个主题的一侧。
+ *
+ * 只做刚体变换（旋转 + 镜像），不改子主题之间的相对位置：packDiscs 摆好的
+ * 「谁挨着谁」原样保留，岛的形状也不变。候选 36 个角度 × 2 个镜像，取外拉力做功最大的。
+ */
+function orientTowardOutside(
+  subDiscs: Disc[],
+  center: Disc,
+  pullOf: (sub: number) => Array<{ topic: number; weight: number }>,
+  topicDisc: (topic: number) => Disc | undefined
+) {
+  if (subDiscs.length < 2) return;
+  // 每个子主题受的外拉力：指向各外部主题中心的单位向量按权重求和
+  const pulls = subDiscs.map(disc => {
+    let px = 0;
+    let py = 0;
+    for (const { topic, weight } of pullOf(disc.key)) {
+      const target = topicDisc(topic);
+      if (!target) continue;
+      const dx = (target.x ?? 0) - (center.x ?? 0);
+      const dy = (target.y ?? 0) - (center.y ?? 0);
+      const length = Math.hypot(dx, dy) || 1;
+      px += (dx / length) * weight;
+      py += (dy / length) * weight;
+    }
+    return { px, py };
+  });
+  if (pulls.every(p => p.px === 0 && p.py === 0)) return;
+
+  const STEPS = 36;
+  let best = { angle: 0, mirror: 1, score: -Infinity };
+  for (const mirror of [1, -1]) {
+    for (let i = 0; i < STEPS; i++) {
+      const angle = (i / STEPS) * Math.PI * 2;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      let score = 0;
+      subDiscs.forEach((disc, k) => {
+        const x = disc.x ?? 0;
+        const y = (disc.y ?? 0) * mirror;
+        // 变换后的位置在外拉方向上的投影：越靠向拉它的主题越好
+        score += (x * cos - y * sin) * pulls[k].px + (x * sin + y * cos) * pulls[k].py;
+      });
+      // 平手取不变换（angle 0、不镜像）：没有明确收益就别动
+      if (score > best.score + 1e-9) best = { angle, mirror, score };
+    }
+  }
+  const cos = Math.cos(best.angle);
+  const sin = Math.sin(best.angle);
+  for (const disc of subDiscs) {
+    const x = disc.x ?? 0;
+    const y = (disc.y ?? 0) * best.mirror;
+    disc.x = x * cos - y * sin;
+    disc.y = x * sin + y * cos;
+  }
+}
+
+/**
+ * 主题两两之间的亲近度，决定摆大主题时谁挨着谁。
+ *
+ * 按原始边权算时大主题天然占优（边多）：真实数据里最亲近的 TypeScript↔JavaScript
+ * 被推到了地图另一头、跨主题的链接横穿整张图。所以按较小一方的规模归一——
+ * 「小主题有多大比例的关系指向对方」。显式链接另外乘 CROSS_LINK_BOOST：
+ * 用户亲手连过的两个主题，连线要短。
+ */
+export function topicAffinity(
+  edges: ReadonlyArray<{ source: number; target: number; weight: number; explicit: boolean }>,
+  topicOf: ArrayLike<number>,
+  topicSizes: readonly number[]
+): Map<string, { source: number; target: number; weight: number }> {
+  const result = new Map<string, { source: number; target: number; weight: number }>();
+  for (const edge of edges) {
+    const a = topicOf[edge.source];
+    const b = topicOf[edge.target];
+    if (a < 0 || b < 0 || a === b) continue;
+    const key = a < b ? `${a}-${b}` : `${b}-${a}`;
+    const entry = result.get(key) ?? { source: Math.min(a, b), target: Math.max(a, b), weight: 0 };
+    entry.weight += edge.explicit ? edge.weight * CROSS_LINK_BOOST : edge.weight;
+    result.set(key, entry);
+  }
+  for (const entry of result.values()) {
+    entry.weight /= Math.max(1, Math.min(topicSizes[entry.source], topicSizes[entry.target]));
+  }
+  return result;
+}
+
 /** 把一组圆（主题或子主题）按亲近关系摆开：亲近的挨着，互不重叠 */
 function packDiscs(
   discs: Disc[],
@@ -443,21 +773,12 @@ function packDiscs(
   gap: number
 ) {
   if (discs.length === 0) return;
-  // 黄金角螺旋起步，大的在中间
-  discs
-    .slice()
-    .sort((a, b) => b.radius - a.radius)
-    .forEach((disc, i) => {
-      const angle = i * 2.39996;
-      const r = Math.sqrt(i) * (disc.radius + gap) * 1.2;
-      disc.x = Math.cos(angle) * r;
-      disc.y = Math.sin(angle) * r;
-    });
   if (discs.length === 1) {
     discs[0].x = 0;
     discs[0].y = 0;
     return;
   }
+  seedByAffinity(discs, links, gap);
   const maxWeight = Math.max(1e-6, ...links.map(l => l.weight));
   const byKey = new Map(discs.map(d => [d.key, d]));
   const simLinks = links
@@ -470,7 +791,7 @@ function packDiscs(
       forceLink<Disc, SimulationLinkDatum<Disc> & { weight: number }>(simLinks)
         .id(d => d.key)
         .distance(l => (l.source as Disc).radius + (l.target as Disc).radius + gap)
-        .strength(l => 0.05 + 0.4 * (l.weight / maxWeight))
+        .strength(l => 0.1 + 0.6 * (l.weight / maxWeight))
     )
     .force("collide", forceCollide<Disc>(d => d.radius + gap / 2).iterations(3))
     .force("x", forceX<Disc>(0).strength(0.04))
@@ -505,21 +826,19 @@ export function computeKnowledgeMap(
 
   const labelMember = (node: number): LabelMember => ({ tags: cards[node].tags });
   const labelFor = (members: number[]) => topicLabel(members.map(labelMember));
-  const vectorById = new Map(vectors.map(v => [v.id, v.vector]));
-  const vectorOf = cards.map(card => vectorById.get(card.id));
 
-  // 1) 大主题。顺序要紧：先命名并同名合并，再按色槽数封顶——
+  // 1) 大主题。顺序要紧：先命名并同名合并，再并强连接的小块——
   // 语义上被切成几块的同一主题（「Canvas」的两个互不相连的子块）
-  // 先靠名字并回去，封顶时就不会误伤别的主题
+  // 先靠名字并回去，合并时就不会误伤别的主题
   const headCoverage = (members: number[], label: string) =>
     members.filter(node => cards[node].tags.some(tag => tagPath(tag)[0] === label)).length /
     Math.max(1, members.length);
 
-  const topicOf = detectTopics(graph);
+  const topicOf = detectTopics(graph, labelFor, headCoverage);
   mergeByLabel(topicOf, labelFor);
-  capTopics(topicOf, graph, vectorOf);
+  mergeStronglyConnected(topicOf, graph);
   splitIncoherent(topicOf, graph, labelFor, headCoverage);
-  // 封顶合并后主题成分变了，名字要按新成员重取，并再做一次同名合并
+  // 合并与拆分后主题成分变了，名字要按新成员重取，并再做一次同名合并
   const labelOf = mergeByLabel(topicOf, labelFor);
   const groups = groupsOf(topicOf);
 
@@ -577,36 +896,58 @@ export function computeKnowledgeMap(
     subtopicsByTopic.set(topicId, list);
   });
 
-  const slots = assignColorSlots(topics.filter(t => t.parent === -1));
-  for (const topic of topics) {
-    topic.colorSlot = slots.get(topic.parent === -1 ? topic.id : topic.parent) ?? 0;
-  }
-
   // 4) 分层布局：先摆大主题，再在主题内摆子主题，最后全体节点一起松弛
   const random = seeded(cards.length * 7919 + graph.edges.length);
   const nodeRadius = Array.from(graph.linkDegree, degree => mapNodeRadius(degree));
   const discRadius = (members: number[]) =>
     Math.sqrt(members.reduce((sum, node) => sum + (nodeRadius[node] + 2) ** 2, 0)) * 1.25 + 12;
 
-  const interTopic = new Map<string, { source: number; target: number; weight: number }>();
-  for (const edge of graph.edges) {
-    const a = topicIndex[edge.source];
-    const b = topicIndex[edge.target];
-    if (a < 0 || b < 0 || a === b) continue;
-    const key = a < b ? `${a}-${b}` : `${b}-${a}`;
-    const entry = interTopic.get(key) ?? {
-      source: Math.min(a, b),
-      target: Math.max(a, b),
-      weight: 0,
-    };
-    entry.weight += edge.weight;
-    interTopic.set(key, entry);
-  }
+  const interTopic = topicAffinity(
+    graph.edges,
+    topicIndex,
+    orderedTopics.map(([, members]) => members.length)
+  );
   const topicDiscs: Disc[] = orderedTopics.map(([, members], id) => ({
     key: id,
     radius: discRadius(members),
   }));
-  packDiscs(topicDiscs, [...interTopic.values()], random, 70);
+  packDiscs(topicDiscs, strongestPairs(interTopic.values(), TOPIC_LAYOUT_NEIGHBORS), random, 70);
+
+  // 颜色要等大主题摆好才能分：循环复用色槽时要知道谁和谁在地图上挨着。
+  // reach 取圆盘间距（70）的两倍：隔着一条水道的也算邻居
+  const neighbors = topicNeighbors(topicDiscs, [...interTopic.values()], 140);
+  const slots = assignColorSlots(
+    topics.filter(t => t.parent === -1),
+    id => neighbors.get(id) ?? []
+  );
+  for (const topic of topics) {
+    topic.colorSlot = slots.get(topic.parent === -1 ? topic.id : topic.parent) ?? NO_COLOR_SLOT;
+  }
+
+  // 每个子主题被哪些外部主题拉着（跨主题的边，显式链接加权）：岛内朝向用
+  const outsidePull = new Map<number, Array<{ topic: number; weight: number }>>();
+  {
+    const byPair = new Map<string, { sub: number; topic: number; weight: number }>();
+    for (const edge of graph.edges) {
+      for (const [from, to] of [
+        [edge.source, edge.target],
+        [edge.target, edge.source],
+      ]) {
+        const sub = subtopicIndex[from];
+        const topic = topicIndex[to];
+        if (sub < 0 || topic < 0 || topic === topicIndex[from]) continue;
+        const key = `${sub}-${topic}`;
+        const entry = byPair.get(key) ?? { sub, topic, weight: 0 };
+        entry.weight += edge.explicit ? edge.weight * CROSS_LINK_BOOST : edge.weight;
+        byPair.set(key, entry);
+      }
+    }
+    for (const { sub, topic, weight } of byPair.values()) {
+      const list = outsidePull.get(sub) ?? [];
+      list.push({ topic, weight });
+      outsidePull.set(sub, list);
+    }
+  }
 
   const anchorX = new Float64Array(cards.length);
   const anchorY = new Float64Array(cards.length);
@@ -629,6 +970,14 @@ export function computeKnowledgeMap(
       interSub.set(key, entry);
     }
     packDiscs(subDiscs, [...interSub.values()], random, 18);
+    // 岛内朝向：连向外部主题的子主题转到岛上面向那个主题的一侧。
+    // 不转的话，「CSS/选择器」可能落在 CSS 岛背对 DOM 的一面，连线要横穿整个岛
+    orientTowardOutside(
+      subDiscs,
+      center,
+      sub => outsidePull.get(sub) ?? [],
+      id => topicDiscs[id]
+    );
     const subCenter = new Map(subDiscs.map(d => [d.key, d]));
     for (const node of members) {
       const sub = subCenter.get(subtopicIndex[node]);
@@ -663,6 +1012,18 @@ export function computeKnowledgeMap(
   const simLinks = graph.edges
     .filter(e => topicIndex[e.source] >= 0 && topicIndex[e.source] === topicIndex[e.target])
     .map(e => ({ source: e.source, target: e.target, weight: e.weight, explicit: e.explicit }));
+  // 跨主题的显式链接作为弱力：桥接卡片被拉到两个岛相对的边缘，连线变短。
+  // 只取显式链接——跨主题的语义边有几百条，全加进来岛就糊成一片；
+  // 力要弱到锚点力始终占上风，卡片只在自己岛内挪到靠外的一侧，不会被拽进水道
+  const bridgeLinks = graph.edges
+    .filter(
+      e =>
+        e.explicit &&
+        topicIndex[e.source] >= 0 &&
+        topicIndex[e.target] >= 0 &&
+        topicIndex[e.source] !== topicIndex[e.target]
+    )
+    .map(e => ({ source: e.source, target: e.target }));
 
   forceSimulation<MapNodeDatum>(datums)
     .randomSource(random)
@@ -675,6 +1036,13 @@ export function computeKnowledgeMap(
         .id(d => d.index)
         .distance(l => (l.explicit ? 16 : 22))
         .strength(l => Math.min(0.6, 0.08 + 0.2 * l.weight))
+    )
+    .force(
+      "bridge",
+      forceLink<MapNodeDatum, SimulationLinkDatum<MapNodeDatum>>(bridgeLinks)
+        .id(d => d.index)
+        .distance(0)
+        .strength(BRIDGE_STRENGTH)
     )
     .force("charge", forceManyBody<MapNodeDatum>().strength(-14).distanceMax(90))
     .force("collide", forceCollide<MapNodeDatum>(d => d.radius + 2).iterations(2))
