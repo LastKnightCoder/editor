@@ -1,16 +1,8 @@
 /**
- * OpenAI 系接口的 `reasoning_effort` 取值（旧链路专用：modules/llm.ts 的连接测试路径）。
- * 与界面/运行时的思考档位（@tau/shared ThinkingLevel，"off" 而非 "none"）刻意不共用类型——
- * 这是线协议字段，不是产品档位；旧链路随 M8 一起删除。
- */
-export type LegacyReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh" | "max";
-
-/**
  * 模型请求上下文，用于确定模型特定的参数设置
  */
 export interface ModelRequestContext {
   modelName: string;
-  reasoningEffort?: LegacyReasoningEffort;
 }
 
 /**
@@ -20,7 +12,6 @@ export interface ModelRequestContext {
 export interface ModelRequestOverrides {
   temperature?: number;
   top_p?: number;
-  reasoning_effort?: Exclude<LegacyReasoningEffort, "none">;
   frequency_penalty?: number;
 }
 

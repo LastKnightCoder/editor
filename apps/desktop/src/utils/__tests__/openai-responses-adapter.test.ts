@@ -3,17 +3,6 @@ import { Role } from "@/constants/llm";
 import { buildResponsesPayload } from "../openai-responses-adapter";
 
 describe("openai-responses-adapter", () => {
-  it("透传 OpenAI 的 max 推理强度", () => {
-    const payload = buildResponsesPayload({
-      model: "gpt-5.6",
-      stream: true,
-      reasoningEffort: "max",
-      messages: [{ role: Role.User, content: "你好" }],
-    });
-
-    expect(payload.reasoning).toEqual({ effort: "max" });
-  });
-
   it("透传模型配置的 temperature", () => {
     const payload = buildResponsesPayload({
       model: "kimi-k3",

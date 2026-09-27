@@ -1,6 +1,5 @@
 import { invoke } from "@/electron";
 import { RequestMessage, ToolCallPayload, ToolFunctionSchema } from "@/types";
-import type { LegacyReasoningEffort } from "@/utils/model-overrides";
 
 export interface ChatCompletionResult {
   message: {
@@ -18,7 +17,6 @@ export const chat = async (
   model: string,
   messages: RequestMessage[],
   options?: {
-    reasoningEffort?: LegacyReasoningEffort;
     tools?: ToolFunctionSchema[];
   }
 ): Promise<ChatCompletionResult> => {
@@ -31,7 +29,6 @@ export const chatResponses = async (
   model: string,
   messages: RequestMessage[],
   options?: {
-    reasoningEffort?: LegacyReasoningEffort;
     tools?: ToolFunctionSchema[];
   }
 ): Promise<ChatCompletionResult> => {

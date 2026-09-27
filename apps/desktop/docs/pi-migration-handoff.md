@@ -95,8 +95,9 @@
 **已删除（M2-f）**：useChatLLM/chatStreamCore、DesktopModelProtocolAdapter(1118行)/Transport、
 llmSettingsDowngrade、openai-reasoning-effort、commands/stream-fetch、subagentAgentPolicies、
 chatRunManager/useChatRunStore/commands:chat-run/types:chat-run（渲染端链路）。
-保留待 M8 复查：主进程 modules/llm.ts（chat-openai，Integration/Minimax 设置连接测试用）、
-utils/openai-responses-adapter（llm.ts 依赖）。chat_run 主进程表与 handler 留存至 M8。
+保留待 M8 复查：主进程 modules/llm.ts（`chat-openai` 仍被 Integration/Minimax 设置的 Key 连接测试用；
+`chat-openai-responses` 已无调用方，可直接删）、utils/openai-responses-adapter（仅被上面那个无调用方的
+handler 依赖，同批删）。chat_run 主进程表与 handler 留存至 M8。
 ```
 
 ### piChatRuntime（模块级运行时，理解现状的核心）
@@ -215,11 +216,12 @@ utils/openai-responses-adapter（llm.ts 依赖）。chat_run 主进程表与 han
 `"none"` 且**没有 `minimal`**）与 `PiThinkingLevel`（桌面端，pi 词汇）并存，每处都要记得
 `none→off`，`minimal` 在渲染端根本不可达。现在**唯一定义**是
 `packages/shared` 的 `ThinkingLevel`（`off` + 六档，与 pi `ThinkingLevel` 逐项对齐）；
-桌面端 `PiThinkingLevel` 就是它的别名，`toPiThinking` 转换在 chat 侧不再需要。
-组件属性同步更名（`reasoningEffort*` → `thinkingLevel*`，shared/桌面/扩展三端）。
-旧链路（`modules/llm.ts` 连接测试路径 + `model-overrides`/`openai-responses-adapter`）改用
-本地 `LegacyReasoningEffort`——那是 OpenAI 的线协议字段而非产品档位，**故意不与产品档位共用类型**，
-随 M8 一起删。本地存储里的旧值 `"none"` 读出时归一为 `"off"`。
+桌面端 `PiThinkingLevel` 就是它的别名，组件属性同步更名（`reasoningEffort*` → `thinkingLevel*`，
+shared/桌面/扩展三端）。本地存储里的旧值 `"none"` 读出时归一为 `"off"`。
+转换函数 `toPiThinking` 与旧链路的档位参数**全部删除而非保留兼容类型**——查证后发现那条参数链
+根本没有调用方（详见坑 18）：`getModelRequestOverrides` 从不读档位、`chat()` 的两个调用方
+（Minimax Key 连接测试）不传 options、`chatResponses()` 零调用方。`modules/llm.ts` 与
+`openai-responses-adapter` 本身仍留到 M8（前者的 `chat` 还被 Key 连接测试用着）。
 
 **chat 侧档位接目录**：输入框档位不再硬编码四档，改由模型真实能力生成（经
 `pi-ai:thinking-levels`）；目录未收录的模型退回通用档；选中档位不被当前模型支持时落到
@@ -416,8 +418,11 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
 18. **同一概念不要在两个包各定义一套取值**（M3-g）：`ReasoningEffort`（"none"、无 minimal）
     与 `PiThinkingLevel`（pi 词汇）并存的后果不是「多写一个转换函数」，而是**一整档位在界面上
     不可达**，且每个新增调用点都可能忘记转换。现在唯一定义在 `packages/shared` 的 `ThinkingLevel`。
-    旧链路（M8 待删）刻意使用独立的 `LegacyReasoningEffort`——那是线协议字段不是产品档位，
-    **区分"看起来一样"和"是同一个概念"**：前者不该共用类型。
+    **收尾时的二次发现**：收敛后为旧链路留的 `LegacyReasoningEffort` 其实是给**死参数**描述类型——
+    `getModelRequestOverrides` 从不读 `context.reasoningEffort`、也没有分支返回 `reasoning_effort`；
+    `chat()` 的两个调用方（Minimax Key 连接测试）都不传 options，`chatResponses()` 零调用方；
+    `toPiThinking` 同理（收敛后无需转换，且没有调用方传 `thinking`）。**都已删除**。
+    教训：给旧代码"补一个兼容类型"之前先确认那条参数链真的有人用——否则是在给尸体量体裁衣。
 
 ## 五、遗留边界（有意留下，归属明确）
 

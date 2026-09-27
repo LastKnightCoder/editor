@@ -1,6 +1,5 @@
 import { Role } from "@/constants/llm";
 import type { RequestMessage } from "@/types";
-import type { LegacyReasoningEffort } from "@/utils/model-overrides";
 
 export interface OpenAIToolSchema {
   type: "function";
@@ -161,14 +160,9 @@ export const buildResponsesPayload = (params: {
   model: string;
   messages: RequestMessage[];
   stream: boolean;
-  reasoningEffort?: LegacyReasoningEffort;
   temperature?: number;
   tools?: OpenAIToolSchema[];
 }) => {
-  const reasoningEffort =
-    params.reasoningEffort && params.reasoningEffort !== "none"
-      ? params.reasoningEffort
-      : undefined;
   const tools = toResponsesTools(params.tools);
 
   return {
@@ -180,7 +174,6 @@ export const buildResponsesPayload = (params: {
     stream: params.stream,
     store: false,
     ...(params.temperature !== undefined ? { temperature: params.temperature } : {}),
-    ...(reasoningEffort ? { reasoning: { effort: reasoningEffort } } : {}),
     ...(tools?.length ? { tools, tool_choice: "auto", parallel_tool_calls: true } : {}),
   };
 };
