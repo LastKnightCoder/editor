@@ -71,7 +71,7 @@ class PiChatSessionManager {
   }
 
   /**
-   * 渲染层重载后收养主进程仍持有的会话（ask-question 恢复等场景）：
+   * 渲染层重载后收养主进程仍持有的会话（待审批/待回答交互恢复等场景）：
    * 把 find-by-scope 拿到的 sessionId 记回本地表并接上工具桥上下文。
    */
   public async adoptOrResolveSession(
@@ -152,7 +152,7 @@ class PiChatSessionManager {
       cwd: options.cwd ?? "",
       modelRef: { providerId: options.provider.id, modelId: options.model.id },
       systemPrompt: options.systemPrompt,
-      interactiveApprovals: true,
+      interactive: true,
       ...(options.persist === false ? { persist: false } : {}),
       ...(customTools.length > 0 ? { customTools } : {}),
       ...(options.thinkingLevel ? { thinkingLevel: options.thinkingLevel } : {}),

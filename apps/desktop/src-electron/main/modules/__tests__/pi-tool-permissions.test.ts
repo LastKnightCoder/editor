@@ -14,23 +14,23 @@ const setup = (
   interactive = true,
   tools: PiHostToolSpec[] = []
 ) => {
-  const publish = vi.fn();
+  const onChange = vi.fn();
   const state = { mode };
   const permissions = new PiToolPermissions({
     sessionId: "s1",
     interactive,
     tools,
-    publish,
+    onChange,
     getMode: () => state.mode,
   });
-  return { permissions, state, publish };
+  return { permissions, state, onChange };
 };
 
 describe("pi 宿主工具权限", () => {
-  it.each(["read", "grep", "find", "ls"])("手动模式下 %s 直接执行", async name => {
+  it.each(["read", "grep", "find", "ls", "ask-question"])("手动模式下 %s 直接执行", async name => {
     const { permissions } = setup();
     await expect(permissions.authorize(context(name))).resolves.toBeUndefined();
-    expect(permissions.snapshot().pending).toEqual([]);
+    expect(permissions.pendingRequests()).toEqual([]);
   });
 
   it.each(["write", "edit", "bash", "powershell"])(
@@ -38,11 +38,11 @@ describe("pi 宿主工具权限", () => {
     async name => {
       const { permissions } = setup();
       const result = permissions.authorize(context(name));
-      const [request] = permissions.snapshot().pending;
+      const [request] = permissions.pendingRequests();
       expect(request).toMatchObject({ toolName: name, toolCallId: "call-1", sessionId: "s1" });
       expect(permissions.decide(request.requestId, "deny")).toBe(true);
       await expect(result).resolves.toMatchObject({ block: true, reason: "用户拒绝执行此工具" });
-      expect(permissions.snapshot().pending).toEqual([]);
+      expect(permissions.pendingRequests()).toEqual([]);
       expect(permissions.decide(request.requestId, "allow")).toBe(false);
     }
   );
@@ -51,7 +51,7 @@ describe("pi 宿主工具权限", () => {
     const { permissions, state } = setup("acceptEdits");
     await expect(permissions.authorize(context("write"))).resolves.toBeUndefined();
     const waiting = permissions.authorize(context("bash"));
-    expect(permissions.snapshot().pending).toHaveLength(1);
+    expect(permissions.pendingRequests()).toHaveLength(1);
     state.mode = "bypass";
     permissions.modeChanged();
     await expect(waiting).resolves.toBeUndefined();
@@ -61,14 +61,14 @@ describe("pi 宿主工具权限", () => {
   it("同会话同工具授权不扩散到其它工具或其它会话", async () => {
     const { permissions } = setup();
     const first = permissions.authorize(context("bash"));
-    permissions.decide(permissions.snapshot().pending[0].requestId, "allow-session");
+    permissions.decide(permissions.pendingRequests()[0].requestId, "allow-session");
     await first;
     await expect(permissions.authorize(context("bash", "call-2"))).resolves.toBeUndefined();
     const otherTool = permissions.authorize(context("write"));
-    expect(permissions.snapshot().pending).toHaveLength(1);
+    expect(permissions.pendingRequests()).toHaveLength(1);
     const otherSession = setup().permissions;
     const another = otherSession.authorize(context("bash"));
-    expect(otherSession.snapshot().pending).toHaveLength(1);
+    expect(otherSession.pendingRequests()).toHaveLength(1);
     permissions.dispose();
     otherSession.dispose();
     await Promise.all([otherTool, another]);
@@ -78,32 +78,32 @@ describe("pi 宿主工具权限", () => {
     const { permissions } = setup();
     const controller = new AbortController();
     const waiting = permissions.authorize(context("bash"), controller.signal);
-    const requestId = permissions.snapshot().pending[0].requestId;
+    const requestId = permissions.pendingRequests()[0].requestId;
     controller.abort();
     await expect(waiting).resolves.toMatchObject({ block: true });
-    expect(permissions.snapshot().pending).toEqual([]);
+    expect(permissions.pendingRequests()).toEqual([]);
     expect(permissions.decide(requestId, "allow-session")).toBe(false);
     const next = permissions.authorize(context("bash"));
-    expect(permissions.snapshot().pending[0].requestId).not.toBe(requestId);
+    expect(permissions.pendingRequests()[0].requestId).not.toBe(requestId);
     permissions.dispose();
     await next;
     await expect(permissions.authorize(context("read"))).resolves.toMatchObject({ block: true });
   });
 
   it("通知通道失效时拒绝执行且不遗留等待", async () => {
-    const { permissions, publish } = setup();
-    publish.mockImplementation(() => {
+    const { permissions, onChange } = setup();
+    onChange.mockImplementation(() => {
       throw new Error("窗口已销毁");
     });
     await expect(permissions.authorize(context("write"))).resolves.toMatchObject({ block: true });
-    expect(permissions.snapshot().pending).toEqual([]);
+    expect(permissions.pendingRequests()).toEqual([]);
   });
 
   it("一次性入口需要确认时直接拒绝；无声明的额外工具保守处理", async () => {
     const { permissions } = setup("manual", false);
     await expect(permissions.authorize(context("write"))).resolves.toMatchObject({ block: true });
     await expect(permissions.authorize(context("unknown"))).resolves.toMatchObject({ block: true });
-    expect(permissions.snapshot().pending).toEqual([]);
+    expect(permissions.pendingRequests()).toEqual([]);
   });
 
   it("MCP 风险按清单处理，只有交互入口豁免自带内容审阅卡", async () => {
@@ -119,7 +119,7 @@ describe("pi 宿主工具权限", () => {
     ];
     const { permissions } = setup("manual", true, tools);
     const waiting = permissions.authorize(context("mcp-write"));
-    expect(permissions.snapshot().pending[0].risk).toBe("write");
+    expect(permissions.pendingRequests()[0].risk).toBe("write");
     await expect(permissions.authorize(context("review"))).resolves.toBeUndefined();
     const nonInteractive = setup("manual", false, tools).permissions;
     await expect(nonInteractive.authorize(context("review"))).resolves.toMatchObject({
@@ -142,10 +142,10 @@ describe("pi 宿主工具权限", () => {
     await expect(session.agent.beforeToolCall!(context("bash"))).resolves.toMatchObject({
       block: true,
     });
-    expect(permissions.snapshot().pending).toEqual([]);
+    expect(permissions.pendingRequests()).toEqual([]);
     const waiting = session.agent.beforeToolCall!(context("bash"));
-    await vi.waitFor(() => expect(permissions.snapshot().pending).toHaveLength(1));
-    expect(permissions.snapshot().pending[0].input).toContain("扩展后的命令");
+    await vi.waitFor(() => expect(permissions.pendingRequests()).toHaveLength(1));
+    expect(permissions.pendingRequests()[0].input).toContain("扩展后的命令");
     permissions.dispose();
     await waiting;
   });

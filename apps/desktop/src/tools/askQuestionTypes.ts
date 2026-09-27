@@ -52,27 +52,6 @@ export interface AskQuestionToolResult {
   answers: AskQuestionResolvedAnswer[];
 }
 
-export type AskQuestionSessionStatus =
-  | "pending"
-  | "submitted"
-  | "completed"
-  | "cancelled";
-
-export interface AskQuestionSessionRecord {
-  sessionId: string;
-  toolCallId: string;
-  toolName: string;
-  conversationKey: string;
-  rawInput: string;
-  payload: AskQuestionPayload;
-  status: AskQuestionSessionStatus;
-  submittedAnswers?: AskQuestionSubmission;
-  createdAt: number;
-  updatedAt: number;
-  completedAt?: number;
-  cancelReason?: string;
-}
-
 export interface AskQuestionNormalizationResult {
   payload?: AskQuestionPayload;
   error?: string;
@@ -89,7 +68,7 @@ const ensureString = (value: unknown): string | null => {
 const normalizeOption = (
   value: unknown,
   questionIndex: number,
-  optionIndex: number,
+  optionIndex: number
 ): AskQuestionOption | null => {
   if (typeof value === "string") {
     const text = value.trim();
@@ -110,8 +89,7 @@ const normalizeOption = (
     return null;
   }
 
-  const finalLabel =
-    label || rawValue || `选项 ${questionIndex + 1}-${optionIndex + 1}`;
+  const finalLabel = label || rawValue || `选项 ${questionIndex + 1}-${optionIndex + 1}`;
   const finalValue = rawValue || finalLabel;
   return {
     label: finalLabel,
@@ -120,9 +98,7 @@ const normalizeOption = (
   };
 };
 
-export const normalizeAskQuestionPayload = (
-  input: unknown,
-): AskQuestionNormalizationResult => {
+export const normalizeAskQuestionPayload = (input: unknown): AskQuestionNormalizationResult => {
   if (!input || typeof input !== "object") {
     return { error: "ask-question 参数必须是对象" };
   }
@@ -149,14 +125,11 @@ export const normalizeAskQuestionPayload = (
     const id = ensureString(item.id) || `question-${questionIndex + 1}`;
 
     const rawType = ensureString(item.type);
-    const type: AskQuestionType =
-      rawType === "multiple" ? "multiple" : "single";
+    const type: AskQuestionType = rawType === "multiple" ? "multiple" : "single";
 
     const rawOptions = Array.isArray(item.options) ? item.options : [];
     const options = rawOptions
-      .map((option, optionIndex) =>
-        normalizeOption(option, questionIndex, optionIndex),
-      )
+      .map((option, optionIndex) => normalizeOption(option, questionIndex, optionIndex))
       .filter((option): option is AskQuestionOption => Boolean(option));
 
     normalizedQuestions.push({
@@ -182,30 +155,39 @@ export const normalizeAskQuestionPayload = (
   };
 };
 
+/** 第一个未作答的必答题（既没选项也没填「其他」）；全部答完返回 undefined */
+export const findUnansweredQuestion = (
+  payload: AskQuestionPayload,
+  answers: AskQuestionAnswerItem[]
+): AskQuestionItem | undefined => {
+  const answerMap = new Map(answers.map(answer => [answer.questionId, answer]));
+  return payload.questions.find(question => {
+    if (!question.required) return false;
+    const answer = answerMap.get(question.id);
+    return (answer?.selectedValues ?? []).length === 0 && !answer?.otherText?.trim();
+  });
+};
+
 export const buildAskQuestionToolResult = (
   payload: AskQuestionPayload,
-  submission: AskQuestionSubmission,
+  submission: AskQuestionSubmission
 ): AskQuestionToolResult => {
-  const answerMap = new Map(
-    submission.answers.map((answer) => [answer.questionId, answer]),
-  );
+  const answerMap = new Map(submission.answers.map(answer => [answer.questionId, answer]));
 
   return {
     type: "ask-question-result",
     submittedAt: submission.submittedAt,
-    answers: payload.questions.map((question) => {
+    answers: payload.questions.map(question => {
       const answer = answerMap.get(question.id);
       const selectedValues = answer?.selectedValues || [];
-      const optionMap = new Map(
-        question.options.map((option) => [option.value, option.label]),
-      );
+      const optionMap = new Map(question.options.map(option => [option.value, option.label]));
 
       return {
         questionId: question.id,
         question: question.question,
         type: question.type,
         required: question.required,
-        selectedOptions: selectedValues.map((value) => ({
+        selectedOptions: selectedValues.map(value => ({
           value,
           label: optionMap.get(value) || value,
         })),

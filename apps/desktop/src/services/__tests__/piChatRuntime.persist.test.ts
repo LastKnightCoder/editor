@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 import type { ChatMessage } from "@/types";
 import { piChatRuntime, type PiChatRuntimeDeps } from "../piChatRuntime";
-import { useToolApprovalStore } from "../tool-permission/approvalStore";
+import { usePiInteractionStore } from "../piInteractions";
 
 const mocks = vi.hoisted(() => ({
   listeners: new Map<string, (event: AgentSessionEvent) => void>(),
@@ -13,9 +13,10 @@ vi.mock("@/commands/piSession", () => ({
     mocks.listeners.set(id, listener);
     return () => mocks.listeners.delete(id);
   },
-  onPiToolApprovals: vi.fn(),
-  piSessionApprovals: vi.fn().mockResolvedValue({ ok: true, snapshots: [] }),
+  onPiSessionInteractions: vi.fn(),
+  piSessionInteractions: vi.fn().mockResolvedValue({ ok: true, snapshots: [] }),
   piSessionApproveTool: vi.fn(),
+  piSessionAnswerQuestion: vi.fn(),
 }));
 
 const key = "main-chat:21";
@@ -60,7 +61,7 @@ const setup = (deps: Partial<PiChatRuntimeDeps>) => {
 
 describe("piChatRuntime settled 落库与标题回写", () => {
   beforeEach(() => {
-    useToolApprovalStore.setState({ sessions: {}, readySessions: {} });
+    usePiInteractionStore.setState({ sessions: {}, readySessions: {} });
   });
   afterEach(() => piChatRuntime.disposeConversation(key));
 

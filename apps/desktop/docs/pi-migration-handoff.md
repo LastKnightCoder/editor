@@ -1,8 +1,9 @@
 # pi 迁移交接文档（refactor/pi-harness 分支）
 
-> 2026-09-27 交接（M2-f 完成；M3-a 工具权限与队列交互闭环已接入，尚未提交）。新会话续接方式：读完本文档 +
+> 2026-09-27 交接（M2-f 完成；M3-a 工具权限与队列交互已随 `d1fed4658` 提交；M3-b ask-question
+> 宿主原生化已完成）。新会话续接方式：读完本文档 +
 > `git log --oneline -15` 对照提交历史。验证三件套：`cd apps/desktop && npx tsc --noEmit`、
-> `npx vitest run`（325 文件、1515 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
+> `npx vitest run`（327 文件、1531 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
 > **注意 cwd 必须在 apps/desktop**——vitest 从仓库根跑会整体失败（vite 别名解析不到）。
 > 权威背景：调研报告与迁移计划在本项目最初会话中形成（对话内）；本文档是执行态的完整快照。
 
@@ -40,9 +41,14 @@
 ├─ modules/pi-session-host-core.ts 会话装配：ResourceLoader/Git Bash 探测（WSL 排除/where git
 │                                    反推/powershell 兜底）/历史灌入/thinkingLevel/retry(默认5)/
 │                                    动态 systemPrompt 扩展（before_agent_start 每轮替换）
+├─ modules/pi-session-interactions.ts 会话待用户处理交互（审批+提问）的组合持有者：共用 revision
+│                                    与 pi-session-interactions 通道；hostTools() 只给交互会话注册 ask-question
+├─ modules/pi-tool-permissions.ts  工具审批等待与会话授权（beforeToolCall 拦截）
+├─ modules/pi-user-questions.ts    宿主原生 ask-question（customTool execute 挂起到用户作答）
 └─ modules/pi-session-host.ts      会话宿主：create/prompt/steer/abort/dispose/set-system-prompt/
-                                   tool-*/find-by-scope IPC；AgentSessionEvent 原样透传
-                                   （pi-session-event 按 sessionId 路由；scope=会话键，见坑 1）
+                                   tool-*/find-by-scope/interactions/approve-tool/answer-question IPC；
+                                   AgentSessionEvent 原样透传（pi-session-event 按 sessionId 路由；
+                                   scope=会话键，见坑 1）
 
 渲染进程：
 ├─ commands/piAi.ts                单发封装（原生 AssistantMessageEvent 含 partial）
@@ -60,6 +66,8 @@
 │                                  块 id 会错乱）；turn 粒度=pi 一次 assistant message
 ├─ services/piToolBridge.ts        pi-tool-call→ToolRegistry 执行→回传；
 │                                  executeToolCall 上下文可被一次性会话的 additionalTools 接管
+├─ services/piInteractions.ts      宿主交互快照只读投影（usePiInteractionStore）：审批条与提问卡
+│                                  都读它；提交经 IPC，不乐观伪造；readySessions 控制恢复期禁用
 ├─ services/piAgentRunner.ts       一次性 pi 会话运行器（inMemory+工具桥+历史灌入+settled 后
 │                                  dispose + excludeToolNames 防子代理递归）
 ├─ services/piChatRuntime.ts       ★模块级归约运行时（最后落地的核心，见下节）
@@ -97,8 +105,9 @@ utils/openai-responses-adapter（llm.ts 依赖）。chat_run 主进程表与 han
 - **deps 由挂载组件每次渲染刷新**——必须是无组件生命周期引用（store action/IPC command）。
 
 **sendLoading 双源**：pending（本轮提交中，含停止后排队等待）|| runtime streaming。
-**stopStreaming**：setSessionPending(false) + forceStopStreaming（立即反馈）+ 后台
-piSessionAbort 自行收尾（settled 落库幂等）。
+只约束「本对话能否发送」——**不禁用新建/切换/删除对话**（见坑 13）。
+**stopStreaming**：setSessionPending(false) + forceStopStreaming（立即反馈 + 置 stopRequested
+抑制收尾报错）+ 后台 piSessionAbort 自行收尾（settled 落库幂等）。
 
 ### M3-a 工具审批（2026-09-27）
 
@@ -108,12 +117,12 @@ piSessionAbort 自行收尾（settled 落库幂等）。
 - 内置 read/grep/find/ls = read、edit/write = write、bash/powershell = execute；
   注册表工具透传 risk/source；远端 MCP 默认 execute；未声明风险的额外工具也按 execute。
   有交互界面的内容编辑工具仍使用自己的审阅卡，不双重确认。
-- 主聊天五场景显式传 `interactiveApprovals: true`；一次性生成、子代理等无审批界面的
+- 主聊天五场景显式传 `interactive: true`（M3-b 前名为 interactiveApprovals）；一次性生成、子代理等无审批界面的
   入口默认 false，需要确认时返回明确拒绝结果，不偷偷执行或无限等待。
-- `pi-session:approvals` 查询与 `pi-tool-approvals` 事件只向创建窗口发送快照；
+- 交互快照查询与事件（M3-b 后为 `pi-session:interactions` / `pi-session-interactions`）只向创建窗口发送；
   `pi-session:approve-tool` 按 sender + sessionId + 随机 requestId 校验，迟到/重复审批失效。
   模式变更即时释放已无需确认的等待；abort/dispose/窗口销毁清理待审批，销毁清除会话授权。
-- 渲染端 `approvalStore` 仅保存带版本号的快照投影，不再持有 Promise resolver 或授权事实，
+- 渲染端投影（M3-b 后为 `piInteractions`）仅保存带版本号的快照，不再持有 Promise resolver 或授权事实，
   无 `@tau/agent` 依赖；旧 `createToolPermissionPolicies` 已删除。
   `PiChatEventReducer` 映射 awaiting-approval，`piChatRuntime` 持久化等待工具卡，
   切页后台持续归约；重载后先收养宿主、恢复原 turn 工具卡和事件订阅，再开放审批按钮。
@@ -125,6 +134,36 @@ piSessionAbort 自行收尾（settled 落库幂等）。
   新增覆盖真实 pi write 审批前不落盘、允许/拒绝/中止、桥接工具拦截、授权隔离、
   迟到审批、快照版本、后台归约与渲染层重载收养；附件测试同步现有通用文件/本地路径行为。
   尚未做真实模型下的 Electron 审批界面人工走查。
+
+### M3-b ask-question 宿主原生化（2026-09-27）
+
+**设计缺陷**：旧 ask-question 仍是渲染端工具——等待（Promise resolver）存在渲染进程内存，
+答案另存 zustand persist（localStorage），重载后由 ChatContainer 的 effect 扫描"已提交未续流"
+记录、收养会话、手工 `piSessionToolResult` 回传；主进程也重启时还把答案伪写成 success 终态。
+等待态横跨渲染层重载却归属渲染进程，与 M3-a 审批主进程化后形成两套并行的恢复机制。
+
+**现状**：
+
+- `PiUserQuestions` 是宿主 customTool，execute 挂起到 `pi-session:answer-question`；参数与答案
+  在主进程归一化/校验（必答题复用 `findUnansweredQuestion`），结果仍是 `ask-question-result`
+  JSON，历史卡片渲染与旧数据兼容。中止/释放/窗口销毁 → execute 抛错 → pi 转 isError 工具结果。
+- 审批与提问合并为 `PiSessionInteractionSnapshot{approvals, questions}`，一个 revision、一条
+  `pi-session-interactions` 事件与 `pi-session:interactions` 查询；渲染端 `approvalStore` 由
+  `piInteractions` 取代。`ask-question` 在权限表中为 read 风险（不会被审批拦截）。
+- 创建参数 `interactiveApprovals` 更名 `interactive`：同时决定审批是否等待用户与是否注册提问工具；
+  一次性会话（piAgentRunner/子代理）不再有 ask-question（旧实现会无限挂起）。渲染端清单
+  含同名工具（外部 MCP）时宿主让位。
+- 重载恢复统一走 `piChatRuntime.restorePendingInteractions`（原 restorePendingApprovals，
+  判定扩展到未结束的 ask-question 卡）；ChatContainer 的 ask-question 恢复 effect、
+  `markAskQuestionExecutionResolved` 兜底已删除。主进程也重启时卡片显示中断，不伪造答案。
+- 已删除：`tools/askQuestionTool.ts`、`tools/askQuestionSessionStore.ts`（用户 localStorage 中遗留的
+  `ask-question-session` 键无人读取，无害，M8 可顺手清）、`toolRuntimePolicy` 的
+  `filterConflictingToolSchemas`/`shouldSkipToolTimeout`（均无调用方）。
+- **坑**：pi 执行前按 JSON Schema 校验参数（`validateToolArguments`），旧 schema 的 options
+  `items: {type:"object"}` 会拒掉描述里允许的字符串选项——已改 `anyOf[string, object]`。
+- 验证：真实 pi + faux 的 ask-question 作答/中止闭环、问题持有者单测（校验/中止/释放/通知失败）、
+  投影 store、runtime 提问恢复收养、提问卡组件（提交只发宿主、过期拒收、跨会话不串、恢复中禁用）。
+  尚未做真实模型下的 Electron 人工走查。
 
 ### M3-a 队列交互修复（2026-09-27）
 
@@ -145,6 +184,8 @@ piSessionAbort 自行收尾（settled 落库幂等）。
 - **M2-f-3/4** `c106bc3af`+`90abfe14d` piAgentRunner + 生成编排/InlineAI/aiServer/podcast/
   subagentTool 迁移；旧链路删除
 - 首轮验收修复 `c31c078c7`：五项（见坑清单 1-5）
+- **M3-a** `d1fed4658`：工具审批主进程化 + 队列可编辑/删除（与侧栏刷新修复同批提交）
+- **M3-b**：ask-question 宿主原生化 + 审批/提问交互快照合并
 - **修正一** `784d59ebb`：去闭包快照+会话常驻 reducer（修吞消息）
 - **修正二** `d3bc61c33`：piChatRuntime 下沉模块级（后台运行）
 - **验收状态**：用户确认"大部分没问题"——M2-f 基本通过；后台运行场景（切页回来
@@ -174,6 +215,12 @@ piSessionAbort 自行收尾（settled 落库幂等）。
 1. **ask_question 刷新不续流**：create 的 scope 传裸 chatScope（"main-chat"），find-by-scope
    按会话键（"main-chat:5"）查——不匹配。**scope 必须用 chatSessionKey()**。
 2. **停止一闪而逝错误**：见 pi 陷阱 2；reducer 过滤 stopReason=aborted。
+   **但这只覆盖一半**：中止落在流式中才是 `stopReason:"aborted"`；落在**工具执行中**
+   （等待审批/等待作答时按停止）时，收尾轮的 message_end 是 `stopReason:"error"` +
+   `errorMessage:"AbortError: The operation was aborted."`——仍会闪一下错误条。
+   pi 的 AgentSessionEvent 没有原生中止标志（agent_end 只有 willRetry），
+   **不要去匹配错误文案**：停止意图只有渲染端自己知道，`piChatRuntime.forceStopStreaming`
+   置 `entry.stopRequested`，onStreamError 据此抑制，下一轮 agent_start 复位。
 3. **输入框切模型失效**：写 modelName 而 v2 主键是 modelId（M2-d 迁移漏改）。usage 的
    modelName 字段是显示用，主键匹配一律 modelId。
 4. **图片模型读不到**：见 pi 陷阱 1 + 桌面 image 字段是 `convertFileSrc()` 的 protocol URL，
@@ -191,6 +238,15 @@ piSessionAbort 自行收尾（settled 落库幂等）。
 10. **vitest cwd**：必须在 apps/desktop 下跑（见文档头）。
 11. **队列只显示计数**：旧实现只在发送按钮显示数量，回答结束时若状态更新交错会出现停止按钮与
     队列数字残留；现已改为输入框上方渲染待发送摘要，并由 agent_settled 主动触发 drain。
+12. **ask-question 字符串选项被 pi 拒绝**：pi 执行前按 JSON Schema 校验参数，schema 必须与
+    描述一致（见 M3-b）。新增宿主工具时 schema 要按真实可接受的输入写，不能只写宽泛的 object。
+13. **运行中禁止新建/切换对话的过期护栏**：`新建对话` 菜单项与主视图 ChatDropdownSelector
+    曾按 `sendLoading` 禁用——那是归约链绑组件时代的必需品。M2-f 下沉模块级后后台可续跑，
+    且 `updateCurrentChat` 按 chat id 写回（后台轮次不会串到新会话），护栏已无必要；
+    等待用户作答可以持续任意久，护栏反而卡死交互。已移除（停靠栏本来就没有，两边此前不一致）。
+    **配套**：`deleteChatMessage` 过去只 dispose pi 会话、漏了 `piChatRuntime.disposeConversation`，
+    被"运行中禁止删除"掩盖；解禁前必须一起清，否则删掉的对话仍在后台归约并落库。
+    新增宿主/运行态资源时，检查会话终态（删除/重建）是否都释放到了。
 
 ## 五、遗留边界（有意留下，归属明确）
 
@@ -199,8 +255,8 @@ piSessionAbort 自行收尾（settled 落库幂等）。
 - **工具审批（D-060）已接**：M3-a 完成执行前拦截与主聊天审批；一次性入口没有审批
   UI 时按模式明确拒绝。完整主进程重启恢复仍待 M4，需在 Electron 实机复验审批交互。
 - **reasoning 档位**：通用档 none/low/medium/high，模型特有档（minimal/xhigh/max）M3 接
-- **主进程重启后的 ask_question 半成品**：渲染层重载可恢复（find-by-scope+resolve 续流）；
-  主进程也重启则写终态兜底，完整恢复等 M4（pi JSONL resume）
+- **主进程重启后的 ask-question 半成品**：渲染层重载可恢复（宿主仍持有等待，收养后直接作答）；
+  主进程也重启则卡片显示中断、不伪造答案，完整恢复等 M4（pi JSONL resume）
 - **ChatDropdownSelector 运行态标记**：随 chat_run 退役（会话列表无 Spinner/失败图标），M4 目录表带状态列
 - **删除单条消息**未联动 pi 会话重建（非 append-only 变更需 recreate；M4 会话树 navigateTree 替代）
 - **subagent 的 maxToolCallLoops/timeoutMs 参数**留 schema 但 pi 无对应配置（不生效），M3 清理
@@ -212,8 +268,8 @@ piSessionAbort 自行收尾（settled 落库幂等）。
 
 优先级从高到低：
 
-1. **D-060 权限映射（M3-a 已完成）**：实现与生命周期边界见上节；下一步从第 2 项继续。
-2. **ask_user**：pi 无内置则 customTools 实现（execute 挂起模式已被 ask_question 验证）
+1. **D-060 权限映射（M3-a 已完成）**：实现与生命周期边界见上节。
+2. **ask_user（M3-b 已完成）**：ask-question 改宿主原生 customTool，见上节；下一步从第 3 项继续。
 3. **MCP 桥**：渲染端 mcp provider 已经 ToolRegistry 化（工具桥自动可用），主进程 mcp.ts
    的 D-058 管理页保留
 4. **设置页产品化**：服务商类型选择（内置/自定义）+ 模型勾选 + fetchModels 拉取 +
@@ -251,6 +307,10 @@ openai-responses-adapter、卫星表 messages 写路径；DECISIONS.md 追加条
 - M3-a 专项：manual 下 write/bash 等待且不执行；允许/拒绝/本会话始终允许；
   acceptEdits 放行 write 但拦 shell；bypass 放行；审批中停止、切页、渲染层重载；
   两会话同名工具不串授权；无审批界面的一次性入口拒绝高风险操作。
+- M3-b 专项：模型发起 ask-question → 必答未填提示 → 作答后续流；作答前停止（卡片显示未回答）；
+  等待中切页/渲染层重载后仍可作答；同一轮审批与提问并存；PDF/视频笔记/学习项目面板内提问。
+- 后台运行专项：流式中/等待作答时新建对话、切换对话、改名；回到原对话消息完整且标题正常；
+  删除正在运行的对话后不再有落库（控制台无该行的持久化日志）。
 - 队列专项：流式中发送多条消息；查看每条待发送内容；编辑后重新发送；删除指定条目；
   agent_settled 后自动排空；切换会话后队列互不串台；停止后队列保留且可继续编辑/删除。
 

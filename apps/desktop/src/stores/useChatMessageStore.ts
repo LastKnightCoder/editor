@@ -144,11 +144,18 @@ const useChatMessageStore = create<IState & IAction>()(
         }
 
         // 惰性加载避免 store 顶层拉入 pi 会话链的重依赖（@/tools→MCP providers）
-        const { piChatSessionManager } = await import("@/services/piChatSession");
+        const [{ chatSessionKey, piChatSessionManager }, { piChatRuntime }] = await Promise.all([
+          import("@/services/piChatSession"),
+          import("@/services/piChatRuntime"),
+        ]);
         await Promise.all(
           Array.from(allIdsToDelete, chatId =>
             piChatSessionManager.disposeChatSession("main-chat", chatId)
           )
+        );
+        // 会话终态：归约条目必须一起清，否则删掉的对话仍在后台归约并落库
+        allIdsToDelete.forEach(chatId =>
+          piChatRuntime.disposeConversation(chatSessionKey("main-chat", chatId))
         );
         const deletedCount = await deleteChatMessage(id);
 

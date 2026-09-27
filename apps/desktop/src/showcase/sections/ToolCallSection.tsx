@@ -8,9 +8,12 @@
  * 占位图，离线时不显示。
  */
 
+import { useEffect } from "react";
 import type { ToolCallExecutionState } from "@tau/shared";
 import { useThemeStore } from "@tau/ui/theme/runtime";
 import { ToolCallBlock } from "@/components/ChatUI";
+import { receiveInteractions, setInteractionSessionReady } from "@/services/piInteractions";
+import { normalizeAskQuestionPayload } from "@/tools/askQuestionTypes";
 import { BlockTitle, CanvasCard, DocHead, MatrixRow, Note } from "../kit";
 import {
   askQuestionForm,
@@ -37,7 +40,30 @@ import {
   todoQuery,
 } from "./toolcallFixtures";
 
+/** 填写态提问卡需要宿主等待快照才开放作答：样板间注入一条演示快照（提交无后端，会报错提示） */
+const seedAskQuestionDemo = () => {
+  const sessionId = askQuestionForm.metadata?.piSessionId as string;
+  const payload = normalizeAskQuestionPayload(JSON.parse(askQuestionForm.input)).payload;
+  if (!payload) return;
+  receiveInteractions({
+    sessionId,
+    revision: Number.MAX_SAFE_INTEGER,
+    approvals: [],
+    questions: [
+      {
+        requestId: "fx-ask-request",
+        sessionId,
+        toolCallId: askQuestionForm.toolCallId,
+        payload,
+        askedAt: askQuestionForm.timestamp,
+      },
+    ],
+  });
+  setInteractionSessionReady(sessionId, true);
+};
+
 export default function ToolCallSection() {
+  useEffect(seedAskQuestionDemo, []);
   const isDark = useThemeStore(s => s.resolved) === "cocoa";
 
   const show = (execution: ToolCallExecutionState) => (

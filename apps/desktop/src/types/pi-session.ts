@@ -5,6 +5,7 @@
 import type { RequestMessage } from "@/types";
 import type { PiThinkingLevel } from "./pi-llm";
 import type { ToolRisk } from "./tool";
+import type { AskQuestionPayload } from "@/tools/askQuestionTypes";
 
 /** 桌面工具清单项（渲染端 ToolRegistry 序列化）：JSON Schema 直通 pi */
 export interface PiHostToolSpec {
@@ -28,11 +29,24 @@ export interface PiToolApprovalRequest {
   requestedAt: number;
 }
 
-/** 主进程会话内递增版本，防止恢复查询覆盖较新的事件快照。 */
-export interface PiToolApprovalSnapshot {
+/** 宿主原生 ask-question 的等待提问（问题载荷已由主进程归一化） */
+export interface PiUserQuestionRequest {
+  requestId: string;
+  sessionId: string;
+  toolCallId: string;
+  payload: AskQuestionPayload;
+  askedAt: number;
+}
+
+/**
+ * 会话待用户处理的交互（工具审批 + 提问）快照，主进程按会话持有。
+ * revision 在会话内递增，防止恢复查询覆盖较新的事件快照。
+ */
+export interface PiSessionInteractionSnapshot {
   sessionId: string;
   revision: number;
-  pending: PiToolApprovalRequest[];
+  approvals: PiToolApprovalRequest[];
+  questions: PiUserQuestionRequest[];
 }
 
 /** 渲染端执行结果（toolRegistry ToolExecutionResult 的桥形状） */
@@ -74,6 +88,9 @@ export interface PiSessionCreateRequestV2 {
   /** 历史灌入（桌面 chat-core 消息；system/tool 消息由主进程转换器忽略） */
   initialMessages?: RequestMessage[];
   retryMaxRetries?: number;
-  /** 只有能展示工具审批条的入口显式开启，其余入口需审批时直接拒绝。 */
-  interactiveApprovals?: boolean;
+  /**
+   * 只有能展示审批条与提问卡的入口显式开启：宿主才注册 ask-question，工具需确认时才等待用户；
+   * 其余入口需确认时直接拒绝。
+   */
+  interactive?: boolean;
 }

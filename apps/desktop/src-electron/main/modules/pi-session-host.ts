@@ -17,7 +17,7 @@ import {
 } from "./pi-session-host-core";
 import { desktopMessagesToPi, PiToolCallBridge } from "./pi-session-bridge";
 import type { PiHostToolSpec, PiToolApprovalChoice } from "@/types/pi-session";
-import { PiToolPermissions } from "./pi-tool-permissions";
+import { PiSessionInteractions } from "./pi-session-interactions";
 import { normalizePermissionMode } from "@/services/tool-permission/mode";
 import { resolveV2Providers } from "./pi-ai-runtime-core";
 import type { LLMProviderSetting, PiThinkingLevel } from "@/types/pi-llm";
@@ -31,7 +31,7 @@ interface HostedSession {
   unsubscribe: () => void;
   sender: Electron.WebContents;
   bridge: PiToolCallBridge;
-  permissions: PiToolPermissions;
+  interactions: PiSessionInteractions;
   detachSender: () => void;
   /** 动态 systemPrompt（before_agent_start 每轮替换，渲染端经 set-system-prompt 更新） */
   systemPromptRef: { current: string };
@@ -58,7 +58,8 @@ export interface PiSessionCreateRequest {
   initialMessages?: RequestMessage[];
   /** agent 层自动重试上限（默认 5，对齐旧链路 DEFAULT_CHAT_MAX_RETRIES） */
   retryMaxRetries?: number;
-  interactiveApprovals?: boolean;
+  /** 有审批条与提问卡的入口：注册 ask-question，需确认的工具等待用户 */
+  interactive?: boolean;
 }
 
 class PiSessionHostModule {
@@ -83,7 +84,8 @@ class PiSessionHostModule {
       PiSessionHostModule.permissionMode = normalizePermissionMode(
         newSetting.agentPermission?.mode
       );
-      for (const hosted of PiSessionHostModule.sessions.values()) hosted.permissions.modeChanged();
+      for (const hosted of PiSessionHostModule.sessions.values())
+        hosted.interactions.permissions.modeChanged();
     });
     void userSettingModule.getSettingSnapshot().then(setting => {
       PiSessionHostModule.latestProviders = resolveV2Providers(setting);
@@ -93,11 +95,11 @@ class PiSessionHostModule {
     ipcMain.handle("pi-session:create", async (event, request: PiSessionCreateRequest) => {
       return PiSessionHostModule.createSession(event.sender, request);
     });
-    ipcMain.handle("pi-session:approvals", event => ({
+    ipcMain.handle("pi-session:interactions", event => ({
       ok: true,
       snapshots: [...PiSessionHostModule.sessions.values()]
         .filter(hosted => hosted.sender === event.sender)
-        .map(hosted => hosted.permissions.snapshot()),
+        .map(hosted => hosted.interactions.snapshot()),
     }));
     ipcMain.handle(
       "pi-session:approve-tool",
@@ -115,9 +117,25 @@ class PiSessionHostModule {
       ) => {
         const hosted = PiSessionHostModule.sessions.get(sessionId);
         if (!hosted || hosted.sender !== event.sender) return { ok: false, error: "会话不存在" };
-        return hosted.permissions.decide(requestId, choice)
+        return hosted.interactions.permissions.decide(requestId, choice)
           ? { ok: true }
           : { ok: false, error: "审批已结束，请刷新会话状态" };
+      }
+    );
+    ipcMain.handle(
+      "pi-session:answer-question",
+      (
+        event,
+        {
+          sessionId,
+          requestId,
+          answers,
+        }: { sessionId: string; requestId: string; answers: unknown }
+      ) => {
+        const hosted = PiSessionHostModule.sessions.get(sessionId);
+        if (!hosted || hosted.sender !== event.sender) return { ok: false, error: "会话不存在" };
+        const error = hosted.interactions.questions.answer(requestId, answers);
+        return error ? { ok: false, error } : { ok: true };
       }
     );
     ipcMain.handle(
@@ -238,7 +256,7 @@ class PiSessionHostModule {
     if (PiSessionHostModule.sessions.has(request.sessionId)) {
       return { ok: false, error: "会话已存在" };
     }
-    let permissions: PiToolPermissions | undefined;
+    let interactions: PiSessionInteractions | undefined;
     let bridge: PiToolCallBridge | undefined;
     try {
       const setting = await userSettingModule.getSettingSnapshot();
@@ -253,16 +271,20 @@ class PiSessionHostModule {
           ? undefined
           : join(PathUtil.getAppDir(), "sessions", await PiSessionHostModule.currentDatabaseName());
       bridge = new PiToolCallBridge(sender, request.sessionId);
-      permissions = new PiToolPermissions({
+      interactions = new PiSessionInteractions({
         sessionId: request.sessionId,
-        interactive: request.interactiveApprovals === true,
+        interactive: request.interactive === true,
         tools: request.customTools ?? [],
         getMode: () => PiSessionHostModule.permissionMode,
-        publish: snapshot => {
-          if (sender.isDestroyed()) throw new Error("审批窗口已关闭");
-          sender.send("pi-tool-approvals", snapshot);
+        send: snapshot => {
+          if (sender.isDestroyed()) throw new Error("会话窗口已关闭");
+          sender.send("pi-session-interactions", snapshot);
         },
       });
+      const customTools = [
+        ...bridge.toToolDefinitions(request.customTools ?? []),
+        ...interactions.hostTools(),
+      ];
       const systemPromptRef = { current: request.systemPrompt ?? "" };
       const initialMessages = request.initialMessages?.length
         ? await desktopMessagesToPi(
@@ -280,9 +302,7 @@ class PiSessionHostModule {
         sessionDir,
         systemPrompt: request.systemPrompt,
         shellPath: request.shellPath || PiSessionHostModule.shellPath,
-        ...(request.customTools && request.customTools.length > 0
-          ? { customTools: bridge.toToolDefinitions(request.customTools) }
-          : {}),
+        ...(customTools.length > 0 ? { customTools } : {}),
         ...(request.thinkingLevel ? { thinkingLevel: request.thinkingLevel } : {}),
         ...(initialMessages.length > 0 ? { initialMessages } : {}),
         ...(request.retryMaxRetries !== undefined
@@ -306,9 +326,9 @@ class PiSessionHostModule {
             }
           : {}),
       });
-      permissions.install(session);
+      interactions.install(session);
       if (sender.isDestroyed()) {
-        permissions.dispose();
+        interactions.dispose();
         session.dispose();
         bridge.dispose();
         return { ok: false, error: "会话窗口已关闭" };
@@ -329,7 +349,7 @@ class PiSessionHostModule {
         unsubscribe,
         sender,
         bridge,
-        permissions,
+        interactions,
         detachSender: () => {
           sender.removeListener("destroyed", onSenderClosed);
           sender.removeListener("render-process-gone", onSenderClosed);
@@ -341,7 +361,7 @@ class PiSessionHostModule {
       });
       return { ok: true };
     } catch (error) {
-      permissions?.dispose();
+      interactions?.dispose();
       bridge?.dispose();
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
@@ -352,7 +372,7 @@ class PiSessionHostModule {
     if (!hosted) return;
     hosted.detachSender();
     void hosted.session.abort();
-    hosted.permissions.dispose();
+    hosted.interactions.dispose();
     hosted.unsubscribe();
     hosted.session.dispose();
     hosted.bridge.dispose();

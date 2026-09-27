@@ -18,7 +18,8 @@ import {
   detectBashShellPath,
 } from "../pi-session-host-core";
 import type { LLMProviderSetting } from "@/types/pi-llm";
-import { PiToolPermissions } from "../pi-tool-permissions";
+import type { PiSessionInteractionSnapshot } from "@/types/pi-session";
+import { PiSessionInteractions } from "../pi-session-interactions";
 
 // jsdom 环境的 AbortSignal 缺 any()（Node 24 / Electron 主进程原生可用）；pi 的 ModelRuntime.create 依赖它
 if (typeof AbortSignal.any !== "function") {
@@ -44,13 +45,14 @@ describe("pi-session-host-core", () => {
       const workDir = mkdtempSync(join(tmpdir(), "pi-permission-"));
       const agentDir = join(workDir, ".pi-agent");
       let session: Awaited<ReturnType<typeof assembleHostSession>> | undefined;
-      const permissions = new PiToolPermissions({
+      const interactions = new PiSessionInteractions({
         sessionId: "approval-session",
         interactive: true,
         tools: [],
         getMode: () => "manual",
-        publish: () => {},
+        send: () => {},
       });
+      const { permissions } = interactions;
       try {
         const faux = fauxProvider({});
         faux.setResponses([
@@ -67,25 +69,25 @@ describe("pi-session-host-core", () => {
           modelRuntime,
           modelRef: { providerId: faux.provider.id, modelId: faux.getModel().id },
         });
-        permissions.install(session);
+        interactions.install(session);
         const events: AgentSessionEvent[] = [];
         session.subscribe(event => events.push(event));
         const running = session.prompt("写文件");
-        await vi.waitFor(() => expect(permissions.snapshot().pending).toHaveLength(1));
+        await vi.waitFor(() => expect(interactions.snapshot().approvals).toHaveLength(1));
         expect(existsSync(join(workDir, "审批.md"))).toBe(false);
-        const request = permissions.snapshot().pending[0];
+        const request = interactions.snapshot().approvals[0];
         if (choice === "abort") await session.abort();
         else permissions.decide(request.requestId, choice);
         await running;
         expect(existsSync(join(workDir, "审批.md"))).toBe(choice === "allow");
-        expect(permissions.snapshot().pending).toEqual([]);
+        expect(interactions.snapshot().approvals).toEqual([]);
         expect(events.some(event => event.type === "agent_settled")).toBe(true);
         const end = events.find(event => event.type === "tool_execution_end");
         expect(end).toMatchObject({ isError: choice !== "allow" });
         if (choice === "deny") expect(JSON.stringify(end)).toContain("用户拒绝执行此工具");
         expect(permissions.decide(request.requestId, "allow")).toBe(false);
       } finally {
-        permissions.dispose();
+        interactions.dispose();
         await session?.abort();
         session?.dispose();
         rmSync(workDir, { recursive: true, force: true });
@@ -118,14 +120,15 @@ describe("pi-session-host-core", () => {
         modelRef: { providerId: faux.provider.id, modelId: faux.getModel().id },
         customTools: [{ ...spec, label: spec.name, parameters: spec.parameters as never, execute }],
       });
-      const permissions = new PiToolPermissions({
+      const interactions = new PiSessionInteractions({
         sessionId: "one-shot",
         interactive: false,
         tools: [spec],
         getMode: () => "manual",
-        publish: () => {},
+        send: () => {},
       });
-      permissions.install(session);
+      expect(interactions.hostTools()).toEqual([]);
+      interactions.install(session);
       const events: AgentSessionEvent[] = [];
       session.subscribe(event => events.push(event));
       await session.prompt("执行写操作");
@@ -133,8 +136,103 @@ describe("pi-session-host-core", () => {
       expect(JSON.stringify(events.find(event => event.type === "tool_execution_end"))).toContain(
         "当前入口无法向用户确认"
       );
-      expect(permissions.snapshot().pending).toEqual([]);
+      expect(interactions.snapshot().approvals).toEqual([]);
     } finally {
+      await session?.abort();
+      session?.dispose();
+      rmSync(workDir, { recursive: true, force: true });
+    }
+  });
+
+  it.each(["answer", "abort"] as const)("真实 pi 宿主原生 ask-question 闭环：%s", async outcome => {
+    const workDir = mkdtempSync(join(tmpdir(), "pi-question-"));
+    const agentDir = join(workDir, ".pi-agent");
+    let session: Awaited<ReturnType<typeof assembleHostSession>> | undefined;
+    const sent: PiSessionInteractionSnapshot[] = [];
+    const interactions = new PiSessionInteractions({
+      sessionId: "question-session",
+      interactive: true,
+      tools: [],
+      getMode: () => "manual",
+      send: snapshot => sent.push(snapshot),
+    });
+    try {
+      const faux = fauxProvider({});
+      faux.setResponses([
+        fauxAssistantMessage(
+          [
+            fauxToolCall("ask-question", {
+              questions: [
+                {
+                  id: "style",
+                  question: "选哪种风格？",
+                  type: "single",
+                  options: ["简洁", { label: "学术", value: "academic" }],
+                },
+              ],
+            }),
+          ],
+          { stopReason: "toolUse" }
+        ),
+        fauxAssistantMessage([fauxText("好的，按你的选择来")]),
+      ]);
+      const modelRuntime = await createFauxModelRuntime(join(agentDir, "auth.json"), faux);
+      session = await assembleHostSession({
+        cwd: workDir,
+        agentDir,
+        modelRuntime,
+        modelRef: { providerId: faux.provider.id, modelId: faux.getModel().id },
+        customTools: interactions.hostTools(),
+      });
+      interactions.install(session);
+      const events: AgentSessionEvent[] = [];
+      session.subscribe(event => events.push(event));
+      const running = session.prompt("帮我写报告");
+      await vi.waitFor(() => expect(interactions.snapshot().questions).toHaveLength(1));
+      const [question] = interactions.snapshot().questions;
+      expect(interactions.snapshot().approvals).toEqual([]);
+      expect(question.payload.questions[0].options.map(option => option.value)).toEqual([
+        "简洁",
+        "academic",
+      ]);
+      expect(sent.at(-1)?.questions).toHaveLength(1);
+
+      if (outcome === "abort") {
+        await session.abort();
+      } else {
+        expect(
+          interactions.questions.answer(question.requestId, [
+            { questionId: "style", selectedValues: [], otherText: " " },
+          ])
+        ).toBe("请先回答：选哪种风格？");
+        expect(
+          interactions.questions.answer(question.requestId, [
+            { questionId: "style", selectedValues: ["academic"], otherText: "" },
+          ])
+        ).toBeUndefined();
+      }
+      await running;
+
+      expect(interactions.snapshot().questions).toEqual([]);
+      expect(sent.at(-1)?.questions).toEqual([]);
+      const end = events.find(event => event.type === "tool_execution_end");
+      expect(end).toMatchObject({ toolName: "ask-question", isError: outcome === "abort" });
+      if (outcome === "answer") {
+        const result = JSON.parse(
+          (end as { result: { content: Array<{ text: string }> } }).result.content[0].text
+        );
+        expect(result).toMatchObject({
+          type: "ask-question-result",
+          answers: [
+            { questionId: "style", selectedOptions: [{ value: "academic", label: "学术" }] },
+          ],
+        });
+      }
+      expect(interactions.questions.answer(question.requestId, [])).toBe(
+        "提问已结束，请刷新会话状态"
+      );
+    } finally {
+      interactions.dispose();
       await session?.abort();
       session?.dispose();
       rmSync(workDir, { recursive: true, force: true });

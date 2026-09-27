@@ -24,10 +24,12 @@ import {
 import { PiChatEventReducer } from "@/services/piChatEvents";
 import { onPiSessionEvent } from "@/commands/piSession";
 import {
-  initToolApprovals,
-  setApprovalSessionReady,
-  useToolApprovalStore,
-} from "./tool-permission/approvalStore";
+  initPiInteractions,
+  setInteractionSessionReady,
+  usePiInteractionStore,
+} from "./piInteractions";
+import { ASK_QUESTION_TOOL_NAME } from "@/tools/askQuestionTypes";
+import type { ToolCallExecutionState } from "@/types";
 import { withStreamingUpdateTime } from "@/layouts/ContentLayout/components/ChatSidebar/streamingUtils";
 
 /** 组件提供的会话依赖（必须无组件生命周期：store action / IPC command） */
@@ -57,13 +59,21 @@ interface ConversationEntry {
   unsubscribe: (() => void) | null;
   streaming: boolean;
   deps: PiChatRuntimeDeps;
-  /** ask-question 等待快照的持久化去重 */
+  /** 等待用户（审批/提问）快照的持久化去重 */
   persistedExecutionKeys: Set<string>;
   /** 标题生成进行中（防同一会话并发重复生成） */
   titleGenerating: boolean;
+  /** 用户已请求停止，收尾轮的报错不展示（下一轮 agent_start 复位） */
+  stopRequested: boolean;
 }
 
-const ASK_QUESTION_TOOL_NAME = "ask-question";
+/** 工具卡处于等待用户处理的状态（审批等待，或提问尚未作答） */
+const isAwaitingUser = (execution: ToolCallExecutionState): boolean =>
+  execution.status === "awaiting-approval" ||
+  (execution.toolName === ASK_QUESTION_TOOL_NAME &&
+    (execution.status === "pending" ||
+      execution.status === "executing" ||
+      execution.status === "retrying"));
 
 class PiChatRuntime {
   private readonly conversations = new Map<string, ConversationEntry>();
@@ -92,6 +102,7 @@ class PiChatRuntime {
         deps,
         persistedExecutionKeys: new Set<string>(),
         titleGenerating: false,
+        stopRequested: false,
       };
       this.conversations.set(key, entry);
     } else {
@@ -130,34 +141,38 @@ class PiChatRuntime {
       entry.reducer.restoreToolExecutions(lastMessage as ResponseMessage);
     }
     const unsubscribeEvents = onPiSessionEvent(sessionId, event => entry.reducer!.handle(event));
-    const applyApprovals = () => {
-      const snapshot = useToolApprovalStore.getState().sessions[sessionId];
+    const applyInteractions = () => {
+      const snapshot = usePiInteractionStore.getState().sessions[sessionId];
       if (!snapshot) return;
-      entry.reducer!.applyApprovals(snapshot);
-      if (snapshot.pending.length > 0 && !entry.streaming) {
+      entry.reducer!.applyInteractions(snapshot);
+      const waiting = snapshot.approvals.length > 0 || snapshot.questions.length > 0;
+      if (waiting && !entry.streaming) {
         entry.streaming = true;
         this.notify(key);
       }
     };
-    const unsubscribeApprovals = useToolApprovalStore.subscribe((state, previous) => {
-      if (state.sessions[sessionId] !== previous.sessions[sessionId]) applyApprovals();
+    const unsubscribeInteractions = usePiInteractionStore.subscribe((state, previous) => {
+      if (state.sessions[sessionId] !== previous.sessions[sessionId]) applyInteractions();
     });
     entry.unsubscribe = () => {
       unsubscribeEvents();
-      unsubscribeApprovals();
-      setApprovalSessionReady(sessionId, false);
+      unsubscribeInteractions();
+      setInteractionSessionReady(sessionId, false);
     };
-    initToolApprovals();
-    applyApprovals();
-    setApprovalSessionReady(sessionId, true);
+    initPiInteractions();
+    applyInteractions();
+    setInteractionSessionReady(sessionId, true);
   }
 
   public isStreaming(key: string): boolean {
     return this.conversations.get(key)?.streaming ?? false;
   }
 
-  /** 只恢复已落库的审批等待；主进程重启后的完整 JSONL 恢复由会话管理负责。 */
-  public async restorePendingApprovals(
+  /**
+   * 渲染层重载后恢复已落库的等待（审批/提问）：收养主进程仍持有的会话并接上归约订阅。
+   * 主进程也重启时收养不到，工具卡显示中断；完整 JSONL 恢复由会话管理（M4）负责。
+   */
+  public async restorePendingInteractions(
     key: string,
     chatScope: string,
     chatId: number
@@ -167,11 +182,11 @@ class PiChatRuntime {
     const message = entry.chat.current.messages.at(-1) as ResponseMessage | undefined;
     if (
       !message?.assistant_blocks?.some(
-        block => block.type === "tool_call" && block.execution?.status === "awaiting-approval"
+        block => block.type === "tool_call" && block.execution && isAwaitingUser(block.execution)
       )
     )
       return;
-    initToolApprovals();
+    initPiInteractions();
     const { piChatSessionManager } = await import("./piChatSession");
     const sessionId = await piChatSessionManager.adoptOrResolveSession(chatScope, chatId);
     if (sessionId && this.conversations.get(key) === entry && !entry.sessionId) {
@@ -179,10 +194,17 @@ class PiChatRuntime {
     }
   }
 
-  /** 用户主动停止：立即清 streaming 位（UI 即时反馈），后台 pi 自行收尾 */
+  /**
+   * 用户主动停止：立即清 streaming 位（UI 即时反馈），后台 pi 自行收尾。
+   * 同时记下「本次停止是用户要求的」——pi 没有原生的中止标志，中止落在工具执行中时
+   * 收尾轮的 message_end 是 `stopReason:"error"` + AbortError 文案（落在流式中才是
+   * `stopReason:"aborted"`）。停止意图只有这里知道，据此抑制收尾报错，不靠匹配错误文案。
+   */
   public forceStopStreaming(key: string): void {
     const entry = this.conversations.get(key);
-    if (entry?.streaming) {
+    if (!entry) return;
+    entry.stopRequested = true;
+    if (entry.streaming) {
       entry.streaming = false;
       this.notify(key);
     }
@@ -218,21 +240,14 @@ class PiChatRuntime {
             applyAssistantToolCallsSnapshot(message, turnId, executions, toolCalls)
           );
           if (!published) return;
-          // ask-question 进入等待态时立即落库快照，确保渲染层重载后可恢复
-          const pendingAskQuestions = executions.filter(
-            execution =>
-              execution.status === "awaiting-approval" ||
-              (execution.toolName === ASK_QUESTION_TOOL_NAME &&
-                (execution.status === "pending" ||
-                  execution.status === "executing" ||
-                  execution.status === "retrying"))
-          );
-          const shouldPersist = pendingAskQuestions.some(
+          // 进入等待用户态时立即落库快照，确保渲染层重载后可恢复
+          const awaitingUser = executions.filter(isAwaitingUser);
+          const shouldPersist = awaitingUser.some(
             execution =>
               !entry.persistedExecutionKeys.has(`${execution.toolCallId}::${execution.input}`)
           );
           if (shouldPersist) {
-            pendingAskQuestions.forEach(execution =>
+            awaitingUser.forEach(execution =>
               entry.persistedExecutionKeys.add(`${execution.toolCallId}::${execution.input}`)
             );
             void entry.deps.persist(published).catch(error => {
@@ -254,6 +269,7 @@ class PiChatRuntime {
         },
         onAssistantTurnEnd: () => {},
         onAgentStart: () => {
+          entry.stopRequested = false;
           if (!entry.streaming) {
             entry.streaming = true;
             this.notify(key);
@@ -279,6 +295,11 @@ class PiChatRuntime {
           }
         },
         onStreamError: errorMessage => {
+          // 用户已停止：收尾轮的中止报错不是故障，不打扰用户（见 forceStopStreaming）
+          if (entry.stopRequested) {
+            console.info("[piChatRuntime] 停止后的收尾报错已忽略:", errorMessage);
+            return;
+          }
           entry.deps.ui?.onStreamError?.(errorMessage);
           console.error("[piChatRuntime] 聊天请求失败:", errorMessage);
         },

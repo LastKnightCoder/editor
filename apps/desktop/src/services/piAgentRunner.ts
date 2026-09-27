@@ -94,7 +94,7 @@ export function runPiAgent(
         modelRef: { providerId: options.provider.id, modelId: options.model.id },
         ...(system !== undefined ? { systemPrompt: system } : {}),
         persist: false,
-        interactiveApprovals: false,
+        interactive: false,
         ...(customTools.length > 0 ? { customTools } : {}),
         ...(thinkingLevel ? { thinkingLevel } : {}),
         ...(initialMessages.length > 0 ? { initialMessages } : {}),

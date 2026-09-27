@@ -36,10 +36,10 @@ describe("pi 审批工具行归约", () => {
       toolName: "write",
       args: { path: "test.md" },
     });
-    reducer.applyApprovals({
+    reducer.applyInteractions({
       sessionId: "s1",
       revision: 1,
-      pending: [
+      approvals: [
         {
           sessionId: "s1",
           requestId: "r1",
@@ -50,13 +50,19 @@ describe("pi 审批工具行归约", () => {
           requestedAt: 1,
         },
       ],
+      questions: [],
     });
     expect(reducer.getExecutions()).toMatchObject([
       { status: "awaiting-approval", metadata: { piSessionId: "s1" } },
     ]);
-    reducer.applyApprovals({ sessionId: "other-session", revision: 2, pending: [] });
+    reducer.applyInteractions({
+      sessionId: "other-session",
+      revision: 2,
+      approvals: [],
+      questions: [],
+    });
     expect(reducer.getExecutions()[0].status).toBe("awaiting-approval");
-    reducer.applyApprovals({ sessionId: "s1", revision: 2, pending: [] });
+    reducer.applyInteractions({ sessionId: "s1", revision: 2, approvals: [], questions: [] });
     expect(reducer.getExecutions()[0].status).toBe("executing");
     handle({
       type: "tool_execution_end",
@@ -65,7 +71,7 @@ describe("pi 审批工具行归约", () => {
       isError: false,
       result: { content: [{ type: "text", text: "完成" }], details: { written: true } },
     });
-    reducer.applyApprovals({ sessionId: "s1", revision: 3, pending: [] });
+    reducer.applyInteractions({ sessionId: "s1", revision: 3, approvals: [], questions: [] });
     expect(reducer.getExecutions()).toMatchObject([
       { status: "success", metadata: { piSessionId: "s1", written: true } },
     ]);

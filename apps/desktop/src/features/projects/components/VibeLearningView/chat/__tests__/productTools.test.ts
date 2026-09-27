@@ -73,10 +73,10 @@ describe("vibe_learning_generate", () => {
     });
   });
 
-  it("PPT 没选风格时返回参数错误，引导用 ask_question 让用户选", async () => {
+  it("PPT 没选风格时返回参数错误，引导用 ask-question 让用户选", async () => {
     const result = await generate({ kind: "ppt", brief: "x" });
     expect(result.isParameterError).toBe(true);
-    expect(result.content).toContain("ask_question");
+    expect(result.content).toContain("ask-question");
     expect(result.content).toContain(PPT_TEMPLATES[0].name);
     expect(startVLTaskMock).not.toHaveBeenCalled();
   });

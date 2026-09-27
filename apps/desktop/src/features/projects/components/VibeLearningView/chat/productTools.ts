@@ -3,7 +3,7 @@
  *  - vibe_learning_generate：结合对话把要求浓缩成 brief，走与生成弹窗相同的后台任务
  *  - vibe_learning_save_note：对话里已经写好的内容直接存成产物，不再重新生成
  * 产物建好即出现在左侧产物列表（任务 bumpProducts 驱动刷新），对话里渲染产物卡片。
- * 风格按名称选、这里换算成模板 id；缺必要信息时返回参数错误，引导模型用 ask_question 问用户。
+ * 风格按名称选、这里换算成模板 id；缺必要信息时返回参数错误，引导模型用 ask-question 问用户。
  */
 
 import { createContent } from "@/commands";
@@ -14,6 +14,7 @@ import type { ToolDefinition, ToolExecutionResult } from "@/types";
 import type { VideoEbookRewriteStyle } from "@/constants/prompts/video-ebook-rewrite";
 import type { VLNoteType } from "@/types/vibe-learning";
 import { getContentLength, importFromMarkdown } from "@/utils";
+import { ASK_QUESTION_TOOL_NAME } from "@/tools/askQuestionTypes";
 import { GENERATE_APPS, type GenerateAppKey } from "../appMeta";
 import { ARTICLE_STYLES } from "../generate/styles";
 import { startVLTask } from "../tasks/runner";
@@ -77,7 +78,7 @@ function createGenerateTool(projectId: number, mainDbName: string): ToolDefiniti
     description:
       "基于当前项目资料在后台生成学习产物（大纲、重点、文章、导图、PPT、报告、测验），生成完成后出现在左侧产物列表。" +
       "brief 必须结合本次对话写具体：用户关心的主题、范围、深度、受众与偏好，不要只写「生成大纲」。" +
-      "PPT / 报告必须先确定风格：用户没说时先用 ask_question 让用户选，不要替用户决定。" +
+      `PPT / 报告必须先确定风格：用户没说时先用 ${ASK_QUESTION_TOOL_NAME} 让用户选，不要替用户决定。` +
       "工具立即返回，不要等待生成结果，也不要在回复里复述产物内容。" +
       "如果产物内容已经在对话里写好，改用 vibe_learning_save_note 直接保存。",
     execution: { timeoutMs: 60000 },
@@ -131,12 +132,12 @@ function createGenerateTool(projectId: number, mainDbName: string): ToolDefiniti
         if (styleName && !matched) {
           return paramError(
             `没有名为「${styleName}」的风格。可选风格：\n${listStyles(styleOptions)}\n` +
-              "请从中选一个最符合用户描述的；拿不准时用 ask_question 让用户选。"
+              `请从中选一个最符合用户描述的；拿不准时用 ${ASK_QUESTION_TOOL_NAME} 让用户选。`
           );
         }
         if (!matched && STYLE_REQUIRED.includes(kind)) {
           return paramError(
-            `生成${app.label}需要先确定风格。请调用 ask_question 让用户单选（挑 4~6 个与内容最契合的作为选项，选项文案用风格名称并附一句说明），拿到答案后带上 style 重新调用本工具。可选风格：\n${listStyles(styleOptions)}`
+            `生成${app.label}需要先确定风格。请调用 ${ASK_QUESTION_TOOL_NAME} 让用户单选（挑 4~6 个与内容最契合的作为选项，选项文案用风格名称并附一句说明），拿到答案后带上 style 重新调用本工具。可选风格：\n${listStyles(styleOptions)}`
           );
         }
         styleValue = matched?.value;
