@@ -6,7 +6,7 @@
 > **M3 只剩第 5 项 steer 交互与第 6 项 WSL 手动选项**，下一步可开 M4 会话管理）。
 > 新会话续接方式：读完本文档 +
 > `git log --oneline -15` 对照提交历史。验证三件套：`cd apps/desktop && npx tsc --noEmit`、
-> `npx vitest run`（337 文件、1586 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
+> `npx vitest run`（336 文件、1582 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
 > 改了 `packages/shared` 要另跑 `packages/shared` 与 `apps/browser-extension` 的 vitest + tsc
 > （思考档位类型现在唯一定义在 shared，三端共用）。
 > **注意 cwd 必须在 apps/desktop**——vitest 从仓库根跑会整体失败（vite 别名解析不到）。
@@ -224,8 +224,9 @@ schema/parity 常量、`knowledge-migration.ts` 与 mobile 的 Rust 迁移分支
 shared/桌面/扩展三端）。本地存储里的旧值 `"none"` 读出时归一为 `"off"`。
 转换函数 `toPiThinking` 与旧链路的档位参数**全部删除而非保留兼容类型**——查证后发现那条参数链
 根本没有调用方（详见坑 18）：`getModelRequestOverrides` 从不读档位、`chat()` 的两个调用方
-（Minimax Key 连接测试）不传 options、`chatResponses()` 零调用方。`modules/llm.ts` 与
-`openai-responses-adapter` 本身仍留到 M8（前者的 `chat` 还被 Key 连接测试用着）。
+（Minimax Key 连接测试）不传 options、`chatResponses()` 零调用方。随后的死代码审计
+（`21252edc8`）把 `chatResponses` 整条链连 `openai-responses-adapter` 一并删除；
+`modules/llm.ts` 本体仍留到 M8（它的 `chat` 还被 Key 连接测试用着）。
 
 **chat 侧档位接目录**：输入框档位不再硬编码四档，改由模型真实能力生成（经
 `pi-ai:thinking-levels`）；目录未收录的模型退回通用档；选中档位不被当前模型支持时落到
@@ -327,13 +328,17 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
 - **M3-b** `a1c1ef045`：ask-question 宿主原生化 + 审批/提问交互快照合并（含停止闪错、
   运行中不可新建/切换对话两项验收修复）
 - **M3-c** `cac05397a`：MCP 工具集动态化（全集注册 + 活跃子集、工具按名排序修缓存、两档同步）
-- **M3-d/e**：内置目录 IPC + 设置页服务商选型/模型勾选/档位按能力（修「界面加不了 Anthropic」）
+- **M3-d/e** `86ad6cfdf`+`d257bdd20`：内置目录 IPC + 设置页服务商选型/模型勾选/档位按能力
+  （修「界面加不了 Anthropic」）+ 界面文案去技术术语
 - **设置事故修复** `a0fef9ddf`：设置写入风暴与 setting.json 损坏（三层缺陷，见坑 16）
-- **M3-f/g**：模型实时获取（`/models`）+ shellPath 设置 + chat 侧档位接目录 + 档位类型收敛
+- **M3-f/g** `8d9e05c34`：模型实时获取（`/models`）+ shellPath 设置 + chat 侧档位接目录 + 档位类型收敛
+- **死代码清理** `6d53b26b5`+`21252edc8`：档位死参数链（LegacyReasoningEffort/toPiThinking）、
+  openai-responses 死链、chat-core runtime/types、externalAgentTools（见坑 18 与第二节末尾）
 - **修正一** `784d59ebb`：去闭包快照+会话常驻 reducer（修吞消息）
 - **修正二** `d3bc61c33`：piChatRuntime 下沉模块级（后台运行）
 - **验收状态**：用户确认"大部分没问题"——M2-f 基本通过；后台运行场景（切页回来
-  消息完整+标题正常）为最后一批待复验项
+  消息完整+标题正常）为最后一批待复验项。**M3-a/b/f/g 均未做真实模型下的 Electron 实机走查**
+  （自动化验证齐全，人工走查清单见第七节各「专项」）
 
 ## 四、踩坑清单（pi API 陷阱与本项目事故，新会话必读）
 
