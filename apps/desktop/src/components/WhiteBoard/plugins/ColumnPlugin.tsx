@@ -236,6 +236,9 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
       },
       render: {
         childrenOrder: ChildrenRenderOrder.Normal,
+        // 折叠时子元素不渲染（同时退出命中 / 框选）
+        filterVisibleChildren: (element, children) =>
+          (element as ColumnElement).collapsed ? [] : children,
         getColorTheme: () => "teal",
       },
       refLine: {

@@ -3,10 +3,7 @@ import Board from "../../Board";
 import { BoardElement, Selection } from "../../types";
 import BoardUtil from "../BoardUtil";
 
-const createRect = (
-  id: string,
-  overrides: Partial<BoardElement> = {},
-): BoardElement => ({
+const createRect = (id: string, overrides: Partial<BoardElement> = {}): BoardElement => ({
   id,
   type: "rect",
   x: 0,
@@ -36,15 +33,10 @@ const createDefaultBounds = (element: BoardElement) => {
 const defaultPointHit = (element: BoardElement, x: number, y: number) => {
   const bounds = createDefaultBounds(element);
   if (!bounds) return false;
-  return (
-    x >= bounds.minX && x <= bounds.maxX && y >= bounds.minY && y <= bounds.maxY
-  );
+  return x >= bounds.minX && x <= bounds.maxX && y >= bounds.minY && y <= bounds.maxY;
 };
 
-const defaultRectHit = (
-  element: BoardElement,
-  selectArea: Selection["selectArea"],
-) => {
+const defaultRectHit = (element: BoardElement, selectArea: Selection["selectArea"]) => {
   if (!selectArea) return false;
   const bounds = createDefaultBounds(element);
   if (!bounds) return false;
@@ -52,17 +44,12 @@ const defaultRectHit = (
   const minY = Math.min(selectArea.anchor.y, selectArea.focus.y);
   const maxX = Math.max(selectArea.anchor.x, selectArea.focus.x);
   const maxY = Math.max(selectArea.anchor.y, selectArea.focus.y);
-  return !(
-    bounds.maxX < minX ||
-    bounds.minX > maxX ||
-    bounds.maxY < minY ||
-    bounds.minY > maxY
-  );
+  return !(bounds.maxX < minX || bounds.minX > maxX || bounds.maxY < minY || bounds.minY > maxY);
 };
 
 const collectByDfs = (
   elements: BoardElement[],
-  predicate: (element: BoardElement) => boolean,
+  predicate: (element: BoardElement) => boolean
 ): BoardElement[] => {
   const result: BoardElement[] = [];
   const walk = (nodes: BoardElement[]) => {
@@ -84,29 +71,22 @@ const createBoardContext = (
   children: BoardElement[],
   overrides?: {
     isHit?: (element: BoardElement, x: number, y: number) => boolean;
-    isElementSelected?: (
-      element: BoardElement,
-      selectArea: Selection["selectArea"],
-    ) => boolean;
-    getBounds?: (
-      element: BoardElement,
-    ) => ReturnType<typeof createDefaultBounds>;
-  },
+    isElementSelected?: (element: BoardElement, selectArea: Selection["selectArea"]) => boolean;
+    getBounds?: (element: BoardElement) => ReturnType<typeof createDefaultBounds>;
+  }
 ) => {
   let version = 0;
   const isHitMock = vi.fn(
     overrides?.isHit ??
-      ((element: BoardElement, x: number, y: number) =>
-        defaultPointHit(element, x, y)),
+      ((element: BoardElement, x: number, y: number) => defaultPointHit(element, x, y))
   );
   const isElementSelectedMock = vi.fn(
     overrides?.isElementSelected ??
       ((element: BoardElement, selectArea: Selection["selectArea"]) =>
-        defaultRectHit(element, selectArea)),
+        defaultRectHit(element, selectArea))
   );
   const getBoundsMock = vi.fn(
-    overrides?.getBounds ??
-      ((element: BoardElement) => createDefaultBounds(element)),
+    overrides?.getBounds ?? ((element: BoardElement) => createDefaultBounds(element))
   );
 
   const board = {
@@ -143,12 +123,10 @@ describe("BoardUtil 命中索引", () => {
     ];
     const { board } = createBoardContext(elements);
 
-    const expected = collectByDfs(elements, (element) =>
-      defaultPointHit(element, 20, 20),
-    ).map((element) => element.id);
-    const actual = BoardUtil.getHitElements(board, 20, 20).map(
-      (element) => element.id,
+    const expected = collectByDfs(elements, element => defaultPointHit(element, 20, 20)).map(
+      element => element.id
     );
+    const actual = BoardUtil.getHitElements(board, 20, 20).map(element => element.id);
 
     expect(actual).toEqual(expected);
   });
@@ -165,12 +143,10 @@ describe("BoardUtil 命中索引", () => {
       focus: { x: 140, y: 140 },
     };
 
-    const expected = collectByDfs(elements, (element) =>
-      defaultRectHit(element, selectArea),
-    ).map((element) => element.id);
-    const actual = BoardUtil.getElementsInSelectArea(board, selectArea).map(
-      (element) => element.id,
+    const expected = collectByDfs(elements, element => defaultRectHit(element, selectArea)).map(
+      element => element.id
     );
+    const actual = BoardUtil.getElementsInSelectArea(board, selectArea).map(element => element.id);
 
     expect(actual).toEqual(expected);
   });
@@ -179,17 +155,13 @@ describe("BoardUtil 命中索引", () => {
     const elements: BoardElement[] = [createRect("move", { x: 0, y: 0 })];
     const { board, setElementVersion } = createBoardContext(elements);
 
-    expect(BoardUtil.getHitElements(board, 10, 10).map((el) => el.id)).toEqual([
-      "move",
-    ]);
+    expect(BoardUtil.getHitElements(board, 10, 10).map(el => el.id)).toEqual(["move"]);
 
     elements[0].x = 200;
     setElementVersion(1);
 
     expect(BoardUtil.getHitElements(board, 10, 10)).toHaveLength(0);
-    expect(BoardUtil.getHitElements(board, 210, 10).map((el) => el.id)).toEqual(
-      ["move"],
-    );
+    expect(BoardUtil.getHitElements(board, 210, 10).map(el => el.id)).toEqual(["move"]);
   });
 
   it("无包围盒元素仍会通过回退路径参与命中", () => {
@@ -198,16 +170,14 @@ describe("BoardUtil 命中索引", () => {
       { id: "path-only", type: "path-only" },
     ];
     const { board } = createBoardContext(elements, {
-      isHit: (element) => element.id === "path-only",
-      getBounds: (element) => {
+      isHit: element => element.id === "path-only",
+      getBounds: element => {
         if (element.id === "path-only") return null;
         return createDefaultBounds(element);
       },
     });
 
-    const hitIds = BoardUtil.getHitElements(board, 999, 999).map(
-      (element) => element.id,
-    );
+    const hitIds = BoardUtil.getHitElements(board, 999, 999).map(element => element.id);
 
     expect(hitIds).toEqual(["path-only"]);
   });
@@ -219,16 +189,37 @@ describe("BoardUtil 命中索引", () => {
         y: Math.floor(index / 100) * 20,
         width: 12,
         height: 12,
-      }),
+      })
     );
     const { board, isHitMock } = createBoardContext(elements);
 
     isHitMock.mockClear();
-    const hitIds = BoardUtil.getHitElements(board, 45, 45).map(
-      (element) => element.id,
-    );
+    const hitIds = BoardUtil.getHitElements(board, 45, 45).map(element => element.id);
 
     expect(hitIds.length).toBeGreaterThan(0);
     expect(isHitMock.mock.calls.length).toBeLessThan(elements.length / 8);
+  });
+
+  it("render 能力过滤掉的子元素（如折叠）不参与命中与框选", () => {
+    const elements: BoardElement[] = [
+      {
+        ...createRect("column", { x: 0, y: 0, width: 200, height: 200 }),
+        collapsed: true,
+        children: [createRect("hidden-child", { x: 0, y: 0, width: 200, height: 200 })],
+      },
+    ];
+    const { board } = createBoardContext(elements);
+    (board as unknown as { capabilityService: unknown }).capabilityService = {
+      getVisibleChildren: (element: BoardElement, children: BoardElement[]) =>
+        element.collapsed ? [] : children,
+    };
+
+    expect(BoardUtil.getHitElements(board, 20, 20).map(el => el.id)).toEqual(["column"]);
+    expect(
+      BoardUtil.getElementsInSelectArea(board, {
+        anchor: { x: -10, y: -10 },
+        focus: { x: 300, y: 300 },
+      }).map(el => el.id)
+    ).toEqual(["column"]);
   });
 });
