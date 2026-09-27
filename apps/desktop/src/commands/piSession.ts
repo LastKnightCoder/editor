@@ -95,6 +95,17 @@ export function piSessionFindByScope(scope: string): Promise<
   return invoke("pi-session:find-by-scope", { scope });
 }
 
+/**
+ * 切换会话的活跃工具集（下一轮生效）。注册全集在创建时定死，这里只改启用子集，
+ * 用户开关工具无需重建会话。工具定义渲染在请求最前，只在真变化时调用。
+ */
+export function piSessionSetActiveTools(
+  sessionId: string,
+  activeToolNames: string[]
+): Promise<Outcome> {
+  return invoke("pi-session:set-active-tools", { sessionId, activeToolNames });
+}
+
 /** 每轮 agent start 前替换会话 systemPrompt（system 变化不重建会话） */
 export function piSessionSetSystemPrompt(
   sessionId: string,

@@ -10,6 +10,7 @@ import { ipcMain } from "electron";
 import userSettingModule from "./user-setting";
 import PathUtil from "../utils/PathUtil";
 import {
+  applyActiveTools,
   assembleHostSession,
   createHostModelRuntime,
   createHostResourceLoader,
@@ -35,6 +36,8 @@ interface HostedSession {
   detachSender: () => void;
   /** 动态 systemPrompt（before_agent_start 每轮替换，渲染端经 set-system-prompt 更新） */
   systemPromptRef: { current: string };
+  /** 桥接工具名全集：切活跃集时据此只动桥接工具，保留 pi 自己的内置默认 */
+  bridgedToolNames: Set<string>;
   scope: string;
   modelRef: { providerId: string; modelId: string };
   thinkingLevel?: PiThinkingLevel;
@@ -50,8 +53,10 @@ export interface PiSessionCreateRequest {
   persist?: boolean;
   /** 手动指定 bash.exe（pi-dev 面板联调用；产品化的设置项在 M3 工具管理落地） */
   shellPath?: string;
-  /** 渲染端 ToolRegistry 工具清单（桥接为 pi customTools） */
+  /** 渲染端 ToolRegistry 工具清单（桥接为 pi customTools），含当前停用项 */
   customTools?: PiHostToolSpec[];
+  /** 其中本轮活跃的工具名；缺省全部活跃。pi 注册表装配后不可追加，故全集注册、只切活跃集 */
+  activeToolNames?: string[];
   /** 推理档位（缺省由 pi 按模型能力取默认） */
   thinkingLevel?: PiThinkingLevel;
   /** 历史灌入（桌面 chat-core 消息；system/tool 消息由转换器忽略） */
@@ -199,6 +204,18 @@ class PiSessionHostModule {
       };
     });
     ipcMain.handle(
+      "pi-session:set-active-tools",
+      (
+        _event,
+        { sessionId, activeToolNames }: { sessionId: string; activeToolNames: string[] }
+      ) => {
+        const hosted = PiSessionHostModule.sessions.get(sessionId);
+        if (!hosted) return { ok: false, error: "会话不存在" };
+        applyActiveTools(hosted.session, hosted.bridgedToolNames, activeToolNames);
+        return { ok: true };
+      }
+    );
+    ipcMain.handle(
       "pi-session:set-system-prompt",
       async (_event, { sessionId, systemPrompt }: { sessionId: string; systemPrompt: string }) => {
         const hosted = PiSessionHostModule.sessions.get(sessionId);
@@ -281,6 +298,7 @@ class PiSessionHostModule {
           sender.send("pi-session-interactions", snapshot);
         },
       });
+      const bridgedToolNames = new Set((request.customTools ?? []).map(tool => tool.name));
       const customTools = [
         ...bridge.toToolDefinitions(request.customTools ?? []),
         ...interactions.hostTools(),
@@ -327,6 +345,10 @@ class PiSessionHostModule {
           : {}),
       });
       interactions.install(session);
+      // 全集已注册，收敛到本轮活跃子集（缺省全部活跃，保持旧行为）
+      if (request.activeToolNames) {
+        applyActiveTools(session, bridgedToolNames, request.activeToolNames);
+      }
       if (sender.isDestroyed()) {
         interactions.dispose();
         session.dispose();
@@ -355,6 +377,7 @@ class PiSessionHostModule {
           sender.removeListener("render-process-gone", onSenderClosed);
         },
         systemPromptRef,
+        bridgedToolNames,
         scope: request.scope,
         modelRef: request.modelRef,
         thinkingLevel: request.thinkingLevel,

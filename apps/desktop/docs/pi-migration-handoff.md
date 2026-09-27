@@ -1,9 +1,10 @@
 # pi 迁移交接文档（refactor/pi-harness 分支）
 
-> 2026-09-27 交接（M2-f 完成；M3-a 工具权限与队列交互已随 `d1fed4658` 提交；M3-b ask-question
-> 宿主原生化已完成）。新会话续接方式：读完本文档 +
+> 2026-09-27 交接（M2-f 完成；M3-a 工具权限与队列交互、M3-b ask-question 宿主原生化、
+> M3-c MCP 工具集动态化均已完成并提交；M3 下一步从第 4 项设置页产品化开始）。
+> 新会话续接方式：读完本文档 +
 > `git log --oneline -15` 对照提交历史。验证三件套：`cd apps/desktop && npx tsc --noEmit`、
-> `npx vitest run`（327 文件、1531 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
+> `npx vitest run`（329 文件、1543 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
 > **注意 cwd 必须在 apps/desktop**——vitest 从仓库根跑会整体失败（vite 别名解析不到）。
 > 权威背景：调研报告与迁移计划在本项目最初会话中形成（对话内）；本文档是执行态的完整快照。
 
@@ -66,6 +67,8 @@
 │                                  块 id 会错乱）；turn 粒度=pi 一次 assistant message
 ├─ services/piToolBridge.ts        pi-tool-call→ToolRegistry 执行→回传；
 │                                  executeToolCall 上下文可被一次性会话的 additionalTools 接管
+│                                  buildToolLoadout（工具全集按名排序 + 活跃子集 + 全集指纹：
+│                                  指纹变才重建，否则只切活跃集，见 M3-c）
 ├─ services/piInteractions.ts      宿主交互快照只读投影（usePiInteractionStore）：审批条与提问卡
 │                                  都读它；提交经 IPC，不乐观伪造；readySessions 控制恢复期禁用
 ├─ services/piAgentRunner.ts       一次性 pi 会话运行器（inMemory+工具桥+历史灌入+settled 后
@@ -135,6 +138,39 @@ utils/openai-responses-adapter（llm.ts 依赖）。chat_run 主进程表与 han
   迟到审批、快照版本、后台归约与渲染层重载收养；附件测试同步现有通用文件/本地路径行为。
   尚未做真实模型下的 Electron 审批界面人工走查。
 
+### M3-c MCP 工具集动态化（2026-09-27）
+
+**设计缺陷**：pi 会话的工具注册表在装配时定死（`setActiveToolsByName` 只能在已注册名字里
+切子集，没有公开 API 追加定义），而桌面端创建会话时只传**当前已启用**的工具且之后从不更新。
+于是会话建好后工具可用性的任何变化对该对话都隐形：输入框里的 MCP 快捷面板开关 provider
+（面板就在输入框里，用户预期立即生效）、新连的 MCP 服务器都要等切模型或新对话才生效。
+
+**缓存事实（查过 Anthropic 官方缓存文档，推翻了先前的直觉）**：请求渲染顺序是
+`tools` → `system` → `messages`，**工具定义在位置 0**，增删或重排任一工具会让整条缓存
+（含全部历史消息）失效。所以缓存代价来自「工具集变了」本身，**与是否重建会话无关**——
+`setActiveToolsByName` 和重建会话的缓存损失完全相同。官方建议正是「别在对话中途改工具集」，
+并要求工具列表**确定性序列化**。Anthropic 有保缓存的正式机制（`tool_addition`/`tool_removal`
+块，beta `mid-conversation-tool-changes-2026-07-01`，Opus 5/4.8/Fable 5 系列支持、Sonnet 5 不支持），
+但 **pi 自己组装 tools 数组、没有暴露该能力**，目前用不上——记为未来优化点。
+
+**现状**：
+
+- 工具**按名字排序**（`buildToolLoadout` 与 piAgentRunner 的 `buildToolSpecs` 都排）。
+  修掉一个既有静默缓存杀手：原顺序是注册表插入顺序，取决于各 MCP 服务器**异步连接完成的先后**，
+  每次启动都可能不同，等于每个新会话白丢缓存。
+- **全集注册 + 活跃子集**：`customTools` 交全集（含当前停用项，`includeDisabled`），
+  `activeToolNames` 给活跃子集；主进程 `applyActiveTools`（在 core 模块，electron-free 可单测）
+  只增删桥接工具，pi 自己的内置活跃默认（read/edit/write + bash 或 powershell；grep/find/ls
+  默认不活跃）原样保留，集合没变则不调用。
+- **两档同步**（`ensureChatSession`）：启用/停用已注册工具 → `pi-session:set-active-tools`
+  轻量 IPC，**不重建、保留本会话工具授权**；出现新工具定义或 schema/描述变化（新连 MCP 服务器、
+  服务器升级）→ 重建（pi 注册表无法追加）。`toolUniverse` 指纹决定走哪档。
+- **只在真变化时推送**：活跃集与上次推送相同就不发 IPC，否则等于每轮自杀缓存。
+- 注意：被禁用的**整个 MCP 服务器**在注册表里是被 `unregisterSource` 移除的（不在全集内），
+  所以重新启用一个服务器算「新定义」→ 重建；provider 开关与逐工具停用才是不重建的那一档。
+- 验证：真实 pi 会话确认 customTools 默认全活跃、停用项可精确摘除且不牵连内置默认；
+  渲染端覆盖排序、切活跃集不重建、集合未变不推送、新定义重建、schema 变化重建。
+
 ### M3-b ask-question 宿主原生化（2026-09-27）
 
 **设计缺陷**：旧 ask-question 仍是渲染端工具——等待（Promise resolver）存在渲染进程内存，
@@ -185,7 +221,9 @@ utils/openai-responses-adapter（llm.ts 依赖）。chat_run 主进程表与 han
   subagentTool 迁移；旧链路删除
 - 首轮验收修复 `c31c078c7`：五项（见坑清单 1-5）
 - **M3-a** `d1fed4658`：工具审批主进程化 + 队列可编辑/删除（与侧栏刷新修复同批提交）
-- **M3-b**：ask-question 宿主原生化 + 审批/提问交互快照合并
+- **M3-b** `a1c1ef045`：ask-question 宿主原生化 + 审批/提问交互快照合并（含停止闪错、
+  运行中不可新建/切换对话两项验收修复）
+- **M3-c**：MCP 工具集动态化（全集注册 + 活跃子集、工具按名排序修缓存、两档同步）
 - **修正一** `784d59ebb`：去闭包快照+会话常驻 reducer（修吞消息）
 - **修正二** `d3bc61c33`：piChatRuntime 下沉模块级（后台运行）
 - **验收状态**：用户确认"大部分没问题"——M2-f 基本通过；后台运行场景（切页回来
@@ -247,6 +285,11 @@ utils/openai-responses-adapter（llm.ts 依赖）。chat_run 主进程表与 han
     **配套**：`deleteChatMessage` 过去只 dispose pi 会话、漏了 `piChatRuntime.disposeConversation`，
     被"运行中禁止删除"掩盖；解禁前必须一起清，否则删掉的对话仍在后台归约并落库。
     新增宿主/运行态资源时，检查会话终态（删除/重建）是否都释放到了。
+14. **工具集与提示缓存**：工具定义渲染在请求最前（`tools`→`system`→`messages`），增删/重排
+    任一工具作废整条缓存（含历史消息）。推论：①工具清单必须按名字排序，注册表顺序取决于 MCP
+    异步连接先后，不排就每个会话白丢缓存；②只在用户真改了工具时推送变更，别每轮同步；
+    ③重建会话与切活跃集的缓存代价相同，选方案要看别的（授权是否保留、是否要重灌历史）。
+    pi 未暴露 Anthropic 的 `tool_addition`/`tool_removal` 保缓存机制。
 
 ## 五、遗留边界（有意留下，归属明确）
 
@@ -270,8 +313,8 @@ utils/openai-responses-adapter（llm.ts 依赖）。chat_run 主进程表与 han
 
 1. **D-060 权限映射（M3-a 已完成）**：实现与生命周期边界见上节。
 2. **ask_user（M3-b 已完成）**：ask-question 改宿主原生 customTool，见上节；下一步从第 3 项继续。
-3. **MCP 桥**：渲染端 mcp provider 已经 ToolRegistry 化（工具桥自动可用），主进程 mcp.ts
-   的 D-058 管理页保留
+3. **MCP 桥（M3-c 已完成）**：工具集动态化见上节（此前文档说「工具桥自动可用」并不准确：
+   会话创建后的工具变化对该对话隐形）。主进程 mcp.ts 的 D-058 管理页保留；下一步从第 4 项继续
 4. **设置页产品化**：服务商类型选择（内置/自定义）+ 模型勾选 + fetchModels 拉取 +
    shellPath 首启检测 + reasoning 档位接 pi 目录（主进程加查询 IPC 或目录元数据下发）
 5. **steer 交互**：将当前本地队列与 pi 原生 steer/followUp 对齐（当前队列展示、编辑、删除和
@@ -304,6 +347,9 @@ openai-responses-adapter、卫星表 messages 写路径；DECISIONS.md 追加条
 - 请求取证：`PI_DUMP_REQUESTS=1` 环境变量重启，出站 payload 写 `~/.editor/pi-request-dumps/`
 - 常见验收场景：发送/流式/工具卡/ask_question 闭环与刷新恢复/停止/重试/图片/旧对话续聊
   （历史灌入）/编辑重发/重新生成/分支/模型切换/切页后台运行/停止后立即发送
+- M3-c 专项：对话进行中用输入框 MCP 面板关掉某个 provider → 下一轮模型不再有那些工具且
+  **不重建会话**（本会话工具授权仍在）；重新打开 → 工具回来；对话中途新连一个 MCP 服务器
+  → 会话重建后可用；连着几轮不动工具 → 不应有多余的工具集同步（缓存不该反复失效）。
 - M3-a 专项：manual 下 write/bash 等待且不执行；允许/拒绝/本会话始终允许；
   acceptEdits 放行 write 但拦 shell；bypass 放行；审批中停止、切页、渲染层重载；
   两会话同名工具不串授权；无审批界面的一次性入口拒绝高风险操作。
