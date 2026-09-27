@@ -3,7 +3,8 @@
 > 2026-09-28 交接（M2-f 完成；M3 全部完成——M3-a~h 已提交，**第 6 项 WSL 手动选项用户裁决不做**；
 > **M4 本批完成**：目录表 + JSONL 事实源切换 + 五场景接入 + 同步带会话包 + 扩展改页面会话，见「M4 实施记录」。
 > 下一步是 M4-d（分支改 pi 会话树）/M4-e（治理与重启恢复），见第六节）。
-> 新会话续接方式：读完本文档 + `git log --oneline -15` 对照提交历史。
+> 新会话续接方式：先读 `pi-migration-M4-handoff.md`（当前进度与待办，随每步同步更新），再读本文档 +
+> `git log --oneline -15` 对照提交历史。
 > 验证三件套：`cd apps/desktop && npx tsc --noEmit`、
 > `npx vitest run`（342 文件、1637 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
 > 改了 `packages/shared` 要另跑 `packages/shared`（5 文件 13 用例）与 `apps/browser-extension`（11 文件 44 用例）的 vitest + tsc
