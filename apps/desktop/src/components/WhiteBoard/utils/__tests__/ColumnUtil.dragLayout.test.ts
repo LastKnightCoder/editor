@@ -277,7 +277,6 @@ describe("ColumnUtil.appendRichText", () => {
       height: 56,
       x: PAD,
       y: ColumnUtil.calculateHeightFromChildren(column),
-      paddingHeight: 16,
       autoFocus: true,
       autoHeight: true,
       resizable: false,

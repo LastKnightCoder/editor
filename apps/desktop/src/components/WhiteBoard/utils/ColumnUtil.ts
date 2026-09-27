@@ -4,7 +4,8 @@ import { BoardElement, ColumnElement, Board, Operation } from "../types";
 import { COLUMN_DEFAULTS } from "../types/column";
 import { PathUtil } from "./PathUtil";
 import BoardUtil from "./BoardUtil";
-import { RichTextUtil } from "./RichTextUtil";
+import { RichTextUtil } from "./TextStyleStore";
+import { createEmptyRichTextContent, createRichTextContentId } from "./RichTextContentUtil";
 import type { RichTextElement } from "../plugins/RichTextPlugin";
 
 const TITLE_HEIGHT = COLUMN_DEFAULTS.titleHeight;
@@ -276,11 +277,10 @@ export class ColumnUtil {
       resized: false,
       resizable: false,
       autoHeight: true,
-      content: [{ type: "paragraph", children: [{ type: "formatted", text: "" }] }],
-      paddingWidth: 16,
-      paddingHeight: 16,
+      content: createEmptyRichTextContent(),
+      contentId: await createRichTextContentId(createEmptyRichTextContent()),
       autoFocus: true,
-      ...RichTextUtil.getPrevRichtextStyle(),
+      ...RichTextUtil.load(),
     };
     element.height = await board.capabilityService.measureElementHeight(element, contentWidth);
 

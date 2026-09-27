@@ -11,6 +11,11 @@ import type { BoardElement } from "@/components/WhiteBoard/types";
 import { getThemeById, DEFAULT_THEME_ID } from "@/components/WhiteBoard/constants/mind-themes";
 import { getThemeColorById } from "@/components/WhiteBoard/constants/theme-colors";
 import { outlineToSvgPath } from "@/components/WhiteBoard/utils/HandwriteUtil";
+import {
+  getTextBandColor,
+  getTextSurface,
+  resolveTextStyle,
+} from "@/components/WhiteBoard/constants/text-style";
 
 /** 纯色，或由 CSS linear-gradient 解析出的渐变（文本卡片常用渐变底） */
 export type SchematicFill =
@@ -58,7 +63,6 @@ export interface Schematic {
 
 /** 中性色走主题变量，深浅色自动适配 */
 const INK = "var(--tau-ink-1)";
-const SURFACE = "var(--tau-bg-surface)";
 const LINE = "var(--tau-line-2)";
 
 /** 视口下限（画布坐标）：内容很少时不无限放大，保持「一小块内容在画布上」的比例感 */
@@ -148,18 +152,28 @@ function textBars(ctx: Ctx, x: number, y: number, w: number, h: number, color = 
 
 function card(ctx: Ctx, e: AnyElement) {
   const r = Math.min(10, e.height / 4);
-  ctx.shapes.push({
-    kind: "rect",
-    x: e.x,
-    y: e.y,
-    w: e.width,
-    h: e.height,
-    r,
-    fill: isColor(e.background) ? parseFill(e.background) : SURFACE,
-    stroke: isColor(e.stroke) ? e.stroke : LINE,
-    strokeWidth: isColor(e.stroke) ? 1.4 : 1,
-  });
-  if (isColor(e.topColor)) {
+  // 富文本 / 卡片走语义样式（含旧色值换算）；白板引用等其它类型按白卡画
+  const style =
+    e.type === "richtext" || e.type === "card"
+      ? resolveTextStyle(e as Parameters<typeof resolveTextStyle>[0])
+      : { variant: "plain" as const };
+  // 透明样式只画文字条
+  const surface = getTextSurface(style);
+  if (surface) {
+    ctx.shapes.push({
+      kind: "rect",
+      x: e.x,
+      y: e.y,
+      w: e.width,
+      h: e.height,
+      r,
+      fill: surface.background,
+      stroke: surface.edge,
+      strokeWidth: 1,
+    });
+  }
+  const band = getTextBandColor(style);
+  if (band) {
     ctx.shapes.push({
       kind: "rect",
       x: e.x,
@@ -167,7 +181,7 @@ function card(ctx: Ctx, e: AnyElement) {
       w: e.width,
       h: Math.min(10, e.height / 5),
       r: Math.min(4, r),
-      fill: e.topColor,
+      fill: band,
     });
   }
   const pad = Math.min(18, e.width * 0.1, e.height * 0.2);

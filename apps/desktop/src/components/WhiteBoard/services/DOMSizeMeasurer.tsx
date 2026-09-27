@@ -4,6 +4,14 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { Descendant } from "slate";
 import { createEditorRegistry } from "@/services/editorRegistry";
+import { TEXT_BOX, TextBoxPadding, toCssPadding } from "../constants/text-style";
+
+const DEFAULT_PADDING: TextBoxPadding = {
+  top: TEXT_BOX.paddingY,
+  right: TEXT_BOX.paddingX,
+  bottom: TEXT_BOX.paddingY,
+  left: TEXT_BOX.paddingX,
+};
 
 // 服务注册表内的服务实现均为惰性单例，无需额外缓存
 const getEditorRegistry = () => createEditorRegistry();
@@ -47,22 +55,21 @@ export class DOMSizeMeasurer {
     elementId: string,
     content: Descendant[],
     targetWidth: number,
-    paddingWidth = 16,
-    paddingHeight = 16
+    padding: TextBoxPadding = DEFAULT_PADDING
   ): Promise<number> {
     // 策略1：尝试克隆已存在的 DOM 元素
     // 修复：使用正确的 ID 格式 rich-text-container-${elementId}
     const existingHeight = await this.measureByCloning(
       `rich-text-container-${elementId}`,
       targetWidth,
-      paddingWidth
+      padding
     );
     if (existingHeight !== null) {
       return existingHeight;
     }
 
     // 策略2：使用 Editor 渲染测量
-    return this.measureByRendering(content, targetWidth, paddingWidth, paddingHeight);
+    return this.measureByRendering(content, targetWidth, padding);
   }
 
   /**
@@ -79,20 +86,19 @@ export class DOMSizeMeasurer {
   static async measureRichTextWidth(
     elementId: string,
     content: Descendant[],
-    paddingWidth = 16,
-    paddingHeight = 16
+    padding: TextBoxPadding = DEFAULT_PADDING
   ): Promise<number> {
     // 策略1：尝试克隆已存在的 DOM 元素
     const existingWidth = await this.measureWidthByCloning(
       `rich-text-container-${elementId}`,
-      paddingWidth
+      padding
     );
     if (existingWidth !== null) {
       return existingWidth;
     }
 
     // 策略2：使用 Editor 渲染测量
-    return this.measureWidthByRendering(content, paddingWidth, paddingHeight);
+    return this.measureWidthByRendering(content, padding);
   }
 
   /**
@@ -101,7 +107,7 @@ export class DOMSizeMeasurer {
   private static async measureByCloning(
     containerId: string,
     targetWidth: number,
-    paddingWidth: number
+    padding: TextBoxPadding
   ): Promise<number | null> {
     // 查找已渲染的元素
     const existingElement = document.getElementById(containerId);
@@ -119,7 +125,7 @@ export class DOMSizeMeasurer {
     wrapper.id = measureId;
     wrapper.style.cssText = `
       width: ${targetWidth}px;
-      padding: 0 ${paddingWidth}px;
+      padding: 0 ${padding.right}px 0 ${padding.left}px;
       box-sizing: border-box;
     `;
 
@@ -158,7 +164,7 @@ export class DOMSizeMeasurer {
    */
   private static async measureWidthByCloning(
     containerId: string,
-    paddingWidth: number
+    padding: TextBoxPadding
   ): Promise<number | null> {
     // 查找已渲染的元素
     const existingElement = document.getElementById(containerId);
@@ -186,8 +192,8 @@ export class DOMSizeMeasurer {
     clonedEditor.style.height = "auto";
     clonedEditor.style.maxHeight = "none";
     clonedEditor.style.overflow = "visible";
-    clonedEditor.style.paddingLeft = `${paddingWidth}px`;
-    clonedEditor.style.paddingRight = `${paddingWidth}px`;
+    clonedEditor.style.paddingLeft = `${padding.left}px`;
+    clonedEditor.style.paddingRight = `${padding.right}px`;
 
     wrapper.appendChild(clonedEditor);
     container.appendChild(wrapper);
@@ -213,8 +219,7 @@ export class DOMSizeMeasurer {
   private static async measureByRendering(
     content: Descendant[],
     targetWidth: number,
-    paddingWidth: number,
-    paddingHeight: number
+    padding: TextBoxPadding
   ): Promise<number> {
     const container = this.getContainer();
     const measureId = `measure-${++this.measurementId}`;
@@ -261,7 +266,7 @@ export class DOMSizeMeasurer {
               id={innerContainerId}
               style={{
                 width: "100%",
-                padding: `${paddingHeight}px ${paddingWidth}px`,
+                padding: toCssPadding(padding),
                 boxSizing: "border-box",
               }}
             >
@@ -306,7 +311,7 @@ export class DOMSizeMeasurer {
           const entry = entries[0];
           if (!entry) return;
 
-          const newHeight = entry.contentRect.height + paddingHeight * 2;
+          const newHeight = entry.contentRect.height + padding.top + padding.bottom;
 
           // 如果高度从 0 变为有效值，或者连续两次高度稳定，返回结果
           if (newHeight > 0) {
@@ -355,8 +360,7 @@ export class DOMSizeMeasurer {
    */
   private static async measureWidthByRendering(
     content: Descendant[],
-    paddingWidth: number,
-    paddingHeight: number
+    padding: TextBoxPadding
   ): Promise<number> {
     const container = this.getContainer();
     const measureId = `measure-width-${++this.measurementId}`;
@@ -397,7 +401,7 @@ export class DOMSizeMeasurer {
               style={{
                 width: "fit-content",
                 maxWidth: "none",
-                padding: `${paddingHeight}px ${paddingWidth}px`,
+                padding: toCssPadding(padding),
                 boxSizing: "border-box",
               }}
             >

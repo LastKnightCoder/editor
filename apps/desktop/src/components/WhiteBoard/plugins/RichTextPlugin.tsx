@@ -18,11 +18,12 @@ import {
   ChildrenRenderOrder,
 } from "../types/capabilities";
 import { BoardUtil, PathUtil, PointUtil, RichTextUtil, getResizedBBox } from "../utils";
+import { createEmptyRichTextContent, createRichTextContentId } from "../utils/RichTextContentUtil";
 import { DOMSizeMeasurer } from "../services/DOMSizeMeasurer";
 import RichText from "../components/RichText";
 import { CommonPlugin, CommonElement } from "./CommonPlugin";
 import { SelectTransforms } from "../transforms";
-import { EShadowSize } from "../constants";
+import { TextTone, TextVariant, getTextBoxPadding, resolveTextStyle } from "../constants";
 
 export interface RichTextElement extends CommonElement {
   type: "richtext";
@@ -35,17 +36,13 @@ export interface RichTextElement extends CommonElement {
   maxWidth: number;
   maxHeight: number;
   resized: boolean;
-  paddingWidth?: number;
-  paddingHeight?: number;
   autoFocus?: boolean;
-  stroke?: string;
-  strokeOpacity?: number;
-  strokeWidth?: number;
+  variant?: TextVariant;
+  tone?: TextTone;
+  /** @deprecated 旧版外观字段，只读，由 resolveTextStyle 换算成 variant/tone */
   background?: string;
+  /** @deprecated 同上 */
   topColor?: string;
-  color?: string;
-  theme?: "light" | "dark";
-  shadowSize?: EShadowSize;
 }
 
 export class RichTextPlugin extends CommonPlugin {
@@ -82,8 +79,7 @@ export class RichTextPlugin extends CommonPlugin {
             richText.id,
             richText.content,
             targetWidth,
-            richText.paddingWidth || 16,
-            richText.paddingHeight || 16
+            getTextBoxPadding(resolveTextStyle(richText))
           );
         },
       },
@@ -171,6 +167,12 @@ export class RichTextPlugin extends CommonPlugin {
     const hitElements = BoardUtil.getHitElements(board, x, y);
     if (hitElements.length > 0) return;
 
+    void this.insertRichText(board, x, y);
+  }
+
+  /** content 先建后插（见 createRichTextContentId），故为异步；调用方不等待 */
+  private async insertRichText(board: Board, x: number, y: number) {
+    const content = createEmptyRichTextContent();
     const element: RichTextElement = {
       id: getUuid(),
       type: "richtext",
@@ -182,21 +184,10 @@ export class RichTextPlugin extends CommonPlugin {
       maxHeight: 1000,
       readonly: false,
       resized: false,
-      content: [
-        {
-          type: "paragraph",
-          children: [
-            {
-              type: "formatted",
-              text: "",
-            },
-          ],
-        },
-      ],
-      paddingWidth: 16,
-      paddingHeight: 16,
+      content,
+      contentId: await createRichTextContentId(content),
       autoFocus: true,
-      ...RichTextUtil.getPrevRichtextStyle(),
+      ...RichTextUtil.load(),
     };
 
     board.apply({
@@ -215,45 +206,15 @@ export class RichTextPlugin extends CommonPlugin {
     if (!currentPoint) return;
 
     const { x, y } = currentPoint;
-    const element: RichTextElement = {
-      id: getUuid(),
-      type: "richtext",
-      x,
-      y,
-      width: 180,
-      height: 72,
-      maxWidth: 300,
-      maxHeight: 1000,
-      readonly: false,
-      content: [
-        {
-          type: "paragraph",
-          children: [
-            {
-              type: "formatted",
-              text: "",
-            },
-          ],
-        },
-      ],
-      paddingWidth: 16,
-      paddingHeight: 8,
-      autoFocus: true,
-      resized: false,
-      ...RichTextUtil.getPrevRichtextStyle(),
-    };
-    board.apply({
-      type: "insert_node",
-      path: [board.children.length],
-      node: element,
-    });
+    // 创建态先关掉，避免 content 建好前的重复点击又插一个
+    board.currentCreateType = ECreateBoardElementType.None;
 
     SelectTransforms.updateSelectArea(board, {
       selectArea: null,
       selectedElements: [],
     });
 
-    board.currentCreateType = ECreateBoardElementType.None;
+    void this.insertRichText(board, x, y);
   }
 
   onResize(

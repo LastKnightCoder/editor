@@ -2,11 +2,11 @@ import { useEffect } from "react";
 import { useBoard } from "../../../hooks/useBoard";
 import { PointUtil } from "../../../utils";
 import { useMemoizedFn } from "ahooks";
+import { TextBoxPadding } from "../../../constants/text-style";
 
 interface UseHandlePointerProps {
   container: HTMLDivElement | null;
-  paddingWidth: number;
-  paddingHeight: number;
+  padding: TextBoxPadding;
   isSelected: boolean;
   width: number;
   height: number;
@@ -14,33 +14,29 @@ interface UseHandlePointerProps {
 
 const useHandlePointer = ({
   container,
-  paddingWidth,
-  paddingHeight,
+  padding,
   isSelected,
   width,
   height,
 }: UseHandlePointerProps) => {
   const board = useBoard();
 
+  // 落在内边距（留 2px 容差）视为拖拽区，否则交给编辑器
+  const isInPadding = (offsetX: number, offsetY: number) =>
+    offsetX < padding.left - 2 ||
+    offsetX > width - (padding.right - 2) ||
+    offsetY < padding.top - 2 ||
+    offsetY > height - (padding.bottom - 2);
+
   const handlePointerDown = useMemoizedFn((e: React.PointerEvent) => {
     if (!container) return;
-    const currentPoint = PointUtil.screenToViewPort(
-      board,
-      e.clientX,
-      e.clientY,
-    );
+    const currentPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     const { x, y } = container.getBoundingClientRect();
     const containerPoint = PointUtil.screenToViewPort(board, x, y);
     if (!currentPoint || !containerPoint) return;
     const offsetX = currentPoint.x - containerPoint.x;
     const offsetY = currentPoint.y - containerPoint.y;
-    const hitWidth = paddingWidth - 2;
-    const hitHeight = paddingHeight - 2;
-    const isHitPadding =
-      offsetX < hitWidth ||
-      offsetX > width - hitWidth ||
-      offsetY < hitHeight ||
-      offsetY > height - hitHeight;
+    const isHitPadding = isInPadding(offsetX, offsetY);
     if (!isSelected && !isHitPadding) {
       e.stopPropagation();
     }
@@ -49,24 +45,14 @@ const useHandlePointer = ({
   // 鼠标样式
   const handleOnPointerMove = useMemoizedFn((e: React.PointerEvent) => {
     if (!container) return;
-    const currentPoint = PointUtil.screenToViewPort(
-      board,
-      e.clientX,
-      e.clientY,
-    );
+    const currentPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     const { x, y } = container.getBoundingClientRect();
     const containerPoint = PointUtil.screenToViewPort(board, x, y);
     if (!currentPoint || !containerPoint) return;
     const offsetX = currentPoint.x - containerPoint.x;
     const offsetY = currentPoint.y - containerPoint.y;
     // 没有内容的时候方便编辑
-    const hitWidth = paddingWidth - 2;
-    const hitHeight = paddingHeight - 2;
-    const isHitPadding =
-      offsetX < hitWidth ||
-      offsetX > width - hitWidth ||
-      offsetY < hitHeight ||
-      offsetY > height - hitHeight;
+    const isHitPadding = isInPadding(offsetX, offsetY);
     if (isHitPadding || isSelected) {
       container.style.cursor = "move";
     } else {
