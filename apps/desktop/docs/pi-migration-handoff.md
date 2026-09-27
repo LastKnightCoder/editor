@@ -1,10 +1,11 @@
 # pi 迁移交接文档（refactor/pi-harness 分支）
 
 > 2026-09-27 交接（M2-f 完成；M3-a 工具权限与队列交互、M3-b ask-question 宿主原生化、
-> M3-c MCP 工具集动态化均已完成并提交；M3 下一步从第 4 项设置页产品化开始）。
+> M3-c MCP 工具集动态化、M3-d/e 设置页接内置目录均已完成并提交；
+> M3 下一步：第 4 项剩余的 M3-f fetchModels 与 M3-g（shellPath + chat 侧档位/双类型收敛））。
 > 新会话续接方式：读完本文档 +
 > `git log --oneline -15` 对照提交历史。验证三件套：`cd apps/desktop && npx tsc --noEmit`、
-> `npx vitest run`（329 文件、1543 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
+> `npx vitest run`（330 文件、1550 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
 > **注意 cwd 必须在 apps/desktop**——vitest 从仓库根跑会整体失败（vite 别名解析不到）。
 > 权威背景：调研报告与迁移计划在本项目最初会话中形成（对话内）；本文档是执行态的完整快照。
 
@@ -138,6 +139,39 @@ utils/openai-responses-adapter（llm.ts 依赖）。chat_run 主进程表与 han
   迟到审批、快照版本、后台归约与渲染层重载收养；附件测试同步现有通用文件/本地路径行为。
   尚未做真实模型下的 Electron 审批界面人工走查。
 
+### M3-d/e 设置页接内置目录（2026-09-27）
+
+**缺陷**：pi 内置目录（41 个服务商、完整模型元数据：api/baseUrl/上下文窗口/maxTokens/能力/
+价格/compat）在主进程本来就有（`lookupBuiltinModel`/`resolveBuiltinId`），但**没有 IPC 暴露给
+渲染端**，设置页全靠手填：baseUrl 手打、每个模型 id 手打、上下文窗口不填就被硬写
+128k/8192（对 Claude 的 200k 是错的）。更严重的是新建服务商时 `api` 硬编码
+`openai-completions`，**界面根本加不了 Anthropic 服务商**（功能性 bug）。
+
+**关键约束（实测）**：目录里有 **10 种 api**，本运行时只支持 3 种；且 6 个服务商是**混合 api**
+（OpenRouter 同时有 anthropic-messages 与 openai-completions 的模型）。所以：
+
+- 选择器只暴露「有受支持模型」的服务商——34 个（Google/Bedrock/Vertex/Mistral 等因 api 不支持
+  被排除）；4 个网关类（Cloudflare/OpenCode）目录里没有 baseUrl，需用户自填。
+- **api 必须是模型级**。`LLMModelSetting` 新增 `api?`，`toPiModel` 取值顺序改为
+  目录权威 → 模型自带 → 服务商级兜底；否则混合服务商的 Anthropic 模型会落到 OpenAI 协议。
+
+**M3-d 主进程目录查询**（`pi-ai-runtime-core.ts`，纯读、`allowModelNetwork: false`）：
+`listCatalogProviders`（过滤 + 服务商级 api 取占多数者 + 按名排序）、`listCatalogModels`、
+`resolveThinkingLevels`（目录命中用 pi `getSupportedThinkingLevels`，未命中给通用档并标记
+`fromCatalog: false`）。IPC：`pi-ai:catalog-providers` / `catalog-models` / `thinking-levels`。
+
+**M3-e 设置页**：
+
+- `ProviderCreateDialog`：先选类型（内置目录带搜索 / 自定义），内置项带出 name/baseUrl/api/
+  builtin；自定义分支暴露 api 下拉（修掉上面那个 bug）。
+- `ModelPickerDialog`：内置服务商从目录勾选模型（显示能力/上下文/输出/价格），元数据自动带入，
+  取消勾选即移除并清掉引用它的分配槽位；手填入口保留为「手动添加」给目录外型号。
+- 推理档位下拉改为按模型真实能力生成（此前静态七项还漏 `minimal`，与模型能力脱钩），
+  并标注来源（来自 pi 目录 / 目录未收录通用档 / 未标记支持推理）。
+- `llmCatalog.ts` 做渲染端缓存，反复开浮层不重复过 IPC。
+- 验证：真实目录跑通过滤/排序/混合 api/推理档位（gpt-5 无 `off`、Anthropic 有）与端到端
+  （勾选形状在主进程命中目录、上下文窗口取目录值而非 128k）。
+
 ### M3-c MCP 工具集动态化（2026-09-27）
 
 **设计缺陷**：pi 会话的工具注册表在装配时定死（`setActiveToolsByName` 只能在已注册名字里
@@ -223,7 +257,8 @@ utils/openai-responses-adapter（llm.ts 依赖）。chat_run 主进程表与 han
 - **M3-a** `d1fed4658`：工具审批主进程化 + 队列可编辑/删除（与侧栏刷新修复同批提交）
 - **M3-b** `a1c1ef045`：ask-question 宿主原生化 + 审批/提问交互快照合并（含停止闪错、
   运行中不可新建/切换对话两项验收修复）
-- **M3-c**：MCP 工具集动态化（全集注册 + 活跃子集、工具按名排序修缓存、两档同步）
+- **M3-c** `cac05397a`：MCP 工具集动态化（全集注册 + 活跃子集、工具按名排序修缓存、两档同步）
+- **M3-d/e**：内置目录 IPC + 设置页服务商选型/模型勾选/档位按能力（修「界面加不了 Anthropic」）
 - **修正一** `784d59ebb`：去闭包快照+会话常驻 reducer（修吞消息）
 - **修正二** `d3bc61c33`：piChatRuntime 下沉模块级（后台运行）
 - **验收状态**：用户确认"大部分没问题"——M2-f 基本通过；后台运行场景（切页回来
@@ -285,7 +320,11 @@ utils/openai-responses-adapter（llm.ts 依赖）。chat_run 主进程表与 han
     **配套**：`deleteChatMessage` 过去只 dispose pi 会话、漏了 `piChatRuntime.disposeConversation`，
     被"运行中禁止删除"掩盖；解禁前必须一起清，否则删掉的对话仍在后台归约并落库。
     新增宿主/运行态资源时，检查会话终态（删除/重建）是否都释放到了。
-14. **工具集与提示缓存**：工具定义渲染在请求最前（`tools`→`system`→`messages`），增删/重排
+14. **pi 目录的 api 种类远多于本运行时支持的**：目录有 10 种 api，本项目只支持 3 种，且有 6 个
+    服务商是混合 api（同一服务商下不同模型协议不同）。凡是「按服务商一刀切 api」的写法都会
+    在混合服务商上落到错误协议——api 必须模型级（见 M3-d/e）。往界面暴露目录内容时必须先按
+    受支持协议过滤，否则用户能建出跑不起来的服务商。
+15. **工具集与提示缓存**：工具定义渲染在请求最前（`tools`→`system`→`messages`），增删/重排
     任一工具作废整条缓存（含历史消息）。推论：①工具清单必须按名字排序，注册表顺序取决于 MCP
     异步连接先后，不排就每个会话白丢缓存；②只在用户真改了工具时推送变更，别每轮同步；
     ③重建会话与切活跃集的缓存代价相同，选方案要看别的（授权是否保留、是否要重灌历史）。
@@ -315,8 +354,13 @@ utils/openai-responses-adapter（llm.ts 依赖）。chat_run 主进程表与 han
 2. **ask_user（M3-b 已完成）**：ask-question 改宿主原生 customTool，见上节；下一步从第 3 项继续。
 3. **MCP 桥（M3-c 已完成）**：工具集动态化见上节（此前文档说「工具桥自动可用」并不准确：
    会话创建后的工具变化对该对话隐形）。主进程 mcp.ts 的 D-058 管理页保留；下一步从第 4 项继续
-4. **设置页产品化**：服务商类型选择（内置/自定义）+ 模型勾选 + fetchModels 拉取 +
-   shellPath 首启检测 + reasoning 档位接 pi 目录（主进程加查询 IPC 或目录元数据下发）
+4. **设置页产品化（M3-d/e 已完成其三）**：服务商类型选择（内置/自定义）、模型勾选、
+   设置页 reasoning 档位接目录 —— 见上节。**剩两项**：
+   - **M3-f fetchModels**：目录外的自建服务（Ollama/LM Studio/私有网关）与目录落后于服务商
+     新模型时，走 `/v1/models` 拉取；
+   - **M3-g**：shellPath 设置项 + 首启检测写入；chat 侧 reasoning 档位接目录（现硬编码四档，
+     见 ChatContainer「pi ThinkingLevel 通用档」注释），并收敛 `ReasoningEffort`（packages/shared）
+     与 `PiThinkingLevel` 双类型——`minimal` 目前在渲染端不可达。
 5. **steer 交互**：将当前本地队列与 pi 原生 steer/followUp 对齐（当前队列展示、编辑、删除和
    agent_settled drain 已完成；`queue_update` 事件驱动的 pi 原生排队尚未接管发送）
 6. WSL 手动选项（BashOperations 路径翻译）

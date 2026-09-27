@@ -6,7 +6,7 @@
 import * as anthropicMessagesApi from "@earendil-works/pi-ai/api/anthropic-messages";
 import * as openAICompletionsApi from "@earendil-works/pi-ai/api/openai-completions";
 import * as openAIResponsesApi from "@earendil-works/pi-ai/api/openai-responses";
-import { createModels, createProvider } from "@earendil-works/pi-ai";
+import { createModels, createProvider, getSupportedThinkingLevels } from "@earendil-works/pi-ai";
 import type {
   Api,
   Context,
@@ -20,7 +20,10 @@ import type {
   LLMModelSetting,
   LLMProviderSetting,
   PiApiKind,
+  PiCatalogModel,
+  PiCatalogProvider,
   PiSingleShotRequest,
+  PiThinkingLevel,
 } from "@/types/pi-llm";
 
 /**
@@ -49,7 +52,8 @@ export function toPiModel(
   const piModel: Model<Api> = {
     id: model.id,
     name: model.name ?? base?.name ?? model.id,
-    api: base?.api ?? provider.api,
+    // 目录权威 → 模型自带（混合 api 服务商的兜底）→ 服务商级兜底
+    api: base?.api ?? model.api ?? provider.api,
     provider: provider.id,
     baseUrl: provider.baseUrl,
     reasoning: base?.reasoning ?? model.reasoning,
@@ -73,7 +77,8 @@ const DEFAULT_MAX_TOKENS = 8_192;
 let catalogRuntime: Promise<ModelRuntimeLike | null> | null = null;
 interface ModelRuntimeLike {
   getModel(providerId: string, modelId: string): Model<Api> | undefined;
-  getProviders(): Array<{ id: string; baseUrl?: string }>;
+  getProviders(): Array<{ id: string; name?: string; baseUrl?: string }>;
+  getModels(providerId?: string): readonly Model<Api>[];
 }
 async function getCatalogRuntime(): Promise<ModelRuntimeLike | null> {
   catalogRuntime ??= import("@earendil-works/pi-coding-agent")
@@ -103,6 +108,101 @@ async function resolveBuiltinId(setting: LLMProviderSetting): Promise<string | u
     .find(p => p.baseUrl && p.baseUrl.replace(/\/+$/, "").toLowerCase() === normalized);
   return match?.id;
 }
+
+/** 本项目支持的线协议：目录里另有 7 种（bedrock/google/vertex 等）本运行时跑不起来，一律不暴露 */
+const SUPPORTED_APIS = new Set<string>([
+  "openai-completions",
+  "openai-responses",
+  "anthropic-messages",
+]);
+
+const isSupportedModel = (model: Model<Api>): boolean => SUPPORTED_APIS.has(model.api);
+
+/** 目录模型 → 渲染端形状（含真实推理档位；不支持推理时为空数组） */
+function toCatalogModel(model: Model<Api>): PiCatalogModel {
+  const levels = model.reasoning
+    ? (getSupportedThinkingLevels(model) as PiThinkingLevel[])
+    : ([] as PiThinkingLevel[]);
+  return {
+    id: model.id,
+    name: model.name ?? model.id,
+    api: model.api as PiApiKind,
+    reasoning: model.reasoning,
+    input: (model.input ?? ["text"]).filter(
+      (kind): kind is "text" | "image" => kind === "text" || kind === "image"
+    ),
+    contextWindow: model.contextWindow ?? DEFAULT_CONTEXT_WINDOW,
+    maxTokens: model.maxTokens ?? DEFAULT_MAX_TOKENS,
+    ...(model.cost && (model.cost.input || model.cost.output)
+      ? { cost: { input: model.cost.input, output: model.cost.output } }
+      : {}),
+    thinkingLevels: levels,
+  };
+}
+
+/**
+ * 内置服务商目录（只列有受支持模型的服务商）。服务商级 api 取其模型里占多数的那种——
+ * 仅作手填模型的兜底，勾选来的模型各自带 api（混合 api 服务商如 OpenRouter）。
+ */
+export async function listCatalogProviders(): Promise<PiCatalogProvider[]> {
+  const runtime = await getCatalogRuntime();
+  if (!runtime) return [];
+  const providers: PiCatalogProvider[] = [];
+  for (const provider of runtime.getProviders()) {
+    const models = runtime.getModels(provider.id).filter(isSupportedModel);
+    if (models.length === 0) continue;
+    const tally = new Map<string, number>();
+    for (const model of models) tally.set(model.api, (tally.get(model.api) ?? 0) + 1);
+    const [dominant] = [...tally.entries()].sort((a, b) => b[1] - a[1]);
+    providers.push({
+      id: provider.id,
+      name: provider.name ?? provider.id,
+      ...(provider.baseUrl ? { baseUrl: provider.baseUrl } : {}),
+      api: dominant[0] as PiApiKind,
+      modelCount: models.length,
+    });
+  }
+  return providers.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** 某内置服务商下受支持的模型（按展示名排序，供设置页勾选） */
+export async function listCatalogModels(builtinId: string): Promise<PiCatalogModel[]> {
+  const runtime = await getCatalogRuntime();
+  if (!runtime) return [];
+  return runtime
+    .getModels(builtinId)
+    .filter(isSupportedModel)
+    .map(toCatalogModel)
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * 已配置的 provider+model 真实支持的推理档位：目录命中用 pi 的判定，
+ * 未命中（自定义服务商/目录外模型）返回通用档，由调用方决定怎么展示。
+ */
+export async function resolveThinkingLevels(
+  setting: LLMProviderSetting,
+  modelId: string
+): Promise<{ levels: PiThinkingLevel[]; fromCatalog: boolean }> {
+  const builtin = await resolveBuiltinId(setting);
+  const model = setting.models.find(item => item.id === modelId);
+  if (builtin) {
+    const base = await lookupBuiltinModel(builtin, modelId);
+    if (base) {
+      return {
+        levels: base.reasoning ? (getSupportedThinkingLevels(base) as PiThinkingLevel[]) : [],
+        fromCatalog: true,
+      };
+    }
+  }
+  return {
+    levels: model?.reasoning ? GENERIC_THINKING_LEVELS : [],
+    fromCatalog: false,
+  };
+}
+
+/** 目录外模型的通用档（pi 会按模型能力 clamp，多给不会出错但可能无效） */
+const GENERIC_THINKING_LEVELS: PiThinkingLevel[] = ["off", "low", "medium", "high"];
 
 /** 按 builtin+modelId 查内置目录的模型元数据 */
 export async function lookupBuiltinModel(

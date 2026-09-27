@@ -11,6 +11,38 @@ export type PiApiKind = "openai-completions" | "openai-responses" | "anthropic-m
 /** pi ThinkingLevel（off + 六档），映射模型侧推理力度 */
 export type PiThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 
+/**
+ * pi 内置服务商目录项（主进程查询、渲染端只读）。
+ * 目录里有 10 种 api，只暴露本项目支持的三种（PiApiKind）能命中的服务商与模型，
+ * 否则界面会让用户建出跑不起来的服务商。
+ */
+export interface PiCatalogProvider {
+  /** 内置服务商 id，写入 LLMProviderSetting.builtin */
+  id: string;
+  name: string;
+  /** 官方 baseUrl；网关类服务商（Cloudflare/OpenCode 等）没有，需用户自填 */
+  baseUrl?: string;
+  /** 服务商级 api 兜底：取其可用模型里占多数的那种 */
+  api: PiApiKind;
+  /** 该服务商下受支持的模型数 */
+  modelCount: number;
+}
+
+/** pi 内置目录的模型元数据（勾选模型时带入设置，免手填） */
+export interface PiCatalogModel {
+  id: string;
+  name: string;
+  api: PiApiKind;
+  reasoning: boolean;
+  input: ("text" | "image")[];
+  contextWindow: number;
+  maxTokens: number;
+  /** 每百万 token 价格，用于界面提示；无价格信息时为空 */
+  cost?: { input: number; output: number };
+  /** 该模型真实支持的推理档位（pi getSupportedThinkingLevels），空数组表示不支持推理 */
+  thinkingLevels: PiThinkingLevel[];
+}
+
 export interface LLMModelSetting {
   /** 请求体里的 model 名（原 ModelConfig.name），provider 内唯一 */
   id: string;
@@ -26,6 +58,12 @@ export interface LLMModelSetting {
   maxTokens?: number;
   /** 推理力度档位，缺省交给 pi 按模型能力取默认 */
   thinkingLevel?: PiThinkingLevel;
+  /**
+   * 该模型的线协议。目录命中时以目录为准，此字段是目录不可用时的兜底——
+   * 混合 api 的服务商（OpenRouter 同时有 anthropic-messages 与 openai-completions 模型）
+   * 光靠服务商级 api 会落到错误协议。从目录勾选模型时记下，手填模型可留空。
+   */
+  api?: PiApiKind;
   /** 采样参数直通 pi StreamOptions.samplingParams（temperature 等原 ModelConfig.temperature） */
   samplingParams?: Record<string, unknown>;
   /** 请求头覆盖（原 userAgent → headers["User-Agent"]） */
