@@ -12,6 +12,9 @@ vi.mock("@/components/LinkGraph", () => ({
   },
 }));
 vi.mock("@/utils/card", () => ({ getInlineLinks: () => [2, 3] }));
+vi.mock("../queries", () => ({
+  useKnowledgeMap: () => ({ data: null, isPending: false, isFetching: false }),
+}));
 
 it("悬停随浮层开关恢复，筛选只改变高亮而不删除图谱节点", async () => {
   const cards: ICard[] = [1, 2, 3].map(id => ({

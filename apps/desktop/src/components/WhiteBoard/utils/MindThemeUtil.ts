@@ -7,7 +7,7 @@ import {
   type MindPalette,
   type MindThemeStyle,
 } from "../constants/mind-themes";
-import { contrast, fitTone, hexTone, oklch, type Tone } from "./oklch";
+import { contrast, fitTone, hexTone, oklch, type Tone } from "@/utils/oklch";
 
 export type MindMode = "light" | "dark";
 

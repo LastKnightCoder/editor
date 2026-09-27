@@ -1,3 +1,4 @@
+import { getKnowledgeMap } from "@/commands/knowledge-map";
 /**
  * 卡片库数据源与派生。
  *
@@ -289,4 +290,34 @@ export function buildTagTree(cards: ICard[]): CardTagNode[] {
       .map(node => ({ ...node, children: sortTree(node.children) }))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "zh-CN"));
   return sortTree(root.children);
+}
+
+/* ---------- 知识地图 ---------- */
+
+export const knowledgeMapKey = (databaseName: string) =>
+  ["cards", databaseName, "knowledge-map"] as const;
+
+/**
+ * 离线知识地图（主进程按「显式链接 + 语义近邻」算好的坐标与两层主题）。
+ * 主进程在读取时顺带对账新增/删除的卡片，过时则后台重算；这里每次打开图谱视图拉一次即可。
+ * 取不到（无 Electron、索引库异常）时返回 null，图谱退回按链接实时计算。
+ */
+export function useKnowledgeMap(enabled: boolean) {
+  const databaseName = useSettingStore(state => state.setting.database.active);
+  const ready = useGlobalStateStore(state => state.databaseStatus[databaseName] === "ready");
+  return useQuery({
+    queryKey: knowledgeMapKey(databaseName),
+    queryFn: async () => {
+      if (typeof window === "undefined" || !window.electron) return null;
+      try {
+        return (await getKnowledgeMap()).map;
+      } catch {
+        return null;
+      }
+    },
+    enabled: enabled && Boolean(databaseName) && ready,
+    // 每次进入图谱视图重新对账（新写的卡片落位），不做窗口聚焦刷新：地图变动不该在用户看着时跳
+    staleTime: 0,
+    refetchOnWindowFocus: false,
+  });
 }
