@@ -19,25 +19,19 @@ export class ColumnUtil {
     x: number,
     y: number,
     width: number = COLUMN_DEFAULTS.width,
-    title = "Column",
+    title = "Column"
   ): ColumnElement {
     return {
       id: getUuid(),
       type: "column",
       x,
       y,
-      width: Math.max(
-        COLUMN_DEFAULTS.minWidth,
-        Math.min(width, COLUMN_DEFAULTS.maxWidth),
-      ),
+      width: Math.max(COLUMN_DEFAULTS.minWidth, Math.min(width, COLUMN_DEFAULTS.maxWidth)),
       height: 100, // Initial height, will be recalculated
       title,
       children: [],
       padding: COLUMN_DEFAULTS.padding,
       gap: COLUMN_DEFAULTS.gap,
-      backgroundColor: COLUMN_DEFAULTS.backgroundColor,
-      borderRadius: COLUMN_DEFAULTS.borderRadius,
-      shadowEnabled: COLUMN_DEFAULTS.shadowEnabled,
       minWidth: COLUMN_DEFAULTS.minWidth,
       maxWidth: COLUMN_DEFAULTS.maxWidth,
     };
@@ -49,9 +43,13 @@ export class ColumnUtil {
    */
   static layout(_board: Board, column: ColumnElement): ColumnElement {
     const titleHeight = TITLE_HEIGHT;
-    const contentWidth = column.width - column.padding * 2;
+    const contentWidth = column.width - COLUMN_DEFAULTS.padding * 2;
 
-    return produce(column, (draft) => {
+    return produce(column, draft => {
+      // 间距由设计规范统一，旧数据里的 padding / gap 在布局时归一
+      draft.padding = COLUMN_DEFAULTS.padding;
+      draft.gap = COLUMN_DEFAULTS.gap;
+
       let currentY = draft.y + titleHeight + draft.padding;
 
       draft.children.forEach((child, index) => {
@@ -67,11 +65,7 @@ export class ColumnUtil {
         // Get the child's height (after width change, height may need recalculation)
         // For elements with naturalWidth/naturalHeight (image, video), recalculate based on aspect ratio
         let childHeight = child.height || 50;
-        if (
-          child.naturalWidth &&
-          child.naturalHeight &&
-          child.naturalWidth > 0
-        ) {
+        if (child.naturalWidth && child.naturalHeight && child.naturalWidth > 0) {
           const aspectRatio = child.naturalWidth / child.naturalHeight;
           childHeight = contentWidth / aspectRatio;
           child.height = childHeight;
@@ -116,7 +110,7 @@ export class ColumnUtil {
     const titleHeight = TITLE_HEIGHT;
 
     if (column.children.length === 0) {
-      return titleHeight + column.padding * 2 + 60;
+      return titleHeight + column.padding * 2 + COLUMN_DEFAULTS.emptyHeight;
     }
 
     let totalHeight = titleHeight + column.padding;
@@ -150,7 +144,7 @@ export class ColumnUtil {
     const titleHeight = TITLE_HEIGHT;
 
     if (column.children.length === 0) {
-      const height = titleHeight + column.padding * 2 + 60; // Minimum height with placeholder
+      const height = titleHeight + column.padding * 2 + COLUMN_DEFAULTS.emptyHeight; // Minimum height with placeholder
       heightCache.set(column.id, { height, timestamp: now });
       return height;
     }
@@ -181,12 +175,9 @@ export class ColumnUtil {
    */
   static calculateChildPositions(
     board: Board,
-    column: ColumnElement,
+    column: ColumnElement
   ): Map<string, { x: number; y: number; width: number }> {
-    const positions = new Map<
-      string,
-      { x: number; y: number; width: number }
-    >();
+    const positions = new Map<string, { x: number; y: number; width: number }>();
     const childWidth = column.width - column.padding * 2;
     const titleHeight = TITLE_HEIGHT;
     let currentY = column.y + titleHeight + column.padding;
@@ -215,19 +206,9 @@ export class ColumnUtil {
   /**
    * Check if point is within column bounds
    */
-  static isPointInColumn(
-    board: Board,
-    column: ColumnElement,
-    x: number,
-    y: number,
-  ): boolean {
+  static isPointInColumn(board: Board, column: ColumnElement, x: number, y: number): boolean {
     const height = this.calculateHeight(board, column);
-    return (
-      x >= column.x &&
-      x <= column.x + column.width &&
-      y >= column.y &&
-      y <= column.y + height
-    );
+    return x >= column.x && x <= column.x + column.width && y >= column.y && y <= column.y + height;
   }
 
   /**
@@ -238,17 +219,12 @@ export class ColumnUtil {
     board: Board,
     _element: BoardElement,
     column: ColumnElement,
-    pointerPosition?: { x: number; y: number },
+    pointerPosition?: { x: number; y: number }
   ): boolean {
     if (!pointerPosition) {
       return false;
     }
-    return this.isPointInColumn(
-      board,
-      column,
-      pointerPosition.x,
-      pointerPosition.y,
-    );
+    return this.isPointInColumn(board, column, pointerPosition.x, pointerPosition.y);
   }
 
   /**
@@ -259,7 +235,7 @@ export class ColumnUtil {
     board: Board,
     column: ColumnElement,
     dropY: number,
-    excludeElementId?: string,
+    excludeElementId?: string
   ): number {
     const positions = this.calculateChildPositions(board, column);
     let dropIndex = 0;
@@ -286,11 +262,7 @@ export class ColumnUtil {
   /**
    * Get drop y position for visual indicator
    */
-  static getDropY(
-    board: Board,
-    column: ColumnElement,
-    dropIndex: number,
-  ): number {
+  static getDropY(board: Board, column: ColumnElement, dropIndex: number): number {
     const positions = this.calculateChildPositions(board, column);
     const titleHeight = TITLE_HEIGHT;
 
@@ -320,11 +292,11 @@ export class ColumnUtil {
    * Move column and all its children
    */
   static moveAll(column: ColumnElement, dx: number, dy: number): ColumnElement {
-    return produce(column, (draft) => {
+    return produce(column, draft => {
       draft.x += dx;
       draft.y += dy;
       // Move children's stored positions as well
-      draft.children.forEach((child) => {
+      draft.children.forEach(child => {
         child.x += dx;
         child.y += dy;
       });
@@ -335,20 +307,16 @@ export class ColumnUtil {
    * Remove child from column
    */
   static removeChild(column: ColumnElement, childId: string): ColumnElement {
-    return produce(column, (draft) => {
-      draft.children = draft.children.filter((c) => c.id !== childId);
+    return produce(column, draft => {
+      draft.children = draft.children.filter(c => c.id !== childId);
     });
   }
 
   /**
    * Reorder children within column
    */
-  static reorderChildren(
-    column: ColumnElement,
-    fromIndex: number,
-    toIndex: number,
-  ): ColumnElement {
-    return produce(column, (draft) => {
+  static reorderChildren(column: ColumnElement, fromIndex: number, toIndex: number): ColumnElement {
+    return produce(column, draft => {
       const [removed] = draft.children.splice(fromIndex, 1);
       draft.children.splice(toIndex, 0, removed);
     });
@@ -365,7 +333,7 @@ export class ColumnUtil {
    * Check if child is in column
    */
   static isChildInColumn(column: ColumnElement, child: BoardElement): boolean {
-    return column.children.some((c) => c.id === child.id);
+    return column.children.some(c => c.id === child.id);
   }
 
   /**
@@ -377,19 +345,11 @@ export class ColumnUtil {
       before,
       after,
     }: {
-      before?: (
-        element: BoardElement,
-        parent: BoardElement | null,
-        index: number,
-      ) => void;
-      after?: (
-        element: BoardElement,
-        parent: BoardElement | null,
-        index: number,
-      ) => void;
+      before?: (element: BoardElement, parent: BoardElement | null, index: number) => void;
+      after?: (element: BoardElement, parent: BoardElement | null, index: number) => void;
     },
     parent: BoardElement | null = null,
-    index = 0,
+    index = 0
   ) {
     before?.(column, parent, index);
     column.children?.forEach((child, idx) => {
@@ -400,7 +360,7 @@ export class ColumnUtil {
           after,
         },
         column,
-        idx,
+        idx
       );
     });
     after?.(column, parent, index);
@@ -412,7 +372,7 @@ export class ColumnUtil {
   static getAllChildren(column: ColumnElement): BoardElement[] {
     const children: BoardElement[] = [];
     this.dfs(column, {
-      after: (element) => {
+      after: element => {
         if (element.id !== column.id) {
           children.push(element);
         }
@@ -424,10 +384,7 @@ export class ColumnUtil {
   /**
    * Find parent Column of an element
    */
-  static findParentColumn(
-    board: Board,
-    element: BoardElement,
-  ): ColumnElement | null {
+  static findParentColumn(board: Board, element: BoardElement): ColumnElement | null {
     const parent = BoardUtil.getParent(board, element);
     if (parent && parent.type === "column") {
       return parent as ColumnElement;
@@ -444,10 +401,7 @@ export class ColumnUtil {
     if (!parentColumn) return;
 
     // Get the latest column from board
-    const latestColumn = BoardUtil.getElementById(
-      board,
-      parentColumn.id,
-    ) as ColumnElement | null;
+    const latestColumn = BoardUtil.getElementById(board, parentColumn.id) as ColumnElement | null;
     if (!latestColumn) return;
 
     // Apply layout
@@ -461,7 +415,7 @@ export class ColumnUtil {
     const ops: Operation[] = [];
 
     // Move children to board root
-    column.children.forEach((child) => {
+    column.children.forEach(child => {
       const oldPath = PathUtil.getPathByElement(board, child);
       if (!oldPath) return;
 
@@ -496,7 +450,7 @@ export class ColumnUtil {
   static collectDescendants(container: BoardElement): BoardElement[] {
     const result: BoardElement[] = [container];
     const walk = (element: BoardElement) => {
-      element.children?.forEach((child) => {
+      element.children?.forEach(child => {
         result.push(child);
         walk(child);
       });

@@ -23,10 +23,7 @@ import type {
   Selection,
   ViewPort,
 } from "../../types";
-import {
-  ContainmentBehavior,
-  MovementBehavior,
-} from "../../types/capabilities";
+import { ContainmentBehavior, MovementBehavior } from "../../types/capabilities";
 import { ColumnUtil, PathUtil } from "../../utils";
 
 const viewPort: ViewPort = {
@@ -37,10 +34,7 @@ const viewPort: ViewPort = {
   zoom: 1,
 };
 
-const createColumn = (
-  id: string,
-  overrides: Partial<ColumnElement> = {},
-): ColumnElement =>
+const createColumn = (id: string, overrides: Partial<ColumnElement> = {}): ColumnElement =>
   ({
     id,
     type: "column",
@@ -99,7 +93,7 @@ const columnStub: IBoardPlugin = {
       containment: {
         asContainer: ContainmentBehavior.Restricted,
         canBeContained: false,
-        canContain: (child) => child.type === "richtext",
+        canContain: child => child.type === "richtext",
         orderedChildren: true,
         buildChildDragFeedbackOps: (board, container, childId, position) => {
           const path = PathUtil.getPathByElement(board, container);
@@ -152,24 +146,14 @@ const columnStub: IBoardPlugin = {
             },
           ];
         },
-        isDropFeedbackActive: (container) =>
+        isDropFeedbackActive: container =>
           (container as ColumnElement).isChildDraggingOver === true,
         isElementInContainer: (board, container, element, pointerPosition) =>
-          ColumnUtil.isElementInColumn(
-            board,
-            element,
-            container as ColumnElement,
-            pointerPosition,
-          ),
+          ColumnUtil.isElementInColumn(board, element, container as ColumnElement, pointerPosition),
         isChildInContainer: (container, child) =>
-          (container as ColumnElement).children.some((c) => c.id === child.id),
+          (container as ColumnElement).children.some(c => c.id === child.id),
         getDropIndex: (board, container, dropY, excludeElementId) =>
-          ColumnUtil.getDropIndex(
-            board,
-            container as ColumnElement,
-            dropY,
-            excludeElementId,
-          ),
+          ColumnUtil.getDropIndex(board, container as ColumnElement, dropY, excludeElementId),
       },
     };
   },
@@ -194,10 +178,7 @@ describe("全选拖拽与 Column 容器判定", () => {
       selectArea: null,
       selectedElements: [...children, ...(children[0]?.children ?? [])],
     };
-    board = new Board(children, viewPort, selection, [
-      richTextStub,
-      columnStub,
-    ]);
+    board = new Board(children, viewPort, selection, [richTextStub, columnStub]);
     const container = document.createElement("div");
     container.getBoundingClientRect = () =>
       ({
@@ -230,8 +211,8 @@ describe("全选拖拽与 Column 容器判定", () => {
     board.onPointerMove(pointerEvent(570, 48));
     board.onPointerUp(pointerEvent(570, 48));
 
-    expect(board.children.map((el) => el.id)).toEqual(["col", "outside"]);
-    const movedOutside = board.children.find((el) => el.id === "outside");
+    expect(board.children.map(el => el.id)).toEqual(["col", "outside"]);
+    const movedOutside = board.children.find(el => el.id === "outside");
     expect(movedOutside).toMatchObject({ x: 520, y: 28 });
   });
 
@@ -246,7 +227,7 @@ describe("全选拖拽与 Column 容器判定", () => {
     board.onPointerMove(pointerEvent(120, 40));
     board.onPointerUp(pointerEvent(120, 40));
 
-    expect(board.children.map((el) => el.id)).toEqual(["col", "outside"]);
+    expect(board.children.map(el => el.id)).toEqual(["col", "outside"]);
   });
 
   it("仅拖动单个根层元素到 Column 内（非全选），应正常进入容器", () => {
@@ -261,16 +242,14 @@ describe("全选拖拽与 Column 容器判定", () => {
         properties: board.selection,
         newProperties: { selectedElements: [outside] },
       },
-      false,
+      false
     );
 
     board.onPointerDown(pointerEvent(550, 28));
-    board.onPointerMove(pointerEvent(150, 100));
-    board.onPointerUp(pointerEvent(150, 100));
+    board.onPointerMove(pointerEvent(150, 80));
+    board.onPointerUp(pointerEvent(150, 80));
 
-    const latestColumn = board.children.find(
-      (el) => el.id === "col",
-    ) as ColumnElement;
-    expect(latestColumn.children.map((c) => c.id)).toContain("outside");
+    const latestColumn = board.children.find(el => el.id === "col") as ColumnElement;
+    expect(latestColumn.children.map(c => c.id)).toContain("outside");
   });
 });
