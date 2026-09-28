@@ -25,7 +25,12 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { buildPiProvider } from "./pi-ai-runtime-core";
 import type { PiTranscriptEntry, PiTranscriptMessage } from "./pi-session-transcript";
-import { DISPLAY_ENTRY_TYPE, messageVersionsOf, type DesktopDisplayData } from "./pi-session-files";
+import {
+  DISPLAY_ENTRY_TYPE,
+  closeDanglingToolCalls,
+  messageVersionsOf,
+  type DesktopDisplayData,
+} from "./pi-session-files";
 import type { LLMProviderSetting } from "@/types/pi-llm";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { PiThinkingLevel } from "@/types/pi-llm";
@@ -451,6 +456,9 @@ export async function assembleHostSession(
       : options.sessionDir
         ? SessionManager.create(options.cwd, options.sessionDir, newSessionOptions)
         : SessionManager.inMemory(options.cwd, newSessionOptions);
+  // resume 时收尾悬挂的工具调用（M4-e）：新建的宿主会话不可能持有上一次的等待，文件里没结果的调用
+  // 只能是上次中断留下的（应用重启、宿主被回收）。必须在 createAgentSession 之前——它按文件恢复上下文
+  closeDanglingToolCalls(sessionManager);
   // 历史灌入：sessionManager 落 entry，createAgentSession 内部 buildSessionContext 恢复进 Agent
   for (const message of options.initialMessages ?? []) {
     sessionManager.appendMessage(message);

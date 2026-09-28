@@ -93,7 +93,14 @@ interface ConversationEntry {
   titleGenerating: boolean;
   /** 用户已请求停止，收尾轮的报错不展示（下一轮 agent_start 复位） */
   stopRequested: boolean;
+  /** 挂载中的视图数（M4-e：挂着的不回收） */
+  mounts: number;
+  /** 最近一次使用（LRU 回收用） */
+  lastUsed: number;
 }
+
+/** 空闲条目最多保留几条（M4-e）：超出按最近使用淘汰；在跑、等待交互、有队列/插话、挂着的不计入也不淘汰 */
+export const MAX_IDLE_CONVERSATIONS = 20;
 
 /** 最后一条回答里有没有结果的工具调用（等待审批/作答，或中断在工具执行中） */
 const hasUnresolvedToolCall = (message: ResponseMessage): boolean =>
@@ -155,12 +162,59 @@ class PiChatRuntime {
         deps,
         titleGenerating: false,
         stopRequested: false,
+        mounts: 0,
+        lastUsed: Date.now(),
       };
       this.conversations.set(key, entry);
     } else {
       entry.deps = deps;
+      entry.lastUsed = Date.now();
     }
     return entry.chat;
+  }
+
+  /** 视图挂载：返回释放函数（卸载时调）。释放后顺手做一次空闲回收 */
+  public retain(key: string): () => void {
+    const entry = this.conversations.get(key);
+    if (entry) {
+      entry.mounts += 1;
+      entry.lastUsed = Date.now();
+    }
+    return () => {
+      const current = this.conversations.get(key);
+      if (current && current === entry) {
+        current.mounts = Math.max(0, current.mounts - 1);
+        current.lastUsed = Date.now();
+      }
+      this.sweepIdle();
+    };
+  }
+
+  /** 可回收 = 没挂着、不在跑、没有待处理交互、队列与插话为空、没在生成标题 */
+  private isIdle(entry: ConversationEntry): boolean {
+    if (entry.mounts > 0 || entry.streaming || entry.titleGenerating) return false;
+    if (entry.queue.length > 0 || entry.pendingSteers.length > 0) return false;
+    if (entry.sessionId) {
+      const snapshot = usePiInteractionStore.getState().sessions[entry.sessionId];
+      if (snapshot && (snapshot.approvals.length > 0 || snapshot.questions.length > 0))
+        return false;
+    }
+    return true;
+  }
+
+  /** 空闲条目超出上限时按最近使用淘汰（只清渲染端归约条目；宿主会话由主进程自己的空闲回收管） */
+  public sweepIdle(limit = MAX_IDLE_CONVERSATIONS): string[] {
+    const idle = [...this.conversations.entries()]
+      .filter(([, entry]) => this.isIdle(entry))
+      .sort(([, a], [, b]) => b.lastUsed - a.lastUsed);
+    const doomed = idle.slice(limit).map(([key]) => key);
+    doomed.forEach(key => this.disposeConversation(key));
+    return doomed;
+  }
+
+  /** 切库：旧库的对话全部失效，清掉所有空闲条目（在跑的留着自己收尾） */
+  public releaseIdle(): string[] {
+    return this.sweepIdle(0);
   }
 
   /** 绑定 pi 会话（常驻 reducer；切换/recreate 会话时重建订阅） */

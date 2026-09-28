@@ -120,6 +120,11 @@ interface ChatSessionActions {
   loadGroups(): Promise<void>;
   /** 重载全部已加载的列表（切库） */
   reloadAll(): Promise<void>;
+  /**
+   * 所属对象要被删（PDF 等，M4-e）：释放这个列表下全部对话的宿主会话与运行态，并从 store 里拿掉。
+   * 目录行与会话文件由主进程删对象时级联删除。
+   */
+  releaseBucket(bucket: ChatBucketRef): Promise<void>;
   setCurrent(bucket: ChatBucketRef, id: string | null): void;
   /** 打开对话：已打开的直接复用；目录里有就读投影；都没有返回 undefined */
   openChat(id: string): Promise<ChatMessage | undefined>;
@@ -245,9 +250,12 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
         },
 
         reloadAll: async () => {
-          // 切库：已打开的对话属于旧库，整体作废（运行中的后台轮次由 runtime 自己收尾）
+          // 切库：已打开的对话属于旧库，整体作废（运行中的后台轮次由 runtime 自己收尾）。
+          // runtime 的空闲条目一起清（M4-e）；宿主会话由主进程在切库时释放
           const keys = Object.keys(get().buckets);
           set({ opened: {} });
+          const { piChatRuntime } = await import("@/services/piChatRuntime");
+          piChatRuntime.releaseIdle();
           await Promise.all(
             keys.map(key => {
               const [scope, domainRef] = key.split("|");
@@ -257,6 +265,38 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
               });
             })
           );
+        },
+
+        releaseBucket: async bucket => {
+          const key = bucketKeyOf(bucket);
+          // 列表可能还没加载（没打开过这个 PDF 的对话面板）：直接查一次目录，保证运行中的也释放
+          const rows =
+            get().buckets[key]?.rows ??
+            (await listChatSessions({
+              scope: bucket.scope,
+              domainRef: bucket.domainRef,
+              includeArchived: true,
+            }).catch(() => []));
+          const [{ piChatRuntime }, { chatSessionKey, piChatSessionManager }] = await Promise.all([
+            import("@/services/piChatRuntime"),
+            import("@/services/piChatSession"),
+          ]);
+          await Promise.all(
+            rows.map(row => piChatSessionManager.disposeChatSession(bucket.scope, row.id))
+          );
+          rows.forEach(row =>
+            piChatRuntime.disposeConversation(chatSessionKey(bucket.scope, row.id))
+          );
+          const ids = new Set(rows.map(row => row.id));
+          set(state => {
+            const buckets = { ...state.buckets };
+            delete buckets[key];
+            const opened = { ...state.opened };
+            ids.forEach(id => delete opened[id]);
+            const currentIds = { ...state.currentIds };
+            delete currentIds[key];
+            return { buckets, opened, currentIds };
+          });
         },
 
         setCurrent: (bucket, id) => {

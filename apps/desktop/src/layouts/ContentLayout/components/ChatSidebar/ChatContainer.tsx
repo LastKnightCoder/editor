@@ -364,6 +364,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         : {}),
     };
     const actualChatRef = piChatRuntime.ensureConversation(sessionKey, currentChat, runtimeDeps);
+    // 挂载引用：挂着的条目不回收（M4-e）；卸载后条目常驻（后台运行），空闲时才可能被 LRU 回收
+    useEffect(() => piChatRuntime.retain(sessionKey), [sessionKey]);
     useEffect(() => {
       void piChatRuntime
         .restorePendingInteractions(sessionKey, chatScope, currentChat.id)

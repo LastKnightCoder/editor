@@ -9,6 +9,7 @@
  */
 import { ipcMain } from "electron";
 import userSettingModule from "./user-setting";
+import databaseModule from "./database";
 import PathUtil from "../utils/PathUtil";
 import {
   applyActiveTools,
@@ -40,9 +41,17 @@ import {
   assertSafeSessionId,
   browserSessionDirOf,
   chatSessionDirOf,
+  chatSessionRoot,
   findSessionFileById,
   resolveSessionFile,
 } from "./pi-session-paths";
+import {
+  IDLE_SWEEP_INTERVAL_MS,
+  idleSessionsOfOtherLibraries,
+  idleSessionsToDispose,
+  resolveFileConflict,
+  type HostedSessionState,
+} from "./pi-session-lifecycle";
 import { conversationTreeOf, type DesktopDisplayData } from "./pi-session-files";
 import type {
   PiHostToolSpec,
@@ -75,6 +84,8 @@ interface HostedSession {
   thinkingLevel?: PiThinkingLevel;
   /** 展示 entry 写入器：prompt/steer 登记，用户消息落盘后紧跟着写 */
   displayWriter: ReturnType<typeof createDisplayEntryWriter>;
+  /** 最近活动时间（空闲回收用，M4-e） */
+  lastActive: number;
 }
 
 export interface PiSessionCreateRequest {
@@ -125,6 +136,8 @@ class PiSessionHostModule {
 
   public static init() {
     PiSessionHostModule.shellPath = detectBashShellPath();
+    setInterval(() => PiSessionHostModule.sweepIdleSessions(), IDLE_SWEEP_INTERVAL_MS).unref?.();
+    databaseModule.onDatabaseConnected(dbName => PiSessionHostModule.releaseOtherLibraries(dbName));
     if (PiSessionHostModule.requestDumpDir) {
       mkdirSync(PiSessionHostModule.requestDumpDir, { recursive: true });
       console.log(`[PiSessionHost] 请求 dump 已开启：${PiSessionHostModule.requestDumpDir}`);
@@ -325,6 +338,7 @@ class PiSessionHostModule {
           }
           applySessionEdit(session.sessionManager, edit);
           session.refreshContext();
+          hosted.lastActive = Date.now();
           return {
             messages: piEntriesToDesktopMessages(transcriptOf(session.sessionManager)),
           };
@@ -486,6 +500,7 @@ class PiSessionHostModule {
         tools: request.customTools ?? [],
         getMode: () => PiSessionHostModule.permissionMode,
         send: snapshot => {
+          PiSessionHostModule.touch(request.sessionId);
           if (sender.isDestroyed()) throw new Error("会话窗口已关闭");
           sender.send("pi-session-interactions", snapshot);
         },
@@ -508,6 +523,14 @@ class PiSessionHostModule {
           : request.sessionFile
             ? resolveSessionFile(sessionDir, request.sessionFile)
             : undefined;
+      // 同一文件只能有一个宿主（两个 SessionManager 并发写会互相覆盖）：空闲的顶替、忙的拒绝
+      const conflict = resolveFileConflict(PiSessionHostModule.states(), sessionFile);
+      if ("reject" in conflict) {
+        interactions.dispose();
+        bridge.dispose();
+        return { ok: false, error: conflict.reject };
+      }
+      conflict.dispose.forEach(id => PiSessionHostModule.disposeSession(id));
       // resume 时历史已在 JSONL 里，灌入会重复
       const initialMessages =
         !sessionFile && request.initialMessages?.length
@@ -568,6 +591,7 @@ class PiSessionHostModule {
       sender.once("destroyed", onSenderClosed);
       sender.once("render-process-gone", onSenderClosed);
       const unsubscribe = session.subscribe(sessionEvent => {
+        PiSessionHostModule.touch(request.sessionId);
         if (sender.isDestroyed()) return;
         try {
           sender.send("pi-session-event", { sessionId: request.sessionId, event: sessionEvent });
@@ -591,6 +615,7 @@ class PiSessionHostModule {
         modelRef: request.modelRef,
         thinkingLevel: request.thinkingLevel,
         displayWriter,
+        lastActive: Date.now(),
       });
       // 回传会话文件（相对会话目录）与 pi 会话 id：目录表据此登记，下次打开走 resume
       return {
@@ -618,6 +643,46 @@ class PiSessionHostModule {
       console.warn(`[PiSessionHost] 设置里的 shell 路径不存在，改用自动检测：${ignoredConfigured}`);
     }
     return path;
+  }
+
+  private static touch(sessionId: string): void {
+    const hosted = PiSessionHostModule.sessions.get(sessionId);
+    if (hosted) hosted.lastActive = Date.now();
+  }
+
+  /** 生命周期判定用的会话状态（忙 = 在跑或有待用户处理的交互） */
+  private static states(): HostedSessionState[] {
+    return [...PiSessionHostModule.sessions.entries()].map(([id, hosted]) => {
+      const snapshot = hosted.interactions.snapshot();
+      return {
+        id,
+        file: hosted.session.sessionFile,
+        busy:
+          hosted.session.isStreaming ||
+          hosted.session.isCompacting ||
+          snapshot.approvals.length > 0 ||
+          snapshot.questions.length > 0,
+        lastActive: hosted.lastActive,
+      };
+    });
+  }
+
+  /** 空闲回收（M4-e）：空闲超过 IDLE_DISPOSE_MS 的宿主释放，下次发送从会话文件恢复 */
+  private static sweepIdleSessions(): void {
+    for (const id of idleSessionsToDispose(PiSessionHostModule.states(), Date.now())) {
+      console.log(`[PiSessionHost] 空闲回收会话: ${id}`);
+      PiSessionHostModule.disposeSession(id);
+    }
+  }
+
+  /** 切库：释放其他库目录里的空闲宿主（它们不会再被用到） */
+  private static releaseOtherLibraries(databaseName: string): void {
+    const ids = idleSessionsOfOtherLibraries(
+      PiSessionHostModule.states(),
+      chatSessionRoot(),
+      chatSessionDirOf(databaseName)
+    );
+    ids.forEach(id => PiSessionHostModule.disposeSession(id));
   }
 
   private static disposeSession(sessionId: string) {

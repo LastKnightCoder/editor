@@ -163,3 +163,24 @@ describe("pi 会话工具集同步", () => {
     expect((await piChatSessionManager.ensureChatSession(options)).sessionId).not.toBe(first);
   });
 });
+
+describe("宿主被主进程回收后（M4-e）", () => {
+  afterEach(async () => {
+    await piChatSessionManager.disposeAll();
+    vi.clearAllMocks();
+  });
+
+  it("本地描述还在但宿主已不在：下一次 ensure 从会话文件重建，不报「会话不存在」", async () => {
+    const { sessionId: first } = await piChatSessionManager.ensureChatSession(options);
+    vi.mocked(piSessionSetSystemPrompt).mockResolvedValueOnce({ ok: false, error: "会话不存在" });
+
+    const { sessionId } = await piChatSessionManager.ensureChatSession(options);
+
+    expect(sessionId).not.toBe(first);
+    expect(vi.mocked(piSessionCreate).mock.calls.at(-1)?.[1]).toMatchObject({
+      sessionFile: "f_chat-11.jsonl",
+    });
+    // 已经不存在的宿主不再去 dispose
+    expect(piSessionDispose).not.toHaveBeenCalledWith(first);
+  });
+});

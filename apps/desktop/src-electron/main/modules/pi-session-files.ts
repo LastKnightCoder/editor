@@ -336,6 +336,63 @@ export function conversationTreeOf(
   return [...nodes.values()];
 }
 
+/** 补给悬挂工具调用的结果文本（模型与工具卡都能看到） */
+export const INTERRUPTED_TOOL_RESULT =
+  "应用重启，这次工具调用已中断，没有执行结果。需要的话请重新发起。";
+
+/**
+ * 重开会话时收尾悬挂的工具调用（M4-e，用户裁决：审批与提问都标为已中断）：主进程重启前停在「等待审批 /
+ * 等待作答 / 执行中」的调用，文件里只有带 toolCall 的 assistant message、没有 toolResult。
+ * pi-ai 发请求时会临时补一个 "No result provided" 错误结果让对话能继续，但它**不落盘**——
+ * 工具卡永远停在等待中。这里在当前路径末尾给每个缺结果的调用写一条 isError 的 toolResult 并落盘，
+ * 卡片投影成失败、下一轮模型也看到明确的中断说明。
+ *
+ * 只看当前叶子路径上**最后一条** assistant 之后：更早的回答里有调用没结果是 pi 自己的问题（它每批工具
+ * 会写齐结果），不在这里补。返回补了几条。
+ */
+export function closeDanglingToolCalls(manager: SessionManager): number {
+  const path = manager.getBranch();
+  let lastAssistant = -1;
+  for (let index = path.length - 1; index >= 0; index -= 1) {
+    const entry = path[index];
+    if (entry.type !== "message") continue;
+    const role = (entry as { message: { role?: string } }).message.role;
+    if (role === "assistant") {
+      lastAssistant = index;
+      break;
+    }
+    // 最后一条对话消息是用户消息：回答还没开始，没有悬挂调用
+    if (role === "user") return 0;
+  }
+  if (lastAssistant < 0) return 0;
+  const assistant = (path[lastAssistant] as { message: { content?: unknown } }).message;
+  const calls = (Array.isArray(assistant.content) ? assistant.content : []).filter(
+    (block: { type?: string; id?: string }) => block.type === "toolCall" && block.id
+  ) as Array<{ id: string; name?: string }>;
+  if (calls.length === 0) return 0;
+  const answered = new Set(
+    path
+      .slice(lastAssistant + 1)
+      .filter(entry => entry.type === "message")
+      .map(entry => (entry as { message: { role?: string; toolCallId?: string } }).message)
+      .filter(message => message.role === "toolResult" && message.toolCallId)
+      .map(message => message.toolCallId!)
+  );
+  const dangling = calls.filter(call => !answered.has(call.id));
+  for (const call of dangling) {
+    manager.appendMessage({
+      role: "toolResult",
+      toolCallId: call.id,
+      toolName: call.name ?? "",
+      content: [{ type: "text", text: INTERRUPTED_TOOL_RESULT }],
+      isError: true,
+      timestamp: Date.now(),
+    } as never);
+  }
+  if (dangling.length > 0) ensureFlushed(manager);
+  return dangling.length;
+}
+
 /**
  * 删除单条消息：pi 原生的 context_edit(target, null)，把它从模型上下文里去掉；
  * 展示投影同样尊重这条编辑（见 loadSessionTranscript）。用户消息连带它的展示 entry 一起隐藏。

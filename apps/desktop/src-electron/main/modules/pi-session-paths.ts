@@ -11,9 +11,12 @@ import { existsSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import PathUtil from "../utils/PathUtil";
 
+/** 全部应用对话的根目录（各库的会话目录在它下面） */
+export const chatSessionRoot = (): string => join(PathUtil.getAppDir(), "sessions");
+
 /** 库名 → 会话目录（库名可带或不带 .db 后缀） */
 export const chatSessionDirOf = (databaseName: string): string =>
-  join(PathUtil.getAppDir(), "sessions", databaseName.replace(/\.db$/, ""));
+  join(chatSessionRoot(), databaseName.replace(/\.db$/, ""));
 
 /**
  * 已打开的库连接 → 会话目录（better-sqlite3 的 db.name 是库文件路径）。
