@@ -355,6 +355,8 @@ function buildToolSpecs(
       name: tool.function.name,
       description: tool.function.description,
       parameters: tool.function.parameters,
+      // 同 piChatSession.buildToolLoadout：额外工具只读页面，不声明会在不可交互入口被拒
+      risk: "read",
     });
   }
   // 按名字排序：工具定义渲染在请求最前，注册表顺序（MCP 异步连接先后）会让同类

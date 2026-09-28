@@ -184,3 +184,28 @@ describe("宿主被主进程回收后（M4-e）", () => {
     expect(piSessionDispose).not.toHaveBeenCalledWith(first);
   });
 });
+
+describe("额外工具的风险声明", () => {
+  afterEach(async () => {
+    await piChatSessionManager.disposeAll();
+    vi.clearAllMocks();
+  });
+
+  it("浏览器扩展传入的额外工具按 read 声明（否则不可交互会话在手动确认模式下全部被拒）", async () => {
+    await piChatSessionManager.ensureChatSession({
+      ...options,
+      interactive: false,
+      additionalTools: [
+        {
+          type: "function",
+          function: { name: "get_page_content", description: "读页面", parameters: {} },
+        },
+      ],
+    });
+    const specs = vi.mocked(piSessionCreate).mock.calls[0][1].customTools as Array<{
+      name: string;
+      risk?: string;
+    }>;
+    expect(specs.find(spec => spec.name === "get_page_content")?.risk).toBe("read");
+  });
+});

@@ -271,6 +271,9 @@ function buildToolLoadout(options: EnsureChatSessionOptions): ChatToolLoadout {
         name: tool.function.name,
         description: tool.function.description,
         parameters: tool.function.parameters,
+        // 额外工具（浏览器扩展的页面读取工具、扩展本地的提问）只读当前页面：按 read 声明。
+        // 不声明的话权限层按 execute 处理，扩展会话不可交互，默认手动确认模式下会被全部拒绝
+        risk: "read",
       },
     });
   }
