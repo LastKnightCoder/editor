@@ -6,6 +6,8 @@ const editorRoot = path.resolve(__dirname, "../editor");
 
 export default defineConfig({
   root: __dirname,
+  // 本包没有独立 tsconfig（类型检查随 desktop 的 pnpm check），JSX 转换在此显式声明
+  esbuild: { jsx: "automatic" },
   test: {
     environment: "jsdom",
     include: ["src/**/*.test.{ts,tsx}"],

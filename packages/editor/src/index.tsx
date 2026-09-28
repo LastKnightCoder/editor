@@ -27,7 +27,7 @@ import { useCreation, useMemoizedFn } from "ahooks";
 
 import { EditorKitScope, useKitWithExtensions } from "./kit/context";
 import type { EditorKit } from "./kit/EditorKit";
-import type { EditorDocument } from "./document/EditorDocument";
+import type { EditorDocument, EditorDocumentBinding } from "./document/EditorDocument";
 import { useResolvedKit } from "./kit/context";
 import type { ServiceIdentifier } from "./services/tokens";
 
@@ -177,9 +177,13 @@ const Index = memo(
     const currentValue = useRef<Descendant[]>(initValue);
     const pendingSetEditorValueJson = useRef<string | null>(null);
     const overlayContainerRef = useRef<HTMLDivElement>(null);
-    // 接管内容的文档源（协作）；换一个 binding 等于换一篇文档，编辑器重建
     const binding = documentProp?.binding;
     const externalHistory = documentProp?.history === "external";
+    const bindingRef = useRef(binding);
+    bindingRef.current = binding;
+    // 同谱系换源（01 §7.3 第 3 层）：lineage 不变且新文档源支持 rebind 时沿用同一个
+    // Slate editor，编辑器与块组件都不重建；否则换 binding 就是换文档，编辑器重建。
+    const editorIdentity = binding?.rebind ? "rebindable" : binding;
 
     const editor = useCreation(() => {
       const processedEditor = applyPlugin(
@@ -196,18 +200,25 @@ const Index = memo(
 
       // 服务方法必须在创建时挂载：render 阶段的组件（如 ListItem）会调用 editor.getService，
       // 若延迟到 useEffect 挂载，首次渲染时方法尚不存在
-      const slateEditor = binding ? binding.install(enhancedEditor) : enhancedEditor;
+      const initialBinding = bindingRef.current;
+      const slateEditor = initialBinding ? initialBinding.install(enhancedEditor) : enhancedEditor;
       slateEditor.getService = <T,>(id: ServiceIdentifier<T>): T => registryRef.current.get(id);
       slateEditor.tryGetService = <T,>(id: ServiceIdentifier<T>): T | undefined =>
         registryRef.current.tryGet(id);
       return slateEditor;
-    }, [assembly.plugins, binding, externalHistory]);
+    }, [assembly.plugins, documentProp?.lineage, editorIdentity, externalHistory]);
 
     useEffect(() => documentProp?.attach?.(editor), [documentProp, editor]);
 
+    // 已经挂在这个 editor 上的文档源：区分「首次连接」与「换源」
+    const attachedRef = useRef<{ editor: Editor; binding: EditorDocumentBinding } | null>(null);
     useEffect(() => {
       if (!binding) return;
-      binding.connect(editor);
+      const attached = attachedRef.current;
+      const swapped = attached?.editor === editor && attached.binding !== binding;
+      // 换源时旧源已在上一轮 effect 的清理里 disconnect，这里只需迁移到新源
+      if (!swapped || !binding.rebind?.(editor)) binding.connect(editor);
+      attachedRef.current = { editor, binding };
       return () => binding.disconnect(editor);
     }, [binding, editor]);
 
