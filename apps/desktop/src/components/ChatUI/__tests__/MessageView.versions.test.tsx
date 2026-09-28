@@ -37,6 +37,17 @@ const render = async (props: Partial<MessageViewProps>) => {
 };
 
 describe("MessageView 版本切换", () => {
+  it("空失败显示重试，有结果时保留重新生成的名称", async () => {
+    const onRegenerate = vi.fn();
+    const container = await render({ onRegenerate, regenerateLabel: "重试" });
+    const retry = container.querySelector<HTMLButtonElement>('button[aria-label="重试"]');
+    await act(async () => retry?.click());
+    expect(onRegenerate).toHaveBeenCalledWith(3);
+    expect(
+      (await render({ onRegenerate })).querySelector('button[aria-label="重新生成"]')
+    ).not.toBeNull();
+  });
+
   it("显示 i/n 与可读名称；首个版本的「上一个」禁用；点击回调目标版本", async () => {
     const onSwitchVersion = vi.fn();
     const container = await render({ versions: { index: 0, count: 2 }, onSwitchVersion });

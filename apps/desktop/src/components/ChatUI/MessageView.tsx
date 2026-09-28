@@ -53,6 +53,7 @@ export interface MessageViewProps {
   assistantBlocks?: ContentBlock[];
   onDelete?: (messageIndex: number) => void;
   onRegenerate?: (messageIndex: number) => void;
+  regenerateLabel?: string;
   onCreateBranch?: (messageIndex: number) => void;
   onEditUserMessage?: (messageIndex: number, content: string) => void;
   /** 会话树上这条用户消息的版本（编辑重发/重新生成/建分支产生）；有多个时显示 ‹ i/n › */
@@ -92,6 +93,7 @@ export const MessageView = memo(function MessageView({
   assistantBlocks = [],
   onDelete,
   onRegenerate,
+  regenerateLabel = "重新生成",
   onCreateBranch,
   onEditUserMessage,
   versions,
@@ -196,7 +198,7 @@ export const MessageView = memo(function MessageView({
         </Action>
       )}
       {isUser && onRegenerate && (
-        <Action label="重新生成" onClick={() => onRegenerate(messageIndex)}>
+        <Action label={regenerateLabel} onClick={() => onRegenerate(messageIndex)}>
           <RefreshCw />
         </Action>
       )}

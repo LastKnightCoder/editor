@@ -96,6 +96,12 @@ export interface PiPromptDisplay {
   clientId?: string;
 }
 
+/** 失败重试定位；尚未落盘时使用原用户消息的 clientId。 */
+export interface PiPromptRetry {
+  entryId?: string;
+  clientId?: string;
+}
+
 /**
  * 会话文件的位置（M4）：应用对话按当前库会话目录下的文件名；浏览器扩展对话按页面 + 会话 id
  * （目录由主进程按页面哈希算出，文件按 id 查找，外部输入不拼进路径）。

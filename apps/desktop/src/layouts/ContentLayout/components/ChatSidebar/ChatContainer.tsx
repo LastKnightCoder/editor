@@ -68,6 +68,7 @@ import { ToolRendererInteractionProvider } from "@/tool-call-renderers/ToolRende
 import { createAssistantMessage } from "@/services/assistantMessageBlocks";
 import { createChatMessageClientId } from "@/services/chatMessageSchema";
 import { latestContextUsage } from "@/services/chatContextUsage";
+import { canRetryChatMessage } from "@/services/chatRetry";
 import {
   buildTitleSummaryMessages,
   formatGeneratedChatTitle,
@@ -681,6 +682,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           persistedRequestMessage?: RequestMessage;
           /** 编辑重发 / 重新生成：先把会话回退到这条用户消息（entry id）之前再发 */
           rewindBeforeEntryId?: string;
+          retryMessage?: RequestMessage;
           toolContext?: {
             flags?: {
               forceReview?: boolean;
@@ -718,11 +720,19 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         // 乐观写入用户消息与助手占位（界面立即反馈）；事实源是 pi 写的 JSONL，settled 后以投影为准
         let actualCurrentChat: ChatMessage = {
           ...actualChatRef.current,
-          messages: [
-            ...actualChatRef.current.messages,
-            persistedRequestMessage,
-            createAssistantMessage(),
-          ],
+          messages: options?.retryMessage
+            ? [
+                ...actualChatRef.current.messages.slice(
+                  0,
+                  actualChatRef.current.messages.indexOf(options.retryMessage) + 1
+                ),
+                createAssistantMessage(),
+              ]
+            : [
+                ...actualChatRef.current.messages,
+                persistedRequestMessage,
+                createAssistantMessage(),
+              ],
         };
         actualChatRef.current = actualCurrentChat;
         setUpdateCounter(prev => prev + 1);
@@ -784,12 +794,19 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           const contentItems = Array.isArray(requestMessage.content)
             ? requestMessage.content
             : [{ type: "text" as const, text: requestMessage.content as string }];
-          const { promptText, images } = await buildPromptPayload(
-            contentItems as MessageContentItem[]
-          );
+          const { promptText, images } = options?.retryMessage?.piEntryIds?.length
+            ? { promptText: "", images: [] }
+            : await buildPromptPayload(contentItems as MessageContentItem[]);
           const display = toPromptDisplay(persistedRequestMessage);
 
-          let promptOutcome = await piSessionPrompt(sessionId, promptText, images, display);
+          const retry = options?.retryMessage
+            ? {
+                entryId: options.retryMessage.piEntryIds?.[0],
+                clientId: options.retryMessage.clientId,
+              }
+            : undefined;
+          const submitPrompt = () => piSessionPrompt(sessionId, promptText, images, display, retry);
+          let promptOutcome = await submitPrompt();
           // 停止后立即发送（pi 仍在收尾）会被拒：等该会话沉淀事件后自动提交，15s 兜底放弃
           if (!promptOutcome.ok && /already processing|正在处理/i.test(promptOutcome.error ?? "")) {
             promptOutcome = await new Promise<typeof promptOutcome>(resolve => {
@@ -801,7 +818,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               const unsubscribeSettled = onPiSessionEvent(sessionId, event => {
                 if (settled || event.type !== "agent_settled") return;
                 settled = true;
-                void piSessionPrompt(sessionId, promptText, images, display).then(outcome => {
+                void submitPrompt().then(outcome => {
                   cleanup();
                   resolve(outcome);
                 });
@@ -1281,7 +1298,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       if (edited) message.success("消息已删除");
     });
 
-    // 重新生成：会话回退到这条用户消息之前，以原内容重发
+    // 未产出有效结果的末尾问题原位重试，其余重新生成保留旧版本。
     const handleRegenerateMessage = useMemoizedFn(async (messageIndex: number) => {
       if (sendLoading) return;
       const targetMessage = visibleMessagesOf(actualChatRef.current)[messageIndex];
@@ -1290,6 +1307,13 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         return;
       }
       const entryId = targetMessage.piEntryIds?.[0];
+      if (canRetryChatMessage(visibleMessagesOf(actualChatRef.current), messageIndex)) {
+        await processMessageSending(targetMessage as RequestMessage, {
+          shouldClearInput: false,
+          retryMessage: targetMessage as RequestMessage,
+        });
+        return;
+      }
       if (!entryId) {
         message.warning("这条消息还没有保存下来，暂时不能重新生成");
         return;
@@ -1727,6 +1751,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                     messageIndex={messageIndex}
                     onDeleteMessage={handleDeleteMessage}
                     onRegenerateMessage={handleRegenerateMessage}
+                    regenerateLabel={
+                      canRetryChatMessage(visibleMessages, messageIndex) ? "重试" : "重新生成"
+                    }
                     onEditMessage={
                       !hideInput &&
                       !sendLoading &&

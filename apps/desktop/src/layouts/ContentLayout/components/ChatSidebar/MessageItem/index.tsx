@@ -24,6 +24,7 @@ interface MessageItemProps {
   isVisible: boolean;
   onDeleteMessage?: (messageIndex: number) => void;
   onRegenerateMessage?: (messageIndex: number) => void;
+  regenerateLabel?: string;
   onEditMessage?: (messageIndex: number, content: string) => void;
   onCreateBranch?: (messageIndex: number) => void;
   onSwitchVersion?: (messageIndex: number, versionIndex: number) => void;
@@ -97,6 +98,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
     isVisible,
     onDeleteMessage,
     onRegenerateMessage,
+    regenerateLabel,
     onEditMessage,
     onCreateBranch,
     onSwitchVersion,
@@ -168,6 +170,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
           assistantBlocks={assistantBlocks}
           onDelete={onDeleteMessage ? setPendingDelete : undefined}
           onRegenerate={onRegenerateMessage}
+          regenerateLabel={regenerateLabel}
           onEditUserMessage={onEditMessage}
           onCreateBranch={onCreateBranch}
           {...(versions ? { versions } : {})}
