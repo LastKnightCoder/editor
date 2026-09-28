@@ -7,6 +7,7 @@
  */
 
 import { createContent } from "@/commands";
+import { bindDatabaseCommands } from "@/services/command-context";
 import { createVLNote, getVLResourcesByProjectId } from "@/commands/vibe-learning";
 import { PPT_TEMPLATES } from "@/constants/ppt-templates";
 import { REPORT_TEMPLATES } from "@/constants/report-templates";
@@ -113,7 +114,7 @@ function createGenerateTool(projectId: number, mainDbName: string): ToolDefiniti
       required: ["kind", "brief"],
       additionalProperties: false,
     },
-    executor: async args => {
+    executor: async (args, context) => {
       const kind = asString(args.kind) as GenerateAppKey;
       const app = GENERATE_KINDS.find(a => a.key === kind);
       if (!app) {
@@ -145,7 +146,12 @@ function createGenerateTool(projectId: number, mainDbName: string): ToolDefiniti
       }
 
       // 资料：按名称匹配；只用已转换出文本的
-      const ready = (await getVLResourcesByProjectId(projectId)).filter(r => r.markdownPath);
+      const ready = (
+        await bindDatabaseCommands(
+          { getVLResourcesByProjectId },
+          { ...context, databaseName: mainDbName }
+        ).getVLResourcesByProjectId(projectId)
+      ).filter(r => r.markdownPath);
       if (ready.length === 0) return paramError("项目里还没有可用的资料（资料可能还在处理中）。");
       const wanted = Array.isArray(args.resources)
         ? args.resources.map(asString).filter(Boolean)
@@ -161,6 +167,7 @@ function createGenerateTool(projectId: number, mainDbName: string): ToolDefiniti
       const title = asString(args.title);
       try {
         const started = await startVLTask({
+          ...(context?.signal ? { startSignal: context.signal } : {}),
           kind,
           projectId,
           mainDbName,
@@ -195,7 +202,7 @@ function createGenerateTool(projectId: number, mainDbName: string): ToolDefiniti
   };
 }
 
-function createSaveNoteTool(projectId: number): ToolDefinition {
+function createSaveNoteTool(projectId: number, mainDbName: string): ToolDefinition {
   return {
     name: "vibe_learning_save_note",
     risk: "write",
@@ -216,7 +223,11 @@ function createSaveNoteTool(projectId: number): ToolDefinition {
       required: ["type", "title", "markdown"],
       additionalProperties: false,
     },
-    executor: async args => {
+    executor: async (args, context) => {
+      const commands = bindDatabaseCommands(
+        { createContent, createVLNote },
+        { ...context, databaseName: mainDbName }
+      );
       const meta = SAVE_TYPES.find(t => t.type === asString(args.type));
       if (!meta) {
         return paramError(`不支持的类型。可选：${SAVE_TYPES.map(t => t.type).join("、")}`);
@@ -226,9 +237,9 @@ function createSaveNoteTool(projectId: number): ToolDefinition {
       const title = asString(args.title) || meta.label;
 
       const content = importFromMarkdown(markdown);
-      const contentId = await createContent(content, getContentLength(content));
+      const contentId = await commands.createContent(content, getContentLength(content));
       if (!contentId) return { content: "保存失败：创建内容失败" };
-      const note = await createVLNote({ projectId, contentId, title, type: meta.type });
+      const note = await commands.createVLNote({ projectId, contentId, title, type: meta.type });
       useVLTaskStore.getState().bumpProducts(projectId);
       return productResult(
         {
@@ -247,4 +258,7 @@ function createSaveNoteTool(projectId: number): ToolDefinition {
 export const createVibeLearningProductTools = (
   projectId: number,
   mainDbName: string
-): ToolDefinition[] => [createGenerateTool(projectId, mainDbName), createSaveNoteTool(projectId)];
+): ToolDefinition[] => [
+  createGenerateTool(projectId, mainDbName),
+  createSaveNoteTool(projectId, mainDbName),
+];

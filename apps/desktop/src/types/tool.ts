@@ -52,6 +52,7 @@ export interface ToolExecutionMetadata {
 }
 
 export interface ToolExecutionContext {
+  databaseName?: string;
   toolCallId: string;
   toolName: string;
   source: string;
@@ -73,6 +74,7 @@ export type ToolExecutor = (
 export type ToolRisk = "read" | "write" | "execute";
 
 export interface ToolDefinition {
+  executionIdentity?: string;
   name: string;
   description: string;
   parameters: ToolJsonSchema;

@@ -49,12 +49,39 @@ const toSession = (entry: ChatListEntry): ChatSession => ({
   updateTime: entry.updateTime,
 });
 
+const pageIdentity = (url: string | null) => {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    parsed.hash = "";
+    return parsed.toString();
+  } catch {
+    return url.split("#")[0];
+  }
+};
+const selectionKey = (url: string) => `pi-chat-selection:${url}`;
+const readSelection = (url: string) => {
+  try {
+    return localStorage.getItem(selectionKey(url));
+  } catch {
+    return null;
+  }
+};
+const rememberSelection = (url: string, id: string) => {
+  try {
+    localStorage.setItem(selectionKey(url), id);
+  } catch {
+    /* 存储不可用时仍可聊天。 */
+  }
+};
+
 /**
  * 扩展对话（M4.5）：一个页面的对话列表与当前对话。对话是桌面按页面存放的 pi 会话文件，
  * 发消息走 ai.chat（桌面从文件恢复会话并落盘），这里只读投影、调改历史 RPC，不整包写消息。
  * 页面键 = 去掉 # 片段的 URL，由桌面计算（这里传原始 URL）。
  */
-export function useChatSessions(url: string | null): UseChatSessionsReturn {
+export function useChatSessions(rawUrl: string | null): UseChatSessionsReturn {
+  const url = pageIdentity(rawUrl);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSession, setCurrentSession] = useState<ChatSession>(newDraft);
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
@@ -64,13 +91,22 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
   currentRef.current = currentSession;
   const urlRef = useRef(url);
   urlRef.current = url;
+  const selectionGeneration = useRef(0);
+  const listGeneration = useRef(0);
+  const selectCurrent = useCallback((session: ChatSession) => {
+    selectionGeneration.current += 1;
+    currentRef.current = session;
+    setCurrentSession(session);
+    if (urlRef.current) rememberSelection(urlRef.current, session.id);
+  }, []);
 
   useEffect(() => subscribeChatStoreConnection(setConnected), []);
 
   const loadList = useCallback(async (pageUrl: string) => {
+    const generation = ++listGeneration.current;
     const entries = await listChats(pageUrl);
     const next = entries.map(toSession);
-    setSessions(next);
+    if (pageUrl === urlRef.current && generation === listGeneration.current) setSessions(next);
     return next;
   }, []);
 
@@ -81,6 +117,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
 
   // 页面 / 连接变化：重载列表，打开最近的对话；没有对话就是新草稿
   useEffect(() => {
+    const generation = ++selectionGeneration.current;
     if (!url || !connected) {
       setSessions([]);
       setCurrentSession(newDraft());
@@ -94,31 +131,35 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
       try {
         const list = await loadList(url);
         if (cancelled) return;
-        const target = list[0];
+        if (generation !== selectionGeneration.current) return;
+        const saved = readSelection(url);
+        const target = saved ? list.find(item => item.id === saved) : list[0];
         if (!target) {
-          setCurrentSession(newDraft());
+          selectCurrent(saved ? { ...newDraft(), id: saved } : newDraft());
           setMessages([]);
+          setIsLoading(false);
           return;
         }
         const loaded = await loadMessages(url, target.id);
-        if (cancelled) return;
-        setCurrentSession(target);
+        if (cancelled || generation !== selectionGeneration.current) return;
+        selectCurrent(target);
         setMessages(loaded);
+        setIsLoading(false);
       } catch (error) {
         console.warn("[useChatSessions] 加载对话失败:", error);
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled && generation === selectionGeneration.current) setIsLoading(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [url, connected, loadList, loadMessages]);
+  }, [url, connected, loadList, loadMessages, selectCurrent]);
 
   const createSession = useCallback(() => {
-    setCurrentSession(newDraft());
+    selectCurrent(newDraft());
     setMessages([]);
-  }, []);
+  }, [selectCurrent]);
 
   const selectSession = useCallback(
     async (sessionId: string) => {
@@ -126,23 +167,30 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
       if (!pageUrl || sessionId === currentRef.current.id) return;
       const session = sessions.find(item => item.id === sessionId);
       if (!session) return;
-      setCurrentSession(session);
+      selectCurrent(session);
+      const generation = selectionGeneration.current;
+      setMessages([]);
       setIsLoading(true);
       try {
-        setMessages(await loadMessages(pageUrl, session.id));
+        const loaded = await loadMessages(pageUrl, session.id);
+        if (generation !== selectionGeneration.current || pageUrl !== urlRef.current) return;
+        setMessages(loaded);
       } catch (error) {
+        if (generation !== selectionGeneration.current || pageUrl !== urlRef.current) return;
         console.warn("[useChatSessions] 加载对话失败:", error);
         setMessages([]);
       } finally {
-        setIsLoading(false);
+        if (generation === selectionGeneration.current && pageUrl === urlRef.current)
+          setIsLoading(false);
       }
     },
-    [sessions, loadMessages]
+    [sessions, loadMessages, selectCurrent]
   );
 
   const reloadCurrent = useCallback(async () => {
     const pageUrl = urlRef.current;
     const session = currentRef.current;
+    const generation = selectionGeneration.current;
     if (!pageUrl) return;
     try {
       const [list, loaded] = await Promise.all([
@@ -150,7 +198,12 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
         loadMessages(pageUrl, session.id),
       ]);
       // 重读期间用户可能已切走：只写回仍是当前的对话
-      if (currentRef.current.id !== session.id) return;
+      if (
+        currentRef.current.id !== session.id ||
+        urlRef.current !== pageUrl ||
+        generation !== selectionGeneration.current
+      )
+        return;
       const registered = list.find(item => item.id === session.id);
       // 首轮失败（还没有回答）pi 不落盘：列表里没有它，保持草稿与界面上的消息
       if (!registered) return;
@@ -171,19 +224,23 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
         console.warn("[useChatSessions] 删除对话失败:", error);
         throw error;
       }
+      if (urlRef.current !== pageUrl) return;
       const remaining = sessions.filter(session => session.id !== sessionId);
-      setSessions(remaining);
+      setSessions(previous => previous.filter(session => session.id !== sessionId));
       if (currentRef.current.id === sessionId) {
         const next = remaining[0];
         if (next) {
-          setCurrentSession(next);
-          setMessages(await loadMessages(pageUrl, next.id).catch(() => []));
+          selectCurrent(next);
+          const generation = selectionGeneration.current;
+          const loaded = await loadMessages(pageUrl, next.id).catch(() => []);
+          if (generation === selectionGeneration.current && pageUrl === urlRef.current)
+            setMessages(loaded);
         } else {
           createSession();
         }
       }
     },
-    [sessions, loadMessages, createSession]
+    [sessions, loadMessages, createSession, selectCurrent]
   );
 
   const updateSessionTitle = useCallback(async (sessionId: string, title: string) => {
@@ -198,6 +255,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
     }
     try {
       await renameChat(pageUrl, sessionId, title);
+      if (urlRef.current !== pageUrl) return;
       setSessions(prev => prev.map(apply));
       setCurrentSession(apply);
     } catch (error) {
@@ -210,8 +268,11 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
       const pageUrl = urlRef.current;
       const entryIds = messages[messageIndex]?.piEntryIds ?? [];
       if (!pageUrl || entryIds.length === 0) return;
+      const id = currentRef.current.id;
+      const generation = selectionGeneration.current;
       try {
-        const next = await omitChatEntries(pageUrl, currentRef.current.id, entryIds);
+        const next = await omitChatEntries(pageUrl, id, entryIds);
+        if (generation !== selectionGeneration.current || pageUrl !== urlRef.current) return;
         setMessages(toDisplayMessages(next));
       } catch (error) {
         console.warn("[useChatSessions] 删除消息失败:", error);
@@ -226,8 +287,11 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
       const target = messages[messageIndex];
       const entryId = target?.role === "user" ? target.piEntryIds?.[0] : undefined;
       if (!pageUrl || !entryId) return null;
+      const id = currentRef.current.id;
+      const generation = selectionGeneration.current;
       try {
-        const next = toDisplayMessages(await rewindChat(pageUrl, currentRef.current.id, entryId));
+        const next = toDisplayMessages(await rewindChat(pageUrl, id, entryId));
+        if (generation !== selectionGeneration.current || pageUrl !== urlRef.current) return null;
         setMessages(next);
         return next;
       } catch (error) {
@@ -244,8 +308,12 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
       const pageUrl = urlRef.current;
       const entryId = messages[messageIndex]?.piEntryIds?.at(-1);
       if (!pageUrl || !entryId) return false;
+      const id = currentRef.current.id;
+      const generation = selectionGeneration.current;
       try {
-        setMessages(toDisplayMessages(await forkChat(pageUrl, currentRef.current.id, entryId)));
+        const loaded = toDisplayMessages(await forkChat(pageUrl, id, entryId));
+        if (generation !== selectionGeneration.current || pageUrl !== urlRef.current) return false;
+        setMessages(loaded);
         return true;
       } catch (error) {
         console.warn("[useChatSessions] 创建分支失败:", error);
@@ -261,10 +329,12 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
       const pageUrl = urlRef.current;
       const entryId = messages[messageIndex]?.piVersions?.ids[versionIndex];
       if (!pageUrl || !entryId) return;
+      const id = currentRef.current.id;
+      const generation = selectionGeneration.current;
       try {
-        setMessages(
-          toDisplayMessages(await switchChatVersion(pageUrl, currentRef.current.id, entryId))
-        );
+        const loaded = toDisplayMessages(await switchChatVersion(pageUrl, id, entryId));
+        if (generation !== selectionGeneration.current || pageUrl !== urlRef.current) return;
+        setMessages(loaded);
       } catch (error) {
         console.warn("[useChatSessions] 切换版本失败:", error);
       }

@@ -43,6 +43,7 @@ export async function runSyncPull() {
       // 索引可以重建，必须在替换主库前使旧 ID 空间失效。
       const indexPath = getIndexDbPath(database.name);
       for (const suffix of ["", "-wal", "-shm"]) rmSync(`${indexPath}${suffix}`, { force: true });
+      context.assertLease();
       installSessionDownload(
         context.databasePath,
         context.sessionDir,

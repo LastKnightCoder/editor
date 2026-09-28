@@ -404,15 +404,19 @@ class DatabaseModule implements Module {
     const indexDb = mainContentIndexDBManager.getExistingDatabase(name);
 
     try {
-      const { busy, log } = db.prepare("PRAGMA wal_checkpoint(FULL)").get() as any;
+      const {
+        busy,
+        log: frames,
+        checkpointed,
+      } = db.prepare("PRAGMA wal_checkpoint(FULL)").get() as any;
       if (busy !== 0) throw new Error("存在未释放的数据库锁");
-      if (log !== 0) throw new Error("WAL 文件未完全合并");
+      if (checkpointed < frames) throw new Error("WAL 文件未完全合并");
       if (indexDb) {
         const indexCheckpoint = indexDb.prepare("PRAGMA wal_checkpoint(FULL)").get() as any;
         if (indexCheckpoint?.busy !== 0) {
           throw new Error("索引数据库存在未释放的数据库锁");
         }
-        if (indexCheckpoint?.log !== 0) {
+        if (indexCheckpoint?.checkpointed < indexCheckpoint?.log) {
           throw new Error("索引数据库 WAL 文件未完全合并");
         }
       }
@@ -717,34 +721,42 @@ class DatabaseModule implements Module {
       return this.forceCheckpoint(name);
     });
 
-    ipcMain.handle("sql-query", async (event, input: SqlQueryInput) => {
-      const win = BrowserWindow.fromWebContents(event.sender);
-      if (!win) throw new Error("No window found");
-      const dbName = this.windowToDatabase.get(win.id);
-      if (!dbName || !this.getDatabase(dbName)) {
-        return {
-          error: {
-            code: "SQL_EXECUTION_ERROR",
-            message: "当前没有已连接的数据库。",
-            hint: "请先连接一个数据库后重试。",
-          },
-        };
+    ipcMain.handle(
+      "sql-query",
+      async (event, input: SqlQueryInput, scope?: { toolDatabaseName?: string }) => {
+        const win = BrowserWindow.fromWebContents(event.sender);
+        if (!win) throw new Error("No window found");
+        const dbName = scope?.toolDatabaseName
+          ? [...this.databases.keys()].find(
+              name =>
+                this.formatDatabaseName(name) === this.formatDatabaseName(scope.toolDatabaseName!)
+            )
+          : this.windowToDatabase.get(win.id);
+        if (!dbName || !this.getDatabase(dbName)) {
+          return {
+            error: {
+              code: "SQL_EXECUTION_ERROR",
+              message: "当前没有已连接的数据库。",
+              hint: "请先连接一个数据库后重试。",
+            },
+          };
+        }
+        const readOnlyDb = this.openReadOnlyDatabase(dbName);
+        try {
+          return { result: executeReadOnlySql(readOnlyDb, input) };
+        } catch (error) {
+          return {
+            error: {
+              code: (error as { code?: string }).code ?? "SQL_EXECUTION_ERROR",
+              message: error instanceof Error ? error.message : "SQL 查询执行失败。",
+              hint: (error as { hint?: string }).hint,
+            },
+          };
+        } finally {
+          readOnlyDb.close();
+        }
       }
-      const readOnlyDb = this.openReadOnlyDatabase(dbName);
-      try {
-        return { result: executeReadOnlySql(readOnlyDb, input) };
-      } catch (error) {
-        return {
-          error: {
-            code: (error as { code?: string }).code ?? "SQL_EXECUTION_ERROR",
-            message: error instanceof Error ? error.message : "SQL 查询执行失败。",
-            hint: (error as { hint?: string }).hint,
-          },
-        };
-      } finally {
-        readOnlyDb.close();
-      }
-    });
+    );
 
     Object.keys(this.eventAndHandlers).forEach(eventName => {
       ipcMain.handle(eventName, async (event, ...args) => {
@@ -752,9 +764,13 @@ class DatabaseModule implements Module {
         const win = BrowserWindow.fromWebContents(sender);
         if (!win) throw new Error("No window found");
 
-        const scope = eventName.startsWith("chat-session:") ? args.at(-1) : undefined;
+        const scope = args.at(-1);
         const explicit =
-          scope && typeof scope.chatDatabaseName === "string" ? scope.chatDatabaseName : undefined;
+          scope && typeof scope.toolDatabaseName === "string"
+            ? scope.toolDatabaseName
+            : eventName.startsWith("chat-session:") && typeof scope?.chatDatabaseName === "string"
+              ? scope.chatDatabaseName
+              : undefined;
         if (explicit !== undefined) args.pop();
         const dbName = explicit
           ? [...this.databases.keys()].find(
@@ -807,7 +823,15 @@ class DatabaseModule implements Module {
         const win = BrowserWindow.fromWebContents(sender);
         if (!win) throw new Error("No window found");
 
-        const dbName = this.windowToDatabase.get(win.id);
+        const scope = args.at(-1);
+        const explicit =
+          typeof scope?.toolDatabaseName === "string" ? scope.toolDatabaseName : undefined;
+        if (explicit !== undefined) args.pop();
+        const dbName = explicit
+          ? [...this.databases.keys()].find(
+              name => this.formatDatabaseName(name) === this.formatDatabaseName(explicit)
+            )
+          : this.windowToDatabase.get(win.id);
         if (!dbName) throw new Error("No database name found");
 
         const mainDb = this.getDatabase(dbName);
@@ -862,7 +886,7 @@ class DatabaseModule implements Module {
         const database = this.databases.get(name);
         if (!database) throw new Error("No database found");
 
-        this.forceCheckpoint(name);
+        if (!this.forceCheckpoint(name)) throw new Error("数据库仍在使用，不能安全关闭和同步");
 
         database.close();
         this.databases.delete(name);

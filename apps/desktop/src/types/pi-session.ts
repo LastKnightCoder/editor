@@ -9,6 +9,7 @@ import type { AskQuestionPayload } from "@/tools/askQuestionTypes";
 
 /** 桌面工具清单项（渲染端 ToolRegistry 序列化）：JSON Schema 直通 pi */
 export interface PiHostToolSpec {
+  executionIdentity?: string;
   name: string;
   description: string;
   parameters: Record<string, unknown>;
@@ -16,6 +17,16 @@ export interface PiHostToolSpec {
   /** 内容编辑工具已自带确认应用卡，交互会话中不再重复审批。 */
   source?: string;
 }
+
+export const piToolDefinitionKey = (tool: PiHostToolSpec): string =>
+  JSON.stringify([
+    tool.name,
+    tool.description,
+    tool.parameters,
+    tool.risk ?? "execute",
+    tool.source ?? "",
+    tool.executionIdentity ?? "",
+  ]);
 
 export type PiToolApprovalChoice = "allow" | "allow-session" | "deny";
 
@@ -60,6 +71,7 @@ export interface PiHostToolCallResult {
 
 /** 主进程 pi-tool-call 事件载荷（工具桥：pi 调用 → 渲染端执行） */
 export interface PiToolCallPayload {
+  executionId?: string;
   sessionId: string;
   toolCallId: string;
   toolName: string;
@@ -118,6 +130,7 @@ export interface PiBrowserSessionInfo {
 
 /** 会话创建参数（PiSessionCreateRequest 的渲染端形状） */
 export interface PiSessionCreateRequestV2 {
+  toolScope?: string;
   databaseName?: string;
   sessionId: string;
   scope: string;

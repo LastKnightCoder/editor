@@ -23,17 +23,22 @@ import {
   piSessionPack,
   piSessionLockLibrary,
   piSessionUnlockLibrary,
+  piSessionAssertLibrary,
   piSessionInstallDownload,
 } from "@/commands/piSession";
 import type { IDatabaseInfo } from "@/types/sync";
-import { SYNC_MODEL_VERSION, assertCompatibleSync } from "@tau/db-schema/src/sync-version";
+import {
+  SYNC_MODEL_VERSION,
+  assertCompatibleSync,
+  readSnapshotHead,
+  publishSnapshot,
+} from "@tau/db-schema/sync-protocol";
 
 /** 会话包的远程对象名（与 .db 同名前缀，共用 database_<库名>.json 里的版本号） */
 export const sessionArchiveObjectName = (databaseName: string) => `${databaseName}.sessions.zip`;
 
 interface SyncCommandOptions {
   onProgress?: (payload: { value: number; status: string }) => void;
-  skipReconnectAfterSuccess?: boolean;
 }
 
 const emitProgress = (options: SyncCommandOptions | undefined, value: number, status: string) => {
@@ -149,11 +154,11 @@ export const upload = async (options?: SyncCommandOptions) => {
     ...databaseInfo,
     version: currentVersion + 1,
     dataModelVersion: SYNC_MODEL_VERSION,
+    commitId: crypto.randomUUID(),
+    parentVersion: originVersion,
     databaseObject: `${databaseName}.snapshot-${crypto.randomUUID()}.db`,
     sessionsObject: `${databaseName}.snapshot-${crypto.randomUUID()}.sessions.zip`,
   };
-
-  const textEncoder = new TextEncoder();
 
   try {
     // 上传数据库文件
@@ -186,14 +191,9 @@ export const upload = async (options?: SyncCommandOptions) => {
 
     // 数据库与会话包都上传成功后再发布新版本，避免失败时远程版本提前生效。
     emitProgress(options, 75, "正在上传版本信息...");
-    const infoSuccess = await syncProvider.uploadFile(
-      databaseInfoObjectName,
-      textEncoder.encode(JSON.stringify(newDatabaseInfo))
-    );
-    if (!infoSuccess) {
-      message.error("上传数据库信息失败");
-      return false;
-    }
+    const lease = await piSessionAssertLibrary(databaseName);
+    if (!lease.ok) throw new Error(lease.error ?? "同步锁已失效");
+    await publishSnapshot(syncProvider, databaseInfoObjectName, databaseInfo, newDatabaseInfo);
 
     emitProgress(options, 90, "正在更新本地版本记录...");
     useSettingStore.setState(
@@ -252,7 +252,6 @@ export const download = async (options?: SyncCommandOptions) => {
 
   // 下载数据库文件
   const dataObjectName = databaseInfo.databaseObject ?? databaseName;
-  let shouldReconnectInFinally = true;
   const locked = await piSessionLockLibrary(databaseName);
   if (!locked.ok) {
     message.error(locked.error);
@@ -348,22 +347,18 @@ export const download = async (options?: SyncCommandOptions) => {
       return false;
     }
 
-    if (options?.skipReconnectAfterSuccess) {
-      shouldReconnectInFinally = false;
-      setDatabaseConnectionStatus(databaseName, "ready");
-      return true;
-    }
-
     return true;
   } catch (e) {
     message.error("下载数据库文件失败: " + e);
     return false;
   } finally {
-    await piSessionUnlockLibrary(databaseName);
-    if (shouldReconnectInFinally) {
+    try {
+      // 自动同步随后虽会重载窗口，维护升级也必须在释放同步互斥前完成。
       await reconnectAfterSync(databaseName, "sync_download_reconnect", {
         mode: "maintenance",
       });
+    } finally {
+      await piSessionUnlockLibrary(databaseName);
     }
   }
 };
@@ -380,12 +375,8 @@ export const getOriginDatabaseInfo = async () => {
 
   if (syncProvider) {
     try {
-      isDatabaseInfoExist = await syncProvider.fileExists(databaseInfoObjectName);
-      if (isDatabaseInfoExist) {
-        const content = await syncProvider.downloadFile(databaseInfoObjectName);
-        const textDecoder = new TextDecoder();
-        databaseInfo = JSON.parse(textDecoder.decode(content));
-      }
+      databaseInfo = await readSnapshotHead(syncProvider, databaseInfoObjectName);
+      isDatabaseInfoExist = databaseInfo.version > 0 || Boolean(databaseInfo.databaseObject);
     } catch (e) {
       console.error("获取远程数据库信息失败:", e);
       throw e;

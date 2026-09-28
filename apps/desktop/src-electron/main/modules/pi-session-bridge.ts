@@ -16,6 +16,7 @@ import type {
   JsonObject,
 } from "@earendil-works/pi-ai";
 import { existsSync, readFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import type { PiHostToolCallResult, PiHostToolSpec, PiToolCallPayload } from "@/types/pi-session";
 import type { RequestMessage, ResponseMessage } from "@/types";
 import { Role } from "@/constants";
@@ -263,7 +264,7 @@ export async function desktopMessagesToPi(
 /** 工具调用的派发目标：渲染窗口（经 pi-tool-call IPC）或别的执行方（M5：扩展页面工具经 WS） */
 export interface PiToolCallTarget {
   isDestroyed(): boolean;
-  send(channel: "pi-tool-call", payload: PiToolCallPayload): void;
+  send(channel: "pi-tool-call" | "pi-tool-cancel", payload: PiToolCallPayload): void;
 }
 
 export class PiToolCallBridge {
@@ -273,6 +274,9 @@ export class PiToolCallBridge {
       resolve: (result: AgentToolResult) => void;
       reject: (error: Error) => void;
       onUpdate?: (partial: AgentToolResult) => void;
+      cancel: () => void;
+      executionId: string;
+      finishers: Set<() => void>;
     }
   >();
 
@@ -280,6 +284,19 @@ export class PiToolCallBridge {
     private readonly sender: PiToolCallTarget,
     private readonly sessionId: string
   ) {}
+
+  public onCallFinished(
+    toolCallId: string,
+    executionId: string | undefined,
+    cleanup: () => void
+  ): void {
+    const pending = this.pending.get(toolCallId);
+    if (!pending || pending.executionId !== executionId) {
+      cleanup();
+      return;
+    }
+    pending.finishers.add(cleanup);
+  }
 
   public toToolDefinitions(specs: PiHostToolSpec[]): ToolDefinition[] {
     return specs.map(spec => ({
@@ -300,44 +317,97 @@ export class PiToolCallBridge {
     onUpdate: ((partial: AgentToolResult) => void) | undefined
   ): Promise<AgentToolResult> {
     return new Promise<AgentToolResult>((resolve, reject) => {
+      const executionId = randomUUID();
+      const payload = {
+        sessionId: this.sessionId,
+        toolCallId,
+        toolName,
+        args: params,
+        executionId,
+      };
+      const finishers = new Set<() => void>();
+      const cleanup = () => {
+        signal?.removeEventListener("abort", onAbort);
+        for (const finish of finishers) {
+          try {
+            finish();
+          } catch {
+            /* 外部监听器清理不影响调用收尾。 */
+          }
+        }
+        finishers.clear();
+      };
       const pendingEntry = {
-        resolve,
-        reject,
+        finishers,
+        executionId,
+        resolve: (result: AgentToolResult) => {
+          cleanup();
+          resolve(result);
+        },
+        reject: (error: Error) => {
+          cleanup();
+          reject(error);
+        },
+        cancel: () => {
+          try {
+            if (!this.sender.isDestroyed()) this.sender.send("pi-tool-cancel", payload);
+          } catch {
+            /* 执行端断开不能阻塞宿主取消等待。 */
+          }
+        },
         ...(onUpdate ? { onUpdate } : {}),
       };
       this.pending.set(toolCallId, pendingEntry);
       const onAbort = () => {
         if (!this.pending.has(toolCallId)) return;
         this.pending.delete(toolCallId);
-        reject(new Error("工具执行已中止"));
+        try {
+          pendingEntry.cancel();
+        } finally {
+          pendingEntry.reject(new Error("工具执行已中止"));
+        }
       };
       signal?.addEventListener("abort", onAbort, { once: true });
-      if (this.sender.isDestroyed()) {
+      if (signal?.aborted || this.sender.isDestroyed()) {
         onAbort();
         return;
       }
-      this.sender.send("pi-tool-call", {
-        sessionId: this.sessionId,
-        toolCallId,
-        toolName,
-        args: params,
-      });
+      try {
+        this.sender.send("pi-tool-call", payload);
+      } catch (error) {
+        this.pending.delete(toolCallId);
+        pendingEntry.reject(error instanceof Error ? error : new Error(String(error)));
+      }
     });
   }
 
   /** 渲染端回传执行进度（tool_execution_update 的 partialResult） */
-  public handleUpdate(toolCallId: string, partial: Record<string, unknown>): void {
-    this.pending.get(toolCallId)?.onUpdate?.({
+  public handleUpdate(
+    toolCallId: string,
+    partial: Record<string, unknown>,
+    executionId?: string
+  ): void {
+    const pending = this.pending.get(toolCallId);
+    if (!pending || (executionId !== undefined && pending.executionId !== executionId)) return;
+    pending.onUpdate?.({
       content: [],
       details: partial as never,
     });
   }
 
   /** 渲染端回传执行结果 */
-  public handleResult(toolCallId: string, result: PiHostToolCallResult): void {
+  public handleResult(
+    toolCallId: string,
+    result: PiHostToolCallResult,
+    executionId?: string
+  ): void {
     const pending = this.pending.get(toolCallId);
-    if (!pending) return;
+    if (!pending || (executionId !== undefined && pending.executionId !== executionId)) return;
     this.pending.delete(toolCallId);
+    if (result.isError || result.metadata?.isError === true) {
+      pending.reject(new Error(result.modelContent ?? result.content ?? "工具执行失败"));
+      return;
+    }
     pending.resolve({
       content: [{ type: "text", text: result.modelContent ?? result.content ?? "" }],
       details: result.metadata as never,
@@ -345,21 +415,22 @@ export class PiToolCallBridge {
   }
 
   /** 渲染端回传执行失败 */
-  public handleError(toolCallId: string, errorMessage: string): void {
+  public handleError(toolCallId: string, errorMessage: string, executionId?: string): void {
     const pending = this.pending.get(toolCallId);
-    if (!pending) return;
+    if (!pending || (executionId !== undefined && pending.executionId !== executionId)) return;
     this.pending.delete(toolCallId);
-    pending.resolve({
-      content: [{ type: "text", text: `工具执行失败：${errorMessage}` }],
-      details: { isError: true, error: errorMessage } as never,
-    });
+    pending.reject(new Error(`工具执行失败：${errorMessage}`));
   }
 
   /** 渲染进程销毁/会话释放时中止全部挂起 */
   public dispose(): void {
     for (const [toolCallId, pending] of this.pending) {
       this.pending.delete(toolCallId);
-      pending.reject(new Error("会话已关闭，工具执行中止"));
+      try {
+        pending.cancel();
+      } finally {
+        pending.reject(new Error("会话已关闭，工具执行中止"));
+      }
     }
   }
 }

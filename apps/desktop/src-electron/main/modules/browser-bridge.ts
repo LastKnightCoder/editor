@@ -147,11 +147,13 @@ class InProcessClient implements PiSessionClient {
       onEvent(event: unknown): void;
       onInteractions(snapshot: PiSessionInteractionSnapshot): void;
       onToolCall(payload: {
+        executionId?: string;
         sessionId: string;
         toolCallId: string;
         toolName: string;
         args: unknown;
       }): void;
+      onToolCancel(payload: { sessionId: string; toolCallId: string; executionId?: string }): void;
     }
   ) {}
 
@@ -166,6 +168,7 @@ class InProcessClient implements PiSessionClient {
     else if (channel === "pi-session-interactions")
       this.handlers.onInteractions(payload as PiSessionInteractionSnapshot);
     else if (channel === "pi-tool-call") this.handlers.onToolCall(payload as never);
+    else if (channel === "pi-tool-cancel") this.handlers.onToolCancel(payload as never);
   }
 
   once(_event: string, listener: () => void) {
@@ -286,7 +289,7 @@ class BrowserBridgeModule {
         const browserToolNames = new Set(
           (params.browserTools ?? []).map(tool => tool.function.name)
         );
-        const desktop = await this.requestDesktopTools();
+        const desktop = await this.requestDesktopTools(hostId);
         let settledResolve!: () => void;
         const settled = new Promise<void>(resolve => {
           settledResolve = resolve;
@@ -299,6 +302,10 @@ class BrowserBridgeModule {
           onInteractions: snapshot => hooks.onInteractions(snapshot),
           onToolCall: payload =>
             void this.executeTool(payload, browserToolNames, params, desktop.window),
+          onToolCancel: payload => {
+            if (desktop.window && !desktop.window.isDestroyed())
+              desktop.window.send("pi-tool-cancel", payload);
+          },
         });
         // 扩展页面工具只读当前页面，按 read 声明（同名时覆盖桌面工具）；桌面工具由主窗口渲染端的工具桥执行
         const browserSpecs: PiHostToolSpec[] = (params.browserTools ?? []).map(tool => ({
@@ -331,7 +338,11 @@ class BrowserBridgeModule {
           ...(customTools.length > 0 ? { customTools } : {}),
           ...(params.thinkingLevel ? { thinkingLevel: params.thinkingLevel as never } : {}),
         });
-        if (!created.ok) throw new Error(created.error ?? "会话创建失败");
+        if (!created.ok) {
+          if (desktop.window && !desktop.window.isDestroyed())
+            desktop.window.send("browser-bridge:tool-release", { sessionId: hostId });
+          throw new Error(created.error ?? "会话创建失败");
+        }
 
         const message = params.messages.at(-1);
         if (!message || message.role !== "user") {
@@ -361,6 +372,8 @@ class BrowserBridgeModule {
           await settled;
           return { ok: true, aborted };
         })().finally(() => {
+          if (desktop.window && !desktop.window.isDestroyed())
+            desktop.window.send("browser-bridge:tool-release", { sessionId: hostId });
           client.destroy();
           PiSessionHostModule.dispose(hostId);
         });
@@ -391,7 +404,7 @@ class BrowserBridgeModule {
    * 向主窗口要桌面工具清单（ToolRegistry/MCP 只在渲染端）。没有主窗口或超时就只用扩展页面工具，
    * 并记下执行这些工具时该派给哪个窗口。
    */
-  private requestDesktopTools(): Promise<{
+  private requestDesktopTools(sessionId: string): Promise<{
     tools: PiHostToolSpec[];
     window: Electron.WebContents | null;
   }> {
@@ -402,6 +415,7 @@ class BrowserBridgeModule {
     return new Promise(resolve => {
       const timer = setTimeout(() => {
         ipcMain.removeListener("browser-bridge:tool-catalog-result", onResult);
+        if (!contents.isDestroyed()) contents.send("browser-bridge:tool-release", { sessionId });
         resolve({ tools: [], window: null });
       }, DESKTOP_TOOL_CATALOG_TIMEOUT_MS);
       const onResult = (
@@ -414,13 +428,19 @@ class BrowserBridgeModule {
         resolve({ tools: payload.tools ?? [], window: contents });
       };
       ipcMain.on("browser-bridge:tool-catalog-result", onResult);
-      contents.send("browser-bridge:tool-catalog", { requestId });
+      contents.send("browser-bridge:tool-catalog", { requestId, sessionId });
     });
   }
 
   /** 宿主会话的工具调用：扩展页面工具经 WS 给扩展执行，桌面工具转给主窗口渲染端的工具桥 */
   private async executeTool(
-    payload: { sessionId: string; toolCallId: string; toolName: string; args: unknown },
+    payload: {
+      sessionId: string;
+      toolCallId: string;
+      toolName: string;
+      args: unknown;
+      executionId?: string;
+    },
     browserToolNames: Set<string>,
     params: AiRunStartParams,
     desktopWindow: Electron.WebContents | null
@@ -430,9 +450,27 @@ class BrowserBridgeModule {
     if (!browserToolNames.has(payload.toolName)) {
       // 桌面工具：渲染端工具桥执行后经 pi-session:tool-result IPC 回传（按 sessionId 找到这里的 bridge）
       if (desktopWindow && !desktopWindow.isDestroyed()) {
-        desktopWindow.send("pi-tool-call", payload);
+        const gone = () =>
+          bridge.handleError(payload.toolCallId, "工具执行窗口已关闭或重载", payload.executionId);
+        desktopWindow.once("destroyed", gone);
+        desktopWindow.once("render-process-gone", gone);
+        desktopWindow.once("did-navigate", gone);
+        bridge.onCallFinished(payload.toolCallId, payload.executionId, () => {
+          desktopWindow.removeListener("destroyed", gone);
+          desktopWindow.removeListener("render-process-gone", gone);
+          desktopWindow.removeListener("did-navigate", gone);
+        });
+        try {
+          desktopWindow.send("pi-tool-call", payload);
+        } catch {
+          gone();
+        }
       } else {
-        bridge.handleError(payload.toolCallId, "桌面窗口已关闭，这个工具暂时不能用");
+        bridge.handleError(
+          payload.toolCallId,
+          "桌面窗口已关闭，这个工具暂时不能用",
+          payload.executionId
+        );
       }
       return;
     }
@@ -451,11 +489,16 @@ class BrowserBridgeModule {
           },
           EXT_TOOL_TIMEOUT_MS
         )) as { content?: string };
-        bridge.handleResult(payload.toolCallId, { content: result?.content ?? "" });
+        bridge.handleResult(
+          payload.toolCallId,
+          { content: result?.content ?? "" },
+          payload.executionId
+        );
       } catch (error) {
         bridge.handleError(
           payload.toolCallId,
-          error instanceof Error ? error.message : String(error)
+          error instanceof Error ? error.message : String(error),
+          payload.executionId
         );
       }
     }

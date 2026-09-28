@@ -1,6 +1,7 @@
 import dayjs from "dayjs";
 import type { Descendant } from "slate";
-import { createContent, updateContent } from "@/commands/content";
+import * as contentCommands from "@/commands/content";
+import { bindDatabaseCommands, type CommandScope } from "@/services/command-context";
 import type {
   Calendar,
   CalendarGroup,
@@ -10,10 +11,7 @@ import type {
 } from "@/types";
 import { getContentLength } from "@/utils/helper";
 import { markdownToContent } from "@/services/content-editing/persist";
-import {
-  emitCalendarMutation,
-  type CalendarMutationAction,
-} from "@/mcp/calendar/mutation";
+import { emitCalendarMutation, type CalendarMutationAction } from "@/mcp/calendar/mutation";
 
 export const toJson = (payload: unknown) => ({
   content: JSON.stringify(payload, null, 2),
@@ -93,7 +91,9 @@ export const toMutationResult = <T>(params: {
 export const persistMarkdownContent = async (
   markdown: string | null | undefined,
   existingContentId = 0,
+  scope?: CommandScope
 ) => {
+  const { createContent, updateContent } = bindDatabaseCommands(contentCommands, scope);
   if (markdown === undefined) {
     return existingContentId;
   }
@@ -113,9 +113,7 @@ export const persistMarkdownContent = async (
   return (await createContent(content, count)) ?? 0;
 };
 
-export const ensureEditableCalendar = (
-  calendar: Calendar | null | undefined,
-) => {
+export const ensureEditableCalendar = (calendar: Calendar | null | undefined) => {
   if (!calendar) {
     return "CALENDAR_NOT_FOUND";
   }
@@ -127,9 +125,7 @@ export const ensureEditableCalendar = (
   return null;
 };
 
-export const ensureEditableGroup = (
-  group: CalendarGroup | null | undefined,
-) => {
+export const ensureEditableGroup = (group: CalendarGroup | null | undefined) => {
   if (!group) {
     return "GROUP_NOT_FOUND";
   }
@@ -162,16 +158,13 @@ export const buildCalendarMessage = (code: string) => {
 
 export const parseDateStringToTimestamp = (
   value: string | null | undefined,
-  boundary: "start" | "end" = "start",
+  boundary: "start" | "end" = "start"
 ) => {
   if (!value) {
     return null;
   }
 
-  const date =
-    boundary === "end"
-      ? dayjs(value).endOf("day")
-      : dayjs(value).startOf("day");
+  const date = boundary === "end" ? dayjs(value).endOf("day") : dayjs(value).startOf("day");
   return date.isValid() ? date.valueOf() : null;
 };
 

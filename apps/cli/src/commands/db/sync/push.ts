@@ -1,6 +1,11 @@
 import { readFileSync, rmSync } from "node:fs";
 import { randomUUID } from "node:crypto";
-import { SYNC_MODEL_VERSION, packSessionDir, validateSessionReferences } from "@tau/db-schema/sync";
+import {
+  SYNC_MODEL_VERSION,
+  packSessionDir,
+  validateSessionReferences,
+  publishSnapshot,
+} from "@tau/db-schema/sync";
 import { DataAccess } from "../../../data-access/index.js";
 import { getActiveDatabase } from "../../../utils/settings.js";
 import { createSyncProvider, type IDatabaseInfo } from "../../../utils/sync-providers/factory.js";
@@ -18,6 +23,8 @@ export async function runSyncPush() {
       ...remoteInfo,
       version: database.version + 1,
       dataModelVersion: SYNC_MODEL_VERSION,
+      commitId: randomUUID(),
+      parentVersion: remoteInfo.version,
       databaseObject: `${snapshot}.db`,
       sessionsObject: `${snapshot}.sessions.zip`,
     };
@@ -40,13 +47,8 @@ export async function runSyncPush() {
         throw new Error("数据库上传失败，远端版本未改变");
       if (!(await provider.uploadFile(next.sessionsObject!, archive)))
         throw new Error("对话包上传失败，远端版本未改变");
-      if (
-        !(await provider.uploadFile(
-          `database_${database.name}.json`,
-          new TextEncoder().encode(JSON.stringify(next))
-        ))
-      )
-        throw new Error("同步版本发布失败");
+      context.assertLease();
+      await publishSnapshot(provider, `database_${database.name}.json`, remoteInfo, next);
       await context.saveVersion(next.version);
       console.log(`同步完成：${database.version} → ${next.version}`);
     } finally {

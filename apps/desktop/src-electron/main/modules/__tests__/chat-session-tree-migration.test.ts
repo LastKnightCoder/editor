@@ -87,6 +87,17 @@ beforeEach(() => {
 afterEach(() => rmSync(workDir, { recursive: true, force: true }));
 
 describe("嫁接分支文件", () => {
+  it("只有删除差异的分支保留为独立会话，不能按空合并丢掉省略状态", () => {
+    const parent = join(sessionDir, writeChat(sessionDir, "parent-omit", [["问题", "回答"]]));
+    const branch = join(sessionDir, writeChat(sessionDir, "branch-omit", [["问题", "回答"]]));
+    const manager = SessionManager.open(branch);
+    omitEntries(manager, [manager.getEntries().find(entry => entry.type === "message")!.id]);
+    const before = readFileSync(parent, "utf8");
+    expect(graftSessionFile(parent, branch)).toEqual({ kind: "unrelated" });
+    expect(readFileSync(parent, "utf8")).toBe(before);
+    expect(usersOf(branch, sessionDir)).toEqual([]);
+    expect(existsSync(branch)).toBe(true);
+  });
   it("按内容认公共前缀：分叉后的内容成为同一位置的另一个版本，父对话当前路径不变", () => {
     const parent = join(
       sessionDir,

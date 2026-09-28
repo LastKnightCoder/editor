@@ -11,8 +11,11 @@ import {
   writeFileSync,
   renameSync,
   copyFileSync,
+  readFileSync,
 } from "node:fs";
 import Database from "better-sqlite3";
+import AdmZip from "adm-zip";
+import { validateSessionReferences } from "@tau/db-schema/sync";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -73,6 +76,53 @@ const writeChat = (sessionDir: string, sessionId: string, question: string) =>
   });
 
 describe("数据库与会话成对提交", () => {
+  it("目录身份不匹配或非空对话只剩头部时拒绝安装", () => {
+    const dir = setup();
+    const file = join(dir, "data.db");
+    const db = new Database(file);
+    db.exec(
+      "CREATE TABLE chat_session (id TEXT, session_file TEXT, message_count INTEGER); INSERT INTO chat_session VALUES ('expected', 'chat.jsonl', 10)"
+    );
+    db.close();
+    for (const id of ["wrong", "expected"]) {
+      writeFileSync(
+        join(dir, "chat.jsonl"),
+        JSON.stringify({ type: "session", version: 3, id }) + "\n"
+      );
+      expect(() =>
+        validateSessionReferences(file, dir, path => new Database(path, { readonly: true }))
+      ).toThrow("身份不一致");
+    }
+  });
+
+  it("完整 JSON 行被截掉或改写时，清单校验拒绝包并保留本地会话", () => {
+    const dir = setup();
+    const source = join(dir, "source");
+    const name = writeChat(source, "source", "问题");
+    const zipPath = join(dir, "archive.zip");
+    writeFileSync(zipPath, packSessionDir(source));
+    const zip = new AdmZip(zipPath);
+    const header = readFileSync(join(source, name), "utf8").split("\n")[0];
+    zip.updateFile(name, Buffer.from(`${header}\n`));
+    const target = join(dir, "target");
+    const local = writeChat(target, "local", "本地内容");
+    expect(() => replaceSessionDir(target, zip.toBuffer(), join(dir, "backups"))).toThrow(
+      "完整性校验失败"
+    );
+    expect(existsSync(join(target, local))).toBe(true);
+  });
+
+  it("重复条目与悬空父节点不进入快照", () => {
+    const dir = setup();
+    const name = writeChat(dir, "source", "问题");
+    const lines = readFileSync(join(dir, name), "utf8").trim().split("\n");
+    writeFileSync(join(dir, name), `${lines.join("\n")}\n${lines[1]}\n`);
+    expect(() => packSessionDir(dir)).toThrow("会话树");
+    const entry = JSON.parse(lines[1]);
+    entry.parentId = "missing";
+    writeFileSync(join(dir, name), `${lines[0]}\n${JSON.stringify(entry)}\n`);
+    expect(() => packSessionDir(dir)).toThrow("会话树");
+  });
   const writeDb = (file: string, marker: string) => {
     const db = new Database(file);
     db.exec("CREATE TABLE marker(value TEXT)");
@@ -172,13 +222,13 @@ describe("同步的会话目录打包", () => {
     const root = setup();
     const sessionDir = join(root, "sessions", "data");
     mkdirSync(sessionDir, { recursive: true });
-    writeFileSync(join(sessionDir, "1_a.jsonl"), '{"type":"session"}\n');
+    writeFileSync(join(sessionDir, "1_a.jsonl"), '{"type":"session","id":"a","version":3}\n');
     writeFileSync(join(sessionDir, "notes.txt"), "忽略我");
     const archive = packSessionDir(sessionDir);
 
     // 本地换成另一份内容，再用远程包替换
     rmSync(join(sessionDir, "1_a.jsonl"));
-    writeFileSync(join(sessionDir, "2_b.jsonl"), '{"type":"session"}\n');
+    writeFileSync(join(sessionDir, "2_b.jsonl"), '{"type":"session","id":"b","version":3}\n');
     const { backupPath } = replaceSessionDir(sessionDir, archive, join(root, "backup"));
 
     // 解包后目录里只有远程包的内容；替换前的整个目录（含非 .jsonl 文件）在备份里

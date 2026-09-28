@@ -29,7 +29,7 @@ export interface LlmSettingsV2MigrationReport {
   /** 转化的 provider / model 数量 */
   providerCount: number;
   modelCount: number;
-  /** 与 provider 主格式不一致、被跳过的模型（name + 差异描述） */
+  /** 未迁移的模型；协议不同不构成跳过条件 */
   skippedModels: { providerId: string; modelName: string; reason: string }[];
   /** 无指向（provider 或 model 已不存在）而被丢弃的功能槽位 */
   droppedUsageKeys: string[];
@@ -81,19 +81,11 @@ export function migrateLlmSettingsToV2(input: {
     const api = inferApiKind(provider.models ?? []);
     const models: LLMModelSetting[] = [];
     for (const model of provider.models ?? []) {
-      const modelApi = model.messageFormat
-        ? (API_KIND_TABLE[`${model.messageFormat}|${model.apiProtocol ?? "chat-completions"}`] ??
-          "openai-completions")
-        : api;
-      if (modelApi !== api) {
-        report.skippedModels.push({
-          providerId: provider.id,
-          modelName: model.name,
-          reason: `模型协议 ${modelApi} 与 provider 主协议 ${api} 不一致`,
-        });
-        continue;
-      }
-      models.push(toModelSetting(model));
+      const modelApi =
+        API_KIND_TABLE[
+          `${model.messageFormat ?? "openai"}|${model.apiProtocol ?? "chat-completions"}`
+        ] ?? "openai-completions";
+      models.push({ ...toModelSetting(model), api: modelApi });
     }
     providers.push({
       id: provider.id,

@@ -39,21 +39,35 @@ class AliOss implements Module {
 
   async init() {
     ipcMain.handle(
-      "get-bucket-list",
-      async (_event, keyId: string, keySecret: string) => {
-        const client = new OSS({
-          accessKeyId: keyId,
-          accessKeySecret: keySecret,
+      "create-object-if-absent",
+      async (_event, info: IGetObject, content: Uint8Array) => {
+        const client = new OSS(info);
+        const versioning = await (
+          client as OSS & {
+            getBucketVersioning(bucket: string): Promise<{ versionStatus?: string }>;
+          }
+        ).getBucketVersioning(info.bucket);
+        if (versioning.versionStatus === "Enabled" || versioning.versionStatus === "Suspended")
+          throw new Error("启用版本控制的 OSS 桶无法保证原子防覆盖，请使用未启用版本控制的同步桶");
+        await client.put(info.objectName, Buffer.from(content), {
+          headers: { "x-oss-forbid-overwrite": "true" },
         });
-        // @ts-ignore
-        const res: any = await client.listBuckets();
-        const data = res.buckets.map((item: any) => ({
-          bucket: item.name,
-          region: item.region,
-        }));
-        return data;
-      },
+        return true;
+      }
     );
+    ipcMain.handle("get-bucket-list", async (_event, keyId: string, keySecret: string) => {
+      const client = new OSS({
+        accessKeyId: keyId,
+        accessKeySecret: keySecret,
+      });
+      // @ts-ignore
+      const res: any = await client.listBuckets();
+      const data = res.buckets.map((item: any) => ({
+        bucket: item.name,
+        region: item.region,
+      }));
+      return data;
+    });
 
     ipcMain.handle("put-object", async (_event, putObj: IPutObject) => {
       return await this.putObject(putObj);
@@ -67,19 +81,13 @@ class AliOss implements Module {
       return await this.isObjectExist(objInfo);
     });
 
-    ipcMain.handle(
-      "update-object",
-      async (_event, objInfo: IGetObject, content: Uint8Array) => {
-        return await this.updateObject(objInfo, content);
-      },
-    );
+    ipcMain.handle("update-object", async (_event, objInfo: IGetObject, content: Uint8Array) => {
+      return await this.updateObject(objInfo, content);
+    });
 
-    ipcMain.handle(
-      "create-object",
-      async (_event, objInfo: IGetObject, content: Uint8Array) => {
-        return await this.createObject(objInfo, content);
-      },
-    );
+    ipcMain.handle("create-object", async (_event, objInfo: IGetObject, content: Uint8Array) => {
+      return await this.createObject(objInfo, content);
+    });
 
     ipcMain.handle("delete-object", async (_event, objInfo: IGetObject) => {
       return await this.deleteObject(objInfo);
@@ -91,8 +99,7 @@ class AliOss implements Module {
   }
 
   async putObject(putObj: IPutObject): Promise<string> {
-    const { accessKeyId, accessKeySecret, bucket, region, objectName, file } =
-      putObj;
+    const { accessKeyId, accessKeySecret, bucket, region, objectName, file } = putObj;
     const oss = new OSS({
       accessKeyId,
       accessKeySecret,
@@ -106,8 +113,7 @@ class AliOss implements Module {
   }
 
   async getObject(objInfo: IGetObject) {
-    const { accessKeyId, accessKeySecret, bucket, region, objectName } =
-      objInfo;
+    const { accessKeyId, accessKeySecret, bucket, region, objectName } = objInfo;
     const oss = new OSS({
       accessKeyId,
       accessKeySecret,
@@ -120,8 +126,7 @@ class AliOss implements Module {
   }
 
   async isObjectExist(objInfo: IGetObject) {
-    const { accessKeyId, accessKeySecret, bucket, region, objectName } =
-      objInfo;
+    const { accessKeyId, accessKeySecret, bucket, region, objectName } = objInfo;
     const oss = new OSS({
       accessKeyId,
       accessKeySecret,
@@ -132,14 +137,13 @@ class AliOss implements Module {
       await oss.head(objectName);
       return true;
     } catch (e) {
-      console.error(e);
-      return false;
+      if ((e as { status?: number }).status === 404) return false;
+      throw e;
     }
   }
 
   async updateObject(objInfo: IGetObject, content: Uint8Array) {
-    const { accessKeyId, accessKeySecret, bucket, region, objectName } =
-      objInfo;
+    const { accessKeyId, accessKeySecret, bucket, region, objectName } = objInfo;
     const oss = new OSS({
       accessKeyId,
       accessKeySecret,
@@ -158,8 +162,7 @@ class AliOss implements Module {
   }
 
   async createObject(objInfo: IGetObject, content: Uint8Array) {
-    const { accessKeyId, accessKeySecret, bucket, region, objectName } =
-      objInfo;
+    const { accessKeyId, accessKeySecret, bucket, region, objectName } = objInfo;
     const oss = new OSS({
       accessKeyId,
       accessKeySecret,
@@ -178,8 +181,7 @@ class AliOss implements Module {
   }
 
   async deleteObject(objInfo: IGetObject) {
-    const { accessKeyId, accessKeySecret, bucket, region, objectName } =
-      objInfo;
+    const { accessKeyId, accessKeySecret, bucket, region, objectName } = objInfo;
     const oss = new OSS({
       accessKeyId,
       accessKeySecret,
@@ -198,9 +200,7 @@ class AliOss implements Module {
       region,
     });
 
-    const normalizedPrefix = prefix
-      ? prefix.replace(/^\/+/, "").replace(/\/+/g, "/")
-      : "";
+    const normalizedPrefix = prefix ? prefix.replace(/^\/+/, "").replace(/\/+/g, "/") : "";
 
     const files: Array<{
       name: string;
@@ -218,7 +218,7 @@ class AliOss implements Module {
             marker,
             "max-keys": 1000,
           },
-          {},
+          {}
         );
 
         const objects = res.objects || [];
@@ -228,9 +228,7 @@ class AliOss implements Module {
             name: basename(obj.name),
             path: obj.name,
             size: obj.size || 0,
-            lastModified: obj.lastModified
-              ? new Date(obj.lastModified).getTime()
-              : undefined,
+            lastModified: obj.lastModified ? new Date(obj.lastModified).getTime() : undefined,
           });
         });
 

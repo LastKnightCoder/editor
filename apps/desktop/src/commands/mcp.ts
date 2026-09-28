@@ -25,12 +25,26 @@ export async function listMcpServerTools<T = unknown>(payload: { serverId: strin
   return invoke("mcp-list-tools", payload);
 }
 
-export async function callMcpTool<T = unknown>(payload: {
-  serverId: string;
-  toolName: string;
-  args?: Record<string, unknown>;
-}): Promise<T> {
-  return invoke("mcp-call-tool", payload);
+export async function callMcpTool<T = unknown>(
+  payload: {
+    serverId: string;
+    toolName: string;
+    args?: Record<string, unknown>;
+    expectedTransport?: string;
+  },
+  signal?: AbortSignal
+): Promise<T> {
+  signal?.throwIfAborted();
+  const requestId = crypto.randomUUID();
+  const cancel = () => {
+    void invoke("mcp-cancel-tool", { requestId }).catch(() => undefined);
+  };
+  signal?.addEventListener("abort", cancel, { once: true });
+  try {
+    return await invoke("mcp-call-tool", { ...payload, requestId });
+  } finally {
+    signal?.removeEventListener("abort", cancel);
+  }
 }
 
 export type McpLogLevel = "info" | "ok" | "warn" | "error" | "stderr";

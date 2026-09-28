@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { piChatSessionManager, type EnsureChatSessionOptions } from "../piChatSession";
+import { registerPiToolSessionContext } from "../piToolBridge";
 import {
   piSessionCreate,
   piSessionDispose,
@@ -56,6 +57,76 @@ const options = {
 } as EnsureChatSessionOptions;
 
 describe("pi 会话收养", () => {
+  it("收养时不把旧服务的工具授权移交给同名的新服务", async () => {
+    const previous = registryTools.current;
+    const spec = {
+      name: "remote",
+      description: "查询",
+      parameters: {},
+      source: "mcp",
+      risk: "execute" as const,
+      executionIdentity: "old-endpoint",
+    };
+    registryTools.current = [
+      { ...spec, enabled: true, executionIdentity: "new-endpoint", execute: vi.fn() },
+    ];
+    vi.mocked(piSessionFindByScope).mockResolvedValueOnce({
+      ok: true,
+      sessionId: "old-host",
+      modelRef: { providerId: options.provider.id, modelId: options.model.id },
+      thinkingLevel: options.thinkingLevel,
+      toolSpecs: [spec],
+    });
+    await piChatSessionManager.adoptOrResolveSession("main-chat", "changed-server");
+    expect(registerPiToolSessionContext).toHaveBeenCalledWith(
+      "old-host",
+      expect.objectContaining({ sessionTools: [] })
+    );
+    const ensured = await piChatSessionManager.ensureChatSession({
+      ...options,
+      chatId: "changed-server",
+    });
+    expect(ensured.sessionId).not.toBe("old-host");
+    expect(piSessionDispose).toHaveBeenCalledWith("old-host");
+    registryTools.current = previous;
+  });
+  it("宿主创建前捕获执行器，等待期间页面注销不丢失作用域工具", async () => {
+    const original = registryTools.current;
+    const execute = vi.fn(async () => "PDF A");
+    registryTools.current = [
+      {
+        name: "pdf_search",
+        description: "查询",
+        parameters: {},
+        source: "pdf-a",
+        enabled: true,
+        risk: "read",
+        execute,
+      },
+    ];
+    let complete!: (value: any) => void;
+    vi.mocked(piSessionCreate).mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          complete = resolve;
+        })
+    );
+    const opening = piChatSessionManager.ensureChatSession({
+      ...options,
+      chatId: "scope-creation",
+      toolScope: "pdf-a",
+    });
+    registryTools.current = [];
+    complete({ ok: true });
+    await opening;
+    expect(registerPiToolSessionContext).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        sessionTools: [expect.objectContaining({ name: "pdf_search", executor: execute })],
+      })
+    );
+    registryTools.current = original;
+  });
   it("不同数据库的相同对话 ID 不复用宿主", async () => {
     const a = await piChatSessionManager.ensureChatSession({ ...options, databaseName: "a" });
     const b = await piChatSessionManager.ensureChatSession({ ...options, databaseName: "b" });

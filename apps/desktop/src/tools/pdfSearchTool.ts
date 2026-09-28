@@ -1,4 +1,5 @@
 import { PdfActionType } from "@embedpdf/models";
+import { bindDatabaseCommands } from "@/services/command-context";
 import type { PdfAnnotationContext, PdfAnnotation, PdfBookmark, ToolDefinition } from "@/types";
 import { buildPdfCitationMarkdown } from "@/utils/pdfCitation";
 import {
@@ -267,9 +268,12 @@ export const createGetPdfAnnotationsTool = (pdfId: number): ToolDefinition => ({
       },
     },
   },
-  executor: async args => {
+  executor: async (args, context) => {
     const limit = tryParseLimit(args.limit, 20, 100);
-    const annotations = await getPdfAnnotations(pdfId);
+    const annotations = await bindDatabaseCommands(
+      { getPdfAnnotations },
+      context
+    ).getPdfAnnotations(pdfId);
     return {
       content: JSON.stringify({
         success: true,
@@ -288,8 +292,10 @@ export const createGetPdfBookmarksTool = (pdfId: number): ToolDefinition => ({
     type: "object",
     properties: {},
   },
-  executor: async () => {
-    const bookmarks = await getPdfBookmarks(pdfId);
+  executor: async (_args, context) => {
+    const bookmarks = await bindDatabaseCommands({ getPdfBookmarks }, context).getPdfBookmarks(
+      pdfId
+    );
     return {
       content: JSON.stringify({
         success: true,

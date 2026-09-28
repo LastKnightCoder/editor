@@ -8,6 +8,7 @@ export interface IRemoteFileInfo {
 }
 
 export interface ISyncProvider {
+  createFileIfAbsent(objectName: string, content: Uint8Array): Promise<boolean>;
   // 上传文件
   uploadFile(objectName: string, content: Uint8Array): Promise<boolean>;
 

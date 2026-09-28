@@ -17,6 +17,7 @@ import {
 } from "@/commands/piSession";
 import { toPiChatMessages } from "@/services/piLLM";
 import { getToolRegistryAgentTools } from "@/agent/toolRegistryAgentTools";
+import { getChatDatabase } from "./chatDatabase";
 import {
   initPiToolBridge,
   registerPiToolSessionContext,
@@ -24,6 +25,7 @@ import {
 } from "@/services/piToolBridge";
 
 export interface PiAgentRunOptions {
+  databaseName?: string;
   provider: LLMProviderSetting;
   model: LLMModelSetting;
   /** chat-core 消息（system 抽出为会话 systemPrompt；最后一条 user 作为 prompt 文本） */
@@ -41,7 +43,11 @@ export interface PiAgentRunOptions {
     type: "function";
     function: { name: string; description: string; parameters: Record<string, unknown> };
   }>;
-  executeAdditionalTool?: (payload: { toolName: string; args: unknown }) => Promise<{
+  executeAdditionalTool?: (payload: {
+    toolName: string;
+    args: unknown;
+    signal: AbortSignal;
+  }) => Promise<{
     content: string;
     modelContent?: string;
     metadata?: Record<string, unknown>;
@@ -67,6 +73,7 @@ export function runPiAgent(
   onEvent?: (event: AgentSessionEvent) => void
 ): PiAgentRunHandle {
   initPiToolBridge();
+  options = { ...options, databaseName: options.databaseName ?? getChatDatabase() };
   const sessionId = crypto.randomUUID();
   let settled = false;
   let aborted = false;
@@ -85,7 +92,11 @@ export function runPiAgent(
       }
       // 历史灌入排除最后一条 user（其文本作为 prompt 单独发送）
       const initialMessages = options.messages.slice(0, -1);
-      const customTools = buildToolSpecs(options);
+      const tools = getToolRegistryAgentTools({
+        includeBuiltinSkillTools: true,
+        toolScope: options.toolScope,
+      }).filter(tool => !options.excludeToolNames?.includes(tool.name));
+      const customTools = buildToolSpecs(options, tools);
       const thinkingLevel = options.thinking;
 
       const created = await piSessionCreate(sessionId, {
@@ -104,19 +115,24 @@ export function runPiAgent(
       }
 
       registerPiToolSessionContext(sessionId, {
-        scopedTools: getToolRegistryAgentTools({ toolScope: options.toolScope })
-          .filter(tool => tool.source === options.toolScope)
+        databaseName: options.databaseName,
+        sessionTools: tools
+          .filter(
+            tool =>
+              !options.additionalTools?.some(additional => additional.function.name === tool.name)
+          )
           .map(tool => ({ ...tool, executor: tool.execute })),
         ...(options.conversationKey ? { conversationKey: options.conversationKey } : {}),
         ...(options.toolContext ? { toolContext: options.toolContext } : {}),
         ...(options.additionalTools && options.executeAdditionalTool
           ? {
-              executeToolCall: async payload => {
+              executeToolCall: async (payload, signal) => {
                 const names = new Set(options.additionalTools!.map(tool => tool.function.name));
                 if (!names.has(payload.toolName)) return null;
                 const executed = await options.executeAdditionalTool!({
                   toolName: payload.toolName,
                   args: payload.args,
+                  signal,
                 });
                 return executed ?? null;
               },
@@ -197,18 +213,16 @@ export function runPiAgent(
 }
 
 function buildToolSpecs(
-  options: Pick<PiAgentRunOptions, "toolScope" | "excludeToolNames" | "additionalTools">
+  options: Pick<PiAgentRunOptions, "toolScope" | "excludeToolNames" | "additionalTools">,
+  registryTools: ReturnType<typeof getToolRegistryAgentTools>
 ): PiHostToolSpec[] {
-  const registryTools = getToolRegistryAgentTools({
-    includeBuiltinSkillTools: true,
-    ...(options.toolScope ? { toolScope: options.toolScope } : {}),
-  }).filter(tool => !options.excludeToolNames?.includes(tool.name));
   const additional = options.additionalTools ?? [];
   const additionalNames = new Set(additional.map(tool => tool.function.name));
   const specs: PiHostToolSpec[] = registryTools
     .filter(tool => !additionalNames.has(tool.name))
     .map(tool => ({
       name: tool.name,
+      executionIdentity: tool.executionIdentity,
       description: tool.description,
       parameters: tool.parameters as Record<string, unknown>,
       risk: tool.risk ?? "execute",

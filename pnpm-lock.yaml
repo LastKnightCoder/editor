@@ -402,6 +402,9 @@ importers:
       node-llama-cpp:
         specifier: 3.20.0
         version: 3.20.0(typescript@5.8.3)
+      proper-lockfile:
+        specifier: ^4.1.2
+        version: 4.1.2
       react:
         specifier: 19.2.0
         version: 19.2.0
@@ -554,6 +557,9 @@ importers:
       node-llama-cpp:
         specifier: 3.20.0
         version: 3.20.0(typescript@5.8.3)
+      proper-lockfile:
+        specifier: ^4.1.2
+        version: 4.1.2
       proxy-agent:
         specifier: ^5.0.0
         version: 5.0.0

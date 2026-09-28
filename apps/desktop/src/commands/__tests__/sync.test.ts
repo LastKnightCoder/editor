@@ -11,6 +11,7 @@ const mockContext = vi.hoisted(() => {
   };
 
   const syncProvider = {
+    createFileIfAbsent: vi.fn(async (_name: string, _data: Uint8Array) => true),
     uploadFile: vi.fn(async (_name: string, _data: Uint8Array) => true),
     downloadFile: vi.fn(async (objectName: string) => {
       if (objectName === "database_data.db.json") {
@@ -18,7 +19,7 @@ const mockContext = vi.hoisted(() => {
       }
       return new Uint8Array([1, 2, 3]);
     }),
-    fileExists: vi.fn(async (_objectName: string) => true),
+    fileExists: vi.fn(async (objectName: string) => !objectName.includes(".next-")),
   };
 
   const useSettingStoreMock = {
@@ -113,6 +114,7 @@ vi.mock("@/utils/sync", () => ({
 }));
 
 vi.mock("@/commands/piSession", () => ({
+  piSessionAssertLibrary: vi.fn(async () => ({ ok: true })),
   piSessionLockLibrary: vi.fn(async () => ({ ok: true })),
   piSessionUnlockLibrary: vi.fn(async () => ({ ok: true })),
   piSessionInstallDownload: mockContext.piSessionUnpack,
@@ -136,6 +138,9 @@ describe("sync commands reconnect source", () => {
     mockContext.syncProvider.uploadFile.mockResolvedValue(true);
     mockContext.syncProvider.downloadFile.mockClear();
     mockContext.syncProvider.fileExists.mockClear();
+    mockContext.syncProvider.fileExists.mockImplementation(async name => !name.includes(".next-"));
+    mockContext.syncProvider.createFileIfAbsent.mockClear();
+    mockContext.syncProvider.createFileIfAbsent.mockResolvedValue(true);
     mockContext.useSettingStoreMock.getState.mockClear();
     mockContext.useSettingStoreMock.setState.mockClear();
     mockContext.useGlobalStateStoreMock.setState.mockClear();
@@ -161,6 +166,10 @@ describe("sync commands reconnect source", () => {
     const success = await upload();
 
     expect(success).toBe(true);
+    expect(mockContext.syncProvider.createFileIfAbsent).toHaveBeenCalledWith(
+      "database_data.db.json.next-1",
+      expect.anything()
+    );
     expect(mockContext.syncProvider.uploadFile).toHaveBeenNthCalledWith(
       1,
       expect.stringMatching(/^data\.db\.snapshot-.*\.db$/),
@@ -201,7 +210,7 @@ describe("sync commands reconnect source", () => {
     expect(mockContext.settingState.setting.database.databases[0].version).toBe(1);
   });
 
-  it("版本信息上传失败时不更新本地版本", async () => {
+  it("指针上传失败时已提交的后继记录仍算成功", async () => {
     mockContext.syncProvider.uploadFile
       .mockResolvedValueOnce(true)
       .mockResolvedValueOnce(true)
@@ -209,10 +218,9 @@ describe("sync commands reconnect source", () => {
 
     const success = await upload();
 
-    expect(success).toBe(false);
+    expect(success).toBe(true);
     expect(mockContext.syncProvider.uploadFile).toHaveBeenCalledTimes(3);
-    expect(mockContext.useSettingStoreMock.setState).not.toHaveBeenCalled();
-    expect(mockContext.settingState.setting.database.databases[0].version).toBe(1);
+    expect(mockContext.settingState.setting.database.databases[0].version).toBe(2);
   });
 
   it("会话包上传失败时不发布版本信息，本地版本不前进", async () => {
@@ -269,7 +277,8 @@ describe("sync commands reconnect source", () => {
       return new Uint8Array([1, 2, 3]);
     });
     mockContext.syncProvider.fileExists.mockImplementation(
-      async (objectName: string) => objectName !== "data.db.sessions.zip"
+      async (objectName: string) =>
+        objectName !== "data.db.sessions.zip" && !objectName.includes(".next-")
     );
 
     expect(await download()).toBe(true);
@@ -295,7 +304,7 @@ describe("sync commands reconnect source", () => {
     });
   });
 
-  it("自动下载后立即 reload 时跳过成功后的即时重连", async () => {
+  it("自动下载即将 reload 也必须先在锁内完成维护重连", async () => {
     mockContext.syncProvider.downloadFile.mockImplementation(async (objectName: string) => {
       if (objectName === "database_data.db.json") {
         return new TextEncoder().encode(JSON.stringify({ version: 2 }));
@@ -303,10 +312,15 @@ describe("sync commands reconnect source", () => {
       return new Uint8Array([1, 2, 3]);
     });
 
-    const success = await download({ skipReconnectAfterSuccess: true });
+    const success = await download({ onProgress: vi.fn() });
 
     expect(success).toBe(true);
     expect(mockContext.reconnectDatabaseFast).not.toHaveBeenCalled();
+    expect(mockContext.connectDatabaseByName).toHaveBeenCalledWith("data.db", {
+      force: true,
+      mode: "maintenance",
+      source: "sync_download_reconnect",
+    });
     expect(mockContext.useGlobalStateStoreMock.setState).toHaveBeenCalled();
   });
 });

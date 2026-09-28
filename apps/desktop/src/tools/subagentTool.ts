@@ -217,6 +217,7 @@ export const createSubAgentResearchTool = (): ToolDefinition => ({
         const handle = runPiAgent(
           {
             provider: chatConfig.provider,
+            databaseName: context?.databaseName,
             model: chatConfig.model,
             messages: [
               { role: Role.System, content: subAgentSystem },
