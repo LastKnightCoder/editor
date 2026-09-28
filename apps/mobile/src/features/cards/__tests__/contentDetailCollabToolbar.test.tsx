@@ -1,7 +1,7 @@
 // 回归测试：卡片已发起协作时，详情页原地切换为协作编辑，正文聚焦后底部工具条必须出现。
-// 曾因协作编辑器与本地占位编辑器共用同一个 editorRef，local→collab 切换时本地编辑器卸载
-// 把 ref.current 清成 null，而协作编辑器的命令式句柄不会重新挂载——工具栏控制器从此读不到
-// editor，聚焦回调提前 return，工具条（及全部格式按钮）静默失效。
+// 现在全页只有一个编辑器实例（本机与协作是同谱系的两个文档源，切换即换源），工具栏控制器
+// 读的就是它；历史上两个编辑器各自持 ref，切换时本地编辑器卸载把 ref 清空，控制器从此
+// 读不到 editor，工具条（及全部格式按钮）静默失效。
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,6 +10,8 @@ const harness = vi.hoisted(() => ({
   slateEditor: { selection: null },
   /** 协作会话只读态（会话冻结/非 active） */
   readonly: false,
+  /** 编辑器每次收到的文档源，用于断言正文归属 */
+  documents: [] as unknown[],
 }));
 
 vi.mock("../../../hooks/useEditContent", async () => {
@@ -70,6 +72,7 @@ vi.mock("@tau/editor/src", async importOriginal => {
     ref: unknown
   ) {
     React.useImperativeHandle(ref as never, () => ({ getEditor: () => harness.slateEditor }), []);
+    harness.documents.push(props.document);
     return React.createElement("div", {
       "data-testid": "editor",
       tabIndex: 0,
@@ -80,26 +83,23 @@ vi.mock("@tau/editor/src", async importOriginal => {
   return { ...actual, Editor };
 });
 
-/** 模拟真实协作编辑器：上报 live 模式与只读态，editorRef 转发给内部 Editor */
+/** 模拟协作会话组件：上报 live 模式、只读态与协作文档源（正文由宿主的那个编辑器渲染） */
 vi.mock("../../collaboration/CollaborativeEditor", async () => {
   const React = await import("react");
-  const editorModule = await import("@tau/editor/src");
   const Mock = function MockCollab(props: Record<string, unknown>) {
     const callbacks = React.useRef(props);
     callbacks.current = props;
     React.useEffect(() => {
       (callbacks.current.onModeChange as (mode: string) => void)("live");
       (callbacks.current.onReadonlyChange as (readonly: boolean) => void)(harness.readonly);
+      (callbacks.current.onDocumentChange as (document: unknown) => void)({
+        lineage: "content:1",
+        history: "external",
+        initialValue: [],
+        binding: {},
+      });
     }, []);
-    return React.createElement(
-      "div",
-      { "data-testid": "collab-editor" },
-      React.createElement(editorModule.Editor, {
-        ref: props.editorRef as never,
-        onFocus: props.onEditorFocus as never,
-        onBlur: props.onEditorBlur as never,
-      })
-    );
+    return React.createElement("div", { "data-testid": "collab-session" });
   };
   return { CollaborativeEditor: Mock, default: Mock };
 });
@@ -107,7 +107,7 @@ vi.mock("../../collaboration/CollaborativeEditor", async () => {
 import { ContentDetailPage } from "../ContentDetailPage";
 
 const TOOLBAR_SELECTOR = '[data-mobile-editor-toolbar="true"]';
-const COLLAB_EDITOR_SELECTOR = '[data-testid="collab-editor"] [data-testid="editor"]';
+const EDITOR_SELECTOR = '[data-testid="editor"]';
 
 describe("ContentDetailPage 协作态的底部工具条", () => {
   let host: HTMLDivElement;
@@ -115,6 +115,7 @@ describe("ContentDetailPage 协作态的底部工具条", () => {
 
   beforeEach(() => {
     harness.readonly = false;
+    harness.documents = [];
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
@@ -149,18 +150,23 @@ describe("ContentDetailPage 协作态的底部工具条", () => {
   }
 
   async function focusCollabEditor() {
-    const editor = document.querySelector<HTMLElement>(COLLAB_EDITOR_SELECTOR);
-    if (!editor) throw new Error("协作编辑器未渲染");
+    const editor = document.querySelector<HTMLElement>(EDITOR_SELECTOR);
+    if (!editor) throw new Error("编辑器未渲染");
     await act(async () => {
       editor.focus();
     });
     return editor;
   }
 
-  it("协作 live 时只渲染协作编辑器（本地占位退场）", async () => {
+  it("全页只有一个编辑器实例，协作会话另行挂载", async () => {
     await renderCollabDetail();
-    expect(document.querySelectorAll('[data-testid="editor"]')).toHaveLength(1);
-    expect(document.querySelector(COLLAB_EDITOR_SELECTOR)).not.toBeNull();
+    expect(document.querySelectorAll(EDITOR_SELECTOR)).toHaveLength(1);
+    expect(document.querySelector('[data-testid="collab-session"]')).not.toBeNull();
+  });
+
+  it("协作 live 时正文用协作文档源", async () => {
+    await renderCollabDetail();
+    expect(harness.documents.at(-1)).toMatchObject({ lineage: "content:1", history: "external" });
   });
 
   it("聚焦协作正文后渲染工具条", async () => {

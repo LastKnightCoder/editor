@@ -133,11 +133,14 @@ const METRICS = [
     mode: "files",
   },
   {
-    key: "mobile.collaborationProp",
-    desc: "mobile 向编辑器传 collaboration= 的文件",
-    roots: ["apps/mobile/src"],
-    pattern: /\bcollaboration=\{/g,
+    // P7 清零：协作搬进 @tau/editor-collab，内核只认识文档源（ER-009）。
+    // 取代原 mobile.collaborationProp——`<Editor collaboration>` 这个 prop 已经不存在了
+    key: "editor.collaborationImports",
+    desc: "editor 内引用 yjs / slate-yjs / @tau/collaboration 的文件（P7 清零）",
+    roots: EDITOR,
+    pattern: /from "(?:yjs|y-protocols[^"]*|@slate-yjs\/[^"]*|@tau\/collaboration[^"]*)"/g,
     mode: "files",
+    includeTests: true,
   },
   {
     // P6.5 清零：宿主扩展的来源只剩 kit，业务代码不再自行取用（清单见 02 P6.5）
