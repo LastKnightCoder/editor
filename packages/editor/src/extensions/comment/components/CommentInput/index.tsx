@@ -47,23 +47,11 @@ const CommentInput: React.FC<CommentInputProps> = ({
       <textarea
         ref={textareaRef}
         value={value}
-        onChange={(event) => setValue(event.target.value)}
+        onChange={event => setValue(event.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         rows={3}
-        className="
-          w-full px-4 py-3
-          rounded-xl text-sm
-          outline-none transition-all
-          bg-gray-50 dark:bg-zinc-950
-          border border-gray-200 dark:border-slate-700
-          text-gray-800 dark:text-white
-          placeholder:text-gray-400 dark:placeholder:text-slate-500
-          focus:border-indigo-500
-          focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)]
-          dark:focus:shadow-[0_0_0_3px_rgba(99,102,241,0.25)]
-          resize-none
-        "
+        className="w-full resize-none rounded-xl border border-[var(--ed-border)] bg-[var(--ed-bg-sunken)] px-4 py-3 text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-indigo-500 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)] dark:text-white dark:placeholder:text-slate-500 dark:focus:shadow-[0_0_0_3px_rgba(99,102,241,0.25)]"
       />
 
       <div className="flex items-center justify-end gap-2">
@@ -71,14 +59,7 @@ const CommentInput: React.FC<CommentInputProps> = ({
           <button
             type="button"
             onClick={onCancel}
-            className="
-              px-4 py-2 rounded-lg
-              text-sm font-medium
-              transition-all
-              bg-gray-100 dark:bg-zinc-800
-              text-gray-700 dark:text-slate-300
-              hover:bg-gray-200 dark:hover:bg-zinc-700
-            "
+            className="rounded-lg bg-[var(--ed-bg-sunken)] px-4 py-2 text-sm font-medium text-[var(--ed-text)] transition-all hover:bg-gray-200 dark:hover:bg-zinc-700"
           >
             取消
           </button>
@@ -87,16 +68,7 @@ const CommentInput: React.FC<CommentInputProps> = ({
           type="button"
           onClick={handleSubmit}
           disabled={!value.trim()}
-          className="
-            px-4 py-2 rounded-lg
-            text-sm font-semibold
-            transition-colors
-            bg-indigo-500 text-white
-            hover:bg-indigo-600
-            disabled:bg-gray-200 dark:disabled:bg-zinc-800
-            disabled:text-gray-400 dark:disabled:text-slate-500
-            disabled:cursor-not-allowed
-          "
+          className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-600 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
         >
           提交
         </button>

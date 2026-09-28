@@ -122,7 +122,7 @@ const TabTitle = (props: TabTitleProps) => {
   } items-center gap-1 rounded-md px-3 text-[13px] leading-none transition-all duration-200 ${
     isActive || editing
       ? "bg-white font-medium text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-50"
-      : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100"
+      : "text-zinc-500 hover:text-[var(--ed-text)] dark:hover:text-zinc-100"
   } ${isDragging ? "opacity-40" : ""}`;
 
   if (editing) {

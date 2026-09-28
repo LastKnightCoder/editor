@@ -30,8 +30,7 @@ const getColorValue = (color: string) => {
 };
 
 const UnderlineSelectItem = memo((props: IUnderlineSelectItemProps) => {
-  const { type, color, lineType, label, onClick, isSelected, currentColor } =
-    props;
+  const { type, color, lineType, label, onClick, isSelected, currentColor } = props;
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -48,7 +47,7 @@ const UnderlineSelectItem = memo((props: IUnderlineSelectItemProps) => {
         onClick(lineType);
       }
     },
-    [type, color, lineType, onClick],
+    [type, color, lineType, onClick]
   );
 
   if (type === "color") {
@@ -58,22 +57,16 @@ const UnderlineSelectItem = memo((props: IUnderlineSelectItemProps) => {
         onMouseDown={handleMouseDown}
         onClick={handleClick}
         className={classnames(
-          "w-6 h-6 rounded-full border border-transparent flex items-center justify-center cursor-pointer transition-all duration-150 ease-out hover:scale-110 hover:shadow-[0_8px_20px_rgba(15,23,42,0.15)]",
-          isSelected &&
-            "border-blue-500 shadow-[0_10px_25px_rgba(59,130,246,0.35)]",
-          isDefault &&
-            "bg-white/40 dark:bg-zinc-800/40 border-slate-300/80 dark:border-slate-600",
+          "flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-transparent transition-all duration-150 ease-out hover:scale-110 hover:shadow-[0_8px_20px_rgba(15,23,42,0.15)]",
+          isSelected && "border-blue-500 shadow-[0_10px_25px_rgba(59,130,246,0.35)]",
+          isDefault && "border-slate-300/80 bg-white/40 dark:border-slate-600 dark:bg-zinc-800/40"
         )}
         style={{
           backgroundColor: isDefault ? undefined : getColorValue(color || ""),
         }}
         title={label}
       >
-        {isDefault && (
-          <span className="text-[12px] font-semibold text-slate-500 dark:text-slate-200">
-            A
-          </span>
-        )}
+        {isDefault && <span className="text-[12px] font-semibold text-[var(--ed-text)]">A</span>}
       </div>
     );
   }
@@ -87,9 +80,8 @@ const UnderlineSelectItem = memo((props: IUnderlineSelectItemProps) => {
       onMouseDown={handleMouseDown}
       onClick={handleClick}
       className={classnames(
-        "w-12 h-8 rounded-xl border border-slate-200/90 dark:border-slate-600 bg-white/60 dark:bg-zinc-900/70 flex items-center justify-center cursor-pointer transition-all duration-200",
-        isSelected &&
-          "border-2 border-blue-500 bg-blue-50/70 dark:bg-blue-900/30",
+        "flex h-8 w-12 cursor-pointer items-center justify-center rounded-xl border border-slate-200/90 bg-white/60 transition-all duration-200 dark:border-slate-600 dark:bg-zinc-900/70",
+        isSelected && "border-2 border-blue-500 bg-blue-50/70 dark:bg-blue-900/30"
       )}
       title={label}
     >
@@ -97,21 +89,14 @@ const UnderlineSelectItem = memo((props: IUnderlineSelectItemProps) => {
         <Minus size={iconSize} strokeWidth={2.5} style={{ color: lineColor }} />
       )}
       {lineType === "dashed" && (
-        <div
-          className="flex items-center gap-1 text-current"
-          style={{ color: lineColor }}
-        >
-          <span className="w-2 h-0.5 rounded-sm bg-current" />
-          <span className="w-2 h-0.5 rounded-sm bg-current" />
-          <span className="w-2 h-0.5 rounded-sm bg-current" />
+        <div className="flex items-center gap-1 text-current" style={{ color: lineColor }}>
+          <span className="h-0.5 w-2 rounded-sm bg-current" />
+          <span className="h-0.5 w-2 rounded-sm bg-current" />
+          <span className="h-0.5 w-2 rounded-sm bg-current" />
         </div>
       )}
-      {lineType === "dotted" && (
-        <MoreHorizontal size={iconSize} style={{ color: lineColor }} />
-      )}
-      {lineType === "wavy" && (
-        <Waves size={iconSize} style={{ color: lineColor }} />
-      )}
+      {lineType === "dotted" && <MoreHorizontal size={iconSize} style={{ color: lineColor }} />}
+      {lineType === "wavy" && <Waves size={iconSize} style={{ color: lineColor }} />}
     </div>
   );
 });
