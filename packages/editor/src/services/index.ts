@@ -3,6 +3,7 @@ export {
   IResourceService,
   IFileService,
   ICompilerService,
+  IThemeService,
   IMediaInsertSources,
   IVideoContentProviders,
   IMediaActions,

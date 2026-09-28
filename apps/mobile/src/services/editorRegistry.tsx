@@ -9,7 +9,6 @@ import {
   IVideoContentProviders,
   IResourceService,
   type ServiceRegistry,
-  type ThemeColors,
   type EditorSlots,
   type EditorConfig,
 } from "@tau/editor/src";
@@ -40,41 +39,6 @@ function readMobileTheme(): "light" | "dark" {
 
 // 编辑器 UI 类走宿主主题 token（--color-* 工具类），随 data-theme 自动切换；
 // 仅 inline 颜色值需要按主题区分。
-function createThemeColors(theme: "light" | "dark"): ThemeColors {
-  if (theme === "dark") {
-    return {
-      hoverClass: "hover:bg-press",
-      activeClass: "bg-press text-ink",
-      hoverTextClass: "hover:text-ink",
-      borderClass: "border-line",
-      hoverBorderClass: "hover:border-line",
-      focusBorderClass: "border-accent",
-      textClass: "text-ink-2",
-      secondaryTextClass: "text-ink-3",
-      activeTextClass: "text-ink",
-      cardBorderClass: "border-line",
-      cardBgClass: "bg-surface",
-      accentColor: "rgb(255, 180, 84)",
-      accentSoftBg: "rgba(255, 180, 84, 0.13)",
-    };
-  }
-
-  return {
-    hoverClass: "hover:bg-press",
-    activeClass: "bg-press text-ink",
-    hoverTextClass: "hover:text-ink",
-    borderClass: "border-line",
-    hoverBorderClass: "hover:border-line",
-    focusBorderClass: "border-accent",
-    textClass: "text-ink-2",
-    secondaryTextClass: "text-ink-3",
-    activeTextClass: "text-ink",
-    cardBorderClass: "border-line",
-    cardBgClass: "bg-surface",
-    accentColor: "rgb(217, 119, 87)",
-    accentSoftBg: "rgba(217, 119, 87, 0.12)",
-  };
-}
 
 function createUnsupportedError(feature: string): Error {
   return new Error(`MOBILE_UNSUPPORTED: ${feature} - ${UNSUPPORTED_REASON}`);
@@ -173,7 +137,6 @@ export function createMobileEditorConfig(): EditorConfig {
   return {
     theme: {
       mode: theme,
-      colors: createThemeColors(theme),
     },
     appearance: image ? { image } : undefined,
     openUrl: url => {

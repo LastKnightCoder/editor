@@ -12,7 +12,6 @@ import { App } from "antd";
 import InlineChromiumBugfix from "../../../components/InlineChromiumBugFix";
 import type { LinkElement } from "../../../types";
 import LinkSelectModal from "./LinkSelectModal";
-import useThemeColors from "../../../hooks/useThemeColors";
 
 interface LinkProps {
   attributes: RenderElementProps["attributes"];
@@ -200,7 +199,6 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = props => {
   const readOnly = useReadOnly();
   const editor = useSlateStatic();
   const { message } = App.useApp();
-  const { accentColor } = useThemeColors();
   const config = useEditorConfig();
 
   const openUrl = async (url: string) => {
@@ -297,10 +295,7 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = props => {
         ref={linkRef}
         href={url}
         className="cursor-pointer rounded-[2px] border-b border-dashed px-0.5 font-medium transition-colors hover:border-solid"
-        style={{
-          color: accentColor,
-          borderColor: accentColor ? `${accentColor}66` : undefined,
-        }}
+        style={{ color: "var(--ed-accent-text)", borderColor: "var(--ed-accent-soft)" }}
         onClick={e => {
           e.preventDefault();
           handleLinkClick(e);

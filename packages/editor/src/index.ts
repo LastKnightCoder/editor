@@ -8,7 +8,6 @@ export {
 } from "./contexts/EditorContext";
 export {
   useEditorConfig,
-  createFallbackThemeColors,
   DEFAULT_IMAGE_APPEARANCE,
   type EditorConfig,
   type EditorThemeConfig,
@@ -20,7 +19,7 @@ export {
   type EditorProviderProps,
 } from "./contexts/EditorProvider";
 
-export type { ResourceService, FileService, CompilerService, ThemeColors } from "./types/services";
+export type { ResourceService, FileService, CompilerService } from "./types/services";
 
 // Service Registry DI
 export {
@@ -55,13 +54,16 @@ export {
 export type { EditorSlots, ImageSlotProps, VideoSlotProps, AudioSlotProps } from "./services/slots";
 
 export { default as useTheme } from "./hooks/useTheme";
-export { default as useThemeColors } from "./hooks/useThemeColors";
 export { default as useDragAndDrop } from "./hooks/useDragAndDrop";
 export { default as useIsLastElement } from "./hooks/useIsLastElement";
 export { default as useUploadResource } from "./hooks/useUploadResource";
 export { createMarkdownPasteImportExtension } from "./extensions/markdown-paste-import";
 export type { MarkdownImportFn } from "./extensions/markdown-paste-import";
 export { default as useEditorFeatures } from "./hooks/useEditorFeatures";
+export { useEditorTheme, EditorThemeScope } from "./theme/context";
+export type { EditorTheme } from "./theme/context";
+export { createDomThemeService, createStaticThemeService } from "./theme/ThemeService";
+export type { ThemeService, EditorThemeMode } from "./theme/ThemeService";
 
 export {
   generateExecutableCode,

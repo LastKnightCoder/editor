@@ -7,7 +7,6 @@ import {
   IResourceService,
   IVideoContentProviders,
   type ServiceRegistry,
-  type ThemeColors,
   type VideoContentProvider,
   type EditorConfig,
 } from "@tau/editor";
@@ -22,23 +21,6 @@ import RpcLocalAudio from "../components/RpcLocalAudio";
 /** 不支持操作时的统一提示 */
 const UNSUPPORTED = (name: string) =>
   Promise.reject(new Error(`[Tau Extension] ${name} 在浏览器扩展中暂不支持`));
-
-/** 创建一个空的 ThemeColors 对象 */
-function createThemeColors(): ThemeColors {
-  return {
-    hoverClass: "hover:bg-gray-100 dark:hover:bg-zinc-800",
-    activeClass: "bg-[#eee] text-gray-900 dark:bg-zinc-800 dark:text-gray-100",
-    hoverTextClass: "hover:text-gray-900 dark:hover:text-gray-100",
-    borderClass: "border-[#f0f0f0] dark:border-[#2a2a2a]",
-    hoverBorderClass: "hover:border-[#eaeaea] dark:hover:border-[#3a3a3a]",
-    focusBorderClass: "border-[#f0f0f0] dark:border-[#2a2a2a]",
-    textClass: "text-gray-600 dark:text-gray-400",
-    secondaryTextClass: "text-gray-400 dark:text-gray-500",
-    activeTextClass: "text-gray-900 dark:text-gray-100",
-    cardBorderClass: "border-gray-200 dark:border-gray-800",
-    cardBgClass: "bg-gray-50/80 dark:bg-zinc-900/50",
-  };
-}
 
 interface CreateEditorRegistryOptions {
   wsClient: WebSocketClient | null;
@@ -149,7 +131,6 @@ export function createExtensionEditorConfig(resolvedTheme: ResolvedTheme): Edito
   return {
     theme: {
       mode: resolvedTheme,
-      colors: createThemeColors(),
     },
     openUrl: url => {
       window.open(url, "_blank", "noopener,noreferrer");

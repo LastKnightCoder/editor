@@ -11,7 +11,6 @@ import { Tooltip } from "antd";
 import classnames from "classnames";
 
 import { IConfigItem } from "../../types";
-import useThemeColors from "../../hooks/useThemeColors";
 import { HoveringBarContext } from "./context";
 import { calculateFloatingPosition } from "./floatingPosition";
 
@@ -24,7 +23,6 @@ type CompactGroupMenuProps = {
 
 function CompactGroupMenu(props: CompactGroupMenuProps) {
   const { title, icon, items, id } = props;
-  const themeColors = useThemeColors();
   const { isHoveringBarShow } = useContext(HoveringBarContext);
 
   const triggerRef = useRef<HTMLDivElement | null>(null);
@@ -105,16 +103,16 @@ function CompactGroupMenu(props: CompactGroupMenuProps) {
       ? createPortal(
           <div
             ref={panelRef}
-            className="fixed z-[10020] flex items-center gap-1 rounded-xl border border-white/40 bg-white/92 p-1 shadow-[0_12px_34px_rgba(15,23,42,0.24)] backdrop-blur-xl dark:border-white/12 dark:bg-zinc-950/90 dark:shadow-[0_16px_40px_rgba(2,6,23,0.62)]"
+            className="bg-white/92 dark:border-white/12 fixed z-[10020] flex items-center gap-1 rounded-xl border border-white/40 p-1 shadow-[0_12px_34px_rgba(15,23,42,0.24)] backdrop-blur-xl dark:bg-zinc-950/90 dark:shadow-[0_16px_40px_rgba(2,6,23,0.62)]"
             style={{ left: position.left, top: position.top }}
-            onPointerDown={(event) => {
+            onPointerDown={event => {
               event.stopPropagation();
             }}
-            onClick={(event) => {
+            onClick={event => {
               event.stopPropagation();
             }}
           >
-            {items.map((config) => {
+            {items.map(config => {
               const { element: Element, id: itemId } = config;
               return (
                 <div
@@ -128,7 +126,7 @@ function CompactGroupMenu(props: CompactGroupMenuProps) {
               );
             })}
           </div>,
-          document.body,
+          document.body
         )
       : null;
 
@@ -138,21 +136,16 @@ function CompactGroupMenu(props: CompactGroupMenuProps) {
         <div
           ref={triggerRef}
           className={classnames(
-            "flex items-center justify-center w-8 h-8 rounded-lg cursor-pointer transition-all duration-200",
-            open
-              ? themeColors.activeClass
-              : classnames(
-                  themeColors.textClass,
-                  themeColors.hoverClass,
-                  themeColors.hoverTextClass,
-                ),
+            "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all duration-200",
+            "ed-toolbar-item",
+            open && "is-active"
           )}
-          onClick={(event) => {
+          onClick={event => {
             event.preventDefault();
             event.stopPropagation();
-            setOpen((prev) => !prev);
+            setOpen(prev => !prev);
           }}
-          onPointerDown={(event) => {
+          onPointerDown={event => {
             event.stopPropagation();
           }}
         >
