@@ -69,6 +69,11 @@ import type { AgentSession, ExtensionAPI, InlineExtension } from "@earendil-work
 import { basename, dirname, join } from "node:path";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { PiSessionAccess } from "./pi-session-access";
+import {
+  acquireDatabaseSyncLock,
+  assertDatabaseNotSyncing,
+  isDatabaseSyncLocked,
+} from "@tau/db-schema/sync";
 
 /**
  * 宿主会话的客户端：渲染窗口（WebContents），或 M5 起不经渲染端直接驱动会话的主进程客户端
@@ -159,34 +164,22 @@ class PiSessionHostModule {
       "pi-session:lock-library",
       async (event, { databaseName }: { databaseName: string }) =>
         PiSessionHostModule.guard(async () => {
-          const dir = chatSessionDirOf(databaseName);
-          const release = PiSessionHostModule.access.acquire([dir]);
-          try {
-            const sessions = PiSessionHostModule.states().filter(
-              item => item.file && dirname(item.file) === dir
-            );
-            if (sessions.some(item => item.busy))
-              throw new Error("此库仍有对话在运行，请停止回答后再同步");
-            PiSessionHostModule.blockedDirectories.add(dir);
-            await Promise.all(sessions.map(item => PiSessionHostModule.disposeSession(item.id)));
-            const unlock = () => {
-              release();
-              PiSessionHostModule.libraryLeases.delete(dir);
-              PiSessionHostModule.blockedDirectories.delete(dir);
-              event.sender.removeListener("destroyed", unlock);
-              event.sender.removeListener("render-process-gone", unlock);
-              event.sender.removeListener("did-navigate", unlock);
-            };
-            event.sender.once("destroyed", unlock);
-            event.sender.once("render-process-gone", unlock);
-            event.sender.once("did-navigate", unlock);
-            PiSessionHostModule.libraryLeases.set(dir, unlock);
-            return {};
-          } catch (error) {
-            PiSessionHostModule.blockedDirectories.delete(dir);
+          const release = await PiSessionHostModule.acquireLibrary(databaseName);
+          const unlock = () => {
             release();
-            throw error;
+            event.sender.removeListener("destroyed", unlock);
+            event.sender.removeListener("render-process-gone", unlock);
+            event.sender.removeListener("did-navigate", unlock);
+          };
+          if (event.sender.isDestroyed()) {
+            unlock();
+            throw new Error("同步窗口已关闭");
           }
+          event.sender.once("destroyed", unlock);
+          event.sender.once("render-process-gone", unlock);
+          event.sender.once("did-navigate", unlock);
+          PiSessionHostModule.libraryLeases.set(chatSessionDirOf(databaseName), unlock);
+          return {};
         })
     );
     ipcMain.handle(
@@ -578,6 +571,51 @@ class PiSessionHostModule {
     );
   }
 
+  /** 桌面和 CLI 共享会话静默边界；CLI 已持有跨进程文件锁。 */
+  public static async acquireLibrary(
+    databaseName: string,
+    externalLock = false
+  ): Promise<() => void> {
+    const dir = chatSessionDirOf(databaseName);
+    const databasePath = join(PathUtil.getAppDir(), `${basename(dir)}.db`);
+    const release = PiSessionHostModule.access.acquire([dir]);
+    let releaseFile: (() => void) | undefined;
+    try {
+      if (externalLock) {
+        if (!isDatabaseSyncLocked(databasePath)) throw new Error("CLI 尚未锁定数据库");
+      } else releaseFile = acquireDatabaseSyncLock(databasePath);
+      const sessions = PiSessionHostModule.states().filter(
+        item => item.file && dirname(item.file) === dir
+      );
+      if (sessions.some(item => item.busy))
+        throw new Error("此库仍有对话在运行，请停止回答后再同步");
+      PiSessionHostModule.blockedDirectories.add(dir);
+      await Promise.all(sessions.map(item => PiSessionHostModule.disposeSession(item.id)));
+      let released = false;
+      const unlock = () => {
+        if (released) return;
+        released = true;
+        try {
+          releaseFile?.();
+        } finally {
+          release();
+          PiSessionHostModule.blockedDirectories.delete(dir);
+          PiSessionHostModule.libraryLeases.delete(dir);
+        }
+      };
+      PiSessionHostModule.libraryLeases.set(dir, unlock);
+      return unlock;
+    } catch (error) {
+      try {
+        releaseFile?.();
+      } finally {
+        release();
+        PiSessionHostModule.blockedDirectories.delete(dir);
+      }
+      throw error;
+    }
+  }
+
   private static async createSession(sender: PiSessionClient, request: PiSessionCreateRequest) {
     if (
       PiSessionHostModule.sessions.has(request.sessionId) ||
@@ -606,6 +644,8 @@ class PiSessionHostModule {
             : request.databaseName
               ? chatSessionDirOf(request.databaseName)
               : await PiSessionHostModule.currentSessionDir();
+      if (sessionDir && !request.browserPageUrl)
+        assertDatabaseNotSyncing(join(PathUtil.getAppDir(), `${basename(sessionDir)}.db`));
       if (sessionDir && PiSessionHostModule.blockedDirectories.has(sessionDir))
         throw new Error("对话记录正在同步，请稍后重试");
       release = PiSessionHostModule.access.acquire([
@@ -841,6 +881,14 @@ class PiSessionHostModule {
   ): Promise<T | { ok: false; error: string }> {
     const hosted = PiSessionHostModule.sessions.get(sessionId);
     if (!hosted || hosted.closing) return { ok: false, error: "会话已关闭" };
+    const file = hosted.session.sessionFile;
+    if (file && dirname(dirname(file)) === chatSessionRoot()) {
+      try {
+        assertDatabaseNotSyncing(join(PathUtil.getAppDir(), `${basename(dirname(file))}.db`));
+      } catch (error) {
+        return { ok: false, error: error instanceof Error ? error.message : String(error) };
+      }
+    }
     const controller = new AbortController();
     const task = Promise.resolve().then(() => {
       controller.signal.throwIfAborted();
@@ -967,6 +1015,7 @@ class PiSessionHostModule {
     const sessionDir = location.databaseName
       ? chatSessionDirOf(location.databaseName)
       : await PiSessionHostModule.currentSessionDir();
+    assertDatabaseNotSyncing(join(PathUtil.getAppDir(), `${basename(sessionDir)}.db`));
     return { file: resolveSessionFile(sessionDir, location.sessionFile), sessionDir };
   }
 

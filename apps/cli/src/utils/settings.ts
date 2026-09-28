@@ -1,4 +1,5 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, renameSync, rmSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { getAppDir } from "./path.js";
 
@@ -52,13 +53,19 @@ export function readSettings(): Settings {
 
 export function writeSettings(settings: Settings): void {
   const path = join(getAppDir(), SETTINGS_FILE);
-  writeFileSync(path, JSON.stringify(settings, null, 2), "utf-8");
+  const temp = `${path}.${randomUUID()}.tmp`;
+  try {
+    writeFileSync(temp, JSON.stringify(settings, null, 2), { flag: "wx" });
+    renameSync(temp, path);
+  } finally {
+    rmSync(temp, { force: true });
+  }
 }
 
 export function getActiveDatabase(): DatabaseConfig {
   const settings = readSettings();
   const active = settings.database.active ?? "data.db";
-  const db = settings.database.databases.find((d) => d.name === active);
+  const db = settings.database.databases.find(d => d.name === active);
   return db ?? { name: active, version: 0 };
 }
 
@@ -100,12 +107,9 @@ export function getSyncConfig(): {
   }
 }
 
-export function updateDatabaseVersion(
-  dbName: string,
-  newVersion: number,
-): void {
+export function updateDatabaseVersion(dbName: string, newVersion: number): void {
   const settings = readSettings();
-  const db = settings.database.databases.find((d) => d.name === dbName);
+  const db = settings.database.databases.find(d => d.name === dbName);
   if (db) {
     db.version = newVersion;
     writeSettings(settings);

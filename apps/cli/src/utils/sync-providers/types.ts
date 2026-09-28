@@ -6,6 +6,8 @@ export interface ISyncProvider {
 }
 
 export interface IDatabaseInfo {
+  databaseObject?: string;
+  sessionsObject?: string;
   version: number;
   dataModelVersion?: number;
   [key: string]: unknown;
