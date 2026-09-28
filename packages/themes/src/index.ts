@@ -3,10 +3,10 @@
  * 纯数据 + 纯函数，不依赖 DOM / React，可在 Node（vite 配置、主进程、测试）中直接使用。
  * DOM 应用见 `@tau/themes/dom`，React 运行时见 `@tau/themes/react`。
  */
-import "./register";
+import "./register.ts";
 
-export * from "./tokenContract";
-export { THEME_MODES, defineTheme, getTheme, getThemeRegistry, listThemes } from "./defineTheme";
+export * from "./tokenContract.ts";
+export { THEME_MODES, defineTheme, getTheme, getThemeRegistry, listThemes } from "./defineTheme.ts";
 export type {
   ThemeDefinition,
   ThemeDefinitionArgs,
@@ -14,7 +14,7 @@ export type {
   ThemePalette,
   ThemeVariant,
   ThemeVariantArgs,
-} from "./defineTheme";
+} from "./defineTheme.ts";
 export {
   APPEARANCE_STORAGE_KEY,
   DEFAULT_APPEARANCE,
@@ -26,4 +26,4 @@ export {
   type Appearance,
   type ResolvedThemePreference,
   type ThemeRuntimeConfig,
-} from "./bootstrap";
+} from "./bootstrap.ts";

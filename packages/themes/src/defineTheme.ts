@@ -13,8 +13,8 @@
  * 后续优化为构建期 codegen（`pnpm ui:themes` 生成数据块），协议不变。
  */
 
-import type { SemanticTokens } from "./tokenContract";
-import { isDev } from "./env";
+import type { SemanticTokens } from "./tokenContract.ts";
+import { isDev } from "./env.ts";
 
 export type ThemeMode = "light" | "dark";
 

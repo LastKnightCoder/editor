@@ -4,8 +4,7 @@ import react from "@vitejs/plugin-react-swc";
 import tailwindcss from "@tailwindcss/vite";
 import electron from "vite-plugin-electron/simple";
 import fs from "fs-extra";
-// 相对路径而非包名：vite 打包配置时会把包名外置给 Node 原生加载，Node 不认 TS 源码里的无扩展名导入
-import { createThemeBootstrapScript } from "../../packages/themes/src/index";
+import { createThemeBootstrapScript } from "@tau/themes";
 
 import * as path from "path";
 
