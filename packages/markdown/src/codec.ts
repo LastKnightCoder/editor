@@ -21,11 +21,6 @@ export interface MarkdownCodec {
   /** void 元素：位置映射只记元素级范围（导入、导出两个方向都生效） */
   isVoid?: boolean;
   /**
-   * 只在导入方向按 void 处理。迁移前 file-attachment 就是这样（导出端的 void 表漏了它），
-   * 为保持位置映射不变先沿用；两端统一后删除这个字段
-   */
-  isVoidOnImportOnly?: boolean;
-  /**
    * 行内包裹：导入时该 text directive 的子文本按 directive 整体范围记前后缀（位置映射用），
    * 值为 directive 名
    */

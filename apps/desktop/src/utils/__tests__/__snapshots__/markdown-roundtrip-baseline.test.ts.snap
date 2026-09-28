@@ -1450,18 +1450,17 @@ exports[`Markdown 往返基准 > 带位置导入 / 导出的映射 > export mapp
     "type": "element",
   },
   {
-    "mdCh": 0,
-    "mdLength": 0,
-    "mdLine": 66,
-    "prefixLength": 0,
-    "slateLength": 0,
-    "slateOffset": 0,
-    "slateTextPath": [
+    "elementType": "file-attachment",
+    "isVoid": true,
+    "mdEndCh": 3,
+    "mdEndLine": 67,
+    "mdStartCh": 0,
+    "mdStartLine": 66,
+    "propertyMappings": undefined,
+    "slateElementPath": [
       21,
-      0,
     ],
-    "suffixLength": 0,
-    "type": "text",
+    "type": "element",
   },
   {
     "elementType": "divide-line",

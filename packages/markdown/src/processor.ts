@@ -50,20 +50,14 @@ export function createMarkdownProcessor(options: MarkdownProcessorOptions = {}):
 
   const directives: Record<string, CustomDirectiveHandler> = {};
   const voidTypes = new Set(BUILTIN_VOID_TYPES);
-  const importVoidTypes = new Set(BUILTIN_VOID_TYPES);
   const inlineWrapperDirectives = new Set(BUILTIN_INLINE_WRAPPER_DIRECTIVES);
   for (const codec of codecs) {
     Object.assign(directives, codec.directives);
     if (codec.isVoid) voidTypes.add(codec.type);
-    if (codec.isVoid || codec.isVoidOnImportOnly) importVoidTypes.add(codec.type);
     if (codec.inlineWrapperDirective) inlineWrapperDirectives.add(codec.inlineWrapperDirective);
   }
 
-  const importConfig: ImportConfig = {
-    directives,
-    voidTypes: importVoidTypes,
-    inlineWrapperDirectives,
-  };
+  const importConfig: ImportConfig = { directives, voidTypes, inlineWrapperDirectives };
   const exportConfig: ExportConfig = {
     registry: new MarkdownSerializerRegistry(
       codecs.flatMap(codec => (codec.serializer ? [{ ...codec.serializer, type: codec.type }] : []))

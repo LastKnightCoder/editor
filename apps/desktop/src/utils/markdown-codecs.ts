@@ -74,8 +74,7 @@ export const desktopMarkdownCodecs: MarkdownCodec[] = [
     type: "file-attachment",
     directives: pickDirectives("file-attachment"),
     serializer: fileAttachmentSerializer,
-    // 迁移前导出端的 void 表没有 file-attachment，位置映射按文本记；先保持不变（见 04 遗留问题）
-    isVoidOnImportOnly: true,
+    isVoid: true,
   },
   {
     type: "summary-timestamp",
