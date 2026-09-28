@@ -10,6 +10,12 @@ export const desktopMarkdown = createMarkdownProcessor({ codecs: desktopMarkdown
 export const importFromMarkdown = desktopMarkdown.importFromMarkdown;
 export const importFromMarkdownWithPositions = desktopMarkdown.importFromMarkdownWithPositions;
 export const getMarkdown = desktopMarkdown.getMarkdown;
+export const getMarkdownWithPositions = desktopMarkdown.getMarkdownWithPositions;
 export const elementToMarkdown = desktopMarkdown.elementToMarkdown;
 
-export { leafToMarkdown, type SlateWithPositions } from "@tau/markdown";
+export {
+  leafToMarkdown,
+  leafToMarkdownStructured,
+  type SlateWithPositions,
+  type MarkdownWithPositions,
+} from "@tau/markdown";

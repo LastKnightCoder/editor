@@ -20,8 +20,7 @@ import type { Editor as CodeMirrorEditor } from "codemirror";
 import { useMemoizedFn } from "ahooks";
 import type { EditorRef } from "@tau/editor/src";
 import { codeBlockMap } from "@tau/editor/src/extensions/code-block";
-import { getMarkdownWithPositions } from "@/utils/markdown-helper";
-import { importFromMarkdownWithPositions } from "@/utils/markdown";
+import { getMarkdownWithPositions, importFromMarkdownWithPositions } from "@/utils/markdown";
 
 type SlatePoint = { path: number[]; offset: number };
 type SlateInstance = ReturnType<EditorRef["getEditor"]>;

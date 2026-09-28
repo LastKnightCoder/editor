@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import type { Descendant } from "slate";
 import { createSharedDocument, readSharedContent } from "@tau/collaboration";
-import { getMarkdown } from "@/utils/markdown-helper";
+import { getMarkdown } from "@/utils/markdown";
 import {
   removeActiveEditingSession,
   updateActiveEditingSessionContent,

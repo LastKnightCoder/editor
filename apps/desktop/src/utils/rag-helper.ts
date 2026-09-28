@@ -1,5 +1,5 @@
 import { RequestMessage, KnowledgeOptions } from "@/types";
-import { getMarkdown } from "./markdown-helper";
+import { getMarkdown } from "./markdown";
 import { searchContent } from "./search";
 
 /**

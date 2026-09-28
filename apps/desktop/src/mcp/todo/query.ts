@@ -10,7 +10,7 @@ import {
   listTodoItemsByType,
   listTodoNotesByTodoIds,
 } from "@/commands/todo";
-import { getMarkdown } from "@/utils/markdown-helper";
+import { getMarkdown } from "@/utils/markdown";
 import type {
   TodoCalendarMapping,
   TodoDashboardResponse,
@@ -39,10 +39,7 @@ interface TodoBatchRelations {
   notesByTodoId: Record<number, TodoNoteLink[]>;
   calendarMappingsByTodoId: Record<number, TodoCalendarMapping[]>;
   recurrencesByTodoId: Record<number, TodoRecurrence>;
-  recurrenceCompletionsByRecurrenceId: Record<
-    number,
-    TodoRecurrenceCompletion[]
-  >;
+  recurrenceCompletionsByRecurrenceId: Record<number, TodoRecurrenceCompletion[]>;
 }
 
 const DEFAULT_PAGE = 1;
@@ -63,7 +60,7 @@ const normalizeDescendantsText = (content?: Descendant[]) => {
   }
 
   return content
-    .map((node) => Node.string(node))
+    .map(node => Node.string(node))
     .join("\n")
     .trim();
 };
@@ -71,16 +68,14 @@ const normalizeDescendantsText = (content?: Descendant[]) => {
 const normalizeKeyword = (value?: string) => value?.trim().toLowerCase() ?? "";
 
 const normalizeNameSet = (values?: string[]) => {
-  return new Set(
-    (values || []).map((value) => value.trim().toLowerCase()).filter(Boolean),
-  );
+  return new Set((values || []).map(value => value.trim().toLowerCase()).filter(Boolean));
 };
 
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const normalizeTimeBoundary = (
   value: number | string | null | undefined,
-  boundary: "start" | "end",
+  boundary: "start" | "end"
 ) => {
   if (value == null) {
     return null;
@@ -106,21 +101,15 @@ const normalizeTimeBoundary = (
   }
 
   if (DATE_ONLY_PATTERN.test(trimmed)) {
-    return boundary === "start"
-      ? parsed.startOf("day").valueOf()
-      : parsed.endOf("day").valueOf();
+    return boundary === "start" ? parsed.startOf("day").valueOf() : parsed.endOf("day").valueOf();
   }
 
   return parsed.valueOf();
 };
 
-const buildGroupMap = (groups: TodoGroup[]) =>
-  new Map(groups.map((group) => [group.id, group]));
+const buildGroupMap = (groups: TodoGroup[]) => new Map(groups.map(group => [group.id, group]));
 
-const getItemFieldValue = (
-  item: TodoItem,
-  filter: TodoQueryFilter,
-): number | null | undefined => {
+const getItemFieldValue = (item: TodoItem, filter: TodoQueryFilter): number | null | undefined => {
   switch (filter.timeField) {
     case "createTime":
       return item.createTime;
@@ -138,9 +127,7 @@ const getItemFieldValue = (
 };
 
 const isOverdueItem = (item: TodoItem) =>
-  !item.isCompleted &&
-  typeof item.dueAt === "number" &&
-  item.dueAt < Date.now();
+  !item.isCompleted && typeof item.dueAt === "number" && item.dueAt < Date.now();
 
 const getStatusBucket = (item: TodoItem) => {
   if (item.isCompleted) {
@@ -168,7 +155,7 @@ const getDateBucket = (value?: number | null, fallbackLabel = "未设置") => {
 
 const buildParentChildrenMap = (items: TodoItem[]) => {
   const parentChildrenMap = new Map<number, number[]>();
-  items.forEach((item) => {
+  items.forEach(item => {
     if (item.parentId == null) {
       return;
     }
@@ -181,17 +168,14 @@ const buildParentChildrenMap = (items: TodoItem[]) => {
   return parentChildrenMap;
 };
 
-const collectDescendantIds = (
-  parentChildrenMap: Map<number, number[]>,
-  parentId: number,
-) => {
+const collectDescendantIds = (parentChildrenMap: Map<number, number[]>, parentId: number) => {
   const result = new Set<number>([parentId]);
   const queue = [parentId];
 
   while (queue.length > 0) {
     const current = queue.shift()!;
     const children = parentChildrenMap.get(current) ?? [];
-    children.forEach((childId) => {
+    children.forEach(childId => {
       if (!result.has(childId)) {
         result.add(childId);
         queue.push(childId);
@@ -202,11 +186,7 @@ const collectDescendantIds = (
   return result;
 };
 
-const sortItems = (
-  items: TodoItem[],
-  groupMap: Map<number, TodoGroup>,
-  sort: TodoQuerySort,
-) => {
+const sortItems = (items: TodoItem[], groupMap: Map<number, TodoGroup>, sort: TodoQuerySort) => {
   const sorted = [...items];
   sorted.sort((left, right) => {
     switch (sort) {
@@ -232,10 +212,8 @@ const sortItems = (
       }
       case "manual":
       default: {
-        const leftGroupSort =
-          groupMap.get(left.groupId)?.sortIndex ?? left.groupId;
-        const rightGroupSort =
-          groupMap.get(right.groupId)?.sortIndex ?? right.groupId;
+        const leftGroupSort = groupMap.get(left.groupId)?.sortIndex ?? left.groupId;
+        const rightGroupSort = groupMap.get(right.groupId)?.sortIndex ?? right.groupId;
         if (leftGroupSort !== rightGroupSort) {
           return leftGroupSort - rightGroupSort;
         }
@@ -260,11 +238,11 @@ const sortItems = (
 const buildBuckets = (
   items: TodoQueryItem[],
   groupBy: TodoQueryRequest["groupBy"],
-  groupMap: Map<number, TodoGroup>,
+  groupMap: Map<number, TodoGroup>
 ) => {
   const bucketMap = new Map<string, TodoQueryBucket>();
 
-  items.forEach((item) => {
+  items.forEach(item => {
     let bucket: { key: string; label: string };
     switch (groupBy) {
       case "group": {
@@ -316,19 +294,14 @@ const buildBuckets = (
   return Array.from(bucketMap.values());
 };
 
-const loadBaseContext = async (
-  filter?: TodoQueryFilter,
-): Promise<TodoBaseContext> => {
-  const [groups, systemGroups] = await Promise.all([
-    listTodoGroups(),
-    getSystemGroups(),
-  ]);
+const loadBaseContext = async (filter?: TodoQueryFilter): Promise<TodoBaseContext> => {
+  const [groups, systemGroups] = await Promise.all([listTodoGroups(), getSystemGroups()]);
   const allGroups = [...systemGroups, ...groups];
 
   let items: TodoItem[];
   if (filter?.groupIds && filter.groupIds.length > 0) {
     const groupItems = await Promise.all(
-      [...new Set(filter.groupIds)].map((groupId) => listTodoItems(groupId)),
+      [...new Set(filter.groupIds)].map(groupId => listTodoItems(groupId))
     );
     items = groupItems.flat();
   } else if (
@@ -337,12 +310,10 @@ const loadBaseContext = async (
     !filter.systemGroupTypes.includes("all")
   ) {
     const itemsByType = await Promise.all(
-      [...new Set(filter.systemGroupTypes)].map((type) =>
-        listTodoItemsByType(type),
-      ),
+      [...new Set(filter.systemGroupTypes)].map(type => listTodoItemsByType(type))
     );
     const deduped = new Map<number, TodoItem>();
-    itemsByType.flat().forEach((item) => deduped.set(item.id, item));
+    itemsByType.flat().forEach(item => deduped.set(item.id, item));
     items = Array.from(deduped.values());
   } else {
     items = await listTodoItemsByType("all");
@@ -355,10 +326,8 @@ const loadBaseContext = async (
   };
 };
 
-const loadBatchRelations = async (
-  items: TodoItem[],
-): Promise<TodoBatchRelations> => {
-  const todoIds = [...new Set(items.map((item) => item.id))];
+const loadBatchRelations = async (items: TodoItem[]): Promise<TodoBatchRelations> => {
+  const todoIds = [...new Set(items.map(item => item.id))];
   if (todoIds.length === 0) {
     return {
       notesByTodoId: {},
@@ -368,29 +337,25 @@ const loadBatchRelations = async (
     };
   }
 
-  const [notesByTodoId, calendarMappingsByTodoId, recurrencesByTodoId] =
-    await Promise.all([
-      listTodoNotesByTodoIds(todoIds),
-      getCalendarMappingsByTodoIds(todoIds),
-      getRecurrencesByItemIds(todoIds),
-    ]);
+  const [notesByTodoId, calendarMappingsByTodoId, recurrencesByTodoId] = await Promise.all([
+    listTodoNotesByTodoIds(todoIds),
+    getCalendarMappingsByTodoIds(todoIds),
+    getRecurrencesByItemIds(todoIds),
+  ]);
 
   const recurrences = Object.values(recurrencesByTodoId);
-  const recurrenceIds = recurrences.map((recurrence) => recurrence.id);
-  const minStartDate = recurrences.reduce<number | undefined>(
-    (minValue, recurrence) => {
-      if (minValue === undefined) {
-        return recurrence.startDate;
-      }
-      return Math.min(minValue, recurrence.startDate);
-    },
-    undefined,
-  );
+  const recurrenceIds = recurrences.map(recurrence => recurrence.id);
+  const minStartDate = recurrences.reduce<number | undefined>((minValue, recurrence) => {
+    if (minValue === undefined) {
+      return recurrence.startDate;
+    }
+    return Math.min(minValue, recurrence.startDate);
+  }, undefined);
   const recurrenceCompletionsByRecurrenceId = recurrenceIds.length
     ? await getRecurrenceCompletionsByRecurrenceIds(
         recurrenceIds,
         minStartDate,
-        dayjs().endOf("day").valueOf(),
+        dayjs().endOf("day").valueOf()
       )
     : {};
 
@@ -402,10 +367,7 @@ const loadBatchRelations = async (
   };
 };
 
-const filterItems = async (
-  context: TodoBaseContext,
-  filter: TodoQueryFilter,
-) => {
+const filterItems = async (context: TodoBaseContext, filter: TodoQueryFilter) => {
   const keyword = normalizeKeyword(filter.keyword);
   const parentChildrenMap = buildParentChildrenMap(context.items);
   const subtreeIds =
@@ -413,7 +375,7 @@ const filterItems = async (
       ? collectDescendantIds(parentChildrenMap, filter.parentId)
       : null;
   const notesByTodoId = filter.keyword
-    ? await listTodoNotesByTodoIds(context.items.map((item) => item.id))
+    ? await listTodoNotesByTodoIds(context.items.map(item => item.id))
     : {};
   const groupNameSet = normalizeNameSet(filter.groupNames);
 
@@ -424,17 +386,13 @@ const filterItems = async (
 
     const group = context.groupMap.get(item.groupId);
     const descriptionText = normalizeDescendantsText(item.descriptionContent);
-    const haystack = [item.title, descriptionText, group?.title ?? ""]
-      .join("\n")
-      .toLowerCase();
+    const haystack = [item.title, descriptionText, group?.title ?? ""].join("\n").toLowerCase();
     if (haystack.includes(keyword)) {
       return true;
     }
 
     const cachedNotes = notesByTodoId[item.id] ?? [];
-    return cachedNotes.some((note) =>
-      (note.title ?? "").toLowerCase().includes(keyword),
-    );
+    return cachedNotes.some(note => (note.title ?? "").toLowerCase().includes(keyword));
   };
 
   const matched: TodoItem[] = [];
@@ -446,10 +404,7 @@ const filterItems = async (
     }
 
     if (groupNameSet.size > 0) {
-      const groupTitle = context.groupMap
-        .get(item.groupId)
-        ?.title?.trim()
-        .toLowerCase();
+      const groupTitle = context.groupMap.get(item.groupId)?.title?.trim().toLowerCase();
       if (!groupTitle || !groupNameSet.has(groupTitle)) {
         continue;
       }
@@ -471,38 +426,23 @@ const filterItems = async (
       continue;
     }
 
-    if (
-      typeof filter.isCompleted === "boolean" &&
-      item.isCompleted !== filter.isCompleted
-    ) {
+    if (typeof filter.isCompleted === "boolean" && item.isCompleted !== filter.isCompleted) {
       continue;
     }
 
-    if (
-      typeof filter.isArchived === "boolean" &&
-      item.isArchived !== filter.isArchived
-    ) {
+    if (typeof filter.isArchived === "boolean" && item.isArchived !== filter.isArchived) {
       continue;
     }
 
-    if (
-      typeof filter.isOverdue === "boolean" &&
-      isOverdueItem(item) !== filter.isOverdue
-    ) {
+    if (typeof filter.isOverdue === "boolean" && isOverdueItem(item) !== filter.isOverdue) {
       continue;
     }
 
-    if (
-      typeof filter.hasDueAt === "boolean" &&
-      Boolean(item.dueAt) !== filter.hasDueAt
-    ) {
+    if (typeof filter.hasDueAt === "boolean" && Boolean(item.dueAt) !== filter.hasDueAt) {
       continue;
     }
 
-    if (
-      typeof filter.hasStartAt === "boolean" &&
-      Boolean(item.startAt) !== filter.hasStartAt
-    ) {
+    if (typeof filter.hasStartAt === "boolean" && Boolean(item.startAt) !== filter.hasStartAt) {
       continue;
     }
 
@@ -520,10 +460,7 @@ const filterItems = async (
       }
     }
 
-    if (
-      filter.timeField &&
-      (normalizedStart != null || normalizedEnd != null)
-    ) {
+    if (filter.timeField && (normalizedStart != null || normalizedEnd != null)) {
       const fieldValue = getItemFieldValue(item, filter);
       if (fieldValue == null) {
         continue;
@@ -546,12 +483,9 @@ const filterItems = async (
   return { matched, notesByTodoId };
 };
 
-const buildSummary = (
-  items: TodoItem[],
-  groupMap: Map<number, TodoGroup>,
-): TodoQuerySummary => {
-  const completedItems = items.filter((item) => item.isCompleted);
-  const pendingItems = items.filter((item) => !item.isCompleted);
+const buildSummary = (items: TodoItem[], groupMap: Map<number, TodoGroup>): TodoQuerySummary => {
+  const completedItems = items.filter(item => item.isCompleted);
+  const pendingItems = items.filter(item => !item.isCompleted);
   const overdueItems = pendingItems.filter(isOverdueItem);
 
   return {
@@ -559,12 +493,12 @@ const buildSummary = (
     completedCount: completedItems.length,
     pendingCount: pendingItems.length,
     overdueCount: overdueItems.length,
-    groupsCount: new Set(items.map((item) => item.groupId)).size,
+    groupsCount: new Set(items.map(item => item.groupId)).size,
     recentCompleted: [...completedItems]
-      .filter((item) => item.completedAt)
+      .filter(item => item.completedAt)
       .sort((left, right) => (right.completedAt ?? 0) - (left.completedAt ?? 0))
       .slice(0, 5)
-      .map((item) => ({
+      .map(item => ({
         id: item.id,
         title: item.title,
         groupId: item.groupId,
@@ -577,17 +511,15 @@ const buildSummary = (
 const enrichItems = async (
   items: TodoItem[],
   groupMap: Map<number, TodoGroup>,
-  relations?: TodoBatchRelations,
+  relations?: TodoBatchRelations
 ) => {
   const batchRelations = relations ?? (await loadBatchRelations(items));
-  return items.map((item) => {
+  return items.map(item => {
     const recurrence = batchRelations.recurrencesByTodoId[item.id] ?? null;
     const notes = batchRelations.notesByTodoId[item.id] ?? [];
-    const calendarMappings =
-      batchRelations.calendarMappingsByTodoId[item.id] ?? [];
+    const calendarMappings = batchRelations.calendarMappingsByTodoId[item.id] ?? [];
     const recurrenceCompletions = recurrence
-      ? (batchRelations.recurrenceCompletionsByRecurrenceId[recurrence.id] ??
-        [])
+      ? (batchRelations.recurrenceCompletionsByRecurrenceId[recurrence.id] ?? [])
       : [];
 
     const enrichedItem: TodoQueryItem = {
@@ -598,9 +530,7 @@ const enrichItems = async (
       recurrence,
       recurrenceCompletions,
       calendarMappings,
-      descriptionMarkdown: item.descriptionContent
-        ? getMarkdown(item.descriptionContent)
-        : "",
+      descriptionMarkdown: item.descriptionContent ? getMarkdown(item.descriptionContent) : "",
     };
 
     return enrichedItem;
@@ -608,16 +538,13 @@ const enrichItems = async (
 };
 
 export const executeTodoQuery = async (
-  request: TodoQueryRequest = {},
+  request: TodoQueryRequest = {}
 ): Promise<TodoQueryResponse> => {
   const filter = request.filter ?? {};
   const groupBy = request.groupBy ?? "group";
   const sort = request.sort ?? "manual";
   const page = normalizePage(request.page, DEFAULT_PAGE);
-  const pageSize = Math.min(
-    normalizePage(request.pageSize, DEFAULT_PAGE_SIZE),
-    MAX_PAGE_SIZE,
-  );
+  const pageSize = Math.min(normalizePage(request.pageSize, DEFAULT_PAGE_SIZE), MAX_PAGE_SIZE);
   const context = await loadBaseContext(filter);
   const { matched, notesByTodoId } = await filterItems(context, filter);
   const sorted = sortItems(matched, context.groupMap, sort);
@@ -632,11 +559,7 @@ export const executeTodoQuery = async (
     ...relations.notesByTodoId,
     ...notesByTodoId,
   };
-  const enrichedItems = await enrichItems(
-    pageItems,
-    context.groupMap,
-    relations,
-  );
+  const enrichedItems = await enrichItems(pageItems, context.groupMap, relations);
 
   return {
     type: "todo-query-result",
@@ -664,112 +587,103 @@ export const executeTodoQuery = async (
 
 const buildDashboardGroups = (items: TodoItem[], groups: TodoGroup[]) => {
   const itemMap = new Map<number, TodoItem[]>();
-  items.forEach((item) => {
+  items.forEach(item => {
     const bucket = itemMap.get(item.groupId) ?? [];
     bucket.push(item);
     itemMap.set(item.groupId, bucket);
   });
 
   return groups
-    .map((group) => {
+    .map(group => {
       const groupItems = itemMap.get(group.id) ?? [];
       return {
         id: group.id,
         title: group.title,
         color: group.color,
         total: groupItems.length,
-        pending: groupItems.filter((item) => !item.isCompleted).length,
+        pending: groupItems.filter(item => !item.isCompleted).length,
         overdue: groupItems.filter(isOverdueItem).length,
       };
     })
-    .filter((group) => group.total > 0)
-    .sort(
-      (left, right) => right.pending - left.pending || right.total - left.total,
-    );
+    .filter(group => group.total > 0)
+    .sort((left, right) => right.pending - left.pending || right.total - left.total);
 };
 
-export const getTodoDashboardData =
-  async (): Promise<TodoDashboardResponse> => {
-    const context = await loadBaseContext({ systemGroupTypes: ["all"] });
-    const items = sortItems(context.items, context.groupMap, "manual");
-    const summary = buildSummary(items, context.groupMap);
-    const dashboardCandidates = [
-      ...items.filter(isOverdueItem).slice(0, 8),
-      ...items
-        .filter((item) => !item.isCompleted)
-        .sort((left, right) => {
-          const leftDue = left.dueAt ?? Number.MAX_SAFE_INTEGER;
-          const rightDue = right.dueAt ?? Number.MAX_SAFE_INTEGER;
-          if (leftDue !== rightDue) {
-            return leftDue - rightDue;
-          }
-          return right.updateTime - left.updateTime;
-        })
-        .slice(0, 12),
-      ...items
-        .filter((item) => item.isCompleted && item.completedAt)
-        .sort(
-          (left, right) => (right.completedAt ?? 0) - (left.completedAt ?? 0),
-        )
-        .slice(0, 8),
-    ];
-    const dashboardRelations = await loadBatchRelations(dashboardCandidates);
+export const getTodoDashboardData = async (): Promise<TodoDashboardResponse> => {
+  const context = await loadBaseContext({ systemGroupTypes: ["all"] });
+  const items = sortItems(context.items, context.groupMap, "manual");
+  const summary = buildSummary(items, context.groupMap);
+  const dashboardCandidates = [
+    ...items.filter(isOverdueItem).slice(0, 8),
+    ...items
+      .filter(item => !item.isCompleted)
+      .sort((left, right) => {
+        const leftDue = left.dueAt ?? Number.MAX_SAFE_INTEGER;
+        const rightDue = right.dueAt ?? Number.MAX_SAFE_INTEGER;
+        if (leftDue !== rightDue) {
+          return leftDue - rightDue;
+        }
+        return right.updateTime - left.updateTime;
+      })
+      .slice(0, 12),
+    ...items
+      .filter(item => item.isCompleted && item.completedAt)
+      .sort((left, right) => (right.completedAt ?? 0) - (left.completedAt ?? 0))
+      .slice(0, 8),
+  ];
+  const dashboardRelations = await loadBatchRelations(dashboardCandidates);
 
-    const enrichedAllItems = await enrichItems(
-      items.filter((item) => !item.isArchived),
-      context.groupMap,
-      dashboardRelations,
-    );
-    const overdueItems = await enrichItems(
-      items.filter(isOverdueItem).slice(0, 8),
-      context.groupMap,
-      dashboardRelations,
-    );
-    const pendingItems = await enrichItems(
-      items
-        .filter((item) => !item.isCompleted)
-        .sort((left, right) => {
-          const leftDue = left.dueAt ?? Number.MAX_SAFE_INTEGER;
-          const rightDue = right.dueAt ?? Number.MAX_SAFE_INTEGER;
-          if (leftDue !== rightDue) {
-            return leftDue - rightDue;
-          }
-          return right.updateTime - left.updateTime;
-        })
-        .slice(0, 12),
-      context.groupMap,
-      dashboardRelations,
-    );
-    const recentCompletedItems = await enrichItems(
-      items
-        .filter((item) => item.isCompleted && item.completedAt)
-        .sort(
-          (left, right) => (right.completedAt ?? 0) - (left.completedAt ?? 0),
-        )
-        .slice(0, 8),
-      context.groupMap,
-      dashboardRelations,
-    );
+  const enrichedAllItems = await enrichItems(
+    items.filter(item => !item.isArchived),
+    context.groupMap,
+    dashboardRelations
+  );
+  const overdueItems = await enrichItems(
+    items.filter(isOverdueItem).slice(0, 8),
+    context.groupMap,
+    dashboardRelations
+  );
+  const pendingItems = await enrichItems(
+    items
+      .filter(item => !item.isCompleted)
+      .sort((left, right) => {
+        const leftDue = left.dueAt ?? Number.MAX_SAFE_INTEGER;
+        const rightDue = right.dueAt ?? Number.MAX_SAFE_INTEGER;
+        if (leftDue !== rightDue) {
+          return leftDue - rightDue;
+        }
+        return right.updateTime - left.updateTime;
+      })
+      .slice(0, 12),
+    context.groupMap,
+    dashboardRelations
+  );
+  const recentCompletedItems = await enrichItems(
+    items
+      .filter(item => item.isCompleted && item.completedAt)
+      .sort((left, right) => (right.completedAt ?? 0) - (left.completedAt ?? 0))
+      .slice(0, 8),
+    context.groupMap,
+    dashboardRelations
+  );
 
-    return {
-      type: "todo-dashboard",
-      generatedAt: Date.now(),
-      summary,
-      items: enrichedAllItems,
-      groupBuckets: buildBuckets(enrichedAllItems, "group", context.groupMap),
-      overdueItems,
-      pendingItems,
-      recentCompletedItems,
-      groups: buildDashboardGroups(
-        items.filter((item) => !item.isArchived),
-        context.groups.filter((group) => !group.isSystem),
-      ),
-    };
+  return {
+    type: "todo-dashboard",
+    generatedAt: Date.now(),
+    summary,
+    items: enrichedAllItems,
+    groupBuckets: buildBuckets(enrichedAllItems, "group", context.groupMap),
+    overdueItems,
+    pendingItems,
+    recentCompletedItems,
+    groups: buildDashboardGroups(
+      items.filter(item => !item.isArchived),
+      context.groups.filter(group => !group.isSystem)
+    ),
   };
+};
 
-export const isTodoQueryResponse = (
-  value: unknown,
-): value is TodoQueryResponse => {
+export const isTodoQueryResponse = (value: unknown): value is TodoQueryResponse => {
   return (
     typeof value === "object" &&
     value !== null &&
@@ -777,9 +691,7 @@ export const isTodoQueryResponse = (
   );
 };
 
-export const isTodoDashboardResponse = (
-  value: unknown,
-): value is TodoDashboardResponse => {
+export const isTodoDashboardResponse = (value: unknown): value is TodoDashboardResponse => {
   return (
     typeof value === "object" &&
     value !== null &&
@@ -787,9 +699,7 @@ export const isTodoDashboardResponse = (
   );
 };
 
-export const buildDefaultTodoQuery = (
-  systemGroupType?: TodoSystemGroupType,
-): TodoQueryRequest => {
+export const buildDefaultTodoQuery = (systemGroupType?: TodoSystemGroupType): TodoQueryRequest => {
   return {
     filter:
       systemGroupType && systemGroupType !== "all"

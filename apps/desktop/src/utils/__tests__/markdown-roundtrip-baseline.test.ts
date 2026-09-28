@@ -2,8 +2,12 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { getMarkdown, importFromMarkdown, importFromMarkdownWithPositions } from "../markdown";
-import { getMarkdownWithPositions } from "../markdown-helper";
+import {
+  getMarkdown,
+  getMarkdownWithPositions,
+  importFromMarkdown,
+  importFromMarkdownWithPositions,
+} from "../markdown";
 
 /**
  * 往返基准（docs/editor-refactor 02 P5）：夹具覆盖内置元素与 desktop 业务元素，

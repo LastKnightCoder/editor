@@ -12,7 +12,7 @@ import {
 import { getContentById } from "@/commands/content";
 import type { Calendar, CalendarEvent, CalendarGroup } from "@/types";
 import { truncateMarkdown } from "@/utils/mcp-helpers";
-import { getMarkdown } from "@/utils/markdown-helper";
+import { getMarkdown } from "@/utils/markdown";
 
 export interface CalendarDashboardResult {
   kind: "calendar-dashboard";
