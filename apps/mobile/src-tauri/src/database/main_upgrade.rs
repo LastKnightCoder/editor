@@ -33,6 +33,45 @@ pub(super) fn has_column(conn: &Connection, table: &str, name: &str) -> rusqlite
         .any(|column| column.name == name))
 }
 
+/// 已下线功能留在老库里的表与列（与桌面 packages/db-schema/src/feature-table-retirement.ts 同一清单）
+pub(super) const RETIRED_FEATURE_TABLES: [&str; 4] = ["history", "prompt", "skill", "notion_sync"];
+const RETIRED_FEATURE_COLUMNS: [(&str, &str); 2] = [
+    ("vibe_learning_resources", "is_chunked"),
+    ("vibe_learning_resources", "chapter_count"),
+];
+
+/// 是否有需要退役的残留（调用方据此先备份整库）
+pub(super) fn has_retired_features(conn: &Connection) -> rusqlite::Result<bool> {
+    for table in RETIRED_FEATURE_TABLES {
+        if !columns(conn, table)?.is_empty() {
+            return Ok(true);
+        }
+    }
+    for (table, column) in RETIRED_FEATURE_COLUMNS {
+        if has_column(conn, table, column)? {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+/// 删掉下线功能的残留表与列；幂等。在升级事务内调用（备份由调用方在事务外做）
+pub(super) fn retire_feature_tables(conn: &Connection) -> rusqlite::Result<()> {
+    for table in RETIRED_FEATURE_TABLES {
+        conn.execute_batch(&format!("DROP TABLE IF EXISTS {}", quote(table)))?;
+    }
+    for (table, column) in RETIRED_FEATURE_COLUMNS {
+        if has_column(conn, table, column)? {
+            conn.execute_batch(&format!(
+                "ALTER TABLE {} DROP COLUMN {}",
+                quote(table),
+                quote(column)
+            ))?;
+        }
+    }
+    Ok(())
+}
+
 fn table_definitions(conn: &Connection) -> rusqlite::Result<Vec<(String, String)>> {
     conn.prepare("SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")?
         .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?

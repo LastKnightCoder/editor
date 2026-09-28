@@ -19,6 +19,32 @@ fn subscription_retirement_preserves_saved_content_and_repeats() {
 }
 
 #[test]
+fn feature_table_retirement_drops_leftovers_and_keeps_data() {
+    let conn = Connection::open_in_memory().unwrap();
+    ensure_main_schema(&conn).unwrap();
+    conn.execute_batch(
+        "CREATE TABLE history(id INTEGER); CREATE TABLE prompt(id INTEGER, title TEXT);
+        CREATE INDEX idx_prompt_update_time ON prompt(id); INSERT INTO prompt VALUES(1,'留在备份里');
+        CREATE TABLE skill(id INTEGER); CREATE TABLE notion_sync(id INTEGER);
+        ALTER TABLE vibe_learning_resources ADD COLUMN is_chunked INTEGER DEFAULT 0;
+        ALTER TABLE vibe_learning_resources ADD COLUMN chapter_count INTEGER DEFAULT 0;",
+    )
+    .unwrap();
+    ensure_main_schema(&conn).unwrap();
+    ensure_main_schema(&conn).unwrap();
+    let left: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE name IN ('history','prompt','skill','notion_sync','idx_prompt_update_time')",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(left, 0);
+    assert!(conn.prepare("SELECT is_chunked FROM vibe_learning_resources").is_err());
+    conn.prepare("SELECT sort_index FROM vibe_learning_resources").unwrap();
+}
+
+#[test]
 fn subscription_retirement_failure_rolls_back() {
     let conn = Connection::open_in_memory().unwrap();
     ensure_main_schema(&conn).unwrap();

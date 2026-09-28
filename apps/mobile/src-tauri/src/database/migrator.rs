@@ -176,6 +176,19 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
                 .map_err(|e| format!("SUBSCRIPTION_RETIREMENT_FAILED: 备份数据库失败: {e}"))?;
         }
     }
+    // 下线功能的残留表（prompt / notion_sync 可能还有数据）：删前备份，与桌面同一文件名
+    if super::main_upgrade::has_retired_features(conn)
+        .map_err(|e| format!("FEATURE_TABLE_RETIREMENT_FAILED: {e}"))?
+    {
+        if let Some(path) = conn.path().filter(|path| !path.is_empty() && *path != ":memory:") {
+            let backup = format!(
+                "{path}.pre-feature-table-retirement-v1-{}.bak",
+                uuid::Uuid::new_v4()
+            );
+            conn.execute("VACUUM INTO ?1", [&backup])
+                .map_err(|e| format!("FEATURE_TABLE_RETIREMENT_FAILED: 备份数据库失败: {e}"))?;
+        }
+    }
     conn.execute_batch(
         "
         PRAGMA journal_mode = WAL;
@@ -213,6 +226,8 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
     // 桌面旧聊天链路的运行记录（pi 迁移 M8）：只存运行中状态，移动端从不读
     tx.execute_batch("DROP TABLE IF EXISTS chat_run;")
         .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: {e}"))?;
+    super::main_upgrade::retire_feature_tables(&tx)
+        .map_err(|e| format!("FEATURE_TABLE_RETIREMENT_FAILED: {e}"))?;
     super::knowledge_migration::migrate(&tx)?;
     super::main_upgrade::validate(&tx, &baseline)?;
     let broken_reference = tx
