@@ -211,9 +211,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const { provider: titleProviderConfig, model: titleModelConfig } = useLLMConfig("titleSummary");
 
     // 草稿也有真 id，会话键从头到尾不变（不再有 id 0→N 的迁移）
-    const sessionKey = chatSessionKey(chatScope, currentChat.id);
+    const sessionKey = chatSessionKey(chatScope, currentChat.id, currentChat.databaseName);
     const [pendingSessionKeys, setPendingSessionKeys] = useState<Set<string>>(() => new Set());
     const setSessionPending = useMemoizedFn((key: string, pending: boolean) => {
+      piChatRuntime.setPending(key, pending);
       setPendingSessionKeys(current => {
         const next = new Set(current);
         if (pending) next.add(key);
@@ -224,7 +225,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     // 运行态双源：pending = 本轮提交中（含停止后排队等待提交）；streaming = pi 会话运行中
     // （模块级 runtime 维护，组件卸载/切页后依然准确）。中断恢复由 pi 会话 JSONL 事实源承接（M4）
     const streamingNow = piChatRuntime.isStreaming(sessionKey);
-    const sendLoading = pendingSessionKeys.has(sessionKey) || streamingNow;
+    const sendLoading =
+      piChatRuntime.isPending(sessionKey) || pendingSessionKeys.has(sessionKey) || streamingNow;
     // runtime streaming 位变化不触发渲染：订阅一个轻量 tick 保持响应（后台事件到达时刷新）
     const [runtimeTick, setRuntimeTick] = useState(0);
     useEffect(() => {
@@ -335,18 +337,24 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     // deps 每次渲染刷新（均为无组件生命周期的引用：store action / IPC command / 安全闭包）
     const runtimeDeps: PiChatRuntimeDeps = {
       publish: chat => useChatSessionStore.getState().publishChat(chat),
-      settle: chat => useChatSessionStore.getState().settleChat(chat.id),
+      settle: chat =>
+        useChatSessionStore.getState().settleChat(chat.id, chat.databaseName, chat.sessionFile),
+      evict: chat => useChatSessionStore.getState().evictChat(chat.id, chat.databaseName),
       generateTitle: chat => generateChatTitle(chat),
-      saveTitle: (chatId, title) => useChatSessionStore.getState().renameChat(chatId, title),
+      saveTitle: (chatId, title) =>
+        useChatSessionStore.getState().renameChat(chatId, title, currentChat.databaseName),
       ui: {
         onRetryStatus: status =>
+          conversationKeyRef.current === sessionKey &&
           setChatRetryStatus(
             status ? { attempt: status.attempt, maxRetries: status.maxAttempts } : null
           ),
-        onStreamError: errorMessage => setChatError(errorMessage),
+        onStreamError: errorMessage => {
+          if (conversationKeyRef.current === sessionKey) setChatError(errorMessage);
+        },
         onSettled: key => {
           setSessionPending(key, false);
-          setChatError(null);
+          if (conversationKeyRef.current === sessionKey) setChatError(null);
         },
         onTitleGenerated: (chatId, title) => {
           if (displayedChatIdRef.current === chatId) {
@@ -387,7 +395,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const hasRestoredScrollPositionRef = useRef(false);
     const isRestoringScrollPositionRef = useRef(false);
 
-    const getConversationKey = useMemoizedFn((chatId: string) => chatSessionKey(chatScope, chatId));
+    const getConversationKey = useMemoizedFn((chatId: string) =>
+      chatSessionKey(chatScope, chatId, currentChat.databaseName)
+    );
 
     // 待发送队列与已提交插话都归模块级 runtime（切页/卸载不丢）；
     // 变更经 runtime.subscribe → runtimeTick 触发重渲染，这里每次渲染取最新快照
@@ -734,6 +744,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           const systemPrompt = buildPiChatSystemPrompt(baseSystem, skills, forcedSkills);
           // 不传历史：pi 从会话文件恢复上下文（草稿首轮以对话 id 新建会话）
           const ensured = await piChatSessionManager.ensureChatSession({
+            databaseName: actualCurrentChat.databaseName,
             chatScope,
             chatId: actualCurrentChat.id,
             ...(actualCurrentChat.sessionFile
@@ -1135,7 +1146,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const submitMessageContent = useMemoizedFn(
       async (content: MessageContentItem[]): Promise<boolean> => {
         const conversationKey = conversationKeyRef.current;
-        if (sendLoading) {
+        if (
+          sendLoading ||
+          piChatRuntime.isPending(conversationKey) ||
+          piChatRuntime.isStreaming(conversationKey)
+        ) {
           piChatRuntime.enqueueMessage(conversationKey, content);
           return true;
         }

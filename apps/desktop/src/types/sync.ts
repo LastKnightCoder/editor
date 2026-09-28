@@ -29,6 +29,8 @@ export interface ISyncProvider {
 
 // 数据库信息类型
 export interface IDatabaseInfo {
+  databaseObject?: string;
+  sessionsObject?: string;
   version: number;
   dataModelVersion?: number;
   [key: string]: unknown;

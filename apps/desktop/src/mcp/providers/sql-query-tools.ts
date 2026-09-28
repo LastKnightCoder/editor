@@ -11,6 +11,7 @@ export const sqlQueryToolsProvider: MCPProviderDefinition = {
   tools: () => [
     {
       name: "sql_query",
+      risk: "read",
       description:
         "在当前主数据库执行单条只读 SQL 查询。优先使用显式列名、WHERE、JOIN 和 LIMIT；不要查询整表正文，正文 Markdown 和语义检索继续使用专用工具。遇到 SQL 错误时请根据结构化错误反馈修正表名、字段名或语法后重试。",
       parameters: {

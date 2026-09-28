@@ -467,8 +467,12 @@ export function LLMSection() {
       ...(displayName && displayName !== id ? { name: displayName } : {}),
       reasoning: modelForm.reasoning,
       input: modelForm.image ? ["text", "image"] : ["text"],
-      contextWindow: Number.isFinite(parsedContext) && parsedContext > 0 ? parsedContext : 128_000,
-      maxTokens: Number.isFinite(parsedMaxTokens) && parsedMaxTokens > 0 ? parsedMaxTokens : 8_192,
+      ...(Number.isFinite(parsedContext) && parsedContext > 0
+        ? { contextWindow: parsedContext }
+        : {}),
+      ...(Number.isFinite(parsedMaxTokens) && parsedMaxTokens > 0
+        ? { maxTokens: parsedMaxTokens }
+        : {}),
       ...(modelForm.thinkingLevel
         ? { thinkingLevel: modelForm.thinkingLevel as LLMModelSetting["thinkingLevel"] }
         : {}),

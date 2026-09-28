@@ -156,6 +156,7 @@ export const createImageToolDefinitions = (
   return [
     {
       name: "generate_image",
+      risk: "read",
       description:
         "使用已配置的图片生成模型生成图片。prompt 必填；size、quality、output_format、background、n 均为单次可选参数，只有用户明确提出尺寸、质量、格式、透明背景或多张候选图需求时才传入，否则省略。",
       parameters: {
@@ -200,6 +201,7 @@ export const createImageToolDefinitions = (
     },
     {
       name: "edit_image",
+      risk: "read",
       description:
         "使用已配置的图片生成模型编辑图片。prompt 和 image_paths 必填；image_paths 可传本地路径、file://、~、相对路径、远程 URL 或 data URL。size、quality、output_format、background、n 是单次可选参数，仅按用户本次需求传入。",
       parameters: {

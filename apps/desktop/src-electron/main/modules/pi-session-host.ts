@@ -26,6 +26,7 @@ import { piEntriesToDesktopMessages } from "./pi-session-transcript";
 import { desktopMessagesToPi, PiToolCallBridge } from "./pi-session-bridge";
 import {
   applySessionEdit,
+  installSessionDownload,
   applySessionEditToFile,
   browserSessionFile,
   deleteBrowserSession,
@@ -65,8 +66,9 @@ import { resolveV2Providers } from "./pi-ai-runtime-core";
 import type { LLMProviderSetting, PiThinkingLevel } from "@/types/pi-llm";
 import type { ChatSessionMessage, RequestMessage } from "@/types";
 import type { AgentSession, ExtensionAPI, InlineExtension } from "@earendil-works/pi-coding-agent";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { PiSessionAccess } from "./pi-session-access";
 
 /**
  * 宿主会话的客户端：渲染窗口（WebContents），或 M5 起不经渲染端直接驱动会话的主进程客户端
@@ -80,6 +82,8 @@ export interface PiSessionClient {
 }
 
 interface HostedSession {
+  operations: Map<AbortController, Promise<unknown>>;
+  closing?: Promise<void>;
   session: AgentSession;
   unsubscribe: () => void;
   sender: PiSessionClient;
@@ -100,6 +104,7 @@ interface HostedSession {
 }
 
 export interface PiSessionCreateRequest {
+  databaseName?: string;
   sessionId: string;
   scope: string;
   cwd: string;
@@ -136,6 +141,10 @@ export interface PiSessionCreateRequest {
 }
 
 class PiSessionHostModule {
+  private static readonly access = new PiSessionAccess();
+  private static readonly creating = new Set<string>();
+  private static readonly blockedDirectories = new Set<string>();
+  private static readonly libraryLeases = new Map<string, () => void>();
   private static readonly sessions = new Map<string, HostedSession>();
   private static latestProviders: LLMProviderSetting[] = [];
   private static shellPath: string | undefined;
@@ -146,6 +155,64 @@ class PiSessionHostModule {
     : undefined;
 
   public static init() {
+    ipcMain.handle(
+      "pi-session:lock-library",
+      async (event, { databaseName }: { databaseName: string }) =>
+        PiSessionHostModule.guard(async () => {
+          const dir = chatSessionDirOf(databaseName);
+          const release = PiSessionHostModule.access.acquire([dir]);
+          try {
+            const sessions = PiSessionHostModule.states().filter(
+              item => item.file && dirname(item.file) === dir
+            );
+            if (sessions.some(item => item.busy))
+              throw new Error("此库仍有对话在运行，请停止回答后再同步");
+            PiSessionHostModule.blockedDirectories.add(dir);
+            await Promise.all(sessions.map(item => PiSessionHostModule.disposeSession(item.id)));
+            const unlock = () => {
+              release();
+              PiSessionHostModule.libraryLeases.delete(dir);
+              PiSessionHostModule.blockedDirectories.delete(dir);
+              event.sender.removeListener("destroyed", unlock);
+              event.sender.removeListener("render-process-gone", unlock);
+              event.sender.removeListener("did-navigate", unlock);
+            };
+            event.sender.once("destroyed", unlock);
+            event.sender.once("render-process-gone", unlock);
+            event.sender.once("did-navigate", unlock);
+            PiSessionHostModule.libraryLeases.set(dir, unlock);
+            return {};
+          } catch (error) {
+            PiSessionHostModule.blockedDirectories.delete(dir);
+            release();
+            throw error;
+          }
+        })
+    );
+    ipcMain.handle(
+      "pi-session:unlock-library",
+      (_event, { databaseName }: { databaseName: string }) => {
+        const dir = chatSessionDirOf(databaseName);
+        PiSessionHostModule.libraryLeases.get(dir)?.();
+        PiSessionHostModule.libraryLeases.delete(dir);
+        PiSessionHostModule.blockedDirectories.delete(dir);
+        return { ok: true };
+      }
+    );
+    ipcMain.handle(
+      "pi-session:install-download",
+      (_event, { databaseName, archive }: { databaseName: string; archive?: Uint8Array }) =>
+        PiSessionHostModule.guard(async () => {
+          if (!PiSessionHostModule.libraryLeases.has(chatSessionDirOf(databaseName)))
+            throw new Error("同步尚未锁定会话目录");
+          installSessionDownload(
+            join(PathUtil.getAppDir(), `${databaseName.replace(/\.db$/, "")}.db`),
+            chatSessionDirOf(databaseName),
+            archive ? Buffer.from(archive) : undefined
+          );
+          return {};
+        })
+    );
     PiSessionHostModule.shellPath = detectBashShellPath();
     setInterval(() => PiSessionHostModule.sweepIdleSessions(), IDLE_SWEEP_INTERVAL_MS).unref?.();
     databaseModule.onDatabaseConnected(dbName => PiSessionHostModule.releaseOtherLibraries(dbName));
@@ -250,20 +317,23 @@ class PiSessionHostModule {
       ) => {
         const hosted = PiSessionHostModule.sessions.get(sessionId);
         if (!hosted || hosted.sender !== event.sender) return { ok: false, error: "会话不存在" };
-        const piImages = (
-          await Promise.all((images ?? []).map(image => readPromptImage(image)))
-        ).filter(Boolean);
-        const displayData = toDisplayData(text, display);
-        if (displayData) hosted.displayWriter.expect(displayData);
-        const outcome = await steerHostSession(hosted.session, text, piImages);
-        if (!outcome.ok && displayData) hosted.displayWriter.discard(displayData);
-        return outcome;
+        return PiSessionHostModule.runWithSession(sessionId, async signal => {
+          const piImages = (
+            await Promise.all((images ?? []).map(image => readPromptImage(image, signal)))
+          ).filter(Boolean);
+          signal.throwIfAborted();
+          const displayData = toDisplayData(text, display);
+          if (displayData) hosted.displayWriter.expect(displayData);
+          const outcome = await steerHostSession(hosted.session, text, piImages);
+          if (!outcome.ok && displayData) hosted.displayWriter.discard(displayData);
+          return outcome;
+        });
       }
     );
     ipcMain.handle("pi-session:abort", async (event, { sessionId }: { sessionId: string }) => {
       const hosted = PiSessionHostModule.sessions.get(sessionId);
       if (!hosted || hosted.sender !== event.sender) return { ok: false, error: "会话不存在" };
-      await hosted.session.abort();
+      await PiSessionHostModule.abort(sessionId);
       // 中止不清 pi 的插话队列：没送达的插话会滞留，等下一次 prompt 开跑时被一起吞进去。
       // 停止的语义是「这些都别发了」，所以这里清空，未送达的文本交渲染端退回待发送队列。
       const cleared = hosted.session.clearQueue();
@@ -272,7 +342,7 @@ class PiSessionHostModule {
     ipcMain.handle("pi-session:dispose", async (event, { sessionId }: { sessionId: string }) => {
       if (PiSessionHostModule.sessions.get(sessionId)?.sender !== event.sender)
         return { ok: false, error: "会话不存在" };
-      PiSessionHostModule.disposeSession(sessionId);
+      await PiSessionHostModule.disposeSession(sessionId);
       return { ok: true };
     });
     // 命令执行环境（M3-g）：设置页据此显示自动检测到什么、实际会用哪个，并校验用户填的路径
@@ -319,26 +389,47 @@ class PiSessionHostModule {
         PiSessionHostModule.guard(async () => {
           const { file, sessionDir } = await PiSessionHostModule.locate(location);
           if (!file) throw new Error("对话还没有保存下来，暂时不能修改历史");
-          const hosted = PiSessionHostModule.findByFile(file);
-          if (!hosted) {
-            applySessionEditToFile(file, edit);
-            return { messages: readTranscript(file, sessionDir) };
+          const release = PiSessionHostModule.access.acquire([file]);
+          try {
+            const hosted = PiSessionHostModule.findByFile(file);
+            if (!hosted) {
+              applySessionEditToFile(file, edit);
+              return { messages: readTranscript(file, sessionDir) };
+            }
+            const { session } = hosted;
+            if (
+              hosted.closing ||
+              hosted.operations.size ||
+              session.isStreaming ||
+              session.isCompacting
+            ) {
+              throw new Error("回答进行中，请先停止再修改历史");
+            }
+            applySessionEdit(session.sessionManager, edit);
+            session.refreshContext();
+            hosted.lastActive = Date.now();
+            return {
+              messages: piEntriesToDesktopMessages(transcriptOf(session.sessionManager)),
+            };
+          } finally {
+            release();
           }
-          const { session } = hosted;
-          if (session.isStreaming || session.isCompacting) {
-            throw new Error("回答进行中，请先停止再修改历史");
-          }
-          applySessionEdit(session.sessionManager, edit);
-          session.refreshContext();
-          hosted.lastActive = Date.now();
-          return {
-            messages: piEntriesToDesktopMessages(transcriptOf(session.sessionManager)),
-          };
         })
     );
     // 浏览器扩展对话（M4.5）：按页面列出/改名/删除，全部取自 pi 会话文件本身
     ipcMain.handle("pi-session:browser-list", async (_event, { pageUrl }: { pageUrl: string }) =>
-      PiSessionHostModule.guard(async () => ({ sessions: await listBrowserSessions(pageUrl) }))
+      PiSessionHostModule.guard(async () => {
+        const dir = browserSessionDirOf(pageUrl);
+        const release = PiSessionHostModule.access.acquire([dir]);
+        try {
+          const opened = PiSessionHostModule.states().some(
+            item => item.file && dirname(item.file) === dir
+          );
+          return { sessions: await listBrowserSessions(pageUrl, !opened) };
+        } finally {
+          release();
+        }
+      })
     );
     ipcMain.handle(
       "pi-session:browser-rename",
@@ -347,7 +438,19 @@ class PiSessionHostModule {
         { pageUrl, sessionId, title }: { pageUrl: string; sessionId: string; title: string }
       ) =>
         PiSessionHostModule.guard(async () => {
-          renameBrowserSession(pageUrl, sessionId, title);
+          const file = browserSessionFile(pageUrl, sessionId);
+          const release = PiSessionHostModule.access.acquire(
+            file ? [file] : [browserSessionDirOf(pageUrl)]
+          );
+          try {
+            const hosted = file ? PiSessionHostModule.findByFile(file) : undefined;
+            if (hosted?.closing || hosted?.operations.size)
+              throw new Error("回答进行中，请稍后改名");
+            if (hosted) hosted.session.sessionManager.appendSessionInfo(title);
+            else renameBrowserSession(pageUrl, sessionId, title);
+          } finally {
+            release();
+          }
           return {};
         })
     );
@@ -356,8 +459,15 @@ class PiSessionHostModule {
       async (_event, { pageUrl, sessionId }: { pageUrl: string; sessionId: string }) =>
         PiSessionHostModule.guard(async () => {
           const file = browserSessionFile(pageUrl, sessionId);
-          if (file) PiSessionHostModule.disposeByFile(file);
-          deleteBrowserSession(pageUrl, sessionId);
+          const release = PiSessionHostModule.access.acquire(
+            file ? [file] : [browserSessionDirOf(pageUrl)]
+          );
+          try {
+            if (file) await PiSessionHostModule.disposeByFile(file);
+            deleteBrowserSession(pageUrl, sessionId);
+          } finally {
+            release();
+          }
           return {};
         })
     );
@@ -372,16 +482,23 @@ class PiSessionHostModule {
       async (_event, { databaseName, archive }: { databaseName: string; archive: Uint8Array }) =>
         PiSessionHostModule.guard(async () => {
           const sessionDir = chatSessionDirOf(databaseName);
-          // 替换期间不能有宿主会话开着这个目录里的文件
-          for (const [id, hosted] of [...PiSessionHostModule.sessions.entries()]) {
-            if (hosted.session.sessionFile?.startsWith(sessionDir))
-              PiSessionHostModule.disposeSession(id);
+          const release = PiSessionHostModule.access.acquire([sessionDir]);
+          PiSessionHostModule.blockedDirectories.add(sessionDir);
+          try {
+            // 替换期间不能有宿主会话开着这个目录里的文件
+            for (const [id, hosted] of [...PiSessionHostModule.sessions.entries()]) {
+              if (hosted.session.sessionFile && dirname(hosted.session.sessionFile) === sessionDir)
+                await PiSessionHostModule.disposeSession(id);
+            }
+            return replaceSessionDir(
+              sessionDir,
+              Buffer.from(archive),
+              join(PathUtil.getAppDir(), "backup")
+            );
+          } finally {
+            PiSessionHostModule.blockedDirectories.delete(sessionDir);
+            release();
           }
-          return replaceSessionDir(
-            sessionDir,
-            Buffer.from(archive),
-            join(PathUtil.getAppDir(), "backup")
-          );
         })
     );
     ipcMain.handle("pi-session:find-by-scope", async (event, { scope }: { scope: string }) => {
@@ -462,11 +579,16 @@ class PiSessionHostModule {
   }
 
   private static async createSession(sender: PiSessionClient, request: PiSessionCreateRequest) {
-    if (PiSessionHostModule.sessions.has(request.sessionId)) {
+    if (
+      PiSessionHostModule.sessions.has(request.sessionId) ||
+      PiSessionHostModule.creating.has(request.sessionId)
+    ) {
       return { ok: false, error: "会话已存在" };
     }
     let interactions: PiSessionInteractions | undefined;
     let bridge: PiToolCallBridge | undefined;
+    let release: (() => void) | undefined;
+    PiSessionHostModule.creating.add(request.sessionId);
     try {
       const setting = await userSettingModule.getSettingSnapshot();
       PiSessionHostModule.permissionMode = normalizePermissionMode(setting.agentPermission?.mode);
@@ -481,7 +603,25 @@ class PiSessionHostModule {
           ? undefined
           : request.browserPageUrl
             ? browserSessionDirOf(request.browserPageUrl)
-            : await PiSessionHostModule.currentSessionDir();
+            : request.databaseName
+              ? chatSessionDirOf(request.databaseName)
+              : await PiSessionHostModule.currentSessionDir();
+      if (sessionDir && PiSessionHostModule.blockedDirectories.has(sessionDir))
+        throw new Error("对话记录正在同步，请稍后重试");
+      release = PiSessionHostModule.access.acquire([
+        ...(sessionDir
+          ? [
+              join(sessionDir, `@${request.piSessionId ?? request.sessionId}`),
+              ...(request.sessionFile ? [resolveSessionFile(sessionDir, request.sessionFile)] : []),
+              ...(request.browserPageUrl && request.piSessionId
+                ? [findSessionFileById(sessionDir, request.piSessionId)].filter(
+                    (file): file is string => Boolean(file)
+                  )
+                : []),
+            ]
+          : []),
+        `host:${request.sessionId}`,
+      ]);
       bridge = new PiToolCallBridge(sender, request.sessionId);
       interactions = new PiSessionInteractions({
         sessionId: request.sessionId,
@@ -503,15 +643,26 @@ class PiSessionHostModule {
       // 文件可能还不存在：pi 等第一条 assistant 消息出现才落盘（首轮预检失败就没有文件），
       // 不存在时 assembleHostSession 按 piSessionId 新建（见其注释）
       if (request.piSessionId) assertSafeSessionId(request.piSessionId);
-      const sessionFile = !sessionDir
-        ? undefined
-        : request.browserPageUrl
-          ? request.piSessionId
-            ? findSessionFileById(sessionDir, request.piSessionId)
-            : undefined
-          : request.sessionFile
-            ? resolveSessionFile(sessionDir, request.sessionFile)
-            : undefined;
+      const openedFile =
+        sessionDir && request.piSessionId
+          ? [...PiSessionHostModule.sessions.values()].find(
+              hosted =>
+                hosted.session.sessionId === request.piSessionId &&
+                hosted.session.sessionFile &&
+                dirname(hosted.session.sessionFile) === sessionDir
+            )?.session.sessionFile
+          : undefined;
+      const sessionFile =
+        openedFile ??
+        (!sessionDir
+          ? undefined
+          : request.browserPageUrl
+            ? request.piSessionId
+              ? findSessionFileById(sessionDir, request.piSessionId)
+              : undefined
+            : request.sessionFile
+              ? resolveSessionFile(sessionDir, request.sessionFile)
+              : undefined);
       // 同一文件只能有一个宿主（两个 SessionManager 并发写会互相覆盖）：空闲的顶替、忙的拒绝
       const conflict = resolveFileConflict(PiSessionHostModule.states(), sessionFile);
       if ("reject" in conflict) {
@@ -519,7 +670,7 @@ class PiSessionHostModule {
         bridge.dispose();
         return { ok: false, error: conflict.reject };
       }
-      conflict.dispose.forEach(id => PiSessionHostModule.disposeSession(id));
+      await Promise.all(conflict.dispose.map(id => PiSessionHostModule.disposeSession(id)));
       // resume 时历史已在 JSONL 里，灌入会重复
       const initialMessages =
         !sessionFile && request.initialMessages?.length
@@ -589,6 +740,7 @@ class PiSessionHostModule {
         }
       });
       PiSessionHostModule.sessions.set(request.sessionId, {
+        operations: new Map(),
         session,
         unsubscribe,
         sender,
@@ -616,6 +768,9 @@ class PiSessionHostModule {
       interactions?.dispose();
       bridge?.dispose();
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    } finally {
+      release?.();
+      PiSessionHostModule.creating.delete(request.sessionId);
     }
   }
 
@@ -651,38 +806,67 @@ class PiSessionHostModule {
     images?: Array<{ path?: string; dataUrl?: string }>,
     display?: PiPromptDisplay
   ): Promise<{ ok: boolean; error?: string }> {
+    return PiSessionHostModule.runWithSession(sessionId, async signal => {
+      const hosted = PiSessionHostModule.sessions.get(sessionId)!;
+      if (hosted.operations.size > 1) return { ok: false, error: "Agent is already processing" };
+      // 展示 entry 的模型文本取实际送给 pi 的 text（逐字相同，投影才认领得上）
+      const displayData = toDisplayData(text, display);
+      try {
+        // 渲染端只传定位信息（path/dataUrl），主进程读文件转 pi 的 base64 ImageContent
+        const piImages = (
+          await Promise.all((images ?? []).map(image => readPromptImage(image, signal)))
+        ).filter(Boolean);
+        signal.throwIfAborted();
+        if (displayData) hosted.displayWriter.expect(displayData);
+        hosted.lastActive = Date.now();
+        await hosted.session.prompt(text, {
+          // 与插话同理：关掉模板/技能展开，落盘的用户消息与送出文本逐字一致，展示 entry 才认领得上
+          expandPromptTemplates: false,
+          preflightResult: () => {
+            if (signal.aborted) void hosted.session.abort();
+          },
+          ...(piImages.length > 0 ? { images: piImages as never } : {}),
+        });
+        return { ok: true };
+      } catch (error) {
+        if (displayData) hosted.displayWriter.discard(displayData);
+        return { ok: false, error: error instanceof Error ? error.message : String(error) };
+      }
+    });
+  }
+
+  private static async runWithSession<T extends { ok: boolean }>(
+    sessionId: string,
+    run: (signal: AbortSignal) => Promise<T>
+  ): Promise<T | { ok: false; error: string }> {
     const hosted = PiSessionHostModule.sessions.get(sessionId);
-    if (!hosted) return { ok: false, error: "会话不存在" };
-    // 展示 entry 的模型文本取实际送给 pi 的 text（逐字相同，投影才认领得上）
-    const displayData = toDisplayData(text, display);
+    if (!hosted || hosted.closing) return { ok: false, error: "会话已关闭" };
+    const controller = new AbortController();
+    const task = Promise.resolve().then(() => {
+      controller.signal.throwIfAborted();
+      return run(controller.signal);
+    });
+    hosted.operations.set(controller, task);
     try {
-      // 渲染端只传定位信息（path/dataUrl），主进程读文件转 pi 的 base64 ImageContent
-      const piImages = (
-        await Promise.all((images ?? []).map(image => readPromptImage(image)))
-      ).filter(Boolean);
-      if (displayData) hosted.displayWriter.expect(displayData);
-      hosted.lastActive = Date.now();
-      await hosted.session.prompt(text, {
-        // 与插话同理：关掉模板/技能展开，落盘的用户消息与送出文本逐字一致，展示 entry 才认领得上
-        expandPromptTemplates: false,
-        ...(piImages.length > 0 ? { images: piImages as never } : {}),
-      });
-      return { ok: true };
+      return await task;
     } catch (error) {
-      if (displayData) hosted.displayWriter.discard(displayData);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    } finally {
+      hosted.operations.delete(controller);
     }
   }
 
   public static async abort(sessionId: string): Promise<void> {
     const hosted = PiSessionHostModule.sessions.get(sessionId);
     if (!hosted) return;
+    for (const controller of hosted.operations.keys()) controller.abort();
     await hosted.session.abort();
+    await Promise.allSettled([...hosted.operations.values()]);
     hosted.session.clearQueue();
   }
 
-  public static dispose(sessionId: string): void {
-    PiSessionHostModule.disposeSession(sessionId);
+  public static dispose(sessionId: string): Promise<void> {
+    return PiSessionHostModule.disposeSession(sessionId);
   }
 
   public static interactionsOf(sessionId: string) {
@@ -713,6 +897,8 @@ class PiSessionHostModule {
         id,
         file: hosted.session.sessionFile,
         busy:
+          Boolean(hosted.closing) ||
+          hosted.operations.size > 0 ||
           hosted.session.isStreaming ||
           hosted.session.isCompacting ||
           snapshot.approvals.length > 0 ||
@@ -740,17 +926,21 @@ class PiSessionHostModule {
     ids.forEach(id => PiSessionHostModule.disposeSession(id));
   }
 
-  private static disposeSession(sessionId: string) {
+  private static disposeSession(sessionId: string): Promise<void> {
     const hosted = PiSessionHostModule.sessions.get(sessionId);
-    if (!hosted) return;
-    hosted.detachSender();
-    void hosted.session.abort();
-    hosted.displayWriter.dispose();
-    hosted.interactions.dispose();
-    hosted.unsubscribe();
-    hosted.session.dispose();
-    hosted.bridge.dispose();
-    PiSessionHostModule.sessions.delete(sessionId);
+    if (!hosted) return Promise.resolve();
+    if (hosted.closing) return hosted.closing;
+    hosted.closing = (async () => {
+      hosted.detachSender();
+      await PiSessionHostModule.abort(sessionId);
+      hosted.displayWriter.dispose();
+      hosted.interactions.dispose();
+      hosted.unsubscribe();
+      hosted.session.dispose();
+      hosted.bridge.dispose();
+      PiSessionHostModule.sessions.delete(sessionId);
+    })();
+    return hosted.closing;
   }
 
   /** 当前库的会话目录：与开库迁移同一取法（chatSessionDirOf），两处不一致迁移写出的文件就找不到 */
@@ -774,7 +964,9 @@ class PiSessionHostModule {
         sessionDir: browserSessionDirOf(location.pageUrl),
       };
     }
-    const sessionDir = await PiSessionHostModule.currentSessionDir();
+    const sessionDir = location.databaseName
+      ? chatSessionDirOf(location.databaseName)
+      : await PiSessionHostModule.currentSessionDir();
     return { file: resolveSessionFile(sessionDir, location.sessionFile), sessionDir };
   }
 
@@ -785,9 +977,9 @@ class PiSessionHostModule {
     return undefined;
   }
 
-  private static disposeByFile(file: string): void {
+  private static async disposeByFile(file: string): Promise<void> {
     for (const [id, hosted] of [...PiSessionHostModule.sessions.entries()]) {
-      if (hosted.session.sessionFile === file) PiSessionHostModule.disposeSession(id);
+      if (hosted.session.sessionFile === file) await PiSessionHostModule.disposeSession(id);
     }
   }
 
@@ -839,10 +1031,13 @@ const MIME_BY_EXTENSION: Record<string, string> = {
 };
 
 /** prompt 附带图片 → pi ImageContent（path 读文件 / dataURL 解析；失败返回 null 跳过） */
-async function readPromptImage(image: {
-  path?: string;
-  dataUrl?: string;
-}): Promise<unknown | null> {
+async function readPromptImage(
+  image: {
+    path?: string;
+    dataUrl?: string;
+  },
+  signal?: AbortSignal
+): Promise<unknown | null> {
   try {
     if (image.dataUrl) {
       const match = image.dataUrl.match(/^data:([^;]+);base64,(.+)$/s);
@@ -859,7 +1054,7 @@ async function readPromptImage(image: {
       };
     }
     if (/^https?:\/\//i.test(image.path ?? "")) {
-      const response = await fetch(image.path!);
+      const response = await fetch(image.path!, { signal });
       if (!response.ok) return null;
       const buffer = Buffer.from(await response.arrayBuffer());
       return {

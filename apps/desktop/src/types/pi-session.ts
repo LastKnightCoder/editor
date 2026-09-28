@@ -88,7 +88,8 @@ export interface PiPromptDisplay {
  * 会话文件的位置（M4）：应用对话按当前库会话目录下的文件名；浏览器扩展对话按页面 + 会话 id
  * （目录由主进程按页面哈希算出，文件按 id 查找，外部输入不拼进路径）。
  */
-export type PiSessionLocation = { sessionFile: string } | { pageUrl: string; sessionId: string };
+export type PiSessionLocation =
+  { sessionFile: string; databaseName?: string } | { pageUrl: string; sessionId: string };
 
 /**
  * 树谱视图的一个节点（M4-d）：一条用户消息，回答折叠进去。父 = 上一条用户消息（根上为 null），
@@ -117,6 +118,7 @@ export interface PiBrowserSessionInfo {
 
 /** 会话创建参数（PiSessionCreateRequest 的渲染端形状） */
 export interface PiSessionCreateRequestV2 {
+  databaseName?: string;
   sessionId: string;
   scope: string;
   cwd: string;

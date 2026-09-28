@@ -15,8 +15,12 @@ import PathUtil from "../utils/PathUtil";
 export const chatSessionRoot = (): string => join(PathUtil.getAppDir(), "sessions");
 
 /** 库名 → 会话目录（库名可带或不带 .db 后缀） */
-export const chatSessionDirOf = (databaseName: string): string =>
-  join(chatSessionRoot(), databaseName.replace(/\.db$/, ""));
+export const chatSessionDirOf = (databaseName: string): string => {
+  const name = databaseName.replace(/\.db$/, "");
+  if (!name || name === "." || name === ".." || /[\\/]/.test(name))
+    throw new Error("非法的数据库名称");
+  return join(chatSessionRoot(), name);
+};
 
 /**
  * 已打开的库连接 → 会话目录（better-sqlite3 的 db.name 是库文件路径）。
@@ -53,7 +57,12 @@ export const browserSessionDirOf = (url: string): string =>
  * 带路径分隔符或 `..` 的一律拒绝，防止读写会话目录以外的文件。
  */
 export const resolveSessionFile = (sessionDir: string, sessionFile: string): string => {
-  if (!sessionFile || basename(sessionFile) !== sessionFile || sessionFile.startsWith(".")) {
+  if (
+    !sessionFile ||
+    /[\\/]/.test(sessionFile) ||
+    basename(sessionFile) !== sessionFile ||
+    sessionFile.startsWith(".")
+  ) {
     throw new Error(`非法的会话文件名：${sessionFile}`);
   }
   return join(sessionDir, sessionFile);

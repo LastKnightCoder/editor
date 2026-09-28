@@ -83,6 +83,17 @@ const assistantEnd = (text: string, extra: Record<string, unknown> = {}) => ({
 });
 
 describe("BrowserRunRegistry", () => {
+  it("相同页面不同锚点共用运行互斥与接回身份", () => {
+    const fake = fakeDriver();
+    const registry = new BrowserRunRegistry(fake.driver, () => {});
+    registry.start({ ...params("a"), session: { id: "s", pageUrl: "https://a.com/p#a" } });
+    expect(
+      registry.start({ ...params("b"), session: { id: "s", pageUrl: "https://a.com/p#b" } }).ok
+    ).toBe(false);
+    expect(registry.snapshotFor({ id: "s", pageUrl: "https://a.com/p#b" }, () => [])?.runId).toBe(
+      "a"
+    );
+  });
   it("事件按 runId 推送、seq 递增，最后一条是 settled（带最后一段正文）", async () => {
     const fake = fakeDriver();
     const published: AiRunEventNotification[] = [];

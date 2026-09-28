@@ -89,6 +89,7 @@ import { executeReadOnlySql, type SqlQueryInput } from "./sql-query";
 import { migrateLegacyChatsToSessions } from "./chat-session-migration";
 import { mergeChatSessionBranches } from "./chat-session-tree-migration";
 import { retireLegacyChats } from "./legacy-chat-retirement";
+import { recoverSessionDownload } from "./pi-session-store";
 import { chatSessionDirOf } from "./pi-session-paths";
 
 export type DatabaseConnectMode = "normal" | "maintenance";
@@ -307,6 +308,7 @@ class DatabaseModule implements Module {
     const startedAt = Date.now();
     const appDir = PathUtil.getAppDir();
     const dbPath = join(appDir, `${this.formatDatabaseName(name)}.db`);
+    recoverSessionDownload(dbPath);
     log.info(`[database] openDatabase start: db=${name}, mode=${mode}, dbPath=${dbPath}`);
 
     const openStartAt = Date.now();
@@ -484,7 +486,6 @@ class DatabaseModule implements Module {
         sessionDir: chatSessionDirOf(this.formatDatabaseName(name)),
         cwd: appDir,
       });
-      if (result.skipped) return;
       log.info(
         `[database] chat session migration done: db=${name}, migrated=${result.migrated}, failed=${result.failed.length}, backup=${result.backupPath ?? "none"}, elapsedMs=${Date.now() - startedAt}`
       );
@@ -512,7 +513,6 @@ class DatabaseModule implements Module {
         databasePath: dbPath,
         sessionDir: chatSessionDirOf(this.formatDatabaseName(name)),
       });
-      if (result.skipped) return;
       log.info(
         `[database] chat session tree migration done: db=${name}, merged=${result.merged}, detached=${result.detached}, failed=${result.failed.length}, backup=${result.backupPath ?? "none"}, elapsedMs=${Date.now() - startedAt}`
       );
@@ -742,7 +742,15 @@ class DatabaseModule implements Module {
         const win = BrowserWindow.fromWebContents(sender);
         if (!win) throw new Error("No window found");
 
-        const dbName = this.windowToDatabase.get(win.id);
+        const scope = eventName.startsWith("chat-session:") ? args.at(-1) : undefined;
+        const explicit =
+          scope && typeof scope.chatDatabaseName === "string" ? scope.chatDatabaseName : undefined;
+        if (explicit !== undefined) args.pop();
+        const dbName = explicit
+          ? [...this.databases.keys()].find(
+              name => this.formatDatabaseName(name) === this.formatDatabaseName(explicit)
+            )
+          : this.windowToDatabase.get(win.id);
         if (!dbName) throw new Error("No database name found");
 
         const db = this.getDatabase(dbName);

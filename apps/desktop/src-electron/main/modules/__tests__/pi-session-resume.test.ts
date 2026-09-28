@@ -158,7 +158,9 @@ describe("pi JSONL 事实源", () => {
     const session = await assemble({ sessionFile: missing, sessionId: "session-3" });
     expect(session.sessionId).toBe("session-3");
     await session.prompt("第一句");
-    expect(readdirSync(sessionDir).some(name => name.includes("session-3"))).toBe(true);
+    expect(session.sessionFile).toBe(missing);
+    expect(readdirSync(sessionDir)).toContain("never-written.jsonl");
+    expect(piEntriesToDesktopMessages(loadSessionTranscript(missing))).toHaveLength(2);
   });
 });
 

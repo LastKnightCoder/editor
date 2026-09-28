@@ -96,11 +96,13 @@ export function useScopedChat(bucket: ChatBucketRef, options: UseScopedChatOptio
 
   /** 删除对话：先释放宿主会话与运行态，再删目录行（主进程连会话文件一起删） */
   const remove = useMemoizedFn(async (id: string) => {
+    const databaseName = currentChat.databaseName;
+    const key = chatSessionKey(bucket.scope, id, databaseName);
     const { piChatRuntime } = await import("@/services/piChatRuntime");
-    await piChatSessionManager.disposeChatSession(bucket.scope, id);
+    await piChatSessionManager.disposeByKey(key);
     // 会话终态：归约条目必须一起清，否则删掉的对话仍在后台归约
-    piChatRuntime.disposeConversation(chatSessionKey(bucket.scope, id));
-    await useChatSessionStore.getState().deleteChat(id);
+    piChatRuntime.disposeConversation(key);
+    await useChatSessionStore.getState().deleteChat(id, databaseName);
     if (selectedId === id) select(null);
   });
 

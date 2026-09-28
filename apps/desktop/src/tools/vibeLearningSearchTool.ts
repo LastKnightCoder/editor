@@ -621,6 +621,7 @@ export const createUnifiedVibeLearningTool = (
 
   return {
     name: "vibe_learning_query",
+    risk: "read",
     description:
       "统一查询当前 Vibe Learning 项目资料。operation 可选 list、search、grep、read、read_lines、read_range、batch_search、batch_read；具体参数放在 input 中，先搜索定位，再按命中范围补读原文。",
     parameters: {

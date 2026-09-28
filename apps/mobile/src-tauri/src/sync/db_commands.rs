@@ -12,14 +12,15 @@ use crate::setting::{resolve_app_dir, save_setting_value, set_database_version};
 use super::common::{response_err, response_ok, DEFAULT_DB_NAME, SYNC_CHECK_TIMEOUT_SECS};
 use super::context::{build_sync_context, SyncProvider};
 use super::error::AppError;
+const SYNC_MODEL_VERSION: u64 = 2;
 
-async fn read_remote_version(
+async fn read_remote_info(
     provider: &SyncProvider,
     version_object_name: &str,
-) -> Result<u64, AppError> {
+) -> Result<Value, AppError> {
     let exists = provider.exists(version_object_name).await?;
     if !exists {
-        return Ok(0);
+        return Ok(json!({ "version": 0 }));
     }
     let content = provider.download(version_object_name).await?;
     let parsed = serde_json::from_slice::<Value>(&content).map_err(|e| {
@@ -29,7 +30,7 @@ async fn read_remote_version(
         )
     })?;
     if let Some(version) = parsed.get("dataModelVersion") {
-        if version.as_u64().is_none_or(|v| v > DATA_MODEL_VERSION) {
+        if version.as_u64().is_none_or(|v| v > SYNC_MODEL_VERSION) {
             return Err(AppError::new(
                 "DB_MODEL_INCOMPATIBLE",
                 "远端数据库模型不受支持，请升级全部客户端",
@@ -44,7 +45,14 @@ async fn read_remote_version(
                 "REMOTE_VERSION_PARSE_FAILED",
                 "远端版本文件缺少 version 字段",
             )
-        })
+        })?;
+    Ok(parsed)
+}
+
+async fn read_remote_version(provider: &SyncProvider, object: &str) -> Result<u64, AppError> {
+    Ok(read_remote_info(provider, object).await?["version"]
+        .as_u64()
+        .unwrap_or(0))
 }
 
 fn version_payload(version: u64) -> Vec<u8> {
@@ -53,6 +61,13 @@ fn version_payload(version: u64) -> Vec<u8> {
             format!("{{\"version\":{version},\"dataModelVersion\":{DATA_MODEL_VERSION}}}")
                 .into_bytes()
         })
+}
+
+fn snapshot_version_payload(mut info: Value, version: u64, object: &str) -> Vec<u8> {
+    info["version"] = json!(version);
+    info["dataModelVersion"] = json!(SYNC_MODEL_VERSION);
+    info["databaseObject"] = json!(object);
+    serde_json::to_vec(&info).expect("版本信息可序列化")
 }
 
 /// WebView IPC（JavaBridge）线程栈很小，同步命令的 async 状态机会捕获
@@ -114,12 +129,13 @@ async fn sync_upload_database_impl(app: AppHandle) -> SyncActionResponse {
         }
     };
 
-    let remote_version = match read_remote_version(&ctx.provider, &ctx.version_object_name).await {
-        Ok(version) => version,
+    let remote_info = match read_remote_info(&ctx.provider, &ctx.version_object_name).await {
+        Ok(info) => info,
         Err(error) => {
             return response_err(&ctx.database_name, ctx.local_version, 0, error);
         }
     };
+    let remote_version = remote_info["version"].as_u64().unwrap_or(0);
 
     if remote_version > ctx.local_version {
         return response_err(
@@ -167,9 +183,15 @@ async fn sync_upload_database_impl(app: AppHandle) -> SyncActionResponse {
     };
 
     let next_version = ctx.local_version + 1;
-    let next_version_payload = version_payload(next_version);
+    let data_object = format!(
+        "{}.snapshot-{}.db",
+        ctx.data_object_name,
+        uuid::Uuid::new_v4()
+    );
+    // 移动端不修改聊天内容，沿用下载版本的会话对象。
+    let next_version_payload = snapshot_version_payload(remote_info, next_version, &data_object);
     if let Err(err) = publish_snapshot(
-        ctx.provider.upload(&ctx.data_object_name, &db_bytes),
+        ctx.provider.upload(&data_object, &db_bytes),
         upload_version(
             &ctx.provider,
             &ctx.version_object_name,
@@ -246,6 +268,20 @@ fn read_database_snapshot(path: &PathBuf) -> Result<Vec<u8>, String> {
 mod tests {
     use super::*;
     use std::cell::RefCell;
+
+    #[test]
+    fn snapshot_version_preserves_session_archive() {
+        let payload = snapshot_version_payload(
+            json!({ "version": 7, "sessionsObject": "old.sessions.zip" }),
+            8,
+            "new.db",
+        );
+        let info: Value = serde_json::from_slice(&payload).unwrap();
+        assert_eq!(info["version"], 8);
+        assert_eq!(info["dataModelVersion"], SYNC_MODEL_VERSION);
+        assert_eq!(info["databaseObject"], "new.db");
+        assert_eq!(info["sessionsObject"], "old.sessions.zip");
+    }
 
     #[tokio::test]
     async fn failed_data_upload_never_publishes_version() {
@@ -369,12 +405,16 @@ async fn sync_download_database_impl(app: AppHandle) -> SyncActionResponse {
         }
     };
 
-    let remote_version = match read_remote_version(&ctx.provider, &ctx.version_object_name).await {
-        Ok(version) => version,
+    let remote_info = match read_remote_info(&ctx.provider, &ctx.version_object_name).await {
+        Ok(info) => info,
         Err(error) => {
             return response_err(&ctx.database_name, ctx.local_version, 0, error);
         }
     };
+    let remote_version = remote_info["version"].as_u64().unwrap_or(0);
+    let data_object = remote_info["databaseObject"]
+        .as_str()
+        .unwrap_or(&ctx.data_object_name);
 
     if ctx.local_version > remote_version {
         return response_err(
@@ -397,7 +437,7 @@ async fn sync_download_database_impl(app: AppHandle) -> SyncActionResponse {
         );
     }
 
-    let exists = match ctx.provider.exists(&ctx.data_object_name).await {
+    let exists = match ctx.provider.exists(data_object).await {
         Ok(value) => value,
         Err(error) => {
             return response_err(&ctx.database_name, ctx.local_version, remote_version, error);
@@ -415,7 +455,7 @@ async fn sync_download_database_impl(app: AppHandle) -> SyncActionResponse {
         );
     }
 
-    let downloaded = match ctx.provider.download(&ctx.data_object_name).await {
+    let downloaded = match ctx.provider.download(data_object).await {
         Ok(bytes) => bytes,
         Err(error) => {
             return response_err(&ctx.database_name, ctx.local_version, remote_version, error);

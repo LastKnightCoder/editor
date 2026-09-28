@@ -91,6 +91,7 @@ export const filesystemToolsProvider: MCPProviderDefinition = {
   tools: () => [
     {
       name: "read_file",
+      risk: "read",
       description:
         "读取指定路径的纯文本文件内容。支持读取任意路径的文件，包括 Skill " +
         "目录下的模板、示例等文件。对于二进制文件会返回错误。" +
@@ -180,6 +181,7 @@ export const filesystemToolsProvider: MCPProviderDefinition = {
     },
     {
       name: "read_image",
+      risk: "read",
       description:
         "读取指定图片路径并返回模型可见的图片内容。支持本地路径、file://、~、相对路径、远程 URL 和 data:image base64；适合在 generate_image 后读取图片进行视觉检查。",
       parameters: {

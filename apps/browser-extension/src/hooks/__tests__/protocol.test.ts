@@ -9,6 +9,16 @@ import {
 import { fetchSkillsViaRpc } from "../useSkills";
 
 describe("ai.run.start 协议（v2）", () => {
+  it("选择的思考档位进入运行参数", () => {
+    expect(
+      buildAiRunStartParams({
+        runId: "r",
+        messages: [{ role: "user", content: "问" }],
+        enableTools: true,
+        thinkingLevel: "high",
+      }).thinkingLevel
+    ).toBe("high");
+  });
   it("带扩展页面工具，不带扩展本地的 ask-question（提问改走桌面宿主）", () => {
     const params = buildAiRunStartParams({
       runId: "run-1",

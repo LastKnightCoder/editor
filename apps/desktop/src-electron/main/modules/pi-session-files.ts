@@ -409,17 +409,14 @@ export function omitEntries(manager: SessionManager, entryIds: string[]): void {
 function ensureFlushed(manager: SessionManager): void {
   const file = manager.getSessionFile();
   if (!file) return;
-  const hasAssistant = manager
-    .getEntries()
-    .some(
-      entry =>
-        entry.type === "message" &&
-        (entry as { message: { role: string } }).message.role === "assistant"
-    );
-  if (hasAssistant && existsSync(file)) return;
+  // 已打开文件的 append 由 pi 持久化，包括只有 user 的历史，不能再用内存整文件覆盖。
+  if (existsSync(file)) return;
   const header = manager.getHeader();
   const entries = [header, ...manager.getEntries()].filter(Boolean);
-  writeFileSync(file, `${entries.map(entry => JSON.stringify(entry)).join("\n")}\n`);
+  writeFileSync(file, `${entries.map(entry => JSON.stringify(entry)).join("\n")}\n`, {
+    flag: "wx",
+  });
+  manager.setSessionFile(file);
 }
 
 /** 解析会话文件（纯读，供测试与诊断） */

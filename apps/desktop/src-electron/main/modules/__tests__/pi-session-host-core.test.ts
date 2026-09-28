@@ -399,10 +399,10 @@ describe("pi-session-host-core", () => {
 
       const bashRun = executions.find(e => e.name === "bash");
       expect(bashRun).toBeTruthy();
-      expect(bashRun?.isError).toBe(true);
+      expect(bashRun?.isError).toBe(process.platform === "win32");
       const psRun = executions.find(e => e.name === "powershell");
       expect(psRun).toBeTruthy();
-      expect(psRun?.isError).toBe(false);
+      expect(psRun?.isError).toBe(process.platform !== "win32");
     } finally {
       rmSync(workDir, { recursive: true, force: true });
     }

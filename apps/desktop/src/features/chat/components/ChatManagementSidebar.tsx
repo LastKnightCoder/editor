@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import dayjs from "dayjs";
+import { getChatDatabase } from "@/services/chatDatabase";
 import {
   Button,
   ConfirmDialog,
@@ -182,13 +183,13 @@ const ChatManagementSidebar = memo(
     // 先释放宿主会话与运行态，再删目录行（主进程连会话文件一起删）
     const confirmDeleteChat = useMemoizedFn(async () => {
       if (!pendingDeleteChat) return;
+      const databaseName = getChatDatabase();
+      const key = chatSessionKey(MAIN_CHAT_BUCKET.scope, pendingDeleteChat, databaseName);
       try {
         const { piChatRuntime } = await import("@/services/piChatRuntime");
-        await piChatSessionManager.disposeChatSession(MAIN_CHAT_BUCKET.scope, pendingDeleteChat);
-        piChatRuntime.disposeConversation(
-          chatSessionKey(MAIN_CHAT_BUCKET.scope, pendingDeleteChat)
-        );
-        await useChatSessionStore.getState().deleteChat(pendingDeleteChat);
+        await piChatSessionManager.disposeByKey(key);
+        piChatRuntime.disposeConversation(key);
+        await useChatSessionStore.getState().deleteChat(pendingDeleteChat, databaseName);
       } catch (error) {
         toast.error("删除失败");
       }

@@ -158,9 +158,12 @@ export class ToolRegistry {
       signal?: AbortSignal;
       conversationKey?: string;
       toolContext?: ToolExecutionContext["toolContext"];
+      scopedTools?: RegisteredTool[];
     }
   ): Promise<ToolExecutionResult | null> {
-    const tool = this.tools.get(call.function.name);
+    const tool =
+      options?.scopedTools?.find(item => item.name === call.function.name) ??
+      this.tools.get(call.function.name);
     if (!tool) {
       console.warn("[MCP] tool not found", call.function.name);
       // 工具未找到是不可重试的错误，返回错误信息

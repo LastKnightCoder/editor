@@ -8,4 +8,4 @@ export {
   migrateAssistantMessage,
   migrateChatSessionMessages,
   getAssistantToolExecutionsFromBlocks,
-} from "@tau/shared/src/chat-core/messageSchema";
+} from "@tau/shared/chat-core";

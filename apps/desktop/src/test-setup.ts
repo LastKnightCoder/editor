@@ -1,4 +1,4 @@
-import "vitest-canvas-mock";
+if (typeof window !== "undefined") await import("vitest-canvas-mock");
 import log from "electron-log";
 
 // React 18+ act() 环境声明：集中配置，测试文件不再各自散落重复

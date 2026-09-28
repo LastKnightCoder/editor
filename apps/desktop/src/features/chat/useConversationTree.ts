@@ -8,7 +8,9 @@ import type { ConversationTreeNode } from "@/types/pi-session";
 import { piSessionTree } from "@/commands/piSession";
 import { layoutConversationTree } from "./conversationTree";
 
-export function useConversationTree(chat: Pick<ChatMessage, "id" | "sessionFile" | "messages">) {
+export function useConversationTree(
+  chat: Pick<ChatMessage, "id" | "sessionFile" | "messages" | "databaseName">
+) {
   const [nodes, setNodes] = useState<ConversationTreeNode[]>([]);
   const pathKey = chat.messages.map(message => message.piEntryIds?.[0] ?? "").join("|");
 
@@ -18,15 +20,17 @@ export function useConversationTree(chat: Pick<ChatMessage, "id" | "sessionFile"
       return;
     }
     let cancelled = false;
-    void piSessionTree({ sessionFile: chat.sessionFile }).then(outcome => {
-      if (cancelled) return;
-      if (outcome.ok) setNodes(outcome.nodes ?? []);
-      else console.error("[conversationTree] 读取分支失败:", outcome.error);
-    });
+    void piSessionTree({ sessionFile: chat.sessionFile, databaseName: chat.databaseName }).then(
+      outcome => {
+        if (cancelled) return;
+        if (outcome.ok) setNodes(outcome.nodes ?? []);
+        else console.error("[conversationTree] 读取分支失败:", outcome.error);
+      }
+    );
     return () => {
       cancelled = true;
     };
-  }, [chat.id, chat.sessionFile, pathKey]);
+  }, [chat.id, chat.sessionFile, chat.databaseName, pathKey]);
 
   return useMemo(() => layoutConversationTree(nodes), [nodes]);
 }

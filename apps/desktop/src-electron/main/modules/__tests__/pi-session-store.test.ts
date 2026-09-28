@@ -2,7 +2,17 @@
  * 会话存储层（M4）：扩展对话按目录列出/改名/删除（全部取自 pi 会话文件本身，无索引表），
  * 页面键的规范化与防路径穿越，以及同步用的会话目录打包/解包（含整体备份与失败回滚）。
  */
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+  renameSync,
+  copyFileSync,
+} from "node:fs";
+import Database from "better-sqlite3";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -12,6 +22,8 @@ import {
   packSessionDir,
   renameSessionInDir,
   replaceSessionDir,
+  installSessionDownload,
+  recoverSessionDownload,
 } from "../pi-session-store";
 import { browserPageKey, browserSessionDirOf, normalizePageUrl } from "../pi-session-paths";
 import { writeSessionFile } from "../pi-session-files";
@@ -59,6 +71,62 @@ const writeChat = (sessionDir: string, sessionId: string, question: string) =>
       { message: assistant("答", 2) },
     ],
   });
+
+describe("数据库与会话成对提交", () => {
+  const writeDb = (file: string, marker: string) => {
+    const db = new Database(file);
+    db.exec("CREATE TABLE marker(value TEXT)");
+    db.prepare("INSERT INTO marker VALUES (?)").run(marker);
+    db.close();
+  };
+  const markerOf = (file: string) => {
+    const db = new Database(file, { readonly: true });
+    try {
+      return (db.prepare("SELECT value FROM marker").get() as { value: string }).value;
+    } finally {
+      db.close();
+    }
+  };
+  it("坏包不会替换数据库或删除现有会话", () => {
+    const dir = setup();
+    const file = join(dir, "data.db");
+    const sessions = join(dir, "sessions");
+    writeDb(file, "local");
+    writeDb(`${file}.download.tmp`, "remote");
+    const name = writeChat(sessions, "local", "本地问题");
+    expect(() => installSessionDownload(file, sessions, Buffer.from("invalid zip"))).toThrow();
+    expect(markerOf(file)).toBe("local");
+    expect(existsSync(join(sessions, name))).toBe(true);
+  });
+  it("开库恢复中断的提交，同时恢复数据库和会话", () => {
+    const dir = setup();
+    const file = join(dir, "data.db");
+    const sessions = join(dir, "sessions");
+    const backup = `${sessions}.backup`;
+    const stage = `${sessions}.stage`;
+    writeDb(file, "local");
+    copyFileSync(file, `${file}.bak`);
+    const name = writeChat(sessions, "local", "本地问题");
+    renameSync(sessions, backup);
+    mkdirSync(sessions);
+    rmSync(file);
+    writeDb(file, "remote");
+    writeFileSync(
+      `${file}.session-sync.json`,
+      JSON.stringify({
+        databaseBackup: `${file}.bak`,
+        sessionDir: sessions,
+        sessionsBackup: backup,
+        hadSessions: true,
+        stage,
+      })
+    );
+    recoverSessionDownload(file);
+    expect(markerOf(file)).toBe("local");
+    expect(existsSync(join(sessions, name))).toBe(true);
+    expect(existsSync(`${file}.session-sync.json`)).toBe(false);
+  });
+});
 
 describe("页面键", () => {
   it("同一页面的锚点跳转算同一组对话；不同页面互不相干", () => {

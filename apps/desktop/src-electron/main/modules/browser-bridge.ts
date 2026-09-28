@@ -22,7 +22,7 @@ import {
   type AiRunEventNotification,
   type AiRunStartParams,
   type AiRunStateResult,
-} from "@tau/shared";
+} from "@tau/shared/chat-core";
 import type { PiHostToolSpec, PiSessionInteractionSnapshot } from "@/types/pi-session";
 import { RpcMessageType } from "@/types/rpc";
 import userSettingModule from "./user-setting";
@@ -375,9 +375,12 @@ class BrowserBridgeModule {
           approve: (requestId, choice) =>
             PiSessionHostModule.interactionsOf(hostId)?.permissions.decide(requestId, choice) ??
             false,
-          answer: (requestId, answers) =>
-            PiSessionHostModule.interactionsOf(hostId)?.questions.answer(requestId, answers) ??
-            "这轮回答已结束",
+          answer: (requestId, answers) => {
+            const interactions = PiSessionHostModule.interactionsOf(hostId);
+            return interactions
+              ? interactions.questions.answer(requestId, answers)
+              : "这轮回答已结束";
+          },
         };
         return handle;
       },
