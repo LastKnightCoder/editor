@@ -1,11 +1,9 @@
 import React from "react";
 import { render, Box, Text } from "ink";
 import { getActiveDatabase } from "../../../utils/settings.js";
-import {
-  createSyncProvider,
-  type IDatabaseInfo,
-} from "../../../utils/sync-providers/factory.js";
+import { createSyncProvider, type IDatabaseInfo } from "../../../utils/sync-providers/factory.js";
 import { Header, Divider } from "../../../ui/components.js";
+import { readRemoteInfo } from "./runtime.js";
 
 function StatusView({
   data,
@@ -46,9 +44,7 @@ function StatusView({
           <Box width={18}>
             <Text dimColor>Remote Version</Text>
           </Box>
-          <Text>
-            {data.remoteVersion !== null ? data.remoteVersion : "N/A"}
-          </Text>
+          <Text>{data.remoteVersion !== null ? data.remoteVersion : "N/A"}</Text>
         </Box>
         <Box>
           <Box width={18}>
@@ -75,10 +71,8 @@ export async function runSyncStatus() {
   if (!provider) {
     render(
       <Box paddingX={1}>
-        <Text color="red">
-          Sync not configured. Please configure sync settings in the Tau app.
-        </Text>
-      </Box>,
+        <Text color="red">Sync not configured. Please configure sync settings in the Tau app.</Text>
+      </Box>
     );
     return;
   }
@@ -90,9 +84,7 @@ export async function runSyncStatus() {
     const infoFileName = `database_${db.name}.json`;
     const exists = await provider.fileExists(infoFileName);
     if (exists) {
-      const content = await provider.downloadFile(infoFileName);
-      const decoder = new TextDecoder();
-      const info: IDatabaseInfo = JSON.parse(decoder.decode(content));
+      const info: IDatabaseInfo = await readRemoteInfo(provider, db.name);
       remoteVersion = info.version;
     }
   } catch (e: any) {
@@ -120,6 +112,6 @@ export async function runSyncStatus() {
         syncNeeded,
         error,
       }}
-    />,
+    />
   );
 }

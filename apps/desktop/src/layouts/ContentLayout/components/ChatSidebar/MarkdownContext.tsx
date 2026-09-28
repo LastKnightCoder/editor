@@ -4,7 +4,8 @@ import React, { createContext, useContext, useMemo, ReactNode } from "react";
 type MarkdownCache = Map<string, ReactNode>;
 
 export interface MarkdownMessageMeta {
-  chatId?: number;
+  /** 对话 id（pi 会话 id）；非会话场景（行内 AI）为空 */
+  chatId?: string;
   messageIndex?: number;
   blockIndex?: number;
   isStreaming?: boolean;

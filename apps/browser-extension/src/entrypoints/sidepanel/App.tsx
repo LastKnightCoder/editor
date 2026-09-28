@@ -8,6 +8,7 @@ import { useThemeStore } from "../../stores/useThemeStore";
 import { useTheme } from "../../hooks/useTheme";
 import { useSyncFont } from "../../hooks/useSyncFont";
 import { initExtToolServer } from "../../services/extToolServer";
+import { initChatStoreService } from "../../services/chatStoreClient";
 import MainLayout from "./components/MainLayout";
 import WelcomePage from "./components/WelcomePage";
 
@@ -31,6 +32,11 @@ export default function App() {
   // 初始化浏览器工具服务端（用于处理桌面端的工具调用请求）
   useEffect(() => {
     initExtToolServer();
+  }, []);
+
+  // 对话存在桌面端（按页面的 pi 会话文件）：建立 chat.* 通道，断线自动重连
+  useEffect(() => {
+    initChatStoreService();
   }, []);
 
   console.log("isDark", isDark);

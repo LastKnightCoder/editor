@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-// Board.tsx 的导入链会拉到 @/hooks/useChatLLM，其顶层调用 ensureToolingReady，
-// 在无 Electron bridge 的 jsdom 环境下会抛错。按项目惯例 mock @/electron 规避。
+// Board.tsx 的导入链会拉到依赖 Electron bridge 的模块，在无 bridge 的 jsdom 环境下会抛错。
+// 按项目惯例 mock @/electron 规避。
 const electronMocks = vi.hoisted(() => ({
   invoke: vi.fn(() => Promise.resolve({})),
   send: vi.fn(),
@@ -19,20 +19,14 @@ vi.mock("../../components/ArrowElementComponent", () => ({
 }));
 
 import type Board from "../../Board";
-import {
-  ArrowElement,
-  EArrowLineType,
-  EMarkerType,
-  Point,
-  Selection,
-} from "../../types";
+import { ArrowElement, EArrowLineType, EMarkerType, Point, Selection } from "../../types";
 import { ArrowUtil } from "../../utils";
 import { ArrowPlugin } from "../ArrowPlugin";
 
 const createArrow = (
   points: Point[],
   midPoint?: Point,
-  overrides: Partial<ArrowElement> = {},
+  overrides: Partial<ArrowElement> = {}
 ): ArrowElement => ({
   id: "arrow-1",
   type: "arrow",
@@ -45,12 +39,7 @@ const createArrow = (
   ...overrides,
 });
 
-const selectArea = (
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-): Selection["selectArea"] => ({
+const selectArea = (x1: number, y1: number, x2: number, y2: number): Selection["selectArea"] => ({
   anchor: { x: x1, y: y1 },
   focus: { x: x2, y: y2 },
 });
@@ -108,7 +97,7 @@ describe("ArrowPlugin.getBounds", () => {
         { x: 0, y: 0 },
         { x: 100, y: 0 },
       ],
-      { x: 50, y: 0 },
+      { x: 50, y: 0 }
     );
 
     expect(plugin.getBounds(stubBoard, arrow)).toEqual({
@@ -127,7 +116,7 @@ describe("ArrowPlugin.getBounds", () => {
         { x: 0, y: 0 },
         { x: 100, y: 0 },
       ],
-      { x: 50, y: 40 },
+      { x: 50, y: 40 }
     );
 
     const bounds = plugin.getBounds(stubBoard, arrow);
@@ -136,12 +125,9 @@ describe("ArrowPlugin.getBounds", () => {
     expect(bounds).toEqual({ minX: 0, minY: 0, maxX: 100, maxY: 80 });
 
     // 弓背最远点 (50,40) 必须落入包围盒，否则空间索引预筛选会将其过滤
-    expect(
-      50 >= bounds.minX &&
-        50 <= bounds.maxX &&
-        40 >= bounds.minY &&
-        40 <= bounds.maxY,
-    ).toBe(true);
+    expect(50 >= bounds.minX && 50 <= bounds.maxX && 40 >= bounds.minY && 40 <= bounds.maxY).toBe(
+      true
+    );
   });
 });
 
@@ -153,14 +139,10 @@ describe("ArrowPlugin.isElementSelected", () => {
         { x: 0, y: 0 },
         { x: 100, y: 0 },
       ],
-      { x: 50, y: 40 },
+      { x: 50, y: 40 }
     );
 
-    const result = plugin.isElementSelected(
-      stubBoard,
-      arrow,
-      selectArea(30, 20, 70, 50),
-    );
+    const result = plugin.isElementSelected(stubBoard, arrow, selectArea(30, 20, 70, 50));
 
     expect(result).toBe(true);
   });
@@ -171,14 +153,10 @@ describe("ArrowPlugin.isElementSelected", () => {
         { x: 0, y: 0 },
         { x: 100, y: 0 },
       ],
-      { x: 50, y: 40 },
+      { x: 50, y: 40 }
     );
 
-    const result = plugin.isElementSelected(
-      stubBoard,
-      arrow,
-      selectArea(200, 200, 300, 300),
-    );
+    const result = plugin.isElementSelected(stubBoard, arrow, selectArea(200, 200, 300, 300));
 
     expect(result).toBe(false);
   });
@@ -190,14 +168,10 @@ describe("ArrowPlugin.isElementSelected", () => {
         { x: 0, y: 0 },
         { x: 100, y: 0 },
       ],
-      { x: 50, y: 0 },
+      { x: 50, y: 0 }
     );
 
-    const result = plugin.isElementSelected(
-      stubBoard,
-      arrow,
-      selectArea(30, -5, 70, 5),
-    );
+    const result = plugin.isElementSelected(stubBoard, arrow, selectArea(30, -5, 70, 5));
 
     expect(result).toBe(true);
   });

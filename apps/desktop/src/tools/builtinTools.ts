@@ -1,7 +1,6 @@
 import dayjs from "dayjs";
 import { skillToolsProvider } from "@/mcp/providers/skill-tools";
 import type { ToolRegistry } from "./toolRegistry";
-import { createAskQuestionTool } from "./askQuestionTool";
 import { createKnowledgeSearchTool } from "./knowledgeSearchTool";
 import { createSubAgentResearchTool } from "./subagentTool";
 
@@ -11,11 +10,11 @@ export const registerBuiltinTools = (registry: ToolRegistry) => {
   registry.registerTools(
     BUILTIN_SOURCE,
     [
-      createAskQuestionTool(),
       createKnowledgeSearchTool(),
       createSubAgentResearchTool(),
       {
         name: "get_current_date",
+        risk: "read",
         description: "返回今天的日期信息，包括 ISO 格式、简短日期以及星期几。",
         parameters: {
           type: "object",
@@ -37,6 +36,6 @@ export const registerBuiltinTools = (registry: ToolRegistry) => {
       },
       ...skillToolsProvider.tools(),
     ],
-    true,
+    true
   );
 };

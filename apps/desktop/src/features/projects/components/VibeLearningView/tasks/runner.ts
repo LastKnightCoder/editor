@@ -8,6 +8,9 @@ import type { Descendant } from "slate";
 import { createContent, getContentById, updateContent } from "@/commands";
 import { createVLNote, updateVLNote } from "@/commands/vibe-learning";
 import { createPodcast } from "@/commands/podcast";
+import { createVLQuizSet, createVLQuizItemsBatch, listVLQuizSets } from "@/commands/vl-quiz";
+import { bindDatabaseCommands } from "@/services/command-context";
+import { getChatDatabase } from "@/services/chatDatabase";
 import { runGenerationTask, type GenerationRequest } from "@/services/generation-orchestrator";
 import { parseScript } from "@/services/podcast";
 import useSettingStore from "@/stores/useSettingStore";
@@ -18,7 +21,7 @@ import { cleanReportHtmlContent } from "@/constants/prompts/report-generation";
 import { getTemplateById, getDefaultTemplate } from "@/constants/ppt-templates";
 import { getReportTemplateById, getDefaultReportTemplate } from "@/constants/report-templates";
 import type { VideoEbookRewriteStyle } from "@/constants/prompts/video-ebook-rewrite";
-import type { ModelConfig, ProviderConfig } from "@/types/llm";
+import type { LLMModelSetting, LLMProviderSetting } from "@/types/pi-llm";
 import type { PodcastSpeaker } from "@/types/podcast";
 import type { VLNote, VLNoteType } from "@/types/vibe-learning";
 import { getContentLength, getMarkdown, importFromMarkdown } from "@/utils";
@@ -27,6 +30,8 @@ import { synthesizePodcast } from "./podcastAudio";
 import { useVLTaskStore, type VLTask, type VLTaskKind, type VLTaskTurn } from "./store";
 
 export interface VLTaskInput {
+  /** 只约束任务交接前的准备；已启动任务由 cancelVLTask 管理。 */
+  startSignal?: AbortSignal;
   kind: VLTaskKind;
   projectId: number;
   mainDbName: string;
@@ -74,14 +79,38 @@ interface Runtime {
 }
 const runtimes = new Map<string, Runtime>();
 
+const commandsFor = (databaseName: string, signal?: AbortSignal) =>
+  bindDatabaseCommands(
+    {
+      createContent,
+      getContentById,
+      updateContent,
+      createVLNote,
+      updateVLNote,
+      createPodcast,
+      createVLQuizSet,
+      createVLQuizItemsBatch,
+      listVLQuizSets,
+    },
+    { databaseName, signal }
+  );
+
+async function refreshQuizzes(input: VLTaskInput, signal?: AbortSignal) {
+  const quizSets = await commandsFor(input.mainDbName, signal).listVLQuizSets(input.projectId);
+  if (input.mainDbName.replace(/\.db$/, "") !== getChatDatabase()) return;
+  useVLQuizStore.setState(state => ({
+    quizSetsByProject: { ...state.quizSetsByProject, [input.projectId]: quizSets },
+  }));
+}
+
 function llmConfig(feature: "chat" | "podcastGeneration"): {
-  provider: ProviderConfig;
-  model: ModelConfig;
+  provider: LLMProviderSetting;
+  model: LLMModelSetting;
 } {
-  const { llmConfigs, llmUsageSettings } = useSettingStore.getState().setting;
+  const { llmProviders: llmConfigs, llmUsageSettings } = useSettingStore.getState().setting;
   const usage = llmUsageSettings[feature];
   const provider = usage ? llmConfigs.find(c => c.id === usage.providerId) : undefined;
-  const model = usage ? provider?.models?.find(m => m.name === usage.modelName) : undefined;
+  const model = usage ? provider?.models?.find(m => m.id === usage.modelId) : undefined;
   if (!provider || !model) {
     throw new Error(
       feature === "podcastGeneration"
@@ -187,8 +216,13 @@ function buildRequest(input: VLTaskInput, currentHtml?: string): GenerationReque
 }
 
 /** AI 编辑：读出笔记当前的 HTML */
-async function loadCurrentHtml(note: VLNote, kind: "ppt_edit" | "report_edit") {
-  const content = await getContentById(note.contentId);
+async function loadCurrentHtml(
+  note: VLNote,
+  kind: "ppt_edit" | "report_edit",
+  databaseName: string,
+  signal?: AbortSignal
+) {
+  const content = await commandsFor(databaseName, signal).getContentById(note.contentId);
   const markdown = content ? getMarkdown(content.content) : "";
   const html =
     kind === "ppt_edit" ? cleanPPTHtmlContent(markdown) : cleanReportHtmlContent(markdown);
@@ -204,6 +238,10 @@ export async function startVLTask(
   input: VLTaskInput,
   reuse?: { taskId: string; noteId?: number; quizSetId?: number; contentId?: number }
 ): Promise<{ taskId: string; note?: VLNote; quizSetId?: number }> {
+  const { startSignal, ...taskInput } = input;
+  input = taskInput;
+  startSignal?.throwIfAborted();
+  const commands = commandsFor(input.mainDbName, startSignal);
   const config = llmConfig(input.kind === "podcast" ? "podcastGeneration" : "chat");
   const store = useVLTaskStore.getState();
   const taskId = reuse?.taskId ?? `vl-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -216,11 +254,11 @@ export async function startVLTask(
 
   if (input.kind === "ppt_edit" || input.kind === "report_edit") {
     if (!input.note) throw new Error("缺少要编辑的产物");
-    currentHtml = await loadCurrentHtml(input.note, input.kind);
+    currentHtml = await loadCurrentHtml(input.note, input.kind, input.mainDbName, startSignal);
   } else if (input.kind === "quiz") {
     title = input.quizName?.trim() || "测验";
     if (!quizSetId) {
-      const quizSet = await useVLQuizStore.getState().createQuizSet({
+      const quizSet = await commands.createVLQuizSet({
         projectId: input.projectId,
         name: title,
         emoji: "📝",
@@ -228,6 +266,9 @@ export async function startVLTask(
         prompt: input.userPrompt || undefined,
       });
       quizSetId = quizSet.id;
+      await refreshQuizzes(input, startSignal);
+      if (input.mainDbName.replace(/\.db$/, "") === getChatDatabase())
+        useVLQuizStore.getState().selectQuizSet(quizSetId);
     }
   } else {
     const meta = NOTE_KIND[input.kind];
@@ -237,10 +278,13 @@ export async function startVLTask(
         ? input.podcast?.name.trim() || meta.title
         : input.title?.trim() || meta.title;
     if (!reuse?.noteId) {
-      const newContentId = await createContent(EMPTY_CONTENT, getContentLength(EMPTY_CONTENT));
+      const newContentId = await commands.createContent(
+        EMPTY_CONTENT,
+        getContentLength(EMPTY_CONTENT)
+      );
       if (!newContentId) throw new Error("创建内容失败");
       contentId = newContentId;
-      note = await createVLNote({
+      note = await commands.createVLNote({
         projectId: input.projectId,
         contentId: newContentId,
         title,
@@ -250,8 +294,10 @@ export async function startVLTask(
   }
 
   const noteId = reuse?.noteId ?? note?.id;
+  startSignal?.throwIfAborted();
   store.put({
     id: taskId,
+    databaseName: input.mainDbName,
     projectId: input.projectId,
     kind: input.kind,
     title,
@@ -297,10 +343,11 @@ export async function retryVLTask(taskId: string) {
 async function execute(
   taskId: string,
   runtime: Runtime,
-  config: { provider: ProviderConfig; model: ModelConfig },
+  config: { provider: LLMProviderSetting; model: LLMModelSetting },
   currentHtml?: string
 ) {
   const { input } = runtime;
+  const commands = commandsFor(input.mainDbName);
   const writer = createWriter(taskId);
   const store = useVLTaskStore.getState;
   const tool = createUnifiedVibeLearningTool(input.projectId, input.mainDbName);
@@ -313,9 +360,9 @@ async function execute(
       const output = store().tasks[taskId]?.output ?? "";
       if (!output || output === liveSaved) return;
       liveSaved = output;
-      void updateContent(contentId, importFromMarkdown(output)).catch(error =>
-        console.error("[vl-task] 中途保存失败", error)
-      );
+      void commands
+        .updateContent(contentId, importFromMarkdown(output))
+        .catch(error => console.error("[vl-task] 中途保存失败", error));
     }, 3000);
   }
 
@@ -380,10 +427,17 @@ async function execute(
               },
             },
           ],
-          executeToolCall: async call => {
+          databaseName: input.mainDbName,
+          executeToolCall: async (call, options) => {
             if (call.function.name !== tool.name) return null;
             const args = call.function.arguments ? JSON.parse(call.function.arguments) : {};
-            const result = await tool.executor(args);
+            const result = await tool.executor(args, {
+              toolName: tool.name,
+              toolCallId: call.id,
+              source: "vibe-learning",
+              databaseName: input.mainDbName,
+              signal: options?.signal,
+            });
             return typeof result === "string" ? { content: result } : (result ?? { content: "" });
           },
         }
@@ -416,13 +470,14 @@ async function execute(
 /** 按类型把模型输出写进产物 */
 async function persist(taskId: string, runtime: Runtime, content: string) {
   const { input, contentId } = runtime;
+  const commands = commandsFor(input.mainDbName);
   const task = useVLTaskStore.getState().tasks[taskId];
   switch (input.kind) {
     case "outline":
     case "highlights":
     case "article":
     case "mindmap":
-      if (contentId) await updateContent(contentId, importFromMarkdown(content.trim()));
+      if (contentId) await commands.updateContent(contentId, importFromMarkdown(content.trim()));
       return;
     case "ppt":
     case "report":
@@ -432,10 +487,10 @@ async function persist(taskId: string, runtime: Runtime, content: string) {
       const html = isPPT ? cleanPPTHtmlContent(content) : cleanReportHtmlContent(content);
       if (!html.trim()) throw new Error("没有解析出可用的 HTML");
       if (!contentId) return;
-      await updateContent(contentId, htmlToNoteContent(html));
+      await commands.updateContent(contentId, htmlToNoteContent(html));
       const title = htmlTitle(html);
       if (task?.noteId && title) {
-        await updateVLNote({ id: task.noteId, title });
+        await commands.updateVLNote({ id: task.noteId, title });
         useVLTaskStore.getState().patch(taskId, { title });
       }
       return;
@@ -445,8 +500,7 @@ async function persist(taskId: string, runtime: Runtime, content: string) {
       if (!quizSetId) return;
       const items = parseQuizResponse(content);
       if (items.length === 0) throw new Error("没有解析出题目");
-      const quiz = useVLQuizStore.getState();
-      await quiz.createItemsBatch(
+      await commands.createVLQuizItemsBatch(
         items.map((item, index) => ({
           quizSetId,
           type: item.type,
@@ -458,7 +512,7 @@ async function persist(taskId: string, runtime: Runtime, content: string) {
           sortOrder: index,
         }))
       );
-      await quiz.fetchQuizSets(input.projectId);
+      await refreshQuizzes(input);
       return;
     }
     case "podcast": {
@@ -476,7 +530,7 @@ async function persist(taskId: string, runtime: Runtime, content: string) {
         onPhase: phase => patch(taskId, { phase }),
       });
       const name = input.podcast?.name.trim() || "播客";
-      const podcast = await createPodcast({
+      const podcast = await commands.createPodcast({
         name,
         audioUrl: audio.audioUrl,
         script: content,
@@ -485,8 +539,9 @@ async function persist(taskId: string, runtime: Runtime, content: string) {
         speakers,
       });
       const script = audio.lines.map(line => `**${line.speaker}**: ${line.text}`).join("\n\n");
-      if (contentId) await updateContent(contentId, importFromMarkdown(`# ${name}\n\n${script}`));
-      if (task?.noteId) await updateVLNote({ id: task.noteId, podcastId: podcast.id });
+      if (contentId)
+        await commands.updateContent(contentId, importFromMarkdown(`# ${name}\n\n${script}`));
+      if (task?.noteId) await commands.updateVLNote({ id: task.noteId, podcastId: podcast.id });
       return;
     }
   }

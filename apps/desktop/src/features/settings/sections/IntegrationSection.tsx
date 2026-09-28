@@ -30,9 +30,8 @@ import {
   toast,
 } from "@tau/ui";
 import useSettingStore, { type ISetting } from "@/stores/useSettingStore";
-import { chat } from "@/commands";
+import { verifyMinimaxApiKey } from "@/commands/piAi";
 import { openExternal } from "@/commands/extra";
-import { Role } from "@/constants";
 import { getGithubUserInfo } from "@/utils/github";
 import {
   BilibiliQRCodeStatus,
@@ -1068,10 +1067,8 @@ function MinimaxDialog({ open, onOpenChange }: DialogProps) {
     setLoading(true);
     setError("");
     try {
-      // 用一次最小对话请求验证 Key（与 legacy 相同）
-      await chat(value, "https://api.minimaxi.com/v1/", "MiniMax-M2", [
-        { role: Role.User, content: [{ type: "text", text: "Hello, how are you?" }] },
-      ]);
+      // 用一次最短对话验证 Key（走 pi，与 legacy 设置页同一入口）
+      await verifyMinimaxApiKey(value);
       updateApiKey(value);
       setEnabled(true);
       toast.success("Minimax 已连接");

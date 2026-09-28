@@ -22,13 +22,18 @@ export class S3SyncProvider implements ISyncProvider {
     return "S3";
   }
 
-  async uploadFile(objectName: string, content: Uint8Array): Promise<boolean> {
+  async createFileIfAbsent(objectName: string, content: Uint8Array): Promise<boolean> {
+    return this.uploadFile(objectName, content, true);
+  }
+
+  async uploadFile(objectName: string, content: Uint8Array, createOnly = false): Promise<boolean> {
     try {
       const key = this.config.pathPrefix
         ? `${this.config.pathPrefix.replaceAll(/\/$|^\//g, "")}/${objectName}`
         : objectName;
 
       await s3Upload({
+        ...(createOnly ? { ifNoneMatch: "*" } : {}),
         accessKeyId: this.config.accessKeyId,
         secretAccessKey: this.config.secretAccessKey,
         bucket: this.config.bucket,
@@ -53,8 +58,7 @@ export class S3SyncProvider implements ISyncProvider {
       : objectName;
 
     let url = "";
-    const endpoint =
-      this.config.endpoint || `https://s3.${this.config.region}.amazonaws.com`;
+    const endpoint = this.config.endpoint || `https://s3.${this.config.region}.amazonaws.com`;
 
     if (this.config.urlStyle === "virtualHosted") {
       if (this.config.endpoint) {
@@ -87,8 +91,7 @@ export class S3SyncProvider implements ISyncProvider {
       : objectName;
 
     let url = "";
-    const endpoint =
-      this.config.endpoint || `https://s3.${this.config.region}.amazonaws.com`;
+    const endpoint = this.config.endpoint || `https://s3.${this.config.region}.amazonaws.com`;
 
     if (this.config.urlStyle === "virtualHosted") {
       if (this.config.endpoint) {
@@ -103,10 +106,12 @@ export class S3SyncProvider implements ISyncProvider {
 
     try {
       const response = await fetch(url, { method: "HEAD" });
-      return response.ok;
+      if (response.status === 404) return false;
+      if (!response.ok) throw new Error(`S3 对象检查失败：${response.status}`);
+      return true;
     } catch (e) {
       console.error("S3 检查文件存在失败:", e);
-      return false;
+      throw e;
     }
   }
 
@@ -120,12 +125,8 @@ export class S3SyncProvider implements ISyncProvider {
     const basePrefix = this.config.pathPrefix
       ? this.config.pathPrefix.replaceAll(/\/$|^\//g, "")
       : "";
-    const extraPrefix = prefix
-      ? prefix.replace(/^\/+/, "").replace(/\/+$/, "")
-      : "";
-    const combinedPrefix = [basePrefix, extraPrefix]
-      .filter((item) => item)
-      .join("/");
+    const extraPrefix = prefix ? prefix.replace(/^\/+/, "").replace(/\/+$/, "") : "";
+    const combinedPrefix = [basePrefix, extraPrefix].filter(item => item).join("/");
 
     try {
       const remoteFiles = await s3ListObjects({
@@ -138,13 +139,9 @@ export class S3SyncProvider implements ISyncProvider {
         prefix: combinedPrefix,
       });
 
-      return remoteFiles.map((file) => {
-        const relativePath = this.normalizeRelativePath(
-          file.path || file.name,
-          basePrefix,
-        );
-        const name =
-          relativePath.split("/").filter(Boolean).pop() || relativePath;
+      return remoteFiles.map(file => {
+        const relativePath = this.normalizeRelativePath(file.path || file.name, basePrefix);
+        const name = relativePath.split("/").filter(Boolean).pop() || relativePath;
         return {
           ...file,
           name,

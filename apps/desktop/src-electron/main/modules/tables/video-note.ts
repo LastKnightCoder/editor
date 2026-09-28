@@ -6,7 +6,7 @@ import { VideoNote } from "@/types";
 import Operation from "./operation";
 import ContentTable from "./content";
 import VideoNoteItemTable from "./video-note-item";
-import VideoNoteChatTable from "./video-note-chat";
+import ChatSessionTable from "./chat-session";
 import videoNoteIndexQueue from "../video-note-index-queue";
 
 interface VideoNoteRow {
@@ -433,7 +433,8 @@ export default class VideoNoteTable {
     ctx: CommandContext = fallbackCommandContext
   ): number {
     VideoNoteItemTable.removeByVideoNoteId(db, id);
-    VideoNoteChatTable.deleteChatsByVideoNoteId(db, id);
+    // 视频笔记的对话（目录行 + 会话文件）随笔记一起删
+    ChatSessionTable.removeByDomain(db, "video-note-chat", String(id));
     videoNoteIndexQueue.cleanupVideoNoteArtifacts(basename(db.name), id);
 
     const stmt = db.prepare(`

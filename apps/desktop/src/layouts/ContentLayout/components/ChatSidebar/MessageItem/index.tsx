@@ -24,8 +24,10 @@ interface MessageItemProps {
   isVisible: boolean;
   onDeleteMessage?: (messageIndex: number) => void;
   onRegenerateMessage?: (messageIndex: number) => void;
+  regenerateLabel?: string;
   onEditMessage?: (messageIndex: number, content: string) => void;
   onCreateBranch?: (messageIndex: number) => void;
+  onSwitchVersion?: (messageIndex: number, versionIndex: number) => void;
   messageIndex: number;
   messageMeta?: MarkdownMessageMeta;
 }
@@ -96,12 +98,18 @@ const MessageItem: React.FC<MessageItemProps> = memo(
     isVisible,
     onDeleteMessage,
     onRegenerateMessage,
+    regenerateLabel,
     onEditMessage,
     onCreateBranch,
+    onSwitchVersion,
     messageIndex,
     messageMeta,
   }) => {
     const isUser = message.role === Role.User;
+    const piVersions = isUser ? (message as RequestMessage).piVersions : undefined;
+    const versions = piVersions
+      ? { index: piVersions.index, count: piVersions.ids.length }
+      : undefined;
     const [pendingDelete, setPendingDelete] = useState<number | null>(null);
 
     const userMessage = isUser ? (message as RequestMessage) : undefined;
@@ -162,8 +170,11 @@ const MessageItem: React.FC<MessageItemProps> = memo(
           assistantBlocks={assistantBlocks}
           onDelete={onDeleteMessage ? setPendingDelete : undefined}
           onRegenerate={onRegenerateMessage}
+          regenerateLabel={regenerateLabel}
           onEditUserMessage={onEditMessage}
           onCreateBranch={onCreateBranch}
+          {...(versions ? { versions } : {})}
+          onSwitchVersion={onSwitchVersion}
           onOpenFile={file => void openFileInExplorer(file)}
           renderMarkdown={renderMarkdown}
           renderImage={(image, index, className) => (

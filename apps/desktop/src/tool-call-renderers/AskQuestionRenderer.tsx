@@ -1,15 +1,20 @@
+/**
+ * ask-question 提问卡：等待中的问题由 pi 宿主持有（会话交互快照），本组件只展示与提交。
+ * 作答后等工具结果回流；宿主已没有这条等待（中止/应用重启）时只读显示，不伪造可提交。
+ */
 import { useEffect, useId, useMemo, useState } from "react";
 import { Check, CircleAlert, MessageCircleQuestion } from "lucide-react";
 import { Button, Checkbox, Input, Radio, cn } from "@tau/ui";
 import type { ToolCallCustomRendererProps } from "./types";
 import { ToolCard, ToolCardHeader } from "./ui";
 import {
+  findUnansweredQuestion,
   normalizeAskQuestionPayload,
   type AskQuestionAnswerItem,
   type AskQuestionSubmission,
   type AskQuestionToolResult,
 } from "@/tools/askQuestionTypes";
-import { useAskQuestionSessionStore } from "@/tools/askQuestionSessionStore";
+import { answerQuestion, usePiInteractionStore } from "@/services/piInteractions";
 
 const buildInitialSelectedMap = (answers: AskQuestionAnswerItem[] | undefined) =>
   (answers || []).reduce<Record<string, string[]>>((acc, answer) => {
@@ -46,21 +51,25 @@ const AskQuestionRenderer = ({
   inputParseError,
   renderDefault,
 }: ToolCallCustomRendererProps) => {
-  const sessionRecord = useAskQuestionSessionStore(state =>
-    state.findRecordByExecution({
-      toolCallId: execution.toolCallId,
-      rawInput: execution.input,
-      timestamp: execution.timestamp,
-    })
+  const sessionId = execution.metadata?.piSessionId;
+  const pending = usePiInteractionStore(state =>
+    typeof sessionId === "string"
+      ? state.sessions[sessionId]?.questions.find(item => item.toolCallId === execution.toolCallId)
+      : undefined
   );
-  const submitAnswers = useAskQuestionSessionStore(state => state.submitAnswersByExecution);
+  const ready = usePiInteractionStore(
+    state => typeof sessionId === "string" && state.readySessions[sessionId] === true
+  );
+  const [submitting, setSubmitting] = useState(false);
+  /** 宿主已收下、工具结果尚未回流的答案 */
+  const [sentAnswers, setSentAnswers] = useState<AskQuestionSubmission>();
 
   const normalized = useMemo(() => {
-    if (sessionRecord?.payload) {
-      return { payload: sessionRecord.payload };
+    if (pending?.payload) {
+      return { payload: pending.payload };
     }
     return normalizeAskQuestionPayload(parsedInput);
-  }, [sessionRecord?.payload, parsedInput]);
+  }, [pending?.payload, parsedInput]);
   const executionIdentity = useMemo(
     () =>
       JSON.stringify({
@@ -74,11 +83,8 @@ const AskQuestionRenderer = ({
   const payload = normalized.payload;
   const outputResult = useMemo(() => parseOutputResult(execution.output), [execution.output]);
   const submittedAnswers = useMemo(() => {
-    if (sessionRecord?.submittedAnswers) {
-      return sessionRecord.submittedAnswers;
-    }
     if (!outputResult) {
-      return undefined;
+      return sentAnswers;
     }
     return {
       submittedAt: outputResult.submittedAt,
@@ -88,7 +94,7 @@ const AskQuestionRenderer = ({
         otherText: item.otherText || "",
       })),
     };
-  }, [outputResult, sessionRecord?.submittedAnswers]);
+  }, [outputResult, sentAnswers]);
 
   const [selectedValuesMap, setSelectedValuesMap] = useState<Record<string, string[]>>(() =>
     buildInitialSelectedMap(submittedAnswers?.answers)
@@ -104,6 +110,10 @@ const AskQuestionRenderer = ({
     setOtherTextMap(buildInitialOtherMap(submittedAnswers?.answers));
     setError("");
   }, [executionIdentity, submittedAnswers]);
+
+  useEffect(() => {
+    setSentAnswers(undefined);
+  }, [executionIdentity]);
 
   const displayAnswerMap = useMemo(
     () => new Map((submittedAnswers?.answers || []).map(answer => [answer.questionId, answer])),
@@ -121,10 +131,20 @@ const AskQuestionRenderer = ({
     return <>{renderDefault()}</>;
   }
 
-  const isLocked =
-    sessionRecord?.status === "submitted" ||
-    sessionRecord?.status === "completed" ||
-    execution.status === "success";
+  const answered = Boolean(submittedAnswers);
+  const live = Boolean(pending) && ready && !answered;
+  const isLocked = !live || submitting;
+  const statusText = answered
+    ? "答案已提交，等待模型继续响应"
+    : live
+      ? "请完成选择后提交答案"
+      : pending
+        ? "正在恢复问题…"
+        : isTransientStreamingState(execution.status) && ready
+          ? "正在准备问题…"
+          : execution.status === "failed"
+            ? "提问已结束，这次没有得到回答"
+            : "等待回答时对话已中断，这次提问没有得到回答";
 
   const handleSelectOption = (questionId: string, optionValue: string, isMultiple: boolean) => {
     if (isLocked) return;
@@ -148,8 +168,8 @@ const AskQuestionRenderer = ({
     });
   };
 
-  const handleSubmit = () => {
-    if (isLocked) return;
+  const handleSubmit = async () => {
+    if (isLocked || !pending) return;
 
     const answers: AskQuestionAnswerItem[] = payload.questions.map(question => {
       const selectedValues = selectedValuesMap[question.id] || [];
@@ -161,37 +181,22 @@ const AskQuestionRenderer = ({
       };
     });
 
-    const missingQuestion = payload.questions.find(question => {
-      if (!question.required) return false;
-      const answer = answers.find(item => item.questionId === question.id);
-      const hasSelected = (answer?.selectedValues || []).length > 0;
-      const hasOther = Boolean(answer?.otherText?.trim());
-      return !hasSelected && !hasOther;
-    });
-
+    const missingQuestion = findUnansweredQuestion(payload, answers);
     if (missingQuestion) {
       setError(`请先回答：${missingQuestion.question}`);
       return;
     }
 
-    const submission: AskQuestionSubmission = {
-      answers,
-      submittedAt: Date.now(),
-    };
-
-    const submitResult = submitAnswers(
-      {
-        toolCallId: execution.toolCallId,
-        rawInput: execution.input,
-        timestamp: execution.timestamp,
-      },
-      submission
-    );
-    if (submitResult === "missing") {
-      setError("提交失败：未找到对应问答会话，请重试。");
-      return;
+    setSubmitting(true);
+    try {
+      await answerQuestion(pending, answers);
+      setSentAnswers({ answers, submittedAt: Date.now() });
+      setError("");
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "提交答案失败");
+    } finally {
+      setSubmitting(false);
     }
-    setError("");
   };
 
   return (
@@ -333,10 +338,13 @@ const AskQuestionRenderer = ({
         )}
 
         <div className="flex items-center justify-between gap-3">
-          <div className="text-tau-sm text-ink-3">
-            {isLocked ? "答案已提交，等待模型继续响应" : "请完成选择后提交答案"}
-          </div>
-          <Button variant="primary" size="sm" onClick={handleSubmit} disabled={isLocked}>
+          <div className="text-tau-sm text-ink-3">{statusText}</div>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => void handleSubmit()}
+            disabled={isLocked}
+          >
             {payload.submitLabel || "提交答案"}
           </Button>
         </div>

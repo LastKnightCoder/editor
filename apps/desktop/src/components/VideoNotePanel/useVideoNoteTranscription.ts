@@ -55,7 +55,7 @@ export function useVideoNoteTranscription({
   language,
   onTranscriptSaved,
 }: UseVideoNoteTranscriptionOptions) {
-  const { providerConfig, modelConfig } = useLLMConfig("transcriptionOptimization");
+  const { provider, model } = useLLMConfig("transcriptionOptimization");
   const {
     isOptimizing,
     streamingSegments,
@@ -63,7 +63,7 @@ export function useVideoNoteTranscription({
     startOptimization,
     stopOptimization,
     error: optimizationError,
-  } = useTranscriptionOptimization(providerConfig, modelConfig);
+  } = useTranscriptionOptimization(provider, model);
 
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [progress, setProgress] = useState("");

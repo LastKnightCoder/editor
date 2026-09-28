@@ -17,6 +17,7 @@ export const fetchToolsProvider: MCPProviderDefinition = {
   tools: () => [
     {
       name: "http_fetch",
+      risk: "execute",
       description:
         "发送 HTTP 请求并返回状态、响应头和响应体。支持 GET、POST、PUT、DELETE、PATCH、HEAD 和 OPTIONS。",
       parameters: {

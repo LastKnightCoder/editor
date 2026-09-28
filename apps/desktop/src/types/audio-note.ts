@@ -1,9 +1,4 @@
-import type { ChatSessionMessage } from "./llm";
-import type {
-  TranscriptSegment,
-  VideoNoteHighlight,
-  VideoNoteInsights,
-} from "./video-note";
+import type { TranscriptSegment, VideoNoteHighlight, VideoNoteInsights } from "./video-note";
 import type { StreamOption } from "./youtube";
 
 export interface LocalAudioMetaInfo {
@@ -92,34 +87,4 @@ export interface AudioNoteItem {
 export interface CreateAudioNoteItem {
   audioNoteId: number;
   title: string;
-}
-
-export interface AudioNoteChatMessage {
-  id: number;
-  audioNoteId: number;
-  createTime: number;
-  updateTime: number;
-  messages: ChatSessionMessage[];
-  messageSchemaVersion?: number;
-  title: string;
-  archived?: boolean;
-  parentChatId?: number | null;
-  branchIndex?: number;
-}
-
-export interface CreateAudioNoteChat {
-  audioNoteId: number;
-  messages: ChatSessionMessage[];
-  title?: string;
-  parentChatId?: number | null;
-  branchIndex?: number;
-}
-
-export interface UpdateAudioNoteChat {
-  id: number;
-  messages?: ChatSessionMessage[];
-  title?: string;
-  archived?: boolean;
-  parentChatId?: number | null;
-  branchIndex?: number;
 }

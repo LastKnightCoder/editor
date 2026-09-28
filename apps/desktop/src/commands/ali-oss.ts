@@ -58,6 +58,9 @@ export const createObject = async (objInfo: IGetObject, content: Uint8Array) => 
   return invoke("create-object", objInfo, content);
 };
 
+export const createObjectIfAbsent = (objInfo: IGetObject, content: Uint8Array): Promise<boolean> =>
+  invoke("create-object-if-absent", objInfo, content);
+
 export const deleteObject = async (objInfo: IGetObject) => {
   return invoke("delete-object", objInfo);
 };

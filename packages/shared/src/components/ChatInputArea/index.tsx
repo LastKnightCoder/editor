@@ -38,7 +38,7 @@ import "./index.less";
 import type {
   ChatInputAreaHandle,
   ChatInputAreaProps,
-  ReasoningEffort,
+  ThinkingLevel,
   MessageContentItem,
   MentionRef,
 } from "./types";
@@ -47,7 +47,7 @@ export type {
   ChatInputAreaHandle,
   ChatInputAreaProps,
   ChatInputAreaServices,
-  ReasoningEffort,
+  ThinkingLevel,
   MessageContentItem,
   MentionEntityType,
   MentionRef,
@@ -62,17 +62,23 @@ export type { ChatContextUsage } from "./types";
 const { TextArea } = Input;
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
-interface ReasoningEffortOption {
-  value: ReasoningEffort;
+interface ThinkingLevelOption {
+  value: ThinkingLevel;
   label: string;
   description: string;
 }
 
-const REASONING_EFFORT_OPTIONS: ReasoningEffortOption[] = [
+/** 全部档位的文案；实际可选项由模型能力决定（thinkingLevelOptions） */
+const THINKING_LEVEL_OPTIONS: ThinkingLevelOption[] = [
   {
-    value: "none",
+    value: "off",
     label: "立答如流",
     description: "关闭思考以提升响应速度",
+  },
+  {
+    value: "minimal",
+    label: "极简思考",
+    description: "只做最低限度的思考",
   },
   {
     value: "low",
@@ -101,12 +107,8 @@ const REASONING_EFFORT_OPTIONS: ReasoningEffortOption[] = [
   },
 ];
 
-const DEFAULT_REASONING_EFFORT_OPTIONS: readonly ReasoningEffort[] = [
-  "none",
-  "low",
-  "medium",
-  "high",
-];
+/** 调用方没给可选档位时的兜底（模型能力未知，只给各家都有的几档） */
+const DEFAULT_THINKING_LEVEL_OPTIONS: readonly ThinkingLevel[] = ["off", "low", "medium", "high"];
 
 interface ChatImageItem {
   id: string;
@@ -173,10 +175,10 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       contextUsage,
       isSupportImage = false,
       isSupportFile = false,
-      reasoningEffort,
-      reasoningEffortOptions,
-      onReasoningEffortChange,
-      reasoningEffortDisabled = false,
+      thinkingLevel,
+      thinkingLevelOptions,
+      onThinkingLevelChange,
+      thinkingLevelDisabled = false,
       onMcpManagerClick,
       extraToolbarButtons,
     },
@@ -203,35 +205,35 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     const [isNewChatTooltipReopenLocked, setIsNewChatTooltipReopenLocked] = useState(false);
     const mentionRequestSeqRef = useRef(0);
     const composerMentions = useMemo(() => extractMentionRefsFromText(textContent), [textContent]);
-    const showReasoningEffortControl =
-      typeof reasoningEffort !== "undefined" && typeof onReasoningEffortChange === "function";
-    const availableReasoningEffortOptions = REASONING_EFFORT_OPTIONS.filter(option =>
-      (reasoningEffortOptions ?? DEFAULT_REASONING_EFFORT_OPTIONS).includes(option.value)
+    const showThinkingLevelControl =
+      typeof thinkingLevel !== "undefined" && typeof onThinkingLevelChange === "function";
+    const availableThinkingLevelOptions = THINKING_LEVEL_OPTIONS.filter(option =>
+      (thinkingLevelOptions ?? DEFAULT_THINKING_LEVEL_OPTIONS).includes(option.value)
     );
-    const currentReasoningOption = availableReasoningEffortOptions.find(
-      option => option.value === reasoningEffort
+    const currentThinkingOption = availableThinkingLevelOptions.find(
+      option => option.value === thinkingLevel
     );
-    const reasoningEffortMenuItems = useMemo(
+    const thinkingLevelMenuItems = useMemo(
       () =>
-        availableReasoningEffortOptions.map(option => ({
+        availableThinkingLevelOptions.map(option => ({
           key: option.value,
           label: (
             <div
               className={classnames("flex min-w-[180px] items-center justify-between gap-3", {
-                "text-blue-600": option.value === reasoningEffort,
+                "text-blue-600": option.value === thinkingLevel,
               })}
             >
               <div className="flex flex-col">
                 <span className="text-sm font-medium">{option.label}</span>
                 <span className="text-xs text-gray-500">{option.description}</span>
               </div>
-              {option.value === reasoningEffort && <CheckOutlined className="text-blue-500" />}
+              {option.value === thinkingLevel && <CheckOutlined className="text-blue-500" />}
             </div>
           ),
         })),
-      [availableReasoningEffortOptions, reasoningEffort]
+      [availableThinkingLevelOptions, thinkingLevel]
     );
-    const reasoningControlDisabled = reasoningEffortDisabled || sendLoading || !contentEditable;
+    const thinkingControlDisabled = thinkingLevelDisabled || sendLoading || !contentEditable;
 
     useEffect(() => {
       if (
@@ -794,33 +796,33 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 </Tooltip>
               </Dropdown>
             )}
-            {showReasoningEffortControl && (
+            {showThinkingLevelControl && (
               <Dropdown
                 menu={{
-                  items: reasoningEffortMenuItems,
-                  onClick: ({ key }) => onReasoningEffortChange?.(key as ReasoningEffort),
+                  items: thinkingLevelMenuItems,
+                  onClick: ({ key }) => onThinkingLevelChange?.(key as ThinkingLevel),
                 }}
                 trigger={["click"]}
-                disabled={reasoningControlDisabled}
+                disabled={thinkingControlDisabled}
               >
                 <span
                   style={{
                     display: "inline-block",
-                    cursor: reasoningControlDisabled ? "not-allowed" : "pointer",
+                    cursor: thinkingControlDisabled ? "not-allowed" : "pointer",
                   }}
                 >
                   <Button
                     type="text"
                     size="small"
-                    disabled={reasoningControlDisabled}
+                    disabled={thinkingControlDisabled}
                     className="p-1! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400! flex items-center gap-1.5"
                     style={{
-                      pointerEvents: reasoningControlDisabled ? "none" : "auto",
+                      pointerEvents: thinkingControlDisabled ? "none" : "auto",
                     }}
                   >
                     <LuBrain className="text-base" />
                     <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                      {currentReasoningOption?.label ?? "立答如流"}
+                      {currentThinkingOption?.label ?? "立答如流"}
                     </span>
                   </Button>
                 </span>

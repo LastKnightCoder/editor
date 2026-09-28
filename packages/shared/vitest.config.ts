@@ -12,6 +12,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      "@tau/shared/chat-core": path.resolve(__dirname, "./chat-core.ts"),
       "@tau/shared": path.resolve(__dirname, "./src"),
     },
   },

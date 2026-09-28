@@ -3,11 +3,10 @@ import { basename } from "node:path";
 import { Pdf, PdfAnnotation, PdfBookmark } from "@/types";
 import Operation from "./operation";
 import pdfIndexDBManager from "../pdf-index-db";
+import ChatSessionTable from "./chat-session";
 
 const tableExists = (db: Database.Database, name: string) => {
-  const stmt = db.prepare(
-    "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
-  );
+  const stmt = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?");
   return Boolean(stmt.get(name));
 };
 
@@ -16,9 +15,7 @@ export default class PdfTable {
     db.exec(`DROP TABLE IF EXISTS pdf_highlights`);
 
     if (tableExists(db, "pdf_annotations_v2")) {
-      const rows = db
-        .prepare("SELECT * FROM pdf_annotations_v2 ORDER BY id ASC")
-        .all();
+      const rows = db.prepare("SELECT * FROM pdf_annotations_v2 ORDER BY id ASC").all();
       const insert = db.prepare(`
         INSERT OR REPLACE INTO pdf_annotations
         (id, create_time, update_time, pdf_id, page_num, annotation_payload, color, notes)
@@ -34,7 +31,7 @@ export default class PdfTable {
             item.page_num,
             item.annotation_payload,
             item.color ?? null,
-            item.notes ?? "[]",
+            item.notes ?? "[]"
           );
         }
       });
@@ -43,9 +40,7 @@ export default class PdfTable {
     }
 
     if (tableExists(db, "pdf_bookmarks_v2")) {
-      const rows = db
-        .prepare("SELECT * FROM pdf_bookmarks_v2 ORDER BY id ASC")
-        .all();
+      const rows = db.prepare("SELECT * FROM pdf_bookmarks_v2 ORDER BY id ASC").all();
       const insert = db.prepare(`
         INSERT OR REPLACE INTO pdf_bookmarks
         (id, create_time, update_time, pdf_id, bookmark_payload)
@@ -58,9 +53,7 @@ export default class PdfTable {
             : { pageIndex: Math.max(0, Number(item.page_num || 1) - 1) };
           const bookmarkPayload = {
             title: item.title,
-            target: destination
-              ? { type: "destination", destination }
-              : undefined,
+            target: destination ? { type: "destination", destination } : undefined,
             children: [],
           };
           insert.run(
@@ -68,7 +61,7 @@ export default class PdfTable {
             item.create_time,
             item.update_time,
             item.pdf_id,
-            JSON.stringify(bookmarkPayload),
+            JSON.stringify(bookmarkPayload)
           );
         }
       });
@@ -80,7 +73,7 @@ export default class PdfTable {
     const columns = db.pragma("table_info(pdf_annotations)") as Array<{
       name: string;
     }>;
-    const columnNames = columns.map((c) => c.name);
+    const columnNames = columns.map(c => c.name);
     if (!columnNames.includes("type")) {
       db.exec("ALTER TABLE pdf_annotations ADD COLUMN type TEXT");
     }
@@ -144,10 +137,7 @@ export default class PdfTable {
     };
   }
 
-  static createPdf(
-    db: Database.Database,
-    pdf: Omit<Pdf, "id" | "createTime" | "updateTime">,
-  ): Pdf {
+  static createPdf(db: Database.Database, pdf: Omit<Pdf, "id" | "createTime" | "updateTime">): Pdf {
     const stmt = db.prepare(`
       INSERT INTO pdfs 
       (tags, is_local, category, file_name, file_path, remote_url, create_time, update_time)
@@ -162,7 +152,7 @@ export default class PdfTable {
       pdf.filePath,
       pdf.remoteUrl,
       now,
-      now,
+      now
     );
 
     Operation.insertOperation(db, "pdf", "insert", res.lastInsertRowid, now);
@@ -191,7 +181,7 @@ export default class PdfTable {
       pdf.filePath,
       pdf.remoteUrl,
       now,
-      pdf.id,
+      pdf.id
     );
 
     Operation.insertOperation(db, "pdf", "update", pdf.id, now);
@@ -208,22 +198,16 @@ export default class PdfTable {
   static getPdfList(db: Database.Database): Pdf[] {
     const stmt = db.prepare("SELECT * FROM pdfs ORDER BY create_time DESC");
     const pdfs = stmt.all();
-    return pdfs.map((pdf) => this.parsePdf(pdf));
+    return pdfs.map(pdf => this.parsePdf(pdf));
   }
 
   static removePdf(db: Database.Database, id: number): number {
-    const removeAnnotations = db.prepare(
-      "DELETE FROM pdf_annotations WHERE pdf_id = ?",
-    );
-    const removeBookmarks = db.prepare(
-      "DELETE FROM pdf_bookmarks WHERE pdf_id = ?",
-    );
-    const removeChats = db.prepare("DELETE FROM pdf_chats WHERE pdf_id = ?");
+    const removeAnnotations = db.prepare("DELETE FROM pdf_annotations WHERE pdf_id = ?");
+    const removeBookmarks = db.prepare("DELETE FROM pdf_bookmarks WHERE pdf_id = ?");
     const removePdf = db.prepare("DELETE FROM pdfs WHERE id = ?");
     const tx = db.transaction(() => {
       removeAnnotations.run(id);
       removeBookmarks.run(id);
-      removeChats.run(id);
       const result = removePdf.run(id);
       if (result.changes > 0) {
         Operation.insertOperation(db, "pdf", "delete", id, Date.now());
@@ -233,14 +217,13 @@ export default class PdfTable {
     const changes = tx();
     if (changes > 0) {
       pdfIndexDBManager.deleteDatabase(basename(db.name), id);
+      // PDF 对话（目录行 + 会话文件）随 PDF 一起删
+      ChatSessionTable.removeByDomain(db, "pdf-chat", String(id));
     }
     return changes;
   }
 
-  static getPdfAnnotationById(
-    db: Database.Database,
-    id: number,
-  ): PdfAnnotation {
+  static getPdfAnnotationById(db: Database.Database, id: number): PdfAnnotation {
     const stmt = db.prepare("SELECT * FROM pdf_annotations WHERE id = ?");
     const record = stmt.get(id);
     return this.parsePdfAnnotation(record);
@@ -248,7 +231,7 @@ export default class PdfTable {
 
   static addPdfAnnotation(
     db: Database.Database,
-    annotation: Omit<PdfAnnotation, "id" | "createTime" | "updateTime">,
+    annotation: Omit<PdfAnnotation, "id" | "createTime" | "updateTime">
   ): PdfAnnotation {
     const stmt = db.prepare(`
       INSERT INTO pdf_annotations
@@ -265,24 +248,15 @@ export default class PdfTable {
       annotation.type ?? null,
       annotation.areaData ? JSON.stringify(annotation.areaData) : null,
       now,
-      now,
+      now
     );
 
-    Operation.insertOperation(
-      db,
-      "pdf-annotation",
-      "insert",
-      res.lastInsertRowid,
-      now,
-    );
+    Operation.insertOperation(db, "pdf-annotation", "insert", res.lastInsertRowid, now);
 
     return this.getPdfAnnotationById(db, Number(res.lastInsertRowid));
   }
 
-  static updatePdfAnnotation(
-    db: Database.Database,
-    annotation: PdfAnnotation,
-  ): PdfAnnotation {
+  static updatePdfAnnotation(db: Database.Database, annotation: PdfAnnotation): PdfAnnotation {
     const stmt = db.prepare(`
       UPDATE pdf_annotations SET
         pdf_id = ?,
@@ -305,26 +279,17 @@ export default class PdfTable {
       annotation.type ?? null,
       annotation.areaData ? JSON.stringify(annotation.areaData) : null,
       now,
-      annotation.id,
+      annotation.id
     );
 
-    Operation.insertOperation(
-      db,
-      "pdf-annotation",
-      "update",
-      annotation.id,
-      now,
-    );
+    Operation.insertOperation(db, "pdf-annotation", "update", annotation.id, now);
 
     return this.getPdfAnnotationById(db, annotation.id);
   }
 
-  static getPdfAnnotations(
-    db: Database.Database,
-    pdfId: number,
-  ): PdfAnnotation[] {
+  static getPdfAnnotations(db: Database.Database, pdfId: number): PdfAnnotation[] {
     const stmt = db.prepare(
-      "SELECT * FROM pdf_annotations WHERE pdf_id = ? ORDER BY create_time ASC",
+      "SELECT * FROM pdf_annotations WHERE pdf_id = ? ORDER BY create_time ASC"
     );
     const annotations = stmt.all(pdfId);
     return annotations.map((record: any) => this.parsePdfAnnotation(record));
@@ -344,7 +309,7 @@ export default class PdfTable {
 
   static addPdfBookmark(
     db: Database.Database,
-    bookmark: Omit<PdfBookmark, "id" | "createTime" | "updateTime">,
+    bookmark: Omit<PdfBookmark, "id" | "createTime" | "updateTime">
   ): PdfBookmark {
     const stmt = db.prepare(`
       INSERT INTO pdf_bookmarks
@@ -352,28 +317,14 @@ export default class PdfTable {
       VALUES (?, ?, ?, ?)
     `);
     const now = Date.now();
-    const res = stmt.run(
-      bookmark.pdfId,
-      JSON.stringify(bookmark.bookmark),
-      now,
-      now,
-    );
+    const res = stmt.run(bookmark.pdfId, JSON.stringify(bookmark.bookmark), now, now);
 
-    Operation.insertOperation(
-      db,
-      "pdf-bookmark",
-      "insert",
-      res.lastInsertRowid,
-      now,
-    );
+    Operation.insertOperation(db, "pdf-bookmark", "insert", res.lastInsertRowid, now);
 
     return this.getPdfBookmarkById(db, Number(res.lastInsertRowid));
   }
 
-  static updatePdfBookmark(
-    db: Database.Database,
-    bookmark: PdfBookmark,
-  ): PdfBookmark {
+  static updatePdfBookmark(db: Database.Database, bookmark: PdfBookmark): PdfBookmark {
     const stmt = db.prepare(`
       UPDATE pdf_bookmarks SET
         pdf_id = ?,
@@ -382,12 +333,7 @@ export default class PdfTable {
       WHERE id = ?
     `);
     const now = Date.now();
-    stmt.run(
-      bookmark.pdfId,
-      JSON.stringify(bookmark.bookmark),
-      now,
-      bookmark.id,
-    );
+    stmt.run(bookmark.pdfId, JSON.stringify(bookmark.bookmark), now, bookmark.id);
 
     Operation.insertOperation(db, "pdf-bookmark", "update", bookmark.id, now);
 
@@ -396,7 +342,7 @@ export default class PdfTable {
 
   static getPdfBookmarks(db: Database.Database, pdfId: number): PdfBookmark[] {
     const stmt = db.prepare(
-      "SELECT * FROM pdf_bookmarks WHERE pdf_id = ? ORDER BY create_time ASC",
+      "SELECT * FROM pdf_bookmarks WHERE pdf_id = ? ORDER BY create_time ASC"
     );
     const bookmarks = stmt.all(pdfId);
     return bookmarks.map((record: any) => this.parsePdfBookmark(record));

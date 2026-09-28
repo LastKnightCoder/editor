@@ -1,8 +1,12 @@
 import type { ReactNode } from "react";
 import type { MenuProps } from "antd";
 
-/** 推理强度 */
-export type ReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh" | "max";
+/**
+ * 思考档位——全仓唯一定义，取值与运行时（pi ThinkingLevel）逐项对齐。
+ * 桌面端 `PiThinkingLevel` 即本类型；此前两侧各有一套（旧枚举用 "none" 且没有 "minimal"），
+ * 导致 minimal 在界面上不可达、每处转换都要记得 none→off。
+ */
+export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 
 export type MentionEntityType = "card" | "article" | "project-item";
 
@@ -87,14 +91,14 @@ export interface ChatInputAreaProps {
   isSupportImage?: boolean;
   /** 是否支持文件上传 */
   isSupportFile?: boolean;
-  /** 推理强度 */
-  reasoningEffort?: ReasoningEffort;
-  /** 当前模型可用的推理强度 */
-  reasoningEffortOptions?: readonly ReasoningEffort[];
-  /** 推理强度变化回调 */
-  onReasoningEffortChange?: (level: ReasoningEffort) => void;
-  /** 推理强度是否禁用 */
-  reasoningEffortDisabled?: boolean;
+  /** 思考档位 */
+  thinkingLevel?: ThinkingLevel;
+  /** 当前模型真实支持的档位（由模型能力决定，不是固定几档） */
+  thinkingLevelOptions?: readonly ThinkingLevel[];
+  /** 档位变化回调 */
+  onThinkingLevelChange?: (level: ThinkingLevel) => void;
+  /** 档位选择是否禁用 */
+  thinkingLevelDisabled?: boolean;
   /** MCP 管理按钮点击回调（可选，不提供则不显示按钮） */
   onMcpManagerClick?: () => void;
   /** 额外的工具栏按钮（渲染在左侧工具栏末尾） */

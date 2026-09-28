@@ -1,7 +1,7 @@
 import { nodeFetch } from "@/commands";
 import { RequestMessage } from "@/types";
 import { CONVERT_PROMPT, Role } from "@/constants";
-import { chatLLM } from "@/hooks/useChatLLM.ts";
+import { piCompleteChat } from "@/services/piLLM";
 import { Descendant } from "slate";
 import { importFromMarkdown } from "@/utils/markdown.ts";
 
@@ -15,7 +15,7 @@ export const getContentHTML = (html: string): string => {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
   // 移除所有的 scripts
-  doc.querySelectorAll("script").forEach((script) => script.remove());
+  doc.querySelectorAll("script").forEach(script => script.remove());
   // 微信公众号的内容都在 page-content 中
   const pageContent = doc.getElementById("page-content");
   return pageContent?.innerHTML || doc.body.innerHTML;
@@ -24,7 +24,7 @@ export const getContentHTML = (html: string): string => {
 export const convertHTMLToMarkdown = async (html: string): Promise<string> => {
   // 需要从全局store获取webClip功能的配置
   const { getState } = (await import("@/stores/useSettingStore")).default;
-  const { llmConfigs, llmUsageSettings } = getState().setting;
+  const { llmProviders: llmConfigs, llmUsageSettings } = getState().setting;
 
   const usageConfig = llmUsageSettings.webClip;
   if (!usageConfig) {
@@ -32,17 +32,13 @@ export const convertHTMLToMarkdown = async (html: string): Promise<string> => {
     return "";
   }
 
-  const providerConfig = llmConfigs.find(
-    (config) => config.id === usageConfig.providerId,
-  );
+  const providerConfig = llmConfigs.find(config => config.id === usageConfig.providerId);
   if (!providerConfig) {
     console.error("找不到webClip功能的provider配置");
     return "";
   }
 
-  const modelConfig = providerConfig.models?.find(
-    (model) => model.name === usageConfig.modelName,
-  );
+  const modelConfig = providerConfig.models?.find(model => model.id === usageConfig.modelId);
   if (!modelConfig) {
     console.error("找不到webClip功能的model配置");
     return "";
@@ -69,12 +65,15 @@ export const convertHTMLToMarkdown = async (html: string): Promise<string> => {
     },
   ];
 
-  const convertRes: string =
-    (await chatLLM(providerConfig, modelConfig, convertMessages).catch((e) => {
-      console.error(e);
-      return "";
-    })) || "";
-  return convertRes;
+  const outcome = await piCompleteChat({
+    provider: providerConfig,
+    model: modelConfig,
+    messages: convertMessages,
+  }).catch(e => {
+    console.error(e);
+    return null;
+  });
+  return outcome?.ok ? outcome.text : "";
 };
 
 export const webClipFromUrl = async (url: string): Promise<WebClipResult> => {

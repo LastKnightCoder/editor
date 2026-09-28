@@ -4,6 +4,7 @@ import type { ISyncProvider } from "./types.js";
 export class AliOSSSyncProvider implements ISyncProvider {
   private client: OSS;
   private pathPrefix: string;
+  private bucket: string;
 
   constructor(config: {
     accessKeyId: string;
@@ -12,6 +13,7 @@ export class AliOSSSyncProvider implements ISyncProvider {
     region: string;
     path?: string;
   }) {
+    this.bucket = config.bucket;
     this.pathPrefix = (config.path || "/").replace(/\/$/, "");
     this.client = new OSS({
       accessKeyId: config.accessKeyId,
@@ -23,6 +25,20 @@ export class AliOSSSyncProvider implements ISyncProvider {
 
   private getObjectKey(objectName: string): string {
     return `${this.pathPrefix}/${objectName}`.replace(/^\/+/, "");
+  }
+
+  async createFileIfAbsent(objectName: string, content: Uint8Array): Promise<boolean> {
+    const versioning = await (
+      this.client as OSS & {
+        getBucketVersioning(bucket: string): Promise<{ versionStatus?: string }>;
+      }
+    ).getBucketVersioning(this.bucket);
+    if (versioning.versionStatus === "Enabled" || versioning.versionStatus === "Suspended")
+      throw new Error("此 OSS 桶启用了版本控制，无法保证原子防覆盖；请使用未启用版本控制的同步桶");
+    await this.client.put(this.getObjectKey(objectName), Buffer.from(content), {
+      headers: { "x-oss-forbid-overwrite": "true" },
+    });
+    return true;
   }
 
   async uploadFile(objectName: string, content: Uint8Array): Promise<boolean> {
@@ -42,8 +58,9 @@ export class AliOSSSyncProvider implements ISyncProvider {
       const key = this.getObjectKey(objectName);
       await this.client.head(key);
       return true;
-    } catch {
-      return false;
+    } catch (error) {
+      if ((error as { status?: number }).status === 404) return false;
+      throw error;
     }
   }
 

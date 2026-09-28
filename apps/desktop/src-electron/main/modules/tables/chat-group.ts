@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import ChatSessionTable from "./chat-session";
 
 export interface ChatGroupRow {
   id: number;
@@ -66,13 +67,7 @@ export default class ChatGroupTable {
       VALUES (?, ?, ?, ?, ?)
     `);
 
-    const res = stmt.run(
-      data.name,
-      data.parentId ?? null,
-      data.orderIndex ?? 0,
-      now,
-      now,
-    );
+    const res = stmt.run(data.name, data.parentId ?? null, data.orderIndex ?? 0, now, now);
 
     return this.getGroupById(db, Number(res.lastInsertRowid));
   }
@@ -95,7 +90,7 @@ export default class ChatGroupTable {
       data.parentId !== undefined ? data.parentId : existing.parentId,
       data.orderIndex ?? existing.orderIndex,
       now,
-      data.id,
+      data.id
     );
 
     return this.getGroupById(db, data.id);
@@ -104,7 +99,7 @@ export default class ChatGroupTable {
   static deleteGroup(db: Database.Database, id: number): number {
     // 检查是否有子分组
     const childCountStmt = db.prepare(
-      "SELECT COUNT(*) as count FROM chat_group WHERE parent_id = ?",
+      "SELECT COUNT(*) as count FROM chat_group WHERE parent_id = ?"
     );
     const childCount = (childCountStmt.get(id) as any).count;
 
@@ -112,10 +107,8 @@ export default class ChatGroupTable {
       throw new Error("Cannot delete group with children");
     }
 
-    // 将该分组下的对话的 group_id 设置为 NULL
-    db.prepare(
-      "UPDATE chat_message SET group_id = NULL WHERE group_id = ?",
-    ).run(id);
+    // 该分组下的对话移到未分组（对话在 chat_session 目录表）
+    ChatSessionTable.clearGroup(db, id);
 
     const stmt = db.prepare("DELETE FROM chat_group WHERE id = ?");
     return stmt.run(id).changes;
@@ -131,9 +124,7 @@ export default class ChatGroupTable {
   }
 
   static getAllGroups(db: Database.Database): ChatGroup[] {
-    const stmt = db.prepare(
-      "SELECT * FROM chat_group ORDER BY order_index ASC, create_time ASC",
-    );
+    const stmt = db.prepare("SELECT * FROM chat_group ORDER BY order_index ASC, create_time ASC");
     const rows = stmt.all() as ChatGroupRow[];
     return rows.map(parse);
   }

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
-import { chatLLM } from "./useChatLLM";
+import { piCompleteChat } from "@/services/piLLM";
 import useLLMConfig from "./useLLMConfig";
 import {
   ANSWER_JUDGEMENT_SYSTEM_PROMPT,
@@ -69,12 +69,12 @@ export const useAnswerJudgement = (): UseAnswerJudgementResult => {
     []
   );
 
-  const { providerConfig, modelConfig } = useLLMConfig("aiJudgement");
-  const isConfigured = !!(providerConfig && modelConfig);
+  const { provider, model } = useLLMConfig("aiJudgement");
+  const isConfigured = !!(provider && model);
 
   const judge = useMemoizedFn(async (userAnswer: string, flashcard: Flashcard) => {
     const version = ++requestVersion.current;
-    if (!providerConfig || !modelConfig) {
+    if (!provider || !model) {
       setError(new Error("未配置答案评判的模型"));
       setStatus("error");
       return;
@@ -118,8 +118,13 @@ export const useAnswerJudgement = (): UseAnswerJudgementResult => {
         },
       ];
 
-      const response = await chatLLM(providerConfig, modelConfig, messages);
+      const outcome = await piCompleteChat({ provider, model, messages });
       if (version !== requestVersion.current) return;
+
+      if (!outcome.ok) {
+        throw new Error(outcome.error ?? "AI 评判失败");
+      }
+      const response = outcome.text;
 
       if (!response) {
         throw new Error("AI 返回空响应");

@@ -1,14 +1,14 @@
 import { useState, useCallback, useRef } from "react";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
 import { Descendant } from "slate";
-import { chatLLMStream } from "./useChatLLM";
+import { piStreamText, type PiChatHandle } from "@/services/piLLM";
 import {
   VIDEO_SUMMARY_SYSTEM_PROMPT,
   buildVideoSummaryUserPrompt,
 } from "@/constants/prompts/video-summary";
 import { importFromMarkdown } from "@/utils/markdown";
 import { Role } from "@/constants";
-import type { ProviderConfig, ModelConfig } from "@/types/llm";
+import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
 import type { RequestMessage } from "@/types";
 
 interface TranscriptSegment {
@@ -35,8 +35,8 @@ interface UseVideoSummaryResult {
 }
 
 export const useVideoSummary = (
-  providerConfig: ProviderConfig | null,
-  modelConfig: ModelConfig | null,
+  provider: LLMProviderSetting | null,
+  model: LLMModelSetting | null
 ): UseVideoSummaryResult => {
   // 状态
   const [isSummarizing, setIsSummarizing] = useState(false);
@@ -46,7 +46,7 @@ export const useVideoSummary = (
   const [finalSummary, setFinalSummary] = useState<string | null>(null);
 
   // Refs
-  const controllerRef = useRef<AbortController | null>(null);
+  const chatHandleRef = useRef<PiChatHandle | null>(null);
   const accumulatedMarkdownRef = useRef<string>("");
 
   // Throttled parsing to avoid excessive re-renders
@@ -59,11 +59,11 @@ export const useVideoSummary = (
         console.error("[VideoSummary] Failed to parse markdown:", err);
       }
     },
-    { wait: 100 },
+    { wait: 100 }
   );
 
   const startSummary = useMemoizedFn((segments: TranscriptSegment[]) => {
-    if (!providerConfig || !modelConfig) {
+    if (!provider || !model) {
       setError(new Error("未配置视频总结模型"));
       return;
     }
@@ -94,47 +94,41 @@ export const useVideoSummary = (
       },
     ];
 
-    chatLLMStream(providerConfig, modelConfig, messages, {
-      onUpdate: (responseText: string) => {
-        accumulatedMarkdownRef.current = responseText;
-        setStreamingContent(responseText);
-        throttledParse(responseText);
-      },
-
-      onFinish: (fullContent: string) => {
+    const handle = piStreamText({ provider, model, messages }, ({ text }) => {
+      accumulatedMarkdownRef.current = text;
+      setStreamingContent(text);
+      throttledParse(text);
+    });
+    chatHandleRef.current = handle;
+    void handle.result.then(result => {
+      if (result.ok && !result.aborted) {
         setIsSummarizing(false);
-        setFinalSummary(fullContent);
-        setStreamingContent(fullContent);
+        setFinalSummary(result.text);
+        setStreamingContent(result.text);
         // Force final parse
         flushParse();
-        if (fullContent) {
+        if (result.text) {
           try {
-            const parsed = importFromMarkdown(fullContent);
+            const parsed = importFromMarkdown(result.text);
             setSummaryContent(parsed);
           } catch (err) {
             console.error("[VideoSummary] Failed to parse final markdown:", err);
           }
         }
         console.log("[VideoSummary] Summary completed");
-      },
-
-      onError: (err: Error) => {
+        return;
+      }
+      if (!result.aborted) {
         setIsSummarizing(false);
-        setError(err);
-        console.error("[VideoSummary] Error:", err);
-      },
-
-      onController: (controller: AbortController) => {
-        controllerRef.current = controller;
-      },
+        setError(new Error(result.error ?? "模型请求失败"));
+        console.error("[VideoSummary] Error:", result.error);
+      }
     });
   });
 
   const stopSummary = useCallback(() => {
-    if (controllerRef.current) {
-      controllerRef.current.abort();
-      controllerRef.current = null;
-    }
+    chatHandleRef.current?.cancel();
+    chatHandleRef.current = null;
     setIsSummarizing(false);
   }, []);
 

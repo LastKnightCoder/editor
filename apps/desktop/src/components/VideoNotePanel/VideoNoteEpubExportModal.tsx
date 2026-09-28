@@ -29,7 +29,7 @@ import { Button, ConfirmDialog, Dialog, Input, Textarea, cn, toast } from "@tau/
 import { FadeScroll } from "@/components/FadeScroll";
 import { readBinaryFile, selectFile, showInFolder } from "@/commands";
 import type { EpubMetadataInput } from "@/types";
-import type { ProviderConfig, ModelConfig } from "@/types/llm";
+import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
 import { importFromMarkdown, getMarkdown } from "@/utils/markdown";
 import { resolveLocalMediaPath } from "@/utils/localMediaPath";
 import { remoteResourceToLocal } from "@/utils/resouce";
@@ -86,8 +86,8 @@ interface VideoNoteEpubExportModalProps {
   transcript: string;
   videoTitle?: string;
   videoDescription?: string;
-  providerConfig: ProviderConfig | null;
-  modelConfig: ModelConfig | null;
+  provider: LLMProviderSetting | null;
+  model: LLMModelSetting | null;
   onOpenLLMSettings: () => void;
 }
 
@@ -265,8 +265,8 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     transcript,
     videoTitle,
     videoDescription,
-    providerConfig,
-    modelConfig,
+    provider,
+    model,
     onOpenLLMSettings,
   } = props;
   const editorRef = useRef<EditorRef>(null);
@@ -308,7 +308,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     startRewrite,
     stopRewrite,
     reset: resetRewriteState,
-  } = useVideoEbookRewrite(providerConfig, modelConfig);
+  } = useVideoEbookRewrite(provider, model);
 
   const loadCoverCandidates = useMemoizedFn(
     async (contentForCover: Descendant[], defaultMetadata: EpubMetadataInput) => {
@@ -508,7 +508,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
       toast.warning("缺少转录文稿，请先完成转录");
       return;
     }
-    if (!providerConfig || !modelConfig) {
+    if (!provider || !model) {
       setLlmMissingOpen(true);
       return;
     }

@@ -37,7 +37,7 @@ import {
   createContent,
   updateVideoNoteTranscript,
 } from "@/commands";
-import { openSettingsModal } from "@/utils/transcription";
+import { openLLMSettingsSection } from "@/utils/transcription";
 import { useLLMConfig } from "@/hooks/useLLMConfig";
 import { type VideoNote as IVideoNote, type VideoNoteItem, type TranscriptSegment } from "@/types";
 import {} from "@/editor-extensions";
@@ -96,7 +96,7 @@ const VideoNotePanel = ({
   const themeColors = useThemeColors();
   const activeDatabase = useSettingStore(state => state.setting.database.active);
 
-  const { providerConfig: ebookRewriteProviderConfig, modelConfig: ebookRewriteModelConfig } =
+  const { provider: ebookRewriteLLMProviderSetting, model: ebookRewriteLLMModelSetting } =
     useLLMConfig("videoEbookRewrite");
   // State
   const [videoNote, setVideoNote] = useState<IVideoNote | null>(null);
@@ -1038,9 +1038,9 @@ const VideoNotePanel = ({
         transcript={transcriptForChat}
         videoTitle={videoTitle || videoNote?.description || "视频电子书"}
         videoDescription={videoNote?.description || ""}
-        providerConfig={ebookRewriteProviderConfig}
-        modelConfig={ebookRewriteModelConfig}
-        onOpenLLMSettings={() => openSettingsModal("llm")}
+        provider={ebookRewriteLLMProviderSetting}
+        model={ebookRewriteLLMModelSetting}
+        onOpenLLMSettings={() => openLLMSettingsSection()}
       />
     </>
   );
@@ -1159,7 +1159,7 @@ const VideoNotePanel = ({
         confirmText="打开设置"
         onConfirm={() => {
           dismissLlmConfirm();
-          openSettingsModal("llm");
+          openLLMSettingsSection();
         }}
       />
     </div>

@@ -4,11 +4,13 @@
  */
 
 import type { PodcastSpeaker, PodcastScriptLine } from "@/types/podcast";
-import type { ProviderConfig, ModelConfig, RequestMessage } from "@/types/llm";
+import type { RequestMessage } from "@/types/llm";
+import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
 import type { MinimaxSpeechModel } from "@/types/minimax";
 import { ETTSProvider } from "@/types/tts";
 import { Role } from "@/constants";
-import { chatLLMStream } from "@/hooks/useChatLLM";
+import { runPiAgent } from "@/services/piAgentRunner";
+import { piStreamChat } from "@/services/piLLM";
 import {
   buildVibeLearningGenerationUserPrompt,
   VIBE_LEARNING_GENERATION_RULES,
@@ -38,35 +40,60 @@ interface PodcastScriptSourceOptions {
 export function generateScriptStream(
   source: PodcastScriptSourceOptions,
   speakers: PodcastSpeaker[],
-  providerConfig: ProviderConfig,
-  modelConfig: ModelConfig,
+  provider: LLMProviderSetting,
+  model: LLMModelSetting,
   onUpdate: (chunk: string) => void,
   onFinish: () => void,
   onError: (error: Error) => void,
   ttsPromptOptions: PodcastTTSPromptOptions,
   durationMin?: number,
-  durationMax?: number,
+  durationMax?: number
 ): void {
   const messages = buildPodcastMessages(
     source,
     speakers,
     ttsPromptOptions,
     durationMin,
-    durationMax,
+    durationMax
   );
 
-  chatLLMStream(providerConfig, modelConfig, messages, {
-    enableTools: source.enableTools,
-    onUpdate: (_responseText: string, fetchText: string) => {
-      // 只发送新增的内容
-      onUpdate(fetchText);
-    },
-    onFinish: () => {
+  // 单发路径：pi 原生事件（partial 全量快照中的增量），播客脚本流只发新增内容
+  if (!source.enableTools) {
+    const handle = piStreamChat({ provider, model, messages }, event => {
+      if (event.type === "text_delta") {
+        onUpdate(event.delta);
+      }
+    });
+    void handle.result.then(result => {
+      if (result.ok && !result.aborted) {
+        onFinish();
+        return;
+      }
+      if (!result.aborted) onError(new Error(result.error ?? "模型请求失败"));
+    });
+    return;
+  }
+
+  // 带工具路径（vibe_learning）：一次性 pi 会话（message_update 携带的 pi 原生
+  // assistantMessageEvent 直供 text_delta 增量）
+  const handle = runPiAgent({ provider, model, messages }, event => {
+    if (event.type === "message_update") {
+      const streamEvent = (
+        event as unknown as {
+          assistantMessageEvent?: { type: string; delta?: string };
+        }
+      ).assistantMessageEvent;
+      if (streamEvent?.type === "text_delta" && streamEvent.delta) {
+        onUpdate(streamEvent.delta);
+      }
+    }
+  });
+  void handle.result.then(result => {
+    if (result.ok && !result.aborted) {
       onFinish();
-    },
-    onError: (error: Error) => {
-      onError(error);
-    },
+      return;
+    }
+    if (!result.aborted) onError(new Error(result.error ?? "模型请求失败"));
   });
 }
 
@@ -74,13 +101,10 @@ export function generateScriptStream(
  * 解析播客脚本
  * 将文本脚本解析为结构化的脚本行
  */
-export function parseScript(
-  script: string,
-  speakers: PodcastSpeaker[],
-): PodcastScriptLine[] {
-  const lines = script.split("\n").filter((line) => line.trim());
+export function parseScript(script: string, speakers: PodcastSpeaker[]): PodcastScriptLine[] {
+  const lines = script.split("\n").filter(line => line.trim());
   const scriptLines: PodcastScriptLine[] = [];
-  const speakerNames = new Set(speakers.map((s) => s.name));
+  const speakerNames = new Set(speakers.map(s => s.name));
   const missedSpeakers = new Set<string>();
 
   for (const line of lines) {
@@ -92,7 +116,7 @@ export function parseScript(
     const text = match[2].trim();
 
     // 查找对应的 speaker 配置
-    const speaker = speakers.find((s) => s.name === speakerName);
+    const speaker = speakers.find(s => s.name === speakerName);
     if (!speaker) {
       missedSpeakers.add(speakerName);
       continue;
@@ -115,7 +139,7 @@ export function parseScript(
 
   if (missedSpeakers.size > 0) {
     console.warn(
-      `脚本解析：未匹配的说话人 [${[...missedSpeakers].join(", ")}]，已有说话人 [${[...speakerNames].join(", ")}]`,
+      `脚本解析：未匹配的说话人 [${[...missedSpeakers].join(", ")}]，已有说话人 [${[...speakerNames].join(", ")}]`
     );
   }
 
@@ -127,7 +151,7 @@ function buildPodcastMessages(
   speakers: PodcastSpeaker[],
   ttsPromptOptions: PodcastTTSPromptOptions,
   durationMin = 3,
-  durationMax = 5,
+  durationMax = 5
 ): RequestMessage[] {
   if (source.enableTools) {
     const resourceNames = source.resourceNames || [];
@@ -141,7 +165,7 @@ function buildPodcastMessages(
               speakers,
               ttsPromptOptions,
               durationMin,
-              durationMax,
+              durationMax
             ),
           },
         ],
@@ -155,7 +179,7 @@ function buildPodcastMessages(
               resourceNames,
               source.userPrompt,
               durationMin,
-              durationMax,
+              durationMax
             ),
           },
         ],
@@ -174,7 +198,7 @@ function buildPodcastMessages(
             speakers,
             ttsPromptOptions,
             durationMin,
-            durationMax,
+            durationMax
           ),
         },
       ],
@@ -190,13 +214,13 @@ export function buildPodcastPrompt(
   speakers: PodcastSpeaker[],
   ttsPromptOptions: PodcastTTSPromptOptions,
   durationMin = 3,
-  durationMax = 5,
+  durationMax = 5
 ): string {
   return `${buildPodcastProvidedContentSystemPrompt(
     speakers,
     ttsPromptOptions,
     durationMin,
-    durationMax,
+    durationMax
   )}
 
 ${buildPodcastProvidedContentUserPrompt(content, undefined, durationMin, durationMax)}`;
@@ -206,12 +230,12 @@ export function buildPodcastProvidedContentSystemPrompt(
   speakers: PodcastSpeaker[],
   ttsPromptOptions: PodcastTTSPromptOptions,
   durationMin = 3,
-  durationMax = 5,
+  durationMax = 5
 ): string {
-  const speakerList = speakers.map((s) => `${s.name}（${s.role}）`).join("、");
+  const speakerList = speakers.map(s => `${s.name}（${s.role}）`).join("、");
 
   const speakerInstructions = speakers
-    .map((s) => {
+    .map(s => {
       if (s.role === "主持人") {
         return `  - ${s.name}（主持人）：负责引导讨论、提出问题、掌控节奏、引出嘉宾观点`;
       }
@@ -227,7 +251,7 @@ export function buildPodcastProvidedContentSystemPrompt(
   const lengthGuidance = `为了减少合成请求次数，每次发言应该较长且完整（建议每次发言 50-150 字），避免过于简短的对话。每次发言要包含完整的观点表达，可以包含多个句子`;
   const ttsTagRules = buildMinimaxSpeechPromptRules(
     ttsPromptOptions.provider === ETTSProvider.Minimax,
-    ttsPromptOptions.minimaxModel,
+    ttsPromptOptions.minimaxModel
   );
 
   return `你是一个专业的播客脚本编写助手。请基于已经提供的内容生成一段 ${durationMin}-${durationMax} 分钟的${speakers.length}人播客对话脚本。
@@ -272,7 +296,7 @@ export function buildPodcastProvidedContentUserPrompt(
   content: string,
   userPrompt?: string,
   durationMin = 3,
-  durationMax = 5,
+  durationMax = 5
 ): string {
   return buildProvidedContentGenerationUserPrompt({
     title: `播客脚本生成（${durationMin}-${durationMax} 分钟）`,
@@ -296,11 +320,11 @@ export function buildPodcastToolsSystemPrompt(
   speakers: PodcastSpeaker[],
   ttsPromptOptions: PodcastTTSPromptOptions,
   durationMin = 3,
-  durationMax = 5,
+  durationMax = 5
 ): string {
-  const speakerList = speakers.map((s) => `${s.name}（${s.role}）`).join("、");
+  const speakerList = speakers.map(s => `${s.name}（${s.role}）`).join("、");
   const speakerInstructions = speakers
-    .map((s) => {
+    .map(s => {
       if (s.role === "主持人") {
         return `  - ${s.name}（主持人）：负责引导讨论、提出问题、掌控节奏、引出嘉宾观点`;
       }
@@ -315,7 +339,7 @@ export function buildPodcastToolsSystemPrompt(
     "为了减少合成请求次数，每次发言应该较长且完整（建议每次发言 50-150 字），避免过于简短的对话。每次发言要包含完整的观点表达，可以包含多个句子";
   const ttsTagRules = buildMinimaxSpeechPromptRules(
     ttsPromptOptions.provider === ETTSProvider.Minimax,
-    ttsPromptOptions.minimaxModel,
+    ttsPromptOptions.minimaxModel
   );
 
   return `你是一个专业的播客脚本编写助手。你需要先主动探索资料，再基于确认过的资料证据生成一段 ${durationMin}-${durationMax} 分钟的${speakers.length}人播客对话脚本。
@@ -364,7 +388,7 @@ export function buildPodcastToolsUserPrompt(
   resourceNames: string[],
   userPrompt?: string,
   durationMin = 3,
-  durationMax = 5,
+  durationMax = 5
 ): string {
   return buildVibeLearningGenerationUserPrompt({
     title: `播客脚本生成（${durationMin}-${durationMax} 分钟）`,

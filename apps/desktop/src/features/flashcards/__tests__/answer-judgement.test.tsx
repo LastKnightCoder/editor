@@ -1,13 +1,25 @@
 import useAnswerJudgement from "@/hooks/useAnswerJudgement";
-import { chatLLM } from "@/hooks/useChatLLM";
+import { piCompleteChat } from "@/services/piLLM";
 import type { Flashcard } from "@/types";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-vi.mock("@/hooks/useChatLLM", () => ({ chatLLM: vi.fn() }));
+vi.mock("@/services/piLLM", () => ({
+  piCompleteChat: vi.fn(),
+}));
 vi.mock("@/hooks/useLLMConfig", () => ({
-  default: () => ({ providerConfig: {}, modelConfig: {} }),
+  default: () => ({
+    provider: {
+      id: "p",
+      name: "p",
+      baseUrl: "",
+      apiKey: "",
+      api: "openai-completions",
+      models: [],
+    },
+    model: { id: "m", reasoning: false, input: ["text"], contextWindow: 128_000, maxTokens: 8_192 },
+  }),
 }));
 
 let root: Root;
@@ -28,10 +40,17 @@ afterEach(async () => {
 
 it("换卡重置后丢弃上一张迟到的 AI 评判", async () => {
   let finish!: (value: string) => void;
-  vi.mocked(chatLLM).mockImplementationOnce(
+  vi.mocked(piCompleteChat).mockImplementationOnce(
     () =>
       new Promise(resolve => {
-        finish = resolve;
+        finish = text =>
+          resolve({
+            ok: true,
+            aborted: false,
+            text,
+            reasoning: "",
+            message: null,
+          });
       })
   );
   const card = { prompt: [], data: { answer: "答案" }, references: [] } as unknown as Flashcard;

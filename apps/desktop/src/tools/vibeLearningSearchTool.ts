@@ -1,4 +1,5 @@
 import type { ToolDefinition } from "@/types/tool";
+import { bindDatabaseCommands } from "@/services/command-context";
 import {
   getVLResourcesByProjectId,
   grepVLResourceContent,
@@ -70,9 +71,12 @@ export const createListResourcesTool = (projectId: number): ToolDefinition => ({
     type: "object",
     properties: {},
   },
-  executor: async () => {
+  executor: async (_args, context) => {
     try {
-      const resources: VLResource[] = await getVLResourcesByProjectId(projectId);
+      const resources: VLResource[] = await bindDatabaseCommands(
+        { getVLResourcesByProjectId },
+        context
+      ).getVLResourcesByProjectId(projectId);
 
       if (!resources || resources.length === 0) {
         return stringifyResult({
@@ -621,6 +625,7 @@ export const createUnifiedVibeLearningTool = (
 
   return {
     name: "vibe_learning_query",
+    risk: "read",
     description:
       "统一查询当前 Vibe Learning 项目资料；先搜索定位，再按命中范围补读原文。operation 及对应 input 参数：" +
       "list=列出全部资源（无需参数）；" +
@@ -649,7 +654,7 @@ export const createUnifiedVibeLearningTool = (
       additionalProperties: false,
     },
     execution: LONG_RUNNING_TOOL_EXECUTION,
-    executor: async args => {
+    executor: async (args, context) => {
       const operation = args.operation as keyof typeof operations;
       const selected = operations[operation];
       if (!selected) {
@@ -678,7 +683,7 @@ export const createUnifiedVibeLearningTool = (
           }),
         };
       }
-      return selected.executor(input);
+      return selected.executor(input, context);
     },
   };
 };

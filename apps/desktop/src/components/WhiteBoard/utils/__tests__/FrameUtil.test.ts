@@ -1,8 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-// FrameUtil 静态导入会经 PathUtil -> BoardUtil -> Board 拉到 @/hooks/useChatLLM，
-// 其顶层调用 ensureToolingReady，在无 Electron bridge 的环境下会抛错。
-// 按项目惯例 mock @/electron 规避。
+// FrameUtil 静态导入会经 PathUtil -> BoardUtil -> Board 拉到依赖 Electron bridge 的模块，
+// 在无 bridge 的环境下会抛错。按项目惯例 mock @/electron 规避。
 const electronMocks = vi.hoisted(() => ({
   invoke: vi.fn(() => Promise.resolve({})),
   send: vi.fn(),
@@ -47,16 +46,12 @@ const createFrame = (overrides: Partial<FrameElement> = {}): FrameElement => ({
 describe("FrameUtil.getTitleY", () => {
   it("top 模式下标题位于 Frame 上方外部", () => {
     const frame = createFrame({ titlePosition: "top" });
-    expect(FrameUtil.getTitleY(frame)).toBe(
-      frame.y - FRAME_TITLE_HEIGHT - FRAME_TITLE_GAP,
-    );
+    expect(FrameUtil.getTitleY(frame)).toBe(frame.y - FRAME_TITLE_HEIGHT - FRAME_TITLE_GAP);
   });
 
   it("缺省 titlePosition 视为 top", () => {
     const frame = createFrame();
-    expect(FrameUtil.getTitleY(frame)).toBe(
-      frame.y - FRAME_TITLE_HEIGHT - FRAME_TITLE_GAP,
-    );
+    expect(FrameUtil.getTitleY(frame)).toBe(frame.y - FRAME_TITLE_HEIGHT - FRAME_TITLE_GAP);
   });
 
   it("inline 模式下标题位于 Frame 内部顶部", () => {
@@ -94,20 +89,13 @@ describe("FrameUtil.getInlineTopPadding", () => {
 
   it("inline 模式下顶部 padding 包含标题预留高度", () => {
     const frame = createFrame({ titlePosition: "inline", padding: 20 });
-    expect(FrameUtil.getInlineTopPadding(frame)).toBe(
-      20 + FRAME_INLINE_TITLE_HEIGHT,
-    );
+    expect(FrameUtil.getInlineTopPadding(frame)).toBe(20 + FRAME_INLINE_TITLE_HEIGHT);
   });
 });
 
 describe("FrameUtil.calculateFrameFitBounds (inline 预留)", () => {
   const stubBoard = {
-    getBounds: (el: {
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-    }) => ({
+    getBounds: (el: { x: number; y: number; width: number; height: number }) => ({
       minX: el.x,
       minY: el.y,
       maxX: el.x + el.width,

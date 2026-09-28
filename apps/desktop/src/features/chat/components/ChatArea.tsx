@@ -1,28 +1,24 @@
 import {
   memo,
-  useMemo,
   lazy,
   Suspense,
   useRef,
-  useState,
   forwardRef,
   useImperativeHandle,
   type ReactNode,
 } from "react";
-import { useShallow } from "zustand/react/shallow";
 import { useMemoizedFn } from "ahooks";
 import { AtSign, CornerDownLeft, FileText } from "lucide-react";
 import { Loading, toast } from "@tau/ui";
 import "katex/dist/katex.min.css";
 
 import type { EditTextHandle } from "@/components/EditText";
-import useChatMessageStore from "@/stores/useChatMessageStore";
+import { MAIN_CHAT_BUCKET } from "@/stores/useChatSessionStore";
+import { useScopedChat } from "@/hooks/useScopedChat";
 import useTheme from "@/hooks/useTheme";
 import { MarkdownProvider } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
 import ChatDropdownSelector from "@/layouts/ContentLayout/components/RightChatSidebar/ChatDropdownSelector";
 import { useChatMarkdownComponents } from "@/components/ChatUI";
-import { ChatMessage, ResponseMessage, ChatSessionMessage } from "@/types";
-import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
 import type { ChatContainerHandle } from "@/layouts/ContentLayout/components/ChatSidebar/ChatContainer";
 import type { BlockData } from "@/types/block-preview";
 
@@ -33,37 +29,21 @@ const ChatContainer = lazy(
 /** 阅读列宽：消息、提示条与输入框同一列（D-048，同文章正文 ~72ch 口径） */
 const READING_WIDTH = 760;
 
-const DEFAULT_CHAT: ChatMessage = {
-  id: 0,
-  createTime: Date.now(),
-  updateTime: Date.now(),
-  messages: [
-    {
-      role: Role.System,
-      content: DEFAULT_SYSTEM_PROMPT,
-      reasoning_content: "",
-    },
-  ],
-  title: "新对话",
-  titleDirty: false,
-  groupId: null,
-  archived: false,
-  parentChatId: null,
-  branchIndex: 0,
-};
-
 export type ChatAreaHandle = {
   scrollToTop: () => void;
 };
 
 type ChatAreaProps = {
-  selectedChatId: number | null;
-  onSelectChat: (chatId: number | null) => void;
+  /** 当前对话 id（页面参数）；null = 新对话草稿 */
+  selectedChatId: string | null;
+  onSelectChat: (chatId: string | null) => void;
   sendLoading: boolean;
   setSendLoading: (loading: boolean) => void;
   /** 可预览块的打开方式（缺省走块预览上下文） */
   onOpenBlock?: (block: BlockData) => void;
   onOpenLibrary?: () => void;
+  /** 草稿槽（每个页面实例各自的新对话） */
+  draftSlot?: string;
   /** 标题行右侧的附加操作 */
   headerActions?: ReactNode;
 };
@@ -104,6 +84,7 @@ const ChatArea = memo(
         setSendLoading,
         onOpenBlock,
         onOpenLibrary,
+        draftSlot = "chat-page",
         headerActions,
       },
       ref
@@ -112,74 +93,22 @@ const ChatArea = memo(
       const editTitleRef = useRef<EditTextHandle>(null);
       const chatContainerRef = useRef<ChatContainerHandle>(null);
 
-      const {
-        chats,
-        createChatMessage,
-        updateChatMessage,
-        updateCurrentChat,
-        createChatBranch,
-        deleteChatMessage,
-        getChildBranchesCount,
-      } = useChatMessageStore(
-        useShallow(state => ({
-          chats: state.chats,
-          createChatMessage: state.createChatMessage,
-          updateChatMessage: state.updateChatMessage,
-          updateCurrentChat: state.updateCurrentChat,
-          createChatBranch: state.createChatBranch,
-          deleteChatMessage: state.deleteChatMessage,
-          getChildBranchesCount: state.getChildBranchesCount,
-        }))
-      );
-
-      const [createMessageLoading, setCreateMessageLoading] = useState(false);
-
-      const currentChat = useMemo(
-        () => chats.find(chat => chat.id === selectedChatId),
-        [chats, selectedChatId]
-      );
-      const chatToUse = currentChat || DEFAULT_CHAT;
-
-      const onCreateNewMessage = useMemoizedFn(async () => {
-        const messages: ResponseMessage[] = [{ role: Role.System, content: DEFAULT_SYSTEM_PROMPT }];
-        setCreateMessageLoading(true);
-        try {
-          const newChat = await createChatMessage(messages, "新对话", null, false);
-          onSelectChat(newChat.id);
-        } catch (error) {
-          toast.error("新建对话失败");
-          console.error(error);
-        } finally {
-          setCreateMessageLoading(false);
-        }
+      // 当前对话由页面参数驱动；列表由应用启动时加载（主聊天）
+      const { rows, currentChat, newChat, rename, remove } = useScopedChat(MAIN_CHAT_BUCKET, {
+        draftSlot,
+        selectedId: selectedChatId,
+        onSelect: onSelectChat,
+        autoLoad: false,
       });
 
       const onTitleChange = useMemoizedFn(async (title: string) => {
-        if (!currentChat) return;
         try {
-          await updateChatMessage({ ...currentChat, title, titleDirty: true });
+          await rename(currentChat.id, title);
         } catch (error) {
           toast.error("标题更新失败");
           console.error(error);
         }
       });
-
-      const onChatDelete = useMemoizedFn(async (chatId: number) => {
-        await deleteChatMessage(chatId);
-        if (chatId === selectedChatId) onSelectChat(null);
-      });
-
-      // ChatContainer 需要的创建对话回调
-      const handleCreateChat = useMemoizedFn(
-        async (messages: ChatSessionMessage[], title?: string) =>
-          await createChatMessage(messages, title, currentChat?.groupId ?? null, false)
-      );
-
-      // ChatContainer 需要的创建分支回调
-      const handleCreateBranch = useMemoizedFn(
-        async (parentChatId: number, messages: ChatSessionMessage[]) =>
-          await createChatBranch(parentChatId, messages)
-      );
 
       const markdownComponents = useChatMarkdownComponents({
         isDark,
@@ -198,14 +127,14 @@ const ChatArea = memo(
             <div className="flex h-12 flex-none items-center gap-1 pl-5 pr-3">
               <div className="min-w-0 flex-1">
                 <ChatDropdownSelector
-                  chats={chats}
-                  currentChat={chatToUse}
+                  chats={rows}
+                  currentChat={currentChat}
                   onChatSelect={onSelectChat}
                   onTitleChange={onTitleChange}
-                  onChatDelete={onChatDelete}
-                  getChildBranchesCount={getChildBranchesCount}
+                  onChatDelete={remove}
                   titleRef={editTitleRef}
-                  disabled={sendLoading}
+                  // 运行中（含等待作答）不禁用切换/改名/删除：运行态在模块级 runtime，
+                  // 后台继续归约；删除会一并释放会话与归约条目（与停靠栏一致）
                   onOpenLibrary={onOpenLibrary}
                 />
               </div>
@@ -216,20 +145,16 @@ const ChatArea = memo(
               <Suspense fallback={<Loading minHeight={0} className="h-full" />}>
                 <ChatContainer
                   ref={chatContainerRef}
-                  currentChat={chatToUse}
+                  currentChat={currentChat}
                   isDark={isDark}
                   markdownComponents={markdownComponents}
                   isVisible={true}
-                  updateChatMessage={updateChatMessage}
-                  updateCurrentChat={updateCurrentChat}
                   sendLoading={sendLoading}
                   setSendLoading={setSendLoading}
                   titleRef={editTitleRef}
-                  onCreateNewMessage={onCreateNewMessage}
-                  createMessageLoading={createMessageLoading}
+                  onCreateNewMessage={newChat}
+                  createMessageLoading={false}
                   onChatCreated={chatId => onSelectChat(chatId)}
-                  onCreateChat={handleCreateChat}
-                  onCreateBranch={handleCreateBranch}
                   contentMaxWidth={READING_WIDTH}
                   emptyState={<EmptyHint />}
                 />

@@ -27,7 +27,7 @@ export default function useFlashcardCreation(options: UseFlashcardCreationOption
   const [generatedCardEditModalOpen, setGeneratedCardEditModalOpen] = useState(false);
 
   // LLM 配置
-  const { providerConfig: flashcardProviderConfig, modelConfig: flashcardModelConfig } =
+  const { provider: flashcardLLMProviderSetting, model: flashcardLLMModelSetting } =
     useLLMConfig("flashcardGeneration");
 
   // 闪卡生成 hook
@@ -43,7 +43,7 @@ export default function useFlashcardCreation(options: UseFlashcardCreationOption
     deselectAll,
     updateCard,
     reset: resetGeneration,
-  } = useFlashcardGeneration(flashcardProviderConfig, flashcardModelConfig);
+  } = useFlashcardGeneration(flashcardLLMProviderSetting, flashcardLLMModelSetting);
 
   // 闪卡 store
   const createFlashcard = useFlashcardStore(state => state.createCard);
@@ -56,7 +56,7 @@ export default function useFlashcardCreation(options: UseFlashcardCreationOption
 
   // 打开 AI 制卡
   const openAiFlashcard = useMemoizedFn(() => {
-    if (!flashcardProviderConfig || !flashcardModelConfig) {
+    if (!flashcardLLMProviderSetting || !flashcardLLMModelSetting) {
       toast.error("请先在设置中配置闪卡生成的模型");
       return;
     }

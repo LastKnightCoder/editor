@@ -44,14 +44,13 @@ export enum EPublishProvider {
   Local = "local",
 }
 
-import type { ProviderConfig, ModelConfig, LLMUsageConfig } from "@/types/llm";
+import type { LLMProviderSetting, LLMUsageConfigV2 } from "@/types/pi-llm";
+import { migrateLlmSettingsToV2 } from "@/services/llmSettingsMigration";
 import {
   DEFAULT_TOOL_PERMISSION_MODE,
   type ToolPermissionMode,
 } from "@/services/tool-permission/mode";
 import { useBackendWebsocketStore } from "./useBackendWebsocketStore";
-
-export type { ProviderConfig, ModelConfig, LLMUsageConfig };
 
 const sanitizeDeprecatedLLMUsageSettings = <T extends Partial<ISetting>>(setting: T): T => {
   const nextSetting = setting as T & {
@@ -117,6 +116,27 @@ const migrateImageGenerationConfig = <T extends Partial<ISetting>>(setting: T): 
   }
 };
 
+/** LLM 设置一次性转化（见 services/llmSettingsMigration）：llmConfigs → llmProviders、
+ *  llmUsageSettings 的 modelName 主键 → modelId，转化后删除旧字段 */
+const migrateLLMSettings = (
+  setting: Partial<ISetting> & { llmConfigs?: unknown; llmUsageSettings?: unknown }
+) => {
+  const legacy = setting.llmConfigs;
+  if (!Array.isArray(legacy) || legacy.length === 0) return;
+  if (Array.isArray(setting.llmProviders) && setting.llmProviders.length > 0) {
+    delete setting.llmConfigs;
+    return;
+  }
+  const usage = (setting.llmUsageSettings ?? {}) as Record<
+    string,
+    { providerId: string; modelName: string }
+  >;
+  const result = migrateLlmSettingsToV2({ llmConfigs: legacy as never, llmUsageSettings: usage });
+  setting.llmProviders = result.providers;
+  setting.llmUsageSettings = result.usage as Partial<ISetting>["llmUsageSettings"];
+  delete setting.llmConfigs;
+};
+
 /** 旧 backgroundType(gradient1~9/solid)一次性迁移为 accent + 柔光开关 */
 const migrateAppearanceSetting = (setting: ISetting) => {
   const appearance = setting.appearance as
@@ -136,6 +156,9 @@ const migrateAppearanceSetting = (setting: ISetting) => {
 
 export const mergeSettingWithDefaults = (setting: Partial<ISetting> | ISetting): ISetting => {
   migrateImageGenerationConfig(setting);
+  // LLM 设置一次性转化：旧 llmConfigs（messageFormat×apiProtocol 二维适配）→ pi 对齐的
+  // llmProviders，功能槽位 modelName 改主键 modelId，转化后删除旧字段不留兼容层
+  migrateLLMSettings(setting as Partial<ISetting> & { llmConfigs?: unknown });
   const mergedSetting = structuredClone(defaultSetting);
   const imageGeneration = setting.imageGeneration ? structuredClone(setting.imageGeneration) : null;
   merge(mergedSetting, setting);
@@ -231,23 +254,30 @@ export interface ISetting {
     downloadSource: "modelscope" | "huggingface";
     device: "cuda" | "cpu";
   };
-  llmConfigs: ProviderConfig[];
+  llmProviders: LLMProviderSetting[];
   imageGeneration: ImageGenerationStoreShape;
   /** 通用工具权限模式（D-060）：manual 手动确认 / acceptEdits 自动允许编辑 / bypass 跳过确认 */
   agentPermission: {
     mode: ToolPermissionMode;
   };
+  /**
+   * AI 执行命令用的 shell（M3-g）。空 = 自动检测（Windows 找 Git Bash，失败退 PowerShell）。
+   * 只存用户覆盖：检测结果是本机事实，不入设置，免得换机器/重装后留个错路径。
+   */
+  agentShell: {
+    path: string;
+  };
   llmUsageSettings: {
-    chat: LLMUsageConfig | null;
-    titleSummary: LLMUsageConfig | null;
-    webClip: LLMUsageConfig | null;
-    podcastGeneration: LLMUsageConfig | null;
-    flashcardGeneration: LLMUsageConfig | null;
-    aiJudgement: LLMUsageConfig | null;
-    transcriptionOptimization: LLMUsageConfig | null;
-    videoSummary: LLMUsageConfig | null;
-    videoEbookRewrite: LLMUsageConfig | null;
-    vibeLearningImageDescription: LLMUsageConfig | null;
+    chat: LLMUsageConfigV2 | null;
+    titleSummary: LLMUsageConfigV2 | null;
+    webClip: LLMUsageConfigV2 | null;
+    podcastGeneration: LLMUsageConfigV2 | null;
+    flashcardGeneration: LLMUsageConfigV2 | null;
+    aiJudgement: LLMUsageConfigV2 | null;
+    transcriptionOptimization: LLMUsageConfigV2 | null;
+    videoSummary: LLMUsageConfigV2 | null;
+    videoEbookRewrite: LLMUsageConfigV2 | null;
+    vibeLearningImageDescription: LLMUsageConfigV2 | null;
   };
   embeddingProvider: {
     currentConfigId: string;
@@ -402,9 +432,11 @@ interface IActions {
   onDarkModeChange: (darkMode: boolean) => void;
   updateLLMUsageSetting: (
     feature: keyof ISetting["llmUsageSettings"],
-    config: LLMUsageConfig | null
+    config: LLMUsageConfigV2 | null
   ) => void;
   setToolPermissionMode: (mode: ToolPermissionMode) => void;
+  /** AI 执行命令用的 shell 路径（空串 = 交回自动检测） */
+  setAgentShellPath: (path: string) => void;
   updateBilibiliCredentials: (
     credentials: ISetting["integration"]["bilibili"]["credentials"]
   ) => void;
@@ -481,6 +513,24 @@ export const buildPersistedSettingSnapshot = (setting: ISetting): ISetting => {
   return normalizeTransientSettingState(structuredClone(setting));
 };
 
+/**
+ * 最近一次「由远端广播应用进来」的设置快照。
+ *
+ * 多窗口共用一份 setting.json：任一窗口改动 → 主进程保存并广播 → 其余窗口应用。
+ * 若应用后各窗口的同步器再把它发回主进程，一次用户改动就会被放大成 N 次保存，
+ * 且任意窗口间的细微差异都会变成永不收敛的来回写（实测 220 次发送放大成 3463 次保存，
+ * 并把 setting.json 写坏，见交接文档坑 16）。所以远端来的快照不回灌。
+ */
+let lastRemoteAppliedSnapshotJson: string | null = null;
+
+export const markRemoteSettingApplied = (setting: ISetting): void => {
+  lastRemoteAppliedSnapshotJson = JSON.stringify(buildPersistedSettingSnapshot(setting));
+};
+
+/** 该快照是否正是刚刚从远端应用进来的（是则不该再发回去） */
+export const isRemoteAppliedSnapshot = (snapshotJson: string): boolean =>
+  lastRemoteAppliedSnapshotJson === snapshotJson;
+
 export const getWeReadSettingDebugSummary = (weread: ISetting["integration"]["weread"]) => {
   return {
     enabled: weread.enabled,
@@ -503,6 +553,9 @@ const loadCachedSetting = (): Partial<ISetting> | null => {
     window.localStorage.removeItem("resource-store");
     window.localStorage.removeItem("rss-store");
     window.localStorage.removeItem("read-later-store");
+    // pi 迁移遗留（M8）：旧聊天 store（M4 起事实源在 pi 会话文件）与渲染端提问 store（M3-b 起宿主原生）
+    window.localStorage.removeItem("chat-message");
+    window.localStorage.removeItem("ask-question-session");
     if (!cached) {
       return null;
     }
@@ -623,7 +676,7 @@ const initialState: IState = {
       downloadSource: "modelscope",
       device: "cuda",
     },
-    llmConfigs: [],
+    llmProviders: [],
     imageGeneration: {
       currentProviderId: "default-openai",
       providers: [
@@ -639,6 +692,9 @@ const initialState: IState = {
     },
     agentPermission: {
       mode: DEFAULT_TOOL_PERMISSION_MODE,
+    },
+    agentShell: {
+      path: "",
     },
     llmUsageSettings: {
       chat: null,
@@ -823,6 +879,8 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
         sourceClientId: sourceClientId || "unknown",
         weread: getWeReadSettingDebugSummary(mergedSetting.integration.weread),
       });
+      // 先登记再写入：同步器据此跳过这一次，避免把远端广播原样发回去（见 markRemoteSettingApplied）
+      markRemoteSettingApplied(mergedSetting);
       set({
         setting: mergedSetting,
       });
@@ -868,6 +926,14 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     });
     // 旧入口（legacy 侧边栏/演示模式等）转发到主题 runtime，保证 DOM 主题只有一个写者
     useThemeStore.getState().setAppearance(darkMode ? "dark" : "light");
+  },
+  setAgentShellPath: path => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, draft => {
+        draft.agentShell = { ...draft.agentShell, path };
+      }),
+    });
   },
   setToolPermissionMode: mode => {
     const { setting } = get();

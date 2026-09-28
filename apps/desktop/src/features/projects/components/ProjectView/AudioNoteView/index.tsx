@@ -27,7 +27,7 @@ import {
 } from "@/commands/transcription";
 import {
   checkTranscriptionLLMRequirement,
-  openSettingsModal,
+  openLLMSettingsSection,
   prepareTranscriptionOptions,
 } from "@/utils/transcription";
 import { useLLMConfig } from "@/hooks/useLLMConfig";
@@ -99,8 +99,8 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // LLM Config
-  const { providerConfig, modelConfig } = useLLMConfig("transcriptionOptimization");
-  const { providerConfig: summaryProviderConfig, modelConfig: summaryModelConfig } =
+  const { provider, model } = useLLMConfig("transcriptionOptimization");
+  const { provider: summaryLLMProviderSetting, model: summaryLLMModelSetting } =
     useLLMConfig("videoSummary");
 
   // Transcription optimization
@@ -109,7 +109,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
     streamingSegments,
     finalSegments: optimizedFinalSegments,
     startOptimization,
-  } = useTranscriptionOptimization(providerConfig, modelConfig);
+  } = useTranscriptionOptimization(provider, model);
 
   // Summary hook
   const {
@@ -117,12 +117,12 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
     summaryContent: streamingSummaryContent,
     finalSummary,
     startSummary,
-  } = useVideoSummary(summaryProviderConfig, summaryModelConfig);
+  } = useVideoSummary(summaryLLMProviderSetting, summaryLLMModelSetting);
 
   // Insights hook
   const { isGenerating: isGeneratingInsights, generateInsights } = useVideoInsights(
-    summaryProviderConfig,
-    summaryModelConfig
+    summaryLLMProviderSetting,
+    summaryLLMModelSetting
   );
 
   // Audio controller
@@ -371,7 +371,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
 
   // Generate insights / chapters
   const handleGenerateInsights = useMemoizedFn(async (segments: TranscriptSegment[]) => {
-    if (!summaryProviderConfig || !summaryModelConfig) {
+    if (!summaryLLMProviderSetting || !summaryLLMModelSetting) {
       console.warn("[AudioNote] 跳过章节生成：视频总结模型未配置");
       toast.info("提示：配置「视频总结」模型后可自动生成章节");
       return;
@@ -919,7 +919,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
         cancelText="取消转录"
         onConfirm={() => {
           setLlmConfirm(null);
-          openSettingsModal("llm");
+          openLLMSettingsSection();
         }}
       />
     </div>

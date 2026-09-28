@@ -83,7 +83,7 @@ export {
   type ChatInputAreaHandle,
   type ChatInputAreaProps,
   type ChatInputAreaServices,
-  type ReasoningEffort,
+  type ThinkingLevel,
   type MessageContentItem,
   type MentionEntityType,
   type MentionRef,
@@ -130,17 +130,81 @@ export {
   type ChatMessageViewMarkdownRenderParams,
   type ToolCallCustomRenderer,
   type ToolCallCustomRendererProps,
-  type ToolCallStatus,
-  type ToolCallExecutionState,
-  type ToolCallPayload,
   type ContentBlockType,
   type TextContentBlock,
   type ReasoningContentBlock,
   type ToolCallsContentBlock,
-  type ContentBlock,
   type MessageRole,
   type ChatMessageType,
 } from "./components/ChatComponents";
+
+export {
+  Role,
+  type TextContent,
+  type ImageContent,
+  type FileContent,
+  type MessageContent,
+  type ProviderMetadata,
+  type ToolCallStatus,
+  type ToolCallPayload,
+  type ToolCallExecutionState,
+  type AssistantBlockState,
+  type AssistantTextBlock,
+  type AssistantReasoningBlock,
+  type AssistantToolCallBlock,
+  type AssistantBlock,
+  type ResponseContentBlock,
+  type ContentBlock,
+  type ModelUsage,
+  type RequestMessage,
+  type ResponseMessage,
+  type ChatSessionMessage,
+  type ChatSessionRecord,
+  type ChatGroup,
+  type CreateChatGroup,
+  type UpdateChatGroup,
+} from "./chat-core/messages";
+
+export {
+  CHAT_MESSAGE_SCHEMA_VERSION,
+  createChatMessageClientId,
+  migrateAssistantMessage,
+  migrateChatSessionMessages,
+  getAssistantToolExecutionsFromBlocks,
+} from "./chat-core/messageSchema";
+
+export {
+  syncAssistantDerivedFields,
+  ensureAssistantMessage,
+  getAssistantToolExecutions,
+  getAssistantContentBlocks,
+  createAssistantMessage,
+  applyAssistantTextSnapshot,
+  applyAssistantReasoningSnapshot,
+  applyAssistantToolCallsSnapshot,
+  finalizeAssistantTurn,
+  applyAssistantProviderMetadataSnapshot,
+  buildAssistantHistoryMessages,
+} from "./chat-core/assistantBlocks";
+
+export {
+  applyChatStreamEvent,
+  type ChatStreamEvent,
+  type ChatStreamTurnEvent,
+  type ChatStreamRunEvent,
+} from "./chat-core/streamEvents";
+
+export {
+  AI_RUN_METHODS,
+  createRunEventFilter,
+  type AiRunApprovalRequest,
+  type AiRunEvent,
+  type AiRunEventNotification,
+  type AiRunQuestionRequest,
+  type AiRunStartParams,
+  type AiRunSnapshot,
+  type AiRunStateResult,
+} from "./chat-core/aiRunProtocol";
 
 export type { CropperTransform, ImageCropperProps } from "./components/ImageCropper/types";
 
@@ -219,18 +283,6 @@ export {
   type RemoteVideoCacheProgress,
 } from "./hooks/useRemoteVideo";
 
-export type {
-  ChatSessionCore,
-  ChatModelCore,
-  ChatModelFeaturesCore,
-  ChatProviderCore,
-} from "./chat-core/types";
-export type {
-  ChatRuntimeAdapter,
-  ChatRuntimeSettings,
-  ChatRuntimeCallbacks,
-  ChatRuntimeStream,
-} from "./chat-core/runtime";
 export {
   default as ChatContainerCore,
   type ChatContainerCoreProps,

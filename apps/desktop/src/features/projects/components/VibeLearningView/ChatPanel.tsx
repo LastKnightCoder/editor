@@ -4,9 +4,8 @@
  * 复用 ChatSidebar 的 ChatContainer 和 ChatDropdownSelector 组件
  */
 
-import { useState, useMemo, memo, lazy, Suspense, useRef, useEffect } from "react";
+import { useState, useMemo, memo, lazy, Suspense, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
-import { useShallow } from "zustand/react/shallow";
 import "katex/dist/katex.min.css";
 
 import type { EditTextHandle } from "@/components/EditText";
@@ -14,18 +13,14 @@ import ChatDropdownSelector from "@/layouts/ContentLayout/components/RightChatSi
 
 import useTheme from "@/hooks/useTheme";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
-import useSettingStore from "@/stores/useSettingStore";
+import { useScopedChat } from "@/hooks/useScopedChat";
 
 import { MarkdownProvider } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
 import { useChatMarkdownComponents } from "@/components/ChatUI";
-import { buildSessionAwareSystemPrompt } from "@/constants";
 import type { ChatContainerHandle } from "@/layouts/ContentLayout/components/ChatSidebar/ChatContainer";
 
-import { ResponseMessage, ChatMessage } from "@/types";
-import { Role } from "@/constants";
 import type { VLResource } from "@/types/vibe-learning";
 
-import useVLChatStore, { EVLChatStatus } from "@/stores/useVLChatStore";
 import { useVibeLearningChat } from "./useVibeLearningChat";
 import { Loading, cn, toast } from "@tau/ui";
 
@@ -120,24 +115,6 @@ const buildVLSystemPrompt = (resources: VLResource[]): string => {
   return basePrompt + resourceSection;
 };
 
-const createDefaultChat = (systemPrompt: string): ChatMessage => ({
-  id: 0,
-  createTime: Date.now(),
-  updateTime: Date.now(),
-  messages: [
-    {
-      role: Role.System,
-      content: buildSessionAwareSystemPrompt(systemPrompt),
-      reasoning_content: "",
-    },
-  ],
-  title: "新对话",
-  groupId: null,
-  archived: false,
-  parentChatId: null,
-  branchIndex: 0,
-});
-
 interface ChatPanelProps {
   projectId: number;
   mainDbName: string;
@@ -151,7 +128,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources,
   const editTitleRef = useRef<EditTextHandle>(null);
   const chatContainerRef = useRef<ChatContainerHandle>(null);
 
-  const database = useSettingStore(state => state.setting.database.active);
   const isConnected = useDatabaseConnected();
 
   // 注册项目专属搜索工具（只给本页对话）
@@ -160,107 +136,22 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources,
   // 根据资源列表动态构建系统提示词
   const systemPrompt = useMemo(() => buildVLSystemPrompt(resources), [resources]);
 
-  // VL 对话状态管理
-  const {
-    initChats,
-    chats,
-    currentChatId,
-    status,
-    createChat,
-    updateChat,
-    updateCurrentChat,
-    createChatBranch,
-    deleteChat,
-    getChildBranchesCount,
-  } = useVLChatStore(
-    useShallow(state => ({
-      initChats: state.initChats,
-      chats: state.chats,
-      currentChatId: state.currentChatId,
-      status: state.status,
-      createChat: state.createChat,
-      updateChat: state.updateChat,
-      updateCurrentChat: state.updateCurrentChat,
-      createChatBranch: state.createChatBranch,
-      deleteChat: state.deleteChat,
-      getChildBranchesCount: state.getChildBranchesCount,
-    }))
+  // 本项目的对话（统一会话 store 按 vibe-learning-chat + projectId 分桶）
+  const bucket = useMemo(
+    () => ({ scope: "vibe-learning-chat" as const, domainRef: String(projectId) }),
+    [projectId]
   );
-
-  // 初始化对话数据
-  useEffect(() => {
-    if (isConnected && projectId) {
-      initChats(projectId);
-    }
-  }, [initChats, isConnected, database, projectId]);
-
-  // 当前对话
-  const currentChat = useMemo(() => {
-    return chats.find(chat => chat.id === currentChatId);
-  }, [chats, currentChatId]);
-
-  // 转换为 ChatMessage 类型（兼容 ChatContainer）
-  const currentChatAsMessage = useMemo((): ChatMessage => {
-    if (!currentChat) {
-      return createDefaultChat(systemPrompt);
-    }
-    return {
-      id: currentChat.id,
-      createTime: currentChat.createTime,
-      updateTime: currentChat.updateTime,
-      messages: currentChat.messages,
-      title: currentChat.title,
-      groupId: null,
-      archived: currentChat.archived,
-      parentChatId: currentChat.parentChatId,
-      branchIndex: currentChat.branchIndex,
-    };
-  }, [currentChat, projectId, systemPrompt]);
-
-  // 转换 chats 为 ChatMessage[] 类型（用于 ChatDropdownSelector）
-  const chatsAsMessages = useMemo((): ChatMessage[] => {
-    return chats.map(chat => ({
-      id: chat.id,
-      createTime: chat.createTime,
-      updateTime: chat.updateTime,
-      messages: chat.messages,
-      title: chat.title,
-      groupId: null,
-      archived: chat.archived,
-      parentChatId: chat.parentChatId,
-      branchIndex: chat.branchIndex,
-    }));
-  }, [chats]);
-
-  const [createMessageLoading, setCreateMessageLoading] = useState(false);
-  const [sendLoading, setSendLoading] = useState(false);
-
-  const onCreateNewMessage = useMemoizedFn(async () => {
-    const messages: ResponseMessage[] = [
-      {
-        role: Role.System,
-        content: systemPrompt,
-      },
-    ];
-
-    setCreateMessageLoading(true);
-
-    try {
-      await createChat(messages);
-    } catch (error) {
-      toast.error("创建对话失败");
-      console.error(error);
-    } finally {
-      setCreateMessageLoading(false);
-    }
+  const { rows, loaded, currentChat, select, newChat, rename, remove } = useScopedChat(bucket, {
+    draftSlot: "vibe-learning",
+    autoLoad: isConnected,
   });
+
+  const [sendLoading, setSendLoading] = useState(false);
 
   // 更新对话标题
   const onTitleChange = useMemoizedFn(async (title: string) => {
-    if (!currentChat) return;
-
     try {
-      await updateChat({ ...currentChat, title });
+      await rename(currentChat.id, title);
     } catch (error) {
       toast.error("更新标题失败");
       console.error(error);
@@ -268,16 +159,15 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources,
   });
 
   // 处理对话选择
-  const handleChatSelect = useMemoizedFn((chatId: number) => {
+  const handleChatSelect = useMemoizedFn((chatId: string) => {
     chatContainerRef.current?.scrollToTop();
-    useVLChatStore.setState({ currentChatId: chatId });
+    select(chatId);
   });
 
   // 处理对话删除
-  const handleChatDelete = useMemoizedFn(async (chatId: number) => {
+  const handleChatDelete = useMemoizedFn(async (chatId: string) => {
     try {
-      await deleteChat(chatId);
-      // deleteChat 内部已经处理了当前对话的切换逻辑
+      await remove(chatId);
     } catch (error) {
       toast.error("删除对话失败");
       console.error(error);
@@ -285,87 +175,11 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources,
     }
   });
 
-  // 外部创建对话回调（用于 ChatContainer）
-  const handleExternalCreateChat = useMemoizedFn(
-    async (messages: ChatMessage["messages"], title?: string): Promise<ChatMessage> => {
-      const created = await createChat(messages, title);
-      return {
-        id: created.id,
-        createTime: created.createTime,
-        updateTime: created.updateTime,
-        messages: created.messages,
-        title: created.title,
-        groupId: null,
-        archived: created.archived,
-        parentChatId: created.parentChatId,
-        branchIndex: created.branchIndex,
-      };
-    }
-  );
-
-  // 外部创建分支回调（用于 ChatContainer）
-  const handleExternalCreateBranch = useMemoizedFn(
-    async (parentChatId: number, messages: ChatMessage["messages"]): Promise<ChatMessage> => {
-      const created = await createChatBranch(parentChatId, messages);
-      return {
-        id: created.id,
-        createTime: created.createTime,
-        updateTime: created.updateTime,
-        messages: created.messages,
-        title: created.title,
-        groupId: null,
-        archived: created.archived,
-        parentChatId: created.parentChatId,
-        branchIndex: created.branchIndex,
-      };
-    }
-  );
-
-  // 更新对话消息（用于 ChatContainer）
-  const handleUpdateChatMessage = useMemoizedFn(async (chat: ChatMessage): Promise<ChatMessage> => {
-    const vlChat = chats.find(c => c.id === chat.id);
-    if (!vlChat) {
-      throw new Error("Chat not found");
-    }
-    const updated = await updateChat({
-      ...vlChat,
-      messages: chat.messages,
-      title: chat.title,
-      archived: chat.archived,
-    });
-    return {
-      id: updated.id,
-      createTime: updated.createTime,
-      updateTime: updated.updateTime,
-      messages: updated.messages,
-      title: updated.title,
-      groupId: null,
-      archived: updated.archived,
-      parentChatId: updated.parentChatId,
-      branchIndex: updated.branchIndex,
-    };
-  });
-
-  // 更新当前对话（本地状态）
-  const handleUpdateCurrentChat = useMemoizedFn((chat: ChatMessage) => {
-    updateCurrentChat({
-      id: chat.id,
-      projectId,
-      createTime: chat.createTime,
-      updateTime: chat.updateTime,
-      messages: chat.messages,
-      title: chat.title,
-      archived: chat.archived,
-      parentChatId: chat.parentChatId,
-      branchIndex: chat.branchIndex,
-    });
-  });
-
   // 代码 / 链接渲染与对话页共用（D-048）；可预览块走 BlockPreview 上下文
   const markdownComponents = useChatMarkdownComponents({ isDark, idPrefix: "vl-block" });
 
   // 加载中状态
-  if (status === EVLChatStatus.LOADING) {
+  if (!loaded) {
     return <Loading minHeight={0} />;
   }
 
@@ -375,43 +189,33 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources,
         <div className={cn("box-border flex h-full flex-col pb-3", docked ? "px-3" : "px-5")}>
           <div className="flex h-[52px] shrink-0 items-center justify-between">
             <ChatDropdownSelector
-              chatSource="vibe-learning-chat"
-              chats={chatsAsMessages}
-              currentChat={currentChatAsMessage}
+              chats={rows}
+              currentChat={currentChat}
               onChatSelect={handleChatSelect}
               onTitleChange={onTitleChange}
               onChatDelete={handleChatDelete}
-              getChildBranchesCount={getChildBranchesCount}
               titleRef={editTitleRef}
             />
           </div>
 
-          {(currentChat || (!currentChat && !createMessageLoading)) && (
-            <Suspense fallback={<Loading minHeight={0} />}>
-              <ChatContainer
-                ref={chatContainerRef}
-                currentChat={currentChatAsMessage}
-                isDark={isDark}
-                markdownComponents={markdownComponents}
-                isVisible={true}
-                chatScope={`vibe-learning-chat:${projectId}`}
-                toolScope={toolScope}
-                updateChatMessage={handleUpdateChatMessage}
-                updateCurrentChat={handleUpdateCurrentChat}
-                sendLoading={sendLoading}
-                setSendLoading={setSendLoading}
-                titleRef={editTitleRef}
-                onCreateNewMessage={onCreateNewMessage}
-                createMessageLoading={createMessageLoading}
-                onChatCreated={chatId => {
-                  useVLChatStore.setState({ currentChatId: chatId });
-                }}
-                customSystemPrompt={systemPrompt}
-                onCreateChat={handleExternalCreateChat}
-                onCreateBranch={handleExternalCreateBranch}
-              />
-            </Suspense>
-          )}
+          <Suspense fallback={<Loading minHeight={0} />}>
+            <ChatContainer
+              ref={chatContainerRef}
+              currentChat={currentChat}
+              isDark={isDark}
+              markdownComponents={markdownComponents}
+              isVisible={true}
+              chatScope={`vibe-learning-chat:${projectId}`}
+              toolScope={toolScope}
+              sendLoading={sendLoading}
+              setSendLoading={setSendLoading}
+              titleRef={editTitleRef}
+              onCreateNewMessage={newChat}
+              createMessageLoading={false}
+              onChatCreated={select}
+              customSystemPrompt={systemPrompt}
+            />
+          </Suspense>
         </div>
       </div>
     </MarkdownProvider>

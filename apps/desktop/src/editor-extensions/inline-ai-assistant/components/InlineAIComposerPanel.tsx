@@ -9,19 +9,20 @@ import MessageItem from "@/layouts/ContentLayout/components/ChatSidebar/MessageI
 import { MarkdownProvider } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
 import { useChatMarkdownComponents } from "@/components/ChatUI";
 import { DEFAULT_SYSTEM_PROMPT, Role } from "@/constants";
-import { chatLLMStream } from "@/hooks/useChatLLM";
+import { runPiAgent, type PiAgentRunHandle } from "@/services/piAgentRunner";
+import { buildPiChatSystemPrompt } from "@/services/piChatSession";
+import { PiChatEventReducer } from "@/services/piChatEvents";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useTheme from "@/hooks/useTheme";
 import useSkillStore from "@/stores/useSkillStore";
+import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
 import type {
   AssistantBlock,
   ChatSessionMessage,
-  ModelConfig,
-  ProviderConfig,
   RequestMessage,
   ResponseMessage,
   ToolCallExecutionState,
-} from "@/types";
+} from "@/types/llm";
 import {
   buildInlineContextPrompt,
   buildInlineEditorContext,
@@ -29,12 +30,10 @@ import {
 } from "@/services/content-editing";
 import {
   applyAssistantReasoningSnapshot,
-  applyAssistantProviderMetadataSnapshot,
   applyAssistantTextSnapshot,
   applyAssistantToolCallsSnapshot,
   buildAssistantHistoryMessages,
   createAssistantMessage,
-  finalizeAssistantTurn,
 } from "@/services/assistantMessageBlocks";
 
 interface InlineAIComposerPanelProps {
@@ -109,7 +108,7 @@ const InlineAIComposerPanel = ({
   onClose,
 }: InlineAIComposerPanelProps) => {
   const { isDark } = useTheme();
-  const { providerConfig, modelConfig } = useLLMConfig("chat");
+  const { provider, model } = useLLMConfig("chat");
   const skills = useSkillStore(state => state.skills);
   const loadSkills = useSkillStore(state => state.loadSkills);
 
@@ -124,7 +123,7 @@ const InlineAIComposerPanel = ({
   });
 
   const panelRef = useRef<HTMLDivElement | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const chatHandleRef = useRef<PiAgentRunHandle | null>(null);
   const chatInputRef = useRef<ChatInputAreaHandle | null>(null);
   const activeContentIdRef = useRef<number | null>(null);
   const initialSelectionRef = useRef<SerializedSelection | null>(initialSelection);
@@ -190,9 +189,9 @@ const InlineAIComposerPanel = ({
   });
 
   const closePanel = useMemoizedFn(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
+    if (chatHandleRef.current) {
+      chatHandleRef.current.abort();
+      chatHandleRef.current = null;
     }
     setSending(false);
     onClose();
@@ -259,7 +258,7 @@ const InlineAIComposerPanel = ({
         toast.error("无法确定 contentId，已阻止自动写入。请切换到可编辑内容页后重试。");
         return false;
       }
-      if (!providerConfig || !modelConfig) {
+      if (!provider || !model) {
         toast.error("未配置聊天模型，请先在设置中完成 chat 模型配置。");
         return false;
       }
@@ -300,16 +299,11 @@ const InlineAIComposerPanel = ({
           content: [
             {
               type: "text",
-              text: DEFAULT_SYSTEM_PROMPT,
-            },
-          ],
-        },
-        {
-          role: Role.System,
-          content: [
-            {
-              type: "text",
-              text: INLINE_TOOL_POLICY,
+              text: buildPiChatSystemPrompt(
+                `${DEFAULT_SYSTEM_PROMPT}\n\n${INLINE_TOOL_POLICY}`,
+                skills,
+                []
+              ),
             },
           ],
         },
@@ -350,66 +344,81 @@ const InlineAIComposerPanel = ({
         });
       };
 
-      chatLLMStream(providerConfig as ProviderConfig, modelConfig as ModelConfig, requestMessages, {
-        enableTools: true,
-        conversationKey: buildInlineConversationKey(activeContext.contentId),
-        toolContext: options?.toolContext,
-        skills,
-        deferAssistantTextUntilFinish: true,
-        onUpdate: (full, _inc, _reasoningText, turnId) => {
+      const reducer = new PiChatEventReducer({
+        applyText: (turnId, text) => {
           patchAssistantMessage(assistantMessage => {
-            applyAssistantTextSnapshot(assistantMessage, turnId || "inline-fallback-text", full);
+            applyAssistantTextSnapshot(assistantMessage, turnId, text);
           });
         },
-        onReasoning: (full, _inc, turnId) => {
+        applyReasoning: (turnId, text) => {
           patchAssistantMessage(assistantMessage => {
-            applyAssistantReasoningSnapshot(
-              assistantMessage,
-              turnId || "inline-fallback-reasoning",
-              full
-            );
+            applyAssistantReasoningSnapshot(assistantMessage, turnId, text);
           });
         },
-        onToolCallsUpdate: (executions, turnId, toolCalls) => {
+        applyToolCalls: (turnId, executions, toolCalls) => {
           patchAssistantMessage(assistantMessage => {
-            applyAssistantToolCallsSnapshot(
-              assistantMessage,
-              turnId || "inline-fallback-tool",
-              executions,
-              toolCalls
-            );
+            applyAssistantToolCallsSnapshot(assistantMessage, turnId, executions, toolCalls);
           });
         },
-        onAssistantTurnEnd: ({ turnId, resultType, providerMetadata }) => {
-          patchAssistantMessage(assistantMessage => {
-            applyAssistantProviderMetadataSnapshot(assistantMessage, turnId, providerMetadata);
-            finalizeAssistantTurn(assistantMessage, turnId);
-          });
+        finalizeTurn: () => {},
+        applyUsage: () => {},
+        onAssistantTurnEnd: ({ resultType }) => {
           if (resultType !== "response") {
             return;
           }
           setSending(false);
-          abortControllerRef.current = null;
+          chatHandleRef.current = null;
           setTimeout(() => {
             chatInputRef.current?.focusEnd();
           }, 0);
         },
-        onFinish: () => {},
-        onError: error => {
+        onRetryStatus: () => {},
+        onStreamError: errorMessage => {
           patchAssistantMessage(assistantMessage => {
             applyAssistantTextSnapshot(
               assistantMessage,
               "inline-error",
-              `请求失败：${(error as Error).message || "未知错误"}`
+              `请求失败：${errorMessage}`
             );
           });
-          toast.error((error as Error).message || "请求失败");
+          toast.error(errorMessage || "请求失败");
           setSending(false);
-          abortControllerRef.current = null;
+          chatHandleRef.current = null;
         },
-        onController: controller => {
-          abortControllerRef.current = controller;
+        onSettled: () => {},
+      });
+      const handle = runPiAgent(
+        {
+          provider: provider as LLMProviderSetting,
+          model: model as LLMModelSetting,
+          messages: requestMessages,
+          conversationKey: buildInlineConversationKey(activeContext.contentId),
+          ...(options?.toolContext
+            ? { toolContext: options.toolContext as Record<string, unknown> }
+            : {}),
         },
+        event => reducer.handle(event)
+      );
+      chatHandleRef.current = handle;
+      void handle.result.then(result => {
+        if (result.ok && !result.aborted) {
+          setSending(false);
+          chatHandleRef.current = null;
+          return;
+        }
+        if (!result.aborted) {
+          const errorMessage = result.error ?? "请求失败";
+          patchAssistantMessage(assistantMessage => {
+            applyAssistantTextSnapshot(
+              assistantMessage,
+              "inline-error",
+              `请求失败：${errorMessage}`
+            );
+          });
+          toast.error(errorMessage);
+        }
+        setSending(false);
+        chatHandleRef.current = null;
       });
       return true;
     }
@@ -426,9 +435,9 @@ const InlineAIComposerPanel = ({
   });
 
   const stopSending = useMemoizedFn(() => {
-    if (!abortControllerRef.current) return;
-    abortControllerRef.current.abort();
-    abortControllerRef.current = null;
+    if (!chatHandleRef.current) return;
+    chatHandleRef.current.abort();
+    chatHandleRef.current = null;
     setSending(false);
   });
 
@@ -492,7 +501,6 @@ const InlineAIComposerPanel = ({
                     isVisible={true}
                     messageIndex={index}
                     messageMeta={{
-                      chatId: 0,
                       messageIndex: index,
                       isStreaming: sending && index === renderMessages.length - 1,
                     }}

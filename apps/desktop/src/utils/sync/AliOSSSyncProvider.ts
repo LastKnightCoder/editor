@@ -1,4 +1,5 @@
 import { IRemoteFileInfo, ISyncProvider } from "@/types/sync";
+import { createObjectIfAbsent } from "@/commands/ali-oss";
 import {
   isObjectExist,
   getObject,
@@ -25,6 +26,13 @@ export class AliOSSSyncProvider implements ISyncProvider {
 
   getProviderName(): string {
     return "AliOSS";
+  }
+
+  async createFileIfAbsent(objectName: string, content: Uint8Array): Promise<boolean> {
+    return createObjectIfAbsent(
+      { ...this.config, objectName: `${this.config.path}/${objectName}` },
+      content
+    );
   }
 
   async uploadFile(objectName: string, content: Uint8Array): Promise<boolean> {
@@ -83,7 +91,7 @@ export class AliOSSSyncProvider implements ISyncProvider {
       });
     } catch (e) {
       console.error("AliOSS 检查文件存在失败:", e);
-      return false;
+      throw e;
     }
   }
 

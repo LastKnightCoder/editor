@@ -24,14 +24,13 @@ import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sq
 import ContentTable from "../tables/content";
 import AudioNoteTable from "../tables/audio-note";
 import AudioNoteItemTable from "../tables/audio-note-item";
-import AudioNoteChatTable from "../tables/audio-note-chat";
+import Operation from "../tables/operation";
 
 function createTestDatabase() {
   const db = new Database(":memory:");
   db.exec(MAIN_SCHEMA_SQL);
   AudioNoteItemTable.upgradeTable(db);
   AudioNoteTable.upgradeTable(db);
-  AudioNoteChatTable.upgradeTable(db);
   return db;
 }
 
@@ -47,7 +46,7 @@ describe("AudioNoteTable.deleteAudioNote", () => {
     db?.close();
   });
 
-  it("删除音频笔记时应清理卡片内容与聊天记录", () => {
+  it("删除音频笔记时应清理卡片内容", () => {
     const audioNote = AudioNoteTable.createEmptyAudioNote(db, {
       type: "local",
       filePath: "/tmp/audio.mp3",
@@ -62,46 +61,29 @@ describe("AudioNoteTable.deleteAudioNote", () => {
       contentId,
       title: "卡片",
     });
-    AudioNoteChatTable.createChat(db, {
-      audioNoteId: audioNote.id,
-      title: "主会话",
-      messages: [] as any,
-    });
-
     const deleteChanges = AudioNoteTable.deleteAudioNote(db, audioNote.id);
     expect(deleteChanges).toBe(1);
 
     expect(
       (
-        db
-          .prepare("SELECT COUNT(*) as count FROM audio_notes WHERE id = ?")
-          .get(audioNote.id) as { count: number }
-      ).count,
+        db.prepare("SELECT COUNT(*) as count FROM audio_notes WHERE id = ?").get(audioNote.id) as {
+          count: number;
+        }
+      ).count
     ).toBe(0);
     expect(
       (
         db
-          .prepare(
-            "SELECT COUNT(*) as count FROM audio_note_item WHERE audio_note_id = ?",
-          )
+          .prepare("SELECT COUNT(*) as count FROM audio_note_item WHERE audio_note_id = ?")
           .get(audioNote.id) as { count: number }
-      ).count,
+      ).count
     ).toBe(0);
     expect(
       (
-        db
-          .prepare(
-            "SELECT COUNT(*) as count FROM audio_note_chats WHERE audio_note_id = ?",
-          )
-          .get(audioNote.id) as { count: number }
-      ).count,
-    ).toBe(0);
-    expect(
-      (
-        db
-          .prepare("SELECT COUNT(*) as count FROM contents WHERE id = ?")
-          .get(contentId) as { count: number }
-      ).count,
+        db.prepare("SELECT COUNT(*) as count FROM contents WHERE id = ?").get(contentId) as {
+          count: number;
+        }
+      ).count
     ).toBe(0);
   });
 
@@ -119,38 +101,32 @@ describe("AudioNoteTable.deleteAudioNote", () => {
       contentId,
       title: "卡片",
     });
-    vi.spyOn(AudioNoteChatTable, "deleteChatsByAudioNoteId").mockImplementation(
-      () => {
-        throw new Error("chat cleanup failed");
-      },
-    );
+    vi.spyOn(Operation, "insertOperation").mockImplementation(() => {
+      throw new Error("operation log failed");
+    });
 
-    expect(() => AudioNoteTable.deleteAudioNote(db, audioNote.id)).toThrow(
-      "chat cleanup failed",
-    );
+    expect(() => AudioNoteTable.deleteAudioNote(db, audioNote.id)).toThrow("operation log failed");
 
     expect(
       (
-        db
-          .prepare("SELECT COUNT(*) as count FROM audio_notes WHERE id = ?")
-          .get(audioNote.id) as { count: number }
-      ).count,
+        db.prepare("SELECT COUNT(*) as count FROM audio_notes WHERE id = ?").get(audioNote.id) as {
+          count: number;
+        }
+      ).count
     ).toBe(1);
     expect(
       (
         db
-          .prepare(
-            "SELECT COUNT(*) as count FROM audio_note_item WHERE audio_note_id = ?",
-          )
+          .prepare("SELECT COUNT(*) as count FROM audio_note_item WHERE audio_note_id = ?")
           .get(audioNote.id) as { count: number }
-      ).count,
+      ).count
     ).toBe(1);
     expect(
       (
-        db
-          .prepare("SELECT COUNT(*) as count FROM contents WHERE id = ?")
-          .get(contentId) as { count: number }
-      ).count,
+        db.prepare("SELECT COUNT(*) as count FROM contents WHERE id = ?").get(contentId) as {
+          count: number;
+        }
+      ).count
     ).toBe(1);
   });
 });

@@ -1,9 +1,12 @@
 import useSettingStore from "@/stores/useSettingStore";
-import type { ProviderConfig, ModelConfig } from "@/types/llm";
+import type { LLMModelSetting, LLMProviderSetting } from "@/types/pi-llm";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { loadCatalogModels } from "@/services/llmCatalog";
 
 interface LLMConfigResult {
-  providerConfig: ProviderConfig | null;
-  modelConfig: ModelConfig | null;
+  provider: LLMProviderSetting | null;
+  model: LLMModelSetting | null;
 }
 
 export const useLLMConfig = (
@@ -16,40 +19,45 @@ export const useLLMConfig = (
     | "aiJudgement"
     | "transcriptionOptimization"
     | "videoSummary"
-    | "videoEbookRewrite",
+    | "videoEbookRewrite"
 ): LLMConfigResult => {
-  const llmConfigs = useSettingStore((state) => state.setting.llmConfigs);
-  const llmUsageSettings = useSettingStore(
-    (state) => state.setting.llmUsageSettings,
-  );
+  const llmProviders = useSettingStore(state => state.setting.llmProviders);
+  const llmUsageSettings = useSettingStore(state => state.setting.llmUsageSettings);
 
   const usageConfig = llmUsageSettings[feature];
+  const provider = llmProviders.find(config => config.id === usageConfig?.providerId);
+  const model = provider?.models.find(item => item.id === usageConfig?.modelId);
+  const builtin = provider?.builtin;
+  const { data: catalog } = useQuery({
+    queryKey: ["llm", "catalog", builtin],
+    queryFn: () => loadCatalogModels(builtin!),
+    enabled: Boolean(builtin),
+    staleTime: Infinity,
+  });
+  const effectiveModel = useMemo(() => {
+    const current = catalog?.find(item => item.id === model?.id);
+    return model && current
+      ? { ...model, contextWindow: current.contextWindow, maxTokens: current.maxTokens }
+      : model;
+  }, [catalog, model]);
 
   if (!usageConfig) {
     return {
-      providerConfig: null,
-      modelConfig: null,
+      provider: null,
+      model: null,
     };
   }
 
-  const providerConfig = llmConfigs.find(
-    (config) => config.id === usageConfig.providerId,
-  );
-
-  if (!providerConfig) {
+  if (!provider) {
     return {
-      providerConfig: null,
-      modelConfig: null,
+      provider: null,
+      model: null,
     };
   }
-
-  const modelConfig = providerConfig.models?.find(
-    (model) => model.name === usageConfig.modelName,
-  );
 
   return {
-    providerConfig,
-    modelConfig: modelConfig || null,
+    provider,
+    model: effectiveModel || null,
   };
 };
 

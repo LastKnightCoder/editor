@@ -2,7 +2,7 @@
  * 项目条目 · 视频笔记（学习台布局，同 Vibe Learning）：
  * 左 = 材料（视频 + 跟随播放的转录），中 = 本视频的 AI 对话；打开「笔记」后笔记占中间、
  * 对话退到右栏（可拖宽 / 收起）。对话面板始终挂在同一位置，切换布局不打断进行中的回答。
- * 会话与工具跟视频走（useVideoNoteChatStore / 视频专属工具），与壳层全局 AI 栏无关。
+ * 会话与工具跟视频走（useScopedChat / 视频专属工具），与壳层全局 AI 栏无关。
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -24,7 +24,7 @@ import { DOCK_CHAT_MIN, clampDockChatWidth, useDockResize } from "@/hooks/useDoc
 import useSettingStore from "@/stores/useSettingStore";
 import useUploadResource from "@/hooks/useUploadResource";
 import { useLLMConfig } from "@/hooks/useLLMConfig";
-import { openSettingsModal } from "@/utils/transcription";
+import { openLLMSettingsSection } from "@/utils/transcription";
 import { getProjectItemById, getVideoNoteById } from "@/commands";
 import type { VideoNote } from "@/types";
 import VideoNoteChatPanel from "@/components/VideoNotePanel/VideoNoteChatPanel";
@@ -351,7 +351,7 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
         confirmText="打开设置"
         onConfirm={() => {
           transcription.dismissLlmConfirm();
-          openSettingsModal("llm");
+          openLLMSettingsSection();
         }}
       />
       <VideoNoteEpubExportModal
@@ -361,9 +361,9 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
         transcript={transcriptText}
         videoTitle={displayTitle}
         videoDescription={videoNote.description || ""}
-        providerConfig={ebookLLM.providerConfig}
-        modelConfig={ebookLLM.modelConfig}
-        onOpenLLMSettings={() => openSettingsModal("llm")}
+        provider={ebookLLM.provider}
+        model={ebookLLM.model}
+        onOpenLLMSettings={openLLMSettingsSection}
       />
     </div>
   );

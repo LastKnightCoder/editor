@@ -6,11 +6,11 @@ use percent_encoding::utf8_percent_encode;
 use sha1::Sha1;
 
 use super::ResourceRemoteFileInfo;
+use crate::network_policy::NetworkPolicy;
 use crate::sync::common::{
     file_name_from_path, normalize_remote_path, preview_text, strip_base_prefix, RESOURCE_PREFIX,
 };
 use crate::sync::context::AliOssConfig;
-use crate::network_policy::NetworkPolicy;
 use crate::sync::error::{run_sync_policy, run_sync_policy_with, AppError};
 
 fn oss_object_path(path_prefix: &str, object_name: &str) -> String {
@@ -157,9 +157,22 @@ pub(crate) async fn alioss_upload(
     config: &AliOssConfig,
     object_name: &str,
     content: &[u8],
+    create_only: bool,
 ) -> Result<(), AppError> {
+    if create_only {
+        assert_versioning_disabled(config).await?;
+    }
     let object_path = oss_object_path(&config.path_prefix, object_name);
-    let canonical_resource = format!("/{}/{}", config.bucket, object_path);
+    let canonical_resource = format!(
+        "{}/{}/{}",
+        if create_only {
+            "x-oss-forbid-overwrite:true\n"
+        } else {
+            ""
+        },
+        config.bucket,
+        object_path
+    );
     let date = httpdate::fmt_http_date(SystemTime::now());
     let content_type = "application/octet-stream";
     let signature = oss_signature(
@@ -180,17 +193,20 @@ pub(crate) async fn alioss_upload(
         "AliOSS 上传",
         NetworkPolicy::for_payload(Some(content.len())),
         |_| async {
-            let resp = client
+            let request = client
                 .put(&url)
                 .header("Date", date.clone())
                 .header("Authorization", authorization.clone())
                 .header("Content-Type", content_type)
-                .body(content.to_vec())
-                .send()
-                .await
-                .map_err(|e| {
-                    AppError::new("SYNC_UPLOAD_FAILED", format!("AliOSS 上传失败: {e}"))
-                })?;
+                .body(content.to_vec());
+            let request = if create_only {
+                request.header("x-oss-forbid-overwrite", "true")
+            } else {
+                request
+            };
+            let resp = request.send().await.map_err(|e| {
+                AppError::new("SYNC_UPLOAD_FAILED", format!("AliOSS 上传失败: {e}"))
+            })?;
 
             if !resp.status().is_success() {
                 return Err(AppError::new(
@@ -202,6 +218,41 @@ pub(crate) async fn alioss_upload(
         },
     )
     .await
+}
+
+async fn assert_versioning_disabled(config: &AliOssConfig) -> Result<(), AppError> {
+    let date = httpdate::fmt_http_date(SystemTime::now());
+    let resource = format!("/{}/?versioning", config.bucket);
+    let signature = oss_signature("GET", "", &date, &resource, &config.access_key_secret)?;
+    let response = reqwest::Client::new()
+        .get(format!("{}?versioning", build_oss_url(config, "")))
+        .header("Date", date)
+        .header(
+            "Authorization",
+            format!("OSS {}:{}", config.access_key_id, signature),
+        )
+        .send()
+        .await
+        .map_err(|e| AppError::new("SYNC_UPLOAD_FAILED", format!("检查 OSS 版本控制失败：{e}")))?
+        .error_for_status()
+        .map_err(|e| AppError::new("SYNC_UPLOAD_FAILED", format!("检查 OSS 版本控制失败：{e}")))?;
+    let xml = response
+        .text()
+        .await
+        .map_err(|e| AppError::new("SYNC_UPLOAD_FAILED", e.to_string()))?;
+    let doc = roxmltree::Document::parse(&xml)
+        .map_err(|e| AppError::new("SYNC_UPLOAD_FAILED", e.to_string()))?;
+    if doc.root_element().tag_name().name() != "VersioningConfiguration"
+        || doc.descendants().any(|node| {
+            node.tag_name().name() == "Status" && !node.text().unwrap_or("").trim().is_empty()
+        })
+    {
+        return Err(AppError::new(
+            "SYNC_UPLOAD_FAILED",
+            "启用版本控制的 OSS 桶无法保证原子防覆盖，请使用未启用版本控制的同步桶",
+        ));
+    }
+    Ok(())
 }
 
 fn extract_xml_tag_values(xml: &str, tag_name: &str) -> Vec<String> {

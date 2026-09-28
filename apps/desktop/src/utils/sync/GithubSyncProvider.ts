@@ -1,9 +1,5 @@
 import { IRemoteFileInfo, ISyncProvider } from "@/types/sync";
-import {
-  uploadFileToGithub,
-  downloadFileFromGithub,
-  listGithubFiles,
-} from "@/utils/github";
+import { uploadFileToGithub, downloadFileFromGithub, listGithubFiles } from "@/utils/github";
 
 export interface IGithubConfig {
   token: string;
@@ -27,16 +23,22 @@ export class GithubSyncProvider implements ISyncProvider {
     return "Github";
   }
 
-  async uploadFile(objectName: string, content: Uint8Array): Promise<boolean> {
+  async createFileIfAbsent(objectName: string, content: Uint8Array): Promise<boolean> {
+    return this.uploadFile(objectName, content, true);
+  }
+
+  async uploadFile(objectName: string, content: Uint8Array, createOnly = false): Promise<boolean> {
     try {
       const filePath = `${this.config.path}/${objectName}`;
 
       // 将 Uint8Array 转换为 Base64
-      const base64Content = btoa(
-        String.fromCharCode.apply(null, Array.from(content)),
-      );
+      let binary = "";
+      for (let offset = 0; offset < content.length; offset += 16384)
+        binary += String.fromCharCode(...content.subarray(offset, offset + 16384));
+      const base64Content = btoa(binary);
 
       await uploadFileToGithub({
+        createOnly,
         token: this.config.token,
         owner: this.config.user.name,
         repo: this.config.repo,
@@ -84,7 +86,8 @@ export class GithubSyncProvider implements ISyncProvider {
       await this.downloadFile(objectName);
       return true;
     } catch (e) {
-      return false;
+      if ((e as { response?: { status?: number } }).response?.status === 404) return false;
+      throw e;
     }
   }
 
@@ -108,11 +111,8 @@ export class GithubSyncProvider implements ISyncProvider {
         branch: this.config.branch,
       });
 
-      return files.map((file) => {
-        const relativePath = this.normalizeRelativePath(
-          file.path || file.name,
-          basePath,
-        );
+      return files.map(file => {
+        const relativePath = this.normalizeRelativePath(file.path || file.name, basePath);
         const name = file.name || relativePath.split("/").pop() || relativePath;
         return {
           name,

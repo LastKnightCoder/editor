@@ -1,5 +1,6 @@
 import { IRemoteFileInfo, ISyncProvider } from "@/types/sync";
 import { webdavUpload, webdavDownload, webdavList } from "@/commands";
+import { webdavExists } from "@/commands/webdav";
 
 export interface IWebDavConfig {
   url: string;
@@ -19,13 +20,18 @@ export class WebDavSyncProvider implements ISyncProvider {
     return "WebDAV";
   }
 
-  async uploadFile(objectName: string, content: Uint8Array): Promise<boolean> {
+  async createFileIfAbsent(objectName: string, content: Uint8Array): Promise<boolean> {
+    return this.uploadFile(objectName, content, true);
+  }
+
+  async uploadFile(objectName: string, content: Uint8Array, createOnly = false): Promise<boolean> {
     try {
       const remotePath = this.config.pathPrefix
         ? `${this.config.pathPrefix.replace(/\/$/, "")}/${objectName}`
         : `/${objectName}`;
 
       await webdavUpload({
+        createOnly,
         url: this.config.url,
         username: this.config.username,
         password: this.config.password,
@@ -59,13 +65,10 @@ export class WebDavSyncProvider implements ISyncProvider {
   }
 
   async fileExists(objectName: string): Promise<boolean> {
-    // WebDAV 检查文件存在可以尝试下载并捕获错误
-    try {
-      await this.downloadFile(objectName);
-      return true;
-    } catch (e) {
-      return false;
-    }
+    const remotePath = this.config.pathPrefix
+      ? `${this.config.pathPrefix.replace(/\/$/, "")}/${objectName}`
+      : `/${objectName}`;
+    return webdavExists({ ...this.config, remotePath });
   }
 
   async deleteFile(_objectName: string): Promise<boolean> {
@@ -77,11 +80,9 @@ export class WebDavSyncProvider implements ISyncProvider {
   async listFiles(prefix?: string): Promise<IRemoteFileInfo[]> {
     const basePath = this.config.pathPrefix.replace(/\/$/, "");
     const extraPath = prefix ? prefix.replace(/^\/+/, "") : "";
-    const remotePath = [basePath, extraPath].filter((p) => p).join("/");
+    const remotePath = [basePath, extraPath].filter(p => p).join("/");
     const mergedPath = remotePath.replace(/^\/+/, "");
-    const normalizedRemotePath = mergedPath
-      ? `/${mergedPath.replace(/\/+/g, "/")}`
-      : "/";
+    const normalizedRemotePath = mergedPath ? `/${mergedPath.replace(/\/+/g, "/")}` : "/";
 
     try {
       const remoteFiles = await webdavList({
@@ -91,13 +92,12 @@ export class WebDavSyncProvider implements ISyncProvider {
         remotePath: normalizedRemotePath,
       });
 
-      return remoteFiles.map((file) => {
+      return remoteFiles.map(file => {
         const relativePath = this.normalizeRelativePath(
           file.path || file.name,
-          this.config.pathPrefix,
+          this.config.pathPrefix
         );
-        const name =
-          relativePath.split("/").filter(Boolean).pop() || relativePath;
+        const name = relativePath.split("/").filter(Boolean).pop() || relativePath;
         return {
           ...file,
           name,

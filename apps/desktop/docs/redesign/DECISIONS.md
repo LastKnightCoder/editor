@@ -610,6 +610,8 @@
 - 评审追记（2026-09-26）：列表页与编辑页都改为「一整张纸」（同微信读书），纸内卡片细描边不叠阴影；编辑页文件树是纸内透明左栏、开关在面包屑，SKILL.md 头部改为文档式（大标题 + 「AI 看到的描述」描边块，不用米灰填充）；编辑页原「默认仅手动」开关与卡片开关语义冲突，改为与卡片 / 抽屉同一份状态的「自动 / 仅手动 / 停用」分段（front-matter 的 `disable-model-invocation` 只在源码视图改）；源码视图用 CodeMirror 5 语法高亮（配色取主题 token），代码框撑满剩余高度、框内 FadeScroll 滚动。
 - 退役：`pages/SkillManagement`（index / CreateSkillModal / SkillDetailModal）、`TabType.SkillManagement` 的 TabContent 分支、`LEGACY_PAGES.skills` 占位。
 
+- pi 迁移追记（2026-09-27，M3-a）：上述权限语义保留，旧 agent policies 与渲染端审批 resolver 退役。统一在主进程包装 pi 原生 `beforeToolCall`，先执行 pi 扩展钩子，再按最终参数审批；原生 signal 用于中止挂起。待审批请求与会话授权归 pi 宿主，渲染端只消费带版本快照，切页不清理、重载可收养；恢复续流监听就绪后才开放审批按钮。内置文件写入、shell、Skill 脚本与外部 MCP 接入同一入口，外部 MCP 默认按 execute 审批；交互场景已有内容审阅卡免除重复审批，无交互界面的入口需要确认时直接拒绝。授权按 pi 会话实例 + 工具名记忆，仅当前进程有效，真正重建会话时重置；渲染层重载不重建同模型宿主。主进程重启后的完整 JSONL 恢复留 M4。
+
 ## D-061 日程页当日时间线改为非模态抽屉
 
 - 背景：日程页第一版（方案 C 月刊）为对开两栏，右栏 360px 当日时间线全高贴纸右缘、宽度动画收起。用户在番茄 / 待办 / 闪卡相继把常驻右栏改为 Drawer 后，要求日程页同样处理。
@@ -647,7 +649,55 @@
 - 数据库：按 URL 的库名连接（协作页「回到原内容」会开其它数据库的文档）；**不再在卸载时 `closeDatabase`**——连接全局共享，旧页面关库会连带主窗口失去连接。
 - 主进程：删除 `modules/window-manager.ts`，改为 `main/windows/`：`createWindow`（唯一的 BrowserWindow 构造入口：标题栏形态 custom / native / none、事件转发、加载、Win 最后可见窗口关闭即退出）、`window-registry`（键控窗口表）、`window-state`（按类型记忆尺寸位置 + 级联错开）、按窗口类型各一个模块、`ipc.ts` 统一注册。新 IPC `open-editor-window` / `close-editor-window`（`@tau/platform` `WindowApi.openEditorWindow` / `closeEditorWindow`）替代三条 `open-*-in-new-window` 与 `close-article-window`；ws 端保留三条旧方法名供 CLI 调用（此前文章 / 项目文档两条在 ws 端未注册）。模块初始化窗口类型 card / article / project-item 合并为 `editor`。
 
-## D-064 Markdown 文件窗口重设计（对标 Typora）
+## D-064 浏览器插件聊天并入桌面数据域：统一消息模型
+
+- 背景（2026-09-26）：插件与桌面端的聊天在 UI 组件层已共享（`@tau/shared` 的 ChatContainerCore / ChatInputArea / ChatMessageView），但消息模型各自定义且已分叉（桌面 `src/types/llm.ts` 的 AssistantBlock 体系 vs shared `ChatComponents/types.ts` 的 contentBlocks；`ToolCallPayload` / `ToolCallExecutionState` 两处定义、可选性不一致），会话类型同名不同义（桌面 `ChatMessage` = 会话记录，shared `ChatMessage` = 单条消息）。插件 AI 问答本就依赖桌面在线（`ai.chat` 走 WS 到桌面渲染进程），产品裁决深度统一：插件成为桌面的远程聊天终端，聊天记录两端互通。
+- 裁决（2026-09-26）：① 消息 / 会话 / 流式块类型单一来源 = `packages/shared/src/chat-core/messages.ts`，桌面 `src/types/llm.ts`、`src/types/chat-message.ts`、`src/types/tool.ts`、`src/constants/llm.ts`（Role enum）仅 re-export，两端禁止再各自定义；② 插件不做离线历史缓存（chrome.storage 会话最终迁入桌面 sqlite，迁移先导入验证、稳定后再清理本地）；③ 类型冲突取值：`ToolCallPayload` 收敛为宽松版（`type?` / `arguments?`），`ToolCallExecutionState` 收敛为严格版（`timestamp` 必填）；④ 桌面会话类型在 shared 定名 `ChatSessionRecord`，桌面以 `ChatMessage` 别名 re-export 保持存量零改动；⑤ 插件旧模型 `ChatMessageType`（含 `ChatMessage` 别名导出）保留为迁移期兼容，随插件侧切换完成后清理。
+- 结构（五阶段，每阶段独立可交付）：阶段 1 消息模型统一（本条）；阶段 2 流式状态机收敛（`assistantMessageBlocks` + 流聚逻辑抽入 `chat-core`，接线既有 `ChatRuntimeAdapter`，桌面 ChatContainer 与插件 useAiChat 共用）；阶段 3 插件会话存储接入桌面（aiServer 扩展 chat 命令面，`chat_message` 表加 `source` 列，chrome.storage 一次性迁移）；阶段 4 会话管理 UI 统一（headless hooks + `@tau/ui` 版简化管理面板）；阶段 5 行内问答换型、删除插件自研状态机与存储层。
+
+### D-064 实施记录（2026-09-26）
+
+- 阶段 1–3 已落地：① 消息模型单一来源 `packages/shared/src/chat-core/`（messages / messageSchema / assistantBlocks / streamEvents，归约器测试 `streamEvents.test.ts` 守护），桌面 `types/llm.ts`、`types/chat-message.ts`、`types/tool.ts`、`constants/llm.ts`、`services/chatMessageSchema.ts`、`services/assistantMessageBlocks.ts` 全部 re-export（后三者走 `@tau/shared/src/chat-core/*` 子路径——主进程 bundle 会包含它们，禁止引 `@tau/shared` 主入口把 React UI 包拖进主进程）；② `aiServer` 流通知升级为快照语义（全量文本 + turnId + 新增 `ai.stream.turn-finish`），插件 `useAiChat` 手写拼块删除、经 `applyChatStreamEvent` 归约，`useInlineAiChat` / `OverviewTab` 同步快照化；③ 插件会话存储接入桌面 sqlite：`chat_message` 表加 `source` 列（'desktop' | 'browser'），aiServer 新增 `chat.list/get/create/update/delete/branch + chat.groups.list + chat.group.ensure` 命令面（渲染端直调既有 IPC，主进程零新增模块），插件侧新增 `services/chatStoreClient.ts`（模块级 RPC 服务 + URL→ChatGroup 映射）、`services/chatModelBridge.ts`（渲染/存储模型双向桥，assistant 旧 contentBlocks 走 legacy `content_blocks` 字段经 migrate 升级）、`services/chatMigration.ts`（chrome.storage 旧会话按 URL 分组断点续传导入，不清原始数据，`tau-chat-store-changed` 事件通知刷新），`useChatSessions` 重写为 RPC 后端（对外接口不变，会话 id 转 number），`ChatSession.systemPromptSnapshot` 持久化形态变为会话 messages 首条 system 消息。
+- 阶段 4 缩减裁决：插件会话管理 UI 维持现有 `ChatDropdownSelector`（已接统一数据层，功能完整：列表/分支树/重命名/删除/新建），**@tau/ui 视觉统一不纳入本次交付**——插件侧是 antd + Tailwind 混合生态，引入 @tau/ui 需 tokens.css 注入与前缀隔离，属独立视觉改造，避免与数据统一混在一个变更里放大回归面。
+- 评审修正（2026-09-26，review 后落地）：① `update-chat-message` 改部分更新语义（`Partial<Omit<ChatMessage,"updateTime">>`，未提供字段保留库中现值，动态 SET 只含显式列），插件 `chat.update` 只提交增量（消息保存只传 `{id, messages}`、改名只传 `{id, title, titleDirty}`），消除全量覆盖清空 title/group/分支关系的问题与改名-落库竞态；② `chat.create` 透传 `groupId`、`chat.branch` 继承父会话分组（原先被丢弃导致插件会话无法归组、列表失联并反复新建空会话）；③ 新增 `get-chat-message-list` 轻量列表命令（不含 messages 大字段、SQL 侧按 group_id 过滤），`chat.list` 不再全表拉取；④ 插件 `useChatSessions` 待落盘快照绑定触发时的会话 id（debounce 到点或切换/卸载前 flush），防止消息写入切换后的会话；⑤ `chatMigration` 断点粒度细化到 session（`sessionIdMap` 持久化 legacy→桌面 id 映射，重跑不重复建行），`sortParentsFirst` 加环检测；⑥ `source` 列同步进 db-schema bundle（`schema/main/20_content.sql`）。
+- 后续优化项（不阻塞）：插件请求历史构建仍走显示模型（`mapChatMessageToAiRequestMessage`），多轮工具循环的历史回放语义有损（插件旧实现固有），待插件消息链路整体切到存储模型后统一改 `buildAssistantHistoryMessages`；chrome.storage 旧数据清理动作待迁移稳定一个版本后单独执行；WebSocketClient/Server 双副本合并入 @tau/rpc 待议（插件侧 WS 地址常量已收敛到 `utils/aiServerAddress.ts`）。
+- **被 D-065 取代的部分**（2026-09-29）：阶段 3 的「插件会话存桌面 sqlite」与 `chat.create/update/branch/groups.*` 命令面、`chat_message.source` 列、`chatMigration`、`ai.chat` + `ai.stream.*` 协议均已退役——插件对话改存按页面分目录的 pi 会话文件，协议换成 v2。阶段 1 的消息模型单一来源仍有效。
+
+## D-065 AI 运行时换成 pi agent，会话事实源改 pi JSONL（pi 迁移收尾）
+
+（2026-09-29，已定；执行记录与踩坑清单见 `../pi-migration-handoff.md`，本条只记最终形态与裁决）
+
+- 选择：自研 agent 运行时（协议适配 + SSE 传输 + Agent 循环 + chat-core 展示层，约 1 万行）整体替换为 pi agent（`@earendil-works/pi-coding-agent` 0.87.x）。Big-bang、无兼容层，以 pi 为准：设置模型对齐 pi（v2 服务商/模型，旧设置一次性转化）、思考档位全仓一套 `ThinkingLevel`（shared）、内置工具 read/bash/edit/write 默认启用、工具审批沿用 D-060 三档并映射到 pi 的 `beforeToolCall`、提问（ask-question）为宿主原生工具。
+- 运行位置：会话宿主在主进程（`pi-session-host`），渲染端只做投影与发送编排；跨轮次、跨页面的运行态放模块级 `piChatRuntime`（组件卸载不打断归约与落盘）。单发生成走 `pi-ai:single-shot`。
+- **会话事实源 = pi JSONL**：`~/.editor/sessions/<库名>/*.jsonl`；sqlite 只留目录表 `chat_session`（id = pi 会话 id，scope + domainRef 分五个场景，只存标题/分组/置顶/归档/消息数）。桌面展示形态存 `desktop-display` custom entry，叶子挪动写 `desktop-leaf` 标记。**分支 = 同一文件内的会话树**（编辑重发、重新生成、从这里分叉都是树上的分叉，消息上 `‹ i/n ›` 切版本，树谱浮层），不再是多文件多目录行。
+- 2026-09-28 重试语义补充：末尾问题没有正文或工具调用时，操作为「重试」，保留原用户消息并在当前路径续跑，不创建版本；已有结果或后续追问时仍「重新生成」并保留旧分支。思考中断但未产出结果允许重试，已有工具调用按已有结果处理，避免把执行记录当空失败丢弃。首轮提交前失败也允许原位重试。
+- 同步：数据库与会话 ZIP 仍整包传输，每次上传使用不可变对象名，最后发布带 `databaseObject/sessionsObject` 的版本指针。同步信封版本为 2，数据库内部模型版本保持 1；旧端会在下载前拒绝新快照，使用前需更新全部同步客户端。移动端读取新对象名，上传时保留会话包引用；CLI 已支持配对快照的 push/pull/status，并与桌面共享 `@tau/db-schema/sync` 的打包、校验、安装与恢复协议。此变更修复成对提交，不引入增量同步。
+- 浏览器扩展：侧栏对话由主进程 `browser-bridge` 驱动（`/aiServerMain`，渲染层重载不打断，重开侧栏接回在跑的回答），走 AI 运行协议 v2（`packages/shared/src/chat-core/aiRunProtocol.ts`：`ai.run.start/event/abort/state/approve/answer`，settled 唯一终态）；提问与审批走桌面宿主；对话存 `~/.editor/browser-sessions/<页面键>/`，不进目录表、不同步。
+- 老数据：开库时一次性迁移（老对话 → 会话文件，分支并进父对话的会话树，思考内容不迁），两次迁移都记账后备份整库并删除旧聊天表（`chat_message`/`pdf_chats`/`video_note_chats`/`vibe_learning_chats`/`audio_note_chats`，后者无界面、未迁移、直接丢弃）与 `chat_run`。迁移器长期保留（老库与旧远程下载的 `.db` 靠它升级）；移动端不读聊天，不做迁移。
+- 已删：`packages/agent` 整包、`modules/llm.ts`（Minimax Key 测试改走 `pi-ai:verify-key`）、`modules/stream-fetch.ts`、渲染端 `useChatLLM`/`chatStreamCore`/协议适配器、chat_run 表与 handler、五个旧聊天表模块、扩展本地提问机制（`askQuestionSessionStore`）。
+- 不做 / 已知边界：WSL 作为命令执行环境（用户裁决不做）；同一对话的多个分支同时运行；分支命名；重启后等待中的审批与提问标为已中断，不重新弹出；待发送队列与未送达插话不跨重启保留；首轮在第一条回答之前就失败的对话 pi 不落盘。
+
+### 审查修正：身份、写入与恢复边界
+
+- 桌面运行身份包含库名、场景和会话 ID，异步回写使用创建时捕获的库名；切库保留后台运行，同库重新连接清除旧投影。删除与替换使迟到投影、标题作废。
+- 宿主创建先取得会话租约；准备图片、prompt、steer 均计入忙态，释放先取消并等待在途操作。改历史、同步替换不得与创建交错；已有文件依赖 pi 追加写，不再整文件覆盖。恢复尚未落盘的目录行时保持原文件名。
+- 老行身份保存在 `migration_meta`，中断重试复用原会话；迁移、树合并、退役独立判定，不因上一阶段已完成而跳过后续阶段。
+- 下载先验证配对快照，替换前写回滚日志，开库恢复未提交的数据库和会话目录。同步期间锁定库的会话目录；仍有回答运行时拒绝同步，保留回答。
+- 未声明风险的工具按 execute 审批；只读工具显式声明 read，日历和学习产物写入声明 write。页面工具由会话持有执行快照，避免卸载后失效。
+- 图片生成与图片编辑由用户主动发起，两者按 read 放行，不增加工具审批；生成结果落文件不改变这一交互约定。
+- CLI 同步持有跨进程文件锁；桌面运行时，经 `cli-sync:begin/version/finish` 请求静默会话、关闭主库和索引、更新版本并重连。运行中回答会阻止同步；CLI 退出后由文件锁状态触发恢复，异常中断保留回滚日志。离线 CLI 不启动代理运行时；旧聊天表保留到桌面维护开库迁移。
+- 目录外模型的容量不再猜测；缺少上下文窗口或最大输出时要求用户补齐后使用。非 Windows 使用系统 shell，PowerShell 兜底只用于 Windows。
+
+### 独立复审后的修正：执行快照与同步提交
+
+- 工具定义与执行器在第一次异步创建前同时捕获，整个会话使用同一执行快照；收养只能恢复定义一致的工具。工具上下文必须携带数据库身份和取消信号，普通业务命令不能重新取当前窗口库。正文编辑提案及检查点保存库名，切库后不更新其他库的活动编辑器。取消经工具桥传到渲染端及 MCP SDK；错误必须进入 pi 的失败终态。
+- 旧设置的协议是模型属性，混合协议模型及其有效功能分配全部保留。只有删除差异的旧分支无法无损合并时保留独立对话，不按空合并删除。
+- 同步信封升级为 3（数据库内部版本仍为 1）。整包与不可变数据对象不变；发布通过原子创建唯一后继记录仲裁，`database_<库名>.json.next-<父版本>` 含 `parentVersion/commitId` 和完整配对引用。版本指针降为加速提示，读端必须追随后继记录；已提交但响应丢失时按提交身份核验，禁止直接覆盖重试。后继记录不得按普通过期对象清理。
+- 后端必须支持原子创建：S3/WebDAV `If-None-Match: *`、GitHub 不带 SHA 的创建、OSS `x-oss-forbid-overwrite`。OSS 启用或挂起版本控制时不提供该保证，拒绝发布；不得用 GET 后普通 PUT 模拟原子条件。依据：[OSS PutObject](https://www.alibabacloud.com/help/en/oss/developer-reference/putobject)。全部客户端需升级；移动端上传保留自己下载基底的会话包关联。
+- ZIP 新增摘要清单，并校验目录身份及树结构；旧包只保证结构校验。库锁延伸到维护重连之后，心跳放到独立线程，避免同步压缩或迁移阻塞主线程后被误接管。失锁后拒绝继续使用旧租约。checkpoint 失败不得关闭后复制裸数据库或删除 WAL。
+- 扩展只持久化规范页面下的选中会话 ID，以便首轮未落盘时接回；待发送内容仍不持久化。异步列表、选择和改历史结果只有在页面、会话、请求代次仍匹配时才能写回。
+
+## D-066 Markdown 文件窗口重设计（对标 Typora）
 
 （2026-09-26，已定；样板间 `mockups/markdown-window/`）
 
@@ -659,7 +709,7 @@
 - 其它：粘贴图片仍存 md 同目录；不做多文件标签页；去掉只读开关；宽版心进 ⋯；复制（Markdown / 公众号）与导出（Markdown / 图片 / EPUB / PDF）进 ⋯。最近打开改为文件与文件夹都记（最多 10 条，Dock / 任务栏取前 5）；新主窗口命令面板加「打开 Markdown 文件 / 文件夹」；主进程 `open-markdown-window` 只收一个可选路径并自行判断文件 / 文件夹，欢迎页每次新开。
 - **追记（同日，不开主应用直接打开文件夹）**：命令行带路径、双击 .md、Windows 文件夹右键「使用 Tau 打开」（`build/installer.nsh` 早已注册）冷启动时都跳过主窗口。补齐 macOS：`electron-builder.yml` 的 `mac.extendInfo` 声明文件夹文档类型（`public.folder`，`LSHandlerRank: Alternate`，只作访达「打开方式」备选），补 `.markdown` 关联；`open-file` 改为文件夹也接收，统一走 `handleFileOrFolder`。
 
-## D-065 统计页并入今日页（一页三段）+ 今日页条目直达具体项
+## D-067 统计页并入今日页（一页三段）+ 今日页条目直达具体项
 
 （2026-09-26，已定）
 

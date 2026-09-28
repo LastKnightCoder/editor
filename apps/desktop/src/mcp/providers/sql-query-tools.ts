@@ -1,4 +1,5 @@
 import { invoke } from "@/electron";
+import { bindDatabaseCommands } from "@/services/command-context";
 import type { ToolParameterSchema } from "@/types";
 import type { MCPProviderDefinition } from "./types";
 
@@ -11,6 +12,7 @@ export const sqlQueryToolsProvider: MCPProviderDefinition = {
   tools: () => [
     {
       name: "sql_query",
+      risk: "read",
       description:
         "在当前主数据库执行单条只读 SQL 查询。优先使用显式列名、WHERE、JOIN 和 LIMIT；不要查询整表正文，正文 Markdown 和语义检索继续使用专用工具。遇到 SQL 错误时请根据结构化错误反馈修正表名、字段名或语法后重试。",
       parameters: {
@@ -37,8 +39,9 @@ export const sqlQueryToolsProvider: MCPProviderDefinition = {
         required: ["sql"],
         additionalProperties: false,
       },
-      executor: async args => {
-        const response = await invoke<{
+      executor: async (args, context) => {
+        const scoped = bindDatabaseCommands({ invoke }, context);
+        const response = await scoped.invoke<{
           result?: unknown;
           error?: { code: string; message: string; hint?: string };
         }>("sql-query", {

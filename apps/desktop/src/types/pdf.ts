@@ -1,6 +1,5 @@
 import { Descendant } from "slate";
 import type { PdfAnnotationObject, PdfBookmarkObject } from "@embedpdf/models";
-import type { ChatSessionMessage } from "./llm";
 
 export enum EHighlightColor {
   Red = "red",
@@ -160,34 +159,4 @@ export interface PdfAnnotationContext {
   snippet?: string;
   notes: Array<Note>;
   areaData?: AreaAnnotationData;
-}
-
-export interface PdfChatMessage {
-  id: number;
-  pdfId: number;
-  createTime: number;
-  updateTime: number;
-  messages: ChatSessionMessage[];
-  messageSchemaVersion?: number;
-  title: string;
-  archived?: boolean;
-  parentChatId?: number | null;
-  branchIndex?: number;
-}
-
-export interface CreatePdfChat {
-  pdfId: number;
-  messages: ChatSessionMessage[];
-  title?: string;
-  parentChatId?: number | null;
-  branchIndex?: number;
-}
-
-export interface UpdatePdfChat {
-  id: number;
-  messages?: ChatSessionMessage[];
-  title?: string;
-  archived?: boolean;
-  parentChatId?: number | null;
-  branchIndex?: number;
 }

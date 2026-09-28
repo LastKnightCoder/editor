@@ -1,3 +1,5 @@
+import { currentCommandScope, type CommandScope } from "@/services/command-context";
+
 const bridge = window.electron;
 
 export const platform: string = bridge?.platform ?? "web";
@@ -35,12 +37,18 @@ function unwrapRemoteError(error: unknown): unknown {
   return unwrapped;
 }
 
-async function invokeWithRetry<T>(channel: string, args: unknown[]): Promise<T> {
+async function invokeWithRetry<T>(
+  channel: string,
+  args: unknown[],
+  scope?: CommandScope
+): Promise<T> {
   const startedAt = Date.now();
   let lastError: unknown;
   while (Date.now() - startedAt <= RETRY_TIMEOUT_MS) {
+    scope?.signal?.throwIfAborted();
     try {
       const result = await ensureBridge().invoke<T>(channel, ...args);
+      scope?.signal?.throwIfAborted();
       ipcReady = true;
       return result;
     } catch (error) {
@@ -60,7 +68,12 @@ async function invokeWithRetry<T>(channel: string, args: unknown[]): Promise<T> 
 }
 
 export const invoke = <T = unknown>(channel: string, ...args: unknown[]): Promise<T> => {
-  return invokeWithRetry<T>(channel, args);
+  const scope = currentCommandScope();
+  return invokeWithRetry<T>(
+    channel,
+    scope?.databaseName ? [...args, { toolDatabaseName: scope.databaseName }] : args,
+    scope
+  );
 };
 
 // 以下三者对齐 HTTP 版语义：订阅与单向通知在无 bridge 环境（单测/浏览器预览）

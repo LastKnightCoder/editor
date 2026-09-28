@@ -1,5 +1,4 @@
 import type { StreamOption } from "./youtube";
-import type { ChatSessionMessage } from "./llm";
 
 export interface LocalVideoMetaInfo {
   type: "local";
@@ -68,36 +67,6 @@ export interface VideoNoteInsights {
     providerName?: string;
     modelName?: string;
   };
-}
-
-export interface VideoNoteChatMessage {
-  id: number;
-  videoNoteId: number;
-  createTime: number;
-  updateTime: number;
-  messages: ChatSessionMessage[];
-  messageSchemaVersion?: number;
-  title: string;
-  archived?: boolean;
-  parentChatId?: number | null;
-  branchIndex?: number;
-}
-
-export interface CreateVideoNoteChat {
-  videoNoteId: number;
-  messages: ChatSessionMessage[];
-  title?: string;
-  parentChatId?: number | null;
-  branchIndex?: number;
-}
-
-export interface UpdateVideoNoteChat {
-  id: number;
-  messages?: ChatSessionMessage[];
-  title?: string;
-  archived?: boolean;
-  parentChatId?: number | null;
-  branchIndex?: number;
 }
 
 export interface VideoNote {

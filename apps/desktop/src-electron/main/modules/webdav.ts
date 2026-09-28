@@ -4,6 +4,7 @@ import { Module } from "../types/module";
 import { basename } from "node:path";
 
 interface IWebDavUpload {
+  createOnly?: boolean;
   url: string;
   username: string;
   password: string;
@@ -34,19 +35,18 @@ class WebDavModule implements Module {
   }
 
   async init() {
-    ipcMain.handle(
-      "webdav-upload",
-      async (_event, uploadInfo: IWebDavUpload) => {
-        return await this.upload(uploadInfo);
-      },
-    );
+    ipcMain.handle("webdav-exists", async (_event, info: IWebDavDownload) => {
+      return createClient(info.url, { username: info.username, password: info.password }).exists(
+        info.remotePath
+      );
+    });
+    ipcMain.handle("webdav-upload", async (_event, uploadInfo: IWebDavUpload) => {
+      return await this.upload(uploadInfo);
+    });
 
-    ipcMain.handle(
-      "webdav-download",
-      async (_event, downloadInfo: IWebDavDownload) => {
-        return await this.download(downloadInfo);
-      },
-    );
+    ipcMain.handle("webdav-download", async (_event, downloadInfo: IWebDavDownload) => {
+      return await this.download(downloadInfo);
+    });
 
     ipcMain.handle("webdav-list", async (_event, listInfo: IWebDavList) => {
       return await this.list(listInfo);
@@ -78,7 +78,8 @@ class WebDavModule implements Module {
       const buffer = Buffer.from(file);
       await client.putFileContents(remotePath, buffer, {
         contentLength: buffer.byteLength,
-        overwrite: true,
+        overwrite: !uploadInfo.createOnly,
+        ...(uploadInfo.createOnly ? { headers: { "If-None-Match": "*" } } : {}),
       });
 
       // 构建文件 URL
@@ -152,9 +153,7 @@ class WebDavModule implements Module {
               name: item.basename || basename(item.filename || ""),
               path: item.filename,
               size: Number(item.size || 0),
-              lastModified: item.lastmod
-                ? new Date(item.lastmod).getTime()
-                : undefined,
+              lastModified: item.lastmod ? new Date(item.lastmod).getTime() : undefined,
             });
           } else if (item.type === "directory") {
             queue.push(item.filename);
