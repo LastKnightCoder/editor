@@ -65,6 +65,8 @@ export { default as useIsLastElement } from "./hooks/useIsLastElement";
 export { default as useUploadResource } from "./hooks/useUploadResource";
 export { createMarkdownPasteImportExtension } from "./extensions/markdown-paste-import";
 export type { MarkdownImportFn } from "./extensions/markdown-paste-import";
+export { default as PlantUMLExtension } from "./extensions/plantuml";
+export type { PlantUMLExtensionOptions } from "./extensions/plantuml";
 export { default as useEditorFeatures } from "./hooks/useEditorFeatures";
 export { useEditorTheme, EditorThemeScope } from "./theme/context";
 export type { EditorTheme } from "./theme/context";
