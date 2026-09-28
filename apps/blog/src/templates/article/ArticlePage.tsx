@@ -11,7 +11,7 @@ import { HeaderElement } from "@tau/editor";
 import { getInlineElementText } from "@blog/utils/editor";
 import DndProvider from "@blog/components/DndProvider";
 import { createBlogEditorRegistry, createBlogEditorConfig } from "@blog/services/editorRegistry";
-import { blogEditorExtensions } from "@blog/editorExtensions";
+import { createBlogEditorExtensions } from "@blog/editorExtensions";
 import useBlogTheme from "@blog/hooks/useBlogTheme";
 import { fadeUp, defaultTransition } from "@blog/utils/motion";
 
@@ -40,9 +40,10 @@ const ArticlePage = memo(() => {
   const blogSettings = initData.settings;
   const blogTheme = useBlogTheme();
   const blogEditorRegistry = useMemo(() => createBlogEditorRegistry(), []);
-  const blogEditorConfig = useMemo(
-    () => createBlogEditorConfig(blogSettings, blogTheme),
-    [blogSettings, blogTheme]
+  const blogEditorConfig = useMemo(() => createBlogEditorConfig(blogTheme), [blogTheme]);
+  const blogEditorExtensions = useMemo(
+    () => createBlogEditorExtensions(blogSettings),
+    [blogSettings]
   );
 
   const readingTime = useMemo(() => getReadingTime(article.content), [article.content]);

@@ -4,7 +4,11 @@ import { useEffect, useMemo, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { EditorProvider, createMarkdownPasteImportExtension } from "@tau/editor/src";
+import {
+  EditorProvider,
+  createImageExtensions,
+  createMarkdownPasteImportExtension,
+} from "@tau/editor/src";
 import WebviewExtension from "@tau/editor-webview";
 import {
   BilibiliVideoDepsProvider,
@@ -22,6 +26,7 @@ import {
 import {
   createMobileEditorRegistry,
   useMobileEditorConfig,
+  mobileImageAppearance,
   mobileImportFromMarkdown,
 } from "../services/editorRegistry";
 import { useBootstrap } from "../hooks/useBootstrap";
@@ -56,6 +61,7 @@ import "../pages";
 const mobileEditorExtensions = [
   createMarkdownPasteImportExtension(mobileImportFromMarkdown),
   new WebviewExtension(),
+  ...createImageExtensions({ appearance: mobileImageAppearance }),
 ];
 
 const EMPTY_VIEW_CONFIG = {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { createBlogEditorConfig } from "./editorRegistry";
+import { createBlogEditorConfig, getBlogImageAppearance } from "./editorRegistry";
 
 describe("blog/editorRegistry", () => {
   afterEach(() => {
@@ -9,7 +9,7 @@ describe("blog/editorRegistry", () => {
   });
 
   it("应优先读取发布页注入的图片外观 setting", () => {
-    const config = createBlogEditorConfig({
+    const appearance = getBlogImageAppearance({
       appearance: {
         image: {
           borderRadius: "lg",
@@ -18,15 +18,15 @@ describe("blog/editorRegistry", () => {
       },
     });
 
-    expect(config.appearance?.image?.borderRadius).toBe("lg");
-    expect(config.appearance?.image?.shadow).toBe("md");
+    expect(appearance.borderRadius).toBe("lg");
+    expect(appearance.shadow).toBe("md");
   });
 
   it("缺少发布 setting 时应回退到温和圆角和无阴影", () => {
-    const config = createBlogEditorConfig();
+    const appearance = getBlogImageAppearance();
 
-    expect(config.appearance?.image?.borderRadius).toBe("md");
-    expect(config.appearance?.image?.shadow).toBe("none");
+    expect(appearance.borderRadius).toBe("md");
+    expect(appearance.shadow).toBe("none");
   });
 
   it("暗色主题下应正确返回主题状态", () => {
@@ -50,6 +50,6 @@ describe("blog/editorRegistry", () => {
   it("显式传入主题时应覆盖文档主题", () => {
     document.documentElement.setAttribute("data-theme", "light");
 
-    expect(createBlogEditorConfig(undefined, "dark").theme.mode).toBe("dark");
+    expect(createBlogEditorConfig("dark").theme.mode).toBe("dark");
   });
 });

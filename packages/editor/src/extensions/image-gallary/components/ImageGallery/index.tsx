@@ -18,7 +18,7 @@ import useIsLastElement from "../../../../hooks/useIsLastElement";
 import EditorContextMenu from "../../../../components/EditorContextMenu";
 import type { ImageGalleryElement } from "../../../../types";
 import { EGalleryMode } from "../../../../constants";
-import { useEditorConfig } from "../../../../contexts/EditorConfig";
+import { useImageAppearance, type ImageAppearanceOption } from "../../../image/appearanceOption";
 import { buildImageGalleryMenuItems, imageGalleryActionsMap } from "../../utils/menuItems";
 
 import styles from "./index.module.less";
@@ -28,10 +28,11 @@ interface IImageGalleryProps {
   attributes: RenderElementProps["attributes"];
   element: ImageGalleryElement;
   children: RenderElementProps["children"];
+  appearance?: ImageAppearanceOption;
 }
 
 const ImageGallery = (props: IImageGalleryProps) => {
-  const { attributes, element, children } = props;
+  const { attributes, element, children, appearance: appearanceOption } = props;
   const {
     images,
     height = 200,
@@ -64,9 +65,9 @@ const ImageGallery = (props: IImageGalleryProps) => {
 
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
-  const config = useEditorConfig();
-  const effectiveBorderRadius = borderRadius ?? config?.appearance?.image?.borderRadius ?? "none";
-  const effectiveShadow = shadow ?? config?.appearance?.image?.shadow ?? "none";
+  const appearance = useImageAppearance(appearanceOption);
+  const effectiveBorderRadius = borderRadius ?? appearance?.borderRadius ?? "none";
+  const effectiveShadow = shadow ?? appearance?.shadow ?? "none";
 
   // 拖拽菜单
   const { menuProps, dragHandlerProps } = useDragHandlerMenu({

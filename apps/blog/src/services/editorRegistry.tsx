@@ -11,6 +11,7 @@ import {
   type ImageShadowPreset,
   type EditorSlots,
   type EditorConfig,
+  type ImageAppearanceConfig,
 } from "@tau/editor";
 import { AudioPlayer, VideoPlayer } from "@tau/shared";
 import { blogVideoContentProviders } from "../editor-providers/videoProviders";
@@ -104,20 +105,21 @@ export function createBlogEditorRegistry(): ServiceRegistry {
   });
 }
 
-/** Blog 编辑器全局配置：图片外观来自发布设置快照，主题取文档当前状态 */
-export function createBlogEditorConfig(
-  settingsSnapshot?: BlogPublishSettings,
-  theme?: "light" | "dark"
-): EditorConfig {
+/** 图片默认外观：来自发布设置快照，缺省为中圆角、无阴影 */
+export function getBlogImageAppearance(
+  settingsSnapshot?: BlogPublishSettings
+): ImageAppearanceConfig {
+  return {
+    borderRadius: getBlogImageSettingValue(settingsSnapshot, "borderRadius"),
+    shadow: getBlogImageSettingValue(settingsSnapshot, "shadow"),
+  };
+}
+
+/** Blog 编辑器全局配置：主题取文档当前状态 */
+export function createBlogEditorConfig(theme?: "light" | "dark"): EditorConfig {
   return {
     theme: {
       mode: theme ?? getDocumentTheme(),
-    },
-    appearance: {
-      image: {
-        borderRadius: getBlogImageSettingValue(settingsSnapshot, "borderRadius"),
-        shadow: getBlogImageSettingValue(settingsSnapshot, "shadow"),
-      },
     },
   };
 }

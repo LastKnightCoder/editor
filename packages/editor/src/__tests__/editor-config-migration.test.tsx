@@ -6,7 +6,15 @@ import type { Descendant } from "slate";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
-import { Editor, EditorProvider, PlantUMLExtension } from "../index";
+import {
+  Editor,
+  EditorProvider,
+  PlantUMLExtension,
+  type ImageAppearanceConfig,
+  type ImageAppearanceSource,
+} from "../index";
+import { useImageAppearance } from "../extensions/image/appearanceOption";
+import { createImageExtensions } from "../extensions/image/createImageExtensions";
 import {
   createServiceRegistry,
   createDefaultEditorSlots,
@@ -127,6 +135,60 @@ describe("P4 EditorConfig 拆解", () => {
       );
       expect(props.server).toBe("https://uml.example.com");
       expect(props.darkTheme).toBe("");
+    });
+  });
+
+  describe("appearance.image → image / image-gallery 扩展参数", () => {
+    const probe = async (option: Parameters<typeof useImageAppearance>[0]) => {
+      const seen: Array<ImageAppearanceConfig | undefined> = [];
+      const Probe = () => {
+        seen.push(useImageAppearance(option));
+        return null;
+      };
+      container = document.createElement("div");
+      root = createRoot(container);
+      await act(async () => {
+        root?.render(<Probe />);
+      });
+      return seen;
+    };
+
+    it("固定值直接生效", async () => {
+      const seen = await probe({ borderRadius: "lg", shadow: "md" });
+      expect(seen.at(-1)).toEqual({ borderRadius: "lg", shadow: "md" });
+    });
+
+    it("可订阅来源变化时刷新，不必重建扩展", async () => {
+      let current: ImageAppearanceConfig = { borderRadius: "sm" };
+      const listeners = new Set<() => void>();
+      const source: ImageAppearanceSource = {
+        get: () => current,
+        subscribe: listener => {
+          listeners.add(listener);
+          return () => listeners.delete(listener);
+        },
+      };
+      const seen = await probe(source);
+      expect(seen.at(-1)).toEqual({ borderRadius: "sm" });
+      await act(async () => {
+        current = { borderRadius: "lg", shadow: true };
+        listeners.forEach(listener => listener());
+      });
+      expect(seen.at(-1)).toEqual({ borderRadius: "lg", shadow: true });
+    });
+
+    it("createImageExtensions 同时覆盖 image 与 image-gallery，并把参数交给块组件", () => {
+      const appearance = { borderRadius: "md" as const };
+      const extensions = createImageExtensions({ appearance });
+      expect(extensions.map(extension => extension.type)).toEqual(["image", "image-gallery"]);
+      for (const extension of extensions) {
+        const element = extension.render({
+          attributes: {} as never,
+          element: { type: extension.type, children: [{ type: "formatted", text: "" }] },
+          children: null,
+        } as never);
+        expect((element.props as { appearance?: unknown }).appearance).toBe(appearance);
+      }
     });
   });
 });

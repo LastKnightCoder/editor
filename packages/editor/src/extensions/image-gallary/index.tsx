@@ -2,6 +2,7 @@ import { RenderElementProps } from "slate-react";
 import ImageGallery from "./components/ImageGallery";
 import Base from "../base";
 import IExtension from "../types";
+import type { ImageExtensionOptions } from "../image/appearanceOption";
 import type { ImageGalleryElement } from "../../types";
 
 import blockPanelItems from "./block-panel-items";
@@ -9,15 +10,19 @@ import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
 class ImageGalleryExtension extends Base implements IExtension {
   type = "image-gallery";
 
+  private readonly options: ImageExtensionOptions;
+
+  constructor(options: ImageExtensionOptions = {}) {
+    super();
+    this.options = options;
+  }
+
   override getBlockPanelItems() {
     return blockPanelItems;
   }
 
   override getPlugins() {
-    return [
-      createBlockElementPlugin(this.type),
-      createVoidElementPlugin(this.type),
-    ];
+    return [createBlockElementPlugin(this.type), createVoidElementPlugin(this.type)];
   }
 
   render(props: RenderElementProps) {
@@ -27,6 +32,7 @@ class ImageGalleryExtension extends Base implements IExtension {
       <ImageGallery
         attributes={attributes}
         element={element as ImageGalleryElement}
+        appearance={this.options.appearance}
       >
         {children}
       </ImageGallery>
