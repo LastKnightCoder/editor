@@ -30,12 +30,12 @@ function requireHostExtensions() {
 
 let cached: EditorKit | null = null;
 
-/** 库内内容（卡片、文章、日记、项目文档…）的 kit：内置 + 全部宿主扩展 */
+/** 库内内容（卡片、文章、日记、项目文档…存 slate JSON）的 kit：内置 + 全部宿主扩展 */
 export function getDesktopKit(): EditorKit {
   if (!cached) {
-    const { extensions, libraryBlockExtensions } = requireHostExtensions();
+    const { extensions } = requireHostExtensions();
     cached = createEditorKit({
-      extensions: [...createDesktopEditorExtensions(), ...extensions, ...libraryBlockExtensions],
+      extensions: [...createDesktopEditorExtensions(), ...extensions],
       services: [desktopEditorServices],
       // createImageExtensions 按 type 替换内置 image / image-gallery
       override: true,
@@ -44,18 +44,23 @@ export function getDesktopKit(): EditorKit {
   return cached;
 }
 
+/**
+ * 存不回 Markdown 的块：导出时数据会丢，所以编辑 .md 文件时连插入入口都不给。
+ * 判据是「在 desktop 的 codec 表里没有 serializer」，由 editorKit 的单测钉住。
+ */
+export const BLOCKS_LOST_IN_MARKDOWN = ["whiteboard", "database"];
+
 let fileCached: EditorKit | null = null;
 
-/**
- * Markdown 文件编辑的 kit：不含白板与数据库块。
- * 这两种块在 Markdown 里没有对应语法（数据库无 codec、白板只有 void 占位），
- * 插进去保存回 .md 会丢内容，所以连插入入口都不给。
- */
+/** Markdown 文件编辑的 kit：去掉存不回 Markdown 的块 */
 export function getDesktopFileKit(): EditorKit {
   if (!fileCached) {
     const { extensions } = requireHostExtensions();
     fileCached = createEditorKit({
-      extensions: [...createDesktopEditorExtensions(), ...extensions],
+      extensions: [
+        ...createDesktopEditorExtensions(),
+        ...extensions.filter(extension => !BLOCKS_LOST_IN_MARKDOWN.includes(extension.type)),
+      ],
       services: [desktopEditorServices],
       override: true,
     });

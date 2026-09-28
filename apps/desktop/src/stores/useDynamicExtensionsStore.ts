@@ -10,13 +10,7 @@ import { create } from "zustand";
  * 装载一次、之后不再变化；消费者只有 `services/editorKit.ts` 与各入口的 bootstrap。
  */
 interface IDynamicExtensionsStore {
-  /** 任何内容都支持的宿主扩展 */
   extensions: IExtension[];
-  /**
-   * 只有库内内容（存 slate JSON）支持的块。Markdown 文件里没有对应语法——
-   * 数据库没有 codec、白板只有 void 占位，插进去保存回 .md 会丢，所以文件编辑器不装这两个。
-   */
-  libraryBlockExtensions: IExtension[];
   /** 装载是否完成。建 kit 前据此拒绝，避免静默少扩展 */
   initialized: boolean;
   initExtensions: () => Promise<void>;
@@ -24,7 +18,6 @@ interface IDynamicExtensionsStore {
 
 const useDynamicExtensionsStore = create<IDynamicExtensionsStore>(set => ({
   extensions: [],
-  libraryBlockExtensions: [],
   initialized: false,
   initExtensions: async () => {
     const { contentLinkExtension, fileAttachmentExtension, inlineAIAssistantExtension } =
@@ -34,8 +27,13 @@ const useDynamicExtensionsStore = create<IDynamicExtensionsStore>(set => ({
       import("@/editor-extensions/database"),
     ]);
     set({
-      extensions: [contentLinkExtension, fileAttachmentExtension, inlineAIAssistantExtension],
-      libraryBlockExtensions: [new WhiteboardExtension(), new DatabaseExtension()],
+      extensions: [
+        contentLinkExtension,
+        fileAttachmentExtension,
+        inlineAIAssistantExtension,
+        new WhiteboardExtension(),
+        new DatabaseExtension(),
+      ],
       initialized: true,
     });
   },
