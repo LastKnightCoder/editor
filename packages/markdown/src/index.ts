@@ -5,6 +5,9 @@
 export {
   importFromMarkdown,
   importFromMarkdownWithPositions,
+  isMarkdownLikeText,
+  type ImportFromMarkdownOptions,
+  type CustomDirectiveHandler,
   type SlateWithPositions,
 } from "./markdown.ts";
 export {

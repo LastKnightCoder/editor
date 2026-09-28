@@ -1,7 +1,6 @@
 import { convertFileSrc as tauriConvertFileSrc } from "@tauri-apps/api/core";
 import { openUrl as tauriOpenUrl } from "@tauri-apps/plugin-opener";
 import {
-  importFromMarkdown as sharedImportFromMarkdown,
   createServiceRegistry,
   IEditorSlots,
   IFileService,
@@ -13,6 +12,7 @@ import {
   type ImageAppearanceConfig,
   type ImageAppearanceSource,
 } from "@tau/editor/src";
+import { importFromMarkdown as sharedImportFromMarkdown } from "@tau/markdown";
 import { markdownCustomDirectives } from "@tau/shared";
 import LocalAudio from "../components/editor/LocalAudio";
 import LocalImage from "../components/editor/LocalImage";

@@ -4,7 +4,7 @@ import type { RenderElementProps } from "slate-react";
 import Base from "../base";
 import IExtension from "../types";
 import { createMarkdownPasteImportPlugin } from "../../plugins/withMarkdownPasteImport";
-import type { ImportFromMarkdownOptions } from "../../utils/markdownImport";
+import type { ImportFromMarkdownOptions } from "../../plugins/withMarkdownPasteImport";
 
 export type MarkdownImportFn = (
   markdown: string,

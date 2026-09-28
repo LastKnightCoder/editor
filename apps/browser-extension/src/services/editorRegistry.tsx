@@ -9,7 +9,7 @@ import {
   type ServiceRegistry,
   type VideoContentProvider,
 } from "@tau/editor";
-import { importFromMarkdown } from "@tau/editor";
+import { importFromMarkdown } from "@tau/markdown";
 import { markdownCustomDirectives } from "@tau/shared";
 import type WebSocketClient from "../utils/WebSocketClient";
 import type { ResolvedTheme } from "../utils/types";

@@ -561,6 +561,10 @@ const markdownToDescendant = (
       children: [],
     };
   } else if (node.type === "containerDirective") {
+    const customContainerHandler = getCurrentParseContext().customDirectiveHandlers.get(node.name);
+    if (customContainerHandler) {
+      return customContainerHandler(node.attributes || {});
+    }
     if (["note", "tip", "warning", "info", "danger"].includes(node.name)) {
       return {
         type: "callout",
@@ -620,6 +624,7 @@ const markdownToDescendant = (
         element.isFromGenerate = node.attributes.isFromGenerate === "true";
       }
       if (node.attributes.audioText) element.audioText = node.attributes.audioText;
+      if (node.attributes.title) element.title = node.attributes.title;
       return element;
     } else if (node.name === "file-attachment") {
       const element: FileAttachmentElement = {
@@ -705,12 +710,20 @@ const markdownToDescendant = (
       text: node.value,
     };
   } else if (node.type === "leafDirective") {
+    const customLeafHandler = getCurrentParseContext().customDirectiveHandlers.get(node.name);
+    if (customLeafHandler) {
+      return customLeafHandler(node.attributes || {});
+    }
     return {
       type: "formatted",
       text: `::${node.name}`,
     };
   } else if (node.type === "textDirective") {
     const attributes = node.attributes || {};
+    const customTextHandler = getCurrentParseContext().customDirectiveHandlers.get(node.name);
+    if (customTextHandler) {
+      return customTextHandler(attributes);
+    }
     const color = attributes.color || "";
     const darkColor = attributes.darkColor || "";
     const textGradient = resolveTextGradientPreset(attributes.preset);
@@ -887,7 +900,7 @@ const markdownToDescendant = (
     };
   } else if (node.type === "footnoteReference") {
     // 将脚注引用转换为 annotation
-    const content = footnoteDefinitionsMap.get(node.identifier) || "";
+    const content = getCurrentParseContext().footnoteDefinitions.get(node.identifier) || "";
     return {
       type: "annotation",
       content,
@@ -926,8 +939,43 @@ const markdownToDescendant = (
   }
 };
 
-// 全局脚注定义映射
-const footnoteDefinitionsMap: Map<string, string> = new Map();
+/** 业务 directive 解析器：键为 directive 名，返回 null 视为丢弃该节点 */
+export type CustomDirectiveHandler = (
+  attributes: Record<string, string | undefined>
+) => Descendant | null;
+
+export interface ImportFromMarkdownOptions {
+  /** 宿主注册的业务 directive（container / leaf / text 三种都查），优先于内置分支 */
+  customDirectives?: Record<string, CustomDirectiveHandler>;
+}
+
+/** 单次导入的解析上下文：随导入调用入栈 / 出栈，嵌套导入（handler 内再次导入）互不干扰 */
+interface MarkdownParseContext {
+  footnoteDefinitions: Map<string, string>;
+  customDirectiveHandlers: Map<string, CustomDirectiveHandler>;
+}
+
+const parseContextStack: MarkdownParseContext[] = [];
+
+const getCurrentParseContext = (): MarkdownParseContext => {
+  const context = parseContextStack[parseContextStack.length - 1];
+  if (!context) {
+    throw new Error("[markdown] 解析上下文缺失：解析逻辑必须在导入函数调用内执行");
+  }
+  return context;
+};
+
+const withParseContext = <T>(options: ImportFromMarkdownOptions | undefined, run: () => T): T => {
+  parseContextStack.push({
+    footnoteDefinitions: new Map(),
+    customDirectiveHandlers: new Map(Object.entries(options?.customDirectives ?? {})),
+  });
+  try {
+    return run();
+  } finally {
+    parseContextStack.pop();
+  }
+};
 
 // 提取节点中的文本内容
 const extractTextFromNode = (node: unknown): string => {
@@ -1090,10 +1138,16 @@ const isVoidSlateElementType = (type: string): boolean => {
  */
 export const importFromMarkdownWithPositions = (
   markdown: string,
-  ignoreTypes: string[] = []
+  ignoreTypes: string[] = [],
+  options?: ImportFromMarkdownOptions
+): SlateWithPositions =>
+  withParseContext(options, () => importWithPositionsInContext(markdown, ignoreTypes));
+
+const importWithPositionsInContext = (
+  markdown: string,
+  ignoreTypes: string[]
 ): SlateWithPositions => {
-  // 重置脚注定义映射
-  footnoteDefinitionsMap.clear();
+  const footnoteDefinitions = getCurrentParseContext().footnoteDefinitions;
 
   const positionMap = new PositionMapper();
 
@@ -1114,7 +1168,7 @@ export const importFromMarkdownWithPositions = (
     for (const node of nodes) {
       if (node.type === "footnoteDefinition") {
         const content = extractTextFromNode(node);
-        footnoteDefinitionsMap.set(node.identifier, content);
+        footnoteDefinitions.set(node.identifier, content);
       }
     }
   };
@@ -1480,9 +1534,14 @@ export const importFromMarkdownWithPositions = (
   };
 };
 
-export const importFromMarkdown = (markdown: string, ignoreTypes: string[] = []): Descendant[] => {
-  // 重置脚注定义映射
-  footnoteDefinitionsMap.clear();
+export const importFromMarkdown = (
+  markdown: string,
+  ignoreTypes: string[] = [],
+  options?: ImportFromMarkdownOptions
+): Descendant[] => withParseContext(options, () => importInContext(markdown, ignoreTypes));
+
+const importInContext = (markdown: string, ignoreTypes: string[]): Descendant[] => {
+  const footnoteDefinitions = getCurrentParseContext().footnoteDefinitions;
   // 历史版本曾为绕过 CJK 加粗解析问题在 markdown 中驻留零宽空格，导入时剥离净化；
   // importFromMarkdownWithPositions 因位置映射绑定原始串，不做剥离
   const sanitized = markdown.replace(/\u200B/g, "");
@@ -1504,7 +1563,7 @@ export const importFromMarkdown = (markdown: string, ignoreTypes: string[] = [])
       if (node.type === "footnoteDefinition") {
         // 提取脚注内容
         const content = extractTextFromNode(node);
-        footnoteDefinitionsMap.set(node.identifier, content);
+        footnoteDefinitions.set(node.identifier, content);
       }
     }
   };
@@ -1701,4 +1760,31 @@ const normalizeEditorContent = (
     result.push(element);
   }
   return result;
+};
+
+/** 粗判一段纯文本是否像 Markdown（粘贴时决定要不要按 Markdown 导入） */
+export const isMarkdownLikeText = (text: string): boolean => {
+  if (!text.trim()) return false;
+
+  const markdownPatterns = [
+    /^\s{0,3}#{1,6}\s+/m,
+    /^\s*[-*+]\s+/m,
+    /^\s*\d+\.\s+/m,
+    /^\s*>\s+/m,
+    /(^|\n)\s*(```|~~~)/,
+    /!\[[^\]]*\]\([^)]+\)/,
+    /\[[^\]]+\]\([^)]+\)/,
+    /(^|\n)\s*:::[^\n]*/m,
+    /(^|\n)\s*::[a-zA-Z-]+(?:\{|\s|$)/m,
+    /(^|\n)\s*:[a-zA-Z-]+\[/m,
+  ];
+
+  if (markdownPatterns.some(pattern => pattern.test(text))) {
+    return true;
+  }
+
+  const hasTableRow = /^\s*\|.*\|\s*$/m.test(text);
+  const hasTableDivider = /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/m.test(text);
+
+  return hasTableRow && hasTableDivider;
 };

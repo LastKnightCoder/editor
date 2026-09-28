@@ -28,7 +28,7 @@ import {
   VerticalAlignBottomOutlined,
   VerticalAlignTopOutlined,
 } from "@ant-design/icons";
-import { importFromMarkdown, isMarkdownLikeText } from "@tau/editor/src";
+import { importFromMarkdown, isMarkdownLikeText } from "@tau/markdown";
 import { Descendant } from "slate";
 
 export class CopyPastePlugin implements IBoardPlugin {

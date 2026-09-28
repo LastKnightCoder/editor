@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { retireEditorBlocks } from "@tau/db-schema/src/editor-block-retirement";
 import { EDITOR_BLOCK_CARRIERS } from "@tau/db-schema/src/retired-editor-blocks";
-import { importFromMarkdown } from "@tau/editor/src/utils/markdownImport";
+import { importFromMarkdown } from "@tau/markdown";
 
 const directories: string[] = [];
 const databases: Database.Database[] = [];
