@@ -102,6 +102,24 @@
       "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "http.server", "8814", "-d", "apps/desktop/mockups"],
       "port": 8814
+    },
+    {
+      "name": "blog",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "apps/blog", "exec", "vite", "--port", "6231", "--strictPort"],
+      "port": 6231
+    },
+    {
+      "name": "mobile-web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "apps/mobile", "exec", "vite", "--port", "6232", "--strictPort"],
+      "port": 6232
+    },
+    {
+      "name": "blog-p4",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "apps/blog", "exec", "vite", "--port", "6233", "--strictPort"],
+      "port": 6233
     }
   ]
 }
