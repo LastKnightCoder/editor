@@ -17,6 +17,7 @@ import { Button, Dialog, DialogBody, Input, cn, toast } from "@tau/ui";
 import { PROJECT_TYPE_META } from "../projectTypeMeta";
 import { useProjectMutations, type CreateProjectInput } from "../queries";
 import { PROJECT_TYPE_KEYS } from "../types";
+import { getDescriptionKit } from "@/services/editorKit";
 
 const EMPTY_DESC: Descendant[] = [
   { type: "paragraph", children: [{ type: "formatted", text: "" }] },
@@ -172,6 +173,7 @@ export function CreateProjectDialog({
               <ErrorBoundary>
                 <ContentEditor
                   ref={editorRef}
+                  kit={getDescriptionKit()}
                   initValue={desc}
                   readonly={false}
                   onChange={setDesc}

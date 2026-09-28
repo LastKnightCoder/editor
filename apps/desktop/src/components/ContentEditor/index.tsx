@@ -29,7 +29,8 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
     const editorRef = useRef<EditorRef | null>(null);
     callback.current = props.onChange;
     const presence = useCollaborationPresence(binding, readonly || frozen);
-    const kit = useCollaborationKit(binding);
+    // 场景 kit 要经协作派生（共享模式下资源与音视频服务被覆盖），不能让 props.kit 直接覆盖
+    const kit = useCollaborationKit(binding, props.kit);
     useEffect(() => {
       const loadError = sessionError || (!binding && error);
       if (loadError) onLoadError?.(loadError);
@@ -54,8 +55,8 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
           </div>
         )}
         <Editor
-          kit={kit}
           {...props}
+          kit={kit}
           key={`${contentId || "local"}:${documentId || "local"}`}
           ref={value => {
             editorRef.current = value;

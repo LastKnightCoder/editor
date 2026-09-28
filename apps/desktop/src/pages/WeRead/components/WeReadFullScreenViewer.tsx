@@ -1,16 +1,11 @@
-import { memo, useMemo } from "react";
-import { getDesktopKit } from "@/services/editorKit";
+import { memo } from "react";
+import { getWeReadKit } from "../extensions";
 import { motion } from "motion/react";
 import { MdArrowBack } from "react-icons/md";
 import classNames from "classnames";
 import type { Descendant } from "slate";
 import { Editor } from "@tau/editor/src";
 import type { RowData } from "@/components/Database/types";
-import {
-  WeReadMetadataExtension,
-  WeReadChapterExtension,
-  WeReadBookmarkExtension,
-} from "../extensions";
 import useThemeColors from "@/hooks/useThemeColors";
 
 const DEFAULT_DETAIL_CONTENT: Descendant[] = [
@@ -35,14 +30,6 @@ interface WeReadFullScreenViewerProps {
 export const WeReadFullScreenViewer: React.FC<WeReadFullScreenViewerProps> = memo(props => {
   const { open, row, content, onClose } = props;
   const themeColors = useThemeColors();
-  // 创建微信读书扩展实例
-  const wereadExtensions = useMemo(() => {
-    return [
-      new WeReadMetadataExtension(),
-      new WeReadChapterExtension(),
-      new WeReadBookmarkExtension(),
-    ];
-  }, []);
 
   if (!open) return null;
 
@@ -95,10 +82,9 @@ export const WeReadFullScreenViewer: React.FC<WeReadFullScreenViewerProps> = mem
       <div className="flex-1 overflow-auto">
         <div className="mx-auto max-w-4xl px-6 py-8">
           <Editor
-            kit={getDesktopKit()}
+            kit={getWeReadKit()}
             key={row?.id}
             initValue={content || DEFAULT_DETAIL_CONTENT}
-            extensions={wereadExtensions}
             onChange={() => {
               // Changes are handled in bookmark components
             }}

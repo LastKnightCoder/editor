@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { getDesktopKit } from "@/services/editorKit";
+import { getDescriptionKit } from "@/services/editorKit";
 import { useMemoizedFn } from "ahooks";
 import { InputNumber, AutoComplete } from "antd";
 import { produce } from "immer";
@@ -97,7 +97,7 @@ const EditRecordModal = (props: EditRecordModalProps) => {
         <div className={styles.content}>
           <div>事件：</div>
           <Editor
-            kit={getDesktopKit()}
+            kit={getDescriptionKit()}
             style={{ flex: "auto" }}
             initValue={editingTimeRecord.content}
             onChange={onContentChange}

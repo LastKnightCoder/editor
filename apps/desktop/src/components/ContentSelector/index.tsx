@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { getDesktopKit } from "@/services/editorKit";
+import { getLibraryContentKit } from "@/services/editorKit";
 import { Tag } from "antd";
 import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
@@ -212,7 +212,7 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
                     <ErrorBoundary>
                       <div className="text-sm text-gray-600 dark:text-slate-400">
                         <Editor
-                          kit={getDesktopKit()}
+                          kit={getLibraryContentKit()}
                           readonly={true}
                           initValue={item.content.slice(0, 3)}
                         />

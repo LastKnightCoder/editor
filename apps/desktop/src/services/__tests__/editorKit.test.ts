@@ -1,5 +1,8 @@
 /**
- * 装载守卫（docs/editor-refactor P6.5）：kit 只建一次，宿主扩展没就位就建会静默少块。
+ * 场景 kit 的扩展集基线（docs/editor-refactor P6.6、ER-016 / ER-017）。
+ *
+ * 这些断言就是「哪个场景该有什么能力」的唯一可执行记录：改动任何一个 kit 的扩展集都会让
+ * 这里失败，迫使改动者说明理由。P6.5 曾在没有这层守护时静默改掉 36 个调用点的扩展集。
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type IExtension from "@tau/editor/src/extensions/types";
@@ -14,33 +17,83 @@ const extensionOf = (type: string) =>
     render: () => null,
   }) as unknown as IExtension;
 
+/** desktop 静态扩展（markdown 粘贴导入、webview、图片覆盖）在此用 webview 一个哨兵代表 */
 vi.mock("@/editor-extensions", () => ({
   createDesktopEditorExtensions: () => [extensionOf("webview")],
+  fileAttachmentExtension: extensionOf("file-attachment"),
+}));
+vi.mock("@/editor-extensions/flashcard-blank", () => ({
+  default: class {
+    type = "flashcard-blank";
+    getPlugins = () => [];
+    getHotkeyConfigs = () => [];
+    getBlockPanelItems = () => [];
+    getHoveringBarElements = () => [];
+    render = () => null;
+  },
 }));
 vi.mock("../editorRegistry", () => ({ desktopEditorServices: () => {} }));
 
-const typesOf = (kit: { extensions: readonly IExtension[] }) =>
-  kit.extensions.map(extension => extension.type);
+const HOST = ["content-link", "file-attachment", "inline-ai-assistant", "whiteboard", "database"];
+const TRACKED = new Set([...HOST, "webview", "flashcard-blank"]);
 
-describe("desktop editor kit", { timeout: 30_000 }, () => {
+const loadStore = async () => {
+  const store = (await import("@/stores/useDynamicExtensionsStore")).default;
+  store.setState({ extensions: HOST.map(extensionOf), initialized: true });
+};
+
+/** 只看非内置的 type：内置扩展由内核补齐，不是场景差异所在 */
+const extrasOf = (kit: { extensions: readonly IExtension[] }) =>
+  kit.extensions
+    .map(extension => extension.type)
+    .filter(type => TRACKED.has(type))
+    .sort();
+
+describe("desktop 场景 kit", { timeout: 30_000 }, () => {
   beforeEach(() => {
     vi.resetModules();
   });
 
   it("宿主扩展未装载时拒绝建 kit，而不是静默少扩展", async () => {
-    const { getDesktopKit } = await import("../editorKit");
-    expect(() => getDesktopKit()).toThrow(/宿主扩展尚未装载/);
+    const { getLibraryContentKit } = await import("../editorKit");
+    expect(() => getLibraryContentKit()).toThrow(/宿主扩展尚未装载/);
   });
 
-  it("装载后 kit 含宿主扩展，调用点不必再传", async () => {
-    const store = (await import("@/stores/useDynamicExtensionsStore")).default;
-    store.setState({
-      extensions: [extensionOf("content-link"), extensionOf("whiteboard")],
-      initialized: true,
-    });
-    const { getDesktopKit } = await import("../editorKit");
-    expect(typesOf(getDesktopKit())).toEqual(
-      expect.arrayContaining(["webview", "content-link", "whiteboard"])
-    );
+  it("库内正文：底座 + 全部宿主扩展", async () => {
+    await loadStore();
+    const { getLibraryContentKit } = await import("../editorKit");
+    expect(extrasOf(getLibraryContentKit())).toEqual([...HOST, "webview"].sort());
+  });
+
+  it("简短描述输入：只有底座，不含任何库内块", async () => {
+    await loadStore();
+    const { getDescriptionKit } = await import("../editorKit");
+    expect(extrasOf(getDescriptionKit())).toEqual(["webview"]);
+  });
+
+  it("Markdown 文件：底座 + 附件，不含白板与数据库（存不回 .md）", async () => {
+    await loadStore();
+    const { getMarkdownFileKit } = await import("../editorKit");
+    expect(extrasOf(getMarkdownFileKit())).toEqual(["file-attachment", "webview"]);
+  });
+
+  it("skill 文件：只有底座（历来不装附件）", async () => {
+    await loadStore();
+    const { getSkillFileKit } = await import("../editorKit");
+    expect(extrasOf(getSkillFileKit())).toEqual(["webview"]);
+  });
+
+  it("闪卡：底座 + 填空；blanks: false 时不装填空", async () => {
+    await loadStore();
+    const { getFlashcardKit } = await import("../editorKit");
+    expect(extrasOf(getFlashcardKit())).toEqual(["flashcard-blank", "webview"]);
+    expect(extrasOf(getFlashcardKit({ blanks: false }))).toEqual(["webview"]);
+  });
+
+  it("同一场景反复取到同一个 kit 实例（否则编辑器会被重建）", async () => {
+    await loadStore();
+    const { getLibraryContentKit, getDescriptionKit } = await import("../editorKit");
+    expect(getLibraryContentKit()).toBe(getLibraryContentKit());
+    expect(getDescriptionKit()).not.toBe(getLibraryContentKit());
   });
 });

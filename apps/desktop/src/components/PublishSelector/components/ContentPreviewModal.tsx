@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { getDesktopKit } from "@/services/editorKit";
+import { getLibraryContentKit } from "@/services/editorKit";
 import { Descendant } from "slate";
 import { Dialog, DialogBody } from "@tau/ui";
 import { FileText } from "lucide-react";
@@ -49,7 +49,7 @@ export const ContentPreviewModal = memo<ContentPreviewModalProps>(
 
             <div className="flex-1 overflow-y-auto">
               <Editor
-                kit={getDesktopKit()}
+                kit={getLibraryContentKit()}
                 key={contentKey}
                 initValue={content}
                 readonly

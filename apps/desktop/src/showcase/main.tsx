@@ -18,7 +18,7 @@ import { ShowcaseApp } from "./ShowcaseApp";
 // 对话工具渲染档案与真实聊天同一注册表（自定义渲染器 → ToolCallRow 兜底）
 initToolCallRenderers();
 
-// 富文本预览（知识检索、内容编辑 diff 视图）里的编辑器与真实壳层用同一个 getDesktopKit()，
+// 富文本预览（知识检索、内容编辑 diff 视图）里的编辑器与真实壳层用同一个 getLibraryContentKit()，
 // 扩展与服务因此与壳层一致，档案里看到的就是真实渲染结果
 function ShowcaseRoot() {
   return (

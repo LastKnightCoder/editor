@@ -1,5 +1,5 @@
 import { useRef, useState, memo } from "react";
-import { getDesktopKit } from "@/services/editorKit";
+import { getDescriptionKit } from "@/services/editorKit";
 import classnames from "classnames";
 import { Tag } from "antd";
 
@@ -62,7 +62,7 @@ const TimeRecordItem = memo((props: TimeRecordItemProps) => {
         )}
       </div>
       <Editor
-        kit={getDesktopKit()}
+        kit={getDescriptionKit()}
         key={JSON.stringify(timeRecord.content) + timeRecord.id}
         className={styles.content}
         initValue={timeRecord.content}
