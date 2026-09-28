@@ -79,7 +79,8 @@ export class RichTextPlugin extends CommonPlugin {
             richText.id,
             richText.content,
             targetWidth,
-            getTextBoxPadding(resolveTextStyle(richText))
+            getTextBoxPadding(resolveTextStyle(richText)),
+            richText.contentId
           );
         },
       },

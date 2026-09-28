@@ -1,5 +1,7 @@
 import { createRoot } from "react-dom/client";
 import { getContentKit } from "@/services/editorKit";
+import { collaborationKit } from "@/hooks/useCollaborationKit";
+import { getContentBinding } from "@/services/contentBindings";
 import { Editor } from "@tau/editor";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -15,6 +17,13 @@ const DEFAULT_PADDING: TextBoxPadding = {
   bottom: TEXT_BOX.paddingY,
   left: TEXT_BOX.paddingX,
 };
+
+/**
+ * 测量用的 kit：共享模式下必须与真实渲染（ContentEditor 经 useCollaborationKit 派生）一致，
+ * 否则远端资源解析不出来、块尺寸与屏上不同，测出的高度偏小。
+ */
+const measurementKit = (contentId?: number) =>
+  collaborationKit(getContentBinding(contentId), getContentKit());
 
 // 服务注册表内的服务实现均为惰性单例，无需额外缓存
 
@@ -57,7 +66,8 @@ export class DOMSizeMeasurer {
     elementId: string,
     content: Descendant[],
     targetWidth: number,
-    padding: TextBoxPadding = DEFAULT_PADDING
+    padding: TextBoxPadding = DEFAULT_PADDING,
+    contentId?: number
   ): Promise<number> {
     // 策略1：尝试克隆已存在的 DOM 元素
     // 修复：使用正确的 ID 格式 rich-text-container-${elementId}
@@ -71,7 +81,7 @@ export class DOMSizeMeasurer {
     }
 
     // 策略2：使用 Editor 渲染测量
-    return this.measureByRendering(content, targetWidth, padding);
+    return this.measureByRendering(content, targetWidth, padding, contentId);
   }
 
   /**
@@ -88,7 +98,8 @@ export class DOMSizeMeasurer {
   static async measureRichTextWidth(
     elementId: string,
     content: Descendant[],
-    padding: TextBoxPadding = DEFAULT_PADDING
+    padding: TextBoxPadding = DEFAULT_PADDING,
+    contentId?: number
   ): Promise<number> {
     // 策略1：尝试克隆已存在的 DOM 元素
     const existingWidth = await this.measureWidthByCloning(
@@ -100,7 +111,7 @@ export class DOMSizeMeasurer {
     }
 
     // 策略2：使用 Editor 渲染测量
-    return this.measureWidthByRendering(content, padding);
+    return this.measureWidthByRendering(content, padding, contentId);
   }
 
   /**
@@ -221,7 +232,8 @@ export class DOMSizeMeasurer {
   private static async measureByRendering(
     content: Descendant[],
     targetWidth: number,
-    padding: TextBoxPadding
+    padding: TextBoxPadding,
+    contentId?: number
   ): Promise<number> {
     const container = this.getContainer();
     const measureId = `measure-${++this.measurementId}`;
@@ -271,7 +283,7 @@ export class DOMSizeMeasurer {
               ["--block-distance" as string]: RICH_TEXT_BLOCK_DISTANCE,
             }}
           >
-            <Editor kit={getContentKit()} initValue={content} readonly={true} />
+            <Editor kit={measurementKit(contentId)} initValue={content} readonly={true} />
           </div>
         </DndProvider>
       );
@@ -360,7 +372,8 @@ export class DOMSizeMeasurer {
    */
   private static async measureWidthByRendering(
     content: Descendant[],
-    padding: TextBoxPadding
+    padding: TextBoxPadding,
+    contentId?: number
   ): Promise<number> {
     const container = this.getContainer();
     const measureId = `measure-width-${++this.measurementId}`;
@@ -406,7 +419,7 @@ export class DOMSizeMeasurer {
               ["--block-distance" as string]: RICH_TEXT_BLOCK_DISTANCE,
             }}
           >
-            <Editor kit={getContentKit()} initValue={content} readonly={true} />
+            <Editor kit={measurementKit(contentId)} initValue={content} readonly={true} />
           </div>
         </DndProvider>
       );

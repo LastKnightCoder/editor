@@ -28,6 +28,8 @@ export interface CollaborationIpcContext {
   assets: CollaborationAssetService;
   serverUrl(): string;
   sessions: Map<string, RuntimeSession>;
+  /** 按 documentId 找会话，并解析升级 / 降级换身份留下的旧 id */
+  findSession(id: string): RuntimeSession | undefined;
   views: Map<string, { documentId: string; windowId: number; clientIds: number[] }>;
   state(): CollaborationState;
   changed(session?: RuntimeSession): void;

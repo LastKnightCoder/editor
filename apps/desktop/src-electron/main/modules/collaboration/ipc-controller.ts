@@ -106,7 +106,8 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
     const window = BrowserWindow.fromWebContents(event.sender);
     if (!window) throw new Error("窗口已关闭");
     context.views.set(viewId, {
-      documentId: id,
+      // 视图按会话当前身份登记：换身份时 rekeySession 会一并改写
+      documentId: session.info.id,
       windowId: window.id,
       clientIds: [],
     });
@@ -131,7 +132,7 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
     const view = context.views.get(viewId);
     if (
       !view ||
-      view.documentId !== id ||
+      view.documentId !== session.info.id ||
       view.windowId !== BrowserWindow.fromWebContents(event.sender)?.id ||
       typeof collabId !== "string" ||
       collabId.length > 100 ||
@@ -142,12 +143,12 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
     const serialized = JSON.stringify(node);
     if (serialized.length > 1024 * 1024) throw new Error("本地组件数据超过大小限制");
     session.privateNodes.set(collabId, JSON.parse(serialized));
-    context.store.privateNodes(id, session.privateNodes);
+    context.store.privateNodes(session.info.id, session.privateNodes);
     session.projectionDirty = true;
   });
   handle("unsubscribe", (_event, viewId: string) => context.removeView(viewId));
   handle("discard-local", async (_event, id: string) => {
-    const session = context.sessions.get(id);
+    const session = context.findSession(id);
     if (!session) return;
     const unavailable =
       session.info.leaving ||
@@ -163,7 +164,7 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
     if (
       viewId &&
       (!view ||
-        view.documentId !== id ||
+        view.documentId !== session.info.id ||
         view.windowId !== BrowserWindow.fromWebContents(event.sender)?.id)
     )
       throw new Error("编辑视图已失效");
@@ -173,17 +174,17 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
     if (update.byteLength > 8 * 1024 * 1024) throw new Error("编辑更新超过大小限制");
     const bytes = new Uint8Array(update);
     Y.decodeUpdate(bytes);
-    context.store.append(id, bytes);
+    context.store.append(session.info.id, bytes);
     Y.applyUpdate(session.doc, bytes, "renderer-persisted");
     context.changed(session);
   });
   handle("awareness", (event, id: string, viewId: string, update: Uint8Array, clientId: number) => {
-    const session = context.sessions.get(id);
+    const session = context.findSession(id);
     const view = context.views.get(viewId);
     if (
       !session ||
       !view ||
-      view.documentId !== id ||
+      view.documentId !== session.info.id ||
       view.windowId !== BrowserWindow.fromWebContents(event.sender)?.id ||
       update.byteLength > 16384
     )
@@ -217,7 +218,7 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
       const session = context.requireSession(id);
       if (file.bytes.byteLength > 25 * 1024 * 1024) throw new Error("文件超过 25 MB");
       session.provider?.detach();
-      const reference = await context.assets.enqueue(id, file);
+      const reference = await context.assets.enqueue(session.info.id, file);
       session.info.pending = true;
       context.changed(session);
       void context.flushResources();
@@ -226,6 +227,6 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
   );
   handle("resource", (_event, id: string, assetId: string) => {
     const session = context.requireSession(id);
-    return context.assets.resolve(session.info.serverUrl, id, assetId);
+    return context.assets.resolve(session.info.serverUrl, session.info.id, assetId);
   });
 }

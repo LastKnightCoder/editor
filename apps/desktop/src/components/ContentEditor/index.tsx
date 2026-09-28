@@ -1,11 +1,9 @@
-import { forwardRef, useEffect, useMemo, useRef, type ComponentProps, type ReactNode } from "react";
+import { forwardRef, useEffect, useRef, type ComponentProps, type ReactNode } from "react";
 import { LoadingOutlined } from "@ant-design/icons";
 import { Editor, type EditorRef } from "@tau/editor/src";
-import { createYjsDocument } from "@tau/editor-collab";
-import { useCollaborationKit } from "@/components/CollaborationEditor/useCollaborationKit";
-import useCollaborationDocument from "@/hooks/useCollaborationDocument";
+import { useCollaborationKit } from "@/hooks/useCollaborationKit";
 import useCollaborationStore from "@/stores/useCollaborationStore";
-import useContentSession from "@/hooks/useContentSession";
+import useContentDocument from "@/hooks/useContentDocument";
 import useCollaborationPresence from "@/hooks/useCollaborationPresence";
 import type { ContentSessionTarget } from "@tau/collaboration";
 import type { Descendant } from "slate";
@@ -22,26 +20,24 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
   ({ contentId, source, onLoadError, fallback, ...props }, ref) => {
     const sessions = useCollaborationStore(state => state.sessions);
     const readonly = props.readonly ?? true;
-    const { entry, error: sessionError } = useContentSession(contentId, source);
-    const documentId = entry?.documentId;
-    const session = sessions.find(item => item.id === documentId);
-    const { binding, article, error, frozen } = useCollaborationDocument(documentId);
+    const { document, binding, article, error, sessionError, frozen, swapping } =
+      useContentDocument(contentId, source);
+    const session = sessions.find(item => item.id === binding?.doc.guid);
     const callback = useRef(props.onChange);
     const editorRef = useRef<EditorRef | null>(null);
     callback.current = props.onChange;
     const presence = useCollaborationPresence(binding, readonly || frozen);
     // 场景 kit 要经协作派生（共享模式下资源与音视频服务被覆盖），不能让 props.kit 直接覆盖
     const kit = useCollaborationKit(binding, props.kit);
-    const document = useMemo(() => (binding ? createYjsDocument(binding) : undefined), [binding]);
     useEffect(() => {
-      const loadError = sessionError || (!binding && error);
+      const loadError = sessionError || (!document && error);
       if (loadError) onLoadError?.(loadError);
-    }, [sessionError, error, binding, onLoadError]);
+    }, [sessionError, error, document, onLoadError]);
     useEffect(() => {
       if (binding && article && editorRef.current)
         callback.current?.(article.content as Descendant[], editorRef.current.getEditor());
     }, [binding, article]);
-    if (contentId && !binding) {
+    if (contentId && !document) {
       if (fallback !== undefined && !sessionError && !error) return <>{fallback}</>;
       return (
         <div role="status" className="text-text-3 flex min-h-40 items-center justify-center">
@@ -59,15 +55,16 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
         <Editor
           {...props}
           kit={kit}
-          key={`${contentId || "local"}:${documentId || "local"}`}
           ref={value => {
             editorRef.current = value;
             if (typeof ref === "function") ref(value);
             else if (ref) ref.current = value;
           }}
           document={document}
-          readonly={readonly || frozen || Boolean(session && session.status !== "active")}
-          onChange={binding ? undefined : props.onChange}
+          readonly={
+            readonly || frozen || swapping || Boolean(session && session.status !== "active")
+          }
+          onChange={document ? undefined : props.onChange}
           onFocus={() => {
             presence.onFocus();
             props.onFocus?.();
