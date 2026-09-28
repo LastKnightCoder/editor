@@ -1,14 +1,16 @@
 # pi 迁移交接文档（refactor/pi-harness 分支）
 
-> 2026-09-28 交接（M2-f 完成；M3 全部完成——M3-a~h 已提交，**第 6 项 WSL 手动选项用户裁决不做**；
+> 2026-09-28 交接（M2-f 完成；M3 全部完成——M3-a~~h 已提交，**第 6 项 WSL 手动选项用户裁决不做**；
 > **M4 本批完成**：目录表 + JSONL 事实源切换 + 五场景接入 + 同步带会话包 + 扩展改页面会话，见「M4 实施记录」；
 > 用户初步验证正常（第七节「M4 专项」逐项走查未做）。**M4-d 完成**：分支改为同一文件内的 pi 会话树，见「M4-d 实施记录」
 > （实机走查见第七节「M4-d 专项」，未做）。**M4-e 完成**：治理与重启恢复，见「M4-e 实施记录」（走查见「M4-e 专项」，未做）。
 > **M5 完成**（含追加：侧栏重开接回在跑的回答）：扩展侧栏对话由主进程驱动 + 协议 v2，见「M5 实施记录」（走查见「M5 专项」，未做）。
-> **M7 用户裁决不做**（同步保持 zip 整包）。下一步是 M8（删旧收尾，裁决已定，见第六节）。
+> **M7 用户裁决不做**（同步保持 zip 整包）。**M8 全部完成**（M8-a~~e，见第六节「M8 进度」）：旧链路已删净、
+> 全仓 rg 复核清零、DECISIONS.md 追 D-065、03 指南同步。**pi 迁移的代码工作到此结束**，剩下的是
+> 第七节各「专项」的实机走查（需要在 Electron 里真人操作，未做）与第五节记的遗留边界。
 > 新会话续接方式：读完本文档 + `git log --oneline -15` 对照提交历史。本文档随每步同步更新。
 > 验证三件套：`cd apps/desktop && npx tsc --noEmit`、
-> `npx vitest run`（345 文件、1659 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
+> `npx vitest run`（347 文件、1664 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
 > 改了 `packages/shared` 要另跑 `packages/shared`（5 文件 15 用例）与 `apps/browser-extension`（10 文件 46 用例）的 vitest + tsc
 > （思考档位类型与 `ChatSessionRecord` 定义在 shared，三端共用）。
 > **注意 cwd 必须在 apps/desktop**——vitest 从仓库根跑会整体失败（vite 别名解析不到）。
@@ -742,6 +744,8 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
 - **M5** `2a8123b2b` 浏览器扩展：侧栏对话由主进程驱动（`/aiServerMain`）+ 协议 v2 + 提问审批走桌面宿主 + 停止真正生效 + 断连立即收尾（见「M5 实施记录」）
 - **M5 追加** `59431d096`：侧栏重开接回在跑的回答（接回快照 + lastSeq 续接 + 换对话放下不停）
 - **M8-a** `6840932aa`：删除 `packages/agent` 整包（5 个符号内联/改用桌面与 shared 类型）
+- **图片占位修复** `ac75f4a81` / **老库残留表清理** `ee43c6227`（后者与 pi 迁移无关，见文末「顺带修的 master 遗留问题」）
+- **M8-e**：收尾——DECISIONS.md 追 D-065、03 指南同步、失效 mock 与过期注释清理、全仓 rg 复核
 - **M8-d** `7802cdb0c`：旧聊天表迁移记账后 DROP（带备份）+ 目录表分支列删除 + 迁移时当场合并分支 + 视频笔记/学习项目级联删目录表 + 移动端补值去掉
 - **M8-c** `6bc0dba58`：删除 chat_run 表（schema/parity/handler，开库 DROP，桌面与移动端）+ 主进程 stream-fetch 模块
 - **M8-b** `867c13f61`：删除 `modules/llm.ts`（Minimax Key 测试改走 pi `pi-ai:verify-key`）+ 扩展本地提问机制 + `sanitizeToolMessages` + localStorage 遗留键
@@ -898,8 +902,19 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
 - **旧聊天表（M8-d 已删）**：迁移记账后开库即 DROP，删前整库备份；迁移失败的行、扩展的旧对话、`audio_note_chats` 只在备份里
 - **会话树（M4-d 已接）**：分支在同一文件内。遗留：
   - 树谱浮层只在桌面（扩展未做）；分支不能起名（pi 原生 `label` entry 可用，未接）；滚动条小地图未做；
-  - **同一对话多个分支同时运行**未做（难点：pi 一个会话只有一个叶子，两个 SessionManager 并发写同一文件会互相覆盖），
-    可行性调研中，结论记到「M4-d 实施记录」；
+  - **同一对话多个分支同时运行**未做。调研结论（2026-09-29，读 pi 0.87.1 源码）：技术可行但改动面大，**建议有明确场景再做**。
+    事实：① `SessionManager` 落盘后基本是追加写（`_persist`：首条 assistant 时 `openSync(file,"wx")` 一次写全量，之后
+    `appendFileSync`；整文件重写只在打开空文件、版本迁移、`createBranchedSession` 三处），文件只在构造时读一次，
+    叶子 = 加载时最后一条 entry；② 两个实例同开一个文件各自追加**不会写坏树**（新 entry 的 parentId 都指向共有前缀或自己写的
+    entry），但内存索引互不可见、entry id 只在自己的表里查重、重开时谁最后写谁的叶子生效，且本项目自己有整文件覆盖
+    （`ensureFlushed`、`detachSessionHeader`）会抹掉对方；③ `createAgentSession` 可以注入 `sessionManager`，但**叶子是
+    SessionManager 的单一状态**（`appendMessage` 的 parentId 取 `this.leafId`），两个 AgentSession 共用一个实例会互相串写；
+    ④ 有 `SessionManager.inMemory`，没有自定义存储钩子。
+    推荐方案：要并行时把该分支路径拷到独立临时文件（保留 entry id）、在独立宿主上跑，跑完用 `graftSessionFile` 嫁接回来
+    （id 保留 ⇒ 按 id 认公共前缀，与现有 graft 完全契合；临时文件天然可做崩溃恢复）。代价：嫁接后主宿主内存是旧的要重载、
+    运行中的内容不在主文件里（树谱与投影要叠加临时文件并标「运行中」）、主宿主要禁止把叶子挪到正在别处跑的分支上；
+    还要串行化嫁接与那几处整文件覆盖写。估量：主进程 400–600 行 + 测试，渲染端 100–200 行。
+    风险：两个分支同时对同一前缀改历史时嫁接语义变复杂；工具副作用（改同一个文件）是业务层冲突，嫁接解决不了。
   - 不能删除某个版本（pi append-only，只能省略消息或切走）；
   - 旧分支行的标题/分组/归档在合并后丢失（只保留父对话的）；嫁接按内容比对，内容一模一样但本意不同的前缀会被认作公共前缀；
   - 目录行 `update_time` 切版本不变、`message_count` 跟当前路径（列表排序不因切换而跳动）；
@@ -951,15 +966,7 @@ agent_settled 触发排空；用户按停止则暂停排空。
   调研留档（将来要做从这里接）：四种后端（OSS/S3/WebDAV/GitHub，`src/utils/sync/*SyncProvider.ts`）都支持单文件读写与列目录，
   但只有 OSS 实现了 `deleteFile`，且拿不到内容 hash（manifest 需自算 sha256）；现有版本号模型不允许双方都有修改（领先者整体覆盖）。
   已知缺口：CLI 的 `apps/cli/src/commands/db/sync/push.ts`/`pull.ts` 不处理会话包，且 push 先传版本信息再传 `.db`（与桌面顺序相反）。
-  **M8（删旧收尾）**：packages/agent 整包——**实测比原计划便宜**：桌面端只剩 4 个类型导入
-  （`AgentModelUsage`×2 / `AgentTool` / `AgentSkill`）+ 一个值导入 `isAbortError`（editingUtils），
-  其他 app 与 package 全无引用；内联这 5 个符号 + 清 vite/vitest/tsconfig 别名与 package.json 依赖即可删包。
-  chat-core 展示层（保留 messageSchema 供迁移器；`syncAssistantDerivedFields`/`ensureAssistantMessage`/
-  `getAssistantToolExecutions`/`migrateAssistantMessage`/`sanitizeToolMessages`/
-  `applyAssistantProviderMetadataSnapshot` 目前只剩桌面 barrel 转出、无真实消费者）、
-  chat_run 表与主进程 handler（含 db-schema/knowledge-migration/mobile Rust 的同批处理）、
-  modules/llm.ts、卫星表 messages 写路径、扩展本地提问机制（`askQuestionSessionStore` 与 `ext.tool.execute` 的
-  ask-question 分支，M5 后无新调用方）；DECISIONS.md 追加条目；03 指南数据协议节同步；rg 复核清零。
+  **M8（删旧收尾）：全部完成**（M8-a~e）。原计划清单逐项落地情况见下面的「M8 进度」。
 
   **M8 进度**：
   - **M8-a 已完成**：`packages/agent` 整包删除。`AgentModelUsage` → shared `ModelUsage`；`AgentTool` → 桌面自己的
@@ -1004,6 +1011,22 @@ branch_index` 与 `idx_chat_session_parent`（SQLite 3.35+ 的 `DROP COLUMN`，�
       `knowledge-migration.ts` / `knowledge_migration.rs` 本就判表判列存在，不用改。
     - 测试：`chat-session-migration.test.ts`（迁移时合并分支、缺列老库）、`chat-session-tree-migration.test.ts`（端到端含退役、
       M4 时期库退役删列与备份、未记账不退役）；删除清理类测试改用目录表断言。
+  - **M8-e 已完成**（收尾）：
+    - `DECISIONS.md` 追 **D-065**（pi 迁移的最终形态与裁决：运行位置、事实源、分支语义、同步、扩展协议 v2、
+      老数据处理、已删清单、不做项），并在 D-064 末尾标注被取代的部分（扩展会话存 sqlite、`chat.*` 命令面、
+      `chat_message.source`、`ai.chat` + `ai.stream.*` 均已退役，阶段 1 的消息模型单一来源仍有效）。
+    - `redesign/03-架构实现指南.md`：第 3 节「聊天消息模型」补「这套模型是展示投影、事实源是 pi 会话文件」，
+      新增「聊天会话数据」段（目录表口径、按 `piEntryIds` 改历史、级联删除、禁止再往 sqlite 写消息载荷）；
+      「pi 聊天运行时与工具审批」段补单发/一次性入口的去处与「新增 AI 入口不得再引入自研协议适配」；
+      D-049 段去掉「数据库兼容列保留」（列随表已删）。
+    - 清掉指向已删模块的失效 `vi.mock`（`@/hooks/useChatLLM` 三处：generation-orchestrator / podcast-prompt /
+      InlineAIComposerPanel）与两处提到它的注释（白板测试）——**vitest 对不存在的路径 mock 不报错**，这类死 mock
+      只能靠定期核对（本轮做法：把所有 `vi.mock("@/...")` 路径与磁盘比一遍）。
+    - 补删残留的 `src/commands/llm.ts`（M8-b 漏删：`git rm` 之后又被格式化钩子从暂存区带回，tsc 不报错因为没有引用方）。
+    - 全仓 rg 复核：`@tau/agent`/`packages/agent`、`chat_run`/`ChatRunTable`、`chat-openai`/`embedding-openai`/
+      `markdown-split`、`stream-fetch`、五个旧表模块与 handler、`askQuestionSessionStore`、`sanitizeToolMessages`、
+      `parentSessionId`/`branchIndex`、`ai.chat`/`ai.stream.*`、`runBrowserSessionTurn`、`LegacyReasoningEffort`
+      在生产代码里已清零（`knowledge_migration.rs` 里的 `chat_run` 是判表存在的历史迁移，按设计保留）。
 
   **M8 裁决（2026-09-29 用户拍板）**：
   - 旧聊天表（`chat_message`/`pdf_chats`/`video_note_chats`/`vibe_learning_chats`）**迁移记账后真 DROP**：开库时确认
@@ -1120,3 +1143,25 @@ branch_index` 与 `idx_chat_session_parent`（SQLite 3.35+ 的 `DROP COLUMN`，�
    低级的错误"，根因都是设计层）
 3. 有状态的东西放对层级：跨轮次/跨页面/跨组件的状态必须模块级或主进程，组件只放 UI 态
 4. 本文档随架构变化同步更新（每次架构级提交同批更新）
+5. **动数据库 schema / 迁移，必须用真实老库验证**（2026-09-29 用户要求，不要只用本地开发库）：
+   把 `~/.editor/backup/version-*.db` 复制进一个临时 HOME，按开库流程跑完整链路（`openDatabase("maintenance")`
+   → 老对话迁移 → 树合并 → 退役 → `ensureIndexDatabaseReady` 两次），再与同一套代码新建的空库比对表/列/索引，
+   并逐条对账迁移内容（每个会话文件能投影、用户提问数与旧表一致）。本轮就是这样发现「只含远程图的用户消息被丢掉」
+   （`ac75f4a81`）与「老库残留一批下线功能表」（`ee43c6227`）。
+
+## 九、顺带修的 master 遗留问题（与 pi 迁移无关，单独提交）
+
+用真实备份验证升级时发现，master 上同样存在：
+
+- **只含远程图的用户消息迁移后丢失** `ac75f4a81`：迁移不下载远程图（避免卡住开库），读不到的图原先直接丢弃，
+  只发了一张图的用户消息整条消失、前后两条回答连成一条。改为文字占位（远程图带地址）。
+- **老库残留一批下线功能表** `ee43c6227`：功能下线时只删了 schema 定义，老库里一直留着。
+  - 新增 `packages/db-schema/src/feature-table-retirement.ts`：删 `history`/`prompt`/`skill`/`notion_sync`
+    与 `vibe_learning_resources.is_chunked`/`chapter_count`，删前 `VACUUM INTO` 备份（prompt / notion_sync 有数据）；
+    桌面开库、同步下载校验、CLI、移动端（`main_upgrade.rs` 的 `retire_feature_tables`）共用同一清单。
+  - `BadgeHardCleanup` 改为**先删勋章表再释放正文**：原先先删被 `badge_manual_entry.detail_content_id` 外键引用的正文，
+    整个事务回滚，每次开库都报一次 `FOREIGN KEY constraint failed`，表永远删不掉。
+  - `time_records`：空表（或迁移过后残留的空表）直接删——原先只在「有数据且迁移成功」后才删，空表永远留着。
+  - 主库里的 `content_fts`/`vec_documents`/`vec_index_meta`：索引库已搬完（`migration_state=done`）时也删，
+    原先只在首次 cutover 时删，之后从别的机器同步来的 `.db` 带着它们就再也删不掉（体积大且跟着同步来回传）。
+  - 验证：730 与 738 两个真实备份升级后，表/列/索引与新装机一致（只多移动端的 `schema_meta`，正常）。

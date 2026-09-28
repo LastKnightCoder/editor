@@ -2,10 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockImageToolsEnabled = vi.hoisted(() => ({ value: true }));
 
-vi.mock("@/hooks/useChatLLM", () => ({
-  chatLLMStream: vi.fn(),
-}));
-
 vi.mock("@/tools", () => ({
   default: {
     hasEnabledTool: vi.fn((toolName: string) => {
@@ -17,10 +13,7 @@ vi.mock("@/tools", () => ({
   },
   ensureToolingReady: vi.fn(),
 }));
-import {
-  buildGenerationRequest,
-  type GenerationRequest,
-} from "@/services/generation-orchestrator";
+import { buildGenerationRequest, type GenerationRequest } from "@/services/generation-orchestrator";
 import type { RequestMessage } from "@/types/llm";
 import { SpeakerRole } from "@/types/podcast";
 import { ETTSProvider } from "@/types/tts";
@@ -48,7 +41,7 @@ const createPPTRequest = (): GenerationRequest<"ppt", "vibe_learning"> => ({
 
 const configureImageTools = (enabled: boolean) => {
   mockImageToolsEnabled.value = enabled;
-  useSettingStore.setState((state) => ({
+  useSettingStore.setState(state => ({
     setting: {
       ...state.setting,
       imageGeneration: {
@@ -246,7 +239,7 @@ describe("services/generation-orchestrator", () => {
     };
 
     expect(() => buildGenerationRequest(request)).toThrow(
-      "任务 ppt 当前未接入 provided_content 数据源",
+      "任务 ppt 当前未接入 provided_content 数据源"
     );
   });
 });
