@@ -23,7 +23,7 @@ const Typst: React.FC<PropsWithChildren<TypstProps>> = props => {
     return (
       <div
         contentEditable={false}
-        className="py-3 text-gray-400 dark:text-gray-500"
+        className="py-3 text-[var(--ed-text-tertiary)]"
         style={{ userSelect: "none" }}
       >
         点击编辑 Typst

@@ -49,21 +49,11 @@ export interface FileService {
   convertFileSrc?: (filePath: string) => Promise<string>;
 }
 
-export interface ThemeColors {
-  hoverClass: string;
-  activeClass: string;
-  hoverTextClass: string;
-  borderClass: string;
-  hoverBorderClass: string;
-  focusBorderClass: string;
-  textClass: string;
-  secondaryTextClass: string;
-  activeTextClass: string;
-  accentColor?: string;
-  accentSoftBg?: string;
-  badgeBgClass?: string;
-  badgeBgColor?: string;
-  [key: string]: string | undefined;
+// ==================== Opener ====================
+
+export interface OpenerService {
+  /** 打开链接：外部 URL，或宿主能解析的本地 / 相对路径。未注册时编辑器用 window.open */
+  open: (url: string) => void | Promise<void>;
 }
 
 export interface CompilerService {

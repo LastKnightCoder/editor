@@ -8,9 +8,14 @@
  */
 
 import type { BoardElement } from "@/components/WhiteBoard/types";
-import { getThemeById, DEFAULT_THEME_ID } from "@/components/WhiteBoard/constants/mind-themes";
+import MindThemeUtil from "@/components/WhiteBoard/utils/MindThemeUtil";
 import { getThemeColorById } from "@/components/WhiteBoard/constants/theme-colors";
 import { outlineToSvgPath } from "@/components/WhiteBoard/utils/HandwriteUtil";
+import {
+  getTextBandColor,
+  getTextSurface,
+  resolveTextStyle,
+} from "@/components/WhiteBoard/constants/text-style";
 
 /** 纯色，或由 CSS linear-gradient 解析出的渐变（文本卡片常用渐变底） */
 export type SchematicFill =
@@ -58,7 +63,6 @@ export interface Schematic {
 
 /** 中性色走主题变量，深浅色自动适配 */
 const INK = "var(--tau-ink-1)";
-const SURFACE = "var(--tau-bg-surface)";
 const LINE = "var(--tau-line-2)";
 
 /** 视口下限（画布坐标）：内容很少时不无限放大，保持「一小块内容在画布上」的比例感 */
@@ -148,18 +152,28 @@ function textBars(ctx: Ctx, x: number, y: number, w: number, h: number, color = 
 
 function card(ctx: Ctx, e: AnyElement) {
   const r = Math.min(10, e.height / 4);
-  ctx.shapes.push({
-    kind: "rect",
-    x: e.x,
-    y: e.y,
-    w: e.width,
-    h: e.height,
-    r,
-    fill: isColor(e.background) ? parseFill(e.background) : SURFACE,
-    stroke: isColor(e.stroke) ? e.stroke : LINE,
-    strokeWidth: isColor(e.stroke) ? 1.4 : 1,
-  });
-  if (isColor(e.topColor)) {
+  // 富文本 / 卡片走语义样式（含旧色值换算）；白板引用等其它类型按白卡画
+  const style =
+    e.type === "richtext" || e.type === "card"
+      ? resolveTextStyle(e as Parameters<typeof resolveTextStyle>[0])
+      : { variant: "plain" as const };
+  // 透明样式只画文字条
+  const surface = getTextSurface(style);
+  if (surface) {
+    ctx.shapes.push({
+      kind: "rect",
+      x: e.x,
+      y: e.y,
+      w: e.width,
+      h: e.height,
+      r,
+      fill: surface.background,
+      stroke: surface.edge,
+      strokeWidth: 1,
+    });
+  }
+  const band = getTextBandColor(style);
+  if (band) {
     ctx.shapes.push({
       kind: "rect",
       x: e.x,
@@ -167,7 +181,7 @@ function card(ctx: Ctx, e: AnyElement) {
       w: e.width,
       h: Math.min(10, e.height / 5),
       r: Math.min(4, r),
-      fill: e.topColor,
+      fill: band,
     });
   }
   const pad = Math.min(18, e.width * 0.1, e.height * 0.2);
@@ -239,22 +253,34 @@ function media(ctx: Ctx, e: AnyElement, glyph: "image" | "video" | "audio" | "we
 /* ───────── 思维导图 ───────── */
 
 function mindTree(ctx: Ctx, root: AnyElement) {
-  const theme = getThemeById(root.themeId || DEFAULT_THEME_ID);
-  const colorOf = (level: number) =>
-    level <= 1
-      ? theme.root.background
-      : (theme.palette[(level - 2) % theme.palette.length]?.background ?? theme.root.background);
+  const theme = MindThemeUtil.getThemeOf(root as { themeId?: string; themeStyle?: string });
+  const mode = ctx.dark ? "dark" : "light";
+  const visualOf = (node: AnyElement) =>
+    MindThemeUtil.getNodeVisual(
+      theme,
+      node.level ?? 1,
+      MindThemeUtil.getBranchIndex(root, node.id),
+      mode
+    );
   const nodes: SchematicShape[] = [];
   const lines: SchematicShape[] = [];
 
   const visit = (node: AnyElement) => {
     const { x, y, width: w, height: h } = node;
     const level = node.level ?? 1;
-    const color = colorOf(level);
+    const visual = visualOf(node);
     grow(ctx, x, y, w, h);
-    nodes.push({ kind: "rect", x, y, w, h, r: Math.min(h / 2, level <= 1 ? 14 : 10), fill: color });
-    const text =
-      level <= 1 ? theme.root.color : theme.palette[(level - 2) % theme.palette.length]?.color;
+    nodes.push({
+      kind: "rect",
+      x,
+      y,
+      w,
+      h,
+      r: Math.min(h / 2, level <= 1 ? 14 : 10),
+      fill: visual.background,
+      ...(visual.borderWidth > 0 ? { stroke: visual.borderColor, strokeWidth: 1 } : {}),
+    });
+    const text = visual.textColor;
     const bar = Math.min(8, h * 0.18);
     nodes.push({
       kind: "rect",
@@ -280,7 +306,7 @@ function mindTree(ctx: Ctx, root: AnyElement) {
       lines.push({
         kind: "path",
         d: `M ${sx} ${sy} C ${mx} ${sy} ${mx} ${ey} ${ex} ${ey}`,
-        stroke: colorOf(child.level ?? level + 1),
+        stroke: visualOf(child).lineColor,
         strokeWidth: 1.4,
       });
       visit(child);

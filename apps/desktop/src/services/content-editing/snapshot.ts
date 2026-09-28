@@ -1,5 +1,5 @@
 import { Descendant } from "slate";
-import { getMarkdownWithPositions } from "@/utils/markdown-helper";
+import { getMarkdownWithPositions } from "@/utils/markdown";
 import type { ContentSnapshot, MarkdownPoint, SnapshotSource } from "./types";
 
 const FNV_OFFSET_BASIS = 0x811c9dc5;
@@ -24,28 +24,23 @@ export const buildLineOffsets = (markdown: string): number[] => {
   return offsets;
 };
 
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(Math.max(value, min), max);
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
 export const markdownPointToOffset = (
   point: MarkdownPoint,
   lineOffsets: number[],
-  markdownLength: number,
+  markdownLength: number
 ): number => {
   if (lineOffsets.length === 0) return 0;
   const line = clamp(point.line, 0, lineOffsets.length - 1);
   const lineStart = lineOffsets[line];
-  const nextLineStart =
-    line + 1 < lineOffsets.length ? lineOffsets[line + 1] : markdownLength;
+  const nextLineStart = line + 1 < lineOffsets.length ? lineOffsets[line + 1] : markdownLength;
   const maxCh = Math.max(0, nextLineStart - lineStart);
   const ch = clamp(point.ch, 0, maxCh);
   return clamp(lineStart + ch, 0, markdownLength);
 };
 
-export const offsetToMarkdownPoint = (
-  offset: number,
-  lineOffsets: number[],
-): MarkdownPoint => {
+export const offsetToMarkdownPoint = (offset: number, lineOffsets: number[]): MarkdownPoint => {
   if (lineOffsets.length === 0) {
     return { line: 0, ch: 0 };
   }
@@ -66,7 +61,7 @@ export const offsetToMarkdownPoint = (
 
 export const createContentSnapshot = (
   content: Descendant[],
-  source: SnapshotSource,
+  source: SnapshotSource
 ): ContentSnapshot => {
   const { markdown, positionMap } = getMarkdownWithPositions(content);
   const lineOffsets = buildLineOffsets(markdown);

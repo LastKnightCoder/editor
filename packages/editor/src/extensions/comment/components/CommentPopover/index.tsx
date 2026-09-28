@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Comment as CommentType } from "../../../types";
 import CommentList from "../CommentList";
@@ -63,10 +57,7 @@ const CommentPopover: React.FC<CommentPopoverProps> = ({
   const popoverRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: 0, left: 0 });
 
-  const totalComments = useMemo(
-    () => getTotalCommentCount(comments),
-    [comments],
-  );
+  const totalComments = useMemo(() => getTotalCommentCount(comments), [comments]);
 
   const updatePosition = useCallback(() => {
     if (!anchorElement) return;
@@ -74,8 +65,7 @@ const CommentPopover: React.FC<CommentPopoverProps> = ({
     const anchorRect = anchorElement.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-    const popoverHeight =
-      popoverRef.current?.getBoundingClientRect().height ?? POPOVER_MAX_HEIGHT;
+    const popoverHeight = popoverRef.current?.getBoundingClientRect().height ?? POPOVER_MAX_HEIGHT;
 
     let top = anchorRect.bottom + GAP;
     let left = anchorRect.left + anchorRect.width / 2 - POPOVER_WIDTH / 2;
@@ -134,23 +124,12 @@ const CommentPopover: React.FC<CommentPopoverProps> = ({
 
   return createPortal(
     <>
-      <div
-        className="fixed inset-0 z-[9998] bg-black/0 dark:bg-black/30"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 z-[9998] bg-black/0 dark:bg-black/30" onClick={onClose} />
       <div
         ref={popoverRef}
-        className="
-          fixed z-[9999]
-          w-[380px] max-h-[500px]
-          rounded-2xl
-          bg-white dark:bg-zinc-900/95
-          border border-gray-200 dark:border-slate-800
-          overflow-hidden
-          animate-[comment-scale-in_0.2s_ease-out]
-        "
+        className="fixed z-[9999] max-h-[500px] w-[380px] animate-[comment-scale-in_0.2s_ease-out] overflow-hidden rounded-2xl border border-[var(--ed-border)] bg-white dark:bg-zinc-900/95"
         style={{ top: `${position.top}px`, left: `${position.left}px` }}
-        onClick={(event) => event.stopPropagation()}
+        onClick={event => event.stopPropagation()}
       >
         <div className="border-b border-gray-200 px-4 py-3 dark:border-slate-800">
           <span className="text-sm font-semibold text-gray-800 dark:text-white">
@@ -175,7 +154,7 @@ const CommentPopover: React.FC<CommentPopoverProps> = ({
         )}
       </div>
     </>,
-    document.body,
+    document.body
   );
 };
 

@@ -12,7 +12,6 @@ import { Editor } from "slate";
 import { ReactEditor } from "slate-react";
 import { Search } from "lucide-react";
 import { Spinner } from "@tau/ui";
-import { IExtension } from "@tau/editor/src";
 import { searchContent, getAllIndexResults } from "@/utils/search";
 import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
 import {
@@ -25,7 +24,6 @@ import { cleanupMentionPanel } from "../../plugins/withMentionCommands";
 import List from "./List";
 
 interface IMentionPanelProps {
-  extensions: IExtension[];
   editor: Editor;
 }
 
@@ -43,7 +41,7 @@ const findComposerAnchor = (editor: Editor): HTMLElement | null => {
 };
 
 const MentionPanel = memo((props: IMentionPanelProps) => {
-  const { extensions, editor } = props;
+  const { editor } = props;
   const modelInfo = useEmbeddingConfig();
   const panelRef = useRef<HTMLDivElement>(null);
   const [panelStyle, setPanelStyle] = useState<CSSProperties>({ left: 0, top: 0 });
@@ -200,7 +198,7 @@ const MentionPanel = memo((props: IMentionPanelProps) => {
       {!loading && searchResults.length === 0 ? (
         <div className="text-tau-sm text-ink-3 px-3.5 pb-4 pt-3">没有找到相关内容</div>
       ) : (
-        <List extensions={extensions} query={query} />
+        <List query={query} />
       )}
       <ComposerPanelFooter
         hints={[

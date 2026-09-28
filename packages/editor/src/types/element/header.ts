@@ -1,4 +1,5 @@
-import { InlineElement, FormattedText } from "..";
+import type { InlineElement } from "../custom-element";
+import type { FormattedText } from "../text";
 
 export interface HeaderElement {
   type: "header";

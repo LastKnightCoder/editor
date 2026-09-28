@@ -45,6 +45,8 @@ const BADGE =
 /** 画布纸底 + 点阵（示意图的底） */
 const CANVAS_BG =
   "bg-surface-hover bg-[radial-gradient(color-mix(in_srgb,var(--tau-ink-1)_13%,transparent)_1px,transparent_1.2px)] bg-[length:14px_14px]";
+/** 封面的底：纯色占位，图片加载完再淡入，避免先闪一下点阵 */
+const COVER_BG = "bg-surface-hover";
 
 export interface WhiteboardCardProps {
   item: WhiteboardItem;
@@ -64,16 +66,23 @@ export function WhiteboardCard(props: WhiteboardCardProps) {
   // null = 未在扫页（显示封面或第一页）
   const [scrub, setScrub] = useState<number | null>(null);
   const [failedCover, setFailedCover] = useState<string>();
+  const [loadedCover, setLoadedCover] = useState<string>();
   const cover = item.snapshot && item.snapshot !== failedCover ? item.snapshot : "";
+  const showCover = !!cover && scrub === null;
   const shownIndex = scrub ?? 0;
   const shownPage = item.pages[shownIndex];
 
   let visual: ReactNode;
-  if (cover && scrub === null) {
+  if (showCover) {
     visual = (
       <LocalImage
         url={cover}
-        className="absolute inset-0 h-full w-full object-cover"
+        loading="eager"
+        className={cn(
+          "ease-tau-out absolute inset-0 h-full w-full object-cover transition-opacity duration-200",
+          loadedCover === cover ? "opacity-100" : "opacity-0"
+        )}
+        onLoad={() => setLoadedCover(cover)}
         onLoadError={() => setFailedCover(cover)}
       />
     );
@@ -114,9 +123,10 @@ export function WhiteboardCard(props: WhiteboardCardProps) {
         if (e.key === "Enter" && e.target === e.currentTarget) props.onOpen(item);
       }}
       className={cn(
-        "bg-surface shadow-card ease-tau-out group relative flex cursor-pointer flex-col rounded-[var(--tau-radius-lg)] p-1.5",
-        // hover 反馈 = lift 轻抬 + 1px 描边亮起，无位移（同文章卡，D-013「反馈是光的」）
-        "outline-line-1 hover:shadow-lift outline-0 -outline-offset-1 transition-[box-shadow,outline-color] duration-200 hover:outline-1",
+        "bg-surface border-line-1 ease-tau-out group relative flex cursor-pointer flex-col rounded-[var(--tau-radius-lg)] border p-1.5",
+        // 落在白板页那张纸上：细描边分隔（同文章 / 卡片卡），纸上再叠阴影卡会糊成一片。
+        // hover 无位移（D-013「反馈是光的」），反馈 = lift 轻抬阴影 + 描边隐去
+        "hover:shadow-lift transition-[box-shadow,border-color] duration-200 hover:border-transparent",
         "focus-visible:shadow-[var(--tau-focus-ring)] focus-visible:outline-none"
       )}
     >
@@ -124,7 +134,7 @@ export function WhiteboardCard(props: WhiteboardCardProps) {
       <div
         className={cn(
           "relative aspect-[16/10] overflow-hidden rounded-[11px] shadow-[inset_0_0_0_1px_var(--tau-line-2)]",
-          CANVAS_BG
+          showCover ? COVER_BG : CANVAS_BG
         )}
         onMouseMove={
           multi

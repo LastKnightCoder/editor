@@ -16,6 +16,8 @@ export interface ImmersiveEditorExitPayload {
 }
 
 interface ImmersiveEditorModeProps {
+  /** 实例特有扩展（如项目文档的卡片列表）；宿主通用扩展来自 kit，不必传 */
+  extensions?: IExtension[];
   contentId?: number;
   collaboration?: EditorCollaborationBinding;
   initValue: Descendant[];
@@ -25,7 +27,6 @@ interface ImmersiveEditorModeProps {
   onExit: (payload: ImmersiveEditorExitPayload) => void;
   wordCount: number;
   readonly: boolean;
-  extensions: IExtension[];
 }
 
 const cloneRange = (selection: Range | null): Range | null => {
@@ -47,6 +48,7 @@ const cloneRange = (selection: Range | null): Range | null => {
  * 提供全屏、无干扰的写作环境，带有打字机滚动效果
  */
 export default function ImmersiveEditorMode({
+  extensions,
   initValue,
   initialSelection,
   onChange,
@@ -54,7 +56,6 @@ export default function ImmersiveEditorMode({
   onExit,
   wordCount,
   readonly,
-  extensions,
   collaboration,
   contentId,
 }: ImmersiveEditorModeProps) {
@@ -162,13 +163,13 @@ export default function ImmersiveEditorMode({
             }}
           >
             <Editor
+              extensions={extensions}
               contentId={contentId}
               collaboration={collaboration}
               ref={editorRef}
               initValue={initValue}
               onChange={handleChange}
               onInit={onInit}
-              extensions={extensions}
               readonly={readonly}
             />
           </div>

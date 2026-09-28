@@ -6,6 +6,7 @@ import MultiSelectSetter from "./MultiSelectSetter";
 import FrameSetter from "./FrameSetter";
 import MindMapSetter from "./MindMapSetter";
 import HandwriteSetter from "./HandwriteSetter";
+import ColumnSetter from "./ColumnSetter";
 
 export default {
   richtext: {
@@ -28,6 +29,9 @@ export default {
   },
   frame: {
     component: FrameSetter,
+  },
+  column: {
+    component: ColumnSetter,
   },
   "mind-node": {
     component: MindMapSetter,

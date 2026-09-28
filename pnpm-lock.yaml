@@ -88,6 +88,9 @@ importers:
       '@tau/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@tau/themes':
+        specifier: workspace:*
+        version: link:../../packages/themes
       abcjs:
         specifier: ^6.5.2
         version: 6.7.0
@@ -248,9 +251,15 @@ importers:
       '@tau/editor-webview':
         specifier: workspace:*
         version: link:../../packages/editor-webview
+      '@tau/markdown':
+        specifier: workspace:*
+        version: link:../../packages/markdown
       '@tau/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@tau/themes':
+        specifier: workspace:*
+        version: link:../../packages/themes
       ahooks:
         specifier: ^3.7.7
         version: 3.10.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -536,6 +545,9 @@ importers:
       '@tau/rpc':
         specifier: workspace:*
         version: link:../../packages/rpc
+      '@tau/themes':
+        specifier: workspace:*
+        version: link:../../packages/themes
       '@tau/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -545,6 +557,12 @@ importers:
       better-sqlite3:
         specifier: ^12.10.0
         version: 12.10.0(patch_hash=28e507a141733e7011377e4879c00f5fc51e4360f7736bbfeee8fe8ed0c8126f)
+      d3-force:
+        specifier: 3.0.0
+        version: 3.0.0
+      d3-quadtree:
+        specifier: 3.0.1
+        version: 3.0.1
       electron-updater:
         specifier: ^6.6.4
         version: 6.8.9
@@ -603,9 +621,6 @@ importers:
       '@ant-design/icons':
         specifier: ^6.0.6
         version: 6.3.4(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      '@antv/g6':
-        specifier: ^5.0.0
-        version: 5.1.1
       '@aws-sdk/client-s3':
         specifier: ^3.934.0
         version: 3.948.0
@@ -705,6 +720,9 @@ importers:
       '@tau/editor-webview':
         specifier: workspace:*
         version: link:../../packages/editor-webview
+      '@tau/markdown':
+        specifier: workspace:*
+        version: link:../../packages/markdown
       '@tau/platform':
         specifier: workspace:*
         version: link:../../packages/platform
@@ -729,6 +747,12 @@ importers:
       '@types/codemirror':
         specifier: ^5.60.7
         version: 5.60.18
+      '@types/d3-force':
+        specifier: 3.0.10
+        version: 3.0.10
+      '@types/d3-quadtree':
+        specifier: 3.0.6
+        version: 3.0.6
       '@types/dompurify':
         specifier: ^3.2.0
         version: 3.2.0
@@ -1219,9 +1243,15 @@ importers:
       '@tau/editor-webview':
         specifier: workspace:*
         version: link:../../packages/editor-webview
+      '@tau/markdown':
+        specifier: workspace:*
+        version: link:../../packages/markdown
       '@tau/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@tau/themes':
+        specifier: workspace:*
+        version: link:../../packages/themes
       '@tauri-apps/api':
         specifier: ^2
         version: 2.10.1
@@ -1665,6 +1695,67 @@ importers:
         specifier: ^5.0.0
         version: 5.4.21(@types/node@24.12.4)(less@4.9.1)(lightningcss@1.30.2)(terser@5.48.0)
 
+  packages/markdown:
+    dependencies:
+      '@tau/db-schema':
+        specifier: workspace:*
+        version: link:../db-schema
+      '@tau/editor':
+        specifier: workspace:*
+        version: link:../editor
+      '@tau/shared':
+        specifier: workspace:*
+        version: link:../shared
+      remark-cjk-friendly:
+        specifier: ^2.3.1
+        version: 2.3.1(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(unified@11.0.5)
+      remark-cjk-friendly-gfm-strikethrough:
+        specifier: ^2.3.1
+        version: 2.3.1(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(unified@11.0.5)
+      remark-directive:
+        specifier: ^3.0.1
+        version: 3.0.1
+      remark-frontmatter:
+        specifier: ^5.0.0
+        version: 5.0.0
+      remark-gfm:
+        specifier: ^4.0.0
+        version: 4.0.1
+      remark-math:
+        specifier: ^6.0.0
+        version: 6.0.0
+      remark-parse:
+        specifier: ^11.0.0
+        version: 11.0.0
+      remark-rehype:
+        specifier: ^11.1.1
+        version: 11.1.2
+      unified:
+        specifier: ^11.0.5
+        version: 11.0.5
+      unist-util-visit:
+        specifier: ^5.0.0
+        version: 5.1.0
+      uuid:
+        specifier: ^9.0.1
+        version: 9.0.1
+    devDependencies:
+      '@types/node':
+        specifier: ^20.2.1
+        version: 20.19.41
+      '@types/uuid':
+        specifier: ^9.0.8
+        version: 9.0.8
+      slate:
+        specifier: 0.126.2
+        version: 0.126.2
+      typescript:
+        specifier: ^5.0.4
+        version: 5.8.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@20.19.41)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
+
   packages/platform:
     devDependencies:
       vitest:
@@ -1786,19 +1877,36 @@ importers:
         specifier: ^5.0.4
         version: 5.8.3
 
-  packages/slate-markdown:
+  packages/themes:
     dependencies:
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../editor
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-
-  packages/themes: {}
+      zustand:
+        specifier: ^4.3.8
+        version: 4.5.7(@types/react@19.2.0)(immer@10.2.0)(react@19.2.0)
+    devDependencies:
+      '@types/node':
+        specifier: ^20.2.1
+        version: 20.19.41
+      '@types/react':
+        specifier: 19.2.0
+        version: 19.2.0
+      jsdom:
+        specifier: ^24.1.3
+        version: 24.1.3
+      react:
+        specifier: 19.2.0
+        version: 19.2.0
+      typescript:
+        specifier: ^5.0.4
+        version: 5.8.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@20.19.41)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
 
   packages/ui:
     dependencies:
+      '@tau/themes':
+        specifier: workspace:*
+        version: link:../themes
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
@@ -8677,13 +8785,9 @@ packages:
   glob-to-regexp@0.4.1:
     resolution: {integrity: sha512-lkX1HJXwyMcprw/5YUZc2s7DrpAiHB21/V+E1rHUrVNokkvB6bqMzT0VfV6/86ZNabt1k14YOIaT7nDvOX3Iiw==}
 
-  glob@7.2.0:
-    resolution: {integrity: sha512-lmLf6gtyrPq8tTjSmrO94wBeQbFR3HbLHbuyD69wuyQkImp2hWqMGB47OX65FBkPffO641IP9jWa1z4ivqG26Q==}
-    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
-
   glob@7.2.3:
     resolution: {integrity: sha512-nFR0zLpU2YCaRxwoCJvL6UvCH2JFyFVIvwTLsIf21AuHlMskA1hhTdk+LlYJtOlYt9v6dvszD2BGRqBL+iQK9Q==}
-    deprecated: Glob versions prior to v9 are no longer supported
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   global-agent@3.0.0:
     resolution: {integrity: sha512-PT6XReJ+D07JvGoxQMkT6qji/jVNfX/h364XHZOWeRzy64sSFr+xJ5OX7LI3b4MPQzdL4H8Y8M0xzPpsVMwA8Q==}
@@ -14766,7 +14870,7 @@ snapshots:
   '@electron/asar@3.4.1':
     dependencies:
       commander: 5.1.0
-      glob: 7.2.0
+      glob: 7.2.3
       minimatch: 3.1.5
 
   '@electron/fuses@1.8.0':
@@ -20857,15 +20961,6 @@ snapshots:
       is-glob: 4.0.3
 
   glob-to-regexp@0.4.1: {}
-
-  glob@7.2.0:
-    dependencies:
-      fs.realpath: 1.0.0
-      inflight: 1.0.6
-      inherits: 2.0.4
-      minimatch: 3.1.5
-      once: 1.4.0
-      path-is-absolute: 1.0.1
 
   glob@7.2.3:
     dependencies:

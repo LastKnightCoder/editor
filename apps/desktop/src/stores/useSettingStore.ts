@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { produce } from "immer";
 import { merge } from "lodash";
 import type { ImageBorderRadiusPreset, ImageShadowPreset } from "@tau/editor";
-import { useThemeStore } from "@tau/ui/theme/runtime";
+import { useThemeStore } from "@tau/themes/react";
 
 import { EGithubCDN } from "@/constants/github";
 import {
@@ -925,7 +925,7 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       }),
     });
     // 旧入口（legacy 侧边栏/演示模式等）转发到主题 runtime，保证 DOM 主题只有一个写者
-    useThemeStore.getState().setMode(darkMode ? "cocoa" : "cream");
+    useThemeStore.getState().setAppearance(darkMode ? "dark" : "light");
   },
   setAgentShellPath: path => {
     const { setting } = get();

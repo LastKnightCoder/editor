@@ -1,0 +1,41 @@
+{
+  "name": "@tau/markdown",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "check": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@tau/db-schema": "workspace:*",
+    "@tau/editor": "workspace:*",
+    "@tau/shared": "workspace:*",
+    "remark-cjk-friendly": "^2.3.1",
+    "remark-cjk-friendly-gfm-strikethrough": "^2.3.1",
+    "remark-directive": "^3.0.1",
+    "remark-frontmatter": "^5.0.0",
+    "remark-gfm": "^4.0.0",
+    "remark-math": "^6.0.0",
+    "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.1",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.0.0",
+    "uuid": "^9.0.1"
+  },
+  "peerDependencies": {
+    "slate": ">=0.123.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.2.1",
+    "@types/uuid": "^9.0.8",
+    "slate": "0.126.2",
+    "typescript": "^5.0.4",
+    "vitest": "^3.2.4"
+  }
+}

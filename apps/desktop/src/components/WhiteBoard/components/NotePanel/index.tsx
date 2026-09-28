@@ -13,7 +13,6 @@ import useEditContent from "@/hooks/useEditContent";
 import { getEditorText } from "@/utils/editor";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { Descendant } from "slate";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 interface NotePanelProps {
   contentTitle?: string;
@@ -28,7 +27,6 @@ function NoteBody({
   contentId: number;
   onTextChange: (text: string) => void;
 }) {
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const editorRef = useRef<EditorRef>(null);
   const { content, throttleHandleEditorContentChange } = useEditContent(contentId, data => {
     editorRef.current?.setEditorValue(data);
@@ -48,7 +46,6 @@ function NoteBody({
       ref={editorRef}
       initValue={content}
       onChange={handleContentChange}
-      extensions={dynamicExtensions}
       className="min-h-full"
       readonly={false}
     />

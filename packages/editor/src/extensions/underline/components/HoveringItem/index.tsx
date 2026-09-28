@@ -6,19 +6,12 @@ import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { unwrapUnderline, wrapUnderline } from "../../../../utils";
 import classnames from "classnames";
 import { Underline } from "lucide-react";
-import useThemeColors from "../../../../hooks/useThemeColors";
 import UnderlineSelect from "../UnderlineSelect";
 import { HoveringBarContext } from "../../../../components/HoveringToolbar";
 import FloatingSubmenu from "../../../../components/HoveringToolbar/FloatingSubmenu";
 import type { UnderlineElement } from "../../../types";
 
-type UnderlineColor =
-  | "default"
-  | "yellow"
-  | "green"
-  | "blue"
-  | "purple"
-  | "red";
+type UnderlineColor = "default" | "yellow" | "green" | "blue" | "purple" | "red";
 type UnderlineLineType = "solid" | "dashed" | "dotted" | "wavy";
 
 const UNDERLINE_COLOR_KEY = "underline-color";
@@ -28,22 +21,15 @@ const readStoredColor = (): UnderlineColor => {
   if (typeof window === "undefined") {
     return "red";
   }
-  return (
-    (localStorage.getItem(UNDERLINE_COLOR_KEY) as UnderlineColor | null) ||
-    "red"
-  );
+  return (localStorage.getItem(UNDERLINE_COLOR_KEY) as UnderlineColor | null) || "red";
 };
 
 const readStoredLineType = (): UnderlineLineType => {
   if (typeof window === "undefined") {
     return "solid";
   }
-  const value = localStorage.getItem(
-    UNDERLINE_LINE_TYPE_KEY,
-  ) as UnderlineLineType | null;
-  return value === "dashed" || value === "dotted" || value === "wavy"
-    ? value
-    : "solid";
+  const value = localStorage.getItem(UNDERLINE_LINE_TYPE_KEY) as UnderlineLineType | null;
+  return value === "dashed" || value === "dotted" || value === "wavy" ? value : "solid";
 };
 
 const persistColor = (color: UnderlineColor) => {
@@ -59,15 +45,11 @@ const persistLineType = (lineType: UnderlineLineType) => {
 const HoveringItem = () => {
   const editor = useSlate();
   const selection = useSlateSelection();
-  const themeColors = useThemeColors();
-  const { isHoveringBarShow, isCompact, submenuTrigger } =
-    useContext(HoveringBarContext);
+  const { isHoveringBarShow, isCompact, submenuTrigger } = useContext(HoveringBarContext);
   const [popoverOpen, setPopoverOpen] = useState(false);
-  const [selectedColor, setSelectedColor] = useState<UnderlineColor>(() =>
-    readStoredColor(),
-  );
-  const [selectedLineType, setSelectedLineType] = useState<UnderlineLineType>(
-    () => readStoredLineType(),
+  const [selectedColor, setSelectedColor] = useState<UnderlineColor>(() => readStoredColor());
+  const [selectedLineType, setSelectedLineType] = useState<UnderlineLineType>(() =>
+    readStoredLineType()
   );
 
   const underlineEntries = useMemo(() => {
@@ -77,15 +59,12 @@ const HoveringItem = () => {
     return Array.from(
       Editor.nodes(editor, {
         at: selection,
-        match: (n) => !Editor.isEditor(n) && n.type === "underline",
-      }),
+        match: n => !Editor.isEditor(n) && n.type === "underline",
+      })
     ) as NodeEntry<UnderlineElement>[];
   }, [editor, selection]);
 
-  const isActive = useMemo(
-    () => underlineEntries.length > 0,
-    [underlineEntries],
-  );
+  const isActive = useMemo(() => underlineEntries.length > 0, [underlineEntries]);
 
   const handleClick = useMemoizedFn((event: React.MouseEvent) => {
     try {
@@ -111,18 +90,15 @@ const HoveringItem = () => {
     if (underlineEntries.length > 0) {
       const [node] = underlineEntries[0];
       const color = (node.color as UnderlineColor) || readStoredColor();
-      const lineType =
-        (node.lineType as UnderlineLineType) || readStoredLineType();
-      setSelectedColor((prev) => (prev === color ? prev : color));
-      setSelectedLineType((prev) => (prev === lineType ? prev : lineType));
+      const lineType = (node.lineType as UnderlineLineType) || readStoredLineType();
+      setSelectedColor(prev => (prev === color ? prev : color));
+      setSelectedLineType(prev => (prev === lineType ? prev : lineType));
       return;
     }
     const storedColor = readStoredColor();
     const storedLineType = readStoredLineType();
-    setSelectedColor((prev) => (prev === storedColor ? prev : storedColor));
-    setSelectedLineType((prev) =>
-      prev === storedLineType ? prev : storedLineType,
-    );
+    setSelectedColor(prev => (prev === storedColor ? prev : storedColor));
+    setSelectedLineType(prev => (prev === storedLineType ? prev : storedLineType));
   }, [underlineEntries]);
 
   const updateActiveUnderline = useMemoizedFn(
@@ -130,7 +106,7 @@ const HoveringItem = () => {
       underlineEntries.forEach(([, path]) => {
         Transforms.setNodes(editor, payload, { at: path });
       });
-    },
+    }
   );
 
   const handleColorSelect = useMemoizedFn((color: string) => {
@@ -187,14 +163,9 @@ const HoveringItem = () => {
       <Tooltip title={"下划线"} trigger={"hover"}>
         <div
           className={classnames(
-            "flex items-center justify-center w-8 h-8 rounded-lg cursor-pointer transition-all duration-200",
-            isActive
-              ? themeColors.activeClass
-              : classnames(
-                  themeColors.textClass,
-                  themeColors.hoverClass,
-                  themeColors.hoverTextClass,
-                ),
+            "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all duration-200",
+            "ed-toolbar-item",
+            isActive && "is-active"
           )}
           onClick={handleClick}
         >

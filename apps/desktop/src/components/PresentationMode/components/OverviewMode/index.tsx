@@ -1,4 +1,5 @@
 import { Descendant } from "slate";
+import { getDesktopKit } from "@/services/editorKit";
 import { Editor } from "@tau/editor/src";
 import styles from "./index.module.less";
 import { useEffect, useRef, useState } from "react";
@@ -10,14 +11,12 @@ const OverviewMode = ({
   selectedSlide,
   onSelectSlide,
   onEnterSlide,
-  extensions,
   isExiting = false,
 }: {
   slides: Descendant[][];
   selectedSlide: number;
   onSelectSlide: (index: number) => void;
   onEnterSlide: (index: number) => void;
-  extensions: any[];
   isExiting?: boolean;
 }) => {
   const gridContainerRef = useRef<HTMLDivElement>(null);
@@ -112,9 +111,9 @@ const OverviewMode = ({
         >
           <div className={styles.overviewSlideContent}>
             <Editor
+              kit={getDesktopKit()}
               readonly={true}
               initValue={slide}
-              extensions={extensions}
               className={styles.overviewEditor}
             />
           </div>

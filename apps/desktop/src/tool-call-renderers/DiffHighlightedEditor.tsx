@@ -1,10 +1,10 @@
 import { useCallback } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import { Editor } from "@tau/editor/src";
 import type { RenderLeafProps } from "slate-react";
 import type { Descendant } from "slate";
 import type { FormattedText as FormattedTextType } from "@tau/editor/src/types";
 import FormattedText from "@tau/editor/src/components/FormattedText";
-import type IExtension from "@tau/editor/src/extensions/types";
 import { cn } from "@tau/ui";
 import type { ReviewLeaf } from "@/utils/review-merged-content";
 
@@ -12,7 +12,6 @@ interface DiffHighlightedEditorProps {
   content: Descendant[];
   /** 兼容保留：diff 取色已走语义 token（随主题切换），不再按主题分支 */
   isDark: boolean;
-  extensions?: IExtension[];
 }
 
 const sanitizeLeaf = (leaf: ReviewLeaf): FormattedTextType => {
@@ -33,7 +32,7 @@ const SYNTHETIC_CLASS: Record<string, string> = {
   code: "font-tau-mono whitespace-pre-wrap",
 };
 
-export const DiffHighlightedEditor = ({ content, extensions }: DiffHighlightedEditorProps) => {
+export const DiffHighlightedEditor = ({ content }: DiffHighlightedEditorProps) => {
   const customRenderLeaf = useCallback((props: RenderLeafProps) => {
     const { leaf, children, attributes } = props;
     const diffLeaf = leaf as ReviewLeaf;
@@ -59,9 +58,9 @@ export const DiffHighlightedEditor = ({ content, extensions }: DiffHighlightedEd
 
   return (
     <Editor
+      kit={getDesktopKit()}
       initValue={content}
       readonly
-      extensions={extensions}
       customRenderLeaf={customRenderLeaf}
       className="text-ink-1"
       style={{ padding: "0 4px" }}

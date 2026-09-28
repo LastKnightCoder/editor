@@ -1,10 +1,4 @@
-import React, {
-  PropsWithChildren,
-  useState,
-  useRef,
-  useEffect,
-  useLayoutEffect,
-} from "react";
+import React, { PropsWithChildren, useState, useRef, useEffect, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { Transforms, Editor } from "slate";
 import {
@@ -48,15 +42,15 @@ const IconButton = ({
     onClick={onClick}
     title={tooltip}
     className={classNames(
-      "flex items-center justify-center w-7 h-7 rounded-md transition-all duration-200",
+      "flex h-7 w-7 items-center justify-center rounded-md transition-all duration-200",
       "text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-200",
       "hover:bg-black/5 dark:hover:bg-white/10",
       {
-        "text-blue-500 hover:text-blue-600 bg-blue-50 dark:bg-blue-500/20 dark:text-blue-400":
+        "bg-blue-50 text-blue-500 hover:text-blue-600 dark:bg-blue-500/20 dark:text-blue-400":
           active && !danger,
-        "text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/20 dark:text-red-400":
+        "text-red-500 hover:bg-red-50 hover:text-red-600 dark:text-red-400 dark:hover:bg-red-500/20":
           danger,
-      },
+      }
     )}
   >
     <Icon size={15} strokeWidth={1.5} />
@@ -173,7 +167,7 @@ const MathPopover = ({
       {visible && (
         <motion.div
           ref={popoverRef}
-          className="fixed z-9999 flex flex-col"
+          className="z-9999 fixed flex flex-col"
           style={{ left: position.x, top: position.y }}
           initial={{ opacity: 0, y: 2 }}
           animate={{ opacity: 1, y: 0 }}
@@ -184,51 +178,45 @@ const MathPopover = ({
             damping: 30,
             duration: 0.1,
           }}
-          onClick={(e) => e.stopPropagation()}
+          onClick={e => e.stopPropagation()}
         >
           <div
             className={classNames(
-              "flex items-center p-1.5 gap-3 min-w-75 max-w-[400px]",
-              "bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl saturate-150",
+              "min-w-75 flex max-w-[400px] items-center gap-3 p-1.5",
+              "bg-white/80 saturate-150 backdrop-blur-xl dark:bg-zinc-900/80",
               "border border-black/5 dark:border-white/10",
               "shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.4)]",
-              "rounded-lg",
+              "rounded-lg"
             )}
           >
-            <div className="flex-1 flex items-center gap-3 pl-1.5">
-              <span className="text-xs font-mono text-slate-400 select-none font-bold">
-                TeX
-              </span>
+            <div className="flex flex-1 items-center gap-3 pl-1.5">
+              <span className="select-none font-mono text-xs font-bold text-slate-400">TeX</span>
               <input
                 ref={inputRef}
-                className="flex-1 min-w-0 bg-transparent border-none outline-none text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 font-mono"
+                className="min-w-0 flex-1 border-none bg-transparent font-mono text-sm text-[var(--ed-text)] outline-none placeholder:text-slate-400"
                 defaultValue={tex}
-                onChange={(e) => onTexChange(e.target.value)}
+                onChange={e => onTexChange(e.target.value)}
                 placeholder="输入 LaTeX 公式..."
               />
             </div>
 
-            <div className="flex items-center gap-1 pl-1 border-l border-black/5 dark:border-white/5 ml-1">
+            <div className="ml-1 flex items-center gap-1 border-l border-black/5 pl-1 dark:border-white/5">
               <IconButton
                 icon={Type}
                 onClick={() => onUnwrap(inputRef.current?.value || "")}
                 tooltip="还原为文本"
               />
-              <IconButton
-                icon={X}
-                onClick={() => onClose("button")}
-                tooltip="关闭"
-              />
+              <IconButton icon={X} onClick={() => onClose("button")} tooltip="关闭" />
             </div>
           </div>
         </motion.div>
       )}
     </AnimatePresence>,
-    document.body,
+    document.body
   );
 };
 
-const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = (props) => {
+const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = props => {
   const { attributes, element, children } = props;
   const { tex } = element;
   const editor = useSlateStatic();
@@ -265,8 +253,7 @@ const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = (props) => {
   const moveCaretToInlineEnd = useMemoizedFn(() => {
     const path = ReactEditor.findPath(editor, element);
     const targetPoint =
-      Editor.after(editor, path, { voids: true }) ||
-      Editor.before(editor, path, { voids: true });
+      Editor.after(editor, path, { voids: true }) || Editor.before(editor, path, { voids: true });
 
     if (targetPoint) {
       Transforms.select(editor, targetPoint);
@@ -299,16 +286,14 @@ const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = (props) => {
     }
   };
 
-  const handleClose = useMemoizedFn(
-    (reason?: "escape" | "outside" | "button") => {
-      setIsOpen(false);
-      if (reason === "outside") return;
-      requestAnimationFrame(() => {
-        moveCaretToInlineEnd();
-        focusEditorWithDelay();
-      });
-    },
-  );
+  const handleClose = useMemoizedFn((reason?: "escape" | "outside" | "button") => {
+    setIsOpen(false);
+    if (reason === "outside") return;
+    requestAnimationFrame(() => {
+      moveCaretToInlineEnd();
+      focusEditorWithDelay();
+    });
+  });
 
   useEffect(() => {
     if (readOnly || !selected || !focused) return;
@@ -316,10 +301,7 @@ const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = (props) => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
 
-      if (
-        !isOpen &&
-        (event.key === "ArrowLeft" || event.key === "ArrowRight")
-      ) {
+      if (!isOpen && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
         event.preventDefault();
         event.stopPropagation();
         moveCaretOut(event.key === "ArrowLeft" ? "left" : "right");
@@ -363,11 +345,7 @@ const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = (props) => {
             TeX
           </span>
         )}
-        {tex ? (
-          <Katex tex={tex} />
-        ) : (
-          <span className="text-slate-400 px-1">Empty Math</span>
-        )}
+        {tex ? <Katex tex={tex} /> : <span className="px-1 text-slate-400">Empty Math</span>}
         <InlineChromiumBugfix />
         {children}
         <InlineChromiumBugfix />

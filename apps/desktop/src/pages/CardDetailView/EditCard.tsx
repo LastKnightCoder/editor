@@ -35,7 +35,6 @@ import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModa
 import FlashcardEditor from "@/components/FlashcardEditor";
 
 import useSettingStore from "@/stores/useSettingStore";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 import { EditCardContext } from "@/context";
 import {
@@ -88,7 +87,6 @@ interface IEditCardProps {
 
 const EditCard = (props: IEditCardProps) => {
   const { cardId, defaultReadonly = false } = props;
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const navigateTo = useTabStore(state => state.navigateTo);
   const openInNewTab = useTabStore(state => state.openInNewTab);
   const panes = useTabStore(state => state.panes);
@@ -611,7 +609,6 @@ const EditCard = (props: IEditCardProps) => {
                 onSelectionChange={handleEditorSelectionChange}
                 onFocus={handleEditorFocus}
                 onBlur={handleEditorBlur}
-                extensions={dynamicExtensions}
                 readonly={readonly}
               />
             </ErrorBoundary>
@@ -689,7 +686,6 @@ const EditCard = (props: IEditCardProps) => {
             onExit={handleImmersiveExit}
             wordCount={editingCard.count}
             readonly={readonly}
-            extensions={dynamicExtensions}
           />
         )}
         <ContentExportModal

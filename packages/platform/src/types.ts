@@ -59,12 +59,6 @@ export interface DirectoryChangedPayload {
   directoryPath: string;
 }
 
-/** markdown 独立窗口的展示选项（对齐主进程 open-markdown-in-new-window 的可选参数） */
-export interface MarkdownWindowOptions {
-  showTitlebar?: boolean;
-  isDefaultTop?: boolean;
-}
-
 /** 内容编辑窗口承载的内容类型：一个窗口 = 一份数据库文档 */
 export type EditorWindowKind = "card" | "article" | "project-item";
 
@@ -84,7 +78,8 @@ export interface WindowApi {
   getState(): Promise<WindowState>;
   /** 恢复、显示并聚焦主窗口（从最小化恢复、移至最前方） */
   showAndFocus(): Promise<void>;
-  openMarkdownWindow(filePath: string, options?: MarkdownWindowOptions): Promise<void>;
+  /** 打开 Markdown 文件窗口：传文件或文件夹路径；不传则打开欢迎页 */
+  openMarkdownWindow(path?: string): Promise<void>;
   /** 在独立窗口编辑卡片 / 文章 / 项目文档；已打开则聚焦 */
   openEditorWindow(target: EditorWindowTarget): Promise<void>;
   /** 关闭编辑该文档的窗口（文档被删除时收尾）；未打开则无操作 */

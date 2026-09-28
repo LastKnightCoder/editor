@@ -1,22 +1,21 @@
 # @tau/ui
 
-Tau 新设计系统的唯一公共实现：基础组件、主题、浮层定位与关闭、通用滚动行为都位于本包。应用只装配主题偏好存储和页面导航，不复制组件或主题算法。
+Tau 新设计系统的公共组件实现：基础组件、浮层定位与关闭、通用滚动行为都位于本包。主题（token 契约、主题定义、运行时）在 `@tau/themes`，本包依赖它。
 
 ## 使用
 
-React 组件从 `@tau/ui` 导入；现有常用组件也提供命名子入口。`@tau/ui/theme` 提供主题定义与首帧脚本生成，`@tau/ui/theme/runtime` 提供默认运行时及 `createThemeRuntime`，`@tau/ui/hooks` 提供滚动与边缘渐隐。没有任意 `src/*` 深层导出。
+React 组件从 `@tau/ui` 导入，`@tau/ui/hooks` 提供滚动与边缘渐隐。没有任意 `src/*` 深层导出。主题相关的一律从 `@tau/themes` 导入，见该包 README。
 
 ```css
 @import "tailwindcss";
-@import "@tau/ui/theme/tokens.css";
+@import "@tau/themes/tokens.css";
+@import "@tau/themes/tailwind.css";
 @import "@tau/ui/styles.css";
 /* 具体相对路径以应用入口为准。 */
 @source "../../../packages/ui/src";
 ```
 
-`initThemeRuntime()` 与 `initScrollbarAutoHide()` 返回清理函数。包导入不读取存储或启动 DOM 监听。多根宿主可以用 `createThemeRuntime({ storage, storageKey, root, media, light, dark })` 隔离主题运行时。
-
-构建工具通过 `createThemeBootstrapScript()` 注入首帧脚本，与运行时共用主题清单和解析函数。新增主题仍需同步主题声明与 CSS 数据块，主题一致性和对比度测试守护二者。
+`initScrollbarAutoHide()` 返回清理函数。包导入不读取存储或启动 DOM 监听。
 
 `UiProvider theme="cocoa"` 提供局部主题和 body 级 Portal 容器。浮层的外点注册按 Document 隔离，关闭后移除监听；嵌套 Dialog 的滚动锁使用引用计数。Popover 的表单内部 Tab 顺序移动，到最后一个控件才退出；Esc 让位输入法组合。
 

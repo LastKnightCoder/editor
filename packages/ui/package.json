@@ -7,9 +7,6 @@
   "types": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./theme": "./src/theme/index.ts",
-    "./theme/runtime": "./src/theme/themeStore.ts",
-    "./theme/tokens.css": "./src/theme/tokens.css",
     "./styles.css": "./src/styles.css"
   },
   "scripts": {
@@ -17,6 +14,7 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
+    "@tau/themes": "workspace:*",
     "clsx": "^2.1.1",
     "lucide-react": "^0.399.0",
     "tailwind-merge": "^3.7.0",

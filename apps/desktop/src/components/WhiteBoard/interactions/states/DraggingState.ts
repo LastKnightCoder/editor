@@ -46,29 +46,15 @@ export class DraggingState implements InteractionState {
     const startPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!startPoint) return null;
 
-    const selectedElements = expandSelectionByGroup(
-      board,
-      board.selection.selectedElements,
-    );
-    const hitElements = BoardUtil.getHitElements(
-      board,
-      startPoint.x,
-      startPoint.y,
-    );
-    const isHitSelectedElement = hitElements.some((element) =>
-      selectedElements.find(
-        (selectedElement) => selectedElement.id === element.id,
-      ),
+    const selectedElements = expandSelectionByGroup(board, board.selection.selectedElements);
+    const hitElements = BoardUtil.getHitElements(board, startPoint.x, startPoint.y);
+    const isHitSelectedElement = hitElements.some(element =>
+      selectedElements.find(selectedElement => selectedElement.id === element.id)
     );
     const isHitSelectedGroupBounds =
       hitElements.length === 0 &&
       selectedElements.length > 0 &&
-      isPointInAnySelectedGroupBounds(
-        board,
-        selectedElements,
-        startPoint.x,
-        startPoint.y,
-      );
+      isPointInAnySelectedGroupBounds(board, selectedElements, startPoint.x, startPoint.y);
     const isHitSelected = isHitSelectedElement || isHitSelectedGroupBounds;
     // 如果有选中元素，并且点击到其中之一，则移动所有选中的元素，
     // 否则没有选中元素，但是有点击到元素，则移动选中的元素，
@@ -77,17 +63,13 @@ export class DraggingState implements InteractionState {
     // 注意：需要获取最新的元素状态（因为可能被 relayout 更新了位置）
     let moveElements: BoardElement[] | null;
     if (selectedElements.length > 0 && isHitSelected) {
-      moveElements = selectedElements.map(
-        (el) => BoardUtil.getElementById(board, el.id) || el,
-      );
+      moveElements = selectedElements.map(el => BoardUtil.getElementById(board, el.id) || el);
     } else if (hitElements.length > 0) {
       const hitElement = hitElements[hitElements.length - 1];
       const hitGroupId = getElementGroupId(hitElement);
-      const candidates = hitGroupId
-        ? collectGroupMembers(board, hitGroupId)
-        : [hitElement];
+      const candidates = hitGroupId ? collectGroupMembers(board, hitGroupId) : [hitElement];
       moveElements = candidates.map(
-        (element) => BoardUtil.getElementById(board, element.id) || element,
+        element => BoardUtil.getElementById(board, element.id) || element
       );
     } else {
       moveElements = null;
@@ -101,17 +83,13 @@ export class DraggingState implements InteractionState {
     // 把这些子元素从 moveElements 中移除（它们随容器整体移动）
     if (moveElements.length > 1) {
       const capService = board.capabilityService;
-      const containers = moveElements.filter((el) =>
-        capService.shouldMoveWithChildren(el),
-      );
-      containers.forEach((container) => {
+      const containers = moveElements.filter(el => capService.shouldMoveWithChildren(el));
+      containers.forEach(container => {
         const memberIds = new Set(
-          capService.collectMoveSubtree(container).map((member) => member.id),
+          capService.collectMoveSubtree(container).map(member => member.id)
         );
         moveElements =
-          moveElements?.filter(
-            (el) => el.id === container.id || !memberIds.has(el.id),
-          ) || null;
+          moveElements?.filter(el => el.id === container.id || !memberIds.has(el.id)) || null;
       });
       if (!moveElements) return null;
     }
@@ -134,16 +112,13 @@ export class DraggingState implements InteractionState {
           selectedElements: [],
         },
       },
-      false,
+      false
     );
     return state;
   }
 
   // 这里需要处理吸附后元素位置问题
-  private getUpdatedInfo(
-    e: PointerEvent,
-    board: Board,
-  ): { movedElements: BoardElement[] } {
+  private getUpdatedInfo(e: PointerEvent, board: Board): { movedElements: BoardElement[] } {
     let movedElements: BoardElement[] = [];
 
     if (!this.moveElements || !this.startPoint) {
@@ -164,7 +139,7 @@ export class DraggingState implements InteractionState {
     const offsetX = endPoint.x - this.startPoint.x;
     const offsetY = endPoint.y - this.startPoint.y;
 
-    this.moveElements.forEach((element) => {
+    this.moveElements.forEach(element => {
       const movedElement = board.moveElement(element, offsetX, offsetY);
       if (movedElement) {
         movedElements.push(movedElement);
@@ -174,7 +149,7 @@ export class DraggingState implements InteractionState {
     // 更新正在移动的元素，这些元素的边界不会显示为参考线
     const capService = board.capabilityService;
     const currentMoved: Rect[] = movedElements
-      .map((me) => {
+      .map(me => {
         // 使用能力查询判断是否参与参考线
         if (!capService.shouldParticipateInRefLines(me)) return;
         return {
@@ -187,12 +162,10 @@ export class DraggingState implements InteractionState {
       })
       .filter(isValid);
     // 获取所有需要带子元素一起移动的容器（含其自身与后代，均不作为参考线）
-    const containers = movedElements.filter((el) =>
-      capService.shouldMoveWithChildren(el),
-    );
+    const containers = movedElements.filter(el => capService.shouldMoveWithChildren(el));
     const containerChildren = containers
-      .flatMap((container) => capService.collectMoveSubtree(container))
-      .map((ele) => {
+      .flatMap(container => capService.collectMoveSubtree(container))
+      .map(ele => {
         if (!capService.shouldParticipateInRefLines(ele)) return;
         return {
           key: ele.id,
@@ -210,18 +183,15 @@ export class DraggingState implements InteractionState {
     const isAdsorb = !e.altKey;
 
     // 获取吸附后的元素的位置
-    const newCurrent = board.refLine.getUpdateCurrent(
-      isAdsorb,
-      5 / board.viewPort.zoom,
-    );
+    const newCurrent = board.refLine.getUpdateCurrent(isAdsorb, 5 / board.viewPort.zoom);
 
     // 如果使用吸附，则根据吸附的结果 newCurrent 更新 movedElements
     if (isAdsorb) {
       movedElements = movedElements
-        .map((me) => {
+        .map(me => {
           // 使用能力查询判断是否参与吸附
           if (!capService.shouldElementSnap(me)) return me;
-          const rect = newCurrent.rects.find((rect) => rect.key === me.id);
+          const rect = newCurrent.rects.find(rect => rect.key === me.id);
           if (!rect) return;
           // 对于 RootOnly 类型的吸附（如 mind-node），需要整体移动
           const snapCap = capService.getSnapCapability(me.type);
@@ -251,7 +221,7 @@ export class DraggingState implements InteractionState {
    */
   private getDragContainers(board: Board): BoardElement[] {
     const capService = board.capabilityService;
-    return board.children.filter((el) => {
+    return board.children.filter(el => {
       if (!capService.isContainer(el)) return false;
       // 只有实现了 isElementInContainer 的容器才参与拖拽进出检测（例如 Frame/Column）。
       const caps = capService.getContainmentCapability(el.type);
@@ -264,24 +234,16 @@ export class DraggingState implements InteractionState {
    * 运动中的容器与鼠标的相对位置恒定（如全选拖动时从 Column 内部按下），
    * "鼠标在容器内"是拖动集合自身造成的伪状态，会把集合外的元素误判为拖入。
    */
-  private getDropTargetContainers(
-    board: Board,
-    movedElements: BoardElement[],
-  ): BoardElement[] {
-    const movingIds = new Set(movedElements.map((element) => element.id));
-    return this.getDragContainers(board).filter(
-      (container) => !movingIds.has(container.id),
-    );
+  private getDropTargetContainers(board: Board, movedElements: BoardElement[]): BoardElement[] {
+    const movingIds = new Set(movedElements.map(element => element.id));
+    return this.getDragContainers(board).filter(container => !movingIds.has(container.id));
   }
 
   /**
    * 找到管理该元素布局的有序容器（如 Column）：拖拽中子元素的位置更新
    * 转交容器反馈，不直接提交位置。
    */
-  private findManagedChildContainer(
-    board: Board,
-    element: BoardElement,
-  ): BoardElement | null {
+  private findManagedChildContainer(board: Board, element: BoardElement): BoardElement | null {
     const capService = board.capabilityService;
     for (const candidate of board.children) {
       if (!capService.hasOrderedChildren(candidate)) continue;
@@ -293,11 +255,7 @@ export class DraggingState implements InteractionState {
   }
 
   onPointerMove(e: PointerEvent, board: Board) {
-    if (
-      !this.moveElements ||
-      !this.startPoint ||
-      board.presentationManager.isPresentationMode
-    )
+    if (!this.moveElements || !this.startPoint || board.presentationManager.isPresentationMode)
       return;
     if (!isEditableEventTarget(e.target)) {
       e.preventDefault();
@@ -331,18 +289,13 @@ export class DraggingState implements InteractionState {
       }
     >();
 
-    movedElements.forEach((movedElement) => {
-      const element = this.moveElements?.find(
-        (element) => element.id === movedElement.id,
-      );
+    movedElements.forEach(movedElement => {
+      const element = this.moveElements?.find(element => element.id === movedElement.id);
       const path = PathUtil.getPathByElement(board, movedElement);
       if (!path || !element) return;
 
       // 有序容器的子元素：更新容器的拖拽反馈而不是元素位置
-      const managedContainer = this.findManagedChildContainer(
-        board,
-        movedElement,
-      );
+      const managedContainer = this.findManagedChildContainer(board, movedElement);
       if (managedContainer) {
         childDragUpdates.set(managedContainer.id, {
           container: managedContainer,
@@ -360,16 +313,12 @@ export class DraggingState implements InteractionState {
       }
       if (!current) return;
       // 子树元素生成整树平移 ops，普通元素只 patch 变化字段（能力判定在 service 内）
-      operations.push(
-        ...capService.buildElementMoveOps(current, movedElement, path),
-      );
+      operations.push(...capService.buildElementMoveOps(current, movedElement, path));
     });
 
     // 更新有序容器的子元素拖拽反馈
     childDragUpdates.forEach(({ container, childId, position }) => {
-      operations.push(
-        ...capService.buildChildDragFeedbackOps(container, childId, position),
-      );
+      operations.push(...capService.buildChildDragFeedbackOps(container, childId, position));
     });
 
     if (operations.length > 0) {
@@ -378,16 +327,8 @@ export class DraggingState implements InteractionState {
 
     // 统一容器拖拽检测（Frame 和 Column）
     // 传递鼠标位置用于判断是否进入容器
-    const pointerPosition = PointUtil.screenToViewPort(
-      board,
-      e.clientX,
-      e.clientY,
-    );
-    this.updateContainerDragPreviewState(
-      board,
-      movedElements,
-      pointerPosition ?? undefined,
-    );
+    const pointerPosition = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
+    this.updateContainerDragPreviewState(board, movedElements, pointerPosition ?? undefined);
 
     board.emit("element:move", movedElements);
   }
@@ -427,10 +368,8 @@ export class DraggingState implements InteractionState {
     // 这样即便拖拽过程中是 apply(..., false)，Undo 也能还原位置。
     const commitOps: Operation[] = [];
 
-    movedElements.forEach((movedElement) => {
-      const originElement = this.moveElements?.find(
-        (el) => el.id === movedElement.id,
-      );
+    movedElements.forEach(movedElement => {
+      const originElement = this.moveElements?.find(el => el.id === movedElement.id);
       const path = PathUtil.getPathByElement(board, movedElement);
       if (!path || !originElement) return;
 
@@ -439,9 +378,7 @@ export class DraggingState implements InteractionState {
       if (this.findManagedChildContainer(board, movedElement)) return;
 
       // 子树元素生成整树平移 ops，普通元素只 patch 变化字段（能力判定在 service 内）
-      commitOps.push(
-        ...capService.buildElementMoveOps(originElement, movedElement, path),
-      );
+      commitOps.push(...capService.buildElementMoveOps(originElement, movedElement, path));
     });
 
     if (commitOps.length > 0) {
@@ -461,7 +398,7 @@ export class DraggingState implements InteractionState {
         properties: board.selection,
         newProperties: {
           selectedElements: movedElements
-            .map((me) => {
+            .map(me => {
               const path = PathUtil.getPathByElement(board, me);
               if (!path) return;
               const newestMe = PathUtil.getElementByPath(board, path);
@@ -496,7 +433,7 @@ export class DraggingState implements InteractionState {
   private commitContainerDragMove(
     board: Board,
     movedElements: BoardElement[],
-    pointerPosition?: { x: number; y: number },
+    pointerPosition?: { x: number; y: number }
   ) {
     if (!movedElements || movedElements.length === 0) return;
 
@@ -516,7 +453,7 @@ export class DraggingState implements InteractionState {
     }> = [];
 
     // 批量收集所有元素的移动信息
-    movedElements.forEach((element) => {
+    movedElements.forEach(element => {
       // 使用能力检测：跳过不能被包含的元素
       const canBeContained = capService.canBeContained(element);
 
@@ -549,7 +486,7 @@ export class DraggingState implements InteractionState {
           const isInContainer = capService.isElementInContainer(
             container,
             element,
-            pointerPosition,
+            pointerPosition
           );
           if (isInContainer) {
             targetContainer = container;
@@ -578,9 +515,7 @@ export class DraggingState implements InteractionState {
 
     moveInfos.forEach(({ element, currentContainer, targetContainer }) => {
       const isSameContainer =
-        currentContainer &&
-        targetContainer &&
-        currentContainer.id === targetContainer.id;
+        currentContainer && targetContainer && currentContainer.id === targetContainer.id;
 
       // 场景1：同一有序容器（如 Column）内重排序
       if (isSameContainer && capService.hasOrderedChildren(currentContainer)) {
@@ -588,18 +523,11 @@ export class DraggingState implements InteractionState {
         if (!oldPath || !pointerPosition) return;
 
         // 使用鼠标 Y 位置计算插入索引
-        const newIndex = capService.getDropIndex(
-          currentContainer,
-          pointerPosition.y,
-          element.id,
-        );
+        const newIndex = capService.getDropIndex(currentContainer, pointerPosition.y, element.id);
         const currentIndex = oldPath[oldPath.length - 1];
 
         if (newIndex !== currentIndex) {
-          const containerPath = PathUtil.getPathByElement(
-            board,
-            currentContainer,
-          );
+          const containerPath = PathUtil.getPathByElement(board, currentContainer);
           if (containerPath) {
             reorderOperations.push({
               type: "move_node",
@@ -638,8 +566,8 @@ export class DraggingState implements InteractionState {
               ...BoardUtil.diffNodePatchOnly(
                 currentElement,
                 { ...currentElement, x: element.x, y: element.y },
-                elementPath,
-              ),
+                elementPath
+              )
             );
           }
         }
@@ -655,16 +583,10 @@ export class DraggingState implements InteractionState {
           // 不允许放入容器，路径回落到根层
           newPath = [board.children.length];
         } else {
-          const targetContainerPath = PathUtil.getPathByElement(
-            board,
-            targetContainer,
-          );
+          const targetContainerPath = PathUtil.getPathByElement(board, targetContainer);
           if (targetContainerPath && pointerPosition) {
             // 使用鼠标 Y 位置获取插入位置
-            const dropIndex = capService.getDropIndex(
-              targetContainer,
-              pointerPosition.y,
-            );
+            const dropIndex = capService.getDropIndex(targetContainer, pointerPosition.y);
             newPath = [...targetContainerPath, dropIndex];
           }
         }
@@ -696,10 +618,7 @@ export class DraggingState implements InteractionState {
     for (const { element, currentContainer, targetContainer } of moveInfos) {
       if (currentContainer && currentContainer !== targetContainer) {
         // 重新获取最新的容器引用
-        const latestCurrentContainer = BoardUtil.getElementById(
-          board,
-          currentContainer.id,
-        );
+        const latestCurrentContainer = BoardUtil.getElementById(board, currentContainer.id);
         if (latestCurrentContainer) {
           // 传递被移除的元素，以便容器可以恢复其属性
           capService.notifyChildRemoved(latestCurrentContainer, element);
@@ -707,20 +626,14 @@ export class DraggingState implements InteractionState {
       }
       if (targetContainer && targetContainer !== currentContainer) {
         // 重新获取最新的容器引用
-        const latestTargetContainer = BoardUtil.getElementById(
-          board,
-          targetContainer.id,
-        );
+        const latestTargetContainer = BoardUtil.getElementById(board, targetContainer.id);
         if (latestTargetContainer) {
           capService.notifyChildInserted(latestTargetContainer);
         }
       }
       // 同一容器内移动也需要触发 relayout（例如 Column 内部重排序）
       if (currentContainer && currentContainer === targetContainer) {
-        const latestContainer = BoardUtil.getElementById(
-          board,
-          currentContainer.id,
-        );
+        const latestContainer = BoardUtil.getElementById(board, currentContainer.id);
         if (latestContainer) {
           capService.notifyChildInserted(latestContainer);
         }
@@ -738,7 +651,7 @@ export class DraggingState implements InteractionState {
   private updateContainerDragPreviewState(
     board: Board,
     movedElements: BoardElement[],
-    pointerPosition?: { x: number; y: number },
+    pointerPosition?: { x: number; y: number }
   ) {
     if (!movedElements || movedElements.length === 0) return;
 
@@ -758,7 +671,7 @@ export class DraggingState implements InteractionState {
     }> = [];
 
     // 批量收集所有元素的移动信息
-    movedElements.forEach((element) => {
+    movedElements.forEach(element => {
       // 跳过不能被包含的元素（如 arrow、frame、column）
       if (!capService.canBeContained(element)) return;
 
@@ -776,11 +689,7 @@ export class DraggingState implements InteractionState {
       // 找到元素现在应该进入的容器（使用鼠标位置判断）
       for (const container of containers) {
         if (
-          capService.isElementInContainer(
-            container,
-            element,
-            pointerPosition,
-          ) &&
+          capService.isElementInContainer(container, element, pointerPosition) &&
           capService.canContain(container, element)
         ) {
           targetContainer = container;
@@ -796,12 +705,7 @@ export class DraggingState implements InteractionState {
     });
 
     // 拖拽中：只更新视觉状态
-    this.updateContainerDragState(
-      board,
-      containers,
-      moveInfos,
-      pointerPosition,
-    );
+    this.updateContainerDragState(board, containers, moveInfos, pointerPosition);
   }
 
   /**
@@ -816,7 +720,7 @@ export class DraggingState implements InteractionState {
       currentContainer: BoardElement | null;
       targetContainer: BoardElement | null;
     }>,
-    pointerPosition?: { x: number; y: number },
+    pointerPosition?: { x: number; y: number }
   ) {
     const capService = board.capabilityService;
     const ops: Operation[] = [];
@@ -825,9 +729,15 @@ export class DraggingState implements InteractionState {
     const targetContainerIds = new Set<string>();
     const currentContainerIds = new Set<string>();
     const draggingElements = new Map<string, BoardElement>(); // containerId -> draggingElement
+    const hoveringElements = new Map<string, BoardElement>(); // containerId -> hoveringElement
 
     moveInfos.forEach(({ element, currentContainer, targetContainer }) => {
-      if (targetContainer) targetContainerIds.add(targetContainer.id);
+      if (targetContainer) {
+        targetContainerIds.add(targetContainer.id);
+        if (!hoveringElements.has(targetContainer.id)) {
+          hoveringElements.set(targetContainer.id, element);
+        }
+      }
       if (currentContainer) {
         currentContainerIds.add(currentContainer.id);
         // 记录正在从该容器拖出的元素（不管是否移到其他容器）
@@ -843,8 +753,9 @@ export class DraggingState implements InteractionState {
           isTarget: targetContainerIds.has(container.id),
           isCurrent: currentContainerIds.has(container.id),
           draggingElement: draggingElements.get(container.id) ?? null,
+          hoveringElement: hoveringElements.get(container.id) ?? null,
           pointer: pointerPosition,
-        }),
+        })
       );
     }
 
@@ -874,17 +785,10 @@ export class DraggingState implements InteractionState {
 
 const isEditableEventTarget = (target: EventTarget | null): boolean => {
   const element =
-    target instanceof Element
-      ? target
-      : target instanceof Node
-        ? target.parentElement
-        : null;
+    target instanceof Element ? target : target instanceof Node ? target.parentElement : null;
   if (!element) return false;
 
-  if (
-    element instanceof HTMLInputElement ||
-    element instanceof HTMLTextAreaElement
-  ) {
+  if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
     return true;
   }
 
@@ -893,6 +797,6 @@ const isEditableEventTarget = (target: EventTarget | null): boolean => {
     element.closest('[contenteditable="true"]') ||
     element.closest("[data-slate-editor]") ||
     element.closest("input") ||
-    element.closest("textarea"),
+    element.closest("textarea")
   );
 };

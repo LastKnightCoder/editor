@@ -9,6 +9,7 @@
  */
 
 import { forwardRef, memo, useEffect, useMemo, useRef, useState } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import { Editor as SlateEditor, Transforms, type BasePoint, type Descendant } from "slate";
 import { ReactEditor } from "slate-react";
 import { useThrottleFn, useUnmount } from "ahooks";
@@ -17,7 +18,6 @@ import { Editor, type EditorRef } from "@tau/editor/src";
 import { IconButton, Menu, Tag, cn, toast, type TagColor } from "@tau/ui";
 import ContentEditor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import {
   dayKey,
   formatTime,
@@ -240,15 +240,14 @@ function readerCaret(reader: EditorRef | null, selection: Selection | null): Bas
 /** 只读渲染：不建协作会话；正文变化（updateTime）时重建实例（initValue 只在挂载时生效） */
 const MomentReader = forwardRef<EditorRef, { content: Descendant[]; revision: number }>(
   function MomentReader({ content, revision }, ref) {
-    const extensions = useDynamicExtensionsStore(state => state.extensions);
     return (
       <ErrorBoundary>
         <Editor
+          kit={getDesktopKit()}
           ref={ref}
           key={revision}
           readonly
           initValue={content.length ? content : undefined}
-          extensions={extensions}
           className={EDITOR_CLASS}
         />
       </ErrorBoundary>
@@ -267,7 +266,6 @@ function MomentEditor({
   fallback: React.ReactNode;
   onChange: (content: Descendant[]) => void;
 }) {
-  const extensions = useDynamicExtensionsStore(state => state.extensions);
   const editorRef = useRef<EditorRef | null>(null);
   // initValue 只在挂载时生效：编辑期间缓存回写不重建
   const initValue = useMemo(() => moment.content, [moment.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -277,7 +275,6 @@ function MomentEditor({
         ref={editorRef}
         contentId={moment.contentId}
         initValue={initValue}
-        extensions={extensions}
         readonly={false}
         fallback={fallback}
         onInit={() => requestAnimationFrame(() => placeCaret(editorRef.current, caret.current))}

@@ -3,7 +3,6 @@ import { App, Calendar } from "antd";
 import classnames from "classnames";
 import { useShallow } from "zustand/react/shallow";
 import { Dayjs } from "dayjs";
-import { type IExtension } from "@tau/editor/src";
 import Editor from "@/components/ContentEditor";
 import DailyNote from "@/pages/DailyNoteView/EditDailyNote";
 import useDailyNoteStore from "@/stores/useDailyNoteStore.ts";
@@ -13,7 +12,6 @@ import { SelectInfo } from "antd/es/calendar/generateCalendar";
 import styles from "./index.module.less";
 import For from "@/components/For";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
-const extensions: IExtension[] = [];
 
 const DailyNoteView = () => {
   const { modal } = App.useApp();
@@ -86,7 +84,7 @@ const DailyNoteView = () => {
                 });
               }}
             >
-              <Editor initValue={dailyNote.content.slice(0, 1)} extensions={extensions} readonly />
+              <Editor initValue={dailyNote.content.slice(0, 1)} readonly />
               <div
                 className={styles.delete}
                 onClick={e => {

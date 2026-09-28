@@ -238,7 +238,7 @@ export const compileAndExecuteCustomBlock = async (
               style: {
                 height: "100%",
                 fontSize: "var(--font-size)",
-                color: "var(--th-text)",
+                color: "var(--ed-text)",
               },
             },
             React.createElement(

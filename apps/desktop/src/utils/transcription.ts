@@ -106,8 +106,9 @@ export function prepareTranscriptionOptions(
   // 获取转录行为设置
   const { segmentationLevel = "sentence", useLLMOptimization = false } = misc.transcription || {};
 
-  // faster-whisper 模型，格式为 "faster-whisper-base" -> "base"
-  const modelSize = transcription.currentModel?.replace("faster-whisper-", "") || "base";
+  // 模型名带引擎前缀：Windows "faster-whisper-base"、macOS "whisper-cpp-base" -> "base"
+  const modelSize =
+    transcription.currentModel?.replace(/^(faster-whisper|whisper-cpp)-/, "") || "base";
 
   // 合并选项（device 由后端根据已安装程序自动检测）
   return {

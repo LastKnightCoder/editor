@@ -5,18 +5,24 @@
  * 不做「未变跳过 / 内容哈希比对」——后端没有增量比对（D-035）。
  * 动作卡发布中无取消按钮（无取消 IPC），完成后提供「重新发布」而非失败重试。
  * 站点卡：站点设置的只读摘要，详情与编辑收在抽屉里。
+ * 各块是发布页那张纸右栏里的一节（上下细线分隔），不再各自成卡。
  */
 
 import clsx from "clsx";
 import { useState, type ReactNode } from "react";
 import { Check, ChevronRight, ExternalLink, RotateCw, Upload } from "lucide-react";
-import { Button, Panel, PanelAction, PanelNote, PanelTitle } from "@tau/ui";
+import { Button, PanelAction, PanelNote, PanelTitle } from "@tau/ui";
 import { EPublishProvider } from "@/stores/useSettingStore";
 import type { IPublishProgress } from "@/types/publish";
 import { PROVIDER_LABELS, type PublishConfig } from "../usePublishConfig";
 import type { PlanSummary, RunState } from "../usePublishRun";
 import { formatAgo } from "@/utils/formatAgo";
 import { formatDuration } from "./format";
+
+/** 右栏一节：左右内距与纸左侧内容对称（右侧扣掉 FadeScroll 的 6px 滚动条透明边） */
+function RailSection({ children }: { children: ReactNode }) {
+  return <section className="py-5 pl-8 pr-[26px]">{children}</section>;
+}
 
 /* ─────────────── 首次引导 ─────────────── */
 
@@ -55,7 +61,7 @@ export function GuideCard({
   ];
 
   return (
-    <Panel pad="none" className="px-4 pb-3.5 pt-4">
+    <RailSection>
       <PanelTitle>开始之前</PanelTitle>
       <div className="text-tau-sm text-ink-3 mt-0.5">
         {steps.length} 步完成首次发布，之后只需勾选内容再点发布。
@@ -90,7 +96,7 @@ export function GuideCard({
           </li>
         ))}
       </ol>
-    </Panel>
+    </RailSection>
   );
 }
 
@@ -178,7 +184,7 @@ export function PlanCard({
   const remove = isLocal ? 0 : (plan?.remove.length ?? 0);
 
   return (
-    <Panel pad="none" className="px-4 pb-3.5 pt-4">
+    <RailSection>
       <PanelTitle>
         本次发布
         <PanelNote>{isLocal ? "全量生成静态站点" : "全量生成并推送"}</PanelNote>
@@ -224,7 +230,7 @@ export function PlanCard({
           {formatAgo(plan.computedAt)}计算 · 按访问路径 “/” 估算，不含 favicon
         </div>
       )}
-    </Panel>
+    </RailSection>
   );
 }
 
@@ -320,7 +326,7 @@ export function ActionCard({
     const percent =
       progress && progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
     return (
-      <Panel pad="none" className="px-4 pb-3.5 pt-4">
+      <RailSection>
         <PanelTitle>
           正在{verb}
           <PanelNote className="truncate">{hint}</PanelNote>
@@ -343,7 +349,7 @@ export function ActionCard({
           )}
         </div>
         <div className="text-tau-tiny text-ink-3 mt-3">发布进行中，完成前请勿关闭应用</div>
-      </Panel>
+      </RailSection>
     );
   }
 
@@ -376,7 +382,7 @@ export function ActionCard({
     }
 
     return (
-      <Panel pad="none" className="px-4 pb-3.5 pt-4">
+      <RailSection>
         <PanelTitle>
           {run.kind === "error" ? `${verb}未完成` : `${verb}完成`}
           {run.kind !== "error" && (
@@ -446,12 +452,12 @@ export function ActionCard({
             </Button>
           )}
         </div>
-      </Panel>
+      </RailSection>
     );
   }
 
   return (
-    <Panel pad="none" className="px-4 pb-3.5 pt-4">
+    <RailSection>
       <PanelTitle>
         {isLocal ? "导出到本地文件夹" : `发布到 ${PROVIDER_LABELS[config.active]}`}
       </PanelTitle>
@@ -477,7 +483,7 @@ export function ActionCard({
           </button>
         )}
       </div>
-    </Panel>
+    </RailSection>
   );
 }
 
@@ -521,7 +527,7 @@ export function SiteCard({ config, onOpen }: { config: PublishConfig; onOpen: ()
         : [{ label: "访问路径", value: publish.local.basePath, mono: true }];
 
   return (
-    <Panel pad="none" className="px-4 pb-3 pt-4">
+    <RailSection>
       <PanelTitle>
         站点设置
         <PanelNote>{PROVIDER_LABELS[active]}</PanelNote>
@@ -536,6 +542,6 @@ export function SiteCard({ config, onOpen }: { config: PublishConfig; onOpen: ()
         ))}
         <SiteRow label="站点描述" value={publish.site.description} />
       </div>
-    </Panel>
+    </RailSection>
   );
 }

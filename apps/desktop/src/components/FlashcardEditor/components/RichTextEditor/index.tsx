@@ -1,4 +1,5 @@
 import { useRef, useEffect, useMemo, useCallback } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import { Descendant } from "slate";
 import { Editor, EditorRef, IExtension } from "@tau/editor/src";
 import FlashcardBlankExtension from "@/editor-extensions/flashcard-blank";
@@ -57,7 +58,7 @@ const RichTextEditor = ({
       return [];
     }
 
-    return [new FlashcardBlankExtension({ isDark })];
+    return [new FlashcardBlankExtension()];
   }, [allowBlanks, isDark]);
 
   return (
@@ -66,6 +67,7 @@ const RichTextEditor = ({
       style={{ minHeight }}
     >
       <Editor
+        kit={getDesktopKit()}
         ref={editorRef}
         initValue={value}
         onChange={newValue => onChange(newValue)}
@@ -73,7 +75,6 @@ const RichTextEditor = ({
         readonly={false}
         extensions={extensions}
         placeHolder={placeholder}
-        theme={isDark ? "dark" : "light"}
         style={{
           padding: "16px",
           minHeight,

@@ -39,25 +39,30 @@ const createVoidElementPlugin = (type: string) => {
   };
 };
 
+/** 在光标处插入当前帧截图（无选区时落到文末）；快捷键与工具栏按钮共用 */
+export const insertVideoScreenshot = async (editor: Editor, videoController: VideoController) => {
+  if (!editor.selection) Transforms.select(editor, Editor.end(editor, []));
+  const screenshotNode = await createScreenshotElement(videoController);
+  if (!screenshotNode) return;
+
+  const path = setOrInsertNode(editor, screenshotNode as any);
+  if (!path) return;
+
+  const nextPath = Path.next(path);
+  ReactEditor.focus(editor);
+  Transforms.insertNodes(
+    editor,
+    { type: "paragraph", children: [{ type: "formatted", text: "" }] } as any,
+    { at: nextPath, select: true }
+  );
+};
+
 const createScreenshotHotkey = (videoController: VideoController): IHotKeyConfig => {
   return {
     hotKey: "mod+shift+s",
     action: async (editor: Editor) => {
       if (!editor.selection) return;
-
-      const screenshotNode = await createScreenshotElement(videoController);
-      if (!screenshotNode) return;
-
-      const path = setOrInsertNode(editor, screenshotNode as any);
-      if (!path) return;
-
-      const nextPath = Path.next(path);
-      ReactEditor.focus(editor);
-      Transforms.insertNodes(
-        editor,
-        { type: "paragraph", children: [{ type: "formatted", text: "" }] } as any,
-        { at: nextPath, select: true }
-      );
+      await insertVideoScreenshot(editor, videoController);
     },
   };
 };

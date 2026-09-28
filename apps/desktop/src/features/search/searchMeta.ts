@@ -16,6 +16,7 @@ import {
   CircleHelp,
   CalendarPlus,
   ListPlus,
+  FileDown,
   Command,
   type LucideIcon,
 } from "lucide-react";
@@ -75,7 +76,8 @@ export interface PaletteCommand {
     | "capture-question"
     | "capture-todo"
     | "capture-event"
-    | "toggle-assist";
+    | "toggle-assist"
+    | "open-markdown";
 }
 
 let cached: PaletteCommand[] | null = null;
@@ -118,7 +120,7 @@ export function paletteCommands(): PaletteCommand[] {
     ...pages,
     {
       id: "action:cycle-theme",
-      label: "切换深浅主题",
+      label: "切换深浅模式",
       section: "动作",
       icon: SunMoon,
       keywords: "theme dark light 外观",
@@ -160,6 +162,15 @@ export function paletteCommands(): PaletteCommand[] {
       keywords: "event schedule calendar add 日程 日历 新建",
       kind: "action",
       action: "capture-event",
+    },
+    {
+      id: "action:open-markdown",
+      label: "打开 Markdown 文件 / 文件夹",
+      section: "动作",
+      icon: FileDown,
+      keywords: "markdown md open folder file 打开 本地 文件夹 typora",
+      kind: "action",
+      action: "open-markdown",
     },
   ];
   return cached;

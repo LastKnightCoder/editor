@@ -10,7 +10,7 @@
 
 import { useEffect } from "react";
 import type { ToolCallExecutionState } from "@tau/shared";
-import { useThemeStore } from "@tau/ui/theme/runtime";
+import { useThemeStore } from "@tau/themes/react";
 import { ToolCallBlock } from "@/components/ChatUI";
 import { receiveInteractions, setInteractionSessionReady } from "@/services/piInteractions";
 import { normalizeAskQuestionPayload } from "@/tools/askQuestionTypes";
@@ -64,7 +64,7 @@ const seedAskQuestionDemo = () => {
 
 export default function ToolCallSection() {
   useEffect(seedAskQuestionDemo, []);
-  const isDark = useThemeStore(s => s.resolved) === "cocoa";
+  const isDark = useThemeStore(s => s.mode) === "dark";
 
   const show = (execution: ToolCallExecutionState) => (
     <ToolCallBlock execution={execution} isDark={isDark} />

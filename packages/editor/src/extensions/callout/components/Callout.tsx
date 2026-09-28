@@ -1,16 +1,10 @@
 import React, { useState, useRef, memo } from "react";
 import { Transforms } from "slate";
-import {
-  RenderElementProps,
-  useSlateStatic,
-  useReadOnly,
-  ReactEditor,
-} from "slate-react";
+import { RenderElementProps, useSlateStatic, useReadOnly, ReactEditor } from "slate-react";
 import classnames from "classnames";
 import { MdDragIndicator } from "react-icons/md";
 import { App } from "antd";
 
-import useTheme from "../../../hooks/useTheme";
 import useDragAndDrop from "../../../hooks/useDragAndDrop";
 import { useDragHandlerMenu } from "../../../hooks/useDragHandlerMenu";
 import type { CalloutElement } from "../../../types";
@@ -51,12 +45,12 @@ const DragHandler = memo(
         <MdDragIndicator className="icon" />
       </div>
     );
-  },
+  }
 );
 
 DragHandler.displayName = "DragHandler";
 
-const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
+const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = props => {
   const { attributes, element, children } = props;
   const { calloutType, title } = element;
   const defaultTitle = DEFAULT_TITLE[calloutType];
@@ -65,52 +59,45 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
   const [realTitle, setRealTitle] = useState<string>(title || defaultTitle);
   const titleRef = useRef<HTMLParagraphElement>(null);
   const isLast = useIsLastElement(element);
-  const { isDark } = useTheme();
-  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
-    useDragAndDrop({
-      element,
-    });
+  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
+    element,
+  });
   const { message } = App.useApp();
 
   const { menuProps, dragHandlerProps } = useDragHandlerMenu({
     element,
     editor,
-    buildMenuItems: (params) => buildCalloutMenuItems(params, message),
+    buildMenuItems: params => buildCalloutMenuItems(params, message),
   });
 
   const handleTitleBlur = useMemoizedFn(() => {
     const path = ReactEditor.findPath(editor, element);
-    Transforms.setNodes(
-      editor,
-      { title: titleRef.current?.innerText },
-      { at: path },
-    );
+    Transforms.setNodes(editor, { title: titleRef.current?.innerText }, { at: path });
     setRealTitle(titleRef.current?.innerText || defaultTitle);
   });
 
   return (
     <div
-      ref={(node) => {
+      ref={node => {
         drop(node);
       }}
-      className="relative group"
+      className="group relative"
     >
       <div {...attributes}>
         <div
           className={classnames(
-            "callout relative p-[0.5em] pl-[1em] pb-[1.25em] rounded-[0.5em] border-l-[0.25em]",
+            "callout relative rounded-[0.5em] border-l-[0.25em] p-[0.5em] pb-[1.25em] pl-[1em]",
             `callout-${calloutType}`,
             {
-              dark: isDark,
               dragging: isDragging || (isOverCurrent && canDrop),
               before: isOverCurrent && canDrop && isBefore,
               after: isOverCurrent && canDrop && !isBefore,
-            },
+            }
           )}
           style={{
-            borderLeftColor: "var(--callout-border-color)",
-            backgroundColor: "var(--callout-bg-color)",
-            color: "var(--callout-text-color)",
+            borderLeftColor: "var(--ed-callout-border)",
+            backgroundColor: "var(--ed-callout-bg)",
+            color: "var(--ed-callout-text)",
           }}
         >
           <div contentEditable={false} style={{ userSelect: "none" }}>
@@ -119,11 +106,11 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
               ref={titleRef}
               onBlur={handleTitleBlur}
               className={classnames(
-                "font-semibold relative pl-[1.5em] mt-[0.625em] mb-[1em] leading-tight",
-                "before:content-[''] before:absolute before:w-[1.25em] before:h-[1.25em] before:left-0 before:bg-no-repeat before:bg-left",
-                "text-(--callout-text-color)",
+                "relative mb-[1em] mt-[0.625em] pl-[1.5em] font-semibold leading-tight",
+                "before:absolute before:left-0 before:h-[1.25em] before:w-[1.25em] before:bg-left before:bg-no-repeat before:content-['']",
+                "text-(--ed-callout-text)"
               )}
-              data-icon-url="var(--callout-icon-url)"
+              data-icon-url="var(--ed-callout-icon)"
               // @ts-ignore
               contentEditable={!readOnly ? "plaintext-only" : false}
               suppressContentEditableWarning
@@ -136,11 +123,7 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
         {!(readOnly && isLast) && <AddParagraph element={element} />}
         {!readOnly && (
           <>
-            <DragHandler
-              drag={drag}
-              canDrag={canDrag}
-              onClick={dragHandlerProps.onClick}
-            />
+            <DragHandler drag={drag} canDrag={canDrag} onClick={dragHandlerProps.onClick} />
             <EditorContextMenu {...menuProps} readonly={readOnly} />
           </>
         )}

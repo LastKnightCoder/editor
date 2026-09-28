@@ -627,7 +627,15 @@ export const createUnifiedVibeLearningTool = (
     name: "vibe_learning_query",
     risk: "read",
     description:
-      "统一查询当前 Vibe Learning 项目资料。operation 可选 list、search、grep、read、read_lines、read_range、batch_search、batch_read；具体参数放在 input 中，先搜索定位，再按命中范围补读原文。",
+      "统一查询当前 Vibe Learning 项目资料；先搜索定位，再按命中范围补读原文。operation 及对应 input 参数：" +
+      "list=列出全部资源（无需参数）；" +
+      "search=语义搜索 { query, limit? }；" +
+      "grep=ripgrep 精确文本/正则搜索 { query, isRegex?, ignoreCase?, limit? }；" +
+      "read=读取资源全文 { resourceName }；" +
+      "read_lines=按行号补读 { resourceId 或 resourceName, startLine, endLine }；" +
+      "read_range=按字符范围补读 { resourceId 或 resourceName, startOffset, endOffset }；" +
+      "batch_search=批量语义搜索 { queries: [{ label?, query }], limitPerQuery? }；" +
+      "batch_read=批量补读命中上下文 { hits: [{ resourceId 或 resourceName, startOffset/endOffset 或 chunkStartLine/chunkEndLine/lineNumber, contextChars?/contextLines? }] }。",
     parameters: {
       type: "object",
       properties: {
@@ -657,7 +665,25 @@ export const createUnifiedVibeLearningTool = (
           }),
         };
       }
-      return selected.executor((args.input as Record<string, unknown> | undefined) ?? {}, context);
+      const input = (args.input as Record<string, unknown> | undefined) ?? {};
+      const missing = (selected.parameters.required ?? []).filter(key => {
+        const value = input[key];
+        return (
+          value === undefined ||
+          value === null ||
+          (typeof value === "string" && !value.trim()) ||
+          (Array.isArray(value) && value.length === 0)
+        );
+      });
+      if (missing.length > 0) {
+        return {
+          content: JSON.stringify({
+            success: false,
+            error: `operation "${operation}" 缺少必需参数: ${missing.join(", ")}`,
+          }),
+        };
+      }
+      return selected.executor(input, context);
     },
   };
 };

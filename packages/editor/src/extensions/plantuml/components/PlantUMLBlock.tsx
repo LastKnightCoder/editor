@@ -3,7 +3,6 @@ import { Transforms } from "slate";
 import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
 import { PlantUML } from "@tau/shared";
 import useTheme from "../../../hooks/useTheme";
-import { useEditorConfig } from "../../../contexts/EditorConfig";
 
 import type { PlantUMLElement } from "../../../types";
 import PreviewWithEditor from "../../../components/PreviewWithEditor";
@@ -11,14 +10,15 @@ import PreviewWithEditor from "../../../components/PreviewWithEditor";
 interface PlantUMLBlockProps {
   attributes: RenderElementProps["attributes"];
   element: PlantUMLElement;
+  server?: string;
+  darkTheme?: string;
 }
 
 const PlantUMLBlock: React.FC<PropsWithChildren<PlantUMLBlockProps>> = props => {
-  const { attributes, element, children } = props;
+  const { attributes, element, children, server, darkTheme } = props;
   const { content } = element;
   const editor = useSlateStatic();
   const { isDark } = useTheme();
-  const { plantumlServer: server, plantumlDarkTheme: darkTheme } = useEditorConfig() ?? {};
 
   const renderEmpty = () => {
     return (

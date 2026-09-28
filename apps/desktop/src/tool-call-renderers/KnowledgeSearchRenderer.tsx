@@ -11,7 +11,6 @@ import {
 } from "./ui";
 import ContentDetailModal from "./knowledge/ContentDetailModal";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { markdownToContent } from "@/services/content-editing";
 import { Button } from "@tau/ui";
 
@@ -76,7 +75,6 @@ const ResultItemPreview = ({
   isDark: boolean;
   onClick: () => void;
 }) => {
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   // 预览是搜索时输出里的快照（纯渲染，不回源拉内容）；点击进详情弹窗才按需取实时内容
   const previewContent = useMemo(
     () =>
@@ -98,12 +96,7 @@ const ResultItemPreview = ({
       <div className="text-ink-2 pointer-events-none mt-1.5 max-h-[120px] overflow-hidden">
         {previewContent.length > 0 ? (
           <ErrorBoundary>
-            <Editor
-              key={item.id}
-              initValue={previewContent}
-              readonly
-              extensions={dynamicExtensions}
-            />
+            <Editor key={item.id} initValue={previewContent} readonly />
           </ErrorBoundary>
         ) : (
           <ToolMutedText isDark={isDark}>（无预览内容）</ToolMutedText>

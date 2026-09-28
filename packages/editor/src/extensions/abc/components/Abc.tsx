@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import abcjs from "abcjs";
 import { useCreation } from "ahooks";
-import useTheme from "../../../hooks/useTheme";
+import { useEditorTheme } from "../../../theme/context";
 import { v4 as uuid } from "uuid";
 
 interface IAbcProps {
@@ -10,7 +10,8 @@ interface IAbcProps {
 
 const Abc = (props: IAbcProps) => {
   const { content } = props;
-  const { isDark } = useTheme();
+  // 乐谱由 abcjs 画进 SVG，颜色必须传实际取值，不能用 CSS 变量
+  const { token, mode } = useEditorTheme();
   const ref = useRef<HTMLDivElement>(null);
 
   const abcId = useCreation(() => {
@@ -21,10 +22,10 @@ const Abc = (props: IAbcProps) => {
     if (ref.current) {
       abcjs.renderAbc(abcId, content, {
         responsive: "resize",
-        foregroundColor: isDark ? "#e5e7eb" : "#000000",
+        foregroundColor: token("text") || "#000000",
       });
     }
-  }, [content, abcId, isDark]);
+  }, [content, abcId, token, mode]);
 
   return (
     <div

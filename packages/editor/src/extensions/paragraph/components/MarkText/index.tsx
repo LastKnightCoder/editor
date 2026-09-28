@@ -2,7 +2,6 @@ import { useMemo, memo } from "react";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { Tooltip } from "antd";
 import { Mark } from "../../../types";
-import useThemeColors from "../../../../hooks/useThemeColors";
 
 import { useMemoizedFn } from "ahooks";
 
@@ -21,7 +20,6 @@ const MarkText = memo((props: IMarkTextProps) => {
   const { mark, tooltip, icon } = props;
   const editor = useSlate();
   const selection = useSlateSelection();
-  const themeColors = useThemeColors();
 
   const isActive = useMemo(() => {
     return isMarkActive(mark, editor, selection);
@@ -45,14 +43,9 @@ const MarkText = memo((props: IMarkTextProps) => {
     <Tooltip title={tooltip} trigger={"hover"}>
       <div
         className={classnames(
-          "flex items-center justify-center w-8 h-8 rounded-lg cursor-pointer transition-all duration-200",
-          isActive
-            ? themeColors.activeClass
-            : classnames(
-                themeColors.textClass,
-                themeColors.hoverClass,
-                themeColors.hoverTextClass,
-              ),
+          "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all duration-200",
+          "ed-toolbar-item",
+          isActive && "is-active"
         )}
         onClick={handleClick}
       >

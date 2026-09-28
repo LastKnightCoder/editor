@@ -1,4 +1,4 @@
-import { Descendant } from "slate";
+import type { Descendant } from "slate";
 
 export interface EmojiElement {
   type: "emoji";

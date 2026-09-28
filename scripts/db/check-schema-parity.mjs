@@ -14,7 +14,13 @@ const vecTemplatePath = path.join(schemaDir, "index/20_vec_template.sql");
 
 const MAIN_TABLE_COUNT = 64;
 const MAIN_INDEX_COUNT = 105;
-const INDEX_CORE_TABLES = ["content_fts", "vec_index_meta", "index_meta"];
+const INDEX_CORE_TABLES = [
+  "content_fts",
+  "vec_index_meta",
+  "index_meta",
+  "knowledge_map_nodes",
+  "knowledge_map_topics",
+];
 const REMOVED_TABLES = [
   "rss_feed",
   "rss_subscription",

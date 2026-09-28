@@ -9,8 +9,8 @@ import { useThemeRuntime } from "@/app/useThemeRuntime";
 import useSettingStore from "@/stores/useSettingStore";
 import { syncPomodoroTimer, usePomodoroTimer, type PomodoroEndResult } from "../timerStore";
 
-/** forceTheme：沉浸窗固定深色（整页纯黑，弹出层也须是深色 token），不跟随用户主题 */
-export function useAuxWindowBoot({ forceTheme }: { forceTheme?: "cocoa" } = {}): {
+/** forceMode：沉浸窗固定深色（整页纯黑，弹出层也须是深色 token），主题族仍跟随用户 */
+export function useAuxWindowBoot({ forceMode }: { forceMode?: "dark" } = {}): {
   dbReady: boolean;
 } {
   const [dbReady, setDbReady] = useState(false);
@@ -27,22 +27,16 @@ export function useAuxWindowBoot({ forceTheme }: { forceTheme?: "cocoa" } = {}):
     };
   }, [settingInited, database]);
 
-  // 窗口常驻隐藏复用：主题跟随其它窗口的切换（沉浸窗固定深色除外）
-  useThemeRuntime({ enabled: !forceTheme });
+  // 窗口常驻隐藏复用：主题跟随其它窗口的切换（沉浸窗只锁明暗）
+  useThemeRuntime({ forceMode });
 
   useEffect(() => {
-    if (forceTheme) {
-      const root = document.documentElement;
-      root.dataset.theme = forceTheme;
-      root.style.colorScheme = "dark";
-      root.classList.add("dark");
-    }
     const onVisible = () => {
       if (document.visibilityState === "visible") void syncPomodoroTimer().catch(() => undefined);
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [forceTheme]);
+  }, []);
   return { dbReady };
 }
 

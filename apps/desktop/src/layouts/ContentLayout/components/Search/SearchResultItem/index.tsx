@@ -2,7 +2,6 @@ import Editor from "@/components/ContentEditor";
 import { Tag } from "antd";
 import { memo, useMemo } from "react";
 import { SearchResult } from "@/types";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 import styles from "./index.module.less";
 
@@ -19,7 +18,6 @@ const SearchResultItem = memo(
     getTagColor: (type: string) => string;
     handleSearchResultClick: (result: SearchResult) => void;
   }) => {
-    const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
     const previewContent = useMemo(() => result.content.slice(0, 3), [result.content]);
     return (
       <div className={styles.item} onClick={() => handleSearchResultClick(result)}>
@@ -35,7 +33,6 @@ const SearchResultItem = memo(
           }}
           initValue={previewContent}
           readonly={true}
-          extensions={dynamicExtensions}
         />
       </div>
     );

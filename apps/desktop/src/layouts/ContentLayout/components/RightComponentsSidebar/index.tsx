@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useState } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import classNames from "classnames";
 import { AnimatePresence, motion } from "motion/react";
 import { App } from "antd";
@@ -21,7 +22,6 @@ import { toast } from "@tau/ui";
 import useFlashcardStore from "@/stores/useFlashcardStore";
 import useRightChatSidebarStore from "@/stores/useRightChatSidebarStore";
 import { useTodoStore } from "@/stores/useTodoStore";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import {
   addAnswer,
   deleteCard,
@@ -268,7 +268,6 @@ const RightComponentsSidebar = memo(() => {
   const [editQuestionValue, setEditQuestionValue] = useState("");
   const [editQuestionDescription, setEditQuestionDescription] =
     useState<Descendant[]>(DEFAULT_CONTENT);
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const { setActiveTodo, setRightOpen } = useTodoStore(
     useShallow(state => ({
       setActiveTodo: state.setActiveTodo,
@@ -958,11 +957,11 @@ const RightComponentsSidebar = memo(() => {
             </label>
             <div className="rounded-xl border border-gray-200 bg-gray-50 shadow-inner transition focus-within:border-[var(--th-border-focus)] dark:border-slate-700 dark:bg-zinc-950">
               <Editor
+                kit={getDesktopKit()}
                 key={`workbench-edit-question-${editQuestionId}`}
                 initValue={editQuestionDescription}
                 onChange={value => setEditQuestionDescription(value)}
                 readonly={false}
-                extensions={dynamicExtensions}
                 style={{
                   minHeight: 200,
                   maxHeight: 400,
@@ -978,7 +977,6 @@ const RightComponentsSidebar = memo(() => {
       <NewAnswerModal
         visible={newAnswerVisible}
         questionId={selectedQuestionId}
-        extensions={dynamicExtensions}
         onClose={() => {
           setNewAnswerVisible(false);
           data.refreshQuestions();
@@ -1005,13 +1003,11 @@ const RightComponentsSidebar = memo(() => {
           data.refreshQuestions();
         }}
         contentType={["card", "article", "project-item", "diary-daily"]}
-        extensions={dynamicExtensions}
       />
 
       <AnswerModal
         visible={answerPreviewVisible}
         selectedAnswer={selectedAnswer}
-        extensions={dynamicExtensions}
         onClose={() => {
           setAnswerPreviewVisible(false);
           setSelectedAnswerId(null);

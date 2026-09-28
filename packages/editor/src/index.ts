@@ -1,26 +1,17 @@
 export { default as Editor } from "./index.tsx";
 export { useCollaboration, useCollaborationResource } from "./collaboration/context";
 export type { EditorCollaborationBinding } from "./collaboration/types";
-export {
-  EditorContext,
-  type EditorContextValue,
-  type EditorFeatures,
-} from "./contexts/EditorContext";
-export {
-  useEditorConfig,
-  createFallbackThemeColors,
-  DEFAULT_IMAGE_APPEARANCE,
-  type EditorConfig,
-  type EditorThemeConfig,
-  type EditorAppearanceConfig,
-} from "./contexts/EditorConfig";
-export {
-  EditorProvider,
-  useEditorExtensions,
-  type EditorProviderProps,
-} from "./contexts/EditorProvider";
+export { createEditorKit, createBareEditorKit, createEditorKitFromRegistry } from "./kit/EditorKit";
+export type { EditorKit, EditorKitOptions, EditorKitExtendOptions } from "./kit/EditorKit";
+export { createValueDocument } from "./document/EditorDocument";
+export type { EditorDocument, ValueDocumentOptions } from "./document/EditorDocument";
 
-export type { ResourceService, FileService, CompilerService, ThemeColors } from "./types/services";
+export type {
+  ResourceService,
+  FileService,
+  CompilerService,
+  OpenerService,
+} from "./types/services";
 
 // Service Registry DI
 export {
@@ -28,6 +19,7 @@ export {
   IResourceService,
   IFileService,
   ICompilerService,
+  IOpenerService,
   IMediaInsertSources,
   IVideoContentProviders,
   IMediaActions,
@@ -55,13 +47,28 @@ export {
 export type { EditorSlots, ImageSlotProps, VideoSlotProps, AudioSlotProps } from "./services/slots";
 
 export { default as useTheme } from "./hooks/useTheme";
-export { default as useThemeColors } from "./hooks/useThemeColors";
 export { default as useDragAndDrop } from "./hooks/useDragAndDrop";
 export { default as useIsLastElement } from "./hooks/useIsLastElement";
 export { default as useUploadResource } from "./hooks/useUploadResource";
 export { createMarkdownPasteImportExtension } from "./extensions/markdown-paste-import";
 export type { MarkdownImportFn } from "./extensions/markdown-paste-import";
-export { default as useEditorFeatures } from "./hooks/useEditorFeatures";
+export { isMarkdownLikeText } from "./plugins/withMarkdownPasteImport";
+export type { ImportFromMarkdownOptions } from "./plugins/withMarkdownPasteImport";
+export { default as PlantUMLExtension } from "./extensions/plantuml";
+export type { PlantUMLExtensionOptions } from "./extensions/plantuml";
+export { createImageExtensions } from "./extensions/image/createImageExtensions";
+export { default as HeaderExtension } from "./extensions/header";
+export type { HeaderExtensionOptions } from "./extensions/header";
+export type {
+  ImageExtensionOptions,
+  ImageAppearanceOption,
+  ImageAppearanceSource,
+} from "./extensions/image/appearanceOption";
+export type { ImageAppearanceConfig } from "./extensions/image/utils/appearance";
+export { useEditorTheme, EditorThemeOverride } from "./theme/context";
+export type { EditorTheme } from "./theme/context";
+export { createDomThemeService, createStaticThemeService } from "./theme/ThemeService";
+export type { ThemeService, EditorThemeMode } from "./theme/ThemeService";
 
 export {
   generateExecutableCode,

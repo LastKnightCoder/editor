@@ -46,7 +46,6 @@ import { ArticleTags } from "@/features/articles/components/ArticleTags";
 import useEditContent from "@/hooks/useEditContent";
 import useContentSession from "@/hooks/useContentSession";
 import useCollaborationDocument from "@/hooks/useCollaborationDocument";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import useCollaborationStore from "@/stores/useCollaborationStore";
 import useSettingStore from "@/stores/useSettingStore";
 import { closeWindow, setAlwaysOnTop } from "@/commands";
@@ -142,11 +141,7 @@ export function EditorWindow({
     editorRef.current?.setEditorValue(content);
     updateFields({ content });
   });
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
-  const extensions = useMemo(
-    () => [...dynamicExtensions, ...(driver.extensions?.(doc.id) ?? [])],
-    [dynamicExtensions, driver, doc.id]
-  );
+  const extensions = useMemo(() => driver.extensions?.(doc.id) ?? [], [driver, doc.id]);
 
   const headers = useMemo(() => extractContentHeaders(doc.content), [doc.content]);
   const resolveAnchor = useCallback(

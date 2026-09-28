@@ -5,14 +5,14 @@ import { ReactEditor, RenderElementProps, useReadOnly, useSlateStatic } from "sl
 import { motion, AnimatePresence } from "motion/react";
 import { useMemoizedFn } from "ahooks";
 import { Copy, Edit2, Link2Off, ExternalLink } from "lucide-react";
-import { useEditorConfig } from "../../../contexts/EditorConfig";
+import { useOptionalService } from "../../../services/hooks";
+import { IOpenerService } from "../../../services/tokens";
 import classNames from "classnames";
 import { App } from "antd";
 
 import InlineChromiumBugfix from "../../../components/InlineChromiumBugFix";
 import type { LinkElement } from "../../../types";
 import LinkSelectModal from "./LinkSelectModal";
-import useThemeColors from "../../../hooks/useThemeColors";
 
 interface LinkProps {
   attributes: RenderElementProps["attributes"];
@@ -175,7 +175,7 @@ const LinkPopover = ({
             <div className="h-3 w-px bg-black/10 dark:bg-white/10" />
 
             <div
-              className="flex-1 cursor-text select-text truncate text-[13px] font-medium text-slate-600 dark:text-slate-300"
+              className="flex-1 cursor-text select-text truncate text-[13px] font-medium text-[var(--ed-text-secondary)]"
               title={url}
             >
               {url}
@@ -200,12 +200,11 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = props => {
   const readOnly = useReadOnly();
   const editor = useSlateStatic();
   const { message } = App.useApp();
-  const { accentColor } = useThemeColors();
-  const config = useEditorConfig();
+  const opener = useOptionalService(IOpenerService);
 
   const openUrl = async (url: string) => {
-    if (config?.openUrl) {
-      await config.openUrl(url);
+    if (opener) {
+      await opener.open(url);
       return;
     }
     window.open(url, "_blank", "noopener,noreferrer");
@@ -297,10 +296,7 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = props => {
         ref={linkRef}
         href={url}
         className="cursor-pointer rounded-[2px] border-b border-dashed px-0.5 font-medium transition-colors hover:border-solid"
-        style={{
-          color: accentColor,
-          borderColor: accentColor ? `${accentColor}66` : undefined,
-        }}
+        style={{ color: "var(--ed-accent-text)", borderColor: "var(--ed-accent-soft)" }}
         onClick={e => {
           e.preventDefault();
           handleLinkClick(e);

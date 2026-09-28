@@ -1,21 +1,12 @@
-import { useContext, useMemo } from "react";
-import { EditorContext } from "../contexts/EditorContext";
-import { useEditorConfig } from "../contexts/EditorConfig";
-import useSystemTheme from "./useSystemTheme";
+import { useEditorTheme } from "../theme/context";
 
+/**
+ * 兼容入口：保留 `{ theme, isDark }` 形态，内部走 ThemeService。
+ * 新代码直接用 `useEditorTheme()`（还能取 token 实际值）。
+ */
 const useTheme = () => {
-  // 优先级：<Editor theme> prop > EditorProvider config > 系统主题
-  const { theme: contextTheme } = useContext(EditorContext);
-  const config = useEditorConfig();
-  const systemTheme = useSystemTheme();
-
-  const theme = contextTheme ?? config?.theme.mode ?? systemTheme;
-  const isDark = useMemo(() => theme === "dark", [theme]);
-
-  return {
-    theme,
-    isDark,
-  };
+  const { mode, isDark } = useEditorTheme();
+  return { theme: mode, isDark };
 };
 
 export default useTheme;

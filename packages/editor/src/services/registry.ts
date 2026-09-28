@@ -2,7 +2,7 @@ import type { ServiceIdentifier } from "./tokens";
 
 /**
  * 服务注册表：编辑器所有平台能力的唯一容器。
- * React 代码经 EditorProvider 注入，非 React 插件代码经
+ * React 代码经 EditorKit 注入，非 React 插件代码经
  * `editor.getService` / `editor.tryGetService` 访问同一实例。
  */
 export interface ServiceRegistry {
@@ -81,7 +81,7 @@ function createRegistry(
         return parent.get(id);
       }
       throw new Error(
-        `[editor] 必选服务 "${id.id}" 未注册，请在应用根部通过 createServiceRegistry 注册后再挂载 EditorProvider`
+        `[editor] 必选服务 "${id.id}" 未注册，请在 createEditorKit 的 services 里注册`
       );
     },
     tryGet<T>(id: ServiceIdentifier<T>): T | undefined {

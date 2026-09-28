@@ -3,7 +3,6 @@
  * 唯一可变壳层状态收口在此；导航状态在 page/ 栈机，不混放。
  */
 
-import { useEffect } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -72,14 +71,3 @@ export const useShellStore = create<ShellState>()(
     { name: "tau-shell" }
   )
 );
-
-/**
- * 进入页面时收起侧栏（改写用户偏好，离开不自动展开）。
- * 保活页经 <Activity> 重新激活时 effect 重跑，每次进入都会收起一次；
- * 页面内用户手动展开不受影响，直到下次进入。
- */
-export function useCollapseSidebarOnEnter(enabled: boolean) {
-  useEffect(() => {
-    if (enabled) useShellStore.getState().setSidebarCollapsed(true);
-  }, [enabled]);
-}

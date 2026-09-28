@@ -1,0 +1,120 @@
+/*
+ * 编辑器组件 token（--ed-*）：编辑器内部样式的唯一取色入口（docs/editor-refactor 01 §6.1）。
+ *
+ * 取值从宿主提供的语义 token --tau-* 派生（@tau/themes 契约，各宿主都注入）。编辑器组件
+ * 只写 --ed-*，不直接读宿主变量；语义完全一致时也可直接写 --tau-*（如字体栈、圆角）。
+ * 主题作者可以覆盖 --ed-* 做编辑器细调（callout 配色、代码块底色等），不必改组件。
+ *
+ * 声明在 :root 上：编辑器的悬浮工具条、块面板等会 Portal 到 body，不在编辑器子树内。
+ * `.tau-editor`（编辑器根节点）与 `.tau-editor-surface`（宿主可给自己的浮层加）重复声明一遍，
+ * 用于局部强制明暗：那里 --tau-* 被数据块重算，--ed-* 随之重算。
+ */
+:root,
+.tau-editor,
+.tau-editor-surface {
+  /* ── 文字 ── */
+  --ed-text: var(--tau-ink-1);
+  --ed-text-secondary: var(--tau-ink-2);
+  --ed-text-tertiary: var(--tau-ink-3);
+  --ed-text-inverse: var(--tau-ink-inverse);
+
+  /* ── 表面 ── */
+  --ed-bg-page: var(--tau-bg-page);
+  --ed-bg-surface: var(--tau-bg-surface);
+  --ed-bg-sunken: var(--tau-bg-sunken);
+  --ed-bg-hover: var(--tau-bg-hover);
+  --ed-bg-press: var(--tau-bg-press);
+  --ed-bg-selected: var(--tau-bg-selected);
+
+  /* ── 描边 ── */
+  --ed-border: var(--tau-line-1);
+  --ed-border-soft: var(--tau-line-2);
+  --ed-border-focus: var(--tau-accent);
+
+  /* ── 强调色 ── */
+  --ed-accent: var(--tau-accent);
+  --ed-accent-hover: var(--tau-accent-hover);
+  --ed-accent-soft: var(--tau-accent-soft);
+  --ed-accent-text: var(--tau-accent-text);
+  --ed-focus-ring: var(--tau-focus-ring);
+
+  /* ── 状态色 ── */
+  --ed-ok: var(--tau-ok);
+  --ed-ok-soft: var(--tau-ok-soft);
+  --ed-warn: var(--tau-warn);
+  --ed-warn-soft: var(--tau-warn-soft);
+  --ed-danger: var(--tau-danger);
+  --ed-danger-soft: var(--tau-danger-soft);
+  --ed-info: var(--tau-info);
+  --ed-info-soft: var(--tau-info-soft);
+
+  /* ── 浮层与阴影 ── */
+  --ed-overlay: var(--tau-overlay);
+  --ed-shadow-card: var(--tau-shadow-card);
+  --ed-shadow-float: var(--tau-shadow-float);
+
+  /* ── 排版 ── */
+  --ed-font-mono: var(--tau-font-mono);
+
+  /* ── 正文选中 ── */
+  --ed-selection: var(--tau-accent-soft);
+
+  /* ── 行内代码 / 标签药丸 ── */
+  --ed-tag-bg: var(--tau-bg-sunken);
+
+  /* ── 下划线装饰 ── */
+  --ed-underline: var(--tau-accent);
+
+  /* ── 批注（划线高亮 + 图标）── */
+  --ed-comment-bg: var(--tau-warn-soft);
+  --ed-comment-hover-bg: var(--tau-warn-soft);
+  --ed-comment-border: var(--tau-warn);
+  --ed-comment-icon: var(--tau-warn);
+
+  /* ── 代码块 ── */
+  --ed-code-bg: var(--tau-bg-sunken);
+  --ed-code-shadow: var(--tau-shadow-card);
+  --ed-code-caret: var(--tau-ink-1);
+  --ed-code-selection: var(--tau-accent-soft);
+  /* 玻璃浮层（代码块工具条等） */
+  --ed-glass-bg: var(--tau-bg-surface);
+  --ed-glass-blur: blur(10px);
+
+  /* ── Callout 五类 ── */
+  --ed-callout-tip: var(--tau-ok);
+  --ed-callout-tip-bg: var(--tau-ok-soft);
+  --ed-callout-tip-text: var(--tau-ink-1);
+  --ed-callout-info: var(--tau-info);
+  --ed-callout-info-bg: var(--tau-info-soft);
+  --ed-callout-info-text: var(--tau-ink-1);
+  --ed-callout-warning: var(--tau-warn);
+  --ed-callout-warning-bg: var(--tau-warn-soft);
+  --ed-callout-warning-text: var(--tau-ink-1);
+  --ed-callout-danger: var(--tau-danger);
+  --ed-callout-danger-bg: var(--tau-danger-soft);
+  --ed-callout-danger-text: var(--tau-ink-1);
+  --ed-callout-note: var(--tau-line-1);
+  --ed-callout-note-bg: var(--tau-bg-sunken);
+  --ed-callout-note-text: var(--tau-ink-1);
+}
+
+/*
+ * 工具条按钮（悬浮工具条、行内菜单项）的统一外观。
+ * 原先由宿主经 EditorConfig.theme.colors 传 Tailwind 类名，现收回编辑器自己定义。
+ */
+.ed-toolbar-item {
+  color: var(--ed-text);
+  transition:
+    background-color var(--tau-dur-fast, 160ms) var(--tau-ease-out, ease),
+    color var(--tau-dur-fast, 160ms) var(--tau-ease-out, ease);
+}
+
+.ed-toolbar-item:hover {
+  background-color: var(--ed-bg-hover);
+  color: var(--ed-accent-text);
+}
+
+.ed-toolbar-item.is-active {
+  background-color: var(--ed-accent-soft);
+  color: var(--ed-accent-text);
+}

@@ -18,7 +18,12 @@ const mainSegments = [
   "main/90_indexes.sql",
 ];
 
-const indexSegments = ["index/00_pragmas.sql", "index/10_fts.sql", "index/30_meta.sql"];
+const indexSegments = [
+  "index/00_pragmas.sql",
+  "index/10_fts.sql",
+  "index/30_meta.sql",
+  "index/40_knowledge_map.sql",
+];
 
 function readSegment(relativePath) {
   const absolutePath = path.join(schemaDir, relativePath);

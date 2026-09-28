@@ -1,14 +1,9 @@
 .container {
-  background-color: #f9f9fa;
+  background-color: var(--ed-bg-sunken);
   border-radius: 0.5em;
-  border: 1px solid rgba(60, 60, 67, 0.29);
+  border: 1px solid var(--ed-border);
   padding: var(--block-distance) 1em;
   position: relative;
-
-  &.dark {
-    background-color: #1c1c1e;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-  }
 
   &:has(.show) {
     .title {

@@ -1,25 +1,17 @@
 /**
- * 白板列表页 · 方案 A「画廊」（mockups/whiteboards/plan-a2-gallery.html 定稿，D-047）：
- * 工具栏（标题 / 标签范围 + 摘要 · 标题过滤 · 排序 · 新建）→ 缩略图卡片网格。
+ * 白板列表页 · 方案 A「画廊」（mockups/whiteboards/plan-a2-gallery.html 定稿，D-047），
+ * 外壳为一整张纸（同文章 / 卡片库）：纸顶工具栏（标题 / 标签范围 + 摘要 · 标题过滤 · 排序 · 新建）
+ * → 纸内缩略图卡片网格（细描边卡）。
  *
  * 页面参数 id = 标签范围（侧栏子项，`tag:<名>` / `untagged`，空 = 全部），标签不在页内另做目录。
  * 点卡片进入白板详情（whiteboard-detail）；多页白板悬停扫到哪页就打开哪页。
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, Presentation, Search, SearchX, X } from "lucide-react";
-import {
-  Button,
-  ConfirmDialog,
-  IconButton,
-  Loading,
-  Segmented,
-  Tag,
-  toast,
-  useEdgeFade,
-} from "@tau/ui";
+import { Button, ConfirmDialog, Input, Loading, Segmented, toast } from "@tau/ui";
+import { FadeScroll } from "@/components/FadeScroll";
 import { usePage, usePageParams } from "@/page/PageProvider";
-import { isMac } from "@/platform";
 import {
   inScope,
   matchTitle,
@@ -53,29 +45,12 @@ export function WhiteboardsView() {
   const [deleteTarget, setDeleteTarget] = useState<WhiteboardItem | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
-  const searchRef = useRef<HTMLInputElement>(null);
-  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
-  useEdgeFade(scrollEl);
 
   // 相对时间每分钟刷新一次
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 60_000);
     return () => window.clearInterval(id);
   }, []);
-
-  // ⌘F / Ctrl+F 聚焦标题过滤（仅本页在栈顶时）
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (navigator.current()?.key !== "whiteboard" || e.defaultPrevented) return;
-      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "f") {
-        e.preventDefault();
-        searchRef.current?.focus();
-        searchRef.current?.select();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [navigator]);
 
   const setScope = useCallback(
     (next: WhiteboardScope) => navigator.push("whiteboard", { id: scopeId(next) }),
@@ -114,42 +89,49 @@ export function WhiteboardsView() {
   const filtering = query.trim().length > 0;
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4">
-      {/* 工具栏 */}
-      <div className="flex h-12 flex-none items-center gap-3">
-        <h1 className="text-tau-title flex items-center gap-2 font-semibold tracking-[-0.01em]">
-          白板
+    <div className="@container mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+      {/* 一整张纸：工具栏固定在纸顶，网格在纸内滚动（同文章 / 卡片库 plan-sheet 方案 B） */}
+      <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
+        {/* 工具栏：标题 / 当前标签 + 摘要 + 标题过滤 + 排序 + 新建 */}
+        <div className="mb-3 mt-5 flex h-10 flex-none items-center gap-3 px-8">
+          <h1 className="text-tau-title-lg shrink-0 whitespace-nowrap font-semibold tracking-[-0.01em]">
+            白板
+          </h1>
           {scope.kind !== "all" && (
-            <>
-              <span className="text-ink-3 font-normal">/</span>
-              <Tag onRemove={() => setScope({ kind: "all" })}>
-                {scope.kind === "tag" ? scope.tag : "无标签"}
-              </Tag>
-            </>
+            <button
+              type="button"
+              title="清除标签筛选"
+              onClick={() => setScope({ kind: "all" })}
+              className="bg-selected text-accent-text inline-flex h-6 max-w-[180px] shrink-0 items-center gap-1 rounded-full pl-2.5 pr-1.5 text-[12px] font-medium"
+            >
+              <span className="truncate">{scope.kind === "tag" ? scope.tag : "无标签"}</span>
+              <X className="size-3 shrink-0" strokeWidth={2} />
+            </button>
           )}
-        </h1>
-        {all.length > 0 && (
-          <span className="text-tau-meta text-ink-2 tabular-nums">
-            {scope.kind === "all" ? (
-              <>
-                <b className="text-ink-1 font-semibold">{all.length}</b> 个白板
-                <span className="text-ink-3 mx-1.5">·</span>
-                <b className="text-ink-1 font-semibold">{pageTotal}</b> 页
-              </>
-            ) : (
-              <>
-                <b className="text-ink-1 font-semibold">{inRange.length}</b> 个白板
-              </>
-            )}
+          <span className="text-tau-meta text-ink-2 w-0 flex-1 truncate whitespace-nowrap tabular-nums">
+            {all.length > 0 &&
+              (filtering ? (
+                <>
+                  找到 <b className="text-ink-1 font-semibold">{visible.length}</b> /{" "}
+                  {inRange.length} 个白板
+                </>
+              ) : scope.kind === "all" ? (
+                <>
+                  共 <b className="text-ink-1 font-semibold">{all.length}</b> 个白板 ·{" "}
+                  <b className="text-ink-1 font-semibold">{pageTotal}</b> 页
+                </>
+              ) : (
+                <>
+                  共 <b className="text-ink-1 font-semibold">{inRange.length}</b> 个白板
+                </>
+              ))}
           </span>
-        )}
-        <span className="flex-1" />
-        {all.length > 0 && (
-          <>
-            <label className="bg-surface border-line-1 focus-within:border-accent flex h-[30px] w-[220px] items-center gap-2 rounded-[10px] border pl-2.5 pr-2 transition-[border-color,box-shadow] duration-[160ms] focus-within:shadow-[var(--tau-focus-ring)]">
-              <Search className="text-ink-3 size-[14px] shrink-0" strokeWidth={1.75} />
-              <input
-                ref={searchRef}
+          {all.length > 0 && (
+            <>
+              <Input
+                size="sm"
+                lead={Search}
+                clearable
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 onKeyDown={e => {
@@ -158,134 +140,118 @@ export function WhiteboardsView() {
                     setQuery("");
                   }
                 }}
-                placeholder="过滤标题"
-                className="text-tau-meta placeholder:text-ink-3 min-w-0 flex-1 bg-transparent outline-none"
+                placeholder="搜索白板标题"
+                // 输入框自身不贡献最小宽度，窄窗口下随标题栏收缩
+                className="w-0"
+                wrapperClassName="w-auto max-w-[240px] flex-[0_1_240px]"
               />
-              {filtering ? (
-                <>
-                  <span className="text-tau-tiny text-ink-3 whitespace-nowrap tabular-nums">
-                    {visible.length} / {inRange.length}
-                  </span>
-                  <IconButton
-                    title="清除过滤 (Esc)"
-                    className="size-[18px] rounded-[5px]"
-                    onClick={() => setQuery("")}
-                  >
-                    <X className="size-[11px]" strokeWidth={1.75} />
-                  </IconButton>
-                </>
-              ) : (
-                <kbd className="font-tau-mono bg-hover text-ink-3 rounded-[5px] px-[5px] py-0.5 text-[11px] leading-none">
-                  {isMac ? "⌘F" : "Ctrl+F"}
-                </kbd>
-              )}
-            </label>
-            <Segmented
-              label="排序"
-              size="sm"
-              value={sort}
-              onValueChange={(v: WhiteboardSort) => setSort(v)}
-            >
-              <Segmented.Item value="updated" label="最近更新" />
-              <Segmented.Item value="created" label="创建时间" />
-              <Segmented.Item value="title" label="名称" />
-            </Segmented>
-          </>
-        )}
-        <Button
-          variant="primary"
-          size="sm"
-          icon={Plus}
-          onClick={() => setDialog({ mode: "create" })}
-        >
-          新建白板
-        </Button>
-      </div>
-
-      {/* 网格 */}
-      <div
-        ref={setScrollEl}
-        className="edge-fade-scroll -mr-[18px] min-h-0 flex-1 overflow-y-auto pb-2 pr-[18px] pt-1.5"
-      >
-        {all.length === 0 ? (
-          <Empty
-            icon={Presentation}
-            title="还没有白板"
-            text="白板适合画结构、贴想法、做演示。一块白板可以有多页。"
-            action={
-              <Button
-                variant="soft"
+              <Segmented
+                label="排序"
                 size="sm"
-                icon={Plus}
-                onClick={() => setDialog({ mode: "create" })}
+                value={sort}
+                onValueChange={(v: WhiteboardSort) => setSort(v)}
+                className="shrink-0"
               >
-                新建白板
-              </Button>
-            }
-          />
-        ) : visible.length === 0 ? (
-          filtering ? (
+                <Segmented.Item value="updated" label="最近更新" />
+                <Segmented.Item value="created" label="创建时间" />
+                <Segmented.Item value="title" label="名称" />
+              </Segmented>
+            </>
+          )}
+          <Button
+            variant="primary"
+            size="sm"
+            icon={Plus}
+            className="shrink-0 whitespace-nowrap"
+            onClick={() => setDialog({ mode: "create" })}
+          >
+            新建白板
+          </Button>
+        </div>
+
+        {/* 滚动区：FadeScroll（右侧 6px 透明边 + pr-[26px] = 左侧 pl-8），离纸底 16px；
+            pt-1 给首行卡片 hover 的 lift 阴影留出绘制空间 */}
+        <FadeScroll className="mb-4 min-h-0 flex-1 pb-2 pl-8 pr-[26px] pt-1">
+          {all.length === 0 ? (
             <Empty
-              icon={SearchX}
-              title="没有匹配的白板"
-              text={`没有标题包含「${query.trim()}」的白板${scope.kind === "all" ? "" : "（当前标签内）"}。`}
+              icon={Presentation}
+              title="还没有白板"
+              text="白板适合画结构、贴想法、做演示。一块白板可以有多页。"
               action={
-                <Button variant="secondary" size="sm" onClick={() => setQuery("")}>
-                  清除过滤
+                <Button
+                  variant="soft"
+                  size="sm"
+                  icon={Plus}
+                  onClick={() => setDialog({ mode: "create" })}
+                >
+                  新建白板
                 </Button>
               }
             />
-          ) : (
-            <Empty
-              icon={Presentation}
-              title="这里还没有白板"
-              text={
-                scope.kind === "tag" ? "在这里新建，会自动带上这个标签。" : "所有白板都带着标签。"
-              }
-              action={
-                scope.kind === "tag" ? (
-                  <Button
-                    variant="soft"
-                    size="sm"
-                    icon={Plus}
-                    onClick={() => setDialog({ mode: "create" })}
-                  >
-                    在这里新建
+          ) : visible.length === 0 ? (
+            filtering ? (
+              <Empty
+                icon={SearchX}
+                title="没有匹配的白板"
+                text={`没有标题包含「${query.trim()}」的白板${scope.kind === "all" ? "" : "（当前标签内）"}。`}
+                action={
+                  <Button variant="secondary" size="sm" onClick={() => setQuery("")}>
+                    清除过滤
                   </Button>
-                ) : undefined
-              }
-            />
-          )
-        ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-x-[18px] gap-y-5">
-            {visible.map(item => (
-              <WhiteboardCard
-                key={item.id}
-                item={item}
-                now={now}
-                query={query}
-                onOpen={open}
-                onEdit={it => setDialog({ mode: "edit", item: it })}
-                onPickCover={it =>
-                  void mutations
-                    .pickCover(it.id)
-                    .then(done => done && toast.success("封面已更新"))
-                    .catch(() => toast.error("封面上传失败"))
                 }
-                onRemoveCover={it =>
-                  void mutations
-                    .removeCover(it.id)
-                    .then(() => toast.success("已改用画布缩略图"))
-                    .catch(() => toast.error("操作失败"))
-                }
-                onDelete={it => {
-                  setDeleteTarget(it);
-                  setDeleteOpen(true);
-                }}
               />
-            ))}
-          </div>
-        )}
+            ) : (
+              <Empty
+                icon={Presentation}
+                title="这里还没有白板"
+                text={
+                  scope.kind === "tag" ? "在这里新建，会自动带上这个标签。" : "所有白板都带着标签。"
+                }
+                action={
+                  scope.kind === "tag" ? (
+                    <Button
+                      variant="soft"
+                      size="sm"
+                      icon={Plus}
+                      onClick={() => setDialog({ mode: "create" })}
+                    >
+                      在这里新建
+                    </Button>
+                  ) : undefined
+                }
+              />
+            )
+          ) : (
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3.5">
+              {visible.map(item => (
+                <WhiteboardCard
+                  key={item.id}
+                  item={item}
+                  now={now}
+                  query={query}
+                  onOpen={open}
+                  onEdit={it => setDialog({ mode: "edit", item: it })}
+                  onPickCover={it =>
+                    void mutations
+                      .pickCover(it.id)
+                      .then(done => done && toast.success("封面已更新"))
+                      .catch(() => toast.error("封面上传失败"))
+                  }
+                  onRemoveCover={it =>
+                    void mutations
+                      .removeCover(it.id)
+                      .then(() => toast.success("已改用画布缩略图"))
+                      .catch(() => toast.error("操作失败"))
+                  }
+                  onDelete={it => {
+                    setDeleteTarget(it);
+                    setDeleteOpen(true);
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </FadeScroll>
       </div>
 
       <WhiteboardInfoDialog

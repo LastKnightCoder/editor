@@ -1,14 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useReadOnly, useSlateStatic } from "slate-react";
 import classnames from "classnames";
 import { PlusOutlined } from "@ant-design/icons";
 import { CustomModal } from "@tau/shared";
-import type { ThemeColors as CustomModalThemeColors } from "@tau/shared";
 
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
 import ImageGallerySetting, { ISetting } from "../ImageGallerySetting";
+import { EDITOR_MODAL_THEME } from "../../../../theme/modalTheme";
 import { If } from "@tau/shared";
 import AddParagraph from "../../../../components/AddParagraph";
 import SwipeImageGallery from "../SwipeImageGallery";
@@ -18,7 +18,7 @@ import useIsLastElement from "../../../../hooks/useIsLastElement";
 import EditorContextMenu from "../../../../components/EditorContextMenu";
 import type { ImageGalleryElement } from "../../../../types";
 import { EGalleryMode } from "../../../../constants";
-import { useEditorConfig } from "../../../../contexts/EditorConfig";
+import { useImageAppearance, type ImageAppearanceOption } from "../../../image/appearanceOption";
 import { buildImageGalleryMenuItems, imageGalleryActionsMap } from "../../utils/menuItems";
 
 import styles from "./index.module.less";
@@ -28,10 +28,11 @@ interface IImageGalleryProps {
   attributes: RenderElementProps["attributes"];
   element: ImageGalleryElement;
   children: RenderElementProps["children"];
+  appearance?: ImageAppearanceOption;
 }
 
 const ImageGallery = (props: IImageGalleryProps) => {
-  const { attributes, element, children } = props;
+  const { attributes, element, children, appearance: appearanceOption } = props;
   const {
     images,
     height = 200,
@@ -64,9 +65,9 @@ const ImageGallery = (props: IImageGalleryProps) => {
 
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
-  const config = useEditorConfig();
-  const effectiveBorderRadius = borderRadius ?? config?.appearance?.image?.borderRadius ?? "none";
-  const effectiveShadow = shadow ?? config?.appearance?.image?.shadow ?? "none";
+  const appearance = useImageAppearance(appearanceOption);
+  const effectiveBorderRadius = borderRadius ?? appearance?.borderRadius ?? "none";
+  const effectiveShadow = shadow ?? appearance?.shadow ?? "none";
 
   // 拖拽菜单
   const { menuProps, dragHandlerProps } = useDragHandlerMenu({
@@ -84,29 +85,6 @@ const ImageGallery = (props: IImageGalleryProps) => {
       imageGalleryActionsMap.delete(element);
     };
   }, [element]);
-
-  // Get theme colors for the modal's confirm button
-  const themeColors = useMemo<CustomModalThemeColors>(() => {
-    const editorThemeColors = config?.theme.colors;
-    if (editorThemeColors) {
-      return {
-        borderClass: editorThemeColors.borderClass,
-        hoverClass: editorThemeColors.hoverClass,
-        textClass: editorThemeColors.textClass,
-        // Use buttonBg if available, otherwise use badgeBgClass as fallback
-        buttonBg: (editorThemeColors as any).buttonBg || editorThemeColors.badgeBgClass,
-        buttonTextClass: (editorThemeColors as any).buttonTextClass,
-      };
-    }
-    // Default theme colors (indigo)
-    return {
-      borderClass: "border-gray-200 dark:border-slate-700",
-      hoverClass: "hover:bg-gray-100 dark:hover:bg-zinc-800",
-      textClass: "text-gray-700 dark:text-slate-300",
-      buttonBg: "bg-indigo-500 hover:bg-indigo-600",
-      buttonTextClass: "text-white",
-    };
-  }, [config]);
 
   const onCancel = () => {
     setSetting({
@@ -212,7 +190,7 @@ const ImageGallery = (props: IImageGalleryProps) => {
           open={settingModalOpen}
           onCancel={onCancel}
           onOk={onOk}
-          themeColors={themeColors}
+          themeColors={EDITOR_MODAL_THEME}
           bodyClassName="max-h-[calc(100vh-12rem)] overflow-y-auto"
         >
           <ImageGallerySetting setting={setting} onSettingChange={setSetting} />

@@ -8,8 +8,8 @@ import { Descendant } from "slate";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
-import { Editor, EditorProvider } from "../index";
-import { createServiceRegistry, createDefaultEditorSlots, IEditorSlots } from "../services";
+import { Editor, createEditorKit } from "../index";
+import { createDefaultEditorSlots, IEditorSlots } from "../services";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -18,8 +18,8 @@ const createParagraph = (text: string): Descendant => ({
   children: [{ type: "formatted", text }],
 });
 
-const registry = createServiceRegistry(register => {
-  register(IEditorSlots, createDefaultEditorSlots());
+const kit = createEditorKit({
+  services: [register => register(IEditorSlots, createDefaultEditorSlots())],
 });
 
 describe("Editor 挂载期的 onChange 回写行为", () => {
@@ -47,9 +47,7 @@ describe("Editor 挂载期的 onChange 回写行为", () => {
     await act(async () => {
       root?.render(
         <DndProvider backend={HTML5Backend}>
-          <EditorProvider registry={registry}>
-            <Editor initValue={initValue} readonly={false} onChange={onChange} />
-          </EditorProvider>
+          <Editor kit={kit} initValue={initValue} readonly={false} onChange={onChange} />
         </DndProvider>
       );
     });

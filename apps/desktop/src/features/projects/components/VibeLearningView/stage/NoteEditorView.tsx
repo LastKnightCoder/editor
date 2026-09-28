@@ -41,12 +41,11 @@ import { cleanPPTHtmlContent } from "@/constants/prompts/ppt-generation";
 import { cleanReportHtmlContent } from "@/constants/prompts/report-generation";
 import { buildDefaultEpubMetadata, exportSlateToEpubWithDialog } from "@/utils/epub-export";
 import { exportSlateToPdfWithDialog } from "@/utils/pdf-export";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { usePage } from "@/page/PageProvider";
 import useEditContent from "@/hooks/useEditContent";
 import { toast, ConfirmDialog, Button, IconButton, Menu, Spinner } from "@tau/ui";
 import { NOTE_ICONS } from "../appMeta";
-import { StageHeader } from "./StageHeader";
+import { StageHeader } from "@/components/StageHeader";
 
 const DEFAULT_CONTENT: Descendant[] = [
   {
@@ -125,7 +124,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     onEditReport,
     onShowTrace,
   } = props;
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const { navigator } = usePage();
 
   const editorRef = useRef<EditorRef>(null);
@@ -1019,7 +1017,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
                   ref={editorRef}
                   initValue={content}
                   onChange={handleContentChange}
-                  extensions={dynamicExtensions}
                   readonly={true}
                 />
               </div>
@@ -1030,7 +1027,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
                 ref={editorRef}
                 initValue={content}
                 onChange={handleContentChange}
-                extensions={dynamicExtensions}
                 readonly={false}
               />
             )}

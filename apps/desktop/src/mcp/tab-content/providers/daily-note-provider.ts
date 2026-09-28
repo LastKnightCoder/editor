@@ -1,6 +1,6 @@
 import { TabType } from "@/types/tab";
 import { getDiaryEntryByDate } from "@/commands/diary";
-import { getMarkdown } from "@/utils/markdown-helper";
+import { getMarkdown } from "@/utils/markdown";
 import { BaseTabContentProvider } from "./base-provider";
 import type { ITab } from "@/types/tab";
 import type { TabContentResponse, TabContentOptions } from "../types";
@@ -10,7 +10,7 @@ export class DailyNoteProvider extends BaseTabContentProvider<TabType.DailyNote>
 
   async getContent(
     tab: ITab<TabType.DailyNote>,
-    options?: TabContentOptions,
+    options?: TabContentOptions
   ): Promise<TabContentResponse> {
     const metadata = this.buildMetadata(tab);
 
@@ -20,8 +20,10 @@ export class DailyNoteProvider extends BaseTabContentProvider<TabType.DailyNote>
     if (todayEntry) {
       const markdown = getMarkdown(todayEntry.content);
 
-      const { content, truncated, originalLength, totalLength, range } =
-        this.truncateContent(markdown, options?.range);
+      const { content, truncated, originalLength, totalLength, range } = this.truncateContent(
+        markdown,
+        options?.range
+      );
 
       return {
         metadata,

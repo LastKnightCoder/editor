@@ -3,12 +3,24 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WhiteBoardContentView } from "../WhiteBoardContentView";
 
-const state = vi.hoisted(() => ({ id: 11, save: vi.fn() }));
+const state = vi.hoisted(() => ({
+  id: 11,
+  save: vi.fn(),
+  replace: vi.fn(),
+  owner: null as { id: number } | null,
+}));
 vi.mock("@/page/PageProvider", () => ({
   usePageParams: () => ({ id: state.id }),
   usePageBreadcrumb: vi.fn(),
+  usePage: () => ({
+    navigator: {
+      current: () => ({ key: "whiteboard-content", params: { id: state.id } }),
+      replace: state.replace,
+    },
+  }),
 }));
 vi.mock("../../queries", () => ({
+  useWhiteboardOwner: () => ({ owner: state.owner, loading: false }),
   useWhiteBoardContent: (id: number) => ({
     data: { id, name: `白板 ${id}`, data: { children: [], selection: [], viewPort: {} } },
     save: {
@@ -33,6 +45,19 @@ afterEach(() => {
   host?.remove();
   vi.useRealTimers();
   vi.clearAllMocks();
+});
+
+describe("单页画布", () => {
+  it("页属于某块白板时原位换成白板详情并定位到这一页", () => {
+    state.id = 21;
+    state.owner = { id: 5 };
+    host = document.createElement("div");
+    root = createRoot(host);
+    act(() => root!.render(<WhiteBoardContentView />));
+    expect(state.replace).toHaveBeenCalledWith("whiteboard-detail", { id: 5, page: 21 });
+    expect(host.querySelector("button")).toBeNull();
+    state.owner = null;
+  });
 });
 
 describe("白板详情保存", () => {

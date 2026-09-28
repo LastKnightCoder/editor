@@ -92,22 +92,6 @@ export const updateVideoNoteTranscript = async (
   }
 };
 
-export const updateVideoNoteSummary = async (
-  id: number,
-  summary: string
-): Promise<VideoNote | null> => {
-  try {
-    const result = await invoke<VideoNote | null>("update-video-note-summary", {
-      id,
-      summary,
-    });
-    return result;
-  } catch (error) {
-    console.error(error);
-    return null;
-  }
-};
-
 export const updateVideoNoteHighlights = async (
   id: number,
   highlights: VideoNote["highlights"]

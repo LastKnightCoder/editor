@@ -59,7 +59,7 @@ export function TodosView() {
   const mutations = useTodoMutations();
   const now = useNow();
 
-  const params = usePageParams<{ id?: string }>();
+  const params = usePageParams<{ id?: string; selectedId?: number }>();
   const [mode, setMode] = useState<AgendaMode>("date");
   // 项目筛选 = 侧栏子项选中的项目（0 = 全部）；项目被归档 / 删除后自然回到全部
   const groupFilter =
@@ -122,6 +122,28 @@ export function TodosView() {
       },
     });
   };
+
+  /* 外部带 selectedId 进入（今日页待办卡等）：选中并滚到该行；目标不在当前项目筛选内时回到全部。
+     参数随即消费掉（原位更新），关掉详情后再次从外部进入同一条仍能定位 */
+  useEffect(() => {
+    const id = params.selectedId;
+    if (id == null || !snapshot) return;
+    const target = snapshot.byId.get(id);
+    const outOfFilter = target != null && groupFilter !== 0 && target.groupId !== groupFilter;
+    navigator.push("todos", { id: outOfFilter ? "" : (params.id ?? "") });
+    if (!target) return;
+    setSelectedId(id);
+    // 双帧：等筛选回到全部后的重渲染落定再找行
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() =>
+        document
+          .querySelector(`[data-row-id="${id}"]`)
+          ?.scrollIntoView({ block: "center", behavior: "smooth" })
+      )
+    );
+    // 只响应 selectedId 参数本身
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.selectedId, snapshot != null]);
 
   /* ⌘/Ctrl+/ 聚焦快速添加（仅本页在栈顶时生效） */
   useEffect(() => {

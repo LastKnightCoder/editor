@@ -1,7 +1,7 @@
 import { BoardElement, Operation, Selection, SetNodePatch } from "../types";
 import Board from "../Board";
 import BoardOperations from "./BoardOperations";
-import SpatialHitIndex from "./SpatialHitIndex";
+import SpatialHitIndex, { getHitTestChildren } from "./SpatialHitIndex";
 import { Path as SlatePath } from "slate";
 
 export class BoardUtil {
@@ -20,7 +20,7 @@ export class BoardUtil {
   static getHitElements(board: Board, x: number, y: number): BoardElement[] {
     try {
       const candidates = this.getSpatialIndex(board).queryPoint(x, y);
-      return candidates.filter((node) => board.isHit(node, x, y));
+      return candidates.filter(node => board.isHit(node, x, y));
     } catch (_error) {
       return this.getHitElementsByDFS(board, x, y);
     }
@@ -28,7 +28,7 @@ export class BoardUtil {
 
   static getElementsInSelectArea(
     board: Board,
-    selectArea: Selection["selectArea"],
+    selectArea: Selection["selectArea"]
   ): BoardElement[] {
     if (!selectArea) return [];
 
@@ -38,15 +38,8 @@ export class BoardUtil {
     const maxY = Math.max(selectArea.anchor.y, selectArea.focus.y);
 
     try {
-      const candidates = this.getSpatialIndex(board).queryRect(
-        minX,
-        minY,
-        maxX,
-        maxY,
-      );
-      return candidates.filter((node) =>
-        board.isElementSelected(node, selectArea),
-      );
+      const candidates = this.getSpatialIndex(board).queryRect(minX, minY, maxX, maxY);
+      return candidates.filter(node => board.isElementSelected(node, selectArea));
     } catch (_error) {
       return this.getElementsInSelectAreaByDFS(board, selectArea);
     }
@@ -64,13 +57,21 @@ export class BoardUtil {
     return index;
   }
 
-  private static getHitElementsByDFS(
-    board: Board,
-    x: number,
-    y: number,
-  ): BoardElement[] {
+  /** 与 dfs 相同的先序遍历，但只进入可见子元素 */
+  private static dfsHitTestable(board: Board, visit: (node: BoardElement) => void): void {
+    const walk = (nodes: BoardElement[] | undefined) => {
+      if (!nodes) return;
+      for (let i = 0; i < nodes.length; i++) {
+        visit(nodes[i]);
+        walk(getHitTestChildren(board, nodes[i]));
+      }
+    };
+    walk(board.children);
+  }
+
+  private static getHitElementsByDFS(board: Board, x: number, y: number): BoardElement[] {
     const hitElements: BoardElement[] = [];
-    this.dfs(board, (node) => {
+    this.dfsHitTestable(board, node => {
       if (board.isHit(node, x, y)) {
         hitElements.push(node);
       }
@@ -80,12 +81,12 @@ export class BoardUtil {
 
   private static getElementsInSelectAreaByDFS(
     board: Board,
-    selectArea: Selection["selectArea"],
+    selectArea: Selection["selectArea"]
   ): BoardElement[] {
     if (!selectArea) return [];
 
     const selectedElements: BoardElement[] = [];
-    this.dfs(board, (node) => {
+    this.dfsHitTestable(board, node => {
       if (board.isElementSelected(node, selectArea)) {
         selectedElements.push(node);
       }
@@ -96,7 +97,7 @@ export class BoardUtil {
   static dfs(
     node: BoardElement | Board,
     visit: (node: BoardElement) => void | boolean,
-    quickQuit = false,
+    quickQuit = false
   ): boolean | void {
     if (!this.isBoard(node)) {
       visit(node);
@@ -116,7 +117,7 @@ export class BoardUtil {
   static bfs(
     node: BoardElement | Board,
     visit: (node: BoardElement) => boolean | void,
-    quickQuit = false,
+    quickQuit = false
   ): boolean | void {
     const queue: (BoardElement | Board)[] = [];
     queue.push(node);
@@ -131,7 +132,7 @@ export class BoardUtil {
       }
       const children = node.children;
       if (children) {
-        children.forEach((child) => {
+        children.forEach(child => {
           queue.push(child);
         });
       }
@@ -148,7 +149,7 @@ export class BoardUtil {
   static diff(
     oldChildren: BoardElement[],
     newChildren: BoardElement[],
-    basePath: number[] = [],
+    basePath: number[] = []
   ): Operation[] {
     const ops: Operation[] = [];
 
@@ -166,8 +167,8 @@ export class BoardUtil {
     const oldMap = this.createElementMap(oldChildren);
     const newMap = this.createElementMap(newChildren);
 
-    const oldIds = oldChildren.map((el) => el.id);
-    const newIds = newChildren.map((el) => el.id);
+    const oldIds = oldChildren.map(el => el.id);
+    const newIds = newChildren.map(el => el.id);
 
     // 这一层的 diff 必须能在“跳过路径变换”的前提下按顺序执行。
     // 因此顺序固定为：remove（降序）-> move（就地重排）-> insert（升序）-> set_node（基于最终索引）-> recurse
@@ -191,8 +192,8 @@ export class BoardUtil {
     }
 
     // 用于模拟本层 children 的结构变化，便于生成可顺序执行的 move/insert
-    const currentIds: string[] = oldIds.filter((id) => newMap.has(id));
-    const desiredExistingIds: string[] = newIds.filter((id) => oldMap.has(id));
+    const currentIds: string[] = oldIds.filter(id => newMap.has(id));
+    const desiredExistingIds: string[] = newIds.filter(id => oldMap.has(id));
 
     // 2) 重排：仅对“仍存在”的元素做 move_node，保留对象引用（更接近真实编辑体验）
     for (let i = 0; i < desiredExistingIds.length; i++) {
@@ -267,11 +268,7 @@ export class BoardUtil {
    * diff 单个节点：只对当前节点生成 set_node(patch，不含 children)，children 变化由 diff(children) 生成结构操作。
    * 该方法返回的操作序列适用于按顺序执行且跳过路径变换的场景（例如 BoardOperations.applyDiffOperations）。
    */
-  static diffNode(
-    oldNode: BoardElement,
-    newNode: BoardElement,
-    path: number[],
-  ): Operation[] {
+  static diffNode(oldNode: BoardElement, newNode: BoardElement, path: number[]): Operation[] {
     const ops: Operation[] = [];
 
     const changes = this.getElementChanges(oldNode, newNode);
@@ -300,7 +297,7 @@ export class BoardUtil {
   static diffNodePatchOnly(
     oldNode: BoardElement,
     newNode: BoardElement,
-    path: number[],
+    path: number[]
   ): Operation[] {
     const changes = this.getElementChanges(oldNode, newNode);
     if (Object.keys(changes).length === 0) {
@@ -326,7 +323,7 @@ export class BoardUtil {
     snapshotRoot: BoardElement,
     rootPath: number[],
     dx: number,
-    dy: number,
+    dy: number
   ): Operation[] {
     if ((!dx && !dy) || !rootPath || rootPath.length === 0) return [];
 
@@ -369,12 +366,10 @@ export class BoardUtil {
     const dfs = (node: BoardElement, insideContainer: boolean) => {
       if (insideContainer) ids.add(node.id);
       const isContainer = capService.isContainer(node);
-      node.children?.forEach((child) =>
-        dfs(child, insideContainer || isContainer),
-      );
+      node.children?.forEach(child => dfs(child, insideContainer || isContainer));
     };
 
-    board.children.forEach((root) => dfs(root, false));
+    board.children.forEach(root => dfs(root, false));
     return ids;
   }
 
@@ -383,7 +378,7 @@ export class BoardUtil {
    * 适用场景：ops 是通过 diff 生成、且依赖“按原始顺序执行”的序列。
    */
   static normalizeOperations(operations: Operation[]): Operation[] {
-    operations.forEach((op) => BoardOperations.markAsNormalized(op));
+    operations.forEach(op => BoardOperations.markAsNormalized(op));
     return operations;
   }
 
@@ -395,7 +390,7 @@ export class BoardUtil {
    */
   private static getElementChanges(
     oldElement: BoardElement,
-    newElement: BoardElement,
+    newElement: BoardElement
   ): SetNodePatch {
     const changes: SetNodePatch = {};
 
@@ -423,7 +418,7 @@ export class BoardUtil {
    */
   private static getElementPropertiesForChanges(
     element: BoardElement,
-    changes: SetNodePatch,
+    changes: SetNodePatch
   ): SetNodePatch {
     const properties: SetNodePatch = {};
     for (const key in changes) {
@@ -447,9 +442,7 @@ export class BoardUtil {
     // 数组比较
     if (Array.isArray(oldValue) && Array.isArray(newValue)) {
       if (oldValue.length !== newValue.length) return true;
-      return oldValue.some((item, index) =>
-        this.isValueChanged(item, newValue[index]),
-      );
+      return oldValue.some((item, index) => this.isValueChanged(item, newValue[index]));
     }
 
     // 对象比较
@@ -458,11 +451,11 @@ export class BoardUtil {
       const newKeys = Object.keys(newValue as Record<string, unknown>);
       if (oldKeys.length !== newKeys.length) return true;
 
-      return oldKeys.some((key) => {
+      return oldKeys.some(key => {
         if (!newKeys.includes(key)) return true;
         return this.isValueChanged(
           (oldValue as Record<string, unknown>)[key],
-          (newValue as Record<string, unknown>)[key],
+          (newValue as Record<string, unknown>)[key]
         );
       });
     }
@@ -474,7 +467,7 @@ export class BoardUtil {
    * 创建元素映射（内存优化）
    */
   private static createElementMap(
-    elements: BoardElement[],
+    elements: BoardElement[]
   ): Map<string, { element: BoardElement; index: number }> {
     const map = new Map();
     for (let i = 0; i < elements.length; i++) {
@@ -526,16 +519,12 @@ export class BoardUtil {
   /**
    * 收集批量 set_node 操作
    */
-  private static collectBatchSetOperations(
-    ops: Operation[],
-    startIndex: number,
-  ): Operation[] {
+  private static collectBatchSetOperations(ops: Operation[], startIndex: number): Operation[] {
     const batch: Operation[] = [];
     const firstOp = ops[startIndex];
     if (firstOp.type !== "set_node") return batch;
 
-    const currentPath = (firstOp as Extract<Operation, { type: "set_node" }>)
-      .path;
+    const currentPath = (firstOp as Extract<Operation, { type: "set_node" }>).path;
 
     for (let i = startIndex; i < ops.length; i++) {
       const op = ops[i];
@@ -600,10 +589,7 @@ export class BoardUtil {
    * @param operations 操作列表
    * @returns 应用操作后的新数组
    */
-  static apply(
-    children: BoardElement[],
-    operations: Operation[],
-  ): BoardElement[] {
+  static apply(children: BoardElement[], operations: Operation[]): BoardElement[] {
     if (!operations || operations.length === 0) {
       return JSON.parse(JSON.stringify(children));
     }
@@ -779,16 +765,13 @@ export class BoardUtil {
 
     this.dfs(
       board,
-      (node) => {
-        if (
-          node.children?.some((child) => child.id === element.id) &&
-          !parent
-        ) {
+      node => {
+        if (node.children?.some(child => child.id === element.id) && !parent) {
           parent = node;
           return true;
         }
       },
-      true,
+      true
     );
 
     return parent;
@@ -798,13 +781,13 @@ export class BoardUtil {
     let element: BoardElement | null = null;
     this.dfs(
       board,
-      (node) => {
+      node => {
         if (node.id === id) {
           element = node;
           return true;
         }
       },
-      true,
+      true
     );
     return element;
   }

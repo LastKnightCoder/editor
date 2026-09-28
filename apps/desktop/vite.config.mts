@@ -4,7 +4,7 @@ import react from "@vitejs/plugin-react-swc";
 import tailwindcss from "@tailwindcss/vite";
 import electron from "vite-plugin-electron/simple";
 import fs from "fs-extra";
-import { createThemeBootstrapScript } from "../../packages/ui/src/theme/bootstrap";
+import { createThemeBootstrapScript } from "@tau/themes";
 
 import * as path from "path";
 
@@ -48,7 +48,6 @@ export default defineConfig(() => {
         "@tau/rpc": path.resolve(__dirname, "../../packages/rpc"),
         "@tau/platform": path.resolve(__dirname, "../../packages/platform"),
         "@tau/shared": path.resolve(__dirname, "../../packages/shared"),
-        "@tau/themes": path.resolve(__dirname, "../../packages/themes"),
       },
     },
     plugins: [
@@ -57,7 +56,13 @@ export default defineConfig(() => {
       tailwindcss(),
       electron({
         main: {
-          entry: "src-electron/main/index.ts",
+          entry: {
+            index: "src-electron/main/index.ts",
+            // 发布站点生成跑在 worker_threads 里（modules/publish-generator-client）
+            "publish-generator-worker": "src-electron/main/workers/publish-generator.worker.ts",
+            // 知识地图离线计算（向量近邻 + 主题划分 + 布局）跑在 worker_threads 里（modules/knowledge-map-builder）
+            "knowledge-map-worker": "src-electron/main/workers/knowledge-map.worker.ts",
+          },
           onstart(args) {
             if (process.env.VSCODE_DEBUG) {
               console.log(

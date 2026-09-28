@@ -1,235 +1,155 @@
-import { memo, useState, useEffect } from "react";
+/**
+ * 画布里嵌入的白板卡片：引用整块白板（whiteBoardId），显示缩略图 + 标题 + 页数，
+ * 双击打开白板详情（上次停留的页）；在白板详情里双击时沿跳转链前进（trail 参数，见 features/whiteboards/navigation.ts），
+ * 目标已在链上则截回那一级。沿链回来时这张卡片被定位并闪一下（element:flash）。
+ *
+ * 旧元素只记了页 id（whiteBoardContentId）：能反查到所属白板时按该白板显示，双击打开白板详情并定位到这一页；
+ * 反查不到（独立页）才打开单页画布。
+ */
+
+import { memo, useContext, useEffect, useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { Layout } from "lucide-react";
+import { Presentation } from "lucide-react";
+import { cn, toast } from "@tau/ui";
 
 import { Board } from "../../types";
 import { WhiteBoardElement } from "../../plugins/WhiteBoardPlugin";
-import { getWhiteBoardContentById } from "@/commands/white-board";
-import { WhiteBoardContent } from "@/types";
-import { Spin, Empty } from "antd";
 import LocalImage from "@/components/LocalImage";
+import { PageSchematic } from "../../schematic/PageSchematic";
 import { openPage } from "@/services/page-navigation";
-import { toast } from "@tau/ui";
-import useTheme from "@/hooks/useTheme";
+import { useWhiteboardDetail, useWhiteboardOwner } from "@/features/whiteboards/queries";
+import { displayTitle, enterBoard, formatTrail, toItem } from "@/features/whiteboards/model";
+import { WhiteboardNavContext, requestReveal } from "@/features/whiteboards/navigation";
 
 interface WhiteBoardCardProps {
   board: Board;
   element: WhiteBoardElement;
 }
 
-const defaultSnapshot = "https://d2hulr7xnfjroe.cloudfront.net/Frame_1321315996_35405ab097.png";
-
 // 固定高度常量
 export const WHITEBOARD_CARD_HEIGHT = 80;
 
+/** 画布纸底 + 点阵（示意图的底，同白板列表卡片） */
+const CANVAS_BG =
+  "bg-surface-hover bg-[radial-gradient(color-mix(in_srgb,var(--tau-ink-1)_13%,transparent)_1px,transparent_1.2px)] bg-[length:10px_10px]";
+
 const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
-  const { element } = props;
-  const { isDark } = useTheme();
-  const { x, y, width, whiteBoardContentId, name, description, snapshot } = element;
-
-  // 固定高度
-  const height = WHITEBOARD_CARD_HEIGHT;
-
-  const [loading, setLoading] = useState(false);
-  const [whiteBoardContent, setWhiteBoardContent] = useState<WhiteBoardContent | null>(null);
+  const { element, board } = props;
+  const nav = useContext(WhiteboardNavContext);
+  const [flash, setFlash] = useState(false);
 
   useEffect(() => {
-    setLoading(true);
-    getWhiteBoardContentById(whiteBoardContentId)
-      .then(content => {
-        setWhiteBoardContent(content);
-      })
-      .catch(() => {
-        setWhiteBoardContent(null);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [whiteBoardContentId]);
+    let timer = 0;
+    const onFlash = (id: string) => {
+      if (id !== element.id) return;
+      setFlash(true);
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => setFlash(false), 1400);
+    };
+    board.on("element:flash", onFlash);
+    return () => {
+      board.off("element:flash", onFlash);
+      window.clearTimeout(timer);
+    };
+  }, [board, element.id]);
+  const { x, y, width, name } = element;
+  const height = WHITEBOARD_CARD_HEIGHT;
+
+  const boardId = element.whiteBoardId ?? null;
+  const legacyPageId = boardId === null ? (element.whiteBoardContentId ?? null) : null;
+  const detail = useWhiteboardDetail(boardId);
+  const { owner, loading: ownerLoading } = useWhiteboardOwner(legacyPageId);
+  const whiteBoard = boardId !== null ? detail.board : owner;
+  const loading = boardId !== null ? detail.loading && !detail.error : ownerLoading;
+  const item = whiteBoard ? toItem(whiteBoard) : null;
+  // 引用的整块白板已删除；旧的独立页仍可打开
+  const missing = !loading && !item && legacyPageId === null;
+
+  const [failedCover, setFailedCover] = useState<string>();
+  const cover = item?.snapshot && item.snapshot !== failedCover ? item.snapshot : "";
+  const firstPage = item?.pages[0];
 
   const handleDoubleClick = useMemoizedFn((e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-
-    if (!whiteBoardContent) return;
-
+    if (loading) return;
     try {
-      openPage("whiteboard-content", { id: whiteBoardContent.id });
+      if (item) {
+        const next = nav
+          ? enterBoard(
+              nav.trail,
+              { boardId: nav.boardId, pageId: nav.pageId, elementId: element.id },
+              item.id
+            )
+          : null;
+        if (next?.back) requestReveal(next.back.pageId, next.back.elementId);
+        const page = next?.back?.pageId ?? legacyPageId;
+        openPage("whiteboard-detail", {
+          id: item.id,
+          ...(page !== null ? { page } : {}),
+          ...(next ? { trail: formatTrail(next.trail) } : {}),
+        });
+      } else if (legacyPageId !== null) {
+        openPage("whiteboard-content", { id: legacyPageId });
+      } else {
+        toast.error("白板已删除");
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "打开白板失败");
     }
   });
 
-  const backgroundColor = isDark ? "rgba(30, 35, 45, 0.85)" : "rgba(248, 250, 255, 0.9)";
-  const textColor = isDark ? "rgba(241, 245, 249, 0.9)" : "rgba(15, 23, 42, 0.85)";
-  const descriptionColor = isDark ? "rgba(148, 163, 184, 0.8)" : "rgba(100, 116, 139, 0.85)";
-  const borderColor = isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(255, 255, 255, 0.45)";
-  const iconBgColor = isDark ? "#fbbf24" : "#fbbf24";
-  const shadowStyle = isDark
-    ? "0 4px 12px rgba(0, 0, 0, 0.35)"
-    : "0 4px 12px rgba(15, 23, 42, 0.12)";
-
-  if (loading) {
-    return (
-      <foreignObject
-        x={x}
-        y={y}
-        width={width}
-        height={height}
-        className="border-none"
-        style={{
-          overflow: "visible",
-        }}
-      >
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor,
-            borderRadius: "12px",
-            border: `1px solid ${borderColor}`,
-            boxShadow: shadowStyle,
-          }}
-          className="cursor-move"
-        >
-          <Spin />
-        </div>
-      </foreignObject>
-    );
-  }
-
-  if (!whiteBoardContent) {
-    return (
-      <foreignObject
-        x={x}
-        y={y}
-        width={width}
-        height={height}
-        className="border-none"
-        style={{
-          overflow: "visible",
-        }}
-      >
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor,
-            borderRadius: "12px",
-            border: `1px solid ${borderColor}`,
-            boxShadow: shadowStyle,
-          }}
-          className="cursor-move"
-        >
-          <Empty description="白板不存在" />
-        </div>
-      </foreignObject>
-    );
-  }
+  const title = item ? displayTitle(item) : name || "未命名白板";
+  const meta = loading
+    ? "加载中…"
+    : missing
+      ? "白板已删除"
+      : item
+        ? `${item.pages.length} 页 · ${item.elementCount} 个元素`
+        : "独立画布";
 
   return (
-    <foreignObject
-      x={x}
-      y={y}
-      width={width}
-      height={height}
-      className="border-none"
-      style={{
-        overflow: "visible",
-      }}
-    >
+    <foreignObject x={x} y={y} width={width} height={height} className="overflow-visible">
       <div
-        style={{
-          width: "100%",
-          height: "100%",
-          backgroundColor,
-          borderRadius: "12px",
-          border: `1px solid ${borderColor}`,
-          boxShadow: shadowStyle,
-          overflow: "hidden",
-          transition: "all 0.2s ease",
-          display: "flex",
-          alignItems: "center",
-          gap: "12px",
-          padding: "12px",
-        }}
         onDoubleClick={handleDoubleClick}
-        className="cursor-move hover:shadow-lg"
+        title="双击打开白板"
+        className={cn(
+          "bg-surface border-line-1 flex size-full cursor-move items-center gap-2.5 overflow-hidden rounded-[12px] border p-2",
+          "ease-tau-out transition-[box-shadow,border-color] duration-300",
+          flash
+            ? "border-accent shadow-[0_0_0_4px_color-mix(in_srgb,var(--tau-accent)_28%,transparent)]"
+            : "shadow-card hover:shadow-lift",
+          missing && "opacity-60"
+        )}
       >
-        {/* 左侧图标 */}
         <div
-          style={{
-            width: "56px",
-            height: "56px",
-            flexShrink: 0,
-            backgroundColor: iconBgColor,
-            borderRadius: "8px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            overflow: "hidden",
-            position: "relative",
-          }}
+          className={cn(
+            "relative aspect-[16/10] h-full shrink-0 overflow-hidden rounded-[8px] shadow-[inset_0_0_0_1px_var(--tau-line-2)]",
+            CANVAS_BG
+          )}
         >
-          {snapshot || whiteBoardContent.imgUrl ? (
+          {cover ? (
             <LocalImage
-              url={snapshot || whiteBoardContent.imgUrl || defaultSnapshot}
-              alt={name || whiteBoardContent.name}
-              className="h-full w-full select-none object-cover"
+              url={cover}
+              className="absolute inset-0 size-full select-none object-cover"
               draggable={false}
+              onLoadError={() => setFailedCover(cover)}
+            />
+          ) : firstPage && firstPage.elementCount > 0 ? (
+            <PageSchematic
+              elements={firstPage.elements}
+              aspect={16 / 10}
+              className="absolute inset-0 size-full"
             />
           ) : (
-            <Layout size={28} color="#ffffff" strokeWidth={2} />
+            <Presentation className="text-ink-3 absolute inset-0 m-auto size-5" strokeWidth={1.5} />
           )}
         </div>
-
-        {/* 右侧文字区域 */}
-        <div
-          style={{
-            flex: 1,
-            minWidth: 0,
-            display: "flex",
-            flexDirection: "column",
-            gap: "4px",
-            justifyContent: "center",
-          }}
-        >
-          {/* 标题 */}
-          <div
-            style={{
-              fontWeight: 600,
-              fontSize: "14px",
-              color: textColor,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              lineHeight: "1.4",
-            }}
-            title={name || whiteBoardContent.name}
-          >
-            {name || whiteBoardContent.name}
-          </div>
-
-          {/* 描述 */}
-          <div
-            style={{
-              fontSize: "12px",
-              color: descriptionColor,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              lineHeight: "1.4",
-            }}
-            title={description || "0 cards"}
-          >
-            {description || "0 cards"}
-          </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="text-ink-1 truncate text-[14px] font-semibold leading-[1.4]">
+            {title}
+          </span>
+          <span className="text-ink-3 truncate text-[12px] tabular-nums">{meta}</span>
         </div>
       </div>
     </foreignObject>

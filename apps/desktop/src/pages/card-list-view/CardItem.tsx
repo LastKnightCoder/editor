@@ -1,4 +1,5 @@
 import React, { MouseEvent, useMemo, useRef, memo, useState } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import classnames from "classnames";
 import { IoResizeOutline } from "react-icons/io5";
 import { MdMoreHoriz } from "react-icons/md";
@@ -9,7 +10,6 @@ import { Editor, type EditorRef } from "@tau/editor/src";
 import { useShallow } from "zustand/react/shallow";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 import Tags from "@/components/Tags";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -51,7 +51,6 @@ const CardItem = memo(
     } = props;
 
     const navigateTo = useTabStore(state => state.navigateTo);
-    const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
     const editorRef = useRef<EditorRef>(null);
     const [exportModalOpen, setExportModalOpen] = useState(false);
     const [epubExportModalOpen, setEpubExportModalOpen] = useState(false);
@@ -210,11 +209,11 @@ const CardItem = memo(
           </div>
           <ErrorBoundary>
             <Editor
+              kit={getDesktopKit()}
               ref={editorRef}
               className="max-h-75 pointer-events-none overflow-hidden"
               readonly={true}
               initValue={previewContent}
-              extensions={dynamicExtensions}
             />
           </ErrorBoundary>
           {tags.length > 0 && <Tags className="mt-5" tags={tags} showIcon />}

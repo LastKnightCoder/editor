@@ -1,10 +1,11 @@
 import React, { useRef, useState } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import { Tag } from "antd";
 import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
-import { Editor, IExtension } from "@tau/editor";
+import { Editor } from "@tau/editor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import If from "@/components/If";
 import EditText from "@/components/EditText";
@@ -12,7 +13,6 @@ import { SearchOutlined, LoadingOutlined } from "@ant-design/icons";
 
 import { formatDate, searchContent } from "@/utils";
 import { IndexType, SearchResult } from "@/types/search";
-import useTheme from "@/hooks/useTheme";
 import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
 
 // 获取类型标签文字
@@ -40,7 +40,6 @@ const getTypeColor = (type: IndexType): string => {
 export interface ContentSelectorProps {
   onSelect: (item: SearchResult) => void;
   contentType: IndexType | IndexType[];
-  extensions: IExtension[];
   emptyDescription?: string;
   showTitle?: boolean;
   isItemSelected?: (item: SearchResult) => boolean;
@@ -53,14 +52,12 @@ const defaultInitialContents: SearchResult[] = [];
 const ContentSelector: React.FC<ContentSelectorProps> = ({
   onSelect,
   contentType,
-  extensions,
   emptyDescription = "无结果",
   showTitle = true,
   isItemSelected,
   isItemDisabled,
   initialContents = defaultInitialContents,
 }) => {
-  const { theme } = useTheme();
   const modelInfo = useEmbeddingConfig();
 
   const [search, setSearch] = useState("");
@@ -215,10 +212,9 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
                     <ErrorBoundary>
                       <div className="text-sm text-gray-600 dark:text-slate-400">
                         <Editor
+                          kit={getDesktopKit()}
                           readonly={true}
                           initValue={item.content.slice(0, 3)}
-                          extensions={extensions}
-                          theme={theme}
                         />
                       </div>
                     </ErrorBoundary>

@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "@tau/themes/scale.css";
+@import "./theme/tau-tokens.css";
 @source "../../../packages/editor/src";
 @source "../../../packages/shared/src";
 

@@ -46,7 +46,8 @@ import { SelectTransforms } from "../transforms";
 import MindNode from "../components/MindNode";
 import { BOARD_TO_CONTAINER, getMindDragSourceId } from "../constants";
 import type { InteractionState } from "../interactions/InteractionState";
-import { getThemeById } from "../constants/mind-themes";
+import MindThemeUtil from "../utils/MindThemeUtil";
+import { useThemeStore } from "@tau/themes/react";
 import { Descendant } from "slate";
 import { createContent } from "@/commands/content";
 import useSettingStore from "@/stores/useSettingStore.ts";
@@ -83,9 +84,9 @@ const MindNodeTree = ({
   children?: ReactNode;
 }) => {
   const isDraggedSubtree = useSyncExternalStore(
-    (listener) => plugin.subscribe(listener),
+    listener => plugin.subscribe(listener),
     () => plugin.isDraggingNode(element.id),
-    () => plugin.isDraggingNode(element.id),
+    () => plugin.isDraggingNode(element.id)
   );
 
   return (
@@ -109,8 +110,7 @@ export class MindPlugin implements IBoardPlugin {
     return {
       snap: {
         behavior: SnapBehavior.RootOnly,
-        isRoot: (element: BoardElement) =>
-          MindUtil.isRoot(element as MindNodeElement),
+        isRoot: (element: BoardElement) => MindUtil.isRoot(element as MindNodeElement),
         moveAll: (element: BoardElement, dx: number, dy: number) =>
           MindUtil.moveAll(element as MindNodeElement, dx, dy),
       },
@@ -125,11 +125,11 @@ export class MindPlugin implements IBoardPlugin {
       movement: {
         behavior: MovementBehavior.RequiresRelayout,
         // 根节点移动时整棵子树一起平移；子节点移动由拖拽状态机单独处理
-        collectMoveSubtree: (element) => {
+        collectMoveSubtree: element => {
           if (!MindUtil.isRoot(element as MindNodeElement)) return [element];
           const subtree: BoardElement[] = [element];
           MindUtil.dfs(element as MindNodeElement, {
-            before: (node) => {
+            before: node => {
               if (MindUtil.isRoot(node)) return;
               subtree.push(node);
             },
@@ -139,32 +139,25 @@ export class MindPlugin implements IBoardPlugin {
         // 图层排序等结构变化移动节点后，重排受影响的导图
         afterMove: (board, element) => {
           const root = MindUtil.getRoot(board, element as MindNodeElement);
-          MindUtil.relayoutAffectedRootsAfterMindMove(
-            board,
-            element.id,
-            root?.id ?? null,
-          );
+          MindUtil.relayoutAffectedRootsAfterMindMove(board, element.id, root?.id ?? null);
         },
       },
       render: {
         childrenOrder: ChildrenRenderOrder.Normal,
         // 折叠方向上的子节点不渲染
         filterVisibleChildren: (element, children) =>
-          children.filter((child) => {
+          children.filter(child => {
             if (child.type !== "mind-node") return true;
             const childMindNode = child as MindNodeElement;
             const isChildLeftDirection = childMindNode.direction === "left";
             const mindNode = element as MindNodeElement;
-            return isChildLeftDirection
-              ? !mindNode.isLeftFold
-              : !mindNode.isRightFold;
+            return isChildLeftDirection ? !mindNode.isLeftFold : !mindNode.isRightFold;
           }),
         getColorTheme: () => "orange",
       },
       refLine: {
         participatesInRefLines: true,
-        shouldParticipate: (element: BoardElement) =>
-          MindUtil.isRoot(element as MindNodeElement),
+        shouldParticipate: (element: BoardElement) => MindUtil.isRoot(element as MindNodeElement),
       },
     };
   }
@@ -200,9 +193,8 @@ export class MindPlugin implements IBoardPlugin {
     }
 
     // 右键点击 MindNode
-    const mindNode = targetElements.find((el) => el.type === "mind-node") as
-      | MindNodeElement
-      | undefined;
+    const mindNode = targetElements.find(el => el.type === "mind-node") as
+      MindNodeElement | undefined;
     if (mindNode) {
       const root = MindUtil.getRoot(context.board, mindNode);
       if (!root) return items;
@@ -224,30 +216,19 @@ export class MindPlugin implements IBoardPlugin {
               priority: 0,
               onSelect: (ctx: ContextMenuContext) => {
                 const node = ctx.targetElements.find(
-                  (el) => el.type === "mind-node",
+                  el => el.type === "mind-node"
                 ) as MindNodeElement;
                 if (!node) return;
                 const currentRoot = MindUtil.getRoot(ctx.board, node);
                 if (!currentRoot) return;
 
                 // 创建一个新的子节点，设置 direction 为 left
-                const newRoot = MindUtil.addChildWithDirection(
-                  currentRoot,
-                  node,
-                  "left",
-                );
+                const newRoot = MindUtil.addChildWithDirection(currentRoot, node, "left");
                 if (!newRoot) return;
 
-                const rootPath = PathUtil.getPathByElement(
-                  ctx.board,
-                  currentRoot,
-                );
+                const rootPath = PathUtil.getPathByElement(ctx.board, currentRoot);
                 if (rootPath) {
-                  const ops = BoardUtil.diffNode(
-                    currentRoot,
-                    newRoot,
-                    rootPath,
-                  );
+                  const ops = BoardUtil.diffNode(currentRoot, newRoot, rootPath);
                   BoardUtil.normalizeOperations(ops);
                   ctx.board.apply(ops);
                 }
@@ -260,30 +241,19 @@ export class MindPlugin implements IBoardPlugin {
               priority: 1,
               onSelect: (ctx: ContextMenuContext) => {
                 const node = ctx.targetElements.find(
-                  (el) => el.type === "mind-node",
+                  el => el.type === "mind-node"
                 ) as MindNodeElement;
                 if (!node) return;
                 const currentRoot = MindUtil.getRoot(ctx.board, node);
                 if (!currentRoot) return;
 
                 // 创建一个新的子节点，设置 direction 为 right
-                const newRoot = MindUtil.addChildWithDirection(
-                  currentRoot,
-                  node,
-                  "right",
-                );
+                const newRoot = MindUtil.addChildWithDirection(currentRoot, node, "right");
                 if (!newRoot) return;
 
-                const rootPath = PathUtil.getPathByElement(
-                  ctx.board,
-                  currentRoot,
-                );
+                const rootPath = PathUtil.getPathByElement(ctx.board, currentRoot);
                 if (rootPath) {
-                  const ops = BoardUtil.diffNode(
-                    currentRoot,
-                    newRoot,
-                    rootPath,
-                  );
+                  const ops = BoardUtil.diffNode(currentRoot, newRoot, rootPath);
                   BoardUtil.normalizeOperations(ops);
                   ctx.board.apply(ops);
                 }
@@ -299,9 +269,7 @@ export class MindPlugin implements IBoardPlugin {
           icon: <LayoutGrid size={14} />,
           priority: 101,
           onSelect: (ctx: ContextMenuContext) => {
-            const node = ctx.targetElements.find(
-              (el) => el.type === "mind-node",
-            ) as MindNodeElement;
+            const node = ctx.targetElements.find(el => el.type === "mind-node") as MindNodeElement;
             if (!node) return;
             const currentRoot = MindUtil.getRoot(ctx.board, node);
             if (!currentRoot) return;
@@ -317,36 +285,25 @@ export class MindPlugin implements IBoardPlugin {
         });
 
         // 根节点：添加展开/收起左侧和右侧的菜单项（一级菜单）
-        const leftChildren = mindNode.children.filter(
-          (child) => child.direction === "left",
-        );
-        const rightChildren = mindNode.children.filter(
-          (child) => child.direction === "right",
-        );
+        const leftChildren = mindNode.children.filter(child => child.direction === "left");
+        const rightChildren = mindNode.children.filter(child => child.direction === "right");
 
         if (leftChildren.length > 0) {
           items.push({
             key: "toggle-left-fold",
             label: mindNode.isLeftFold ? "展开左侧" : "收起左侧",
-            icon: mindNode.isLeftFold ? (
-              <ChevronDown size={14} />
-            ) : (
-              <ChevronUp size={14} />
-            ),
+            icon: mindNode.isLeftFold ? <ChevronDown size={14} /> : <ChevronUp size={14} />,
             priority: 102,
             onSelect: (ctx: ContextMenuContext) => {
               const node = ctx.targetElements.find(
-                (el) => el.type === "mind-node",
+                el => el.type === "mind-node"
               ) as MindNodeElement;
               if (!node) return;
               const currentRoot = MindUtil.getRoot(ctx.board, node);
               if (!currentRoot) return;
 
               const newRoot = MindUtil.toggleFold(currentRoot, node, "left");
-              const rootPath = PathUtil.getPathByElement(
-                ctx.board,
-                currentRoot,
-              );
+              const rootPath = PathUtil.getPathByElement(ctx.board, currentRoot);
               if (rootPath) {
                 const ops = BoardUtil.diffNode(currentRoot, newRoot, rootPath);
                 BoardUtil.normalizeOperations(ops);
@@ -360,25 +317,18 @@ export class MindPlugin implements IBoardPlugin {
           items.push({
             key: "toggle-right-fold",
             label: mindNode.isRightFold ? "展开右侧" : "收起右侧",
-            icon: mindNode.isRightFold ? (
-              <ChevronDown size={14} />
-            ) : (
-              <ChevronUp size={14} />
-            ),
+            icon: mindNode.isRightFold ? <ChevronDown size={14} /> : <ChevronUp size={14} />,
             priority: 103,
             onSelect: (ctx: ContextMenuContext) => {
               const node = ctx.targetElements.find(
-                (el) => el.type === "mind-node",
+                el => el.type === "mind-node"
               ) as MindNodeElement;
               if (!node) return;
               const currentRoot = MindUtil.getRoot(ctx.board, node);
               if (!currentRoot) return;
 
               const newRoot = MindUtil.toggleFold(currentRoot, node, "right");
-              const rootPath = PathUtil.getPathByElement(
-                ctx.board,
-                currentRoot,
-              );
+              const rootPath = PathUtil.getPathByElement(ctx.board, currentRoot);
               if (rootPath) {
                 const ops = BoardUtil.diffNode(currentRoot, newRoot, rootPath);
                 BoardUtil.normalizeOperations(ops);
@@ -402,7 +352,7 @@ export class MindPlugin implements IBoardPlugin {
               priority: 0,
               onSelect: (ctx: ContextMenuContext) => {
                 const node = ctx.targetElements.find(
-                  (el) => el.type === "mind-node",
+                  el => el.type === "mind-node"
                 ) as MindNodeElement;
                 if (!node) return;
                 const currentRoot = MindUtil.getRoot(ctx.board, node);
@@ -411,16 +361,9 @@ export class MindPlugin implements IBoardPlugin {
                 const newRoot = MindUtil.addSiblingBefore(currentRoot, node);
                 if (!newRoot) return;
 
-                const rootPath = PathUtil.getPathByElement(
-                  ctx.board,
-                  currentRoot,
-                );
+                const rootPath = PathUtil.getPathByElement(ctx.board, currentRoot);
                 if (rootPath) {
-                  const ops = BoardUtil.diffNode(
-                    currentRoot,
-                    newRoot,
-                    rootPath,
-                  );
+                  const ops = BoardUtil.diffNode(currentRoot, newRoot, rootPath);
                   BoardUtil.normalizeOperations(ops);
                   ctx.board.apply(ops);
                 }
@@ -433,7 +376,7 @@ export class MindPlugin implements IBoardPlugin {
               priority: 1,
               onSelect: (ctx: ContextMenuContext) => {
                 const node = ctx.targetElements.find(
-                  (el) => el.type === "mind-node",
+                  el => el.type === "mind-node"
                 ) as MindNodeElement;
                 if (!node) return;
                 const currentRoot = MindUtil.getRoot(ctx.board, node);
@@ -442,16 +385,9 @@ export class MindPlugin implements IBoardPlugin {
                 const newRoot = MindUtil.addSibling(currentRoot, node);
                 if (!newRoot) return;
 
-                const rootPath = PathUtil.getPathByElement(
-                  ctx.board,
-                  currentRoot,
-                );
+                const rootPath = PathUtil.getPathByElement(ctx.board, currentRoot);
                 if (rootPath) {
-                  const ops = BoardUtil.diffNode(
-                    currentRoot,
-                    newRoot,
-                    rootPath,
-                  );
+                  const ops = BoardUtil.diffNode(currentRoot, newRoot, rootPath);
                   BoardUtil.normalizeOperations(ops);
                   ctx.board.apply(ops);
                 }
@@ -464,7 +400,7 @@ export class MindPlugin implements IBoardPlugin {
               priority: 2,
               onSelect: (ctx: ContextMenuContext) => {
                 const node = ctx.targetElements.find(
-                  (el) => el.type === "mind-node",
+                  el => el.type === "mind-node"
                 ) as MindNodeElement;
                 if (!node) return;
                 const currentRoot = MindUtil.getRoot(ctx.board, node);
@@ -473,16 +409,9 @@ export class MindPlugin implements IBoardPlugin {
                 const newRoot = MindUtil.addChild(currentRoot, node);
                 if (!newRoot) return;
 
-                const rootPath = PathUtil.getPathByElement(
-                  ctx.board,
-                  currentRoot,
-                );
+                const rootPath = PathUtil.getPathByElement(ctx.board, currentRoot);
                 if (rootPath) {
-                  const ops = BoardUtil.diffNode(
-                    currentRoot,
-                    newRoot,
-                    rootPath,
-                  );
+                  const ops = BoardUtil.diffNode(currentRoot, newRoot, rootPath);
                   BoardUtil.normalizeOperations(ops);
                   ctx.board.apply(ops);
                 }
@@ -495,12 +424,8 @@ export class MindPlugin implements IBoardPlugin {
         // 非根节点：添加展开/收起节点的菜单项
         if (mindNode.children && mindNode.children.length > 0) {
           // 检查子节点的方向，确定使用哪个折叠状态
-          const hasLeftChildren = mindNode.children.some(
-            (child) => child.direction === "left",
-          );
-          const hasRightChildren = mindNode.children.some(
-            (child) => child.direction === "right",
-          );
+          const hasLeftChildren = mindNode.children.some(child => child.direction === "left");
+          const hasRightChildren = mindNode.children.some(child => child.direction === "right");
 
           // 确定折叠状态
           let isFolded = false;
@@ -513,31 +438,22 @@ export class MindPlugin implements IBoardPlugin {
           items.push({
             key: "toggle-fold",
             label: isFolded ? "展开节点" : "收起节点",
-            icon: isFolded ? (
-              <ChevronDown size={14} />
-            ) : (
-              <ChevronUp size={14} />
-            ),
+            icon: isFolded ? <ChevronDown size={14} /> : <ChevronUp size={14} />,
             priority: 101,
             onSelect: (ctx: ContextMenuContext) => {
               const node = ctx.targetElements.find(
-                (el) => el.type === "mind-node",
+                el => el.type === "mind-node"
               ) as MindNodeElement;
               if (!node) return;
               const currentRoot = MindUtil.getRoot(ctx.board, node);
               if (!currentRoot) return;
 
               // 检查子节点方向并切换折叠状态
-              const hasLeft = node.children.some(
-                (child) => child.direction === "left",
-              );
+              const hasLeft = node.children.some(child => child.direction === "left");
               const dir: "left" | "right" = hasLeft ? "left" : "right";
 
               const newRoot = MindUtil.toggleFold(currentRoot, node, dir);
-              const rootPath = PathUtil.getPathByElement(
-                ctx.board,
-                currentRoot,
-              );
+              const rootPath = PathUtil.getPathByElement(ctx.board, currentRoot);
               if (rootPath) {
                 const ops = BoardUtil.diffNode(currentRoot, newRoot, rootPath);
                 BoardUtil.normalizeOperations(ops);
@@ -556,9 +472,7 @@ export class MindPlugin implements IBoardPlugin {
           icon: <StickyNote size={14} />,
           priority: 150,
           onSelect: (ctx: ContextMenuContext) => {
-            const node = ctx.targetElements.find(
-              (el) => el.type === "mind-node",
-            ) as MindNodeElement;
+            const node = ctx.targetElements.find(el => el.type === "mind-node") as MindNodeElement;
             if (!node?.contentId) return;
             ctx.board.emit("open-note", node.contentId, node.contentTitle);
           },
@@ -571,9 +485,7 @@ export class MindPlugin implements IBoardPlugin {
           priority: 151,
           danger: true,
           onSelect: (ctx: ContextMenuContext) => {
-            const node = ctx.targetElements.find(
-              (el) => el.type === "mind-node",
-            ) as MindNodeElement;
+            const node = ctx.targetElements.find(el => el.type === "mind-node") as MindNodeElement;
             if (!node?.contentId) return;
             ctx.board.emit("mind:confirm-unlink-note", node.id);
           },
@@ -592,7 +504,7 @@ export class MindPlugin implements IBoardPlugin {
               priority: 0,
               onSelect: async (ctx: ContextMenuContext) => {
                 const node = ctx.targetElements.find(
-                  (el) => el.type === "mind-node",
+                  el => el.type === "mind-node"
                 ) as MindNodeElement;
                 if (!node) return;
                 const contentId = await createContent(DEFAULT_CONTENT, 0);
@@ -621,7 +533,7 @@ export class MindPlugin implements IBoardPlugin {
               priority: 1,
               onSelect: (ctx: ContextMenuContext) => {
                 const node = ctx.targetElements.find(
-                  (el) => el.type === "mind-node",
+                  el => el.type === "mind-node"
                 ) as MindNodeElement;
                 if (!node) return;
                 ctx.board.emit("mind:select-note", node.id);
@@ -644,7 +556,7 @@ export class MindPlugin implements IBoardPlugin {
       MindUtil.dfs(
         root,
         {
-          before: (current) => {
+          before: current => {
             if (current.id === element.id) {
               isVisible = true;
             }
@@ -652,7 +564,7 @@ export class MindPlugin implements IBoardPlugin {
         },
         null,
         0,
-        true,
+        true
       );
       if (!isVisible) return false;
     }
@@ -678,7 +590,7 @@ export class MindPlugin implements IBoardPlugin {
     MindUtil.dfs(
       element,
       {
-        before: (node) => {
+        before: node => {
           minX = Math.min(minX, node.x);
           minY = Math.min(minY, node.y);
           maxX = Math.max(maxX, node.x + node.width);
@@ -687,15 +599,10 @@ export class MindPlugin implements IBoardPlugin {
       },
       null,
       0,
-      true,
+      true
     );
 
-    if (
-      minX === Infinity ||
-      minY === Infinity ||
-      maxX === -Infinity ||
-      maxY === -Infinity
-    ) {
+    if (minX === Infinity || minY === Infinity || maxX === -Infinity || maxY === -Infinity) {
       return {
         minX: element.x,
         minY: element.y,
@@ -710,7 +617,7 @@ export class MindPlugin implements IBoardPlugin {
   isElementSelected(
     board: Board,
     element: MindNodeElement,
-    selectArea: Selection["selectArea"] = board.selection.selectArea,
+    selectArea: Selection["selectArea"] = board.selection.selectArea
   ) {
     if (!selectArea) return false;
     const selectRect = selectAreaToRect(selectArea);
@@ -718,7 +625,7 @@ export class MindPlugin implements IBoardPlugin {
   }
 
   private emitChange() {
-    this.listeners.forEach((listener) => listener());
+    this.listeners.forEach(listener => listener());
   }
 
   subscribe(listener: () => void) {
@@ -778,7 +685,8 @@ export class MindPlugin implements IBoardPlugin {
       defaultFocus: true,
       isLeftFold: false,
       isRightFold: false,
-      themeId: MindUtil.getDefaultThemeId(),
+      themeId: MindThemeUtil.getDefaultThemeId(),
+      themeStyle: MindThemeUtil.getDefaultThemeStyle(),
     };
   }
 
@@ -787,11 +695,7 @@ export class MindPlugin implements IBoardPlugin {
       return;
     }
 
-    const currentPoint = PointUtil.screenToViewPort(
-      board,
-      e.clientX,
-      e.clientY,
-    );
+    const currentPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!currentPoint) return;
 
     const mindRoot = this.createMindRoot(currentPoint.x, currentPoint.y);
@@ -823,13 +727,9 @@ export class MindPlugin implements IBoardPlugin {
   claimPointerGesture(
     board: Board,
     e: PointerEvent,
-    hitElement: BoardElement,
+    hitElement: BoardElement
   ): MindDragInteraction | null {
-    if (
-      e.button !== 0 ||
-      board.readonly ||
-      board.presentationManager.isPresentationMode
-    ) {
+    if (e.button !== 0 || board.readonly || board.presentationManager.isPresentationMode) {
       return null;
     }
 
@@ -878,10 +778,7 @@ export class MindPlugin implements IBoardPlugin {
 
   /** 当前拖拽是否由该指针发起（由 MindDragInteraction 转发前校验） */
   isDragPointer(pointerId: number): boolean {
-    return (
-      Boolean(this.dragState.draggedNode) &&
-      this.dragState.pointerId === pointerId
-    );
+    return Boolean(this.dragState.draggedNode) && this.dragState.pointerId === pointerId;
   }
 
   /** 拖拽移动调度（rAF 合帧，原 onGlobalPointerMove 主体） */
@@ -903,12 +800,7 @@ export class MindPlugin implements IBoardPlugin {
         const pending = this.pendingPointerMove;
         this.pendingPointerMove = null;
         if (!pending || pending.pointerId !== this.dragState.pointerId) return;
-        this.updateDragPreview(
-          board,
-          pending.clientX,
-          pending.clientY,
-          pending.altKey,
-        );
+        this.updateDragPreview(board, pending.clientX, pending.clientY, pending.altKey);
       });
     }
   }
@@ -948,10 +840,10 @@ export class MindPlugin implements IBoardPlugin {
     const current = board.selection.selectedElements;
     let selectedElements: BoardElement[];
     if (isMultiSelect) {
-      const existingIndex = current.findIndex((el) => el.id === latestNode.id);
+      const existingIndex = current.findIndex(el => el.id === latestNode.id);
       selectedElements =
         existingIndex >= 0
-          ? current.filter((el) => el.id !== latestNode.id)
+          ? current.filter(el => el.id !== latestNode.id)
           : [...current, latestNode];
     } else {
       selectedElements = [latestNode];
@@ -963,14 +855,8 @@ export class MindPlugin implements IBoardPlugin {
     });
   }
 
-  updateDragPreview(
-    board: Board,
-    clientX: number,
-    clientY: number,
-    altKey = false,
-  ) {
-    const { draggedNode, startPoint, dragOffset, currentTarget } =
-      this.dragState;
+  updateDragPreview(board: Board, clientX: number, clientY: number, altKey = false) {
+    const { draggedNode, startPoint, dragOffset, currentTarget } = this.dragState;
     if (!draggedNode || !startPoint) return;
 
     const currentPoint = PointUtil.screenToViewPort(board, clientX, clientY);
@@ -978,18 +864,16 @@ export class MindPlugin implements IBoardPlugin {
 
     const distanceFromStart = Math.hypot(
       currentPoint.x - startPoint.x,
-      currentPoint.y - startPoint.y,
+      currentPoint.y - startPoint.y
     );
     const isDragging =
-      this.dragState.isDragging ||
-      distanceFromStart > 5 / Math.max(board.viewPort.zoom, 0.01);
+      this.dragState.isDragging || distanceFromStart > 5 / Math.max(board.viewPort.zoom, 0.01);
     if (!isDragging) return;
 
     // 拖拽首次越过阈值时隐藏选中态（点击场景保留选区供点选回落）
     if (
       !this.dragState.isDragging &&
-      (board.selection.selectedElements.length > 0 ||
-        board.selection.selectArea)
+      (board.selection.selectedElements.length > 0 || board.selection.selectArea)
     ) {
       board.apply(
         {
@@ -1000,7 +884,7 @@ export class MindPlugin implements IBoardPlugin {
             selectArea: null,
           },
         },
-        false,
+        false
       );
     }
 
@@ -1010,19 +894,14 @@ export class MindPlugin implements IBoardPlugin {
     let target: MindDragTarget | null;
 
     if (this.dragState.mode === "root-translate") {
-      const latestRoot = BoardUtil.getElementById(
-        board,
-        draggedNode.id,
-      ) as MindNodeElement | null;
-      const rootPath = latestRoot
-        ? PathUtil.getPathByElement(board, latestRoot)
-        : null;
+      const latestRoot = BoardUtil.getElementById(board, draggedNode.id) as MindNodeElement | null;
+      const rootPath = latestRoot ? PathUtil.getPathByElement(board, latestRoot) : null;
       if (!latestRoot || latestRoot.type !== "mind-node" || !rootPath) return;
 
       target = MindUtil.findNearestMindNode(
         board,
         { ...latestRoot, x: nextX, y: nextY },
-        currentTarget,
+        currentTarget
       );
 
       // 吸附优先级：有合并候选时优先合并吸附；无候选且未按 Alt 时
@@ -1039,13 +918,8 @@ export class MindPlugin implements IBoardPlugin {
             height: latestRoot.height,
           },
         ]);
-        const newCurrent = board.refLine.getUpdateCurrent(
-          true,
-          5 / board.viewPort.zoom,
-        );
-        const snappedRect = newCurrent.rects.find(
-          (rect) => rect.key === draggedNode.id,
-        );
+        const newCurrent = board.refLine.getUpdateCurrent(true, 5 / board.viewPort.zoom);
+        const snappedRect = newCurrent.rects.find(rect => rect.key === draggedNode.id);
         if (snappedRect) {
           snapX = snappedRect.x;
           snapY = snappedRect.y;
@@ -1059,13 +933,9 @@ export class MindPlugin implements IBoardPlugin {
         const desiredRoot = MindUtil.createRootDragLayout(
           draggedNode,
           { x: nextX, y: nextY },
-          target?.direction ?? null,
+          target?.direction ?? null
         );
-        const layoutOperations = BoardUtil.diffNode(
-          latestRoot,
-          desiredRoot,
-          rootPath,
-        );
+        const layoutOperations = BoardUtil.diffNode(latestRoot, desiredRoot, rootPath);
         if (layoutOperations.length > 0) {
           BoardUtil.normalizeOperations(layoutOperations);
           board.apply(layoutOperations, false);
@@ -1075,17 +945,14 @@ export class MindPlugin implements IBoardPlugin {
           latestRoot,
           rootPath,
           snapX - latestRoot.x,
-          snapY - latestRoot.y,
+          snapY - latestRoot.y
         );
         if (translateOperations.length > 0) {
           board.apply(translateOperations, false);
         }
       }
 
-      const movedRoot = BoardUtil.getElementById(
-        board,
-        draggedNode.id,
-      ) as MindNodeElement | null;
+      const movedRoot = BoardUtil.getElementById(board, draggedNode.id) as MindNodeElement | null;
       if (!movedRoot || movedRoot.type !== "mind-node") return;
       previewNode = movedRoot;
       board.emit("element:move", [movedRoot]);
@@ -1097,9 +964,7 @@ export class MindPlugin implements IBoardPlugin {
       };
       target = MindUtil.findNearestMindNode(board, previewNode, currentTarget);
     }
-    const connectionLineColor = target
-      ? this.getConnectionLineColor(board, target.node)
-      : null;
+    const connectionLineColor = target ? this.getConnectionLineColor(board, target.node) : null;
 
     this.setDragState({
       ...this.dragState,
@@ -1112,30 +977,29 @@ export class MindPlugin implements IBoardPlugin {
 
   private getConnectionLineColor(board: Board, targetNode: MindNodeElement) {
     const root = MindUtil.getRoot(board, targetNode);
-    const theme = getThemeById(root?.themeId || MindUtil.getDefaultThemeId());
-    const colorIndex = Math.max(0, targetNode.level - 1) % theme.palette.length;
-    return theme.palette[colorIndex]?.background || theme.root.background;
+    const mode = useThemeStore.getState().mode === "dark" ? "dark" : "light";
+    // 拖入后成为 targetNode 的子节点：挂到根上是新分支（取下一个分支色），否则沿用目标所在分支
+    const branchIndex =
+      targetNode.level === 1
+        ? targetNode.children.length
+        : MindThemeUtil.getBranchIndex(root, targetNode.id);
+    return MindThemeUtil.getNodeVisual(
+      MindThemeUtil.getThemeOf(root),
+      targetNode.level + 1,
+      branchIndex,
+      mode
+    ).lineColor;
   }
 
   commitDrop(board: Board) {
-    const { draggedNode, sourceRootId, previewNode, currentTarget } =
-      this.dragState;
+    const { draggedNode, sourceRootId, previewNode, currentTarget } = this.dragState;
     if (!draggedNode || !sourceRootId || !previewNode) return;
 
-    const sourceRoot = BoardUtil.getElementById(
-      board,
-      sourceRootId,
-    ) as MindNodeElement | null;
+    const sourceRoot = BoardUtil.getElementById(board, sourceRootId) as MindNodeElement | null;
     if (!sourceRoot || sourceRoot.type !== "mind-node") return;
 
-    const latestDraggedNode = MindUtil.findNodeInTree(
-      sourceRoot,
-      draggedNode.id,
-    );
-    if (
-      !latestDraggedNode ||
-      !MindUtil.canMoveNode(sourceRoot, latestDraggedNode)
-    ) {
+    const latestDraggedNode = MindUtil.findNodeInTree(sourceRoot, draggedNode.id);
+    if (!latestDraggedNode || !MindUtil.canMoveNode(sourceRoot, latestDraggedNode)) {
       return;
     }
 
@@ -1146,22 +1010,19 @@ export class MindPlugin implements IBoardPlugin {
     if (currentTarget) {
       const targetNode = BoardUtil.getElementById(
         board,
-        currentTarget.node.id,
+        currentTarget.node.id
       ) as MindNodeElement | null;
       if (
         !targetNode ||
         targetNode.type !== "mind-node" ||
         !MindUtil.isValidDrop(latestDraggedNode, targetNode) ||
-        (!MindUtil.isRoot(targetNode) &&
-          targetNode.direction !== currentTarget.direction)
+        (!MindUtil.isRoot(targetNode) && targetNode.direction !== currentTarget.direction)
       ) {
         return;
       }
 
       const targetRoot = MindUtil.getRoot(board, targetNode);
-      const targetPath = targetRoot
-        ? PathUtil.getPathByElement(board, targetRoot)
-        : null;
+      const targetPath = targetRoot ? PathUtil.getPathByElement(board, targetRoot) : null;
       if (!targetRoot || !targetPath) return;
 
       const placement = MindUtil.calculateInsertPosition(
@@ -1171,7 +1032,7 @@ export class MindPlugin implements IBoardPlugin {
           y: previewNode.y + previewNode.height / 2,
         },
         currentTarget.direction,
-        latestDraggedNode.id,
+        latestDraggedNode.id
       );
 
       if (targetRoot.id === sourceRoot.id) {
@@ -1182,12 +1043,10 @@ export class MindPlugin implements IBoardPlugin {
             latestDraggedNode,
             targetNode,
             placement.insertIndex,
-            placement.direction,
-          ),
+            placement.direction
+          )
         );
-        operations.push(
-          ...BoardUtil.diffNode(sourceRoot, updatedRoot, sourcePath),
-        );
+        operations.push(...BoardUtil.diffNode(sourceRoot, updatedRoot, sourcePath));
       } else {
         const updatedTargetRoot = MindUtil.layout(
           MindUtil.moveNodeToNewParent(
@@ -1196,8 +1055,8 @@ export class MindPlugin implements IBoardPlugin {
             latestDraggedNode,
             targetNode,
             placement.insertIndex,
-            placement.direction,
-          ),
+            placement.direction
+          )
         );
 
         if (MindUtil.isRoot(latestDraggedNode)) {
@@ -1206,28 +1065,18 @@ export class MindPlugin implements IBoardPlugin {
             path: sourcePath,
             node: draggedNode,
           };
-          const adjustedTargetPath = PathUtil.transformPath(
-            targetPath,
-            removeSourceOperation,
-          );
+          const adjustedTargetPath = PathUtil.transformPath(targetPath, removeSourceOperation);
           if (!adjustedTargetPath) return;
 
           operations.push(
             removeSourceOperation,
-            ...BoardUtil.diffNode(
-              targetRoot,
-              updatedTargetRoot,
-              adjustedTargetPath,
-            ),
+            ...BoardUtil.diffNode(targetRoot, updatedTargetRoot, adjustedTargetPath)
           );
         } else {
-          const updatedSourceRoot = MindUtil.deleteNode(
-            sourceRoot,
-            latestDraggedNode,
-          );
+          const updatedSourceRoot = MindUtil.deleteNode(sourceRoot, latestDraggedNode);
           operations.push(
             ...BoardUtil.diffNode(sourceRoot, updatedSourceRoot, sourcePath),
-            ...BoardUtil.diffNode(targetRoot, updatedTargetRoot, targetPath),
+            ...BoardUtil.diffNode(targetRoot, updatedTargetRoot, targetPath)
           );
         }
       }
@@ -1238,26 +1087,20 @@ export class MindPlugin implements IBoardPlugin {
             draggedNode,
             sourcePath,
             previewNode.x - draggedNode.x,
-            previewNode.y - draggedNode.y,
-          ),
+            previewNode.y - draggedNode.y
+          )
         );
       } else {
-        const updatedSourceRoot = MindUtil.deleteNode(
-          sourceRoot,
-          latestDraggedNode,
-        );
+        const updatedSourceRoot = MindUtil.deleteNode(sourceRoot, latestDraggedNode);
         const independentRoot = MindUtil.createNewRootNode(latestDraggedNode, {
           x: previewNode.x,
           y: previewNode.y,
         });
-        operations.push(
-          ...BoardUtil.diffNode(sourceRoot, updatedSourceRoot, sourcePath),
-          {
-            type: "insert_node",
-            path: [board.children.length],
-            node: independentRoot,
-          },
-        );
+        operations.push(...BoardUtil.diffNode(sourceRoot, updatedSourceRoot, sourcePath), {
+          type: "insert_node",
+          path: [board.children.length],
+          node: independentRoot,
+        });
       }
     }
 
@@ -1271,10 +1114,7 @@ export class MindPlugin implements IBoardPlugin {
     if (!container) return false;
     const rect = container.getBoundingClientRect();
     return (
-      clientX >= rect.left &&
-      clientX <= rect.right &&
-      clientY >= rect.top &&
-      clientY <= rect.bottom
+      clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom
     );
   }
 
@@ -1285,8 +1125,7 @@ export class MindPlugin implements IBoardPlugin {
 
   cancelScheduledPointerMove() {
     if (this.dragAnimationFrame !== null) {
-      const cancelFrame =
-        globalThis.cancelAnimationFrame ?? globalThis.clearTimeout;
+      const cancelFrame = globalThis.cancelAnimationFrame ?? globalThis.clearTimeout;
       cancelFrame(this.dragAnimationFrame);
       this.dragAnimationFrame = null;
     }
@@ -1296,19 +1135,10 @@ export class MindPlugin implements IBoardPlugin {
   cancelDrag(board: Board) {
     const { mode, isDragging, draggedNode } = this.dragState;
     if (mode === "root-translate" && isDragging && draggedNode) {
-      const latestRoot = BoardUtil.getElementById(
-        board,
-        draggedNode.id,
-      ) as MindNodeElement | null;
-      const rootPath = latestRoot
-        ? PathUtil.getPathByElement(board, latestRoot)
-        : null;
+      const latestRoot = BoardUtil.getElementById(board, draggedNode.id) as MindNodeElement | null;
+      const rootPath = latestRoot ? PathUtil.getPathByElement(board, latestRoot) : null;
       if (latestRoot?.type === "mind-node" && rootPath) {
-        const restoreOperations = BoardUtil.diffNode(
-          latestRoot,
-          draggedNode,
-          rootPath,
-        );
+        const restoreOperations = BoardUtil.diffNode(latestRoot, draggedNode, rootPath);
         if (restoreOperations.length > 0) {
           BoardUtil.normalizeOperations(restoreOperations);
           board.apply(restoreOperations, false);
@@ -1327,18 +1157,8 @@ export class MindPlugin implements IBoardPlugin {
     this.setDragState(EMPTY_MIND_DRAG_STATE);
   }
 
-  render(
-    _board: Board,
-    { element, children }: { element: MindNodeElement; children?: ReactNode },
-  ) {
-    return (
-      <MindNodeTree
-        key={element.id}
-        plugin={this}
-        element={element}
-        children={children}
-      />
-    );
+  render(_board: Board, { element, children }: { element: MindNodeElement; children?: ReactNode }) {
+    return <MindNodeTree key={element.id} plugin={this} element={element} children={children} />;
   }
 }
 

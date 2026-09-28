@@ -9,8 +9,7 @@ import { usePage } from "@/page/PageProvider";
 import { getPageMeta } from "@/page/core/pageMeta";
 import { isEditableTarget } from "@/page/dom";
 import { IconButton } from "@tau/ui";
-import { getTheme } from "@tau/ui/theme";
-import { nextMode, useThemeStore } from "@tau/ui/theme/runtime";
+import { nextAppearance, useThemeStore } from "@tau/themes/react";
 import { useSearchStore } from "@/features/search/searchStore";
 import { WindowControls } from "./WindowControls";
 import { useShellStore } from "./shellStore";
@@ -127,21 +126,23 @@ function AssistToggle() {
   );
 }
 
-/** 快捷主题切换：icon 反映当前模式，点击按 浅色 → 深色 → 跟随系统 循环。 */
-export function ThemeToggle() {
-  const mode = useThemeStore(s => s.mode);
-  const resolved = useThemeStore(s => s.resolved);
-  const setMode = useThemeStore(s => s.setMode);
+const APPEARANCE_LABELS = { light: "浅色", dark: "深色", system: "跟随系统" } as const;
 
-  const label = mode === "system" ? "跟随系统" : (getTheme(mode)?.name ?? mode);
-  const Icon = mode === "system" ? Monitor : getTheme(resolved)?.mode === "dark" ? Moon : Sun;
+/** 快捷明暗切换：icon 反映当前偏好，点击按 浅色 → 深色 → 跟随系统 循环（不动主题族）。 */
+export function ThemeToggle() {
+  const appearance = useThemeStore(s => s.appearance);
+  const mode = useThemeStore(s => s.mode);
+  const setAppearance = useThemeStore(s => s.setAppearance);
+
+  const label = APPEARANCE_LABELS[appearance];
+  const Icon = appearance === "system" ? Monitor : mode === "dark" ? Moon : Sun;
 
   return (
     <div className="app-region-no-drag">
       <IconButton
-        onClick={() => setMode(nextMode(mode))}
-        title={`主题：${label}（点击切换）`}
-        aria-label={`切换主题，当前：${label}`}
+        onClick={() => setAppearance(nextAppearance(appearance))}
+        title={`明暗：${label}（点击切换）`}
+        aria-label={`切换明暗模式，当前：${label}`}
       >
         <Icon size={17} strokeWidth={1.75} />
       </IconButton>

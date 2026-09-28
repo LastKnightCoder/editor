@@ -7,8 +7,8 @@ import { ReactEditor } from "slate-react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
-import { Editor, EditorProvider, type EditorRef } from "../index";
-import { createServiceRegistry, createDefaultEditorSlots, IEditorSlots } from "../services";
+import { Editor, createEditorKit, type EditorRef } from "../index";
+import { createDefaultEditorSlots, IEditorSlots } from "../services";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -17,8 +17,8 @@ const createParagraph = (text: string): Descendant => ({
   children: [{ type: "formatted", text }],
 });
 
-const registry = createServiceRegistry(register => {
-  register(IEditorSlots, createDefaultEditorSlots());
+const kit = createEditorKit({
+  services: [register => register(IEditorSlots, createDefaultEditorSlots())],
 });
 
 describe("Editor.setEditorValue", () => {
@@ -47,14 +47,13 @@ describe("Editor.setEditorValue", () => {
     await act(async () => {
       root?.render(
         <DndProvider backend={HTML5Backend}>
-          <EditorProvider registry={registry}>
-            <Editor
-              ref={ref}
-              initValue={[createParagraph("旧内容")]}
-              readonly={false}
-              onChange={onChange}
-            />
-          </EditorProvider>
+          <Editor
+            kit={kit}
+            ref={ref}
+            initValue={[createParagraph("旧内容")]}
+            readonly={false}
+            onChange={onChange}
+          />
         </DndProvider>
       );
     });

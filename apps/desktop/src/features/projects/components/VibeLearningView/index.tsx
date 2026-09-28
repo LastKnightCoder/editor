@@ -8,6 +8,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
+import { DOCK_CHAT_MIN, clampDockChatWidth, useDockResize } from "@/hooks/useDockResize";
 import { cn, toast } from "@tau/ui";
 import useSettingStore from "@/stores/useSettingStore";
 import { getProjectById } from "@/commands";
@@ -39,29 +40,6 @@ type Opened =
   /** 测验集的生成过程（笔记类任务跟着笔记走） */
   | { kind: "task"; id: string };
 
-// 停靠时输入框工具栏（添加 / 权限 / 模型 / 思考 / 发送）需要约 460px 才不溢出
-const CHAT_MIN = 480;
-const CHAT_MAX = 680;
-const clampChatWidth = (w: number) => Math.min(CHAT_MAX, Math.max(CHAT_MIN, w));
-
-/** 右栏对话宽度拖拽（左缘 6px 热区；对话本身不因拖拽重挂） */
-function useDockResize(width: number, setWidth: (w: number) => void) {
-  return useMemoizedFn((e: React.PointerEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startW = width;
-    const move = (ev: PointerEvent) => setWidth(clampChatWidth(startW + startX - ev.clientX));
-    const up = () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-      document.body.style.cursor = "";
-    };
-    document.body.style.cursor = "col-resize";
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
-  });
-}
-
 interface VibeLearningViewProps {
   projectId: number;
 }
@@ -86,10 +64,10 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
     defaultValue: 256,
   });
   const [chatWidth, setChatWidth] = useLocalStorageState("vibe-learning-chat-width", {
-    defaultValue: CHAT_MIN,
+    defaultValue: DOCK_CHAT_MIN,
   });
   // 旧版本存下的宽度可能低于新下限，读出时统一夹紧
-  const dockWidth = clampChatWidth(chatWidth ?? CHAT_MIN);
+  const dockWidth = clampDockChatWidth(chatWidth ?? DOCK_CHAT_MIN);
   const [chatOpen, setChatOpen] = useLocalStorageState("vibe-learning-chat-open", {
     defaultValue: true,
   });

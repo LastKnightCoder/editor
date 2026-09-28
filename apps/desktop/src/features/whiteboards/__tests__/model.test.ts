@@ -13,6 +13,9 @@ import {
   titleHit,
   toItem,
   untaggedCount,
+  enterBoard,
+  formatTrail,
+  parseTrail,
 } from "../model";
 
 const page = (id: number, name: string, children: number, updateTime: number, sequences = 0) => ({
@@ -145,5 +148,31 @@ describe("relativeTime", () => {
     expect(relativeTime(now - 4 * 86_400_000, now)).toBe("4 天前");
     expect(relativeTime(new Date(2026, 7, 26).getTime(), now)).toBe("8月26日");
     expect(relativeTime(new Date(2025, 0, 2).getTime(), now)).toBe("2025年1月2日");
+  });
+});
+
+describe("跳转链", () => {
+  const a = { boardId: 1, pageId: 10, elementId: "e-a" };
+  const b = { boardId: 2, pageId: 20, elementId: "e-b" };
+  const c = { boardId: 3, pageId: 30, elementId: "e-c" };
+
+  it("解析与序列化互逆，非法段丢弃", () => {
+    expect(parseTrail(formatTrail([a, b]))).toEqual([a, b]);
+    expect(parseTrail("1:10:e-a,x:1:e,2:20:,3:30:e-c")).toEqual([a, c]);
+    expect(parseTrail(undefined)).toEqual([]);
+    expect(formatTrail([])).toBeUndefined();
+  });
+
+  it("进入新白板时把当前位置追加到链尾", () => {
+    expect(enterBoard([a], b, 3)).toEqual({ trail: [a, b] });
+  });
+
+  it("目标已在链上时截回那一级", () => {
+    expect(enterBoard([a, b], c, 2)).toEqual({ trail: [a], back: b });
+    expect(enterBoard([a, b], c, 1)).toEqual({ trail: [], back: a });
+  });
+
+  it("目标就是当前白板时链不变", () => {
+    expect(enterBoard([a], b, 2)).toEqual({ trail: [a] });
   });
 });

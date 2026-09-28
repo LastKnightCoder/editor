@@ -26,7 +26,6 @@ import useEditContent from "@/hooks/useEditContent";
 import ImmersiveEditorMode, {
   type ImmersiveEditorExitPayload,
 } from "@/components/ImmersiveEditorMode";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 import { createProjectCardListExtension } from "@/editor-extensions";
 
@@ -82,10 +81,9 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     setProjectItem,
   } = useEdit(projectItemId);
 
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const editorExtensions = useMemo(() => {
-    return [...dynamicExtensions, createProjectCardListExtension(projectItemId)];
-  }, [dynamicExtensions, projectItemId]);
+    return [createProjectCardListExtension(projectItemId)];
+  }, [projectItemId]);
 
   const extensions = editorExtensions;
 

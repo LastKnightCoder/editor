@@ -488,21 +488,15 @@ if (!gotTheLock) {
   });
 
   // 处理文件打开事件
-  app.on("open-file", (_event, filePath) => {
-    _event.preventDefault();
+  // macOS：访达「打开方式」、拖到 Dock 图标、双击关联文件（Markdown 文件或文件夹）
+  app.on("open-file", (event, filePath) => {
+    event.preventDefault();
     log.info(`收到文件打开请求: ${filePath}`);
-
-    // 检查是否为Markdown文件
-    if (filePath.toLowerCase().endsWith(".md")) {
-      if (windowsReady) {
-        openMarkdownWindow({ filePath });
-      } else {
-        // 如果应用尚未初始化，保存文件路径以便后续处理
-        log.info(`应用尚未初始化，保存Markdown文件路径: ${filePath}`);
-        filesToOpen.push(filePath);
-      }
+    if (windowsReady) {
+      handleFileOrFolder(filePath);
     } else {
-      log.info(`不支持打开的文件类型: ${filePath}`);
+      // 冷启动时早于 ready 到达：暂存，就绪后统一处理（有暂存则不建主窗口）
+      filesToOpen.push(filePath);
     }
   });
 }
@@ -559,8 +553,7 @@ function getFilePathFromArgs(args: string[]): string | null {
       return false;
     }
 
-    // 只处理 .md 文件
-    if (lowerPath.endsWith(".md")) {
+    if (isMarkdownPath(lowerPath)) {
       return true;
     }
 
@@ -595,6 +588,11 @@ function getFilePathFromArgs(args: string[]): string | null {
   return null;
 }
 
+// 函数声明（提升）：启动时解析命令行参数即会用到，早于本行执行
+function isMarkdownPath(path: string) {
+  return /\.(md|markdown)$/i.test(path);
+}
+
 // 处理文件或文件夹
 function handleFileOrFolder(path: string) {
   if (!existsSync(path)) {
@@ -604,15 +602,9 @@ function handleFileOrFolder(path: string) {
 
   const stats = statSync(path);
 
-  if (stats.isDirectory()) {
-    // 是文件夹，以项目方式打开
-    log.info(`打开文件夹作为项目: ${path}`);
-    recentProjectsModule.addRecentProject(path);
-    openMarkdownWindow({ rootPath: path });
-  } else if (path.toLowerCase().endsWith(".md")) {
-    // 是 Markdown 文件
-    log.info(`打开 Markdown 文件: ${path}`);
-    openMarkdownWindow({ filePath: path });
+  if (stats.isDirectory() || isMarkdownPath(path)) {
+    // 文件夹 / Markdown 文件都进 Markdown 窗口（窗口模块负责区分与记入最近打开）
+    openMarkdownWindow(path);
   } else {
     log.warn(`不支持的文件类型: ${path}`);
   }

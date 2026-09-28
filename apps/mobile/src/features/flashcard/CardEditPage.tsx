@@ -3,6 +3,7 @@
 // cloze：选中文字「设为填空」，填空块的答案/备选答案经 ✎ 配置（BottomSheet）。
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { getMobileKit } from "../../services/editorKit";
 import { Editor, type EditorRef, type IExtension } from "@tau/editor/src";
 import type { Descendant } from "slate";
 import type { Editor as SlateEditor } from "slate";
@@ -11,7 +12,6 @@ import { useBackHandler } from "../../router";
 import { MobileConfirmDialog } from "../../components/MobileConfirmDialog";
 import { useEdgeFade } from "../../hooks/useScrollState";
 import { toast } from "../../components/toast";
-import { useMobileTheme } from "../../hooks/useMobileTheme";
 import * as tauri from "../../services/tauri";
 import { invalidateFlashcardQueries, useFlashcardDecks } from "./queries";
 import { extractBlanks } from "./reviewFlow";
@@ -79,7 +79,6 @@ export function CardEditPage({
   const scrollRef = useRef<HTMLDivElement>(null);
   useEdgeFade(scrollRef);
   const decksQuery = useFlashcardDecks();
-  const { theme } = useMobileTheme();
   const [pageRootEl, setPageRootEl] = useState<HTMLDivElement | null>(null);
 
   const [card, setCard] = useState<Flashcard | null>(null);
@@ -401,12 +400,12 @@ export function CardEditPage({
               </div>
             )}
             <Editor
+              kit={getMobileKit()}
               ref={promptEditorRef}
               key={`prompt-${cardId}`}
               initValue={promptValue}
               // 编辑器 readonly 默认为 true，表单场景必须显式放开
               readonly={false}
-              theme={theme}
               extensions={promptExtensions}
               placeHolder={
                 cardType === "cloze" ? "输入题干，选中文字后点「设为填空」" : "输入题目…"
@@ -552,11 +551,11 @@ export function CardEditPage({
           <div className="shadow-card bg-surface rounded-[22px] p-4">
             <div className="text-meta-ink mb-1 text-[12px] font-extrabold">背面补充（选填）</div>
             <Editor
+              kit={getMobileKit()}
               ref={detailEditorRef}
               key={`detail-${cardId}`}
               initValue={detailValue}
               readonly={false}
-              theme={theme}
               extensions={NO_EXTENSIONS}
               placeHolder="翻面后与答案、解析一起展示"
               className={`${editorClass} min-h-[84px] text-[15px] font-semibold`}

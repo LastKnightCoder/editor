@@ -122,7 +122,7 @@ const TabTitle = (props: TabTitleProps) => {
   } items-center gap-1 rounded-md px-3 text-[13px] leading-none transition-all duration-200 ${
     isActive || editing
       ? "bg-white font-medium text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-50"
-      : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100"
+      : "text-zinc-500 hover:text-[var(--ed-text)] dark:hover:text-zinc-100"
   } ${isDragging ? "opacity-40" : ""}`;
 
   if (editing) {
@@ -181,10 +181,10 @@ const TabTitle = (props: TabTitleProps) => {
       className={containerClass}
     >
       {dropBefore && (
-        <div className="absolute -left-1 top-1/2 z-10 h-4 w-0.5 -translate-y-1/2 rounded-full bg-[var(--th-accent,#71717a)]" />
+        <div className="absolute -left-1 top-1/2 z-10 h-4 w-0.5 -translate-y-1/2 rounded-full bg-[var(--ed-accent,#71717a)]" />
       )}
       {dropAfter && (
-        <div className="absolute -right-1 top-1/2 z-10 h-4 w-0.5 -translate-y-1/2 rounded-full bg-[var(--th-accent,#71717a)]" />
+        <div className="absolute -right-1 top-1/2 z-10 h-4 w-0.5 -translate-y-1/2 rounded-full bg-[var(--ed-accent,#71717a)]" />
       )}
       <span className="max-w-[12em] truncate">{tab.title || "标签"}</span>
       {/* 删除按钮常驻显示（占位固定、无浮现与布局动画），仅 hover 变红作删除提示 */}

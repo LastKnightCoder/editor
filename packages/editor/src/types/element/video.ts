@@ -1,4 +1,4 @@
-import { Descendant } from "slate";
+import type { Descendant } from "slate";
 
 /**
  * 视频元素的业务元数据：编辑器不理解其内部结构，仅透传保存。

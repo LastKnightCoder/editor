@@ -6,11 +6,11 @@
 // 卡片读取/编辑的都是 segment.tags，不要改回 entry.tags（那是旧模型遗留）。
 
 import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { getMobileKit } from "../../services/editorKit";
 import type { Descendant } from "slate";
 import { Editor, type EditorRef } from "@tau/editor/src";
 import { MoreHorizontal, Tags, Trash2 } from "lucide-react";
 import type { DiaryEntry, DiarySegment } from "../../types";
-import { useMobileTheme } from "../../hooks/useMobileTheme";
 import { useReadonlyContentSync } from "../../hooks/useReadonlyContentSync";
 import { mobileCardPreviewExtensions } from "../cards/editorExtensions";
 import { Popover, type PopoverItem } from "../../components/Popover";
@@ -73,7 +73,6 @@ const DiaryCardItem = memo(
     onEditTags,
     onDeleteSegment,
   }: DiaryCardItemProps) => {
-    const { theme } = useMobileTheme();
     const editorRef = useRef<EditorRef | null>(null);
     const desc = useMemo(() => describeEntry(entry), [entry]);
     const [menuOpen, setMenuOpen] = useState(false);
@@ -158,11 +157,11 @@ const DiaryCardItem = memo(
         <div className="pointer-events-none min-w-0">
           {hasBody ? (
             <Editor
+              kit={getMobileKit()}
               ref={editorRef}
               className="overflow-hidden"
               readonly={true}
               initValue={editorContent}
-              theme={theme}
               extensions={mobileCardPreviewExtensions}
             />
           ) : (

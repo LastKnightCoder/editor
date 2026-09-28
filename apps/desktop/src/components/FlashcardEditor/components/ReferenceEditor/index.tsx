@@ -6,7 +6,6 @@ import { FlashcardReferenceInput } from "@/types/flashcard";
 import { SearchResult } from "@/types/search";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import RichTextEditor from "../RichTextEditor";
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 
 interface ReferenceEditorProps {
   reference: FlashcardReferenceInput;
@@ -17,7 +16,6 @@ interface ReferenceEditorProps {
 
 const ReferenceEditor = ({ reference, onChange, onRemove, isDark }: ReferenceEditorProps) => {
   const [showContentSelector, setShowContentSelector] = useState(false);
-  const extensions = useDynamicExtensions();
 
   const handleTypeChange = (newType: "content" | "custom") => {
     if (newType === reference.refType) return;
@@ -149,7 +147,6 @@ const ReferenceEditor = ({ reference, onChange, onRemove, isDark }: ReferenceEdi
           }
         }}
         contentType={["card", "article", "project-item", "diary-daily"]}
-        extensions={extensions}
         emptyDescription="无可用内容"
         showTitle={true}
         title="选择参考内容"

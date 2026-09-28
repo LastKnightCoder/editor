@@ -2,16 +2,13 @@ import { createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { App as AntdApp } from "antd";
 import type { Editor } from "slate";
-import { EditorProvider } from "@tau/editor/src";
 import type { SerializedSelection } from "@/services/content-editing";
-import { createEditorRegistry } from "@/services/editorRegistry";
 import DndProvider from "@/components/DndProvider";
 import InlineAIComposerPanel from "./components/InlineAIComposerPanel";
 
 let container: HTMLDivElement | null = null;
 let root: Root | null = null;
 // 服务注册表内的服务实现均为惰性单例，无需额外缓存
-const getEditorRegistry = () => createEditorRegistry();
 
 const cleanup = () => {
   if (root) {
@@ -52,7 +49,6 @@ export const openInlineAIComposer = (
   }
 ) => {
   const panelRoot = ensureRoot();
-  const registry = getEditorRegistry();
   panelRoot.render(
     createElement(
       AntdApp,
@@ -60,14 +56,11 @@ export const openInlineAIComposer = (
       createElement(
         DndProvider,
         null,
-        createElement(EditorProvider, {
-          registry,
-          children: createElement(InlineAIComposerPanel, {
-            editor,
-            source,
-            initialSelection: options?.initialSelection || null,
-            onClose: closeInlineAIComposer,
-          }),
+        createElement(InlineAIComposerPanel, {
+          editor,
+          source,
+          initialSelection: options?.initialSelection || null,
+          onClose: closeInlineAIComposer,
         })
       )
     )

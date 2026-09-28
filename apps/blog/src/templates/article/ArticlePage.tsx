@@ -3,19 +3,15 @@ import { motion } from "motion/react";
 import { Header } from "@blog/components/Layout";
 import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
 import { Tag, ScrollToTop } from "@blog/components/Common";
-import { Editor, EditorProvider } from "@tau/editor";
+import { Editor } from "@tau/editor";
 import Outline from "@blog/components/Outline";
 import { getInitData, formatDate, getReadingTime, joinPath } from "@blog/utils";
 import { ArticleData } from "@blog/types";
 import { HeaderElement } from "@tau/editor";
 import { getInlineElementText } from "@blog/utils/editor";
 import DndProvider from "@blog/components/DndProvider";
-import { createBlogEditorRegistry, createBlogEditorConfig } from "@blog/services/editorRegistry";
-import { blogEditorExtensions } from "@blog/editorExtensions";
-import useBlogTheme from "@blog/hooks/useBlogTheme";
+import { getBlogKit } from "@blog/services/editorKit";
 import { fadeUp, defaultTransition } from "@blog/utils/motion";
-import "@tau/themes/light.less";
-import "@tau/themes/dark.less";
 
 function extractHeaders(content: unknown[]) {
   const headers: { level: number; title: string }[] = [];
@@ -40,12 +36,6 @@ const ArticlePage = memo(() => {
   const article = initData.content as ArticleData;
   const docCollections = initData.docCollections || [];
   const blogSettings = initData.settings;
-  const blogTheme = useBlogTheme();
-  const blogEditorRegistry = useMemo(() => createBlogEditorRegistry(), []);
-  const blogEditorConfig = useMemo(
-    () => createBlogEditorConfig(blogSettings, blogTheme),
-    [blogSettings, blogTheme]
-  );
 
   const readingTime = useMemo(() => getReadingTime(article.content), [article.content]);
 
@@ -131,13 +121,7 @@ const ArticlePage = memo(() => {
 
                   {/* 正文内容 */}
                   <DndProvider>
-                    <EditorProvider
-                      registry={blogEditorRegistry}
-                      config={blogEditorConfig}
-                      extensions={blogEditorExtensions}
-                    >
-                      <Editor initValue={article.content} readonly />
-                    </EditorProvider>
+                    <Editor kit={getBlogKit(blogSettings)} initValue={article.content} readonly />
                   </DndProvider>
 
                   {/* 标签区域（文章底部） */}

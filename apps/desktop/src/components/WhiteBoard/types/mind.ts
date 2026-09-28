@@ -27,7 +27,10 @@ export interface MindNodeElement {
   theme?: "light" | "dark";
   contentId?: number;
   contentTitle?: string;
+  /** 导图配色（只在根节点上），见 constants/mind-themes */
   themeId?: string;
+  /** 节点风格：solid / soft / outline（只在根节点上） */
+  themeStyle?: string;
 }
 
 export interface MindDragTarget {

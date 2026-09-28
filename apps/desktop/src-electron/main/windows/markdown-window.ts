@@ -1,43 +1,44 @@
-import { screen } from "electron";
+import { statSync } from "node:fs";
 import log from "electron-log";
 import { createWindow } from "./create-window";
-import { focusExisting, registerWindow } from "./window-registry";
+import { focusExisting, registerWindow, windowsWithPrefix } from "./window-registry";
+import { initialBounds, rememberBounds } from "./window-state";
+import recentProjectsModule from "../modules/recent-projects";
 
-/** Markdown 文件编辑窗口（磁盘文件 / 文件夹，与数据库文档的编辑窗口无关） */
+/**
+ * Markdown 文件窗口（磁盘上的文件 / 文件夹，与数据库文档的编辑窗口无关）。
+ * path 为文件 → 单文件模式（侧栏显示所在目录）；为文件夹 → 文件夹模式；不传 → 欢迎页。
+ */
 
-export interface MarkdownWindowParams {
-  filePath?: string;
-  rootPath?: string;
-  showTitlebar?: boolean;
-  isDefaultTop?: boolean;
+const PREFIX = "markdown:";
+
+function isDirectoryPath(path: string) {
+  try {
+    return statSync(path).isDirectory();
+  } catch {
+    return false;
+  }
 }
 
-export function openMarkdownWindow({
-  filePath,
-  rootPath,
-  showTitlebar = false,
-  isDefaultTop = false,
-}: MarkdownWindowParams) {
-  const target = filePath || rootPath || "";
-  const key = `markdown:${target}`;
+export function openMarkdownWindow(path?: string) {
+  // 欢迎页每次新开：打开后可能已切到别的文件夹，按空 key 聚焦会找错窗口
+  const key = path ? `${PREFIX}${path}` : `${PREFIX}welcome:${Date.now()}`;
   if (focusExisting(key)) return;
 
-  const query = new URLSearchParams({
-    showTitlebar: String(showTitlebar),
-    isDefaultTop: String(isDefaultTop),
-  });
-  if (filePath) query.set("filePath", filePath);
-  else if (rootPath) query.set("rootPath", rootPath);
+  const query = new URLSearchParams();
+  if (path) {
+    query.set(isDirectoryPath(path) ? "rootPath" : "filePath", path);
+    recentProjectsModule.addRecentProject(path);
+  }
 
-  // 占满光标所在屏：文件树 + 编辑区需要大画布
-  const { bounds } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+  const bounds = initialBounds(PREFIX, { width: 1200, height: 800 }, windowsWithPrefix(PREFIX));
   const win = createWindow({
-    route: `/single-markdown-editor?${query}`,
-    // Windows 下该页面依赖系统标题栏（页面内未自绘三键）
-    chrome: process.platform === "win32" ? "native" : "custom",
+    route: `/markdown-window?${query}`,
     ...bounds,
+    minWidth: 640,
+    minHeight: 420,
   });
-  win.setAlwaysOnTop(isDefaultTop);
   registerWindow(key, win);
-  log.info(`打开 Markdown 窗口: ${target || "(空)"}`);
+  rememberBounds(PREFIX, win);
+  log.info(`打开 Markdown 窗口: ${path || "(欢迎页)"}`);
 }

@@ -1,0 +1,20 @@
+{
+  // 根入口：lib 不含 DOM，保证主题契约在 Node 中可用（用了 document / HTMLElement 直接编译失败）
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "noEmit": true,
+    // 相对导入写 .ts 扩展名、只用可擦除语法：Node 可直接加载源码（type stripping），
+    // vite 配置、Electron 主进程、脚本以包名导入时无需构建
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "types": []
+  },
+  "include": ["src/index.ts", "src/testing.ts", "src/runtime-globals.d.ts"]
+}

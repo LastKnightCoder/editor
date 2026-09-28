@@ -42,6 +42,7 @@ import videoNoteIndexQueue from "../modules/video-note-index-queue";
 import mainContentFtsIndexQueue from "../modules/main-content-fts-index-queue";
 import mainContentVecIndexQueue from "../modules/main-content-vec-index-queue";
 import embeddingIndexOrchestrator from "../modules/embedding-index-orchestrator";
+import knowledgeMapBuilder from "../modules/knowledge-map-builder";
 import updaterModule from "../modules/updater";
 import pdfIndexQueue from "../modules/pdf-index-queue";
 import pdfIndexOrchestrator from "../modules/pdf-index-orchestrator";
@@ -361,6 +362,13 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "database", "video-note-index-db"],
     init: () => videoNoteIndexQueue.init(),
+  },
+  {
+    name: "knowledge-map-builder",
+    group: ModuleGroup.FEATURE,
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["logger", "database"],
+    init: () => knowledgeMapBuilder.init(),
   },
   {
     name: "main-content-vec-index-queue",

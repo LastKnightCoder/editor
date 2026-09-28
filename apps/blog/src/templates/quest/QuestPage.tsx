@@ -3,16 +3,12 @@ import { motion } from "motion/react";
 import { Header } from "@blog/components/Layout";
 import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
 import { Tag, ScrollToTop } from "@blog/components/Common";
-import { Editor, EditorProvider } from "@tau/editor";
+import { Editor } from "@tau/editor";
 import { getInitData, formatDate, getReadingTime, getPlainText, joinPath } from "@blog/utils";
 import { QuestAnswerData, QuestData } from "@blog/types";
 import DndProvider from "@blog/components/DndProvider";
-import { createBlogEditorRegistry, createBlogEditorConfig } from "@blog/services/editorRegistry";
-import { blogEditorExtensions } from "@blog/editorExtensions";
-import useBlogTheme from "@blog/hooks/useBlogTheme";
+import { getBlogKit } from "@blog/services/editorKit";
 import { fadeUp, defaultTransition } from "@blog/utils/motion";
-import "@tau/themes/light.less";
-import "@tau/themes/dark.less";
 
 const statusLabels: Record<QuestData["status"], string> = {
   not_started: "未开始",
@@ -89,7 +85,6 @@ const AnswerContent = memo(
     basePath: string;
     settings: ReturnType<typeof getInitData>["settings"];
   }) => {
-    const blogTheme = useBlogTheme();
     const sourceHref = answer.source?.href
       ? joinPath(basePath, answer.source.href, { raw: true })
       : "";
@@ -128,11 +123,6 @@ const AnswerContent = memo(
     }, [answer.content, sourceHref]);
 
     // hooks 必须先于下方条件早退调用，避免远端答案加载完成后 hooks 数量变化
-    const editorRegistry = useMemo(() => createBlogEditorRegistry(), []);
-    const editorConfig = useMemo(
-      () => createBlogEditorConfig(settings, blogTheme),
-      [settings, blogTheme]
-    );
 
     if (remote.loading) {
       return <p className="text-sm text-[var(--color-text-tertiary)]">正在取回答案...</p>;
@@ -144,13 +134,7 @@ const AnswerContent = memo(
 
     return (
       <DndProvider>
-        <EditorProvider
-          registry={editorRegistry}
-          config={editorConfig}
-          extensions={blogEditorExtensions}
-        >
-          <Editor initValue={remote.content} readonly />
-        </EditorProvider>
+        <Editor kit={getBlogKit(settings)} initValue={remote.content} readonly />
       </DndProvider>
     );
   }
@@ -232,12 +216,6 @@ const QuestPage = memo(() => {
   const quest = initData.content as QuestData;
   const docCollections = initData.docCollections || [];
   const blogSettings = initData.settings;
-  const blogTheme = useBlogTheme();
-  const blogEditorRegistry = useMemo(() => createBlogEditorRegistry(), []);
-  const blogEditorConfig = useMemo(
-    () => createBlogEditorConfig(blogSettings, blogTheme),
-    [blogSettings, blogTheme]
-  );
   const hasDescription = Boolean(quest.description && getPlainText(quest.description).trim());
 
   const readingTime = useMemo(() => {
@@ -292,17 +270,11 @@ const QuestPage = memo(() => {
                     data-testid="quest-description"
                   >
                     <DndProvider>
-                      <EditorProvider
-                        registry={blogEditorRegistry}
-                        config={blogEditorConfig}
-                        extensions={blogEditorExtensions}
-                      >
-                        <Editor
-                          initValue={quest.description}
-                          readonly
-                          className="text-[var(--color-text-tertiary)]"
-                        />
-                      </EditorProvider>
+                      <Editor
+                        initValue={quest.description}
+                        readonly
+                        className="text-[var(--color-text-tertiary)]"
+                      />
                     </DndProvider>
                   </div>
                 )}

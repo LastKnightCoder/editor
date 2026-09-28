@@ -1,4 +1,5 @@
 import { memo, useState, useMemo, useCallback, useEffect } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import clsx from "clsx";
 import { Dialog, Button, Spinner } from "@tau/ui";
 import { Editor } from "@tau/editor/src";
@@ -9,7 +10,6 @@ import { collectDocNodeIds, findDocTreeNode } from "../../utils";
 import { SelectionCheckbox } from "../SelectionCheckbox";
 import { SelectAllButton } from "../SearchToolbar";
 import { FadeScroll } from "@/components/FadeScroll";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 interface EntityTreeModalProps {
   open: boolean;
@@ -24,7 +24,6 @@ interface EntityTreeModalProps {
 
 export const EntityTreeModal = memo<EntityTreeModalProps>(
   ({ open, loading, entity, nodes, currentScope, onCancel, onConfirm }) => {
-    const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
     const typeLabel = "项目";
 
     // 初始化选中的 ID
@@ -195,10 +194,10 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
                   {previewNode.hasContent ? (
                     <FadeScroll className="mb-4 min-h-0 flex-1 px-7 pb-2 pt-4">
                       <Editor
+                        kit={getDesktopKit()}
                         key={previewNode.id}
                         initValue={previewNode.content}
                         readonly
-                        extensions={dynamicExtensions}
                         className="text-tau-body text-ink-1"
                       />
                     </FadeScroll>

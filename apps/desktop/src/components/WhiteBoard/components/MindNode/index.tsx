@@ -1,5 +1,6 @@
 import React, { MouseEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Editor, EditorRef } from "@tau/editor/src";
+import { getDesktopKit } from "@/services/editorKit";
+import { Editor, EditorRef, EditorThemeOverride } from "@tau/editor/src";
 import If from "@/components/If";
 
 import { useMemoizedFn } from "ahooks";
@@ -15,15 +16,14 @@ import {
   useInertControl,
   useSelectState,
 } from "../../hooks";
-import { BoardUtil, MindUtil, PathUtil } from "../../utils";
-import { getThemeById } from "../../constants/mind-themes";
+import { BoardUtil, MindThemeUtil, MindUtil, PathUtil } from "../../utils";
+import { useMindMode, useMindTheme } from "../../hooks/useMindTheme";
 import useHandleResize from "./hooks/useHandleResize.ts";
 import { useMindNodeKeyboardNavigation } from "./hooks/useMindNodeKeyboardNavigation.ts";
 import { ECreateBoardElementType, EMarkerType, MindNodeElement } from "../../types";
 import { createContent, incrementContentRefCount } from "@/commands/content";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import { SearchResult } from "@/types/search";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 interface MindNodeProps {
   element: MindNodeElement;
@@ -66,7 +66,6 @@ const DEFAULT_CONTENT: Descendant[] = [
 
 const MindNode = (props: MindNodeProps) => {
   const { element } = props;
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
 
   const { id, x, y, width, height, text, defaultFocus, isLeftFold, isRightFold, direction } =
     element;
@@ -76,37 +75,23 @@ const MindNode = (props: MindNodeProps) => {
   const createBoardElementType = useCreateElementType();
 
   const root = useMemo(() => MindUtil.getRoot(board, element), [board, element, board.children]);
-  const themeId = root?.themeId || MindUtil.getDefaultThemeId();
-  const mindTheme = useMemo(() => getThemeById(themeId), [themeId]);
+  const mindTheme = useMindTheme(root);
+  const mindMode = useMindMode();
+  const branchIndex = MindThemeUtil.getBranchIndex(root, id);
 
-  const nodeStyle = useMemo(() => {
-    if (element.level === 1) {
-      return {
-        background: mindTheme.root.background,
-        textColor: mindTheme.root.color,
-        borderRadius: mindTheme.root.borderRadius,
-        borderColor: mindTheme.root.borderColor || "transparent",
-        borderWidth: mindTheme.root.borderWidth || 0,
-        editorTheme: mindTheme.root.color === "#ffffff" ? "dark" : "light",
-      };
-    } else {
-      const colorIndex = (element.level - 2) % mindTheme.palette.length;
-      const paletteItem = mindTheme.palette[colorIndex];
-
-      return {
-        background: paletteItem.background,
-        textColor: paletteItem.color,
-        borderRadius: mindTheme.node.borderRadius,
-        borderColor: mindTheme.node.borderColor,
-        borderWidth: mindTheme.node.borderWidth,
-        editorTheme: paletteItem.type,
-      };
-    }
-  }, [element.level, mindTheme]);
+  const nodeStyle = MindThemeUtil.getNodeVisual(mindTheme, element.level, branchIndex, mindMode);
+  // 子节点连线颜色取子节点自己的分支色（根节点的子节点各自一色）
+  const childLineOf = (childId: string) =>
+    MindThemeUtil.getNodeVisual(
+      mindTheme,
+      element.level + 1,
+      element.level === 1 ? MindThemeUtil.getBranchIndex(root, childId) : branchIndex,
+      mindMode
+    );
 
   const background = nodeStyle.background;
   const textColor = nodeStyle.textColor;
-  const editorTheme = nodeStyle.editorTheme as "light" | "dark";
+  const editorTheme = nodeStyle.editorTheme;
 
   const [isEditing, setIsEditing] = useState(Boolean(defaultFocus));
   const isMoving = useElementMoving(id);
@@ -409,6 +394,7 @@ const MindNode = (props: MindNodeProps) => {
     if (isLeftFold && leftChildren.length > 0) {
       return [
         {
+          id: leftChildren[0].id,
           x: element.x - 10,
           y: element.y + element.height / 2,
         },
@@ -416,6 +402,7 @@ const MindNode = (props: MindNodeProps) => {
     }
 
     return visibleLeftChildren.map(child => ({
+      id: child.id,
       x: child.x + child.width,
       y: child.y + child.height / 2,
     }));
@@ -428,6 +415,7 @@ const MindNode = (props: MindNodeProps) => {
     if (isRightFold && rightChildren.length > 0) {
       return [
         {
+          id: rightChildren[0].id,
           x: element.x + element.width + 10,
           y: element.y + element.height / 2,
         },
@@ -435,6 +423,7 @@ const MindNode = (props: MindNodeProps) => {
     }
 
     return visibleRightChildren.map(child => ({
+      id: child.id,
       x: child.x,
       y: child.y + child.height / 2,
     }));
@@ -473,15 +462,15 @@ const MindNode = (props: MindNodeProps) => {
       <g>
         <If condition={isSelected}>
           <rect
-            x={x}
-            y={y}
-            rx={nodeStyle.borderRadius}
-            ry={nodeStyle.borderRadius}
-            width={width}
-            height={height}
+            x={x - 3}
+            y={y - 3}
+            rx={nodeStyle.borderRadius + 3}
+            ry={nodeStyle.borderRadius + 3}
+            width={width + 6}
+            height={height + 6}
             fill="none"
-            stroke={`color-mix(in srgb, ${background} 70%, black)`}
-            strokeWidth={3}
+            stroke="var(--tau-accent)"
+            strokeWidth={2}
           />
         </If>
         <foreignObject
@@ -508,17 +497,18 @@ const MindNode = (props: MindNodeProps) => {
                 height,
               }}
             />
-            <Editor
-              ref={editorRef}
-              initValue={text}
-              readonly={!isEditing}
-              className="box-border w-fit rounded-[4px] p-4"
-              style={editorStyle}
-              onChange={onContentChange}
-              onBlur={handleBlur}
-              extensions={dynamicExtensions}
-              theme={editorTheme}
-            />
+            <EditorThemeOverride mode={editorTheme}>
+              <Editor
+                kit={getDesktopKit()}
+                ref={editorRef}
+                initValue={text}
+                readonly={!isEditing}
+                className="box-border w-fit rounded-[4px] p-4"
+                style={editorStyle}
+                onChange={onContentChange}
+                onBlur={handleBlur}
+              />
+            </EditorThemeOverride>
           </div>
         </foreignObject>
 
@@ -528,8 +518,8 @@ const MindNode = (props: MindNodeProps) => {
             cx={x + width - 9}
             cy={y + 9}
             r={4}
-            fill={editorTheme === "dark" ? "#fbbf24" : "#475569"}
-            stroke={background}
+            fill={nodeStyle.accent}
+            stroke="var(--tau-bg-surface)"
             strokeWidth={1.5}
             pointerEvents="none"
           />
@@ -537,20 +527,15 @@ const MindNode = (props: MindNodeProps) => {
 
         {/* 左侧子节点连线 */}
         {leftChildPoints.map((point, index) => {
-          const childLevel = element.level + 1;
-          const lineColorIndex = (childLevel - 2) % mindTheme.palette.length;
-          const lineColor =
-            childLevel === 1
-              ? mindTheme.root.background
-              : mindTheme.palette[lineColorIndex].background;
+          const line = childLineOf(point.id);
 
           return (
             <CurveArrow
               key={`left-${index}`}
               sourceMarker={EMarkerType.None}
               targetMarker={EMarkerType.None}
-              lineColor={lineColor}
-              lineWidth={2}
+              lineColor={line.lineColor}
+              lineWidth={line.lineWidth}
               points={[
                 {
                   x: element.x,
@@ -568,20 +553,15 @@ const MindNode = (props: MindNodeProps) => {
 
         {/* 右侧子节点连线 */}
         {rightChildPoints.map((point, index) => {
-          const childLevel = element.level + 1;
-          const lineColorIndex = (childLevel - 2) % mindTheme.palette.length;
-          const lineColor =
-            childLevel === 1
-              ? mindTheme.root.background
-              : mindTheme.palette[lineColorIndex].background;
+          const line = childLineOf(point.id);
 
           return (
             <CurveArrow
               key={`right-${index}`}
               sourceMarker={EMarkerType.None}
               targetMarker={EMarkerType.None}
-              lineColor={lineColor}
-              lineWidth={2}
+              lineColor={line.lineColor}
+              lineWidth={line.lineWidth}
               points={[
                 {
                   x: element.x + element.width,
@@ -613,7 +593,7 @@ const MindNode = (props: MindNodeProps) => {
               cx={element.x - 10}
               cy={element.y + element.height / 2}
               r={8}
-              fill={nodeStyle.background}
+              fill={nodeStyle.accent}
             />
             <text
               x={element.x - 10}
@@ -622,7 +602,7 @@ const MindNode = (props: MindNodeProps) => {
               dominantBaseline="middle"
               fontSize={10}
               fontWeight="bold"
-              fill={nodeStyle.textColor}
+              fill={nodeStyle.accentText}
               className="select-none"
             >
               {isLeftFold ? `${leftDescendants}` : "-"}
@@ -646,7 +626,7 @@ const MindNode = (props: MindNodeProps) => {
               cx={element.x + element.width + 10}
               cy={element.y + element.height / 2}
               r={8}
-              fill={nodeStyle.background}
+              fill={nodeStyle.accent}
               className="relative"
             />
             <text
@@ -656,7 +636,7 @@ const MindNode = (props: MindNodeProps) => {
               dominantBaseline="middle"
               fontSize={10}
               fontWeight="bold"
-              fill={nodeStyle.textColor}
+              fill={nodeStyle.accentText}
               className="select-none"
             >
               {isRightFold ? `${rightDescendants}` : "-"}
@@ -669,7 +649,6 @@ const MindNode = (props: MindNodeProps) => {
         onCancel={() => setContentSelectorOpen(false)}
         onSelect={onSelectContent}
         contentType={["article", "card", "project-item", "diary-daily"]}
-        extensions={dynamicExtensions}
         title="选择笔记"
       />
     </>

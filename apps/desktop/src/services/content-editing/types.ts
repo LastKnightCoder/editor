@@ -1,6 +1,6 @@
 import { Descendant } from "slate";
 import { TabType } from "@/types/tab";
-import { PositionMapper } from "@/utils/positionMapper";
+import type { PositionMapper } from "@tau/markdown";
 
 export type EntityType = "card" | "article" | "project-item";
 export type SnapshotSource = "active-session" | "database";

@@ -3,6 +3,7 @@
 // 复习期间屏幕常亮。队列拉取后持快照，评分逐张实时落库（中途退出不丢进度）。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getMobileKit } from "../../services/editorKit";
 import type { Descendant } from "slate";
 import { Editor } from "@tau/editor/src";
 import { Paperclip } from "lucide-react";
@@ -10,7 +11,6 @@ import { MobileConfirmDialog } from "../../components/MobileConfirmDialog";
 import { SnapSheet } from "../../components/SnapSheet";
 import { useBackHandler } from "../../router";
 import { useKeepScreenAwake } from "../../hooks/useKeepScreenAwake";
-import { useMobileTheme } from "../../hooks/useMobileTheme";
 import { useEdgeFade } from "../../hooks/useScrollState";
 import * as tauri from "../../services/tauri";
 import { ReferenceEntry, ReviewCardBack, ReviewCardFront } from "./ReviewCard";
@@ -39,7 +39,6 @@ type FlashcardReviewPageProps = {
 
 export function FlashcardReviewPage({ deckId, onRequestClose, onError }: FlashcardReviewPageProps) {
   useKeepScreenAwake(true);
-  const { theme } = useMobileTheme();
 
   const [queue, setQueue] = useState<Flashcard[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -560,8 +559,8 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
               桌面端建的 tabs/表格/图片等富节点会被降级成纯文本 */}
           {referenceCard?.references[0]?.content ? (
             <Editor
+              kit={getMobileKit()}
               initValue={referenceCard.references[0].content.content as Descendant[]}
-              theme={theme}
               className="text-ink min-h-[160px] w-full text-[14px] font-medium leading-[1.8] outline-none"
             />
           ) : (

@@ -2,7 +2,7 @@ import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from "electron";
 import type { EditorWindowTarget } from "@tau/platform";
 import { closeEditorWindow, openEditorWindow } from "./editor-window";
 import { refreshMainWindowMinSize, showOrCreateMainWindow } from "./main-window";
-import { openMarkdownWindow, type MarkdownWindowParams } from "./markdown-window";
+import { openMarkdownWindow } from "./markdown-window";
 import {
   createPomodoroWindow,
   hidePomodoroImmersiveWindow,
@@ -50,11 +50,7 @@ export function registerWindowIpc() {
   ipcMain.handle("close-editor-window", (_event, target: EditorWindowTarget) =>
     closeEditorWindow(target)
   );
-  ipcMain.handle(
-    "open-markdown-in-new-window",
-    (_event, filePath: string, options?: Omit<MarkdownWindowParams, "filePath" | "rootPath">) =>
-      openMarkdownWindow({ filePath, ...options })
-  );
+  ipcMain.handle("open-markdown-window", (_event, path?: string) => openMarkdownWindow(path));
   ipcMain.handle("open-pomodoro-window", () => void createPomodoroWindow());
   ipcMain.handle("open-pomodoro-mini-window", () => showPomodoroMiniWindow());
   ipcMain.handle("hide-pomodoro-mini-window", () => hidePomodoroMiniWindow());

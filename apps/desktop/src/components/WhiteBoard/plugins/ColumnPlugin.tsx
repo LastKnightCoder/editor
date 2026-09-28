@@ -71,7 +71,8 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
               !column.isChildDraggingOver &&
               column.dropIndex === undefined &&
               !column.draggingChildId &&
-              !column.draggingPosition
+              !column.draggingPosition &&
+              column.dropPlaceholderHeight === undefined
             ) {
               return [];
             }
@@ -83,15 +84,21 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
                 dropIndex: undefined,
                 draggingChildId: undefined,
                 draggingPosition: undefined,
+                dropPlaceholderHeight: undefined,
               },
               path
             );
           }
 
-          const { isTarget, draggingElement, pointer } = feedback;
+          const { isTarget, draggingElement, hoveringElement, pointer } = feedback;
           let dropIndex: number | undefined;
+          let dropPlaceholderHeight: number | undefined;
           if (isTarget && pointer) {
             dropIndex = ColumnUtil.getDropIndex(board, column, pointer.y, draggingElement?.id);
+            const incoming = draggingElement ?? hoveringElement;
+            if (incoming) {
+              dropPlaceholderHeight = ColumnUtil.getPlaceholderHeight(column, incoming);
+            }
           }
           let draggingPosition: { x: number; y: number } | undefined;
           if (draggingElement) {
@@ -105,6 +112,7 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
               dropIndex,
               draggingChildId: draggingElement?.id,
               draggingPosition,
+              dropPlaceholderHeight,
             },
             path
           );
@@ -228,6 +236,9 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
       },
       render: {
         childrenOrder: ChildrenRenderOrder.Normal,
+        // 折叠时子元素不渲染（同时退出命中 / 框选）
+        filterVisibleChildren: (element, children) =>
+          (element as ColumnElement).collapsed ? [] : children,
         getColorTheme: () => "teal",
       },
       refLine: {
