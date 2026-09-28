@@ -78,6 +78,7 @@ import mainContentIndexDBManager, {
 import MAIN_SCHEMA_SQL from "@tau/db-schema/schema/main.sql?raw";
 import { upgradeKnowledgeDatabase } from "@tau/db-schema/src/knowledge-migration-node";
 import { retireSubscriptions } from "@tau/db-schema/src/subscription-retirement";
+import { retireFeatureTables } from "@tau/db-schema/src/feature-table-retirement";
 import {
   retireEditorBlocks,
   installEditorBlockGuards,
@@ -337,6 +338,12 @@ class DatabaseModule implements Module {
 
       const schemaStartAt = Date.now();
       retireSubscriptions(database, dbPath);
+      const retiredFeatures = retireFeatureTables(database, dbPath);
+      if (retiredFeatures.length > 0) {
+        log.info(
+          `[database] retired feature tables: db=${name}, dropped=${retiredFeatures.join(",")}`
+        );
+      }
       database.exec(MAIN_SCHEMA_SQL);
       upgradeKnowledgeDatabase(database, dbPath);
       migrateContentBindings(database);
@@ -569,6 +576,7 @@ class DatabaseModule implements Module {
           throw new Error("下载的文件不是 Tau 数据库");
         }
         retireSubscriptions(db, path);
+        retireFeatureTables(db, path);
         db.exec(MAIN_SCHEMA_SQL);
         // 知识库迁移可复用下载副本，订阅退役仍保留专属快照。
         upgradeKnowledgeDatabase(db, path, { skipBackup: true });

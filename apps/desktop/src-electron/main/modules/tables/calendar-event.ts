@@ -47,6 +47,18 @@ export default class CalendarEventTable {
     const existingGroup = checkGroupStmt.get("时间记录");
 
     if (existingGroup) {
+      // 迁移过：残留的空表直接删。有数据的不删——分组可能是用户自己建的同名分组，
+      // 删了会丢没迁过的记录
+      const leftover = db
+        .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='time_records'`)
+        .get();
+      if (
+        leftover &&
+        (db.prepare(`SELECT COUNT(*) AS count FROM time_records`).get() as { count: number })
+          .count === 0
+      ) {
+        db.exec(`DROP TABLE IF EXISTS time_records`);
+      }
       log.info("Time records already migrated, skipping migration");
       return;
     }
@@ -67,7 +79,9 @@ export default class CalendarEventTable {
     const { count } = countStmt.get() as { count: number };
 
     if (count === 0) {
-      log.info("No time records to migrate");
+      // 空表没有可迁的，表本身也没用了
+      db.exec(`DROP TABLE IF EXISTS time_records`);
+      log.info("No time records to migrate, dropped empty time_records table");
       return;
     }
 
