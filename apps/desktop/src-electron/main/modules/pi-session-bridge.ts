@@ -229,7 +229,16 @@ export async function desktopMessagesToPi(
           if (block.text) content.push({ type: "text", text: block.text });
         } else if (block.type === "image") {
           const image = await toPiImageContent(block.image, block.path, "image/png", allowNetwork);
-          if (image) content.push(image);
+          // 读不到的图（迁移时不下载远程图、本地文件已删）换成文字占位，不能直接丢：只有一张图的
+          // 用户消息会整条消失，前后两条回答连成一条，模型也不知道这里用户发过图
+          content.push(
+            image ?? {
+              type: "text",
+              text: /^https?:\/\//.test(block.image)
+                ? `[图片：${block.image}]`
+                : "[图片（原文件已不可用）]",
+            }
+          );
         } else if (block.type === "file") {
           content.push({
             type: "text",
