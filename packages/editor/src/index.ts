@@ -19,7 +19,12 @@ export {
   type EditorProviderProps,
 } from "./contexts/EditorProvider";
 
-export type { ResourceService, FileService, CompilerService } from "./types/services";
+export type {
+  ResourceService,
+  FileService,
+  CompilerService,
+  OpenerService,
+} from "./types/services";
 
 // Service Registry DI
 export {
@@ -27,6 +32,7 @@ export {
   IResourceService,
   IFileService,
   ICompilerService,
+  IOpenerService,
   IMediaInsertSources,
   IVideoContentProviders,
   IMediaActions,

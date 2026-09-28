@@ -3,7 +3,6 @@ import { useMemo } from "react";
 import type { EditorConfig } from "@tau/editor/src";
 import { useThemeStore } from "@tau/themes/react";
 import useSettingStore from "@/stores/useSettingStore";
-import { openExternal } from "@/commands/extra";
 
 /**
  * Desktop 编辑器全局配置：响应式地由设置 store 派生，
@@ -23,9 +22,6 @@ export const useDesktopEditorConfig = (): EditorConfig => {
           borderRadius: setting.appearance?.image?.borderRadius,
           shadow: setting.appearance?.image?.shadow,
         },
-      },
-      openUrl: url => {
-        void openExternal(url);
       },
     }),
     [setting, isDark]

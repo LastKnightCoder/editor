@@ -119,8 +119,5 @@ export function createBlogEditorConfig(
         shadow: getBlogImageSettingValue(settingsSnapshot, "shadow"),
       },
     },
-    openUrl: url => {
-      window.open(url, "_blank", "noopener,noreferrer");
-    },
   };
 }

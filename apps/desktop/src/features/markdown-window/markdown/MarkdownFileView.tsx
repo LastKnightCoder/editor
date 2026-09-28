@@ -123,7 +123,7 @@ export const MarkdownFileView = forwardRef<
     setContent(nodes);
   }, [content, session.initialText, sourceTextRef]);
 
-  const { registry, config } = useMarkdownEditorServices(path, onOpenMarkdown);
+  const registry = useMarkdownEditorServices(path, onOpenMarkdown);
 
   /* 字数 / 源码大纲：节流更新 */
   const [words, setWords] = useState(0);
@@ -277,7 +277,7 @@ export const MarkdownFileView = forwardRef<
         {!sourceMode && (
           <div ref={richRef} className={column}>
             <ErrorBoundary>
-              <EditorProvider registry={registry} config={config}>
+              <EditorProvider registry={registry}>
                 <Editor
                   ref={editorRef}
                   initValue={content}

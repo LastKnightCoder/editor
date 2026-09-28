@@ -132,9 +132,6 @@ export function createExtensionEditorConfig(resolvedTheme: ResolvedTheme): Edito
     theme: {
       mode: resolvedTheme,
     },
-    openUrl: url => {
-      window.open(url, "_blank", "noopener,noreferrer");
-    },
   };
 }
 
