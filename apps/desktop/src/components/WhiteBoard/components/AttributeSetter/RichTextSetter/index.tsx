@@ -116,7 +116,8 @@ const RichTextSetter = (props: RichTextSetterProps) => {
     const naturalWidth = await DOMSizeMeasurer.measureRichTextWidth(
       element.id,
       element.content,
-      getTextBoxPadding(current)
+      getTextBoxPadding(current),
+      element.contentId
     );
 
     const newElement = produce(element, draft => {

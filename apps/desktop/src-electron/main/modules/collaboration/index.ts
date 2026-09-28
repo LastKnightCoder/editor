@@ -14,8 +14,12 @@ import {
   migrateTabsBlocksInDoc,
   guardRetiredEditorBlocks,
   migrateKnowledgeDocument,
+  collectSharedResources,
+  downgradeSharedDocument,
   readSharedContent,
   replaceText,
+  upgradeLocalDocument,
+  validateDocument,
   type ContentSessionTarget,
   type ContentSessionSnapshot,
   type CollaborationEvent,
@@ -23,7 +27,6 @@ import {
   type CollaborationState,
   type ContentNode,
   type JoinRequest,
-  type SharedContent,
   type SharedDocumentInfo,
   type SourceBinding,
   type SourceType,
@@ -48,6 +51,7 @@ import { getContentLength } from "@/utils/helper";
 import { CollaborationLocalStore } from "./local-store";
 import { getDevelopmentServerUrl } from "./dev-server";
 import { findCollaborationBinding } from "../collaboration-guard";
+import { localSessionId, resolveSessionId } from "./session-identity";
 import {
   findContentTitle,
   projectContentTitle,
@@ -66,6 +70,8 @@ class CollaborationManager {
   private knowledgeMigrated = new WeakSet<RuntimeSession>();
   private directory = "";
   private sessions = new Map<string, RuntimeSession>();
+  // 旧 documentId → 新 documentId（升级 / 降级换身份后的过渡期，见 rekeySession）
+  private aliases = new Map<string, string>();
   private transports = new Map<string, HocuspocusProviderWebsocket>();
   private events = new Map<string, WebSocket>();
   private views = new Map<string, { documentId: string; windowId: number; clientIds: number[] }>();
@@ -220,18 +226,20 @@ class CollaborationManager {
       projectionDirty: true,
     };
     session.awareness.setLocalState(null);
+    // 广播与落盘一律读 session.info.id：会话升级 / 降级会换 documentId（见 rekeySession），
+    // 捕获创建时的 info.id 会让换身份之后的更新写错会话
     session.awareness.on(
       "update",
       ({ added, updated, removed }: { added: number[]; updated: number[]; removed: number[] }) => {
         this.broadcast("collaboration:awareness", {
-          documentId: info.id,
+          documentId: session.info.id,
           update: encodeAwarenessUpdate(session.awareness, [...added, ...updated, ...removed]),
         });
       }
     );
     this.sessions.set(info.id, session);
     doc.on("update", (update: Uint8Array, origin: unknown) => {
-      if (origin !== "renderer-persisted") this.store.append(info.id, update);
+      if (origin !== "renderer-persisted") this.store.append(session.info.id, update);
       session.dirty = true;
       session.projectionDirty = true;
       if (session.info.mode !== "local" && origin !== session.provider) session.info.pending = true;
@@ -241,9 +249,9 @@ class CollaborationManager {
         this.changed(session);
       }
       this.store.metadata(session.info);
-      this.broadcast("collaboration:update", { documentId: info.id, update });
+      this.broadcast("collaboration:update", { documentId: session.info.id, update });
       this.broadcast("collaboration:content", {
-        documentId: info.id,
+        documentId: session.info.id,
         source: session.info.source,
         title,
       });
@@ -251,8 +259,11 @@ class CollaborationManager {
     this.attach(session);
     return session;
   }
+  private findSession(id: string): RuntimeSession | undefined {
+    return this.sessions.get(resolveSessionId(this.aliases, id));
+  }
   private requireSession(id: string): RuntimeSession {
-    const session = this.sessions.get(id);
+    const session = this.findSession(id);
     if (!session || session.info.leaving) throw new Error("这段内容已退出协作");
     return session;
   }
@@ -277,12 +288,8 @@ class CollaborationManager {
     const content = ContentTable.getContentById(db, target.contentId);
     if (!content) throw new Error("内容不存在");
     const binding = findCollaborationBinding(db, target.contentId);
-    const id =
-      binding?.document_id ||
-      `local:${createHash("sha256")
-        .update(JSON.stringify([db.name, content.id, content.createTime]))
-        .digest("hex")}`;
-    let session = this.sessions.get(id);
+    const id = binding?.document_id || localSessionId(db.name, content.id, content.createTime);
+    let session = this.findSession(id);
     if (binding && !session) throw new Error("协作会话尚未恢复，请稍后重试");
     if (!session) {
       const source: SourceBinding = {
@@ -609,22 +616,17 @@ class CollaborationManager {
           if (sourceType !== "card" && sourceTitle !== undefined)
             replaceText(local.doc.getText("title"), sourceTitle.slice(0, 500));
           await this.project(local);
-          const result = await this.publishContent(
-            event,
+          const result = await this.publishSession(event, local, {
             contentId,
             sourceType,
             sourceId,
-            local.doc.getText("title").toString()
-          );
-          this.removeSession(local);
+            sourceTitle: local.doc.getText("title").toString(),
+          });
+          this.unfreeze(local);
           return result;
         } catch (failure) {
-          // 发布失败：绑定已建立则拆除会话（重试时重走发布），否则恢复本机可编辑
-          if (this.sessions.has(local.info.id)) {
-            const { db } = this.databaseForEvent(event);
-            if (findCollaborationBinding(db, contentId)) this.removeSession(local);
-            else this.unfreeze(local);
-          }
+          // 升级已回滚（文档仍是本机形态），恢复可编辑即可
+          if (this.sessions.has(local.info.id)) this.unfreeze(local);
           throw failure;
         }
       })().finally(() => {
@@ -636,88 +638,177 @@ class CollaborationManager {
     return operation;
   }
 
-  private async publishContent(
+  /**
+   * 发起共享 = 升级本机会话（01 §7.3 第 1 层）：复用同一个 Y.Doc，私有块转占位、
+   * 本地资源上传后改写引用、`meta.mode` 切为 shared，都是这个文档上的普通编辑。
+   * 会话对象不变，只换身份（documentId → 服务器文档 id）。
+   */
+  private async publishSession(
     event: IpcMainInvokeEvent,
-    contentId: number,
-    sourceType?: SourceType,
-    sourceId?: number,
-    sourceTitle?: string
+    session: RuntimeSession,
+    target: {
+      contentId: number;
+      sourceType?: SourceType;
+      sourceId?: number;
+      sourceTitle?: string;
+    }
   ) {
     const { db, name } = this.databaseForEvent(event);
-    const content = ContentTable.getContentById(db, contentId);
+    const content = ContentTable.getContentById(db, target.contentId);
     if (!content) throw new Error("内容不存在");
-    const binding = findCollaborationBinding(db, contentId);
+    const binding = findCollaborationBinding(db, target.contentId);
     if (binding) {
-      const existing = this.sessions.get(binding.document_id);
-      if (existing) return { documentId: binding.document_id, code: "" };
+      if (this.sessions.has(binding.document_id))
+        return { documentId: binding.document_id, code: "" };
       throw new Error("这篇内容已共享，请使用协作面板打开，或恢复原设备身份");
     }
     const url = this.serverUrl;
     const identity = await this.client.identity(url);
     const source: SourceBinding = {
       databaseName: name,
-      contentId,
+      contentId: target.contentId,
       contentCreatedAt: content.createTime,
-      sourceType,
-      sourceId,
-      sourceTitle,
+      sourceType: target.sourceType,
+      sourceId: target.sourceId,
+      sourceTitle: target.sourceTitle,
     };
-    const key = createHash("sha256")
+    const idempotencyKey = createHash("sha256")
       .update(
         JSON.stringify({
           databaseName: name,
-          contentId,
+          contentId: target.contentId,
           contentCreatedAt: content.createTime,
           server: url,
-          generation: this.store.get(`generation:${name}:${contentId}`, 0),
+          generation: this.store.get(`generation:${name}:${target.contentId}`, 0),
         })
       )
       .digest("hex");
     const created = await this.client.request<{ id: string }>(url, "/v1/documents", "POST", {
-      idempotencyKey: key,
+      idempotencyKey,
     });
-    const value: SharedContent = {
-      title: sourceTitle || `共享内容 ${contentId}`,
-      content: structuredClone(content.content) as ContentNode[],
-      bannerBg: "",
-      bannerPosition: "center",
-    };
-    await this.assets.prepare(url, created.id, value);
-    const privateNodes = new Map<string, ContentNode>();
-    const doc = createSharedDocument(value, privateNodes);
-    await this.client.request(url, `/v1/documents/${created.id}/publish`, "POST", {
-      state: Buffer.from(Y.encodeStateAsUpdate(doc)).toString("base64"),
-    });
-    const info: CollaborationSession = {
-      id: created.id,
+    // 先上传本地资源拿到引用映射，再一次性改写文档：升级必须是同步的最小编辑
+    const resources = new Map<string, string>();
+    for (const reference of collectSharedResources(session.doc, session.privateNodes)) {
+      const asset = await this.assets.uploadReference(url, created.id, reference);
+      if (asset !== reference) resources.set(reference, asset);
+    }
+    const rollback = upgradeLocalDocument(session.doc, session.privateNodes, resources);
+    try {
+      validateDocument(session.doc);
+      await this.client.request(url, `/v1/documents/${created.id}/publish`, "POST", {
+        state: Buffer.from(Y.encodeStateAsUpdate(session.doc)).toString("base64"),
+      });
+    } catch (failure) {
+      rollback();
+      throw failure;
+    }
+    this.rekeySession(session, created.id, {
       mode: "shared",
-      title: value.title,
+      serverUrl: url,
       ownerId: identity.id,
       role: "owner",
       status: "active",
       members: [],
-      updatedAt: Date.now(),
-      serverUrl: url,
       source,
+      title: session.doc.getText("title").toString(),
       pending: false,
       leaving: false,
       connection: "connecting",
-    };
-    this.store.create(info, doc, privateNodes);
+      error: undefined,
+    });
     db.prepare("INSERT INTO collaboration_bindings VALUES (?,?,?,?,?,?,?)").run(
       source.contentId,
       source.contentCreatedAt,
       url,
-      info.id,
+      created.id,
       source.sourceType || null,
       source.sourceId || null,
       source.sourceTitle || null
     );
-    const session = this.restore(info, doc, privateNodes);
-    registerContentSession(db, contentId, session);
+    registerContentSession(db, target.contentId, session);
+    this.attach(session);
     this.changed();
     void this.refresh();
-    return { documentId: info.id, code: (await this.issueInvitation(url, info.id)).code };
+    return { documentId: created.id, code: (await this.issueInvitation(url, created.id)).code };
+  }
+
+  /**
+   * 结束共享 = 降级回本机（走升级的同一条路径）：占位换回私有块真身、资产取回本地，
+   * 同一个 Y.Doc 继续用，会话换回本机身份。
+   */
+  private async demoteSession(session: RuntimeSession) {
+    const source = session.info.source;
+    if (!source) throw new Error("这段内容没有关联的本地内容，无法转为本机编辑");
+    const db = databaseModule.getDatabase(source.databaseName);
+    if (!db?.open) throw new Error("请打开原内容所在数据库以完成结束共享");
+    const serverUrl = session.info.serverUrl;
+    const previousId = session.info.id;
+    const resources = new Map<string, string>();
+    for (const reference of collectSharedResources(session.doc, session.privateNodes)) {
+      const local = await this.assets.localizeReference(serverUrl, previousId, reference);
+      if (local !== reference) resources.set(reference, local);
+    }
+    downgradeSharedDocument(session.doc, session.privateNodes, resources);
+    session.provider?.destroy();
+    session.provider = undefined;
+    this.rekeySession(session, localSessionId(db.name, source.contentId, source.contentCreatedAt), {
+      mode: "local",
+      serverUrl: "",
+      ownerId: "local",
+      role: "owner",
+      status: "active",
+      members: [],
+      pending: false,
+      leaving: false,
+      connection: "connected",
+      error: undefined,
+    });
+    db.prepare("DELETE FROM collaboration_bindings WHERE content_id=? AND document_id=?").run(
+      source.contentId,
+      previousId
+    );
+    this.store.set(
+      `generation:${source.databaseName}:${source.contentId}`,
+      this.store.get(`generation:${source.databaseName}:${source.contentId}`, 0) + 1
+    );
+    this.store.delete(`invitation:${previousId}`);
+    rmSync(join(this.directory, "assets", previousId), { recursive: true, force: true });
+    registerContentSession(db, source.contentId, session);
+    await this.project(session);
+    this.changed();
+  }
+
+  /**
+   * 换会话身份：documentId 变（本机 hash ↔ 服务器文档 id），会话对象、Y.Doc 与订阅它的
+   * 视图都保持不变。旧 id 记入别名表，渲染端换源期间用旧 id 发来的 flush / 注销仍能落到同一会话。
+   */
+  private rekeySession(
+    session: RuntimeSession,
+    nextId: string,
+    info: Partial<CollaborationSession>
+  ) {
+    const previousId = session.info.id;
+    if (previousId === nextId) {
+      Object.assign(session.info, info);
+      this.store.metadata(session.info);
+      return;
+    }
+    this.sessions.delete(previousId);
+    // 先清掉指向新 id 的旧别名：一篇内容可能升级后又降级回同一个本机 id，
+    // 留着会让当前 id 反而解析到已经作废的那个
+    this.aliases.delete(nextId);
+    this.aliases.set(previousId, nextId);
+    Object.assign(session.info, info, { id: nextId });
+    this.sessions.set(nextId, session);
+    this.store.create(session.info, session.doc, session.privateNodes);
+    this.store.remove(previousId);
+    for (const view of this.views.values())
+      if (view.documentId === previousId) view.documentId = nextId;
+    this.broadcast("collaboration:content", {
+      documentId: nextId,
+      source: session.info.source,
+      title: session.doc.getText("title").toString(),
+    });
   }
 
   /** 服务器只存码的哈希，明文仅签发时返回一次：缓存到本机供作者随时重新复制 */
@@ -923,15 +1014,22 @@ class CollaborationManager {
           "POST",
           {}
         );
-        await this.clearBinding(session);
-      } else
+        // 作者结束共享：本机还有这篇内容，会话降级回本机继续编辑（同一个 Y.Doc）；
+        // 没有本地内容（源已删除等）才拆除会话
+        if (session.info.source) {
+          session.info.leaving = false;
+          await this.demoteSession(session);
+          this.unfreeze(session);
+        } else this.removeSession(session);
+      } else {
         await this.client.request(
           session.info.serverUrl,
           `/v1/documents/${session.info.id}/leave`,
           "POST",
           {}
         );
-      this.removeSession(session);
+        this.removeSession(session);
+      }
     } catch (error) {
       session.info.error = error instanceof Error ? error.message : "正在等待退出完成";
       this.changed(session);
@@ -966,6 +1064,7 @@ class CollaborationManager {
       assets: this.assets,
       serverUrl: () => this.serverUrl,
       sessions: this.sessions,
+      findSession: this.findSession.bind(this),
       views: this.views,
       state: this.state.bind(this),
       changed: this.changed.bind(this),

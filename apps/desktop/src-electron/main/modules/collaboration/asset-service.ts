@@ -141,26 +141,25 @@ export class CollaborationAssetService {
     this.record({ ...resource, uploaded: 1 });
   }
 
-  async prepare(url: string, documentId: string, value: SharedContent) {
-    await mapResources(value, async reference => {
-      const path = this.localPath(reference);
-      if (!path) return reference;
-      if ((await stat(path)).size > MAX_BYTES) throw new Error(`资源超过 25 MB：${basename(path)}`);
-      const mime =
-        Object.entries(MIME_EXTENSIONS).find(
-          ([, extension]) => extension === extname(path).toLowerCase()
-        )?.[0] || "application/octet-stream";
-      const resource: ResourceRow = {
-        id: randomUUID(),
-        document_id: documentId,
-        name: basename(path),
-        mime,
-        path,
-        uploaded: 0,
-      };
-      await this.upload(url, resource);
-      return ASSET_PREFIX + resource.id;
-    });
+  /** 上传单个本地资源引用，返回资产引用；不是本地路径时原样返回（会话升级逐引用调用） */
+  async uploadReference(url: string, documentId: string, reference: string) {
+    const path = this.localPath(reference);
+    if (!path) return reference;
+    if ((await stat(path)).size > MAX_BYTES) throw new Error(`资源超过 25 MB：${basename(path)}`);
+    const mime =
+      Object.entries(MIME_EXTENSIONS).find(
+        ([, extension]) => extension === extname(path).toLowerCase()
+      )?.[0] || "application/octet-stream";
+    const resource: ResourceRow = {
+      id: randomUUID(),
+      document_id: documentId,
+      name: basename(path),
+      mime,
+      path,
+      uploaded: 0,
+    };
+    await this.upload(url, resource);
+    return ASSET_PREFIX + resource.id;
   }
 
   async flush(url: string, documentId: string) {
@@ -215,21 +214,24 @@ export class CollaborationAssetService {
     return path;
   }
 
+  /** 把单个资产引用取回本机，返回本地路径；不是资产引用时原样返回（会话降级逐引用调用） */
+  async localizeReference(url: string, documentId: string, reference: string) {
+    if (!reference.startsWith(ASSET_PREFIX)) return reference;
+    const cached = await this.resolve(url, documentId, reference.slice(ASSET_PREFIX.length));
+    const directory = join(this.appDirectory, "resources", "collaboration");
+    await mkdir(directory, { recursive: true });
+    const bytes = await readFile(cached);
+    const hash = createHash("sha256").update(bytes).digest("hex");
+    const target = join(directory, hash + extname(cached));
+    if (!existsSync(target)) {
+      await copyFile(cached, target);
+    }
+    return target;
+  }
+
   async localize(url: string, documentId: string, value: SharedContent) {
     const local = structuredClone(value);
-    await mapResources(local, async reference => {
-      if (!reference.startsWith(ASSET_PREFIX)) return reference;
-      const cached = await this.resolve(url, documentId, reference.slice(ASSET_PREFIX.length));
-      const directory = join(this.appDirectory, "resources", "collaboration");
-      await mkdir(directory, { recursive: true });
-      const bytes = await readFile(cached);
-      const hash = createHash("sha256").update(bytes).digest("hex");
-      const target = join(directory, hash + extname(cached));
-      if (!existsSync(target)) {
-        await copyFile(cached, target);
-      }
-      return target;
-    });
+    await mapResources(local, reference => this.localizeReference(url, documentId, reference));
     return local;
   }
 }

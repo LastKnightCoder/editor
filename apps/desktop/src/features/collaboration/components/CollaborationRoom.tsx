@@ -27,9 +27,13 @@ import {
 } from "lucide-react";
 import { IconButton, Loading, Menu, Popover, Tooltip, cn, toast } from "@tau/ui";
 import type { CollaborationSession, JoinRequest } from "@tau/collaboration";
+import type { EditorCollaborationBinding } from "@tau/editor-collab";
 import { FadeScroll } from "@/components/FadeScroll";
 import useCollaborationDocument from "@/hooks/useCollaborationDocument";
-import CollaborationEditor from "@/components/CollaborationEditor";
+import { Editor } from "@tau/editor/src";
+import { createYjsDocument } from "@tau/editor-collab";
+import { useCollaborationKit } from "@/hooks/useCollaborationKit";
+import useCollaborationPresence from "@/hooks/useCollaborationPresence";
 import { CollaborativeTitleField } from "@/components/CollaborativeTitle";
 import {
   AvatarStack,
@@ -49,6 +53,28 @@ import { useInvitation } from "@/components/CollaborationUI/useInvitation";
 import { formatAgo } from "@/utils/formatAgo";
 import { openableSource, sourceInfo } from "../model";
 import { canOpenSource, openSource } from "../openSource";
+
+/** 协作页的正文编辑器：成员加入的房间在本机没有内容行，走 documentId 直接绑定 */
+function RoomEditor({
+  binding,
+  readonly,
+}: {
+  binding: EditorCollaborationBinding;
+  readonly: boolean;
+}) {
+  const presence = useCollaborationPresence(binding, readonly);
+  const kit = useCollaborationKit(binding);
+  const document = useMemo(() => createYjsDocument(binding), [binding]);
+  return (
+    <Editor
+      kit={kit}
+      document={document}
+      readonly={readonly}
+      onFocus={presence.onFocus}
+      onBlur={presence.onBlur}
+    />
+  );
+}
 
 const SOURCE_ICONS: Record<string, LucideIcon> = {
   article: FileText,
@@ -269,7 +295,7 @@ export function CollaborationRoom({
               className="text-ink-1 text-[26px] font-[600] leading-[1.35] tracking-[-0.01em]"
             />
             <div className="mt-6">
-              <CollaborationEditor binding={binding} readonly={readonly} />
+              <RoomEditor binding={binding} readonly={readonly} />
             </div>
           </div>
         ) : error ? (
