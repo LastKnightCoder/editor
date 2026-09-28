@@ -114,8 +114,10 @@ export class MarkdownSerializerRegistry {
   private footnoteCounter = 0;
   private footnoteDefinitions: Map<number, string> = new Map();
 
-  constructor() {
+  /** 先装内置序列化器，再装宿主传入的（同 type 覆盖内置） */
+  constructor(extra: MarkdownSerializer[] = []) {
     this.registerDefaultSerializers();
+    this.registerMany(extra);
   }
 
   private buildSimpleTable(rows: string[]): string {
@@ -214,59 +216,6 @@ export class MarkdownSerializerRegistry {
           return {
             output: `[${childrenStr}](${element.url})`,
             childrenStart: { line: 0, ch: 1 },
-          };
-        },
-      },
-      {
-        // `$` 点名的 Skill 芯片：正文里保留成 `$名称`，点名信息另由 ChatInputArea 提取
-        type: "skill-ref",
-        toMarkdown: element => `$${element.name}`,
-        toMarkdownStructured: element => ({
-          output: `$${element.name}`,
-          childrenStart: { line: 0, ch: 0 },
-        }),
-      },
-      {
-        type: "content-link",
-        toMarkdown: (element, childrenStr) => {
-          const attributes = [];
-          if (typeof element.refId !== "undefined") {
-            attributes.push(`refId=${element.refId}`);
-          }
-          if (typeof element.contentId !== "undefined") {
-            attributes.push(`contentId=${element.contentId}`);
-          }
-          if (element.contentType) {
-            attributes.push(`contentType=${element.contentType}`);
-          }
-          const title = element.contentTitle || element.title;
-          if (title) {
-            const escapedTitle = String(title).replace(/"/g, "&quot;");
-            attributes.push(`title="${escapedTitle}"`);
-          }
-          const attributeStr = attributes.length > 0 ? `{${attributes.join(" ")}}` : "";
-          return `:content-link[${childrenStr}]${attributeStr}`;
-        },
-        toMarkdownStructured: (element, childrenStr) => {
-          const attributes = [];
-          if (typeof element.refId !== "undefined") {
-            attributes.push(`refId=${element.refId}`);
-          }
-          if (typeof element.contentId !== "undefined") {
-            attributes.push(`contentId=${element.contentId}`);
-          }
-          if (element.contentType) {
-            attributes.push(`contentType=${element.contentType}`);
-          }
-          const title = element.contentTitle || element.title;
-          if (title) {
-            const escapedTitle = String(title).replace(/"/g, "&quot;");
-            attributes.push(`title="${escapedTitle}"`);
-          }
-          const attributeStr = attributes.length > 0 ? `{${attributes.join(" ")}}` : "";
-          return {
-            output: `:content-link[${childrenStr}]${attributeStr}`,
-            childrenStart: { line: 0, ch: ":content-link[".length },
           };
         },
       },
@@ -668,20 +617,6 @@ export class MarkdownSerializerRegistry {
         },
       },
       {
-        type: "file-attachment",
-        isBlock: true,
-        toMarkdown: element => {
-          const attributes = [];
-          attributes.push(`fileName="${element.fileName}"`);
-          attributes.push(`filePath="${element.filePath}"`);
-          if (element.localFilePath) attributes.push(`localFilePath="${element.localFilePath}"`);
-          attributes.push(`isLocal=${element.isLocal}`);
-          attributes.push(`uuid="${element.uuid}"`);
-          const attributeStr = attributes.join(" ");
-          return `:::file-attachment{${attributeStr}}\n:::`;
-        },
-      },
-      {
         type: "check-list",
         isBlock: true,
         toMarkdown: (_element, childrenStr) => {
@@ -828,13 +763,6 @@ export class MarkdownSerializerRegistry {
         },
       },
       {
-        type: "summary-timestamp",
-        isBlock: false,
-        toMarkdown: element => {
-          return `:time{start=${element.start} end=${element.end}}`;
-        },
-      },
-      {
         type: "chart",
         isBlock: true,
         toMarkdown: element => {
@@ -846,5 +774,3 @@ export class MarkdownSerializerRegistry {
     ]);
   }
 }
-
-export const markdownSerializerRegistry = new MarkdownSerializerRegistry();

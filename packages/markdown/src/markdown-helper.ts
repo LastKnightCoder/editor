@@ -1,7 +1,6 @@
 import type { Descendant } from "slate";
 import type { CustomElement, FormattedText } from "./types.ts";
-import { markdownSerializerRegistry } from "./markdownSerializerRegistry.ts";
-import type { SerializerOutput } from "./markdownSerializerRegistry.ts";
+import type { MarkdownSerializerRegistry, SerializerOutput } from "./markdownSerializerRegistry.ts";
 import { PositionMapper } from "./positionMapper.ts";
 import type { MarkdownPosition, TextMapping, ElementMapping } from "./positionMapper.ts";
 
@@ -12,13 +11,44 @@ const isZeroWidthOnlyText = (text: string): boolean => {
   return ZERO_WIDTH_ONLY_REGEX.test(text);
 };
 
-export const getMarkdown = (value: Descendant[]): string => {
+/** 处理器级导出配置：注册表 + void 类型表（内置 + 宿主 codec） */
+export interface ExportConfig {
+  registry: MarkdownSerializerRegistry;
+  voidTypes: ReadonlySet<string>;
+}
+
+/** 当前导出调用的配置：随公开入口入栈 / 出栈（同导入端的解析上下文） */
+const exportConfigStack: ExportConfig[] = [];
+
+const currentExportConfig = (): ExportConfig => {
+  const config = exportConfigStack[exportConfigStack.length - 1];
+  if (!config) {
+    throw new Error("[markdown] 导出配置缺失：序列化逻辑必须在导出函数调用内执行");
+  }
+  return config;
+};
+
+const withExportConfig = <T>(config: ExportConfig, run: () => T): T => {
+  exportConfigStack.push(config);
+  try {
+    return run();
+  } finally {
+    exportConfigStack.pop();
+  }
+};
+
+const registry = (): MarkdownSerializerRegistry => currentExportConfig().registry;
+
+export const getMarkdownUsing = (config: ExportConfig, value: Descendant[]): string =>
+  withExportConfig(config, () => getMarkdownInContext(value));
+
+const getMarkdownInContext = (value: Descendant[]): string => {
   // 重置脚注状态
-  markdownSerializerRegistry.resetFootnotes();
+  registry().resetFootnotes();
 
   const content = value
     .map((element, index) => {
-      const isBlockElement = markdownSerializerRegistry.isBlock(element as CustomElement);
+      const isBlockElement = registry().isBlock(element as CustomElement);
       const str = elementToMarkdown(element as CustomElement, null);
       const isLast = index === value.length - 1;
       if (str) {
@@ -29,7 +59,7 @@ export const getMarkdown = (value: Descendant[]): string => {
     .join("");
 
   // 添加脚注定义
-  const footnoteDefinitions = markdownSerializerRegistry.getFootnoteDefinitions();
+  const footnoteDefinitions = registry().getFootnoteDefinitions();
   return content + footnoteDefinitions;
 };
 
@@ -62,10 +92,13 @@ export const leafToMarkdown = (leaf: FormattedText): string => {
   return str;
 };
 
-export const elementToMarkdown = (
+export const elementToMarkdownUsing = (
+  config: ExportConfig,
   element: CustomElement,
   parentElement: CustomElement | null
-): string => {
+): string => withExportConfig(config, () => elementToMarkdown(element, parentElement));
+
+const elementToMarkdown = (element: CustomElement, parentElement: CustomElement | null): string => {
   const { type, children } = element;
   const isList = type === "bulleted-list" || type === "numbered-list" || type === "check-list";
 
@@ -79,7 +112,7 @@ export const elementToMarkdown = (
 
     const isLast = index === children.length - 1;
     let tail = "";
-    if (markdownSerializerRegistry.isBlock(node)) {
+    if (registry().isBlock(node)) {
       if (isLast) {
         tail = "";
       } else if (isList) {
@@ -93,7 +126,7 @@ export const elementToMarkdown = (
 
   const childrenStr = childrenParts.join("");
 
-  const serializer = markdownSerializerRegistry.getSerializer(type);
+  const serializer = registry().getSerializer(type);
 
   return serializer ? serializer.toMarkdown(element, childrenStr, parentElement) : childrenStr;
 };
@@ -193,15 +226,21 @@ export function leafToMarkdownStructured(leaf: FormattedText): LeafSerialization
 /**
  * 带位置跟踪的序列化函数（重新设计）
  */
-export const getMarkdownWithPositions = (value: Descendant[]): MarkdownWithPositions => {
+export const getMarkdownWithPositionsUsing = (
+  config: ExportConfig,
+  value: Descendant[]
+): MarkdownWithPositions =>
+  withExportConfig(config, () => getMarkdownWithPositionsInContext(value));
+
+const getMarkdownWithPositionsInContext = (value: Descendant[]): MarkdownWithPositions => {
   const positionMap = new PositionMapper();
-  markdownSerializerRegistry.resetFootnotes();
+  registry().resetFootnotes();
 
   const context: SerializationContext = { line: 0, ch: 0 };
   const parts: string[] = [];
 
   value.forEach((element, index) => {
-    const isBlockElement = markdownSerializerRegistry.isBlock(element as CustomElement);
+    const isBlockElement = registry().isBlock(element as CustomElement);
 
     const str = serializeElementWithTracking(
       element as CustomElement,
@@ -224,7 +263,7 @@ export const getMarkdownWithPositions = (value: Descendant[]): MarkdownWithPosit
   const markdown = parts.join("");
 
   // 添加脚注定义
-  const footnoteDefinitions = markdownSerializerRegistry.getFootnoteDefinitions();
+  const footnoteDefinitions = registry().getFootnoteDefinitions();
 
   return {
     markdown: markdown + footnoteDefinitions,
@@ -250,7 +289,7 @@ function serializeElementWithTracking(
 
   // 2. 如果是 void 元素，直接序列化并记录元素级映射
   if (isVoid) {
-    const serializer = markdownSerializerRegistry.getSerializer(type);
+    const serializer = registry().getSerializer(type);
     if (!serializer) return "";
 
     let output: string;
@@ -352,7 +391,7 @@ function serializeElementWithTracking(
       );
 
       let tail = "";
-      if (markdownSerializerRegistry.isBlock(node)) {
+      if (registry().isBlock(node)) {
         if (isLast) {
           tail = "";
         } else if (isList) {
@@ -373,7 +412,7 @@ function serializeElementWithTracking(
   const childrenStr = childrenParts.join("");
 
   // 4. 调用序列化器
-  const serializer = markdownSerializerRegistry.getSerializer(type);
+  const serializer = registry().getSerializer(type);
   if (!serializer) {
     return childrenStr;
   }
@@ -435,30 +474,9 @@ function updateContext(context: SerializationContext, output: string): void {
   }
 }
 
-/**
- * 判断元素类型是否为 void
- */
+/** 判断元素类型是否为 void（位置映射只记元素级范围） */
 function isVoidElement(type: string): boolean {
-  const voidTypes = new Set([
-    "code-block",
-    "image",
-    "inline-image",
-    "video",
-    "audio",
-    "whiteboard",
-    "block-math",
-    "inline-math",
-    "mermaid",
-    "tikz",
-    "typst",
-    "plantuml",
-    "abc",
-    "graphviz",
-    "divide-line",
-    "webview",
-    "front-matter",
-  ]);
-  return voidTypes.has(type);
+  return currentExportConfig().voidTypes.has(type);
 }
 
 /**

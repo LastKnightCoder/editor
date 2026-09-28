@@ -26,14 +26,8 @@ import {
 } from "@tau/editor/src/constants/text-gradient.ts";
 import { PositionMapper } from "./positionMapper.ts";
 import type { ElementMapping, MarkdownPosition, TextMapping } from "./positionMapper.ts";
-import type { FileAttachmentElement } from "./types.ts";
 
-export {
-  markdownSerializerRegistry,
-  type MarkdownSerializer,
-} from "./markdownSerializerRegistry.ts";
-
-export { getMarkdown, elementToMarkdown, leafToMarkdown } from "./markdown-helper.ts";
+import type { CustomDirectiveHandler } from "./codec.ts";
 
 export interface SlateWithPositions {
   content: Descendant[];
@@ -626,17 +620,6 @@ const markdownToDescendant = (
       if (node.attributes.audioText) element.audioText = node.attributes.audioText;
       if (node.attributes.title) element.title = node.attributes.title;
       return element;
-    } else if (node.name === "file-attachment") {
-      const element: FileAttachmentElement = {
-        type: "file-attachment",
-        fileName: node.attributes.fileName || "",
-        filePath: node.attributes.filePath || "",
-        localFilePath: node.attributes.localFilePath,
-        isLocal: node.attributes.isLocal === "true",
-        uuid: node.attributes.uuid || uuid(),
-        children: [{ type: "formatted", text: "" }],
-      };
-      return element as unknown as Descendant;
     } else if (node.name === "chart") {
       try {
         const data = JSON.parse(atob(node.attributes.data || "W10="));
@@ -806,29 +789,6 @@ const markdownToDescendant = (
         type: "kbd",
         children: [],
       };
-    } else if (node.name === "content-link") {
-      const rawTitle = attributes.title || attributes.contentTitle || "";
-      const contentTitle = typeof rawTitle === "string" ? rawTitle.replace(/&quot;/g, '"') : "";
-      return {
-        type: "content-link",
-        refId: parseInt(attributes.refId || "0", 10),
-        contentId: parseInt(attributes.contentId || "0", 10),
-        contentType: attributes.contentType || "",
-        contentTitle,
-        children: [
-          {
-            type: "formatted",
-            text: "",
-          },
-        ],
-      } as unknown as Descendant;
-    } else if (node.name === "time") {
-      return {
-        type: "summary-timestamp",
-        start: parseInt(attributes.start || "0", 10),
-        end: parseInt(attributes.end || "0", 10),
-        children: [{ type: "formatted", text: "" }],
-      } as unknown as Descendant;
     }
     return {
       type: "formatted",
@@ -939,11 +899,6 @@ const markdownToDescendant = (
   }
 };
 
-/** 业务 directive 解析器：键为 directive 名，返回 null 视为丢弃该节点 */
-export type CustomDirectiveHandler = (
-  attributes: Record<string, string | undefined>
-) => Descendant | null;
-
 export interface ImportFromMarkdownOptions {
   /** 宿主注册的业务 directive（container / leaf / text 三种都查），优先于内置分支 */
   customDirectives?: Record<string, CustomDirectiveHandler>;
@@ -953,6 +908,17 @@ export interface ImportFromMarkdownOptions {
 interface MarkdownParseContext {
   footnoteDefinitions: Map<string, string>;
   customDirectiveHandlers: Map<string, CustomDirectiveHandler>;
+  /** 位置映射只记元素级范围的类型 */
+  voidTypes: ReadonlySet<string>;
+  /** 子文本按整体范围记前后缀的 text directive 名 */
+  inlineWrapperDirectives: ReadonlySet<string>;
+}
+
+/** 处理器级配置：内置表 + 宿主 codec 合并后的结果 */
+export interface ImportConfig {
+  directives: Record<string, CustomDirectiveHandler>;
+  voidTypes: ReadonlySet<string>;
+  inlineWrapperDirectives: ReadonlySet<string>;
 }
 
 const parseContextStack: MarkdownParseContext[] = [];
@@ -965,10 +931,19 @@ const getCurrentParseContext = (): MarkdownParseContext => {
   return context;
 };
 
-const withParseContext = <T>(options: ImportFromMarkdownOptions | undefined, run: () => T): T => {
+const withParseContext = <T>(
+  config: ImportConfig,
+  options: ImportFromMarkdownOptions | undefined,
+  run: () => T
+): T => {
   parseContextStack.push({
     footnoteDefinitions: new Map(),
-    customDirectiveHandlers: new Map(Object.entries(options?.customDirectives ?? {})),
+    // 调用时传入的 customDirectives 覆盖处理器级 codec
+    customDirectiveHandlers: new Map(
+      Object.entries({ ...config.directives, ...options?.customDirectives })
+    ),
+    voidTypes: config.voidTypes,
+    inlineWrapperDirectives: config.inlineWrapperDirectives,
   });
   try {
     return run();
@@ -1109,39 +1084,52 @@ const buildTextMapping = (params: {
   };
 };
 
-const isVoidSlateElementType = (type: string): boolean => {
-  const voidTypes = new Set([
-    "code-block",
-    "image",
-    "inline-image",
-    "video",
-    "audio",
-    "file-attachment",
-    "whiteboard",
-    "block-math",
-    "inline-math",
-    "mermaid",
-    "tikz",
-    "typst",
-    "plantuml",
-    "abc",
-    "graphviz",
-    "divide-line",
-    "webview",
-    "front-matter",
-  ]);
-  return voidTypes.has(type);
+/** 内置 void 类型（位置映射只记元素级范围）；宿主类型经 codec 的 isVoid 追加 */
+export const BUILTIN_VOID_TYPES: ReadonlySet<string> = new Set([
+  "code-block",
+  "image",
+  "inline-image",
+  "video",
+  "audio",
+  "block-math",
+  "inline-math",
+  "mermaid",
+  "tikz",
+  "typst",
+  "plantuml",
+  "abc",
+  "graphviz",
+  "divide-line",
+  "webview",
+  "front-matter",
+]);
+
+/** 内置行内包裹 directive；宿主类型经 codec 的 inlineWrapperDirective 追加 */
+export const BUILTIN_INLINE_WRAPPER_DIRECTIVES: ReadonlySet<string> = new Set([
+  "underline",
+  "styled-text",
+  "kbd",
+]);
+
+export const BUILTIN_IMPORT_CONFIG: ImportConfig = {
+  directives: {},
+  voidTypes: BUILTIN_VOID_TYPES,
+  inlineWrapperDirectives: BUILTIN_INLINE_WRAPPER_DIRECTIVES,
 };
+
+const isVoidSlateElementType = (type: string): boolean =>
+  getCurrentParseContext().voidTypes.has(type);
 
 /**
  * Markdown 导入（带位置映射）
  */
-export const importFromMarkdownWithPositions = (
+export const importFromMarkdownWithPositionsUsing = (
+  config: ImportConfig,
   markdown: string,
   ignoreTypes: string[] = [],
   options?: ImportFromMarkdownOptions
 ): SlateWithPositions =>
-  withParseContext(options, () => importWithPositionsInContext(markdown, ignoreTypes));
+  withParseContext(config, options, () => importWithPositionsInContext(markdown, ignoreTypes));
 
 const importWithPositionsInContext = (
   markdown: string,
@@ -1470,10 +1458,7 @@ const importWithPositionsInContext = (
           const nextWrapper =
             astChildNode.type === "link" ||
             (astChildNode.type === "textDirective" &&
-              (astChildNode.name === "underline" ||
-                astChildNode.name === "content-link" ||
-                astChildNode.name === "styled-text" ||
-                astChildNode.name === "kbd"))
+              getCurrentParseContext().inlineWrapperDirectives.has(astChildNode.name))
               ? astChildNode.position
               : wrapperPosition;
 
@@ -1534,11 +1519,12 @@ const importWithPositionsInContext = (
   };
 };
 
-export const importFromMarkdown = (
+export const importFromMarkdownUsing = (
+  config: ImportConfig,
   markdown: string,
   ignoreTypes: string[] = [],
   options?: ImportFromMarkdownOptions
-): Descendant[] => withParseContext(options, () => importInContext(markdown, ignoreTypes));
+): Descendant[] => withParseContext(config, options, () => importInContext(markdown, ignoreTypes));
 
 const importInContext = (markdown: string, ignoreTypes: string[]): Descendant[] => {
   const footnoteDefinitions = getCurrentParseContext().footnoteDefinitions;
