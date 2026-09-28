@@ -7,19 +7,17 @@ import { Sigma } from "lucide-react";
 
 import classnames from "classnames";
 import { unWrapInlineMath, wrapInlineMath } from "../../../../utils";
-import useThemeColors from "../../../../hooks/useThemeColors";
 
 const InlineMathHoveringItem = () => {
   const editor = useSlate();
   const selection = useSlateSelection();
-  const themeColors = useThemeColors();
 
   const isActive = useMemo(() => {
     if (!selection) {
       return false;
     }
     const [math] = Editor.nodes(editor, {
-      match: (n) => !Editor.isEditor(n) && n.type === "inline-math",
+      match: n => !Editor.isEditor(n) && n.type === "inline-math",
     });
     return !!math;
   }, [editor, selection]);
@@ -42,14 +40,9 @@ const InlineMathHoveringItem = () => {
     <Tooltip title={"行内公式"} trigger={"hover"}>
       <div
         className={classnames(
-          "flex items-center justify-center w-8 h-8 rounded-lg cursor-pointer transition-all duration-200",
-          isActive
-            ? themeColors.activeClass
-            : classnames(
-                themeColors.textClass,
-                themeColors.hoverClass,
-                themeColors.hoverTextClass,
-              ),
+          "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all duration-200",
+          "ed-toolbar-item",
+          isActive && "is-active"
         )}
         onClick={handleClick}
       >

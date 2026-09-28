@@ -49,23 +49,6 @@ export interface FileService {
   convertFileSrc?: (filePath: string) => Promise<string>;
 }
 
-export interface ThemeColors {
-  hoverClass: string;
-  activeClass: string;
-  hoverTextClass: string;
-  borderClass: string;
-  hoverBorderClass: string;
-  focusBorderClass: string;
-  textClass: string;
-  secondaryTextClass: string;
-  activeTextClass: string;
-  accentColor?: string;
-  accentSoftBg?: string;
-  badgeBgClass?: string;
-  badgeBgColor?: string;
-  [key: string]: string | undefined;
-}
-
 export interface CompilerService {
   typst: (code: string) => Promise<string>; // Returns SVG or PDF
   tailwindRuntime: (html: string) => Promise<string>;

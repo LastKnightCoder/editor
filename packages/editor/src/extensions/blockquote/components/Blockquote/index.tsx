@@ -4,7 +4,6 @@ import classnames from "classnames";
 import type { BlockquoteElement } from "../../../types";
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
-import useThemeColors from "../../../../hooks/useThemeColors";
 import EditorContextMenu from "../../../../components/EditorContextMenu";
 import { buildBlockquoteMenuItems } from "../../utils/menuItems";
 import { MdDragIndicator } from "react-icons/md";
@@ -30,63 +29,59 @@ const DragHandler = memo(
         contentEditable={false}
         ref={drag}
         className={classnames(
-          "absolute -left-[1.25em] top-[0.25em] w-[1em] h-[1.5em] flex items-center justify-center cursor-grab opacity-0 group-hover:opacity-100 transition-all rounded",
+          "absolute -left-[1.25em] top-[0.25em] flex h-[1.5em] w-[1em] cursor-grab items-center justify-center rounded opacity-0 transition-all group-hover:opacity-100"
         )}
         onClick={onClick}
       >
-        <MdDragIndicator className="text-gray-400 dark:text-gray-500 text-lg" />
+        <MdDragIndicator className="text-lg text-gray-400 dark:text-gray-500" />
       </div>
     );
-  },
+  }
 );
 
 DragHandler.displayName = "DragHandler";
 
-const Blockquote: React.FC<PropsWithChildren<IBlockQuoteProps>> = (props) => {
+const Blockquote: React.FC<PropsWithChildren<IBlockQuoteProps>> = props => {
   const { attributes, element, children } = props;
 
-  const { accentColor, secondaryTextClass } = useThemeColors();
   const editor = useSlate();
   const readOnly = useReadOnly();
   const { message } = App.useApp();
-  const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop } =
-    useDragAndDrop({
-      element,
-    });
+  const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop } = useDragAndDrop({
+    element,
+  });
   const isLast = useIsLastElement(element);
 
   const { menuProps, dragHandlerProps } = useDragHandlerMenu({
     element,
     editor,
-    buildMenuItems: (params) => buildBlockquoteMenuItems(params, message),
+    buildMenuItems: params => buildBlockquoteMenuItems(params, message),
   });
 
   return (
     <div
-      ref={(node) => {
+      ref={node => {
         drop(node);
       }}
-      className={classnames("relative group")}
+      className={classnames("group relative")}
     >
       <div {...attributes} className="relative">
         <div
           className={classnames(
-            "relative pl-[1.5em] py-[0.75em] italic leading-relaxed transition-colors duration-200",
-            secondaryTextClass,
+            "relative py-[0.75em] pl-[1.5em] italic leading-relaxed transition-colors duration-200",
+            "text-[var(--ed-text-secondary)]",
             {
               "opacity-50": isDragging,
               "bg-blue-50 dark:bg-blue-900/20": isOverCurrent && canDrop,
-              "border-t-2 border-blue-500":
-                isOverCurrent && canDrop && isBefore,
-              "border-b-2 border-blue-500":
-                isOverCurrent && canDrop && !isBefore,
-            },
+              "border-t-2 border-blue-500": isOverCurrent && canDrop && isBefore,
+              "border-b-2 border-blue-500": isOverCurrent && canDrop && !isBefore,
+            }
           )}
         >
           <div
             contentEditable={false}
-            className="absolute left-0 top-1 bottom-1 w-1 rounded-full select-none"
-            style={{ backgroundColor: accentColor }}
+            className="absolute bottom-1 left-0 top-1 w-1 select-none rounded-full"
+            style={{ backgroundColor: "var(--ed-accent)" }}
           />
           {children}
         </div>

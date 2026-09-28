@@ -89,6 +89,9 @@ import "codemirror/theme/blackboard.css";
 import "./extensions/drag-common.less";
 import "./extensions/drop-common.less";
 import styles from "./index.module.less";
+import "./theme/editor.css";
+import { EditorThemeScope } from "./theme/context";
+import { IThemeService } from "./services/tokens";
 
 interface IEditorProps {
   collaboration?: EditorCollaborationBinding;
@@ -449,63 +452,70 @@ const Index = memo(
     return (
       <CollaborationContext.Provider value={collaboration}>
         <EditorContext.Provider value={editorContextValue}>
-          <Slate
-            editor={editor}
-            initialValue={initValue}
-            onChange={handleOnChange}
-            key={finalExtensions.map((extension: IExtension) => extension.type).join("-")}
-          >
-            <div
-              ref={collaborationContainerRef}
-              style={collaboration ? { position: "relative" } : { display: "contents" }}
-            >
-              <Editable
-                className={classnames(styles.editor, props.className)}
-                style={props.style}
-                readOnly={readonly}
-                renderElement={renderElement}
-                renderLeaf={renderLeaf}
-                renderChunk={renderChunk}
-                placeholder={placeHolder}
-                decorate={decorate}
-                onKeyDown={event => {
-                  registerHotKey(editor, event, finalHotKeyConfigs);
-                }}
-                onDrag={e => {
-                  e.preventDefault();
-                }}
-                onDrop={async e => {
-                  e.preventDefault();
+          <EditorThemeScope service={registry?.tryGet(IThemeService)} mode={theme}>
+            {scope => (
+              <Slate
+                editor={editor}
+                initialValue={initValue}
+                onChange={handleOnChange}
+                key={finalExtensions.map((extension: IExtension) => extension.type).join("-")}
+              >
+                <div
+                  ref={collaborationContainerRef}
+                  className="tau-editor"
+                  data-theme={scope.overridden ? scope.themeKey || undefined : undefined}
+                  data-mode={scope.overridden ? scope.mode : undefined}
+                  style={collaboration ? { position: "relative" } : { display: "contents" }}
+                >
+                  <Editable
+                    className={classnames(styles.editor, props.className)}
+                    style={props.style}
+                    readOnly={readonly}
+                    renderElement={renderElement}
+                    renderLeaf={renderLeaf}
+                    renderChunk={renderChunk}
+                    placeholder={placeHolder}
+                    decorate={decorate}
+                    onKeyDown={event => {
+                      registerHotKey(editor, event, finalHotKeyConfigs);
+                    }}
+                    onDrag={e => {
+                      e.preventDefault();
+                    }}
+                    onDrop={async e => {
+                      e.preventDefault();
 
-                  const files = e.dataTransfer?.files;
-                  if (!files || files.length === 0 || readonly) return;
+                      const files = e.dataTransfer?.files;
+                      if (!files || files.length === 0 || readonly) return;
 
-                  // 计算拖放位置
-                  const range = ReactEditor.findEventRange(editor, e);
-                  if (range && editor.handleDrop) {
-                    await editor.handleDrop(files, range.anchor);
-                  }
-                }}
-                onSelect={() => {
-                  if (syncSelectionSnapshot()) {
-                    onSelectionChange?.();
-                  }
-                }}
-                scrollSelectionIntoView={scrollSelectionIntoView}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-              {collaboration && collaborationCursors && (
-                <CollaborationCursors
-                  containerRef={collaborationContainerRef as React.RefObject<HTMLDivElement>}
-                />
-              )}
-            </div>
-            <ImagesOverview />
-            {!readonly && <MediaUrlInputModal />}
-            {!readonly && <HoveringToolbar configs={finalHoveringBarConfigs} />}
-            {!readonly && <BlockPanel extensions={finalExtensions} />}
-          </Slate>
+                      // 计算拖放位置
+                      const range = ReactEditor.findEventRange(editor, e);
+                      if (range && editor.handleDrop) {
+                        await editor.handleDrop(files, range.anchor);
+                      }
+                    }}
+                    onSelect={() => {
+                      if (syncSelectionSnapshot()) {
+                        onSelectionChange?.();
+                      }
+                    }}
+                    scrollSelectionIntoView={scrollSelectionIntoView}
+                    onFocus={onFocus}
+                    onBlur={onBlur}
+                  />
+                  {collaboration && collaborationCursors && (
+                    <CollaborationCursors
+                      containerRef={collaborationContainerRef as React.RefObject<HTMLDivElement>}
+                    />
+                  )}
+                </div>
+                <ImagesOverview />
+                {!readonly && <MediaUrlInputModal />}
+                {!readonly && <HoveringToolbar configs={finalHoveringBarConfigs} />}
+                {!readonly && <BlockPanel extensions={finalExtensions} />}
+              </Slate>
+            )}
+          </EditorThemeScope>
         </EditorContext.Provider>
       </CollaborationContext.Provider>
     );

@@ -1,33 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Transforms } from "slate";
-import {
-  ReactEditor,
-  RenderElementProps,
-  useReadOnly,
-  useSlateStatic,
-} from "slate-react";
+import { ReactEditor, RenderElementProps, useReadOnly, useSlateStatic } from "slate-react";
 import { v4 as uuidv4 } from "uuid";
 import { produce } from "immer";
 import { MessageCircle } from "lucide-react";
-import type {
-  CommentElement,
-  Comment as CommentType,
-} from "../../../types";
+import type { CommentElement, Comment as CommentType } from "../../../types";
 import InlineChromiumBugfix from "../../../../components/InlineChromiumBugFix";
 import { unwrapComment } from "../../../../utils";
 import CommentPopover from "../CommentPopover";
 import { getTotalCommentCount } from "../../utils/comments";
-import useThemeColors from "../../../../hooks/useThemeColors";
-
-const increaseAlpha = (color: string, delta = 0.15) => {
-  const alphaPattern = /,\s*([0-9]*\.?[0-9]+)\s*\)$/;
-  if (!color) return color;
-  if (!alphaPattern.test(color)) return color;
-  return color.replace(alphaPattern, (_, value) => {
-    const newAlpha = Math.min(1, parseFloat(value) + delta);
-    return `, ${newAlpha})`;
-  });
-};
 
 interface CommentProps {
   attributes: RenderElementProps["attributes"];
@@ -41,29 +22,11 @@ const Comment: React.FC<CommentProps> = ({ attributes, children, element }) => {
   const readOnly = useReadOnly();
   const [open, setOpen] = useState(openEdit);
   const indicatorRef = useRef<HTMLSpanElement | null>(null);
-  const [anchorElement, setAnchorElement] = useState<HTMLSpanElement | null>(
-    null,
-  );
-
-  const { accentColor, accentSoftBg } = useThemeColors();
+  const [anchorElement, setAnchorElement] = useState<HTMLSpanElement | null>(null);
 
   const commentPath = ReactEditor.findPath(editor, element);
 
-  const totalCommentsCount = useMemo(
-    () => getTotalCommentCount(comments),
-    [comments],
-  );
-
-  const commentHighlightStyle = useMemo(() => {
-    const baseBg = accentSoftBg ?? "rgba(239,35,60,0.14)";
-    const borderColor = accentColor ?? "rgb(239,35,60)";
-    return {
-      "--comment-highlight-bg": baseBg,
-      "--comment-highlight-hover-bg": increaseAlpha(baseBg),
-      "--comment-highlight-border": borderColor,
-      "--comment-icon-color": borderColor,
-    } as React.CSSProperties;
-  }, [accentColor, accentSoftBg]);
+  const totalCommentsCount = useMemo(() => getTotalCommentCount(comments), [comments]);
 
   useEffect(() => {
     setOpen(openEdit);
@@ -85,7 +48,7 @@ const Comment: React.FC<CommentProps> = ({ attributes, children, element }) => {
       replies: [],
     };
 
-    const newComments = produce(comments, (draft) => {
+    const newComments = produce(comments, draft => {
       draft.push(newComment);
     });
 
@@ -94,9 +57,9 @@ const Comment: React.FC<CommentProps> = ({ attributes, children, element }) => {
   };
 
   const handleDeleteComment = (commentId: string) => {
-    const newComments = produce(comments, (draft) => {
+    const newComments = produce(comments, draft => {
       const deleteCommentRecursive = (items: CommentType[]): boolean => {
-        const index = items.findIndex((item) => item.id === commentId);
+        const index = items.findIndex(item => item.id === commentId);
         if (index !== -1) {
           items.splice(index, 1);
           return true;
@@ -123,9 +86,9 @@ const Comment: React.FC<CommentProps> = ({ attributes, children, element }) => {
   };
 
   const handleEditComment = (commentId: string, content: string) => {
-    const newComments = produce(comments, (draft) => {
+    const newComments = produce(comments, draft => {
       const editCommentRecursive = (items: CommentType[]): boolean => {
-        const comment = items.find((item) => item.id === commentId);
+        const comment = items.find(item => item.id === commentId);
         if (comment) {
           comment.content = content;
           comment.updateTime = Date.now();
@@ -149,9 +112,9 @@ const Comment: React.FC<CommentProps> = ({ attributes, children, element }) => {
   };
 
   const handleReplyComment = (parentId: string, content: string) => {
-    const newComments = produce(comments, (draft) => {
+    const newComments = produce(comments, draft => {
       const addReplyRecursive = (items: CommentType[]): boolean => {
-        const parent = items.find((item) => item.id === parentId);
+        const parent = items.find(item => item.id === parentId);
         if (parent) {
           parent.replies.push({
             id: uuidv4(),
@@ -188,33 +151,23 @@ const Comment: React.FC<CommentProps> = ({ attributes, children, element }) => {
     <>
       <span
         {...attributes}
-        className="
-          relative inline cursor-pointer
-          border-b-2 transition-colors
-          bg-[var(--comment-highlight-bg)]
-          border-[var(--comment-highlight-border)]
-          hover:bg-[var(--comment-highlight-hover-bg)]
-        "
-        style={commentHighlightStyle}
+        className="relative inline cursor-pointer border-b-2 border-[var(--ed-comment-border)] bg-[var(--ed-comment-bg)] transition-colors hover:bg-[var(--ed-comment-hover-bg)]"
       >
         <InlineChromiumBugfix />
         {children}
         <InlineChromiumBugfix />
         <span
-          ref={(node) => {
+          ref={node => {
             if (indicatorRef.current !== node) {
               indicatorRef.current = node;
               setAnchorElement(node);
             }
           }}
-          className="
-            ml-1 inline-flex items-center gap-1 text-[11px]
-            text-[var(--comment-icon-color)]
-          "
+          className="ml-1 inline-flex items-center gap-1 text-[11px] text-[var(--ed-comment-icon)]"
           contentEditable={false}
-          onClick={(event) => {
+          onClick={event => {
             event.stopPropagation();
-            setOpen((prev) => !prev);
+            setOpen(prev => !prev);
           }}
         >
           <MessageCircle className="h-3.5 w-3.5" strokeWidth={2} />

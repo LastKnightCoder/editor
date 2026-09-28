@@ -1,4 +1,3 @@
-import type { ThemeColors } from "../types/services";
 import { useEditorEnvironment } from "./EditorProvider";
 import type { ImageBorderRadiusPreset, ImageShadowPreset } from "../types/element/image-appearance";
 
@@ -14,8 +13,6 @@ import type { ImageBorderRadiusPreset, ImageShadowPreset } from "../types/elemen
 
 export interface EditorThemeConfig {
   mode: "light" | "dark";
-  /** 颜色规范（Tailwind 类名）由内核定义，宿主按规范提供取值 */
-  colors: ThemeColors;
 }
 
 export interface EditorAppearanceConfig {
@@ -43,21 +40,6 @@ export interface EditorConfig {
 export const useEditorConfig = (): EditorConfig | null => {
   return useEditorEnvironment().config;
 };
-
-/** 未挂载 Provider 时的兜底色板（全部为空类名，样式退化为无主题态） */
-const FALLBACK_THEME_COLORS: ThemeColors = {
-  hoverClass: "",
-  activeClass: "",
-  hoverTextClass: "",
-  borderClass: "",
-  hoverBorderClass: "",
-  focusBorderClass: "",
-  textClass: "",
-  secondaryTextClass: "",
-  activeTextClass: "",
-};
-
-export const createFallbackThemeColors = (): ThemeColors => FALLBACK_THEME_COLORS;
 
 /** 内核默认外观 */
 export const DEFAULT_IMAGE_APPEARANCE = {

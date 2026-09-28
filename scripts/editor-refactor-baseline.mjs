@@ -64,10 +64,11 @@ const METRICS = [
   },
   {
     key: "editor.isDark",
-    desc: "editor 内使用 isDark 的文件",
+    desc: "editor 内使用 isDark 的文件（不含 theme/ 自身——ThemeService 是 isDark 的正源）",
     roots: EDITOR,
     pattern: /\bisDark\b/g,
     mode: "files",
+    exclude: [/\/theme\//],
   },
   {
     key: "editor.legacyCssVars",

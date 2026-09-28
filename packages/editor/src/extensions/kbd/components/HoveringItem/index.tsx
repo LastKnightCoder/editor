@@ -6,18 +6,16 @@ import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { Keyboard } from "lucide-react";
 import classnames from "classnames";
 
-import useThemeColors from "../../../../hooks/useThemeColors";
 import { wrapKbd, unwrapKbd } from "../../../../utils";
 
 const HoveringItem = () => {
   const editor = useSlate();
   const selection = useSlateSelection();
-  const themeColors = useThemeColors();
 
   const isActive = useMemo(() => {
     if (!selection) return false;
     const [kbdNode] = Editor.nodes(editor, {
-      match: (n) => !Editor.isEditor(n) && n.type === "kbd",
+      match: n => !Editor.isEditor(n) && n.type === "kbd",
     });
     return !!kbdNode;
   }, [editor, selection]);
@@ -40,14 +38,9 @@ const HoveringItem = () => {
     <Tooltip title={"快捷键"} trigger={"hover"}>
       <div
         className={classnames(
-          "flex items-center justify-center w-8 h-8 rounded-lg cursor-pointer transition-all duration-200",
-          isActive
-            ? themeColors.activeClass
-            : classnames(
-                themeColors.textClass,
-                themeColors.hoverClass,
-                themeColors.hoverTextClass,
-              ),
+          "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all duration-200",
+          "ed-toolbar-item",
+          isActive && "is-active"
         )}
         onClick={handleClick}
       >

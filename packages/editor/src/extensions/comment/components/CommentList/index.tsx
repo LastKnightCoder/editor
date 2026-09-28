@@ -2,7 +2,6 @@ import React, { useMemo, useState } from "react";
 import dayjs from "dayjs";
 import type { Comment as CommentType } from "../../../types";
 import CommentInput from "../CommentInput";
-import useThemeColors from "../../../../hooks/useThemeColors";
 import { useEditorConfig } from "../../../../contexts/EditorConfig";
 
 interface CommentListProps {
@@ -22,8 +21,6 @@ const CommentList: React.FC<CommentListProps> = ({
 }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [replyingId, setReplyingId] = useState<string | null>(null);
-  const themeColors = useThemeColors();
-  const accentColor = themeColors.accentColor || "rgb(239, 68, 68)";
   const config = useEditorConfig();
   const defaultFormatDate = (value: number | string, format = "YYYY-MM-DD HH:mm:ss") =>
     dayjs(value).format(format);
@@ -104,7 +101,7 @@ const CommentList: React.FC<CommentListProps> = ({
         {replies.length > 0 && (
           <div
             className="mt-4 space-y-3 border-l-2 border-gray-100 pl-4 dark:border-slate-800/80"
-            style={{ borderLeftColor: accentColor }}
+            style={{ borderLeftColor: "var(--ed-comment-border)" }}
           >
             {replies.map(reply => renderComment(reply, _level + 1))}
           </div>

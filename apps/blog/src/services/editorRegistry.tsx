@@ -9,7 +9,6 @@ import {
   type ServiceRegistry,
   type ImageBorderRadiusPreset,
   type ImageShadowPreset,
-  type ThemeColors,
   type EditorSlots,
   type EditorConfig,
 } from "@tau/editor";
@@ -38,22 +37,6 @@ function getBlogImageSettingValue<T extends "borderRadius" | "shadow">(
     NonNullable<BlogPublishSettings["appearance"]>["image"]
   >[T];
 }
-
-const createDefaultThemeColors = (): ThemeColors => ({
-  hoverClass: "hover:bg-gray-100 dark:hover:bg-zinc-800",
-  activeClass: "bg-gray-100 dark:bg-zinc-800",
-  hoverTextClass: "hover:text-gray-900 dark:hover:text-gray-100",
-  borderClass: "border-gray-200 dark:border-gray-700",
-  hoverBorderClass: "hover:border-gray-300 dark:hover:border-gray-600",
-  focusBorderClass: "focus:border-blue-500 dark:focus:border-blue-400",
-  textClass: "text-gray-700 dark:text-gray-300",
-  secondaryTextClass: "text-gray-500 dark:text-gray-500",
-  activeTextClass: "text-gray-900 dark:text-gray-100",
-  cardBorderClass: "border-gray-200 dark:border-gray-700",
-  cardBgClass: "bg-white dark:bg-zinc-900",
-  accentColor: "#3b82f6",
-  accentSoftBg: "rgba(59, 130, 246, 0.15)",
-});
 
 const createBlogEditorSlots = (): EditorSlots => {
   const Image = forwardRef<
@@ -129,7 +112,6 @@ export function createBlogEditorConfig(
   return {
     theme: {
       mode: theme ?? getDocumentTheme(),
-      colors: createDefaultThemeColors(),
     },
     appearance: {
       image: {

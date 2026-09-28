@@ -1,27 +1,19 @@
 import React, { useState, useCallback, useRef } from "react";
 import { Table, Code, Upload, ChevronDown } from "lucide-react";
-import {
-  CustomModal,
-  CustomCheckbox,
-  ThemeColors,
-  SelectDropDown,
-} from "@tau/shared";
+import { CustomModal, CustomCheckbox, SelectDropDown } from "@tau/shared";
 import type { ChartConfig, ChartType } from "../../../../types";
 import TableEditor from "./TableEditor";
 import JsonEditor from "./JsonEditor";
 import ChartTypeSelector from "./ChartTypeSelector";
 import CsvImporter from "./CsvImporter";
 import ChartPreview from "../ChartPreview";
+import { EDITOR_MODAL_THEME } from "../../../../theme/modalTheme";
 
 interface ChartEditorProps {
   data: Record<string, string | number>[];
   config: ChartConfig;
-  onChange: (
-    data: Record<string, string | number>[],
-    config: ChartConfig,
-  ) => void;
+  onChange: (data: Record<string, string | number>[], config: ChartConfig) => void;
   onClose: () => void;
-  themeColors: ThemeColors;
 }
 
 type EditorMode = "table" | "json";
@@ -31,7 +23,6 @@ const ChartEditor: React.FC<ChartEditorProps> = ({
   config: initialConfig,
   onChange,
   onClose,
-  themeColors,
 }) => {
   const [data, setData] = useState(initialData);
   const [config, setConfig] = useState(initialConfig);
@@ -40,19 +31,16 @@ const ChartEditor: React.FC<ChartEditorProps> = ({
   const [showPieStyleDropdown, setShowPieStyleDropdown] = useState(false);
   const pieStyleTriggerRef = useRef<HTMLButtonElement>(null);
 
-  const handleDataChange = useCallback(
-    (newData: Record<string, string | number>[]) => {
-      setData(newData);
-    },
-    [],
-  );
+  const handleDataChange = useCallback((newData: Record<string, string | number>[]) => {
+    setData(newData);
+  }, []);
 
   const handleConfigChange = useCallback((newConfig: Partial<ChartConfig>) => {
-    setConfig((prev) => ({ ...prev, ...newConfig }));
+    setConfig(prev => ({ ...prev, ...newConfig }));
   }, []);
 
   const handleTypeChange = useCallback((type: ChartType) => {
-    setConfig((prev) => {
+    setConfig(prev => {
       const isSingleSeriesType = ["scatter", "pie", "funnel"].includes(type);
       return {
         ...prev,
@@ -62,23 +50,20 @@ const ChartEditor: React.FC<ChartEditorProps> = ({
     });
   }, []);
 
-  const handleCsvImport = useCallback(
-    (importedData: Record<string, string | number>[]) => {
-      if (importedData.length > 0) {
-        const keys = Object.keys(importedData[0]);
-        const xAxisKey = keys[0];
-        const series = keys.slice(1).map((key, i) => ({
-          dataKey: key,
-          name: key,
-          color: ["#6366f1", "#ec4899", "#14b8a6", "#f59e0b"][i % 4],
-        }));
-        setData(importedData);
-        setConfig((prev) => ({ ...prev, xAxisKey, series }));
-      }
-      setShowCsvImporter(false);
-    },
-    [],
-  );
+  const handleCsvImport = useCallback((importedData: Record<string, string | number>[]) => {
+    if (importedData.length > 0) {
+      const keys = Object.keys(importedData[0]);
+      const xAxisKey = keys[0];
+      const series = keys.slice(1).map((key, i) => ({
+        dataKey: key,
+        name: key,
+        color: ["#6366f1", "#ec4899", "#14b8a6", "#f59e0b"][i % 4],
+      }));
+      setData(importedData);
+      setConfig(prev => ({ ...prev, xAxisKey, series }));
+    }
+    setShowCsvImporter(false);
+  }, []);
 
   const handleSave = () => {
     onChange(data, config);
@@ -88,13 +73,13 @@ const ChartEditor: React.FC<ChartEditorProps> = ({
   const headerContent = (
     <div className="flex items-center gap-3">
       <ChartTypeSelector value={config.type} onChange={handleTypeChange} />
-      <div className="flex rounded-lg bg-gray-100 dark:bg-zinc-800 p-0.5">
+      <div className="flex rounded-lg bg-gray-100 p-0.5 dark:bg-zinc-800">
         <button
           onClick={() => setMode("table")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-all ${
+          className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-all ${
             mode === "table"
-              ? "bg-white dark:bg-zinc-700 text-gray-900 dark:text-white shadow-sm"
-              : "text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300"
+              ? "bg-white text-gray-900 shadow-sm dark:bg-zinc-700 dark:text-white"
+              : "text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-300"
           }`}
         >
           <Table size={14} />
@@ -102,10 +87,10 @@ const ChartEditor: React.FC<ChartEditorProps> = ({
         </button>
         <button
           onClick={() => setMode("json")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-all ${
+          className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-all ${
             mode === "json"
-              ? "bg-white dark:bg-zinc-700 text-gray-900 dark:text-white shadow-sm"
-              : "text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300"
+              ? "bg-white text-gray-900 shadow-sm dark:bg-zinc-700 dark:text-white"
+              : "text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-300"
           }`}
         >
           <Code size={14} />
@@ -114,7 +99,7 @@ const ChartEditor: React.FC<ChartEditorProps> = ({
       </div>
       <button
         onClick={() => setShowCsvImporter(true)}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+        className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-gray-500 transition-colors hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-zinc-800"
       >
         <Upload size={14} />
         导入 CSV
@@ -131,7 +116,7 @@ const ChartEditor: React.FC<ChartEditorProps> = ({
       cancelText="取消"
       title={headerContent}
       width={800}
-      themeColors={themeColors}
+      themeColors={EDITOR_MODAL_THEME}
     >
       <div className="flex flex-col gap-4 text-sm">
         {/* Data Editor - top with max height */}
@@ -155,22 +140,18 @@ const ChartEditor: React.FC<ChartEditorProps> = ({
 
         {/* Settings */}
         <div className="flex items-center gap-6 text-gray-600 dark:text-slate-300">
-          <label className="flex items-center gap-2 cursor-pointer">
+          <label className="flex cursor-pointer items-center gap-2">
             <CustomCheckbox
               checked={config.showGrid ?? true}
-              onChange={() =>
-                handleConfigChange({ showGrid: !config.showGrid })
-              }
+              onChange={() => handleConfigChange({ showGrid: !config.showGrid })}
               accentColor="#6366f1"
             />
             <span>显示网格</span>
           </label>
-          <label className="flex items-center gap-2 cursor-pointer">
+          <label className="flex cursor-pointer items-center gap-2">
             <CustomCheckbox
               checked={config.showLegend ?? true}
-              onChange={() =>
-                handleConfigChange({ showLegend: !config.showLegend })
-              }
+              onChange={() => handleConfigChange({ showLegend: !config.showLegend })}
               accentColor="#6366f1"
             />
             <span>显示图例</span>
@@ -181,7 +162,7 @@ const ChartEditor: React.FC<ChartEditorProps> = ({
               <button
                 ref={pieStyleTriggerRef}
                 onClick={() => setShowPieStyleDropdown(!showPieStyleDropdown)}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
+                className="flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-1.5 text-gray-700 transition-colors hover:bg-gray-200 dark:bg-zinc-800 dark:text-slate-200 dark:hover:bg-zinc-700"
               >
                 {config.pieStyle === "donut"
                   ? "环形图"
@@ -199,16 +180,14 @@ const ChartEditor: React.FC<ChartEditorProps> = ({
                 selectedKey={config.pieStyle || "normal"}
                 show={showPieStyleDropdown}
                 onClose={() => setShowPieStyleDropdown(false)}
-                onSelect={(item) => {
+                onSelect={item => {
                   handleConfigChange({
                     pieStyle: item.value as "normal" | "donut" | "rose",
                   });
                 }}
                 triggerElement={pieStyleTriggerRef.current}
-                getKey={(item) => item.value}
-                renderItem={(item) => (
-                  <span className="text-sm">{item.label}</span>
-                )}
+                getKey={item => item.value}
+                renderItem={item => <span className="text-sm">{item.label}</span>}
                 width={120}
               />
             </div>
@@ -221,10 +200,8 @@ const ChartEditor: React.FC<ChartEditorProps> = ({
         </div>
 
         {/* Chart Preview - bottom */}
-        <div className="rounded-xl border border-[#f0f0f0] dark:border-[#2a2a2a] p-4 bg-white dark:bg-[#1a1a1a]">
-          <div className="text-xs text-gray-400 dark:text-slate-500 mb-3">
-            预览
-          </div>
+        <div className="rounded-xl border border-[#f0f0f0] bg-white p-4 dark:border-[#2a2a2a] dark:bg-[#1a1a1a]">
+          <div className="mb-3 text-xs text-gray-400 dark:text-slate-500">预览</div>
           <div className="h-[280px]">
             <ChartPreview data={data} config={config} />
           </div>
@@ -232,10 +209,7 @@ const ChartEditor: React.FC<ChartEditorProps> = ({
       </div>
 
       {showCsvImporter && (
-        <CsvImporter
-          onImport={handleCsvImport}
-          onClose={() => setShowCsvImporter(false)}
-        />
+        <CsvImporter onImport={handleCsvImport} onClose={() => setShowCsvImporter(false)} />
       )}
     </CustomModal>
   );
