@@ -1,6 +1,6 @@
 import { useEffect, useState, type ComponentType, type Ref } from "react";
 import { ASSET_PREFIX } from "@tau/collaboration";
-import type { EditorCollaborationBinding } from "@tau/editor/src/collaboration/types";
+import type { EditorCollaborationBinding } from "@tau/editor-collab";
 
 /**
  * 包装平台媒体组件：将协同资源的 ASSET_PREFIX 地址解析为本地地址后再渲染。

@@ -48,9 +48,11 @@ function getLabelPlacementStyle(
 const CollaborationCursors = memo(function CollaborationCursors({
   containerRef,
 }: {
-  containerRef: RefObject<HTMLDivElement>;
+  containerRef: RefObject<HTMLDivElement | null>;
 }) {
-  const [cursors] = useRemoteCursorOverlayPositions<CursorUser>({ containerRef });
+  const [cursors] = useRemoteCursorOverlayPositions<CursorUser>({
+    containerRef: containerRef as RefObject<HTMLDivElement>,
+  });
   const container = containerRef.current;
   const containerWidth = container?.clientWidth || LABEL_MAX_WIDTH;
   const containerHeight = container?.clientHeight || 0;

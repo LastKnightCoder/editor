@@ -1,7 +1,7 @@
 // 协作编辑页（设计稿 03 方案 A）：顶栏 presence + 状态副行 + 离线横幅 + 协作编辑器。
-// 远端光标/选区由 @tau/editor 的 withCollaboration + Cursors 自动渲染，本页只负责外壳与状态。
+// 远端光标/选区由 @tau/editor-collab 的文档源自动渲染，本页只负责外壳与状态。
 // 成员视角（本地无内容行）与协作中心入口仍走本页；owner 的原地编辑见详情页 CollaborativeEditor。
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { getMobileContentKit } from "../../services/editorKit";
 import {
   ChevronRight,
@@ -14,6 +14,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { Editor, type EditorRef } from "@tau/editor/src";
+import { createYjsDocument } from "@tau/editor-collab";
 import { ActionSheet } from "../../components/ActionSheet";
 import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
 import { useEdgeFade } from "../../hooks/useScrollState";
@@ -36,6 +37,11 @@ export function CollabEditorPage(props: {
   const scrollRef = useRef<HTMLDivElement>(null);
   useEdgeFade(scrollRef);
   const toolbarController = useMobileEditorToolbarController({ editorRef });
+  const syncSelection = toolbarController.syncSelection;
+  const document = useMemo(
+    () => (binding ? createYjsDocument(binding, { onChange: () => syncSelection() }) : undefined),
+    [binding, syncSelection]
+  );
   // 工具条经 portal 挂进本页根容器，才能随页面转场动画一起平移、退场
   const [pageRootEl, setPageRootEl] = useState<HTMLDivElement | null>(null);
 
@@ -129,7 +135,7 @@ export function CollabEditorPage(props: {
                 kit={getMobileContentKit()}
                 ref={editorRef}
                 key={`collab-${props.documentId}`}
-                collaboration={binding}
+                document={document}
                 className="mobile-card-editor-content"
                 readonly={readonly}
                 onFocus={() => {
@@ -140,7 +146,6 @@ export function CollabEditorPage(props: {
                   presence.onBlur();
                   toolbarController.handleEditorBlur();
                 }}
-                onChange={toolbarController.syncSelection}
                 onSelectionChange={toolbarController.syncSelection}
               />
             </div>

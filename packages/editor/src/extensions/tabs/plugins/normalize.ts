@@ -1,6 +1,6 @@
 import { Editor, NodeEntry, Transforms } from "slate";
-import { migrateTabsNode, hasSubstantialContent } from "@tau/collaboration";
-import type { ContentNode } from "@tau/collaboration";
+import { migrateTabsNode, hasSubstantialContent } from "@tau/db-schema";
+type ContentNode = Parameters<typeof migrateTabsNode>[0];
 import type { ParagraphElement, TabPaneElement, TabsElement } from "../../../types";
 
 const createParagraph = (): ParagraphElement => ({

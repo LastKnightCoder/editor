@@ -24,6 +24,7 @@ export default defineConfig({
       // 依赖链会拉到 db-schema / shared 等包的深路径子模块（如 model-version），
       // pnpm 符号链接 + 无 exports 声明的包必须走源码别名才能解析
       "@tau/editor": path.resolve(__dirname, "../../packages/editor"),
+      "@tau/editor-collab": path.resolve(__dirname, "../../packages/editor-collab"),
       "@tau/db-schema": path.resolve(__dirname, "../../packages/db-schema"),
       "@tau/rpc": path.resolve(__dirname, "../../packages/rpc"),
       "@tau/platform": path.resolve(__dirname, "../../packages/platform"),

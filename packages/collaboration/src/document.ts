@@ -9,7 +9,7 @@ import {
   type ContentNode,
   type SharedContent,
 } from "./protocol";
-import { migrateTabsToPanes } from "./tabs-normalize";
+import { migrateTabsToPanes } from "@tau/db-schema";
 import { isRetiredEditorBlock, stripRetiredEditorBlocks } from "@tau/db-schema";
 
 export const SOURCE_FIELDS: Record<string, string[]> = {

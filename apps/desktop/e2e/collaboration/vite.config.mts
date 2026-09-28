@@ -12,6 +12,7 @@ export default defineConfig({
     alias: {
       "@": resolve(root, "src"),
       "@tau/editor": resolve(root, "../../packages/editor"),
+      "@tau/editor-collab": resolve(root, "../../packages/editor-collab"),
       "@tau/shared": resolve(root, "../../packages/shared"),
       "@tau/themes": resolve(root, "../../packages/themes"),
       "@tau/db-schema": resolve(root, "../../packages/db-schema"),

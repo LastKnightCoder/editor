@@ -2,10 +2,11 @@
 // 协作页，直接在详情页切换为 yjs 协同编辑。职责内聚：运行时挂载、Y.Doc 绑定、
 // owner 侧投影、presence 上报；会话建立失败时上报「本地兜底」模式，由详情页用正常的
 // 本地编辑器继续编辑（改动经投影通道落本地库），重连后拉出「保留本机 / 采用云端」裁决。
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { getMobileContentKit } from "../../services/editorKit";
 import { ChevronRight, Loader2, RefreshCw, Users, WifiOff } from "lucide-react";
 import { Editor, type EditorRef } from "@tau/editor/src";
+import { createYjsDocument } from "@tau/editor-collab";
 import { AvatarStack, StatusDot } from "./components/CollaborationUI";
 import { LocalFallbackChoiceDialog } from "./components/LocalFallbackChoiceDialog";
 import { useCollabSession } from "./hooks/useCollabSession";
@@ -69,6 +70,15 @@ export function CollaborativeEditor(props: {
   onReadonlyChangeRef.current = props.onReadonlyChange;
   const onModeChangeRef = useRef(props.onModeChange);
   onModeChangeRef.current = props.onModeChange;
+  const onSelectionChangeRef = useRef(props.onSelectionChange);
+  onSelectionChangeRef.current = props.onSelectionChange;
+  const document = useMemo(
+    () =>
+      binding
+        ? createYjsDocument(binding, { onChange: () => onSelectionChangeRef.current() })
+        : undefined,
+    [binding]
+  );
 
   useEffect(() => {
     onReadonlyChangeRef.current?.(readonly);
@@ -178,7 +188,7 @@ export function CollaborativeEditor(props: {
           kit={getMobileContentKit()}
           ref={props.editorRef}
           key={`collab-${props.documentId}`}
-          collaboration={binding}
+          document={document}
           className="mobile-card-editor-content"
           readonly={viewReadonly}
           onFocus={() => {
@@ -188,9 +198,6 @@ export function CollaborativeEditor(props: {
           onBlur={() => {
             presence.onBlur();
             props.onEditorBlur();
-          }}
-          onChange={() => {
-            props.onSelectionChange();
           }}
           onSelectionChange={props.onSelectionChange}
         />

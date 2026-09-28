@@ -1,5 +1,5 @@
 import { Editor, Node, Path, Transforms, Text } from "slate";
-import { isRetiredEditorBlock } from "@tau/collaboration";
+import { isRetiredEditorBlock } from "@tau/db-schema";
 
 export const withNormalize = (editor: Editor) => {
   const { normalizeNode } = editor;

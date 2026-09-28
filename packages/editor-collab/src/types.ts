@@ -7,6 +7,7 @@ export interface EditorCollaborationBinding {
   /** 本机在会话中的角色，本机会话视为 owner；决定 content-link 等本机数据的可用性。 */
   role?: "owner" | "editor";
   viewId?: string;
+  /** 由文档源在连接期间挂上：把编辑器里尚未写入 Y.Doc 的本地改动立即写入 */
   flushLocal?: () => void;
   doc: Y.Doc;
   root?: Y.XmlText;

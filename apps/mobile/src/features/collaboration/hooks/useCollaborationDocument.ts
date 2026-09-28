@@ -2,7 +2,7 @@
 // EditorCollaborationBinding。移动端视图与会话同进程，直接复用同一 Y.Doc，
 // 不存在桌面端的副本与 IPC 同步。
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { EditorCollaborationBinding } from "@tau/editor/src/collaboration/types";
+import type { EditorCollaborationBinding } from "@tau/editor-collab";
 import { ASSET_PREFIX } from "@tau/collaboration/src/protocol";
 import * as tauri from "../../../services/tauri";
 import { collaborationManager } from "../core/manager";
@@ -110,13 +110,13 @@ export default function useCollaborationDocument(documentId?: string) {
     frozen: Boolean(session?.frozen) || Boolean(session?.leaving),
     /** 曾就绪的会话已消失：共享被结束/退出/撤权（正常业务路径，不应提示重试） */
     ended,
-  /** 会话建立失败或已有会话断线后的重试 */
-  retry: () => {
-    if (documentId && (session?.connection === "offline" || session?.connection === "error")) {
-      void collaborationManager.reconnect(documentId);
-      return;
-    }
-    setReloadRev(value => value + 1);
-  },
+    /** 会话建立失败或已有会话断线后的重试 */
+    retry: () => {
+      if (documentId && (session?.connection === "offline" || session?.connection === "error")) {
+        void collaborationManager.reconnect(documentId);
+        return;
+      }
+      setReloadRev(value => value + 1);
+    },
   };
 }

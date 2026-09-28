@@ -5,7 +5,7 @@
 import { useEffect, useRef } from "react";
 import type { Descendant } from "slate";
 import { readSharedContent } from "@tau/collaboration/src/document";
-import type { EditorCollaborationBinding } from "@tau/editor/src/collaboration/types";
+import type { EditorCollaborationBinding } from "@tau/editor-collab";
 import { toast } from "../../../components/toast";
 import * as tauri from "../../../services/tauri";
 import { getContentLength } from "../../cards/editorContentUtils";

@@ -1,6 +1,7 @@
-import { forwardRef, useEffect, useRef, type ComponentProps, type ReactNode } from "react";
+import { forwardRef, useEffect, useMemo, useRef, type ComponentProps, type ReactNode } from "react";
 import { LoadingOutlined } from "@ant-design/icons";
 import { Editor, type EditorRef } from "@tau/editor/src";
+import { createYjsDocument } from "@tau/editor-collab";
 import { useCollaborationKit } from "@/components/CollaborationEditor/useCollaborationKit";
 import useCollaborationDocument from "@/hooks/useCollaborationDocument";
 import useCollaborationStore from "@/stores/useCollaborationStore";
@@ -31,6 +32,7 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
     const presence = useCollaborationPresence(binding, readonly || frozen);
     // 场景 kit 要经协作派生（共享模式下资源与音视频服务被覆盖），不能让 props.kit 直接覆盖
     const kit = useCollaborationKit(binding, props.kit);
+    const document = useMemo(() => (binding ? createYjsDocument(binding) : undefined), [binding]);
     useEffect(() => {
       const loadError = sessionError || (!binding && error);
       if (loadError) onLoadError?.(loadError);
@@ -63,7 +65,7 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
             if (typeof ref === "function") ref(value);
             else if (ref) ref.current = value;
           }}
-          collaboration={binding || props.collaboration}
+          document={document}
           readonly={readonly || frozen || Boolean(session && session.status !== "active")}
           onChange={binding ? undefined : props.onChange}
           onFocus={() => {

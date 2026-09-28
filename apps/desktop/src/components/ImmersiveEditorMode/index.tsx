@@ -6,7 +6,6 @@ import { ReactEditor } from "slate-react";
 import PortalToBody from "@/components/PortalToBody";
 import { EditorRef } from "@tau/editor/src";
 import Editor from "@/components/ContentEditor";
-import type { EditorCollaborationBinding } from "@tau/editor/src/collaboration/types";
 import type IExtension from "@tau/editor/src/extensions/types";
 import { useTypewriterScroll } from "./useTypewriterScroll";
 import useSettingStore from "@/stores/useSettingStore";
@@ -19,7 +18,6 @@ interface ImmersiveEditorModeProps {
   /** 实例特有扩展（如项目文档的卡片列表）；宿主通用扩展来自 kit，不必传 */
   extensions?: IExtension[];
   contentId?: number;
-  collaboration?: EditorCollaborationBinding;
   initValue: Descendant[];
   initialSelection?: Range | null;
   onChange: (content: Descendant[]) => void;
@@ -56,7 +54,6 @@ export default function ImmersiveEditorMode({
   onExit,
   wordCount,
   readonly,
-  collaboration,
   contentId,
 }: ImmersiveEditorModeProps) {
   const editorRef = useRef<EditorRef>(null);
@@ -165,7 +162,6 @@ export default function ImmersiveEditorMode({
             <Editor
               extensions={extensions}
               contentId={contentId}
-              collaboration={collaboration}
               ref={editorRef}
               initValue={initValue}
               onChange={handleChange}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { migrateTabsNode, migrateTabsToPanes } from "./tabs-normalize";
+import { migrateTabsNode, migrateTabsToPanes } from "@tau/db-schema";
 import type { ContentNode } from "./protocol";
 
 const paragraph = (text: string): ContentNode => ({

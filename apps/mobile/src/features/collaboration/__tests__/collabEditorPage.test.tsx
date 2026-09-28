@@ -37,7 +37,8 @@ vi.mock("@tau/editor/src", async importOriginal => {
 
 vi.mock("../hooks/useCollabSession", () => ({
   useCollabSession: () => ({
-    binding: { documentId: "doc-1" },
+    // createYjsDocument 取 doc.guid 作谱系；编辑器被 mock，doc 只需带 guid
+    binding: { documentId: "doc-1", doc: { guid: "doc-1" } },
     session: {
       id: "doc-1",
       title: "协作文档",

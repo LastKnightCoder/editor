@@ -1,10 +1,12 @@
 export { default as Editor } from "./index.tsx";
-export { useCollaboration, useCollaborationResource } from "./collaboration/context";
-export type { EditorCollaborationBinding } from "./collaboration/types";
 export { createEditorKit, createBareEditorKit, createEditorKitFromRegistry } from "./kit/EditorKit";
 export type { EditorKit, EditorKitOptions, EditorKitExtendOptions } from "./kit/EditorKit";
 export { createValueDocument } from "./document/EditorDocument";
-export type { EditorDocument, ValueDocumentOptions } from "./document/EditorDocument";
+export type {
+  EditorDocument,
+  EditorDocumentBinding,
+  ValueDocumentOptions,
+} from "./document/EditorDocument";
 
 export type {
   ResourceService,

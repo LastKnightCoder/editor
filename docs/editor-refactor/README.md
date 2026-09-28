@@ -46,14 +46,16 @@
 | P6   | EditorKit + 文档源，替换 EditorProvider                        | ✅     |
 | P6.5 | desktop 宿主扩展收进 kit（消掉 `extensions` 透传）             | ✅     |
 | P6.6 | desktop kit 按场景拆分，恢复平滑性                             | ✅     |
-| P7   | 协作治理：`editor-collab`、会话升级、无缝换源                  | ⏳     |
+| P7   | 协作治理：`editor-collab`、会话升级、无缝换源                  | 🚧     |
 | P8   | 扩展 API v2（声明式贡献点、错误隔离、codec 归属）              | ⏳     |
 | P9   | 拆包（custom-block 试点、diagram）                             | ⏳     |
 | 远期 | 第三方加载、市场、授权、custom-block 沙箱                      | 不排期 |
 
 状态图例：⏳ 未开始 / 🚧 进行中 / ✅ 完成 / ⏸ 暂停（写原因）。
 
-**下一步**：P7（协作治理，最重的一块）。前置是 P0 的两个 spike 结论（01 §7.5）与 P6 的 `EditorDocument` 接口；注意 P7 清单里的 `CollaborationServices` 已在 P6 提前删掉。
+**下一步**：P7 第二步（同谱系换源）。第一步已完成：`@tau/editor-collab` 建好，内核不再认识协作，
+协作走 `EditorDocument.binding` 受信任层（钩子表见 01 §7.2）。之后是 desktop 主进程的会话升级、mobile 换源。
+注意 P7 清单里的 `CollaborationServices` 已在 P6 提前删掉。
 
 ## 5. 接手步骤
 
