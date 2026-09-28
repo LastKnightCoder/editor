@@ -47,7 +47,8 @@
     "slate-react": "^0.123.0",
     "uuid": "^9.0.1",
     "yaml": "^2.7.1",
-    "zustand": "^4.3.8"
+    "zustand": "^4.3.8",
+    "@tau/themes": "workspace:*"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.17",

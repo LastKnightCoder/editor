@@ -12,8 +12,6 @@ import {
   charContainer,
   heroTransition,
 } from "@blog/utils/motion";
-import "@tau/themes/light.less";
-import "@tau/themes/dark.less";
 
 const HOME_RECENT_ITEM_MAX_LENGTH = 36;
 

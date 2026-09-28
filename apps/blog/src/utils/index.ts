@@ -214,10 +214,12 @@ export function isDarkMode(): boolean {
 }
 
 /**
- * 将主题状态同步到文档根节点，兼容 data-theme 与 Tailwind dark 变体
+ * 将主题状态同步到文档根节点：data-theme（blog 配色）、data-mode（@tau/themes 约定的明暗）、
+ * .dark（Tailwind dark 变体）
  */
 export function applyThemeToDocument(theme: "light" | "dark"): void {
   document.documentElement.setAttribute("data-theme", theme);
+  document.documentElement.setAttribute("data-mode", theme);
   document.documentElement.classList.toggle("dark", theme === "dark");
 }
 

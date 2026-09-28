@@ -1,39 +1,10 @@
 /*
- * 主题 CSS 变量：尺度层（与主题正交）+ 各主题族 × 明暗的 --tau-* 数据块。
+ * 主题 CSS 变量：尺度层（scale.css）+ 各主题族 × 明暗的 --tau-* 数据块。
  *
- * 不依赖 Tailwind，任何宿主都可单独引入；Tailwind 语义类映射在 tailwind.css。
- * 尺度：字号/间距/圆角/动效/时长是全局常量，不随主题变（见 02 规范 §3/§4）。
+ * 不依赖 Tailwind；Tailwind 语义类映射在 tailwind.css。使用 @tau/themes 主题族的宿主引本文件，
+ * 自带主题体系的宿主只引 scale.css 并自行桥接 --tau-*（见各 app 的 tau-tokens.css）。
  */
-
-:root {
-  /* 圆角三档 */
-  --tau-radius-sm: 8px;
-  --tau-radius-md: 12px;
-  --tau-radius-lg: 16px;
-
-  /* 动效 */
-  --tau-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --tau-dur-fast: 160ms;
-  --tau-dur-normal: 240ms;
-
-  /* 字体栈 */
-  --tau-font:
-    -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans",
-    "Microsoft YaHei", sans-serif;
-  --tau-font-mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
-
-  /* 字号档位字面值层——@theme inline 的 --text-tau-* 经 var 桥接引用此处；
-     用户「全局字号」设置在运行时覆盖本层（桌面 useSyncFont 等比缩放全部档位） */
-  --tau-text-hero: 25px;
-  --tau-text-title-lg: 20px;
-  --tau-text-title: 14.5px;
-  --tau-text-body-lg: 13.5px;
-  --tau-text-body: 13px;
-  --tau-text-meta: 12.5px;
-  --tau-text-sm: 12px;
-  --tau-text-micro: 11.5px;
-  --tau-text-tiny: 11px;
-}
+@import "./scale.css";
 
 /*
  * 主题取值块 —— 运行时切换只改 <html data-theme data-mode>，变量由这里级联（零 JS 切换）。

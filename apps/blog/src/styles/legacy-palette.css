@@ -1,0 +1,158 @@
+/*
+ * blog 的旧配色层：原 @tau/themes 的 light.less / dark.less 编译后原样迁入（公共包已删除 less）。
+ *
+ * 选择器保持 html[data-theme]，比 global.css 的 :root / [data-theme] 更具体，所以这些值仍覆盖
+ * global.css 的同名变量，页面配色与迁移前逐值一致（迁移时用计算样式快照比对过全部 6 个页面 × 明暗）。
+ * 这里是 blog 自有配色，不是公共契约；公共包只认 tau-tokens.css 桥接出的 --tau-*。
+ */
+html[data-theme="light"] {
+  --color-bg-page: #f3f4f6;
+  --color-bg-container: #ffffff;
+  --color-bg-elevated: #ffffff;
+  --color-bg-canvas: #f9fafb;
+  --color-bg-input: #ffffff;
+  --color-text-primary: #111827;
+  --color-text-secondary: #4b5563;
+  --color-text-tertiary: #6b7280;
+  --color-text-quaternary: #9ca3af;
+  --color-border-primary: #e5e7eb;
+  --color-border-secondary: #f3f4f6;
+  --color-primary: #3b82f6;
+  --color-primary-hover: #2563eb;
+  --color-primary-active: #1d4ed8;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+  --color-tag-bg: #dbeafe;
+  --color-tag-text: #1e40af;
+  --color-mask: rgba(0, 0, 0, 0.65);
+  --button-primary-text: #ffffff;
+  --button-secondary-bg: #ffffff;
+  --primary-bg-color: #f8f9fb;
+  --main-bg-color: #fff;
+  --line-color: #f0f0f0;
+  --text-normal: black;
+  --code-normal: #18045f;
+  --code-bg: transparent;
+  --box-shadow1: 0 3px 6px 0 rgba(0, 0, 0, 0.15);
+  --box-shadow2: 0 4px 21px -12px rgba(0, 0, 0, 0.6);
+  --block-panel-active-bg: #e6e6e6;
+  --common-hover-bg: #eef0f5;
+  --item-common-hover-bg: rgba(0, 0, 0, 0.04);
+  --table-border-color: #dadde1;
+  --table-odd-bg: #e6e6e666;
+  --card-bg-color: rgba(255, 255, 255, 0.4);
+  --bottom-line-bg: #3358d4;
+  --tab-active-color: #ecedf1;
+  --scroller-track-background-color: rgba(0, 0, 0, 0.04);
+  --scroller-thumb-background-color: rgba(0, 0, 0, 0.06);
+  --normal-card-bg: hsl(168, 8%, 95%);
+  --normal-icon-bg: #e8e8e8;
+  --active-bg-color: hsl(168, 80%, 95%);
+  --active-text-color: hsl(168, 50%, 30%);
+  --active-icon-bg: hsl(168, 60%, 80%);
+  --card-line-color: hsl(168, 40%, 80%);
+  --bullet-list-item-bg: hsl(168, 10%, 45%);
+  --bullet-list-item-shodow: 0 0 0 0.3em hsla(168, 90%, 85%, 0.55);
+  --selection-color: #d9f0ff;
+  --sidebar-background: transparent;
+  --sidebar-active-bg: #e8f0f6;
+  --second-sidevar-background: #f2f3f4;
+  --shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+  --bg-secondary: #f7f7f7;
+  --bg-tertiary: #ebeef2;
+  --text-primary: rgba(0, 0, 0, 0.85);
+  --text-secondary: rgba(0, 0, 0, 0.5);
+  --ui-border: hsl(220, 14%, 90%);
+  --ui-outline: hsla(224, 76%, 48%, 0.35);
+}
+
+html[data-theme="dark"] {
+  --color-bg-page: #010409;
+  --color-bg-container: #161b22;
+  --color-bg-elevated: #1f2937;
+  --color-bg-canvas: #0d1117;
+  --color-bg-input: #0d1117;
+  --color-text-primary: #e6edf3;
+  --color-text-secondary: #8b949e;
+  --color-text-tertiary: #6e7681;
+  --color-text-quaternary: #484f58;
+  --color-border-primary: #30363d;
+  --color-border-secondary: #21262d;
+  --color-primary: #60a5fa;
+  --color-primary-hover: #93c5fd;
+  --color-primary-active: #bfdbfe;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-error: #f87171;
+  --color-info: #60a5fa;
+  --color-tag-bg: #1e3a8a;
+  --color-tag-text: #dbeafe;
+  --color-mask: rgba(0, 0, 0, 0.75);
+  --button-primary-text: #ffffff;
+  --button-secondary-bg: #0d1117;
+  --primary-bg-color: #242424;
+  --main-bg-color: #191919;
+  --line-color: #2a2a2a;
+  --text-normal: rgba(255, 255, 255, 0.9);
+  --code-normal: #fbde2d;
+  --code-bg: transparent;
+  --box-shadow1: 0px 3px 3px 0 rgba(128, 128, 128, 0.3);
+  --box-shadow2: 0 4px 21px -12px rgba(0, 0, 0, 0.6);
+  --block-panel-active-bg: #1a1b1d;
+  --table-odd-bg: rgba(255, 255, 255, 0.05);
+  --table-border-color: #606770;
+  --card-bg-color: rgba(255, 255, 255, 0.01);
+  --card-line-color: #3a3f44;
+  --bottom-line-bg: #5472e4;
+  --tab-active-color: #272f3b;
+  --scroller-track-background-color: rgba(255, 255, 255, 0.12);
+  --scroller-thumb-background-color: rgba(255, 255, 255, 0.24);
+  --normal-card-bg: #1d1f22;
+  --common-hover-bg: #222222;
+  --item-common-hover-bg: rgba(255, 255, 255, 0.08);
+  --normal-icon-bg: rgba(255, 255, 255, 0.1);
+  --active-bg-color: hsl(168, 80%, 10%);
+  --active-text-color: hsl(168, 50%, 70%);
+  --active-icon-bg: hsl(168, 80%, 20%);
+  --bullet-list-item-bg: hsl(168, 45%, 95%);
+  --bullet-list-item-shodow: 0 0 0 0.3em hsla(168, 90%, 85%, 0.55);
+  --selection-color: #182f3f;
+  --sidebar-background: transparent;
+  --sidebar-active-bg: #313131;
+  --second-sidevar-background: #363636;
+  --shadow: 0 4px 5px rgba(200, 220, 255, 0.15), 0 8px 10px rgba(158, 178, 255, 0.1);
+  --bg-secondary: #242424;
+  --bg-tertiary: #2c2c2c;
+  --text-primary: rgba(255, 255, 255, 0.9);
+  --text-secondary: rgba(255, 255, 255, 0.6);
+  --ui-border: hsl(220, 10%, 22%);
+  --ui-outline: hsla(212, 100%, 62%, 0.35);
+}
+
+/* antd 浮层外观（明暗一致） */
+html[data-theme] .ant-dropdown,
+html[data-theme] .ant-popover-inner {
+  backdrop-filter: blur(18px) saturate(180%);
+  border-radius: 18px !important;
+}
+html[data-theme] .ant-dropdown-menu {
+  border-radius: 18px;
+  padding: 8px;
+}
+html[data-theme] .ant-dropdown-menu-item,
+html[data-theme] .ant-dropdown-menu-submenu-title {
+  border-radius: 14px;
+  margin-bottom: 2px;
+}
+html[data-theme] .ant-dropdown-menu-item:last-child,
+html[data-theme] .ant-dropdown-menu-submenu-title:last-child {
+  margin-bottom: 0;
+}
+html[data-theme] .ant-popover-inner {
+  border-radius: 18px;
+}
+html[data-theme] .ant-popover-inner-content {
+  padding: 12px;
+}

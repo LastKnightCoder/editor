@@ -1,0 +1,68 @@
+/*
+ * --tau-* 语义 token 桥接（docs/editor-refactor P2，ER-002）。
+ *
+ * 侧边栏保留现有明暗配色（style.css 的 :root / .dark），这里把 @tau/themes 的全部语义
+ * token 映射到这些变量上：编辑器等公共包只消费 --tau-*，外观不变。
+ * 明暗随 .dark 切换（与 style.css 一致），颜色随所引用变量自动跟随。
+ * 词汇表以 packages/themes/src/tokenContract.ts 为准，tau-tokens.test.ts 守护全键齐全。
+ */
+:root {
+  /* surface */
+  --tau-bg-page: var(--color-bg-page);
+  --tau-bg-surface: var(--color-bg-container);
+  --tau-bg-surface-hover: var(--color-bg-elevated);
+  --tau-bg-sunken: var(--color-bg-canvas);
+
+  /* control */
+  --tau-bg-track: var(--color-border-primary);
+
+  /* interaction */
+  --tau-bg-hover: var(--color-hover-bg);
+  --tau-bg-press: var(--color-active-bg);
+  --tau-bg-selected: var(--sb-tab-active-bg);
+
+  /* ink */
+  --tau-ink-1: var(--color-text-primary);
+  --tau-ink-2: var(--color-text-secondary);
+  --tau-ink-3: var(--color-text-tertiary);
+  --tau-ink-inverse: var(--button-primary-text);
+
+  /* line */
+  --tau-line-1: var(--color-border-primary);
+  --tau-line-2: var(--color-border-secondary);
+
+  /* accent */
+  --tau-accent: var(--color-primary);
+  --tau-accent-hover: var(--color-primary-hover);
+  --tau-accent-soft: var(--sb-tab-active-bg);
+  --tau-accent-text: var(--color-primary);
+  --tau-focus-ring: 0 0 0 3px var(--sb-tab-active-bg);
+
+  /* status */
+  --tau-ok: var(--color-success);
+  --tau-ok-soft: color-mix(in srgb, var(--color-success) 12%, transparent);
+  --tau-warn: var(--color-warning);
+  --tau-warn-soft: color-mix(in srgb, var(--color-warning) 12%, transparent);
+  --tau-danger: var(--color-error);
+  --tau-danger-soft: color-mix(in srgb, var(--color-error) 12%, transparent);
+  --tau-info: var(--color-info);
+  --tau-info-soft: color-mix(in srgb, var(--color-info) 12%, transparent);
+
+  /* tag：侧边栏只有一组蓝色标签，其余借用状态色 */
+  --tau-tag-1: var(--color-tag-text);
+  --tau-tag-1-soft: var(--color-tag-bg);
+  --tau-tag-2: var(--tau-ok);
+  --tau-tag-2-soft: var(--tau-ok-soft);
+  --tau-tag-3: var(--tau-info);
+  --tau-tag-3-soft: var(--tau-info-soft);
+  --tau-tag-4: var(--tau-warn);
+  --tau-tag-4-soft: var(--tau-warn-soft);
+  --tau-tag-5: var(--tau-danger);
+  --tau-tag-5-soft: var(--tau-danger-soft);
+
+  /* float */
+  --tau-overlay: var(--color-mask);
+  --tau-shadow-card: var(--sb-card-shadow);
+  --tau-shadow-lift: var(--sb-card-shadow-hover);
+  --tau-shadow-float: var(--box-shadow2);
+}

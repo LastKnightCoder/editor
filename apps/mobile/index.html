@@ -25,6 +25,7 @@
                   : "apricot"
                 : "apricot"; // 含旧值 light 与未设置
           document.documentElement.dataset.theme = resolved;
+          document.documentElement.dataset.mode = resolved === "midnight" ? "dark" : "light";
           if (resolved === "midnight") document.documentElement.classList.add("dark");
         } catch (e) {
           /* ignore */

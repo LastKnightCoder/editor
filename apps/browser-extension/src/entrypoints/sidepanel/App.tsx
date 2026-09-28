@@ -23,11 +23,9 @@ export default function App() {
   // 将 dark 类设置到 html 根元素，确保 Tailwind dark: 和 CSS 变量同时生效
   useEffect(() => {
     const root = document.documentElement;
-    if (isDark) {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
+    root.classList.toggle("dark", isDark);
+    // 公共包按 @tau/themes 约定读 data-mode 判明暗
+    root.dataset.mode = isDark ? "dark" : "light";
   }, [isDark]);
 
   // 初始化浏览器工具服务端（用于处理桌面端的工具调用请求）
@@ -59,50 +57,26 @@ export default function App() {
       },
       components: {
         Dropdown: {
-          colorBgElevated: isDark
-            ? "rgba(10, 15, 28, 0.85)"
-            : "rgba(248, 250, 255, 0.92)",
-          colorBorder: isDark
-            ? "rgba(255, 255, 255, 0.12)"
-            : "rgba(255, 255, 255, 0.45)",
-          colorSplit: isDark
-            ? "rgba(255, 255, 255, 0.12)"
-            : "rgba(255, 255, 255, 0.45)",
-          colorText: isDark
-            ? "rgba(241, 245, 249, 0.95)"
-            : "rgba(15, 23, 42, 0.95)",
-          colorTextDescription: isDark
-            ? "rgba(148, 163, 184, 0.7)"
-            : "rgba(100, 116, 139, 0.7)",
+          colorBgElevated: isDark ? "rgba(10, 15, 28, 0.85)" : "rgba(248, 250, 255, 0.92)",
+          colorBorder: isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(255, 255, 255, 0.45)",
+          colorSplit: isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(255, 255, 255, 0.45)",
+          colorText: isDark ? "rgba(241, 245, 249, 0.95)" : "rgba(15, 23, 42, 0.95)",
+          colorTextDescription: isDark ? "rgba(148, 163, 184, 0.7)" : "rgba(100, 116, 139, 0.7)",
           boxShadowSecondary: isDark
             ? "0 22px 60px rgba(2, 6, 23, 0.7)"
             : "0 18px 45px rgba(15, 23, 42, 0.25)",
-          controlItemBgHover: isDark
-            ? "rgba(148, 163, 184, 0.15)"
-            : "rgba(255, 255, 255, 0.6)",
-          controlItemBgActive: isDark
-            ? "rgba(148, 163, 184, 0.15)"
-            : "rgba(255, 255, 255, 0.6)",
+          controlItemBgHover: isDark ? "rgba(148, 163, 184, 0.15)" : "rgba(255, 255, 255, 0.6)",
+          controlItemBgActive: isDark ? "rgba(148, 163, 184, 0.15)" : "rgba(255, 255, 255, 0.6)",
           controlItemBgActiveHover: isDark
             ? "rgba(148, 163, 184, 0.15)"
             : "rgba(255, 255, 255, 0.6)",
         },
         Popover: {
-          colorBgElevated: isDark
-            ? "rgba(10, 15, 28, 0.85)"
-            : "rgba(248, 250, 255, 0.92)",
-          colorText: isDark
-            ? "rgba(241, 245, 249, 0.95)"
-            : "rgba(15, 23, 42, 0.95)",
-          colorTextDescription: isDark
-            ? "rgba(148, 163, 184, 0.7)"
-            : "rgba(100, 116, 139, 0.7)",
-          colorTextHeading: isDark
-            ? "rgba(241, 245, 249, 0.95)"
-            : "rgba(15, 23, 42, 0.95)",
-          colorSplit: isDark
-            ? "rgba(255, 255, 255, 0.12)"
-            : "rgba(255, 255, 255, 0.45)",
+          colorBgElevated: isDark ? "rgba(10, 15, 28, 0.85)" : "rgba(248, 250, 255, 0.92)",
+          colorText: isDark ? "rgba(241, 245, 249, 0.95)" : "rgba(15, 23, 42, 0.95)",
+          colorTextDescription: isDark ? "rgba(148, 163, 184, 0.7)" : "rgba(100, 116, 139, 0.7)",
+          colorTextHeading: isDark ? "rgba(241, 245, 249, 0.95)" : "rgba(15, 23, 42, 0.95)",
+          colorSplit: isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(255, 255, 255, 0.45)",
           boxShadowSecondary: isDark
             ? "0 22px 60px rgba(2, 6, 23, 0.7)"
             : "0 18px 45px rgba(15, 23, 42, 0.25)",
@@ -113,7 +87,7 @@ export default function App() {
         },
       },
     }),
-    [isDark],
+    [isDark]
   );
 
   // 追踪是否曾经成功连接过，用于区分首次连接与重连
@@ -121,8 +95,7 @@ export default function App() {
   if (status === "connected") wasEverConnectedRef.current = true;
 
   const showMainLayout =
-    status === "connected" ||
-    (status === "connecting" && wasEverConnectedRef.current);
+    status === "connected" || (status === "connecting" && wasEverConnectedRef.current);
   const showWelcome = status === "disconnected";
   const showLoading = status === "connecting" && !wasEverConnectedRef.current;
 
@@ -150,9 +123,7 @@ export default function App() {
             ) : showLoading ? (
               <div className="flex h-full flex-col items-center justify-center">
                 <div className="mb-4 h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
-                <p className="text-sm text-gray-400 dark:text-[#484f58]">
-                  正在连接...
-                </p>
+                <p className="text-sm text-gray-400 dark:text-[#484f58]">正在连接...</p>
               </div>
             ) : (
               <WelcomePage status={status} onRetry={reconnect} />
