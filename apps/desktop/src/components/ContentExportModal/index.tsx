@@ -316,17 +316,11 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
               style={{
                 background: background,
                 width: `${width}px`,
+                // 编辑器正文色继承容器；预览底色由导出主题决定，不跟随应用明暗
+                color: theme === "dark" ? "#fff" : "#000",
               }}
             >
-              {title && (
-                <div
-                  className={`mb-4 text-center text-xl font-semibold ${
-                    theme === "dark" ? "text-white" : "text-black"
-                  }`}
-                >
-                  {title}
-                </div>
-              )}
+              {title && <div className="mb-4 text-center text-xl font-semibold">{title}</div>}
               <EditorThemeOverride mode={theme}>
                 <Editor initValue={content} readonly={true} extensions={extensions} />
               </EditorThemeOverride>
