@@ -2,7 +2,7 @@ import { Role } from "@/constants";
 import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
 import type { RequestMessage, ToolCallExecutionState, ToolCallPayload } from "@/types/llm";
 import type { ToolExecutionResult } from "@/types";
-import type { AgentModelUsage } from "@tau/agent";
+import type { ModelUsage as AgentModelUsage } from "@tau/shared";
 import type { PPTTemplate } from "@/constants/ppt-templates";
 import type { ReportTemplate } from "@/constants/report-templates";
 import type { PodcastSpeaker } from "@/types/podcast";

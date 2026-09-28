@@ -1,6 +1,5 @@
-import type { AgentTool } from "@tau/agent";
-
 import toolRegistry from "@/tools";
+import type { ToolDefinition, ToolExecutor } from "@/types";
 
 const BUILTIN_SKILL_TOOL_NAMES = new Set([
   "list_skills",
@@ -10,7 +9,11 @@ const BUILTIN_SKILL_TOOL_NAMES = new Set([
 ]);
 
 /** 带启用态的工具（includeDisabled 时用于「注册全集 + 活跃子集」的会话装配） */
-export type RegistryAgentTool = AgentTool & { enabled: boolean };
+export type RegistryAgentTool = Omit<ToolDefinition, "executor"> & {
+  source: string;
+  execute: ToolExecutor;
+  enabled: boolean;
+};
 
 export const getToolRegistryAgentTools = (options?: {
   includeBuiltinSkillTools?: boolean;

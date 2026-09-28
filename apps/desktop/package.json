@@ -113,7 +113,6 @@
     "@slate-yjs/core": "1.0.2",
     "@tailwindcss/vite": "^4.1.17",
     "@tanstack/react-virtual": "3.13.12",
-    "@tau/agent": "workspace:*",
     "@tau/editor": "workspace:*",
     "@tau/editor-webview": "workspace:*",
     "@tau/platform": "workspace:*",

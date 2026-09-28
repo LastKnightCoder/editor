@@ -21,8 +21,6 @@
     "paths": {
       "@/*": ["./src/*"],
       "@editor/*": ["./src/components/Editor/*"],
-      "@tau/agent": ["../../packages/agent/src"],
-      "@tau/agent/*": ["../../packages/agent/src/*"],
       "@tau/editor": ["../../packages/editor/src"],
       "@tau/contracts": ["../../packages/contracts/src"],
       "@tau/platform": ["../../packages/platform/src"],

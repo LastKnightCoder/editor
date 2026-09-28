@@ -1,6 +1,7 @@
 import type { ChatMessage, RequestMessage, ResponseMessage, TextContent } from "@/types";
 import { Role } from "@/constants";
-import { isAbortError } from "@tau/agent";
+const isAbortError = (error: unknown): boolean =>
+  !!error && typeof error === "object" && (error as { name?: unknown }).name === "AbortError";
 
 export const shouldRestoreInputAfterSendError = (error: unknown): boolean => !isAbortError(error);
 
