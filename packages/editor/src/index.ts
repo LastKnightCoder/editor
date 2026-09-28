@@ -6,6 +6,8 @@ export {
   useEditorExtensions,
   type EditorProviderProps,
 } from "./contexts/EditorProvider";
+export { createEditorKit, createBareEditorKit, createEditorKitFromRegistry } from "./kit/EditorKit";
+export type { EditorKit, EditorKitOptions, EditorKitExtendOptions } from "./kit/EditorKit";
 
 export type {
   ResourceService,

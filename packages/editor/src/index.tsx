@@ -30,8 +30,9 @@ import CollaborationCursors from "./collaboration/Cursors";
 import SafeCollaborationElement, { requiresSafeRendering } from "./collaboration/SafeElement";
 import { useCreation, useMemoizedFn } from "ahooks";
 
-import { useEditorExtensions } from "./contexts/EditorProvider";
-import { useServiceRegistry } from "./services/hooks";
+import { EditorKitScope, useKitWithExtensions } from "./kit/context";
+import type { EditorKit } from "./kit/EditorKit";
+import { useCompatibleKit } from "./kit/providerCompat";
 import type { ServiceIdentifier } from "./services/tokens";
 
 import {
@@ -49,7 +50,6 @@ import {
   withNormalizedCopy,
 } from "./plugins";
 import IExtension from "./extensions/types";
-import { PluginOptimizer } from "./utils/PluginOptimizer";
 import type { EditorRef } from "./types/editor";
 
 import hotkeys from "./hotkeys";
@@ -58,7 +58,6 @@ import HoveringToolbar from "./components/HoveringToolbar";
 import BlockPanel from "./components/BlockPanel";
 import MediaUrlInputModal from "./components/MediaUrlInputModal";
 import FormattedText from "./components/FormattedText";
-import { startExtensions } from "./extensions";
 import { IConfigItem, IHotKeyConfig } from "./types";
 
 import "codemirror/mode/stex/stex.js";
@@ -96,6 +95,9 @@ interface IEditorProps {
   onChange?: (value: Descendant[], editor: Editor) => void;
   onSelectionChange?: () => void;
   readonly?: boolean;
+  /** 本编辑器的组成（扩展 + 服务 + 主题）。不传则继承外层编辑器的 kit */
+  kit?: EditorKit;
+  /** 只作用于本实例的扩展；按 type 覆盖 kit 里的同名实现 */
   extensions?: IExtension[];
   hotkeyConfigs?: IHotKeyConfig[];
   hoveringBarConfigs?: IConfigItem[];
@@ -125,12 +127,6 @@ const EMPTY_EDITOR_CONTENT: Descendant[] = [
   { type: "paragraph", children: [{ type: "formatted", text: "" }] },
 ];
 
-const mergeExtensions = (...groups: IExtension[][]): IExtension[] => {
-  const byType = new Map<string, IExtension>();
-  groups.flat().forEach(extension => byType.set(extension.type, extension));
-  return Array.from(byType.values());
-};
-
 const Index = memo(
   forwardRef<EditorRef, IEditorProps>((props, ref) => {
     const {
@@ -138,6 +134,7 @@ const Index = memo(
       onChange,
       onSelectionChange,
       readonly = true,
+      kit: kitProp,
       extensions,
       hotkeyConfigs,
       hoveringBarConfigs,
@@ -152,26 +149,15 @@ const Index = memo(
       collaborationCursors = true,
     } = props;
 
-    const hostExtensions = useEditorExtensions();
-    const pluginOptimizer = useCreation(() => new PluginOptimizer(), []);
-    const registry = useServiceRegistry();
+    const baseKit = useCompatibleKit(kitProp, disableStartExtensions);
+    const kit = useKitWithExtensions(baseKit, extensions);
+    const assembly = kit.assembly;
+    const registry = kit.registry;
     const registryRef = useRef(registry);
     registryRef.current = registry;
     const currentValue = useRef<Descendant[]>(initValue);
     const pendingSetEditorValueJson = useRef<string | null>(null);
     const collaborationContainerRef = useRef<HTMLDivElement>(null);
-
-    const finalExtensions: IExtension[] = useMemo(() => {
-      // disableStartExtensions 表示"裸编辑器"（如发布预览），不注入宿主扩展
-      if (disableStartExtensions) {
-        return mergeExtensions(extensions ? [...extensions] : []);
-      }
-      return mergeExtensions(startExtensions, hostExtensions, extensions ?? []);
-    }, [extensions, disableStartExtensions, hostExtensions]);
-
-    const optimizedExtensionData = useMemo(() => {
-      return pluginOptimizer.optimizeExtensions(finalExtensions);
-    }, [finalExtensions, pluginOptimizer]);
 
     const editor = useCreation(() => {
       const processedEditor = applyPlugin(
@@ -179,7 +165,7 @@ const Index = memo(
         collaboration ? defaultPlugins.filter(plugin => plugin !== withHistory) : defaultPlugins
       );
 
-      const finalEditor = applyPlugin(processedEditor, optimizedExtensionData.plugins);
+      const finalEditor = applyPlugin(processedEditor, [...assembly.plugins]);
       const enhancedEditor = withBlockNavigation(finalEditor);
 
       // 启用 Chunking 优化大文档性能
@@ -195,12 +181,7 @@ const Index = memo(
       slateEditor.tryGetService = <T,>(id: ServiceIdentifier<T>): T | undefined =>
         registryRef.current.tryGet(id);
       return slateEditor;
-    }, [
-      optimizedExtensionData.plugins,
-      collaboration?.doc,
-      collaboration?.root,
-      collaborationCursors,
-    ]);
+    }, [assembly.plugins, collaboration?.doc, collaboration?.root, collaborationCursors]);
 
     useEffect(() => {
       if (!YjsEditor.isYjsEditor(editor)) return;
@@ -214,16 +195,16 @@ const Index = memo(
     }, [editor]);
 
     const finalHotKeyConfigs = useMemo(() => {
-      return [...optimizedExtensionData.hotkeyConfigs, ...hotkeys, ...(hotkeyConfigs || [])];
-    }, [optimizedExtensionData.hotkeyConfigs, hotkeyConfigs]);
+      return [...assembly.hotkeyConfigs, ...hotkeys, ...(hotkeyConfigs || [])];
+    }, [assembly.hotkeyConfigs, hotkeyConfigs]);
 
     const finalHoveringBarConfigs = useMemo(() => {
-      const configs = [...optimizedExtensionData.hoveringBarElements];
+      const configs = [...assembly.hoveringBarElements];
       if (hoveringBarConfigs) {
         return configs.concat(hoveringBarConfigs);
       }
       return configs;
-    }, [optimizedExtensionData.hoveringBarElements, hoveringBarConfigs]);
+    }, [assembly.hoveringBarElements, hoveringBarConfigs]);
 
     const renderElement = useMemoizedFn((props: RenderElementProps) => {
       const { type } = props.element;
@@ -233,9 +214,7 @@ const Index = memo(
           typeof collabId === "string" ? collaboration.privateNodes.get(collabId) : undefined;
         // 数据持有端（作者）复用原组件渲染真身，只读控制交给组件自身的 useReadOnly；
         // 远端没有私有数据，仍显示占位说明。
-        const extension = privateNode?.type
-          ? pluginOptimizer.getExtension(privateNode.type)
-          : undefined;
+        const extension = privateNode?.type ? assembly.getExtension(privateNode.type) : undefined;
         if (privateNode && extension)
           return extension.render({
             ...props,
@@ -243,7 +222,7 @@ const Index = memo(
           });
         return <SafeCollaborationElement {...props} />;
       }
-      const extension = pluginOptimizer.getExtension(type);
+      const extension = assembly.getExtension(type);
       if (extension) {
         return extension.render(props);
       }
@@ -429,72 +408,74 @@ const Index = memo(
     }, [editor, initValue, isInit, onInit]);
 
     return (
-      <CollaborationContext.Provider value={collaboration}>
-        <EditorThemeScope service={registry?.tryGet(IThemeService)}>
-          {scope => (
-            <Slate
-              editor={editor}
-              initialValue={initValue}
-              onChange={handleOnChange}
-              key={finalExtensions.map((extension: IExtension) => extension.type).join("-")}
-            >
-              <div
-                ref={collaborationContainerRef}
-                className="tau-editor"
-                data-theme={scope.overridden ? scope.themeKey || undefined : undefined}
-                data-mode={scope.overridden ? scope.mode : undefined}
-                style={collaboration ? { position: "relative" } : { display: "contents" }}
+      <EditorKitScope kit={kit}>
+        <CollaborationContext.Provider value={collaboration}>
+          <EditorThemeScope service={registry?.tryGet(IThemeService)}>
+            {scope => (
+              <Slate
+                editor={editor}
+                initialValue={initValue}
+                onChange={handleOnChange}
+                key={kit.assembly.extensions.map(extension => extension.type).join("-")}
               >
-                <Editable
-                  className={classnames(styles.editor, props.className)}
-                  style={props.style}
-                  readOnly={readonly}
-                  renderElement={renderElement}
-                  renderLeaf={renderLeaf}
-                  renderChunk={renderChunk}
-                  placeholder={placeHolder}
-                  decorate={decorate}
-                  onKeyDown={event => {
-                    registerHotKey(editor, event, finalHotKeyConfigs);
-                  }}
-                  onDrag={e => {
-                    e.preventDefault();
-                  }}
-                  onDrop={async e => {
-                    e.preventDefault();
+                <div
+                  ref={collaborationContainerRef}
+                  className="tau-editor"
+                  data-theme={scope.overridden ? scope.themeKey || undefined : undefined}
+                  data-mode={scope.overridden ? scope.mode : undefined}
+                  style={collaboration ? { position: "relative" } : { display: "contents" }}
+                >
+                  <Editable
+                    className={classnames(styles.editor, props.className)}
+                    style={props.style}
+                    readOnly={readonly}
+                    renderElement={renderElement}
+                    renderLeaf={renderLeaf}
+                    renderChunk={renderChunk}
+                    placeholder={placeHolder}
+                    decorate={decorate}
+                    onKeyDown={event => {
+                      registerHotKey(editor, event, finalHotKeyConfigs);
+                    }}
+                    onDrag={e => {
+                      e.preventDefault();
+                    }}
+                    onDrop={async e => {
+                      e.preventDefault();
 
-                    const files = e.dataTransfer?.files;
-                    if (!files || files.length === 0 || readonly) return;
+                      const files = e.dataTransfer?.files;
+                      if (!files || files.length === 0 || readonly) return;
 
-                    // 计算拖放位置
-                    const range = ReactEditor.findEventRange(editor, e);
-                    if (range && editor.handleDrop) {
-                      await editor.handleDrop(files, range.anchor);
-                    }
-                  }}
-                  onSelect={() => {
-                    if (syncSelectionSnapshot()) {
-                      onSelectionChange?.();
-                    }
-                  }}
-                  scrollSelectionIntoView={scrollSelectionIntoView}
-                  onFocus={onFocus}
-                  onBlur={onBlur}
-                />
-                {collaboration && collaborationCursors && (
-                  <CollaborationCursors
-                    containerRef={collaborationContainerRef as React.RefObject<HTMLDivElement>}
+                      // 计算拖放位置
+                      const range = ReactEditor.findEventRange(editor, e);
+                      if (range && editor.handleDrop) {
+                        await editor.handleDrop(files, range.anchor);
+                      }
+                    }}
+                    onSelect={() => {
+                      if (syncSelectionSnapshot()) {
+                        onSelectionChange?.();
+                      }
+                    }}
+                    scrollSelectionIntoView={scrollSelectionIntoView}
+                    onFocus={onFocus}
+                    onBlur={onBlur}
                   />
-                )}
-              </div>
-              <ImagesOverview />
-              {!readonly && <MediaUrlInputModal />}
-              {!readonly && <HoveringToolbar configs={finalHoveringBarConfigs} />}
-              {!readonly && <BlockPanel extensions={finalExtensions} />}
-            </Slate>
-          )}
-        </EditorThemeScope>
-      </CollaborationContext.Provider>
+                  {collaboration && collaborationCursors && (
+                    <CollaborationCursors
+                      containerRef={collaborationContainerRef as React.RefObject<HTMLDivElement>}
+                    />
+                  )}
+                </div>
+                <ImagesOverview />
+                {!readonly && <MediaUrlInputModal />}
+                {!readonly && <HoveringToolbar configs={finalHoveringBarConfigs} />}
+                {!readonly && <BlockPanel extensions={[...kit.assembly.extensions]} />}
+              </Slate>
+            )}
+          </EditorThemeScope>
+        </CollaborationContext.Provider>
+      </EditorKitScope>
     );
   })
 );
