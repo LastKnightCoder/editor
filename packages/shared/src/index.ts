@@ -197,6 +197,7 @@ export {
   type AiRunEventNotification,
   type AiRunQuestionRequest,
   type AiRunStartParams,
+  type AiRunSnapshot,
   type AiRunStateResult,
 } from "./chat-core/aiRunProtocol";
 

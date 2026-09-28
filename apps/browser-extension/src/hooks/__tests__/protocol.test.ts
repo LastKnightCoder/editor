@@ -1,7 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
 import type { ChatMessageType } from "@tau/shared";
-import { createRunEventFilter } from "@tau/shared";
-import { buildAiRunStartParams, mapChatMessageToAiRequestMessage } from "../useAiChat";
+import { applyChatStreamEvent, createAssistantMessage, createRunEventFilter } from "@tau/shared";
+import {
+  buildAiRunStartParams,
+  buildResumedMessages,
+  mapChatMessageToAiRequestMessage,
+} from "../useAiChat";
 import { fetchSkillsViaRpc } from "../useSkills";
 
 describe("ai.run.start 协议（v2）", () => {
@@ -38,6 +42,48 @@ describe("ai.run.start 协议（v2）", () => {
     expect(accept({ runId: "run-1", seq: 0, event })).toBeNull();
     expect(accept({ runId: "run-1", seq: 2, event })).toEqual(event);
     expect(accept({ runId: "run-1", seq: 1, event })).toBeNull();
+  });
+
+  it("接回在跑的一轮：从快照的 lastSeq 续接，快照已含的事件丢弃", () => {
+    const accept = createRunEventFilter("run-1", 4);
+    const event = { type: "turn-finish", turnId: "t" } as const;
+    expect(accept({ runId: "run-1", seq: 3, event })).toBeNull();
+    expect(accept({ runId: "run-1", seq: 4, event })).toBeNull();
+    expect(accept({ runId: "run-1", seq: 5, event })).toEqual(event);
+  });
+
+  it("接回的界面 = 本轮之前的对话 + 本轮提问 + 到此刻的回答", () => {
+    const response = createAssistantMessage();
+    applyChatStreamEvent(response, { type: "text", turnId: "t1", fullText: "写到一半" });
+    const messages = buildResumedMessages(
+      {
+        runId: "run-1",
+        lastSeq: 3,
+        baseMessages: [
+          { role: "user", content: "上一问", clientId: "u0" } as never,
+          { role: "assistant", content: "上一答", clientId: "a0" } as never,
+        ],
+        request: {
+          role: "user",
+          content: [
+            { type: "text", text: "这一问" },
+            { type: "image", image: "data:image/png;base64,xx" },
+          ],
+        },
+        response,
+        interactions: { approvals: [], questions: [] },
+        retry: null,
+      },
+      "assistant-id"
+    );
+    expect(messages.map(message => [message.role, message.content])).toEqual([
+      ["user", "上一问"],
+      ["assistant", "上一答"],
+      ["user", "这一问\n[图片]"],
+      ["assistant", "写到一半"],
+    ]);
+    expect(messages.at(-1)!.id).toBe("assistant-id");
+    expect((messages[2] as { requestContent?: unknown[] }).requestContent).toHaveLength(2);
   });
 
   it("支持 user/assistant/tool 历史消息映射", () => {

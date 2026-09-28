@@ -63,7 +63,7 @@ import { PiSessionInteractions } from "./pi-session-interactions";
 import { normalizePermissionMode } from "@/services/tool-permission/mode";
 import { resolveV2Providers } from "./pi-ai-runtime-core";
 import type { LLMProviderSetting, PiThinkingLevel } from "@/types/pi-llm";
-import type { RequestMessage } from "@/types";
+import type { ChatSessionMessage, RequestMessage } from "@/types";
 import type { AgentSession, ExtensionAPI, InlineExtension } from "@earendil-works/pi-coding-agent";
 import { basename, join } from "node:path";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
@@ -687,6 +687,12 @@ class PiSessionHostModule {
 
   public static interactionsOf(sessionId: string) {
     return PiSessionHostModule.sessions.get(sessionId)?.interactions;
+  }
+
+  /** 宿主会话当前路径的投影（读内存里的 SessionManager，不开文件） */
+  public static transcriptOf(sessionId: string): ChatSessionMessage[] {
+    const hosted = PiSessionHostModule.sessions.get(sessionId);
+    return hosted ? piEntriesToDesktopMessages(transcriptOf(hosted.session.sessionManager)) : [];
   }
 
   /** 工具桥回传（主进程客户端执行完工具后调用；渲染端走 pi-session:tool-* IPC） */

@@ -17,12 +17,19 @@ import WebSocket from "ws";
 import { randomUUID } from "node:crypto";
 import { ipcMain } from "electron";
 import log from "electron-log";
-import { AI_RUN_METHODS, type AiRunEventNotification, type AiRunStartParams } from "@tau/shared";
+import {
+  AI_RUN_METHODS,
+  type AiRunEventNotification,
+  type AiRunStartParams,
+  type AiRunStateResult,
+} from "@tau/shared";
 import type { PiHostToolSpec, PiSessionInteractionSnapshot } from "@/types/pi-session";
 import { RpcMessageType } from "@/types/rpc";
 import userSettingModule from "./user-setting";
 import PiSessionHostModule, { type PiSessionClient } from "./pi-session-host";
 import { RPC_SERVER_PORT } from "./server";
+import { browserSessionFile, readTranscript } from "./pi-session-store";
+import { browserSessionDirOf } from "./pi-session-paths";
 import { getMainWindows } from "../windows";
 import {
   BrowserRunRegistry,
@@ -233,8 +240,16 @@ class BrowserBridgeModule {
         await registry.abort(String(params.runId));
         return { ok: true };
       case AI_RUN_METHODS.state: {
-        const runId = registry.runningFor(params.session as { id: string; pageUrl: string });
-        return runId ? { running: true, runId } : { running: false };
+        const session = params.session as { id: string; pageUrl: string };
+        const snapshot = registry.snapshotFor(session, () =>
+          readTranscript(
+            browserSessionFile(session.pageUrl, session.id),
+            browserSessionDirOf(session.pageUrl)
+          )
+        );
+        return (
+          snapshot ? { running: true, runId: snapshot.runId, snapshot } : { running: false }
+        ) satisfies AiRunStateResult;
       }
       case AI_RUN_METHODS.approve:
         return {
@@ -324,6 +339,8 @@ class BrowserBridgeModule {
           PiSessionHostModule.dispose(hostId);
           throw new Error("缺少本轮的用户消息");
         }
+        // prompt 之前的投影：侧栏重开接回时作底（本轮的用户消息与回答由快照补上）
+        const baseMessages = PiSessionHostModule.transcriptOf(hostId);
         let aborted = false;
         const done = (async () => {
           const prompted = PiSessionHostModule.prompt(
@@ -349,6 +366,7 @@ class BrowserBridgeModule {
         });
 
         const handle: BrowserRunHandle = {
+          baseMessages,
           done,
           abort: async () => {
             aborted = true;
