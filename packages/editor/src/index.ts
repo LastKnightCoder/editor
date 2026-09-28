@@ -8,10 +8,8 @@ export {
 } from "./contexts/EditorContext";
 export {
   useEditorConfig,
-  DEFAULT_IMAGE_APPEARANCE,
   type EditorConfig,
   type EditorThemeConfig,
-  type EditorAppearanceConfig,
 } from "./contexts/EditorConfig";
 export {
   EditorProvider,
@@ -67,6 +65,13 @@ export { createMarkdownPasteImportExtension } from "./extensions/markdown-paste-
 export type { MarkdownImportFn } from "./extensions/markdown-paste-import";
 export { default as PlantUMLExtension } from "./extensions/plantuml";
 export type { PlantUMLExtensionOptions } from "./extensions/plantuml";
+export { createImageExtensions } from "./extensions/image/createImageExtensions";
+export type {
+  ImageExtensionOptions,
+  ImageAppearanceOption,
+  ImageAppearanceSource,
+} from "./extensions/image/appearanceOption";
+export type { ImageAppearanceConfig } from "./extensions/image/utils/appearance";
 export { default as useEditorFeatures } from "./hooks/useEditorFeatures";
 export { useEditorTheme, EditorThemeScope } from "./theme/context";
 export type { EditorTheme } from "./theme/context";

@@ -4,8 +4,9 @@ import FileAttachmentExtension from "./file-attachment";
 import ProjectCardListExtension from "./project-card-list";
 import InlineAIAssistantExtension from "./inline-ai-assistant";
 import WebviewExtension from "@tau/editor-webview";
-import { createMarkdownPasteImportExtension } from "@tau/editor/src";
+import { createImageExtensions, createMarkdownPasteImportExtension } from "@tau/editor/src";
 import { desktopImportFromMarkdown } from "@/services/editorServiceImplementations";
+import useSettingStore from "@/stores/useSettingStore";
 
 export const createProjectCardListExtension = (projectId?: number) =>
   new ProjectCardListExtension(projectId);
@@ -19,4 +20,11 @@ export const inlineAIAssistantExtension = new InlineAIAssistantExtension();
 export const createDesktopEditorExtensions = () => [
   createMarkdownPasteImportExtension(desktopImportFromMarkdown),
   new WebviewExtension(),
+  // 图片默认外观随设置变化，订阅 store，不必重建扩展
+  ...createImageExtensions({
+    appearance: {
+      get: () => useSettingStore.getState().setting.appearance?.image,
+      subscribe: listener => useSettingStore.subscribe(listener),
+    },
+  }),
 ];

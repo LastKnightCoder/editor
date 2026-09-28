@@ -8,7 +8,7 @@ import { getInitData, formatDate, getReadingTime, getPlainText, joinPath } from 
 import { QuestAnswerData, QuestData } from "@blog/types";
 import DndProvider from "@blog/components/DndProvider";
 import { createBlogEditorRegistry, createBlogEditorConfig } from "@blog/services/editorRegistry";
-import { blogEditorExtensions } from "@blog/editorExtensions";
+import { createBlogEditorExtensions } from "@blog/editorExtensions";
 import useBlogTheme from "@blog/hooks/useBlogTheme";
 import { fadeUp, defaultTransition } from "@blog/utils/motion";
 
@@ -127,10 +127,8 @@ const AnswerContent = memo(
 
     // hooks 必须先于下方条件早退调用，避免远端答案加载完成后 hooks 数量变化
     const editorRegistry = useMemo(() => createBlogEditorRegistry(), []);
-    const editorConfig = useMemo(
-      () => createBlogEditorConfig(settings, blogTheme),
-      [settings, blogTheme]
-    );
+    const editorConfig = useMemo(() => createBlogEditorConfig(blogTheme), [blogTheme]);
+    const editorExtensions = useMemo(() => createBlogEditorExtensions(settings), [settings]);
 
     if (remote.loading) {
       return <p className="text-sm text-[var(--color-text-tertiary)]">正在取回答案...</p>;
@@ -145,7 +143,7 @@ const AnswerContent = memo(
         <EditorProvider
           registry={editorRegistry}
           config={editorConfig}
-          extensions={blogEditorExtensions}
+          extensions={editorExtensions}
         >
           <Editor initValue={remote.content} readonly />
         </EditorProvider>
@@ -232,9 +230,10 @@ const QuestPage = memo(() => {
   const blogSettings = initData.settings;
   const blogTheme = useBlogTheme();
   const blogEditorRegistry = useMemo(() => createBlogEditorRegistry(), []);
-  const blogEditorConfig = useMemo(
-    () => createBlogEditorConfig(blogSettings, blogTheme),
-    [blogSettings, blogTheme]
+  const blogEditorConfig = useMemo(() => createBlogEditorConfig(blogTheme), [blogTheme]);
+  const blogEditorExtensions = useMemo(
+    () => createBlogEditorExtensions(blogSettings),
+    [blogSettings]
   );
   const hasDescription = Boolean(quest.description && getPlainText(quest.description).trim());
 

@@ -35,7 +35,7 @@ vi.mock("@blog/components/DndProvider", () => ({
 }));
 
 vi.mock("@blog/editorExtensions", () => ({
-  blogEditorExtensions: [],
+  createBlogEditorExtensions: () => [],
 }));
 
 vi.mock("@blog/services/editorRegistry", () => ({

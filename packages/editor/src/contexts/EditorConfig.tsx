@@ -1,5 +1,4 @@
 import { useEditorEnvironment } from "./EditorProvider";
-import type { ImageBorderRadiusPreset, ImageShadowPreset } from "../types/element/image-appearance";
 
 /**
  * 编辑器全局配置：内核规定规范（本文件中的类型），宿主在外层通过
@@ -15,26 +14,11 @@ export interface EditorThemeConfig {
   mode: "light" | "dark";
 }
 
-export interface EditorAppearanceConfig {
-  image?: {
-    borderRadius?: ImageBorderRadiusPreset;
-    shadow?: ImageShadowPreset | boolean;
-  };
-}
-
 export interface EditorConfig {
   theme: EditorThemeConfig;
-  /** 元素外观默认值（未配置时使用内核默认） */
-  appearance?: EditorAppearanceConfig;
 }
 
 /** React 消费：Provider 内读取配置，未配置时返回 null。 */
 export const useEditorConfig = (): EditorConfig | null => {
   return useEditorEnvironment().config;
-};
-
-/** 内核默认外观 */
-export const DEFAULT_IMAGE_APPEARANCE = {
-  borderRadius: "none" as ImageBorderRadiusPreset,
-  shadow: "none" as ImageShadowPreset,
 };

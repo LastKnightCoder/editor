@@ -10,7 +10,7 @@ import { getInlineElementText } from "@blog/utils/editor";
 import DndProvider from "@blog/components/DndProvider";
 import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
 import { createBlogEditorRegistry, createBlogEditorConfig } from "@blog/services/editorRegistry";
-import { blogEditorExtensions } from "@blog/editorExtensions";
+import { createBlogEditorExtensions } from "@blog/editorExtensions";
 import useBlogTheme from "@blog/hooks/useBlogTheme";
 
 const DOC_SIDEBAR_SCROLL_STORAGE_KEY = "blog:doc-sidebar-scroll";
@@ -41,9 +41,10 @@ const DocPage = memo(() => {
   const blogSettings = initData.settings;
   const blogTheme = useBlogTheme();
   const blogEditorRegistry = useMemo(() => createBlogEditorRegistry(), []);
-  const blogEditorConfig = useMemo(
-    () => createBlogEditorConfig(blogSettings, blogTheme),
-    [blogSettings, blogTheme]
+  const blogEditorConfig = useMemo(() => createBlogEditorConfig(blogTheme), [blogTheme]);
+  const blogEditorExtensions = useMemo(
+    () => createBlogEditorExtensions(blogSettings),
+    [blogSettings]
   );
   const sidebarScrollRef = useRef<HTMLDivElement | null>(null);
   const [activeHeaderIndex, setActiveHeaderIndex] = useState(0);

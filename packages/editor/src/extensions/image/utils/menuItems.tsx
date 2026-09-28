@@ -14,7 +14,6 @@ import { Transforms } from "slate";
 import { ReactEditor } from "slate-react";
 import { App } from "antd";
 import { IFileService, IMediaActions } from "../../../services";
-import type { EditorAppearanceConfig } from "../../../contexts/EditorConfig";
 import { ContextMenuItem, BuildMenuParams } from "../../../components/EditorContextMenu/types";
 import type {
   FileService,
@@ -27,6 +26,7 @@ import {
   IMAGE_BORDER_RADIUS_OPTIONS,
   IMAGE_SHADOW_OPTIONS,
   normalizeImageShadowPreset,
+  type ImageAppearanceConfig,
 } from "./appearance";
 
 const resolveLocalPath = async (url: string, fileService?: FileService) => {
@@ -116,7 +116,7 @@ async function copyImageLink(
 export function buildImageMenuItems(
   params: BuildMenuParams<ImageElement>,
   message?: ReturnType<typeof App.useApp>["message"],
-  appearance?: EditorAppearanceConfig["image"]
+  appearance?: ImageAppearanceConfig
 ): ContextMenuItem[] {
   const { element, editor } = params;
   const fileService = editor.getService(IFileService);

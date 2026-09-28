@@ -12,6 +12,8 @@ import {
   type ServiceRegistry,
   type EditorSlots,
   type EditorConfig,
+  type ImageAppearanceConfig,
+  type ImageAppearanceSource,
 } from "@tau/editor/src";
 import { markdownCustomDirectives } from "@tau/shared";
 import LocalAudio from "../components/editor/LocalAudio";
@@ -133,22 +135,22 @@ export const mobileImportFromMarkdown = (
     },
   });
 
-/** Mobile 编辑器全局配置：主题取文档当前状态，图片外观读设置桥快照 */
+/** 图片默认外观：读设置桥快照，快照更新时编辑器随之刷新 */
+export const mobileImageAppearance: ImageAppearanceSource = {
+  get: () => getMobileSettingByPath<ImageAppearanceConfig>("appearance.image"),
+  subscribe: subscribeMobileSettingSnapshot,
+};
+
+/** Mobile 编辑器全局配置：主题取文档当前状态 */
 export function createMobileEditorConfig(): EditorConfig {
-  const theme = readMobileTheme();
-  const image =
-    getMobileSettingByPath<NonNullable<NonNullable<EditorConfig["appearance"]>["image"]>>(
-      "appearance.image"
-    );
   return {
     theme: {
-      mode: theme,
+      mode: readMobileTheme(),
     },
-    appearance: image ? { image } : undefined,
   };
 }
 
-/** 响应式版本：主题经 html[data-theme] 切换、设置快照更新时重建配置 */
+/** 响应式版本：主题经 html[data-theme] 切换时重建配置 */
 export function useMobileEditorConfig(): EditorConfig {
   const [config, setConfig] = useState(createMobileEditorConfig);
 
@@ -160,12 +162,8 @@ export function useMobileEditorConfig(): EditorConfig {
       attributes: true,
       attributeFilter: ["data-theme", "class"],
     });
-    const unsubscribeSettings = subscribeMobileSettingSnapshot(() => {
-      setConfig(createMobileEditorConfig());
-    });
     return () => {
       observer.disconnect();
-      unsubscribeSettings();
     };
   }, []);
 
