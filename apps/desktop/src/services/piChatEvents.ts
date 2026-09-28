@@ -269,7 +269,7 @@ export class PiChatEventReducer {
         if (message.usage) {
           this.sink.applyUsage(
             {
-              inputTokens: message.usage.input,
+              inputTokens: message.usage.input + message.usage.cacheRead + message.usage.cacheWrite,
               outputTokens: message.usage.output,
               cacheReadTokens: message.usage.cacheRead,
               cacheWriteTokens: message.usage.cacheWrite,

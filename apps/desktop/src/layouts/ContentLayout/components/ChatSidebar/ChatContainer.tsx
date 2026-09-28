@@ -67,6 +67,7 @@ import {
 import { ToolRendererInteractionProvider } from "@/tool-call-renderers/ToolRendererInteractionContext";
 import { createAssistantMessage } from "@/services/assistantMessageBlocks";
 import { createChatMessageClientId } from "@/services/chatMessageSchema";
+import { latestContextUsage } from "@/services/chatContextUsage";
 import {
   buildTitleSummaryMessages,
   formatGeneratedChatTitle,
@@ -366,7 +367,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         ? {
             usageModel: {
               providerId: chatProviderConfig.id,
-              modelName: chatModelConfig.name,
+              modelId: chatModelConfig.id,
             },
           }
         : {}),
@@ -906,22 +907,12 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const [treeOpen, setTreeOpen] = useState(false);
 
     const contextUsage = useMemo(() => {
-      for (let index = actualChatRef.current.messages.length - 1; index >= 0; index -= 1) {
-        const chatMessage = actualChatRef.current.messages[index];
-        if (chatMessage.role !== Role.Assistant) {
-          continue;
-        }
-        const usage = (chatMessage as ResponseMessage).usage;
-        if (!usage) {
-          continue;
-        }
-        const matchesCurrentModel =
-          (!usage.providerId || usage.providerId === chatProviderConfig?.id) &&
-          (!usage.modelName || usage.modelName === chatModelConfig?.name);
-        return matchesCurrentModel ? usage : null;
-      }
-      return null;
-    }, [actualChatRef, chatModelConfig?.name, chatProviderConfig?.id, updateCounter]);
+      return latestContextUsage(
+        actualChatRef.current.messages,
+        chatProviderConfig?.id,
+        chatModelConfig ?? undefined
+      );
+    }, [actualChatRef, chatModelConfig, chatProviderConfig?.id, updateCounter]);
 
     const lastVisibleMessageRole =
       visibleMessages.length > 0 ? visibleMessages[visibleMessages.length - 1]?.role : undefined;
@@ -1510,9 +1501,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             thinkingLevelDisabled={!chatModelConfig?.reasoning}
             currentModelName={chatModelConfig?.name ?? chatModelConfig?.id}
             contextWindowK={
-              chatModelConfig?.contextWindow
-                ? Math.round(chatModelConfig.contextWindow / 1024)
-                : undefined
+              chatModelConfig?.contextWindow ? chatModelConfig.contextWindow / 1000 : undefined
             }
             contextUsage={contextUsage}
             isSupportImage={supportImage}

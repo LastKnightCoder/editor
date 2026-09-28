@@ -1,5 +1,8 @@
 import useSettingStore from "@/stores/useSettingStore";
 import type { LLMModelSetting, LLMProviderSetting } from "@/types/pi-llm";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { loadCatalogModels } from "@/services/llmCatalog";
 
 interface LLMConfigResult {
   provider: LLMProviderSetting | null;
@@ -22,6 +25,21 @@ export const useLLMConfig = (
   const llmUsageSettings = useSettingStore(state => state.setting.llmUsageSettings);
 
   const usageConfig = llmUsageSettings[feature];
+  const provider = llmProviders.find(config => config.id === usageConfig?.providerId);
+  const model = provider?.models.find(item => item.id === usageConfig?.modelId);
+  const builtin = provider?.builtin;
+  const { data: catalog } = useQuery({
+    queryKey: ["llm", "catalog", builtin],
+    queryFn: () => loadCatalogModels(builtin!),
+    enabled: Boolean(builtin),
+    staleTime: Infinity,
+  });
+  const effectiveModel = useMemo(() => {
+    const current = catalog?.find(item => item.id === model?.id);
+    return model && current
+      ? { ...model, contextWindow: current.contextWindow, maxTokens: current.maxTokens }
+      : model;
+  }, [catalog, model]);
 
   if (!usageConfig) {
     return {
@@ -30,8 +48,6 @@ export const useLLMConfig = (
     };
   }
 
-  const provider = llmProviders.find(config => config.id === usageConfig.providerId);
-
   if (!provider) {
     return {
       provider: null,
@@ -39,11 +55,9 @@ export const useLLMConfig = (
     };
   }
 
-  const model = provider.models?.find(model => model.id === usageConfig.modelId);
-
   return {
     provider,
-    model: model || null,
+    model: effectiveModel || null,
   };
 };
 
