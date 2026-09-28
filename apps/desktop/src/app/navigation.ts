@@ -116,7 +116,6 @@ export const NAV_SECTIONS: NavSection[] = [
       { key: "chat", label: "AI 对话", icon: MessageCircle, children: "chat-sessions" }, // features/chat（会话嵌侧栏 + 右侧停靠栏，D-047）
       { key: "skills", label: "Skill", icon: Sparkles }, // features/skills（卡片库 + 抽屉 + 整页编辑，D-060）
       { key: "mcp", label: "MCP 服务器", icon: Plug, badge: "mcp-errors" }, // features/mcp（连接失败数作徽标）
-      { key: "pi-dev", label: "pi 会话（开发）", icon: FlaskConical }, // features/pi-dev（pi harness 端到端验证面板，pi 迁移 M2）
     ],
   },
   {
