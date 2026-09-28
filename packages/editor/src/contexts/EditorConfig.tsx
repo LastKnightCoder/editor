@@ -26,10 +26,6 @@ export interface EditorConfig {
   theme: EditorThemeConfig;
   /** 元素外观默认值（未配置时使用内核默认） */
   appearance?: EditorAppearanceConfig;
-  /** PlantUML 渲染服务器地址，默认 https://www.plantuml.com/plantuml */
-  plantumlServer?: string;
-  /** PlantUML 暗色主题（暗色时注入 !theme，置空串禁用），默认 cyborg-outline */
-  plantumlDarkTheme?: string;
 }
 
 /** React 消费：Provider 内读取配置，未配置时返回 null。 */
