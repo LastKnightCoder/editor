@@ -6,7 +6,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { getDesktopKit } from "@/services/editorKit";
+import { getSkillFileKit } from "@/services/editorKit";
 import type { Descendant } from "slate";
 import {
   ChevronDown,
@@ -548,7 +548,7 @@ export function SkillEditView() {
           />
         )}
         <Editor
-          kit={getDesktopKit()}
+          kit={getSkillFileKit()}
           key={`${selected}:${editorVersion}`}
           initValue={bodyValue}
           readonly={readonly}

@@ -5,7 +5,8 @@
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { getDesktopKit } from "@/services/editorKit";
+import { createDesktopKit } from "@/services/editorKit";
+import type { EditorKit } from "@tau/editor/src";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -44,7 +45,10 @@ import type { VideoEbookRewriteStyle } from "@/constants/prompts/video-ebook-rew
 import { summarizeExportResults, type ExportFormatResult } from "./export-result-summary";
 
 // 草稿按电子书目录编排，标题不折叠
-const DRAFT_EDITOR_EXTENSIONS = [new HeaderExtension({ disableCollapse: true })];
+/** EPUB 导出草稿场景（ER-016）：标题不可折叠，其余按底座 */
+let draftKit: EditorKit | null = null;
+const getEpubDraftKit = () =>
+  (draftKit ??= createDesktopKit([new HeaderExtension({ disableCollapse: true })]));
 
 const DEFAULT_CONTENT: Descendant[] = [
   {
@@ -779,14 +783,13 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
         <FadeScroll className="min-h-0 flex-1">
           <div className="pb-8 pl-8 pr-[26px] pt-5 [&_[data-slate-editor]]:outline-none">
             <Editor
-              kit={getDesktopKit()}
+              kit={getEpubDraftKit()}
               ref={editorRef}
               key={`video-note-ebook-${videoNoteId}-${editorSessionId}`}
               initValue={draftContent}
               onChange={handleEditorChange}
               readonly={isRewriting}
               placeHolder="草稿会在这里逐步出现"
-              extensions={DRAFT_EDITOR_EXTENSIONS}
             />
           </div>
         </FadeScroll>

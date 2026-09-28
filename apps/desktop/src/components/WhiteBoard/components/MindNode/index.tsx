@@ -1,5 +1,5 @@
 import React, { MouseEvent, useEffect, useMemo, useRef, useState } from "react";
-import { getDesktopKit } from "@/services/editorKit";
+import { getLibraryContentKit } from "@/services/editorKit";
 import { Editor, EditorRef, EditorThemeOverride } from "@tau/editor/src";
 import If from "@/components/If";
 
@@ -499,7 +499,7 @@ const MindNode = (props: MindNodeProps) => {
             />
             <EditorThemeOverride mode={editorTheme}>
               <Editor
-                kit={getDesktopKit()}
+                kit={getLibraryContentKit()}
                 ref={editorRef}
                 initValue={text}
                 readonly={!isEditing}

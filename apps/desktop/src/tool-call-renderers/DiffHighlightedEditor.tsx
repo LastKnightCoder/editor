@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { getDesktopKit } from "@/services/editorKit";
+import { getLibraryContentKit } from "@/services/editorKit";
 import { Editor } from "@tau/editor/src";
 import type { RenderLeafProps } from "slate-react";
 import type { Descendant } from "slate";
@@ -58,7 +58,7 @@ export const DiffHighlightedEditor = ({ content }: DiffHighlightedEditorProps) =
 
   return (
     <Editor
-      kit={getDesktopKit()}
+      kit={getLibraryContentKit()}
       initValue={content}
       readonly
       customRenderLeaf={customRenderLeaf}

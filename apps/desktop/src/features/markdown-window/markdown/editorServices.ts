@@ -9,7 +9,7 @@
 import { useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
 import { IOpenerService, IResourceService, type EditorKit } from "@tau/editor/src";
-import { getDesktopKit } from "@/services/editorKit";
+import { getMarkdownFileKit } from "@/services/editorKit";
 import { toast } from "@tau/ui";
 import {
   compressImage,
@@ -123,11 +123,11 @@ export function useMarkdownEditorServices(
 
   return useMemo(
     () =>
-      getDesktopKit().extend({
+      getMarkdownFileKit().extend({
         services: [
           register => {
             register(IResourceService, {
-              ...getDesktopKit().registry.get(IResourceService),
+              ...getMarkdownFileKit().registry.get(IResourceService),
               upload,
             });
             register(IOpenerService, { open: openUrl });

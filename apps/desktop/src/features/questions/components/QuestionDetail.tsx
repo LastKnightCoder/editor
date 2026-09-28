@@ -30,6 +30,7 @@ import { questionMutations, type CreatableKind } from "../queries";
 import { MaterialList } from "./MaterialList";
 import { Composition, GroupDot, StatusRing } from "./QuestionBits";
 import { Trajectory } from "./Trajectory";
+import { getDescriptionKit } from "@/services/editorKit";
 
 const EMPTY_DESC: Descendant[] = [
   { type: "paragraph", children: [{ type: "formatted", text: "" }] } as Descendant,
@@ -467,6 +468,7 @@ function DescriptionEditor({
       <ErrorBoundary>
         <ContentEditor
           ref={editorRef}
+          kit={getDescriptionKit()}
           initValue={value?.length ? value : EMPTY_DESC}
           readonly={false}
           onChange={content => {

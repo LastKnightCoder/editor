@@ -7,7 +7,12 @@ import { useReviewKeyboard } from "../hooks/useReviewKeyboard";
 
 // 宿主组件只验证自身逻辑，不渲染真实编辑器，kit 也不必真实构造
 vi.mock("@/services/editorKit", () => ({
-  getDesktopKit: () => ({}),
+  createDesktopKit: () => ({}),
+  getLibraryContentKit: () => ({}),
+  getDescriptionKit: () => ({}),
+  getMarkdownFileKit: () => ({}),
+  getSkillFileKit: () => ({}),
+  getFlashcardKit: () => ({}),
   getDesktopBareKit: () => ({}),
 }));
 vi.mock("@tau/editor/src", () => ({ Editor: () => null }));

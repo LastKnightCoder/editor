@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getDesktopKit } from "@/services/editorKit";
+import { getLibraryContentKit } from "@/services/editorKit";
 import { App } from "antd";
 import { useThrottleFn, useMemoizedFn } from "ahooks";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
@@ -510,7 +510,7 @@ const QuestionWindowPage = () => {
               </label>
               <div className="rounded-xl border border-gray-200 bg-gray-50 shadow-inner transition-all focus-within:border-[var(--th-border-focus)] focus-within:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950">
                 <Editor
-                  kit={getDesktopKit()}
+                  kit={getLibraryContentKit()}
                   key={`new-question-${newQuestionEditorKey}`}
                   initValue={newQuestionDescription}
                   onChange={value => setNewQuestionDescription(value)}
@@ -593,7 +593,7 @@ const QuestionWindowPage = () => {
               </label>
               <div className="rounded-xl border border-gray-200 bg-gray-50 shadow-inner transition-all focus-within:border-[var(--th-border-focus)] focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)] dark:border-slate-700 dark:bg-zinc-950 dark:focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]">
                 <Editor
-                  kit={getDesktopKit()}
+                  kit={getLibraryContentKit()}
                   key={`edit-question-${editingQuestionId}`}
                   initValue={editQuestionDescription}
                   onChange={value => setEditQuestionDescription(value)}

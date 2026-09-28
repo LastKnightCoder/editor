@@ -522,7 +522,6 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                 <RichTextRenderer
                   key={`prompt-${currentCard.id}`}
                   content={currentCard.prompt}
-                  isDark={isDark}
                   className="text-xl font-medium leading-normal text-gray-900 md:text-2xl dark:text-gray-50"
                 />
                 {extractPlainText(currentCard.detail).trim() && (
@@ -530,7 +529,6 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                     <RichTextRenderer
                       key={`detail-${currentCard.id}`}
                       content={currentCard.detail}
-                      isDark={isDark}
                       className="text-base text-gray-600 dark:text-gray-400"
                     />
                   </div>

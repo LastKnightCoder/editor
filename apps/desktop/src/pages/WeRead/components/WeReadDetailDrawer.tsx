@@ -1,14 +1,9 @@
-import { memo, useMemo } from "react";
-import { getDesktopKit } from "@/services/editorKit";
+import { memo } from "react";
+import { getWeReadKit } from "../extensions";
 import { Drawer } from "antd";
 import type { Descendant } from "slate";
 import { Editor } from "@tau/editor/src";
 import type { RowData } from "@/components/Database/types";
-import {
-  WeReadMetadataExtension,
-  WeReadChapterExtension,
-  WeReadBookmarkExtension,
-} from "../extensions";
 
 const DEFAULT_DETAIL_CONTENT: Descendant[] = [
   {
@@ -32,15 +27,6 @@ interface WeReadDetailDrawerProps {
 export const WeReadDetailDrawer: React.FC<WeReadDetailDrawerProps> = memo(props => {
   const { open, row, content, onClose } = props;
 
-  // 创建微信读书扩展实例
-  const wereadExtensions = useMemo(() => {
-    return [
-      new WeReadMetadataExtension(),
-      new WeReadChapterExtension(),
-      new WeReadBookmarkExtension(),
-    ];
-  }, []);
-
   return (
     <Drawer
       title={row?.title}
@@ -51,10 +37,9 @@ export const WeReadDetailDrawer: React.FC<WeReadDetailDrawerProps> = memo(props 
       destroyOnClose
     >
       <Editor
-        kit={getDesktopKit()}
+        kit={getWeReadKit()}
         key={row?.id}
         initValue={content || DEFAULT_DETAIL_CONTENT}
-        extensions={wereadExtensions}
         onChange={() => {
           // TODO: 处理编辑器变化（如果需要）
         }}
