@@ -70,7 +70,7 @@ const DivideLineElement: React.FC<PropsWithChildren<DivideLineProps>> = props =>
       <div
         {...attributes}
         contentEditable={false}
-        className="mx-auto my-[1.5em] h-[0.125em] w-[90%] bg-zinc-200 dark:bg-zinc-700"
+        className="mx-auto my-[1.5em] h-[0.125em] w-[90%] bg-[var(--ed-bg-hover)]"
       >
         {children}
         <AddParagraph element={element} />

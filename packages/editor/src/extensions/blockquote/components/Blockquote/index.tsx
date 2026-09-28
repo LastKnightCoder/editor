@@ -33,7 +33,7 @@ const DragHandler = memo(
         )}
         onClick={onClick}
       >
-        <MdDragIndicator className="text-lg text-gray-400 dark:text-gray-500" />
+        <MdDragIndicator className="text-lg text-[var(--ed-text-tertiary)]" />
       </div>
     );
   }

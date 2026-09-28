@@ -174,7 +174,7 @@ const LinkPopover = ({
             <div className="h-3 w-px bg-black/10 dark:bg-white/10" />
 
             <div
-              className="flex-1 cursor-text select-text truncate text-[13px] font-medium text-slate-600 dark:text-slate-300"
+              className="flex-1 cursor-text select-text truncate text-[13px] font-medium text-[var(--ed-text-secondary)]"
               title={url}
             >
               {url}

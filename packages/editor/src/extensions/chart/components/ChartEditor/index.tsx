@@ -79,7 +79,7 @@ const ChartEditor: React.FC<ChartEditorProps> = ({
           className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-all ${
             mode === "table"
               ? "bg-white text-gray-900 shadow-sm dark:bg-zinc-700 dark:text-white"
-              : "text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-300"
+              : "text-gray-500 hover:text-[var(--ed-text)] dark:hover:text-slate-300"
           }`}
         >
           <Table size={14} />
@@ -90,7 +90,7 @@ const ChartEditor: React.FC<ChartEditorProps> = ({
           className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-all ${
             mode === "json"
               ? "bg-white text-gray-900 shadow-sm dark:bg-zinc-700 dark:text-white"
-              : "text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-300"
+              : "text-gray-500 hover:text-[var(--ed-text)] dark:hover:text-slate-300"
           }`}
         >
           <Code size={14} />
@@ -139,7 +139,7 @@ const ChartEditor: React.FC<ChartEditorProps> = ({
         </div>
 
         {/* Settings */}
-        <div className="flex items-center gap-6 text-gray-600 dark:text-slate-300">
+        <div className="flex items-center gap-6 text-[var(--ed-text-secondary)]">
           <label className="flex cursor-pointer items-center gap-2">
             <CustomCheckbox
               checked={config.showGrid ?? true}
@@ -162,7 +162,7 @@ const ChartEditor: React.FC<ChartEditorProps> = ({
               <button
                 ref={pieStyleTriggerRef}
                 onClick={() => setShowPieStyleDropdown(!showPieStyleDropdown)}
-                className="flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-1.5 text-gray-700 transition-colors hover:bg-gray-200 dark:bg-zinc-800 dark:text-slate-200 dark:hover:bg-zinc-700"
+                className="flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-1.5 text-gray-700 transition-colors hover:bg-[var(--ed-bg-hover)] dark:text-slate-200 dark:hover:bg-zinc-700"
               >
                 {config.pieStyle === "donut"
                   ? "环形图"
@@ -201,7 +201,7 @@ const ChartEditor: React.FC<ChartEditorProps> = ({
 
         {/* Chart Preview - bottom */}
         <div className="rounded-xl border border-[#f0f0f0] bg-white p-4 dark:border-[#2a2a2a] dark:bg-[#1a1a1a]">
-          <div className="mb-3 text-xs text-gray-400 dark:text-slate-500">预览</div>
+          <div className="mb-3 text-xs text-[var(--ed-text-tertiary)]">预览</div>
           <div className="h-[280px]">
             <ChartPreview data={data} config={config} />
           </div>

@@ -50,10 +50,8 @@ const CommentList: React.FC<CommentListProps> = ({
           />
         ) : (
           <>
-            <div className="text-sm leading-relaxed text-gray-800 dark:text-slate-100">
-              {comment.content}
-            </div>
-            <div className="mt-2 flex items-center gap-3 text-[11px] font-medium text-gray-500 dark:text-slate-400">
+            <div className="text-sm leading-relaxed text-[var(--ed-text)]">{comment.content}</div>
+            <div className="mt-2 flex items-center gap-3 text-[11px] font-medium text-[var(--ed-text-secondary)]">
               <span>{formatDate(comment.updateTime, "YYYY-MM-DD HH:mm")}</span>
               {!readOnly && (
                 <>
@@ -111,9 +109,7 @@ const CommentList: React.FC<CommentListProps> = ({
   };
 
   if (!normalizedComments.length) {
-    return (
-      <div className="py-6 text-center text-sm text-gray-400 dark:text-slate-500">暂无批注</div>
-    );
+    return <div className="py-6 text-center text-sm text-[var(--ed-text-tertiary)]">暂无批注</div>;
   }
 
   return (
