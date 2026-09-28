@@ -1,6 +1,5 @@
 import React, { PropsWithChildren } from "react";
 import { RenderElementProps } from "slate-react";
-import classnames from "classnames";
 
 import type { BulletedListElement } from "../../../types";
 import styles from "./index.module.less";

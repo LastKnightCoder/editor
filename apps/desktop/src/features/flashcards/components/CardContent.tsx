@@ -17,10 +17,7 @@ import { blankCorrect } from "../model";
 
 export function RichContent({ content, className }: { content: Descendant[]; className?: string }) {
   const { isDark } = useTheme();
-  const extensions = useMemo<IExtension[]>(
-    () => [new FlashcardBlankExtension({ isDark })],
-    [isDark]
-  );
+  const extensions = useMemo<IExtension[]>(() => [new FlashcardBlankExtension()], [isDark]);
   // initValue 仅在挂载时生效：内容变化（编辑后）重建只读实例
   const revision = useMemo(() => JSON.stringify(content), [content]);
   return (
