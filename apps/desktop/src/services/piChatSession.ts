@@ -144,7 +144,12 @@ class PiChatSessionManager {
         if (outcome.ok) existing.activeToolNames = loadout.activeToolNames;
         else console.error("同步活跃工具集失败:", outcome.error);
       }
-      await piSessionSetSystemPrompt(existing.sessionId, options.systemPrompt);
+      const refreshed = await piSessionSetSystemPrompt(existing.sessionId, options.systemPrompt);
+      // 宿主已被主进程回收（空闲超时、切库，M4-e）：本地描述失效，从会话文件重建
+      if (!refreshed.ok) {
+        this.forgetByKey(key);
+        return this.createSession(key, options, loadout);
+      }
       return {
         sessionId: existing.sessionId,
         ...(existing.sessionFile ? { sessionFile: existing.sessionFile } : {}),
@@ -158,6 +163,14 @@ class PiChatSessionManager {
 
   public async disposeChatSession(chatScope: string, chatId: string): Promise<void> {
     return this.disposeByKey(chatSessionKey(chatScope, chatId));
+  }
+
+  /** 宿主已不存在（主进程回收了）：只清本地描述，不再调 dispose */
+  private forgetByKey(key: string): void {
+    const descriptor = this.sessions.get(key);
+    if (!descriptor) return;
+    this.sessions.delete(key);
+    unregisterPiToolSessionContext(descriptor.sessionId);
   }
 
   public async disposeByKey(key: string): Promise<void> {

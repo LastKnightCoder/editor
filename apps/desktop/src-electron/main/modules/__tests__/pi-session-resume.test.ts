@@ -4,7 +4,7 @@
  * - 用同一文件重新装配会话（resume），pi 自己恢复上下文，模型看得到上一轮；
  * - 文件不存在（首轮没等到回答就失败）时按目录表 id 新建，不另起随机 id。
  */
-import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -159,5 +159,99 @@ describe("pi JSONL 事实源", () => {
     expect(session.sessionId).toBe("session-3");
     await session.prompt("第一句");
     expect(readdirSync(sessionDir).some(name => name.includes("session-3"))).toBe(true);
+  });
+});
+
+describe("重启后悬挂的工具调用（M4-e：标为已中断）", () => {
+  /** 执行永远不返回的工具：模拟等待审批/作答时应用被关掉 */
+  const hangingTool: ToolDefinition = {
+    name: "hang",
+    label: "hang",
+    description: "挂起",
+    parameters: { type: "object", properties: {} },
+    execute: () => new Promise(() => {}),
+  } as unknown as ToolDefinition;
+
+  const crashWhileWaiting = async () => {
+    const workDir = mkdtempSync(join(tmpdir(), "pi-dangling-"));
+    workDirs.push(workDir);
+    const sessionDir = join(workDir, "sessions");
+    const faux = fauxProvider({});
+    const modelRuntime = await createFauxModelRuntime(join(workDir, "auth.json"), faux);
+    const assemble = async (sessionFile?: string) => {
+      const session = await assembleHostSession({
+        cwd: workDir,
+        agentDir: join(workDir, ".pi-agent"),
+        modelRuntime,
+        modelRef: { providerId: faux.provider.id, modelId: faux.getModel().id },
+        sessionDir,
+        customTools: [hangingTool],
+        ...(sessionFile ? { sessionFile } : {}),
+      });
+      sessions.push(session);
+      return session;
+    };
+    faux.setResponses([fauxAssistantMessage([fauxToolCall("hang", {}, { id: "call-hang" })])]);
+    const first = await assemble();
+    void first.prompt("去做一件要等的事");
+    // 等 assistant(toolCall) 落盘，工具开始执行（永远挂着）
+    for (let i = 0; i < 100 && !existsSync(first.sessionFile ?? ""); i++) {
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    await new Promise(resolve => setTimeout(resolve, 50));
+    const file = first.sessionFile!;
+    // 「崩溃」：不 abort、不收尾，直接丢掉这个会话（文件里只有 toolCall 没有 toolResult）
+    sessions.splice(sessions.indexOf(first), 1);
+    first.dispose();
+    return { faux, file, sessionDir, assemble };
+  };
+
+  it("重开时给悬挂调用补一条已中断的错误结果并落盘，工具卡投影成失败", async () => {
+    const { file, sessionDir, assemble } = await crashWhileWaiting();
+    const before = piEntriesToDesktopMessages(loadSessionTranscript(file, sessionDir));
+    const beforeBlock = (
+      before.at(-1) as { assistant_blocks?: Array<{ execution?: unknown }> }
+    ).assistant_blocks?.find(block => "toolCall" in block);
+    expect(beforeBlock?.execution).toBeUndefined();
+
+    await assemble(file);
+
+    const after = piEntriesToDesktopMessages(loadSessionTranscript(file, sessionDir));
+    const block = (
+      after.at(-1) as {
+        assistant_blocks: Array<{
+          type: string;
+          execution?: { status: string; output?: string };
+        }>;
+      }
+    ).assistant_blocks.find(item => item.type === "tool_call")!;
+    expect(block.execution?.status).toBe("failed");
+    expect(block.execution?.output).toContain("已中断");
+  });
+
+  it("补完之后对话照常继续，模型看到明确的中断说明；再开一次不重复补", async () => {
+    const { faux, file, assemble } = await crashWhileWaiting();
+    let seenResult = "";
+    faux.setResponses([
+      context => {
+        const result = context.messages.find(message => message.role === "toolResult") as
+          { content: Array<{ text?: string }> } | undefined;
+        seenResult = result?.content.map(block => block.text ?? "").join("") ?? "";
+        return fauxAssistantMessage([fauxText("好的，重新来")]);
+      },
+    ]);
+    const resumed = await assemble(file);
+    await resumed.prompt("继续");
+    expect(seenResult).toContain("已中断");
+
+    const countResults = () =>
+      readFileSync(file, "utf8")
+        .split("\n")
+        .filter(line => line.includes('"toolResult"')).length;
+    const results = countResults();
+    sessions.splice(sessions.indexOf(resumed), 1);
+    resumed.dispose();
+    await assemble(file);
+    expect(countResults()).toBe(results);
   });
 });
