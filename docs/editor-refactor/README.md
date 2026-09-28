@@ -38,9 +38,9 @@
 | 阶段 | 内容                                                           | 状态   |
 | ---- | -------------------------------------------------------------- | ------ |
 | P0   | 基线、护栏、协作两个 spike                                     | ✅     |
-| P1   | 主题契约下沉为纯数据包                                         | ⏳     |
-| P2   | 各平台接入 `--tau-*`                                           | ⏳     |
-| P3   | Editor 组件 token（`--ed-*`）+ ThemeService，迁移主题耦合      | ⏳     |
+| P1   | 主题整体迁到 `@tau/themes`                                     | ✅     |
+| P2   | 各平台接入 `--tau-*`（桥接，外观不变）                         | ✅     |
+| P3   | Editor 组件 token（`--ed-*`）+ ThemeService，迁移主题耦合      | ✅     |
 | P4   | 拆解 EditorConfig                                              | ⏳     |
 | P5   | Markdown 合并为 headless 的 `@tau/markdown`（可与 P1–P4 穿插） | ⏳     |
 | P6   | EditorKit + 文档源，替换 EditorProvider                        | ⏳     |
@@ -51,7 +51,7 @@
 
 状态图例：⏳ 未开始 / 🚧 进行中 / ✅ 完成 / ⏸ 暂停（写原因）。
 
-**下一步**：P3（Editor 组件 token `--ed-*` + ThemeService，迁移主题耦合）。P5（Markdown）与主题线互不依赖，可以穿插进行。
+**下一步**：P4（拆解 EditorConfig）。P5（Markdown）与主题线互不依赖，可以穿插进行。
 
 ## 5. 接手步骤
 

@@ -5,7 +5,6 @@ import classnames from "classnames";
 import { MdDragIndicator } from "react-icons/md";
 import { App } from "antd";
 
-import useTheme from "../../../hooks/useTheme";
 import useDragAndDrop from "../../../hooks/useDragAndDrop";
 import { useDragHandlerMenu } from "../../../hooks/useDragHandlerMenu";
 import type { CalloutElement } from "../../../types";
@@ -60,7 +59,6 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = props => {
   const [realTitle, setRealTitle] = useState<string>(title || defaultTitle);
   const titleRef = useRef<HTMLParagraphElement>(null);
   const isLast = useIsLastElement(element);
-  const { isDark } = useTheme();
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
     element,
   });
@@ -91,7 +89,6 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = props => {
             "callout relative rounded-[0.5em] border-l-[0.25em] p-[0.5em] pb-[1.25em] pl-[1em]",
             `callout-${calloutType}`,
             {
-              dark: isDark,
               dragging: isDragging || (isOverCurrent && canDrop),
               before: isOverCurrent && canDrop && isBefore,
               after: isOverCurrent && canDrop && !isBefore,
