@@ -1,13 +1,6 @@
-import { Descendant } from "slate";
+import type { Descendant } from "slate";
 
-export type ChartType =
-  | "line"
-  | "bar"
-  | "pie"
-  | "area"
-  | "scatter"
-  | "radar"
-  | "funnel";
+export type ChartType = "line" | "bar" | "pie" | "area" | "scatter" | "radar" | "funnel";
 
 export interface ChartSeries {
   dataKey: string;

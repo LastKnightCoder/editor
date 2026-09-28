@@ -11,7 +11,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import tailwindcss from "@tailwindcss/vite";
 import * as path from "path";
-import { createThemeBootstrapScript } from "../../packages/ui/src/theme/bootstrap";
+import { createThemeBootstrapScript } from "@tau/themes";
 
 export default defineConfig({
   resolve: {
@@ -25,7 +25,6 @@ export default defineConfig({
       "@tau/rpc": path.resolve(__dirname, "../../packages/rpc"),
       "@tau/platform": path.resolve(__dirname, "../../packages/platform"),
       "@tau/shared": path.resolve(__dirname, "../../packages/shared"),
-      "@tau/themes": path.resolve(__dirname, "../../packages/themes"),
     },
   },
   plugins: [{ name: "tau-theme-bootstrap", transformIndexHtml: () => [{ tag: "script", children: createThemeBootstrapScript(), injectTo: "head-prepend" }] }, react(), tailwindcss()],

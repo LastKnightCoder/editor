@@ -6,12 +6,10 @@ import {
   IFileService,
   IResourceService,
   IVideoContentProviders,
-  type ServiceRegistry,
-  type ThemeColors,
+  type ServiceRegistration,
   type VideoContentProvider,
-  type EditorConfig,
 } from "@tau/editor";
-import { importFromMarkdown } from "@tau/editor";
+import { importFromMarkdown } from "@tau/markdown";
 import { markdownCustomDirectives } from "@tau/shared";
 import type WebSocketClient from "../utils/WebSocketClient";
 import type { ResolvedTheme } from "../utils/types";
@@ -22,23 +20,6 @@ import RpcLocalAudio from "../components/RpcLocalAudio";
 /** 不支持操作时的统一提示 */
 const UNSUPPORTED = (name: string) =>
   Promise.reject(new Error(`[Tau Extension] ${name} 在浏览器扩展中暂不支持`));
-
-/** 创建一个空的 ThemeColors 对象 */
-function createThemeColors(): ThemeColors {
-  return {
-    hoverClass: "hover:bg-gray-100 dark:hover:bg-zinc-800",
-    activeClass: "bg-[#eee] text-gray-900 dark:bg-zinc-800 dark:text-gray-100",
-    hoverTextClass: "hover:text-gray-900 dark:hover:text-gray-100",
-    borderClass: "border-[#f0f0f0] dark:border-[#2a2a2a]",
-    hoverBorderClass: "hover:border-[#eaeaea] dark:hover:border-[#3a3a3a]",
-    focusBorderClass: "border-[#f0f0f0] dark:border-[#2a2a2a]",
-    textClass: "text-gray-600 dark:text-gray-400",
-    secondaryTextClass: "text-gray-400 dark:text-gray-500",
-    activeTextClass: "text-gray-900 dark:text-gray-100",
-    cardBorderClass: "border-gray-200 dark:border-gray-800",
-    cardBgClass: "bg-gray-50/80 dark:bg-zinc-900/50",
-  };
-}
 
 interface CreateEditorRegistryOptions {
   wsClient: WebSocketClient | null;
@@ -90,9 +71,9 @@ type AudioPropsWithoutWs = Omit<React.ComponentPropsWithoutRef<typeof RpcLocalAu
  * - utility 在本地实现
  * - resource/file 等桌面端特有服务提供最小化实现
  */
-export function createExtensionEditorRegistry({
+export function createExtensionEditorServices({
   wsClient,
-}: CreateEditorRegistryOptions): ServiceRegistry {
+}: CreateEditorRegistryOptions): ServiceRegistration {
   const rpc = async <T = unknown,>(method: string, params: unknown = null): Promise<T> => {
     if (!wsClient?.isConnected) {
       throw new Error("WebSocket 未连接，无法执行此操作");
@@ -100,7 +81,7 @@ export function createExtensionEditorRegistry({
     return wsClient.sendRequest(method, params) as Promise<T>;
   };
 
-  return createServiceRegistry(register => {
+  return register => {
     // ==================== 媒体文件服务（简化实现）====================
     register(IResourceService, {
       upload: async (_file: File) => {
@@ -141,19 +122,6 @@ export function createExtensionEditorRegistry({
     });
 
     register(IVideoContentProviders, createDegradedVideoProviders());
-  });
-}
-
-/** 扩展端编辑器全局配置：主题随 sidepanel 明暗状态 */
-export function createExtensionEditorConfig(resolvedTheme: ResolvedTheme): EditorConfig {
-  return {
-    theme: {
-      mode: resolvedTheme,
-      colors: createThemeColors(),
-    },
-    openUrl: url => {
-      window.open(url, "_blank", "noopener,noreferrer");
-    },
   };
 }
 

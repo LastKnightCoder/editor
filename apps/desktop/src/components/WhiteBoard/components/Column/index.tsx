@@ -1,21 +1,21 @@
-import React, { memo, useState, useRef, useEffect } from "react";
+import React, { memo, useState, useRef, useEffect, useLayoutEffect } from "react";
 import { useMemoizedFn } from "ahooks";
+import { ChevronDown, Plus } from "lucide-react";
+import { cn } from "@tau/ui";
 
-import { EHandlerPosition, Point, Board, ColumnElement } from "../../types";
-import { COLUMN_DEFAULTS, columnTheme } from "../../types/column";
-import {
-  useSelectState,
-  useDropArrow,
-  useColumnChildrenWatch,
-} from "../../hooks";
+import { EHandlerPosition, Point, Board, BoardElement, ColumnElement } from "../../types";
+import { COLUMN_DEFAULTS, COLUMN_COLORS, COLUMN_COLOR_OPTIONS } from "../../types/column";
+import { useSelectState, useDropArrow, useColumnChildrenWatch } from "../../hooks";
 import { PathUtil, ColumnUtil, PointUtil } from "../../utils";
 import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 import If from "@/components/If";
 import EditText, { EditTextHandle } from "@/components/EditText";
-import useTheme from "@/hooks/useTheme";
 
 import { SELECT_RECT_STROKE, SELECT_RECT_STROKE_WIDTH } from "../../constants";
+
+const PLACEHOLDER_KEY = "__placeholder__";
+const APPEND_BUTTON_HEIGHT = 32;
 
 interface ColumnProps {
   element: ColumnElement;
@@ -29,21 +29,13 @@ interface ColumnProps {
     startPoint: Point,
     endPoint: Point,
     isPreserveRatio?: boolean,
-    isAdsorb?: boolean,
+    isAdsorb?: boolean
   ) => void;
   onResizeEnd?: (board: Board) => void;
 }
 
 const Column = memo(
-  ({
-    element,
-    board,
-    children,
-    onResize,
-    onResizeStart,
-    onResizeEnd,
-  }: ColumnProps) => {
-    const { isDark } = useTheme();
+  ({ element, board, children, onResize, onResizeStart, onResizeEnd }: ColumnProps) => {
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const titleRef = useRef<EditTextHandle>(null);
     const columnRef = useRef<SVGGElement>(null);
@@ -53,27 +45,18 @@ const Column = memo(
       y,
       width,
       title,
-      borderRadius,
-      shadowEnabled,
       padding,
-      gap,
+      collapsed,
       isChildDraggingOver,
-      dropIndex,
       draggingChildId,
       draggingPosition,
     } = element;
 
-    const theme = isDark ? columnTheme.dark : columnTheme.light;
-
     const height = element.height || ColumnUtil.calculateHeight(board, element);
 
     const { isSelected } = useSelectState(element.id);
-    const {
-      isMoveArrowClosing,
-      activeConnectId,
-      arrowConnectPoints,
-      arrowConnectExtendPoints,
-    } = useDropArrow({ ...element, height });
+    const { isMoveArrowClosing, activeConnectId, arrowConnectPoints, arrowConnectExtendPoints } =
+      useDropArrow({ ...element, height });
 
     // Watch for child element size changes and trigger relayout
     useColumnChildrenWatch({ board, column: element });
@@ -83,9 +66,7 @@ const Column = memo(
       titleRef.current?.blur();
 
       // 从编辑元素列表中移除
-      board.isEditingElements = board.isEditingElements.filter(
-        (eid) => eid !== element.id,
-      );
+      board.isEditingElements = board.isEditingElements.filter(eid => eid !== element.id);
 
       const newTitle = titleRef.current?.getValue() || "";
       const columnPath = PathUtil.getPathByElement(board, element);
@@ -104,7 +85,7 @@ const Column = memo(
     const handleTitleFocus = () => {
       // 添加到编辑元素列表
       board.isEditingElements = [
-        ...board.isEditingElements.filter((eid) => eid !== element.id),
+        ...board.isEditingElements.filter(eid => eid !== element.id),
         element.id,
       ];
     };
@@ -119,18 +100,10 @@ const Column = memo(
         startPoint: Point,
         endPoint: Point,
         isPreserveRatio?: boolean,
-        isAdsorb?: boolean,
+        isAdsorb?: boolean
       ) => {
-        onResize(
-          board,
-          element,
-          position,
-          startPoint,
-          endPoint,
-          isPreserveRatio,
-          isAdsorb,
-        );
-      },
+        onResize(board, element, position, startPoint, endPoint, isPreserveRatio, isAdsorb);
+      }
     );
 
     const handleOnResizeEnd = useMemoizedFn(() => {
@@ -143,63 +116,170 @@ const Column = memo(
       }
     }, [isEditingTitle]);
 
-    const titleHeight = COLUMN_DEFAULTS.titleHeight;
-    const shadowFilter = shadowEnabled ? theme.shadow : "none";
+    const {
+      titleHeight,
+      borderRadius,
+      slotRadius,
+      emptyHeight,
+      colorBandHeight,
+      collapsedStackHeight,
+      animationDuration,
+      animationEasing,
+    } = COLUMN_DEFAULTS;
+    const colorToken = COLUMN_COLOR_OPTIONS.find(o => o.value === element.color)?.token;
+    const hasStack = !!collapsed && element.children.length > 0;
 
-    const getDropIndicatorY = () => {
-      if (dropIndex === undefined) return 0;
+    // 拖拽中的视觉布局：被拖出的子元素原位合拢，落点处空出占位块
+    const layout = ColumnUtil.getVisualLayout(element);
+    const visualHeight = height + layout.height - ColumnUtil.calculateHeightFromChildren(element);
+    // 折叠态托盘只到标题栏，纸边露在下方
+    const trayHeight = collapsed ? titleHeight : visualHeight;
+    const canAppend = !board.readonly && !collapsed && !isChildDraggingOver && !draggingChildId;
 
-      if (element.children.length === 0 || dropIndex === 0) {
-        return y + titleHeight + padding;
+    /** 子元素的视觉位置（相对列原点）：被拖拽的跟随指针，其余取视觉布局 */
+    const getVisualOffset = (child: BoardElement) => {
+      if (child.id === draggingChildId && draggingPosition) {
+        return { x: draggingPosition.x - x, y: draggingPosition.y - y };
       }
-
-      if (dropIndex >= element.children.length) {
-        const lastChild = element.children[element.children.length - 1];
-        return lastChild.y + (lastChild.height || 50) + gap / 2;
-      }
-
-      const targetChild = element.children[dropIndex];
-      return targetChild.y - gap / 2;
+      return { x: child.x - x, y: (layout.childYs.get(child.id) ?? child.y) - y };
     };
 
-    const dropIndicatorY = getDropIndicatorY();
+    // FLIP：视觉位置变化时从旧位置滑到新位置（相对列原点，整列拖动不触发）
+    const itemRefs = useRef(new Map<string, SVGGElement>());
+    const placeholderRef = useRef<SVGRectElement>(null);
+    const prevOffsetsRef = useRef(new Map<string, { x: number; y: number }>());
+    const prevCollapsedRef = useRef(!!collapsed);
+
+    useLayoutEffect(() => {
+      const nextOffsets = new Map<string, { x: number; y: number }>();
+      const animateFrom = (node: Element, dx: number, dy: number) => {
+        // 动画进行中被打断时，从当前插值位置接着滑
+        const current = getComputedStyle(node).transform;
+        if (current && current !== "none") {
+          const matrix = new DOMMatrixReadOnly(current);
+          dx += matrix.e;
+          dy += matrix.f;
+        }
+        node.getAnimations().forEach(animation => animation.cancel());
+        if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+        node.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], {
+          duration: animationDuration,
+          easing: animationEasing,
+        });
+      };
+
+      element.children.forEach(child => {
+        const offset = getVisualOffset(child);
+        nextOffsets.set(child.id, offset);
+        const prev = prevOffsetsRef.current.get(child.id);
+        const node = itemRefs.current.get(child.id);
+        if (!prev || !node || child.id === draggingChildId) return;
+        if (prev.x === offset.x && prev.y === offset.y) return;
+        animateFrom(node, prev.x - offset.x, prev.y - offset.y);
+      });
+
+      const placeholder = placeholderRef.current;
+      if (placeholder && layout.placeholderY !== null) {
+        const offset = { x: 0, y: layout.placeholderY - y };
+        const prev = prevOffsetsRef.current.get(PLACEHOLDER_KEY);
+        if (!prev) {
+          placeholder.animate([{ opacity: 0 }, { opacity: 1 }], {
+            duration: animationDuration,
+            easing: animationEasing,
+          });
+        } else if (prev.y !== offset.y) {
+          animateFrom(placeholder, 0, prev.y - offset.y);
+        }
+        nextOffsets.set(PLACEHOLDER_KEY, offset);
+      }
+
+      // 展开：子元素随托盘增高淡入
+      if (prevCollapsedRef.current && !collapsed) {
+        itemRefs.current.forEach(node =>
+          node.animate([{ opacity: 0 }, { opacity: 1 }], {
+            duration: animationDuration,
+            easing: animationEasing,
+          })
+        );
+      }
+      prevCollapsedRef.current = !!collapsed;
+
+      prevOffsetsRef.current = nextOffsets;
+    });
 
     return (
-      <g ref={columnRef}>
-        {/* Background with card styling */}
+      <g ref={columnRef} className="group/column">
+        {/* 折叠态纸边：两层卡片边露在标题栏下方，暗示有内容 */}
+        <If condition={hasStack}>
+          <g className="pointer-events-none">
+            {[2, 1].map(level => (
+              <rect
+                key={level}
+                x={x + level * 6}
+                y={y + titleHeight - slotRadius * 2}
+                width={width - level * 12}
+                height={slotRadius * 2 + (collapsedStackHeight / 2) * level}
+                rx={slotRadius}
+                ry={slotRadius}
+                style={{
+                  fill: COLUMN_COLORS.tray,
+                  stroke: COLUMN_COLORS.line,
+                  strokeWidth: 1,
+                }}
+              />
+            ))}
+          </g>
+        </If>
+
+        {/* 托盘：surface 实底 + 发丝线，拖入时边线转 accent */}
         <rect
           className="cursor-move"
           x={x}
           y={y}
           width={width}
-          height={height}
-          fill={
-            isChildDraggingOver
-              ? theme.dropHighlightFill
-              : theme.backgroundColor
-          }
           rx={borderRadius}
           ry={borderRadius}
-          style={{ filter: shadowFilter }}
-          stroke={
-            isChildDraggingOver ? theme.dropHighlightBorder : theme.border
-          }
-          strokeWidth={isChildDraggingOver ? 1.5 : 1}
+          style={{
+            height: trayHeight,
+            transition: `height ${animationDuration}ms ${animationEasing}`,
+            fill: isChildDraggingOver ? COLUMN_COLORS.trayDropOver : COLUMN_COLORS.tray,
+            stroke: isChildDraggingOver ? COLUMN_COLORS.lineDropOver : COLUMN_COLORS.line,
+            strokeWidth: 1,
+          }}
         />
 
-        {/* Title area */}
-        <foreignObject
-          x={x}
-          y={y}
-          width={width}
-          height={titleHeight}
-          className="border-none"
-        >
+        {/* 顶部色带：裁成托盘的上圆角 */}
+        {colorToken && (
+          <>
+            <clipPath id={`column-band-clip-${element.id}`}>
+              <rect
+                x={x}
+                y={y}
+                width={width}
+                height={borderRadius * 2 + colorBandHeight}
+                rx={borderRadius}
+                ry={borderRadius}
+              />
+            </clipPath>
+            <rect
+              className="pointer-events-none"
+              x={x}
+              y={y}
+              width={width}
+              height={colorBandHeight}
+              clipPath={`url(#column-band-clip-${element.id})`}
+              style={{ fill: colorToken }}
+            />
+          </>
+        )}
+
+        {/* 标题栏：标题 + 数量居中 */}
+        <foreignObject x={x} y={y} width={width} height={titleHeight} className="border-none">
           <div
-            className="flex flex-col items-center justify-center h-full pointer-events-auto cursor-move"
-            style={{ padding: `0 ${padding}px` }}
-            onWheel={(e) => e.stopPropagation()}
-            onDoubleClick={(e) => {
+            className="group/column-head pointer-events-auto relative flex h-full cursor-move flex-col items-center justify-center"
+            style={{ padding: `0 ${padding + 20}px` }}
+            onWheel={e => e.stopPropagation()}
+            onDoubleClick={e => {
               e.stopPropagation();
               setIsEditingTitle(true);
               handleTitleFocus();
@@ -211,114 +291,179 @@ const Column = memo(
               id={`column-title-${element.id}`}
               ref={titleRef}
               defaultValue={title || "Column"}
-              className="text-lg font-bold cursor-pointer select-none min-w-5 outline-none"
-              style={{ color: theme.titleText }}
+              className="text-tau-body-lg min-w-5 max-w-full cursor-pointer select-none truncate font-semibold leading-5 outline-none"
+              style={{ color: COLUMN_COLORS.title }}
               contentEditable={isEditingTitle}
               onBlur={handleTitleBlur}
               onPressEnter={handleTitleBlur}
             />
             <span
-              className="text-xs select-none pointer-events-none"
-              style={{ color: theme.descriptionText, marginTop: 2 }}
+              className="text-tau-micro pointer-events-none select-none tabular-nums leading-4"
+              style={{ color: COLUMN_COLORS.muted }}
             >
-              {element.children.length === 0
-                ? "空"
-                : `${element.children.length} 项`}
+              {ColumnUtil.getCountLabel(element)}
             </span>
+            {!board.readonly && (
+              <button
+                type="button"
+                title={collapsed ? "展开" : "折叠"}
+                className={cn(
+                  "text-ink-3 hover:bg-hover hover:text-ink-1 absolute right-2 top-1/2 grid size-[22px] -translate-y-1/2 cursor-pointer place-items-center rounded-[4px] transition-opacity duration-150",
+                  collapsed ? "opacity-100" : "opacity-0 group-hover/column-head:opacity-100"
+                )}
+                onPointerDown={e => e.stopPropagation()}
+                onMouseDown={e => e.stopPropagation()}
+                onDoubleClick={e => e.stopPropagation()}
+                onClick={e => {
+                  e.stopPropagation();
+                  ColumnUtil.toggleCollapsed(board, element);
+                }}
+              >
+                <ChevronDown
+                  size={14}
+                  strokeWidth={1.75}
+                  className="transition-transform duration-200"
+                  style={{ transform: collapsed ? "rotate(-90deg)" : undefined }}
+                />
+              </button>
+            )}
           </div>
         </foreignObject>
 
-        {/* Title separator line */}
         <line
-          x1={x + padding}
+          visibility={collapsed ? "hidden" : undefined}
+          x1={x}
           y1={y + titleHeight}
-          x2={x + width - padding}
+          x2={x + width}
           y2={y + titleHeight}
-          stroke={theme.separator}
-          strokeWidth={0.5}
+          style={{ stroke: COLUMN_COLORS.line, strokeWidth: 1 }}
           className="pointer-events-none"
         />
 
-        {/* Children container - rendered directly at their stored positions */}
-        <g>
-          {React.Children.map(children, (child, index) => {
-            const childElement = element.children[index];
-            if (!childElement) return null;
-
-            // Check if this child is being dragged
-            const isDragging = draggingChildId === childElement.id;
-
-            return (
-              <g
-                key={childElement.id}
-                style={{
-                  opacity: isDragging ? 0.5 : 1,
-                  transition: "opacity 0.15s ease",
-                }}
-              >
-                {/* Render child directly - no transform needed as positions are already calculated */}
-                {child}
-              </g>
-            );
-          })}
-        </g>
-
-        {/* Drop zone indicator */}
-        <If condition={!!isChildDraggingOver && dropIndex !== undefined}>
-          <rect
-            x={x + padding}
-            y={dropIndicatorY - 1}
-            width={width - padding * 2}
-            height={2}
-            fill={theme.dropIndicator}
-            rx={1}
-            ry={1}
-            className="pointer-events-none"
-          />
+        {/* 空列占位 */}
+        <If condition={layout.isVisuallyEmpty}>
+          <g className="pointer-events-none">
+            <rect
+              x={x + padding}
+              y={y + titleHeight + padding}
+              width={width - padding * 2}
+              height={emptyHeight}
+              rx={slotRadius}
+              ry={slotRadius}
+              style={{
+                fill: "none",
+                stroke: COLUMN_COLORS.emptyLine,
+                strokeWidth: 1.5,
+                strokeDasharray: "5 4",
+              }}
+            />
+            <text
+              x={x + width / 2}
+              y={y + titleHeight + padding + emptyHeight / 2}
+              textAnchor="middle"
+              dominantBaseline="central"
+              className="text-tau-meta select-none"
+              style={{ fill: COLUMN_COLORS.muted }}
+            >
+              拖入卡片
+            </text>
+          </g>
         </If>
 
-        {/* Drag preview - shows the actual element being dragged at its current position */}
-        {draggingChildId &&
-          draggingPosition &&
-          (() => {
-            const draggingChildIndex = element.children.findIndex(
-              (c) => c.id === draggingChildId,
-            );
-            const draggingChild = element.children[draggingChildIndex];
-            if (!draggingChild || draggingChildIndex === -1) return null;
+        {/* 落点占位块 */}
+        {layout.placeholderY !== null && (
+          <rect
+            ref={placeholderRef}
+            className="pointer-events-none"
+            x={x + padding}
+            y={layout.placeholderY}
+            width={width - padding * 2}
+            height={layout.placeholderHeight}
+            rx={slotRadius}
+            ry={slotRadius}
+            style={{ fill: COLUMN_COLORS.placeholder }}
+          />
+        )}
 
-            const previewWidth = draggingChild.width || width - padding * 2;
-            const previewHeight = draggingChild.height || 50;
+        {/* 子元素：每个子元素下垫一张 surface 槽位（发丝线框），子元素自身背景画在其上。
+            外层 g 把存储坐标平移到视觉位置，内层 g 承载 FLIP 动画；被拖拽的子元素最后渲染以浮在最上 */}
+        <g>
+          {React.Children.toArray(children)
+            .map((child, index) => ({ child, childElement: element.children[index] }))
+            .filter(({ childElement }) => !!childElement)
+            .sort(
+              (a, b) =>
+                Number(a.childElement.id === draggingChildId) -
+                Number(b.childElement.id === draggingChildId)
+            )
+            .map(({ child, childElement }) => {
+              const isDragging = childElement.id === draggingChildId && !!draggingPosition;
+              const offset = getVisualOffset(childElement);
+              const dx = offset.x - (childElement.x - x);
+              const dy = offset.y - (childElement.y - y);
 
-            // 找到对应的 React 子元素
-            const childrenArray = React.Children.toArray(children);
-            const draggingReactChild = childrenArray[draggingChildIndex];
-
-            // 计算偏移量（从原位置到拖拽位置）
-            const offsetX = draggingPosition.x - draggingChild.x;
-            const offsetY = draggingPosition.y - draggingChild.y;
-
-            return (
-              <g className="pointer-events-none" style={{ opacity: 0.9 }}>
-                {/* 边框 */}
-                <rect
-                  x={draggingPosition.x}
-                  y={draggingPosition.y}
-                  width={previewWidth}
-                  height={previewHeight}
-                  fill="none"
-                  stroke={theme.dragPreviewStroke}
-                  strokeWidth={2}
-                  rx={6}
-                  ry={6}
-                />
-                {/* 实际元素内容（通过 transform 移动到拖拽位置） */}
-                <g transform={`translate(${offsetX}, ${offsetY})`}>
-                  {draggingReactChild}
+              return (
+                <g key={childElement.id} transform={`translate(${dx}, ${dy})`}>
+                  <g
+                    ref={node => {
+                      if (node) itemRefs.current.set(childElement.id, node);
+                      else itemRefs.current.delete(childElement.id);
+                    }}
+                    className={isDragging ? "pointer-events-none" : undefined}
+                    style={
+                      isDragging
+                        ? { filter: `drop-shadow(0 10px 18px ${COLUMN_COLORS.dragShadow})` }
+                        : undefined
+                    }
+                  >
+                    <rect
+                      className="pointer-events-none"
+                      x={childElement.x}
+                      y={childElement.y}
+                      width={childElement.width || width - padding * 2}
+                      height={childElement.height || 50}
+                      rx={slotRadius}
+                      ry={slotRadius}
+                      style={{
+                        fill: COLUMN_COLORS.tray,
+                        stroke: COLUMN_COLORS.line,
+                        strokeWidth: 1,
+                      }}
+                    />
+                    {child}
+                  </g>
                 </g>
-              </g>
-            );
-          })()}
+              );
+            })}
+        </g>
+
+        {/* 底部「添加卡片」：悬停列时淡入，挂在托盘正下方（不占布局高度） */}
+        <If condition={canAppend}>
+          <foreignObject
+            x={x}
+            y={y + trayHeight}
+            width={width}
+            height={APPEND_BUTTON_HEIGHT}
+            className="pointer-events-none overflow-visible"
+          >
+            <div className="flex h-full items-center">
+              <button
+                type="button"
+                className="text-ink-3 hover:bg-hover hover:text-ink-1 text-tau-meta pointer-events-auto flex h-7 cursor-pointer items-center gap-1.5 rounded-[4px] px-2 opacity-0 transition-opacity duration-150 focus-visible:opacity-100 group-hover/column:opacity-100"
+                onPointerDown={e => e.stopPropagation()}
+                onMouseDown={e => e.stopPropagation()}
+                onDoubleClick={e => e.stopPropagation()}
+                onClick={e => {
+                  e.stopPropagation();
+                  void ColumnUtil.appendRichText(board, element);
+                }}
+              >
+                <Plus size={14} strokeWidth={1.75} />
+                添加卡片
+              </button>
+            </div>
+          </foreignObject>
+        </If>
 
         {/* Selection border and resize handles */}
         <If condition={isSelected}>
@@ -328,7 +473,7 @@ const Column = memo(
               x={x}
               y={y}
               width={width}
-              height={height}
+              height={visualHeight}
               fill="none"
               stroke={SELECT_RECT_STROKE}
               strokeWidth={SELECT_RECT_STROKE_WIDTH}
@@ -339,7 +484,7 @@ const Column = memo(
             <ColumnResizeHandle
               x={x}
               y={y}
-              height={height}
+              height={visualHeight}
               position={EHandlerPosition.Left}
               board={board}
               onResizeStart={handleOnResizeStart}
@@ -350,7 +495,7 @@ const Column = memo(
             <ColumnResizeHandle
               x={x + width}
               y={y}
-              height={height}
+              height={visualHeight}
               position={EHandlerPosition.Right}
               board={board}
               onResizeStart={handleOnResizeStart}
@@ -369,7 +514,7 @@ const Column = memo(
 
         {/* Arrow drop connect points */}
         <If condition={isMoveArrowClosing}>
-          {arrowConnectPoints.map((point) => (
+          {arrowConnectPoints.map(point => (
             <ArrowDropConnectPoint
               key={point.connectId}
               cx={point.point.x}
@@ -380,7 +525,7 @@ const Column = memo(
         </If>
       </g>
     );
-  },
+  }
 );
 
 // Vertical resize handle for Column (left/right edges)
@@ -396,7 +541,7 @@ interface ColumnResizeHandleProps {
     startPoint: Point,
     endPoint: Point,
     isPreserveRatio?: boolean,
-    isAdsorb?: boolean,
+    isAdsorb?: boolean
   ) => void;
   onResizeEnd: () => void;
 }
@@ -429,22 +574,12 @@ const ColumnResizeHandle = memo(
 
       const handlePointerMove = (moveEvent: PointerEvent) => {
         if (!isResizing.current || !startPoint.current) return;
-        const endPoint = PointUtil.screenToViewPort(
-          board,
-          moveEvent.clientX,
-          moveEvent.clientY,
-        );
+        const endPoint = PointUtil.screenToViewPort(board, moveEvent.clientX, moveEvent.clientY);
         if (!endPoint) return;
 
         const isPreserveRatio = moveEvent.shiftKey;
         const isAdsorb = !moveEvent.altKey;
-        onResize(
-          position,
-          startPoint.current,
-          endPoint,
-          isPreserveRatio,
-          isAdsorb,
-        );
+        onResize(position, startPoint.current, endPoint, isPreserveRatio, isAdsorb);
       };
 
       const handlePointerUp = () => {
@@ -460,10 +595,7 @@ const ColumnResizeHandle = memo(
     });
 
     const handleWidth = 8;
-    const handleX =
-      position === EHandlerPosition.Left
-        ? x - handleWidth / 2
-        : x - handleWidth / 2;
+    const handleX = position === EHandlerPosition.Left ? x - handleWidth / 2 : x - handleWidth / 2;
 
     return (
       <rect
@@ -476,7 +608,7 @@ const ColumnResizeHandle = memo(
         onPointerDown={handlePointerDown}
       />
     );
-  },
+  }
 );
 
 ColumnResizeHandle.displayName = "ColumnResizeHandle";

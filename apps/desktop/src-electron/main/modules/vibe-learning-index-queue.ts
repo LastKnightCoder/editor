@@ -18,6 +18,7 @@ import vibeLearningDBManager from "./vibe-learning-db";
 import markitdownModule from "./markitdown";
 import databaseModule from "./database";
 import transcriptionModule, { type TranscriptionResult } from "./transcription";
+import { normalizeModelSize } from "../utils/transcription-model";
 import VibeLearningResourceTable from "./tables/vibe-learning-resource";
 import { cacheBilibiliVideo, getBilibiliCacheStatus } from "./bilibili-cache";
 import { cacheYoutubeVideo, getYoutubeCacheStatus } from "./youtube-cache";
@@ -416,17 +417,8 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       // 获取转录模型配置
       const { transcription, llmUsageSettings, llmConfigs } = setting;
 
-      // 提取模型名称（如 "faster-whisper-base" -> "base"）
-      let model = "base";
-      if (transcription?.currentModel) {
-        const modelName = transcription.currentModel;
-        // 从模型名称中提取大小（去掉 "faster-whisper-" 前缀）
-        if (modelName.startsWith("faster-whisper-")) {
-          model = modelName.replace("faster-whisper-", "");
-        } else {
-          model = modelName;
-        }
-      }
+      // 提取模型尺寸（"faster-whisper-base" / "whisper-cpp-base" -> "base"）
+      const model = normalizeModelSize(transcription?.currentModel);
 
       // 获取模型目录
       const modelDir = transcriptionModule.getModelsDir();
@@ -3029,14 +3021,15 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     }>;
     error?: string;
   }> {
-    const query = params.query.trim();
+    const query = typeof params.query === "string" ? params.query.trim() : "";
     const limit = Math.min(Math.max(1, Math.floor(params.limit || 20)), MAX_GREP_RESULTS);
 
     if (!query) {
       return {
-        success: true,
-        query: params.query,
+        success: false,
+        query: typeof params.query === "string" ? params.query : "",
         results: [],
+        error: "缺少必需的 query 参数",
       };
     }
 

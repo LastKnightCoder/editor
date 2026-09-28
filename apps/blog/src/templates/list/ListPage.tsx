@@ -6,8 +6,6 @@ import { Tag, Pagination, ScrollToTop } from "@blog/components/Common";
 import { getInitData, formatDate, joinPath } from "@blog/utils";
 import { CardTagTree, ListData, ListItem } from "@blog/types";
 import { fadeUp, staggerContainer, defaultTransition } from "@blog/utils/motion";
-import "@tau/themes/light.less";
-import "@tau/themes/dark.less";
 
 const typeLabels: Record<string, string> = {
   card: "卡片",

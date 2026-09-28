@@ -13,6 +13,11 @@ import type {
   ContentEditRendererPayload,
 } from "@/services/content-editing";
 
+// 宿主组件只验证自身逻辑，不渲染真实编辑器，kit 也不必真实构造
+vi.mock("@/services/editorKit", () => ({
+  getDesktopKit: () => ({}),
+  getDesktopBareKit: () => ({}),
+}));
 vi.mock("@tau/editor/src", () => ({
   Editor: ({ initValue }: { initValue: unknown }) => (
     <div data-testid="editor-preview">{JSON.stringify(initValue)}</div>

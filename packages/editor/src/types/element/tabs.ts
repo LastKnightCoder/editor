@@ -1,4 +1,4 @@
-import { BlockElement } from "../custom-element";
+import type { BlockElement } from "../custom-element";
 
 /**
  * 旧数据形态：Tab 内容整体存于 tabs 属性中，仅作存量数据读取兼容，

@@ -7,19 +7,17 @@ import { Link } from "lucide-react";
 
 import classnames from "classnames";
 import { unwrapLink, wrapLink } from "../../../../utils";
-import useThemeColors from "../../../../hooks/useThemeColors";
 
 const LinkHoveringItem = memo(() => {
   const editor = useSlateStatic();
   const selection = useSlateSelection();
-  const themeColors = useThemeColors();
 
   const isActive = useMemo(() => {
     if (!selection) {
       return false;
     }
     const [link] = Editor.nodes(editor, {
-      match: (n) => !Editor.isEditor(n) && n.type === "link",
+      match: n => !Editor.isEditor(n) && n.type === "link",
     });
     return !!link;
   }, [editor, selection]);
@@ -42,14 +40,9 @@ const LinkHoveringItem = memo(() => {
     <Tooltip title={"链接"} trigger={"hover"}>
       <div
         className={classnames(
-          "flex items-center justify-center w-8 h-8 rounded-lg cursor-pointer transition-all duration-200",
-          isActive
-            ? themeColors.activeClass
-            : classnames(
-                themeColors.textClass,
-                themeColors.hoverClass,
-                themeColors.hoverTextClass,
-              ),
+          "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all duration-200",
+          "ed-toolbar-item",
+          isActive && "is-active"
         )}
         onClick={handleClick}
       >

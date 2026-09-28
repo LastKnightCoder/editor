@@ -1,5 +1,5 @@
 /**
- * 发布页（从设置弹窗抽出的独立页面，mockups/publish）。
+ * 发布页（从设置弹窗抽出的独立页面），外壳为一整张纸（同 MCP / 协作页）。
  *
  * 按使用频率分区：页头 = 站点身份（favicon / 标题 / 访问地址 / 目标徽标 / 上次发布，
  * 访问地址即站点入口，不另设按钮）；配置在右栏底部摘要卡，详情收进「站点设置」抽屉；主区 = 内容选择（PublishSelector 吃满宽度）；
@@ -10,7 +10,6 @@
 import clsx from "clsx";
 import { useEffect, useRef, useState } from "react";
 import { Globe } from "lucide-react";
-import { Panel } from "@tau/ui";
 import PublishSelector from "@/components/PublishSelector";
 import { FadeScroll } from "@/components/FadeScroll";
 import LocalImage from "@/components/LocalImage";
@@ -61,91 +60,93 @@ export function PublishView() {
   const isLocal = config.active === EPublishProvider.Local;
 
   return (
-    <div className="pt-4.5 mx-auto flex h-full max-w-[1680px] flex-col px-[34px]">
-      {/* ── 页头：站点身份 ── */}
-      <header className="flex flex-none items-center gap-3.5 px-1 pb-[18px]">
-        <span className="bg-surface shadow-card text-ink-3 grid size-11 flex-none place-items-center overflow-hidden rounded-[12px]">
-          {publish.site.favicon ? (
-            <LocalImage
-              url={publish.site.favicon.cachePath}
-              alt={publish.site.favicon.fileName}
-              className="size-6 object-contain"
-            />
-          ) : (
-            <Globe size={22} strokeWidth={1.75} />
-          )}
-        </span>
-        <div className="min-w-0">
-          <h1 className="truncate text-[19px] font-semibold tracking-[0.01em]">
-            {publish.site.title.trim() || "未命名站点"}
-          </h1>
-          <div className="text-tau-sm text-ink-3 mt-0.5 flex flex-wrap items-center gap-2.5">
-            {siteUrl && !isLocal && (
-              <button
-                type="button"
-                className="font-tau-mono text-accent-text text-[11.5px] hover:underline"
-                onClick={visit}
-              >
-                {siteUrl.replace(/^https?:\/\//, "")}
-              </button>
-            )}
-            <span
-              className={clsx(
-                "text-tau-micro inline-flex items-center gap-1.5 rounded-full px-[9px] py-px",
-                chip ? "bg-hover text-ink-2" : "bg-warn-soft text-warn"
-              )}
-            >
-              <i className={clsx("size-1.5 rounded-full", chip ? "bg-ok" : "bg-warn")} />
-              {chip ?? "尚未配置发布目标"}
-            </span>
-            <span>
-              {runner.lastPublishedAt
-                ? `上次发布 ${formatAgo(runner.lastPublishedAt)}`
-                : "从未发布"}
-            </span>
-          </div>
-        </div>
-      </header>
-
-      {/* ── 主体：内容选择 + 右栏 ── */}
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_352px] gap-4 pb-4">
-        <Panel pad="none" className="min-h-0 overflow-hidden">
-          <PublishSelector onSelectionsChange={handleSelectionsChange} />
-        </Panel>
-
-        <aside className="flex min-h-0 flex-col">
-          {/* 卡片与滚动条之间留 pr-2 间隙；滚动条内缩与 edge fade 同选择器列表 */}
-          <FadeScroll className="flex min-h-0 flex-1 flex-col gap-3.5 pr-2">
-            {showGuide ? (
-              <GuideCard
-                config={config}
-                selectionCount={selectionCount}
-                onOpenSettings={() => setDrawerOpen(true)}
-                onOpenIntegration={openIntegration}
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+      {/* 一整张纸：页头固定在纸顶，内容选择与右栏在纸内（同 MCP / 协作页） */}
+      <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
+        {/* ── 页头：站点身份 ── */}
+        <header className="border-line-1 flex flex-none items-center gap-3.5 border-b px-8 pb-4 pt-5">
+          <span className="bg-hover text-ink-3 grid size-11 flex-none place-items-center overflow-hidden rounded-[12px]">
+            {publish.site.favicon ? (
+              <LocalImage
+                url={publish.site.favicon.cachePath}
+                alt={publish.site.favicon.fileName}
+                className="size-6 object-contain"
               />
             ) : (
-              <>
-                <PlanCard
-                  plan={runner.plan}
-                  loading={runner.planLoading}
-                  stale={runner.planStale}
-                  isLocal={isLocal}
-                  onRefresh={() => void runner.refreshPlan()}
-                />
-                <ActionCard
-                  config={config}
-                  run={runner.run}
-                  canPublish={canPublish}
-                  onPublish={() => void runner.publishNow()}
-                  onReset={runner.resetRun}
-                  onOpenSettings={() => setDrawerOpen(true)}
-                  onVisit={visit}
-                />
-              </>
+              <Globe size={22} strokeWidth={1.75} />
             )}
-            <SiteCard config={config} onOpen={() => setDrawerOpen(true)} />
-          </FadeScroll>
-        </aside>
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-tau-title-lg truncate font-semibold tracking-[-0.01em]">
+              {publish.site.title.trim() || "未命名站点"}
+            </h1>
+            <div className="text-tau-sm text-ink-3 mt-0.5 flex flex-wrap items-center gap-2.5">
+              {siteUrl && !isLocal && (
+                <button
+                  type="button"
+                  className="font-tau-mono text-accent-text text-[11.5px] hover:underline"
+                  onClick={visit}
+                >
+                  {siteUrl.replace(/^https?:\/\//, "")}
+                </button>
+              )}
+              <span
+                className={clsx(
+                  "text-tau-micro inline-flex items-center gap-1.5 rounded-full px-[9px] py-px",
+                  chip ? "bg-hover text-ink-2" : "bg-warn-soft text-warn"
+                )}
+              >
+                <i className={clsx("size-1.5 rounded-full", chip ? "bg-ok" : "bg-warn")} />
+                {chip ?? "尚未配置发布目标"}
+              </span>
+              <span>
+                {runner.lastPublishedAt
+                  ? `上次发布 ${formatAgo(runner.lastPublishedAt)}`
+                  : "从未发布"}
+              </span>
+            </div>
+          </div>
+        </header>
+
+        {/* ── 纸内主体：左 = 内容选择，右 = 分节右栏；竖线分隔，左右各留 32px 与页头对齐 ── */}
+        <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_360px]">
+          <div className="min-h-0 overflow-hidden pl-5">
+            <PublishSelector onSelectionsChange={handleSelectionsChange} />
+          </div>
+
+          <aside className="border-line-1 flex min-h-0 flex-col border-l">
+            <FadeScroll className="divide-line-1 flex min-h-0 flex-1 flex-col divide-y">
+              {showGuide ? (
+                <GuideCard
+                  config={config}
+                  selectionCount={selectionCount}
+                  onOpenSettings={() => setDrawerOpen(true)}
+                  onOpenIntegration={openIntegration}
+                />
+              ) : (
+                <>
+                  <PlanCard
+                    plan={runner.plan}
+                    loading={runner.planLoading}
+                    stale={runner.planStale}
+                    isLocal={isLocal}
+                    onRefresh={() => void runner.refreshPlan()}
+                  />
+                  <ActionCard
+                    config={config}
+                    run={runner.run}
+                    canPublish={canPublish}
+                    onPublish={() => void runner.publishNow()}
+                    onReset={runner.resetRun}
+                    onOpenSettings={() => setDrawerOpen(true)}
+                    onVisit={visit}
+                  />
+                </>
+              )}
+              <SiteCard config={config} onOpen={() => setDrawerOpen(true)} />
+            </FadeScroll>
+          </aside>
+        </div>
       </div>
 
       <SiteSettingsDrawer

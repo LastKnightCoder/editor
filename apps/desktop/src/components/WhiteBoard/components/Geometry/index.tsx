@@ -1,10 +1,11 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import { useMemoizedFn } from "ahooks";
 import { Descendant } from "slate";
 import classnames from "classnames";
 
 import If from "@/components/If";
-import { Editor, EditorRef } from "@tau/editor/src";
+import { Editor, EditorRef, EditorThemeOverride } from "@tau/editor/src";
 import type { IHotKeyConfig } from "@tau/editor/src";
 import ResizeCircle from "../ResizeCircle";
 import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
@@ -35,14 +36,14 @@ interface GeometryProps {
     startPoint: Point,
     endPoint: Point,
     isPreserveRatio?: boolean,
-    isAdsorb?: boolean,
+    isAdsorb?: boolean
   ) => void;
   onResizeEnd?: (
     board: Board,
     element: GeometryElement,
     position: EHandlerPosition,
     startPoint: Point,
-    endPoint: Point,
+    endPoint: Point
   ) => void;
 }
 
@@ -75,12 +76,8 @@ const Geometry = memo((props: GeometryProps) => {
   const textRef = useRef<EditorRef>(null);
   const [textContent] = useState(text.content);
 
-  const {
-    isMoveArrowClosing,
-    activeConnectId,
-    arrowConnectPoints,
-    arrowConnectExtendPoints,
-  } = useDropArrow(element);
+  const { isMoveArrowClosing, activeConnectId, arrowConnectPoints, arrowConnectExtendPoints } =
+    useDropArrow(element);
 
   const [resizePoints] = useMemo(() => {
     const resizePoints = PointUtil.getResizePointFromRect({
@@ -103,37 +100,24 @@ const Geometry = memo((props: GeometryProps) => {
       startPoint: Point,
       endPoint: Point,
       isPreserveRatio?: boolean,
-      isAdsorb?: boolean,
+      isAdsorb?: boolean
     ) => {
-      onResize(
-        board,
-        element,
-        position,
-        startPoint,
-        endPoint,
-        isPreserveRatio,
-        isAdsorb,
-      );
-    },
+      onResize(board, element, position, startPoint, endPoint, isPreserveRatio, isAdsorb);
+    }
   );
 
   const handleOnResizeEnd = useMemoizedFn(
     (position: EHandlerPosition, startPoint: Point, endPoint: Point) => {
       onResizeEnd?.(board, element, position, startPoint, endPoint);
-    },
+    }
   );
 
   const addEditingElement = useMemoizedFn(() => {
-    board.isEditingElements = [
-      ...board.isEditingElements.filter((eid) => eid !== id),
-      id,
-    ];
+    board.isEditingElements = [...board.isEditingElements.filter(eid => eid !== id), id];
   });
 
   const removeEditingElement = useMemoizedFn(() => {
-    board.isEditingElements = board.isEditingElements.filter(
-      (eid) => eid !== id,
-    );
+    board.isEditingElements = board.isEditingElements.filter(eid => eid !== id);
   });
 
   const finishEditing = useMemoizedFn(() => {
@@ -151,7 +135,7 @@ const Geometry = memo((props: GeometryProps) => {
           },
         },
       ],
-      false,
+      false
     );
   });
 
@@ -187,7 +171,7 @@ const Geometry = memo((props: GeometryProps) => {
           },
         },
       ],
-      false,
+      false
     );
   });
 
@@ -214,7 +198,7 @@ const Geometry = memo((props: GeometryProps) => {
           newProperties: { text: nextText },
         },
       ],
-      false,
+      false
     );
   });
 
@@ -225,8 +209,7 @@ const Geometry = memo((props: GeometryProps) => {
         action: (_editor, event) => {
           if (!isEditing) return;
           if (event.nativeEvent.isComposing) return;
-          if (event.shiftKey || event.ctrlKey || event.metaKey || event.altKey)
-            return;
+          if (event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return;
 
           event.preventDefault();
           event.stopPropagation();
@@ -234,7 +217,7 @@ const Geometry = memo((props: GeometryProps) => {
         },
       },
     ],
-    [finishEditing, isEditing],
+    [finishEditing, isEditing]
   );
 
   useEffect(() => {
@@ -274,29 +257,26 @@ const Geometry = memo((props: GeometryProps) => {
           strokeOpacity={strokeOpacity}
         />
       </svg>
-      <foreignObject
-        x={x}
-        y={y}
-        width={width}
-        height={height}
-        className="border-none"
-      >
+      <foreignObject x={x} y={y} width={width} height={height} className="border-none">
         <div
           className={classnames(styles.textContainer, styles[text.align], {
             [styles.readonly]: !isEditing,
           })}
           style={{ color }}
         >
-          <Editor
-            ref={textRef}
-            initValue={textContent}
-            onFocus={handleOnFocus}
-            onBlur={handleOnBlur}
-            readonly={!isEditing}
-            onChange={handleTextContentChange}
-            hotkeyConfigs={geometryHotkeyConfigs}
-            theme={theme}
-          />
+          {/* 图形可单独指定文字明暗（深色填充配浅色字），未指定时跟随宿主 */}
+          <EditorThemeOverride mode={theme}>
+            <Editor
+              kit={getDesktopKit()}
+              ref={textRef}
+              initValue={textContent}
+              onFocus={handleOnFocus}
+              onBlur={handleOnBlur}
+              readonly={!isEditing}
+              onChange={handleTextContentChange}
+              hotkeyConfigs={geometryHotkeyConfigs}
+            />
+          </EditorThemeOverride>
         </div>
       </foreignObject>
       <If condition={isSelected}>
@@ -334,7 +314,7 @@ const Geometry = memo((props: GeometryProps) => {
         disabled={isMoveArrowClosing}
       />
       <If condition={isMoveArrowClosing}>
-        {arrowConnectPoints.map((point) => (
+        {arrowConnectPoints.map(point => (
           <ArrowDropConnectPoint
             key={point.connectId}
             cx={point.point.x}

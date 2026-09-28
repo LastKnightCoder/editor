@@ -195,7 +195,6 @@ const CardLinksRenderer: React.FC<CardLinksRendererProps> = memo(
           onCancel={() => setSelectorModalVisible(false)}
           onSelect={handleSelectCard}
           contentType={["card"]}
-          extensions={[]}
           title="选择要链接的卡片"
           emptyDescription="未找到相关卡片"
           multiple={false}

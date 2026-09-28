@@ -1,14 +1,9 @@
 import { Editor } from "slate";
 import { createRoot, Root } from "react-dom/client";
 import { createMentionPanelStore } from "../stores/createMentionPanelStore";
-import {
-  MentionPanelContext,
-  MentionPanelStoreType,
-} from "../stores/MentionPanelContext";
+import { MentionPanelContext, MentionPanelStoreType } from "../stores/MentionPanelContext";
 import MentionPanel from "../components/MentionPanel";
 import DndProvider from "@/components/DndProvider";
-
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 // 存储每个 editor 的面板信息
 export const editorPanels = new WeakMap<
@@ -32,7 +27,6 @@ function createPanel(editor: Editor) {
   container.id = `mention-panel-${Math.random().toString(36).substr(2, 9)}`;
   document.body.appendChild(container);
 
-  const { extensions } = useDynamicExtensionsStore.getState();
   // 创建 store
   const store = createMentionPanelStore(editor);
 
@@ -44,7 +38,7 @@ function createPanel(editor: Editor) {
     return (
       <DndProvider>
         <MentionPanelContext.Provider value={store}>
-          <MentionPanel extensions={extensions} editor={editor} />
+          <MentionPanel editor={editor} />
         </MentionPanelContext.Provider>
       </DndProvider>
     );
@@ -73,7 +67,7 @@ function destroyPanel(editor: Editor) {
 export const withMentionCommands = (editor: Editor) => {
   const { insertText } = editor;
 
-  editor.insertText = (text) => {
+  editor.insertText = text => {
     if (text === "@") {
       // 动态创建面板
       const { store } = createPanel(editor);

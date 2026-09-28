@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import {
   Copy,
   Download,
@@ -30,7 +31,6 @@ import {
 } from "@tau/ui";
 import { Editor } from "@tau/editor/src";
 import { usePage } from "@/page/PageProvider";
-import useTheme from "@/hooks/useTheme";
 import useSkillStore from "@/stores/useSkillStore";
 import { importFromMarkdown } from "@/utils/markdown";
 import { splitSkillDocument } from "@/utils/skill-frontmatter";
@@ -99,7 +99,6 @@ function OverviewPane({
   readme: string | null;
   files: SkillFile[];
 }) {
-  const { theme } = useTheme();
   const body = useMemo(() => (readme === null ? null : splitSkillDocument(readme).body), [readme]);
   const value = useMemo(() => (body === null ? null : importFromMarkdown(body)), [body]);
   const { skill } = item;
@@ -176,10 +175,10 @@ function OverviewPane({
         <div className="text-tau-sm text-ink-3 mb-1">SKILL.md</div>
         {value ? (
           <Editor
+            kit={getDesktopKit()}
             key={skill.path}
             initValue={value}
             readonly
-            theme={theme}
             className="text-tau-body"
           />
         ) : (

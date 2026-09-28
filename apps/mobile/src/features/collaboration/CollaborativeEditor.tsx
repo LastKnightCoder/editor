@@ -3,6 +3,7 @@
 // owner 侧投影、presence 上报；会话建立失败时上报「本地兜底」模式，由详情页用正常的
 // 本地编辑器继续编辑（改动经投影通道落本地库），重连后拉出「保留本机 / 采用云端」裁决。
 import { useEffect, useRef, useState, type ComponentProps, type RefObject } from "react";
+import { getMobileKit } from "../../services/editorKit";
 import { ChevronRight, Loader2, RefreshCw, Users, WifiOff } from "lucide-react";
 import { Editor, type EditorRef } from "@tau/editor/src";
 import { AvatarStack, StatusDot } from "./components/CollaborationUI";
@@ -23,7 +24,6 @@ export type CollaborativeEditorMode = "connecting" | "live" | "unavailable" | "e
 
 export function CollaborativeEditor(props: {
   documentId: string;
-  theme: EditorProps["theme"];
   extensions?: EditorProps["extensions"];
   editorRef: RefObject<EditorRef | null>;
   onEditorFocus: () => void;
@@ -41,8 +41,19 @@ export function CollaborativeEditor(props: {
   // 重连后仍有本机兜底改动待裁决：暂停投影（绝不让云端覆盖待决改动），先让作者选择
   const [pendingChoice, setPendingChoice] = useState(false);
   const [stalled, setStalled] = useState(false);
-  const { binding, loading, error, boundContentId, ended, retry, readonly, presence, status, online, offline } =
-    useCollabSession(props.documentId, { projectionPaused: pendingChoice });
+  const {
+    binding,
+    loading,
+    error,
+    boundContentId,
+    ended,
+    retry,
+    readonly,
+    presence,
+    status,
+    online,
+    offline,
+  } = useCollabSession(props.documentId, { projectionPaused: pendingChoice });
   // 待裁决期间正文只读：本机改动必须先二选一，不允许继续编辑制造第三个版本
   const viewReadonly = readonly || pendingChoice;
   // 会话建立失败或长时间未就绪：交给详情页用本地编辑器兜底（作者数据在本地，不应被只读挡住）
@@ -167,12 +178,12 @@ export function CollaborativeEditor(props: {
 
       <div className="min-h-[45vh] pt-1">
         <Editor
+          kit={getMobileKit()}
           ref={props.editorRef}
           key={`collab-${props.documentId}`}
           collaboration={binding}
           className="mobile-card-editor-content"
           readonly={viewReadonly}
-          theme={props.theme}
           extensions={props.extensions}
           onFocus={() => {
             presence.onFocus();

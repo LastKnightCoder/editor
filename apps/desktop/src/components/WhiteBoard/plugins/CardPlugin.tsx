@@ -14,23 +14,21 @@ import { BoardUtil, getResizedBBox, PathUtil } from "../utils";
 import Card from "../components/Card";
 import { CommonPlugin, CommonElement } from "./CommonPlugin";
 import { SelectTransforms } from "../transforms";
-import { EShadowSize } from "../constants";
+import { TextTone, TextVariant } from "../constants";
 
 export interface CardElement extends CommonElement {
   type: "card";
   cardId: number;
   maxWidth: number;
   maxHeight: number;
-  paddingWidth?: number;
-  paddingHeight: number;
   resized: boolean;
   readonly?: boolean;
-  fill?: string;
-  fillOpacity?: number;
+  variant?: TextVariant;
+  tone?: TextTone;
+  /** @deprecated 旧版外观字段，只读，由 resolveTextStyle 换算成 variant/tone */
+  background?: string;
+  /** @deprecated 同上 */
   topColor?: string;
-  color?: string;
-  theme?: "light" | "dark";
-  shadowSize?: EShadowSize;
 }
 
 export class CardPlugin extends CommonPlugin implements IBoardPlugin {
@@ -48,8 +46,7 @@ export class CardPlugin extends CommonPlugin implements IBoardPlugin {
         asContainer: ContainmentBehavior.None,
         canBeContained: true,
         // 声明可入 Column（准入与否由子方声明反转决定，见 CapabilityService.canContain）
-        canBeContainedBy: (container: BoardElement) =>
-          container.type === "column",
+        canBeContainedBy: (container: BoardElement) => container.type === "column",
       },
     };
   }
@@ -81,15 +78,10 @@ export class CardPlugin extends CommonPlugin implements IBoardPlugin {
     startPoint: Point,
     endPoint: Point,
     _isPreserveRatio = false,
-    isAdsorb = false,
+    isAdsorb = false
   ) {
     if (!this.originResizeElement) return;
-    const newBBox = getResizedBBox(
-      this.originResizeElement,
-      position,
-      startPoint,
-      endPoint,
-    );
+    const newBBox = getResizedBBox(this.originResizeElement, position, startPoint, endPoint);
     const newElement = {
       ...element,
       ...newBBox,
@@ -110,7 +102,7 @@ export class CardPlugin extends CommonPlugin implements IBoardPlugin {
       isAdsorb,
       5 / board.viewPort.zoom,
       true,
-      position,
+      position
     );
     board.refLine.setCurrent(updateElement);
     newElement.x = updateElement.rects[0].x;
@@ -133,7 +125,7 @@ export class CardPlugin extends CommonPlugin implements IBoardPlugin {
     board: Board,
     element: CardElement,
     width: number,
-    height: number,
+    height: number
   ) => {
     const { width: w, height: h } = element;
     if (w === width && h === height) return;

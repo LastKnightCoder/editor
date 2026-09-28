@@ -16,10 +16,7 @@ import {
   getLayerOrderActionState,
   executeLayerOrderAction,
 } from "@/components/WhiteBoard/utils";
-import {
-  SelectTransforms,
-  ViewPortTransforms,
-} from "@/components/WhiteBoard/transforms";
+import { SelectTransforms, ViewPortTransforms } from "@/components/WhiteBoard/transforms";
 import { incrementContentRefCount } from "@/commands/content";
 import { v4 as getUuid } from "uuid";
 import React from "react";
@@ -31,7 +28,8 @@ import {
   VerticalAlignBottomOutlined,
   VerticalAlignTopOutlined,
 } from "@ant-design/icons";
-import { importFromMarkdown, isMarkdownLikeText } from "@tau/editor/src";
+import { isMarkdownLikeText } from "@tau/markdown";
+import { importFromMarkdown } from "@/utils/markdown";
 import { Descendant } from "slate";
 
 export class CopyPastePlugin implements IBoardPlugin {
@@ -67,35 +65,28 @@ export class CopyPastePlugin implements IBoardPlugin {
    * 过滤掉容器内的元素，避免重复复制
    * 如果同时选中了容器和其内部元素，只保留容器
    */
-  private filterContainerChildren(
-    board: Board,
-    elements: BoardElement[],
-  ): BoardElement[] {
+  private filterContainerChildren(board: Board, elements: BoardElement[]): BoardElement[] {
     if (elements.length <= 1) return elements;
 
     const capService = board.capabilityService;
 
     // 找到所有带子元素的容器（如 frame）
-    const containers = elements.filter((el) =>
-      capService.shouldMoveWithChildren(el),
-    );
+    const containers = elements.filter(el => capService.shouldMoveWithChildren(el));
 
     // 收集所有容器的所有子元素ID（包括嵌套的）
     const allChildIds = new Set<string>();
-    containers.forEach((container) => {
+    containers.forEach(container => {
       const childIds = this.collectAllChildIds(container);
-      childIds.forEach((id) => allChildIds.add(id));
+      childIds.forEach(id => allChildIds.add(id));
     });
 
     // 从元素列表中移除所有容器的子元素
-    const filteredElements = elements.filter((el) => !allChildIds.has(el.id));
+    const filteredElements = elements.filter(el => !allChildIds.has(el.id));
 
     return filteredElements;
   }
 
-  private collectReferencedContentIds(
-    elements: BoardElement[],
-  ): Map<number, number> {
+  private collectReferencedContentIds(elements: BoardElement[]): Map<number, number> {
     const counts = new Map<number, number>();
 
     const visit = (element: BoardElement) => {
@@ -116,7 +107,7 @@ export class CopyPastePlugin implements IBoardPlugin {
     const counts = this.collectReferencedContentIds(elements);
     counts.forEach((count, contentId) => {
       for (let index = 0; index < count; index += 1) {
-        void incrementContentRefCount(contentId).catch((error) => {
+        void incrementContentRefCount(contentId).catch(error => {
           console.error("Failed to increment pasted content ref count:", error);
         });
       }
@@ -127,8 +118,7 @@ export class CopyPastePlugin implements IBoardPlugin {
     const { targetElements, board } = context;
     const items: PluginContextMenuItem[] = [];
     const targetCount = targetElements.length;
-    const isMac =
-      typeof navigator !== "undefined" && /mac/i.test(navigator.platform);
+    const isMac = typeof navigator !== "undefined" && /mac/i.test(navigator.platform);
     const copyShortcut = isMac ? "⌘C" : "Ctrl+C";
     const deleteShortcut = isMac ? "⌘⌫" : "Delete";
 
@@ -155,13 +145,10 @@ export class CopyPastePlugin implements IBoardPlugin {
         priority: 300,
         onSelect: (ctx: ContextMenuContext) => {
           // 过滤掉容器内的元素
-          const filteredElements = this.filterContainerChildren(
-            ctx.board,
-            targetElements,
-          );
+          const filteredElements = this.filterContainerChildren(ctx.board, targetElements);
           const payload = buildClipboardPayload(ctx.board, filteredElements);
           if (!payload) return;
-          writeClipboardPayload(payload).then((success) => {
+          writeClipboardPayload(payload).then(success => {
             if (!success) {
               console.warn("复制到剪贴板失败");
             }
@@ -207,13 +194,9 @@ export class CopyPastePlugin implements IBoardPlugin {
           priority: 307,
           disabled: layerActionState.moveBottomDisabled,
           onSelect: (ctx: ContextMenuContext) => {
-            executeLayerOrderAction(
-              ctx.board,
-              ctx.targetElements,
-              "move-bottom",
-            );
+            executeLayerOrderAction(ctx.board, ctx.targetElements, "move-bottom");
           },
-        },
+        }
       );
 
       // 删除菜单项（仅在非只读且非演示模式时显示）
@@ -232,19 +215,13 @@ export class CopyPastePlugin implements IBoardPlugin {
           danger: true,
           onSelect: (ctx: ContextMenuContext) => {
             // 过滤掉容器内的元素，避免重复删除
-            const filteredElements = this.filterContainerChildren(
-              ctx.board,
-              targetElements,
-            );
+            const filteredElements = this.filterContainerChildren(ctx.board, targetElements);
             const deleted = deleteBoardElements(ctx.board, filteredElements);
             if (!deleted) return;
-            const targetIds = new Set(
-              filteredElements.map((element) => element.id),
+            const targetIds = new Set(filteredElements.map(element => element.id));
+            const remainingSelected = ctx.board.selection.selectedElements.filter(
+              element => !targetIds.has(element.id)
             );
-            const remainingSelected =
-              ctx.board.selection.selectedElements.filter(
-                (element) => !targetIds.has(element.id),
-              );
             SelectTransforms.updateSelectArea(ctx.board, {
               selectArea: null,
               selectedElements: remainingSelected,
@@ -263,10 +240,7 @@ export class CopyPastePlugin implements IBoardPlugin {
     if (selectedElements.length === 0) return;
 
     // 过滤掉容器内的元素
-    const filteredElements = this.filterContainerChildren(
-      board,
-      selectedElements,
-    );
+    const filteredElements = this.filterContainerChildren(board, selectedElements);
 
     const payload = buildClipboardPayload(board, filteredElements);
     if (!payload) return;
@@ -282,10 +256,7 @@ export class CopyPastePlugin implements IBoardPlugin {
     if (selectedElements.length === 0) return;
 
     // 过滤掉容器内的元素，避免重复删除
-    const filteredElements = this.filterContainerChildren(
-      board,
-      selectedElements,
-    );
+    const filteredElements = this.filterContainerChildren(board, selectedElements);
 
     // 创建删除操作，现在不需要预先计算路径了，apply 方法会自动处理路径转换
     const ops: Operation[] = [];
@@ -314,10 +285,9 @@ export class CopyPastePlugin implements IBoardPlugin {
     const payloadCandidates = Array.from(
       new Set(
         [applicationJson, textPlain].filter(
-          (value): value is string =>
-            typeof value === "string" && value.length > 0,
-        ),
-      ),
+          (value): value is string => typeof value === "string" && value.length > 0
+        )
+      )
     );
 
     for (const candidate of payloadCandidates) {
@@ -329,11 +299,7 @@ export class CopyPastePlugin implements IBoardPlugin {
     this.tryPasteTextAsRichText(e, board);
   }
 
-  private tryPasteWhiteboardPayload(
-    data: string,
-    e: ClipboardEvent,
-    board: Board,
-  ): boolean {
+  private tryPasteWhiteboardPayload(data: string, e: ClipboardEvent, board: Board): boolean {
     let dataObj: { source?: string; elements?: BoardElement[] } | null = null;
     try {
       dataObj = JSON.parse(data);
@@ -346,9 +312,7 @@ export class CopyPastePlugin implements IBoardPlugin {
     }
 
     // 获取粘贴板的元素
-    const elements: BoardElement[] = Array.isArray(dataObj.elements)
-      ? dataObj.elements
-      : [];
+    const elements: BoardElement[] = Array.isArray(dataObj.elements) ? dataObj.elements : [];
     if (elements.length === 0) {
       return false;
     }
@@ -357,14 +321,14 @@ export class CopyPastePlugin implements IBoardPlugin {
     const idMaps = new Map<string, string>();
     this.collectAllIds(elements, idMaps);
 
-    elements.forEach((element) => {
+    elements.forEach(element => {
       // 更新元素位置并替换所有ID引用
       this.updateElementIds(element, idMaps);
     });
 
     const groupIdMaps = new Map<string, string>();
     this.collectGroupIds(elements, groupIdMaps);
-    elements.forEach((element) => {
+    elements.forEach(element => {
       this.updateGroupIds(element, groupIdMaps);
     });
 
@@ -424,10 +388,8 @@ export class CopyPastePlugin implements IBoardPlugin {
       resized: false,
       autoHeight: true,
       content: content.length > 0 ? content : this.buildPlainTextContent(""),
-      paddingWidth: 16,
-      paddingHeight: 16,
       autoFocus: true,
-      ...RichTextUtil.getPrevRichtextStyle(),
+      ...RichTextUtil.load(),
     };
 
     board.apply([
@@ -457,11 +419,7 @@ export class CopyPastePlugin implements IBoardPlugin {
 
     for (let i = 0; i < items.length; i++) {
       const type = items[i].type;
-      if (
-        type.startsWith("image/") ||
-        type.startsWith("video/") ||
-        type.startsWith("audio/")
-      ) {
+      if (type.startsWith("image/") || type.startsWith("video/") || type.startsWith("audio/")) {
         return true;
       }
     }
@@ -470,17 +428,10 @@ export class CopyPastePlugin implements IBoardPlugin {
 
   private isEditableEventTarget(target: EventTarget | null): boolean {
     const element =
-      target instanceof Element
-        ? target
-        : target instanceof Node
-          ? target.parentElement
-          : null;
+      target instanceof Element ? target : target instanceof Node ? target.parentElement : null;
     if (!element) return false;
 
-    if (
-      element instanceof HTMLInputElement ||
-      element instanceof HTMLTextAreaElement
-    ) {
+    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
       return true;
     }
 
@@ -489,7 +440,7 @@ export class CopyPastePlugin implements IBoardPlugin {
       element.closest('[contenteditable="true"]') ||
       element.closest("[data-slate-editor]") ||
       element.closest("input") ||
-      element.closest("textarea"),
+      element.closest("textarea")
     );
   }
 
@@ -499,7 +450,7 @@ export class CopyPastePlugin implements IBoardPlugin {
       return [this.createEmptyParagraph()];
     }
 
-    return lines.map((line) => ({
+    return lines.map(line => ({
       type: "paragraph",
       children: [
         {
@@ -542,10 +493,7 @@ export class CopyPastePlugin implements IBoardPlugin {
   /**
    * 递归更新元素及其children的所有ID引用
    */
-  private updateElementIds(
-    element: BoardElement,
-    idMaps: Map<string, string>,
-  ): BoardElement {
+  private updateElementIds(element: BoardElement, idMaps: Map<string, string>): BoardElement {
     // 更新当前元素的ID
     const updatedElement = { ...element };
     updatedElement.id = idMaps.get(element.id) || element.id;
@@ -554,29 +502,24 @@ export class CopyPastePlugin implements IBoardPlugin {
     // 使用属性检查而非类型检查,支持任何具有绑定关系的元素类型
     if (updatedElement.source?.bindId) {
       updatedElement.source.bindId =
-        idMaps.get(updatedElement.source.bindId) ||
-        updatedElement.source.bindId;
+        idMaps.get(updatedElement.source.bindId) || updatedElement.source.bindId;
     }
     if (updatedElement.target?.bindId) {
       updatedElement.target.bindId =
-        idMaps.get(updatedElement.target.bindId) ||
-        updatedElement.target.bindId;
+        idMaps.get(updatedElement.target.bindId) || updatedElement.target.bindId;
     }
 
     // 递归处理children
     if (updatedElement.children && updatedElement.children.length > 0) {
-      updatedElement.children = updatedElement.children.map((child) =>
-        this.updateElementIds(child, idMaps),
+      updatedElement.children = updatedElement.children.map(child =>
+        this.updateElementIds(child, idMaps)
       );
     }
 
     return updatedElement;
   }
 
-  private collectGroupIds(
-    elements: BoardElement[],
-    groupIdMaps: Map<string, string>,
-  ) {
+  private collectGroupIds(elements: BoardElement[], groupIdMaps: Map<string, string>) {
     for (const element of elements) {
       const groupId = getElementGroupId(element);
       if (groupId && !groupIdMaps.has(groupId)) {
@@ -589,19 +532,14 @@ export class CopyPastePlugin implements IBoardPlugin {
     }
   }
 
-  private updateGroupIds(
-    element: BoardElement,
-    groupIdMaps: Map<string, string>,
-  ) {
+  private updateGroupIds(element: BoardElement, groupIdMaps: Map<string, string>) {
     const groupId = getElementGroupId(element);
     if (groupId) {
       element.groupId = groupIdMaps.get(groupId) || groupId;
     }
 
     if (element.children && element.children.length > 0) {
-      element.children.forEach((child) =>
-        this.updateGroupIds(child, groupIdMaps),
-      );
+      element.children.forEach(child => this.updateGroupIds(child, groupIdMaps));
     }
   }
 }

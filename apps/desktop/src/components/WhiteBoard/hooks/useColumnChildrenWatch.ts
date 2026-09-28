@@ -13,12 +13,10 @@ interface UseColumnChildrenWatchProps {
  * - Detects when children are added/removed
  * - Detects when children's heights change
  */
-const useColumnChildrenWatch = ({
-  board,
-  column,
-}: UseColumnChildrenWatchProps) => {
+const useColumnChildrenWatch = ({ board, column }: UseColumnChildrenWatchProps) => {
   // Store previous children IDs and heights
-  const prevChildIdsRef = useRef<string[]>([]);
+  // null 表示尚未挂载：首次渲染必定 relayout（空列也要按当前布局规范校正高度）
+  const prevChildIdsRef = useRef<string[] | null>(null);
   const prevHeightsRef = useRef<Map<string, number>>(new Map());
 
   // Debounced relayout
@@ -41,16 +39,17 @@ const useColumnChildrenWatch = ({
         ColumnUtil.relayout(board, latestColumn);
       }
     },
-    { wait: 16 },
+    { wait: 16 }
   );
 
   // Check for children changes on every render
   useEffect(() => {
-    const currentIds = column.children.map((c) => c.id);
+    const currentIds = column.children.map(c => c.id);
     const prevIds = prevChildIdsRef.current;
 
     // Check if children list changed
     const childrenChanged =
+      prevIds === null ||
       currentIds.length !== prevIds.length ||
       currentIds.some((id, i) => id !== prevIds[i]);
 
@@ -59,7 +58,7 @@ const useColumnChildrenWatch = ({
 
       // Update heights map
       const newHeights = new Map<string, number>();
-      column.children.forEach((child) => {
+      column.children.forEach(child => {
         newHeights.set(child.id, child.height || 0);
       });
       prevHeightsRef.current = newHeights;
@@ -71,7 +70,7 @@ const useColumnChildrenWatch = ({
 
     // Check for height changes
     let heightChanged = false;
-    column.children.forEach((child) => {
+    column.children.forEach(child => {
       const prevHeight = prevHeightsRef.current.get(child.id);
       const currentHeight = child.height || 0;
       if (prevHeight !== currentHeight) {

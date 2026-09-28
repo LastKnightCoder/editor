@@ -97,6 +97,18 @@ mac:
       name: Markdown
       role: Editor
       isPackage: false
+    - ext: markdown
+      name: Markdown
+      role: Editor
+      isPackage: false
+  # 文件夹：访达「打开方式」与拖到 Dock 图标（Alternate = 仅作备选，不抢访达的默认打开）
+  extendInfo:
+    CFBundleDocumentTypes:
+      - CFBundleTypeName: Folder
+        CFBundleTypeRole: Viewer
+        LSHandlerRank: Alternate
+        LSItemContentTypes:
+          - public.folder
 
 linux:
   icon: "build/icon.png"

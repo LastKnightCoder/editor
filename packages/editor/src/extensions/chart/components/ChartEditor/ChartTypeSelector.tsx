@@ -32,28 +32,23 @@ const chartTypes: {
   { type: "funnel", label: "漏斗图", icon: Filter },
 ];
 
-const ChartTypeSelector: React.FC<ChartTypeSelectorProps> = ({
-  value,
-  onChange,
-}) => {
+const ChartTypeSelector: React.FC<ChartTypeSelectorProps> = ({ value, onChange }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useClickAway(() => setOpen(false), ref);
 
-  const current = chartTypes.find((t) => t.type === value) || chartTypes[0];
+  const current = chartTypes.find(t => t.type === value) || chartTypes[0];
   const Icon = current.icon;
 
   return (
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
+        className="flex items-center gap-2 rounded-lg bg-[var(--ed-bg-sunken)] px-3 py-1.5 transition-colors hover:bg-gray-200 dark:hover:bg-zinc-700"
       >
         <Icon size={16} className="text-indigo-500" />
-        <span className="text-sm text-gray-700 dark:text-slate-300">
-          {current.label}
-        </span>
+        <span className="text-sm text-[var(--ed-text)]">{current.label}</span>
         <ChevronDown
           size={14}
           className={`text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
@@ -66,9 +61,9 @@ const ChartTypeSelector: React.FC<ChartTypeSelectorProps> = ({
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.15 }}
-          className="absolute top-full left-0 mt-1 z-50 min-w-[140px] rounded-xl bg-white/80 dark:bg-[rgba(30,30,30,0.8)] backdrop-blur-md border border-gray-200 dark:border-slate-700 shadow-lg overflow-hidden"
+          className="absolute left-0 top-full z-50 mt-1 min-w-[140px] overflow-hidden rounded-xl border border-[var(--ed-border)] bg-white/80 shadow-lg backdrop-blur-md dark:bg-[rgba(30,30,30,0.8)]"
         >
-          {chartTypes.map((item) => {
+          {chartTypes.map(item => {
             const ItemIcon = item.icon;
             return (
               <button
@@ -77,10 +72,10 @@ const ChartTypeSelector: React.FC<ChartTypeSelectorProps> = ({
                   onChange(item.type);
                   setOpen(false);
                 }}
-                className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
+                className={`flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors ${
                   item.type === value
-                    ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400"
-                    : "text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-zinc-700"
+                    ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400"
+                    : "text-[var(--ed-text)] hover:bg-gray-100 dark:hover:bg-zinc-700"
                 }`}
               >
                 <ItemIcon size={16} />

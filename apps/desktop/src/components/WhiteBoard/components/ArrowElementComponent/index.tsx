@@ -1,4 +1,5 @@
 import If from "@/components/If";
+import { getDesktopBareKit } from "@/services/editorKit";
 import { Editor, EditorRef } from "@tau/editor/src";
 import type { IHotKeyConfig } from "@tau/editor/src";
 import { inlineMath, link, paragraph } from "@tau/editor/src/extensions";
@@ -29,6 +30,7 @@ const ARROW_LABEL_RENDER_PADDING = 6;
 const ARROW_LABEL_EDITOR_PADDING_Y = 4;
 const ARROW_LABEL_NORMAL_GAP = 1;
 const ARROW_LABEL_WIDTH_BUFFER = 2;
+// 箭头描述是 SVG foreignObject 里的迷你编辑器：只要这三种能力（kit 按数组身份缓存）
 const ARROW_DESCRIPTION_EXTENSIONS = [paragraph, inlineMath, link];
 
 const createEmptyDescription = (): Descendant[] => {
@@ -57,7 +59,7 @@ const serializeDescription = (description: Descendant[]) => {
 };
 
 const isDescriptionEmpty = (description: Descendant[]) => {
-  return description.every((node) => Node.string(node).trim().length === 0);
+  return description.every(node => Node.string(node).trim().length === 0);
 };
 
 const clampLabelWidth = (width: number, minWidth: number) => {
@@ -66,7 +68,7 @@ const clampLabelWidth = (width: number, minWidth: number) => {
 
 const measureLabelBoxByClone = (
   editor: HTMLElement,
-  minWidth: number,
+  minWidth: number
 ): { width: number; height: number } | null => {
   if (typeof document === "undefined") return null;
 
@@ -86,9 +88,7 @@ const measureLabelBoxByClone = (
 
   document.body.appendChild(clone);
   try {
-    const naturalWidth = Math.ceil(
-      Math.max(clone.offsetWidth, clone.scrollWidth),
-    );
+    const naturalWidth = Math.ceil(Math.max(clone.offsetWidth, clone.scrollWidth));
     const nextWidth = clampLabelWidth(naturalWidth, minWidth);
 
     clone.style.width = `${nextWidth}px`;
@@ -97,7 +97,7 @@ const measureLabelBoxByClone = (
 
     const nextHeight = Math.max(
       ARROW_LABEL_MIN_HEIGHT,
-      Math.ceil(Math.max(clone.offsetHeight, clone.scrollHeight)),
+      Math.ceil(Math.max(clone.offsetHeight, clone.scrollHeight))
     );
     return { width: nextWidth, height: nextHeight };
   } finally {
@@ -133,15 +133,10 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
   const descriptionContainerRef = useRef<HTMLDivElement>(null);
   const isEditingDescriptionRef = useRef(false);
   const [isEditingDescription, setIsEditingDescription] = useState(() =>
-    board.isEditingElements.includes(id),
+    board.isEditingElements.includes(id)
   );
-  const normalizedDescription = useMemo(
-    () => normalizeDescription(description),
-    [description],
-  );
-  const [draftDescription, setDraftDescription] = useState<Descendant[]>(
-    normalizedDescription,
-  );
+  const normalizedDescription = useMemo(() => normalizeDescription(description), [description]);
+  const [draftDescription, setDraftDescription] = useState<Descendant[]>(normalizedDescription);
   const [labelBoxSize, setLabelBoxSize] = useState(() => ({
     width: board.isEditingElements.includes(id)
       ? ARROW_LABEL_MIN_WIDTH
@@ -179,10 +174,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
   const displayAnchor = useMemo(() => {
     if (!labelAnchor) return null;
     if (isEditingDescription) return labelAnchor;
-    const offset =
-      labelBoxSize.height / 2 -
-      ARROW_LABEL_EDITOR_PADDING_Y +
-      ARROW_LABEL_NORMAL_GAP;
+    const offset = labelBoxSize.height / 2 - ARROW_LABEL_EDITOR_PADDING_Y + ARROW_LABEL_NORMAL_GAP;
     return offsetAnchorAlongNormal(labelAnchor, offset);
   }, [labelAnchor, isEditingDescription, labelBoxSize.height]);
   const descriptionIsEmpty = useMemo(() => {
@@ -197,9 +189,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
     const container = descriptionContainerRef.current;
     if (!container) return;
 
-    const editor = container.querySelector(
-      ":scope > [data-slate-editor]",
-    ) as HTMLElement | null;
+    const editor = container.querySelector(":scope > [data-slate-editor]") as HTMLElement | null;
     if (!editor) return;
 
     const measured =
@@ -213,7 +203,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
         };
       })();
 
-    setLabelBoxSize((prev) => {
+    setLabelBoxSize(prev => {
       if (prev.width === measured.width && prev.height === measured.height) {
         return prev;
       }
@@ -224,10 +214,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
     const base: React.CSSProperties = {
       color: isDark ? "#f3f4f6" : "#111827",
       width: "fit-content",
-      minWidth: Math.min(
-        labelBoxSize.width + ARROW_LABEL_WIDTH_BUFFER,
-        ARROW_LABEL_MAX_WIDTH,
-      ),
+      minWidth: Math.min(labelBoxSize.width + ARROW_LABEL_WIDTH_BUFFER, ARROW_LABEL_MAX_WIDTH),
       maxWidth: ARROW_LABEL_MAX_WIDTH,
       minHeight: ARROW_LABEL_MIN_HEIGHT,
       height: "auto",
@@ -238,15 +225,9 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
     if (isEditingDescription) {
       return {
         ...base,
-        background: isDark
-          ? "rgba(30, 41, 59, 0.88)"
-          : "rgba(255, 255, 255, 0.9)",
-        border: `1px solid ${
-          isDark ? "rgba(148, 163, 184, 0.32)" : "rgba(148, 163, 184, 0.28)"
-        }`,
-        boxShadow: isDark
-          ? "0 2px 8px rgba(2, 6, 23, 0.45)"
-          : "0 1px 4px rgba(15, 23, 42, 0.18)",
+        background: isDark ? "rgba(30, 41, 59, 0.88)" : "rgba(255, 255, 255, 0.9)",
+        border: `1px solid ${isDark ? "rgba(148, 163, 184, 0.32)" : "rgba(148, 163, 184, 0.28)"}`,
+        boxShadow: isDark ? "0 2px 8px rgba(2, 6, 23, 0.45)" : "0 1px 4px rgba(15, 23, 42, 0.18)",
       } as React.CSSProperties;
     }
     return {
@@ -258,10 +239,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
   }, [labelBoxSize.width, isDark, isEditingDescription]);
   const labelRenderBoxSize = useMemo(() => {
     return {
-      width:
-        labelBoxSize.width +
-        ARROW_LABEL_WIDTH_BUFFER +
-        ARROW_LABEL_RENDER_PADDING * 2,
+      width: labelBoxSize.width + ARROW_LABEL_WIDTH_BUFFER + ARROW_LABEL_RENDER_PADDING * 2,
       height: labelBoxSize.height + ARROW_LABEL_RENDER_PADDING * 2,
     };
   }, [labelBoxSize.height, labelBoxSize.width]);
@@ -272,29 +250,21 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
   }, []);
 
   const handleElementsRemove = useMemoizedFn((elements: BoardElement[]) => {
-    if (elements.some((removedElement) => removedElement.id === id)) {
+    if (elements.some(removedElement => removedElement.id === id)) {
       setIsEditingDescription(false);
       isEditingDescriptionRef.current = false;
       removeEditingElement();
       return;
     }
 
-    const sourceBindElement = elements.find(
-      (element) => element.id === source?.bindId,
-    );
-    const targetBindElement = elements.find(
-      (element) => element.id === target?.bindId,
-    );
+    const sourceBindElement = elements.find(element => element.id === source?.bindId);
+    const targetBindElement = elements.find(element => element.id === target?.bindId);
 
     if (sourceBindElement || targetBindElement) {
       const newElement = {
         ...element,
-        source: sourceBindElement
-          ? { marker: element.source.marker }
-          : element.source,
-        target: targetBindElement
-          ? { marker: element.target.marker }
-          : element.target,
+        source: sourceBindElement ? { marker: element.source.marker } : element.source,
+        target: targetBindElement ? { marker: element.target.marker } : element.target,
       };
       const path = PathUtil.getPathByElement(board, element);
       if (!path) return;
@@ -307,23 +277,15 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
   });
 
   const handleElementsChange = useMemoizedFn((elements: BoardElement[]) => {
-    const sourceBindElement = elements.find(
-      (element) => element.id === source?.bindId,
-    );
-    const targetBindElement = elements.find(
-      (element) => element.id === target?.bindId,
-    );
+    const sourceBindElement = elements.find(element => element.id === source?.bindId);
+    const targetBindElement = elements.find(element => element.id === target?.bindId);
 
     let sourcePoint: Point | null = null;
     let targetPoint: Point | null = null;
 
     if (sourceBindElement) {
       const { connectId, customOffset } = source;
-      const sourceBindPoint = board.getArrowBindPoint(
-        sourceBindElement,
-        connectId!,
-        customOffset,
-      );
+      const sourceBindPoint = board.getArrowBindPoint(sourceBindElement, connectId!, customOffset);
       if (sourceBindPoint) {
         sourcePoint = sourceBindPoint;
       }
@@ -331,11 +293,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
 
     if (targetBindElement) {
       const { connectId, customOffset } = target;
-      const targetBindPoint = board.getArrowBindPoint(
-        targetBindElement,
-        connectId!,
-        customOffset,
-      );
+      const targetBindPoint = board.getArrowBindPoint(targetBindElement, connectId!, customOffset);
       if (targetBindPoint) {
         targetPoint = targetBindPoint;
       }
@@ -367,20 +325,17 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
 
   const addEditingElement = useMemoizedFn(() => {
     board.isEditingElements = [
-      ...board.isEditingElements.filter((editingId) => editingId !== id),
+      ...board.isEditingElements.filter(editingId => editingId !== id),
       id,
     ];
   });
 
   const removeEditingElement = useMemoizedFn(() => {
-    board.isEditingElements = board.isEditingElements.filter(
-      (editingId) => editingId !== id,
-    );
+    board.isEditingElements = board.isEditingElements.filter(editingId => editingId !== id);
   });
 
   const selectCurrentArrow = useMemoizedFn(() => {
-    const currentArrow =
-      (BoardUtil.getElementById(board, id) as ArrowElement | null) || element;
+    const currentArrow = (BoardUtil.getElementById(board, id) as ArrowElement | null) || element;
     board.apply(
       [
         {
@@ -392,23 +347,17 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
           },
         },
       ],
-      false,
+      false
     );
   });
 
   const commitDescription = useMemoizedFn(() => {
-    const currentArrow = BoardUtil.getElementById(
-      board,
-      id,
-    ) as ArrowElement | null;
+    const currentArrow = BoardUtil.getElementById(board, id) as ArrowElement | null;
     if (!currentArrow) return;
 
     const nextDescription = normalizeDescription(draftDescription);
     const prevDescription = normalizeDescription(currentArrow.description);
-    if (
-      serializeDescription(prevDescription) ===
-      serializeDescription(nextDescription)
-    ) {
+    if (serializeDescription(prevDescription) === serializeDescription(nextDescription)) {
       return;
     }
 
@@ -426,24 +375,22 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
           description: nextDescription,
         },
       },
-      true,
+      true
     );
   });
 
-  const finishEditingDescription = useMemoizedFn(
-    (options?: { selectArrow?: boolean }) => {
-      const shouldSelectArrow = options?.selectArrow ?? true;
-      if (!isEditingDescriptionRef.current) return;
-      isEditingDescriptionRef.current = false;
-      setIsEditingDescription(false);
-      removeEditingElement();
-      editorRef.current?.deselect();
-      commitDescription();
-      if (shouldSelectArrow) {
-        selectCurrentArrow();
-      }
-    },
-  );
+  const finishEditingDescription = useMemoizedFn((options?: { selectArrow?: boolean }) => {
+    const shouldSelectArrow = options?.selectArrow ?? true;
+    if (!isEditingDescriptionRef.current) return;
+    isEditingDescriptionRef.current = false;
+    setIsEditingDescription(false);
+    removeEditingElement();
+    editorRef.current?.deselect();
+    commitDescription();
+    if (shouldSelectArrow) {
+      selectCurrentArrow();
+    }
+  });
 
   const startEditingDescription = useMemoizedFn(() => {
     if (board.readonly) return;
@@ -469,25 +416,23 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
     }, 100);
   });
 
-  const handleArrowDoubleClick = useMemoizedFn(
-    (event: React.MouseEvent<SVGGElement>) => {
-      event.stopPropagation();
-      startEditingDescription();
-    },
-  );
+  const handleArrowDoubleClick = useMemoizedFn((event: React.MouseEvent<SVGGElement>) => {
+    event.stopPropagation();
+    startEditingDescription();
+  });
 
   const handleDescriptionClick = useMemoizedFn(
     (event: React.MouseEvent<SVGForeignObjectElement>) => {
       event.stopPropagation();
       selectCurrentArrow();
-    },
+    }
   );
 
   const handleDescriptionDoubleClick = useMemoizedFn(
     (event: React.MouseEvent<SVGForeignObjectElement>) => {
       event.stopPropagation();
       startEditingDescription();
-    },
+    }
   );
 
   const handleDescriptionPointerDown = useMemoizedFn(
@@ -496,7 +441,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
       if (!isEditingDescriptionRef.current) {
         selectCurrentArrow();
       }
-    },
+    }
   );
 
   const descriptionHotkeyConfigs = useMemo<IHotKeyConfig[]>(
@@ -506,15 +451,14 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
         action: (_editor, event) => {
           if (!isEditingDescriptionRef.current) return;
           if (event.nativeEvent.isComposing) return;
-          if (event.shiftKey || event.ctrlKey || event.metaKey || event.altKey)
-            return;
+          if (event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return;
           event.preventDefault();
           event.stopPropagation();
           finishEditingDescription();
         },
       },
     ],
-    [finishEditingDescription],
+    [finishEditingDescription]
   );
 
   useEffect(() => {
@@ -558,9 +502,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
       const container = descriptionContainerRef.current;
       if (!container) return;
 
-      const editor = container.querySelector(
-        ":scope > [data-slate-editor]",
-      ) as HTMLElement | null;
+      const editor = container.querySelector(":scope > [data-slate-editor]") as HTMLElement | null;
       if (!editor) {
         frameId = requestAnimationFrame(setupResizeObserver);
         return;
@@ -606,18 +548,10 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
       finishEditingDescription({ selectArrow: false });
     };
 
-    document.addEventListener(
-      "pointerdown",
-      handleGlobalPointerDownCapture,
-      true,
-    );
+    document.addEventListener("pointerdown", handleGlobalPointerDownCapture, true);
 
     return () => {
-      document.removeEventListener(
-        "pointerdown",
-        handleGlobalPointerDownCapture,
-        true,
-      );
+      document.removeEventListener("pointerdown", handleGlobalPointerDownCapture, true);
     };
   }, [finishEditingDescription, isEditingDescription]);
 
@@ -673,11 +607,9 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
               onBlur={handleDescriptionBlur}
               readonly={!isEditingDescription}
               hotkeyConfigs={descriptionHotkeyConfigs}
-              disableStartExtensions
-              extensions={ARROW_DESCRIPTION_EXTENSIONS}
+              kit={getDesktopBareKit(ARROW_DESCRIPTION_EXTENSIONS)}
               className={styles.descriptionEditor}
               style={descriptionEditorStyle}
-              theme={isDark ? "dark" : "light"}
             />
           </div>
         </foreignObject>

@@ -1,12 +1,6 @@
 import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
-import {
-  createThemeBootstrapScript,
-  resolveThemePreference,
-  themeRuntimeConfig,
-} from "../theme/bootstrap";
-import { createThemeRuntime } from "../theme/themeStore";
 import { UiProvider } from "../UiProvider";
 import { Popover } from "../primitives/Popover";
 import { Select } from "../primitives/Select";
@@ -17,34 +11,8 @@ const cleanup: (() => void)[] = [];
 afterEach(() => {
   cleanup.splice(0).forEach(dispose => dispose());
   document.body.innerHTML = "";
-  localStorage.clear();
 });
 describe("公共 UI 运行时", () => {
-  it("首帧与运行时使用同一主题解析规则，初始化前不读取偏好", () => {
-    const element = document.createElement("div");
-    let reads = 0;
-    const runtime = createThemeRuntime({
-      root: () => element,
-      storage: () => ({
-        getItem: () => {
-          reads++;
-          return "cocoa";
-        },
-        setItem: () => {},
-      }),
-      media: () => null,
-    });
-    expect(reads).toBe(0);
-    const stop = runtime.init();
-    expect(reads).toBe(1);
-    expect(element.dataset.theme).toBe("cocoa");
-    stop();
-    localStorage.setItem("tau-theme", "cocoa");
-    new Function(createThemeBootstrapScript())();
-    expect(document.documentElement.dataset.theme).toBe(
-      resolveThemePreference("cocoa", false, themeRuntimeConfig())
-    );
-  });
   it("嵌套滚动锁乱序释放后恢复原始状态", () => {
     document.body.style.overflow = "auto";
     const first = lockBodyScroll(document);
@@ -62,7 +30,7 @@ describe("公共 UI 运行时", () => {
     cleanup.push(() => act(() => root.unmount()));
     act(() =>
       root.render(
-        <UiProvider theme="cocoa">
+        <UiProvider theme="paper" mode="dark">
           <Popover trigger={<button>编辑</button>}>
             <Popover.Body>
               <input data-autofocus aria-label="第一项" />
@@ -74,7 +42,9 @@ describe("公共 UI 运行时", () => {
     );
     act(() => element.querySelector("button")!.click());
     const card = document.querySelector<HTMLElement>('[role="dialog"]')!;
-    expect(card.closest("[data-theme]")?.getAttribute("data-theme")).toBe("cocoa");
+    const scope = card.closest("[data-theme]");
+    expect(scope?.getAttribute("data-theme")).toBe("paper");
+    expect(scope?.getAttribute("data-mode")).toBe("dark");
     const input = card.querySelector("input")!;
     act(() =>
       input.dispatchEvent(

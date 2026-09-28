@@ -1,3 +1,4 @@
+// 页内搜索浮层：surface 纸面 + float 阴影，不描边；颜色只给 accent（命中高亮）与 danger（无结果）
 .findBar {
   position: fixed;
   top: 58px;
@@ -5,23 +6,41 @@
   z-index: 10020;
   display: flex;
   align-items: center;
-  min-height: 38px;
-  padding: 4px 5px 4px 10px;
-  color: var(--th-text);
-  background: var(--th-bg-page);
-  border: 1px solid var(--th-border);
-  border-radius: 7px;
-  box-shadow: 0 4px 8px rgb(15 23 42 / 14%);
+  gap: 2px;
+  height: 40px;
+  padding: 0 6px 0 12px;
+  color: var(--tau-ink-1);
+  font-family: var(--tau-font);
+  font-size: var(--tau-text-body);
+  background: var(--tau-bg-surface);
+  border-radius: var(--tau-radius-md);
+  box-shadow:
+    0 0 0 1px var(--tau-line-1),
+    var(--tau-shadow-float);
+  animation: findBarIn var(--tau-dur-fast) var(--tau-ease-out);
+}
+
+@keyframes findBarIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .findBar {
+    animation: none;
+  }
 }
 
 .searchIcon {
   flex: none;
-  color: var(--th-text-secondary, #64748b);
+  color: var(--tau-ink-3);
 }
 
 .input {
-  width: 220px;
-  height: 30px;
+  width: 200px;
+  height: 28px;
   padding: 0 8px;
   color: inherit;
   font: inherit;
@@ -31,57 +50,68 @@
 }
 
 .input::placeholder {
-  color: var(--th-text-secondary, #64748b);
+  color: var(--tau-ink-3);
   opacity: 1;
 }
 
-.input:focus-visible {
-  box-shadow: inset 0 -2px 0 var(--th-border-focus, #2563eb);
-}
-
 .resultCount {
-  min-width: 58px;
-  padding: 0 6px;
-  color: var(--th-text-secondary, #64748b);
-  font-size: 12px;
+  min-width: 44px;
+  padding: 0 8px 0 4px;
+  color: var(--tau-ink-3);
+  font-size: var(--tau-text-sm);
+  font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
+
+  &[data-empty="true"] {
+    color: var(--tau-danger);
+  }
 }
 
 .iconButton {
   display: inline-flex;
+  flex: none;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   padding: 0;
-  color: inherit;
+  color: var(--tau-ink-2);
   background: transparent;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--tau-radius-sm);
   cursor: pointer;
+  transition:
+    background-color var(--tau-dur-fast) var(--tau-ease-out),
+    color var(--tau-dur-fast) var(--tau-ease-out);
 }
 
 .iconButton:hover:not(:disabled) {
-  color: var(--th-hover-text);
-  background: var(--th-bg-hover);
+  color: var(--tau-ink-1);
+  background: var(--tau-bg-hover);
+}
+
+.iconButton:active:not(:disabled) {
+  background: var(--tau-bg-press);
 }
 
 .iconButton:focus-visible {
-  outline: 2px solid var(--th-border-focus, #2563eb);
-  outline-offset: -2px;
+  outline: none;
+  box-shadow: var(--tau-focus-ring);
 }
 
 .iconButton:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
+  color: var(--tau-ink-3);
+  opacity: 0.5;
+  cursor: default;
 }
 
 .divider {
+  flex: none;
   width: 1px;
-  height: 18px;
-  margin: 0 3px;
-  background: var(--th-border);
+  height: 16px;
+  margin: 0 4px;
+  background: var(--tau-line-1);
 }
 
 @media (max-width: 520px) {
@@ -98,18 +128,13 @@
   }
 }
 
-:global(.dark) .findBar {
-  box-shadow: 0 4px 8px rgb(0 0 0 / 32%);
-}
-
+// 命中高亮：accent 淡染，当前项加深一档；不加下划线，保持字色不变
 :global(::highlight(tau-global-find)) {
-  background-color: rgb(250 204 21 / 48%);
+  background-color: color-mix(in srgb, var(--tau-accent) 9%, transparent);
   color: inherit;
 }
 
 :global(::highlight(tau-global-find-current)) {
-  background-color: rgb(245 158 11 / 78%);
-  color: inherit;
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
+  background-color: color-mix(in srgb, var(--tau-accent) 20%, transparent);
+  color: var(--tau-ink-1);
 }

@@ -356,7 +356,8 @@ const ProjectMindMapNodeActions = memo(
             title={isProject ? "添加根节点" : "添加子节点"}
             aria-label={isProject ? "添加根节点" : "添加子节点"}
             className={classnames(
-              "bg-hover hover:bg-press absolute top-1/2 z-10 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-[11px] text-black/65 opacity-0 transition-opacity hover:text-black/90 group-hover/mindmap-node:opacity-100",
+              // 按钮落在节点外侧的画布上，配色跟应用主题走（不能用节点文字色，那是相对节点底色算的）
+              "bg-surface ring-line-1 text-ink-2 hover:bg-hover hover:text-ink-1 absolute top-1/2 z-10 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-[11px] opacity-0 ring-1 transition-opacity group-hover/mindmap-node:opacity-100",
               open && "opacity-100",
               sideClass
             )}

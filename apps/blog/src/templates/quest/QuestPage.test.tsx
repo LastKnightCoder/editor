@@ -27,23 +27,13 @@ vi.mock("@tau/editor", () => ({
         .replace(/\\u003e/g, ">")}
     </div>
   ),
-  EditorProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
 vi.mock("@blog/components/DndProvider", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
-vi.mock("@blog/editorExtensions", () => ({
-  blogEditorExtensions: [],
-}));
-
-vi.mock("@blog/services/editorRegistry", () => ({
-  createBlogEditorRegistry: () => ({}),
-  createBlogEditorConfig: () => ({
-    theme: { mode: "light", colors: {} as never },
-  }),
-}));
+vi.mock("@blog/services/editorKit", () => ({ getBlogKit: () => ({}) }));
 
 describe("QuestPage", () => {
   let container: HTMLDivElement;

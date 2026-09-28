@@ -4,8 +4,6 @@ import { useEffect, useMemo, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { EditorProvider, createMarkdownPasteImportExtension } from "@tau/editor/src";
-import WebviewExtension from "@tau/editor-webview";
 import {
   BilibiliVideoDepsProvider,
   YoutubeVideoDepsProvider,
@@ -19,11 +17,6 @@ import {
   type DataTableView,
 } from "@tau/shared";
 
-import {
-  createMobileEditorRegistry,
-  useMobileEditorConfig,
-  mobileImportFromMarkdown,
-} from "../services/editorRegistry";
 import { useBootstrap } from "../hooks/useBootstrap";
 import { useCardsQuery } from "../hooks/useCardsQuery";
 import { emitDatabaseChange, useDatabaseChangeEffect } from "../hooks/useDatabaseChangeEffect";
@@ -52,11 +45,6 @@ import {
 import { AppContext, type AppContextValue } from "./AppContext";
 import { HomeScreen } from "./HomeScreen";
 import "../pages";
-
-const mobileEditorExtensions = [
-  createMarkdownPasteImportExtension(mobileImportFromMarkdown),
-  new WebviewExtension(),
-];
 
 const EMPTY_VIEW_CONFIG = {
   columnOrder: [],
@@ -160,8 +148,6 @@ const editDatabaseDeps: UseEditDatabaseDeps = {
   reorderDataTableViews: async () => undefined,
 };
 
-const editorRegistry = createMobileEditorRegistry();
-
 async function withTimeout<T>(
   task: Promise<T>,
   timeoutMs: number,
@@ -195,7 +181,6 @@ export default function AppShell() {
 }
 
 function AppShellInner() {
-  const mobileEditorConfig = useMobileEditorConfig();
   const bootstrap = useBootstrap();
   const cards = useCardsQuery();
   const syncSettings = useSyncSettings();
@@ -527,38 +512,32 @@ function AppShellInner() {
 
   return (
     <KeyboardViewportProvider>
-      <EditorProvider
-        registry={editorRegistry}
-        config={mobileEditorConfig}
-        extensions={mobileEditorExtensions}
-      >
-        <BilibiliVideoDepsProvider deps={bilibiliDeps}>
-          <YoutubeVideoDepsProvider deps={youtubeDeps}>
-            <RemoteVideoDepsProvider deps={remoteVideoDeps}>
-              <EditDatabaseDepsProvider deps={editDatabaseDeps}>
-                <DndProvider backend={HTML5Backend}>
-                  <PageQueryProvider>
-                    <AppContext.Provider value={appContextValue}>
-                      <RouterProvider
-                        rootKey="home"
-                        onRootBackHint={text => toast({ type: "info", text })}
-                      >
-                        <main className="bg-page min-h-dvh">
-                          <PageHost rootContent={<HomeScreen />} />
-                          <AppDock />
-                          <OverlayHost />
-                          <ToastViewport />
-                          {import.meta.env.DEV && <RouterDevTools />}
-                        </main>
-                      </RouterProvider>
-                    </AppContext.Provider>
-                  </PageQueryProvider>
-                </DndProvider>
-              </EditDatabaseDepsProvider>
-            </RemoteVideoDepsProvider>
-          </YoutubeVideoDepsProvider>
-        </BilibiliVideoDepsProvider>
-      </EditorProvider>
+      <BilibiliVideoDepsProvider deps={bilibiliDeps}>
+        <YoutubeVideoDepsProvider deps={youtubeDeps}>
+          <RemoteVideoDepsProvider deps={remoteVideoDeps}>
+            <EditDatabaseDepsProvider deps={editDatabaseDeps}>
+              <DndProvider backend={HTML5Backend}>
+                <PageQueryProvider>
+                  <AppContext.Provider value={appContextValue}>
+                    <RouterProvider
+                      rootKey="home"
+                      onRootBackHint={text => toast({ type: "info", text })}
+                    >
+                      <main className="bg-page min-h-dvh">
+                        <PageHost rootContent={<HomeScreen />} />
+                        <AppDock />
+                        <OverlayHost />
+                        <ToastViewport />
+                        {import.meta.env.DEV && <RouterDevTools />}
+                      </main>
+                    </RouterProvider>
+                  </AppContext.Provider>
+                </PageQueryProvider>
+              </DndProvider>
+            </EditDatabaseDepsProvider>
+          </RemoteVideoDepsProvider>
+        </YoutubeVideoDepsProvider>
+      </BilibiliVideoDepsProvider>
     </KeyboardViewportProvider>
   );
 }

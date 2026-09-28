@@ -1,11 +1,6 @@
 import React, { PropsWithChildren, useState, useRef, useEffect } from "react";
 import { Transforms } from "slate";
-import {
-  RenderElementProps,
-  useSlateStatic,
-  ReactEditor,
-  useReadOnly,
-} from "slate-react";
+import { RenderElementProps, useSlateStatic, ReactEditor, useReadOnly } from "slate-react";
 import { BarChart2 } from "lucide-react";
 import classnames from "classnames";
 import { useMemoizedFn } from "ahooks";
@@ -18,7 +13,6 @@ import { useDragHandlerMenu } from "../../../hooks/useDragHandlerMenu";
 import { MdDragIndicator } from "react-icons/md";
 import EditorContextMenu from "../../../components/EditorContextMenu";
 import AddParagraph from "../../../components/AddParagraph";
-import useThemeColors from "../../../hooks/useThemeColors";
 import { buildChartMenuItems, chartActionsMap } from "../utils/menuItems";
 import { ReactEChartsRef } from "./ReactECharts";
 import styles from "./ChartBlock.module.less";
@@ -28,7 +22,7 @@ interface ChartBlockProps {
   element: ChartElement;
 }
 
-const ChartBlock: React.FC<PropsWithChildren<ChartBlockProps>> = (props) => {
+const ChartBlock: React.FC<PropsWithChildren<ChartBlockProps>> = props => {
   const { attributes, element, children } = props;
   const { data, config, height = 400 } = element;
   const editor = useSlateStatic();
@@ -36,12 +30,12 @@ const ChartBlock: React.FC<PropsWithChildren<ChartBlockProps>> = (props) => {
   const [editing, setEditing] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const chartRef = useRef<ReactEChartsRef>(null);
-  const themeColors = useThemeColors();
   const resizeStartYRef = useRef(0);
   const startHeightRef = useRef(0);
 
-  const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } =
-    useDragAndDrop({ element });
+  const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } = useDragAndDrop({
+    element,
+  });
 
   const { menuProps, dragHandlerProps } = useDragHandlerMenu({
     element,
@@ -60,14 +54,11 @@ const ChartBlock: React.FC<PropsWithChildren<ChartBlockProps>> = (props) => {
     };
   }, [element]);
 
-  const updateElement = (
-    newData: ChartElement["data"],
-    newConfig: ChartConfig,
-  ) => {
+  const updateElement = (newData: ChartElement["data"], newConfig: ChartConfig) => {
     Transforms.setNodes(
       editor,
       { data: newData, config: newConfig },
-      { at: ReactEditor.findPath(editor, element) },
+      { at: ReactEditor.findPath(editor, element) }
     );
   };
 
@@ -97,10 +88,7 @@ const ChartBlock: React.FC<PropsWithChildren<ChartBlockProps>> = (props) => {
 
   const handleResizeMove = useMemoizedFn((e: MouseEvent) => {
     const deltaY = e.clientY - resizeStartYRef.current;
-    const newHeight = Math.max(
-      200,
-      Math.min(800, startHeightRef.current + deltaY),
-    );
+    const newHeight = Math.max(200, Math.min(800, startHeightRef.current + deltaY));
     updateHeight(newHeight);
   });
 
@@ -122,7 +110,7 @@ const ChartBlock: React.FC<PropsWithChildren<ChartBlockProps>> = (props) => {
     <div {...attributes} className={styles.dropContainer}>
       <div contentEditable={false} ref={ref} className={containerClassName}>
         <div
-          ref={(node) => {
+          ref={node => {
             drop(node);
           }}
           className={styles.content}
@@ -149,7 +137,7 @@ const ChartBlock: React.FC<PropsWithChildren<ChartBlockProps>> = (props) => {
         contentEditable={false}
         ref={
           canDrag
-            ? (node) => {
+            ? node => {
                 drag(node);
               }
             : undefined
@@ -170,7 +158,6 @@ const ChartBlock: React.FC<PropsWithChildren<ChartBlockProps>> = (props) => {
           config={config}
           onChange={updateElement}
           onClose={() => setEditing(false)}
-          themeColors={themeColors}
         />
       )}
     </div>

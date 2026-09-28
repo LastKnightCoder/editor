@@ -59,14 +59,14 @@ const ToggleSwitch = ({
         className="peer sr-only"
       />
       <div
-        className={`h-6 w-11 rounded-full transition-all duration-200 ease-in-out ${checked ? "bg-indigo-500" : "bg-gray-200 dark:bg-zinc-700"} group-hover:shadow-md`}
+        className={`h-6 w-11 rounded-full transition-all duration-200 ease-in-out ${checked ? "bg-indigo-500" : "bg-[var(--ed-bg-hover)]"} group-hover:shadow-md`}
       >
         <div
           className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out ${checked ? "translate-x-5" : "translate-x-0"} `}
         />
       </div>
     </div>
-    <span className="select-none text-sm text-gray-700 dark:text-slate-300">{label}</span>
+    <span className="select-none text-sm text-[var(--ed-text)]">{label}</span>
   </label>
 );
 
@@ -88,7 +88,7 @@ const CustomSelect = <T extends string | number>({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+      <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--ed-text-secondary)]">
         {label}
       </label>
       <div className="relative">
@@ -146,7 +146,7 @@ const NumberInput = ({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+      <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--ed-text-secondary)]">
         {label}
       </label>
       <div className="flex items-center">
@@ -454,10 +454,10 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
 
       {/* Section: Basic Settings */}
       <div className="space-y-4">
-        <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500">
-          <span className="h-px w-4 bg-gray-200 dark:bg-zinc-700" />
+        <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[var(--ed-text-tertiary)]">
+          <span className="h-px w-4 bg-[var(--ed-bg-hover)]" />
           基础设置
-          <span className="h-px flex-1 bg-gray-200 dark:bg-zinc-700" />
+          <span className="h-px flex-1 bg-[var(--ed-bg-hover)]" />
         </h3>
 
         <div className="grid grid-cols-2 gap-4">
@@ -517,10 +517,10 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
       </div>
 
       <div className="space-y-4">
-        <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500">
-          <span className="h-px w-4 bg-gray-200 dark:bg-zinc-700" />
+        <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[var(--ed-text-tertiary)]">
+          <span className="h-px w-4 bg-[var(--ed-bg-hover)]" />
           外观设置
-          <span className="h-px flex-1 bg-gray-200 dark:bg-zinc-700" />
+          <span className="h-px flex-1 bg-[var(--ed-bg-hover)]" />
         </h3>
 
         <CustomSelect
@@ -541,12 +541,12 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
       {/* Section: Images */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500">
-            <span className="h-px w-4 bg-gray-200 dark:bg-zinc-700" />
+          <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[var(--ed-text-tertiary)]">
+            <span className="h-px w-4 bg-[var(--ed-bg-hover)]" />
             图片管理
-            <span className="h-px flex-1 bg-gray-200 dark:bg-zinc-700" />
+            <span className="h-px flex-1 bg-[var(--ed-bg-hover)]" />
           </h3>
-          <span className="text-xs text-gray-400 dark:text-slate-500">
+          <span className="text-xs text-[var(--ed-text-tertiary)]">
             {setting.images.length} 张图片
           </span>
         </div>
@@ -665,10 +665,10 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
         {/* Empty State */}
         {setting.images.length === 0 && !uploading && (
           <div className="flex flex-col items-center justify-center py-8 text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-zinc-800">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--ed-bg-sunken)]">
               <MdImage className="h-8 w-8 text-gray-300 dark:text-slate-600" />
             </div>
-            <p className="text-sm text-gray-400 dark:text-slate-500">还没有添加图片</p>
+            <p className="text-sm text-[var(--ed-text-tertiary)]">还没有添加图片</p>
             <p className="mt-1 text-xs text-gray-300 dark:text-slate-600">点击上方按钮添加图片</p>
           </div>
         )}
@@ -697,7 +697,7 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
                 </h3>
                 <button
                   onClick={() => setShowLinkInput(false)}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 transition-colors hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 transition-colors hover:bg-[var(--ed-bg-hover)] dark:hover:bg-zinc-700"
                 >
                   <MdClose className="h-5 w-5 text-gray-500" />
                 </button>
@@ -719,7 +719,7 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
                 <button
                   type="button"
                   onClick={() => setShowLinkInput(false)}
-                  className="rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-zinc-800 dark:text-slate-300 dark:hover:bg-zinc-700"
+                  className="rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-[var(--ed-bg-hover)] dark:text-slate-300 dark:hover:bg-zinc-700"
                 >
                   取消
                 </button>

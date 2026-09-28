@@ -16,7 +16,6 @@ import Editor from "@/components/ContentEditor";
 import useEditContent from "@/hooks/useEditContent";
 import { buildCardFromContent } from "@/commands/card";
 import { buildArticleFromContent } from "@/commands/article";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import useExtNoteInsertStore from "@/stores/useExtNoteInsertStore";
 import { getAnswerContentStatus } from "@/utils/answer-content";
 import { getEditorText } from "@/utils/editor";
@@ -40,7 +39,6 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
   contentId,
 }) => {
   const { modal, message } = App.useApp();
-  const extensions = useDynamicExtensionsStore(state => state.extensions);
   const editorRef = useRef<EditorRef>(null);
   const [isCard, setIsCard] = useState(false);
   const [isArticle, setIsArticle] = useState(false);
@@ -215,7 +213,6 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
           ref={editorRef}
           initValue={answer.content}
           readonly={readOnly}
-          extensions={extensions}
           className={styles.editor}
         />
       </div>

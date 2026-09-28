@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import LocalAudio from "@/components/LocalAudio";
-import TranscriptPanel from "./TranscriptPanel";
-import { useTranscriptSync } from "./useTranscriptSync";
+import TranscriptPanel from "@/components/MediaTranscript/TranscriptPanel";
+import { useTranscriptSync } from "@/components/MediaTranscript/useTranscriptSync";
 import type { VLResource } from "@/types/vibe-learning";
 
 interface AudioPreviewProps {

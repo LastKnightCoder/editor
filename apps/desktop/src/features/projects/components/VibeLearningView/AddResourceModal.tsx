@@ -9,7 +9,8 @@ import {
   Upload as UploadIcon,
 } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
-import { Button, Dialog, DialogBody, Input, Segmented, Select, Spinner, cn, toast } from "@tau/ui";
+import { Button, Dialog, DialogBody, Segmented, Select, Spinner, cn, toast } from "@tau/ui";
+import { ResourceSelectInput } from "@/components/ResourceSelectDialog";
 
 import LocalImage from "@/components/LocalImage";
 import { EntityPicker } from "@/components/EntityPicker";
@@ -835,7 +836,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     ) : (
       <div className="flex flex-col gap-3.5">
         <FieldRow label="网页地址">
-          <Input
+          <ResourceSelectInput
             data-autofocus
             type="url"
             value={url}
@@ -845,7 +846,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           />
         </FieldRow>
         <FieldRow label="标题" hint="可选，留空从网页提取">
-          <Input
+          <ResourceSelectInput
             value={resourceTitle}
             onChange={e => setResourceTitle(e.target.value)}
             placeholder="网页标题"
@@ -940,7 +941,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     ) : (
       <div className="flex flex-col gap-3.5">
         <FieldRow label="视频链接" hint="B 站 / YouTube">
-          <Input
+          <ResourceSelectInput
             data-autofocus
             ref={videoInputRef}
             type="url"

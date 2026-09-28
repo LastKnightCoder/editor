@@ -1,9 +1,11 @@
 import { invoke } from "@/electron";
 
-interface RecentProject {
+/** 最近打开的 Markdown 文件 / 文件夹（主进程已剔除不存在的路径） */
+export interface RecentProject {
   path: string;
   name: string;
   lastOpened: number;
+  isDirectory: boolean;
 }
 
 export const getRecentProjects = async (): Promise<RecentProject[]> => {

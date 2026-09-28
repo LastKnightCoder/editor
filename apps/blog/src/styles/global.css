@@ -5,6 +5,9 @@
 @import "@fontsource/jetbrains-mono/500.css";
 
 @import "tailwindcss";
+@import "@tau/themes/scale.css";
+@import "./legacy-palette.css";
+@import "./tau-tokens.css";
 
 @custom-variant dark (.dark &);
 

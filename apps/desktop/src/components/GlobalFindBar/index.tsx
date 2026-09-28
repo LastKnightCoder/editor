@@ -29,13 +29,12 @@ const HIGHLIGHT_NAME = "tau-global-find";
 const CURRENT_HIGHLIGHT_NAME = "tau-global-find-current";
 
 const isSearchUiNode = (node: Node) =>
-  node instanceof HTMLElement &&
-  Boolean(node.closest(`[data-global-find-ui="true"]`));
+  node instanceof HTMLElement && Boolean(node.closest(`[data-global-find-ui="true"]`));
 
 const collectTextNodes = (root: Node): SearchTextNode[] => {
   const result: SearchTextNode[] = [];
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-    acceptNode: (node) => {
+    acceptNode: node => {
       if (isSearchUiNode(node.parentNode || node)) {
         return NodeFilter.FILTER_REJECT;
       }
@@ -65,15 +64,9 @@ const collectTextNodes = (root: Node): SearchTextNode[] => {
   return result;
 };
 
-const createRange = (
-  nodes: SearchTextNode[],
-  start: number,
-  end: number,
-): Range | null => {
-  const startNode = nodes.find(
-    (item) => start >= item.start && start < item.end,
-  );
-  const endNode = nodes.find((item) => end > item.start && end <= item.end);
+const createRange = (nodes: SearchTextNode[], start: number, end: number): Range | null => {
+  const startNode = nodes.find(item => start >= item.start && start < item.end);
+  const endNode = nodes.find(item => end > item.start && end <= item.end);
   if (!startNode || !endNode) return null;
 
   const range = document.createRange();
@@ -95,17 +88,11 @@ const applyHighlights = (matches: SearchMatch[], currentIndex: number) => {
     return;
   }
 
-  const allRanges = matches.map((match) => match.range);
-  css.highlights.set(
-    HIGHLIGHT_NAME,
-    new (window as any).Highlight(...allRanges),
-  );
+  const allRanges = matches.map(match => match.range);
+  css.highlights.set(HIGHLIGHT_NAME, new (window as any).Highlight(...allRanges));
   const current = matches[currentIndex];
   if (current) {
-    css.highlights.set(
-      CURRENT_HIGHLIGHT_NAME,
-      new (window as any).Highlight(current.range),
-    );
+    css.highlights.set(CURRENT_HIGHLIGHT_NAME, new (window as any).Highlight(current.range));
   }
 };
 
@@ -119,17 +106,14 @@ const scrollMatchIntoView = (match: SearchMatch | undefined) => {
   });
 };
 
-const searchDocument = (
-  query: string,
-  previousState: SearchState,
-): SearchState => {
+const searchDocument = (query: string, previousState: SearchState): SearchState => {
   clearHighlights();
   const normalizedQuery = query.trim().toLocaleLowerCase();
   if (!normalizedQuery) return EMPTY_STATE;
 
   const nodes = collectTextNodes(document.body);
   const fullText = nodes
-    .map((item) => item.node.textContent || "")
+    .map(item => item.node.textContent || "")
     .join("")
     .toLocaleLowerCase();
   const matches: SearchMatch[] = [];
@@ -140,10 +124,7 @@ const searchDocument = (
     start = fullText.indexOf(normalizedQuery, start + normalizedQuery.length);
   }
 
-  const currentIndex = Math.min(
-    previousState.currentIndex,
-    Math.max(matches.length - 1, 0),
-  );
+  const currentIndex = Math.min(previousState.currentIndex, Math.max(matches.length - 1, 0));
   applyHighlights(matches, currentIndex);
   return { matches, currentIndex };
 };
@@ -191,9 +172,7 @@ const GlobalFindBar = () => {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const isFindShortcut =
-        (event.ctrlKey || event.metaKey) &&
-        !event.altKey &&
-        event.key.toLocaleLowerCase() === "f";
+        (event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLocaleLowerCase() === "f";
 
       if (isFindShortcut) {
         event.preventDefault();
@@ -243,9 +222,7 @@ const GlobalFindBar = () => {
     (forward: boolean) => {
       if (searchState.matches.length === 0) return;
       const nextIndex =
-        (searchState.currentIndex +
-          (forward ? 1 : -1) +
-          searchState.matches.length) %
+        (searchState.currentIndex + (forward ? 1 : -1) + searchState.matches.length) %
         searchState.matches.length;
       const nextState = { ...searchState, currentIndex: nextIndex };
       searchStateRef.current = nextState;
@@ -253,7 +230,7 @@ const GlobalFindBar = () => {
       applyHighlights(nextState.matches, nextIndex);
       scrollMatchIntoView(nextState.matches[nextIndex]);
     },
-    [searchState],
+    [searchState]
   );
 
   const handleInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
@@ -278,11 +255,11 @@ const GlobalFindBar = () => {
       aria-label="在当前窗口中搜索"
       data-global-find-ui="true"
     >
-      <Search className={styles.searchIcon} size={15} aria-hidden="true" />
+      <Search className={styles.searchIcon} size={14} aria-hidden="true" />
       <input
         ref={inputRef}
         value={query}
-        onChange={(event) => {
+        onChange={event => {
           setQuery(event.target.value);
           updateSearch(event.target.value);
         }}
@@ -291,7 +268,11 @@ const GlobalFindBar = () => {
         aria-label="搜索当前窗口"
         className={styles.input}
       />
-      <span className={styles.resultCount} aria-live="polite">
+      <span
+        className={styles.resultCount}
+        data-empty={query && searchState.matches.length === 0 ? "true" : undefined}
+        aria-live="polite"
+      >
         {resultLabel}
       </span>
       <button
@@ -302,7 +283,7 @@ const GlobalFindBar = () => {
         aria-label="上一个结果"
         title="上一个结果 (Shift+Enter)"
       >
-        <ChevronUp size={16} aria-hidden="true" />
+        <ChevronUp size={15} aria-hidden="true" />
       </button>
       <button
         type="button"
@@ -312,7 +293,7 @@ const GlobalFindBar = () => {
         aria-label="下一个结果"
         title="下一个结果 (Enter)"
       >
-        <ChevronDown size={16} aria-hidden="true" />
+        <ChevronDown size={15} aria-hidden="true" />
       </button>
       <span className={styles.divider} aria-hidden="true" />
       <button
@@ -322,10 +303,10 @@ const GlobalFindBar = () => {
         aria-label="关闭搜索"
         title="关闭搜索 (Esc)"
       >
-        <X size={16} aria-hidden="true" />
+        <X size={14} aria-hidden="true" />
       </button>
     </div>,
-    document.body,
+    document.body
   );
 };
 

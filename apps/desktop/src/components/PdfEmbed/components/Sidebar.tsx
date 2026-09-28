@@ -1,4 +1,5 @@
 import { useMemo, useState, memo } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import classNames from "classnames";
 import { Empty, Button, App, Dropdown } from "antd";
 import type { MenuProps } from "antd";
@@ -446,6 +447,7 @@ const NotesTab = ({
             <div className="min-h-[24px]">
               {hasNote ? (
                 <Editor
+                  kit={getDesktopKit()}
                   className="pointer-events-none max-h-20 overflow-hidden text-[13px]"
                   initValue={note.note.slice(0, 2)}
                   readonly

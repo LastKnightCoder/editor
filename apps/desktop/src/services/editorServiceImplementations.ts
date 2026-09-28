@@ -3,8 +3,6 @@
  * 经 editorRegistry.ts 组合注册后由编辑器消费，实现间不感知注册机制。
  */
 
-import { importFromMarkdown as sharedImportFromMarkdown } from "@tau/editor/src";
-import { markdownCustomDirectives } from "@tau/shared";
 import type { CompilerService, FileService, ResourceService } from "@tau/editor/src/types/services";
 import type { EditorSlots } from "@tau/editor/src";
 import useSettingStore from "@/stores/useSettingStore";
@@ -96,18 +94,8 @@ export const desktopCompilerService: CompilerService = {
 
 // ==================== Markdown 导入 ====================
 
-/** markdown 粘贴导入用的解析函数（合并业务 customDirectives），供宿主扩展工厂注入 */
-export const desktopImportFromMarkdown = (
-  markdown: string,
-  ignoreTypes?: string[],
-  options?: Parameters<typeof sharedImportFromMarkdown>[2]
-) =>
-  sharedImportFromMarkdown(markdown, ignoreTypes, {
-    customDirectives: {
-      ...markdownCustomDirectives,
-      ...options?.customDirectives,
-    },
-  });
+/** markdown 粘贴导入用的解析函数：与全应用共用 desktop 处理器（含业务元素 codec） */
+export { importFromMarkdown as desktopImportFromMarkdown } from "@/utils/markdown";
 
 // ==================== UI Slots ====================
 

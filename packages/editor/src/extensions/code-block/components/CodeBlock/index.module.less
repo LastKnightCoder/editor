@@ -2,7 +2,7 @@
   position: relative;
   font-size: 0.8em;
   line-height: 1.8;
-  font-family: var(--mono-font, "'Monaco', '楷体'");
+  font-family: var(--ed-font-mono, "'Monaco', '楷体'");
 
   :global(.code-block-shiki-layer),
   :global(.code-block-shiki-input) {
@@ -10,8 +10,8 @@
     inset: 0;
     box-sizing: border-box;
     margin: 0;
-    padding: var(--code-content-padding-top) var(--code-content-padding-right)
-      var(--code-content-padding-bottom) var(--code-content-padding-left);
+    padding: var(--ed-code-pad-top) var(--ed-code-pad-right) var(--ed-code-pad-bottom)
+      var(--ed-code-pad-left);
     font: inherit;
     line-height: inherit;
     white-space: pre;
@@ -27,8 +27,8 @@
     left: 0;
     right: 0;
     box-sizing: border-box;
-    padding: var(--code-content-padding-top) var(--code-content-padding-right)
-      var(--code-content-padding-bottom) var(--code-content-padding-left);
+    padding: var(--ed-code-pad-top) var(--ed-code-pad-right) var(--ed-code-pad-bottom)
+      var(--ed-code-pad-left);
     font: inherit;
     line-height: inherit;
     white-space: pre;
@@ -61,12 +61,12 @@
     resize: none;
     background: transparent;
     color: transparent;
-    caret-color: var(--code-caret-color);
+    caret-color: var(--ed-code-caret);
     -webkit-text-fill-color: transparent;
   }
 
   :global(.code-block-shiki-input::selection) {
-    background: var(--code-selection-bg);
+    background: var(--ed-code-selection);
   }
 
   :global(.code-block-shiki-layer-readonly) {
@@ -96,21 +96,10 @@
 
 .codeBlockContainer {
   position: relative;
-  --code-block-bg-color: rgba(246, 248, 250, 0.68);
-  --code-block-shadow: 0 1px 2px 0 #0000001a;
-  --code-caret-color: #111827;
-  --code-selection-bg: rgba(59, 130, 246, 0.22);
-  --code-content-padding-left: 1.5em;
-  --code-content-padding-right: 0.85em;
-  --code-content-padding-top: 3em;
-  --code-content-padding-bottom: 1.1em;
-
-  &.dark {
-    --code-block-bg-color: #1f232b;
-    --code-block-shadow: 0 1px 2px 0 #00000040;
-    --code-caret-color: #f3f4f6;
-    --code-selection-bg: rgba(147, 197, 253, 0.28);
-  }
+  --ed-code-pad-left: 1.5em;
+  --ed-code-pad-right: 0.85em;
+  --ed-code-pad-top: 3em;
+  --ed-code-pad-bottom: 1.1em;
 
   .languageSelect {
     position: absolute;
@@ -176,7 +165,7 @@
     line-height: 1;
     text-align: center;
     opacity: 0.92;
-    font-family: var(--mono-font, "'Monaco', '楷体'");
+    font-family: var(--ed-font-mono, "'Monaco', '楷体'");
     user-select: none;
   }
 
@@ -184,8 +173,8 @@
     position: relative;
     overflow: hidden;
     border-radius: 0.5em;
-    box-shadow: var(--code-block-shadow);
-    background: var(--code-block-bg-color);
+    box-shadow: var(--ed-code-shadow);
+    background: var(--ed-code-bg);
 
     &.folded {
       &::after {
@@ -196,11 +185,7 @@
         bottom: 0;
         height: 3em;
         pointer-events: none;
-        background: linear-gradient(
-          180deg,
-          rgba(246, 248, 250, 0) 0%,
-          rgba(246, 248, 250, 1) 100%
-        );
+        background: linear-gradient(180deg, transparent 0%, var(--ed-code-bg) 100%);
       }
     }
 
@@ -211,7 +196,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      color: rgba(0, 0, 0, 0.45);
+      color: var(--ed-text-tertiary);
       cursor: pointer;
       transition: color 0.2s ease;
       opacity: 0;
@@ -219,7 +204,7 @@
       z-index: 4;
 
       &:hover {
-        color: rgba(0, 0, 0, 0.75);
+        color: var(--ed-text);
       }
     }
 
@@ -242,7 +227,7 @@
         width: 2.5em;
         height: 0.25em;
         border-radius: 0.125em;
-        background-color: rgba(0, 0, 0, 0.15);
+        background-color: var(--ed-border);
       }
     }
 
@@ -257,7 +242,7 @@
         pointer-events: auto;
 
         .resizeIndicator {
-          background-color: rgba(0, 0, 0, 0.3);
+          background-color: var(--ed-text-tertiary);
         }
       }
     }
@@ -271,9 +256,9 @@
     min-height: 0;
     font-size: 0.8em;
     line-height: 1.8;
-    font-family: var(--mono-font, "'Monaco', '楷体'");
-    padding: var(--code-content-padding-top) var(--code-content-padding-right)
-      var(--code-content-padding-bottom) var(--code-content-padding-left);
+    font-family: var(--ed-font-mono, "'Monaco', '楷体'");
+    padding: var(--ed-code-pad-top) var(--ed-code-pad-right) var(--ed-code-pad-bottom)
+      var(--ed-code-pad-left);
     box-sizing: border-box;
     overflow: auto;
     scrollbar-width: none;
@@ -283,14 +268,14 @@
   .fallbackPre {
     min-height: 0;
     margin: 0;
-    padding: var(--code-content-padding-top) var(--code-content-padding-right)
-      var(--code-content-padding-bottom) var(--code-content-padding-left);
+    padding: var(--ed-code-pad-top) var(--ed-code-pad-right) var(--ed-code-pad-bottom)
+      var(--ed-code-pad-left);
     font-size: 0.8em;
     line-height: 1.8;
     white-space: pre;
     overflow: auto;
     box-sizing: border-box;
-    font-family: var(--mono-font, "'Monaco', '楷体'");
+    font-family: var(--ed-font-mono, "'Monaco', '楷体'");
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
@@ -347,40 +332,6 @@
     opacity: 0.3;
   }
 
-  &.dark {
-    .codeViewport {
-      &.folded::after {
-        background: linear-gradient(
-          180deg,
-          rgba(40, 42, 52, 0) 0%,
-          rgba(40, 42, 52, 1) 100%
-        );
-      }
-
-      .foldToggle {
-        color: rgba(255, 255, 255, 0.55);
-
-        &:hover {
-          color: rgba(255, 255, 255, 0.85);
-        }
-      }
-
-      .resizeHandle {
-        .resizeIndicator {
-          background-color: rgba(255, 255, 255, 0.2);
-        }
-      }
-
-      &:hover {
-        .resizeHandle {
-          .resizeIndicator {
-            background-color: rgba(255, 255, 255, 0.4);
-          }
-        }
-      }
-    }
-  }
-
   @import "../../../drag-common.less";
   @import "../../../drop-common.less";
 }
@@ -392,30 +343,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  --code-block-bg-color: rgba(246, 248, 250, 0.68);
-  --code-block-shadow: 0 1px 2px 0 #0000001a;
-  --code-caret-color: #111827;
-  --code-selection-bg: rgba(59, 130, 246, 0.22);
-  --code-content-padding-left: 1.5em;
-  --code-content-padding-right: 0.85em;
-  --code-content-padding-top: 1.2em;
-  --code-content-padding-bottom: 1.2em;
-  --overlay-bg-color: rgba(255, 255, 255, 0.3);
-  --overlay-blur: 10px;
-  --content-bg-color: rgba(255, 255, 255, 0.3);
-  --box-shadow: 0 4px 25px rgba(0, 0, 0, 0.15);
-  background-color: var(--overlay-bg-color);
-  backdrop-filter: blur(var(--overlay-blur));
-
-  &.darkOverlay {
-    --code-block-bg-color: #1f232b;
-    --code-block-shadow: 0 1px 2px 0 #00000040;
-    --code-caret-color: #f3f4f6;
-    --code-selection-bg: rgba(147, 197, 253, 0.28);
-    --overlay-bg-color: rgba(30, 30, 30, 0.2);
-    --content-bg-color: rgba(30, 30, 30, 0.1);
-    --box-shadow: 0 4px 25px rgba(255, 255, 255, 0.15);
-  }
+  --ed-code-pad-left: 1.5em;
+  --ed-code-pad-right: 0.85em;
+  --ed-code-pad-top: 1.2em;
+  --ed-code-pad-bottom: 1.2em;
+  background-color: var(--ed-glass-bg);
+  backdrop-filter: blur(var(--ed-glass-blur));
 }
 
 .fullscreenContent {
@@ -427,19 +360,9 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: var(--box-shadow);
-  background-color: var(--content-bg-color);
-  backdrop-filter: blur(var(--overlay-blur));
-
-  &.dark {
-    .fullscreenHeader {
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .fullscreenLanguageSelect {
-      color: rgba(255, 255, 255, 0.8);
-    }
-  }
+  box-shadow: var(--ed-shadow-float);
+  background-color: var(--ed-glass-bg);
+  backdrop-filter: blur(var(--ed-glass-blur));
 }
 
 .fullscreenHeader {
@@ -447,7 +370,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.625em 1.25em;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid var(--ed-border);
   height: 2.5em;
   position: relative;
   z-index: 2;
@@ -479,13 +402,13 @@
 .fullscreenOverlayEditor {
   .overlayEditorBase();
   border-radius: 0.5em;
-  box-shadow: var(--code-block-shadow);
-  background: var(--code-block-bg-color);
+  box-shadow: var(--ed-code-shadow);
+  background: var(--ed-code-bg);
 
   :global(.code-block-shiki-layer),
   :global(.code-block-shiki-input),
   :global(.code-block-shiki-measure) {
-    padding: var(--code-content-padding-top) var(--code-content-padding-right)
-      var(--code-content-padding-bottom) var(--code-content-padding-left);
+    padding: var(--ed-code-pad-top) var(--ed-code-pad-right) var(--ed-code-pad-bottom)
+      var(--ed-code-pad-left);
   }
 }

@@ -24,11 +24,9 @@ export default function App() {
   // 将 dark 类设置到 html 根元素，确保 Tailwind dark: 和 CSS 变量同时生效
   useEffect(() => {
     const root = document.documentElement;
-    if (isDark) {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
+    root.classList.toggle("dark", isDark);
+    // 公共包按 @tau/themes 约定读 data-mode 判明暗
+    root.dataset.mode = isDark ? "dark" : "light";
   }, [isDark]);
 
   // 初始化浏览器工具服务端（用于处理桌面端的工具调用请求）

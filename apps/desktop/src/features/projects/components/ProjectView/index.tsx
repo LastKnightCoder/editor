@@ -11,7 +11,6 @@ import { useProjectDetail } from "@/features/projects/queries";
 import { Loader2 } from "lucide-react";
 import { usePage } from "@/page/PageProvider";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
-import { useCollapseSidebarOnEnter } from "@/app/shellStore";
 
 interface ProjectViewProps {
   projectId: number;
@@ -51,9 +50,6 @@ const ProjectView = ({ projectId, itemId }: ProjectViewProps) => {
     setContainerWidth(el.getBoundingClientRect().width);
     return () => observer.disconnect();
   }, [project]);
-
-  // 文档树 / Vibe Learning 项目：进入时全局侧栏收成图标列，纸内目录接替「侧栏」位置；离开不自动展开
-  useCollapseSidebarOnEnter(!!project && project.projectType !== EProjectType.DataTable);
 
   // 数据库连接或切换时整域失效（detail/tree/列表/关联源一并按新库重拉）
   useDatabaseChangeEffect(() => {

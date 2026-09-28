@@ -205,7 +205,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
             <span>空视频，</span>
             <button
               type="button"
-              className="cursor-pointer border-none bg-transparent p-0 font-semibold text-[var(--th-btn-text)] underline-offset-2 hover:underline"
+              className="cursor-pointer border-none bg-transparent p-0 font-semibold text-[var(--ed-text-inverse)] underline-offset-2 hover:underline"
               onClick={() => openLocalMediaPicker(editor, "video", element)}
             >
               选择文件

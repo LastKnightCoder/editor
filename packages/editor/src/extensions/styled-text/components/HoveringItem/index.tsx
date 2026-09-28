@@ -4,7 +4,6 @@ import { Tooltip } from "antd";
 import { Editor, NodeEntry, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import useTheme from "../../../../hooks/useTheme";
-import useThemeColors from "../../../../hooks/useThemeColors";
 import { unwrapStyledText, wrapStyledText } from "../../../../utils";
 import classnames from "classnames";
 
@@ -16,14 +15,13 @@ const HoveringItem = () => {
   const editor = useSlate();
   const selection = useSlateSelection();
   const { isDark } = useTheme();
-  const themeColors = useThemeColors();
 
   const isActive = useMemo(() => {
     if (!selection) {
       return false;
     }
     const [styledText] = Editor.nodes(editor, {
-      match: (n) => !Editor.isEditor(n) && n.type === "styled-text",
+      match: n => !Editor.isEditor(n) && n.type === "styled-text",
     });
     return !!styledText;
   }, [editor, selection]);
@@ -31,7 +29,7 @@ const HoveringItem = () => {
   const activeColor = useMemo(() => {
     if (!selection) return "currentColor";
     const [styledText] = Editor.nodes(editor, {
-      match: (n) => !Editor.isEditor(n) && n.type === "styled-text",
+      match: n => !Editor.isEditor(n) && n.type === "styled-text",
     });
     if (!styledText) return "currentColor";
     const [node] = styledText as NodeEntry<StyledTextElement>;
@@ -56,14 +54,9 @@ const HoveringItem = () => {
     <Tooltip title={"样式文本"} trigger={"hover"}>
       <div
         className={classnames(
-          "flex items-center justify-center w-8 h-8 rounded-lg cursor-pointer transition-all duration-200",
-          isActive
-            ? themeColors.activeClass
-            : classnames(
-                themeColors.textClass,
-                themeColors.hoverClass,
-                themeColors.hoverTextClass,
-              ),
+          "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all duration-200",
+          "ed-toolbar-item",
+          isActive && "is-active"
         )}
         onClick={handleClick}
       >

@@ -49,6 +49,7 @@ import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import { isElectron } from "@/electron";
 import ContentEditor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { FadeScroll } from "@/components/FadeScroll";
 import PresentationMode from "@/components/PresentationMode";
 import ImmersiveEditorMode from "@/components/ImmersiveEditorMode";
 import ContentExportModal from "@/components/ContentExportModal";
@@ -66,7 +67,6 @@ import useEditArticle from "@/hooks/useEditArticle";
 import useEditContent from "@/hooks/useEditContent";
 import useFlashcardCreation from "@/hooks/useFlashcardCreation";
 import useUploadResource from "@/hooks/useUploadResource";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import useSettingStore from "@/stores/useSettingStore";
 import { openArticleInNewWindow, updateArticleBannerBg } from "@/commands/article";
 import { getFileBaseName, readBinaryFile, selectFile } from "@/commands";
@@ -79,7 +79,7 @@ import {
   getMarkdown,
 } from "@/utils";
 import type { IArticle } from "@/types";
-import { ConfirmDialog, Loading, Menu, toast, useEdgeFade } from "@tau/ui";
+import { ConfirmDialog, Loading, Menu, toast } from "@tau/ui";
 
 import { useArticleMutations } from "../queries";
 import { ArticlePodcast } from "../components/ArticlePodcast";
@@ -130,14 +130,12 @@ export function ArticleDetailView() {
   const [pendingDelete, setPendingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const { remove } = useArticleMutations();
-  const extensions = useDynamicExtensionsStore(store => store.extensions);
   const uploadResource = useUploadResource();
   const databaseName = useSettingStore(state => state.setting.database.active);
   const darkMode = useSettingStore(state => state.setting.darkMode);
 
   /* 版心滚动容器：callback ref（挂载后接线目录同步与阅读进度） */
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
-  useEdgeFade(scrollEl);
 
   const [podcastModalOpen, setPodcastModalOpen] = useState(false);
   const [presenting, setPresenting] = useState<Descendant[] | null>(null);
@@ -440,79 +438,81 @@ export function ArticleDetailView() {
   const headers = extractContentHeaders(editingArticle.content);
 
   return (
-    <div className="flex h-full flex-col pb-4">
-      {/* 滚动区：版心恒居中（hero 与正文列同轴）；面包屑由壳层槽位渲染 */}
-      <div ref={setScrollEl} className="edge-fade-scroll mr-4 min-h-0 flex-1 overflow-y-auto">
-        <ArticleHero
-          article={editingArticle}
-          onTitleChange={title => {
-            onTitleChange(title);
-          }}
-          onChangeCover={() => void handleChangeCover()}
-          changingCover={changingCover}
-          actions={
-            <span className="flex items-center gap-1">
-              {/* 协作：已共享时常驻成员条（点开成员 Popover）；未共享不占位，由 ⋯「发起协作」打开对话框 */}
-              <ContentCollaborationControl
-                ref={collaborationRef}
-                hideTrigger
-                presence
-                contentId={editingArticle.contentId}
-                source={{
-                  sourceType: "article",
-                  sourceId: editingArticle.id,
-                  sourceTitle: editingArticle.title,
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+      {/* 一整张纸（同卡片详情）：封面内衬在纸顶，版心恒居中（hero 与正文列同轴）；
+          滚动区贴满纸面（不留上下外边距），封面才能与纸边等距 10px；面包屑由壳层槽位渲染 */}
+      <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
+        <FadeScroll scrollRef={setScrollEl} className="min-h-0 flex-1 border-r-[3px]">
+          <ArticleHero
+            article={editingArticle}
+            onTitleChange={title => {
+              onTitleChange(title);
+            }}
+            onChangeCover={() => void handleChangeCover()}
+            changingCover={changingCover}
+            actions={
+              <span className="flex items-center gap-1">
+                {/* 协作：已共享时常驻成员条（点开成员 Popover）；未共享不占位，由 ⋯「发起协作」打开对话框 */}
+                <ContentCollaborationControl
+                  ref={collaborationRef}
+                  hideTrigger
+                  presence
+                  contentId={editingArticle.contentId}
+                  source={{
+                    sourceType: "article",
+                    sourceId: editingArticle.id,
+                    sourceTitle: editingArticle.title,
+                  }}
+                />
+                {moreMenuNode}
+              </span>
+            }
+          />
+
+          <div className="grid grid-cols-[1fr_minmax(0,720px)_1fr] items-start px-[26px] pb-10 pt-8">
+            <article className="col-start-2 min-w-0">
+              <ArticlePodcast
+                article={editingArticle}
+                modalOpen={podcastModalOpen}
+                onModalOpenChange={setPodcastModalOpen}
+                onUpdated={handlePodcastUpdated}
+              />
+
+              <div className={editingArticle.podcast ? "mt-[30px]" : undefined}>
+                <ErrorBoundary>
+                  <ContentEditor
+                    ref={editorRef}
+                    contentId={editingArticle.contentId}
+                    key={`${editingArticle.id}-${editorRemountKey}`}
+                    initValue={editingArticle.content}
+                    onInit={onInit}
+                    onChange={content => {
+                      // 正文持久化 + 广播走 useEditContent（content 表），本地态供字数/目录
+                      throttleHandleEditorContentChange(content);
+                      onContentChange(content);
+                    }}
+                    readonly={false}
+                  />
+                </ErrorBoundary>
+              </div>
+
+              <ArticleTags
+                tags={editingArticle.tags}
+                onAdd={tag => {
+                  onAddTag(tag);
+                }}
+                onDelete={tag => {
+                  onDeleteTag(tag);
                 }}
               />
-              {moreMenuNode}
-            </span>
-          }
-        />
+            </article>
 
-        <div className="grid grid-cols-[1fr_minmax(0,720px)_1fr] items-start px-[26px] pb-2 pt-8">
-          <article className="col-start-2 min-w-0">
-            <ArticlePodcast
-              article={editingArticle}
-              modalOpen={podcastModalOpen}
-              onModalOpenChange={setPodcastModalOpen}
-              onUpdated={handlePodcastUpdated}
-            />
-
-            <div className={editingArticle.podcast ? "mt-[30px]" : undefined}>
-              <ErrorBoundary>
-                <ContentEditor
-                  ref={editorRef}
-                  contentId={editingArticle.contentId}
-                  key={`${editingArticle.id}-${editorRemountKey}`}
-                  initValue={editingArticle.content}
-                  onInit={onInit}
-                  extensions={extensions}
-                  onChange={content => {
-                    // 正文持久化 + 广播走 useEditContent（content 表），本地态供字数/目录
-                    throttleHandleEditorContentChange(content);
-                    onContentChange(content);
-                  }}
-                  readonly={false}
-                />
-              </ErrorBoundary>
+            {/* 目录：贴正文右缘 sticky（不参与版心计算） */}
+            <div className="sticky top-4 col-start-3 ml-7">
+              <ContentOutline headers={headers} scrollEl={scrollEl} resolveAnchor={resolveAnchor} />
             </div>
-
-            <ArticleTags
-              tags={editingArticle.tags}
-              onAdd={tag => {
-                onAddTag(tag);
-              }}
-              onDelete={tag => {
-                onDeleteTag(tag);
-              }}
-            />
-          </article>
-
-          {/* 目录：贴正文右缘 sticky（不参与版心计算） */}
-          <div className="sticky top-4 col-start-3 ml-7">
-            <ContentOutline headers={headers} scrollEl={scrollEl} resolveAnchor={resolveAnchor} />
           </div>
-        </div>
+        </FadeScroll>
       </div>
 
       {/* 导出弹窗（legacy 搬用；PdfExportModal 的开合 prop 是 visible） */}
@@ -624,7 +624,6 @@ export function ArticleDetailView() {
           }}
           wordCount={getContentLength(editingArticle.content)}
           readonly={false}
-          extensions={extensions}
         />
       )}
     </div>

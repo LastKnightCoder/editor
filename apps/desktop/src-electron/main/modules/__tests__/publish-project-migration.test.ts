@@ -34,6 +34,10 @@ vi.mock("../publish-providers", () => ({
   DEFAULT_UPLOAD_OPTIONS: { concurrency: 1, maxRetries: 1, retryDelay: 0 },
 }));
 import publisher from "../publish";
+import { PublishSiteGenerator, type PublishDataSource } from "../publish-site-generator";
+
+const createGenerator = (templateDir = "") =>
+  new PublishSiteGenerator({ templateDir, compileTailwind: async () => "", logger: console });
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -44,7 +48,6 @@ describe("项目迁移后的发布边界", () => {
   it("实际生成文件不含 RSS，旧 RSS 进入删除计划，页面保留站点地址与搜索", async () => {
     const dir = mkdtempSync(join(tmpdir(), "tau-publish-"));
     const db = new Database(":memory:");
-    const previous = (publisher as any).templateDir;
     try {
       db.exec(schema);
       db.prepare(
@@ -55,8 +58,10 @@ describe("项目迁移后的发布边界", () => {
         join(dir, "src/templates/home/index.html"),
         '<html><head></head><body><script>window.data="__DATA_PLACEHOLDER__"</script></body></html>'
       );
-      (publisher as any).templateDir = dir;
-      vi.spyOn(publisher as any, "ensureTemplateReady").mockResolvedValue(dir);
+      // worker 线程在测试环境不可用，生成改为进程内直跑同一生成器
+      vi.spyOn(publisher, "generatePublishFiles").mockImplementation((_db, selections, site) =>
+        createGenerator(dir).generate({} as PublishDataSource, selections, site)
+      );
       const plan = await publisher.buildPublishPlan(db, {
         title: "站点",
         description: "",
@@ -70,7 +75,6 @@ describe("项目迁移后的发布边界", () => {
       expect(html).toContain("https://example.test");
       expect(html).toContain("search-index.json");
     } finally {
-      (publisher as any).templateDir = previous;
       db.close();
       rmSync(dir, { recursive: true, force: true });
     }
@@ -159,7 +163,7 @@ describe("项目迁移后的发布边界", () => {
         children: [{ id: 2, hasContent: true, content: ["公开正文"], children: [] }],
       },
     ];
-    const filtered = (publisher as any).filterDocTreeNodes(tree, {
+    const filtered = (createGenerator() as any).filterDocTreeNodes(tree, {
       mode: "partial",
       nodes: new Set([2]),
     });
@@ -171,7 +175,7 @@ describe("项目迁移后的发布边界", () => {
   it.each(['{"mode":"partial","nodes":[]}', "broken", '{"unexpected":true}'])(
     "范围 %s 不降级为全选",
     raw => {
-      const scope = (publisher as any).parseEntityScopeConfig({ parentPath: raw });
+      const scope = (createGenerator() as any).parseEntityScopeConfig({ parentPath: raw });
       expect(scope).toEqual({ mode: "partial", nodes: new Set() });
     }
   );

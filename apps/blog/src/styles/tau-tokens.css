@@ -1,0 +1,82 @@
+/*
+ * --tau-* 语义 token 桥接（docs/editor-refactor P2，ER-002）。
+ *
+ * blog 保留现有明暗配色（global.css 叠加 legacy-palette.css 的结果），这里把
+ * @tau/themes 的全部语义 token 映射到这些变量上：编辑器等公共包只消费 --tau-*，外观不变。
+ * 映射引用的是变量名而非取值，所以不论最终哪份声明胜出，--tau-* 都跟随页面实际配色。
+ * 词汇表以 packages/themes/src/tokenContract.ts 为准，tau-tokens.test.ts 守护全键齐全。
+ */
+:root {
+  /* surface */
+  --tau-bg-page: var(--color-bg-page);
+  --tau-bg-surface: var(--color-bg-container);
+  --tau-bg-surface-hover: var(--color-bg-elevated);
+  --tau-bg-sunken: var(--color-bg-canvas);
+
+  /* control */
+  --tau-bg-track: var(--color-border-ring-heavy);
+
+  /* interaction */
+  --tau-bg-hover: var(--color-primary-subtle);
+  --tau-bg-press: var(--color-border-ring-heavy);
+  --tau-bg-selected: var(--color-accent-subtle);
+
+  /* ink */
+  --tau-ink-1: var(--color-text-primary);
+  --tau-ink-2: var(--color-text-secondary);
+  --tau-ink-3: var(--color-text-tertiary);
+  --tau-ink-inverse: var(--color-text-inverse);
+
+  /* line */
+  --tau-line-1: var(--color-border-ring-heavy);
+  --tau-line-2: var(--color-border-ring);
+
+  /* accent：blog 的主色（旧配色层覆盖后为蓝），accent-text 用链接色 */
+  --tau-accent: var(--color-primary);
+  --tau-accent-hover: var(--color-primary-hover);
+  --tau-accent-soft: var(--color-primary-subtle);
+  --tau-accent-text: var(--color-link);
+  --tau-focus-ring: 0 0 0 3px var(--color-primary-subtle);
+
+  /* status：blog 没有状态色，明暗各给一组中性可读值 */
+  --tau-ok: #4d7c5f;
+  --tau-ok-soft: rgba(77, 124, 95, 0.1);
+  --tau-warn: #a1782f;
+  --tau-warn-soft: rgba(161, 120, 47, 0.1);
+  --tau-danger: #b0493d;
+  --tau-danger-soft: rgba(176, 73, 61, 0.1);
+  --tau-info: #4a6f91;
+  --tau-info-soft: rgba(74, 111, 145, 0.1);
+
+  /* tag：同上，blog 没有标签色板 */
+  --tau-tag-1: var(--tau-ok);
+  --tau-tag-1-soft: var(--tau-ok-soft);
+  --tau-tag-2: var(--tau-info);
+  --tau-tag-2-soft: var(--tau-info-soft);
+  --tau-tag-3: #7a6a96;
+  --tau-tag-3-soft: rgba(122, 106, 150, 0.1);
+  --tau-tag-4: var(--tau-warn);
+  --tau-tag-4-soft: var(--tau-warn-soft);
+  --tau-tag-5: var(--tau-danger);
+  --tau-tag-5-soft: var(--tau-danger-soft);
+
+  /* float */
+  --tau-overlay: rgba(28, 25, 23, 0.4);
+  --tau-shadow-card: var(--shadow-card);
+  --tau-shadow-lift: var(--shadow-card-hover);
+  --tau-shadow-float: var(--shadow-dropdown);
+}
+
+[data-theme="dark"] {
+  --tau-ok: #7fbf94;
+  --tau-ok-soft: rgba(127, 191, 148, 0.12);
+  --tau-warn: #d9b36a;
+  --tau-warn-soft: rgba(217, 179, 106, 0.12);
+  --tau-danger: #e0877a;
+  --tau-danger-soft: rgba(224, 135, 122, 0.12);
+  --tau-info: #86aed1;
+  --tau-info-soft: rgba(134, 174, 209, 0.12);
+  --tau-tag-3: #b0a0cc;
+  --tau-tag-3-soft: rgba(176, 160, 204, 0.12);
+  --tau-overlay: rgba(0, 0, 0, 0.55);
+}

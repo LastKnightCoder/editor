@@ -4,7 +4,6 @@ import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { useMemoizedFn } from "ahooks";
 import { Tooltip } from "antd";
 import useTheme from "../../../../hooks/useTheme";
-import useThemeColors from "../../../../hooks/useThemeColors";
 import {
   TEXT_GRADIENT_PRESETS,
   resolveTextGradientStyle,
@@ -22,7 +21,6 @@ const ColorText = memo(() => {
   const editor = useSlate();
   const selection = useSlateSelection();
   const { isDark } = useTheme();
-  const themeColors = useThemeColors();
 
   const [open, setOpen] = useState<boolean>(false);
 
@@ -40,21 +38,17 @@ const ColorText = memo(() => {
       return "currentColor";
     }
     const textGradient = marks.textGradient;
-    if (
-      typeof textGradient === "string" &&
-      textGradient in TEXT_GRADIENT_PRESETS
-    ) {
+    if (typeof textGradient === "string" && textGradient in TEXT_GRADIENT_PRESETS) {
       return resolveTextGradientStyle(
         textGradient as TextGradientPresetId,
-        isDark ? "dark" : "light",
+        isDark ? "dark" : "light"
       ).fallbackColor;
     }
     const color = isDark ? marks.darkColor : marks.color;
     return typeof color === "string" && color ? color : "currentColor";
   }, [active, isDark, marks]);
 
-  const { isHoveringBarShow, isCompact, submenuTrigger } =
-    useContext(HoveringBarContext);
+  const { isHoveringBarShow, isCompact, submenuTrigger } = useContext(HoveringBarContext);
 
   useEffect(() => {
     if (!isHoveringBarShow) {
@@ -63,11 +57,7 @@ const ColorText = memo(() => {
   }, [isHoveringBarShow]);
 
   const handleSelectColor = useMemoizedFn(
-    (
-      color?: string,
-      darkColor?: string,
-      gradientPreset?: TextGradientPresetId,
-    ) => {
+    (color?: string, darkColor?: string, gradientPreset?: TextGradientPresetId) => {
       if (gradientPreset) {
         Editor.removeMark(editor, "color");
         Editor.removeMark(editor, "darkColor");
@@ -88,7 +78,7 @@ const ColorText = memo(() => {
       if (isCompact) {
         setOpen(false);
       }
-    },
+    }
   );
 
   return (
@@ -104,14 +94,9 @@ const ColorText = memo(() => {
       <Tooltip title={"颜色"} trigger={"hover"}>
         <div
           className={classnames(
-            "flex items-center justify-center gap-0.5 px-1.5 h-8 rounded-lg cursor-pointer transition-all duration-200",
-            active
-              ? themeColors.activeClass
-              : classnames(
-                  themeColors.textClass,
-                  themeColors.hoverClass,
-                  themeColors.hoverTextClass,
-                ),
+            "flex h-8 cursor-pointer items-center justify-center gap-0.5 rounded-lg px-1.5 transition-all duration-200",
+            "ed-toolbar-item",
+            active && "is-active"
           )}
         >
           <Baseline

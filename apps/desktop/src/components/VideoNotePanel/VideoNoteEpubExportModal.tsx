@@ -1,16 +1,34 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { App } from "antd";
+/**
+ * 视频笔记 · AI 导出电子书：两步工作台型弹窗。
+ * ① 选写作风格 → AI 基于转录流式改写成草稿（可直接编辑）；② 书籍元数据、封面与格式 → 导出。
+ * 两步正文都接 FadeScroll；导出进行中 / 流式生成中封锁关闭路径。
+ */
+
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
-import { LoadingOutlined } from "@ant-design/icons";
 import { motion, AnimatePresence } from "motion/react";
-import classNames from "classnames";
+import {
+  ArrowLeft,
+  ArrowRight,
+  BookOpen,
+  Check,
+  Download,
+  FileText,
+  ImagePlus,
+  Loader2,
+  Sparkles,
+  Square,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import type { Descendant } from "slate";
-import { Editor, EditorRef } from "@tau/editor/src";
-import { SelectDropDown } from "@tau/shared";
+import { Editor, EditorRef, HeaderExtension } from "@tau/editor/src";
+import { Button, ConfirmDialog, Dialog, Input, Textarea, cn, toast } from "@tau/ui";
+import { FadeScroll } from "@/components/FadeScroll";
 import { readBinaryFile, selectFile, showInFolder } from "@/commands";
 import type { EpubMetadataInput } from "@/types";
 import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
-import CustomModal from "@/components/CustomModal";
 import { importFromMarkdown, getMarkdown } from "@/utils/markdown";
 import { resolveLocalMediaPath } from "@/utils/localMediaPath";
 import { remoteResourceToLocal } from "@/utils/resouce";
@@ -22,9 +40,11 @@ import {
 } from "@/utils/epub-export";
 import { exportVideoNoteToPdfWithDialog } from "@/utils/pdf-export";
 import useVideoEbookRewrite from "@/hooks/useVideoEbookRewrite";
-import useThemeColors from "@/hooks/useThemeColors";
 import type { VideoEbookRewriteStyle } from "@/constants/prompts/video-ebook-rewrite";
 import { summarizeExportResults, type ExportFormatResult } from "./export-result-summary";
+
+// 草稿按电子书目录编排，标题不折叠
+const DRAFT_EDITOR_EXTENSIONS = [new HeaderExtension({ disableCollapse: true })];
 
 const DEFAULT_CONTENT: Descendant[] = [
   {
@@ -46,6 +66,7 @@ const IMAGE_EXTENSION_TO_MIME: Record<string, string> = {
 };
 
 type Step = "rewrite" | "export-settings";
+type ExportFormat = "pdf" | "epub";
 
 interface CoverCandidate {
   id: string;
@@ -70,64 +91,31 @@ const STYLE_OPTIONS: Array<{
   label: string;
   value: VideoEbookRewriteStyle;
   description: string;
-  detail: string;
-  icon: string;
 }> = [
-  {
-    label: "杂志风",
-    value: "magazine",
-    description: "叙事性强、可读性高，兼顾信息密度与阅读节奏",
-    detail: "适合把复杂内容整理成更顺滑、更有阅读感的长文结构。",
-    icon: "📰",
-  },
-  {
-    label: "学术总结",
-    value: "academic",
-    description: "结构严谨、概念清晰，强调论点与结论",
-    detail: "适合输出定义、论据、方法与结论更明确的总结型内容。",
-    icon: "🎓",
-  },
-  {
-    label: "轻松博客",
-    value: "casual",
-    description: "语气亲切、段落短、节奏快，强调易读性",
-    detail: "适合快速浏览和轻阅读场景，让内容更自然、更容易读完。",
-    icon: "✏️",
-  },
-  {
-    label: "技术文档",
-    value: "technical",
-    description: "结构化表达，强调可检索性与准确性",
-    detail: "适合沉淀术语、前提、步骤和边界条件都更清晰的说明文。",
-    icon: "📋",
-  },
+  { label: "杂志长文", value: "magazine", description: "叙事流畅，兼顾信息密度" },
+  { label: "学术总结", value: "academic", description: "结构严谨，论证与结论清晰" },
+  { label: "轻松博客", value: "casual", description: "语气亲切，段落短而轻快" },
+  { label: "技术文档", value: "technical", description: "术语统一，步骤便于检索" },
 ];
 
-const FORMAT_OPTIONS = [
-  {
-    value: "pdf" as const,
-    label: "PDF",
-    icon: "📄",
-    description: "适合打印和阅读，支持自适应分页",
-  },
-  {
-    value: "epub" as const,
-    label: "EPUB",
-    icon: "📚",
-    description: "电子书格式，支持封面和章节导航",
-  },
+const FORMAT_OPTIONS: Array<{
+  value: ExportFormat;
+  label: string;
+  icon: LucideIcon;
+  description: string;
+}> = [
+  { value: "epub", label: "EPUB", icon: BookOpen, description: "电子书格式，带封面与章节导航" },
+  { value: "pdf", label: "PDF", icon: FileText, description: "适合打印与阅读，自适应分页" },
 ];
 
-const STEP_META: Record<Step, { title: string; subtitle: string }> = {
-  rewrite: {
-    title: "AI 生成草稿",
-    subtitle: "选择写作风格，生成并编辑电子书草稿",
+const STEPS: Array<{ key: Step; label: string; subtitle: string }> = [
+  {
+    key: "rewrite",
+    label: "生成草稿",
+    subtitle: "选择写作风格，AI 把转录改写成可编辑的电子书草稿",
   },
-  "export-settings": {
-    title: "导出设置",
-    subtitle: "配置书籍元数据与封面，选择导出格式",
-  },
-};
+  { key: "export-settings", label: "导出设置", subtitle: "填写书籍信息、挑选封面，选择导出格式" },
+];
 
 const normalizeText = (value?: string) => (value || "").trim();
 const isHttpUrl = (value: string) => /^https?:\/\//i.test(value);
@@ -195,57 +183,75 @@ const sourceToDataUri = async (source: string) => {
 const createEmptyContent = (): Descendant[] =>
   JSON.parse(JSON.stringify(DEFAULT_CONTENT)) as Descendant[];
 
-const StepIndicator = ({ currentStep }: { currentStep: Step }) => {
-  const steps: Array<{ key: Step; label: string; number: number }> = [
-    { key: "rewrite", label: "生成草稿", number: 1 },
-    { key: "export-settings", label: "导出设置", number: 2 },
-  ];
-
+/** 字段：12px 淡墨标签 + 可选提示 / 右侧动作，内容在下 */
+function Field({
+  label,
+  required,
+  hint,
+  action,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  hint?: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
   return (
-    <div className="flex items-center gap-1.5">
-      {steps.map((s, idx) => {
-        const isActive = s.key === currentStep;
-        const isPast = currentStep === "export-settings" && s.key === "rewrite";
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <div className="flex min-h-[20px] items-center gap-2">
+        <span className="text-ink-2 text-[12px]">
+          {label}
+          {required && <span className="text-danger ml-0.5">*</span>}
+        </span>
+        {hint && <span className="text-ink-3 text-[11.5px]">{hint}</span>}
+        <span className="flex-1" />
+        {action}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** 应答区左侧的步骤进度：当前步 accent 圆点，已完成打勾 */
+function StepIndicator({ current }: { current: Step }) {
+  const currentIndex = STEPS.findIndex(s => s.key === current);
+  return (
+    <ol className="m-0 mr-auto flex list-none items-center gap-2 p-0">
+      {STEPS.map((s, index) => {
+        const active = index === currentIndex;
+        const done = index < currentIndex;
         return (
-          <div key={s.key} className="flex items-center gap-1.5">
-            {idx > 0 && (
-              <div
-                className={classNames(
-                  "h-px w-5 transition-colors",
-                  isPast || isActive ? "bg-[var(--th-accent)]" : "bg-gray-200 dark:bg-zinc-700"
-                )}
-              />
+          <li key={s.key} className="flex items-center gap-2">
+            {index > 0 && (
+              <span className={cn("h-px w-5", done || active ? "bg-accent" : "bg-line-1")} />
             )}
-            <div
-              className={classNames(
-                "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-all",
-                isActive
-                  ? "dark:bg-[var(--th-accent)]/15 bg-[var(--th-accent-soft)] text-[var(--th-active-text)]"
-                  : isPast
-                    ? "text-[var(--th-accent)]/70/60"
-                    : "text-gray-400 dark:text-slate-500"
+            <span
+              className={cn(
+                "flex items-center gap-1.5 text-[12px]",
+                active ? "text-ink-1 font-medium" : "text-ink-3"
               )}
             >
               <span
-                className={classNames(
-                  "h-4.5 w-4.5 flex items-center justify-center rounded-full text-[10px] font-bold",
-                  isActive
-                    ? "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] dark:bg-[var(--th-accent)]"
-                    : isPast
-                      ? "bg-[var(--th-accent-soft)] text-[var(--th-active-text)]"
-                      : "bg-gray-200 text-gray-500 dark:bg-zinc-700 dark:text-slate-400"
+                className={cn(
+                  "grid size-[18px] place-items-center rounded-full text-[10.5px] font-semibold",
+                  active
+                    ? "bg-accent text-ink-inverse"
+                    : done
+                      ? "bg-accent-soft text-accent-text"
+                      : "bg-sunken text-ink-3"
                 )}
               >
-                {isPast ? "✓" : s.number}
+                {done ? <Check className="size-[11px]" strokeWidth={2.5} /> : index + 1}
               </span>
-              <span className="hidden sm:inline">{s.label}</span>
-            </div>
-          </div>
+              {s.label}
+            </span>
+          </li>
         );
       })}
-    </div>
+    </ol>
   );
-};
+}
 
 const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
   const {
@@ -259,17 +265,15 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     model,
     onOpenLLMSettings,
   } = props;
-  const { message, modal } = App.useApp();
-  const themeColors = useThemeColors();
   const editorRef = useRef<EditorRef>(null);
   const [step, setStep] = useState<Step>("rewrite");
   const [editorSessionId, setEditorSessionId] = useState(0);
   const [selectedStyle, setSelectedStyle] = useState<VideoEbookRewriteStyle>("magazine");
-  const [styleDropdownOpen, setStyleDropdownOpen] = useState(false);
-  const [selectedFormats, setSelectedFormats] = useState<Set<"pdf" | "epub">>(new Set(["epub"]));
+  const [selectedFormats, setSelectedFormats] = useState<Set<ExportFormat>>(new Set(["epub"]));
   const [draftContent, setDraftContent] = useState<Descendant[]>(DEFAULT_CONTENT);
   const [hasDraft, setHasDraft] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<{ formats: string; details: string } | null>(null);
   const [coverCandidates, setCoverCandidates] = useState<CoverCandidate[]>([]);
   const [loadingCoverCandidates, setLoadingCoverCandidates] = useState(false);
   const [metadata, setMetadata] = useState<EpubMetadataInput>({
@@ -284,7 +288,12 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
       defaultValue: undefined,
     }
   );
-  const styleTriggerRef = useRef<HTMLButtonElement>(null);
+  const [llmMissingOpen, setLlmMissingOpen] = useState(false);
+  // 多格式导出中途取消某一格式时，问是否继续下一个；resolver 只兑现一次（确认后 ConfirmDialog 还会走关闭回调）
+  const [continuePrompt, setContinuePrompt] = useState<{ canceled: string; next: string } | null>(
+    null
+  );
+  const continueResolverRef = useRef<((value: boolean) => void) | null>(null);
 
   const {
     isRewriting,
@@ -296,8 +305,6 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     stopRewrite,
     reset: resetRewriteState,
   } = useVideoEbookRewrite(provider, model);
-
-  const rewriteActionLabel = hasDraft ? "重新生成" : "生成草稿";
 
   const loadCoverCandidates = useMemoizedFn(
     async (contentForCover: Descendant[], defaultMetadata: EpubMetadataInput) => {
@@ -362,13 +369,13 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     setDraftContent(emptyContent);
     setEditorSessionId(prev => prev + 1);
     setSelectedFormats(new Set(["epub"]));
+    setExportError(null);
     const defaultMetadata = buildDefaultEpubMetadata({
       content: emptyContent,
       title: videoTitle || "视频电子书",
       remembered,
     });
     setMetadata(defaultMetadata);
-    setStyleDropdownOpen(false);
   }, [open, videoTitle, remembered, resetRewriteState]);
 
   useEffect(() => {
@@ -398,8 +405,8 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     if (!open || !rewriteError) {
       return;
     }
-    message.error(rewriteError.message || "电子书草稿生成失败");
-  }, [open, rewriteError, message]);
+    toast.error(rewriteError.message || "电子书草稿生成失败");
+  }, [open, rewriteError]);
 
   const onFieldChange = useMemoizedFn((field: keyof EpubMetadataInput, value: string) => {
     setMetadata(prev => ({
@@ -449,10 +456,9 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
         ...prev,
         coverImageSrc: dataUri,
       }));
-      message.success("封面图已更新");
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      message.error(`读取封面图失败：${msg}`);
+      toast.error(`读取封面图失败：${msg}`);
     }
   });
 
@@ -478,32 +484,28 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
   }, [metadata.coverImageSrc, coverCandidates]);
 
   const exportButtonText = useMemo(() => {
-    const formats = Array.from(selectedFormats);
-    if (formats.length === 0) return "请选择格式";
-    if (formats.length === 1) {
-      return `导出 ${formats[0].toUpperCase()}`;
-    }
-    return "导出 PDF 和 EPUB";
+    const formats = FORMAT_OPTIONS.filter(o => selectedFormats.has(o.value));
+    if (formats.length === 0) return "选择导出格式";
+    if (formats.length === 1) return `导出 ${formats[0].label}`;
+    return "导出 EPUB 和 PDF";
   }, [selectedFormats]);
 
-  const selectedStyleOption = useMemo(
-    () => STYLE_OPTIONS.find(option => option.value === selectedStyle) || STYLE_OPTIONS[0],
-    [selectedStyle]
-  );
+  const toggleFormat = useMemoizedFn((format: ExportFormat) => {
+    setSelectedFormats(prev => {
+      const next = new Set(prev);
+      if (next.has(format)) next.delete(format);
+      else next.add(format);
+      return next;
+    });
+  });
 
   const handleStartRewrite = useMemoizedFn(() => {
     if (!normalizeText(transcript)) {
-      message.warning("缺少转录文稿，请先完成转录");
+      toast.warning("缺少转录文稿，请先完成转录");
       return;
     }
     if (!provider || !model) {
-      modal.confirm({
-        title: "未配置重写模型",
-        content: "请先在设置中配置「视频电子书重写」的 LLM 模型。",
-        okText: "打开设置",
-        cancelText: "取消",
-        onOk: onOpenLLMSettings,
-      });
+      setLlmMissingOpen(true);
       return;
     }
 
@@ -543,6 +545,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
       setLoadingCoverCandidates(false);
     });
 
+    setExportError(null);
     setStep("export-settings");
   });
 
@@ -558,16 +561,28 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     }
   });
 
+  const askContinueExport = (canceled: string, next: string) =>
+    new Promise<boolean>(resolve => {
+      continueResolverRef.current = resolve;
+      setContinuePrompt({ canceled, next });
+    });
+
+  const settleContinuePrompt = (value: boolean) => {
+    continueResolverRef.current?.(value);
+    continueResolverRef.current = null;
+    setContinuePrompt(null);
+  };
+
   const handleConfirmExport = useMemoizedFn(async () => {
     const markdown = normalizeText(getMarkdown(draftContent));
     if (!markdown) {
-      message.error("请先生成或编辑电子书草稿");
+      toast.error("请先生成或编辑电子书草稿");
       return;
     }
 
     // 验证至少选择一种格式
     if (selectedFormats.size === 0) {
-      message.error("请至少选择一种导出格式");
+      toast.error("请至少选择一种导出格式");
       return;
     }
 
@@ -580,204 +595,96 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     };
 
     if (!normalizedMetadata.title) {
-      message.error("书名不能为空");
+      toast.error("书名不能为空");
       return;
     }
     if (!normalizedMetadata.author) {
-      message.error("作者不能为空");
-      return;
-    }
-    if (!normalizedMetadata.language) {
-      message.error("语言不能为空");
+      toast.error("作者不能为空");
       return;
     }
 
     setExporting(true);
-    const formatsToExport = Array.from(selectedFormats);
+    setExportError(null);
+    const formatsToExport = FORMAT_OPTIONS.map(o => o.value).filter(f => selectedFormats.has(f));
     const results: ExportFormatResult[] = [];
 
     try {
       for (let i = 0; i < formatsToExport.length; i++) {
         const format = formatsToExport[i];
+        const label = format.toUpperCase();
         const isLastFormat = i === formatsToExport.length - 1;
+        const exportOptions = {
+          content: draftContent,
+          metadata: normalizedMetadata,
+          defaultFileName: normalizedMetadata.title,
+        };
+        const result =
+          format === "pdf"
+            ? await exportVideoNoteToPdfWithDialog(exportOptions)
+            : await exportSlateToEpubWithDialog(exportOptions);
 
-        if (format === "pdf") {
-          const pdfResult = await exportVideoNoteToPdfWithDialog({
-            content: draftContent,
-            metadata: normalizedMetadata,
-            defaultFileName: normalizedMetadata.title,
-          });
-
-          // 处理取消
-          if (pdfResult.canceled) {
-            results.push({
-              format: "PDF",
-              success: false,
-              canceled: true,
-            });
-
-            if (!isLastFormat) {
-              const shouldContinue = await new Promise<boolean>(resolve => {
-                modal.confirm({
-                  title: "继续导出？",
-                  content: `您已取消 PDF 导出，是否继续导出 ${formatsToExport[i + 1].toUpperCase()}？`,
-                  okText: "继续",
-                  cancelText: "取消",
-                  onOk: () => resolve(true),
-                  onCancel: () => resolve(false),
-                });
-              });
-
-              if (!shouldContinue) {
-                message.info("已取消导出");
-                return;
-              }
+        if (result.canceled) {
+          results.push({ format: label, success: false, canceled: true });
+          if (!isLastFormat) {
+            const shouldContinue = await askContinueExport(
+              label,
+              formatsToExport[i + 1].toUpperCase()
+            );
+            if (!shouldContinue) {
+              toast.info("已取消导出");
+              return;
             }
           }
-          // 处理失败（未取消但没有文件路径）
-          else if (!pdfResult.filePath) {
-            results.push({
-              format: "PDF",
-              success: false,
-              warnings: pdfResult.warnings || ["PDF 导出失败"],
-            });
-          }
-          // 成功
-          else {
-            results.push({
-              format: "PDF",
-              success: true,
-              filePath: pdfResult.filePath,
-              warnings: pdfResult.warnings,
-            });
-          }
-        } else if (format === "epub") {
-          const epubResult = await exportSlateToEpubWithDialog({
-            content: draftContent,
-            metadata: normalizedMetadata,
-            defaultFileName: normalizedMetadata.title,
-          });
-
-          // 处理取消
-          if (epubResult.canceled) {
-            results.push({
-              format: "EPUB",
-              success: false,
-              canceled: true,
-            });
-
-            if (!isLastFormat) {
-              const shouldContinue = await new Promise<boolean>(resolve => {
-                modal.confirm({
-                  title: "继续导出？",
-                  content: `您已取消 EPUB 导出，是否继续导出 ${formatsToExport[i + 1].toUpperCase()}？`,
-                  okText: "继续",
-                  cancelText: "取消",
-                  onOk: () => resolve(true),
-                  onCancel: () => resolve(false),
-                });
-              });
-
-              if (!shouldContinue) {
-                message.info("已取消导出");
-                return;
-              }
-            }
-          }
-          // 处理失败（未取消但没有文件路径）
-          else if (!epubResult.filePath) {
-            results.push({
-              format: "EPUB",
-              success: false,
-              warnings: epubResult.warnings || ["EPUB 导出失败"],
-            });
-          }
-          // 成功
-          else {
-            results.push({
-              format: "EPUB",
-              success: true,
-              filePath: epubResult.filePath,
-              warnings: epubResult.warnings,
-            });
-          }
-        }
-      }
-
-      // 显示结果
-      const summary = summarizeExportResults(results);
-      const { successResults, failedResults, canceledResults, status } = summary;
-
-      if (status === "all-failed") {
-        const failedFormats = failedResults.map(r => r.format).join("、");
-        const failedWarnings = failedResults.flatMap(r => r.warnings || []).join("\n");
-        modal.error({
-          title: "导出失败",
-          content: (
-            <div>
-              <p>
-                <strong>失败格式：</strong>
-                {failedFormats}
-              </p>
-              {failedWarnings && <p className="mt-2 text-xs text-gray-500">{failedWarnings}</p>}
-            </div>
-          ),
-          okText: "知道了",
-        });
-        return;
-      }
-
-      if (status === "partial-success") {
-        const successFormats = successResults.map(r => r.format).join("、");
-        const canceledFormats = canceledResults.map(r => r.format).join("、");
-
-        if (failedResults.length > 0) {
-          const failedFormats = failedResults.map(r => r.format).join("、");
-          const failedWarnings = failedResults.flatMap(r => r.warnings || []).join("\n");
-          modal.warning({
-            title: "部分导出成功",
-            content: (
-              <div>
-                <p>
-                  <strong>成功：</strong>
-                  {successFormats}
-                </p>
-                <p>
-                  <strong>失败：</strong>
-                  {failedFormats}
-                </p>
-                {canceledFormats && (
-                  <p>
-                    <strong>已取消：</strong>
-                    {canceledFormats}
-                  </p>
-                )}
-                {failedWarnings && <p className="mt-2 text-xs text-gray-500">{failedWarnings}</p>}
-              </div>
-            ),
-            okText: "知道了",
+        } else if (!result.filePath) {
+          // 未取消但没有文件路径 = 失败
+          results.push({
+            format: label,
+            success: false,
+            warnings: result.warnings || [`${label} 导出失败`],
           });
         } else {
-          const detail = canceledFormats ? `，已取消 ${canceledFormats}` : "";
-          message.warning(`已导出 ${successFormats}${detail}`);
+          results.push({
+            format: label,
+            success: true,
+            filePath: result.filePath,
+            warnings: result.warnings,
+          });
         }
+      }
 
-        if (successResults[0]?.filePath) {
-          await revealExportInFolder(successResults[0].filePath);
-        }
-      } else if (status === "all-success") {
-        const paths = successResults.map(r => `${r.format}: ${r.filePath}`).join("\n");
-        message.success(`导出成功！\n${paths}`);
+      const { successResults, failedResults, canceledResults, status } =
+        summarizeExportResults(results);
+      const failedFormats = failedResults.map(r => r.format).join("、");
+      const failedDetails = failedResults.flatMap(r => r.warnings || []).join("\n");
 
-        if (successResults[0]?.filePath) {
-          await revealExportInFolder(successResults[0].filePath);
-        }
-      } else if (status === "all-canceled") {
-        message.info("已取消导出");
+      if (status === "all-failed") {
+        // 全部失败：弹窗不关，失败原因贴在表单顶部
+        setExportError({ formats: failedFormats, details: failedDetails });
         return;
+      }
+      if (status === "all-canceled") {
+        toast.info("已取消导出");
+        return;
+      }
+      if (status !== "all-success" && status !== "partial-success") {
+        toast.info("未完成任何导出");
+        return;
+      }
+
+      const successFormats = successResults.map(r => r.format).join("、");
+      if (status === "all-success") {
+        toast.success(`已导出 ${successFormats}`);
       } else {
-        message.info("未完成任何导出");
-        return;
+        const canceledFormats = canceledResults.map(r => r.format).join("、");
+        const parts = [`已导出 ${successFormats}`];
+        if (failedFormats) parts.push(`${failedFormats} 导出失败`);
+        if (canceledFormats) parts.push(`已取消 ${canceledFormats}`);
+        if (failedDetails) console.warn("电子书部分格式导出失败:", failedDetails);
+        toast.warning(parts.join("，"));
+      }
+
+      if (successResults[0]?.filePath) {
+        await revealExportInFolder(successResults[0].filePath);
       }
 
       setRemembered({
@@ -788,7 +695,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
       onClose();
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      message.error(`导出失败：${msg}`);
+      toast.error(`导出失败：${msg}`);
       // 异常时不关闭弹窗
     } finally {
       setExporting(false);
@@ -803,484 +710,379 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     onClose();
   });
 
-  const primaryButtonClass = classNames(
-    "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
-    themeColors.buttonBg,
-    themeColors.buttonTextClass,
-    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed dark:disabled:border dark:disabled:border-slate-700"
-  );
-
-  const secondaryButtonClass = classNames(
-    "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
-    "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300",
-    "hover:bg-gray-200 dark:hover:bg-zinc-700",
-    "border border-gray-200 dark:border-gray-700"
-  );
-
-  const inputClass = classNames(
-    "w-full px-3.5 py-2.5 rounded-xl text-sm outline-none transition-all",
-    "bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700",
-    "text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500",
-    "focus:border-[var(--th-border-focus)] focus:ring-2 focus:ring-[var(--th-accent)]/20"
-  );
+  const statusText = isRewriting
+    ? isPending
+      ? "等待模型响应…"
+      : "正在生成草稿…"
+    : hasDraft
+      ? "草稿已就绪，可直接修改"
+      : "选好风格后生成草稿，也可以直接在这里写";
 
   const renderRewriteStep = () => (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="shrink-0">
-        <span className="mb-2 block text-xs font-semibold text-gray-500 dark:text-slate-400">
-          选择写作风格
-        </span>
-        <div className="flex items-center gap-3">
-          <button
-            ref={styleTriggerRef}
-            type="button"
-            disabled={isRewriting}
-            onClick={() => setStyleDropdownOpen(prev => !prev)}
-            className={classNames(
-              "flex h-12 min-w-0 flex-1 items-center justify-between gap-3 rounded-xl border px-4 text-left transition-all",
-              "disabled:cursor-not-allowed disabled:opacity-60",
-              "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 dark:border-slate-700 dark:bg-zinc-900/50 dark:hover:border-slate-600 dark:hover:bg-zinc-800/50"
-            )}
-          >
-            <span className="min-w-0 truncate text-sm font-semibold text-gray-800 dark:text-slate-100">
-              {selectedStyleOption.label}
-            </span>
-            <svg
-              className={classNames(
-                "h-4 w-4 shrink-0 text-gray-400 transition-transform dark:text-slate-500",
-                styleDropdownOpen && "rotate-180"
-              )}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="m6 9 6 6 6-6" />
-            </svg>
-          </button>
+    <div className="flex min-h-0 flex-1 flex-col gap-4 px-6 pb-5 pt-4">
+      <Field label="写作风格">
+        <div role="radiogroup" aria-label="写作风格" className="grid grid-cols-4 gap-2">
+          {STYLE_OPTIONS.map(option => {
+            const active = option.value === selectedStyle;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                disabled={isRewriting}
+                onClick={() => setSelectedStyle(option.value)}
+                className={cn(
+                  "ease-tau-out rounded-[10px] border px-3 py-2 text-left outline-none transition-[background,border-color] duration-150 focus-visible:shadow-[var(--tau-focus-ring)]",
+                  "disabled:cursor-default disabled:opacity-55",
+                  active ? "border-accent bg-accent-soft" : "border-line-1 enabled:hover:bg-hover"
+                )}
+              >
+                <span
+                  className={cn(
+                    "block text-[13px] font-semibold",
+                    active ? "text-accent-text" : "text-ink-1"
+                  )}
+                >
+                  {option.label}
+                </span>
+                <span className="text-ink-3 mt-0.5 block text-[11.5px] leading-[1.5]">
+                  {option.description}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </Field>
+
+      <div className="border-line-1 rounded-tau-md flex min-h-0 flex-1 flex-col overflow-hidden border">
+        <div className="border-line-2 flex h-10 shrink-0 items-center gap-2 border-b pl-3.5 pr-1.5">
           {isRewriting ? (
-            <button
-              type="button"
-              className="flex h-12 shrink-0 items-center justify-center rounded-xl px-4 text-sm font-medium text-red-500 transition-colors hover:bg-red-50 dark:hover:bg-red-900/20"
-              onClick={stopRewrite}
-            >
-              取消生成
-            </button>
+            <Loader2 className="text-accent size-3.5 animate-spin" strokeWidth={2} />
           ) : (
-            <button
-              type="button"
-              className={classNames(
-                "flex h-12 shrink-0 items-center justify-center rounded-xl px-5 text-sm font-semibold transition-colors",
-                themeColors.buttonBg,
-                themeColors.buttonTextClass
-              )}
-              onClick={handleStartRewrite}
-            >
-              {rewriteActionLabel}
-            </button>
+            <span
+              className={cn("size-[6px] rounded-full", hasDraft ? "bg-ok" : "bg-line-1")}
+              aria-hidden
+            />
+          )}
+          <span className="text-tau-meta text-ink-3 min-w-0 flex-1 truncate">{statusText}</span>
+          {isRewriting ? (
+            <Button variant="ghost" size="sm" icon={Square} onClick={stopRewrite}>
+              停止生成
+            </Button>
+          ) : (
+            <Button variant="soft" size="sm" icon={Sparkles} onClick={handleStartRewrite}>
+              {hasDraft ? "重新生成" : "生成草稿"}
+            </Button>
           )}
         </div>
-        <SelectDropDown
-          items={STYLE_OPTIONS}
-          selectedKey={selectedStyle}
-          show={styleDropdownOpen}
-          onClose={() => setStyleDropdownOpen(false)}
-          onSelect={option => {
-            setSelectedStyle(option.value);
-          }}
-          triggerElement={styleTriggerRef.current}
-          getKey={option => option.value}
-          renderItem={option => {
-            const isSelected = option.value === selectedStyle;
-            return (
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div
-                    className={classNames(
-                      "text-[15px] font-semibold leading-6",
-                      isSelected
-                        ? "text-[var(--th-active-text)]"
-                        : "text-gray-800 dark:text-slate-100"
-                    )}
-                  >
-                    {option.label}
-                  </div>
-                  <p className="mt-1 text-[13px] leading-6 text-gray-500 dark:text-slate-400">
-                    {option.description}
-                  </p>
-                  <p className="mt-1 text-[12px] leading-5 text-gray-400 dark:text-slate-500">
-                    {option.detail}
-                  </p>
-                </div>
-                {isSelected && (
-                  <span className="mt-1 text-base font-semibold text-[var(--th-accent)]">✓</span>
-                )}
-              </div>
-            );
-          }}
-          width={Math.max(styleTriggerRef.current?.offsetWidth || 0, 420)}
-          maxHeight={420}
-        />
-      </div>
-
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-zinc-950/50">
-        <div className="flex h-9 shrink-0 items-center justify-between border-b border-gray-100 px-3 dark:border-slate-700/60">
-          <span className="text-xs text-gray-500 dark:text-slate-400">
-            {isRewriting ? (
-              <span className="inline-flex items-center gap-1.5">
-                <LoadingOutlined className="animate-spin" />
-                {isPending ? "等待模型响应..." : "正在流式生成中..."}
-              </span>
-            ) : hasDraft ? (
-              "草稿已就绪，可直接编辑"
-            ) : (
-              "选择风格后点击「生成草稿」开始"
-            )}
-          </span>
-          <span
-            className={classNames(
-              "rounded-md px-2 py-0.5 text-[10px] font-medium",
-              isRewriting
-                ? "bg-[var(--th-warning)]/15 text-status-warning"
-                : "bg-[var(--th-success)]/15 text-status-success"
-            )}
-          >
-            {isRewriting ? "只读" : "可编辑"}
-          </span>
-        </div>
-        <div className="min-h-0 flex-1 overflow-hidden px-4 pb-4 pt-3 sm:px-5 sm:pb-5">
-          <Editor
-            ref={editorRef}
-            key={`video-note-ebook-${videoNoteId}-${editorSessionId}`}
-            initValue={draftContent}
-            onChange={handleEditorChange}
-            readonly={isRewriting}
-            className="h-full overflow-y-auto rounded-[18px]"
-            style={{
-              padding: "20px 20px 20px 32px",
-              scrollbarGutter: "stable",
-            }}
-            features={{ disableHeaderCollapse: true }}
-          />
-        </div>
+        <FadeScroll className="min-h-0 flex-1">
+          <div className="pb-8 pl-8 pr-[26px] pt-5 [&_[data-slate-editor]]:outline-none">
+            <Editor
+              kit={getDesktopKit()}
+              ref={editorRef}
+              key={`video-note-ebook-${videoNoteId}-${editorSessionId}`}
+              initValue={draftContent}
+              onChange={handleEditorChange}
+              readonly={isRewriting}
+              placeHolder="草稿会在这里逐步出现"
+              extensions={DRAFT_EDITOR_EXTENSIONS}
+            />
+          </div>
+        </FadeScroll>
       </div>
     </div>
   );
 
-  const renderExportSettingsStep = () => (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div
-        className="min-h-0 flex-1 overflow-y-auto border border-transparent pr-2"
-        style={{ scrollbarGutter: "stable" }}
+  const renderCoverColumn = () => (
+    <div className="flex min-w-0 flex-col gap-3">
+      <Field
+        label="封面"
+        hint="可选"
+        action={
+          selectedCoverPreview && (
+            <button
+              type="button"
+              onClick={handleClearCover}
+              className="text-ink-3 hover:text-ink-1 inline-flex items-center gap-0.5 text-[12px]"
+            >
+              <X className="size-3" strokeWidth={2} />
+              清除
+            </button>
+          )
+        }
       >
-        <div className="space-y-5 pb-1">
-          {/* 导出格式选择 */}
-          <div className="space-y-3">
-            <label className="text-xs font-semibold text-gray-600 dark:text-slate-300">
-              导出格式
-            </label>
-            <div className="grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={handleChooseCoverFromFile}
+          aria-label="选择本地图片作为封面"
+          className={cn(
+            "rounded-tau-md group relative aspect-[3/4] w-full overflow-hidden border outline-none focus-visible:shadow-[var(--tau-focus-ring)]",
+            selectedCoverPreview
+              ? "border-line-1 bg-sunken"
+              : "border-line-1 bg-hover hover:border-ink-3 border-dashed"
+          )}
+        >
+          {selectedCoverPreview ? (
+            <>
+              <img
+                src={selectedCoverPreview}
+                alt="封面预览"
+                className="h-full w-full object-cover"
+              />
+              <span className="bg-overlay text-ink-inverse absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 py-1.5 text-[11.5px] opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+                <ImagePlus className="size-3.5" strokeWidth={1.75} />
+                更换
+              </span>
+            </>
+          ) : (
+            <span className="text-ink-3 flex h-full flex-col items-center justify-center gap-1.5 px-4 text-center">
+              <ImagePlus className="size-5" strokeWidth={1.5} />
+              <span className="text-ink-2 text-[12px]">选择本地图片</span>
+              <span className="text-[11px] leading-[1.5]">不选则使用默认封面</span>
+            </span>
+          )}
+        </button>
+      </Field>
+
+      {loadingCoverCandidates ? (
+        <div className="text-ink-3 flex items-center gap-1.5 text-[11.5px]">
+          <Loader2 className="size-3 animate-spin" strokeWidth={2} />
+          正在提取草稿中的图片…
+        </div>
+      ) : coverCandidates.length > 0 ? (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-ink-3 text-[11.5px]">草稿中的图片</span>
+          <div role="radiogroup" aria-label="草稿中的图片" className="grid grid-cols-4 gap-1.5">
+            {coverCandidates.map(candidate => {
+              const active = metadata.coverImageSrc === candidate.dataUri;
+              return (
+                <button
+                  key={candidate.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  title={candidate.label}
+                  onClick={() => handleSelectCoverCandidate(candidate)}
+                  className={cn(
+                    "ease-tau-out aspect-square overflow-hidden rounded-[7px] border outline-none transition-[border-color,box-shadow] duration-150 focus-visible:shadow-[var(--tau-focus-ring)]",
+                    active
+                      ? "border-accent shadow-[0_0_0_1px_var(--tau-accent)]"
+                      : "border-line-1 hover:border-ink-3/60"
+                  )}
+                >
+                  <img
+                    src={candidate.dataUri}
+                    alt={candidate.label}
+                    className="h-full w-full object-cover"
+                  />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+
+  const renderExportSettingsStep = () => (
+    <FadeScroll className="min-h-0 flex-1">
+      <div className="grid grid-cols-[196px_minmax(0,1fr)] gap-7 pb-5 pl-6 pr-[18px] pt-4">
+        {renderCoverColumn()}
+
+        <div className="flex min-w-0 flex-col gap-4">
+          {exportError && (
+            <div className="bg-danger-soft text-danger rounded-[10px] px-3 py-2.5 text-[12px] leading-[1.6]">
+              <div className="font-medium">{exportError.formats} 导出失败</div>
+              {exportError.details && (
+                <div className="mt-0.5 whitespace-pre-wrap opacity-80">{exportError.details}</div>
+              )}
+            </div>
+          )}
+
+          <Field label="书名" required>
+            <Input
+              value={metadata.title}
+              placeholder="这本书叫什么"
+              onChange={event => onFieldChange("title", event.target.value)}
+            />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="作者" required>
+              <Input
+                value={metadata.author}
+                placeholder="署名"
+                onChange={event => onFieldChange("author", event.target.value)}
+              />
+            </Field>
+            <Field label="语言" hint="如 zh-CN / en">
+              <Input
+                value={metadata.language}
+                placeholder="zh-CN"
+                onChange={event => onFieldChange("language", event.target.value)}
+              />
+            </Field>
+          </div>
+
+          <Field label="简介" hint="可选">
+            <Textarea
+              value={metadata.description}
+              rows={3}
+              placeholder="一两句话介绍这本书"
+              onChange={event => onFieldChange("description", event.target.value)}
+            />
+          </Field>
+
+          <Field label="导出格式" hint="可多选">
+            <div className="grid grid-cols-2 gap-2">
               {FORMAT_OPTIONS.map(option => {
-                const isSelected = selectedFormats.has(option.value);
+                const active = selectedFormats.has(option.value);
+                const Icon = option.icon;
                 return (
                   <button
                     key={option.value}
                     type="button"
-                    onClick={() => {
-                      const newFormats = new Set(selectedFormats);
-                      if (isSelected) {
-                        newFormats.delete(option.value);
-                      } else {
-                        newFormats.add(option.value);
-                      }
-                      setSelectedFormats(newFormats);
-                    }}
-                    className={classNames(
-                      "flex flex-col items-start rounded-xl border p-3 text-left transition-all",
-                      isSelected
-                        ? "bg-[var(--th-accent-soft)]/80 ring-[var(--th-accent)]/25 border-[var(--th-border-focus)] ring-2"
-                        : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/80 dark:border-slate-700 dark:bg-zinc-900/50 dark:hover:border-slate-600 dark:hover:bg-zinc-800/50"
+                    role="checkbox"
+                    aria-checked={active}
+                    onClick={() => toggleFormat(option.value)}
+                    className={cn(
+                      "ease-tau-out flex items-start gap-2.5 rounded-[10px] border px-3 py-2.5 text-left outline-none transition-[background,border-color] duration-150 focus-visible:shadow-[var(--tau-focus-ring)]",
+                      active ? "border-accent bg-accent-soft" : "border-line-1 hover:bg-hover"
                     )}
                   >
-                    <span className="text-base">{option.icon}</span>
-                    <span
-                      className={classNames(
-                        "text-xs font-semibold",
-                        isSelected
-                          ? "text-[var(--th-active-text)]"
-                          : "text-gray-700 dark:text-slate-200"
+                    <Icon
+                      className={cn(
+                        "mt-px size-4 shrink-0",
+                        active ? "text-accent-text" : "text-ink-3"
                       )}
-                    >
-                      {option.label}
+                      strokeWidth={1.75}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span
+                        className={cn(
+                          "block text-[13px] font-semibold",
+                          active ? "text-accent-text" : "text-ink-1"
+                        )}
+                      >
+                        {option.label}
+                      </span>
+                      <span className="text-ink-3 mt-0.5 block text-[11.5px] leading-[1.5]">
+                        {option.description}
+                      </span>
                     </span>
                     <span
-                      className={classNames(
-                        "text-[11px]",
-                        isSelected
-                          ? "text-[var(--th-accent)]/80/70"
-                          : "text-gray-400 dark:text-slate-500"
+                      className={cn(
+                        "mt-px grid size-4 shrink-0 place-items-center rounded-[5px] border",
+                        active ? "border-accent bg-accent text-ink-inverse" : "border-line-1"
                       )}
                     >
-                      {option.description}
+                      {active && <Check className="size-3" strokeWidth={2.5} />}
                     </span>
                   </button>
                 );
               })}
             </div>
-          </div>
-
-          {/* 基本信息 */}
-          <div className="space-y-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-gray-600 dark:text-slate-300">
-                书名 <span className="text-red-400">*</span>
-              </label>
-              <input
-                type="text"
-                value={metadata.title}
-                placeholder="请输入书名"
-                onChange={event => onFieldChange("title", event.target.value)}
-                className={inputClass}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 dark:text-slate-300">
-                  作者 <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={metadata.author}
-                  placeholder="请输入作者"
-                  onChange={event => onFieldChange("author", event.target.value)}
-                  className={inputClass}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 dark:text-slate-300">
-                  语言 <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={metadata.language}
-                  placeholder="例如 zh-CN / en"
-                  onChange={event => onFieldChange("language", event.target.value)}
-                  className={inputClass}
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-gray-600 dark:text-slate-300">
-                简介
-              </label>
-              <textarea
-                value={metadata.description}
-                rows={2}
-                placeholder="可选，建议一句话简介"
-                onChange={event => onFieldChange("description", event.target.value)}
-                className={classNames(inputClass, "resize-y")}
-              />
-            </div>
-          </div>
-
-          {/* 封面图 */}
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-gray-600 dark:text-slate-300">
-                封面图（可选）
-              </label>
-              <span className="text-[11px] text-gray-400 dark:text-slate-500">
-                封面将用于 EPUB 和 PDF 首页
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleChooseCoverFromFile}
-                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-600 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-zinc-900 dark:text-slate-300 dark:hover:bg-zinc-800"
-              >
-                选择本地图片
-              </button>
-              {normalizeText(metadata.coverImageSrc) && (
-                <button
-                  type="button"
-                  onClick={handleClearCover}
-                  className="rounded-lg px-2.5 py-1.5 text-xs text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-slate-500 dark:hover:bg-zinc-800 dark:hover:text-slate-300"
-                >
-                  清除
-                </button>
-              )}
-            </div>
-
-            {selectedCoverPreview ? (
-              <div className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-zinc-950">
-                <img
-                  src={selectedCoverPreview}
-                  alt="封面预览"
-                  className="h-40 w-full object-cover"
-                />
-              </div>
-            ) : (
-              <div className="flex items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50/50 px-4 py-8 dark:border-slate-700 dark:bg-zinc-950/50">
-                <span className="text-xs text-gray-400 dark:text-slate-500">
-                  未选择封面图，将使用默认样式
-                </span>
-              </div>
-            )}
-
-            {loadingCoverCandidates ? (
-              <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-500">
-                <LoadingOutlined className="animate-spin" />
-                正在提取正文图片...
-              </div>
-            ) : coverCandidates.length > 0 ? (
-              <div>
-                <span className="mb-2 block text-[11px] text-gray-400 dark:text-slate-500">
-                  从草稿中提取的图片
-                </span>
-                <div className="grid grid-cols-4 gap-2">
-                  {coverCandidates.map(candidate => {
-                    const isSelected = metadata.coverImageSrc === candidate.dataUri;
-                    return (
-                      <button
-                        key={candidate.id}
-                        type="button"
-                        onClick={() => handleSelectCoverCandidate(candidate)}
-                        className={classNames(
-                          "overflow-hidden rounded-lg border-2 transition-all",
-                          isSelected
-                            ? "ring-[var(--th-accent)]/25 border-[var(--th-accent)] ring-2"
-                            : "border-transparent hover:border-gray-300 dark:hover:border-slate-600"
-                        )}
-                      >
-                        <img
-                          src={candidate.dataUri}
-                          alt={candidate.label}
-                          className="h-16 w-full object-cover"
-                        />
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
-          </div>
+          </Field>
         </div>
       </div>
-    </div>
+    </FadeScroll>
   );
 
-  const renderFooter = () => {
-    if (step === "rewrite") {
-      return (
-        <div className="flex items-center justify-between">
-          <StepIndicator currentStep={step} />
-          <div className="flex gap-3">
-            <button type="button" onClick={handleClose} className={secondaryButtonClass}>
-              取消
-            </button>
-            <button
-              type="button"
-              onClick={handleGoToExportSettings}
-              disabled={!hasDraft || isRewriting}
-              className={classNames(primaryButtonClass, "flex items-center gap-1.5")}
-            >
-              下一步
-              <svg
-                className="h-4 w-4"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="m9 18 6-6-6-6" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex items-center justify-between">
-        <StepIndicator currentStep={step} />
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={handleBackToRewrite}
-            className={classNames(secondaryButtonClass, "flex items-center gap-1.5")}
-          >
-            <svg
-              className="h-4 w-4"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="m15 18-6-6 6-6" />
-            </svg>
-            上一步
-          </button>
-          <button
-            type="button"
-            onClick={handleConfirmExport}
-            disabled={selectedFormats.size === 0 || exporting}
-            className={classNames(primaryButtonClass, "flex items-center gap-2")}
-          >
-            {exporting && (
-              <svg
-                className="h-4 w-4 animate-spin"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.35" />
-                <path
-                  d="M12 3a9 9 0 0 1 9 9"
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeOpacity="0.85"
-                />
-              </svg>
-            )}
-            {exportButtonText}
-          </button>
-        </div>
-      </div>
-    );
-  };
+  const currentStep = STEPS.find(s => s.key === step) ?? STEPS[0];
 
   return (
-    <CustomModal
-      open={open}
-      onCancel={handleClose}
-      title={STEP_META[step].title}
-      subtitle={STEP_META[step].subtitle}
-      footer={renderFooter()}
-      width={880}
-      bodyClassName="flex min-h-0 px-5 pb-1"
-      contentStyle={{ height: "calc(100vh - 200px)" }}
-      destroyOnClose={false}
-      maskClosable={!isRewriting}
-      showCloseButton={!isRewriting}
-    >
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={step}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.2 }}
-          className="flex min-h-0 flex-1 flex-col"
-        >
-          {step === "rewrite" && renderRewriteStep()}
-          {step === "export-settings" && renderExportSettingsStep()}
-        </motion.div>
-      </AnimatePresence>
-    </CustomModal>
+    <>
+      <Dialog
+        open={open}
+        onOpenChange={next => !next && handleClose()}
+        title="AI 导出电子书"
+        icon={<BookOpen strokeWidth={1.75} />}
+        subtitle={currentStep.subtitle}
+        context={videoTitle || undefined}
+        width={880}
+        height={760}
+        locked={isRewriting || exporting}
+        footer={
+          step === "rewrite" ? (
+            <>
+              <StepIndicator current={step} />
+              <Button variant="secondary" size="sm" onClick={handleClose}>
+                取消
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={!hasDraft || isRewriting}
+                onClick={handleGoToExportSettings}
+              >
+                下一步
+                <ArrowRight size={15} strokeWidth={1.75} className="-mr-0.5 shrink-0" />
+              </Button>
+            </>
+          ) : (
+            <>
+              <StepIndicator current={step} />
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={ArrowLeft}
+                disabled={exporting}
+                onClick={handleBackToRewrite}
+              >
+                上一步
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                icon={Download}
+                loading={exporting}
+                loadingText="导出中…"
+                disabled={selectedFormats.size === 0}
+                onClick={handleConfirmExport}
+              >
+                {exportButtonText}
+              </Button>
+            </>
+          )
+        }
+      >
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={step}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="flex min-h-0 flex-1 flex-col"
+          >
+            {step === "rewrite" ? renderRewriteStep() : renderExportSettingsStep()}
+          </motion.div>
+        </AnimatePresence>
+      </Dialog>
+
+      <ConfirmDialog
+        open={llmMissingOpen}
+        onOpenChange={setLlmMissingOpen}
+        title="未配置重写模型"
+        description="请先在设置中为「视频电子书重写」配置 LLM 模型。"
+        confirmText="打开设置"
+        onConfirm={onOpenLLMSettings}
+      />
+
+      <ConfirmDialog
+        open={continuePrompt !== null}
+        onOpenChange={next => !next && settleContinuePrompt(false)}
+        title="继续导出？"
+        description={
+          continuePrompt
+            ? `已跳过 ${continuePrompt.canceled}，是否继续导出 ${continuePrompt.next}？`
+            : undefined
+        }
+        confirmText="继续导出"
+        onConfirm={() => settleContinuePrompt(true)}
+      />
+    </>
   );
 };
 

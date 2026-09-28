@@ -2,8 +2,6 @@ import React, { useMemo, useState } from "react";
 import dayjs from "dayjs";
 import type { Comment as CommentType } from "../../../types";
 import CommentInput from "../CommentInput";
-import useThemeColors from "../../../../hooks/useThemeColors";
-import { useEditorConfig } from "../../../../contexts/EditorConfig";
 
 interface CommentListProps {
   comments: CommentType[];
@@ -22,12 +20,6 @@ const CommentList: React.FC<CommentListProps> = ({
 }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [replyingId, setReplyingId] = useState<string | null>(null);
-  const themeColors = useThemeColors();
-  const accentColor = themeColors.accentColor || "rgb(239, 68, 68)";
-  const config = useEditorConfig();
-  const defaultFormatDate = (value: number | string, format = "YYYY-MM-DD HH:mm:ss") =>
-    dayjs(value).format(format);
-  const formatDate = config?.formatDate ?? defaultFormatDate;
 
   const normalizedComments = useMemo(() => comments ?? [], [comments]);
 
@@ -53,11 +45,9 @@ const CommentList: React.FC<CommentListProps> = ({
           />
         ) : (
           <>
-            <div className="text-sm leading-relaxed text-gray-800 dark:text-slate-100">
-              {comment.content}
-            </div>
-            <div className="mt-2 flex items-center gap-3 text-[11px] font-medium text-gray-500 dark:text-slate-400">
-              <span>{formatDate(comment.updateTime, "YYYY-MM-DD HH:mm")}</span>
+            <div className="text-sm leading-relaxed text-[var(--ed-text)]">{comment.content}</div>
+            <div className="mt-2 flex items-center gap-3 text-[11px] font-medium text-[var(--ed-text-secondary)]">
+              <span>{dayjs(comment.updateTime).format("YYYY-MM-DD HH:mm")}</span>
               {!readOnly && (
                 <>
                   <button
@@ -104,7 +94,7 @@ const CommentList: React.FC<CommentListProps> = ({
         {replies.length > 0 && (
           <div
             className="mt-4 space-y-3 border-l-2 border-gray-100 pl-4 dark:border-slate-800/80"
-            style={{ borderLeftColor: accentColor }}
+            style={{ borderLeftColor: "var(--ed-comment-border)" }}
           >
             {replies.map(reply => renderComment(reply, _level + 1))}
           </div>
@@ -114,9 +104,7 @@ const CommentList: React.FC<CommentListProps> = ({
   };
 
   if (!normalizedComments.length) {
-    return (
-      <div className="py-6 text-center text-sm text-gray-400 dark:text-slate-500">暂无批注</div>
-    );
+    return <div className="py-6 text-center text-sm text-[var(--ed-text-tertiary)]">暂无批注</div>;
   }
 
   return (

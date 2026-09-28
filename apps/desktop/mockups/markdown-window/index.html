@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markdown 文件窗口 · 重设计 mockup</title>
+<style>
+  /* ============ 主题 token（取自 packages/ui/src/theme/tokens.css） ============ */
+  .cream {
+    --page: #f3eee2; --surface: #fffdf9; --surface-hover: #f6f3ef; --sunken: #e7dbc8; --track: #e0d6c3;
+    --hover: rgba(67,57,44,.05); --press: rgba(67,57,44,.09); --selected: rgba(217,119,87,.12);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85;
+    --line-1: #e9e1d2; --line-2: rgba(233,225,210,.55);
+    --accent: hsl(22 58% 42%); --accent-soft: hsla(22,58%,42%,.12); --accent-text: #a05236;
+    --ok: #61795f;
+    --t1: #61795f; --t1s: #e5ede2; --t2: #5c7d99; --t2s: #e2ebf3; --t3: #8a7aa6; --t3s: #ebe6f3; --t4: #a38c4d; --t4s: #f6efd6;
+    --shadow-card: 0 1px 2px rgba(120,100,70,.05), 0 10px 24px -14px rgba(120,100,70,.18);
+    --shadow-float: 0 16px 40px -12px rgba(120,100,70,.4);
+    --win-shadow: 0 2px 6px rgba(67,57,44,.08), 0 24px 60px rgba(67,57,44,.16);
+    --code-kw: #a05236; --code-str: #61795f; --code-mark: #b8a88f;
+  }
+  .cocoa {
+    --page: #221d16; --surface: #2e2820; --surface-hover: #39332b; --sunken: #100d08; --track: #463d31;
+    --hover: rgba(236,226,208,.06); --press: rgba(236,226,208,.11); --selected: hsla(22,62%,65%,.2);
+    --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768;
+    --line-1: #3a3227; --line-2: rgba(58,50,39,.55);
+    --accent: hsl(22 62% 65%); --accent-soft: hsla(22,62%,65%,.16); --accent-text: hsl(22 66% 70%);
+    --ok: #8cab87;
+    --t1: #8cab87; --t1s: #243023; --t2: #83aecf; --t2s: #1e2a35; --t3: #a596c8; --t3s: #292335; --t4: #c4a458; --t4s: #302917;
+    --shadow-card: 0 1px 2px rgba(0,0,0,.24), 0 10px 24px -14px rgba(0,0,0,.5);
+    --shadow-float: 0 16px 40px -12px rgba(0,0,0,.65);
+    --win-shadow: 0 2px 6px rgba(0,0,0,.3), 0 24px 60px rgba(0,0,0,.45);
+    --code-kw: hsl(22 66% 70%); --code-str: #8cab87; --code-mark: #6b5f50;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #e8e1d1; color: #43392c;
+    font: 14px/1.7 -apple-system, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; padding: 40px 5vw 120px;
+  }
+  code, .mono { font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace; }
+  header.top h1 { font-size: 22px; font-weight: 650; }
+  header.top p { color: #6a5c49; max-width: 92ch; margin-top: 6px; font-size: 13.5px; }
+  .toc-page { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .toc-page a { font-size: 12px; color: #a05236; background: hsla(22,58%,42%,.1); border-radius: 99px; padding: 2px 11px; text-decoration: none; }
+  section { margin-top: 64px; }
+  section > h2 { font-size: 17px; font-weight: 650; display: flex; align-items: baseline; gap: 10px; color: #43392c; }
+  section > h2 .no { font: 600 13px ui-monospace, monospace; color: #a05236; }
+  section > h2 .tag { font-size: 11.5px; font-weight: 500; color: #a05236; background: hsla(22,58%,42%,.12); border-radius: 99px; padding: 1px 10px; }
+  .desc { color: #6a5c49; max-width: 92ch; margin: 6px 0 18px; font-size: 13.5px; }
+  .desc b { color: #43392c; }
+  .row { display: flex; gap: 32px; align-items: flex-start; flex-wrap: wrap; }
+  .caption { font-size: 12px; color: #857768; margin-top: 10px; }
+  .list { color: #6a5c49; font-size: 13px; padding-left: 20px; max-width: 92ch; }
+  .list li { margin: 3px 0; } .list b { color: #43392c; }
+
+  /* ============ 窗口骨架 ============ */
+  .win {
+    position: relative; width: 1040px; height: 660px; border-radius: 12px; overflow: hidden;
+    background: var(--page); color: var(--ink-1); box-shadow: var(--win-shadow);
+    display: flex; flex-direction: column; font-size: 13px;
+  }
+  .win.sm { width: 560px; height: 660px; }
+  .win.md { width: 760px; }
+
+  /* 标题栏：与主窗口同高 46px、同底色、同 IconButton 体系 */
+  .tb { height: 46px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 12px 0 16px; user-select: none; }
+  .lights { display: flex; gap: 8px; margin-right: 6px; }
+  .lights i { width: 12px; height: 12px; border-radius: 50%; }
+  .lights i:nth-child(1) { background: #ff5f57; } .lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+  .kind { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 6px; font-size: 11.5px; color: var(--ink-2); background: var(--hover); flex: none; }
+  .kind svg { width: 12px; height: 12px; }
+  .crumbs { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 12.5px; color: var(--ink-3); }
+  .crumbs b { color: var(--ink-1); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .crumbs .sep { opacity: .6; }
+  .spacer { flex: 1; }
+  .ib { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-2); flex: none; }
+  .ib svg { width: 17px; height: 17px; stroke-width: 1.75; }
+  .ib.on { background: var(--selected); color: var(--accent-text); }
+  .ib.hover { background: var(--hover); color: var(--ink-1); }
+  .seg { display: flex; padding: 2px; border-radius: 9px; background: var(--hover); gap: 2px; flex: none; }
+  .seg span { height: 24px; padding: 0 10px; border-radius: 7px; display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ink-2); }
+  .seg span svg { width: 13px; height: 13px; }
+  .seg span.on { background: var(--surface); color: var(--ink-1); box-shadow: var(--shadow-card); font-weight: 500; }
+  .divider { width: 1px; height: 16px; background: var(--line-1); margin: 0 2px; flex: none; }
+  .winctl { display: flex; gap: 2px; margin-left: 4px; }
+  .winctl i { width: 36px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-2); font-style: normal; font-size: 12px; }
+  .winctl i.x:hover, .winctl i.x.h { background: #c25450; color: #fff; }
+
+  /* 纸面：与主窗口 AppShell 同一张「纸」（圆角 + card 阴影） */
+  .sheet { flex: 1; min-height: 0; margin: 0 8px 8px; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-card); display: flex; flex-direction: column; position: relative; overflow: hidden; }
+  .win.bleed .sheet { margin: 0; border-radius: 0; box-shadow: none; border-top: 1px solid var(--line-1); }
+  .win.bleed .tb { background: var(--surface); }
+  .win.bleed { background: var(--surface); }
+
+  .scroll { flex: 1; min-height: 0; position: relative; overflow: hidden; display: grid; grid-template-columns: 1fr minmax(0, 680px) 1fr; }
+  /* FadeScroll：上下边缘渐隐（mask），滚动条上下内缩 */
+  .scroll.fade { -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 28px, #000 calc(100% - 36px), transparent 100%); }
+  .scrollbar { position: absolute; right: 4px; top: 14px; bottom: 14px; width: 6px; }
+  .scrollbar i { position: absolute; left: 0; right: 0; top: 18%; height: 26%; border-radius: 99px; background: var(--track); }
+
+  .col { grid-column: 2; padding: 34px 40px 60px; min-width: 0; }
+  .title { font-size: 25px; font-weight: 650; letter-spacing: .01em; line-height: 1.35; }
+  .meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 12px 0 22px; font-size: 12px; color: var(--ink-3); }
+  .chip { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 99px; font-size: 11.5px; }
+  .chip.c1 { background: var(--t1s); color: var(--t1); } .chip.c2 { background: var(--t2s); color: var(--t2); }
+  .chip.c3 { background: var(--t3s); color: var(--t3); } .chip.c4 { background: var(--t4s); color: var(--t4); }
+  .chip.add { border: 1px dashed var(--line-1); color: var(--ink-3); background: transparent; }
+  .chip.input { border: 1px solid var(--accent); color: var(--ink-1); background: var(--surface); min-width: 110px; }
+  .chip.input::after { content: ""; width: 1px; height: 13px; background: var(--accent); margin-left: 2px; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .dotsep { opacity: .5; }
+
+  .doc h3 { font-size: 18px; font-weight: 650; margin: 22px 0 8px; }
+  .doc h4 { font-size: 15px; font-weight: 600; margin: 16px 0 6px; }
+  .doc p { color: var(--ink-1); font-size: 14px; line-height: 1.85; margin-bottom: 10px; opacity: .92; }
+  .doc p .hl { background: var(--accent-soft); border-radius: 3px; }
+  .doc blockquote { border-left: 3px solid var(--line-1); padding: 2px 0 2px 14px; color: var(--ink-2); font-size: 13.5px; margin: 10px 0; }
+  .doc ul { padding-left: 20px; font-size: 14px; line-height: 1.85; margin-bottom: 10px; }
+  .doc pre { background: var(--hover); border-radius: 8px; padding: 10px 14px; font-size: 12px; line-height: 1.7; color: var(--ink-2); margin: 10px 0; }
+  .caret { display: inline-block; width: 1.5px; height: 17px; background: var(--accent); vertical-align: -3px; animation: blink 1s steps(1) infinite; }
+
+  /* 大纲：贴正文右缘 sticky，与文章详情页同一套 ContentOutline */
+  .outline { grid-column: 3; padding: 96px 20px 0 8px; font-size: 12px; color: var(--ink-3); max-width: 200px; }
+  .outline .h { font-size: 11px; letter-spacing: .06em; color: var(--ink-3); margin: 0 0 8px 10px; }
+  .outline div.i { padding: 3px 10px; border-left: 2px solid transparent; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .outline div.i.l2 { padding-left: 22px; }
+  .outline div.i.on { color: var(--accent-text); border-left-color: var(--accent); }
+
+  /* 状态栏：纸面内底部，极轻 */
+  .status { height: 30px; flex: none; display: flex; align-items: center; gap: 14px; padding: 0 14px; font-size: 11.5px; color: var(--ink-3); border-top: 1px solid var(--line-2); }
+  .status .ok { display: inline-flex; align-items: center; gap: 5px; }
+  .status .ok::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+  .status .sync::before { background: var(--accent); }
+  .status b { color: var(--ink-2); font-weight: 500; }
+  .status .btn { padding: 1px 7px; border-radius: 6px; }
+  .status .btn.h { background: var(--hover); color: var(--ink-1); }
+
+  /* 源码模式 */
+  .src { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr minmax(0, 760px) 1fr; }
+  .src .code { grid-column: 2; padding: 26px 24px 60px 0; font: 13px/1.85 ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace; display: grid; grid-template-columns: 48px 1fr; }
+  .src .ln { color: var(--ink-3); opacity: .55; text-align: right; padding-right: 16px; user-select: none; }
+  .src .ln .cur { opacity: 1; color: var(--ink-2); }
+  .src .tx { white-space: pre-wrap; color: var(--ink-1); }
+  .src .tx .curline { background: var(--hover); display: block; margin: 0 -8px; padding: 0 8px; border-radius: 4px; }
+  .src .m { color: var(--code-mark); } .src .k { color: var(--code-kw); font-weight: 600; } .src .s { color: var(--code-str); }
+  .src .fm { color: var(--ink-3); }
+
+  /* 浮层（菜单 / 大纲 popover / 查找） */
+  .pop { position: absolute; background: var(--surface); border-radius: 12px; box-shadow: var(--shadow-float); border: 1px solid var(--line-2); padding: 5px; font-size: 12.5px; color: var(--ink-1); z-index: 5; }
+  .pop .it { display: flex; align-items: center; gap: 9px; height: 30px; padding: 0 10px; border-radius: 8px; }
+  .pop .it svg { width: 14px; height: 14px; color: var(--ink-2); }
+  .pop .it.h { background: var(--hover); }
+  .pop .it kbd { margin-left: auto; font: 11px ui-monospace, monospace; color: var(--ink-3); }
+  .pop .it .sw { margin-left: auto; width: 26px; height: 15px; border-radius: 99px; background: var(--track); position: relative; }
+  .pop .it .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 11px; height: 11px; border-radius: 50%; background: var(--surface); }
+  .pop .it .sw.on { background: var(--accent); } .pop .it .sw.on::after { left: 13px; }
+  .pop hr { border: 0; border-top: 1px solid var(--line-1); margin: 4px 6px; }
+  .pop .it.danger, .pop .it.danger svg { color: #b0564d; }
+  .find { position: absolute; top: 10px; right: 18px; display: flex; align-items: center; gap: 6px; padding: 5px 6px 5px 10px; border-radius: 10px; background: var(--surface); box-shadow: var(--shadow-float); border: 1px solid var(--line-2); font-size: 12px; z-index: 5; }
+  .find .inp { width: 170px; height: 24px; border-radius: 6px; background: var(--hover); display: flex; align-items: center; padding: 0 8px; color: var(--ink-1); }
+  .find .cnt { color: var(--ink-3); font-size: 11px; min-width: 38px; }
+
+  /* 批注 */
+  .note { position: absolute; font-size: 11px; background: #43392c; color: #fff8ef; padding: 3px 9px; border-radius: 6px; pointer-events: none; white-space: nowrap; z-index: 9; line-height: 1.6; }
+  .note::after { content: ""; position: absolute; left: 12px; top: -4px; width: 8px; height: 8px; background: inherit; transform: rotate(45deg); }
+  .note.up::after { top: auto; bottom: -4px; }
+  .note.r::after { left: auto; right: 12px; }
+
+  /* 多开示意 */
+  .stage { position: relative; width: 1040px; height: 520px; border-radius: 14px; background: linear-gradient(135deg, #cfc4ae, #b9ab91); overflow: hidden; }
+  .mini { position: absolute; border-radius: 10px; overflow: hidden; background: var(--page); box-shadow: var(--win-shadow); display: flex; flex-direction: column; }
+  .mini .tb { height: 34px; padding: 0 10px; gap: 8px; }
+  .mini .lights i { width: 9px; height: 9px; } .mini .lights { gap: 6px; }
+  .mini .sheet { margin: 0 6px 6px; border-radius: 9px; padding: 16px 20px; font-size: 11px; color: var(--ink-2); line-height: 1.8; }
+  .mini .sheet b { display: block; font-size: 15px; color: var(--ink-1); margin-bottom: 6px; }
+  .mini .kind { height: 18px; font-size: 10.5px; }
+  .mini.dim { filter: saturate(.85); opacity: .92; }
+  .mini.focus { outline: 2px solid hsl(22 58% 42%); outline-offset: 2px; }
+
+  /* 表格 */
+  table { border-collapse: collapse; font-size: 12.5px; margin-top: 8px; background: #fffdf9; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 2px rgba(120,100,70,.05), 0 10px 24px -14px rgba(120,100,70,.18); }
+  th, td { text-align: left; padding: 8px 14px; border-bottom: 1px solid #e9e1d2; vertical-align: top; }
+  th { background: #faf6ec; color: #6a5c49; font-weight: 600; }
+  td { color: #43392c; } td.c { text-align: center; color: #61795f; } td.no { color: #b8a88f; text-align: center; }
+
+  .rec { margin-top: 72px; background: #fffdf9; border-radius: 14px; padding: 22px 26px; box-shadow: 0 1px 2px rgba(120,100,70,.05), 0 10px 24px -14px rgba(120,100,70,.18); border-left: 3px solid hsl(22 58% 42%); max-width: 1040px; }
+  .rec h2 { font-size: 16px; margin-bottom: 8px; }
+  .rec p, .rec li { color: #6a5c49; font-size: 13.5px; } .rec ol, .rec ul { padding-left: 20px; margin-top: 6px; } .rec b { color: #43392c; }
+  pre.arch { background: #faf6ec; border-radius: 10px; padding: 14px 18px; font-size: 12px; line-height: 1.75; color: #43392c; margin-top: 10px; overflow-x: auto; }
+
+  /* 协作 */
+  .avs { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px 0 4px; border-radius: 99px; background: var(--hover); font-size: 11.5px; color: var(--ink-2); flex: none; position: relative; }
+  .avs .st { display: flex; } .avs .st i { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--page); margin-left: -6px; display: grid; place-items: center; font-style: normal; font-size: 10px; color: #fff; font-weight: 600; }
+  .avs .st i:first-child { margin-left: 0; }
+  .avs .badge { position: absolute; top: -3px; right: -3px; min-width: 15px; height: 15px; border-radius: 99px; background: #b0564d; color: #fff; font-size: 9.5px; display: grid; place-items: center; padding: 0 4px; border: 2px solid var(--page); }
+  .rcur { display: inline-block; position: relative; width: 2px; height: 18px; vertical-align: -4px; }
+  .rcur span { position: absolute; left: -1px; top: -16px; font-size: 10px; line-height: 1; color: #fff; padding: 2px 5px; border-radius: 4px 4px 4px 0; white-space: nowrap; }
+  .banner { display: flex; align-items: center; gap: 10px; margin: 10px 12px 0; padding: 8px 12px; border-radius: 10px; font-size: 12px; background: var(--t4s); color: var(--t4); }
+  .banner .sp { flex: 1; }
+  .banner .bt { padding: 2px 10px; border-radius: 7px; background: var(--surface); color: var(--ink-1); box-shadow: var(--shadow-card); }
+  .seg span.dis { opacity: .4; }
+  .tip { position: absolute; background: var(--ink-1); color: var(--page); font-size: 11.5px; padding: 6px 10px; border-radius: 8px; max-width: 260px; line-height: 1.55; z-index: 6; }
+
+  /* ===== Markdown 窗口专属 ===== */
+  .win.md-win { width: 1120px; height: 700px; }
+  .body2 { flex: 1; min-height: 0; display: flex; }
+  .side { width: 244px; flex: none; display: flex; flex-direction: column; padding: 0 6px 8px 10px; min-height: 0; }
+  .side .proj { display: flex; align-items: center; gap: 6px; padding: 2px 4px 8px 8px; font-weight: 600; color: var(--ink-1); font-size: 12.5px; }
+  .side .proj small { color: var(--ink-3); font-weight: 400; }
+  .side .proj .ops { margin-left: auto; display: flex; gap: 0; }
+  .side .proj .ops .ib { width: 24px; height: 24px; }
+  .side .proj .ops .ib svg { width: 14px; height: 14px; }
+  .stabs { display: flex; gap: 2px; margin: 0 4px 8px 6px; padding: 2px; border-radius: 8px; background: var(--hover); }
+  .stabs span { flex: 1; text-align: center; height: 22px; line-height: 22px; border-radius: 6px; font-size: 11.5px; color: var(--ink-2); }
+  .stabs span.on { background: var(--surface); color: var(--ink-1); box-shadow: var(--shadow-card); font-weight: 500; }
+  .filter { margin: 0 4px 6px 6px; height: 26px; border-radius: 7px; border: 1px solid var(--line-1); background: var(--surface); display: flex; align-items: center; gap: 6px; padding: 0 8px; color: var(--ink-3); font-size: 11.5px; }
+  .filter svg { width: 12px; height: 12px; }
+  .tree { flex: 1; min-height: 0; overflow: hidden; font-size: 12.5px; }
+  .tn { display: flex; align-items: center; gap: 5px; height: 27px; padding-right: 8px; border-radius: 7px; color: var(--ink-2); white-space: nowrap; position: relative; }
+  .tn svg { width: 14px; height: 14px; flex: none; }
+  .tn .ch { width: 12px; height: 12px; color: var(--ink-3); }
+  .tn .sp { width: 12px; flex: none; }
+  .tn .nm { overflow: hidden; text-overflow: ellipsis; }
+  .tn .dirty { margin-left: auto; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: none; }
+  .tn .meta { margin-left: auto; font-size: 10.5px; color: var(--ink-3); }
+  .tn.dir { color: var(--ink-1); }
+  .tn.on { background: var(--selected); color: var(--accent-text); font-weight: 500; }
+  .tn.hov { background: var(--hover); }
+  .tn.drop { outline: 1.5px dashed var(--accent); outline-offset: -1.5px; background: var(--accent-soft); }
+  .tn.dim { opacity: .45; }
+  .tn .rn { flex: 1; height: 21px; border: 1px solid var(--accent); border-radius: 5px; background: var(--surface); color: var(--ink-1); padding: 0 6px; display: flex; align-items: center; }
+  .tn .rn::after { content: ""; width: 1px; height: 12px; background: var(--accent); margin-left: 1px; animation: blink 1s steps(1) infinite; }
+  .tn .rn i { font-style: normal; background: var(--accent-soft); border-radius: 2px; }
+  .l0 { padding-left: 6px; } .l1 { padding-left: 20px; } .l2 { padding-left: 34px; } .l3 { padding-left: 48px; }
+  .side .foot { display: flex; align-items: center; gap: 6px; padding: 6px 8px 0; font-size: 11px; color: var(--ink-3); }
+  .md-win .sheet { margin: 0 8px 8px 0; }
+  .bread { display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--ink-3); min-width: 0; }
+  .bread b { color: var(--ink-1); font-weight: 500; }
+  .bread .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .bread svg { width: 12px; height: 12px; opacity: .6; }
+  .oline div.i { font-size: 12.5px; padding: 4px 10px; border-left: 2px solid transparent; color: var(--ink-3); }
+  .oline div.i.l2 { padding-left: 24px; } .oline div.i.l3 { padding-left: 38px; font-size: 12px; }
+  .oline div.i.on { color: var(--accent-text); border-left-color: var(--accent); background: var(--selected); border-radius: 0 7px 7px 0; }
+  .sbanner { display: flex; align-items: center; gap: 10px; margin: 10px 12px 0; padding: 8px 12px; border-radius: 10px; font-size: 12px; }
+  .sbanner.warn { background: var(--t4s); color: var(--t4); }
+  .sbanner.danger { background: rgba(176,86,77,.12); color: #b0564d; }
+  .sbanner .sp { flex: 1; }
+  .sbanner .bt { padding: 2px 10px; border-radius: 7px; background: var(--surface); color: var(--ink-1); box-shadow: var(--shadow-card); white-space: nowrap; }
+  .sbanner .bt.pri { background: var(--accent); color: #fff8ef; box-shadow: none; }
+  .toast { position: absolute; left: 50%; bottom: 46px; transform: translateX(-50%); background: var(--ink-1); color: var(--page); font-size: 12px; padding: 6px 12px; border-radius: 99px; box-shadow: var(--shadow-float); display: flex; gap: 6px; align-items: center; }
+  .welcome { flex: 1; display: grid; place-items: center; }
+  .welcome .box { width: 420px; }
+  .welcome h3 { font-size: 20px; font-weight: 650; margin-bottom: 4px; }
+  .welcome p { color: var(--ink-3); font-size: 12.5px; margin-bottom: 18px; }
+  .welcome .acts { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 22px; }
+  .welcome .act { border: 1px solid var(--line-1); border-radius: 12px; padding: 14px 12px; display: flex; flex-direction: column; gap: 8px; font-size: 12.5px; color: var(--ink-1); }
+  .welcome .act svg { width: 18px; height: 18px; color: var(--accent-text); }
+  .welcome .act small { color: var(--ink-3); font-size: 11px; }
+  .welcome .act kbd { font: 10.5px ui-monospace, monospace; color: var(--ink-3); }
+  .welcome .rec h4 { font-size: 11px; color: var(--ink-3); font-weight: 500; letter-spacing: .04em; margin-bottom: 6px; }
+  .welcome .rec div.r { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border-radius: 8px; font-size: 12.5px; }
+  .welcome .rec div.r svg { width: 14px; height: 14px; color: var(--ink-3); }
+  .welcome .rec div.r small { margin-left: auto; color: var(--ink-3); font-size: 11px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .welcome .rec div.r.h { background: var(--hover); }
+  .codeview { padding: 18px 20px; font: 12.5px/1.8 ui-monospace, Menlo, monospace; display: grid; grid-template-columns: 40px 1fr; }
+  .codeview .ln { color: var(--ink-3); opacity: .6; text-align: right; padding-right: 14px; }
+  .codeview .tx { white-space: pre; color: var(--ink-1); }
+  .codeview .k { color: var(--code-kw); } .codeview .s { color: var(--code-str); } .codeview .c { color: var(--ink-3); }
+  .imgview { flex: 1; display: grid; place-items: center; background: repeating-conic-gradient(var(--hover) 0% 25%, transparent 0% 50%) 50% / 18px 18px; }
+  .imgview .ph { width: 380px; height: 240px; border-radius: 10px; background: linear-gradient(135deg, #cfd9e3, #e9ddc6); box-shadow: var(--shadow-card); }
+  .extview { flex: 1; display: grid; place-items: center; text-align: center; color: var(--ink-2); font-size: 12.5px; }
+  .extview svg { width: 40px; height: 40px; color: var(--ink-3); margin-bottom: 10px; }
+  .extview .bt { display: inline-block; margin-top: 12px; padding: 5px 14px; border-radius: 8px; background: var(--accent); color: #fff8ef; }
+  .kbdhint { font: 10.5px ui-monospace, monospace; color: var(--ink-3); background: var(--hover); border-radius: 5px; padding: 1px 5px; }
+
+  .srcbtn { display: inline-grid; place-items: center; width: 22px; height: 20px; border-radius: 6px; color: var(--ink-3); opacity: .7; }
+  .srcbtn svg { width: 13px; height: 13px; }
+  .srcbtn.on { background: var(--selected); color: var(--accent-text); opacity: 1; }
+  .srcbtn.h { background: var(--hover); opacity: 1; color: var(--ink-1); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="i-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/></symbol>
+    <symbol id="i-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h10M7 14h6"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12H9M21 6H9M21 18H9M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></symbol>
+    <symbol id="i-rich" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></symbol>
+    <symbol id="i-main" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-focus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-type" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M4 7V4h16v3M9 20h6"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></symbol>
+
+    <symbol id="i-sidebar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></symbol>
+    <symbol id="i-fplus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M12 12v6M9 15h6"/></symbol>
+    <symbol id="i-dplus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10v6M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-chevd" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-md" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M8 17v-4l2 2 2-2v4M16 13v4M14.5 15.5 16 17l1.5-1.5"/></symbol>
+    <symbol id="i-img" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21"/></symbol>
+    <symbol id="i-fcode" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M10 12l-2 2 2 2M14 12l2 2-2 2"/></symbol>
+    <symbol id="i-pdf" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M9 15h6"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+    <symbol id="i-finder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+  </defs>
+</svg>
+
+<header class="top">
+  <h1>Markdown 文件窗口 · 重设计 mockup（对标 Typora）</h1>
+  <p>定位：编辑<b>磁盘上的 Markdown 文件 / 文件夹</b>，与数据库文档的编辑窗口是两回事。外壳沿用编辑窗口已定的语言（46px 自绘标题栏、page 底上的纸面、FadeScroll、@tau/ui），差异在于左侧的<b>文件侧栏</b>、<b>源码模式</b>（文件本身就是 Markdown，不存在白板/数据库这类无法往返的块）和<b>外部文件同步</b>。</p>
+  <div class="toc-page">
+    <a href="#s1">① 主形态</a><a href="#s2">② 源码模式 + 侧栏大纲</a><a href="#s3">③ 文件树操作</a><a href="#s4">④ 外部同步</a><a href="#s5">⑤ 欢迎页</a><a href="#s6">⑥ 其它文件类型</a><a href="#s7">⑦ 单文件模式</a><a href="#s8">⑧ 功能清单与修复</a>
+  </div>
+</header>
+
+<section id="s1">
+  <h2><span class="no">①</span>主形态 · 打开文件夹<span class="tag">浅色 · 1120×700</span></h2>
+  <p class="desc">左侧栏直接落在 page 底上（同主窗口侧栏），右侧编辑区是抬起的纸面。侧栏两个页签：<b>文件 / 大纲</b>（Typora 的做法：大纲进侧栏，正文区不再挤一列，版心更宽；全文搜索页签下一轮）。
+  标题栏：侧栏开关（⌘\）· 路径面包屑（文件夹 / 子目录 / 文件名，<b>有未保存改动时文件名后出现 accent 小圆点</b>，文件树对应行同样标点）· 主题 · ⋯。<b>源码模式不上标题栏</b>（高级功能，见 ②）。窗口标题（Dock / 任务栏）为「文件名 — 文件夹名」。</p>
+  <div class="win cream md-win">
+    <div class="tb">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="ib on" title="侧栏 ⌘\"><svg><use href="#i-sidebar"/></svg></div>
+      <div class="bread"><span>毕业论文</span><svg><use href="#i-chev"/></svg><span>chapters</span><svg><use href="#i-chev"/></svg><b>02-相关工作.md</b><span class="dot" title="未保存"></span></div>
+      <div class="spacer"></div>
+      
+      <div class="ib"><svg><use href="#i-sun"/></svg></div>
+      <div class="ib"><svg><use href="#i-more"/></svg></div>
+    </div>
+    <div class="body2">
+      <div class="side">
+      <div class="proj"><svg style="width:14px;height:14px;color:var(--accent-text)"><use href="#i-folder"/></svg>毕业论文<span class="ops"><span class="ib" title="新建文件 ⌘N"><svg><use href="#i-fplus"/></svg></span><span class="ib" title="新建文件夹"><svg><use href="#i-dplus"/></svg></span><span class="ib" title="更多"><svg><use href="#i-more"/></svg></span></span></div>
+      <div class="stabs"><span class="on">文件</span><span class="">大纲</span></div><div class="filter"><svg><use href="#i-search"/></svg>筛选文件名…</div>
+      <div class="tree"><div class="tn l0 dir "><svg class="ch"><use href="#i-chevd"/></svg><svg><use href="#i-folder"/></svg><span class="nm">chapters</span></div><div class="tn l1 "><span class="sp"></span><svg><use href="#i-md"/></svg><span class="nm">01-绪论.md</span></div><div class="tn l1 on"><span class="sp"></span><svg><use href="#i-md"/></svg><span class="nm">02-相关工作.md</span><span class="dirty"></span></div><div class="tn l1 "><span class="sp"></span><svg><use href="#i-md"/></svg><span class="nm">03-方法.md</span></div><div class="tn l1 "><span class="sp"></span><svg><use href="#i-md"/></svg><span class="nm">04-实验.md</span></div><div class="tn l0 dir closed"><svg class="ch"><use href="#i-chev"/></svg><svg><use href="#i-folder"/></svg><span class="nm">assets</span></div><div class="tn l0 dir closed"><svg class="ch"><use href="#i-chev"/></svg><svg><use href="#i-folder"/></svg><span class="nm">references</span></div><div class="tn l0 "><span class="sp"></span><svg><use href="#i-md"/></svg><span class="nm">README.md</span></div><div class="tn l0 "><span class="sp"></span><svg><use href="#i-md"/></svg><span class="nm">大纲草稿.md</span></div><div class="tn l0 "><span class="sp"></span><svg><use href="#i-img"/></svg><span class="nm">figure-pipeline.png</span></div><div class="tn l0 "><span class="sp"></span><svg><use href="#i-fcode"/></svg><span class="nm">config.yaml</span></div><div class="tn l0 "><span class="sp"></span><svg><use href="#i-pdf"/></svg><span class="nm">开题报告.pdf</span></div></div>
+    </div>
+      <div class="sheet">
+        <div class="scroll fade" style="grid-template-columns: 1fr minmax(0,720px) 1fr"><div class="col"><div class="doc">
+  <div class="title">第二章　相关工作</div>
+  <p style="margin-top:14px">本章回顾与本文密切相关的三类研究：间隔重复算法、知识追踪模型，以及基于大语言模型的学习辅助系统。</p>
+  <h3>2.1 间隔重复算法</h3>
+  <p>自 Ebbinghaus 提出遗忘曲线以来，间隔重复（Spaced Repetition）成为记忆研究的经典范式。SM-2 算法以固定的难度系数调整复习间隔<span class="caret"></span>，而 FSRS 则引入了可检索性与稳定性两个隐变量。</p>
+  <blockquote>记忆的稳定性决定了遗忘速度；每一次成功回忆都会让稳定性增长。</blockquote>
+  <h4>2.1.1 SM-2 与其变体</h4>
+  <p>SM-2 的核心更新公式如下：</p>
+  <pre>EF' = EF + (0.1 - (5 - q) × (0.08 + (5 - q) × 0.02))</pre>
+  <h3>2.2 知识追踪</h3>
+  <p>知识追踪（Knowledge Tracing）旨在根据学生的答题序列估计其对各知识点的掌握程度……</p>
+</div></div><div class="scrollbar"><i></i></div></div>
+        <div class="status"><span class="srcbtn h" title="源码模式 ⌘/"><svg><use href="#i-code"/></svg></span><span><b>4,812</b> 字</span><span>约 12 分钟</span><span>选中 <b>36</b> 字</span><div class="spacer"></div><span class="ok sync">未保存 · 自动保存中</span><span class="btn">Markdown · UTF-8</span></div>
+      </div>
+    </div>
+    <div class="note up" style="left:84px;top:4px;transform:translateY(-110%)">侧栏开关 ⌘\（折叠后侧栏滑出，纸面左扩）</div>
+    <div class="note up" style="left:330px;top:4px;transform:translateY(-110%)">面包屑 + 未保存圆点</div>
+    <div class="note" style="left:40px;top:100px">文件 / 大纲</div>
+    <div class="note up" style="left:250px;bottom:40px">状态栏最左淡色 &lt;/&gt;：源码模式的低调入口</div>
+    <div class="note" style="left:130px;top:212px">当前文件 + 未保存标记</div>
+    <div class="note up r" style="right:14px;bottom:40px">保存态：已保存 / 未保存 · 自动保存中 / 保存失败</div>
+  </div>
+</section>
+
+<section id="s2">
+  <h2><span class="no">②</span>源码模式 + 侧栏大纲<span class="tag">深色 · 入口对齐 Typora</span></h2>
+  <p class="desc"><b>入口刻意低调</b>（Typora：菜单「显示 → 源代码模式」+ ⌘/ + 左下角淡色 &lt;/&gt;，标题栏不放）：① 快捷键 <b>⌘/</b>；② 状态栏最左的淡色 &lt;/&gt; 图标，源码模式开着时轻染 accent 作为状态提示；③ ⋯ 菜单里的「源码模式」勾选项（带快捷键提示，顺带教会用户）。<br><b>沿用现有的光标双向映射</b>（getMarkdownWithPositions / importFromMarkdownWithPositions + PositionMapper，含代码块内光标）；源码用 CodeMirror（front-matter 按 YAML 高亮、行号、当前行底色），配色全部取主题 token（替换现在写死的 one-light / blackboard）。
+  大纲页签在源码模式同样可用（按 # 行解析），点击跳到对应行。状态栏多出「行 / 列」。</p>
+  <div class="win cocoa md-win">
+    <div class="tb">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="ib on" title="侧栏 ⌘\"><svg><use href="#i-sidebar"/></svg></div>
+      <div class="bread"><span>毕业论文</span><svg><use href="#i-chev"/></svg><span>chapters</span><svg><use href="#i-chev"/></svg><b>02-相关工作.md</b></div>
+      <div class="spacer"></div>
+      
+      <div class="ib"><svg><use href="#i-sun"/></svg></div>
+      <div class="ib"><svg><use href="#i-more"/></svg></div>
+    </div>
+    <div class="body2">
+      <div class="side">
+      <div class="proj"><svg style="width:14px;height:14px;color:var(--accent-text)"><use href="#i-folder"/></svg>毕业论文</div>
+      <div class="stabs"><span class="">文件</span><span class="on">大纲</span></div>
+      <div class="tree"><div class="oline">
+  <div class="i">第二章　相关工作</div>
+  <div class="i l2 on">2.1 间隔重复算法</div>
+  <div class="i l3">2.1.1 SM-2 与其变体</div>
+  <div class="i l3">2.1.2 FSRS</div>
+  <div class="i l2">2.2 知识追踪</div>
+  <div class="i l3">2.2.1 BKT</div>
+  <div class="i l3">2.2.2 DKT</div>
+  <div class="i l2">2.3 LLM 学习辅助</div>
+  <div class="i l2">2.4 小结</div>
+</div></div>
+    </div>
+      <div class="sheet">
+        <div class="scroll fade"><div class="src"><div class="code"><div class="ln">1<br>2<br>3<br>4<br>5<br>6<br>7<br>8<br>9<br>10<br>11<br><span class="cur">12</span><br>13<br>14<br>15<br>16<br>17</div><div class="tx"><span class="fm">---
+title: 相关工作
+tags: [thesis, ch2]
+---</span>
+
+<span class="k"><span class="m">#</span> 第二章　相关工作</span>
+
+本章回顾与本文密切相关的三类研究：间隔重复算法、知识追踪模型……
+
+<span class="k"><span class="m">##</span> 2.1 间隔重复算法</span>
+
+<span class="curline">自 Ebbinghaus 提出遗忘曲线以来，<span class="m">**</span>间隔重复<span class="m">**</span>成为经典范式。SM-2<span class="caret"></span></span>
+<span class="m">&gt;</span> 记忆的稳定性决定了遗忘速度。
+
+<span class="k"><span class="m">###</span> 2.1.1 SM-2 与其变体</span>
+
+<span class="m">```</span><span class="s">text</span></div></div></div><div class="scrollbar"><i></i></div></div>
+        <div class="status"><span class="srcbtn on" title="退出源码模式 ⌘/"><svg><use href="#i-code"/></svg></span><span><b>4,812</b> 字</span><span>约 12 分钟</span><div class="spacer"></div><span>行 12，列 38</span><span class="ok">已保存</span><span class="btn">Markdown · UTF-8</span></div>
+      </div>
+    </div>
+    <div class="pop" style="right:14px;top:44px;width:230px">
+      <div class="it h"><svg><use href="#i-code"/></svg>源码模式<span class="sw on" style="margin-left:auto"></span></div>
+      <div class="it"><svg><use href="#i-focus"/></svg>专注模式<kbd>⌘.</kbd></div>
+      <div class="it"><svg><use href="#i-search"/></svg>查找<kbd>⌘F</kbd></div>
+      <hr>
+      <div class="it"><svg><use href="#i-copy"/></svg>复制 ›</div>
+      <div class="it"><svg><use href="#i-download"/></svg>导出 ›</div>
+      <hr>
+      <div class="it"><svg><use href="#i-finder"/></svg>在访达中显示</div>
+    </div>
+    <div class="note" style="left:30px;top:100px">大纲页签：当前节高亮，源码模式也可用</div>
+    <div class="note up" style="left:250px;bottom:40px">&lt;/&gt; 轻染 = 当前在源码模式，点击退出</div>
+    <div class="note up r" style="right:14px;bottom:40px">源码模式显示行列号</div>
+  </div>
+</section>
+
+<section id="s3">
+  <h2><span class="no">③</span>文件树操作</h2>
+  <p class="desc">现在只能在根目录新建文件、文件夹没有任何操作、删除是永久删除。改为：</p>
+  <ul class="list">
+    <li><b>右键菜单（文件与文件夹都有）</b>：新建文件 / 新建文件夹（建在该目录下）、重命名（F2）、复制路径 / 相对路径、在访达（资源管理器）中显示、移到废纸篓（shell.trashItem，可恢复）。</li>
+    <li><b>行内编辑</b>：新建与重命名都在树里原地输入（VS Code 式），Enter 确认、Esc 取消；重命名默认只选中文件名不含扩展名；同名 / 非法字符原地红框提示，不再弹 Modal。</li>
+    <li><b>拖拽移动</b>：拖到文件夹上高亮落点，松手移动；移动当前打开的文件时编辑区跟随新路径（图片等相对引用不改写，给出提示）。</li>
+    <li><b>筛选</b>：顶部按文件名即时筛选（命中高亮，自动展开命中所在目录）。全文搜索页签下一轮。</li>
+    <li><b>显示规则</b>：隐藏以 . 开头的文件和目录、node_modules；不支持的文件类型默认隐藏（⋯ 菜单「显示所有文件」切换）；展开状态按文件夹记忆。</li>
+    <li>侧栏标题行：文件夹名 + 新建文件 / 新建文件夹 / ⋯（刷新、打开其它文件夹、最近打开、显示所有文件、在访达中显示）。</li>
+  </ul>
+  <div class="row" style="margin-top:18px">
+    <div><div class="win cream" style="width:300px;height:420px">
+      <div class="tb"><div class="lights"><i></i><i></i><i></i></div></div>
+      <div class="body2"><div class="side">
+      <div class="proj"><svg style="width:14px;height:14px;color:var(--accent-text)"><use href="#i-folder"/></svg>毕业论文<span class="ops"><span class="ib" title="新建文件 ⌘N"><svg><use href="#i-fplus"/></svg></span><span class="ib" title="新建文件夹"><svg><use href="#i-dplus"/></svg></span><span class="ib" title="更多"><svg><use href="#i-more"/></svg></span></span></div>
+      <div class="stabs"><span class="on">文件</span><span class="">大纲</span></div><div class="filter"><svg><use href="#i-search"/></svg>筛选文件名…</div>
+      <div class="tree"><div class="tn l0 dir hov"><svg class="ch"><use href="#i-chevd"/></svg><svg><use href="#i-folder"/></svg><span class="nm">chapters</span></div><div class="tn l1 "><span class="sp"></span><svg><use href="#i-md"/></svg><span class="nm">01-绪论.md</span></div><div class="tn l1 "><span class="sp"></span><svg><use href="#i-md"/></svg><span class="nm">02-相关工作.md</span></div><div class="tn l1 "><span class="sp"></span><svg><use href="#i-md"/></svg><span class="nm">03-方法.md</span></div><div class="tn l1"><span class="sp"></span><svg><use href="#i-md"/></svg><span class="rn"><i>未命名</i>.md</span></div><div class="tn l0 dir closed"><svg class="ch"><use href="#i-chev"/></svg><svg><use href="#i-folder"/></svg><span class="nm">assets</span></div><div class="tn l0 "><span class="sp"></span><svg><use href="#i-md"/></svg><span class="nm">README.md</span></div><div class="tn l0 "><span class="sp"></span><svg><use href="#i-md"/></svg><span class="nm">大纲草稿.md</span></div></div>
+    </div></div><div class="pop" style="left:84px;top:112px;width:206px">
+  <div class="it h"><svg><use href="#i-fplus"/></svg>新建文件<kbd>⌘N</kbd></div>
+  <div class="it"><svg><use href="#i-dplus"/></svg>新建文件夹</div>
+  <hr>
+  <div class="it"><svg><use href="#i-edit"/></svg>重命名<kbd>F2</kbd></div>
+  <div class="it"><svg><use href="#i-copy"/></svg>复制路径</div>
+  <div class="it"><svg><use href="#i-link"/></svg>复制相对路径</div>
+  <div class="it"><svg><use href="#i-finder"/></svg>在访达中显示</div>
+  <hr>
+  <div class="it danger"><svg><use href="#i-trash"/></svg>移到废纸篓<kbd>⌘⌫</kbd></div>
+</div>
+    </div><div class="caption">右键文件夹 + 行内新建</div></div>
+    <div><div class="win cream" style="width:300px;height:420px">
+      <div class="tb"><div class="lights"><i></i><i></i><i></i></div></div>
+      <div class="body2"><div class="side">
+      <div class="proj"><svg style="width:14px;height:14px;color:var(--accent-text)"><use href="#i-folder"/></svg>毕业论文<span class="ops"><span class="ib" title="新建文件 ⌘N"><svg><use href="#i-fplus"/></svg></span><span class="ib" title="新建文件夹"><svg><use href="#i-dplus"/></svg></span><span class="ib" title="更多"><svg><use href="#i-more"/></svg></span></span></div>
+      <div class="stabs"><span class="on">文件</span><span class="">大纲</span></div><div class="filter"><svg><use href="#i-search"/></svg>筛选文件名…</div>
+      <div class="tree"><div class="tn l0 dir drop"><svg class="ch"><use href="#i-chevd"/></svg><svg><use href="#i-folder"/></svg><span class="nm">chapters</span></div><div class="tn l1 "><span class="sp"></span><svg><use href="#i-md"/></svg><span class="nm">01-绪论.md</span></div><div class="tn l1 "><span class="sp"></span><svg><use href="#i-md"/></svg><span class="nm">02-相关工作.md</span></div><div class="tn l0 dir closed"><svg class="ch"><use href="#i-chev"/></svg><svg><use href="#i-folder"/></svg><span class="nm">assets</span></div><div class="tn l0 dim"><span class="sp"></span><svg><use href="#i-md"/></svg><span class="nm">大纲草稿.md</span></div><div class="tn l0 "><span class="sp"></span><svg><use href="#i-md"/></svg><span class="nm">README.md</span></div></div>
+    </div></div><div class="note" style="left:150px;top:128px">拖到 chapters/ 松手即移动</div>
+    </div><div class="caption">拖拽移动</div></div>
+    <div><div class="win cream" style="width:300px;height:420px">
+      <div class="tb"><div class="lights"><i></i><i></i><i></i></div></div>
+      <div class="body2"><div class="side">
+      <div class="proj"><svg style="width:14px;height:14px;color:var(--accent-text)"><use href="#i-folder"/></svg>毕业论文<span class="ops"><span class="ib" title="新建文件 ⌘N"><svg><use href="#i-fplus"/></svg></span><span class="ib" title="新建文件夹"><svg><use href="#i-dplus"/></svg></span><span class="ib" title="更多"><svg><use href="#i-more"/></svg></span></span></div>
+      <div class="stabs"><span class="on">文件</span><span class="">大纲</span></div><div class="filter"><svg><use href="#i-search"/></svg><span style="color:var(--ink-1)">方法</span></div>
+      <div class="tree"><div class="tn l0 dir "><svg class="ch"><use href="#i-chevd"/></svg><svg><use href="#i-folder"/></svg><span class="nm">chapters</span></div><div class="tn l1 "><span class="sp"></span><svg><use href="#i-md"/></svg><span class="nm">0<b style="color:var(--accent-text)">3-方法</b>.md</span></div><div class="tn l0 dir "><svg class="ch"><use href="#i-chevd"/></svg><svg><use href="#i-folder"/></svg><span class="nm">references</span></div><div class="tn l1 "><span class="sp"></span><svg><use href="#i-md"/></svg><span class="nm"><b style="color:var(--accent-text)">方法</b>论综述.md</span></div></div>
+    </div></div>
+    </div><div class="caption">文件名筛选</div></div>
+  </div>
+</section>
+
+<section id="s4">
+  <h2><span class="no">④</span>外部文件同步</h2>
+  <p class="desc">文件在别的编辑器（VS Code、git pull、同步盘）里被改动时：</p>
+  <ul class="list">
+    <li><b>本地无未保存改动</b>：静默重载，底部轻提示「已同步外部修改」1.5s 消失，光标尽量保持在原位置（按行映射）。</li>
+    <li><b>本地有未保存改动</b>（冲突）：纸面顶部横幅「文件已在外部修改」——[载入外部版本] [保留我的版本]（保留即用本地覆盖写回）。替换现在的 Modal，不打断输入。</li>
+    <li><b>文件被删除 / 移走</b>（现在没处理）：横幅「文件已不在磁盘上」——[重新保存到原位置] [另存为…] [关闭]；编辑内容保留在内存里不丢。</li>
+    <li><b>目录变化</b>：文件树只刷新变化的那一层（现在是任何变化都整树重读）。</li>
+  </ul>
+  <div class="row" style="margin-top:18px">
+    <div>
+      <div class="win cream" style="width:540px;height:330px">
+        <div class="tb">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="ib on" title="侧栏 ⌘\"><svg><use href="#i-sidebar"/></svg></div>
+      <div class="bread"><span>毕业论文</span><svg><use href="#i-chev"/></svg><b>02-相关工作.md</b><span class="dot" title="未保存"></span></div>
+      <div class="spacer"></div>
+      
+      <div class="ib"><svg><use href="#i-sun"/></svg></div>
+      <div class="ib"><svg><use href="#i-more"/></svg></div>
+    </div>
+        <div class="sheet" style="margin:0 8px 8px">
+          <div class="sbanner warn">文件已在外部修改，与你未保存的内容冲突<span class="sp"></span><span class="bt">载入外部版本</span><span class="bt pri">保留我的版本</span></div>
+          <div class="scroll" style="grid-template-columns:0 1fr 0"><div class="col doc" style="padding:20px 32px"><div class="title">第二章　相关工作</div><p style="margin-top:12px">本章回顾与本文密切相关的三类研究……</p></div></div>
+        </div>
+      </div>
+      <div class="caption">冲突：横幅，不打断输入</div>
+    </div>
+    <div>
+      <div class="win cocoa" style="width:540px;height:330px">
+        <div class="tb">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="ib on" title="侧栏 ⌘\"><svg><use href="#i-sidebar"/></svg></div>
+      <div class="bread"><span>毕业论文</span><svg><use href="#i-chev"/></svg><b>02-相关工作.md</b></div>
+      <div class="spacer"></div>
+      
+      <div class="ib"><svg><use href="#i-sun"/></svg></div>
+      <div class="ib"><svg><use href="#i-more"/></svg></div>
+    </div>
+        <div class="sheet" style="margin:0 8px 8px">
+          <div class="sbanner danger">文件已不在磁盘上（被删除或移动）<span class="sp"></span><span class="bt">重新保存</span><span class="bt">另存为…</span></div>
+          <div class="scroll" style="grid-template-columns:0 1fr 0"><div class="col doc" style="padding:20px 32px"><div class="title">第二章　相关工作</div><p style="margin-top:12px">内容仍保留在窗口里，不会丢失……</p></div></div>
+          <div class="toast" style="bottom:20px;opacity:.0">x</div>
+        </div>
+      </div>
+      <div class="caption">外部删除：保留内容，可重新保存 / 另存</div>
+    </div>
+  </div>
+</section>
+
+<section id="s5">
+  <h2><span class="no">⑤</span>欢迎页（无参数打开 / 关闭了所有文件）</h2>
+  <p class="desc">现在无参数时只有一行「未指定文件路径或文件夹」，且没有任何「打开文件夹」的 UI 入口。改为欢迎页：打开文件夹 / 打开文件 / 新建文件 + <b>最近打开</b>（文件与文件夹都记，最多 10 个；主进程 recent-projects 已有接口，只是没人用）。主窗口 ⌘O 仍打开文件，另加「打开文件夹」。只打开了文件夹、还没选文件时，纸面显示同一套快捷操作的精简版。</p>
+  <div class="win cream md-win" style="height:560px">
+    <div class="tb">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="ib " title="侧栏 ⌘\"><svg><use href="#i-sidebar"/></svg></div>
+      <div class="bread"><b>Markdown</b></div>
+      <div class="spacer"></div>
+      
+      <div class="ib"><svg><use href="#i-sun"/></svg></div>
+      <div class="ib"><svg><use href="#i-more"/></svg></div>
+    </div>
+    <div class="body2">
+      <div class="sheet" style="margin:0 8px 8px">
+        <div class="welcome"><div class="box">
+          <h3>打开 Markdown</h3><p>编辑本地的 .md 文件，或把整个文件夹当作一个文档库。</p>
+          <div class="acts">
+            <div class="act"><svg><use href="#i-folder"/></svg>打开文件夹<small>侧栏显示目录树</small><kbd>⌘⇧O</kbd></div>
+            <div class="act"><svg><use href="#i-md"/></svg>打开文件<small>单个 .md / .markdown</small><kbd>⌘O</kbd></div>
+            <div class="act"><svg><use href="#i-fplus"/></svg>新建文件<small>选择保存位置</small><kbd>⌘N</kbd></div>
+          </div>
+          <div class="rec">
+  <h2>已定</h2>
+  <ul>
+    <li>大纲放<b>侧栏页签</b>；粘贴图片仍存 <b>md 同目录</b>；<b>不做</b>多文件标签页；<b>去掉</b>只读开关；全文搜索页签<b>下一轮</b>。</li>
+    <li>源码模式入口低调化（对齐 Typora）：⌘/ + 状态栏淡色 &lt;/&gt; + ⋯ 勾选项，标题栏不放。</li>
+  </ul>
+</div>
+</body></html>

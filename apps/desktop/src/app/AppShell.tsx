@@ -10,7 +10,7 @@
  * 挂载：主窗口 / 默认重定向 /shell（router.tsx）；旧主界面在 /legacy。
  */
 
-import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
 import clsx from "clsx";
 import { PageProvider, usePage } from "@/page/PageProvider";
 import { PageHost } from "@/page/PageHost";
@@ -43,6 +43,11 @@ import "../pages";
 const shellRootClass =
   "app relative grid h-screen min-w-0 grid-cols-[auto_4px_minmax(0,1fr)] grid-rows-[100vh] " +
   "overflow-hidden bg-page font-tau text-tau-body text-ink-1 antialiased";
+
+// 开发悬浮球：只在开发构建里加载（import.meta.env.DEV 为常量，生产包里整段被摇掉）
+const DevFloatingBall = import.meta.env.DEV
+  ? lazy(() => import("@/devtools").then(m => ({ default: m.DevFloatingBall })))
+  : null;
 
 // legacy 模块占位注册（真实 page 注册后自动让位）
 ensureLegacyPages();
@@ -171,8 +176,10 @@ function ShellLayout() {
       <div className="grid min-w-0 grid-rows-[var(--tau-titlebar-h)_minmax(0,1fr)]">
         <Titlebar />
         {/* 正文 + 右侧辅助栏（AI 对话停靠栏，D-047）；覆盖浮层模式以本行为定位上下文。
-            横向 clip：辅助栏收起时滑出右缘，不撑出滚动区（纵向不裁，保留卡片阴影） */}
-        <div className="relative flex min-h-0 overflow-x-clip">
+            横向 clip：辅助栏收起时滑出右缘，不撑出滚动区（纵向不裁，保留卡片阴影）。
+            min-w-0 必需：clip 不是滚动容器，不会清零自动最小宽度，页面内容（nowrap 长标题等）
+            的 min-content 会经隐式 auto 列轨道把整列连同标题栏撑出窗口 */}
+        <div className="relative flex min-h-0 min-w-0 overflow-x-clip">
           <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
             <PageHost state={state} />
           </main>
@@ -187,6 +194,11 @@ function ShellLayout() {
       <NotificationHost />
       {/* 全局 toast（z 高于命令面板与通知卡栈，面板打开时反馈仍可见） */}
       <ToastHost />
+      {DevFloatingBall && (
+        <Suspense fallback={null}>
+          <DevFloatingBall />
+        </Suspense>
+      )}
     </div>
   );
 }

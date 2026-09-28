@@ -8,6 +8,7 @@ import {
   duplicateSubWhiteBoard,
   getAllWhiteBoards,
   getWhiteBoardById,
+  getWhiteBoardByContentId,
   renameSubWhiteBoard,
   reorderSubWhiteBoard,
   setActiveSubWhiteBoard,
@@ -162,13 +163,13 @@ export function useWhiteboardMutations() {
 
 /* ───────── 详情（多页） ───────── */
 
-/** 一块白板及其页顺序（详情页的页签栏用；页内容各自经 useWhiteBoardContent 读取） */
-export function useWhiteboardDetail(id: number) {
+/** 一块白板及其页顺序（详情页的页签栏用；页内容各自经 useWhiteBoardContent 读取）；传 null 不查询 */
+export function useWhiteboardDetail(id: number | null) {
   const database = useSettingStore(state => state.setting.database.active);
   const query = useQuery({
-    queryKey: detailKey(database, id),
-    queryFn: () => getWhiteBoardById(id),
-    enabled: hasBridge,
+    queryKey: detailKey(database, id ?? -1),
+    queryFn: () => getWhiteBoardById(id ?? -1),
+    enabled: hasBridge && id !== null,
   });
   return { board: query.data ?? null, loading: query.isPending, error: query.isError };
 }
@@ -263,6 +264,18 @@ export function useWhiteboardRefs(id: number | null) {
       return projects.flatMap(r => (r.status === "fulfilled" && r.value ? [r.value.title] : []));
     },
   });
+}
+
+/** 某一页所属的白板（旧的按页嵌入、问题材料等只记了页 id）；独立页为 null，传 null 不查询 */
+export function useWhiteboardOwner(contentId: number | null) {
+  const database = useSettingStore(state => state.setting.database.active);
+  const enabled = contentId !== null && hasBridge;
+  const query = useQuery({
+    queryKey: ["whiteboards", "owner", database, contentId],
+    queryFn: () => (contentId === null ? null : getWhiteBoardByContentId(contentId)),
+    enabled,
+  });
+  return { owner: query.data ?? null, loading: enabled && query.isPending };
 }
 
 /* ───────── 单页画布 ───────── */

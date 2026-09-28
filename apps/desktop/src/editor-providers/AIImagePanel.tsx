@@ -1,16 +1,12 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { App, message } from "antd";
-import classnames from "classnames";
-import { LoadingOutlined, PictureOutlined } from "@ant-design/icons";
 import { v4 as getUuid } from "uuid";
-import { Sparkles } from "lucide-react";
-import { PortalToBody } from "@tau/shared";
+import { ImageIcon, Plus, Sparkles, WandSparkles, X } from "lucide-react";
+import { Button, Dialog, DialogBody, ImagePreview, Spinner, Textarea, cn, toast } from "@tau/ui";
 
-import CustomModal from "@/components/CustomModal";
-import { showMediaModal } from "./mediaModalHost";
+import { showMediaNode } from "./mediaModalHost";
 import type { CustomElement, MediaAction, MediaInsertSource } from "@tau/editor/src";
-import { useEditorSlots } from "@tau/editor/src";
+import LocalImage from "@/components/LocalImage";
 import {
   createImageFileFromBase64,
   resolveImageInputFile,
@@ -22,8 +18,8 @@ import type { ImageResult } from "@/types/imageGeneration";
 import { uploadResource as uploadResourceCommand } from "@/hooks/useUploadResource";
 
 /**
- * AI 生图/修图面板（desktop）：
- * generate 模式作为图片插入来源（空态 Tab），edit 模式作为已有图片的业务操作（Modal）。
+ * AI 生图/修图弹窗（desktop）：
+ * generate 模式作为图片插入来源，edit 模式作为已有图片的业务操作。
  * 依赖宿主的图片生成配置与资源上传，整体属于业务能力，不进入编辑器内核。
  */
 
@@ -94,7 +90,9 @@ const runImageGeneration = async (prompt: string, images: string[]) => {
   return uploadGeneratedImageResult(results[0], 0);
 };
 
-export interface AIImagePanelProps {
+export interface AIImageDialogProps {
+  open: boolean;
+  onClose: () => void;
   mode: AIAction;
   /** edit 模式下的原始图地址 */
   originalUrl?: string;
@@ -102,10 +100,13 @@ export interface AIImagePanelProps {
   onConfirm: (url: string) => void;
 }
 
-export const AIImagePanel = ({ mode, originalUrl, onConfirm }: AIImagePanelProps) => {
-  const { Image: LocalImageComponent } = useEditorSlots();
-  const { message: messageApi } = App.useApp();
-
+export const AIImageDialog = ({
+  open,
+  onClose,
+  mode,
+  originalUrl,
+  onConfirm,
+}: AIImageDialogProps) => {
   const [generatePrompt, setGeneratePrompt] = useState("");
   const [editPrompt, setEditPrompt] = useState("");
   const [aiSubmitting, setAiSubmitting] = useState(false);
@@ -173,7 +174,7 @@ export const AIImagePanel = ({ mode, originalUrl, onConfirm }: AIImagePanelProps
     const isGenerate = action === "generate";
     const prompt = (isGenerate ? generatePrompt : editPrompt).trim();
     if (!prompt) {
-      messageApi.warning("请输入图片要求");
+      toast.warning("请输入图片要求");
       return;
     }
 
@@ -202,7 +203,7 @@ export const AIImagePanel = ({ mode, originalUrl, onConfirm }: AIImagePanelProps
       }
     } catch (error) {
       console.error("AI 图片处理失败:", error);
-      messageApi.error((error as Error).message || "AI 图片处理失败");
+      toast.error((error as Error).message || "AI 图片处理失败");
     } finally {
       setAiSubmitting(false);
     }
@@ -211,7 +212,7 @@ export const AIImagePanel = ({ mode, originalUrl, onConfirm }: AIImagePanelProps
   const handleConfirmAIImage = useMemoizedFn(() => {
     const selectedResult = getSelectedResult(mode);
     if (!selectedResult) {
-      messageApi.warning("请先生成一张候选图片");
+      toast.warning("请先生成一张候选图片");
       return;
     }
     onConfirm(selectedResult.url);
@@ -224,7 +225,7 @@ export const AIImagePanel = ({ mode, originalUrl, onConfirm }: AIImagePanelProps
       setSelectedEditReferenceIds(["original"]);
       setSelectedEditResultId(null);
     }
-    messageApi.success(mode === "generate" ? "图片已插入" : "图片已替换");
+    toast.success(mode === "generate" ? "图片已插入" : "图片已替换");
   });
 
   const handleUploadReference = useMemoizedFn(async (action: AIAction) => {
@@ -267,7 +268,7 @@ export const AIImagePanel = ({ mode, originalUrl, onConfirm }: AIImagePanelProps
         }
       } catch (error) {
         console.error("上传参考图失败:", error);
-        message.error("参考图上传失败");
+        toast.error("参考图上传失败");
       }
     };
     input.click();
@@ -289,35 +290,40 @@ export const AIImagePanel = ({ mode, originalUrl, onConfirm }: AIImagePanelProps
     }
   });
 
+  const [previewIndex, setPreviewIndex] = useState(0);
+
+  /** 缩略图：选中描边 accent，已选中再点放大 */
+  const thumbClass = (selected: boolean) =>
+    cn(
+      "rounded-tau-sm relative size-14 cursor-pointer overflow-hidden border-2 p-0 transition-colors",
+      selected ? "border-accent" : "border-line-1 hover:border-ink-3",
+      "disabled:cursor-not-allowed disabled:opacity-70"
+    );
+
   const renderAIReferencePicker = (action: AIAction) => {
     const isGenerate = action === "generate";
     const items = getAIReferenceItems(action);
     const selectedIds = isGenerate ? [selectedGenerateReference] : selectedEditReferenceIds;
 
     return (
-      <div className="flex flex-col gap-[0.5em]">
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col gap-[0.125em]">
-            <span className="text-[0.75em] font-medium text-gray-500 dark:text-zinc-400">
-              参考图
-            </span>
-            {!isGenerate && (
-              <span className="text-[0.6875em] text-gray-400 dark:text-zinc-500">
-                Ctrl/Command + 点击可多选或取消，普通点击单选，点击已选中图片可放大
-              </span>
-            )}
-          </div>
-          <button
-            type="button"
-            className="flex cursor-pointer items-center gap-[0.25em] border-none bg-transparent text-[0.6875em] text-gray-500 transition-colors duration-150 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center gap-2">
+          <span className="text-ink-2 text-[12px]">参考图</span>
+          {!isGenerate && (
+            <span className="text-ink-3 text-[11.5px]">⌘/Ctrl + 点击多选，点已选中的图放大</span>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto"
             onClick={() => handleUploadReference(action)}
             disabled={aiSubmitting}
           >
-            <span className="text-[1.1em]">+</span>
+            <Plus className="size-3.5" strokeWidth={1.75} />
             上传参考图
-          </button>
+          </Button>
         </div>
-        <div className="flex gap-[0.5em] overflow-x-auto pb-[0.25em]">
+        <div className="flex gap-2 overflow-x-auto pb-1 pt-1.5">
           {items.map(item => {
             const selected = selectedIds.includes(item.id);
             const canRemove = item.kind === "result" && !aiSubmitting;
@@ -325,13 +331,7 @@ export const AIImagePanel = ({ mode, originalUrl, onConfirm }: AIImagePanelProps
               <div key={item.id} className="relative shrink-0">
                 <button
                   type="button"
-                  className={classnames(
-                    "relative h-[3.5em] w-[3.5em] cursor-pointer overflow-hidden rounded-[0.5em] border-[0.125em] p-0 transition-all duration-150",
-                    selected
-                      ? "border-[var(--th-btn-bg)]"
-                      : "border-gray-200 hover:border-gray-400 dark:border-zinc-700 dark:hover:border-zinc-500",
-                    "disabled:cursor-not-allowed disabled:opacity-70"
-                  )}
+                  className={thumbClass(selected)}
                   onClick={event => {
                     if (isGenerate) {
                       if (selected && item.url) {
@@ -363,25 +363,27 @@ export const AIImagePanel = ({ mode, originalUrl, onConfirm }: AIImagePanelProps
                   title={selected && item.url ? "点击放大查看" : item.label}
                 >
                   {item.url ? (
-                    <LocalImageComponent
+                    <LocalImage
                       className="block h-full w-full object-cover"
                       url={item.url}
                       alt={item.label}
                     />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-gray-50 text-[0.875em] text-gray-400 dark:bg-zinc-900 dark:text-zinc-500">
-                      <PictureOutlined />
-                    </div>
+                    <span className="bg-sunken text-ink-3 text-tau-tiny flex h-full w-full flex-col items-center justify-center gap-0.5">
+                      <ImageIcon className="size-4" strokeWidth={1.5} />
+                      无参考
+                    </span>
                   )}
                 </button>
                 {canRemove && (
                   <button
                     type="button"
-                    className="absolute -right-[0.25em] -top-[0.25em] z-10 flex h-[1.125em] w-[1.125em] cursor-pointer items-center justify-center rounded-full border-none bg-gray-600 text-[0.625em] leading-none text-white transition-colors duration-150 hover:bg-red-500 dark:bg-zinc-600"
+                    className="bg-ink-2 text-ink-inverse hover:bg-danger absolute -right-1 -top-1 z-10 grid size-4 cursor-pointer place-items-center rounded-full transition-colors"
                     onClick={() => handleRemoveReference(action, item.id)}
                     title="移除"
+                    aria-label="移除"
                   >
-                    ×
+                    <X className="size-2.5" strokeWidth={2.5} />
                   </button>
                 )}
               </div>
@@ -398,44 +400,37 @@ export const AIImagePanel = ({ mode, originalUrl, onConfirm }: AIImagePanelProps
     }
 
     return (
-      <div className="flex flex-col gap-[0.5em]">
-        <span className="text-[0.75em] font-medium text-gray-500 dark:text-zinc-400">候选结果</span>
-        <div className="flex gap-[0.5em] overflow-x-auto pb-[0.25em]">
+      <div className="flex flex-col gap-1.5">
+        <span className="text-ink-2 text-[12px]">候选结果</span>
+        <div className="flex gap-2 overflow-x-auto pb-1">
           {editedCandidates.map(item => {
             const selected = item.id === selectedEditResultId;
             return (
-              <div key={item.id} className="relative shrink-0">
-                <button
-                  type="button"
-                  className={classnames(
-                    "relative h-[3.5em] w-[3.5em] cursor-pointer overflow-hidden rounded-[0.5em] border-[0.125em] p-0 transition-all duration-150",
-                    selected
-                      ? "border-[var(--th-btn-bg)]"
-                      : "border-gray-200 hover:border-gray-400 dark:border-zinc-700 dark:hover:border-zinc-500",
-                    "disabled:cursor-not-allowed disabled:opacity-70"
-                  )}
-                  onClick={() => {
-                    if (selected) {
-                      setPreviewingReference({
-                        id: item.id,
-                        label: item.label,
-                        url: item.url,
-                        kind: "result",
-                      });
-                      return;
-                    }
-                    setSelectedEditResultId(item.id);
-                  }}
-                  disabled={aiSubmitting}
-                  title={selected ? "点击放大查看" : item.label}
-                >
-                  <LocalImageComponent
-                    className="block h-full w-full object-cover"
-                    url={item.url}
-                    alt={item.label}
-                  />
-                </button>
-              </div>
+              <button
+                key={item.id}
+                type="button"
+                className={cn(thumbClass(selected), "shrink-0")}
+                onClick={() => {
+                  if (selected) {
+                    setPreviewingReference({
+                      id: item.id,
+                      label: item.label,
+                      url: item.url,
+                      kind: "result",
+                    });
+                    return;
+                  }
+                  setSelectedEditResultId(item.id);
+                }}
+                disabled={aiSubmitting}
+                title={selected ? "点击放大查看" : item.label}
+              >
+                <LocalImage
+                  className="block h-full w-full object-cover"
+                  url={item.url}
+                  alt={item.label}
+                />
+              </button>
             );
           })}
         </div>
@@ -452,80 +447,104 @@ export const AIImagePanel = ({ mode, originalUrl, onConfirm }: AIImagePanelProps
   const actionText = selectedReferenceCount > 0 ? "基于参考图生成" : isGenerate ? "生成" : "编辑";
 
   return (
-    <div className="flex flex-col gap-[0.875em]">
-      {renderAIReferencePicker(mode)}
-      <textarea
-        className="min-h-[7.5em] w-full resize-y rounded-[0.75em] border border-gray-200 bg-gray-50 px-[1em] py-[0.875em] text-[0.875em] leading-[1.6] text-gray-800 shadow-inner outline-none transition-all duration-200 placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_var(--th-border-focus)/20] disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-zinc-500 dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_var(--th-border-focus)/25]"
-        value={prompt}
-        onChange={event => setPrompt(event.target.value)}
-        placeholder={
-          isGenerate
-            ? "描述你想生成的图片，例如：一张白底的产品示意图，温暖手绘风格"
-            : "描述你想如何调整这张图片，例如：改成透明背景，并增强主体光影"
-        }
-        disabled={aiSubmitting}
-        rows={3}
-      />
-      {!isGenerate && renderAIResultPicker()}
-      {(aiSubmitting || (isGenerate && selectedResult)) && (
-        <div className="flex flex-col items-center gap-[0.5em] rounded-[0.75em] border border-gray-200 p-[1em] dark:border-zinc-700">
-          {aiSubmitting ? (
-            <div className="text-text-3 flex items-center gap-[0.5em] text-[0.8125em]">
-              <LoadingOutlined />
-              <span>正在生成...</span>
-            </div>
-          ) : selectedResult ? (
-            <>
-              <LocalImageComponent
-                className="max-h-[16em] max-w-full rounded-[0.5em] object-contain"
-                url={selectedResult.url}
-                alt={selectedResult.prompt}
-              />
-              <div className="text-text-3 text-[0.75em]">确认后{isGenerate ? "插入" : "替换"}</div>
-            </>
-          ) : null}
-        </div>
-      )}
-      <div className="flex items-center justify-end gap-[0.5em] border-t border-gray-200 pt-[0.5em] dark:border-zinc-700/50">
-        <button
-          type="button"
-          className="cursor-pointer rounded-[0.75em] border border-gray-200 bg-gray-100 px-[1.25em] py-[0.625em] text-[0.875em] font-semibold text-gray-700 transition-all hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
-          disabled={!prompt.trim() || aiSubmitting}
-          onClick={() => handleRunAIImage(mode)}
-        >
-          {aiSubmitting ? "处理中..." : actionText}
-        </button>
-        <button
-          type="button"
-          className="cursor-pointer rounded-[0.75em] border-none bg-[var(--th-btn-bg)] px-[1.25em] py-[0.625em] text-[0.875em] font-semibold text-[var(--th-btn-text)] transition-all hover:bg-[var(--th-btn-hover)] disabled:cursor-not-allowed disabled:opacity-40"
-          disabled={!selectedResult || aiSubmitting}
-          onClick={handleConfirmAIImage}
-        >
-          {isGenerate ? "确认插入" : "确认替换"}
-        </button>
-      </div>
-      {previewingReference && (
-        <PortalToBody>
-          <div
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80"
-            onClick={() => setPreviewingReference(null)}
+    <Dialog
+      open={open}
+      onOpenChange={next => !next && onClose()}
+      title={isGenerate ? "AI 生成图片" : "AI 编辑图片"}
+      subtitle={isGenerate ? "描述想要的画面，可选参考图" : "描述想如何调整这张图片"}
+      icon={
+        isGenerate ? (
+          <Sparkles className="size-4" strokeWidth={1.75} />
+        ) : (
+          <WandSparkles className="size-4" strokeWidth={1.75} />
+        )
+      }
+      width={isGenerate ? 600 : 540}
+      locked={aiSubmitting}
+      footer={
+        <>
+          <Button variant="secondary" size="sm" disabled={aiSubmitting} onClick={onClose}>
+            取消
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            loading={aiSubmitting}
+            loadingText="生成中…"
+            disabled={!prompt.trim()}
+            onClick={() => handleRunAIImage(mode)}
           >
-            <button
-              type="button"
-              className="cursor-pointer border-none bg-transparent p-0"
-              onClick={() => setPreviewingReference(null)}
-              aria-label="关闭预览"
-            >
-              <LocalImageComponent
-                className="max-h-[85vh] max-w-[90vw] rounded-[0.5em] object-contain"
-                url={previewingReference.url || ""}
-                alt={previewingReference.label}
-              />
-            </button>
-          </div>
-        </PortalToBody>
-      )}
-    </div>
+            {actionText}
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={!selectedResult || aiSubmitting}
+            onClick={handleConfirmAIImage}
+          >
+            {isGenerate ? "确认插入" : "确认替换"}
+          </Button>
+        </>
+      }
+    >
+      <DialogBody>
+        <div className="flex flex-col gap-3.5">
+          {renderAIReferencePicker(mode)}
+          <label className="flex flex-col gap-1.5">
+            <span className="text-ink-2 text-[12px]">{isGenerate ? "画面描述" : "修改要求"}</span>
+            <Textarea
+              data-autofocus
+              value={prompt}
+              onChange={event => setPrompt(event.target.value)}
+              placeholder={
+                isGenerate
+                  ? "例如：一张白底的产品示意图，温暖手绘风格"
+                  : "例如：改成透明背景，并增强主体光影"
+              }
+              disabled={aiSubmitting}
+              rows={3}
+              className="resize-none"
+            />
+          </label>
+          {!isGenerate && renderAIResultPicker()}
+          {(aiSubmitting || (isGenerate && selectedResult)) && (
+            <div className="bg-sunken rounded-tau-md flex min-h-[160px] flex-col items-center justify-center gap-2 p-4">
+              {aiSubmitting ? (
+                <>
+                  <Spinner className="size-5" />
+                  <span className="text-tau-sm text-ink-3">正在生成…</span>
+                </>
+              ) : selectedResult ? (
+                <>
+                  <LocalImage
+                    className="rounded-tau-sm max-h-[16em] max-w-full object-contain"
+                    url={selectedResult.url}
+                    alt={selectedResult.prompt}
+                  />
+                  <span className="text-tau-sm text-ink-3">
+                    确认后{isGenerate ? "插入" : "替换"}到文档
+                  </span>
+                </>
+              ) : null}
+            </div>
+          )}
+        </div>
+      </DialogBody>
+      <ImagePreview
+        open={!!previewingReference?.url}
+        onOpenChange={next => !next && setPreviewingReference(null)}
+        images={
+          previewingReference?.url
+            ? [{ src: previewingReference.url, alt: previewingReference.label }]
+            : []
+        }
+        index={previewIndex}
+        onIndexChange={setPreviewIndex}
+        ImageComponent={({ src, alt, className }) => (
+          <LocalImage url={src} alt={alt} className={className} />
+        )}
+      />
+    </Dialog>
   );
 };
 
@@ -536,19 +555,17 @@ export const aiImageInsertSource: MediaInsertSource = {
   mediaTypes: ["image"],
   isAvailable: isImageGenerationConfigured,
   open: ({ onInsert }) => {
-    showMediaModal({
-      title: "AI 生成图片",
-      width: 640,
-      content: close => (
-        <AIImagePanel
-          mode="generate"
-          onConfirm={url => {
-            onInsert({ src: url });
-            close();
-          }}
-        />
-      ),
-    });
+    const close = showMediaNode(
+      <AIImageDialog
+        open
+        mode="generate"
+        onClose={() => close()}
+        onConfirm={url => {
+          onInsert({ src: url });
+          close();
+        }}
+      />
+    );
   },
 };
 
@@ -568,54 +585,31 @@ const AIEditModal = ({
 
   useEffect(() => {
     if (open && !originalUrl) {
-      message.warning("请先插入一张图片后再编辑");
+      toast.warning("请先插入一张图片后再编辑");
       onCancel();
     }
   }, [open, originalUrl, onCancel]);
 
   return (
-    <AIEditModalContainer open={open} title="AI 编辑图片" onCancel={onCancel} footer={null}>
-      {open && originalUrl && (
-        <AIImagePanel
-          mode="edit"
-          originalUrl={originalUrl}
-          onConfirm={url => {
-            // 同时写 url 与 previewUrl：url 参与序列化落盘，previewUrl 驱动当前渲染
-            onApply({ url, previewUrl: url, pasteUploading: false });
-            onCancel();
-          }}
-        />
-      )}
-    </AIEditModalContainer>
+    <AIImageDialog
+      open={open && !!originalUrl}
+      mode="edit"
+      originalUrl={originalUrl}
+      onClose={onCancel}
+      onConfirm={url => {
+        // 同时写 url 与 previewUrl：url 参与序列化落盘，previewUrl 驱动当前渲染
+        onApply({ url, previewUrl: url, pasteUploading: false });
+        onCancel();
+      }}
+    />
   );
 };
-
-function AIEditModalContainer(props: {
-  open: boolean;
-  title: string;
-  onCancel: () => void;
-  footer: null;
-  children: React.ReactNode;
-}) {
-  return (
-    <CustomModal
-      open={props.open}
-      title={props.title}
-      onCancel={props.onCancel}
-      footer={props.footer}
-      width={520}
-      destroyOnClose
-    >
-      {props.children}
-    </CustomModal>
-  );
-}
 
 export const aiImageEditAction: MediaAction = {
   id: "ai-image-edit",
   label: "AI 编辑图片",
   mediaTypes: ["image"],
-  icon: <PictureOutlined size={14} />,
+  icon: <WandSparkles size={14} strokeWidth={1.75} />,
   isAvailable: isImageGenerationConfigured,
   Modal: AIEditModal,
 };

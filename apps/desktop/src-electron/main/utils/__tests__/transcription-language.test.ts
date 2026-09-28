@@ -24,13 +24,18 @@ describe("transcription-language", () => {
   });
 
   it("应正确解析日志中的语言与置信度", () => {
-    const parsed = parseLanguageFromLogs(
-      "foo\nDetected language: en (82.30%)\nbar",
-    );
+    const parsed = parseLanguageFromLogs("foo\nDetected language: en (82.30%)\nbar");
     expect(parsed).toEqual({
       language: "en",
       probability: 0.823,
     });
+  });
+
+  it("应解析 whisper.cpp 的自动识别日志与置信度", () => {
+    const parsed = parseLanguageFromLogs(
+      "whisper_full_with_state: auto-detected language: zh (p = 0.970000)\n[00:00.000 --> 00:02.000] 你好"
+    );
+    expect(parsed).toEqual({ language: "zh", probability: 0.97 });
   });
 
   it("应基于文本脚本推断语言", () => {
@@ -48,10 +53,7 @@ describe("transcription-language", () => {
     expect(low.language).toBe("zh");
     expect(low.languageProbability).toBe(0.59);
 
-    const edge = applyLowConfidenceFallback(
-      "en",
-      AUTO_LANGUAGE_FALLBACK_THRESHOLD,
-    );
+    const edge = applyLowConfidenceFallback("en", AUTO_LANGUAGE_FALLBACK_THRESHOLD);
     expect(edge.language).toBe("en");
   });
 });

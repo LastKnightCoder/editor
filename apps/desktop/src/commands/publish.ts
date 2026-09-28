@@ -2,7 +2,7 @@ import { invoke } from "@/electron";
 import {
   IPublishSelection,
   IPublishHistory,
-  IPublishPlan,
+  IPublishPlanPreview,
   IPublishResult,
   IPublishFile,
   IPublishAppearanceSettings,
@@ -23,7 +23,7 @@ export async function getPublishSelections(): Promise<IPublishSelection[]> {
  * 按类型获取发布选择
  */
 export async function getPublishSelectionsByType(
-  contentType: PublishContentType,
+  contentType: PublishContentType
 ): Promise<IPublishSelection[]> {
   return invoke("get-publish-selections-by-type", contentType);
 }
@@ -49,7 +49,7 @@ export async function batchUpsertPublishSelections(
     contentId: number;
     parentPath?: string;
     selected?: boolean;
-  }>,
+  }>
 ): Promise<void> {
   return invoke("batch-upsert-publish-selections", items);
 }
@@ -59,7 +59,7 @@ export async function batchUpsertPublishSelections(
  */
 export async function deletePublishSelection(
   contentType: PublishContentType,
-  contentId: number,
+  contentId: number
 ): Promise<boolean> {
   return invoke("delete-publish-selection", contentType, contentId);
 }
@@ -83,9 +83,7 @@ export async function getPublishHistory(): Promise<IPublishHistory[]> {
 /**
  * 根据路径获取发布历史
  */
-export async function getPublishHistoryByPath(
-  filePath: string,
-): Promise<IPublishHistory | null> {
+export async function getPublishHistoryByPath(filePath: string): Promise<IPublishHistory | null> {
   return invoke("get-publish-history-by-path", filePath);
 }
 
@@ -123,7 +121,7 @@ export async function exportPublishOutput(options: {
 /**
  * 预览发布计划
  */
-export async function previewPublishPlan(): Promise<IPublishPlan> {
+export async function previewPublishPlan(): Promise<IPublishPlanPreview> {
   return invoke("preview-publish-plan");
 }
 

@@ -1,5 +1,6 @@
 // 多主题运行时：杏子（默认浅色）/ 玄夜（深色）/ 薄荷 / 海盐 / 跟随系统。
-// 生效方式：html[data-theme] + 深色主题（玄夜）同步 .dark 类（编辑器包的 dark: 变体依赖）。
+// 生效方式：html[data-theme] + data-mode（light/dark，公共包按 @tau/themes 约定读取）
+// + 深色主题（玄夜）同步 .dark 类（编辑器包的 dark: 变体依赖）。
 
 import { create } from "zustand";
 
@@ -44,8 +45,10 @@ export function isThemeDark(theme: ThemeId): boolean {
 function applyThemeToDom(theme: ThemeId) {
   const root = document.documentElement;
   const apply = () => {
+    const dark = isThemeDark(theme);
     root.dataset.theme = theme;
-    root.classList.toggle("dark", isThemeDark(theme));
+    root.dataset.mode = dark ? "dark" : "light";
+    root.classList.toggle("dark", dark);
   };
   apply();
 }

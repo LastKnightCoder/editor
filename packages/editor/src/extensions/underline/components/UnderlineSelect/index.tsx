@@ -56,28 +56,25 @@ interface IUnderlineSelectProps {
 }
 
 const UnderlineSelect = memo((props: IUnderlineSelectProps) => {
-  const { selectedColor, selectedLineType, onColorSelect, onLineTypeSelect } =
-    props;
+  const { selectedColor, selectedLineType, onColorSelect, onLineTypeSelect } = props;
 
   return (
     <div
       className={
-        "flex flex-col gap-3 px-4 py-3 rounded-2xl min-w-[220px] " +
-        "max-w-[calc(100vw-24px)] max-h-[calc(100vh-24px)] overflow-x-hidden overflow-y-auto " +
-        "relative z-[10060] bg-white/90 dark:bg-zinc-900/85 border " +
-        "border-white/40 dark:border-white/10 backdrop-blur-2xl " +
-        "backdrop-saturate-150 shadow-[0_18px_45px_rgba(15,23,42,0.25)] " +
+        "flex min-w-[220px] flex-col gap-3 rounded-2xl px-4 py-3 " +
+        "max-h-[calc(100vh-24px)] max-w-[calc(100vw-24px)] overflow-y-auto overflow-x-hidden" +
+        "relative z-[10060] border bg-white/90 dark:bg-zinc-900/85" +
+        "border-white/40 backdrop-blur-2xl dark:border-white/10" +
+        "shadow-[0_18px_45px_rgba(15,23,42,0.25)] backdrop-saturate-150" +
         "dark:shadow-[0_22px_60px_rgba(2,6,23,0.7)]"
       }
     >
       <div className="flex flex-col gap-2">
-        <div className="text-xs font-semibold text-slate-500 dark:text-slate-200 px-1">
-          颜色
-        </div>
+        <div className="px-1 text-xs font-semibold text-[var(--ed-text)]">颜色</div>
         <div className="flex flex-wrap items-center gap-2">
           <For
             data={underlineColors}
-            renderItem={(color) => (
+            renderItem={color => (
               <UnderlineSelectItem
                 type="color"
                 color={color.value}
@@ -93,13 +90,11 @@ const UnderlineSelect = memo((props: IUnderlineSelectProps) => {
       <div className="h-px w-full bg-slate-200/90 dark:bg-zinc-700/60" />
 
       <div className="flex flex-col gap-2">
-        <div className="text-xs font-semibold text-slate-500 dark:text-slate-200 px-1">
-          线型
-        </div>
+        <div className="px-1 text-xs font-semibold text-[var(--ed-text)]">线型</div>
         <div className="flex flex-wrap items-center gap-2">
           <For
             data={lineTypes}
-            renderItem={(lineType) => (
+            renderItem={lineType => (
               <UnderlineSelectItem
                 type="lineType"
                 lineType={lineType.value}

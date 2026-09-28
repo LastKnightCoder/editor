@@ -8,7 +8,6 @@ import { EditorRef } from "@tau/editor/src";
 import Editor from "@/components/ContentEditor";
 import { importFromMarkdown } from "@/utils/markdown";
 import ResizablePanel from "@/components/ResizablePanel";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import {
   getAudioNoteById,
   getAudioNoteItemsByAudioNoteId,
@@ -130,7 +129,6 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
   const audioController = useMemo(() => new AudioControllerImpl(() => audioRef.current), []);
 
   // Extensions
-  const dynamicExtensions = useDynamicExtensionsStore(s => s.extensions);
 
   // Editor ref
   const editorRef = useRef<EditorRef>(null);
@@ -861,12 +859,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                     ) : (
                       <div>
                         {summaryContent && (
-                          <Editor
-                            ref={summaryEditorRef}
-                            initValue={summaryContent}
-                            readonly
-                            extensions={dynamicExtensions}
-                          />
+                          <Editor ref={summaryEditorRef} initValue={summaryContent} readonly />
                         )}
                       </div>
                     )}
@@ -902,7 +895,6 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                               ref={editorRef}
                               initValue={content}
                               readonly={false}
-                              extensions={dynamicExtensions}
                               onChange={value => handleNoteContentChange(item.contentId, value)}
                             />
                           );

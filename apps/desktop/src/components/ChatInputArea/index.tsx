@@ -7,6 +7,7 @@ import {
   type ChangeEvent,
   type ComponentProps,
 } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import { useMemoizedFn } from "ahooks";
 import {
   ArrowUp,
@@ -44,8 +45,7 @@ import useUploadResource from "@/hooks/useUploadResource";
 import { convertFileSrc, getHomeDir } from "@/commands";
 import { copyFileToLocal } from "@/utils";
 import { McpQuickPanel } from "@/features/mcp/components/McpQuickPanel";
-import useTheme from "@/hooks/useTheme";
-import { contentLinkExtension, skillRefExtension } from "@/editor-extensions";
+import { skillRefExtension } from "@/editor-extensions";
 import { SkillPickerPanel } from "@/editor-extensions/skill-ref/SkillPickerPanel";
 import useSettingStore from "@/stores/useSettingStore";
 import {
@@ -59,6 +59,9 @@ import { ContextUsageRing } from "./ContextUsageRing";
 import { ComposerAddMenu, type ComposerAddItem } from "./ComposerAddMenu";
 
 export type { ChatInputAreaHandle };
+
+/** 技能引用只在聊天输入里用，不属于应用 kit */
+const CHAT_INPUT_EXTENSIONS = [skillRefExtension];
 
 /** 模型菜单：按服务商分组（组头 = 服务商，项 key = `${providerId}::${modelName}`） */
 export interface ChatModelGroup {
@@ -263,7 +266,6 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     ref
   ) => {
     const uploadResourceFn = useUploadResource();
-    const { theme } = useTheme();
 
     const services: ChatInputAreaServices = useMemo(
       () => ({
@@ -761,16 +763,16 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         >
           <div className="max-h-[min(240px,34vh)] overflow-y-auto overflow-x-hidden overscroll-contain pr-1">
             <Editor
+              kit={getDesktopKit()}
               ref={editorRef}
               initValue={editorContent}
               onChange={value => {
                 setEditorContent(value);
               }}
               readonly={!contentEditable}
-              extensions={[contentLinkExtension, skillRefExtension]}
+              extensions={CHAT_INPUT_EXTENSIONS}
               hotkeyConfigs={hotkeyConfigs}
               placeHolder={resolvedPlaceholder}
-              theme={theme}
               // 段落拖拽手柄绝对定位且高于行高：裁剪溢出，避免未到最大高度就出现滚动条。
               // 不设 min-height：空态 Slate 以内联 min-height（= 占位符高度）盖过类名，
               // 一输入占位符消失、类名生效，单行下方凭空多出空白

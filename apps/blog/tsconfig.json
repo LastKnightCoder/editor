@@ -19,8 +19,7 @@
     "paths": {
       "@blog/*": ["src/*"],
       "@tau/editor": ["../../packages/editor/src"],
-      "@tau/shared": ["../../packages/shared/src"],
-      "@tau/themes": ["../../packages/themes/src"]
+      "@tau/shared": ["../../packages/shared/src"]
     }
   },
   "include": ["src"],

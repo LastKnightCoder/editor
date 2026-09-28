@@ -1,7 +1,7 @@
 import type { ToolDefinition } from "@/types/tool";
 import type { IndexType } from "@/types/search";
 import { searchContent } from "@/utils/search";
-import { getMarkdown } from "@/utils/markdown-helper";
+import { getMarkdown } from "@/utils/markdown";
 import { getTypeDisplayName } from "@/utils/rag-helper";
 import useSettingStore from "@/stores/useSettingStore";
 import { resolveEmbeddingModelInfoFromSetting } from "@/utils/embedding-model-info";

@@ -9,6 +9,7 @@ import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
 
 import IExtension from "../types";
 import Base from "../base";
+import type { ImageExtensionOptions } from "./appearanceOption";
 
 export const imageActionsMap = new WeakMap<
   ImageElement,
@@ -24,6 +25,13 @@ export const imageActionsMap = new WeakMap<
 
 class ImageExtension extends Base implements IExtension {
   type = "image";
+
+  private readonly options: ImageExtensionOptions;
+
+  constructor(options: ImageExtensionOptions = {}) {
+    super();
+    this.options = options;
+  }
 
   override getBlockPanelItems(editor?: Editor) {
     return blockPanelItems(editor);
@@ -41,7 +49,11 @@ class ImageExtension extends Base implements IExtension {
   render(props: RenderElementProps) {
     const { element, attributes, children } = props;
     return (
-      <Image element={element as ImageElement} attributes={attributes}>
+      <Image
+        element={element as ImageElement}
+        attributes={attributes}
+        appearance={this.options.appearance}
+      >
         {children}
       </Image>
     );

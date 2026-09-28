@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   Pencil,
   FileText,
-  Expand,
   Plus,
   ArrowLeft,
   MessageCircle,
@@ -22,15 +21,12 @@ import classNames from "classnames";
 import { Descendant, Node } from "slate";
 import { EditorRef } from "@tau/editor/src";
 import Editor from "@/components/ContentEditor";
-import { importFromMarkdown, getMarkdown } from "@/utils/markdown";
 import { formatDate } from "@/utils";
 import type { CustomEditor } from "@tau/editor/src";
 import EditTitleModal from "@/components/EditTitleModal";
-import CustomModal from "@/components/CustomModal";
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import useThemeColors from "@/hooks/useThemeColors";
 import useSettingStore from "@/stores/useSettingStore";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import {
   getVideoNoteById,
   getVideoNoteItemsByVideoNoteId,
@@ -40,49 +36,18 @@ import {
   getContentById,
   createContent,
   updateVideoNoteTranscript,
-  updateVideoNoteSummary,
 } from "@/commands";
-import {
-  transcribeAudio,
-  onTranscriptionProgress,
-  extractAudioFromVideo,
-  shouldSegmentAudio,
-  transcribeAudioSegmented,
-} from "@/commands/transcription";
-import {
-  checkTranscriptionLLMRequirement,
-  openLLMSettingsSection,
-  prepareTranscriptionOptions,
-} from "@/utils/transcription";
+import { openLLMSettingsSection } from "@/utils/transcription";
 import { useLLMConfig } from "@/hooks/useLLMConfig";
-import { useTranscriptionOptimization } from "@/hooks/useTranscriptionOptimization";
-import { useVideoSummary } from "@/hooks/useVideoSummary";
-import { getBilibiliCacheStatus } from "@/commands/bilibili-cache";
-import {
-  downloadRemoteVideoWithProgress,
-  getRemoteVideoCacheStatus,
-} from "@/commands/remote-video-cache";
-import { getYoutubeCacheStatus } from "@/commands/youtube-cache";
-import {
-  type VideoNote as IVideoNote,
-  type VideoNoteItem,
-  type TranscriptSegment,
-  BiliBiliVideoMetaInfo,
-  YouTubeVideoMetaInfo,
-  LocalVideoMetaInfo,
-  RemoteVideoMetaInfo,
-} from "@/types";
+import { type VideoNote as IVideoNote, type VideoNoteItem, type TranscriptSegment } from "@/types";
 import {} from "@/editor-extensions";
 import VideoTimestampExtension from "./extensions/VideoTimestamp";
 import VideoScreenshotExtension from "./extensions/VideoScreenshot";
-import SummaryTimestampExtension from "./extensions/SummaryTimestamp";
 import { VideoController } from "./VideoController";
 import VideoNoteChatPanel from "./VideoNoteChatPanel";
 import LanguageSelect from "./LanguageSelect";
-import {
-  VIDEO_NOTE_AUTO_LANGUAGE,
-  resolveVideoNoteOptimizationLanguage,
-} from "./transcription-language";
+import { TRANSCRIPTION_LANGUAGES, VIDEO_NOTE_AUTO_LANGUAGE } from "./transcription-language";
+import { useVideoNoteTranscription } from "./useVideoNoteTranscription";
 import VideoNoteEpubExportModal from "./VideoNoteEpubExportModal";
 
 const DEFAULT_CONTENT: Descendant[] = [
@@ -103,26 +68,6 @@ const getNotePreview = (content: Descendant[] | undefined): string => {
   }
   return "";
 };
-
-const isRemoteHttpUrl = (value: string) =>
-  /^https?:\/\//i.test(value) && !/^https?:\/\/localhost/i.test(value);
-
-// 支持的转录语言列表
-const TRANSCRIPTION_LANGUAGES = [
-  { value: VIDEO_NOTE_AUTO_LANGUAGE, label: "自动识别 (Auto Detect)" },
-  { value: "zh", label: "中文 (Chinese)" },
-  { value: "en", label: "英语 (English)" },
-  { value: "ja", label: "日语 (Japanese)" },
-  { value: "ko", label: "韩语 (Korean)" },
-  { value: "fr", label: "法语 (French)" },
-  { value: "de", label: "德语 (German)" },
-  { value: "es", label: "西班牙语 (Spanish)" },
-  { value: "ru", label: "俄语 (Russian)" },
-  { value: "it", label: "意大利语 (Italian)" },
-  { value: "pt", label: "葡萄牙语 (Portuguese)" },
-  { value: "ar", label: "阿拉伯语 (Arabic)" },
-  { value: "hi", label: "印地语 (Hindi)" },
-];
 
 interface VideoNotePanelProps {
   videoNoteId: number;
@@ -147,52 +92,22 @@ const VideoNotePanel = ({
   onSubtitleMountedChange,
   reserveCloseButtonSpace = false,
 }: VideoNotePanelProps) => {
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const uploadResource = useUploadResource();
   const themeColors = useThemeColors();
   const activeDatabase = useSettingStore(state => state.setting.database.active);
 
-  // LLM optimization hook
-  const { provider, model } = useLLMConfig("transcriptionOptimization");
-  const {
-    isOptimizing,
-    streamingSegments,
-    finalSegments: optimizedFinalSegments,
-    startOptimization,
-    stopOptimization,
-    error: optimizationError,
-  } = useTranscriptionOptimization(provider, model);
-
-  // Video summary LLM hook
-  const { provider: summaryLLMProviderSetting, model: summaryLLMModelSetting } =
-    useLLMConfig("videoSummary");
   const { provider: ebookRewriteLLMProviderSetting, model: ebookRewriteLLMModelSetting } =
     useLLMConfig("videoEbookRewrite");
-  const {
-    isSummarizing,
-    summaryContent,
-    finalSummary,
-    startSummary,
-    stopSummary,
-    error: summaryError,
-  } = useVideoSummary(summaryLLMProviderSetting, summaryLLMModelSetting);
-
   // State
   const [videoNote, setVideoNote] = useState<IVideoNote | null>(null);
   const [noteItems, setNoteItems] = useState<VideoNoteItem[]>([]);
   const [activeNoteItemId, setActiveNoteItemId] = useState<number | null>(null);
   const [noteContentMap, setNoteContentMap] = useState<Record<number, Descendant[]>>({});
   const [loading, setLoading] = useState(true);
-  const [isTranscribing, setIsTranscribing] = useState(false);
-  const [transcriptionProgress, setTranscriptionProgress] = useState("");
-  const [pendingWordSegments, setPendingWordSegments] = useState<TranscriptSegment[] | null>(null);
   const [editingSegmentIndex, setEditingSegmentIndex] = useState<number | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"transcript" | "summary" | "chat" | "note">(
-    "transcript"
-  );
+  const [activeTab, setActiveTab] = useState<"transcript" | "chat" | "note">("transcript");
   const [noteViewMode, setNoteViewMode] = useState<"list" | "edit">("list");
-  const [summaryModalOpen, setSummaryModalOpen] = useState(false);
   const [ebookExportModalOpen, setEbookExportModalOpen] = useState(false);
   const [internalTranscriptionLanguage, setInternalTranscriptionLanguage] =
     useState<string>(VIDEO_NOTE_AUTO_LANGUAGE);
@@ -203,9 +118,21 @@ const VideoNotePanel = ({
     }
     onTranscriptionLanguageChange?.(language);
   });
-  const [detectedTranscriptionLanguage, setDetectedTranscriptionLanguage] = useState<string | null>(
-    null
-  );
+  const {
+    isTranscribing,
+    progress: transcriptionProgress,
+    isOptimizing,
+    streamingSegments,
+    transcribe: handleTranscribe,
+    optimize: handleAIOptimize,
+    cancelOptimization: handleCancelOptimization,
+    llmConfirm: transcriptionLlmConfirm,
+    dismissLlmConfirm,
+  } = useVideoNoteTranscription({
+    videoNote,
+    language: transcriptionLanguage,
+    onTranscriptSaved: patch => setVideoNote(prev => (prev ? { ...prev, ...patch } : null)),
+  });
 
   // 当前高亮的转录片段索引（用于视频播放时的同步高亮）
   const [currentSegmentIndex, setCurrentSegmentIndex] = useState<number | null>(null);
@@ -217,12 +144,7 @@ const VideoNotePanel = ({
   // 存储每个 segment DOM 元素的 ref
   const segmentRefsMap = useRef<Map<number, HTMLDivElement>>(new Map());
   const editorRef = useRef<EditorRef>(null);
-  const summaryEditorRef = useRef<EditorRef>(null);
   const slateEditorRef = useRef<CustomEditor | null>(null);
-  const modalSummaryEditorRef = useRef<EditorRef>(null);
-
-  // Summary session ID to force re-render when starting new summary
-  const [summarySessionId, setSummarySessionId] = useState(0);
 
   const activeNoteItem = useMemo(
     () => noteItems.find(item => item.id === activeNoteItemId) || null,
@@ -288,22 +210,15 @@ const VideoNotePanel = ({
   // Custom extensions for editor
   const customExtensions = useMemo(() => {
     return [
-      ...dynamicExtensions,
       new VideoTimestampExtension(videoController),
       new VideoScreenshotExtension(videoController),
     ];
-  }, [videoController, dynamicExtensions]);
-
-  // Extensions for summary editor (only timestamp)
-  const summaryExtensions = useMemo(() => {
-    return [new SummaryTimestampExtension(videoController)];
   }, [videoController]);
 
   // Load video note data
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      setDetectedTranscriptionLanguage(null);
       try {
         const note = await getVideoNoteById(videoNoteId);
         if (!note) {
@@ -334,33 +249,6 @@ const VideoNotePanel = ({
     loadData();
   }, [videoNoteId]);
 
-  // Throttled summary save
-  const { run: throttleSaveSummary } = useThrottleFn(
-    async (summary: string) => {
-      try {
-        await updateVideoNoteSummary(videoNoteId, summary);
-        setVideoNote(prev =>
-          prev
-            ? {
-                ...prev,
-                summary: summary,
-              }
-            : null
-        );
-
-        // 更新主视图的总结编辑器（Editor 是非受控组件，需要手动更新）
-        if (summaryEditorRef.current && summary) {
-          const content = importFromMarkdown(summary);
-          summaryEditorRef.current.setEditorValue(content);
-        }
-      } catch (error) {
-        console.error("Failed to save summary:", error);
-        toast.error("保存总结失败");
-      }
-    },
-    { wait: 1000 }
-  );
-
   // Handle editor content change
   const handleEditorChange = useMemoizedFn((content: Descendant[]) => {
     if (!activeNoteItem) {
@@ -370,12 +258,6 @@ const VideoNotePanel = ({
       ...prev,
       [activeNoteItem.id]: content,
     }));
-  });
-
-  // Handle summary content change
-  const handleSummaryChange = useMemoizedFn((content: Descendant[]) => {
-    const markdown = getMarkdown(content);
-    throttleSaveSummary(markdown);
   });
 
   // Handle editor init
@@ -452,8 +334,6 @@ const VideoNotePanel = ({
 
   // 受控确认弹窗的待确认项（替代 antd modal.confirm）
   const [pendingDeleteNoteId, setPendingDeleteNoteId] = useState<number | null>(null);
-  const [llmConfirm, setLlmConfirm] = useState<{ title: string; description: string } | null>(null);
-  const [confirmTranscribeFirst, setConfirmTranscribeFirst] = useState(false);
 
   const handleDeleteNote = useMemoizedFn((itemId: number) => {
     setPendingDeleteNoteId(itemId);
@@ -484,299 +364,6 @@ const VideoNotePanel = ({
       return next;
     });
   };
-
-  // Get local video path for transcription
-  const getVideoLocalPath = useMemoizedFn(async (): Promise<string | null> => {
-    if (!videoNote) return null;
-    const { metaInfo } = videoNote;
-
-    const getRemoteVideoLocalPath = async (remoteUrl: string) => {
-      const status = await getRemoteVideoCacheStatus(remoteUrl);
-      if (status?.localPath) {
-        return status.localPath;
-      }
-
-      setTranscriptionProgress("视频尚未缓存，正在下载...");
-      const result = await downloadRemoteVideoWithProgress({ url: remoteUrl }, progress => {
-        const percent =
-          typeof progress.progress === "number" ? ` ${Math.round(progress.progress)}%` : "";
-        setTranscriptionProgress(progress.message || `视频尚未缓存，正在下载${percent}...`);
-      });
-      return result.localPath || null;
-    };
-
-    switch (metaInfo.type) {
-      case "local": {
-        const filePath = (metaInfo as LocalVideoMetaInfo).filePath;
-        if (isRemoteHttpUrl(filePath)) {
-          return getRemoteVideoLocalPath(filePath);
-        }
-        return filePath;
-      }
-      case "remote": {
-        return getRemoteVideoLocalPath((metaInfo as RemoteVideoMetaInfo).url);
-      }
-      case "bilibili": {
-        const biliMeta = metaInfo as BiliBiliVideoMetaInfo;
-        const status = await getBilibiliCacheStatus(
-          biliMeta.bvid,
-          biliMeta.cid,
-          biliMeta.quality || 80
-        );
-        return status?.localPath || null;
-      }
-      case "youtube": {
-        const ytMeta = metaInfo as YouTubeVideoMetaInfo;
-        const status = await getYoutubeCacheStatus(ytMeta.url);
-        return status?.localPath || null;
-      }
-      default:
-        return null;
-    }
-  });
-
-  // Handle transcription
-  const handleTranscribe = useMemoizedFn(async () => {
-    const transcriptionSettings = useSettingStore.getState().setting.transcription;
-    const currentModel = transcriptionSettings.currentModel;
-
-    if (!currentModel) {
-      toast.warning("请先在设置中下载转录模型");
-      return;
-    }
-
-    // 检查 LLM 优化配置
-    const llmRequirement = checkTranscriptionLLMRequirement();
-    console.log(
-      `[VideoNoteView] LLM requirement check - needsLLM: ${llmRequirement.needsLLM}, isConfigured: ${llmRequirement.isConfigured}`
-    );
-    if (llmRequirement.needsLLM && !llmRequirement.isConfigured) {
-      setLlmConfirm({
-        title: "LLM 优化配置不完整",
-        description: `${llmRequirement.errorMessage}。是否打开设置页面进行配置？`,
-      });
-      return;
-    }
-
-    setIsTranscribing(true);
-    setTranscriptionProgress("正在准备视频...");
-
-    try {
-      const videoPath = await getVideoLocalPath();
-      if (!videoPath) {
-        toast.warning("视频尚未缓存，请等待视频加载完成后再试");
-        setIsTranscribing(false);
-        setTranscriptionProgress("");
-        return;
-      }
-
-      setTranscriptionProgress("正在提取音频...");
-      const extractResult = await extractAudioFromVideo(videoPath);
-      if (!extractResult.success || !extractResult.audioPath) {
-        throw new Error(extractResult.error || "提取音频失败");
-      }
-
-      // 使用 prepareTranscriptionOptions 准备完整的转录选项
-      const options = prepareTranscriptionOptions({
-        language: transcriptionLanguage, // 自动识别模式会透传为 auto
-      });
-      console.log(
-        `[VideoNoteView] Transcription options - sentenceLevel: ${options.sentenceLevel}, useLLMOptimization: ${options.useLLMOptimization}`
-      );
-
-      // 检查是否需要分段转录（长视频处理）
-      const miscSettings = useSettingStore.getState().setting.misc;
-      const enableLongVideoSegmentation =
-        miscSettings?.transcription?.enableLongVideoSegmentation ?? true;
-
-      let result;
-      if (enableLongVideoSegmentation) {
-        setTranscriptionProgress("正在检查视频时长...");
-        const segmentCheck = await shouldSegmentAudio(extractResult.audioPath);
-
-        if (segmentCheck.success && segmentCheck.shouldSegment) {
-          // 使用分段转录
-          const durationMinutes = Math.round((segmentCheck.duration || 0) / 60);
-          setTranscriptionProgress(`长视频检测到 (${durationMinutes} 分钟)，准备分段转录...`);
-          console.log(
-            `[VideoNoteView] Long video detected (${durationMinutes} min), using segmented transcription`
-          );
-
-          const unsubscribe = onTranscriptionProgress(data => {
-            setTranscriptionProgress(data.message);
-          });
-
-          result = await transcribeAudioSegmented(extractResult.audioPath, options);
-
-          unsubscribe();
-        } else {
-          // 常规转录
-          setTranscriptionProgress(`正在转录 ...`);
-          const unsubscribe = onTranscriptionProgress(data => {
-            setTranscriptionProgress(data.message);
-          });
-
-          result = await transcribeAudio(extractResult.audioPath, options);
-
-          unsubscribe();
-        }
-      } else {
-        // 未启用分段转录，使用常规转录
-        setTranscriptionProgress(`正在转录 ...`);
-        const unsubscribe = onTranscriptionProgress(data => {
-          setTranscriptionProgress(data.message);
-        });
-
-        result = await transcribeAudio(extractResult.audioPath, options);
-
-        unsubscribe();
-      }
-
-      if (result.success && result.data) {
-        const detectedLanguage = result.data.language || null;
-        setDetectedTranscriptionLanguage(detectedLanguage);
-        const optimizationLanguage = resolveVideoNoteOptimizationLanguage(
-          transcriptionLanguage,
-          detectedLanguage
-        );
-
-        // 如果需要 LLM 优化且有词级时间戳，启动流式优化
-        if (
-          llmRequirement.needsLLM &&
-          result.data.wordSegments &&
-          result.data.wordSegments.length > 0
-        ) {
-          console.log(
-            `[VideoNoteView] Starting LLM optimization with ${result.data.wordSegments.length} word segments`
-          );
-          setTranscriptionProgress("正在使用 AI 优化断句...");
-          // 保存原始数据，等流式优化完成后使用
-          setPendingWordSegments(result.data.wordSegments);
-          // 启动流式优化，自动模式优先使用本次检测语言
-          startOptimization(result.data.wordSegments, optimizationLanguage);
-          // 不在这里结束 isTranscribing，等待 useEffect 处理完成
-        } else {
-          // 无需 LLM 优化，直接保存
-          console.log(
-            `[VideoNoteView] Skipping LLM optimization (needsLLM: ${llmRequirement.needsLLM}, wordSegments: ${result.data.wordSegments?.length || 0})`
-          );
-          const finalSegments = result.data.segments;
-          const finalText = result.data.text;
-          const wordSegments = result.data.wordSegments;
-
-          setTranscriptionProgress("正在保存...");
-          await updateVideoNoteTranscript(
-            videoNoteId,
-            finalText,
-            finalSegments,
-            wordSegments // 同时保存词级时间戳，以便后续重新 AI 优化
-          );
-          setVideoNote(prev =>
-            prev
-              ? {
-                  ...prev,
-                  transcript: finalText,
-                  transcriptSegments: finalSegments,
-                  transcriptWordSegments: wordSegments,
-                }
-              : null
-          );
-          setIsTranscribing(false);
-          setTranscriptionProgress("");
-          toast.success("转录完成");
-        }
-      } else {
-        throw new Error(result.error || "转录失败");
-      }
-    } catch (error) {
-      console.error("Transcription error:", error);
-      toast.error(`转录失败: ${error}`);
-      setIsTranscribing(false);
-      setTranscriptionProgress("");
-    }
-  });
-
-  // 处理流式优化完成后的保存
-  useEffect(() => {
-    const saveOptimizedResult = async () => {
-      if (optimizedFinalSegments && !isOptimizing && pendingWordSegments) {
-        try {
-          const finalText = optimizedFinalSegments.map(s => s.text).join(" ");
-
-          setTranscriptionProgress("正在保存...");
-          await updateVideoNoteTranscript(
-            videoNoteId,
-            finalText,
-            optimizedFinalSegments,
-            pendingWordSegments // 保存原始词级时间戳，以便后续重新 AI 优化
-          );
-          setVideoNote(prev =>
-            prev
-              ? {
-                  ...prev,
-                  transcript: finalText,
-                  transcriptSegments: optimizedFinalSegments,
-                  transcriptWordSegments: pendingWordSegments,
-                }
-              : null
-          );
-
-          if (optimizationError) {
-            toast.warning("AI 优化出现错误，使用部分结果");
-          } else {
-            toast.success("转录完成（已使用 AI 优化断句）");
-          }
-        } catch (error) {
-          console.error("Failed to save optimized transcript:", error);
-          toast.error("保存失败");
-        } finally {
-          setIsTranscribing(false);
-          setTranscriptionProgress("");
-          setPendingWordSegments(null);
-        }
-      }
-    };
-
-    saveOptimizedResult();
-  }, [optimizedFinalSegments, isOptimizing, pendingWordSegments, videoNoteId, optimizationError]);
-
-  // 取消优化
-  const handleCancelOptimization = useMemoizedFn(() => {
-    stopOptimization();
-    setIsTranscribing(false);
-    setTranscriptionProgress("");
-    setPendingWordSegments(null);
-    toast.info("优化已取消");
-  });
-
-  // 单独使用 AI 优化（针对已有转录）
-  const handleAIOptimize = useMemoizedFn(async () => {
-    if (!videoNote?.transcriptWordSegments || videoNote.transcriptWordSegments.length === 0) {
-      toast.warning("没有可用于优化的词级时间戳数据");
-      return;
-    }
-
-    // 检查 LLM 配置
-    const llmRequirement = checkTranscriptionLLMRequirement();
-    if (!llmRequirement.isConfigured) {
-      setLlmConfirm({
-        title: "LLM 优化配置不完整",
-        description: `${llmRequirement.errorMessage}。是否打开设置页面进行配置？`,
-      });
-      return;
-    }
-
-    setIsTranscribing(true);
-    setTranscriptionProgress("正在使用 AI 优化断句...");
-    setPendingWordSegments(videoNote.transcriptWordSegments);
-
-    const optimizationLanguage = resolveVideoNoteOptimizationLanguage(
-      transcriptionLanguage,
-      detectedTranscriptionLanguage
-    );
-    // 启动流式优化，自动模式下无检测结果时回退中文
-    startOptimization(videoNote.transcriptWordSegments, optimizationLanguage);
-  });
 
   // 开始编辑转录片段（打开弹窗）
   const handleStartEditSegment = useMemoizedFn((index: number) => {
@@ -827,83 +414,6 @@ const VideoNotePanel = ({
     // 清除编辑状态
     setEditModalOpen(false);
     setEditingSegmentIndex(null);
-  });
-
-  // 处理总结完成后的保存
-  useEffect(() => {
-    const saveSummaryResult = async () => {
-      if (finalSummary && !isSummarizing) {
-        // 如果模态框打开，不自动保存（让用户编辑）
-        if (summaryModalOpen) {
-          return;
-        }
-
-        try {
-          await updateVideoNoteSummary(videoNoteId, finalSummary);
-          setVideoNote(prev =>
-            prev
-              ? {
-                  ...prev,
-                  summary: finalSummary,
-                }
-              : null
-          );
-          if (summaryError) {
-            toast.warning("总结生成出现错误");
-          } else {
-            toast.success("视频总结完成");
-          }
-        } catch (error) {
-          console.error("Failed to save summary:", error);
-          toast.error("保存总结失败");
-        }
-      }
-    };
-
-    saveSummaryResult();
-  }, [finalSummary, isSummarizing, videoNoteId, summaryError, summaryModalOpen]);
-
-  // Update summary editor content when summaryContent changes (streaming)
-  useEffect(() => {
-    if (summaryContent && summaryEditorRef.current) {
-      summaryEditorRef.current.setEditorValue(summaryContent);
-    }
-  }, [summaryContent]);
-
-  // Update modal summary editor content when summaryContent changes (streaming)
-  useEffect(() => {
-    if (isSummarizing && summaryContent && modalSummaryEditorRef.current && summaryModalOpen) {
-      modalSummaryEditorRef.current.setEditorValue(summaryContent);
-    }
-  }, [summaryContent, isSummarizing, summaryModalOpen]);
-
-  // 处理视频总结
-  const handleSummarize = useMemoizedFn(async () => {
-    // 检查是否有转录
-    if (!videoNote?.transcriptSegments || videoNote.transcriptSegments.length === 0) {
-      setConfirmTranscribeFirst(true);
-      return;
-    }
-
-    // 检查 LLM 配置
-    if (!summaryLLMProviderSetting || !summaryLLMModelSetting) {
-      setLlmConfirm({
-        title: "未配置总结模型",
-        description: "请先在设置中配置视频总结的 LLM 模型。",
-      });
-      return;
-    }
-
-    // 切换到总结 Tab 并开始总结
-    setActiveTab("summary");
-    setSummarySessionId(prev => prev + 1); // Force re-render editor
-    startSummary(videoNote.transcriptSegments);
-  });
-
-  // 取消总结
-  const handleCancelSummary = useMemoizedFn(() => {
-    stopSummary();
-    toast.info("总结已取消");
   });
 
   const handleOpenEbookExportModal = useMemoizedFn(() => {
@@ -1081,9 +591,6 @@ const VideoNotePanel = ({
 
   const hasTranscriptSegments = !!videoNote?.transcriptSegments?.length;
 
-  // 计算模态框编辑器是否可编辑
-  const isModalEditable = !isSummarizing && (finalSummary || videoNote?.summary);
-
   const videoNotePanel = (
     <div className="flex h-full flex-col overflow-hidden">
       <div className="flex h-12 shrink-0 items-center gap-3 border-b border-gray-200 px-4 dark:border-gray-700">
@@ -1101,21 +608,6 @@ const VideoNotePanel = ({
           >
             <Volume2 size={12} />
             转录
-          </button>
-          <button
-            onClick={() => setActiveTab("summary")}
-            className={classNames(
-              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200",
-              activeTab === "summary"
-                ? [themeColors.activeClass, themeColors.activeTextClass, "shadow-sm"]
-                : [
-                    "text-gray-600 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200",
-                  ]
-            )}
-          >
-            <FileText size={14} />
-            总结
-            {isSummarizing && <LoaderCircle size={12} className="ml-0.5 animate-spin" />}
           </button>
           <button
             disabled={!hasTranscriptSegments}
@@ -1146,44 +638,6 @@ const VideoNotePanel = ({
             <Pencil size={12} />
             笔记
           </button>
-        </div>
-
-        <div className="ml-auto flex items-center gap-2">
-          {activeTab === "summary" && (videoNote?.summary || summaryContent || isSummarizing) && (
-            <Tooltip content={isSummarizing ? "正在生成总结..." : "重新生成视频总结"}>
-              <button
-                className="dark:hover: flex items-center gap-1 rounded-md px-2 py-1 text-xs text-[var(--th-accent)] hover:bg-[var(--th-accent-soft)] disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={isSummarizing || isTranscribing || !videoNote?.transcriptSegments?.length}
-                onClick={handleSummarize}
-              >
-                {isSummarizing ? (
-                  <LoaderCircle size={14} className="animate-spin" />
-                ) : (
-                  <FileText size={14} />
-                )}
-                <span>重新生成</span>
-              </button>
-            </Tooltip>
-          )}
-          {activeTab === "summary" && (summaryContent || videoNote?.summary) && !isSummarizing && (
-            <Tooltip content="放大查看">
-              <button
-                className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
-                onClick={() => setSummaryModalOpen(true)}
-              >
-                <Expand size={16} />
-              </button>
-            </Tooltip>
-          )}
-          {activeTab === "summary" && isSummarizing && (
-            <button
-              className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
-              onClick={handleCancelSummary}
-            >
-              <X size={14} strokeWidth={1.75} />
-              <span>取消</span>
-            </button>
-          )}
         </div>
       </div>
 
@@ -1299,61 +753,6 @@ const VideoNotePanel = ({
           </FadeScroll>
         )}
 
-        {activeTab === "summary" && (
-          <div className="flex h-full min-h-0 flex-col">
-            <FadeScroll className="mb-4 min-h-0 flex-1">
-              {isSummarizing && !summaryContent ? (
-                <div className="flex h-full items-center justify-center">
-                  <LoaderCircle size={30} className="text-ink-3 animate-spin" />
-                </div>
-              ) : isSummarizing || summaryContent ? (
-                <div className="pb-2 pl-6 pr-[18px] pt-6">
-                  <Editor
-                    key={`summary-streaming-${videoNoteId}-${summarySessionId}`}
-                    ref={summaryEditorRef}
-                    initValue={summaryContent || createEmptyEditorContent()}
-                    extensions={summaryExtensions}
-                    readonly={true}
-                    features={{ disableHeaderCollapse: true }}
-                  />
-                </div>
-              ) : videoNote.summary ? (
-                <div className="pb-2 pl-6 pr-[18px] pt-6">
-                  <Editor
-                    ref={summaryEditorRef}
-                    key={`summary-saved-${videoNoteId}`}
-                    initValue={importFromMarkdown(videoNote.summary)}
-                    extensions={summaryExtensions}
-                    readonly={true}
-                    features={{ disableHeaderCollapse: true }}
-                  />
-                </div>
-              ) : (
-                <div className="flex h-full flex-col items-center justify-center gap-3 text-gray-400">
-                  <FileText size={24} />
-                  <span className="text-sm">生成当前视频的结构化摘要与重点结论</span>
-                  <Tooltip content={isSummarizing ? "正在生成总结..." : "生成视频总结"}>
-                    <button
-                      className="dark:hover: flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-[var(--th-accent)] hover:bg-[var(--th-accent-soft)] disabled:cursor-not-allowed disabled:opacity-50"
-                      disabled={
-                        isSummarizing || isTranscribing || !videoNote?.transcriptSegments?.length
-                      }
-                      onClick={handleSummarize}
-                    >
-                      {isSummarizing ? (
-                        <LoaderCircle size={14} className="animate-spin" />
-                      ) : (
-                        <FileText size={14} />
-                      )}
-                      <span>生成总结</span>
-                    </button>
-                  </Tooltip>
-                </div>
-              )}
-            </FadeScroll>
-          </div>
-        )}
-
         {activeTab === "chat" && (
           <div className="h-full">
             {hasTranscriptSegments ? (
@@ -1361,6 +760,7 @@ const VideoNotePanel = ({
                 videoNoteId={videoNoteId}
                 mainDbName={activeDatabase}
                 transcript={transcriptForChat}
+                docked
               />
             ) : (
               <div className="flex h-full flex-col items-center justify-center gap-3 px-8 text-center">
@@ -1631,43 +1031,6 @@ const VideoNotePanel = ({
         placeholder="请输入转录文案"
       />
 
-      {/* 总结放大查看弹窗 */}
-      <CustomModal
-        open={summaryModalOpen}
-        onCancel={() => setSummaryModalOpen(false)}
-        width={900}
-        title="视频总结"
-        subtitle={isSummarizing ? "正在生成..." : "查看和编辑总结内容"}
-        icon={<FileText size={20} className="text-[var(--th-accent)]" />}
-        footer={null}
-        bodyClassName="px-5 pb-5 max-h-[70vh] overflow-auto"
-      >
-        {(summaryContent || videoNote?.summary) && (
-          <Editor
-            ref={modalSummaryEditorRef}
-            key={`summary-modal-${videoNoteId}-${summarySessionId}`}
-            initValue={
-              isSummarizing && summaryContent
-                ? summaryContent
-                : finalSummary
-                  ? importFromMarkdown(finalSummary)
-                  : videoNote?.summary
-                    ? importFromMarkdown(videoNote.summary)
-                    : [
-                        {
-                          type: "paragraph",
-                          children: [{ type: "formatted", text: "" }],
-                        },
-                      ]
-            }
-            extensions={summaryExtensions}
-            readonly={!isModalEditable}
-            onChange={isModalEditable ? handleSummaryChange : undefined}
-            features={{ disableHeaderCollapse: true }}
-          />
-        )}
-      </CustomModal>
-
       <VideoNoteEpubExportModal
         open={ebookExportModalOpen}
         onClose={() => setEbookExportModalOpen(false)}
@@ -1789,25 +1152,14 @@ const VideoNotePanel = ({
         onConfirm={confirmDeleteNote}
       />
       <ConfirmDialog
-        open={llmConfirm != null}
-        onOpenChange={v => !v && setLlmConfirm(null)}
-        title={llmConfirm?.title ?? ""}
-        description={llmConfirm?.description ?? ""}
+        open={transcriptionLlmConfirm != null}
+        onOpenChange={v => !v && dismissLlmConfirm()}
+        title={transcriptionLlmConfirm?.title ?? ""}
+        description={transcriptionLlmConfirm?.description ?? ""}
         confirmText="打开设置"
         onConfirm={() => {
-          setLlmConfirm(null);
+          dismissLlmConfirm();
           openLLMSettingsSection();
-        }}
-      />
-      <ConfirmDialog
-        open={confirmTranscribeFirst}
-        onOpenChange={v => !v && setConfirmTranscribeFirst(false)}
-        title="需要先转录"
-        description="视频尚未转录，是否先进行转录？"
-        confirmText="开始转录"
-        onConfirm={() => {
-          setConfirmTranscribeFirst(false);
-          handleTranscribe();
         }}
       />
     </div>

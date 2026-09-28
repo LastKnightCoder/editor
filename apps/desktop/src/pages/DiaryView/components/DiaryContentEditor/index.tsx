@@ -11,7 +11,6 @@ interface DiaryContentEditorProps {
   initialValue: Descendant[];
   placeholder?: string;
   className?: string;
-  extensions?: any[];
   onContentChange?: (value: Descendant[]) => void;
 }
 
@@ -21,7 +20,6 @@ const DiaryContentEditor = memo(
     initialValue,
     placeholder,
     className,
-    extensions = [],
     onContentChange,
   }: DiaryContentEditorProps) => {
     const editorRef = useRef<EditorRef | null>(null);
@@ -48,7 +46,6 @@ const DiaryContentEditor = memo(
       <Editor
         contentId={contentId}
         ref={editorRef}
-        extensions={extensions}
         initValue={initialValue}
         onChange={handleContentChange}
         readonly={false}

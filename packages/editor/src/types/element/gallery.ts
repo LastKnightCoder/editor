@@ -1,9 +1,6 @@
-import { EGalleryMode } from "../../constants";
-import { Descendant } from "slate";
-import type {
-  ImageBorderRadiusPreset,
-  ImageShadowPreset,
-} from "./image-appearance";
+import type { EGalleryMode } from "../../constants/gallery";
+import type { Descendant } from "slate";
+import type { ImageBorderRadiusPreset, ImageShadowPreset } from "./image-appearance";
 
 export interface ImageGalleryItem {
   id: string;

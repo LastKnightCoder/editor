@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import { Descendant } from "slate";
 import { Button, App } from "antd";
 
@@ -8,7 +9,6 @@ import AddTag from "@/components/AddTag";
 import { createCard, closeWindow } from "@/commands";
 import { isElectron } from "@/electron";
 import { ECardCategory } from "@/types";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 import styles from "./index.module.less";
 import { getContentLength } from "@/utils";
@@ -24,7 +24,6 @@ const initValue: Descendant[] = [
 
 const QuickCard = () => {
   const { databaseStatus, active } = useInitDatabase();
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
 
   const status = databaseStatus[active];
   const isConnected = status === "ready" || status === "reconnecting";
@@ -86,11 +85,11 @@ const QuickCard = () => {
       <div className={styles.editorContainer}>
         <ErrorBoundary>
           <Editor
+            kit={getDesktopKit()}
             className={styles.editor}
             ref={editorRef}
             initValue={initValue}
             onChange={setContent}
-            extensions={dynamicExtensions}
             readonly={false}
           />
         </ErrorBoundary>

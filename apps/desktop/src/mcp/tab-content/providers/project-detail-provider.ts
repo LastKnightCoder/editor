@@ -1,6 +1,6 @@
 import { TabType } from "@/types/tab";
 import { getProjectById, getProjectItemById } from "@/commands/project";
-import { getMarkdown } from "@/utils/markdown-helper";
+import { getMarkdown } from "@/utils/markdown";
 import { BaseTabContentProvider } from "./base-provider";
 import type { ITab } from "@/types/tab";
 import type { TabContentResponse, TabContentOptions } from "../types";
@@ -14,7 +14,7 @@ export class ProjectDetailProvider extends BaseTabContentProvider<TabType.Projec
 
   async getContent(
     tab: ITab<TabType.ProjectDetail>,
-    options?: TabContentOptions,
+    options?: TabContentOptions
   ): Promise<TabContentResponse> {
     const metadata = this.buildMetadata(tab);
 

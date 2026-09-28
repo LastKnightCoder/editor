@@ -28,6 +28,8 @@ interface CardDatabaseViewProps {
   onOpenCreateCard: (defaultCategory: ECardCategory) => void;
   onDeleteCard: (cardId: number) => Promise<void>;
   onUpdateCard?: (cardId: number, patch: CardMetadataPatch) => Promise<ICard>;
+  /** 透传 Database：铺在页面纸上，去掉自身卡片外壳 */
+  bare?: boolean;
 }
 
 export interface CardDatabaseViewRef {
@@ -45,6 +47,7 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
     onOpenCreateCard,
     onDeleteCard,
     onUpdateCard,
+    bare,
   } = props;
   const { isDark } = useTheme();
 
@@ -480,9 +483,10 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
   }
 
   return (
-    <div className="h-full w-full border border-transparent">
+    <div className={bare ? "h-full w-full" : "h-full w-full border border-transparent"}>
       <Database
         ref={databaseRef}
+        bare={bare}
         columns={columns}
         data={rows}
         views={views}

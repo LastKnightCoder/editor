@@ -1,9 +1,5 @@
 import { Blob as NodeBlob } from "node:buffer";
-import {
-  Uint8ArrayReader,
-  ZipReader,
-  configure as configureZip,
-} from "@zip.js/zip.js";
+import { Uint8ArrayReader, ZipReader, configure as configureZip } from "@zip.js/zip.js";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   buildBatchEpubPayload,
@@ -21,7 +17,7 @@ vi.mock("@/utils/html-serializers", () => ({
   },
 }));
 
-vi.mock("@/utils/markdown-helper", () => ({
+vi.mock("@/utils/markdown", () => ({
   getMarkdown: vi.fn(() => "正文"),
 }));
 
@@ -34,8 +30,7 @@ vi.mock("@/utils/epub-export/assets", () => ({
 }));
 
 const createNode = (
-  input: Partial<BatchExportTreeNode> &
-    Pick<BatchExportTreeNode, "id" | "title" | "exportable">,
+  input: Partial<BatchExportTreeNode> & Pick<BatchExportTreeNode, "id" | "title" | "exportable">
 ): BatchExportTreeNode => ({
   depth: 0,
   content: input.exportable
@@ -81,9 +76,7 @@ describe("batch export markdown zip", () => {
     const entries = await zipReader.getEntries();
     await zipReader.close();
 
-    expect(entries.map((entry) => entry.filename)).toEqual([
-      "空内容目录/下级文档.md",
-    ]);
+    expect(entries.map(entry => entry.filename)).toEqual(["空内容目录/下级文档.md"]);
   });
 });
 
@@ -119,7 +112,7 @@ describe("batch export pdf payload", () => {
     expect(payload.html).toContain('class="pdf-toc-item pdf-toc-item-top"');
     expect(payload.html).toContain("点击条目可跳转至对应章节");
     expect(payload.html.indexOf("pdf-toc")).toBeLessThan(
-      payload.html.indexOf('id="batch-chapter-0"'),
+      payload.html.indexOf('id="batch-chapter-0"')
     );
     expect(payload.styles).toContain(".pdf-toc");
     expect(payload.styles).toContain(".pdf-toc-leader");
@@ -166,9 +159,7 @@ describe("batch export pdf payload", () => {
 
   it("目录条目对标题做 HTML 转义", async () => {
     const payload = await buildBatchPdfPayload({
-      chapters: [
-        { id: 1, title: '<script>"注入"</script>', depth: 0, content: [] },
-      ],
+      chapters: [{ id: 1, title: '<script>"注入"</script>', depth: 0, content: [] }],
       title: "测试书",
       rule: pdfRule,
       pdf: { outline: true, tocPage: true },
@@ -198,10 +189,10 @@ describe("flattenSelectedChapters 分组条目", () => {
     const chapters = flattenSelectedChapters(tree, new Set([11, 3]));
 
     expect(
-      chapters.map((chapter) => ({
+      chapters.map(chapter => ({
         title: chapter.title,
         isGroup: !!chapter.isGroup,
-      })),
+      }))
     ).toEqual([
       { title: "文件夹A", isGroup: true },
       { title: "文档1", isGroup: false },
@@ -228,11 +219,7 @@ describe("flattenSelectedChapters 分组条目", () => {
 
     const chapters = flattenSelectedChapters(nested, new Set([3]));
 
-    expect(chapters.map((chapter) => chapter.title)).toEqual([
-      "外层",
-      "内层",
-      "文档",
-    ]);
+    expect(chapters.map(chapter => chapter.title)).toEqual(["外层", "内层", "文档"]);
     expect(chapters[0].isGroup).toBe(true);
     expect(chapters[1].isGroup).toBe(true);
     expect(chapters[2].isGroup).toBeUndefined();
@@ -264,11 +251,11 @@ describe("batch export pdf 分组条目", () => {
 
     // 首个内容章节排在分组条目（index > 0）之后，不应添加多余分页
     expect(payload.html).not.toContain(
-      '<section style="page-break-before: always;"><h1 id="batch-chapter-0">',
+      '<section style="page-break-before: always;"><h1 id="batch-chapter-0">'
     );
     // 第二个内容章节正常分页
     expect(payload.html).toContain(
-      '<section style="page-break-before: always;"><h1 id="batch-chapter-2">',
+      '<section style="page-break-before: always;"><h1 id="batch-chapter-2">'
     );
   });
 
@@ -325,9 +312,7 @@ describe("buildBatchEpubPayload 分组目录", () => {
 
     // 分组不单独成章，只拼进第一个内容章节
     expect(payload.chapters).toHaveLength(2);
-    expect(payload.chapters[0].xhtml).toContain(
-      '<h1 id="epub-group-0-0">第一部分</h1>',
-    );
+    expect(payload.chapters[0].xhtml).toContain('<h1 id="epub-group-0-0">第一部分</h1>');
     expect(payload.nav).toEqual([
       {
         title: "第一部分",
@@ -346,7 +331,7 @@ describe("buildBatchEpubPayload 分组目录", () => {
         { id: 1, title: "第一部分", depth: 0, content: [], isGroup: true },
         { id: 11, title: "文档1", depth: 1, content: [] },
       ],
-      { ...pdfRule, asHeading: false },
+      { ...pdfRule, asHeading: false }
     );
 
     expect(payload.chapters[0].xhtml).not.toContain("第一部分");
@@ -381,8 +366,7 @@ describe("批量构建进度回调", () => {
       ],
       title: "测试书",
       rule: pdfRule,
-      onProgress: (processed, total, label) =>
-        events.push([processed, total, label]),
+      onProgress: (processed, total, label) => events.push([processed, total, label]),
     });
 
     expect(events).toEqual([
@@ -407,8 +391,7 @@ describe("批量构建进度回调", () => {
         description: "",
       },
       rule: pdfRule,
-      onProgress: (processed, total, label) =>
-        events.push([processed, total, label]),
+      onProgress: (processed, total, label) => events.push([processed, total, label]),
     });
 
     expect(events).toEqual([
@@ -426,9 +409,7 @@ describe("批量构建进度回调", () => {
         createNode({ id: 11, title: "文档1", exportable: true }),
         createNode({ id: 12, title: "文档2", exportable: true }),
       ];
-      await buildMarkdownZipBytes(tree, new Set([11, 12]), (p, t, l) =>
-        events.push([p, t, l]),
-      );
+      await buildMarkdownZipBytes(tree, new Set([11, 12]), (p, t, l) => events.push([p, t, l]));
 
       expect(events).toEqual([
         [1, 2, "文档1"],

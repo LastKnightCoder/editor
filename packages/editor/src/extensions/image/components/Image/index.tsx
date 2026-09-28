@@ -34,7 +34,7 @@ import { MdDragIndicator } from "react-icons/md";
 import { useImageResize, ResizeDirection } from "../../../../hooks/useImageResize";
 
 import useTheme from "../../../../hooks/useTheme";
-import { useEditorConfig } from "../../../../contexts/EditorConfig";
+import { useImageAppearance, type ImageAppearanceOption } from "../../appearanceOption";
 import { IMediaActions, useEditorSlots, useOptionalService } from "../../../../services";
 import { openLocalMediaPicker } from "../../../../utils/mediaInsert";
 
@@ -44,10 +44,11 @@ import type { CropperTransform } from "@tau/shared";
 interface IImageProps {
   attributes: RenderElementProps["attributes"];
   element: ImageElement;
+  appearance?: ImageAppearanceOption;
 }
 
 const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
-  const { attributes, children, element } = props;
+  const { attributes, children, element, appearance: appearanceOption } = props;
   const {
     url,
     alt = "",
@@ -62,7 +63,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
 
   const uploadResource = useUploadResource();
   const { isDark } = useTheme();
-  const config = useEditorConfig();
+  const appearance = useImageAppearance(appearanceOption);
   const { message: messageApi } = App.useApp();
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
@@ -82,7 +83,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
   const { menuProps, dragHandlerProps } = useDragHandlerMenu({
     element,
     editor,
-    buildMenuItems: params => buildImageMenuItems(params, messageApi, config?.appearance?.image),
+    buildMenuItems: params => buildImageMenuItems(params, messageApi, appearance),
   });
 
   const { showImageOverview } = useImagesOverviewStore(state => ({
@@ -389,7 +390,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
             <span>空图片，</span>
             <button
               type="button"
-              className="cursor-pointer border-none bg-transparent p-0 font-semibold text-[var(--th-btn-text)] underline-offset-2 hover:underline"
+              className="cursor-pointer border-none bg-transparent p-0 font-semibold text-[var(--ed-text-inverse)] underline-offset-2 hover:underline"
               onClick={() => openLocalMediaPicker(editor, "image", element)}
             >
               选择文件
@@ -403,8 +404,8 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
 
   const renderPreview = () => {
     const displayUrl = previewUrl || url;
-    const effectiveBorderRadius = borderRadius ?? config?.appearance?.image?.borderRadius ?? "none";
-    const effectiveShadow = shadow ?? config?.appearance?.image?.shadow ?? "none";
+    const effectiveBorderRadius = borderRadius ?? appearance?.borderRadius ?? "none";
+    const effectiveShadow = shadow ?? appearance?.shadow ?? "none";
     const imageAppearanceStyle = getImageAppearanceStyle({
       borderRadius: effectiveBorderRadius,
       shadow: effectiveShadow,

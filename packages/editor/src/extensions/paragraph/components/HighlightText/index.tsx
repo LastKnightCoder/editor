@@ -12,20 +12,17 @@ import { HoveringBarContext } from "../../../../components/HoveringToolbar";
 import FloatingSubmenu from "../../../../components/HoveringToolbar/FloatingSubmenu";
 
 import classnames from "classnames";
-import useThemeColors from "../../../../hooks/useThemeColors";
 
 const HighlightText = memo(() => {
   const editor = useSlate();
   const selection = useSlateSelection();
-  const themeColors = useThemeColors();
 
   const [open, setOpen] = useState<boolean>(false);
   const active = useMemo(() => {
     return isMarkActive("highlight", editor, selection);
   }, [editor, selection]);
 
-  const { isHoveringBarShow, isCompact, submenuTrigger } =
-    useContext(HoveringBarContext);
+  const { isHoveringBarShow, isCompact, submenuTrigger } = useContext(HoveringBarContext);
 
   const onOpenChange = useMemoizedFn((open: boolean) => {
     setOpen(open);
@@ -62,14 +59,9 @@ const HighlightText = memo(() => {
       <Tooltip title={"高亮"} trigger={"hover"}>
         <div
           className={classnames(
-            "flex items-center justify-center gap-0.5 px-1.5 h-8 rounded-lg cursor-pointer transition-all duration-200",
-            active
-              ? themeColors.activeClass
-              : classnames(
-                  themeColors.textClass,
-                  themeColors.hoverClass,
-                  themeColors.hoverTextClass,
-                ),
+            "flex h-8 cursor-pointer items-center justify-center gap-0.5 rounded-lg px-1.5 transition-all duration-200",
+            "ed-toolbar-item",
+            active && "is-active"
           )}
         >
           <Highlighter size={16} strokeWidth={2.5} />

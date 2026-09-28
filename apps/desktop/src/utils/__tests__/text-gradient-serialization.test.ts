@@ -1,56 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { Descendant } from "slate";
 import type { FormattedText } from "@tau/editor/src";
-import { getMarkdown, importFromMarkdown, leafToMarkdown } from "../markdown";
 import { htmlSerializerRegistry } from "../htmlSerializerRegistry";
 
-describe("text gradient markdown/html serialization", () => {
-  it("leafToMarkdown 应优先输出渐变指令", () => {
-    const leaf: FormattedText = {
-      type: "formatted",
-      text: "渐变文本",
-      color: "#e33a32",
-      darkColor: "#fa7873",
-      textGradient: "ocean",
-    };
-
-    expect(leafToMarkdown(leaf)).toBe(":gradient[渐变文本]{preset=ocean}");
-  });
-
-  it("importFromMarkdown 应解析 gradient 指令", () => {
-    const content = importFromMarkdown(":gradient[渐变文本]{preset=ocean}");
-    const paragraph = content[0] as any;
-    const leaf = paragraph.children?.[0] as FormattedText | undefined;
-
-    expect(leaf?.text).toBe("渐变文本");
-    expect(leaf?.textGradient).toBe("ocean");
-  });
-
-  it("gradient markdown 应支持 round-trip", () => {
-    const value: Descendant[] = [
-      {
-        type: "paragraph",
-        children: [
-          {
-            type: "formatted",
-            text: "RoundTrip",
-            textGradient: "sunset",
-          },
-        ],
-      } as any,
-    ];
-
-    const markdown = getMarkdown(value).trim();
-    expect(markdown).toBe(":gradient[RoundTrip]{preset=sunset}");
-
-    const parsed = importFromMarkdown(markdown);
-    const firstLeaf = (parsed[0] as any).children?.[0] as
-      | FormattedText
-      | undefined;
-    expect(firstLeaf?.textGradient).toBe("sunset");
-  });
-
+// Markdown 部分的用例已迁到 packages/markdown/src/__tests__/text-gradient-serialization.test.ts
+describe("text gradient html serialization", () => {
   it("HTML 序列化应输出渐变样式", () => {
     const html = htmlSerializerRegistry.serializeLeaf(
       {
@@ -58,7 +12,7 @@ describe("text gradient markdown/html serialization", () => {
         text: "HTML",
         textGradient: "violet",
       } as FormattedText,
-      { theme: "dark" },
+      { theme: "dark" }
     );
 
     expect(html).toContain("background-image:");

@@ -6,7 +6,6 @@ import { Dialog, DialogBody, Spinner } from "@tau/ui";
 import Editor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import useEditContent from "@/hooks/useEditContent";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { getContentById } from "@/commands/content";
 
 interface ContentDetailModalProps {
@@ -24,7 +23,6 @@ const ContentDetailModal = ({
   visible,
   onClose,
 }: ContentDetailModalProps) => {
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const editorRef = useRef<EditorRef>(null);
   const [loading, setLoading] = useState(true);
   const [initValue, setInitValue] = useState<Descendant[] | null>(null);
@@ -75,7 +73,6 @@ const ContentDetailModal = ({
                 ref={editorRef}
                 initValue={initValue}
                 onChange={onContentChange}
-                extensions={dynamicExtensions}
                 readonly={false}
               />
             </ErrorBoundary>

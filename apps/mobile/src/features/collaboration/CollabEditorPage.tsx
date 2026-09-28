@@ -2,6 +2,7 @@
 // 远端光标/选区由 @tau/editor 的 withCollaboration + Cursors 自动渲染，本页只负责外壳与状态。
 // 成员视角（本地无内容行）与协作中心入口仍走本页；owner 的原地编辑见详情页 CollaborativeEditor。
 import { useRef, useState } from "react";
+import { getMobileKit } from "../../services/editorKit";
 import {
   ChevronRight,
   Loader2,
@@ -15,7 +16,6 @@ import {
 import { Editor, type EditorRef } from "@tau/editor/src";
 import { ActionSheet } from "../../components/ActionSheet";
 import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
-import { useMobileTheme } from "../../hooks/useMobileTheme";
 import { useEdgeFade } from "../../hooks/useScrollState";
 import { useNavigator } from "../../router";
 import { mobileCardPreviewExtensions } from "../cards/editorExtensions";
@@ -30,7 +30,6 @@ export function CollabEditorPage(props: {
   onExit: () => void;
 }) {
   const navigator = useNavigator();
-  const { theme } = useMobileTheme();
   const [moreOpen, setMoreOpen] = useState(false);
   const { binding, session, loading, error, readonly, presence, status, online, offline, retry } =
     useCollabSession(props.documentId);
@@ -128,12 +127,12 @@ export function CollabEditorPage(props: {
           {binding ? (
             <div className="min-h-[45vh] pt-2">
               <Editor
+                kit={getMobileKit()}
                 ref={editorRef}
                 key={`collab-${props.documentId}`}
                 collaboration={binding}
                 className="mobile-card-editor-content"
                 readonly={readonly}
-                theme={theme}
                 extensions={mobileCardPreviewExtensions}
                 onFocus={() => {
                   presence.onFocus();

@@ -1,5 +1,5 @@
-import { FormattedText } from "../text";
-import { EStyledColor } from "../../constants";
+import type { FormattedText } from "../text";
+import type { EStyledColor } from "../../constants/styled-color";
 
 export interface StyledTextElement {
   type: "styled-text";

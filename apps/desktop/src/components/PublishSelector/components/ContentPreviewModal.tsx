@@ -1,10 +1,10 @@
 import { memo } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import { Descendant } from "slate";
 import { Dialog, DialogBody } from "@tau/ui";
 import { FileText } from "lucide-react";
 import { Editor } from "@tau/editor/src";
 import { formatDate, getContentLength } from "@/utils";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 interface ContentPreviewModalProps {
   open: boolean;
@@ -22,8 +22,6 @@ interface ContentPreviewModalProps {
 
 export const ContentPreviewModal = memo<ContentPreviewModalProps>(
   ({ open, title, content, contentKey, onClose, meta, icon }) => {
-    const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
-
     return (
       <Dialog
         open={open}
@@ -51,10 +49,10 @@ export const ContentPreviewModal = memo<ContentPreviewModalProps>(
 
             <div className="flex-1 overflow-y-auto">
               <Editor
+                kit={getDesktopKit()}
                 key={contentKey}
                 initValue={content}
                 readonly
-                extensions={dynamicExtensions}
                 className="text-ink-1"
                 style={{ padding: "0 4px" }}
               />

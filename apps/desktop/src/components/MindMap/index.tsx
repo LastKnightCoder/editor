@@ -10,16 +10,16 @@ import React, {
   useImperativeHandle,
   ReactNode,
 } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import clsx from "classnames";
-import { Editor } from "@tau/editor/src";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
-import useSettingStore from "@/stores/useSettingStore";
+import { Editor, EditorThemeOverride } from "@tau/editor/src";
 import { MindUtil } from "@/components/WhiteBoard/utils/MindUtil";
 import { MindNodeElement } from "@/components/WhiteBoard/types/mind";
-import {
-  MindMapTheme,
-  getThemeById,
-} from "@/components/WhiteBoard/constants/mind-themes";
+import MindThemeUtil, {
+  type MindMode,
+  type MindNodeVisual,
+} from "@/components/WhiteBoard/utils/MindThemeUtil";
+import { useMindMode } from "@/components/WhiteBoard/hooks/useMindTheme";
 import { MindMapNodeData, FlattenedMindMapNode } from "./types";
 import { useMindMapMeasurements } from "./useMindMapMeasurements";
 import { Descendant } from "slate";
@@ -45,14 +45,10 @@ const parseToRgb = (color: string): [number, number, number] | null => {
     if (h.length === 3) {
       h = h
         .split("")
-        .map((c) => c + c)
+        .map(c => c + c)
         .join("");
     }
-    return [
-      parseInt(h.slice(0, 2), 16),
-      parseInt(h.slice(2, 4), 16),
-      parseInt(h.slice(4, 6), 16),
-    ];
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
   }
   const rgbMatch = color.match(/^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/);
   if (rgbMatch) {
@@ -61,11 +57,7 @@ const parseToRgb = (color: string): [number, number, number] | null => {
   return null;
 };
 
-const rgbToHsl = (
-  r: number,
-  g: number,
-  b: number,
-): [number, number, number] => {
+const rgbToHsl = (r: number, g: number, b: number): [number, number, number] => {
   const rn = r / 255;
   const gn = g / 255;
   const bn = b / 255;
@@ -83,11 +75,7 @@ const rgbToHsl = (
   return [h * 60, s, l];
 };
 
-const hslToRgb = (
-  h: number,
-  s: number,
-  l: number,
-): [number, number, number] => {
+const hslToRgb = (h: number, s: number, l: number): [number, number, number] => {
   const c = (1 - Math.abs(2 * l - 1)) * s;
   const hp = h / 60;
   const x = c * (1 - Math.abs((hp % 2) - 1));
@@ -101,11 +89,7 @@ const hslToRgb = (
   else if (hp < 5) [r1, g1, b1] = [x, 0, c];
   else [r1, g1, b1] = [c, 0, x];
   const m = l - c / 2;
-  return [
-    Math.round((r1 + m) * 255),
-    Math.round((g1 + m) * 255),
-    Math.round((b1 + m) * 255),
-  ];
+  return [Math.round((r1 + m) * 255), Math.round((g1 + m) * 255), Math.round((b1 + m) * 255)];
 };
 
 const getSelectedRingColor = (bg: string, isDark: boolean): string => {
@@ -124,18 +108,13 @@ const getSelectedBoxShadow = (bg: string, isDark: boolean): string => {
   return `0 0 0 2px ${getSelectedRingColor(bg, isDark)}`;
 };
 
-const sanitizeMindDataDirections = (
-  node: MindMapNodeData,
-  level = 1,
-): MindMapNodeData => {
+const sanitizeMindDataDirections = (node: MindMapNodeData, level = 1): MindMapNodeData => {
   let nextChildren = node.children;
   if (node.children && node.children.length > 0) {
-    const sanitizedChildren = node.children.map((child) =>
-      sanitizeMindDataDirections(child, level + 1),
+    const sanitizedChildren = node.children.map(child =>
+      sanitizeMindDataDirections(child, level + 1)
     );
-    if (
-      sanitizedChildren.some((child, index) => child !== node.children?.[index])
-    ) {
+    if (sanitizedChildren.some((child, index) => child !== node.children?.[index])) {
       nextChildren = sanitizedChildren;
     }
   }
@@ -160,7 +139,7 @@ const sanitizeMindDataDirections = (
 
 const resolveChildDirection = (
   parent: MindNodeElement,
-  child: MindNodeElement,
+  child: MindNodeElement
 ): "left" | "right" => {
   if (child.direction) {
     return child.direction;
@@ -171,7 +150,7 @@ const resolveChildDirection = (
 const splitChildrenByDirection = (node: MindNodeElement) => {
   const left: MindNodeElement[] = [];
   const right: MindNodeElement[] = [];
-  node.children.forEach((child) => {
+  node.children.forEach(child => {
     const direction = resolveChildDirection(node, child);
     if (direction === "left") {
       left.push(child);
@@ -185,6 +164,8 @@ const splitChildrenByDirection = (node: MindNodeElement) => {
 interface MindMapProps {
   data: MindMapNodeData;
   themeId?: string;
+  /** solid / soft / outline，默认 solid */
+  themeStyle?: string;
   className?: string;
   style?: React.CSSProperties;
   cacheNamespace?: string;
@@ -193,20 +174,10 @@ interface MindMapProps {
   selectedNodeIds?: string[];
   interactionMode?: "readonly" | "editable";
   onNodeClick?: (nodeId: string) => void;
-  renderNodeActions?: (
-    node: MindMapNodeData,
-    context: MindMapNodeActionContext,
-  ) => ReactNode;
+  renderNodeActions?: (node: MindMapNodeData, context: MindMapNodeActionContext) => ReactNode;
   renderNodeContent?: (node: MindMapNodeData) => ReactNode;
-  onViewportChange?: (viewport: {
-    pan: { x: number; y: number };
-    zoom: number;
-  }) => void;
-  onNodeFoldChange?: (
-    nodeId: string,
-    direction: "left" | "right",
-    folded: boolean,
-  ) => void;
+  onViewportChange?: (viewport: { pan: { x: number; y: number }; zoom: number }) => void;
+  onNodeFoldChange?: (nodeId: string, direction: "left" | "right", folded: boolean) => void;
 }
 
 export interface MindMapNodeActionContext {
@@ -214,20 +185,12 @@ export interface MindMapNodeActionContext {
   hasFoldIndicator: boolean;
 }
 
-interface NodeVisualStyle {
-  background: string;
-  textColor: string;
-  borderRadius: number;
-  borderColor: string;
-  borderWidth: number;
-  editorTheme: "light" | "dark";
-}
-
 interface Connection {
   id: string;
   from: { x: number; y: number };
   to: { x: number; y: number };
   color: string;
+  width: number;
   direction: "left" | "right";
 }
 
@@ -243,36 +206,23 @@ interface FoldIndicator {
   count: number;
 }
 
-const getNodeStyle = (level: number, theme: MindMapTheme): NodeVisualStyle => {
-  if (level === 1) {
-    return {
-      background: theme.root.background,
-      textColor: theme.root.color,
-      borderRadius: theme.root.borderRadius,
-      borderColor: theme.root.borderColor || "transparent",
-      borderWidth: theme.root.borderWidth || 0,
-      editorTheme: theme.root.color === "#ffffff" ? "dark" : "light",
-    };
-  }
+type NodeStyleResolver = (level: number, nodeId: string) => MindNodeVisual;
 
-  const paletteIndex = (level - 2) % theme.palette.length;
-  const paletteItem = theme.palette[paletteIndex];
-
-  return {
-    background: paletteItem.background,
-    textColor: paletteItem.color,
-    borderRadius: theme.node.borderRadius,
-    borderColor: theme.node.borderColor,
-    borderWidth: theme.node.borderWidth,
-    editorTheme: paletteItem.type,
-  };
+const createNodeStyleResolver = (
+  theme: { themeId: string; themeStyle: string },
+  root: MindMapNodeData,
+  mode: MindMode
+): NodeStyleResolver => {
+  const branchMap = MindThemeUtil.getBranchIndexMap(root);
+  return (level, nodeId) =>
+    MindThemeUtil.getNodeVisual(theme, level, branchMap.get(nodeId) ?? 0, mode);
 };
 
 const flattenMindNodes = (root: MindMapNodeData): FlattenedMindMapNode[] => {
   const result: FlattenedMindMapNode[] = [];
   const walk = (node: MindMapNodeData, level: number, parentId?: string) => {
     result.push({ node, level, parentId });
-    node.children?.forEach((child) => walk(child, level + 1, node.id));
+    node.children?.forEach(child => walk(child, level + 1, node.id));
   };
 
   walk(root, 1);
@@ -291,22 +241,21 @@ const buildNodeMap = (root: MindMapNodeData) => {
 
 const buildMindNodeTree = (
   root: MindMapNodeData,
-  sizes: Record<string, { width: number; height: number }>,
+  sizes: Record<string, { width: number; height: number }>
 ): MindNodeElement => {
   const walk = (
     node: MindMapNodeData,
     level: number,
-    inheritDirection: "left" | "right",
+    inheritDirection: "left" | "right"
   ): MindNodeElement => {
     const size = sizes[node.id];
     if (!size) {
       throw new Error(`Missing size for node ${node.id}`);
     }
 
-    const direction =
-      level === 1 ? "right" : node.direction || inheritDirection || "right";
-    const children = (node.children || []).map((child) =>
-      walk(child, level + 1, child.direction || direction),
+    const direction = level === 1 ? "right" : node.direction || inheritDirection || "right";
+    const children = (node.children || []).map(child =>
+      walk(child, level + 1, child.direction || direction)
     );
 
     return {
@@ -337,33 +286,25 @@ const buildMindNodeTree = (
 const getBezierPath = (connection: Connection) => {
   const { from, to, direction } = connection;
   const deltaX = Math.abs(to.x - from.x);
-  const controlX =
-    direction === "left" ? from.x - deltaX / 2 : from.x + deltaX / 2;
+  const controlX = direction === "left" ? from.x - deltaX / 2 : from.x + deltaX / 2;
   return `M ${from.x} ${from.y} C ${controlX} ${from.y}, ${controlX} ${to.y}, ${to.x} ${to.y}`;
 };
 
 const MindMapMeasureNode = ({
   flattened,
   hash,
-  theme,
+  styleOf,
   onMeasured,
 }: {
   flattened: FlattenedMindMapNode;
   hash: string;
-  theme: MindMapTheme;
-  onMeasured: (
-    id: string,
-    size: { width: number; height: number },
-    hash: string,
-  ) => void;
+  styleOf: NodeStyleResolver;
+  onMeasured: (id: string, size: { width: number; height: number }, hash: string) => void;
 }) => {
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
   const wrapperRef = useRef<HTMLDivElement>(null);
   const visualStyle = useMemo(
-    () => getNodeStyle(flattened.level, theme),
-    [flattened.level, theme],
+    () => styleOf(flattened.level, flattened.node.id),
+    [flattened.level, flattened.node.id, styleOf]
   );
   const measureSingleLine = flattened.node.meta?.measureSingleLine === true;
   const measureInlinePrefixWidth =
@@ -377,10 +318,8 @@ const MindMapMeasureNode = ({
 
     const measure = (entry?: ResizeObserverEntry) => {
       if (!element) return;
-      const width =
-        entry?.borderBoxSize?.[0]?.inlineSize || element.offsetWidth;
-      const height =
-        entry?.borderBoxSize?.[0]?.blockSize || element.offsetHeight;
+      const width = entry?.borderBoxSize?.[0]?.inlineSize || element.offsetWidth;
+      const height = entry?.borderBoxSize?.[0]?.blockSize || element.offsetHeight;
 
       if (!width || !height) return;
       // 加上 1px 边距避免亚像素渲染导致的文本换行问题
@@ -395,11 +334,11 @@ const MindMapMeasureNode = ({
           width: finalWidth,
           height: finalHeight,
         },
-        hash,
+        hash
       );
     };
 
-    const resizeObserver = new ResizeObserver((entries) => {
+    const resizeObserver = new ResizeObserver(entries => {
       measure(entries[0]);
     });
     resizeObserver.observe(element);
@@ -410,17 +349,11 @@ const MindMapMeasureNode = ({
       resizeObserver.disconnect();
       cancelAnimationFrame(raf);
     };
-  }, [
-    flattened.node.id,
-    hash,
-    measureSingleLine,
-    measureInlinePrefixWidth,
-    onMeasured,
-  ]);
+  }, [flattened.node.id, hash, measureSingleLine, measureInlinePrefixWidth, onMeasured]);
 
   return (
     <div
-      className="inline-block px-4 py-3 box-border"
+      className="box-border inline-block px-4 py-3"
       ref={wrapperRef}
       style={{
         background: visualStyle.background,
@@ -431,13 +364,10 @@ const MindMapMeasureNode = ({
         whiteSpace: measureSingleLine ? "nowrap" : undefined,
       }}
     >
-      <div className="pointer-events-none **:data-slate-editor:text-sm **:data-slate-editor:leading-[1.6] **:data-slate-editor:outline-none [&_.slate-Editor]:bg-transparent">
-        <Editor
-          initValue={flattened.node.text}
-          readonly
-          extensions={dynamicExtensions}
-          theme={visualStyle.editorTheme}
-        />
+      <div className="**:data-slate-editor:text-sm **:data-slate-editor:leading-[1.6] **:data-slate-editor:outline-none pointer-events-none [&_.slate-Editor]:bg-transparent">
+        <EditorThemeOverride mode={visualStyle.editorTheme}>
+          <Editor kit={getDesktopKit()} initValue={flattened.node.text} readonly />
+        </EditorThemeOverride>
       </div>
     </div>
   );
@@ -450,20 +380,13 @@ interface MindMapNodeContentProps {
 
 const MindMapNodeContent = memo(
   ({ value, editorTheme }: MindMapNodeContentProps) => {
-    const dynamicExtensions = useDynamicExtensionsStore(
-      (state) => state.extensions,
-    );
     return (
-      <Editor
-        initValue={value}
-        readonly
-        extensions={dynamicExtensions}
-        theme={editorTheme}
-      />
+      <EditorThemeOverride mode={editorTheme}>
+        <Editor kit={getDesktopKit()} initValue={value} readonly />
+      </EditorThemeOverride>
     );
   },
-  (prev, next) =>
-    prev.editorTheme === next.editorTheme && prev.value === next.value,
+  (prev, next) => prev.editorTheme === next.editorTheme && prev.value === next.value
 );
 
 const MindMap = forwardRef<MindMapRef, MindMapProps>(
@@ -471,6 +394,7 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
     {
       data,
       themeId,
+      themeStyle,
       className,
       style,
       cacheNamespace,
@@ -484,17 +408,21 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
       onViewportChange,
       onNodeFoldChange,
     },
-    ref,
+    ref
   ) => {
-    const isDark = useSettingStore((state) => state.setting.darkMode);
-    const resolvedThemeId = themeId ?? (isDark ? "dance" : "hawaii");
+    const mode = useMindMode();
+    const isDark = mode === "dark";
     const theme = useMemo(
-      () => getThemeById(resolvedThemeId),
-      [resolvedThemeId],
+      () => ({
+        themeId: themeId ?? "classic",
+        themeStyle: MindThemeUtil.resolveStyle(themeStyle),
+      }),
+      [themeId, themeStyle]
     );
-    const sanitizedData = useMemo(
-      () => sanitizeMindDataDirections(data),
-      [data],
+    const sanitizedData = useMemo(() => sanitizeMindDataDirections(data), [data]);
+    const styleOf = useMemo(
+      () => createNodeStyleResolver(theme, sanitizedData, mode),
+      [theme, sanitizedData, mode]
     );
     const [pan, setPan] = useState(initialPan ?? { x: 0, y: 0 });
     const [zoom, setZoom] = useState(initialZoom ?? 1);
@@ -526,27 +454,19 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
     useEffect(() => {
       const element = containerRef.current;
       if (!element) return;
-      const resizeObserver = new ResizeObserver((entries) => {
+      const resizeObserver = new ResizeObserver(entries => {
         const entry = entries[0];
         const box = entry.borderBoxSize?.[0];
-        const width =
-          box?.inlineSize ?? entry.contentRect.width ?? element.clientWidth;
-        const height =
-          box?.blockSize ?? entry.contentRect.height ?? element.clientHeight;
+        const width = box?.inlineSize ?? entry.contentRect.width ?? element.clientWidth;
+        const height = box?.blockSize ?? entry.contentRect.height ?? element.clientHeight;
         setContainerSize({ width, height });
       });
       resizeObserver.observe(element);
       return () => resizeObserver.disconnect();
     }, []);
 
-    const flattenedNodes = useMemo(
-      () => flattenMindNodes(sanitizedData),
-      [sanitizedData],
-    );
-    const nodeDataMap = useMemo(
-      () => buildNodeMap(sanitizedData),
-      [sanitizedData],
-    );
+    const flattenedNodes = useMemo(() => flattenMindNodes(sanitizedData), [sanitizedData]);
+    const nodeDataMap = useMemo(() => buildNodeMap(sanitizedData), [sanitizedData]);
     const selectedNodeIdSet = useMemo(() => {
       return new Set(selectedNodeIds || []);
     }, [selectedNodeIds]);
@@ -558,41 +478,36 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
     const toggleFoldState = useCallback(
       (nodeId: string, direction: "left" | "right") => {
         setShouldAutoCenter(false);
-        setLayoutTree((prev) => {
+        setLayoutTree(prev => {
           if (!prev) return prev;
           const target = MindUtil.findNodeInTree(prev, nodeId);
           if (!target) return prev;
-          const folded =
-            direction === "left" ? !target.isLeftFold : !target.isRightFold;
+          const folded = direction === "left" ? !target.isLeftFold : !target.isRightFold;
           const next = MindUtil.toggleFold(prev, target, direction);
           onNodeFoldChange?.(nodeId, direction, folded);
           return next;
         });
       },
-      [onNodeFoldChange],
+      [onNodeFoldChange]
     );
 
     const hashKey = useMemo(
       () =>
         JSON.stringify({
-          theme: theme.id,
+          theme: `${theme.themeId}-${theme.themeStyle}`,
           maxWidth: MAX_NODE_WIDTH,
           version: HASH_VERSION,
         }),
-      [theme.id],
+      [theme.themeId, theme.themeStyle]
     );
 
-    const { nodeSizes, nodesToMeasure, reportSize } = useMindMapMeasurements(
-      flattenedNodes,
-      {
-        hashKey,
-        cacheNamespace,
-      },
-    );
+    const { nodeSizes, nodesToMeasure, reportSize } = useMindMapMeasurements(flattenedNodes, {
+      hashKey,
+      cacheNamespace,
+    });
 
     const canLayout =
-      flattenedNodes.length > 0 &&
-      flattenedNodes.every((item) => Boolean(nodeSizes[item.node.id]));
+      flattenedNodes.length > 0 && flattenedNodes.every(item => Boolean(nodeSizes[item.node.id]));
 
     const [layoutTree, setLayoutTree] = useState<MindNodeElement | null>(null);
     useEffect(() => {
@@ -621,10 +536,9 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
           return;
         }
 
-        const nodeStyle = getNodeStyle(node.level, theme);
+        const nodeStyle = styleOf(node.level, node.id);
         nodes.push(node);
-        const { left: leftChildren, right: rightChildren } =
-          splitChildrenByDirection(node);
+        const { left: leftChildren, right: rightChildren } = splitChildrenByDirection(node);
 
         if (leftChildren.length > 0) {
           indicators.push({
@@ -633,13 +547,12 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
             direction: "left",
             x: node.x - 10,
             y: node.y + node.height / 2,
-            background: nodeStyle.background,
-            color: nodeStyle.textColor,
+            background: nodeStyle.accent,
+            color: nodeStyle.accentText,
             isFolded: Boolean(node.isLeftFold),
             count: leftChildren.reduce(
-              (total, child) =>
-                total + MindUtil.getChildrenByNode(child).length + 1,
-              0,
+              (total, child) => total + MindUtil.getChildrenByNode(child).length + 1,
+              0
             ),
           });
         }
@@ -651,25 +564,21 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
             direction: "right",
             x: node.x + node.width + 10,
             y: node.y + node.height / 2,
-            background: nodeStyle.background,
-            color: nodeStyle.textColor,
+            background: nodeStyle.accent,
+            color: nodeStyle.accentText,
             isFolded: Boolean(node.isRightFold),
             count: rightChildren.reduce(
-              (total, child) =>
-                total + MindUtil.getChildrenByNode(child).length + 1,
-              0,
+              (total, child) => total + MindUtil.getChildrenByNode(child).length + 1,
+              0
             ),
           });
         }
 
-        node.children.forEach((child) => {
+        node.children.forEach(child => {
           const branchDirection = resolveChildDirection(node, child);
           const isLeftBranch = branchDirection === "left";
           const childHidden =
-            hidden ||
-            (isLeftBranch
-              ? Boolean(node.isLeftFold)
-              : Boolean(node.isRightFold));
+            hidden || (isLeftBranch ? Boolean(node.isLeftFold) : Boolean(node.isRightFold));
 
           if (!childHidden) {
             edges.push({
@@ -682,11 +591,8 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
                 x: isLeftBranch ? child.x + child.width : child.x,
                 y: child.y + child.height / 2,
               },
-              color:
-                child.level === 1
-                  ? theme.root.background
-                  : theme.palette[(child.level - 2) % theme.palette.length]
-                      .background,
+              color: styleOf(child.level, child.id).lineColor,
+              width: styleOf(child.level, child.id).lineWidth,
               direction: branchDirection,
             });
           }
@@ -701,7 +607,7 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
         connections: edges,
         foldIndicators: indicators,
       };
-    }, [layoutTree, theme]);
+    }, [layoutTree, styleOf]);
 
     const bounds = useMemo(() => {
       if (visibleNodes.length === 0) {
@@ -717,7 +623,7 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
       let maxX = -Infinity;
       let maxY = -Infinity;
 
-      visibleNodes.forEach((node) => {
+      visibleNodes.forEach(node => {
         minX = Math.min(minX, node.x);
         minY = Math.min(minY, node.y);
         maxX = Math.max(maxX, node.x + node.width);
@@ -758,7 +664,7 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
         const deltaX = prevOffsets.x - bounds.offsetX;
         const deltaY = prevOffsets.y - bounds.offsetY;
         if (Math.abs(deltaX) > 0.1 || Math.abs(deltaY) > 0.1) {
-          setPan((prevPan) => ({
+          setPan(prevPan => ({
             x: prevPan.x + deltaX * zoom,
             y: prevPan.y + deltaY * zoom,
           }));
@@ -780,52 +686,45 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
       zoom,
     ]);
 
-    const handlePointerDown = useCallback(
-      (event: React.PointerEvent<HTMLDivElement>) => {
-        if (event.button !== 0 && event.button !== 2) return;
-        const target = event.target as HTMLElement;
-        if (
-          target.closest(
-            "[data-fold-indicator],[data-mindmap-node],[data-mindmap-interactive]",
-          )
-        ) {
-          return;
+    const handlePointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0 && event.button !== 2) return;
+      const target = event.target as HTMLElement;
+      if (target.closest("[data-fold-indicator],[data-mindmap-node],[data-mindmap-interactive]")) {
+        return;
+      }
+      window.dispatchEvent(new CustomEvent("mindmap:canvas-pointer-down"));
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+      setShouldAutoCenter(false);
+      const startPointer = { x: event.clientX, y: event.clientY };
+      const startPan = panRef.current;
+      let hasMoved = false;
+      setIsDragging(true);
+
+      const handleMove = (moveEvent: PointerEvent) => {
+        hasMoved = true;
+        moveEvent.preventDefault();
+        setPan({
+          x: startPan.x + (moveEvent.clientX - startPointer.x),
+          y: startPan.y + (moveEvent.clientY - startPointer.y),
+        });
+      };
+
+      const stopDragging = (upEvent?: PointerEvent) => {
+        if (hasMoved) {
+          upEvent?.preventDefault();
         }
-        window.dispatchEvent(new CustomEvent("mindmap:canvas-pointer-down"));
-        if (document.activeElement instanceof HTMLElement) {
-          document.activeElement.blur();
-        }
-        setShouldAutoCenter(false);
-        const startPointer = { x: event.clientX, y: event.clientY };
-        const startPan = panRef.current;
-        let hasMoved = false;
-        setIsDragging(true);
+        setIsDragging(false);
+        window.removeEventListener("pointermove", handleMove);
+        window.removeEventListener("pointerup", stopDragging);
+        window.removeEventListener("pointercancel", stopDragging);
+      };
 
-        const handleMove = (moveEvent: PointerEvent) => {
-          hasMoved = true;
-          moveEvent.preventDefault();
-          setPan({
-            x: startPan.x + (moveEvent.clientX - startPointer.x),
-            y: startPan.y + (moveEvent.clientY - startPointer.y),
-          });
-        };
-
-        const stopDragging = (upEvent?: PointerEvent) => {
-          if (hasMoved) {
-            upEvent?.preventDefault();
-          }
-          setIsDragging(false);
-          window.removeEventListener("pointermove", handleMove);
-          window.removeEventListener("pointerup", stopDragging);
-          window.removeEventListener("pointercancel", stopDragging);
-        };
-
-        window.addEventListener("pointermove", handleMove);
-        window.addEventListener("pointerup", stopDragging);
-        window.addEventListener("pointercancel", stopDragging);
-      },
-      [],
-    );
+      window.addEventListener("pointermove", handleMove);
+      window.addEventListener("pointerup", stopDragging);
+      window.addEventListener("pointercancel", stopDragging);
+    }, []);
 
     const handleWheel = useCallback(
       (event: WheelEvent) => {
@@ -840,7 +739,7 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
           const zoomFactor = Math.exp(-event.deltaY / 500);
           const nextZoom = clamp(zoom * zoomFactor, MIN_ZOOM, MAX_ZOOM);
           const scale = nextZoom / zoom;
-          setPan((prev) => ({
+          setPan(prev => ({
             x: cursorX - (cursorX - prev.x) * scale,
             y: cursorY - (cursorY - prev.y) * scale,
           }));
@@ -848,13 +747,13 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
         } else {
           event.preventDefault();
           setShouldAutoCenter(false);
-          setPan((prev) => ({
+          setPan(prev => ({
             x: prev.x - event.deltaX,
             y: prev.y - event.deltaY,
           }));
         }
       },
-      [layoutTree, zoom],
+      [layoutTree, zoom]
     );
 
     useEffect(() => {
@@ -875,25 +774,23 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
       <div
         ref={containerRef}
         className={clsx(
-          "relative w-full h-full overflow-hidden touch-none outline-none",
-          className,
+          "relative h-full w-full touch-none overflow-hidden outline-none",
+          className
         )}
         style={style}
         onPointerDown={handlePointerDown}
-        onContextMenu={(event) => {
+        onContextMenu={event => {
           const target = event.target as HTMLElement;
-          if (
-            target.closest("[data-mindmap-node],[data-mindmap-interactive]")
-          ) {
+          if (target.closest("[data-mindmap-node],[data-mindmap-interactive]")) {
             return;
           }
           event.preventDefault();
         }}
       >
         {layoutTree ? (
-          <div className="relative w-full h-full overflow-hidden">
+          <div className="relative h-full w-full overflow-hidden">
             <div
-              className="absolute top-0 left-0 w-full h-full origin-top-left"
+              className="absolute left-0 top-0 h-full w-full origin-top-left"
               style={{
                 width: bounds.width,
                 height: bounds.height,
@@ -902,11 +799,11 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
               }}
             >
               <svg
-                className="absolute top-0 left-0 w-full h-full pointer-events-none"
+                className="pointer-events-none absolute left-0 top-0 h-full w-full"
                 width={bounds.width}
                 height={bounds.height}
               >
-                {connections.map((connection) => (
+                {connections.map(connection => (
                   <path
                     key={connection.id}
                     d={getBezierPath({
@@ -921,36 +818,33 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
                       },
                     })}
                     stroke={connection.color}
-                    strokeWidth={2}
+                    strokeWidth={connection.width}
                     fill="none"
                   />
                 ))}
               </svg>
-              {visibleNodes.map((node) => {
-                const visualStyle = getNodeStyle(node.level, theme);
+              {visibleNodes.map(node => {
+                const visualStyle = styleOf(node.level, node.id);
                 const nodeData = nodeDataMap.get(node.id);
                 const { left: nodeLeftChildren, right: nodeRightChildren } =
                   splitChildrenByDirection(node);
-                const actionSide =
-                  node.direction === "left" && node.level > 1
-                    ? "left"
-                    : "right";
+                const actionSide = node.direction === "left" && node.level > 1 ? "left" : "right";
                 const hasFoldIndicator =
                   actionSide === "left"
                     ? nodeLeftChildren.length > 0
                     : nodeRightChildren.length > 0;
                 const customContent =
-                  nodeData && renderNodeContent
-                    ? renderNodeContent(nodeData)
-                    : null;
+                  nodeData && renderNodeContent ? renderNodeContent(nodeData) : null;
                 return (
                   <div
                     key={node.id}
                     data-mindmap-node
                     className={clsx(
-                      "group/mindmap-node absolute box-border px-4 py-3 bg-white outline-none dark:bg-[#2a2a2a] shadow-[0_6px_20px_rgba(15,23,42,0.12)] dark:shadow-[0_6px_20px_rgba(0,0,0,0.3)]",
+                      "group/mindmap-node absolute box-border px-4 py-3 outline-none",
+                      visualStyle.background !== "transparent" &&
+                        "shadow-[0_2px_8px_rgba(15,23,42,0.08)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.3)]",
                       interactionMode === "editable" &&
-                        "cursor-pointer transition-shadow duration-200 hover:shadow-[0_8px_24px_rgba(15,23,42,0.18)]",
+                        "cursor-pointer transition-shadow duration-200 hover:shadow-[0_8px_24px_rgba(15,23,42,0.18)]"
                     )}
                     style={{
                       left: node.x + bounds.offsetX,
@@ -961,16 +855,12 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
                       borderRadius: visualStyle.borderRadius,
                       border: `${visualStyle.borderWidth}px solid ${visualStyle.borderColor}`,
                       boxShadow: selectedNodeIdSet.has(node.id)
-                        ? getSelectedBoxShadow(visualStyle.background, isDark)
+                        ? getSelectedBoxShadow(visualStyle.accent, isDark)
                         : undefined,
                     }}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={(e) => {
-                      if (
-                        (e.target as HTMLElement).closest(
-                          "[data-mindmap-interactive]",
-                        )
-                      ) {
+                    onPointerDown={e => e.stopPropagation()}
+                    onClick={e => {
+                      if ((e.target as HTMLElement).closest("[data-mindmap-interactive]")) {
                         return;
                       }
                       onNodeClick?.(node.id);
@@ -979,7 +869,7 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
                     {customContent ? (
                       customContent
                     ) : (
-                      <div className="pointer-events-none **:data-slate-editor:text-sm **:data-slate-editor:leading-[1.6] **:data-slate-editor:outline-none [&_.slate-Editor]:bg-transparent">
+                      <div className="**:data-slate-editor:text-sm **:data-slate-editor:leading-[1.6] **:data-slate-editor:outline-none pointer-events-none [&_.slate-Editor]:bg-transparent">
                         <MindMapNodeContent
                           value={node.text}
                           editorTheme={visualStyle.editorTheme}
@@ -995,21 +885,21 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
                   </div>
                 );
               })}
-              {foldIndicators.map((indicator) => (
+              {foldIndicators.map(indicator => (
                 <div
                   key={indicator.id}
                   role="button"
                   data-fold-indicator
-                  className="absolute w-5 h-5 rounded-full text-[11px] font-semibold flex items-center justify-center -translate-x-1/2 -translate-y-1/2 shadow-[0_2px_6px_rgba(0,0,0,0.15)] cursor-pointer select-none"
+                  className="absolute flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 cursor-pointer select-none items-center justify-center rounded-full text-[11px] font-semibold shadow-[0_2px_6px_rgba(0,0,0,0.15)]"
                   style={{
                     left: indicator.x + bounds.offsetX,
                     top: indicator.y + bounds.offsetY,
                     background: indicator.background,
                     color: indicator.color,
                   }}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onClick={(e) => {
+                  onPointerDown={e => e.stopPropagation()}
+                  onMouseDown={e => e.stopPropagation()}
+                  onClick={e => {
                     e.stopPropagation();
                     toggleFoldState(indicator.nodeId, indicator.direction);
                   }}
@@ -1020,28 +910,28 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-center min-h-[160px] text-black/45 dark:text-white/45 text-sm">
+          <div className="flex min-h-[160px] items-center justify-center text-sm text-black/45 dark:text-white/45">
             正在测量节点尺寸...
           </div>
         )}
 
         <div
-          className="absolute -top-[9999px] -left-[9999px] invisible pointer-events-none -z-10"
+          className="pointer-events-none invisible absolute -left-[9999px] -top-[9999px] -z-10"
           aria-hidden
         >
-          {nodesToMeasure.map((item) => (
+          {nodesToMeasure.map(item => (
             <MindMapMeasureNode
               key={`${item.node.node.id}-${item.hash}`}
               flattened={item.node}
               hash={item.hash}
-              theme={theme}
+              styleOf={styleOf}
               onMeasured={reportSize}
             />
           ))}
         </div>
       </div>
     );
-  },
+  }
 );
 
 MindMap.displayName = "MindMap";

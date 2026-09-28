@@ -28,6 +28,7 @@ export default class WhiteboardTable {
       "update-white-board": this.updateWhiteboard.bind(this),
       "update-white-board-meta": this.updateWhiteboardMeta.bind(this),
       "get-whiteboard-by-ids": this.getWhiteboardByIds.bind(this),
+      "get-white-board-by-content-id": this.getWhiteboardByContentId.bind(this),
       "add-sub-white-board": this.addSubWhiteboard.bind(this),
       "delete-sub-white-board": this.deleteSubWhiteboard.bind(this),
       "update-sub-white-board": this.updateSubWhiteboard.bind(this),
@@ -499,5 +500,17 @@ export default class WhiteboardTable {
 
       return this.parseWhiteboard(wb);
     });
+  }
+
+  /** 按页 id 反查所属白板；不属于任何白板的独立页返回 null */
+  static getWhiteboardByContentId(db: Database.Database, contentId: number): WhiteBoard | null {
+    const row = db
+      .prepare(
+        `SELECT id FROM white_boards
+         WHERE EXISTS (SELECT 1 FROM json_each(white_board_content_ids) WHERE value = ?)
+         LIMIT 1`
+      )
+      .get(contentId) as { id: number } | undefined;
+    return row ? this.getWhiteboard(db, row.id) : null;
   }
 }

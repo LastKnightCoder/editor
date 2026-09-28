@@ -13,7 +13,7 @@
       right: -5px;
       top: 0.625em;
       width: 1px;
-      background-color: var(--th-border);
+      background-color: var(--ed-border);
     }
   }
 
@@ -31,7 +31,7 @@
       top: 0;
       bottom: 0;
       width: 3px;
-      background-color: var(--th-active-text);
+      background-color: var(--ed-accent-text);
       z-index: 20;
     }
 
@@ -42,7 +42,7 @@
       top: 0;
       bottom: 0;
       width: 3px;
-      background-color: var(--th-active-text);
+      background-color: var(--ed-accent-text);
       z-index: 20;
     }
   }
@@ -53,7 +53,7 @@
     top: 0;
     left: 0;
     padding: 2px 6px;
-    background: var(--th-active-text);
+    background: var(--ed-accent-text);
     color: white;
     border-radius: 0 0 4px 0;
     font-size: 12px;
@@ -102,7 +102,7 @@
     align-items: center;
 
     &:hover {
-      background-color: var(--th-bg-hover);
+      background-color: var(--ed-bg-hover);
     }
 
     &:active {
@@ -139,15 +139,11 @@
         top: 0;
         bottom: 0;
         width: 3px;
-        background-color: var(--th-active-text);
+        background-color: var(--ed-accent-text);
       }
 
       &.left {
-        background: linear-gradient(
-          to right,
-          rgba(var(--primary-color-rgb, 24, 144, 255), 0.15),
-          transparent
-        );
+        background: linear-gradient(to right, var(--ed-accent-soft), transparent);
 
         &::before {
           left: 0;
@@ -155,11 +151,7 @@
       }
 
       &.right {
-        background: linear-gradient(
-          to left,
-          rgba(var(--primary-color-rgb, 24, 144, 255), 0.15),
-          transparent
-        );
+        background: linear-gradient(to left, var(--ed-accent-soft), transparent);
 
         &::before {
           right: 0;
@@ -186,7 +178,7 @@
 
     &:hover {
       opacity: 1;
-      background-color: var(--th-bg-hover);
+      background-color: var(--ed-bg-hover);
     }
   }
 
@@ -208,7 +200,7 @@
     align-items: center;
 
     &:hover {
-      background-color: var(--th-bg-hover);
+      background-color: var(--ed-bg-hover);
     }
   }
 

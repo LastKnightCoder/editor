@@ -143,11 +143,14 @@ export const convertFileSrc = async (filePath: string): Promise<string> => {
   return `ltoh:///${normalizedFilePath}`;
 };
 
-export const openMarkdownInNewWindow = async (filePath: string) => {
-  return platform.window.openMarkdownWindow(filePath, {
-    showTitlebar: true,
-    isDefaultTop: false,
-  });
+/** 打开 Markdown 窗口：文件或文件夹路径；不传打开欢迎页 */
+export const openMarkdownInNewWindow = async (path?: string) => {
+  return platform.window.openMarkdownWindow(path);
+};
+
+/** 移到废纸篓（可恢复） */
+export const trashItem = async (path: string): Promise<void> => {
+  return await invoke("trash-item", path);
 };
 
 export const generateCacheKey = async (url: string): Promise<string> => {

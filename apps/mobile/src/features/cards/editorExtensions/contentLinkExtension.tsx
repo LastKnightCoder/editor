@@ -1,4 +1,4 @@
-import { Base, createInlineElementPlugin, useThemeColors } from "@tau/editor/src";
+import { Base, createInlineElementPlugin } from "@tau/editor/src";
 import { Z_INDEX } from "../../../router/zIndex";
 import type { IConfigItem, IExtension } from "@tau/editor/src";
 import {
@@ -382,7 +382,6 @@ function MobileContentLinkHoveringItem() {
   const selection = useSlateSelection();
   const selectionRef = useRef<BaseSelection | null>(null);
   const [openPicker, setOpenPicker] = useState(false);
-  const themeColors = useThemeColors();
 
   const isActive = useMemo(() => {
     if (!selection) {
@@ -444,9 +443,7 @@ function MobileContentLinkHoveringItem() {
       <div
         title="关联内容"
         className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all duration-200 ${
-          isActive
-            ? themeColors.activeClass
-            : `${themeColors.textClass} ${themeColors.hoverClass} ${themeColors.hoverTextClass}`
+          isActive ? "ed-toolbar-item is-active" : "ed-toolbar-item"
         }`}
         onClick={handleClick}
       >

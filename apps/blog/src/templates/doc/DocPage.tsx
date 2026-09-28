@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Header, DocSidebar } from "@blog/components/Layout";
 import { Breadcrumb, ScrollToTop } from "@blog/components/Common";
-import { Editor, EditorProvider } from "@tau/editor";
+import { Editor } from "@tau/editor";
 import Outline from "@blog/components/Outline";
 import { getInitData, formatDate, joinPath } from "@blog/utils";
 import { DocData } from "@blog/types";
@@ -9,11 +9,7 @@ import { HeaderElement } from "@tau/editor";
 import { getInlineElementText } from "@blog/utils/editor";
 import DndProvider from "@blog/components/DndProvider";
 import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
-import { createBlogEditorRegistry, createBlogEditorConfig } from "@blog/services/editorRegistry";
-import { blogEditorExtensions } from "@blog/editorExtensions";
-import useBlogTheme from "@blog/hooks/useBlogTheme";
-import "@tau/themes/light.less";
-import "@tau/themes/dark.less";
+import { getBlogKit } from "@blog/services/editorKit";
 
 const DOC_SIDEBAR_SCROLL_STORAGE_KEY = "blog:doc-sidebar-scroll";
 const DOC_SIDEBAR_COLLAPSE_STORAGE_KEY = "blog:doc-sidebar-collapse";
@@ -41,12 +37,6 @@ const DocPage = memo(() => {
   const doc = initData.content as DocData;
   const docCollections = initData.docCollections || [];
   const blogSettings = initData.settings;
-  const blogTheme = useBlogTheme();
-  const blogEditorRegistry = useMemo(() => createBlogEditorRegistry(), []);
-  const blogEditorConfig = useMemo(
-    () => createBlogEditorConfig(blogSettings, blogTheme),
-    [blogSettings, blogTheme]
-  );
   const sidebarScrollRef = useRef<HTMLDivElement | null>(null);
   const [activeHeaderIndex, setActiveHeaderIndex] = useState(0);
 
@@ -288,13 +278,7 @@ const DocPage = memo(() => {
 
                   {/* 正文 */}
                   <DndProvider>
-                    <EditorProvider
-                      registry={blogEditorRegistry}
-                      config={blogEditorConfig}
-                      extensions={blogEditorExtensions}
-                    >
-                      <Editor initValue={doc.content} readonly />
-                    </EditorProvider>
+                    <Editor kit={getBlogKit(blogSettings)} initValue={doc.content} readonly />
                   </DndProvider>
 
                   {/* 上下篇导航：简洁文本链接 */}

@@ -98,19 +98,24 @@ const createInlineNormalizePlugin = (type: string) => {
   };
 };
 
+/** 在光标处插入当前播放时间戳（无选区时落到文末）；快捷键与工具栏按钮共用 */
+export const insertVideoTimestamp = async (editor: Editor, videoController: VideoController) => {
+  if (!editor.selection) Transforms.select(editor, Editor.end(editor, []));
+  const timestampNode = await createTimestampElement(videoController);
+
+  Transforms.collapse(editor, { edge: "end" });
+  Transforms.insertNodes(editor, timestampNode as any);
+  Transforms.insertNodes(editor, { type: "formatted", text: "" } as any);
+  ReactEditor.focus(editor);
+};
+
 // Hotkey
 const createTimestampHotkey = (videoController: VideoController): IHotKeyConfig => {
   return {
     hotKey: "mod+shift+t",
     action: async (editor: Editor) => {
       if (!editor.selection) return;
-
-      const timestampNode = await createTimestampElement(videoController);
-
-      Transforms.collapse(editor, { edge: "end" });
-      Transforms.insertNodes(editor, timestampNode as any);
-      Transforms.insertNodes(editor, { type: "formatted", text: "" } as any);
-      ReactEditor.focus(editor);
+      await insertVideoTimestamp(editor, videoController);
     },
   };
 };

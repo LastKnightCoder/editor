@@ -1,10 +1,8 @@
 import { memo } from "react";
-import { IExtension } from "@tau/editor/src";
 import Item from "./Item";
 import useMentionPanelStore from "../../stores/useMentionPanelStore";
 
 interface IListProps {
-  extensions: IExtension[];
   /** 当前搜索词（不含 @），用于标出命中字 */
   query: string;
 }

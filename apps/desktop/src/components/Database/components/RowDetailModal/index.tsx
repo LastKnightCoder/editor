@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, memo, useMemo } from "react";
-import { Maximize2, Minimize2, Pencil, Plus, Trash2, GripVertical, X } from "lucide-react";
+import { Pencil, Plus, Trash2, GripVertical } from "lucide-react";
 import { ColumnDef, RowData, CellValue } from "../../types";
 import { PluginManager } from "../../PluginManager";
 import { getContentById, createContent } from "@/commands/content";
@@ -10,10 +10,9 @@ import { useMemoizedFn } from "ahooks";
 import ColumnIcon from "@/components/Database/ColumnIcon";
 import { useDrag, useDrop, DragSourceMonitor } from "react-dnd";
 import classNames from "classnames";
-import { ConfirmDialog, useEdgeFade } from "@tau/ui";
+import { ConfirmDialog, Dialog, DialogBody } from "@tau/ui";
 import ColumnEditModal from "../../views/TableView/components/ColumnEditModal";
 import { useDatabaseStore } from "../../hooks";
-import CustomModal from "@/components/CustomModal";
 
 const COLUMN_ITEM_TYPE = "rowDetailModalColumn";
 
@@ -53,10 +52,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
     const [rowData, setRowData] = useState<RowData>({ ...row });
     const [editingColumn, setEditingColumn] = useState<string | null>(null);
     const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
-    const [isExpanded, setIsExpanded] = useState(false);
     const [confirmDeleteColumn, setConfirmDeleteColumn] = useState<ColumnDef | null>(null);
-    const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
-    useEdgeFade(scrollEl);
 
     const { columnOrder, moveColumn, editColumn, deleteColumnWithCleanup, columnWidths } =
       useDatabaseStore(state => ({
@@ -182,165 +178,103 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
       return { ...found, width } as ColumnDef;
     }, [editingColumnId, columns, columnWidths]);
 
-    const modalWidth = isExpanded ? "100vw" : 720;
-    const modalContentStyle = isExpanded
-      ? {
-          height: "calc(100vh - var(--title-bar-height, 48px))",
-          maxHeight: "calc(100vh - var(--title-bar-height, 48px))",
-        }
-      : {
-          height: "min(800px, calc(100vh - 200px))",
-        };
-
-    const modalOverlayStyle = isExpanded
-      ? {
-          top: "var(--title-bar-height, 48px)",
-        }
-      : undefined;
-
     return (
-      <CustomModal
+      <Dialog
         open
-        width={modalWidth}
-        onCancel={handleClose}
-        footer={null}
-        destroyOnClose
-        closeOnEscape={false}
-        showCloseButton={false}
-        centered={!isExpanded}
-        overlayClassName={isExpanded ? "!items-start !px-0 !pt-0 !pb-0" : ""}
-        overlayStyle={modalOverlayStyle}
-        contentClassName={classNames("!p-0", isExpanded && "!rounded-none !border-0 !shadow-none")}
-        bodyClassName="h-full overflow-hidden"
-        contentStyle={modalContentStyle}
+        onOpenChange={next => !next && void handleClose()}
+        title="行详情"
+        width={720}
+        height={760}
       >
-        <div className="flex h-full min-h-0 flex-col py-4">
-          <div
-            className={classNames(
-              "mb-4 flex shrink-0 items-start gap-4 pr-2",
-              isExpanded ? "pl-8" : "pl-6"
-            )}
-          >
-            <div className="min-w-0 flex-1">
-              {primaryColumn && (
-                <input
-                  type="text"
-                  value={String(rowData[primaryColumn.id] || "")}
-                  onChange={e => handleColumnValueChange(primaryColumn.id, e.target.value)}
-                  disabled={readonly || primaryColumn.readonly}
-                  className={classNames(
-                    "text-ink-1 w-full border-0 bg-transparent px-0 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60",
-                    isExpanded ? "py-1 text-[34px]" : "py-1 text-2xl"
-                  )}
-                  placeholder={`输入${primaryColumn.title}`}
-                />
+        {/* 主列标题钉在滚动区之上 */}
+        {primaryColumn && (
+          <div className="shrink-0 px-6 pb-2 pt-1">
+            <input
+              type="text"
+              value={String(rowData[primaryColumn.id] || "")}
+              onChange={e => handleColumnValueChange(primaryColumn.id, e.target.value)}
+              disabled={readonly || primaryColumn.readonly}
+              aria-label={primaryColumn.title}
+              className="text-ink-1 text-tau-title-lg placeholder:text-ink-3 w-full border-0 bg-transparent px-0 py-1 font-semibold focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+              placeholder={`输入${primaryColumn.title}`}
+            />
+          </div>
+        )}
+        <DialogBody className="flex-1 pl-4">
+          {otherColumns.length > 0 && (
+            <div className="border-line-1 mb-4 border-b pb-3">
+              <div className="space-y-0.5">
+                {otherColumns.map(column => (
+                  <ColumnPropertyRow
+                    key={column.id}
+                    column={column}
+                    columnOrder={columnOrder}
+                    moveColumn={moveColumn}
+                    pluginManager={pluginManager}
+                    theme={theme}
+                    rowData={rowData}
+                    readonly={readonly}
+                    editingColumnId={editingColumn}
+                    setEditingColumnId={setEditingColumn}
+                    onColumnValueChange={handleColumnValueChange}
+                    allowDeleteColumn={allowDeleteColumn}
+                    onDeleteColumn={handleDeleteColumn}
+                    onEditColumnConfig={handleOpenColumnEditor}
+                    onColumnConfigChange={handleColumnConfigChange}
+                  />
+                ))}
+              </div>
+              {!readonly && onAddColumn && (
+                <button
+                  onClick={e => {
+                    e.stopPropagation();
+                    onAddColumn();
+                  }}
+                  className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm text-tau-sm flex h-9 cursor-pointer items-center gap-2 px-2 transition-colors"
+                >
+                  <Plus className="h-[14px] w-[14px]" strokeWidth={1.75} />
+                  <span>添加属性</span>
+                </button>
               )}
             </div>
-            <div className="flex shrink-0 items-center gap-1.5">
-              <button
-                type="button"
-                className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm flex h-8 w-8 cursor-pointer items-center justify-center transition-colors"
-                onClick={() => setIsExpanded(prev => !prev)}
-                title={isExpanded ? "退出展开" : "展开"}
-              >
-                {isExpanded ? (
-                  <Minimize2 className="h-4 w-4" strokeWidth={1.75} />
-                ) : (
-                  <Maximize2 className="h-4 w-4" strokeWidth={1.75} />
-                )}
-              </button>
-              <button
-                type="button"
-                className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm flex h-8 w-8 cursor-pointer items-center justify-center transition-colors"
-                onClick={handleClose}
-                title="关闭"
-              >
-                <X className="h-4 w-4" strokeWidth={1.75} />
-              </button>
-            </div>
-          </div>
-          <div
-            ref={setScrollEl}
-            className={classNames(
-              "edge-fade-scroll mr-2 min-h-0 flex-1 overflow-y-auto pb-4",
-              isExpanded ? "pl-8 pr-6" : "pl-6 pr-4"
-            )}
-          >
-            {otherColumns.length > 0 && (
-              <div className="mb-5 shrink-0">
-                <div className="space-y-1">
-                  {otherColumns.map(column => (
-                    <ColumnPropertyRow
-                      key={column.id}
-                      column={column}
-                      columnOrder={columnOrder}
-                      moveColumn={moveColumn}
-                      pluginManager={pluginManager}
-                      theme={theme}
-                      rowData={rowData}
-                      readonly={readonly}
-                      editingColumnId={editingColumn}
-                      setEditingColumnId={setEditingColumn}
-                      onColumnValueChange={handleColumnValueChange}
-                      allowDeleteColumn={allowDeleteColumn}
-                      onDeleteColumn={handleDeleteColumn}
-                      onEditColumnConfig={handleOpenColumnEditor}
-                      onColumnConfigChange={handleColumnConfigChange}
-                    />
-                  ))}
-                </div>
-                {!readonly && onAddColumn && (
-                  <button
-                    onClick={e => {
-                      e.stopPropagation();
-                      onAddColumn();
-                    }}
-                    className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm text-tau-sm flex h-9 cursor-pointer items-center gap-2 px-2 transition-colors"
-                  >
-                    <Plus className="h-[14px] w-[14px]" strokeWidth={1.75} />
-                    <span>添加属性</span>
-                  </button>
-                )}
-              </div>
-            )}
-
-            <div>
-              <Editor
-                contentId={row.detailContentId || undefined}
-                ref={editorRef}
-                initValue={DEFAULT_CONTENT}
-                onChange={setDescription}
-                readonly={readonly}
-                placeHolder="添加详细描述..."
-                className="break-words [overflow-wrap:anywhere]"
-                style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
-              />
-            </div>
-          </div>
-          {editingColumnData && (
-            <ColumnEditModal
-              open={Boolean(editingColumnData)}
-              column={editingColumnData}
-              onCancel={handleCloseColumnEditor}
-              onSave={handleSaveColumnConfig}
-              theme={theme}
-              pluginManager={pluginManager}
-            />
           )}
-          <ConfirmDialog
-            open={confirmDeleteColumn !== null}
-            onOpenChange={open => {
-              if (!open) setConfirmDeleteColumn(null);
-            }}
-            title="确认删除属性"
-            context={confirmDeleteColumn?.title}
-            impact="删除属性将移除该列的所有数据"
-            danger
-            confirmText="删除"
-            onConfirm={() => handleConfirmDeleteColumn()}
+
+          <div className="pl-2">
+            <Editor
+              contentId={row.detailContentId || undefined}
+              ref={editorRef}
+              initValue={DEFAULT_CONTENT}
+              onChange={setDescription}
+              readonly={readonly}
+              placeHolder="添加详细描述..."
+              className="min-h-[200px] break-words [overflow-wrap:anywhere]"
+              style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
+            />
+          </div>
+        </DialogBody>
+        {editingColumnData && (
+          <ColumnEditModal
+            open={Boolean(editingColumnData)}
+            column={editingColumnData}
+            onCancel={handleCloseColumnEditor}
+            onSave={handleSaveColumnConfig}
+            theme={theme}
+            pluginManager={pluginManager}
           />
-        </div>
-      </CustomModal>
+        )}
+        <ConfirmDialog
+          open={confirmDeleteColumn !== null}
+          onOpenChange={open => {
+            if (!open) setConfirmDeleteColumn(null);
+          }}
+          title="确认删除属性"
+          context={confirmDeleteColumn?.title}
+          impact="删除属性将移除该列的所有数据"
+          danger
+          confirmText="删除"
+          onConfirm={() => handleConfirmDeleteColumn()}
+        />
+      </Dialog>
     );
   }
 );

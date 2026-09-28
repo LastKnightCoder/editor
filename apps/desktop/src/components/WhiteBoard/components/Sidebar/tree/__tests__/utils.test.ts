@@ -12,19 +12,12 @@ vi.mock("@/electron", () => electronMocks);
 
 import Board from "../../../../Board";
 import { FramePlugin, ImagePlugin, MindPlugin } from "../../../../plugins";
-import type {
-  BoardElement,
-  FrameElement,
-  MindNodeElement,
-} from "../../../../types";
+import type { BoardElement, FrameElement, MindNodeElement } from "../../../../types";
 import { canDropElementIntoParent } from "../utils";
 
 const textStub = [{ type: "paragraph", children: [{ text: "" }] }] as any;
 
-const createMindNode = (
-  id: string,
-  overrides: Partial<MindNodeElement> = {},
-): MindNodeElement => ({
+const createMindNode = (id: string, overrides: Partial<MindNodeElement> = {}): MindNodeElement => ({
   id,
   type: "mind-node",
   x: 0,
@@ -52,10 +45,7 @@ const createImage = (id: string): BoardElement => ({
   src: "image.png",
 });
 
-const createFrame = (
-  id: string,
-  children: BoardElement[] = [],
-): FrameElement => ({
+const createFrame = (id: string, children: BoardElement[] = []): FrameElement => ({
   id,
   type: "frame",
   x: 0,
@@ -81,7 +71,7 @@ const createBoard = (children: BoardElement[]) =>
     children,
     { minX: 0, minY: 0, width: 1000, height: 1000, zoom: 1 },
     { selectedElements: [], selectArea: null },
-    [new MindPlugin(), new FramePlugin(), new ImagePlugin()],
+    [new MindPlugin(), new FramePlugin(), new ImagePlugin()]
   );
 
 describe("白板侧边栏树拖拽父级校验", () => {

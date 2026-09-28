@@ -2,17 +2,6 @@
   position: relative;
 
   .container {
-    --code-block-bg-color: rgba(246, 248, 250, 0.6);
-    --code-block-shadow: 0 1px 2px 0 #0000001a;
-    --overlay-bg-color: rgba(255, 255, 255, 0.7);
-    --overlay-blur: 10px;
-
-    &.dark {
-      --code-block-bg-color: rgba(40, 42, 52);
-      --code-block-shadow: 0 1px 2px 0 #0000001a;
-      --overlay-bg-color: rgba(30, 30, 30, 0.7);
-    }
-
     position: relative;
 
     .editor {
@@ -24,9 +13,9 @@
         padding: 1.125em 0.75em 1.125em 0.75em;
         border-radius: 0;
         font-size: 0.75em;
-        font-family: var(--mono-font, "'Monaco', '楷体'");
-        box-shadow: var(--code-block-shadow);
-        background-color: var(--code-block-bg-color);
+        font-family: var(--ed-font-mono, "'Monaco', '楷体'");
+        box-shadow: var(--ed-code-shadow);
+        background-color: var(--ed-code-bg);
       }
 
       :global(.CodeMirror pre.CodeMirror-line),
@@ -55,7 +44,7 @@
     }
 
     &.editing {
-      background-color: var(--code-block-bg-color);
+      background-color: var(--ed-code-bg);
       padding: 0 0 1.25em;
     }
 
@@ -97,7 +86,7 @@
         width: 1px;
         height: 1.125em;
         margin: 0.5em 0.25em;
-        background-color: var(--th-border);
+        background-color: var(--ed-border);
       }
     }
 
@@ -117,27 +106,13 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: var(--overlay-bg-color);
-  backdrop-filter: blur(var(--overlay-blur));
+  background-color: var(--ed-glass-bg);
+  backdrop-filter: blur(var(--ed-glass-blur));
   z-index: 1001;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.2em;
-  --code-block-bg-color: rgba(246, 248, 250, 0.6);
-  --code-block-shadow: 0 1px 2px 0 #0000001a;
-  --overlay-bg-color: rgba(255, 255, 255, 0.7);
-  --content-bg-color: rgba(255, 255, 255, 0.7);
-  --overlay-blur: 10px;
-  --box-shadow: 0 4px 25px rgba(0, 0, 0, 0.15);
-
-  &.darkOverlay {
-    --code-block-bg-color: rgba(40, 42, 52);
-    --content-bg-color: rgba(30, 30, 30, 0.3);
-    --code-block-shadow: 0 1px 2px 0 #0000001a;
-    --overlay-bg-color: rgba(30, 30, 30, 0.7);
-    --box-shadow: 0 4px 25px rgba(255, 255, 255, 0.15);
-  }
 
   .fullscreenContent {
     width: 90%;
@@ -148,10 +123,10 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    box-shadow: var(--box-shadow);
-    background-color: var(--content-bg-color);
+    box-shadow: var(--ed-shadow-float);
+    background-color: var(--ed-glass-bg);
     padding: 2.25em 1.5em;
-    backdrop-filter: blur(var(--overlay-blur));
+    backdrop-filter: blur(var(--ed-glass-blur));
   }
 
   .fullscreenEditorContainer {
@@ -170,9 +145,9 @@
         padding: 1.125em 0.75em 1.125em 0.75em;
         border-radius: 0;
         font-size: 0.75em;
-        font-family: var(--mono-font, "'Monaco', '楷体'");
-        box-shadow: var(--code-block-shadow);
-        background-color: var(--code-block-bg-color);
+        font-family: var(--ed-font-mono, "'Monaco', '楷体'");
+        box-shadow: var(--ed-code-shadow);
+        background-color: var(--ed-code-bg);
       }
 
       :global(.CodeMirror pre.CodeMirror-line),

@@ -58,6 +58,7 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
       onRowDelete,
       theme,
       readonly,
+      bare = false,
       className,
     },
     ref
@@ -268,7 +269,7 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
       }
 
       if (activeView.type === "calendar") {
-        return <CalendarView key={activeView.id} {...viewProps} />;
+        return <CalendarView key={activeView.id} {...viewProps} bare={bare} />;
       }
 
       if (activeView.type === "kanban") {
@@ -286,13 +287,15 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
       onRowDelete,
       config,
       store,
+      bare,
     ]);
 
     return (
       <DatabaseContext.Provider value={store}>
         <div
           className={classnames(
-            "bg-surface border-line-1 shadow-card rounded-tau-md relative flex h-full w-full flex-col overflow-hidden border",
+            "relative flex h-full w-full flex-col overflow-hidden",
+            !bare && "bg-surface border-line-1 shadow-card rounded-tau-md border",
             className,
             {
               "cursor-col-resize select-none": isResizing,
@@ -309,6 +312,7 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
               onUpdateView={handleUpdateView}
               onReorderViews={handleReorderViews}
               theme={finalTheme}
+              bare={bare}
             />
           </div>
           <div className="min-h-0 w-full flex-1">{View}</div>

@@ -1,14 +1,9 @@
 import React, { useCallback, useRef, useState } from "react";
-import {
-  InboxOutlined,
-  UploadOutlined,
-  LoadingOutlined,
-} from "@ant-design/icons";
+import { InboxOutlined, UploadOutlined, LoadingOutlined } from "@ant-design/icons";
 import { message, Button, Tabs, TabsProps, Input, Popover } from "antd";
 import classnames from "classnames";
 
 import styles from "./index.module.less";
-import useTheme from "../../hooks/useTheme";
 
 interface ImageUploaderProps {
   /**
@@ -52,7 +47,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [linkValue, setLinkValue] = useState("");
   const [isDragging, setIsDragging] = useState(false);
-  const { isDark } = useTheme();
 
   // 处理文件选择
   const handleFileChange = useCallback(
@@ -87,7 +81,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         fileInputRef.current.value = "";
       }
     },
-    [onUploadSuccess, onUploadFailed, uploadResource],
+    [onUploadSuccess, onUploadFailed, uploadResource]
   );
 
   // 处理文件上传逻辑
@@ -115,7 +109,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         onUploadFailed?.();
       }
     },
-    [onUploadSuccess, onUploadFailed, uploadResource],
+    [onUploadSuccess, onUploadFailed, uploadResource]
   );
 
   // 触发文件选择对话框
@@ -164,7 +158,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         handleUploadFile(files[0]);
       }
     },
-    [handleUploadFile],
+    [handleUploadFile]
   );
 
   // 通用标签页配置
@@ -180,7 +174,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
           handleDragOver={handleDragOver}
           handleDrop={handleDrop}
           isDragging={isDragging}
-          isDark={isDark}
         />
       ),
     },
@@ -191,7 +184,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         <div className={styles.linkTabContent}>
           <Input
             value={linkValue}
-            onChange={(e) => setLinkValue(e.target.value)}
+            onChange={e => setLinkValue(e.target.value)}
             placeholder="请输入网络图片地址"
           />
           <Button className={styles.confirmButton} onClick={handleLinkConfirm}>
@@ -212,7 +205,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
           <div
             className={classnames(styles.inlineUploadArea, {
               [styles.dragging]: isDragging,
-              [styles.dark]: isDark,
             })}
             onClick={triggerFileSelect}
             onDragEnter={handleDragEnter}
@@ -240,7 +232,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         <div className={styles.linkTabContent}>
           <Input
             value={linkValue}
-            onChange={(e) => setLinkValue(e.target.value)}
+            onChange={e => setLinkValue(e.target.value)}
             placeholder="请输入网络图片地址"
           />
           <Button className={styles.confirmButton} onClick={handleLinkConfirm}>
@@ -256,25 +248,12 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
     // 行内模式简化界面
     const inlinePopoverContent = (
       <div className={styles.inlinePopoverContent}>
-        <Tabs
-          defaultActiveKey="upload"
-          items={inlineTabItems}
-          className={styles.inlineTabs}
-        />
+        <Tabs defaultActiveKey="upload" items={inlineTabItems} className={styles.inlineTabs} />
       </div>
     );
 
     return (
-      <div
-        className={classnames(
-          styles.container,
-          styles.uploaderContainer,
-          styles.inline,
-          {
-            [styles.dark]: isDark,
-          },
-        )}
-      >
+      <div className={classnames(styles.container, styles.uploaderContainer, styles.inline)}>
         {loading ? (
           <LoadingOutlined spin />
         ) : (
@@ -285,9 +264,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
               trigger="click"
               open={popoverVisible}
               onOpenChange={setPopoverVisible}
-              overlayClassName={classnames(styles.inlinePopover, {
-                [styles.darkPopover]: isDark,
-              })}
+              overlayClassName={styles.inlinePopover}
             >
               <Button
                 type="text"
@@ -306,15 +283,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
 
   // 块级图片上传界面
   return (
-    <div
-      className={
-        showTabs
-          ? classnames(styles.container, styles.uploaderContainer, {
-              [styles.dark]: isDark,
-            })
-          : undefined
-      }
-    >
+    <div className={showTabs ? classnames(styles.container, styles.uploaderContainer) : undefined}>
       <input
         type="file"
         accept="image/*"
@@ -323,15 +292,11 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         onChange={handleFileChange}
       />
       {loading ? (
-        <div className="flex items-center justify-center min-h-[11.25em]">
+        <div className="flex min-h-[11.25em] items-center justify-center">
           <LoadingOutlined spin />
         </div>
       ) : showTabs ? (
-        <Tabs
-          defaultActiveKey="upload"
-          items={tabItems}
-          className={styles.tabs}
-        />
+        <Tabs defaultActiveKey="upload" items={tabItems} className={styles.tabs} />
       ) : (
         <UploadArea
           triggerFileSelect={triggerFileSelect}
@@ -340,7 +305,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
           handleDragOver={handleDragOver}
           handleDrop={handleDrop}
           isDragging={isDragging}
-          isDark={isDark}
         />
       )}
     </div>
@@ -354,7 +318,6 @@ type UploadAreaProps = {
   handleDragLeave: (e: React.DragEvent<HTMLDivElement>) => void;
   handleDrop: (e: React.DragEvent<HTMLDivElement>) => void;
   isDragging: boolean;
-  isDark: boolean;
 };
 
 const UploadArea = ({
@@ -367,10 +330,10 @@ const UploadArea = ({
 }: UploadAreaProps) => (
   <div
     className={classnames(
-      "flex flex-col items-center justify-center text-center p-[1em] w-full min-h-[11.25em] rounded-[0.75em] cursor-pointer transition-all duration-200",
+      "flex min-h-[11.25em] w-full cursor-pointer flex-col items-center justify-center rounded-[0.75em] p-[1em] text-center transition-all duration-200",
       isDragging
-        ? "border-[0.125em] border-[var(--th-border-focus)] bg-[oklch(0.95_0.03_var(--th-h))]"
-        : "border border-dashed border-gray-300 dark:border-zinc-600 bg-gray-50 dark:bg-zinc-950 hover:border-gray-400 dark:hover:border-zinc-500",
+        ? "border-[0.125em] border-[var(--ed-border-focus)] bg-[var(--ed-accent-soft)]"
+        : "border border-dashed border-[var(--ed-border)] bg-[var(--ed-bg-sunken)] hover:border-[var(--ed-border-focus)]"
     )}
     onClick={triggerFileSelect}
     onDragEnter={handleDragEnter}
@@ -378,10 +341,8 @@ const UploadArea = ({
     onDragLeave={handleDragLeave}
     onDrop={handleDrop}
   >
-    <InboxOutlined className="text-[3em] text-gray-300 dark:text-zinc-600 mb-[0.5em]" />
-    <p className="text-gray-500 dark:text-zinc-400 text-[0.875em] m-0">
-      点击或拖拽图片到此处上传
-    </p>
+    <InboxOutlined className="mb-[0.5em] text-[3em] text-[var(--ed-text-tertiary)]" />
+    <p className="m-0 text-[0.875em] text-[var(--ed-text-secondary)]">点击或拖拽图片到此处上传</p>
   </div>
 );
 
