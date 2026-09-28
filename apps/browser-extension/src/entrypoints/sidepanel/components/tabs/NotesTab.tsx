@@ -23,7 +23,6 @@ import type { ResolvedTheme } from "../../../../utils/types";
 import type { PendingNoteSelection } from "../MainLayout";
 import {
   createExtensionEditorRegistry,
-  createExtensionEditorConfig,
   extensionImportFromMarkdown,
 } from "../../../../services/editorRegistry";
 
@@ -146,7 +145,6 @@ export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef 
       }),
     [wsClient]
   );
-  const editorConfig = useMemo(() => createExtensionEditorConfig(resolvedTheme), [resolvedTheme]);
   const editorExtensions = useMemo(
     () => [createMarkdownPasteImportExtension(extensionImportFromMarkdown), new WebviewExtension()],
     []
@@ -1018,17 +1016,12 @@ export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef 
 
       {/* 编辑器区域 */}
       <div className="tau-scrollbar flex-1 overflow-y-auto">
-        <EditorProvider
-          registry={editorRegistry}
-          config={editorConfig}
-          extensions={editorExtensions}
-        >
+        <EditorProvider registry={editorRegistry} extensions={editorExtensions}>
           <Editor
             key={editorKey}
             initValue={content}
             onChange={handleEditorChange}
             readonly={false}
-            theme={resolvedTheme}
             placeHolder="在这里记录笔记..."
             style={{
               minHeight: "100%",

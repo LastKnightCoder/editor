@@ -6,7 +6,6 @@ import { memo, useCallback, useMemo, useRef } from "react";
 import type { Descendant } from "slate";
 import { Editor, type EditorRef } from "@tau/editor/src";
 import { CardListItem } from "../../types";
-import { useMobileTheme } from "../../hooks/useMobileTheme";
 import { mobileCardPreviewExtensions } from "./editorExtensions";
 import { cardCategoryDotClass, cardCategoryLabel, cardCategoryTextClass } from "./cardCategory";
 import TagChips from "./TagChips";
@@ -42,7 +41,6 @@ interface CardItemProps {
 }
 
 const CardItem = memo(({ item, onPreviewCard }: CardItemProps) => {
-  const { theme } = useMobileTheme();
   const editorRef = useRef<EditorRef | null>(null);
 
   const editorContent = useMemo(() => {
@@ -87,7 +85,6 @@ const CardItem = memo(({ item, onPreviewCard }: CardItemProps) => {
               className="overflow-hidden"
               readonly={true}
               initValue={editorContent}
-              theme={theme}
               extensions={mobileCardPreviewExtensions}
             />
           ) : (

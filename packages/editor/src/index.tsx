@@ -33,7 +33,6 @@ import { useCreation, useMemoizedFn } from "ahooks";
 import { useEditorExtensions } from "./contexts/EditorProvider";
 import { useServiceRegistry } from "./services/hooks";
 import type { ServiceIdentifier } from "./services/tokens";
-import { EditorContext, type EditorContextValue } from "./contexts/EditorContext";
 
 import {
   applyPlugin,
@@ -106,7 +105,6 @@ interface IEditorProps {
   onFocus?: () => void;
   onBlur?: () => void;
   placeHolder?: string;
-  theme?: "light" | "dark";
   disableStartExtensions?: boolean;
   /** 自定义 decorate 函数（用于添加装饰，如 diff 高亮） */
   decorate?: (entry: [Node, Path]) => Range[];
@@ -147,7 +145,6 @@ const Index = memo(
       onFocus,
       onBlur,
       placeHolder,
-      theme,
       disableStartExtensions = false,
       decorate,
       customRenderLeaf,
@@ -431,84 +428,72 @@ const Index = memo(
       setIsInit(true);
     }, [editor, initValue, isInit, onInit]);
 
-    // 使用 useMemo 稳定化 context value，避免不必要的重渲染
-    // theme 携带原始 prop（可空）：useTheme 据此区分"显式 prop"与
-    // "回落宿主配置"，系统主题仅在样式层兜底
-    const editorContextValue = useMemo<EditorContextValue>(
-      () => ({
-        theme,
-      }),
-      [theme]
-    );
-
     return (
       <CollaborationContext.Provider value={collaboration}>
-        <EditorContext.Provider value={editorContextValue}>
-          <EditorThemeScope service={registry?.tryGet(IThemeService)} mode={theme}>
-            {scope => (
-              <Slate
-                editor={editor}
-                initialValue={initValue}
-                onChange={handleOnChange}
-                key={finalExtensions.map((extension: IExtension) => extension.type).join("-")}
+        <EditorThemeScope service={registry?.tryGet(IThemeService)}>
+          {scope => (
+            <Slate
+              editor={editor}
+              initialValue={initValue}
+              onChange={handleOnChange}
+              key={finalExtensions.map((extension: IExtension) => extension.type).join("-")}
+            >
+              <div
+                ref={collaborationContainerRef}
+                className="tau-editor"
+                data-theme={scope.overridden ? scope.themeKey || undefined : undefined}
+                data-mode={scope.overridden ? scope.mode : undefined}
+                style={collaboration ? { position: "relative" } : { display: "contents" }}
               >
-                <div
-                  ref={collaborationContainerRef}
-                  className="tau-editor"
-                  data-theme={scope.overridden ? scope.themeKey || undefined : undefined}
-                  data-mode={scope.overridden ? scope.mode : undefined}
-                  style={collaboration ? { position: "relative" } : { display: "contents" }}
-                >
-                  <Editable
-                    className={classnames(styles.editor, props.className)}
-                    style={props.style}
-                    readOnly={readonly}
-                    renderElement={renderElement}
-                    renderLeaf={renderLeaf}
-                    renderChunk={renderChunk}
-                    placeholder={placeHolder}
-                    decorate={decorate}
-                    onKeyDown={event => {
-                      registerHotKey(editor, event, finalHotKeyConfigs);
-                    }}
-                    onDrag={e => {
-                      e.preventDefault();
-                    }}
-                    onDrop={async e => {
-                      e.preventDefault();
+                <Editable
+                  className={classnames(styles.editor, props.className)}
+                  style={props.style}
+                  readOnly={readonly}
+                  renderElement={renderElement}
+                  renderLeaf={renderLeaf}
+                  renderChunk={renderChunk}
+                  placeholder={placeHolder}
+                  decorate={decorate}
+                  onKeyDown={event => {
+                    registerHotKey(editor, event, finalHotKeyConfigs);
+                  }}
+                  onDrag={e => {
+                    e.preventDefault();
+                  }}
+                  onDrop={async e => {
+                    e.preventDefault();
 
-                      const files = e.dataTransfer?.files;
-                      if (!files || files.length === 0 || readonly) return;
+                    const files = e.dataTransfer?.files;
+                    if (!files || files.length === 0 || readonly) return;
 
-                      // 计算拖放位置
-                      const range = ReactEditor.findEventRange(editor, e);
-                      if (range && editor.handleDrop) {
-                        await editor.handleDrop(files, range.anchor);
-                      }
-                    }}
-                    onSelect={() => {
-                      if (syncSelectionSnapshot()) {
-                        onSelectionChange?.();
-                      }
-                    }}
-                    scrollSelectionIntoView={scrollSelectionIntoView}
-                    onFocus={onFocus}
-                    onBlur={onBlur}
+                    // 计算拖放位置
+                    const range = ReactEditor.findEventRange(editor, e);
+                    if (range && editor.handleDrop) {
+                      await editor.handleDrop(files, range.anchor);
+                    }
+                  }}
+                  onSelect={() => {
+                    if (syncSelectionSnapshot()) {
+                      onSelectionChange?.();
+                    }
+                  }}
+                  scrollSelectionIntoView={scrollSelectionIntoView}
+                  onFocus={onFocus}
+                  onBlur={onBlur}
+                />
+                {collaboration && collaborationCursors && (
+                  <CollaborationCursors
+                    containerRef={collaborationContainerRef as React.RefObject<HTMLDivElement>}
                   />
-                  {collaboration && collaborationCursors && (
-                    <CollaborationCursors
-                      containerRef={collaborationContainerRef as React.RefObject<HTMLDivElement>}
-                    />
-                  )}
-                </div>
-                <ImagesOverview />
-                {!readonly && <MediaUrlInputModal />}
-                {!readonly && <HoveringToolbar configs={finalHoveringBarConfigs} />}
-                {!readonly && <BlockPanel extensions={finalExtensions} />}
-              </Slate>
-            )}
-          </EditorThemeScope>
-        </EditorContext.Provider>
+                )}
+              </div>
+              <ImagesOverview />
+              {!readonly && <MediaUrlInputModal />}
+              {!readonly && <HoveringToolbar configs={finalHoveringBarConfigs} />}
+              {!readonly && <BlockPanel extensions={finalExtensions} />}
+            </Slate>
+          )}
+        </EditorThemeScope>
       </CollaborationContext.Provider>
     );
   })

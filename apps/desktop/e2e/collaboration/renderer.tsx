@@ -6,7 +6,6 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { EditorProvider } from "@tau/editor/src";
 import { createEditorRegistry } from "../../src/services/editorRegistry";
-import { useDesktopEditorConfig } from "../../src/services/useDesktopEditorConfig";
 import { createDesktopEditorExtensions } from "../../src/editor-extensions";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NotificationHost, ToastHost } from "@tau/ui";
@@ -33,12 +32,11 @@ function View() {
   // registry/config 引用稳定，避免重渲染时 Context value 失效
   const registry = useMemo(() => createEditorRegistry(), []);
   const extensions = useMemo(() => createDesktopEditorExtensions(), []);
-  const editorConfig = useDesktopEditorConfig();
   return (
     <App>
       <QueryClientProvider client={queryClient}>
         <DndProvider backend={HTML5Backend}>
-          <EditorProvider registry={registry} config={editorConfig} extensions={extensions}>
+          <EditorProvider registry={registry} extensions={extensions}>
             <main style={{ padding: 24 }}>
               <CollaborativeTitle
                 contentId={7}

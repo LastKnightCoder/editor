@@ -6,7 +6,6 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { EditorProvider } from "@tau/editor/src";
 import { createEditorRegistry } from "@/services/editorRegistry";
-import { useDesktopEditorConfig } from "@/services/useDesktopEditorConfig";
 import { createDesktopEditorExtensions } from "@/editor-extensions";
 import {
   BilibiliVideoDepsProvider,
@@ -79,7 +78,6 @@ const Application = () => {
 
   const editorRegistry = useMemo(() => createEditorRegistry(), []);
   const editorExtensions = useMemo(() => createDesktopEditorExtensions(), []);
-  const editorConfig = useDesktopEditorConfig();
 
   const bilibiliDeps: UseBilibiliVideoDeps = useMemo(
     () => ({
@@ -403,7 +401,7 @@ const Application = () => {
               <EditDatabaseDepsProvider deps={editDatabaseDeps}>
                 <EditorProvider
                   registry={editorRegistry}
-                  config={editorConfig}
+
                   extensions={editorExtensions}
                 >
                   <App

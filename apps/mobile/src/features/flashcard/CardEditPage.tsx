@@ -11,7 +11,6 @@ import { useBackHandler } from "../../router";
 import { MobileConfirmDialog } from "../../components/MobileConfirmDialog";
 import { useEdgeFade } from "../../hooks/useScrollState";
 import { toast } from "../../components/toast";
-import { useMobileTheme } from "../../hooks/useMobileTheme";
 import * as tauri from "../../services/tauri";
 import { invalidateFlashcardQueries, useFlashcardDecks } from "./queries";
 import { extractBlanks } from "./reviewFlow";
@@ -79,7 +78,6 @@ export function CardEditPage({
   const scrollRef = useRef<HTMLDivElement>(null);
   useEdgeFade(scrollRef);
   const decksQuery = useFlashcardDecks();
-  const { theme } = useMobileTheme();
   const [pageRootEl, setPageRootEl] = useState<HTMLDivElement | null>(null);
 
   const [card, setCard] = useState<Flashcard | null>(null);
@@ -406,7 +404,6 @@ export function CardEditPage({
               initValue={promptValue}
               // 编辑器 readonly 默认为 true，表单场景必须显式放开
               readonly={false}
-              theme={theme}
               extensions={promptExtensions}
               placeHolder={
                 cardType === "cloze" ? "输入题干，选中文字后点「设为填空」" : "输入题目…"
@@ -556,7 +553,6 @@ export function CardEditPage({
               key={`detail-${cardId}`}
               initValue={detailValue}
               readonly={false}
-              theme={theme}
               extensions={NO_EXTENSIONS}
               placeHolder="翻面后与答案、解析一起展示"
               className={`${editorClass} min-h-[84px] text-[15px] font-semibold`}

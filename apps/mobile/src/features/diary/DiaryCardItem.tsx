@@ -10,7 +10,6 @@ import type { Descendant } from "slate";
 import { Editor, type EditorRef } from "@tau/editor/src";
 import { MoreHorizontal, Tags, Trash2 } from "lucide-react";
 import type { DiaryEntry, DiarySegment } from "../../types";
-import { useMobileTheme } from "../../hooks/useMobileTheme";
 import { useReadonlyContentSync } from "../../hooks/useReadonlyContentSync";
 import { mobileCardPreviewExtensions } from "../cards/editorExtensions";
 import { Popover, type PopoverItem } from "../../components/Popover";
@@ -73,7 +72,6 @@ const DiaryCardItem = memo(
     onEditTags,
     onDeleteSegment,
   }: DiaryCardItemProps) => {
-    const { theme } = useMobileTheme();
     const editorRef = useRef<EditorRef | null>(null);
     const desc = useMemo(() => describeEntry(entry), [entry]);
     const [menuOpen, setMenuOpen] = useState(false);
@@ -162,7 +160,6 @@ const DiaryCardItem = memo(
               className="overflow-hidden"
               readonly={true}
               initValue={editorContent}
-              theme={theme}
               extensions={mobileCardPreviewExtensions}
             />
           ) : (

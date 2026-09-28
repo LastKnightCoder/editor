@@ -1,5 +1,5 @@
 import React, { MouseEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Editor, EditorRef } from "@tau/editor/src";
+import { Editor, EditorRef, EditorThemeOverride } from "@tau/editor/src";
 import If from "@/components/If";
 
 import { useMemoizedFn } from "ahooks";
@@ -498,17 +498,18 @@ const MindNode = (props: MindNodeProps) => {
                 height,
               }}
             />
-            <Editor
-              ref={editorRef}
-              initValue={text}
-              readonly={!isEditing}
-              className="box-border w-fit rounded-[4px] p-4"
-              style={editorStyle}
-              onChange={onContentChange}
-              onBlur={handleBlur}
-              extensions={dynamicExtensions}
-              theme={editorTheme}
-            />
+            <EditorThemeOverride mode={editorTheme}>
+              <Editor
+                ref={editorRef}
+                initValue={text}
+                readonly={!isEditing}
+                className="box-border w-fit rounded-[4px] p-4"
+                style={editorStyle}
+                onChange={onContentChange}
+                onBlur={handleBlur}
+                extensions={dynamicExtensions}
+              />
+            </EditorThemeOverride>
           </div>
         </foreignObject>
 

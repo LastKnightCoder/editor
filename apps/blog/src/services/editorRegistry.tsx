@@ -10,7 +10,6 @@ import {
   type ImageBorderRadiusPreset,
   type ImageShadowPreset,
   type EditorSlots,
-  type EditorConfig,
   type ImageAppearanceConfig,
 } from "@tau/editor";
 import { AudioPlayer, VideoPlayer } from "@tau/shared";
@@ -66,17 +65,6 @@ const createBlogEditorSlots = (): EditorSlots => {
   };
 };
 
-const getDocumentTheme = (): "light" | "dark" => {
-  if (typeof document === "undefined") {
-    return "light";
-  }
-  const theme = document.documentElement.getAttribute("data-theme");
-  if (theme === "dark" || document.documentElement.classList.contains("dark")) {
-    return "dark";
-  }
-  return "light";
-};
-
 export function createBlogEditorRegistry(): ServiceRegistry {
   return createServiceRegistry(register => {
     register(IResourceService, {
@@ -112,14 +100,5 @@ export function getBlogImageAppearance(
   return {
     borderRadius: getBlogImageSettingValue(settingsSnapshot, "borderRadius"),
     shadow: getBlogImageSettingValue(settingsSnapshot, "shadow"),
-  };
-}
-
-/** Blog 编辑器全局配置：主题取文档当前状态 */
-export function createBlogEditorConfig(theme?: "light" | "dark"): EditorConfig {
-  return {
-    theme: {
-      mode: theme ?? getDocumentTheme(),
-    },
   };
 }

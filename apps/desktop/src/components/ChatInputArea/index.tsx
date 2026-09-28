@@ -42,7 +42,6 @@ import { IconButton, ImagePreview, Menu, Tooltip, cn, toast } from "@tau/ui";
 import useUploadResource from "@/hooks/useUploadResource";
 import { convertFileSrc, getHomeDir } from "@/commands";
 import { McpQuickPanel } from "@/features/mcp/components/McpQuickPanel";
-import useTheme from "@/hooks/useTheme";
 import { contentLinkExtension, skillRefExtension } from "@/editor-extensions";
 import { SkillPickerPanel } from "@/editor-extensions/skill-ref/SkillPickerPanel";
 import useSettingStore from "@/stores/useSettingStore";
@@ -257,7 +256,6 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     ref
   ) => {
     const uploadResourceFn = useUploadResource();
-    const { theme } = useTheme();
 
     const services: ChatInputAreaServices = useMemo(
       () => ({
@@ -753,7 +751,6 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
               extensions={[contentLinkExtension, skillRefExtension]}
               hotkeyConfigs={hotkeyConfigs}
               placeHolder={resolvedPlaceholder}
-              theme={theme}
               // 段落拖拽手柄绝对定位且高于行高：裁剪溢出，避免未到最大高度就出现滚动条。
               // 不设 min-height：空态 Slate 以内联 min-height（= 占位符高度）盖过类名，
               // 一输入占位符消失、类名生效，单行下方凭空多出空白

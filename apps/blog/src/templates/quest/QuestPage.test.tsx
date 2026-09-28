@@ -40,9 +40,6 @@ vi.mock("@blog/editorExtensions", () => ({
 
 vi.mock("@blog/services/editorRegistry", () => ({
   createBlogEditorRegistry: () => ({}),
-  createBlogEditorConfig: () => ({
-    theme: { mode: "light", colors: {} as never },
-  }),
 }));
 
 describe("QuestPage", () => {

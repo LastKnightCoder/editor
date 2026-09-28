@@ -38,7 +38,6 @@ import {
 import { Editor } from "@tau/editor/src";
 import { FadeScroll } from "@/components/FadeScroll";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
-import useTheme from "@/hooks/useTheme";
 import useSkillStore from "@/stores/useSkillStore";
 import { getMarkdown, importFromMarkdown } from "@/utils/markdown";
 import {
@@ -344,7 +343,6 @@ function ReadmeHeader({
 export function SkillEditView() {
   const { path: skillPath } = usePageParams<{ path: string }>();
   const { navigator } = usePage();
-  const { theme } = useTheme();
   const skills = useSkillStore(s => s.skills);
   const [detail, setDetail] = useState<SkillDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -552,7 +550,6 @@ export function SkillEditView() {
           key={`${selected}:${editorVersion}`}
           initValue={bodyValue}
           readonly={readonly}
-          theme={theme}
           onChange={value => {
             const markdown = getMarkdown(value);
             if (isReadme) setDraft(composeReadme(docRef.current?.meta ?? {}, markdown));

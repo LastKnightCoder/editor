@@ -3,7 +3,6 @@ import { X } from "lucide-react";
 import { Editor, type EditorRef } from "@tau/editor/src";
 import type { Descendant } from "slate";
 import { SnapSheet } from "../../components/SnapSheet";
-import { useMobileTheme } from "../../hooks/useMobileTheme";
 import { ActionSheet } from "../settings/components/ActionSheet";
 import {
   CARD_CATEGORY_OPTIONS,
@@ -32,7 +31,6 @@ type QuickCaptureSheetProps = {
 };
 
 export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
-  const { theme } = useMobileTheme();
   const editorRef = useRef<EditorRef | null>(null);
   const latestContentRef = useRef<Descendant[]>(EMPTY_EDITOR_CONTENT);
   const [cachedDraft, setCachedDraft] = useState<Descendant[] | null>(null);
@@ -163,7 +161,6 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
             ref={editorRef}
             initValue={EMPTY_EDITOR_CONTENT}
             readonly={false}
-            theme={theme}
             extensions={mobileCardPreviewExtensions}
             placeHolder="记录你的想法..."
             className="mobile-card-editor-content min-h-[220px] outline-none ring-0 focus:outline-none focus:ring-0"

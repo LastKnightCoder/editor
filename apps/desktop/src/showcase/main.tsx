@@ -13,7 +13,6 @@ import { initThemeRuntime } from "@tau/themes/react";
 import { initScrollbarAutoHide } from "@tau/ui";
 import { initToolCallRenderers } from "@/tool-call-renderers";
 import { createEditorRegistry } from "@/services/editorRegistry";
-import { useDesktopEditorConfig } from "@/services/useDesktopEditorConfig";
 import { createDesktopEditorExtensions } from "@/editor-extensions";
 import "./showcase.css";
 import { ShowcaseApp } from "./ShowcaseApp";
@@ -26,10 +25,9 @@ initToolCallRenderers();
 function ShowcaseRoot() {
   const editorRegistry = useMemo(() => createEditorRegistry(), []);
   const editorExtensions = useMemo(() => createDesktopEditorExtensions(), []);
-  const editorConfig = useDesktopEditorConfig();
 
   return (
-    <EditorProvider registry={editorRegistry} config={editorConfig} extensions={editorExtensions}>
+    <EditorProvider registry={editorRegistry} extensions={editorExtensions}>
       <DndProvider backend={HTML5Backend}>
         <ShowcaseApp />
       </DndProvider>

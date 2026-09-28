@@ -12,7 +12,6 @@ import { SearchOutlined, LoadingOutlined } from "@ant-design/icons";
 
 import { formatDate, searchContent } from "@/utils";
 import { IndexType, SearchResult } from "@/types/search";
-import useTheme from "@/hooks/useTheme";
 import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
 
 // 获取类型标签文字
@@ -60,7 +59,6 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
   isItemDisabled,
   initialContents = defaultInitialContents,
 }) => {
-  const { theme } = useTheme();
   const modelInfo = useEmbeddingConfig();
 
   const [search, setSearch] = useState("");
@@ -218,7 +216,6 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
                           readonly={true}
                           initValue={item.content.slice(0, 3)}
                           extensions={extensions}
-                          theme={theme}
                         />
                       </div>
                     </ErrorBoundary>

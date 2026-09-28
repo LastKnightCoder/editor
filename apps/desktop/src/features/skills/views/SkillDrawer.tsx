@@ -30,7 +30,6 @@ import {
 } from "@tau/ui";
 import { Editor } from "@tau/editor/src";
 import { usePage } from "@/page/PageProvider";
-import useTheme from "@/hooks/useTheme";
 import useSkillStore from "@/stores/useSkillStore";
 import { importFromMarkdown } from "@/utils/markdown";
 import { splitSkillDocument } from "@/utils/skill-frontmatter";
@@ -99,7 +98,6 @@ function OverviewPane({
   readme: string | null;
   files: SkillFile[];
 }) {
-  const { theme } = useTheme();
   const body = useMemo(() => (readme === null ? null : splitSkillDocument(readme).body), [readme]);
   const value = useMemo(() => (body === null ? null : importFromMarkdown(body)), [body]);
   const { skill } = item;
@@ -175,13 +173,7 @@ function OverviewPane({
       <div className="border-line-1 min-w-0 rounded-[12px] border px-4 py-3">
         <div className="text-tau-sm text-ink-3 mb-1">SKILL.md</div>
         {value ? (
-          <Editor
-            key={skill.path}
-            initValue={value}
-            readonly
-            theme={theme}
-            className="text-tau-body"
-          />
+          <Editor key={skill.path} initValue={value} readonly className="text-tau-body" />
         ) : (
           <p className="text-tau-meta text-ink-3 m-0">加载中…</p>
         )}

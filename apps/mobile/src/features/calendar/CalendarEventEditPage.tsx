@@ -71,7 +71,7 @@ export function CalendarEventEditPage({
   onSaved,
   onError,
 }: CalendarEventEditPageProps) {
-  const { isDark, theme } = useMobileTheme();
+  const { isDark } = useMobileTheme();
   const editorRef = useRef<EditorRef | null>(null);
   const [pageContainer, setPageContainer] = useState<HTMLDivElement | null>(null);
   const toolbarController = useMobileEditorToolbarController({ editorRef });
@@ -409,7 +409,6 @@ export function CalendarEventEditPage({
               ref={editorRef}
               initValue={draft.detailContent}
               readonly={saving}
-              theme={theme}
               extensions={mobileCardPreviewExtensions}
               placeHolder="添加日程详情..."
               className="mobile-card-editor-content min-h-[180px] outline-none"

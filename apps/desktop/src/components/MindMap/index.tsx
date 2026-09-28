@@ -11,7 +11,7 @@ import React, {
   ReactNode,
 } from "react";
 import clsx from "classnames";
-import { Editor } from "@tau/editor/src";
+import { Editor, EditorThemeOverride } from "@tau/editor/src";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { MindUtil } from "@/components/WhiteBoard/utils/MindUtil";
 import { MindNodeElement } from "@/components/WhiteBoard/types/mind";
@@ -366,12 +366,9 @@ const MindMapMeasureNode = ({
       }}
     >
       <div className="**:data-slate-editor:text-sm **:data-slate-editor:leading-[1.6] **:data-slate-editor:outline-none pointer-events-none [&_.slate-Editor]:bg-transparent">
-        <Editor
-          initValue={flattened.node.text}
-          readonly
-          extensions={dynamicExtensions}
-          theme={visualStyle.editorTheme}
-        />
+        <EditorThemeOverride mode={visualStyle.editorTheme}>
+          <Editor initValue={flattened.node.text} readonly extensions={dynamicExtensions} />
+        </EditorThemeOverride>
       </div>
     </div>
   );
@@ -385,7 +382,11 @@ interface MindMapNodeContentProps {
 const MindMapNodeContent = memo(
   ({ value, editorTheme }: MindMapNodeContentProps) => {
     const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
-    return <Editor initValue={value} readonly extensions={dynamicExtensions} theme={editorTheme} />;
+    return (
+      <EditorThemeOverride mode={editorTheme}>
+        <Editor initValue={value} readonly extensions={dynamicExtensions} />
+      </EditorThemeOverride>
+    );
   },
   (prev, next) => prev.editorTheme === next.editorTheme && prev.value === next.value
 );
