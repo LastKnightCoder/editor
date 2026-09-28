@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { chatLLM } from "./useChatLLM";
+import { piCompleteChat } from "@/services/piLLM";
 import {
   VIDEO_HIGHLIGHTS_SYSTEM_PROMPT,
   buildVideoHighlightsUserPrompt,
 } from "@/constants/prompts/video-highlights";
 import { Role } from "@/constants";
 import type { RequestMessage, VideoNoteHighlight } from "@/types";
-import type { ProviderConfig, ModelConfig } from "@/types/llm";
+import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
 
 interface TranscriptSegment {
   text: string;
@@ -19,9 +19,7 @@ interface UseVideoHighlightsResult {
   isGenerating: boolean;
   error: Error | null;
   highlights: VideoNoteHighlight[];
-  generateHighlights: (
-    segments: TranscriptSegment[],
-  ) => Promise<VideoNoteHighlight[]>;
+  generateHighlights: (segments: TranscriptSegment[]) => Promise<VideoNoteHighlight[]>;
 }
 
 const tryParseJsonArray = (text: string): any[] => {
@@ -57,8 +55,8 @@ const tryParseJsonArray = (text: string): any[] => {
 };
 
 export const useVideoHighlights = (
-  providerConfig: ProviderConfig | null,
-  modelConfig: ModelConfig | null,
+  provider: LLMProviderSetting | null,
+  model: LLMModelSetting | null
 ): UseVideoHighlightsResult => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -66,7 +64,7 @@ export const useVideoHighlights = (
 
   const generateHighlights = useMemoizedFn(
     async (segments: TranscriptSegment[]): Promise<VideoNoteHighlight[]> => {
-      if (!providerConfig || !modelConfig) {
+      if (!provider || !model) {
         const err = new Error("未配置视频总结模型");
         setError(err);
         throw err;
@@ -86,13 +84,13 @@ export const useVideoHighlights = (
           },
           {
             role: Role.User,
-            content: [
-              { type: "text", text: buildVideoHighlightsUserPrompt(segments) },
-            ],
+            content: [{ type: "text", text: buildVideoHighlightsUserPrompt(segments) }],
           },
         ];
 
-        const content = await chatLLM(providerConfig, modelConfig, messages);
+        const outcome = await piCompleteChat({ provider, model, messages });
+        if (!outcome.ok) throw new Error(outcome.error ?? "模型请求失败");
+        const content = outcome.text;
         const parsed = tryParseJsonArray(content || "");
         const normalized = parsed
           .map((item: any, index: number): VideoNoteHighlight | null => {
@@ -103,12 +101,7 @@ export const useVideoHighlights = (
             const quote = String(item.quote || item.text || "").trim();
             const start = Number(item.start);
             const end = Number(item.end);
-            if (
-              !title ||
-              !quote ||
-              !Number.isFinite(start) ||
-              !Number.isFinite(end)
-            ) {
+            if (!title || !quote || !Number.isFinite(start) || !Number.isFinite(end)) {
               return null;
             }
             return {
@@ -119,10 +112,7 @@ export const useVideoHighlights = (
               end: Math.max(Math.floor(start), Math.floor(end)),
             };
           })
-          .filter(
-            (item: VideoNoteHighlight | null): item is VideoNoteHighlight =>
-              !!item,
-          );
+          .filter((item: VideoNoteHighlight | null): item is VideoNoteHighlight => !!item);
 
         setHighlights(normalized);
         return normalized;
@@ -133,7 +123,7 @@ export const useVideoHighlights = (
       } finally {
         setIsGenerating(false);
       }
-    },
+    }
   );
 
   return {

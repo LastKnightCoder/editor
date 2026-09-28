@@ -38,6 +38,9 @@ export interface ChatMessageViewProps {
   onRegenerate?: (messageIndex: number) => void;
   onCreateBranch?: (messageIndex: number) => void;
   onEditUserMessage?: (messageIndex: number, content: string) => void;
+  /** 会话树上这条用户消息的版本（有多个时常显 ‹ i/n ›） */
+  versions?: { index: number; count: number };
+  onSwitchVersion?: (messageIndex: number, versionIndex: number) => void;
   onOpenFile?: (file: ChatMessageViewFile) => void | Promise<void>;
   onCopySuccess?: () => void;
   onCopyError?: () => void;
@@ -150,6 +153,8 @@ export const ChatMessageView: React.FC<ChatMessageViewProps> = memo(function Cha
   onRegenerate,
   onCreateBranch,
   onEditUserMessage,
+  versions,
+  onSwitchVersion,
   onOpenFile,
   onCopySuccess,
   onCopyError,
@@ -347,6 +352,35 @@ export const ChatMessageView: React.FC<ChatMessageViewProps> = memo(function Cha
           )}
         </div>
       </div>
+
+      {isUser && versions && versions.count > 1 && (
+        // 版本切换常显（悬停才出现的话用户不知道这里还有别的版本）
+        <div
+          role="group"
+          aria-label={`版本 ${versions.index + 1} / ${versions.count}`}
+          className={classNames(styles.versionSwitcher, { [styles.dark]: isDark })}
+        >
+          <button
+            type="button"
+            aria-label="上一个版本"
+            disabled={!onSwitchVersion || versions.index === 0}
+            onClick={() => onSwitchVersion?.(messageIndex, versions.index - 1)}
+          >
+            ‹
+          </button>
+          <span aria-live="polite">
+            {versions.index + 1}/{versions.count}
+          </span>
+          <button
+            type="button"
+            aria-label="下一个版本"
+            disabled={!onSwitchVersion || versions.index === versions.count - 1}
+            onClick={() => onSwitchVersion?.(messageIndex, versions.index + 1)}
+          >
+            ›
+          </button>
+        </div>
+      )}
 
       <div
         className={classNames(styles.messageActions, {

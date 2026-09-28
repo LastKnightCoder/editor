@@ -7,10 +7,12 @@ import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { Library, Pin } from "lucide-react";
 import { cn } from "@tau/ui";
-import useChatMessageStore from "@/stores/useChatMessageStore";
-import type { ChatMessage } from "@/types";
+import useChatSessionStore, { MAIN_CHAT_BUCKET, selectRows } from "@/stores/useChatSessionStore";
+import type { ChatSessionRow } from "@/types/chat-session";
 import { navSessions, parseChatId } from "../model";
 import { useChatLibraryStore } from "../libraryStore";
+
+const selectMainRows = selectRows(MAIN_CHAT_BUCKET);
 
 export function ChatNavSessions({
   selectedId,
@@ -19,22 +21,22 @@ export function ChatNavSessions({
   selectedId?: string;
   onSelect: (chatId: string) => void;
 }) {
-  const chats = useChatMessageStore(s => s.chats);
+  // 目录行不带消息，流式期间不会变（只有收尾时更新消息数/时间）
+  const chats = useChatSessionStore(selectMainRows);
   const openLibrary = useChatLibraryStore(s => s.setOpen);
   const currentId = parseChatId(selectedId);
-  // 流式回答期间 chats 每个 chunk 都更新，派生列表记忆化避免侧栏全量重算
   const { pinned, recent, total } = useMemo(
     () => navSessions(chats, currentId),
     [chats, currentId]
   );
 
-  const item = (chat: ChatMessage, isPinned: boolean) => (
+  const item = (chat: ChatSessionRow, isPinned: boolean) => (
     <SubItem
       key={chat.id}
       active={chat.id === currentId}
       title={chat.title || "新对话"}
       icon={isPinned ? <Pin size={12} strokeWidth={1.75} className="text-ink-3 shrink-0" /> : null}
-      onClick={() => onSelect(String(chat.id))}
+      onClick={() => onSelect(chat.id)}
     />
   );
 
@@ -55,7 +57,7 @@ export function ChatNavSessions({
 
 /** 侧栏是否有子项可展开：有会话即展开（含「全部会话」入口） */
 export function useChatNavHasContent() {
-  return useChatMessageStore(s => s.chats.length > 0);
+  return useChatSessionStore(s => selectMainRows(s).length > 0);
 }
 
 function SubItem({

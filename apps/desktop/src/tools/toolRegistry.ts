@@ -156,23 +156,33 @@ export class ToolRegistry {
     call: ToolCallPayload,
     options?: {
       signal?: AbortSignal;
+      databaseName?: string;
       conversationKey?: string;
       toolContext?: ToolExecutionContext["toolContext"];
+      scopedTools?: RegisteredTool[];
+      /** 宿主会话只能执行创建时捕获的工具，禁止回落到后来的同名注册。 */
+      sessionTools?: RegisteredTool[];
     }
   ): Promise<ToolExecutionResult | null> {
-    const tool = this.tools.get(call.function.name);
+    options?.signal?.throwIfAborted();
+    const tool = options?.sessionTools
+      ? options.sessionTools.find(item => item.name === call.function.name)
+      : (options?.scopedTools?.find(item => item.name === call.function.name) ??
+        this.tools.get(call.function.name));
     if (!tool) {
       console.warn("[MCP] tool not found", call.function.name);
       // 工具未找到是不可重试的错误，返回错误信息
       return {
         content: `未找到名为 ${call.function.name} 的工具`,
+        isParameterError: true,
       };
     }
 
-    if (!this.isActive(tool)) {
+    if (!options?.sessionTools && !this.isActive(tool)) {
       // 工具未启用是不可重试的错误，返回错误信息
       return {
         content: `工具 ${tool.name} 当前未启用`,
+        isParameterError: true,
       };
     }
 
@@ -208,9 +218,11 @@ export class ToolRegistry {
         toolName: tool.name,
         source: tool.source,
         signal: options?.signal,
+        databaseName: options?.databaseName,
         conversationKey: options?.conversationKey,
         toolContext: options?.toolContext,
       });
+      options?.signal?.throwIfAborted();
       console.debug("[MCP] tool execution result", {
         tool: tool.name,
         source: tool.source,

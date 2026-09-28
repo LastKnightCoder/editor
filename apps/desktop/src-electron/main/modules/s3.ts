@@ -1,13 +1,10 @@
 import { ipcMain } from "electron";
-import {
-  S3Client,
-  PutObjectCommand,
-  ListObjectsV2Command,
-} from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
 import { Module } from "../types/module";
 import { basename } from "node:path";
 
 interface IS3Upload {
+  ifNoneMatch?: "*";
   accessKeyId: string;
   secretAccessKey: string;
   bucket: string;
@@ -41,12 +38,9 @@ class S3Module implements Module {
       return await this.upload(uploadInfo);
     });
 
-    ipcMain.handle(
-      "s3-list-objects",
-      async (_event, listInfo: IS3ListObjects) => {
-        return await this.listObjects(listInfo);
-      },
-    );
+    ipcMain.handle("s3-list-objects", async (_event, listInfo: IS3ListObjects) => {
+      return await this.listObjects(listInfo);
+    });
   }
 
   async upload(uploadInfo: IS3Upload): Promise<string> {
@@ -74,6 +68,7 @@ class S3Module implements Module {
       });
 
       const command = new PutObjectCommand({
+        IfNoneMatch: uploadInfo.ifNoneMatch,
         Bucket: bucket,
         Key: key,
         Body: Buffer.from(file),
@@ -105,15 +100,7 @@ class S3Module implements Module {
   }
 
   async listObjects(listInfo: IS3ListObjects) {
-    const {
-      accessKeyId,
-      secretAccessKey,
-      bucket,
-      region,
-      endpoint,
-      urlStyle,
-      prefix,
-    } = listInfo;
+    const { accessKeyId, secretAccessKey, bucket, region, endpoint, urlStyle, prefix } = listInfo;
 
     const s3Client = new S3Client({
       region,
@@ -125,9 +112,7 @@ class S3Module implements Module {
       forcePathStyle: urlStyle === "path",
     });
 
-    const normalizedPrefix = prefix
-      ? prefix.replace(/^\/+/, "").replace(/\/+/g, "/")
-      : undefined;
+    const normalizedPrefix = prefix ? prefix.replace(/^\/+/, "").replace(/\/+/g, "/") : undefined;
 
     const files: Array<{
       name: string;
@@ -146,21 +131,17 @@ class S3Module implements Module {
         });
 
         const res = await s3Client.send(command);
-        (res.Contents || []).forEach((obj) => {
+        (res.Contents || []).forEach(obj => {
           if (!obj.Key || obj.Key.endsWith("/")) return;
           files.push({
             name: basename(obj.Key),
             path: obj.Key,
             size: Number(obj.Size || 0),
-            lastModified: obj.LastModified
-              ? new Date(obj.LastModified).getTime()
-              : undefined,
+            lastModified: obj.LastModified ? new Date(obj.LastModified).getTime() : undefined,
           });
         });
 
-        continuationToken = res.IsTruncated
-          ? res.NextContinuationToken || undefined
-          : undefined;
+        continuationToken = res.IsTruncated ? res.NextContinuationToken || undefined : undefined;
       } while (continuationToken);
 
       return files;

@@ -13,12 +13,9 @@ CREATE INDEX IF NOT EXISTS idx_diary_segments_create_time ON diary_segments(crea
 CREATE INDEX IF NOT EXISTS idx_video_note_item_video ON video_note_item(video_note_id);
 CREATE INDEX IF NOT EXISTS idx_chat_group_parent_id ON chat_group(parent_id);
 CREATE INDEX IF NOT EXISTS idx_chat_group_order_index ON chat_group(order_index);
-CREATE INDEX IF NOT EXISTS idx_chat_message_group_id ON chat_message(group_id);
-CREATE INDEX IF NOT EXISTS idx_chat_message_archived ON chat_message(archived);
-CREATE INDEX IF NOT EXISTS idx_chat_message_parent_chat_id ON chat_message(parent_chat_id);
-CREATE INDEX IF NOT EXISTS idx_chat_message_order_num ON chat_message(order_num);
-CREATE INDEX IF NOT EXISTS idx_chat_run_session_status ON chat_run(session_key, status);
-CREATE INDEX IF NOT EXISTS idx_chat_run_updated_at ON chat_run(updated_at);
+CREATE INDEX IF NOT EXISTS idx_chat_session_scope ON chat_session(scope, domain_ref);
+CREATE INDEX IF NOT EXISTS idx_chat_session_update_time ON chat_session(update_time);
+CREATE INDEX IF NOT EXISTS idx_chat_session_group_id ON chat_session(group_id);
 CREATE INDEX IF NOT EXISTS idx_question_group_sort ON question_group(sort_index);
 CREATE INDEX IF NOT EXISTS idx_question_group_default ON question_group(is_default);
 CREATE INDEX IF NOT EXISTS idx_questions_group_id ON questions(group_id);
@@ -106,24 +103,8 @@ CREATE INDEX IF NOT EXISTS idx_flashcard_references_card ON flashcard_references
 CREATE INDEX IF NOT EXISTS idx_flashcard_references_content ON flashcard_references(content_id);
 CREATE INDEX IF NOT EXISTS idx_vlr_project_id
       ON vibe_learning_resources(project_id);
-CREATE INDEX IF NOT EXISTS idx_vlc_project_id
-      ON vibe_learning_chats(project_id);
-CREATE INDEX IF NOT EXISTS idx_vlc_parent_chat_id
-      ON vibe_learning_chats(parent_chat_id);
-CREATE INDEX IF NOT EXISTS idx_vn_chat_video_note_id
-      ON video_note_chats(video_note_id);
-CREATE INDEX IF NOT EXISTS idx_vn_chat_parent_chat_id
-      ON video_note_chats(parent_chat_id);
-CREATE INDEX IF NOT EXISTS idx_pdf_chat_pdf_id
-      ON pdf_chats(pdf_id);
-CREATE INDEX IF NOT EXISTS idx_pdf_chat_parent_chat_id
-      ON pdf_chats(parent_chat_id);
 CREATE INDEX IF NOT EXISTS idx_audio_note_item_audio
       ON audio_note_item(audio_note_id);
-CREATE INDEX IF NOT EXISTS idx_an_chat_audio_note_id
-      ON audio_note_chats(audio_note_id);
-CREATE INDEX IF NOT EXISTS idx_an_chat_parent_chat_id
-      ON audio_note_chats(parent_chat_id);
 CREATE INDEX IF NOT EXISTS idx_vl_note_project ON vl_note(project_id);
 CREATE INDEX IF NOT EXISTS idx_vl_quiz_set_project ON vl_quiz_set(project_id);
 CREATE INDEX IF NOT EXISTS idx_vl_quiz_item_set ON vl_quiz_item(quiz_set_id);

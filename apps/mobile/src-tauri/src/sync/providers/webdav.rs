@@ -3,11 +3,11 @@ use std::collections::{HashSet, VecDeque};
 use reqwest::Method;
 
 use super::ResourceRemoteFileInfo;
+use crate::network_policy::NetworkPolicy;
 use crate::sync::common::{
     file_name_from_path, normalize_remote_path, preview_text, strip_base_prefix, RESOURCE_PREFIX,
 };
 use crate::sync::context::WebDavConfig;
-use crate::network_policy::NetworkPolicy;
 use crate::sync::error::{run_sync_policy, run_sync_policy_with, AppError};
 
 fn webdav_remote_path(path_prefix: &str, object_name: &str) -> String {
@@ -181,6 +181,7 @@ pub(crate) async fn webdav_upload(
     config: &WebDavConfig,
     object_name: &str,
     content: &[u8],
+    create_only: bool,
 ) -> Result<(), AppError> {
     ensure_webdav_directories(config, object_name).await?;
     let url = webdav_url(config, object_name);
@@ -192,15 +193,18 @@ pub(crate) async fn webdav_upload(
         "WebDAV 上传",
         NetworkPolicy::for_payload(Some(content.len())),
         |_| async {
-            let resp = client
+            let request = client
                 .put(&url)
                 .basic_auth(&config.username, Some(&config.password))
-                .body(content.to_vec())
-                .send()
-                .await
-                .map_err(|e| {
-                    AppError::new("SYNC_UPLOAD_FAILED", format!("WebDAV 上传失败: {e}"))
-                })?;
+                .body(content.to_vec());
+            let request = if create_only {
+                request.header("If-None-Match", "*")
+            } else {
+                request
+            };
+            let resp = request.send().await.map_err(|e| {
+                AppError::new("SYNC_UPLOAD_FAILED", format!("WebDAV 上传失败: {e}"))
+            })?;
             if !resp.status().is_success() {
                 return Err(AppError::new(
                     "SYNC_UPLOAD_FAILED",

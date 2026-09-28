@@ -233,6 +233,12 @@ export function useProjectMutations(): {
       invalidate();
     },
     async remove(id) {
+      // 先释放学习项目对话的宿主会话与运行态（与删 PDF 同理）：主进程删项目时连对话文件一起删，
+      // 宿主还开着的话会往已删的文件里继续写。非学习项目没有这类对话，释放是空操作
+      const { default: useChatSessionStore } = await import("@/stores/useChatSessionStore");
+      await useChatSessionStore
+        .getState()
+        .releaseBucket({ scope: "vibe-learning-chat", domainRef: String(id) });
       await deleteProject(id);
       invalidate();
     },

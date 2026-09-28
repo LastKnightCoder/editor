@@ -1,34 +1,99 @@
 import { describe, it, expect, vi } from "vitest";
 import type { ChatMessageType } from "@tau/shared";
-import { buildAiChatRpcPayload, mapChatMessageToAiRequestMessage } from "../useAiChat";
+import { applyChatStreamEvent, createAssistantMessage, createRunEventFilter } from "@tau/shared";
+import {
+  buildAiRunStartParams,
+  buildResumedMessages,
+  mapChatMessageToAiRequestMessage,
+} from "../useAiChat";
 import { fetchSkillsViaRpc } from "../useSkills";
 
-describe("ai.chat 协议映射", () => {
-  it("透传 conversationKey 并附带浏览器工具列表", () => {
-    const payload = buildAiChatRpcPayload({
-      requestId: "req-1",
+describe("ai.run.start 协议（v2）", () => {
+  it("选择的思考档位进入运行参数", () => {
+    expect(
+      buildAiRunStartParams({
+        runId: "r",
+        messages: [{ role: "user", content: "问" }],
+        enableTools: true,
+        thinkingLevel: "high",
+      }).thinkingLevel
+    ).toBe("high");
+  });
+  it("带扩展页面工具，不带扩展本地的 ask-question（提问改走桌面宿主）", () => {
+    const params = buildAiRunStartParams({
+      runId: "run-1",
       messages: [{ role: "user", content: "hello" }],
       systemPrompt: "sys",
       enableTools: true,
-      conversationKey: "conv-1",
     });
 
-    expect(payload.conversationKey).toBe("conv-1");
-    expect(Array.isArray(payload.browserTools)).toBe(true);
-    expect(payload.browserTools?.length).toBeGreaterThan(0);
+    expect(params.runId).toBe("run-1");
+    const names = params.browserTools?.map(tool => tool.function.name) ?? [];
+    expect(names).toContain("get_page_content");
+    expect(names).not.toContain("ask-question");
   });
 
-  it("忽略旧调用方传入的代理类型和线程 ID", () => {
-    const payload = buildAiChatRpcPayload({
-      requestId: "req-codex",
-      messages: [{ role: "user", content: "hello codex" }],
-      enableTools: true,
-      agentType: "codex",
-      agentSessionId: "codex-thread-1",
-    } as any);
+  it("持久对话带 session；纯文本单发不带工具", () => {
+    const params = buildAiRunStartParams({
+      runId: "run-2",
+      messages: [{ role: "user", content: "hello" }],
+      enableTools: false,
+      session: { id: "s1", pageUrl: "https://a.com" },
+    });
+    expect(params.session).toEqual({ id: "s1", pageUrl: "https://a.com" });
+    expect(params).not.toHaveProperty("browserTools");
+  });
 
-    expect(payload).not.toHaveProperty("agentType");
-    expect(payload).not.toHaveProperty("agentSessionId");
+  it("事件过滤：只收本 runId，丢弃乱序与重复", () => {
+    const accept = createRunEventFilter("run-1");
+    const event = { type: "turn-finish", turnId: "t" } as const;
+    expect(accept({ runId: "other", seq: 0, event })).toBeNull();
+    expect(accept({ runId: "run-1", seq: 0, event })).toEqual(event);
+    expect(accept({ runId: "run-1", seq: 0, event })).toBeNull();
+    expect(accept({ runId: "run-1", seq: 2, event })).toEqual(event);
+    expect(accept({ runId: "run-1", seq: 1, event })).toBeNull();
+  });
+
+  it("接回在跑的一轮：从快照的 lastSeq 续接，快照已含的事件丢弃", () => {
+    const accept = createRunEventFilter("run-1", 4);
+    const event = { type: "turn-finish", turnId: "t" } as const;
+    expect(accept({ runId: "run-1", seq: 3, event })).toBeNull();
+    expect(accept({ runId: "run-1", seq: 4, event })).toBeNull();
+    expect(accept({ runId: "run-1", seq: 5, event })).toEqual(event);
+  });
+
+  it("接回的界面 = 本轮之前的对话 + 本轮提问 + 到此刻的回答", () => {
+    const response = createAssistantMessage();
+    applyChatStreamEvent(response, { type: "text", turnId: "t1", fullText: "写到一半" });
+    const messages = buildResumedMessages(
+      {
+        runId: "run-1",
+        lastSeq: 3,
+        baseMessages: [
+          { role: "user", content: "上一问", clientId: "u0" } as never,
+          { role: "assistant", content: "上一答", clientId: "a0" } as never,
+        ],
+        request: {
+          role: "user",
+          content: [
+            { type: "text", text: "这一问" },
+            { type: "image", image: "data:image/png;base64,xx" },
+          ],
+        },
+        response,
+        interactions: { approvals: [], questions: [] },
+        retry: null,
+      },
+      "assistant-id"
+    );
+    expect(messages.map(message => [message.role, message.content])).toEqual([
+      ["user", "上一问"],
+      ["assistant", "上一答"],
+      ["user", "这一问\n[图片]"],
+      ["assistant", "写到一半"],
+    ]);
+    expect(messages.at(-1)!.id).toBe("assistant-id");
+    expect((messages[2] as { requestContent?: unknown[] }).requestContent).toHaveLength(2);
   });
 
   it("支持 user/assistant/tool 历史消息映射", () => {

@@ -1,4 +1,5 @@
 export interface ISyncProvider {
+  createFileIfAbsent(objectName: string, content: Uint8Array): Promise<boolean>;
   uploadFile(objectName: string, content: Uint8Array): Promise<boolean>;
   downloadFile(objectName: string): Promise<Uint8Array>;
   fileExists(objectName: string): Promise<boolean>;
@@ -6,6 +7,8 @@ export interface ISyncProvider {
 }
 
 export interface IDatabaseInfo {
+  databaseObject?: string;
+  sessionsObject?: string;
   version: number;
   dataModelVersion?: number;
   [key: string]: unknown;

@@ -72,8 +72,24 @@ vi.mock("@/stores/useSkillStore", () => ({
     }),
 }));
 
-vi.mock("@/hooks/useChatLLM", () => ({
-  chatLLMStream: vi.fn(),
+vi.mock("@/services/piAgentRunner", () => ({
+  runPiAgent: vi.fn(),
+}));
+
+vi.mock("@/services/piChatSession", () => ({
+  buildPiChatSystemPrompt: (base: string) => base,
+  piChatSessionManager: { resolveSessionId: () => undefined },
+  toPiImageContent: (data: string) => ({ type: "image", data, mimeType: "image/png" }),
+}));
+
+vi.mock("@/services/piChatEvents", () => ({
+  PiChatEventReducer: class {
+    handle() {}
+    getExecutions() {
+      return [];
+    }
+    reset() {}
+  },
 }));
 
 vi.mock("@/commands", () => ({

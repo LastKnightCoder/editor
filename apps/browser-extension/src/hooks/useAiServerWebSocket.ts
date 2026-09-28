@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import WebSocketClient from "../utils/WebSocketClient";
+import { AI_SERVER_WS_URL } from "../utils/aiServerAddress";
 import type { ConnectionStatus } from "../utils/types";
 
-const AI_SERVER_URL = "ws://localhost:24678/aiServer";
 const RECONNECT_INTERVAL = 3000;
 const MAX_RECONNECT_INTERVAL = 30000;
 
@@ -41,7 +41,7 @@ export function useAiServerWebSocket(): UseAiServerWebSocketReturn {
     // 指数退避，上限 30s
     reconnectIntervalRef.current = Math.min(
       reconnectIntervalRef.current * 1.5,
-      MAX_RECONNECT_INTERVAL,
+      MAX_RECONNECT_INTERVAL
     );
   }, [clearReconnectTimer]);
 
@@ -54,7 +54,7 @@ export function useAiServerWebSocket(): UseAiServerWebSocketReturn {
     }
 
     setStatus("connecting");
-    const client = new WebSocketClient(AI_SERVER_URL);
+    const client = new WebSocketClient(AI_SERVER_WS_URL);
 
     client.onOpenHandler = () => {
       if (mountedRef.current) {

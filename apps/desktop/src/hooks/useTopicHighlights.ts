@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { chatLLM } from "./useChatLLM";
+import { piCompleteChat } from "@/services/piLLM";
 import {
   TOPIC_HIGHLIGHTS_SYSTEM_PROMPT,
   buildTopicHighlightsUserPrompt,
@@ -11,13 +11,8 @@ import {
   parseVideoInsightsResponse,
 } from "./video-insights-parser";
 import { Role } from "@/constants";
-import type {
-  ProviderConfig,
-  ModelConfig,
-  RequestMessage,
-  TranscriptSegment,
-  VideoNoteInsights,
-} from "@/types";
+import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
+import type { RequestMessage, TranscriptSegment, VideoNoteInsights } from "@/types";
 
 interface UseTopicHighlightsResult {
   isGenerating: boolean;
@@ -25,13 +20,13 @@ interface UseTopicHighlightsResult {
   generateTopicHighlights: (
     topicName: string,
     transcriptSegments: TranscriptSegment[],
-    currentInsights?: VideoNoteInsights,
+    currentInsights?: VideoNoteInsights
   ) => Promise<VideoNoteInsights>;
 }
 
 export const useTopicHighlights = (
-  providerConfig: ProviderConfig | null,
-  modelConfig: ModelConfig | null,
+  provider: LLMProviderSetting | null,
+  model: LLMModelSetting | null
 ): UseTopicHighlightsResult => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -40,9 +35,9 @@ export const useTopicHighlights = (
     async (
       topicName: string,
       transcriptSegments: TranscriptSegment[],
-      currentInsights?: VideoNoteInsights,
+      currentInsights?: VideoNoteInsights
     ): Promise<VideoNoteInsights> => {
-      if (!providerConfig || !modelConfig) {
+      if (!provider || !model) {
         const err = new Error("未配置视频总结模型");
         setError(err);
         throw err;
@@ -68,16 +63,15 @@ export const useTopicHighlights = (
             content: [
               {
                 type: "text",
-                text: buildTopicHighlightsUserPrompt(
-                  topicName,
-                  transcriptSegments,
-                ),
+                text: buildTopicHighlightsUserPrompt(topicName, transcriptSegments),
               },
             ],
           },
         ];
 
-        const response = await chatLLM(providerConfig, modelConfig, messages);
+        const outcome = await piCompleteChat({ provider, model, messages });
+        if (!outcome.ok) throw new Error(outcome.error ?? "模型请求失败");
+        const response = outcome.text;
         const transcriptHash = computeTranscriptHash("", transcriptSegments);
         const parsed = parseVideoInsightsResponse(response || "", {
           mode: "topic",
@@ -85,9 +79,9 @@ export const useTopicHighlights = (
           transcriptHash,
           transcriptSegments,
           modelMeta: {
-            providerId: providerConfig.id,
-            providerName: providerConfig.name,
-            modelName: modelConfig.name,
+            providerId: provider.id,
+            providerName: provider.name,
+            modelName: model.name,
           },
         });
         return mergeTopicInsights(currentInsights, parsed);
@@ -98,7 +92,7 @@ export const useTopicHighlights = (
       } finally {
         setIsGenerating(false);
       }
-    },
+    }
   );
 
   return {

@@ -5,7 +5,7 @@
  *  - 其余围栏代码 → CodeBlock；行内代码 → surface 亮底 + line-1 描边 chip（D-009）；
  *  - 链接 → 系统浏览器打开。
  *
- * 块身份：liveChat 的对话面（对话页 / 停靠栏，会话在 useChatMessageStore 里）用
+ * 块身份：liveChat 的对话面（对话页 / 停靠栏，会话在统一会话 store 里）用
  * 「会话 + 消息 . 段 . 围栏」稳定 key，预览页据此实时取内容；其它对话面按快照打开。
  * 打开方式由调用方决定（onOpenBlock）；未提供时推入块预览页（快照）。
  */
@@ -41,7 +41,8 @@ interface BuildBlockArgs {
   code: string;
   idPrefix: string;
   liveChat: boolean;
-  chatId: number;
+  /** 对话 id；非会话场景为空（只能按快照打开） */
+  chatId: string | undefined;
   messageIndex: number;
   segmentIndex?: number;
   segmentText?: string;
@@ -55,14 +56,15 @@ export function buildBlock(args: BuildBlockArgs): { block: BlockData; generating
   const fenceIndex = fences.findIndex(f => f.content === code);
   const fence = fences[fenceIndex];
   const generating = args.streamingSegment && Boolean(fence) && !fence.closed;
-  const live = args.liveChat && chatId > 0 && segmentIndex != null && fenceIndex >= 0;
+  const live = args.liveChat && Boolean(chatId) && segmentIndex != null && fenceIndex >= 0;
   const key = live ? blockKey(messageIndex, segmentIndex, fenceIndex) : undefined;
   const block: BlockData = {
-    id: key
-      ? chatBlockId(chatId, key)
-      : `${args.idPrefix}-${language}-${chatId}-${messageIndex}-${segmentIndex ?? "x"}-${
-          fenceIndex >= 0 ? fenceIndex : simpleHash(code.slice(0, 200))
-        }`,
+    id:
+      key && chatId
+        ? chatBlockId(chatId, key)
+        : `${args.idPrefix}-${language}-${chatId ?? "none"}-${messageIndex}-${segmentIndex ?? "x"}-${
+            fenceIndex >= 0 ? fenceIndex : simpleHash(code.slice(0, 200))
+          }`,
     type: renderer.type,
     content: code,
     metadata: {
@@ -87,7 +89,7 @@ export function useChatMarkdownComponents({
   onOpenBlock?: (block: BlockData) => void;
   /** 快照块 id 前缀：同一会话在不同容器里打开时互不串 */
   idPrefix?: string;
-  /** 会话在 useChatMessageStore 里（对话页 / 停靠栏）：块按稳定 key 实时预览 */
+  /** 主聊天的对话面（对话页 / 停靠栏，会话在统一会话 store 里）：块按稳定 key 实时预览 */
   liveChat?: boolean;
 }) {
   return useMemo(() => {
@@ -134,7 +136,7 @@ export function useChatMarkdownComponents({
         code,
         idPrefix,
         liveChat,
-        chatId: messageMeta?.chatId ?? 0,
+        chatId: messageMeta?.chatId,
         messageIndex: messageMeta?.messageIndex ?? 0,
         segmentIndex: messageMeta?.blockIndex,
         segmentText: messageMeta?.textContent,

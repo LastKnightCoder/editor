@@ -59,7 +59,8 @@ describe("导入", () => {
     await mkdir(path.join(dir, "pack/two"), { recursive: true });
     await writeFile(path.join(dir, "pack/two/SKILL.md"), "# two");
     const found = (await findSkillDirs(dir)).map(p => path.relative(dir, p)).sort();
-    expect(found).toEqual(["pack/one", "pack/two"]);
+    // path.relative 在 Windows 返回反斜杠，预期值用 path.join 构造保持平台无关
+    expect(found).toEqual([path.join("pack", "one"), path.join("pack", "two")]);
   });
 
   it("拒绝 zip-slip", async () => {

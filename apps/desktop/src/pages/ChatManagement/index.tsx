@@ -1,17 +1,17 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
 import { useMemoizedFn, useLocalStorageState } from "ahooks";
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import SidebarToggleButton from "@/components/SidebarToggleButton";
 import ChatManagementSidebar from "@/features/chat/components/ChatManagementSidebar";
 import ChatArea from "@/features/chat/components/ChatArea";
 import type { ChatAreaHandle } from "@/features/chat/components/ChatArea";
-import useChatMessageStore from "@/stores/useChatMessageStore";
+import useChatSessionStore, { MAIN_CHAT_BUCKET, bucketKeyOf } from "@/stores/useChatSessionStore";
 
 const ChatManagementContent = memo(() => {
   const chatAreaRef = useRef<ChatAreaHandle>(null);
-  const chats = useChatMessageStore(state => state.chats);
-  const [selectedChatId, setSelectedChatId] = useState<number | null>(
-    () => useChatMessageStore.getState().currentChatId
+  // 选中项失效（被删）由 ChatArea 内的 useScopedChat 退回新对话
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(
+    () => useChatSessionStore.getState().currentIds[bucketKeyOf(MAIN_CHAT_BUCKET)] ?? null
   );
   const [sendLoading, setSendLoading] = useState(false);
 
@@ -27,16 +27,10 @@ const ChatManagementContent = memo(() => {
     setHideSidebar(!hideSidebar);
   });
 
-  const handleChatSelect = useMemoizedFn((chatId: number) => {
+  const handleChatSelect = useMemoizedFn((chatId: string) => {
     setSelectedChatId(chatId);
     chatAreaRef.current?.scrollToTop();
   });
-
-  useEffect(() => {
-    if (selectedChatId !== null && !chats.some(chat => chat.id === selectedChatId)) {
-      setSelectedChatId(null);
-    }
-  }, [chats, selectedChatId]);
 
   return (
     <div className="relative flex h-full w-full overflow-hidden">
@@ -57,6 +51,7 @@ const ChatManagementContent = memo(() => {
           ref={chatAreaRef}
           selectedChatId={selectedChatId}
           onSelectChat={setSelectedChatId}
+          draftSlot="legacy-chat-page"
           sendLoading={sendLoading}
           setSendLoading={setSendLoading}
         />

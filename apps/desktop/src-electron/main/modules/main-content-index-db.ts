@@ -25,6 +25,7 @@ export interface EnsureIndexReadyResult {
 }
 
 const MIGRATION_STATE_KEY = "migration_state";
+const LEGACY_MAIN_INDEX_TABLES = ["content_fts", "vec_documents", "vec_index_meta"];
 const REBUILD_STATE_KEY = "rebuild_state";
 const FTS_REBUILD_STATE_KEY = "fts_rebuild_state";
 const VEC_REBUILD_STATE_KEY = "vec_rebuild_state";
@@ -636,6 +637,9 @@ class MainContentIndexDBManager {
       `[MainContentIndexDB] ensureReady start: mainDb=${mainDbName}, migrationState=${migrationState}, rebuildState=${rebuildState}`
     );
     if (migrationState === "done") {
+      // 索引早已搬到独立索引库：主库里又出现的旧索引表（另一台还没搬过的机器同步上来的 .db 带着）
+      // 不会再被读，只会占空间并跟着同步来回传，删掉
+      this.dropLegacyMainIndexTables(mainDb, mainDbName);
       migrateKnowledgeIndex(mainDb, indexDb);
       const vecRecreated = this.ensureVecTableByDimensions(indexDb, vecDimensions);
       if (vecRecreated) {
@@ -686,20 +690,7 @@ class MainContentIndexDBManager {
       `[MainContentIndexDB] migration state update: mainDb=${mainDbName}, migrationState=cutover`
     );
 
-    const droppedTables: string[] = [];
-    try {
-      mainDb.exec("DROP TABLE IF EXISTS content_fts");
-      droppedTables.push("content_fts");
-      mainDb.exec("DROP TABLE IF EXISTS vec_documents");
-      droppedTables.push("vec_documents");
-      mainDb.exec("DROP TABLE IF EXISTS vec_index_meta");
-      droppedTables.push("vec_index_meta");
-      log.info(
-        `[MainContentIndexDB] drop legacy tables success: mainDb=${mainDbName}, dropped=${droppedTables.join(",")}`
-      );
-    } catch (error) {
-      log.warn("[MainContentIndexDB] Drop legacy index tables failed:", error);
-    }
+    this.dropLegacyMainIndexTables(mainDb, mainDbName);
 
     const vecRecreated = this.ensureVecTableByDimensions(indexDb, vecDimensions);
 
@@ -721,6 +712,20 @@ class MainContentIndexDBManager {
       migrationState: this.getMigrationState(mainDbName),
       rebuildState: this.getRebuildState(mainDbName),
     };
+  }
+
+  /** 主库里的旧索引表（索引已搬到独立索引库）：搬完时删，之后主库再带着也删 */
+  private dropLegacyMainIndexTables(mainDb: Database.Database, mainDbName: string) {
+    const legacy = LEGACY_MAIN_INDEX_TABLES.filter(name => this.hasTable(mainDb, name));
+    if (legacy.length === 0) return;
+    try {
+      for (const name of legacy) mainDb.exec(`DROP TABLE IF EXISTS ${name}`);
+      log.info(
+        `[MainContentIndexDB] drop legacy tables success: mainDb=${mainDbName}, dropped=${legacy.join(",")}`
+      );
+    } catch (error) {
+      log.warn("[MainContentIndexDB] Drop legacy index tables failed:", error);
+    }
   }
 
   getExistingDatabase(mainDbName: string): Database.Database | undefined {

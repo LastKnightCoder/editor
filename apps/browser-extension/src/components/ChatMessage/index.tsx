@@ -27,6 +27,8 @@ interface ChatMessageProps {
   onDeleteMessage?: (messageIndex: number) => void;
   onRegenerateMessage?: (messageIndex: number) => void;
   onCreateBranch?: (messageIndex: number) => void;
+  /** 切到这条用户消息的第 versionIndex 个版本（会话树，M4-d） */
+  onSwitchVersion?: (messageIndex: number, versionIndex: number) => void;
   onCopySuccess?: () => void;
   onCopyError?: () => void;
   onDeleteConfirm?: () => Promise<boolean>;
@@ -56,11 +58,8 @@ const getUserText = (message: LocalChatMessage) => {
     return message.content || "";
   }
   return message.requestContent
-    .filter(
-      (item): item is Extract<MessageContentItem, { type: "text" }> =>
-        item.type === "text",
-    )
-    .map((item) => item.text)
+    .filter((item): item is Extract<MessageContentItem, { type: "text" }> => item.type === "text")
+    .map(item => item.text)
     .join("\n");
 };
 
@@ -69,10 +68,7 @@ const getUserImages = (message: LocalChatMessage): ChatMessageViewImage[] => {
     return [];
   }
   return message.requestContent
-    .filter(
-      (item): item is Extract<MessageContentItem, { type: "image" }> =>
-        item.type === "image",
-    )
+    .filter((item): item is Extract<MessageContentItem, { type: "image" }> => item.type === "image")
     .map((item, index) => ({
       url: item.image,
       alt: `User uploaded image ${index + 1}`,
@@ -84,11 +80,8 @@ const getUserFiles = (message: LocalChatMessage): ChatMessageViewFile[] => {
     return [];
   }
   return message.requestContent
-    .filter(
-      (item): item is Extract<MessageContentItem, { type: "file" }> =>
-        item.type === "file",
-    )
-    .map((item) => ({
+    .filter((item): item is Extract<MessageContentItem, { type: "file" }> => item.type === "file")
+    .map(item => ({
       path: item.file,
       name: parseFileName(item.file, item.fileName),
     }));
@@ -102,6 +95,7 @@ export function ChatMessage({
   onDeleteMessage,
   onRegenerateMessage,
   onCreateBranch,
+  onSwitchVersion,
   onCopySuccess,
   onCopyError,
   onDeleteConfirm,
@@ -118,10 +112,7 @@ export function ChatMessage({
       return [];
     }
 
-    if (
-      Array.isArray(message.contentBlocks) &&
-      message.contentBlocks.length > 0
-    ) {
+    if (Array.isArray(message.contentBlocks) && message.contentBlocks.length > 0) {
       return message.contentBlocks;
     }
 
@@ -143,7 +134,7 @@ export function ChatMessage({
         console.error("[ChatMessage] 打开文档引用失败:", error);
       }
     },
-    [wsClient],
+    [wsClient]
   );
 
   const handleLinkClick = useCallback((href: string) => {
@@ -164,7 +155,7 @@ export function ChatMessage({
         messageApi.error("打开预览失败");
       }
     },
-    [messageApi, wsClient],
+    [messageApi, wsClient]
   );
 
   const openFileInFolder = useCallback(
@@ -183,7 +174,7 @@ export function ChatMessage({
         messageApi.error("打开文件位置失败");
       }
     },
-    [wsClient, messageApi],
+    [wsClient, messageApi]
   );
 
   const handleDelete = useCallback(
@@ -194,7 +185,7 @@ export function ChatMessage({
       }
       onDeleteMessage?.(index);
     },
-    [onDeleteConfirm, onDeleteMessage],
+    [onDeleteConfirm, onDeleteMessage]
   );
 
   const renderMarkdown = useCallback(
@@ -216,7 +207,7 @@ export function ChatMessage({
       isDark,
       messageApi,
       wsClient?.isConnected,
-    ],
+    ]
   );
 
   return (
@@ -231,6 +222,12 @@ export function ChatMessage({
       onDelete={handleDelete}
       onRegenerate={onRegenerateMessage}
       onCreateBranch={onCreateBranch}
+      {...(isUser && message.piVersions
+        ? {
+            versions: { index: message.piVersions.index, count: message.piVersions.ids.length },
+          }
+        : {})}
+      onSwitchVersion={onSwitchVersion}
       onOpenFile={openFileInFolder}
       onCopySuccess={onCopySuccess}
       onCopyError={onCopyError}

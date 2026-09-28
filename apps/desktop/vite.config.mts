@@ -15,6 +15,7 @@ const runtimeDependencyExternals = [
   "turndown",
   "@myriaddreamin/typst-ts-node-compiler",
   "@node-rs/jieba",
+  "@silvia-odwyer/photon-node",
   "@tailwindcss/oxide",
   "@vscode/ripgrep",
   "better-sqlite3",
@@ -42,7 +43,6 @@ export default defineConfig(() => {
         "@": path.resolve(__dirname, "src"),
         "@quick-card": path.resolve(__dirname, "quick-card"),
         "@editor": path.resolve(__dirname, "src/components/Editor"),
-        "@tau/agent": path.resolve(__dirname, "../../packages/agent"),
         "@tau/editor": path.resolve(__dirname, "../../packages/editor"),
         "@tau/db-schema": path.resolve(__dirname, "../../packages/db-schema"),
         "@tau/rpc": path.resolve(__dirname, "../../packages/rpc"),
@@ -76,7 +76,6 @@ export default defineConfig(() => {
             resolve: {
               alias: {
                 "@": path.resolve(__dirname, "src"),
-                "@tau/agent": path.resolve(__dirname, "../../packages/agent"),
                 "@tau/contracts": path.resolve(__dirname, "../../packages/contracts"),
                 "@tau/rpc": path.resolve(__dirname, "../../packages/rpc"),
                 "@tau/shared": path.resolve(__dirname, "../../packages/shared"),

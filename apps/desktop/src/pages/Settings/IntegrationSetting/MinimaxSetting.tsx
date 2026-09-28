@@ -4,8 +4,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useMemoizedFn } from "ahooks";
 import useSettingStore from "@/stores/useSettingStore";
 import useThemeColors from "@/hooks/useThemeColors";
-import { chat } from "@/commands";
-import { Role } from "@/constants";
+import { verifyMinimaxApiKey } from "@/commands/piAi";
 
 const MinimaxSetting: React.FC = () => {
   const themeColors = useThemeColors();
@@ -29,18 +28,8 @@ const MinimaxSetting: React.FC = () => {
     setErrorMessage("");
 
     try {
-      // 使用音色列表接口验证 API Key
-      await chat(apiKeyValue, "https://api.minimaxi.com/v1/", "MiniMax-M2", [
-        {
-          role: Role.User,
-          content: [
-            {
-              type: "text",
-              text: "Hello, how are you?",
-            },
-          ],
-        },
-      ]);
+      // 用一次最短对话验证 API Key（走 pi）
+      await verifyMinimaxApiKey(apiKeyValue);
       updateMinimaxApiKey(apiKeyValue);
       setMinimaxEnabled(true);
 

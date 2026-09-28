@@ -3,10 +3,11 @@
  *  - vibe_learning_generate：结合对话把要求浓缩成 brief，走与生成弹窗相同的后台任务
  *  - vibe_learning_save_note：对话里已经写好的内容直接存成产物，不再重新生成
  * 产物建好即出现在左侧产物列表（任务 bumpProducts 驱动刷新），对话里渲染产物卡片。
- * 风格按名称选、这里换算成模板 id；缺必要信息时返回参数错误，引导模型用 ask_question 问用户。
+ * 风格按名称选、这里换算成模板 id；缺必要信息时返回参数错误，引导模型用 ask-question 问用户。
  */
 
 import { createContent } from "@/commands";
+import { bindDatabaseCommands } from "@/services/command-context";
 import { createVLNote, getVLResourcesByProjectId } from "@/commands/vibe-learning";
 import { PPT_TEMPLATES } from "@/constants/ppt-templates";
 import { REPORT_TEMPLATES } from "@/constants/report-templates";
@@ -14,6 +15,7 @@ import type { ToolDefinition, ToolExecutionResult } from "@/types";
 import type { VideoEbookRewriteStyle } from "@/constants/prompts/video-ebook-rewrite";
 import type { VLNoteType } from "@/types/vibe-learning";
 import { getContentLength, importFromMarkdown } from "@/utils";
+import { ASK_QUESTION_TOOL_NAME } from "@/tools/askQuestionTypes";
 import { GENERATE_APPS, type GenerateAppKey } from "../appMeta";
 import { ARTICLE_STYLES } from "../generate/styles";
 import { startVLTask } from "../tasks/runner";
@@ -74,10 +76,11 @@ function createGenerateTool(projectId: number, mainDbName: string): ToolDefiniti
 
   return {
     name: "vibe_learning_generate",
+    risk: "write",
     description:
       "基于当前项目资料在后台生成学习产物（大纲、重点、文章、导图、PPT、报告、测验），生成完成后出现在左侧产物列表。" +
       "brief 必须结合本次对话写具体：用户关心的主题、范围、深度、受众与偏好，不要只写「生成大纲」。" +
-      "PPT / 报告必须先确定风格：用户没说时先用 ask_question 让用户选，不要替用户决定。" +
+      `PPT / 报告必须先确定风格：用户没说时先用 ${ASK_QUESTION_TOOL_NAME} 让用户选，不要替用户决定。` +
       "工具立即返回，不要等待生成结果，也不要在回复里复述产物内容。" +
       "如果产物内容已经在对话里写好，改用 vibe_learning_save_note 直接保存。",
     execution: { timeoutMs: 60000 },
@@ -111,7 +114,7 @@ function createGenerateTool(projectId: number, mainDbName: string): ToolDefiniti
       required: ["kind", "brief"],
       additionalProperties: false,
     },
-    executor: async args => {
+    executor: async (args, context) => {
       const kind = asString(args.kind) as GenerateAppKey;
       const app = GENERATE_KINDS.find(a => a.key === kind);
       if (!app) {
@@ -131,19 +134,24 @@ function createGenerateTool(projectId: number, mainDbName: string): ToolDefiniti
         if (styleName && !matched) {
           return paramError(
             `没有名为「${styleName}」的风格。可选风格：\n${listStyles(styleOptions)}\n` +
-              "请从中选一个最符合用户描述的；拿不准时用 ask_question 让用户选。"
+              `请从中选一个最符合用户描述的；拿不准时用 ${ASK_QUESTION_TOOL_NAME} 让用户选。`
           );
         }
         if (!matched && STYLE_REQUIRED.includes(kind)) {
           return paramError(
-            `生成${app.label}需要先确定风格。请调用 ask_question 让用户单选（挑 4~6 个与内容最契合的作为选项，选项文案用风格名称并附一句说明），拿到答案后带上 style 重新调用本工具。可选风格：\n${listStyles(styleOptions)}`
+            `生成${app.label}需要先确定风格。请调用 ${ASK_QUESTION_TOOL_NAME} 让用户单选（挑 4~6 个与内容最契合的作为选项，选项文案用风格名称并附一句说明），拿到答案后带上 style 重新调用本工具。可选风格：\n${listStyles(styleOptions)}`
           );
         }
         styleValue = matched?.value;
       }
 
       // 资料：按名称匹配；只用已转换出文本的
-      const ready = (await getVLResourcesByProjectId(projectId)).filter(r => r.markdownPath);
+      const ready = (
+        await bindDatabaseCommands(
+          { getVLResourcesByProjectId },
+          { ...context, databaseName: mainDbName }
+        ).getVLResourcesByProjectId(projectId)
+      ).filter(r => r.markdownPath);
       if (ready.length === 0) return paramError("项目里还没有可用的资料（资料可能还在处理中）。");
       const wanted = Array.isArray(args.resources)
         ? args.resources.map(asString).filter(Boolean)
@@ -159,6 +167,7 @@ function createGenerateTool(projectId: number, mainDbName: string): ToolDefiniti
       const title = asString(args.title);
       try {
         const started = await startVLTask({
+          ...(context?.signal ? { startSignal: context.signal } : {}),
           kind,
           projectId,
           mainDbName,
@@ -193,9 +202,10 @@ function createGenerateTool(projectId: number, mainDbName: string): ToolDefiniti
   };
 }
 
-function createSaveNoteTool(projectId: number): ToolDefinition {
+function createSaveNoteTool(projectId: number, mainDbName: string): ToolDefinition {
   return {
     name: "vibe_learning_save_note",
+    risk: "write",
     description:
       "把对话里已经写好的内容直接保存为项目产物（出现在左侧产物列表），不重新生成。" +
       "适合用户说「把这个存下来 / 保存成大纲」等场景；markdown 填完整内容，不要省略。",
@@ -213,7 +223,11 @@ function createSaveNoteTool(projectId: number): ToolDefinition {
       required: ["type", "title", "markdown"],
       additionalProperties: false,
     },
-    executor: async args => {
+    executor: async (args, context) => {
+      const commands = bindDatabaseCommands(
+        { createContent, createVLNote },
+        { ...context, databaseName: mainDbName }
+      );
       const meta = SAVE_TYPES.find(t => t.type === asString(args.type));
       if (!meta) {
         return paramError(`不支持的类型。可选：${SAVE_TYPES.map(t => t.type).join("、")}`);
@@ -223,9 +237,9 @@ function createSaveNoteTool(projectId: number): ToolDefinition {
       const title = asString(args.title) || meta.label;
 
       const content = importFromMarkdown(markdown);
-      const contentId = await createContent(content, getContentLength(content));
+      const contentId = await commands.createContent(content, getContentLength(content));
       if (!contentId) return { content: "保存失败：创建内容失败" };
-      const note = await createVLNote({ projectId, contentId, title, type: meta.type });
+      const note = await commands.createVLNote({ projectId, contentId, title, type: meta.type });
       useVLTaskStore.getState().bumpProducts(projectId);
       return productResult(
         {
@@ -244,4 +258,7 @@ function createSaveNoteTool(projectId: number): ToolDefinition {
 export const createVibeLearningProductTools = (
   projectId: number,
   mainDbName: string
-): ToolDefinition[] => [createGenerateTool(projectId, mainDbName), createSaveNoteTool(projectId)];
+): ToolDefinition[] => [
+  createGenerateTool(projectId, mainDbName),
+  createSaveNoteTool(projectId, mainDbName),
+];

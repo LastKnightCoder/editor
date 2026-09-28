@@ -122,6 +122,7 @@ export interface ContentEditDiffSummary {
 }
 
 export interface ContentEditProposalRecord {
+  databaseName?: string;
   proposalId: string;
   conversationKey: string;
   contentId: number;
@@ -144,6 +145,7 @@ export interface ContentEditProposalRecord {
 }
 
 export interface ContentEditCheckpointRecord {
+  databaseName?: string;
   checkpointId: string;
   proposalId: string;
   contentId: number;

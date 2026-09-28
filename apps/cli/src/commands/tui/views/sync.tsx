@@ -1,21 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Box, Text, useInput } from "ink";
 import { getActiveDatabase } from "../../../utils/settings.js";
-import {
-  createSyncProvider,
-  type IDatabaseInfo,
-} from "../../../utils/sync-providers/factory.js";
+import { createSyncProvider, type IDatabaseInfo } from "../../../utils/sync-providers/factory.js";
 import { runSyncPush } from "../../db/sync/push.js";
 import { runSyncPull } from "../../db/sync/pull.js";
+import { readRemoteInfo } from "../../db/sync/runtime.js";
 
 type SyncState =
-  | "idle"
-  | "pushing"
-  | "pulling"
-  | "confirm-push"
-  | "confirm-pull"
-  | "done"
-  | "error";
+  "idle" | "pushing" | "pulling" | "confirm-push" | "confirm-pull" | "done" | "error";
 
 export function SyncView({ onBack }: { onBack: () => void }) {
   const [localVersion, setLocalVersion] = useState<number>(0);
@@ -33,9 +25,7 @@ export function SyncView({ onBack }: { onBack: () => void }) {
 
     const provider = createSyncProvider();
     if (!provider) {
-      setError(
-        "Sync not configured. Please configure sync settings in the Tau app.",
-      );
+      setError("Sync not configured. Please configure sync settings in the Tau app.");
       return;
     }
 
@@ -44,12 +34,9 @@ export function SyncView({ onBack }: { onBack: () => void }) {
     const infoFileName = `database_${db.name}.json`;
     provider
       .fileExists(infoFileName)
-      .then(async (exists) => {
+      .then(async exists => {
         if (exists) {
-          const content = await provider.downloadFile(infoFileName);
-          const info: IDatabaseInfo = JSON.parse(
-            new TextDecoder().decode(content),
-          );
+          const info: IDatabaseInfo = await readRemoteInfo(provider, db.name);
           setRemoteVersion(info.version);
         }
       })
@@ -130,12 +117,9 @@ export function SyncView({ onBack }: { onBack: () => void }) {
         const infoFileName = `database_${db.name}.json`;
         provider
           .fileExists(infoFileName)
-          .then(async (exists) => {
+          .then(async exists => {
             if (exists) {
-              const content = await provider.downloadFile(infoFileName);
-              const info: IDatabaseInfo = JSON.parse(
-                new TextDecoder().decode(content),
-              );
+              const info: IDatabaseInfo = await readRemoteInfo(provider, db.name);
               setRemoteVersion(info.version);
             }
           })
@@ -209,15 +193,7 @@ export function SyncView({ onBack }: { onBack: () => void }) {
 
       <Text dimColor>{"─".repeat(50)}</Text>
       {statusMessage ? (
-        <Text
-          color={
-            syncState === "error"
-              ? "red"
-              : syncState === "done"
-                ? "green"
-                : "yellow"
-          }
-        >
+        <Text color={syncState === "error" ? "red" : syncState === "done" ? "green" : "yellow"}>
           {statusMessage}
         </Text>
       ) : (

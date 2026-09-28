@@ -1,12 +1,6 @@
 import WebSocketServer from "@/utils/WebSocketServer";
 import WebSocketClient from "@/utils/WebSocketClient";
 import type { RpcRequestMessage } from "@/utils/types";
-import {
-  ASK_QUESTION_TOOL_NAME,
-  buildAskQuestionToolResult,
-  normalizeAskQuestionPayload,
-} from "@/tools/askQuestionTypes";
-import { getAskQuestionSessionStore } from "@/tools/askQuestionSessionStore";
 
 export interface ToolDefinition {
   type: "function";
@@ -21,6 +15,8 @@ export interface ToolDefinition {
 interface ToolExecuteParams {
   requestId: string;
   conversationKey?: string;
+  /** 发起这轮回答的页面（M5）：多窗口多侧栏时按它找标签页，而不是取当前窗口的活动标签 */
+  pageUrl?: string;
   toolCall: {
     id: string;
     function: {
@@ -42,8 +38,7 @@ export const BROWSER_TOOLS: ToolDefinition[] = [
         properties: {
           selector: {
             type: "string",
-            description:
-              "可选的 CSS 选择器，获取特定元素内容。不提供则获取整个页面内容",
+            description: "可选的 CSS 选择器，获取特定元素内容。不提供则获取整个页面内容",
           },
           maxLength: {
             type: "number",
@@ -64,8 +59,7 @@ export const BROWSER_TOOLS: ToolDefinition[] = [
         properties: {
           contextWindowSize: {
             type: "number",
-            description:
-              "段落上下文窗口大小（选中文本前后各取多少字符），默认 500",
+            description: "段落上下文窗口大小（选中文本前后各取多少字符），默认 500",
           },
         },
       },
@@ -98,68 +92,6 @@ export const BROWSER_TOOLS: ToolDefinition[] = [
       },
     },
   },
-  {
-    type: "function",
-    function: {
-      name: ASK_QUESTION_TOOL_NAME,
-      description:
-        "当需要进一步澄清用户意图时，向用户发起结构化问题。支持单选、多选和一次提出多个问题。",
-      parameters: {
-        type: "object",
-        properties: {
-          title: {
-            type: "string",
-            description: "问题分组标题，可选。",
-          },
-          description: {
-            type: "string",
-            description: "对问题分组的补充说明，可选。",
-          },
-          submitLabel: {
-            type: "string",
-            description: "提交按钮文案，可选。",
-          },
-          questions: {
-            type: "array",
-            description: "问题列表，至少一个。",
-            items: {
-              type: "object",
-              properties: {
-                id: {
-                  type: "string",
-                  description: "问题唯一标识，可选，不传会自动生成。",
-                },
-                question: {
-                  type: "string",
-                  description: "问题文本。",
-                },
-                type: {
-                  type: "string",
-                  enum: ["single", "multiple"],
-                  description: "题型：single 单选，multiple 多选。",
-                },
-                required: {
-                  type: "boolean",
-                  description: "是否必答，默认 true。",
-                },
-                options: {
-                  type: "array",
-                  description:
-                    "选项列表。每项可为字符串，或 {label,value,description} 对象。",
-                  items: {
-                    type: "object",
-                  },
-                },
-              },
-              required: ["question", "type", "options"],
-            },
-          },
-        },
-        required: ["questions"],
-        additionalProperties: false,
-      },
-    },
-  },
 ];
 
 // Clipper 提取结果类型
@@ -174,11 +106,11 @@ interface ExtClipperExtractResult {
 const fallbackGetPageContent = async (
   tabId: number,
   selector: string | null,
-  maxLength: number,
+  maxLength: number
 ): Promise<{ content: string }> => {
   const start = performance.now();
   console.log(
-    `[Tau Extension Tools][fallback] 开始提取, selector=${selector}, maxLength=${maxLength}`,
+    `[Tau Extension Tools][fallback] 开始提取, selector=${selector}, maxLength=${maxLength}`
   );
 
   const results = await chrome.scripting.executeScript({
@@ -201,16 +133,37 @@ const fallbackGetPageContent = async (
 
   const content = results[0]?.result || "获取内容失败";
   console.log(
-    `[Tau Extension Tools][fallback] 提取完成, 耗时: ${(performance.now() - start).toFixed(0)}ms, 内容长度: ${content.length}`,
+    `[Tau Extension Tools][fallback] 提取完成, 耗时: ${(performance.now() - start).toFixed(0)}ms, 内容长度: ${content.length}`
   );
   return { content };
+};
+
+/** 当前这次工具调用对应的页面（handleToolExecute 设置；一次工具调用内有效） */
+let currentToolPageUrl: string | undefined;
+
+const withoutHash = (url: string) => url.split("#")[0];
+
+/**
+ * 工具要操作的标签页：优先取发起这轮回答的页面（多窗口、多侧栏时当前窗口的活动标签不一定是它），
+ * 找不到再退回当前窗口的活动标签。返回数组以兼容原来的解构写法。
+ */
+const queryTargetTab = async (): Promise<chrome.tabs.Tab[]> => {
+  const pageUrl = currentToolPageUrl;
+  if (pageUrl) {
+    const tabs = await chrome.tabs.query({});
+    const matched =
+      tabs.find(tab => tab.active && tab.url && withoutHash(tab.url) === withoutHash(pageUrl)) ??
+      tabs.find(tab => tab.url && withoutHash(tab.url) === withoutHash(pageUrl));
+    if (matched) return [matched];
+  }
+  return chrome.tabs.query({ active: true, currentWindow: true });
 };
 
 const toolExecutors: Record<
   string,
   (params: Record<string, unknown>) => Promise<{ content: string }>
 > = {
-  get_page_content: async (params) => {
+  get_page_content: async params => {
     const selector = params.selector as string | undefined;
     const maxLength = (params.maxLength as number) || 10000;
     const totalStart = performance.now();
@@ -223,12 +176,9 @@ const toolExecutors: Record<
     try {
       // 步骤 1: 获取当前标签页
       let t0 = performance.now();
-      const [tab] = await chrome.tabs.query({
-        active: true,
-        currentWindow: true,
-      });
+      const [tab] = await queryTargetTab();
       console.log(
-        `[Tau Extension Tools][get_page_content] chrome.tabs.query 耗时: ${(performance.now() - t0).toFixed(0)}ms`,
+        `[Tau Extension Tools][get_page_content] chrome.tabs.query 耗时: ${(performance.now() - t0).toFixed(0)}ms`
       );
       if (!tab?.id) {
         return { content: "无法获取当前标签页" };
@@ -236,16 +186,10 @@ const toolExecutors: Record<
 
       // 指定了 selector 时，直接通过 executeScript 获取目标元素文本
       if (selector) {
+        console.log(`[Tau Extension Tools][get_page_content] 使用 selector 路径: "${selector}"`);
+        const result = await fallbackGetPageContent(tab.id, selector, maxLength);
         console.log(
-          `[Tau Extension Tools][get_page_content] 使用 selector 路径: "${selector}"`,
-        );
-        const result = await fallbackGetPageContent(
-          tab.id,
-          selector,
-          maxLength,
-        );
-        console.log(
-          `[Tau Extension Tools][get_page_content] 总耗时: ${(performance.now() - totalStart).toFixed(0)}ms`,
+          `[Tau Extension Tools][get_page_content] 总耗时: ${(performance.now() - totalStart).toFixed(0)}ms`
         );
         return result;
       }
@@ -256,7 +200,7 @@ const toolExecutors: Record<
       // client->server 单向路由，extToolServer 作为 server 无法向 client 发送请求。
       if (aiServerClient?.isConnected) {
         console.log(
-          `[Tau Extension Tools][get_page_content] aiServerClient 已连接，使用 RPC clipper 路径`,
+          `[Tau Extension Tools][get_page_content] aiServerClient 已连接，使用 RPC clipper 路径`
         );
         try {
           // 获取页面 HTML、URL、标题
@@ -271,7 +215,7 @@ const toolExecutors: Record<
           });
           const pageData = htmlResults[0]?.result;
           console.log(
-            `[Tau Extension Tools][get_page_content] 获取页面 HTML 耗时: ${(performance.now() - t0).toFixed(0)}ms, HTML 长度: ${pageData?.html?.length ?? 0}`,
+            `[Tau Extension Tools][get_page_content] 获取页面 HTML 耗时: ${(performance.now() - t0).toFixed(0)}ms, HTML 长度: ${pageData?.html?.length ?? 0}`
           );
 
           if (pageData) {
@@ -284,16 +228,16 @@ const toolExecutors: Record<
                 title: pageData.title,
                 mode: "smart",
               },
-              20000, // 20s 超时，预留空间给 fallback
+              20000 // 20s 超时，预留空间给 fallback
             )) as ExtClipperExtractResult;
             console.log(
-              `[Tau Extension Tools][get_page_content] RPC ext.clipper.extract 耗时: ${(performance.now() - t0).toFixed(0)}ms, success=${result.success}, markdown长度=${result.markdown?.length ?? 0}`,
+              `[Tau Extension Tools][get_page_content] RPC ext.clipper.extract 耗时: ${(performance.now() - t0).toFixed(0)}ms, success=${result.success}, markdown长度=${result.markdown?.length ?? 0}`
             );
 
             if (result.success && result.markdown) {
               const content = result.markdown.slice(0, maxLength);
               console.log(
-                `[Tau Extension Tools][get_page_content] 总耗时: ${(performance.now() - totalStart).toFixed(0)}ms (clipper 成功)`,
+                `[Tau Extension Tools][get_page_content] 总耗时: ${(performance.now() - totalStart).toFixed(0)}ms (clipper 成功)`
               );
               return { content };
             }
@@ -301,19 +245,19 @@ const toolExecutors: Record<
         } catch (rpcError) {
           console.warn(
             `[Tau Extension Tools][get_page_content] RPC clipper 提取失败 (耗时: ${(performance.now() - t0).toFixed(0)}ms)，回退到 innerText:`,
-            rpcError,
+            rpcError
           );
         }
       } else {
         console.log(
-          `[Tau Extension Tools][get_page_content] aiServerClient 未连接 (connected=${aiServerClient?.isConnected})，直接使用 innerText`,
+          `[Tau Extension Tools][get_page_content] aiServerClient 未连接 (connected=${aiServerClient?.isConnected})，直接使用 innerText`
         );
       }
 
       // 降级：使用 innerText 提取
       const result = await fallbackGetPageContent(tab.id, null, maxLength);
       console.log(
-        `[Tau Extension Tools][get_page_content] 总耗时: ${(performance.now() - totalStart).toFixed(0)}ms (fallback)`,
+        `[Tau Extension Tools][get_page_content] 总耗时: ${(performance.now() - totalStart).toFixed(0)}ms (fallback)`
       );
       return result;
     } catch (error) {
@@ -322,14 +266,11 @@ const toolExecutors: Record<
     }
   },
 
-  get_selected_text: async (params) => {
+  get_selected_text: async params => {
     const contextWindowSize = (params.contextWindowSize as number) || 500;
 
     try {
-      const [tab] = await chrome.tabs.query({
-        active: true,
-        currentWindow: true,
-      });
+      const [tab] = await queryTargetTab();
       if (!tab?.id) {
         return { content: "无法获取当前标签页" };
       }
@@ -386,10 +327,7 @@ const toolExecutors: Record<
                 paragraphContext = fullText.slice(0, winSize * 2);
               } else {
                 const start = Math.max(0, idx - winSize);
-                const end = Math.min(
-                  fullText.length,
-                  idx + selectedText.length + winSize,
-                );
+                const end = Math.min(fullText.length, idx + selectedText.length + winSize);
                 const prefix = start > 0 ? "..." : "";
                 const suffix = end < fullText.length ? "..." : "";
                 paragraphContext = prefix + fullText.slice(start, end) + suffix;
@@ -411,10 +349,7 @@ const toolExecutors: Record<
               surroundingContent = bodyText.slice(0, beforeSize + afterSize);
             } else {
               const start = Math.max(0, idx - beforeSize);
-              const end = Math.min(
-                bodyText.length,
-                idx + selectedText.length + afterSize,
-              );
+              const end = Math.min(bodyText.length, idx + selectedText.length + afterSize);
               const prefix = start > 0 ? "...\n" : "";
               const suffix = end < bodyText.length ? "\n..." : "";
               surroundingContent = prefix + bodyText.slice(start, end) + suffix;
@@ -446,10 +381,7 @@ const toolExecutors: Record<
 
   get_page_metadata: async () => {
     try {
-      const [tab] = await chrome.tabs.query({
-        active: true,
-        currentWindow: true,
-      });
+      const [tab] = await queryTargetTab();
       if (!tab?.id) {
         return { content: "无法获取当前标签页" };
       }
@@ -477,7 +409,7 @@ const toolExecutors: Record<
               siteName: getMeta("og:site_name"),
             },
             null,
-            2,
+            2
           );
         },
       });
@@ -488,14 +420,11 @@ const toolExecutors: Record<
     }
   },
 
-  get_page_links: async (params) => {
+  get_page_links: async params => {
     const maxCount = (params.maxCount as number) || 50;
 
     try {
-      const [tab] = await chrome.tabs.query({
-        active: true,
-        currentWindow: true,
-      });
+      const [tab] = await queryTargetTab();
       if (!tab?.id) {
         return { content: "无法获取当前标签页" };
       }
@@ -521,7 +450,7 @@ const toolExecutors: Record<
               text: text.slice(0, 100),
             })),
             null,
-            2,
+            2
           );
         },
         args: [maxCount],
@@ -542,17 +471,7 @@ let extToolServer: WebSocketServer | null = null;
 let aiServerClient: WebSocketClient | null = null;
 let isInitialized = false;
 
-const stringifySafe = (value: unknown) => {
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
-};
-
-const parseToolArgs = (
-  rawArgs: string | Record<string, unknown> | undefined,
-) => {
+const parseToolArgs = (rawArgs: string | Record<string, unknown> | undefined) => {
   if (!rawArgs) {
     return {};
   }
@@ -567,72 +486,12 @@ const parseToolArgs = (
   return rawArgs as Record<string, unknown>;
 };
 
-const executeAskQuestionTool = async (
-  params: ToolExecuteParams,
-): Promise<{ content: string }> => {
-  const args = parseToolArgs(params.toolCall.function.arguments);
-  const normalized = normalizeAskQuestionPayload(args);
-
-  if (!normalized.payload) {
-    return {
-      content: normalized.error || "ask-question 参数不合法",
-    };
-  }
-
-  const conversationKey =
-    params.conversationKey || params.requestId || "default";
-  const store = getAskQuestionSessionStore();
-  const rawInput = stringifySafe(args);
-
-  const sessionRecord = store.createPending({
-    toolCallId: params.toolCall.id,
-    toolName: ASK_QUESTION_TOOL_NAME,
-    conversationKey,
-    rawInput,
-    payload: normalized.payload,
-  });
-
-  return await new Promise<{ content: string }>((resolve, reject) => {
-    store.registerResolver(sessionRecord.sessionId, {
-      resolve: (submission) => {
-        const result = buildAskQuestionToolResult(
-          normalized.payload!,
-          submission,
-        );
-        store.completeSession(sessionRecord.sessionId);
-        resolve({
-          content: JSON.stringify(result, null, 2),
-        });
-      },
-      reject: (error) => {
-        reject(error);
-      },
-    });
-  });
-};
-
 const handleToolExecute = async (request: RpcRequestMessage) => {
   const params = request.params as unknown as ToolExecuteParams;
   const { toolCall } = params;
   const startTime = performance.now();
 
   console.log("[Tau Extension Tools] 执行工具:", toolCall.function.name);
-
-  if (toolCall.function.name === ASK_QUESTION_TOOL_NAME) {
-    try {
-      const result = await executeAskQuestionTool(params);
-      console.log(
-        `[Tau Extension Tools] 工具 ${toolCall.function.name} 执行完成，耗时: ${(performance.now() - startTime).toFixed(0)}ms`,
-      );
-      return result;
-    } catch (error) {
-      console.error(
-        `[Tau Extension Tools] 工具 ${toolCall.function.name} 执行失败，耗时: ${(performance.now() - startTime).toFixed(0)}ms`,
-        error,
-      );
-      return { content: `工具执行失败: ${(error as Error).message}` };
-    }
-  }
 
   const executor = toolExecutors[toolCall.function.name];
   if (!executor) {
@@ -641,15 +500,19 @@ const handleToolExecute = async (request: RpcRequestMessage) => {
 
   try {
     const args = parseToolArgs(toolCall.function.arguments);
-    const res = await executor(args);
+    // 页面工具取标签页时按发起页面找（多窗口多侧栏不取错页面）；同一时刻按调用串行设置
+    currentToolPageUrl = params.pageUrl;
+    const res = await executor(args).finally(() => {
+      currentToolPageUrl = undefined;
+    });
     console.log(
-      `[Tau Extension Tools] 工具 ${toolCall.function.name} 执行完成，耗时: ${(performance.now() - startTime).toFixed(0)}ms`,
+      `[Tau Extension Tools] 工具 ${toolCall.function.name} 执行完成，耗时: ${(performance.now() - startTime).toFixed(0)}ms`
     );
     return res;
   } catch (error) {
     console.error(
       `[Tau Extension Tools] 工具 ${toolCall.function.name} 执行失败，耗时: ${(performance.now() - startTime).toFixed(0)}ms`,
-      error,
+      error
     );
     return { content: `工具执行失败: ${(error as Error).message}` };
   }

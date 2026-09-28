@@ -11,11 +11,9 @@ import ArticleTable from "./tables/article";
 import WhiteboardTable from "./tables/whiteboard";
 import ProjectTable from "./tables/project";
 import PdfTable from "./tables/pdf";
-import PdfChatTable from "./tables/pdf-chat";
 import DailyNoteTable from "./tables/daily-note";
 import DiaryTable from "./tables/diary";
-import ChatMessageTable from "./tables/chat-message";
-import ChatRunTable from "./tables/chat-run";
+import ChatSessionTable from "./tables/chat-session";
 import ChatGroupTable from "./tables/chat-group";
 import OperationTable from "./tables/operation";
 import StatisticTable from "./tables/statistic";
@@ -23,10 +21,8 @@ import VecDocumentTable from "./tables/vec-document";
 import FtsTable from "./tables/fts";
 import VideoNoteTable from "./tables/video-note";
 import VideoNoteItemTable from "./tables/video-note-item";
-import VideoNoteChatTable from "./tables/video-note-chat";
 import AudioNoteTable from "./tables/audio-note";
 import AudioNoteItemTable from "./tables/audio-note-item";
-import AudioNoteChatTable from "./tables/audio-note-chat";
 import { getXiaoyuzhouListenEvents } from "./xiaoyuzhou";
 import ContentTable from "./tables/content";
 import QuestionTable from "./tables/question";
@@ -70,7 +66,6 @@ import PublishHistoryTable from "./tables/publish-history";
 import SlideHardCleanupTable from "./tables/slide-hard-cleanup";
 import TranscriptionTable from "./tables/transcription";
 import VibeLearningResourceTable from "./tables/vibe-learning-resource";
-import VibeLearningChatTable from "./tables/vibe-learning-chat";
 import VLNoteTable from "./tables/vl-note";
 import VLQuizTable from "./tables/vl-quiz";
 import { shouldWrapDatabaseEventInTransaction } from "./database-event-transaction";
@@ -83,6 +78,7 @@ import mainContentIndexDBManager, {
 import MAIN_SCHEMA_SQL from "@tau/db-schema/schema/main.sql?raw";
 import { upgradeKnowledgeDatabase } from "@tau/db-schema/src/knowledge-migration-node";
 import { retireSubscriptions } from "@tau/db-schema/src/subscription-retirement";
+import { retireFeatureTables } from "@tau/db-schema/src/feature-table-retirement";
 import {
   retireEditorBlocks,
   installEditorBlockGuards,
@@ -90,6 +86,12 @@ import {
 import { migrateContentBindings } from "./collaboration/content-repository";
 import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 import { executeReadOnlySql, type SqlQueryInput } from "./sql-query";
+import { migrateLegacyChatsToSessions } from "./chat-session-migration";
+import { mergeChatSessionBranches } from "./chat-session-tree-migration";
+import { retireLegacyChats } from "./legacy-chat-retirement";
+import { recoverSessionDownload } from "./pi-session-store";
+import { assertDatabaseNotSyncing } from "@tau/db-schema/sync";
+import { chatSessionDirOf } from "./pi-session-paths";
 
 export type DatabaseConnectMode = "normal" | "maintenance";
 export type DatabaseReconnectSource = "sync_upload_reconnect" | "sync_download_reconnect";
@@ -215,20 +217,16 @@ class DatabaseModule implements Module {
       ArticleTable,
       ProjectTable,
       PdfTable,
-      PdfChatTable,
       DailyNoteTable,
       DiaryTable,
       ChatGroupTable,
-      ChatMessageTable,
-      ChatRunTable,
+      ChatSessionTable,
       OperationTable,
       StatisticTable,
       VideoNoteItemTable, // Must be before VideoNoteTable for migration
       VideoNoteTable,
-      VideoNoteChatTable,
       AudioNoteItemTable,
       AudioNoteTable,
-      AudioNoteChatTable,
       QuestionGroupTable,
       QuestionTable,
       QuestionEventTable,
@@ -268,7 +266,6 @@ class DatabaseModule implements Module {
       SlideHardCleanupTable,
       TranscriptionTable,
       VibeLearningResourceTable,
-      VibeLearningChatTable,
       VLNoteTable,
       VLQuizTable,
     ] as unknown as Table[];
@@ -308,10 +305,12 @@ class DatabaseModule implements Module {
     return newDatabaseName;
   }
 
-  openDatabase(name: string, mode: DatabaseConnectMode = "maintenance") {
+  openDatabase(name: string, mode: DatabaseConnectMode = "maintenance", allowOwnedSync = false) {
     const startedAt = Date.now();
     const appDir = PathUtil.getAppDir();
     const dbPath = join(appDir, `${this.formatDatabaseName(name)}.db`);
+    assertDatabaseNotSyncing(dbPath, allowOwnedSync);
+    recoverSessionDownload(dbPath);
     log.info(`[database] openDatabase start: db=${name}, mode=${mode}, dbPath=${dbPath}`);
 
     const openStartAt = Date.now();
@@ -343,6 +342,12 @@ class DatabaseModule implements Module {
 
       const schemaStartAt = Date.now();
       retireSubscriptions(database, dbPath);
+      const retiredFeatures = retireFeatureTables(database, dbPath);
+      if (retiredFeatures.length > 0) {
+        log.info(
+          `[database] retired feature tables: db=${name}, dropped=${retiredFeatures.join(",")}`
+        );
+      }
       database.exec(MAIN_SCHEMA_SQL);
       upgradeKnowledgeDatabase(database, dbPath);
       migrateContentBindings(database);
@@ -362,6 +367,8 @@ class DatabaseModule implements Module {
         );
 
         database.exec("DROP TABLE IF EXISTS shortcuts");
+        // 旧聊天链路的运行记录（pi 迁移 M8）：只存运行中状态，渲染端早已零调用，无需备份
+        database.exec("DROP TABLE IF EXISTS chat_run");
 
         const pageCount = Number(database.pragma("page_count", { simple: true }));
         const freelistCount = Number(database.pragma("freelist_count", { simple: true }));
@@ -397,15 +404,19 @@ class DatabaseModule implements Module {
     const indexDb = mainContentIndexDBManager.getExistingDatabase(name);
 
     try {
-      const { busy, log } = db.prepare("PRAGMA wal_checkpoint(FULL)").get() as any;
+      const {
+        busy,
+        log: frames,
+        checkpointed,
+      } = db.prepare("PRAGMA wal_checkpoint(FULL)").get() as any;
       if (busy !== 0) throw new Error("存在未释放的数据库锁");
-      if (log !== 0) throw new Error("WAL 文件未完全合并");
+      if (checkpointed < frames) throw new Error("WAL 文件未完全合并");
       if (indexDb) {
         const indexCheckpoint = indexDb.prepare("PRAGMA wal_checkpoint(FULL)").get() as any;
         if (indexCheckpoint?.busy !== 0) {
           throw new Error("索引数据库存在未释放的数据库锁");
         }
-        if (indexCheckpoint?.log !== 0) {
+        if (indexCheckpoint?.checkpointed < indexCheckpoint?.log) {
           throw new Error("索引数据库 WAL 文件未完全合并");
         }
       }
@@ -467,14 +478,94 @@ class DatabaseModule implements Module {
     });
   }
 
-  reconnectForSync(name: string, source: DatabaseReconnectSource) {
+  /**
+   * 老对话一次性迁移到 pi 会话（M4）。会话目录取法与 pi-session-host 的 currentDatabaseName
+   * 一致（库名去 .db）——两处不一致的话迁移写出的文件宿主找不到。
+   */
+  private async migrateChatSessions(database: Database.Database, name: string, dbPath: string) {
+    const startedAt = Date.now();
+    try {
+      const appDir = PathUtil.getAppDir();
+      const result = await migrateLegacyChatsToSessions({
+        db: database,
+        databasePath: dbPath,
+        sessionDir: chatSessionDirOf(this.formatDatabaseName(name)),
+        cwd: appDir,
+      });
+      log.info(
+        `[database] chat session migration done: db=${name}, migrated=${result.migrated}, failed=${result.failed.length}, backup=${result.backupPath ?? "none"}, elapsedMs=${Date.now() - startedAt}`
+      );
+      for (const failure of result.failed) {
+        log.error(
+          `[database] chat session migration row failed: db=${name}, table=${failure.table}, id=${failure.id}, error=${failure.error}`
+        );
+      }
+    } catch (error) {
+      // 整体失败不阻塞开库：旧表原样保留，migration_meta 没记账，下次开库重试
+      log.error(`[database] chat session migration failed: db=${name}`, error);
+    }
+    this.mergeChatSessionTrees(database, name, dbPath);
+  }
+
+  /**
+   * 分支族合并成会话树（M4-d）：在老对话迁移之后跑（迁移出来的分支族一起并）。
+   * 同步下载后重连也要跑：下载来的 .db 与会话包是配对的，对面若还没合并过，这里补上
+   */
+  private mergeChatSessionTrees(database: Database.Database, name: string, dbPath: string) {
+    const startedAt = Date.now();
+    try {
+      const result = mergeChatSessionBranches({
+        db: database,
+        databasePath: dbPath,
+        sessionDir: chatSessionDirOf(this.formatDatabaseName(name)),
+      });
+      log.info(
+        `[database] chat session tree migration done: db=${name}, merged=${result.merged}, detached=${result.detached}, failed=${result.failed.length}, backup=${result.backupPath ?? "none"}, elapsedMs=${Date.now() - startedAt}`
+      );
+      for (const failure of result.failed) {
+        log.error(
+          `[database] chat session tree migration branch failed (kept as standalone): db=${name}, id=${failure.id}, error=${failure.error}`
+        );
+      }
+    } catch (error) {
+      log.error(`[database] chat session tree migration failed: db=${name}`, error);
+    }
+    this.retireLegacyChatTables(database, name, dbPath);
+  }
+
+  /** 旧聊天表退役（M8）：两次迁移都记账后删旧表与目录表分支列；没迁完的库什么都不做 */
+  private retireLegacyChatTables(database: Database.Database, name: string, dbPath: string) {
+    try {
+      const result = retireLegacyChats(database, dbPath);
+      if (!result.retired) return;
+      log.info(
+        `[database] legacy chat tables retired: db=${name}, tables=${result.droppedTables.join(",") || "none"}, branchColumns=${result.droppedBranchColumns}, backup=${result.backupPath ?? "none"}`
+      );
+    } catch (error) {
+      // 失败不阻塞开库：表原样留着，下次开库重试
+      log.error(`[database] legacy chat retirement failed: db=${name}`, error);
+    }
+  }
+
+  async reconnectForSync(name: string, source: DatabaseReconnectSource) {
     log.info(`[database] reconnectForSync: db=${name}, source=${source}`);
     if (this.databases.has(name)) {
       this.databases.get(name)!.close();
       mainContentIndexDBManager.closeDatabase(name);
     }
-    const database = this.openDatabase(name, "normal");
+    const database = this.openDatabase(
+      name,
+      source === "sync_download_reconnect" ? "maintenance" : "normal",
+      true
+    );
     this.databases.set(name, database);
+    if (source === "sync_download_reconnect") {
+      await this.migrateChatSessions(
+        database,
+        name,
+        join(PathUtil.getAppDir(), `${this.formatDatabaseName(name)}.db`)
+      );
+    }
     this.warmIndexDatabaseInBackground(name, "connect_or_reconnect");
     this.currentDatabaseName = name;
     this.notifyDatabaseConnected(name, source);
@@ -495,6 +586,7 @@ class DatabaseModule implements Module {
           throw new Error("下载的文件不是 Tau 数据库");
         }
         retireSubscriptions(db, path);
+        retireFeatureTables(db, path);
         db.exec(MAIN_SCHEMA_SQL);
         // 知识库迁移可复用下载副本，订阅退役仍保留专属快照。
         upgradeKnowledgeDatabase(db, path, { skipBackup: true });
@@ -545,8 +637,17 @@ class DatabaseModule implements Module {
           this.databases.get(name)!.close();
           mainContentIndexDBManager.closeDatabase(name);
         }
-        const database = this.openDatabase(name, connectMode);
+        const database = this.openDatabase(
+          name,
+          connectMode,
+          source === "sync_upload_reconnect" || source === "sync_download_reconnect"
+        );
         this.databases.set(name, database);
+        // 老对话迁到 pi 会话文件（M4）：必须在 notifyDatabaseConnected 之前跑完——
+        // 渲染端一连上就查目录表，迁移没完成会看到空列表
+        if (connectMode === "maintenance") {
+          await this.migrateChatSessions(database, name, dbPath);
+        }
       }
 
       const database = this.getDatabase(name);
@@ -620,34 +721,42 @@ class DatabaseModule implements Module {
       return this.forceCheckpoint(name);
     });
 
-    ipcMain.handle("sql-query", async (event, input: SqlQueryInput) => {
-      const win = BrowserWindow.fromWebContents(event.sender);
-      if (!win) throw new Error("No window found");
-      const dbName = this.windowToDatabase.get(win.id);
-      if (!dbName || !this.getDatabase(dbName)) {
-        return {
-          error: {
-            code: "SQL_EXECUTION_ERROR",
-            message: "当前没有已连接的数据库。",
-            hint: "请先连接一个数据库后重试。",
-          },
-        };
+    ipcMain.handle(
+      "sql-query",
+      async (event, input: SqlQueryInput, scope?: { toolDatabaseName?: string }) => {
+        const win = BrowserWindow.fromWebContents(event.sender);
+        if (!win) throw new Error("No window found");
+        const dbName = scope?.toolDatabaseName
+          ? [...this.databases.keys()].find(
+              name =>
+                this.formatDatabaseName(name) === this.formatDatabaseName(scope.toolDatabaseName!)
+            )
+          : this.windowToDatabase.get(win.id);
+        if (!dbName || !this.getDatabase(dbName)) {
+          return {
+            error: {
+              code: "SQL_EXECUTION_ERROR",
+              message: "当前没有已连接的数据库。",
+              hint: "请先连接一个数据库后重试。",
+            },
+          };
+        }
+        const readOnlyDb = this.openReadOnlyDatabase(dbName);
+        try {
+          return { result: executeReadOnlySql(readOnlyDb, input) };
+        } catch (error) {
+          return {
+            error: {
+              code: (error as { code?: string }).code ?? "SQL_EXECUTION_ERROR",
+              message: error instanceof Error ? error.message : "SQL 查询执行失败。",
+              hint: (error as { hint?: string }).hint,
+            },
+          };
+        } finally {
+          readOnlyDb.close();
+        }
       }
-      const readOnlyDb = this.openReadOnlyDatabase(dbName);
-      try {
-        return { result: executeReadOnlySql(readOnlyDb, input) };
-      } catch (error) {
-        return {
-          error: {
-            code: (error as { code?: string }).code ?? "SQL_EXECUTION_ERROR",
-            message: error instanceof Error ? error.message : "SQL 查询执行失败。",
-            hint: (error as { hint?: string }).hint,
-          },
-        };
-      } finally {
-        readOnlyDb.close();
-      }
-    });
+    );
 
     Object.keys(this.eventAndHandlers).forEach(eventName => {
       ipcMain.handle(eventName, async (event, ...args) => {
@@ -655,7 +764,19 @@ class DatabaseModule implements Module {
         const win = BrowserWindow.fromWebContents(sender);
         if (!win) throw new Error("No window found");
 
-        const dbName = this.windowToDatabase.get(win.id);
+        const scope = args.at(-1);
+        const explicit =
+          scope && typeof scope.toolDatabaseName === "string"
+            ? scope.toolDatabaseName
+            : eventName.startsWith("chat-session:") && typeof scope?.chatDatabaseName === "string"
+              ? scope.chatDatabaseName
+              : undefined;
+        if (explicit !== undefined) args.pop();
+        const dbName = explicit
+          ? [...this.databases.keys()].find(
+              name => this.formatDatabaseName(name) === this.formatDatabaseName(explicit)
+            )
+          : this.windowToDatabase.get(win.id);
         if (!dbName) throw new Error("No database name found");
 
         const db = this.getDatabase(dbName);
@@ -702,7 +823,15 @@ class DatabaseModule implements Module {
         const win = BrowserWindow.fromWebContents(sender);
         if (!win) throw new Error("No window found");
 
-        const dbName = this.windowToDatabase.get(win.id);
+        const scope = args.at(-1);
+        const explicit =
+          typeof scope?.toolDatabaseName === "string" ? scope.toolDatabaseName : undefined;
+        if (explicit !== undefined) args.pop();
+        const dbName = explicit
+          ? [...this.databases.keys()].find(
+              name => this.formatDatabaseName(name) === this.formatDatabaseName(explicit)
+            )
+          : this.windowToDatabase.get(win.id);
         if (!dbName) throw new Error("No database name found");
 
         const mainDb = this.getDatabase(dbName);
@@ -757,7 +886,7 @@ class DatabaseModule implements Module {
         const database = this.databases.get(name);
         if (!database) throw new Error("No database found");
 
-        this.forceCheckpoint(name);
+        if (!this.forceCheckpoint(name)) throw new Error("数据库仍在使用，不能安全关闭和同步");
 
         database.close();
         this.databases.delete(name);

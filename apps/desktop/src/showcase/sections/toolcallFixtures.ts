@@ -779,6 +779,7 @@ export const askQuestionForm: ToolCallExecutionState = {
     ],
   }),
   timestamp: NOW,
+  metadata: { piSessionId: "fx-showcase-session" },
 };
 
 export const askQuestionSubmitted: ToolCallExecutionState = {

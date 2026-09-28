@@ -4,7 +4,7 @@ import { runSyncPush } from "./push.js";
 import { runSyncPull } from "./pull.js";
 
 export function registerSyncCommands(db: Command) {
-  const sync = db.command("sync").description("Database sync operations");
+  const sync = db.command("sync").description("数据库与对话配对快照同步");
 
   sync
     .command("status")
@@ -15,7 +15,7 @@ export function registerSyncCommands(db: Command) {
 
   sync
     .command("push")
-    .description("Upload local database to remote")
+    .description("上传数据库与对话包，全部成功后发布版本")
     .action(async () => {
       try {
         await runSyncPush();
@@ -27,7 +27,7 @@ export function registerSyncCommands(db: Command) {
 
   sync
     .command("pull")
-    .description("Download remote database to local")
+    .description("校验并成对下载数据库与对话包，失败自动回滚")
     .action(async () => {
       try {
         await runSyncPull();

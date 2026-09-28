@@ -18,8 +18,8 @@ export interface BlockMetadata {
   type: BlockType;
   language?: string;
   isGenerating?: boolean;
-  /** 来源会话；有 blockKey 时预览页据此从对话仓库实时取内容 */
-  sourceChatId?: number;
+  /** 来源会话（pi 会话 id）；有 blockKey 时预览页据此从对话仓库实时取内容 */
+  sourceChatId?: string;
   /** 会话内稳定身份（features/previews/model/chatBlocks） */
   blockKey?: string;
   version?: number;

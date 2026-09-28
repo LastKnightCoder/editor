@@ -1,34 +1,21 @@
 import type { ChatMessageType } from "@tau/shared";
 
-export type ChatAgentType = "local" | "codex";
-
 /**
- * 聊天会话元数据
- * 用于管理浏览器扩展中的聊天会话
+ * 扩展对话元数据（M4.5）：对话是桌面按页面存放的 pi 会话文件，见 services/chatStoreClient。
+ * 新对话在首轮回答之前是本地草稿（id 已生成，桌面还没有文件），不出现在列表里。
+ * 分支在会话文件内部的会话树上（M4-d），在用户消息的 ‹ i/n › 切换。
  */
 export interface ChatSession {
-  /** 会话唯一标识 */
+  /** pi 会话 id */
   id: string;
-  /** 会话标题 */
+  /** 会话标题（pi session name；没起名时为首条用户消息） */
   title: string;
   /** 创建时间戳 */
   createTime: number;
   /** 最后更新时间戳 */
   updateTime: number;
-  /** 父会话 ID（用于分支关系） */
-  parentChatId?: string | null;
-  /** 分支序号（同一父会话下的第几个分支） */
-  branchIndex?: number;
-  /** 是否已归档 */
-  archived?: boolean;
-  /** 会话数据结构版本 */
-  schemaVersion?: number;
-  /** 创建会话时固化的 system prompt 快照 */
-  systemPromptSnapshot?: string;
-  /** 历史兼容字段；读取与写入统一使用 local。 */
-  agentType?: ChatAgentType;
-  /** 历史兼容字段；读取与写入统一置空。 */
-  agentSessionId?: string | null;
+  /** 本地草稿（还没发过消息） */
+  draft?: boolean;
 }
 
 /**

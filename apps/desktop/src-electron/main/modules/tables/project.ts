@@ -29,7 +29,7 @@ import WhiteBoardContentTable from "./white-board-content";
 import WebLinkTable from "./web-link";
 import { WebLinkSourceType } from "@/types";
 import VibeLearningResourceTable from "./vibe-learning-resource";
-import VibeLearningChatTable from "./vibe-learning-chat";
+import ChatSessionTable from "./chat-session";
 import VLNoteTable from "./vl-note";
 import VLQuizTable from "./vl-quiz";
 import vibeLearningDBManager from "../vibe-learning-db";
@@ -468,7 +468,8 @@ export default class ProjectTable {
     // 如果是 VibeLearning 类型，先删除关联的资源和聊天记录，以及索引数据库和 Markdown 文件夹
     if (project.projectType === EProjectType.VibeLearning) {
       VibeLearningResourceTable.deleteResourcesByProjectId(db, id);
-      VibeLearningChatTable.deleteChatsByProjectId(db, id);
+      // 学习项目的对话（目录行 + 会话文件）随项目一起删
+      ChatSessionTable.removeByDomain(db, "vibe-learning-chat", String(id));
       VLNoteTable.deleteByProjectId(db, id);
       VLQuizTable.deleteByProjectId(db, id);
 

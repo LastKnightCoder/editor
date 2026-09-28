@@ -18,6 +18,7 @@ import type { ToolExecutionContext } from "@/types";
 import { loadContentMarkdownPayload } from "./content-read-utils";
 import { getToolPermissionMode } from "@/services/tool-permission/policy";
 import { requiresApproval } from "@/services/tool-permission/mode";
+import { getChatDatabase } from "@/services/chatDatabase";
 
 const reviewToolExecution = {
   timeoutMs: null,
@@ -37,13 +38,20 @@ const previewOperationsCore = async (payload: {
   baseHash?: string;
   operations: EditOperation[];
   dryRun?: boolean;
+  context?: ToolExecutionContext;
 }) => {
-  const { target, baseHash, operations, dryRun = false } = payload;
-  const resolvedTarget = await resolveContentTarget({
-    contentId: target?.contentId,
-  });
-  const { snapshot } = await loadSnapshotForContent(resolvedTarget.contentId);
-  const session = getActiveEditingSessionByContentId(resolvedTarget.contentId);
+  const { target, baseHash, operations, dryRun = false, context } = payload;
+  const resolvedTarget = await resolveContentTarget(
+    {
+      contentId: target?.contentId,
+    },
+    context
+  );
+  const { snapshot } = await loadSnapshotForContent(resolvedTarget.contentId, context);
+  const session =
+    !context?.databaseName || context.databaseName.replace(/\.db$/, "") === getChatDatabase()
+      ? getActiveEditingSessionByContentId(resolvedTarget.contentId)
+      : undefined;
   const selection = session?.selection || null;
 
   if (baseHash && baseHash !== snapshot.hash) {
@@ -112,6 +120,7 @@ const executeOperationsWithReviewPolicy = async (payload: {
 
   if (dryRun) {
     return previewOperationsCore({
+      context,
       target,
       baseHash,
       operations,
@@ -138,6 +147,8 @@ const executeOperationsWithReviewPolicy = async (payload: {
 
   try {
     const proposalResult = await createContentEditProposal({
+      databaseName: context?.databaseName,
+      signal: context?.signal,
       target,
       baseHash,
       operations,
@@ -158,7 +169,7 @@ const executeOperationsWithReviewPolicy = async (payload: {
     // 反馈续改（forceReview）始终走审阅卡
     const forceReview = context?.toolContext?.flags?.forceReview === true;
     if (!forceReview && !requiresApproval("write", getToolPermissionMode())) {
-      return autoApplyContentEditProposal(proposalResult.proposal);
+      return autoApplyContentEditProposal(proposalResult.proposal, context?.signal);
     }
     const result = await createPendingContentEditReview({
       context: context!,
@@ -201,6 +212,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
   tools: () => [
     {
       name: "get_content_markdown",
+      risk: "read",
       description:
         "根据 contentId 获取 Markdown 全文（可选 range 截断）。注意：仅支持 contents.contentId，不支持 cardId/articleId/projectItemId。",
       parameters: {
@@ -221,12 +233,12 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
         required: ["contentId"],
         additionalProperties: false,
       },
-      executor: async args => {
+      executor: async (args, context) => {
         const contentId = args.contentId as number;
         const range = args.range as [number, number] | undefined;
 
         try {
-          const payload = await loadContentMarkdownPayload(contentId, range);
+          const payload = await loadContentMarkdownPayload(contentId, range, context);
 
           return {
             content: JSON.stringify(
@@ -255,6 +267,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
     },
     {
       name: "find_content_ranges",
+      risk: "read",
       description:
         "根据用户提供的文本在当前内容中定位候选范围，支持 exact/normalized/fuzzy 三种模式。",
       parameters: {
@@ -290,7 +303,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
         required: ["queryText"],
         additionalProperties: false,
       },
-      executor: async args => {
+      executor: async (args, context) => {
         const queryText = args.queryText as string;
         const matchMode = args.matchMode as "exact" | "normalized" | "fuzzy" | undefined;
         const occurrence = args.occurrence as number | undefined;
@@ -300,10 +313,13 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
         const target = args.target as { contentId?: number } | undefined;
 
         try {
-          const resolved = await resolveContentTarget({
-            contentId: target?.contentId,
-          });
-          const { snapshot } = await loadSnapshotForContent(resolved.contentId);
+          const resolved = await resolveContentTarget(
+            {
+              contentId: target?.contentId,
+            },
+            context
+          );
+          const { snapshot } = await loadSnapshotForContent(resolved.contentId, context);
           const matches = findContentRanges(snapshot, {
             queryText,
             matchMode,
@@ -503,10 +519,13 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
         }
 
         try {
-          const resolved = await resolveContentTarget({
-            contentId: target?.contentId,
-          });
-          const { snapshot } = await loadSnapshotForContent(resolved.contentId);
+          const resolved = await resolveContentTarget(
+            {
+              contentId: target?.contentId,
+            },
+            context
+          );
+          const { snapshot } = await loadSnapshotForContent(resolved.contentId, context);
 
           const matches = findContentRanges(snapshot, {
             queryText: searchText,

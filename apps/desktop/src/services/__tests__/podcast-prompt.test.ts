@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   buildPodcastPrompt,
   buildPodcastToolsSystemPrompt,
@@ -6,10 +6,6 @@ import {
 } from "@/services/podcast";
 import { SpeakerRole } from "@/types/podcast";
 import { ETTSProvider } from "@/types/tts";
-
-vi.mock("@/hooks/useChatLLM", () => ({
-  chatLLMStream: vi.fn(),
-}));
 
 describe("services/podcast buildPodcastPrompt", () => {
   const speakers = [
@@ -26,12 +22,10 @@ describe("services/podcast buildPodcastPrompt", () => {
         minimaxModel: "speech-2.8-hd",
       },
       3,
-      5,
+      5
     );
 
-    expect(prompt).toContain(
-      "Emotion tags are allowed only from this whitelist",
-    );
+    expect(prompt).toContain("Emotion tags are allowed only from this whitelist");
     expect(prompt).toContain("(laughs)");
     expect(prompt).toContain("<#x#>");
   });
@@ -45,7 +39,7 @@ describe("services/podcast buildPodcastPrompt", () => {
         minimaxModel: "speech-2.6-hd",
       },
       3,
-      5,
+      5
     );
 
     expect(prompt).toContain("Pause tags are allowed");
@@ -62,14 +56,9 @@ describe("services/podcast buildPodcastPrompt", () => {
         minimaxModel: "speech-2.8-hd",
       },
       4,
-      6,
+      6
     );
-    const userPrompt = buildPodcastToolsUserPrompt(
-      ["资料 A", "资料 B"],
-      "重点讲案例",
-      4,
-      6,
-    );
+    const userPrompt = buildPodcastToolsUserPrompt(["资料 A", "资料 B"], "重点讲案例", 4, 6);
 
     expect(systemPrompt).toContain("资料探索规则");
     expect(systemPrompt).toContain("先主动探索资料");

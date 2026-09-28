@@ -96,20 +96,6 @@ CREATE TABLE IF NOT EXISTS pdf_bookmarks (
         pdf_id INTEGER NOT NULL,
         bookmark_payload TEXT NOT NULL
       );
-CREATE TABLE IF NOT EXISTS pdf_chats (
-        id INTEGER PRIMARY KEY,
-        pdf_id INTEGER NOT NULL,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        messages TEXT,
-        title TEXT,
-        archived INTEGER DEFAULT 0,
-        parent_chat_id INTEGER,
-        branch_index INTEGER DEFAULT 0,
-        message_schema_version INTEGER DEFAULT 3,
-        agent_type TEXT DEFAULT 'local',
-        agent_session_id TEXT
-      );
 CREATE TABLE IF NOT EXISTS daily_notes (
             id INTEGER PRIMARY KEY,
             date TEXT NOT NULL,
@@ -173,20 +159,6 @@ CREATE TABLE IF NOT EXISTS video_notes (
         description TEXT DEFAULT '',
         transcript TEXT DEFAULT ''
       , transcript_segments TEXT DEFAULT '', transcript_word_segments TEXT DEFAULT '', summary TEXT DEFAULT '', highlights TEXT DEFAULT '[]', insights TEXT DEFAULT '');
-CREATE TABLE IF NOT EXISTS video_note_chats (
-        id INTEGER PRIMARY KEY,
-        video_note_id INTEGER NOT NULL,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        messages TEXT,
-        title TEXT,
-        archived INTEGER DEFAULT 0,
-        parent_chat_id INTEGER,
-        branch_index INTEGER DEFAULT 0,
-        message_schema_version INTEGER DEFAULT 3,
-        agent_type TEXT DEFAULT 'local',
-        agent_session_id TEXT
-      );
 CREATE TABLE IF NOT EXISTS audio_notes (
         id INTEGER PRIMARY KEY,
         create_time INTEGER NOT NULL,
@@ -210,18 +182,6 @@ CREATE TABLE IF NOT EXISTS audio_note_item (
         content_id INTEGER NOT NULL,
         title TEXT NOT NULL DEFAULT ''
       );
-CREATE TABLE IF NOT EXISTS audio_note_chats (
-        id INTEGER PRIMARY KEY,
-        audio_note_id INTEGER NOT NULL,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        messages TEXT,
-        title TEXT,
-        archived INTEGER DEFAULT 0,
-        parent_chat_id INTEGER,
-        branch_index INTEGER DEFAULT 0,
-        message_schema_version INTEGER DEFAULT 3
-      );
 
 -- 内容组织域表
 CREATE TABLE IF NOT EXISTS chat_group (
@@ -233,12 +193,26 @@ CREATE TABLE IF NOT EXISTS chat_group (
         update_time INTEGER NOT NULL,
         FOREIGN KEY (parent_id) REFERENCES chat_group(id) ON DELETE CASCADE
       );
-CREATE TABLE IF NOT EXISTS chat_message (
-            id INTEGER PRIMARY KEY,
-            create_time INTEGER NOT NULL,
-            update_time INTEGER NOT NULL,
-            messages TEXT
-        , title TEXT, group_id INTEGER, archived INTEGER DEFAULT 0, parent_chat_id INTEGER, branch_index INTEGER DEFAULT 0, order_num INTEGER, message_schema_version INTEGER DEFAULT 3, title_dirty INTEGER DEFAULT 0, agent_type TEXT DEFAULT 'local', agent_session_id TEXT);
+-- pi 会话目录表（M4）：会话内容的事实源是 pi JSONL（~/.editor/sessions/<库名>/），
+-- 本表只存列表与管理需要的轻量元数据。id 即 pi 会话 id；session_file 是相对会话目录的文件名
+-- （不存绝对路径：换机/换库不该带着别人的磁盘布局）。
+-- scope 区分五个聊天场景，domain_ref 指向所属对象（PDF/视频笔记/学习项目的 id；主聊天为 NULL）。
+CREATE TABLE IF NOT EXISTS chat_session (
+        id TEXT PRIMARY KEY,
+        scope TEXT NOT NULL,
+        domain_ref TEXT,
+        session_file TEXT NOT NULL,
+        cwd TEXT NOT NULL DEFAULT '',
+        title TEXT NOT NULL DEFAULT '',
+        title_dirty INTEGER NOT NULL DEFAULT 0,
+        group_id INTEGER,
+        order_num INTEGER,
+        archived INTEGER NOT NULL DEFAULT 0,
+        source TEXT NOT NULL DEFAULT 'desktop',
+        message_count INTEGER NOT NULL DEFAULT 0,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      );
 CREATE TABLE IF NOT EXISTS question_group (
         id INTEGER PRIMARY KEY,
         title TEXT NOT NULL,
@@ -247,25 +221,6 @@ CREATE TABLE IF NOT EXISTS question_group (
         is_default INTEGER NOT NULL DEFAULT 0 CHECK(is_default IN (0,1)),
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL
-      );
-CREATE TABLE IF NOT EXISTS chat_run (
-        run_id TEXT PRIMARY KEY,
-        session_key TEXT NOT NULL,
-        source TEXT NOT NULL,
-        chat_id INTEGER NOT NULL,
-        agent_type TEXT NOT NULL DEFAULT 'local',
-        status TEXT NOT NULL,
-        request_payload TEXT NOT NULL,
-        user_message_client_id TEXT NOT NULL,
-        assistant_message_client_id TEXT NOT NULL,
-        agent_session_id TEXT,
-        attempt INTEGER NOT NULL DEFAULT 0,
-        assistant_snapshot TEXT NOT NULL DEFAULT '',
-        reasoning_snapshot TEXT NOT NULL DEFAULT '',
-        tool_snapshot TEXT NOT NULL DEFAULT '[]',
-        error_message TEXT,
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS questions (
         id INTEGER PRIMARY KEY,
@@ -670,21 +625,6 @@ CREATE TABLE IF NOT EXISTS vibe_learning_resources (
         duration INTEGER, source_type TEXT, source_meta_info TEXT, transcript_segments TEXT,
         FOREIGN KEY(project_id) REFERENCES project(id)
       );
-CREATE TABLE IF NOT EXISTS vibe_learning_chats (
-        id INTEGER PRIMARY KEY,
-        project_id INTEGER NOT NULL,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        messages TEXT,
-        title TEXT,
-        archived INTEGER DEFAULT 0,
-        parent_chat_id INTEGER,
-        branch_index INTEGER DEFAULT 0,
-        message_schema_version INTEGER DEFAULT 3,
-        agent_type TEXT DEFAULT 'local',
-        agent_session_id TEXT,
-        FOREIGN KEY(project_id) REFERENCES project(id)
-      );
 CREATE TABLE IF NOT EXISTS vl_note (
         id INTEGER PRIMARY KEY,
         create_time INTEGER NOT NULL,
@@ -746,12 +686,9 @@ CREATE INDEX IF NOT EXISTS idx_diary_segments_create_time ON diary_segments(crea
 CREATE INDEX IF NOT EXISTS idx_video_note_item_video ON video_note_item(video_note_id);
 CREATE INDEX IF NOT EXISTS idx_chat_group_parent_id ON chat_group(parent_id);
 CREATE INDEX IF NOT EXISTS idx_chat_group_order_index ON chat_group(order_index);
-CREATE INDEX IF NOT EXISTS idx_chat_message_group_id ON chat_message(group_id);
-CREATE INDEX IF NOT EXISTS idx_chat_message_archived ON chat_message(archived);
-CREATE INDEX IF NOT EXISTS idx_chat_message_parent_chat_id ON chat_message(parent_chat_id);
-CREATE INDEX IF NOT EXISTS idx_chat_message_order_num ON chat_message(order_num);
-CREATE INDEX IF NOT EXISTS idx_chat_run_session_status ON chat_run(session_key, status);
-CREATE INDEX IF NOT EXISTS idx_chat_run_updated_at ON chat_run(updated_at);
+CREATE INDEX IF NOT EXISTS idx_chat_session_scope ON chat_session(scope, domain_ref);
+CREATE INDEX IF NOT EXISTS idx_chat_session_update_time ON chat_session(update_time);
+CREATE INDEX IF NOT EXISTS idx_chat_session_group_id ON chat_session(group_id);
 CREATE INDEX IF NOT EXISTS idx_question_group_sort ON question_group(sort_index);
 CREATE INDEX IF NOT EXISTS idx_question_group_default ON question_group(is_default);
 CREATE INDEX IF NOT EXISTS idx_questions_group_id ON questions(group_id);
@@ -839,24 +776,8 @@ CREATE INDEX IF NOT EXISTS idx_flashcard_references_card ON flashcard_references
 CREATE INDEX IF NOT EXISTS idx_flashcard_references_content ON flashcard_references(content_id);
 CREATE INDEX IF NOT EXISTS idx_vlr_project_id
       ON vibe_learning_resources(project_id);
-CREATE INDEX IF NOT EXISTS idx_vlc_project_id
-      ON vibe_learning_chats(project_id);
-CREATE INDEX IF NOT EXISTS idx_vlc_parent_chat_id
-      ON vibe_learning_chats(parent_chat_id);
-CREATE INDEX IF NOT EXISTS idx_vn_chat_video_note_id
-      ON video_note_chats(video_note_id);
-CREATE INDEX IF NOT EXISTS idx_vn_chat_parent_chat_id
-      ON video_note_chats(parent_chat_id);
-CREATE INDEX IF NOT EXISTS idx_pdf_chat_pdf_id
-      ON pdf_chats(pdf_id);
-CREATE INDEX IF NOT EXISTS idx_pdf_chat_parent_chat_id
-      ON pdf_chats(parent_chat_id);
 CREATE INDEX IF NOT EXISTS idx_audio_note_item_audio
       ON audio_note_item(audio_note_id);
-CREATE INDEX IF NOT EXISTS idx_an_chat_audio_note_id
-      ON audio_note_chats(audio_note_id);
-CREATE INDEX IF NOT EXISTS idx_an_chat_parent_chat_id
-      ON audio_note_chats(parent_chat_id);
 CREATE INDEX IF NOT EXISTS idx_vl_note_project ON vl_note(project_id);
 CREATE INDEX IF NOT EXISTS idx_vl_quiz_set_project ON vl_quiz_set(project_id);
 CREATE INDEX IF NOT EXISTS idx_vl_quiz_item_set ON vl_quiz_item(quiz_set_id);

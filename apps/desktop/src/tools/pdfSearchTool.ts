@@ -1,4 +1,5 @@
 import { PdfActionType } from "@embedpdf/models";
+import { bindDatabaseCommands } from "@/services/command-context";
 import type { PdfAnnotationContext, PdfAnnotation, PdfBookmark, ToolDefinition } from "@/types";
 import { buildPdfCitationMarkdown } from "@/utils/pdfCitation";
 import {
@@ -55,6 +56,7 @@ const getBookmarkPageNumber = (bookmark: PdfBookmark): number | null => {
 
 export const createPdfSearchTool = (pdfId: number, mainDbName: string): ToolDefinition => ({
   name: "search_pdf_knowledge",
+  risk: "read",
   description: "搜索当前 PDF 的原文索引，返回最相关的片段、所在页码和相关性分数。",
   parameters: {
     type: "object",
@@ -133,6 +135,7 @@ export const createGetPdfDocumentInfoTool = (
   mainDbName: string
 ): ToolDefinition => ({
   name: "get_pdf_document_info",
+  risk: "read",
   description: "读取当前 PDF 的文件名、总页数和索引状态。",
   parameters: {
     type: "object",
@@ -158,6 +161,7 @@ export const createGetPdfDocumentInfoTool = (
 
 export const createGetPdfOutlineTool = (pdfId: number, mainDbName: string): ToolDefinition => ({
   name: "get_pdf_outline",
+  risk: "read",
   description: "读取当前 PDF 的目录结构和对应页码。",
   parameters: {
     type: "object",
@@ -176,6 +180,7 @@ export const createGetPdfOutlineTool = (pdfId: number, mainDbName: string): Tool
 
 export const createReadPdfPageRangeTool = (pdfId: number, mainDbName: string): ToolDefinition => ({
   name: "read_pdf_page_range",
+  risk: "read",
   description: "按页范围读取当前 PDF 的文本内容。",
   parameters: {
     type: "object",
@@ -252,6 +257,7 @@ export const createReadPdfPageRangeTool = (pdfId: number, mainDbName: string): T
 
 export const createGetPdfAnnotationsTool = (pdfId: number): ToolDefinition => ({
   name: "get_pdf_annotations",
+  risk: "read",
   description: "获取当前 PDF 的标注、区域截图和关联笔记。",
   parameters: {
     type: "object",
@@ -262,9 +268,12 @@ export const createGetPdfAnnotationsTool = (pdfId: number): ToolDefinition => ({
       },
     },
   },
-  executor: async args => {
+  executor: async (args, context) => {
     const limit = tryParseLimit(args.limit, 20, 100);
-    const annotations = await getPdfAnnotations(pdfId);
+    const annotations = await bindDatabaseCommands(
+      { getPdfAnnotations },
+      context
+    ).getPdfAnnotations(pdfId);
     return {
       content: JSON.stringify({
         success: true,
@@ -277,13 +286,16 @@ export const createGetPdfAnnotationsTool = (pdfId: number): ToolDefinition => ({
 
 export const createGetPdfBookmarksTool = (pdfId: number): ToolDefinition => ({
   name: "get_pdf_bookmarks",
+  risk: "read",
   description: "获取当前 PDF 的用户书签及其页码。",
   parameters: {
     type: "object",
     properties: {},
   },
-  executor: async () => {
-    const bookmarks = await getPdfBookmarks(pdfId);
+  executor: async (_args, context) => {
+    const bookmarks = await bindDatabaseCommands({ getPdfBookmarks }, context).getPdfBookmarks(
+      pdfId
+    );
     return {
       content: JSON.stringify({
         success: true,

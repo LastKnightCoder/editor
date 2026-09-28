@@ -11,6 +11,7 @@ const VALID_TYPES: IndexType[] = ["card", "article", "project-item", "diary-dail
 
 export const createKnowledgeSearchTool = (): ToolDefinition => ({
   name: "search_knowledge",
+  risk: "read",
   description:
     "搜索用户的个人知识库内容，包括卡片、文章、项目条目、日记等。" +
     "当用户的问题可能涉及其已有的笔记、资料或知识时，使用此工具进行检索。" +
@@ -42,7 +43,7 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
     },
     required: ["query"],
   },
-  executor: async args => {
+  executor: async (args, context) => {
     const {
       query,
       types,
@@ -85,12 +86,15 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
 
       const t1 = performance.now();
       const results =
-        (await searchContent({
-          query: query.trim(),
-          types: searchTypes,
-          limit: Math.min(limit, 10),
-          modelInfo,
-        })) ?? [];
+        (await searchContent(
+          {
+            query: query.trim(),
+            types: searchTypes,
+            limit: Math.min(limit, 10),
+            modelInfo,
+          },
+          context
+        )) ?? [];
       const t2 = performance.now();
 
       console.log(

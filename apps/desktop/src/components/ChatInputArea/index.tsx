@@ -15,6 +15,7 @@ import {
   AtSign,
   Brain,
   ChevronDown,
+  CornerDownRight,
   FileText,
   ImagePlus,
   Plug,
@@ -36,13 +37,14 @@ import {
   type MentionEntityType,
   type MentionRef,
   type MessageContentItem,
-  type ReasoningEffort,
+  type ThinkingLevel,
   type ChatContextUsage,
 } from "@tau/shared";
 import { IconButton, ImagePreview, Menu, Tooltip, cn, toast } from "@tau/ui";
 
 import useUploadResource from "@/hooks/useUploadResource";
 import { convertFileSrc, getHomeDir } from "@/commands";
+import { copyFileToLocal } from "@/utils";
 import { McpQuickPanel } from "@/features/mcp/components/McpQuickPanel";
 import { contentLinkExtension, skillRefExtension } from "@/editor-extensions";
 import { SkillPickerPanel } from "@/editor-extensions/skill-ref/SkillPickerPanel";
@@ -75,6 +77,11 @@ interface ChatInputAreaProps {
   className?: string;
   contentEditable?: boolean;
   onPressEnter?: () => void;
+  /**
+   * 插话（⌘/Ctrl + Shift + Enter 或插话按钮）：内容送进正在进行的这一轮，
+   * 当前步骤结束后交给模型。缺省表示当前不能插话（会话空闲或在编辑上下文里）。
+   */
+  onSteer?: () => void;
   onStop?: () => void;
   placeholder?: string;
   sendLoading?: boolean;
@@ -91,10 +98,11 @@ interface ChatInputAreaProps {
   contextUsage?: ChatContextUsage | null;
   isSupportImage?: boolean;
   isSupportFile?: boolean;
-  reasoningEffort?: ReasoningEffort;
-  reasoningEffortOptions?: readonly ReasoningEffort[];
-  onReasoningEffortChange?: (level: ReasoningEffort) => void;
-  reasoningEffortDisabled?: boolean;
+  thinkingLevel?: ThinkingLevel;
+  /** 当前模型真实支持的档位（由模型能力决定） */
+  thinkingLevelOptions?: readonly ThinkingLevel[];
+  onThinkingLevelChange?: (level: ThinkingLevel) => void;
+  thinkingLevelDisabled?: boolean;
   showMcpManager?: boolean;
   /** 工具作用域：MCP 面板额外列出该作用域的页面专属工具 */
   toolScope?: string;
@@ -116,16 +124,17 @@ interface ChatFileItem {
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 const IMAGE_ACCEPT = "image/png, image/jpeg, image/webp";
-const PDF_ACCEPT = "application/pdf";
 
-const REASONING_EFFORT_OPTIONS: Array<{
-  value: ReasoningEffort;
+/** 全部档位的文案（与设置页同一套说法）；实际可选项由模型能力决定 */
+const THINKING_LEVEL_OPTIONS: Array<{
+  value: ThinkingLevel;
   label: string;
   /** 紧凑档（停靠栏）工具行上的两字短名 */
   short: string;
   description: string;
 }> = [
-  { value: "none", label: "立答如流", short: "立答", description: "关闭思考以提升响应速度" },
+  { value: "off", label: "立答如流", short: "立答", description: "关闭思考以提升响应速度" },
+  { value: "minimal", label: "极简思考", short: "极简", description: "只做最低限度的思考" },
   { value: "low", label: "略作沉吟", short: "略思", description: "轻量推理，少量思考即可作答" },
   {
     value: "medium",
@@ -138,12 +147,8 @@ const REASONING_EFFORT_OPTIONS: Array<{
   { value: "max", label: "极尽推演", short: "极尽", description: "使用模型允许的最高推理强度" },
 ];
 
-const DEFAULT_REASONING_EFFORT_OPTIONS: readonly ReasoningEffort[] = [
-  "none",
-  "low",
-  "medium",
-  "high",
-];
+/** 调用方没给可选档位时的兜底（模型能力未知，只给各家都有的几档） */
+const DEFAULT_THINKING_LEVEL_OPTIONS: readonly ThinkingLevel[] = ["off", "low", "medium", "high"];
 
 const createEmptyEditorContent = (): Descendant[] => [
   {
@@ -227,7 +232,7 @@ function ChipCaret() {
 
 /**
  * 对话输入区（D-048 tau 化 · 二轮 mockups/chat/composer.html）：附件预览 → 编辑器
- * （⌘/Ctrl+Enter 发送、@ 引用内容）→ 工具行：左 ＋（图片 / PDF / 引用 / 新对话 / MCP 收进
+ * （⌘/Ctrl+Enter 发送、@ 引用内容）→ 工具行：左 ＋（图片 / 文件 / 引用 / 新对话 / MCP 收进
  * 一个向上展开的面板）｜ 右 上下文用量环 · 模型 · 思考强度 · 停止 / 发送，任何宽度都只占一行。
  * 外框（surface + line-1，聚焦 accent 线 + 焦点环）由容器负责，本组件只排内容。
  */
@@ -237,6 +242,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       className,
       contentEditable = true,
       onPressEnter,
+      onSteer,
       onStop,
       placeholder = DEFAULT_CHAT_INPUT_PLACEHOLDER,
       sendLoading = false,
@@ -252,10 +258,10 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       contextUsage,
       isSupportImage = false,
       isSupportFile = false,
-      reasoningEffort,
-      reasoningEffortOptions,
-      onReasoningEffortChange,
-      reasoningEffortDisabled = false,
+      thinkingLevel,
+      thinkingLevelOptions,
+      onThinkingLevelChange,
+      thinkingLevelDisabled = false,
       showMcpManager = true,
       toolScope,
       compact = false,
@@ -344,38 +350,37 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       }
     };
 
-    const handlePdfUpload = async (file: File) => {
-      if (file.type.toLowerCase() !== "application/pdf") {
-        toast.error("仅支持 PDF 文件");
+    const handleFileUpload = async (file: File) => {
+      if (
+        file.type.toLowerCase().startsWith("audio/") ||
+        file.type.toLowerCase().startsWith("video/")
+      ) {
+        toast.error("暂不支持音视频文件");
         return;
       }
       if (file.size > MAX_FILE_SIZE) {
-        toast.error("PDF 文件需小于 50MB");
+        toast.error("文件需小于 50MB");
         return;
       }
 
       try {
         setUploadingPdf(true);
-        const uploadedPath = await uploadFile(file);
-        if (!uploadedPath) {
-          toast.error("PDF 上传失败");
-          return;
-        }
-        appendFileAttachment({ name: file.name, path: uploadedPath });
+        const localPath = await copyFileToLocal(file);
+        appendFileAttachment({ name: file.name, path: localPath });
       } catch (error) {
-        console.error("PDF 上传失败:", error);
-        toast.error("PDF 上传失败");
+        console.error("文件上传失败:", error);
+        toast.error("文件上传失败");
       } finally {
         setUploadingPdf(false);
       }
     };
 
-    const onPickFiles = (kind: "image" | "pdf") => (event: ChangeEvent<HTMLInputElement>) => {
+    const onPickFiles = (kind: "image" | "file") => (event: ChangeEvent<HTMLInputElement>) => {
       const picked = Array.from(event.target.files ?? []);
       event.target.value = "";
       void (async () => {
         for (const file of picked) {
-          await (kind === "image" ? handleImageUpload(file) : handlePdfUpload(file));
+          await (kind === "image" ? handleImageUpload(file) : handleFileUpload(file));
         }
       })();
     };
@@ -390,13 +395,16 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
             item => item.kind === "file" && item.type.startsWith("image/")
           )
         : [];
-      const pdfItems = isSupportFile
+      const fileItems = isSupportFile
         ? Array.from(clipboardData.items).filter(
-            item => item.kind === "file" && item.type.toLowerCase() === "application/pdf"
+            item =>
+              item.kind === "file" &&
+              !item.type.toLowerCase().startsWith("audio/") &&
+              !item.type.toLowerCase().startsWith("video/")
           )
         : [];
 
-      if (imageItems.length === 0 && pdfItems.length === 0) return;
+      if (imageItems.length === 0 && fileItems.length === 0) return;
 
       event.preventDefault();
       void (async () => {
@@ -404,9 +412,9 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           const file = item.getAsFile();
           if (file) await handleImageUpload(file);
         }
-        for (const item of pdfItems) {
+        for (const item of fileItems) {
           const file = item.getAsFile();
-          if (file) await handlePdfUpload(file);
+          if (file) await handleFileUpload(file);
         }
       })();
     });
@@ -426,6 +434,14 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
 
     const hotkeyConfigs = useMemo<IHotKeyConfig[]>(
       () => [
+        // 插话（未指定的修饰键按 false 比较，按住 shift 不会误触发送）
+        {
+          hotKey: "mod+shift+enter",
+          action: (_editor, event) => {
+            event.preventDefault();
+            onSteer?.();
+          },
+        },
         {
           hotKey: "mod+enter",
           action: (_editor, event) => {
@@ -434,7 +450,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           },
         },
       ],
-      [onPressEnter]
+      [onPressEnter, onSteer]
     );
 
     useImperativeHandle(ref, () => ({
@@ -502,15 +518,15 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       },
     }));
 
-    const showReasoningEffortControl =
-      typeof reasoningEffort !== "undefined" && typeof onReasoningEffortChange === "function";
-    const availableReasoningEffortOptions = REASONING_EFFORT_OPTIONS.filter(option =>
-      (reasoningEffortOptions ?? DEFAULT_REASONING_EFFORT_OPTIONS).includes(option.value)
+    const showThinkingLevelControl =
+      typeof thinkingLevel !== "undefined" && typeof onThinkingLevelChange === "function";
+    const availableThinkingLevelOptions = THINKING_LEVEL_OPTIONS.filter(option =>
+      (thinkingLevelOptions ?? DEFAULT_THINKING_LEVEL_OPTIONS).includes(option.value)
     );
-    const currentReasoningOption = availableReasoningEffortOptions.find(
-      option => option.value === reasoningEffort
+    const currentThinkingOption = availableThinkingLevelOptions.find(
+      option => option.value === thinkingLevel
     );
-    const reasoningControlDisabled = reasoningEffortDisabled || sendLoading || !contentEditable;
+    const thinkingControlDisabled = thinkingLevelDisabled || sendLoading || !contentEditable;
     const attachDisabled = !contentEditable || sendLoading;
     // 序列化成本随草稿增长，避免每次按键/任意状态变化都全量执行
     const hasText = useMemo(() => getMarkdown(editorContent).trim().length > 0, [editorContent]);
@@ -533,11 +549,11 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       ...(isSupportFile
         ? [
             {
-              key: "pdf",
+              key: "file",
               group: "添加",
               icon: <FileText />,
-              label: "PDF",
-              description: "作为上下文随消息发送",
+              label: "文件",
+              description: "AI 会自行读取文件内容",
               disabled: attachDisabled,
               onSelect: () => pdfInputRef.current?.click(),
             },
@@ -566,8 +582,9 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
               group: "对话",
               icon: <SquarePen />,
               label: "新建对话",
+              // 不因 sendLoading 禁用：归约运行时是模块级的，上一轮（含等待作答）在后台继续
               description: "当前对话保留在会话列表里",
-              disabled: sendLoading || createMessageLoading,
+              disabled: createMessageLoading,
               onSelect: onCreateNewMessage,
             },
           ]
@@ -633,16 +650,16 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         </Menu>
       ) : null;
 
-    const reasoningMenu = showReasoningEffortControl ? (
+    const thinkingMenu = showThinkingLevelControl ? (
       <Menu
         align="end"
         // 双行选项 ×5 超出 Menu 默认 300px 上限；选项数固定，放开高度免出滚动条
         className="max-h-none w-[240px]"
         trigger={
-          <ToolbarChip disabled={reasoningControlDisabled} title="思考强度">
+          <ToolbarChip disabled={thinkingControlDisabled} title="思考强度">
             <Brain size={15} strokeWidth={1.75} className="text-ink-2" />
             <span className="min-w-0 truncate">
-              {(compact ? currentReasoningOption?.short : currentReasoningOption?.label) ??
+              {(compact ? currentThinkingOption?.short : currentThinkingOption?.label) ??
                 (compact ? "立答" : "立答如流")}
             </span>
             <ChipCaret />
@@ -651,10 +668,10 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       >
         <Menu.Group>思考强度</Menu.Group>
         <Menu.RadioGroup
-          value={reasoningEffort}
-          onValueChange={value => onReasoningEffortChange?.(value as ReasoningEffort)}
+          value={thinkingLevel}
+          onValueChange={value => onThinkingLevelChange?.(value as ThinkingLevel)}
         >
-          {availableReasoningEffortOptions.map(option => (
+          {availableThinkingLevelOptions.map(option => (
             <Menu.RadioItem key={option.value} value={option.value} className="h-auto py-1.5">
               <span className="flex min-w-0 flex-col">
                 <span>{option.label}</span>
@@ -776,7 +793,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           <span className="min-w-1 flex-1" />
           <ContextUsageRing contextWindowK={contextWindowK} usage={contextUsage} />
           {modelMenu}
-          {reasoningMenu}
+          {thinkingMenu}
           {sendLoading && (
             <Tooltip content="停止生成" placement="top" delay={300}>
               <button
@@ -786,6 +803,26 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 className="bg-ink-1 text-surface ml-1 grid size-[30px] shrink-0 place-items-center rounded-[10px] hover:opacity-90"
               >
                 <Square size={11} strokeWidth={0} fill="currentColor" />
+              </button>
+            </Tooltip>
+          )}
+          {onSteer && (
+            <Tooltip
+              content="插话：当前步骤结束后交给模型（⌘/Ctrl + Shift + Enter）"
+              placement="top"
+              delay={300}
+            >
+              <button
+                type="button"
+                aria-label="插话"
+                onClick={onSteer}
+                disabled={!hasText && images.length === 0 && files.length === 0}
+                className={cn(
+                  "ease-tau-out border-line-1 text-ink-2 ml-1 grid size-[30px] shrink-0 place-items-center rounded-[10px] border transition-[background,color] duration-[160ms]",
+                  "enabled:hover:bg-hover enabled:hover:text-ink-1 disabled:text-ink-3 disabled:cursor-default"
+                )}
+              >
+                <CornerDownRight size={15} strokeWidth={2} />
               </button>
             </Tooltip>
           )}
@@ -831,9 +868,9 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           <input
             ref={pdfInputRef}
             type="file"
-            accept={PDF_ACCEPT}
+            accept="*/*"
             className="hidden"
-            onChange={onPickFiles("pdf")}
+            onChange={onPickFiles("file")}
           />
         )}
 

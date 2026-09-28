@@ -5,12 +5,7 @@ export class WebDavSyncProvider implements ISyncProvider {
   private client: WebDAVClient;
   private pathPrefix: string;
 
-  constructor(config: {
-    url: string;
-    username: string;
-    password: string;
-    pathPrefix?: string;
-  }) {
+  constructor(config: { url: string; username: string; password: string; pathPrefix?: string }) {
     this.pathPrefix = (config.pathPrefix || "").replace(/\/+$/, "");
     this.client = createClient(config.url, {
       username: config.username,
@@ -22,11 +17,15 @@ export class WebDavSyncProvider implements ISyncProvider {
     return `${this.pathPrefix}/${objectName}`;
   }
 
+  async createFileIfAbsent(objectName: string, content: Uint8Array): Promise<boolean> {
+    return this.client.putFileContents(this.getPath(objectName), Buffer.from(content), {
+      headers: { "If-None-Match": "*" },
+      overwrite: false,
+    });
+  }
+
   async uploadFile(objectName: string, content: Uint8Array): Promise<boolean> {
-    await this.client.putFileContents(
-      this.getPath(objectName),
-      Buffer.from(content),
-    );
+    await this.client.putFileContents(this.getPath(objectName), Buffer.from(content));
     return true;
   }
 
@@ -42,11 +41,7 @@ export class WebDavSyncProvider implements ISyncProvider {
   }
 
   async fileExists(objectName: string): Promise<boolean> {
-    try {
-      return await this.client.exists(this.getPath(objectName));
-    } catch {
-      return false;
-    }
+    return this.client.exists(this.getPath(objectName));
   }
 
   getProviderName(): string {

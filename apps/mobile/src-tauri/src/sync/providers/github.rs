@@ -4,12 +4,12 @@ use base64::Engine;
 use serde_json::{json, Value};
 
 use super::ResourceRemoteFileInfo;
+use crate::network_policy::NetworkPolicy;
 use crate::sync::common::{
     encode_path_keep_slashes, file_name_from_path, join_path, normalize_remote_path,
     strip_base_prefix, RESOURCE_PREFIX,
 };
 use crate::sync::context::GithubConfig;
-use crate::network_policy::NetworkPolicy;
 use crate::sync::error::{run_sync_policy, run_sync_policy_with, AppError};
 
 fn github_api_url(config: &GithubConfig, object_name: &str) -> String {
@@ -197,9 +197,14 @@ pub(crate) async fn github_upload(
     config: &GithubConfig,
     object_name: &str,
     content: &[u8],
+    create_only: bool,
 ) -> Result<(), AppError> {
     let url = github_api_url(config, object_name);
-    let sha = github_get_sha(config, object_name).await?;
+    let sha = if create_only {
+        None
+    } else {
+        github_get_sha(config, object_name).await?
+    };
     let mut body = json!({
         "message": format!("sync {}", object_name),
         "content": base64::engine::general_purpose::STANDARD.encode(content),

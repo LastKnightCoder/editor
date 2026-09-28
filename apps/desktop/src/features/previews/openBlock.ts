@@ -19,7 +19,7 @@ export const BLOCK_PREVIEW_PAGE = "block-preview";
 
 export function blockPreviewParams(block: BlockData): Record<string, unknown> {
   const { sourceChatId, blockKey } = block.metadata;
-  if (sourceChatId != null && blockKey)
+  if (sourceChatId && blockKey)
     return { id: chatBlockId(sourceChatId, blockKey), chat: sourceChatId, key: blockKey };
   return { id: block.id, block: JSON.stringify(block) };
 }
@@ -35,7 +35,7 @@ export function openBlockPreviewFromChatPage(navigator: Navigator, block: BlockD
   const chatId = block.metadata.sourceChatId;
   morphAssist(() => {
     const shell = useShellStore.getState();
-    if (chatId != null) useRightChatSidebarStore.getState().setCurrentChatId(chatId);
+    if (chatId) useRightChatSidebarStore.getState().setCurrentChatId(chatId);
     if (!shell.assistOpen) {
       dockOpenedForPreview = true;
       shell.setAssistOpen(true);

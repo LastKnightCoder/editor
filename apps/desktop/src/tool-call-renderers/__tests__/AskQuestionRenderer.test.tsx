@@ -4,15 +4,50 @@ import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AskQuestionRenderer from "../AskQuestionRenderer";
 import type { ToolCallExecutionState } from "@/types";
-import { getAskQuestionSessionStore } from "@/tools/askQuestionSessionStore";
-import { buildAskQuestionToolResult } from "@/tools/askQuestionTypes";
+import type { PiUserQuestionRequest } from "@/types/pi-session";
+import { buildAskQuestionToolResult, type AskQuestionPayload } from "@/tools/askQuestionTypes";
+import {
+  receiveInteractions,
+  setInteractionSessionReady,
+  usePiInteractionStore,
+} from "@/services/piInteractions";
+import { piSessionAnswerQuestion, piSessionInteractions } from "@/commands/piSession";
 
-const resetAskQuestionStore = () => {
-  const store = getAskQuestionSessionStore();
-  Object.keys(store.records).forEach(sessionId => {
-    store.removeRecord(sessionId);
+vi.mock("@/commands/piSession", () => ({
+  onPiSessionInteractions: vi.fn(),
+  piSessionInteractions: vi.fn(),
+  piSessionApproveTool: vi.fn(),
+  piSessionAnswerQuestion: vi.fn(),
+}));
+
+const SESSION_ID = "pi-session-1";
+
+const choicePayload = (title: string, question = "请选择方向"): AskQuestionPayload => ({
+  title,
+  questions: [
+    {
+      id: "q1",
+      question,
+      type: "single",
+      options: [
+        { label: "方案 A", value: "A" },
+        { label: "方案 B", value: "B" },
+      ],
+      required: true,
+    },
+  ],
+});
+
+let revision = 0;
+/** 宿主推送的提问快照（替换该会话全部等待中的问题） */
+const hostQuestions = (...questions: Array<Omit<PiUserQuestionRequest, "sessionId">>) => {
+  revision += 1;
+  receiveInteractions({
+    sessionId: SESSION_ID,
+    revision,
+    approvals: [],
+    questions: questions.map(question => ({ ...question, sessionId: SESSION_ID })),
   });
-  localStorage.removeItem("ask-question-session");
 };
 
 const createExecution = (
@@ -20,9 +55,10 @@ const createExecution = (
 ): ToolCallExecutionState => ({
   toolCallId: "call-renderer-1",
   toolName: "ask-question",
-  status: "pending",
+  status: "executing",
   input: "{}",
   timestamp: Date.now(),
+  metadata: { piSessionId: SESSION_ID },
   ...overrides,
 });
 
@@ -42,6 +78,17 @@ const findOptionInput = (container: HTMLElement, label: string) =>
     .find(item => item.textContent?.includes(label))
     ?.querySelector("input") ?? null;
 
+const findSubmitButton = (container: HTMLElement) =>
+  Array.from(container.querySelectorAll("button")).find(button =>
+    button.textContent?.includes("提交答案")
+  );
+
+const click = async (element: Element | null | undefined) => {
+  await act(async () => {
+    element?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+};
+
 const unmount = async (root: Root, container: HTMLElement) => {
   await act(async () => {
     root.unmount();
@@ -51,14 +98,15 @@ const unmount = async (root: Root, container: HTMLElement) => {
 
 describe("AskQuestionRenderer", () => {
   beforeEach(() => {
-    resetAskQuestionStore();
+    vi.clearAllMocks();
+    usePiInteractionStore.setState({ sessions: {}, readySessions: {} });
+    setInteractionSessionReady(SESSION_ID, true);
   });
 
   it("输入无法解析时应回退默认渲染", async () => {
-    const execution = createExecution();
     const { root, container } = await mount(
       <AskQuestionRenderer
-        execution={execution}
+        execution={createExecution()}
         isDark={false}
         parsedInput={null}
         inputParseError="bad json"
@@ -71,15 +119,13 @@ describe("AskQuestionRenderer", () => {
   });
 
   it("pending 阶段参数尚未流式完成时不应打印 warning", async () => {
-    const execution = createExecution({
-      status: "pending",
-      input: '{"questions":[{"question":"未完成',
-    });
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-
     const { root, container } = await mount(
       <AskQuestionRenderer
-        execution={execution}
+        execution={createExecution({
+          status: "pending",
+          input: '{"questions":[{"question":"未完成',
+        })}
         isDark={false}
         parsedInput={null}
         inputParseError="Unexpected end of JSON input"
@@ -94,32 +140,15 @@ describe("AskQuestionRenderer", () => {
     warnSpy.mockRestore();
   });
 
-  it("提交答案后应写入会话存储为 submitted", async () => {
-    const execution = createExecution({
-      toolCallId: "call-renderer-submit",
-    });
-    const store = getAskQuestionSessionStore();
-    const session = store.createPending({
+  it("提交答案只发往宿主，收下后锁定等待模型继续", async () => {
+    const execution = createExecution({ toolCallId: "call-submit" });
+    hostQuestions({
+      requestId: "req-1",
       toolCallId: execution.toolCallId,
-      toolName: execution.toolName,
-      conversationKey: "main-chat:1",
-      rawInput: execution.input,
-      payload: {
-        title: "确认方向",
-        questions: [
-          {
-            id: "q1",
-            question: "请选择方向",
-            type: "single",
-            options: [
-              { label: "方案 A", value: "A" },
-              { label: "方案 B", value: "B" },
-            ],
-            required: true,
-          },
-        ],
-      },
+      payload: choicePayload("确认方向"),
+      askedAt: 1,
     });
+    vi.mocked(piSessionAnswerQuestion).mockResolvedValue({ ok: true });
 
     const { root, container } = await mount(
       <AskQuestionRenderer
@@ -130,76 +159,96 @@ describe("AskQuestionRenderer", () => {
       />
     );
 
-    const optionInput = findOptionInput(container, "方案 A");
-    expect(optionInput).toBeTruthy();
-    await act(async () => {
-      optionInput?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
+    expect(findSubmitButton(container)?.disabled).toBe(false);
+    await click(findSubmitButton(container));
+    expect(container.textContent).toContain("请先回答：请选择方向");
+    expect(piSessionAnswerQuestion).not.toHaveBeenCalled();
 
-    const submitButton = Array.from(container.querySelectorAll("button")).find(button =>
-      button.textContent?.includes("提交答案")
-    );
-    expect(submitButton).toBeTruthy();
-    await act(async () => {
-      submitButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
+    await click(findOptionInput(container, "方案 A"));
+    await click(findSubmitButton(container));
 
-    const record = getAskQuestionSessionStore().records[session.sessionId];
-    expect(record?.status).toBe("submitted");
-    expect(record?.submittedAnswers?.answers[0]?.selectedValues).toEqual(["A"]);
+    expect(piSessionAnswerQuestion).toHaveBeenCalledWith(SESSION_ID, "req-1", [
+      { questionId: "q1", selectedValues: ["A"], otherText: "" },
+    ]);
+    expect(container.textContent).toContain("答案已提交");
+    expect(findSubmitButton(container)?.disabled).toBe(true);
 
     await unmount(root, container);
   });
 
-  it("相同 toolCallId 时应按 execution 输入匹配正确会话", async () => {
-    const execution = createExecution({
-      toolCallId: "call-duplicate-renderer",
-      input: '{"scope":"target"}',
-      timestamp: Date.now(),
-    });
-    const store = getAskQuestionSessionStore();
-
-    store.createPending({
+  it("宿主拒收（提问已结束）时显示错误并同步最新快照", async () => {
+    const execution = createExecution({ toolCallId: "call-stale" });
+    const payload = choicePayload("确认方向");
+    hostQuestions({
+      requestId: "req-stale",
       toolCallId: execution.toolCallId,
-      toolName: execution.toolName,
-      conversationKey: "main-chat:old",
-      rawInput: '{"scope":"old"}',
-      payload: {
-        title: "旧问题",
-        questions: [
-          {
-            id: "q1",
-            question: "旧对话问题",
-            type: "single",
-            options: [{ label: "旧选项", value: "old" }],
-            required: true,
-          },
-        ],
-      },
+      payload,
+      askedAt: 1,
+    });
+    vi.mocked(piSessionAnswerQuestion).mockResolvedValue({ ok: false, error: "提问已结束" });
+    vi.mocked(piSessionInteractions).mockResolvedValue({
+      ok: true,
+      snapshots: [{ sessionId: SESSION_ID, revision: 999, approvals: [], questions: [] }],
     });
 
-    const targetSession = store.createPending({
+    // 真实渲染时 parsedInput 是工具参数：宿主撤掉等待后卡片仍能显示题面
+    const { root, container } = await mount(
+      <AskQuestionRenderer
+        execution={execution}
+        isDark={false}
+        parsedInput={payload}
+        renderDefault={() => <div>fallback</div>}
+      />
+    );
+    await click(findOptionInput(container, "方案 B"));
+    await click(findSubmitButton(container));
+
+    expect(container.textContent).toContain("提问已结束");
+    expect(findSubmitButton(container)?.disabled).toBe(true);
+
+    // 随后宿主的 tool_execution_end 把工具卡归约为失败终态
+    await act(async () => {
+      root.render(
+        <AskQuestionRenderer
+          execution={{ ...execution, status: "failed" }}
+          isDark={false}
+          parsedInput={payload}
+          renderDefault={() => <div>fallback</div>}
+        />
+      );
+    });
+    expect(container.textContent).toContain("这次没有得到回答");
+    expect(findSubmitButton(container)?.disabled).toBe(true);
+
+    await unmount(root, container);
+  });
+
+  it("按会话与 toolCallId 定位问题：其它会话的同名调用不串台", async () => {
+    const execution = createExecution({ toolCallId: "call-dup" });
+    receiveInteractions({
+      sessionId: "other-session",
+      revision: 1,
+      approvals: [],
+      questions: [
+        {
+          requestId: "req-other",
+          sessionId: "other-session",
+          toolCallId: execution.toolCallId,
+          payload: choicePayload("旧问题", "旧对话问题"),
+          askedAt: 1,
+        },
+      ],
+    });
+    hostQuestions({
+      requestId: "req-new",
       toolCallId: execution.toolCallId,
-      toolName: execution.toolName,
-      conversationKey: "main-chat:new",
-      rawInput: execution.input,
-      payload: {
-        title: "新问题",
-        questions: [
-          {
-            id: "q1",
-            question: "新对话问题",
-            type: "single",
-            options: [{ label: "新选项", value: "new" }],
-            required: true,
-          },
-        ],
-      },
+      payload: choicePayload("新问题", "新对话问题"),
+      askedAt: 2,
     });
 
     const { root, container } = await mount(
       <AskQuestionRenderer
-        execution={{ ...execution, timestamp: targetSession.createdAt }}
+        execution={execution}
         isDark={false}
         parsedInput={null}
         renderDefault={() => <div>fallback</div>}
@@ -212,35 +261,57 @@ describe("AskQuestionRenderer", () => {
     await unmount(root, container);
   });
 
+  it("宿主没有这条等待（重启后遗留）时只读显示中断，不可提交", async () => {
+    const payload = choicePayload("确认方向");
+    const { root, container } = await mount(
+      <AskQuestionRenderer
+        execution={createExecution({ toolCallId: "call-orphan", status: "awaiting-approval" })}
+        isDark={false}
+        parsedInput={payload}
+        renderDefault={() => <div>fallback</div>}
+      />
+    );
+
+    expect(container.textContent).toContain("对话已中断");
+    expect(findSubmitButton(container)?.disabled).toBe(true);
+
+    await unmount(root, container);
+  });
+
+  it("会话订阅未就绪时显示恢复中，不开放提交", async () => {
+    const execution = createExecution({ toolCallId: "call-restoring" });
+    setInteractionSessionReady(SESSION_ID, false);
+    hostQuestions({
+      requestId: "req-restoring",
+      toolCallId: execution.toolCallId,
+      payload: choicePayload("确认方向"),
+      askedAt: 1,
+    });
+
+    const { root, container } = await mount(
+      <AskQuestionRenderer
+        execution={execution}
+        isDark={false}
+        parsedInput={null}
+        renderDefault={() => <div>fallback</div>}
+      />
+    );
+
+    expect(container.textContent).toContain("正在恢复问题");
+    expect(findSubmitButton(container)?.disabled).toBe(true);
+
+    await unmount(root, container);
+  });
+
   it("仅依赖 execution.output 回填已提交答案时不应陷入无限更新", async () => {
-    const parsedInput = {
-      title: "确认方向",
-      questions: [
-        {
-          id: "q1",
-          question: "请选择方向",
-          type: "single" as const,
-          options: [
-            { label: "方案 A", value: "A" },
-            { label: "方案 B", value: "B" },
-          ],
-          required: true,
-        },
-      ],
-    };
+    const parsedInput = choicePayload("确认方向");
     const execution = createExecution({
-      toolCallId: "call-renderer-output-only",
+      toolCallId: "call-output-only",
       status: "success",
       output: JSON.stringify(
         buildAskQuestionToolResult(parsedInput, {
           submittedAt: 1234567890,
-          answers: [
-            {
-              questionId: "q1",
-              selectedValues: ["A"],
-              otherText: "",
-            },
-          ],
+          answers: [{ questionId: "q1", selectedValues: ["A"], otherText: "" }],
         })
       ),
     });
@@ -261,80 +332,34 @@ describe("AskQuestionRenderer", () => {
   });
 
   it("execution 切换到新的未提交问题时应清空上一题的本地选择状态", async () => {
-    const firstExecution = createExecution({
-      toolCallId: "call-renderer-switch-1",
-      input: '{"scope":"first"}',
-    });
-    const secondExecution = createExecution({
-      toolCallId: "call-renderer-switch-2",
-      input: '{"scope":"second"}',
-    });
-    const store = getAskQuestionSessionStore();
-
-    store.createPending({
-      toolCallId: firstExecution.toolCallId,
-      toolName: firstExecution.toolName,
-      conversationKey: "main-chat:1",
-      rawInput: firstExecution.input,
-      payload: {
-        title: "问题一",
-        questions: [
-          {
-            id: "q1",
-            question: "请选择方向",
-            type: "single",
-            options: [
-              { label: "方案 A", value: "A" },
-              { label: "方案 B", value: "B" },
-            ],
-            required: true,
-          },
-        ],
+    const firstExecution = createExecution({ toolCallId: "call-switch-1" });
+    const secondExecution = createExecution({ toolCallId: "call-switch-2" });
+    hostQuestions(
+      {
+        requestId: "req-1",
+        toolCallId: firstExecution.toolCallId,
+        payload: choicePayload("问题一"),
+        askedAt: 1,
       },
-    });
-    store.createPending({
-      toolCallId: secondExecution.toolCallId,
-      toolName: secondExecution.toolName,
-      conversationKey: "main-chat:1",
-      rawInput: secondExecution.input,
-      payload: {
-        title: "问题二",
-        questions: [
-          {
-            id: "q1",
-            question: "新的问题",
-            type: "single",
-            options: [
-              { label: "方案 A", value: "A" },
-              { label: "方案 B", value: "B" },
-            ],
-            required: true,
-          },
-        ],
-      },
-    });
+      {
+        requestId: "req-2",
+        toolCallId: secondExecution.toolCallId,
+        payload: choicePayload("问题二", "新的问题"),
+        askedAt: 2,
+      }
+    );
 
-    const container = document.createElement("div");
-    document.body.appendChild(container);
-    const root = createRoot(container);
+    const { root, container } = await mount(
+      <AskQuestionRenderer
+        execution={firstExecution}
+        isDark={false}
+        parsedInput={null}
+        renderDefault={() => <div>fallback</div>}
+      />
+    );
 
-    await act(async () => {
-      root.render(
-        <AskQuestionRenderer
-          execution={firstExecution}
-          isDark={false}
-          parsedInput={null}
-          renderDefault={() => <div>fallback</div>}
-        />
-      );
-    });
-
-    const firstOptionInput = findOptionInput(container, "方案 A");
-    expect(firstOptionInput).toBeTruthy();
-    await act(async () => {
-      firstOptionInput?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-
+    await click(findOptionInput(container, "方案 A"));
+    expect(findOptionInput(container, "方案 A")?.checked).toBe(true);
     expect(container.textContent).toContain("问题一");
 
     await act(async () => {
@@ -348,8 +373,7 @@ describe("AskQuestionRenderer", () => {
       );
     });
 
-    const secondOptionInput = findOptionInput(container, "方案 A");
-    expect(secondOptionInput).toBeTruthy();
+    expect(findOptionInput(container, "方案 A")?.checked).toBe(false);
     expect(container.textContent).toContain("问题二");
     expect(container.textContent).toContain("新的问题");
 

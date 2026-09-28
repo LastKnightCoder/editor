@@ -1,38 +1,22 @@
 /**
- * 聊天组件通用类型定义
+ * 聊天组件通用类型定义。
+ * ToolCallPayload / ToolCallExecutionState / ContentBlock 系列已统一收敛到 chat-core/messages.ts，
+ * 此处仅 re-export 供既有消费方使用；ChatMessageType 为浏览器插件旧消息模型（迁移期兼容）。
  */
+import type {
+  ContentBlock,
+  Role,
+  ToolCallExecutionState,
+  ToolCallPayload,
+} from "../../chat-core/messages";
 
-/** 工具调用执行状态 */
-export type ToolCallStatus =
-  "pending" | "executing" | "success" | "failed" | "retrying" | "cancelled" | "awaiting-approval";
+export type {
+  ToolCallStatus,
+  ToolCallExecutionState,
+  ToolCallPayload,
+  ContentBlock,
+} from "../../chat-core/messages";
 
-/** 工具调用执行状态详情 */
-export interface ToolCallExecutionState {
-  toolCallId: string;
-  toolName: string;
-  status: ToolCallStatus;
-  input: string;
-  output?: string;
-  error?: string;
-  metadata?: Record<string, unknown>;
-  duration?: number;
-  /** 错误类型：parameter 参数错误，execution 执行错误 */
-  errorType?: "parameter" | "execution";
-  /** 首次进入 pending 的时间戳 */
-  timestamp?: number;
-  retryCount?: number;
-}
-
-export interface ToolCallPayload {
-  id: string;
-  type: "function";
-  function: {
-    name: string;
-    arguments: string;
-  };
-}
-
-/** 内容块类型 */
 export type ContentBlockType = "text" | "reasoning" | "tool_calls";
 
 /** 文本内容块 */
@@ -56,14 +40,11 @@ export interface ToolCallsContentBlock {
   executions: ToolCallExecutionState[];
 }
 
-/** 内容块联合类型 */
-export type ContentBlock = TextContentBlock | ReasoningContentBlock | ToolCallsContentBlock;
-
 /** 消息角色 */
-export type MessageRole = "user" | "assistant" | "system" | "tool";
+export type MessageRole = `${Role}`;
 
-/** 聊天消息 */
-export interface ChatMessage {
+/** 聊天消息（旧模型：浏览器插件存量数据结构） */
+export interface ChatMessageType {
   id: string;
   role: MessageRole;
   content: string;
@@ -73,4 +54,13 @@ export interface ChatMessage {
   name?: string;
   tool_call_id?: string;
   tool_calls?: ToolCallPayload[];
+  /** 对应的 pi 会话 entry id（从桌面会话文件投影而来的消息才有），改历史操作按它定位 */
+  piEntryIds?: string[];
+  /** 会话树上同一位置的全部版本（用户消息，有多个版本时才有），‹ i/n › 切换 */
+  piVersions?: { ids: string[]; index: number };
 }
+
+/**
+ * 历史导出别名：ChatMessage 曾以本名导出，消费方（浏览器插件等）仍以 ChatMessage 引用。
+ */
+export type ChatMessage = ChatMessageType;

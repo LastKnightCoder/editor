@@ -1,11 +1,9 @@
 import { getArticleByContentId } from "@/commands/article";
 import { getContentById } from "@/commands/content";
 import { loadSnapshotForContent } from "@/services/content-editing/resolver";
-import {
-  getAnswerContentStatus,
-  getAnswerPrimaryContentType,
-} from "@/utils/answer-content";
+import { getAnswerContentStatus, getAnswerPrimaryContentType } from "@/utils/answer-content";
 import { getEditorText } from "@/utils/editor";
+import type { CommandScope } from "@/services/command-context";
 
 export type ContentRange = [number, number] | undefined;
 
@@ -36,7 +34,7 @@ type ReferencedContentBase = {
 
 const resolveMarkdownRange = (
   totalLength: number,
-  range?: ContentRange,
+  range?: ContentRange
 ): ResolvedRange | undefined => {
   if (!range) {
     return undefined;
@@ -61,17 +59,16 @@ const applyMarkdownRange = (markdown: string, range?: ContentRange) => {
     markdown: rangedMarkdown,
     totalLength,
     returnedLength: rangedMarkdown.length,
-    truncated: resolvedRange
-      ? resolvedRange.start > 0 || resolvedRange.end < totalLength
-      : false,
+    truncated: resolvedRange ? resolvedRange.start > 0 || resolvedRange.end < totalLength : false,
     range: resolvedRange,
   };
 };
 
 export const loadContentMarkdownBase = async (
   contentId: number,
+  scope?: CommandScope
 ): Promise<ContentMarkdownBase> => {
-  const { snapshot, source } = await loadSnapshotForContent(contentId);
+  const { snapshot, source } = await loadSnapshotForContent(contentId, scope);
 
   return {
     contentId,
@@ -86,8 +83,9 @@ export const loadContentMarkdownBase = async (
 export const loadContentMarkdownPayload = async (
   contentId: number,
   range?: ContentRange,
+  scope?: CommandScope
 ) => {
-  const payload = await loadContentMarkdownBase(contentId);
+  const payload = await loadContentMarkdownBase(contentId, scope);
   const rangePayload = applyMarkdownRange(payload.markdown, range);
 
   return {
@@ -104,7 +102,7 @@ export const loadContentMarkdownPayload = async (
 };
 
 export const loadReferencedContentBase = async (
-  contentId: number,
+  contentId: number
 ): Promise<ReferencedContentBase> => {
   const [markdownPayload, content, status] = await Promise.all([
     loadContentMarkdownBase(contentId),
@@ -112,8 +110,7 @@ export const loadReferencedContentBase = async (
     getAnswerContentStatus(contentId),
   ]);
   const contentType = getAnswerPrimaryContentType(status);
-  const article =
-    contentType === "article" ? await getArticleByContentId(contentId) : null;
+  const article = contentType === "article" ? await getArticleByContentId(contentId) : null;
   const title =
     article?.title?.trim() ||
     getEditorText(content?.content || [], 20).trim() ||
@@ -131,10 +128,7 @@ export const loadReferencedContentBase = async (
   };
 };
 
-export const loadReferencedContentPayload = async (
-  contentId: number,
-  range?: ContentRange,
-) => {
+export const loadReferencedContentPayload = async (contentId: number, range?: ContentRange) => {
   const payload = await loadReferencedContentBase(contentId);
   const rangePayload = applyMarkdownRange(payload.markdown, range);
 

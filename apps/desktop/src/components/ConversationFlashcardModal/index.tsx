@@ -4,9 +4,7 @@ import { App } from "antd";
 
 import useConversationFlashcardStore from "@/stores/useConversationFlashcardStore";
 import useFlashcardStore from "@/stores/useFlashcardStore";
-import useFlashcardGeneration, {
-  GeneratedFlashcard,
-} from "@/hooks/useFlashcardGeneration";
+import useFlashcardGeneration, { GeneratedFlashcard } from "@/hooks/useFlashcardGeneration";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useTheme from "@/hooks/useTheme";
 import DeckSelectorModal from "@/components/DeckSelectorModal";
@@ -20,24 +18,17 @@ const ConversationFlashcardModal = () => {
   const { isDark } = useTheme();
 
   // Store 状态
-  const {
-    isModalOpen,
-    conversationContent,
-    chatTitle,
-    reset,
-  } = useConversationFlashcardStore();
+  const { isModalOpen, conversationContent, chatTitle, reset } = useConversationFlashcardStore();
 
   // 本地状态
   const [deckSelectorOpen, setDeckSelectorOpen] = useState(false);
   const [selectedDeck, setSelectedDeck] = useState<FlashcardDeck | null>(null);
   const [generationModalOpen, setGenerationModalOpen] = useState(false);
-  const [editingCard, setEditingCard] = useState<GeneratedFlashcard | null>(
-    null,
-  );
+  const [editingCard, setEditingCard] = useState<GeneratedFlashcard | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
 
   // LLM 配置
-  const { providerConfig, modelConfig } = useLLMConfig("flashcardGeneration");
+  const { provider, model } = useLLMConfig("flashcardGeneration");
 
   // 闪卡生成 hook
   const {
@@ -52,23 +43,23 @@ const ConversationFlashcardModal = () => {
     deselectAll,
     updateCard,
     reset: resetGeneration,
-  } = useFlashcardGeneration(providerConfig, modelConfig);
+  } = useFlashcardGeneration(provider, model);
 
   // 闪卡 store
-  const createFlashcard = useFlashcardStore((state) => state.createCard);
+  const createFlashcard = useFlashcardStore(state => state.createCard);
 
   // 当 store 被触发打开时，显示卡组选择器
   useEffect(() => {
     if (isModalOpen && conversationContent) {
       // 检查 LLM 配置
-      if (!providerConfig || !modelConfig) {
+      if (!provider || !model) {
         message.error("请先在设置中配置闪卡生成的模型");
         reset();
         return;
       }
       setDeckSelectorOpen(true);
     }
-  }, [isModalOpen, conversationContent, providerConfig, modelConfig, message, reset]);
+  }, [isModalOpen, conversationContent, provider, model, message, reset]);
 
   // 处理卡组选择
   const handleDeckSelect = useMemoizedFn((deck: FlashcardDeck) => {
@@ -93,7 +84,7 @@ const ConversationFlashcardModal = () => {
   const handleConfirmGeneration = useMemoizedFn(async () => {
     if (!selectedDeck) return;
 
-    const selectedCards = generatedCards.filter((c) => c.selected);
+    const selectedCards = generatedCards.filter(c => c.selected);
     if (selectedCards.length === 0) {
       message.warning("请至少选择一张闪卡");
       return;
@@ -104,9 +95,7 @@ const ConversationFlashcardModal = () => {
       const reference: FlashcardReferenceInput = {
         refType: "custom",
         title: `对话: ${chatTitle || "未命名对话"}`,
-        customContent: conversationContent
-          ? importFromMarkdown(conversationContent)
-          : [],
+        customContent: conversationContent ? importFromMarkdown(conversationContent) : [],
       };
 
       let successCount = 0;
@@ -175,7 +164,7 @@ const ConversationFlashcardModal = () => {
       setEditModalOpen(false);
       setEditingCard(null);
       message.success("闪卡已更新");
-    },
+    }
   );
 
   // 关闭编辑弹窗

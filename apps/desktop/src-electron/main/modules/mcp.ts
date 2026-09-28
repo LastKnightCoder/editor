@@ -192,8 +192,15 @@ class MCPConnectionManager {
   async callTool(
     serverId: string,
     toolName: string,
-    args?: Record<string, unknown>
+    args?: Record<string, unknown>,
+    signal?: AbortSignal,
+    expectedTransport?: string
   ): Promise<MCPToolCallResult> {
+    if (
+      expectedTransport !== undefined &&
+      JSON.stringify(this.serverConfigs.get(serverId)?.transport) !== expectedTransport
+    )
+      throw new Error("MCP 服务配置已变化，请重新发起回答");
     const client = this.clients.get(serverId);
     if (!client) {
       throw new Error(`Server ${serverId} is not connected`);
@@ -202,10 +209,14 @@ class MCPConnectionManager {
     const startedAt = Date.now();
     let result: Awaited<ReturnType<Client["callTool"]>>;
     try {
-      result = await client.callTool({
-        name: toolName,
-        arguments: args ?? {},
-      });
+      result = await client.callTool(
+        {
+          name: toolName,
+          arguments: args ?? {},
+        },
+        undefined,
+        { signal }
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logs.push(serverId, "error", `tools/call ${toolName} 失败：${message}`);
@@ -407,21 +418,43 @@ class MCPModule implements Module {
     });
 
     // 调用工具
+    const toolCalls = new Map<string, AbortController>();
+    ipcMain.handle("mcp-cancel-tool", (event, { requestId }: { requestId: string }) => {
+      toolCalls.get(`${event.sender.id}:${requestId}`)?.abort();
+    });
     ipcMain.handle(
       "mcp-call-tool",
       async (
-        _event,
+        event,
         payload: {
           serverId: string;
           toolName: string;
           args?: Record<string, unknown>;
+          requestId?: string;
+          expectedTransport?: string;
         }
       ) => {
-        return await this.connectionManager.callTool(
-          payload.serverId,
-          payload.toolName,
-          payload.args
-        );
+        const key = `${event.sender.id}:${payload.requestId ?? crypto.randomUUID()}`;
+        const controller = new AbortController();
+        toolCalls.set(key, controller);
+        const cancel = () => controller.abort();
+        event.sender.once("destroyed", cancel);
+        event.sender.once("render-process-gone", cancel);
+        event.sender.once("did-navigate", cancel);
+        try {
+          return await this.connectionManager.callTool(
+            payload.serverId,
+            payload.toolName,
+            payload.args,
+            controller.signal,
+            payload.expectedTransport
+          );
+        } finally {
+          toolCalls.delete(key);
+          event.sender.removeListener("destroyed", cancel);
+          event.sender.removeListener("render-process-gone", cancel);
+          event.sender.removeListener("did-navigate", cancel);
+        }
       }
     );
 

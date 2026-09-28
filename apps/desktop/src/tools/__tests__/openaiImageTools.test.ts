@@ -7,19 +7,15 @@ const { mockProvider } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("@/utils/image-generation", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/utils/image-generation")>();
+vi.mock("@/utils/image-generation", async importOriginal => {
+  const actual = await importOriginal<typeof import("@/utils/image-generation")>();
   return {
     ...actual,
     createProviderFromConfig: vi.fn(() => mockProvider),
   };
 });
 
-import {
-  createImageToolDefinitions,
-  getImageToolsEnabled,
-} from "../openaiImageTools";
+import { createImageToolDefinitions, getImageToolsEnabled } from "../openaiImageTools";
 
 // 辅助：构建一个有效的 ProviderConfig
 const mockProviderConfig = (overrides = {}) => ({
@@ -65,10 +61,8 @@ describe("openaiImageTools", () => {
       uploadImage: vi.fn(),
     });
 
-    expect(tools.map((tool) => tool.name)).toEqual([
-      "generate_image",
-      "edit_image",
-    ]);
+    expect(tools.map(tool => tool.name)).toEqual(["generate_image", "edit_image"]);
+    expect(tools.map(tool => tool.risk)).toEqual(["read", "read"]);
     expect(tools[0].parameters.required).toEqual(["prompt"]);
     expect(tools[0].parameters.properties).toHaveProperty("size");
     expect(tools[0].parameters.properties).toHaveProperty("quality");
@@ -79,9 +73,7 @@ describe("openaiImageTools", () => {
   });
 
   it("生成工具上传 b64 图片并返回渲染 metadata", async () => {
-    mockProvider.generate.mockResolvedValue([
-      { b64Json: "iVBORw0KGgo=", mimeType: "image/png" },
-    ]);
+    mockProvider.generate.mockResolvedValue([{ b64Json: "iVBORw0KGgo=", mimeType: "image/png" }]);
     const uploadImage = vi.fn().mockResolvedValue("https://cdn.test/image.png");
     const [generateTool] = createImageToolDefinitions({
       getConfig: () => mockProviderConfig(),
@@ -97,16 +89,12 @@ describe("openaiImageTools", () => {
       expect.objectContaining({
         prompt: "生成透明背景 logo",
         options: { background: "transparent" },
-      }),
+      })
     );
     expect(uploadImage).toHaveBeenCalledTimes(1);
     expect(typeof result).toBe("object");
-    expect((result as any).metadata.render.rendererKey).toBe(
-      "openai-image-result",
-    );
-    expect(JSON.parse((result as any).content).images[0].url).toBe(
-      "https://cdn.test/image.png",
-    );
+    expect((result as any).metadata.render.rendererKey).toBe("openai-image-result");
+    expect(JSON.parse((result as any).content).images[0].url).toBe("https://cdn.test/image.png");
   });
 
   it("生成工具遇到远程 url 结果时先下载再自定义上传", async () => {
@@ -128,12 +116,8 @@ describe("openaiImageTools", () => {
 
     const result = await generateTool.executor({ prompt: "生成一张图" });
 
-    expect(resolveImageInputFile).toHaveBeenCalledWith(
-      "https://temp.test/generated.png",
-    );
+    expect(resolveImageInputFile).toHaveBeenCalledWith("https://temp.test/generated.png");
     expect(uploadImage).toHaveBeenCalledWith(resolvedFile);
-    expect(JSON.parse((result as any).content).images[0].url).toBe(
-      "https://cdn.test/final.png",
-    );
+    expect(JSON.parse((result as any).content).images[0].url).toBe("https://cdn.test/final.png");
   });
 });

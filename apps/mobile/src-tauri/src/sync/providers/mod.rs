@@ -39,17 +39,36 @@ impl SyncProvider {
     }
 
     pub(crate) async fn upload(&self, object_name: &str, content: &[u8]) -> Result<(), AppError> {
+        self.upload_conditional(object_name, content, false).await
+    }
+
+    pub(crate) async fn create_if_absent(
+        &self,
+        object_name: &str,
+        content: &[u8],
+    ) -> Result<(), AppError> {
+        self.upload_conditional(object_name, content, true).await
+    }
+
+    async fn upload_conditional(
+        &self,
+        object_name: &str,
+        content: &[u8],
+        create_only: bool,
+    ) -> Result<(), AppError> {
         match self {
             SyncProvider::WebDav(config) => {
-                webdav::webdav_upload(config, object_name, content).await
+                webdav::webdav_upload(config, object_name, content, create_only).await
             }
             SyncProvider::AliOss(config) => {
-                alioss::alioss_upload(config, object_name, content).await
+                alioss::alioss_upload(config, object_name, content, create_only).await
             }
             SyncProvider::Github(config) => {
-                github::github_upload(config, object_name, content).await
+                github::github_upload(config, object_name, content, create_only).await
             }
-            SyncProvider::S3(config) => s3::s3_upload(config, object_name, content).await,
+            SyncProvider::S3(config) => {
+                s3::s3_upload(config, object_name, content, create_only).await
+            }
         }
     }
 }

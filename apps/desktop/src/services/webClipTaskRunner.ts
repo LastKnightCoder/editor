@@ -1,18 +1,12 @@
 import { Role } from "@/constants";
 import { buildWebClipConvertPrompt } from "@/constants/prompts/web-clip";
 import { createContent, updateContent } from "@/commands/content";
-import {
-  createContentLink,
-  queryContentLinkBySource,
-} from "@/commands/content-link";
-import {
-  createWebClip,
-  getWebClipById,
-  updateWebClip,
-} from "@/commands/web-clip";
-import { chatStreamCore, type ChatStreamCoreOptions } from "@/hooks/useChatLLM";
+import { createContentLink, queryContentLinkBySource } from "@/commands/content-link";
+import { createWebClip, getWebClipById, updateWebClip } from "@/commands/web-clip";
+import { piStreamChat, piTextOf, type PiChatHandle } from "@/services/piLLM";
 import useSettingStore from "@/stores/useSettingStore";
-import type { ProviderConfig, ModelConfig, RequestMessage } from "@/types/llm";
+import type { RequestMessage } from "@/types/llm";
+import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
 import { getContentLength } from "@/utils/helper";
 import { importFromMarkdown } from "@/utils/markdown";
 import { normalizeThinkTaggedText } from "@/utils/thinkTagNormalizer";
@@ -59,10 +53,10 @@ export interface SavedWebClipResult {
 
 export interface WebClipTaskRunnerDeps {
   getLLMConfig: () => {
-    providerConfig: ProviderConfig;
-    modelConfig: ModelConfig;
+    provider: LLMProviderSetting;
+    model: LLMModelSetting;
   };
-  chatStreamCore: typeof chatStreamCore;
+  chatStream: typeof piStreamChat;
   saveWebClip: (params: {
     projectItemId: number;
     markdown: string;
@@ -77,7 +71,7 @@ interface WebClipTask {
   projectItemId: number;
   url: string;
   title: string;
-  controller: AbortController | null;
+  chatHandle: PiChatHandle | null;
   status: WebClipStatusResult["status"];
   markdown: string;
 }
@@ -101,28 +95,24 @@ const parseMarkdownToContent = (markdown: string): Descendant[] => {
 };
 
 const getDefaultLLMConfig = () => {
-  const { llmConfigs, llmUsageSettings } = useSettingStore.getState().setting;
+  const { llmProviders: llmConfigs, llmUsageSettings } = useSettingStore.getState().setting;
   const usageConfig = llmUsageSettings.webClip;
 
   if (!usageConfig) {
     throw new Error("webClip 功能未配置 LLM");
   }
 
-  const providerConfig = llmConfigs.find(
-    (config) => config.id === usageConfig.providerId,
-  );
-  if (!providerConfig) {
+  const provider = llmConfigs.find(config => config.id === usageConfig.providerId);
+  if (!provider) {
     throw new Error("找不到 webClip 功能的 provider 配置");
   }
 
-  const modelConfig = providerConfig.models?.find(
-    (model) => model.name === usageConfig.modelName,
-  );
-  if (!modelConfig) {
+  const model = provider.models?.find(model => model.id === usageConfig.modelId);
+  if (!model) {
     throw new Error("找不到 webClip 功能的 model 配置");
   }
 
-  return { providerConfig, modelConfig };
+  return { provider, model };
 };
 
 const saveWebClipToDatabase = async (params: {
@@ -212,7 +202,7 @@ export class WebClipTaskRunner {
   async start(params: WebClipStartParams) {
     const existingTask = this.activeTasks.get(params.projectItemId);
     if (existingTask?.status === "processing") {
-      existingTask.controller?.abort();
+      existingTask.chatHandle?.cancel();
       existingTask.status = "cancelled";
     }
 
@@ -220,7 +210,7 @@ export class WebClipTaskRunner {
       projectItemId: params.projectItemId,
       url: params.url,
       title: params.title,
-      controller: null,
+      chatHandle: null,
       status: "processing",
       markdown: "",
     };
@@ -233,7 +223,7 @@ export class WebClipTaskRunner {
   async cancel(projectItemId: number) {
     const task = this.activeTasks.get(projectItemId);
     if (task?.status === "processing") {
-      task.controller?.abort();
+      task.chatHandle?.cancel();
       task.status = "cancelled";
     }
     return { ok: true };
@@ -254,18 +244,14 @@ export class WebClipTaskRunner {
 
   private async runTask(params: WebClipStartParams, task: WebClipTask) {
     try {
-      const { providerConfig, modelConfig } = this.deps.getLLMConfig();
-      let finishedContent: string | null = null;
+      const { provider, model } = this.deps.getLLMConfig();
       const messages: RequestMessage[] = [
         {
           role: Role.System,
           content: [
             {
               type: "text",
-              text: buildWebClipConvertPrompt(
-                params.url,
-                Boolean(params.translateToChinese),
-              ),
+              text: buildWebClipConvertPrompt(params.url, Boolean(params.translateToChinese)),
             },
           ],
         },
@@ -275,68 +261,61 @@ export class WebClipTaskRunner {
         },
       ];
 
-      await this.deps.chatStreamCore({
-        providerConfig,
-        modelConfig,
-        messages,
-        enableTools: false,
-        disableAnimation: true,
-        onController: (controller) => {
-          task.controller = controller;
-        },
-        onUpdate: (responseText, fetchText) => {
-          if (task.status !== "processing") {
-            return;
-          }
-          const markdown = normalizeThinkTaggedText(responseText).content;
-          const delta = normalizeThinkTaggedText(fetchText).content;
-          task.markdown = markdown;
-          this.emitProgress({
-            projectItemId: task.projectItemId,
-            markdown,
-            delta,
-          });
-        },
-        onFinish: (content) => {
-          if (task.status !== "processing") {
-            return;
-          }
-          finishedContent = content;
-        },
-        onError: (error) => {
-          if (task.status !== "processing") {
-            return;
-          }
-          task.status = "error";
-          this.emitError({
-            projectItemId: task.projectItemId,
-            error: error.message,
-          });
-        },
-      } satisfies ChatStreamCoreOptions);
-
-      if (task.status === "processing" && finishedContent !== null) {
-        const markdown = normalizeThinkTaggedText(finishedContent).content;
-        task.markdown = markdown;
-        const savedData = await this.deps.saveWebClip({
-          projectItemId: task.projectItemId,
-          markdown,
-          url: task.url,
-          title: task.title,
-        });
+      const chatHandle = this.deps.chatStream({ provider, model, messages }, event => {
         if (task.status !== "processing") {
           return;
         }
-        task.status = "completed";
-        this.emitComplete({
+        if (event.type !== "text_delta" && event.type !== "text_end") {
+          return;
+        }
+        const markdown = normalizeThinkTaggedText(piTextOf(event.partial)).content;
+        const delta =
+          event.type === "text_delta" ? normalizeThinkTaggedText(event.delta).content : "";
+        task.markdown = markdown;
+        this.emitProgress({
           projectItemId: task.projectItemId,
           markdown,
-          url: task.url,
-          title: task.title,
-          webClipId: savedData?.webClipId,
-          contentId: savedData?.contentId,
+          delta,
         });
+      });
+      task.chatHandle = chatHandle;
+      const result = await chatHandle.result;
+
+      if (task.status !== "processing") {
+        return;
       }
+      if (!result.ok) {
+        task.status = "error";
+        this.emitError({
+          projectItemId: task.projectItemId,
+          error: result.error ?? "模型请求失败",
+        });
+        return;
+      }
+      if (result.aborted) {
+        return;
+      }
+
+      const markdown = normalizeThinkTaggedText(result.text).content;
+      task.markdown = markdown;
+      const savedData = await this.deps.saveWebClip({
+        projectItemId: task.projectItemId,
+        markdown,
+        url: task.url,
+        title: task.title,
+      });
+      if (task.status !== "processing") {
+        return;
+      }
+      task.status = "completed";
+      this.emitComplete({
+        projectItemId: task.projectItemId,
+        markdown,
+        url: task.url,
+        title: task.title,
+        webClipId: savedData?.webClipId,
+        contentId: savedData?.contentId,
+      });
     } catch (error) {
       if (task.status === "cancelled") {
         return;
@@ -350,20 +329,20 @@ export class WebClipTaskRunner {
   }
 
   private emitProgress(data: WebClipProgressData) {
-    Array.from(this.progressHandlers).forEach((handler) => handler(data));
+    Array.from(this.progressHandlers).forEach(handler => handler(data));
   }
 
   private emitComplete(data: WebClipCompleteData) {
-    Array.from(this.completeHandlers).forEach((handler) => handler(data));
+    Array.from(this.completeHandlers).forEach(handler => handler(data));
   }
 
   private emitError(data: WebClipErrorData) {
-    Array.from(this.errorHandlers).forEach((handler) => handler(data));
+    Array.from(this.errorHandlers).forEach(handler => handler(data));
   }
 }
 
 export const webClipTaskRunner = new WebClipTaskRunner({
   getLLMConfig: getDefaultLLMConfig,
-  chatStreamCore,
+  chatStream: piStreamChat,
   saveWebClip: saveWebClipToDatabase,
 });

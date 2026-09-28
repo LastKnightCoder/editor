@@ -37,6 +37,10 @@ export function ContextUsageRing({
   const tone =
     percent >= 90 ? "var(--tau-danger)" : percent >= 75 ? "var(--tau-warn)" : "var(--tau-ok)";
   const used = hasUsage ? formatTokenCount(summary.usedTokens) : "--";
+  const capacity =
+    contextWindowK >= 1000
+      ? `${Number((contextWindowK / 1000).toFixed(2))}M`
+      : `${contextWindowK}k`;
 
   return (
     <Popover
@@ -45,8 +49,8 @@ export function ContextUsageRing({
       trigger={
         <button
           type="button"
-          aria-label={`上下文用量 ${used} / ${contextWindowK}k`}
-          title={`上下文 ${used} / ${contextWindowK}k`}
+          aria-label={`上下文用量 ${used} / ${capacity}`}
+          title={`上下文 ${used} / ${capacity}`}
           className="hover:bg-hover aria-expanded:bg-hover grid size-[30px] shrink-0 place-items-center rounded-[9px]"
         >
           <svg aria-hidden viewBox="0 0 16 16" className="size-4 -rotate-90">
@@ -80,7 +84,7 @@ export function ContextUsageRing({
         <div className="text-tau-sm space-y-2 pb-1">
           <div className="text-ink-2 flex items-baseline justify-between tabular-nums">
             <span>
-              <b className="text-ink-1 font-semibold">{used}</b> / {contextWindowK}k tokens
+              <b className="text-ink-1 font-semibold">{used}</b> / {capacity} tokens
             </span>
             <span>{hasUsage ? formatPercent(summary.usedPercent) : ""}</span>
           </div>

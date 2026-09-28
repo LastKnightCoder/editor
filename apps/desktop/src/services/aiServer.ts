@@ -1,6 +1,15 @@
 import WebSocketServer from "@/utils/WebSocketServer";
 import WebSocketClient from "@/utils/WebSocketClient";
-import { chatStreamCore } from "@/hooks/useChatLLM";
+import { runPiAgent } from "@/services/piAgentRunner";
+import { createAiRunEventTranslator } from "@/services/aiRunEvents";
+import { installBrowserBridgeRenderer } from "@/services/browserBridgeRenderer";
+import { piStreamChat, piTextOf, piThinkingOf } from "@/services/piLLM";
+import {
+  AI_RUN_METHODS,
+  type AiRunEvent,
+  type AiRunEventNotification,
+  type AiRunStartParams,
+} from "@tau/shared";
 import useSettingStore from "@/stores/useSettingStore";
 import type { ISetting } from "@/stores/useSettingStore";
 import useSkillStore from "@/stores/useSkillStore";
@@ -9,12 +18,14 @@ import { openPage } from "./page-navigation";
 import { produce } from "immer";
 import { ensureToolingReady } from "@/tools";
 import { Role } from "@/constants";
-import type {
-  RequestMessage,
-  ToolCallPayload,
-  ToolCallExecutionState,
-  ToolExecutionMetadata,
-} from "@/types";
+import type { RequestMessage, ToolCallPayload } from "@/types";
+import {
+  piBrowserSessionDelete,
+  piBrowserSessionList,
+  piBrowserSessionRename,
+  piSessionEdit,
+  piSessionTranscript,
+} from "@/commands/piSession";
 import type { RpcRequestMessage } from "@/types/rpc";
 import {
   createSmartExtractProvider,
@@ -44,43 +55,11 @@ import type { BlockData } from "@/types/block-preview";
 
 const WS_PORT = 24678;
 
-interface ToolDefinition {
-  type: "function";
-  function: {
-    name: string;
-    description: string;
-    parameters: Record<string, unknown>;
-  };
-}
-
-interface AiChatParams {
-  requestId: string;
-  messages: RequestMessage[];
-  systemPrompt?: string;
-  enableTools?: boolean;
-  conversationKey?: string;
-  browserTools?: ToolDefinition[];
-  pageContext?: {
-    url: string;
-    title: string;
-    content?: string;
-  };
-  feature?: keyof ISetting["llmUsageSettings"];
-}
-
 interface ExtClipperExtractParams {
   html: string;
   url: string;
   title?: string;
   mode?: "smart" | "full";
-}
-
-interface AiStreamNotificationData {
-  requestId: string;
-  content?: string;
-  reasoning?: string;
-  executions?: ToolCallExecutionState[];
-  error?: string;
 }
 
 interface ContentSubscriptionSetParams {
@@ -127,31 +106,31 @@ const hasAnySubscriberForContentId = (contentId: number) => {
 };
 
 const getLLMConfig = (feature: keyof ISetting["llmUsageSettings"] = "chat") => {
-  const { llmConfigs, llmUsageSettings } = useSettingStore.getState().setting;
+  const { llmProviders: llmConfigs, llmUsageSettings } = useSettingStore.getState().setting;
   const usageConfig = llmUsageSettings[feature];
 
   if (!usageConfig) {
-    return { providerConfig: null, modelConfig: null };
+    return { provider: null, model: null };
   }
 
-  const providerConfig = llmConfigs.find(config => config.id === usageConfig.providerId);
+  const provider = llmConfigs.find(config => config.id === usageConfig.providerId);
 
-  if (!providerConfig) {
-    return { providerConfig: null, modelConfig: null };
+  if (!provider) {
+    return { provider: null, model: null };
   }
 
-  const modelConfig = providerConfig.models?.find(model => model.name === usageConfig.modelName);
+  const model = provider.models?.find(m => m.id === usageConfig.modelId);
 
   return {
-    providerConfig,
-    modelConfig: modelConfig || null,
+    provider,
+    model: model || null,
   };
 };
 
 const executeBrowserTool = async (
   call: ToolCallPayload,
   requestId: string,
-  conversationKey?: string
+  pageUrl?: string
 ): Promise<{ content: string } | null> => {
   if (!extToolClient) {
     return { content: "浏览器工具服务未连接" };
@@ -162,7 +141,8 @@ const executeBrowserTool = async (
       "ext.tool.execute",
       {
         requestId,
-        conversationKey,
+        // 扩展据此找发起页面的标签页（多窗口多侧栏时不取错页面）
+        ...(pageUrl ? { pageUrl } : {}),
         toolCall: {
           id: call.id,
           function: {
@@ -180,27 +160,70 @@ const executeBrowserTool = async (
   }
 };
 
-const handleAiChat = async (request: RpcRequestMessage, server: WebSocketServer) => {
-  const params = request.params as unknown as AiChatParams;
+/**
+ * 扩展的一次性运行（协议 v2，M5）：概览页、行内问答。不存对话、带全量历史，依赖渲染端的设置与
+ * ToolRegistry，所以留在这里；扩展侧栏的持久对话由主进程 browser-bridge 驱动（渲染层重载不中断）。
+ * `ai.run.start` 立即返回，过程经 `ai.run.event` 推送，最后一条一定是 settled。
+ */
+interface OneShotRun {
+  abort: (() => void) | null;
+  abortRequested: boolean;
+}
+const oneShotRuns = new Map<string, OneShotRun>();
+
+const handleRunStart = async (request: RpcRequestMessage, server: WebSocketServer) => {
+  const params = request.params as unknown as AiRunStartParams;
+  if (params.session) {
+    throw new Error("扩展侧栏对话请连接 /aiServerMain（桌面主进程）");
+  }
+  if (oneShotRuns.has(params.runId)) throw new Error("运行已存在");
+  const entry: OneShotRun = { abort: null, abortRequested: false };
+  oneShotRuns.set(params.runId, entry);
+  let seq = 0;
+  const emit = (event: AiRunEvent) =>
+    server.sendNotification<AiRunEventNotification>(AI_RUN_METHODS.event, {
+      runId: params.runId,
+      seq: seq++,
+      event,
+    });
+  void runOneShot(params, entry, emit)
+    .catch(error =>
+      emit({
+        type: "settled",
+        ok: false,
+        aborted: entry.abortRequested,
+        error: error instanceof Error ? error.message : String(error),
+        lastText: "",
+      })
+    )
+    .finally(() => oneShotRuns.delete(params.runId));
+  return { runId: params.runId };
+};
+
+const handleRunAbort = async (request: RpcRequestMessage) => {
+  const { runId } = request.params as unknown as { runId: string };
+  const entry = oneShotRuns.get(runId);
+  if (entry) {
+    entry.abortRequested = true;
+    entry.abort?.();
+  }
+  return { ok: true };
+};
+
+const runOneShot = async (
+  params: AiRunStartParams,
+  entry: OneShotRun,
+  emit: (event: AiRunEvent) => void
+): Promise<void> => {
   const {
-    requestId,
+    runId,
     messages,
     systemPrompt,
     enableTools = true,
-    conversationKey,
     browserTools,
     pageContext,
     feature,
   } = params;
-
-  console.log("[aiServer] 收到 AI 聊天请求:", {
-    requestId,
-    messageCount: messages.length,
-    enableTools,
-    browserToolCount: browserTools?.length || 0,
-    hasPageContext: !!pageContext,
-    feature: feature || "chat",
-  });
 
   // 准备消息。部分 provider 在 stream + tools 场景下对多条 system message
   // 兼容性较差，这里统一合并为一条 system message。
@@ -223,95 +246,90 @@ ${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}..
   }
 
   // 获取 LLM 配置
-  const { providerConfig, modelConfig } = getLLMConfig(feature || "chat");
+  const { provider, model } = getLLMConfig(
+    (feature as keyof ISetting["llmUsageSettings"] | undefined) || "chat"
+  );
 
-  if (!providerConfig || !modelConfig) {
+  if (!provider || !model) {
     throw new Error("未配置 LLM，请在设置中配置聊天模型");
   }
 
-  // 记录浏览器工具名称，用于路由
   const browserToolNames = new Set((browserTools || []).map(t => t.function.name));
 
-  // 创建自定义工具执行器
-  const executeToolCall =
-    browserToolNames.size > 0
-      ? async (
-          call: ToolCallPayload,
-          context?: {
-            conversationKey?: string;
-            toolContext?: ToolExecutionMetadata;
-          }
-        ): Promise<{ content: string } | null> => {
-          if (browserToolNames.has(call.function.name)) {
-            return await executeBrowserTool(
-              call,
-              requestId,
-              context?.conversationKey || conversationKey
-            );
-          }
-          // 本地工具由 chatStreamCore 内部处理
-          return null;
+  // 单发路径（无工具，行内问答）：pi 原生事件直消费，turnId 固定
+  if (!enableTools) {
+    const turnId = `${runId}:single`;
+    const single = piStreamChat(
+      { provider, model, messages: finalMessages as RequestMessage[] },
+      event => {
+        if (event.type === "text_delta" || event.type === "text_end") {
+          emit({ type: "text", turnId, fullText: piTextOf(event.partial) });
+        } else if (event.type === "thinking_delta" || event.type === "thinking_end") {
+          emit({ type: "reasoning", turnId, fullText: piThinkingOf(event.partial) });
         }
-      : undefined;
+      }
+    );
+    entry.abort = single.cancel;
+    if (entry.abortRequested) single.cancel();
+    const singleResult = await single.result;
+    const aborted = singleResult.aborted || entry.abortRequested;
+    const error = aborted || singleResult.ok ? undefined : (singleResult.error ?? "模型请求失败");
+    emit({
+      type: "settled",
+      ok: !aborted && !error,
+      aborted,
+      ...(error ? { error } : {}),
+      lastText: singleResult.text ?? "",
+    });
+    return;
+  }
 
-  // 累积文本用于最终返回
-  let fullContent = "";
-  let fullReasoning = "";
-
-  // 使用 chatStreamCore 进行流式聊天
-  // 禁用动画缓冲：WebSocket 转发场景下需要直接透传 SSE 数据，
-  // 避免 requestAnimationFrame 在窗口后台时被节流导致数据堆积
-  await chatStreamCore({
-    providerConfig,
-    modelConfig,
-    messages: finalMessages,
-    enableTools,
-    conversationKey,
-    skills: useSkillStore.getState().skills,
-    additionalTools: browserTools,
-    executeToolCall,
-    disableAnimation: true,
-    onUpdate: (text, fetchText) => {
-      fullContent = text;
-      server.sendNotification<AiStreamNotificationData>("ai.stream.text", {
-        requestId,
-        content: fetchText,
-      });
-    },
-    onReasoning: (text, fetchText) => {
-      fullReasoning = text;
-      server.sendNotification<AiStreamNotificationData>("ai.stream.reasoning", {
-        requestId,
-        reasoning: fetchText,
-      });
-    },
-    onToolCallsUpdate: executions => {
-      server.sendNotification<AiStreamNotificationData>("ai.stream.tool", {
-        requestId,
-        executions,
-      });
-    },
-    onFinish: (content, reasoning) => {
-      fullContent = content;
-      fullReasoning = reasoning;
-      server.sendNotification<AiStreamNotificationData>("ai.stream.finish", {
-        requestId,
-        content,
-        reasoning,
-      });
-    },
-    onError: error => {
-      server.sendNotification<AiStreamNotificationData>("ai.stream.finish", {
-        requestId,
-        error: error.message,
-      });
-    },
-  });
-
-  return {
-    content: fullContent,
-    reasoning: fullReasoning,
+  // 带工具的一次性运行：浏览器工具经 executeAdditionalTool 路由到扩展，桌面工具走渲染端 ToolRegistry
+  const translator = createAiRunEventTranslator(emit);
+  const executeAdditionalTool = async ({ toolName, args }: { toolName: string; args: unknown }) => {
+    if (!browserToolNames.has(toolName)) return null;
+    const outcome = await executeBrowserTool(
+      {
+        id: "",
+        function: {
+          name: toolName,
+          arguments: args === undefined ? "" : JSON.stringify(args),
+        },
+      },
+      runId,
+      pageContext?.url
+    );
+    return { content: outcome?.content ?? "" };
   };
+
+  const run = runPiAgent(
+    {
+      provider,
+      model,
+      messages: finalMessages as RequestMessage[],
+      ...(browserTools && browserTools.length > 0
+        ? { additionalTools: browserTools, executeAdditionalTool }
+        : {}),
+    },
+    event => translator.handle(event)
+  );
+  entry.abort = run.abort;
+  if (entry.abortRequested) run.abort();
+
+  const result = await run.result;
+  const aborted = result.aborted || entry.abortRequested;
+  const error = aborted
+    ? undefined
+    : result.ok
+      ? translator.lastError()
+      : (result.error ?? "模型请求失败");
+  emit({
+    type: "settled",
+    ok: !aborted && !error,
+    aborted,
+    ...(error ? { error } : {}),
+    lastText: result.lastAssistantText || translator.lastText(),
+  });
 };
 
 const handleExtClipperExtract = async (request: RpcRequestMessage) => {
@@ -430,13 +448,13 @@ const handleResourceUpload = async (request: RpcRequestMessage) => {
 // ==================== 设置相关 RPC 处理器 ====================
 
 const handleSettingsGetLlmConfigs = async () => {
-  const { llmConfigs } = useSettingStore.getState().setting;
+  const { llmProviders: llmConfigs } = useSettingStore.getState().setting;
   return { llmConfigs };
 };
 
 const handleSettingsGetChatModelConfig = async () => {
-  const { providerConfig, modelConfig } = getLLMConfig("chat");
-  return { providerConfig, modelConfig };
+  const { provider, model } = getLLMConfig("chat");
+  return { provider, model };
 };
 
 const handleSettingsSetLlmUsage = async (request: RpcRequestMessage) => {
@@ -631,6 +649,74 @@ const handleTabOpen = async (request: RpcRequestMessage) => {
   }
 };
 
+// —— 扩展对话 RPC（M4.5）：扩展对话是桌面主进程里按页面存放的 pi 会话文件
+// （`browser-sessions/<页面键>/`，与库无关、不参与同步），全部以页面为单位、id 为 pi 会话 id。
+// 没有索引表：列表/标题/分支关系取自会话文件本身。
+
+interface BrowserChatParams {
+  pageUrl: string;
+  id: string;
+}
+
+const expectOk = <T extends { ok: boolean; error?: string }>(outcome: T): T => {
+  if (!outcome.ok) throw new Error(outcome.error ?? "操作失败");
+  return outcome;
+};
+
+const handleChatList = async (request: RpcRequestMessage) => {
+  const { pageUrl } = request.params as unknown as { pageUrl: string };
+  return { chats: expectOk(await piBrowserSessionList(pageUrl)).sessions ?? [] };
+};
+
+const handleChatGet = async (request: RpcRequestMessage) => {
+  const { pageUrl, id } = request.params as unknown as BrowserChatParams;
+  return {
+    messages: expectOk(await piSessionTranscript({ pageUrl, sessionId: id })).messages ?? [],
+  };
+};
+
+const handleChatRename = async (request: RpcRequestMessage) => {
+  const { pageUrl, id, title } = request.params as unknown as BrowserChatParams & {
+    title: string;
+  };
+  expectOk(await piBrowserSessionRename(pageUrl, id, title));
+  return { success: true };
+};
+
+const handleChatDelete = async (request: RpcRequestMessage) => {
+  const { pageUrl, id } = request.params as unknown as BrowserChatParams;
+  expectOk(await piBrowserSessionDelete(pageUrl, id));
+  return { success: true };
+};
+
+/** 会话树上的导航（M4-d）：rewind / fork / switch 都按一个 entry id，返回改后的投影 */
+const treeNavigation =
+  (kind: "rewind" | "fork" | "switch") => async (request: RpcRequestMessage) => {
+    const { pageUrl, id, entryId } = request.params as unknown as BrowserChatParams & {
+      entryId: string;
+    };
+    const outcome = expectOk(await piSessionEdit({ pageUrl, sessionId: id }, { kind, entryId }));
+    return { messages: outcome.messages ?? [] };
+  };
+
+/** 编辑重发/重新生成的前半步：回退到这条用户消息之前（扩展随后以新内容发 ai.chat） */
+const handleChatRewind = treeNavigation("rewind");
+/** 从这里建分支：回到这条回答之后，下一条消息成为新版本 */
+const handleChatFork = treeNavigation("fork");
+/** 切到一条用户消息所在的版本 */
+const handleChatSwitch = treeNavigation("switch");
+
+/** 删除消息：省略这些 entry（一条回答传它全部 entry id） */
+const handleChatOmit = async (request: RpcRequestMessage) => {
+  const { pageUrl, id, entryIds } = request.params as unknown as BrowserChatParams & {
+    entryIds: string[];
+  };
+  const outcome = expectOk(
+    await piSessionEdit({ pageUrl, sessionId: id }, { kind: "omit", entryIds })
+  );
+  return { messages: outcome.messages ?? [] };
+};
+
 /**
  * 初始化 AI 服务端
  */
@@ -648,10 +734,13 @@ export const initAiServer = () => {
   // 创建 AI 服务端
   aiServer = new WebSocketServer("aiServer");
 
-  // 注册 ai.chat 处理器
-  aiServer.addRequestHandler("ai.chat", async request => {
-    return await handleAiChat(request, aiServer!);
+  // 一次性运行（协议 v2，M5）：概览页、行内问答；侧栏持久对话在主进程 /aiServerMain
+  aiServer.addRequestHandler(AI_RUN_METHODS.start, async request => {
+    return await handleRunStart(request, aiServer!);
   });
+  aiServer.addRequestHandler(AI_RUN_METHODS.abort, handleRunAbort);
+  // 主进程扩展桥要桌面工具清单时由这里回答
+  installBrowserBridgeRenderer();
 
   // 注册 ext.clipper.extract 处理器
   aiServer.addRequestHandler("ext.clipper.extract", async request => {
@@ -691,6 +780,16 @@ export const initAiServer = () => {
 
   // 注册 Tab 操作 RPC 处理器
   aiServer.addRequestHandler("tab.open", handleTabOpen);
+
+  // 注册扩展对话 RPC 处理器（浏览器插件 → 桌面按页面存放的 pi 会话文件）
+  aiServer.addRequestHandler("chat.list", handleChatList);
+  aiServer.addRequestHandler("chat.get", handleChatGet);
+  aiServer.addRequestHandler("chat.rename", handleChatRename);
+  aiServer.addRequestHandler("chat.delete", handleChatDelete);
+  aiServer.addRequestHandler("chat.fork", handleChatFork);
+  aiServer.addRequestHandler("chat.switch", handleChatSwitch);
+  aiServer.addRequestHandler("chat.rewind", handleChatRewind);
+  aiServer.addRequestHandler("chat.omit", handleChatOmit);
 
   // 连接浏览器工具服务（作为客户端）
   // 延迟连接，等待浏览器扩展连接
@@ -739,7 +838,8 @@ export const closeAiServer = () => {
 };
 
 export const __aiServerTestUtils = {
-  handleAiChat,
+  handleRunStart,
+  handleRunAbort,
 };
 
 export default {

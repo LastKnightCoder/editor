@@ -41,11 +41,7 @@ export const getReposByOwner = async (token: string, owner: string) => {
   return null;
 };
 
-export const getBranchesByRepo = async (
-  token: string,
-  owner: string,
-  repo: string,
-) => {
+export const getBranchesByRepo = async (token: string, owner: string, repo: string) => {
   if (!token || !owner || !repo) return null;
   const res = await axios.get(`/repos/${owner}/${repo}/branches`, {
     headers: {
@@ -59,14 +55,14 @@ export const getBranchesByRepo = async (
 };
 
 export const getPathAndContentFromFile = async (
-  file: File,
+  file: File
 ): Promise<{
   path: string;
   content: string;
 } | null> => {
   const reader = new FileReader();
-  return new Promise((resolve) => {
-    reader.onload = async (e) => {
+  return new Promise(resolve => {
+    reader.onload = async e => {
       if (!e.target) {
         resolve(null);
         return;
@@ -107,10 +103,7 @@ interface IGithubInfo {
   };
 }
 
-export const uploadFileFromContent = async (
-  githubInfo: IGithubInfo,
-  commitInfo: ICommitInfo,
-) => {
+export const uploadFileFromContent = async (githubInfo: IGithubInfo, commitInfo: ICommitInfo) => {
   const { token, branch, repo, user } = githubInfo;
   const { name: owner } = user;
   const { path, content, message, committer } = commitInfo;
@@ -127,7 +120,7 @@ export const uploadFileFromContent = async (
       headers: {
         Authorization: `token ${token}`,
       },
-    },
+    }
   );
   if (res.status === 201 || res.status === 200 || res.status === 204) {
     return res.data;
@@ -144,10 +137,7 @@ export const transformGithubUrlToCDNUrl = (url: string, branch: string) => {
     .replace(`/${branch}`, `@${branch}`);
 };
 
-export const uploadFileFromFile = async (
-  file: File,
-  githubInfo: IGithubInfo,
-) => {
+export const uploadFileFromFile = async (file: File, githubInfo: IGithubInfo) => {
   const { token, branch, repo, user } = githubInfo;
   if (!token || !branch || !repo || !user) return null;
   const pathRes = await getPathAndContentFromFile(file);
@@ -177,6 +167,7 @@ export const uploadFileToGithub = async (params: {
   message: string;
   branch: string;
   sha?: string; // 如果是更新现有文件，需要提供 SHA
+  createOnly?: boolean;
 }): Promise<void> => {
   const { token, owner, repo, path, content, message, branch, sha } = params;
 
@@ -188,17 +179,20 @@ export const uploadFileToGithub = async (params: {
 
   if (sha) {
     body.sha = sha;
+  } else if (!params.createOnly) {
+    const existing = await axios.get(`/repos/${owner}/${repo}/contents/${path}`, {
+      params: { ref: branch },
+      headers: { Authorization: `token ${token}` },
+      validateStatus: status => status === 200 || status === 404,
+    });
+    if (existing.status === 200) body.sha = existing.data.sha;
   }
 
-  const res = await axios.put(
-    `/repos/${owner}/${repo}/contents/${path}`,
-    body,
-    {
-      headers: {
-        Authorization: `token ${token}`,
-      },
+  const res = await axios.put(`/repos/${owner}/${repo}/contents/${path}`, body, {
+    headers: {
+      Authorization: `token ${token}`,
     },
-  );
+  });
 
   if (res.status !== 200 && res.status !== 201) {
     throw new Error(`Github upload failed with status ${res.status}`);

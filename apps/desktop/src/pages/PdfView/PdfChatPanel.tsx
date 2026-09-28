@@ -12,7 +12,6 @@ import {
   useState,
 } from "react";
 import { useMemoizedFn } from "ahooks";
-import { useShallow } from "zustand/react/shallow";
 import "katex/dist/katex.min.css";
 
 import type { EditTextHandle } from "@/components/EditText";
@@ -23,10 +22,8 @@ import { useChatMarkdownComponents } from "@/components/ChatUI";
 import { Loading, Spinner, Tooltip, toast } from "@tau/ui";
 import useTheme from "@/hooks/useTheme";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
-import useSettingStore from "@/stores/useSettingStore";
-import usePdfChatStore, { EPdfChatStatus } from "@/stores/usePdfChatStore";
-import { buildSessionAwareSystemPrompt, Role } from "@/constants";
-import type { ChatMessage, Pdf, PdfIndexStatus, ResponseMessage } from "@/types";
+import { useScopedChat } from "@/hooks/useScopedChat";
+import type { Pdf, PdfIndexStatus } from "@/types";
 import { ensurePdfIndex, getPdfIndexStatus } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
 import usePdfChat from "./usePdfChat";
@@ -108,108 +105,28 @@ const buildPdfSystemPrompt = (pdf: Pdf): string =>
 ## 当前文档
 - 文件名：${pdf.fileName}`;
 
-const createDefaultChat = (systemPrompt: string): ChatMessage => ({
-  id: 0,
-  createTime: Date.now(),
-  updateTime: Date.now(),
-  messages: [
-    {
-      role: Role.System,
-      content: buildSessionAwareSystemPrompt(systemPrompt),
-      reasoning_content: "",
-    },
-  ],
-  title: "新对话",
-  groupId: null,
-  archived: false,
-  parentChatId: null,
-  branchIndex: 0,
-});
-
 const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
   ({ pdf, mainDbName, collapsed, onToggleCollapsed, onCitationNavigate }, ref) => {
     const { isDark } = useTheme();
     const editTitleRef = useRef<EditTextHandle>(null);
     const chatContainerRef = useRef<ChatContainerHandle>(null);
     const [chatContainerReady, setChatContainerReady] = useState(false);
-    const database = useSettingStore(state => state.setting.database.active);
     const isConnected = useDatabaseConnected();
 
     const toolScope = usePdfChat(pdf.id, mainDbName);
 
     const systemPrompt = useMemo(() => buildPdfSystemPrompt(pdf), [pdf]);
 
-    const {
-      initChats,
-      chats,
-      currentChatId,
-      status,
-      createChat,
-      updateChat,
-      updateCurrentChat,
-      createChatBranch,
-      deleteChat,
-      getChildBranchesCount,
-    } = usePdfChatStore(
-      useShallow(state => ({
-        initChats: state.initChats,
-        chats: state.chats,
-        currentChatId: state.currentChatId,
-        status: state.status,
-        createChat: state.createChat,
-        updateChat: state.updateChat,
-        updateCurrentChat: state.updateCurrentChat,
-        createChatBranch: state.createChatBranch,
-        deleteChat: state.deleteChat,
-        getChildBranchesCount: state.getChildBranchesCount,
-      }))
+    // 本 PDF 的对话（统一会话 store 按 pdf-chat + pdfId 分桶）；库切换时列表随 bucket 重读
+    const bucket = useMemo(
+      () => ({ scope: "pdf-chat" as const, domainRef: String(pdf.id) }),
+      [pdf.id]
     );
+    const { rows, loaded, currentChat, select, newChat, rename, remove } = useScopedChat(bucket, {
+      draftSlot: "pdf",
+      autoLoad: isConnected,
+    });
 
-    useEffect(() => {
-      if (isConnected && pdf.id) {
-        initChats(pdf.id);
-      }
-    }, [database, initChats, isConnected, pdf.id]);
-
-    const currentChat = useMemo(
-      () => chats.find(chat => chat.id === currentChatId),
-      [chats, currentChatId]
-    );
-
-    const currentChatAsMessage = useMemo((): ChatMessage => {
-      if (!currentChat) {
-        return createDefaultChat(systemPrompt);
-      }
-      return {
-        id: currentChat.id,
-        createTime: currentChat.createTime,
-        updateTime: currentChat.updateTime,
-        messages: currentChat.messages,
-        title: currentChat.title,
-        groupId: null,
-        archived: currentChat.archived,
-        parentChatId: currentChat.parentChatId,
-        branchIndex: currentChat.branchIndex,
-      };
-    }, [currentChat, systemPrompt]);
-
-    const chatsAsMessages = useMemo(
-      (): ChatMessage[] =>
-        chats.map(chat => ({
-          id: chat.id,
-          createTime: chat.createTime,
-          updateTime: chat.updateTime,
-          messages: chat.messages,
-          title: chat.title,
-          groupId: null,
-          archived: chat.archived,
-          parentChatId: chat.parentChatId,
-          branchIndex: chat.branchIndex,
-        })),
-      [chats]
-    );
-
-    const [createMessageLoading, setCreateMessageLoading] = useState(false);
     const [sendLoading, setSendLoading] = useState(false);
     const [indexPreparing, setIndexPreparing] = useState(false);
     const [indexStatus, setIndexStatus] = useState<PdfIndexStatus | null>(null);
@@ -326,106 +243,18 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
       return () => window.clearInterval(timer);
     }, [indexPreparing, indexStatus?.state, isConnected, mainDbName, pdf.id]);
 
-    const onCreateNewMessage = useMemoizedFn(async () => {
-      const messages: ResponseMessage[] = [
-        {
-          role: Role.System,
-          content: systemPrompt,
-        },
-      ];
-      setCreateMessageLoading(true);
-      try {
-        await createChat(messages);
-      } catch (error) {
-        toast.error("创建对话失败");
-        console.error(error);
-      } finally {
-        setCreateMessageLoading(false);
-      }
-    });
-
     const onTitleChange = useMemoizedFn(async (title: string) => {
-      if (!currentChat) return;
       try {
-        await updateChat({ ...currentChat, title });
+        await rename(currentChat.id, title);
       } catch (error) {
         toast.error("更新标题失败");
         console.error(error);
       }
     });
 
-    const handleChatSelect = useMemoizedFn((chatId: number) => {
+    const handleChatSelect = useMemoizedFn((chatId: string) => {
       chatContainerRef.current?.scrollToTop();
-      usePdfChatStore.setState({ currentChatId: chatId });
-    });
-
-    const handleExternalCreateChat = useMemoizedFn(
-      async (messages: ChatMessage["messages"], title?: string) => {
-        const created = await createChat(messages, title);
-        return {
-          id: created.id,
-          createTime: created.createTime,
-          updateTime: created.updateTime,
-          messages: created.messages,
-          title: created.title,
-          groupId: null,
-          archived: created.archived,
-          parentChatId: created.parentChatId,
-          branchIndex: created.branchIndex,
-        };
-      }
-    );
-
-    const handleExternalCreateBranch = useMemoizedFn(
-      async (parentChatId: number, messages: ChatMessage["messages"]) => {
-        const created = await createChatBranch(parentChatId, messages);
-        return {
-          id: created.id,
-          createTime: created.createTime,
-          updateTime: created.updateTime,
-          messages: created.messages,
-          title: created.title,
-          groupId: null,
-          archived: created.archived,
-          parentChatId: created.parentChatId,
-          branchIndex: created.branchIndex,
-        };
-      }
-    );
-
-    const handleUpdateChatMessage = useMemoizedFn(async (chat: ChatMessage) => {
-      const localChat = chats.find(item => item.id === chat.id);
-      if (!localChat) {
-        throw new Error("Chat not found");
-      }
-      const updated = await updateChat({
-        ...localChat,
-        messages: chat.messages,
-        title: chat.title,
-        archived: chat.archived,
-      });
-      return {
-        ...chat,
-        ...updated,
-      };
-    });
-
-    const handleUpdateCurrentChat = useMemoizedFn((chat: ChatMessage) => {
-      updateCurrentChat({
-        id: chat.id,
-        pdfId: pdf.id,
-        createTime: chat.createTime,
-        updateTime: chat.updateTime,
-        messages: chat.messages,
-        title: chat.title,
-        archived: chat.archived,
-        parentChatId: chat.parentChatId,
-        branchIndex: chat.branchIndex,
-      });
-    });
-
-    const handleChatDelete = useMemoizedFn(async (chatId: number) => {
-      await deleteChat(chatId);
+      select(chatId);
     });
 
     // 代码 / 链接渲染与对话页共用（D-048）；PDF 特有的 pdfref 引用 span 在此合并
@@ -517,7 +346,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
         !pendingAskPayload ||
         !chatContainerReady ||
         !chatContainerRef.current ||
-        status === EPdfChatStatus.LOADING ||
+        !loaded ||
         sendLoading
       ) {
         return;
@@ -549,7 +378,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
       }, 60);
 
       return () => window.clearTimeout(timer);
-    }, [chatContainerReady, collapsed, pendingAskPayload, sendLoading, status]);
+    }, [chatContainerReady, collapsed, pendingAskPayload, sendLoading, loaded]);
 
     const progressPercent =
       indexStatus?.progressTotal && typeof indexStatus.progressCurrent === "number"
@@ -562,7 +391,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
     return (
       <MarkdownProvider isDark={isDark} isVisible={!collapsed}>
         <div className="bg-page flex h-full flex-col overflow-hidden">
-          {collapsed ? null : status === EPdfChatStatus.LOADING ? (
+          {collapsed ? null : !loaded ? (
             <Loading minHeight={0} className="flex-1" />
           ) : (
             <div className="flex min-h-0 flex-1 flex-col p-4">
@@ -596,48 +425,34 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
               ) : null}
               <div className="mb-2 flex items-center justify-between">
                 <ChatDropdownSelector
-                  chatSource="pdf-chat"
-                  chats={chatsAsMessages}
-                  currentChat={currentChatAsMessage}
+                  chats={rows}
+                  currentChat={currentChat}
                   onChatSelect={handleChatSelect}
                   onTitleChange={onTitleChange}
-                  onChatDelete={handleChatDelete}
-                  getChildBranchesCount={getChildBranchesCount}
+                  onChatDelete={remove}
                   titleRef={editTitleRef}
                 />
               </div>
 
-              {currentChat || (!currentChat && !createMessageLoading) ? (
-                <Suspense fallback={<Loading minHeight={0} />}>
-                  <ChatContainer
-                    ref={handleChatContainerRef}
-                    currentChat={currentChatAsMessage}
-                    isDark={isDark}
-                    markdownComponents={markdownComponents}
-                    isVisible={!collapsed}
-                    chatScope={`pdf-chat:${pdf.id}`}
-                    toolScope={toolScope}
-                    updateChatMessage={handleUpdateChatMessage}
-                    updateCurrentChat={handleUpdateCurrentChat}
-                    sendLoading={sendLoading}
-                    setSendLoading={setSendLoading}
-                    titleRef={editTitleRef}
-                    onCreateNewMessage={onCreateNewMessage}
-                    createMessageLoading={createMessageLoading}
-                    onChatCreated={chatId => {
-                      usePdfChatStore.setState({ currentChatId: chatId });
-                    }}
-                    customSystemPrompt={systemPrompt}
-                    onCreateChat={handleExternalCreateChat}
-                    onCreateBranch={handleExternalCreateBranch}
-                    beforeSendUserMessage={ensureIndexReadyBeforeSend}
-                  />
-                </Suspense>
-              ) : (
-                <div className="text-tau-body text-ink-3 flex flex-1 items-center justify-center">
-                  暂无对话
-                </div>
-              )}
+              <Suspense fallback={<Loading minHeight={0} />}>
+                <ChatContainer
+                  ref={handleChatContainerRef}
+                  currentChat={currentChat}
+                  isDark={isDark}
+                  markdownComponents={markdownComponents}
+                  isVisible={!collapsed}
+                  chatScope={`pdf-chat:${pdf.id}`}
+                  toolScope={toolScope}
+                  sendLoading={sendLoading}
+                  setSendLoading={setSendLoading}
+                  titleRef={editTitleRef}
+                  onCreateNewMessage={newChat}
+                  createMessageLoading={false}
+                  onChatCreated={select}
+                  customSystemPrompt={systemPrompt}
+                  beforeSendUserMessage={ensureIndexReadyBeforeSend}
+                />
+              </Suspense>
             </div>
           )}
         </div>

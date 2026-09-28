@@ -1,15 +1,14 @@
 import { Role } from "@/constants";
-import type {
-  ProviderConfig,
-  ModelConfig,
-  RequestMessage,
-  ToolCallExecutionState,
-} from "@/types/llm";
-import type { AgentModelUsage } from "@tau/agent";
+import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
+import type { RequestMessage, ToolCallExecutionState, ToolCallPayload } from "@/types/llm";
+import type { ToolExecutionResult } from "@/types";
+import type { ModelUsage as AgentModelUsage } from "@tau/shared";
 import type { PPTTemplate } from "@/constants/ppt-templates";
 import type { ReportTemplate } from "@/constants/report-templates";
 import type { PodcastSpeaker } from "@/types/podcast";
-import { chatStreamCore, type ChatStreamCoreOptions } from "@/hooks/useChatLLM";
+import { runPiAgent } from "@/services/piAgentRunner";
+import { PiChatEventReducer } from "@/services/piChatEvents";
+import { piStreamChat, piTextOf, piThinkingOf } from "@/services/piLLM";
 import toolRegistry, { ensureToolingReady } from "@/tools";
 import {
   OUTLINE_GENERATION_WITH_TOOLS_PROMPT,
@@ -134,8 +133,24 @@ export interface GenerationRunCallbacks {
 
 /** 按次注入的工具（覆盖全局注册表里的同名工具）：后台任务用它绑定自己的项目 */
 export interface GenerationRunOptions {
-  additionalTools?: ChatStreamCoreOptions["additionalTools"];
-  executeToolCall?: ChatStreamCoreOptions["executeToolCall"];
+  databaseName?: string;
+  additionalTools?: Array<{
+    type: "function";
+    function: {
+      name: string;
+      description: string;
+      parameters: Record<string, unknown>;
+    };
+  }>;
+  /** 自定义工具执行器（用于路由到外部执行，如浏览器扩展）；返回 null 表示未接管 */
+  executeToolCall?: (
+    call: ToolCallPayload,
+    options?: {
+      signal?: AbortSignal;
+      conversationKey?: string;
+      toolContext?: Record<string, unknown>;
+    }
+  ) => Promise<ToolExecutionResult | null>;
 }
 
 const createTextMessage = (role: Role, text: string): RequestMessage => ({
@@ -163,31 +178,105 @@ export function buildGenerationRequest(request: GenerationRequest): GenerationBu
 }
 
 export function runGenerationTask(
-  providerConfig: ProviderConfig,
-  modelConfig: ModelConfig,
+  provider: LLMProviderSetting,
+  model: LLMModelSetting,
   request: GenerationRequest,
   callbacks: GenerationRunCallbacks,
   options: GenerationRunOptions = {}
 ): void {
   const buildResult = buildGenerationRequest(request);
 
-  // 直接走 chatStreamCore 并关掉 rAF 缓冲：窗口在后台时生成也不被节流
-  void chatStreamCore({
-    providerConfig,
-    modelConfig,
-    messages: buildResult.messages,
-    enableTools: buildResult.enableTools,
-    disableAnimation: true,
-    additionalTools: options.additionalTools,
-    executeToolCall: options.executeToolCall,
-    onUpdate: (text, _delta, _reasoning, turnId) => callbacks.onUpdate(text, turnId),
-    onReasoning: (text, _delta, turnId) => callbacks.onReasoning?.(text, turnId),
-    onUsage: callbacks.onUsage,
-    onFinish: content => callbacks.onFinish(content),
-    onError: callbacks.onError,
-    onController: callbacks.onController,
-    onToolCallsUpdate: (executions, turnId) => callbacks.onToolCallsUpdate?.(executions, turnId),
+  // 单发路径（provided_content）：直接消费 pi 原生事件（partial 全量快照）
+  if (!buildResult.enableTools) {
+    const handle = piStreamChat({ provider, model, messages: buildResult.messages }, event => {
+      if (event.type === "text_delta" || event.type === "text_end") {
+        callbacks.onUpdate(piTextOf(event.partial));
+      } else if (event.type === "thinking_delta" || event.type === "thinking_end") {
+        callbacks.onReasoning?.(piThinkingOf(event.partial));
+      }
+    });
+    callbacks.onController?.(toAbortController(handle));
+    void handle.result.then(result => {
+      if (result.ok && !result.aborted) {
+        callbacks.onFinish(result.text);
+        return;
+      }
+      if (!result.aborted) callbacks.onError(new Error(result.error ?? "模型请求失败"));
+    });
+    return;
+  }
+
+  // 带工具路径（vibe_learning）：一次性 pi 会话（工具桥直连渲染端 ToolRegistry）
+  let streamError: string | null = null;
+  const reducer = new PiChatEventReducer({
+    applyText: (turnId, text) => callbacks.onUpdate(text, turnId),
+    applyReasoning: (turnId, text) => callbacks.onReasoning?.(text, turnId),
+    applyToolCalls: (turnId, executions) => callbacks.onToolCallsUpdate?.(executions, turnId),
+    finalizeTurn: () => {},
+    applyUsage: (usage, turnId) => callbacks.onUsage?.(usage, turnId),
+    onAssistantTurnEnd: () => {},
+    onRetryStatus: () => {},
+    onStreamError: errorMessage => {
+      streamError = errorMessage;
+    },
+    onSettled: () => {},
   });
+  const handle = runPiAgent(
+    {
+      databaseName: options.databaseName,
+      provider,
+      model,
+      messages: buildResult.messages,
+      additionalTools: options.additionalTools,
+      ...(options.executeToolCall
+        ? {
+            executeAdditionalTool: async ({ toolName, args, signal }) => {
+              const outcome = await options.executeToolCall!(
+                {
+                  id: "",
+                  function: {
+                    name: toolName,
+                    arguments: args === undefined ? "" : JSON.stringify(args),
+                  },
+                },
+                { signal }
+              );
+              if (!outcome) return null;
+              return {
+                content: outcome.content ?? "",
+                ...(typeof outcome.modelContent === "string"
+                  ? { modelContent: outcome.modelContent }
+                  : {}),
+                ...(outcome.metadata
+                  ? { metadata: outcome.metadata as Record<string, unknown> }
+                  : {}),
+              };
+            },
+          }
+        : {}),
+    },
+    event => reducer.handle(event)
+  );
+  callbacks.onController?.(toAbortController(handle));
+  void handle.result.then(result => {
+    if (result.ok && !result.aborted && !streamError) {
+      callbacks.onFinish(result.lastAssistantText);
+      return;
+    }
+    if (!result.aborted) {
+      callbacks.onError(new Error(streamError ?? result.error ?? "模型请求失败"));
+    }
+  });
+}
+
+/** 旧回调契约的 AbortController 适配（消费方仍有 controller 语义时过渡） */
+function toAbortController(handle: { cancel?(): void; abort?(): void }): AbortController {
+  const controller = new AbortController();
+  controller.signal.addEventListener("abort", () => {
+    if (handle.cancel) handle.cancel();
+    else handle.abort?.();
+  });
+  return controller;
 }
 
 function buildVibeLearningGenerationRequest(

@@ -80,10 +80,15 @@ const listServerTools = async (serverId: string): Promise<MCPToolDefinition[]> =
 const callServerTool = async (
   serverId: string,
   toolName: string,
-  args?: Record<string, unknown>
+  args?: Record<string, unknown>,
+  signal?: AbortSignal,
+  expectedTransport?: string
 ): Promise<MCPToolCallResult> => {
   console.debug("[MCP] Calling tool", { serverId, toolName, args });
-  const result = await callMcpTool<MCPToolCallResult>({ serverId, toolName, args });
+  const result = await callMcpTool<MCPToolCallResult>(
+    { serverId, toolName, args, expectedTransport },
+    signal
+  );
   console.debug("[MCP] Tool result", { serverId, toolName, result });
   return result;
 };
@@ -154,12 +159,23 @@ export const fetchToolsFromServer = async (server: CustomMCPServer): Promise<Too
   }
 
   const remoteTools = await listServerTools(server.id);
+  const transportKey = JSON.stringify(server.transport);
+  const transportDigest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(transportKey)
+  );
+  const executionIdentity = Array.from(new Uint8Array(transportDigest), byte =>
+    byte.toString(16).padStart(2, "0")
+  ).join("");
 
   return remoteTools.map(tool => ({
+    executionIdentity,
     name: tool.name,
     description: tool.description || "",
     parameters: tool.inputSchema,
-    executor: async args => {
+    // 远端工具无法由本地确认副作用，默认按执行级别审批。
+    risk: "execute",
+    executor: async (args, context) => {
       // 从 store 获取最新的服务器配置
       const currentServer = useMCPStore.getState().getCustomServer(server.id);
       if (!currentServer) {
@@ -169,6 +185,9 @@ export const fetchToolsFromServer = async (server: CustomMCPServer): Promise<Too
       if (!currentServer.enabled) {
         throw new Error(`MCP 服务器 "${currentServer.name}" 已被禁用`);
       }
+      if (JSON.stringify(currentServer.transport) !== transportKey)
+        throw new Error("MCP 服务配置已变化，请重新发起回答以确认工具定义");
+      context?.signal?.throwIfAborted();
 
       // 确保服务器已连接
       const connected = await isServerConnected(currentServer.id);
@@ -184,7 +203,14 @@ export const fetchToolsFromServer = async (server: CustomMCPServer): Promise<Too
         }
       }
 
-      const result = await callServerTool(currentServer.id, tool.name, args ?? {});
+      context?.signal?.throwIfAborted();
+      const result = await callServerTool(
+        currentServer.id,
+        tool.name,
+        args ?? {},
+        context?.signal,
+        transportKey
+      );
       return parseToolResult(result);
     },
   }));

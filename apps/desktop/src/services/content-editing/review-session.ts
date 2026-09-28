@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { getChatDatabase } from "@/services/chatDatabase";
 import { persist } from "zustand/middleware";
 import { writeCacheFile, readCacheFile, cacheFileExists } from "@/commands/cache";
 import type { ToolExecutionContext, ToolExecutionMetadata, ToolExecutionResult } from "@/types";
@@ -50,6 +51,8 @@ interface ContentEditReviewState {
 }
 
 interface CreateProposalParams {
+  databaseName?: string;
+  signal?: AbortSignal;
   target?: { contentId?: number };
   baseHash?: string;
   operations: EditOperation[];
@@ -59,6 +62,7 @@ interface CreateProposalParams {
 
 interface ApplyProposalParams {
   proposalId: string;
+  signal?: AbortSignal;
 }
 
 interface RestoreCheckpointParams {
@@ -639,6 +643,7 @@ export const createPendingContentEditReview = async (params: {
             console.log("[createPendingContentEditReview] 开始应用提案...");
             const applyResult = await applyContentEditProposal({
               proposalId: params.proposal.proposalId,
+              signal: params.context.signal,
             });
             if (!applyResult.success) {
               throw new Error(applyResult.message || "应用提案失败");
@@ -711,9 +716,12 @@ export const createPendingContentEditReview = async (params: {
 };
 
 /** 工具权限模式为「自动允许编辑 / 跳过确认」时：不弹审阅卡，直接应用并返回同构结果（D-060） */
-export const autoApplyContentEditProposal = async (proposal: ContentEditProposalRecord) => {
+export const autoApplyContentEditProposal = async (
+  proposal: ContentEditProposalRecord,
+  signal?: AbortSignal
+) => {
   const proposalCache = await readProposalCache(proposal.proposalFilePath);
-  const applyResult = await applyContentEditProposal({ proposalId: proposal.proposalId });
+  const applyResult = await applyContentEditProposal({ proposalId: proposal.proposalId, signal });
   if (!applyResult.success) {
     return {
       content: JSON.stringify(
@@ -855,11 +863,18 @@ export const getContentEditCheckpoint = (checkpointId: string) =>
   useContentEditReviewStore.getState().checkpoints[checkpointId];
 
 export const createContentEditProposal = async (params: CreateProposalParams) => {
-  const resolvedTarget = await resolveContentTarget({
-    contentId: params.target?.contentId,
-  });
-  const { snapshot, source } = await loadSnapshotForContent(resolvedTarget.contentId);
-  const selection = getActiveEditingSessionByContentId(resolvedTarget.contentId)?.selection || null;
+  params = { ...params, databaseName: params.databaseName ?? getChatDatabase() };
+  const resolvedTarget = await resolveContentTarget(
+    {
+      contentId: params.target?.contentId,
+    },
+    params
+  );
+  const { snapshot, source } = await loadSnapshotForContent(resolvedTarget.contentId, params);
+  const selection =
+    params.databaseName === getChatDatabase()
+      ? getActiveEditingSessionByContentId(resolvedTarget.contentId)?.selection || null
+      : null;
 
   if (params.baseHash && params.baseHash !== snapshot.hash) {
     return {
@@ -892,6 +907,7 @@ export const createContentEditProposal = async (params: CreateProposalParams) =>
   });
 
   const proposal: ContentEditProposalRecord = {
+    databaseName: params.databaseName,
     proposalId,
     conversationKey,
     contentId: resolvedTarget.contentId,
@@ -947,7 +963,8 @@ export const applyContentEditProposal = async (params: ApplyProposalParams) => {
     };
   }
 
-  const { snapshot } = await loadSnapshotForContent(proposal.contentId);
+  const scope = { databaseName: proposal.databaseName, signal: params.signal };
+  const { snapshot } = await loadSnapshotForContent(proposal.contentId, scope);
   if (snapshot.hash !== proposal.beforeHash) {
     useContentEditReviewStore.getState().updateProposal(proposal.proposalId, current => ({
       ...current,
@@ -971,6 +988,7 @@ export const applyContentEditProposal = async (params: ApplyProposalParams) => {
     hash: snapshot.hash,
   });
   const checkpoint: ContentEditCheckpointRecord = {
+    databaseName: proposal.databaseName,
     checkpointId,
     proposalId: proposal.proposalId,
     contentId: proposal.contentId,
@@ -983,12 +1001,14 @@ export const applyContentEditProposal = async (params: ApplyProposalParams) => {
   useContentEditReviewStore.getState().upsertCheckpoint(checkpoint);
 
   const persisted = await persistContentFromMarkdown({
+    scope,
     contentId: proposal.contentId,
     markdown: cachePayload.markdown,
     expectedRevision: snapshot.revision,
     sourceUuid: `content-edit-proposal:${proposal.proposalId}`,
   });
-  updateSessionContentIfNeeded(proposal.contentId, persisted.content);
+  if (!proposal.databaseName || proposal.databaseName.replace(/\.db$/, "") === getChatDatabase())
+    updateSessionContentIfNeeded(proposal.contentId, persisted.content);
 
   useContentEditReviewStore.getState().updateProposal(proposal.proposalId, current => ({
     ...current,
@@ -1069,7 +1089,7 @@ export const restoreContentCheckpoint = async (params: RestoreCheckpointParams) 
     };
   }
 
-  const { snapshot } = await loadSnapshotForContent(checkpoint.contentId);
+  const { snapshot } = await loadSnapshotForContent(checkpoint.contentId, checkpoint);
   if (!params.force && snapshot.hash !== checkpoint.afterHash) {
     return {
       success: false as const,
@@ -1081,12 +1101,17 @@ export const restoreContentCheckpoint = async (params: RestoreCheckpointParams) 
   }
 
   const persisted = await persistContentValue({
+    scope: checkpoint,
     contentId: checkpoint.contentId,
     content: checkpointPayload.content,
     expectedRevision: snapshot.revision,
     sourceUuid: `content-edit-restore:${checkpoint.checkpointId}`,
   });
-  updateSessionContentIfNeeded(checkpoint.contentId, persisted.content);
+  if (
+    !checkpoint.databaseName ||
+    checkpoint.databaseName.replace(/\.db$/, "") === getChatDatabase()
+  )
+    updateSessionContentIfNeeded(checkpoint.contentId, persisted.content);
 
   useContentEditReviewStore.getState().updateCheckpoint(checkpoint.checkpointId, current => ({
     ...current,

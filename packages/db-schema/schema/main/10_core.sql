@@ -89,20 +89,6 @@ CREATE TABLE IF NOT EXISTS pdf_bookmarks (
         pdf_id INTEGER NOT NULL,
         bookmark_payload TEXT NOT NULL
       );
-CREATE TABLE IF NOT EXISTS pdf_chats (
-        id INTEGER PRIMARY KEY,
-        pdf_id INTEGER NOT NULL,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        messages TEXT,
-        title TEXT,
-        archived INTEGER DEFAULT 0,
-        parent_chat_id INTEGER,
-        branch_index INTEGER DEFAULT 0,
-        message_schema_version INTEGER DEFAULT 3,
-        agent_type TEXT DEFAULT 'local',
-        agent_session_id TEXT
-      );
 CREATE TABLE IF NOT EXISTS daily_notes (
             id INTEGER PRIMARY KEY,
             date TEXT NOT NULL,
@@ -166,20 +152,6 @@ CREATE TABLE IF NOT EXISTS video_notes (
         description TEXT DEFAULT '',
         transcript TEXT DEFAULT ''
       , transcript_segments TEXT DEFAULT '', transcript_word_segments TEXT DEFAULT '', summary TEXT DEFAULT '', highlights TEXT DEFAULT '[]', insights TEXT DEFAULT '');
-CREATE TABLE IF NOT EXISTS video_note_chats (
-        id INTEGER PRIMARY KEY,
-        video_note_id INTEGER NOT NULL,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        messages TEXT,
-        title TEXT,
-        archived INTEGER DEFAULT 0,
-        parent_chat_id INTEGER,
-        branch_index INTEGER DEFAULT 0,
-        message_schema_version INTEGER DEFAULT 3,
-        agent_type TEXT DEFAULT 'local',
-        agent_session_id TEXT
-      );
 CREATE TABLE IF NOT EXISTS audio_notes (
         id INTEGER PRIMARY KEY,
         create_time INTEGER NOT NULL,
@@ -202,16 +174,4 @@ CREATE TABLE IF NOT EXISTS audio_note_item (
         audio_note_id INTEGER NOT NULL,
         content_id INTEGER NOT NULL,
         title TEXT NOT NULL DEFAULT ''
-      );
-CREATE TABLE IF NOT EXISTS audio_note_chats (
-        id INTEGER PRIMARY KEY,
-        audio_note_id INTEGER NOT NULL,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        messages TEXT,
-        title TEXT,
-        archived INTEGER DEFAULT 0,
-        parent_chat_id INTEGER,
-        branch_index INTEGER DEFAULT 0,
-        message_schema_version INTEGER DEFAULT 3
       );

@@ -8,10 +8,15 @@ import { getActiveEditingSessionByContentId } from "./active-editor-session";
 import { createContentSnapshot } from "./snapshot";
 import { putSnapshot } from "./snapshot-store";
 import type { ContentSnapshot, ResolvedContentTarget } from "./types";
+import { bindDatabaseCommands, type CommandScope } from "@/services/command-context";
+import { getChatDatabase } from "@/services/chatDatabase";
 
-export const resolveContentTarget = async (payload?: {
-  contentId?: number;
-}): Promise<ResolvedContentTarget> => {
+export const resolveContentTarget = async (
+  payload?: {
+    contentId?: number;
+  },
+  scope?: CommandScope
+): Promise<ResolvedContentTarget> => {
   if (payload?.contentId) {
     return {
       contentId: payload.contentId,
@@ -19,6 +24,9 @@ export const resolveContentTarget = async (payload?: {
     };
   }
 
+  if (scope?.databaseName && scope.databaseName.replace(/\.db$/, "") !== getChatDatabase())
+    throw new Error("会话所属数据库不在当前页面，请指定正文 ID");
+  const commands = bindDatabaseCommands({ getCardById, findOneArticle, getProjectItemById }, scope);
   const active = getActiveTab();
   const activeTab = active?.tab;
   if (!active || !activeTab) {
@@ -30,7 +38,7 @@ export const resolveContentTarget = async (payload?: {
     if (!cardId) {
       throw new Error("TARGET_NOT_FOUND: CardDetail 缺少 card id");
     }
-    const card = await getCardById(cardId);
+    const card = await commands.getCardById(cardId);
     return {
       contentId: card.contentId,
       entityType: "card",
@@ -47,7 +55,7 @@ export const resolveContentTarget = async (payload?: {
     if (!articleId) {
       throw new Error("TARGET_NOT_FOUND: ArticleDetail 缺少 article id");
     }
-    const article = await findOneArticle(articleId);
+    const article = await commands.findOneArticle(articleId);
     return {
       contentId: article.contentId,
       entityType: "article",
@@ -64,7 +72,7 @@ export const resolveContentTarget = async (payload?: {
     if (!itemId) {
       throw new Error("UNSUPPORTED_TAB: 项目总览没有可编辑 contentId，请进入具体项目项");
     }
-    const item = await getProjectItemById(itemId);
+    const item = await commands.getProjectItemById(itemId);
     if (!item) {
       throw new Error(`TARGET_NOT_FOUND: 未找到 project-item ${itemId}`);
     }
@@ -83,13 +91,17 @@ export const resolveContentTarget = async (payload?: {
 };
 
 export const loadSnapshotForContent = async (
-  contentId: number
+  contentId: number,
+  scope?: CommandScope
 ): Promise<{
   snapshot: ContentSnapshot;
   source: "active-session" | "database";
 }> => {
-  const activeSession = getActiveEditingSessionByContentId(contentId);
-  const content = await getContentById(contentId);
+  const activeSession =
+    !scope?.databaseName || scope.databaseName.replace(/\.db$/, "") === getChatDatabase()
+      ? getActiveEditingSessionByContentId(contentId)
+      : undefined;
+  const content = await bindDatabaseCommands({ getContentById }, scope).getContentById(contentId);
   if (content?.revision) {
     const snapshot = createContentSnapshot(content.content, "database");
     snapshot.revision = content.revision;

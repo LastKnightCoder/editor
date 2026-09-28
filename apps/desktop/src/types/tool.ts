@@ -1,5 +1,7 @@
 import type { MessageContent } from "./llm";
 
+export type { ToolCallPayload } from "@tau/shared";
+
 export interface ToolParameterSchema {
   type: string;
   description?: string;
@@ -50,6 +52,7 @@ export interface ToolExecutionMetadata {
 }
 
 export interface ToolExecutionContext {
+  databaseName?: string;
   toolCallId: string;
   toolName: string;
   source: string;
@@ -71,20 +74,12 @@ export type ToolExecutor = (
 export type ToolRisk = "read" | "write" | "execute";
 
 export interface ToolDefinition {
+  executionIdentity?: string;
   name: string;
   description: string;
   parameters: ToolJsonSchema;
   execution?: ToolExecutionPolicy;
-  /** 缺省视为 read */
+  /** 缺省按 execute 审批，只读工具须显式声明 */
   risk?: ToolRisk;
   executor: ToolExecutor;
-}
-
-export interface ToolCallPayload {
-  id: string;
-  type?: string;
-  function: {
-    name: string;
-    arguments?: string;
-  };
 }

@@ -15,18 +15,15 @@ import clsx from "clsx";
 import { produce } from "immer";
 import { v4 as uuidv4 } from "uuid";
 import {
-  AudioLines,
   ChevronDown,
-  File as FileIcon,
-  Globe,
   Image as ImageIcon,
   Link2,
   Pencil,
   Plus,
   SlidersHorizontal,
   Sparkle,
+  Sparkles,
   Trash2,
-  Video,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -40,7 +37,12 @@ import {
   toast,
 } from "@tau/ui";
 import useSettingStore, { type ISetting } from "@/stores/useSettingStore";
-import type { LLMUsageConfig, ModelConfig, ProviderConfig } from "@/types/llm";
+import type {
+  LLMModelSetting,
+  LLMProviderSetting,
+  LLMUsageConfigV2,
+  PiThinkingLevel,
+} from "@/types/pi-llm";
 import { SettingRow } from "../components/SettingRow";
 import { ROW_DIVIDER } from "../components/rowDivider";
 import { SettingsGroup } from "../components/SettingsGroup";
@@ -51,7 +53,11 @@ import {
   SecretInput,
 } from "../components/ProviderLayout";
 import { SettingsTabs } from "../components/SettingsTabs";
+import { ProviderCreateDialog, type NewProviderDraft } from "../components/ProviderCreateDialog";
+import { ModelPickerDialog } from "../components/ModelPickerDialog";
+import { useThinkingLevels } from "@/services/llmCatalog";
 import { ToolPermissionGroup } from "./ToolPermissionGroup";
+import { AgentShellGroup } from "./AgentShellGroup";
 
 type FeatureKey = keyof ISetting["llmUsageSettings"];
 
@@ -100,31 +106,36 @@ const FEATURE_LABELS = Object.fromEntries(
   ASSIGNMENT_CATEGORIES.flatMap(category => category.features.map(f => [f.key, f.label]))
 ) as Record<FeatureKey, string>;
 
+/** 推理档位的界面文案：与输入框的档位选择同一套说法，不暴露内部档位名 */
+const THINKING_LEVEL_LABELS: Record<PiThinkingLevel, string> = {
+  off: "不思考",
+  minimal: "极简思考",
+  low: "略作沉吟",
+  medium: "细致推演",
+  high: "穷尽求索",
+  xhigh: "远谋深算",
+  max: "极尽推演",
+};
+
+/** 能力 = 模型支持的推理开关 + 输入模态（图片）；联网/音视频等不再作为模型能力标注 */
 const CAPABILITY_DEFS: Array<{ key: string; label: string; icon: LucideIcon }> = [
-  { key: "online", label: "联网", icon: Globe },
-  { key: "thinking", label: "思考", icon: Sparkle },
+  { key: "reasoning", label: "推理", icon: Sparkle },
   { key: "image", label: "图片", icon: ImageIcon },
-  { key: "video", label: "视频", icon: Video },
-  { key: "audio", label: "音频", icon: AudioLines },
-  { key: "file", label: "文件", icon: FileIcon },
 ];
 
-/** image 能力兼容 legacy 的 multimodal 旧字段 */
-function hasCapability(model: ModelConfig, key: string): boolean {
-  const features = model.features;
-  if (!features) return false;
-  if (key === "image") return Boolean(features.image ?? features.multimodal);
-  return Boolean(features[key as keyof typeof features]);
+function hasCapability(model: LLMModelSetting, key: string): boolean {
+  if (key === "reasoning") return model.reasoning;
+  return model.input.includes("image");
 }
 
-function capabilityLabels(model: ModelConfig): string[] {
+function capabilityLabels(model: LLMModelSetting): string[] {
   return CAPABILITY_DEFS.filter(def => hasCapability(model, def.key)).map(def => def.label);
 }
 
 /** 引用命中的功能槽位清单（删除保护的提示来源） */
 function featuresUsing(
-  usageSettings: Record<string, LLMUsageConfig | null>,
-  match: (usage: LLMUsageConfig) => boolean
+  usageSettings: Record<string, LLMUsageConfigV2 | null>,
+  match: (usage: LLMUsageConfigV2) => boolean
 ): FeatureKey[] {
   return (Object.keys(usageSettings) as FeatureKey[]).filter(key => {
     const usage = usageSettings[key];
@@ -133,48 +144,53 @@ function featuresUsing(
 }
 
 interface ModelFormState {
-  name: string;
-  description: string;
-  capabilities: Record<string, boolean>;
-  messageFormat: "openai" | "claude";
-  apiProtocol: "chat-completions" | "responses";
-  maxOutputTokens: string;
-  contextWindowK: string;
+  id: string;
+  displayName: string;
+  reasoning: boolean;
+  image: boolean;
+  /** 推理档位，空 = 交给 pi 按模型能力取默认 */
+  thinkingLevel: string;
+  stripThinkTags: boolean;
+  contextWindow: string;
+  maxTokens: string;
   temperature: string;
   userAgent: string;
   /** 编辑态按旧模型 ID 定位（支持改名） */
-  initialName: string;
+  initialId: string;
 }
 
 function blankModelForm(): ModelFormState {
   return {
-    name: "",
-    description: "",
-    capabilities: {},
-    messageFormat: "openai",
-    apiProtocol: "chat-completions",
-    maxOutputTokens: "",
-    contextWindowK: "",
+    id: "",
+    displayName: "",
+    reasoning: false,
+    image: false,
+    thinkingLevel: "",
+    stripThinkTags: false,
+    contextWindow: "",
+    maxTokens: "",
     temperature: "",
     userAgent: "",
-    initialName: "",
+    initialId: "",
   };
 }
 
-function modelToForm(model: ModelConfig): ModelFormState {
+function modelToForm(model: LLMModelSetting): ModelFormState {
   return {
-    name: model.name,
-    description: model.description,
-    capabilities: Object.fromEntries(
-      CAPABILITY_DEFS.map(def => [def.key, hasCapability(model, def.key)])
-    ),
-    messageFormat: model.messageFormat ?? "openai",
-    apiProtocol: model.apiProtocol ?? "chat-completions",
-    maxOutputTokens: typeof model.maxOutputTokens === "number" ? String(model.maxOutputTokens) : "",
-    contextWindowK: typeof model.contextWindowK === "number" ? String(model.contextWindowK) : "",
-    temperature: typeof model.temperature === "number" ? String(model.temperature) : "",
-    userAgent: model.userAgent ?? "",
-    initialName: model.name,
+    id: model.id,
+    displayName: model.name && model.name !== model.id ? model.name : "",
+    reasoning: model.reasoning,
+    image: model.input.includes("image"),
+    thinkingLevel: model.thinkingLevel ?? "",
+    stripThinkTags: model.stripThinkTags === true,
+    contextWindow: String(model.contextWindow ?? ""),
+    maxTokens: String(model.maxTokens ?? ""),
+    temperature:
+      typeof model.samplingParams?.temperature === "number"
+        ? String(model.samplingParams.temperature)
+        : "",
+    userAgent: model.headers?.["User-Agent"] ?? "",
+    initialId: model.id,
   };
 }
 
@@ -185,12 +201,12 @@ function ModelRow({
   onEdit,
   onDelete,
 }: {
-  model: ModelConfig;
+  model: LLMModelSetting;
   usage: number;
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const description = model.description?.trim();
+  const description = model.name && model.name !== model.id ? model.name.trim() : undefined;
   return (
     <div
       className={clsx(
@@ -206,11 +222,11 @@ function ModelRow({
           {capabilityLabels(model).map(label => (
             <CapChip key={label} label={label} />
           ))}
-          {model.contextWindowK != null && <MetaChip>上下文 {model.contextWindowK}k</MetaChip>}
-          {model.maxOutputTokens != null && <MetaChip>输出 {model.maxOutputTokens}</MetaChip>}
-          {model.temperature != null && <MetaChip>温度 {model.temperature}</MetaChip>}
-          {model.messageFormat === "claude" && <MetaChip>Claude 格式</MetaChip>}
-          {model.apiProtocol === "responses" && <MetaChip>Responses API</MetaChip>}
+          {model.contextWindow != null && (
+            <MetaChip>上下文 {Math.round(model.contextWindow / 1024)}k</MetaChip>
+          )}
+          {model.maxTokens != null && <MetaChip>输出 {model.maxTokens}</MetaChip>}
+          {model.stripThinkTags && <MetaChip>清除思考内容</MetaChip>}
         </div>
         {description && description !== model.name && (
           <div className="text-tau-meta text-ink-2 mt-0.5 truncate">{description}</div>
@@ -254,11 +270,11 @@ function MetaChip({ children }: { children: ReactNode }) {
 }
 
 /** 组合选择器的选项行：模型名 + 能力角标（供应商由分组头承担，行保持短；触发器回填同 label） */
-function ModelOptionLabel({ model }: { model: ModelConfig }) {
+function ModelOptionLabel({ model }: { model: LLMModelSetting }) {
   const caps = capabilityLabels(model);
   return (
     <span className="flex min-w-0 items-baseline gap-1.5">
-      <span className="font-tau-mono truncate">{model.name}</span>
+      <span className="font-tau-mono truncate">{model.id}</span>
       {caps.length > 0 && (
         <span className="text-tau-tiny text-ink-3 flex-none">{caps.join(" · ")}</span>
       )}
@@ -267,7 +283,7 @@ function ModelOptionLabel({ model }: { model: ModelConfig }) {
 }
 
 export function LLMSection() {
-  const llmConfigs = useSettingStore(s => s.setting.llmConfigs);
+  const llmConfigs = useSettingStore(s => s.setting.llmProviders);
   const llmUsageSettings = useSettingStore(s => s.setting.llmUsageSettings);
   const updateUsage = useSettingStore(s => s.updateLLMUsageSetting);
 
@@ -275,13 +291,28 @@ export function LLMSection() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const editing = llmConfigs.find(p => p.id === editingId) ?? llmConfigs[0];
 
-  const mutateProviders = (fn: (providers: ProviderConfig[]) => void) => {
+  const mutateProviders = (fn: (providers: LLMProviderSetting[]) => void) => {
     useSettingStore.setState(s => ({
-      setting: produce(s.setting, draft => fn(draft.llmConfigs)),
+      setting: produce(s.setting, draft => fn(draft.llmProviders)),
     }));
   };
 
-  const mutateUsage = (fn: (slots: Record<string, LLMUsageConfig | null>) => void) => {
+  /**
+   * 服务商/模型与分配槽位一起改：**一次用户操作只能产生一次设置写入**。
+   * 拆成两次会广播出「槽位已清、服务商还在」这样的中间态，多窗口互相回灌时旧快照可能
+   * 盖回新状态，表现为删掉的服务商又冒出来（见交接文档坑 16）。
+   */
+  const mutateProvidersAndUsage = (
+    fn: (providers: LLMProviderSetting[], slots: Record<string, LLMUsageConfigV2 | null>) => void
+  ) => {
+    useSettingStore.setState(s => ({
+      setting: produce(s.setting, draft =>
+        fn(draft.llmProviders, draft.llmUsageSettings as Record<string, LLMUsageConfigV2 | null>)
+      ),
+    }));
+  };
+
+  const mutateUsage = (fn: (slots: Record<string, LLMUsageConfigV2 | null>) => void) => {
     useSettingStore.setState(s => ({
       setting: produce(s.setting, draft => fn(draft.llmUsageSettings)),
     }));
@@ -308,28 +339,42 @@ export function LLMSection() {
     }
   };
 
-  /* ── 新建服务商（浮层表单） ── */
+  /* ── 新建服务商（先选内置目录 / 自定义，见 ProviderCreateDialog） ── */
   const [providerCreateOpen, setProviderCreateOpen] = useState(false);
-  const [providerForm, setProviderForm] = useState({ name: "", baseUrl: "", apiKey: "" });
 
-  const openProviderCreate = () => {
-    setProviderForm({ name: "", baseUrl: "", apiKey: "" });
-    setProviderCreateOpen(true);
-  };
-
-  const submitProviderCreate = () => {
-    const name = providerForm.name.trim();
-    const baseUrl = providerForm.baseUrl.trim();
-    if (!name || !baseUrl) {
-      toast.warning("请填写名称与 Base URL");
-      return;
-    }
+  const submitProviderCreate = (draft: NewProviderDraft) => {
     const id = uuidv4();
     mutateProviders(providers => {
-      providers.push({ id, name, baseUrl, apiKey: providerForm.apiKey, models: [] });
+      providers.push({ id, ...draft, models: [] });
     });
     setEditingId(id);
-    setProviderCreateOpen(false);
+  };
+
+  /* ── 勾选模型（内置服务商带预设目录；所有服务商都可向服务商实时获取，手填表单兜底） ── */
+  const [modelPickerOpen, setModelPickerOpen] = useState(false);
+
+  const applyModelPick = (change: { add: LLMModelSetting[]; remove: string[] }) => {
+    if (!editing) return;
+    const providerId = editing.id;
+    mutateProvidersAndUsage((providers, slots) => {
+      const target = providers.find(p => p.id === providerId);
+      if (!target) return;
+      target.models = target.models.filter(model => !change.remove.includes(model.id));
+      target.models.push(...change.add);
+      // 移除模型要一并清掉引用它的分配槽位，否则留悬空引用
+      for (const [key, usage] of Object.entries(slots)) {
+        if (usage?.providerId === providerId && change.remove.includes(usage.modelId)) {
+          slots[key] = null;
+        }
+      }
+    });
+    const summary = [
+      change.add.length > 0 ? `新增 ${change.add.length} 个模型` : "",
+      change.remove.length > 0 ? `移除 ${change.remove.length} 个` : "",
+    ]
+      .filter(Boolean)
+      .join("，");
+    if (summary) toast.success(summary);
   };
 
   /* ── 删除服务商（确认弹层，引用槽位一并清空） ── */
@@ -341,16 +386,13 @@ export function LLMSection() {
   const confirmProviderDelete = () => {
     if (!editing) return;
     const id = editing.id;
-    if (affectedByProvider.length > 0) {
-      mutateUsage(slots => {
-        affectedByProvider.forEach(key => {
-          slots[key] = null;
-        });
-      });
-    }
-    mutateProviders(providers => {
+    mutateProvidersAndUsage((providers, slots) => {
       const index = providers.findIndex(p => p.id === id);
       if (index !== -1) providers.splice(index, 1);
+      // 清掉引用它的分配槽位（含被删服务商的任意模型），与删除同一次写入
+      for (const [key, usage] of Object.entries(slots)) {
+        if (usage?.providerId === id) slots[key] = null;
+      }
     });
     setEditingId(null);
     setProviderDeleteOpen(false);
@@ -363,7 +405,24 @@ export function LLMSection() {
   });
   const [modelForm, setModelForm] = useState<ModelFormState>(blankModelForm);
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [modelDelete, setModelDelete] = useState<ModelConfig | null>(null);
+  const [modelDelete, setModelDelete] = useState<LLMModelSetting | null>(null);
+
+  // 推理档位按该模型真实能力生成（pi getSupportedThinkingLevels）：静态七项会给出模型不支持的档位
+  const thinking = useThinkingLevels(editing, modelForm.initialId || modelForm.id);
+  const thinkingOptions = useMemo(
+    () => [
+      { value: "", label: "自动（跟随模型默认）" },
+      ...thinking.levels.map(level => ({ value: level, label: THINKING_LEVEL_LABELS[level] })),
+    ],
+    [thinking.levels]
+  );
+  const thinkingHint = !modelForm.reasoning
+    ? "（该模型不支持推理）"
+    : thinking.loading
+      ? "（加载中…）"
+      : thinking.fromCatalog
+        ? ""
+        : "（未能识别此模型，档位可能不生效）";
 
   const openModelCreate = () => {
     setModelForm(blankModelForm());
@@ -371,79 +430,79 @@ export function LLMSection() {
     setModelDialog({ open: true, action: "create" });
   };
 
-  const openModelEdit = (model: ModelConfig) => {
+  const openModelEdit = (model: LLMModelSetting) => {
     setModelForm(modelToForm(model));
-    setAdvancedOpen(Boolean(model.userAgent || model.temperature !== undefined));
+    setAdvancedOpen(
+      Boolean(
+        model.headers?.["User-Agent"] ||
+        model.samplingParams?.temperature !== undefined ||
+        model.stripThinkTags ||
+        model.thinkingLevel
+      )
+    );
     setModelDialog({ open: true, action: "edit" });
   };
 
   const submitModelForm = () => {
     if (!editing) return;
-    const name = modelForm.name.trim();
-    const description = modelForm.description.trim();
-    if (!name || !description) {
-      toast.warning("请填写模型 ID 与描述");
+    const id = modelForm.id.trim();
+    if (!id) {
+      toast.warning("请填写模型 ID");
       return;
     }
     const duplicate =
       modelDialog.action === "create"
-        ? editing.models.some(m => m.name === name)
-        : modelForm.initialName !== name && editing.models.some(m => m.name === name);
+        ? editing.models.some(m => m.id === id)
+        : modelForm.initialId !== id && editing.models.some(m => m.id === id);
     if (duplicate) {
       toast.warning("该服务商下已存在同名模型");
       return;
     }
-    const parsedMaxTokens = Number.parseInt(modelForm.maxOutputTokens, 10);
-    const parsedContextK = Number.parseInt(modelForm.contextWindowK, 10);
+    const parsedMaxTokens = Number.parseInt(modelForm.maxTokens, 10);
+    const parsedContext = Number.parseInt(modelForm.contextWindow, 10);
     const parsedTemperature = Number.parseFloat(modelForm.temperature);
-    const cap = (key: string) => Boolean(modelForm.capabilities[key]);
-    const next: ModelConfig = {
-      name,
-      description,
-      features: {
-        online: cap("online"),
-        thinking: cap("thinking"),
-        image: cap("image"),
-        video: cap("video"),
-        audio: cap("audio"),
-        file: cap("file"),
-      },
-      messageFormat: modelForm.messageFormat,
-      apiProtocol:
-        modelForm.messageFormat === "openai" ? modelForm.apiProtocol : "chat-completions",
-      maxOutputTokens:
-        modelForm.messageFormat === "claude" &&
-        Number.isFinite(parsedMaxTokens) &&
-        parsedMaxTokens > 0
-          ? parsedMaxTokens
-          : undefined,
-      contextWindowK:
-        Number.isFinite(parsedContextK) && parsedContextK > 0 ? parsedContextK : undefined,
-      userAgent: modelForm.userAgent.trim() || undefined,
-      temperature:
-        Number.isFinite(parsedTemperature) && parsedTemperature >= 0
-          ? parsedTemperature
-          : undefined,
+    const displayName = modelForm.displayName.trim();
+    const next: LLMModelSetting = {
+      id,
+      ...(displayName && displayName !== id ? { name: displayName } : {}),
+      reasoning: modelForm.reasoning,
+      input: modelForm.image ? ["text", "image"] : ["text"],
+      ...(Number.isFinite(parsedContext) && parsedContext > 0
+        ? { contextWindow: parsedContext }
+        : {}),
+      ...(Number.isFinite(parsedMaxTokens) && parsedMaxTokens > 0
+        ? { maxTokens: parsedMaxTokens }
+        : {}),
+      ...(modelForm.thinkingLevel
+        ? { thinkingLevel: modelForm.thinkingLevel as LLMModelSetting["thinkingLevel"] }
+        : {}),
+      ...(modelForm.stripThinkTags ? { stripThinkTags: true } : {}),
+      ...(Number.isFinite(parsedTemperature) && parsedTemperature >= 0
+        ? { samplingParams: { temperature: parsedTemperature } }
+        : {}),
+      ...(modelForm.userAgent.trim()
+        ? { headers: { "User-Agent": modelForm.userAgent.trim() } }
+        : {}),
     };
     const providerId = editing.id;
-    const initialName = modelForm.initialName;
+    const initialId = modelForm.initialId;
     mutateProviders(providers => {
       const provider = providers.find(p => p.id === providerId);
       if (!provider) return;
       if (modelDialog.action === "create") {
         provider.models.push(next);
       } else {
-        const index = provider.models.findIndex(m => m.name === initialName);
+        const index = provider.models.findIndex(m => m.id === initialId);
         if (index !== -1) provider.models[index] = next;
       }
     });
     // 改名后引用旧名的分配槽位跟随
-    if (modelDialog.action === "edit" && initialName !== name) {
+    if (modelDialog.action === "edit" && initialId !== id) {
       mutateUsage(slots => {
         (Object.keys(slots) as FeatureKey[]).forEach(key => {
           const usage = slots[key];
-          if (usage && usage.providerId === providerId && usage.modelName === initialName) {
-            usage.modelName = name;
+          if (usage && usage.providerId === providerId && usage.modelId === initialId) {
+            usage.modelId = id;
           }
         });
       });
@@ -455,39 +514,35 @@ export function LLMSection() {
     editing && modelDelete
       ? featuresUsing(
           llmUsageSettings,
-          usage => usage.providerId === editing.id && usage.modelName === modelDelete.name
+          usage => usage.providerId === editing.id && usage.modelId === modelDelete.id
         )
       : [];
 
   const confirmModelDelete = () => {
     if (!editing || !modelDelete) return;
     const providerId = editing.id;
-    const modelName = modelDelete.name;
-    if (affectedByModel.length > 0) {
-      mutateUsage(slots => {
-        affectedByModel.forEach(key => {
-          slots[key] = null;
-        });
-      });
-    }
-    mutateProviders(providers => {
+    const modelId = modelDelete.id;
+    mutateProvidersAndUsage((providers, slots) => {
       const provider = providers.find(p => p.id === providerId);
-      if (provider) provider.models = provider.models.filter(m => m.name !== modelName);
+      if (provider) provider.models = provider.models.filter(m => m.id !== modelId);
+      for (const [key, usage] of Object.entries(slots)) {
+        if (usage?.providerId === providerId && usage.modelId === modelId) slots[key] = null;
+      }
     });
     setModelDelete(null);
   };
 
-  const usageCount = (providerId: string, modelName: string) =>
+  const usageCount = (providerId: string, modelId: string) =>
     featuresUsing(
       llmUsageSettings,
-      usage => usage.providerId === providerId && usage.modelName === modelName
+      usage => usage.providerId === providerId && usage.modelId === modelId
     ).length;
 
   /* ── 页内 Tab：服务商与模型 / 功能分配 ── */
   const [tab, setTab] = useState<"providers" | "assignment" | "permission">("providers");
   const unassignedCount = Object.values(llmUsageSettings).filter(usage => usage === null).length;
 
-  /** 全部 (服务商, 模型) 平铺；选项 value 为下标，选择时反查成 providerId + modelName */
+  /** 全部 (服务商, 模型) 平铺；选项 value 为下标，选择时反查成 providerId + modelId */
   const modelEntries = useMemo(
     () => llmConfigs.flatMap(provider => provider.models.map(model => ({ provider, model }))),
     [llmConfigs]
@@ -497,14 +552,14 @@ export function LLMSection() {
     value: String(index),
     group: entry.provider.name,
     label: <ModelOptionLabel model={entry.model} />,
-    searchText: `${entry.provider.name} ${entry.model.name} ${entry.model.description ?? ""} ${capabilityLabels(entry.model).join(" ")}`,
+    searchText: `${entry.provider.name} ${entry.model.id} ${entry.model.name ?? ""} ${capabilityLabels(entry.model).join(" ")}`,
   }));
 
   const renderAssignmentRow = (feature: FeatureDef) => {
     const usage = llmUsageSettings[feature.key];
     const selectedIndex = usage
       ? modelEntries.findIndex(
-          entry => entry.provider.id === usage.providerId && entry.model.name === usage.modelName
+          entry => entry.provider.id === usage.providerId && entry.model.id === usage.modelId
         )
       : -1;
     return (
@@ -521,7 +576,7 @@ export function LLMSection() {
             const entry = modelEntries[Number(value)];
             updateUsage(
               feature.key,
-              entry ? { providerId: entry.provider.id, modelName: entry.model.name } : null
+              entry ? { providerId: entry.provider.id, modelId: entry.model.id } : null
             );
           }}
         />
@@ -554,7 +609,7 @@ export function LLMSection() {
             activeId={editing?.id}
             onSelect={setEditingId}
             addLabel="添加服务商"
-            onAdd={openProviderCreate}
+            onAdd={() => setProviderCreateOpen(true)}
           />
           {!editing ? (
             <div className="text-tau-meta text-ink-2 px-3 py-8 text-center">
@@ -596,7 +651,7 @@ export function LLMSection() {
                     />
                   </FieldBox>
                 </SettingRow>
-                <SettingRow title="Base URL" description="OpenAI 兼容的接口地址">
+                <SettingRow title="Base URL" description="服务商提供的接口地址">
                   <FieldBox>
                     <Input
                       className="font-tau-mono"
@@ -613,21 +668,34 @@ export function LLMSection() {
                 title="模型"
                 description={`${editing.models.length} 个 · 在「功能分配」中指定给各项功能`}
                 action={
-                  <Button variant="ghost" size="sm" icon={Plus} onClick={openModelCreate}>
-                    添加模型
-                  </Button>
+                  <>
+                    {/* 勾选优先：内置服务商带预设元数据，其他服务商向服务商实时获取 */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon={Sparkles}
+                      disabled={!editing.baseUrl.trim()}
+                      title={editing.baseUrl.trim() ? undefined : "请先填写 Base URL"}
+                      onClick={() => setModelPickerOpen(true)}
+                    >
+                      选择模型
+                    </Button>
+                    <Button variant="ghost" size="sm" icon={Plus} onClick={openModelCreate}>
+                      手动添加
+                    </Button>
+                  </>
                 }
               >
                 {editing.models.length === 0 ? (
                   <div className="text-tau-meta text-ink-2 px-3 py-6 text-center">
-                    暂无模型——点击「添加模型」创建第一个条目
+                    暂无模型——点击「选择模型」勾选要使用的模型，列表里没有的可「手动添加」
                   </div>
                 ) : (
                   editing.models.map(model => (
                     <ModelRow
-                      key={model.name}
+                      key={model.id}
                       model={model}
-                      usage={usageCount(editing.id, model.name)}
+                      usage={usageCount(editing.id, model.id)}
                       onEdit={() => openModelEdit(model)}
                       onDelete={() => setModelDelete(model)}
                     />
@@ -638,7 +706,10 @@ export function LLMSection() {
           )}
         </SettingsGroup>
       ) : tab === "permission" ? (
-        <ToolPermissionGroup />
+        <>
+          <ToolPermissionGroup />
+          <AgentShellGroup />
+        </>
       ) : (
         ASSIGNMENT_CATEGORIES.map(cat => (
           <SettingsGroup key={cat.label} title={cat.label}>
@@ -647,58 +718,22 @@ export function LLMSection() {
         ))
       )}
 
-      {/* ── 浮层：新建服务商 ── */}
-      <Dialog
+      {/* ── 浮层：新建服务商（内置目录 / 自定义） ── */}
+      <ProviderCreateDialog
         open={providerCreateOpen}
         onOpenChange={setProviderCreateOpen}
-        onAfterClose={() => setProviderForm({ name: "", baseUrl: "", apiKey: "" })}
-        title="新建服务商"
-        subtitle="填入名称与凭据，创建后即可添加模型"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setProviderCreateOpen(false)}>
-              取消
-            </Button>
-            <Button variant="primary" onClick={submitProviderCreate}>
-              创建
-            </Button>
-          </>
-        }
-      >
-        <DialogBody>
-          <div className="flex flex-col gap-3">
-            <label className="flex min-w-0 flex-col gap-1.5">
-              <span className="text-tau-meta text-ink-2 font-medium">名称</span>
-              <Input
-                value={providerForm.name}
-                placeholder="如 DeepSeek"
-                onChange={e => setProviderForm(f => ({ ...f, name: e.target.value }))}
-              />
-            </label>
-            <label className="flex min-w-0 flex-col gap-1.5">
-              <span className="text-tau-meta text-ink-2 font-medium">Base URL</span>
-              <Input
-                className="font-tau-mono"
-                value={providerForm.baseUrl}
-                placeholder="https://api.example.com/v1"
-                spellCheck={false}
-                onChange={e => setProviderForm(f => ({ ...f, baseUrl: e.target.value }))}
-              />
-            </label>
-            <label className="flex min-w-0 flex-col gap-1.5">
-              <span className="text-tau-meta text-ink-2 font-medium">API Key（可稍后补填）</span>
-              <Input
-                className="font-tau-mono"
-                type="password"
-                value={providerForm.apiKey}
-                placeholder="sk-…"
-                spellCheck={false}
-                onChange={e => setProviderForm(f => ({ ...f, apiKey: e.target.value }))}
-              />
-            </label>
-          </div>
-        </DialogBody>
-      </Dialog>
+        onCreate={submitProviderCreate}
+      />
+
+      {/* ── 浮层：勾选模型（预设目录 + 向服务商实时获取） ── */}
+      {editing && (
+        <ModelPickerDialog
+          open={modelPickerOpen}
+          onOpenChange={setModelPickerOpen}
+          provider={editing}
+          onConfirm={applyModelPick}
+        />
+      )}
 
       {/* ── 浮层：模型编辑表单 ── */}
       <Dialog
@@ -729,18 +764,18 @@ export function LLMSection() {
               <span className="text-tau-meta text-ink-2 font-medium">模型 ID</span>
               <Input
                 className="font-tau-mono"
-                value={modelForm.name}
-                placeholder="如 deepseek-chat"
+                value={modelForm.id}
+                placeholder="如 deepseek-chat（服务商给出的模型 ID）"
                 spellCheck={false}
-                onChange={e => setModelForm(f => ({ ...f, name: e.target.value }))}
+                onChange={e => setModelForm(f => ({ ...f, id: e.target.value }))}
               />
             </label>
             <label className="flex min-w-0 flex-col gap-1.5">
-              <span className="text-tau-meta text-ink-2 font-medium">描述</span>
+              <span className="text-tau-meta text-ink-2 font-medium">展示名（可选）</span>
               <Input
-                value={modelForm.description}
+                value={modelForm.displayName}
                 placeholder="如 高性价比主力"
-                onChange={e => setModelForm(f => ({ ...f, description: e.target.value }))}
+                onChange={e => setModelForm(f => ({ ...f, displayName: e.target.value }))}
               />
             </label>
           </div>
@@ -748,7 +783,7 @@ export function LLMSection() {
             <div className="text-tau-meta text-ink-2 pb-1.5 font-medium">能力</div>
             <div className="flex flex-wrap gap-1.5">
               {CAPABILITY_DEFS.map(def => {
-                const on = Boolean(modelForm.capabilities[def.key]);
+                const on = def.key === "reasoning" ? modelForm.reasoning : modelForm.image;
                 const Icon = def.icon;
                 return (
                   <button
@@ -756,10 +791,9 @@ export function LLMSection() {
                     type="button"
                     aria-pressed={on}
                     onClick={() =>
-                      setModelForm(f => ({
-                        ...f,
-                        capabilities: { ...f.capabilities, [def.key]: !on },
-                      }))
+                      setModelForm(f =>
+                        def.key === "reasoning" ? { ...f, reasoning: !on } : { ...f, image: !on }
+                      )
                     }
                     className={clsx(
                       "text-tau-meta flex h-[26px] items-center gap-1.5 rounded-full border px-2.5",
@@ -794,58 +828,39 @@ export function LLMSection() {
             {advancedOpen && (
               <div className="grid grid-cols-2 gap-x-3 gap-y-3 pb-1">
                 <label className="flex min-w-0 flex-col gap-1.5">
-                  <span className="text-tau-meta text-ink-2 font-medium">消息格式</span>
+                  <span className="text-tau-meta text-ink-2 font-medium">
+                    推理档位
+                    {thinkingHint && (
+                      <span className="text-ink-3 ml-1 font-normal">{thinkingHint}</span>
+                    )}
+                  </span>
                   <Select
-                    aria-label="消息格式"
+                    aria-label="推理档位"
                     className="w-full"
-                    value={modelForm.messageFormat}
-                    options={[
-                      { value: "openai", label: "openai" },
-                      { value: "claude", label: "claude" },
-                    ]}
-                    onValueChange={v =>
-                      setModelForm(f => ({
-                        ...f,
-                        messageFormat: v as ModelFormState["messageFormat"],
-                      }))
-                    }
+                    value={modelForm.thinkingLevel}
+                    disabled={!modelForm.reasoning}
+                    options={thinkingOptions}
+                    onValueChange={v => setModelForm(f => ({ ...f, thinkingLevel: v }))}
                   />
                 </label>
                 <label className="flex min-w-0 flex-col gap-1.5">
-                  <span className="text-tau-meta text-ink-2 font-medium">API 协议</span>
-                  <Select
-                    aria-label="API 协议"
-                    className="w-full"
-                    value={modelForm.apiProtocol}
-                    disabled={modelForm.messageFormat === "claude"}
-                    options={[
-                      { value: "chat-completions", label: "chat-completions" },
-                      { value: "responses", label: "responses" },
-                    ]}
-                    onValueChange={v =>
-                      setModelForm(f => ({ ...f, apiProtocol: v as ModelFormState["apiProtocol"] }))
-                    }
+                  <span className="text-tau-meta text-ink-2 font-medium">上下文窗口 (tokens)</span>
+                  <Input
+                    className="font-tau-mono"
+                    value={modelForm.contextWindow}
+                    placeholder="如 65536"
+                    spellCheck={false}
+                    onChange={e => setModelForm(f => ({ ...f, contextWindow: e.target.value }))}
                   />
                 </label>
                 <label className="flex min-w-0 flex-col gap-1.5">
                   <span className="text-tau-meta text-ink-2 font-medium">最大输出 tokens</span>
                   <Input
                     className="font-tau-mono"
-                    value={modelForm.maxOutputTokens}
-                    placeholder="仅 claude 格式"
-                    disabled={modelForm.messageFormat !== "claude"}
+                    value={modelForm.maxTokens}
+                    placeholder="如 8192"
                     spellCheck={false}
-                    onChange={e => setModelForm(f => ({ ...f, maxOutputTokens: e.target.value }))}
-                  />
-                </label>
-                <label className="flex min-w-0 flex-col gap-1.5">
-                  <span className="text-tau-meta text-ink-2 font-medium">上下文窗口 (k)</span>
-                  <Input
-                    className="font-tau-mono"
-                    value={modelForm.contextWindowK}
-                    placeholder="如 64"
-                    spellCheck={false}
-                    onChange={e => setModelForm(f => ({ ...f, contextWindowK: e.target.value }))}
+                    onChange={e => setModelForm(f => ({ ...f, maxTokens: e.target.value }))}
                   />
                 </label>
                 <label className="flex min-w-0 flex-col gap-1.5">
@@ -867,6 +882,23 @@ export function LLMSection() {
                     spellCheck={false}
                     onChange={e => setModelForm(f => ({ ...f, userAgent: e.target.value }))}
                   />
+                </label>
+                <label className="flex min-w-0 flex-col gap-1.5">
+                  <span className="text-tau-meta text-ink-2 font-medium">思考内容处理</span>
+                  <button
+                    type="button"
+                    aria-pressed={modelForm.stripThinkTags}
+                    onClick={() => setModelForm(f => ({ ...f, stripThinkTags: !f.stripThinkTags }))}
+                    className={clsx(
+                      "text-tau-meta rounded-tau-sm flex h-[30px] items-center gap-1.5 border px-2.5",
+                      "ease-tau-out transition-colors duration-[160ms]",
+                      modelForm.stripThinkTags
+                        ? "bg-accent-soft text-accent-text border-transparent font-semibold"
+                        : "border-line-1 text-ink-2 hover:border-ink-3 hover:text-ink-1"
+                    )}
+                  >
+                    自动清除回答里的思考内容
+                  </button>
                 </label>
               </div>
             )}

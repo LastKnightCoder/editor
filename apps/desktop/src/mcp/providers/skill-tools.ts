@@ -126,6 +126,7 @@ export const skillToolsProvider: MCPProviderDefinition = {
   tools: (): ToolDefinition[] => [
     {
       name: "list_skills",
+      risk: "read",
       description:
         "获取所有可用的 Skills 列表。返回每个 Skill 的文件夹名、名称与描述，再用 get_skill_readme 获取详细说明。",
       parameters: {
@@ -150,6 +151,7 @@ export const skillToolsProvider: MCPProviderDefinition = {
     },
     {
       name: "get_skill_readme",
+      risk: "read",
       description: "获取指定 Skill 的 SKILL.md 内容（详细说明、使用方法和相关知识）。",
       parameters: {
         type: "object",
@@ -171,6 +173,7 @@ export const skillToolsProvider: MCPProviderDefinition = {
     },
     {
       name: "get_skill_tree",
+      risk: "read",
       description: "以树形结构展示指定 Skill 目录下的文件，了解附带的参考资料、模板与脚本。",
       parameters: {
         type: "object",
@@ -191,6 +194,7 @@ export const skillToolsProvider: MCPProviderDefinition = {
     },
     {
       name: "read_skill_file",
+      risk: "read",
       description:
         "通过相对路径读取指定 Skill 目录下的文件内容，例如 folderName='my-skill'、relativePath='templates/example.md'。",
       parameters: {
