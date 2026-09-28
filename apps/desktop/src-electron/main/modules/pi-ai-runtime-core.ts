@@ -49,6 +49,20 @@ export function toPiModel(
   provider: LLMProviderSetting,
   base?: Model<Api>
 ): Model<Api> {
+  const contextWindow = base?.contextWindow ?? model.contextWindow;
+  const maxTokens = base?.maxTokens ?? model.maxTokens;
+  if (
+    !contextWindow ||
+    !Number.isSafeInteger(contextWindow) ||
+    contextWindow <= 0 ||
+    !maxTokens ||
+    !Number.isSafeInteger(maxTokens) ||
+    maxTokens <= 0
+  ) {
+    throw new Error(
+      `模型 ${model.id} 缺少有效容量，请在模型设置中填写上下文窗口和最大输出 token 数`
+    );
+  }
   const piModel: Model<Api> = {
     id: model.id,
     name: model.name ?? base?.name ?? model.id,
@@ -59,8 +73,8 @@ export function toPiModel(
     reasoning: base?.reasoning ?? model.reasoning,
     input: base?.input ?? model.input,
     cost: base?.cost ?? { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: base?.contextWindow ?? model.contextWindow ?? DEFAULT_CONTEXT_WINDOW,
-    maxTokens: base?.maxTokens ?? model.maxTokens ?? DEFAULT_MAX_TOKENS,
+    contextWindow,
+    maxTokens,
   };
   if (base?.thinkingLevelMap) piModel.thinkingLevelMap = base.thinkingLevelMap;
   if (base?.compat && !model.compat) piModel.compat = base.compat as never;
@@ -69,9 +83,6 @@ export function toPiModel(
   if (model.compat) piModel.compat = model.compat as never;
   return piModel;
 }
-
-const DEFAULT_CONTEXT_WINDOW = 128_000;
-const DEFAULT_MAX_TOKENS = 8_192;
 
 /** 共享的内置目录查询（懒创建 ModelRuntime，仅用于查询，不注册自定义 provider） */
 let catalogRuntime: Promise<ModelRuntimeLike | null> | null = null;
@@ -132,8 +143,8 @@ export function toCatalogModel(model: Model<Api>): PiCatalogModel {
     input: (model.input ?? ["text"]).filter(
       (kind): kind is "text" | "image" => kind === "text" || kind === "image"
     ),
-    contextWindow: model.contextWindow ?? DEFAULT_CONTEXT_WINDOW,
-    maxTokens: model.maxTokens ?? DEFAULT_MAX_TOKENS,
+    contextWindow: model.contextWindow,
+    maxTokens: model.maxTokens,
     ...(model.cost && (model.cost.input || model.cost.output)
       ? { cost: { input: model.cost.input, output: model.cost.output } }
       : {}),
@@ -220,6 +231,7 @@ export async function buildPiProvider(setting: LLMProviderSetting): Promise<Prov
   const models: Model<Api>[] = [];
   for (const model of setting.models) {
     const base = builtin ? await lookupBuiltinModel(builtin, model.id) : undefined;
+    if (!base && (!model.contextWindow || !model.maxTokens)) continue;
     models.push(toPiModel(model, setting, base));
   }
   return createProvider({

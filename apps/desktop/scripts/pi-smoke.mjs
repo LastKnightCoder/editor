@@ -150,6 +150,7 @@ faux.setResponses([
 const steerUserMessages = [];
 const steerOrder = [];
 let steerSettledCount = 0;
+let steerSubmission;
 const unsubscribeSteer = session.subscribe(event => {
   if (event.type === "message_start") steerOrder.push(`message_start:${event.message?.role}`);
   else steerOrder.push(event.type);
@@ -162,14 +163,18 @@ const unsubscribeSteer = session.subscribe(event => {
     );
   }
   if (event.type === "agent_settled") steerSettledCount += 1;
+  // 工具开始时立即插话；轮询可能等到极短命令已结束，误启动第二轮。
+  if (event.type === "tool_execution_start" && !steerSubmission) {
+    steerSubmission = session.prompt(steerText, {
+      streamingBehavior: "steer",
+      expandPromptTemplates: false,
+    });
+  }
 });
 try {
-  const steerRun = session.prompt("先执行一个命令");
-  while (!steerOrder.includes("tool_execution_start")) {
-    await new Promise(resolve => setTimeout(resolve, 5));
-  }
-  await session.prompt(steerText, { streamingBehavior: "steer", expandPromptTemplates: false });
-  await steerRun;
+  await session.prompt("先执行一个命令");
+  if (!steerSubmission) throw new Error("插话冒烟未进入工具执行阶段");
+  await steerSubmission;
 } finally {
   unsubscribeSteer();
   session.dispose();

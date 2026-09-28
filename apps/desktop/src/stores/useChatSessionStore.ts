@@ -33,6 +33,12 @@ import {
   updateChatGroup,
 } from "@/commands/chat-message";
 import { piSessionEdit, piSessionTranscript, type PiSessionEdit } from "@/commands/piSession";
+import { chatIdentity, getChatDatabase } from "@/services/chatDatabase";
+
+const deletedChats = new Set<string>();
+const libraryGenerations = new Map<string, number>();
+const generationOf = (databaseName: string) => libraryGenerations.get(databaseName) ?? 0;
+let loadedDatabase: string | undefined;
 
 /** 场景 + 所属对象：一个列表 */
 export interface ChatBucketRef {
@@ -66,8 +72,10 @@ interface ChatBucket {
 /** 目录行 → 渲染层对话（消息另读；未打开时为空） */
 export const rowToChat = (
   row: ChatSessionRow,
-  messages: ChatSessionMessage[] = []
+  messages: ChatSessionMessage[] = [],
+  databaseName = getChatDatabase()
 ): ChatMessage => ({
+  databaseName,
   id: row.id,
   createTime: row.createTime,
   updateTime: row.updateTime,
@@ -87,6 +95,7 @@ export const rowToChat = (
 export const createDraftChat = (bucket: ChatBucketRef): ChatMessage => {
   const now = Date.now();
   return {
+    databaseName: getChatDatabase(),
     id: crypto.randomUUID(),
     createTime: now,
     updateTime: now,
@@ -133,13 +142,18 @@ interface ChatSessionActions {
   /** 首轮发送：登记目录行（草稿 → 正式对话） */
   registerChat(chat: ChatMessage, sessionFile: string): Promise<ChatSessionRow>;
   /** settled 后：读 JSONL 投影并更新目录行消息数/时间（回写容器由 runtime 做） */
-  settleChat(id: string): Promise<ChatSessionMessage[] | null>;
-  renameChat(id: string, title: string): Promise<void>;
+  settleChat(
+    id: string,
+    databaseName?: string,
+    sessionFile?: string
+  ): Promise<ChatSessionMessage[] | null>;
+  renameChat(id: string, title: string, databaseName?: string): Promise<void>;
+  evictChat(id: string, databaseName?: string): void;
   archiveChat(id: string, archived: boolean): Promise<void>;
   moveChatToGroup(id: string, groupId: number | null): Promise<void>;
   pinChat(id: string): Promise<void>;
   unpinChat(id: string): Promise<void>;
-  deleteChat(id: string): Promise<void>;
+  deleteChat(id: string, databaseName?: string): Promise<void>;
   /**
    * 改会话树（回退/分叉/切版本/删除，M4-d）：返回改后的投影，由调用方（聊天容器）回写。
    * 运行中主进程会拒绝（抛错）。
@@ -198,9 +212,21 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
         });
       };
 
-      const patchRow = async (id: string, patch: Parameters<typeof updateChatSession>[1]) => {
-        const updated = await updateChatSession(id, patch);
-        if (updated) upsertRow(updated);
+      const patchRow = async (
+        id: string,
+        patch: Parameters<typeof updateChatSession>[1],
+        databaseName = getChatDatabase()
+      ) => {
+        const generation = generationOf(databaseName);
+        if (deletedChats.has(chatIdentity(id, databaseName))) return;
+        const updated = await updateChatSession(id, patch, databaseName);
+        if (
+          updated &&
+          generation === generationOf(databaseName) &&
+          databaseName === getChatDatabase() &&
+          !deletedChats.has(chatIdentity(id, databaseName))
+        )
+          upsertRow(updated);
       };
 
       return {
@@ -210,6 +236,7 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
         groups: [],
 
         loadBucket: async bucket => {
+          const databaseName = getChatDatabase();
           const key = bucketKeyOf(bucket);
           const sequence = ++loadSequence;
           bucketSequences.set(key, sequence);
@@ -229,7 +256,7 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
               domainRef: bucket.domainRef,
               includeArchived: true,
             });
-            if (bucketSequences.get(key) !== sequence) return;
+            if (databaseName !== getChatDatabase() || bucketSequences.get(key) !== sequence) return;
             set(state => ({
               buckets: {
                 ...state.buckets,
@@ -246,16 +273,28 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
         },
 
         loadGroups: async () => {
-          set({ groups: await getAllChatGroups() });
+          const databaseName = getChatDatabase();
+          const groups = await getAllChatGroups();
+          if (databaseName === getChatDatabase()) set({ groups });
         },
 
         reloadAll: async () => {
+          const databaseName = getChatDatabase();
+          libraryGenerations.set(databaseName, generationOf(databaseName) + 1);
+          for (const identity of deletedChats) {
+            if (JSON.parse(identity)[0] === databaseName) deletedChats.delete(identity);
+          }
           // 切库：已打开的对话属于旧库，整体作废（运行中的后台轮次由 runtime 自己收尾）。
           // runtime 的空闲条目一起清（M4-e）；宿主会话由主进程在切库时释放
           const keys = Object.keys(get().buckets);
-          set({ opened: {} });
+          bucketSequences.clear();
+          draftSlots.clear();
+          set({ opened: {}, buckets: {}, currentIds: {}, groups: [] });
           const { piChatRuntime } = await import("@/services/piChatRuntime");
-          piChatRuntime.releaseIdle();
+          if (loadedDatabase === getChatDatabase())
+            piChatRuntime.invalidateLibrary(getChatDatabase());
+          else piChatRuntime.releaseIdle();
+          loadedDatabase = getChatDatabase();
           await Promise.all(
             keys.map(key => {
               const [scope, domainRef] = key.split("|");
@@ -304,11 +343,21 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
         },
 
         openChat: async id => {
+          const databaseName = getChatDatabase();
+          const generation = generationOf(databaseName);
+          const identity = chatIdentity(id, databaseName);
+          if (deletedChats.has(identity)) return undefined;
           const existing = get().opened[id];
           if (existing) return existing;
           const row = findRow(id);
           if (!row) return undefined;
-          const outcome = await piSessionTranscript({ sessionFile: row.sessionFile });
+          const outcome = await piSessionTranscript({ sessionFile: row.sessionFile, databaseName });
+          if (
+            generation !== generationOf(databaseName) ||
+            databaseName !== getChatDatabase() ||
+            deletedChats.has(identity)
+          )
+            return undefined;
           if (!outcome.ok) {
             console.error("[chatSession] 读取对话内容失败:", outcome.error);
           }
@@ -327,40 +376,84 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
         },
 
         publishChat: chat => {
+          const databaseName = chat.databaseName ?? getChatDatabase();
+          if (
+            databaseName !== getChatDatabase() ||
+            deletedChats.has(chatIdentity(chat.id, databaseName))
+          )
+            return;
           set(state => ({ opened: { ...state.opened, [chat.id]: chat } }));
         },
 
-        registerChat: async (chat, sessionFile) => {
-          const row = await createChatSession({
-            id: chat.id,
-            scope: chat.scope ?? "main-chat",
-            domainRef: chat.domainRef ?? null,
-            sessionFile,
-            title: chat.title,
-            titleDirty: chat.titleDirty ?? false,
-            groupId: chat.groupId ?? null,
-            messageCount: 0,
+        evictChat: (id, databaseName = getChatDatabase()) => {
+          if (databaseName !== getChatDatabase()) return;
+          set(state => {
+            const opened = { ...state.opened };
+            delete opened[id];
+            return { opened };
           });
+        },
+
+        registerChat: async (chat, sessionFile) => {
+          const databaseName = chat.databaseName ?? getChatDatabase();
+          if (deletedChats.has(chatIdentity(chat.id, databaseName))) throw new Error("对话已删除");
+          const row = await createChatSession(
+            {
+              id: chat.id,
+              scope: chat.scope ?? "main-chat",
+              domainRef: chat.domainRef ?? null,
+              sessionFile,
+              title: chat.title,
+              titleDirty: chat.titleDirty ?? false,
+              groupId: chat.groupId ?? null,
+              messageCount: 0,
+            },
+            databaseName
+          );
+          if (deletedChats.has(chatIdentity(chat.id, databaseName))) {
+            await deleteChatSession(chat.id, databaseName);
+            throw new Error("对话已删除");
+          }
           releaseDraft(chat.id);
-          upsertRow(row);
+          if (
+            databaseName === getChatDatabase() &&
+            !deletedChats.has(chatIdentity(chat.id, databaseName))
+          )
+            upsertRow(row);
           return row;
         },
 
-        settleChat: async id => {
+        settleChat: async (id, databaseName = getChatDatabase(), sessionFile) => {
+          const generation = generationOf(databaseName);
           // 草稿首轮在出现第一条回答前就失败：pi 不落盘、也没登记，没有可读的
-          const row = findRow(id);
-          if (!row) return null;
-          const outcome = await piSessionTranscript({ sessionFile: row.sessionFile });
+          if (deletedChats.has(chatIdentity(id, databaseName))) return null;
+          const row = databaseName === getChatDatabase() ? findRow(id) : undefined;
+          const file = sessionFile ?? row?.sessionFile;
+          if (!file) return null;
+          const outcome = await piSessionTranscript({ sessionFile: file, databaseName });
+          if (
+            generation !== generationOf(databaseName) ||
+            deletedChats.has(chatIdentity(id, databaseName))
+          )
+            return null;
           if (!outcome.ok || !outcome.messages) return null;
           const messages = outcome.messages;
-          await patchRow(id, {
-            messageCount: messages.filter(message => message.role === "user").length,
-            updateTime: Date.now(),
-          });
+          await patchRow(
+            id,
+            {
+              messageCount: messages.filter(message => message.role === "user").length,
+              updateTime: Date.now(),
+            },
+            databaseName
+          );
           return messages;
         },
 
-        renameChat: async (id, title) => {
+        renameChat: async (id, title, databaseName = getChatDatabase()) => {
+          if (databaseName !== getChatDatabase()) {
+            await patchRow(id, { title, titleDirty: true }, databaseName);
+            return;
+          }
           const row = findRow(id);
           if (!row) {
             // 草稿：只改内存，登记时带上
@@ -377,18 +470,27 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
         moveChatToGroup: (id, groupId) => patchRow(id, { groupId }),
 
         pinChat: async id => {
+          const databaseName = getChatDatabase();
           const row = await pinChatSession(id);
-          if (row) upsertRow(row);
+          if (row && databaseName === getChatDatabase()) upsertRow(row);
         },
 
         unpinChat: async id => {
+          const databaseName = getChatDatabase();
           const row = await unpinChatSession(id);
-          if (row) upsertRow(row);
+          if (row && databaseName === getChatDatabase()) upsertRow(row);
         },
 
-        deleteChat: async id => {
-          // 目录里没有 = 草稿，直接丢
-          if (findRow(id)) await deleteChatSession(id);
+        deleteChat: async (id, databaseName = getChatDatabase()) => {
+          const identity = chatIdentity(id, databaseName);
+          deletedChats.add(identity);
+          try {
+            await deleteChatSession(id, databaseName);
+          } catch (error) {
+            deletedChats.delete(identity);
+            throw error;
+          }
+          if (databaseName !== getChatDatabase()) return;
           set(state => {
             const buckets: Record<string, ChatBucket> = {};
             for (const [key, bucket] of Object.entries(state.buckets)) {
@@ -405,9 +507,10 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
         },
 
         editChat: async (id, edit) => {
+          const databaseName = getChatDatabase();
           const row = findRow(id);
           if (!row) throw new Error("对话还没有保存下来，暂时不能修改历史");
-          const outcome = await piSessionEdit({ sessionFile: row.sessionFile }, edit);
+          const outcome = await piSessionEdit({ sessionFile: row.sessionFile, databaseName }, edit);
           if (!outcome.ok || !outcome.messages) {
             throw new Error(outcome.error ?? "修改对话历史失败");
           }
@@ -415,7 +518,7 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
           // 切版本/回退改变了当前路径：目录行的消息数跟着当前路径走（时间不动，只是换了个视角）
           const messageCount = messages.filter(message => message.role === "user").length;
           if (messageCount !== row.messageCount) {
-            await patchRow(id, { messageCount, updateTime: row.updateTime });
+            await patchRow(id, { messageCount, updateTime: row.updateTime }, databaseName);
           }
           return messages;
         },

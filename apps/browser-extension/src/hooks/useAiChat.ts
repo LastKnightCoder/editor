@@ -36,6 +36,7 @@ export type Role = "user" | "assistant" | "system" | "tool";
 
 // AI 聊天选项
 interface UseAiChatOptions {
+  thinkingLevel?: AiRunStartParams["thinkingLevel"];
   enableTools?: boolean;
   /** v1 遗留，v2 不再使用（对话身份由 session 决定） */
   conversationKey?: string;
@@ -79,6 +80,7 @@ type ChatMessageWithToolContext = ChatMessageType & {
 };
 
 interface BuildAiRunStartOptions {
+  thinkingLevel?: AiRunStartParams["thinkingLevel"];
   runId: string;
   messages: AiChatRequestMessage[];
   systemPrompt?: string;
@@ -169,6 +171,7 @@ export const mapChatMessageToAiRequestMessage = (
  * 所以不再把扩展本地的 ask-question 当页面工具带过去。
  */
 export const buildAiRunStartParams = ({
+  thinkingLevel,
   runId,
   messages,
   systemPrompt,
@@ -178,6 +181,7 @@ export const buildAiRunStartParams = ({
 }: BuildAiRunStartOptions): AiRunStartParams => ({
   runId,
   messages: messages as AiRunStartParams["messages"],
+  ...(thinkingLevel ? { thinkingLevel } : {}),
   ...(systemPrompt ? { systemPrompt } : {}),
   enableTools,
   ...(session ? { session } : {}),
@@ -252,6 +256,7 @@ export const buildResumedMessages = (
  */
 export function useAiChat(options: UseAiChatOptions = {}) {
   const {
+    thinkingLevel,
     enableTools = true,
     conversationKey,
     systemPrompt,
@@ -609,6 +614,7 @@ export function useAiChat(options: UseAiChatOptions = {}) {
         await runClient.sendRequest(
           AI_RUN_METHODS.start,
           buildAiRunStartParams({
+            thinkingLevel,
             runId: requestId,
             messages: requestMessages,
             systemPrompt,
@@ -632,6 +638,7 @@ export function useAiChat(options: UseAiChatOptions = {}) {
       isLoading,
       systemPrompt,
       enableTools,
+      thinkingLevel,
       session,
       updateMessages,
       finishRun,

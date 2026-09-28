@@ -10,6 +10,7 @@ import type { ImageContent } from "@earendil-works/pi-ai";
 import type { LLMModelSetting, LLMProviderSetting, PiThinkingLevel } from "@/types/pi-llm";
 import type { PiHostToolSpec } from "@/types/pi-session";
 import type { Skill } from "@/types";
+import { getChatDatabase } from "./chatDatabase";
 import {
   piSessionCreate,
   piSessionDispose,
@@ -25,6 +26,7 @@ import {
 } from "@/services/piToolBridge";
 
 export interface EnsureChatSessionOptions {
+  databaseName?: string;
   chatScope: string;
   /** 对话 id = pi 会话 id（草稿首轮以它新建会话，之后从文件恢复） */
   chatId: string;
@@ -84,11 +86,16 @@ const sameNames = (a: string[] | undefined, b: string[]): boolean =>
   Boolean(a) && a!.length === b.length && a!.every((name, index) => name === b[index]);
 
 /** chatScope 带 `"pdf-chat:12"` 形态的参数前缀，会话键取冒号前缀（与 conversationKey 约定一致） */
-export const chatSessionKey = (chatScope: string, chatId: string): string =>
-  `${chatScope.split(":")[0]}:${chatId}`;
+export const chatSessionKey = (
+  chatScope: string,
+  chatId: string,
+  databaseName = getChatDatabase()
+): string =>
+  `${databaseName ? `${databaseName.replace(/\.db$/, "")}\u0000` : ""}${chatScope.split(":")[0]}:${chatId}`;
 
 class PiChatSessionManager {
   private readonly sessions = new Map<string, ChatSessionDescriptor>();
+  private readonly creating = new Map<string, Promise<EnsuredChatSession>>();
 
   public resolveSessionId(chatScope: string, chatId: string): string | undefined {
     return this.sessions.get(chatSessionKey(chatScope, chatId))?.sessionId;
@@ -100,22 +107,24 @@ class PiChatSessionManager {
    */
   public async adoptOrResolveSession(
     chatScope: string,
-    chatId: string
+    chatId: string,
+    databaseName = getChatDatabase()
   ): Promise<string | undefined> {
     initPiToolBridge();
-    const local = this.resolveSessionId(chatScope, chatId);
+    const key = chatSessionKey(chatScope, chatId, databaseName);
+    const local = this.sessions.get(key)?.sessionId;
     if (local) return local;
     const { piSessionFindByScope } = await import("@/commands/piSession");
-    const found = await piSessionFindByScope(chatSessionKey(chatScope, chatId));
+    const found = await piSessionFindByScope(key);
     if (!found.ok || !found.sessionId || !found.modelRef) return undefined;
-    this.sessions.set(chatSessionKey(chatScope, chatId), {
+    this.sessions.set(key, {
       sessionId: found.sessionId,
       providerId: found.modelRef.providerId,
       modelId: found.modelRef.modelId,
       thinkingLevel: found.thinkingLevel,
     });
     registerPiToolSessionContext(found.sessionId, {
-      conversationKey: chatSessionKey(chatScope, chatId),
+      conversationKey: key,
     });
     return found.sessionId;
   }
@@ -127,7 +136,10 @@ class PiChatSessionManager {
    * 重建不丢历史：pi 从会话文件恢复。
    */
   public async ensureChatSession(options: EnsureChatSessionOptions): Promise<EnsuredChatSession> {
-    const key = chatSessionKey(options.chatScope, options.chatId);
+    options = { ...options, databaseName: options.databaseName ?? getChatDatabase() };
+    const key = chatSessionKey(options.chatScope, options.chatId, options.databaseName);
+    const pending = this.creating.get(key);
+    if (pending) return pending;
     const existing = this.sessions.get(key);
     if (
       existing &&
@@ -156,7 +168,7 @@ class PiChatSessionManager {
       };
     }
     if (existing) {
-      await this.disposeChatSession(options.chatScope, options.chatId);
+      await this.disposeByKey(key);
     }
     return this.createSession(key, options);
   }
@@ -174,6 +186,8 @@ class PiChatSessionManager {
   }
 
   public async disposeByKey(key: string): Promise<void> {
+    const pending = this.creating.get(key);
+    if (pending) await pending.catch(() => undefined);
     const descriptor = this.sessions.get(key);
     if (!descriptor) return;
     this.sessions.delete(key);
@@ -191,6 +205,23 @@ class PiChatSessionManager {
     prebuilt?: ChatToolLoadout,
     lifecycle?: { dispose?: boolean }
   ): Promise<EnsuredChatSession> {
+    const pending = this.creating.get(key);
+    if (pending) return pending;
+    const task = this.createSessionInner(key, options, prebuilt, lifecycle);
+    this.creating.set(key, task);
+    try {
+      return await task;
+    } finally {
+      if (this.creating.get(key) === task) this.creating.delete(key);
+    }
+  }
+
+  private async createSessionInner(
+    key: string,
+    options: EnsureChatSessionOptions,
+    prebuilt?: ChatToolLoadout,
+    lifecycle?: { dispose?: boolean }
+  ): Promise<EnsuredChatSession> {
     if (lifecycle?.dispose) await this.disposeByKey(key);
     initPiToolBridge();
     // 宿主登记键（这一次打开）与 pi 会话 id（这条对话）是两回事：前者每次重建都换
@@ -198,6 +229,7 @@ class PiChatSessionManager {
     const loadout = prebuilt ?? buildToolLoadout(options);
     const customTools = loadout.specs;
     const outcome = await piSessionCreate(sessionId, {
+      ...(options.databaseName ? { databaseName: options.databaseName } : {}),
       // scope 用会话键（`<scope前缀>:<chatId>`）：渲染层重载后 find-by-scope 靠它收养会话
       scope: key,
       cwd: options.cwd ?? "",
@@ -215,6 +247,10 @@ class PiChatSessionManager {
       throw new Error(outcome.error ?? "pi 会话创建失败");
     }
     registerPiToolSessionContext(sessionId, {
+      toolScope: options.toolScope,
+      scopedTools: getToolRegistryAgentTools({ toolScope: options.toolScope })
+        .filter(tool => tool.source === options.toolScope)
+        .map(tool => ({ ...tool, executor: tool.execute })),
       conversationKey: key,
       ...(options.toolContext ? { toolContext: options.toolContext } : {}),
     });
@@ -260,7 +296,7 @@ function buildToolLoadout(options: EnsureChatSessionOptions): ChatToolLoadout {
         name: tool.name,
         description: tool.description,
         parameters: tool.parameters as Record<string, unknown>,
-        risk: tool.risk ?? "read",
+        risk: tool.risk ?? "execute",
         source: tool.source,
       },
     }));
@@ -284,7 +320,10 @@ function buildToolLoadout(options: EnsureChatSessionOptions): ChatToolLoadout {
     activeToolNames: entries.filter(entry => entry.enabled).map(entry => entry.spec.name),
     // 描述与参数也进指纹：schema 变了（MCP 服务器升级）同样得重建
     universe: specs
-      .map(spec => `${spec.name}\u0001${spec.description}\u0001${JSON.stringify(spec.parameters)}`)
+      .map(
+        spec =>
+          `${spec.name}\u0001${spec.description}\u0001${JSON.stringify(spec.parameters)}\u0001${spec.risk}\u0001${spec.source}`
+      )
       .join("\u0000"),
   };
 }

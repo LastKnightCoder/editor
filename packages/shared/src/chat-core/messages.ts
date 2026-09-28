@@ -180,6 +180,8 @@ export type ChatSessionMessage = RequestMessage | ResponseMessage;
  * 首轮发送后才登记目录行，id 从头到尾不变。
  */
 export interface ChatSessionRecord {
+  /** 桌面投影所属库，不属于消息内容。 */
+  databaseName?: string;
   id: string;
   createTime: number;
   updateTime: number;

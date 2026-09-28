@@ -14,6 +14,7 @@ export const registerBuiltinTools = (registry: ToolRegistry) => {
       createSubAgentResearchTool(),
       {
         name: "get_current_date",
+        risk: "read",
         description: "返回今天的日期信息，包括 ISO 格式、简短日期以及星期几。",
         parameters: {
           type: "object",

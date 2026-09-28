@@ -37,6 +37,9 @@ export async function runSyncPush() {
     throw new Error(`Failed to check remote version: ${getErrorMessage(e)}`);
   }
 
+  if (remoteInfo.databaseObject || remoteInfo.sessionsObject) {
+    throw new Error("此库使用数据库与对话配对快照，请通过桌面端同步；CLI 尚不支持会话包。");
+  }
   assertCompatibleDataModel(remoteInfo);
   if (remoteInfo.version > db.version) {
     throw new Error(

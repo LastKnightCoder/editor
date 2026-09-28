@@ -1,5 +1,7 @@
 import { useDatabaseChangeEffect } from "./useDatabaseChangeEffect";
 import useChatSessionStore, { MAIN_CHAT_BUCKET } from "@/stores/useChatSessionStore";
+import useSettingStore from "@/stores/useSettingStore";
+import { setChatDatabase } from "@/services/chatDatabase";
 
 /**
  * 全局初始化聊天数据的 Hook
@@ -10,6 +12,7 @@ import useChatSessionStore, { MAIN_CHAT_BUCKET } from "@/stores/useChatSessionSt
  */
 export const useInitChatData = () => {
   useDatabaseChangeEffect(() => {
+    setChatDatabase(useSettingStore.getState().setting.database.active);
     const store = useChatSessionStore.getState();
     // 切库：旧库已打开的对话作废、已加载的列表按新库重读
     void store.reloadAll().then(() => store.loadBucket(MAIN_CHAT_BUCKET));

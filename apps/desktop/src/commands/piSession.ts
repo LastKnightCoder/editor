@@ -166,6 +166,15 @@ export function piSessionPack(databaseName: string): Promise<Outcome & { archive
   return invoke("pi-session:pack", { databaseName });
 }
 
+export const piSessionLockLibrary = (databaseName: string): Promise<Outcome> =>
+  invoke("pi-session:lock-library", { databaseName });
+export const piSessionUnlockLibrary = (databaseName: string): Promise<Outcome> =>
+  invoke("pi-session:unlock-library", { databaseName });
+export const piSessionInstallDownload = (
+  databaseName: string,
+  archive?: Uint8Array
+): Promise<Outcome> => invoke("pi-session:install-download", { databaseName, archive });
+
 /** 同步（M4.4）：用下载的会话包替换库的会话目录（主进程先整体备份） */
 export function piSessionUnpack(
   databaseName: string,
@@ -193,7 +202,7 @@ export interface PiShellInfo {
   configured?: string;
   /** probe（或已填路径）是否存在；未填时为 undefined */
   configuredExists?: boolean;
-  /** 实际会用的路径；为空表示 pi 走 PowerShell 兜底 */
+  /** 实际会用的路径；空时 Windows 用 PowerShell，其余平台使用系统 shell */
   effective?: string;
 }
 

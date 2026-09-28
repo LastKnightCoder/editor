@@ -135,6 +135,7 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
   );
 
   const {
+    messages: liveMessages,
     isLoading,
     error,
     isConnected,
@@ -147,6 +148,7 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
     approveTool,
     answerQuestion,
   } = useAiChat({
+    thinkingLevel,
     enableTools: true,
     conversationKey,
     systemPrompt: sessionSystemPrompt,
@@ -391,7 +393,7 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
       ref={coreRef}
       isDark={isDark}
       isConnected={isConnected}
-      messages={messages}
+      messages={liveMessages}
       isLoading={isLoading}
       error={error}
       thinkingLevel={thinkingLevel}

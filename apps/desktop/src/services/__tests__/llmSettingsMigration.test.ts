@@ -115,12 +115,10 @@ describe("migrateLlmSettingsToV2", () => {
     expect(legacyModel.input).toEqual(["text", "image"]);
   });
 
-  it("未配置的数值字段落到默认值", () => {
+  it("未配置的容量保持未知，不猜测窗口", () => {
     const result = migrateLlmSettingsToV2({ llmConfigs: [provider()], llmUsageSettings: {} });
-    expect(result.providers[0].models[0]).toMatchObject({
-      contextWindow: 128_000,
-      maxTokens: 8_192,
-    });
+    expect(result.providers[0].models[0].contextWindow).toBeUndefined();
+    expect(result.providers[0].models[0].maxTokens).toBeUndefined();
     expect(result.providers[0].models[0].samplingParams).toBeUndefined();
   });
 

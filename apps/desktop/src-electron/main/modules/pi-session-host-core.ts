@@ -268,6 +268,7 @@ export function detectBashShellPath(): string | undefined {
     logShellProbe("env", process.env.PI_SMOKE_SHELL);
     return process.env.PI_SMOKE_SHELL;
   }
+  if (process.platform !== "win32") return undefined;
   for (const hive of ["HKLM\\SOFTWARE\\GitForWindows", "HKCU\\SOFTWARE\\GitForWindows"]) {
     const reg = spawnSync("reg", ["query", hive, "/v", "InstallPath"], { encoding: "utf8" });
     if (reg.status !== 0 || !reg.stdout) continue;
@@ -436,7 +437,9 @@ export async function assembleHostSession(
     options.modelRef.modelId
   );
   if (!model) {
-    throw new Error(`模型未注册：${options.modelRef.providerId}/${options.modelRef.modelId}`);
+    throw new Error(
+      `模型未注册或容量未配置：${options.modelRef.providerId}/${options.modelRef.modelId}，请检查模型的上下文窗口与最大输出 token 数`
+    );
   }
   const resourceLoader =
     options.resourceLoader ??
@@ -456,6 +459,13 @@ export async function assembleHostSession(
       : options.sessionDir
         ? SessionManager.create(options.cwd, options.sessionDir, newSessionOptions)
         : SessionManager.inMemory(options.cwd, newSessionOptions);
+  if (options.sessionFile && !existsSync(options.sessionFile)) {
+    // 目录已登记的路径必须稳定；只建头部，避免恢复时生成另一个时间戳文件名。
+    writeFileSync(options.sessionFile, `${JSON.stringify(sessionManager.getHeader())}\n`, {
+      flag: "wx",
+    });
+    sessionManager.setSessionFile(options.sessionFile);
+  }
   // resume 时收尾悬挂的工具调用（M4-e）：新建的宿主会话不可能持有上一次的等待，文件里没结果的调用
   // 只能是上次中断留下的（应用重启、宿主被回收）。必须在 createAgentSession 之前——它按文件恢复上下文
   closeDanglingToolCalls(sessionManager);
@@ -480,7 +490,9 @@ export async function assembleHostSession(
     settingsManager: SettingsManager.inMemory({
       ...(options.shellPath
         ? { shellPath: options.shellPath }
-        : { defaultTools: ["read", "powershell", "edit", "write"] }),
+        : process.platform === "win32"
+          ? { defaultTools: ["read", "powershell", "edit", "write"] }
+          : {}),
       ...(options.retry ? { retry: { enabled: true, maxRetries: options.retry.maxRetries } } : {}),
     }),
   });

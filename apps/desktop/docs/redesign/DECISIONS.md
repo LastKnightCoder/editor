@@ -670,8 +670,18 @@
 - 选择：自研 agent 运行时（协议适配 + SSE 传输 + Agent 循环 + chat-core 展示层，约 1 万行）整体替换为 pi agent（`@earendil-works/pi-coding-agent` 0.87.x）。Big-bang、无兼容层，以 pi 为准：设置模型对齐 pi（v2 服务商/模型，旧设置一次性转化）、思考档位全仓一套 `ThinkingLevel`（shared）、内置工具 read/bash/edit/write 默认启用、工具审批沿用 D-060 三档并映射到 pi 的 `beforeToolCall`、提问（ask-question）为宿主原生工具。
 - 运行位置：会话宿主在主进程（`pi-session-host`），渲染端只做投影与发送编排；跨轮次、跨页面的运行态放模块级 `piChatRuntime`（组件卸载不打断归约与落盘）。单发生成走 `pi-ai:single-shot`。
 - **会话事实源 = pi JSONL**：`~/.editor/sessions/<库名>/*.jsonl`；sqlite 只留目录表 `chat_session`（id = pi 会话 id，scope + domainRef 分五个场景，只存标题/分组/置顶/归档/消息数）。桌面展示形态存 `desktop-display` custom entry，叶子挪动写 `desktop-leaf` 标记。**分支 = 同一文件内的会话树**（编辑重发、重新生成、从这里分叉都是树上的分叉，消息上 `‹ i/n ›` 切版本，树谱浮层），不再是多文件多目录行。
-- 同步：`.db` 与 `<库名>.sessions.zip` 共用一个版本号整包上传下载（M7 增量 manifest 用户裁决不做）。
+- 同步：数据库与会话 ZIP 仍整包传输，每次上传使用不可变对象名，最后发布带 `databaseObject/sessionsObject` 的版本指针。同步信封版本为 2，数据库内部模型版本保持 1；旧端会在下载前拒绝新快照，使用前需更新全部同步客户端。移动端读取新对象名，上传时保留会话包引用；尚不支持会话包的 CLI 对新快照明确拒绝。此变更修复成对提交，不引入增量同步。
 - 浏览器扩展：侧栏对话由主进程 `browser-bridge` 驱动（`/aiServerMain`，渲染层重载不打断，重开侧栏接回在跑的回答），走 AI 运行协议 v2（`packages/shared/src/chat-core/aiRunProtocol.ts`：`ai.run.start/event/abort/state/approve/answer`，settled 唯一终态）；提问与审批走桌面宿主；对话存 `~/.editor/browser-sessions/<页面键>/`，不进目录表、不同步。
 - 老数据：开库时一次性迁移（老对话 → 会话文件，分支并进父对话的会话树，思考内容不迁），两次迁移都记账后备份整库并删除旧聊天表（`chat_message`/`pdf_chats`/`video_note_chats`/`vibe_learning_chats`/`audio_note_chats`，后者无界面、未迁移、直接丢弃）与 `chat_run`。迁移器长期保留（老库与旧远程下载的 `.db` 靠它升级）；移动端不读聊天，不做迁移。
 - 已删：`packages/agent` 整包、`modules/llm.ts`（Minimax Key 测试改走 `pi-ai:verify-key`）、`modules/stream-fetch.ts`、渲染端 `useChatLLM`/`chatStreamCore`/协议适配器、chat_run 表与 handler、五个旧聊天表模块、扩展本地提问机制（`askQuestionSessionStore`）。
 - 不做 / 已知边界：WSL 作为命令执行环境（用户裁决不做）；同一对话的多个分支同时运行；分支命名；重启后等待中的审批与提问标为已中断，不重新弹出；待发送队列与未送达插话不跨重启保留；首轮在第一条回答之前就失败的对话 pi 不落盘。
+
+### 审查修正：身份、写入与恢复边界
+
+- 桌面运行身份包含库名、场景和会话 ID，异步回写使用创建时捕获的库名；切库保留后台运行，同库重新连接清除旧投影。删除与替换使迟到投影、标题作废。
+- 宿主创建先取得会话租约；准备图片、prompt、steer 均计入忙态，释放先取消并等待在途操作。改历史、同步替换不得与创建交错；已有文件依赖 pi 追加写，不再整文件覆盖。恢复尚未落盘的目录行时保持原文件名。
+- 老行身份保存在 `migration_meta`，中断重试复用原会话；迁移、树合并、退役独立判定，不因上一阶段已完成而跳过后续阶段。
+- 下载先验证配对快照，替换前写回滚日志，开库恢复未提交的数据库和会话目录。同步期间锁定库的会话目录；仍有回答运行时拒绝同步，保留回答。
+- 未声明风险的工具按 execute 审批；只读工具显式声明 read，日历和学习产物写入声明 write。页面工具由会话持有执行快照，避免卸载后失效。
+- 图片生成与图片编辑由用户主动发起，两者按 read 放行，不增加工具审批；生成结果落文件不改变这一交互约定。
+- 目录外模型的容量不再猜测；缺少上下文窗口或最大输出时要求用户补齐后使用。非 Windows 使用系统 shell，PowerShell 兜底只用于 Windows。

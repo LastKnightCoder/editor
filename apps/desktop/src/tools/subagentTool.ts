@@ -121,6 +121,7 @@ export const buildSubAgentResearchMetadataFromInput = (toolCallId: string, rawIn
 
 export const createSubAgentResearchTool = (): ToolDefinition => ({
   name: SUBAGENT_RESEARCH_TOOL_NAME,
+  risk: "read",
   description:
     "并发启动多个 SubAgent 独立执行任务，并在全部完成后返回聚合结论。适合把复杂问题拆分给多个子 Agent 分别查证或处理。",
   parameters: {

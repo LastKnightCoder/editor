@@ -9,6 +9,7 @@ import toolRegistry, { ensureToolingReady } from "@/tools";
 import type { MessageContent, ToolCallPayload } from "@/types";
 import type { PiHostToolCallResult, PiToolCallPayload } from "@/types/pi-session";
 import { initPiInteractions } from "./piInteractions";
+import type { RegisteredTool } from "@/tools/toolRegistry";
 
 /** 会话级执行器（一次性会话的 additionalTools 路由）：返回 null 表示未接管，落回 ToolRegistry */
 export type PiToolCallExecutor = (
@@ -16,6 +17,8 @@ export type PiToolCallExecutor = (
 ) => Promise<PiHostToolCallResult | null>;
 
 export interface PiToolSessionContext {
+  toolScope?: string;
+  scopedTools?: RegisteredTool[];
   conversationKey?: string;
   toolContext?: Record<string, unknown>;
   executeToolCall?: PiToolCallExecutor;
@@ -92,6 +95,7 @@ export function initPiToolBridge(): void {
           },
         };
         const result = await toolRegistry.executeToolCall(call, {
+          scopedTools: context?.scopedTools,
           conversationKey: context?.conversationKey,
           toolContext: context?.toolContext,
         });

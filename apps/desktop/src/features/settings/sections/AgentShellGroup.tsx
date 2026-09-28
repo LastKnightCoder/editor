@@ -51,7 +51,7 @@ export function AgentShellGroup() {
       ? "已指定，AI 执行命令时使用它"
       : info?.detected
         ? `留空即自动检测，当前检测到：${info.detected}`
-        : "留空即自动检测；本机没检测到 Git Bash，命令会用 PowerShell 执行";
+        : "留空即使用系统命令环境；Windows 未检测到 Git Bash 时使用 PowerShell";
 
   return (
     <SettingsGroup

@@ -77,7 +77,7 @@ export interface ToolDefinition {
   description: string;
   parameters: ToolJsonSchema;
   execution?: ToolExecutionPolicy;
-  /** 缺省视为 read */
+  /** 缺省按 execute 审批，只读工具须显式声明 */
   risk?: ToolRisk;
   executor: ToolExecutor;
 }

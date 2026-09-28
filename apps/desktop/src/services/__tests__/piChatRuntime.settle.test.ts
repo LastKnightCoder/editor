@@ -77,6 +77,15 @@ const setup = (deps: Partial<PiChatRuntimeDeps>) => {
 };
 
 describe("piChatRuntime settled 投影回写与标题", () => {
+  it("删除后迟到的投影不再发布", async () => {
+    const waiting = deferred<ChatSessionMessage[] | null>();
+    const { deps } = setup({ settle: () => waiting.promise });
+    settleEvent();
+    piChatRuntime.disposeConversation(key);
+    waiting.resolve(transcript());
+    await flush();
+    expect(deps.publish).not.toHaveBeenCalled();
+  });
   beforeEach(() => {
     usePiInteractionStore.setState({ sessions: {}, readySessions: {} });
   });

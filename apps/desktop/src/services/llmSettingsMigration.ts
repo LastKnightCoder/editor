@@ -17,9 +17,6 @@ import type {
   PiApiKind,
 } from "@/types/pi-llm";
 
-const DEFAULT_CONTEXT_WINDOW = 128_000;
-const DEFAULT_MAX_TOKENS = 8_192;
-
 /** messageFormat × apiProtocol → pi 线协议 */
 const API_KIND_TABLE: Record<string, PiApiKind> = {
   "openai|chat-completions": "openai-completions",
@@ -59,8 +56,8 @@ const toModelSetting = (model: ModelConfig): LLMModelSetting => {
     // 而 pi 的 model.input 是硬闸门——不支持图片的模型放开后由网关显式报错，可诊断性远好于静默省略；
     // 精确能力以设置页（M2-d）手动校正
     input: ["text", "image"],
-    contextWindow: model.contextWindowK ? model.contextWindowK * 1024 : DEFAULT_CONTEXT_WINDOW,
-    maxTokens: model.maxOutputTokens ?? DEFAULT_MAX_TOKENS,
+    ...(model.contextWindowK ? { contextWindow: model.contextWindowK * 1024 } : {}),
+    ...(model.maxOutputTokens ? { maxTokens: model.maxOutputTokens } : {}),
   };
   if (model.temperature !== undefined) setting.samplingParams = { temperature: model.temperature };
   if (model.userAgent) setting.headers = { "User-Agent": model.userAgent };

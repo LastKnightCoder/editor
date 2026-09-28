@@ -14,4 +14,4 @@ export {
   finalizeAssistantTurn,
   applyAssistantProviderMetadataSnapshot,
   buildAssistantHistoryMessages,
-} from "@tau/shared/src/chat-core/assistantBlocks";
+} from "@tau/shared/chat-core";

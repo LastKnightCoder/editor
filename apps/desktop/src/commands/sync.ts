@@ -9,7 +9,6 @@ import {
   reconnectDatabaseFast,
   readBinaryFile,
   writeBinaryFile,
-  renameFileOrDirectory,
   createDir,
   pathExists,
   getSep,
@@ -20,9 +19,14 @@ import {
 import useSettingStore from "@/stores/useSettingStore.ts";
 import useGlobalStateStore, { DatabaseConnectionStatus } from "@/stores/useGlobalStateStore";
 import { SyncProviderFactory } from "@/utils/sync";
-import { piSessionPack, piSessionUnpack } from "@/commands/piSession";
+import {
+  piSessionPack,
+  piSessionLockLibrary,
+  piSessionUnlockLibrary,
+  piSessionInstallDownload,
+} from "@/commands/piSession";
 import type { IDatabaseInfo } from "@/types/sync";
-import { DATA_MODEL_VERSION, assertCompatibleDataModel } from "@tau/db-schema/src/model-version";
+import { SYNC_MODEL_VERSION, assertCompatibleSync } from "@tau/db-schema/src/sync-version";
 
 /** 会话包的远程对象名（与 .db 同名前缀，共用 database_<库名>.json 里的版本号） */
 export const sessionArchiveObjectName = (databaseName: string) => `${databaseName}.sessions.zip`;
@@ -110,8 +114,19 @@ export const upload = async (options?: SyncCommandOptions) => {
   emitProgress(options, 5, "正在准备同步...");
   const { databaseInfoObjectName, databaseInfo } = await getOriginDatabaseInfo();
 
+  const locked = await piSessionLockLibrary(databaseName);
+  if (!locked.ok) {
+    message.error(locked.error);
+    return false;
+  }
+
   setDatabaseConnectionStatus(databaseName, "reconnecting");
-  await closeDatabase(databaseName);
+  try {
+    await closeDatabase(databaseName);
+  } catch (error) {
+    await piSessionUnlockLibrary(databaseName);
+    throw error;
+  }
   emitProgress(options, 15, "正在关闭数据库连接...");
 
   emitProgress(options, 25, "正在校验远程数据库版本...");
@@ -120,18 +135,22 @@ export const upload = async (options?: SyncCommandOptions) => {
   if (isNaN(originVersion)) {
     message.error("远程数据库信息版本号不是一个数字");
     await reconnectAfterSync(databaseName, "sync_upload_reconnect");
+    await piSessionUnlockLibrary(databaseName);
     return false;
   }
   if (originVersion > currentVersion) {
     message.error("远程的数据库版本高于本地版本，请先同步远程数据库");
     await reconnectAfterSync(databaseName, "sync_upload_reconnect");
+    await piSessionUnlockLibrary(databaseName);
     return false;
   }
 
   const newDatabaseInfo: IDatabaseInfo = {
     ...databaseInfo,
     version: currentVersion + 1,
-    dataModelVersion: DATA_MODEL_VERSION,
+    dataModelVersion: SYNC_MODEL_VERSION,
+    databaseObject: `${databaseName}.snapshot-${crypto.randomUUID()}.db`,
+    sessionsObject: `${databaseName}.snapshot-${crypto.randomUUID()}.sessions.zip`,
   };
 
   const textEncoder = new TextEncoder();
@@ -140,7 +159,7 @@ export const upload = async (options?: SyncCommandOptions) => {
     // 上传数据库文件
     emitProgress(options, 40, "正在上传数据库文件...");
     const contents = await readBinaryFile(databasePath);
-    const dataObjectName = databaseName;
+    const dataObjectName = newDatabaseInfo.databaseObject!;
     const dataSuccess = await syncProvider.uploadFile(dataObjectName, contents);
 
     if (!dataSuccess) {
@@ -157,7 +176,7 @@ export const upload = async (options?: SyncCommandOptions) => {
       return false;
     }
     const sessionsSuccess = await syncProvider.uploadFile(
-      sessionArchiveObjectName(databaseName),
+      newDatabaseInfo.sessionsObject!,
       packed.archive
     );
     if (!sessionsSuccess) {
@@ -191,7 +210,11 @@ export const upload = async (options?: SyncCommandOptions) => {
     message.error("上传数据库失败: " + e);
     return false;
   } finally {
-    await reconnectAfterSync(databaseName, "sync_upload_reconnect");
+    try {
+      await reconnectAfterSync(databaseName, "sync_upload_reconnect");
+    } finally {
+      await piSessionUnlockLibrary(databaseName);
+    }
   }
 };
 
@@ -228,8 +251,13 @@ export const download = async (options?: SyncCommandOptions) => {
   }
 
   // 下载数据库文件
-  const dataObjectName = databaseName;
+  const dataObjectName = databaseInfo.databaseObject ?? databaseName;
   let shouldReconnectInFinally = true;
+  const locked = await piSessionLockLibrary(databaseName);
+  if (!locked.ok) {
+    message.error(locked.error);
+    return false;
+  }
   try {
     setDatabaseConnectionStatus(databaseName, "reconnecting");
     await closeDatabase(databaseName);
@@ -278,10 +306,14 @@ export const download = async (options?: SyncCommandOptions) => {
       try {
         await writeBinaryFile(downloadPath, contents);
         await invoke("validate-downloaded-database", databaseName);
-        // 临时文件与目标同目录，rename 原子替换，避免复制中途崩溃留下半截主库
-        await renameFileOrDirectory(downloadPath, databasePath);
+        const archiveName = databaseInfo.sessionsObject ?? sessionArchiveObjectName(databaseName);
+        const hasArchive = await syncProvider.fileExists(archiveName);
+        if (databaseInfo.sessionsObject && !hasArchive) throw new Error("同步快照缺少对话记录包");
+        const archive = hasArchive ? await syncProvider.downloadFile(archiveName) : undefined;
         // 主库已被远端内容替换，本地索引的 ID 空间整体失效，重置后按需全量重建。
         await invoke("reset-content-index", databaseName);
+        const installed = await piSessionInstallDownload(databaseName, archive);
+        if (!installed.ok) throw new Error(installed.error ?? "同步快照提交失败");
       } finally {
         await removeFile(downloadPath).catch(() => undefined);
       }
@@ -289,24 +321,6 @@ export const download = async (options?: SyncCommandOptions) => {
     } catch (e) {
       databaseDownloadSuccess = false;
       console.error("下载数据库文件失败:", e);
-    }
-
-    // 会话包（M4）：远程没有（旧版本上传的、迁移前的远程）就不动本地——
-    // 那份 .db 开库时会自己跑迁移；有则先整体备份本地会话目录再替换
-    if (databaseDownloadSuccess) {
-      try {
-        const archiveName = sessionArchiveObjectName(databaseName);
-        if (await syncProvider.fileExists(archiveName)) {
-          emitProgress(options, 90, "正在更新对话记录...");
-          const archive = await syncProvider.downloadFile(archiveName);
-          const unpacked = await piSessionUnpack(databaseName, archive);
-          if (!unpacked.ok) throw new Error(unpacked.error ?? "解包失败");
-        }
-      } catch (e) {
-        // 数据库已替换、会话没跟上：对话列表会指向缺失的文件，提示用户重试而不是静默
-        console.error("下载对话记录失败:", e);
-        message.warning("对话记录同步失败，部分对话可能打不开，请稍后重新同步");
-      }
     }
 
     const isSuccessful = databaseDownloadSuccess;
@@ -345,6 +359,7 @@ export const download = async (options?: SyncCommandOptions) => {
     message.error("下载数据库文件失败: " + e);
     return false;
   } finally {
+    await piSessionUnlockLibrary(databaseName);
     if (shouldReconnectInFinally) {
       await reconnectAfterSync(databaseName, "sync_download_reconnect", {
         mode: "maintenance",
@@ -373,10 +388,11 @@ export const getOriginDatabaseInfo = async () => {
       }
     } catch (e) {
       console.error("获取远程数据库信息失败:", e);
+      throw e;
     }
   }
 
-  assertCompatibleDataModel(databaseInfo);
+  assertCompatibleSync(databaseInfo);
   return {
     isDatabaseInfoExist,
     databaseInfo,

@@ -12,6 +12,7 @@ const nodeSqlite = createRequire(
 export default defineConfig({
   test: {
     environment: "jsdom",
+    environmentMatchGlobs: [["src-electron/main/modules/__tests__/pi-*.test.ts", "node"]],
     setupFiles: ["./src/test-setup.ts"],
     // e2e spec 由 Playwright 独立执行（test:collaboration:e2e），vitest 不收集
     exclude: [...configDefaults.exclude, "e2e/**"],

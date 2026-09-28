@@ -19,7 +19,7 @@ export const desktopToolCatalog = (): PiHostToolSpec[] =>
       name: tool.name,
       description: tool.description,
       parameters: tool.parameters as Record<string, unknown>,
-      risk: tool.risk ?? "read",
+      risk: tool.risk ?? "execute",
       source: tool.source,
     }))
     .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));

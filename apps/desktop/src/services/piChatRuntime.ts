@@ -50,6 +50,7 @@ export interface PiChatRuntimeDeps {
   generateTitle?(chat: ChatMessage): Promise<string | null>;
   /** 可选：标题写进目录行（生成成功后调用） */
   saveTitle?(chatId: string, title: string): Promise<void>;
+  evict?(chat: ChatMessage): void;
   /** 可选 UI 钩子（组件挂载时有效；卸载后 runtime 继续跑，钩子自动失效） */
   ui?: {
     onRetryStatus?(status: { attempt: number; maxAttempts: number } | null): void;
@@ -88,6 +89,7 @@ interface ConversationEntry {
   reducer: PiChatEventReducer | null;
   unsubscribe: (() => void) | null;
   streaming: boolean;
+  pending: boolean;
   deps: PiChatRuntimeDeps;
   /** 标题生成进行中（防同一会话并发重复生成） */
   titleGenerating: boolean;
@@ -159,6 +161,7 @@ class PiChatRuntime {
         reducer: null,
         unsubscribe: null,
         streaming: false,
+        pending: false,
         deps,
         titleGenerating: false,
         stopRequested: false,
@@ -185,6 +188,7 @@ class PiChatRuntime {
       if (current && current === entry) {
         current.mounts = Math.max(0, current.mounts - 1);
         current.lastUsed = Date.now();
+        if (current.mounts === 0) current.deps = { ...current.deps, ui: undefined };
       }
       this.sweepIdle();
     };
@@ -192,7 +196,7 @@ class PiChatRuntime {
 
   /** 可回收 = 没挂着、不在跑、没有待处理交互、队列与插话为空、没在生成标题 */
   private isIdle(entry: ConversationEntry): boolean {
-    if (entry.mounts > 0 || entry.streaming || entry.titleGenerating) return false;
+    if (entry.mounts > 0 || entry.pending || entry.streaming || entry.titleGenerating) return false;
     if (entry.queue.length > 0 || entry.pendingSteers.length > 0) return false;
     if (entry.sessionId) {
       const snapshot = usePiInteractionStore.getState().sessions[entry.sessionId];
@@ -208,13 +212,34 @@ class PiChatRuntime {
       .filter(([, entry]) => this.isIdle(entry))
       .sort(([, a], [, b]) => b.lastUsed - a.lastUsed);
     const doomed = idle.slice(limit).map(([key]) => key);
-    doomed.forEach(key => this.disposeConversation(key));
+    doomed.forEach(key => {
+      const entry = this.conversations.get(key);
+      if (entry) entry.deps.evict?.(entry.chat.current);
+      this.disposeConversation(key);
+    });
     return doomed;
   }
 
   /** 切库：旧库的对话全部失效，清掉所有空闲条目（在跑的留着自己收尾） */
   public releaseIdle(): string[] {
-    return this.sweepIdle(0);
+    const keys = [...this.conversations]
+      .filter(
+        ([, entry]) =>
+          !entry.streaming &&
+          !entry.pending &&
+          !entry.titleGenerating &&
+          !entry.queue.length &&
+          !entry.pendingSteers.length
+      )
+      .map(([key]) => key);
+    keys.forEach(key => this.disposeConversation(key));
+    return keys;
+  }
+
+  public invalidateLibrary(databaseName: string): void {
+    for (const [key, entry] of this.conversations) {
+      if (entry.chat.current.databaseName === databaseName) this.disposeConversation(key);
+    }
   }
 
   /** 绑定 pi 会话（常驻 reducer；切换/recreate 会话时重建订阅） */
@@ -222,6 +247,7 @@ class PiChatRuntime {
     const entry = this.conversations.get(key);
     if (!entry || entry.sessionId === sessionId) return;
     entry.unsubscribe?.();
+    entry.reducer?.reset();
     entry.sessionId = sessionId;
     entry.reducer = this.createReducer(key, entry);
     const lastMessage = entry.chat.current.messages.at(-1);
@@ -254,6 +280,18 @@ class PiChatRuntime {
 
   public isStreaming(key: string): boolean {
     return this.conversations.get(key)?.streaming ?? false;
+  }
+
+  public isPending(key: string): boolean {
+    return this.conversations.get(key)?.pending ?? false;
+  }
+
+  public setPending(key: string, pending: boolean): void {
+    const entry = this.conversations.get(key);
+    if (entry) {
+      entry.pending = pending;
+      this.notify(key);
+    }
   }
 
   // ── 待发送队列（流式中提交的消息）───────────────────────────────────────────
@@ -377,7 +415,11 @@ class PiChatRuntime {
     if (message?.role !== Role.Assistant || !hasUnresolvedToolCall(message)) return;
     initPiInteractions();
     const { piChatSessionManager } = await import("./piChatSession");
-    const sessionId = await piChatSessionManager.adoptOrResolveSession(chatScope, chatId);
+    const sessionId = await piChatSessionManager.adoptOrResolveSession(
+      chatScope,
+      chatId,
+      entry.chat.current.databaseName
+    );
     if (sessionId && this.conversations.get(key) === entry && !entry.sessionId) {
       this.bindSession(key, sessionId);
     }
@@ -409,6 +451,7 @@ class PiChatRuntime {
     const entry = this.conversations.get(key);
     if (!entry) return;
     entry.unsubscribe?.();
+    entry.reducer?.reset();
     this.conversations.delete(key);
   }
 
@@ -490,6 +533,8 @@ class PiChatRuntime {
           console.error("[piChatRuntime] 聊天请求失败:", errorMessage);
         },
         onSettled: () => {
+          entry.pending = false;
+          this.notify(key);
           if (entry.streaming) {
             entry.streaming = false;
             this.notify(key);
@@ -535,6 +580,7 @@ class PiChatRuntime {
     const snapshot = entry.chat.current;
     try {
       const settled = await entry.deps.settle(snapshot);
+      if (![...this.conversations.values()].includes(entry)) return;
       // 收尾是异步的：期间容器可能已前进（排队消息开了新一轮、插话送达），那一轮的收尾会再读。
       // 比对消息数组而不是容器对象：目录行元数据更新（消息数/标题）会换容器对象但不动消息
       if (settled && entry.chat.current.messages === snapshot.messages) {
@@ -556,6 +602,7 @@ class PiChatRuntime {
     entry.titleGenerating = true;
     try {
       const title = await generate(entry.chat.current);
+      if (![...this.conversations.values()].includes(entry)) return;
       // 生成期间用户可能已手动改名（titleDirty 置位）：不覆盖
       if (!title || entry.chat.current.titleDirty !== false) return;
       const titled = produce(entry.chat.current, draft => {

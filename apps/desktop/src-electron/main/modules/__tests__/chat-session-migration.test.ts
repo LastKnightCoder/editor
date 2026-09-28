@@ -80,6 +80,21 @@ const fileMessage = {
 };
 
 describe.skipIf(!nativeAvailable)("老对话迁移到 pi 会话", () => {
+  it("整体中断后重试复用已迁移行的身份", async () => {
+    db.exec(
+      "DROP TABLE pdf_chats; CREATE TABLE pdf_chats(id INTEGER, create_time INTEGER, update_time INTEGER, messages TEXT)"
+    );
+    db.prepare(
+      "INSERT INTO chat_message(id, create_time, update_time, messages) VALUES(1,1,1,?)"
+    ).run(JSON.stringify([{ role: "user", content: "保留" }]));
+    const options = { db, databasePath: ":memory:", sessionDir, cwd: workDir };
+    await expect(migrateLegacyChatsToSessions(options)).rejects.toThrow();
+    const before = ChatSessionTable.list(db);
+    expect(before).toHaveLength(1);
+    db.exec("ALTER TABLE pdf_chats ADD COLUMN pdf_id INTEGER");
+    await migrateLegacyChatsToSessions(options);
+    expect(ChatSessionTable.list(db).map(row => row.id)).toEqual(before.map(row => row.id));
+  });
   let db: Database.Database;
   let workDir: string;
   let sessionDir: string;

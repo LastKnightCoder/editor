@@ -18,6 +18,7 @@ export const videoNoteToolsProvider: MCPProviderDefinition = {
   tools: () => [
     {
       name: "get_video_note_summary",
+      risk: "read",
       description: "获取视频笔记的总结内容。返回 Markdown 格式的视频总结。",
       parameters: {
         type: "object",
@@ -67,6 +68,7 @@ export const videoNoteToolsProvider: MCPProviderDefinition = {
     },
     {
       name: "search_video_note_transcript",
+      risk: "read",
       description:
         "在视频笔记的转录内容中搜索关键词，返回包含关键词的片段及其时间戳。支持大小写不敏感搜索。",
       parameters: {

@@ -201,6 +201,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
   tools: () => [
     {
       name: "get_content_markdown",
+      risk: "read",
       description:
         "根据 contentId 获取 Markdown 全文（可选 range 截断）。注意：仅支持 contents.contentId，不支持 cardId/articleId/projectItemId。",
       parameters: {
@@ -255,6 +256,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
     },
     {
       name: "find_content_ranges",
+      risk: "read",
       description:
         "根据用户提供的文本在当前内容中定位候选范围，支持 exact/normalized/fuzzy 三种模式。",
       parameters: {

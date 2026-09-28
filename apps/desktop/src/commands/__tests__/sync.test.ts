@@ -11,7 +11,7 @@ const mockContext = vi.hoisted(() => {
   };
 
   const syncProvider = {
-    uploadFile: vi.fn(async () => true),
+    uploadFile: vi.fn(async (_name: string, _data: Uint8Array) => true),
     downloadFile: vi.fn(async (objectName: string) => {
       if (objectName === "database_data.db.json") {
         return new TextEncoder().encode(JSON.stringify({ version: 1 }));
@@ -113,6 +113,9 @@ vi.mock("@/utils/sync", () => ({
 }));
 
 vi.mock("@/commands/piSession", () => ({
+  piSessionLockLibrary: vi.fn(async () => ({ ok: true })),
+  piSessionUnlockLibrary: vi.fn(async () => ({ ok: true })),
+  piSessionInstallDownload: mockContext.piSessionUnpack,
   piSessionPack: mockContext.piSessionPack,
   piSessionUnpack: mockContext.piSessionUnpack,
 }));
@@ -160,20 +163,22 @@ describe("sync commands reconnect source", () => {
     expect(success).toBe(true);
     expect(mockContext.syncProvider.uploadFile).toHaveBeenNthCalledWith(
       1,
-      "data.db",
+      expect.stringMatching(/^data\.db\.snapshot-.*\.db$/),
       new Uint8Array([9, 9, 9])
     );
     // 对话内容在 pi 会话文件里：.db 之后传会话包，最后才发布版本
     expect(mockContext.syncProvider.uploadFile).toHaveBeenNthCalledWith(
       2,
-      "data.db.sessions.zip",
+      expect.stringMatching(/^data\.db\.snapshot-.*\.sessions\.zip$/),
       new Uint8Array([7, 7])
     );
-    expect(mockContext.syncProvider.uploadFile).toHaveBeenNthCalledWith(
-      3,
-      "database_data.db.json",
-      new TextEncoder().encode(JSON.stringify({ version: 2, dataModelVersion: 1 }))
-    );
+    const published = mockContext.syncProvider.uploadFile.mock.calls[2];
+    expect(published[0]).toBe("database_data.db.json");
+    expect(JSON.parse(new TextDecoder().decode(published[1]))).toMatchObject({
+      version: 2,
+      databaseObject: mockContext.syncProvider.uploadFile.mock.calls[0][0],
+      sessionsObject: mockContext.syncProvider.uploadFile.mock.calls[1][0],
+    });
     expect(mockContext.settingState.setting.database.databases[0].version).toBe(2);
     expect(mockContext.reconnectDatabaseFast).toHaveBeenCalledWith(
       "data.db",
@@ -189,7 +194,7 @@ describe("sync commands reconnect source", () => {
     expect(success).toBe(false);
     expect(mockContext.syncProvider.uploadFile).toHaveBeenCalledTimes(1);
     expect(mockContext.syncProvider.uploadFile).toHaveBeenCalledWith(
-      "data.db",
+      expect.stringMatching(/^data\.db\.snapshot-.*\.db$/),
       new Uint8Array([9, 9, 9])
     );
     expect(mockContext.useSettingStoreMock.setState).not.toHaveBeenCalled();
@@ -246,6 +251,16 @@ describe("sync commands reconnect source", () => {
     expect(mockContext.piSessionUnpack).toHaveBeenCalledWith("data.db", new Uint8Array([1, 2, 3]));
   });
 
+  it("快照安装失败不推进版本并恢复原数据库", async () => {
+    mockContext.piSessionUnpack.mockResolvedValue({ ok: false, error: "会话包损坏" });
+    expect(await download()).toBe(false);
+    expect(mockContext.settingState.setting.database.databases[0].version).toBe(1);
+    expect(mockContext.writeBinaryFile).toHaveBeenCalledWith(
+      "/tmp/data.db",
+      new Uint8Array([9, 9, 9])
+    );
+  });
+
   it("远程没有会话包（迁移前的远程）时不动本地会话目录", async () => {
     mockContext.syncProvider.downloadFile.mockImplementation(async (objectName: string) => {
       if (objectName === "database_data.db.json") {
@@ -258,7 +273,7 @@ describe("sync commands reconnect source", () => {
     );
 
     expect(await download()).toBe(true);
-    expect(mockContext.piSessionUnpack).not.toHaveBeenCalled();
+    expect(mockContext.piSessionUnpack).toHaveBeenCalledWith("data.db", undefined);
   });
 
   it("下载完成后使用维护模式重连以执行 schema 迁移", async () => {

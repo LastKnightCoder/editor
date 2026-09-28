@@ -75,6 +75,7 @@ function createGenerateTool(projectId: number, mainDbName: string): ToolDefiniti
 
   return {
     name: "vibe_learning_generate",
+    risk: "write",
     description:
       "基于当前项目资料在后台生成学习产物（大纲、重点、文章、导图、PPT、报告、测验），生成完成后出现在左侧产物列表。" +
       "brief 必须结合本次对话写具体：用户关心的主题、范围、深度、受众与偏好，不要只写「生成大纲」。" +
@@ -197,6 +198,7 @@ function createGenerateTool(projectId: number, mainDbName: string): ToolDefiniti
 function createSaveNoteTool(projectId: number): ToolDefinition {
   return {
     name: "vibe_learning_save_note",
+    risk: "write",
     description:
       "把对话里已经写好的内容直接保存为项目产物（出现在左侧产物列表），不重新生成。" +
       "适合用户说「把这个存下来 / 保存成大纲」等场景；markdown 填完整内容，不要省略。",

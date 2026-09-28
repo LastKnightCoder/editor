@@ -13,6 +13,7 @@ import useChatSessionStore, {
 } from "../useChatSessionStore";
 import { createChatSession, listChatSessions, updateChatSession } from "@/commands/chat-session";
 import { piSessionEdit, piSessionTranscript } from "@/commands/piSession";
+import { setChatDatabase } from "@/services/chatDatabase";
 
 vi.mock("@/commands/chat-session", () => ({
   createChatSession: vi.fn(),
@@ -31,6 +32,9 @@ vi.mock("@/commands/chat-message", () => ({
 vi.mock("@/commands/piSession", () => ({
   piSessionEdit: vi.fn(),
   piSessionTranscript: vi.fn(),
+}));
+vi.mock("@/services/piChatRuntime", () => ({
+  piChatRuntime: { releaseIdle: vi.fn(), invalidateLibrary: vi.fn() },
 }));
 
 const row = (patch: Partial<ChatSessionRow> & Pick<ChatSessionRow, "id">): ChatSessionRow => ({
@@ -85,6 +89,7 @@ const ids = (bucket: ChatBucketRef) =>
   selectRows(bucket)(useChatSessionStore.getState()).map(item => item.id);
 
 beforeEach(() => {
+  setChatDatabase("");
   vi.clearAllMocks();
   useChatSessionStore.setState({ buckets: {}, currentIds: {}, opened: {}, groups: [] });
   vi.mocked(createChatSession).mockImplementation(echoInsert);
@@ -92,6 +97,43 @@ beforeEach(() => {
 });
 
 describe("新对话首发登记", () => {
+  it("同步重载使迟到投影作废，恢复的同 ID 对话仍可打开", async () => {
+    seedCatalog([row({ id: "restore" })]);
+    const store = useChatSessionStore.getState();
+    await store.loadBucket(MAIN);
+    let resolve!: (value: { ok: boolean; messages: [] }) => void;
+    vi.mocked(piSessionTranscript).mockImplementationOnce(
+      () =>
+        new Promise(r => {
+          resolve = r;
+        })
+    );
+    const settling = store.settleChat("restore");
+    await store.deleteChat("restore");
+    await store.reloadAll();
+    resolve({ ok: true, messages: [] });
+    expect(await settling).toBeNull();
+    expect(updateChatSession).not.toHaveBeenCalled();
+    vi.mocked(piSessionTranscript).mockResolvedValue({ ok: true, messages: [] });
+    expect(await store.openChat("restore")).toBeDefined();
+  });
+  it("后台旧库投影不会污染同 ID 的新库，收尾补丁仍发往旧库", async () => {
+    setChatDatabase("a");
+    seedCatalog([row({ id: "shared" })]);
+    await useChatSessionStore.getState().loadBucket(MAIN);
+    vi.mocked(piSessionTranscript).mockResolvedValue({ ok: true, messages: [] });
+    const old = await useChatSessionStore.getState().openChat("shared");
+    setChatDatabase("b");
+    useChatSessionStore.setState({ opened: {} });
+    useChatSessionStore.getState().publishChat(old!);
+    expect(useChatSessionStore.getState().opened.shared).toBeUndefined();
+    await useChatSessionStore.getState().settleChat("shared", "a", "f_shared.jsonl");
+    expect(piSessionTranscript).toHaveBeenLastCalledWith({
+      sessionFile: "f_shared.jsonl",
+      databaseName: "a",
+    });
+    expect(updateChatSession).toHaveBeenLastCalledWith("shared", expect.any(Object), "a");
+  });
   it("草稿以原 id 登记目录行，会话文件名写回，草稿槽随即换新", async () => {
     await useChatSessionStore.getState().loadBucket(PDF_12);
     const draft = draftFor("dock|pdf-chat|12", PDF_12);
@@ -109,7 +151,8 @@ describe("新对话首发登记", () => {
         sessionFile: "f_new.jsonl",
         title: "读论文",
         messageCount: 0,
-      })
+      }),
+      ""
     );
     expect(registered.id).toBe(draft.id);
     expect(ids(PDF_12)).toEqual([draft.id]);
@@ -130,7 +173,7 @@ describe("新对话首发登记", () => {
 
     await useChatSessionStore.getState().registerChat(withMessage, "f_g.jsonl");
 
-    expect(createChatSession).toHaveBeenCalledWith(expect.objectContaining({ groupId: 7 }));
+    expect(createChatSession).toHaveBeenCalledWith(expect.objectContaining({ groupId: 7 }), "");
     const opened = useChatSessionStore.getState().opened[draftId];
     expect(opened.sessionFile).toBe("f_g.jsonl");
     expect(opened.messages).toHaveLength(1);
@@ -158,7 +201,7 @@ describe("改会话树（M4-d：分支都在同一个对话文件里）", () => 
       .editChat("p1", { kind: "switch", entryId: "e1" });
 
     expect(piSessionEdit).toHaveBeenCalledWith(
-      { sessionFile: "f_p1.jsonl" },
+      { sessionFile: "f_p1.jsonl", databaseName: "" },
       { kind: "switch", entryId: "e1" }
     );
     expect(messages).toEqual(projectedMessages);
@@ -177,7 +220,7 @@ describe("改会话树（M4-d：分支都在同一个对话文件里）", () => 
 
     await useChatSessionStore.getState().editChat("p1", { kind: "rewind", entryId: "e3" });
 
-    expect(updateChatSession).toHaveBeenCalledWith("p1", { messageCount: 1, updateTime: 77 });
+    expect(updateChatSession).toHaveBeenCalledWith("p1", { messageCount: 1, updateTime: 77 }, "");
   });
 
   it("主进程拒绝（回答进行中）时抛错，调用方提示", async () => {

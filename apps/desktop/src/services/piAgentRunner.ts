@@ -104,6 +104,9 @@ export function runPiAgent(
       }
 
       registerPiToolSessionContext(sessionId, {
+        scopedTools: getToolRegistryAgentTools({ toolScope: options.toolScope })
+          .filter(tool => tool.source === options.toolScope)
+          .map(tool => ({ ...tool, executor: tool.execute })),
         ...(options.conversationKey ? { conversationKey: options.conversationKey } : {}),
         ...(options.toolContext ? { toolContext: options.toolContext } : {}),
         ...(options.additionalTools && options.executeAdditionalTool
@@ -208,7 +211,7 @@ function buildToolSpecs(
       name: tool.name,
       description: tool.description,
       parameters: tool.parameters as Record<string, unknown>,
-      risk: tool.risk ?? "read",
+      risk: tool.risk ?? "execute",
       source: tool.source,
     }));
   for (const tool of additional) {

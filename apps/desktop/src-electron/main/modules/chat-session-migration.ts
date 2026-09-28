@@ -194,29 +194,55 @@ export async function migrateLegacyChatsToSessions(options: {
       "title_dirty",
       "source",
     ].map(column => (columns.has(column) ? column : `NULL AS ${column}`));
-    const rows = db
-      .prepare(
-        `SELECT id, create_time, update_time, messages, ${selected.join(", ")},
+    const readRows = db.prepare(
+      `SELECT id, create_time, update_time, messages, ${selected.join(", ")},
                 ${source.domainColumn ?? "NULL"} AS domain_ref
          FROM ${source.table}
-         ORDER BY id`
-      )
-      .all() as LegacyRow[];
+         WHERE id > ? ORDER BY id LIMIT 50`
+    );
+    const rows = function* (): Generator<LegacyRow> {
+      let after = Number.MIN_SAFE_INTEGER;
+      while (true) {
+        const batch = readRows.all(after) as LegacyRow[];
+        if (!batch.length) return;
+        yield* batch;
+        after = batch[batch.length - 1].id;
+      }
+    };
 
     // 父行先迁（按 id 升序即可：分支总比父对话后建），父 id → 新会话 id
     const idMap = new Map<number, string>();
-    for (const row of rows) {
+    for (const row of rows()) {
       // 浏览器扩展的对话不进桌面目录表（用户裁决：扩展对话与应用对话拆开、跟着页面走，
       // 旧数据不迁）。行随旧表一起删（M8，删前有备份）
       if (row.source === "browser") continue;
       try {
+        // 先持久化源行身份，崩溃重试仍使用同一会话，不重复插入已完成的行。
+        const identityKey = `${CHAT_SESSION_MIGRATION_KEY}:${source.table}:${row.id}`;
+        const recorded = db
+          .prepare("SELECT value FROM migration_meta WHERE key = ?")
+          .get(identityKey) as { value: string } | undefined;
+        const sessionId = recorded?.value ?? randomUUID();
+        if (!recorded)
+          db.prepare("INSERT INTO migration_meta (key, value) VALUES (?, ?)").run(
+            identityKey,
+            sessionId
+          );
+        const existing = ChatSessionTable.getById(db, sessionId);
+        if (existing) {
+          const parentId = row.parent_chat_id !== null ? idMap.get(row.parent_chat_id) : undefined;
+          if (parentId)
+            branches.push({ id: sessionId, sessionFile: existing.sessionFile, parentId });
+          idMap.set(row.id, sessionId);
+          migrated += 1;
+          continue;
+        }
         const parsed = migrateChatSessionMessages(JSON.parse(row.messages || "[]"));
         const session = await legacyMessagesToSession(
           parsed.messages as Array<RequestMessage | ResponseMessage>,
           provider,
           modelId
         );
-        const sessionId = randomUUID();
         const sessionFile = writeSessionFile({
           sessionDir: options.sessionDir,
           sessionId,
@@ -247,6 +273,7 @@ export async function migrateLegacyChatsToSessions(options: {
           branches.push({ id: sessionId, sessionFile, parentId: parentSessionId });
         idMap.set(row.id, sessionId);
         migrated += 1;
+        if (migrated % 20 === 0) await new Promise<void>(resolve => setImmediate(resolve));
       } catch (error) {
         failed.push({
           table: source.table,

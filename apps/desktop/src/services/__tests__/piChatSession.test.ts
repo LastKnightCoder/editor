@@ -56,6 +56,11 @@ const options = {
 } as EnsureChatSessionOptions;
 
 describe("pi 会话收养", () => {
+  it("不同数据库的相同对话 ID 不复用宿主", async () => {
+    const a = await piChatSessionManager.ensureChatSession({ ...options, databaseName: "a" });
+    const b = await piChatSessionManager.ensureChatSession({ ...options, databaseName: "b" });
+    expect(a.sessionId).not.toBe(b.sessionId);
+  });
   afterEach(async () => {
     await piChatSessionManager.disposeAll();
     vi.clearAllMocks();
@@ -186,6 +191,13 @@ describe("宿主被主进程回收后（M4-e）", () => {
 });
 
 describe("额外工具的风险声明", () => {
+  it("未声明风险的注册表工具按 execute 交给宿主", async () => {
+    registryTools.current = [
+      { name: "unknown", description: "未知工具", parameters: {}, enabled: true, source: "test" },
+    ];
+    await piChatSessionManager.ensureChatSession(options);
+    expect(vi.mocked(piSessionCreate).mock.calls.at(-1)?.[1].customTools?.[0].risk).toBe("execute");
+  });
   afterEach(async () => {
     await piChatSessionManager.disposeAll();
     vi.clearAllMocks();

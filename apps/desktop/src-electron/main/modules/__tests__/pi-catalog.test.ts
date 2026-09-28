@@ -165,16 +165,33 @@ describe("pi 内置服务商目录", () => {
       api: "openai-completions",
       models: [],
     };
+    expect(() => toPiModel({ id: "unknown", reasoning: false, input: ["text"] }, provider)).toThrow(
+      "容量"
+    );
     expect(
       toPiModel(
-        { id: "claude", reasoning: true, input: ["text"], api: "anthropic-messages" },
+        {
+          id: "claude",
+          reasoning: true,
+          input: ["text"],
+          api: "anthropic-messages",
+          contextWindow: 200_000,
+          maxTokens: 8192,
+        },
         provider
       ).api
     ).toBe("anthropic-messages");
     // 目录命中时目录权威，压过模型自带值
     expect(
       toPiModel(
-        { id: "claude", reasoning: true, input: ["text"], api: "anthropic-messages" },
+        {
+          id: "claude",
+          reasoning: true,
+          input: ["text"],
+          api: "anthropic-messages",
+          contextWindow: 200_000,
+          maxTokens: 8192,
+        },
         provider,
         {
           api: "openai-responses",
@@ -182,8 +199,11 @@ describe("pi 内置服务商目录", () => {
       ).api
     ).toBe("openai-responses");
     // 都没有则落服务商级
-    expect(toPiModel({ id: "x", reasoning: false, input: ["text"] }, provider).api).toBe(
-      "openai-completions"
-    );
+    expect(
+      toPiModel(
+        { id: "x", reasoning: false, input: ["text"], contextWindow: 8192, maxTokens: 1024 },
+        provider
+      ).api
+    ).toBe("openai-completions");
   });
 });

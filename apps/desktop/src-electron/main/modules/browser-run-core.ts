@@ -7,16 +7,17 @@ import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 import {
   applyChatStreamEvent,
   createAssistantMessage,
+  type ChatSessionMessage,
+  type ResponseMessage,
   type AiRunEvent,
   type AiRunEventNotification,
   type AiRunSnapshot,
   type AiRunStartParams,
-  type ChatSessionMessage,
-  type ResponseMessage,
-} from "@tau/shared";
+} from "@tau/shared/chat-core";
 import type { PiSessionInteractionSnapshot } from "@/types/pi-session";
 import type { LLMProviderSetting } from "@/types/pi-llm";
 import { createAiRunEventTranslator } from "@/services/aiRunEvents";
+import { normalizePageUrl } from "./pi-session-paths";
 
 export interface BrowserRunHandle {
   /** 这一轮开始前的对话投影（会话建好、prompt 之前读的；侧栏重开接回时作底） */
@@ -92,7 +93,9 @@ export function resolveChatModel(
 
 /** 扩展对话的唯一键（同一页面同一对话）；一次性调用没有 */
 export const browserRunKeyOf = (params: AiRunStartParams): string | undefined =>
-  params.session ? `${params.session.pageUrl}\u0000${params.session.id}` : undefined;
+  params.session
+    ? `${normalizePageUrl(params.session.pageUrl)}\u0000${params.session.id}`
+    : undefined;
 
 export class BrowserRunRegistry {
   private readonly runs = new Map<string, ActiveRun>();

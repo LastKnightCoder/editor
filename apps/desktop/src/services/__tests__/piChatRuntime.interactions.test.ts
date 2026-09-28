@@ -186,7 +186,7 @@ describe("pi 待处理交互恢复与后台归约", () => {
       ],
     });
     await piChatRuntime.restorePendingInteractions(key, "main-chat", chatId);
-    expect(mocks.adopt).toHaveBeenCalledWith("main-chat", chatId);
+    expect(mocks.adopt).toHaveBeenCalledWith("main-chat", chatId, undefined);
     expect(piChatRuntime.isStreaming(key)).toBe(true);
     const execution = () =>
       (container.current.messages.at(-1) as ResponseMessage).assistant_blocks?.[0];
