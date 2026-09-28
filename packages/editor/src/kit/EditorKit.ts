@@ -83,8 +83,17 @@ const instanceKey = (extensions: readonly IExtension[]): string =>
     })
     .join(",");
 
-const createKit = (registry: ServiceRegistry, extensions: IExtension[]): EditorKit => {
-  const assembly = new ExtensionAssembly(extensions);
+const createKit = (
+  registry: ServiceRegistry,
+  extensions: IExtension[],
+  /**
+   * 沿用已有装配结果。装配只取决于扩展集合，所以「只覆盖服务」的派生 kit 必须与原 kit
+   * 共享它：内核按 `assembly.plugins` 的数组身份决定是否重建 Slate editor，换一份等价的
+   * 新数组就会把整个编辑器（连同 mermaid、codemirror 等块组件）重挂载一次。
+   */
+  inherited?: ExtensionAssembly
+): EditorKit => {
+  const assembly = inherited ?? new ExtensionAssembly(extensions);
   // 只追加扩展（不覆盖服务）的派生结果按实例集合缓存
   const derivedByExtensions = new Map<string, EditorKit>();
   return {
@@ -110,7 +119,11 @@ const createKit = (registry: ServiceRegistry, extensions: IExtension[]): EditorK
       const nextExtensions = options.extensions
         ? mergeExtensions(extensions, options.extensions, options.override ?? false)
         : extensions;
-      const derived = createKit(nextRegistry, nextExtensions);
+      const derived = createKit(
+        nextRegistry,
+        nextExtensions,
+        nextExtensions === extensions ? assembly : undefined
+      );
       if (cacheKey) derivedByExtensions.set(cacheKey, derived);
       return derived;
     },
