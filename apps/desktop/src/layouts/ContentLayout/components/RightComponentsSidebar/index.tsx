@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useState } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import classNames from "classnames";
 import { AnimatePresence, motion } from "motion/react";
 import { App } from "antd";
@@ -958,6 +959,7 @@ const RightComponentsSidebar = memo(() => {
             </label>
             <div className="rounded-xl border border-gray-200 bg-gray-50 shadow-inner transition focus-within:border-[var(--th-border-focus)] dark:border-slate-700 dark:bg-zinc-950">
               <Editor
+                kit={getDesktopKit()}
                 key={`workbench-edit-question-${editQuestionId}`}
                 initValue={editQuestionDescription}
                 onChange={value => setEditQuestionDescription(value)}

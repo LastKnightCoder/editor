@@ -1,4 +1,5 @@
 import { useRef, useState, memo } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import classnames from "classnames";
 import { Tag } from "antd";
 
@@ -20,15 +21,8 @@ interface TimeRecordItemProps {
 }
 
 const TimeRecordItem = memo((props: TimeRecordItemProps) => {
-  const {
-    showLine,
-    color,
-    timeRecord,
-    nextColor,
-    onClickDelete,
-    onClickEdit,
-    onRecordTimeFinish,
-  } = props;
+  const { showLine, color, timeRecord, nextColor, onClickDelete, onClickEdit, onRecordTimeFinish } =
+    props;
 
   const recordTime = useRef(0);
   const [isRecording, setIsRecording] = useState(false);
@@ -68,6 +62,7 @@ const TimeRecordItem = memo((props: TimeRecordItemProps) => {
         )}
       </div>
       <Editor
+        kit={getDesktopKit()}
         key={JSON.stringify(timeRecord.content) + timeRecord.id}
         className={styles.content}
         initValue={timeRecord.content}

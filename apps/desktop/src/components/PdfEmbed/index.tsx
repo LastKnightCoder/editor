@@ -7,6 +7,7 @@ import {
   type CSSProperties,
   type MouseEvent,
 } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import classNames from "classnames";
 import { App, Result } from "antd";
 import { X as XIcon, Loader2 as Loader2Icon } from "lucide-react";
@@ -527,6 +528,7 @@ const NoteEditPanel = ({
             )}
           >
             <Editor
+              kit={getDesktopKit()}
               key={activeNoteAnnotation.id}
               initValue={noteEditorValue}
               onChange={setNoteEditorValue}

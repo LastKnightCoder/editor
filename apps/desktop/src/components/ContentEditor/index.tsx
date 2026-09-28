@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useRef, type ComponentProps, type ReactNode } from "react";
 import { LoadingOutlined } from "@ant-design/icons";
 import { Editor, type EditorRef } from "@tau/editor/src";
-import { CollaborationServices } from "@/components/CollaborationEditor";
+import { useCollaborationKit } from "@/components/CollaborationEditor/useCollaborationKit";
 import useCollaborationDocument from "@/hooks/useCollaborationDocument";
 import useCollaborationStore from "@/stores/useCollaborationStore";
 import useContentSession from "@/hooks/useContentSession";
@@ -29,6 +29,7 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
     const editorRef = useRef<EditorRef | null>(null);
     callback.current = props.onChange;
     const presence = useCollaborationPresence(binding, readonly || frozen);
+    const kit = useCollaborationKit(binding);
     useEffect(() => {
       const loadError = sessionError || (!binding && error);
       if (loadError) onLoadError?.(loadError);
@@ -52,28 +53,27 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
             {error}
           </div>
         )}
-        <CollaborationServices binding={binding}>
-          <Editor
-            {...props}
-            key={`${contentId || "local"}:${documentId || "local"}`}
-            ref={value => {
-              editorRef.current = value;
-              if (typeof ref === "function") ref(value);
-              else if (ref) ref.current = value;
-            }}
-            collaboration={binding || props.collaboration}
-            readonly={readonly || frozen || Boolean(session && session.status !== "active")}
-            onChange={binding ? undefined : props.onChange}
-            onFocus={() => {
-              presence.onFocus();
-              props.onFocus?.();
-            }}
-            onBlur={() => {
-              presence.onBlur();
-              props.onBlur?.();
-            }}
-          />
-        </CollaborationServices>
+        <Editor
+          kit={kit}
+          {...props}
+          key={`${contentId || "local"}:${documentId || "local"}`}
+          ref={value => {
+            editorRef.current = value;
+            if (typeof ref === "function") ref(value);
+            else if (ref) ref.current = value;
+          }}
+          collaboration={binding || props.collaboration}
+          readonly={readonly || frozen || Boolean(session && session.status !== "active")}
+          onChange={binding ? undefined : props.onChange}
+          onFocus={() => {
+            presence.onFocus();
+            props.onFocus?.();
+          }}
+          onBlur={() => {
+            presence.onBlur();
+            props.onBlur?.();
+          }}
+        />
       </>
     );
   }

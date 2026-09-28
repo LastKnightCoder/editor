@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import {
   Copy,
   Download,
@@ -173,7 +174,13 @@ function OverviewPane({
       <div className="border-line-1 min-w-0 rounded-[12px] border px-4 py-3">
         <div className="text-tau-sm text-ink-3 mb-1">SKILL.md</div>
         {value ? (
-          <Editor key={skill.path} initValue={value} readonly className="text-tau-body" />
+          <Editor
+            kit={getDesktopKit()}
+            key={skill.path}
+            initValue={value}
+            readonly
+            className="text-tau-body"
+          />
         ) : (
           <p className="text-tau-meta text-ink-3 m-0">加载中…</p>
         )}

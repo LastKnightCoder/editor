@@ -1,4 +1,5 @@
 import If from "@/components/If";
+import { getDesktopBareKit } from "@/services/editorKit";
 import { Editor, EditorRef } from "@tau/editor/src";
 import type { IHotKeyConfig } from "@tau/editor/src";
 import { inlineMath, link, paragraph } from "@tau/editor/src/extensions";
@@ -29,6 +30,7 @@ const ARROW_LABEL_RENDER_PADDING = 6;
 const ARROW_LABEL_EDITOR_PADDING_Y = 4;
 const ARROW_LABEL_NORMAL_GAP = 1;
 const ARROW_LABEL_WIDTH_BUFFER = 2;
+// 箭头描述是 SVG foreignObject 里的迷你编辑器：只要这三种能力（kit 按数组身份缓存）
 const ARROW_DESCRIPTION_EXTENSIONS = [paragraph, inlineMath, link];
 
 const createEmptyDescription = (): Descendant[] => {
@@ -605,8 +607,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
               onBlur={handleDescriptionBlur}
               readonly={!isEditingDescription}
               hotkeyConfigs={descriptionHotkeyConfigs}
-              disableStartExtensions
-              extensions={ARROW_DESCRIPTION_EXTENSIONS}
+              kit={getDesktopBareKit(ARROW_DESCRIPTION_EXTENSIONS)}
               className={styles.descriptionEditor}
               style={descriptionEditorStyle}
             />

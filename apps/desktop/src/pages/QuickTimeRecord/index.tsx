@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import { AutoComplete, Button, InputNumber } from "antd";
 import { Descendant } from "slate";
 import { Editor, EditorRef } from "@tau/editor/src";
@@ -24,12 +25,12 @@ const QuickTimeRecord = () => {
   const editorRef = useRef<EditorRef>(null);
 
   useEffect(() => {
-    getAllEventTypes().then((res) => {
+    getAllEventTypes().then(res => {
       setAllEventTypes(res);
     });
   }, []);
 
-  const eventTypeOptions = allEventTypes.map((eventType) => ({
+  const eventTypeOptions = allEventTypes.map(eventType => ({
     value: eventType,
   }));
 
@@ -47,7 +48,7 @@ const QuickTimeRecord = () => {
     setContent(initValue);
     setCost(0);
     setEventType("");
-    getAllEventTypes().then((res) => {
+    getAllEventTypes().then(res => {
       setAllEventTypes(res);
     });
   };
@@ -61,6 +62,7 @@ const QuickTimeRecord = () => {
         <div className={styles.content}>
           <div style={{ lineHeight: 1.8 }}>事件：</div>
           <Editor
+            kit={getDesktopKit()}
             ref={editorRef}
             initValue={initValue}
             onChange={setContent}
@@ -86,7 +88,7 @@ const QuickTimeRecord = () => {
           <div>花费时间：</div>
           <InputNumber
             value={cost}
-            onChange={(value) => {
+            onChange={value => {
               if (typeof value === "number") {
                 setCost(value);
               }

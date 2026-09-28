@@ -6,7 +6,7 @@ import { Button, Dialog, DialogBody, ImagePreview, Spinner, Textarea, cn, toast 
 
 import { showMediaNode } from "./mediaModalHost";
 import type { CustomElement, MediaAction, MediaInsertSource } from "@tau/editor/src";
-import { useEditorSlots } from "@tau/editor/src";
+import LocalImage from "@/components/LocalImage";
 import {
   createImageFileFromBase64,
   resolveImageInputFile,
@@ -107,8 +107,6 @@ export const AIImageDialog = ({
   originalUrl,
   onConfirm,
 }: AIImageDialogProps) => {
-  const { Image: LocalImageComponent } = useEditorSlots();
-
   const [generatePrompt, setGeneratePrompt] = useState("");
   const [editPrompt, setEditPrompt] = useState("");
   const [aiSubmitting, setAiSubmitting] = useState(false);
@@ -365,7 +363,7 @@ export const AIImageDialog = ({
                   title={selected && item.url ? "点击放大查看" : item.label}
                 >
                   {item.url ? (
-                    <LocalImageComponent
+                    <LocalImage
                       className="block h-full w-full object-cover"
                       url={item.url}
                       alt={item.label}
@@ -427,7 +425,7 @@ export const AIImageDialog = ({
                 disabled={aiSubmitting}
                 title={selected ? "点击放大查看" : item.label}
               >
-                <LocalImageComponent
+                <LocalImage
                   className="block h-full w-full object-cover"
                   url={item.url}
                   alt={item.label}
@@ -518,7 +516,7 @@ export const AIImageDialog = ({
                 </>
               ) : selectedResult ? (
                 <>
-                  <LocalImageComponent
+                  <LocalImage
                     className="rounded-tau-sm max-h-[16em] max-w-full object-contain"
                     url={selectedResult.url}
                     alt={selectedResult.prompt}
@@ -543,7 +541,7 @@ export const AIImageDialog = ({
         index={previewIndex}
         onIndexChange={setPreviewIndex}
         ImageComponent={({ src, alt, className }) => (
-          <LocalImageComponent url={src} alt={alt} className={className} />
+          <LocalImage url={src} alt={alt} className={className} />
         )}
       />
     </Dialog>

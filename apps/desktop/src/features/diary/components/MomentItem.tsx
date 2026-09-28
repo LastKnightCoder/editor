@@ -9,6 +9,7 @@
  */
 
 import { forwardRef, memo, useEffect, useMemo, useRef, useState } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import { Editor as SlateEditor, Transforms, type BasePoint, type Descendant } from "slate";
 import { ReactEditor } from "slate-react";
 import { useThrottleFn, useUnmount } from "ahooks";
@@ -244,6 +245,7 @@ const MomentReader = forwardRef<EditorRef, { content: Descendant[]; revision: nu
     return (
       <ErrorBoundary>
         <Editor
+          kit={getDesktopKit()}
           ref={ref}
           key={revision}
           readonly

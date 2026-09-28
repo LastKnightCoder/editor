@@ -8,26 +8,17 @@ import {
   toggleInlineAIComposer,
 } from "../panel-manager";
 
-vi.mock("@/services/editorRegistry", async () => {
-  const { createServiceRegistry } = await import("@tau/editor/src");
-
-  return {
-    createEditorRegistry: vi.fn(() => createServiceRegistry(() => {})),
-  };
-});
-
 vi.mock("../components/InlineAIComposerPanel", async () => {
   const { App } = await import("antd");
   const { useDragDropManager } = await import("react-dnd");
-  const { useServiceRegistry } = await import("@tau/editor/src");
 
+  // 面板内含 ChatInputArea（自带 kit 的编辑器），独立 root 只需补 antd App 与 dnd
   const MockInlineAIComposerPanel = () => {
-    const registry = useServiceRegistry();
     const app = App.useApp();
     const dragDropManager = useDragDropManager();
     return (
       <div data-testid="inline-ai-composer-panel">
-        {registry && app?.message && dragDropManager ? "Ask AI 输入框" : "缺少服务"}
+        {app?.message && dragDropManager ? "Ask AI 输入框" : "缺少服务"}
       </div>
     );
   };
@@ -45,7 +36,7 @@ describe("inline-ai-assistant/panel-manager", () => {
     document.getElementById("inline-ai-composer-root")?.remove();
   });
 
-  it("openInlineAIComposer 应为独立 root 面板补齐 EditorProvider", async () => {
+  it("openInlineAIComposer 应为独立 root 面板补齐 antd App 与 dnd 上下文", async () => {
     await act(async () => {
       openInlineAIComposer({} as never, "hovering");
     });

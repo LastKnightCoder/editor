@@ -1,4 +1,5 @@
 import { memo, useCallback, useRef, useState } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import { createPortal } from "react-dom";
 import type { Descendant } from "slate";
 import { X } from "lucide-react";
@@ -322,7 +323,12 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
             >
               {title && <div className="mb-4 text-center text-xl font-semibold">{title}</div>}
               <EditorThemeOverride mode={theme}>
-                <Editor initValue={content} readonly={true} extensions={extensions} />
+                <Editor
+                  kit={getDesktopKit()}
+                  initValue={content}
+                  readonly={true}
+                  extensions={extensions}
+                />
               </EditorThemeOverride>
             </div>
           </div>

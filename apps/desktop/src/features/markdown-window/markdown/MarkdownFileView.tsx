@@ -23,7 +23,7 @@ import "codemirror/mode/yaml/yaml.js";
 import "codemirror/mode/yaml-frontmatter/yaml-frontmatter.js";
 import { useThrottleFn } from "ahooks";
 import { Code2 } from "lucide-react";
-import { Editor, EditorProvider, type EditorRef } from "@tau/editor/src";
+import { Editor, type EditorRef } from "@tau/editor/src";
 import { Loading, cn, useEdgeFade, FADE_SCROLL_CLASS } from "@tau/ui";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import {
@@ -121,7 +121,7 @@ export const MarkdownFileView = forwardRef<
     setContent(nodes);
   }, [content, session.initialText, sourceTextRef]);
 
-  const registry = useMarkdownEditorServices(path, onOpenMarkdown);
+  const markdownKit = useMarkdownEditorServices(path, onOpenMarkdown);
 
   /* 字数 / 源码大纲：节流更新 */
   const [words, setWords] = useState(0);
@@ -275,20 +275,19 @@ export const MarkdownFileView = forwardRef<
         {!sourceMode && (
           <div ref={richRef} className={column}>
             <ErrorBoundary>
-              <EditorProvider registry={registry}>
-                <Editor
-                  ref={editorRef}
-                  initValue={content}
-                  onChange={value => {
-                    // 仅选区变化时 children 引用不变：不算编辑
-                    if (value === contentRef.current) return;
-                    setContent(value);
-                    session.markDirty();
-                  }}
-                  readonly={false}
-                  extensions={EXTENSIONS}
-                />
-              </EditorProvider>
+              <Editor
+                kit={markdownKit}
+                ref={editorRef}
+                initValue={content}
+                onChange={value => {
+                  // 仅选区变化时 children 引用不变：不算编辑
+                  if (value === contentRef.current) return;
+                  setContent(value);
+                  session.markDirty();
+                }}
+                readonly={false}
+                extensions={EXTENSIONS}
+              />
             </ErrorBoundary>
           </div>
         )}

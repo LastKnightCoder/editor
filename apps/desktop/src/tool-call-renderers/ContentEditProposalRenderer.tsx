@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import type React from "react";
 import { CircleCheck, CircleX, MessageSquareText, type LucideIcon } from "lucide-react";
 import { Button, ConfirmDialog, Segmented, Textarea, cn, toast } from "@tau/ui";
@@ -451,6 +452,7 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
                 />
               ) : (
                 <Editor
+                  kit={getDesktopKit()}
                   initValue={previewContent}
                   readonly
                   extensions={dynamicExtensions}

@@ -8,13 +8,8 @@
 
 import { useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
-import {
-  createChildRegistry,
-  IOpenerService,
-  IResourceService,
-  useServiceRegistry,
-  type ServiceRegistry,
-} from "@tau/editor/src";
+import { IOpenerService, IResourceService, type EditorKit } from "@tau/editor/src";
+import { getDesktopKit } from "@/services/editorKit";
 import { toast } from "@tau/ui";
 import {
   compressImage,
@@ -83,9 +78,7 @@ async function openWithDefaultApp(path: string) {
 export function useMarkdownEditorServices(
   filePath: string,
   onOpenMarkdown: (path: string) => void
-) {
-  const baseRegistry = useServiceRegistry();
-
+): EditorKit {
   const upload = useMemoizedFn(async (file: File): Promise<string> => {
     const { imageBed } = useSettingStore.getState().setting;
     if (imageBed.active !== EImageBed.Local) return uploadRemote(file);
@@ -128,13 +121,19 @@ export function useMarkdownEditorServices(
     }
   });
 
-  const registry = useMemo<ServiceRegistry>(
+  return useMemo(
     () =>
-      createChildRegistry(baseRegistry, register => {
-        register(IResourceService, { ...baseRegistry.get(IResourceService), upload });
-        register(IOpenerService, { open: openUrl });
+      getDesktopKit().extend({
+        services: [
+          register => {
+            register(IResourceService, {
+              ...getDesktopKit().registry.get(IResourceService),
+              upload,
+            });
+            register(IOpenerService, { open: openUrl });
+          },
+        ],
       }),
-    [baseRegistry, upload, openUrl]
+    [upload, openUrl]
   );
-  return registry;
 }

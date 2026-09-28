@@ -1,4 +1,5 @@
 import { memo, useMemo } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import { Drawer } from "antd";
 import type { Descendant } from "slate";
 import { Editor } from "@tau/editor/src";
@@ -28,39 +29,38 @@ interface WeReadDetailDrawerProps {
   onClose: () => void;
 }
 
-export const WeReadDetailDrawer: React.FC<WeReadDetailDrawerProps> = memo(
-  (props) => {
-    const { open, row, content, onClose } = props;
+export const WeReadDetailDrawer: React.FC<WeReadDetailDrawerProps> = memo(props => {
+  const { open, row, content, onClose } = props;
 
-    // 创建微信读书扩展实例
-    const wereadExtensions = useMemo(() => {
-      return [
-        new WeReadMetadataExtension(),
-        new WeReadChapterExtension(),
-        new WeReadBookmarkExtension(),
-      ];
-    }, []);
+  // 创建微信读书扩展实例
+  const wereadExtensions = useMemo(() => {
+    return [
+      new WeReadMetadataExtension(),
+      new WeReadChapterExtension(),
+      new WeReadBookmarkExtension(),
+    ];
+  }, []);
 
-    return (
-      <Drawer
-        title={row?.title}
-        placement="right"
-        size={720}
-        onClose={onClose}
-        open={open}
-        destroyOnClose
-      >
-        <Editor
-          key={row?.id}
-          initValue={content || DEFAULT_DETAIL_CONTENT}
-          extensions={wereadExtensions}
-          onChange={() => {
-            // TODO: 处理编辑器变化（如果需要）
-          }}
-        />
-      </Drawer>
-    );
-  },
-);
+  return (
+    <Drawer
+      title={row?.title}
+      placement="right"
+      size={720}
+      onClose={onClose}
+      open={open}
+      destroyOnClose
+    >
+      <Editor
+        kit={getDesktopKit()}
+        key={row?.id}
+        initValue={content || DEFAULT_DETAIL_CONTENT}
+        extensions={wereadExtensions}
+        onChange={() => {
+          // TODO: 处理编辑器变化（如果需要）
+        }}
+      />
+    </Drawer>
+  );
+});
 
 WeReadDetailDrawer.displayName = "WeReadDetailDrawer";

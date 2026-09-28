@@ -4,6 +4,11 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WeReadFullScreenViewer } from "../WeReadFullScreenViewer";
 
+// 宿主组件只验证自身逻辑，不渲染真实编辑器，kit 也不必真实构造
+vi.mock("@/services/editorKit", () => ({
+  getDesktopKit: () => ({}),
+  getDesktopBareKit: () => ({}),
+}));
 vi.mock("@tau/editor/src", () => ({
   Editor: ({ initValue }: { initValue: unknown }) => (
     <div data-testid="mock-editor">{JSON.stringify(initValue)}</div>

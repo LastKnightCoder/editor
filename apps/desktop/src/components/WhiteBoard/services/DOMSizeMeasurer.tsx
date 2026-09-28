@@ -1,9 +1,9 @@
 import { createRoot } from "react-dom/client";
-import { Editor, EditorProvider } from "@tau/editor";
+import { getDesktopKit } from "@/services/editorKit";
+import { Editor } from "@tau/editor";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { Descendant } from "slate";
-import { createEditorRegistry } from "@/services/editorRegistry";
 import { TEXT_BOX, TextBoxPadding, toCssPadding } from "../constants/text-style";
 
 const DEFAULT_PADDING: TextBoxPadding = {
@@ -14,7 +14,6 @@ const DEFAULT_PADDING: TextBoxPadding = {
 };
 
 // 服务注册表内的服务实现均为惰性单例，无需额外缓存
-const getEditorRegistry = () => createEditorRegistry();
 
 /**
  * DOM 尺寸测量服务
@@ -255,24 +254,19 @@ export class DOMSizeMeasurer {
       // 创建内部容器用于 ResizeObserver
       const innerContainerId = `${measureId}-inner`;
 
-      // 创建独立的服务注册表
-      const registry = getEditorRegistry();
-
       // 渲染 Editor，使用必要的 Provider 包装
       root.render(
         <DndProvider backend={HTML5Backend}>
-          <EditorProvider registry={registry}>
-            <div
-              id={innerContainerId}
-              style={{
-                width: "100%",
-                padding: toCssPadding(padding),
-                boxSizing: "border-box",
-              }}
-            >
-              <Editor initValue={content} readonly={true} />
-            </div>
-          </EditorProvider>
+          <div
+            id={innerContainerId}
+            style={{
+              width: "100%",
+              padding: toCssPadding(padding),
+              boxSizing: "border-box",
+            }}
+          >
+            <Editor kit={getDesktopKit()} initValue={content} readonly={true} />
+          </div>
         </DndProvider>
       );
 
@@ -390,24 +384,21 @@ export class DOMSizeMeasurer {
       };
 
       const innerContainerId = `${measureId}-inner`;
-      const registry = getEditorRegistry();
 
       // innerContainer：fit-content shrink-to-fit 到文字自然宽度
       root.render(
         <DndProvider backend={HTML5Backend}>
-          <EditorProvider registry={registry}>
-            <div
-              id={innerContainerId}
-              style={{
-                width: "fit-content",
-                maxWidth: "none",
-                padding: toCssPadding(padding),
-                boxSizing: "border-box",
-              }}
-            >
-              <Editor initValue={content} readonly={true} />
-            </div>
-          </EditorProvider>
+          <div
+            id={innerContainerId}
+            style={{
+              width: "fit-content",
+              maxWidth: "none",
+              padding: toCssPadding(padding),
+              boxSizing: "border-box",
+            }}
+          >
+            <Editor kit={getDesktopKit()} initValue={content} readonly={true} />
+          </div>
         </DndProvider>
       );
 

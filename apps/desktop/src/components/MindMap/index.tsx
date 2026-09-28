@@ -10,6 +10,7 @@ import React, {
   useImperativeHandle,
   ReactNode,
 } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import clsx from "classnames";
 import { Editor, EditorThemeOverride } from "@tau/editor/src";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
@@ -367,7 +368,12 @@ const MindMapMeasureNode = ({
     >
       <div className="**:data-slate-editor:text-sm **:data-slate-editor:leading-[1.6] **:data-slate-editor:outline-none pointer-events-none [&_.slate-Editor]:bg-transparent">
         <EditorThemeOverride mode={visualStyle.editorTheme}>
-          <Editor initValue={flattened.node.text} readonly extensions={dynamicExtensions} />
+          <Editor
+            kit={getDesktopKit()}
+            initValue={flattened.node.text}
+            readonly
+            extensions={dynamicExtensions}
+          />
         </EditorThemeOverride>
       </div>
     </div>
@@ -384,7 +390,7 @@ const MindMapNodeContent = memo(
     const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
     return (
       <EditorThemeOverride mode={editorTheme}>
-        <Editor initValue={value} readonly extensions={dynamicExtensions} />
+        <Editor kit={getDesktopKit()} initValue={value} readonly extensions={dynamicExtensions} />
       </EditorThemeOverride>
     );
   },

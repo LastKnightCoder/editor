@@ -6,6 +6,7 @@
  */
 
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { getDesktopKit } from "@/services/editorKit";
 import FlashcardBlankExtension from "@/editor-extensions/flashcard-blank";
 import type { FlashcardBlankElement } from "@/editor-extensions/flashcard-blank/types";
 import useTheme from "@/hooks/useTheme";
@@ -23,6 +24,7 @@ export function RichContent({ content, className }: { content: Descendant[]; cla
   return (
     <ErrorBoundary>
       <Editor
+        kit={getDesktopKit()}
         key={revision}
         readonly
         initValue={content}
