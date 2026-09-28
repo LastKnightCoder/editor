@@ -55,19 +55,19 @@ export function createDesktopKit(extras: readonly IExtension[] = EMPTY): EditorK
 }
 
 /**
- * 库内正文：卡片、文章、日记、项目文档、待办描述、数据库行详情等存在 `contents` 表里的内容，
- * 以及它们的只读预览、新建草稿、白板富文本与其离屏测高。
+ * `contents` 表里的内容（卡片、文章、日记、项目文档、待办描述、数据库行详情…），
+ * 也就是 `ContentEditor` 承载的那类；含它们的只读预览、新建草稿、白板富文本与其离屏测高。
  *
  * 预览和测高必须与可编辑处用同一个 kit：预览要能渲染正文里真实存在的块，
  * 测高要和真实渲染的块集一致，否则量出来的高度不对（见 04 P6.5 与 P6.6）。
  */
-export function getLibraryContentKit(): EditorKit {
+export function getContentKit(): EditorKit {
   return createDesktopKit(requireHostExtensions());
 }
 
 /**
  * 简短描述输入：时间记录、日程备注、项目描述、问题背景、PDF 批注、白板图形文字。
- * 内容内联在业务记录的 JSON 列里，没有任何完整编辑器会去渲染它，所以不装库内块。
+ * 内容内联在业务记录的 JSON 列里，没有任何完整编辑器会去渲染它，所以不装content 专属块。
  * 成对的只读预览点必须也用这个 kit，否则就是新的「无法识别的类型」来源。
  */
 export function getDescriptionKit(): EditorKit {

@@ -1,6 +1,6 @@
 /**
  * Desktop 编辑器服务注册表：组合各服务实现并注册到 token。
- * 与 getLibraryContentKit() 共用同一份注册项。
+ * 与 getContentKit() 共用同一份注册项。
  */
 
 import {

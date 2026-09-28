@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { getLibraryContentKit } from "@/services/editorKit";
+import { getContentKit } from "@/services/editorKit";
 import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
 import { Editor, EditorRef } from "@tau/editor/src";
@@ -204,7 +204,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({ content, onExit }) 
           <>
             <div className={styles.presentationContent}>
               <Editor
-                kit={getLibraryContentKit()}
+                kit={getContentKit()}
                 ref={presentationEditorRef}
                 readonly={true}
                 initValue={slides[currentSlide] || []}

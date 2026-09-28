@@ -55,17 +55,17 @@ describe("desktop 场景 kit", { timeout: 30_000 }, () => {
   });
 
   it("宿主扩展未装载时拒绝建 kit，而不是静默少扩展", async () => {
-    const { getLibraryContentKit } = await import("../editorKit");
-    expect(() => getLibraryContentKit()).toThrow(/宿主扩展尚未装载/);
+    const { getContentKit } = await import("../editorKit");
+    expect(() => getContentKit()).toThrow(/宿主扩展尚未装载/);
   });
 
-  it("库内正文：底座 + 全部宿主扩展", async () => {
+  it("content 正文：底座 + 全部宿主扩展", async () => {
     await loadStore();
-    const { getLibraryContentKit } = await import("../editorKit");
-    expect(extrasOf(getLibraryContentKit())).toEqual([...HOST, "webview"].sort());
+    const { getContentKit } = await import("../editorKit");
+    expect(extrasOf(getContentKit())).toEqual([...HOST, "webview"].sort());
   });
 
-  it("简短描述输入：只有底座，不含任何库内块", async () => {
+  it("简短描述输入：只有底座，不含任何content 专属块", async () => {
     await loadStore();
     const { getDescriptionKit } = await import("../editorKit");
     expect(extrasOf(getDescriptionKit())).toEqual(["webview"]);
@@ -92,8 +92,8 @@ describe("desktop 场景 kit", { timeout: 30_000 }, () => {
 
   it("同一场景反复取到同一个 kit 实例（否则编辑器会被重建）", async () => {
     await loadStore();
-    const { getLibraryContentKit, getDescriptionKit } = await import("../editorKit");
-    expect(getLibraryContentKit()).toBe(getLibraryContentKit());
-    expect(getDescriptionKit()).not.toBe(getLibraryContentKit());
+    const { getContentKit, getDescriptionKit } = await import("../editorKit");
+    expect(getContentKit()).toBe(getContentKit());
+    expect(getDescriptionKit()).not.toBe(getContentKit());
   });
 });

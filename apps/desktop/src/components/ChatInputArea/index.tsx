@@ -59,7 +59,7 @@ import { ComposerAddMenu, type ComposerAddItem } from "./ComposerAddMenu";
 
 export type { ChatInputAreaHandle };
 
-/** 聊天输入场景（ER-016）：只要引用能力，不要库内块 */
+/** 聊天输入场景（ER-016）：只要引用能力，不要content 专属块 */
 let chatInputKit: EditorKit | null = null;
 const getChatInputKit = () =>
   (chatInputKit ??= createDesktopKit([contentLinkExtension, skillRefExtension]));
