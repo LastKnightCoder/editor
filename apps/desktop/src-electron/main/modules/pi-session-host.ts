@@ -23,6 +23,7 @@ import {
   transcriptOf,
 } from "./pi-session-host-core";
 import { piEntriesToDesktopMessages } from "./pi-session-transcript";
+import { retryHostSession } from "./pi-session-retry";
 import { desktopMessagesToPi, PiToolCallBridge } from "./pi-session-bridge";
 import {
   applySessionEdit,
@@ -57,6 +58,7 @@ import { conversationTreeOf, type DesktopDisplayData } from "./pi-session-files"
 import type {
   PiHostToolSpec,
   PiPromptDisplay,
+  PiPromptRetry,
   PiSessionLocation,
   PiToolApprovalChoice,
 } from "@/types/pi-session";
@@ -299,14 +301,16 @@ class PiSessionHostModule {
           text,
           images,
           display,
+          retry,
         }: {
           sessionId: string;
           text: string;
           images?: Array<{ path?: string; dataUrl?: string }>;
           display?: PiPromptDisplay;
+          retry?: PiPromptRetry;
         }
       ) => {
-        return PiSessionHostModule.prompt(sessionId, text, images, display);
+        return PiSessionHostModule.prompt(sessionId, text, images, display, retry);
       }
     );
     ipcMain.handle(
@@ -884,7 +888,8 @@ class PiSessionHostModule {
     sessionId: string,
     text: string,
     images?: Array<{ path?: string; dataUrl?: string }>,
-    display?: PiPromptDisplay
+    display?: PiPromptDisplay,
+    retry?: PiPromptRetry
   ): Promise<{ ok: boolean; error?: string }> {
     return PiSessionHostModule.runWithSession(sessionId, async signal => {
       const hosted = PiSessionHostModule.sessions.get(sessionId)!;
@@ -892,6 +897,13 @@ class PiSessionHostModule {
       // 展示 entry 的模型文本取实际送给 pi 的 text（逐字相同，投影才认领得上）
       const displayData = toDisplayData(text, display);
       try {
+        if (
+          retry &&
+          (await retryHostSession(hosted.session, retry, hosted.systemPromptRef.current, signal))
+        ) {
+          hosted.lastActive = Date.now();
+          return { ok: true };
+        }
         // 渲染端只传定位信息（path/dataUrl），主进程读文件转 pi 的 base64 ImageContent
         const piImages = (
           await Promise.all((images ?? []).map(image => readPromptImage(image, signal)))

@@ -97,7 +97,7 @@ export const ConversationTreePanel = memo(function ConversationTreePanel({
         })}
       </ul>
       <p className="text-tau-tiny text-ink-3 border-line-1 shrink-0 border-t px-2.5 py-1.5">
-        点一行切到那条分支。在回答上「从这里创建分支」，或编辑、重新生成都会产生新分支。
+        点一行切到那条分支。编辑、重新生成或「从这里创建分支」会保留新版本；未产出结果的重试不产生分支。
       </p>
     </div>
   );

@@ -13,6 +13,7 @@ import type {
   PiHostToolSpec,
   PiPromptDisplay,
   PiPromptImage,
+  PiPromptRetry,
   PiSessionCreateRequestV2,
   PiSessionLocation,
   PiToolCallPayload,
@@ -76,9 +77,10 @@ export function piSessionPrompt(
   sessionId: string,
   text: string,
   images?: PiPromptImage[],
-  display?: PiPromptDisplay
+  display?: PiPromptDisplay,
+  retry?: PiPromptRetry
 ): Promise<Outcome> {
-  return invoke<Outcome>("pi-session:prompt", { sessionId, text, images, display });
+  return invoke<Outcome>("pi-session:prompt", { sessionId, text, images, display, retry });
 }
 
 /**
