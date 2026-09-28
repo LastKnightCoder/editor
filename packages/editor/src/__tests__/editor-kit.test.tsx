@@ -1,5 +1,5 @@
 // P6：EditorKit 的组成、冲突检测、派生与嵌套继承。
-import { act } from "react";
+import { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 import type { Descendant } from "slate";
@@ -7,6 +7,7 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
 import { Editor, createBareEditorKit, createEditorKit } from "../index";
+import type { EditorRef } from "../types/editor";
 import Base from "../extensions/base";
 import type IExtension from "../extensions/types";
 import { createDefaultEditorSlots, IEditorSlots } from "../services";
@@ -86,6 +87,18 @@ describe("createEditorKit", () => {
     expect(derived.registry.get(IEditorSlots)).toBe(slot);
     expect(kit.registry.get(IEditorSlots)).not.toBe(slot);
   });
+
+  it("只覆盖服务的派生 kit 与原 kit 共享装配（否则编辑器会重建）", () => {
+    const kit = createEditorKit(slots);
+    const derived = kit.extend({
+      services: [register => register(IEditorSlots, createDefaultEditorSlots())],
+    });
+    expect(derived.assembly).toBe(kit.assembly);
+    // 追加扩展则确实换了扩展集合，装配必须重算
+    expect(kit.extend({ extensions: [markerExtension("marker", "a")] }).assembly).not.toBe(
+      kit.assembly
+    );
+  });
 });
 
 describe("<Editor kit> 与嵌套继承", () => {
@@ -128,6 +141,26 @@ describe("<Editor kit> 与嵌套继承", () => {
     );
     expect(host.querySelector("[data-mark='instance']")).toBeTruthy();
     expect(host.querySelector("[data-mark='outer']")).toBeNull();
+  });
+
+  it("换成只覆盖服务的派生 kit 不重建编辑器（发起协作时 kit 会这样派生）", async () => {
+    const kit = createEditorKit(slots);
+    // 用 ref 读当前实例：onInit 有首次挂载守卫，编辑器重建也不会再触发，拿它判断会假绿
+    const editorRef = createRef<EditorRef>();
+    const view = (current: typeof kit) => (
+      <Editor kit={current} ref={editorRef} initValue={docOf("paragraph")} readonly />
+    );
+    await render(view(kit));
+    const before = editorRef.current!.getEditor();
+    const derived = kit.extend({
+      services: [register => register(IEditorSlots, createDefaultEditorSlots())],
+    });
+
+    await act(async () => {
+      root?.render(<DndProvider backend={HTML5Backend}>{view(derived)}</DndProvider>);
+    });
+
+    expect(editorRef.current!.getEditor()).toBe(before);
   });
 
   it("嵌套编辑器默认继承外层 kit", async () => {
