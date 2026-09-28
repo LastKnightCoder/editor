@@ -69,6 +69,12 @@ export {
 } from "./utils/code-block-language";
 export { renderMermaidSvg } from "./utils/mermaid-render-core";
 export { markdownCustomDirectives } from "./utils/markdown-custom-directives";
+export {
+  CONTENT_ELEMENT_TYPES,
+  PRIVATE_BLOCK_TYPES,
+  privateBlockPlaceholderText,
+  type ContentElementType,
+} from "./utils/editor-element-coverage";
 export { applyDarkTheme } from "./components/PlantUML";
 
 // ChatInputArea 组件

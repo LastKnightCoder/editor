@@ -593,6 +593,18 @@
   }
 
   /* content-link */
+  /* 只读占位块：附件文件与白板 / 数据库数据都不随发布产出（见 editorExtensions/passiveExtensions） */
+  .blog-private-block,
+  .blog-file-attachment {
+    margin: 0.75rem 0;
+    padding: 0.75rem 1rem;
+    border: 1px dashed var(--color-border-ring-heavy);
+    border-radius: 0.75rem;
+    color: var(--color-text-secondary);
+    font-size: 0.875rem;
+    text-align: center;
+  }
+
   .blog-content-link {
     cursor: pointer;
     color: var(--color-text-primary);
