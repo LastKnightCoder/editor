@@ -336,7 +336,8 @@ M4 = 会话管理。本批 = 原计划 M4-a（目录表 + resume）+ M4-b（投�
 ~/.editor/browser-sessions/<页面键>/     扩展对话（页面键 = URL 去 hash 的 sha256 前 32 位；无索引表，不同步）
 <库>.db · chat_session                   目录表：id = pi 会话 id，scope + domainRef 分桶，只存元数据
                                          （标题/分组/置顶/归档/消息数），sessionFile 为相对文件名；
-                                         一行一对话一文件，分支在文件内部的会话树上（M4-d）
+                                         一行一对话一文件，分支在文件内部的会话树上（M4-d）；
+                                         旧聊天表 M8-d 起开库即退役（legacy-chat-retirement）
 同步                                     .db → <库名>.sessions.zip → 版本信息（共用一个版本号）
 
 主进程：pi-session-paths.ts（目录取法 + 防穿越）、pi-session-store.ts（投影/改历史入口/扩展列表/打包）、
@@ -741,7 +742,7 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
 - **M5** `2a8123b2b` 浏览器扩展：侧栏对话由主进程驱动（`/aiServerMain`）+ 协议 v2 + 提问审批走桌面宿主 + 停止真正生效 + 断连立即收尾（见「M5 实施记录」）
 - **M5 追加** `59431d096`：侧栏重开接回在跑的回答（接回快照 + lastSeq 续接 + 换对话放下不停）
 - **M8-a** `6840932aa`：删除 `packages/agent` 整包（5 个符号内联/改用桌面与 shared 类型）
-- **M8-d**：旧聊天表迁移记账后 DROP（带备份）+ 目录表分支列删除 + 迁移时当场合并分支 + 视频笔记/学习项目级联删目录表 + 移动端补值去掉
+- **M8-d** `7802cdb0c`：旧聊天表迁移记账后 DROP（带备份）+ 目录表分支列删除 + 迁移时当场合并分支 + 视频笔记/学习项目级联删目录表 + 移动端补值去掉
 - **M8-c** `6bc0dba58`：删除 chat_run 表（schema/parity/handler，开库 DROP，桌面与移动端）+ 主进程 stream-fetch 模块
 - **M8-b** `867c13f61`：删除 `modules/llm.ts`（Minimax Key 测试改走 pi `pi-ai:verify-key`）+ 扩展本地提问机制 + `sanitizeToolMessages` + localStorage 遗留键
 - **修正一** `784d59ebb`：去闭包快照+会话常驻 reducer（修吞消息）
