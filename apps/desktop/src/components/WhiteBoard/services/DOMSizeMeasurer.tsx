@@ -6,6 +6,9 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import { Descendant } from "slate";
 import { TEXT_BOX, TextBoxPadding, toCssPadding } from "../constants/text-style";
 
+/** 与 RichText 的 .richTextContainer 保持一致（index.module.less），改那边要同步这里 */
+const RICH_TEXT_BLOCK_DISTANCE = "10px";
+
 const DEFAULT_PADDING: TextBoxPadding = {
   top: TEXT_BOX.paddingY,
   right: TEXT_BOX.paddingX,
@@ -263,6 +266,9 @@ export class DOMSizeMeasurer {
               width: "100%",
               padding: toCssPadding(padding),
               boxSizing: "border-box",
+              // 真实渲染容器（RichText 的 .richTextContainer）设了 10px；
+              // 离屏 wrapper 挂在 body 下会继承全局的 1.25em，块间距偏大会把高度测多
+              ["--block-distance" as string]: RICH_TEXT_BLOCK_DISTANCE,
             }}
           >
             <Editor kit={getContentKit()} initValue={content} readonly={true} />
@@ -395,6 +401,9 @@ export class DOMSizeMeasurer {
               maxWidth: "none",
               padding: toCssPadding(padding),
               boxSizing: "border-box",
+              // 真实渲染容器（RichText 的 .richTextContainer）设了 10px；
+              // 离屏 wrapper 挂在 body 下会继承全局的 1.25em，块间距偏大会把高度测多
+              ["--block-distance" as string]: RICH_TEXT_BLOCK_DISTANCE,
             }}
           >
             <Editor kit={getContentKit()} initValue={content} readonly={true} />
