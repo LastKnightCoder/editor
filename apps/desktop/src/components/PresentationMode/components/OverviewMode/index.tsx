@@ -1,5 +1,5 @@
 import { Descendant } from "slate";
-import { getLibraryContentKit } from "@/services/editorKit";
+import { getContentKit } from "@/services/editorKit";
 import { Editor } from "@tau/editor/src";
 import styles from "./index.module.less";
 import { useEffect, useRef, useState } from "react";
@@ -111,7 +111,7 @@ const OverviewMode = ({
         >
           <div className={styles.overviewSlideContent}>
             <Editor
-              kit={getLibraryContentKit()}
+              kit={getContentKit()}
               readonly={true}
               initValue={slide}
               className={styles.overviewEditor}

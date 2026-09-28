@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { getLibraryContentKit } from "@/services/editorKit";
+import { getContentKit } from "@/services/editorKit";
 import { Editor } from "@tau/editor/src";
 import type { ICard } from "@/types";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -19,7 +19,7 @@ export function CardContentPreview({
   return (
     <ErrorBoundary>
       <Editor
-        kit={getLibraryContentKit()}
+        kit={getContentKit()}
         key={revision}
         readonly
         initValue={preview.length ? preview : undefined}

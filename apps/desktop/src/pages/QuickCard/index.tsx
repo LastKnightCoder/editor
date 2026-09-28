@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { getLibraryContentKit } from "@/services/editorKit";
+import { getContentKit } from "@/services/editorKit";
 import { Descendant } from "slate";
 import { Button, App } from "antd";
 
@@ -85,7 +85,7 @@ const QuickCard = () => {
       <div className={styles.editorContainer}>
         <ErrorBoundary>
           <Editor
-            kit={getLibraryContentKit()}
+            kit={getContentKit()}
             className={styles.editor}
             ref={editorRef}
             initValue={initValue}

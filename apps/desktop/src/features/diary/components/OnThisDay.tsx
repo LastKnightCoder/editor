@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { getLibraryContentKit } from "@/services/editorKit";
+import { getContentKit } from "@/services/editorKit";
 import { History, X } from "lucide-react";
 import { Editor } from "@tau/editor/src";
 import { IconButton, Tag, cn, useEdgeFade } from "@tau/ui";
@@ -161,7 +161,7 @@ function EchoItem({
       <div className="min-w-0">
         <ErrorBoundary>
           <Editor
-            kit={getLibraryContentKit()}
+            kit={getContentKit()}
             key={moment.updateTime}
             readonly
             initValue={moment.content.length ? moment.content : undefined}

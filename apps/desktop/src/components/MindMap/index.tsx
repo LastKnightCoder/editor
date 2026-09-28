@@ -10,7 +10,7 @@ import React, {
   useImperativeHandle,
   ReactNode,
 } from "react";
-import { getLibraryContentKit } from "@/services/editorKit";
+import { getContentKit } from "@/services/editorKit";
 import clsx from "classnames";
 import { Editor, EditorThemeOverride } from "@tau/editor/src";
 import { MindUtil } from "@/components/WhiteBoard/utils/MindUtil";
@@ -366,7 +366,7 @@ const MindMapMeasureNode = ({
     >
       <div className="**:data-slate-editor:text-sm **:data-slate-editor:leading-[1.6] **:data-slate-editor:outline-none pointer-events-none [&_.slate-Editor]:bg-transparent">
         <EditorThemeOverride mode={visualStyle.editorTheme}>
-          <Editor kit={getLibraryContentKit()} initValue={flattened.node.text} readonly />
+          <Editor kit={getContentKit()} initValue={flattened.node.text} readonly />
         </EditorThemeOverride>
       </div>
     </div>
@@ -382,7 +382,7 @@ const MindMapNodeContent = memo(
   ({ value, editorTheme }: MindMapNodeContentProps) => {
     return (
       <EditorThemeOverride mode={editorTheme}>
-        <Editor kit={getLibraryContentKit()} initValue={value} readonly />
+        <Editor kit={getContentKit()} initValue={value} readonly />
       </EditorThemeOverride>
     );
   },

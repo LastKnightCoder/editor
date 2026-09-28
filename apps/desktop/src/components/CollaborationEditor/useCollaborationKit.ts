@@ -6,7 +6,7 @@ import {
   type ServiceRegistration,
 } from "@tau/editor/src";
 import type { EditorCollaborationBinding } from "@tau/editor/src/collaboration/types";
-import { getLibraryContentKit } from "@/services/editorKit";
+import { getContentKit } from "@/services/editorKit";
 import { createAssetMedia } from "./AssetMedia";
 
 /**
@@ -15,11 +15,11 @@ import { createAssetMedia } from "./AssetMedia";
  */
 export function useCollaborationKit(
   binding?: EditorCollaborationBinding,
-  /** 场景 kit（ER-016）；缺省为库内正文，因为绝大多数协作内容就是库内正文 */
+  /** 场景 kit（ER-016）；缺省为content 正文，因为绝大多数协作内容就是content 正文 */
   scenarioKit?: EditorKit
 ): EditorKit {
   return useMemo(() => {
-    const kit = scenarioKit ?? getLibraryContentKit();
+    const kit = scenarioKit ?? getContentKit();
     if (!binding || binding.mode === "local") return kit;
     const base = kit.registry;
     const services: ServiceRegistration = register => {
