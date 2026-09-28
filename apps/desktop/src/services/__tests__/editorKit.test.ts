@@ -1,7 +1,5 @@
 /**
- * kit 的两档扩展边界（docs/editor-refactor P6.5）。
- * 重点是文件档不含白板 / 数据库——这两种块在 Markdown 里没有对应语法，
- * 给了插入入口就会让用户插进去、保存回 .md 时丢内容。
+ * 装载守卫（docs/editor-refactor P6.5）：kit 只建一次，宿主扩展没就位就建会静默少块。
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type IExtension from "@tau/editor/src/extensions/types";
@@ -34,30 +32,15 @@ describe("desktop editor kit", { timeout: 30_000 }, () => {
     expect(() => getDesktopKit()).toThrow(/宿主扩展尚未装载/);
   });
 
-  it("BLOCKS_LOST_IN_MARKDOWN 里的类型在 codec 表里确实没有 serializer", async () => {
-    const { BLOCKS_LOST_IN_MARKDOWN } = await import("../editorKit");
-    const { desktopMarkdownCodecs } = await import("@/utils/markdown-codecs");
-    for (const type of BLOCKS_LOST_IN_MARKDOWN) {
-      const codec = desktopMarkdownCodecs.find(item => item.type === type);
-      expect(codec?.serializer, `${type} 已经能序列化回 Markdown，应从清单移除`).toBeUndefined();
-    }
-  });
-
-  it("库内内容的 kit 含白板与数据库块，Markdown 文件的 kit 不含", async () => {
+  it("装载后 kit 含宿主扩展，调用点不必再传", async () => {
     const store = (await import("@/stores/useDynamicExtensionsStore")).default;
     store.setState({
-      extensions: [extensionOf("content-link"), extensionOf("whiteboard"), extensionOf("database")],
+      extensions: [extensionOf("content-link"), extensionOf("whiteboard")],
       initialized: true,
     });
-    const { getDesktopKit, getDesktopFileKit } = await import("../editorKit");
-
+    const { getDesktopKit } = await import("../editorKit");
     expect(typesOf(getDesktopKit())).toEqual(
-      expect.arrayContaining(["webview", "content-link", "whiteboard", "database"])
+      expect.arrayContaining(["webview", "content-link", "whiteboard"])
     );
-
-    const fileTypes = typesOf(getDesktopFileKit());
-    expect(fileTypes).toEqual(expect.arrayContaining(["webview", "content-link"]));
-    expect(fileTypes).not.toContain("whiteboard");
-    expect(fileTypes).not.toContain("database");
   });
 });

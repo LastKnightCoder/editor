@@ -30,7 +30,7 @@ function requireHostExtensions() {
 
 let cached: EditorKit | null = null;
 
-/** 库内内容（卡片、文章、日记、项目文档…存 slate JSON）的 kit：内置 + 全部宿主扩展 */
+/** 整个应用共用的 kit：内置 + 全部宿主扩展 */
 export function getDesktopKit(): EditorKit {
   if (!cached) {
     const { extensions } = requireHostExtensions();
@@ -42,30 +42,6 @@ export function getDesktopKit(): EditorKit {
     });
   }
   return cached;
-}
-
-/**
- * 存不回 Markdown 的块：导出时数据会丢，所以编辑 .md 文件时连插入入口都不给。
- * 判据是「在 desktop 的 codec 表里没有 serializer」，由 editorKit 的单测钉住。
- */
-export const BLOCKS_LOST_IN_MARKDOWN = ["whiteboard", "database"];
-
-let fileCached: EditorKit | null = null;
-
-/** Markdown 文件编辑的 kit：去掉存不回 Markdown 的块 */
-export function getDesktopFileKit(): EditorKit {
-  if (!fileCached) {
-    const { extensions } = requireHostExtensions();
-    fileCached = createEditorKit({
-      extensions: [
-        ...createDesktopEditorExtensions(),
-        ...extensions.filter(extension => !BLOCKS_LOST_IN_MARKDOWN.includes(extension.type)),
-      ],
-      services: [desktopEditorServices],
-      override: true,
-    });
-  }
-  return fileCached;
 }
 
 const bareCache = new Map<readonly IExtension[], EditorKit>();
