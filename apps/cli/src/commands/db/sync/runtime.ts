@@ -4,9 +4,11 @@ import Database from "better-sqlite3";
 import sqliteVec from "sqlite-vec";
 import {
   acquireDatabaseSyncLock,
+  assertDatabaseSyncLockOwned,
   assertCompatibleSync,
   recoverSessionDownload,
   sessionDirectoryOf,
+  readSnapshotHead,
 } from "@tau/db-schema/sync";
 import { closeDataAccess } from "../../../data-access/index.js";
 import { isAppRunning } from "../../../data-access/notify.js";
@@ -21,13 +23,14 @@ export async function readRemoteInfo(
   required = false
 ): Promise<IDatabaseInfo> {
   const object = `database_${name}.json`;
-  if (!(await provider.fileExists(object))) {
-    if (required) throw new Error("远端数据库不存在");
-    return { version: 0 };
-  }
-  const info = JSON.parse(
-    new TextDecoder().decode(await provider.downloadFile(object))
-  ) as IDatabaseInfo;
+  const info = await readSnapshotHead(provider, object);
+  if (
+    required &&
+    info.version === 0 &&
+    !info.databaseObject &&
+    !(await provider.fileExists(object))
+  )
+    throw new Error("远端数据库不存在");
   if (!info || !Number.isSafeInteger(info.version) || info.version < 0)
     throw new Error("远端版本号无效");
   assertCompatibleSync(info);
@@ -35,6 +38,7 @@ export async function readRemoteInfo(
 }
 
 export interface SyncContext {
+  assertLease(): void;
   databasePath: string;
   sessionDir: string;
   saveVersion(version: number): Promise<void>;
@@ -76,9 +80,11 @@ export async function withSyncDatabase<T>(
     }
     recoverSessionDownload(databasePath);
     result = await run({
+      assertLease: () => assertDatabaseSyncLockOwned(databasePath),
       databasePath,
       sessionDir: sessionDirectoryOf(databasePath),
       saveVersion: async version => {
+        assertDatabaseSyncLockOwned(databasePath);
         if (token) await rpcRequest("cli-sync:version", [token, version]);
         else updateDatabaseVersion(name, version);
       },

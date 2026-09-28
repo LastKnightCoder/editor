@@ -2,3 +2,4 @@
 export * from "./src/sync-version";
 export * from "./src/session-snapshot";
 export * from "./src/sync-lock";
+export * from "./src/snapshot-publication";

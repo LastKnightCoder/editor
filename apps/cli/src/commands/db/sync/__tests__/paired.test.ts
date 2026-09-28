@@ -46,6 +46,12 @@ vi.mock("../../../../utils/sync-providers/factory.js", () => ({
       state.remote.set(name, content);
       return true;
     },
+    createFileIfAbsent: async (name: string, content: Uint8Array) => {
+      state.uploads.push(name);
+      if (state.uploads.length === state.failAt || state.remote.has(name)) return false;
+      state.remote.set(name, content);
+      return true;
+    },
     getProviderName: () => "test",
   }),
 }));
@@ -147,8 +153,13 @@ it("上传不可变配对对象，最后发布版本，旧对象保持原样", a
   );
   await runSyncPush();
   const info = decode(state.remote.get(infoKey)!);
-  expect(state.uploads).toEqual([info.databaseObject, info.sessionsObject, infoKey]);
-  expect(info).toMatchObject({ version: 2, dataModelVersion: 2 });
+  expect(state.uploads).toEqual([
+    info.databaseObject,
+    info.sessionsObject,
+    `${infoKey}.next-1`,
+    infoKey,
+  ]);
+  expect(info).toMatchObject({ version: 2, dataModelVersion: 3 });
   expect(state.remote.get("old.db")).toEqual(Buffer.from("旧快照"));
   expect(version()).toBe(2);
   expect(isDatabaseSyncLocked(join(state.root, "data.db"))).toBe(false);

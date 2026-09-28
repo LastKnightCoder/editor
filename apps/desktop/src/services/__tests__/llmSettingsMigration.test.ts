@@ -135,7 +135,7 @@ describe("migrateLlmSettingsToV2", () => {
     expect(result.report.droppedUsageKeys.sort()).toEqual(["titleSummary", "webClip"]);
   });
 
-  it("与 provider 主协议不一致的模型被跳过并记录原因", () => {
+  it("混合协议逐模型保留，功能分配仍指向原模型", () => {
     const result = migrateLlmSettingsToV2({
       llmConfigs: [
         provider({
@@ -145,11 +145,14 @@ describe("migrateLlmSettingsToV2", () => {
           ],
         }),
       ],
-      llmUsageSettings: {},
+      llmUsageSettings: { chat: { providerId: "prov-1", modelName: "混入的 claude" } },
     });
-    expect(result.providers[0].models.map(m => m.id)).toEqual(["主格式模型"]);
-    expect(result.report.skippedModels).toHaveLength(1);
-    expect(result.report.skippedModels[0].modelName).toBe("混入的 claude");
+    expect(result.providers[0].models.map(m => [m.id, m.api])).toEqual([
+      ["主格式模型", "openai-completions"],
+      ["混入的 claude", "anthropic-messages"],
+    ]);
+    expect(result.report.skippedModels).toEqual([]);
+    expect(result.usage.chat).toEqual({ providerId: "prov-1", modelId: "混入的 claude" });
   });
 
   it("幂等：空输入产出空结果", () => {

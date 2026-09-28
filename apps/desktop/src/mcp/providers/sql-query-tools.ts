@@ -1,4 +1,5 @@
 import { invoke } from "@/electron";
+import { bindDatabaseCommands } from "@/services/command-context";
 import type { ToolParameterSchema } from "@/types";
 import type { MCPProviderDefinition } from "./types";
 
@@ -38,8 +39,9 @@ export const sqlQueryToolsProvider: MCPProviderDefinition = {
         required: ["sql"],
         additionalProperties: false,
       },
-      executor: async args => {
-        const response = await invoke<{
+      executor: async (args, context) => {
+        const scoped = bindDatabaseCommands({ invoke }, context);
+        const response = await scoped.invoke<{
           result?: unknown;
           error?: { code: string; message: string; hint?: string };
         }>("sql-query", {

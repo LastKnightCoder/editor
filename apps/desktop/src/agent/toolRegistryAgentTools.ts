@@ -35,6 +35,7 @@ export const getToolRegistryAgentTools = (options?: {
     .filter(tool => options?.includeBuiltinSkillTools || !BUILTIN_SKILL_TOOL_NAMES.has(tool.name))
     .map(tool => ({
       name: tool.name,
+      executionIdentity: tool.executionIdentity,
       description: tool.description,
       source: tool.source,
       parameters: tool.parameters,

@@ -37,6 +37,18 @@ export class S3SyncProvider implements ISyncProvider {
     return this.pathPrefix ? `${this.pathPrefix}/${objectName}` : objectName;
   }
 
+  async createFileIfAbsent(objectName: string, content: Uint8Array): Promise<boolean> {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: this.getObjectKey(objectName),
+        Body: content,
+        IfNoneMatch: "*",
+      })
+    );
+    return true;
+  }
+
   async uploadFile(objectName: string, content: Uint8Array): Promise<boolean> {
     const command = new PutObjectCommand({
       Bucket: this.bucket,
@@ -66,8 +78,10 @@ export class S3SyncProvider implements ISyncProvider {
       });
       await this.client.send(command);
       return true;
-    } catch {
-      return false;
+    } catch (error) {
+      if ((error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode === 404)
+        return false;
+      throw error;
     }
   }
 

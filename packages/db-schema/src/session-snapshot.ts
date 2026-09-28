@@ -12,7 +12,7 @@ import {
   readSync,
 } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import AdmZip from "adm-zip";
 
 export interface SnapshotDatabase {
@@ -30,20 +30,71 @@ const resolveFile = (dir: string, name: string) => {
   return join(dir, name);
 };
 
+const MANIFEST = "sessions-manifest.json";
+const digest = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+const ENTRY_TYPES = new Set([
+  "message",
+  "thinking_level_change",
+  "model_change",
+  "usage",
+  "compaction",
+  "branch_summary",
+  "custom",
+  "custom_message",
+  "context_edit",
+  "label",
+  "session_info",
+]);
+
 /** 只读校验，不能用打开代理会话的方式升级或改写同步载荷。 */
-export function validateSessionDirectory(dir: string): void {
-  if (!existsSync(dir)) return;
+export function validateSessionDirectory(dir: string): Map<string, { id: string; users: number }> {
+  const sessions = new Map<string, { id: string; users: number }>();
+  if (!existsSync(dir)) return sessions;
   for (const name of readdirSync(dir)) {
     if (!name.endsWith(".jsonl")) continue;
     const entries = readFileSync(resolveFile(dir, name), "utf8")
       .split("\n")
       .filter(line => line.trim())
       .map(line => JSON.parse(line));
-    if (!entries.length || entries[0]?.type !== "session" || typeof entries[0]?.id !== "string")
+    if (
+      !entries.length ||
+      entries[0]?.type !== "session" ||
+      typeof entries[0]?.id !== "string" ||
+      !entries[0].id ||
+      entries[0].version !== 3
+    )
       throw new Error(`无效的会话文件：${name}`);
     if (entries.some(entry => !entry || typeof entry.type !== "string"))
       throw new Error(`无效的会话条目：${name}`);
+    const ids = new Set<string>();
+    let users = 0;
+    for (const entry of entries.slice(1)) {
+      if (
+        !ENTRY_TYPES.has(entry.type) ||
+        typeof entry.id !== "string" ||
+        !entry.id ||
+        ids.has(entry.id) ||
+        (entry.parentId !== null && !ids.has(entry.parentId))
+      )
+        throw new Error(`会话树存在重复、缺失或循环引用：${name}`);
+      for (const key of ["targetId", "firstKeptEntryId", "fromId"]) {
+        if (entry[key] !== undefined && !ids.has(entry[key]))
+          throw new Error(`会话条目引用不存在：${name}`);
+      }
+      if (entry.type === "message") {
+        if (
+          !entry.message ||
+          !["user", "assistant", "toolResult", "system"].includes(entry.message.role) ||
+          !(typeof entry.message.content === "string" || Array.isArray(entry.message.content))
+        )
+          throw new Error(`无效的会话消息：${name}`);
+        if (entry.message.role === "user") users += 1;
+      }
+      ids.add(entry.id);
+    }
+    sessions.set(name, { id: entries[0].id, users });
   }
+  return sessions;
 }
 
 export function validateSessionReferences(
@@ -52,16 +103,20 @@ export function validateSessionReferences(
   openDatabase: OpenSnapshotDatabase
 ): void {
   validateDatabaseFile(databasePath, openDatabase);
-  validateSessionDirectory(dir);
+  const sessions = validateSessionDirectory(dir);
   const db = openDatabase(databasePath);
   try {
     if (!db.prepare("SELECT 1 FROM sqlite_master WHERE name='chat_session'").get()) return;
     const rows = db
-      .prepare("SELECT session_file FROM chat_session WHERE message_count > 0")
-      .all() as Array<{ session_file: string }>;
-    for (const row of rows)
-      if (!existsSync(resolveFile(dir, row.session_file)))
-        throw new Error(`会话包缺少文件：${row.session_file}`);
+      .prepare("SELECT id, session_file, message_count FROM chat_session")
+      .all() as Array<{ id: string; session_file: string; message_count: number }>;
+    for (const row of rows) {
+      resolveFile(dir, row.session_file);
+      const session = sessions.get(row.session_file);
+      if (!session && row.message_count > 0) throw new Error(`会话包缺少文件：${row.session_file}`);
+      if (session && (session.id !== row.id || session.users < row.message_count))
+        throw new Error(`会话内容与目录身份不一致：${row.session_file}`);
+    }
   } finally {
     db.close();
   }
@@ -89,9 +144,16 @@ export function validateDatabaseFile(path: string, openDatabase: OpenSnapshotDat
 
 export function packSessionDir(dir: string): Buffer {
   const zip = new AdmZip();
+  validateSessionDirectory(dir);
+  const files: Record<string, string> = {};
   if (existsSync(dir))
     for (const name of readdirSync(dir))
-      if (name.endsWith(".jsonl")) zip.addLocalFile(resolveFile(dir, name));
+      if (name.endsWith(".jsonl")) {
+        const data = readFileSync(resolveFile(dir, name));
+        files[name] = digest(data);
+        zip.addFile(name, data);
+      }
+  zip.addFile(MANIFEST, Buffer.from(JSON.stringify({ version: 1, files })));
   return zip.toBuffer();
 }
 
@@ -114,15 +176,33 @@ export function replaceSessionDir(
     const emptyZip = archive.length === 22 && archive.subarray(0, 4).toString("hex") === "504b0506";
     if (!entries.length && !emptyZip) throw new Error("会话包内容无法解析");
     const names = new Set<string>();
+    let manifest: { version: number; files: Record<string, string> } | undefined;
     for (const entry of entries) {
       if (entry.isDirectory) continue;
       const name = entry.entryName;
+      if (name === MANIFEST) {
+        if (manifest) throw new Error("会话包包含重复清单");
+        manifest = JSON.parse(entry.getData().toString("utf8"));
+        continue;
+      }
       const file = resolveFile(dir, name);
       if (!name.endsWith(".jsonl") || names.has(name))
         throw new Error("会话包包含不支持或重复的文件");
       names.add(name);
       writeFileSync(file, entry.getData());
     }
+    if (manifest) {
+      if (
+        manifest.version !== 1 ||
+        !manifest.files ||
+        Object.keys(manifest.files).length !== names.size
+      )
+        throw new Error("会话包清单无效");
+      for (const name of names)
+        if (manifest.files[name] !== digest(readFileSync(resolveFile(dir, name))))
+          throw new Error(`会话包完整性校验失败：${name}`);
+    }
+    validateSessionDirectory(dir);
     return backupPath ? { backupPath } : {};
   } catch (error) {
     rmSync(dir, { recursive: true, force: true });

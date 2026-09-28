@@ -1,4 +1,5 @@
 import type { ToolDefinition } from "@/types/tool";
+import { bindDatabaseCommands } from "@/services/command-context";
 import {
   getVLResourcesByProjectId,
   grepVLResourceContent,
@@ -70,9 +71,12 @@ export const createListResourcesTool = (projectId: number): ToolDefinition => ({
     type: "object",
     properties: {},
   },
-  executor: async () => {
+  executor: async (_args, context) => {
     try {
-      const resources: VLResource[] = await getVLResourcesByProjectId(projectId);
+      const resources: VLResource[] = await bindDatabaseCommands(
+        { getVLResourcesByProjectId },
+        context
+      ).getVLResourcesByProjectId(projectId);
 
       if (!resources || resources.length === 0) {
         return stringifyResult({
@@ -642,7 +646,7 @@ export const createUnifiedVibeLearningTool = (
       additionalProperties: false,
     },
     execution: LONG_RUNNING_TOOL_EXECUTION,
-    executor: async args => {
+    executor: async (args, context) => {
       const operation = args.operation as keyof typeof operations;
       const selected = operations[operation];
       if (!selected) {
@@ -653,7 +657,7 @@ export const createUnifiedVibeLearningTool = (
           }),
         };
       }
-      return selected.executor((args.input as Record<string, unknown> | undefined) ?? {});
+      return selected.executor((args.input as Record<string, unknown> | undefined) ?? {}, context);
     },
   };
 };

@@ -133,6 +133,7 @@ export interface GenerationRunCallbacks {
 
 /** 按次注入的工具（覆盖全局注册表里的同名工具）：后台任务用它绑定自己的项目 */
 export interface GenerationRunOptions {
+  databaseName?: string;
   additionalTools?: Array<{
     type: "function";
     function: {
@@ -222,20 +223,24 @@ export function runGenerationTask(
   });
   const handle = runPiAgent(
     {
+      databaseName: options.databaseName,
       provider,
       model,
       messages: buildResult.messages,
       additionalTools: options.additionalTools,
       ...(options.executeToolCall
         ? {
-            executeAdditionalTool: async ({ toolName, args }) => {
-              const outcome = await options.executeToolCall!({
-                id: "",
-                function: {
-                  name: toolName,
-                  arguments: args === undefined ? "" : JSON.stringify(args),
+            executeAdditionalTool: async ({ toolName, args, signal }) => {
+              const outcome = await options.executeToolCall!(
+                {
+                  id: "",
+                  function: {
+                    name: toolName,
+                    arguments: args === undefined ? "" : JSON.stringify(args),
+                  },
                 },
-              });
+                { signal }
+              );
               if (!outcome) return null;
               return {
                 content: outcome.content ?? "",

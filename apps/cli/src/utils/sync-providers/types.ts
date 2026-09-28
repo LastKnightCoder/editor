@@ -1,4 +1,5 @@
 export interface ISyncProvider {
+  createFileIfAbsent(objectName: string, content: Uint8Array): Promise<boolean>;
   uploadFile(objectName: string, content: Uint8Array): Promise<boolean>;
   downloadFile(objectName: string): Promise<Uint8Array>;
   fileExists(objectName: string): Promise<boolean>;

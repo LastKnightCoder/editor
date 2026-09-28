@@ -4,6 +4,7 @@
  */
 
 import { create } from "zustand";
+import { getChatDatabase } from "@/services/chatDatabase";
 import type { ToolCallExecutionState } from "@/types/llm";
 import type { GenerateAppKey } from "../appMeta";
 
@@ -21,6 +22,7 @@ export interface VLTaskTurn {
 }
 
 export interface VLTask {
+  databaseName?: string;
   id: string;
   projectId: number;
   kind: VLTaskKind;
@@ -93,7 +95,12 @@ export const useVLTaskStore = create<VLTaskState>(set => ({
 function latest(tasks: Record<string, VLTask>, match: (t: VLTask) => boolean) {
   let found: VLTask | undefined;
   for (const task of Object.values(tasks)) {
-    if (match(task) && (!found || task.startedAt > found.startedAt)) found = task;
+    if (
+      task.databaseName?.replace(/\.db$/, "") === getChatDatabase() &&
+      match(task) &&
+      (!found || task.startedAt > found.startedAt)
+    )
+      found = task;
   }
   return found;
 }

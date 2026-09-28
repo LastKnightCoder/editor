@@ -318,7 +318,6 @@ const AutoSyncManager = () => {
       let success = false;
       try {
         success = await download({
-          skipReconnectAfterSuccess: true,
           onProgress: ({ value, status }) => {
             if (canceled) return;
             setDownloadState({

@@ -71,6 +71,7 @@ import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { PiSessionAccess } from "./pi-session-access";
 import {
   acquireDatabaseSyncLock,
+  assertDatabaseSyncLockOwned,
   assertDatabaseNotSyncing,
   isDatabaseSyncLocked,
 } from "@tau/db-schema/sync";
@@ -87,6 +88,8 @@ export interface PiSessionClient {
 }
 
 interface HostedSession {
+  toolSpecs: PiHostToolSpec[];
+  toolScope?: string;
   operations: Map<AbortController, Promise<unknown>>;
   closing?: Promise<void>;
   session: AgentSession;
@@ -109,6 +112,7 @@ interface HostedSession {
 }
 
 export interface PiSessionCreateRequest {
+  toolScope?: string;
   databaseName?: string;
   sessionId: string;
   scope: string;
@@ -161,6 +165,16 @@ class PiSessionHostModule {
 
   public static init() {
     ipcMain.handle(
+      "pi-session:assert-library",
+      (_event, { databaseName }: { databaseName: string }) =>
+        PiSessionHostModule.guard(async () => {
+          assertDatabaseSyncLockOwned(
+            join(PathUtil.getAppDir(), `${databaseName.replace(/\.db$/, "")}.db`)
+          );
+          return {};
+        })
+    );
+    ipcMain.handle(
       "pi-session:lock-library",
       async (event, { databaseName }: { databaseName: string }) =>
         PiSessionHostModule.guard(async () => {
@@ -198,6 +212,9 @@ class PiSessionHostModule {
         PiSessionHostModule.guard(async () => {
           if (!PiSessionHostModule.libraryLeases.has(chatSessionDirOf(databaseName)))
             throw new Error("同步尚未锁定会话目录");
+          assertDatabaseSyncLockOwned(
+            join(PathUtil.getAppDir(), `${databaseName.replace(/\.db$/, "")}.db`)
+          );
           installSessionDownload(
             join(PathUtil.getAppDir(), `${databaseName.replace(/\.db$/, "")}.db`),
             chatSessionDirOf(databaseName),
@@ -506,6 +523,8 @@ class PiSessionHostModule {
         sessionId: found,
         modelRef: hosted?.modelRef,
         thinkingLevel: hosted?.thinkingLevel,
+        toolSpecs: hosted?.toolSpecs,
+        toolScope: hosted?.toolScope,
       };
     });
     ipcMain.handle(
@@ -537,11 +556,13 @@ class PiSessionHostModule {
           sessionId,
           toolCallId,
           result,
-        }: { sessionId: string; toolCallId: string; result: unknown }
+          executionId,
+        }: { sessionId: string; toolCallId: string; result: unknown; executionId?: string }
       ) => {
+        if (!executionId) return { ok: false, error: "缺少工具执行身份" };
         PiSessionHostModule.sessions
           .get(sessionId)
-          ?.bridge.handleResult(toolCallId, result as never);
+          ?.bridge.handleResult(toolCallId, result as never, executionId);
         return { ok: true };
       }
     );
@@ -549,9 +570,17 @@ class PiSessionHostModule {
       "pi-session:tool-error",
       async (
         _event,
-        { sessionId, toolCallId, error }: { sessionId: string; toolCallId: string; error: string }
+        {
+          sessionId,
+          toolCallId,
+          error,
+          executionId,
+        }: { sessionId: string; toolCallId: string; error: string; executionId?: string }
       ) => {
-        PiSessionHostModule.sessions.get(sessionId)?.bridge.handleError(toolCallId, error);
+        if (!executionId) return { ok: false, error: "缺少工具执行身份" };
+        PiSessionHostModule.sessions
+          .get(sessionId)
+          ?.bridge.handleError(toolCallId, error, executionId);
         return { ok: true };
       }
     );
@@ -563,9 +592,18 @@ class PiSessionHostModule {
           sessionId,
           toolCallId,
           partial,
-        }: { sessionId: string; toolCallId: string; partial: Record<string, unknown> }
+          executionId,
+        }: {
+          sessionId: string;
+          toolCallId: string;
+          partial: Record<string, unknown>;
+          executionId?: string;
+        }
       ) => {
-        PiSessionHostModule.sessions.get(sessionId)?.bridge.handleUpdate(toolCallId, partial);
+        if (!executionId) return { ok: false, error: "缺少工具执行身份" };
+        PiSessionHostModule.sessions
+          .get(sessionId)
+          ?.bridge.handleUpdate(toolCallId, partial, executionId);
         return { ok: true };
       }
     );
@@ -780,6 +818,8 @@ class PiSessionHostModule {
         }
       });
       PiSessionHostModule.sessions.set(request.sessionId, {
+        toolSpecs: structuredClone(request.customTools ?? []),
+        toolScope: request.toolScope,
         operations: new Map(),
         session,
         unsubscribe,

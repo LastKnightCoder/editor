@@ -169,6 +169,8 @@ export function graftSessionFile(targetFile: string, sourceFile: string): GraftO
     grafted.add(entry.id);
   }
 
+  // 没有新正文也可能存在独有的删除状态，不能删掉唯一承载它的源分支。
+  if (lines.length === 0 && prefixOmits.length > 0) return { kind: "unrelated" };
   if (lines.length === 0) return { kind: "merged", grafted: 0 };
   const leafId = target.getLeafId();
   lines.push({

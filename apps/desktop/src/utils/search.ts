@@ -1,4 +1,5 @@
 import { SearchParams, SearchResult, IndexParams, IndexType } from "@/types";
+import { bindDatabaseCommands, type CommandScope } from "@/services/command-context";
 import {
   searchHybridContent,
   indexFTSContent,
@@ -19,9 +20,12 @@ import {
  */
 export const searchContent = async (
   searchParams: SearchParams,
+  scope?: CommandScope
 ): Promise<SearchResult[]> => {
   try {
-    return await searchHybridContent(searchParams);
+    return await bindDatabaseCommands({ searchHybridContent }, scope).searchHybridContent(
+      searchParams
+    );
   } catch (error) {
     console.error("搜索内容失败:", error);
     return [];
@@ -33,9 +37,7 @@ export const searchContent = async (
  * @param type 内容类型（可选）
  * @returns [FTS索引结果, 向量索引结果]
  */
-export const getAllIndexResults = async (
-  type?: IndexType,
-): Promise<SearchResult[]> => {
+export const getAllIndexResults = async (type?: IndexType): Promise<SearchResult[]> => {
   try {
     // 并行获取FTS和向量索引结果
     const vecResults = await getAllVecDocumentResults(type);
@@ -52,9 +54,7 @@ export const getAllIndexResults = async (
  * @param indexParams 索引参数
  * @returns 是否成功
  */
-export const indexContent = async (
-  indexParams: IndexParams,
-): Promise<boolean> => {
+export const indexContent = async (indexParams: IndexParams): Promise<boolean> => {
   try {
     const indexTypes = indexParams.indexTypes || ["fts", "vec"];
     const results: boolean[] = [];
@@ -71,7 +71,7 @@ export const indexContent = async (
       return true;
     }
 
-    return results.every((result) => result);
+    return results.every(result => result);
   } catch (error) {
     console.error("索引内容失败:", error);
     return false;
@@ -83,12 +83,10 @@ export const indexContent = async (
  * @param items 索引参数数组
  * @returns 是否成功
  */
-export const batchIndexContent = async (
-  items: Array<IndexParams>,
-): Promise<boolean> => {
+export const batchIndexContent = async (items: Array<IndexParams>): Promise<boolean> => {
   try {
     const ftsResult = await batchIndexFTSContent(items);
-    const vecResult = items.some((item) => !!item.modelInfo)
+    const vecResult = items.some(item => !!item.modelInfo)
       ? await batchIndexVecDocumentContent(items)
       : true;
 
@@ -105,10 +103,7 @@ export const batchIndexContent = async (
  * @param type 内容类型
  * @returns 是否成功
  */
-export const removeIndex = async (
-  id: number,
-  type: IndexType,
-): Promise<boolean> => {
+export const removeIndex = async (id: number, type: IndexType): Promise<boolean> => {
   try {
     const ftsResult = await removeFTSIndex(id, type);
     const vecResult = await removeVecDocumentIndex(id, type);
@@ -122,7 +117,7 @@ export const removeIndex = async (
 
 const getResultStatus = (
   result: { updateTime: number } | null,
-  updateTime: number,
+  updateTime: number
 ): "unindexed" | "indexed" | "outdated" => {
   if (!result) {
     return "unindexed";
@@ -144,7 +139,7 @@ const getResultStatus = (
 export const getIndexStatus = async (
   id: number,
   type: IndexType,
-  updateTime: number,
+  updateTime: number
 ): Promise<{
   ftsStatus: "unindexed" | "indexed" | "outdated";
   vecStatus: "unindexed" | "indexed" | "outdated";

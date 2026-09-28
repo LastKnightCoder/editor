@@ -9,7 +9,9 @@
 import type { ImageContent } from "@earendil-works/pi-ai";
 import type { LLMModelSetting, LLMProviderSetting, PiThinkingLevel } from "@/types/pi-llm";
 import type { PiHostToolSpec } from "@/types/pi-session";
+import { piToolDefinitionKey } from "@/types/pi-session";
 import type { Skill } from "@/types";
+import type { RegisteredTool } from "@/tools/toolRegistry";
 import { getChatDatabase } from "./chatDatabase";
 import {
   piSessionCreate,
@@ -122,8 +124,19 @@ class PiChatSessionManager {
       providerId: found.modelRef.providerId,
       modelId: found.modelRef.modelId,
       thinkingLevel: found.thinkingLevel,
+      toolUniverse: found.toolSpecs?.map(piToolDefinitionKey).join("\u0000"),
     });
     registerPiToolSessionContext(found.sessionId, {
+      databaseName,
+      sessionTools: getToolRegistryAgentTools({
+        includeBuiltinSkillTools: true,
+        includeDisabled: true,
+        toolScope: found.toolScope,
+      })
+        .filter(tool =>
+          found.toolSpecs?.some(spec => piToolDefinitionKey(spec) === piToolDefinitionKey(tool))
+        )
+        .map(tool => ({ ...tool, executor: tool.execute })),
       conversationKey: key,
     });
     return found.sessionId;
@@ -229,6 +242,7 @@ class PiChatSessionManager {
     const loadout = prebuilt ?? buildToolLoadout(options);
     const customTools = loadout.specs;
     const outcome = await piSessionCreate(sessionId, {
+      toolScope: options.toolScope,
       ...(options.databaseName ? { databaseName: options.databaseName } : {}),
       // scope 用会话键（`<scope前缀>:<chatId>`）：渲染层重载后 find-by-scope 靠它收养会话
       scope: key,
@@ -247,10 +261,10 @@ class PiChatSessionManager {
       throw new Error(outcome.error ?? "pi 会话创建失败");
     }
     registerPiToolSessionContext(sessionId, {
+      databaseName: options.databaseName,
+      sessionTools: loadout.tools,
       toolScope: options.toolScope,
-      scopedTools: getToolRegistryAgentTools({ toolScope: options.toolScope })
-        .filter(tool => tool.source === options.toolScope)
-        .map(tool => ({ ...tool, executor: tool.execute })),
+      scopedTools: loadout.tools.filter(tool => tool.source === options.toolScope),
       conversationKey: key,
       ...(options.toolContext ? { toolContext: options.toolContext } : {}),
     });
@@ -269,6 +283,7 @@ class PiChatSessionManager {
 
 /** 工具装配结果：specs = 交 pi 注册的全集（含停用项），activeToolNames = 本轮活跃子集 */
 export interface ChatToolLoadout {
+  tools: RegisteredTool[];
   specs: PiHostToolSpec[];
   activeToolNames: string[];
   /** 全集指纹：只有它变化才需要重建会话（pi 注册表装配后不可追加定义） */
@@ -294,6 +309,7 @@ function buildToolLoadout(options: EnsureChatSessionOptions): ChatToolLoadout {
       enabled: tool.enabled,
       spec: {
         name: tool.name,
+        executionIdentity: tool.executionIdentity,
         description: tool.description,
         parameters: tool.parameters as Record<string, unknown>,
         risk: tool.risk ?? "execute",
@@ -316,15 +332,17 @@ function buildToolLoadout(options: EnsureChatSessionOptions): ChatToolLoadout {
   entries.sort((a, b) => (a.spec.name < b.spec.name ? -1 : a.spec.name > b.spec.name ? 1 : 0));
   const specs = entries.map(entry => entry.spec);
   return {
+    tools: registryTools
+      .filter(tool => !additionalNames.has(tool.name))
+      .map(tool => ({
+        ...tool,
+        parameters: structuredClone(tool.parameters),
+        executor: tool.execute,
+      })),
     specs,
     activeToolNames: entries.filter(entry => entry.enabled).map(entry => entry.spec.name),
     // 描述与参数也进指纹：schema 变了（MCP 服务器升级）同样得重建
-    universe: specs
-      .map(
-        spec =>
-          `${spec.name}\u0001${spec.description}\u0001${JSON.stringify(spec.parameters)}\u0001${spec.risk}\u0001${spec.source}`
-      )
-      .join("\u0000"),
+    universe: specs.map(piToolDefinitionKey).join("\u0000"),
   };
 }
 

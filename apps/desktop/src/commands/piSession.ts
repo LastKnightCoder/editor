@@ -10,6 +10,7 @@ import type {
   ConversationTreeNode,
   PiBrowserSessionInfo,
   PiHostToolCallResult,
+  PiHostToolSpec,
   PiPromptDisplay,
   PiPromptImage,
   PiSessionCreateRequestV2,
@@ -170,6 +171,8 @@ export const piSessionLockLibrary = (databaseName: string): Promise<Outcome> =>
   invoke("pi-session:lock-library", { databaseName });
 export const piSessionUnlockLibrary = (databaseName: string): Promise<Outcome> =>
   invoke("pi-session:unlock-library", { databaseName });
+export const piSessionAssertLibrary = (databaseName: string): Promise<Outcome> =>
+  invoke("pi-session:assert-library", { databaseName });
 export const piSessionInstallDownload = (
   databaseName: string,
   archive?: Uint8Array
@@ -189,6 +192,8 @@ export function piSessionFindByScope(scope: string): Promise<
     sessionId?: string;
     modelRef?: { providerId: string; modelId: string };
     thinkingLevel?: PiThinkingLevel;
+    toolSpecs?: PiHostToolSpec[];
+    toolScope?: string;
   }
 > {
   return invoke("pi-session:find-by-scope", { scope });
@@ -233,25 +238,28 @@ export function piSessionSetSystemPrompt(
 export function piSessionToolResult(
   sessionId: string,
   toolCallId: string,
-  result: PiHostToolCallResult
+  result: PiHostToolCallResult,
+  executionId?: string
 ): Promise<Outcome> {
-  return invoke<Outcome>("pi-session:tool-result", { sessionId, toolCallId, result });
+  return invoke<Outcome>("pi-session:tool-result", { sessionId, toolCallId, result, executionId });
 }
 
 export function piSessionToolError(
   sessionId: string,
   toolCallId: string,
-  error: string
+  error: string,
+  executionId?: string
 ): Promise<Outcome> {
-  return invoke<Outcome>("pi-session:tool-error", { sessionId, toolCallId, error });
+  return invoke<Outcome>("pi-session:tool-error", { sessionId, toolCallId, error, executionId });
 }
 
 export function piSessionToolUpdate(
   sessionId: string,
   toolCallId: string,
-  partial: Record<string, unknown>
+  partial: Record<string, unknown>,
+  executionId?: string
 ): Promise<Outcome> {
-  return invoke<Outcome>("pi-session:tool-update", { sessionId, toolCallId, partial });
+  return invoke<Outcome>("pi-session:tool-update", { sessionId, toolCallId, partial, executionId });
 }
 
 type PiSessionEventEnvelope = { sessionId: string; event: AgentSessionEvent };
@@ -274,4 +282,10 @@ export function onPiToolCall(listener: (payload: PiToolCallPayload) => void): ()
   };
   on("pi-tool-call", handler);
   return () => off("pi-tool-call", handler);
+}
+
+export function onPiToolCancel(listener: (payload: PiToolCallPayload) => void): () => void {
+  const handler = (_event: unknown, payload: PiToolCallPayload) => listener(payload);
+  on("pi-tool-cancel", handler);
+  return () => off("pi-tool-cancel", handler);
 }

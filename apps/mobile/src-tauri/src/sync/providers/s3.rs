@@ -327,6 +327,7 @@ pub(crate) async fn s3_upload(
     config: &S3Config,
     object_name: &str,
     content: &[u8],
+    create_only: bool,
 ) -> Result<(), AppError> {
     let key = join_path(&config.path_prefix, object_name);
     let client = build_s3_client(config);
@@ -337,6 +338,7 @@ pub(crate) async fn s3_upload(
             .bucket(config.bucket.clone())
             .key(key)
             .body(ByteStream::from(content.to_vec()))
+            .set_if_none_match(create_only.then(|| "*".to_string()))
             .send(),
     )
     .await

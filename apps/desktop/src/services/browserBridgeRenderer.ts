@@ -8,15 +8,23 @@
 import { on, send } from "@/electron";
 import { getToolRegistryAgentTools } from "@/agent/toolRegistryAgentTools";
 import type { PiHostToolSpec } from "@/types/pi-session";
-import { initPiToolBridge } from "./piToolBridge";
+import {
+  initPiToolBridge,
+  registerPiToolSessionContext,
+  unregisterPiToolSessionContext,
+} from "./piToolBridge";
+import { getChatDatabase } from "./chatDatabase";
 
 let installed = false;
 
 /** 桌面工具清单：只给已启用的（扩展对话每轮新建会话，不需要全集 + 活跃子集） */
-export const desktopToolCatalog = (): PiHostToolSpec[] =>
-  getToolRegistryAgentTools({ includeBuiltinSkillTools: true })
+export const desktopToolCatalog = (
+  tools = getToolRegistryAgentTools({ includeBuiltinSkillTools: true })
+): PiHostToolSpec[] =>
+  tools
     .map(tool => ({
       name: tool.name,
+      executionIdentity: tool.executionIdentity,
       description: tool.description,
       parameters: tool.parameters as Record<string, unknown>,
       risk: tool.risk ?? "execute",
@@ -28,10 +36,21 @@ export function installBrowserBridgeRenderer(): void {
   if (installed) return;
   installed = true;
   initPiToolBridge();
-  on("browser-bridge:tool-catalog", (_event: unknown, payload: { requestId: string }) => {
-    send("browser-bridge:tool-catalog-result", {
-      requestId: payload.requestId,
-      tools: desktopToolCatalog(),
-    });
+  on("browser-bridge:tool-release", (_event: unknown, payload: { sessionId: string }) => {
+    unregisterPiToolSessionContext(payload.sessionId);
   });
+  on(
+    "browser-bridge:tool-catalog",
+    (_event: unknown, payload: { requestId: string; sessionId: string }) => {
+      const tools = getToolRegistryAgentTools({ includeBuiltinSkillTools: true });
+      registerPiToolSessionContext(payload.sessionId, {
+        databaseName: getChatDatabase(),
+        sessionTools: tools.map(tool => ({ ...tool, executor: tool.execute })),
+      });
+      send("browser-bridge:tool-catalog-result", {
+        requestId: payload.requestId,
+        tools: desktopToolCatalog(tools),
+      });
+    }
+  );
 }

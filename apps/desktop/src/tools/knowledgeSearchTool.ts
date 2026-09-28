@@ -43,7 +43,7 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
     },
     required: ["query"],
   },
-  executor: async args => {
+  executor: async (args, context) => {
     const {
       query,
       types,
@@ -86,12 +86,15 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
 
       const t1 = performance.now();
       const results =
-        (await searchContent({
-          query: query.trim(),
-          types: searchTypes,
-          limit: Math.min(limit, 10),
-          modelInfo,
-        })) ?? [];
+        (await searchContent(
+          {
+            query: query.trim(),
+            types: searchTypes,
+            limit: Math.min(limit, 10),
+            modelInfo,
+          },
+          context
+        )) ?? [];
       const t2 = performance.now();
 
       console.log(

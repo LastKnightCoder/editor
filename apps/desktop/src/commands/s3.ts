@@ -2,6 +2,7 @@ import { invoke } from "@/electron";
 import { IRemoteFileInfo } from "@/types";
 
 interface IS3Upload {
+  ifNoneMatch?: "*";
   accessKeyId: string;
   secretAccessKey: string;
   bucket: string;
@@ -27,8 +28,6 @@ export const s3Upload = async (uploadInfo: IS3Upload): Promise<string> => {
   return invoke("s3-upload", uploadInfo);
 };
 
-export const s3ListObjects = async (
-  listInfo: IS3ListObjects,
-): Promise<IRemoteFileInfo[]> => {
+export const s3ListObjects = async (listInfo: IS3ListObjects): Promise<IRemoteFileInfo[]> => {
   return invoke("s3-list-objects", listInfo);
 };
