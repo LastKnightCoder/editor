@@ -11,7 +11,8 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import tailwindcss from "@tailwindcss/vite";
 import * as path from "path";
-import { createThemeBootstrapScript } from "../../packages/ui/src/theme/bootstrap";
+// 相对路径而非包名：vite 打包配置时会把包名外置给 Node 原生加载，Node 不认 TS 源码里的无扩展名导入
+import { createThemeBootstrapScript } from "../../packages/themes/src/index";
 
 export default defineConfig({
   resolve: {
@@ -26,7 +27,6 @@ export default defineConfig({
       "@tau/rpc": path.resolve(__dirname, "../../packages/rpc"),
       "@tau/platform": path.resolve(__dirname, "../../packages/platform"),
       "@tau/shared": path.resolve(__dirname, "../../packages/shared"),
-      "@tau/themes": path.resolve(__dirname, "../../packages/themes"),
     },
   },
   plugins: [{ name: "tau-theme-bootstrap", transformIndexHtml: () => [{ tag: "script", children: createThemeBootstrapScript(), injectTo: "head-prepend" }] }, react(), tailwindcss()],

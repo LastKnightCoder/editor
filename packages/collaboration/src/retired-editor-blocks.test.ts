@@ -88,7 +88,8 @@ describe("退役编辑器节点", () => {
   });
   it("字段索引出现异常标量时仍可继续清理正文", () => {
     const doc = legacy();
-    getFields(doc).set("malformed", "legacy-value");
+    // 故意写入不符合字段索引类型的旧数据标量
+    (getFields(doc) as Y.Map<unknown>).set("malformed", "legacy-value");
     expect(() => retireEditorBlocksInDoc(doc)).not.toThrow();
     expect(getFields(doc).get("malformed")).toBe("legacy-value");
     expect(readSharedContent(doc).content).toHaveLength(1);

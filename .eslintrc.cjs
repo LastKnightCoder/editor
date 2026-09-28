@@ -61,6 +61,15 @@ module.exports = {
     "no-useless-escape": "off",
     "no-constant-condition": "off",
     "@typescript-eslint/no-empty-function": "warn",
+    // 主题唯一归属 @tau/themes（docs/editor-refactor ER-011），旧路径不许回流
+    "no-restricted-imports": [
+      "error",
+      {
+        patterns: [
+          { group: ["@tau/ui/theme", "@tau/ui/theme/*"], message: "主题从 @tau/themes 导入" },
+        ],
+      },
+    ],
   },
   overrides: [
     {

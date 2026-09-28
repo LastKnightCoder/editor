@@ -19,7 +19,6 @@ export default defineConfig({
       // monorepo packages
       "@tau/editor": resolve(__dirname, "../../packages/editor/src"),
       "@tau/shared": resolve(__dirname, "../../packages/shared/src"),
-      "@tau/themes": resolve(__dirname, "../../packages/themes/src"),
     },
   },
   // 确保可以解析主项目的依赖和样式

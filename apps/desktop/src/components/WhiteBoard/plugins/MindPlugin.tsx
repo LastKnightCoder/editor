@@ -47,7 +47,7 @@ import MindNode from "../components/MindNode";
 import { BOARD_TO_CONTAINER, getMindDragSourceId } from "../constants";
 import type { InteractionState } from "../interactions/InteractionState";
 import MindThemeUtil from "../utils/MindThemeUtil";
-import { useThemeStore } from "@tau/ui/theme/runtime";
+import { useThemeStore } from "@tau/themes/react";
 import { Descendant } from "slate";
 import { createContent } from "@/commands/content";
 import useSettingStore from "@/stores/useSettingStore.ts";

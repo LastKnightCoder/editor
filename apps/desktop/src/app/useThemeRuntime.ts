@@ -1,6 +1,11 @@
 import { useEffect } from "react";
-import { APPEARANCE_STORAGE_KEY, THEME_STORAGE_KEY, type ThemeMode } from "@tau/ui/theme";
-import { initThemeRuntime, useThemeStore, type Appearance } from "@tau/ui/theme/runtime";
+import {
+  APPEARANCE_STORAGE_KEY,
+  THEME_STORAGE_KEY,
+  type Appearance,
+  type ThemeMode,
+} from "@tau/themes";
+import { initThemeRuntime, useThemeStore } from "@tau/themes/react";
 
 /**
  * 启动主题运行时，并跟随其它窗口的主题切换：主题族与明暗偏好存在 localStorage（同源窗口

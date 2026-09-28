@@ -5,7 +5,8 @@
  * 页面内样式一律 Tailwind 语义类（D-001），本文件不加任何手写规则。
  */
 @import "tailwindcss";
-@import "@tau/ui/theme/tokens.css";
+@import "@tau/themes/tokens.css";
+@import "@tau/themes/tailwind.css";
 @import "../app/base.css";
 /* 同主入口：hover 变体恢复纯 :hover（触摸屏设备 hover:none 判定不杀 hover 反馈） */
 @custom-variant hover (&:hover);

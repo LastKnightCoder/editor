@@ -5,8 +5,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { THEME_MODES, getThemeRegistry } from "@tau/ui/theme";
-import "@tau/ui/theme/themes"; // 副作用注册全部主题族
+import { THEME_MODES, getThemeRegistry } from "@tau/themes";
 import { contrast, hexTone } from "@/utils/oklch";
 import {
   LABEL_MIN_CONTRAST,

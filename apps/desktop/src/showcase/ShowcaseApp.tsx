@@ -24,7 +24,8 @@ import clsx from "clsx";
 import { Monitor, Moon, Sun } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { useEdgeFade, NotificationHost, ToastHost } from "@tau/ui";
-import { useThemeStore, type Appearance } from "@tau/ui/theme/runtime";
+import type { Appearance } from "@tau/themes";
+import { useThemeStore } from "@tau/themes/react";
 import { PAGE_COL, Segmented } from "./kit";
 import { SECTIONS, SECTION_GROUPS, type SectionKey } from "./sections/registry";
 

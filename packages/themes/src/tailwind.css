@@ -1,0 +1,99 @@
+/*
+ * Tailwind v4 语义类名映射：组件写 bg-page / text-ink-1 / border-line-1 等，主题无关。
+ * 取值来自 tokens.css 的 --tau-*，使用方需同时引入 @tau/themes/tokens.css。
+ *
+ * Tailwind 词一律用 tau 命名空间（rounded-tau-* / text-tau-*），不覆盖
+ * legacy 页面在用的 Tailwind 默认刻度（D-001）；一次性展示字号允许
+ * text-[24px] 类任意值。
+ */
+@theme inline {
+  --color-page: var(--tau-bg-page);
+  --color-surface: var(--tau-bg-surface);
+  --color-surface-hover: var(--tau-bg-surface-hover);
+  --color-sunken: var(--tau-bg-sunken);
+  --color-track: var(--tau-bg-track);
+  --color-hover: var(--tau-bg-hover);
+  --color-press: var(--tau-bg-press);
+  --color-selected: var(--tau-bg-selected);
+
+  --color-ink-1: var(--tau-ink-1);
+  --color-ink-2: var(--tau-ink-2);
+  --color-ink-3: var(--tau-ink-3);
+  --color-ink-inverse: var(--tau-ink-inverse);
+
+  --color-line-1: var(--tau-line-1);
+  --color-line-2: var(--tau-line-2);
+
+  --color-overlay: var(--tau-overlay);
+
+  --color-accent: var(--tau-accent);
+  --color-accent-hover: var(--tau-accent-hover);
+  --color-accent-soft: var(--tau-accent-soft);
+  --color-accent-text: var(--tau-accent-text);
+
+  --color-ok: var(--tau-ok);
+  --color-ok-soft: var(--tau-ok-soft);
+  --color-warn: var(--tau-warn);
+  --color-warn-soft: var(--tau-warn-soft);
+  --color-danger: var(--tau-danger);
+  --color-danger-soft: var(--tau-danger-soft);
+  --color-info: var(--tau-info);
+  --color-info-soft: var(--tau-info-soft);
+
+  --color-tag-1: var(--tau-tag-1);
+  --color-tag-1-soft: var(--tau-tag-1-soft);
+  --color-tag-2: var(--tau-tag-2);
+  --color-tag-2-soft: var(--tau-tag-2-soft);
+  --color-tag-3: var(--tau-tag-3);
+  --color-tag-3-soft: var(--tau-tag-3-soft);
+  --color-tag-4: var(--tau-tag-4);
+  --color-tag-4-soft: var(--tau-tag-4-soft);
+  --color-tag-5: var(--tau-tag-5);
+  --color-tag-5-soft: var(--tau-tag-5-soft);
+
+  --font-tau: var(--tau-font);
+  --font-tau-mono: var(--tau-font-mono);
+
+  /* ── 尺度词（D-001，tau 命名空间，见 02 规范 §3/§4）── */
+
+  /* 字号：A2 定稿取值（经 :root 字面值层 --tau-text-* 桥接，支持运行时整体缩放——
+     @theme inline 对字面值会内联进工具类导致不可覆盖，必须走 var 引用） */
+  --text-tau-hero: var(--tau-text-hero);
+  --text-tau-title-lg: var(--tau-text-title-lg);
+  --text-tau-title: var(--tau-text-title);
+  --text-tau-body-lg: var(--tau-text-body-lg);
+  --text-tau-body: var(--tau-text-body);
+  --text-tau-body--line-height: 1.65;
+  --text-tau-meta: var(--tau-text-meta);
+  --text-tau-sm: var(--tau-text-sm);
+  --text-tau-micro: var(--tau-text-micro);
+  --text-tau-tiny: var(--tau-text-tiny);
+
+  /* 圆角三档 */
+  --radius-tau-sm: var(--tau-radius-sm);
+  --radius-tau-md: var(--tau-radius-md);
+  --radius-tau-lg: var(--tau-radius-lg);
+
+  /* 阴影三档（tokenContract float 组词）：card 静止 / lift 卡片 hover 轻抬 / float 浮层 */
+  --shadow-card: var(--tau-shadow-card);
+  --shadow-lift: var(--tau-shadow-lift);
+  --shadow-float: var(--tau-shadow-float);
+
+  /* 缓动 */
+  --ease-tau-out: var(--tau-ease-out);
+
+  /* 域内动效（keyframes 与词表同处声明，hover:animate-hm-pulse 消费） */
+  --animate-hm-pulse: hmPulse 0.5s linear alternate infinite;
+
+  @keyframes hmPulse {
+    0% {
+      transform: scale(1.18);
+    }
+    50% {
+      transform: scale(1);
+    }
+    100% {
+      transform: scale(0.85);
+    }
+  }
+}

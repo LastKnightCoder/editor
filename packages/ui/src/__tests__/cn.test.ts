@@ -3,8 +3,10 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { SCALE_WORDS, cn } from "../cn";
 
-// 与 theme-parity.test.ts 同法解析：tokens.css 是尺度词的单一事实源
-const css = readFileSync(resolve(process.cwd(), "src/theme/tokens.css"), "utf-8");
+// 尺度词的单一事实源：:root 字面值在 tokens.css，Tailwind 词表映射在 tailwind.css
+const css = ["tokens.css", "tailwind.css"]
+  .map(file => readFileSync(resolve(import.meta.dirname, "../../../themes/src", file), "utf-8"))
+  .join("\n");
 
 /** 抽取某前缀下声明的尺度词（去掉前缀）：--text-tau-meta → tau-meta */
 function declaredWords(varPrefix: string): string[] {

@@ -1,6 +1,5 @@
 import { createContext, useContext, useLayoutEffect, useState, type ReactNode } from "react";
-import type { ThemeMode } from "./theme/defineTheme";
-import { DEFAULT_THEME_KEY } from "./theme/bootstrap";
+import { DEFAULT_THEME_KEY, type ThemeMode } from "@tau/themes";
 
 const PortalContext = createContext<HTMLElement | null>(null);
 

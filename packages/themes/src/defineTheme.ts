@@ -14,6 +14,7 @@
  */
 
 import type { SemanticTokens } from "./tokenContract";
+import { isDev } from "./env";
 
 export type ThemeMode = "light" | "dark";
 
@@ -56,7 +57,7 @@ function buildVariant({ palette, tokens }: ThemeVariantArgs): ThemeVariant {
 export function defineTheme(args: ThemeDefinitionArgs): ThemeDefinition {
   if (themeRegistry.has(args.key)) {
     // dev 下 Vite HMR 会重新执行主题文件，重复注册按覆盖处理；真冲突留给 prod 抛错兜底
-    if (import.meta.env.DEV) {
+    if (isDev()) {
       console.warn(`[theme] 重复注册主题（HMR 重载？）覆盖：${args.key}`);
     } else {
       throw new Error(`[theme] 重复注册主题：${args.key}`);

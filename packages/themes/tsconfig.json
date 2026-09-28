@@ -1,0 +1,15 @@
+{
+  // 根入口：lib 不含 DOM，保证主题契约在 Node 中可用（用了 document / HTMLElement 直接编译失败）
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "noEmit": true,
+    "types": []
+  },
+  "include": ["src/index.ts", "src/runtime-globals.d.ts"]
+}
