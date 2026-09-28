@@ -1,14 +1,10 @@
 import classnames from "classnames";
 import { Flex, Popover } from "antd";
-import {
-  CODE_BLOCK_LANGUAGE_OPTIONS,
-  normalizeCodeBlockLanguageDisplayName,
-} from "@tau/shared";
+import { CODE_BLOCK_LANGUAGE_OPTIONS, normalizeCodeBlockLanguageDisplayName } from "@tau/shared";
 
 import styles from "./index.module.less";
 import { For } from "@tau/shared";
 import React, { useState } from "react";
-import useTheme from "../../../../hooks/useTheme";
 
 interface SelectLanguageProps {
   value: string;
@@ -20,7 +16,6 @@ interface SelectLanguageProps {
 
 const SelectLanguage = (props: SelectLanguageProps) => {
   const { value, onChange, className, style = {}, readonly } = props;
-  const { isDark } = useTheme();
 
   const [open, setOpen] = useState(false);
   const normalizedValue = normalizeCodeBlockLanguageDisplayName(value);
@@ -29,7 +24,7 @@ const SelectLanguage = (props: SelectLanguageProps) => {
     <Popover
       placement={"bottom"}
       open={!readonly && open}
-      onOpenChange={(open) => {
+      onOpenChange={open => {
         if (readonly) {
           setOpen(false);
           return;
@@ -40,7 +35,7 @@ const SelectLanguage = (props: SelectLanguageProps) => {
       styles={{
         content: {
           padding: 4,
-          color: isDark ? "#fff" : "#000",
+          color: "var(--ed-text)",
         },
       }}
       arrow={false}
@@ -48,7 +43,7 @@ const SelectLanguage = (props: SelectLanguageProps) => {
         <Flex vertical gap={4} style={{ height: 400, overflow: "auto" }}>
           <For
             data={CODE_BLOCK_LANGUAGE_OPTIONS}
-            renderItem={(item) => {
+            renderItem={item => {
               return (
                 <div
                   key={item.value}
@@ -61,7 +56,7 @@ const SelectLanguage = (props: SelectLanguageProps) => {
                     setOpen(false);
                   }}
                   style={{
-                    color: isDark ? "#fff" : "#000",
+                    color: "var(--ed-text)",
                   }}
                 >
                   {item.label}
@@ -75,7 +70,7 @@ const SelectLanguage = (props: SelectLanguageProps) => {
       <div
         style={{
           ...style,
-          color: isDark ? "#fff" : "#000",
+          color: "var(--ed-text)",
         }}
         className={classnames(styles.selectLanguage, className, {
           [styles.disable]: readonly,

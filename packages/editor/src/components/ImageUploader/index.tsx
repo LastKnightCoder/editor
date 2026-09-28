@@ -4,7 +4,6 @@ import { message, Button, Tabs, TabsProps, Input, Popover } from "antd";
 import classnames from "classnames";
 
 import styles from "./index.module.less";
-import useTheme from "../../hooks/useTheme";
 
 interface ImageUploaderProps {
   /**
@@ -48,7 +47,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [linkValue, setLinkValue] = useState("");
   const [isDragging, setIsDragging] = useState(false);
-  const { isDark } = useTheme();
 
   // 处理文件选择
   const handleFileChange = useCallback(
@@ -176,7 +174,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
           handleDragOver={handleDragOver}
           handleDrop={handleDrop}
           isDragging={isDragging}
-          isDark={isDark}
         />
       ),
     },
@@ -208,7 +205,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
           <div
             className={classnames(styles.inlineUploadArea, {
               [styles.dragging]: isDragging,
-              [styles.dark]: isDark,
             })}
             onClick={triggerFileSelect}
             onDragEnter={handleDragEnter}
@@ -257,11 +253,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
     );
 
     return (
-      <div
-        className={classnames(styles.container, styles.uploaderContainer, styles.inline, {
-          [styles.dark]: isDark,
-        })}
-      >
+      <div className={classnames(styles.container, styles.uploaderContainer, styles.inline)}>
         {loading ? (
           <LoadingOutlined spin />
         ) : (
@@ -272,9 +264,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
               trigger="click"
               open={popoverVisible}
               onOpenChange={setPopoverVisible}
-              overlayClassName={classnames(styles.inlinePopover, {
-                [styles.darkPopover]: isDark,
-              })}
+              overlayClassName={styles.inlinePopover}
             >
               <Button
                 type="text"
@@ -293,15 +283,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
 
   // 块级图片上传界面
   return (
-    <div
-      className={
-        showTabs
-          ? classnames(styles.container, styles.uploaderContainer, {
-              [styles.dark]: isDark,
-            })
-          : undefined
-      }
-    >
+    <div className={showTabs ? classnames(styles.container, styles.uploaderContainer) : undefined}>
       <input
         type="file"
         accept="image/*"
@@ -323,7 +305,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
           handleDragOver={handleDragOver}
           handleDrop={handleDrop}
           isDragging={isDragging}
-          isDark={isDark}
         />
       )}
     </div>
@@ -337,7 +318,6 @@ type UploadAreaProps = {
   handleDragLeave: (e: React.DragEvent<HTMLDivElement>) => void;
   handleDrop: (e: React.DragEvent<HTMLDivElement>) => void;
   isDragging: boolean;
-  isDark: boolean;
 };
 
 const UploadArea = ({
@@ -361,8 +341,8 @@ const UploadArea = ({
     onDragLeave={handleDragLeave}
     onDrop={handleDrop}
   >
-    <InboxOutlined className="mb-[0.5em] text-[3em] text-gray-300 dark:text-zinc-600" />
-    <p className="m-0 text-[0.875em] text-gray-500 dark:text-zinc-400">点击或拖拽图片到此处上传</p>
+    <InboxOutlined className="mb-[0.5em] text-[3em] text-[var(--ed-text-tertiary)]" />
+    <p className="m-0 text-[0.875em] text-[var(--ed-text-secondary)]">点击或拖拽图片到此处上传</p>
   </div>
 );
 

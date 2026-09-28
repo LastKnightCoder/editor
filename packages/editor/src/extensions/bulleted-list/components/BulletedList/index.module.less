@@ -1,7 +1,7 @@
 .list {
   padding-inline-start: 2.5em;
   margin: 0;
-  --list-item-line-color: rgba(55, 53, 47, 0.16);
+  --list-item-line-color: var(--ed-border);
 
   li {
     margin-bottom: 1.25em;
@@ -11,11 +11,7 @@
     margin: 0;
   }
 
-  --list-bullet-color: var(--ed-accent, hsl(168, 10%, 45%));
-
-  &.dark {
-    --list-bullet-color: var(--ed-accent, hsl(168, 10%, 95%));
-  }
+  --list-bullet-color: var(--ed-accent);
 
   & > li {
     position: relative;

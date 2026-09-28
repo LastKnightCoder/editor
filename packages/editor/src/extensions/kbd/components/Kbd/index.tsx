@@ -4,7 +4,6 @@ import { RenderElementProps } from "slate-react";
 
 import type { KbdElement } from "../../../../types";
 import InlineChromiumBugfix from "../../../../components/InlineChromiumBugFix";
-import useTheme from "../../../../hooks/useTheme";
 
 import styles from "./index.module.less";
 
@@ -16,13 +15,9 @@ interface KbdProps {
 
 const Kbd = (props: KbdProps) => {
   const { attributes, children } = props;
-  const { isDark } = useTheme();
 
   return (
-    <kbd
-      {...attributes}
-      className={classnames(styles.kbd, { [styles.dark]: isDark })}
-    >
+    <kbd {...attributes} className={styles.kbd}>
       <InlineChromiumBugfix />
       {children}
       <InlineChromiumBugfix />

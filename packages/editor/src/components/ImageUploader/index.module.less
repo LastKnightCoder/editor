@@ -49,16 +49,6 @@
     height: 100%;
     background-color: transparent;
   }
-
-  &.dark {
-    border-color: var(--ed-border);
-    background-color: var(--ed-bg-surface);
-
-    &.inline {
-      background-color: transparent;
-      border-color: var(--ed-border);
-    }
-  }
 }
 
 .uploadArea {
@@ -72,10 +62,6 @@
   justify-content: center;
   transition: all 0.3s;
   box-sizing: border-box;
-
-  &.dark {
-    background-color: var(--ed-bg-surface);
-  }
 }
 
 .inlineUploadArea {
@@ -96,56 +82,29 @@
   &.dragging {
     border-color: var(--ed-accent);
   }
-
-  &.dark {
-    border-color: var(--ed-border);
-    background-color: var(--ed-bg-surface);
-
-    &:hover,
-    &.dragging {
-      border-color: var(--ed-accent);
-      background-color: var(--ed-bg-hover);
-    }
-  }
 }
 
 .uploadIcon {
   color: var(--ed-text-secondary);
   font-size: 48px;
   margin-bottom: 8px;
-
-  .dark & {
-    color: var(--ed-text-secondary);
-  }
 }
 
 .inlineUploadIcon {
   color: var(--ed-text-secondary);
   font-size: 24px;
   margin-bottom: 4px;
-
-  .dark & {
-    color: var(--ed-text-secondary);
-  }
 }
 
 .uploadText {
   color: var(--ed-text-secondary);
   margin: 0;
-
-  .dark & {
-    color: var(--ed-text-secondary);
-  }
 }
 
 .inlineUploadText {
   color: var(--ed-text-secondary);
   margin: 0;
   font-size: 12px;
-
-  .dark & {
-    color: var(--ed-text-secondary);
-  }
 }
 
 .inlineButton {
@@ -159,14 +118,6 @@
 
   &:hover {
     color: var(--ed-accent);
-  }
-
-  .dark & {
-    color: var(--ed-text-secondary);
-
-    &:hover {
-      color: var(--ed-accent);
-    }
   }
 }
 
@@ -189,9 +140,6 @@
 
 .inlinePopover {
   box-sizing: border-box;
-}
-
-.darkPopover {
   :global(.ant-popover-inner) {
     background-color: var(--ed-bg-surface);
   }
@@ -238,9 +186,4 @@
 .dragging {
   border-color: var(--ed-accent);
   background-color: var(--ed-accent-soft);
-
-  .dark & {
-    border-color: var(--ed-accent);
-    background-color: var(--ed-bg-hover);
-  }
 }

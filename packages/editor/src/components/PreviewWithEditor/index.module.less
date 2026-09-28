@@ -113,13 +113,6 @@
   align-items: center;
   justify-content: center;
   font-size: 1.2em;
-  --content-bg-color: rgba(255, 255, 255, 0.7);
-  --box-shadow: 0 4px 25px rgba(0, 0, 0, 0.15);
-
-  &.darkOverlay {
-    --content-bg-color: rgba(30, 30, 30, 0.3);
-    --box-shadow: 0 4px 25px rgba(255, 255, 255, 0.15);
-  }
 
   .fullscreenContent {
     width: 90%;
@@ -130,8 +123,8 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    box-shadow: var(--box-shadow);
-    background-color: var(--content-bg-color);
+    box-shadow: var(--ed-shadow-float);
+    background-color: var(--ed-glass-bg);
     padding: 2.25em 1.5em;
     backdrop-filter: blur(var(--ed-glass-blur));
   }

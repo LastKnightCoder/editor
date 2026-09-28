@@ -1,27 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Transforms } from "slate";
-import {
-  ReactEditor,
-  RenderElementProps,
-  useReadOnly,
-  useSlateStatic,
-} from "slate-react";
+import { ReactEditor, RenderElementProps, useReadOnly, useSlateStatic } from "slate-react";
 import { App } from "antd";
 import isHotkey from "is-hotkey";
 import classnames from "classnames";
 import { useMemoizedFn } from "ahooks";
 import type { HighlighterCore } from "shiki/core";
 import { PortalToBody } from "@tau/shared";
-import {
-  MdFullscreenExit,
-  MdKeyboardArrowDown,
-  MdKeyboardArrowUp,
-} from "react-icons/md";
+import { MdFullscreenExit, MdKeyboardArrowDown, MdKeyboardArrowUp } from "react-icons/md";
 
 import type { CodeBlockElement, CodeBlockMagicMove } from "../../../../types";
-import AddParagraph, {
-  AddParagraphRef,
-} from "../../../../components/AddParagraph";
+import AddParagraph, { AddParagraphRef } from "../../../../components/AddParagraph";
 import useTheme from "../../../../hooks/useTheme";
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 import useIsLastElement from "../../../../hooks/useIsLastElement";
@@ -37,15 +26,10 @@ import type { ContextMenuItem } from "../../../../components/EditorContextMenu/t
 import SelectLanguage from "../SelectLanguage";
 import ToolbarButtons from "./ToolbarButtons";
 import DragHandle from "./DragHandle";
-import ShikiOverlayEditor, {
-  OverlayKeydownHelpers,
-} from "./ShikiOverlayEditor";
+import ShikiOverlayEditor, { OverlayKeydownHelpers } from "./ShikiOverlayEditor";
 import { buildCodeBlockMenuItems } from "../../utils/menuItems";
 import { codeBlockActionsMap, codeBlockMap } from "../../index";
-import {
-  getShikiHighlighter,
-  getShikiTheme,
-} from "../../utils/shikiHighlighter";
+import { getShikiHighlighter, getShikiTheme } from "../../utils/shikiHighlighter";
 import {
   createInitialMagicMove,
   getActiveStepCode,
@@ -113,9 +97,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
   const [contentHeight, setContentHeight] = useState(0);
   const [readOnlyStepIndex, setReadOnlyStepIndex] = useState(0);
   const [magicMovePreview, setMagicMovePreview] = useState(false);
-  const [previewHeightHint, setPreviewHeightHint] = useState<string | null>(
-    null,
-  );
+  const [previewHeightHint, setPreviewHeightHint] = useState<string | null>(null);
   const [highlighter, setHighlighter] = useState<HighlighterCore | null>(null);
   const [highlightContextMenu, setHighlightContextMenu] = useState<{
     visible: boolean;
@@ -137,17 +119,11 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     step?: number;
   } | null>(null);
 
-  const magicMove = useMemo(
-    () => normalizeMagicMove(rawMagicMove),
-    [rawMagicMove],
-  );
+  const magicMove = useMemo(() => normalizeMagicMove(rawMagicMove), [rawMagicMove]);
   const hasMagicMove = Boolean(magicMove && magicMove.steps.length > 1);
-  const currentStepIndex = readOnly
-    ? readOnlyStepIndex
-    : (magicMove?.activeStep ?? 0);
+  const currentStepIndex = readOnly ? readOnlyStepIndex : (magicMove?.activeStep ?? 0);
   const hasPreviousStep = hasMagicMove && currentStepIndex > 0;
-  const hasNextStep =
-    hasMagicMove && currentStepIndex < (magicMove?.steps.length ?? 1) - 1;
+  const hasNextStep = hasMagicMove && currentStepIndex < (magicMove?.steps.length ?? 1) - 1;
   const currentStepCode = magicMove?.steps[currentStepIndex]?.code;
   const currentStepHighlightLines = magicMove
     ? getActiveStepHighlightLines(magicMove)
@@ -157,34 +133,32 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
   const canRemoveSelectedHighlight = hasHighlightedLineInRange(
     currentStepHighlightLines,
     selectedStartLine,
-    selectedEndLine,
+    selectedEndLine
   );
   const canDeleteCurrentStep = Boolean(magicMove && magicMove.steps.length > 1);
   const shikiTheme = getShikiTheme(isDark);
   const normalizedFoldHeight = Math.min(
     MAX_FOLD_HEIGHT,
-    Math.max(MIN_FOLD_HEIGHT, foldHeight || DEFAULT_FOLD_HEIGHT),
+    Math.max(MIN_FOLD_HEIGHT, foldHeight || DEFAULT_FOLD_HEIGHT)
   );
-  const canFold =
-    contentHeight > Math.max(normalizedFoldHeight, MIN_FOLD_HEIGHT);
+  const canFold = contentHeight > Math.max(normalizedFoldHeight, MIN_FOLD_HEIGHT);
   const isFolded = isFold && canFold;
   const overlayDisplayHeight = isFolded ? normalizedFoldHeight : null;
 
-  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
-    useDragAndDrop({
-      element,
-    });
+  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
+    element,
+  });
 
   const { menuProps, dragHandlerProps } = useDragHandlerMenu({
     element,
     editor: slateEditor,
-    buildMenuItems: (params) => buildCodeBlockMenuItems(params, message),
+    buildMenuItems: params => buildCodeBlockMenuItems(params, message),
   });
 
   useEffect(() => {
     let cancelled = false;
     getShikiHighlighter()
-      .then((instance) => {
+      .then(instance => {
         if (!cancelled) {
           setHighlighter(instance as unknown as HighlighterCore);
         }
@@ -224,7 +198,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     Transforms.setNodes(
       slateEditor,
       { isFold: false },
-      { at: ReactEditor.findPath(slateEditor, element) },
+      { at: ReactEditor.findPath(slateEditor, element) }
     );
   }, [canFold, element, isFold, readOnly, slateEditor]);
 
@@ -262,17 +236,14 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
 
     if (magicMove) {
       const active = typeof nextStep === "number" ? nextStep : currentStepIndex;
-      const safeStep = Math.min(
-        Math.max(active, 0),
-        magicMove.steps.length - 1,
-      );
+      const safeStep = Math.min(Math.max(active, 0), magicMove.steps.length - 1);
       const steps = magicMove.steps.map((step, index) =>
         index === safeStep
           ? {
               ...step,
               code: nextCode,
             }
-          : step,
+          : step
       );
       payload.magicMove = {
         ...magicMove,
@@ -294,45 +265,40 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
           code: nextCode,
           magicMove: nextMagicMove,
         },
-        { at: path },
+        { at: path }
       );
       return nextCode;
-    },
+    }
   );
 
-  const disableNodeMagicMove = useMemoizedFn(
-    (nextCode: string, nextHighlightLines?: string) => {
-      const path = ReactEditor.findPath(slateEditor, element);
-      Transforms.setNodes(
-        slateEditor,
-        {
-          code: nextCode,
-          highlightLines: nextHighlightLines,
-        },
-        { at: path },
-      );
-      if (!nextHighlightLines) {
-        Transforms.unsetNodes(slateEditor, "highlightLines", { at: path });
-      }
-      Transforms.unsetNodes(slateEditor, "magicMove", { at: path });
-      return nextCode;
-    },
-  );
+  const disableNodeMagicMove = useMemoizedFn((nextCode: string, nextHighlightLines?: string) => {
+    const path = ReactEditor.findPath(slateEditor, element);
+    Transforms.setNodes(
+      slateEditor,
+      {
+        code: nextCode,
+        highlightLines: nextHighlightLines,
+      },
+      { at: path }
+    );
+    if (!nextHighlightLines) {
+      Transforms.unsetNodes(slateEditor, "highlightLines", { at: path });
+    }
+    Transforms.unsetNodes(slateEditor, "magicMove", { at: path });
+    return nextCode;
+  });
 
   const setNodeHighlightLines = useMemoizedFn((value: string) => {
     const path = ReactEditor.findPath(slateEditor, element);
     if (magicMove) {
-      const safeStep = Math.min(
-        Math.max(currentStepIndex, 0),
-        magicMove.steps.length - 1,
-      );
+      const safeStep = Math.min(Math.max(currentStepIndex, 0), magicMove.steps.length - 1);
       const steps = magicMove.steps.map((step, index) =>
         index === safeStep
           ? {
               ...step,
               highlightLines: value || undefined,
             }
-          : step,
+          : step
       );
       Transforms.setNodes(
         slateEditor,
@@ -343,7 +309,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
             steps,
           },
         },
-        { at: path },
+        { at: path }
       );
       return;
     }
@@ -375,29 +341,27 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     pendingPersistRef.current = null;
   });
 
-  const scheduleNodeCodePersist = useMemoizedFn(
-    (nextCode: string, nextStep?: number) => {
-      if (readOnly) {
+  const scheduleNodeCodePersist = useMemoizedFn((nextCode: string, nextStep?: number) => {
+    if (readOnly) {
+      return;
+    }
+    pendingPersistRef.current = {
+      code: nextCode,
+      step: nextStep,
+    };
+    if (persistTimerRef.current) {
+      window.clearTimeout(persistTimerRef.current);
+    }
+    persistTimerRef.current = window.setTimeout(() => {
+      persistTimerRef.current = null;
+      if (!pendingPersistRef.current) {
         return;
       }
-      pendingPersistRef.current = {
-        code: nextCode,
-        step: nextStep,
-      };
-      if (persistTimerRef.current) {
-        window.clearTimeout(persistTimerRef.current);
-      }
-      persistTimerRef.current = window.setTimeout(() => {
-        persistTimerRef.current = null;
-        if (!pendingPersistRef.current) {
-          return;
-        }
-        const pending = pendingPersistRef.current;
-        pendingPersistRef.current = null;
-        setNodeCode(pending.code, pending.step);
-      }, NODE_PERSIST_DELAY);
-    },
-  );
+      const pending = pendingPersistRef.current;
+      pendingPersistRef.current = null;
+      setNodeCode(pending.code, pending.step);
+    }, NODE_PERSIST_DELAY);
+  });
 
   useEffect(() => {
     return () => {
@@ -476,10 +440,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
 
     if (!magicMove) {
       const sourceCode = code || defaultCode || "";
-      const nextMagicMove = createInitialMagicMove(
-        sourceCode,
-        currentStepHighlightLines,
-      );
+      const nextMagicMove = createInitialMagicMove(sourceCode, currentStepHighlightLines);
       const nextCode = setNodeMagicMove(nextMagicMove, sourceCode);
       pendingLocalCodeRef.current = nextCode;
       setCode(nextCode);
@@ -492,11 +453,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
       return;
     }
 
-    const nextMagicMove = insertNextMagicMoveStep(
-      magicMove,
-      code || "",
-      currentStepHighlightLines,
-    );
+    const nextMagicMove = insertNextMagicMoveStep(magicMove, code || "", currentStepHighlightLines);
     const nextCode = setNodeMagicMove(nextMagicMove, code || "");
     pendingLocalCodeRef.current = nextCode;
     setCode(nextCode);
@@ -517,7 +474,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
       magicMove,
       code || defaultCode || "",
       currentStepHighlightLines,
-      currentStepIndex,
+      currentStepIndex
     );
     if (!result.removed) {
       return;
@@ -545,7 +502,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
       return;
     }
     flushPendingPersist();
-    setIsFullscreen((prev) => !prev);
+    setIsFullscreen(prev => !prev);
   });
 
   const closeFullscreen = useMemoizedFn(() => {
@@ -560,14 +517,11 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     if (readOnly) {
       return;
     }
-    const safeHeight = Math.min(
-      MAX_FOLD_HEIGHT,
-      Math.max(MIN_FOLD_HEIGHT, nextHeight),
-    );
+    const safeHeight = Math.min(MAX_FOLD_HEIGHT, Math.max(MIN_FOLD_HEIGHT, nextHeight));
     Transforms.setNodes(
       slateEditor,
       { foldHeight: safeHeight },
-      { at: ReactEditor.findPath(slateEditor, element) },
+      { at: ReactEditor.findPath(slateEditor, element) }
     );
   });
 
@@ -581,18 +535,16 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     document.removeEventListener("mouseup", handleResizeEnd);
   });
 
-  const handleResizeStart = useMemoizedFn(
-    (event: React.MouseEvent<HTMLDivElement>) => {
-      if (!isFolded || readOnly) {
-        return;
-      }
-      event.preventDefault();
-      resizeStartYRef.current = event.clientY;
-      startFoldHeightRef.current = normalizedFoldHeight;
-      document.addEventListener("mousemove", handleResizeMove);
-      document.addEventListener("mouseup", handleResizeEnd);
-    },
-  );
+  const handleResizeStart = useMemoizedFn((event: React.MouseEvent<HTMLDivElement>) => {
+    if (!isFolded || readOnly) {
+      return;
+    }
+    event.preventDefault();
+    resizeStartYRef.current = event.clientY;
+    startFoldHeightRef.current = normalizedFoldHeight;
+    document.addEventListener("mousemove", handleResizeMove);
+    document.addEventListener("mouseup", handleResizeEnd);
+  });
 
   const handleToggleFold = useMemoizedFn(() => {
     if (readOnly || !canFold) {
@@ -605,7 +557,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
         isFold: nextIsFold,
         foldHeight: normalizedFoldHeight,
       },
-      { at: ReactEditor.findPath(slateEditor, element) },
+      { at: ReactEditor.findPath(slateEditor, element) }
     );
   });
 
@@ -685,33 +637,22 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     Transforms.setNodes(
       slateEditor,
       { language: value },
-      { at: ReactEditor.findPath(slateEditor, element) },
+      { at: ReactEditor.findPath(slateEditor, element) }
     );
   });
 
-  const replaceRange = (
-    source: string,
-    start: number,
-    end: number,
-    text: string,
-  ): string => {
+  const replaceRange = (source: string, start: number, end: number, text: string): string => {
     return `${source.slice(0, start)}${text}${source.slice(end)}`;
   };
 
   const handleEditorKeyDown = useMemoizedFn(
-    (
-      event: React.KeyboardEvent<HTMLTextAreaElement>,
-      helpers: OverlayKeydownHelpers,
-    ) => {
+    (event: React.KeyboardEvent<HTMLTextAreaElement>, helpers: OverlayKeydownHelpers) => {
       const keyboardEvent = event.nativeEvent;
       const value = helpers.getValue();
       const selection = helpers.getSelection();
       const isCollapsed = selection.start === selection.end;
 
-      const tryFocusOuterBlock = (
-        direction: "backward" | "forward",
-        metaReason: "arrow",
-      ) => {
+      const tryFocusOuterBlock = (direction: "backward" | "forward", metaReason: "arrow") => {
         const path = ReactEditor.findPath(slateEditor, element);
         const meta = {
           reason: metaReason,
@@ -768,12 +709,10 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
           value,
           selection.start,
           selection.end,
-          `${keyboardEvent.key}${value.slice(selection.start, selection.end)}${closeChar}`,
+          `${keyboardEvent.key}${value.slice(selection.start, selection.end)}${closeChar}`
         );
         applyCodeChange(nextValue);
-        const cursorOffset = isCollapsed
-          ? selection.start + 1
-          : selection.end + 2;
+        const cursorOffset = isCollapsed ? selection.start + 1 : selection.end + 2;
         queueMicrotask(() => {
           helpers.setSelection(cursorOffset, cursorOffset);
         });
@@ -789,7 +728,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
         const lines = block.split("\n");
 
         if (keyboardEvent.shiftKey) {
-          const updatedLines = lines.map((line) => {
+          const updatedLines = lines.map(line => {
             if (line.startsWith(INDENT)) {
               return line.slice(INDENT.length);
             }
@@ -804,17 +743,14 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
           queueMicrotask(() => {
             const shrink = block.length - nextBlock.length;
             if (isCollapsed) {
-              const next = Math.max(
-                lineStart,
-                selection.start - Math.min(shrink, INDENT.length),
-              );
+              const next = Math.max(lineStart, selection.start - Math.min(shrink, INDENT.length));
               helpers.setSelection(next, next);
             } else {
               helpers.setSelection(lineStart, lineStart + nextBlock.length);
             }
           });
         } else {
-          const nextBlock = lines.map((line) => `${INDENT}${line}`).join("\n");
+          const nextBlock = lines.map(line => `${INDENT}${line}`).join("\n");
           const nextValue = replaceRange(value, lineStart, lineEnd, nextBlock);
           applyCodeChange(nextValue);
           queueMicrotask(() => {
@@ -865,32 +801,26 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
         const indent = currentLineBeforeCursor.match(/^[\t ]*/)?.[0] || "";
         const shouldExtraIndent = /[{[(]\s*$/.test(currentLineBeforeCursor);
         const insertion = `\n${indent}${shouldExtraIndent ? INDENT : ""}`;
-        const nextValue = replaceRange(
-          value,
-          selection.start,
-          selection.end,
-          insertion,
-        );
+        const nextValue = replaceRange(value, selection.start, selection.end, insertion);
         applyCodeChange(nextValue);
         const nextCursor = selection.start + insertion.length;
         queueMicrotask(() => {
           helpers.setSelection(nextCursor, nextCursor);
         });
       }
-    },
+    }
   );
 
   return (
     <div
       contentEditable={false}
       className={classnames(styles.codeBlockContainer, {
-        [styles.dark]: isDark,
         [styles.dragging]: isDragging,
         [styles.drop]: isOverCurrent && canDrop,
         [styles.before]: isBefore,
         [styles.after]: !isBefore,
       })}
-      ref={(node) => {
+      ref={node => {
         drop(node);
       }}
     >
@@ -959,48 +889,29 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
           />
           {canFold && (
             <div className={styles.foldToggle} onClick={handleToggleFold}>
-              {isFolded ? (
-                <MdKeyboardArrowDown size={18} />
-              ) : (
-                <MdKeyboardArrowUp size={18} />
-              )}
+              {isFolded ? <MdKeyboardArrowDown size={18} /> : <MdKeyboardArrowUp size={18} />}
             </div>
           )}
           {isFolded && !readOnly && (
-            <div
-              className={styles.resizeHandle}
-              onMouseDown={handleResizeStart}
-            >
+            <div className={styles.resizeHandle} onMouseDown={handleResizeStart}>
               <div className={styles.resizeIndicator} />
             </div>
           )}
         </div>
-        {!(readOnly && isLast) && (
-          <AddParagraph element={element} ref={addParagraphRef} />
-        )}
-        <DragHandle
-          canDrag={canDrag}
-          dragRef={drag}
-          onClick={dragHandlerProps.onClick}
-        />
+        {!(readOnly && isLast) && <AddParagraph element={element} ref={addParagraphRef} />}
+        <DragHandle canDrag={canDrag} dragRef={drag} onClick={dragHandlerProps.onClick} />
         <EditorContextMenu {...menuProps} readonly={readOnly} />
         <EditorContextMenu
           visible={highlightContextMenu.visible}
           position={highlightContextMenu.position}
-          onClose={() =>
-            setHighlightContextMenu((prev) => ({ ...prev, visible: false }))
-          }
+          onClose={() => setHighlightContextMenu(prev => ({ ...prev, visible: false }))}
           items={[
             {
               key: "highlight-lines",
               label: "高亮选中行",
               onSelect: () => {
                 const { start, end } = highlightContextMenu.selectedLines;
-                const merged = mergeHighlightRange(
-                  currentStepHighlightLines,
-                  start + 1,
-                  end + 1,
-                );
+                const merged = mergeHighlightRange(currentStepHighlightLines, start + 1, end + 1);
                 setNodeHighlightLines(merged);
               },
             } as ContextMenuItem,
@@ -1010,11 +921,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
               disabled: !canRemoveSelectedHighlight,
               onSelect: () => {
                 const { start, end } = highlightContextMenu.selectedLines;
-                const removed = removeHighlightRange(
-                  currentStepHighlightLines,
-                  start + 1,
-                  end + 1,
-                );
+                const removed = removeHighlightRange(currentStepHighlightLines, start + 1, end + 1);
                 setNodeHighlightLines(removed);
               },
             } as ContextMenuItem,
@@ -1022,17 +929,10 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
         />
         {isFullscreen && (
           <PortalToBody>
-            <div
-              className={classnames(styles.fullscreenOverlay, {
-                [styles.darkOverlay]: isDark,
-              })}
-              onClick={closeFullscreen}
-            >
+            <div className={classnames(styles.fullscreenOverlay, {})} onClick={closeFullscreen}>
               <div
-                className={classnames(styles.fullscreenContent, {
-                  [styles.dark]: isDark,
-                })}
-                onClick={(event) => event.stopPropagation()}
+                className={classnames(styles.fullscreenContent, {})}
+                onClick={event => event.stopPropagation()}
               >
                 <div className={styles.fullscreenHeader}>
                   <SelectLanguage
