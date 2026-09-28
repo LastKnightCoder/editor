@@ -9,10 +9,10 @@
     ".": "./src/index.ts",
     "./dom": "./src/dom.ts",
     "./react": "./src/react.ts",
+    "./testing": "./src/testing.ts",
     "./tokens.css": "./src/tokens.css",
-    "./tailwind.css": "./src/tailwind.css",
-    "./light.less": "./src/light.less",
-    "./dark.less": "./src/dark.less"
+    "./scale.css": "./src/scale.css",
+    "./tailwind.css": "./src/tailwind.css"
   },
   "scripts": {
     "test": "vitest run",

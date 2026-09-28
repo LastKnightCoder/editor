@@ -8,6 +8,7 @@ describe("blog/utils theme sync", () => {
   beforeEach(() => {
     window.localStorage.clear();
     document.documentElement.removeAttribute("data-theme");
+    document.documentElement.removeAttribute("data-mode");
     document.documentElement.classList.remove("dark");
     Object.defineProperty(window, "matchMedia", {
       writable: true,
@@ -18,6 +19,7 @@ describe("blog/utils theme sync", () => {
   afterEach(() => {
     window.localStorage.clear();
     document.documentElement.removeAttribute("data-theme");
+    document.documentElement.removeAttribute("data-mode");
     document.documentElement.classList.remove("dark");
     matchMediaMock.mockReset();
   });
@@ -29,6 +31,7 @@ describe("blog/utils theme sync", () => {
     initTheme();
 
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+    expect(document.documentElement.getAttribute("data-mode")).toBe("dark");
     expect(document.documentElement.classList.contains("dark")).toBe(true);
   });
 
@@ -39,6 +42,7 @@ describe("blog/utils theme sync", () => {
     toggleTheme();
 
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+    expect(document.documentElement.getAttribute("data-mode")).toBe("dark");
     expect(document.documentElement.classList.contains("dark")).toBe(true);
     expect(window.localStorage.getItem("theme")).toBe("dark");
   });
@@ -52,6 +56,7 @@ describe("blog/utils theme sync", () => {
     toggleTheme();
 
     expect(document.documentElement.getAttribute("data-theme")).toBe("light");
+    expect(document.documentElement.getAttribute("data-mode")).toBe("light");
     expect(document.documentElement.classList.contains("dark")).toBe(false);
     expect(window.localStorage.getItem("theme")).toBe("light");
   });

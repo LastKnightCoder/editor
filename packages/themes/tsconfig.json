@@ -16,5 +16,5 @@
     "verbatimModuleSyntax": true,
     "types": []
   },
-  "include": ["src/index.ts", "src/runtime-globals.d.ts"]
+  "include": ["src/index.ts", "src/testing.ts", "src/runtime-globals.d.ts"]
 }

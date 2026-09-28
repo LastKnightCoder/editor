@@ -12,8 +12,6 @@ import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
 import { createBlogEditorRegistry, createBlogEditorConfig } from "@blog/services/editorRegistry";
 import { blogEditorExtensions } from "@blog/editorExtensions";
 import useBlogTheme from "@blog/hooks/useBlogTheme";
-import "@tau/themes/light.less";
-import "@tau/themes/dark.less";
 
 const DOC_SIDEBAR_SCROLL_STORAGE_KEY = "blog:doc-sidebar-scroll";
 const DOC_SIDEBAR_COLLAPSE_STORAGE_KEY = "blog:doc-sidebar-collapse";

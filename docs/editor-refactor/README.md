@@ -28,7 +28,7 @@
 ## 3. 用户已确认的边界（2026-09-28）
 
 1. 第三方插件、插件市场后做；本期只解决内部模块化，但 API 设计要保证将来开放时**不需要大改**。
-2. blog / mobile / browser-extension 统一接入 `--tau-*` 主题体系。
+2. blog / mobile / browser-extension 统一接入 `--tau-*` 主题体系；方式是桥接，外观不变（ER-012）。
 3. custom-block 保留「在文档里写 JS」的能力，安全（沙箱）问题后续再考虑。
 4. 协作治理和 Markdown 合并纳入本次重构，一次性解决（ER-009、ER-010）。
 5. Markdown 导入导出不能依赖 DOM（Electron 主进程在用）；源码 ↔ 富文本双向位置映射必须保留（Markdown 窗口在用）。
@@ -51,7 +51,7 @@
 
 状态图例：⏳ 未开始 / 🚧 进行中 / ✅ 完成 / ⏸ 暂停（写原因）。
 
-**下一步**：P2（mobile / blog / browser-extension 接入 `--tau-*`）。P5（Markdown）与主题线互不依赖，可以穿插进行。
+**下一步**：P3（Editor 组件 token `--ed-*` + ThemeService，迁移主题耦合）。P5（Markdown）与主题线互不依赖，可以穿插进行。
 
 ## 5. 接手步骤
 

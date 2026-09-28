@@ -11,8 +11,6 @@ import { createBlogEditorRegistry, createBlogEditorConfig } from "@blog/services
 import { blogEditorExtensions } from "@blog/editorExtensions";
 import useBlogTheme from "@blog/hooks/useBlogTheme";
 import { fadeUp, defaultTransition } from "@blog/utils/motion";
-import "@tau/themes/light.less";
-import "@tau/themes/dark.less";
 
 function buildCardListTagHref(basePath: string, tag: string): string {
   const listHref = joinPath(basePath, "/cards");

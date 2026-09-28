@@ -66,6 +66,7 @@ describe("ThemeSection", () => {
     expect(useThemeStore.getState().mode).toBe("midnight");
     expect(document.documentElement.dataset.theme).toBe("midnight");
     expect(document.documentElement.classList.contains("dark")).toBe(true);
+    expect(document.documentElement.dataset.mode).toBe("dark");
 
     await act(async () => {
       root.unmount();
@@ -94,6 +95,7 @@ describe("ThemeSection", () => {
     expect(useThemeStore.getState().mode).toBe("mint");
     expect(document.documentElement.dataset.theme).toBe("mint");
     expect(document.documentElement.classList.contains("dark")).toBe(false);
+    expect(document.documentElement.dataset.mode).toBe("light");
 
     await act(async () => {
       root.unmount();

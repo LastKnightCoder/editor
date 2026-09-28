@@ -3,8 +3,8 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { SCALE_WORDS, cn } from "../cn";
 
-// 尺度词的单一事实源：:root 字面值在 tokens.css，Tailwind 词表映射在 tailwind.css
-const css = ["tokens.css", "tailwind.css"]
+// 尺度词的单一事实源：:root 字面值在 scale.css，Tailwind 词表映射在 tailwind.css
+const css = ["scale.css", "tailwind.css"]
   .map(file => readFileSync(resolve(import.meta.dirname, "../../../themes/src", file), "utf-8"))
   .join("\n");
 
