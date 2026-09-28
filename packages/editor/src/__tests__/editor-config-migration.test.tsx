@@ -8,16 +8,15 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 
 import {
   Editor,
-  EditorProvider,
   HeaderExtension,
   PlantUMLExtension,
   type ImageAppearanceConfig,
   type ImageAppearanceSource,
+  createEditorKit,
 } from "../index";
 import { useImageAppearance } from "../extensions/image/appearanceOption";
 import { createImageExtensions } from "../extensions/image/createImageExtensions";
 import {
-  createServiceRegistry,
   createDefaultEditorSlots,
   IEditorSlots,
   IOpenerService,
@@ -55,21 +54,16 @@ describe("P4 EditorConfig 拆解", () => {
   });
 
   const mount = async (initValue: Descendant[], registrations: ServiceRegistration[] = []) => {
-    const registry = createServiceRegistry(
-      register => {
-        register(IEditorSlots, createDefaultEditorSlots());
-      },
-      ...registrations
-    );
+    const kit = createEditorKit({
+      services: [register => register(IEditorSlots, createDefaultEditorSlots()), ...registrations],
+    });
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
     await act(async () => {
       root?.render(
         <DndProvider backend={HTML5Backend}>
-          <EditorProvider registry={registry}>
-            <Editor initValue={initValue} readonly />
-          </EditorProvider>
+          <Editor kit={kit} initValue={initValue} readonly />
         </DndProvider>
       );
     });
@@ -205,8 +199,8 @@ describe("P4 EditorConfig 拆解", () => {
     ];
 
     const mountWith = async (extensions?: HeaderExtension[]) => {
-      const registry = createServiceRegistry(register => {
-        register(IEditorSlots, createDefaultEditorSlots());
+      const kit = createEditorKit({
+        services: [register => register(IEditorSlots, createDefaultEditorSlots())],
       });
       container = document.createElement("div");
       document.body.appendChild(container);
@@ -214,9 +208,7 @@ describe("P4 EditorConfig 拆解", () => {
       await act(async () => {
         root?.render(
           <DndProvider backend={HTML5Backend}>
-            <EditorProvider registry={registry}>
-              <Editor initValue={headerDoc} readonly extensions={extensions} />
-            </EditorProvider>
+            <Editor kit={kit} initValue={headerDoc} readonly extensions={extensions} />
           </DndProvider>
         );
       });

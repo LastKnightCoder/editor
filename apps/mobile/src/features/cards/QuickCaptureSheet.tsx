@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { getMobileKit } from "../../services/editorKit";
 import { X } from "lucide-react";
 import { Editor, type EditorRef } from "@tau/editor/src";
 import type { Descendant } from "slate";
@@ -158,6 +159,7 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
 
         <SnapSheet.FixedFooterScroll className="px-4 pt-3">
           <Editor
+            kit={getMobileKit()}
             ref={editorRef}
             initValue={EMPTY_EDITOR_CONTENT}
             readonly={false}

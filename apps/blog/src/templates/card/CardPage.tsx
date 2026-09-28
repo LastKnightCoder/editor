@@ -3,12 +3,11 @@ import { motion } from "motion/react";
 import { Header } from "@blog/components/Layout";
 import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
 import { Tag, ScrollToTop } from "@blog/components/Common";
-import { Editor, EditorProvider } from "@tau/editor";
+import { Editor } from "@tau/editor";
 import { getInitData, formatDate, getReadingTime, joinPath } from "@blog/utils";
 import { CardData, LinkedCardInfo } from "@blog/types";
 import DndProvider from "@blog/components/DndProvider";
-import { createBlogEditorRegistry } from "@blog/services/editorRegistry";
-import { createBlogEditorExtensions } from "@blog/editorExtensions";
+import { getBlogKit } from "@blog/services/editorKit";
 import { fadeUp, defaultTransition } from "@blog/utils/motion";
 
 function buildCardListTagHref(basePath: string, tag: string): string {
@@ -43,11 +42,6 @@ const CardPage = memo(() => {
   const card = initData.content as CardData;
   const docCollections = initData.docCollections || [];
   const blogSettings = initData.settings;
-  const blogEditorRegistry = useMemo(() => createBlogEditorRegistry(), []);
-  const blogEditorExtensions = useMemo(
-    () => createBlogEditorExtensions(blogSettings),
-    [blogSettings]
-  );
 
   const readingTime = useMemo(() => getReadingTime(card.content), [card.content]);
 
@@ -102,9 +96,7 @@ const CardPage = memo(() => {
 
               {/* 正文 */}
               <DndProvider>
-                <EditorProvider registry={blogEditorRegistry} extensions={blogEditorExtensions}>
-                  <Editor initValue={card.content} readonly />
-                </EditorProvider>
+                <Editor kit={getBlogKit(blogSettings)} initValue={card.content} readonly />
               </DndProvider>
 
               {/* 更新时间 */}

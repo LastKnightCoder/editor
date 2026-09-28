@@ -10,6 +10,8 @@ const navigatorMock = vi.hoisted(() => ({ push: vi.fn(), goBack: vi.fn() }));
 const collabState = vi.hoisted(() => ({ readonly: false }));
 const capturedEditorProps = vi.hoisted(() => ({ value: null as Record<string, unknown> | null }));
 
+// 页面测试不渲染真实编辑器，kit 也不必真实构造
+vi.mock("../../../services/editorKit", () => ({ getMobileKit: () => ({}) }));
 vi.mock("@tau/editor/src", async importOriginal => {
   const actual = await importOriginal<Record<string, unknown>>();
   const React = await import("react");

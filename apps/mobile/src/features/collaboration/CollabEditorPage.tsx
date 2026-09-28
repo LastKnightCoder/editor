@@ -2,6 +2,7 @@
 // 远端光标/选区由 @tau/editor 的 withCollaboration + Cursors 自动渲染，本页只负责外壳与状态。
 // 成员视角（本地无内容行）与协作中心入口仍走本页；owner 的原地编辑见详情页 CollaborativeEditor。
 import { useRef, useState } from "react";
+import { getMobileKit } from "../../services/editorKit";
 import {
   ChevronRight,
   Loader2,
@@ -126,6 +127,7 @@ export function CollabEditorPage(props: {
           {binding ? (
             <div className="min-h-[45vh] pt-2">
               <Editor
+                kit={getMobileKit()}
                 ref={editorRef}
                 key={`collab-${props.documentId}`}
                 collaboration={binding}

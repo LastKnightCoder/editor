@@ -3,6 +3,7 @@
 // cloze：选中文字「设为填空」，填空块的答案/备选答案经 ✎ 配置（BottomSheet）。
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { getMobileKit } from "../../services/editorKit";
 import { Editor, type EditorRef, type IExtension } from "@tau/editor/src";
 import type { Descendant } from "slate";
 import type { Editor as SlateEditor } from "slate";
@@ -399,6 +400,7 @@ export function CardEditPage({
               </div>
             )}
             <Editor
+              kit={getMobileKit()}
               ref={promptEditorRef}
               key={`prompt-${cardId}`}
               initValue={promptValue}
@@ -549,6 +551,7 @@ export function CardEditPage({
           <div className="shadow-card bg-surface rounded-[22px] p-4">
             <div className="text-meta-ink mb-1 text-[12px] font-extrabold">背面补充（选填）</div>
             <Editor
+              kit={getMobileKit()}
               ref={detailEditorRef}
               key={`detail-${cardId}`}
               initValue={detailValue}

@@ -7,6 +7,7 @@ import {
   type ComponentProps,
   type ReactNode,
 } from "react";
+import { getMobileKit } from "../../services/editorKit";
 import type { Descendant } from "slate";
 import { CornerUpRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -425,6 +426,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
         {editMode !== "collabLive" ? (
           <div className="min-h-[45vh] pt-1">
             <Editor
+              kit={getMobileKit()}
               ref={localEditorRef}
               key={`editable-content-${props.contentId}-${syncVersion}`}
               initValue={normalizeEditorContent(content)}

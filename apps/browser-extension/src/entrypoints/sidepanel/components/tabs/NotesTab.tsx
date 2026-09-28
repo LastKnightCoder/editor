@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import { getExtensionKit } from "../../../../services/editorKit";
 import { useMemoizedFn } from "ahooks";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -13,7 +14,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { App } from "antd";
-import { Editor, EditorProvider, createMarkdownPasteImportExtension } from "@tau/editor/src";
+import { Editor } from "@tau/editor/src";
 import WebviewExtension from "@tau/editor-webview";
 import { SelectDropDown, EditText } from "@tau/shared";
 import type { EditTextHandle } from "@tau/shared";
@@ -21,10 +22,7 @@ import type { Descendant } from "slate";
 import type WebSocketClient from "../../../../utils/WebSocketClient";
 import type { ResolvedTheme } from "../../../../utils/types";
 import type { PendingNoteSelection } from "../MainLayout";
-import {
-  createExtensionEditorRegistry,
-  extensionImportFromMarkdown,
-} from "../../../../services/editorRegistry";
+import { extensionImportFromMarkdown } from "../../../../services/editorRegistry";
 
 import { useAiServerWebSocket } from "../../../../hooks/useAiServerWebSocket";
 import { useNotes } from "../../../../hooks/useNotes";
@@ -138,17 +136,7 @@ export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef 
     }
   }, [isLoading, url, notes, activeNoteId, selectNote, pendingNoteRef]);
 
-  const editorRegistry = useMemo(
-    () =>
-      createExtensionEditorRegistry({
-        wsClient,
-      }),
-    [wsClient]
-  );
-  const editorExtensions = useMemo(
-    () => [createMarkdownPasteImportExtension(extensionImportFromMarkdown), new WebviewExtension()],
-    []
-  );
+  const editorKit = getExtensionKit(wsClient);
 
   const activeNote = useMemo(
     () => notes.find(note => note.id === activeNoteId),
@@ -1016,20 +1004,19 @@ export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef 
 
       {/* 编辑器区域 */}
       <div className="tau-scrollbar flex-1 overflow-y-auto">
-        <EditorProvider registry={editorRegistry} extensions={editorExtensions}>
-          <Editor
-            key={editorKey}
-            initValue={content}
-            onChange={handleEditorChange}
-            readonly={false}
-            placeHolder="在这里记录笔记..."
-            style={{
-              minHeight: "100%",
-              padding: "16px 32px",
-              fontSize: "16px",
-            }}
-          />
-        </EditorProvider>
+        <Editor
+          kit={editorKit}
+          key={editorKey}
+          initValue={content}
+          onChange={handleEditorChange}
+          readonly={false}
+          placeHolder="在这里记录笔记..."
+          style={{
+            minHeight: "100%",
+            padding: "16px 32px",
+            fontSize: "16px",
+          }}
+        />
       </div>
     </div>
   );
