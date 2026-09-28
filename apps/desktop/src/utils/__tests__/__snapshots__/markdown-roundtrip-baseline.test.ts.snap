@@ -1,0 +1,2919 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Markdown 往返基准 > 导入 → 导出 > markdown 1`] = `
+"---
+title: 往返基准
+---
+
+# 一级标题
+
+## 二级标题
+
+正文有 **粗体**、*斜体*、~~删除~~、\`行内代码\`、[链接](https://example.com) 和中文**加粗**标点。
+
+:color[彩色]{color=red darkColor=pink} :gradient[渐变]{preset=ocean} :highlight[高亮]{color=yellow}
+
+:underline[下划线]{color=red lineType=wavy} <kbd>Ctrl</kbd> :content-link[引用卡片]{refId=1 contentId=42 contentType=card title="卡片 &quot;标题&quot;"} :time{start=10 end=20}
+
+- 无序一
+- 无序二
+  
+  - 嵌套
+
+1. 有序一
+2. 有序二
+
+- 待办
+- 已完成
+
+> 引用一行
+> 引用两行
+
+\`\`\`TypeScript
+const a = 1;
+\`\`\`
+
+\`\`\`mermaid
+graph TD; A-->B;
+\`\`\`
+
+$$
+E = mc^2
+$$
+
+行内公式 $a^2$ 与脚注[^1]。
+
+| 表头 A | 表头 B |
+| --- | --- |
+| 单元格 1 | 单元格 2 |
+
+:::tip{ title="提示"}
+提示内容
+:::
+
+:::detail{title="详情" open=true}
+折叠内容
+:::
+
+:::highlight-block{color=blue}
+高亮块
+:::
+
+![图片](https://example.com/a.png)
+
+:::audio{src="a.mp3" title="播客"}
+:::
+
+:::video{src="v.mp4"}
+:::
+
+:::file-attachment{fileName="a.pdf" filePath="/tmp/a.pdf" isLocal=true uuid="u-1"}
+:::
+
+---
+
+<div>HTML 块</div>
+
+
+[^1]: 脚注内容"
+`;
+
+exports[`Markdown 往返基准 > 导入 → 导出 > value 1`] = `
+[
+  {
+    "children": [
+      {
+        "text": "",
+        "type": "formatted",
+      },
+    ],
+    "type": "front-matter",
+    "value": "title: 往返基准",
+  },
+  {
+    "children": [
+      {
+        "text": "一级标题",
+        "type": "formatted",
+      },
+    ],
+    "level": 1,
+    "type": "header",
+  },
+  {
+    "children": [
+      {
+        "text": "二级标题",
+        "type": "formatted",
+      },
+    ],
+    "level": 2,
+    "type": "header",
+  },
+  {
+    "children": [
+      {
+        "text": "正文有 ",
+        "type": "formatted",
+      },
+      {
+        "bold": true,
+        "text": "粗体",
+        "type": "formatted",
+      },
+      {
+        "text": "、",
+        "type": "formatted",
+      },
+      {
+        "italic": true,
+        "text": "斜体",
+        "type": "formatted",
+      },
+      {
+        "text": "、",
+        "type": "formatted",
+      },
+      {
+        "strikethrough": true,
+        "text": "删除",
+        "type": "formatted",
+      },
+      {
+        "text": "、",
+        "type": "formatted",
+      },
+      {
+        "code": true,
+        "text": "行内代码",
+        "type": "formatted",
+      },
+      {
+        "text": "、",
+        "type": "formatted",
+      },
+      {
+        "children": [
+          {
+            "text": "链接",
+            "type": "formatted",
+          },
+        ],
+        "type": "link",
+        "url": "https://example.com",
+      },
+      {
+        "text": " 和中文",
+        "type": "formatted",
+      },
+      {
+        "bold": true,
+        "text": "加粗",
+        "type": "formatted",
+      },
+      {
+        "text": "标点。",
+        "type": "formatted",
+      },
+    ],
+    "type": "paragraph",
+  },
+  {
+    "children": [
+      {
+        "color": "red",
+        "darkColor": "pink",
+        "text": "彩色",
+        "type": "formatted",
+      },
+      {
+        "text": " ",
+        "type": "formatted",
+      },
+      {
+        "text": "渐变",
+        "textGradient": "ocean",
+        "type": "formatted",
+      },
+      {
+        "text": " ",
+        "type": "formatted",
+      },
+      {
+        "highlight": "yellow",
+        "text": "高亮",
+        "type": "formatted",
+      },
+    ],
+    "type": "paragraph",
+  },
+  {
+    "children": [
+      {
+        "children": [
+          {
+            "text": "下划线",
+            "type": "formatted",
+          },
+        ],
+        "color": "red",
+        "colorSelectOpen": false,
+        "lineType": "wavy",
+        "type": "underline",
+      },
+      {
+        "text": " ",
+        "type": "formatted",
+      },
+      {
+        "children": [
+          {
+            "text": "Ctrl",
+            "type": "formatted",
+          },
+        ],
+        "type": "kbd",
+      },
+      {
+        "text": " ",
+        "type": "formatted",
+      },
+      {
+        "children": [
+          {
+            "text": "",
+            "type": "formatted",
+          },
+          {
+            "text": "引用卡片",
+            "type": "formatted",
+          },
+        ],
+        "contentId": 42,
+        "contentTitle": "卡片 "标题"",
+        "contentType": "card",
+        "refId": 1,
+        "type": "content-link",
+      },
+      {
+        "text": " ",
+        "type": "formatted",
+      },
+      {
+        "children": [
+          {
+            "text": "",
+            "type": "formatted",
+          },
+        ],
+        "end": 20,
+        "start": 10,
+        "type": "summary-timestamp",
+      },
+    ],
+    "type": "paragraph",
+  },
+  {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "text": "无序一",
+                "type": "formatted",
+              },
+            ],
+            "type": "paragraph",
+          },
+        ],
+        "type": "list-item",
+      },
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "text": "无序二",
+                "type": "formatted",
+              },
+            ],
+            "type": "paragraph",
+          },
+          {
+            "children": [
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "text": "嵌套",
+                        "type": "formatted",
+                      },
+                    ],
+                    "type": "paragraph",
+                  },
+                ],
+                "type": "list-item",
+              },
+            ],
+            "type": "bulleted-list",
+          },
+        ],
+        "type": "list-item",
+      },
+    ],
+    "type": "bulleted-list",
+  },
+  {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "text": "有序一",
+                "type": "formatted",
+              },
+            ],
+            "type": "paragraph",
+          },
+        ],
+        "type": "list-item",
+      },
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "text": "有序二",
+                "type": "formatted",
+              },
+            ],
+            "type": "paragraph",
+          },
+        ],
+        "type": "list-item",
+      },
+    ],
+    "type": "numbered-list",
+  },
+  {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "text": "待办",
+                "type": "formatted",
+              },
+            ],
+            "type": "paragraph",
+          },
+        ],
+        "type": "list-item",
+      },
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "text": "已完成",
+                "type": "formatted",
+              },
+            ],
+            "type": "paragraph",
+          },
+        ],
+        "type": "list-item",
+      },
+    ],
+    "type": "bulleted-list",
+  },
+  {
+    "children": [
+      {
+        "children": [
+          {
+            "text": "引用一行
+引用两行",
+            "type": "formatted",
+          },
+        ],
+        "type": "paragraph",
+      },
+    ],
+    "type": "blockquote",
+  },
+  {
+    "children": [
+      {
+        "text": "",
+        "type": "formatted",
+      },
+    ],
+    "code": "const a = 1;",
+    "language": "TypeScript",
+    "type": "code-block",
+    "uuid": "<uuid>",
+  },
+  {
+    "chart": "graph TD; A-->B;",
+    "children": [
+      {
+        "text": "",
+        "type": "formatted",
+      },
+    ],
+    "type": "mermaid",
+  },
+  {
+    "children": [
+      {
+        "text": "",
+        "type": "formatted",
+      },
+    ],
+    "tex": "E = mc^2",
+    "type": "block-math",
+  },
+  {
+    "children": [
+      {
+        "text": "行内公式 ",
+        "type": "formatted",
+      },
+      {
+        "children": [
+          {
+            "text": "",
+            "type": "formatted",
+          },
+        ],
+        "tex": "a^2",
+        "type": "inline-math",
+      },
+      {
+        "text": " 与脚注",
+        "type": "formatted",
+      },
+      {
+        "children": [
+          {
+            "text": "",
+            "type": "formatted",
+          },
+        ],
+        "content": "脚注内容",
+        "type": "annotation",
+      },
+      {
+        "text": "。",
+        "type": "formatted",
+      },
+    ],
+    "type": "paragraph",
+  },
+  {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "text": "表头 A",
+                "type": "formatted",
+              },
+            ],
+            "type": "table-cell",
+          },
+          {
+            "children": [
+              {
+                "text": "表头 B",
+                "type": "formatted",
+              },
+            ],
+            "type": "table-cell",
+          },
+        ],
+        "type": "table-row",
+      },
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "text": "单元格 1",
+                "type": "formatted",
+              },
+            ],
+            "type": "table-cell",
+          },
+          {
+            "children": [
+              {
+                "text": "单元格 2",
+                "type": "formatted",
+              },
+            ],
+            "type": "table-cell",
+          },
+        ],
+        "type": "table-row",
+      },
+    ],
+    "type": "table",
+  },
+  {
+    "calloutType": "tip",
+    "children": [
+      {
+        "children": [
+          {
+            "text": "提示内容",
+            "type": "formatted",
+          },
+        ],
+        "type": "paragraph",
+      },
+    ],
+    "title": "提示",
+    "type": "callout",
+  },
+  {
+    "children": [
+      {
+        "children": [
+          {
+            "text": "折叠内容",
+            "type": "formatted",
+          },
+        ],
+        "type": "paragraph",
+      },
+    ],
+    "open": true,
+    "title": "详情",
+    "type": "detail",
+  },
+  {
+    "children": [
+      {
+        "children": [
+          {
+            "text": "高亮块",
+            "type": "formatted",
+          },
+        ],
+        "type": "paragraph",
+      },
+    ],
+    "color": "blue",
+    "type": "highlight-block",
+  },
+  {
+    "alt": "图片",
+    "children": [
+      {
+        "text": "",
+        "type": "formatted",
+      },
+    ],
+    "type": "image",
+    "url": "https://example.com/a.png",
+  },
+  {
+    "children": [
+      {
+        "text": "",
+        "type": "formatted",
+      },
+    ],
+    "src": "a.mp3",
+    "title": "播客",
+    "type": "audio",
+    "uploading": false,
+  },
+  {
+    "children": [
+      {
+        "text": "",
+        "type": "formatted",
+      },
+    ],
+    "src": "v.mp4",
+    "type": "video",
+    "uploading": false,
+  },
+  {
+    "children": [
+      {
+        "text": "",
+        "type": "formatted",
+      },
+    ],
+    "fileName": "a.pdf",
+    "filePath": "/tmp/a.pdf",
+    "isLocal": true,
+    "type": "file-attachment",
+    "uuid": "u-1",
+  },
+  {
+    "children": [
+      {
+        "text": "",
+        "type": "formatted",
+      },
+    ],
+    "type": "divide-line",
+  },
+  {
+    "children": [
+      {
+        "text": "",
+        "type": "formatted",
+      },
+    ],
+    "html": "<div>HTML 块</div>",
+    "type": "html-block",
+  },
+]
+`;
+
+exports[`Markdown 往返基准 > 带位置导入 / 导出的映射 > export mappings 1`] = `
+[
+  {
+    "elementType": "front-matter",
+    "isVoid": true,
+    "mdEndCh": 3,
+    "mdEndLine": 2,
+    "mdStartCh": 0,
+    "mdStartLine": 0,
+    "propertyMappings": undefined,
+    "slateElementPath": [
+      0,
+    ],
+    "type": "element",
+  },
+  {
+    "mdCh": 0,
+    "mdLength": 6,
+    "mdLine": 4,
+    "prefixLength": 2,
+    "slateLength": 4,
+    "slateOffset": 0,
+    "slateTextPath": [
+      1,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 0,
+    "mdLength": 7,
+    "mdLine": 6,
+    "prefixLength": 3,
+    "slateLength": 4,
+    "slateOffset": 0,
+    "slateTextPath": [
+      2,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 0,
+    "mdLength": 4,
+    "mdLine": 8,
+    "prefixLength": 0,
+    "slateLength": 4,
+    "slateOffset": 0,
+    "slateTextPath": [
+      3,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 4,
+    "mdLength": 6,
+    "mdLine": 8,
+    "prefixLength": 2,
+    "slateLength": 2,
+    "slateOffset": 0,
+    "slateTextPath": [
+      3,
+      1,
+    ],
+    "suffixLength": 2,
+    "type": "text",
+  },
+  {
+    "mdCh": 10,
+    "mdLength": 1,
+    "mdLine": 8,
+    "prefixLength": 0,
+    "slateLength": 1,
+    "slateOffset": 0,
+    "slateTextPath": [
+      3,
+      2,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 11,
+    "mdLength": 4,
+    "mdLine": 8,
+    "prefixLength": 1,
+    "slateLength": 2,
+    "slateOffset": 0,
+    "slateTextPath": [
+      3,
+      3,
+    ],
+    "suffixLength": 1,
+    "type": "text",
+  },
+  {
+    "mdCh": 15,
+    "mdLength": 1,
+    "mdLine": 8,
+    "prefixLength": 0,
+    "slateLength": 1,
+    "slateOffset": 0,
+    "slateTextPath": [
+      3,
+      4,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 16,
+    "mdLength": 6,
+    "mdLine": 8,
+    "prefixLength": 2,
+    "slateLength": 2,
+    "slateOffset": 0,
+    "slateTextPath": [
+      3,
+      5,
+    ],
+    "suffixLength": 2,
+    "type": "text",
+  },
+  {
+    "mdCh": 22,
+    "mdLength": 1,
+    "mdLine": 8,
+    "prefixLength": 0,
+    "slateLength": 1,
+    "slateOffset": 0,
+    "slateTextPath": [
+      3,
+      6,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 23,
+    "mdLength": 6,
+    "mdLine": 8,
+    "prefixLength": 1,
+    "slateLength": 4,
+    "slateOffset": 0,
+    "slateTextPath": [
+      3,
+      7,
+    ],
+    "suffixLength": 1,
+    "type": "text",
+  },
+  {
+    "mdCh": 29,
+    "mdLength": 1,
+    "mdLine": 8,
+    "prefixLength": 0,
+    "slateLength": 1,
+    "slateOffset": 0,
+    "slateTextPath": [
+      3,
+      8,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 30,
+    "mdLength": 25,
+    "mdLine": 8,
+    "prefixLength": 1,
+    "slateLength": 2,
+    "slateOffset": 0,
+    "slateTextPath": [
+      3,
+      9,
+      0,
+    ],
+    "suffixLength": 22,
+    "type": "text",
+  },
+  {
+    "mdCh": 55,
+    "mdLength": 4,
+    "mdLine": 8,
+    "prefixLength": 0,
+    "slateLength": 4,
+    "slateOffset": 0,
+    "slateTextPath": [
+      3,
+      10,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 59,
+    "mdLength": 6,
+    "mdLine": 8,
+    "prefixLength": 2,
+    "slateLength": 2,
+    "slateOffset": 0,
+    "slateTextPath": [
+      3,
+      11,
+    ],
+    "suffixLength": 2,
+    "type": "text",
+  },
+  {
+    "mdCh": 65,
+    "mdLength": 3,
+    "mdLine": 8,
+    "prefixLength": 0,
+    "slateLength": 3,
+    "slateOffset": 0,
+    "slateTextPath": [
+      3,
+      12,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 0,
+    "mdLength": 36,
+    "mdLine": 10,
+    "prefixLength": 7,
+    "slateLength": 2,
+    "slateOffset": 0,
+    "slateTextPath": [
+      4,
+      0,
+    ],
+    "suffixLength": 27,
+    "type": "text",
+  },
+  {
+    "mdCh": 36,
+    "mdLength": 1,
+    "mdLine": 10,
+    "prefixLength": 0,
+    "slateLength": 1,
+    "slateOffset": 0,
+    "slateTextPath": [
+      4,
+      1,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 37,
+    "mdLength": 27,
+    "mdLine": 10,
+    "prefixLength": 10,
+    "slateLength": 2,
+    "slateOffset": 0,
+    "slateTextPath": [
+      4,
+      2,
+    ],
+    "suffixLength": 15,
+    "type": "text",
+  },
+  {
+    "mdCh": 64,
+    "mdLength": 1,
+    "mdLine": 10,
+    "prefixLength": 0,
+    "slateLength": 1,
+    "slateOffset": 0,
+    "slateTextPath": [
+      4,
+      3,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 65,
+    "mdLength": 28,
+    "mdLine": 10,
+    "prefixLength": 11,
+    "slateLength": 2,
+    "slateOffset": 0,
+    "slateTextPath": [
+      4,
+      4,
+    ],
+    "suffixLength": 15,
+    "type": "text",
+  },
+  {
+    "mdCh": 0,
+    "mdLength": 40,
+    "mdLine": 12,
+    "prefixLength": 11,
+    "slateLength": 3,
+    "slateOffset": 0,
+    "slateTextPath": [
+      5,
+      0,
+      0,
+    ],
+    "suffixLength": 26,
+    "type": "text",
+  },
+  {
+    "mdCh": 40,
+    "mdLength": 1,
+    "mdLine": 12,
+    "prefixLength": 0,
+    "slateLength": 1,
+    "slateOffset": 0,
+    "slateTextPath": [
+      5,
+      1,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 41,
+    "mdLength": 15,
+    "mdLine": 12,
+    "prefixLength": 5,
+    "slateLength": 4,
+    "slateOffset": 0,
+    "slateTextPath": [
+      5,
+      2,
+      0,
+    ],
+    "suffixLength": 6,
+    "type": "text",
+  },
+  {
+    "mdCh": 56,
+    "mdLength": 1,
+    "mdLine": 12,
+    "prefixLength": 0,
+    "slateLength": 1,
+    "slateOffset": 0,
+    "slateTextPath": [
+      5,
+      3,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 57,
+    "mdLength": 14,
+    "mdLine": 12,
+    "prefixLength": 14,
+    "slateLength": 0,
+    "slateOffset": 0,
+    "slateTextPath": [
+      5,
+      4,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 71,
+    "mdLength": 70,
+    "mdLine": 12,
+    "prefixLength": 0,
+    "slateLength": 4,
+    "slateOffset": 0,
+    "slateTextPath": [
+      5,
+      4,
+      1,
+    ],
+    "suffixLength": 66,
+    "type": "text",
+  },
+  {
+    "mdCh": 141,
+    "mdLength": 1,
+    "mdLine": 12,
+    "prefixLength": 0,
+    "slateLength": 1,
+    "slateOffset": 0,
+    "slateTextPath": [
+      5,
+      5,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 142,
+    "mdLength": 0,
+    "mdLine": 12,
+    "prefixLength": 0,
+    "slateLength": 0,
+    "slateOffset": 0,
+    "slateTextPath": [
+      5,
+      6,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 2,
+    "mdLength": 3,
+    "mdLine": 14,
+    "prefixLength": 0,
+    "slateLength": 3,
+    "slateOffset": 0,
+    "slateTextPath": [
+      6,
+      0,
+      0,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 2,
+    "mdLength": 3,
+    "mdLine": 15,
+    "prefixLength": 0,
+    "slateLength": 3,
+    "slateOffset": 0,
+    "slateTextPath": [
+      6,
+      1,
+      0,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 4,
+    "mdLength": 2,
+    "mdLine": 17,
+    "prefixLength": 0,
+    "slateLength": 2,
+    "slateOffset": 0,
+    "slateTextPath": [
+      6,
+      1,
+      1,
+      0,
+      0,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 3,
+    "mdLength": 3,
+    "mdLine": 19,
+    "prefixLength": 0,
+    "slateLength": 3,
+    "slateOffset": 0,
+    "slateTextPath": [
+      7,
+      0,
+      0,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 3,
+    "mdLength": 3,
+    "mdLine": 20,
+    "prefixLength": 0,
+    "slateLength": 3,
+    "slateOffset": 0,
+    "slateTextPath": [
+      7,
+      1,
+      0,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 2,
+    "mdLength": 2,
+    "mdLine": 22,
+    "prefixLength": 0,
+    "slateLength": 2,
+    "slateOffset": 0,
+    "slateTextPath": [
+      8,
+      0,
+      0,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 2,
+    "mdLength": 3,
+    "mdLine": 23,
+    "prefixLength": 0,
+    "slateLength": 3,
+    "slateOffset": 0,
+    "slateTextPath": [
+      8,
+      1,
+      0,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 2,
+    "mdLength": 9,
+    "mdLine": 25,
+    "prefixLength": 0,
+    "slateLength": 9,
+    "slateOffset": 0,
+    "slateTextPath": [
+      9,
+      0,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "elementType": "code-block",
+    "isVoid": true,
+    "mdEndCh": 3,
+    "mdEndLine": 30,
+    "mdStartCh": 0,
+    "mdStartLine": 28,
+    "propertyMappings": {
+      "code": {
+        "mdEndCh": 12,
+        "mdEndLine": 29,
+        "mdStartCh": 0,
+        "mdStartLine": 29,
+      },
+    },
+    "slateElementPath": [
+      10,
+    ],
+    "type": "element",
+  },
+  {
+    "elementType": "mermaid",
+    "isVoid": true,
+    "mdEndCh": 3,
+    "mdEndLine": 34,
+    "mdStartCh": 0,
+    "mdStartLine": 32,
+    "propertyMappings": undefined,
+    "slateElementPath": [
+      11,
+    ],
+    "type": "element",
+  },
+  {
+    "elementType": "block-math",
+    "isVoid": true,
+    "mdEndCh": 2,
+    "mdEndLine": 38,
+    "mdStartCh": 0,
+    "mdStartLine": 36,
+    "propertyMappings": undefined,
+    "slateElementPath": [
+      12,
+    ],
+    "type": "element",
+  },
+  {
+    "mdCh": 0,
+    "mdLength": 5,
+    "mdLine": 40,
+    "prefixLength": 0,
+    "slateLength": 5,
+    "slateOffset": 0,
+    "slateTextPath": [
+      13,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "elementType": "inline-math",
+    "isVoid": true,
+    "mdEndCh": 10,
+    "mdEndLine": 40,
+    "mdStartCh": 5,
+    "mdStartLine": 40,
+    "propertyMappings": undefined,
+    "slateElementPath": [
+      13,
+      1,
+    ],
+    "type": "element",
+  },
+  {
+    "mdCh": 10,
+    "mdLength": 4,
+    "mdLine": 40,
+    "prefixLength": 0,
+    "slateLength": 4,
+    "slateOffset": 0,
+    "slateTextPath": [
+      13,
+      2,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 14,
+    "mdLength": 0,
+    "mdLine": 40,
+    "prefixLength": 0,
+    "slateLength": 0,
+    "slateOffset": 0,
+    "slateTextPath": [
+      13,
+      3,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 18,
+    "mdLength": 1,
+    "mdLine": 40,
+    "prefixLength": 0,
+    "slateLength": 1,
+    "slateOffset": 0,
+    "slateTextPath": [
+      13,
+      4,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 0,
+    "mdLength": 9,
+    "mdLine": 42,
+    "prefixLength": 2,
+    "slateLength": 4,
+    "slateOffset": 0,
+    "slateTextPath": [
+      14,
+      0,
+      0,
+      0,
+    ],
+    "suffixLength": 3,
+    "type": "text",
+  },
+  {
+    "mdCh": 9,
+    "mdLength": 7,
+    "mdLine": 42,
+    "prefixLength": 0,
+    "slateLength": 4,
+    "slateOffset": 0,
+    "slateTextPath": [
+      14,
+      0,
+      1,
+      0,
+    ],
+    "suffixLength": 3,
+    "type": "text",
+  },
+  {
+    "mdCh": 0,
+    "mdLength": 10,
+    "mdLine": 44,
+    "prefixLength": 2,
+    "slateLength": 5,
+    "slateOffset": 0,
+    "slateTextPath": [
+      14,
+      1,
+      0,
+      0,
+    ],
+    "suffixLength": 3,
+    "type": "text",
+  },
+  {
+    "mdCh": 10,
+    "mdLength": 8,
+    "mdLine": 44,
+    "prefixLength": 0,
+    "slateLength": 5,
+    "slateOffset": 0,
+    "slateTextPath": [
+      14,
+      1,
+      1,
+      0,
+    ],
+    "suffixLength": 3,
+    "type": "text",
+  },
+  {
+    "mdCh": 0,
+    "mdLength": 4,
+    "mdLine": 47,
+    "prefixLength": 0,
+    "slateLength": 4,
+    "slateOffset": 0,
+    "slateTextPath": [
+      15,
+      0,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 0,
+    "mdLength": 4,
+    "mdLine": 51,
+    "prefixLength": 0,
+    "slateLength": 4,
+    "slateOffset": 0,
+    "slateTextPath": [
+      16,
+      0,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 0,
+    "mdLength": 3,
+    "mdLine": 55,
+    "prefixLength": 0,
+    "slateLength": 3,
+    "slateOffset": 0,
+    "slateTextPath": [
+      17,
+      0,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "elementType": "image",
+    "isVoid": true,
+    "mdEndCh": 32,
+    "mdEndLine": 58,
+    "mdStartCh": 0,
+    "mdStartLine": 58,
+    "propertyMappings": undefined,
+    "slateElementPath": [
+      18,
+    ],
+    "type": "element",
+  },
+  {
+    "elementType": "audio",
+    "isVoid": true,
+    "mdEndCh": 3,
+    "mdEndLine": 61,
+    "mdStartCh": 0,
+    "mdStartLine": 60,
+    "propertyMappings": undefined,
+    "slateElementPath": [
+      19,
+    ],
+    "type": "element",
+  },
+  {
+    "elementType": "video",
+    "isVoid": true,
+    "mdEndCh": 3,
+    "mdEndLine": 64,
+    "mdStartCh": 0,
+    "mdStartLine": 63,
+    "propertyMappings": undefined,
+    "slateElementPath": [
+      20,
+    ],
+    "type": "element",
+  },
+  {
+    "mdCh": 0,
+    "mdLength": 0,
+    "mdLine": 66,
+    "prefixLength": 0,
+    "slateLength": 0,
+    "slateOffset": 0,
+    "slateTextPath": [
+      21,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "elementType": "divide-line",
+    "isVoid": true,
+    "mdEndCh": 3,
+    "mdEndLine": 69,
+    "mdStartCh": 0,
+    "mdStartLine": 69,
+    "propertyMappings": undefined,
+    "slateElementPath": [
+      22,
+    ],
+    "type": "element",
+  },
+  {
+    "mdCh": 0,
+    "mdLength": 0,
+    "mdLine": 71,
+    "prefixLength": 0,
+    "slateLength": 0,
+    "slateOffset": 0,
+    "slateTextPath": [
+      23,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+]
+`;
+
+exports[`Markdown 往返基准 > 带位置导入 / 导出的映射 > import mappings 1`] = `
+[
+  {
+    "elementType": "front-matter",
+    "isVoid": true,
+    "mdEndCh": 3,
+    "mdEndLine": 2,
+    "mdStartCh": 0,
+    "mdStartLine": 0,
+    "slateElementPath": [
+      0,
+    ],
+    "type": "element",
+  },
+  {
+    "mdCh": 2,
+    "mdLength": 4,
+    "mdLine": 4,
+    "prefixLength": 0,
+    "slateLength": 4,
+    "slateOffset": 0,
+    "slateTextPath": [
+      1,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 3,
+    "mdLength": 4,
+    "mdLine": 6,
+    "prefixLength": 0,
+    "slateLength": 4,
+    "slateOffset": 0,
+    "slateTextPath": [
+      2,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 0,
+    "mdLength": 4,
+    "mdLine": 8,
+    "prefixLength": 0,
+    "slateLength": 4,
+    "slateOffset": 0,
+    "slateTextPath": [
+      3,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 4,
+    "mdLength": 6,
+    "mdLine": 8,
+    "prefixLength": 2,
+    "slateLength": 2,
+    "slateOffset": 0,
+    "slateTextPath": [
+      3,
+      1,
+    ],
+    "suffixLength": 2,
+    "type": "text",
+  },
+  {
+    "mdCh": 10,
+    "mdLength": 1,
+    "mdLine": 8,
+    "prefixLength": 0,
+    "slateLength": 1,
+    "slateOffset": 0,
+    "slateTextPath": [
+      3,
+      2,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 11,
+    "mdLength": 4,
+    "mdLine": 8,
+    "prefixLength": 1,
+    "slateLength": 2,
+    "slateOffset": 0,
+    "slateTextPath": [
+      3,
+      3,
+    ],
+    "suffixLength": 1,
+    "type": "text",
+  },
+  {
+    "mdCh": 15,
+    "mdLength": 1,
+    "mdLine": 8,
+    "prefixLength": 0,
+    "slateLength": 1,
+    "slateOffset": 0,
+    "slateTextPath": [
+      3,
+      4,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 16,
+    "mdLength": 6,
+    "mdLine": 8,
+    "prefixLength": 2,
+    "slateLength": 2,
+    "slateOffset": 0,
+    "slateTextPath": [
+      3,
+      5,
+    ],
+    "suffixLength": 2,
+    "type": "text",
+  },
+  {
+    "mdCh": 22,
+    "mdLength": 1,
+    "mdLine": 8,
+    "prefixLength": 0,
+    "slateLength": 1,
+    "slateOffset": 0,
+    "slateTextPath": [
+      3,
+      6,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 23,
+    "mdLength": 6,
+    "mdLine": 8,
+    "prefixLength": 1,
+    "slateLength": 4,
+    "slateOffset": 0,
+    "slateTextPath": [
+      3,
+      7,
+    ],
+    "suffixLength": 1,
+    "type": "text",
+  },
+  {
+    "mdCh": 29,
+    "mdLength": 1,
+    "mdLine": 8,
+    "prefixLength": 0,
+    "slateLength": 1,
+    "slateOffset": 0,
+    "slateTextPath": [
+      3,
+      8,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 30,
+    "mdLength": 25,
+    "mdLine": 8,
+    "prefixLength": 1,
+    "slateLength": 2,
+    "slateOffset": 0,
+    "slateTextPath": [
+      3,
+      9,
+      0,
+    ],
+    "suffixLength": 22,
+    "type": "text",
+  },
+  {
+    "mdCh": 55,
+    "mdLength": 4,
+    "mdLine": 8,
+    "prefixLength": 0,
+    "slateLength": 4,
+    "slateOffset": 0,
+    "slateTextPath": [
+      3,
+      10,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 59,
+    "mdLength": 6,
+    "mdLine": 8,
+    "prefixLength": 2,
+    "slateLength": 2,
+    "slateOffset": 0,
+    "slateTextPath": [
+      3,
+      11,
+    ],
+    "suffixLength": 2,
+    "type": "text",
+  },
+  {
+    "mdCh": 65,
+    "mdLength": 3,
+    "mdLine": 8,
+    "prefixLength": 0,
+    "slateLength": 3,
+    "slateOffset": 0,
+    "slateTextPath": [
+      3,
+      12,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 7,
+    "mdLength": 2,
+    "mdLine": 10,
+    "prefixLength": 0,
+    "slateLength": 2,
+    "slateOffset": 0,
+    "slateTextPath": [
+      4,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 36,
+    "mdLength": 1,
+    "mdLine": 10,
+    "prefixLength": 0,
+    "slateLength": 1,
+    "slateOffset": 0,
+    "slateTextPath": [
+      4,
+      1,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 47,
+    "mdLength": 2,
+    "mdLine": 10,
+    "prefixLength": 0,
+    "slateLength": 2,
+    "slateOffset": 0,
+    "slateTextPath": [
+      4,
+      2,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 64,
+    "mdLength": 1,
+    "mdLine": 10,
+    "prefixLength": 0,
+    "slateLength": 1,
+    "slateOffset": 0,
+    "slateTextPath": [
+      4,
+      3,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 76,
+    "mdLength": 2,
+    "mdLine": 10,
+    "prefixLength": 0,
+    "slateLength": 2,
+    "slateOffset": 0,
+    "slateTextPath": [
+      4,
+      4,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 0,
+    "mdLength": 40,
+    "mdLine": 12,
+    "prefixLength": 11,
+    "slateLength": 3,
+    "slateOffset": 0,
+    "slateTextPath": [
+      5,
+      0,
+      0,
+    ],
+    "suffixLength": 26,
+    "type": "text",
+  },
+  {
+    "mdCh": 40,
+    "mdLength": 1,
+    "mdLine": 12,
+    "prefixLength": 0,
+    "slateLength": 1,
+    "slateOffset": 0,
+    "slateTextPath": [
+      5,
+      1,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 41,
+    "mdLength": 10,
+    "mdLine": 12,
+    "prefixLength": 5,
+    "slateLength": 4,
+    "slateOffset": 0,
+    "slateTextPath": [
+      5,
+      2,
+      0,
+    ],
+    "suffixLength": 1,
+    "type": "text",
+  },
+  {
+    "mdCh": 51,
+    "mdLength": 1,
+    "mdLine": 12,
+    "prefixLength": 0,
+    "slateLength": 1,
+    "slateOffset": 0,
+    "slateTextPath": [
+      5,
+      3,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 52,
+    "mdLength": 84,
+    "mdLine": 12,
+    "prefixLength": 14,
+    "slateLength": 4,
+    "slateOffset": 0,
+    "slateTextPath": [
+      5,
+      4,
+      1,
+    ],
+    "suffixLength": 66,
+    "type": "text",
+  },
+  {
+    "mdCh": 136,
+    "mdLength": 1,
+    "mdLine": 12,
+    "prefixLength": 0,
+    "slateLength": 1,
+    "slateOffset": 0,
+    "slateTextPath": [
+      5,
+      5,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 2,
+    "mdLength": 3,
+    "mdLine": 14,
+    "prefixLength": 0,
+    "slateLength": 3,
+    "slateOffset": 0,
+    "slateTextPath": [
+      6,
+      0,
+      0,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 2,
+    "mdLength": 3,
+    "mdLine": 15,
+    "prefixLength": 0,
+    "slateLength": 3,
+    "slateOffset": 0,
+    "slateTextPath": [
+      6,
+      1,
+      0,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 4,
+    "mdLength": 2,
+    "mdLine": 16,
+    "prefixLength": 0,
+    "slateLength": 2,
+    "slateOffset": 0,
+    "slateTextPath": [
+      6,
+      1,
+      1,
+      0,
+      0,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 3,
+    "mdLength": 3,
+    "mdLine": 18,
+    "prefixLength": 0,
+    "slateLength": 3,
+    "slateOffset": 0,
+    "slateTextPath": [
+      7,
+      0,
+      0,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 3,
+    "mdLength": 3,
+    "mdLine": 19,
+    "prefixLength": 0,
+    "slateLength": 3,
+    "slateOffset": 0,
+    "slateTextPath": [
+      7,
+      1,
+      0,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 6,
+    "mdLength": 2,
+    "mdLine": 21,
+    "prefixLength": 0,
+    "slateLength": 2,
+    "slateOffset": 0,
+    "slateTextPath": [
+      8,
+      0,
+      0,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 6,
+    "mdLength": 3,
+    "mdLine": 22,
+    "prefixLength": 0,
+    "slateLength": 3,
+    "slateOffset": 0,
+    "slateTextPath": [
+      8,
+      1,
+      0,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 2,
+    "mdLength": 11,
+    "mdLine": 24,
+    "prefixLength": 0,
+    "slateLength": 9,
+    "slateOffset": 0,
+    "slateTextPath": [
+      9,
+      0,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "elementType": "code-block",
+    "isVoid": true,
+    "mdEndCh": 3,
+    "mdEndLine": 29,
+    "mdStartCh": 0,
+    "mdStartLine": 27,
+    "propertyMappings": {
+      "code": {
+        "mdEndCh": 12,
+        "mdEndLine": 28,
+        "mdStartCh": 0,
+        "mdStartLine": 28,
+      },
+    },
+    "slateElementPath": [
+      10,
+    ],
+    "type": "element",
+  },
+  {
+    "elementType": "mermaid",
+    "isVoid": true,
+    "mdEndCh": 3,
+    "mdEndLine": 33,
+    "mdStartCh": 0,
+    "mdStartLine": 31,
+    "slateElementPath": [
+      11,
+    ],
+    "type": "element",
+  },
+  {
+    "elementType": "block-math",
+    "isVoid": true,
+    "mdEndCh": 2,
+    "mdEndLine": 37,
+    "mdStartCh": 0,
+    "mdStartLine": 35,
+    "slateElementPath": [
+      12,
+    ],
+    "type": "element",
+  },
+  {
+    "mdCh": 0,
+    "mdLength": 5,
+    "mdLine": 39,
+    "prefixLength": 0,
+    "slateLength": 5,
+    "slateOffset": 0,
+    "slateTextPath": [
+      13,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "elementType": "inline-math",
+    "isVoid": true,
+    "mdEndCh": 10,
+    "mdEndLine": 39,
+    "mdStartCh": 5,
+    "mdStartLine": 39,
+    "slateElementPath": [
+      13,
+      1,
+    ],
+    "type": "element",
+  },
+  {
+    "mdCh": 10,
+    "mdLength": 4,
+    "mdLine": 39,
+    "prefixLength": 0,
+    "slateLength": 4,
+    "slateOffset": 0,
+    "slateTextPath": [
+      13,
+      2,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 18,
+    "mdLength": 1,
+    "mdLine": 39,
+    "prefixLength": 0,
+    "slateLength": 1,
+    "slateOffset": 0,
+    "slateTextPath": [
+      13,
+      4,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 2,
+    "mdLength": 4,
+    "mdLine": 41,
+    "prefixLength": 0,
+    "slateLength": 4,
+    "slateOffset": 0,
+    "slateTextPath": [
+      14,
+      0,
+      0,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 9,
+    "mdLength": 4,
+    "mdLine": 41,
+    "prefixLength": 0,
+    "slateLength": 4,
+    "slateOffset": 0,
+    "slateTextPath": [
+      14,
+      0,
+      1,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 2,
+    "mdLength": 5,
+    "mdLine": 43,
+    "prefixLength": 0,
+    "slateLength": 5,
+    "slateOffset": 0,
+    "slateTextPath": [
+      14,
+      1,
+      0,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 10,
+    "mdLength": 5,
+    "mdLine": 43,
+    "prefixLength": 0,
+    "slateLength": 5,
+    "slateOffset": 0,
+    "slateTextPath": [
+      14,
+      1,
+      1,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 0,
+    "mdLength": 4,
+    "mdLine": 46,
+    "prefixLength": 0,
+    "slateLength": 4,
+    "slateOffset": 0,
+    "slateTextPath": [
+      15,
+      0,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 0,
+    "mdLength": 4,
+    "mdLine": 50,
+    "prefixLength": 0,
+    "slateLength": 4,
+    "slateOffset": 0,
+    "slateTextPath": [
+      16,
+      0,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "mdCh": 0,
+    "mdLength": 3,
+    "mdLine": 54,
+    "prefixLength": 0,
+    "slateLength": 3,
+    "slateOffset": 0,
+    "slateTextPath": [
+      17,
+      0,
+      0,
+    ],
+    "suffixLength": 0,
+    "type": "text",
+  },
+  {
+    "elementType": "image",
+    "isVoid": true,
+    "mdEndCh": 32,
+    "mdEndLine": 57,
+    "mdStartCh": 0,
+    "mdStartLine": 57,
+    "slateElementPath": [
+      18,
+      0,
+    ],
+    "type": "element",
+  },
+  {
+    "elementType": "audio",
+    "isVoid": true,
+    "mdEndCh": 3,
+    "mdEndLine": 60,
+    "mdStartCh": 0,
+    "mdStartLine": 59,
+    "slateElementPath": [
+      19,
+    ],
+    "type": "element",
+  },
+  {
+    "elementType": "video",
+    "isVoid": true,
+    "mdEndCh": 3,
+    "mdEndLine": 63,
+    "mdStartCh": 0,
+    "mdStartLine": 62,
+    "slateElementPath": [
+      20,
+    ],
+    "type": "element",
+  },
+  {
+    "elementType": "file-attachment",
+    "isVoid": true,
+    "mdEndCh": 3,
+    "mdEndLine": 66,
+    "mdStartCh": 0,
+    "mdStartLine": 65,
+    "slateElementPath": [
+      21,
+    ],
+    "type": "element",
+  },
+  {
+    "elementType": "divide-line",
+    "isVoid": true,
+    "mdEndCh": 3,
+    "mdEndLine": 68,
+    "mdStartCh": 0,
+    "mdStartLine": 68,
+    "slateElementPath": [
+      22,
+    ],
+    "type": "element",
+  },
+]
+`;
+
+exports[`Markdown 往返基准 > 带位置导入 / 导出的映射 > positioned markdown 1`] = `
+"---
+title: 往返基准
+---
+
+# 一级标题
+
+## 二级标题
+
+正文有 **粗体**、*斜体*、~~删除~~、\`行内代码\`、[链接](https://example.com) 和中文**加粗**标点。
+
+:color[彩色]{color=red darkColor=pink} :gradient[渐变]{preset=ocean} :highlight[高亮]{color=yellow}
+
+:underline[下划线]{color=red lineType=wavy} <kbd>Ctrl</kbd> :content-link[引用卡片]{refId=1 contentId=42 contentType=card title="卡片 &quot;标题&quot;"} :time{start=10 end=20}
+
+- 无序一
+- 无序二
+  
+  - 嵌套
+
+1. 有序一
+2. 有序二
+
+- 待办
+- 已完成
+
+> 引用一行
+> 引用两行
+
+\`\`\`TypeScript
+const a = 1;
+\`\`\`
+
+\`\`\`mermaid
+graph TD; A-->B;
+\`\`\`
+
+$$
+E = mc^2
+$$
+
+行内公式 $a^2$ 与脚注[^1]。
+
+| 表头 A | 表头 B |
+| --- | --- |
+| 单元格 1 | 单元格 2 |
+
+:::tip{ title="提示"}
+提示内容
+:::
+
+:::detail{title="详情" open=true}
+折叠内容
+:::
+
+:::highlight-block{color=blue}
+高亮块
+:::
+
+![图片](https://example.com/a.png)
+
+:::audio{src="a.mp3" title="播客"}
+:::
+
+:::video{src="v.mp4"}
+:::
+
+:::file-attachment{fileName="a.pdf" filePath="/tmp/a.pdf" isLocal=true uuid="u-1"}
+:::
+
+---
+
+<div>HTML 块</div>
+
+
+[^1]: 脚注内容"
+`;
+
+exports[`Markdown 往返基准 > 带位置导入 / 导出的映射 > positioned value 1`] = `
+[
+  {
+    "children": [
+      {
+        "text": "",
+        "type": "formatted",
+      },
+    ],
+    "type": "front-matter",
+    "value": "title: 往返基准",
+  },
+  {
+    "children": [
+      {
+        "text": "一级标题",
+        "type": "formatted",
+      },
+    ],
+    "level": 1,
+    "type": "header",
+  },
+  {
+    "children": [
+      {
+        "text": "二级标题",
+        "type": "formatted",
+      },
+    ],
+    "level": 2,
+    "type": "header",
+  },
+  {
+    "children": [
+      {
+        "text": "正文有 ",
+        "type": "formatted",
+      },
+      {
+        "bold": true,
+        "text": "粗体",
+        "type": "formatted",
+      },
+      {
+        "text": "、",
+        "type": "formatted",
+      },
+      {
+        "italic": true,
+        "text": "斜体",
+        "type": "formatted",
+      },
+      {
+        "text": "、",
+        "type": "formatted",
+      },
+      {
+        "strikethrough": true,
+        "text": "删除",
+        "type": "formatted",
+      },
+      {
+        "text": "、",
+        "type": "formatted",
+      },
+      {
+        "code": true,
+        "text": "行内代码",
+        "type": "formatted",
+      },
+      {
+        "text": "、",
+        "type": "formatted",
+      },
+      {
+        "children": [
+          {
+            "text": "链接",
+            "type": "formatted",
+          },
+        ],
+        "type": "link",
+        "url": "https://example.com",
+      },
+      {
+        "text": " 和中文",
+        "type": "formatted",
+      },
+      {
+        "bold": true,
+        "text": "加粗",
+        "type": "formatted",
+      },
+      {
+        "text": "标点。",
+        "type": "formatted",
+      },
+    ],
+    "type": "paragraph",
+  },
+  {
+    "children": [
+      {
+        "color": "red",
+        "darkColor": "pink",
+        "text": "彩色",
+        "type": "formatted",
+      },
+      {
+        "text": " ",
+        "type": "formatted",
+      },
+      {
+        "text": "渐变",
+        "textGradient": "ocean",
+        "type": "formatted",
+      },
+      {
+        "text": " ",
+        "type": "formatted",
+      },
+      {
+        "highlight": "yellow",
+        "text": "高亮",
+        "type": "formatted",
+      },
+    ],
+    "type": "paragraph",
+  },
+  {
+    "children": [
+      {
+        "children": [
+          {
+            "text": "下划线",
+            "type": "formatted",
+          },
+        ],
+        "color": "red",
+        "colorSelectOpen": false,
+        "lineType": "wavy",
+        "type": "underline",
+      },
+      {
+        "text": " ",
+        "type": "formatted",
+      },
+      {
+        "children": [
+          {
+            "text": "Ctrl",
+            "type": "formatted",
+          },
+        ],
+        "type": "kbd",
+      },
+      {
+        "text": " ",
+        "type": "formatted",
+      },
+      {
+        "children": [
+          {
+            "text": "",
+            "type": "formatted",
+          },
+          {
+            "text": "引用卡片",
+            "type": "formatted",
+          },
+        ],
+        "contentId": 42,
+        "contentTitle": "卡片 "标题"",
+        "contentType": "card",
+        "refId": 1,
+        "type": "content-link",
+      },
+      {
+        "text": " ",
+        "type": "formatted",
+      },
+      {
+        "children": [
+          {
+            "text": "",
+            "type": "formatted",
+          },
+        ],
+        "end": 20,
+        "start": 10,
+        "type": "summary-timestamp",
+      },
+    ],
+    "type": "paragraph",
+  },
+  {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "text": "无序一",
+                "type": "formatted",
+              },
+            ],
+            "type": "paragraph",
+          },
+        ],
+        "type": "list-item",
+      },
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "text": "无序二",
+                "type": "formatted",
+              },
+            ],
+            "type": "paragraph",
+          },
+          {
+            "children": [
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "text": "嵌套",
+                        "type": "formatted",
+                      },
+                    ],
+                    "type": "paragraph",
+                  },
+                ],
+                "type": "list-item",
+              },
+            ],
+            "type": "bulleted-list",
+          },
+        ],
+        "type": "list-item",
+      },
+    ],
+    "type": "bulleted-list",
+  },
+  {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "text": "有序一",
+                "type": "formatted",
+              },
+            ],
+            "type": "paragraph",
+          },
+        ],
+        "type": "list-item",
+      },
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "text": "有序二",
+                "type": "formatted",
+              },
+            ],
+            "type": "paragraph",
+          },
+        ],
+        "type": "list-item",
+      },
+    ],
+    "type": "numbered-list",
+  },
+  {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "text": "待办",
+                "type": "formatted",
+              },
+            ],
+            "type": "paragraph",
+          },
+        ],
+        "type": "list-item",
+      },
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "text": "已完成",
+                "type": "formatted",
+              },
+            ],
+            "type": "paragraph",
+          },
+        ],
+        "type": "list-item",
+      },
+    ],
+    "type": "bulleted-list",
+  },
+  {
+    "children": [
+      {
+        "children": [
+          {
+            "text": "引用一行
+引用两行",
+            "type": "formatted",
+          },
+        ],
+        "type": "paragraph",
+      },
+    ],
+    "type": "blockquote",
+  },
+  {
+    "children": [
+      {
+        "text": "",
+        "type": "formatted",
+      },
+    ],
+    "code": "const a = 1;",
+    "language": "TypeScript",
+    "type": "code-block",
+    "uuid": "<uuid>",
+  },
+  {
+    "chart": "graph TD; A-->B;",
+    "children": [
+      {
+        "text": "",
+        "type": "formatted",
+      },
+    ],
+    "type": "mermaid",
+  },
+  {
+    "children": [
+      {
+        "text": "",
+        "type": "formatted",
+      },
+    ],
+    "tex": "E = mc^2",
+    "type": "block-math",
+  },
+  {
+    "children": [
+      {
+        "text": "行内公式 ",
+        "type": "formatted",
+      },
+      {
+        "children": [
+          {
+            "text": "",
+            "type": "formatted",
+          },
+        ],
+        "tex": "a^2",
+        "type": "inline-math",
+      },
+      {
+        "text": " 与脚注",
+        "type": "formatted",
+      },
+      {
+        "children": [
+          {
+            "text": "",
+            "type": "formatted",
+          },
+        ],
+        "content": "脚注内容",
+        "type": "annotation",
+      },
+      {
+        "text": "。",
+        "type": "formatted",
+      },
+    ],
+    "type": "paragraph",
+  },
+  {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "text": "表头 A",
+                "type": "formatted",
+              },
+            ],
+            "type": "table-cell",
+          },
+          {
+            "children": [
+              {
+                "text": "表头 B",
+                "type": "formatted",
+              },
+            ],
+            "type": "table-cell",
+          },
+        ],
+        "type": "table-row",
+      },
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "text": "单元格 1",
+                "type": "formatted",
+              },
+            ],
+            "type": "table-cell",
+          },
+          {
+            "children": [
+              {
+                "text": "单元格 2",
+                "type": "formatted",
+              },
+            ],
+            "type": "table-cell",
+          },
+        ],
+        "type": "table-row",
+      },
+    ],
+    "type": "table",
+  },
+  {
+    "calloutType": "tip",
+    "children": [
+      {
+        "children": [
+          {
+            "text": "提示内容",
+            "type": "formatted",
+          },
+        ],
+        "type": "paragraph",
+      },
+    ],
+    "title": "提示",
+    "type": "callout",
+  },
+  {
+    "children": [
+      {
+        "children": [
+          {
+            "text": "折叠内容",
+            "type": "formatted",
+          },
+        ],
+        "type": "paragraph",
+      },
+    ],
+    "open": true,
+    "title": "详情",
+    "type": "detail",
+  },
+  {
+    "children": [
+      {
+        "children": [
+          {
+            "text": "高亮块",
+            "type": "formatted",
+          },
+        ],
+        "type": "paragraph",
+      },
+    ],
+    "color": "blue",
+    "type": "highlight-block",
+  },
+  {
+    "alt": "图片",
+    "children": [
+      {
+        "text": "",
+        "type": "formatted",
+      },
+    ],
+    "type": "image",
+    "url": "https://example.com/a.png",
+  },
+  {
+    "children": [
+      {
+        "text": "",
+        "type": "formatted",
+      },
+    ],
+    "src": "a.mp3",
+    "title": "播客",
+    "type": "audio",
+    "uploading": false,
+  },
+  {
+    "children": [
+      {
+        "text": "",
+        "type": "formatted",
+      },
+    ],
+    "src": "v.mp4",
+    "type": "video",
+    "uploading": false,
+  },
+  {
+    "children": [
+      {
+        "text": "",
+        "type": "formatted",
+      },
+    ],
+    "fileName": "a.pdf",
+    "filePath": "/tmp/a.pdf",
+    "isLocal": true,
+    "type": "file-attachment",
+    "uuid": "u-1",
+  },
+  {
+    "children": [
+      {
+        "text": "",
+        "type": "formatted",
+      },
+    ],
+    "type": "divide-line",
+  },
+  {
+    "children": [
+      {
+        "text": "",
+        "type": "formatted",
+      },
+    ],
+    "html": "<div>HTML 块</div>",
+    "type": "html-block",
+  },
+]
+`;
