@@ -19,7 +19,7 @@
 - 配置：`EditorProvider` 的 `config` 是个杂物袋（主题、图片外观、`openUrl`、plantuml 地址、`formatDate`），并且隐式按组件树继承。
 - 扩展：内置扩展和宿主扩展共用 `IExtension`，核心手段是链式改写 Slate 方法，没有错误隔离，扩展没法自带 Markdown 序列化。
 - 协作：内核靠 `collaboration` prop 特判，硬依赖 yjs；desktop 每个内容编辑都包一层 `ContentEditor`，发起或结束共享时 documentId 变、`<Editor key>` 重建，编辑器会闪一下。
-- Markdown：三份实现（desktop utils、editor `markdownImport.ts`、没人用的 `slate-markdown`），能力已经分叉；Electron 主进程也在用，不能依赖 DOM。
+- Markdown：三份实现（desktop utils、editor `markdownImport.ts`、没人用的 `slate-markdown`），能力已经分叉；Electron 主进程也在用，不能依赖 DOM。**P5 已合并为 `@tau/markdown`。**
 
 ## 2. 目标（一句话版）
 
@@ -42,7 +42,7 @@
 | P2   | 各平台接入 `--tau-*`（桥接，外观不变）                         | ✅     |
 | P3   | Editor 组件 token（`--ed-*`）+ ThemeService，迁移主题耦合      | ✅     |
 | P4   | 拆解 EditorConfig                                              | ✅     |
-| P5   | Markdown 合并为 headless 的 `@tau/markdown`（可与 P1–P4 穿插） | 🚧     |
+| P5   | Markdown 合并为 headless 的 `@tau/markdown`（可与 P1–P4 穿插） | ✅     |
 | P6   | EditorKit + 文档源，替换 EditorProvider                        | ⏳     |
 | P7   | 协作治理：`editor-collab`、会话升级、无缝换源                  | ⏳     |
 | P8   | 扩展 API v2（声明式贡献点、错误隔离、codec 归属）              | ⏳     |
@@ -51,7 +51,7 @@
 
 状态图例：⏳ 未开始 / 🚧 进行中 / ✅ 完成 / ⏸ 暂停（写原因）。
 
-**下一步**：P5 进行中：`@tau/markdown` 已建好（desktop 实现搬入），接下来合并 editor 导入端的能力、业务 directive 移出、切换使用方。P6 与 P5 互不依赖。
+**下一步**：P6（EditorKit + 文档源，替换 EditorProvider）。
 
 ## 5. 接手步骤
 
