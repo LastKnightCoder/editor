@@ -1,6 +1,5 @@
 import { convertFileSrc as tauriConvertFileSrc } from "@tauri-apps/api/core";
 import { openUrl as tauriOpenUrl } from "@tauri-apps/plugin-opener";
-import { useEffect, useState } from "react";
 import {
   importFromMarkdown as sharedImportFromMarkdown,
   createServiceRegistry,
@@ -11,7 +10,6 @@ import {
   IResourceService,
   type ServiceRegistry,
   type EditorSlots,
-  type EditorConfig,
   type ImageAppearanceConfig,
   type ImageAppearanceSource,
 } from "@tau/editor/src";
@@ -31,17 +29,6 @@ import { arrayBufferToBase64 } from "../utils/base64";
 import { compressImageForUpload } from "../utils/imageCompress";
 
 const UNSUPPORTED_REASON = "移动端不支持该功能";
-
-function readMobileTheme(): "light" | "dark" {
-  if (typeof document === "undefined") {
-    return "light";
-  }
-  // 深色判定走 .dark 类（themeStore 对深色主题统一挂载，与具体主题 id 解耦）
-  return document.documentElement.classList.contains("dark") ? "dark" : "light";
-}
-
-// 编辑器 UI 类走宿主主题 token（--color-* 工具类），随 data-theme 自动切换；
-// 仅 inline 颜色值需要按主题区分。
 
 function createUnsupportedError(feature: string): Error {
   return new Error(`MOBILE_UNSUPPORTED: ${feature} - ${UNSUPPORTED_REASON}`);
@@ -140,32 +127,3 @@ export const mobileImageAppearance: ImageAppearanceSource = {
   get: () => getMobileSettingByPath<ImageAppearanceConfig>("appearance.image"),
   subscribe: subscribeMobileSettingSnapshot,
 };
-
-/** Mobile 编辑器全局配置：主题取文档当前状态 */
-export function createMobileEditorConfig(): EditorConfig {
-  return {
-    theme: {
-      mode: readMobileTheme(),
-    },
-  };
-}
-
-/** 响应式版本：主题经 html[data-theme] 切换时重建配置 */
-export function useMobileEditorConfig(): EditorConfig {
-  const [config, setConfig] = useState(createMobileEditorConfig);
-
-  useEffect(() => {
-    const observer = new MutationObserver(() => {
-      setConfig(createMobileEditorConfig());
-    });
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["data-theme", "class"],
-    });
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
-
-  return config;
-}

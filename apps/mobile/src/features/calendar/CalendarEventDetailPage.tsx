@@ -44,7 +44,7 @@ export function CalendarEventDetailPage({
   onOpenPomodoroHistory,
   onOpenTodo,
 }: CalendarEventDetailPageProps) {
-  const { theme, isDark } = useMobileTheme();
+  const { isDark } = useMobileTheme();
   const { data: event, isError } = useCalendarEventById(eventId);
   const { data: calendars = [] } = useCalendars();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -207,7 +207,6 @@ export function CalendarEventDetailPage({
                     <Editor
                       ref={editorRef}
                       initValue={event.detailContent as Descendant[]}
-                      theme={theme}
                       readonly={true}
                       extensions={mobileCardPreviewExtensions}
                       className="text-ink w-full text-[13.5px] font-medium leading-[1.85] outline-none"

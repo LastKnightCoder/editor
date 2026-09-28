@@ -7,9 +7,8 @@ import { Editor, EditorProvider } from "@tau/editor";
 import { getInitData, formatDate, getReadingTime, getPlainText, joinPath } from "@blog/utils";
 import { QuestAnswerData, QuestData } from "@blog/types";
 import DndProvider from "@blog/components/DndProvider";
-import { createBlogEditorRegistry, createBlogEditorConfig } from "@blog/services/editorRegistry";
+import { createBlogEditorRegistry } from "@blog/services/editorRegistry";
 import { createBlogEditorExtensions } from "@blog/editorExtensions";
-import useBlogTheme from "@blog/hooks/useBlogTheme";
 import { fadeUp, defaultTransition } from "@blog/utils/motion";
 
 const statusLabels: Record<QuestData["status"], string> = {
@@ -87,7 +86,6 @@ const AnswerContent = memo(
     basePath: string;
     settings: ReturnType<typeof getInitData>["settings"];
   }) => {
-    const blogTheme = useBlogTheme();
     const sourceHref = answer.source?.href
       ? joinPath(basePath, answer.source.href, { raw: true })
       : "";
@@ -127,7 +125,6 @@ const AnswerContent = memo(
 
     // hooks 必须先于下方条件早退调用，避免远端答案加载完成后 hooks 数量变化
     const editorRegistry = useMemo(() => createBlogEditorRegistry(), []);
-    const editorConfig = useMemo(() => createBlogEditorConfig(blogTheme), [blogTheme]);
     const editorExtensions = useMemo(() => createBlogEditorExtensions(settings), [settings]);
 
     if (remote.loading) {
@@ -140,11 +137,7 @@ const AnswerContent = memo(
 
     return (
       <DndProvider>
-        <EditorProvider
-          registry={editorRegistry}
-          config={editorConfig}
-          extensions={editorExtensions}
-        >
+        <EditorProvider registry={editorRegistry} extensions={editorExtensions}>
           <Editor initValue={remote.content} readonly />
         </EditorProvider>
       </DndProvider>
@@ -228,9 +221,7 @@ const QuestPage = memo(() => {
   const quest = initData.content as QuestData;
   const docCollections = initData.docCollections || [];
   const blogSettings = initData.settings;
-  const blogTheme = useBlogTheme();
   const blogEditorRegistry = useMemo(() => createBlogEditorRegistry(), []);
-  const blogEditorConfig = useMemo(() => createBlogEditorConfig(blogTheme), [blogTheme]);
   const blogEditorExtensions = useMemo(
     () => createBlogEditorExtensions(blogSettings),
     [blogSettings]
@@ -291,7 +282,6 @@ const QuestPage = memo(() => {
                     <DndProvider>
                       <EditorProvider
                         registry={blogEditorRegistry}
-                        config={blogEditorConfig}
                         extensions={blogEditorExtensions}
                       >
                         <Editor

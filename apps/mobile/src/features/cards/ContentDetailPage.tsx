@@ -16,7 +16,6 @@ import { Editor, type EditorRef } from "@tau/editor/src";
 import * as tauri from "../../services/tauri";
 import type { ContentDetailResponse } from "../../types";
 import { formatDateTimeCompact } from "../../utils/formatTime";
-import { useMobileTheme } from "../../hooks/useMobileTheme";
 import { useEditContent } from "../../hooks/useEditContent";
 import { MobileEditorBottomToolbar } from "./editorToolbar/MobileEditorBottomToolbar";
 import { useMobileEditorToolbarController } from "./editorToolbar/useMobileEditorToolbarController";
@@ -123,7 +122,6 @@ function detailEditMode(hasCollaboration: boolean, mode: CollaborativeEditorMode
 }
 
 export function ContentDetailPage(props: ContentDetailPageProps) {
-  const { theme } = useMobileTheme();
   // 本地编辑器与协作编辑器各自独占 ref：两者曾共用一个 ref 对象，切到协作 live 时
   // 本地编辑器卸载会把 current 清成 null，而已挂好的协作句柄不会重新挂载，控制器从此读不到 editor
   const localEditorRef = useRef<EditorRef | null>(null);
@@ -411,7 +409,6 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
           <Suspense fallback={null}>
             <CollaborativeEditor
               documentId={props.collaboration.documentId}
-              theme={theme}
               extensions={mobileCardPreviewExtensions}
               editorRef={collabEditorRef}
               onEditorFocus={toolbarController.handleEditorFocus}
@@ -441,7 +438,6 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
               onSelectionChange={toolbarController.syncSelection}
               // 编辑器 readonly 默认为 true，非只读分支必须显式放开
               readonly={editMode === "collabConnecting"}
-              theme={theme}
               extensions={mobileCardPreviewExtensions}
             />
           </div>

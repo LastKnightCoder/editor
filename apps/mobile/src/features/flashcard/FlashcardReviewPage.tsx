@@ -10,7 +10,6 @@ import { MobileConfirmDialog } from "../../components/MobileConfirmDialog";
 import { SnapSheet } from "../../components/SnapSheet";
 import { useBackHandler } from "../../router";
 import { useKeepScreenAwake } from "../../hooks/useKeepScreenAwake";
-import { useMobileTheme } from "../../hooks/useMobileTheme";
 import { useEdgeFade } from "../../hooks/useScrollState";
 import * as tauri from "../../services/tauri";
 import { ReferenceEntry, ReviewCardBack, ReviewCardFront } from "./ReviewCard";
@@ -39,7 +38,6 @@ type FlashcardReviewPageProps = {
 
 export function FlashcardReviewPage({ deckId, onRequestClose, onError }: FlashcardReviewPageProps) {
   useKeepScreenAwake(true);
-  const { theme } = useMobileTheme();
 
   const [queue, setQueue] = useState<Flashcard[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -561,7 +559,6 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
           {referenceCard?.references[0]?.content ? (
             <Editor
               initValue={referenceCard.references[0].content.content as Descendant[]}
-              theme={theme}
               className="text-ink min-h-[160px] w-full text-[14px] font-medium leading-[1.8] outline-none"
             />
           ) : (

@@ -25,7 +25,6 @@ import {
 
 import {
   createMobileEditorRegistry,
-  useMobileEditorConfig,
   mobileImageAppearance,
   mobileImportFromMarkdown,
 } from "../services/editorRegistry";
@@ -201,7 +200,6 @@ export default function AppShell() {
 }
 
 function AppShellInner() {
-  const mobileEditorConfig = useMobileEditorConfig();
   const bootstrap = useBootstrap();
   const cards = useCardsQuery();
   const syncSettings = useSyncSettings();
@@ -533,11 +531,7 @@ function AppShellInner() {
 
   return (
     <KeyboardViewportProvider>
-      <EditorProvider
-        registry={editorRegistry}
-        config={mobileEditorConfig}
-        extensions={mobileEditorExtensions}
-      >
+      <EditorProvider registry={editorRegistry} extensions={mobileEditorExtensions}>
         <BilibiliVideoDepsProvider deps={bilibiliDeps}>
           <YoutubeVideoDepsProvider deps={youtubeDeps}>
             <RemoteVideoDepsProvider deps={remoteVideoDeps}>

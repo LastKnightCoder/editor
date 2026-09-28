@@ -1,12 +1,6 @@
 export { default as Editor } from "./index.tsx";
 export { useCollaboration, useCollaborationResource } from "./collaboration/context";
 export type { EditorCollaborationBinding } from "./collaboration/types";
-export { EditorContext, type EditorContextValue } from "./contexts/EditorContext";
-export {
-  useEditorConfig,
-  type EditorConfig,
-  type EditorThemeConfig,
-} from "./contexts/EditorConfig";
 export {
   EditorProvider,
   useEditorExtensions,
@@ -70,7 +64,7 @@ export type {
   ImageAppearanceSource,
 } from "./extensions/image/appearanceOption";
 export type { ImageAppearanceConfig } from "./extensions/image/utils/appearance";
-export { useEditorTheme, EditorThemeScope } from "./theme/context";
+export { useEditorTheme, EditorThemeOverride } from "./theme/context";
 export type { EditorTheme } from "./theme/context";
 export { createDomThemeService, createStaticThemeService } from "./theme/ThemeService";
 export type { ThemeService, EditorThemeMode } from "./theme/ThemeService";

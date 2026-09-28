@@ -10,9 +10,8 @@ import { ArticleData } from "@blog/types";
 import { HeaderElement } from "@tau/editor";
 import { getInlineElementText } from "@blog/utils/editor";
 import DndProvider from "@blog/components/DndProvider";
-import { createBlogEditorRegistry, createBlogEditorConfig } from "@blog/services/editorRegistry";
+import { createBlogEditorRegistry } from "@blog/services/editorRegistry";
 import { createBlogEditorExtensions } from "@blog/editorExtensions";
-import useBlogTheme from "@blog/hooks/useBlogTheme";
 import { fadeUp, defaultTransition } from "@blog/utils/motion";
 
 function extractHeaders(content: unknown[]) {
@@ -38,9 +37,7 @@ const ArticlePage = memo(() => {
   const article = initData.content as ArticleData;
   const docCollections = initData.docCollections || [];
   const blogSettings = initData.settings;
-  const blogTheme = useBlogTheme();
   const blogEditorRegistry = useMemo(() => createBlogEditorRegistry(), []);
-  const blogEditorConfig = useMemo(() => createBlogEditorConfig(blogTheme), [blogTheme]);
   const blogEditorExtensions = useMemo(
     () => createBlogEditorExtensions(blogSettings),
     [blogSettings]
@@ -130,11 +127,7 @@ const ArticlePage = memo(() => {
 
                   {/* 正文内容 */}
                   <DndProvider>
-                    <EditorProvider
-                      registry={blogEditorRegistry}
-                      config={blogEditorConfig}
-                      extensions={blogEditorExtensions}
-                    >
+                    <EditorProvider registry={blogEditorRegistry} extensions={blogEditorExtensions}>
                       <Editor initValue={article.content} readonly />
                     </EditorProvider>
                   </DndProvider>

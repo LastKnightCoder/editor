@@ -5,7 +5,7 @@ import { X } from "lucide-react";
 import { Button as TauButton, toast } from "@tau/ui";
 import { useLocalStorageState } from "ahooks";
 
-import { Editor } from "@tau/editor/src";
+import { Editor, EditorThemeOverride } from "@tau/editor/src";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 import { produce } from "immer";
@@ -327,12 +327,9 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
                   {title}
                 </div>
               )}
-              <Editor
-                initValue={content}
-                readonly={true}
-                extensions={extensions}
-                theme={theme as "light" | "dark"}
-              />
+              <EditorThemeOverride mode={theme}>
+                <Editor initValue={content} readonly={true} extensions={extensions} />
+              </EditorThemeOverride>
             </div>
           </div>
         </div>

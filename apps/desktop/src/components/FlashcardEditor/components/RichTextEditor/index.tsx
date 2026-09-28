@@ -73,7 +73,6 @@ const RichTextEditor = ({
         readonly={false}
         extensions={extensions}
         placeHolder={placeholder}
-        theme={isDark ? "dark" : "light"}
         style={{
           padding: "16px",
           minHeight,

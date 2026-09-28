@@ -9,9 +9,8 @@ import { HeaderElement } from "@tau/editor";
 import { getInlineElementText } from "@blog/utils/editor";
 import DndProvider from "@blog/components/DndProvider";
 import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
-import { createBlogEditorRegistry, createBlogEditorConfig } from "@blog/services/editorRegistry";
+import { createBlogEditorRegistry } from "@blog/services/editorRegistry";
 import { createBlogEditorExtensions } from "@blog/editorExtensions";
-import useBlogTheme from "@blog/hooks/useBlogTheme";
 
 const DOC_SIDEBAR_SCROLL_STORAGE_KEY = "blog:doc-sidebar-scroll";
 const DOC_SIDEBAR_COLLAPSE_STORAGE_KEY = "blog:doc-sidebar-collapse";
@@ -39,9 +38,7 @@ const DocPage = memo(() => {
   const doc = initData.content as DocData;
   const docCollections = initData.docCollections || [];
   const blogSettings = initData.settings;
-  const blogTheme = useBlogTheme();
   const blogEditorRegistry = useMemo(() => createBlogEditorRegistry(), []);
-  const blogEditorConfig = useMemo(() => createBlogEditorConfig(blogTheme), [blogTheme]);
   const blogEditorExtensions = useMemo(
     () => createBlogEditorExtensions(blogSettings),
     [blogSettings]
@@ -287,11 +284,7 @@ const DocPage = memo(() => {
 
                   {/* 正文 */}
                   <DndProvider>
-                    <EditorProvider
-                      registry={blogEditorRegistry}
-                      config={blogEditorConfig}
-                      extensions={blogEditorExtensions}
-                    >
+                    <EditorProvider registry={blogEditorRegistry} extensions={blogEditorExtensions}>
                       <Editor initValue={doc.content} readonly />
                     </EditorProvider>
                   </DndProvider>

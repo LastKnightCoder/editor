@@ -32,7 +32,6 @@ import {
   type OutlineHeader,
 } from "@/components/ContentOutline";
 import { fileAttachmentExtension } from "@/editor-extensions";
-import useTheme from "@/hooks/useTheme";
 import { getContentLength, getMarkdown, importFromMarkdown } from "@/utils";
 import { FileBanner, FileStatusBar } from "../FileChrome";
 import { useTextFileSession } from "../useTextFileSession";
@@ -71,7 +70,6 @@ export const MarkdownFileView = forwardRef<
     onSaveAs(text: string): void;
   }
 >(function MarkdownFileView({ path, wide, onStatus, onOpenMarkdown, onSaveAs }, ref) {
-  const { isDark } = useTheme();
   const editorRef = useRef<EditorRef>(null);
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   useEdgeFade(scrollEl);
@@ -288,7 +286,6 @@ export const MarkdownFileView = forwardRef<
                     session.markDirty();
                   }}
                   readonly={false}
-                  theme={isDark ? "dark" : "light"}
                   extensions={EXTENSIONS}
                 />
               </EditorProvider>

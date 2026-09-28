@@ -21,7 +21,6 @@ const RichTextRenderer = ({ content, isDark = false, className = "" }: RichTextR
         initValue={content}
         readonly={true}
         extensions={extensions}
-        theme={isDark ? "dark" : "light"}
         style={{
           outline: "none",
           cursor: "default",

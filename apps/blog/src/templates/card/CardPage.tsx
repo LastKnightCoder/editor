@@ -7,9 +7,8 @@ import { Editor, EditorProvider } from "@tau/editor";
 import { getInitData, formatDate, getReadingTime, joinPath } from "@blog/utils";
 import { CardData, LinkedCardInfo } from "@blog/types";
 import DndProvider from "@blog/components/DndProvider";
-import { createBlogEditorRegistry, createBlogEditorConfig } from "@blog/services/editorRegistry";
+import { createBlogEditorRegistry } from "@blog/services/editorRegistry";
 import { createBlogEditorExtensions } from "@blog/editorExtensions";
-import useBlogTheme from "@blog/hooks/useBlogTheme";
 import { fadeUp, defaultTransition } from "@blog/utils/motion";
 
 function buildCardListTagHref(basePath: string, tag: string): string {
@@ -44,9 +43,7 @@ const CardPage = memo(() => {
   const card = initData.content as CardData;
   const docCollections = initData.docCollections || [];
   const blogSettings = initData.settings;
-  const blogTheme = useBlogTheme();
   const blogEditorRegistry = useMemo(() => createBlogEditorRegistry(), []);
-  const blogEditorConfig = useMemo(() => createBlogEditorConfig(blogTheme), [blogTheme]);
   const blogEditorExtensions = useMemo(
     () => createBlogEditorExtensions(blogSettings),
     [blogSettings]
@@ -105,11 +102,7 @@ const CardPage = memo(() => {
 
               {/* 正文 */}
               <DndProvider>
-                <EditorProvider
-                  registry={blogEditorRegistry}
-                  config={blogEditorConfig}
-                  extensions={blogEditorExtensions}
-                >
+                <EditorProvider registry={blogEditorRegistry} extensions={blogEditorExtensions}>
                   <Editor initValue={card.content} readonly />
                 </EditorProvider>
               </DndProvider>

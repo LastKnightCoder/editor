@@ -8,7 +8,6 @@ import {
   IVideoContentProviders,
   type ServiceRegistry,
   type VideoContentProvider,
-  type EditorConfig,
 } from "@tau/editor";
 import { importFromMarkdown } from "@tau/editor";
 import { markdownCustomDirectives } from "@tau/shared";
@@ -124,15 +123,6 @@ export function createExtensionEditorRegistry({
 
     register(IVideoContentProviders, createDegradedVideoProviders());
   });
-}
-
-/** 扩展端编辑器全局配置：主题随 sidepanel 明暗状态 */
-export function createExtensionEditorConfig(resolvedTheme: ResolvedTheme): EditorConfig {
-  return {
-    theme: {
-      mode: resolvedTheme,
-    },
-  };
 }
 
 /** markdown 粘贴导入用的解析函数（合并业务 customDirectives），供宿主扩展工厂注入 */

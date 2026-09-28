@@ -15,7 +15,6 @@ import {
 import { Editor, type EditorRef } from "@tau/editor/src";
 import { ActionSheet } from "../../components/ActionSheet";
 import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
-import { useMobileTheme } from "../../hooks/useMobileTheme";
 import { useEdgeFade } from "../../hooks/useScrollState";
 import { useNavigator } from "../../router";
 import { mobileCardPreviewExtensions } from "../cards/editorExtensions";
@@ -30,7 +29,6 @@ export function CollabEditorPage(props: {
   onExit: () => void;
 }) {
   const navigator = useNavigator();
-  const { theme } = useMobileTheme();
   const [moreOpen, setMoreOpen] = useState(false);
   const { binding, session, loading, error, readonly, presence, status, online, offline, retry } =
     useCollabSession(props.documentId);
@@ -133,7 +131,6 @@ export function CollabEditorPage(props: {
                 collaboration={binding}
                 className="mobile-card-editor-content"
                 readonly={readonly}
-                theme={theme}
                 extensions={mobileCardPreviewExtensions}
                 onFocus={() => {
                   presence.onFocus();
