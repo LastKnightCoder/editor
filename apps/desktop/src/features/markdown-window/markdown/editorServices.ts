@@ -10,8 +10,8 @@ import { useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
 import {
   createChildRegistry,
+  IOpenerService,
   IResourceService,
-  useEditorConfig,
   useServiceRegistry,
   type ServiceRegistry,
 } from "@tau/editor/src";
@@ -85,7 +85,6 @@ export function useMarkdownEditorServices(
   onOpenMarkdown: (path: string) => void
 ) {
   const baseRegistry = useServiceRegistry();
-  const baseConfig = useEditorConfig();
 
   const upload = useMemoizedFn(async (file: File): Promise<string> => {
     const { imageBed } = useSettingStore.getState().setting;
@@ -133,12 +132,9 @@ export function useMarkdownEditorServices(
     () =>
       createChildRegistry(baseRegistry, register => {
         register(IResourceService, { ...baseRegistry.get(IResourceService), upload });
+        register(IOpenerService, { open: openUrl });
       }),
-    [baseRegistry, upload]
+    [baseRegistry, upload, openUrl]
   );
-  const config = useMemo(
-    () => (baseConfig ? { ...baseConfig, openUrl } : null),
-    [baseConfig, openUrl]
-  );
-  return { registry, config };
+  return registry;
 }

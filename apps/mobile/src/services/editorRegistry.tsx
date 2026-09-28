@@ -7,6 +7,7 @@ import {
   IEditorSlots,
   IFileService,
   IVideoContentProviders,
+  IOpenerService,
   IResourceService,
   type ServiceRegistry,
   type EditorSlots,
@@ -109,6 +110,11 @@ export function createMobileEditorRegistry(): ServiceRegistry {
       convertFileSrc: async filePath => tauriConvertFileSrc(filePath),
     });
 
+    register(IOpenerService, {
+      open: url => {
+        void tauriOpenUrl(url);
+      },
+    });
     register(IEditorSlots, mobileEditorSlots);
     register(IVideoContentProviders, mobileVideoContentProviders);
   });
@@ -139,9 +145,6 @@ export function createMobileEditorConfig(): EditorConfig {
       mode: theme,
     },
     appearance: image ? { image } : undefined,
-    openUrl: url => {
-      void tauriOpenUrl(url);
-    },
   };
 }
 

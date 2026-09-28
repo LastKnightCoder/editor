@@ -5,7 +5,8 @@ import { ReactEditor, RenderElementProps, useReadOnly, useSlateStatic } from "sl
 import { motion, AnimatePresence } from "motion/react";
 import { useMemoizedFn } from "ahooks";
 import { Copy, Edit2, Link2Off, ExternalLink } from "lucide-react";
-import { useEditorConfig } from "../../../contexts/EditorConfig";
+import { useOptionalService } from "../../../services/hooks";
+import { IOpenerService } from "../../../services/tokens";
 import classNames from "classnames";
 import { App } from "antd";
 
@@ -199,11 +200,11 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = props => {
   const readOnly = useReadOnly();
   const editor = useSlateStatic();
   const { message } = App.useApp();
-  const config = useEditorConfig();
+  const opener = useOptionalService(IOpenerService);
 
   const openUrl = async (url: string) => {
-    if (config?.openUrl) {
-      await config.openUrl(url);
+    if (opener) {
+      await opener.open(url);
       return;
     }
     window.open(url, "_blank", "noopener,noreferrer");

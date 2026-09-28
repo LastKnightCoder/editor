@@ -10,6 +10,7 @@ import {
   IFileService,
   IMediaActions,
   IMediaInsertSources,
+  IOpenerService,
   IResourceService,
   IVideoContentProviders,
   type ServiceRegistry,
@@ -20,6 +21,7 @@ import {
 } from "@/editor-providers/videoProviders";
 import { ttsInsertSource } from "@/editor-providers/TtsPanel";
 import { aiImageEditAction, aiImageInsertSource } from "@/editor-providers/AIImagePanel";
+import { openExternal } from "@/commands/extra";
 
 import {
   desktopCompilerService,
@@ -36,6 +38,11 @@ export function createEditorRegistry(): ServiceRegistry {
 
     // 可选服务（desktop 全量提供）
     register(ICompilerService, desktopCompilerService);
+    register(IOpenerService, {
+      open: url => {
+        void openExternal(url);
+      },
+    });
 
     // UI 插槽
     register(IEditorSlots, desktopEditorSlots);

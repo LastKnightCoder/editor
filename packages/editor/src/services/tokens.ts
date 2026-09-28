@@ -1,4 +1,9 @@
-import type { CompilerService, FileService, ResourceService } from "../types/services";
+import type {
+  CompilerService,
+  FileService,
+  OpenerService,
+  ResourceService,
+} from "../types/services";
 import type {
   MediaAction,
   MediaInsertSource,
@@ -30,6 +35,9 @@ export const IFileService = createServiceId<FileService>("fileService");
 // ==================== 可选服务（useOptionalService / tryGetService 获取） ====================
 
 export const ICompilerService = createServiceId<CompilerService>("compilerService");
+
+/** 打开链接：未注册时编辑器用 window.open 新开标签页 */
+export const IOpenerService = createServiceId<OpenerService>("openerService");
 
 /** 主题服务：未注册时编辑器用 DOM 默认实现（读 <html> 的 data-mode / data-theme） */
 export const IThemeService = createServiceId<ThemeService>("themeService");
