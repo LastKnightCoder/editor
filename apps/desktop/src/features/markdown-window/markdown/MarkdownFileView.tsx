@@ -31,7 +31,6 @@ import {
   resolveEditorHeaderAnchor,
   type OutlineHeader,
 } from "@/components/ContentOutline";
-import { fileAttachmentExtension } from "@/editor-extensions";
 import { getContentLength, getMarkdown, importFromMarkdown } from "@/utils";
 import { FileBanner, FileStatusBar } from "../FileChrome";
 import { useTextFileSession } from "../useTextFileSession";
@@ -40,7 +39,6 @@ import { CodeMirrorView } from "./CodeMirrorView";
 import { useMarkdownEditorServices } from "./editorServices";
 import { useSourceMode } from "./useSourceMode";
 
-const EXTENSIONS = [fileAttachmentExtension];
 const WORDS_PER_MINUTE = 400;
 const SOURCE_MODE = { name: "yaml-frontmatter", base: "gfm" };
 
@@ -286,7 +284,6 @@ export const MarkdownFileView = forwardRef<
                   session.markDirty();
                 }}
                 readonly={false}
-                extensions={EXTENSIONS}
               />
             </ErrorBoundary>
           </div>

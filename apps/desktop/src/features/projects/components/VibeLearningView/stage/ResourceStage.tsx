@@ -16,7 +16,6 @@ import LocalImage from "@/components/LocalImage";
 import { FadeScroll } from "@/components/FadeScroll";
 import { getContentById } from "@/commands";
 import useEditContent from "@/hooks/useEditContent";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import type { NoteSourceMeta, VLResource } from "@/types/vibe-learning";
 
 import VideoPreview from "../ResourcePreview/VideoPreview";
@@ -103,7 +102,6 @@ function QuickGenerate({ onGenerate }: { onGenerate: (key: GenerateAppKey) => vo
 
 /** 来自笔记的资料：就地编辑原笔记（实时保存） */
 function NoteResourceBody({ meta }: { meta: NoteSourceMeta }) {
-  const extensions = useDynamicExtensionsStore(s => s.extensions);
   const editorRef = useRef<EditorRef>(null);
   const [content, setContent] = useState<Descendant[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -151,7 +149,6 @@ function NoteResourceBody({ meta }: { meta: NoteSourceMeta }) {
               setContent(next);
               throttleHandleEditorContentChange(next);
             }}
-            extensions={extensions}
           />
         </ErrorBoundary>
       </div>

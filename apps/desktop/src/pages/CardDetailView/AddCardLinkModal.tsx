@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
 import ContentSelectorModal from "@/components/ContentSelectorModal";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { getAllCards } from "@/commands";
 import { ICard, IndexType, SearchResult } from "@/types";
 
@@ -14,27 +13,22 @@ interface IAddCardLinkModalProps {
 
 const AddCardLinkModal = (props: IAddCardLinkModalProps) => {
   const { open, editingCard, onOk, onClose } = props;
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
 
   const [cards, setCards] = useState<ICard[]>([]);
 
   useEffect(() => {
-    getAllCards().then((cards) => {
+    getAllCards().then(cards => {
       setCards(cards);
     });
   }, []);
 
   const excludeCardIds = useMemo(() => {
     if (!editingCard) return [];
-    return [editingCard.id, ...editingCard.links].filter(
-      (id) => !!id,
-    ) as number[];
+    return [editingCard.id, ...editingCard.links].filter(id => !!id) as number[];
   }, [editingCard]);
 
   const initialContents = useMemo(() => {
-    return cards.map((card) => ({
+    return cards.map(card => ({
       id: card.id,
       contentId: card.contentId,
       type: "card" as IndexType,
@@ -46,12 +40,10 @@ const AddCardLinkModal = (props: IAddCardLinkModalProps) => {
   }, [cards]);
 
   const handleSelect = (selectedResults: SearchResult | SearchResult[]) => {
-    const results = Array.isArray(selectedResults)
-      ? selectedResults
-      : [selectedResults];
-    const selectedCardIds = results.map((result) => result.id);
+    const results = Array.isArray(selectedResults) ? selectedResults : [selectedResults];
+    const selectedCardIds = results.map(result => result.id);
     const newSelectedCards = selectedCardIds
-      .map((id) => cards.find((card) => card.id === id))
+      .map(id => cards.find(card => card.id === id))
       .filter((card): card is ICard => !!card);
 
     onOk(newSelectedCards);
@@ -71,7 +63,6 @@ const AddCardLinkModal = (props: IAddCardLinkModalProps) => {
       multiple={true}
       excludeIds={excludeCardIds}
       initialContents={initialContents}
-      extensions={dynamicExtensions}
     />
   );
 };

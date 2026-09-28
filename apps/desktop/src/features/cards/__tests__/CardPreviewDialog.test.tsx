@@ -27,7 +27,6 @@ vi.mock("@/utils", () => ({ formatDate: () => "日期", getContentLength: () => 
 vi.mock("@/hooks/useEditContent", () => ({
   default: () => ({ throttleHandleEditorContentChange: vi.fn() }),
 }));
-vi.mock("@/stores/useDynamicExtensionsStore", () => ({ default: () => [] }));
 vi.mock("@/components/ContentEditor", () => ({
   default: function MockContentEditor({ contentId, onInit, onLoadError }: any) {
     mocks.editorReady = () => onInit?.({}, []);

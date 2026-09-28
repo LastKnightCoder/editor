@@ -85,10 +85,6 @@ vi.mock("@/hooks/useDatabaseChangeEffect", () => ({
   useDatabaseChangeEffect: () => undefined,
 }));
 
-vi.mock("@/stores/useDynamicExtensionsStore", () => ({
-  default: (selector: (state: { extensions: [] }) => unknown) => selector({ extensions: [] }),
-}));
-
 vi.mock("@/hooks/useThemeColors", () => ({
   default: () => ({
     textClass: "text-gray-800",

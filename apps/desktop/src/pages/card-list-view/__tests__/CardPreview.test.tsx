@@ -111,10 +111,6 @@ vi.mock("@/stores/useTabStore", () => ({
     selector({ navigateTo: navigateToMock }),
 }));
 
-vi.mock("@/stores/useDynamicExtensionsStore", () => ({
-  default: (selector: (state: { extensions: never[] }) => unknown) => selector({ extensions: [] }),
-}));
-
 vi.mock("@/utils", () => ({
   defaultCardEventBus: {
     createEditor: () => ({

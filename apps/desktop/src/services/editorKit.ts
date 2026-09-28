@@ -14,20 +14,53 @@ import {
   type IExtension,
 } from "@tau/editor/src";
 import { createDesktopEditorExtensions } from "@/editor-extensions";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { desktopEditorServices } from "./editorRegistry";
+
+/** 异步装载的宿主扩展必须先就位：kit 只建一次，少拿了就整个应用少几种块，且不会报错 */
+function requireHostExtensions() {
+  const state = useDynamicExtensionsStore.getState();
+  if (!state.initialized) {
+    throw new Error(
+      "[desktop] 宿主扩展尚未装载：请在渲染前 await useDynamicExtensionsStore.getState().initExtensions()"
+    );
+  }
+  return state;
+}
 
 let cached: EditorKit | null = null;
 
+/** 库内内容（卡片、文章、日记、项目文档…）的 kit：内置 + 全部宿主扩展 */
 export function getDesktopKit(): EditorKit {
   if (!cached) {
+    const { extensions, libraryBlockExtensions } = requireHostExtensions();
     cached = createEditorKit({
-      extensions: createDesktopEditorExtensions(),
+      extensions: [...createDesktopEditorExtensions(), ...extensions, ...libraryBlockExtensions],
       services: [desktopEditorServices],
       // createImageExtensions 按 type 替换内置 image / image-gallery
       override: true,
     });
   }
   return cached;
+}
+
+let fileCached: EditorKit | null = null;
+
+/**
+ * Markdown 文件编辑的 kit：不含白板与数据库块。
+ * 这两种块在 Markdown 里没有对应语法（数据库无 codec、白板只有 void 占位），
+ * 插进去保存回 .md 会丢内容，所以连插入入口都不给。
+ */
+export function getDesktopFileKit(): EditorKit {
+  if (!fileCached) {
+    const { extensions } = requireHostExtensions();
+    fileCached = createEditorKit({
+      extensions: [...createDesktopEditorExtensions(), ...extensions],
+      services: [desktopEditorServices],
+      override: true,
+    });
+  }
+  return fileCached;
 }
 
 const bareCache = new Map<readonly IExtension[], EditorKit>();

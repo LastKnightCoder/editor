@@ -138,6 +138,23 @@ const METRICS = [
     pattern: /\bcollaboration=\{/g,
     mode: "files",
   },
+  {
+    // P6.5 清零：宿主扩展的来源只剩 kit，业务代码不再自行取用（清单见 02 P6.5）
+    key: "desktop.hostExtensionConsumers",
+    desc: "desktop 读取 useDynamicExtensionsStore 的文件（入口 bootstrap 与 editorKit 除外）",
+    roots: ["apps/desktop/src", "apps/desktop/e2e"],
+    pattern: /useDynamicExtensionsStore/g,
+    mode: "files",
+    includeTests: true,
+    exclude: [
+      /apps\/desktop\/src\/stores\/useDynamicExtensionsStore\.ts$/,
+      /apps\/desktop\/src\/services\/editorKit\.ts$/,
+      /apps\/desktop\/src\/main\.tsx$/,
+      /apps\/desktop\/src\/showcase\/main\.tsx$/,
+      /apps\/desktop\/e2e\/collaboration\/renderer\.tsx$/,
+      /apps\/desktop\/src\/services\/__tests__\/editorKit\.test\.ts$/,
+    ],
+  },
 ];
 
 const measure = metric => {

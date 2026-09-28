@@ -12,7 +12,6 @@ import { Editor } from "@tau/editor/src";
 import { IconButton, Tag, cn, useEdgeFade } from "@tau/ui";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { useOverlayDismiss } from "@/page/PageProvider";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import {
   firstLine,
   formatTime,
@@ -147,7 +146,6 @@ function EchoItem({
   tags: DiaryTag[];
   onClick: () => void;
 }) {
-  const extensions = useDynamicExtensionsStore(state => state.extensions);
   return (
     <div
       role="button"
@@ -167,7 +165,6 @@ function EchoItem({
             key={moment.updateTime}
             readonly
             initValue={moment.content.length ? moment.content : undefined}
-            extensions={extensions}
             className="text-tau-body leading-[1.75]"
           />
         </ErrorBoundary>

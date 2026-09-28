@@ -10,7 +10,6 @@ import useBatchOperation from "./useBatchOperation";
 import { indexContent, removeIndex, getAllIndexResults } from "@/utils/search";
 import { getAllCards } from "@/commands";
 import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 const PAGE_SIZE = 20;
 
@@ -18,7 +17,6 @@ type OnChange = NonNullable<TableProps<ICard>["onChange"]>;
 type Filters = Parameters<OnChange>[1];
 
 const useCardConfig = () => {
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const { message } = App.useApp();
   const [cards, setCards] = useState<ICard[]>([]);
   useEffect(() => {
@@ -310,7 +308,7 @@ const useCardConfig = () => {
               placement={"bottom"}
               content={
                 <div className="overflow-y-auto" style={{ maxWidth: 320, maxHeight: 180 }}>
-                  <Editor extensions={dynamicExtensions} readonly initValue={content} />
+                  <Editor readonly initValue={content} />
                 </div>
               }
             >

@@ -11,12 +11,10 @@ import { BoardUtil, CardUtil } from "../../../utils";
 import { CardElement } from "../../../plugins";
 import { ICard } from "@/types";
 import { IndexType, SearchResult } from "@/types/search";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { toast } from "@tau/ui";
 import { ChromeButton } from "../../../chrome";
 
 const Card = () => {
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const board = useBoard();
 
   const [cards, setCards] = useState<ICard[]>([]);
@@ -119,7 +117,6 @@ const Card = () => {
           onCancel={onCancel}
           onSelect={onSelectOk}
           contentType="card"
-          extensions={dynamicExtensions}
           emptyDescription="没有可选择的卡片"
           showTitle={false}
           multiple={false}

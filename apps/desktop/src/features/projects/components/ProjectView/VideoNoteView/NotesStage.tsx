@@ -10,7 +10,6 @@ import type { Descendant } from "slate";
 import type { EditorRef } from "@tau/editor/src";
 import { Button, ConfirmDialog, IconButton, Loading, Menu, Tooltip, toast } from "@tau/ui";
 import Editor from "@/components/ContentEditor";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import {
   createContent,
   createVideoNoteItem,
@@ -40,7 +39,6 @@ interface NotesStageProps {
 }
 
 export function NotesStage({ videoNoteId, videoController }: NotesStageProps) {
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const editorRef = useRef<EditorRef>(null);
 
   const [items, setItems] = useState<VideoNoteItem[]>([]);
@@ -100,11 +98,10 @@ export function NotesStage({ videoNoteId, videoController }: NotesStageProps) {
 
   const extensions = useMemo(
     () => [
-      ...dynamicExtensions,
       new VideoTimestampExtension(videoController),
       new VideoScreenshotExtension(videoController),
     ],
-    [dynamicExtensions, videoController]
+    [videoController]
   );
 
   const createNote = useMemoizedFn(async () => {

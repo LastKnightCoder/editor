@@ -5,7 +5,7 @@ import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
-import { Editor, IExtension } from "@tau/editor";
+import { Editor } from "@tau/editor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import If from "@/components/If";
 import EditText from "@/components/EditText";
@@ -40,7 +40,6 @@ const getTypeColor = (type: IndexType): string => {
 export interface ContentSelectorProps {
   onSelect: (item: SearchResult) => void;
   contentType: IndexType | IndexType[];
-  extensions: IExtension[];
   emptyDescription?: string;
   showTitle?: boolean;
   isItemSelected?: (item: SearchResult) => boolean;
@@ -53,7 +52,6 @@ const defaultInitialContents: SearchResult[] = [];
 const ContentSelector: React.FC<ContentSelectorProps> = ({
   onSelect,
   contentType,
-  extensions,
   emptyDescription = "无结果",
   showTitle = true,
   isItemSelected,
@@ -217,7 +215,6 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
                           kit={getDesktopKit()}
                           readonly={true}
                           initValue={item.content.slice(0, 3)}
-                          extensions={extensions}
                         />
                       </div>
                     </ErrorBoundary>

@@ -5,7 +5,6 @@ import { useMemoizedFn } from "ahooks";
 import { Editor, EditorRef } from "@tau/editor/src";
 import PortalToBody from "@/components/PortalToBody";
 import useSettingStore from "@/stores/useSettingStore";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import classnames from "classnames";
 
 // 导入抽离的组件和hooks
@@ -24,7 +23,6 @@ interface PresentationModeProps {
 }
 
 const PresentationMode: React.FC<PresentationModeProps> = ({ content, onExit }) => {
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const [showTip, setShowTip] = useState(true);
   const [isOverview, setIsOverview] = useState(false);
   const [isExitingOverview, setIsExitingOverview] = useState(false);
@@ -200,7 +198,6 @@ const PresentationMode: React.FC<PresentationModeProps> = ({ content, onExit }) 
             selectedSlide={selectedOverviewSlide}
             onSelectSlide={setSelectedOverviewSlide}
             onEnterSlide={handleEnterSlide}
-            extensions={dynamicExtensions}
             isExiting={isExitingOverview}
           />
         ) : (
@@ -211,7 +208,6 @@ const PresentationMode: React.FC<PresentationModeProps> = ({ content, onExit }) 
                 ref={presentationEditorRef}
                 readonly={true}
                 initValue={slides[currentSlide] || []}
-                extensions={dynamicExtensions}
                 className={styles.presentationEditor}
                 style={{
                   ["--block-distance" as string]: "40px",

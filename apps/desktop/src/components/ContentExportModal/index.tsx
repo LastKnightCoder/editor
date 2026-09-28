@@ -7,7 +7,6 @@ import { Button as TauButton, toast } from "@tau/ui";
 import { useLocalStorageState } from "ahooks";
 
 import { Editor, EditorThemeOverride } from "@tau/editor/src";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 import { produce } from "immer";
 import { captureBlobWithSnapdom } from "@/utils/snapdom-export";
@@ -133,7 +132,6 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
   const { open, onClose, content, title } = props;
   const previewRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
-  const extensions = useDynamicExtensionsStore(state => state.extensions);
 
   const currentDarkTheme = useRef(DARK_THEME_CONFIGS[0]);
   const currentLightTheme = useRef(LIGHT_THEME_CONFIGS[0]);
@@ -323,12 +321,7 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
             >
               {title && <div className="mb-4 text-center text-xl font-semibold">{title}</div>}
               <EditorThemeOverride mode={theme}>
-                <Editor
-                  kit={getDesktopKit()}
-                  initValue={content}
-                  readonly={true}
-                  extensions={extensions}
-                />
+                <Editor kit={getDesktopKit()} initValue={content} readonly={true} />
               </EditorThemeOverride>
             </div>
           </div>

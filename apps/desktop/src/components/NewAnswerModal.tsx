@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from "react";
 import { Descendant } from "slate";
 import { useMemoizedFn, useUnmount } from "ahooks";
-import { IExtension, EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor/src";
 import Editor from "@/components/ContentEditor";
 import CustomModal from "@/components/CustomModal";
 import useEditContent from "@/hooks/useEditContent";
@@ -16,7 +16,6 @@ const DEFAULT_CONTENT: Descendant[] = [
 interface NewAnswerModalProps {
   visible: boolean;
   questionId: number | null;
-  extensions: IExtension[];
   onClose: () => void;
   customTitle?: string;
 }
@@ -24,7 +23,6 @@ interface NewAnswerModalProps {
 const NewAnswerModal: React.FC<NewAnswerModalProps> = ({
   visible,
   questionId,
-  extensions,
   onClose,
   customTitle = "新建答案",
 }) => {
@@ -106,7 +104,6 @@ const NewAnswerModal: React.FC<NewAnswerModalProps> = ({
           initValue={DEFAULT_CONTENT}
           onChange={handleContentChange}
           readonly={false}
-          extensions={extensions}
           style={{ maxHeight: 600, overflow: "auto", padding: 20 }}
         />
       </div>

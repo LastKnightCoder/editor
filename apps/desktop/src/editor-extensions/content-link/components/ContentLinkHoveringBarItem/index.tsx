@@ -10,13 +10,11 @@ import { SearchResult } from "@/types";
 
 import classnames from "classnames";
 import { unwrapContentLink, wrapContentLink } from "../utils";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 const LinkHoveringItem = memo(() => {
   const selectionRef = useRef<BaseSelection | null>(null);
   const [openSelectModal, setOpenSelectModal] = useState<boolean>(false);
   const { contentId } = useContext(EditContentContext) || {};
-  const extensions = useDynamicExtensionsStore(state => state.extensions);
   const editor = useSlate();
   const selection = useSlateSelection();
 
@@ -93,7 +91,6 @@ const LinkHoveringItem = memo(() => {
         onCancel={onCancelSelect}
         onSelect={onSelectOk}
         contentType={["card", "article", "project-item", "diary-daily"]}
-        extensions={extensions}
         emptyDescription="没有可选择的内容"
         showTitle={false}
         multiple={false}
