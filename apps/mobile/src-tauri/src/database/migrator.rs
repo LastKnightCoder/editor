@@ -210,6 +210,9 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
         DROP TABLE IF EXISTS rss_subscription;
         DROP TABLE IF EXISTS rss_feed;")
         .map_err(|e| format!("SUBSCRIPTION_RETIREMENT_FAILED: {e}"))?;
+    // 桌面旧聊天链路的运行记录（pi 迁移 M8）：只存运行中状态，移动端从不读
+    tx.execute_batch("DROP TABLE IF EXISTS chat_run;")
+        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: {e}"))?;
     super::knowledge_migration::migrate(&tx)?;
     super::main_upgrade::validate(&tx, &baseline)?;
     let broken_reference = tx

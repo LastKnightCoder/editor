@@ -16,7 +16,6 @@ import DailyNoteTable from "./tables/daily-note";
 import DiaryTable from "./tables/diary";
 import ChatMessageTable from "./tables/chat-message";
 import ChatSessionTable from "./tables/chat-session";
-import ChatRunTable from "./tables/chat-run";
 import ChatGroupTable from "./tables/chat-group";
 import OperationTable from "./tables/operation";
 import StatisticTable from "./tables/statistic";
@@ -225,7 +224,6 @@ class DatabaseModule implements Module {
       ChatGroupTable,
       ChatMessageTable,
       ChatSessionTable,
-      ChatRunTable,
       OperationTable,
       StatisticTable,
       VideoNoteItemTable, // Must be before VideoNoteTable for migration
@@ -367,6 +365,8 @@ class DatabaseModule implements Module {
         );
 
         database.exec("DROP TABLE IF EXISTS shortcuts");
+        // 旧聊天链路的运行记录（pi 迁移 M8）：只存运行中状态，渲染端早已零调用，无需备份
+        database.exec("DROP TABLE IF EXISTS chat_run");
 
         const pageCount = Number(database.pragma("page_count", { simple: true }));
         const freelistCount = Number(database.pragma("freelist_count", { simple: true }));
