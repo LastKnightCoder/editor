@@ -22,7 +22,8 @@ const walk = (dir, out = []) => {
     if (SKIP_DIRS.has(name)) continue;
     const full = join(dir, name);
     if (statSync(full).isDirectory()) walk(full, out);
-    else if (SOURCE.test(name)) out.push(full);
+    // 统一成 / 分隔：exclude 规则与 isTest 都按 / 写，Windows 上 join 出的 \ 会让它们全部失配
+    else if (SOURCE.test(name)) out.push(full.replaceAll("\\", "/"));
   }
   return out;
 };
