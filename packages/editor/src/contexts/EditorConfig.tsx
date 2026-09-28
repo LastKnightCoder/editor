@@ -30,8 +30,6 @@ export interface EditorConfig {
   plantumlServer?: string;
   /** PlantUML 暗色主题（暗色时注入 !theme，置空串禁用），默认 cyborg-outline */
   plantumlDarkTheme?: string;
-  /** 日期格式化（如批注时间），默认 dayjs "YYYY-MM-DD HH:mm:ss" */
-  formatDate?: (date: Date | string | number, format?: string) => string;
 }
 
 /** React 消费：Provider 内读取配置，未配置时返回 null。 */
