@@ -1,11 +1,15 @@
-// 过渡壳：实现已迁到 @tau/markdown（docs/editor-refactor 02 P5），使用方切换完成后删除
-export {
-  importFromMarkdown,
-  importFromMarkdownWithPositions,
-  type SlateWithPositions,
-  markdownSerializerRegistry,
-  type MarkdownSerializer,
-  getMarkdown,
-  elementToMarkdown,
-  leafToMarkdown,
-} from "@tau/markdown";
+/**
+ * Desktop 的 Markdown 处理器：@tau/markdown 内置元素 + desktop 业务元素（markdown-codecs.ts）。
+ * 渲染进程与 Electron 主进程都从这里取，保证两边解析规则一致。
+ */
+import { createMarkdownProcessor } from "@tau/markdown";
+import { desktopMarkdownCodecs } from "./markdown-codecs";
+
+export const desktopMarkdown = createMarkdownProcessor({ codecs: desktopMarkdownCodecs });
+
+export const importFromMarkdown = desktopMarkdown.importFromMarkdown;
+export const importFromMarkdownWithPositions = desktopMarkdown.importFromMarkdownWithPositions;
+export const getMarkdown = desktopMarkdown.getMarkdown;
+export const elementToMarkdown = desktopMarkdown.elementToMarkdown;
+
+export { leafToMarkdown, type SlateWithPositions } from "@tau/markdown";

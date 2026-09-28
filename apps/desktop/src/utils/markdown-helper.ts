@@ -1,9 +1,10 @@
-// 过渡壳：实现已迁到 @tau/markdown（docs/editor-refactor 02 P5），使用方切换完成后删除
+// 导出端入口：与 ./markdown 共用同一个 desktop 处理器
+import { desktopMarkdown } from "./markdown";
+
+export { getMarkdown, elementToMarkdown } from "./markdown";
+export const getMarkdownWithPositions = desktopMarkdown.getMarkdownWithPositions;
 export {
-  getMarkdown,
   leafToMarkdown,
-  elementToMarkdown,
   leafToMarkdownStructured,
-  getMarkdownWithPositions,
   type MarkdownWithPositions,
 } from "@tau/markdown";
