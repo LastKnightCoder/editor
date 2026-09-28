@@ -37,6 +37,7 @@
     "@tau/collaboration": "workspace:*",
     "@tau/editor": "workspace:*",
     "@tau/editor-webview": "workspace:*",
+    "@tau/markdown": "workspace:*",
     "@tau/shared": "workspace:*",
     "@tau/themes": "workspace:*",
     "@tauri-apps/api": "^2",

@@ -53,6 +53,8 @@ export { default as useIsLastElement } from "./hooks/useIsLastElement";
 export { default as useUploadResource } from "./hooks/useUploadResource";
 export { createMarkdownPasteImportExtension } from "./extensions/markdown-paste-import";
 export type { MarkdownImportFn } from "./extensions/markdown-paste-import";
+export { isMarkdownLikeText } from "./plugins/withMarkdownPasteImport";
+export type { ImportFromMarkdownOptions } from "./plugins/withMarkdownPasteImport";
 export { default as PlantUMLExtension } from "./extensions/plantuml";
 export type { PlantUMLExtensionOptions } from "./extensions/plantuml";
 export { createImageExtensions } from "./extensions/image/createImageExtensions";

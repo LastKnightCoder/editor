@@ -1,7 +1,43 @@
 import { Descendant, Editor } from "slate";
-import { isMarkdownLikeText as defaultIsMarkdownLikeText } from "../utils/markdownImport";
 import type { Plugin } from "../utils/plugin";
-import type { ImportFromMarkdownOptions } from "../utils/markdownImport";
+
+/**
+ * 宿主注入的导入函数的第三个参数。编辑器内核不依赖 @tau/markdown（它反过来依赖编辑器的元素类型），
+ * 这里只声明结构，与 @tau/markdown 的 ImportFromMarkdownOptions 结构兼容。
+ */
+export interface ImportFromMarkdownOptions {
+  customDirectives?: Record<
+    string,
+    (attributes: Record<string, string | undefined>) => Descendant | null
+  >;
+}
+
+/** 粗判一段纯文本是否像 Markdown：粘贴时决定要不要交给宿主的导入函数 */
+export const isMarkdownLikeText = (text: string): boolean => {
+  if (!text.trim()) return false;
+
+  const markdownPatterns = [
+    /^\s{0,3}#{1,6}\s+/m,
+    /^\s*[-*+]\s+/m,
+    /^\s*\d+\.\s+/m,
+    /^\s*>\s+/m,
+    /(^|\n)\s*(```|~~~)/,
+    /!\[[^\]]*\]\([^)]+\)/,
+    /\[[^\]]+\]\([^)]+\)/,
+    /(^|\n)\s*:::[^\n]*/m,
+    /(^|\n)\s*::[a-zA-Z-]+(?:\{|\s|$)/m,
+    /(^|\n)\s*:[a-zA-Z-]+\[/m,
+  ];
+
+  if (markdownPatterns.some(pattern => pattern.test(text))) {
+    return true;
+  }
+
+  const hasTableRow = /^\s*\|.*\|\s*$/m.test(text);
+  const hasTableDivider = /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/m.test(text);
+
+  return hasTableRow && hasTableDivider;
+};
 
 const SLATE_FRAGMENT_MIME = "application/x-slate-fragment";
 const MARKDOWN_MIME = "text/markdown";
@@ -98,8 +134,7 @@ export const createMarkdownPasteImportPlugin =
         return;
       }
 
-      const shouldTreatAsMarkdown =
-        Boolean(markdownText?.trim()) || defaultIsMarkdownLikeText(sourceText);
+      const shouldTreatAsMarkdown = Boolean(markdownText?.trim()) || isMarkdownLikeText(sourceText);
 
       if (!shouldTreatAsMarkdown) {
         insertData(data);

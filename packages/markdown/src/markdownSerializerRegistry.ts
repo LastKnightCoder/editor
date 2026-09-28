@@ -660,6 +660,7 @@ export class MarkdownSerializerRegistry {
         toMarkdown: element => {
           const attributes = [];
           attributes.push(`src="${element.src}"`);
+          if (element.title) attributes.push(`title="${element.title}"`);
           if (element.isFromGenerate) attributes.push(`isFromGenerate="${element.isFromGenerate}"`);
           if (element.audioText) attributes.push(`audioText="${element.audioText}"`);
           const attributeStr = attributes.length > 0 ? attributes.join(" ") : "";

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { importFromMarkdown, isMarkdownLikeText } from "../markdownImport";
+import { getMarkdown, importFromMarkdown, isMarkdownLikeText } from "../index.ts";
 
-describe("markdownImport", () => {
+// 原 packages/editor/src/utils/__tests__/markdownImport.test.ts，随导入端合并迁入
+describe("importFromMarkdown 选项与粘贴判定", () => {
   it("应识别常见 Markdown 结构", () => {
     expect(isMarkdownLikeText("# 标题")).toBe(true);
     expect(isMarkdownLikeText("- 列表项")).toBe(true);
@@ -94,5 +95,26 @@ describe("markdownImport", () => {
         ];
       });
     expect(collectIds(content)).toEqual(["container", "leaf", "text"]);
+  });
+
+  it("customDirective handler 内再次导入不会串用外层的脚注上下文", () => {
+    const content = importFromMarkdown("外层[^a]\n\n:::wrap\n:::\n\n[^a]: 外层脚注", [], {
+      customDirectives: {
+        wrap: () => {
+          const inner = importFromMarkdown("内层[^a]\n\n[^a]: 内层脚注");
+          return inner[0];
+        },
+      },
+    });
+    const text = JSON.stringify(content);
+    expect(text).toContain("外层脚注");
+    expect(text).toContain("内层脚注");
+  });
+
+  it("audio 的 title 导入导出往返保留", () => {
+    const markdown = ':::audio{src="a.mp3" title="播客"}\n:::';
+    const content = importFromMarkdown(markdown);
+    expect(content[0]).toMatchObject({ type: "audio", title: "播客" });
+    expect(getMarkdown(content).trim()).toBe(markdown);
   });
 });

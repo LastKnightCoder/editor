@@ -3,7 +3,7 @@
  * 经 editorRegistry.ts 组合注册后由编辑器消费，实现间不感知注册机制。
  */
 
-import { importFromMarkdown as sharedImportFromMarkdown } from "@tau/editor/src";
+import { importFromMarkdown as sharedImportFromMarkdown } from "@tau/markdown";
 import { markdownCustomDirectives } from "@tau/shared";
 import type { CompilerService, FileService, ResourceService } from "@tau/editor/src/types/services";
 import type { EditorSlots } from "@tau/editor/src";
