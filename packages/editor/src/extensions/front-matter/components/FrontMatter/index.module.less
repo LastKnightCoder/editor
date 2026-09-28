@@ -1,7 +1,7 @@
 .frontMatter {
   margin: 1em 0;
   padding: 1em;
-  background-color: var(--th-bg-page);
+  background-color: var(--ed-bg-page);
   border-radius: 0.5em;
   user-select: none;
 
@@ -33,7 +33,7 @@
 
   .frontMatterKey {
     min-width: 7.5em;
-    color: var(--th-text-secondary);
+    color: var(--ed-text-secondary);
     font-weight: 500;
     display: flex;
     align-items: center;
@@ -47,7 +47,7 @@
   }
 
   .frontMatterValue {
-    color: var(--th-text);
+    color: var(--ed-text);
     word-break: break-word;
     flex: 1;
   }
@@ -57,9 +57,9 @@
     padding: 0.5em 0.75em;
     font-size: inherit;
     font-family: inherit;
-    color: var(--th-text);
+    color: var(--ed-text);
     background-color: var(--bg-primary);
-    border: 1px solid var(--th-border);
+    border: 1px solid var(--ed-border);
     border-radius: 0.375em;
     outline: none;
     transition:
@@ -67,12 +67,12 @@
       box-shadow 0.2s;
 
     &:focus {
-      border-color: var(--primary-color, #3b82f6);
+      border-color: var(--ed-accent);
       box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
     }
 
     &::placeholder {
-      color: var(--text-tertiary);
+      color: var(--ed-text-tertiary);
       opacity: 0.6;
     }
   }
@@ -82,9 +82,9 @@
     padding: 0.5em 0.75em;
     font-size: inherit;
     font-family: inherit;
-    color: var(--th-text);
+    color: var(--ed-text);
     background-color: var(--bg-primary);
-    border: 1px solid var(--th-border);
+    border: 1px solid var(--ed-border);
     border-radius: 0.375em;
     outline: none;
     resize: none;
@@ -98,12 +98,12 @@
       box-shadow 0.2s;
 
     &:focus {
-      border-color: var(--primary-color, #3b82f6);
+      border-color: var(--ed-accent);
       box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
     }
 
     &::placeholder {
-      color: var(--text-tertiary);
+      color: var(--ed-text-tertiary);
       opacity: 0.6;
     }
   }
@@ -118,7 +118,7 @@
     display: inline-block;
     padding: 0.2em 0.6em;
     font-size: 0.85em;
-    color: var(--primary-color, #3b82f6);
+    color: var(--ed-accent);
     background-color: rgba(59, 130, 246, 0.1);
     border-radius: 0.25em;
   }

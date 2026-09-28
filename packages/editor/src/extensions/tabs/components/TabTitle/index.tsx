@@ -181,10 +181,10 @@ const TabTitle = (props: TabTitleProps) => {
       className={containerClass}
     >
       {dropBefore && (
-        <div className="absolute -left-1 top-1/2 z-10 h-4 w-0.5 -translate-y-1/2 rounded-full bg-[var(--th-accent,#71717a)]" />
+        <div className="absolute -left-1 top-1/2 z-10 h-4 w-0.5 -translate-y-1/2 rounded-full bg-[var(--ed-accent,#71717a)]" />
       )}
       {dropAfter && (
-        <div className="absolute -right-1 top-1/2 z-10 h-4 w-0.5 -translate-y-1/2 rounded-full bg-[var(--th-accent,#71717a)]" />
+        <div className="absolute -right-1 top-1/2 z-10 h-4 w-0.5 -translate-y-1/2 rounded-full bg-[var(--ed-accent,#71717a)]" />
       )}
       <span className="max-w-[12em] truncate">{tab.title || "标签"}</span>
       {/* 删除按钮常驻显示（占位固定、无浮现与布局动画），仅 hover 变红作删除提示 */}
