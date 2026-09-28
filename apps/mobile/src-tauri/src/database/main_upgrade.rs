@@ -136,17 +136,8 @@ fn upgrade_inner(conn: &Connection, baseline: &Connection, now: i64) -> rusqlite
     for (name, color, sort) in [("周记", "#52c41a", 0), ("月记", "#fa8c16", 1)] {
         conn.execute("INSERT INTO diary_tag_settings(name,color,sort,create_time,update_time) VALUES(?1,?2,?3,?4,?4) ON CONFLICT(name) DO NOTHING", params![name,color,sort,now])?;
     }
-    for table in [
-        "chat_message",
-        "pdf_chats",
-        "video_note_chats",
-        "vibe_learning_chats",
-    ] {
-        conn.execute_batch(&format!(
-            "UPDATE {table} SET message_schema_version=1 WHERE message_schema_version IS NULL;
-            UPDATE {table} SET agent_type='local' WHERE agent_type IS NULL;"
-        ))?;
-    }
+    // 旧聊天表（chat_message 等）不再在基线里：桌面端迁到 pi 会话文件后删除（pi 迁移 M8），
+    // 移动端从不读聊天，老库里的这些表原样留着，等桌面开库迁移
     conn.execute_batch("WITH ranked AS (
         SELECT id,(ROW_NUMBER() OVER (PARTITION BY project_id ORDER BY CASE WHEN sort_index=0 THEN 1 ELSE 0 END,sort_index,create_time DESC,id DESC)+1)*1024 AS next_sort
         FROM vibe_learning_resources WHERE project_id IN (SELECT project_id FROM vibe_learning_resources WHERE sort_index=0)

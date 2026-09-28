@@ -90,8 +90,8 @@ fn resource_retirement_preserves_attachments_and_repeats() {
         INSERT INTO resources VALUES(42,'/saved.png');
         INSERT INTO contents(id,create_time,update_time,content,count,ref_count)
         VALUES(1,1,1,'[{\"url\":\"/saved.png\"}]',0,1);
-        INSERT INTO chat_message(id,create_time,update_time,messages)
-        VALUES(1,1,1,'[{\"resourceId\":42,\"path\":\"/saved.png\"}]');
+        INSERT INTO chat_session(id,scope,session_file,title,create_time,update_time)
+        VALUES('s1','main-chat','s1.jsonl','/saved.png',1,1);
         INSERT INTO resource_sync_blacklist(file_name,create_time,update_time) VALUES('saved.png',1,1);
         INSERT INTO operation(operation_content_type,operation_time) VALUES('resource',1),('content',1);").unwrap();
     ensure_main_schema(&conn).unwrap();
@@ -109,12 +109,12 @@ fn resource_retirement_preserves_attachments_and_repeats() {
         .query_row("SELECT content FROM contents WHERE id=1", [], |r| r.get(0))
         .unwrap();
     assert_eq!(content, "[{\"url\":\"/saved.png\"}]");
-    let messages: String = conn
-        .query_row("SELECT messages FROM chat_message WHERE id=1", [], |r| {
+    let title: String = conn
+        .query_row("SELECT title FROM chat_session WHERE id='s1'", [], |r| {
             r.get(0)
         })
         .unwrap();
-    assert!(messages.contains("/saved.png"));
+    assert!(title.contains("/saved.png"));
     let operation: String = conn
         .query_row("SELECT operation_content_type FROM operation", [], |r| {
             r.get(0)
@@ -180,7 +180,9 @@ fn historical_schemas_upgrade_and_repeat_without_missing_columns() {
             Some("3".into())
         );
         conn.prepare("SELECT tags FROM diary_entries").unwrap();
-        conn.prepare("SELECT agent_type,agent_session_id,message_schema_version,title_dirty FROM chat_message").unwrap();
+        // 旧聊天表已不在基线里（桌面迁到 pi 会话后删除，pi 迁移 M8）：移动端不补列，原样留给桌面迁移
+        conn.prepare("SELECT messages FROM chat_message").unwrap();
+        conn.prepare("SELECT id FROM chat_session").unwrap();
     }
 }
 
@@ -230,14 +232,12 @@ fn legacy_data_keeps_ids_references_and_message_version() {
         .unwrap(),
         "[\"周记\"]"
     );
+    // 旧聊天行原样保留（由桌面迁到 pi 会话后才删，pi 迁移 M8）
     assert_eq!(
-        conn.query_row(
-            "SELECT message_schema_version FROM chat_message WHERE id=3",
-            [],
-            |r| r.get::<_, i64>(0)
-        )
-        .unwrap(),
-        1
+        conn.query_row("SELECT messages FROM chat_message WHERE id=3", [], |r| r
+            .get::<_, String>(0))
+            .unwrap(),
+        "[]"
     );
 }
 

@@ -29,7 +29,6 @@ export * from "./video-note-item";
 export * from "./video-note-index";
 export * from "./audio-notes";
 export * from "./audio-note-item";
-export * from "./audio-note-chat";
 export * from "./xiaoyuzhou";
 export * from "./question";
 export * from "./entity";

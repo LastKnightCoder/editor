@@ -252,21 +252,6 @@ CREATE TABLE IF NOT EXISTS vibe_learning_resources (
         duration INTEGER, source_type TEXT, source_meta_info TEXT, transcript_segments TEXT,
         FOREIGN KEY(project_id) REFERENCES project(id)
       );
-CREATE TABLE IF NOT EXISTS vibe_learning_chats (
-        id INTEGER PRIMARY KEY,
-        project_id INTEGER NOT NULL,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        messages TEXT,
-        title TEXT,
-        archived INTEGER DEFAULT 0,
-        parent_chat_id INTEGER,
-        branch_index INTEGER DEFAULT 0,
-        message_schema_version INTEGER DEFAULT 3,
-        agent_type TEXT DEFAULT 'local',
-        agent_session_id TEXT,
-        FOREIGN KEY(project_id) REFERENCES project(id)
-      );
 CREATE TABLE IF NOT EXISTS vl_note (
         id INTEGER PRIMARY KEY,
         create_time INTEGER NOT NULL,

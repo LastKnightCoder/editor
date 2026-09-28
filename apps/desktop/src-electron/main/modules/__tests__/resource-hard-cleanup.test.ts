@@ -54,7 +54,7 @@ describe("资源索引退役迁移", () => {
     db.exec("INSERT INTO resource_group VALUES(1, NULL, 0), (2, 1, 0)");
     const retained = [
       "contents",
-      "chat_message",
+      "chat_session",
       "resource_sync_blacklist",
       "vibe_learning_resources",
     ];
@@ -63,8 +63,8 @@ describe("资源索引退役迁移", () => {
     );
     db.exec(`INSERT INTO contents(id, create_time, update_time, content, count, ref_count)
       VALUES(1, 1, 1, '[{"type":"image","url":"/saved.png"}]', 0, 1);
-      INSERT INTO chat_message(id, create_time, update_time, messages)
-      VALUES(1, 1, 1, '[{"resourceId":42,"path":"/saved.png"}]');
+      INSERT INTO chat_session(id, scope, session_file, title, create_time, update_time)
+      VALUES('s1', 'main-chat', 's1.jsonl', '/saved.png', 1, 1);
       INSERT INTO resource_sync_blacklist(file_name, create_time, update_time) VALUES('saved.png', 1, 1);
       INSERT INTO operation(operation_content_type, operation_action, operation_id, operation_time)
       VALUES('resource', 'insert', 42, 1), ('content', 'insert', 1, 1);`);

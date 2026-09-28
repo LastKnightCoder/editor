@@ -11,10 +11,8 @@ import ArticleTable from "./tables/article";
 import WhiteboardTable from "./tables/whiteboard";
 import ProjectTable from "./tables/project";
 import PdfTable from "./tables/pdf";
-import PdfChatTable from "./tables/pdf-chat";
 import DailyNoteTable from "./tables/daily-note";
 import DiaryTable from "./tables/diary";
-import ChatMessageTable from "./tables/chat-message";
 import ChatSessionTable from "./tables/chat-session";
 import ChatGroupTable from "./tables/chat-group";
 import OperationTable from "./tables/operation";
@@ -23,10 +21,8 @@ import VecDocumentTable from "./tables/vec-document";
 import FtsTable from "./tables/fts";
 import VideoNoteTable from "./tables/video-note";
 import VideoNoteItemTable from "./tables/video-note-item";
-import VideoNoteChatTable from "./tables/video-note-chat";
 import AudioNoteTable from "./tables/audio-note";
 import AudioNoteItemTable from "./tables/audio-note-item";
-import AudioNoteChatTable from "./tables/audio-note-chat";
 import { getXiaoyuzhouListenEvents } from "./xiaoyuzhou";
 import ContentTable from "./tables/content";
 import QuestionTable from "./tables/question";
@@ -70,7 +66,6 @@ import PublishHistoryTable from "./tables/publish-history";
 import SlideHardCleanupTable from "./tables/slide-hard-cleanup";
 import TranscriptionTable from "./tables/transcription";
 import VibeLearningResourceTable from "./tables/vibe-learning-resource";
-import VibeLearningChatTable from "./tables/vibe-learning-chat";
 import VLNoteTable from "./tables/vl-note";
 import VLQuizTable from "./tables/vl-quiz";
 import { shouldWrapDatabaseEventInTransaction } from "./database-event-transaction";
@@ -92,6 +87,7 @@ import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 import { executeReadOnlySql, type SqlQueryInput } from "./sql-query";
 import { migrateLegacyChatsToSessions } from "./chat-session-migration";
 import { mergeChatSessionBranches } from "./chat-session-tree-migration";
+import { retireLegacyChats } from "./legacy-chat-retirement";
 import { chatSessionDirOf } from "./pi-session-paths";
 
 export type DatabaseConnectMode = "normal" | "maintenance";
@@ -218,20 +214,16 @@ class DatabaseModule implements Module {
       ArticleTable,
       ProjectTable,
       PdfTable,
-      PdfChatTable,
       DailyNoteTable,
       DiaryTable,
       ChatGroupTable,
-      ChatMessageTable,
       ChatSessionTable,
       OperationTable,
       StatisticTable,
       VideoNoteItemTable, // Must be before VideoNoteTable for migration
       VideoNoteTable,
-      VideoNoteChatTable,
       AudioNoteItemTable,
       AudioNoteTable,
-      AudioNoteChatTable,
       QuestionGroupTable,
       QuestionTable,
       QuestionEventTable,
@@ -271,7 +263,6 @@ class DatabaseModule implements Module {
       SlideHardCleanupTable,
       TranscriptionTable,
       VibeLearningResourceTable,
-      VibeLearningChatTable,
       VLNoteTable,
       VLQuizTable,
     ] as unknown as Table[];
@@ -525,6 +516,21 @@ class DatabaseModule implements Module {
       }
     } catch (error) {
       log.error(`[database] chat session tree migration failed: db=${name}`, error);
+    }
+    this.retireLegacyChatTables(database, name, dbPath);
+  }
+
+  /** 旧聊天表退役（M8）：两次迁移都记账后删旧表与目录表分支列；没迁完的库什么都不做 */
+  private retireLegacyChatTables(database: Database.Database, name: string, dbPath: string) {
+    try {
+      const result = retireLegacyChats(database, dbPath);
+      if (!result.retired) return;
+      log.info(
+        `[database] legacy chat tables retired: db=${name}, tables=${result.droppedTables.join(",") || "none"}, branchColumns=${result.droppedBranchColumns}, backup=${result.backupPath ?? "none"}`
+      );
+    } catch (error) {
+      // 失败不阻塞开库：表原样留着，下次开库重试
+      log.error(`[database] legacy chat retirement failed: db=${name}`, error);
     }
   }
 

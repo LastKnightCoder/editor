@@ -19,7 +19,7 @@ import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sq
 import { EProjectType } from "@/types/project";
 import ContentTable from "../tables/content";
 import ProjectTable from "../tables/project";
-import VibeLearningChatTable from "../tables/vibe-learning-chat";
+import ChatSessionTable from "../tables/chat-session";
 import VibeLearningResourceTable from "../tables/vibe-learning-resource";
 import VLNoteTable from "../tables/vl-note";
 import VLQuizTable from "../tables/vl-quiz";
@@ -29,7 +29,6 @@ function createTestDatabase() {
   db.exec(MAIN_SCHEMA_SQL);
   ProjectTable.upgradeTable(db);
   VibeLearningResourceTable.upgradeTable(db);
-  VibeLearningChatTable.upgradeTable(db);
   VLNoteTable.upgradeTable(db);
   VLQuizTable.upgradeTable(db);
   return db;
@@ -125,14 +124,15 @@ describe("ProjectTable.deleteProject(VibeLearning)", () => {
       originalPath: "/tmp/res.pdf",
       resourceType: "pdf",
     });
-    VibeLearningChatTable.createChat(db, {
-      projectId: project.id,
-      title: "测试对话",
-      messages: [] as any,
+    ChatSessionTable.create(db, {
+      id: "vl-chat",
+      scope: "vibe-learning-chat",
+      domainRef: String(project.id),
+      sessionFile: "vl-chat.jsonl",
     });
 
     expect(countByProjectId(db, "vibe_learning_resources", project.id)).toBe(1);
-    expect(countByProjectId(db, "vibe_learning_chats", project.id)).toBe(1);
+    expect(ChatSessionTable.getById(db, "vl-chat")).not.toBeNull();
     expect(countByProjectId(db, "vl_note", project.id)).toBe(1);
     expect(countByProjectId(db, "vl_quiz_set", project.id)).toBe(1);
     expect(countByProjectId(db, "vl_quiz_record", project.id)).toBe(1);
@@ -146,7 +146,7 @@ describe("ProjectTable.deleteProject(VibeLearning)", () => {
       }
     ).toEqual({ count: 0 });
     expect(countByProjectId(db, "vibe_learning_resources", project.id)).toBe(0);
-    expect(countByProjectId(db, "vibe_learning_chats", project.id)).toBe(0);
+    expect(ChatSessionTable.getById(db, "vl-chat")).toBeNull();
     expect(countByProjectId(db, "vl_note", project.id)).toBe(0);
     expect(countByProjectId(db, "vl_quiz_set", project.id)).toBe(0);
     expect(countByProjectId(db, "vl_quiz_record", project.id)).toBe(0);

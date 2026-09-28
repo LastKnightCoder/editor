@@ -4,8 +4,8 @@
  * 这里**不存消息载荷**，所以列表查询是常数级的，不会把整库消息拉进内存。
  * id 即 pi 会话 id；scope + domain_ref 区分五个聊天场景与所属对象。
  *
- * 一行 = 一个对话 = 一个会话文件；分支在文件内部的会话树上（M4-d）。parent_session_id /
- * branch_index 两列只剩树合并迁移（chat-session-tree-migration）读，迁完恒为空，列留到 M8 随旧表一起删。
+ * 一行 = 一个对话 = 一个会话文件；分支在文件内部的会话树上（M4-d）。M4 时期的库还带
+ * parent_session_id / branch_index 两列，树合并迁移读完后由 legacy-chat-retirement 删掉（M8）。
  */
 import Database from "better-sqlite3";
 import { rmSync } from "node:fs";
@@ -30,8 +30,6 @@ interface RawRow {
   archived: number;
   source: string;
   message_count: number;
-  parent_session_id: string | null;
-  branch_index: number;
   create_time: number;
   update_time: number;
 }
@@ -48,8 +46,6 @@ const COLUMN_BY_FIELD: Record<keyof ChatSessionPatch, string> = {
   archived: "archived",
   source: "source",
   messageCount: "message_count",
-  parentSessionId: "parent_session_id",
-  branchIndex: "branch_index",
   updateTime: "update_time",
 };
 
@@ -73,8 +69,6 @@ export default class ChatSessionTable {
         archived INTEGER NOT NULL DEFAULT 0,
         source TEXT NOT NULL DEFAULT 'desktop',
         message_count INTEGER NOT NULL DEFAULT 0,
-        parent_session_id TEXT,
-        branch_index INTEGER NOT NULL DEFAULT 0,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL
       )
@@ -82,9 +76,6 @@ export default class ChatSessionTable {
     db.exec("CREATE INDEX IF NOT EXISTS idx_chat_session_scope ON chat_session(scope, domain_ref)");
     db.exec("CREATE INDEX IF NOT EXISTS idx_chat_session_update_time ON chat_session(update_time)");
     db.exec("CREATE INDEX IF NOT EXISTS idx_chat_session_group_id ON chat_session(group_id)");
-    db.exec(
-      "CREATE INDEX IF NOT EXISTS idx_chat_session_parent ON chat_session(parent_session_id)"
-    );
   }
 
   static getListenEvents() {
@@ -113,8 +104,6 @@ export default class ChatSessionTable {
       archived: Boolean(row.archived),
       source: row.source === "browser" ? "browser" : "desktop",
       messageCount: row.message_count,
-      parentSessionId: row.parent_session_id,
-      branchIndex: row.branch_index,
       createTime: row.create_time,
       updateTime: row.update_time,
     };
@@ -125,8 +114,8 @@ export default class ChatSessionTable {
     db.prepare(
       `INSERT INTO chat_session
          (id, scope, domain_ref, session_file, cwd, title, title_dirty, group_id, order_num,
-          archived, source, message_count, parent_session_id, branch_index, create_time, update_time)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          archived, source, message_count, create_time, update_time)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       input.id,
       input.scope,
@@ -140,8 +129,6 @@ export default class ChatSessionTable {
       input.archived ? 1 : 0,
       input.source ?? "desktop",
       input.messageCount ?? 0,
-      input.parentSessionId ?? null,
-      input.branchIndex ?? 0,
       input.createTime ?? now,
       input.updateTime ?? input.createTime ?? now
     );
