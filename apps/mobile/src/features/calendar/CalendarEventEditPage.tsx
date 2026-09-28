@@ -3,11 +3,10 @@
 // 顶栏取消与系统返回手势走同一入口（对齐闪卡 cardEdit 审查修复项）。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getMobileKit } from "../../services/editorKit";
+import { getMobileContentKit } from "../../services/editorKit";
 import { CalendarX2, Trash2 } from "lucide-react";
 import { Editor, type EditorRef } from "@tau/editor/src";
 import type { Descendant } from "slate";
-import { mobileCardPreviewExtensions } from "../cards/editorExtensions";
 import {
   createEmptyEditorContent,
   normalizeEditorContent,
@@ -407,11 +406,10 @@ export function CalendarEventEditPage({
               详情
             </div>
             <Editor
-              kit={getMobileKit()}
+              kit={getMobileContentKit()}
               ref={editorRef}
               initValue={draft.detailContent}
               readonly={saving}
-              extensions={mobileCardPreviewExtensions}
               placeHolder="添加日程详情..."
               className="mobile-card-editor-content min-h-[180px] outline-none"
               onFocus={toolbarController.handleEditorFocus}

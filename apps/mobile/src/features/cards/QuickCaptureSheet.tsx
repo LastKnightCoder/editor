@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getMobileKit } from "../../services/editorKit";
+import { getMobileContentKit } from "../../services/editorKit";
 import { X } from "lucide-react";
 import { Editor, type EditorRef } from "@tau/editor/src";
 import type { Descendant } from "slate";
@@ -13,7 +13,6 @@ import {
 } from "./cardCategory";
 import { MobileEditorBottomToolbar } from "./editorToolbar/MobileEditorBottomToolbar";
 import { useMobileEditorToolbarController } from "./editorToolbar/useMobileEditorToolbarController";
-import { mobileCardPreviewExtensions } from "./editorExtensions";
 import { EMPTY_EDITOR_CONTENT } from "./editorContentUtils";
 import {
   clearQuickCaptureDraft,
@@ -159,11 +158,10 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
 
         <SnapSheet.FixedFooterScroll className="px-4 pt-3">
           <Editor
-            kit={getMobileKit()}
+            kit={getMobileContentKit()}
             ref={editorRef}
             initValue={EMPTY_EDITOR_CONTENT}
             readonly={false}
-            extensions={mobileCardPreviewExtensions}
             placeHolder="记录你的想法..."
             className="mobile-card-editor-content min-h-[220px] outline-none ring-0 focus:outline-none focus:ring-0"
             onFocus={toolbarController.handleEditorFocus}

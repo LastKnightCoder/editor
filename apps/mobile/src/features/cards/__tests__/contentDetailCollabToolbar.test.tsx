@@ -58,7 +58,10 @@ vi.mock("@tau/editor/src/components/HoveringToolbar/floatingPosition", () => ({
 
 /** 模拟内核 Editor：ref 暴露 getEditor，焦点回调直连（与 @tau/editor 一致） */
 // 页面测试不渲染真实编辑器，kit 也不必真实构造
-vi.mock("../../../services/editorKit", () => ({ getMobileKit: () => ({}) }));
+vi.mock("../../../services/editorKit", () => ({
+  getMobileContentKit: () => ({}),
+  getMobileFlashcardKit: () => ({}),
+}));
 vi.mock("@tau/editor/src", async importOriginal => {
   const actual = await importOriginal<Record<string, unknown>>();
   const React = await import("react");

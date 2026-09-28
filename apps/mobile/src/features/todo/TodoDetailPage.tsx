@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getMobileKit } from "../../services/editorKit";
+import { getMobileContentKit } from "../../services/editorKit";
 import {
   Bell,
   CalendarDays,
@@ -654,7 +654,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
             <div className="min-h-[200px]">
               {descriptionEditorReady ? (
                 <Editor
-                  kit={getMobileKit()}
+                  kit={getMobileContentKit()}
                   key={`todo-description-${todoId}`}
                   initValue={normalizeEditorContent(content ?? EMPTY_EDITOR_CONTENT)}
                   readonly={false}

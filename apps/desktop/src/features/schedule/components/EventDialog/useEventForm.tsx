@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getDescriptionKit } from "@/services/editorKit";
+import { getContentKit } from "@/services/editorKit";
 import dayjs from "dayjs";
 import type { Descendant } from "slate";
 import { Editor, type EditorRef } from "@tau/editor/src";
@@ -352,7 +352,7 @@ export function useEventForm(
           )}
         >
           <Editor
-            kit={getDescriptionKit()}
+            kit={getContentKit()}
             ref={editorRef}
             initValue={description}
             onChange={setDescription}

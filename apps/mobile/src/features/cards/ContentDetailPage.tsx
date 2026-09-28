@@ -7,7 +7,7 @@ import {
   type ComponentProps,
   type ReactNode,
 } from "react";
-import { getMobileKit } from "../../services/editorKit";
+import { getMobileContentKit } from "../../services/editorKit";
 import type { Descendant } from "slate";
 import { CornerUpRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -20,7 +20,6 @@ import { formatDateTimeCompact } from "../../utils/formatTime";
 import { useEditContent } from "../../hooks/useEditContent";
 import { MobileEditorBottomToolbar } from "./editorToolbar/MobileEditorBottomToolbar";
 import { useMobileEditorToolbarController } from "./editorToolbar/useMobileEditorToolbarController";
-import { mobileCardPreviewExtensions } from "./editorExtensions";
 import LinksDisclosure from "./LinksDisclosure";
 import TagChips from "./TagChips";
 import TagInlineEditor from "./TagInlineEditor";
@@ -410,7 +409,6 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
           <Suspense fallback={null}>
             <CollaborativeEditor
               documentId={props.collaboration.documentId}
-              extensions={mobileCardPreviewExtensions}
               editorRef={collabEditorRef}
               onEditorFocus={toolbarController.handleEditorFocus}
               onEditorBlur={toolbarController.handleEditorBlur}
@@ -426,7 +424,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
         {editMode !== "collabLive" ? (
           <div className="min-h-[45vh] pt-1">
             <Editor
-              kit={getMobileKit()}
+              kit={getMobileContentKit()}
               ref={localEditorRef}
               key={`editable-content-${props.contentId}-${syncVersion}`}
               initValue={normalizeEditorContent(content)}
@@ -440,7 +438,6 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
               onSelectionChange={toolbarController.syncSelection}
               // 编辑器 readonly 默认为 true，非只读分支必须显式放开
               readonly={editMode === "collabConnecting"}
-              extensions={mobileCardPreviewExtensions}
             />
           </div>
         ) : null}

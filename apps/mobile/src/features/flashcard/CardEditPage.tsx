@@ -3,8 +3,8 @@
 // cloze：选中文字「设为填空」，填空块的答案/备选答案经 ✎ 配置（BottomSheet）。
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { getMobileKit } from "../../services/editorKit";
-import { Editor, type EditorRef, type IExtension } from "@tau/editor/src";
+import { getMobileFlashcardKit } from "../../services/editorKit";
+import { Editor, type EditorRef } from "@tau/editor/src";
 import type { Descendant } from "slate";
 import type { Editor as SlateEditor } from "slate";
 import { PageHeader } from "../../components/PageHeader";
@@ -16,7 +16,6 @@ import * as tauri from "../../services/tauri";
 import { invalidateFlashcardQueries, useFlashcardDecks } from "./queries";
 import { extractBlanks } from "./reviewFlow";
 import { genId } from "./cardDraft";
-import { FlashcardBlankExtension } from "./blank/FlashcardBlankExtension";
 import { toggleBlank } from "./blank/flashcardBlankTransforms";
 import {
   MobileEditorBottomToolbar,
@@ -51,8 +50,6 @@ const FLASHCARD_TOOLBAR_BUTTONS = new Set<ToolbarButtonId>([
   "numbered-list",
   "quote",
 ]);
-
-const NO_EXTENSIONS: IExtension[] = [];
 
 type CardEditPageProps = {
   deckId: number;
@@ -159,11 +156,6 @@ export function CardEditPage({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardId]);
-
-  const promptExtensions = useMemo(
-    () => (cardType === "cloze" ? [new FlashcardBlankExtension()] : NO_EXTENSIONS),
-    [cardType]
-  );
 
   const clozeBlanks = useMemo(
     () => (cardType === "cloze" ? extractBlanks(promptValue) : []),
@@ -400,13 +392,12 @@ export function CardEditPage({
               </div>
             )}
             <Editor
-              kit={getMobileKit()}
+              kit={getMobileFlashcardKit({ blanks: cardType === "cloze" })}
               ref={promptEditorRef}
               key={`prompt-${cardId}`}
               initValue={promptValue}
               // 编辑器 readonly 默认为 true，表单场景必须显式放开
               readonly={false}
-              extensions={promptExtensions}
               placeHolder={
                 cardType === "cloze" ? "输入题干，选中文字后点「设为填空」" : "输入题目…"
               }
@@ -551,12 +542,11 @@ export function CardEditPage({
           <div className="shadow-card bg-surface rounded-[22px] p-4">
             <div className="text-meta-ink mb-1 text-[12px] font-extrabold">背面补充（选填）</div>
             <Editor
-              kit={getMobileKit()}
+              kit={getMobileFlashcardKit({ blanks: false })}
               ref={detailEditorRef}
               key={`detail-${cardId}`}
               initValue={detailValue}
               readonly={false}
-              extensions={NO_EXTENSIONS}
               placeHolder="翻面后与答案、解析一起展示"
               className={`${editorClass} min-h-[84px] text-[15px] font-semibold`}
               onFocus={() => {

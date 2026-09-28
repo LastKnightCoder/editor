@@ -1,17 +1,21 @@
-// 回归测试：协作编辑页必须挂上底部工具条，并把卡片编辑器扩展透传给 Editor。
+// 回归测试：协作编辑页必须挂上底部工具条，并拿到 content 场景的 kit。
 // 该页曾漏接线（无 controller、无 editorRef、无 portal 挂载点），正文聚焦后工具条始终不出现，
-// 且缺 extensions 时 content-link / 附件 / 问题 / 聊天引用等节点无法识别，工具栏不完整。
+// 且扩展不全时 content-link / 附件 / 白板 / 数据库等节点渲染成「无法识别的类型」。
+// 扩展现在由 kit 自带（不再逐处透传），所以这里断言拿到的是 content 场景的 kit。
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const extensionSentinel = vi.hoisted(() => [{ name: "sentinel-extension" }]);
+const contentKitSentinel = vi.hoisted(() => ({ name: "content-kit-sentinel" }));
 const navigatorMock = vi.hoisted(() => ({ push: vi.fn(), goBack: vi.fn() }));
 const collabState = vi.hoisted(() => ({ readonly: false }));
 const capturedEditorProps = vi.hoisted(() => ({ value: null as Record<string, unknown> | null }));
 
 // 页面测试不渲染真实编辑器，kit 也不必真实构造
-vi.mock("../../../services/editorKit", () => ({ getMobileKit: () => ({}) }));
+vi.mock("../../../services/editorKit", () => ({
+  getMobileContentKit: () => contentKitSentinel,
+  getMobileFlashcardKit: () => ({}),
+}));
 vi.mock("@tau/editor/src", async importOriginal => {
   const actual = await importOriginal<Record<string, unknown>>();
   const React = await import("react");
@@ -51,10 +55,6 @@ vi.mock("../hooks/useCollabSession", () => ({
     offline: false,
     retry: vi.fn(),
   }),
-}));
-
-vi.mock("../../cards/editorExtensions", () => ({
-  mobileCardPreviewExtensions: extensionSentinel,
 }));
 
 vi.mock("../../../router", async importOriginal => {
@@ -176,9 +176,9 @@ describe("CollabEditorPage", () => {
     expect(document.querySelector(TOOLBAR_SELECTOR)).toBeNull();
   });
 
-  it("把卡片编辑器扩展透传给 Editor", async () => {
+  it("用 content 场景的 kit（扩展由 kit 自带，不再逐处透传）", async () => {
     await renderPage();
-    expect(capturedEditorProps.value?.extensions).toBe(extensionSentinel);
+    expect(capturedEditorProps.value?.kit).toBe(contentKitSentinel);
   });
 
   it("正文滚动容器接入边缘渐隐（内容不足一屏时两带俱无）", async () => {
