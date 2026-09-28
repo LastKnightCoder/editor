@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { getDesktopKit } from "@/services/editorKit";
+import { getSkillFileKit } from "@/services/editorKit";
 import {
   Copy,
   Download,
@@ -175,7 +175,7 @@ function OverviewPane({
         <div className="text-tau-sm text-ink-3 mb-1">SKILL.md</div>
         {value ? (
           <Editor
-            kit={getDesktopKit()}
+            kit={getSkillFileKit()}
             key={skill.path}
             initValue={value}
             readonly

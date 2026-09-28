@@ -7,7 +7,8 @@ import {
   type ChangeEvent,
   type ComponentProps,
 } from "react";
-import { getDesktopKit } from "@/services/editorKit";
+import { createDesktopKit } from "@/services/editorKit";
+import type { EditorKit } from "@tau/editor/src";
 import { useMemoizedFn } from "ahooks";
 import {
   ArrowUp,
@@ -43,7 +44,7 @@ import { IconButton, ImagePreview, Menu, Tooltip, cn, toast } from "@tau/ui";
 import useUploadResource from "@/hooks/useUploadResource";
 import { convertFileSrc, getHomeDir } from "@/commands";
 import { McpQuickPanel } from "@/features/mcp/components/McpQuickPanel";
-import { skillRefExtension } from "@/editor-extensions";
+import { contentLinkExtension, skillRefExtension } from "@/editor-extensions";
 import { SkillPickerPanel } from "@/editor-extensions/skill-ref/SkillPickerPanel";
 import useSettingStore from "@/stores/useSettingStore";
 import {
@@ -58,8 +59,10 @@ import { ComposerAddMenu, type ComposerAddItem } from "./ComposerAddMenu";
 
 export type { ChatInputAreaHandle };
 
-/** 技能引用只在聊天输入里用，不属于应用 kit */
-const CHAT_INPUT_EXTENSIONS = [skillRefExtension];
+/** 聊天输入场景（ER-016）：只要引用能力，不要库内块 */
+let chatInputKit: EditorKit | null = null;
+const getChatInputKit = () =>
+  (chatInputKit ??= createDesktopKit([contentLinkExtension, skillRefExtension]));
 
 /** 模型菜单：按服务商分组（组头 = 服务商，项 key = `${providerId}::${modelName}`） */
 export interface ChatModelGroup {
@@ -746,14 +749,13 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         >
           <div className="max-h-[min(240px,34vh)] overflow-y-auto overflow-x-hidden overscroll-contain pr-1">
             <Editor
-              kit={getDesktopKit()}
+              kit={getChatInputKit()}
               ref={editorRef}
               initValue={editorContent}
               onChange={value => {
                 setEditorContent(value);
               }}
               readonly={!contentEditable}
-              extensions={CHAT_INPUT_EXTENSIONS}
               hotkeyConfigs={hotkeyConfigs}
               placeHolder={resolvedPlaceholder}
               // 段落拖拽手柄绝对定位且高于行高：裁剪溢出，避免未到最大高度就出现滚动条。

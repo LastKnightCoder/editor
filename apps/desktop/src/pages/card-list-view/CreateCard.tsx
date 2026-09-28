@@ -1,5 +1,5 @@
 import { Editor, EditorRef } from "@tau/editor/src";
-import { getDesktopKit } from "@/services/editorKit";
+import { getLibraryContentKit } from "@/services/editorKit";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { Descendant } from "slate";
 import AddTag from "@/components/AddTag";
@@ -105,7 +105,7 @@ const CreateCard = memo((props: CreateCardProps) => {
               <div className={`flex flex-1 flex-col rounded-lg p-5 ${className || ""}`}>
                 <div className="min-h-[250px] flex-1 overflow-hidden rounded-md">
                   <Editor
-                    kit={getDesktopKit()}
+                    kit={getLibraryContentKit()}
                     className="p-5"
                     ref={editorRef}
                     initValue={content || DEFAULT_CARD_CONTENT}

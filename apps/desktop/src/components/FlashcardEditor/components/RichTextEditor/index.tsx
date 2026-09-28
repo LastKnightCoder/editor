@@ -1,8 +1,7 @@
-import { useRef, useEffect, useMemo, useCallback } from "react";
-import { getDesktopKit } from "@/services/editorKit";
+import { useRef, useEffect, useCallback } from "react";
+import { getFlashcardKit } from "@/services/editorKit";
 import { Descendant } from "slate";
-import { Editor, EditorRef, IExtension } from "@tau/editor/src";
-import FlashcardBlankExtension from "@/editor-extensions/flashcard-blank";
+import { Editor, EditorRef } from "@tau/editor/src";
 import ClozeEditorToolbar from "../ClozeRichEditor/ClozeEditorToolbar";
 
 interface RichTextEditorProps {
@@ -52,28 +51,18 @@ const RichTextEditor = ({
     }
   }, [value]);
 
-  // 配置扩展
-  const extensions = useMemo<IExtension[]>(() => {
-    if (!allowBlanks) {
-      return [];
-    }
-
-    return [new FlashcardBlankExtension()];
-  }, [allowBlanks, isDark]);
-
   return (
     <div
       className="bg-surface border-line-1 rounded-tau-md overflow-hidden border"
       style={{ minHeight }}
     >
       <Editor
-        kit={getDesktopKit()}
+        kit={getFlashcardKit({ blanks: allowBlanks })}
         ref={editorRef}
         initValue={value}
         onChange={newValue => onChange(newValue)}
         onInit={handleEditorInit}
         readonly={false}
-        extensions={extensions}
         placeHolder={placeholder}
         style={{
           padding: "16px",

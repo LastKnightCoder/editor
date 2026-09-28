@@ -618,7 +618,6 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
                 <RichTextRenderer
                   key={`prompt-${currentItem.id}`}
                   content={currentItem.prompt}
-                  isDark={isDark}
                   className="text-ink-1 text-[17px] font-medium leading-normal"
                 />
               )}

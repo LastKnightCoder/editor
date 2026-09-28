@@ -10,7 +10,7 @@
  */
 
 import { memo, useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from "react";
-import { getDesktopKit } from "@/services/editorKit";
+import { getLibraryContentKit } from "@/services/editorKit";
 import classnames from "classnames";
 import { useMemoizedFn } from "ahooks";
 import { AnchoredPanel } from "@tau/ui";
@@ -238,7 +238,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
           onPointerLeave={handlePanelLeave}
         >
           <AnchoredPanel.Body className="max-h-[var(--graph-preview-max-h)]">
-            <Editor kit={getDesktopKit()} key={previewId} ref={editorRef} readonly />
+            <Editor kit={getLibraryContentKit()} key={previewId} ref={editorRef} readonly />
           </AnchoredPanel.Body>
         </AnchoredPanel>
       )}
