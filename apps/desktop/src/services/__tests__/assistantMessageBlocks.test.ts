@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Role } from "@/constants";
-import type { AssistantReasoningBlock, RequestMessage } from "@/types";
+import type { AssistantReasoningBlock } from "@/types";
 import {
   applyAssistantReasoningSnapshot,
   applyAssistantProviderMetadataSnapshot,
@@ -11,18 +11,7 @@ import {
   createAssistantMessage,
   finalizeAssistantTurn,
   getAssistantContentBlocks,
-  sanitizeToolMessages,
 } from "../assistantMessageBlocks";
-
-const createTextMessage = (
-  role: Role,
-  text: string,
-  extra?: Partial<RequestMessage>
-): RequestMessage => ({
-  role,
-  content: [{ type: "text", text }],
-  ...extra,
-});
 
 const getReasoningBlock = (
   message: ReturnType<typeof createAssistantMessage>,
@@ -404,150 +393,5 @@ describe("退役代理历史工具", () => {
     expect(JSON.stringify(history[0].content)).toContain("已读取文档");
     expect(history[0].tool_calls).toBeUndefined();
     expect(JSON.stringify(message)).toBe(snapshot);
-    expect(
-      sanitizeToolMessages([
-        ...history,
-        { role: Role.Tool, content: "旧工具结果", tool_call_id: "old-call" },
-        { role: Role.User, content: "继续" },
-      ])
-    ).toEqual([...history, { role: Role.User, content: "继续" }]);
-  });
-});
-
-describe("sanitizeToolMessages", () => {
-  const mkToolCall = (id: string, name: string): RequestMessage => ({
-    role: Role.Assistant,
-    content: "",
-    tool_calls: [{ id, type: "function", function: { name, arguments: "{}" } }],
-  });
-
-  const mkToolResult = (id: string, name: string, text = "ok"): RequestMessage => ({
-    role: Role.Tool,
-    content: [{ type: "text", text }],
-    tool_call_id: id,
-    name,
-  });
-
-  it("不含工具消息时原样返回", () => {
-    const msgs: RequestMessage[] = [
-      createTextMessage(Role.User, "hello"),
-      createTextMessage(Role.Assistant, "hi"),
-    ];
-    expect(sanitizeToolMessages(msgs)).toEqual(msgs);
-  });
-
-  it("匹配的 tool_call/tool_result 对原样保留", () => {
-    const msgs: RequestMessage[] = [
-      createTextMessage(Role.User, "do it"),
-      mkToolCall("c1", "search"),
-      mkToolResult("c1", "search", "found it"),
-      createTextMessage(Role.User, "thanks"),
-    ];
-    expect(sanitizeToolMessages(msgs)).toEqual(msgs);
-  });
-
-  it("缺少 tool_result 时合成占位消息", () => {
-    const assistant: RequestMessage = {
-      role: Role.Assistant,
-      content: "",
-      tool_calls: [
-        {
-          id: "c1",
-          type: "function",
-          function: { name: "a", arguments: "{}" },
-        },
-        {
-          id: "c2",
-          type: "function",
-          function: { name: "b", arguments: "{}" },
-        },
-      ],
-    };
-    const msgs: RequestMessage[] = [
-      createTextMessage(Role.User, "go"),
-      assistant,
-      mkToolResult("c1", "a", "done"),
-    ];
-    const result = sanitizeToolMessages(msgs);
-    expect(result).toHaveLength(4);
-    expect(result[3]).toEqual({
-      role: Role.Tool,
-      content: [{ type: "text", text: "[No output]" }],
-      tool_call_id: "c2",
-      name: "b",
-    });
-  });
-
-  it("孤立的 tool_result（无前置 assistant tool_calls）被丢弃", () => {
-    const msgs: RequestMessage[] = [
-      createTextMessage(Role.User, "hello"),
-      mkToolResult("orphan", "search", "stale result"),
-      createTextMessage(Role.Assistant, "response"),
-    ];
-    const result = sanitizeToolMessages(msgs);
-    expect(result).toEqual([
-      createTextMessage(Role.User, "hello"),
-      createTextMessage(Role.Assistant, "response"),
-    ]);
-  });
-
-  it("tool_result 引用了错误的 tool_call_id 时被替换", () => {
-    const msgs: RequestMessage[] = [
-      mkToolCall("c1", "search"),
-      mkToolResult("wrong-id", "search", "bad ref"),
-    ];
-    const result = sanitizeToolMessages(msgs);
-    expect(result).toHaveLength(2);
-    expect(result[1].tool_call_id).toBe("c1");
-    expect(result[1].content).toEqual([{ type: "text", text: "[No output]" }]);
-  });
-
-  it("多组 assistant/tool 序列各自独立清洗", () => {
-    const msgs: RequestMessage[] = [
-      mkToolCall("c1", "a"),
-      mkToolResult("c1", "a"),
-      createTextMessage(Role.User, "next"),
-      mkToolCall("c2", "b"),
-      // missing tool_result for c2
-    ];
-    const result = sanitizeToolMessages(msgs);
-    expect(result).toHaveLength(5);
-    expect(result[4]).toEqual({
-      role: Role.Tool,
-      content: [{ type: "text", text: "[No output]" }],
-      tool_call_id: "c2",
-      name: "b",
-    });
-  });
-
-  it("合成的 tool_result 按 tool_calls 顺序排列", () => {
-    const assistant: RequestMessage = {
-      role: Role.Assistant,
-      content: "",
-      tool_calls: [
-        {
-          id: "c1",
-          type: "function",
-          function: { name: "a", arguments: "{}" },
-        },
-        {
-          id: "c2",
-          type: "function",
-          function: { name: "b", arguments: "{}" },
-        },
-        {
-          id: "c3",
-          type: "function",
-          function: { name: "c", arguments: "{}" },
-        },
-      ],
-    };
-    const msgs: RequestMessage[] = [
-      assistant,
-      mkToolResult("c3", "c", "third"),
-      mkToolResult("c1", "a", "first"),
-    ];
-    const result = sanitizeToolMessages(msgs);
-    expect(result.map(m => m.tool_call_id)).toEqual([undefined, "c1", "c2", "c3"]);
   });
 });

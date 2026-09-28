@@ -8,7 +8,6 @@ import {
   type AskQuestionSubmission,
   type AskQuestionToolResult,
 } from "@/tools/askQuestionTypes";
-import { useAskQuestionSessionStore } from "@/tools/askQuestionSessionStore";
 import { useRunInteractionStore } from "@/stores/useRunInteractionStore";
 
 const buildInitialSelectedMap = (answers: AskQuestionAnswerItem[] | undefined) =>
@@ -46,15 +45,7 @@ const AskQuestionRenderer = ({
   inputParseError,
   renderDefault,
 }: ToolCallCustomRendererProps) => {
-  const sessionRecord = useAskQuestionSessionStore(state =>
-    state.findRecordByExecution({
-      toolCallId: execution.toolCallId,
-      rawInput: execution.input,
-      timestamp: execution.timestamp,
-    })
-  );
-  const submitAnswers = useAskQuestionSessionStore(state => state.submitAnswersByExecution);
-  // 桌面宿主原生提问（M5）：这轮回答里宿主在等这个调用的作答
+  // 提问是桌面宿主原生的（M5）：这轮回答里宿主在等这个调用的作答
   const hostQuestion = useRunInteractionStore(state =>
     state.questions.find(question => question.toolCallId === execution.toolCallId)
   );
@@ -62,15 +53,10 @@ const AskQuestionRenderer = ({
   const [hostSubmitting, setHostSubmitting] = useState(false);
   const [hostSubmitted, setHostSubmitted] = useState<AskQuestionSubmission | undefined>();
 
-  const normalized = useMemo(() => {
-    if (sessionRecord?.payload) {
-      return { payload: sessionRecord.payload };
-    }
-    if (hostQuestion?.payload) {
-      return normalizeAskQuestionPayload(hostQuestion.payload);
-    }
-    return normalizeAskQuestionPayload(parsedInput);
-  }, [sessionRecord?.payload, hostQuestion?.payload, parsedInput]);
+  const normalized = useMemo(
+    () => normalizeAskQuestionPayload(hostQuestion?.payload ?? parsedInput),
+    [hostQuestion?.payload, parsedInput]
+  );
   const executionIdentity = useMemo(
     () =>
       JSON.stringify({
@@ -84,9 +70,6 @@ const AskQuestionRenderer = ({
   const payload = normalized.payload;
   const outputResult = useMemo(() => parseOutputResult(execution.output), [execution.output]);
   const submittedAnswers = useMemo(() => {
-    if (sessionRecord?.submittedAnswers) {
-      return sessionRecord.submittedAnswers;
-    }
     if (hostSubmitted) {
       return hostSubmitted;
     }
@@ -101,7 +84,7 @@ const AskQuestionRenderer = ({
         otherText: item.otherText || "",
       })),
     };
-  }, [outputResult, sessionRecord?.submittedAnswers, hostSubmitted]);
+  }, [outputResult, hostSubmitted]);
 
   const [selectedValuesMap, setSelectedValuesMap] = useState<Record<string, string[]>>(() =>
     buildInitialSelectedMap(submittedAnswers?.answers)
@@ -133,15 +116,10 @@ const AskQuestionRenderer = ({
     return <>{renderDefault()}</>;
   }
 
-  // 桌面宿主的提问：宿主还在等才可作答；本地提问沿用原逻辑。都没有且未完成 = 已中断（重启后宿主补了失败结果）
+  // 宿主还在等才可作答；宿主不在等且没有结果 = 已中断（重启后宿主补了失败结果）
   const hostLive = Boolean(hostQuestion) && !hostSubmitted;
   const isLocked =
-    sessionRecord?.status === "submitted" ||
-    sessionRecord?.status === "completed" ||
-    execution.status === "success" ||
-    execution.status === "failed" ||
-    hostSubmitting ||
-    (!sessionRecord && !hostLive);
+    execution.status === "success" || execution.status === "failed" || hostSubmitting || !hostLive;
 
   const handleSelectOption = (questionId: string, optionValue: string, isMultiple: boolean) => {
     if (isLocked) return;
@@ -196,32 +174,19 @@ const AskQuestionRenderer = ({
       submittedAt: Date.now(),
     };
 
-    if (hostQuestion && answerHost) {
-      setHostSubmitting(true);
-      setError("");
-      // 宿主按答案数组校验（pi-user-questions 的 toSubmission）
-      answerHost(hostQuestion.requestId, submission.answers)
-        .then(() => setHostSubmitted(submission))
-        .catch((submitError: unknown) =>
-          setError(submitError instanceof Error ? submitError.message : String(submitError))
-        )
-        .finally(() => setHostSubmitting(false));
+    if (!hostQuestion || !answerHost) {
+      setError("这轮回答已结束，无法提交");
       return;
     }
-
-    const submitResult = submitAnswers(
-      {
-        toolCallId: execution.toolCallId,
-        rawInput: execution.input,
-        timestamp: execution.timestamp,
-      },
-      submission
-    );
-    if (submitResult === "missing") {
-      setError("提交失败：未找到对应问答会话，请重试。");
-      return;
-    }
+    setHostSubmitting(true);
     setError("");
+    // 宿主按答案数组校验（pi-user-questions 的 toSubmission）
+    answerHost(hostQuestion.requestId, submission.answers)
+      .then(() => setHostSubmitted(submission))
+      .catch((submitError: unknown) =>
+        setError(submitError instanceof Error ? submitError.message : String(submitError))
+      )
+      .finally(() => setHostSubmitting(false));
   };
 
   const checkboxAccentColor = isDark ? "#38bdf8" : "#0284c7";

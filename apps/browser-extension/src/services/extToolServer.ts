@@ -1,12 +1,6 @@
 import WebSocketServer from "@/utils/WebSocketServer";
 import WebSocketClient from "@/utils/WebSocketClient";
 import type { RpcRequestMessage } from "@/utils/types";
-import {
-  ASK_QUESTION_TOOL_NAME,
-  buildAskQuestionToolResult,
-  normalizeAskQuestionPayload,
-} from "@/tools/askQuestionTypes";
-import { getAskQuestionSessionStore } from "@/tools/askQuestionSessionStore";
 
 export interface ToolDefinition {
   type: "function";
@@ -95,67 +89,6 @@ export const BROWSER_TOOLS: ToolDefinition[] = [
             description: "最大返回链接数，默认 50",
           },
         },
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: ASK_QUESTION_TOOL_NAME,
-      description:
-        "当需要进一步澄清用户意图时，向用户发起结构化问题。支持单选、多选和一次提出多个问题。",
-      parameters: {
-        type: "object",
-        properties: {
-          title: {
-            type: "string",
-            description: "问题分组标题，可选。",
-          },
-          description: {
-            type: "string",
-            description: "对问题分组的补充说明，可选。",
-          },
-          submitLabel: {
-            type: "string",
-            description: "提交按钮文案，可选。",
-          },
-          questions: {
-            type: "array",
-            description: "问题列表，至少一个。",
-            items: {
-              type: "object",
-              properties: {
-                id: {
-                  type: "string",
-                  description: "问题唯一标识，可选，不传会自动生成。",
-                },
-                question: {
-                  type: "string",
-                  description: "问题文本。",
-                },
-                type: {
-                  type: "string",
-                  enum: ["single", "multiple"],
-                  description: "题型：single 单选，multiple 多选。",
-                },
-                required: {
-                  type: "boolean",
-                  description: "是否必答，默认 true。",
-                },
-                options: {
-                  type: "array",
-                  description: "选项列表。每项可为字符串，或 {label,value,description} 对象。",
-                  items: {
-                    type: "object",
-                  },
-                },
-              },
-              required: ["question", "type", "options"],
-            },
-          },
-        },
-        required: ["questions"],
-        additionalProperties: false,
       },
     },
   },
@@ -538,14 +471,6 @@ let extToolServer: WebSocketServer | null = null;
 let aiServerClient: WebSocketClient | null = null;
 let isInitialized = false;
 
-const stringifySafe = (value: unknown) => {
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
-};
-
 const parseToolArgs = (rawArgs: string | Record<string, unknown> | undefined) => {
   if (!rawArgs) {
     return {};
@@ -561,66 +486,12 @@ const parseToolArgs = (rawArgs: string | Record<string, unknown> | undefined) =>
   return rawArgs as Record<string, unknown>;
 };
 
-const executeAskQuestionTool = async (params: ToolExecuteParams): Promise<{ content: string }> => {
-  const args = parseToolArgs(params.toolCall.function.arguments);
-  const normalized = normalizeAskQuestionPayload(args);
-
-  if (!normalized.payload) {
-    return {
-      content: normalized.error || "ask-question 参数不合法",
-    };
-  }
-
-  const conversationKey = params.conversationKey || params.requestId || "default";
-  const store = getAskQuestionSessionStore();
-  const rawInput = stringifySafe(args);
-
-  const sessionRecord = store.createPending({
-    toolCallId: params.toolCall.id,
-    toolName: ASK_QUESTION_TOOL_NAME,
-    conversationKey,
-    rawInput,
-    payload: normalized.payload,
-  });
-
-  return await new Promise<{ content: string }>((resolve, reject) => {
-    store.registerResolver(sessionRecord.sessionId, {
-      resolve: submission => {
-        const result = buildAskQuestionToolResult(normalized.payload!, submission);
-        store.completeSession(sessionRecord.sessionId);
-        resolve({
-          content: JSON.stringify(result, null, 2),
-        });
-      },
-      reject: error => {
-        reject(error);
-      },
-    });
-  });
-};
-
 const handleToolExecute = async (request: RpcRequestMessage) => {
   const params = request.params as unknown as ToolExecuteParams;
   const { toolCall } = params;
   const startTime = performance.now();
 
   console.log("[Tau Extension Tools] 执行工具:", toolCall.function.name);
-
-  if (toolCall.function.name === ASK_QUESTION_TOOL_NAME) {
-    try {
-      const result = await executeAskQuestionTool(params);
-      console.log(
-        `[Tau Extension Tools] 工具 ${toolCall.function.name} 执行完成，耗时: ${(performance.now() - startTime).toFixed(0)}ms`
-      );
-      return result;
-    } catch (error) {
-      console.error(
-        `[Tau Extension Tools] 工具 ${toolCall.function.name} 执行失败，耗时: ${(performance.now() - startTime).toFixed(0)}ms`,
-        error
-      );
-      return { content: `工具执行失败: ${(error as Error).message}` };
-    }
-  }
 
   const executor = toolExecutors[toolCall.function.name];
   if (!executor) {

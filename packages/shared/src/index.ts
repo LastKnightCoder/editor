@@ -179,7 +179,6 @@ export {
   finalizeAssistantTurn,
   applyAssistantProviderMetadataSnapshot,
   buildAssistantHistoryMessages,
-  sanitizeToolMessages,
 } from "./chat-core/assistantBlocks";
 
 export {

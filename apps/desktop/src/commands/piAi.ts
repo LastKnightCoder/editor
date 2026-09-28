@@ -45,6 +45,36 @@ export function piDiscoverModels(provider: LLMProviderSetting): Promise<{
 }
 
 /** 已配置模型真实支持的推理档位；fromCatalog=false 表示目录未命中、返回的是通用档 */
+/** 用一次最短对话验证服务商的 API Key（集成设置用；服务商不进注册表） */
+export function piVerifyProviderKey(
+  provider: LLMProviderSetting,
+  modelId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  return invoke("pi-ai:verify-key", { provider, modelId });
+}
+
+/**
+ * Minimax 集成（播客 TTS、声音克隆等）的 Key 验证：走 pi 内置目录的 minimax-cn 服务商
+ * （Anthropic 协议端点），与聊天模型配置无关。
+ */
+export async function verifyMinimaxApiKey(apiKey: string): Promise<void> {
+  const outcome = await piVerifyProviderKey(
+    {
+      id: "integration-minimax",
+      name: "Minimax",
+      baseUrl: "https://api.minimaxi.com/anthropic",
+      apiKey,
+      api: "anthropic-messages",
+      builtin: "minimax-cn",
+      models: [{ id: MINIMAX_VERIFY_MODEL, reasoning: true, input: ["text"] }],
+    },
+    MINIMAX_VERIFY_MODEL
+  );
+  if (!outcome.ok) throw new Error(outcome.error);
+}
+
+const MINIMAX_VERIFY_MODEL = "MiniMax-M2.7";
+
 export function piThinkingLevels(
   provider: LLMProviderSetting,
   modelId: string

@@ -553,6 +553,9 @@ const loadCachedSetting = (): Partial<ISetting> | null => {
     window.localStorage.removeItem("resource-store");
     window.localStorage.removeItem("rss-store");
     window.localStorage.removeItem("read-later-store");
+    // pi 迁移遗留（M8）：旧聊天 store（M4 起事实源在 pi 会话文件）与渲染端提问 store（M3-b 起宿主原生）
+    window.localStorage.removeItem("chat-message");
+    window.localStorage.removeItem("ask-question-session");
     if (!cached) {
       return null;
     }

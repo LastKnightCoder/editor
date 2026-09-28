@@ -11,6 +11,7 @@ import {
   buildSingleShotContext,
   buildPiProvider,
   createProviderRegistry,
+  verifyProviderKey,
 } from "../pi-ai-runtime-core";
 import { rewriteThinkTagStream, type PiRewrittenEvent } from "../think-stream-rewriter";
 import type { LLMProviderSetting, PiSingleShotRequest } from "@/types/pi-llm";
@@ -308,6 +309,30 @@ describe("pi-ai-runtime-core", () => {
         expect(JSON.stringify(toolCall)).toContain("你好分片");
       } finally {
         await toolGateway.close();
+      }
+    });
+
+    it("verifyProviderKey：通了返回 ok，Key 被拒返回服务商的报错（集成设置的 Key 连接测试）", async () => {
+      const setting = settingOf({ baseUrl: `http://127.0.0.1:${gateway.port}/v1` });
+      expect(await verifyProviderKey(setting, "mock-model")).toEqual({ ok: true });
+      expect(gateway.requests.at(-1)?.messages?.at(-1)?.content).toBeTruthy();
+      expect(await verifyProviderKey(setting, "missing")).toMatchObject({ ok: false });
+
+      const rejecting = http.createServer((_req, res) => {
+        res.writeHead(401, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: { message: "invalid api key" } }));
+      });
+      await new Promise<void>(resolve => rejecting.listen(0, "127.0.0.1", resolve));
+      try {
+        const port = (rejecting.address() as AddressInfo).port;
+        const outcome = await verifyProviderKey(
+          settingOf({ baseUrl: `http://127.0.0.1:${port}/v1` }),
+          "mock-model"
+        );
+        expect(outcome.ok).toBe(false);
+        expect(JSON.stringify(outcome)).toContain("401");
+      } finally {
+        await new Promise(resolve => rejecting.close(resolve));
       }
     });
   });
