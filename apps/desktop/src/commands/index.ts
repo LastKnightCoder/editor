@@ -18,7 +18,6 @@ export * from "./pdf";
 export * from "./epub-export";
 export * from "./pdf-export";
 export * from "./white-board";
-export * from "./llm";
 export * from "./chat-message";
 export * from "./vec-document";
 export * from "./extra";

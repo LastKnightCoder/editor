@@ -3,7 +3,6 @@ import { v4 as uuidv4 } from "uuid";
 import WebSocketClient from "@/utils/WebSocketClient";
 import { AI_SERVER_MAIN_WS_URL, AI_SERVER_WS_URL } from "@/utils/aiServerAddress";
 import { BROWSER_TOOLS } from "@/services/extToolServer";
-import { ASK_QUESTION_TOOL_NAME } from "@/tools/askQuestionTypes";
 import { toDisplayMessages } from "@/services/chatModelBridge";
 import type {
   AiRunApprovalRequest,
@@ -100,9 +99,6 @@ export interface AiRunInteractions {
 }
 const EMPTY_INTERACTIONS: AiRunInteractions = { approvals: [], questions: [] };
 
-/** 扩展本地执行的页面工具（提问已改走桌面宿主，不在其中） */
-const PAGE_TOOLS = BROWSER_TOOLS.filter(tool => tool.function.name !== ASK_QUESTION_TOOL_NAME);
-
 export const mapChatMessageToAiRequestMessage = (
   message: ChatMessageType
 ): AiChatRequestMessage => {
@@ -185,7 +181,7 @@ export const buildAiRunStartParams = ({
   ...(systemPrompt ? { systemPrompt } : {}),
   enableTools,
   ...(session ? { session } : {}),
-  ...(enableTools ? { browserTools: PAGE_TOOLS } : {}),
+  ...(enableTools ? { browserTools: BROWSER_TOOLS } : {}),
   ...(pageContext ? { pageContext } : {}),
 });
 

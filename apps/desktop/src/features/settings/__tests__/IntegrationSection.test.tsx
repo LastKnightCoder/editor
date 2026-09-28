@@ -7,12 +7,12 @@ import { IntegrationSection } from "../sections/IntegrationSection";
 
 const mocks = vi.hoisted(() => ({
   getGithubUserInfo: vi.fn(),
-  chat: vi.fn(),
+  verifyMinimaxApiKey: vi.fn(),
   validateSession: vi.fn(),
   getBilibiliQRCode: vi.fn(),
 }));
 
-vi.mock("@/commands", () => ({ chat: mocks.chat }));
+vi.mock("@/commands/piAi", () => ({ verifyMinimaxApiKey: mocks.verifyMinimaxApiKey }));
 vi.mock("@/commands/extra", () => ({ openExternal: vi.fn() }));
 vi.mock("@/utils/github", () => ({ getGithubUserInfo: mocks.getGithubUserInfo }));
 vi.mock("@/services/weread", () => ({ default: { validateSession: mocks.validateSession } }));

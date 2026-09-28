@@ -304,8 +304,7 @@ export default function OverviewTab({ wsClient: _wsClient, url }: OverviewTabPro
           systemPrompt: `你是一个专业的内容分析助手，擅长快速提取和总结网页内容的核心信息。
 请用简洁、结构化的方式呈现总结结果，使用 Markdown 格式。`,
           enableTools: true,
-          // 提问改走桌面宿主（M5），一次性总结不需要它
-          browserTools: BROWSER_TOOLS.filter(tool => tool.function.name !== "ask-question"),
+          browserTools: BROWSER_TOOLS,
           pageContext: {
             url: tab.url,
             title: tab.title,

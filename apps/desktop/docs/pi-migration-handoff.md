@@ -8,8 +8,8 @@
 > **M7 用户裁决不做**（同步保持 zip 整包）。下一步是 M8（删旧收尾，裁决已定，见第六节）。
 > 新会话续接方式：读完本文档 + `git log --oneline -15` 对照提交历史。本文档随每步同步更新。
 > 验证三件套：`cd apps/desktop && npx tsc --noEmit`、
-> `npx vitest run`（350 文件、1690 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
-> 改了 `packages/shared` 要另跑 `packages/shared`（5 文件 15 用例）与 `apps/browser-extension`（11 文件 47 用例）的 vitest + tsc
+> `npx vitest run`（349 文件、1679 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
+> 改了 `packages/shared` 要另跑 `packages/shared`（5 文件 15 用例）与 `apps/browser-extension`（10 文件 46 用例）的 vitest + tsc
 > （思考档位类型与 `ChatSessionRecord` 定义在 shared，三端共用）。
 > **注意 cwd 必须在 apps/desktop**——vitest 从仓库根跑会整体失败（vite 别名解析不到）。
 > 权威背景：调研报告与迁移计划在本项目最初会话中形成（对话内）；本文档是执行态的完整快照。
@@ -740,7 +740,8 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
 - **扩展页面工具风险声明修复** `5f4e562c5`
 - **M5** `2a8123b2b` 浏览器扩展：侧栏对话由主进程驱动（`/aiServerMain`）+ 协议 v2 + 提问审批走桌面宿主 + 停止真正生效 + 断连立即收尾（见「M5 实施记录」）
 - **M5 追加** `59431d096`：侧栏重开接回在跑的回答（接回快照 + lastSeq 续接 + 换对话放下不停）
-- **M8-a**：删除 `packages/agent` 整包（5 个符号内联/改用桌面与 shared 类型）
+- **M8-a** `6840932aa`：删除 `packages/agent` 整包（5 个符号内联/改用桌面与 shared 类型）
+- **M8-b**：删除 `modules/llm.ts`（Minimax Key 测试改走 pi `pi-ai:verify-key`）+ 扩展本地提问机制 + `sanitizeToolMessages` + localStorage 遗留键
 - **修正一** `784d59ebb`：去闭包快照+会话常驻 reducer（修吞消息）
 - **修正二** `d3bc61c33`：piChatRuntime 下沉模块级（后台运行）
 - **验收状态**：用户确认"大部分没问题"——M2-f 基本通过；后台运行场景（切页回来
@@ -962,13 +963,25 @@ agent_settled 触发排空；用户按停止则暂停排空。
   - **M8-a 已完成**：`packages/agent` 整包删除。`AgentModelUsage` → shared `ModelUsage`；`AgentTool` → 桌面自己的
     `ToolDefinition`（`RegistryAgentTool` 就地定义）；`isAbortError` 内联进 editingUtils；`desktopSkillAdapter` 的
     `toAgentSkill(s)`（零调用方）一并删；清掉 tsconfig、三个 vite 配置、vitest、e2e 协作配置的别名与 package.json 依赖。
+  - **M8-b 已完成**（llm.ts / 扩展本地提问 / chat-core 死函数 / localStorage 遗留键）：
+    - `modules/llm.ts` **整个删除**（用户追加裁决：Minimax Key 测试也迁到 pi）。唯一调用方是新旧两个设置界面的 Minimax 连接测试，
+      改走新 IPC `pi-ai:verify-key`（core 的 `verifyProviderKey`：临时建 pi Provider、不进注册表，`completeSimple` 发一条
+      `maxTokens:16` 的消息，`stopReason=error` 转失败原因，30 秒超时）。渲染端 `verifyMinimaxApiKey` 用 pi 目录的 `minimax-cn`
+      服务商（`https://api.minimaxi.com/anthropic`，Anthropic 协议，模型 `MiniMax-M2.7`）。`embedding-openai`/`markdown-split`
+      零调用方随之删；`commands/llm.ts` 与只被 llm.ts 用的 `utils/model-overrides.ts`（含测试）一并删。
+    - 扩展本地提问：`askQuestionSessionStore`（含测试）、`extToolServer` 的 ask-question 工具定义与执行分支删除；
+      `BROWSER_TOOLS` 不再含 ask-question，两处过滤去掉；`AskQuestionRenderer` 只读宿主提问（宿主不在等即锁定），测试改为经
+      `useRunInteractionStore` 驱动。`askQuestionTypes`（渲染与结果解析）保留。
+    - chat-core：`sanitizeToolMessages`（只剩测试在用）删除；其余几个都有真实消费者（见裁决要点），保留。
+    - localStorage 遗留键 `chat-message`、`ask-question-session` 在 `useSettingStore.loadCachedSetting` 里清掉。
+    - **顺带发现（未处理）**：主进程 `modules/stream-fetch.ts` 与 IPC `stream-fetch` 渲染端零调用（M2-f 删了 `commands/stream-fetch`），
+      下一块一起删。
 
   **M8 裁决（2026-09-29 用户拍板）**：
   - 旧聊天表（`chat_message`/`pdf_chats`/`video_note_chats`/`vibe_learning_chats`）**迁移记账后真 DROP**：开库时确认
     `migration_meta` 已记 `chat-session-pi-jsonl:v1`，先 `VACUUM INTO` 备份，再 DROP；schema 与主进程 handler 删除。
   - `audio_note_chats`（无界面、未迁移）**直接丢弃**。
-  - `modules/llm.ts`：Minimax 设置页的 Key 测试与 pi 无关，**保留它用的那条路径**；其余（`embedding-openai`/`markdown-split`
-    等）确认无用就删。开工时先核实 `chat-openai` 在 Integration 设置页的用途。
+  - `modules/llm.ts`：初裁保留 Minimax Key 测试那条路径，**后追加裁决迁到 pi**，整个模块删除（见 M8-b）。
   - 迁移器与树合并迁移**长期保留**（老库、旧远程下载来的 `.db` 靠它们升级）；移动端 Rust（`main_upgrade.rs` 对 4 张旧表的
     UPDATE）同批改为判表存在；按块拆提交（agent 包 / chat-core / llm.ts 与扩展提问 / chat_run / 旧表与两列）。
   - 调研实测要点：chat-core 那 6 个函数不能整删——`syncAssistantDerivedFields` 被 `pi-session-transcript.ts` 用、
