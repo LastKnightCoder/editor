@@ -44,6 +44,7 @@
 | P4   | 拆解 EditorConfig                                              | ✅     |
 | P5   | Markdown 合并为 headless 的 `@tau/markdown`（可与 P1–P4 穿插） | ✅     |
 | P6   | EditorKit + 文档源，替换 EditorProvider                        | ✅     |
+| P6.5 | desktop 宿主扩展收进 kit（消掉 45 处 `extensions` 透传）       | ⏳     |
 | P7   | 协作治理：`editor-collab`、会话升级、无缝换源                  | ⏳     |
 | P8   | 扩展 API v2（声明式贡献点、错误隔离、codec 归属）              | ⏳     |
 | P9   | 拆包（custom-block 试点、diagram）                             | ⏳     |
@@ -51,7 +52,7 @@
 
 状态图例：⏳ 未开始 / 🚧 进行中 / ✅ 完成 / ⏸ 暂停（写原因）。
 
-**下一步**：P7（协作治理：`@tau/editor-collab`、会话升级、无缝换源）。
+**下一步**：P6.5（desktop 宿主扩展收进 kit，小而独立）或 P7（协作治理，最重的一块）。两者互不依赖。
 
 ## 5. 接手步骤
 
