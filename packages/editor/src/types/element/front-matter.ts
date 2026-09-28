@@ -1,4 +1,4 @@
-import { BaseElement, Descendant } from "slate";
+import type { BaseElement, Descendant } from "slate";
 
 export interface FrontMatterElement extends BaseElement {
   type: "front-matter";

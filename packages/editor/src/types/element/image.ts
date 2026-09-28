@@ -1,9 +1,6 @@
-import { Descendant } from "slate";
-import type { CropperTransform } from "@tau/shared";
-import type {
-  ImageBorderRadiusPreset,
-  ImageShadowPreset,
-} from "./image-appearance";
+import type { Descendant } from "slate";
+import type { CropperTransform } from "@tau/shared/src/components/ImageCropper/types";
+import type { ImageBorderRadiusPreset, ImageShadowPreset } from "./image-appearance";
 
 export interface ImageElement {
   type: "image";

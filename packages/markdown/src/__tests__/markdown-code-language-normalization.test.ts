@@ -1,13 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { importFromMarkdown } from "../markdown";
+import { importFromMarkdown } from "../index.ts";
 
 describe("markdown code block language normalization", () => {
   it("将 js 和 javascript 规范化为 JavaScript", () => {
     const jsContent = importFromMarkdown("```js\nconsole.log(1)\n```");
-    const javascriptContent = importFromMarkdown(
-      "```javascript\nconsole.log(1)\n```",
-    );
+    const javascriptContent = importFromMarkdown("```javascript\nconsole.log(1)\n```");
 
     expect((jsContent[0] as any)?.type).toBe("code-block");
     expect((jsContent[0] as any)?.language).toBe("JavaScript");
@@ -23,15 +21,9 @@ describe("markdown code block language normalization", () => {
   });
 
   it("支持更多常见语言映射", () => {
-    const tsxContent = importFromMarkdown(
-      "```tsx\nconst App = () => null\n```",
-    );
-    const graphqlContent = importFromMarkdown(
-      "```graphql\ntype Query { hello: String }\n```",
-    );
-    const dockerfileContent = importFromMarkdown(
-      "```dockerfile\nFROM node:20\n```",
-    );
+    const tsxContent = importFromMarkdown("```tsx\nconst App = () => null\n```");
+    const graphqlContent = importFromMarkdown("```graphql\ntype Query { hello: String }\n```");
+    const dockerfileContent = importFromMarkdown("```dockerfile\nFROM node:20\n```");
     const plainTextContent = importFromMarkdown("```plaintext\nhello\n```");
 
     expect((tsxContent[0] as any)?.language).toBe("TSX");

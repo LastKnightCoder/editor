@@ -1,4 +1,4 @@
-import { ParagraphElement } from "./paragraph";
+import type { ParagraphElement } from "./paragraph";
 
 export interface CheckListItemElement {
   type: "check-list-item";

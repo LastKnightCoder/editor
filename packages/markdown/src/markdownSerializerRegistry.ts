@@ -1,4 +1,4 @@
-import type { CustomElement } from "@tau/editor/src";
+import type { CustomElement } from "./types.ts";
 
 const DEFAULT_TITLE = {
   tip: "技巧",
@@ -69,16 +69,24 @@ const createMagicMoveMeta = (magicMove: any): string => {
   return `${MAGIC_MOVE_META_PREFIX}${encodeBase64Url(JSON.stringify(payload))}`;
 };
 
-function trim(value: string): boolean {
-  return value.trim().length > 0;
-}
+const isNonBlank = (value: string): boolean => value.trim().length > 0;
 
 export interface SerializerOutput {
   output: string;
+
+  // children 内容相对于 output 的起始位置
   childrenStart?: { line: number; ch: number };
+
+  // 每行的额外偏移（用于 blockquote "> ", list "- " 等）
   perLineOffset?: number;
+
+  // 从指定子元素索引起，额外插入行导致的行号偏移
   childLineShifts?: Array<{ startIndex: number; lineDelta: number }>;
+
+  // 是否跳过子元素映射（void 元素）
   skipChildren?: boolean;
+
+  // void 元素的属性位置映射
   propertyMappings?: {
     [propName: string]: {
       start: { line: number; ch: number };
@@ -91,6 +99,8 @@ export interface MarkdownSerializer {
   type: string;
   isBlock?: boolean;
   toMarkdown: (element: any, childrenStr: string, parentElement?: any) => string;
+
+  // 新增：带位置信息的序列化（可选）
   toMarkdownStructured?: (
     element: any,
     childrenStr: string,
@@ -208,6 +218,15 @@ export class MarkdownSerializerRegistry {
         },
       },
       {
+        // `$` 点名的 Skill 芯片：正文里保留成 `$名称`，点名信息另由 ChatInputArea 提取
+        type: "skill-ref",
+        toMarkdown: element => `$${element.name}`,
+        toMarkdownStructured: element => ({
+          output: `$${element.name}`,
+          childrenStart: { line: 0, ch: 0 },
+        }),
+      },
+      {
         type: "content-link",
         toMarkdown: (element, childrenStr) => {
           const attributes = [];
@@ -323,7 +342,7 @@ export class MarkdownSerializerRegistry {
           return {
             output,
             childrenStart: { line: 0, ch: 2 },
-            perLineOffset: 2,
+            perLineOffset: 2, // 每行前缀 "> "
           };
         },
       },
@@ -394,6 +413,7 @@ export class MarkdownSerializerRegistry {
         type: "list-item",
         isBlock: true,
         toMarkdown: (element, children: string, parentElement) => {
+          // Get icon prefix if exists (using custom protocol syntax)
           let iconPrefix = "";
           if (element.iconType === "emoji" && element.icon) {
             iconPrefix = `![](emoji:${element.icon})`;
@@ -402,6 +422,7 @@ export class MarkdownSerializerRegistry {
           }
 
           if (parentElement.type === "bulleted-list") {
+            // children 按照 \n 分割，第一行加上 -，其它行加上两个空格
             return children
               .trim()
               .split("\n")
@@ -414,6 +435,7 @@ export class MarkdownSerializerRegistry {
               })
               .join("\n");
           } else if (parentElement.type === "numbered-list") {
+            // 找到当前元素在父元素中的索引，第一行加上 1，然后加上 . 和一个空格，其它行加上两个空格
             const index = parentElement.children.findIndex((child: any) => child === element);
             return children
               .trim()
@@ -476,7 +498,7 @@ export class MarkdownSerializerRegistry {
           return {
             output,
             childrenStart: { line: 0, ch: firstLinePrefix.length },
-            perLineOffset: 2,
+            perLineOffset: 2, // 后续行缩进 2 个空格
           };
         },
       },
@@ -484,11 +506,11 @@ export class MarkdownSerializerRegistry {
         type: "table",
         isBlock: true,
         toMarkdown: (_element, children) => {
-          const rows = children.split("\n").filter(trim);
+          const rows = children.split("\n").filter(isNonBlank);
           return this.buildSimpleTable(rows);
         },
         toMarkdownStructured: (_element, children) => {
-          const rows = children.split("\n").filter(trim);
+          const rows = children.split("\n").filter(isNonBlank);
           if (rows.length === 0) {
             return { output: "" };
           }
@@ -638,7 +660,6 @@ export class MarkdownSerializerRegistry {
         toMarkdown: element => {
           const attributes = [];
           attributes.push(`src="${element.src}"`);
-          if (element.title) attributes.push(`title="${element.title}"`);
           if (element.isFromGenerate) attributes.push(`isFromGenerate="${element.isFromGenerate}"`);
           if (element.audioText) attributes.push(`audioText="${element.audioText}"`);
           const attributeStr = attributes.length > 0 ? attributes.join(" ") : "";
@@ -708,7 +729,7 @@ export class MarkdownSerializerRegistry {
           return {
             output,
             childrenStart: { line: 0, ch: prefix.length },
-            perLineOffset: 2,
+            perLineOffset: 2, // 后续行缩进 2 个空格
           };
         },
       },
