@@ -9,7 +9,7 @@
  * 叠层；阴影加深至黑系。
  */
 
-import { defineTheme } from "../defineTheme";
+import { defineTheme } from "../defineTheme.ts";
 
 export default defineTheme({
   key: "ocean",

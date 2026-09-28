@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { ALL_TOKEN_WORDS, cssVarName, type TokenWord } from "../tokenContract";
-import { THEME_MODES, defineTheme, getThemeRegistry, listThemes } from "../defineTheme";
-import "../register"; // 副作用注册全部主题
+import { ALL_TOKEN_WORDS, cssVarName, type TokenWord } from "../tokenContract.ts";
+import { THEME_MODES, defineTheme, getThemeRegistry, listThemes } from "../defineTheme.ts";
+import "../register.ts"; // 副作用注册全部主题
 
 const css = readFileSync(resolve(import.meta.dirname, "../tokens.css"), "utf-8");
 

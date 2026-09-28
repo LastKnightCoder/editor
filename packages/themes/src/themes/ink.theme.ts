@@ -8,7 +8,7 @@
  * 对比度按 02 规范 §2.5，深浅两套均由 theme-parity.test.ts 校验。
  */
 
-import { defineTheme } from "../defineTheme";
+import { defineTheme } from "../defineTheme.ts";
 
 export default defineTheme({
   key: "ink",

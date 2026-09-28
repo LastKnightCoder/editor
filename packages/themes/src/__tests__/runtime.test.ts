@@ -1,7 +1,11 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it } from "vitest";
-import { createThemeBootstrapScript, resolveThemePreference, themeRuntimeConfig } from "../index";
-import { createThemeRuntime } from "../react";
+import {
+  createThemeBootstrapScript,
+  resolveThemePreference,
+  themeRuntimeConfig,
+} from "../index.ts";
+import { createThemeRuntime } from "../react.ts";
 
 afterEach(() => {
   localStorage.clear();

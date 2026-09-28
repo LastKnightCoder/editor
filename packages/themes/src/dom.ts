@@ -3,9 +3,9 @@
  * + 深色 .dark 类），token 取值由 tokens.css 的 [data-theme][data-mode] 数据块级联。
  * 偏好持久化、system 跟随在 `@tau/themes/react`；首帧由 createThemeBootstrapScript 预置属性。
  */
-import { getTheme, type ThemeMode } from "./defineTheme";
-import { isDev } from "./env";
-import "./register";
+import { getTheme, type ThemeMode } from "./defineTheme.ts";
+import { isDev } from "./env.ts";
+import "./register.ts";
 
 export function applyThemeToDom(
   key: string,

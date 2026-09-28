@@ -1,10 +1,10 @@
 import { create } from "zustand";
-import { applyThemeToDom } from "./dom";
-import type { ThemeMode } from "./defineTheme";
-import { resolveThemePreference, themeRuntimeConfig, type Appearance } from "./bootstrap";
+import { applyThemeToDom } from "./dom.ts";
+import type { ThemeMode } from "./defineTheme.ts";
+import { resolveThemePreference, themeRuntimeConfig, type Appearance } from "./bootstrap.ts";
 
-export type { Appearance } from "./bootstrap";
-export type { ThemeMode } from "./defineTheme";
+export type { Appearance } from "./bootstrap.ts";
+export type { ThemeMode } from "./defineTheme.ts";
 
 export interface ThemeState {
   /** 主题族 key */

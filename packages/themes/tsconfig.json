@@ -9,6 +9,11 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "noEmit": true,
+    // 相对导入写 .ts 扩展名、只用可擦除语法：Node 可直接加载源码（type stripping），
+    // vite 配置、Electron 主进程、脚本以包名导入时无需构建
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
     "types": []
   },
   "include": ["src/index.ts", "src/runtime-globals.d.ts"]

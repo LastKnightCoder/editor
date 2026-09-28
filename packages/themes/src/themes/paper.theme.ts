@@ -13,7 +13,7 @@
  * （由 theme-parity.test.ts 的对比度断言守护，深浅两套都校验）。
  */
 
-import { defineTheme } from "../defineTheme";
+import { defineTheme } from "../defineTheme.ts";
 
 export default defineTheme({
   key: "paper",

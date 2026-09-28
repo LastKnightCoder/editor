@@ -11,8 +11,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import tailwindcss from "@tailwindcss/vite";
 import * as path from "path";
-// 相对路径而非包名：vite 打包配置时会把包名外置给 Node 原生加载，Node 不认 TS 源码里的无扩展名导入
-import { createThemeBootstrapScript } from "../../packages/themes/src/index";
+import { createThemeBootstrapScript } from "@tau/themes";
 
 export default defineConfig({
   resolve: {

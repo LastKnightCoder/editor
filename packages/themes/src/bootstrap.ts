@@ -1,5 +1,5 @@
-import { getThemeRegistry, type ThemeMode } from "./defineTheme";
-import "./register";
+import { getThemeRegistry, type ThemeMode } from "./defineTheme.ts";
+import "./register.ts";
 
 /** 明暗偏好：固定浅色 / 固定深色 / 跟随系统（与主题族正交） */
 export type Appearance = ThemeMode | "system";
