@@ -207,7 +207,7 @@ vi.mock("@/services/editorKit", () => ({
   getMarkdownFileKit: () => ({}),
   getSkillFileKit: () => ({}),
   getFlashcardKit: () => ({}),
-  getDesktopBareKit: () => ({}),
+  getArrowLabelKit: () => ({}),
 }));
 vi.mock("@tau/editor/src", () => {
   const MockEditor = forwardRef<

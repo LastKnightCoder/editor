@@ -17,6 +17,7 @@ import {
   type EditorKit,
   type IExtension,
 } from "@tau/editor/src";
+import { inlineMath, link, paragraph } from "@tau/editor/src/extensions";
 import { createDesktopEditorExtensions, fileAttachmentExtension } from "@/editor-extensions";
 import FlashcardBlankExtension from "@/editor-extensions/flashcard-blank";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
@@ -103,23 +104,15 @@ export function getFlashcardKit({ blanks = true }: { blanks?: boolean } = {}): E
   return createDesktopKit([flashcardBlank]);
 }
 
-const bareCache = new Map<readonly IExtension[], EditorKit>();
+let arrowLabelKit: EditorKit | null = null;
 
 /**
- * 「裸编辑器」kit：沿用 desktop 的服务，但不装内置与宿主扩展，扩展**必须**由调用方列全。
- * 目前只有白板箭头描述在用（只要段落、行内公式、链接三样）。
- *
- * 扩展列表不能为空：连 `paragraph` 都没有时，每个段落都渲染成「无法识别的类型 paragraph」。
- * 已删除的发布预览 `PreviewPanel` 就是这么坏了很久没人发现的。
+ * 白板箭头描述：SVG `foreignObject` 里的迷你单行编辑器，只要段落、行内公式、链接。
+ * 这是唯一需要**比内置更少**的场景，所以不走 `createDesktopKit`（它总带全部内置扩展）。
  */
-export function getDesktopBareKit(extensions: readonly IExtension[]): EditorKit {
-  if (extensions.length === 0) {
-    throw new Error("[desktop] 裸 kit 至少要列出 paragraph，否则正文渲染成「无法识别的类型」");
-  }
-  let kit = bareCache.get(extensions);
-  if (!kit) {
-    kit = createBareEditorKit({ extensions: [...extensions], services: [desktopEditorServices] });
-    bareCache.set(extensions, kit);
-  }
-  return kit;
+export function getArrowLabelKit(): EditorKit {
+  return (arrowLabelKit ??= createBareEditorKit({
+    extensions: [paragraph, inlineMath, link],
+    services: [desktopEditorServices],
+  }));
 }
