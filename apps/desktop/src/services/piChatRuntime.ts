@@ -59,7 +59,7 @@ export interface PiChatRuntimeDeps {
     onTitleGenerated?(chatId: string, title: string): void;
   };
   /** usage 落地时的模型标识（每轮发送刷新） */
-  usageModel?: { providerId: string; modelName?: string };
+  usageModel?: { providerId: string; modelId: string };
 }
 
 /**
@@ -481,7 +481,7 @@ class PiChatRuntime {
           this.mutateLastAssistant(key, message => {
             message.usage = {
               ...usage,
-              ...(model ? { providerId: model.providerId, modelName: model.modelName } : {}),
+              ...(model ? { providerId: model.providerId, modelId: model.modelId } : {}),
             };
           });
         },

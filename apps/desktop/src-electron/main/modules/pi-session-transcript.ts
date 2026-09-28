@@ -189,23 +189,19 @@ const applyToolResult = (message: ResponseMessage, result: PiTranscriptMessage):
   block.execution = execution;
 };
 
-const accumulateUsage = (message: ResponseMessage, source: PiTranscriptMessage): void => {
+const updateUsage = (message: ResponseMessage, source: PiTranscriptMessage): void => {
   const usage = source.usage;
+  if (!usage) return;
   const provider = source.provider;
   const model = source.model;
-  const current = message.usage ?? {
-    inputTokens: 0,
-    outputTokens: 0,
-    cacheReadTokens: 0,
-    cacheWriteTokens: 0,
-  };
+  // 上下文占用取最后一次模型调用，pi 的缓存 token 独立计数，需并入输入。
   message.usage = {
-    inputTokens: current.inputTokens + (usage?.input ?? 0),
-    outputTokens: current.outputTokens + (usage?.output ?? 0),
-    cacheReadTokens: current.cacheReadTokens + (usage?.cacheRead ?? 0),
-    cacheWriteTokens: current.cacheWriteTokens + (usage?.cacheWrite ?? 0),
+    inputTokens: (usage.input ?? 0) + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0),
+    outputTokens: usage.output ?? 0,
+    cacheReadTokens: usage.cacheRead ?? 0,
+    cacheWriteTokens: usage.cacheWrite ?? 0,
     ...(provider ? { providerId: provider } : {}),
-    ...(model ? { modelName: model } : {}),
+    ...(model ? { modelId: model } : {}),
   };
 };
 
@@ -250,7 +246,7 @@ export function piEntriesToDesktopMessages(entries: PiTranscriptEntry[]): ChatSe
       assistant.piEntryIds!.push(entry.id);
       if (blocks.length === 0) continue;
       assistant.assistant_blocks = [...(assistant.assistant_blocks ?? []), ...blocks];
-      accumulateUsage(assistant, entry.message);
+      updateUsage(assistant, entry.message);
       continue;
     }
     if (role === "toolResult" && assistant) {

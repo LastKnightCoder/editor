@@ -128,6 +128,7 @@ export interface ModelUsage {
   cacheReadTokens: number;
   cacheWriteTokens: number;
   providerId?: string;
+  modelId?: string;
   modelName?: string;
 }
 

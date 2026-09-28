@@ -26,6 +26,25 @@ const setup = () => {
 };
 
 describe("pi 审批工具行归约", () => {
+  it("流式完成时缓存读写并入上下文输入用量", () => {
+    const { handle, sink } = setup();
+    const message = {
+      role: "assistant",
+      content: [{ type: "text", text: "回答" }],
+      usage: { input: 20, output: 30, cacheRead: 100, cacheWrite: 5 },
+    };
+    handle({ type: "message_start", message });
+    handle({ type: "message_end", message });
+    expect(sink.applyUsage).toHaveBeenCalledWith(
+      {
+        inputTokens: 125,
+        outputTokens: 30,
+        cacheReadTokens: 100,
+        cacheWriteTokens: 5,
+      },
+      expect.any(String)
+    );
+  });
   it("只有终态消息时也生成工具行，审批快照与执行终态更新同一行", () => {
     const { reducer, handle, message, sink } = setup();
     handle({ type: "message_start", message });
