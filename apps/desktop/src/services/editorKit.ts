@@ -39,7 +39,7 @@ const byExtras = new Map<string, EditorKit>();
  * 建一个场景 kit：底座（内置 + desktop 静态 + desktop 服务）加上该场景的额外扩展。
  * 按额外扩展的 type 缓存，同一场景反复调用拿到同一个实例（否则编辑器会被重建）。
  */
-export function createDesktopKit(extras: readonly IExtension[] = EMPTY): EditorKit {
+export function createDesktopKit(extras: readonly IExtension[] = []): EditorKit {
   const key = extras.map(extension => extension.type).join(",");
   let kit = byExtras.get(key);
   if (!kit) {
@@ -106,13 +106,16 @@ export function getFlashcardKit({ blanks = true }: { blanks?: boolean } = {}): E
 const bareCache = new Map<readonly IExtension[], EditorKit>();
 
 /**
- * 「裸编辑器」kit：沿用 desktop 的服务，但不装内置与宿主扩展，由调用方列出所需扩展。
- * 用于白板箭头描述（只要极少数行内能力）与发布预览。
+ * 「裸编辑器」kit：沿用 desktop 的服务，但不装内置与宿主扩展，扩展**必须**由调用方列全。
+ * 目前只有白板箭头描述在用（只要段落、行内公式、链接三样）。
  *
- * 注意：发布预览现在传空数组，连内置扩展都没有，段落会渲染成「无法识别的类型 paragraph」。
- * 这是既有缺陷，修复（对齐 blog 的扩展集）排在 P10。
+ * 扩展列表不能为空：连 `paragraph` 都没有时，每个段落都渲染成「无法识别的类型 paragraph」。
+ * 已删除的发布预览 `PreviewPanel` 就是这么坏了很久没人发现的。
  */
-export function getDesktopBareKit(extensions: readonly IExtension[] = EMPTY): EditorKit {
+export function getDesktopBareKit(extensions: readonly IExtension[]): EditorKit {
+  if (extensions.length === 0) {
+    throw new Error("[desktop] 裸 kit 至少要列出 paragraph，否则正文渲染成「无法识别的类型」");
+  }
   let kit = bareCache.get(extensions);
   if (!kit) {
     kit = createBareEditorKit({ extensions: [...extensions], services: [desktopEditorServices] });
@@ -120,5 +123,3 @@ export function getDesktopBareKit(extensions: readonly IExtension[] = EMPTY): Ed
   }
   return kit;
 }
-
-const EMPTY: readonly IExtension[] = [];
