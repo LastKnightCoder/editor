@@ -9,6 +9,7 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import {
   Editor,
   EditorProvider,
+  HeaderExtension,
   PlantUMLExtension,
   type ImageAppearanceConfig,
   type ImageAppearanceSource,
@@ -189,6 +190,48 @@ describe("P4 EditorConfig 拆解", () => {
         } as never);
         expect((element.props as { appearance?: unknown }).appearance).toBe(appearance);
       }
+    });
+  });
+
+  describe("features.disableHeaderCollapse → header 扩展参数", () => {
+    const headerDoc: Descendant[] = [
+      {
+        type: "header",
+        level: 2,
+        collapsed: true,
+        children: [{ type: "formatted", text: "标题" }],
+      } as Descendant,
+      { type: "paragraph", children: [{ type: "formatted", text: "正文" }] } as Descendant,
+    ];
+
+    const mountWith = async (extensions?: HeaderExtension[]) => {
+      const registry = createServiceRegistry(register => {
+        register(IEditorSlots, createDefaultEditorSlots());
+      });
+      container = document.createElement("div");
+      document.body.appendChild(container);
+      root = createRoot(container);
+      await act(async () => {
+        root?.render(
+          <DndProvider backend={HTML5Backend}>
+            <EditorProvider registry={registry}>
+              <Editor initValue={headerDoc} readonly extensions={extensions} />
+            </EditorProvider>
+          </DndProvider>
+        );
+      });
+      return container;
+    };
+
+    // 折叠箭头是 antd 的 CaretRight 图标；折叠态靠 CSS 隐藏后续块，这里只看交互入口
+    const arrowOf = (host: HTMLElement) => host.querySelector("h2 .anticon-caret-right");
+
+    it("默认显示折叠箭头", async () => {
+      expect(arrowOf(await mountWith())).toBeTruthy();
+    });
+
+    it("disableCollapse 时不显示折叠箭头", async () => {
+      expect(arrowOf(await mountWith([new HeaderExtension({ disableCollapse: true })]))).toBeNull();
     });
   });
 });

@@ -1,11 +1,7 @@
 export { default as Editor } from "./index.tsx";
 export { useCollaboration, useCollaborationResource } from "./collaboration/context";
 export type { EditorCollaborationBinding } from "./collaboration/types";
-export {
-  EditorContext,
-  type EditorContextValue,
-  type EditorFeatures,
-} from "./contexts/EditorContext";
+export { EditorContext, type EditorContextValue } from "./contexts/EditorContext";
 export {
   useEditorConfig,
   type EditorConfig,
@@ -66,13 +62,14 @@ export type { MarkdownImportFn } from "./extensions/markdown-paste-import";
 export { default as PlantUMLExtension } from "./extensions/plantuml";
 export type { PlantUMLExtensionOptions } from "./extensions/plantuml";
 export { createImageExtensions } from "./extensions/image/createImageExtensions";
+export { default as HeaderExtension } from "./extensions/header";
+export type { HeaderExtensionOptions } from "./extensions/header";
 export type {
   ImageExtensionOptions,
   ImageAppearanceOption,
   ImageAppearanceSource,
 } from "./extensions/image/appearanceOption";
 export type { ImageAppearanceConfig } from "./extensions/image/utils/appearance";
-export { default as useEditorFeatures } from "./hooks/useEditorFeatures";
 export { useEditorTheme, EditorThemeScope } from "./theme/context";
 export type { EditorTheme } from "./theme/context";
 export { createDomThemeService, createStaticThemeService } from "./theme/ThemeService";

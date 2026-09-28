@@ -5,36 +5,34 @@ import styles from "./index.module.less";
 import type { HeaderElement } from "../../../types";
 import { useHeaderCollapse } from "./hooks";
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
-import useEditorFeatures from "../../../../hooks/useEditorFeatures";
 import { HeaderContent } from "./components";
 
 interface IHeaderProps {
   attributes: RenderElementProps["attributes"];
   element: HeaderElement;
+  disableCollapse?: boolean;
 }
 
-const Header: React.FC<React.PropsWithChildren<IHeaderProps>> = (props) => {
-  const { element, attributes, children } = props;
+const Header: React.FC<React.PropsWithChildren<IHeaderProps>> = props => {
+  const { element, attributes, children, disableCollapse = false } = props;
   const { level, collapsed = false } = element;
   const editor = useSlateStatic();
-  const features = useEditorFeatures();
 
   const { toggleCollapse } = useHeaderCollapse({
     editor,
     element,
   });
 
-  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
-    useDragAndDrop({
-      element,
-    });
+  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
+    element,
+  });
 
   // 如果禁用了 Header 折叠功能，则不显示折叠状态
-  const effectiveCollapsed = features.disableHeaderCollapse ? false : collapsed;
+  const effectiveCollapsed = disableCollapse ? false : collapsed;
 
   return (
     <div
-      ref={(node) => {
+      ref={node => {
         drop(node);
       }}
       className={classnames(styles.container, {
@@ -48,9 +46,7 @@ const Header: React.FC<React.PropsWithChildren<IHeaderProps>> = (props) => {
       <HeaderContent
         level={level}
         collapsed={effectiveCollapsed}
-        toggleCollapse={
-          features.disableHeaderCollapse ? undefined : toggleCollapse
-        }
+        toggleCollapse={disableCollapse ? undefined : toggleCollapse}
         attributes={attributes}
         dragRef={drag}
         canDrag={canDrag}

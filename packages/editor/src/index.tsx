@@ -33,11 +33,7 @@ import { useCreation, useMemoizedFn } from "ahooks";
 import { useEditorExtensions } from "./contexts/EditorProvider";
 import { useServiceRegistry } from "./services/hooks";
 import type { ServiceIdentifier } from "./services/tokens";
-import {
-  EditorContext,
-  type EditorContextValue,
-  type EditorFeatures,
-} from "./contexts/EditorContext";
+import { EditorContext, type EditorContextValue } from "./contexts/EditorContext";
 
 import {
   applyPlugin,
@@ -112,8 +108,6 @@ interface IEditorProps {
   placeHolder?: string;
   theme?: "light" | "dark";
   disableStartExtensions?: boolean;
-  /** 功能开关配置 */
-  features?: EditorFeatures;
   /** 自定义 decorate 函数（用于添加装饰，如 diff 高亮） */
   decorate?: (entry: [Node, Path]) => Range[];
   /** 自定义 renderLeaf 函数（用于自定义叶子节点渲染） */
@@ -155,7 +149,6 @@ const Index = memo(
       placeHolder,
       theme,
       disableStartExtensions = false,
-      features,
       decorate,
       customRenderLeaf,
       collaboration,
@@ -444,9 +437,8 @@ const Index = memo(
     const editorContextValue = useMemo<EditorContextValue>(
       () => ({
         theme,
-        features,
       }),
-      [theme, features]
+      [theme]
     );
 
     return (

@@ -22,7 +22,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { Descendant } from "slate";
-import { Editor, EditorRef } from "@tau/editor/src";
+import { Editor, EditorRef, HeaderExtension } from "@tau/editor/src";
 import { Button, ConfirmDialog, Dialog, Input, Textarea, cn, toast } from "@tau/ui";
 import { FadeScroll } from "@/components/FadeScroll";
 import { readBinaryFile, selectFile, showInFolder } from "@/commands";
@@ -41,6 +41,9 @@ import { exportVideoNoteToPdfWithDialog } from "@/utils/pdf-export";
 import useVideoEbookRewrite from "@/hooks/useVideoEbookRewrite";
 import type { VideoEbookRewriteStyle } from "@/constants/prompts/video-ebook-rewrite";
 import { summarizeExportResults, type ExportFormatResult } from "./export-result-summary";
+
+// 草稿按电子书目录编排，标题不折叠
+const DRAFT_EDITOR_EXTENSIONS = [new HeaderExtension({ disableCollapse: true })];
 
 const DEFAULT_CONTENT: Descendant[] = [
   {
@@ -781,7 +784,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
               onChange={handleEditorChange}
               readonly={isRewriting}
               placeHolder="草稿会在这里逐步出现"
-              features={{ disableHeaderCollapse: true }}
+              extensions={DRAFT_EDITOR_EXTENSIONS}
             />
           </div>
         </FadeScroll>
