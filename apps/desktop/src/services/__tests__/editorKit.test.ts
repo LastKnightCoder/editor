@@ -102,6 +102,16 @@ describe("desktop 场景 kit", { timeout: 30_000 }, () => {
     expect(extrasOf(getFlashcardKit({ blanks: false }))).toEqual(["webview"]);
   });
 
+  it("白板箭头描述：比内置更少，只有段落 / 行内公式 / 链接", async () => {
+    await loadStore();
+    const { getArrowLabelKit } = await import("../editorKit");
+    expect(
+      getArrowLabelKit()
+        .extensions.map(extension => extension.type)
+        .sort()
+    ).toEqual(["inline-math", "link", "paragraph"]);
+  });
+
   it("同一场景反复取到同一个 kit 实例（否则编辑器会被重建）", async () => {
     await loadStore();
     const { getContentKit, getDescriptionKit } = await import("../editorKit");
