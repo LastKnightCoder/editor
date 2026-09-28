@@ -1,6 +1,6 @@
 import { Base, createInlineElementPlugin } from "@tau/editor/src";
 import { Z_INDEX } from "../../../router/zIndex";
-import type { IConfigItem, IExtension } from "@tau/editor/src";
+import type { EditorKit, IConfigItem, IExtension } from "@tau/editor/src";
 import {
   useEffect,
   useMemo,
@@ -36,14 +36,15 @@ type ContentLinkElement = {
 type PreviewEditorProps = {
   initValue: unknown;
   readonly?: boolean;
-  extensions?: IExtension[];
+  kit?: EditorKit;
   theme?: "light" | "dark";
   className?: string;
 };
 
+/** 预览用编辑器与它的 content 场景 kit，一起懒加载（避免扩展模块绕回本文件） */
 type PreviewRenderer = {
   Editor: ComponentType<PreviewEditorProps>;
-  extensions: IExtension[];
+  kit: EditorKit;
 };
 
 const EMPTY_EDITOR_CONTENT = [
@@ -103,11 +104,14 @@ async function loadPreviewRenderer(): Promise<PreviewRenderer> {
     return previewRendererPromise;
   }
 
-  previewRendererPromise = Promise.all([import("@tau/editor/src"), import("./index")])
-    .then(([editorModule, extensionModule]) => {
+  previewRendererPromise = Promise.all([
+    import("@tau/editor/src"),
+    import("../../../services/editorKit"),
+  ])
+    .then(([editorModule, kitModule]) => {
       const nextRenderer: PreviewRenderer = {
         Editor: editorModule.Editor as ComponentType<PreviewEditorProps>,
-        extensions: extensionModule.mobileCardPreviewExtensions,
+        kit: kitModule.getMobileContentKit(),
       };
       previewRendererCache = nextRenderer;
       return nextRenderer;
@@ -191,7 +195,7 @@ function ContentLinkPreviewCard(props: {
           initValue={normalizeEditorContent(props.detail.content)}
           readonly
           theme={theme}
-          extensions={props.renderer.extensions}
+          kit={props.renderer.kit}
           className="mobile-card-editor-content"
         />
       </div>

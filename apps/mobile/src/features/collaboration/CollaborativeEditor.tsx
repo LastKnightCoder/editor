@@ -2,8 +2,8 @@
 // 协作页，直接在详情页切换为 yjs 协同编辑。职责内聚：运行时挂载、Y.Doc 绑定、
 // owner 侧投影、presence 上报；会话建立失败时上报「本地兜底」模式，由详情页用正常的
 // 本地编辑器继续编辑（改动经投影通道落本地库），重连后拉出「保留本机 / 采用云端」裁决。
-import { useEffect, useRef, useState, type ComponentProps, type RefObject } from "react";
-import { getMobileKit } from "../../services/editorKit";
+import { useEffect, useRef, useState, type RefObject } from "react";
+import { getMobileContentKit } from "../../services/editorKit";
 import { ChevronRight, Loader2, RefreshCw, Users, WifiOff } from "lucide-react";
 import { Editor, type EditorRef } from "@tau/editor/src";
 import { AvatarStack, StatusDot } from "./components/CollaborationUI";
@@ -12,8 +12,6 @@ import { useCollabSession } from "./hooks/useCollabSession";
 import { useCollaborationRuntime } from "./hooks/useCollaborationRuntime";
 import { hasPendingLocalFallback, clearPendingLocalFallback } from "./local-fallback";
 import { useNavigator } from "../../router";
-
-type EditorProps = ComponentProps<typeof Editor>;
 
 /** 会话建立迟迟不成功（无错误但也没就绪）多久后转本地兜底编辑 */
 const CONNECT_STALL_MS = 8000;
@@ -24,7 +22,6 @@ export type CollaborativeEditorMode = "connecting" | "live" | "unavailable" | "e
 
 export function CollaborativeEditor(props: {
   documentId: string;
-  extensions?: EditorProps["extensions"];
   editorRef: RefObject<EditorRef | null>;
   onEditorFocus: () => void;
   onEditorBlur: () => void;
@@ -178,13 +175,12 @@ export function CollaborativeEditor(props: {
 
       <div className="min-h-[45vh] pt-1">
         <Editor
-          kit={getMobileKit()}
+          kit={getMobileContentKit()}
           ref={props.editorRef}
           key={`collab-${props.documentId}`}
           collaboration={binding}
           className="mobile-card-editor-content"
           readonly={viewReadonly}
-          extensions={props.extensions}
           onFocus={() => {
             presence.onFocus();
             props.onEditorFocus();

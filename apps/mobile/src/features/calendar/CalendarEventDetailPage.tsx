@@ -2,7 +2,7 @@
 // + 富文本详情卡（真实 Editor 只读）+ 底部操作条；系统日程只读并提供来源模块入口。
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getMobileKit } from "../../services/editorKit";
+import { getMobileContentKit } from "../../services/editorKit";
 import type { Descendant } from "slate";
 import { Editor, type EditorRef } from "@tau/editor/src";
 import { useMobileTheme } from "../../hooks/useMobileTheme";
@@ -20,7 +20,6 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
-import { mobileCardPreviewExtensions } from "../cards/editorExtensions";
 import { isEditorContentEmpty } from "../cards/editorContentUtils";
 import { useEdgeFade } from "../../hooks/useScrollState";
 import { eventColorValue } from "./constants";
@@ -206,11 +205,10 @@ export function CalendarEventDetailPage({
                 <div className="bg-surface shadow-card rounded-[20px] px-5 py-[18px]">
                   {hasDetail ? (
                     <Editor
-                      kit={getMobileKit()}
+                      kit={getMobileContentKit()}
                       ref={editorRef}
                       initValue={event.detailContent as Descendant[]}
                       readonly={true}
-                      extensions={mobileCardPreviewExtensions}
                       className="text-ink w-full text-[13.5px] font-medium leading-[1.85] outline-none"
                     />
                   ) : (
