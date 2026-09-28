@@ -8,15 +8,12 @@ import {
   CreateProjectItem,
   UpdateProjectItem,
   EProjectItemType,
-  EProjectType,
 } from "@/types/project";
 import Operation from "./operation";
-import DataTableTable from "./data-table";
 import { Descendant } from "slate";
 import { getContentLength } from "@/utils/helper";
 import { getMarkdown } from "@/utils/markdown.ts";
-import { basename, join } from "node:path";
-import { v4 as uuidv4 } from "uuid";
+import { basename } from "node:path";
 import FTSTable from "./fts";
 import VecDocumentTable from "./vec-document";
 import ContentTable from "./content";
@@ -28,19 +25,13 @@ import AudioNoteTable from "./audio-note";
 import WhiteBoardContentTable from "./white-board-content";
 import WebLinkTable from "./web-link";
 import { WebLinkSourceType } from "@/types";
-import VibeLearningResourceTable from "./vibe-learning-resource";
-import ChatSessionTable from "./chat-session";
-import VLNoteTable from "./vl-note";
-import VLQuizTable from "./vl-quiz";
-import vibeLearningDBManager from "../vibe-learning-db";
-import PathUtil from "../../utils/PathUtil";
-import { rmSync, existsSync } from "node:fs";
 
 import log from "electron-log";
 import { readKnowledgeMapping } from "@tau/db-schema/src/knowledge-migration";
+import { getNextModuleEntityId, isMigrationDone, markMigrationDone } from "./module-entity-id";
 
 const LEGACY_WEB_LINK_MIGRATION_KEY = "project:legacy-web-links";
-const PROJECT_ID_SEQ_KEY = "project:id-seq";
+const SPLIT_MODULES_MIGRATION_KEY = "project:split-modules";
 
 type TreeMovePosition = "top" | "bottom" | "inside";
 
@@ -136,6 +127,9 @@ export default class ProjectTable {
       log.info("已添加 podcast_id 字段到 project_item 表");
     }
 
+    // 拆分数据库 / Vibe Learning 到独立模块表
+    this.migrateSplitModules(db);
+
     // 删除不在任何项目中的条目
     this.deleteProjectItemsNotInAnyProject(db);
     this.migrateLegacyWebLinks(db);
@@ -156,57 +150,115 @@ export default class ProjectTable {
     };
   }
 
-  private static ensureMigrationMetaTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS migration_meta (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL
+  /**
+   * 把 project 表里寄生的两类项目搬到各自的独立模块表，之后 project 表只剩文档树。
+   *
+   * id 原样保留：VL 的 per-project 索引库、markdown 目录、chat_session.domain_id、
+   * vl_note.project_id 等都以这个 id 命名，重编号会指向错误的数据。
+   */
+  static migrateSplitModules(db: Database.Database) {
+    if (isMigrationDone(db, SPLIT_MODULES_MIGRATION_KEY)) {
+      return;
+    }
+
+    const tableInfo = db.prepare(`PRAGMA table_info(project)`).all() as Array<{ name: string }>;
+    if (!tableInfo.some(column => column.name === "project_type")) {
+      // 全新库，没有历史数据可搬
+      markMigrationDone(db, SPLIT_MODULES_MIGRATION_KEY);
+      return;
+    }
+
+    // 理论上这两类项目不挂 project_item，非空说明数据异常，只告警不阻断
+    const strayTrees = db
+      .prepare(
+        `SELECT id FROM project
+         WHERE project_type <> 'document-tree' AND children IS NOT NULL
+           AND children NOT IN ('[]', '')`
       )
-    `);
+      .all() as Array<{ id: number }>;
+    if (strayTrees.length > 0) {
+      log.warn(
+        `[ProjectTable] split-modules: 非文档树项目携带 children，人工确认: ids=${strayTrees
+          .map(row => row.id)
+          .join(",")}`
+      );
+    }
+
+    const tx = db.transaction(() => {
+      db.exec(`
+        INSERT OR IGNORE INTO database_item
+          (id, create_time, update_time, title, desc, archived, pinned, data_table_id)
+        SELECT id, create_time, update_time, title, desc,
+               COALESCE(archived, 0), COALESCE(pinned, 0), COALESCE(data_table_id, 0)
+        FROM project WHERE project_type = 'data-table'
+      `);
+
+      db.exec(`
+        INSERT OR IGNORE INTO vibe_learning_project
+          (id, create_time, update_time, title, desc, archived, pinned)
+        SELECT id, create_time, update_time, title, desc,
+               COALESCE(archived, 0), COALESCE(pinned, 0)
+        FROM project WHERE project_type = 'vibe-learning'
+      `);
+
+      this.rebuildVibeLearningResourceForeignKey(db);
+
+      db.exec(`DELETE FROM project WHERE project_type <> 'document-tree'`);
+
+      // 清理指向已迁走项目的发布选择
+      db.exec(`
+        DELETE FROM publish_selections
+        WHERE content_type = 'project'
+          AND content_id NOT IN (SELECT id FROM project)
+      `);
+    });
+
+    tx();
+
+    const fkErrors = db.prepare(`PRAGMA foreign_key_check`).all() as unknown[];
+    if (fkErrors.length > 0) {
+      log.error(`[ProjectTable] split-modules: 迁移后外键校验失败，count=${fkErrors.length}`);
+    }
+
+    markMigrationDone(db, SPLIT_MODULES_MIGRATION_KEY);
+    log.info("[ProjectTable] split-modules 迁移完成");
   }
 
-  private static isMigrationDone(db: Database.Database, key: string) {
-    this.ensureMigrationMetaTable(db);
-    const row = db.prepare(`SELECT value FROM migration_meta WHERE key = ?`).get(key) as
-      { value: string } | undefined;
-    return row?.value === "done";
-  }
+  /**
+   * vibe_learning_resources.project_id 的外键原本指向 project(id)，
+   * VL 项目搬走后必须改指 vibe_learning_project(id)，否则外键校验失败
+   * （移动端的 migrator 会因此直接中止升级）。SQLite 无法改外键，只能重建表。
+   */
+  private static rebuildVibeLearningResourceForeignKey(db: Database.Database) {
+    const sqlRow = db
+      .prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`)
+      .get("vibe_learning_resources") as { sql: string } | undefined;
+    if (!sqlRow?.sql || !/REFERENCES\s+project\s*\(/i.test(sqlRow.sql)) {
+      return;
+    }
 
-  private static markMigrationDone(db: Database.Database, key: string) {
-    this.ensureMigrationMetaTable(db);
-    db.prepare(
-      `
-        INSERT INTO migration_meta (key, value)
-        VALUES (?, 'done')
-        ON CONFLICT(key) DO UPDATE SET value = 'done'
-      `
-    ).run(key);
-  }
+    const columns = (
+      db.prepare(`PRAGMA table_info(vibe_learning_resources)`).all() as Array<{ name: string }>
+    )
+      .map(column => column.name)
+      .join(", ");
 
-  private static getNextProjectId(db: Database.Database): number {
-    this.ensureMigrationMetaTable(db);
-    const seqRow = db
-      .prepare(`SELECT value FROM migration_meta WHERE key = ?`)
-      .get(PROJECT_ID_SEQ_KEY) as { value: string } | undefined;
-    const parsedSeq = Number.parseInt(seqRow?.value || "0", 10);
-    const currentSeq = Number.isFinite(parsedSeq) ? parsedSeq : 0;
-    const maxIdRow = db.prepare(`SELECT COALESCE(MAX(id), 0) as max_id FROM project`);
-    const maxProjectId = Number((maxIdRow.get() as { max_id: number } | undefined)?.max_id || 0);
-    const nextProjectId = Math.max(currentSeq, maxProjectId) + 1;
+    const rebuiltSql = sqlRow.sql
+      .replace(/vibe_learning_resources/, "vibe_learning_resources_new")
+      .replace(/REFERENCES\s+project\s*\(\s*id\s*\)/i, "REFERENCES vibe_learning_project(id)");
 
-    db.prepare(
-      `
-        INSERT INTO migration_meta (key, value)
-        VALUES (?, ?)
-        ON CONFLICT(key) DO UPDATE SET value = excluded.value
-      `
-    ).run(PROJECT_ID_SEQ_KEY, String(nextProjectId));
-
-    return nextProjectId;
+    db.exec(rebuiltSql);
+    db.exec(
+      `INSERT INTO vibe_learning_resources_new (${columns}) SELECT ${columns} FROM vibe_learning_resources`
+    );
+    db.exec(`DROP TABLE vibe_learning_resources`);
+    db.exec(`ALTER TABLE vibe_learning_resources_new RENAME TO vibe_learning_resources`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_vlr_project_id ON vibe_learning_resources(project_id)`);
+    log.info("[ProjectTable] split-modules: 已重建 vibe_learning_resources 外键");
   }
 
   static migrateLegacyWebLinks(db: Database.Database) {
-    if (this.isMigrationDone(db, LEGACY_WEB_LINK_MIGRATION_KEY)) {
+    if (isMigrationDone(db, LEGACY_WEB_LINK_MIGRATION_KEY)) {
       return;
     }
 
@@ -235,7 +287,7 @@ export default class ProjectTable {
       updateStmt.run(webLink.title, "web-link", webLink.id, item.id);
     }
 
-    this.markMigrationDone(db, LEGACY_WEB_LINK_MIGRATION_KEY);
+    markMigrationDone(db, LEGACY_WEB_LINK_MIGRATION_KEY);
   }
 
   static getListenEvents() {
@@ -284,8 +336,6 @@ export default class ProjectTable {
       children: JSON.parse(project.children || "[]"),
       archived: Boolean(project.archived),
       pinned: Boolean(project.pinned),
-      projectType: project.project_type || "document-tree",
-      dataTableId: project.data_table_id || 0,
     };
   }
 
@@ -366,31 +416,11 @@ export default class ProjectTable {
   static createProject(db: Database.Database, project: CreateProject): Project {
     const tx = db.transaction((createProjectPayload: CreateProject) => {
       const now = Date.now();
-      let dataTableId = 0;
-
-      // 如果是数据表格类型，先创建数据表格
-      if (createProjectPayload.projectType === EProjectType.DataTable) {
-        // 创建默认主列
-        const defaultColumn = {
-          id: uuidv4(),
-          title: "名称",
-          type: "text",
-          width: 200,
-          isPrimary: true,
-        };
-
-        const dataTable = DataTableTable.create(db, {
-          columns: [defaultColumn],
-          rows: [],
-        });
-        dataTableId = dataTable.id;
-      }
-
-      const projectId = this.getNextProjectId(db);
+      const projectId = getNextModuleEntityId(db);
       const stmt = db.prepare(`
         INSERT INTO project
-        (id, create_time, update_time, title, desc, children, archived, pinned, project_type, data_table_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (id, create_time, update_time, title, desc, children, archived, pinned)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `);
       stmt.run(
         projectId,
@@ -400,9 +430,7 @@ export default class ProjectTable {
         JSON.stringify(createProjectPayload.desc || []),
         JSON.stringify(createProjectPayload.children || []),
         Number(createProjectPayload.archived || false),
-        Number(createProjectPayload.pinned || false),
-        createProjectPayload.projectType || EProjectType.DocumentTree,
-        dataTableId
+        Number(createProjectPayload.pinned || false)
       );
 
       Operation.insertOperation(db, "project", "insert", projectId, now);
@@ -421,9 +449,7 @@ export default class ProjectTable {
         desc = ?,
         children = ?,
         archived = ?,
-        pinned = ?,
-        project_type = ?,
-        data_table_id = ?
+        pinned = ?
       WHERE id = ?
     `);
     const now = Date.now();
@@ -434,8 +460,6 @@ export default class ProjectTable {
       JSON.stringify(project.children || []),
       Number(project.archived || false),
       Number(project.pinned || false),
-      project.projectType || EProjectType.DocumentTree,
-      project.dataTableId || 0,
       project.id
     );
 
@@ -445,64 +469,14 @@ export default class ProjectTable {
   }
 
   static deleteProject(db: Database.Database, id: number): number {
-    // 获取项目信息以确定类型
-    const project = this.getProject(db, id);
-
-    // 如果是数据表格类型，减少数据表格的引用计数
-    if (project.projectType === EProjectType.DataTable && project.dataTableId) {
-      DataTableTable.remove(db, project.dataTableId);
+    // 项目即文档树：所有 project_item 的 projects 字段中删除该项目的 id
+    const projectItems = this.getProjectItemsByProjectId(db, id);
+    for (const item of projectItems) {
+      item.projects = item.projects.filter((p: number) => p !== id);
+      this.updateProjectItem(db, item);
     }
-
-    // 如果是文档树类型，处理项目条目
-    if (project.projectType === EProjectType.DocumentTree) {
-      // 所有 project_item 的 projects 字段中删除该项目的id
-      const projectItems = this.getProjectItemsByProjectId(db, id);
-      for (const item of projectItems) {
-        item.projects = item.projects.filter((p: number) => p !== id);
-        this.updateProjectItem(db, item);
-      }
-      //  尝试删除无 projects 的 project_item
-      this.deleteProjectItemsNotInAnyProject(db);
-    }
-
-    // 如果是 VibeLearning 类型，先删除关联的资源和聊天记录，以及索引数据库和 Markdown 文件夹
-    if (project.projectType === EProjectType.VibeLearning) {
-      VibeLearningResourceTable.deleteResourcesByProjectId(db, id);
-      // 学习项目的对话（目录行 + 会话文件）随项目一起删
-      ChatSessionTable.removeByDomain(db, "vibe-learning-chat", String(id));
-      VLNoteTable.deleteByProjectId(db, id);
-      VLQuizTable.deleteByProjectId(db, id);
-
-      // 获取主数据库名称
-      const dbList = db.pragma("database_list") as Array<{
-        name: string;
-        file: string;
-      }>;
-      const mainDbFile = dbList.find(d => d.name === "main")?.file;
-      if (mainDbFile) {
-        const mainDbName = basename(mainDbFile);
-
-        // 删除项目索引数据库
-        vibeLearningDBManager.deleteDatabase(mainDbName, id);
-
-        // 删除 Markdown 文件夹
-        const dbNameWithoutExt = mainDbName.replace(/\.db$/, "");
-        const markdownDir = join(
-          PathUtil.getAppDir(),
-          "vibe-learning",
-          dbNameWithoutExt,
-          String(id)
-        );
-        if (existsSync(markdownDir)) {
-          try {
-            rmSync(markdownDir, { recursive: true, force: true });
-            log.info(`[ProjectTable] Deleted VibeLearning markdown folder: ${markdownDir}`);
-          } catch (error) {
-            log.error(`[ProjectTable] Error deleting VibeLearning markdown folder: ${error}`);
-          }
-        }
-      }
-    }
+    // 尝试删除无 projects 的 project_item
+    this.deleteProjectItemsNotInAnyProject(db);
 
     const stmt = db.prepare("DELETE FROM project WHERE id = ?");
     Operation.insertOperation(db, "project", "delete", id, Date.now());

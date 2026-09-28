@@ -2,7 +2,7 @@ import { act } from "react";
 import type { ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { EProjectItemType, EProjectType } from "@/types/project";
+import { EProjectItemType } from "@/types/project";
 import InsertNoteToTreeModal from "..";
 
 (globalThis as any).ResizeObserver = class {
@@ -82,7 +82,6 @@ describe("InsertNoteToTreeModal", () => {
       {
         id: 1,
         title: "项目",
-        projectType: EProjectType.DocumentTree,
         archived: false,
         children: [],
         createTime: 1,

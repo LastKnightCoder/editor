@@ -12,7 +12,7 @@ import { createWebLink } from "@/commands/web-link";
 import { getContentById } from "@/commands";
 import { createEmptyVideoNote } from "@/commands/video-notes";
 import { getContentLength } from "@/utils";
-import { EProjectType, EProjectItemType } from "@/types/project";
+import { EProjectItemType } from "@/types/project";
 import type { CreateProjectItem, Project, ProjectItem } from "@/types/project";
 import type { VideoNote } from "@/types/video-note";
 import type { WebLinkSourceType } from "@/types/web-link";
@@ -156,9 +156,8 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
 
       getProjectList()
         .then(allProjects => {
-          setProjects(
-            allProjects.filter(p => p.projectType === EProjectType.DocumentTree && !p.archived)
-          );
+          // 项目即文档树（数据库 / Vibe Learning 已拆为独立模块），只需过掉归档
+          setProjects(allProjects.filter(p => !p.archived));
         })
         .catch(() => toast.error("加载列表失败"))
         .finally(() => setLoading(false));

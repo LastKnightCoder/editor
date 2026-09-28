@@ -11,14 +11,14 @@ import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { DOCK_CHAT_MIN, clampDockChatWidth, useDockResize } from "@/hooks/useDockResize";
 import { cn, toast } from "@tau/ui";
 import useSettingStore from "@/stores/useSettingStore";
-import { getProjectById } from "@/commands";
+import { getVibeLearningProject } from "@/commands/vibe-learning-project";
 import { getVLNotesByProjectId, getVLResourcesByProjectId } from "@/commands/vibe-learning";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import { FadeScroll } from "@/components/FadeScroll";
 import useVLQuizStore from "@/stores/useVLQuizStore";
-import { useProjectTreeStore } from "../../projectTreeStore";
-import type { Project } from "@/types";
+import { useVibeLearningPanelStore } from "../../panelStore";
+import type { VibeLearningProject } from "@/types";
 import type { VLNote, VLResource } from "@/types/vibe-learning";
 
 import ChatPanel from "./ChatPanel";
@@ -46,9 +46,9 @@ interface VibeLearningViewProps {
 
 const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
   const mainDbName = useSettingStore(state => state.setting.database.active);
-  const treeCollapsed = useProjectTreeStore(s => s.collapsed);
+  const treeCollapsed = useVibeLearningPanelStore(s => s.collapsed);
 
-  const [project, setProject] = useState<Project | null>(null);
+  const [project, setProject] = useState<VibeLearningProject | null>(null);
   const [resources, setResources] = useState<VLResource[]>([]);
   const [notes, setNotes] = useState<VLNote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,7 +105,7 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
     setLoading(true);
     try {
       const [projectData, resourcesData, notesData] = await Promise.all([
-        getProjectById(projectId),
+        getVibeLearningProject(projectId),
         getVLResourcesByProjectId(projectId),
         getVLNotesByProjectId(projectId),
       ]);

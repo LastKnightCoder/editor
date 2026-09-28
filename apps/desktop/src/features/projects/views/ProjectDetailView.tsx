@@ -1,6 +1,6 @@
 /**
- * 项目详情视图（薄壳）：三型工作台的宿主——判存在 + 面包屑注入后渲染
- * components/ProjectView（内部按 projectType 分派文档树 / 数据表格 / Vibe Learning）。
+ * 项目详情视图（薄壳）：文档树工作台的宿主——判存在 + 面包屑注入后渲染
+ * components/ProjectView。
  *
  * ProjectView 系为 legacy 搬迁件（原 src/pages/ProjectView，2026-09-23 迁入，
  * 见 DECISIONS.md D-033）：antd 皮 / module.less / useTabStore(navigateTo) 残留
@@ -11,7 +11,6 @@ import { useMemo } from "react";
 import { ArrowLeft, PanelLeft } from "lucide-react";
 import { usePage, usePageParams, usePageBreadcrumb } from "@/page/PageProvider";
 import { Button, IconButton, Loading, Tooltip } from "@tau/ui";
-import { EProjectType } from "@/types";
 import { useProjectDetail } from "../queries";
 import { useProjectTreeStore } from "../projectTreeStore";
 import ProjectView from "../components/ProjectView";
@@ -23,15 +22,12 @@ export function ProjectDetailView() {
   const treeCollapsed = useProjectTreeStore(s => s.collapsed);
   const toggleTree = useProjectTreeStore(s => s.toggle);
 
-  // 文档树型与 Vibe Learning（纸内资料目录）有侧栏；数据表格不出切换按钮
-  const hasDocumentTree = !!project && project.projectType !== EProjectType.DataTable;
-
   /* 标题栏面包屑（node 须 useMemo 稳定化）：文档树切换按钮 + 项目标题。
      按钮钉在标题栏固定位置，收起/展开只换图标，不随侧栏移动 */
   const breadcrumbNode = useMemo(
     () => (
       <span className="flex min-w-0 items-center gap-1">
-        {hasDocumentTree && (
+        {!!project && (
           <Tooltip content={treeCollapsed ? "展开侧边栏" : "收起侧边栏"} placement="bottom">
             <IconButton
               className="shrink-0"
@@ -48,7 +44,7 @@ export function ProjectDetailView() {
         </span>
       </span>
     ),
-    [project?.title, id, hasDocumentTree, treeCollapsed, toggleTree]
+    [project, id, treeCollapsed, toggleTree]
   );
   usePageBreadcrumb("project-detail", breadcrumbNode);
 

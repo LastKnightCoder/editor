@@ -1,4 +1,5 @@
 import { invoke } from "@/electron";
+import { queryClient } from "@/queryClient";
 import type {
   VLResource,
   VLResourceStatus,
@@ -20,8 +21,14 @@ export type VLAddTaskResult =
     };
 
 export const createVLResource = async (params: CreateVLResource): Promise<VLResource> => {
-  return await invoke("vl-create-resource", params);
+  const resource = await invoke<VLResource>("vl-create-resource", params);
+  invalidateResourceCount();
+  return resource;
 };
+
+function invalidateResourceCount() {
+  void queryClient.invalidateQueries({ queryKey: ["vibe-learning", "list"] });
+}
 
 export const ensureVLNoteResource = async (params: {
   projectId: number;
@@ -42,6 +49,9 @@ export const ensureVLNoteResource = async (params: {
       originalId: params.originalId,
     }
   );
+
+  // 资源已落库，即使后续索引入队失败，列表数量也应刷新。
+  if (result.created) invalidateResourceCount();
 
   if (result.created && params.enqueueIndex !== false) {
     await addVLIndexTask({
@@ -66,7 +76,9 @@ export const updateVLMarkdownPath = async (id: number, markdownPath: string): Pr
 };
 
 export const deleteVLResource = async (id: number): Promise<boolean> => {
-  return await invoke("vl-delete-resource", id);
+  const deleted = await invoke<boolean>("vl-delete-resource", id);
+  if (deleted) invalidateResourceCount();
+  return deleted;
 };
 
 export const deleteVLResourceComplete = async (params: {
@@ -75,7 +87,9 @@ export const deleteVLResourceComplete = async (params: {
   mainDbName: string;
   markdownPath?: string;
 }): Promise<boolean> => {
-  return await invoke("vl-delete-resource-complete", params);
+  const deleted = await invoke<boolean>("vl-delete-resource-complete", params);
+  if (deleted) invalidateResourceCount();
+  return deleted;
 };
 
 /**

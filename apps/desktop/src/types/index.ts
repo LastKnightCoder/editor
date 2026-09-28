@@ -2,6 +2,8 @@ export * from "./card";
 export * from "./article";
 export * from "./time_record";
 export * from "./project";
+export * from "./database-item";
+export * from "./vibe-learning-project";
 export * from "./pdf";
 export * from "./epub-export";
 export * from "./pdf-export";

@@ -135,8 +135,6 @@ export interface ArticleListResponse {
 
 /* ── 项目 ── */
 
-export type ProjectType = "document-tree" | "data-table" | "vibe-learning";
-
 export interface ProjectListResponse {
   items: Project[];
   total: number;
@@ -149,7 +147,6 @@ export interface Project {
   children: number[];
   archived: boolean;
   pinned: boolean;
-  projectType: ProjectType | string;
   createTime: number;
   updateTime: number;
   itemCount: number;

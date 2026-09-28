@@ -86,7 +86,6 @@ export class ProjectDetailProvider extends BaseTabContentProvider<TabType.Projec
         id: project.id,
         title: project.title,
         description: truncatedDesc,
-        projectType: project.projectType,
         archived: project.archived,
         pinned: project.pinned,
         createTime: project.createTime,

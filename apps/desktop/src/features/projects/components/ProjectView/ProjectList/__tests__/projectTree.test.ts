@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EProjectItemType, EProjectType, Project, ProjectItem } from "@/types";
+import { EProjectItemType, Project, ProjectItem } from "@/types";
 import { EDragPosition, IDragItem } from "@/hooks/useDragAndDrop";
 import {
   buildProjectTreeData,
@@ -18,7 +18,6 @@ const createProject = (children: number[]): Project => ({
   desc: [],
   archived: false,
   pinned: false,
-  projectType: EProjectType.DocumentTree,
 });
 
 const createItem = (id: number, children: number[] = []): ProjectItem => ({

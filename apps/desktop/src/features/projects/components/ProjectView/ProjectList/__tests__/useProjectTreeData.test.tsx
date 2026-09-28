@@ -2,7 +2,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { EProjectItemType, EProjectType, type Project, type ProjectItem } from "@/types";
+import { EProjectItemType, type Project, type ProjectItem } from "@/types";
 import { defaultProjectItemEventBus } from "@/utils/event-bus";
 import { getProjectItemsByIds } from "@/commands";
 
@@ -20,7 +20,6 @@ const project: Project = {
   desc: [],
   archived: false,
   pinned: false,
-  projectType: EProjectType.DocumentTree,
 };
 
 const makeItem = (id: number, children: number[] = [], title = `条目 ${id}`): ProjectItem => ({

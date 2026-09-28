@@ -327,7 +327,8 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       // 1. 上传到云存储
       const uploadedUrl = await uploadResource(file);
       if (!uploadedUrl) {
-        throw new Error("上传失败");
+        // uploadResource 内部吞掉了异常只返回 null，这里给出可行动的指向
+        throw new Error("图床返回为空，请检查设置里的图床与密钥配置");
       }
 
       // 2. 创建资源记录
@@ -355,7 +356,9 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       onSuccess();
     } catch (error) {
       console.error("Upload failed:", error);
-      toast.error(`上传失败: ${file.name}`);
+      // 带上原因：只说「上传失败」的话，图床配错、网络不通、超时都长一个样
+      const reason = error instanceof Error ? error.message : String(error);
+      toast.error(`${file.name} 上传失败：${reason}`);
     } finally {
       setUploading(false);
     }

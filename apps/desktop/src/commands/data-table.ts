@@ -1,4 +1,5 @@
 import { invoke } from "@/electron";
+import { queryClient } from "@/queryClient";
 import {
   DataTable,
   CreateDataTable,
@@ -8,16 +9,16 @@ import {
   UpdateDataTableView,
 } from "@/types";
 
-export const createDataTable = async (
-  table: CreateDataTable,
-): Promise<DataTable> => {
+export const createDataTable = async (table: CreateDataTable): Promise<DataTable> => {
   return invoke("data-table:create", table);
 };
 
-export const updateDataTable = async (
-  table: UpdateDataTable,
-): Promise<DataTable> => {
-  return invoke("data-table:update", table);
+export const updateDataTable = async (table: UpdateDataTable): Promise<DataTable> => {
+  const updated = await invoke<DataTable>("data-table:update", table);
+  if (updated && table.rows !== undefined) {
+    void queryClient.invalidateQueries({ queryKey: ["databases", "list"] });
+  }
+  return updated;
 };
 
 export const getDataTableById = async (id: number): Promise<DataTable> => {
@@ -25,14 +26,14 @@ export const getDataTableById = async (id: number): Promise<DataTable> => {
 };
 
 export const getDataTableDetail = async (
-  id: number,
+  id: number
 ): Promise<{ table: DataTable | null; views: DataTableView[] }> => {
   return invoke("data-table:get-detail", id);
 };
 
 export const setActiveDataTableView = async (
   tableId: number,
-  viewId: number | null,
+  viewId: number | null
 ): Promise<DataTable | null> => {
   return invoke("data-table:set-active-view", { tableId, viewId });
 };
@@ -41,20 +42,16 @@ export const deleteDataTable = async (id: number): Promise<number> => {
   return invoke("data-table:delete", id);
 };
 
-export const incrementDataTableRefCount = async (
-  id: number,
-): Promise<number> => {
+export const incrementDataTableRefCount = async (id: number): Promise<number> => {
   return invoke("data-table:increment-ref-count", id);
 };
 
-export const createDataTableView = async (
-  view: CreateDataTableView,
-): Promise<DataTableView> => {
+export const createDataTableView = async (view: CreateDataTableView): Promise<DataTableView> => {
   return invoke("data-table-view:create", view);
 };
 
 export const updateDataTableView = async (
-  view: UpdateDataTableView,
+  view: UpdateDataTableView
 ): Promise<DataTableView | null> => {
   return invoke("data-table-view:update", view);
 };
@@ -65,13 +62,11 @@ export const deleteDataTableView = async (id: number): Promise<number> => {
 
 export const reorderDataTableViews = async (
   tableId: number,
-  orderedIds: number[],
+  orderedIds: number[]
 ): Promise<void> => {
   await invoke("data-table-view:reorder", { tableId, orderedIds });
 };
 
-export const listDataTableViews = async (
-  tableId: number,
-): Promise<DataTableView[]> => {
+export const listDataTableViews = async (tableId: number): Promise<DataTableView[]> => {
   return invoke("data-table-view:list-by-table", tableId);
 };

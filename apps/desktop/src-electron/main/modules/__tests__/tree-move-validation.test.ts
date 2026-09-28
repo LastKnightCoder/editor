@@ -21,7 +21,7 @@ vi.mock("../video-note-index-queue", () => ({
 }));
 
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
-import { EProjectItemType, EProjectType } from "@/types/project";
+import { EProjectItemType } from "@/types/project";
 import ProjectTable from "../tables/project";
 
 const emptyContent = [{ type: "paragraph", children: [{ text: "" }] }] as any;
@@ -64,8 +64,6 @@ describe("tree item move validation", () => {
       children: [],
       archived: false,
       pinned: false,
-      projectType: EProjectType.DocumentTree,
-      dataTableId: 0,
     });
     const [, parent] = ProjectTable.addRootProjectItem(db, project.id, createProjectItem("父节点"));
     expect(parent).not.toBeNull();
@@ -102,8 +100,6 @@ describe("tree item move validation", () => {
       children: [],
       archived: false,
       pinned: false,
-      projectType: EProjectType.DocumentTree,
-      dataTableId: 0,
     });
     const [, sourceParent] = ProjectTable.addRootProjectItem(
       db,
@@ -165,8 +161,6 @@ describe("tree item move validation", () => {
       children: [],
       archived: false,
       pinned: false,
-      projectType: EProjectType.DocumentTree,
-      dataTableId: 0,
     });
     const targetProject = ProjectTable.createProject(db, {
       title: "目标项目",
@@ -174,8 +168,6 @@ describe("tree item move validation", () => {
       children: [],
       archived: false,
       pinned: false,
-      projectType: EProjectType.DocumentTree,
-      dataTableId: 0,
     });
     const [, sourceParent] = ProjectTable.addRootProjectItem(
       db,
@@ -215,8 +207,6 @@ describe("tree item move validation", () => {
       children: [],
       archived: false,
       pinned: false,
-      projectType: EProjectType.DocumentTree,
-      dataTableId: 0,
     });
     const [, firstParent] = ProjectTable.addRootProjectItem(
       db,
@@ -268,8 +258,6 @@ describe("tree item move validation", () => {
       children: [],
       archived: false,
       pinned: false,
-      projectType: EProjectType.DocumentTree,
-      dataTableId: 0,
     });
     const [, parent] = ProjectTable.addRootProjectItem(db, project.id, createProjectItem("父节点"));
     expect(parent).not.toBeNull();

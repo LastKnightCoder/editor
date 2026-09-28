@@ -14,8 +14,8 @@ import OpenAIImageResultRenderer from "./OpenAIImageResultRenderer";
 import { OPENAI_IMAGE_RENDERER_KEY } from "@/tools/openaiImageTools";
 import SubAgentResearchRenderer from "./SubAgentResearchRenderer";
 import { SUBAGENT_RESEARCH_RENDERER_KEY } from "@/tools/subagentTool";
-import VLProductRenderer from "@/features/projects/components/VibeLearningView/chat/ProductCard";
-import { VL_PRODUCT_RENDERER_KEY } from "@/features/projects/components/VibeLearningView/chat/productPayload";
+import VLProductRenderer from "@/features/vibe-learning/views/VibeLearningView/chat/ProductCard";
+import { VL_PRODUCT_RENDERER_KEY } from "@/features/vibe-learning/views/VibeLearningView/chat/productPayload";
 
 export function initToolCallRenderers(): void {
   registerToolCallRenderers([

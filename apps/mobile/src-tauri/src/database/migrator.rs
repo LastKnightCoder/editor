@@ -6,7 +6,7 @@ const INDEX_SCHEMA_SQL: &str = include_str!("../../../../../packages/db-schema/s
 const INDEX_VEC_TEMPLATE_SQL: &str =
     include_str!("../../../../../packages/db-schema/schema/index/20_vec_template.sql");
 
-pub(super) const MAIN_SCHEMA_VERSION: i64 = 3;
+pub(super) const MAIN_SCHEMA_VERSION: i64 = 4;
 const INDEX_SCHEMA_VERSION: i64 = 1;
 const DEFAULT_VEC_DIMENSION: i64 = 3072;
 

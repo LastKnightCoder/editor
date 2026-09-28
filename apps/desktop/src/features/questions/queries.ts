@@ -35,7 +35,6 @@ import { createArticle } from "@/commands/article";
 import { createProject } from "@/commands/project";
 import { createWhiteBoard } from "@/commands/white-board";
 import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
-import { EProjectType } from "@/types/project";
 import type { QuestionLinkTarget, QuestionStatus, QuestionSummary } from "@/types";
 
 const SNAPSHOT_KEY = ["questions", "snapshot"] as const;
@@ -174,8 +173,6 @@ export async function createMaterialFor(
       children: [],
       archived: false,
       pinned: false,
-      projectType: EProjectType.DocumentTree,
-      dataTableId: 0,
     });
     await linkQuestionTargets(
       questionId,

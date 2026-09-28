@@ -1,12 +1,6 @@
 import { Descendant } from "slate";
 import { IPodcast } from "./podcast";
 
-export enum EProjectType {
-  DocumentTree = "document-tree",
-  DataTable = "data-table",
-  VibeLearning = "vibe-learning",
-}
-
 export interface Project {
   id: number;
   createTime: number;
@@ -16,8 +10,6 @@ export interface Project {
   desc: Descendant[];
   archived: boolean;
   pinned: boolean;
-  projectType: EProjectType;
-  dataTableId?: number;
 }
 
 export type CreateProject = Omit<Project, "id" | "createTime" | "updateTime">;

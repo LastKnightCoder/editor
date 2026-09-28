@@ -1,4 +1,5 @@
 import { rmSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import tailwindcss from "@tailwindcss/vite";
@@ -7,6 +8,8 @@ import fs from "fs-extra";
 import { createThemeBootstrapScript } from "@tau/themes";
 
 import * as path from "path";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const runtimeDependencyExternals = [
   "7zip-min",

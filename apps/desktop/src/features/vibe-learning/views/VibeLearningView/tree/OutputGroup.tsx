@@ -379,9 +379,8 @@ export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
         />
         {open &&
           (items.length === 0 ? (
-            <p className="text-tau-sm text-ink-3 m-0 px-3 pb-3 pt-1 leading-relaxed">
-              生成的大纲、测验、播客和手写笔记都会放在这里。
-            </p>
+            /* 一行够了：能生成什么由标题右侧的生成菜单逐项列着，不在此重复 */
+            <p className="text-tau-sm text-ink-3 m-0 px-3 pb-3 pt-1">生成的内容会放在这里</p>
           ) : (
             <div className="flex flex-col gap-px">
               {items.map(item => {

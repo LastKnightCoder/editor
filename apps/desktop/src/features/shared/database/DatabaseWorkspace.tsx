@@ -22,7 +22,7 @@ export interface DatabaseWorkspaceProps {
 }
 
 /** 数据表格工作台骨架：一整张纸，纸顶标题行 + 纸内 Database 视图区。
- *  数据表格型项目（DataTableProjectView）与文档树表格条目（TableProjectItemView）共用，
+ *  数据库模块（DatabaseDetailView）与文档树表格条目（TableProjectItemView）共用，
  *  实体加载与保存差异由两个薄壳各自承担 */
 const DatabaseWorkspace = memo(
   ({

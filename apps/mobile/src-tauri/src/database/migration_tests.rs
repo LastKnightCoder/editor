@@ -203,7 +203,7 @@ fn historical_schemas_upgrade_and_repeat_without_missing_columns() {
         assert!(!needs_main_upgrade(&conn).unwrap());
         assert_eq!(
             get_meta(&conn, "main_schema_version").unwrap(),
-            Some("3".into())
+            Some(crate::database::migrator::MAIN_SCHEMA_VERSION.to_string())
         );
         conn.prepare("SELECT tags FROM diary_entries").unwrap();
         // 旧聊天表已不在基线里（桌面迁到 pi 会话后删除，pi 迁移 M8）：移动端不补列，原样留给桌面迁移
@@ -314,4 +314,72 @@ fn legacy_segment_position_is_removed_without_changing_identity() {
             .unwrap(),
         44
     );
+}
+
+#[test]
+fn split_modules_moves_parasite_projects_and_rewires_resource_foreign_key() {
+    let conn = Connection::open_in_memory().unwrap();
+    conn.execute_batch(MAIN_SCHEMA_SQL).unwrap();
+    // 还原拆分前的形态：资源外键指向 project
+    conn.execute_batch(
+        "DROP TABLE vibe_learning_resources;
+         CREATE TABLE vibe_learning_resources (
+           id INTEGER PRIMARY KEY, project_id INTEGER NOT NULL,
+           sort_index INTEGER NOT NULL DEFAULT 0,
+           create_time INTEGER NOT NULL, update_time INTEGER NOT NULL,
+           name TEXT NOT NULL, original_path TEXT NOT NULL, markdown_path TEXT,
+           resource_type TEXT NOT NULL, file_size INTEGER, duration INTEGER,
+           source_type TEXT, source_meta_info TEXT, transcript_segments TEXT,
+           FOREIGN KEY(project_id) REFERENCES project(id));
+         INSERT INTO project(id,create_time,update_time,title,desc,children,archived,pinned,project_type,data_table_id)
+           VALUES(10,1,1,'文档树','[]','[]',0,0,'document-tree',0),
+                 (11,1,1,'表格','[]','[]',0,1,'data-table',77),
+                 (12,1,1,'学习','[]','[]',0,0,'vibe-learning',0);
+         INSERT INTO vibe_learning_resources(id,project_id,create_time,update_time,name,original_path,resource_type)
+           VALUES(1,12,1,1,'资料','/a.pdf','pdf');",
+    )
+    .unwrap();
+
+    ensure_main_schema(&conn).unwrap();
+    ensure_main_schema(&conn).unwrap();
+
+    // project 只剩文档树，另两类按原 id 落到各自表
+    assert_eq!(
+        conn.query_row("SELECT COUNT(*) FROM project", [], |r| r.get::<_, i64>(0))
+            .unwrap(),
+        1
+    );
+    assert_eq!(
+        conn.query_row("SELECT data_table_id FROM database_item WHERE id=11", [], |r| r
+            .get::<_, i64>(0))
+            .unwrap(),
+        77
+    );
+    assert_eq!(
+        conn.query_row("SELECT pinned FROM database_item WHERE id=11", [], |r| r
+            .get::<_, i64>(0))
+            .unwrap(),
+        1
+    );
+    assert_eq!(
+        conn.query_row("SELECT title FROM vibe_learning_project WHERE id=12", [], |r| r
+            .get::<_, String>(0))
+            .unwrap(),
+        "学习"
+    );
+    // 资源仍挂在 12 上，外键已改指新表
+    assert_eq!(
+        conn.query_row("SELECT project_id FROM vibe_learning_resources WHERE id=1", [], |r| r
+            .get::<_, i64>(0))
+            .unwrap(),
+        12
+    );
+    let vlr_sql: String = conn
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE name='vibe_learning_resources'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(vlr_sql.contains("REFERENCES vibe_learning_project(id)"));
 }

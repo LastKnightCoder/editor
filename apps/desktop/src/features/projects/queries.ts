@@ -18,34 +18,8 @@ import {
 } from "@/commands/project";
 import { getAllCards, getAllWhiteBoards } from "@/commands";
 import type { ICard, WhiteBoard } from "@/types";
-import { clampText, richTextPlainText } from "@/utils/richTextText";
-import type { CreateProject, Project, UpdateProject } from "@/types/project";
+import type { Project, UpdateProject } from "@/types/project";
 import type { ProjectPageItem } from "./types";
-
-const DAY_MS = 86_400_000;
-
-/* ---------- 派生 ---------- */
-
-/** 摘要：富文本 desc 压纯文本，上限 100 字（hero 两行 / 紧凑卡一行共用） */
-export function projectExcerpt(desc: Descendant[]): string {
-  return clampText(richTextPlainText(desc), 100);
-}
-
-/** 相对更新时间（自然日语义，与 articles 域同构） */
-export function projectRelativeTime(ts: number): string {
-  const days = Math.floor((startOfDay(Date.now()) - startOfDay(ts)) / DAY_MS);
-  if (days <= 0) return "今天";
-  if (days === 1) return "昨天";
-  if (days < 7) return `${days} 天前`;
-  if (days < 30) return `${Math.floor(days / 7)} 周前`;
-  return `${Math.floor(days / 30)} 个月前`;
-}
-
-function startOfDay(ts: number): number {
-  const d = new Date(ts);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-}
 
 /* ---------- 查询 ---------- */
 
@@ -82,24 +56,6 @@ export function useProjectsList(): {
     refetchOnWindowFocus: true,
   });
   return { projects: query.data ?? EMPTY_PROJECTS };
-}
-
-/** 各类型的未归档项目数（侧栏「项目」子项用）：只读列表缓存，不拉文档数 */
-export function useProjectTypeCounts(): Map<Project["projectType"], number> | null {
-  const query = useQuery({
-    queryKey: ["projects", "list"],
-    queryFn: getProjectList,
-    staleTime: 60_000,
-    refetchOnWindowFocus: true,
-  });
-  return useMemo(() => {
-    if (!query.data) return null;
-    const counts = new Map<Project["projectType"], number>();
-    for (const project of query.data)
-      if (!project.archived)
-        counts.set(project.projectType, (counts.get(project.projectType) ?? 0) + 1);
-    return counts;
-  }, [query.data]);
 }
 
 export function useProjectsSnapshot(): {
@@ -183,7 +139,6 @@ function toUpdate(project: Project, changes: Partial<Project>): UpdateProject {
 export interface CreateProjectInput {
   title: string;
   desc: Descendant[];
-  projectType: CreateProject["projectType"];
 }
 
 /** 项目域变更：操作后整域失效（列表 + 详情缓存一并重拉） */
@@ -198,15 +153,13 @@ export function useProjectMutations(): {
   const invalidate = () => void queryClient.invalidateQueries({ queryKey: ["projects"] });
 
   return {
-    async create({ title, desc, projectType }) {
+    async create({ title, desc }) {
       const project = await createProject({
         title,
         desc,
         children: [],
         archived: false,
         pinned: false,
-        projectType,
-        dataTableId: 0,
       });
       invalidate();
       return project;
@@ -233,12 +186,6 @@ export function useProjectMutations(): {
       invalidate();
     },
     async remove(id) {
-      // 先释放学习项目对话的宿主会话与运行态（与删 PDF 同理）：主进程删项目时连对话文件一起删，
-      // 宿主还开着的话会往已删的文件里继续写。非学习项目没有这类对话，释放是空操作
-      const { default: useChatSessionStore } = await import("@/stores/useChatSessionStore");
-      await useChatSessionStore
-        .getState()
-        .releaseBucket({ scope: "vibe-learning-chat", domainRef: String(id) });
       await deleteProject(id);
       invalidate();
     },
