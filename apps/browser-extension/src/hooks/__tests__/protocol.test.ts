@@ -1,34 +1,43 @@
 import { describe, it, expect, vi } from "vitest";
 import type { ChatMessageType } from "@tau/shared";
-import { buildAiChatRpcPayload, mapChatMessageToAiRequestMessage } from "../useAiChat";
+import { createRunEventFilter } from "@tau/shared";
+import { buildAiRunStartParams, mapChatMessageToAiRequestMessage } from "../useAiChat";
 import { fetchSkillsViaRpc } from "../useSkills";
 
-describe("ai.chat 协议映射", () => {
-  it("透传 conversationKey 并附带浏览器工具列表", () => {
-    const payload = buildAiChatRpcPayload({
-      requestId: "req-1",
+describe("ai.run.start 协议（v2）", () => {
+  it("带扩展页面工具，不带扩展本地的 ask-question（提问改走桌面宿主）", () => {
+    const params = buildAiRunStartParams({
+      runId: "run-1",
       messages: [{ role: "user", content: "hello" }],
       systemPrompt: "sys",
       enableTools: true,
-      conversationKey: "conv-1",
     });
 
-    expect(payload.conversationKey).toBe("conv-1");
-    expect(Array.isArray(payload.browserTools)).toBe(true);
-    expect(payload.browserTools?.length).toBeGreaterThan(0);
+    expect(params.runId).toBe("run-1");
+    const names = params.browserTools?.map(tool => tool.function.name) ?? [];
+    expect(names).toContain("get_page_content");
+    expect(names).not.toContain("ask-question");
   });
 
-  it("忽略旧调用方传入的代理类型和线程 ID", () => {
-    const payload = buildAiChatRpcPayload({
-      requestId: "req-codex",
-      messages: [{ role: "user", content: "hello codex" }],
-      enableTools: true,
-      agentType: "codex",
-      agentSessionId: "codex-thread-1",
-    } as any);
+  it("持久对话带 session；纯文本单发不带工具", () => {
+    const params = buildAiRunStartParams({
+      runId: "run-2",
+      messages: [{ role: "user", content: "hello" }],
+      enableTools: false,
+      session: { id: "s1", pageUrl: "https://a.com" },
+    });
+    expect(params.session).toEqual({ id: "s1", pageUrl: "https://a.com" });
+    expect(params).not.toHaveProperty("browserTools");
+  });
 
-    expect(payload).not.toHaveProperty("agentType");
-    expect(payload).not.toHaveProperty("agentSessionId");
+  it("事件过滤：只收本 runId，丢弃乱序与重复", () => {
+    const accept = createRunEventFilter("run-1");
+    const event = { type: "turn-finish", turnId: "t" } as const;
+    expect(accept({ runId: "other", seq: 0, event })).toBeNull();
+    expect(accept({ runId: "run-1", seq: 0, event })).toEqual(event);
+    expect(accept({ runId: "run-1", seq: 0, event })).toBeNull();
+    expect(accept({ runId: "run-1", seq: 2, event })).toEqual(event);
+    expect(accept({ runId: "run-1", seq: 1, event })).toBeNull();
   });
 
   it("支持 user/assistant/tool 历史消息映射", () => {

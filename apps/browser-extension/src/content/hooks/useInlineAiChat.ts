@@ -1,16 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
+import { AI_RUN_METHODS, createRunEventFilter, type AiRunEventNotification } from "@tau/shared";
 import WebSocketClient from "@/utils/WebSocketClient";
 import { AI_SERVER_WS_URL } from "@/utils/aiServerAddress";
 import { extractPageContent } from "../context-extractor";
 import { injectInlineTimeContext } from "@/utils/systemPrompt";
-
-/** 流式通知数据 */
-interface StreamNotificationData {
-  requestId: string;
-  content?: string;
-  error?: string;
-}
 
 interface UseInlineAiChatOptions {
   /** 面板是否处于打开状态，控制惰性连接 */
@@ -45,6 +39,7 @@ export function useInlineAiChat({
 
   const wsClientRef = useRef<WebSocketClient | null>(null);
   const requestIdRef = useRef<string | null>(null);
+  const runFilterRef = useRef<ReturnType<typeof createRunEventFilter> | null>(null);
   const responseRef = useRef("");
   const rafIdRef = useRef(0);
 
@@ -79,46 +74,47 @@ export function useInlineAiChat({
       setIsConnected(false);
     };
 
-    // 流式文本处理（通知为快照语义：content 即当前全量）
-    const handleTextStream = (data: unknown) => {
-      const notification = data as StreamNotificationData;
-      if (notification.requestId !== requestIdRef.current) return;
-
-      if (typeof notification.content === "string") {
-        responseRef.current = notification.content;
-        scheduleUpdate();
-      }
-    };
-
-    // 完成处理
-    const handleFinishStream = (data: unknown) => {
-      const notification = data as StreamNotificationData;
-      if (notification.requestId !== requestIdRef.current) return;
-
-      if (notification.error) {
-        setError(notification.error);
-      }
-
+    const finish = (errorMessage?: string) => {
+      if (errorMessage) setError(errorMessage);
       // 取消 pending rAF，同步刷新最终内容
       if (rafIdRef.current) {
         cancelAnimationFrame(rafIdRef.current);
         rafIdRef.current = 0;
       }
       setResponse(responseRef.current);
-
       setIsLoading(false);
       requestIdRef.current = null;
+      runFilterRef.current = null;
     };
 
-    client.registerNotificationHandler("ai.stream.text", handleTextStream);
-    client.registerNotificationHandler("ai.stream.finish", handleFinishStream);
+    // v2 运行事件（快照语义：fullText 即当前全量），最后一条一定是 settled
+    const handleRunEvent = (data: unknown) => {
+      const event = runFilterRef.current?.(data as AiRunEventNotification);
+      if (!event) return;
+      if (event.type === "text") {
+        responseRef.current = event.fullText;
+        scheduleUpdate();
+      } else if (event.type === "error") {
+        setError(event.message);
+      } else if (event.type === "settled") {
+        finish(event.error);
+      }
+    };
+
+    // 桌面窗口走了：这轮不会再有事件，立即收尾
+    const handleServerGone = () => {
+      if (requestIdRef.current) finish("与桌面端的连接断开，这次回答没有完成");
+    };
+
+    client.registerNotificationHandler(AI_RUN_METHODS.event, handleRunEvent);
+    client.registerNotificationHandler("server-gone", handleServerGone);
 
     client.connect();
     wsClientRef.current = client;
 
     return () => {
-      client.unregisterNotificationHandler("ai.stream.text", handleTextStream);
-      client.unregisterNotificationHandler("ai.stream.finish", handleFinishStream);
+      client.unregisterNotificationHandler(AI_RUN_METHODS.event, handleRunEvent);
+      client.unregisterNotificationHandler("server-gone", handleServerGone);
       client.disconnect();
       wsClientRef.current = null;
       if (rafIdRef.current) {
@@ -168,32 +164,42 @@ ${surroundingContext}`;
 
       const requestId = uuidv4();
       requestIdRef.current = requestId;
+      runFilterRef.current = createRunEventFilter(requestId);
 
       const systemPrompt = buildSystemPrompt();
 
       try {
+        // v2：立即返回，过程经 ai.run.event 推送
         await wsClientRef.current.sendRequest(
-          "ai.chat",
+          AI_RUN_METHODS.start,
           {
-            requestId,
+            runId: requestId,
             messages: [{ role: "user", content: question }],
             systemPrompt,
             enableTools: false,
           },
-          600 * 1000
+          30 * 1000
         );
       } catch (err) {
         setError((err as Error).message);
         setIsLoading(false);
+        requestIdRef.current = null;
+        runFilterRef.current = null;
       }
     },
     [isConnected, isLoading, buildSystemPrompt]
   );
 
-  // 停止生成
+  // 停止生成：通知桌面停下（收尾等 settled；连接不在就直接收尾）
   const stopGeneration = useCallback(() => {
+    const runId = requestIdRef.current;
+    if (runId && wsClientRef.current?.isConnected) {
+      wsClientRef.current.sendRequest(AI_RUN_METHODS.abort, { runId }, 10 * 1000).catch(() => {});
+      return;
+    }
     setIsLoading(false);
     requestIdRef.current = null;
+    runFilterRef.current = null;
   }, []);
 
   // 重置状态（面板重新打开时使用）
@@ -207,6 +213,7 @@ ${surroundingContext}`;
     setError(null);
     setIsLoading(false);
     requestIdRef.current = null;
+    runFilterRef.current = null;
   }, []);
 
   return {

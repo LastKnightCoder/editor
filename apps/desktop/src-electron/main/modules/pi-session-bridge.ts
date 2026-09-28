@@ -16,7 +16,7 @@ import type {
   JsonObject,
 } from "@earendil-works/pi-ai";
 import { existsSync, readFileSync } from "node:fs";
-import type { PiHostToolCallResult, PiHostToolSpec } from "@/types/pi-session";
+import type { PiHostToolCallResult, PiHostToolSpec, PiToolCallPayload } from "@/types/pi-session";
 import type { RequestMessage, ResponseMessage } from "@/types";
 import { Role } from "@/constants";
 
@@ -251,6 +251,12 @@ export async function desktopMessagesToPi(
 }
 
 /** 工具桥：渲染端 IPC 挂起执行的桥接线（每会话一个实例） */
+/** 工具调用的派发目标：渲染窗口（经 pi-tool-call IPC）或别的执行方（M5：扩展页面工具经 WS） */
+export interface PiToolCallTarget {
+  isDestroyed(): boolean;
+  send(channel: "pi-tool-call", payload: PiToolCallPayload): void;
+}
+
 export class PiToolCallBridge {
   private readonly pending = new Map<
     string,
@@ -262,7 +268,7 @@ export class PiToolCallBridge {
   >();
 
   constructor(
-    private readonly sender: Electron.WebContents,
+    private readonly sender: PiToolCallTarget,
     private readonly sessionId: string
   ) {}
 

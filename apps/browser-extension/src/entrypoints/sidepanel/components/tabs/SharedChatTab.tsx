@@ -20,6 +20,8 @@ import { useAiServerWebSocket } from "../../../../hooks/useAiServerWebSocket";
 import { useSkills } from "../../../../hooks/useSkills";
 import { buildSessionAwareSystemPrompt } from "../../../../utils/systemPrompt";
 import ChatMessage from "../../../../components/ChatMessage";
+import ToolApprovalBar from "../../../../components/ToolApprovalBar";
+import { useRunInteractionStore } from "../../../../stores/useRunInteractionStore";
 import ChatDropdownSelector from "../../../../components/ChatDropdownSelector";
 import { useTheme } from "../../../../hooks/useTheme";
 import { useThemeStore } from "../../../../stores/useThemeStore";
@@ -140,6 +142,10 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
     sendRequestMessage,
     clearMessages,
     stopGeneration,
+    retryStatus,
+    interactions,
+    approveTool,
+    answerQuestion,
   } = useAiChat({
     enableTools: true,
     conversationKey,
@@ -151,6 +157,26 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
     wsClient: aiWsClient,
     wsConnected: aiWsStatus === "connected",
   });
+
+  // 宿主等待的交互（提问、审批）同步给工具卡渲染器：提问卡按 toolCallId 读、作答发回这一轮
+  useEffect(() => {
+    useRunInteractionStore.setState({
+      approvals: interactions.approvals,
+      questions: interactions.questions,
+      answer: answerQuestion,
+      approve: approveTool,
+    });
+  }, [interactions, answerQuestion, approveTool]);
+  useEffect(
+    () => () =>
+      useRunInteractionStore.setState({
+        approvals: [],
+        questions: [],
+        answer: null,
+        approve: null,
+      }),
+    []
+  );
 
   const modelSelectItems: MenuProps["items"] = useMemo(() => {
     return llmConfigs.flatMap(provider => [
@@ -408,6 +434,16 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
         return (
           <div className="flex items-end gap-2">
             <div className="min-w-0 flex-1">
+              <ToolApprovalBar
+                approvals={interactions.approvals}
+                isDark={isDark}
+                onDecide={approveTool}
+              />
+              {retryStatus && (
+                <div role="status" className="mb-2 text-xs text-amber-600">
+                  请求失败，正在重试（第 {retryStatus.attempt}/{retryStatus.maxAttempts} 次）…
+                </div>
+              )}
               <ChatInputArea
                 ref={chatInputRef as Ref<ChatInputAreaHandle>}
                 className="min-w-0 flex-1"
