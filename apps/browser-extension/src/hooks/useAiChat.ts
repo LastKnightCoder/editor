@@ -1,18 +1,24 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import WebSocketClient from "@/utils/WebSocketClient";
-import { AI_SERVER_WS_URL } from "@/utils/aiServerAddress";
+import { AI_SERVER_MAIN_WS_URL, AI_SERVER_WS_URL } from "@/utils/aiServerAddress";
 import { BROWSER_TOOLS } from "@/services/extToolServer";
+import { ASK_QUESTION_TOOL_NAME } from "@/tools/askQuestionTypes";
 import type {
+  AiRunApprovalRequest,
+  AiRunEventNotification,
+  AiRunQuestionRequest,
+  AiRunStartParams,
   ChatMessageType,
   MessageContentItem,
   ResponseMessage,
-  ToolCallExecutionState,
   ToolCallPayload,
 } from "@tau/shared";
 import {
+  AI_RUN_METHODS,
   applyChatStreamEvent,
   createAssistantMessage,
+  createRunEventFilter,
   getAssistantContentBlocks,
 } from "@tau/shared";
 
@@ -26,20 +32,10 @@ export type {
 // 消息角色（扩展支持 tool 角色）
 export type Role = "user" | "assistant" | "system" | "tool";
 
-// 流式通知数据类型（快照语义：content/reasoning 为当前全量）
-interface StreamNotificationData {
-  requestId: string;
-  turnId?: string;
-  content?: string;
-  reasoning?: string;
-  executions?: ToolCallExecutionState[];
-  toolCalls?: ToolCallPayload[];
-  error?: string;
-}
-
 // AI 聊天选项
 interface UseAiChatOptions {
   enableTools?: boolean;
+  /** v1 遗留，v2 不再使用（对话身份由 session 决定） */
   conversationKey?: string;
   systemPrompt?: string;
   initialMessages?: ChatMessageType[];
@@ -80,12 +76,11 @@ type ChatMessageWithToolContext = ChatMessageType & {
   requestContent?: MessageContentItem[];
 };
 
-interface BuildAiChatRpcPayloadOptions {
-  requestId: string;
+interface BuildAiRunStartOptions {
+  runId: string;
   messages: AiChatRequestMessage[];
   systemPrompt?: string;
   enableTools: boolean;
-  conversationKey?: string;
   /** 持久对话：桌面按页面 + 会话 id 从文件恢复会话 */
   session?: { id: string; pageUrl: string };
   pageContext?: {
@@ -94,6 +89,16 @@ interface BuildAiChatRpcPayloadOptions {
     content?: string;
   };
 }
+
+export type AiRunRetryStatus = { attempt: number; maxAttempts: number; delayMs: number } | null;
+export interface AiRunInteractions {
+  approvals: AiRunApprovalRequest[];
+  questions: AiRunQuestionRequest[];
+}
+const EMPTY_INTERACTIONS: AiRunInteractions = { approvals: [], questions: [] };
+
+/** 扩展本地执行的页面工具（提问已改走桌面宿主，不在其中） */
+const PAGE_TOOLS = BROWSER_TOOLS.filter(tool => tool.function.name !== ASK_QUESTION_TOOL_NAME);
 
 export const mapChatMessageToAiRequestMessage = (
   message: ChatMessageType
@@ -160,23 +165,25 @@ export const mapChatMessageToAiRequestMessage = (
   };
 };
 
-export const buildAiChatRpcPayload = ({
-  requestId,
+/**
+ * v2 运行参数（M5）。扩展页面工具随请求带上（扩展本地执行）；提问走桌面宿主原生，
+ * 所以不再把扩展本地的 ask-question 当页面工具带过去。
+ */
+export const buildAiRunStartParams = ({
+  runId,
   messages,
   systemPrompt,
   enableTools,
-  conversationKey,
   session,
   pageContext,
-}: BuildAiChatRpcPayloadOptions) => ({
-  requestId,
-  messages,
-  systemPrompt,
+}: BuildAiRunStartOptions): AiRunStartParams => ({
+  runId,
+  messages: messages as AiRunStartParams["messages"],
+  ...(systemPrompt ? { systemPrompt } : {}),
   enableTools,
-  conversationKey,
-  ...(session ? { sessionId: session.id, pageUrl: session.pageUrl } : {}),
-  browserTools: enableTools ? BROWSER_TOOLS : undefined,
-  pageContext,
+  ...(session ? { session } : {}),
+  ...(enableTools ? { browserTools: PAGE_TOOLS } : {}),
+  ...(pageContext ? { pageContext } : {}),
 });
 
 const buildMessagePreview = (content: AiChatRequestContent): string => {
@@ -225,8 +232,17 @@ export function useAiChat(options: UseAiChatOptions = {}) {
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
+  const [isMainConnected, setIsMainConnected] = useState(false);
+  const [retryStatus, setRetryStatus] = useState<AiRunRetryStatus>(null);
+  const [interactions, setInteractions] = useState<AiRunInteractions>(EMPTY_INTERACTIONS);
+
   // 引用
   const wsClientRef = useRef<WebSocketClient | null>(null);
+  /** 桌面主进程通道（持久对话） */
+  const mainClientRef = useRef<WebSocketClient | null>(null);
+  /** 当前这轮走的通道（停止/审批/作答发回同一处） */
+  const runClientRef = useRef<WebSocketClient | null>(null);
+  const runFilterRef = useRef<ReturnType<typeof createRunEventFilter> | null>(null);
   const requestIdRef = useRef<string | null>(null);
   // 当前流式响应（统一模型）：块组装走 @tau/shared 的 applyChatStreamEvent，
   // 渲染投影为 ChatMessageType 时才复制，ref 内可自由原地更新
@@ -281,6 +297,64 @@ export function useAiChat(options: UseAiChatOptions = {}) {
     }
   }, [externalWsClient, wsConnected]);
 
+  /** 一轮结束（settled、断连、发起失败）：收尾状态并通知持久对话重读投影 */
+  const finishRun = useCallback(() => {
+    if (currentResponseRef.current) {
+      currentResponseRef.current.assistant_blocks?.forEach(block => {
+        block.state = "final";
+      });
+      updateCurrentResponse();
+    }
+    setIsLoading(false);
+    setRetryStatus(null);
+    setInteractions(EMPTY_INTERACTIONS);
+    requestIdRef.current = null;
+    runFilterRef.current = null;
+    runClientRef.current = null;
+    onFinishRef.current?.();
+  }, [updateCurrentResponse]);
+
+  // v2 运行事件 → 统一流事件 → 归约器（快照幂等，与桌面本地同一套块组装逻辑）
+  const handleRunEvent = useCallback(
+    (data: unknown) => {
+      const event = runFilterRef.current?.(data as AiRunEventNotification);
+      if (!event) return;
+      const response = currentResponseRef.current;
+      switch (event.type) {
+        case "text":
+        case "reasoning":
+        case "tool-calls":
+        case "turn-finish":
+          if (!response) return;
+          applyChatStreamEvent(response, event);
+          updateCurrentResponse();
+          return;
+        case "usage":
+          return;
+        case "retry":
+          setRetryStatus(event.status);
+          return;
+        case "error":
+          setError(event.message);
+          return;
+        case "interactions":
+          setInteractions({ approvals: event.approvals, questions: event.questions });
+          return;
+        case "settled":
+          if (event.error) setError(event.error);
+          else if (event.ok) setError(null);
+          finishRun();
+      }
+    },
+    [finishRun, updateCurrentResponse]
+  );
+
+  const handleServerGone = useCallback(() => {
+    if (!requestIdRef.current) return;
+    setError("与桌面端的连接断开，这次回答没有完成");
+    finishRun();
+  }, [finishRun]);
+
   // 初始化/绑定 WebSocket 客户端（支持复用外部连接）
   useEffect(() => {
     const useExternalClient = Boolean(externalWsClient);
@@ -300,97 +374,14 @@ export function useAiChat(options: UseAiChatOptions = {}) {
       setIsConnected(client.isConnected);
     }
 
-    // 通知 → 统一流事件 → 归约器（快照幂等，与桌面本地同一套块组装逻辑）
-    const matchStreamNotification = (data: unknown) => {
-      const notification = data as StreamNotificationData;
-      if (notification.requestId !== requestIdRef.current) return null;
-      return notification;
-    };
-
-    const resolveTurnId = (notification: StreamNotificationData) =>
-      notification.turnId || requestIdRef.current || "";
-
-    const handleTextStream = (data: unknown) => {
-      const notification = matchStreamNotification(data);
-      if (!notification || !currentResponseRef.current) return;
-
-      applyChatStreamEvent(currentResponseRef.current, {
-        type: "text",
-        turnId: resolveTurnId(notification),
-        fullText: notification.content || "",
-      });
-      updateCurrentResponse();
-    };
-
-    const handleReasoningStream = (data: unknown) => {
-      const notification = matchStreamNotification(data);
-      if (!notification || !currentResponseRef.current) return;
-
-      applyChatStreamEvent(currentResponseRef.current, {
-        type: "reasoning",
-        turnId: resolveTurnId(notification),
-        fullText: notification.reasoning || "",
-      });
-      updateCurrentResponse();
-    };
-
-    const handleToolStream = (data: unknown) => {
-      const notification = matchStreamNotification(data);
-      if (!notification || !currentResponseRef.current) return;
-
-      applyChatStreamEvent(currentResponseRef.current, {
-        type: "tool-calls",
-        turnId: resolveTurnId(notification),
-        executions: notification.executions || [],
-        toolCalls: notification.toolCalls,
-      });
-      updateCurrentResponse();
-    };
-
-    const handleTurnFinishStream = (data: unknown) => {
-      const notification = matchStreamNotification(data);
-      if (!notification || !currentResponseRef.current) return;
-
-      applyChatStreamEvent(currentResponseRef.current, {
-        type: "turn-finish",
-        turnId: resolveTurnId(notification),
-      });
-      updateCurrentResponse();
-    };
-
-    const handleFinishStream = (data: unknown) => {
-      const notification = matchStreamNotification(data);
-      if (!notification) return;
-
-      if (notification.error) {
-        setError(notification.error);
-      }
-
-      if (currentResponseRef.current) {
-        currentResponseRef.current.assistant_blocks?.forEach(block => {
-          block.state = "final";
-        });
-        updateCurrentResponse();
-      }
-
-      setIsLoading(false);
-      requestIdRef.current = null;
-      onFinishRef.current?.();
-    };
-
-    client.registerNotificationHandler("ai.stream.text", handleTextStream);
-    client.registerNotificationHandler("ai.stream.reasoning", handleReasoningStream);
-    client.registerNotificationHandler("ai.stream.tool", handleToolStream);
-    client.registerNotificationHandler("ai.stream.turn-finish", handleTurnFinishStream);
-    client.registerNotificationHandler("ai.stream.finish", handleFinishStream);
+    client.registerNotificationHandler(AI_RUN_METHODS.event, handleRunEvent);
+    // 服务端（渲染窗口）走了：当前这轮不会再有事件，立即收尾（v1 要干等 600 秒超时）
+    client.registerNotificationHandler("server-gone", handleServerGone);
     wsClientRef.current = client;
 
     return () => {
-      client.unregisterNotificationHandler("ai.stream.text", handleTextStream);
-      client.unregisterNotificationHandler("ai.stream.reasoning", handleReasoningStream);
-      client.unregisterNotificationHandler("ai.stream.tool", handleToolStream);
-      client.unregisterNotificationHandler("ai.stream.turn-finish", handleTurnFinishStream);
-      client.unregisterNotificationHandler("ai.stream.finish", handleFinishStream);
+      client.unregisterNotificationHandler(AI_RUN_METHODS.event, handleRunEvent);
+      client.unregisterNotificationHandler("server-gone", handleServerGone);
 
       if (!useExternalClient) {
         client.onOpenHandler = null;
@@ -402,7 +393,38 @@ export function useAiChat(options: UseAiChatOptions = {}) {
         wsClientRef.current = null;
       }
     };
-  }, [externalWsClient, wsConnected, updateCurrentResponse]);
+  }, [externalWsClient, wsConnected, handleRunEvent, handleServerGone]);
+
+  // 持久对话的通道：桌面主进程 /aiServerMain（侧栏会话才用；一次性调用不连）
+  useEffect(() => {
+    if (!session) return;
+    const client = new WebSocketClient(AI_SERVER_MAIN_WS_URL);
+    client.onOpenHandler = () => setIsMainConnected(true);
+    client.onCloseHandler = () => {
+      setIsMainConnected(false);
+      handleServerGone();
+    };
+    client.registerNotificationHandler(AI_RUN_METHODS.event, handleRunEvent);
+    client.registerNotificationHandler("server-gone", handleServerGone);
+    client.connect();
+    mainClientRef.current = client;
+    // 断线自动重连（桌面重启、主进程桥晚于侧栏起来）
+    const timer = setInterval(() => {
+      if (!client.isConnected) client.connect();
+    }, 3000);
+    return () => {
+      clearInterval(timer);
+      client.unregisterNotificationHandler(AI_RUN_METHODS.event, handleRunEvent);
+      client.unregisterNotificationHandler("server-gone", handleServerGone);
+      client.onOpenHandler = null;
+      client.onCloseHandler = null;
+      client.disconnect();
+      if (mainClientRef.current === client) mainClientRef.current = null;
+      setIsMainConnected(false);
+    };
+    // session 对象每次渲染可能是新的：按 id + 页面建连
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.id, session?.pageUrl, handleRunEvent, handleServerGone]);
 
   const mapMessageToRequest = useCallback(
     (message: ChatMessageType): AiChatRequestMessage => mapChatMessageToAiRequestMessage(message),
@@ -416,11 +438,6 @@ export function useAiChat(options: UseAiChatOptions = {}) {
       extraHistoryMessages = [],
       persistRequestMessage = true,
     }: SendRequestMessageOptions): Promise<boolean> => {
-      if (!wsClientRef.current || !isConnected) {
-        setError("AI 服务未连接");
-        return false;
-      }
-
       if (isLoading) {
         return false;
       }
@@ -431,6 +448,8 @@ export function useAiChat(options: UseAiChatOptions = {}) {
       const currentMessages = baseMessages ?? messages;
       const requestId = uuidv4();
       requestIdRef.current = requestId;
+      // 先按 runId 订阅再发起：最早的事件可能先于 start 的响应到达
+      runFilterRef.current = createRunEventFilter(requestId);
 
       const assistantMessageId = uuidv4();
       currentResponseIdRef.current = assistantMessageId;
@@ -472,26 +491,32 @@ export function useAiChat(options: UseAiChatOptions = {}) {
         requestMessages.push(requestMessage);
       }
 
+      // 持久对话由桌面主进程驱动（渲染层重载不中断）；一次性调用走渲染端 aiServer
+      const runClient = session ? mainClientRef.current : wsClientRef.current;
+      if (!runClient?.isConnected) {
+        setError(session ? "桌面端未连接" : "AI 服务未连接");
+        finishRun();
+        return false;
+      }
+      runClientRef.current = runClient;
       try {
         const pageContext = await getCurrentPageContext();
-        await wsClientRef.current.sendRequest(
-          "ai.chat",
-          buildAiChatRpcPayload({
-            requestId,
+        await runClient.sendRequest(
+          AI_RUN_METHODS.start,
+          buildAiRunStartParams({
+            runId: requestId,
             messages: requestMessages,
             systemPrompt,
             enableTools,
-            conversationKey,
             ...(session ? { session } : {}),
             pageContext,
           }),
-          600 * 1000
+          30 * 1000
         );
         return true;
       } catch (error) {
         setError((error as Error).message);
-        setIsLoading(false);
-        onFinishRef.current?.();
+        finishRun();
         return false;
       }
     },
@@ -502,9 +527,9 @@ export function useAiChat(options: UseAiChatOptions = {}) {
       isLoading,
       systemPrompt,
       enableTools,
-      conversationKey,
       session,
       updateMessages,
+      finishRun,
     ]
   );
 
@@ -528,11 +553,40 @@ export function useAiChat(options: UseAiChatOptions = {}) {
     setError(null);
   }, [updateMessages]);
 
-  // 停止生成
+  // 停止生成：通知桌面真正停下（v1 只清本地状态，桌面会一直跑完）；收尾等 settled
   const stopGeneration = useCallback(() => {
-    // 目前只能通过重置状态来"停止"
-    setIsLoading(false);
-    requestIdRef.current = null;
+    const runId = requestIdRef.current;
+    const client = runClientRef.current;
+    if (!runId || !client?.isConnected) {
+      finishRun();
+      return;
+    }
+    client.sendRequest(AI_RUN_METHODS.abort, { runId }, 10 * 1000).catch(() => finishRun());
+  }, [finishRun]);
+
+  /** 审批（宿主原生，M5）：允许 / 本会话始终允许 / 拒绝 */
+  const approveTool = useCallback(
+    async (requestId: string, choice: "allow" | "allow-session" | "deny") => {
+      const runId = requestIdRef.current;
+      if (!runId || !runClientRef.current?.isConnected) return;
+      await runClientRef.current.sendRequest(
+        AI_RUN_METHODS.approve,
+        { runId, requestId, choice },
+        10 * 1000
+      );
+    },
+    []
+  );
+
+  /** 回答提问（宿主原生，M5）：答案不合规时抛错，调用方提示 */
+  const answerQuestion = useCallback(async (requestId: string, answers: unknown) => {
+    const runId = requestIdRef.current;
+    if (!runId || !runClientRef.current?.isConnected) throw new Error("这轮回答已结束");
+    await runClientRef.current.sendRequest(
+      AI_RUN_METHODS.answer,
+      { runId, requestId, answers },
+      10 * 1000
+    );
   }, []);
 
   // 当 initialMessages 变化时更新本地状态
@@ -544,11 +598,15 @@ export function useAiChat(options: UseAiChatOptions = {}) {
     messages,
     isLoading,
     error,
-    isConnected,
+    retryStatus,
+    interactions,
+    isConnected: session ? isMainConnected : isConnected,
     sendMessage,
     sendRequestMessage,
     clearMessages,
     stopGeneration,
+    approveTool,
+    answerQuestion,
   };
 }
 

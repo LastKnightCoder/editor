@@ -4,7 +4,12 @@ import { RefreshCw, Copy, Check, AlertTriangle, Unplug } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import type WebSocketClient from "../../../../utils/WebSocketClient";
 import WebSocketClientImpl from "../../../../utils/WebSocketClient";
-import { MarkdownRenderer } from "@tau/shared";
+import {
+  AI_RUN_METHODS,
+  MarkdownRenderer,
+  createRunEventFilter,
+  type AiRunEventNotification,
+} from "@tau/shared";
 import { useTheme } from "../../../../hooks/useTheme";
 import { useThemeStore } from "../../../../stores/useThemeStore";
 import { useSettingsStore } from "../../../../stores/useSettingsStore";
@@ -15,14 +20,6 @@ import { AI_SERVER_WS_URL } from "../../../../utils/aiServerAddress";
 interface OverviewTabProps {
   wsClient: WebSocketClient | null;
   url: string | null;
-}
-
-// 流式通知数据类型
-interface StreamNotificationData {
-  requestId: string;
-  content?: string;
-  reasoning?: string;
-  error?: string;
 }
 
 // Clipper 提取结果类型
@@ -64,7 +61,11 @@ export default function OverviewTab({ wsClient: _wsClient, url }: OverviewTabPro
   // 引用
   const wsClientRef = useRef<WebSocketClientImpl | null>(null);
   const requestIdRef = useRef<string | null>(null);
+  const runFilterRef = useRef<ReturnType<typeof createRunEventFilter> | null>(null);
   const summaryRef = useRef<string>("");
+  // 通知处理器在挂载时注册一次，页面 URL 取最新值
+  const urlRef = useRef(url);
+  urlRef.current = url;
 
   // 获取主题和设置
   const { themeMode } = useThemeStore();
@@ -87,43 +88,59 @@ export default function OverviewTab({ wsClient: _wsClient, url }: OverviewTabPro
       setIsConnected(false);
     };
 
-    // 注册流式通知处理器（通知为快照语义：content 即当前全量）
-    const handleTextStream = (data: unknown) => {
-      const notification = data as StreamNotificationData;
-      if (notification.requestId !== requestIdRef.current) return;
-
-      if (typeof notification.content === "string") {
-        summaryRef.current = notification.content;
-        setSummary(summaryRef.current);
-      }
-    };
-
-    const handleFinishStream = (data: unknown) => {
-      const notification = data as StreamNotificationData;
-      if (notification.requestId !== requestIdRef.current) return;
-
-      if (notification.error) {
-        setError(notification.error);
-      } else if (summaryRef.current && url) {
-        // 保存总结到缓存
-        saveSummary(url, summaryRef.current).catch(err => {
-          console.error("Failed to save summary cache:", err);
-        });
-      }
-
+    const finish = () => {
       setIsLoading(false);
       requestIdRef.current = null;
+      runFilterRef.current = null;
     };
 
-    client.registerNotificationHandler("ai.stream.text", handleTextStream);
-    client.registerNotificationHandler("ai.stream.finish", handleFinishStream);
+    // v2 运行事件（快照语义：fullText 即当前全量），最后一条一定是 settled
+    const handleRunEvent = (data: unknown) => {
+      const event = runFilterRef.current?.(data as AiRunEventNotification);
+      if (!event) return;
+      if (event.type === "text") {
+        summaryRef.current = event.fullText;
+        setSummary(event.fullText);
+        return;
+      }
+      if (event.type !== "settled") return;
+      if (event.error) {
+        setError(event.error);
+      } else if (!event.aborted) {
+        const text = summaryRef.current || event.lastText;
+        if (!text) {
+          setError("AI 未返回总结内容");
+        } else {
+          summaryRef.current = text;
+          setSummary(text);
+          const pageUrl = urlRef.current;
+          // 保存总结到缓存
+          if (pageUrl) {
+            saveSummary(pageUrl, text).catch(err => {
+              console.error("Failed to save summary cache:", err);
+            });
+          }
+        }
+      }
+      finish();
+    };
+
+    // 桌面窗口走了：这轮不会再有事件，立即收尾
+    const handleServerGone = () => {
+      if (!requestIdRef.current) return;
+      setError("与桌面端的连接断开，总结没有完成");
+      finish();
+    };
+
+    client.registerNotificationHandler(AI_RUN_METHODS.event, handleRunEvent);
+    client.registerNotificationHandler("server-gone", handleServerGone);
 
     client.connect();
     wsClientRef.current = client;
 
     return () => {
-      client.unregisterNotificationHandler("ai.stream.text", handleTextStream);
-      client.unregisterNotificationHandler("ai.stream.finish", handleFinishStream);
+      client.unregisterNotificationHandler(AI_RUN_METHODS.event, handleRunEvent);
+      client.unregisterNotificationHandler("server-gone", handleServerGone);
       client.disconnect();
     };
   }, []);
@@ -264,11 +281,12 @@ export default function OverviewTab({ wsClient: _wsClient, url }: OverviewTabPro
         return;
       }
 
-      // 发送总结请求
-      const result = (await wsClientRef.current.sendRequest(
-        "ai.chat",
+      // 发送总结请求（v2：立即返回，正文经 ai.run.event 推送，settled 收尾）
+      runFilterRef.current = createRunEventFilter(requestId);
+      await wsClientRef.current.sendRequest(
+        AI_RUN_METHODS.start,
         {
-          requestId,
+          runId: requestId,
           messages: [
             {
               role: "user",
@@ -286,31 +304,20 @@ export default function OverviewTab({ wsClient: _wsClient, url }: OverviewTabPro
           systemPrompt: `你是一个专业的内容分析助手，擅长快速提取和总结网页内容的核心信息。
 请用简洁、结构化的方式呈现总结结果，使用 Markdown 格式。`,
           enableTools: true,
-          browserTools: BROWSER_TOOLS,
+          // 提问改走桌面宿主（M5），一次性总结不需要它
+          browserTools: BROWSER_TOOLS.filter(tool => tool.function.name !== "ask-question"),
           pageContext: {
             url: tab.url,
             title: tab.title,
           },
         },
-        600000
-      )) as { content?: string };
-
-      // 兜底：如果流式通知处理器还没有结束流程
-      if (requestIdRef.current === requestId) {
-        if (result?.content && !summaryRef.current) {
-          summaryRef.current = result.content;
-          setSummary(result.content);
-          if (url) saveSummary(url, result.content).catch(console.error);
-        }
-        if (!summaryRef.current) {
-          setError("AI 未返回总结内容");
-        }
-        setIsLoading(false);
-        requestIdRef.current = null;
-      }
+        30 * 1000
+      );
     } catch (error) {
       setError((error as Error).message);
       setIsLoading(false);
+      requestIdRef.current = null;
+      runFilterRef.current = null;
     }
   }, [isConnected, isLoading]);
 

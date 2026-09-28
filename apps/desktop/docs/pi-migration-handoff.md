@@ -4,11 +4,12 @@
 > **M4 本批完成**：目录表 + JSONL 事实源切换 + 五场景接入 + 同步带会话包 + 扩展改页面会话，见「M4 实施记录」；
 > 用户初步验证正常（第七节「M4 专项」逐项走查未做）。**M4-d 完成**：分支改为同一文件内的 pi 会话树，见「M4-d 实施记录」
 > （实机走查见第七节「M4-d 专项」，未做）。**M4-e 完成**：治理与重启恢复，见「M4-e 实施记录」（走查见「M4-e 专项」，未做）。
-> 下一步是 M5（浏览器扩展），见第六节）。
+> **M5 完成**：扩展侧栏对话由主进程驱动 + 协议 v2，见「M5 实施记录」（走查见「M5 专项」，未做）。
+> 下一步是 M7（同步增量）/M8（删旧收尾），见第六节）。
 > 新会话续接方式：读完本文档 + `git log --oneline -15` 对照提交历史。本文档随每步同步更新。
 > 验证三件套：`cd apps/desktop && npx tsc --noEmit`、
-> `npx vitest run`（348 文件、1677 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
-> 改了 `packages/shared` 要另跑 `packages/shared`（5 文件 15 用例）与 `apps/browser-extension`（11 文件 44 用例）的 vitest + tsc
+> `npx vitest run`（350 文件、1689 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
+> 改了 `packages/shared` 要另跑 `packages/shared`（5 文件 15 用例）与 `apps/browser-extension`（11 文件 45 用例）的 vitest + tsc
 > （思考档位类型与 `ChatSessionRecord` 定义在 shared，三端共用）。
 > **注意 cwd 必须在 apps/desktop**——vitest 从仓库根跑会整体失败（vite 别名解析不到）。
 > 权威背景：调研报告与迁移计划在本项目最初会话中形成（对话内）；本文档是执行态的完整快照。
@@ -261,6 +262,54 @@ M4 = 会话管理。本批 = 原计划 M4-a（目录表 + resume）+ M4-b（投�
 `pi-session-resume.test.ts` 的「重启后悬挂的工具调用」组（2 例，真实 pi：工具执行中「崩溃」→ 重开补结果并投影成失败、
 模型看到中断说明、再开不重复补）；`piChatRuntime.lifecycle.test.ts`（3 例：LRU、挂着不回收、忙的不回收与切库）；
 `piChatSession.test.ts` 的「宿主被回收后」重建（1 例）。宿主模块本身绑 electron，冲突与回收的决策都在纯函数里测。
+
+## M5 实施记录（浏览器扩展：主进程驱动 + 协议 v2，2026-09-28）
+
+**用户裁决**：只把对话接口迁主进程（设置、剪藏、界面类 RPC 留在渲染端 aiServer）；扩展的提问与审批**改走桌面宿主原生**
+（删掉扩展本地那套提问机制的使用）；一次性调用（概览页、行内问答）**保留，换新协议**。
+
+**先修的 bug**（`5f4e562c5`）：扩展传入的页面工具不带 risk，权限层缺省按 execute，扩展会话不可交互，默认「手动确认」模式下
+`get_page_content` 等只读工具被全部拒绝。`buildToolLoadout`/`buildToolSpecs` 的额外工具按 `read` 声明。
+
+**协议 v2**（`packages/shared/src/chat-core/aiRunProtocol.ts`，取代 v1 的 `ai.chat` + `ai.stream.*`）：
+
+- `ai.run.start {runId, messages, session?, systemPrompt?, pageContext?, enableTools?, browserTools?, thinkingLevel?}` **立即返回**；
+  runId 由客户端生成，先按它订阅再发起（最早的事件可能先于响应到达）。
+- `ai.run.event {runId, seq, event}` 通知：`text/reasoning/tool-calls/turn-finish`（快照语义，`applyChatStreamEvent` 直接消费）、
+  `usage`、`retry`、`error`、`interactions`（审批 + 提问快照）、**`settled`（唯一终态，成功/失败/停止都会有）**。
+  `createRunEventFilter` 按 runId 过滤并丢弃乱序与重复（seq）。
+- `ai.run.abort`（停止真正传到桌面）、`ai.run.state`（某扩展对话此刻是否在跑）、`ai.run.approve`、`ai.run.answer`。
+- v1 丢掉的 usage、重试、错误（`message_end.errorMessage` 与 `auto_retry_end.finalError`）在 v2 里都转发；重试成功后不按失败收尾。
+
+**主进程驱动侧栏对话**：
+
+- 新 WS 路由 `/aiServerMain`：主进程模块 `browser-bridge.ts` 以 `?isServer=true` 接入（复用 server 模块的转发拓扑），
+  扩展侧栏的持久对话连它。**渲染层重载、窗口关闭不再打断扩展的回答**。一次性调用仍连 `/aiServer`（渲染端）。
+- `pi-session-host` 抽出 `PiSessionClient` 接口（渲染窗口的 WebContents 或进程内客户端），公开
+  `create/prompt/abort/dispose/interactionsOf/bridgeOf`；`PiToolCallBridge` 的派发目标改为 `PiToolCallTarget`。
+  桥用进程内客户端建宿主会话（`interactive: true`，审批与提问走宿主原生），每轮建、settled 后释放。
+- 工具路由：扩展页面工具经 `/extToolServer` 的 `ext.tool.execute` 给扩展执行（带 `pageUrl`）；**桌面工具**（ToolRegistry/MCP）
+  建会话前经 `browser-bridge:tool-catalog` 向主窗口渲染端要清单（`browserBridgeRenderer.ts`，3 秒超时，没有主窗口就只给页面工具），
+  执行时经已有的 `pi-tool-call` 工具桥派给那个窗口，结果经 `pi-session:tool-result` 回到这里的 bridge。
+- 编排纯逻辑在 `browser-run-core.ts`（`BrowserRunRegistry`：runId 生命周期、seq、停止——含「会话还没建好就按停止」、
+  **同一扩展对话同时只跑一轮**（修两个标签页首轮并发：文件还不存在时宿主的文件冲突检查拦不住）、交互转发；`resolveChatModel`）。
+  pi 事件 → v2 事件的翻译在 `services/aiRunEvents.ts`（复用 `PiChatEventReducer`，桥与渲染端一次性入口共用）。
+- `runBrowserSessionTurn`（M4.5 的渲染端持久对话路径）已删。
+
+**扩展**：
+
+- `useAiChat`：v2 客户端；持久对话连 `/aiServerMain`（断线 3 秒重连），一次性连 `/aiServer`；监听 `server-gone` 与断开，
+  **立即收尾并提示**（v1 要干等 600 秒）；停止发 `ai.run.abort`、收尾等 settled；暴露 `retryStatus`/`interactions`/`approveTool`/`answerQuestion`。
+- 提问卡：`useRunInteractionStore` 同步宿主的交互快照，`AskQuestionRenderer` 按 toolCallId 认领宿主提问并经 `ai.run.answer` 作答
+  （答案数组，与宿主 `toSubmission` 同一形状）；宿主不在等、也没结果的显示「提问已结束」。新增 `ToolApprovalBar`（允许/本会话始终允许/拒绝）
+  与重试提示，放在侧栏输入框上方。扩展本地提问（`askQuestionSessionStore`）不再被新请求触发，文件留着兼容旧卡片显示。
+- 页面工具取标签页改 `queryTargetTab`：优先按发起这轮回答的 `pageUrl` 找（多窗口多侧栏不取错页面），找不到退回当前窗口活动标签。
+- 概览页、行内问答改 v2（`ai.run.start` + `ai.run.event`，停止真正传到桌面，断连立即收尾）。
+
+**测试**：`browser-run-core.test.ts`（7 例：seq 与 settled、同对话并发拒绝、停止含建会话前停止、报错与重试、交互转发与作答、
+`resolveChatModel` 2 例）；`aiServer.runV2.test.ts`（4 例：一次性带工具、停止、纯文本单发含失败、侧栏请求打到渲染端被拒）；
+`piChatSession.test.ts` 的额外工具 read 声明（1 例）；扩展 `protocol.test.ts` 改 v2（参数形状、事件过滤）。
+`browser-bridge.ts` 本身绑 electron 与 ws，决策逻辑都在 core 里测。
 
 ## 二、架构现状（M2-f + M3 + M4）
 
@@ -671,7 +720,9 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
 - **M4 事实源切换** `68affe879`：事实源切到 JSONL + 五场景接统一 store + 同步带会话包 + 扩展改页面会话（一个提交，见「M4 实施记录」M4.2–M4.5）
 - **M4-d** `6a1aee924` 会话树：分支改同一文件内的 pi 会话树 + 消息上 ‹ i/n › + 旧分支族合并迁移 + 改树在空闲宿主上直接做（一个提交，见「M4-d 实施记录」）
 - **M4-d 追加** `70feeb0c3`：树谱浮层与分叉标记
-- **M4-e** 治理与重启恢复：同一文件只一个宿主、宿主空闲回收与切库释放、runtime 条目 LRU、删 PDF 先释放、重开时悬挂工具调用标为已中断（见「M4-e 实施记录」）
+- **M4-e** `82d553a6c` 治理与重启恢复：同一文件只一个宿主、宿主空闲回收与切库释放、runtime 条目 LRU、删 PDF 先释放、重开时悬挂工具调用标为已中断（见「M4-e 实施记录」）
+- **扩展页面工具风险声明修复** `5f4e562c5`
+- **M5** 浏览器扩展：侧栏对话由主进程驱动（`/aiServerMain`）+ 协议 v2 + 提问审批走桌面宿主 + 停止真正生效 + 断连立即收尾（见「M5 实施记录」）
 - **修正一** `784d59ebb`：去闭包快照+会话常驻 reducer（修吞消息）
 - **修正二** `d3bc61c33`：piChatRuntime 下沉模块级（后台运行）
 - **验收状态**：用户确认"大部分没问题"——M2-f 基本通过；后台运行场景（切页回来
@@ -816,8 +867,12 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
   主进程也重启（或宿主被空闲回收）则重开时补一条已中断的错误结果，卡片显示「提问已结束」（M4-e 用户裁决，不做重新作答）
 - **ChatDropdownSelector 运行态标记**：随 chat_run 退役（会话列表无 Spinner/失败图标），M4 目录表带状态列
 - **首轮在第一条回答之前就失败的对话，pi 不落盘**（坑 10）：重开后这条用户消息会丢（草稿也不在目录表里）
-- **扩展的「停止」不通知桌面**：本来就没有，M4 没补
-- **扩展重载后「提问卡作答续流」已删**：卡片显示中断（与桌面 M3-b 同类边界）
+- **扩展（M5 后）**：
+  - 侧栏关闭/重载后，正在跑的那轮在桌面继续跑完并落盘，但扩展**不会接回流式**（`ai.run.state` 能查到在跑，侧栏重开后接续未做），
+    结束后重读投影能看到结果；
+  - 扩展对话每轮建宿主、跑完释放，「本会话始终允许」只在一轮内有效；
+  - 没有主窗口时扩展对话只有页面工具（桌面工具与 MCP 要渲染端执行）；
+  - 扩展本地的提问机制（`askQuestionSessionStore`、`ext.tool.execute` 里的 ask-question 分支）已无新调用方，留到 M8 一起删。
 - **旧表**：`chat_message`/`pdf_chats`/`video_note_chats`/`vibe_learning_chats` 与主进程 handler 留到 M8，渲染端零调用；
   `audio_note_chats` 整条链（无面板）、`reorderChatMessage`（无 UI 调用方）同为积灰
 - **会话树（M4-d 已接）**：分支在同一文件内。遗留：
@@ -865,10 +920,10 @@ agent_settled 触发排空；用户按停止则暂停排空。
 - 事实源切换 + 五场景接入 + 同步带会话包（原 M7 的整包部分提前）+ 扩展页面会话（原 M5 的会话部分提前）。
 
 * **M4-d 已完成**：分支改 pi 会话树（同一文件挪叶子、旧分支族合并成树），见「M4-d 实施记录」。
-  **M4-e 已完成**：治理与重启恢复，见「M4-e 实施记录」。M4 全部完成，下一步是 M5（浏览器扩展 aiServer 迁主进程 + WS 协议 v2）。
+  **M4-e 已完成**：治理与重启恢复，见「M4-e 实施记录」。M4 全部完成。
   另有待排期（非迁移范围，用户提出）：分支并行运行、分支命名、扩展树谱、并排对照两个分支。
-  **M5（浏览器扩展）**：aiServer 迁主进程、WS 协议 v2（扩展未上线直接 breaking）、
-  useAiChat/SharedChatTab 改 pi 事件（会话部分已在 M4.5 完成）。
+  **M5（浏览器扩展）已完成**：侧栏对话迁主进程（只迁对话接口，用户裁决）、WS 协议 v2、提问审批走桌面宿主，
+  见「M5 实施记录」。遗留：侧栏重开后接回在跑的流式（`ai.run.state` 已就绪）。
   **M6（老数据迁移器）**：已并入 M4（`chat-session-migration.ts`）。与原计划的差异：一行一会话、分支族不合并；
   思考不迁；audio_note_chats 不迁。
   **M7（同步）**：整包同步已并入 M4（M4.4）；剩增量 manifest（per-file hash/mtime，只传变化的文件）、双机往返验证。
@@ -879,7 +934,8 @@ agent_settled 触发排空；用户按停止则暂停排空。
   `getAssistantToolExecutions`/`migrateAssistantMessage`/`sanitizeToolMessages`/
   `applyAssistantProviderMetadataSnapshot` 目前只剩桌面 barrel 转出、无真实消费者）、
   chat_run 表与主进程 handler（含 db-schema/knowledge-migration/mobile Rust 的同批处理）、
-  modules/llm.ts、卫星表 messages 写路径；DECISIONS.md 追加条目；03 指南数据协议节同步；rg 复核清零。
+  modules/llm.ts、卫星表 messages 写路径、扩展本地提问机制（`askQuestionSessionStore` 与 `ext.tool.execute` 的
+  ask-question 分支，M5 后无新调用方）；DECISIONS.md 追加条目；03 指南数据协议节同步；rg 复核清零。
 
 **与 pi 迁移无关的仓库积灰（另开一次，不要混进迁移提交）**：全仓广扫发现约 40 个无引用的
 组件/hooks/工具文件（`components/AdvanceTable` 只是个占位 `<h1>`）与两个成片死目录
@@ -961,6 +1017,16 @@ agent_settled 触发排空；用户按停止则暂停排空。
     但「本会话始终允许」需要重新授权；等待审批中的会话不被回收。
   - 切库：A 库打开几个对话 → 切到 B 库 → 回到 A 库，对话正常；A 库里正在跑的回答切库期间不被打断。
   - 删一个打开过对话的 PDF：不报错，日志无写入已删文件的错误。
+- **M5 专项（未做实机走查）**：
+  - 默认「手动确认」模式下在扩展侧栏问「总结这个页面」：能读到页面（修 bug 前会被拒）。
+  - 回答进行中在桌面按 Ctrl+R 重载渲染层：扩展侧栏的回答不中断、照常收尾（v1 会断）；关闭桌面主窗口同理（只剩页面工具可用）。
+  - 扩展里点停止：桌面主进程日志里这轮确实停了，卡片不闪错误；概览页、行内问答的停止同样生效。
+  - 模型报错（填错 key）：扩展显示错误，不再静默成功；网络抖动时显示「正在重试（第 n 次）」。
+  - 需要确认的工具（manual 模式下的写入/执行类桌面工具）：侧栏输入框上方出现审批条，允许后继续、拒绝后模型收到拒绝。
+  - 模型发起提问：提问卡可作答并续上；答不全提示必填项。
+  - 同一页面开两个标签页、同一对话同时发送：第二个提示「正在另一处回答」。
+  - 两个浏览器窗口各开侧栏：各自的页面工具读的是各自的页面。
+  - 桌面没开时扩展：提示未连接；桌面起来后自动连上（3 秒内）。
 
 ## 八、工作约定（用户明确要求，违反会返工）
 

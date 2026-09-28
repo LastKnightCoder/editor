@@ -68,10 +68,21 @@ import type { AgentSession, ExtensionAPI, InlineExtension } from "@earendil-work
 import { basename, join } from "node:path";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 
+/**
+ * 宿主会话的客户端：渲染窗口（WebContents），或 M5 起不经渲染端直接驱动会话的主进程客户端
+ * （浏览器扩展桥 browser-bridge）。只需要这几个能力：发事件、判断是否已断开、断开时通知。
+ */
+export interface PiSessionClient {
+  isDestroyed(): boolean;
+  send(channel: string, payload: unknown): void;
+  once(event: "destroyed" | "render-process-gone", listener: () => void): unknown;
+  removeListener(event: "destroyed" | "render-process-gone", listener: () => void): unknown;
+}
+
 interface HostedSession {
   session: AgentSession;
   unsubscribe: () => void;
-  sender: Electron.WebContents;
+  sender: PiSessionClient;
   bridge: PiToolCallBridge;
   interactions: PiSessionInteractions;
   detachSender: () => void;
@@ -218,26 +229,7 @@ class PiSessionHostModule {
           display?: PiPromptDisplay;
         }
       ) => {
-        const hosted = PiSessionHostModule.sessions.get(sessionId);
-        if (!hosted) return { ok: false, error: "会话不存在" };
-        // 展示 entry 的模型文本取实际送给 pi 的 text（逐字相同，投影才认领得上）
-        const displayData = toDisplayData(text, display);
-        try {
-          // 渲染端只传定位信息（path/dataUrl），主进程读文件转 pi 的 base64 ImageContent
-          const piImages = (
-            await Promise.all((images ?? []).map(image => readPromptImage(image)))
-          ).filter(Boolean);
-          if (displayData) hosted.displayWriter.expect(displayData);
-          await hosted.session.prompt(text, {
-            // 与插话同理：关掉模板/技能展开，落盘的用户消息与送出文本逐字一致，展示 entry 才认领得上
-            expandPromptTemplates: false,
-            ...(piImages.length > 0 ? { images: piImages as never } : {}),
-          });
-          return { ok: true };
-        } catch (error) {
-          if (displayData) hosted.displayWriter.discard(displayData);
-          return { ok: false, error: error instanceof Error ? error.message : String(error) };
-        }
+        return PiSessionHostModule.prompt(sessionId, text, images, display);
       }
     );
     ipcMain.handle(
@@ -469,10 +461,7 @@ class PiSessionHostModule {
     );
   }
 
-  private static async createSession(
-    sender: Electron.WebContents,
-    request: PiSessionCreateRequest
-  ) {
+  private static async createSession(sender: PiSessionClient, request: PiSessionCreateRequest) {
     if (PiSessionHostModule.sessions.has(request.sessionId)) {
       return { ok: false, error: "会话已存在" };
     }
@@ -643,6 +632,66 @@ class PiSessionHostModule {
       console.warn(`[PiSessionHost] 设置里的 shell 路径不存在，改用自动检测：${ignoredConfigured}`);
     }
     return path;
+  }
+
+  // ── 主进程客户端（M5：浏览器扩展桥不经渲染端直接驱动会话）───────────────────────
+
+  /** 以主进程客户端建会话（sender 由调用方实现 PiSessionClient） */
+  public static create(client: PiSessionClient, request: PiSessionCreateRequest) {
+    return PiSessionHostModule.createSession(client, request);
+  }
+
+  /**
+   * 提交一轮（渲染端 IPC 与主进程客户端共用）。会话空闲时 pi 的 prompt 要等整轮跑完才返回，
+   * 调用方需要「立即返回」时不要 await 它（坑 7）。
+   */
+  public static async prompt(
+    sessionId: string,
+    text: string,
+    images?: Array<{ path?: string; dataUrl?: string }>,
+    display?: PiPromptDisplay
+  ): Promise<{ ok: boolean; error?: string }> {
+    const hosted = PiSessionHostModule.sessions.get(sessionId);
+    if (!hosted) return { ok: false, error: "会话不存在" };
+    // 展示 entry 的模型文本取实际送给 pi 的 text（逐字相同，投影才认领得上）
+    const displayData = toDisplayData(text, display);
+    try {
+      // 渲染端只传定位信息（path/dataUrl），主进程读文件转 pi 的 base64 ImageContent
+      const piImages = (
+        await Promise.all((images ?? []).map(image => readPromptImage(image)))
+      ).filter(Boolean);
+      if (displayData) hosted.displayWriter.expect(displayData);
+      hosted.lastActive = Date.now();
+      await hosted.session.prompt(text, {
+        // 与插话同理：关掉模板/技能展开，落盘的用户消息与送出文本逐字一致，展示 entry 才认领得上
+        expandPromptTemplates: false,
+        ...(piImages.length > 0 ? { images: piImages as never } : {}),
+      });
+      return { ok: true };
+    } catch (error) {
+      if (displayData) hosted.displayWriter.discard(displayData);
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  }
+
+  public static async abort(sessionId: string): Promise<void> {
+    const hosted = PiSessionHostModule.sessions.get(sessionId);
+    if (!hosted) return;
+    await hosted.session.abort();
+    hosted.session.clearQueue();
+  }
+
+  public static dispose(sessionId: string): void {
+    PiSessionHostModule.disposeSession(sessionId);
+  }
+
+  public static interactionsOf(sessionId: string) {
+    return PiSessionHostModule.sessions.get(sessionId)?.interactions;
+  }
+
+  /** 工具桥回传（主进程客户端执行完工具后调用；渲染端走 pi-session:tool-* IPC） */
+  public static bridgeOf(sessionId: string): PiToolCallBridge | undefined {
+    return PiSessionHostModule.sessions.get(sessionId)?.bridge;
   }
 
   private static touch(sessionId: string): void {

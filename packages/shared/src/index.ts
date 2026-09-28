@@ -189,6 +189,17 @@ export {
   type ChatStreamRunEvent,
 } from "./chat-core/streamEvents";
 
+export {
+  AI_RUN_METHODS,
+  createRunEventFilter,
+  type AiRunApprovalRequest,
+  type AiRunEvent,
+  type AiRunEventNotification,
+  type AiRunQuestionRequest,
+  type AiRunStartParams,
+  type AiRunStateResult,
+} from "./chat-core/aiRunProtocol";
+
 export type { CropperTransform, ImageCropperProps } from "./components/ImageCropper/types";
 
 export type {

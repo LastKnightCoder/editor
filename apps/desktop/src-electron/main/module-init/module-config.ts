@@ -13,6 +13,7 @@ import llmModule from "../modules/llm";
 import streamFetchModule from "../modules/stream-fetch";
 import piAiRuntimeModule from "../modules/pi-ai-runtime";
 import piSessionHostModule from "../modules/pi-session-host";
+import browserBridgeModule from "../modules/browser-bridge";
 import mcpModule from "../modules/mcp";
 import aliOssModule from "../modules/ali-oss";
 import s3Module from "../modules/s3";
@@ -252,6 +253,16 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     dependencies: ["logger"],
     init: async () => {
       piSessionHostModule.init();
+    },
+  },
+  {
+    // 浏览器扩展桥（M5）：扩展侧栏对话由主进程直接驱动 pi 宿主会话，渲染层重载不再打断
+    name: "browser-bridge",
+    group: ModuleGroup.AI,
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["server", "pi-session"],
+    init: async () => {
+      browserBridgeModule.init();
     },
   },
   {
