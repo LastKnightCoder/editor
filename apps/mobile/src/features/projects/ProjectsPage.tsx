@@ -3,18 +3,8 @@
 
 import { useMemo, useState } from "react";
 import { VirtualContainerList } from "../../components/VirtualContainerList";
-import {
-  ArchiveRestore,
-  Ellipsis,
-  FolderTree,
-  GitBranch,
-  Plus,
-  Sparkles,
-  Star,
-  Table2,
-  Trash2,
-} from "lucide-react";
-import type { Project, ProjectType } from "../../types";
+import { ArchiveRestore, Ellipsis, FolderTree, Plus, Star, Trash2 } from "lucide-react";
+import type { Project } from "../../types";
 import { clampText } from "../../utils/richTextText";
 import { formatTimeDisplay } from "../../utils/formatTime";
 import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
@@ -24,26 +14,15 @@ import ActionSheet from "../../components/ActionSheet";
 import MobileConfirmDialog from "../../components/MobileConfirmDialog";
 import { useProjectCreate, useProjectDelete, useProjectUpdate, useProjectsQuery } from "./queries";
 
-const PROJECT_TYPE_META: Record<string, { label: string; className: string; grad: string }> = {
-  "document-tree": {
-    label: "文档树",
-    className: "bg-lilac-soft text-lilac",
-    grad: "linear-gradient(135deg,#e2daf1,#b7a6d8)",
-  },
-  "data-table": {
-    label: "表格",
-    className: "bg-sky-soft text-sky",
-    grad: "linear-gradient(135deg,#cfdff0,#9db9d8)",
-  },
-  "vibe-learning": {
-    label: "Vibe 学习",
-    className: "bg-rose-soft text-rose",
-    grad: "linear-gradient(135deg,#f2cfc7,#dfa28f)",
-  },
+/** 项目 = 文档树（数据库与 Vibe Learning 是桌面端的独立模块，移动端不承载） */
+const PROJECT_VISUAL = {
+  label: "文档树",
+  className: "bg-lilac-soft text-lilac",
+  grad: "linear-gradient(135deg,#e2daf1,#b7a6d8)",
 };
 
-export function projectTypeMeta(type: string) {
-  return PROJECT_TYPE_META[type] ?? PROJECT_TYPE_META["document-tree"];
+export function projectVisual() {
+  return PROJECT_VISUAL;
 }
 
 type ProjectsPageProps = {
@@ -56,7 +35,6 @@ export function ProjectsPage(props: ProjectsPageProps) {
   const [createOpen, setCreateOpen] = useState(false);
   const [createTitle, setCreateTitle] = useState("");
   const [createDesc, setCreateDesc] = useState("");
-  const [createType, setCreateType] = useState<ProjectType | string>("document-tree");
   const [menuProject, setMenuProject] = useState<Project | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
 
@@ -83,13 +61,12 @@ export function ProjectsPage(props: ProjectsPageProps) {
       return;
     }
     createProject.mutate(
-      { title, desc: createDesc.trim() || undefined, projectType: createType },
+      { title, desc: createDesc.trim() || undefined },
       {
         onSuccess: project => {
           setCreateOpen(false);
           setCreateTitle("");
           setCreateDesc("");
-          setCreateType("document-tree");
           props.onOpenProject(project.id);
         },
         onError: error => props.onError(error, "新建项目失败"),
@@ -98,7 +75,7 @@ export function ProjectsPage(props: ProjectsPageProps) {
   };
 
   const renderProjectCard = (project: Project, index = 0) => {
-    const meta = projectTypeMeta(project.projectType);
+    const meta = projectVisual();
     const count = itemCountMap.get(project.id) ?? 0;
     return (
       <article
@@ -151,7 +128,7 @@ export function ProjectsPage(props: ProjectsPageProps) {
   };
 
   const renderArchivedCard = (project: Project) => {
-    const meta = projectTypeMeta(project.projectType);
+    const meta = projectVisual();
     return (
       <div
         key={project.id}
@@ -229,41 +206,6 @@ export function ProjectsPage(props: ProjectsPageProps) {
       </div>
 
       <BottomSheet open={createOpen} title="新建项目" onClose={() => setCreateOpen(false)}>
-        <div className="grid grid-cols-3 gap-2">
-          {(["document-tree", "data-table", "vibe-learning"] as const).map(type => {
-            const meta = PROJECT_TYPE_META[type];
-            const selected = createType === type;
-            const icons = {
-              "document-tree": <GitBranch size={19} strokeWidth={1.9} className="text-[#5b4a7e]" />,
-              "data-table": <Table2 size={19} strokeWidth={1.9} className="text-[#3f648a]" />,
-              "vibe-learning": <Sparkles size={19} strokeWidth={1.9} className="text-[#a3543f]" />,
-            };
-            return (
-              <button
-                key={type}
-                type="button"
-                onClick={() => {
-                  if (type !== "document-tree") {
-                    toast({ type: "info", text: `${meta.label}项目即将上线，先用文档树` });
-                    return;
-                  }
-                  setCreateType(type);
-                }}
-                className={`flex flex-col items-center gap-2 rounded-2xl border-[1.5px] p-3 transition-all active:scale-95 ${
-                  selected ? "border-accent" : "border-line"
-                }`}
-              >
-                <span
-                  className="grid h-[42px] w-[42px] place-items-center rounded-[15px]"
-                  style={{ background: meta.grad }}
-                >
-                  {icons[type]}
-                </span>
-                <span className="text-ink text-xs font-bold">{meta.label}</span>
-              </button>
-            );
-          })}
-        </div>
         <input
           value={createTitle}
           onChange={event => setCreateTitle(event.target.value)}

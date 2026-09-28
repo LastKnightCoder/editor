@@ -9,6 +9,8 @@ interface FadeScrollProps {
   scrollRef?: Ref<HTMLDivElement | null>;
   /** 内部有 motion 布局动画时开启：渲染为 motion.div 并声明 layoutScroll，动画按滚动偏移校正 */
   layoutScroll?: boolean;
+  /** 关掉顶部渐隐（默认开）：滚动区顶部紧邻实底工具栏时，渐隐带落在实底上只会显脏 */
+  topFade?: boolean;
 }
 
 /**
@@ -16,9 +18,15 @@ interface FadeScrollProps {
  * 内容不贴着面板边缘被硬切；滚动条内缩不贴右缘。右侧 6px 透明边算在宽度里，
  * 调用方右内边距相应减 6px；类名经 cn 合并，调用方可覆盖透明边宽度（如 border-r-[3px]）。
  */
-export function FadeScroll({ className, children, scrollRef, layoutScroll }: FadeScrollProps) {
+export function FadeScroll({
+  className,
+  children,
+  scrollRef,
+  layoutScroll,
+  topFade = true,
+}: FadeScrollProps) {
   const [el, setEl] = useState<HTMLDivElement | null>(null);
-  useEdgeFade(el);
+  useEdgeFade(el, { top: topFade });
   /* ref 回调必须稳定：内联函数每次渲染都是新引用，React 会先以 null 调旧回调、再以节点调新回调；
      scrollRef 若是父组件的 setState，这一对调用会让父组件重渲染 → 又生成新回调 → 无限循环 */
   const setRef = useCallback(

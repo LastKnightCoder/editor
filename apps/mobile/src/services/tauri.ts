@@ -775,7 +775,7 @@ export function projectItemList() {
   return trackedInvoke<ProjectItem[]>("project_item_list");
 }
 
-export function projectCreate(params: { title: string; desc?: string; projectType?: string }) {
+export function projectCreate(params: { title: string; desc?: string }) {
   return trackedInvoke<Project>("project_create", { payload: params });
 }
 

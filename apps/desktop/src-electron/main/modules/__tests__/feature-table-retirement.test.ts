@@ -44,7 +44,7 @@ describe("下线功能残留表退役", () => {
       db.exec(schema);
       db.exec(LEGACY);
       db.exec(
-        "INSERT INTO project (id, title, create_time, update_time) VALUES (7, '学习', 1, 1);"
+        "INSERT INTO vibe_learning_project (id, title, create_time, update_time) VALUES (7, '学习', 1, 1);"
       );
       db.exec(
         "INSERT INTO vibe_learning_resources (id, project_id, create_time, update_time, name, original_path, resource_type, is_chunked) VALUES (1, 7, 1, 1, '资料', '/a.pdf', 'pdf', 1)"

@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { EProjectItemType, EProjectType, type Project, type ProjectItem } from "@/types";
+import { EProjectItemType, type Project, type ProjectItem } from "@/types";
 import type { MindMapNodeData } from "@/components/MindMap/types";
 import { buildProjectTreeData } from "@/utils/projectTree";
 import ProjectMindMapView from "../ProjectMindMapView";
@@ -58,7 +58,6 @@ describe("思维导图文档树导航", () => {
       desc: [],
       archived: false,
       pinned: false,
-      projectType: EProjectType.DocumentTree,
     };
     const items: ProjectItem[] = [11, 12].map(id => ({
       id,

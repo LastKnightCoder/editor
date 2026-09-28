@@ -48,8 +48,7 @@ export function useInvalidateProjects() {
 export function useProjectCreate() {
   const invalidate = useInvalidateProjects();
   return useMutation({
-    mutationFn: (params: { title: string; desc?: string; projectType?: string }) =>
-      tauri.projectCreate(params),
+    mutationFn: (params: { title: string; desc?: string }) => tauri.projectCreate(params),
     onSuccess: () => invalidate(),
   });
 }

@@ -1,12 +1,9 @@
 import ProjectList from "./ProjectList";
 import EditProjectView from "./EditProjectView";
-import DataTableProjectView from "./DataTableProjectView";
-import VibeLearningView from "../VibeLearningView";
 import { Button } from "@tau/ui";
 import ProjectContext, { type ProjectDocumentAction } from "./ProjectContext";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { EProjectType } from "@/types";
 import { useProjectDetail } from "@/features/projects/queries";
 import { Loader2 } from "lucide-react";
 import { usePage } from "@/page/PageProvider";
@@ -77,21 +74,7 @@ const ProjectView = ({ projectId, itemId }: ProjectViewProps) => {
     );
   }
 
-  // 数据表格类型的项目直接渲染数据表格
-  if (project.projectType === EProjectType.DataTable) {
-    return (
-      <div className="flex h-full w-full items-center justify-center">
-        <DataTableProjectView projectId={projectId} />
-      </div>
-    );
-  }
-
-  // Vibe Learning 类型的项目渲染专属视图
-  if (project.projectType === EProjectType.VibeLearning) {
-    return <VibeLearningView projectId={projectId} />;
-  }
-
-  // 文档树类型的项目：文档树与正文同装一张抬起的纸面（纸外 = 应用导航，纸内 = 本项目），
+  // 文档树：文档树与正文同装一张抬起的纸面（纸外 = 应用导航，纸内 = 本项目），
   // 靠纸面边缘与全局侧栏分界；纸内两栏同底，仅文档树右缘一条 1px 淡线兼作拖拽边界提示
   return (
     <ProjectContext.Provider

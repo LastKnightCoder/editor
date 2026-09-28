@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { EProjectItemType, EProjectType, type Project, type ProjectItem } from "@/types";
+import { EProjectItemType, type Project, type ProjectItem } from "@/types";
 
 vi.mock("@/commands", () => ({ getProjectItemsByIds: vi.fn() }));
 
@@ -21,7 +21,6 @@ const project: Project = {
   desc: [],
   archived: false,
   pinned: false,
-  projectType: EProjectType.DocumentTree,
 };
 
 const makeItem = (id: number, children: number[] = []): ProjectItem => ({

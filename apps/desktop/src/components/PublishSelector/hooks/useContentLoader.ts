@@ -38,8 +38,7 @@ export function useContentLoader(): UseContentLoaderReturn {
 
       setCards(cardsData);
       setArticles(articlesData);
-      // 只保留文档树类型的项目
-      setProjects(projectsData.filter(p => p.projectType === "document-tree"));
+      setProjects(projectsData);
       setQuestionGroups(questionGroupsData);
       setQuestions(questionsData);
     } catch (error) {

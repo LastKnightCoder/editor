@@ -5,7 +5,7 @@
  * status 标注迁移进度（蓝图 §5.1），legacy 模块点击后由 LegacyPendingPage 过渡展示。
  * 修改本文件即修改侧边栏——不要在 Sidebar 组件里硬编码条目。
  *
- * 文档树统一由项目承载；VibeLearning 学习项目也由项目详情承载。
+ * 项目即文档树；数据库（数据表格）与 Notebook（原 Vibe Learning）自 2026-09-28 起各为独立顶级模块。
  *
  * 图标：lucide-react（线性单色）；多色图标用 react-icons（桌面已有依赖）。
  */
@@ -23,6 +23,7 @@ import {
   Timer,
   CircleHelp,
   FolderKanban,
+  Table,
   Send,
   MessageCircle,
   Sparkles,
@@ -40,7 +41,6 @@ export type NavItemBadge =
 export type NavItemChildren =
   | "collaboration-sessions"
   | "todo-groups"
-  | "project-types"
   | "card-tags"
   | "article-tags"
   | "diary-tags"
@@ -56,7 +56,7 @@ export interface NavItem {
    *  collab-requests = 待审批的加入申请数；mcp-errors = 连接失败的 MCP 服务器数） */
   badge?: NavItemBadge;
   /** 该页在栈顶时于条目下方展开的子项（collaboration-sessions = 共享内容列表，协作页 A3；
-   *  todo-groups = 待办项目；project-types = 项目类型；card-tags = 卡片标签树（限高滚动）；article-tags = 文章标签（限高滚动）；diary-tags = 日记标签频道，D-044；whiteboard-tags = 白板标签，D-047；question-groups = 问题分组；chat-sessions = 置顶与最近 AI 会话，D-047） */
+   *  todo-groups = 待办项目；card-tags = 卡片标签树（限高滚动）；article-tags = 文章标签（限高滚动）；diary-tags = 日记标签频道，D-044；whiteboard-tags = 白板标签，D-047；question-groups = 问题分组；chat-sessions = 置顶与最近 AI 会话，D-047） */
   children?: NavItemChildren;
   /** 不导航页面、打开壳层浮层的入口（当前仅设置弹窗，D-028） */
   opensOverlay?: "settings";
@@ -92,13 +92,15 @@ export const NAV_SECTIONS: NavSection[] = [
       { key: "articles", label: "文章", icon: FileText, children: "article-tags" }, // features/articles（一整张纸，标签嵌在此入口下）
       { key: "diary", label: "日记", icon: PenLine, children: "diary-tags" }, // features/diary（一整张纸，标签频道嵌在此入口下，D-044）
       { key: "whiteboard", label: "白板", icon: Presentation, children: "whiteboard-tags" }, // features/whiteboards（画廊，标签嵌在此入口下，D-047）
+      { key: "databases", label: "数据库", icon: Table }, // features/databases（结构化数据表，2026-09-28 自项目 data-table 型拆出）
     ],
   },
   {
     label: "学习",
     items: [
-      // 项目即学习容器（文档树/数据表格/Vibe Learning 三型皆学习导向），归学习组
-      { key: "projects", label: "项目", icon: FolderKanban, children: "project-types" }, // features/projects（学习驾驶舱 + 三型详情工作台；类型嵌在此入口下）
+      // 项目 = 文档树知识库，归学习组
+      { key: "projects", label: "项目", icon: FolderKanban }, // features/projects（驾驶舱列表 + 文档树工作台）
+      { key: "vibe-learning", label: "Notebook", icon: FlaskConical }, // features/vibe-learning（对外名 Notebook——仿 NotebookLM；2026-09-28 自项目 vibe-learning 型拆出，标识符跟数据库走不改名）
       { key: "review", label: "闪卡复习", icon: Repeat, badge: "review-due" }, // features/flashcards（复习台，D-041）
       {
         key: "questions",

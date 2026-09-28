@@ -160,6 +160,10 @@ fn upgrade_inner(conn: &Connection, baseline: &Connection, now: i64) -> rusqlite
         }
     }
 
+    // 数据库 / Vibe Learning 从 project 表拆成独立模块（桌面 project:split-modules 的移动端等价实现）。
+    // 必须在上面的建表循环之后：database_item / vibe_learning_project 由该循环按基线建出
+    split_project_modules(conn, baseline)?;
+
     if has_column(conn, "diary_segments", "position")? {
         rebuild_known_table(conn, baseline, "diary_segments")?;
     }
@@ -183,6 +187,53 @@ fn upgrade_inner(conn: &Connection, baseline: &Connection, now: i64) -> rusqlite
     ) UPDATE vibe_learning_resources SET sort_index=(SELECT next_sort FROM ranked WHERE ranked.id=vibe_learning_resources.id) WHERE id IN (SELECT id FROM ranked);
     CREATE INDEX IF NOT EXISTS idx_vl_resource_project_sort ON vibe_learning_resources(project_id,sort_index);")?;
     migrate_video_notes(conn, baseline)?;
+    Ok(())
+}
+
+/// 把 project 表里寄生的两类项目搬到独立模块表；幂等。
+///
+/// id 原样保留——Vibe Learning 的 per-project 索引库、markdown 目录、chat_session.domain_id、
+/// vl_note.project_id 都以这个 id 命名，重编号会指向错误的数据。
+/// vibe_learning_resources 的外键原指向 project(id)，搬完必须按基线重建，
+/// 否则 migrator 的 foreign_key_check 会中止升级。
+fn split_project_modules(conn: &Connection, baseline: &Connection) -> rusqlite::Result<()> {
+    if !has_column(conn, "project", "project_type")? {
+        return Ok(());
+    }
+
+    conn.execute_batch(
+        "INSERT OR IGNORE INTO database_item
+           (id, create_time, update_time, title, desc, archived, pinned, data_table_id)
+         SELECT id, create_time, update_time, title, desc,
+                COALESCE(archived,0), COALESCE(pinned,0), COALESCE(data_table_id,0)
+         FROM project WHERE project_type='data-table';
+         INSERT OR IGNORE INTO vibe_learning_project
+           (id, create_time, update_time, title, desc, archived, pinned)
+         SELECT id, create_time, update_time, title, desc,
+                COALESCE(archived,0), COALESCE(pinned,0)
+         FROM project WHERE project_type='vibe-learning';",
+    )?;
+
+    // 必须在 DELETE FROM project 之前改外键：资源仍指向 project 时删父行会触发外键约束
+    let vlr_sql: Option<String> = conn
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='vibe_learning_resources'",
+            [],
+            |r| r.get(0),
+        )
+        .optional()?;
+    if vlr_sql
+        .map(|sql| sql.contains("REFERENCES project("))
+        .unwrap_or(false)
+    {
+        rebuild_known_table(conn, baseline, "vibe_learning_resources")?;
+    }
+
+    conn.execute_batch(
+        "DELETE FROM project WHERE project_type<>'document-tree';
+         DELETE FROM publish_selections
+           WHERE content_type='project' AND content_id NOT IN (SELECT id FROM project);",
+    )?;
     Ok(())
 }
 

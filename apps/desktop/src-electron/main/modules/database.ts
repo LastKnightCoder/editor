@@ -31,6 +31,8 @@ import EntitySearchTable from "./tables/entity-search";
 import QuestionEventTable from "./tables/question-event";
 import WhiteBoardContentTable from "./tables/white-board-content";
 import DataTableTable from "./tables/data-table";
+import DatabaseItemTable from "./tables/database-item";
+import VibeLearningProjectTable from "./tables/vibe-learning-project";
 import DataTableViewTable from "./tables/data-table-view";
 import TodoGroupTable from "./tables/todo-group";
 import TodoItemTable from "./tables/todo-item";
@@ -234,6 +236,7 @@ class DatabaseModule implements Module {
       EntitySearchTable,
       GoalHardCleanupTable,
       DataTableTable,
+      DatabaseItemTable,
       DataTableViewTable,
       TodoGroupTable,
       TodoItemTable,
@@ -265,6 +268,7 @@ class DatabaseModule implements Module {
       PublishHistoryTable,
       SlideHardCleanupTable,
       TranscriptionTable,
+      VibeLearningProjectTable,
       VibeLearningResourceTable,
       VLNoteTable,
       VLQuizTable,

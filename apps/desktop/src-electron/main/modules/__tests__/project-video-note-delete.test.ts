@@ -18,7 +18,7 @@ vi.mock("../video-note-index-queue", () => ({
 }));
 
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
-import { EProjectItemType, EProjectType } from "@/types/project";
+import { EProjectItemType } from "@/types/project";
 import ContentTable from "../tables/content";
 import ProjectTable from "../tables/project";
 import VideoNoteTable from "../tables/video-note";
@@ -52,8 +52,6 @@ describe("ProjectTable.deleteProject(VideoNote)", () => {
       children: [],
       archived: false,
       pinned: false,
-      projectType: EProjectType.DocumentTree,
-      dataTableId: 0,
     });
 
     const videoNote = VideoNoteTable.createEmptyVideoNote(db, {

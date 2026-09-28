@@ -23,7 +23,7 @@ vi.mock("../video-note-index-queue", () => ({
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import ContentTable from "../tables/content";
 import ProjectTable from "../tables/project";
-import { EProjectItemType, EProjectType } from "../../../../src/types/project";
+import { EProjectItemType } from "../../../../src/types/project";
 
 function createTestDatabase() {
   const db = new Database(":memory:");
@@ -50,8 +50,6 @@ describe("共享 contentId 挂载", () => {
       children: [],
       archived: false,
       pinned: false,
-      projectType: EProjectType.DocumentTree,
-      dataTableId: 0,
     });
     const contentId = ContentTable.createContent(db, {
       content: [{ type: "paragraph", children: [{ text: "共享答案正文" }] }] as any,

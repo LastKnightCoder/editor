@@ -250,7 +250,7 @@ CREATE TABLE IF NOT EXISTS vibe_learning_resources (
         resource_type TEXT NOT NULL,
         file_size INTEGER,
         duration INTEGER, source_type TEXT, source_meta_info TEXT, transcript_segments TEXT,
-        FOREIGN KEY(project_id) REFERENCES project(id)
+        FOREIGN KEY(project_id) REFERENCES vibe_learning_project(id)
       );
 CREATE TABLE IF NOT EXISTS vl_note (
         id INTEGER PRIMARY KEY,

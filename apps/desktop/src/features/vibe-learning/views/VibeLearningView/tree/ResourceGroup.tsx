@@ -320,14 +320,15 @@ export function ResourceGroup(props: ResourceGroupProps) {
       />
       {open &&
         (ordered.length === 0 ? (
-          <div className="text-tau-sm text-ink-3 px-3 pb-3 pt-1 leading-relaxed">
-            PDF、Office、音视频、网页，B 站 / YouTube 链接，或卡片库里已有的笔记。
+          /* 空态只留动作一行：分组标题的计数已经说明「空」，支持的资料类型由
+             添加弹窗交代（AddResourceModal），侧栏这窄一栏不重复铺开 */
+          <div className="text-tau-sm px-3 pb-3 pt-1">
             <button
               type="button"
               onClick={props.onAdd}
-              className="text-accent-text ml-1 hover:underline"
+              className="text-accent-text hover:underline"
             >
-              添加资料
+              添加第一份资料
             </button>
           </div>
         ) : (

@@ -17,7 +17,6 @@ pub struct Project {
     pub children: Vec<i64>,
     pub archived: bool,
     pub pinned: bool,
-    pub project_type: String,
     pub create_time: i64,
     pub update_time: i64,
     pub item_count: i64,
@@ -53,7 +52,6 @@ pub struct ProjectItem {
 pub struct CreateProjectPayload {
     pub title: String,
     pub desc: Option<String>,
-    pub project_type: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -106,12 +104,9 @@ fn parse_project_row(row: &Row<'_>) -> rusqlite::Result<Project> {
         children: parse_id_array(row.get(3)?),
         archived: row.get::<_, i64>(4)? == 1,
         pinned: row.get::<_, i64>(5)? == 1,
-        project_type: row
-            .get::<_, Option<String>>(6)?
-            .unwrap_or_else(|| "document-tree".to_string()),
-        create_time: row.get(7)?,
-        update_time: row.get(8)?,
-        item_count: row.get(9)?,
+        create_time: row.get(6)?,
+        update_time: row.get(7)?,
+        item_count: row.get(8)?,
     })
 }
 
@@ -143,7 +138,7 @@ fn parse_item_row(row: &Row<'_>) -> rusqlite::Result<ProjectItem> {
 
 fn query_project_by_id(conn: &Connection, id: i64) -> Result<Option<Project>, String> {
     conn.query_row(
-        "SELECT p.id, p.title, p.desc, p.children, p.archived, p.pinned, p.project_type, p.create_time, p.update_time,
+        "SELECT p.id, p.title, p.desc, p.children, p.archived, p.pinned, p.create_time, p.update_time,
             (SELECT COUNT(*) FROM project_item pi WHERE EXISTS(SELECT 1 FROM json_each(COALESCE(pi.projects,'[]')) WHERE value=p.id))
          FROM project p WHERE p.id = ?1 LIMIT 1",
         params![id],
@@ -158,7 +153,8 @@ fn description_json(text: String) -> String {
 }
 
 fn next_project_id(conn: &Connection) -> Result<i64, String> {
-    let id: i64 = conn.query_row("SELECT MAX(COALESCE((SELECT MAX(id) FROM project),0),COALESCE((SELECT CAST(value AS INTEGER) FROM migration_meta WHERE key='project:id-seq'),0))+1", [], |r| r.get(0)).map_err(|e| e.to_string())?;
+    // 序列与桌面共用：id 在项目 / 数据库 / Vibe Learning 三张表间全局唯一且不复用
+    let id: i64 = conn.query_row("SELECT MAX(COALESCE((SELECT MAX(id) FROM project),0),COALESCE((SELECT MAX(id) FROM database_item),0),COALESCE((SELECT MAX(id) FROM vibe_learning_project),0),COALESCE((SELECT CAST(value AS INTEGER) FROM migration_meta WHERE key='project:id-seq'),0))+1", [], |r| r.get(0)).map_err(|e| e.to_string())?;
     if id > 9_007_199_254_740_991 {
         return Err("PROJECT_ID_EXHAUSTED: 项目 ID 超出安全范围".into());
     }
@@ -436,7 +432,7 @@ pub fn project_list(
         .clamp(1, 200);
     let mut stmt = conn
         .prepare(
-            "SELECT p.id, p.title, p.desc, p.children, p.archived, p.pinned, p.project_type,
+            "SELECT p.id, p.title, p.desc, p.children, p.archived, p.pinned,
                     p.create_time, p.update_time,
                     (SELECT COUNT(1) FROM project_item pi
                      WHERE EXISTS (SELECT 1 FROM json_each(COALESCE(pi.projects, '[]'))
@@ -459,7 +455,7 @@ pub fn project_list(
 pub fn project_get(app: AppHandle, payload: ProjectIdPayload) -> Result<Project, String> {
     let conn = schema::open_active_database(&app)?;
     conn.query_row(
-        "SELECT p.id, p.title, p.desc, p.children, p.archived, p.pinned, p.project_type,
+        "SELECT p.id, p.title, p.desc, p.children, p.archived, p.pinned,
                 p.create_time, p.update_time,
                 (SELECT COUNT(1) FROM project_item pi
                  WHERE EXISTS (SELECT 1 FROM json_each(COALESCE(pi.projects, '[]'))
@@ -504,16 +500,13 @@ pub fn project_create(app: AppHandle, payload: CreateProjectPayload) -> Result<P
         .transaction()
         .map_err(|e| db_err("PROJECT_CREATE_FAILED", "begin transaction", e))?;
     let now = now_millis();
-    let project_type = payload
-        .project_type
-        .unwrap_or_else(|| "document-tree".to_string());
     let project_id = next_project_id(&tx)?;
     tx.execute(
         "
-        INSERT INTO project (title, desc, children, archived, pinned, project_type, data_table_id, create_time, update_time, id)
-        VALUES (?1, ?2, '[]', 0, 0, ?3, 0, ?4, ?4, ?5)
+        INSERT INTO project (title, desc, children, archived, pinned, create_time, update_time, id)
+        VALUES (?1, ?2, '[]', 0, 0, ?3, ?3, ?4)
         ",
-        params![title, description_json(payload.desc.unwrap_or_default()), project_type, now, project_id],
+        params![title, description_json(payload.desc.unwrap_or_default()), now, project_id],
     )
     .map_err(|e| db_err("PROJECT_CREATE_FAILED", "insert project", e))?;
     write_operation(&tx, "project", "insert", project_id, now)?;

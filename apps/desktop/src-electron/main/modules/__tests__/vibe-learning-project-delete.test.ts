@@ -16,9 +16,8 @@ vi.mock("../video-note-index-queue", () => ({
 }));
 
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
-import { EProjectType } from "@/types/project";
 import ContentTable from "../tables/content";
-import ProjectTable from "../tables/project";
+import VibeLearningProjectTable from "../tables/vibe-learning-project";
 import ChatSessionTable from "../tables/chat-session";
 import VibeLearningResourceTable from "../tables/vibe-learning-resource";
 import VLNoteTable from "../tables/vl-note";
@@ -27,7 +26,7 @@ import VLQuizTable from "../tables/vl-quiz";
 function createTestDatabase() {
   const db = new Database(":memory:");
   db.exec(MAIN_SCHEMA_SQL);
-  ProjectTable.upgradeTable(db);
+  VibeLearningProjectTable.upgradeTable(db);
   VibeLearningResourceTable.upgradeTable(db);
   VLNoteTable.upgradeTable(db);
   VLQuizTable.upgradeTable(db);
@@ -41,7 +40,7 @@ function countByProjectId(db: Database.Database, tableName: string, projectId: n
   return row.count;
 }
 
-describe("ProjectTable.deleteProject(VibeLearning)", () => {
+describe("VibeLearningProjectTable.remove", () => {
   let db: Database.Database;
 
   beforeEach(() => {
@@ -52,15 +51,10 @@ describe("ProjectTable.deleteProject(VibeLearning)", () => {
     db.close();
   });
 
-  it("删除 VibeLearning 项目时应清理资源/聊天/笔记/测验及笔记内容", () => {
-    const project = ProjectTable.createProject(db, {
+  it("删除学习项目时应清理资源/聊天/笔记/测验及笔记内容", () => {
+    const project = VibeLearningProjectTable.create(db, {
       title: "VL 项目 A",
       desc: [],
-      children: [],
-      archived: false,
-      pinned: false,
-      projectType: EProjectType.VibeLearning,
-      dataTableId: 0,
     });
 
     const noteContentId = ContentTable.createContent(db, {
@@ -137,11 +131,13 @@ describe("ProjectTable.deleteProject(VibeLearning)", () => {
     expect(countByProjectId(db, "vl_quiz_set", project.id)).toBe(1);
     expect(countByProjectId(db, "vl_quiz_record", project.id)).toBe(1);
 
-    const deleteChanges = ProjectTable.deleteProject(db, project.id);
+    const deleteChanges = VibeLearningProjectTable.remove(db, project.id);
 
     expect(deleteChanges).toBe(1);
     expect(
-      db.prepare("SELECT COUNT(*) as count FROM project WHERE id = ?").get(project.id) as {
+      db
+        .prepare("SELECT COUNT(*) as count FROM vibe_learning_project WHERE id = ?")
+        .get(project.id) as {
         count: number;
       }
     ).toEqual({ count: 0 });
@@ -162,15 +158,10 @@ describe("ProjectTable.deleteProject(VibeLearning)", () => {
     ).toEqual({ count: 0 });
   });
 
-  it("删除后新建项目应使用新 ID，且不会读取到旧项目残留", () => {
-    const projectA = ProjectTable.createProject(db, {
+  it("删除后新建学习项目应使用新 ID，且不会读取到旧项目残留", () => {
+    const projectA = VibeLearningProjectTable.create(db, {
       title: "VL 项目 A",
       desc: [],
-      children: [],
-      archived: false,
-      pinned: false,
-      projectType: EProjectType.VibeLearning,
-      dataTableId: 0,
     });
 
     const contentId = ContentTable.createContent(db, {
@@ -194,16 +185,11 @@ describe("ProjectTable.deleteProject(VibeLearning)", () => {
       resourceType: "txt",
     });
 
-    ProjectTable.deleteProject(db, projectA.id);
+    VibeLearningProjectTable.remove(db, projectA.id);
 
-    const projectB = ProjectTable.createProject(db, {
+    const projectB = VibeLearningProjectTable.create(db, {
       title: "VL 项目 B",
       desc: [],
-      children: [],
-      archived: false,
-      pinned: false,
-      projectType: EProjectType.VibeLearning,
-      dataTableId: 0,
     });
 
     expect(projectB.id).toBeGreaterThan(projectA.id);

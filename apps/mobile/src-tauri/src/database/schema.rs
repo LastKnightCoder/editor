@@ -9,17 +9,23 @@ use super::index_db;
 use super::migrator;
 use crate::setting::{get_active_database_name, load_or_init_setting, resolve_database_path};
 
+/// 升级前备份的文件名前缀（含 schema 版本号：每次版本 bump 都会重新备份一份）
+fn backup_prefix(db_stem: &str) -> String {
+    format!(
+        "{db_stem}.db.pre-schema-v{}-",
+        migrator::MAIN_SCHEMA_VERSION
+    )
+}
+
 fn backup_before_migration(
     conn: &Connection,
     database_path: &std::path::Path,
 ) -> Result<(), String> {
-    let file_prefix = format!(
-        "{}.db.pre-schema-v{}-",
+    let file_prefix = backup_prefix(
         database_path
             .file_stem()
             .and_then(|stem| stem.to_str())
             .unwrap_or_default(),
-        migrator::MAIN_SCHEMA_VERSION
     );
     // 迁移失败重试时库内容与首份备份一致，已存在备份则复用，避免全量备份反复膨胀
     if let Some(parent) = database_path.parent() {
@@ -234,7 +240,7 @@ mod tests {
             .unwrap()
             .filter_map(|entry| entry.ok())
             .map(|entry| entry.file_name().to_string_lossy().to_string())
-            .filter(|name| name.starts_with("main.db.pre-schema-v3-"))
+            .filter(|name| name.starts_with(&backup_prefix("main")))
             .collect();
         assert_eq!(backups.len(), 1, "首份备份应存在且唯一");
         assert!(backups[0].ends_with(".bak"));
@@ -254,7 +260,7 @@ mod tests {
                 entry
                     .file_name()
                     .to_string_lossy()
-                    .starts_with("main.db.pre-schema-v3-")
+                    .starts_with(&backup_prefix("main"))
             })
             .count();
         assert_eq!(count, 1);
@@ -283,7 +289,7 @@ mod tests {
         let conn = Connection::open(&path).unwrap();
         assert_eq!(
             migrator::get_meta(&conn, "main_schema_version").unwrap(),
-            Some("3".into())
+            Some(migrator::MAIN_SCHEMA_VERSION.to_string())
         );
         let mode: String = conn
             .query_row("PRAGMA journal_mode", [], |r| r.get(0))

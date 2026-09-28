@@ -34,7 +34,7 @@ import {
   useProjectUpdate,
 } from "./queries";
 import { ADDABLE_ITEM_TYPES, projectItemTypeMeta } from "./itemTypeMeta";
-import { projectTypeMeta } from "./ProjectsPage";
+import { projectVisual } from "./ProjectsPage";
 import { useEdgeFade, useEdgeFadeX } from "../../hooks/useScrollState";
 
 type PathSegment = { id: number | null; title: string };
@@ -205,7 +205,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
     );
   }
 
-  const meta = projectTypeMeta(project.projectType);
+  const meta = projectVisual();
 
   return (
     <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">

@@ -4,7 +4,7 @@ import { getProjectItemById, updateProjectItem } from "@/commands";
 import { defaultProjectItemEventBus } from "@/utils";
 import { useCreation, useMemoizedFn } from "ahooks";
 import { produce } from "immer";
-import DatabaseWorkspace from "../shared/DatabaseWorkspace";
+import DatabaseWorkspace from "@/features/shared/database/DatabaseWorkspace";
 
 const TableProjectItemView = memo((props: { projectItemId: number }) => {
   const { projectItemId } = props;
