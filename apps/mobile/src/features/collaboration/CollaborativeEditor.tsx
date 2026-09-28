@@ -1,12 +1,16 @@
-// 详情页原地协作编辑器（懒加载 chunk，与协作运行时同舟）：绑定协作的内容无需跳转
-// 协作页，直接在详情页切换为 yjs 协同编辑。职责内聚：运行时挂载、Y.Doc 绑定、
-// owner 侧投影、presence 上报；会话建立失败时上报「本地兜底」模式，由详情页用正常的
-// 本地编辑器继续编辑（改动经投影通道落本地库），重连后拉出「保留本机 / 采用云端」裁决。
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { getMobileContentKit } from "../../services/editorKit";
+// 详情页的原地协作会话（懒加载 chunk，与协作运行时同舟）：绑定协作的内容无需跳转协作页，
+// 直接在详情页切换为 yjs 协同编辑。职责内聚：运行时挂载、Y.Doc 绑定、owner 侧投影、
+// presence 上报、状态条与裁决弹窗。
+//
+// 正文编辑器由详情页统一渲染（页面只有一个编辑器实例），本组件把协作文档源经
+// onDocumentChange 上报：协作与本机的文档源同谱系，切换即换源，编辑器不重建。
+// 会话建立失败时上报「本地兜底」模式，改动经投影通道落本地库，重连后拉出
+// 「保留本机 / 采用云端」裁决。
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight, Loader2, RefreshCw, Users, WifiOff } from "lucide-react";
-import { Editor, type EditorRef } from "@tau/editor/src";
+import type { EditorDocument } from "@tau/editor/src";
 import { createYjsDocument } from "@tau/editor-collab";
+import { contentLineage } from "../../hooks/useLocalContentDocument";
 import { AvatarStack, StatusDot } from "./components/CollaborationUI";
 import { LocalFallbackChoiceDialog } from "./components/LocalFallbackChoiceDialog";
 import { useCollabSession } from "./hooks/useCollabSession";
@@ -23,11 +27,12 @@ export type CollaborativeEditorMode = "connecting" | "live" | "unavailable" | "e
 
 export function CollaborativeEditor(props: {
   documentId: string;
-  editorRef: RefObject<EditorRef | null>;
-  onEditorFocus: () => void;
-  onEditorBlur: () => void;
-  onSelectionChange: () => void;
-  /** 只读态（binding 未就绪/会话冻结/非 active/待裁决）上报：宿主据此收起编辑工具栏 */
+  /** 本机内容 id：与本机文档源共用谱系，切换时编辑器换源而不是重建 */
+  contentId?: number;
+  /** 协作文档源上报给宿主（正文编辑器由宿主渲染，全页只有一个实例） */
+  onDocumentChange: (document: EditorDocument | undefined) => void;
+  presenceRef?: (presence: { onFocus: () => void; onBlur: () => void }) => void;
+  /** 生效只读（binding 未就绪 / 会话冻结 / 非 active / 待裁决）上报：宿主据此收起编辑工具栏 */
   onReadonlyChange?: (readonly: boolean) => void;
   /** 编辑模式上报（见 CollaborativeEditorMode） */
   onModeChange?: (mode: CollaborativeEditorMode) => void;
@@ -70,19 +75,33 @@ export function CollaborativeEditor(props: {
   onReadonlyChangeRef.current = props.onReadonlyChange;
   const onModeChangeRef = useRef(props.onModeChange);
   onModeChangeRef.current = props.onModeChange;
-  const onSelectionChangeRef = useRef(props.onSelectionChange);
-  onSelectionChangeRef.current = props.onSelectionChange;
+  const onDocumentChangeRef = useRef(props.onDocumentChange);
+  onDocumentChangeRef.current = props.onDocumentChange;
+  const presenceRefCallback = useRef(props.presenceRef);
+  presenceRefCallback.current = props.presenceRef;
+  // 与本机文档源共用谱系：编辑器据此在协作与本机之间换源，不重建
   const document = useMemo(
     () =>
       binding
-        ? createYjsDocument(binding, { onChange: () => onSelectionChangeRef.current() })
+        ? createYjsDocument(binding, { lineage: contentLineage(props.contentId) })
         : undefined,
-    [binding]
+    [binding, props.contentId]
   );
 
+  // 只读态为真时不上报文档源：待裁决期间正文归本机，避免云端内容盖住待决改动
   useEffect(() => {
-    onReadonlyChangeRef.current?.(readonly);
-  }, [readonly]);
+    onDocumentChangeRef.current(pendingChoice ? undefined : document);
+    return () => onDocumentChangeRef.current(undefined);
+  }, [document, pendingChoice]);
+
+  useEffect(() => {
+    presenceRefCallback.current?.(presence);
+  }, [presence]);
+
+  // 上报的是生效只读（含待裁决）：宿主的那个编辑器据此决定可否编辑
+  useEffect(() => {
+    onReadonlyChangeRef.current?.(viewReadonly);
+  }, [viewReadonly]);
 
   useEffect(() => {
     onModeChangeRef.current?.(mode);
@@ -182,26 +201,6 @@ export function CollaborativeEditor(props: {
           <span className="flex-1">{status?.label ?? "协作暂不可用"} · 正文暂为只读</span>
         </div>
       ) : null}
-
-      <div className="min-h-[45vh] pt-1">
-        <Editor
-          kit={getMobileContentKit()}
-          ref={props.editorRef}
-          key={`collab-${props.documentId}`}
-          document={document}
-          className="mobile-card-editor-content"
-          readonly={viewReadonly}
-          onFocus={() => {
-            presence.onFocus();
-            props.onEditorFocus();
-          }}
-          onBlur={() => {
-            presence.onBlur();
-            props.onEditorBlur();
-          }}
-          onSelectionChange={props.onSelectionChange}
-        />
-      </div>
 
       <LocalFallbackChoiceDialog
         open={pendingChoice}

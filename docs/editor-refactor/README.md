@@ -46,17 +46,18 @@
 | P6   | EditorKit + 文档源，替换 EditorProvider                        | ✅     |
 | P6.5 | desktop 宿主扩展收进 kit（消掉 `extensions` 透传）             | ✅     |
 | P6.6 | desktop kit 按场景拆分，恢复平滑性                             | ✅     |
-| P7   | 协作治理：`editor-collab`、会话升级、无缝换源                  | 🚧     |
+| P7   | 协作治理：`editor-collab`、会话升级、无缝换源                  | ✅     |
 | P8   | 扩展 API v2（声明式贡献点、错误隔离、codec 归属）              | ⏳     |
 | P9   | 拆包（custom-block 试点、diagram）                             | ⏳     |
 | 远期 | 第三方加载、市场、授权、custom-block 沙箱                      | 不排期 |
 
 状态图例：⏳ 未开始 / 🚧 进行中 / ✅ 完成 / ⏸ 暂停（写原因）。
 
-**下一步**：P7 第四步（mobile 的连接失败回落 / 结束共享改为同谱系换源）。已完成：第一步
-`@tau/editor-collab`（内核不再认识协作，走 `EditorDocument.binding` 受信任层，钩子表见 01 §7.2）、
-第二步同谱系换源（lineage 相同不重建编辑器）、第三步 desktop 发起 / 结束共享改为会话升级与降级。
-注意 P7 清单里的 `CollaborationServices` 已在 P6 提前删掉。
+**下一步**：P8（扩展 API v2）。P7 已完成，分四步：`@tau/editor-collab`（内核不再认识协作，走
+`EditorDocument.binding` 受信任层，钩子表见 01 §7.2）、同谱系换源（lineage 相同不重建编辑器）、
+desktop 发起 / 结束共享改为会话升级与降级、mobile 本机编辑也走 Y.Doc。
+**实机待确认**：协作 e2e、发起 / 结束共享的观感与撤销栈、白板富文本在共享模式下的测高、
+mobile 的连接失败回落与结束共享（清单见 02 P7 验收结果）。
 
 ## 5. 接手步骤
 
