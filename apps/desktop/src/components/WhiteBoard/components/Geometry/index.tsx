@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { getDesktopKit } from "@/services/editorKit";
+import { getDescriptionKit } from "@/services/editorKit";
 import { useMemoizedFn } from "ahooks";
 import { Descendant } from "slate";
 import classnames from "classnames";
@@ -267,7 +267,7 @@ const Geometry = memo((props: GeometryProps) => {
           {/* 图形可单独指定文字明暗（深色填充配浅色字），未指定时跟随宿主 */}
           <EditorThemeOverride mode={theme}>
             <Editor
-              kit={getDesktopKit()}
+              kit={getDescriptionKit()}
               ref={textRef}
               initValue={textContent}
               onFocus={handleOnFocus}

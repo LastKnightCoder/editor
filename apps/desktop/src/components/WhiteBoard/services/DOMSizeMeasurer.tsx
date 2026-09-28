@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import { getDesktopKit } from "@/services/editorKit";
+import { getLibraryContentKit } from "@/services/editorKit";
 import { Editor } from "@tau/editor";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -265,7 +265,7 @@ export class DOMSizeMeasurer {
               boxSizing: "border-box",
             }}
           >
-            <Editor kit={getDesktopKit()} initValue={content} readonly={true} />
+            <Editor kit={getLibraryContentKit()} initValue={content} readonly={true} />
           </div>
         </DndProvider>
       );
@@ -397,7 +397,7 @@ export class DOMSizeMeasurer {
               boxSizing: "border-box",
             }}
           >
-            <Editor kit={getDesktopKit()} initValue={content} readonly={true} />
+            <Editor kit={getLibraryContentKit()} initValue={content} readonly={true} />
           </div>
         </DndProvider>
       );

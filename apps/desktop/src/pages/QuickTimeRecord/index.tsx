@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getDesktopKit } from "@/services/editorKit";
+import { getDescriptionKit } from "@/services/editorKit";
 import { AutoComplete, Button, InputNumber } from "antd";
 import { Descendant } from "slate";
 import { Editor, EditorRef } from "@tau/editor/src";
@@ -62,7 +62,7 @@ const QuickTimeRecord = () => {
         <div className={styles.content}>
           <div style={{ lineHeight: 1.8 }}>事件：</div>
           <Editor
-            kit={getDesktopKit()}
+            kit={getDescriptionKit()}
             ref={editorRef}
             initValue={initValue}
             onChange={setContent}

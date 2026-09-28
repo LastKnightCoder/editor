@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getDesktopKit } from "@/services/editorKit";
+import { getLibraryContentKit } from "@/services/editorKit";
 import type React from "react";
 import { CircleCheck, CircleX, MessageSquareText, type LucideIcon } from "lucide-react";
 import { Button, ConfirmDialog, Segmented, Textarea, cn, toast } from "@tau/ui";
@@ -446,7 +446,7 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
                 <DiffHighlightedEditor content={mergedReviewContent} isDark={isDark} />
               ) : (
                 <Editor
-                  kit={getDesktopKit()}
+                  kit={getLibraryContentKit()}
                   initValue={previewContent}
                   readonly
                   className="text-ink-1"
