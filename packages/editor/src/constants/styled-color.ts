@@ -1,11 +1,13 @@
-export const enum EStyledColor {
-  Red = "red",
-  Green = "green",
-  Yellow = "yellow",
-  Blue = "blue",
-  Purple = "purple",
-  Gray = "gray",
-}
+// 用 as const 对象 + 同名联合类型代替 const enum：只含可擦除语法（同 EGalleryMode）
+export const EStyledColor = {
+  Red: "red",
+  Green: "green",
+  Yellow: "yellow",
+  Blue: "blue",
+  Purple: "purple",
+  Gray: "gray",
+} as const;
+export type EStyledColor = (typeof EStyledColor)[keyof typeof EStyledColor];
 
 export const StyledTextColorStyle = {
   light: {

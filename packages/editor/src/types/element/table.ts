@@ -1,5 +1,5 @@
-import { InlineElement } from "../custom-element";
-import { FormattedText } from "../text";
+import type { InlineElement } from "../custom-element";
+import type { FormattedText } from "../text";
 
 export interface TableCellElement {
   type: "table-cell";

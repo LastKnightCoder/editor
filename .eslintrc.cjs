@@ -88,5 +88,45 @@ module.exports = {
         "no-restricted-syntax": ["error", ...whiteboardPluginIsolation],
       },
     },
+    {
+      // @tau/markdown 是 headless 包（docs/editor-refactor 01 §8.3）：Electron 主进程在用，
+      // 不许引 UI 与编辑器运行时；元素类型只能按文件深路径 import type
+      files: ["packages/markdown/src/**/*.ts"],
+      rules: {
+        "no-restricted-imports": [
+          "error",
+          {
+            paths: [
+              {
+                name: "@tau/editor",
+                message: "@tau/markdown 不依赖编辑器运行时，元素类型按文件深路径 import type",
+              },
+              {
+                name: "@tau/editor/src",
+                message: "@tau/markdown 不依赖编辑器运行时，元素类型按文件深路径 import type",
+              },
+            ],
+            patterns: [
+              { group: ["@tau/ui/theme", "@tau/ui/theme/*"], message: "主题从 @tau/themes 导入" },
+              {
+                group: [
+                  "react",
+                  "react-dom",
+                  "react-dom/*",
+                  "slate-react",
+                  "slate-dom",
+                  "slate-history",
+                  "antd",
+                  "antd/*",
+                  "@tau/ui",
+                  "@tau/ui/*",
+                ],
+                message: "@tau/markdown 是 headless 包，不能依赖 UI / DOM 库",
+              },
+            ],
+          },
+        ],
+      },
+    },
   ],
 };

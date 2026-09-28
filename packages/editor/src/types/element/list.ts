@@ -1,4 +1,4 @@
-import { BlockElement } from "../custom-element";
+import type { BlockElement } from "../custom-element";
 
 export interface ListItemElement {
   type: "list-item";

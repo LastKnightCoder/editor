@@ -1,4 +1,4 @@
-import type { TextGradientPresetId } from "../constants";
+import type { TextGradientPresetId } from "../constants/text-gradient";
 
 export type HighlightColor = "blue" | "yellow" | "green" | "red" | "purple";
 

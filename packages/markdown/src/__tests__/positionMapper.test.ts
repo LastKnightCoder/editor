@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PositionMapper } from "../positionMapper";
+import { PositionMapper } from "../positionMapper.ts";
 
 const createCodeBlockMapper = () => {
   const mapper = new PositionMapper();

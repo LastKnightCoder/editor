@@ -42,7 +42,7 @@
 | P2   | 各平台接入 `--tau-*`（桥接，外观不变）                         | ✅     |
 | P3   | Editor 组件 token（`--ed-*`）+ ThemeService，迁移主题耦合      | ✅     |
 | P4   | 拆解 EditorConfig                                              | ✅     |
-| P5   | Markdown 合并为 headless 的 `@tau/markdown`（可与 P1–P4 穿插） | ⏳     |
+| P5   | Markdown 合并为 headless 的 `@tau/markdown`（可与 P1–P4 穿插） | 🚧     |
 | P6   | EditorKit + 文档源，替换 EditorProvider                        | ⏳     |
 | P7   | 协作治理：`editor-collab`、会话升级、无缝换源                  | ⏳     |
 | P8   | 扩展 API v2（声明式贡献点、错误隔离、codec 归属）              | ⏳     |
@@ -51,7 +51,7 @@
 
 状态图例：⏳ 未开始 / 🚧 进行中 / ✅ 完成 / ⏸ 暂停（写原因）。
 
-**下一步**：P5（Markdown 合并为 headless 的 `@tau/markdown`）或 P6（EditorKit + 文档源）。两者互不依赖；P6 依赖 P4 已完成的「EditorProvider 只剩 registry / extensions」。
+**下一步**：P5 进行中：`@tau/markdown` 已建好（desktop 实现搬入），接下来合并 editor 导入端的能力、业务 directive 移出、切换使用方。P6 与 P5 互不依赖。
 
 ## 5. 接手步骤
 
