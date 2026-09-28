@@ -1,5 +1,5 @@
 import { Descendant } from "slate";
-import { getMarkdown } from "./markdown-helper";
+import { getMarkdown } from "./markdown";
 import { htmlSerializerRegistry } from "./html-serializers";
 import { processHtmlForWechat, getWechatStyles, resolveCssVariables } from "./wechat";
 

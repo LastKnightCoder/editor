@@ -11,7 +11,7 @@ import {
   type QuestionGroupDTO,
 } from "@/commands/question-group";
 import type { IAnswer, IQuestion, QuestionEvent, QuestionMaterial } from "@/types";
-import { getMarkdown } from "@/utils/markdown-helper";
+import { getMarkdown } from "@/utils/markdown";
 
 export interface QuestionDashboardResult {
   kind: "question-dashboard";

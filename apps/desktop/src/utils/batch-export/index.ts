@@ -20,7 +20,7 @@ import { htmlSerializerRegistry } from "@/utils/html-serializers";
 import { processEpubAssets } from "@/utils/epub-export/assets";
 import { isMeaningfulHtmlFragment } from "@/utils/epub-export/chaptering";
 import { PDF_BASE_STYLES, PDF_TOC_STYLES, processCodeBlocks } from "@/utils/pdf-html-builder";
-import { getMarkdown } from "@/utils/markdown-helper";
+import { getMarkdown } from "@/utils/markdown";
 import { TextReader, Uint8ArrayWriter, ZipWriter, configure as configureZip } from "@zip.js/zip.js";
 
 /**

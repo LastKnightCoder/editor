@@ -1,6 +1,6 @@
 import { TabType } from "@/types/tab";
 import { getAllCards } from "@/commands/card";
-import { getMarkdown } from "@/utils/markdown-helper";
+import { getMarkdown } from "@/utils/markdown";
 import { BaseTabContentProvider } from "./base-provider";
 import type { ITab } from "@/types/tab";
 import type { TabContentResponse, TabContentOptions } from "../types";
@@ -10,7 +10,7 @@ export class CardListProvider extends BaseTabContentProvider<TabType.CardList> {
 
   async getContent(
     tab: ITab<TabType.CardList>,
-    options?: TabContentOptions,
+    options?: TabContentOptions
   ): Promise<TabContentResponse> {
     const metadata = this.buildMetadata(tab);
 
@@ -27,7 +27,7 @@ export class CardListProvider extends BaseTabContentProvider<TabType.CardList> {
     } = this.limitItems(allCards, options?.itemRange);
 
     // 转换为简化格式（不包含完整内容）
-    const cardList = cards.map((card) => ({
+    const cardList = cards.map(card => ({
       id: card.id,
       title: getMarkdown(card.content).split("\n")[0] || "无标题", // 第一行作为标题
       category: card.category,

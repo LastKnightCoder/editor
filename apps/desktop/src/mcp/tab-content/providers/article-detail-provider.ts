@@ -1,6 +1,6 @@
 import { TabType } from "@/types/tab";
 import { findOneArticle } from "@/commands/article";
-import { getMarkdown } from "@/utils/markdown-helper";
+import { getMarkdown } from "@/utils/markdown";
 import { BaseTabContentProvider } from "./base-provider";
 import type { ITab } from "@/types/tab";
 import type { TabContentResponse, TabContentOptions } from "../types";
@@ -14,7 +14,7 @@ export class ArticleDetailProvider extends BaseTabContentProvider<TabType.Articl
 
   async getContent(
     tab: ITab<TabType.ArticleDetail>,
-    options?: TabContentOptions,
+    options?: TabContentOptions
   ): Promise<TabContentResponse> {
     const metadata = this.buildMetadata(tab);
 
@@ -29,8 +29,10 @@ export class ArticleDetailProvider extends BaseTabContentProvider<TabType.Articl
     const markdown = getMarkdown(article.content);
 
     // 截断处理（支持范围）
-    const { content, truncated, originalLength, totalLength, range } =
-      this.truncateContent(markdown, options?.range);
+    const { content, truncated, originalLength, totalLength, range } = this.truncateContent(
+      markdown,
+      options?.range
+    );
 
     // 构建完整响应
     const fullContent = {

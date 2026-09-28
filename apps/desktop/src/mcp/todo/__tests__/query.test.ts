@@ -17,7 +17,7 @@ vi.mock("@/commands/todo", () => ({
   getCalendarMappingsByTodoIds: vi.fn(),
 }));
 
-vi.mock("@/utils/markdown-helper", () => ({
+vi.mock("@/utils/markdown", () => ({
   getMarkdown: vi.fn(() => "markdown"),
 }));
 
@@ -118,25 +118,21 @@ describe("mcp/todo/query", () => {
     vi.clearAllMocks();
     vi.mocked(todoCommands.getSystemGroups).mockResolvedValue(systemGroups);
     vi.mocked(todoCommands.listTodoGroups).mockResolvedValue(groups);
-    vi.mocked(todoCommands.listTodoItemsByType).mockImplementation(
-      async (type) => {
-        if (type === "all") {
-          return items;
-        }
-        return items.filter((item) => item.type === type);
-      },
-    );
-    vi.mocked(todoCommands.listTodoItems).mockImplementation(async (groupId) =>
-      items.filter((item) => item.groupId === groupId),
+    vi.mocked(todoCommands.listTodoItemsByType).mockImplementation(async type => {
+      if (type === "all") {
+        return items;
+      }
+      return items.filter(item => item.type === type);
+    });
+    vi.mocked(todoCommands.listTodoItems).mockImplementation(async groupId =>
+      items.filter(item => item.groupId === groupId)
     );
     vi.mocked(todoCommands.listTodoNotes).mockResolvedValue([]);
     vi.mocked(todoCommands.listTodoNotesByTodoIds).mockResolvedValue({});
     vi.mocked(todoCommands.getRecurrenceByItemId).mockResolvedValue(null);
     vi.mocked(todoCommands.getRecurrencesByItemIds).mockResolvedValue({});
     vi.mocked(todoCommands.getRecurrenceCompletions).mockResolvedValue([]);
-    vi.mocked(
-      todoCommands.getRecurrenceCompletionsByRecurrenceIds,
-    ).mockResolvedValue({});
+    vi.mocked(todoCommands.getRecurrenceCompletionsByRecurrenceIds).mockResolvedValue({});
     vi.mocked(todoCommands.getCalendarMappingsByTodo).mockResolvedValue([]);
     vi.mocked(todoCommands.getCalendarMappingsByTodoIds).mockResolvedValue({});
   });
@@ -166,7 +162,7 @@ describe("mcp/todo/query", () => {
       sort: "manual",
     });
 
-    const bucketLabels = result.groups.map((group) => group.label);
+    const bucketLabels = result.groups.map(group => group.label);
     expect(bucketLabels).toContain("已完成");
     expect(bucketLabels).toContain("已逾期");
     expect(result.summary.overdueCount).toBe(1);
@@ -183,9 +179,7 @@ describe("mcp/todo/query", () => {
     });
 
     expect(result.total).toBe(2);
-    expect(new Set(result.items.map((item) => item.groupId))).toEqual(
-      new Set([101]),
-    );
+    expect(new Set(result.items.map(item => item.groupId))).toEqual(new Set([101]));
   });
 
   it("支持使用日期字符串做时间筛选", async () => {
@@ -209,6 +203,6 @@ describe("mcp/todo/query", () => {
     expect(dashboard.summary.totalCount).toBe(3);
     expect(dashboard.pendingItems.length).toBeGreaterThan(0);
     expect(dashboard.recentCompletedItems[0]?.id).toBe(2);
-    expect(dashboard.groups.some((group) => group.title === "工作")).toBe(true);
+    expect(dashboard.groups.some(group => group.title === "工作")).toBe(true);
   });
 });
