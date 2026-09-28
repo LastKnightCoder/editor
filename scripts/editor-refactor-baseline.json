@@ -9,5 +9,6 @@
   "repo.editorProviderUsages": 0,
   "repo.uiThemeImports": 0,
   "desktop.contentEditorUsages": 12,
-  "mobile.collaborationProp": 5
+  "mobile.collaborationProp": 5,
+  "desktop.hostExtensionConsumers": 0
 }

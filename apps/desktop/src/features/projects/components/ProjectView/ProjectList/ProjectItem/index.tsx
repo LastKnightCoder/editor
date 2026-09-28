@@ -24,7 +24,6 @@ import SelectPdfModal from "@/components/SelectPdfModal";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import { useDraggingStore } from "@/stores/useDraggingStore";
 import useSettingStore from "@/stores/useSettingStore";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import {
   useProjectTreeExpandedStore,
   openEntryKey,
@@ -140,7 +139,6 @@ interface IProjectItemProps {
 }
 
 const ProjectItem = memo((props: IProjectItemProps) => {
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const {
     projectItemId,
     isRoot = false,
@@ -155,8 +153,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   } = props;
 
   const extensions = useCreation(() => {
-    return [...dynamicExtensions, createProjectCardListExtension(projectItemId)];
-  }, [projectItemId, dynamicExtensions]);
+    return [createProjectCardListExtension(projectItemId)];
+  }, [projectItemId]);
 
   const projectItemEventBus = useCreation(() => defaultProjectItemEventBus.createEditor(), []);
   const uploadResource = useUploadResource();

@@ -26,7 +26,6 @@ vi.mock("@tau/editor/src", () => ({
   },
 }));
 vi.mock("@/components/ErrorBoundary", () => ({ default: ({ children }: any) => children }));
-vi.mock("@/stores/useDynamicExtensionsStore", () => ({ default: () => [] }));
 vi.mock("../queries", () => ({
   bucketByTimeGroups: (cards: ICard[]) => [
     { label: "今天", cards: cards.filter(card => !card.isTop) },

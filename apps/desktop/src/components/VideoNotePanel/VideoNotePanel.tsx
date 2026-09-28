@@ -27,7 +27,6 @@ import EditTitleModal from "@/components/EditTitleModal";
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import useThemeColors from "@/hooks/useThemeColors";
 import useSettingStore from "@/stores/useSettingStore";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import {
   getVideoNoteById,
   getVideoNoteItemsByVideoNoteId,
@@ -93,7 +92,6 @@ const VideoNotePanel = ({
   onSubtitleMountedChange,
   reserveCloseButtonSpace = false,
 }: VideoNotePanelProps) => {
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const uploadResource = useUploadResource();
   const themeColors = useThemeColors();
   const activeDatabase = useSettingStore(state => state.setting.database.active);
@@ -212,11 +210,10 @@ const VideoNotePanel = ({
   // Custom extensions for editor
   const customExtensions = useMemo(() => {
     return [
-      ...dynamicExtensions,
       new VideoTimestampExtension(videoController),
       new VideoScreenshotExtension(videoController),
     ];
-  }, [videoController, dynamicExtensions]);
+  }, [videoController]);
 
   // Load video note data
   useEffect(() => {

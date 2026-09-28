@@ -17,7 +17,6 @@ import { AnchoredPanel } from "@tau/ui";
 import { Editor, EditorRef } from "@tau/editor/src";
 import { getCardById } from "@/commands";
 import Loading from "@/components/Loading";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import type { KnowledgeMap } from "@/knowledge-map/types";
 import { ICard } from "@/types";
 import { GraphCaption } from "./GraphCaption";
@@ -110,7 +109,6 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     return earliest;
   }, [initCards]);
 
-  const extensions = useDynamicExtensionsStore(state => state.extensions);
   const editorRef = useRef<EditorRef>(null);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [previewId, setPreviewId] = useState<number | null>(null);
@@ -240,13 +238,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
           onPointerLeave={handlePanelLeave}
         >
           <AnchoredPanel.Body className="max-h-[var(--graph-preview-max-h)]">
-            <Editor
-              kit={getDesktopKit()}
-              key={previewId}
-              ref={editorRef}
-              readonly
-              extensions={extensions}
-            />
+            <Editor kit={getDesktopKit()} key={previewId} ref={editorRef} readonly />
           </AnchoredPanel.Body>
         </AnchoredPanel>
       )}

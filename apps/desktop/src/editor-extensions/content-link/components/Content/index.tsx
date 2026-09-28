@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { AnchoredPanel, Button, PanelHasHeaderContext, cn } from "@tau/ui";
 import Editor from "@/components/ContentEditor";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { formatAgo } from "@/utils/formatAgo";
 import { IContent } from "@/types";
 
@@ -57,7 +56,6 @@ const Header = ({
 
 const Content = memo((props: IContentProps) => {
   const { content, contentType, contentTitle, unshared, onOpen, onRemove } = props;
-  const extensions = useDynamicExtensionsStore(state => state.extensions);
   const typeMeta = TYPE_META[contentType] ?? FALLBACK_META;
   const title = contentTitle || `${typeMeta.label} #${content?.id ?? ""}`.trim();
 
@@ -105,7 +103,7 @@ const Content = memo((props: IContentProps) => {
         meta={`${typeMeta.label} · ${formatAgo(content.updateTime)}编辑`}
       />
       <AnchoredPanel.Body className="max-h-[260px]">
-        <Editor key={content.id} initValue={content.content} readonly extensions={extensions} />
+        <Editor key={content.id} initValue={content.content} readonly />
       </AnchoredPanel.Body>
       <AnchoredPanel.Footer className="justify-between py-2 pl-4 pr-2.5">
         <span className="text-tau-micro text-ink-3">

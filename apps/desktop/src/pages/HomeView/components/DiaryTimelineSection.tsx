@@ -9,7 +9,6 @@ import type { MenuProps } from "antd";
 import "dayjs/locale/zh-cn";
 
 import useThemeColors from "@/hooks/useThemeColors";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
 import type { RecentSegmentItem } from "@/pages/HomeView/hooks/useHomeData";
@@ -75,7 +74,6 @@ const SegmentNode = memo(
     onTagSettingDelete,
   }: SegmentNodeProps) => {
     const themeColors = useThemeColors();
-    const extensions = useDynamicExtensionsStore(state => state.extensions);
     const { modal, message } = App.useApp();
     const { segment, diary } = item;
 
@@ -271,7 +269,6 @@ const SegmentNode = memo(
               <DiaryContentEditor
                 contentId={segment.contentId}
                 initialValue={segment.content ?? createEmptyDiaryContent()}
-                extensions={extensions}
                 placeholder="记录这一刻..."
                 className="text-sm leading-relaxed"
                 onContentChange={handleContentChange}

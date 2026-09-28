@@ -16,7 +16,6 @@ import {
   useContentEditReviewSessionStore,
   useContentEditReviewStore,
 } from "@/services/content-editing";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { DiffHighlightedEditor } from "./DiffHighlightedEditor";
 import { CompactSummary, ChangePreviewCard, FeedbackTemplates } from "./change-preview-components";
 import { generateChangePreviews } from "@/utils/review-change-preview";
@@ -110,7 +109,6 @@ const SectionShell = ({
 type PreviewMode = "diff" | "full";
 
 const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRendererProps) => {
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const [busyAction, setBusyAction] = useState("");
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
@@ -445,17 +443,12 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
           >
             <div className="border-line-1 bg-surface rounded-tau-sm max-h-[420px] overflow-y-auto border px-3 py-2.5">
               {showDiffView && mergedReviewContent ? (
-                <DiffHighlightedEditor
-                  content={mergedReviewContent}
-                  isDark={isDark}
-                  extensions={dynamicExtensions}
-                />
+                <DiffHighlightedEditor content={mergedReviewContent} isDark={isDark} />
               ) : (
                 <Editor
                   kit={getDesktopKit()}
                   initValue={previewContent}
                   readonly
-                  extensions={dynamicExtensions}
                   className="text-ink-1"
                   style={{ padding: "0 4px" }}
                 />

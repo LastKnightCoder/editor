@@ -13,7 +13,6 @@ import React, {
 import { getDesktopKit } from "@/services/editorKit";
 import clsx from "classnames";
 import { Editor, EditorThemeOverride } from "@tau/editor/src";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { MindUtil } from "@/components/WhiteBoard/utils/MindUtil";
 import { MindNodeElement } from "@/components/WhiteBoard/types/mind";
 import MindThemeUtil, {
@@ -302,7 +301,6 @@ const MindMapMeasureNode = ({
   styleOf: NodeStyleResolver;
   onMeasured: (id: string, size: { width: number; height: number }, hash: string) => void;
 }) => {
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const visualStyle = useMemo(
     () => styleOf(flattened.level, flattened.node.id),
@@ -368,12 +366,7 @@ const MindMapMeasureNode = ({
     >
       <div className="**:data-slate-editor:text-sm **:data-slate-editor:leading-[1.6] **:data-slate-editor:outline-none pointer-events-none [&_.slate-Editor]:bg-transparent">
         <EditorThemeOverride mode={visualStyle.editorTheme}>
-          <Editor
-            kit={getDesktopKit()}
-            initValue={flattened.node.text}
-            readonly
-            extensions={dynamicExtensions}
-          />
+          <Editor kit={getDesktopKit()} initValue={flattened.node.text} readonly />
         </EditorThemeOverride>
       </div>
     </div>
@@ -387,10 +380,9 @@ interface MindMapNodeContentProps {
 
 const MindMapNodeContent = memo(
   ({ value, editorTheme }: MindMapNodeContentProps) => {
-    const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
     return (
       <EditorThemeOverride mode={editorTheme}>
-        <Editor kit={getDesktopKit()} initValue={value} readonly extensions={dynamicExtensions} />
+        <Editor kit={getDesktopKit()} initValue={value} readonly />
       </EditorThemeOverride>
     );
   },

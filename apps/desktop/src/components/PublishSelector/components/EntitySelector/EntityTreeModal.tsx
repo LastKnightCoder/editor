@@ -10,7 +10,6 @@ import { collectDocNodeIds, findDocTreeNode } from "../../utils";
 import { SelectionCheckbox } from "../SelectionCheckbox";
 import { SelectAllButton } from "../SearchToolbar";
 import { FadeScroll } from "@/components/FadeScroll";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 interface EntityTreeModalProps {
   open: boolean;
@@ -25,7 +24,6 @@ interface EntityTreeModalProps {
 
 export const EntityTreeModal = memo<EntityTreeModalProps>(
   ({ open, loading, entity, nodes, currentScope, onCancel, onConfirm }) => {
-    const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
     const typeLabel = "项目";
 
     // 初始化选中的 ID
@@ -200,7 +198,6 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
                         key={previewNode.id}
                         initValue={previewNode.content}
                         readonly
-                        extensions={dynamicExtensions}
                         className="text-tau-body text-ink-1"
                       />
                     </FadeScroll>

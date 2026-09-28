@@ -3,7 +3,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Network, House, ListTree, Plus } from "lucide-react";
 import { ChevronDown } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { DEFAULT_COLUMNS, DEFAULT_ROWS } from "@/constants";
 import ProjectItem from "./ProjectItem";
 import If from "@/components/If";
@@ -77,7 +76,6 @@ import { useProjectTreeExpandedStore } from "@/features/projects/projectTreeExpa
 import { toast, Tooltip, Menu } from "@tau/ui";
 
 const Project = () => {
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const uploadResource = useUploadResource();
   const { projectId: id, itemId } = useProjectContext();
   const { navigator } = usePage();
@@ -828,7 +826,6 @@ const Project = () => {
             multiple={false}
             excludeIds={excludeCardIds}
             initialContents={initialCardContents}
-            extensions={dynamicExtensions}
           />
           <SelectWhiteBoardModal
             title={"选择关联白板"}

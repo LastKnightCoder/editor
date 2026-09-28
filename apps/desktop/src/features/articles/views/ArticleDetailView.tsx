@@ -67,7 +67,6 @@ import useEditArticle from "@/hooks/useEditArticle";
 import useEditContent from "@/hooks/useEditContent";
 import useFlashcardCreation from "@/hooks/useFlashcardCreation";
 import useUploadResource from "@/hooks/useUploadResource";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import useSettingStore from "@/stores/useSettingStore";
 import { openArticleInNewWindow, updateArticleBannerBg } from "@/commands/article";
 import { getFileBaseName, readBinaryFile, selectFile } from "@/commands";
@@ -131,7 +130,6 @@ export function ArticleDetailView() {
   const [pendingDelete, setPendingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const { remove } = useArticleMutations();
-  const extensions = useDynamicExtensionsStore(store => store.extensions);
   const uploadResource = useUploadResource();
   const databaseName = useSettingStore(state => state.setting.database.active);
   const darkMode = useSettingStore(state => state.setting.darkMode);
@@ -488,7 +486,6 @@ export function ArticleDetailView() {
                     key={`${editingArticle.id}-${editorRemountKey}`}
                     initValue={editingArticle.content}
                     onInit={onInit}
-                    extensions={extensions}
                     onChange={content => {
                       // 正文持久化 + 广播走 useEditContent（content 表），本地态供字数/目录
                       throttleHandleEditorContentChange(content);
@@ -627,7 +624,6 @@ export function ArticleDetailView() {
           }}
           wordCount={getContentLength(editingArticle.content)}
           readonly={false}
-          extensions={extensions}
         />
       )}
     </div>

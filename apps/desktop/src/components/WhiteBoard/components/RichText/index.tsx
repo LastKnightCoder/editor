@@ -8,7 +8,6 @@ import React, {
 } from "react";
 import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { EditorRef } from "@tau/editor/src";
 import Editor from "@/components/ContentEditor";
 import useEditContent from "@/hooks/useEditContent";
@@ -128,7 +127,6 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>((props: RichTextProps, r
     resizable = true,
     autoHeight = false,
   } = element;
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const { variant, tone } = resolveTextStyle(element);
   const textStyle = useMemo(() => ({ variant, tone }), [variant, tone]);
   const padding = useMemo(() => getTextBoxPadding(textStyle), [textStyle]);
@@ -515,7 +513,6 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>((props: RichTextProps, r
                 readonly={readonly}
                 onFocus={handleFocus}
                 onBlur={handleBlur}
-                extensions={dynamicExtensions}
               />
             </ErrorBoundary>
           )}

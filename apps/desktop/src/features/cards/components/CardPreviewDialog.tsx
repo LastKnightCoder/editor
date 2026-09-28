@@ -17,7 +17,6 @@ import type { EditorRef } from "@tau/editor/src";
 import AddTag from "@/components/AddTag";
 import ContentEditor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import useEditContent from "@/hooks/useEditContent";
 import { formatDate, getContentLength } from "@/utils";
 import { useCardsMutations } from "../queries";
@@ -48,7 +47,6 @@ export function CardPreviewDialog({
   onOpenChange,
   onSaved,
 }: CardPreviewDialogProps) {
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const [editing, setEditing] = useState<ICard | null>(null);
   const [initValue, setInitValue] = useState<Descendant[]>([]);
   const [displayError, setDisplayError] = useState(error);
@@ -241,7 +239,6 @@ export function CardPreviewDialog({
                 onInit={handleInit}
                 onLoadError={() => setReadyEditorId(editing.id)}
                 onChange={handleContentChange}
-                extensions={dynamicExtensions}
                 readonly={false}
                 source={{ sourceType: "card", sourceId: editing.id }}
                 className="min-h-[240px]"

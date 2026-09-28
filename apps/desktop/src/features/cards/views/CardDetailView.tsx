@@ -72,7 +72,6 @@ import FlashcardEditor from "@/components/FlashcardEditor";
 import useEditContent from "@/hooks/useEditContent";
 import useFlashcardCreation from "@/hooks/useFlashcardCreation";
 import usePodcastAttachment from "@/hooks/usePodcastAttachment";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import useSettingStore from "@/stores/useSettingStore";
 import { attachPodcastToCard, detachPodcastFromCard } from "@/commands/podcast";
 import { getScopedCard, openCardInNewWindow } from "@/commands/card";
@@ -128,7 +127,6 @@ export function CardDetailView() {
   const queryClient = useQueryClient();
   const databaseName = useSettingStore(state => state.setting.database.active);
   const darkMode = useSettingStore(state => state.setting.darkMode);
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const editorRef = useRef<EditorRef>(null);
   const collaborationRef = useRef<ContentCollaborationControlHandle>(null);
   const shared = useContentShared(card?.contentId);
@@ -506,7 +504,6 @@ export function CardDetailView() {
                   initValue={card.content}
                   onLoadError={() => undefined}
                   onChange={throttleHandleEditorContentChange}
-                  extensions={dynamicExtensions}
                   readonly={false}
                   source={{ sourceType: "card", sourceId: card.id }}
                   className="min-h-[80px]"
@@ -672,7 +669,6 @@ export function CardDetailView() {
           }}
           wordCount={card.count}
           readonly={false}
-          extensions={dynamicExtensions}
         />
       )}
     </div>

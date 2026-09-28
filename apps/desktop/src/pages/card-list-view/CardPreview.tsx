@@ -11,7 +11,6 @@ import useEditCard from "@/pages/CardDetailView/useEditCard";
 import useEditContent from "@/hooks/useEditContent";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { formatDate, defaultCardEventBus } from "@/utils";
 import CustomModal from "@/components/CustomModal";
 
@@ -24,7 +23,6 @@ interface CardPreviewProps {
 
 const CardPreview = (props: CardPreviewProps) => {
   const { cardId, visible, onClose, onGoToDetail } = props;
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const navigateTo = useTabStore(state => state.navigateTo);
   const editorRef = useRef<EditorRef>(null);
   const { message } = App.useApp();
@@ -170,7 +168,6 @@ const CardPreview = (props: CardPreviewProps) => {
                   onInit={onInit}
                   initValue={initValue}
                   onChange={onContentChange}
-                  extensions={dynamicExtensions}
                   readonly={false}
                 />
               </ErrorBoundary>

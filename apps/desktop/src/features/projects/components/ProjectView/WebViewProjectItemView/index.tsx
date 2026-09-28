@@ -87,7 +87,6 @@ import usePodcastAttachment from "@/hooks/usePodcastAttachment";
 import { attachPodcastToProjectItem, detachPodcastFromProjectItem } from "@/commands/podcast";
 import PodcastGenerationModal from "@/components/PodcastGenerationModal";
 import { usePage } from "@/page/PageProvider";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { useProjectContext } from "../ProjectContext";
 import { ReactEditor } from "slate-react";
 import type { CommentElement, CustomEditor } from "@tau/editor/src";
@@ -123,7 +122,6 @@ const hasCommentNode = (nodes: Descendant[]): boolean =>
 
 const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const { projectItemId } = props;
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
   const webviewRef = useRef<WebviewRef>(null);
   const editorRef = useRef<EditorRef>(null);
@@ -915,7 +913,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
                 initValue={currentParsedContent}
                 onChange={handleEditorChange}
                 readonly={isAnyClipping}
-                extensions={dynamicExtensions}
                 onInit={editorInstance => {
                   slateEditorRef.current = editorInstance as CustomEditor;
                 }}
@@ -982,7 +979,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
           initValue={noteContents[activeNote.contentId] ?? createEmptyEditorContent()}
           onChange={handleNoteChange}
           readonly={false}
-          extensions={dynamicExtensions}
         />
       </FadeScroll>
     );

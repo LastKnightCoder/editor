@@ -53,7 +53,6 @@ import { useTabContext } from "@/contexts/TabContext";
 import useFlashcardCreation from "@/hooks/useFlashcardCreation";
 import usePodcastAttachment from "@/hooks/usePodcastAttachment";
 import useSettingStore from "@/stores/useSettingStore";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import DeckSelectorModal from "@/components/DeckSelectorModal";
 import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
 import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModal";
@@ -100,7 +99,6 @@ interface IEditArticleProps {
 
 const EditArticle = memo((props: IEditArticleProps) => {
   const { articleId, defaultReadonly = true, onStatusBarChange } = props;
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const { message } = App.useApp();
   const darkMode = useSettingStore(state => state.setting.darkMode);
 
@@ -654,7 +652,6 @@ const EditArticle = memo((props: IEditArticleProps) => {
                   ref={editorRef}
                   initValue={editingArticle.content}
                   onInit={onInit}
-                  extensions={dynamicExtensions}
                   onChange={handleOnEditorContentChange}
                   onSelectionChange={handleEditorSelectionChange}
                   onFocus={handleEditorFocus}
@@ -756,7 +753,6 @@ const EditArticle = memo((props: IEditArticleProps) => {
           onExit={handleImmersiveExit}
           wordCount={editingArticle.count}
           readonly={readonly}
-          extensions={dynamicExtensions}
         />
       )}
     </div>

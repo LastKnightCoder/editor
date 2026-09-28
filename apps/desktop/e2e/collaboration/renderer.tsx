@@ -11,6 +11,7 @@ import CollaborativeTitle from "../../src/components/CollaborativeTitle";
 import ContentCollaborationControl from "../../src/components/ContentCollaborationControl";
 import JoinRequestNotifications from "../../src/components/JoinRequestNotifications";
 import useSettingStore from "../../src/stores/useSettingStore";
+import useDynamicExtensionsStore from "../../src/stores/useDynamicExtensionsStore";
 import "../../src/tailwind.css";
 
 useSettingStore.setState(state => ({
@@ -75,4 +76,10 @@ function View() {
     </App>
   );
 }
-createRoot(document.getElementById("root")!).render(<View />);
+// 宿主扩展先装载再渲染（与 src/main.tsx 同序）：kit 只建一次，装载晚了补不回来
+void useDynamicExtensionsStore
+  .getState()
+  .initExtensions()
+  .then(() => {
+    createRoot(document.getElementById("root")!).render(<View />);
+  });

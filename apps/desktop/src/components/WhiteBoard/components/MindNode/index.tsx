@@ -24,7 +24,6 @@ import { ECreateBoardElementType, EMarkerType, MindNodeElement } from "../../typ
 import { createContent, incrementContentRefCount } from "@/commands/content";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import { SearchResult } from "@/types/search";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 interface MindNodeProps {
   element: MindNodeElement;
@@ -67,7 +66,6 @@ const DEFAULT_CONTENT: Descendant[] = [
 
 const MindNode = (props: MindNodeProps) => {
   const { element } = props;
-  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
 
   const { id, x, y, width, height, text, defaultFocus, isLeftFold, isRightFold, direction } =
     element;
@@ -509,7 +507,6 @@ const MindNode = (props: MindNodeProps) => {
                 style={editorStyle}
                 onChange={onContentChange}
                 onBlur={handleBlur}
-                extensions={dynamicExtensions}
               />
             </EditorThemeOverride>
           </div>
@@ -652,7 +649,6 @@ const MindNode = (props: MindNodeProps) => {
         onCancel={() => setContentSelectorOpen(false)}
         onSelect={onSelectContent}
         contentType={["article", "card", "project-item", "diary-daily"]}
-        extensions={dynamicExtensions}
         title="选择笔记"
       />
     </>

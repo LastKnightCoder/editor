@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { Button, Dialog, DialogBody, IconButton, Input, Menu, toast } from "@tau/ui";
 import { IAnswer } from "@/types";
-import { IExtension, EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor/src";
 import Editor from "@/components/ContentEditor";
 import { Descendant } from "slate";
 import { useMemoizedFn, useUnmount } from "ahooks";
@@ -27,7 +27,6 @@ import { getEditorText } from "@/utils/editor";
 interface AnswerModalProps {
   visible: boolean;
   selectedAnswer: IAnswer | null;
-  extensions: IExtension[];
   onClose: () => void;
   onAnswerChange?: (answer: IAnswer) => void;
   readOnly?: boolean;
@@ -43,7 +42,6 @@ const ICON = { size: 14, strokeWidth: 1.75 } as const;
 const AnswerModal: React.FC<AnswerModalProps> = ({
   visible,
   selectedAnswer,
-  extensions,
   onClose,
   onAnswerChange,
   readOnly = false,
@@ -307,7 +305,6 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
                       ref={editorRef}
                       readonly={readOnly}
                       initValue={selectedAnswer.content}
-                      extensions={extensions}
                       onChange={handleAnswerContentChange}
                     />
                   </motion.div>
