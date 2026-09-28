@@ -1,14 +1,8 @@
 import React, { useRef, useState, memo, useEffect } from "react";
 import classnames from "classnames";
 import { Editor, Transforms } from "slate";
-import {
-  RenderElementProps,
-  useSlateStatic,
-  useReadOnly,
-  ReactEditor,
-} from "slate-react";
+import { RenderElementProps, useSlateStatic, useReadOnly, ReactEditor } from "slate-react";
 
-import useTheme from "../../../../hooks/useTheme";
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 import useIsLastElement from "../../../../hooks/useIsLastElement";
 import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
@@ -22,10 +16,7 @@ import type { DetailElement } from "../../../types";
 import AddParagraph from "../../../../components/AddParagraph";
 import EditorContextMenu from "../../../../components/EditorContextMenu";
 import { buildDetailMenuItems } from "../../utils/menuItems";
-import {
-  registerBlockNavigation,
-  unregisterBlockNavigation,
-} from "../../../../utils";
+import { registerBlockNavigation, unregisterBlockNavigation } from "../../../../utils";
 
 import styles from "./index.module.less";
 
@@ -56,14 +47,12 @@ const DragHandler = memo(
         <MdDragIndicator className={styles.icon} />
       </div>
     );
-  },
+  }
 );
 
 DragHandler.displayName = "DragHandler";
 
-const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (
-  props,
-) => {
+const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = props => {
   const { attributes, children, element } = props;
 
   const { open = false } = element;
@@ -72,19 +61,17 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (
   const [title, setTitle] = useState<string>(element.title || "DETAIL");
   const titleRef = useRef<HTMLDivElement>(null);
   const isLast = useIsLastElement(element);
-  const { isDark } = useTheme();
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
-  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
-    useDragAndDrop({
-      element,
-    });
+  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
+    element,
+  });
   const { message } = App.useApp();
 
   const { menuProps, dragHandlerProps } = useDragHandlerMenu({
     element,
     editor,
-    buildMenuItems: (params) => buildDetailMenuItems(params, message),
+    buildMenuItems: params => buildDetailMenuItems(params, message),
   });
 
   useEffect(() => {
@@ -93,11 +80,7 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (
 
   const onTitleBlur = () => {
     const path = ReactEditor.findPath(editor, element);
-    Transforms.setNodes(
-      editor,
-      { title: titleRef.current?.innerText },
-      { at: path },
-    );
+    Transforms.setNodes(editor, { title: titleRef.current?.innerText }, { at: path });
     setTitle(titleRef.current?.innerText || "DETAIL");
   };
 
@@ -129,9 +112,7 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (
       }
 
       ReactEditor.focus(editor);
-      const point = toEnd
-        ? Editor.end(editor, path)
-        : Editor.start(editor, path);
+      const point = toEnd ? Editor.end(editor, path) : Editor.start(editor, path);
       Transforms.select(editor, point);
       return true;
     };
@@ -153,22 +134,17 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (
       }}
     >
       <div
-        ref={(node) => {
+        ref={node => {
           drop(node);
         }}
         className={classnames(styles.container, {
-          [styles.dark]: isDark,
           [styles.dragging]: isDragging,
           [styles.drop]: isOverCurrent && canDrop,
           [styles.before]: isBefore,
           [styles.after]: !isBefore,
         })}
       >
-        <div
-          className={styles.title}
-          contentEditable={false}
-          style={{ userSelect: "none" }}
-        >
+        <div className={styles.title} contentEditable={false} style={{ userSelect: "none" }}>
           <div className={arrowClass} onClick={toggleShowContent}>
             <CaretRightOutlined />
           </div>
@@ -186,11 +162,7 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (
           <div {...attributes}>{children}</div>
         </div>
       </div>
-      <DragHandler
-        drag={drag}
-        canDrag={canDrag}
-        onClick={dragHandlerProps.onClick}
-      />
+      <DragHandler drag={drag} canDrag={canDrag} onClick={dragHandlerProps.onClick} />
       <EditorContextMenu {...menuProps} readonly={readOnly} />
       {!(readOnly && isLast) && <AddParagraph element={element} />}
     </div>

@@ -185,7 +185,7 @@
         bottom: 0;
         height: 3em;
         pointer-events: none;
-        background: linear-gradient(180deg, rgba(246, 248, 250, 0) 0%, rgba(246, 248, 250, 1) 100%);
+        background: linear-gradient(180deg, transparent 0%, var(--ed-code-bg) 100%);
       }
     }
 
@@ -196,7 +196,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      color: rgba(0, 0, 0, 0.45);
+      color: var(--ed-text-tertiary);
       cursor: pointer;
       transition: color 0.2s ease;
       opacity: 0;
@@ -204,7 +204,7 @@
       z-index: 4;
 
       &:hover {
-        color: rgba(0, 0, 0, 0.75);
+        color: var(--ed-text);
       }
     }
 
@@ -227,7 +227,7 @@
         width: 2.5em;
         height: 0.25em;
         border-radius: 0.125em;
-        background-color: rgba(0, 0, 0, 0.15);
+        background-color: var(--ed-border);
       }
     }
 
@@ -242,7 +242,7 @@
         pointer-events: auto;
 
         .resizeIndicator {
-          background-color: rgba(0, 0, 0, 0.3);
+          background-color: var(--ed-text-tertiary);
         }
       }
     }
@@ -332,36 +332,6 @@
     opacity: 0.3;
   }
 
-  &.dark {
-    .codeViewport {
-      &.folded::after {
-        background: linear-gradient(180deg, rgba(40, 42, 52, 0) 0%, rgba(40, 42, 52, 1) 100%);
-      }
-
-      .foldToggle {
-        color: rgba(255, 255, 255, 0.55);
-
-        &:hover {
-          color: rgba(255, 255, 255, 0.85);
-        }
-      }
-
-      .resizeHandle {
-        .resizeIndicator {
-          background-color: rgba(255, 255, 255, 0.2);
-        }
-      }
-
-      &:hover {
-        .resizeHandle {
-          .resizeIndicator {
-            background-color: rgba(255, 255, 255, 0.4);
-          }
-        }
-      }
-    }
-  }
-
   @import "../../../drag-common.less";
   @import "../../../drop-common.less";
 }
@@ -377,15 +347,8 @@
   --ed-code-pad-right: 0.85em;
   --ed-code-pad-top: 1.2em;
   --ed-code-pad-bottom: 1.2em;
-  --content-bg-color: rgba(255, 255, 255, 0.3);
-  --box-shadow: 0 4px 25px rgba(0, 0, 0, 0.15);
   background-color: var(--ed-glass-bg);
   backdrop-filter: blur(var(--ed-glass-blur));
-
-  &.darkOverlay {
-    --content-bg-color: rgba(30, 30, 30, 0.1);
-    --box-shadow: 0 4px 25px rgba(255, 255, 255, 0.15);
-  }
 }
 
 .fullscreenContent {
@@ -397,19 +360,9 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: var(--box-shadow);
-  background-color: var(--content-bg-color);
+  box-shadow: var(--ed-shadow-float);
+  background-color: var(--ed-glass-bg);
   backdrop-filter: blur(var(--ed-glass-blur));
-
-  &.dark {
-    .fullscreenHeader {
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .fullscreenLanguageSelect {
-      color: rgba(255, 255, 255, 0.8);
-    }
-  }
 }
 
 .fullscreenHeader {
@@ -417,7 +370,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.625em 1.25em;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid var(--ed-border);
   height: 2.5em;
   position: relative;
   z-index: 2;
