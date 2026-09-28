@@ -1,4 +1,5 @@
 import React, { MouseEvent, useMemo, useRef, memo, useState } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import classnames from "classnames";
 import { IoResizeOutline } from "react-icons/io5";
 import { MdMoreHoriz } from "react-icons/md";
@@ -210,6 +211,7 @@ const CardItem = memo(
           </div>
           <ErrorBoundary>
             <Editor
+              kit={getDesktopKit()}
               ref={editorRef}
               className="max-h-75 pointer-events-none overflow-hidden"
               readonly={true}

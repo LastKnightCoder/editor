@@ -4,9 +4,6 @@ import zhCN from "antd/locale/zh_CN";
 import { RouterProvider } from "react-router-dom";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { EditorProvider } from "@tau/editor/src";
-import { createEditorRegistry } from "@/services/editorRegistry";
-import { createDesktopEditorExtensions } from "@/editor-extensions";
 import {
   BilibiliVideoDepsProvider,
   YoutubeVideoDepsProvider,
@@ -75,9 +72,6 @@ const Application = () => {
   useWeReadSessionBootstrap();
 
   const [isFocused, setIsFocused] = useState(true);
-
-  const editorRegistry = useMemo(() => createEditorRegistry(), []);
-  const editorExtensions = useMemo(() => createDesktopEditorExtensions(), []);
 
   const bilibiliDeps: UseBilibiliVideoDeps = useMemo(
     () => ({
@@ -399,30 +393,24 @@ const Application = () => {
           <YoutubeVideoDepsProvider deps={youtubeDeps}>
             <RemoteVideoDepsProvider deps={remoteVideoDeps}>
               <EditDatabaseDepsProvider deps={editDatabaseDeps}>
-                <EditorProvider
-                  registry={editorRegistry}
-
-                  extensions={editorExtensions}
+                <App
+                  style={{
+                    height: "100%",
+                    fontSize: "var(--font-size)",
+                    color: "var(--th-text)",
+                  }}
                 >
-                  <App
-                    style={{
-                      height: "100%",
-                      fontSize: "var(--font-size)",
-                      color: "var(--th-text)",
-                    }}
-                  >
-                    <AutoSyncManager />
-                    <AutoUpdateChecker />
-                    <MediaModalHost />
-                    <ConversationFlashcardModal />
-                    <ExtNoteInsertModal />
-                    <DndProvider backend={HTML5Backend}>
-                      <GlobalFindBar />
-                      <JoinRequestNotifications />
-                      <RouterProvider router={router} />
-                    </DndProvider>
-                  </App>
-                </EditorProvider>
+                  <AutoSyncManager />
+                  <AutoUpdateChecker />
+                  <MediaModalHost />
+                  <ConversationFlashcardModal />
+                  <ExtNoteInsertModal />
+                  <DndProvider backend={HTML5Backend}>
+                    <GlobalFindBar />
+                    <JoinRequestNotifications />
+                    <RouterProvider router={router} />
+                  </DndProvider>
+                </App>
               </EditDatabaseDepsProvider>
             </RemoteVideoDepsProvider>
           </YoutubeVideoDepsProvider>

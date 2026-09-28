@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -778,6 +779,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
         <FadeScroll className="min-h-0 flex-1">
           <div className="pb-8 pl-8 pr-[26px] pt-5 [&_[data-slate-editor]]:outline-none">
             <Editor
+              kit={getDesktopKit()}
               ref={editorRef}
               key={`video-note-ebook-${videoNoteId}-${editorSessionId}`}
               initValue={draftContent}

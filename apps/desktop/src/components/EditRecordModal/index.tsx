@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import { useMemoizedFn } from "ahooks";
 import { InputNumber, AutoComplete } from "antd";
 import { produce } from "immer";
@@ -22,61 +23,61 @@ interface EditRecordModalProps {
 const EditRecordModal = (props: EditRecordModalProps) => {
   const { title, open, onOk, onCancel, timeRecord } = props;
 
-  const [editingTimeRecord, setEditingTimeRecord] =
-    useState<ITimeRecord | null>(timeRecord);
+  const [editingTimeRecord, setEditingTimeRecord] = useState<ITimeRecord | null>(timeRecord);
   const [allTimeTypes, setAllTimeTypes] = useState<string[]>([]);
-  const [allEventTypesGroupByTimeType, setAllEventTypesGroupByTimeType] =
-    useState<{ [timeType: string]: string[] }>({});
+  const [allEventTypesGroupByTimeType, setAllEventTypesGroupByTimeType] = useState<{
+    [timeType: string]: string[];
+  }>({});
   useEffect(() => {
-    getAllTimeTypes().then((res) => {
+    getAllTimeTypes().then(res => {
       setAllTimeTypes(res);
     });
-    getAllEventTypesGroupByTimeType().then((res) => {
+    getAllEventTypesGroupByTimeType().then(res => {
       setAllEventTypesGroupByTimeType(res);
     });
   }, []);
 
   const eventTypeOptions = useMemo(() => {
-    return (
-      allEventTypesGroupByTimeType[editingTimeRecord?.timeType || ""] || []
-    ).map((eventType) => ({
-      value: eventType,
-    }));
+    return (allEventTypesGroupByTimeType[editingTimeRecord?.timeType || ""] || []).map(
+      eventType => ({
+        value: eventType,
+      })
+    );
   }, [editingTimeRecord?.timeType]);
 
   const onContentChange = useMemoizedFn((value: Descendant[]) => {
     if (!editingTimeRecord) return;
     setEditingTimeRecord(
-      produce(editingTimeRecord, (draft) => {
+      produce(editingTimeRecord, draft => {
         draft.content = value;
-      }),
+      })
     );
   });
 
   const onCostChange = useMemoizedFn((cost: number | null) => {
     if (!editingTimeRecord || !cost) return;
     setEditingTimeRecord(
-      produce(editingTimeRecord, (draft) => {
+      produce(editingTimeRecord, draft => {
         draft.cost = cost;
-      }),
+      })
     );
   });
 
   const onEventTypeChange = useMemoizedFn((eventType: string) => {
     if (!editingTimeRecord) return;
     setEditingTimeRecord(
-      produce(editingTimeRecord, (draft) => {
+      produce(editingTimeRecord, draft => {
         draft.eventType = eventType;
-      }),
+      })
     );
   });
 
   const onTimeTypeChange = useMemoizedFn((timeType: string) => {
     if (!editingTimeRecord) return;
     setEditingTimeRecord(
-      produce(editingTimeRecord, (draft) => {
+      produce(editingTimeRecord, draft => {
         draft.timeType = timeType;
-      }),
+      })
     );
   });
 
@@ -96,6 +97,7 @@ const EditRecordModal = (props: EditRecordModalProps) => {
         <div className={styles.content}>
           <div>事件：</div>
           <Editor
+            kit={getDesktopKit()}
             style={{ flex: "auto" }}
             initValue={editingTimeRecord.content}
             onChange={onContentChange}
@@ -107,7 +109,7 @@ const EditRecordModal = (props: EditRecordModalProps) => {
           <AutoComplete
             value={editingTimeRecord.timeType}
             style={{ width: 200 }}
-            options={allTimeTypes.map((timeType) => ({
+            options={allTimeTypes.map(timeType => ({
               value: timeType,
             }))}
             filterOption={(inputValue, option) => {

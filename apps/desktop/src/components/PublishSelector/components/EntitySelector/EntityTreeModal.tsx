@@ -1,4 +1,5 @@
 import { memo, useState, useMemo, useCallback, useEffect } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import clsx from "clsx";
 import { Dialog, Button, Spinner } from "@tau/ui";
 import { Editor } from "@tau/editor/src";
@@ -195,6 +196,7 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
                   {previewNode.hasContent ? (
                     <FadeScroll className="mb-4 min-h-0 flex-1 px-7 pb-2 pt-4">
                       <Editor
+                        kit={getDesktopKit()}
                         key={previewNode.id}
                         initValue={previewNode.content}
                         readonly

@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import { Descendant } from "slate";
 import { Editor, IExtension } from "@tau/editor/src";
 import FlashcardBlankExtension from "@/editor-extensions/flashcard-blank";
@@ -18,6 +19,7 @@ const RichTextRenderer = ({ content, isDark = false, className = "" }: RichTextR
   return (
     <div className={className}>
       <Editor
+        kit={getDesktopKit()}
         initValue={content}
         readonly={true}
         extensions={extensions}

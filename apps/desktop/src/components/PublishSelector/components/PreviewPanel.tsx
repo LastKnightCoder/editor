@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { Eye } from "lucide-react";
 import { Editor } from "@tau/editor/src";
+import { getDesktopBareKit } from "@/services/editorKit";
 import { Descendant } from "slate";
 
 interface PreviewPanelProps {
@@ -31,10 +32,11 @@ export const PreviewPanel = memo<PreviewPanelProps>(
         )}
 
         <div className="flex-1 overflow-y-auto p-4">
+          {/* 发布预览要与 blog 输出一致：裸 kit，不带任何宿主块扩展 */}
           <Editor
+            kit={getDesktopBareKit()}
             initValue={content}
             readonly
-            disableStartExtensions
             className="text-tau-body text-ink-1"
             style={{ minHeight: 200 }}
           />

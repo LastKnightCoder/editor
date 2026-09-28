@@ -7,6 +7,7 @@ import {
   type ChangeEvent,
   type ComponentProps,
 } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import { useMemoizedFn } from "ahooks";
 import {
   ArrowUp,
@@ -742,6 +743,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         >
           <div className="max-h-[min(240px,34vh)] overflow-y-auto overflow-x-hidden overscroll-contain pr-1">
             <Editor
+              kit={getDesktopKit()}
               ref={editorRef}
               initValue={editorContent}
               onChange={value => {

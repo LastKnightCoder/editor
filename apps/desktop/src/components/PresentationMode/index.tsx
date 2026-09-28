@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
+import { getDesktopKit } from "@/services/editorKit";
 import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
 import { Editor, EditorRef } from "@tau/editor/src";
@@ -22,13 +23,8 @@ interface PresentationModeProps {
   onExit: () => void;
 }
 
-const PresentationMode: React.FC<PresentationModeProps> = ({
-  content,
-  onExit,
-}) => {
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
+const PresentationMode: React.FC<PresentationModeProps> = ({ content, onExit }) => {
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const [showTip, setShowTip] = useState(true);
   const [isOverview, setIsOverview] = useState(false);
   const [isExitingOverview, setIsExitingOverview] = useState(false);
@@ -42,7 +38,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
   const { showHelp, closeHelp, toggleHelp } = useHelpModal();
 
   // 从设置中获取暗黑模式状态和切换方法
-  const { darkMode, onDarkModeChange } = useSettingStore((state) => ({
+  const { darkMode, onDarkModeChange } = useSettingStore(state => ({
     darkMode: state.setting.darkMode,
     onDarkModeChange: state.onDarkModeChange,
   }));
@@ -196,7 +192,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
       <div
         ref={presentationModeRef}
         className={styles.presentationMode}
-        onClick={(e) => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
       >
         {isOverview ? (
           <OverviewMode
@@ -211,6 +207,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
           <>
             <div className={styles.presentationContent}>
               <Editor
+                kit={getDesktopKit()}
                 ref={presentationEditorRef}
                 readonly={true}
                 initValue={slides[currentSlide] || []}
@@ -225,10 +222,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
         )}
 
         {showCloseIcon && (
-          <div
-            className={classnames(styles.closeIcon, styles.floatingButton)}
-            onClick={onExit}
-          >
+          <div className={classnames(styles.closeIcon, styles.floatingButton)} onClick={onExit}>
             <svg
               viewBox="0 0 24 24"
               width="24"
@@ -244,10 +238,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
 
         {showBackToTop && (
           <div
-            className={classnames(
-              styles.backToTopButton,
-              styles.floatingButton,
-            )}
+            className={classnames(styles.backToTopButton, styles.floatingButton)}
             onClick={scrollToTop}
           >
             <svg
@@ -267,9 +258,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
           {currentSlide + 1} / {slides.length}
         </div>
 
-        {showTip && (
-          <div className={styles.tipMessage}>按 ESC 退出演示模式</div>
-        )}
+        {showTip && <div className={styles.tipMessage}>按 ESC 退出演示模式</div>}
 
         {message && <div className={styles.tipMessage}>{message}</div>}
 
