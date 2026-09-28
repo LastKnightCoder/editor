@@ -26,6 +26,7 @@
     "typescript": "^5.7.0"
   },
   "scripts": {
+    "test": "vitest run",
     "build": "node build.mjs",
     "dev": "node build.mjs --watch",
     "start": "node build.mjs && ./bin/dev.sh",

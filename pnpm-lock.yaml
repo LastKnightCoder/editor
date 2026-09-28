@@ -1379,9 +1379,22 @@ importers:
 
   packages/db-schema:
     dependencies:
+      adm-zip:
+        specifier: ^0.5.16
+        version: 0.5.18
+      proper-lockfile:
+        specifier: ^4.1.2
+        version: 4.1.2
       words-count:
         specifier: ^2.0.2
         version: 2.0.2
+    devDependencies:
+      '@types/adm-zip':
+        specifier: ^0.5.8
+        version: 0.5.8
+      '@types/proper-lockfile':
+        specifier: ^4.1.4
+        version: 4.1.4
 
   packages/editor:
     dependencies:
@@ -6128,6 +6141,9 @@ packages:
 
   '@types/plist@3.0.5':
     resolution: {integrity: sha512-E6OCaRmAe4WDmWNsL/9RMqdkkzDCY1etutkflWk4c+AcjDU07Pcz1fQwTX0TQz+Pxqn9i4L1TU3UFpjnrcDgxA==}
+
+  '@types/proper-lockfile@4.1.4':
+    resolution: {integrity: sha512-uo2ABllncSqg9F1D4nugVl9v93RmjxF6LJzQLMLDdPaXCUIDPeOJ21Gbqi43xNKzBi/WQ0Q0dICqufzQbMjipQ==}
 
   '@types/qs@6.14.0':
     resolution: {integrity: sha512-eOunJqu0K1923aExK6y8p6fsihYEn/BYuQ4g0CxAAgFc4b/ZLN4CrsRZ55srTdqoiLzU2B2evC+apEIxprEzkQ==}
@@ -17730,6 +17746,10 @@ snapshots:
       '@types/node': 24.12.4
       xmlbuilder: 15.1.1
     optional: true
+
+  '@types/proper-lockfile@4.1.4':
+    dependencies:
+      '@types/retry': 0.12.0
 
   '@types/qs@6.14.0': {}
 

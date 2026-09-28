@@ -71,6 +71,21 @@ class UserSettingModule {
     return { ...this.userSetting };
   }
 
+  async updateSyncVersion(name: string, version: number): Promise<void> {
+    await this.ensureSettingLoaded();
+    const database = this.userSetting.database;
+    const rows = database?.databases as Array<{ name: string; version: number }> | undefined;
+    if (!rows?.some(row => row.name === name)) throw new Error("数据库已从设置中移除");
+    this.handleSetUserSetting({
+      ...this.userSetting,
+      database: {
+        ...database,
+        databases: rows.map(row => (row.name === name ? { ...row, version } : row)),
+      },
+    });
+    await this.savingChain;
+  }
+
   private notifySettingChanged(payload: SettingChangedPayload) {
     this.settingChangeListeners.forEach(listener => {
       try {

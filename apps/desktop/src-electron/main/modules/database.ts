@@ -90,6 +90,7 @@ import { migrateLegacyChatsToSessions } from "./chat-session-migration";
 import { mergeChatSessionBranches } from "./chat-session-tree-migration";
 import { retireLegacyChats } from "./legacy-chat-retirement";
 import { recoverSessionDownload } from "./pi-session-store";
+import { assertDatabaseNotSyncing } from "@tau/db-schema/sync";
 import { chatSessionDirOf } from "./pi-session-paths";
 
 export type DatabaseConnectMode = "normal" | "maintenance";
@@ -304,10 +305,11 @@ class DatabaseModule implements Module {
     return newDatabaseName;
   }
 
-  openDatabase(name: string, mode: DatabaseConnectMode = "maintenance") {
+  openDatabase(name: string, mode: DatabaseConnectMode = "maintenance", allowOwnedSync = false) {
     const startedAt = Date.now();
     const appDir = PathUtil.getAppDir();
     const dbPath = join(appDir, `${this.formatDatabaseName(name)}.db`);
+    assertDatabaseNotSyncing(dbPath, allowOwnedSync);
     recoverSessionDownload(dbPath);
     log.info(`[database] openDatabase start: db=${name}, mode=${mode}, dbPath=${dbPath}`);
 
@@ -541,16 +543,20 @@ class DatabaseModule implements Module {
     }
   }
 
-  reconnectForSync(name: string, source: DatabaseReconnectSource) {
+  async reconnectForSync(name: string, source: DatabaseReconnectSource) {
     log.info(`[database] reconnectForSync: db=${name}, source=${source}`);
     if (this.databases.has(name)) {
       this.databases.get(name)!.close();
       mainContentIndexDBManager.closeDatabase(name);
     }
-    const database = this.openDatabase(name, "normal");
+    const database = this.openDatabase(
+      name,
+      source === "sync_download_reconnect" ? "maintenance" : "normal",
+      true
+    );
     this.databases.set(name, database);
     if (source === "sync_download_reconnect") {
-      this.mergeChatSessionTrees(
+      await this.migrateChatSessions(
         database,
         name,
         join(PathUtil.getAppDir(), `${this.formatDatabaseName(name)}.db`)
@@ -627,7 +633,11 @@ class DatabaseModule implements Module {
           this.databases.get(name)!.close();
           mainContentIndexDBManager.closeDatabase(name);
         }
-        const database = this.openDatabase(name, connectMode);
+        const database = this.openDatabase(
+          name,
+          connectMode,
+          source === "sync_upload_reconnect" || source === "sync_download_reconnect"
+        );
         this.databases.set(name, database);
         // 老对话迁到 pi 会话文件（M4）：必须在 notifyDatabaseConnected 之前跑完——
         // 渲染端一连上就查目录表，迁移没完成会看到空列表

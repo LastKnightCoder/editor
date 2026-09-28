@@ -7,20 +7,11 @@
  * - 浏览器扩展对话：`browser-sessions/<页面键>/`，无索引表——列表、标题（pi session name）
  *   全部取自会话文件本身；分支在文件内部的会话树上（M4-d）。
  */
-import {
-  existsSync,
-  copyFileSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  renameSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
-import { basename, dirname, join } from "node:path";
-import { randomUUID } from "node:crypto";
-import AdmZip from "adm-zip";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { basename } from "node:path";
+import { installSessionDownload as installPairedSnapshot } from "@tau/db-schema/sync";
 import Database from "better-sqlite3";
+import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
 import type { ChatSessionMessage } from "@/types";
 import type { PiBrowserSessionInfo } from "@/types/pi-session";
@@ -35,7 +26,7 @@ import {
   type ConversationTreeNode,
 } from "./pi-session-files";
 import { graftSessionFile } from "./pi-session-graft";
-import { browserSessionDirOf, findSessionFileById, resolveSessionFile } from "./pi-session-paths";
+import { browserSessionDirOf, findSessionFileById } from "./pi-session-paths";
 
 /** 读会话投影；文件不存在（首轮没等到回答 pi 不落盘）= 空对话 */
 export function readTranscript(file: string | undefined, sessionDir: string): ChatSessionMessage[] {
@@ -178,142 +169,22 @@ export const renameBrowserSession = (pageUrl: string, sessionId: string, title: 
 export const deleteBrowserSession = (pageUrl: string, sessionId: string) =>
   deleteSessionInDir(browserSessionDirOf(pageUrl), sessionId);
 
-// ── 同步：会话目录打包 / 解包 ───────────────────────────────────────────────────
-
-/** 空 zip 的固定字节（End of central directory，22 字节）：与「坏包」区分开 */
-const isEmptyZip = (archive: Buffer) =>
-  archive.length === 22 && archive.subarray(0, 4).toString("hex") === "504b0506";
-
-/** 把会话目录打成 zip（只收 .jsonl；目录不存在给空包，表示「本机没有会话」） */
-export function packSessionDir(sessionDir: string): Buffer {
-  const zip = new AdmZip();
-  if (existsSync(sessionDir)) {
-    for (const name of readdirSync(sessionDir)) {
-      if (name.endsWith(".jsonl")) zip.addLocalFile(join(sessionDir, name));
-    }
-  }
-  return zip.toBuffer();
-}
-
-/**
- * 用下载的会话包替换本地会话目录：先把整个目录挪进 backupRoot 备份，再解包。
- * 解包失败时把备份挪回来，本地不会落到「半截目录」。条目名只取 basename，防 zip 路径穿越。
- */
-export function replaceSessionDir(
-  sessionDir: string,
-  archive: Buffer,
-  backupRoot: string
-): { backupPath?: string } {
-  mkdirSync(backupRoot, { recursive: true });
-  let backupPath: string | undefined;
-  if (existsSync(sessionDir)) {
-    backupPath = join(backupRoot, `${basename(sessionDir)}-sessions-${Date.now()}`);
-    renameSync(sessionDir, backupPath);
-  }
-  // 落到临时文件再按路径打开：adm-zip 的 Buffer 模式在某些运行环境里读不出条目（实测 vitest 下
-  // 同一个包 getEntries() 为空），按路径读两处都稳
-  const tempPath = join(backupRoot, `sessions-download-${Date.now()}.zip`);
-  try {
-    writeFileSync(tempPath, archive);
-    mkdirSync(sessionDir, { recursive: true });
-    const entries = new AdmZip(tempPath).getEntries();
-    // 空包有两种：本机没有对话（合法），或下载到的不是 zip（adm-zip 对坏数据不抛，只给空清单）。
-    // 非空载荷却解不出条目就是坏包，按失败回滚，免得把本地会话换成空目录
-    if (entries.length === 0 && archive.length > 0 && !isEmptyZip(archive)) {
-      throw new Error("会话包内容无法解析");
-    }
-    for (const entry of entries) {
-      if (entry.isDirectory) continue;
-      // 条目名只取文件名：包里带路径也只落在会话目录内（防 zip 路径穿越）
-      const name = basename(entry.entryName);
-      if (!name.endsWith(".jsonl")) continue;
-      writeFileSync(join(sessionDir, name), entry.getData());
-    }
-    return backupPath ? { backupPath } : {};
-  } catch (error) {
-    rmSync(sessionDir, { recursive: true, force: true });
-    if (backupPath) {
-      mkdirSync(dirname(sessionDir), { recursive: true });
-      renameSync(backupPath, sessionDir);
-    }
-    throw error;
-  } finally {
-    rmSync(tempPath, { force: true });
-  }
-}
-
-/** 下载提交前留下回滚日志；下次开库先恢复未提交的数据库与会话目录。 */
-export function recoverSessionDownload(databasePath: string): void {
-  const journal = `${databasePath}.session-sync.json`;
-  if (!existsSync(journal)) return;
-  const transaction = JSON.parse(readFileSync(journal, "utf8")) as {
-    databaseBackup: string;
-    sessionDir: string;
-    sessionsBackup: string;
-    hadSessions: boolean;
-    stage: string;
-  };
-  copyFileSync(transaction.databaseBackup, databasePath);
-  if (existsSync(transaction.sessionsBackup)) {
-    rmSync(transaction.sessionDir, { recursive: true, force: true });
-    renameSync(transaction.sessionsBackup, transaction.sessionDir);
-  } else if (!transaction.hadSessions) {
-    rmSync(transaction.sessionDir, { recursive: true, force: true });
-  }
-  rmSync(transaction.stage, { recursive: true, force: true });
-  rmSync(journal);
-}
+// 同步协议由公共 Node 入口维护，桌面只提供本进程的 SQLite 实现。
+export { packSessionDir, replaceSessionDir, recoverSessionDownload } from "@tau/db-schema/sync";
 
 export function installSessionDownload(
   databasePath: string,
   sessionDir: string,
   archive?: Buffer
 ): void {
-  recoverSessionDownload(databasePath);
-  const download = `${databasePath}.download.tmp`;
-  if (!archive) {
-    renameSync(download, databasePath);
-    return;
-  }
-  const stamp = randomUUID();
-  const stage = `${sessionDir}.download-${stamp}`;
-  const databaseBackup = `${databasePath}.pre-session-sync-${stamp}.bak`;
-  const sessionsBackup = `${sessionDir}.pre-session-sync-${stamp}`;
-  const journal = `${databasePath}.session-sync.json`;
-  try {
-    replaceSessionDir(stage, archive, dirname(databaseBackup));
-    for (const name of readdirSync(stage)) SessionManager.open(join(stage, name));
-    const db = new Database(download, { readonly: true, fileMustExist: true });
+  installPairedSnapshot(databasePath, sessionDir, archive, path => {
+    const db = new Database(path, { readonly: true, fileMustExist: true });
     try {
-      if (db.prepare("SELECT 1 FROM sqlite_master WHERE name='chat_session'").get()) {
-        const rows = db
-          .prepare("SELECT session_file FROM chat_session WHERE message_count > 0")
-          .all() as Array<{ session_file: string }>;
-        for (const row of rows) {
-          if (!existsSync(resolveSessionFile(stage, row.session_file)))
-            throw new Error(`会话包缺少文件：${row.session_file}`);
-        }
-      }
-    } finally {
+      loadSqliteVecExtension(db);
+      return db;
+    } catch (error) {
       db.close();
+      throw error;
     }
-    copyFileSync(databasePath, databaseBackup);
-    const hadSessions = existsSync(sessionDir);
-    writeFileSync(
-      `${journal}.tmp`,
-      JSON.stringify({ databaseBackup, sessionDir, sessionsBackup, hadSessions, stage }),
-      { flag: "wx" }
-    );
-    renameSync(`${journal}.tmp`, journal);
-    if (hadSessions) renameSync(sessionDir, sessionsBackup);
-    renameSync(stage, sessionDir);
-    renameSync(download, databasePath);
-    rmSync(journal);
-  } catch (error) {
-    recoverSessionDownload(databasePath);
-    throw error;
-  } finally {
-    rmSync(`${journal}.tmp`, { force: true });
-    rmSync(stage, { recursive: true, force: true });
-  }
+  });
 }
