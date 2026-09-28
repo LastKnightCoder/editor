@@ -45,8 +45,6 @@ const row = (patch: Partial<ChatSessionRow> & Pick<ChatSessionRow, "id">): ChatS
   archived: false,
   source: "desktop",
   messageCount: 1,
-  parentSessionId: null,
-  branchIndex: 0,
   createTime: 1,
   updateTime: 1,
   ...patch,

@@ -54,7 +54,6 @@ describe("PdfTable.removePdf", () => {
     expect(runCalls).toEqual([
       { sql: "DELETE FROM pdf_annotations WHERE pdf_id = ?", args: [42] },
       { sql: "DELETE FROM pdf_bookmarks WHERE pdf_id = ?", args: [42] },
-      { sql: "DELETE FROM pdf_chats WHERE pdf_id = ?", args: [42] },
       { sql: "DELETE FROM pdfs WHERE id = ?", args: [42] },
     ]);
     expect(mockFns.deleteDatabase).toHaveBeenCalledWith(":memory:", 42);

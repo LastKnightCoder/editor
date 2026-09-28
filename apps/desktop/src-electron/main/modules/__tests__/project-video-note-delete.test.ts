@@ -23,7 +23,7 @@ import ContentTable from "../tables/content";
 import ProjectTable from "../tables/project";
 import VideoNoteTable from "../tables/video-note";
 import VideoNoteItemTable from "../tables/video-note-item";
-import VideoNoteChatTable from "../tables/video-note-chat";
+import ChatSessionTable from "../tables/chat-session";
 
 function createTestDatabase() {
   const db = new Database(":memory:");
@@ -31,7 +31,6 @@ function createTestDatabase() {
   ProjectTable.upgradeTable(db);
   VideoNoteItemTable.upgradeTable(db);
   VideoNoteTable.upgradeTable(db);
-  VideoNoteChatTable.upgradeTable(db);
   return db;
 }
 
@@ -63,9 +62,7 @@ describe("ProjectTable.deleteProject(VideoNote)", () => {
     });
 
     const contentId = ContentTable.createContent(db, {
-      content: [
-        { type: "paragraph", children: [{ text: "视频笔记正文" }] },
-      ] as any,
+      content: [{ type: "paragraph", children: [{ text: "视频笔记正文" }] }] as any,
       count: 1,
     });
     VideoNoteItemTable.create(db, {
@@ -73,10 +70,11 @@ describe("ProjectTable.deleteProject(VideoNote)", () => {
       contentId,
       title: "默认卡片",
     });
-    VideoNoteChatTable.createChat(db, {
-      videoNoteId: videoNote.id,
-      title: "视频对话",
-      messages: [] as any,
+    ChatSessionTable.create(db, {
+      id: "video-chat",
+      scope: "video-note-chat",
+      domainRef: String(videoNote.id),
+      sessionFile: "video-chat.jsonl",
     });
 
     const [, projectItem] = ProjectTable.addRootProjectItem(db, project.id, {
@@ -93,78 +91,58 @@ describe("ProjectTable.deleteProject(VideoNote)", () => {
 
     expect(
       (
-        db
-          .prepare("SELECT COUNT(*) as count FROM video_notes WHERE id = ?")
-          .get(videoNote.id) as { count: number }
-      ).count,
+        db.prepare("SELECT COUNT(*) as count FROM video_notes WHERE id = ?").get(videoNote.id) as {
+          count: number;
+        }
+      ).count
     ).toBe(1);
     expect(
       (
         db
-          .prepare(
-            "SELECT COUNT(*) as count FROM video_note_item WHERE video_note_id = ?",
-          )
+          .prepare("SELECT COUNT(*) as count FROM video_note_item WHERE video_note_id = ?")
           .get(videoNote.id) as { count: number }
-      ).count,
+      ).count
     ).toBe(1);
-    expect(
-      (
-        db
-          .prepare(
-            "SELECT COUNT(*) as count FROM video_note_chats WHERE video_note_id = ?",
-          )
-          .get(videoNote.id) as { count: number }
-      ).count,
-    ).toBe(1);
+    expect(ChatSessionTable.getById(db, "video-chat")).not.toBeNull();
 
     const deleteChanges = ProjectTable.deleteProject(db, project.id);
     expect(deleteChanges).toBe(1);
 
     expect(
       (
-        db
-          .prepare("SELECT COUNT(*) as count FROM project WHERE id = ?")
-          .get(project.id) as { count: number }
-      ).count,
+        db.prepare("SELECT COUNT(*) as count FROM project WHERE id = ?").get(project.id) as {
+          count: number;
+        }
+      ).count
     ).toBe(0);
     expect(
       (
         db.prepare("SELECT COUNT(*) as count FROM project_item").get() as {
           count: number;
         }
-      ).count,
+      ).count
+    ).toBe(0);
+    expect(
+      (
+        db.prepare("SELECT COUNT(*) as count FROM video_notes WHERE id = ?").get(videoNote.id) as {
+          count: number;
+        }
+      ).count
     ).toBe(0);
     expect(
       (
         db
-          .prepare("SELECT COUNT(*) as count FROM video_notes WHERE id = ?")
+          .prepare("SELECT COUNT(*) as count FROM video_note_item WHERE video_note_id = ?")
           .get(videoNote.id) as { count: number }
-      ).count,
+      ).count
     ).toBe(0);
+    expect(ChatSessionTable.getById(db, "video-chat")).toBeNull();
     expect(
       (
-        db
-          .prepare(
-            "SELECT COUNT(*) as count FROM video_note_item WHERE video_note_id = ?",
-          )
-          .get(videoNote.id) as { count: number }
-      ).count,
-    ).toBe(0);
-    expect(
-      (
-        db
-          .prepare(
-            "SELECT COUNT(*) as count FROM video_note_chats WHERE video_note_id = ?",
-          )
-          .get(videoNote.id) as { count: number }
-      ).count,
-    ).toBe(0);
-    expect(
-      (
-        db
-          .prepare("SELECT COUNT(*) as count FROM contents WHERE id = ?")
-          .get(contentId) as { count: number }
-      ).count,
+        db.prepare("SELECT COUNT(*) as count FROM contents WHERE id = ?").get(contentId) as {
+          count: number;
+        }
+      ).count
     ).toBe(0);
   });
 });

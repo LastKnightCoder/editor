@@ -16,8 +16,6 @@ const chat = (n: number, patch: Partial<ChatSessionRow> = {}): ChatSessionRow =>
   archived: false,
   source: "desktop",
   messageCount: 1,
-  parentSessionId: null,
-  branchIndex: 0,
   createTime: 0,
   updateTime: n,
   ...patch,

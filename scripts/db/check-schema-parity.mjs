@@ -12,8 +12,8 @@ const mainSchemaPath = path.join(schemaDir, "main.sql");
 const indexSchemaPath = path.join(schemaDir, "index.sql");
 const vecTemplatePath = path.join(schemaDir, "index/20_vec_template.sql");
 
-const MAIN_TABLE_COUNT = 69;
-const MAIN_INDEX_COUNT = 118;
+const MAIN_TABLE_COUNT = 64;
+const MAIN_INDEX_COUNT = 105;
 const INDEX_CORE_TABLES = ["content_fts", "vec_index_meta", "index_meta"];
 const REMOVED_TABLES = [
   "rss_feed",
@@ -36,6 +36,11 @@ const REMOVED_TABLES = [
   "epub_annotations",
   "epub_bookmarks",
   "chat_run",
+  "chat_message",
+  "pdf_chats",
+  "video_note_chats",
+  "vibe_learning_chats",
+  "audio_note_chats",
 ];
 
 function readText(filePath) {

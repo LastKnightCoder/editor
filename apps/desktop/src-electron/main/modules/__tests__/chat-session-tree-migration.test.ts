@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
 import { mergeChatSessionBranches } from "../chat-session-tree-migration";
 import { migrateLegacyChatsToSessions } from "../chat-session-migration";
+import { retireLegacyChats } from "../legacy-chat-retirement";
 import { graftSessionFile } from "../pi-session-graft";
 import { omitEntries, switchToVersion, writeSessionFile } from "../pi-session-files";
 import { loadSessionTranscript } from "../pi-session-host-core";
@@ -194,18 +195,27 @@ describe.skipIf(!nativeAvailable)("目录表里的分支族合并", () => {
   beforeEach(() => {
     db = new Database(":memory:");
     ChatSessionTable.upgradeTable(db);
+    db.exec(
+      "ALTER TABLE chat_session ADD COLUMN parent_session_id TEXT; ALTER TABLE chat_session ADD COLUMN branch_index INTEGER NOT NULL DEFAULT 0"
+    );
   });
   afterEach(() => db.close());
 
-  const register = (id: string, file: string, parent: string | null = null, title = id) =>
-    ChatSessionTable.create(db, {
-      id,
-      scope: "main-chat",
-      sessionFile: file,
-      title,
-      parentSessionId: parent,
-      branchIndex: parent ? 1 : 0,
-    });
+  /** M4 时期的目录行：分支关系在 parent_session_id / branch_index 两列上（M8 起新表没有这两列） */
+  const register = (id: string, file: string, parent: string | null = null, title = id) => {
+    ChatSessionTable.create(db, { id, scope: "main-chat", sessionFile: file, title });
+    db.prepare("UPDATE chat_session SET parent_session_id = ?, branch_index = ? WHERE id = ?").run(
+      parent,
+      parent ? 1 : 0,
+      id
+    );
+  };
+  const parentOf = (id: string) =>
+    (
+      db.prepare("SELECT parent_session_id AS p FROM chat_session WHERE id = ?").get(id) as {
+        p: string | null;
+      }
+    ).p;
   const merge = () => mergeChatSessionBranches({ db, databasePath: ":memory:", sessionDir });
 
   it("子分支与孙分支都并进根文件：分支行与文件删掉，根对话多出版本；备份会话目录；只跑一次", () => {
@@ -255,7 +265,7 @@ describe.skipIf(!nativeAvailable)("目录表里的分支族合并", () => {
     expect(merge()).toMatchObject({ merged: 0, detached: 1 });
     const rows = ChatSessionTable.list(db, { includeArchived: true });
     expect(rows.map(row => row.id).sort()).toEqual(["root", "stray"]);
-    expect(rows.every(row => row.parentSessionId === null)).toBe(true);
+    expect(rows.every(row => parentOf(row.id) === null)).toBe(true);
     expect(readdirSync(sessionDir).sort()).toEqual([root, stray].sort());
   });
 
@@ -276,7 +286,12 @@ describe.skipIf(!nativeAvailable)("目录表里的分支族合并", () => {
     fresh.close();
   });
 
-  it("端到端：老数据的分支族（一行一文件、entry id 随机）→ 老对话迁移 → 树合并", async () => {
+  it("端到端：老数据的分支族（一行一分支、entry id 随机）→ 老对话迁移当场并成树 → 树合并只记账 → 旧表退役", async () => {
+    const fresh = new Database(":memory:");
+    ChatSessionTable.upgradeTable(fresh);
+    const previous = db;
+    db = fresh;
+    previous.close();
     db.exec(`CREATE TABLE chat_message (
       id INTEGER PRIMARY KEY, create_time INTEGER NOT NULL, update_time INTEGER NOT NULL, messages TEXT,
       title TEXT, group_id INTEGER, archived INTEGER DEFAULT 0, parent_chat_id INTEGER,
@@ -296,16 +311,82 @@ describe.skipIf(!nativeAvailable)("目录表里的分支族合并", () => {
       1
     );
 
-    await migrateLegacyChatsToSessions({ db, databasePath: ":memory:", sessionDir, cwd: workDir });
-    expect(merge()).toMatchObject({ merged: 1, detached: 0 });
+    // 旧表退役要等两次迁移都记账：迁移前不动
+    expect(retireLegacyChats(db, ":memory:")).toMatchObject({ retired: false });
 
-    const [row] = ChatSessionTable.list(db, { includeArchived: true });
+    const migrated = await migrateLegacyChatsToSessions({
+      db,
+      databasePath: ":memory:",
+      sessionDir,
+      cwd: workDir,
+    });
+    expect(migrated).toMatchObject({ migrated: 2, merged: 1, failed: [] });
+    expect(merge()).toMatchObject({ skipped: false, merged: 0, detached: 0 });
+
+    const [row, ...others] = ChatSessionTable.list(db, { includeArchived: true });
+    expect(others).toEqual([]);
     expect(row.title).toBe("主干");
+    expect(readdirSync(sessionDir)).toEqual([row.sessionFile]);
     const file = join(sessionDir, row.sessionFile);
     const versions = usersOf(file, sessionDir)[1].piVersions!;
     expect(versions.ids).toHaveLength(2);
     switchToVersion(SessionManager.open(file), versions.ids[1]);
     expect(texts(file, sessionDir)).toEqual(["问一", "答一", "分支问", "分支答"]);
+
+    expect(retireLegacyChats(db, ":memory:")).toMatchObject({
+      retired: true,
+      droppedTables: ["chat_message"],
+      droppedBranchColumns: false,
+    });
+    expect(
+      db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='chat_message'").get()
+    ).toBeUndefined();
+    expect(retireLegacyChats(db, ":memory:")).toMatchObject({ retired: false });
+  });
+
+  it("M4 时期的库：树合并后旧表与分支列一起退役，目录行与会话文件保留，删前备份整库", () => {
+    const dir = mkdtempSync(join(tmpdir(), "legacy-chat-retire-"));
+    const dbPath = join(dir, "main.db");
+    const disk = new Database(dbPath);
+    try {
+      ChatSessionTable.upgradeTable(disk);
+      disk.exec(`ALTER TABLE chat_session ADD COLUMN parent_session_id TEXT;
+        ALTER TABLE chat_session ADD COLUMN branch_index INTEGER NOT NULL DEFAULT 0;
+        CREATE INDEX idx_chat_session_parent ON chat_session(parent_session_id);
+        CREATE TABLE pdf_chats (id INTEGER PRIMARY KEY, pdf_id INTEGER, messages TEXT);
+        CREATE INDEX idx_pdf_chat_pdf_id ON pdf_chats(pdf_id);
+        CREATE TABLE audio_note_chats (id INTEGER PRIMARY KEY, messages TEXT);
+        INSERT INTO audio_note_chats VALUES (1, '[]');
+        CREATE TABLE migration_meta (key TEXT PRIMARY KEY, value TEXT);
+        INSERT INTO migration_meta VALUES ('chat-session-pi-jsonl:v1', '{}');`);
+      const root = writeChat(sessionDir, "root", [["问一", "答一"]]);
+      ChatSessionTable.create(disk, { id: "root", scope: "main-chat", sessionFile: root });
+      // 树合并还没跑：不退役（分支列还要读）
+      expect(retireLegacyChats(disk, dbPath)).toMatchObject({ retired: false });
+      mergeChatSessionBranches({ db: disk, databasePath: dbPath, sessionDir });
+
+      const result = retireLegacyChats(disk, dbPath);
+      expect(result).toMatchObject({
+        retired: true,
+        droppedTables: ["pdf_chats", "audio_note_chats"],
+        droppedBranchColumns: true,
+      });
+      expect(result.backupPath && existsSync(result.backupPath)).toBeTruthy();
+      const columns = (
+        disk.prepare("PRAGMA table_info(chat_session)").all() as Array<{ name: string }>
+      ).map(column => column.name);
+      expect(columns).not.toContain("parent_session_id");
+      expect(columns).not.toContain("branch_index");
+      expect(ChatSessionTable.getById(disk, "root")).toMatchObject({ sessionFile: root });
+      expect(existsSync(join(sessionDir, root))).toBe(true);
+      // 丢弃的 audio_note_chats 只在备份里（用户裁决）
+      const backup = new Database(result.backupPath!, { readonly: true });
+      expect(backup.prepare("SELECT COUNT(*) AS n FROM audio_note_chats").get()).toEqual({ n: 1 });
+      backup.close();
+    } finally {
+      disk.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

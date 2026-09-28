@@ -35,6 +35,12 @@ interface BranchRow {
   parent_session_id: string;
 }
 
+/** M4 时期的库：目录表上还有分支关系列（M8 起由 legacy-chat-retirement 删掉） */
+export const hasBranchColumns = (db: Database.Database): boolean =>
+  (db.prepare("PRAGMA table_info(chat_session)").all() as Array<{ name: string }>).some(
+    column => column.name === "parent_session_id"
+  );
+
 export function mergeChatSessionBranches(options: {
   db: Database.Database;
   databasePath: string;
@@ -48,11 +54,14 @@ export function mergeChatSessionBranches(options: {
     .get(CHAT_SESSION_TREE_MIGRATION_KEY);
   if (done) return { skipped: true, merged: 0, detached: 0, failed: [] };
 
-  const rows = db
-    .prepare(
-      "SELECT id, session_file, parent_session_id FROM chat_session WHERE parent_session_id IS NOT NULL"
-    )
-    .all() as BranchRow[];
+  // 新装机与 M8 之后的库没有分支列：老对话迁移已在迁移时直接合并，这里只记账
+  const rows = hasBranchColumns(db)
+    ? (db
+        .prepare(
+          "SELECT id, session_file, parent_session_id FROM chat_session WHERE parent_session_id IS NOT NULL"
+        )
+        .all() as BranchRow[])
+    : [];
 
   let backupPath: string | undefined;
   if (rows.length > 0) {
@@ -66,8 +75,41 @@ export function mergeChatSessionBranches(options: {
     }
   }
 
+  const { merged, detached, failed } = mergeBranchFamilies(
+    db,
+    sessionDir,
+    rows.map(row => ({
+      id: row.id,
+      sessionFile: row.session_file,
+      parentId: row.parent_session_id,
+    }))
+  );
+  // 并完的分支行已删；剩下的（降级成独立对话的）清掉父子关系
+  if (rows.length > 0) {
+    db.exec(
+      "UPDATE chat_session SET parent_session_id = NULL, branch_index = 0 WHERE parent_session_id IS NOT NULL"
+    );
+  }
+
+  db.prepare("INSERT OR REPLACE INTO migration_meta (key, value) VALUES (?, ?)").run(
+    CHAT_SESSION_TREE_MIGRATION_KEY,
+    JSON.stringify({ merged, detached, failed: failed.length, at: Date.now() })
+  );
+  return { skipped: false, merged, detached, failed, ...(backupPath ? { backupPath } : {}) };
+}
+
+/**
+ * 把一组分支（目录行 + 会话文件）并进各自父对话的文件：按深度从深到浅，孙分支先并进子分支、
+ * 子分支再并进根。并进去的分支删掉文件与目录行；对不上（第一条消息就不同）或出错的保留为独立对话。
+ * 父子关系只在内存里（老对话迁移直接传入，M4 时期的库由上面从分支列读出）。
+ */
+export function mergeBranchFamilies(
+  db: Database.Database,
+  sessionDir: string,
+  branches: Array<{ id: string; sessionFile: string; parentId: string }>
+): Pick<ChatSessionTreeMigrationResult, "merged" | "detached" | "failed"> {
   // 深度：沿父指针数到根。孙分支先并，父分支文件那时还在
-  const parentOf = new Map(rows.map(row => [row.id, row.parent_session_id]));
+  const parentOf = new Map(branches.map(branch => [branch.id, branch.parentId]));
   const depthOf = (id: string): number => {
     let depth = 0;
     let cursor = parentOf.get(id);
@@ -79,57 +121,44 @@ export function mergeChatSessionBranches(options: {
     }
     return depth;
   };
-  const ordered = [...rows].sort((a, b) => depthOf(b.id) - depthOf(a.id));
+  const ordered = [...branches].sort((a, b) => depthOf(b.id) - depthOf(a.id));
 
   const fileOf = db.prepare("SELECT session_file FROM chat_session WHERE id = ?");
-  const detach = db.prepare(
-    "UPDATE chat_session SET parent_session_id = NULL, branch_index = 0 WHERE id = ?"
-  );
   const removeRow = db.prepare("DELETE FROM chat_session WHERE id = ?");
-  const reparent = db.prepare(
-    "UPDATE chat_session SET parent_session_id = ? WHERE parent_session_id = ?"
-  );
   const failed: ChatSessionTreeMigrationResult["failed"] = [];
   let merged = 0;
   let detached = 0;
 
-  for (const row of ordered) {
+  for (const branch of ordered) {
     try {
-      const parentFile = (fileOf.get(row.parent_session_id) as { session_file: string } | undefined)
+      const parentFile = (fileOf.get(branch.parentId) as { session_file: string } | undefined)
         ?.session_file;
-      const branchPath = resolveSessionFile(sessionDir, row.session_file);
+      const branchPath = resolveSessionFile(sessionDir, branch.sessionFile);
       const parentPath = parentFile ? resolveSessionFile(sessionDir, parentFile) : undefined;
       if (!existsSync(branchPath)) {
         // 分支还没落盘（首轮没等到回答）：没有内容可并，行也没有意义
-        removeRow.run(row.id);
+        removeRow.run(branch.id);
         merged += 1;
         continue;
       }
       if (!parentPath || !existsSync(parentPath)) {
-        detach.run(row.id);
         detached += 1;
         continue;
       }
       const outcome = graftSessionFile(parentPath, branchPath);
       if (outcome.kind === "unrelated") {
-        detach.run(row.id);
         detached += 1;
         continue;
       }
-      // 理论上孙分支都已先并掉；保险起见把残留的子行挂到父上
-      reparent.run(row.parent_session_id, row.id);
-      removeRow.run(row.id);
+      removeRow.run(branch.id);
       rmSync(branchPath, { force: true });
       merged += 1;
     } catch (error) {
-      detach.run(row.id);
-      failed.push({ id: row.id, error: error instanceof Error ? error.message : String(error) });
+      failed.push({
+        id: branch.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
-
-  db.prepare("INSERT OR REPLACE INTO migration_meta (key, value) VALUES (?, ?)").run(
-    CHAT_SESSION_TREE_MIGRATION_KEY,
-    JSON.stringify({ merged, detached, failed: failed.length, at: Date.now() })
-  );
-  return { skipped: false, merged, detached, failed, ...(backupPath ? { backupPath } : {}) };
+  return { merged, detached, failed };
 }

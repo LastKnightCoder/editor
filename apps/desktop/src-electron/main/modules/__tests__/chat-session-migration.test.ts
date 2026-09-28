@@ -170,15 +170,50 @@ describe.skipIf(!nativeAvailable)("老对话迁移到 pi 会话", () => {
     expect((db.prepare("SELECT COUNT(*) AS n FROM chat_message").get() as { n: number }).n).toBe(2);
   });
 
-  it("分支父子关系先原样迁过来（子行指向父会话、分支序号不变），由树合并迁移再并进父文件", async () => {
-    insertMain(1, [{ role: "user", content: "主干" }]);
-    insertMain(2, [{ role: "user", content: "分支" }], { parent: 1, branch: 3 });
-    await migrate();
+  it("分支行迁完当场并进父对话的会话树；第一条消息就对不上的留作独立对话", async () => {
+    insertMain(1, [
+      { role: "user", content: "主干" },
+      { role: "assistant", content: "答" },
+    ]);
+    insertMain(
+      2,
+      [
+        { role: "user", content: "主干" },
+        { role: "assistant", content: "答" },
+        { role: "user", content: "接着问" },
+        { role: "assistant", content: "再答" },
+      ],
+      { parent: 1, branch: 3 }
+    );
+    insertMain(3, [{ role: "user", content: "另起炉灶" }], { parent: 1, branch: 4 });
+    const result = await migrate();
+    expect(result).toMatchObject({ migrated: 3, merged: 1, failed: [] });
 
     const rows = ChatSessionTable.list(db, { scope: "main-chat" });
-    const root = rows.find(row => row.parentSessionId === null)!;
-    const branch = rows.find(row => row.parentSessionId !== null)!;
-    expect(branch).toMatchObject({ parentSessionId: root.id, branchIndex: 3 });
+    expect(rows.map(row => row.title).sort()).toEqual(["对话 1", "对话 3"]);
+    expect(readdirSync(sessionDir)).toHaveLength(2);
+  });
+
+  it("很老的库缺后加的列（标题、分支等）：按空值迁移", async () => {
+    const old = new Database(":memory:");
+    try {
+      old.exec(
+        "CREATE TABLE chat_message (id INTEGER PRIMARY KEY, create_time INTEGER NOT NULL, update_time INTEGER NOT NULL, messages TEXT)"
+      );
+      old
+        .prepare("INSERT INTO chat_message VALUES (1, 1, 2, ?)")
+        .run(JSON.stringify([{ role: "user", content: "早年的对话" }]));
+      const result = await migrateLegacyChatsToSessions({
+        db: old,
+        databasePath: ":memory:",
+        sessionDir,
+        cwd: workDir,
+      });
+      expect(result).toMatchObject({ migrated: 1, failed: [] });
+      expect(ChatSessionTable.list(old, { includeArchived: true })).toHaveLength(1);
+    } finally {
+      old.close();
+    }
   });
 
   it("重开老对话：文件卡片原样显示，工具卡结果保留，思考内容不迁", async () => {

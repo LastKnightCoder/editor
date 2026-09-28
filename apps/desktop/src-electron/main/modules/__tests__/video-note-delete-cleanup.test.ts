@@ -26,14 +26,13 @@ import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sq
 import ContentTable from "../tables/content";
 import VideoNoteTable from "../tables/video-note";
 import VideoNoteItemTable from "../tables/video-note-item";
-import VideoNoteChatTable from "../tables/video-note-chat";
+import ChatSessionTable from "../tables/chat-session";
 
 function createTestDatabase() {
   const db = new Database(":memory:");
   db.exec(MAIN_SCHEMA_SQL);
   VideoNoteItemTable.upgradeTable(db);
   VideoNoteTable.upgradeTable(db);
-  VideoNoteChatTable.upgradeTable(db);
   return db;
 }
 
@@ -75,41 +74,36 @@ describe("VideoNoteTable.deleteVideoNote", () => {
       title: "卡片 2",
     });
 
-    const rootChat = VideoNoteChatTable.createChat(db, {
-      videoNoteId: videoNote.id,
-      title: "主会话",
-      messages: [] as any,
-    });
-    VideoNoteChatTable.createChat(db, {
-      videoNoteId: videoNote.id,
-      title: "分支会话",
-      messages: [] as any,
-      parentChatId: rootChat.id,
-      branchIndex: 0,
+    for (const id of ["chat-a", "chat-b"]) {
+      ChatSessionTable.create(db, {
+        id,
+        scope: "video-note-chat",
+        domainRef: String(videoNote.id),
+        sessionFile: `${id}.jsonl`,
+      });
+    }
+    // 别的视频笔记的对话不受影响
+    ChatSessionTable.create(db, {
+      id: "chat-other",
+      scope: "video-note-chat",
+      domainRef: String(videoNote.id + 1),
+      sessionFile: "chat-other.jsonl",
     });
 
     const deleteChanges = VideoNoteTable.deleteVideoNote(db, videoNote.id);
     expect(deleteChanges).toBe(1);
 
     const noteCount = (
-      db
-        .prepare("SELECT COUNT(*) as count FROM video_notes WHERE id = ?")
-        .get(videoNote.id) as { count: number }
+      db.prepare("SELECT COUNT(*) as count FROM video_notes WHERE id = ?").get(videoNote.id) as {
+        count: number;
+      }
     ).count;
     const itemCount = (
       db
-        .prepare(
-          "SELECT COUNT(*) as count FROM video_note_item WHERE video_note_id = ?",
-        )
+        .prepare("SELECT COUNT(*) as count FROM video_note_item WHERE video_note_id = ?")
         .get(videoNote.id) as { count: number }
     ).count;
-    const chatCount = (
-      db
-        .prepare(
-          "SELECT COUNT(*) as count FROM video_note_chats WHERE video_note_id = ?",
-        )
-        .get(videoNote.id) as { count: number }
-    ).count;
+    const chatIds = ChatSessionTable.list(db, { scope: "video-note-chat" }).map(row => row.id);
     const contentCount = (
       db
         .prepare("SELECT COUNT(*) as count FROM contents WHERE id IN (?, ?)")
@@ -118,11 +112,8 @@ describe("VideoNoteTable.deleteVideoNote", () => {
 
     expect(noteCount).toBe(0);
     expect(itemCount).toBe(0);
-    expect(chatCount).toBe(0);
+    expect(chatIds).toEqual(["chat-other"]);
     expect(contentCount).toBe(0);
-    expect(mockFns.cleanupVideoNoteArtifacts).toHaveBeenCalledWith(
-      basename(db.name),
-      videoNote.id,
-    );
+    expect(mockFns.cleanupVideoNoteArtifacts).toHaveBeenCalledWith(basename(db.name), videoNote.id);
   });
 });

@@ -4,7 +4,6 @@ import { basename } from "node:path";
 import { AudioNote } from "@/types";
 import Operation from "./operation";
 import AudioNoteItemTable from "./audio-note-item";
-import AudioNoteChatTable from "./audio-note-chat";
 
 interface AudioNoteRow {
   id: number;
@@ -286,7 +285,6 @@ export default class AudioNoteTable {
   ): number {
     const result = db.transaction(() => {
       AudioNoteItemTable.removeByAudioNoteId(db, id);
-      AudioNoteChatTable.deleteChatsByAudioNoteId(db, id);
 
       const stmt = db.prepare(`
         DELETE FROM audio_notes WHERE id = ?

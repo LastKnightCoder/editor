@@ -1,5 +1,3 @@
-import type { ChatSessionMessage } from "./llm";
-
 export type VLResourceType =
   | "pdf"
   | "audio"
@@ -169,36 +167,6 @@ export interface VLSearchParams {
   mainDbName: string;
   query: string;
   limit?: number;
-}
-
-export interface VLChatMessage {
-  id: number;
-  projectId: number;
-  createTime: number;
-  updateTime: number;
-  messages: ChatSessionMessage[];
-  messageSchemaVersion?: number;
-  title: string;
-  archived?: boolean;
-  parentChatId?: number | null;
-  branchIndex?: number;
-}
-
-export interface CreateVLChat {
-  projectId: number;
-  messages: ChatSessionMessage[];
-  title?: string;
-  parentChatId?: number | null;
-  branchIndex?: number;
-}
-
-export interface UpdateVLChat {
-  id: number;
-  messages?: ChatSessionMessage[];
-  title?: string;
-  archived?: boolean;
-  parentChatId?: number | null;
-  branchIndex?: number;
 }
 
 export type VLNoteType =

@@ -1,12 +1,13 @@
 /**
- * 老对话一次性迁移（M4）：五张旧聊天表的每一行 → 一个 pi 会话文件 + 一行 chat_session 目录。
+ * 老对话一次性迁移（M4）：四张旧聊天表的每一行 → 一个 pi 会话文件 + 一行 chat_session 目录。
  *
- * - 一行一会话，分支关系靠 parent_session_id + branch_index 保留（分支语义换 pi 会话树留给 M4-d）。
+ * - 一行一会话；旧的分支行迁完后当场并进父对话文件的会话树（M4-d 语义，嫁接见 pi-session-graft），
+ *   对不上的留作独立对话。
  * - 思考内容**不迁**（用户裁决）：老数据的 reasoning 没有签名，迁过去 pi 会把它当正文重新喂给模型；
  *   与迁移前 desktopMessagesToPi 不回放 thinking 的行为一致，老对话只是看不到当时的思考过程。
  * - 用户消息同时写展示 entry：老对话的文件卡片、mention、skills 在重开后照原样显示。
- * - 旧表**不删**（留到 M8）：迁移出问题可回退；migration_meta 记账保证只跑一次。
- *   迁移前 VACUUM INTO 备份整库（与 editor-block-retirement 同一做法）。
+ * - migration_meta 记账保证只跑一次；迁移前 VACUUM INTO 备份整库（与 editor-block-retirement 同一做法）。
+ *   记账之后旧表由 legacy-chat-retirement 删掉（M8）。
  *
  * electron-free，可单测。
  */
@@ -21,6 +22,7 @@ import { migrateChatSessionMessages } from "@/services/chatMessageSchema";
 import { desktopMessagesToPi } from "./pi-session-bridge";
 import { writeSessionFile, type DesktopDisplayData } from "./pi-session-files";
 import ChatSessionTable from "./tables/chat-session";
+import { mergeBranchFamilies } from "./chat-session-tree-migration";
 
 export const CHAT_SESSION_MIGRATION_KEY = "chat-session-pi-jsonl:v1";
 
@@ -58,6 +60,8 @@ interface LegacyRow {
 export interface ChatSessionMigrationResult {
   skipped: boolean;
   migrated: number;
+  /** 并进父对话会话树的分支数 */
+  merged?: number;
   failed: Array<{ table: string; id: number; error: string }>;
   backupPath?: string;
 }
@@ -174,16 +178,26 @@ export async function migrateLegacyChatsToSessions(options: {
   const written: string[] = [];
   let migrated = 0;
 
+  // 分支族（旧的一行一分支）迁完后当场并进父文件，父子关系只在内存里（M8 起目录表没有分支列）
+  const branches: Array<{ id: string; sessionFile: string; parentId: string }> = [];
+
   for (const source of sources) {
+    // 旧表各列是陆续加的，很老的库可能缺（M8 起没有旧表模块再替它补列）：缺的按 NULL 读
     const columns = columnsOf(db, source.table);
-    const optional = ["group_id", "order_num", "title_dirty", "source"].filter(column =>
-      columns.has(column)
-    );
+    const selected = [
+      "title",
+      "archived",
+      "parent_chat_id",
+      "branch_index",
+      "group_id",
+      "order_num",
+      "title_dirty",
+      "source",
+    ].map(column => (columns.has(column) ? column : `NULL AS ${column}`));
     const rows = db
       .prepare(
-        `SELECT id, create_time, update_time, messages, title, archived, parent_chat_id, branch_index,
+        `SELECT id, create_time, update_time, messages, ${selected.join(", ")},
                 ${source.domainColumn ?? "NULL"} AS domain_ref
-                ${optional.length > 0 ? `, ${optional.join(", ")}` : ""}
          FROM ${source.table}
          ORDER BY id`
       )
@@ -193,7 +207,7 @@ export async function migrateLegacyChatsToSessions(options: {
     const idMap = new Map<number, string>();
     for (const row of rows) {
       // 浏览器扩展的对话不进桌面目录表（用户裁决：扩展对话与应用对话拆开、跟着页面走，
-      // 旧数据不迁）。行原样留在旧表，M8 随旧表一起删
+      // 旧数据不迁）。行随旧表一起删（M8，删前有备份）
       if (row.source === "browser") continue;
       try {
         const parsed = migrateChatSessionMessages(JSON.parse(row.messages || "[]"));
@@ -226,11 +240,11 @@ export async function migrateLegacyChatsToSessions(options: {
           archived: Boolean(row.archived),
           source: row.source === "browser" ? "browser" : "desktop",
           messageCount: session.filter(item => item.message.role === "user").length,
-          parentSessionId,
-          branchIndex: parentSessionId ? (row.branch_index ?? 0) : 0,
           createTime: row.create_time,
           updateTime: row.update_time,
         });
+        if (parentSessionId)
+          branches.push({ id: sessionId, sessionFile, parentId: parentSessionId });
         idMap.set(row.id, sessionId);
         migrated += 1;
       } catch (error) {
@@ -243,11 +257,23 @@ export async function migrateLegacyChatsToSessions(options: {
     }
   }
 
+  // 分支并进父对话的会话树（M4-d 语义）；对不上的留作独立对话
+  const tree = mergeBranchFamilies(db, options.sessionDir, branches);
+  for (const failure of tree.failed) {
+    failed.push({ table: "chat_session", id: -1, error: `分支 ${failure.id}：${failure.error}` });
+  }
+
   db.prepare("INSERT OR REPLACE INTO migration_meta (key, value) VALUES (?, ?)").run(
     CHAT_SESSION_MIGRATION_KEY,
-    JSON.stringify({ migrated, failed: failed.length, at: Date.now() })
+    JSON.stringify({ migrated, merged: tree.merged, failed: failed.length, at: Date.now() })
   );
-  return { skipped: false, migrated, failed, ...(backupPath ? { backupPath } : {}) };
+  return {
+    skipped: false,
+    migrated,
+    merged: tree.merged,
+    failed,
+    ...(backupPath ? { backupPath } : {}),
+  };
 }
 
 /** 测试辅助：清掉迁移写出的会话文件 */

@@ -21,9 +21,6 @@ export interface ChatSessionRow {
   archived: boolean;
   source: "desktop" | "browser";
   messageCount: number;
-  /** M4 的多文件分支关系；M4-d 起分支在文件内部，树合并迁移后恒为空（列留到 M8） */
-  parentSessionId: string | null;
-  branchIndex: number;
   createTime: number;
   updateTime: number;
 }
@@ -41,8 +38,6 @@ export interface ChatSessionInsert {
   archived?: boolean;
   source?: "desktop" | "browser";
   messageCount?: number;
-  parentSessionId?: string | null;
-  branchIndex?: number;
   /** 迁移时保留原行的时间，正常创建留空取当前时间 */
   createTime?: number;
   updateTime?: number;

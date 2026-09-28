@@ -8,7 +8,7 @@
 > **M7 用户裁决不做**（同步保持 zip 整包）。下一步是 M8（删旧收尾，裁决已定，见第六节）。
 > 新会话续接方式：读完本文档 + `git log --oneline -15` 对照提交历史。本文档随每步同步更新。
 > 验证三件套：`cd apps/desktop && npx tsc --noEmit`、
-> `npx vitest run`（348 文件、1673 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
+> `npx vitest run`（345 文件、1659 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
 > 改了 `packages/shared` 要另跑 `packages/shared`（5 文件 15 用例）与 `apps/browser-extension`（10 文件 46 用例）的 vitest + tsc
 > （思考档位类型与 `ChatSessionRecord` 定义在 shared，三端共用）。
 > **注意 cwd 必须在 apps/desktop**——vitest 从仓库根跑会整体失败（vite 别名解析不到）。
@@ -741,7 +741,8 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
 - **M5** `2a8123b2b` 浏览器扩展：侧栏对话由主进程驱动（`/aiServerMain`）+ 协议 v2 + 提问审批走桌面宿主 + 停止真正生效 + 断连立即收尾（见「M5 实施记录」）
 - **M5 追加** `59431d096`：侧栏重开接回在跑的回答（接回快照 + lastSeq 续接 + 换对话放下不停）
 - **M8-a** `6840932aa`：删除 `packages/agent` 整包（5 个符号内联/改用桌面与 shared 类型）
-- **M8-c**：删除 chat_run 表（schema/parity/handler，开库 DROP，桌面与移动端）+ 主进程 stream-fetch 模块
+- **M8-d**：旧聊天表迁移记账后 DROP（带备份）+ 目录表分支列删除 + 迁移时当场合并分支 + 视频笔记/学习项目级联删目录表 + 移动端补值去掉
+- **M8-c** `6bc0dba58`：删除 chat_run 表（schema/parity/handler，开库 DROP，桌面与移动端）+ 主进程 stream-fetch 模块
 - **M8-b** `867c13f61`：删除 `modules/llm.ts`（Minimax Key 测试改走 pi `pi-ai:verify-key`）+ 扩展本地提问机制 + `sanitizeToolMessages` + localStorage 遗留键
 - **修正一** `784d59ebb`：去闭包快照+会话常驻 reducer（修吞消息）
 - **修正二** `d3bc61c33`：piChatRuntime 下沉模块级（后台运行）
@@ -893,8 +894,7 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
   - 扩展对话每轮建宿主、跑完释放，「本会话始终允许」只在一轮内有效；
   - 没有主窗口时扩展对话只有页面工具（桌面工具与 MCP 要渲染端执行）；
   - 扩展本地的提问机制（`askQuestionSessionStore`、`ext.tool.execute` 里的 ask-question 分支）已无新调用方，留到 M8 一起删。
-- **旧表**：`chat_message`/`pdf_chats`/`video_note_chats`/`vibe_learning_chats` 与主进程 handler 留到 M8，渲染端零调用；
-  `audio_note_chats` 整条链（无面板）、`reorderChatMessage`（无 UI 调用方）同为积灰
+- **旧聊天表（M8-d 已删）**：迁移记账后开库即 DROP，删前整库备份；迁移失败的行、扩展的旧对话、`audio_note_chats` 只在备份里
 - **会话树（M4-d 已接）**：分支在同一文件内。遗留：
   - 树谱浮层只在桌面（扩展未做）；分支不能起名（pi 原生 `label` entry 可用，未接）；滚动条小地图未做；
   - **同一对话多个分支同时运行**未做（难点：pi 一个会话只有一个叶子，两个 SessionManager 并发写同一文件会互相覆盖），
@@ -902,7 +902,7 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
   - 不能删除某个版本（pi append-only，只能省略消息或切走）；
   - 旧分支行的标题/分组/归档在合并后丢失（只保留父对话的）；嫁接按内容比对，内容一模一样但本意不同的前缀会被认作公共前缀；
   - 目录行 `update_time` 切版本不变、`message_count` 跟当前路径（列表排序不因切换而跳动）；
-  - `parent_session_id`/`branch_index` 两列留到 M8。
+  - `parent_session_id`/`branch_index` 两列 M8-d 已删（M4 时期的库在树合并后删列）。
 - **宿主空闲回收（M4-e）**：空闲 30 分钟的宿主会话释放，「本会话始终允许」的工具授权随之失效（与重启同一边界）；
   回收时如果恰好停在等待交互上不会发生（忙的不回收）。回收后渲染端下一次发送自动从文件重建。
 - **subagent 的 maxToolCallLoops/timeoutMs 参数**留 schema 但 pi 无对应配置（不生效），M3 清理
@@ -981,6 +981,28 @@ agent_settled 触发排空；用户按停止则暂停排空。
       （桌面 `openDatabase` maintenance 段、移动端 `ensure_main_schema` 的订阅退役之后）——表里只有运行中状态，无需备份。
       `knowledge-migration.ts` 与移动端 `knowledge_migration.rs` 本就判列/判表存在，不用改（老库在 DROP 之前先跑知识库迁移，无影响）。
     - `modules/stream-fetch.ts`：渲染端零调用（M2-f 删了 `commands/stream-fetch`），模块与注册删除。
+  - **M8-d 已完成**（旧聊天表 + 目录表分支列）：
+    - **退役** `legacy-chat-retirement.ts` 的 `retireLegacyChats`：两次迁移（`chat-session-pi-jsonl:v1`、`chat-session-tree:v1`）
+      **都记账后**才执行——先 `VACUUM INTO` 备份（`.pre-legacy-chat-retirement-v1-*.bak`），再 DROP 五张旧表
+      （`audio_note_chats` 未迁移，用户裁决直接丢弃，只在备份里），并在 M4 时期的库上删掉 `chat_session.parent_session_id /
+branch_index` 与 `idx_chat_session_parent`（SQLite 3.35+ 的 `DROP COLUMN`，带索引的列要先删索引）。幂等、没东西可删不备份。
+      开库（maintenance）与同步下载重连都在树合并之后调它（`database.ts` 的 `retireLegacyChatTables`），失败只记日志不阻塞开库。
+      没迁过的库（远程下载来的旧 `.db` 还没以维护模式开过）不删，等迁完再删。
+    - **老对话迁移当场合并分支**：新表没有分支列，`migrateLegacyChatsToSessions` 把旧分支行的父子关系留在内存，写完文件后调
+      `mergeBranchFamilies`（从树合并迁移抽出的共用函数：按深度嫁接、并进去的删文件与目录行、对不上的留作独立对话）。
+      树合并迁移只处理还带分支列的 M4 时期库（`hasBranchColumns`），否则只记账。迁移器对缺列的很老的库按 NULL 读（没有旧表模块再补列了）。
+    - schema：五张表与 8 个旧表索引、`chat_session` 两列与 1 个索引删除；parity 64 表 / 105 索引，`REMOVED_TABLES` 加五张表。
+    - 删除：`tables/chat-message|pdf-chat|video-note-chat|vibe-learning-chat|audio-note-chat.ts`（全部旧 handler）、
+      `commands/audio-note-chat.ts`、四个类型文件里的旧聊天类型、`chat-message-create/chat-message-schema-migration/pdf-chat` 三个测试；
+      `ChatSessionRow/Insert` 去掉 `parentSessionId/branchIndex`。
+    - **级联删除改接目录表**：视频笔记、学习项目删除时 `ChatSessionTable.removeByDomain`（原来删的是旧表行，目录行与会话文件会成孤儿——
+      M4 时就漏了，这次一起修）；学习项目删除前渲染端先 `releaseBucket`（与删 PDF 同理）。视频笔记只经项目条目删除，渲染端没有该入口，不用释放。
+      音频笔记没有对话面板，直接去掉旧表那一步。
+    - **移动端**：基线里没有旧表了，`main_upgrade.rs` 对四张旧表的补值 UPDATE 删掉（老库里的旧表原样留着等桌面迁移；
+      很老的 schema 缺 `agent_type` 列，原来靠补列才不报错）。`migration_tests.rs` 两处断言与资源清理夹具改用 `chat_session`。
+      `knowledge-migration.ts` / `knowledge_migration.rs` 本就判表判列存在，不用改。
+    - 测试：`chat-session-migration.test.ts`（迁移时合并分支、缺列老库）、`chat-session-tree-migration.test.ts`（端到端含退役、
+      M4 时期库退役删列与备份、未记账不退役）；删除清理类测试改用目录表断言。
 
   **M8 裁决（2026-09-29 用户拍板）**：
   - 旧聊天表（`chat_message`/`pdf_chats`/`video_note_chats`/`vibe_learning_chats`）**迁移记账后真 DROP**：开库时确认

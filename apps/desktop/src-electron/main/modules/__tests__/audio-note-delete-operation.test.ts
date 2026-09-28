@@ -18,13 +18,11 @@ vi.mock("../video-note-index-queue", () => ({
 
 import AudioNoteTable from "../tables/audio-note";
 import AudioNoteItemTable from "../tables/audio-note-item";
-import AudioNoteChatTable from "../tables/audio-note-chat";
 import Operation from "../tables/operation";
 
 describe("AudioNoteTable.deleteAudioNote operation log", () => {
   it("删除不存在的音频笔记时不写入删除操作记录", () => {
     vi.spyOn(AudioNoteItemTable, "removeByAudioNoteId").mockReturnValue(0);
-    vi.spyOn(AudioNoteChatTable, "deleteChatsByAudioNoteId").mockReturnValue(0);
     const insertOperation = vi
       .spyOn(Operation, "insertOperation")
       .mockImplementation(() => undefined as any);

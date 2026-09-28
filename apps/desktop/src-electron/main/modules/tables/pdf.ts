@@ -204,12 +204,10 @@ export default class PdfTable {
   static removePdf(db: Database.Database, id: number): number {
     const removeAnnotations = db.prepare("DELETE FROM pdf_annotations WHERE pdf_id = ?");
     const removeBookmarks = db.prepare("DELETE FROM pdf_bookmarks WHERE pdf_id = ?");
-    const removeChats = db.prepare("DELETE FROM pdf_chats WHERE pdf_id = ?");
     const removePdf = db.prepare("DELETE FROM pdfs WHERE id = ?");
     const tx = db.transaction(() => {
       removeAnnotations.run(id);
       removeBookmarks.run(id);
-      removeChats.run(id);
       const result = removePdf.run(id);
       if (result.changes > 0) {
         Operation.insertOperation(db, "pdf", "delete", id, Date.now());
@@ -219,7 +217,7 @@ export default class PdfTable {
     const changes = tx();
     if (changes > 0) {
       pdfIndexDBManager.deleteDatabase(basename(db.name), id);
-      // PDF 对话（M4 目录表 + 会话文件）随 PDF 一起删；旧 pdf_chats 行在上面的事务里删
+      // PDF 对话（目录行 + 会话文件）随 PDF 一起删
       ChatSessionTable.removeByDomain(db, "pdf-chat", String(id));
     }
     return changes;
