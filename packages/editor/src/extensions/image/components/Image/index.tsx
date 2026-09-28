@@ -389,7 +389,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
             <span>空图片，</span>
             <button
               type="button"
-              className="cursor-pointer border-none bg-transparent p-0 font-semibold text-[var(--th-btn-text)] underline-offset-2 hover:underline"
+              className="cursor-pointer border-none bg-transparent p-0 font-semibold text-[var(--ed-text-inverse)] underline-offset-2 hover:underline"
               onClick={() => openLocalMediaPicker(editor, "image", element)}
             >
               选择文件

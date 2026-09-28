@@ -1,9 +1,9 @@
 {
   "editor.useThemeColors": 0,
   "editor.isDark": 29,
-  "editor.legacyCssVars": 58,
-  "editor.darkVariants": 282,
-  "editor.paletteClasses": 427,
+  "editor.legacyCssVars": 0,
+  "editor.darkVariants": 279,
+  "editor.paletteClasses": 421,
   "editor.antdImports": 43,
   "editor.configConsumers": 6,
   "repo.editorProviderUsages": 13,
