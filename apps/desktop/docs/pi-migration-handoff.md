@@ -4,12 +4,12 @@
 > **M4 本批完成**：目录表 + JSONL 事实源切换 + 五场景接入 + 同步带会话包 + 扩展改页面会话，见「M4 实施记录」；
 > 用户初步验证正常（第七节「M4 专项」逐项走查未做）。**M4-d 完成**：分支改为同一文件内的 pi 会话树，见「M4-d 实施记录」
 > （实机走查见第七节「M4-d 专项」，未做）。**M4-e 完成**：治理与重启恢复，见「M4-e 实施记录」（走查见「M4-e 专项」，未做）。
-> **M5 完成**：扩展侧栏对话由主进程驱动 + 协议 v2，见「M5 实施记录」（走查见「M5 专项」，未做）。
-> 下一步是 M7（同步增量）/M8（删旧收尾），见第六节）。
+> **M5 完成**（含追加：侧栏重开接回在跑的回答）：扩展侧栏对话由主进程驱动 + 协议 v2，见「M5 实施记录」（走查见「M5 专项」，未做）。
+> **M7 用户裁决不做**（同步保持 zip 整包）。下一步是 M8（删旧收尾，裁决已定，见第六节）。
 > 新会话续接方式：读完本文档 + `git log --oneline -15` 对照提交历史。本文档随每步同步更新。
 > 验证三件套：`cd apps/desktop && npx tsc --noEmit`、
-> `npx vitest run`（350 文件、1689 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
-> 改了 `packages/shared` 要另跑 `packages/shared`（5 文件 15 用例）与 `apps/browser-extension`（11 文件 45 用例）的 vitest + tsc
+> `npx vitest run`（350 文件、1690 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
+> 改了 `packages/shared` 要另跑 `packages/shared`（5 文件 15 用例）与 `apps/browser-extension`（11 文件 47 用例）的 vitest + tsc
 > （思考档位类型与 `ChatSessionRecord` 定义在 shared，三端共用）。
 > **注意 cwd 必须在 apps/desktop**——vitest 从仓库根跑会整体失败（vite 别名解析不到）。
 > 权威背景：调研报告与迁移计划在本项目最初会话中形成（对话内）；本文档是执行态的完整快照。
@@ -306,8 +306,24 @@ M4 = 会话管理。本批 = 原计划 M4-a（目录表 + resume）+ M4-b（投�
 - 页面工具取标签页改 `queryTargetTab`：优先按发起这轮回答的 `pageUrl` 找（多窗口多侧栏不取错页面），找不到退回当前窗口活动标签。
 - 概览页、行内问答改 v2（`ai.run.start` + `ai.run.event`，停止真正传到桌面，断连立即收尾）。
 
-**测试**：`browser-run-core.test.ts`（7 例：seq 与 settled、同对话并发拒绝、停止含建会话前停止、报错与重试、交互转发与作答、
-`resolveChatModel` 2 例）；`aiServer.runV2.test.ts`（4 例：一次性带工具、停止、纯文本单发含失败、侧栏请求打到渲染端被拒）；
+**侧栏接回在跑的回答（M5 追加）**：侧栏关掉重开、切走再切回、桌面通道重连后，接上桌面上还在跑的那一轮
+（流式、停止按钮、审批条、提问卡、重试提示都恢复）。此前重开只能看到文件里的旧投影，且关掉时若停在审批/提问上，
+那一轮会一直挂着（忙的宿主不回收）直到桌面重启。
+
+- 主进程 `BrowserRunRegistry` 每轮持有**接回快照**：`emit` 时用与扩展同一套 `applyChatStreamEvent` 归约回答，
+  并跟踪交互与重试状态、`lastSeq`；`snapshotFor(session, readFileBase)` 同步取出（回答深拷贝）。
+- **快照的底是「这一轮开始前的投影」**（`BrowserRunHandle.baseMessages`，桥在 prompt 之前读宿主内存里的
+  SessionManager；会话还在建时同步读会话文件）。不用文件的当前投影：本轮已完成的片段可能已落盘（与快照里的回答重复），
+  也可能还没落盘（新对话首轮 pi 不写文件，坑 10）。界面 = 底 + 本轮提问 + 快照回答（`buildResumedMessages`）。
+- 协议：`ai.run.state` 返回 `{running, runId, snapshot}`（`AiRunSnapshot`）；`createRunEventFilter(runId, afterSeq)`
+  从快照的 lastSeq 续接。扩展 `useAiChat` 在「对话 id / 页面 / 主通道连上」变化时查一次，查询期间到达的事件按查询各自
+  缓冲、拿到快照后补上（快照已含的被 seq 丢弃），不漏不重；查询期间自己发起了新一轮则以自己为准。
+- **换对话 = 放下不停**（`detachRun`）：上一个对话在跑的那轮桌面照常跑完落盘，切回来再接回；此前切走会让那轮的
+  收尾状态串到新对话上。一轮在跑时 `initialMessages` 变化不覆盖界面（投影缺本轮未落盘部分），收尾 `onFinish` 重读对齐。
+
+**测试**：`browser-run-core.test.ts`（8 例：seq 与 settled、同对话并发拒绝、停止含建会话前停止、报错与重试、交互转发与作答、
+**接回快照**（建会话前取文件底、回答归约、交互与重试、lastSeq 对齐、快照是拷贝、结束后没有快照）、`resolveChatModel` 2 例）；
+扩展 `protocol.test.ts` 追加 lastSeq 续接与接回界面拼装 2 例；`aiServer.runV2.test.ts`（4 例：一次性带工具、停止、纯文本单发含失败、侧栏请求打到渲染端被拒）；
 `piChatSession.test.ts` 的额外工具 read 声明（1 例）；扩展 `protocol.test.ts` 改 v2（参数形状、事件过滤）。
 `browser-bridge.ts` 本身绑 electron 与 ws，决策逻辑都在 core 里测。
 
@@ -723,6 +739,7 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
 - **M4-e** `82d553a6c` 治理与重启恢复：同一文件只一个宿主、宿主空闲回收与切库释放、runtime 条目 LRU、删 PDF 先释放、重开时悬挂工具调用标为已中断（见「M4-e 实施记录」）
 - **扩展页面工具风险声明修复** `5f4e562c5`
 - **M5** `2a8123b2b` 浏览器扩展：侧栏对话由主进程驱动（`/aiServerMain`）+ 协议 v2 + 提问审批走桌面宿主 + 停止真正生效 + 断连立即收尾（见「M5 实施记录」）
+- **M5 追加**：侧栏重开接回在跑的回答（接回快照 + lastSeq 续接 + 换对话放下不停）
 - **修正一** `784d59ebb`：去闭包快照+会话常驻 reducer（修吞消息）
 - **修正二** `d3bc61c33`：piChatRuntime 下沉模块级（后台运行）
 - **验收状态**：用户确认"大部分没问题"——M2-f 基本通过；后台运行场景（切页回来
@@ -868,8 +885,8 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
 - **ChatDropdownSelector 运行态标记**：随 chat_run 退役（会话列表无 Spinner/失败图标），M4 目录表带状态列
 - **首轮在第一条回答之前就失败的对话，pi 不落盘**（坑 10）：重开后这条用户消息会丢（草稿也不在目录表里）
 - **扩展（M5 后）**：
-  - 侧栏关闭/重载后，正在跑的那轮在桌面继续跑完并落盘，但扩展**不会接回流式**（`ai.run.state` 能查到在跑，侧栏重开后接续未做），
-    结束后重读投影能看到结果；
+  - 侧栏关闭/重载后，正在跑的那轮在桌面继续跑完并落盘；重开后接回（M5 追加，见「M5 实施记录」）。
+    **桌面主进程重启**时那一轮没了（registry 在内存），重开只看到文件投影——与桌面聊天同一边界；
   - 扩展对话每轮建宿主、跑完释放，「本会话始终允许」只在一轮内有效；
   - 没有主窗口时扩展对话只有页面工具（桌面工具与 MCP 要渲染端执行）；
   - 扩展本地的提问机制（`askQuestionSessionStore`、`ext.tool.execute` 里的 ask-question 分支）已无新调用方，留到 M8 一起删。
@@ -923,10 +940,13 @@ agent_settled 触发排空；用户按停止则暂停排空。
   **M4-e 已完成**：治理与重启恢复，见「M4-e 实施记录」。M4 全部完成。
   另有待排期（非迁移范围，用户提出）：分支并行运行、分支命名、扩展树谱、并排对照两个分支。
   **M5（浏览器扩展）已完成**：侧栏对话迁主进程（只迁对话接口，用户裁决）、WS 协议 v2、提问审批走桌面宿主，
-  见「M5 实施记录」。遗留：侧栏重开后接回在跑的流式（`ai.run.state` 已就绪）。
+  见「M5 实施记录」（侧栏重开接回在跑的回答已追加）。
   **M6（老数据迁移器）**：已并入 M4（`chat-session-migration.ts`）。与原计划的差异：一行一会话、分支族不合并；
   思考不迁；audio_note_chats 不迁。
-  **M7（同步）**：整包同步已并入 M4（M4.4）；剩增量 manifest（per-file hash/mtime，只传变化的文件）、双机往返验证。
+  **M7（同步）：用户裁决不做**（2026-09-29）——同步保持 M4.4 的 zip 整包 + 共用版本号，不改增量 manifest。
+  调研留档（将来要做从这里接）：四种后端（OSS/S3/WebDAV/GitHub，`src/utils/sync/*SyncProvider.ts`）都支持单文件读写与列目录，
+  但只有 OSS 实现了 `deleteFile`，且拿不到内容 hash（manifest 需自算 sha256）；现有版本号模型不允许双方都有修改（领先者整体覆盖）。
+  已知缺口：CLI 的 `apps/cli/src/commands/db/sync/push.ts`/`pull.ts` 不处理会话包，且 push 先传版本信息再传 `.db`（与桌面顺序相反）。
   **M8（删旧收尾）**：packages/agent 整包——**实测比原计划便宜**：桌面端只剩 4 个类型导入
   （`AgentModelUsage`×2 / `AgentTool` / `AgentSkill`）+ 一个值导入 `isAbortError`（editingUtils），
   其他 app 与 package 全无引用；内联这 5 个符号 + 清 vite/vitest/tsconfig 别名与 package.json 依赖即可删包。
@@ -936,6 +956,21 @@ agent_settled 触发排空；用户按停止则暂停排空。
   chat_run 表与主进程 handler（含 db-schema/knowledge-migration/mobile Rust 的同批处理）、
   modules/llm.ts、卫星表 messages 写路径、扩展本地提问机制（`askQuestionSessionStore` 与 `ext.tool.execute` 的
   ask-question 分支，M5 后无新调用方）；DECISIONS.md 追加条目；03 指南数据协议节同步；rg 复核清零。
+
+  **M8 裁决（2026-09-29 用户拍板）**：
+  - 旧聊天表（`chat_message`/`pdf_chats`/`video_note_chats`/`vibe_learning_chats`）**迁移记账后真 DROP**：开库时确认
+    `migration_meta` 已记 `chat-session-pi-jsonl:v1`，先 `VACUUM INTO` 备份，再 DROP；schema 与主进程 handler 删除。
+  - `audio_note_chats`（无界面、未迁移）**直接丢弃**。
+  - `modules/llm.ts`：Minimax 设置页的 Key 测试与 pi 无关，**保留它用的那条路径**；其余（`embedding-openai`/`markdown-split`
+    等）确认无用就删。开工时先核实 `chat-openai` 在 Integration 设置页的用途。
+  - 迁移器与树合并迁移**长期保留**（老库、旧远程下载来的 `.db` 靠它们升级）；移动端 Rust（`main_upgrade.rs` 对 4 张旧表的
+    UPDATE）同批改为判表存在；按块拆提交（agent 包 / chat-core / llm.ts 与扩展提问 / chat_run / 旧表与两列）。
+  - 调研实测要点：chat-core 那 6 个函数不能整删——`syncAssistantDerivedFields` 被 `pi-session-transcript.ts` 用、
+    `applyAssistantProviderMetadataSnapshot` 被 streamEvents 用、`migrateAssistantMessage` 在迁移器链路上；可删的只有
+    `sanitizeToolMessages` 与 barrel 转出条目，`ensureAssistantMessage` 被 `createAssistantMessage` 内部调用、只能去掉导出（逐个 rg 复核）；packages/agent 别名还在 `e2e/collaboration/vite.config.mts`；
+    chat_run 删表要改 `scripts/db/check-schema-parity.mjs` 的计数并加进 `REMOVED_TABLES`，`knowledge-migration.ts` 与移动端
+    `knowledge_migration.rs` 已判表存在；`parent_session_id`/`branch_index` 删列要 SQLite 重建表，排在树合并迁移之后；
+    localStorage 遗留键 `ask-question-session`/`chat-message` 在 `useSettingStore.ts` 的 `removeItem` 组里清。
 
 **与 pi 迁移无关的仓库积灰（另开一次，不要混进迁移提交）**：全仓广扫发现约 40 个无引用的
 组件/hooks/工具文件（`components/AdvanceTable` 只是个占位 `<h1>`）与两个成片死目录
@@ -1024,7 +1059,10 @@ agent_settled 触发排空；用户按停止则暂停排空。
   - 模型报错（填错 key）：扩展显示错误，不再静默成功；网络抖动时显示「正在重试（第 n 次）」。
   - 需要确认的工具（manual 模式下的写入/执行类桌面工具）：侧栏输入框上方出现审批条，允许后继续、拒绝后模型收到拒绝。
   - 模型发起提问：提问卡可作答并续上；答不全提示必填项。
-  - 同一页面开两个标签页、同一对话同时发送：第二个提示「正在另一处回答」。
+  - 同一页面开两个标签页、同一对话同时发送：第二个提示「正在另一处回答」；另一个标签页打开侧栏应直接接回那轮在跑的回答。
+  - **接回（M5 追加）**：回答中关掉侧栏再打开 → 已生成的内容在、继续流式、停止按钮可用；停在审批/提问上时关掉再开 →
+    审批条/提问卡还在且能作答；回答中切到另一个对话再切回 → 接回；新对话首轮（还没落盘）关掉重开 → 提问与回答都在，
+    列表出现它要等首轮结束；回答中切到别的对话 → 那边不显示加载中、不串内容。
   - 两个浏览器窗口各开侧栏：各自的页面工具读的是各自的页面。
   - 桌面没开时扩展：提示未连接；桌面起来后自动连上（3 秒内）。
 

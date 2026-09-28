@@ -10,7 +10,13 @@
  * 事件是快照语义，与 v1 相同的块组装（applyChatStreamEvent）可以直接消费 text/reasoning/tool-calls；
  * v1 丢掉的 usage、重试、错误、交互（审批/提问）在 v2 里都有。
  */
-import type { ModelUsage, ToolCallExecutionState, ToolCallPayload } from "./messages";
+import type {
+  ChatSessionMessage,
+  ModelUsage,
+  ResponseMessage,
+  ToolCallExecutionState,
+  ToolCallPayload,
+} from "./messages";
 
 /** 审批：模型要执行需要确认的工具 */
 export interface AiRunApprovalRequest {
@@ -78,9 +84,27 @@ export interface AiRunStartParams {
   feature?: string;
 }
 
+/** 一轮运行到此刻的快照（侧栏重开后接回）：之后的事件按 `lastSeq` 续接 */
+export interface AiRunSnapshot {
+  runId: string;
+  lastSeq: number;
+  /**
+   * 这一轮开始前的对话投影。接回时界面 = baseMessages + request + response；不用会话文件的当前投影，
+   * 因为本轮已完成的回答片段可能已落盘（与 response 重复），也可能还没落盘（新对话首轮 pi 不写文件）。
+   */
+  baseMessages: ChatSessionMessage[];
+  /** 这一轮的用户消息（与 start 时的 messages 末条同一形状） */
+  request: { role: string; content: unknown; [key: string]: unknown };
+  /** 本轮回答到此刻的归约结果（与接收端同一套 applyChatStreamEvent 组装） */
+  response: ResponseMessage;
+  interactions: { approvals: AiRunApprovalRequest[]; questions: AiRunQuestionRequest[] };
+  retry: { attempt: number; maxAttempts: number; delayMs: number } | null;
+}
+
 export interface AiRunStateResult {
   running: boolean;
   runId?: string;
+  snapshot?: AiRunSnapshot;
 }
 
 export const AI_RUN_METHODS = {
@@ -92,9 +116,9 @@ export const AI_RUN_METHODS = {
   event: "ai.run.event",
 } as const;
 
-/** 按 runId 收事件：丢弃乱序与重复（seq 不大于已收到的） */
-export const createRunEventFilter = (runId: string) => {
-  let lastSeq = -1;
+/** 按 runId 收事件：丢弃乱序与重复（seq 不大于已收到的）；接回在跑的运行时从快照的 lastSeq 续接 */
+export const createRunEventFilter = (runId: string, afterSeq = -1) => {
+  let lastSeq = afterSeq;
   return (notification: AiRunEventNotification): AiRunEvent | null => {
     if (notification.runId !== runId || notification.seq <= lastSeq) return null;
     lastSeq = notification.seq;

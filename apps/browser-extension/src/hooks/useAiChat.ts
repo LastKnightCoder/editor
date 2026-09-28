@@ -4,11 +4,14 @@ import WebSocketClient from "@/utils/WebSocketClient";
 import { AI_SERVER_MAIN_WS_URL, AI_SERVER_WS_URL } from "@/utils/aiServerAddress";
 import { BROWSER_TOOLS } from "@/services/extToolServer";
 import { ASK_QUESTION_TOOL_NAME } from "@/tools/askQuestionTypes";
+import { toDisplayMessages } from "@/services/chatModelBridge";
 import type {
   AiRunApprovalRequest,
   AiRunEventNotification,
   AiRunQuestionRequest,
+  AiRunSnapshot,
   AiRunStartParams,
+  AiRunStateResult,
   ChatMessageType,
   MessageContentItem,
   ResponseMessage,
@@ -208,6 +211,46 @@ const buildMessagePreview = (content: AiChatRequestContent): string => {
     .join("\n");
 };
 
+/** 本轮的请求消息 → 界面上的用户消息（发送时与接回时同一形状） */
+const toRequestDisplayMessage = (requestMessage: AiChatRequestMessage): ChatMessageType =>
+  ({
+    id: uuidv4(),
+    role: requestMessage.role,
+    content: buildMessagePreview(requestMessage.content),
+    timestamp: Date.now(),
+    ...(requestMessage.name ? { name: requestMessage.name } : {}),
+    ...(requestMessage.tool_call_id ? { tool_call_id: requestMessage.tool_call_id } : {}),
+    ...(requestMessage.tool_calls?.length ? { tool_calls: requestMessage.tool_calls } : {}),
+    ...(requestMessage.role === "user" && Array.isArray(requestMessage.content)
+      ? { requestContent: requestMessage.content }
+      : {}),
+  }) as ChatMessageType;
+
+const toAssistantDisplayMessage = (id: string, response: ResponseMessage): ChatMessageType => ({
+  id,
+  role: "assistant",
+  content: response.content,
+  reasoning: response.reasoning_content || undefined,
+  contentBlocks: getAssistantContentBlocks(response),
+  timestamp: Date.now(),
+});
+
+/**
+ * 侧栏重开 / 切回在跑的对话时的界面：这一轮之前的对话 + 这一轮的提问 + 到此刻的回答。
+ * 回答是桌面归约好的快照，之后的事件在同一对象上继续归约。
+ */
+export const buildResumedMessages = (
+  snapshot: AiRunSnapshot,
+  assistantId: string
+): ChatMessageType[] => {
+  const request = snapshot.request as unknown as AiChatRequestMessage;
+  return [
+    ...toDisplayMessages(snapshot.baseMessages),
+    toRequestDisplayMessage({ role: "user", content: request.content ?? "" }),
+    toAssistantDisplayMessage(assistantId, snapshot.response),
+  ];
+};
+
 /**
  * AI 聊天 Hook
  */
@@ -248,6 +291,8 @@ export function useAiChat(options: UseAiChatOptions = {}) {
   // 渲染投影为 ChatMessageType 时才复制，ref 内可自由原地更新
   const currentResponseRef = useRef<ResponseMessage | null>(null);
   const currentResponseIdRef = useRef<string>("");
+  /** 接回在跑的一轮时，ai.run.state 响应之前收到的事件（非 null = 正在查询） */
+  const resumeBufferRef = useRef<AiRunEventNotification[] | null>(null);
 
   // 更新消息并通知外部
   const updateMessages = useCallback(
@@ -314,9 +359,30 @@ export function useAiChat(options: UseAiChatOptions = {}) {
     onFinishRef.current?.();
   }, [updateCurrentResponse]);
 
+  /**
+   * 放下当前这一轮但不停止它（切到别的对话、通道重建）：桌面照常跑完落盘，
+   * 切回来或重开时经 ai.run.state 接回。
+   */
+  const detachRun = useCallback(() => {
+    resumeBufferRef.current = null;
+    if (!requestIdRef.current) return;
+    requestIdRef.current = null;
+    runFilterRef.current = null;
+    runClientRef.current = null;
+    currentResponseRef.current = null;
+    setIsLoading(false);
+    setRetryStatus(null);
+    setInteractions(EMPTY_INTERACTIONS);
+  }, []);
+
   // v2 运行事件 → 统一流事件 → 归约器（快照幂等，与桌面本地同一套块组装逻辑）
   const handleRunEvent = useCallback(
     (data: unknown) => {
+      // 正在查询在跑的那一轮：快照回来之前到达的事件先攒着，拿到 lastSeq 后再按序补上
+      if (!runFilterRef.current && resumeBufferRef.current) {
+        resumeBufferRef.current.push(data as AiRunEventNotification);
+        return;
+      }
       const event = runFilterRef.current?.(data as AiRunEventNotification);
       if (!event) return;
       const response = currentResponseRef.current;
@@ -426,6 +492,60 @@ export function useAiChat(options: UseAiChatOptions = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.id, session?.pageUrl, handleRunEvent, handleServerGone]);
 
+  // 换了对话：上一个对话在跑的那轮放下不停（桌面跑完落盘，切回来再接回）
+  useEffect(() => {
+    if (!session) return;
+    return () => detachRun();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.id, session?.pageUrl, detachRun]);
+
+  /**
+   * 接回在跑的一轮（M5 遗留）：侧栏关掉重开、切回在跑的对话、桌面通道重连后，问桌面这个对话是否
+   * 还在跑；在跑就用快照还原界面（提问 + 到此刻的回答 + 审批/提问 + 重试状态），之后的事件按 seq 续接。
+   * 查询期间到达的事件先攒着（快照之后的补上，之前的丢弃），不会漏也不会重。
+   */
+  useEffect(() => {
+    const client = mainClientRef.current;
+    if (!session || !isMainConnected || !client?.isConnected || requestIdRef.current) return;
+    const current = { id: session.id, pageUrl: session.pageUrl };
+    let cancelled = false;
+    // 每次查询一份缓冲：作废的旧查询晚到时不能动新查询的缓冲
+    const buffered: AiRunEventNotification[] = [];
+    resumeBufferRef.current = buffered;
+    void client
+      .sendRequest(AI_RUN_METHODS.state, { session: current }, 10 * 1000)
+      .then(result => {
+        // 已经换了对话：这个结果作废（缓冲归新查询管）
+        if (cancelled) return;
+        resumeBufferRef.current = null;
+        const { snapshot } = (result ?? {}) as AiRunStateResult;
+        // 查询期间自己发起了新一轮：以自己这轮为准
+        if (requestIdRef.current || !snapshot) return;
+        const assistantId = uuidv4();
+        requestIdRef.current = snapshot.runId;
+        runFilterRef.current = createRunEventFilter(snapshot.runId, snapshot.lastSeq);
+        runClientRef.current = client;
+        currentResponseIdRef.current = assistantId;
+        currentResponseRef.current = snapshot.response;
+        setError(null);
+        setIsLoading(true);
+        setRetryStatus(snapshot.retry);
+        setInteractions(snapshot.interactions);
+        updateMessages(buildResumedMessages(snapshot, assistantId));
+        buffered.forEach(handleRunEvent);
+      })
+      .catch(error => {
+        if (cancelled) return;
+        resumeBufferRef.current = null;
+        console.warn("[useAiChat] 查询在跑的回答失败:", error);
+      });
+    return () => {
+      cancelled = true;
+      if (resumeBufferRef.current === buffered) resumeBufferRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.id, session?.pageUrl, isMainConnected, handleRunEvent, updateMessages]);
+
   const mapMessageToRequest = useCallback(
     (message: ChatMessageType): AiChatRequestMessage => mapChatMessageToAiRequestMessage(message),
     []
@@ -464,18 +584,7 @@ export function useAiChat(options: UseAiChatOptions = {}) {
       };
 
       const persistedRequestMessage: ChatMessageType | null = persistRequestMessage
-        ? ({
-            id: uuidv4(),
-            role: requestMessage.role,
-            content: buildMessagePreview(requestMessage.content),
-            timestamp: Date.now(),
-            ...(requestMessage.name ? { name: requestMessage.name } : {}),
-            ...(requestMessage.tool_call_id ? { tool_call_id: requestMessage.tool_call_id } : {}),
-            ...(requestMessage.tool_calls?.length ? { tool_calls: requestMessage.tool_calls } : {}),
-            ...(requestMessage.role === "user" && Array.isArray(requestMessage.content)
-              ? { requestContent: requestMessage.content }
-              : {}),
-          } as ChatMessageType)
+        ? toRequestDisplayMessage(requestMessage)
         : null;
 
       const newMessages = persistedRequestMessage
@@ -589,8 +698,10 @@ export function useAiChat(options: UseAiChatOptions = {}) {
     );
   }, []);
 
-  // 当 initialMessages 变化时更新本地状态
+  // 当 initialMessages 变化时更新本地状态。一轮在跑（含接回的）时不覆盖：会话文件的投影缺本轮
+  // 还没落盘的部分，这一轮结束后 onFinish 重读投影再对齐
   useEffect(() => {
+    if (requestIdRef.current) return;
     setMessages(initialMessages);
   }, [initialMessages]);
 

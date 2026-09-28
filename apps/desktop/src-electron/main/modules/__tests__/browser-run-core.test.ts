@@ -32,6 +32,7 @@ const fakeDriver = () => {
   const abort = vi.fn(async () => finish({ ok: true, aborted: true }));
   const answer = vi.fn(() => undefined);
   const gate = { hold: false, release: () => {} };
+  const baseMessages = [{ role: "user", content: "上一轮" }] as never[];
   const driver: BrowserRunDriver = {
     start: async (_params, runHooks) => {
       if (gate.hold) await new Promise<void>(resolve => (gate.release = resolve));
@@ -39,7 +40,13 @@ const fakeDriver = () => {
       const done = new Promise<{ ok: boolean; aborted: boolean; error?: string }>(resolve => {
         finish = resolve;
       });
-      const handle: BrowserRunHandle = { done, abort, approve: () => true, answer };
+      const handle: BrowserRunHandle = {
+        baseMessages,
+        done,
+        abort,
+        approve: () => true,
+        answer,
+      };
       startResolve();
       return handle;
     },
@@ -50,6 +57,7 @@ const fakeDriver = () => {
     gate,
     abort,
     answer,
+    baseMessages,
     emit: (event: Partial<AgentSessionEvent> & { type: string }) =>
       hooks.onEvent(event as AgentSessionEvent),
     interactions: (snapshot: PiSessionInteractionSnapshot) => hooks.onInteractions(snapshot),
@@ -102,8 +110,73 @@ describe("BrowserRunRegistry", () => {
     const registry = new BrowserRunRegistry(fake.driver, () => {});
     expect(registry.start(params("r1", "same"))).toEqual({ ok: true });
     expect(registry.start(params("r2", "same"))).toMatchObject({ ok: false });
-    expect(registry.runningFor({ id: "same", pageUrl: "https://a.com/p" })).toBe("r1");
-    expect(registry.runningFor({ id: "other", pageUrl: "https://a.com/p" })).toBeUndefined();
+    const readBase = () => [];
+    expect(registry.snapshotFor({ id: "same", pageUrl: "https://a.com/p" }, readBase)?.runId).toBe(
+      "r1"
+    );
+    expect(
+      registry.snapshotFor({ id: "other", pageUrl: "https://a.com/p" }, readBase)
+    ).toBeUndefined();
+  });
+
+  it("接回快照：回答按同一套归约、交互与重试状态跟到此刻、lastSeq 与已推送的最后一条对齐", async () => {
+    const fake = fakeDriver();
+    const published: AiRunEventNotification[] = [];
+    const registry = new BrowserRunRegistry(fake.driver, item => published.push(item));
+    const session = { id: "s1", pageUrl: "https://a.com/p" };
+    const fileBase = [{ role: "user", content: "文件里的" }] as never;
+
+    registry.start(params("r1"));
+    // 会话还在建（没有句柄）：底取会话文件的投影
+    expect(registry.snapshotFor(session, () => fileBase)).toMatchObject({
+      runId: "r1",
+      lastSeq: -1,
+      baseMessages: fileBase,
+      request: { role: "user", content: "你好" },
+    });
+
+    await fake.started;
+    fake.emit({ type: "agent_start" });
+    fake.emit(assistantStart as never);
+    fake.emit({
+      type: "message_update",
+      message: { role: "assistant", content: [{ type: "text", text: "写到一半" }] },
+      assistantMessageEvent: { type: "text_delta", delta: "写到一半" },
+    } as never);
+    fake.emit({ type: "auto_retry_start", attempt: 2, maxAttempts: 5, delayMs: 10 } as never);
+    fake.interactions({
+      sessionId: "host",
+      revision: 1,
+      approvals: [
+        {
+          requestId: "a1",
+          sessionId: "host",
+          toolCallId: "c1",
+          toolName: "bash",
+          risk: "execute",
+          input: "ls",
+          requestedAt: 1,
+        } as never,
+      ],
+      questions: [],
+    });
+    await new Promise(resolve => setTimeout(resolve, 80)); // 归约器 50ms 节流
+
+    const snapshot = registry.snapshotFor(session, () => {
+      throw new Error("有句柄时不读文件");
+    })!;
+    expect(snapshot.baseMessages).toEqual(fake.baseMessages);
+    expect(snapshot.lastSeq).toBe(published.at(-1)!.seq);
+    expect(snapshot.response.content).toBe("写到一半");
+    expect(snapshot.retry).toMatchObject({ attempt: 2, maxAttempts: 5 });
+    expect(snapshot.interactions.approvals.map(item => item.requestId)).toEqual(["a1"]);
+
+    // 快照是拷贝：之后的事件不改已交出去的快照
+    fake.emit(assistantEnd("写完了") as never);
+    expect(snapshot.response.content).toBe("写到一半");
+    fake.finish({ ok: true, aborted: false });
+    await flush();
+    expect(registry.snapshotFor(session, () => [])).toBeUndefined();
   });
 
   it("停止：settled 标记 aborted，不报错；会话还没建好时按停止，建好后立刻停", async () => {
