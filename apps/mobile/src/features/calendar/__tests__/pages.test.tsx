@@ -33,6 +33,8 @@ vi.mock("../../cards/editorToolbar/MobileEditorBottomToolbar", () => ({
   MobileEditorBottomToolbar: () => null,
 }));
 vi.mock("../../cards/editorExtensions", () => ({ mobileCardPreviewExtensions: [] }));
+// 页面测试不渲染真实编辑器，kit 也不必真实构造
+vi.mock("../../../services/editorKit", () => ({ getMobileKit: () => ({}) }));
 vi.mock("@tau/editor/src", () => ({
   Editor: forwardRef(({ initValue }: { initValue: unknown }, ref) => {
     const [value, setValue] = useState(initValue);

@@ -8,7 +8,6 @@ import { mockDocPageSidebarDemoData } from "@blog/mock/data";
 
 vi.mock("@tau/editor", () => ({
   Editor: () => <div data-slate-editor="true" />,
-  EditorProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
 vi.mock("@blog/components/Outline", () => ({
@@ -26,13 +25,7 @@ vi.mock("@blog/components/DndProvider", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
-vi.mock("@blog/editorExtensions", () => ({
-  createBlogEditorExtensions: () => [],
-}));
-
-vi.mock("@blog/services/editorRegistry", () => ({
-  createBlogEditorRegistry: () => ({}),
-}));
+vi.mock("@blog/services/editorKit", () => ({ getBlogKit: () => ({}) }));
 
 describe("DocPage", () => {
   let container: HTMLDivElement;

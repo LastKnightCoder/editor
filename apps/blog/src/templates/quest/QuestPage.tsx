@@ -3,12 +3,11 @@ import { motion } from "motion/react";
 import { Header } from "@blog/components/Layout";
 import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
 import { Tag, ScrollToTop } from "@blog/components/Common";
-import { Editor, EditorProvider } from "@tau/editor";
+import { Editor } from "@tau/editor";
 import { getInitData, formatDate, getReadingTime, getPlainText, joinPath } from "@blog/utils";
 import { QuestAnswerData, QuestData } from "@blog/types";
 import DndProvider from "@blog/components/DndProvider";
-import { createBlogEditorRegistry } from "@blog/services/editorRegistry";
-import { createBlogEditorExtensions } from "@blog/editorExtensions";
+import { getBlogKit } from "@blog/services/editorKit";
 import { fadeUp, defaultTransition } from "@blog/utils/motion";
 
 const statusLabels: Record<QuestData["status"], string> = {
@@ -124,8 +123,6 @@ const AnswerContent = memo(
     }, [answer.content, sourceHref]);
 
     // hooks 必须先于下方条件早退调用，避免远端答案加载完成后 hooks 数量变化
-    const editorRegistry = useMemo(() => createBlogEditorRegistry(), []);
-    const editorExtensions = useMemo(() => createBlogEditorExtensions(settings), [settings]);
 
     if (remote.loading) {
       return <p className="text-sm text-[var(--color-text-tertiary)]">正在取回答案...</p>;
@@ -137,9 +134,7 @@ const AnswerContent = memo(
 
     return (
       <DndProvider>
-        <EditorProvider registry={editorRegistry} extensions={editorExtensions}>
-          <Editor initValue={remote.content} readonly />
-        </EditorProvider>
+        <Editor kit={getBlogKit(settings)} initValue={remote.content} readonly />
       </DndProvider>
     );
   }
@@ -221,11 +216,6 @@ const QuestPage = memo(() => {
   const quest = initData.content as QuestData;
   const docCollections = initData.docCollections || [];
   const blogSettings = initData.settings;
-  const blogEditorRegistry = useMemo(() => createBlogEditorRegistry(), []);
-  const blogEditorExtensions = useMemo(
-    () => createBlogEditorExtensions(blogSettings),
-    [blogSettings]
-  );
   const hasDescription = Boolean(quest.description && getPlainText(quest.description).trim());
 
   const readingTime = useMemo(() => {
@@ -280,16 +270,11 @@ const QuestPage = memo(() => {
                     data-testid="quest-description"
                   >
                     <DndProvider>
-                      <EditorProvider
-                        registry={blogEditorRegistry}
-                        extensions={blogEditorExtensions}
-                      >
-                        <Editor
-                          initValue={quest.description}
-                          readonly
-                          className="text-[var(--color-text-tertiary)]"
-                        />
-                      </EditorProvider>
+                      <Editor
+                        initValue={quest.description}
+                        readonly
+                        className="text-[var(--color-text-tertiary)]"
+                      />
                     </DndProvider>
                   </div>
                 )}

@@ -6,7 +6,7 @@ import {
   IFileService,
   IResourceService,
   IVideoContentProviders,
-  type ServiceRegistry,
+  type ServiceRegistration,
   type VideoContentProvider,
 } from "@tau/editor";
 import { importFromMarkdown } from "@tau/markdown";
@@ -71,9 +71,9 @@ type AudioPropsWithoutWs = Omit<React.ComponentPropsWithoutRef<typeof RpcLocalAu
  * - utility 在本地实现
  * - resource/file 等桌面端特有服务提供最小化实现
  */
-export function createExtensionEditorRegistry({
+export function createExtensionEditorServices({
   wsClient,
-}: CreateEditorRegistryOptions): ServiceRegistry {
+}: CreateEditorRegistryOptions): ServiceRegistration {
   const rpc = async <T = unknown,>(method: string, params: unknown = null): Promise<T> => {
     if (!wsClient?.isConnected) {
       throw new Error("WebSocket 未连接，无法执行此操作");
@@ -81,7 +81,7 @@ export function createExtensionEditorRegistry({
     return wsClient.sendRequest(method, params) as Promise<T>;
   };
 
-  return createServiceRegistry(register => {
+  return register => {
     // ==================== 媒体文件服务（简化实现）====================
     register(IResourceService, {
       upload: async (_file: File) => {
@@ -122,7 +122,7 @@ export function createExtensionEditorRegistry({
     });
 
     register(IVideoContentProviders, createDegradedVideoProviders());
-  });
+  };
 }
 
 /** markdown 粘贴导入用的解析函数（合并业务 customDirectives），供宿主扩展工厂注入 */

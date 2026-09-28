@@ -32,7 +32,7 @@ import { useCreation, useMemoizedFn } from "ahooks";
 
 import { EditorKitScope, useKitWithExtensions } from "./kit/context";
 import type { EditorKit } from "./kit/EditorKit";
-import { useCompatibleKit } from "./kit/providerCompat";
+import { useResolvedKit } from "./kit/context";
 import type { ServiceIdentifier } from "./services/tokens";
 
 import {
@@ -107,7 +107,6 @@ interface IEditorProps {
   onFocus?: () => void;
   onBlur?: () => void;
   placeHolder?: string;
-  disableStartExtensions?: boolean;
   /** 自定义 decorate 函数（用于添加装饰，如 diff 高亮） */
   decorate?: (entry: [Node, Path]) => Range[];
   /** 自定义 renderLeaf 函数（用于自定义叶子节点渲染） */
@@ -142,14 +141,13 @@ const Index = memo(
       onFocus,
       onBlur,
       placeHolder,
-      disableStartExtensions = false,
       decorate,
       customRenderLeaf,
       collaboration,
       collaborationCursors = true,
     } = props;
 
-    const baseKit = useCompatibleKit(kitProp, disableStartExtensions);
+    const baseKit = useResolvedKit(kitProp);
     const kit = useKitWithExtensions(baseKit, extensions);
     const assembly = kit.assembly;
     const registry = kit.registry;

@@ -3,6 +3,7 @@
 // 头部 = 彩点 + 彩色类型名 + 右侧时间；标签用品牌色 # chip。
 
 import { memo, useCallback, useMemo, useRef } from "react";
+import { getMobileKit } from "../../services/editorKit";
 import type { Descendant } from "slate";
 import { Editor, type EditorRef } from "@tau/editor/src";
 import { CardListItem } from "../../types";
@@ -81,6 +82,7 @@ const CardItem = memo(({ item, onPreviewCard }: CardItemProps) => {
         <div className="pointer-events-none min-w-0">
           {editorContent.length > 0 ? (
             <Editor
+              kit={getMobileKit()}
               ref={editorRef}
               className="overflow-hidden"
               readonly={true}

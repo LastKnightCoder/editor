@@ -29,6 +29,8 @@ vi.mock("../../../components/MobileConfirmDialog", () => ({
   MobileConfirmDialog: ({ open, description }: { open: boolean; description: string }) =>
     open ? <div>{description}</div> : null,
 }));
+// 页面测试不渲染真实编辑器，kit 也不必真实构造
+vi.mock("../../../services/editorKit", () => ({ getMobileKit: () => ({}) }));
 vi.mock("@tau/editor/src", () => ({
   Editor: ({ initValue, onChange }: { initValue: unknown; onChange: (value: unknown) => void }) => (
     <button data-editor onClick={() => onChange(content("修改后的详情"))}>

@@ -146,7 +146,7 @@ export function createBareEditorKit(options: EditorKitOptions = {}): EditorKit {
 
 /**
  * 用已有的服务注册表建 kit。给两种场景：
- * ①「裸编辑器」需要沿用宿主服务但不要内置扩展；② P6 过渡期从 EditorProvider 合成 kit。
+ * 「裸编辑器」需要沿用宿主服务但不装内置扩展时用它（发布预览、白板箭头描述）。
  */
 export function createEditorKitFromRegistry(
   registry: ServiceRegistry,

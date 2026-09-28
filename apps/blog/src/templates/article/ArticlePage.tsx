@@ -3,15 +3,14 @@ import { motion } from "motion/react";
 import { Header } from "@blog/components/Layout";
 import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
 import { Tag, ScrollToTop } from "@blog/components/Common";
-import { Editor, EditorProvider } from "@tau/editor";
+import { Editor } from "@tau/editor";
 import Outline from "@blog/components/Outline";
 import { getInitData, formatDate, getReadingTime, joinPath } from "@blog/utils";
 import { ArticleData } from "@blog/types";
 import { HeaderElement } from "@tau/editor";
 import { getInlineElementText } from "@blog/utils/editor";
 import DndProvider from "@blog/components/DndProvider";
-import { createBlogEditorRegistry } from "@blog/services/editorRegistry";
-import { createBlogEditorExtensions } from "@blog/editorExtensions";
+import { getBlogKit } from "@blog/services/editorKit";
 import { fadeUp, defaultTransition } from "@blog/utils/motion";
 
 function extractHeaders(content: unknown[]) {
@@ -37,11 +36,6 @@ const ArticlePage = memo(() => {
   const article = initData.content as ArticleData;
   const docCollections = initData.docCollections || [];
   const blogSettings = initData.settings;
-  const blogEditorRegistry = useMemo(() => createBlogEditorRegistry(), []);
-  const blogEditorExtensions = useMemo(
-    () => createBlogEditorExtensions(blogSettings),
-    [blogSettings]
-  );
 
   const readingTime = useMemo(() => getReadingTime(article.content), [article.content]);
 
@@ -127,9 +121,7 @@ const ArticlePage = memo(() => {
 
                   {/* 正文内容 */}
                   <DndProvider>
-                    <EditorProvider registry={blogEditorRegistry} extensions={blogEditorExtensions}>
-                      <Editor initValue={article.content} readonly />
-                    </EditorProvider>
+                    <Editor kit={getBlogKit(blogSettings)} initValue={article.content} readonly />
                   </DndProvider>
 
                   {/* 标签区域（文章底部） */}

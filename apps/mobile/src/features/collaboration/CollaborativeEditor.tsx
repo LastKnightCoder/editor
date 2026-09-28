@@ -3,6 +3,7 @@
 // owner 侧投影、presence 上报；会话建立失败时上报「本地兜底」模式，由详情页用正常的
 // 本地编辑器继续编辑（改动经投影通道落本地库），重连后拉出「保留本机 / 采用云端」裁决。
 import { useEffect, useRef, useState, type ComponentProps, type RefObject } from "react";
+import { getMobileKit } from "../../services/editorKit";
 import { ChevronRight, Loader2, RefreshCw, Users, WifiOff } from "lucide-react";
 import { Editor, type EditorRef } from "@tau/editor/src";
 import { AvatarStack, StatusDot } from "./components/CollaborationUI";
@@ -177,6 +178,7 @@ export function CollaborativeEditor(props: {
 
       <div className="min-h-[45vh] pt-1">
         <Editor
+          kit={getMobileKit()}
           ref={props.editorRef}
           key={`collab-${props.documentId}`}
           collaboration={binding}

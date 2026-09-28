@@ -6,6 +6,7 @@ import {
   IFileService,
   IVideoContentProviders,
   IResourceService,
+  type ServiceRegistration,
   type ServiceRegistry,
   type ImageBorderRadiusPreset,
   type ImageShadowPreset,
@@ -65,32 +66,35 @@ const createBlogEditorSlots = (): EditorSlots => {
   };
 };
 
-export function createBlogEditorRegistry(): ServiceRegistry {
-  return createServiceRegistry(register => {
-    register(IResourceService, {
-      upload: async () => {
-        throw new Error("Blog 模式不支持上传资源");
-      },
-    });
-
-    register(IFileService, {
-      select: async () => {
-        throw new Error("Blog 模式不支持文件选择");
-      },
-      readText: async () => {
-        throw new Error("Blog 模式不支持文件读取");
-      },
-      getBaseName: (filePath: string) => {
-        const normalized = filePath.replace(/\\/g, "/");
-        const parts = normalized.split("/");
-        return parts.at(-1) ?? "";
-      },
-      getHomeDir: async () => "",
-    });
-
-    register(IEditorSlots, createBlogEditorSlots());
-    register(IVideoContentProviders, blogVideoContentProviders);
+/** Blog 的服务注册项：kit 与 registry 共用同一份 */
+export const blogEditorServices: ServiceRegistration = register => {
+  register(IResourceService, {
+    upload: async () => {
+      throw new Error("Blog 模式不支持上传资源");
+    },
   });
+
+  register(IFileService, {
+    select: async () => {
+      throw new Error("Blog 模式不支持文件选择");
+    },
+    readText: async () => {
+      throw new Error("Blog 模式不支持文件读取");
+    },
+    getBaseName: (filePath: string) => {
+      const normalized = filePath.replace(/\\/g, "/");
+      const parts = normalized.split("/");
+      return parts.at(-1) ?? "";
+    },
+    getHomeDir: async () => "",
+  });
+
+  register(IEditorSlots, createBlogEditorSlots());
+  register(IVideoContentProviders, blogVideoContentProviders);
+};
+
+export function createBlogEditorRegistry(): ServiceRegistry {
+  return createServiceRegistry(blogEditorServices);
 }
 
 /** 图片默认外观：来自发布设置快照，缺省为中圆角、无阴影 */
