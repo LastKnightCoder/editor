@@ -51,4 +51,30 @@ describe("createMarkdownProcessor codecs", () => {
     ] as unknown as Descendant[];
     expect(getMarkdown(value)).not.toContain(":mention");
   });
+
+  it("isVoid 的 codec 在导入、导出两个方向都记元素级映射", () => {
+    const md = createMarkdownProcessor({
+      codecs: [
+        {
+          type: "attachment",
+          isVoid: true,
+          directives: {
+            attachment: () =>
+              ({
+                type: "attachment",
+                children: [{ type: "formatted", text: "" }],
+              }) as unknown as Descendant,
+          },
+          serializer: { isBlock: true, toMarkdown: () => ":::attachment\n:::" },
+        },
+      ],
+    });
+    const imported = md.importFromMarkdownWithPositions("前文\n\n:::attachment\n:::\n\n后文\n");
+    const index = imported.content.findIndex(
+      node => (node as { type?: string }).type === "attachment"
+    );
+    expect(imported.positionMap.getElementMappingBySlatePath([index])?.isVoid).toBe(true);
+    const exported = md.getMarkdownWithPositions(imported.content);
+    expect(exported.positionMap.getElementMappingBySlatePath([index])?.isVoid).toBe(true);
+  });
 });
