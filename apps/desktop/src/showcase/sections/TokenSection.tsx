@@ -7,7 +7,7 @@
  * 色值一律走 CSS 变量内联（D-001 允许，取值随 data-theme 级联，无需重算）。
  */
 
-import { useThemeStore } from "@tau/ui/theme/runtime";
+import { useThemeStore } from "@tau/themes/react";
 import { BlockTitle, DocHead, Note } from "../kit";
 
 type Kind = "fill" | "text" | "line";

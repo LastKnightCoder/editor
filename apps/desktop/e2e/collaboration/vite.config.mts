@@ -14,7 +14,6 @@ export default defineConfig({
       "@tau/editor": resolve(root, "../../packages/editor"),
       "@tau/shared": resolve(root, "../../packages/shared"),
       "@tau/agent": resolve(root, "../../packages/agent"),
-      "@tau/themes": resolve(root, "../../packages/themes"),
       "@tau/db-schema": resolve(root, "../../packages/db-schema"),
     },
   },

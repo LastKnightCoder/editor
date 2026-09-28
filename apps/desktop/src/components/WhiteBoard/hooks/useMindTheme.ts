@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { useThemeStore } from "@tau/ui/theme/runtime";
+import { useThemeStore } from "@tau/themes/react";
 
 import type { MindNodeElement } from "../types";
 import MindThemeUtil, { type MindMode } from "../utils/MindThemeUtil";

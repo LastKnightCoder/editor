@@ -88,7 +88,7 @@ src/showcase/sections/LinkGraphSection.tsx            样板间档案（pnpm --d
 ## 4. 规范（用户明确要求过的）
 
 - **回复用简体中文。**
-- **只用新主题系统**：颜色一律取 `--tau-*` 语义 token（`packages/ui/src/theme/tokenContract.ts`），**禁用旧的 `useThemeColors`**。画布里用 `getComputedStyle` 读 token（`core/palette.ts` 的 `readThemeTokens`），监听 `<html>` 的 `data-theme` / `data-mode`。
+- **只用新主题系统**：颜色一律取 `--tau-*` 语义 token（`packages/themes/src/tokenContract.ts`），**禁用旧的 `useThemeColors`**。画布里用 `getComputedStyle` 读 token（`core/palette.ts` 的 `readThemeTokens`），监听 `<html>` 的 `data-theme` / `data-mode`。
 - **对比度靠单测兜住**：`__tests__/palette.test.ts` 遍历全部主题族 × 明暗（6×2）。新增颜色必须进这个门禁。标签 ≥4.5:1，图形 ≥3:1。
 - **不能只看现状**：设计按万级卡片考虑，批次不能跳。
 - 代码风格：注释讲「为什么」，中文注释，密度与现有文件一致。提交信息沿用 `feat(desktop): …` + 中文正文 + `Co-Authored-By` 行。

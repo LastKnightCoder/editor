@@ -2,7 +2,7 @@ import { useMemo } from "react";
 
 import type { EditorConfig } from "@tau/editor/src";
 import type { ThemeColors } from "@tau/editor/src/types/services";
-import { useThemeStore } from "@tau/ui/theme/runtime";
+import { useThemeStore } from "@tau/themes/react";
 import useSettingStore, { type ISetting } from "@/stores/useSettingStore";
 import { ACCENT_COLORS, ACCENT_OKLCH } from "@/constants/accent";
 import { openExternal } from "@/commands/extra";

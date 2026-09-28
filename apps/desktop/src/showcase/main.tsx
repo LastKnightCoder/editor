@@ -9,7 +9,7 @@ import ReactDOM from "react-dom/client";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { EditorProvider } from "@tau/editor/src";
-import { initThemeRuntime } from "@tau/ui/theme/runtime";
+import { initThemeRuntime } from "@tau/themes/react";
 import { initScrollbarAutoHide } from "@tau/ui";
 import { initToolCallRenderers } from "@/tool-call-renderers";
 import { createEditorRegistry } from "@/services/editorRegistry";

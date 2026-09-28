@@ -14,16 +14,16 @@ import { Minus, Plus } from "lucide-react";
 import clsx from "clsx";
 import { produce } from "immer";
 import type { ImageBorderRadiusPreset, ImageShadowPreset } from "@tau/editor";
-import { useThemeStore } from "@tau/ui/theme/runtime";
+import { useThemeStore } from "@tau/themes/react";
 import type { CSSProperties, ReactNode } from "react";
 import {
   DEFAULT_THEME_KEY,
   getTheme,
   listThemes,
+  type Appearance,
   type SemanticTokens,
   type ThemeDefinition,
-} from "@tau/ui/theme";
-import type { Appearance } from "@tau/ui/theme/runtime";
+} from "@tau/themes";
 import { Select } from "@tau/ui";
 import useSettingStore, { type ISetting } from "@/stores/useSettingStore";
 import { getAllFonts } from "@/commands";

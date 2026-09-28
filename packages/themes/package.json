@@ -1,6 +1,35 @@
 {
   "name": "@tau/themes",
   "version": "0.1.0",
+  "private": true,
+  "type": "module",
   "main": "src/index.ts",
-  "types": "src/index.ts"
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./dom": "./src/dom.ts",
+    "./react": "./src/react.ts",
+    "./tokens.css": "./src/tokens.css",
+    "./tailwind.css": "./src/tailwind.css",
+    "./light.less": "./src/light.less",
+    "./dark.less": "./src/dark.less"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.dom.json"
+  },
+  "dependencies": {
+    "zustand": "^4.3.8"
+  },
+  "peerDependencies": {
+    "react": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.2.1",
+    "@types/react": "19.2.0",
+    "jsdom": "^24.1.3",
+    "react": "19.2.0",
+    "typescript": "^5.0.4",
+    "vitest": "^3.2.4"
+  }
 }

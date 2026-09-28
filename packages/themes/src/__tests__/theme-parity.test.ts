@@ -3,10 +3,9 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ALL_TOKEN_WORDS, cssVarName, type TokenWord } from "../tokenContract";
 import { THEME_MODES, defineTheme, getThemeRegistry, listThemes } from "../defineTheme";
-import "../themes"; // 副作用注册全部主题
+import "../register"; // 副作用注册全部主题
 
-// jsdom 环境下 import.meta.url 非 file:// 协议，按 vitest 运行根（apps/desktop）解析
-const css = readFileSync(resolve(process.cwd(), "src/theme/tokens.css"), "utf-8");
+const css = readFileSync(resolve(import.meta.dirname, "../tokens.css"), "utf-8");
 
 /** 提取指定主题族 × 明暗的 [data-theme][data-mode] 数据块（到行首 } 为止） */
 function themeBlock(key: string, mode: string): string {

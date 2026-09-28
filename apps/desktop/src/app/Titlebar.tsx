@@ -9,7 +9,7 @@ import { usePage } from "@/page/PageProvider";
 import { getPageMeta } from "@/page/core/pageMeta";
 import { isEditableTarget } from "@/page/dom";
 import { IconButton } from "@tau/ui";
-import { nextAppearance, useThemeStore } from "@tau/ui/theme/runtime";
+import { nextAppearance, useThemeStore } from "@tau/themes/react";
 import { useSearchStore } from "@/features/search/searchStore";
 import { WindowControls } from "./WindowControls";
 import { useShellStore } from "./shellStore";

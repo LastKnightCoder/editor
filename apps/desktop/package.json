@@ -30,6 +30,7 @@
     "@tau/collaboration": "workspace:*",
     "@tau/contracts": "workspace:*",
     "@tau/rpc": "workspace:*",
+    "@tau/themes": "workspace:*",
     "@tau/ui": "workspace:*",
     "@vscode/ripgrep": "^1.15.14",
     "better-sqlite3": "^12.10.0",

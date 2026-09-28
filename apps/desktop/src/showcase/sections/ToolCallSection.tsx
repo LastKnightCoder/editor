@@ -9,7 +9,7 @@
  */
 
 import type { ToolCallExecutionState } from "@tau/shared";
-import { useThemeStore } from "@tau/ui/theme/runtime";
+import { useThemeStore } from "@tau/themes/react";
 import { ToolCallBlock } from "@/components/ChatUI";
 import { BlockTitle, CanvasCard, DocHead, MatrixRow, Note } from "../kit";
 import {

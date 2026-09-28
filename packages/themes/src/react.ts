@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { applyThemeToDom } from "./theme";
+import { applyThemeToDom } from "./dom";
 import type { ThemeMode } from "./defineTheme";
 import { resolveThemePreference, themeRuntimeConfig, type Appearance } from "./bootstrap";
 
