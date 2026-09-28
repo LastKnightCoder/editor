@@ -8,10 +8,13 @@ import { CollaborationContext } from "./context";
 import CollaborationCursors from "./Cursors";
 import SafeCollaborationElement, { requiresSafeRendering } from "./SafeElement";
 import type { EditorCollaborationBinding } from "./types";
-import { withCollaboration } from "./withCollaboration";
+import { rebindCollaboration, withCollaboration } from "./withCollaboration";
 
 export interface YjsDocumentOptions {
-  /** 内容谱系；缺省取 Y.Doc 的 guid。同一篇内容本机 / 共享切换时应传同一个值 */
+  /**
+   * 内容谱系；缺省取 Y.Doc 的 guid。**同一篇内容在本机与共享之间切换时必须传同一个值**，
+   * 内核据此走换源而不是重建编辑器（01 §7.3）。
+   */
   lineage?: string;
   /** 关闭协作光标的发送与展示，正文同步不受影响 */
   cursors?: boolean;
@@ -45,6 +48,12 @@ export function createYjsDocument(
       YjsEditor.flushLocalChanges(editor);
       binding.flushLocal = undefined;
       YjsEditor.disconnect(editor);
+    },
+    rebind: editor => {
+      if (!rebindCollaboration(editor, binding)) return false;
+      if (YjsEditor.isYjsEditor(editor))
+        binding.flushLocal = () => YjsEditor.flushLocalChanges(editor);
+      return true;
     },
     renderElement: (props, renderByType) => renderPrivateBlock(binding, props, renderByType),
     renderOverlay: containerRef =>

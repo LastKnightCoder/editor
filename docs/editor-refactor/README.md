@@ -53,9 +53,9 @@
 
 状态图例：⏳ 未开始 / 🚧 进行中 / ✅ 完成 / ⏸ 暂停（写原因）。
 
-**下一步**：P7 第二步（同谱系换源）。第一步已完成：`@tau/editor-collab` 建好，内核不再认识协作，
-协作走 `EditorDocument.binding` 受信任层（钩子表见 01 §7.2）。之后是 desktop 主进程的会话升级、mobile 换源。
-注意 P7 清单里的 `CollaborationServices` 已在 P6 提前删掉。
+**下一步**：P7 第三步（desktop 主进程把发起共享改为升级本机会话）。已完成：第一步 `@tau/editor-collab`
+（内核不再认识协作，走 `EditorDocument.binding` 受信任层，钩子表见 01 §7.2）、第二步同谱系换源
+（lineage 相同不重建编辑器）。之后是 mobile 换源。注意 P7 清单里的 `CollaborationServices` 已在 P6 提前删掉。
 
 ## 5. 接手步骤
 

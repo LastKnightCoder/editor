@@ -1,6 +1,7 @@
 import * as Y from "yjs";
 import {
   Editor,
+  Element,
   Node,
   Range,
   Transforms,
@@ -25,11 +26,16 @@ import type { EditorCollaborationBinding } from "./types";
 
 const PROJECTION_ORIGIN = Symbol("collaboration-projection");
 
+/** 换绑入口：编辑器里所有读 binding 的闭包都经这里换到新绑定（见 rebindCollaboration） */
+const REBINDABLE = new WeakMap<Editor, (next: EditorCollaborationBinding) => void>();
+
 export function withCollaboration<T extends Editor>(
   base: T,
-  binding: EditorCollaborationBinding,
+  initialBinding: EditorCollaborationBinding,
   { cursors = true }: { cursors?: boolean } = {}
 ) {
+  // 可变绑定：下面所有改写都在闭包里读它，换源时只换这一个引用
+  let binding = initialBinding;
   const editor = withCursors(
     withYHistory(
       withYjs(base, binding.root || getBody(binding.doc), {
@@ -253,5 +259,77 @@ export function withCollaboration<T extends Editor>(
     getFields(binding.doc).unobserveDeep(update);
     disconnect();
   };
+  REBINDABLE.set(editor, next => {
+    binding = next;
+  });
   return editor;
+}
+
+/**
+ * 同谱系换源（01 §7.3 第 3 层）：把已装好的编辑器从旧绑定迁到新绑定。
+ * 调用前编辑器必须已 disconnect（旧绑定的监听已摘除）。
+ *
+ * 结构共享是关键：slate-react 以节点对象身份作 key（NODE_TO_KEY），内容相同的子树
+ * 换回旧对象，块组件（mermaid、codemirror 等）就不会重新挂载。
+ */
+export function rebindCollaboration(editor: Editor, next: EditorCollaborationBinding): boolean {
+  const setBinding = REBINDABLE.get(editor);
+  if (!setBinding || !YjsEditor.isYjsEditor(editor)) return false;
+  const target = editor as unknown as CollaborativeEditor;
+  const previousChildren = target.children;
+  const selection = target.selection;
+  // 本地写入标识必须保持稳定：slate-yjs 把最近一次 withOrigin 的 origin 记在内部 WeakMap 里
+  // 并与 localOrigin 比较来判断「这是本地改动吗」。换掉 localOrigin 会让本地编辑被判成远端，
+  // 从此不再写回 Y.Doc。所以让新绑定沿用编辑器已有的 origin。
+  next.origin = target.localOrigin as object;
+  setBinding(next);
+  target.sharedRoot = next.root || getBody(next.doc);
+  target.awareness = next.awareness;
+  target.undoManager.destroy();
+  target.undoManager = new Y.UndoManager(target.sharedRoot, {
+    trackedOrigins: new Set([target.localOrigin]),
+  });
+  target.undoManager.addToScope(getFields(next.doc));
+  YjsEditor.connect(target);
+  target.children = shareStructure(previousChildren, target.children);
+  if (
+    selection &&
+    Node.has(target, selection.anchor.path) &&
+    Node.has(target, selection.focus.path)
+  )
+    target.selection = selection;
+  target.onChange();
+  return true;
+}
+
+type CollaborativeEditor = ReturnType<typeof withCollaboration<Editor>>;
+
+const sameContent = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+/**
+ * 内容相同的节点换回旧对象。按 collabId 对齐（前面插入删除了块时位置会整体错位，
+ * 只按位置比较会让其后所有块都被判为不同），没有 collabId（文本叶子）时退回同位置。
+ */
+function shareStructure(previous: Descendant[], next: Descendant[]): Descendant[] {
+  const byCollabId = new Map<string, Descendant>();
+  const index = (nodes: Descendant[]) => {
+    for (const node of nodes) {
+      const collabId = (node as unknown as ContentNode).collabId;
+      if (typeof collabId === "string" && !byCollabId.has(collabId)) byCollabId.set(collabId, node);
+      if (Element.isElement(node)) index(node.children);
+    }
+  };
+  index(previous);
+  const visit = (node: Descendant, sameIndex: Descendant | undefined): Descendant => {
+    const collabId = (node as unknown as ContentNode).collabId;
+    const old = (typeof collabId === "string" ? byCollabId.get(collabId) : undefined) ?? sameIndex;
+    if (old && sameContent(old, node)) return old;
+    if (Element.isElement(node) && old && Element.isElement(old))
+      return {
+        ...node,
+        children: node.children.map((child, childIndex) => visit(child, old.children[childIndex])),
+      } as Descendant;
+    return node;
+  };
+  return next.map((node, position) => visit(node, previous[position]));
 }

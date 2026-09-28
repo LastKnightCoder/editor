@@ -12,6 +12,7 @@ export interface EditorCollaborationBinding {
   doc: Y.Doc;
   root?: Y.XmlText;
   awareness: Awareness;
+  /** 本地写入标识（区分本机改动与远端更新）；换源时由编辑器改写为它已有的 origin */
   origin: object;
   /** 白板、数据库等本地实体块的数据，按 collabId 保存，不进入共享文档。 */
   privateNodes: Map<string, ContentNode>;
