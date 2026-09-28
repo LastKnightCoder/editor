@@ -1,4 +1,10 @@
-import type { ContentNode } from "./protocol";
+/** 编辑器节点的最小结构（与 @tau/collaboration 的 ContentNode 同形） */
+interface ContentNode {
+  type?: string;
+  text?: string;
+  children?: ContentNode[];
+  [key: string]: unknown;
+}
 
 const emptyParagraph = (): ContentNode => ({
   type: "paragraph",

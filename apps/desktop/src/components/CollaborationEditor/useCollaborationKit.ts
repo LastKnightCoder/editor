@@ -5,7 +5,7 @@ import {
   type EditorKit,
   type ServiceRegistration,
 } from "@tau/editor/src";
-import type { EditorCollaborationBinding } from "@tau/editor/src/collaboration/types";
+import type { EditorCollaborationBinding } from "@tau/editor-collab";
 import { getContentKit } from "@/services/editorKit";
 import { createAssetMedia } from "./AssetMedia";
 

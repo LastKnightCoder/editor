@@ -14,7 +14,7 @@ import { flushSync } from "react-dom";
 import * as Y from "yjs";
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from "y-protocols/awareness";
 import { ASSET_PREFIX, readSharedContent, type SharedContent } from "@tau/collaboration";
-import type { EditorCollaborationBinding } from "@tau/editor/src/collaboration/types";
+import type { EditorCollaborationBinding } from "@tau/editor-collab";
 import { on, off } from "@/electron";
 import { publishSessionValue } from "@/stores/useContentSessionStore";
 

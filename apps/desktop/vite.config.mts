@@ -47,6 +47,7 @@ export default defineConfig(() => {
         "@quick-card": path.resolve(__dirname, "quick-card"),
         "@editor": path.resolve(__dirname, "src/components/Editor"),
         "@tau/editor": path.resolve(__dirname, "../../packages/editor"),
+        "@tau/editor-collab": path.resolve(__dirname, "../../packages/editor-collab"),
         "@tau/db-schema": path.resolve(__dirname, "../../packages/db-schema"),
         "@tau/rpc": path.resolve(__dirname, "../../packages/rpc"),
         "@tau/platform": path.resolve(__dirname, "../../packages/platform"),

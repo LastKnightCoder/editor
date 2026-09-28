@@ -1,6 +1,6 @@
 import type { Descendant } from "slate";
 // 仅引入纯函数子模块，避免把协作包入口的 yjs 拖进移动端产物
-import { migrateTabsToPanes } from "@tau/collaboration/src/tabs-normalize";
+import { migrateTabsToPanes } from "@tau/db-schema";
 import type { ContentNode } from "@tau/collaboration/src/protocol";
 import { getContentLength as sharedGetContentLength } from "@tau/collaboration/src/content-length";
 

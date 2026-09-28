@@ -10,7 +10,7 @@ import {
 import { createEditor, Transforms } from "slate";
 import { YjsEditor } from "@slate-yjs/core";
 import { createSharedDocument, readSharedContent, validateDocument } from "@tau/collaboration";
-import { withCollaboration } from "@tau/editor/src/collaboration/withCollaboration";
+import { withCollaboration } from "@tau/editor-collab";
 import {
   contentRevision,
   contentSession,

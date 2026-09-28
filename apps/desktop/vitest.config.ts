@@ -40,6 +40,7 @@ export default defineConfig({
       "@tau/rpc": path.resolve(__dirname, "../../packages/rpc"),
       "@tau/shared": path.resolve(__dirname, "../../packages/shared"),
       "@tau/editor": path.resolve(__dirname, "../../packages/editor"),
+      "@tau/editor-collab": path.resolve(__dirname, "../../packages/editor-collab"),
       "@tau/db-schema": path.resolve(__dirname, "../../packages/db-schema"),
       "better-sqlite3": nodeSqlite,
       // 单测环境不需要渲染 TikZ，避免 tikzjax 在 JSDOM 下执行导致崩溃

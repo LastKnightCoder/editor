@@ -22,6 +22,7 @@
       "@/*": ["./src/*"],
       "@editor/*": ["./src/components/Editor/*"],
       "@tau/editor": ["../../packages/editor/src"],
+      "@tau/editor-collab": ["../../packages/editor-collab/src"],
       "@tau/contracts": ["../../packages/contracts/src"],
       "@tau/platform": ["../../packages/platform/src"],
       "@tau/rpc": ["../../packages/rpc/src"],

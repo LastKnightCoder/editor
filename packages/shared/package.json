@@ -11,6 +11,22 @@
     "./chat-core": {
       "types": "./src/chat-core/index.ts",
       "default": "./chat-core.ts"
+    },
+    "./src/*": {
+      "types": [
+        "./src/*",
+        "./src/*.ts",
+        "./src/*.tsx",
+        "./src/*/index.ts",
+        "./src/*/index.tsx"
+      ],
+      "default": [
+        "./src/*",
+        "./src/*.ts",
+        "./src/*.tsx",
+        "./src/*/index.ts",
+        "./src/*/index.tsx"
+      ]
     }
   },
   "peerDependencies": {

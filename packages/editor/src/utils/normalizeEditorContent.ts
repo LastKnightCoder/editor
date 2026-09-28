@@ -1,5 +1,5 @@
 import type { Descendant } from "slate";
-import { stripRetiredEditorBlocks } from "@tau/collaboration";
+import { stripRetiredEditorBlocks } from "@tau/db-schema";
 
 const createEmptyEditorContent = (): Descendant[] => [
   {

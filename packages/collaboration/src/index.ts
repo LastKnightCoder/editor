@@ -1,7 +1,12 @@
 export * from "./protocol";
 export * from "./document";
 export * from "./palette";
-export * from "./tabs-normalize";
+export {
+  hasSubstantialContent,
+  migrateTabsNode,
+  migrateTabsToPanes,
+  type TabsNodeMigration,
+} from "@tau/db-schema";
 export * from "./encoding";
 export * from "./content-length";
 export * from "./knowledge-migration";
