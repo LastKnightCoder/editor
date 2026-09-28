@@ -34,11 +34,19 @@ describe("desktop editor kit", { timeout: 30_000 }, () => {
     expect(() => getDesktopKit()).toThrow(/宿主扩展尚未装载/);
   });
 
+  it("BLOCKS_LOST_IN_MARKDOWN 里的类型在 codec 表里确实没有 serializer", async () => {
+    const { BLOCKS_LOST_IN_MARKDOWN } = await import("../editorKit");
+    const { desktopMarkdownCodecs } = await import("@/utils/markdown-codecs");
+    for (const type of BLOCKS_LOST_IN_MARKDOWN) {
+      const codec = desktopMarkdownCodecs.find(item => item.type === type);
+      expect(codec?.serializer, `${type} 已经能序列化回 Markdown，应从清单移除`).toBeUndefined();
+    }
+  });
+
   it("库内内容的 kit 含白板与数据库块，Markdown 文件的 kit 不含", async () => {
     const store = (await import("@/stores/useDynamicExtensionsStore")).default;
     store.setState({
-      extensions: [extensionOf("content-link")],
-      libraryBlockExtensions: [extensionOf("whiteboard"), extensionOf("database")],
+      extensions: [extensionOf("content-link"), extensionOf("whiteboard"), extensionOf("database")],
       initialized: true,
     });
     const { getDesktopKit, getDesktopFileKit } = await import("../editorKit");
