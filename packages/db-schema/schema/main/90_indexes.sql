@@ -21,8 +21,6 @@ CREATE INDEX IF NOT EXISTS idx_chat_session_scope ON chat_session(scope, domain_
 CREATE INDEX IF NOT EXISTS idx_chat_session_update_time ON chat_session(update_time);
 CREATE INDEX IF NOT EXISTS idx_chat_session_group_id ON chat_session(group_id);
 CREATE INDEX IF NOT EXISTS idx_chat_session_parent ON chat_session(parent_session_id);
-CREATE INDEX IF NOT EXISTS idx_chat_run_session_status ON chat_run(session_key, status);
-CREATE INDEX IF NOT EXISTS idx_chat_run_updated_at ON chat_run(updated_at);
 CREATE INDEX IF NOT EXISTS idx_question_group_sort ON question_group(sort_index);
 CREATE INDEX IF NOT EXISTS idx_question_group_default ON question_group(is_default);
 CREATE INDEX IF NOT EXISTS idx_questions_group_id ON questions(group_id);

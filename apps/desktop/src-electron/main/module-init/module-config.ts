@@ -9,7 +9,6 @@ import extraModule from "../modules/extra";
 import serverModule from "../modules/server";
 import databaseModule from "../modules/database";
 import collaborationModule from "../modules/collaboration";
-import streamFetchModule from "../modules/stream-fetch";
 import piAiRuntimeModule from "../modules/pi-ai-runtime";
 import piSessionHostModule from "../modules/pi-session-host";
 import browserBridgeModule from "../modules/browser-bridge";
@@ -263,15 +262,6 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger"],
     init: () => mcpModule.init(),
-  },
-  {
-    name: "stream-fetch",
-    group: ModuleGroup.AI,
-    layer: InitLayer.BACKGROUND,
-    dependencies: ["logger"],
-    init: async () => {
-      streamFetchModule.init();
-    },
   },
   {
     name: "transcription",

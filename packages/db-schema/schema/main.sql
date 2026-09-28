@@ -270,25 +270,6 @@ CREATE TABLE IF NOT EXISTS question_group (
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL
       );
-CREATE TABLE IF NOT EXISTS chat_run (
-        run_id TEXT PRIMARY KEY,
-        session_key TEXT NOT NULL,
-        source TEXT NOT NULL,
-        chat_id INTEGER NOT NULL,
-        agent_type TEXT NOT NULL DEFAULT 'local',
-        status TEXT NOT NULL,
-        request_payload TEXT NOT NULL,
-        user_message_client_id TEXT NOT NULL,
-        assistant_message_client_id TEXT NOT NULL,
-        agent_session_id TEXT,
-        attempt INTEGER NOT NULL DEFAULT 0,
-        assistant_snapshot TEXT NOT NULL DEFAULT '',
-        reasoning_snapshot TEXT NOT NULL DEFAULT '',
-        tool_snapshot TEXT NOT NULL DEFAULT '[]',
-        error_message TEXT,
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
-      );
 CREATE TABLE IF NOT EXISTS questions (
         id INTEGER PRIMARY KEY,
         create_time INTEGER NOT NULL,
@@ -776,8 +757,6 @@ CREATE INDEX IF NOT EXISTS idx_chat_session_scope ON chat_session(scope, domain_
 CREATE INDEX IF NOT EXISTS idx_chat_session_update_time ON chat_session(update_time);
 CREATE INDEX IF NOT EXISTS idx_chat_session_group_id ON chat_session(group_id);
 CREATE INDEX IF NOT EXISTS idx_chat_session_parent ON chat_session(parent_session_id);
-CREATE INDEX IF NOT EXISTS idx_chat_run_session_status ON chat_run(session_key, status);
-CREATE INDEX IF NOT EXISTS idx_chat_run_updated_at ON chat_run(updated_at);
 CREATE INDEX IF NOT EXISTS idx_question_group_sort ON question_group(sort_index);
 CREATE INDEX IF NOT EXISTS idx_question_group_default ON question_group(is_default);
 CREATE INDEX IF NOT EXISTS idx_questions_group_id ON questions(group_id);

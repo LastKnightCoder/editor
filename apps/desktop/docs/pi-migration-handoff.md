@@ -8,7 +8,7 @@
 > **M7 用户裁决不做**（同步保持 zip 整包）。下一步是 M8（删旧收尾，裁决已定，见第六节）。
 > 新会话续接方式：读完本文档 + `git log --oneline -15` 对照提交历史。本文档随每步同步更新。
 > 验证三件套：`cd apps/desktop && npx tsc --noEmit`、
-> `npx vitest run`（349 文件、1679 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
+> `npx vitest run`（348 文件、1673 用例通过；2 文件、3 用例跳过）、`ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs`。
 > 改了 `packages/shared` 要另跑 `packages/shared`（5 文件 15 用例）与 `apps/browser-extension`（10 文件 46 用例）的 vitest + tsc
 > （思考档位类型与 `ChatSessionRecord` 定义在 shared，三端共用）。
 > **注意 cwd 必须在 apps/desktop**——vitest 从仓库根跑会整体失败（vite 别名解析不到）。
@@ -741,7 +741,8 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
 - **M5** `2a8123b2b` 浏览器扩展：侧栏对话由主进程驱动（`/aiServerMain`）+ 协议 v2 + 提问审批走桌面宿主 + 停止真正生效 + 断连立即收尾（见「M5 实施记录」）
 - **M5 追加** `59431d096`：侧栏重开接回在跑的回答（接回快照 + lastSeq 续接 + 换对话放下不停）
 - **M8-a** `6840932aa`：删除 `packages/agent` 整包（5 个符号内联/改用桌面与 shared 类型）
-- **M8-b**：删除 `modules/llm.ts`（Minimax Key 测试改走 pi `pi-ai:verify-key`）+ 扩展本地提问机制 + `sanitizeToolMessages` + localStorage 遗留键
+- **M8-c**：删除 chat_run 表（schema/parity/handler，开库 DROP，桌面与移动端）+ 主进程 stream-fetch 模块
+- **M8-b** `867c13f61`：删除 `modules/llm.ts`（Minimax Key 测试改走 pi `pi-ai:verify-key`）+ 扩展本地提问机制 + `sanitizeToolMessages` + localStorage 遗留键
 - **修正一** `784d59ebb`：去闭包快照+会话常驻 reducer（修吞消息）
 - **修正二** `d3bc61c33`：piChatRuntime 下沉模块级（后台运行）
 - **验收状态**：用户确认"大部分没问题"——M2-f 基本通过；后台运行场景（切页回来
@@ -974,8 +975,12 @@ agent_settled 触发排空；用户按停止则暂停排空。
       `useRunInteractionStore` 驱动。`askQuestionTypes`（渲染与结果解析）保留。
     - chat-core：`sanitizeToolMessages`（只剩测试在用）删除；其余几个都有真实消费者（见裁决要点），保留。
     - localStorage 遗留键 `chat-message`、`ask-question-session` 在 `useSettingStore.loadCachedSetting` 里清掉。
-    - **顺带发现（未处理）**：主进程 `modules/stream-fetch.ts` 与 IPC `stream-fetch` 渲染端零调用（M2-f 删了 `commands/stream-fetch`），
-      下一块一起删。
+  - **M8-c 已完成**（chat_run 表 + stream-fetch）：
+    - chat_run：schema 分片（`20_content.sql` 表、`90_indexes.sql` 2 个索引）删除并重生成 bundle；parity 常量 70→69 表 / 120→118 索引，
+      `REMOVED_TABLES` 加 `chat_run`；`tables/chat-run.ts`（7 个 handler）及测试删除。老库里的表**开库即 DROP**
+      （桌面 `openDatabase` maintenance 段、移动端 `ensure_main_schema` 的订阅退役之后）——表里只有运行中状态，无需备份。
+      `knowledge-migration.ts` 与移动端 `knowledge_migration.rs` 本就判列/判表存在，不用改（老库在 DROP 之前先跑知识库迁移，无影响）。
+    - `modules/stream-fetch.ts`：渲染端零调用（M2-f 删了 `commands/stream-fetch`），模块与注册删除。
 
   **M8 裁决（2026-09-29 用户拍板）**：
   - 旧聊天表（`chat_message`/`pdf_chats`/`video_note_chats`/`vibe_learning_chats`）**迁移记账后真 DROP**：开库时确认
