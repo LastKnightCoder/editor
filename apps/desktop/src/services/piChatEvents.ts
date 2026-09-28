@@ -7,7 +7,7 @@
 import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 import type { ToolCallPayload, ToolCallExecutionState, ResponseMessage } from "@/types";
 import type { PiSessionInteractionSnapshot } from "@/types/pi-session";
-import type { AgentModelUsage } from "@tau/agent";
+import type { ModelUsage as AgentModelUsage } from "@tau/shared";
 
 export interface PiChatEventSink {
   applyText(turnId: string, text: string): void;

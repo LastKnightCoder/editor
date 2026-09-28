@@ -739,7 +739,8 @@ core 模块可单测。IPC `pi-session:shell-info` 给界面展示「检测到�
 - **M4-e** `82d553a6c` 治理与重启恢复：同一文件只一个宿主、宿主空闲回收与切库释放、runtime 条目 LRU、删 PDF 先释放、重开时悬挂工具调用标为已中断（见「M4-e 实施记录」）
 - **扩展页面工具风险声明修复** `5f4e562c5`
 - **M5** `2a8123b2b` 浏览器扩展：侧栏对话由主进程驱动（`/aiServerMain`）+ 协议 v2 + 提问审批走桌面宿主 + 停止真正生效 + 断连立即收尾（见「M5 实施记录」）
-- **M5 追加**：侧栏重开接回在跑的回答（接回快照 + lastSeq 续接 + 换对话放下不停）
+- **M5 追加** `59431d096`：侧栏重开接回在跑的回答（接回快照 + lastSeq 续接 + 换对话放下不停）
+- **M8-a**：删除 `packages/agent` 整包（5 个符号内联/改用桌面与 shared 类型）
 - **修正一** `784d59ebb`：去闭包快照+会话常驻 reducer（修吞消息）
 - **修正二** `d3bc61c33`：piChatRuntime 下沉模块级（后台运行）
 - **验收状态**：用户确认"大部分没问题"——M2-f 基本通过；后台运行场景（切页回来
@@ -956,6 +957,11 @@ agent_settled 触发排空；用户按停止则暂停排空。
   chat_run 表与主进程 handler（含 db-schema/knowledge-migration/mobile Rust 的同批处理）、
   modules/llm.ts、卫星表 messages 写路径、扩展本地提问机制（`askQuestionSessionStore` 与 `ext.tool.execute` 的
   ask-question 分支，M5 后无新调用方）；DECISIONS.md 追加条目；03 指南数据协议节同步；rg 复核清零。
+
+  **M8 进度**：
+  - **M8-a 已完成**：`packages/agent` 整包删除。`AgentModelUsage` → shared `ModelUsage`；`AgentTool` → 桌面自己的
+    `ToolDefinition`（`RegistryAgentTool` 就地定义）；`isAbortError` 内联进 editingUtils；`desktopSkillAdapter` 的
+    `toAgentSkill(s)`（零调用方）一并删；清掉 tsconfig、三个 vite 配置、vitest、e2e 协作配置的别名与 package.json 依赖。
 
   **M8 裁决（2026-09-29 用户拍板）**：
   - 旧聊天表（`chat_message`/`pdf_chats`/`video_note_chats`/`vibe_learning_chats`）**迁移记账后真 DROP**：开库时确认
