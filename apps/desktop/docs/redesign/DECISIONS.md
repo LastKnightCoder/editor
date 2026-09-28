@@ -661,3 +661,17 @@
 - 阶段 4 缩减裁决：插件会话管理 UI 维持现有 `ChatDropdownSelector`（已接统一数据层，功能完整：列表/分支树/重命名/删除/新建），**@tau/ui 视觉统一不纳入本次交付**——插件侧是 antd + Tailwind 混合生态，引入 @tau/ui 需 tokens.css 注入与前缀隔离，属独立视觉改造，避免与数据统一混在一个变更里放大回归面。
 - 评审修正（2026-09-26，review 后落地）：① `update-chat-message` 改部分更新语义（`Partial<Omit<ChatMessage,"updateTime">>`，未提供字段保留库中现值，动态 SET 只含显式列），插件 `chat.update` 只提交增量（消息保存只传 `{id, messages}`、改名只传 `{id, title, titleDirty}`），消除全量覆盖清空 title/group/分支关系的问题与改名-落库竞态；② `chat.create` 透传 `groupId`、`chat.branch` 继承父会话分组（原先被丢弃导致插件会话无法归组、列表失联并反复新建空会话）；③ 新增 `get-chat-message-list` 轻量列表命令（不含 messages 大字段、SQL 侧按 group_id 过滤），`chat.list` 不再全表拉取；④ 插件 `useChatSessions` 待落盘快照绑定触发时的会话 id（debounce 到点或切换/卸载前 flush），防止消息写入切换后的会话；⑤ `chatMigration` 断点粒度细化到 session（`sessionIdMap` 持久化 legacy→桌面 id 映射，重跑不重复建行），`sortParentsFirst` 加环检测；⑥ `source` 列同步进 db-schema bundle（`schema/main/20_content.sql`）。
 - 后续优化项（不阻塞）：插件请求历史构建仍走显示模型（`mapChatMessageToAiRequestMessage`），多轮工具循环的历史回放语义有损（插件旧实现固有），待插件消息链路整体切到存储模型后统一改 `buildAssistantHistoryMessages`；chrome.storage 旧数据清理动作待迁移稳定一个版本后单独执行；WebSocketClient/Server 双副本合并入 @tau/rpc 待议（插件侧 WS 地址常量已收敛到 `utils/aiServerAddress.ts`）。
+- **被 D-065 取代的部分**（2026-09-29）：阶段 3 的「插件会话存桌面 sqlite」与 `chat.create/update/branch/groups.*` 命令面、`chat_message.source` 列、`chatMigration`、`ai.chat` + `ai.stream.*` 协议均已退役——插件对话改存按页面分目录的 pi 会话文件，协议换成 v2。阶段 1 的消息模型单一来源仍有效。
+
+## D-065 AI 运行时换成 pi agent，会话事实源改 pi JSONL（pi 迁移收尾）
+
+（2026-09-29，已定；执行记录与踩坑清单见 `../pi-migration-handoff.md`，本条只记最终形态与裁决）
+
+- 选择：自研 agent 运行时（协议适配 + SSE 传输 + Agent 循环 + chat-core 展示层，约 1 万行）整体替换为 pi agent（`@earendil-works/pi-coding-agent` 0.87.x）。Big-bang、无兼容层，以 pi 为准：设置模型对齐 pi（v2 服务商/模型，旧设置一次性转化）、思考档位全仓一套 `ThinkingLevel`（shared）、内置工具 read/bash/edit/write 默认启用、工具审批沿用 D-060 三档并映射到 pi 的 `beforeToolCall`、提问（ask-question）为宿主原生工具。
+- 运行位置：会话宿主在主进程（`pi-session-host`），渲染端只做投影与发送编排；跨轮次、跨页面的运行态放模块级 `piChatRuntime`（组件卸载不打断归约与落盘）。单发生成走 `pi-ai:single-shot`。
+- **会话事实源 = pi JSONL**：`~/.editor/sessions/<库名>/*.jsonl`；sqlite 只留目录表 `chat_session`（id = pi 会话 id，scope + domainRef 分五个场景，只存标题/分组/置顶/归档/消息数）。桌面展示形态存 `desktop-display` custom entry，叶子挪动写 `desktop-leaf` 标记。**分支 = 同一文件内的会话树**（编辑重发、重新生成、从这里分叉都是树上的分叉，消息上 `‹ i/n ›` 切版本，树谱浮层），不再是多文件多目录行。
+- 同步：`.db` 与 `<库名>.sessions.zip` 共用一个版本号整包上传下载（M7 增量 manifest 用户裁决不做）。
+- 浏览器扩展：侧栏对话由主进程 `browser-bridge` 驱动（`/aiServerMain`，渲染层重载不打断，重开侧栏接回在跑的回答），走 AI 运行协议 v2（`packages/shared/src/chat-core/aiRunProtocol.ts`：`ai.run.start/event/abort/state/approve/answer`，settled 唯一终态）；提问与审批走桌面宿主；对话存 `~/.editor/browser-sessions/<页面键>/`，不进目录表、不同步。
+- 老数据：开库时一次性迁移（老对话 → 会话文件，分支并进父对话的会话树，思考内容不迁），两次迁移都记账后备份整库并删除旧聊天表（`chat_message`/`pdf_chats`/`video_note_chats`/`vibe_learning_chats`/`audio_note_chats`，后者无界面、未迁移、直接丢弃）与 `chat_run`。迁移器长期保留（老库与旧远程下载的 `.db` 靠它升级）；移动端不读聊天，不做迁移。
+- 已删：`packages/agent` 整包、`modules/llm.ts`（Minimax Key 测试改走 `pi-ai:verify-key`）、`modules/stream-fetch.ts`、渲染端 `useChatLLM`/`chatStreamCore`/协议适配器、chat_run 表与 handler、五个旧聊天表模块、扩展本地提问机制（`askQuestionSessionStore`）。
+- 不做 / 已知边界：WSL 作为命令执行环境（用户裁决不做）；同一对话的多个分支同时运行；分支命名；重启后等待中的审批与提问标为已中断，不重新弹出；待发送队列与未送达插话不跨重启保留；首轮在第一条回答之前就失败的对话 pi 不落盘。

@@ -107,7 +107,7 @@ export default class ChatGroupTable {
       throw new Error("Cannot delete group with children");
     }
 
-    // 该分组下的对话移到未分组（M4 起对话在 chat_session；旧表行留到 M8 一起删，不再维护）
+    // 该分组下的对话移到未分组（对话在 chat_session 目录表）
     ChatSessionTable.clearGroup(db, id);
 
     const stmt = db.prepare("DELETE FROM chat_group WHERE id = ?");

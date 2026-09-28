@@ -1,8 +1,8 @@
 /**
  * 统一流事件与归约器：把「快照语义」的流事件应用到 ResponseMessage，
  * 内部复用 assistantBlocks 的块组装逻辑。
- * 桌面端由 AgentEvent 回调适配（chatStreamCore 的 onUpdate/onReasoning/... 已带 turnId 与全量文本），
- * 浏览器插件由 ai.stream.* 通知适配；两端禁止再各自手写流式拼块。
+ * 浏览器扩展消费 AI 运行协议 v2 的 `ai.run.event`（aiRunProtocol.ts），桌面主进程的扩展桥用它维护
+ * 接回快照；两端禁止再各自手写流式拼块。
  */
 import type {
   ModelUsage,
