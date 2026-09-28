@@ -11,7 +11,6 @@ import { SearchResult } from "@/types";
 import classnames from "classnames";
 import { unwrapContentLink, wrapContentLink } from "../utils";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
-import useThemeColors from "@/hooks/useThemeColors";
 
 const LinkHoveringItem = memo(() => {
   const selectionRef = useRef<BaseSelection | null>(null);
@@ -20,7 +19,6 @@ const LinkHoveringItem = memo(() => {
   const extensions = useDynamicExtensionsStore(state => state.extensions);
   const editor = useSlate();
   const selection = useSlateSelection();
-  const themeColors = useThemeColors();
 
   const isActive = useMemo(() => {
     if (!selection) {
@@ -81,13 +79,8 @@ const LinkHoveringItem = memo(() => {
         <div
           className={classnames(
             "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all duration-200",
-            isActive
-              ? themeColors.activeClass
-              : classnames(
-                  themeColors.textClass,
-                  themeColors.hoverClass,
-                  themeColors.hoverTextClass
-                )
+            "ed-toolbar-item",
+            isActive && "is-active"
           )}
           onClick={handleClick}
         >

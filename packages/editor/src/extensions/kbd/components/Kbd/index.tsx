@@ -1,5 +1,4 @@
 import React from "react";
-import classnames from "classnames";
 import { RenderElementProps } from "slate-react";
 
 import type { KbdElement } from "../../../../types";

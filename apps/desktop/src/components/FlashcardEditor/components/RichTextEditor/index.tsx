@@ -57,7 +57,7 @@ const RichTextEditor = ({
       return [];
     }
 
-    return [new FlashcardBlankExtension({ isDark })];
+    return [new FlashcardBlankExtension()];
   }, [allowBlanks, isDark]);
 
   return (

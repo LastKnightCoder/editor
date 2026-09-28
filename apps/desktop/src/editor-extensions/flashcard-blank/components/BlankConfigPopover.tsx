@@ -6,20 +6,13 @@ import type { FlashcardBlankElement } from "../types";
 interface BlankConfigPopoverProps {
   element: FlashcardBlankElement;
   onClose: () => void;
-  isDark: boolean;
 }
 
-const BlankConfigPopover = ({
-  element,
-  onClose,
-  isDark,
-}: BlankConfigPopoverProps) => {
+const BlankConfigPopover = ({ element, onClose }: BlankConfigPopoverProps) => {
   const editor = useSlateStatic();
   const [placeholder, setPlaceholder] = useState(element.placeholder || "");
   const [answer, setAnswer] = useState(element.answer || "");
-  const [alternatives, setAlternatives] = useState<string[]>(
-    element.alternativeAnswers || [],
-  );
+  const [alternatives, setAlternatives] = useState<string[]>(element.alternativeAnswers || []);
 
   const handleSave = () => {
     const path = ReactEditor.findPath(editor, element);
@@ -28,11 +21,9 @@ const BlankConfigPopover = ({
       {
         placeholder: placeholder.trim(),
         answer: answer.trim(),
-        alternativeAnswers: alternatives
-          .filter((alt) => alt.trim())
-          .map((alt) => alt.trim()),
+        alternativeAnswers: alternatives.filter(alt => alt.trim()).map(alt => alt.trim()),
       } as Partial<FlashcardBlankElement>,
-      { at: path },
+      { at: path }
     );
     onClose();
   };
@@ -54,20 +45,20 @@ const BlankConfigPopover = ({
   return (
     <div
       contentEditable={false}
-      className={`blank-config-popover ${isDark ? "dark" : "light"}`}
+      className="blank-config-popover"
       style={{
         position: "absolute",
         top: "calc(100% + 4px)",
         left: 0,
         zIndex: 1000,
-        backgroundColor: isDark ? "#1e293b" : "white",
-        border: `1px solid ${isDark ? "#334155" : "#e2e8f0"}`,
+        backgroundColor: "var(--ed-bg-surface)",
+        border: "1px solid var(--ed-border)",
         borderRadius: "8px",
         padding: "16px",
         minWidth: "280px",
         boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
       }}
-      onClick={(e) => e.stopPropagation()}
+      onClick={e => e.stopPropagation()}
     >
       <div className="form-section" style={{ marginBottom: "12px" }}>
         <label
@@ -77,7 +68,7 @@ const BlankConfigPopover = ({
             fontSize: "13px",
             fontWeight: "500",
             marginBottom: "6px",
-            color: isDark ? "#e2e8f0" : "#374151",
+            color: "var(--ed-text)",
           }}
         >
           提示文本（可选）
@@ -85,16 +76,16 @@ const BlankConfigPopover = ({
         <input
           type="text"
           value={placeholder}
-          onChange={(e) => setPlaceholder(e.target.value)}
+          onChange={e => setPlaceholder(e.target.value)}
           placeholder="如：国家名、人物、年份等"
           className="form-input"
           style={{
             width: "100%",
             padding: "8px 12px",
             borderRadius: "6px",
-            border: `1px solid ${isDark ? "#475569" : "#d1d5db"}`,
-            backgroundColor: isDark ? "#334155" : "white",
-            color: isDark ? "white" : "#1e293b",
+            border: "1px solid var(--ed-border)",
+            backgroundColor: "var(--ed-bg-surface)",
+            color: "var(--ed-text)",
             fontSize: "14px",
             outline: "none",
           }}
@@ -103,7 +94,7 @@ const BlankConfigPopover = ({
           className="form-hint"
           style={{
             fontSize: "11px",
-            color: isDark ? "#94a3af" : "#6b7280",
+            color: "var(--ed-text-secondary)",
             marginTop: "4px",
           }}
         >
@@ -119,7 +110,7 @@ const BlankConfigPopover = ({
             fontSize: "13px",
             fontWeight: "500",
             marginBottom: "6px",
-            color: isDark ? "#e2e8f0" : "#374151",
+            color: "var(--ed-text)",
           }}
         >
           正确答案 *
@@ -127,7 +118,7 @@ const BlankConfigPopover = ({
         <input
           type="text"
           value={answer}
-          onChange={(e) => setAnswer(e.target.value)}
+          onChange={e => setAnswer(e.target.value)}
           placeholder="输入正确答案"
           className="form-input"
           required
@@ -135,9 +126,9 @@ const BlankConfigPopover = ({
             width: "100%",
             padding: "8px 12px",
             borderRadius: "6px",
-            border: `1px solid ${isDark ? "#475569" : "#d1d5db"}`,
-            backgroundColor: isDark ? "#334155" : "white",
-            color: isDark ? "white" : "#1e293b",
+            border: "1px solid var(--ed-border)",
+            backgroundColor: "var(--ed-bg-surface)",
+            color: "var(--ed-text)",
             fontSize: "14px",
             outline: "none",
           }}
@@ -152,7 +143,7 @@ const BlankConfigPopover = ({
             fontSize: "13px",
             fontWeight: "500",
             marginBottom: "6px",
-            color: isDark ? "#e2e8f0" : "#374151",
+            color: "var(--ed-text)",
           }}
         >
           备选答案（可选）
@@ -171,16 +162,16 @@ const BlankConfigPopover = ({
             <input
               type="text"
               value={alt}
-              onChange={(e) => handleAlternativeChange(index, e.target.value)}
+              onChange={e => handleAlternativeChange(index, e.target.value)}
               placeholder={`备选答案 ${index + 1}`}
               className="form-input"
               style={{
                 flex: 1,
                 padding: "8px 12px",
                 borderRadius: "6px",
-                border: `1px solid ${isDark ? "#475569" : "#d1d5db"}`,
-                backgroundColor: isDark ? "#334155" : "white",
-                color: isDark ? "white" : "#1e293b",
+                border: "1px solid var(--ed-border)",
+                backgroundColor: "var(--ed-bg-surface)",
+                color: "var(--ed-text)",
                 fontSize: "14px",
                 outline: "none",
               }}
@@ -193,10 +184,8 @@ const BlankConfigPopover = ({
                 height: "28px",
                 borderRadius: "4px",
                 border: "none",
-                backgroundColor: isDark
-                  ? "rgba(239, 68, 68, 0.2)"
-                  : "rgba(239, 68, 68, 0.1)",
-                color: "#ef4444",
+                backgroundColor: "var(--ed-danger-soft)",
+                color: "var(--ed-danger)",
                 fontSize: "18px",
                 cursor: "pointer",
                 display: "flex",
@@ -216,9 +205,9 @@ const BlankConfigPopover = ({
             width: "100%",
             padding: "8px",
             borderRadius: "6px",
-            border: `1px dashed ${isDark ? "#475569" : "#d1d5db"}`,
+            border: "1px dashed var(--ed-border)",
             backgroundColor: "transparent",
-            color: isDark ? "#94a3af" : "#6b7280",
+            color: "var(--ed-text-secondary)",
             fontSize: "13px",
             cursor: "pointer",
           }}
@@ -237,9 +226,9 @@ const BlankConfigPopover = ({
           style={{
             padding: "8px 16px",
             borderRadius: "6px",
-            border: `1px solid ${isDark ? "#475569" : "#d1d5db"}`,
+            border: "1px solid var(--ed-border)",
             backgroundColor: "transparent",
-            color: isDark ? "#e2e8f0" : "#374151",
+            color: "var(--ed-text)",
             fontSize: "14px",
             cursor: "pointer",
           }}

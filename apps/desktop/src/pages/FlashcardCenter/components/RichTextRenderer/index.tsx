@@ -9,14 +9,10 @@ interface RichTextRendererProps {
   className?: string;
 }
 
-const RichTextRenderer = ({
-  content,
-  isDark = false,
-  className = "",
-}: RichTextRendererProps) => {
+const RichTextRenderer = ({ content, isDark = false, className = "" }: RichTextRendererProps) => {
   // 配置扩展
   const extensions = useMemo<IExtension[]>(() => {
-    return [new FlashcardBlankExtension({ isDark })];
+    return [new FlashcardBlankExtension()];
   }, [isDark]);
 
   return (

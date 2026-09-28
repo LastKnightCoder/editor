@@ -8,15 +8,9 @@ interface FlashcardBlankProps {
   attributes: RenderElementProps["attributes"];
   children: React.ReactNode;
   element: FlashcardBlankElement;
-  isDark?: boolean;
 }
 
-const FlashcardBlank = ({
-  attributes,
-  children,
-  element,
-  isDark = false,
-}: FlashcardBlankProps) => {
+const FlashcardBlank = ({ attributes, children, element }: FlashcardBlankProps) => {
   const [showConfig, setShowConfig] = useState(false);
 
   return (
@@ -24,19 +18,17 @@ const FlashcardBlank = ({
       {...attributes}
       className="flashcard-blank-inline"
       style={{
-        backgroundColor: isDark
-          ? "rgba(59, 130, 246, 0.2)"
-          : "rgba(59, 130, 246, 0.12)",
+        backgroundColor: "var(--ed-info-soft)",
         padding: "1px 8px",
         borderRadius: "4px",
-        border: `1px solid ${isDark ? "rgba(59, 130, 246, 0.35)" : "rgba(59, 130, 246, 0.25)"}`,
+        border: "1px solid var(--ed-info)",
         position: "relative",
         display: "inline",
         margin: "0 1px",
         verticalAlign: "baseline",
         lineHeight: "inherit",
         fontWeight: "500",
-        color: isDark ? "rgba(147, 197, 253, 1)" : "rgba(37, 99, 235, 1)",
+        color: "var(--ed-info)",
       }}
     >
       <InlineChromiumBugfix />
@@ -56,8 +48,8 @@ const FlashcardBlank = ({
           opacity: 0.7,
           transition: "opacity 0.2s",
         }}
-        onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-        onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.7")}
+        onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
+        onMouseLeave={e => (e.currentTarget.style.opacity = "0.7")}
         title="配置空格"
       >
         ⚙️
@@ -81,13 +73,7 @@ const FlashcardBlank = ({
       )}
 
       {/* 配置弹窗 */}
-      {showConfig && (
-        <BlankConfigPopover
-          element={element}
-          onClose={() => setShowConfig(false)}
-          isDark={isDark}
-        />
-      )}
+      {showConfig && <BlankConfigPopover element={element} onClose={() => setShowConfig(false)} />}
     </span>
   );
 };

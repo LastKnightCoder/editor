@@ -89,7 +89,7 @@ const DivideLineElement: React.FC<PropsWithChildren<DivideLineProps>> = props =>
         )}
         onClick={dragHandlerProps.onClick}
       >
-        <MdDragIndicator className="text-(--th-text) -translate-y-0.5" />
+        <MdDragIndicator className="text-(--ed-text) -translate-y-0.5" />
       </div>
       {isOverCurrent && canDrop && !isBefore && (
         <div
