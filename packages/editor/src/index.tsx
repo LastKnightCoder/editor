@@ -1,6 +1,8 @@
 import {
+  useCallback,
   useState,
   useEffect,
+  useSyncExternalStore,
   forwardRef,
   useImperativeHandle,
   useMemo,
@@ -32,6 +34,7 @@ import { useCreation, useMemoizedFn } from "ahooks";
 
 import { EditorKitScope, useKitWithExtensions } from "./kit/context";
 import type { EditorKit } from "./kit/EditorKit";
+import type { EditorDocument } from "./document/EditorDocument";
 import { useResolvedKit } from "./kit/context";
 import type { ServiceIdentifier } from "./services/tokens";
 
@@ -97,6 +100,11 @@ interface IEditorProps {
   readonly?: boolean;
   /** 本编辑器的组成（扩展 + 服务 + 主题）。不传则继承外层编辑器的 kit */
   kit?: EditorKit;
+  /**
+   * 文档源：内容的事实来源（01 §7.2）。给定时取代 `initValue` / `onChange`，
+   * 并可覆盖服务、要求只读。协作用的 Yjs 文档源在 P7 的 @tau/editor-collab。
+   */
+  document?: EditorDocument;
   /** 只作用于本实例的扩展；按 type 覆盖 kit 里的同名实现 */
   extensions?: IExtension[];
   hotkeyConfigs?: IHotKeyConfig[];
@@ -126,14 +134,25 @@ const EMPTY_EDITOR_CONTENT: Descendant[] = [
   { type: "paragraph", children: [{ type: "formatted", text: "" }] },
 ];
 
+/** 订阅文档源自身状态（只读、在线状态等）的变化，触发重渲染 */
+function useDocumentRevision(document: EditorDocument | undefined): void {
+  const subscribe = useMemo(
+    () => (listener: () => void) => document?.subscribe?.(listener) ?? (() => {}),
+    [document]
+  );
+  const getSnapshot = useCallback(() => document?.readonly ?? false, [document]);
+  useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
 const Index = memo(
   forwardRef<EditorRef, IEditorProps>((props, ref) => {
     const {
-      initValue = EMPTY_EDITOR_CONTENT,
-      onChange,
+      initValue: initValueProp = EMPTY_EDITOR_CONTENT,
+      onChange: onChangeProp,
       onSelectionChange,
-      readonly = true,
+      readonly: readonlyProp = true,
       kit: kitProp,
+      document: documentProp,
       extensions,
       hotkeyConfigs,
       hoveringBarConfigs,
@@ -147,7 +166,21 @@ const Index = memo(
       collaborationCursors = true,
     } = props;
 
-    const baseKit = useResolvedKit(kitProp);
+    // 文档源给定时由它提供内容与只读状态，否则沿用 initValue / onChange
+    const initValue = documentProp ? documentProp.initialValue : initValueProp;
+    const onChange = documentProp ? documentProp.onChange : onChangeProp;
+    const readonly = readonlyProp || Boolean(documentProp?.readonly);
+    useDocumentRevision(documentProp);
+
+    const resolvedKit = useResolvedKit(kitProp);
+    // 文档源可以覆盖服务（如共享模式的资源上传），作用域限于本编辑器
+    const baseKit = useMemo(
+      () =>
+        documentProp?.services
+          ? resolvedKit.extend({ services: [documentProp.services] })
+          : resolvedKit,
+      [resolvedKit, documentProp?.services]
+    );
     const kit = useKitWithExtensions(baseKit, extensions);
     const assembly = kit.assembly;
     const registry = kit.registry;
@@ -180,6 +213,8 @@ const Index = memo(
         registryRef.current.tryGet(id);
       return slateEditor;
     }, [assembly.plugins, collaboration?.doc, collaboration?.root, collaborationCursors]);
+
+    useEffect(() => documentProp?.attach?.(editor), [documentProp, editor]);
 
     useEffect(() => {
       if (!YjsEditor.isYjsEditor(editor)) return;

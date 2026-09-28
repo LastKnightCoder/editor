@@ -43,7 +43,7 @@
 | P3   | Editor 组件 token（`--ed-*`）+ ThemeService，迁移主题耦合      | ✅     |
 | P4   | 拆解 EditorConfig                                              | ✅     |
 | P5   | Markdown 合并为 headless 的 `@tau/markdown`（可与 P1–P4 穿插） | ✅     |
-| P6   | EditorKit + 文档源，替换 EditorProvider                        | 🚧     |
+| P6   | EditorKit + 文档源，替换 EditorProvider                        | ✅     |
 | P7   | 协作治理：`editor-collab`、会话升级、无缝换源                  | ⏳     |
 | P8   | 扩展 API v2（声明式贡献点、错误隔离、codec 归属）              | ⏳     |
 | P9   | 拆包（custom-block 试点、diagram）                             | ⏳     |
@@ -51,7 +51,7 @@
 
 状态图例：⏳ 未开始 / 🚧 进行中 / ✅ 完成 / ⏸ 暂停（写原因）。
 
-**下一步**：P6 收尾（`EditorDocument` 接口 + `createValueDocument`），然后 P7（协作治理）。
+**下一步**：P7（协作治理：`@tau/editor-collab`、会话升级、无缝换源）。
 
 ## 5. 接手步骤
 
