@@ -52,9 +52,9 @@ import {
   withSlashCommands,
   withNormalize,
   withBlockNavigation,
-  withFileDrop,
   withNormalizedCopy,
 } from "./plugins";
+import { withIngest } from "./plugins/withIngest";
 import IExtension from "./extensions/types";
 import type { AnyExtension } from "./api/legacy";
 import type { EditorRef } from "./types/editor";
@@ -126,7 +126,6 @@ const defaultPlugins: Plugin[] = [
   withReact,
   withHistory,
   withNormalize,
-  withFileDrop,
   withNormalizedCopy,
   withSlashCommands,
 ];
@@ -235,13 +234,18 @@ const Index = memo(
       );
 
       const finalEditor = withUnknownElements(
-        withElementBehaviors(
-          applyGuardedPlugins(processedEditor, assembly.pluginGroups, breaker),
-          assembly.behaviors,
+        withIngest(
+          withElementBehaviors(
+            applyGuardedPlugins(processedEditor, assembly.pluginGroups, breaker),
+            assembly.behaviors,
+            breaker
+          ),
+          assembly.ingestSources,
           breaker
         ),
         type => assembly.hasElement(type)
       );
+
       const enhancedEditor = withBlockNavigation(finalEditor);
 
       // 启用 Chunking 优化大文档性能
@@ -541,13 +545,13 @@ const Index = memo(
                 onDrop={async e => {
                   e.preventDefault();
 
-                  const files = e.dataTransfer?.files;
-                  if (!files || files.length === 0 || readonly) return;
+                  const data = e.dataTransfer;
+                  if (!data?.files?.length || readonly) return;
 
                   // 计算拖放位置
                   const range = ReactEditor.findEventRange(editor, e);
-                  if (range && editor.handleDrop) {
-                    await editor.handleDrop(files, range.anchor);
+                  if (range) {
+                    await editor.handleDrop(data, range.anchor);
                   }
                 }}
                 onSelect={() => {

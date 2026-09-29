@@ -6,6 +6,7 @@ import type { IBlockPanelListItem, IHotKeyConfig, IConfigItem } from "../types/i
 import type { EditorCommand } from "../api/command";
 import type { EditorMenuContribution } from "../api/menu";
 import type { ElementDrag } from "../api/drag";
+import type { ElementIngestSpec } from "../api/ingest";
 
 export * from "../types/index";
 
@@ -26,6 +27,8 @@ export default interface IExtension {
   menuItems?: EditorMenuContribution;
   /** 拖拽声明（过渡：等扩展迁 v2 时搬进 `defineElement` 的 `drag`）；未声明则没有拖拽 chrome */
   dragSpec?: ElementDrag;
+  /** 内容注入声明（过渡：等扩展迁 v2 时搬进 `defineElement` 的 `ingest`） */
+  ingestSpec?: ElementIngestSpec;
 }
 
 export interface IExtensionBaseProps<T> {

@@ -6,6 +6,7 @@ import type { EditorExtension, ElementBehaviors, ElementSpec } from "../api/exte
 import { CommandRegistry, type EditorHotkey } from "../api/command";
 import type { EditorMenuContribution } from "../api/menu";
 import { normalizeDragSpec, type ElementDragSpec } from "../api/drag";
+import type { ElementIngestSpec } from "../api/ingest";
 import type { MenuContributionSource } from "../menu/resolveMenu";
 import {
   isLegacyAdapter,
@@ -27,6 +28,13 @@ export interface ExtensionPluginGroup {
 export interface ElementBehaviorEntry {
   readonly extension: string;
   readonly behaviors: ElementBehaviors;
+}
+
+/** 一个扩展的内容注入声明；owner 用于隔离熔断与日志 */
+export interface IngestSource {
+  readonly owner: string;
+  readonly files?: ElementIngestSpec["files"];
+  readonly text?: ElementIngestSpec["text"];
 }
 
 type ElementRenderer = (props: RenderElementProps) => ReactElement | undefined;
@@ -81,6 +89,8 @@ export class ExtensionAssembly {
   readonly menuSources: readonly MenuContributionSource[];
   /** 元素类型 → 拖拽声明；未收录的类型没有拖拽 chrome（BlockDragHost 查询） */
   readonly dragSpecs: ReadonlyMap<string, ElementDragSpec>;
+  /** 内容注入声明（drop/paste 认领管线）；相同 accept 重复声明在构造时抛错 */
+  readonly ingestSources: readonly IngestSource[];
   /** 本装配能渲染的元素类型（按扩展顺序） */
   readonly elementTypes: readonly string[];
   /** 元素类型 → 行为列表：该类型自己的在前，其他扩展经 behaviorsFor 挂上来的按扩展顺序在后 */
@@ -99,6 +109,7 @@ export class ExtensionAssembly {
     const hoveringBarElements: IConfigItem[] = [];
     const menuSources: MenuContributionSource[] = [];
     const dragSpecs = new Map<string, ElementDragSpec>();
+    const ingestSources: IngestSource[] = [];
     const own = new Map<string, ElementBehaviorEntry>();
     const attached = new Map<string, ElementBehaviorEntry[]>();
     for (const extension of this.extensions) {
@@ -113,6 +124,7 @@ export class ExtensionAssembly {
         }
         hoveringBarElements.push(...collected.toolbar);
         for (const [type, spec] of collected.dragSpecs) dragSpecs.set(type, spec);
+        for (const source of collected.ingest) ingestSources.push(source);
         if (collected.menu) {
           const types = elementTypesOf(extension);
           menuSources.push({
@@ -146,6 +158,20 @@ export class ExtensionAssembly {
     this.hoveringBarElements = hoveringBarElements;
     this.menuSources = menuSources;
     this.dragSpecs = dragSpecs;
+    // 相同 accept 重复声明冒泡到 kit 创建处（对齐命令 id / 元素 type 的冲突检测），
+    // 不让 per-extension 容错吞掉
+    const acceptOwners = new Map<string, string>();
+    for (const source of ingestSources) {
+      if (!source.files) continue;
+      const existing = acceptOwners.get(source.files.accept);
+      if (existing) {
+        throw new Error(
+          `[editor] ingest accept "${source.files.accept}" 同时由 ${existing} 与 ${source.owner} 声明`
+        );
+      }
+      acceptOwners.set(source.files.accept, source.owner);
+    }
+    this.ingestSources = ingestSources;
     const behaviors = new Map<string, ElementBehaviorEntry[]>();
     for (const type of new Set([...own.keys(), ...attached.keys()])) {
       behaviors.set(type, [
@@ -163,10 +189,13 @@ export class ExtensionAssembly {
     const behaviors = new Map<string, ElementBehaviorEntry>();
     const attached = new Map<string, ElementBehaviorEntry>();
     const dragSpecs = new Map<string, ElementDragSpec>();
+    const ingest: IngestSource[] = [];
     if (isLegacyAdapter(extension)) {
       renderers.set(extension.legacy.type, extension.legacyRender);
       const dragSpec = normalizeDragSpec(extension.legacy.dragSpec);
       if (dragSpec) dragSpecs.set(extension.legacy.type, dragSpec);
+      const spec = extension.legacy.ingestSpec;
+      if (spec) ingest.push({ owner: extension.id, files: spec.files, text: spec.text });
       return {
         plugins: [...(extension.plugins ?? [])],
         hotkeys: [...extension.legacyHotkeys],
@@ -174,6 +203,7 @@ export class ExtensionAssembly {
         toolbar: [...(extension.toolbar ?? [])],
         menu: extension.legacy.menuItems as EditorMenuContribution | undefined,
         dragSpecs,
+        ingest,
         renderers,
         behaviors,
         attached,
@@ -187,6 +217,10 @@ export class ExtensionAssembly {
       }
       const dragSpec = normalizeDragSpec(spec.drag);
       if (dragSpec) dragSpecs.set(spec.type, dragSpec);
+      // ingest 不按元素类型锚定：认领对象是拖入/粘贴的内容而非元素
+      if (spec.ingest) {
+        ingest.push({ owner: extension.id, files: spec.ingest.files, text: spec.ingest.text });
+      }
     }
     for (const [type, handlers] of Object.entries(extension.behaviorsFor ?? {})) {
       attached.set(type, { extension: extension.id, behaviors: handlers });
@@ -199,6 +233,7 @@ export class ExtensionAssembly {
       toolbar: [...(extension.toolbar ?? [])],
       menu: extension.menu,
       dragSpecs,
+      ingest,
       renderers,
       behaviors,
       attached,

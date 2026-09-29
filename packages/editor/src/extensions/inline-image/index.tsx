@@ -4,8 +4,9 @@ import { createInlineElementPlugin, createVoidElementPlugin } from "../../utils"
 import IExtension from "../types";
 import Base from "../base";
 import InlineImage from "./components/InlineImage";
-import { pasteInlineImagePlugin } from "./plugins";
 import blockPanelItems from "./block-panel-items";
+
+// 粘贴认领（非空段落插行内图）由 image 扩展的 ingest 统一承担（01 §5.4）
 
 class InlineImageExtension extends Base implements IExtension {
   type = "inline-image";
@@ -15,11 +16,7 @@ class InlineImageExtension extends Base implements IExtension {
   }
 
   override getPlugins() {
-    return [
-      pasteInlineImagePlugin,
-      createInlineElementPlugin(this.type),
-      createVoidElementPlugin(this.type),
-    ];
+    return [createInlineElementPlugin(this.type), createVoidElementPlugin(this.type)];
   }
 
   render(props: RenderElementProps) {

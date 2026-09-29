@@ -3,7 +3,7 @@ import IExtension from "../types";
 import type { AudioElement } from "../../types";
 import { RenderElementProps } from "slate-react";
 import Audio from "./components/Audio";
-import { pasteAudio, dropAudio } from "./plugins";
+import { audioIngestSpec } from "./ingest";
 import blockPanelItems from "./block-panel-items";
 import type { Editor } from "slate";
 import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
@@ -12,14 +12,10 @@ class AudioExtension extends Base implements IExtension {
   type = "audio";
 
   override dragSpec = true;
+  override ingestSpec = audioIngestSpec;
 
   override getPlugins() {
-    return [
-      pasteAudio,
-      dropAudio,
-      createVoidElementPlugin(this.type),
-      createBlockElementPlugin(this.type),
-    ];
+    return [createVoidElementPlugin(this.type), createBlockElementPlugin(this.type)];
   }
 
   override getBlockPanelItems(editor?: Editor) {

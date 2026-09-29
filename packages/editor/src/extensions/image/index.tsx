@@ -2,11 +2,11 @@ import { RenderElementProps } from "slate-react";
 import type { ImageElement } from "../../types";
 
 import Image from "./components/Image";
-import { pasteImage, dropImage } from "./plugins";
 import blockPanelItems from "./block-panel-items";
 import type { Editor } from "slate";
 import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
 import { buildImageMenuItems, imageCommands, imageMediaActionEntries } from "./utils/menu";
+import { imageIngestSpec } from "./ingest";
 
 import IExtension from "../types";
 import Base from "../base";
@@ -24,6 +24,7 @@ class ImageExtension extends Base implements IExtension {
 
   override commands = imageCommands;
   override dragSpec = true;
+  override ingestSpec = imageIngestSpec;
   /** appearance（圆角/阴影的全局默认值）随扩展实例注入菜单工厂 */
   override menuItems = (editor: Editor) => [
     ...imageMediaActionEntries(editor),
@@ -35,12 +36,7 @@ class ImageExtension extends Base implements IExtension {
   }
 
   override getPlugins() {
-    return [
-      pasteImage,
-      dropImage,
-      createBlockElementPlugin(this.type),
-      createVoidElementPlugin(this.type),
-    ];
+    return [createBlockElementPlugin(this.type), createVoidElementPlugin(this.type)];
   }
 
   render(props: RenderElementProps) {

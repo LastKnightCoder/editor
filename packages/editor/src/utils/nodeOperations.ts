@@ -1,4 +1,4 @@
-import { Editor, Transforms, Node, Path } from "slate";
+import { Editor, Element as SlateElement, Transforms, Node, Path } from "slate";
 import { ReactEditor } from "slate-react";
 import type { EditorFeedback } from "../services/notifier";
 
@@ -287,4 +287,30 @@ export function convertChildrenToList(
       );
     }
   });
+}
+
+/**
+ * 通过 uuid 查找并更新指定类型的节点。图片 / 行内图片的认领上传用它回填——
+ * 上传是异步的，连续插入多个文件时路径会漂移，按 uuid 找节点才可靠。
+ */
+export function updateNodeByUuid(
+  editor: Editor,
+  uuid: string,
+  type: string,
+  properties: Record<string, any>
+): boolean {
+  const nodeEntries = Array.from(
+    Editor.nodes(editor, {
+      at: [],
+      match: (n: any) => SlateElement.isElement(n) && n.type === type && (n as any).uuid === uuid,
+    })
+  );
+
+  if (nodeEntries.length > 0) {
+    const nodeEntry = nodeEntries[0];
+    Transforms.setNodes(editor, properties, { at: nodeEntry[1] });
+    return true;
+  }
+
+  return false;
 }
