@@ -1,6 +1,6 @@
 // 回归测试：协作编辑页必须挂上底部工具条，并拿到 content 场景的 kit。
 // 该页曾漏接线（无 controller、无 editorRef、无 portal 挂载点），正文聚焦后工具条始终不出现，
-// 且扩展不全时 content-link / 附件 / 白板 / 数据库等节点渲染成「无法识别的类型」。
+// 且扩展不全时 content-link / 附件 / 白板 / 数据库等节点无法正常渲染。
 // 扩展现在由 kit 自带（不再逐处透传），所以这里断言拿到的是 content 场景的 kit。
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";

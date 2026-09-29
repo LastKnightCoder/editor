@@ -2,6 +2,7 @@ import type { Descendant } from "slate";
 import type { CustomElement, FormattedText } from "./types.ts";
 import type { MarkdownSerializerRegistry, SerializerOutput } from "./markdownSerializerRegistry.ts";
 import { PositionMapper } from "./positionMapper.ts";
+import { isInlinePosition, serializeUnknownBlock, serializeUnknownInline } from "./unknownNode.ts";
 import type { MarkdownPosition, TextMapping, ElementMapping } from "./positionMapper.ts";
 
 // eslint-disable-next-line no-misleading-character-class
@@ -39,6 +40,19 @@ const withExportConfig = <T>(config: ExportConfig, run: () => T): T => {
 
 const registry = (): MarkdownSerializerRegistry => currentExportConfig().registry;
 
+/** 没有 codec 的元素走兜底语法（unknownNode.ts），整节点原样保留 */
+const isUnknownElement = (element: CustomElement): boolean =>
+  !registry().getSerializer(element.type);
+
+const serializeUnknown = (element: CustomElement, parentElement: CustomElement | null): string =>
+  isInlinePosition(parentElement)
+    ? serializeUnknownInline(element)
+    : serializeUnknownBlock(element);
+
+/** 块级元素之间要空行；未知元素按所在位置判断 */
+const isBlockElement = (element: CustomElement, parentElement: CustomElement | null): boolean =>
+  registry().isBlock(element) || (isUnknownElement(element) && !isInlinePosition(parentElement));
+
 export const getMarkdownUsing = (config: ExportConfig, value: Descendant[]): string =>
   withExportConfig(config, () => getMarkdownInContext(value));
 
@@ -48,11 +62,11 @@ const getMarkdownInContext = (value: Descendant[]): string => {
 
   const content = value
     .map((element, index) => {
-      const isBlockElement = registry().isBlock(element as CustomElement);
+      const isBlock = isBlockElement(element as CustomElement, null);
       const str = elementToMarkdown(element as CustomElement, null);
       const isLast = index === value.length - 1;
       if (str) {
-        return isBlockElement ? `${str}${isLast ? "\n" : "\n\n"}` : str;
+        return isBlock ? `${str}${isLast ? "\n" : "\n\n"}` : str;
       }
       return "";
     })
@@ -99,6 +113,7 @@ export const elementToMarkdownUsing = (
 ): string => withExportConfig(config, () => elementToMarkdown(element, parentElement));
 
 const elementToMarkdown = (element: CustomElement, parentElement: CustomElement | null): string => {
+  if (isUnknownElement(element)) return serializeUnknown(element, parentElement);
   const { type, children } = element;
   const isList = type === "bulleted-list" || type === "numbered-list" || type === "check-list";
 
@@ -112,7 +127,7 @@ const elementToMarkdown = (element: CustomElement, parentElement: CustomElement 
 
     const isLast = index === children.length - 1;
     let tail = "";
-    if (registry().isBlock(node)) {
+    if (isBlockElement(node, element)) {
       if (isLast) {
         tail = "";
       } else if (isList) {
@@ -240,7 +255,7 @@ const getMarkdownWithPositionsInContext = (value: Descendant[]): MarkdownWithPos
   const parts: string[] = [];
 
   value.forEach((element, index) => {
-    const isBlockElement = registry().isBlock(element as CustomElement);
+    const isBlock = isBlockElement(element as CustomElement, null);
 
     const str = serializeElementWithTracking(
       element as CustomElement,
@@ -252,7 +267,7 @@ const getMarkdownWithPositionsInContext = (value: Descendant[]): MarkdownWithPos
 
     if (str) {
       const isLast = index === value.length - 1;
-      const output = isBlockElement ? `${str}${isLast ? "\n" : "\n\n"}` : str;
+      const output = isBlock ? `${str}${isLast ? "\n" : "\n\n"}` : str;
       parts.push(output);
 
       // 更新上下文位置
@@ -284,13 +299,27 @@ function serializeElementWithTracking(
   const { type, children } = element;
   const startPos = { ...context };
 
-  // 1. 检查是否为 void 元素
-  const isVoid = isVoidElement(type);
+  // 1. 未知元素整节点序列化，位置映射按 void 只记元素级范围
+  if (isUnknownElement(element)) {
+    const output = serializeUnknown(element, parentElement);
+    const endPos = { ...startPos };
+    updateContext(endPos, output);
+    positionMap.addElementMapping({
+      type: "element",
+      slateElementPath: path,
+      elementType: type,
+      isVoid: true,
+      mdStartLine: startPos.line,
+      mdStartCh: startPos.ch,
+      mdEndLine: endPos.line,
+      mdEndCh: endPos.ch,
+    });
+    return output;
+  }
 
-  // 2. 如果是 void 元素，直接序列化并记录元素级映射
-  if (isVoid) {
-    const serializer = registry().getSerializer(type);
-    if (!serializer) return "";
+  // 2. void 元素直接序列化并记录元素级映射
+  if (isVoidElement(type)) {
+    const serializer = registry().getSerializer(type)!;
 
     let output: string;
     let serializerOutput: SerializerOutput | null = null;
@@ -391,7 +420,7 @@ function serializeElementWithTracking(
       );
 
       let tail = "";
-      if (registry().isBlock(node)) {
+      if (isBlockElement(node, element)) {
         if (isLast) {
           tail = "";
         } else if (isList) {
@@ -411,11 +440,8 @@ function serializeElementWithTracking(
 
   const childrenStr = childrenParts.join("");
 
-  // 4. 调用序列化器
-  const serializer = registry().getSerializer(type);
-  if (!serializer) {
-    return childrenStr;
-  }
+  // 4. 调用序列化器（未知元素已在第 1 步处理，这里必有）
+  const serializer = registry().getSerializer(type)!;
 
   let output: string;
   let serializerOutput: SerializerOutput | null = null;

@@ -27,7 +27,10 @@ export {
   IMediaActions,
   IMediaSelectors,
   IEditorSlots,
+  IExtensionErrorReporter,
 } from "./services/tokens";
+export { consoleErrorReporter } from "./services/errorReporter";
+export type { ExtensionErrorEvent, ExtensionErrorReporter } from "./services/errorReporter";
 export type {
   MediaType,
   MediaInsertPayload,

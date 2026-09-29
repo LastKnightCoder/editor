@@ -71,9 +71,7 @@ describe("desktop 场景 kit", { timeout: 30_000 }, () => {
     const { getContentKit } = await import("../editorKit");
     const types = getContentKit().extensions.map(extension => extension.type);
     for (const required of CONTENT_ELEMENT_TYPES) {
-      expect(types, `content 正文缺少 ${required}，该类型的块会渲染成「无法识别的类型」`).toContain(
-        required
-      );
+      expect(types, `content 正文缺少 ${required}，该类型的块只会显示通用占位`).toContain(required);
     }
   });
 

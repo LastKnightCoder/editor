@@ -2,8 +2,7 @@
  * 私有块的只读占位（docs/editor-refactor ER-017、P10）。
  *
  * 白板与数据库的数据在 desktop 本机库里，不随 content 同步，mobile 拿不到。
- * 但必须注册这两个类型——否则含这类块的卡片在 mobile 上渲染成字面的
- * 「无法识别的类型 whiteboard」（`packages/editor/src/index.tsx` 的兜底分支）。
+ * 仍注册这两个类型，给出针对性的说明；不注册只会落到内核的通用未知节点占位（ER-006）。
  */
 import { Base, createBlockElementPlugin, createVoidElementPlugin } from "@tau/editor/src";
 import type { IExtension } from "@tau/editor/src";

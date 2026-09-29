@@ -5,6 +5,7 @@ export {
   ICompilerService,
   IOpenerService,
   IThemeService,
+  IExtensionErrorReporter,
   IMediaInsertSources,
   IVideoContentProviders,
   IMediaActions,
@@ -19,6 +20,9 @@ export type { ServiceRegistry, ServiceRegister, ServiceRegistration } from "./re
 export { useServiceRegistry, useService, useOptionalService, useEditorSlots } from "./hooks";
 
 export { createDefaultEditorSlots } from "./defaultSlots";
+
+export { consoleErrorReporter } from "./errorReporter";
+export type { ExtensionErrorEvent, ExtensionErrorReporter } from "./errorReporter";
 
 export type {
   MediaType,
