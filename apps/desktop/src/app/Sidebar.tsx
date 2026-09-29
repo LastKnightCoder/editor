@@ -45,10 +45,14 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
     <nav
       aria-label="主导航"
       className={clsx(
-        "ease-tau-out flex flex-col px-2.5 pb-3 transition-[width] duration-[220ms]",
+        "ease-tau-out flex flex-col pb-3 transition-[width,padding] duration-[220ms]",
         // 拖宽时宽度需逐帧跟随鼠标，关过渡避免 220ms 缓动滞后
         resizing && "transition-none",
-        collapsed ? "w-[var(--tau-sidebar-w-collapsed)]" : "w-[var(--tau-sidebar-w)]"
+        // 收起态左 20 / 右 0：右侧另有 4px 拖拽热区 + 页面 px-4 共 20px 留白，
+        // 图标列到窗口左缘与到内容纸面的间距才对称
+        collapsed
+          ? "w-[var(--tau-sidebar-w-collapsed)] pl-5 pr-0"
+          : "w-[var(--tau-sidebar-w)] px-2.5"
       )}
     >
       <div
@@ -57,11 +61,11 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
           // 收起态无 mb，头部 pb(10px) 直接承担与首个图标的间距（第一组亦无 mt）；
           // 有信号灯带时无 pt——带子自身撑满标题栏高度（见 MacTrafficLights），中线与
           // 右侧对齐；无信号灯（全屏 / Windows/Linux）补回 pt 避免折叠按钮贴顶。
-          // px-1（叠加 nav 的 px-2.5 = 绝对 14px 左缩进，同标题栏版心节奏）：信号灯带
-          // self-start 贴左缩进、不水平居中——52px 的带子居中后红点只剩 3px 贴窗口
-          // 圆角，太局促；对称内边距下 » 按钮与下图标列中线保持 29px 不变
+          // 收起态头部无水平内边距：» 按钮居中，与下方图标列同中线（39px）；信号灯带
+          // self-start 贴左、不水平居中——52px 的带子居中后红点只剩 3px 贴窗口圆角，
+          // 太局促，带子自身负 margin 回到绝对 14px 左缩进（见 MacTrafficLights）
           collapsed
-            ? clsx("flex-col gap-3 px-1 pb-2.5", !lightsShown && "pt-2.5")
+            ? clsx("flex-col gap-3 pb-2.5", !lightsShown && "pt-2.5")
             : "mb-1.5 h-[var(--tau-titlebar-h)] px-1.5"
         )}
       >
@@ -101,10 +105,13 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
       {/* 滚动收口在导航列表：头部 logo 区与底部设置不随滚动；边缘渐隐（base.css
           的 edge-fade-scroll + useEdgeFade）提示可滚方向。 -mr/pr 借位（同
           home-scroll 手法）：滚动条右移进侧栏右留白，落在列表右缘与拖拽热区
-          中间，条目宽度不受影响 */}
+          中间，条目宽度不受影响；收起态 nav 无右内边距，借位会压进拖拽热区，故不借 */}
       <div
         ref={setScrollEl}
-        className="edge-fade-scroll -mr-[5px] min-h-0 flex-1 overflow-y-auto pr-[5px]"
+        className={clsx(
+          "edge-fade-scroll min-h-0 flex-1 overflow-y-auto",
+          !collapsed && "-mr-[5px] pr-[5px]"
+        )}
       >
         {NAV_SECTIONS.map((section, sectionIndex) => {
           // 组折叠收纳：收起条目留组头 + 条目数，
@@ -229,11 +236,16 @@ function NavItemButton({
         active && hasActiveChild
           ? "text-accent-text hover:bg-hover font-medium"
           : active
-            ? // 选中态：accent 淡底 + 左缘 accent 小竖点（竖点贴列左缘，超出按钮盒 10px）。
+            ? // 选中态：accent 淡底 + 左缘 accent 小竖点（竖点恒距窗口左缘 10px，
+              // 超出按钮盒的距离随 nav 左内边距：展开 10px / 收起 20px）。
               // 用 bg-selected 而非 bg-hover——后者是 5% 墨的悬停反馈（对 page 1.086），
               // 承担选中语义太弱；bg-selected 带 accent 色相（对 page 1.174），且
               // 02 §1 视觉宪法本就允许 accent 用于"选中"（D-006）。
-              "bg-selected text-ink-1 before:bg-accent relative font-medium before:absolute before:-left-2.5 before:bottom-2 before:top-2 before:w-[3px] before:rounded-r-[3px] before:content-['']"
+              clsx(
+                "bg-selected text-ink-1 before:bg-accent relative font-medium before:absolute before:bottom-2",
+                collapsed ? "before:-left-5" : "before:-left-2.5",
+                "before:top-2 before:w-[3px] before:rounded-r-[3px] before:content-['']"
+              )
             : "text-ink-2 hover:bg-hover hover:text-ink-1"
       )}
       onClick={onClick}
