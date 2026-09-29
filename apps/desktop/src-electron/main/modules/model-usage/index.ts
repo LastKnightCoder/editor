@@ -13,7 +13,11 @@ import databaseModule from "../database";
 import userSettingModule from "../user-setting";
 import { resolveV2Providers } from "../pi-ai-runtime-core";
 import type { Module } from "../../types/module";
-import type { ModelUsageQuery } from "@/types/model-usage";
+import type {
+  ModelUsageBreakdownQuery,
+  ModelUsageQuery,
+  ModelUsageTimeseriesQuery,
+} from "@/types/model-usage";
 import { ModelUsageStore } from "./store";
 import { UsageRecorder, type UsageRecordInput } from "./recorder";
 import { ulid } from "./ulid";
@@ -68,6 +72,14 @@ class ModelUsageModule implements Module {
     ipcMain.handle("model-usage:list", (_event, query: ModelUsageQuery = {}) => {
       this.recorder.flush();
       return this.requireStore().list(query);
+    });
+    ipcMain.handle("model-usage:timeseries", (_event, query: ModelUsageTimeseriesQuery) => {
+      this.recorder.flush();
+      return this.requireStore().timeseries(query);
+    });
+    ipcMain.handle("model-usage:breakdown", (_event, query: ModelUsageBreakdownQuery) => {
+      this.recorder.flush();
+      return this.requireStore().breakdown(query);
     });
 
     log.info(`[ModelUsage] initialized, device=${this.deviceId || "unavailable"}`);
