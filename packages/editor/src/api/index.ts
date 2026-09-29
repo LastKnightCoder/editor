@@ -15,6 +15,16 @@ export {
   type ElementRenderProps,
 } from "./extension";
 export { fromLegacyExtension, type AnyExtension } from "./legacy";
+export {
+  CommandRegistry,
+  createCommandDispatcher,
+  type EditorCommand,
+  type EditorCommandContext,
+  type EditorHotkey,
+  type RegisteredCommand,
+  type CommandDispatcher,
+  type CommandGuard,
+} from "./command";
 
 // 服务：扩展只经服务访问宿主能力，不碰宿主全局对象
 export {

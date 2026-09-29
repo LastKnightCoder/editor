@@ -4,6 +4,7 @@ import type { RenderElementProps } from "slate-react";
 
 import type { Plugin } from "../utils/plugin";
 import type { IBlockPanelListItem, IConfigItem } from "../types";
+import type { EditorCommand, EditorHotkey } from "./command";
 
 /**
  * 扩展 API v2（01 §5.1）：声明式描述「这个扩展贡献了什么」，内核负责装配、隔离与分发。
@@ -51,6 +52,10 @@ export interface EditorExtension {
     readonly IBlockPanelListItem[] | ((editor: Editor) => readonly IBlockPanelListItem[]);
   /** 悬浮工具条条目 */
   readonly toolbar?: readonly IConfigItem[];
+  /** 贡献的命令：菜单、块面板、宿主都引用命令 id 触发动作 */
+  readonly commands?: readonly EditorCommand[];
+  /** 热键只绑命令 id（不绑函数）；同一键位允许多条声明按顺序匹配（沿用旧语义） */
+  readonly hotkeys?: readonly EditorHotkey[];
   /**
    * 挂到**其他**元素类型上的行为，给「在别的元素里触发、产出本元素」的场景，
    * 典型是快捷语法（段落里输入 `---` 回车变分割线）。与该类型自身的行为按扩展顺序一起分发。

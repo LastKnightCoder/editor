@@ -3,6 +3,7 @@ import type { Editor } from "slate";
 import type { RenderElementProps } from "slate-react";
 
 import type { EditorExtension, ElementBehaviors, ElementSpec } from "../api/extension";
+import { CommandRegistry, type EditorHotkey } from "../api/command";
 import { isLegacyAdapter, toEditorExtension, type AnyExtension } from "../api/legacy";
 import type { Plugin } from "../utils/plugin";
 import type { IBlockPanelListItem, IConfigItem, IHotKeyConfig } from "../types";
@@ -53,11 +54,20 @@ const renderSpec = (spec: ElementSpec): ElementRenderer => {
  * 一个 kit 一份（取代原先每个编辑器一个 PluginOptimizer）：同一个 kit 的多个编辑器共享，
  * 不必每次挂载都重新收集。扩展集合由 kit 在创建时定好，所以这里只算一次，无需缓存淘汰。
  */
+/** v2 热键声明及其来源扩展；执行经命令注册表，熔断按命令的 owner */
+export interface CommandHotkeyEntry {
+  readonly hotkey: EditorHotkey;
+  readonly owner: string;
+}
+
 export class ExtensionAssembly {
   readonly extensions: readonly EditorExtension[];
   readonly plugins: readonly Plugin[];
   readonly pluginGroups: readonly ExtensionPluginGroup[];
   readonly hotkeyConfigs: readonly IHotKeyConfig[];
+  /** v2 命令热键（绑命令 id）；与 legacy 热键混排时在前 */
+  readonly commandHotkeys: readonly CommandHotkeyEntry[];
+  readonly commands: CommandRegistry;
   readonly hoveringBarElements: readonly IConfigItem[];
   /** 本装配能渲染的元素类型（按扩展顺序） */
   readonly elementTypes: readonly string[];
@@ -72,6 +82,8 @@ export class ExtensionAssembly {
 
     const pluginGroups: ExtensionPluginGroup[] = [];
     const hotkeyConfigs: IHotKeyConfig[] = [];
+    const commandHotkeys: CommandHotkeyEntry[] = [];
+    const commands = new CommandRegistry();
     const hoveringBarElements: IConfigItem[] = [];
     const own = new Map<string, ElementBehaviorEntry>();
     const attached = new Map<string, ElementBehaviorEntry[]>();
@@ -82,6 +94,9 @@ export class ExtensionAssembly {
         pluginGroups.push({ type: extension.id, plugins: collected.plugins });
         for (const config of collected.hotkeys) this.hotkeyOwners.set(config, extension.id);
         hotkeyConfigs.push(...collected.hotkeys);
+        for (const hotkey of collected.hotkeyDeclarations) {
+          commandHotkeys.push({ hotkey, owner: extension.id });
+        }
         hoveringBarElements.push(...collected.toolbar);
         for (const [type, renderer] of collected.renderers) {
           this.renderers.set(type, renderer);
@@ -98,6 +113,13 @@ export class ExtensionAssembly {
     this.pluginGroups = pluginGroups;
     this.plugins = pluginGroups.flatMap(group => group.plugins);
     this.hotkeyConfigs = hotkeyConfigs;
+    this.commandHotkeys = commandHotkeys;
+    this.commands = commands;
+    // 命令注册在 try 外：id 冲突要冒泡到 kit 创建处，不让 per-extension 容错吞掉
+    for (const extension of this.extensions) {
+      if (isLegacyAdapter(extension) || !extension.commands) continue;
+      commands.register(extension.id, extension.commands);
+    }
     this.hoveringBarElements = hoveringBarElements;
     const behaviors = new Map<string, ElementBehaviorEntry[]>();
     for (const type of new Set([...own.keys(), ...attached.keys()])) {
@@ -120,6 +142,7 @@ export class ExtensionAssembly {
       return {
         plugins: [...(extension.plugins ?? [])],
         hotkeys: [...extension.legacyHotkeys],
+        hotkeyDeclarations: [],
         toolbar: [...(extension.toolbar ?? [])],
         renderers,
         behaviors,
@@ -139,6 +162,8 @@ export class ExtensionAssembly {
     return {
       plugins: [...(elements.length ? [schemaPlugin(elements)] : []), ...(extension.plugins ?? [])],
       hotkeys: [] as IHotKeyConfig[],
+      hotkeyDeclarations: [...(extension.hotkeys ?? [])],
+      commands: [...(extension.commands ?? [])],
       toolbar: [...(extension.toolbar ?? [])],
       renderers,
       behaviors,

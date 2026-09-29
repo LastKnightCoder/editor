@@ -18,7 +18,11 @@ export const CIRCUIT_BREAKER_WINDOW_MS = 10_000;
 export interface ExtensionCircuitBreaker {
   isDisabled(extension: string): boolean;
   /** 记一次行为错误并上报，窗口内达到阈值即停用该扩展 */
-  record(extension: string, phase: "plugin" | "behavior" | "hotkey", error: unknown): void;
+  record(
+    extension: string,
+    phase: "plugin" | "behavior" | "hotkey" | "command",
+    error: unknown
+  ): void;
   /** 只上报不计数：渲染错误由错误边界各自兜住，不牵连行为；内核自带逻辑也不熔断 */
   report(extension: string, phase: ExtensionErrorEvent["phase"], error: unknown): void;
 }

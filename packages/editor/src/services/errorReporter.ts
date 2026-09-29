@@ -2,7 +2,7 @@
 export interface ExtensionErrorEvent {
   /** 出错扩展的元素 type；内核自带的快捷键记为 "editor" */
   extension: string;
-  phase: "render" | "plugin" | "behavior" | "hotkey";
+  phase: "render" | "plugin" | "behavior" | "hotkey" | "command";
   error: unknown;
   /** 这次错误是否触发熔断（该扩展的行为与快捷键此后停用） */
   disabled: boolean;
