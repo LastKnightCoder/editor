@@ -294,7 +294,8 @@
 - ~~whiteboard 白板列表~~ ✅ 2026-09-25 A 画廊落地（D-047；标签嵌侧栏，缩略图复用导出图片管线）
 - ~~whiteboard-detail 白板详情（多页）~~ ✅ 2026-09-25 A2 底部页签栏（XMind 式）落地（D-048；只迁页面外壳，画布内部浮动件换皮另起一轮 mockup）
 - ~~weread 微信读书~~ ✅ 2026-09-26 A 书架 + B 列表排布 + 整页笔记落地（D-059；笔记只读，legacy 页待 P-weread 删除）
-- ~~pdfs PDF 列表~~ ✅ 2026-09-29 A 文档墙 + 列表排布落地（D-069；pdf-detail 为过渡阅读页，status migrating，AI 对话随详情页迁移补上；legacy 列表页待 P-pdfs 删除）
+- ~~pdfs PDF 列表~~ ✅ 2026-09-29 A 文档墙 + 列表排布落地（D-069；legacy 列表页待 P-pdfs 删除）
+- ~~pdf-detail PDF 阅读~~ ✅ 2026-09-29 方案 B 页边图钉 + 纸内对话落地（D-070，status new；旧阅读器 `components/PdfEmbed`、`EditPdf` 与 legacy 对话面板已随 P-pdf-detail 删除）
 - resources 资源管理：已退役，管理页、资源库选择及主库资源索引整体移除；保留上传、同步、协作文件与学习资源。
 - chat 归位 feature
 - ~~settings 拆解（15 子页）~~ ✅ 2026-09-24 重排为 12 分区全量落地（D-036）
@@ -740,3 +741,20 @@
 - 阅读页（过渡）：`pdf-detail`（params `pdfId`，status **migrating**）只承载 `PdfEmbedViewer`（标注 / 书签 / 页内搜索），打开即记录打开时间、跳到上次读到的页，翻页 1.5s 防抖写回、离开时冲洗；AI 对话（legacy `PdfChatPanel`）不在本页，随详情页正式迁移补上。`PdfEmbedViewer` 新增可选 `onPageChange` / `onFileResolved`，旧调用方不受影响。
 - 共享层：weread 的分类 pill 提升为 `@tau/ui` 的 `FilterPill`（weread 与 PDF 共用，样板间已建档）；`FileDropZone` 新增 `onFiles` 多选模式（`onFile` 单选语义不变）。同日追记：闪卡卡组 pills（`DeckPills`）与 Skill 筛选 pills 也改用 `FilterPill`——二者未选中是 surface 底 + 卡片投影的浮起皮肤，与 weread 的描边皮肤不同且无裁决记录，故 `FilterPill` 增 `variant="outline" | "raised"`（默认 outline）与 `icon` 槽保持各页原样，不借机统一外观；Skill「需要处理」的警示色经 className（cn 合并）覆盖。卡组 pill 顺带补上 `aria-pressed`。
 - 删除：「删除 PDF」连标注、书签、索引库、AI 对话、缩略图一起删；工作区 resources 里的文件副本仍不删（沿用旧行为，确认文案如实说明）。legacy 列表页按 04 清单 §pdfs 登记，锚点 P-pdfs。
+
+## D-070 PDF 阅读页定稿（方案 B「页边图钉 + 纸内对话」）+ 页面接管 AI 对话开关
+
+（2026-09-29，已定；样板间 `mockups/pdf-detail/`，A 沉浸阅读 / B 边注 / C 学习台三选一，用户选 B 并两轮校准）
+
+- 背景：旧阅读器 `components/PdfEmbed`（约 1640 行，embedpdf 引擎）顶部一整条工具栏 + 「工具模式」（先选高亮 / 下划线 / 截图工具再操作）+ 左侧五页签（目录 / 搜索 / 缩略图 / 书签 / 笔记），antd（Tooltip / App / Result / Empty / Dropdown）与 react-icons 混用，笔记编辑是屏幕底部的大面板；AI 对话在 legacy `pages/PdfView/PdfChatPanel`，D-069 的过渡阅读页没有接上。
+- 一轮裁决：选 **B**，其余按样板间 ③ 的推荐：新建标注只给「高亮 + 下划线」（旧的波浪线 / 删除线照常显示、编辑，不能新建）；5 色（黄 / 红 / 绿 / 蓝 / 紫，旧的粉色照常显示）；笔记为轻量富文本（沿用 `pdf_annotations.notes` 的 Slate JSON）；删除标注直接删 + toast 撤销；进入本页收起全局侧栏、离开还原。**AI 对话放纸内右栏**（样板间 B 原画在壳层停靠栏，与推荐冲突，问过用户后选纸内）。
+- 二轮校准：① 边注栏挤窄正文 → **不做常驻边注栏**，有笔记的标注只在页面右页边内放一枚图钉（标注色），悬停浮出笔记卡、点击钉住，卡片浮在正文上方不占宽；② 左面板**恢复「标注」页签**（目录 / 页面 / 标注 / 书签），用于浏览与跳转（点一条 → 滚到原文，有笔记的图钉闪一下并钉住）；③ 阅读区背景与纸同色（不用 sunken 深底），页面只靠投影区分；问 AI 的引用条同样不用 sunken。偏好记入 PREFERENCES（背景别太深 / 悬停不要夸张位移与阴影 / 批注不占阅读宽度）。
+- 交互（三方案共用，A 为交互标本）：没有「工具模式」——划线后原地弹浮动工具条（5 色点即建标注，沿用上次颜色与样式；高亮 / 下划线切换；写笔记；问 AI；复制）；点已有标注弹同一条工具条（当前色打勾，多删除）；按住 Alt 拖动框选区域，松开出工具条（存为区域标注 / 问 AI / 复制图片）；页角悬停出书签，快捷键 B；Ctrl/⌘+F 在阅读区右上角弹查找条（关键词 = 引擎全文检索逐个跳转高亮；按意思找 = AI 索引）；顶部工具栏去掉，翻页 / 页码 / 缩放 / 查找 / ⋯ 收进底部悬浮 HUD（常驻显示；原定「滚动时变淡」，实机上半透明叠在正文上显得乱，2026-09-30 用户裁决取消），⋯ 里放双页（D）、旋转（R）、夜间页面（反色，只反页面位图、标注不反）、全屏、在文件夹中显示、重建 AI 索引；抓手工具去掉，按住空格临时平移，Ctrl+滚轮 / 触控板捏合缩放；←/→ 翻页。键位只在焦点位于阅读器（或无焦点）时生效，让位编辑上下文与输入法组合；Alt+←/→ 仍归导航，单独按下的 Alt 才是框选修饰键；Esc 一律经 `useOverlayDismiss`（工具条、笔记卡、钉住的卡、查找条）。
+- 问 AI：选区 / 标注 / 截图作为**引用 chip** 带进对话输入框，不自动发送，给「解释 / 翻译 / 举个例子 / 找相关段落」快捷问法（填进输入框由用户改）；发送时引用以 `>` 引用块并进这条用户消息（截图作为图片附件）。回答里的 `:pdfref` 页码角标点了跳回原文，并按摘录在页内定位、闪一下。
+- **页面接管 AI 对话开关（壳层改动）**：新增 `app/assistOwner.ts`——页面在栈顶期间用 `useOwnAssist(pageKey, toggle)` 注册自己的对话开关，Ctrl/⌘+J 与命令面板「AI 对话」改为开合页面自己的对话栏，标题栏停靠栏按钮与壳层停靠栏在该页隐藏（开合状态保留，离开即恢复）。只给「这份内容专属会话」的页面用，页面本身就是通用对话时仍按 D-047 隐藏停靠栏。保活隐藏的实例 effect 已清理，注册随之撤销。
+- 共享层：`ChatContainer` 新增可选 `composerAccessory`（输入框正上方的附件区）与 `prepareUserContent`（发送 / 排队前改写用户消息），其他调用方不受影响。闪卡沉浸复习的 `useReviewSidebar` 提升为 `app/useSidebarCollapsedWhile`，PDF 阅读页共用。embedpdf 引擎的交互管理插件登记排除属性 `data-pdf-overlay`，页内浮层打上它，点浮层不会被引擎当成页面点击（清选区 / 开始新划线）。
+- 数据：标注 / 书签 / 单文件索引状态收编 react-query（`features/pdfs/reader/data.ts`，按库分 key，写后直接改缓存，同一引擎标注的写入串行——「创建」未落库就来「更新」会写出两条）；索引状态只经 `pdf-index:status-batch` 读（单查接口会为没建过索引的文件建库），文件就位后自动准备一次索引。文本标注的颜色以写进 PDF 对象的十六进制为准（与旧数据一致），界面色块经 `COLOR_SPECS` 映射到主题数据色 `tag-*`（与微信读书划线同一套对应），外来颜色按最近距离归档。阅读状态仍只经 `pdf:record-*` 写，不改 update_time。
+- 结构：`features/pdfs/reader/`（`PdfReader`：`PdfReaderView` 由宿主注入文件与索引、`PdfReader` 独立使用；`ReaderLayout` 交互编排；`components/` 浮动工具条 / 标注工具条 / 笔记卡 / 每页叠加层 / 左面板 / 查找条 / HUD；`annotationModel.ts`、`outline.ts` 纯逻辑带单测；`readerPrefs.ts` 本机偏好）、`features/pdfs/chat/`（`PdfChatPanel` + `usePdfChatTools`，由 legacy 搬迁重写）。项目里的 PDF 条目（`PdfProjectItemView`）改用独立 `PdfReader`（无对话，左面板开关在 HUD）。
+- 删除：`components/PdfEmbed/` 整目录（引擎参考文档移到 `docs/embedpdf/`，`usePinchZoom` 搬进 reader）、`components/EditPdf.tsx`、`pages/PdfView/PdfChatPanel.tsx` / `usePdfChat.ts`。按 04 清单 §pdfs 的 P-pdf-detail 锚点执行，删前 rg 复核消费者清零。
+- **追记（2026-09-29，项目域 PDF 引用收编）**：用户指出项目域（新架构）仍引用旧件——「关联已有 PDF」弹窗 `components/SelectPdfModal`（antd + legacy `pages/PdfView/PdfCard`）与建记录用的 zustand `usePdfsStore`（与 PDF 域 react-query 各读各的库，列表页改名 / 新增互不同步）。裁决：选择弹窗重写为 `features/pdfs/components/SelectPdfDialog`（`@tau/ui` Dialog；与列表页同一份 `pdf:library` 数据、封面与信息行；按最近打开排序、文件名过滤、单选，双击 / ↵ 直接关联；选中态归弹窗，`useAddRefPdf` 只管开合与排除项）；PDF 域导出 `useCreatePdfRecord` 给项目域建记录（写后失效 `["pdfs"]`，本地文件顺带生成缩略图）；`PdfProjectItemView` 改 react-query（条目 + `usePdfDetail`）；删除 `SelectPdfModal`、`PdfCard`、`usePdfsStore` 与目录树里只为预选而下传的 `pdfs` prop。项目域经 `@/features/pdfs/...` 引用 PDF 域的组件与 query，依赖方向为「PDF 归 PDF 域、项目只存 refId」。
+- **追记（2026-09-30，实机校准）**：① 底部 HUD 取消「滚动时变淡」，常驻不透明（半透明叠在正文上显得乱）；② 纸内对话栏可拖宽（320–560，默认 380，双击恢复，本机偏好 `readerPrefs.chatWidth`）——壳层停靠栏原有的拖宽热区抽为 `@tau/ui` 的 `ResizeHandle`（停靠栏与 PDF 对话栏共用，样板间已建档）；③ 阅读区视口挂 `FADE_SCROLL_CLASS` + `useEdgeFade`（细滚动条上下内缩 10px、边缘渐隐），页面加 line-1 细边、末页下留 HUD 高度的空白；④ 每页等整页位图加载完再显示标注与叠加层；⑤ 点浮层以外任意处（捕获阶段、先于引擎）收起所有工具条 / 钉住的卡与标注选中，新选区与标注工具条互斥；⑥ Alt 框选松手后用虚线框标出选中区域，直到存为标注或关闭；⑦ **恢复抓手工具**（推翻一轮的「抓手工具去掉」，用户反馈「只有选中的模式，缺少变小手拖拽的模式」）：HUD 加抓手开关（H），常开时拖动平移、再点回到选择文字；按住空格仍是临时平移，松开回到当前工具；⑧ 左面板缩略图列表接 FadeScroll（引擎面板经 `data-pdf-thumbs` 取元素），缩略图插件 `paddingY: 10`，选中页的外侧 accent 框不再被滚动容器裁掉；⑨ **Ctrl/⌘+F 查找接管**：全局页内查找条 `GlobalFindBar` 在 document 捕获阶段拦截 Ctrl/⌘+F 并阻止传播，PDF 阅读器与设置弹窗的分区搜索都收不到。新增 `components/GlobalFindBar/findOwner.ts`：自带查找的区域在生效期间 `useFindOwner(open, active)` 注册，全局查找条交给最后注册的接管者（LIFO，浮层优先于底下的页面），没有接管者才打开页内文本查找；阅读器与设置弹窗改走它，各自不再监听 Ctrl/⌘+F。

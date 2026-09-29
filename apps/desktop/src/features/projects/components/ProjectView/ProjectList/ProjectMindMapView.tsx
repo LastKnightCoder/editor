@@ -9,7 +9,7 @@ import EditText, { EditTextHandle } from "@/components/EditText";
 import MindMap from "@/components/MindMap";
 import type { MindMapNodeActionContext } from "@/components/MindMap";
 import { MindMapNodeData } from "@/components/MindMap/types";
-import { EProjectItemType, ICard, Pdf, Project, WhiteBoard } from "@/types";
+import { EProjectItemType, ICard, Project, WhiteBoard } from "@/types";
 import { EDragPosition, IDragItem, type as sidebarDragType } from "@/hooks/useDragAndDrop";
 import { usePage } from "@/page/PageProvider";
 import { updateProjectItem } from "@/commands";
@@ -38,7 +38,6 @@ interface ProjectMindMapViewProps {
   databaseName: string;
   cards: ICard[];
   whiteBoards: WhiteBoard[];
-  pdfs: Pdf[];
   addMenuItems: MenuEntryList;
   onAddMenuClick: (key: string, parentProjectItemId?: number) => void;
   refreshProject: () => void;
@@ -385,7 +384,6 @@ const ProjectMindMapView = (props: ProjectMindMapViewProps) => {
     databaseName,
     cards,
     whiteBoards,
-    pdfs,
     addMenuItems,
     onAddMenuClick,
     refreshProject,
@@ -396,7 +394,6 @@ const ProjectMindMapView = (props: ProjectMindMapViewProps) => {
   } = props;
   void cards;
   void whiteBoards;
-  void pdfs;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [dropPlacement, setDropPlacement] = useState<MindMapDropPlacement | null>(null);
   const { navigator } = usePage();

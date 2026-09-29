@@ -20,7 +20,8 @@ import {
 import { DEFAULT_COLUMNS, DEFAULT_ROWS } from "@/constants";
 import useProjectWebLinkMeta from "@/hooks/useProjectWebLinkMeta";
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
-import SelectPdfModal from "@/components/SelectPdfModal";
+import { SelectPdfDialog } from "@/features/pdfs/components/SelectPdfDialog";
+import { useCreatePdfRecord } from "@/features/pdfs/queries";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import { useDraggingStore } from "@/stores/useDraggingStore";
 import useSettingStore from "@/stores/useSettingStore";
@@ -56,9 +57,7 @@ import {
   type ProjectItem,
   IndexType,
   SearchResult,
-  Pdf,
 } from "@/types";
-import usePdfsStore from "@/stores/usePdfsStore";
 import { importLocalPdf } from "../../shared/utils/bookImport";
 import { FileText, FolderOpen, MoreHorizontal, Plus, Globe, Video, Table } from "lucide-react";
 import {
@@ -133,7 +132,6 @@ interface IProjectItemProps {
   parentChildren: number[];
   cards: ICard[];
   whiteBoards: WhiteBoard[];
-  pdfs: Pdf[];
   onOpenChange?: (open: boolean) => void;
   refreshProject?: () => void;
 }
@@ -147,7 +145,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     parentChildren,
     cards,
     whiteBoards,
-    pdfs,
     onOpenChange,
     refreshProject,
   } = props;
@@ -199,6 +196,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     [projectItem, projectId, projectItemEventBus]
   );
 
+  const createPdf = useCreatePdfRecord();
   const pdfStrategy = useMemo(
     () =>
       createChildPdfStrategy({
@@ -321,12 +319,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const {
     selectPdfModalOpen,
     openSelectPdfModal,
-    selectedPdfId,
-    onSelect: onPdfSelect,
-    excludePdfIds,
-    onOk: onSelectPdfOk,
+    onConfirm: onSelectPdfConfirm,
     onCancel: onSelectPdfCancel,
-  } = useAddRefPdf(pdfs, {
+    excludePdfIds,
+  } = useAddRefPdf({
     modalStates,
     openModal,
     closeModal,
@@ -659,7 +655,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       try {
         const fileInfo = await importLocalPdf();
         if (!fileInfo) return;
-        const pdf = await usePdfsStore.getState().createPdf({
+        const pdf = await createPdf({
           fileName: fileInfo.fileName,
           filePath: fileInfo.filePath,
           isLocal: true,
@@ -944,7 +940,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                   parentChildren={projectItem.children}
                   cards={cards}
                   whiteBoards={whiteBoards}
-                  pdfs={pdfs}
                   onOpenChange={onChildOpenChange}
                   refreshProject={refreshProject}
                 />
@@ -975,14 +970,11 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         excludeWhiteBoardIds={excludeWhiteBoardIds}
         multiple={multiple}
       />
-      <SelectPdfModal
+      <SelectPdfDialog
         open={selectPdfModalOpen}
-        pdfs={pdfs}
-        selectedPdfId={selectedPdfId}
-        onSelect={onPdfSelect}
-        onOk={onSelectPdfOk}
+        onConfirm={onSelectPdfConfirm}
         onCancel={onSelectPdfCancel}
-        excludePdfIds={excludePdfIds}
+        excludeIds={excludePdfIds}
       />
       <RemoteVideoSelectModal
         open={modalStates.webVideo}

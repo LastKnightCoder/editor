@@ -38,7 +38,8 @@ const libraryKey = (database: string) => ["pdfs", "library", database] as const;
 const indexKey = (database: string, ids: number[]) => ["pdfs", "index", database, ids] as const;
 const detailKey = (database: string, id: number) => ["pdfs", "detail", database, id] as const;
 
-function useDatabaseReady() {
+/** 当前工作区数据库名与是否已连接；PDF 域的查询都按库分 key、连上才发 */
+export function useDatabaseReady() {
   const database = useSettingStore(s => s.setting.database.active);
   const ready = useGlobalStateStore(s => s.databaseStatus[database] === "ready");
   return { database, ready: hasBridge && Boolean(database) && ready };
@@ -98,7 +99,7 @@ export function usePdfDetail(id: number) {
   const query = useQuery({
     queryKey: detailKey(database, id),
     queryFn: () => getPdfById(id),
-    enabled: ready,
+    enabled: ready && id > 0,
     // 阅读器以 updateTime 作为重载键，不在阅读时自动刷新
     staleTime: Infinity,
   });
@@ -262,5 +263,25 @@ export function usePdfActions() {
       await removePdf(entry.id);
       await invalidate();
     },
+  };
+}
+
+/**
+ * 给其他域用的建 PDF 记录（项目里导入本地 / 远程 PDF）：建完失效 PDF 域缓存；
+ * 本地文件顺带生成缩略图（失败不影响建记录，列表页会补）。
+ */
+export function useCreatePdfRecord() {
+  const client = useQueryClient();
+  return async (input: Omit<Pdf, "id" | "createTime" | "updateTime">): Promise<Pdf> => {
+    const pdf = await createPdf(input);
+    if (input.isLocal && input.filePath) {
+      try {
+        await saveThumbnailFromBytes(pdf.id, await readBinaryFile(input.filePath));
+      } catch (error) {
+        console.warn("[pdfs] 生成缩略图失败", error);
+      }
+    }
+    await client.invalidateQueries({ queryKey: ["pdfs"] });
+    return pdf;
   };
 }

@@ -53,6 +53,7 @@ import {
 import { useSearchContent, resultDisplay, relativeTime } from "./queries";
 import { useSettingsStore } from "@/app/settingsStore";
 import { useShellStore } from "@/app/shellStore";
+import { toggleAssistFor } from "@/app/assistOwner";
 import { useThemeStore } from "@tau/themes/react";
 import { Spinner, toast } from "@tau/ui";
 import { openMarkdownInNewWindow } from "@/commands/file";
@@ -154,7 +155,8 @@ export function SearchPalette() {
   const closePalette = useSearchStore(s => s.closePalette);
   const togglePalette = useSearchStore(s => s.togglePalette);
   const visits = useSearchStore(s => s.visits);
-  const { navigator } = usePage();
+  const { navigator, state: pageState } = usePage();
+  const currentPageKey = pageState.back[pageState.back.length - 1]?.key;
 
   const [query, setQuery] = useState("");
   const [scopes, setScopes] = useState<Set<PaletteScope>>(() => new Set());
@@ -209,7 +211,7 @@ export function SearchPalette() {
     } else if (action === "open-settings") {
       closeAnd(() => useSettingsStore.getState().openSettings());
     } else if (action === "toggle-assist") {
-      closeAnd(() => useShellStore.getState().toggleAssist());
+      closeAnd(() => toggleAssistFor(currentPageKey, useShellStore.getState().toggleAssist));
     } else if (action === "capture-question") {
       enterCapture("question");
     } else if (action === "capture-todo") {

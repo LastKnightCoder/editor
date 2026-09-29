@@ -16,6 +16,7 @@ import clsx from "clsx";
 import { useOverlayDismiss } from "@/page/PageProvider";
 import { useEdgeFade, IconButton, Input } from "@tau/ui";
 import { useSettingsStore } from "@/app/settingsStore";
+import { useFindOwner } from "@/components/GlobalFindBar/findOwner";
 import { SETTINGS_GROUPS, SETTINGS_SECTIONS, type SettingsSectionDef } from "./sections";
 
 /** 分区搜索：标题 / 分组名 / 设置项关键词，大小写不敏感 */
@@ -46,7 +47,13 @@ export function SettingsDialog() {
     };
   }, [open]);
 
-  // Ctrl+/Cmd+, 全局开关；打开态下 Ctrl+/Cmd+F 聚焦分区搜索（输入法组合让位）
+  // 打开态下 Ctrl+/Cmd+F 聚焦分区搜索：经查找接管，优先于全局页内查找与底下页面的查找
+  useFindOwner(() => {
+    searchRef.current?.focus();
+    searchRef.current?.select();
+  }, open);
+
+  // Ctrl+/Cmd+, 全局开关（输入法组合让位）
   useEffect(() => {
     const onKeydown = (e: globalThis.KeyboardEvent) => {
       if (e.isComposing || !(e.ctrlKey || e.metaKey)) return;
@@ -55,10 +62,6 @@ export function SettingsDialog() {
         const s = useSettingsStore.getState();
         if (s.open) s.closeSettings();
         else s.openSettings();
-      } else if (e.key.toLowerCase() === "f" && useSettingsStore.getState().open) {
-        e.preventDefault();
-        searchRef.current?.focus();
-        searchRef.current?.select();
       }
     };
     window.addEventListener("keydown", onKeydown);

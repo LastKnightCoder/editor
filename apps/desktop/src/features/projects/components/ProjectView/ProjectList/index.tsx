@@ -2,7 +2,6 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Network, House, ListTree, Plus } from "lucide-react";
 import { ChevronDown } from "lucide-react";
-import { useShallow } from "zustand/react/shallow";
 import { DEFAULT_COLUMNS, DEFAULT_ROWS } from "@/constants";
 import ProjectItem from "./ProjectItem";
 import If from "@/components/If";
@@ -64,9 +63,8 @@ import RemotePdfSelectModal from "@/components/RemotePdfSelectModal";
 import RemoteAudioSelectModal from "@/components/RemoteAudioSelectModal";
 import XiaoyuzhouInput from "../AudioNoteView/components/XiaoyuzhouInput";
 import WebViewSelectModal, { type WebViewSelectResult } from "@/components/WebViewSelectModal";
-import SelectPdfModal from "@/components/SelectPdfModal";
-import usePdfsStore from "@/stores/usePdfsStore";
-import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
+import { SelectPdfDialog } from "@/features/pdfs/components/SelectPdfDialog";
+import { useCreatePdfRecord } from "@/features/pdfs/queries";
 import ProjectMindMapView from "./ProjectMindMapView";
 import { useProjectTreeData } from "./useProjectTreeData";
 import { useProjectContext } from "../ProjectContext";
@@ -93,13 +91,7 @@ const Project = () => {
   const { projects: allProjects } = useProjectsList();
   const { cards } = useProjectRefCards();
   const { whiteBoards } = useProjectRefWhiteBoards();
-  const { pdfs, initPdfs, createPdf } = usePdfsStore(
-    useShallow(state => ({
-      pdfs: state.pdfs,
-      initPdfs: state.initPdfs,
-      createPdf: state.createPdf,
-    }))
-  );
+  const createPdf = useCreatePdfRecord();
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const [addingParentProjectItemId, setAddingParentProjectItemId] = useState<number | undefined>(
     undefined
@@ -130,12 +122,6 @@ const Project = () => {
   const handleSwitchProject = useMemoizedFn((proj: IProject) => {
     navigator.push("project-detail", { id: proj.id });
   });
-
-  useDatabaseChangeEffect(() => {
-    return (async () => {
-      await initPdfs();
-    })();
-  }, [initPdfs]);
 
   // 写缓存而非失效：调用点均已拿到最新 project，同步落缓存并经 children 指纹联动树重拉
   const applyProject = useMemoizedFn((next: IProject) => {
@@ -411,12 +397,10 @@ const Project = () => {
   const {
     selectPdfModalOpen,
     openSelectPdfModal,
-    onOk: onSelectPdfOk,
+    onConfirm: onSelectPdfConfirm,
     onCancel: onSelectPdfCancel,
-    selectedPdfId,
-    onSelect: onPdfSelect,
     excludePdfIds,
-  } = useAddRefPdf(pdfs, {
+  } = useAddRefPdf({
     modalStates,
     openModal,
     closeModal,
@@ -780,7 +764,6 @@ const Project = () => {
                   databaseName={databaseName}
                   cards={cards}
                   whiteBoards={whiteBoards}
-                  pdfs={pdfs}
                   addMenuItems={ADD_MENU_ITEMS}
                   onAddMenuClick={handleAddMenuClick}
                   refreshProject={refresh}
@@ -809,7 +792,6 @@ const Project = () => {
                       parentChildren={project.children}
                       cards={cards}
                       whiteBoards={whiteBoards}
-                      pdfs={pdfs}
                       refreshProject={refresh}
                     />
                   )}
@@ -865,14 +847,11 @@ const Project = () => {
             onConfirm={handleBilibiliConfirm}
           />
 
-          <SelectPdfModal
+          <SelectPdfDialog
             open={selectPdfModalOpen}
-            pdfs={pdfs}
-            selectedPdfId={selectedPdfId}
-            onSelect={onPdfSelect}
-            onOk={onSelectPdfOk}
+            onConfirm={onSelectPdfConfirm}
             onCancel={onSelectPdfCancel}
-            excludePdfIds={excludePdfIds}
+            excludeIds={excludePdfIds}
           />
 
           <RemoteAudioSelectModal

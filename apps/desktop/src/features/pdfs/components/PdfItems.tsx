@@ -115,7 +115,8 @@ function MoreMenu({
 const activate = (entry: PdfEntry, actions: PdfItemActions) =>
   entry.fileMissing ? actions.onRelocate(entry) : actions.onOpen(entry);
 
-function Meta({ entry }: { entry: PdfEntry }) {
+/** 条目信息行：页数 · 标注数（都没有时给添加日期），文件丢失时给出提示 */
+export function Meta({ entry }: { entry: PdfEntry }) {
   if (entry.fileMissing) return <span className="text-danger">文件丢失 · 点击重新定位</span>;
   return (
     <>

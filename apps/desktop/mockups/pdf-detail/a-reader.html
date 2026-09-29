@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+  <head>
+    <meta charset="utf-8" />
+    <title>方案 A · 沉浸阅读</title>
+    <link rel="stylesheet" href="../chat/shared.css?v=3" />
+    <link rel="stylesheet" href="pdf-detail.css?v=4" />
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+  </head>
+  <body>
+    <div class="mock-note">
+      <h3>方案 A · 沉浸阅读（推荐）</h3>
+      页面上方<b>没有工具栏</b>。一整张纸从左到右是：可收起的左面板（目录 / 页面 / 标注 /
+      书签）、阅读区（灰底上铺纸白页面）、可收起的 AI 对话栏（这份 PDF
+      专属的会话）。翻页和缩放收进底部一枚悬浮 HUD，常驻显示；双页、旋转、夜间页面、全屏都放进 HUD
+      的「⋯」。
+      <ul>
+        <li>
+          <b>先划线，再选动作</b
+          >：选中文字后原地弹出工具条，点颜色即高亮（默认沿用上次的颜色），也可以切成下划线、写笔记、问
+          AI、复制。点已有标注弹出同一条工具条，多了「删除」。
+        </li>
+        <li>
+          <b>框选区域</b>：按住
+          <span class="kbd-k">Alt</span> 拖动（不用先切工具），松开后可以存为区域标注、问
+          AI、复制图片。
+        </li>
+        <li>
+          <b>问 AI</b
+          >：选区作为引用带进对话输入框，不自动发送，下面给几个快捷问法。回答里的页码点了直接跳回原文，并闪一下对应位置。
+        </li>
+        <li>
+          <b>查找</b>：<span class="kbd-k">⌘F</span>
+          在右上角弹查找条，分「关键词」和「按意思找」（走 AI 索引）两种。
+        </li>
+        <li>
+          面包屑最前是左面板开关，标题栏的 AI 按钮（<span class="kbd-k">⌘J</span
+          >）在本页开关右侧对话栏；进入本页收起全局侧栏。
+        </li>
+      </ul>
+      <p style="margin: 6px 0 0; color: var(--ink-3); font-size: 12px">
+        页面内容是示意（节选《Attention Is All You Need》）；真实页面由 pdfium
+        渲染。顶栏按钮切换各种状态，左面板页签可以点。
+      </p>
+    </div>
+
+    <div class="stage"><div class="win sb-c" id="win"></div></div>
+
+    <script type="module">
+      import {
+        mockBar,
+        sidebar,
+        titlebar,
+        anno,
+        icons,
+        pagesHTML,
+        floatToolbar,
+        noteCard,
+        place,
+        leftPanel,
+        hud,
+        findBar,
+        chatPanel,
+        annById,
+        mountPins,
+      } from "./pdf-detail.js?v=4";
+
+      const STATES = [
+        ["read", "默认"],
+        ["select", "选中文字"],
+        ["annotation", "点已有标注"],
+        ["note", "写笔记"],
+        ["area", "框选区域"],
+        ["ask", "问 AI"],
+        ["cite", "点引用跳页"],
+        ["find", "查找"],
+        ["focus", "纯阅读"],
+        ["indexing", "索引中"],
+        ["loading", "加载中"],
+        ["error", "文件丢失"],
+      ];
+      mockBar(
+        "a-reader.html",
+        `<span class="seg">${STATES.map(([k, l]) => `<button data-m="${k}">${l}</button>`).join("")}</span>`
+      );
+
+      const win = document.getElementById("win");
+      const state = {
+        m: "read",
+        lt: "toc",
+        af: "all",
+        lpOn: true,
+        rpOn: true,
+        menu: false,
+        fm: "kw",
+      };
+
+      function stageInner() {
+        const m = state.m;
+        if (m === "loading")
+          return `<div class="rd-scroll"><div class="pages" id="pages"><div class="skel-page"></div></div></div>`;
+        if (m === "error")
+          return `<div class="st"><div class="ic danger"><i data-lucide="file-x"></i></div><h2>找不到这个文件</h2><p>原路径 <span style="font-family:var(--mono);font-size:12px">~/Downloads/1706.03762.pdf</span> 已不存在。重新定位后标注、书签和对话都会保留。</p>
+      <div style="display:flex;gap:8px;margin-top:10px"><button class="btn primary"><i data-lucide="folder-search"></i>重新定位文件</button><button class="btn line">回到 PDF 列表</button></div></div>`;
+        const flags = {
+          sel: m === "select" || m === "ask",
+          active: m === "annotation" ? "m4" : m === "note" ? "m2" : null,
+          hits: m === "find",
+          flash: m === "cite",
+          marquee: m === "area" ? "drawing" : "saved",
+        };
+        let floating = "";
+        if (m === "select") floating = floatToolbar("selection");
+        if (m === "annotation") floating = floatToolbar("annotation", { color: "red" });
+        if (m === "note") floating = noteCard(annById("m2"));
+        if (m === "area") floating = floatToolbar("area");
+        return `
+    <div class="rd-scroll" id="scroll">${pagesHTML(flags).replace('<div class="pages" id="pages" style="position:relative">', `<div class="pages" id="pages" style="position:relative">${floating}`)}</div>
+    ${m === "find" ? findBar(state.fm) : ""}
+    ${m === "cite" ? `<div class="mb-toast"><i data-lucide="corner-down-right"></i>已跳到第 4 页引用处</div>` : ""}
+    ${hud({ menu: state.menu, chatOff: !state.rpOn, zoom: "适宽" })}`;
+      }
+
+      function render() {
+        const m = state.m;
+        const lpOn = state.lpOn && m !== "focus" && m !== "error";
+        const rpOn = state.rpOn && m !== "focus" && m !== "error";
+        const crumb = `<button class="ib ${lpOn ? "on" : ""}" id="lpT" title="左面板"><i data-lucide="panel-left"></i></button><span style="cursor:pointer;color:var(--ink-2)">PDF</span><i data-lucide="chevron-right" style="width:14px;color:var(--ink-3)"></i><b>Attention Is All You Need</b>`;
+        const quote =
+          m === "ask"
+            ? {
+                src: "第 1 页 · 选区",
+                text: "The Transformer allows for significantly more parallelization and can reach a new state of the art in translation quality",
+              }
+            : null;
+        win.innerHTML = `
+    ${sidebar()}
+    <div class="col">
+      ${titlebar(crumb)}
+      <div class="main"><section class="paper d-paper">
+        ${m === "loading" || m === "error" ? "" : leftPanel(state.lt, { annFilter: state.af, off: !lpOn, activeAnn: m === "annotation" ? "m4" : null })}
+        <div class="rd" style="${m === "loading" || m === "error" ? "margin:8px" : ""}">${stageInner()}</div>
+        ${m === "loading" || m === "error" ? "" : rpOn ? chatPanel({ quote, indexing: m === "indexing", empty: m === "indexing" }) : `<aside class="rp off"></aside>`}
+      </section></div>
+    </div>
+    ${m === "read" ? anno(1, "面包屑最前 = 左面板开关", "left:78px;top:6px") + anno(2, "页角悬停出书签", "left:880px;top:74px") + anno(3, "翻页 / 缩放 / 查找 / 更多都在 HUD", "left:520px;top:720px") + anno(4, "对话栏：这份 PDF 专属，⌘J 开关", "left:1050px;top:74px") : ""}
+    ${m === "select" ? anno(1, "点颜色即高亮；再点一次切色", "left:420px;top:150px") : ""}
+    ${m === "area" ? anno(1, "按住 Alt 拖动，不用先切工具", "left:420px;top:150px") : ""}`;
+        icons();
+
+        // 浮层定位
+        const pages = document.getElementById("pages");
+        const scroll = document.getElementById("scroll");
+        const ftb = document.getElementById("ftb");
+        const note = document.getElementById("note");
+        mountPins(win);
+        if (m === "select") place(ftb, document.getElementById("selx"));
+        if (m === "annotation") place(ftb, win.querySelector('mark[data-ann="m4"]'));
+        if (m === "note") place(note, win.querySelector('mark[data-ann="m2"]'), { below: true });
+        if (m === "area") place(ftb, document.getElementById("mq"), { below: true });
+        const focusEl = {
+          select: "#selx",
+          ask: "#selx",
+          annotation: 'mark[data-ann="m4"]',
+          note: 'mark[data-ann="m2"]',
+          area: "#mq",
+          cite: "#cited",
+        }[m];
+        if (scroll && focusEl) {
+          const el = win.querySelector(focusEl);
+          let top = 0;
+          for (let n = el; n && n !== pages; n = n.offsetParent) top += n.offsetTop;
+          scroll.scrollTop = Math.max(0, top - 240);
+        }
+
+        document
+          .querySelectorAll(".mock-bar .seg button")
+          .forEach(b => b.classList.toggle("on", b.dataset.m === state.m));
+        const on = (sel, fn) =>
+          win.querySelectorAll(sel).forEach(
+            el =>
+              (el.onclick = e => {
+                e.stopPropagation();
+                fn(el);
+                render();
+              })
+          );
+        on("#lpT", () => (state.lpOn = !state.lpOn));
+        on("[data-lt]", el => (state.lt = el.dataset.lt));
+        on("[data-af]", el => (state.af = el.dataset.af));
+        on('[data-act="chat"]', () => {
+          state.rpOn = !state.rpOn;
+          if (state.m === "focus") state.m = "read";
+        });
+        on('[data-act="more"]', () => (state.menu = !state.menu));
+        on('[data-act="find"]', () => (state.m = "find"));
+        on('[data-act="find-close"]', () => (state.m = "read"));
+        on("[data-fm]", el => (state.fm = el.dataset.fm));
+        on('[data-act="note"]', () => (state.m = "note"));
+        on('[data-act="ask"]', () => {
+          state.m = "ask";
+          state.rpOn = true;
+        });
+        on("[data-cite]", () => (state.m = "cite"));
+        on("mark[data-ann]", el => (state.m = el.dataset.ann === "m2" ? "note" : "annotation"));
+        on("[data-jump]", el => {
+          state.lt = "anns";
+          state.m = el.dataset.jump === "m2" ? "note" : "annotation";
+        });
+        on("[data-color]", () => (state.m = "read"));
+      }
+      win.addEventListener("click", () => {
+        if (state.menu) {
+          state.menu = false;
+          render();
+        }
+      });
+      document.querySelectorAll(".mock-bar .seg button").forEach(
+        b =>
+          (b.onclick = () => {
+            state.m = b.dataset.m;
+            state.menu = false;
+            if (b.dataset.m === "annotation" || b.dataset.m === "note") state.lt = "anns";
+            render();
+          })
+      );
+      render();
+    </script>
+  </body>
+</html>

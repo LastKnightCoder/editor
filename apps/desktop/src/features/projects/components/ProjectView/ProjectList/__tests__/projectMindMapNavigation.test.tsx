@@ -86,7 +86,6 @@ describe("思维导图文档树导航", () => {
           databaseName="test"
           cards={[]}
           whiteBoards={[]}
-          pdfs={[]}
           addMenuItems={[]}
           onAddMenuClick={vi.fn()}
           refreshProject={vi.fn()}

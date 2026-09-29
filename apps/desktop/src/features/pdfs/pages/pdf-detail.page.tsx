@@ -1,6 +1,6 @@
 /**
  * PDF 阅读 page：一个文件一个实例（按 pdfId 去重）。
- * 目前只承载阅读器（标注 / 书签 / 页内搜索），AI 对话随详情页迁移补上，故为 migrating。
+ * 左面板（目录 / 页面 / 标注 / 书签）+ 阅读区 + 纸内右栏的 AI 对话（D-070）。
  */
 
 import { createPageSchema, paramNumber } from "@/page/core/paramsSchema";
@@ -16,7 +16,7 @@ export default definePage({
   match: "params",
   getId: params => `pdf-detail-${params.pdfId}`,
   label: "PDF",
-  status: "migrating",
+  status: "new",
   params: schema.schema,
   component: PdfDetailView,
 });

@@ -7,6 +7,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, ChevronUp, Search, X } from "lucide-react";
+import { openOwnedFind } from "./findOwner";
 import styles from "./index.module.less";
 
 interface SearchTextNode {
@@ -177,6 +178,8 @@ const GlobalFindBar = () => {
       if (isFindShortcut) {
         event.preventDefault();
         event.stopPropagation();
+        // 有区域接管查找（PDF 阅读器等）就交给它，页内文本查找让位
+        if (openOwnedFind()) return;
         openFindBar();
       } else if (event.key === "Escape" && open) {
         event.preventDefault();
