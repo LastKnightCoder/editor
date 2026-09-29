@@ -2,9 +2,14 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
 import { Transforms } from "slate";
-import { LoadingOverlay } from "@tau/ui";
+import { LoadingOverlay, cn } from "@tau/ui";
 import classnames from "classnames";
-import { MdDragIndicator } from "react-icons/md";
+import {
+  BLOCK_DRAG_GROUP,
+  DragHandle,
+  DropIndicator,
+  dimWhileDragging,
+} from "../../../../components/BlockDrag";
 
 import { IExtensionBaseProps } from "../../../../extensions/types";
 import type { VideoElement } from "../../../../types";
@@ -223,13 +228,13 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
       ref={node => {
         drop(node);
       }}
-      className={classnames(styles.container, {
-        [styles.dragging]: isDragging,
-        [styles.drop]: isOverCurrent && canDrop,
-        [styles.before]: isBefore,
-        [styles.after]: !isBefore,
-      })}
+      className={cn(
+        "relative",
+        BLOCK_DRAG_GROUP,
+        dimWhileDragging(isDragging || (isOverCurrent && canDrop))
+      )}
     >
+      <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
       <div {...attributes}>
         <LoadingOverlay loading={!!uploading}>
           <If condition={!src}>{renderEmpty()}</If>
@@ -246,18 +251,13 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
           </If>
         </LoadingOverlay>
         {children}
-        <div
-          contentEditable={false}
-          ref={node => {
+        <DragHandle
+          dragRef={node => {
             drag(node);
           }}
-          className={classnames(styles.dragHandler, {
-            [styles.canDrag]: canDrag,
-          })}
+          canDrag={canDrag}
           onClick={dragHandlerProps.onClick}
-        >
-          <MdDragIndicator className={styles.icon} />
-        </div>
+        />
         <EditorContextMenu {...menuProps} readonly={readOnly} />
         {!(readOnly && isLast) && <AddParagraph element={element} />}
       </div>

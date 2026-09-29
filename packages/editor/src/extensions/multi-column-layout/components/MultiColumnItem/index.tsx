@@ -27,7 +27,7 @@ import { useColumnWidthsContext } from "../../context/ColumnWidthsContext";
 import styles from "./index.module.less";
 
 // gap 值（与 CSS 中 MultiColumnsContainer .container 的 gap 保持一致）
-// 如需修改，请同步更新 MultiColumnsContainer/index.module.less 中的 gap 值
+// 如需修改，请同步更新 MultiColumnsContainer/index.tsx 中容器的 gap-[0.625em]
 const GAP_EM = 0.625;
 
 interface IMultiColumnItemProps {

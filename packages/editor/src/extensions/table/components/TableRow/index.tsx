@@ -1,53 +1,50 @@
 import React from "react";
 import { RenderElementProps } from "slate-react";
 import type { TableRowElement } from "../../../types";
+import { cn } from "@tau/ui";
 
 import useDragAndDrop from "./useDragAndDrop";
-import classnames from "classnames";
-import styles from "./index.module.less";
-import { MdDragIndicator } from "react-icons/md";
+import { BLOCK_DRAG_GROUP, DragHandle } from "../../../../components/BlockDrag";
 
 interface ITableRowProps {
   attributes: RenderElementProps["attributes"];
   element: TableRowElement;
 }
 
-const TableRow: React.FC<React.PropsWithChildren<ITableRowProps>> = (props) => {
+const TableRow: React.FC<React.PropsWithChildren<ITableRowProps>> = props => {
   const { attributes, children, element } = props;
 
-  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
-    useDragAndDrop({
-      element,
-    });
+  const { drag, drop, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
+    element,
+  });
+  const dropActive = isOverCurrent && canDrop;
 
   const { ref } = attributes;
 
   return (
     <tr
       {...attributes}
-      ref={(node) => {
+      ref={node => {
         ref(node);
         drop(node);
       }}
-      className={classnames(styles.dropContainer, {
-        [styles.dragging]: isDragging,
-        [styles.drop]: isOverCurrent && canDrop,
-        [styles.before]: isBefore,
-        [styles.after]: !isBefore,
-      })}
+      // tr 里放不了插入线元素，放置位置用行的上 / 下虚线边表示
+      className={cn(
+        "relative",
+        BLOCK_DRAG_GROUP,
+        dropActive &&
+          (isBefore
+            ? "border-t-2 border-dashed border-t-[var(--ed-accent-soft)]"
+            : "border-b-2 border-dashed border-b-[var(--ed-accent-soft)]")
+      )}
     >
       {children}
-      <div
-        contentEditable={false}
-        ref={(node) => {
+      <DragHandle
+        dragRef={node => {
           drag(node);
         }}
-        className={classnames(styles.dragHandler, {
-          [styles.canDrag]: canDrag,
-        })}
-      >
-        <MdDragIndicator className={styles.icon} />
-      </div>
+        canDrag={canDrag}
+      />
     </tr>
   );
 };

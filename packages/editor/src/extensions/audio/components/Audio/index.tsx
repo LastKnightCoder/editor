@@ -5,10 +5,13 @@ import AddParagraph from "../../../../components/AddParagraph";
 import EditorContextMenu from "../../../../components/EditorContextMenu";
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
-import classnames from "classnames";
-import styles from "./index.module.less";
-import { MdDragIndicator } from "react-icons/md";
-import { LoadingOverlay } from "@tau/ui";
+import { LoadingOverlay, cn } from "@tau/ui";
+import {
+  BLOCK_DRAG_GROUP,
+  DragHandle,
+  DropIndicator,
+  dimWhileDragging,
+} from "../../../../components/BlockDrag";
 import { If } from "@tau/shared";
 import { useAttrInput } from "../../../../hooks/useAttrInput";
 import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
@@ -42,6 +45,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
   const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } = useDragAndDrop({
     element,
   });
+  const dropActive = isOverCurrent && canDrop;
   const { menuProps, dragHandlerProps } = useDragHandlerMenu({
     element,
     editor,
@@ -77,43 +81,29 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
       ref={node => {
         drop(node);
       }}
-      className={styles.container}
+      className={cn("relative", BLOCK_DRAG_GROUP)}
       suppressContentEditableWarning
       contentEditable={"false"}
     >
       <div {...attributes}>
         <LoadingOverlay loading={!!uploading}>
           {src ? (
-            <AudioSlot
-              src={src}
-              controls
-              label={element.title}
-              labelSlot={titleSlot}
-              className={classnames(styles.audio, {
-                [styles.dragging]: isDragging,
-                [styles.drop]: isOverCurrent && canDrop,
-                [styles.before]: isBefore,
-                [styles.after]: !isBefore,
-              })}
-            />
+            <div className={cn("relative", dimWhileDragging(isDragging || dropActive))}>
+              <AudioSlot src={src} controls label={element.title} labelSlot={titleSlot} />
+              <DropIndicator active={dropActive} before={isBefore} />
+            </div>
           ) : (
             <If condition={!src}>{renderNoContent()}</If>
           )}
         </LoadingOverlay>
         {children}
-        <div
-          suppressContentEditableWarning
-          contentEditable={false}
-          ref={node => {
+        <DragHandle
+          dragRef={node => {
             drag(node);
           }}
-          className={classnames(styles.dragHandler, {
-            [styles.canDrag]: canDrag,
-          })}
+          canDrag={canDrag}
           onClick={dragHandlerProps.onClick}
-        >
-          <MdDragIndicator className={styles.icon} />
-        </div>
+        />
         <EditorContextMenu {...menuProps} readonly={readOnly} />
         <AddParagraph element={element} />
       </div>

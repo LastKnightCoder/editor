@@ -7,10 +7,15 @@ import AddParagraph from "../../../../components/AddParagraph";
 import TabsHeader from "../TabsHeader";
 import useIsLastElement from "../../../../hooks/useIsLastElement";
 
-import styles from "./index.module.less";
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
-import classnames from "classnames";
+import { cn } from "@tau/ui";
 import { GripVertical } from "lucide-react";
+import {
+  BLOCK_DRAG_GROUP,
+  DragHandle,
+  DropIndicator,
+  dimWhileDragging,
+} from "../../../../components/BlockDrag";
 import { TabsActiveContext } from "../../context";
 
 interface ITabsProps {
@@ -155,13 +160,13 @@ const Tabs = (props: ITabsProps) => {
       ref={node => {
         drop(node);
       }}
-      className={classnames(styles.dropContainer, {
-        [styles.dragging]: isDragging,
-        [styles.drop]: isOverCurrent && canDrop,
-        [styles.before]: isBefore,
-        [styles.after]: !isBefore,
-      })}
+      className={cn(
+        "relative",
+        BLOCK_DRAG_GROUP,
+        dimWhileDragging(isDragging || (isOverCurrent && canDrop))
+      )}
     >
+      <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
       <div className="overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_3px_10px_rgba(15,23,42,0.03)] dark:border-zinc-700/50 dark:bg-zinc-900/40 dark:shadow-none">
         <TabsHeader
           tabs={tabs}
@@ -182,17 +187,13 @@ const Tabs = (props: ITabsProps) => {
         </TabsActiveContext.Provider>
       </div>
       {!(readOnly && isLast) && <AddParagraph element={element} />}
-      <div
-        contentEditable={false}
-        ref={node => {
+      <DragHandle
+        dragRef={node => {
           drag(node);
         }}
-        className={classnames(styles.dragHandler, {
-          [styles.canDrag]: canDrag,
-        })}
-      >
-        <GripVertical className={styles.icon} />
-      </div>
+        canDrag={canDrag}
+        icon={GripVertical}
+      />
     </div>
   );
 };

@@ -1,16 +1,19 @@
 import React from "react";
 import { RenderElementProps } from "slate-react";
 import { FileAttachmentElement } from "@/editor-extensions/file-attachment/types";
-import { AddParagraph } from "@tau/editor/src";
-import { MdDragIndicator } from "react-icons/md";
+import {
+  AddParagraph,
+  BLOCK_DRAG_GROUP,
+  DragHandle,
+  DropIndicator,
+  dimWhileDragging,
+  useDragAndDrop,
+  useNotifier,
+  type EditorLoadingHandle,
+} from "@tau/editor/src";
+import { cn } from "@tau/ui";
 import { showInFolder } from "@/commands";
-
-import { useDragAndDrop } from "@tau/editor/src";
-
-import styles from "./index.module.less";
-import classnames from "classnames";
 import { remoteResourceToLocal } from "@/utils";
-import { App } from "antd";
 
 interface IFileAttachmentProps {
   element: FileAttachmentElement;
@@ -22,75 +25,63 @@ const FileAttachment = (props: IFileAttachmentProps) => {
   const { element, attributes, children } = props;
 
   const { fileName, filePath, isLocal, localFilePath = filePath } = element;
-  const { message } = App.useApp();
+  const notifier = useNotifier();
 
-  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
-    useDragAndDrop({
-      element,
-    });
+  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
+    element,
+  });
+  const dropActive = isOverCurrent && canDrop;
 
   const handleClickCard = async () => {
     if (isLocal) {
       try {
         await showInFolder(localFilePath);
       } catch (e) {
-        message.error("文件不存在");
+        notifier.error("文件不存在");
         console.error(e);
       }
-    } else {
-      try {
-        message.loading({
-          key: "file-attachment-downloading",
-          content: "正在下载文件",
-          duration: 0,
-        });
-        const localPath = await remoteResourceToLocal(filePath);
-        await showInFolder(localPath);
-      } catch (e) {
-        message.error({
-          key: "file-attachment-downloading",
-          content: "下载失败",
-        });
-      } finally {
-        message.destroy("file-attachment-downloading");
-      }
+      return;
+    }
+    let progress: EditorLoadingHandle | undefined;
+    try {
+      progress = notifier.loading("正在下载文件");
+      const localPath = await remoteResourceToLocal(filePath);
+      await showInFolder(localPath);
+      progress.success("已在文件夹中显示");
+    } catch (e) {
+      if (progress) progress.error("下载失败");
+      else notifier.error("下载失败");
+      console.error(e);
     }
   };
 
   return (
     <div
-      ref={(node) => {
+      ref={node => {
         drop(node);
       }}
-      className={classnames(styles.container, {
-        [styles.dragging]: isDragging,
-        [styles.drop]: isOverCurrent && canDrop,
-        [styles.before]: isBefore,
-        [styles.after]: !isBefore,
-      })}
+      className={cn("relative", BLOCK_DRAG_GROUP, dimWhileDragging(isDragging || dropActive))}
       contentEditable={false}
     >
+      <DropIndicator active={dropActive} before={isBefore} />
       <div {...attributes}>
         <div
-          className={styles.fileAttachmentContainer}
+          className="border-line-1 bg-surface hover:bg-hover flex cursor-pointer flex-col gap-[0.5em] border px-[1em] py-[0.75em]"
           onClick={handleClickCard}
         >
-          <div className={styles.fileName}>{fileName}</div>
-          <div className={styles.filePath}>{filePath}</div>
+          <div className="text-ink-1 text-[1em] font-medium">{fileName}</div>
+          <div className="text-ink-3 overflow-hidden text-ellipsis whitespace-nowrap text-[0.75em]">
+            {filePath}
+          </div>
         </div>
         {children}
         <AddParagraph element={element} />
-        <div
-          contentEditable={false}
-          ref={(node) => {
+        <DragHandle
+          dragRef={node => {
             drag(node);
           }}
-          className={classnames(styles.dragHandler, {
-            [styles.canDrag]: canDrag,
-          })}
-        >
-          <MdDragIndicator className={styles.icon} />
-        </div>
+          canDrag={canDrag}
+        />
       </div>
     </div>
   );

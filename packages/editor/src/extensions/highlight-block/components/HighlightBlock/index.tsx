@@ -1,4 +1,3 @@
-import { memo } from "react";
 import { RenderElementProps, useSlate, useReadOnly } from "slate-react";
 import { useNotifier } from "../../../../services/hooks";
 import type { HighlightBlockElement } from "../../../types";
@@ -15,42 +14,19 @@ import { buildHighlightBlockMenuItems } from "../../utils/menuItems";
 
 import { colors } from "../../configs";
 
-import styles from "./index.module.less";
-import classnames from "classnames";
-import { MdDragIndicator } from "react-icons/md";
+import { cn } from "@tau/ui";
+import {
+  BLOCK_DRAG_GROUP,
+  DragHandle,
+  DropIndicator,
+  dimWhileDragging,
+} from "../../../../components/BlockDrag";
 
 interface IHighBlockProps {
   attributes: RenderElementProps["attributes"];
   element: HighlightBlockElement;
   children: RenderElementProps["children"];
 }
-
-const DragHandler = memo(
-  ({
-    drag,
-    canDrag,
-    onClick,
-  }: {
-    drag: React.Ref<HTMLDivElement>;
-    canDrag: boolean;
-    onClick?: (e: React.MouseEvent) => void;
-  }) => {
-    return (
-      <div
-        contentEditable={false}
-        ref={drag}
-        className={classnames(styles.dragHandler, {
-          [styles.canDrag]: canDrag,
-        })}
-        onClick={onClick}
-      >
-        <MdDragIndicator className={styles.icon} />
-      </div>
-    );
-  }
-);
-
-DragHandler.displayName = "DragHandler";
 
 const HighlightBlock = (props: IHighBlockProps) => {
   const { attributes, element, children } = props;
@@ -78,19 +54,15 @@ const HighlightBlock = (props: IHighBlockProps) => {
       ref={node => {
         drop(node);
       }}
-      className={styles.container}
+      className={cn("relative", BLOCK_DRAG_GROUP)}
     >
-      <DragHandler drag={drag} canDrag={canDrag} onClick={dragHandlerProps.onClick} />
+      <DragHandle dragRef={drag} canDrag={canDrag} onClick={dragHandlerProps.onClick} />
       <EditorContextMenu {...menuProps} readonly={readOnly} />
       <div
         {...attributes}
-        className={classnames(styles.highlightBlock, {
-          [styles.dragging]: isDragging,
-          [styles.drop]: isOverCurrent && canDrop,
-          [styles.before]: isBefore,
-          [styles.after]: !isBefore,
-        })}
+        className={cn("relative", dimWhileDragging(isDragging || (isOverCurrent && canDrop)))}
       >
+        <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
         <HighlightBlockPure backgroundColor={backgroundColor} borderColor={borderColor}>
           {children}
         </HighlightBlockPure>

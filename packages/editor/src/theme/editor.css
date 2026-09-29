@@ -120,3 +120,14 @@
   background-color: var(--ed-accent-soft);
   color: var(--ed-accent-text);
 }
+
+/*
+ * 块悬停显示（拖拽手柄、标题折叠箭头）：只点亮最内层被悬停的块自己的 [data-block-reveal]。
+ * 作用域根 = 被悬停且内部没有被悬停子块的 .ed-block；下边界 .ed-block 挡住嵌套块内部。
+ * 不分层，压过 Tailwind utilities 层里的 opacity-0。
+ */
+@scope (.ed-block:hover:not(:has(.ed-block:hover))) to (.ed-block) {
+  [data-block-reveal] {
+    opacity: 1;
+  }
+}

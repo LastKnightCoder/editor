@@ -1,11 +1,19 @@
 import React, { useState, useRef, useEffect, memo } from "react";
 import { useReadOnly } from "slate-react";
-import { MdDragIndicator, MdFullscreen, MdFullscreenExit } from "react-icons/md";
+import { MdFullscreen, MdFullscreenExit } from "react-icons/md";
 import { createPortal } from "react-dom";
 import { ReactEditor, useSlateStatic } from "slate-react";
 import { Transforms } from "slate";
 import classnames from "classnames";
-import { AddParagraph, IExtensionBaseProps, useDragAndDrop } from "@tau/editor/src";
+import {
+  AddParagraph,
+  BLOCK_DRAG_GROUP,
+  DragHandle,
+  DropIndicator,
+  IExtensionBaseProps,
+  dimWhileDragging,
+  useDragAndDrop,
+} from "@tau/editor/src";
 
 import { If } from "@tau/shared";
 import WhiteBoard, {
@@ -248,14 +256,13 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
       ref={node => {
         drop(node);
       }}
-      className={classnames(styles.container, {
-        [styles.isDragging]: isDragging,
-        [styles.isBefore]: isBefore,
-        [styles.isOverCurrent]: isOverCurrent,
-        [styles.canDrop]: canDrop,
-        [styles.canDrag]: canDrag,
-      })}
+      className={classnames(
+        "relative",
+        BLOCK_DRAG_GROUP,
+        dimWhileDragging(isDragging || (isOverCurrent && canDrop))
+      )}
     >
+      <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
       <div {...attributes} contentEditable={false}>
         <div className={styles.whiteboardContainer}>
           <If condition={!isFullscreen}>
@@ -308,17 +315,12 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
             document.body
           )}
         {!(readOnly && isLast) && <AddParagraph element={element} />}
-        <div
-          contentEditable={false}
-          ref={node => {
+        <DragHandle
+          dragRef={node => {
             drag(node);
           }}
-          className={classnames(styles.dragHandler, {
-            [styles.canDrag]: canDrag,
-          })}
-        >
-          <MdDragIndicator className={styles.icon} />
-        </div>
+          canDrag={canDrag}
+        />
       </div>
     </div>
   );

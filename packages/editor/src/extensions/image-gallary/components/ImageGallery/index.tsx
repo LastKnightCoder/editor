@@ -22,7 +22,12 @@ import { useImageAppearance, type ImageAppearanceOption } from "../../../image/a
 import { buildImageGalleryMenuItems, imageGalleryActionsMap } from "../../utils/menuItems";
 
 import styles from "./index.module.less";
-import { MdDragIndicator } from "react-icons/md";
+import {
+  BLOCK_DRAG_GROUP,
+  DragHandle,
+  DropIndicator,
+  dimWhileDragging,
+} from "../../../../components/BlockDrag";
 
 interface IImageGalleryProps {
   attributes: RenderElementProps["attributes"];
@@ -122,14 +127,14 @@ const ImageGallery = (props: IImageGalleryProps) => {
       ref={node => {
         drop(node);
       }}
-      className={classnames(styles.imageGalleryContainer, {
-        [styles.wider]: wider,
-        [styles.dragging]: isDragging,
-        [styles.drop]: isOverCurrent && canDrop,
-        [styles.before]: isBefore,
-        [styles.after]: !isBefore,
-      })}
+      className={classnames(
+        styles.imageGalleryContainer,
+        BLOCK_DRAG_GROUP,
+        { [styles.wider]: wider },
+        dimWhileDragging(isDragging || (isOverCurrent && canDrop))
+      )}
     >
+      <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
       <div {...attributes}>
         <If condition={images.length > 0}>
           <div contentEditable={false}>
@@ -197,18 +202,14 @@ const ImageGallery = (props: IImageGalleryProps) => {
         </CustomModal>
         {children}
       </div>
-      <div
-        contentEditable={false}
-        ref={node => {
+      <DragHandle
+        dragRef={node => {
           drag(node);
         }}
-        className={classnames(styles.dragHandler, {
-          [styles.canDrag]: canDrag,
-        })}
+        canDrag={canDrag}
         onClick={dragHandlerProps.onClick}
-      >
-        <MdDragIndicator className={styles.icon} />
-      </div>
+        className="h-[1em]"
+      />
       <EditorContextMenu {...menuProps} readonly={readOnly} />
     </div>
   );

@@ -1,9 +1,14 @@
-import React, { useState, useRef, memo } from "react";
+import React, { useState, useRef } from "react";
 import { Transforms } from "slate";
 import { RenderElementProps, useSlateStatic, useReadOnly, ReactEditor } from "slate-react";
-import classnames from "classnames";
-import { MdDragIndicator } from "react-icons/md";
+import { cn } from "@tau/ui";
 import { useNotifier } from "../../../services/hooks";
+import {
+  BLOCK_DRAG_GROUP,
+  DragHandle,
+  DropIndicator,
+  dimWhileDragging,
+} from "../../../components/BlockDrag";
 
 import useDragAndDrop from "../../../hooks/useDragAndDrop";
 import { useDragHandlerMenu } from "../../../hooks/useDragHandlerMenu";
@@ -22,33 +27,6 @@ interface ICalloutProps {
   attributes: RenderElementProps["attributes"];
   element: CalloutElement;
 }
-
-const DragHandler = memo(
-  ({
-    drag,
-    canDrag,
-    onClick,
-  }: {
-    drag: React.Ref<HTMLDivElement>;
-    canDrag: boolean;
-    onClick?: (e: React.MouseEvent) => void;
-  }) => {
-    return (
-      <div
-        contentEditable={false}
-        ref={drag}
-        className={classnames("dragHandler", {
-          canDrag: canDrag,
-        })}
-        onClick={onClick}
-      >
-        <MdDragIndicator className="icon" />
-      </div>
-    );
-  }
-);
-
-DragHandler.displayName = "DragHandler";
 
 const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = props => {
   const { attributes, element, children } = props;
@@ -81,18 +59,15 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = props => {
       ref={node => {
         drop(node);
       }}
-      className="group relative"
+      className={cn("relative", BLOCK_DRAG_GROUP)}
     >
       <div {...attributes}>
+        <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
         <div
-          className={classnames(
+          className={cn(
             "callout relative rounded-[0.5em] border-l-[0.25em] p-[0.5em] pb-[1.25em] pl-[1em]",
             `callout-${calloutType}`,
-            {
-              dragging: isDragging || (isOverCurrent && canDrop),
-              before: isOverCurrent && canDrop && isBefore,
-              after: isOverCurrent && canDrop && !isBefore,
-            }
+            dimWhileDragging(isDragging || (isOverCurrent && canDrop))
           )}
           style={{
             borderLeftColor: "var(--ed-callout-border)",
@@ -105,7 +80,7 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = props => {
               data-slate-editor
               ref={titleRef}
               onBlur={handleTitleBlur}
-              className={classnames(
+              className={cn(
                 "relative mb-[1em] mt-[0.625em] pl-[1.5em] font-semibold leading-tight",
                 "before:absolute before:left-0 before:h-[1.25em] before:w-[1.25em] before:bg-left before:bg-no-repeat before:content-['']",
                 "text-(--ed-callout-text)"
@@ -123,7 +98,7 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = props => {
         {!(readOnly && isLast) && <AddParagraph element={element} />}
         {!readOnly && (
           <>
-            <DragHandler drag={drag} canDrag={canDrag} onClick={dragHandlerProps.onClick} />
+            <DragHandle dragRef={drag} canDrag={canDrag} onClick={dragHandlerProps.onClick} />
             <EditorContextMenu {...menuProps} readonly={readOnly} />
           </>
         )}

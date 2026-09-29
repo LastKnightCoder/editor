@@ -47,6 +47,11 @@ import {
 import type { CodeBlockController } from "../../types";
 
 import styles from "./index.module.less";
+import {
+  BLOCK_DRAG_GROUP,
+  DropIndicator,
+  dimWhileDragging,
+} from "../../../../components/BlockDrag";
 import "shiki-magic-move/style.css";
 
 interface ICodeBlockProps {
@@ -814,16 +819,16 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
   return (
     <div
       contentEditable={false}
-      className={classnames(styles.codeBlockContainer, {
-        [styles.dragging]: isDragging,
-        [styles.drop]: isOverCurrent && canDrop,
-        [styles.before]: isBefore,
-        [styles.after]: !isBefore,
-      })}
+      className={classnames(
+        styles.codeBlockContainer,
+        BLOCK_DRAG_GROUP,
+        dimWhileDragging(isDragging || (isOverCurrent && canDrop))
+      )}
       ref={node => {
         drop(node);
       }}
     >
+      <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
       <div {...attributes}>
         {children}
         <ToolbarButtons

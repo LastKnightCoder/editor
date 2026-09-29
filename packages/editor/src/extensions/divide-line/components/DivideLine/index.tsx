@@ -1,12 +1,17 @@
 import React from "react";
 import { useSlate, useReadOnly } from "slate-react";
-import classnames from "classnames";
-import { MdDragIndicator } from "react-icons/md";
 import { Trash2 } from "lucide-react";
+import { cn } from "@tau/ui";
 
 import { type DivideLineElement } from "../../../types";
 import AddParagraph from "../../../../components/AddParagraph";
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
+import {
+  BLOCK_DRAG_GROUP,
+  DragHandle,
+  DropIndicator,
+  dimWhileDragging,
+} from "../../../../components/BlockDrag";
 
 import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
 import EditorContextMenu from "../../../../components/EditorContextMenu";
@@ -52,16 +57,13 @@ const DivideLineElement: React.FC<ElementRenderProps<DivideLineElement>> = props
       ref={node => {
         drop(node);
       }}
-      className={classnames("group relative", {
-        "opacity-50": isDragging || (isOverCurrent && canDrop),
-      })}
-    >
-      {isOverCurrent && canDrop && isBefore && (
-        <div
-          className="absolute -top-[0.625em] left-0 right-0 h-[0.125em]"
-          style={{ backgroundColor: "var(--ed-accent-text)" }}
-        />
+      className={cn(
+        "relative",
+        BLOCK_DRAG_GROUP,
+        dimWhileDragging(isDragging || (isOverCurrent && canDrop))
       )}
+    >
+      <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
 
       <div
         {...attributes}
@@ -72,27 +74,15 @@ const DivideLineElement: React.FC<ElementRenderProps<DivideLineElement>> = props
         <AddParagraph element={element} />
       </div>
 
-      <div
-        contentEditable={false}
-        ref={node => {
+      <DragHandle
+        dragRef={node => {
           drag(node);
         }}
-        className={classnames(
-          "absolute -left-5 -top-3 flex h-7 w-5 cursor-pointer select-none items-center justify-center opacity-0 transition-opacity",
-          {
-            "group-hover:opacity-100": canDrag,
-          }
-        )}
+        canDrag={canDrag}
         onClick={dragHandlerProps.onClick}
-      >
-        <MdDragIndicator className="text-(--ed-text) -translate-y-0.5" />
-      </div>
-      {isOverCurrent && canDrop && !isBefore && (
-        <div
-          className="absolute bottom-[0.375em] left-0 right-0 h-[0.125em]"
-          style={{ backgroundColor: "var(--ed-accent-text)" }}
-        />
-      )}
+        className="-left-5 -top-3 h-7 w-5 transition-opacity"
+        iconClassName="text-(--ed-text)"
+      />
       <EditorContextMenu {...menuProps} readonly={readOnly} />
     </div>
   );
