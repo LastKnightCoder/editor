@@ -53,10 +53,10 @@
 
 状态图例：⏳ 未开始 / 🚧 进行中 / ✅ 完成 / ⏸ 暂停（写原因）。
 
-**下一步**：P8 其余几块，待用户实机验证第一块后继续——`defineExtension` + `@tau/editor/api` +
-`fromLegacyExtension`、codec 按扩展归属、命令注册表、UI 原语与内置扩展迁移（清单见 02 P8）。
-第一块（错误隔离 + 未知节点占位）已完成：每个元素一个错误边界、行为与快捷键按扩展隔离并熔断、
-没注册的类型渲染只读占位，没有 codec 的类型经 Markdown 往返无损（语法见 ER-006）。
+**下一步**：P8 剩余——codec 按扩展归属、命令注册表（顺带补 v2 的 `commands` / `hotkeys`）、
+UI 原语（ER-P4，决定扩展目录能否只 import `@tau/editor/api`）、其余内置扩展迁到 v2（清单见 02 P8）。
+已完成：第一块（错误隔离 + 未知节点占位，Markdown 兜底语法见 ER-006）；第二块（`defineExtension`、
+`@tau/editor/api`、`fromLegacyExtension`，divide-line 已迁到 v2）。
 **实机待确认**：未知节点占位与「渲染失败」占位的观感；P7 遗留的协作 e2e、结束共享、白板测高、
 mobile 回落与结束共享（清单见 02 P7 验收结果）。
 

@@ -40,14 +40,14 @@ const docOf = (type: string): Descendant[] => [
 describe("createEditorKit", () => {
   it("默认带上内置扩展", () => {
     const kit = createEditorKit(slots);
-    const types = kit.assembly.extensions.map(extension => extension.type);
+    const types = kit.elementTypes;
     expect(types).toContain("paragraph");
     expect(types).toContain("header");
   });
 
   it("裸 kit 只含列出的扩展", () => {
     const kit = createBareEditorKit({ ...slots, extensions: [markerExtension("marker", "a")] });
-    expect(kit.assembly.extensions.map(extension => extension.type)).toEqual(["marker"]);
+    expect(kit.elementTypes).toEqual(["marker"]);
   });
 
   it("同 type 重复注册直接报错，不静默覆盖", () => {
@@ -62,15 +62,16 @@ describe("createEditorKit", () => {
       extensions: [markerExtension("paragraph", "custom")],
       override: true,
     });
-    expect(kit.assembly.getExtension("paragraph")).toBeTruthy();
-    expect(kit.assembly.extensions.filter(e => e.type === "paragraph")).toHaveLength(1);
+    expect(kit.assembly.hasElement("paragraph")).toBe(true);
+    expect(kit.elementTypes.filter(type => type === "paragraph")).toHaveLength(1);
+    expect(kit.extensions.filter(extension => extension.id === "paragraph")).toHaveLength(1);
   });
 
   it("extend 追加扩展不影响原 kit", () => {
     const kit = createEditorKit(slots);
     const derived = kit.extend({ extensions: [markerExtension("marker", "a")] });
-    expect(derived.assembly.getExtension("marker")).toBeTruthy();
-    expect(kit.assembly.getExtension("marker")).toBeUndefined();
+    expect(derived.assembly.hasElement("marker")).toBe(true);
+    expect(kit.assembly.hasElement("marker")).toBe(false);
   });
 
   it("extend 对相同扩展实例返回同一个 kit（否则编辑器会被重建）", () => {

@@ -1,5 +1,6 @@
 import { startExtensions } from "../extensions";
-import type IExtension from "../extensions/types";
+import { elementTypesOf, toEditorExtension, type AnyExtension } from "../api/legacy";
+import type { EditorExtension } from "../api/extension";
 import { createServiceRegistry, createChildRegistry } from "../services/registry";
 import type { ServiceRegistration, ServiceRegistry } from "../services/registry";
 import { IThemeService } from "../services/tokens";
@@ -14,7 +15,9 @@ import { ExtensionAssembly } from "./ExtensionAssembly";
  */
 export interface EditorKit {
   readonly registry: ServiceRegistry;
-  readonly extensions: readonly IExtension[];
+  readonly extensions: readonly EditorExtension[];
+  /** 本 kit 能渲染的元素类型；跨端覆盖测试（CONTENT_ELEMENT_TYPES）按它断言 */
+  readonly elementTypes: readonly string[];
   /** 内部用：扩展的预计算结果（插件、快捷键、工具条、type 分发表） */
   readonly assembly: ExtensionAssembly;
   /** 派生：追加扩展或覆盖服务；同 type 扩展需显式 override */
@@ -22,8 +25,8 @@ export interface EditorKit {
 }
 
 export interface EditorKitOptions {
-  /** 元素与功能扩展；同 type 重复会报错，除非 `override: true` */
-  extensions?: IExtension[];
+  /** 元素与功能扩展（v2 或旧 IExtension）；同元素类型重复会报错，除非 `override: true` */
+  extensions?: readonly AnyExtension[];
   /** 平台能力与 UI 插槽 */
   services?: ServiceRegistration[];
   /** 主题服务；等价于注册 IThemeService，缺省时编辑器读 DOM */
@@ -33,50 +36,71 @@ export interface EditorKitOptions {
 }
 
 export interface EditorKitExtendOptions {
-  extensions?: IExtension[];
+  extensions?: readonly AnyExtension[];
   services?: ServiceRegistration[];
   theme?: ThemeService;
   override?: boolean;
 }
+
+/** 内置扩展适配一次后复用（适配对象按实例缓存，这里只省去每次 map） */
+let builtins: EditorExtension[] | null = null;
+const builtinExtensions = (): EditorExtension[] =>
+  (builtins ??= startExtensions.map(toEditorExtension));
 
 const themeRegistration =
   (theme: ThemeService): ServiceRegistration =>
   register =>
     register(IThemeService, theme);
 
-/** 合并扩展；同 type 未声明 override 时报错，避免静默覆盖 */
+/**
+ * 合并扩展；元素类型或扩展 id 重复且未声明 override 时报错，避免静默覆盖。
+ * override 时，贡献被新扩展全部覆盖的旧扩展整体移除；只覆盖了一部分的保留，同类型由后者生效。
+ */
 const mergeExtensions = (
-  base: readonly IExtension[],
-  added: readonly IExtension[],
+  base: readonly EditorExtension[],
+  added: readonly AnyExtension[],
   override: boolean
-): IExtension[] => {
-  const byType = new Map<string, IExtension>();
-  for (const extension of base) byType.set(extension.type, extension);
-  for (const extension of added) {
-    if (byType.has(extension.type) && !override) {
+): EditorExtension[] => {
+  let merged = [...base];
+  for (const raw of added) {
+    const extension = toEditorExtension(raw);
+    const types = new Set(elementTypesOf(extension));
+    const clashes = merged.filter(
+      existing =>
+        existing.id === extension.id || elementTypesOf(existing).some(type => types.has(type))
+    );
+    if (clashes.length && !override) {
+      const type = elementTypesOf(clashes[0]).find(t => types.has(t));
       throw new Error(
-        `[editor] 扩展类型 "${extension.type}" 重复注册。` +
+        `[editor] 扩展${type ? `类型 "${type}"` : ` "${extension.id}"`} 重复注册。` +
           `要替换已有实现请显式声明 override: true`
       );
     }
-    byType.set(extension.type, extension);
+    merged = merged.filter(
+      existing =>
+        !clashes.includes(existing) ||
+        (existing.id !== extension.id && elementTypesOf(existing).some(type => !types.has(type)))
+    );
+    merged.push(extension);
   }
-  return Array.from(byType.values());
+  return merged;
 };
 
 /**
  * 扩展实例的稳定标识：派生 kit 要按「扩展实例集合」缓存，不能按数组身份缓存。
  * 宿主常在 render 里写 `extensions={[a, b]}`，数组每次都是新的，但实例没变——
  * 这时必须返回同一个派生 kit，否则编辑器会被重建（原 PluginOptimizer 也是这么做的）。
+ * 旧扩展的适配对象按实例缓存（fromLegacyExtension），所以按适配后的对象计键即可。
  */
-const instanceIds = new WeakMap<IExtension, string>();
+const instanceIds = new WeakMap<EditorExtension, string>();
 let instanceCounter = 0;
-const instanceKey = (extensions: readonly IExtension[]): string =>
+const instanceKey = (extensions: readonly AnyExtension[]): string =>
   extensions
-    .map(extension => {
+    .map(raw => {
+      const extension = toEditorExtension(raw);
       let id = instanceIds.get(extension);
       if (!id) {
-        id = `${extension.type}#${++instanceCounter}`;
+        id = `${extension.id}#${++instanceCounter}`;
         instanceIds.set(extension, id);
       }
       return id;
@@ -85,7 +109,7 @@ const instanceKey = (extensions: readonly IExtension[]): string =>
 
 const createKit = (
   registry: ServiceRegistry,
-  extensions: IExtension[],
+  extensions: EditorExtension[],
   /**
    * 沿用已有装配结果。装配只取决于扩展集合，所以「只覆盖服务」的派生 kit 必须与原 kit
    * 共享它：内核按 `assembly.plugins` 的数组身份决定是否重建 Slate editor，换一份等价的
@@ -99,6 +123,7 @@ const createKit = (
   return {
     registry,
     extensions,
+    elementTypes: assembly.elementTypes,
     assembly,
     extend(options) {
       const registrations = [
@@ -141,7 +166,7 @@ export function createEditorKit(options: EditorKitOptions = {}): EditorKit {
   ];
   return createKit(
     createServiceRegistry(...registrations),
-    mergeExtensions(startExtensions, options.extensions ?? [], options.override ?? false)
+    mergeExtensions(builtinExtensions(), options.extensions ?? [], options.override ?? false)
   );
 }
 
@@ -163,9 +188,9 @@ export function createBareEditorKit(options: EditorKitOptions = {}): EditorKit {
  */
 export function createEditorKitFromRegistry(
   registry: ServiceRegistry,
-  options: { extensions?: IExtension[]; builtins?: boolean; override?: boolean } = {}
+  options: { extensions?: readonly AnyExtension[]; builtins?: boolean; override?: boolean } = {}
 ): EditorKit {
-  const base = options.builtins === false ? [] : startExtensions;
+  const base = options.builtins === false ? [] : builtinExtensions();
   return createKit(
     registry,
     mergeExtensions(base, options.extensions ?? [], options.override ?? false)

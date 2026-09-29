@@ -8,7 +8,7 @@ import { getMobileContentKit } from "../../../services/editorKit";
 
 describe("mobile content 场景的元素覆盖", () => {
   it("覆盖 CONTENT_ELEMENT_TYPES 的每一项", () => {
-    const types = getMobileContentKit().extensions.map(extension => extension.type);
+    const types = getMobileContentKit().elementTypes;
     for (const required of CONTENT_ELEMENT_TYPES) {
       expect(types, `mobile 缺少 ${required}，该块只会显示通用占位`).toContain(required);
     }

@@ -84,6 +84,16 @@ export {
 export * from "./utils/element";
 
 export type { default as IExtension, IExtensionBaseProps } from "./extensions/types";
+export {
+  defineExtension,
+  defineElement,
+  fromLegacyExtension,
+  type EditorExtension,
+  type AnyExtension,
+  type ElementSpec,
+  type ElementBehaviors,
+  type ElementRenderProps,
+} from "./api";
 export { default as Base } from "./extensions/base";
 
 export {

@@ -8,7 +8,7 @@ import { getExtensionKit } from "../editorKit";
 
 describe("插件笔记编辑器的元素覆盖", () => {
   it("覆盖 CONTENT_ELEMENT_TYPES 的每一项", () => {
-    const types = getExtensionKit().extensions.map(extension => extension.type);
+    const types = getExtensionKit().elementTypes;
     for (const required of CONTENT_ELEMENT_TYPES) {
       expect(types, `插件缺少 ${required}，该块只会显示通用占位`).toContain(required);
     }

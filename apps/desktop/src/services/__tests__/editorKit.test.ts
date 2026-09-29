@@ -43,11 +43,8 @@ const loadStore = async () => {
 };
 
 /** 只看非内置的 type：内置扩展由内核补齐，不是场景差异所在 */
-const extrasOf = (kit: { extensions: readonly IExtension[] }) =>
-  kit.extensions
-    .map(extension => extension.type)
-    .filter(type => TRACKED.has(type))
-    .sort();
+const extrasOf = (kit: { elementTypes: readonly string[] }) =>
+  kit.elementTypes.filter(type => TRACKED.has(type)).sort();
 
 describe("desktop 场景 kit", { timeout: 30_000 }, () => {
   beforeEach(() => {
@@ -69,7 +66,7 @@ describe("desktop 场景 kit", { timeout: 30_000 }, () => {
     await loadStore();
     const { CONTENT_ELEMENT_TYPES } = await import("@tau/shared");
     const { getContentKit } = await import("../editorKit");
-    const types = getContentKit().extensions.map(extension => extension.type);
+    const types = getContentKit().elementTypes;
     for (const required of CONTENT_ELEMENT_TYPES) {
       expect(types, `content 正文缺少 ${required}，该类型的块只会显示通用占位`).toContain(required);
     }
@@ -103,11 +100,11 @@ describe("desktop 场景 kit", { timeout: 30_000 }, () => {
   it("白板箭头描述：比内置更少，只有段落 / 行内公式 / 链接", async () => {
     await loadStore();
     const { getArrowLabelKit } = await import("../editorKit");
-    expect(
-      getArrowLabelKit()
-        .extensions.map(extension => extension.type)
-        .sort()
-    ).toEqual(["inline-math", "link", "paragraph"]);
+    expect([...getArrowLabelKit().elementTypes].sort()).toEqual([
+      "inline-math",
+      "link",
+      "paragraph",
+    ]);
   });
 
   it("同一场景反复取到同一个 kit 实例（否则编辑器会被重建）", async () => {

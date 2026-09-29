@@ -8,7 +8,7 @@ const items: IBlockPanelListItem[] = [
     title: "分割线",
     keywords: ["divide-line", "分割线", "fengexian"],
     description: "分割线",
-    onClick: (editor) => {
+    onClick: editor => {
       insertDivideLine(editor);
     },
   },

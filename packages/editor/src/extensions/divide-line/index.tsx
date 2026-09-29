@@ -1,40 +1,47 @@
-import { RenderElementProps } from "slate-react";
-import type { DivideLineElement } from "../../types";
+import { Editor, Transforms } from "slate";
+import { defineElement, defineExtension } from "../../api";
 
+import type { DivideLineElement, FormattedText, ParagraphElement } from "../../types";
 import DivideLine from "./components/DivideLine";
-import { markdownSyntax } from "./plugins";
 import blockPanelItems from "./block-panel-items";
-import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
 
-import Base from "../base";
-import IExtension from "../types";
+/** 段落里只有 `---` 时回车：整段变成分割线，下方补一个空段落 */
+const convertDashesToDivideLine = (
+  editor: Editor,
+  [paragraph, path]: [ParagraphElement, number[]]
+) => {
+  const [text] = paragraph.children;
+  if (paragraph.children.length !== 1 || text.type !== "formatted") return false;
+  if ((text as FormattedText).text !== "---") return false;
+  Transforms.delete(editor, {
+    at: { anchor: { path: [...path, 0], offset: 0 }, focus: { path: [...path, 0], offset: 3 } },
+  });
+  Transforms.setNodes(editor, { type: "divide-line" }, { at: path });
+  Transforms.insertNodes(editor, {
+    type: "paragraph",
+    children: [{ type: "formatted", text: "" }],
+  });
+  return true;
+};
 
-class DivideLineExtension extends Base implements IExtension {
-  type = "divide-line";
+/**
+ * 分割线。
+ * 快捷语法挂在 paragraph 的行为上而不是分割线自己——触发时选区在段落里，还没有分割线。
+ */
+const divideLineExtension = defineExtension({
+  id: "tau.divide-line",
+  elements: [
+    defineElement<DivideLineElement>({
+      type: "divide-line",
+      kind: "block",
+      isVoid: true,
+      render: DivideLine,
+    }),
+  ],
+  blockPanel: blockPanelItems,
+  behaviorsFor: {
+    paragraph: { insertBreak: convertDashesToDivideLine },
+  },
+});
 
-  override getPlugins() {
-    return [
-      markdownSyntax,
-      createBlockElementPlugin(this.type),
-      createVoidElementPlugin(this.type),
-    ];
-  }
-
-  override getBlockPanelItems() {
-    return blockPanelItems;
-  }
-
-  render(props: RenderElementProps) {
-    const { attributes, children, element } = props;
-    return (
-      <DivideLine
-        attributes={attributes}
-        element={element as DivideLineElement}
-      >
-        {children}
-      </DivideLine>
-    );
-  }
-}
-
-export default DivideLineExtension;
+export default divideLineExtension;
