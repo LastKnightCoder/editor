@@ -9,6 +9,8 @@ export interface ContextMenuItem {
   disabled?: boolean;
   children?: ContextMenuItem[];
   onSelect?: () => void;
+  /** 该条目上方画一条组分隔线（由菜单聚合器在组边界标记） */
+  separator?: boolean;
 }
 
 export interface EditorContextMenuProps {

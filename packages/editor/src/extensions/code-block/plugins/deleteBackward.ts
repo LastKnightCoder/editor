@@ -1,20 +1,16 @@
 import { Editor, Element as SlateElement, Range, Transforms } from "slate";
-import {
-  isAtParagraphStart,
-  isParagraphAndEmpty,
-  isParagraphElement,
-} from "../../../utils";
+import { isAtParagraphStart, isParagraphAndEmpty, isParagraphElement } from "../../../utils";
 import type { CodeBlockElement } from "../../../types";
-import { codeBlockMap } from "..";
+import { codeBlockMap } from "../utils/controllerMaps";
 
 export const deleteBackward = (editor: Editor) => {
   const { deleteBackward } = editor;
 
-  editor.deleteBackward = (unit) => {
+  editor.deleteBackward = unit => {
     const { selection } = editor;
     if (selection && Range.isCollapsed(selection)) {
       const [match] = Editor.nodes(editor, {
-        match: (n) => SlateElement.isElement(n) && isParagraphElement(n),
+        match: n => SlateElement.isElement(n) && isParagraphElement(n),
       });
       if (match) {
         const [, path] = match;
@@ -24,17 +20,14 @@ export const deleteBackward = (editor: Editor) => {
           if (prevPath) {
             const [prevMatch] = Editor.nodes(editor, {
               at: prevPath,
-              match: (n) =>
-                SlateElement.isElement(n) && n.type === "code-block",
+              match: n => SlateElement.isElement(n) && n.type === "code-block",
             });
             if (prevMatch) {
               if (isParagraphAndEmpty(editor)) {
                 Transforms.removeNodes(editor, { at: path });
               }
               const [element] = prevMatch;
-              const codeMirrorEditor = codeBlockMap.get(
-                (element as CodeBlockElement).uuid,
-              );
+              const codeMirrorEditor = codeBlockMap.get((element as CodeBlockElement).uuid);
               if (codeMirrorEditor) {
                 codeMirrorEditor.focus();
               }

@@ -18,7 +18,7 @@ import {
 } from "../../../components/BlockDrag";
 import EditorContextMenu from "../../../components/EditorContextMenu";
 import AddParagraph from "../../../components/AddParagraph";
-import { buildChartMenuItems, chartActionsMap } from "../utils/menuItems";
+import { chartActionsMap } from "../utils/actions";
 import { ReactEChartsRef } from "./ReactECharts";
 
 interface ChartBlockProps {
@@ -41,11 +41,7 @@ const ChartBlock: React.FC<PropsWithChildren<ChartBlockProps>> = props => {
     element,
   });
 
-  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
-    element,
-    editor,
-    buildMenuItems: buildChartMenuItems,
-  });
+  const { menuProps, dragHandlerProps } = useDragHandlerMenu({ element, editor });
 
   // 注册操作到 actionsMap
   useEffect(() => {

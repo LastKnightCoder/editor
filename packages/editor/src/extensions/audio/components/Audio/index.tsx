@@ -16,7 +16,6 @@ import { If } from "@tau/shared";
 import { useAttrInput } from "../../../../hooks/useAttrInput";
 import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
 import { Transforms } from "slate";
-import { buildAudioMenuItems } from "../../utils/menuItems";
 
 import { useEditorSlots } from "../../../../services";
 import { openLocalMediaPicker } from "../../../../utils/mediaInsert";
@@ -46,11 +45,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
     element,
   });
   const dropActive = isOverCurrent && canDrop;
-  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
-    element,
-    editor,
-    buildMenuItems: params => buildAudioMenuItems(params),
-  });
+  const { menuProps, dragHandlerProps } = useDragHandlerMenu({ element, editor });
 
   // 遗留空音频元素的最小占位（正常流程经 slash 菜单直接创建已填充的元素）
   const renderNoContent = () => {

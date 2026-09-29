@@ -8,8 +8,13 @@ import type { HighlightBlockElement } from "../../types";
 import blockPanelItems from "./block-panel-items";
 import { quit, withNormalize } from "./plugins";
 import { createBlockElementPlugin } from "../../utils";
+import { highlightBlockCommands, highlightBlockMenuItems } from "./utils/menu";
+
 class HighlightBlockExtension extends Base implements IExtension {
   type = "highlight-block";
+
+  override commands = highlightBlockCommands;
+  override menuItems = highlightBlockMenuItems;
 
   override getBlockPanelItems() {
     return blockPanelItems;
@@ -23,10 +28,7 @@ class HighlightBlockExtension extends Base implements IExtension {
     const { attributes, element, children } = props;
 
     return (
-      <HighlightBlock
-        attributes={attributes}
-        element={element as HighlightBlockElement}
-      >
+      <HighlightBlock attributes={attributes} element={element as HighlightBlockElement}>
         {children}
       </HighlightBlock>
     );

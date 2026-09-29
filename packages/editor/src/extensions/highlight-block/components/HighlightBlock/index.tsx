@@ -1,5 +1,4 @@
 import { RenderElementProps, useSlate, useReadOnly } from "slate-react";
-import { useNotifier } from "../../../../services/hooks";
 import type { HighlightBlockElement } from "../../../types";
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 import useIsLastElement from "../../../../hooks/useIsLastElement";
@@ -10,7 +9,6 @@ import useTheme from "../../../../hooks/useTheme";
 import HighlightBlockPure from "../HighlightBlockPure";
 import AddParagraph from "../../../../components/AddParagraph";
 import EditorContextMenu from "../../../../components/EditorContextMenu";
-import { buildHighlightBlockMenuItems } from "../../utils/menuItems";
 
 import { colors } from "../../configs";
 
@@ -38,13 +36,8 @@ const HighlightBlock = (props: IHighBlockProps) => {
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
     element,
   });
-  const message = useNotifier();
 
-  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
-    element,
-    editor,
-    buildMenuItems: params => buildHighlightBlockMenuItems(params, message),
-  });
+  const { menuProps, dragHandlerProps } = useDragHandlerMenu({ element, editor });
 
   const themeColor = colors[color];
   const { backgroundColor, borderColor } = isDark ? themeColor.dark : themeColor.light;

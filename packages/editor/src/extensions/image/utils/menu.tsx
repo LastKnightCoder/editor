@@ -1,0 +1,322 @@
+import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  Copy,
+  Crop,
+  FileText,
+  Link2,
+  Maximize2,
+  Sparkles,
+} from "lucide-react";
+import { Editor, Element, Transforms } from "slate";
+import { ReactEditor } from "slate-react";
+
+import type { EditorCommand } from "../../../api/command";
+import type { EditorMenuEntry, EditorMenuContext } from "../../../api/menu";
+import { notifierOf } from "../../../services";
+import { IFileService, IMediaActions } from "../../../services";
+import type {
+  FileService,
+  ImageBorderRadiusPreset,
+  ImageElement,
+  ImageShadowPreset,
+} from "../../../types";
+import { imageActionsMap } from "./actionsMap";
+import {
+  IMAGE_BORDER_RADIUS_OPTIONS,
+  IMAGE_SHADOW_OPTIONS,
+  normalizeImageShadowPreset,
+  type ImageAppearanceConfig,
+} from "./appearance";
+
+/** 图片块特有的菜单条目（删除等公共条目由内核默认菜单贡献，01 §5.4） */
+const asImage = (element: Element | undefined): ImageElement | null =>
+  element?.type === "image" ? (element as ImageElement) : null;
+
+const findPath = (editor: Editor, element: ImageElement) => {
+  try {
+    return ReactEditor.findPath(editor, element);
+  } catch {
+    return null;
+  }
+};
+
+const resolveLocalPath = async (url: string, fileService?: FileService) => {
+  if (!url.startsWith("~") || !fileService?.getHomeDir) {
+    return null;
+  }
+  const homeDir = await fileService.getHomeDir();
+  return `${homeDir}${url.slice(1)}`;
+};
+
+async function copyImageToClipboard(element: ImageElement, editor: Editor): Promise<void> {
+  const message = notifierOf(editor);
+  const fileService = editor.tryGetService(IFileService);
+  try {
+    const actions = imageActionsMap.get(element);
+    if (actions?.getImageBlob) {
+      try {
+        const blob = await actions.getImageBlob();
+        if (blob) {
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              [blob.type]: blob,
+            }),
+          ]);
+          message.success("图片复制成功");
+          return;
+        }
+      } catch (error) {
+        console.warn("从 img 元素获取图片失败，尝试其他方式:", error);
+      }
+    }
+
+    const url = element.url;
+    const localPath = await resolveLocalPath(url, fileService);
+
+    if (localPath) {
+      await navigator.clipboard.writeText(localPath);
+      message.success("图片路径复制成功");
+      return;
+    }
+
+    if (url.startsWith("local://")) {
+      const normalized = url.replace("local://", "");
+      await navigator.clipboard.writeText(normalized);
+      message.success("图片路径复制成功");
+      return;
+    }
+
+    await navigator.clipboard.writeText(url);
+    message.warning("无法直接复制图片，已复制图片链接");
+  } catch (error) {
+    console.error("复制图片失败:", error);
+    message.error("复制图片失败");
+  }
+}
+
+async function copyImageLink(url: string, editor: Editor): Promise<void> {
+  const message = notifierOf(editor);
+  const fileService = editor.tryGetService(IFileService);
+  try {
+    const localPath = await resolveLocalPath(url, fileService);
+
+    if (localPath) {
+      await navigator.clipboard.writeText(localPath);
+      message.success("链接复制成功");
+      return;
+    }
+
+    if (url.startsWith("local://")) {
+      const normalized = url.replace("local://", "");
+      await navigator.clipboard.writeText(normalized);
+      message.success("链接复制成功");
+      return;
+    }
+
+    await navigator.clipboard.writeText(url);
+    message.success("链接复制成功");
+  } catch (error) {
+    console.error("复制链接失败:", error);
+    message.error("复制链接失败");
+  }
+}
+
+export const imageCommands: EditorCommand[] = [
+  {
+    id: "tau.image.fullscreen",
+    title: "全屏预览",
+    run: (_editor, ctx) => {
+      const element = asImage(ctx.element);
+      if (!element) return;
+      imageActionsMap.get(element)?.showOverview();
+    },
+  },
+  {
+    id: "tau.image.crop",
+    title: "裁剪图片",
+    run: (_editor, ctx) => {
+      const element = asImage(ctx.element);
+      if (!element) return;
+      imageActionsMap.get(element)?.startCrop();
+    },
+  },
+  {
+    id: "tau.image.media-action",
+    title: "媒体动作",
+    run: (_editor, ctx) => {
+      const element = asImage(ctx.element);
+      const actionId = (ctx.payload as { actionId?: string })?.actionId;
+      if (!element || !actionId) return;
+      imageActionsMap.get(element)?.runMediaAction(actionId);
+    },
+  },
+  {
+    id: "tau.image.set-align",
+    title: "设置对齐方式",
+    run: (editor, ctx) => {
+      const element = asImage(ctx.element);
+      const align = (ctx.payload as { align?: ImageElement["align"] })?.align;
+      if (!element || !align) return;
+      const path = findPath(editor, element);
+      if (path) Transforms.setNodes(editor, { align }, { at: path });
+    },
+  },
+  {
+    id: "tau.image.edit-description",
+    title: "编辑描述",
+    run: (_editor, ctx) => {
+      const element = asImage(ctx.element);
+      if (!element) return;
+      imageActionsMap.get(element)?.showDescEditor();
+    },
+  },
+  {
+    id: "tau.image.set-appearance",
+    title: "设置外观",
+    run: (editor, ctx) => {
+      const element = asImage(ctx.element);
+      const value = ctx.payload as
+        { borderRadius?: ImageBorderRadiusPreset; shadow?: ImageShadowPreset } | undefined;
+      if (!element || !value) return;
+      const path = findPath(editor, element);
+      if (path) Transforms.setNodes(editor, value, { at: path });
+    },
+  },
+  {
+    id: "tau.image.copy-image",
+    title: "复制图片",
+    run: (editor, ctx) => {
+      const element = asImage(ctx.element);
+      if (!element) return;
+      void copyImageToClipboard(element, editor);
+    },
+  },
+  {
+    id: "tau.image.copy-link",
+    title: "复制链接",
+    run: (editor, ctx) => {
+      const element = asImage(ctx.element);
+      if (!element) return;
+      void copyImageLink(element.url, editor);
+    },
+  },
+];
+
+const alignIcon = (ctx: EditorMenuContext) => {
+  const align = (ctx.element as ImageElement).align || "center";
+  return align === "left" ? (
+    <AlignLeft size={16} />
+  ) : align === "right" ? (
+    <AlignRight size={16} />
+  ) : (
+    <AlignCenter size={16} />
+  );
+};
+
+const ALIGNMENTS = [
+  { align: "left", label: "左对齐" },
+  { align: "center", label: "居中" },
+  { align: "right", label: "右对齐" },
+] as const;
+
+/** 菜单工厂：appearance 提供圆角/阴影的全局默认值（disabled 判断需要） */
+export const buildImageMenuItems = (appearance?: ImageAppearanceConfig): EditorMenuEntry[] => [
+  {
+    id: "tau.image.fullscreen",
+    title: "全屏预览",
+    icon: <Maximize2 size={16} />,
+    command: "tau.image.fullscreen",
+  },
+  {
+    id: "tau.image.crop",
+    title: "裁剪图片",
+    icon: <Crop size={16} />,
+    command: "tau.image.crop",
+  },
+  {
+    id: "tau.image.set-align",
+    title: "对齐方式",
+    icon: alignIcon,
+    children: ALIGNMENTS.map(({ align, label }) => ({
+      id: `tau.image.set-align-${align}`,
+      title: label,
+      icon:
+        align === "left" ? (
+          <AlignLeft size={16} />
+        ) : align === "right" ? (
+          <AlignRight size={16} />
+        ) : (
+          <AlignCenter size={16} />
+        ),
+      command: "tau.image.set-align",
+      payload: { align },
+      disabled: ctx => ((ctx.element as ImageElement).align || "center") === align,
+    })),
+  },
+  {
+    id: "tau.image.edit-description",
+    title: ctx => ((ctx.element as ImageElement).description ? "编辑描述" : "添加描述"),
+    icon: <FileText size={16} />,
+    command: "tau.image.edit-description",
+  },
+  {
+    id: "tau.image.set-appearance",
+    title: "外观",
+    icon: <Sparkles size={16} />,
+    children: [
+      {
+        id: "tau.image.set-appearance-radius",
+        title: "圆角",
+        children: IMAGE_BORDER_RADIUS_OPTIONS.map(option => ({
+          id: `tau.image.set-appearance-radius-${option.value}`,
+          title: option.label,
+          command: "tau.image.set-appearance",
+          payload: { borderRadius: option.value },
+          disabled: (ctx: EditorMenuContext) =>
+            ((ctx.element as ImageElement).borderRadius ?? appearance?.borderRadius ?? "none") ===
+            option.value,
+        })),
+      },
+      {
+        id: "tau.image.set-appearance-shadow",
+        title: "阴影",
+        children: IMAGE_SHADOW_OPTIONS.map(option => ({
+          id: `tau.image.set-appearance-shadow-${option.value}`,
+          title: option.label,
+          command: "tau.image.set-appearance",
+          payload: { shadow: option.value },
+          disabled: (ctx: EditorMenuContext) =>
+            normalizeImageShadowPreset(
+              (ctx.element as ImageElement).shadow ?? appearance?.shadow
+            ) === option.value,
+        })),
+      },
+    ],
+  },
+  {
+    id: "tau.image.copy-image",
+    title: "复制图片",
+    icon: <Copy size={16} />,
+    command: "tau.image.copy-image",
+  },
+  {
+    id: "tau.image.copy-link",
+    title: "复制链接",
+    icon: <Link2 size={16} />,
+    command: "tau.image.copy-link",
+  },
+];
+
+/** 宿主经 IMediaActions 注册的扩展动作（如 AI 识图）：服务里过滤可用的，动态生成条目 */
+export const imageMediaActionEntries = (editor: Editor): EditorMenuEntry[] =>
+  (editor.tryGetService(IMediaActions) ?? [])
+    .filter(action => action.mediaTypes.includes("image") && (action.isAvailable?.() ?? true))
+    .map(action => ({
+      id: `tau.image.media-action-${action.id}`,
+      title: action.label,
+      icon: action.icon,
+      command: "tau.image.media-action",
+      payload: { actionId: action.id },
+    }));

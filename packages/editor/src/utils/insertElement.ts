@@ -20,7 +20,7 @@ import {
   AnnotationElement,
 } from "../types";
 import { EGalleryMode, EStyledColor } from "../constants";
-import { codeBlockMap } from "../extensions/code-block";
+import { codeBlockMap } from "../extensions/code-block/utils/controllerMaps";
 import { STYLED_TEXT_SELECT_COLOR_KEY } from "../extensions/styled-text/components/StyledText";
 
 interface InsertElementOptions {

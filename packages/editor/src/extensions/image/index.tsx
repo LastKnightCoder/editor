@@ -6,22 +6,11 @@ import { pasteImage, dropImage } from "./plugins";
 import blockPanelItems from "./block-panel-items";
 import type { Editor } from "slate";
 import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
+import { buildImageMenuItems, imageCommands, imageMediaActionEntries } from "./utils/menu";
 
 import IExtension from "../types";
 import Base from "../base";
-import type { ImageExtensionOptions } from "./appearanceOption";
-
-export const imageActionsMap = new WeakMap<
-  ImageElement,
-  {
-    showOverview: () => void;
-    deleteImage: () => void;
-    startCrop: () => void;
-    runMediaAction: (actionId: string) => void;
-    showDescEditor: () => void;
-    getImageBlob: () => Promise<Blob | null>;
-  }
->();
+import { readImageAppearance, type ImageExtensionOptions } from "./appearanceOption";
 
 class ImageExtension extends Base implements IExtension {
   type = "image";
@@ -32,6 +21,13 @@ class ImageExtension extends Base implements IExtension {
     super();
     this.options = options;
   }
+
+  override commands = imageCommands;
+  /** appearance（圆角/阴影的全局默认值）随扩展实例注入菜单工厂 */
+  override menuItems = (editor: Editor) => [
+    ...imageMediaActionEntries(editor),
+    ...buildImageMenuItems(readImageAppearance(this.options.appearance)),
+  ];
 
   override getBlockPanelItems(editor?: Editor) {
     return blockPanelItems(editor);

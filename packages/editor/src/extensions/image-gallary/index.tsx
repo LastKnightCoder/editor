@@ -7,6 +7,8 @@ import type { ImageGalleryElement } from "../../types";
 
 import blockPanelItems from "./block-panel-items";
 import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
+import { imageGalleryCommands, imageGalleryMenuItems } from "./utils/menu";
+
 class ImageGalleryExtension extends Base implements IExtension {
   type = "image-gallery";
 
@@ -16,6 +18,9 @@ class ImageGalleryExtension extends Base implements IExtension {
     super();
     this.options = options;
   }
+
+  override commands = imageGalleryCommands;
+  override menuItems = imageGalleryMenuItems;
 
   override getBlockPanelItems() {
     return blockPanelItems;

@@ -27,8 +27,7 @@ import SelectLanguage from "../SelectLanguage";
 import ToolbarButtons, { CODE_HOVER_GROUP } from "./ToolbarButtons";
 import DragHandle from "./DragHandle";
 import ShikiOverlayEditor, { OverlayKeydownHelpers } from "./ShikiOverlayEditor";
-import { buildCodeBlockMenuItems } from "../../utils/menuItems";
-import { codeBlockActionsMap, codeBlockMap } from "../../index";
+import { codeBlockActionsMap, codeBlockMap } from "../../utils/controllerMaps";
 import { getShikiHighlighter, getShikiTheme } from "../../utils/shikiHighlighter";
 import {
   createInitialMagicMove,
@@ -38,7 +37,7 @@ import {
   normalizeMagicMove,
   removeMagicMoveStep,
 } from "../../utils/magicMoveOps";
-import { deleteCodeBlock } from "../../utils/deleteCodeBlock";
+import { deleteVoidBlock } from "../../../../utils/nodeOperations";
 import {
   hasHighlightedLineInRange,
   mergeHighlightRange,
@@ -154,11 +153,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     element,
   });
 
-  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
-    element,
-    editor: slateEditor,
-    buildMenuItems: params => buildCodeBlockMenuItems(params, message),
-  });
+  const { menuProps, dragHandlerProps } = useDragHandlerMenu({ element, editor: slateEditor });
 
   useEffect(() => {
     let cancelled = false;
@@ -674,7 +669,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
         cancelPendingPersist();
         const path = ReactEditor.findPath(slateEditor, element);
         codeBlockMap.delete(uuid);
-        deleteCodeBlock(slateEditor, path);
+        deleteVoidBlock(slateEditor, path);
         return;
       }
 

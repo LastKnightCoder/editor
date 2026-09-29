@@ -1,4 +1,5 @@
 import { Editor, Transforms, Node, Path } from "slate";
+import { ReactEditor } from "slate-react";
 import type { EditorFeedback } from "../services/notifier";
 
 /**
@@ -194,6 +195,32 @@ export function deleteNode(editor: Editor, path: Path): void {
     // 删除节点
     Transforms.removeNodes(editor, { at: path });
   }
+}
+
+/**
+ * 删除 void 块并补一个空段落承接焦点（图片 / 音视频 / 代码块等不可聚焦块的统一删除语义）
+ */
+export function deleteVoidBlock(editor: Editor, path: Path): void {
+  Editor.withoutNormalizing(editor, () => {
+    Transforms.delete(editor, { at: path });
+    Transforms.insertNodes(
+      editor,
+      {
+        type: "paragraph",
+        children: [{ type: "formatted", text: "" }],
+      },
+      { at: path, select: true }
+    );
+  });
+  setTimeout(() => {
+    try {
+      ReactEditor.focus(editor);
+      const start = Editor.start(editor, path);
+      Transforms.select(editor, { anchor: start, focus: start });
+    } catch {
+      // 节点已不存在时忽略聚焦恢复
+    }
+  }, 0);
 }
 
 /**

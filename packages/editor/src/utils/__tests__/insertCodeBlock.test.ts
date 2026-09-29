@@ -8,8 +8,7 @@ const { mockedCodeBlockMap } = vi.hoisted(() => ({
   mockedCodeBlockMap: new Map<string, CodeBlockController>(),
 }));
 
-vi.mock("../../extensions/code-block", () => ({
-  default: class MockCodeBlockExtension {},
+vi.mock("../../extensions/code-block/utils/controllerMaps", () => ({
   codeBlockMap: mockedCodeBlockMap,
   codeBlockActionsMap: new Map(),
 }));
@@ -19,11 +18,7 @@ const createParagraph = (text = "") => ({
   children: [{ type: "formatted" as const, text }],
 });
 
-const selectPath = (
-  editor: ReturnType<typeof createEditor>,
-  path: number[],
-  offset = 0,
-) => {
+const selectPath = (editor: ReturnType<typeof createEditor>, path: number[], offset = 0) => {
   Transforms.select(editor, {
     anchor: { path, offset },
     focus: { path, offset },

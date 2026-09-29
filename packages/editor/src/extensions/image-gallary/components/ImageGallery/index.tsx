@@ -19,7 +19,7 @@ import EditorContextMenu from "../../../../components/EditorContextMenu";
 import type { ImageGalleryElement } from "../../../../types";
 import { EGalleryMode } from "../../../../constants";
 import { useImageAppearance, type ImageAppearanceOption } from "../../../image/appearanceOption";
-import { buildImageGalleryMenuItems, imageGalleryActionsMap } from "../../utils/menuItems";
+import { imageGalleryActionsMap } from "../../utils/menu";
 
 import {
   BLOCK_DRAG_GROUP,
@@ -73,12 +73,7 @@ const ImageGallery = (props: IImageGalleryProps) => {
   const effectiveBorderRadius = borderRadius ?? appearance?.borderRadius ?? "none";
   const effectiveShadow = shadow ?? appearance?.shadow ?? "none";
 
-  // 拖拽菜单
-  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
-    element,
-    editor,
-    buildMenuItems: buildImageGalleryMenuItems,
-  });
+  const { menuProps, dragHandlerProps } = useDragHandlerMenu({ element, editor });
 
   // 注册 actions 供菜单项调用
   useEffect(() => {

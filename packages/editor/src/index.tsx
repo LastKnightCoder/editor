@@ -10,7 +10,7 @@ import {
   memo,
   CSSProperties,
 } from "react";
-import type { Node, Path } from "slate";
+import type { Node, Path, Element } from "slate";
 import { cn } from "@tau/ui";
 import { createEditor, Descendant, Editor, Transforms, Range } from "slate";
 import {
@@ -255,8 +255,8 @@ const Index = memo(
       slateEditor.tryGetService = <T,>(id: ServiceIdentifier<T>): T | undefined =>
         registryRef.current.tryGet(id);
       slateEditor.commands = {
-        execute: (id: string, payload?: unknown) =>
-          commandDispatcher.execute(slateEditor, id, { payload }),
+        execute: (id: string, payload?: unknown, element?: Element, path?: Path) =>
+          commandDispatcher.execute(slateEditor, id, { payload, element, path }),
       };
       return slateEditor;
     }, [assembly.plugins, documentProp?.lineage, editorIdentity, externalHistory]);

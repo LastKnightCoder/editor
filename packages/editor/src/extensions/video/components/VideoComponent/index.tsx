@@ -21,7 +21,6 @@ import useIsLastElement from "../../../../hooks/useIsLastElement";
 
 import { If, VideoPlayer } from "@tau/shared";
 
-import { buildVideoMenuItems } from "../../utils/menuItems";
 import { IVideoContentProviders, useEditorSlots, useOptionalService } from "../../../../services";
 import { openLocalMediaPicker } from "../../../../utils/mediaInsert";
 import {
@@ -52,11 +51,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } = useDragAndDrop({
     element,
   });
-  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
-    element,
-    editor,
-    buildMenuItems: params => buildVideoMenuItems(params),
-  });
+  const { menuProps, dragHandlerProps } = useDragHandlerMenu({ element, editor });
 
   const { src, uploading, playbackRate = 1, width, align = "center" } = element;
 

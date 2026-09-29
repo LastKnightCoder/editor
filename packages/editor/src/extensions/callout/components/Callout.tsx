@@ -2,7 +2,6 @@ import React, { useState, useRef } from "react";
 import { Transforms } from "slate";
 import { RenderElementProps, useSlateStatic, useReadOnly, ReactEditor } from "slate-react";
 import { cn } from "@tau/ui";
-import { useNotifier } from "../../../services/hooks";
 import {
   BLOCK_DRAG_GROUP,
   DragHandle,
@@ -16,7 +15,6 @@ import type { CalloutElement } from "../../../types";
 import AddParagraph from "../../../components/AddParagraph";
 import useIsLastElement from "../../../hooks/useIsLastElement";
 import EditorContextMenu from "../../../components/EditorContextMenu";
-import { buildCalloutMenuItems } from "../utils/menuItems";
 
 import { DEFAULT_TITLE } from "../constants";
 import { useMemoizedFn } from "ahooks";
@@ -38,13 +36,8 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = props => {
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
     element,
   });
-  const message = useNotifier();
 
-  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
-    element,
-    editor,
-    buildMenuItems: params => buildCalloutMenuItems(params, message),
-  });
+  const { menuProps, dragHandlerProps } = useDragHandlerMenu({ element, editor });
 
   const handleTitleBlur = useMemoizedFn(() => {
     const path = ReactEditor.findPath(editor, element);

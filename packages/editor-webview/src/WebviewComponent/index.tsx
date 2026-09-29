@@ -5,7 +5,7 @@ import { CustomModal, ResizeHandle, Webview } from "@tau/shared";
 import type { WebviewRef } from "@tau/shared";
 import { Transforms } from "slate";
 import classnames from "classnames";
-import { Edit, FileCode, Trash2, RefreshCw, Maximize2, X } from "lucide-react";
+import { X } from "lucide-react";
 
 import {
   IExtensionBaseProps,
@@ -29,6 +29,7 @@ import { WebLinkSourceType } from "../types";
 
 import InputUrlModal from "../InputUrlModal";
 import { normalizeWebviewUrl } from "../utils/url";
+import { webviewActionsMap } from "../menu";
 
 const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
   const editor = useSlateStatic();
@@ -116,18 +117,6 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
     }
   );
 
-  const handleDelete = useMemoizedFn(async () => {
-    const confirmed = await notifier.confirm({
-      title: "确认删除",
-      description: "确定要删除这个网页视图吗？",
-      confirmText: "删除",
-      danger: true,
-    });
-    if (!confirmed) return;
-    const path = ReactEditor.findPath(editor, element);
-    Transforms.removeNodes(editor, { at: path });
-  });
-
   const handleRefresh = useMemoizedFn(() => {
     webviewRef.current?.reload();
   });
@@ -204,44 +193,28 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
     }
   });
 
-  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
+  const { menuProps, dragHandlerProps } = useDragHandlerMenu({ element, editor });
+
+  // 菜单命令（tau.webview.*）从这里取动作；上传状态经 isUploading 供菜单打开时读取
+  useEffect(() => {
+    webviewActionsMap.set(element, {
+      editUrl: handleEditUrl,
+      selectLocalHtml: handleSelectLocalHtml,
+      fullscreen: handleFullscreen,
+      refresh: handleRefresh,
+      isUploading: () => localUploadLoading,
+    });
+    return () => {
+      webviewActionsMap.delete(element);
+    };
+  }, [
     element,
-    editor,
-    buildMenuItems: () => [
-      {
-        key: "edit",
-        label: "编辑",
-        icon: <Edit size={16} />,
-        onSelect: handleEditUrl,
-      },
-      {
-        key: "selectLocalHtml",
-        label: localUploadLoading ? "上传中..." : "选择本地 HTML",
-        icon: <FileCode size={16} />,
-        onSelect: handleSelectLocalHtml,
-        disabled: localUploadLoading,
-      },
-      {
-        key: "fullscreen",
-        label: "全屏查看",
-        icon: <Maximize2 size={16} />,
-        onSelect: handleFullscreen,
-      },
-      {
-        key: "refresh",
-        label: "刷新",
-        icon: <RefreshCw size={16} />,
-        onSelect: handleRefresh,
-      },
-      {
-        key: "delete",
-        label: "删除",
-        icon: <Trash2 size={16} />,
-        onSelect: handleDelete,
-        danger: true,
-      },
-    ],
-  });
+    handleEditUrl,
+    handleSelectLocalHtml,
+    handleFullscreen,
+    handleRefresh,
+    localUploadLoading,
+  ]);
 
   return (
     <div

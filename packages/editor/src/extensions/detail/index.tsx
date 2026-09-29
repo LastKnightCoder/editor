@@ -5,19 +5,17 @@ import Detail from "./components/Detail";
 import { deleteBackward, quit, withNormalize } from "./plugins";
 import blockPanelItems from "./block-panel-items";
 import { createBlockElementPlugin } from "../../utils";
+import { detailCommands, detailMenuItems } from "./utils/menu";
 
 import Base from "../base";
 import IExtension from "../types";
 
 class DetailExtension extends Base implements IExtension {
   type = "detail";
+  override commands = detailCommands;
+  override menuItems = detailMenuItems;
   override getPlugins() {
-    return [
-      deleteBackward,
-      quit,
-      withNormalize,
-      createBlockElementPlugin(this.type),
-    ];
+    return [deleteBackward, quit, withNormalize, createBlockElementPlugin(this.type)];
   }
 
   override getBlockPanelItems() {

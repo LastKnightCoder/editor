@@ -37,6 +37,8 @@ import AnnotationExtension from "./annotation";
 import AbcExtension from "./abc";
 import PlantUMLExtension from "./plantuml";
 import ChartExtension from "./chart";
+import { defaultMenuExtension } from "../menu/defaultMenu";
+import { previewMenuExtension } from "../components/PreviewWithEditor/menu";
 
 export const paragraph = new ParagraphExtension();
 export const underline = new UnderlineExtension();
@@ -88,6 +90,8 @@ export const chart = new ChartExtension();
 
 /** 内置扩展：v2 与旧 IExtension 混排，迁移期间逐个换成 defineExtension */
 export const startExtensions: AnyExtension[] = [
+  defaultMenuExtension,
+  previewMenuExtension,
   paragraph,
   underline,
   header,

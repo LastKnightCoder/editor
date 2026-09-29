@@ -11,23 +11,17 @@ import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
 import { deleteBackward, markdownSyntax } from "./plugins";
 import hotkeys from "./hotkeys";
 import blockPanelItems from "./block-panel-items";
+import { codeBlockCommands, codeBlockMenuItems } from "./utils/menu";
+import { codeBlockMap } from "./utils/controllerMaps";
 import type { CodeBlockController } from "./types";
 
 const CodeBlock = loadable(() => import("./components/CodeBlock"));
 
-export const codeBlockMap = new Map<string, CodeBlockController>();
-export const codeBlockActionsMap = new Map<
-  string,
-  {
-    goToPreviousStep: () => void;
-    goToNextStep: () => void;
-    hasPreviousStep: boolean;
-    hasNextStep: boolean;
-  }
->();
-
 class CodeBlockExtension extends Base implements IExtension {
   override type = "code-block";
+
+  override commands = codeBlockCommands;
+  override menuItems = codeBlockMenuItems;
 
   override getPlugins() {
     return [

@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { Fragment, memo, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@tau/ui";
@@ -202,58 +202,64 @@ const EditorContextMenu = memo(
           );
 
           return (
-            <div
-              key={item.key}
-              className={menuItemWrapperClass}
-              onMouseEnter={() => handleItemWrapperEnter(item.key, hasChildren, level)}
-              onMouseLeave={() => handleItemWrapperLeave(item.key, hasChildren, level)}
-            >
-              <button
-                type="button"
-                className={itemClass}
-                onClick={() => handleItemSelect(item, hasChildren)}
-                disabled={item.disabled}
-              >
-                {item.icon && (
-                  <span className="flex items-center justify-center text-[16px]">{item.icon}</span>
-                )}
-                <span className="flex-1">{item.label}</span>
-                {hasChildren && (
-                  <span className={menuItemArrowClass}>
-                    <ChevronRight size="1em" />
-                  </span>
-                )}
-              </button>
-
-              {/* 子菜单：支持多级嵌套 */}
-              {hasChildren && level < 3 && (
-                <>
-                  {/* 安全三角区 */}
-                  <div
-                    className={cn(
-                      "absolute right-[-8px] top-0 hidden h-full w-[16px]",
-                      isOpen && "block"
-                    )}
-                  />
-                  {/* 子菜单 */}
-                  <div
-                    className={cn(
-                      "absolute left-[calc(100%+8px)] top-0 box-border hidden min-w-[160px] max-w-[240px] overflow-visible rounded-[18px] border-[6px] border-solid border-transparent p-[8px]",
-                      menuGlassClass,
-                      "before:pointer-events-none before:absolute before:inset-0 before:rounded-[inherit] before:border before:border-solid before:border-[var(--ed-border-soft)] before:content-['']",
-                      "data-[placement=left]:left-auto data-[placement=left]:right-[calc(100%+8px)]",
-                      isOpen && "block"
-                    )}
-                    data-submenu
-                    data-submenu-key={item.key}
-                  >
-                    <div className="flex max-h-[min(24rem,calc(100vh-8rem))] flex-col">
-                      {renderMenu(item.children!, level + 1)}
-                    </div>
-                  </div>
-                </>
+            <Fragment key={item.key}>
+              {item.separator && (
+                <div className="mx-[12px] my-[5px] h-px bg-[var(--ed-border-soft)]" />
               )}
-            </div>
+              <div
+                className={menuItemWrapperClass}
+                onMouseEnter={() => handleItemWrapperEnter(item.key, hasChildren, level)}
+                onMouseLeave={() => handleItemWrapperLeave(item.key, hasChildren, level)}
+              >
+                <button
+                  type="button"
+                  className={itemClass}
+                  onClick={() => handleItemSelect(item, hasChildren)}
+                  disabled={item.disabled}
+                >
+                  {item.icon && (
+                    <span className="flex items-center justify-center text-[16px]">
+                      {item.icon}
+                    </span>
+                  )}
+                  <span className="flex-1">{item.label}</span>
+                  {hasChildren && (
+                    <span className={menuItemArrowClass}>
+                      <ChevronRight size="1em" />
+                    </span>
+                  )}
+                </button>
+
+                {/* 子菜单：支持多级嵌套 */}
+                {hasChildren && level < 3 && (
+                  <>
+                    {/* 安全三角区 */}
+                    <div
+                      className={cn(
+                        "absolute right-[-8px] top-0 hidden h-full w-[16px]",
+                        isOpen && "block"
+                      )}
+                    />
+                    {/* 子菜单 */}
+                    <div
+                      className={cn(
+                        "absolute left-[calc(100%+8px)] top-0 box-border hidden min-w-[160px] max-w-[240px] overflow-visible rounded-[18px] border-[6px] border-solid border-transparent p-[8px]",
+                        menuGlassClass,
+                        "before:pointer-events-none before:absolute before:inset-0 before:rounded-[inherit] before:border before:border-solid before:border-[var(--ed-border-soft)] before:content-['']",
+                        "data-[placement=left]:left-auto data-[placement=left]:right-[calc(100%+8px)]",
+                        isOpen && "block"
+                      )}
+                      data-submenu
+                      data-submenu-key={item.key}
+                    >
+                      <div className="flex max-h-[min(24rem,calc(100vh-8rem))] flex-col">
+                        {renderMenu(item.children!, level + 1)}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </Fragment>
           );
         })}
       </div>

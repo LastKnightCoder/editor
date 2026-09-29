@@ -6,6 +6,7 @@ import type IExtension from "../extensions/types";
 import type { IBlockPanelListItem, IConfigItem, IHotKeyConfig } from "../types";
 import type { Plugin } from "../utils/plugin";
 import { EXTENSION_API_VERSION, isEditorExtension, type EditorExtension } from "./extension";
+import type { EditorCommand } from "./command";
 
 /** kit 接受的扩展：v2 声明式扩展或旧 `IExtension`（后者自动经 `fromLegacyExtension` 适配） */
 export type AnyExtension = EditorExtension | IExtension;
@@ -43,6 +44,9 @@ export function fromLegacyExtension(legacy: IExtension): LegacyExtensionAdapter 
     },
     get toolbar(): readonly IConfigItem[] {
       return legacy.getHoveringBarElements();
+    },
+    get commands(): readonly EditorCommand[] | undefined {
+      return legacy.commands;
     },
     blockPanel: (editor: Editor): readonly IBlockPanelListItem[] =>
       legacy.getBlockPanelItems(editor),

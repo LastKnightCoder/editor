@@ -4,7 +4,14 @@ import type { RenderElementProps } from "slate-react";
 
 import type { EditorExtension, ElementBehaviors, ElementSpec } from "../api/extension";
 import { CommandRegistry, type EditorHotkey } from "../api/command";
-import { isLegacyAdapter, toEditorExtension, type AnyExtension } from "../api/legacy";
+import type { EditorMenuContribution } from "../api/menu";
+import type { MenuContributionSource } from "../menu/resolveMenu";
+import {
+  isLegacyAdapter,
+  toEditorExtension,
+  elementTypesOf,
+  type AnyExtension,
+} from "../api/legacy";
 import type { Plugin } from "../utils/plugin";
 import type { IBlockPanelListItem, IConfigItem, IHotKeyConfig } from "../types";
 
@@ -69,6 +76,8 @@ export class ExtensionAssembly {
   readonly commandHotkeys: readonly CommandHotkeyEntry[];
   readonly commands: CommandRegistry;
   readonly hoveringBarElements: readonly IConfigItem[];
+  /** 手柄/右键菜单的贡献来源（按扩展顺序）；求值在打开菜单时进行 */
+  readonly menuSources: readonly MenuContributionSource[];
   /** 本装配能渲染的元素类型（按扩展顺序） */
   readonly elementTypes: readonly string[];
   /** 元素类型 → 行为列表：该类型自己的在前，其他扩展经 behaviorsFor 挂上来的按扩展顺序在后 */
@@ -85,6 +94,7 @@ export class ExtensionAssembly {
     const commandHotkeys: CommandHotkeyEntry[] = [];
     const commands = new CommandRegistry();
     const hoveringBarElements: IConfigItem[] = [];
+    const menuSources: MenuContributionSource[] = [];
     const own = new Map<string, ElementBehaviorEntry>();
     const attached = new Map<string, ElementBehaviorEntry[]>();
     for (const extension of this.extensions) {
@@ -98,6 +108,14 @@ export class ExtensionAssembly {
           commandHotkeys.push({ hotkey, owner: extension.id });
         }
         hoveringBarElements.push(...collected.toolbar);
+        if (collected.menu) {
+          const types = elementTypesOf(extension);
+          menuSources.push({
+            owner: extension.id,
+            menu: collected.menu,
+            types: types.length ? types : undefined,
+          });
+        }
         for (const [type, renderer] of collected.renderers) {
           this.renderers.set(type, renderer);
           this.owners.set(type, extension);
@@ -117,10 +135,11 @@ export class ExtensionAssembly {
     this.commands = commands;
     // 命令注册在 try 外：id 冲突要冒泡到 kit 创建处，不让 per-extension 容错吞掉
     for (const extension of this.extensions) {
-      if (isLegacyAdapter(extension) || !extension.commands) continue;
+      if (!extension.commands) continue;
       commands.register(extension.id, extension.commands);
     }
     this.hoveringBarElements = hoveringBarElements;
+    this.menuSources = menuSources;
     const behaviors = new Map<string, ElementBehaviorEntry[]>();
     for (const type of new Set([...own.keys(), ...attached.keys()])) {
       behaviors.set(type, [
@@ -144,6 +163,7 @@ export class ExtensionAssembly {
         hotkeys: [...extension.legacyHotkeys],
         hotkeyDeclarations: [],
         toolbar: [...(extension.toolbar ?? [])],
+        menu: extension.legacy.menuItems as EditorMenuContribution | undefined,
         renderers,
         behaviors,
         attached,
@@ -165,6 +185,7 @@ export class ExtensionAssembly {
       hotkeyDeclarations: [...(extension.hotkeys ?? [])],
       commands: [...(extension.commands ?? [])],
       toolbar: [...(extension.toolbar ?? [])],
+      menu: extension.menu,
       renderers,
       behaviors,
       attached,
