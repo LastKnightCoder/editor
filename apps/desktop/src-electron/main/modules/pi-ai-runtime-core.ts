@@ -297,34 +297,6 @@ export function createProviderRegistry(): ProviderRegistry {
   };
 }
 
-/**
- * 用一次最短对话验证服务商的 API Key（集成设置的「连接」用，如 Minimax）。服务商不进注册表：
- * 临时建一个 pi Provider 发一条消息。pi 的请求失败不抛错而是 stopReason=error，这里统一转成失败原因。
- */
-export async function verifyProviderKey(
-  setting: LLMProviderSetting,
-  modelId: string,
-  signal?: AbortSignal
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  const models = createModels();
-  models.setProvider(await buildPiProvider(setting));
-  const model = models.getModel(setting.id, modelId);
-  if (!model) return { ok: false, error: `模型未注册：${modelId}` };
-  try {
-    const message = await models.completeSimple(
-      model,
-      { messages: [{ role: "user", content: "Hello", timestamp: Date.now() }] },
-      { maxTokens: 16, ...(signal ? { signal } : {}) }
-    );
-    if (message.stopReason === "error" || message.stopReason === "aborted") {
-      return { ok: false, error: message.errorMessage || "请求失败" };
-    }
-    return { ok: true };
-  } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
-  }
-}
-
 /** 单发请求上下文组装（类型见 types/pi-llm.ts，两端共享）；assistant 历史为回放消息，usage 置零 */
 export function buildSingleShotContext(
   request: PiSingleShotRequest,

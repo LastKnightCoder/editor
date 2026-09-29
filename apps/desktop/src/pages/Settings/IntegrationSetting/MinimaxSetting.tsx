@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useMemoizedFn } from "ahooks";
 import useSettingStore from "@/stores/useSettingStore";
 import useThemeColors from "@/hooks/useThemeColors";
-import { verifyMinimaxApiKey } from "@/commands/piAi";
+import { verifyMinimaxApiKey } from "@/services/minimax";
 
 const MinimaxSetting: React.FC = () => {
   const themeColors = useThemeColors();
@@ -28,7 +28,7 @@ const MinimaxSetting: React.FC = () => {
     setErrorMessage("");
 
     try {
-      // 用一次最短对话验证 API Key（走 pi）
+      // get_voice 轻量探测验证 API Key（与 TTS 同端点同鉴权）
       await verifyMinimaxApiKey(apiKeyValue);
       updateMinimaxApiKey(apiKeyValue);
       setMinimaxEnabled(true);

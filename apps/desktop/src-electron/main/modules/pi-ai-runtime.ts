@@ -16,13 +16,11 @@ import {
   listCatalogProviders,
   resolveThinkingLevels,
   resolveV2Providers,
-  verifyProviderKey,
   type ProviderRegistry,
 } from "./pi-ai-runtime-core";
 import { discoverProviderModels, ModelDiscoveryError } from "./pi-model-discovery";
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
-const VERIFY_KEY_TIMEOUT_MS = 30 * 1000;
 import type { LLMProviderSetting, PiSingleShotOutcome, PiSingleShotRequest } from "@/types/pi-llm";
 
 class PiAiRuntimeModule {
@@ -74,12 +72,6 @@ class PiAiRuntimeModule {
           return { ok: false, error: errorMessage(error), models: [] };
         }
       }
-    );
-    // 集成设置的 API Key 连接测试（联网，只发往传入服务商的 baseUrl）；服务商不进注册表
-    ipcMain.handle(
-      "pi-ai:verify-key",
-      async (_event, { provider, modelId }: { provider: LLMProviderSetting; modelId: string }) =>
-        verifyProviderKey(provider, modelId, AbortSignal.timeout(VERIFY_KEY_TIMEOUT_MS))
     );
     ipcMain.handle(
       "pi-ai:thinking-levels",

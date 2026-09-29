@@ -49,28 +49,28 @@ export async function getVoiceList(apiKey: string): Promise<MinimaxVoice[]> {
 
     if (data.voice_cloning) {
       allVoices.push(
-        ...data.voice_cloning.map((voice) => ({
+        ...data.voice_cloning.map(voice => ({
           ...voice,
           voice_type: "voice_cloning" as const,
-        })),
+        }))
       );
     }
 
     if (data.voice_generation) {
       allVoices.push(
-        ...data.voice_generation.map((voice) => ({
+        ...data.voice_generation.map(voice => ({
           ...voice,
           voice_type: "voice_generation" as const,
-        })),
+        }))
       );
     }
 
     if (data.system_voice) {
       allVoices.push(
-        ...data.system_voice.map((voice) => ({
+        ...data.system_voice.map(voice => ({
           ...voice,
           voice_type: "system_voice" as const,
-        })),
+        }))
       );
     }
 
@@ -82,13 +82,40 @@ export async function getVoiceList(apiKey: string): Promise<MinimaxVoice[]> {
 }
 
 /**
+ * 验证 API Key（集成设置的连接检测）
+ * 用 get_voice 拉一小段系统音色做轻量探测：与 TTS/声音克隆同端点同鉴权，
+ * 不合成音频、不消耗 token；Key 无效时 base_resp 会返回 1004/2049 等错误码。
+ */
+export async function verifyMinimaxApiKey(apiKey: string): Promise<void> {
+  const requestBody: MinimaxVoiceListRequest = {
+    voice_type: "system",
+  };
+
+  const response = await fetch(`${MINIMAX_API_BASE}/v1/get_voice`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`API Key 验证失败 (${response.status}): ${errorText}`);
+  }
+
+  const data: MinimaxVoiceListResponse = await response.json();
+  if (data.base_resp.status_code !== 0) {
+    throw new Error(`API Key 验证失败: ${data.base_resp.status_msg}`);
+  }
+}
+
+/**
  * 上传参考音频文件
  * 参考文档：https://platform.minimaxi.com/docs/api-reference/voice-cloning-uploadcloneaudio
  */
-export async function uploadReferenceAudio(
-  file: File,
-  apiKey: string,
-): Promise<string> {
+export async function uploadReferenceAudio(file: File, apiKey: string): Promise<string> {
   try {
     // 验证文件
     const maxSize = 20 * 1024 * 1024; // 20MB
@@ -96,12 +123,7 @@ export async function uploadReferenceAudio(
       throw new Error("文件大小不能超过 20MB");
     }
 
-    const allowedTypes = [
-      "audio/mpeg",
-      "audio/mp4",
-      "audio/x-m4a",
-      "audio/wav",
-    ];
+    const allowedTypes = ["audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/wav"];
     if (!allowedTypes.includes(file.type)) {
       throw new Error("仅支持 mp3, m4a, wav 格式");
     }
@@ -142,11 +164,7 @@ export async function uploadReferenceAudio(
  * 快速克隆音色
  * 参考文档：https://platform.minimaxi.com/docs/api-reference/voice-cloning-clone
  */
-export async function cloneVoice(
-  fileId: string,
-  voiceId: string,
-  apiKey: string,
-): Promise<void> {
+export async function cloneVoice(fileId: string, voiceId: string, apiKey: string): Promise<void> {
   try {
     // 验证 voice_id 格式
     if (!voiceId || voiceId.trim().length === 0) {
@@ -213,7 +231,7 @@ export async function synthesizeSpeech(
   voiceId: string,
   apiKey: string,
   model: MinimaxSpeechModel,
-  maxRetries = 3,
+  maxRetries = 3
 ): Promise<ArrayBuffer> {
   const normalizedText = normalizeMinimaxSpeechText(text, model);
 
@@ -268,7 +286,7 @@ export async function synthesizeSpeech(
           // 计算重试延迟（指数退避）
           const delay = calculateRetryDelay(attempt, errorCode);
           console.warn(
-            `语音合成失败 (错误码: ${errorCode}): ${errorMsg}，${delay}ms 后重试 (${attempt + 1}/${maxRetries})`,
+            `语音合成失败 (错误码: ${errorCode}): ${errorMsg}，${delay}ms 后重试 (${attempt + 1}/${maxRetries})`
           );
           await sleep(delay);
           continue;
@@ -293,7 +311,7 @@ export async function synthesizeSpeech(
       if (attempt < maxRetries && isNetworkError(error)) {
         const delay = calculateRetryDelay(attempt, 1001);
         console.warn(
-          `网络错误: ${lastError.message}，${delay}ms 后重试 (${attempt + 1}/${maxRetries})`,
+          `网络错误: ${lastError.message}，${delay}ms 后重试 (${attempt + 1}/${maxRetries})`
         );
         await sleep(delay);
         continue;
@@ -346,11 +364,7 @@ function calculateRetryDelay(attempt: number, errorCode: number): number {
 function isNetworkError(error: unknown): boolean {
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
-    return (
-      message.includes("network") ||
-      message.includes("timeout") ||
-      message.includes("fetch")
-    );
+    return message.includes("network") || message.includes("timeout") || message.includes("fetch");
   }
   return false;
 }
@@ -386,15 +400,12 @@ function getErrorMessage(errorCode: number, originalMsg: string): string {
     2049: "无效的 API Key，请检查 API Key",
   };
 
-  return (
-    errorMessages[errorCode] ||
-    `语音合成失败 (错误码: ${errorCode}): ${originalMsg}`
-  );
+  return errorMessages[errorCode] || `语音合成失败 (错误码: ${errorCode}): ${originalMsg}`;
 }
 
 /**
  * 延迟函数
  */
 function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise(resolve => setTimeout(resolve, ms));
 }

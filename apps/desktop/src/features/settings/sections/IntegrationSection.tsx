@@ -8,7 +8,7 @@
  * YouTube 只有一个代理字段，与 legacy 一致行内即时保存。
  *
  * 功能对齐 legacy IntegrationSetting 全量：各服务字段与必填校验、GitHub Token 校验并存用户名邮箱、
- * Minimax 经对话接口校验 Key、Bilibili 扫码（二维码 / 过期刷新 / 2s 轮询）与手动 SESSDATA 两种登录
+ * Minimax 经 get_voice 接口校验 Key、Bilibili 扫码（二维码 / 过期刷新 / 2s 轮询）与手动 SESSDATA 两种登录
  * 及用户信息/大会员展示、S3 请求风格、微信读书 API Key 校验与 检测中/可用/已失效/未连接 状态。
  * 行为调整：微信读书新增「断开连接」（清空 API Key）；YouTube 状态签按是否设置代理显示
  * （legacy 依据的 youtube.enabled 从无写入口，恒为未连接）。
@@ -30,7 +30,7 @@ import {
   toast,
 } from "@tau/ui";
 import useSettingStore, { type ISetting } from "@/stores/useSettingStore";
-import { verifyMinimaxApiKey } from "@/commands/piAi";
+import { verifyMinimaxApiKey } from "@/services/minimax";
 import { openExternal } from "@/commands/extra";
 import { getGithubUserInfo } from "@/utils/github";
 import {
@@ -1067,7 +1067,7 @@ function MinimaxDialog({ open, onOpenChange }: DialogProps) {
     setLoading(true);
     setError("");
     try {
-      // 用一次最短对话验证 Key（走 pi，与 legacy 设置页同一入口）
+      // get_voice 轻量探测验证 Key（与 TTS 同端点同鉴权，legacy 设置页同一入口）
       await verifyMinimaxApiKey(value);
       updateApiKey(value);
       setEnabled(true);
