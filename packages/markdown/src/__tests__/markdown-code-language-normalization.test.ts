@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { importFromMarkdown } from "../index.ts";
+import { bareProcessor } from "./fixtures.ts";
+
+const importFromMarkdown = bareProcessor.importFromMarkdown;
 
 describe("markdown code block language normalization", () => {
   it("将 js 和 javascript 规范化为 JavaScript", () => {

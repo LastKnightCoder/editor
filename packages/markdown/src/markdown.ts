@@ -18,14 +18,7 @@ import type { Descendant } from "slate";
 import { v4 as uuid } from "uuid";
 import { visit } from "unist-util-visit";
 import { normalizeCodeBlockLanguageDisplayName } from "@tau/shared/src/utils/code-block-language.ts";
-import type {
-  AudioElement,
-  HTMLBlockElement,
-  HighlightColor,
-  ImageElement,
-  StyledTextElement,
-  VideoElement,
-} from "./types.ts";
+import type { HighlightColor, HTMLBlockElement, ImageElement } from "./types.ts";
 import {
   TEXT_GRADIENT_PRESETS,
   type TextGradientPresetId,
@@ -178,13 +171,9 @@ function processBuffer(buffer: { node: MarkdownAstNode; parent: MarkdownAstNodeW
 
 const KBD_OPEN_TAG_REGEX = /^<kbd(?:\s+[^>]*)?>$/i;
 const KBD_CLOSE_TAG_REGEX = /^<\/kbd>$/i;
-const STYLED_TEXT_COLOR_VALUES = ["red", "green", "yellow", "blue", "purple", "gray"] as const;
-type StyledTextColorLiteral = (typeof STYLED_TEXT_COLOR_VALUES)[number];
-type StyledTextColor = StyledTextElement["color"];
 const TEXT_GRADIENT_PRESET_SET = new Set<TextGradientPresetId>(
   Object.keys(TEXT_GRADIENT_PRESETS) as TextGradientPresetId[]
 );
-const STYLED_TEXT_COLOR_SET = new Set<StyledTextColorLiteral>(STYLED_TEXT_COLOR_VALUES);
 const MAGIC_MOVE_META_PREFIX = "smm=";
 
 interface MarkdownMagicMoveStep {
@@ -199,13 +188,6 @@ interface MarkdownMagicMovePayload {
   activeStep: number;
   steps: MarkdownMagicMoveStep[];
 }
-
-const resolveStyledTextColor = (color: unknown): StyledTextColor => {
-  if (typeof color !== "string") return "red" as StyledTextColor;
-  return STYLED_TEXT_COLOR_SET.has(color as StyledTextColorLiteral)
-    ? (color as StyledTextColor)
-    : ("red" as StyledTextColor);
-};
 
 const resolveTextGradientPreset = (preset: unknown): TextGradientPresetId | undefined => {
   if (typeof preset !== "string") return undefined;
@@ -579,83 +561,7 @@ const markdownToDescendant = (
     if (customContainerHandler) {
       return customContainerHandler(node.attributes || {});
     }
-    if (["note", "tip", "warning", "info", "danger"].includes(node.name)) {
-      return {
-        type: "callout",
-        title: node.attributes.title || "",
-        calloutType: node.name as "note" | "tip" | "warning" | "info" | "danger",
-        children: [],
-      };
-    } else if (node.name === "highlight-block") {
-      return {
-        type: node.name,
-        color: (node.attributes.color || "red") as "red" | "green" | "yellow" | "blue" | "purple",
-        children: [],
-      };
-    } else if (node.name === "detail") {
-      return {
-        type: "detail",
-        title: node.attributes.title || "DETAIL",
-        open: node.attributes.open === "true",
-        children: [],
-      };
-    } else if (node.name === "underline") {
-      return {
-        type: "underline",
-        color: node.attributes.color || "default",
-        lineType: node.attributes.lineType || "solid",
-        colorSelectOpen: false,
-        children: [],
-      };
-    } else if (node.name === "video") {
-      const element: VideoElement = {
-        type: "video",
-        src: node.attributes.src || "",
-        uploading: false,
-        children: [{ type: "formatted", text: "" }],
-      };
-      if (node.attributes.playbackRate)
-        element.playbackRate = parseFloat(node.attributes.playbackRate);
-      if (node.attributes.metaInfo) {
-        try {
-          element.metaInfo = JSON.parse(atob(node.attributes.metaInfo));
-        } catch (e) {
-          // ignore invalid metaInfo
-        }
-      }
-      if (node.attributes.width) element.width = parseInt(node.attributes.width);
-      if (node.attributes.align)
-        element.align = node.attributes.align as "left" | "center" | "right";
-      return element;
-    } else if (node.name === "audio") {
-      const element: AudioElement = {
-        type: "audio",
-        src: node.attributes.src || "",
-        uploading: false,
-        children: [{ type: "formatted", text: "" }],
-      };
-      if (node.attributes.isFromGenerate) {
-        element.isFromGenerate = node.attributes.isFromGenerate === "true";
-      }
-      if (node.attributes.audioText) element.audioText = node.attributes.audioText;
-      if (node.attributes.title) element.title = node.attributes.title;
-      return element;
-    } else if (node.name === "chart") {
-      try {
-        const data = JSON.parse(atob(node.attributes.data || "W10="));
-        const config = JSON.parse(atob(node.attributes.config || "e30="));
-        return {
-          type: "chart",
-          data,
-          config,
-          children: [{ type: "formatted", text: "" }],
-        };
-      } catch {
-        return null;
-      }
-    } else {
-      return null;
-    }
+    return null;
   } else if (node.type === "inlineMath") {
     return {
       type: "inline-math",
@@ -790,25 +696,6 @@ const markdownToDescendant = (
         })
         .filter(Boolean)
         .flat() as Descendant[];
-    } else if (node.name === "underline") {
-      return {
-        type: "underline",
-        color: attributes.color || "default",
-        lineType: attributes.lineType || "solid",
-        colorSelectOpen: false,
-        children: [],
-      };
-    } else if (node.name === "styled-text") {
-      return {
-        type: "styled-text",
-        color: resolveStyledTextColor(attributes.color),
-        children: [],
-      };
-    } else if (node.name === "kbd") {
-      return {
-        type: "kbd",
-        children: [],
-      };
     }
     return {
       type: "formatted",
@@ -934,7 +821,7 @@ interface MarkdownParseContext {
   inlineWrapperDirectives: ReadonlySet<string>;
 }
 
-/** 处理器级配置：内置表 + 宿主 codec 合并后的结果 */
+/** 处理器级配置：宿主 codec 合并后的结果（框架不自带任何元素类型） */
 export interface ImportConfig {
   directives: Record<string, CustomDirectiveHandler>;
   voidTypes: ReadonlySet<string>;
@@ -1102,39 +989,6 @@ const buildTextMapping = (params: {
     prefixLength,
     suffixLength,
   };
-};
-
-/** 内置 void 类型（位置映射只记元素级范围）；宿主类型经 codec 的 isVoid 追加 */
-export const BUILTIN_VOID_TYPES: ReadonlySet<string> = new Set([
-  "code-block",
-  "image",
-  "inline-image",
-  "video",
-  "audio",
-  "block-math",
-  "inline-math",
-  "mermaid",
-  "tikz",
-  "typst",
-  "plantuml",
-  "abc",
-  "graphviz",
-  "divide-line",
-  "webview",
-  "front-matter",
-]);
-
-/** 内置行内包裹 directive；宿主类型经 codec 的 inlineWrapperDirective 追加 */
-export const BUILTIN_INLINE_WRAPPER_DIRECTIVES: ReadonlySet<string> = new Set([
-  "underline",
-  "styled-text",
-  "kbd",
-]);
-
-export const BUILTIN_IMPORT_CONFIG: ImportConfig = {
-  directives: {},
-  voidTypes: BUILTIN_VOID_TYPES,
-  inlineWrapperDirectives: BUILTIN_INLINE_WRAPPER_DIRECTIVES,
 };
 
 const isVoidSlateElementType = (type: string): boolean =>

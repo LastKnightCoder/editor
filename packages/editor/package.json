@@ -100,6 +100,7 @@
   },
   "dependencies": {
     "@tau/db-schema": "workspace:*",
+    "@tau/markdown": "workspace:*",
     "@tau/shared": "workspace:*",
     "@tau/ui": "workspace:*",
     "remark-cjk-friendly": "^2.3.1",

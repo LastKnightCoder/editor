@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import type { Descendant } from "slate";
 import type { FormattedText } from "../types.ts";
-import { getMarkdown, importFromMarkdown, leafToMarkdown } from "../index.ts";
+import { leafToMarkdown } from "../index.ts";
+import { fixtureProcessor } from "./fixtures.ts";
+
+const getMarkdown = fixtureProcessor.getMarkdown;
+const importFromMarkdown = fixtureProcessor.importFromMarkdown;
 
 describe("text gradient markdown serialization", () => {
   it("leafToMarkdown 应优先输出渐变指令", () => {

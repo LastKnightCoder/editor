@@ -8,8 +8,9 @@ export type CustomDirectiveHandler = (
 ) => Descendant | null;
 
 /**
- * 一个元素类型的 Markdown 编解码（01 §8.2）。宿主用它给 @tau/markdown 注入内核不认识的类型
- * （desktop 的 file-attachment、content-link 等），内置类型仍由框架内部处理。
+ * 一个元素类型的 Markdown 编解码（01 §8.2）。框架不自带任何元素类型：
+ * 各扩展在自己的 markdown.ts（纯函数文件）里声明 codec，宿主把 codec 列表
+ * 合成一次交给 createMarkdownProcessor，kit 与 Electron 主进程共用。
  */
 export interface MarkdownCodec {
   /** 元素 type */

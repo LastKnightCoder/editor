@@ -40,6 +40,9 @@ const withExportConfig = <T>(config: ExportConfig, run: () => T): T => {
 
 const registry = (): MarkdownSerializerRegistry => currentExportConfig().registry;
 
+/** codec 的序列化器登记脚注（如 annotation 的 [^n]），由导出入口统一追加到文末 */
+export const addExportFootnote = (content: string): number => registry().addFootnote(content);
+
 /** 没有 codec 的元素走兜底语法（unknownNode.ts），整节点原样保留 */
 const isUnknownElement = (element: CustomElement): boolean =>
   !registry().getSerializer(element.type);

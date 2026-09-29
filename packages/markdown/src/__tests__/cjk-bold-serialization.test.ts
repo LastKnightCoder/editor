@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import type { FormattedText } from "../types.ts";
-import { getMarkdown, importFromMarkdown } from "../index.ts";
-import { getMarkdownWithPositions } from "../index.ts";
+import { fixtureProcessor } from "./fixtures.ts";
+
+const getMarkdown = fixtureProcessor.getMarkdown;
+const importFromMarkdown = fixtureProcessor.importFromMarkdown;
+const getMarkdownWithPositions = fixtureProcessor.getMarkdownWithPositions;
 
 const paragraphLeaves = (markdown: string): FormattedText[] => {
   const content = importFromMarkdown(markdown);

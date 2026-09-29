@@ -1,8 +1,9 @@
 import type { Descendant } from "slate";
 import { describe, expect, it } from "vitest";
 
-import { createMarkdownProcessor, getMarkdown, importFromMarkdown } from "../index.ts";
+import { createMarkdownProcessor } from "../index.ts";
 import type { MarkdownCodec } from "../index.ts";
+import { paragraphCodec } from "./fixtures.ts";
 
 // 宿主自定义的行内元素：:mention[名字]{id=1}
 const mentionCodec: MarkdownCodec = {
@@ -21,13 +22,13 @@ const mentionCodec: MarkdownCodec = {
 };
 
 describe("createMarkdownProcessor codecs", () => {
-  it("内置处理器不认识宿主类型：directive 按原样退化为文本", () => {
-    const value = importFromMarkdown(":mention{id=1}");
+  it("无 codec 的处理器不认识宿主类型：directive 按原样退化为文本", () => {
+    const value = createMarkdownProcessor().importFromMarkdown(":mention{id=1}");
     expect(JSON.stringify(value)).not.toContain('"mention"');
   });
 
   it("注入 codec 后导入导出往返", () => {
-    const md = createMarkdownProcessor({ codecs: [mentionCodec] });
+    const md = createMarkdownProcessor({ codecs: [paragraphCodec, mentionCodec] });
     const value = md.importFromMarkdown("你好 :mention{id=7}");
     expect(JSON.stringify(value)).toContain('"type":"mention"');
     expect(md.getMarkdown(value).trim()).toBe("你好 :mention{id=7}");
@@ -42,14 +43,19 @@ describe("createMarkdownProcessor codecs", () => {
   });
 
   it("不同处理器互不影响：一个注入的序列化器不会泄漏到另一个", () => {
-    createMarkdownProcessor({ codecs: [mentionCodec] });
     const value = [
       {
         type: "paragraph",
         children: [{ type: "mention", id: 1, children: [{ type: "formatted", text: "" }] }],
       },
     ] as unknown as Descendant[];
-    expect(getMarkdown(value)).not.toContain(":mention");
+    expect(
+      createMarkdownProcessor({ codecs: [paragraphCodec, mentionCodec] }).getMarkdown(value)
+    ).toContain(":mention");
+    // 同样的值交给只有 paragraph 的处理器：mention 不认识，走 ER-006 兜底而不是泄漏出指令文本
+    expect(createMarkdownProcessor({ codecs: [paragraphCodec] }).getMarkdown(value)).not.toContain(
+      ":mention{id=1}"
+    );
   });
 
   it("isVoid 的 codec 在导入、导出两个方向都记元素级映射", () => {
