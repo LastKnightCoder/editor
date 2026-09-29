@@ -4,7 +4,7 @@
  * 功能:
  * - 接收文件内容并保存为临时文件
  * - 使用 @firecrawl/anydoc（Rust/NAPI）等库转换为 Markdown
- * - 支持音视频文件转录并转换为 Markdown（LLM 整理走 OpenAI 兼容 API）
+ * - 支持音视频文件转录并转换为 Markdown（LLM 整理与图片描述走 pi 单发，按功能槽分配模型）
  * - 返回结果并清理临时文件
  */
 
@@ -15,10 +15,14 @@ import path from "path";
 import os from "os";
 import { v4 as uuidv4 } from "uuid";
 import sharp from "sharp";
-import OpenAI from "openai";
 import MediaUtil from "../utils/MediaUtil";
 import { transcriptionService, type TranscriptionOptions } from "./transcription";
-import { convertDocumentToMarkdown, optimizeTranscriptionWithLLM } from "./markitdown-node";
+import {
+  convertDocumentToMarkdown,
+  optimizeTranscriptionWithLLM,
+  type LlmRef,
+} from "./markitdown-node";
+import PiAiRuntimeModule from "./pi-ai-runtime";
 
 // ==================== 文件类型定义 ====================
 
@@ -78,16 +82,10 @@ interface ConvertFileParams {
   fileName: string;
   /** 文件路径 - 与 fileContent 二选一，直接使用此路径转换，处理后不删除 */
   filePath?: string;
-  /** LLM 提供商（用于图片描述等） */
-  llmProvider?: string;
-  /** LLM API Key */
-  llmApiKey?: string;
-  /** LLM 模型 */
-  llmModel?: string;
-  /** 自定义提示词 */
+  /** 图片描述用的模型（设置里分配的功能槽），需带图片输入能力 */
+  imageLlm?: LlmRef | null;
+  /** 自定义图片描述提示词 */
   llmPrompt?: string;
-  /** 自定义 API 地址 */
-  llmBaseUrl?: string;
   /** Azure Document Intelligence 端点 */
   docIntelEndpoint?: string;
   /** 是否启用插件 */
@@ -101,15 +99,9 @@ interface ConvertFileParams {
   transcriptionModelDir?: string;
   /** 是否启用词级时间戳 */
   transcriptionWordTimestamps?: boolean;
-  // ==================== 转录 LLM 断句优化参数 ====================
-  /** 转录 LLM 提供商 */
-  transcriptionLLMProvider?: string;
-  /** 转录 LLM API Key */
-  transcriptionLLMApiKey?: string;
-  /** 转录 LLM 模型 */
-  transcriptionLLMModel?: string;
-  /** 转录 LLM API 地址 */
-  transcriptionLLMBaseUrl?: string;
+  // ==================== 转录 LLM 整理参数 ====================
+  /** 转录整理用的模型（设置里分配的功能槽） */
+  transcriptionLlm?: LlmRef | null;
 }
 
 /** 转录段落 */
@@ -273,7 +265,7 @@ class MarkItDownModule implements Module {
    * 使用 LLM Vision API 直接理解图片内容
    */
   async convertImageFile(params: ConvertFileParams): Promise<ConvertFileResult> {
-    const { fileContent, fileName, filePath, llmApiKey, llmModel, llmPrompt, llmBaseUrl } = params;
+    const { fileContent, fileName, filePath, imageLlm, llmPrompt } = params;
 
     let targetFilePath: string | null = null;
     let shouldCleanup = false;
@@ -300,7 +292,7 @@ class MarkItDownModule implements Module {
       }
 
       // 2. 检查 LLM 配置
-      if (!llmApiKey || !llmModel || !llmBaseUrl) {
+      if (!imageLlm) {
         console.warn("[MarkItDown] LLM not configured for image description");
         return {
           success: false,
@@ -326,36 +318,20 @@ class MarkItDownModule implements Module {
         ".bmp": "image/bmp",
       };
       const mimeType = mimeTypes[ext] || "image/png";
-      const dataUri = `data:${mimeType};base64,${base64Image}`;
 
-      // 4. 构建并调用 OpenAI Vision API
-      const client = new OpenAI({
-        apiKey: llmApiKey,
-        baseURL: llmBaseUrl,
-      });
-
+      // 4. 经 pi 单发调用图片理解模型（与其他功能共用 provider 注册表与用量采集）
       const prompt = llmPrompt || DEFAULT_IMAGE_PROMPT;
 
       console.log("[MarkItDown] Calling LLM for image description...");
-      const response = await client.chat.completions.create({
-        model: llmModel,
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              {
-                type: "image_url",
-                image_url: {
-                  url: dataUri,
-                },
-              },
-            ],
-          },
-        ],
+      const result = await PiAiRuntimeModule.complete({
+        providerId: imageLlm.providerId,
+        modelId: imageLlm.modelId,
+        messages: [{ role: "user", content: prompt, images: [{ data: base64Image, mimeType }] }],
+        source: { feature: "vibeLearningImageDescription" },
       });
+      if (!result.ok) throw new Error(result.error ?? "图片描述请求失败");
 
-      const description = response.choices[0]?.message?.content || "无法获取图片描述";
+      const description = result.text || "无法获取图片描述";
 
       console.log("[MarkItDown] Image description generated successfully");
 
@@ -402,11 +378,7 @@ class MarkItDownModule implements Module {
       transcriptionModel = "base",
       transcriptionModelDir,
       transcriptionWordTimestamps = false,
-      // 转录 LLM 断句优化配置
-      transcriptionLLMProvider,
-      transcriptionLLMApiKey,
-      transcriptionLLMModel,
-      transcriptionLLMBaseUrl,
+      transcriptionLlm,
     } = params;
 
     let mediaFilePath: string | null = null;
@@ -495,22 +467,18 @@ class MarkItDownModule implements Module {
       // 如果配置了 LLM，使用 LLM 将转录文本整理为 Markdown
       // 否则使用简单格式化（带时间戳）
       const segments: TranscriptionSegment[] = transcribeResult.segments || [];
-      const hasLLMConfig =
-        transcriptionLLMProvider && transcriptionLLMApiKey && transcriptionLLMModel;
-
       let markdown: string;
 
-      if (hasLLMConfig && segments.length > 0) {
+      if (transcriptionLlm && segments.length > 0) {
         this.sendProgress("optimizing", 60, "正在使用 AI 整理文档...");
 
         try {
           markdown = await optimizeTranscriptionWithLLM({
             segments,
             language: transcribeResult.language || transcriptionLanguage,
-            llmProvider: transcriptionLLMProvider,
-            llmApiKey: transcriptionLLMApiKey,
-            llmModel: transcriptionLLMModel,
-            llmBaseUrl: transcriptionLLMBaseUrl,
+            llm: transcriptionLlm,
+            feature: "transcriptionOptimization",
+            complete: request => PiAiRuntimeModule.complete(request),
           });
 
           console.log("[MarkItDown] LLM generated Markdown:", markdown.length, "chars");

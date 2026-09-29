@@ -44,8 +44,8 @@ export interface PiCatalogModel {
   input: ("text" | "image")[];
   contextWindow: number;
   maxTokens: number;
-  /** 每百万 token 价格，用于界面提示；无价格信息时为空 */
-  cost?: { input: number; output: number };
+  /** 每百万 token 价格（美元），用于界面提示与默认单价；无价格信息时为空 */
+  cost?: LLMModelCost;
   /** 该模型真实支持的推理档位（pi getSupportedThinkingLevels），空数组表示不支持推理 */
   thinkingLevels: PiThinkingLevel[];
 }
@@ -64,7 +64,15 @@ export interface PiDiscoveredModel {
   input?: ("text" | "image")[];
   contextWindow?: number;
   maxTokens?: number;
-  cost?: { input: number; output: number };
+  cost?: LLMModelCost;
+}
+
+/** 模型单价：每百万 token（美元）；缓存单价缺省按 0 计 */
+export interface LLMModelCost {
+  input: number;
+  output: number;
+  cacheRead?: number;
+  cacheWrite?: number;
 }
 
 export interface LLMModelSetting {
@@ -100,6 +108,11 @@ export interface LLMModelSetting {
    * reasoning_content 字段由 pi 原生处理，与本开关无关
    */
   stripThinkTags?: boolean;
+  /**
+   * 自定义单价，优先于内置目录价格（代理折扣、目录未收录的模型）。
+   * 从目录勾选模型时默认填入目录价格；缺省时回落目录价格。
+   */
+  cost?: LLMModelCost;
 }
 
 export interface LLMProviderSetting {
@@ -126,7 +139,12 @@ export interface PiSingleShotRequest {
   providerId: string;
   modelId: string;
   system?: string;
-  messages: { role: "user" | "assistant"; content: string }[];
+  messages: {
+    role: "user" | "assistant";
+    content: string;
+    /** 仅 user 消息：随文本一起发送的图片（base64，不带 data: 前缀） */
+    images?: { data: string; mimeType: string }[];
+  }[];
   thinking?: PiThinkingLevel;
   temperature?: number;
   /** 用量审计归属（功能 / 实体 / 知识库） */

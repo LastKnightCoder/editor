@@ -9,8 +9,9 @@
 
 import { promises as fs } from "fs";
 import path from "path";
-import OpenAI from "openai";
 import TurndownService from "turndown";
+import type { PiSingleShotRequest } from "@/types/pi-llm";
+import type { LlmRef } from "./llm-usage-slot";
 import { toMarkdown } from "@firecrawl/anydoc";
 
 export interface ConvertFileResult {
@@ -26,6 +27,13 @@ export interface TranscriptionSegment {
   start: number; // 毫秒
   end: number; // 毫秒
 }
+
+export type { LlmRef } from "./llm-usage-slot";
+
+/** 主进程单发（pi-ai-runtime.complete）：注入而非直接 import，保持本文件无 Electron 依赖 */
+export type LlmComplete = (
+  request: Omit<PiSingleShotRequest, "requestId">
+) => Promise<{ ok: boolean; text: string; error?: string }>;
 
 const turndownService = new TurndownService({
   headingStyle: "atx",
@@ -214,62 +222,27 @@ const OPTIMIZATION_SYSTEM_PROMPT = `## 角色设定
 3. 保持原文意思，不要改写或润色
 4. 如果是中文繁体，转换为简体中文`;
 
-function createTranscriptionLLMClient(
-  provider: string,
-  apiKey?: string,
-  baseUrl?: string
-): OpenAI | null {
-  if (!provider) {
-    return null;
-  }
-  if (!apiKey) {
-    console.warn("[MarkItDown] LLM API key is required");
-    return null;
-  }
-  if (provider === "openai" || provider === "ollama" || provider === "azure") {
-    const resolvedBaseUrl =
-      baseUrl || (provider === "ollama" ? "http://localhost:11434/v1" : undefined);
-    return new OpenAI({
-      apiKey,
-      baseURL: resolvedBaseUrl,
-    });
-  }
-  console.warn(`[MarkItDown] Unknown LLM provider: ${provider}`);
-  return null;
-}
-
 export async function optimizeTranscriptionWithLLM(options: {
   segments: TranscriptionSegment[];
   language?: string;
-  llmProvider: string;
-  llmApiKey?: string;
-  llmModel: string;
-  llmBaseUrl?: string;
+  llm: LlmRef;
+  feature: string;
+  complete: LlmComplete;
 }): Promise<string> {
-  const client = createTranscriptionLLMClient(
-    options.llmProvider,
-    options.llmApiKey,
-    options.llmBaseUrl
-  );
-  if (!client) {
-    throw new Error("无法创建 LLM 客户端，请检查转录优化配置");
-  }
-
   const joined = options.segments.map(segment => segment.text).join("\n");
-  const completion = await client.chat.completions.create({
-    model: options.llmModel,
+  const result = await options.complete({
+    providerId: options.llm.providerId,
+    modelId: options.llm.modelId,
+    system: OPTIMIZATION_SYSTEM_PROMPT,
     messages: [
-      { role: "system", content: OPTIMIZATION_SYSTEM_PROMPT },
       {
         role: "user",
         content: `语言: ${options.language || "zh"}\n\n转录文本:\n${joined}`,
       },
     ],
+    source: { feature: options.feature },
   });
-
-  const markdown = completion.choices[0]?.message?.content;
-  if (!markdown) {
-    throw new Error("LLM 返回内容为空");
-  }
-  return markdown;
+  if (!result.ok) throw new Error(result.error ?? "模型请求失败");
+  if (!result.text) throw new Error("LLM 返回内容为空");
+  return result.text;
 }

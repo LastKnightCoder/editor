@@ -91,6 +91,18 @@ describe("createStreamUsageTracker", () => {
     expect(records[0]).toMatchObject({ status: "aborted", outputTokens: 7, costSource: "none" });
   });
 
+  it("模型有自定义单价时费用来源记为 custom", () => {
+    const records: UsageRecordInput[] = [];
+    const tracker = createStreamUsageTracker(
+      { ...context, customCost: true },
+      r => records.push(r),
+      clock([0, 10])
+    );
+    tracker.observe({ type: "done", reason: "stop", message: message() });
+    tracker.finish({ aborted: false });
+    expect(records[0].costSource).toBe("custom");
+  });
+
   it("流内 error 事件：取错误消息", () => {
     const records: UsageRecordInput[] = [];
     const tracker = createStreamUsageTracker(context, r => records.push(r), clock([0, 10]));
