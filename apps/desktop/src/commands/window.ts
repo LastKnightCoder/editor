@@ -43,10 +43,6 @@ export const closeEditorWindow = async (target: EditorWindowTarget) => {
   return platform.window.closeEditorWindow(target);
 };
 
-export const openPomodoroWindow = async () => {
-  return platform.window.openPomodoroWindow();
-};
-
 export const openPomodoroMiniWindow = async () => {
   return platform.window.openPomodoroMiniWindow();
 };

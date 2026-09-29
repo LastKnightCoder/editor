@@ -1,8 +1,3 @@
-export interface WeReadCookie {
-  name: string;
-  value: string;
-}
-
 export type WeReadSessionStatus = "unknown" | "checking" | "valid" | "invalid";
 
 export interface HighlightResponse {
@@ -311,16 +306,6 @@ export interface ChapterHighlightReview {
   isMPChapter: number;
   highlights?: Highlight[];
   chapterReviews?: Review[];
-}
-
-export interface DailyNoteReference {
-  metaData: Metadata;
-  refBlocks: RefBlockDetail[];
-}
-
-export interface RefBlockDetail {
-  refBlockId: string;
-  createTime: number;
 }
 
 export interface AnnotationFile {

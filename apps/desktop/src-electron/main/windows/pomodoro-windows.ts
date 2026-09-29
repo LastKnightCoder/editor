@@ -4,14 +4,8 @@ import { isAppQuitting } from "../app-quit-controller";
 import { createWindow, revealWindow } from "./create-window";
 
 /**
- * 番茄钟窗口：
- * - 专注页：普通窗口，可多开
- * - 小窗 / 沉浸：常驻单例，启动时隐藏创建，关闭即隐藏复用（退出时才真正销毁）
+ * 番茄钟窗口：小窗 / 沉浸为常驻单例，启动时隐藏创建，关闭即隐藏复用（退出时才真正销毁）
  */
-
-export function createPomodoroWindow() {
-  return createWindow({ route: "/pomodoro", width: 800, height: 600 });
-}
 
 /** 隐藏复用的单例：被销毁（崩溃 / 意外关闭）时下次 show 重建 */
 function singleton(name: string, create: () => BrowserWindow) {

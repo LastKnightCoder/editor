@@ -4,7 +4,6 @@ import { closeEditorWindow, openEditorWindow } from "./editor-window";
 import { refreshMainWindowMinSize, showOrCreateMainWindow } from "./main-window";
 import { openMarkdownWindow } from "./markdown-window";
 import {
-  createPomodoroWindow,
   hidePomodoroImmersiveWindow,
   hidePomodoroMiniWindow,
   showPomodoroImmersiveWindow,
@@ -51,7 +50,6 @@ export function registerWindowIpc() {
     closeEditorWindow(target)
   );
   ipcMain.handle("open-markdown-window", (_event, path?: string) => openMarkdownWindow(path));
-  ipcMain.handle("open-pomodoro-window", () => void createPomodoroWindow());
   ipcMain.handle("open-pomodoro-mini-window", () => showPomodoroMiniWindow());
   ipcMain.handle("hide-pomodoro-mini-window", () => hidePomodoroMiniWindow());
   ipcMain.handle("open-pomodoro-immersive-window", () => showPomodoroImmersiveWindow());

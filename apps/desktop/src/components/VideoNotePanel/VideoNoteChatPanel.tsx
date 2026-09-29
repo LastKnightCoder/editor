@@ -3,19 +3,17 @@ import { Loading, cn, toast } from "@tau/ui";
 import { useMemoizedFn } from "ahooks";
 import "katex/dist/katex.min.css";
 import type { EditTextHandle } from "@/components/EditText";
-import ChatDropdownSelector from "@/layouts/ContentLayout/components/RightChatSidebar/ChatDropdownSelector";
+import ChatDropdownSelector from "@/components/ChatDropdownSelector";
 import useTheme from "@/hooks/useTheme";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import { useScopedChat } from "@/hooks/useScopedChat";
-import { MarkdownProvider } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
+import { MarkdownProvider } from "@/components/ChatSidebar/MarkdownContext";
 import { useChatMarkdownComponents } from "@/components/ChatUI";
-import type { ChatContainerHandle } from "@/layouts/ContentLayout/components/ChatSidebar/ChatContainer";
+import type { ChatContainerHandle } from "@/components/ChatSidebar/ChatContainer";
 import { buildVideoNoteSystemPrompt } from "@/tools/videoNoteSearchTool";
 import { useVideoNoteChat } from "./useVideoNoteChat";
 
-const ChatContainer = lazy(
-  () => import("@/layouts/ContentLayout/components/ChatSidebar/ChatContainer")
-);
+const ChatContainer = lazy(() => import("@/components/ChatSidebar/ChatContainer"));
 
 interface VideoNoteChatPanelProps {
   videoNoteId: number;

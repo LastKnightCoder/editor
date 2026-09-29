@@ -10,14 +10,13 @@ import {
   upsertActiveEditingSession,
 } from "@/services/content-editing";
 import type { EntityType } from "@/services/content-editing";
-import type { TabType } from "@/types/tab";
 
 /** 编辑会话的宿主定位——legacy 多 tab 语境由调用方传自己的 tab 信息；
  *  无 tab 语境（新壳层页面）省略，会话的可选定位字段为空 */
 export interface ActiveEditingHost {
   tabId?: string;
   paneId?: string;
-  tabType?: TabType;
+  tabType?: string;
 }
 
 interface UseRegisterActiveEditingContextOptions {

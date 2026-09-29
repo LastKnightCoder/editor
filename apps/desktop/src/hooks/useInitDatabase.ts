@@ -3,10 +3,7 @@ import { App } from "antd";
 import { useMemoizedFn } from "ahooks";
 
 import { connectDatabaseByName } from "@/commands";
-import { invoke } from "@/electron";
 import useSettingStore from "@/stores/useSettingStore";
-import { migrateKnowledgeTabs } from "@/stores/useTabStore";
-import type { KnowledgeMapping } from "@tau/db-schema/src/knowledge-references";
 import useGlobalStateStore, { DatabaseConnectionStatus } from "@/stores/useGlobalStateStore";
 
 const useInitDatabase = () => {
@@ -41,9 +38,6 @@ const useInitDatabase = () => {
     handleDatabaseStatus(active, "connecting");
     connectDatabaseByName(active)
       .then(async () => {
-        // 旧知识库 Tab 的迁移与壳层 databaseReady 同源：无映射时同样降级，避免渲染成未知页面类型
-        const mapping = await invoke<KnowledgeMapping | null>("get-project-migration-map");
-        migrateKnowledgeTabs(mapping);
         message.destroy("initDatabase");
         handleDatabaseStatus(active, "ready");
       })

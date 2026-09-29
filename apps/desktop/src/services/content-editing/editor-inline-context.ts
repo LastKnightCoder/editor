@@ -1,5 +1,4 @@
 import { Editor, Range } from "slate";
-import { TabType } from "@/types/tab";
 import { getActiveEditingSessionByContentId } from "./active-editor-session";
 import { resolveLocatorToRange } from "./locator";
 import { loadSnapshotForContent, resolveContentTarget } from "./resolver";
@@ -46,7 +45,7 @@ export interface InlineEditorContext {
   contentId: number | null;
   entityType?: EntityType;
   entityId?: number;
-  tabType?: TabType;
+  tabType?: string;
   tabId?: string;
   paneId?: string;
   targetSource?: "explicit" | "active-session" | "active-tab";
@@ -71,9 +70,7 @@ const DEFAULT_BUILD_OPTIONS: Required<InlineContextBuildOptions> = {
   contextWindow: 180,
 };
 
-const toSerializedSelection = (
-  selection: Range | null,
-): SerializedSelection | null => {
+const toSerializedSelection = (selection: Range | null): SerializedSelection | null => {
   if (!selection) return null;
   return {
     anchor: {
@@ -88,8 +85,7 @@ const toSerializedSelection = (
   };
 };
 
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(Math.max(value, min), max);
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
 export const buildInlineDocumentSegment = (payload: {
   markdown: string;
@@ -116,7 +112,7 @@ export const buildInlineDocumentSegment = (payload: {
   const focusStart = clamp(
     center - Math.floor(options.focusWindow / 2),
     0,
-    Math.max(0, length - options.focusWindow),
+    Math.max(0, length - options.focusWindow)
   );
   const focusEnd = clamp(focusStart + options.focusWindow, 0, length);
 
@@ -157,7 +153,7 @@ export const buildInlineEditorContextFromSnapshot = (payload: {
     contentId: number;
     entityType?: EntityType;
     entityId?: number;
-    tabType?: TabType;
+    tabType?: string;
     tabId?: string;
     paneId?: string;
     source: "explicit" | "active-session" | "active-tab";
@@ -200,16 +196,13 @@ export const buildInlineEditorContextFromSnapshot = (payload: {
   const selectionBefore = selectedRange
     ? snapshot.markdown.slice(
         Math.max(0, selectedRange.start - options.contextWindow),
-        selectedRange.start,
+        selectedRange.start
       )
     : "";
   const selectionAfter = selectedRange
     ? snapshot.markdown.slice(
         selectedRange.end,
-        Math.min(
-          snapshot.markdown.length,
-          selectedRange.end + options.contextWindow,
-        ),
+        Math.min(snapshot.markdown.length, selectedRange.end + options.contextWindow)
       )
     : "";
   const currentBlockMarkdown = currentBlockRange
@@ -236,14 +229,8 @@ export const buildInlineEditorContextFromSnapshot = (payload: {
           },
           startOffset: selectedRange.start,
           endOffset: selectedRange.end,
-          startPoint: offsetToMarkdownPoint(
-            selectedRange.start,
-            snapshot.lineOffsets,
-          ),
-          endPoint: offsetToMarkdownPoint(
-            selectedRange.end,
-            snapshot.lineOffsets,
-          ),
+          startPoint: offsetToMarkdownPoint(selectedRange.start, snapshot.lineOffsets),
+          endPoint: offsetToMarkdownPoint(selectedRange.end, snapshot.lineOffsets),
         }
       : null;
 
@@ -272,7 +259,7 @@ export const buildInlineEditorContextFromSnapshot = (payload: {
 export const buildInlineEditorContext = async (
   editor: Editor,
   options?: InlineContextBuildOptions,
-  selectionOverride?: SerializedSelection | null,
+  selectionOverride?: SerializedSelection | null
 ): Promise<InlineEditorContext> => {
   const target = await resolveContentTarget();
   const { snapshot, source } = await loadSnapshotForContent(target.contentId);
@@ -295,7 +282,7 @@ export const buildInlineEditorContext = async (
 
 export const buildInlineContextPrompt = (
   context: InlineEditorContext,
-  instruction: string,
+  instruction: string
 ): string => {
   const metadata = {
     contentId: context.contentId,

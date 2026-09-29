@@ -1,49 +1,76 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resolveContentTarget } from "../resolver";
+import {
+  upsertActiveEditingSession,
+  removeActiveEditingSession,
+  setActiveEditingSessionFocus,
+} from "../active-editor-session";
 
-const mocks = vi.hoisted(() => ({
-  active: vi.fn(),
-  card: vi.fn(),
-  article: vi.fn(),
-  project: vi.fn(),
-}));
-vi.mock("@/mcp/tab-content/utils", () => ({ getActiveTab: mocks.active }));
-vi.mock("@/commands/card", () => ({ getCardById: mocks.card }));
-vi.mock("@/commands/article", () => ({ findOneArticle: mocks.article }));
-vi.mock("@/commands/project", () => ({ getProjectItemById: mocks.project }));
 vi.mock("@/commands/content", () => ({ getContentById: vi.fn() }));
 
-beforeEach(() => vi.clearAllMocks());
+const sessions = new Set<string>();
+afterEachCleanup();
 
-describe("Page 编辑目标解析", () => {
-  it("显式 contentId 不依赖当前页面", async () => {
+function afterEachCleanup() {
+  beforeEach(() => {
+    for (const id of sessions) removeActiveEditingSession(id);
+    sessions.clear();
+  });
+}
+
+function registerSession(payload: {
+  contentId: number;
+  entityType: "card" | "article" | "project-item";
+  entityId: number;
+  focused?: boolean;
+}) {
+  const sessionId = `test_${payload.entityId}`;
+  upsertActiveEditingSession({
+    sessionId,
+    contentId: payload.contentId,
+    entityType: payload.entityType,
+    entityId: payload.entityId,
+    content: [],
+  });
+  sessions.add(sessionId);
+  if (payload.focused) setActiveEditingSessionFocus(sessionId, true);
+  return sessionId;
+}
+
+describe("编辑目标解析", () => {
+  it("显式 contentId 不依赖激活会话", async () => {
     expect(await resolveContentTarget({ contentId: 8 })).toEqual({
       contentId: 8,
       source: "explicit",
     });
-    expect(mocks.active).not.toHaveBeenCalled();
   });
-  it("使用当前项目页的 itemId，不使用项目 ID 读取正文", async () => {
-    mocks.active.mockReturnValue({
-      paneId: "page-stack",
-      tab: { id: "entry", type: "project-detail", params: { id: 7, itemId: 12 } },
+
+  it("无显式 contentId 时回退到焦点的编辑会话", async () => {
+    const focused = registerSession({
+      contentId: 101,
+      entityType: "project-item",
+      entityId: 12,
+      focused: true,
     });
-    mocks.project.mockResolvedValue({ id: 12, contentId: 101 });
+    registerSession({ contentId: 202, entityType: "card", entityId: 33 });
     expect(await resolveContentTarget()).toMatchObject({
       contentId: 101,
-      entityId: 12,
       entityType: "project-item",
+      entityId: 12,
+      sessionId: focused,
+      source: "active-session",
     });
-    expect(mocks.project).toHaveBeenCalledWith(12);
   });
-  it("项目概览和非编辑页面拒绝推测编辑目标", async () => {
-    mocks.active.mockReturnValue({
-      paneId: "page-stack",
-      tab: { type: "project-detail", params: { id: 7 } },
+
+  it("无焦点会话时回退到最近更新的会话", async () => {
+    registerSession({ contentId: 202, entityType: "card", entityId: 33 });
+    expect(await resolveContentTarget()).toMatchObject({
+      contentId: 202,
+      source: "active-session",
     });
-    await expect(resolveContentTarget()).rejects.toThrow("项目总览");
-    mocks.active.mockReturnValue({ paneId: "page-stack", tab: { type: "home", params: {} } });
-    await expect(resolveContentTarget()).rejects.toThrow("暂不支持编辑");
-    expect(mocks.project).not.toHaveBeenCalled();
+  });
+
+  it("没有激活编辑会话时明确报错", async () => {
+    await expect(resolveContentTarget()).rejects.toThrow("TARGET_NOT_FOUND");
   });
 });

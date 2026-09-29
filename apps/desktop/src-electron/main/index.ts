@@ -10,9 +10,7 @@ import { createReadStream, existsSync, statSync } from "node:fs";
 import log from "electron-log";
 import {
   createMainWindow,
-  createPomodoroWindow,
   createQuickCardWindow,
-  createTodoWindow,
   initWindows,
   openEditorWindow,
   openMarkdownWindow,
@@ -633,14 +631,6 @@ function handleWindowType(windowType: string) {
     case "main":
       log.info("打开主窗口");
       showOrCreateMainWindow();
-      break;
-    case "todo":
-      log.info("打开任务清单窗口");
-      createTodoWindow();
-      break;
-    case "pomodoro":
-      log.info("打开番茄专注窗口");
-      createPomodoroWindow();
       break;
     default:
       log.warn(`未知的窗口类型: ${windowType}`);

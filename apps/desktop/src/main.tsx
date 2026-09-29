@@ -18,7 +18,6 @@ import "./main.less";
 import App from "@/App.tsx";
 import { initializeTooling } from "@/tools";
 import { initToolCallRenderers } from "@/tool-call-renderers";
-import { initializeTabContentProviders } from "@/mcp/tab-content/providers";
 import { useContentEditReviewSessionStore } from "@/services/content-editing";
 import { queryClient } from "./queryClient";
 
@@ -26,7 +25,6 @@ dayjs.locale("zh-cn");
 useBackendWebsocketStore.getState().initClient();
 initializeTooling();
 initToolCallRenderers();
-initializeTabContentProviders();
 
 // 清理刷新前遗留的 pending 会话（这些会话的 resolver 已丢失）
 useContentEditReviewSessionStore.getState().cleanupStalePendingSessions();

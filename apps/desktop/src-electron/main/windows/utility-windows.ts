@@ -1,10 +1,6 @@
 import { createWindow } from "./create-window";
 
-/** 零散的工具窗口：待办、快捷卡片、背景音（隐藏播放器） */
-
-export function createTodoWindow() {
-  return createWindow({ route: "/todo", width: 800, height: 600 });
-}
+/** 零散的工具窗口：快捷卡片、背景音（隐藏播放器） */
 
 export function createQuickCardWindow() {
   return createWindow({

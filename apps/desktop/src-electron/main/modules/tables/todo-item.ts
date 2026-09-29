@@ -5,7 +5,6 @@ import {
   UpdateTodoItem,
   MoveAndReorderPayload,
   TodoItemType,
-  WorkbenchTodoPreviewResponse,
 } from "@/types";
 import ContentTable from "./content";
 import TodoCalendarSyncTable from "./todo-calendar-sync";
@@ -136,7 +135,6 @@ export default class TodoItemTable {
       "todo:archive-item": this.archiveItem.bind(this),
       "todo:delete-item": this.deleteItem.bind(this),
       "todo:delete-item-cascade": this.deleteItemCascade.bind(this),
-      "workbench:list-todo-preview": this.listWorkbenchPreview.bind(this),
     } as const;
   }
 
@@ -221,136 +219,6 @@ export default class TodoItemTable {
     const stmt = db.prepare(sql);
     const rows = params.type === "all" ? stmt.all() : stmt.all(params.type);
     return (rows as any[]).map(this.parse);
-  }
-
-  static listWorkbenchPreview(
-    db: Database.Database,
-    payload: {
-      groupId?: number | null;
-      status?: "pending" | "completed" | "all";
-      limit?: number;
-      cursor?: number | null;
-    } = {}
-  ): WorkbenchTodoPreviewResponse {
-    const limit = Math.min(Math.max(payload.limit ?? 10, 1), 50);
-    const offset = Math.max(payload.cursor ?? 0, 0);
-    const status = payload.status ?? "pending";
-    const now = Date.now();
-
-    const conditions = ["ti.is_archived = 0"];
-    const params: unknown[] = [];
-
-    if (payload.groupId != null) {
-      conditions.push("ti.group_id = ?");
-      params.push(payload.groupId);
-    }
-    if (status === "pending") {
-      conditions.push("ti.is_completed = 0");
-    } else if (status === "completed") {
-      conditions.push("ti.is_completed = 1");
-    }
-
-    const where = `WHERE ${conditions.join(" AND ")}`;
-    const countRow = db
-      .prepare(
-        `SELECT COUNT(*) as total
-         FROM todo_item ti
-         ${where}`
-      )
-      .get(...params) as { total: number };
-
-    const rows = db
-      .prepare(
-        `SELECT ti.*, c.content as content_content
-         FROM todo_item ti
-         LEFT JOIN contents c ON ti.description_content_id = c.id
-         ${where}
-         ORDER BY
-           CASE WHEN ti.is_completed = 0 AND ti.due_at IS NOT NULL AND ti.due_at < ? THEN 0 ELSE 1 END,
-           ti.due_at IS NULL,
-           ti.due_at ASC,
-           ti.update_time DESC,
-           ti.id DESC
-         LIMIT ? OFFSET ?`
-      )
-      .all(...params, now, limit + 1, offset) as any[];
-    const pageRows = rows.slice(0, limit);
-    const rowMap = new Map<number, any>();
-    pageRows.forEach(row => rowMap.set(row.id, row));
-    const ancestorStmt = db.prepare(
-      `SELECT ti.*, c.content as content_content
-       FROM todo_item ti
-       LEFT JOIN contents c ON ti.description_content_id = c.id
-       WHERE ti.id = ? AND ti.is_archived = 0`
-    );
-    for (const row of pageRows) {
-      let parentId = row.parent_id as number | null;
-      while (parentId != null && !rowMap.has(parentId)) {
-        const parent = ancestorStmt.get(parentId) as any | undefined;
-        if (!parent) break;
-        rowMap.set(parent.id, parent);
-        parentId = parent.parent_id;
-      }
-    }
-    const pageItems = Array.from(rowMap.values()).sort((left, right) => {
-      if ((left.parent_id ?? 0) !== (right.parent_id ?? 0)) {
-        return (left.parent_id ?? 0) - (right.parent_id ?? 0);
-      }
-      if (left.sort_index !== right.sort_index) {
-        return left.sort_index - right.sort_index;
-      }
-      return left.id - right.id;
-    });
-
-    const groupRows = db
-      .prepare(
-        `SELECT
-           tg.*,
-           COUNT(ti.id) as total,
-           SUM(CASE WHEN ti.is_completed = 0 THEN 1 ELSE 0 END) as pending,
-           SUM(CASE WHEN ti.is_completed = 0 AND ti.due_at IS NOT NULL AND ti.due_at < ? THEN 1 ELSE 0 END) as overdue
-         FROM todo_group tg
-         LEFT JOIN todo_item ti ON ti.group_id = tg.id AND ti.is_archived = 0
-         WHERE tg.is_archived = 0 AND tg.is_system = 0
-         GROUP BY tg.id
-         HAVING pending > 0
-         ORDER BY overdue DESC, pending DESC, tg.sort_index ASC`
-      )
-      .all(now) as any[];
-
-    const summary = db
-      .prepare(
-        `SELECT
-           SUM(CASE WHEN is_completed = 0 THEN 1 ELSE 0 END) as pendingTotal,
-           SUM(CASE WHEN is_completed = 0 AND due_at IS NOT NULL AND due_at < ? THEN 1 ELSE 0 END) as overdueTotal
-         FROM todo_item
-         WHERE is_archived = 0`
-      )
-      .get(now) as { pendingTotal: number | null; overdueTotal: number | null };
-
-    return {
-      items: pageItems.map(this.parse),
-      groups: groupRows.map(row => ({
-        group: {
-          id: row.id,
-          title: row.title,
-          color: row.color ?? undefined,
-          sortIndex: row.sort_index,
-          isArchived: Boolean(row.is_archived),
-          isSystem: Boolean(row.is_system),
-          systemType: row.system_type ?? null,
-          createTime: row.create_time,
-          updateTime: row.update_time,
-        },
-        total: Number(row.total || 0),
-        pending: Number(row.pending || 0),
-        overdue: Number(row.overdue || 0),
-      })),
-      nextCursor: rows.length > limit ? offset + limit : null,
-      total: Number(countRow.total || 0),
-      pendingTotal: Number(summary.pendingTotal || 0),
-      overdueTotal: Number(summary.overdueTotal || 0),
-    };
   }
 
   static getMaxSortIndexInParent(

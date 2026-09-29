@@ -15,9 +15,9 @@ import { useMemoizedFn } from "ahooks";
 import "katex/dist/katex.min.css";
 
 import type { EditTextHandle } from "@/components/EditText";
-import type { ChatContainerHandle } from "@/layouts/ContentLayout/components/ChatSidebar/ChatContainer";
-import ChatDropdownSelector from "@/layouts/ContentLayout/components/RightChatSidebar/ChatDropdownSelector";
-import { MarkdownProvider } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
+import type { ChatContainerHandle } from "@/components/ChatSidebar/ChatContainer";
+import ChatDropdownSelector from "@/components/ChatDropdownSelector";
+import { MarkdownProvider } from "@/components/ChatSidebar/MarkdownContext";
 import { useChatMarkdownComponents } from "@/components/ChatUI";
 import { Loading, Spinner, Tooltip, toast } from "@tau/ui";
 import useTheme from "@/hooks/useTheme";
@@ -29,9 +29,7 @@ import { remoteResourceToLocal } from "@/utils";
 import usePdfChat from "./usePdfChat";
 import { buildPdfCitationMarkerLabel, type PdfCitationTarget } from "@/utils/pdfCitation";
 
-const ChatContainer = lazy(
-  () => import("@/layouts/ContentLayout/components/ChatSidebar/ChatContainer")
-);
+const ChatContainer = lazy(() => import("@/components/ChatSidebar/ChatContainer"));
 
 const extractTextFromReactNode = (node: React.ReactNode): string => {
   if (node == null || typeof node === "boolean") {

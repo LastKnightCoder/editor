@@ -3,9 +3,9 @@ import { Ban, Check, CircleAlert, Clock, X } from "lucide-react";
 import { Button, Dialog, Spinner, cn } from "@tau/ui";
 import type { ToolCallExecutionState } from "@/types";
 import { ReasoningBlock } from "@/components/ChatUI";
-import ToolCallDisplay from "@/layouts/ContentLayout/components/ChatSidebar/MessageItem/ToolCallDisplay";
-import MarkdownRenderer from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownRenderer";
-import { MarkdownProvider } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
+import ToolCallDisplay from "@/components/ChatSidebar/MessageItem/ToolCallDisplay";
+import MarkdownRenderer from "@/components/ChatSidebar/MarkdownRenderer";
+import { MarkdownProvider } from "@/components/ChatSidebar/MarkdownContext";
 import {
   SUBAGENT_RESEARCH_RENDERER_KEY,
   type SubAgentResearchPayload,

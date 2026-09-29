@@ -1,10 +1,8 @@
-import { getActiveTab } from "@/mcp/tab-content/utils";
-import { TabType } from "@/types/tab";
-import { getCardById } from "@/commands/card";
-import { findOneArticle } from "@/commands/article";
-import { getProjectItemById } from "@/commands/project";
 import { getContentById } from "@/commands/content";
-import { getActiveEditingSessionByContentId } from "./active-editor-session";
+import {
+  getAllActiveEditingSessions,
+  getActiveEditingSessionByContentId,
+} from "./active-editor-session";
 import { createContentSnapshot } from "./snapshot";
 import { putSnapshot } from "./snapshot-store";
 import type { ContentSnapshot, ResolvedContentTarget } from "./types";
@@ -26,68 +24,24 @@ export const resolveContentTarget = async (
 
   if (scope?.databaseName && scope.databaseName.replace(/\.db$/, "") !== getChatDatabase())
     throw new Error("会话所属数据库不在当前页面，请指定正文 ID");
-  const commands = bindDatabaseCommands({ getCardById, findOneArticle, getProjectItemById }, scope);
-  const active = getActiveTab();
-  const activeTab = active?.tab;
-  if (!active || !activeTab) {
-    throw new Error("TARGET_NOT_FOUND: 当前没有激活的编辑目标");
+
+  // 无显式 contentId 时回退到焦点的编辑会话（编辑器挂载时注册，见 active-editor-session）
+  const sessions = getAllActiveEditingSessions();
+  const focused =
+    [...sessions].filter(s => s.focused).sort((a, b) => b.focusedAt - a.focusedAt)[0] ??
+    [...sessions].sort((a, b) => b.updatedAt - a.updatedAt)[0];
+  if (!focused) {
+    throw new Error("TARGET_NOT_FOUND: 当前没有激活的编辑目标，请指定正文 ID 或聚焦一个编辑器");
   }
 
-  if (activeTab.type === "card-detail") {
-    const cardId = Number((activeTab.params as { id?: number } | undefined)?.id);
-    if (!cardId) {
-      throw new Error("TARGET_NOT_FOUND: CardDetail 缺少 card id");
-    }
-    const card = await commands.getCardById(cardId);
-    return {
-      contentId: card.contentId,
-      entityType: "card",
-      entityId: card.id,
-      tabId: activeTab.id,
-      paneId: active.paneId,
-      tabType: TabType.CardDetail,
-      source: "active-tab",
-    };
-  }
-
-  if (activeTab.type === "article-detail") {
-    const articleId = Number((activeTab.params as { id?: number } | undefined)?.id);
-    if (!articleId) {
-      throw new Error("TARGET_NOT_FOUND: ArticleDetail 缺少 article id");
-    }
-    const article = await commands.findOneArticle(articleId);
-    return {
-      contentId: article.contentId,
-      entityType: "article",
-      entityId: article.id,
-      tabId: activeTab.id,
-      paneId: active.paneId,
-      tabType: TabType.ArticleDetail,
-      source: "active-tab",
-    };
-  }
-
-  if (activeTab.type === "project-detail") {
-    const itemId = Number((activeTab.params as { itemId?: number } | undefined)?.itemId);
-    if (!itemId) {
-      throw new Error("UNSUPPORTED_TAB: 项目总览没有可编辑 contentId，请进入具体项目项");
-    }
-    const item = await commands.getProjectItemById(itemId);
-    if (!item) {
-      throw new Error(`TARGET_NOT_FOUND: 未找到 project-item ${itemId}`);
-    }
-    return {
-      contentId: item.contentId,
-      entityType: "project-item",
-      entityId: item.id,
-      tabId: activeTab.id,
-      paneId: active.paneId,
-      tabType: TabType.ProjectDetail,
-      source: "active-tab",
-    };
-  }
-
-  throw new Error(`UNSUPPORTED_TAB: 当前 tab 类型 ${activeTab.type} 暂不支持编辑`);
+  return {
+    contentId: focused.contentId,
+    entityType: focused.entityType,
+    entityId: focused.entityId,
+    sessionId: focused.id,
+    tabType: focused.tabType,
+    source: "active-session",
+  };
 };
 
 export const loadSnapshotForContent = async (

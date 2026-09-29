@@ -32,7 +32,6 @@ import {
   SIDEBAR_COLLAPSE_W,
   SIDEBAR_EXPAND_W,
 } from "./shellStore";
-import { ensureLegacyPages } from "@/page/legacy";
 import { ensureDatabaseReady } from "./databaseReady";
 import "./base.css";
 import "../pages";
@@ -48,9 +47,6 @@ const shellRootClass =
 const DevFloatingBall = import.meta.env.DEV
   ? lazy(() => import("@/devtools").then(m => ({ default: m.DevFloatingBall })))
   : null;
-
-// legacy 模块占位注册（真实 page 注册后自动让位）
-ensureLegacyPages();
 
 export default function AppShell() {
   const databaseName = useSettingStore(state => state.setting.database.active);

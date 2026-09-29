@@ -10,9 +10,6 @@ import {
   Review,
   BookReview,
   ChapterHighlightReview,
-  DailyNoteReference,
-  RefBlockDetail,
-  Notebook,
   WeReadNotebookSummary,
 } from "@/types/weread";
 import { md5 } from "./md5";
@@ -38,40 +35,32 @@ export const parseMetadata = (noteBook: WeReadNotebookSummary): Metadata => {
 
 export const parseHighlights = (
   highlightData: HighlightResponse,
-  reviewData: BookReviewResponse,
+  reviewData: BookReviewResponse
 ): Highlight[] => {
   if (!highlightData?.updated || highlightData.updated.length === 0) {
     return [];
   }
 
-  const linkedReviews = reviewData?.reviews?.map((item) => item.review) ?? [];
+  const linkedReviews = reviewData?.reviews?.map(item => item.review) ?? [];
   const chapters = highlightData?.chapters ?? [];
 
-  return highlightData.updated.map((highlight) => {
+  return highlightData.updated.map(highlight => {
     const highlightRange = highlight.range;
     const highlightChapterUid = highlight.chapterUid;
     // 优先使用 range + chapterUid 组合匹配（更精确），其次使用 range 匹配
     const review =
       linkedReviews.find(
-        (reviewItem) =>
-          reviewItem.range === highlightRange &&
-          reviewItem.chapterUid === highlightChapterUid,
-      ) ||
-      linkedReviews.find((reviewItem) => reviewItem.range === highlightRange);
-    const reviewContent = review
-      ? formatReviewContent(review.content)
-      : undefined;
+        reviewItem =>
+          reviewItem.range === highlightRange && reviewItem.chapterUid === highlightChapterUid
+      ) || linkedReviews.find(reviewItem => reviewItem.range === highlightRange);
+    const reviewContent = review ? formatReviewContent(review.content) : undefined;
 
-    const chapterInfo = chapters.find(
-      (chapter) => chapter.chapterUid === highlight.chapterUid,
-    );
+    const chapterInfo = chapters.find(chapter => chapter.chapterUid === highlight.chapterUid);
 
     return {
       bookmarkId: highlight.bookmarkId, // 保持原始格式用于 API 调用
       created: highlight.createTime,
-      createTime: dayjs(highlight.createTime * 1000).format(
-        "YYYY-MM-DD HH:mm:ss",
-      ),
+      createTime: dayjs(highlight.createTime * 1000).format("YYYY-MM-DD HH:mm:ss"),
       chapterUid: highlight.chapterUid,
       chapterIdx: chapterInfo?.chapterIdx ?? highlight.chapterUid,
       chapterTitle: chapterInfo?.title ?? "未知章节",
@@ -80,10 +69,7 @@ export const parseHighlights = (
       style: highlight.style,
       colorStyle: highlight.colorStyle,
       markText: addIndentToParagraphs(highlight.markText),
-      reviewContent:
-        reviewContent !== undefined
-          ? addIndentToParagraphs(reviewContent)
-          : undefined,
+      reviewContent: reviewContent !== undefined ? addIndentToParagraphs(reviewContent) : undefined,
     };
   });
 };
@@ -91,7 +77,7 @@ export const parseHighlights = (
 export const parseArticleHighlightReview = (
   chapters: Chapter[],
   highlights: Highlight[],
-  reviews: Review[] = [],
+  reviews: Review[] = []
 ): ChapterHighlightReview[] => {
   const result: ChapterHighlightReview[] = [];
 
@@ -99,13 +85,13 @@ export const parseArticleHighlightReview = (
   chapters.forEach((chapter, index) => {
     const { refMpReviewId, title } = chapter;
     const chapterHighlights = highlights
-      .filter((highlight) => highlight.refMpReviewId === refMpReviewId)
+      .filter(highlight => highlight.refMpReviewId === refMpReviewId)
       .sort(sortByRange);
 
     let chapterReviews: Review[] | undefined;
     if (chapterHighlights.length > 0 && reviews.length > 0) {
       chapterReviews = reviews
-        .filter((review) => refMpReviewId === review.refMpInfo?.reviewId)
+        .filter(review => refMpReviewId === review.refMpInfo?.reviewId)
         .sort(sortByRange);
     }
 
@@ -128,30 +114,27 @@ export const parseArticleHighlightReview = (
 export const parseChapterHighlightReview = (
   chapters: Chapter[],
   highlights: Highlight[],
-  reviews: Review[] = [],
+  reviews: Review[] = []
 ): ChapterHighlightReview[] => {
   const result: ChapterHighlightReview[] = [];
 
-  chapters.forEach((chapter) => {
+  chapters.forEach(chapter => {
     const { chapterUid, chapterIdx, title } = chapter;
     const chapterHighlights = highlights
-      .filter((highlight) => highlight.chapterUid === chapterUid)
+      .filter(highlight => highlight.chapterUid === chapterUid)
       .sort(sortByRange);
 
     // 获取该章节的评论（独立于高亮）
     const chapterReviews =
       reviews.length > 0
         ? reviews
-            .filter(
-              (review) => review.chapterUid === chapterUid && review.type === 1,
-            )
+            .filter(review => review.chapterUid === chapterUid && review.type === 1)
             .sort(sortByRange)
         : undefined;
 
     // 只添加有高亮或有章节评论的章节，避免产生空章节
     const hasContent =
-      chapterHighlights.length > 0 ||
-      (chapterReviews && chapterReviews.length > 0);
+      chapterHighlights.length > 0 || (chapterReviews && chapterReviews.length > 0);
 
     if (hasContent) {
       result.push({
@@ -171,7 +154,7 @@ export const parseChapterHighlightReview = (
 
 export const parseChapterResp = (
   chapterResp: ChapterResponse | undefined,
-  highlightResp: HighlightResponse,
+  highlightResp: HighlightResponse
 ): Chapter[] => {
   if (!chapterResp) {
     return [];
@@ -187,7 +170,7 @@ export const parseChapterResp = (
   }
 
   if (highlightResp.refMpInfos?.length) {
-    return highlightResp.refMpInfos.map((mpInfo) => ({
+    return highlightResp.refMpInfos.map(mpInfo => ({
       refMpReviewId: mpInfo.reviewId,
       updateTime: mpInfo.createTime,
       title: mpInfo.title,
@@ -199,41 +182,9 @@ export const parseChapterResp = (
   return [];
 };
 
-export const parseDailyNoteReferences = (
-  notebooks: Notebook[],
-  currentDate = dayjs(),
-): DailyNoteReference[] => {
-  const today = currentDate.format("YYYYMMDD");
-  const references: DailyNoteReference[] = [];
-
-  notebooks.forEach((notebook) => {
-    const todaysHighlights =
-      notebook.chapterHighlights
-        .flatMap((chapter) => chapter.highlights ?? [])
-        .filter((highlight) => {
-          const created = dayjs(highlight.created * 1000).format("YYYYMMDD");
-          return created === today;
-        }) ?? [];
-
-    if (todaysHighlights.length > 0) {
-      const refBlocks: RefBlockDetail[] = todaysHighlights.map((highlight) => ({
-        refBlockId: highlight.bookmarkId,
-        createTime: highlight.created,
-      }));
-
-      references.push({
-        metaData: notebook.metaData,
-        refBlocks,
-      });
-    }
-  });
-
-  return references;
-};
-
 export const parseReviews = (resp: BookReviewResponse): Review[] => {
   const parsed: Review[] = [];
-  resp.reviews?.forEach((reviewData) => {
+  resp.reviews?.forEach(reviewData => {
     const review = reviewData.review;
     if (!review) {
       return;
@@ -263,14 +214,12 @@ export const parseReviews = (resp: BookReviewResponse): Review[] => {
 
 export const parseChapterReviews = (resp: BookReviewResponse): BookReview => {
   const reviews = parseReviews(resp);
-  const chapterReviews = reviews
-    .filter((review) => review.type === 1)
-    .sort(sortByRange);
+  const chapterReviews = reviews.filter(review => review.type === 1).sort(sortByRange);
 
-  const entireReviews = reviews.filter((review) => review.type === 4);
+  const entireReviews = reviews.filter(review => review.type === 4);
   const chapterMap = new Map<number, ChapterReview>();
 
-  chapterReviews.forEach((review) => {
+  chapterReviews.forEach(review => {
     const chapterUid = review.chapterUid ?? 0;
     if (!chapterMap.has(chapterUid)) {
       chapterMap.set(chapterUid, {
@@ -292,7 +241,7 @@ export const parseChapterReviews = (resp: BookReviewResponse): BookReview => {
   return {
     bookReviews: entireReviews,
     chapterReviews: Array.from(chapterMap.values()).sort(
-      (a, b) => (a.chapterUid ?? 0) - (b.chapterUid ?? 0),
+      (a, b) => (a.chapterUid ?? 0) - (b.chapterUid ?? 0)
     ),
   };
 };
@@ -361,14 +310,9 @@ const getLegacyPcUrl = (bookId: string): string => {
   return `https://weread.qq.com/web/reader/${strSub}`;
 };
 
-export const getBookWebUrl = (
-  bookId: string,
-  title?: string,
-): string | null => {
+export const getBookWebUrl = (bookId: string, title?: string): string | null => {
   if (title?.trim()) {
-    return `https://weread.qq.com/web/search/books?keyword=${encodeURIComponent(
-      title.trim(),
-    )}`;
+    return `https://weread.qq.com/web/search/books?keyword=${encodeURIComponent(title.trim())}`;
   }
   return getLegacyPcUrl(bookId);
 };

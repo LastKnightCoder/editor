@@ -6,7 +6,6 @@ import { PageNavigationBridge } from "@/app/PageNavigationBridge";
 import { definePage } from "@/page/definePage";
 import { paramNumber } from "@/page/core/paramsSchema";
 import { getPageNavigation, openPage } from "../page-navigation";
-import { getActiveTab, getCurrentPanels, getTabContent } from "@/mcp/tab-content/utils";
 
 vi.mock("@/services/aiServer", () => ({ initAiServer: vi.fn(), closeAiServer: vi.fn() }));
 
@@ -49,7 +48,7 @@ describe("服务层 Page 导航", () => {
     expect(() => getPageNavigation()).toThrow("尚未就绪");
   });
 
-  it("拒绝未知页面和错误参数，连续导航与 MCP 当前页面保持一致", async () => {
+  it("拒绝未知页面和错误参数，连续导航与 Page 栈保持一致", () => {
     mount();
     expect(() => openPage("not-registered")).toThrow("尚未实现");
     expect(() => openPage("nav-detail", { id: "wrong" })).toThrow("参数无效");
@@ -57,17 +56,11 @@ describe("服务层 Page 导航", () => {
       openPage("nav-detail", { id: 11 });
       openPage("nav-detail", { id: 12 });
     });
-    expect(getActiveTab()?.tab.params).toEqual({ id: 12 });
-    expect(getCurrentPanels()[0].tabCount).toBe(3);
-    const activeId = getActiveTab()!.tab.id;
-    expect((await getTabContent(activeId))?.metadata).toMatchObject({
-      type: "nav-detail",
-      isActive: true,
-    });
+    const top = () => getPageNavigation().state.back.at(-1)?.params;
+    expect(top()).toEqual({ id: 12 });
     act(() => openPage("nav-detail", { id: 12 }));
-    expect(getCurrentPanels()[0].tabCount).toBe(3);
+    expect(getPageNavigation().state.back).toHaveLength(3);
     act(() => getPageNavigation().navigator.back());
-    expect(getActiveTab()?.tab.params).toEqual({ id: 11 });
-    expect(await getTabContent(activeId)).toBeNull();
+    expect(top()).toEqual({ id: 11 });
   });
 });

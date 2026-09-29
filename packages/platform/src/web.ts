@@ -52,7 +52,6 @@ class WebWindowApi implements WindowApi {
   openMarkdownWindow = unsupported("window.open-markdown");
   openEditorWindow = unsupported("window.open-editor");
   closeEditorWindow = unsupported("window.open-editor");
-  openPomodoroWindow = unsupported("window.pomodoro-main");
   openPomodoroMiniWindow = unsupported("window.pomodoro-mini");
   hidePomodoroMiniWindow = unsupported("window.pomodoro-mini");
   openPomodoroImmersiveWindow = unsupported("window.pomodoro-immersive");

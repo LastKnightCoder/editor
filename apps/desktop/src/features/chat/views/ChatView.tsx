@@ -22,7 +22,7 @@ import ChatArea, { type ChatAreaHandle } from "../components/ChatArea";
 import { parseChatId } from "../model";
 import { ChatLibraryDialog } from "../components/ChatLibraryDialog";
 import { useChatLibraryStore } from "../libraryStore";
-import useRightChatSidebarStore from "@/stores/useRightChatSidebarStore";
+import useChatSessionStore, { MAIN_CHAT_BUCKET } from "@/stores/useChatSessionStore";
 import { useShellStore } from "@/app/shellStore";
 import { ASSIST_MORPH_CLASS, morphAssist } from "@/app/assistMorph";
 
@@ -55,7 +55,7 @@ function ChatPaper() {
   // 回到上一页（对话页常由停靠栏放大而来）；无上一页时落到今日
   const collapseToDock = () =>
     morphAssist(() => {
-      useRightChatSidebarStore.getState().setCurrentChatId(chatId);
+      useChatSessionStore.getState().setCurrent(MAIN_CHAT_BUCKET, chatId);
       useShellStore.getState().setAssistOpen(true);
       if (navigator.canBack()) navigator.back();
       else navigator.push("home");

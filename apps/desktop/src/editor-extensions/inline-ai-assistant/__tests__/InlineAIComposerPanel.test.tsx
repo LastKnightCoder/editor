@@ -40,11 +40,11 @@ vi.mock("@/components/ChatInputArea", () => {
   };
 });
 
-vi.mock("@/layouts/ContentLayout/components/ChatSidebar/MessageItem", () => ({
+vi.mock("@/components/ChatSidebar/MessageItem", () => ({
   default: () => <div data-testid="message-item" />,
 }));
 
-vi.mock("@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext", () => ({
+vi.mock("@/components/ChatSidebar/MarkdownContext", () => ({
   MarkdownProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useMarkdownContext: () => ({
     messageMeta: null,
