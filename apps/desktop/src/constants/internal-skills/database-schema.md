@@ -103,18 +103,21 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ### `pdfs`
 
-| 字段          | SQLite 定义              |
-| ------------- | ------------------------ |
-| `id`          | `INTEGER PRIMARY KEY`    |
-| `create_time` | `INTEGER NOT NULL`       |
-| `update_time` | `INTEGER NOT NULL`       |
-| `tags`        | `TEXT`                   |
-| `content`     | `TEXT`                   |
-| `is_local`    | `INTEGER NOT NULL`       |
-| `category`    | `TEXT DEFAULT 'default'` |
-| `file_name`   | `TEXT`                   |
-| `file_path`   | `TEXT`                   |
-| `remote_url`  | `TEXT`                   |
+| 字段             | SQLite 定义              |
+| ---------------- | ------------------------ |
+| `id`             | `INTEGER PRIMARY KEY`    |
+| `create_time`    | `INTEGER NOT NULL`       |
+| `update_time`    | `INTEGER NOT NULL`       |
+| `tags`           | `TEXT`                   |
+| `content`        | `TEXT`                   |
+| `is_local`       | `INTEGER NOT NULL`       |
+| `category`       | `TEXT DEFAULT 'default'` |
+| `file_name`      | `TEXT`                   |
+| `file_path`      | `TEXT`                   |
+| `remote_url`     | `TEXT`                   |
+| `page_count`     | `INTEGER`                |
+| `last_open_time` | `INTEGER`                |
+| `last_page`      | `INTEGER`                |
 
 ### `pdf_annotations`
 

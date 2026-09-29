@@ -13,6 +13,7 @@ import {
   TextCursorInput,
   LayoutGrid,
   ListChecks,
+  ListFilter,
   LoaderCircle,
   MessageSquare,
   MousePointerClick,
@@ -41,6 +42,7 @@ import CheckboxSection from "./CheckboxSection";
 import SwitchSection from "./SwitchSection";
 import RadioSection from "./RadioSection";
 import SegmentedSection from "./SegmentedSection";
+import FilterPillSection from "./FilterPillSection";
 import DatePickerSection from "./DatePickerSection";
 import MenuSection from "./MenuSection";
 import DialogSection from "./DialogSection";
@@ -103,6 +105,13 @@ export const SECTIONS: SectionMeta[] = [
     group: "基础件",
     icon: Columns3,
     component: SegmentedSection,
+  },
+  {
+    key: "filter-pill",
+    label: "FilterPill",
+    group: "基础件",
+    icon: ListFilter,
+    component: FilterPillSection,
   },
   { key: "tag", label: "Tag", group: "基础件", icon: TagIcon, component: TagSection },
   {

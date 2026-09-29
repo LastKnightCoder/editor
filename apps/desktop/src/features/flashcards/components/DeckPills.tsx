@@ -4,7 +4,7 @@
  */
 
 import type { FlashcardDeck } from "@/types";
-import { ContextMenu, cn } from "@tau/ui";
+import { ContextMenu, FilterPill } from "@tau/ui";
 import { useLayoutEffect, useState, type ReactNode } from "react";
 import { DeckMark } from "./FlashcardBits";
 
@@ -57,59 +57,26 @@ export function DeckPills({
         className="flex min-w-0 items-center gap-1.5 overflow-x-auto py-1"
         style={fadeMask}
       >
-        <Pill
+        <FilterPill
+          variant="raised"
           active={value === null}
           onClick={() => onChange(null)}
           label="今日总览"
-          count={totalDue}
+          count={totalDue || undefined}
         />
         {decks.map(deck => (
           <ContextMenu key={deck.id} content={renderDeckMenu(deck)}>
-            <Pill
+            <FilterPill
+              variant="raised"
               active={value === deck.id}
               onClick={() => onChange(deck.id)}
               label={deck.name}
-              count={dueByDeck.get(deck.id) || null}
+              count={dueByDeck.get(deck.id) || undefined}
               icon={<DeckMark deck={deck} size="xs" className="-ml-1" />}
             />
           </ContextMenu>
         ))}
       </div>
     </div>
-  );
-}
-
-function Pill({
-  active,
-  onClick,
-  label,
-  count,
-  icon,
-}: {
-  active: boolean;
-  onClick(): void;
-  label: string;
-  count: number | null;
-  icon?: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "ease-tau-out flex h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[12px] outline-none transition-[background,color] duration-150 focus-visible:shadow-[var(--tau-focus-ring)]",
-        active
-          ? "bg-selected text-accent-text font-medium"
-          : "bg-surface shadow-card text-ink-2 hover:text-ink-1"
-      )}
-    >
-      {icon}
-      {label}
-      {count != null && count > 0 && (
-        <span className={cn("text-[10.5px] tabular-nums", active ? "opacity-75" : "text-ink-3")}>
-          {count}
-        </span>
-      )}
-    </button>
   );
 }

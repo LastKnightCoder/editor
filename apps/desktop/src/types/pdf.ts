@@ -34,6 +34,22 @@ export interface Pdf {
   fileName: string;
   filePath: string;
   remoteUrl: string;
+  /** 生成缩略图时顺带记录；未打开过的文件为 null */
+  pageCount?: number | null;
+  lastOpenTime?: number | null;
+  /** 上次读到的页（从 1 开始） */
+  lastPage?: number | null;
+}
+
+/** PDF 列表条目：Pdf 行 + 主进程聚合的标注数与缩略图 */
+export interface PdfLibraryItem extends Pdf {
+  annotationCount: number;
+  /** 缩略图绝对路径（位于编辑器目录内，可经 convertFileSrc 显示）；未生成为 null */
+  thumbnailPath: string | null;
+  /** 缩略图文件修改时间，用作显示时的缓存版本 */
+  thumbnailVersion: number | null;
+  /** 本地文件已不在原路径 */
+  fileMissing: boolean;
 }
 
 export interface PdfBookmark {

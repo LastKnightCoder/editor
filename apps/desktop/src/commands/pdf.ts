@@ -12,6 +12,7 @@ import {
   PdfOutlineNode,
   PdfDocumentMap,
   PdfSectionDetail,
+  PdfLibraryItem,
 } from "@/types";
 
 export const createPdf = async (
@@ -34,6 +35,29 @@ export const getPdfList = async (): Promise<Pdf[]> => {
 
 export const removePdf = async (id: number): Promise<number> => {
   return await invoke("delete-pdf", id);
+};
+
+/** 列表页数据：Pdf 行 + 标注数 + 缩略图 */
+export const getPdfLibrary = async (): Promise<PdfLibraryItem[]> => {
+  return await invoke("pdf:library");
+};
+
+/** 记录打开时间（不改 updateTime） */
+export const recordPdfOpen = async (id: number): Promise<void> => {
+  await invoke("pdf:record-open", id);
+};
+
+/** 记录读到的页（从 1 开始，不改 updateTime） */
+export const recordPdfPage = async (id: number, page: number): Promise<void> => {
+  await invoke("pdf:record-page", id, page);
+};
+
+export const savePdfThumbnail = async (
+  id: number,
+  image: Uint8Array,
+  pageCount: number
+): Promise<void> => {
+  await invoke("pdf:save-thumbnail", id, image, pageCount);
 };
 
 export const addPdfAnnotation = async (annotation: CreatePdfAnnotation): Promise<PdfAnnotation> => {
@@ -92,6 +116,14 @@ export const getPdfIndexStatus = async (params: {
   mainDbName: string;
 }): Promise<PdfIndexStatus> => {
   return await invoke("pdf-index:status", params);
+};
+
+/** 批量查询索引状态；没有索引库的 PDF 不在结果里 */
+export const getPdfIndexStatuses = async (params: {
+  pdfIds: number[];
+  mainDbName: string;
+}): Promise<PdfIndexStatus[]> => {
+  return await invoke("pdf-index:status-batch", params);
 };
 
 export const searchPdfContent = async (params: {

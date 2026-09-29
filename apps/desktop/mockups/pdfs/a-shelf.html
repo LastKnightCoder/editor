@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>方案 A · 文档墙（封面 / 列表）</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="../weread/weread.css?v=2" />
+<link rel="stylesheet" href="pdfs.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div class="mock-note">
+  <h3>方案 A · 文档墙 + 列表排布（推荐）</h3>
+  一整张纸：页头「PDF」+ 搜索 + 「添加 PDF」主按钮；工具条左侧来源 chips（全部 / 本地 / 远程），右侧排序与「封面 / 列表」切换；下面是「最近打开」续读行（读到第几页），再往下是全部文档。点文档进详情页（下一步迁移）。
+  <ul>
+    <li>封面用 PDF 第 1 页缩略图；右上角「封面样式」可对照文字封面（不渲染，按文件名派生色块）。</li>
+    <li>列表排布是行式无横线：名称 / 页数 / 标注 / 来源 / AI 检索状态 / 最近打开，列头排序，不做保存视图。</li>
+    <li>顶栏按钮切各形态：空态、加载、无结果、添加对话框、整页拖入、条目菜单、删除确认、导入中。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mockBar, sidebar, titlebar, anno, icons, PDFS, byId, thumb, fmtDate, src, idx, sortPdfs, listHead, listRow, itemMenu, addDialog, delDialog } from "./pdfs.js?v=1";
+
+mockBar(
+  "a-shelf.html",
+  `<span class="seg">${[
+    ["normal", "默认"], ["empty", "空态"], ["loading", "加载"], ["nores", "搜索无结果"], ["add", "添加"], ["drop", "拖入"], ["menu", "条目菜单"], ["del", "删除确认"], ["importing", "导入中"],
+  ].map(([k, l]) => `<button data-m="${k}">${l}</button>`).join("")}</span>
+  <button class="mb-btn" id="mb-cover">封面：首页缩略图</button>`
+);
+
+const win = document.getElementById("win");
+const state = {
+  m: "normal",
+  src: "all",
+  layout: localStorage.getItem("pdf-mock-layout") || "cover",
+  sort: "opened",
+  menu: null,
+  more: null,
+  tab: "local",
+  upload: false,
+  cover: localStorage.getItem("pdf-mock-cover") || "page",
+};
+const SORTS = [["opened", "最近打开"], ["added", "添加时间"], ["name", "名称"], ["annots", "标注数"]];
+
+const menu = (key, items, cur) =>
+  state.menu === key
+    ? `<div class="menu">${items.map(([k, l]) => `<div class="mi ${k === cur ? "on" : ""}" data-pick="${key}:${k}">${l}${k === cur ? '<i data-lucide="check"></i>' : ""}</div>`).join("")}</div>`
+    : "";
+
+function head(q = "") {
+  return `
+    <div class="w-head">
+      <h1>PDF</h1>
+      <span class="sp"></span>
+      <div class="w-search"><i data-lucide="search"></i>${q ? `<span style="color:var(--ink-1)">${q}</span><i data-lucide="x" style="margin-left:auto;width:14px"></i>` : "搜索文件名"}</div>
+      <button class="btn primary" data-add><i data-lucide="plus"></i>添加 PDF</button>
+    </div>`;
+}
+
+function body() {
+  if (state.m === "empty")
+    return `<div class="p-empty">
+      <div class="stack">${thumb({ ...PDFS[0], source: "local" }, "")
+        .replace('class="thumb', 'style="left:0;top:14px;transform:rotate(-8deg)" class="thumb')}${thumb({ ...PDFS[4], source: "local" }).replace('class="thumb', 'style="left:18px;top:0;transform:rotate(5deg)" class="thumb')}</div>
+      <h2>把论文、书和资料放进来</h2>
+      <p>支持本地文件和链接。打开时可以标注、加书签，也能让 AI 按页检索和引用。</p>
+      <div class="acts"><button class="btn primary" data-add><i data-lucide="file-up"></i>选择文件</button><button class="btn line" data-add-remote><i data-lucide="link"></i>添加链接</button></div>
+      <p style="font-size:12px;color:var(--ink-3);margin-top:6px">也可以直接把 PDF 拖到这里</p>
+    </div>`;
+
+  const loading = state.m === "loading";
+  const q = state.m === "nores" ? "量子场论" : "";
+  const list = sortPdfs(PDFS.filter(p => state.src === "all" || p.source === state.src), state.sort);
+  const shown = state.m === "nores" ? [] : list;
+  const recent = sortPdfs(PDFS.filter(p => p.opened && !p.missing), "opened").slice(0, 3);
+  const count = s => (s === "all" ? PDFS.length : PDFS.filter(p => p.source === s).length);
+  const sortLabel = SORTS.find(x => x[0] === state.sort)[1];
+  const moreMenu = p => (state.more === p.id ? itemMenu(p) : "");
+
+  const grid = loading
+    ? `<div class="p-grid">${Array.from({ length: 12 }, () => `<div><div class="skel" style="aspect-ratio:1/1.3"></div><div class="skel" style="height:12px;margin-top:10px;width:80%"></div></div>`).join("")}</div>`
+    : `<div class="p-grid">${shown
+        .map(
+          p => `<div class="p-item" data-pdf="${p.id}">
+            ${thumb(p, "", state.cover)}
+            <button class="ib more ${state.more === p.id ? "on" : ""}" data-more="${p.id}"><i data-lucide="more-horizontal"></i></button>${moreMenu(p)}
+            <div class="t">${p.title}</div>
+            <div class="m">${p.missing ? '<span class="warn">文件丢失 · 重新定位</span>' : `<span class="num">${p.pages} 页</span>${p.annots ? `<span class="num">${p.annots} 标注</span>` : ""}`}</div>
+          </div>`
+        )
+        .join("")}</div>`;
+  const rows = loading
+    ? `<div class="p-list">${Array.from({ length: 8 }, () => `<div class="p-row"><div class="skel" style="height:16px"></div></div>`).join("")}</div>`
+    : `<div class="p-list">${listHead(state.sort)}${shown.map(p => listRow(p) + (state.more === p.id ? `<div class="dd" style="margin-left:auto;width:0">${itemMenu(p).replace('class="menu"', 'class="menu" style="top:-6px;right:12px"')}</div>` : "")).join("")}</div>`;
+
+  return `<div class="p-scroll"><div class="p-wrap">
+    ${head(q)}
+    <p class="w-lead">${loading ? "正在读取…" : `<span class="num">${PDFS.length}</span> 个文件<span class="dotsep">·</span><span class="num">${PDFS.reduce((s, p) => s + p.annots, 0)}</span> 条标注<span class="dotsep">·</span><span class="num">${PDFS.filter(p => p.index === "ok").length}</span> 个可被 AI 检索`}</p>
+    <div class="a-bar">
+      ${[["all", "全部"], ["local", "本地"], ["remote", "远程"]].map(([k, l]) => `<span class="chip ${state.src === k ? "on" : ""}" data-src="${k}">${l}<span class="n num">${count(k)}</span></span>`).join("")}
+      <span class="sp"></span>
+      <div class="dd"><button class="btn" data-menu="sort"><i data-lucide="arrow-down-up"></i>${sortLabel}<i data-lucide="chevron-down" class="cv"></i></button>${menu("sort", SORTS, state.sort)}</div>
+      <div class="lay">
+        <button class="ib ${state.layout === "cover" ? "on" : ""}" data-layout="cover" title="封面"><i data-lucide="layout-grid"></i></button>
+        <button class="ib ${state.layout === "list" ? "on" : ""}" data-layout="list" title="列表"><i data-lucide="list"></i></button>
+      </div>
+    </div>
+    ${
+      !q && !loading && state.src === "all" && state.layout === "cover"
+        ? `<div class="sec-t">最近打开<span class="h">从上次读到的页继续</span></div>
+      <div class="p-recent">${recent
+        .map(
+          p => `<div class="p-rc" data-pdf="${p.id}">${thumb(p, "", state.cover)}
+          <div class="info"><div class="t">${p.title}</div><div class="s">${fmtDate(p.opened)} · ${p.annots} 条标注</div>
+          <div class="pr num">读到第 ${p.at} / ${p.pages} 页</div></div></div>`
+        )
+        .join("")}</div>`
+        : ""
+    }
+    <div class="sec-t">${q ? `搜索「${q}」` : "全部"}<span class="h num">${loading ? "" : `${shown.length} 个 · 按${sortLabel}`}</span></div>
+    ${!loading && !shown.length ? `<div class="a-none">没有文件名包含「${q}」的 PDF<div style="margin-top:6px;font-size:12px">想按内容找？用 AI 对话里的 PDF 检索</div></div>` : state.layout === "list" ? rows : grid}
+  </div></div>`;
+}
+
+function render() {
+  const sc = win.querySelector(".p-scroll");
+  const keepTop = sc ? sc.scrollTop : 0;
+  const del = byId(3);
+  win.innerHTML = `
+    ${sidebar()}
+    <div class="col">
+      ${titlebar("<b>PDF</b>")}
+      <div class="main"><section class="paper p-paper" style="position:relative">
+        ${body()}
+        ${state.m === "drop" ? `<div class="drop"><div><i data-lucide="file-down" style="width:30px;height:30px"></i><br />松开以添加 3 个 PDF<span>复制到工作区 resources；按「添加」对话框里的上传选项决定是否同步上云</span></div></div>` : ""}
+        ${state.m === "importing" ? `<div class="p-toast"><i data-lucide="loader" style="width:15px"></i>正在添加 2 / 3 · 深入理解计算机系统.pdf<div class="bar"><i></i></div></div>` : ""}
+      </section></div>
+    </div>
+    ${state.m === "add" ? addDialog(state.tab, state.upload) : ""}
+    ${state.m === "del" ? delDialog(del) : ""}
+    ${state.m === "normal" ? anno(1, "来源 chips；分类 / 标签暂不做", "left:300px;top:150px") + anno(2, "排序 · 封面 / 列表（本机偏好）", "left:1120px;top:150px") + anno(3, "最近打开：读到第几页（需新增字段）", "left:300px;top:250px") + anno(4, "悬停出「…」菜单", "left:300px;top:470px") : ""}`;
+  icons();
+  const nsc = win.querySelector(".p-scroll");
+  if (nsc) nsc.scrollTop = keepTop;
+  document.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", b.dataset.m === state.m));
+  const on = (sel, fn) => win.querySelectorAll(sel).forEach(el => (el.onclick = e => { e.stopPropagation(); fn(el); render(); }));
+  on("[data-src]", el => (state.src = el.dataset.src));
+  on("[data-layout]", el => { state.layout = el.dataset.layout; localStorage.setItem("pdf-mock-layout", state.layout); });
+  on("[data-sort]", el => (state.sort = el.dataset.sort));
+  on("[data-menu]", el => (state.menu = state.menu === el.dataset.menu ? null : el.dataset.menu));
+  on("[data-pick]", el => { state.sort = el.dataset.pick.split(":")[1]; state.menu = null; });
+  on("[data-more]", el => (state.more = state.more === +el.dataset.more ? null : +el.dataset.more));
+  on("[data-del]", () => { state.m = "del"; state.more = null; });
+  on("[data-add]", () => { state.m = "add"; state.tab = "local"; });
+  on("[data-add-remote]", () => { state.m = "add"; state.tab = "remote"; });
+  on("[data-tab]", el => (state.tab = el.dataset.tab));
+  on("[data-upload]", () => (state.upload = !state.upload));
+  on("[data-close]", () => (state.m = "normal"));
+  on(".scrim", () => (state.m = "normal"));
+}
+win.addEventListener("click", () => { if (state.menu || state.more) { state.menu = null; state.more = null; render(); } });
+document.querySelectorAll(".seg button").forEach(
+  b => (b.onclick = () => { state.m = b.dataset.m; state.more = b.dataset.m === "menu" ? 2 : null; state.menu = null; render(); })
+);
+const coverBtn = document.getElementById("mb-cover");
+const syncCover = () => (coverBtn.textContent = state.cover === "page" ? "封面：首页缩略图" : "封面：文字色块");
+coverBtn.onclick = () => { state.cover = state.cover === "page" ? "text" : "page"; localStorage.setItem("pdf-mock-cover", state.cover); syncCover(); render(); };
+syncCover();
+render();
+</script>
+</body>
+</html>

@@ -18,7 +18,7 @@ import {
   Search,
   SearchX,
 } from "lucide-react";
-import { Button, Input, Loading, Menu, Segmented, cn } from "@tau/ui";
+import { Button, FilterPill, Input, Loading, Menu, Segmented, cn } from "@tau/ui";
 import { FadeScroll } from "@/components/FadeScroll";
 import { usePage } from "@/page/PageProvider";
 import { useSettingsStore } from "@/app/settingsStore";
@@ -47,7 +47,6 @@ import {
 import { useWeReadPrefs } from "../prefs";
 import { ConnectPanel } from "../components/ConnectPanel";
 import { CoverTile, ReadingCard, ShelfList } from "../components/ShelfItems";
-import { Pill } from "../components/bits";
 
 export function WeReadView() {
   const { navigator } = usePage();
@@ -213,14 +212,14 @@ export function WeReadView() {
             <div className="mt-2 flex h-10 flex-none items-center gap-1.5">
               {/* w-0 + flex-1：分类再多也只在自身范围内横向滚动，不撑宽页面 */}
               <div className="flex w-0 flex-1 items-center gap-1.5 overflow-x-auto py-1 pr-6 [mask-image:linear-gradient(90deg,#000_calc(100%-28px),transparent)]">
-                <Pill
+                <FilterPill
                   active={!activeArchive}
                   onClick={() => setArchive("")}
                   label="全部"
                   count={books.length}
                 />
                 {archives.map(a => (
-                  <Pill
+                  <FilterPill
                     key={a.name}
                     active={activeArchive === a.name}
                     onClick={() => setArchive(a.name)}

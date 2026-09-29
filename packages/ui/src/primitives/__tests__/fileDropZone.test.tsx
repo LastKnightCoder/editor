@@ -1,5 +1,5 @@
 /**
- * FileDropZone 单测：拖入取第一个文件并高亮 · 点击 / 回车打开文件选择 · 选择后清空 input 以便重选同一文件 · disabled 全拦。
+ * FileDropZone 单测：拖入取第一个文件并高亮 · onFiles 多选取全部 · 点击 / 回车打开文件选择 · 选择后清空 input 以便重选同一文件 · disabled 全拦。
  */
 
 import { act } from "react";
@@ -47,6 +47,15 @@ describe("FileDropZone", () => {
     expect(onFile).toHaveBeenCalledTimes(1);
     expect(onFile.mock.calls[0][0].name).toBe("a.png");
     expect(zone.className).not.toContain("bg-accent-soft");
+  });
+
+  it("onFiles：放下取全部文件，文件框开启多选", () => {
+    const onFiles = vi.fn();
+    const zone = render(<FileDropZone onFiles={onFiles}>拖到这里</FileDropZone>);
+    expect(container!.querySelector<HTMLInputElement>('input[type="file"]')!.multiple).toBe(true);
+    act(() => void zone.dispatchEvent(dragEvent("drop", [file("a.png"), file("b.png")])));
+    expect(onFiles).toHaveBeenCalledTimes(1);
+    expect(onFiles.mock.calls[0][0].map((f: File) => f.name)).toEqual(["a.png", "b.png"]);
   });
 
   it("点击与回车打开文件选择；选择后清空 input，可重选同一文件", () => {
