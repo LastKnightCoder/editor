@@ -1,6 +1,6 @@
 import { Editor, Transforms, Element as SlateElement } from "slate";
 import { v4 as uuidv4 } from "uuid";
-import { message } from "antd";
+import { notifierOf } from "../../../services/editorNotifier";
 import { insertImage } from "../../../utils";
 import { IResourceService } from "../../../services";
 
@@ -67,11 +67,11 @@ export const dropImage = (editor: Editor) => {
 
       if (!updated) {
         console.error("无法找到UUID为", uuid, "的图片节点");
-        message.error("图片更新失败");
+        notifierOf(editor).error("图片更新失败");
       }
     } catch (error) {
       console.error("图片上传失败:", error);
-      message.error("图片上传失败");
+      notifierOf(editor).error("图片上传失败");
 
       // 使用 UUID 查找并标记上传失败
       updateImageByUuid(editor, uuid, {

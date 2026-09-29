@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useReadOnly, useSlateStatic } from "slate-react";
-import { App } from "antd";
+import { useNotifier } from "../../../../services/hooks";
 import isHotkey from "is-hotkey";
 import classnames from "classnames";
 import { useMemoizedFn } from "ahooks";
@@ -89,7 +89,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
   const slateEditor = useSlateStatic();
   const readOnly = useReadOnly();
   const { isDark } = useTheme();
-  const { message } = App.useApp();
+  const message = useNotifier();
   const isLast = useIsLastElement(element);
   const addParagraphRef = useRef<AddParagraphRef>(null);
   const [code, setCode] = useState(defaultCode || "");
@@ -623,11 +623,11 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     const editorController = codeBlockMap.get(uuid);
     const currentCode = editorController?.getValue() ?? code;
     if (!navigator.clipboard) {
-      await message.error("复制代码失败");
+      message.error("复制代码失败");
       return;
     }
     await navigator.clipboard.writeText(currentCode);
-    await message.success("复制代码成功");
+    message.success("复制代码成功");
   });
 
   const handleOnLanguageChange = useMemoizedFn((value: string) => {

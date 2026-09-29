@@ -9,7 +9,7 @@ import { PortalToBody } from "@tau/shared";
 import { Transforms, Path, Element, Node } from "slate";
 import isHotkey from "is-hotkey";
 import { MdFullscreen, MdFullscreenExit } from "react-icons/md";
-import { Edit3, Maximize2, Trash2 } from "lucide-react";
+import { Edit3, Maximize2, Pencil, Trash2 } from "lucide-react";
 
 import useTheme from "../../hooks/useTheme";
 
@@ -20,7 +20,6 @@ import If from "../If";
 import AddParagraph, { AddParagraphRef } from "../AddParagraph";
 import EditorContextMenu from "../EditorContextMenu";
 import { MdDragIndicator } from "react-icons/md";
-import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 
 import { CustomElement } from "../../types";
 import type { BuildMenuParams, ContextMenuItem } from "../EditorContextMenu/types";
@@ -492,10 +491,10 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
               <MdFullscreen />
             </div>
             <div onClick={editElement} className={styles.item}>
-              <EditOutlined />
+              <Pencil size="1em" />
             </div>
             <div onClick={deleteElement} className={styles.item}>
-              <DeleteOutlined />
+              <Trash2 size="1em" />
             </div>
           </div>
         </If>
@@ -590,7 +589,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
                     })}
                     onClick={toggleFullscreenEditing}
                   >
-                    <EditOutlined />
+                    <Pencil size="1em" />
                   </div>
                 )}
               </div>

@@ -3,7 +3,7 @@ import { Transforms } from "slate";
 import { RenderElementProps, useSlateStatic, useReadOnly, ReactEditor } from "slate-react";
 import classnames from "classnames";
 import { MdDragIndicator } from "react-icons/md";
-import { App } from "antd";
+import { useNotifier } from "../../../services/hooks";
 
 import useDragAndDrop from "../../../hooks/useDragAndDrop";
 import { useDragHandlerMenu } from "../../../hooks/useDragHandlerMenu";
@@ -62,7 +62,7 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = props => {
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
     element,
   });
-  const { message } = App.useApp();
+  const message = useNotifier();
 
   const { menuProps, dragHandlerProps } = useDragHandlerMenu({
     element,

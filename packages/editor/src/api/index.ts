@@ -25,6 +25,7 @@ export {
   IOpenerService,
   IThemeService,
   IExtensionErrorReporter,
+  IEditorNotifier,
   IMediaInsertSources,
   IVideoContentProviders,
   IMediaActions,
@@ -32,7 +33,14 @@ export {
   IEditorSlots,
   type ServiceIdentifier,
 } from "../services/tokens";
-export { useService, useOptionalService, useEditorSlots } from "../services/hooks";
+export { useService, useOptionalService, useEditorSlots, useNotifier } from "../services/hooks";
+export { notifierOf } from "../services/editorNotifier";
+export type {
+  EditorNotifier,
+  EditorFeedback,
+  EditorLoadingHandle,
+  EditorConfirmOptions,
+} from "../services/notifier";
 
 // 主题
 export { useEditorTheme, type EditorTheme } from "../theme/context";

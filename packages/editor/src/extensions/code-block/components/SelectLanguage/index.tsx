@@ -1,10 +1,7 @@
-import classnames from "classnames";
-import { Flex, Popover } from "antd";
 import { CODE_BLOCK_LANGUAGE_OPTIONS, normalizeCodeBlockLanguageDisplayName } from "@tau/shared";
-
-import styles from "./index.module.less";
 import { For } from "@tau/shared";
 import React, { useState } from "react";
+import { Popover, cn } from "@tau/ui";
 
 interface SelectLanguageProps {
   value: string;
@@ -22,7 +19,7 @@ const SelectLanguage = (props: SelectLanguageProps) => {
 
   return (
     <Popover
-      placement={"bottom"}
+      placement="bottom"
       open={!readonly && open}
       onOpenChange={open => {
         if (readonly) {
@@ -31,52 +28,49 @@ const SelectLanguage = (props: SelectLanguageProps) => {
         }
         setOpen(open);
       }}
-      trigger={"click"}
-      styles={{
-        content: {
-          padding: 4,
-          color: "var(--ed-text)",
-        },
-      }}
       arrow={false}
-      content={
-        <Flex vertical gap={4} style={{ height: 400, overflow: "auto" }}>
-          <For
-            data={CODE_BLOCK_LANGUAGE_OPTIONS}
-            renderItem={item => {
-              return (
-                <div
-                  key={item.value}
-                  className={classnames(styles.languageItem, {
-                    [styles.active]: normalizedValue === item.value,
-                  })}
-                  onClick={() => {
-                    if (readonly) return;
-                    onChange(item.value);
-                    setOpen(false);
-                  }}
-                  style={{
-                    color: "var(--ed-text)",
-                  }}
-                >
-                  {item.label}
-                </div>
-              );
-            }}
-          />
-        </Flex>
+      className="p-1"
+      trigger={
+        <div
+          style={{
+            ...style,
+            color: "var(--ed-text)",
+          }}
+          className={cn(
+            "w-fit rounded-[0.25em] p-[0.5em] font-[family-name:var(--ed-font-mono)] text-[0.8em] opacity-50",
+            readonly ? "cursor-default" : "cursor-pointer hover:bg-[var(--ed-bg-hover)]",
+            className
+          )}
+        >
+          {normalizedValue}
+        </div>
       }
     >
-      <div
-        style={{
-          ...style,
-          color: "var(--ed-text)",
-        }}
-        className={classnames(styles.selectLanguage, className, {
-          [styles.disable]: readonly,
-        })}
-      >
-        {normalizedValue}
+      <div className="flex h-[400px] flex-col gap-1 overflow-auto">
+        <For
+          data={CODE_BLOCK_LANGUAGE_OPTIONS}
+          renderItem={item => {
+            return (
+              <div
+                key={item.value}
+                className={cn(
+                  "flex h-[2em] cursor-pointer items-center rounded-[0.25em] px-[0.5em] py-[0.25em] font-[family-name:var(--ed-font-mono)] text-[0.9em] transition-colors duration-200 hover:bg-[var(--ed-bg-hover)]",
+                  normalizedValue === item.value && "bg-[var(--ed-bg-hover)]"
+                )}
+                onClick={() => {
+                  if (readonly) return;
+                  onChange(item.value);
+                  setOpen(false);
+                }}
+                style={{
+                  color: "var(--ed-text)",
+                }}
+              >
+                {item.label}
+              </div>
+            );
+          }}
+        />
       </div>
     </Popover>
   );

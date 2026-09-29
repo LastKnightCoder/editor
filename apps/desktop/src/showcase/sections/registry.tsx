@@ -28,6 +28,7 @@ import {
   MessagesSquare,
   TriangleAlert,
   PanelsTopLeft,
+  Inbox,
   PanelRight,
   Wrench,
 } from "lucide-react";
@@ -45,6 +46,8 @@ import MenuSection from "./MenuSection";
 import DialogSection from "./DialogSection";
 import DrawerSection from "./DrawerSection";
 import PopoverSection from "./PopoverSection";
+import TabsSection from "./TabsSection";
+import FileDropZoneSection from "./FileDropZoneSection";
 import ErrorStateSection from "./ErrorStateSection";
 import PanelSection from "./PanelSection";
 import ToastSection from "./ToastSection";
@@ -136,6 +139,14 @@ export const SECTIONS: SectionMeta[] = [
     group: "基础件",
     icon: MessagesSquare,
     component: PopoverSection,
+  },
+  { key: "tabs", label: "Tabs", group: "基础件", icon: PanelsTopLeft, component: TabsSection },
+  {
+    key: "file-drop-zone",
+    label: "FileDropZone",
+    group: "基础件",
+    icon: Inbox,
+    component: FileDropZoneSection,
   },
   { key: "toast", label: "Toast", group: "反馈", icon: Bell, component: ToastSection },
   {

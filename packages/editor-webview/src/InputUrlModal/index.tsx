@@ -1,10 +1,9 @@
 import React, { useMemo } from "react";
-import { message } from "antd";
 import { WebviewUrlInputForm, type WebviewUrlInputFormServices } from "@tau/shared";
 import { WebLinkSourceType } from "../types";
 import type { WebviewUrlSourceType } from "@tau/shared";
 import { Editor } from "slate";
-import { IFileService, IResourceService } from "@tau/editor";
+import { IFileService, IResourceService, notifierOf } from "@tau/editor";
 
 interface InputUrlModalProps {
   editor: Editor;
@@ -48,10 +47,7 @@ const InputUrlModal: React.FC<InputUrlModalProps> = ({
       title={title}
       subtitle={subtitle}
       okText={okText}
-      notify={{
-        error: msg => message.error(msg),
-        success: msg => message.success(msg),
-      }}
+      notify={notifierOf(editor)}
       onOk={({ url, sourceType }) =>
         onOk({
           url,

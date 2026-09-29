@@ -8,7 +8,7 @@ import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
 import classnames from "classnames";
 import styles from "./index.module.less";
 import { MdDragIndicator } from "react-icons/md";
-import { Spin } from "antd";
+import { LoadingOverlay } from "@tau/ui";
 import { If } from "@tau/shared";
 import { useAttrInput } from "../../../../hooks/useAttrInput";
 import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
@@ -82,7 +82,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
       contentEditable={"false"}
     >
       <div {...attributes}>
-        <Spin spinning={uploading}>
+        <LoadingOverlay loading={!!uploading}>
           {src ? (
             <AudioSlot
               src={src}
@@ -99,7 +99,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
           ) : (
             <If condition={!src}>{renderNoContent()}</If>
           )}
-        </Spin>
+        </LoadingOverlay>
         {children}
         <div
           suppressContentEditableWarning

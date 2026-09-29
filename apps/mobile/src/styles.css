@@ -1,8 +1,12 @@
 @import "tailwindcss";
 @import "@tau/themes/scale.css";
 @import "./theme/tau-tokens.css";
+/* 编辑器的浮层原语来自 @tau/ui，类名经 @tau/themes 的语义映射取 --tau-*；
+   与本文件 @theme 同名的类（bg-surface / text-ink-2…）以本文件为准（后声明） */
+@import "@tau/themes/tailwind.css";
 @source "../../../packages/editor/src";
 @source "../../../packages/shared/src";
+@source "../../../packages/ui/src";
 
 /* ── 深色模式变体：夜航主题激活时 html 同时携带 .dark（兼容编辑器包） ── */
 @custom-variant dark (.dark &);

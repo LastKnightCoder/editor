@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { message } from "antd";
 import { useSlate } from "slate-react";
 
 import { CustomModal } from "@tau/shared";
 
+import { useNotifier } from "../../services/hooks";
 import useMediaUrlInputStore from "../../stores/useMediaUrlInputStore";
 import { MEDIA_TYPE_LABELS, insertMediaByUrl, isProviderSourceUrl } from "../../utils/mediaInsert";
 
@@ -13,6 +13,7 @@ import { MEDIA_TYPE_LABELS, insertMediaByUrl, isProviderSourceUrl } from "../../
  * 同页多编辑器时仅归属者渲染弹窗。
  */
 const MediaUrlInputModal = () => {
+  const message = useNotifier();
   const ownEditor = useSlate();
   const { open, editor, mediaType, close, release } = useMediaUrlInputStore();
   const [url, setUrl] = useState("");

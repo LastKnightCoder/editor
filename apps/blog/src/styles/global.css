@@ -6,8 +6,11 @@
 
 @import "tailwindcss";
 @import "@tau/themes/scale.css";
+/* 编辑器的浮层原语来自 @tau/ui，类名经 @tau/themes 的语义映射取 --tau-* */
+@import "@tau/themes/tailwind.css";
 @import "./legacy-palette.css";
 @import "./tau-tokens.css";
+@source "../../../../packages/ui/src";
 
 @custom-variant dark (.dark &);
 

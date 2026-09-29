@@ -13,6 +13,7 @@ import type {
 import type { EditorSlots } from "./slots";
 import type { ThemeService } from "../theme/ThemeService";
 import type { ExtensionErrorReporter } from "./errorReporter";
+import type { EditorNotifier } from "./notifier";
 
 /**
  * 服务标识符：注册与获取服务时使用的唯一 Token。
@@ -42,6 +43,9 @@ export const IOpenerService = createServiceId<OpenerService>("openerService");
 
 /** 主题服务：未注册时编辑器用 DOM 默认实现（读 <html> 的 data-mode / data-theme） */
 export const IThemeService = createServiceId<ThemeService>("themeService");
+
+/** 轻提示与确认：未注册时用 @tau/ui 的 toast（宿主需挂 ToastHost）与原生 confirm */
+export const IEditorNotifier = createServiceId<EditorNotifier>("editorNotifier");
 
 /** 扩展运行期错误上报：未注册时写控制台 */
 export const IExtensionErrorReporter =

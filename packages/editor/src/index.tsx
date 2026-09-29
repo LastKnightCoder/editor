@@ -63,6 +63,7 @@ import ImagesOverview from "./components/ImagesOverview";
 import HoveringToolbar from "./components/HoveringToolbar";
 import BlockPanel from "./components/BlockPanel";
 import MediaUrlInputModal from "./components/MediaUrlInputModal";
+import ConfirmHost from "./components/ConfirmHost";
 import FormattedText from "./components/FormattedText";
 import { IConfigItem, IHotKeyConfig } from "./types";
 
@@ -511,6 +512,7 @@ const Index = memo(
               {binding?.renderOverlay?.(overlayContainerRef)}
             </div>
             <ImagesOverview />
+            <ConfirmHost />
             {!readonly && <MediaUrlInputModal />}
             {!readonly && <HoveringToolbar configs={finalHoveringBarConfigs} />}
             {!readonly && <BlockPanel assembly={kit.assembly} />}

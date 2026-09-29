@@ -7,7 +7,7 @@ import React, {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { Tooltip } from "antd";
+import { Tooltip } from "../../ui/Tooltip";
 import classnames from "classnames";
 
 import { IConfigItem } from "../../types";
@@ -132,7 +132,7 @@ function CompactGroupMenu(props: CompactGroupMenuProps) {
 
   return (
     <>
-      <Tooltip title={title} trigger="hover">
+      <Tooltip content={title}>
         <div
           ref={triggerRef}
           className={classnames(

@@ -30,3 +30,6 @@ export * from "./primitives/ValueDisplay";
 export * from "./primitives/datepicker/DatePicker";
 export * from "./primitives/datepicker/DateRangePicker";
 export * from "./primitives/ImagePreview";
+export * from "./primitives/Tabs";
+export * from "./primitives/FileDropZone";
+export * from "./primitives/LoadingOverlay";

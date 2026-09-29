@@ -1,6 +1,6 @@
 import { useMemo, memo } from "react";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
-import { Tooltip } from "antd";
+import { Tooltip } from "../../../../ui/Tooltip";
 import { Mark } from "../../../types";
 
 import { useMemoizedFn } from "ahooks";
@@ -40,7 +40,7 @@ const MarkText = memo((props: IMarkTextProps) => {
   });
 
   return (
-    <Tooltip title={tooltip} trigger={"hover"}>
+    <Tooltip content={tooltip}>
       <div
         className={classnames(
           "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all duration-200",

@@ -1,14 +1,9 @@
 import React, { useEffect, useMemo, memo } from "react";
 import { Editor, Transforms } from "slate";
-import {
-  ReactEditor,
-  RenderElementProps,
-  useSlate,
-  useReadOnly,
-} from "slate-react";
+import { ReactEditor, RenderElementProps, useSlate, useReadOnly } from "slate-react";
 
 import classnames from "classnames";
-import { App } from "antd";
+import { useNotifier } from "../../../../services/hooks";
 
 import { MdDragIndicator } from "react-icons/md";
 
@@ -43,7 +38,7 @@ const DragHandler = memo(
     return (
       <div
         contentEditable={false}
-        ref={(node) => {
+        ref={node => {
           drag(node);
         }}
         className={classnames(styles.dragHandler, {
@@ -55,131 +50,118 @@ const DragHandler = memo(
         <MdDragIndicator className={styles.icon} />
       </div>
     );
-  },
+  }
 );
 
-const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = memo(
-  (props) => {
-    const { children, attributes, element } = props;
-    const { disableDrag } = element;
+const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = memo(props => {
+  const { children, attributes, element } = props;
+  const { disableDrag } = element;
 
-    const editor = useSlate();
-    const readOnly = useReadOnly();
-    const path = findPathSafely(editor, element);
-    const isLast = (() => {
-      if (!path) {
-        return false;
+  const editor = useSlate();
+  const readOnly = useReadOnly();
+  const path = findPathSafely(editor, element);
+  const isLast = (() => {
+    if (!path) {
+      return false;
+    }
+    if (path.length === 1) {
+      return path[0] === editor.children.length - 1;
+    }
+    try {
+      const parent = Editor.parent(editor, path);
+      if (parent) {
+        return parent[0].children.length - 1 === path[path.length - 1];
       }
-      if (path.length === 1) {
-        return path[0] === editor.children.length - 1;
-      }
-      try {
-        const parent = Editor.parent(editor, path);
-        if (parent) {
-          return parent[0].children.length - 1 === path[path.length - 1];
+      return false;
+    } catch (error) {
+      return false;
+    }
+  })();
+  const message = useNotifier();
+
+  const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } = useDragAndDrop({
+    element,
+    disableDrag,
+  });
+
+  // 菜单功能
+  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
+    element,
+    editor,
+    buildMenuItems: params => buildParagraphMenuItems(params, message),
+  });
+
+  const handleFocus = useMemoizedFn((start = true) => {
+    return (e: any) => {
+      const { detail } = e;
+      if (!detail) return;
+      const { focusElement } = detail;
+      if (element === focusElement) {
+        const path = findPathSafely(editor, element);
+        if (!path) {
+          return;
         }
-        return false;
-      } catch (error) {
-        return false;
-      }
-    })();
-    const { message } = App.useApp();
-
-    const {
-      drag,
-      drop,
-      isDragging,
-      isBefore,
-      isOverCurrent,
-      canDrop,
-      canDrag,
-    } = useDragAndDrop({
-      element,
-      disableDrag,
-    });
-
-    // 菜单功能
-    const { menuProps, dragHandlerProps } = useDragHandlerMenu({
-      element,
-      editor,
-      buildMenuItems: (params) => buildParagraphMenuItems(params, message),
-    });
-
-    const handleFocus = useMemoizedFn((start = true) => {
-      return (e: any) => {
-        const { detail } = e;
-        if (!detail) return;
-        const { focusElement } = detail;
-        if (element === focusElement) {
-          const path = findPathSafely(editor, element);
-          if (!path) {
-            return;
-          }
-          ReactEditor.focus(editor);
-          if (start) {
-            Transforms.select(editor, {
-              anchor: Editor.start(editor, [...path, 0]),
-              focus: Editor.start(editor, [...path, 0]),
-            });
-          } else {
-            Transforms.select(editor, {
-              anchor: Editor.end(editor, path),
-              focus: Editor.end(editor, path),
-            });
-          }
+        ReactEditor.focus(editor);
+        if (start) {
+          Transforms.select(editor, {
+            anchor: Editor.start(editor, [...path, 0]),
+            focus: Editor.start(editor, [...path, 0]),
+          });
+        } else {
+          Transforms.select(editor, {
+            anchor: Editor.end(editor, path),
+            focus: Editor.end(editor, path),
+          });
         }
-      };
-    });
+      }
+    };
+  });
 
-    useEffect(() => {
-      const handleFocusStart = handleFocus(true);
-      const handleFocusEnd = handleFocus(false);
+  useEffect(() => {
+    const handleFocusStart = handleFocus(true);
+    const handleFocusEnd = handleFocus(false);
 
-      document.addEventListener("element-focus-start", handleFocusStart);
-      document.addEventListener("element-focus-end", handleFocusEnd);
+    document.addEventListener("element-focus-start", handleFocusStart);
+    document.addEventListener("element-focus-end", handleFocusEnd);
 
-      return () => {
-        document.removeEventListener("element-focus-start", handleFocusStart);
-        document.removeEventListener("element-focus-end", handleFocusEnd);
-      };
-    }, [handleFocus]);
+    return () => {
+      document.removeEventListener("element-focus-start", handleFocusStart);
+      document.removeEventListener("element-focus-end", handleFocusEnd);
+    };
+  }, [handleFocus]);
 
-    // 使用 useMemo 缓存样式类名
-    const paragraphClassName = useMemo(
-      () =>
-        classnames(styles.paragraph, {
-          [styles.dragging]: isDragging,
-          [styles.drop]: isOverCurrent && canDrop,
-          [styles.before]: isBefore,
-          [styles.after]: !isBefore,
-          [styles.noMargin]: isLast,
-        }),
-      [isDragging, isOverCurrent, canDrop, isBefore, isLast],
-    );
+  // 使用 useMemo 缓存样式类名
+  const paragraphClassName = useMemo(
+    () =>
+      classnames(styles.paragraph, {
+        [styles.dragging]: isDragging,
+        [styles.drop]: isOverCurrent && canDrop,
+        [styles.before]: isBefore,
+        [styles.after]: !isBefore,
+        [styles.noMargin]: isLast,
+      }),
+    [isDragging, isOverCurrent, canDrop, isBefore, isLast]
+  );
 
-    return (
-      <div
-        ref={(node) => {
-          drop(node);
-        }}
-        className={styles.container}
-      >
-        <p
-          {...attributes}
-          className={classnames(paragraphClassName, { "mb-0!": isLast })}
-        >
-          {children}
-        </p>
-        <DragHandler
-          drag={drag}
-          canDrag={canDrag}
-          disableDrag={disableDrag}
-          onClick={dragHandlerProps.onClick}
-        />
-        <EditorContextMenu {...menuProps} readonly={readOnly} />
-      </div>
-    );
-  },
-);
+  return (
+    <div
+      ref={node => {
+        drop(node);
+      }}
+      className={styles.container}
+    >
+      <p {...attributes} className={classnames(paragraphClassName, { "mb-0!": isLast })}>
+        {children}
+      </p>
+      <DragHandler
+        drag={drag}
+        canDrag={canDrag}
+        disableDrag={disableDrag}
+        onClick={dragHandlerProps.onClick}
+      />
+      <EditorContextMenu {...menuProps} readonly={readOnly} />
+    </div>
+  );
+});
 
 export default Paragraph;

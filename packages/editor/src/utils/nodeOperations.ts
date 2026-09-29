@@ -1,5 +1,5 @@
 import { Editor, Transforms, Node, Path } from "slate";
-import type { MessageInstance } from "antd/es/message/interface";
+import type { EditorFeedback } from "../services/notifier";
 
 /**
  * 节点类型转换配置
@@ -28,7 +28,7 @@ export function transformNodeType(
   editor: Editor,
   path: Path,
   targetType: NodeType,
-  options: TransformOptions = {},
+  options: TransformOptions = {}
 ): void {
   Editor.withoutNormalizing(editor, () => {
     // 处理列表类型 - 将 paragraph 包装到 list-item 中
@@ -40,7 +40,7 @@ export function transformNodeType(
           type: "list-item",
           children: [],
         },
-        { at: path },
+        { at: path }
       );
 
       // 2. 再将 list-item 包装在列表容器中
@@ -50,7 +50,7 @@ export function transformNodeType(
           type: targetType,
           children: [],
         },
-        { at: path },
+        { at: path }
       );
     }
     // 处理标题
@@ -61,7 +61,7 @@ export function transformNodeType(
           type: "header",
           level: options.level || 1,
         },
-        { at: path },
+        { at: path }
       );
     }
     // 处理 Callout
@@ -73,7 +73,7 @@ export function transformNodeType(
           calloutType: options.calloutType || "info",
           title: options.title || "提示",
         },
-        { at: path },
+        { at: path }
       );
     }
     // 处理高亮块
@@ -84,7 +84,7 @@ export function transformNodeType(
           type: "highlight-block",
           color: options.color || "yellow",
         },
-        { at: path },
+        { at: path }
       );
     }
     // 其他简单块类型
@@ -101,7 +101,7 @@ export function transformNodeType(
 export async function copyNodeToClipboard(
   _editor: Editor,
   element: Node,
-  message?: MessageInstance,
+  message?: EditorFeedback
 ): Promise<void> {
   const slateClipboardFormat = "application/x-slate-fragment";
   const plainText = Node.string(element);
@@ -145,10 +145,7 @@ export async function copyNodeToClipboard(
 /**
  * 构造携带 data-slate-fragment 属性的 HTML，用于模拟 Slate 原生复制行为
  */
-function buildSlateFragmentHTML(
-  encodedFragment: string,
-  plainText: string,
-): string {
+function buildSlateFragmentHTML(encodedFragment: string, plainText: string): string {
   const div = document.createElement("div");
   const attach = document.createElement("span");
   attach.setAttribute("data-slate-fragment", encodedFragment);
@@ -168,10 +165,7 @@ function buildSlateFragmentHTML(
  * 检查浏览器是否允许写入自定义 Clipboard MIME 类型
  */
 function isClipboardFormatSupported(type: string): boolean {
-  if (
-    typeof ClipboardItem === "undefined" ||
-    typeof ClipboardItem.supports !== "function"
-  ) {
+  if (typeof ClipboardItem === "undefined" || typeof ClipboardItem.supports !== "function") {
     return false;
   }
 
@@ -220,7 +214,7 @@ export function unwrapContainerBlock(editor: Editor, path: Path): void {
 export function convertChildrenToList(
   editor: Editor,
   path: Path,
-  listType: "bulleted-list" | "numbered-list",
+  listType: "bulleted-list" | "numbered-list"
 ): void {
   Editor.withoutNormalizing(editor, () => {
     const node = Node.get(editor, path);
@@ -238,18 +232,10 @@ export function convertChildrenToList(
       Transforms.unwrapNodes(editor, { at: path });
 
       // 2. 包装在 list-item 中
-      Transforms.wrapNodes(
-        editor,
-        { type: "list-item", children: [] },
-        { at: path },
-      );
+      Transforms.wrapNodes(editor, { type: "list-item", children: [] }, { at: path });
 
       // 3. 包装在列表容器中
-      Transforms.wrapNodes(
-        editor,
-        { type: listType, children: [] },
-        { at: path },
-      );
+      Transforms.wrapNodes(editor, { type: listType, children: [] }, { at: path });
     } else {
       // 多个子节点：先提取子节点，然后为每个创建 list-item
       const childrenNodes = [...children];
@@ -258,7 +244,7 @@ export function convertChildrenToList(
       Transforms.removeNodes(editor, { at: path });
 
       // 2. 为每个子节点创建 list-item 并插入
-      const listItems = childrenNodes.map((child) => ({
+      const listItems = childrenNodes.map(child => ({
         type: "list-item" as const,
         children: [child as any], // Slate's wrapNodes will properly type check at runtime
       })) as any;
@@ -270,7 +256,7 @@ export function convertChildrenToList(
           type: listType,
           children: listItems,
         } as any,
-        { at: path },
+        { at: path }
       );
     }
   });

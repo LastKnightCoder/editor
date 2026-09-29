@@ -1,15 +1,13 @@
 import React, { PropsWithChildren, useState, useEffect, useRef, useMemo } from "react";
 import { Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useSlateStatic } from "slate-react";
-import { Popover, Input, type InputRef } from "antd";
+import { Input, Popover } from "@tau/ui";
 import { useMemoizedFn } from "ahooks";
 import { useTailwindRuntimeCss } from "../../../../hooks/useTailwindRuntimeCss";
 import { ICompilerService } from "../../../../services";
 
 import type { HTMLInlineElement } from "../../../types";
 import InlineChromiumBugfix from "../../../../components/InlineChromiumBugFix";
-
-import styles from "./index.module.less";
 
 interface InlineHtmlProps {
   attributes: RenderElementProps["attributes"];
@@ -22,7 +20,7 @@ const InlineHtml: React.FC<PropsWithChildren<InlineHtmlProps>> = props => {
   const editor = useSlateStatic();
   const [inputValue, setInputValue] = useState(html || "");
   const [popoverOpen, setPopoverOpen] = useState(openEdit);
-  const inputRef = useRef<InputRef>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const previewHtml = popoverOpen ? inputValue : html;
   const tailwindCss = useTailwindRuntimeCss(html, "html", editor.tryGetService(ICompilerService));
 
@@ -86,45 +84,39 @@ const InlineHtml: React.FC<PropsWithChildren<InlineHtmlProps>> = props => {
 
   const PreviewDisplay = useMemo(() => {
     if (previewHtml && previewHtml.trim()) {
-      return (
-        <span
-          className={styles.htmlPreviewContent}
-          dangerouslySetInnerHTML={{ __html: previewHtml }}
-        />
-      );
+      return <span dangerouslySetInnerHTML={{ __html: previewHtml }} />;
     }
 
-    if (popoverOpen) {
-      return <span className={styles.placeholder}>输入HTML...</span>;
-    } else {
-      return <span className={styles.placeholder}>点击编辑HTML</span>;
-    }
-  }, [previewHtml, popoverOpen, styles.placeholder, styles.htmlPreviewContent]);
+    return (
+      <span className="select-none italic text-[var(--ed-text-tertiary)]">
+        {popoverOpen ? "输入HTML..." : "点击编辑HTML"}
+      </span>
+    );
+  }, [previewHtml, popoverOpen]);
 
   return (
-    <span {...attributes} className={styles.inlineHtml} data-element-type="inline-html">
+    <span {...attributes} className="inline-block align-baseline" data-element-type="inline-html">
       <InlineChromiumBugfix />
       {tailwindCss ? <style dangerouslySetInnerHTML={{ __html: tailwindCss }} /> : null}
       <Popover
-        trigger={"click"}
         open={popoverOpen}
         onOpenChange={handlePopoverOpenChange}
         arrow={false}
-        style={{ maxWidth: 500, marginTop: 10 }}
-        placement={"bottom"}
-        content={
-          <Input
-            ref={inputRef}
-            size={"large"}
-            style={{ width: 500 }}
-            value={inputValue}
-            onChange={handleInputChange}
-            onKeyDown={handleInputKeyDown}
-            placeholder="输入HTML, Esc/回车确认"
-          />
+        placement="bottom"
+        className="w-[500px] max-w-[calc(100vw-16px)] p-2"
+        trigger={
+          <span className="inline-block cursor-pointer rounded-[3px] px-[3px] py-px">
+            {PreviewDisplay}
+          </span>
         }
       >
-        <span className={styles.previewTriggerContainer}>{PreviewDisplay}</span>
+        <Input
+          ref={inputRef}
+          value={inputValue}
+          onChange={handleInputChange}
+          onKeyDown={handleInputKeyDown}
+          placeholder="输入HTML, Esc/回车确认"
+        />
       </Popover>
       <InlineChromiumBugfix />
       {children}

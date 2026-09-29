@@ -1449,6 +1449,9 @@ importers:
       '@tau/shared':
         specifier: workspace:*
         version: link:../shared
+      '@tau/ui':
+        specifier: workspace:*
+        version: link:../ui
       remark-cjk-friendly:
         specifier: ^2.3.1
         version: 2.3.1(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(unified@11.0.5)
@@ -1480,9 +1483,6 @@ importers:
         specifier: ^5.0.0
         version: 5.1.0
     devDependencies:
-      '@ant-design/icons':
-        specifier: ^6.0.6
-        version: 6.3.4(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@babel/standalone':
         specifier: ^7.22.2
         version: 7.29.8
@@ -1528,9 +1528,6 @@ importers:
       ahooks:
         specifier: ^3.7.7
         version: 3.10.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      antd:
-        specifier: ^6.0.0
-        version: 6.1.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       classnames:
         specifier: ^2.3.2
         version: 2.5.1
@@ -1703,9 +1700,6 @@ importers:
       ahooks:
         specifier: ^3.7.8
         version: 3.10.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      antd:
-        specifier: ^6.0.0
-        version: 6.1.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       classnames:
         specifier: ^2.3.2
         version: 2.5.1

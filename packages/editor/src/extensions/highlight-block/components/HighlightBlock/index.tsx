@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { RenderElementProps, useSlate, useReadOnly } from "slate-react";
-import { App } from "antd";
+import { useNotifier } from "../../../../services/hooks";
 import type { HighlightBlockElement } from "../../../types";
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 import useIsLastElement from "../../../../hooks/useIsLastElement";
@@ -47,7 +47,7 @@ const DragHandler = memo(
         <MdDragIndicator className={styles.icon} />
       </div>
     );
-  },
+  }
 );
 
 DragHandler.displayName = "DragHandler";
@@ -59,35 +59,28 @@ const HighlightBlock = (props: IHighBlockProps) => {
   const { isDark } = useTheme();
   const editor = useSlate();
   const readOnly = useReadOnly();
-  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
-    useDragAndDrop({
-      element,
-    });
-  const { message } = App.useApp();
+  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
+    element,
+  });
+  const message = useNotifier();
 
   const { menuProps, dragHandlerProps } = useDragHandlerMenu({
     element,
     editor,
-    buildMenuItems: (params) => buildHighlightBlockMenuItems(params, message),
+    buildMenuItems: params => buildHighlightBlockMenuItems(params, message),
   });
 
   const themeColor = colors[color];
-  const { backgroundColor, borderColor } = isDark
-    ? themeColor.dark
-    : themeColor.light;
+  const { backgroundColor, borderColor } = isDark ? themeColor.dark : themeColor.light;
 
   return (
     <div
-      ref={(node) => {
+      ref={node => {
         drop(node);
       }}
       className={styles.container}
     >
-      <DragHandler
-        drag={drag}
-        canDrag={canDrag}
-        onClick={dragHandlerProps.onClick}
-      />
+      <DragHandler drag={drag} canDrag={canDrag} onClick={dragHandlerProps.onClick} />
       <EditorContextMenu {...menuProps} readonly={readOnly} />
       <div
         {...attributes}
@@ -98,10 +91,7 @@ const HighlightBlock = (props: IHighBlockProps) => {
           [styles.after]: !isBefore,
         })}
       >
-        <HighlightBlockPure
-          backgroundColor={backgroundColor}
-          borderColor={borderColor}
-        >
+        <HighlightBlockPure backgroundColor={backgroundColor} borderColor={borderColor}>
           {children}
         </HighlightBlockPure>
       </div>

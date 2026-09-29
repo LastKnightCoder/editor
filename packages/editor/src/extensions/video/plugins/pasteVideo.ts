@@ -1,6 +1,6 @@
 import { Editor, Transforms } from "slate";
 import { insertVideo } from "../../../utils";
-import { message } from "antd";
+import { notifierOf } from "../../../services/editorNotifier";
 import { IResourceService } from "../../../services";
 
 export const pasteVideo = (editor: Editor) => {
@@ -26,7 +26,7 @@ export const pasteVideo = (editor: Editor) => {
       }
       const url = await uploadResource(file);
       if (!url) {
-        message.error("上传失败");
+        notifierOf(editor).error("上传失败");
         Editor.withoutNormalizing(editor, () => {
           Transforms.delete(editor, {
             at: insertPath,

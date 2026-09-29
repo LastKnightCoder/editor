@@ -6,7 +6,7 @@ import {
   getPreviousSiblingNode,
   isCheckListItemElement,
 } from "../../../utils";
-import { message } from "antd";
+import { notifierOf } from "../../../services/editorNotifier";
 import type { CheckListItemElement } from "../../../types";
 
 export const indent: IHotKeyConfig[] = [
@@ -14,11 +14,11 @@ export const indent: IHotKeyConfig[] = [
     hotKey: "Tab",
     action: (editor, event) => {
       const [match] = Editor.nodes(editor, {
-        match: (n) => n.type === "check-list-item",
+        match: n => n.type === "check-list-item",
         mode: "lowest",
       });
       const [para] = Editor.nodes(editor, {
-        match: (n) => n.type === "paragraph",
+        match: n => n.type === "paragraph",
       });
 
       // 在段落的开头
@@ -34,7 +34,7 @@ export const indent: IHotKeyConfig[] = [
         const parent = getParentNodeByNode(editor, match[0]);
         const parentType = parent[0].type;
         if (parentType !== "check-list") {
-          message.error("check-list-item 必须在 check-list 中");
+          notifierOf(editor).error("check-list-item 必须在 check-list 中");
           return;
         }
 
@@ -55,12 +55,8 @@ export const indent: IHotKeyConfig[] = [
           ) {
             // 如果已经有 check-list，直接移动当前节点到该 check-list 中
             Transforms.moveNodes(editor, {
-              match: (n) => n.type === "check-list-item",
-              to: [
-                ...previousSibling[1],
-                1,
-                prevSiblingNode.children[1].children.length,
-              ],
+              match: n => n.type === "check-list-item",
+              to: [...previousSibling[1], 1, prevSiblingNode.children[1].children.length],
             });
             Transforms.select(
               editor,
@@ -68,7 +64,7 @@ export const indent: IHotKeyConfig[] = [
                 ...previousSibling[1],
                 1,
                 prevSiblingNode.children[1].children.length,
-              ]),
+              ])
             );
           } else {
             // 如果没有 check-list，创建一个新的 check-list 并包裹当前节点
@@ -79,21 +75,18 @@ export const indent: IHotKeyConfig[] = [
                 children: [],
               },
               {
-                match: (n) => n.type === "check-list-item",
-              },
+                match: n => n.type === "check-list-item",
+              }
             );
 
             // 将新创建的 check-list 移动到上一个兄弟节点中
             Transforms.moveNodes(editor, {
-              match: (n) => n.type === "check-list",
+              match: n => n.type === "check-list",
               to: [...previousSibling[1], prevSiblingNode.children.length],
             });
             Transforms.select(
               editor,
-              Editor.start(editor, [
-                ...previousSibling[1],
-                prevSiblingNode.children.length,
-              ]),
+              Editor.start(editor, [...previousSibling[1], prevSiblingNode.children.length])
             );
           }
         });
@@ -106,21 +99,16 @@ export const indent: IHotKeyConfig[] = [
     hotKey: "shift+Tab",
     action: (editor, event) => {
       const [match] = Editor.nodes(editor, {
-        match: (n) => n.type === "check-list-item",
+        match: n => n.type === "check-list-item",
         mode: "lowest",
       });
       const [para] = Editor.nodes(editor, {
-        match: (n) => n.type === "paragraph",
+        match: n => n.type === "paragraph",
       });
 
       // 在段落的开头
       // 是第一个段落
-      if (
-        para &&
-        match &&
-        isAtParagraphStart(editor) &&
-        para[1][para[1].length - 1] === 0
-      ) {
+      if (para && match && isAtParagraphStart(editor) && para[1][para[1].length - 1] === 0) {
         const parent = getParentNodeByNode(editor, match[0]);
 
         // 确保父节点是 check-list
@@ -146,7 +134,7 @@ export const indent: IHotKeyConfig[] = [
         Editor.withoutNormalizing(editor, () => {
           // 将当前节点移动到祖父节点之后
           Transforms.moveNodes(editor, {
-            match: (n) => n.type === "check-list-item",
+            match: n => n.type === "check-list-item",
             to: Path.next(grandParent[1]),
           });
 
@@ -156,10 +144,7 @@ export const indent: IHotKeyConfig[] = [
             const newPath = Path.next(grandParent[1]);
 
             // 检查当前节点是否已经有 check-list
-            const currentNode = Editor.node(
-              editor,
-              newPath,
-            )[0] as CheckListItemElement;
+            const currentNode = Editor.node(editor, newPath)[0] as CheckListItemElement;
             let checkListPath: Path;
 
             if (
@@ -176,7 +161,7 @@ export const indent: IHotKeyConfig[] = [
                   type: "check-list",
                   children: [],
                 },
-                { at: [...newPath, 1] },
+                { at: [...newPath, 1] }
               );
               checkListPath = [...newPath, 1];
             }
@@ -190,10 +175,7 @@ export const indent: IHotKeyConfig[] = [
               });
             }
 
-            Transforms.select(
-              editor,
-              Editor.start(editor, [...checkListPath, siblings.length]),
-            );
+            Transforms.select(editor, Editor.start(editor, [...checkListPath, siblings.length]));
           }
         });
 

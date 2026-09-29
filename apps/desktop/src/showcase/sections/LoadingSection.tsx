@@ -2,7 +2,7 @@
  * Spinner · Loading 档案 —— 本体即 ui/primitives/Loading。
  */
 
-import { Loading, Spinner } from "@tau/ui";
+import { Loading, LoadingOverlay, Spinner } from "@tau/ui";
 import { BlockTitle, DocHead, MatrixRow } from "../kit";
 
 export default function LoadingSection() {
@@ -64,6 +64,21 @@ export default function LoadingSection() {
         <div className="bg-surface border-line-2 rounded-tau-md h-[168px] w-full overflow-hidden border">
           <Loading label="加载中…（label 可换文案）" minHeight={0} />
         </div>
+      </MatrixRow>
+      <MatrixRow
+        name="LoadingOverlay"
+        desc={
+          <>
+            盖在已有内容上（上传中的音视频块）：内容照常渲染，<code>aria-busy</code> + surface 60%
+            遮罩
+          </>
+        }
+      >
+        <LoadingOverlay loading className="rounded-tau-md w-full">
+          <div className="bg-surface border-line-2 rounded-tau-md text-tau-body text-ink-2 border p-6">
+            音频：会议录音.m4a
+          </div>
+        </LoadingOverlay>
       </MatrixRow>
     </>
   );

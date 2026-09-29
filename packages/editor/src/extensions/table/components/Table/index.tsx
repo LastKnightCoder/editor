@@ -1,22 +1,10 @@
 import React, { useMemo, useCallback } from "react";
-import {
-  RenderElementProps,
-  useSlate,
-  ReactEditor,
-  useReadOnly,
-} from "slate-react";
+import { RenderElementProps, useSlate, ReactEditor, useReadOnly } from "slate-react";
 import { Editor, Transforms } from "slate";
 import classnames from "classnames";
-import { Popover } from "antd";
-
-import { DeleteOutlined, MoreOutlined } from "@ant-design/icons";
-import {
-  BiChevronDown,
-  BiChevronUp,
-  BiChevronLeft,
-  BiChevronRight,
-  BiTable,
-} from "react-icons/bi";
+import { Popover } from "@tau/ui";
+import { EllipsisVertical, Trash2 } from "lucide-react";
+import { BiChevronDown, BiChevronUp, BiChevronLeft, BiChevronRight, BiTable } from "react-icons/bi";
 import {
   insertRowBefore,
   insertRowAfter,
@@ -44,22 +32,21 @@ interface ITableProps {
   element: TableElement;
 }
 
-const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
+const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
   const { attributes, element, children } = props;
 
   const editor = useSlate();
   const readOnly = useReadOnly();
   const { selection } = editor;
   const isLast = useIsLastElement(element);
-  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
-    useDragAndDrop({
-      element,
-    });
+  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
+    element,
+  });
 
   const isActive = useMemo(() => {
     // 是否在 table
     const [table] = Editor.nodes(editor, {
-      match: (n) => n.type === "table-cell",
+      match: n => n.type === "table-cell",
     });
     return !!table;
   }, [editor, selection]);
@@ -83,7 +70,7 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
         {
           at: path,
           select: true,
-        },
+        }
       );
     } catch (error) {
       console.error("删除表格时发生错误:", error);
@@ -111,7 +98,7 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
               insertRowAfter(editor);
               ReactEditor.focus(editor);
             },
-            "向下插入行",
+            "向下插入行"
           );
         },
       },
@@ -124,7 +111,7 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
               insertRowBefore(editor);
               ReactEditor.focus(editor);
             },
-            "向上插入行",
+            "向上插入行"
           );
         },
       },
@@ -137,7 +124,7 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
               insertColLeft(editor);
               ReactEditor.focus(editor);
             },
-            "向左插入列",
+            "向左插入列"
           );
         },
       },
@@ -150,7 +137,7 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
               insertColRight(editor);
               ReactEditor.focus(editor);
             },
-            "向右插入列",
+            "向右插入列"
           );
         },
       },
@@ -167,7 +154,7 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
               deleteNextRow(editor);
               ReactEditor.focus(editor);
             },
-            "删除下一行",
+            "删除下一行"
           );
         },
       },
@@ -180,7 +167,7 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
               deletePrevRow(editor);
               ReactEditor.focus(editor);
             },
-            "删除上一行",
+            "删除上一行"
           );
         },
       },
@@ -193,7 +180,7 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
               deletePrevCol(editor);
               ReactEditor.focus(editor);
             },
-            "删除左一列",
+            "删除左一列"
           );
         },
       },
@@ -206,7 +193,7 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
               deleteNextCol(editor);
               ReactEditor.focus(editor);
             },
-            "删除右一列",
+            "删除右一列"
           );
         },
       },
@@ -223,7 +210,7 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
               deleteTable();
               ReactEditor.focus(editor);
             },
-            "删除表格",
+            "删除表格"
           );
         },
       },
@@ -232,7 +219,7 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
 
   return (
     <div
-      ref={(node) => {
+      ref={node => {
         drop(node);
       }}
       className={classnames(styles.dropContainer, {
@@ -251,19 +238,16 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
         <div className={styles.left}></div>
         <div className={styles.right}>
           <Popover
-            trigger={"click"}
-            placement={"bottomLeft"}
-            content={<Actions items={items} />}
-            styles={{
-              content: {
-                padding: 4,
-              },
-            }}
+            placement="bottom-start"
             arrow={false}
+            className="p-1"
+            trigger={
+              <div className={classnames(styles.more, styles.item)}>
+                <EllipsisVertical size="1em" />
+              </div>
+            }
           >
-            <div className={classnames(styles.more, styles.item)}>
-              <MoreOutlined />
-            </div>
+            <Actions items={items} />
           </Popover>
           <div
             className={classnames(styles.delete, styles.item)}
@@ -274,11 +258,11 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
                   deleteTable();
                   ReactEditor.focus(editor);
                 },
-                "删除表格",
+                "删除表格"
               );
             }}
           >
-            <DeleteOutlined />
+            <Trash2 size="1em" />
           </div>
         </div>
       </div>
@@ -288,7 +272,7 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
       {!(readOnly && isLast) && <AddParagraph element={element} />}
       <div
         contentEditable={false}
-        ref={(node) => {
+        ref={node => {
           drag(node);
         }}
         className={classnames(styles.dragHandler, {

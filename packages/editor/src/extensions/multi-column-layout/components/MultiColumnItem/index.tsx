@@ -8,7 +8,7 @@ import {
   useSlateSelection,
 } from "slate-react";
 import { If } from "@tau/shared";
-import { DeleteOutlined } from "@ant-design/icons";
+import { Trash2 } from "lucide-react";
 import { MdDragIndicator } from "react-icons/md";
 
 import { isLastChild } from "../../../../utils";
@@ -19,10 +19,7 @@ import {
 } from "../../../../utils/multi-columns-layout";
 import classnames from "classnames";
 
-import {
-  MultiColumnContainerElement,
-  MultiColumnItemElement,
-} from "../../../types";
+import { MultiColumnContainerElement, MultiColumnItemElement } from "../../../types";
 import useColumnDragAndDrop from "../../hooks/useColumnDragAndDrop";
 import useColumnEdgeDrop from "../../hooks/useColumnEdgeDrop";
 import { useColumnWidthsContext } from "../../context/ColumnWidthsContext";
@@ -57,7 +54,7 @@ const EdgeDropZone = ({
 
   return (
     <div
-      ref={(node) => {
+      ref={node => {
         drop(node);
       }}
       contentEditable={false}
@@ -83,7 +80,7 @@ const MultiColumnItem = (props: IMultiColumnItemProps) => {
 
   const isActive = useMemo(() => {
     const [columnItem] = Editor.nodes(editor, {
-      match: (n) => n.type === "multi-column-item",
+      match: n => n.type === "multi-column-item",
     });
     if (!columnItem) {
       return false;
@@ -122,10 +119,7 @@ const MultiColumnItem = (props: IMultiColumnItemProps) => {
       let columnWidth: number;
       if (previewWidths && previewWidths.length === totalColumns) {
         columnWidth = previewWidths[columnIndex];
-      } else if (
-        container.columnWidths &&
-        container.columnWidths.length === totalColumns
-      ) {
+      } else if (container.columnWidths && container.columnWidths.length === totalColumns) {
         columnWidth = container.columnWidths[columnIndex];
       } else {
         columnWidth = 100 / totalColumns;
@@ -158,10 +152,7 @@ const MultiColumnItem = (props: IMultiColumnItemProps) => {
 
       // 获取当前列宽并计算删除后的列宽
       const currentWidths = getColumnWidths(container);
-      const newWidths = calcWidthsAfterDelete(
-        currentWidths,
-        currentColumnIndex,
-      );
+      const newWidths = calcWidthsAfterDelete(currentWidths, currentColumnIndex);
 
       // 使用 Slate 的 Editor.withoutNormalizing 确保原子操作
       Editor.withoutNormalizing(editor, () => {
@@ -195,7 +186,7 @@ const MultiColumnItem = (props: IMultiColumnItemProps) => {
 
   return (
     <div
-      ref={(node) => {
+      ref={node => {
         drop(node);
       }}
       className={classnames(styles.itemContainer, {
@@ -211,16 +202,8 @@ const MultiColumnItem = (props: IMultiColumnItemProps) => {
       {/* 边缘放置区域 */}
       {!readOnly && (
         <>
-          <EdgeDropZone
-            position="left"
-            columnIndex={columnIndex}
-            containerPath={containerPath}
-          />
-          <EdgeDropZone
-            position="right"
-            columnIndex={columnIndex}
-            containerPath={containerPath}
-          />
+          <EdgeDropZone position="left" columnIndex={columnIndex} containerPath={containerPath} />
+          <EdgeDropZone position="right" columnIndex={columnIndex} containerPath={containerPath} />
         </>
       )}
 
@@ -235,7 +218,7 @@ const MultiColumnItem = (props: IMultiColumnItemProps) => {
           {/* 列拖拽排序手柄 */}
           {totalColumns > 1 && (
             <div
-              ref={(node) => {
+              ref={node => {
                 drag(node);
               }}
               className={classnames(styles.columnDragHandle, {
@@ -247,7 +230,7 @@ const MultiColumnItem = (props: IMultiColumnItemProps) => {
           )}
           {/* 删除按钮 */}
           <div className={styles.delete} onClick={onDelete}>
-            <DeleteOutlined />
+            <Trash2 size="1em" />
           </div>
         </div>
       </If>

@@ -18,10 +18,7 @@ import {
 import { Transforms } from "slate";
 import { ReactEditor } from "slate-react";
 
-import {
-  ContextMenuItem,
-  BuildMenuParams,
-} from "../../../components/EditorContextMenu/types";
+import { ContextMenuItem, BuildMenuParams } from "../../../components/EditorContextMenu/types";
 import {
   transformNodeType,
   copyNodeToClipboard,
@@ -30,14 +27,14 @@ import {
   convertChildrenToList,
 } from "../../../utils/nodeOperations";
 import { HighlightBlockElement, Color } from "../../../types";
-import type { MessageInstance } from "antd/es/message/interface";
+import type { EditorFeedback } from "../../../services/notifier";
 
 /**
  * 构建高亮块菜单项
  */
 export function buildHighlightBlockMenuItems(
   params: BuildMenuParams<HighlightBlockElement>,
-  message?: MessageInstance,
+  message?: EditorFeedback
 ): ContextMenuItem[] {
   const { element, editor, path } = params;
 
@@ -146,97 +143,61 @@ export function buildHighlightBlockMenuItems(
         {
           key: "color-red",
           label: "红色",
-          icon: (
-            <Circle size={16} style={{ fill: "#ef4444", color: "#ef4444" }} />
-          ),
+          icon: <Circle size={16} style={{ fill: "#ef4444", color: "#ef4444" }} />,
           disabled: element.color === "red",
           onSelect: () => {
             const elementPath = ReactEditor.findPath(editor, element);
-            Transforms.setNodes(
-              editor,
-              { color: "red" as Color },
-              { at: elementPath },
-            );
+            Transforms.setNodes(editor, { color: "red" as Color }, { at: elementPath });
           },
         },
         {
           key: "color-orange",
           label: "橙色",
-          icon: (
-            <Circle size={16} style={{ fill: "#f97316", color: "#f97316" }} />
-          ),
+          icon: <Circle size={16} style={{ fill: "#f97316", color: "#f97316" }} />,
           disabled: element.color === "orange",
           onSelect: () => {
             const elementPath = ReactEditor.findPath(editor, element);
-            Transforms.setNodes(
-              editor,
-              { color: "orange" as Color },
-              { at: elementPath },
-            );
+            Transforms.setNodes(editor, { color: "orange" as Color }, { at: elementPath });
           },
         },
         {
           key: "color-yellow",
           label: "黄色",
-          icon: (
-            <Circle size={16} style={{ fill: "#eab308", color: "#eab308" }} />
-          ),
+          icon: <Circle size={16} style={{ fill: "#eab308", color: "#eab308" }} />,
           disabled: element.color === "yellow",
           onSelect: () => {
             const elementPath = ReactEditor.findPath(editor, element);
-            Transforms.setNodes(
-              editor,
-              { color: "yellow" as Color },
-              { at: elementPath },
-            );
+            Transforms.setNodes(editor, { color: "yellow" as Color }, { at: elementPath });
           },
         },
         {
           key: "color-green",
           label: "绿色",
-          icon: (
-            <Circle size={16} style={{ fill: "#22c55e", color: "#22c55e" }} />
-          ),
+          icon: <Circle size={16} style={{ fill: "#22c55e", color: "#22c55e" }} />,
           disabled: element.color === "green",
           onSelect: () => {
             const elementPath = ReactEditor.findPath(editor, element);
-            Transforms.setNodes(
-              editor,
-              { color: "green" as Color },
-              { at: elementPath },
-            );
+            Transforms.setNodes(editor, { color: "green" as Color }, { at: elementPath });
           },
         },
         {
           key: "color-blue",
           label: "蓝色",
-          icon: (
-            <Circle size={16} style={{ fill: "#3b82f6", color: "#3b82f6" }} />
-          ),
+          icon: <Circle size={16} style={{ fill: "#3b82f6", color: "#3b82f6" }} />,
           disabled: element.color === "blue",
           onSelect: () => {
             const elementPath = ReactEditor.findPath(editor, element);
-            Transforms.setNodes(
-              editor,
-              { color: "blue" as Color },
-              { at: elementPath },
-            );
+            Transforms.setNodes(editor, { color: "blue" as Color }, { at: elementPath });
           },
         },
         {
           key: "color-purple",
           label: "紫色",
-          icon: (
-            <Circle size={16} style={{ fill: "#a855f7", color: "#a855f7" }} />
-          ),
+          icon: <Circle size={16} style={{ fill: "#a855f7", color: "#a855f7" }} />,
           disabled: element.color === "purple",
           onSelect: () => {
             const elementPath = ReactEditor.findPath(editor, element);
-            Transforms.setNodes(
-              editor,
-              { color: "purple" as Color },
-              { at: elementPath },
-            );
+            Transforms.setNodes(editor, { color: "purple" as Color }, { at: elementPath });
           },
         },
       ],

@@ -23,13 +23,39 @@ type CustomBlockRuntimeContainer = HTMLElement & {
   [CUSTOM_BLOCK_PENDING_THEME_KEY]?: boolean;
 };
 
+/**
+ * 旧模板写过 `components.antd` / `components.antdIcons`（已移除）。访问时抛出带说明的错误，
+ * 由本块自己显示，而不是得到 undefined 后在更深处报一个看不懂的错。
+ */
+const REMOVED_COMPONENT_LIBRARIES = ["antd", "antdIcons"] as const;
+
+const createTemplateComponents = (): Record<string, unknown> => {
+  const components: Record<string, unknown> = {};
+  for (const name of REMOVED_COMPONENT_LIBRARIES) {
+    Object.defineProperty(components, name, {
+      enumerable: false,
+      get() {
+        throw new Error(`components.${name} 已移除，请改用原生元素与 Tailwind 类名重写该模板`);
+      },
+    });
+  }
+  return components;
+};
+
 export const getCustomBlockRenderTemplate = () => {
-  const prefix = `const { antd } = components;\n`;
+  // 旧前缀是 `const { antd } = components;`，模板里直接写 `antd.Button`。保留同名绑定但惰性求值：
+  // 不用 antd 的模板照常运行，用到的在访问处报出说明
+  const prefix = `const antd = new Proxy({}, { get: () => components.antd });\n`;
 
   const suffix = ``;
 
   return { prefix, suffix };
 };
+
+const renderErrorMarkup = (error: unknown) =>
+  `<div class="text-red-500 p-4">渲染错误: ${escapeHtml(error instanceof Error ? error.message : String(error))}</div>`;
+
+const escapeHtml = (value: string) => value.replace(/[&<>"']/g, char => `&#${char.charCodeAt(0)};`);
 
 // 生成完整的可执行代码（注意：不包含 return，由调用方在 AsyncFunction 中添加）
 export const generateExecutableCode = (content: string): string => {
@@ -145,12 +171,10 @@ export const compileAndExecuteCustomBlock = async (
     }
 
     // 动态导入依赖
-    const [React, ReactDOM, Babel, antd, antdIcons] = await Promise.all([
+    const [React, ReactDOM, Babel] = await Promise.all([
       import("react"),
       import("react-dom/client"),
       import("@babel/standalone"),
-      import("antd"),
-      import("@ant-design/icons"),
     ]);
 
     if (shouldAbort()) {
@@ -203,7 +227,7 @@ export const compileAndExecuteCustomBlock = async (
 
     const Component = await fn(
       React,
-      { antd, antdIcons },
+      createTemplateComponents(),
       {
         ...ahooks,
         ...hooks,
@@ -225,15 +249,37 @@ export const compileAndExecuteCustomBlock = async (
       return root as CustomBlockRuntime["root"];
     };
 
+    // 模板组件渲染在独立的 React root 里，编辑器的元素错误边界接不到，这里自带一层：
+    // 渲染期抛错只在本块显示错误，不会卸掉整个 root 或波及页面
+    class TemplateErrorBoundary extends React.Component<
+      { children?: React.ReactNode },
+      { error: unknown }
+    > {
+      state: { error: unknown } = { error: null };
+      static getDerivedStateFromError(error: unknown) {
+        return { error };
+      }
+      componentDidCatch(error: unknown) {
+        console.error("CustomBlock render error:", error);
+      }
+      render() {
+        if (this.state.error) {
+          return React.createElement("div", {
+            dangerouslySetInnerHTML: { __html: renderErrorMarkup(this.state.error) },
+          });
+        }
+        return this.props.children;
+      }
+    }
+
     const renderWithTheme = (nextIsDark: boolean) => {
-      const { ConfigProvider, theme, App } = antd;
       const root = ensureRoot();
       root?.render?.(
         React.createElement(
           ThemeContext.Provider,
           { value: getRuntimeTheme(nextIsDark) },
           React.createElement(
-            App,
+            "div",
             {
               style: {
                 height: "100%",
@@ -241,15 +287,7 @@ export const compileAndExecuteCustomBlock = async (
                 color: "var(--ed-text)",
               },
             },
-            React.createElement(
-              ConfigProvider,
-              {
-                theme: {
-                  algorithm: nextIsDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
-                },
-              },
-              React.createElement(Component)
-            )
+            React.createElement(TemplateErrorBoundary, null, React.createElement(Component))
           )
         )
       );
@@ -279,7 +317,7 @@ export const compileAndExecuteCustomBlock = async (
     disposeRuntimeStyle();
     console.error("CustomBlock compilation error:", error);
     if (targetElement) {
-      targetElement.innerHTML = `<div class="text-red-500 p-4">渲染错误: ${error instanceof Error ? error.message : String(error)}</div>`;
+      targetElement.innerHTML = renderErrorMarkup(error);
     }
     return undefined;
   }

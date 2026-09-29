@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { Transforms } from "slate";
 import { ReactEditor } from "slate-react";
-import { App } from "antd";
+import type { EditorFeedback } from "../../../services/notifier";
 import { IFileService, IMediaActions } from "../../../services";
 import { ContextMenuItem, BuildMenuParams } from "../../../components/EditorContextMenu/types";
 import type {
@@ -39,7 +39,7 @@ const resolveLocalPath = async (url: string, fileService?: FileService) => {
 
 async function copyImageToClipboard(
   element: ImageElement,
-  message: ReturnType<typeof App.useApp>["message"],
+  message: EditorFeedback,
   fileService?: FileService
 ) {
   try {
@@ -85,11 +85,7 @@ async function copyImageToClipboard(
   }
 }
 
-async function copyImageLink(
-  url: string,
-  message: ReturnType<typeof App.useApp>["message"],
-  fileService?: FileService
-) {
+async function copyImageLink(url: string, message: EditorFeedback, fileService?: FileService) {
   try {
     const localPath = await resolveLocalPath(url, fileService);
     if (localPath) {
@@ -115,7 +111,7 @@ async function copyImageLink(
 
 export function buildImageMenuItems(
   params: BuildMenuParams<ImageElement>,
-  message?: ReturnType<typeof App.useApp>["message"],
+  message?: EditorFeedback,
   appearance?: ImageAppearanceConfig
 ): ContextMenuItem[] {
   const { element, editor } = params;

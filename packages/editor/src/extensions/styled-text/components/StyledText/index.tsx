@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
-import { Popover } from "antd";
 import { Transforms } from "slate";
+import { Popover } from "@tau/ui";
 
 import { StyledTextColorStyle, EStyledColor } from "../../../../constants";
 import type { StyledTextElement } from "../../../../types";
@@ -10,7 +10,6 @@ import ColorSelect from "../../../../components/ColorSelect";
 
 import useTheme from "../../../../hooks/useTheme";
 import { IExtensionBaseProps } from "../../../types";
-import styles from "./index.module.less";
 
 export const STYLED_TEXT_SELECT_COLOR_KEY = "styled-text-last-select-color";
 
@@ -41,43 +40,35 @@ const StyledText = (props: IExtensionBaseProps<StyledTextElement>) => {
 
   return (
     <Popover
-      trigger={"click"}
       open={!readonly && colorSelectOpen}
       onOpenChange={onOpenChange}
       arrow={false}
-      zIndex={10100}
-      styles={{
-        container: {
-          padding: 0,
-          background: "transparent",
-          boxShadow: "none",
-          border: "none",
-          backdropFilter: "none",
-        },
-      }}
-      content={
-        <ColorSelect<EStyledColor>
-          colors={Object.values(
-            StyledTextColorStyle[isDark ? "dark" : "light"],
-          ).map((item) => ({ ...item, color: item.backgroundColor }))}
-          onSelectColor={onSelectColor}
-          selectColor={color}
-        />
+      placement="bottom"
+      // 调色面板自带外观，浮层只做定位
+      className="min-w-0 max-w-none border-0 bg-transparent shadow-none"
+      trigger={
+        <span
+          className="mx-[0.125em] rounded-[0.25em] p-[0.25em] font-bold"
+          style={{
+            color: textColor,
+            backgroundColor,
+          }}
+          {...attributes}
+        >
+          <InlineChromiumBugfix />
+          {children}
+          <InlineChromiumBugfix />
+        </span>
       }
-      placement={"bottom"}
     >
-      <span
-        className={styles.styledText}
-        style={{
-          color: textColor,
-          backgroundColor,
-        }}
-        {...attributes}
-      >
-        <InlineChromiumBugfix />
-        {children}
-        <InlineChromiumBugfix />
-      </span>
+      <ColorSelect<EStyledColor>
+        colors={Object.values(StyledTextColorStyle[isDark ? "dark" : "light"]).map(item => ({
+          ...item,
+          color: item.backgroundColor,
+        }))}
+        onSelectColor={onSelectColor}
+        selectColor={color}
+      />
     </Popover>
   );
 };

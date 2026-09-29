@@ -1,5 +1,5 @@
 import React from "react";
-import { CaretRightOutlined } from "@ant-design/icons";
+import { CaretRight } from "../../../../../../ui/CaretRight";
 import classnames from "classnames";
 import styles from "../../index.module.less";
 
@@ -9,11 +9,7 @@ interface HeaderArrowProps {
   onClick: (e: React.MouseEvent) => void;
 }
 
-const HeaderArrow: React.FC<HeaderArrowProps> = ({
-  collapsed,
-  level,
-  onClick,
-}) => {
+const HeaderArrow: React.FC<HeaderArrowProps> = ({ collapsed, level, onClick }) => {
   const arrowClass = classnames(styles.arrow, {
     [styles.show]: !collapsed,
     [styles.hide]: collapsed,
@@ -22,7 +18,7 @@ const HeaderArrow: React.FC<HeaderArrowProps> = ({
 
   return (
     <div className={arrowClass} onClick={onClick} contentEditable={false}>
-      <CaretRightOutlined />
+      <CaretRight />
     </div>
   );
 };

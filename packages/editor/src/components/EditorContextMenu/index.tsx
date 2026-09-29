@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import classnames from "classnames";
-import { RightOutlined } from "@ant-design/icons";
+import { ChevronRight } from "lucide-react";
 
 import { ContextMenuItem, EditorContextMenuProps } from "./types";
 import styles from "./index.module.less";
@@ -11,9 +11,7 @@ const EditorContextMenu = memo(
     const menuRef = useRef<HTMLDivElement>(null);
     const [openKeys, setOpenKeys] = useState<string[]>([]);
     const [calculatedPosition, setCalculatedPosition] = useState(position);
-    const subMenuPositionsRef = useRef<
-      Map<string, { left: boolean; top: string }>
-    >(new Map());
+    const subMenuPositionsRef = useRef<Map<string, { left: boolean; top: string }>>(new Map());
     const isCalculatingRef = useRef(false);
 
     // 边界检测和位置计算
@@ -67,19 +65,17 @@ const EditorContextMenu = memo(
         const subMenus = menu.querySelectorAll("[data-submenu]");
         const newPositions = new Map<string, { left: boolean; top: string }>();
 
-        subMenus.forEach((subMenu) => {
+        subMenus.forEach(subMenu => {
           const subMenuElement = subMenu as HTMLElement;
           const subMenuKey = subMenuElement.dataset.submenuKey;
           if (!subMenuKey || !openKeys.includes(subMenuKey)) return;
 
-          const parentWrapper =
-            subMenuElement.parentElement as HTMLElement | null;
+          const parentWrapper = subMenuElement.parentElement as HTMLElement | null;
           if (!parentWrapper) return;
 
           const triggerElement = parentWrapper.querySelector("button");
           const anchorRect =
-            triggerElement?.getBoundingClientRect() ??
-            parentWrapper.getBoundingClientRect();
+            triggerElement?.getBoundingClientRect() ?? parentWrapper.getBoundingClientRect();
           const subMenuRect = subMenuElement.getBoundingClientRect();
 
           // 获取之前计算的位置
@@ -94,10 +90,7 @@ const EditorContextMenu = memo(
           if (defaultBottomEdge > viewportHeight - gap) {
             const overflowBottom = defaultBottomEdge - (viewportHeight - gap);
             const availableUpwardSpace = Math.max(0, anchorRect.top - gap);
-            const maxUpwardShift = Math.min(
-              overflowBottom,
-              availableUpwardSpace,
-            );
+            const maxUpwardShift = Math.min(overflowBottom, availableUpwardSpace);
             if (maxUpwardShift > 0) {
               topOffset = `-${maxUpwardShift}px`;
             }
@@ -169,12 +162,8 @@ const EditorContextMenu = memo(
       onClose();
     };
 
-    const handleItemWrapperEnter = (
-      key: string,
-      hasChildren: boolean,
-      level: number,
-    ) => {
-      setOpenKeys((prev) => {
+    const handleItemWrapperEnter = (key: string, hasChildren: boolean, level: number) => {
+      setOpenKeys(prev => {
         const nextPath = prev.slice(0, level);
         if (hasChildren) {
           nextPath[level] = key;
@@ -183,24 +172,19 @@ const EditorContextMenu = memo(
       });
     };
 
-    const handleItemWrapperLeave = (
-      key: string,
-      hasChildren: boolean,
-      level: number,
-    ) => {
+    const handleItemWrapperLeave = (key: string, hasChildren: boolean, level: number) => {
       if (!hasChildren || openKeys[level] !== key) {
         return;
       }
-      setOpenKeys((prev) => prev.slice(0, level));
+      setOpenKeys(prev => prev.slice(0, level));
     };
 
     const renderMenu = (items: ContextMenuItem[], level = 0) => (
       <div className={styles.menuList}>
-        {items.map((item) => {
+        {items.map(item => {
           if (!item) return null;
 
-          const hasChildren =
-            Array.isArray(item.children) && item.children.length > 0;
+          const hasChildren = Array.isArray(item.children) && item.children.length > 0;
           const isOpen = openKeys[level] === item.key;
 
           const itemClass = classnames(styles.menuItem, {
@@ -212,12 +196,8 @@ const EditorContextMenu = memo(
             <div
               key={item.key}
               className={styles.menuItemWrapper}
-              onMouseEnter={() =>
-                handleItemWrapperEnter(item.key, hasChildren, level)
-              }
-              onMouseLeave={() =>
-                handleItemWrapperLeave(item.key, hasChildren, level)
-              }
+              onMouseEnter={() => handleItemWrapperEnter(item.key, hasChildren, level)}
+              onMouseLeave={() => handleItemWrapperLeave(item.key, hasChildren, level)}
             >
               <button
                 type="button"
@@ -225,13 +205,11 @@ const EditorContextMenu = memo(
                 onClick={() => handleItemSelect(item, hasChildren)}
                 disabled={item.disabled}
               >
-                {item.icon && (
-                  <span className={styles.menuItemIcon}>{item.icon}</span>
-                )}
+                {item.icon && <span className={styles.menuItemIcon}>{item.icon}</span>}
                 <span className={styles.menuItemLabel}>{item.label}</span>
                 {hasChildren && (
                   <span className={styles.menuItemArrow}>
-                    <RightOutlined />
+                    <ChevronRight size="1em" />
                   </span>
                 )}
               </button>
@@ -294,15 +272,11 @@ const EditorContextMenu = memo(
         onContextMenu={stopAll}
         onWheel={stopPropagationOnly}
       >
-        {items.length > 0 ? (
-          renderMenu(items)
-        ) : (
-          <div className={styles.empty}>暂无可用操作</div>
-        )}
+        {items.length > 0 ? renderMenu(items) : <div className={styles.empty}>暂无可用操作</div>}
       </div>,
-      document.body,
+      document.body
     );
-  },
+  }
 );
 
 EditorContextMenu.displayName = "EditorContextMenu";
