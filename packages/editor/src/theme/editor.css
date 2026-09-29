@@ -60,7 +60,8 @@
   --ed-selection: var(--tau-accent-soft);
 
   /* ── 行内代码 / 标签药丸 ── */
-  --ed-tag-bg: var(--tau-bg-sunken);
+  /* 与桌面端聊天消息的行内代码 / 代码块同一套取色：页面底色 + line-1 描边 */
+  --ed-tag-bg: var(--tau-bg-page);
 
   /* ── 下划线装饰 ── */
   --ed-underline: var(--tau-accent);
@@ -72,8 +73,9 @@
   --ed-comment-icon: var(--tau-warn);
 
   /* ── 代码块 ── */
-  --ed-code-bg: var(--tau-bg-sunken);
-  --ed-code-shadow: var(--tau-shadow-card);
+  --ed-code-bg: var(--tau-bg-page);
+  /* 1px 内描边等同聊天代码块的 border-line-1，不占布局 */
+  --ed-code-shadow: inset 0 0 0 1px var(--tau-line-1);
   --ed-code-caret: var(--tau-ink-1);
   --ed-code-selection: var(--tau-accent-soft);
   /* 玻璃浮层（代码块工具条等） */
