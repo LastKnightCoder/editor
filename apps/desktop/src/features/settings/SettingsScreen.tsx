@@ -2,7 +2,7 @@
  * SettingsScreen —— 全窗口设置页（D-028，2026-09-30 由居中弹窗改为铺满窗口）。
  *
  * 壳层浮层（D-003 命令面板同族挂载，不进页面栈）：fixed 铺满整个窗口，连同应用侧栏一起覆盖。
- * 左栏 = 设置侧栏（与应用侧栏同宽同语言：窗口控制 / 返回 / 分组导航）；右栏 = 标题栏拖拽区 +
+ * 左栏 = 设置侧栏（固定 220px，不跟随应用侧栏拖宽；条目与应用侧栏同语言：窗口控制 / 返回 / 分组导航）；右栏 = 标题栏拖拽区 +
  * 居中内容列（页头取 sections.tsx 的 label + description，随正文一起滚动）。
  * 开闭态在 app/settingsStore（Sidebar / 命令面板 / Ctrl+, 多入口共享）。
  * Esc 经 useOverlayDismiss 注册表仲裁；关闭时焦点归还触发元素。
@@ -88,7 +88,7 @@ export function SettingsScreen() {
       aria-hidden={!open}
       className={clsx(
         // z 低于命令面板（100）：设置页内仍可 Ctrl+K 唤起面板；子页的 Dialog/Select 层级更高
-        "bg-page fixed inset-0 z-[90] grid grid-cols-[var(--tau-sidebar-w)_minmax(0,1fr)] outline-none",
+        "bg-page fixed inset-0 z-[90] grid grid-cols-[220px_minmax(0,1fr)] outline-none",
         "ease-tau-out transition-opacity duration-[160ms]",
         open ? "opacity-100" : "pointer-events-none opacity-0"
       )}
