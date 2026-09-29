@@ -1,7 +1,13 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import GlobalFindBar from ".";
+import { useFindOwner } from "./findOwner";
+
+function FindOwner({ open, active = true }: { open: () => void; active?: boolean }) {
+  useFindOwner(open, active);
+  return null;
+}
 
 const setInputValue = (input: HTMLInputElement, value: string) => {
   const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
@@ -49,6 +55,41 @@ describe("GlobalFindBar", () => {
   afterEach(() => {
     act(() => root.unmount());
     document.body.innerHTML = "";
+  });
+
+  it("有区域接管查找时 Ctrl+F 交给最后注册的接管者，接管者撤销后回到页内查找", () => {
+    const ownerRoot = createRoot(document.createElement("div"));
+    const page = vi.fn();
+    const dialog = vi.fn();
+    act(() =>
+      ownerRoot.render(
+        <>
+          <FindOwner open={page} />
+          <FindOwner open={dialog} />
+        </>
+      )
+    );
+    const query = () => document.body.querySelector('input[aria-label="搜索当前窗口"]');
+
+    act(openFindBar);
+    expect(dialog).toHaveBeenCalledTimes(1);
+    expect(page).not.toHaveBeenCalled();
+    expect(query()).toBeNull();
+
+    act(() =>
+      ownerRoot.render(
+        <>
+          <FindOwner open={page} />
+          <FindOwner open={dialog} active={false} />
+        </>
+      )
+    );
+    act(openFindBar);
+    expect(page).toHaveBeenCalledTimes(1);
+
+    act(() => ownerRoot.unmount());
+    act(openFindBar);
+    expect(query()).not.toBeNull();
   });
 
   it("通过 Ctrl+F 搜索当前窗口内多个编辑器的文本并高亮", async () => {

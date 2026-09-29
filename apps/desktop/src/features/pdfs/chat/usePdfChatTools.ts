@@ -10,7 +10,7 @@ import {
 } from "@/tools/pdfSearchTool";
 
 /** 注册页面专属工具，返回工具作用域：交给本页对话的 ChatContainer toolScope，别的对话拿不到 */
-export const usePdfChat = (pdfId: number, mainDbName: string) => {
+export function usePdfChatTools(pdfId: number, mainDbName: string) {
   const sourceId = `pdf-${pdfId}`;
   useEffect(() => {
     const tools = [
@@ -29,6 +29,4 @@ export const usePdfChat = (pdfId: number, mainDbName: string) => {
   }, [sourceId, pdfId, mainDbName]);
 
   return sourceId;
-};
-
-export default usePdfChat;
+}

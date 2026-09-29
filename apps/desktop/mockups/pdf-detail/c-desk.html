@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+  <head>
+    <meta charset="utf-8" />
+    <title>方案 C · 学习台</title>
+    <link rel="stylesheet" href="../chat/shared.css?v=3" />
+    <link rel="stylesheet" href="pdf-detail.css?v=1" />
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+  </head>
+  <body>
+    <div class="mock-note">
+      <h3>方案 C · 学习台（左页面缩略 · 中阅读 · 右「笔记 / 对话」）</h3>
+      左栏固定是页面缩略图 + 目录；右栏一个分段切换「笔记 |
+      对话」，笔记页就是标注列表（按页分组、可筛选、就地编辑），对话页是这份 PDF 的会话。结构和
+      Notebook 学习台一致。选区工具条、框选、查找、HUD 与方案 A 相同。
+      <ul>
+        <li class="pro">笔记整理与问答在同一处，适合精读后回顾；和 Notebook 心智一致。</li>
+        <li class="con">三栏常驻，页面最窄；笔记与对话不能同时看（A 可以左标注右对话）。</li>
+      </ul>
+    </div>
+
+    <div class="stage"><div class="win sb-c" id="win"></div></div>
+
+    <script type="module">
+      import {
+        mockBar,
+        sidebar,
+        titlebar,
+        icons,
+        pagesHTML,
+        leftPanel,
+        hud,
+        chatPanel,
+        ANNS,
+        COLORS,
+      } from "./pdf-detail.js?v=1";
+
+      mockBar(
+        "c-desk.html",
+        `<span class="seg"><button data-m="notes" class="on">右栏：笔记</button><button data-m="chat">右栏：对话</button></span>`
+      );
+      const win = document.getElementById("win");
+      const state = { m: "notes" };
+
+      function notesPanel() {
+        const byPage = [1, 4].map(p => [p, ANNS.filter(a => (a.page === 2 ? 4 : 1) === p)]);
+        return `<div class="rp-body" style="padding-top:4px">
+    <div class="ann-filter"><span class="chip on" style="height:22px;font-size:11.5px">全部 ${ANNS.length}</span><span class="chip" style="height:22px;font-size:11.5px">有笔记</span><span class="sp"></span>${COLORS.map(([c]) => `<span class="dot" style="background:var(--hl-${c}-solid)"></span>`).join("")}</div>
+    ${byPage
+      .map(
+        ([
+          p,
+          list,
+        ]) => `<div class="sec-t" style="font-size:12px;color:var(--ink-3);margin:12px 0 4px">第 ${p} 页</div>
+      ${list
+        .map(
+          a => `<div class="ann-i">${a.area ? `<div class="area-thumb"></div><div class="meta">区域 · ${a.text}</div>` : `<div class="q" style="--c:var(--hl-${a.color}-solid)">${a.text}</div>`}
+          ${a.note ? `<div class="note"><i data-lucide="message-square-text"></i><span>${a.note}</span></div>` : `<div class="note" style="color:var(--ink-3)"><i data-lucide="plus"></i><span>添加笔记</span></div>`}</div>`
+        )
+        .join("")}`
+      )
+      .join("")}
+  </div>
+  <div class="rp-foot"><button class="btn line" style="width:100%;justify-content:center"><i data-lucide="copy"></i>复制全部为 Markdown</button></div>`;
+      }
+
+      function render() {
+        const crumb = `<span style="color:var(--ink-2)">PDF</span><i data-lucide="chevron-right" style="width:14px;color:var(--ink-3)"></i><b>Attention Is All You Need</b>`;
+        const seg = `<div class="lp" style="width:auto;padding:12px 12px 0"><div class="seg" style="margin:0"><button class="${state.m === "notes" ? "on" : ""}" data-m2="notes">笔记 <span class="num" style="opacity:.6">${ANNS.length}</span></button><button class="${state.m === "chat" ? "on" : ""}" data-m2="chat">对话</button></div></div>`;
+        const right =
+          state.m === "notes"
+            ? `<aside class="rp" style="width:340px">${seg}${notesPanel()}</aside>`
+            : chatPanel({ head: false }).replace(
+                '<aside class="rp" id="rp">',
+                `<aside class="rp" id="rp" style="width:340px">${seg}`
+              );
+        win.innerHTML = `
+    ${sidebar()}
+    <div class="col">
+      ${titlebar(crumb)}
+      <div class="main"><section class="paper d-paper">
+        ${leftPanel("thumbs")
+          .replace(/<div class="seg">[\s\S]*?<\/div>/, "")
+          .replace('class="lp "', 'class="lp " style="width:150px"')
+          .replace('class="thumbs"', 'class="thumbs" style="grid-template-columns:1fr"')}
+        <div class="rd"><div class="rd-scroll">${pagesHTML({})}</div>${hud()}</div>
+        ${right}
+      </section></div>
+    </div>`;
+        icons();
+        document
+          .querySelectorAll(".mock-bar .seg button")
+          .forEach(b => b.classList.toggle("on", b.dataset.m === state.m));
+        win.querySelectorAll("[data-m2]").forEach(
+          b =>
+            (b.onclick = () => {
+              state.m = b.dataset.m2;
+              render();
+            })
+        );
+      }
+      document.querySelectorAll(".mock-bar .seg button").forEach(
+        b =>
+          (b.onclick = () => {
+            state.m = b.dataset.m;
+            render();
+          })
+      );
+      render();
+    </script>
+  </body>
+</html>

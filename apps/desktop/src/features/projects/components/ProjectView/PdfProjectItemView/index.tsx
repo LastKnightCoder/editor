@@ -1,54 +1,46 @@
-import { memo, useEffect, useState } from "react";
+import { memo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Loading } from "@tau/ui";
 
-import { getPdfById, getProjectItemById } from "@/commands";
-import { EProjectItemType, Pdf, ProjectItem } from "@/types";
-import EditPdf from "@/components/EditPdf";
-import { toast } from "@tau/ui";
+import { getProjectItemById } from "@/commands";
+import { ErrorState } from "@/components/ErrorState";
+import { EProjectItemType } from "@/types";
+import { usePdfDetail } from "@/features/pdfs/queries";
+import { PdfReader } from "@/features/pdfs/reader/PdfReader";
 
 interface PdfProjectItemViewProps {
   projectItemId: number;
 }
 
+/**
+ * 项目里的 PDF 条目：条目只存 refId，文件与标注都在 PDF 域——与 PDF 阅读页共用阅读器和缓存
+ * （在 PDF 列表里改名、上传后这里跟着更新）。独立阅读器没有对话，左面板开关在 HUD。
+ */
 const PdfProjectItemView = memo(({ projectItemId }: PdfProjectItemViewProps) => {
-  const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
-  const [pdf, setPdf] = useState<Pdf | null>(null);
+  const item = useQuery({
+    queryKey: ["projects", "pdf-item", projectItemId],
+    queryFn: () => getProjectItemById(projectItemId),
+    staleTime: 30_000,
+  });
+  const refId =
+    item.data?.projectItemType === EProjectItemType.Pdf && item.data.refId ? item.data.refId : 0;
+  const { pdf, loading } = usePdfDetail(refId);
 
-  useEffect(() => {
-    if (!projectItemId) return;
-
-    let mounted = true;
-
-    const load = async () => {
-      try {
-        const item = await getProjectItemById(projectItemId);
-        if (!item || item.projectItemType !== EProjectItemType.Pdf) return;
-        if (!mounted) return;
-        setProjectItem(item);
-
-        if (!item.refId) return;
-        const pdfData = await getPdfById(item.refId);
-        if (!mounted) return;
-        setPdf(pdfData);
-      } catch (error) {
-        console.error("加载 PDF 项失败:", error);
-        toast.error("加载 PDF 内容失败");
-      }
-    };
-
-    load();
-
-    return () => {
-      mounted = false;
-      setProjectItem(null);
-      setPdf(null);
-    };
-  }, [projectItemId]);
-
-  if (!projectItem || !pdf) return null;
+  if (item.isPending || (refId && loading)) return <Loading />;
+  if (item.error || !refId || !pdf) {
+    return (
+      <ErrorState
+        size="page"
+        error={item.error ?? undefined}
+        title="PDF 不存在"
+        description="关联的 PDF 可能已在 PDF 页面被删除，可以删除这个条目后重新关联。"
+      />
+    );
+  }
 
   return (
-    <div className="h-full w-full">
-      <EditPdf key={pdf.id} pdf={pdf} />
+    <div className="flex h-full min-h-0 w-full">
+      <PdfReader key={pdf.id} pdf={pdf} />
     </div>
   );
 });

@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+  <head>
+    <meta charset="utf-8" />
+    <title>方案 B · 页边图钉</title>
+    <link rel="stylesheet" href="../chat/shared.css?v=3" />
+    <link rel="stylesheet" href="pdf-detail.css?v=4" />
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+  </head>
+  <body>
+    <div class="mock-note">
+      <h3>方案 B · 页边图钉 + 纸内对话（定稿）</h3>
+      有笔记的标注在页面右页边内放一枚图钉（颜色 =
+      标注色），悬停浮出笔记卡，点击钉住卡片；卡片浮在页面上方，不占阅读宽度。左面板保留 目录 / 页面
+      / 标注 / 书签 四个页签，「标注」用于查找和跳转（与方案 A 一致）。AI 对话在纸内右栏，<span
+        class="kbd-k"
+        >⌘J</span
+      >
+      开关。阅读区背景与纸同色，页面只靠投影区分。
+      <ul>
+        <li class="pro">页面宽度不因批注变窄；读的时候扫一眼页边就知道哪里有笔记。</li>
+        <li class="pro">左面板点标注 → 滚到该处，图钉闪一下并展开笔记卡。</li>
+        <li class="con">多条笔记挤在同一行附近时，图钉按从上到下错开排列。</li>
+      </ul>
+    </div>
+
+    <div class="stage"><div class="win sb-c" id="win"></div></div>
+
+    <script type="module">
+      import {
+        mockBar,
+        sidebar,
+        titlebar,
+        icons,
+        pagesHTML,
+        leftPanel,
+        hud,
+        chatPanel,
+        ANNS,
+        mountPins,
+      } from "./pdf-detail.js?v=4";
+
+      const seg = (key, opts) =>
+        `<span class="seg" data-k="${key}">${opts.map(([v, l]) => `<button data-v="${v}">${l}</button>`).join("")}</span>`;
+      mockBar(
+        "b-margin.html",
+        [
+          seg("chat", [
+            ["on", "对话开"],
+            ["off", "对话关"],
+          ]),
+          seg("lt", [
+            ["toc", "目录"],
+            ["anns", "标注"],
+          ]),
+        ].join("")
+      );
+      const win = document.getElementById("win");
+      const state = {
+        chat: "on",
+        lt: "anns",
+        af: "all",
+        lpOn: true,
+        pinned: null,
+        active: null,
+        flash: null,
+      };
+
+      function render() {
+        const chatOn = state.chat === "on";
+        const crumb = `<button class="ib ${state.lpOn ? "on" : ""}" id="lpT" title="左面板"><i data-lucide="panel-left"></i></button><span style="color:var(--ink-2)">PDF</span><i data-lucide="chevron-right" style="width:14px;color:var(--ink-3)"></i><b>Attention Is All You Need</b>`;
+        win.innerHTML = `
+    ${sidebar()}
+    <div class="col">
+      ${titlebar(crumb)}
+      <div class="main">
+        <section class="paper d-paper">
+          ${leftPanel(state.lt, { annFilter: state.af, off: !state.lpOn, activeAnn: state.active })}
+          <div class="rd" id="rd"><div class="rd-scroll" id="scroll">${pagesHTML({ active: state.active })}</div>${hud({ chatOff: !chatOn })}</div>
+          ${chatOn ? chatPanel({}) : `<aside class="rp off"></aside>`}
+        </section>
+      </div>
+    </div>`;
+        icons();
+        mountPins(win, { pinned: state.pinned, flash: state.flash });
+        bind();
+      }
+
+      function bind() {
+        document
+          .querySelectorAll(".mock-bar .seg[data-k]")
+          .forEach(s =>
+            s
+              .querySelectorAll("button")
+              .forEach(b => b.classList.toggle("on", b.dataset.v === state[s.dataset.k]))
+          );
+        document.getElementById("lpT").onclick = () => {
+          state.lpOn = !state.lpOn;
+          render();
+        };
+        win.querySelectorAll('[data-act="chat"]').forEach(
+          b =>
+            (b.onclick = () => {
+              state.chat = state.chat === "on" ? "off" : "on";
+              render();
+            })
+        );
+        win.querySelectorAll("[data-lt]").forEach(
+          b =>
+            (b.onclick = () => {
+              state.lt = b.dataset.lt;
+              render();
+            })
+        );
+        win.querySelectorAll("[data-af]").forEach(
+          b =>
+            (b.onclick = () => {
+              state.af = b.dataset.af;
+              render();
+            })
+        );
+        // 左面板点标注：滚到原文，有笔记则图钉闪一下并钉住笔记卡
+        win.querySelectorAll("[data-jump]").forEach(
+          el =>
+            (el.onclick = () => {
+              const a = ANNS.find(x => x.id === el.dataset.jump);
+              state.active = a.id;
+              state.pinned = a.note ? a.id : null;
+              state.flash = a.note ? a.id : null;
+              render();
+              const target =
+                win.querySelector(`mark[data-ann="${a.id}"]`) || document.getElementById("fig");
+              const scroll = document.getElementById("scroll");
+              scroll.scrollTo({
+                top:
+                  target.getBoundingClientRect().top -
+                  scroll.getBoundingClientRect().top +
+                  scroll.scrollTop -
+                  120,
+                behavior: "smooth",
+              });
+            })
+        );
+      }
+
+      document.querySelectorAll(".mock-bar .seg[data-k]").forEach(s =>
+        s.querySelectorAll("button").forEach(
+          b =>
+            (b.onclick = () => {
+              state[s.dataset.k] = b.dataset.v;
+              render();
+            })
+        )
+      );
+      document.addEventListener("keydown", e => {
+        if (e.key.toLowerCase() === "j" && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault();
+          state.chat = state.chat === "on" ? "off" : "on";
+          render();
+        }
+      });
+      render();
+    </script>
+  </body>
+</html>

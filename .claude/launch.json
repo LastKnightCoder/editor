@@ -80,6 +80,20 @@
       "port": 6211
     },
     {
+      "name": "pdf-detail-mock",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "6212",
+        "--bind",
+        "127.0.0.1",
+        "-d",
+        "apps/desktop/mockups"
+      ],
+      "port": 6212
+    },
+    {
       "name": "chat-mock",
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8800", "-d", "apps/desktop/mockups/chat"],

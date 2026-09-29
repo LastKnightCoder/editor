@@ -9,7 +9,7 @@ import {
   Pdf,
 } from "@/types";
 import { ModalKey } from "../constants/modalKeys";
-import usePdfsStore from "@/stores/usePdfsStore";
+import { useCreatePdfRecord } from "@/features/pdfs/queries";
 import { toast } from "@tau/ui";
 
 export interface PdfAddStrategy {
@@ -98,7 +98,7 @@ export const createProjectItemFromPdf = (pdf: Pdf): CreateProjectItem => ({
 });
 
 export const usePdfHandlers = ({ closeModal, strategy }: UsePdfHandlersOptions) => {
-  const createPdfRecord = usePdfsStore(state => state.createPdf);
+  const createPdfRecord = useCreatePdfRecord();
 
   const handleRemotePdfConfirm = useMemoizedFn(async (result: RemotePdfSelectResult) => {
     try {
@@ -120,12 +120,7 @@ export const usePdfHandlers = ({ closeModal, strategy }: UsePdfHandlersOptions) 
     }
   });
 
-  const handleSelectPdfConfirm = useMemoizedFn(async (pdf: Pdf | null) => {
-    if (!pdf) {
-      toast.warning("请选择 PDF 文件");
-      return;
-    }
-
+  const handleSelectPdfConfirm = useMemoizedFn(async (pdf: Pdf) => {
     try {
       await strategy.addProjectItem(createProjectItemFromPdf(pdf));
       closeModal(ModalKey.SelectPdf);

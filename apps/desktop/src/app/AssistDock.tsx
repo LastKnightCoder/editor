@@ -9,14 +9,15 @@
  * assistMorph 形变过渡，期间关掉滑动。
  */
 
-import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
+import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
-import { cn } from "@tau/ui";
+import { ResizeHandle, cn } from "@tau/ui";
 import { usePage, useOverlayDismiss } from "@/page/PageProvider";
 import { ChatDock } from "@/features/chat/components/ChatDock";
 import { ASSIST_MAX_W, ASSIST_MIN_W, useShellStore } from "./shellStore";
 import { resolveAssistLayout } from "./assistLayout";
 import { ASSIST_MORPH_CLASS } from "./assistMorph";
+import { useAssistOwned } from "./assistOwner";
 import { ErrorState, RecoverableBoundary } from "@/components/ErrorState";
 
 /** 停靠栏不渲染的页面：页面本身就是对话 */
@@ -32,7 +33,9 @@ export function AssistDock() {
   const sidebarWidth = useShellStore(s => s.sidebarWidth);
   const sidebarCollapsed = useShellStore(s => s.sidebarCollapsed);
   const setOpen = useShellStore(s => s.setAssistOpen);
-  const visible = open && !HIDDEN_ON.has(currentKey ?? "");
+  // 页面自带对话栏（D-070）时停靠栏让位，开合状态保留，离开该页即恢复
+  const owned = useAssistOwned(currentKey);
+  const visible = open && !HIDDEN_ON.has(currentKey ?? "") && !owned;
 
   const windowWidth = useWindowWidth();
   const layout = resolveAssistLayout({
@@ -118,66 +121,20 @@ export function AssistDock() {
   );
 }
 
-/** 左缘拖宽热区（透明，hover / 拖动时显出 accent 短线） */
+/** 左缘拖宽热区（停靠栏在热区右边：向左拖变宽） */
 function AssistResizer() {
   const width = useShellStore(s => s.assistWidth);
   const setWidth = useShellStore(s => s.setAssistWidth);
-  const dragging = useRef<{ x: number; startW: number } | null>(null);
-  const [active, setActive] = useState(false);
-
-  const endDrag = useCallback(() => {
-    dragging.current = null;
-    document.body.style.userSelect = "";
-    document.body.style.cursor = "";
-    setActive(false);
-  }, []);
-
-  const onPointerMove = useCallback(
-    (e: PointerEvent<HTMLDivElement>) => {
-      const drag = dragging.current;
-      if (drag) setWidth(drag.startW + drag.x - e.clientX);
-    },
-    [setWidth]
-  );
-
   return (
-    <div
-      role="separator"
-      aria-orientation="vertical"
-      aria-label="AI 对话栏宽度"
-      aria-valuemin={ASSIST_MIN_W}
-      aria-valuemax={ASSIST_MAX_W}
-      aria-valuenow={width}
-      tabIndex={0}
-      title="拖动调整 AI 对话栏宽度"
-      className="group absolute -left-2 bottom-4 top-4 z-10 w-2 cursor-col-resize focus-visible:shadow-[var(--tau-focus-ring)]"
-      onKeyDown={e => {
-        // 键盘等价调整：左右箭头 ±16px，配合 focus-ring 可见
-        const step = e.key === "ArrowLeft" ? 16 : e.key === "ArrowRight" ? -16 : 0;
-        if (step === 0) return;
-        e.preventDefault();
-        setWidth(Math.min(ASSIST_MAX_W, Math.max(ASSIST_MIN_W, width + step)));
-      }}
-      onPointerDown={e => {
-        dragging.current = { x: e.clientX, startW: useShellStore.getState().assistWidth };
-        e.currentTarget.setPointerCapture(e.pointerId);
-        document.body.style.userSelect = "none";
-        document.body.style.cursor = "col-resize";
-        setActive(true);
-        e.preventDefault();
-      }}
-      onPointerMove={onPointerMove}
-      onPointerUp={endDrag}
-      onLostPointerCapture={endDrag}
-    >
-      <span
-        aria-hidden
-        className={cn(
-          "ease-tau-out absolute left-[3px] top-1/2 -mt-[18px] h-9 w-0.5 rounded-full transition-colors duration-[160ms]",
-          active ? "bg-accent" : "group-hover:bg-accent bg-transparent"
-        )}
-      />
-    </div>
+    <ResizeHandle
+      value={width}
+      min={ASSIST_MIN_W}
+      max={ASSIST_MAX_W}
+      onChange={setWidth}
+      side="right"
+      label="AI 对话栏宽度"
+      className="absolute -left-2 bottom-4 top-4 z-10"
+    />
   );
 }
 

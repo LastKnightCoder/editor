@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+  <head>
+    <meta charset="utf-8" />
+    <title>PDF 阅读页 · 方案与决策</title>
+    <link rel="stylesheet" href="../chat/shared.css?v=3" />
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <style>
+      [data-theme] body {
+        background: var(--page);
+      }
+      .wrap {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 28px 24px 60px;
+      }
+      h1 {
+        font-size: 25px;
+        font-weight: 600;
+        margin: 0 0 6px;
+      }
+      .lead {
+        color: var(--ink-2);
+        margin: 0 0 26px;
+        max-width: 940px;
+      }
+      h2 {
+        font-size: 16px;
+        font-weight: 600;
+        margin: 30px 0 4px;
+      }
+      h2 + p {
+        color: var(--ink-2);
+        margin: 0 0 14px;
+      }
+      .grid3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+      }
+      .card {
+        display: block;
+        text-decoration: none;
+        color: inherit;
+        background: var(--surface);
+        border-radius: var(--r-lg);
+        box-shadow: var(--shadow-card);
+        padding: 16px 18px;
+      }
+      a.card:hover {
+        box-shadow: var(--shadow-lift);
+      }
+      .card h3 {
+        margin: 0 0 4px;
+        font-size: 14.5px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .card p {
+        margin: 0;
+        color: var(--ink-2);
+        font-size: 12.5px;
+      }
+      .card .fit {
+        margin-top: 8px;
+        font-size: 12px;
+        color: var(--ink-3);
+      }
+      .rec {
+        font-size: 11px;
+        font-weight: 500;
+        padding: 1px 8px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent-text);
+      }
+      .wf {
+        height: 116px;
+        border-radius: 10px;
+        background: var(--page);
+        display: flex;
+        gap: 4px;
+        padding: 6px;
+        margin-bottom: 12px;
+      }
+      .wf i {
+        display: block;
+        border-radius: 3px;
+      }
+      .wf .p {
+        flex: 1;
+        background: var(--surface);
+        box-shadow: var(--shadow-card);
+        border-radius: 6px;
+        display: flex;
+        gap: 5px;
+        padding: 6px;
+      }
+      .wf .a {
+        background: var(--accent-soft);
+      }
+      .wf .b {
+        background: var(--sunken);
+      }
+      .wf .l {
+        background: var(--line-1);
+      }
+      .wf .w {
+        background: #fffefb;
+        box-shadow: 0 0 0 1px var(--line-1);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--surface);
+        border-radius: var(--r-lg);
+        box-shadow: var(--shadow-card);
+        overflow: hidden;
+        font-size: 12.5px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 9px 14px;
+        vertical-align: top;
+      }
+      th {
+        color: var(--ink-3);
+        font-weight: 500;
+        white-space: nowrap;
+      }
+      tr + tr td {
+        border-top: 1px solid var(--line-2);
+      }
+      td b {
+        font-weight: 600;
+      }
+      td.old {
+        color: var(--ink-3);
+      }
+      code,
+      .k {
+        font: 12px var(--mono);
+        padding: 1px 5px;
+        border-radius: 5px;
+        border: 1px solid var(--line-1);
+      }
+      .dec {
+        background: var(--surface);
+        border-radius: var(--r-lg);
+        box-shadow: var(--shadow-card);
+        padding: 4px 0;
+      }
+      .dec .q {
+        display: grid;
+        grid-template-columns: 34px 150px 1fr;
+        gap: 12px;
+        padding: 12px 18px;
+      }
+      .dec .q + .q {
+        border-top: 1px solid var(--line-2);
+      }
+      .dec .q .no {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: var(--accent-soft);
+        color: var(--accent-text);
+        display: grid;
+        place-items: center;
+        font-weight: 600;
+        font-size: 12px;
+      }
+      .dec .q .t {
+        font-weight: 600;
+      }
+      .dec .opt {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .dec .o {
+        padding: 6px 10px;
+        border-radius: var(--r-sm);
+        border: 1px solid var(--line-1);
+        font-size: 12.5px;
+        max-width: 330px;
+      }
+      .dec .o.r {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+      }
+      .dec .o b {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 1px;
+      }
+      .dec .o span {
+        color: var(--ink-2);
+        font-size: 12px;
+      }
+      .ph {
+        background: var(--surface);
+        border-radius: var(--r-lg);
+        box-shadow: var(--shadow-card);
+        padding: 16px 20px;
+      }
+      .ph ol {
+        margin: 0;
+        padding-left: 20px;
+      }
+      .ph li {
+        margin: 6px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>PDF 阅读页 · 方案与决策</h1>
+      <p class="lead">
+        现状：旧详情页是顶部一整条工具栏（翻页 / 缩放 / 适宽 / 单双页 / 旋转 / 截图 / 全屏 / 选择 /
+        抓手 / 高亮 / 下划线 / 波浪线 / 删除线 / 书签 / 问
+        AI，窄窗时折成两行），左侧五个页签的侧栏，右侧 AI
+        对话栏；标注是<b>先点工具、再划线</b>；弹窗、提示、菜单、空态都是
+        antd。本轮<b>不参考旧界面</b>，只保留能力清单，重新设计版面与交互，全部用 @tau/ui 和主题
+        token。
+      </p>
+
+      <h2>① 三套版面</h2>
+      <p>
+        三套共用同一套交互（选区工具条、框选、笔记卡、查找条、底部
+        HUD、引用跳页），区别在「标注放哪、对话放哪」。在方案 A 页用顶栏按钮可以切换所有状态。
+      </p>
+      <div class="grid3">
+        <a class="card" href="a-reader.html">
+          <div class="wf">
+            <div class="p">
+              <div style="width: 22%; display: flex; flex-direction: column; gap: 4px">
+                <i class="a" style="height: 10px"></i><i class="l" style="height: 8px"></i
+                ><i class="l" style="height: 8px"></i><i class="l" style="height: 8px"></i>
+              </div>
+              <div
+                style="
+                  flex: 1;
+                  background: transparent;
+                  box-shadow: inset 0 0 0 1px var(--line-1);
+                  border-radius: 4px;
+                  display: flex;
+                  justify-content: center;
+                  padding: 6px 0;
+                "
+              >
+                <i class="w" style="width: 56%"></i>
+              </div>
+              <div style="width: 26%; display: flex; flex-direction: column; gap: 4px">
+                <i class="b" style="height: 18px"></i><i class="l" style="height: 8px"></i
+                ><i class="l" style="height: 8px"></i>
+              </div>
+            </div>
+          </div>
+          <h3>A 沉浸阅读 <span class="rec">推荐</span></h3>
+          <p>
+            一整张纸：左面板（目录 / 页面 / 标注 / 书签）· 阅读区 ·
+            对话栏，两侧都能收起；翻页缩放进底部 HUD。
+          </p>
+          <div class="fit">没有顶部工具栏；左标注右对话可以同时看。</div>
+        </a>
+        <a class="card" href="b-margin.html">
+          <div class="wf">
+            <div class="p" style="flex: 1">
+              <div style="width: 18%; display: flex; flex-direction: column; gap: 4px">
+                <i class="l" style="height: 8px"></i><i class="l" style="height: 8px"></i>
+              </div>
+              <div
+                style="
+                  flex: 1;
+                  background: transparent;
+                  box-shadow: inset 0 0 0 1px var(--line-1);
+                  border-radius: 4px;
+                  display: flex;
+                  justify-content: center;
+                  gap: 4px;
+                  padding: 6px 0;
+                "
+              >
+                <i class="w" style="width: 50%"></i>
+                <div
+                  style="
+                    width: 24%;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 6px;
+                    padding-top: 10px;
+                  "
+                >
+                  <i class="b" style="height: 14px"></i><i class="b" style="height: 14px"></i>
+                </div>
+              </div>
+            </div>
+            <i class="b" style="width: 24%; border-radius: 6px"></i>
+          </div>
+          <h3>B 边注</h3>
+          <p>
+            有笔记的标注在页边内放图钉，悬停浮出笔记卡、不占阅读宽度；左面板保留「标注」页签用于查找跳转；对话在纸内右栏，⌘J
+            开关。
+          </p>
+          <div class="fit">✔ 已选定：页面不变窄，扫页边就知道哪里有笔记。</div>
+        </a>
+        <a class="card" href="c-desk.html">
+          <div class="wf">
+            <div class="p">
+              <div style="width: 14%; display: flex; flex-direction: column; gap: 4px">
+                <i class="w" style="height: 22px"></i><i class="w" style="height: 22px"></i>
+              </div>
+              <div
+                style="
+                  flex: 1;
+                  background: transparent;
+                  box-shadow: inset 0 0 0 1px var(--line-1);
+                  border-radius: 4px;
+                  display: flex;
+                  justify-content: center;
+                  padding: 6px 0;
+                "
+              >
+                <i class="w" style="width: 62%"></i>
+              </div>
+              <div style="width: 28%; display: flex; flex-direction: column; gap: 4px">
+                <i class="a" style="height: 10px"></i><i class="l" style="height: 12px"></i
+                ><i class="l" style="height: 12px"></i>
+              </div>
+            </div>
+          </div>
+          <h3>C 学习台</h3>
+          <p>左页面缩略图 · 中阅读 · 右栏「笔记 | 对话」分段切换，同 Notebook 学习台。</p>
+          <div class="fit">整理与问答同处；三栏常驻、笔记和对话不能同屏。</div>
+        </a>
+      </div>
+
+      <h2>② 交互重做（三套通用）</h2>
+      <table>
+        <tr>
+          <th>动作</th>
+          <th>旧</th>
+          <th>新</th>
+        </tr>
+        <tr>
+          <td><b>高亮 / 下划线</b></td>
+          <td class="old">先在工具栏选工具，再划线；不切回选择工具就一直处于标注模式</td>
+          <td>
+            直接划线 → 原地弹工具条 →
+            点颜色即高亮（默认沿用上次颜色），同一条上可切成下划线。不存在「工具模式」
+          </td>
+        </tr>
+        <tr>
+          <td><b>改 / 删标注</b></td>
+          <td class="old">点标注出一个 antd 小菜单</td>
+          <td>
+            点标注弹同一条工具条：当前色打勾、可换色换样式、笔记、问 AI、删除（删除后给 toast
+            撤销，不弹确认框）
+          </td>
+        </tr>
+        <tr>
+          <td><b>写笔记</b></td>
+          <td class="old">侧栏里另开编辑面板</td>
+          <td>
+            工具条「写笔记」→ 标注下方弹笔记卡，直接输入，<span class="k">⌘↵</span> 保存 /
+            <span class="k">Esc</span> 取消；有笔记的标注尾部带一个小图标
+          </td>
+        </tr>
+        <tr>
+          <td><b>框选区域</b></td>
+          <td class="old">先点截图工具</td>
+          <td>
+            按住 <span class="k">Alt</span> 拖动，松开出工具条：存为区域标注 / 问 AI / 复制图片
+          </td>
+        </tr>
+        <tr>
+          <td><b>问 AI</b></td>
+          <td class="old">套一段固定提示词直接发送</td>
+          <td>
+            选区作为引用带进输入框，不自动发送，给「解释 / 翻译 / 举个例子 /
+            找相关段落」快捷问法；回答里的页码点了跳回原文并闪一下
+          </td>
+        </tr>
+        <tr>
+          <td><b>书签</b></td>
+          <td class="old">工具栏按钮</td>
+          <td>悬停页面右上角出书签图标，点一下加 / 取消；快捷键 <span class="k">B</span></td>
+        </tr>
+        <tr>
+          <td><b>查找</b></td>
+          <td class="old">侧栏「搜索」页签</td>
+          <td>
+            <span class="k">⌘F</span>
+            在阅读区右上角弹查找条，分「关键词」（逐个跳转高亮）和「按意思找」（AI 索引，列出段落）
+          </td>
+        </tr>
+        <tr>
+          <td><b>翻页 / 缩放</b></td>
+          <td class="old">顶部工具栏</td>
+          <td>
+            底部悬浮 HUD（页码可点改、缩放档位、查找、⋯），常驻显示（不随滚动变淡）；<span class="k"
+              >←</span
+            ><span class="k">→</span> 翻页、<span class="k">⌘+</span><span class="k">⌘-</span> 缩放
+          </td>
+        </tr>
+        <tr>
+          <td><b>双页 / 旋转 / 全屏</b></td>
+          <td class="old">顶部工具栏</td>
+          <td>HUD 的「⋯」里，另加「夜间页面（反色）」、在文件夹中显示、重建 AI 索引</td>
+        </tr>
+        <tr>
+          <td><b>抓手</b></td>
+          <td class="old">工具按钮</td>
+          <td>去掉；按住空格拖动或触控板平移</td>
+        </tr>
+      </table>
+
+      <h2>③ 需要你拍板的点</h2>
+      <p>高亮的是我的推荐。</p>
+      <div class="dec">
+        <div class="q">
+          <span class="no">1</span>
+          <div class="t">版面</div>
+          <div class="opt">
+            <div class="o r"><b>A 沉浸阅读</b><span>最干净，左右可同时开</span></div>
+            <div class="o"><b>B 边注</b><span>批注对齐原文</span></div>
+            <div class="o"><b>C 学习台</b><span>同 Notebook</span></div>
+          </div>
+        </div>
+        <div class="q">
+          <span class="no">2</span>
+          <div class="t">AI 对话放哪</div>
+          <div class="opt">
+            <div class="o r">
+              <b>纸内右栏</b
+              ><span
+                >这份 PDF 专属会话，与 Notebook 同口径；本页标题栏的 AI 按钮 / ⌘J
+                改为开关它，不再另开停靠栏</span
+              >
+            </div>
+            <div class="o">
+              <b>壳层停靠栏</b><span>全应用只有一个对话位置，但停靠栏要支持按页面切换会话</span>
+            </div>
+          </div>
+        </div>
+        <div class="q">
+          <span class="no">3</span>
+          <div class="t">标注样式</div>
+          <div class="opt">
+            <div class="o r">
+              <b>高亮 + 下划线</b
+              ><span>工具条只给两种；旧的波浪线 / 删除线照常显示和编辑，只是不再能新建</span>
+            </div>
+            <div class="o"><b>保留四种</b><span>高亮 / 下划线 / 波浪线 / 删除线</span></div>
+          </div>
+        </div>
+        <div class="q">
+          <span class="no">4</span>
+          <div class="t">颜色</div>
+          <div class="opt">
+            <div class="o r">
+              <b>5 色</b><span>黄 / 红 / 绿 / 蓝 / 紫；旧的粉色标注照常显示</span>
+            </div>
+            <div class="o"><b>保留 6 色</b><span>含粉色</span></div>
+          </div>
+        </div>
+        <div class="q">
+          <span class="no">5</span>
+          <div class="t">笔记编辑</div>
+          <div class="opt">
+            <div class="o r">
+              <b>轻量富文本</b
+              ><span>沿用现有笔记数据格式（Slate），编辑器只开基础格式与行内公式</span>
+            </div>
+            <div class="o"><b>纯文本</b><span>最轻，但旧笔记里的格式会丢</span></div>
+          </div>
+        </div>
+        <div class="q">
+          <span class="no">6</span>
+          <div class="t">删除标注</div>
+          <div class="opt">
+            <div class="o r"><b>直接删 + toast 撤销</b><span>高频操作不打断</span></div>
+            <div class="o"><b>确认框</b><span>同旧行为</span></div>
+          </div>
+        </div>
+        <div class="q">
+          <span class="no">7</span>
+          <div class="t">进入本页</div>
+          <div class="opt">
+            <div class="o r">
+              <b>收起全局侧栏</b><span>同 Notebook / 项目详情，离开时还原</span>
+            </div>
+            <div class="o"><b>不动</b><span>保持用户当前侧栏状态</span></div>
+          </div>
+        </div>
+      </div>
+
+      <h2>④ 落地分期（按推荐组合）</h2>
+      <div class="ph">
+        <ol>
+          <li>
+            <b>阅读器换壳</b>：<code>components/PdfEmbed</code> 拆成「引擎层（embedpdf 插件与能力
+            hooks，保留）」+「新界面层」进
+            <code>features/pdfs/reader/</code>；去掉顶部工具栏、旧侧栏与所有 antd（<code
+              >Tooltip / App / Dropdown / Empty / Result / Button</code
+            >）；HUD、左面板四页签、查找条用 @tau/ui 重写。
+          </li>
+          <li>
+            <b>标注交互</b>：选区工具条 / 已有标注工具条 / 笔记卡 / Alt 框选；去掉工具模式；删除走
+            toast 撤销。
+          </li>
+          <li>
+            <b>对话栏</b>：<code>PdfChatPanel</code> 迁入
+            <code>features/pdfs</code>，换成新头部与引用输入（选区 → 引用
+            chip），引用跳页闪烁；pdf-detail 转 status new。
+          </li>
+          <li>
+            <b>收尾</b>：项目里的 PDF 条目改用新阅读器；按 04 清单删除 <code>EditPdf</code>、旧
+            Toolbar / Sidebar / AnnotationSelectionMenu 与 <code>pages/PdfView</code> 余下文件。
+          </li>
+        </ol>
+      </div>
+    </div>
+    <script>
+      lucide.createIcons();
+      document.documentElement.dataset.theme = localStorage.getItem("chat-mock-theme") || "cream";
+    </script>
+  </body>
+</html>

@@ -6,6 +6,7 @@ import type { ComponentType } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Bell,
+  GripVertical,
   BellRing,
   CalendarDays,
   CircleDot,
@@ -43,6 +44,7 @@ import SwitchSection from "./SwitchSection";
 import RadioSection from "./RadioSection";
 import SegmentedSection from "./SegmentedSection";
 import FilterPillSection from "./FilterPillSection";
+import ResizeHandleSection from "./ResizeHandleSection";
 import DatePickerSection from "./DatePickerSection";
 import MenuSection from "./MenuSection";
 import DialogSection from "./DialogSection";
@@ -112,6 +114,13 @@ export const SECTIONS: SectionMeta[] = [
     group: "基础件",
     icon: ListFilter,
     component: FilterPillSection,
+  },
+  {
+    key: "resize-handle",
+    label: "ResizeHandle",
+    group: "基础件",
+    icon: GripVertical,
+    component: ResizeHandleSection,
   },
   { key: "tag", label: "Tag", group: "基础件", icon: TagIcon, component: TagSection },
   {

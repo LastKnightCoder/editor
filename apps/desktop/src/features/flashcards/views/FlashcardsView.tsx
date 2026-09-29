@@ -33,7 +33,7 @@ import {
   renderCardMenu as cardMenuItems,
   renderDeckMenu as deckMenuItems,
 } from "../components/flashcardMenus";
-import { useReviewSidebar } from "../hooks/useReviewSidebar";
+import { useSidebarCollapsedWhile } from "@/app/useSidebarCollapsedWhile";
 import { deckStats, reviewQueue, type DeckStats } from "../model";
 import { overlayOpen } from "../overlay";
 import {
@@ -112,7 +112,7 @@ export function FlashcardsView() {
 
   /* ---------- 复习 ---------- */
 
-  useReviewSidebar(review !== null);
+  useSidebarCollapsedWhile(review !== null);
   const startReview = (scopeId: number | null) => {
     if (!derived) return;
     const queue = reviewQueue(derived.cards, Date.now(), scopeId).map(c => c.id);

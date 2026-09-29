@@ -173,6 +173,10 @@ interface ChatContainerProps {
   compact?: boolean;
   /** 无消息时消息区的占位内容 */
   emptyState?: React.ReactNode;
+  /** 输入框正上方的附件区（如 PDF 阅读页的引用 chip） */
+  composerAccessory?: React.ReactNode;
+  /** 用户消息发送（或排队）前改写内容，每条消息调用一次（如把引用并进消息） */
+  prepareUserContent?: (content: MessageContentItem[]) => MessageContentItem[];
 }
 
 export type ChatContainerHandle = {
@@ -205,6 +209,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       contentMaxWidth,
       compact = false,
       emptyState,
+      composerAccessory,
+      prepareUserContent,
     },
     ref
   ) => {
@@ -1153,7 +1159,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     );
 
     const submitMessageContent = useMemoizedFn(
-      async (content: MessageContentItem[]): Promise<boolean> => {
+      async (rawContent: MessageContentItem[]): Promise<boolean> => {
+        const content = prepareUserContent ? prepareUserContent(rawContent) : rawContent;
         const conversationKey = conversationKeyRef.current;
         if (
           sendLoading ||
@@ -1679,6 +1686,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                         </button>
                       </div>
                     ) : null}
+                    {composerAccessory}
                     {/* 输入框外框：＋ / @ 面板按它的矩形定位（同宽、贴上沿） */}
                     <div
                       {...{ [COMPOSER_ANCHOR_ATTR]: "" }}

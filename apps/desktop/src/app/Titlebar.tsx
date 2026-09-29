@@ -2,7 +2,7 @@
  * 标题栏 —— 右列专属，不横贯全宽；样式 Tailwind 优先（D-001）。
  */
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { ArrowLeft, ArrowRight, MessageCircle, Monitor, Moon, Search, Sun } from "lucide-react";
 import { isWinOrLinux } from "@/platform";
 import { usePage } from "@/page/PageProvider";
@@ -13,6 +13,7 @@ import { nextAppearance, useThemeStore } from "@tau/themes/react";
 import { useSearchStore } from "@/features/search/searchStore";
 import { WindowControls } from "./WindowControls";
 import { useShellStore } from "./shellStore";
+import { toggleAssistFor, useAssistOwned } from "./assistOwner";
 
 export function Titlebar() {
   const { navigator, state, breadcrumbs } = usePage();
@@ -35,20 +36,24 @@ export function Titlebar() {
     return () => window.removeEventListener("keydown", onKeydown);
   }, [navigator]);
 
-  // Ctrl/⌘+J 开合 AI 对话停靠栏（D-047）；输入框里同样生效——对话输入框本身就在栏内，
-  // 收起不应要求先移走焦点。输入法组合期间不抢键
+  const currentKey = state.back[state.back.length - 1]?.key;
+  const currentKeyRef = useRef(currentKey);
+  currentKeyRef.current = currentKey;
+  const assistOwned = useAssistOwned(currentKey);
+
+  // Ctrl/⌘+J 开合 AI 对话停靠栏（D-047）；栈顶页面接管了对话开关时交给页面（D-070）。
+  // 输入框里同样生效——对话输入框本身就在栏内，收起不应要求先移走焦点。输入法组合期间不抢键
   useEffect(() => {
     const onKeydown = (e: KeyboardEvent) => {
       if (e.isComposing || e.altKey || e.shiftKey || !(e.ctrlKey || e.metaKey)) return;
       if (e.key.toLowerCase() !== "j") return;
       e.preventDefault();
-      useShellStore.getState().toggleAssist();
+      toggleAssistFor(currentKeyRef.current, useShellStore.getState().toggleAssist);
     };
     window.addEventListener("keydown", onKeydown);
     return () => window.removeEventListener("keydown", onKeydown);
   }, []);
 
-  const currentKey = state.back[state.back.length - 1]?.key;
   const crumb = currentKey ? (getPageMeta(currentKey)?.label ?? currentKey) : "";
   /* 页面注册的自定义面包屑（usePageBreadcrumb）整条替换默认「label」；
      自定义内容可能可交互（如文章详情的速切器），须让出拖拽区 */
@@ -97,8 +102,8 @@ export function Titlebar() {
           Ctrl K
         </kbd>
       </button>
-      {/* AI 对话停靠栏开关（对话页本身在栈顶时不显示） */}
-      {currentKey !== "chat" && <AssistToggle />}
+      {/* AI 对话停靠栏开关（对话页本身在栈顶、或页面自带对话栏时不显示） */}
+      {currentKey !== "chat" && !assistOwned && <AssistToggle />}
       {/* 主题切换：浅色 → 深色 → 跟随系统 循环（完整外观设置在 M5 设置中心） */}
       <ThemeToggle />
       {/* Windows/Linux 三键（Mac：自绘信号灯见 Sidebar 头部）；拖拽区行为见 header 类 */}
