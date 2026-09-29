@@ -14,6 +14,7 @@ class VideoExtension extends Base implements IExtension {
 
   override commands = videoCommands;
   override menuItems = videoMenuItems;
+  override dragSpec = true;
 
   override getPlugins() {
     return [

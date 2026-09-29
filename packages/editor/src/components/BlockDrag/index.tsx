@@ -80,15 +80,3 @@ export function DropIndicator({ active, before, className }: DropIndicatorProps)
 
 /** 拖拽源 / 放置目标的半透明（原 .dragging / .drop 的 opacity: 0.5） */
 export const dimWhileDragging = (dragging: boolean) => (dragging ? "opacity-50" : undefined);
-
-/**
- * 同一条插入线的伪元素写法：给**承载 Slate attributes 的元素**用（段落、标题等）。
- * 在那里插入真实子节点会混进 Slate 的 DOM ↔ 节点映射，`<p>` 里也放不了 `<div>`，所以用 ::before / ::after。
- * 元素本身需 position: relative。偏移用 `before:-top-[…]` / `after:-bottom-[…]` 覆盖。
- */
-export const dropLineClass = (active: boolean, before: boolean) =>
-  active
-    ? before
-      ? "before:pointer-events-none before:absolute before:inset-x-0 before:-top-[0.625em] before:h-[0.125em] before:bg-[var(--ed-accent-text)] before:content-['']"
-      : "after:pointer-events-none after:absolute after:inset-x-0 after:bottom-[0.375em] after:h-[0.125em] after:bg-[var(--ed-accent-text)] after:content-['']"
-    : undefined;

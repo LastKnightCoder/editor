@@ -13,6 +13,8 @@ import { createBlockElementPlugin } from "../../utils";
 class TabsExtension extends Base implements IExtension {
   type = "tabs";
 
+  override dragSpec = true;
+
   override getBlockPanelItems() {
     return blockPanelItems;
   }

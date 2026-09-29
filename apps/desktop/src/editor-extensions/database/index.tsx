@@ -10,6 +10,8 @@ import { createBlockElementPlugin, createVoidElementPlugin } from "@tau/editor/s
 class DatabaseExtension extends Base implements IExtension {
   type = "database";
 
+  override dragSpec = true;
+
   override getBlockPanelItems() {
     return blockPanelItems;
   }

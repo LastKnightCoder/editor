@@ -1,17 +1,11 @@
 import React, { PropsWithChildren } from "react";
-import { ReactEditor, RenderElementProps, useSlateStatic, useReadOnly } from "slate-react";
+import { ReactEditor, RenderElementProps, useSlateStatic } from "slate-react";
 import classnames from "classnames";
 import LocalImage from "@/components/LocalImage";
 import useTheme from "@/hooks/useTheme";
 import { VideoScreenshotElement } from "../../";
-import {
-  useDragAndDrop,
-  AddParagraph,
-  useDragHandlerMenu,
-  EditorContextMenu,
-} from "@tau/editor/src";
-import { MdDragIndicator } from "react-icons/md";
-import { Editor, Element, Path, Transforms } from "slate";
+import { AddParagraph } from "@tau/editor/src";
+import { Editor, Path, Transforms } from "slate";
 import EditText from "@/components/EditText";
 
 interface VideoScreenshotProps {
@@ -28,18 +22,8 @@ const VideoScreenshot: React.FC<PropsWithChildren<VideoScreenshotProps>> = ({
 }) => {
   const { isDark } = useTheme();
   const editor = useSlateStatic();
-  const readOnly = useReadOnly();
 
   const { url, time, caption } = element;
-
-  const { drag, drop, isDragging, canDrag, canDrop, isOverCurrent } = useDragAndDrop({
-    element: element as unknown as Element,
-  });
-
-  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
-    element: element as unknown as Element,
-    editor,
-  });
 
   const handleCaptionChange = (value: string) => {
     const path = ReactEditor.findPath(editor, element as any);
@@ -61,19 +45,8 @@ const VideoScreenshot: React.FC<PropsWithChildren<VideoScreenshotProps>> = ({
   };
 
   return (
-    <div
-      ref={node => {
-        drop(node);
-      }}
-      className="group/screenshot relative"
-    >
-      <div
-        {...attributes}
-        className={classnames("relative my-2", {
-          "opacity-50": isDragging,
-          "ring-2 ring-[var(--th-accent)]": isOverCurrent && canDrop,
-        })}
-      >
+    <div className="group/screenshot relative">
+      <div {...attributes} className="relative my-2">
         <div
           contentEditable={false}
           className={classnames(
@@ -95,29 +68,6 @@ const VideoScreenshot: React.FC<PropsWithChildren<VideoScreenshotProps>> = ({
         <div>{children}</div>
         <AddParagraph element={element as any} />
       </div>
-      {/* Drag handler - same style as Paragraph */}
-      <div
-        contentEditable={false}
-        ref={node => {
-          drag(node);
-        }}
-        onClick={dragHandlerProps.onClick}
-        className={classnames(
-          "absolute top-0 cursor-pointer opacity-0 transition-opacity group-hover/screenshot:opacity-100",
-          canDrag && "opacity-100"
-        )}
-        style={{
-          left: "-1.25em",
-          width: "1.25em",
-          height: "1.8em",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <MdDragIndicator className="h-5 w-5 text-gray-400" />
-      </div>
-      <EditorContextMenu {...menuProps} readonly={readOnly} />
     </div>
   );
 };

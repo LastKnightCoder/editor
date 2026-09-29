@@ -13,17 +13,11 @@ import { Pencil, Trash2 } from "lucide-react";
 
 import useTheme from "../../hooks/useTheme";
 
-import useDragAndDrop from "../../hooks/useDragAndDrop";
-import { useDragHandlerMenu } from "../../hooks/useDragHandlerMenu";
-
 import If from "../If";
 import AddParagraph, { AddParagraphRef } from "../AddParagraph";
-import EditorContextMenu from "../EditorContextMenu";
-import { BLOCK_DRAG_GROUP, DragHandle, DropIndicator, dimWhileDragging } from "../BlockDrag";
 import { previewActionsMap } from "./menu";
 
 import { CustomElement } from "../../types";
-import type { BuildMenuParams, ContextMenuItem } from "../EditorContextMenu/types";
 import "./PreviewWithEditor.vendor.css";
 import useIsLastElement from "../../hooks/useIsLastElement";
 import {
@@ -40,7 +34,6 @@ interface IPreviewWithEditorProps {
   element: CustomElement;
   center?: boolean;
   extend?: boolean;
-  extraMenuItemsBuilder?: (params: BuildMenuParams<CustomElement>) => ContextMenuItem[];
 }
 
 const ACTION_ITEM_CLASS = "flex h-[1.75em] w-[1.75em] cursor-pointer items-center justify-center";
@@ -49,8 +42,7 @@ const FULLSCREEN_BUTTON_CLASS =
   "flex h-[1.75em] w-[1.75em] cursor-pointer items-center justify-center rounded-[0.25em] transition-all duration-200 hover:bg-[var(--ed-bg-hover)]";
 
 const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = memo(props => {
-  const { mode, initValue, onChange, children, element, center, extend, extraMenuItemsBuilder } =
-    props;
+  const { mode, initValue, onChange, children, element, center, extend } = props;
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(initValue);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -65,20 +57,6 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
   const readOnly = useReadOnly();
   const { isDark } = useTheme();
   const isLast = useIsLastElement(element);
-  const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } = useDragAndDrop({
-    element,
-  });
-
-  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
-    element,
-    editor: slateEditor,
-    extraItems: ({ path }) =>
-      extraMenuItemsBuilder?.({
-        element,
-        editor: slateEditor,
-        path,
-      }) ?? [],
-  });
 
   // 「编辑 / 全屏」菜单命令（tau.preview.*）从这里取动作
   useEffect(() => {
@@ -411,14 +389,12 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
   const containerClassName = cn(
     // 悬停时显示右上角操作条（此块不会嵌套自身）
     "group/preview relative",
-    editing && "bg-[var(--ed-code-bg)] pb-[1.25em]",
-    dimWhileDragging(isDragging || (isOverCurrent && canDrop))
+    editing && "bg-[var(--ed-code-bg)] pb-[1.25em]"
   );
 
   return (
-    <div className={cn("relative", BLOCK_DRAG_GROUP)}>
+    <div className="relative">
       <div contentEditable={false} ref={ref} className={containerClassName}>
-        <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
         <div
           style={{
             height: editing ? "auto" : 0,
@@ -464,9 +440,6 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
           <div className="mx-[1.25em] mb-[1.25em] h-[0.125em] bg-[var(--ed-border)]"></div>
         </If>
         <div
-          ref={node => {
-            drop(node);
-          }}
           className={cn(
             "box-border min-h-[2.5em] whitespace-normal",
             extend && "py-[0.3125em]",
@@ -494,18 +467,6 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
       {!(readOnly && isLast) && (
         <AddParagraph ref={addParagraphRef} element={element} onAddParagraph={onAddParagraph} />
       )}
-      <DragHandle
-        dragRef={
-          canDrag
-            ? node => {
-                drag(node);
-              }
-            : () => {}
-        }
-        canDrag={canDrag}
-        onClick={dragHandlerProps.onClick}
-      />
-      <EditorContextMenu {...menuProps} readonly={readOnly} />
       <If condition={isFullscreen}>
         <PortalToBody>
           <div

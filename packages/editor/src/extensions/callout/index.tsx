@@ -15,6 +15,7 @@ class CalloutExtension extends Base implements IExtension {
 
   override commands = calloutCommands;
   override menuItems = calloutMenuItems;
+  override dragSpec = true;
 
   override getPlugins() {
     return [deleteFirstLineCallout, quit, withNormalize, createBlockElementPlugin(this.type)];

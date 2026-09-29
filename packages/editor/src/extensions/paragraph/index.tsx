@@ -20,18 +20,16 @@ const MemoizedParagraphRenderer = React.memo(
         {children}
       </Paragraph>
     );
-  },
+  }
 );
 
 class ParagraphExtension extends Base implements IExtension {
   override type = "paragraph";
 
+  override dragSpec = true;
+
   override getPlugins() {
-    return [
-      inlineCode,
-      normalizeParagraph,
-      createBlockElementPlugin(this.type),
-    ];
+    return [inlineCode, normalizeParagraph, createBlockElementPlugin(this.type)];
   }
 
   override getHoveringBarElements() {

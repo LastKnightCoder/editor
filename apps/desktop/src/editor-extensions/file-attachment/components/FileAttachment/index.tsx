@@ -1,17 +1,7 @@
 import React from "react";
 import { RenderElementProps } from "slate-react";
 import { FileAttachmentElement } from "@/editor-extensions/file-attachment/types";
-import {
-  AddParagraph,
-  BLOCK_DRAG_GROUP,
-  DragHandle,
-  DropIndicator,
-  dimWhileDragging,
-  useDragAndDrop,
-  useNotifier,
-  type EditorLoadingHandle,
-} from "@tau/editor/src";
-import { cn } from "@tau/ui";
+import { AddParagraph, useNotifier, type EditorLoadingHandle } from "@tau/editor/src";
 import { showInFolder } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
 
@@ -26,11 +16,6 @@ const FileAttachment = (props: IFileAttachmentProps) => {
 
   const { fileName, filePath, isLocal, localFilePath = filePath } = element;
   const notifier = useNotifier();
-
-  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
-    element,
-  });
-  const dropActive = isOverCurrent && canDrop;
 
   const handleClickCard = async () => {
     if (isLocal) {
@@ -56,14 +41,7 @@ const FileAttachment = (props: IFileAttachmentProps) => {
   };
 
   return (
-    <div
-      ref={node => {
-        drop(node);
-      }}
-      className={cn("relative", BLOCK_DRAG_GROUP, dimWhileDragging(isDragging || dropActive))}
-      contentEditable={false}
-    >
-      <DropIndicator active={dropActive} before={isBefore} />
+    <div className="relative" contentEditable={false}>
       <div {...attributes}>
         <div
           className="border-line-1 bg-surface hover:bg-hover flex cursor-pointer flex-col gap-[0.5em] border px-[1em] py-[0.75em]"
@@ -76,12 +54,6 @@ const FileAttachment = (props: IFileAttachmentProps) => {
         </div>
         {children}
         <AddParagraph element={element} />
-        <DragHandle
-          dragRef={node => {
-            drag(node);
-          }}
-          canDrag={canDrag}
-        />
       </div>
     </div>
   );

@@ -1,17 +1,9 @@
 import { useMemoizedFn } from "ahooks";
-import { cn } from "@tau/ui";
 import { memo, useMemo, useState, useRef, useEffect } from "react";
 import { RenderElementProps, ReactEditor, useSlateStatic, useReadOnly } from "slate-react";
 import { Transforms } from "slate";
 import { useEditDatabaseWithContext } from "@tau/shared";
-import {
-  AddParagraph,
-  BLOCK_DRAG_GROUP,
-  DragHandle,
-  DropIndicator,
-  dimWhileDragging,
-  useDragAndDrop,
-} from "@tau/editor/src";
+import { AddParagraph } from "@tau/editor/src";
 import useIsLastElement from "@tau/editor/src/hooks/useIsLastElement";
 import Database from "@/components/Database";
 import type { DatabaseElement } from "../types";
@@ -26,9 +18,6 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
   const { element, attributes, children } = props;
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
-  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
-    element,
-  });
   const isLast = useIsLastElement(element);
   const { tableId, height } = element;
   const databaseState = useEditDatabaseWithContext(tableId);
@@ -127,17 +116,7 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
   };
 
   return (
-    <div
-      ref={node => {
-        drop(node);
-      }}
-      className={cn(
-        "relative",
-        BLOCK_DRAG_GROUP,
-        dimWhileDragging(isDragging || (isOverCurrent && canDrop))
-      )}
-    >
-      <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
+    <div className="relative">
       <div {...attributes} contentEditable={false}>
         {/* 容器 = 透明底 + 描边（D-007） */}
         <div className="border-line-1 flex min-h-[12em] flex-col gap-[1em] rounded-[0.75em] border border-solid p-[1.5em]">
@@ -152,15 +131,6 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
         />
         {children}
         {!(readOnly && isLast) && <AddParagraph element={element} />}
-        {!readOnly && (
-          <DragHandle
-            dragRef={node => {
-              drag(node);
-            }}
-            canDrag={canDrag}
-            icon={null}
-          />
-        )}
       </div>
     </div>
   );

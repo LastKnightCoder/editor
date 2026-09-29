@@ -45,7 +45,15 @@ describe("默认确认框", () => {
       root?.render(
         <DndProvider backend={HTML5Backend}>
           {refs.map((ref, index) => (
-            <Editor key={index} ref={ref} kit={kit} initValue={doc} readonly={false} />
+            // 每个编辑器独立的节点副本：Slate 的 node→key 映射是全局 WeakMap，
+            // 跨编辑器共享同一批 node 对象会在 decoration 阶段竞态
+            <Editor
+              key={index}
+              ref={ref}
+              kit={kit}
+              initValue={structuredClone(doc)}
+              readonly={false}
+            />
           ))}
         </DndProvider>
       );

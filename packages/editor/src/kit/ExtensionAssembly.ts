@@ -5,6 +5,7 @@ import type { RenderElementProps } from "slate-react";
 import type { EditorExtension, ElementBehaviors, ElementSpec } from "../api/extension";
 import { CommandRegistry, type EditorHotkey } from "../api/command";
 import type { EditorMenuContribution } from "../api/menu";
+import { normalizeDragSpec, type ElementDragSpec } from "../api/drag";
 import type { MenuContributionSource } from "../menu/resolveMenu";
 import {
   isLegacyAdapter,
@@ -78,6 +79,8 @@ export class ExtensionAssembly {
   readonly hoveringBarElements: readonly IConfigItem[];
   /** 手柄/右键菜单的贡献来源（按扩展顺序）；求值在打开菜单时进行 */
   readonly menuSources: readonly MenuContributionSource[];
+  /** 元素类型 → 拖拽声明；未收录的类型没有拖拽 chrome（BlockDragHost 查询） */
+  readonly dragSpecs: ReadonlyMap<string, ElementDragSpec>;
   /** 本装配能渲染的元素类型（按扩展顺序） */
   readonly elementTypes: readonly string[];
   /** 元素类型 → 行为列表：该类型自己的在前，其他扩展经 behaviorsFor 挂上来的按扩展顺序在后 */
@@ -95,6 +98,7 @@ export class ExtensionAssembly {
     const commands = new CommandRegistry();
     const hoveringBarElements: IConfigItem[] = [];
     const menuSources: MenuContributionSource[] = [];
+    const dragSpecs = new Map<string, ElementDragSpec>();
     const own = new Map<string, ElementBehaviorEntry>();
     const attached = new Map<string, ElementBehaviorEntry[]>();
     for (const extension of this.extensions) {
@@ -108,6 +112,7 @@ export class ExtensionAssembly {
           commandHotkeys.push({ hotkey, owner: extension.id });
         }
         hoveringBarElements.push(...collected.toolbar);
+        for (const [type, spec] of collected.dragSpecs) dragSpecs.set(type, spec);
         if (collected.menu) {
           const types = elementTypesOf(extension);
           menuSources.push({
@@ -140,6 +145,7 @@ export class ExtensionAssembly {
     }
     this.hoveringBarElements = hoveringBarElements;
     this.menuSources = menuSources;
+    this.dragSpecs = dragSpecs;
     const behaviors = new Map<string, ElementBehaviorEntry[]>();
     for (const type of new Set([...own.keys(), ...attached.keys()])) {
       behaviors.set(type, [
@@ -156,14 +162,18 @@ export class ExtensionAssembly {
     const renderers = new Map<string, ElementRenderer>();
     const behaviors = new Map<string, ElementBehaviorEntry>();
     const attached = new Map<string, ElementBehaviorEntry>();
+    const dragSpecs = new Map<string, ElementDragSpec>();
     if (isLegacyAdapter(extension)) {
       renderers.set(extension.legacy.type, extension.legacyRender);
+      const dragSpec = normalizeDragSpec(extension.legacy.dragSpec);
+      if (dragSpec) dragSpecs.set(extension.legacy.type, dragSpec);
       return {
         plugins: [...(extension.plugins ?? [])],
         hotkeys: [...extension.legacyHotkeys],
         hotkeyDeclarations: [],
         toolbar: [...(extension.toolbar ?? [])],
         menu: extension.legacy.menuItems as EditorMenuContribution | undefined,
+        dragSpecs,
         renderers,
         behaviors,
         attached,
@@ -175,6 +185,8 @@ export class ExtensionAssembly {
       if (spec.behaviors) {
         behaviors.set(spec.type, { extension: extension.id, behaviors: spec.behaviors });
       }
+      const dragSpec = normalizeDragSpec(spec.drag);
+      if (dragSpec) dragSpecs.set(spec.type, dragSpec);
     }
     for (const [type, handlers] of Object.entries(extension.behaviorsFor ?? {})) {
       attached.set(type, { extension: extension.id, behaviors: handlers });
@@ -186,6 +198,7 @@ export class ExtensionAssembly {
       commands: [...(extension.commands ?? [])],
       toolbar: [...(extension.toolbar ?? [])],
       menu: extension.menu,
+      dragSpecs,
       renderers,
       behaviors,
       attached,

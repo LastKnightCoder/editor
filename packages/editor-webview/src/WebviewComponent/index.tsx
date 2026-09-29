@@ -4,25 +4,17 @@ import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
 import { ResizeHandle, Webview } from "@tau/shared";
 import type { WebviewRef } from "@tau/shared";
 import { Transforms } from "slate";
-import classnames from "classnames";
 import { X } from "lucide-react";
 
 import {
   IExtensionBaseProps,
   AddParagraph,
-  useDragAndDrop,
-  EditorContextMenu,
-  useDragHandlerMenu,
   useIsLastElement,
   useUploadResource,
   IFileService,
   IResourceService,
   useNotifier,
   type EditorLoadingHandle,
-  BLOCK_DRAG_GROUP,
-  DragHandle,
-  DropIndicator,
-  dimWhileDragging,
 } from "@tau/editor";
 import type { WebviewElement } from "../types";
 import { WebLinkSourceType } from "../types";
@@ -44,9 +36,6 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
   const [localUploadLoading, setLocalUploadLoading] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const fullscreenContainerRef = useRef<HTMLDivElement>(null);
-  const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } = useDragAndDrop({
-    element,
-  });
 
   const fileService = editor.getService(IFileService);
   const resourceService = editor.getService(IResourceService);
@@ -193,8 +182,6 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
     }
   });
 
-  const { menuProps, dragHandlerProps } = useDragHandlerMenu({ element, editor });
-
   // 菜单命令（tau.webview.*）从这里取动作；上传状态经 isUploading 供菜单打开时读取
   useEffect(() => {
     webviewActionsMap.set(element, {
@@ -217,17 +204,7 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
   ]);
 
   return (
-    <div
-      ref={node => {
-        drop(node);
-      }}
-      className={classnames(
-        "relative",
-        BLOCK_DRAG_GROUP,
-        dimWhileDragging(isDragging || (isOverCurrent && canDrop))
-      )}
-    >
-      <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
+    <div className="relative">
       <div {...attributes}>
         <div
           className="relative box-border w-full rounded-[0.25em] border border-solid border-[var(--ed-border)] [&:fullscreen]:h-screen [&:fullscreen]:rounded-none [&:fullscreen]:border-none"
@@ -277,15 +254,6 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
         {children}
 
         {!(readOnly && isLast) && <AddParagraph element={element} />}
-        <DragHandle
-          dragRef={node => {
-            drag(node);
-          }}
-          canDrag={canDrag}
-          onClick={dragHandlerProps.onClick}
-          iconClassName="text-[1.25em]"
-        />
-        <EditorContextMenu {...menuProps} readonly={readOnly} />
 
         <InputUrlModal
           editor={editor}

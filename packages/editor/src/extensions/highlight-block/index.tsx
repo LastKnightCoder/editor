@@ -15,6 +15,7 @@ class HighlightBlockExtension extends Base implements IExtension {
 
   override commands = highlightBlockCommands;
   override menuItems = highlightBlockMenuItems;
+  override dragSpec = true;
 
   override getBlockPanelItems() {
     return blockPanelItems;

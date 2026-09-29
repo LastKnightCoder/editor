@@ -15,6 +15,7 @@ class ChartExtension extends Base implements IExtension {
 
   override commands = chartCommands;
   override menuItems = chartMenuItems;
+  override dragSpec = true;
 
   override getBlockPanelItems() {
     return blockPanelItems;

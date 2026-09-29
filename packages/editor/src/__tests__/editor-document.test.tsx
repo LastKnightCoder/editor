@@ -3,6 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Descendant, Editor as SlateEditor } from "slate";
+import { Editor as SlateEditorValue, Transforms } from "slate";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
@@ -118,6 +119,9 @@ describe("EditorDocument", () => {
     );
     expect(editor).toBeTruthy();
     await act(async () => {
+      // 显式设选区再输入：insertText 在无选区时是 no-op，
+      // 不能依赖旧 normalize 写 disableDrag 的副作用来触发 onChange（该字段已删）
+      Transforms.select(editor!, SlateEditorValue.end(editor!, []));
       editor!.insertText("y");
     });
     expect(onChange).toHaveBeenCalled();

@@ -23,6 +23,7 @@ class ImageExtension extends Base implements IExtension {
   }
 
   override commands = imageCommands;
+  override dragSpec = true;
   /** appearance（圆角/阴影的全局默认值）随扩展实例注入菜单工厂 */
   override menuItems = (editor: Editor) => [
     ...imageMediaActionEntries(editor),

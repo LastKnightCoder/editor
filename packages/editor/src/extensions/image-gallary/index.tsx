@@ -21,6 +21,7 @@ class ImageGalleryExtension extends Base implements IExtension {
 
   override commands = imageGalleryCommands;
   override menuItems = imageGalleryMenuItems;
+  override dragSpec = true;
 
   override getBlockPanelItems() {
     return blockPanelItems;
