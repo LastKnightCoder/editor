@@ -3,18 +3,18 @@ import { PortalToBody } from "@tau/shared";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useSlateStatic } from "slate-react";
 import List from "./List";
-import IExtension from "../../extensions/types";
 import { IBlockPanelListItem } from "../../types";
+import type { ExtensionAssembly } from "../../kit/ExtensionAssembly";
 
 import useBlockPanelStore from "../../stores/useBlockPanelStore";
 import menuStyles from "../EditorContextMenu/index.module.less";
 
 interface IBlockPanelProps {
-  extensions: IExtension[];
+  assembly: ExtensionAssembly;
 }
 
 const BlockPanel = memo((props: IBlockPanelProps) => {
-  const { extensions } = props;
+  const { assembly } = props;
   const editor = useSlateStatic();
 
   const { blockPanelVisible, ownerEditor, position, inputValue, list, filterList, reset } =
@@ -32,7 +32,7 @@ const BlockPanel = memo((props: IBlockPanelProps) => {
   // blockPanelVisible 进依赖：面板每次打开时重算，媒体插入项的
   // isAvailable（如 AI 生图配置状态）在打开时刻求值而非挂载时冻结
   const blockPanelList = useMemo(() => {
-    const list = extensions.map(extension => extension.getBlockPanelItems(editor)).flat();
+    const list = assembly.getBlockPanelItems(editor);
 
     const imageTitles = new Set(["行内图片", "图册"]);
     const reactTitles = new Set(["React 组件", "从模板选择"]);
@@ -101,7 +101,7 @@ const BlockPanel = memo((props: IBlockPanelProps) => {
     }
 
     return groupedItems;
-  }, [extensions, editor, blockPanelVisible]);
+  }, [assembly, editor, blockPanelVisible]);
 
   const panelRef = useRef<HTMLDivElement>(null);
   const [calculatedPosition, setCalculatedPosition] = useState(position);

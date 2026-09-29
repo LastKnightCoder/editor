@@ -1,3 +1,4 @@
+import type { AnyExtension } from "../api/legacy";
 import ParagraphExtension from "./paragraph";
 import UnderlineExtension from "./underline";
 import HeaderExtension from "./header";
@@ -14,7 +15,7 @@ import { InlineMathExtension, BlockMathExtension } from "./math";
 import BlockquoteExtension from "./blockquote";
 import LinkExtension from "./link";
 import CommentExtension from "./comment";
-import DivideLineExtension from "./divide-line";
+import divideLineExtension from "./divide-line";
 import MermaidExtension from "./mermaid";
 import { TableExtension, TableRowExtension, TableCellExtension } from "./table";
 import HtmlBlockExtension from "./html-block";
@@ -55,7 +56,7 @@ export const blockquote = new BlockquoteExtension();
 export const callout = new CalloutExtension();
 export const link = new LinkExtension();
 export const comment = new CommentExtension();
-export const divideLine = new DivideLineExtension();
+export const divideLine = divideLineExtension;
 export const mermaid = new MermaidExtension();
 export const htmlBlock = new HtmlBlockExtension();
 export const table = new TableExtension();
@@ -85,7 +86,8 @@ export const abc = new AbcExtension();
 export const plantuml = new PlantUMLExtension();
 export const chart = new ChartExtension();
 
-export const startExtensions = [
+/** 内置扩展：v2 与旧 IExtension 混排，迁移期间逐个换成 defineExtension */
+export const startExtensions: AnyExtension[] = [
   paragraph,
   underline,
   header,

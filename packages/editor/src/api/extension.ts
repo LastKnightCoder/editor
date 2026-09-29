@@ -1,0 +1,91 @@
+import type { ComponentType, ReactNode } from "react";
+import type { Editor, Element, NodeEntry, TextUnit } from "slate";
+import type { RenderElementProps } from "slate-react";
+
+import type { Plugin } from "../utils/plugin";
+import type { IBlockPanelListItem, IConfigItem } from "../types";
+
+/**
+ * 扩展 API v2（01 §5.1）：声明式描述「这个扩展贡献了什么」，内核负责装配、隔离与分发。
+ * 旧 `IExtension` 经 `fromLegacyExtension` 包成这个形状，二者可以在同一个 kit 里混用。
+ */
+
+export const EXTENSION_API_VERSION = 1;
+
+/** 元素渲染组件的 props；`attributes` 与 `children` 必须原样交给最外层元素 */
+export interface ElementRenderProps<E extends Element = Element> {
+  attributes: RenderElementProps["attributes"];
+  element: E;
+  children: ReactNode;
+}
+
+/**
+ * 元素的行为：只在选区落在该类型的元素内时调用（从最内层元素往外找），
+ * 不再全局改写 `editor.insertBreak`。返回 `true` 表示已处理；`false` 交给外层元素，最后回到默认行为。
+ */
+export interface ElementBehaviors<E extends Element = Element> {
+  insertBreak?(editor: Editor, entry: NodeEntry<E>): boolean;
+  deleteBackward?(editor: Editor, entry: NodeEntry<E>, unit: TextUnit): boolean;
+  insertText?(editor: Editor, entry: NodeEntry<E>, text: string): boolean;
+  /** 规范化该类型的节点；做了修改返回 `true`（Slate 会再规范化一轮） */
+  normalize?(editor: Editor, entry: NodeEntry<E>): boolean;
+}
+
+export interface ElementSpec<E extends Element = Element> {
+  /** 元素 type；内置类型沿用现有名字，兼容已有文档 */
+  type: string;
+  kind: "block" | "inline";
+  isVoid?: boolean;
+  /** 渲染组件，可以是 `lazy()`：加载期间内核显示保留结构的空壳 */
+  render: ComponentType<ElementRenderProps<E>>;
+  behaviors?: ElementBehaviors<E>;
+}
+
+export interface EditorExtension {
+  /** 全局唯一；内置用 `tau.*`，第三方将来用作者命名空间 */
+  readonly id: string;
+  readonly apiVersion: typeof EXTENSION_API_VERSION;
+  readonly elements?: readonly ElementSpec[];
+  /** 块菜单条目；给函数时每次打开菜单求值 */
+  readonly blockPanel?:
+    readonly IBlockPanelListItem[] | ((editor: Editor) => readonly IBlockPanelListItem[]);
+  /** 悬浮工具条条目 */
+  readonly toolbar?: readonly IConfigItem[];
+  /**
+   * 挂到**其他**元素类型上的行为，给「在别的元素里触发、产出本元素」的场景，
+   * 典型是快捷语法（段落里输入 `---` 回车变分割线）。与该类型自身的行为按扩展顺序一起分发。
+   */
+  readonly behaviorsFor?: Readonly<Record<string, ElementBehaviors>>;
+  /**
+   * @internal 受信任层（ER-005）：原始 Slate 插件，只给内核内置扩展表达声明式写不出的跨节点逻辑。
+   * 将来开放第三方时不进公开类型。
+   */
+  readonly plugins?: readonly Plugin[];
+}
+
+export type ExtensionDefinition = Omit<EditorExtension, "apiVersion"> & {
+  apiVersion?: typeof EXTENSION_API_VERSION;
+};
+
+export function defineExtension(definition: ExtensionDefinition): EditorExtension {
+  if (!definition.id) throw new Error("[editor] defineExtension 缺少 id");
+  const types = new Set<string>();
+  for (const element of definition.elements ?? []) {
+    if (types.has(element.type)) {
+      throw new Error(`[editor] 扩展 "${definition.id}" 重复声明元素 "${element.type}"`);
+    }
+    types.add(element.type);
+  }
+  return Object.freeze({ ...definition, apiVersion: EXTENSION_API_VERSION });
+}
+
+/** 按元素类型收窄 render / behaviors 的参数类型；运行时原样返回 */
+export function defineElement<E extends Element>(spec: ElementSpec<E>): ElementSpec {
+  return spec as unknown as ElementSpec;
+}
+
+export const isEditorExtension = (value: unknown): value is EditorExtension =>
+  typeof value === "object" &&
+  value !== null &&
+  (value as EditorExtension).apiVersion === EXTENSION_API_VERSION &&
+  typeof (value as EditorExtension).id === "string";

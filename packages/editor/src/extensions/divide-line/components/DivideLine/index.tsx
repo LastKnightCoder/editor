@@ -1,5 +1,5 @@
-import React, { PropsWithChildren } from "react";
-import { RenderElementProps, useSlate, useReadOnly } from "slate-react";
+import React from "react";
+import { useSlate, useReadOnly } from "slate-react";
 import classnames from "classnames";
 import { MdDragIndicator } from "react-icons/md";
 import { Trash2 } from "lucide-react";
@@ -12,11 +12,7 @@ import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
 import EditorContextMenu from "../../../../components/EditorContextMenu";
 import { deleteNode } from "../../../../utils/nodeOperations";
 import type { BuildMenuParams } from "../../../../components/EditorContextMenu/types";
-
-interface DivideLineProps {
-  attributes: RenderElementProps["attributes"];
-  element: DivideLineElement;
-}
+import type { ElementRenderProps } from "../../../../api";
 
 /**
  * 构建分割线菜单项
@@ -35,7 +31,7 @@ function buildDivideLineMenuItems(params: BuildMenuParams<DivideLineElement>) {
   ];
 }
 
-const DivideLineElement: React.FC<PropsWithChildren<DivideLineProps>> = props => {
+const DivideLineElement: React.FC<ElementRenderProps<DivideLineElement>> = props => {
   const { attributes, children, element } = props;
 
   const editor = useSlate();

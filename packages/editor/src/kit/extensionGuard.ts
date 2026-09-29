@@ -3,7 +3,7 @@ import { isRetiredEditorBlock } from "@tau/db-schema";
 
 import type { Plugin } from "../utils/plugin";
 import type { IHotKeyConfig } from "../types";
-import type { ExtensionPluginGroup } from "./ExtensionAssembly";
+import type { ElementBehaviorEntry, ExtensionPluginGroup } from "./ExtensionAssembly";
 import type { ExtensionErrorEvent, ExtensionErrorReporter } from "../services/errorReporter";
 
 /**
@@ -130,6 +130,95 @@ function wrapChangedMethods(
       }
     };
   }
+}
+
+/**
+ * v2 元素行为的分发（01 §5.1）：从选区所在的最内层元素往外找声明了该行为的类型，
+ * 依次调用，返回 true 即停；都不处理就交给插件链（旧扩展）与 Slate 默认行为。
+ * 每个 handler 单独隔离：出错计入该扩展的熔断，并按「未处理」继续往外找。
+ */
+export function withElementBehaviors(
+  editor: Editor,
+  behaviors: ReadonlyMap<string, readonly ElementBehaviorEntry[]>,
+  breaker: ExtensionCircuitBreaker
+): Editor {
+  if (behaviors.size === 0) return editor;
+  const { insertBreak, deleteBackward, insertText, normalizeNode } = editor;
+  type Handlers = ElementBehaviorEntry["behaviors"];
+  type Name = keyof Handlers;
+
+  const run = (
+    entry: ElementBehaviorEntry,
+    invoke: (handlers: Handlers) => boolean | undefined
+  ) => {
+    if (breaker.isDisabled(entry.extension)) return false;
+    const operationCount = editor.operations.length;
+    try {
+      return invoke(entry.behaviors) === true;
+    } catch (error) {
+      breaker.record(entry.extension, "behavior", error);
+      // 出错前已经改了文档就视为已处理，避免同一次输入再被默认行为执行一遍
+      return editor.operations.length !== operationCount;
+    }
+  };
+
+  /** 一个节点上的行为按顺序试，有一个处理即停 */
+  const runAll = (
+    node: Element,
+    name: Name,
+    invoke: (handlers: Handlers) => boolean | undefined
+  ): boolean =>
+    (behaviors.get(node.type) ?? []).some(entry => !!entry.behaviors[name] && run(entry, invoke));
+
+  const hasBehavior = (node: Node, name: Name) =>
+    Element.isElement(node) && !!behaviors.get(node.type)?.some(entry => entry.behaviors[name]);
+
+  /** 选区内从最内层元素往外找 */
+  const dispatch = (
+    name: "insertBreak" | "deleteBackward" | "insertText",
+    invoke: (handlers: Handlers, entry: [Element, Path]) => boolean | undefined
+  ): boolean => {
+    if (!editor.selection) return false;
+    const matches = Array.from(
+      Editor.nodes<Element>(editor, { match: node => hasBehavior(node, name), mode: "all" })
+    ).reverse();
+    return matches.some(([node, path]) =>
+      runAll(node, name, handlers => invoke(handlers, [node, path]))
+    );
+  };
+
+  editor.insertBreak = () => {
+    if (!dispatch("insertBreak", (handlers, entry) => handlers.insertBreak?.(editor, entry)))
+      insertBreak();
+  };
+  editor.deleteBackward = unit => {
+    if (
+      !dispatch("deleteBackward", (handlers, entry) =>
+        handlers.deleteBackward?.(editor, entry, unit)
+      )
+    )
+      deleteBackward(unit);
+  };
+  editor.insertText = (text, options) => {
+    // 指定了 at 的插入不针对选区，不走元素行为
+    if (
+      options?.at ||
+      !dispatch("insertText", (handlers, entry) => handlers.insertText?.(editor, entry, text))
+    )
+      insertText(text, options);
+  };
+  editor.normalizeNode = (entry, options) => {
+    const [node] = entry;
+    if (
+      hasBehavior(node, "normalize") &&
+      runAll(node as Element, "normalize", handlers =>
+        handlers.normalize?.(editor, entry as [Element, Path])
+      )
+    )
+      return;
+    normalizeNode(entry, options);
+  };
+  return editor;
 }
 
 /** 快捷键的 action 同样隔离；来自扩展的按扩展熔断，内核与宿主 prop 传入的只上报 */
