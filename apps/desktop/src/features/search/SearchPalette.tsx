@@ -68,6 +68,7 @@ import { getAllCalendars } from "@/commands/calendar";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { formatTime } from "@/utils/calendar";
 import { extractDateTime } from "@/utils/quickDateTime";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
 /* ---------- 前缀语法：追加语义，冒号兼容全角 ---------- */
 
@@ -123,15 +124,6 @@ interface Group {
   label: string;
   count?: number;
   rows: Row[];
-}
-
-function useDebouncedValue<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(t);
-  }, [value, delay]);
-  return debounced;
 }
 
 /** 命中词首现高亮（与模板 mark 行为一致：透明底 + accent 文字） */

@@ -7,7 +7,7 @@
  * 悬浮球式的图谱入口不做（图谱在卡片库列表页，2026-09-20 裁决）。
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link2, Plus, Search, TextQuote, X } from "lucide-react";
 import type { ICard } from "@/types";
 import { getInlineLinks } from "@/utils/card";
@@ -16,6 +16,7 @@ import { cardCategoryName } from "@/constants/card";
 import { resultDisplay, useSearchContent } from "@/features/search/queries";
 import { Dialog, DialogBody, useEdgeFade } from "@tau/ui";
 import { CATEGORY_COLORS } from "../categoryColors";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
 /** links ∪ 内联引用，去重并排除自身；返回 id 与「是否仅来自正文内联」 */
 function mergedLinks(card: ICard): { id: number; inlineOnly: boolean }[] {
@@ -135,16 +136,6 @@ export interface AddCardLinkDialogProps {
   onOpenChange(open: boolean): void;
   /** 选定即连（双边写由调用方承担），可多选连续连接 */
   onLink(targetIds: number[]): void;
-}
-
-/** 输入防抖（同 SearchPalette 的 250ms 口径，语义检索按稳定词发起） */
-function useDebouncedValue<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const timer = window.setTimeout(() => setDebounced(value), delay);
-    return () => window.clearTimeout(timer);
-  }, [value, delay]);
-  return debounced;
 }
 
 interface CandidateRow {

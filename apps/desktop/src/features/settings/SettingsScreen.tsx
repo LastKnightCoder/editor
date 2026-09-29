@@ -19,6 +19,7 @@ import { useSettingsStore } from "@/app/settingsStore";
 import { MacTrafficLights, WindowControls } from "@/app/WindowControls";
 import { useFullScreen } from "@/app/useFullScreen";
 import { useFindOwner } from "@/components/GlobalFindBar/findOwner";
+import { FadeScroll } from "@/components/FadeScroll";
 import { SETTINGS_GROUPS, SETTINGS_SECTIONS, type SettingsSectionDef } from "./sections";
 
 export function SettingsScreen() {
@@ -64,9 +65,12 @@ export function SettingsScreen() {
   const ActiveSection = activeDef.component;
 
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
-  useEdgeFade(scrollEl);
   const [navEl, setNavEl] = useState<HTMLDivElement | null>(null);
   useEdgeFade(navEl);
+
+  // Electron 的 app-region 不理会 pointer-events / 透明度：关态若保留拖拽区，
+  // 会盖住底下侧栏头部与标题栏的按钮，故只在打开时挂
+  const dragRegion = open && "app-region-drag";
 
   // 切换分区回到页顶
   useEffect(() => {
@@ -91,7 +95,12 @@ export function SettingsScreen() {
     >
       {/* 左栏：设置侧栏（几何对齐应用侧栏：px-2.5、头部占标题栏高度） */}
       <nav className="flex min-h-0 flex-col px-2.5 pb-3" aria-label="设置分区">
-        <div className="app-region-drag flex h-[var(--tau-titlebar-h)] shrink-0 items-center px-1.5">
+        <div
+          className={clsx(
+            dragRegion,
+            "flex h-[var(--tau-titlebar-h)] shrink-0 items-center px-1.5"
+          )}
+        >
           {isMac && !fullScreen && <MacTrafficLights collapsed={false} />}
         </div>
         <button
@@ -130,16 +139,16 @@ export function SettingsScreen() {
 
       {/* 右栏：标题栏拖拽区 + 独立滚动的居中内容列 */}
       <div className="grid min-h-0 min-w-0 grid-rows-[var(--tau-titlebar-h)_minmax(0,1fr)]">
-        <div className="app-region-drag flex items-center justify-end px-3.5">
+        <div className={clsx(dragRegion, "flex items-center justify-end px-3.5")}>
           {isWinOrLinux && (
             <div className="app-region-no-drag">
               <WindowControls />
             </div>
           )}
         </div>
-        <div
-          ref={setScrollEl}
-          className="edge-fade-scroll min-h-0 overflow-y-auto overscroll-y-contain [scrollbar-gutter:stable]"
+        <FadeScroll
+          scrollRef={setScrollEl}
+          className="mr-1.5 min-h-0 overscroll-y-contain [scrollbar-gutter:stable]"
         >
           <div className="mx-auto w-full max-w-[880px] px-10 pb-16 pt-6">
             <header className="mb-7">
@@ -148,7 +157,7 @@ export function SettingsScreen() {
             </header>
             <ActiveSection key={activeDef.key} />
           </div>
-        </div>
+        </FadeScroll>
       </div>
     </div>
   );
