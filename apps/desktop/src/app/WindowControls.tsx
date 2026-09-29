@@ -66,7 +66,8 @@ export function MacTrafficLights({ collapsed }: { collapsed: boolean }) {
     <div
       className={clsx(
         "app-region-no-drag flex items-center gap-2",
-        collapsed ? "h-[var(--tau-titlebar-h)] self-start" : "pr-1"
+        // -ml-1.5：抵消收起侧栏 20px 左内边距，回到绝对 14px 左缩进
+        collapsed ? "-ml-1.5 h-[var(--tau-titlebar-h)] self-start" : "pr-1"
       )}
     >
       <button

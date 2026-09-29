@@ -89,7 +89,7 @@ const ProjectView = ({ projectId, itemId }: ProjectViewProps) => {
     >
       <div
         ref={containerRef}
-        className="tau-sheet bg-surface shadow-card rounded-tau-lg relative mb-2.5 mr-2.5 flex h-[calc(100%-10px)] overflow-hidden"
+        className="tau-sheet bg-surface shadow-card rounded-tau-lg relative mx-4 mb-4 mt-1 flex h-[calc(100%-20px)] overflow-hidden"
       >
         <div className="h-full overflow-hidden">
           <ProjectList />
