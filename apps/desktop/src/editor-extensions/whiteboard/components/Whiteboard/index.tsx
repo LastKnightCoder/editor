@@ -4,7 +4,7 @@ import { MdFullscreen, MdFullscreenExit } from "react-icons/md";
 import { createPortal } from "react-dom";
 import { ReactEditor, useSlateStatic } from "slate-react";
 import { Transforms } from "slate";
-import classnames from "classnames";
+import { cn } from "@tau/ui";
 import {
   AddParagraph,
   BLOCK_DRAG_GROUP,
@@ -25,13 +25,16 @@ import WhiteBoard, {
 import { getWhiteBoardContentById, updateSubWhiteBoard } from "@/commands";
 import { WhiteBoardContent } from "@/types";
 
-import styles from "./index.module.less";
 import { useMemoizedFn } from "ahooks";
 import { LoadingOutlined } from "@ant-design/icons";
 import { Empty } from "antd";
 import useIsLastElement from "@tau/editor/src/hooks/useIsLastElement";
 import type { WhiteboardElement } from "../../types";
 type IWhiteboardProps = IExtensionBaseProps<WhiteboardElement>;
+
+/** 右上角全屏 / 退出全屏按钮 */
+const FLOATING_BUTTON_CLASS =
+  "absolute right-[0.625em] top-[0.625em] z-10 flex cursor-pointer items-center justify-center rounded-[0.25em] bg-[rgba(38,38,38,0.6)] p-[0.25em] text-white transition-all duration-200";
 
 interface WhiteboardData {
   children: BoardElement[];
@@ -237,7 +240,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
 
   if (loading) {
     return (
-      <div className={styles.loading} style={{ height }}>
+      <div className="flex w-full items-center justify-center" style={{ height }}>
         <LoadingOutlined />
       </div>
     );
@@ -245,7 +248,11 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
 
   if (!whiteBoardContent || !whiteboardData) {
     return (
-      <div className={styles.empty} style={{ height }} contentEditable={false}>
+      <div
+        className="flex w-full items-center justify-center"
+        style={{ height }}
+        contentEditable={false}
+      >
         <Empty description="白板不存在或者被删除" />
       </div>
     );
@@ -256,7 +263,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
       ref={node => {
         drop(node);
       }}
-      className={classnames(
+      className={cn(
         "relative",
         BLOCK_DRAG_GROUP,
         dimWhileDragging(isDragging || (isOverCurrent && canDrop))
@@ -264,10 +271,10 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
     >
       <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
       <div {...attributes} contentEditable={false}>
-        <div className={styles.whiteboardContainer}>
+        <div className="border-line-1 relative my-[0.625em] w-full overflow-hidden rounded-[0.5em] border border-solid">
           <If condition={!isFullscreen}>
             <div
-              className={styles.whiteboardWrapper}
+              className="relative h-[400px] w-full overflow-hidden"
               style={{ height }}
               ref={whiteboardRef}
               contentEditable={false}
@@ -282,12 +289,16 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
                 readonly={readOnly}
                 onChange={handleWhiteboardChange}
               />
-              <div className={styles.resizeHandle} onMouseDown={handleResizeStart}>
-                <div className={styles.resizeIndicator} />
+              <div
+                className="absolute bottom-0 left-0 z-10 flex h-[10px] w-full cursor-row-resize items-center justify-center"
+                onMouseDown={handleResizeStart}
+              >
+                <div className="bg-line-1 h-[0.25em] w-[2em] rounded-[1em]" />
               </div>
             </div>
 
-            <div className={styles.fullscreenButton} onClick={toggleFullscreen}>
+            {/* 压在画布上的固定深色按钮，不随主题 */}
+            <div className={FLOATING_BUTTON_CLASS} onClick={toggleFullscreen}>
               <MdFullscreen size={20} />
             </div>
           </If>
@@ -295,8 +306,14 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
         {children}
         {isFullscreen &&
           createPortal(
-            <div className={styles.fullscreenOverlay} onClick={() => setIsFullscreen(false)}>
-              <div className={styles.fullscreenContent} onClick={e => e.stopPropagation()}>
+            <div
+              className="fixed inset-0 z-[1000] flex items-center justify-center bg-[rgba(0,0,0,0.5)]"
+              onClick={() => setIsFullscreen(false)}
+            >
+              <div
+                className="bg-page relative h-[90%] w-[90%] rounded-[0.5em]"
+                onClick={e => e.stopPropagation()}
+              >
                 <WhiteBoard
                   showSidebar={false}
                   initData={whiteboardData.children || []}
@@ -307,7 +324,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
                   readonly={readOnly}
                   onChange={handleWhiteboardChange}
                 />
-                <div className={styles.closeButton} onClick={toggleFullscreen}>
+                <div className={FLOATING_BUTTON_CLASS} onClick={toggleFullscreen}>
                   <MdFullscreenExit size={20} />
                 </div>
               </div>

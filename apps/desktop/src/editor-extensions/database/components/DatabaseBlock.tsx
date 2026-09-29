@@ -1,5 +1,5 @@
 import { useMemoizedFn } from "ahooks";
-import classNames from "classnames";
+import { cn } from "@tau/ui";
 import { memo, useMemo, useState, useRef, useEffect } from "react";
 import { RenderElementProps, ReactEditor, useSlateStatic, useReadOnly } from "slate-react";
 import { Transforms } from "slate";
@@ -15,7 +15,6 @@ import {
 import useIsLastElement from "@tau/editor/src/hooks/useIsLastElement";
 import Database from "@/components/Database";
 import type { DatabaseElement } from "../types";
-import styles from "../index.module.less";
 
 interface DatabaseBlockProps {
   element: DatabaseElement;
@@ -89,7 +88,10 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
 
     if (!databaseState?.table || !activeView) {
       return (
-        <div className={styles.empty} style={{ minHeight: `${height}em` }}>
+        <div
+          className="text-ink-3 flex min-h-[12em] items-center justify-center text-[0.875em]"
+          style={{ minHeight: `${height}em` }}
+        >
           <span className="text-ink-3 text-tau-sm">未找到对应的数据表</span>
         </div>
       );
@@ -129,15 +131,18 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
       ref={node => {
         drop(node);
       }}
-      className={classNames(
-        styles.container,
+      className={cn(
+        "relative",
         BLOCK_DRAG_GROUP,
         dimWhileDragging(isDragging || (isOverCurrent && canDrop))
       )}
     >
       <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
       <div {...attributes} contentEditable={false}>
-        <div className={styles.databaseWrapper}>{renderContent()}</div>
+        {/* 容器 = 透明底 + 描边（D-007） */}
+        <div className="border-line-1 flex min-h-[12em] flex-col gap-[1em] rounded-[0.75em] border border-solid p-[1.5em]">
+          {renderContent()}
+        </div>
         <div
           style={{
             height: "0.75em",

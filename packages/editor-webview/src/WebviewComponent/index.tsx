@@ -30,8 +30,6 @@ import { WebLinkSourceType } from "../types";
 import InputUrlModal from "../InputUrlModal";
 import { normalizeWebviewUrl } from "../utils/url";
 
-import styles from "./index.module.less";
-
 const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
   const editor = useSlateStatic();
   const { element, children, attributes } = props;
@@ -258,9 +256,17 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
     >
       <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
       <div {...attributes}>
-        <div className={styles.webviewWrapper} ref={fullscreenContainerRef} style={{ height }}>
+        <div
+          className="relative box-border w-full rounded-[0.25em] border border-solid border-[var(--ed-border)] [&:fullscreen]:h-screen [&:fullscreen]:rounded-none [&:fullscreen]:border-none"
+          ref={fullscreenContainerRef}
+          style={{ height }}
+        >
           {isFullscreen && (
-            <button className={styles.exitFullscreenBtn} onClick={handleExitFullscreen}>
+            // 压在网页内容上的固定深色按钮，不随主题
+            <button
+              className="absolute right-[16px] top-[16px] z-10 flex h-[40px] w-[40px] cursor-pointer items-center justify-center rounded-[8px] border-none bg-[rgba(0,0,0,0.6)] text-white transition-[background] duration-200 hover:bg-[rgba(0,0,0,0.8)]"
+              onClick={handleExitFullscreen}
+            >
               <X size={24} />
             </button>
           )}

@@ -1,15 +1,9 @@
 import { useMemo, useCallback, useState, useRef } from "react";
 import { Transforms } from "slate";
-import {
-  RenderElementProps,
-  useSlateStatic,
-  useReadOnly,
-  ReactEditor,
-} from "slate-react";
-import classNames from "classnames";
+import { RenderElementProps, useSlateStatic, useReadOnly, ReactEditor } from "slate-react";
+import { cn } from "@tau/ui";
 import YAML from "yaml";
 import type { FrontMatterElement } from "../../../types";
-import styles from "./index.module.less";
 import { FiTag, FiAlignLeft, FiClock, FiList } from "react-icons/fi";
 
 interface FrontMatterProps {
@@ -20,6 +14,11 @@ interface FrontMatterProps {
 
 // 只有 description 可编辑，name 等字段只读
 const EDITABLE_KEYS = new Set(["description"]);
+
+const VALUE_CLASS = "flex-1 text-[var(--ed-text)] [word-break:break-word]";
+// 输入框与文本框共用的外观
+const FIELD_CLASS =
+  "w-full rounded-[0.375em] border border-solid border-[var(--ed-border)] bg-transparent px-[0.75em] py-[0.5em] font-[inherit] text-[length:inherit] text-[var(--ed-text)] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[var(--ed-text-tertiary)] placeholder:opacity-60 focus:border-[var(--ed-accent)] focus:shadow-[0_0_0_2px_var(--ed-accent-soft)]";
 
 const FrontMatter = (props: FrontMatterProps) => {
   const { attributes, children, element } = props;
@@ -58,12 +57,12 @@ const FrontMatter = (props: FrontMatterProps) => {
         console.error("Error updating front matter:", e);
       }
     },
-    [editor, element, parsedValue],
+    [editor, element, parsedValue]
   );
 
   // 处理本地输入变化
   const handleLocalChange = useCallback((key: string, newValue: string) => {
-    setLocalValues((prev) => ({ ...prev, [key]: newValue }));
+    setLocalValues(prev => ({ ...prev, [key]: newValue }));
   }, []);
 
   // 获取显示值（优先使用本地编辑值）
@@ -74,7 +73,7 @@ const FrontMatter = (props: FrontMatterProps) => {
       }
       return String(parsedValue[key] ?? "");
     },
-    [localValues, parsedValue],
+    [localValues, parsedValue]
   );
 
   // 处理失焦时提交
@@ -83,14 +82,14 @@ const FrontMatter = (props: FrontMatterProps) => {
       if (key in localValues) {
         commitValue(key, localValues[key]);
         // 清除本地状态
-        setLocalValues((prev) => {
+        setLocalValues(prev => {
           const next = { ...prev };
           delete next[key];
           return next;
         });
       }
     },
-    [localValues, commitValue],
+    [localValues, commitValue]
   );
 
   const getIconForKey = (key: string) => {
@@ -111,9 +110,12 @@ const FrontMatter = (props: FrontMatterProps) => {
   const renderTagsValue = (value: string | string[]) => {
     if (Array.isArray(value)) {
       return (
-        <div className={styles.tagContainer}>
+        <div className="flex flex-wrap gap-[0.375em]">
           {value.map((tag, index) => (
-            <span key={index} className={styles.tag}>
+            <span
+              key={index}
+              className="inline-block rounded-[0.25em] bg-[var(--ed-accent-soft)] px-[0.6em] py-[0.2em] text-[0.85em] text-[var(--ed-accent)]"
+            >
               {tag}
             </span>
           ))}
@@ -132,32 +134,31 @@ const FrontMatter = (props: FrontMatterProps) => {
 
     // 对象类型只读显示
     if (typeof value === "object" && value !== null) {
-      return (
-        <span className={styles.frontMatterValue}>{JSON.stringify(value)}</span>
-      );
+      return <span className={VALUE_CLASS}>{JSON.stringify(value)}</span>;
     }
 
     const stringValue = String(value ?? "");
 
     // 只读模式或非可编辑字段：显示纯文本
     if (readOnly || !EDITABLE_KEYS.has(key)) {
-      return <span className={styles.frontMatterValue}>{stringValue}</span>;
+      return <span className={VALUE_CLASS}>{stringValue}</span>;
     }
 
     // 编辑模式：description 使用多行文本框
     if (key === "description") {
       return (
         <textarea
-          className={classNames(
-            styles.frontMatterValue,
-            styles.frontMatterTextarea,
+          className={cn(
+            VALUE_CLASS,
+            FIELD_CLASS,
+            "max-h-[4lh] min-h-[1lh] resize-none overflow-y-auto leading-[1.5] [field-sizing:content]"
           )}
           value={getDisplayValue(key)}
-          onChange={(e) => handleLocalChange(key, e.target.value)}
+          onChange={e => handleLocalChange(key, e.target.value)}
           onCompositionStart={() => {
             isComposingRef.current = true;
           }}
-          onCompositionEnd={(e) => {
+          onCompositionEnd={e => {
             isComposingRef.current = false;
             // 中文输入结束时，更新本地状态
             handleLocalChange(key, e.currentTarget.value);
@@ -173,13 +174,13 @@ const FrontMatter = (props: FrontMatterProps) => {
     return (
       <input
         type="text"
-        className={classNames(styles.frontMatterValue, styles.frontMatterInput)}
+        className={cn(VALUE_CLASS, FIELD_CLASS)}
         value={getDisplayValue(key)}
-        onChange={(e) => handleLocalChange(key, e.target.value)}
+        onChange={e => handleLocalChange(key, e.target.value)}
         onCompositionStart={() => {
           isComposingRef.current = true;
         }}
-        onCompositionEnd={(e) => {
+        onCompositionEnd={e => {
           isComposingRef.current = false;
           handleLocalChange(key, e.currentTarget.value);
         }}
@@ -192,16 +193,22 @@ const FrontMatter = (props: FrontMatterProps) => {
   return (
     <div
       {...attributes}
-      className={classNames(styles.frontMatter, {
-        [styles.editable]: !readOnly,
-      })}
+      className="my-[1em] select-none rounded-[0.5em] bg-[var(--ed-bg-page)] p-[1em]"
       contentEditable={false}
     >
-      <div className={styles.frontMatterContent}>
-        <div className={styles.frontMatterData}>
+      <div className="p-0">
+        <div className="flex flex-col gap-[0.75em]">
           {Object.entries(parsedValue).map(([key, value]) => (
-            <div key={key} className={styles.frontMatterItem}>
-              <span className={styles.frontMatterKey}>
+            <div
+              key={key}
+              className={cn("flex items-center text-[0.85em]", !readOnly && "items-start")}
+            >
+              <span
+                className={cn(
+                  "flex min-w-[7.5em] items-center gap-[0.75em] font-medium text-[var(--ed-text-secondary)] [&_svg]:h-[1em] [&_svg]:w-[1em] [&_svg]:opacity-70",
+                  !readOnly && "pt-[0.5em]"
+                )}
+              >
                 {getIconForKey(key)} {key}
               </span>
               {renderValue(key, value)}

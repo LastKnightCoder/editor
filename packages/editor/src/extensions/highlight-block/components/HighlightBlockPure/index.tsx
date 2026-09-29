@@ -1,5 +1,3 @@
-import styles from "./index.module.less";
-
 interface IHighBlockPureProps {
   backgroundColor: string;
   borderColor: string;
@@ -11,7 +9,7 @@ const HighBlockPure = (props: IHighBlockPureProps) => {
 
   return (
     <div
-      className={styles.container}
+      className="rounded-[0.5em] p-[1.25em]"
       style={{
         backgroundColor,
         border: `0.125em solid ${borderColor}`,

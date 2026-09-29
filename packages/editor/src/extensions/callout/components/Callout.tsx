@@ -21,8 +21,6 @@ import { buildCalloutMenuItems } from "../utils/menuItems";
 import { DEFAULT_TITLE } from "../constants";
 import { useMemoizedFn } from "ahooks";
 
-import "./callout.less";
-
 interface ICalloutProps {
   attributes: RenderElementProps["attributes"];
   element: CalloutElement;
@@ -82,10 +80,9 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = props => {
               onBlur={handleTitleBlur}
               className={cn(
                 "relative mb-[1em] mt-[0.625em] pl-[1.5em] font-semibold leading-tight",
-                "before:absolute before:left-0 before:h-[1.25em] before:w-[1.25em] before:bg-left before:bg-no-repeat before:content-['']",
+                "before:bg-(image:--ed-callout-icon) before:absolute before:left-0 before:h-[1.25em] before:w-[1.25em] before:bg-left before:bg-no-repeat before:content-['']",
                 "text-(--ed-callout-text)"
               )}
-              data-icon-url="var(--ed-callout-icon)"
               // @ts-ignore
               contentEditable={!readOnly ? "plaintext-only" : false}
               suppressContentEditableWarning

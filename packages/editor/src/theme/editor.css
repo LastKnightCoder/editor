@@ -63,9 +63,6 @@
   /* 与桌面端聊天消息的行内代码 / 代码块同一套取色：页面底色 + line-1 描边 */
   --ed-tag-bg: var(--tau-bg-page);
 
-  /* ── 下划线装饰 ── */
-  --ed-underline: var(--tau-accent);
-
   /* ── 批注（划线高亮 + 图标）── */
   --ed-comment-bg: var(--tau-warn-soft);
   --ed-comment-hover-bg: var(--tau-warn-soft);
@@ -129,5 +126,63 @@
 @scope (.ed-block:hover:not(:has(.ed-block:hover))) to (.ed-block) {
   [data-block-reveal] {
     opacity: 1;
+  }
+}
+
+/*
+ * Callout 五类：按 callout-<type> 把本块的 --ed-callout-border / -bg / -text / -icon 指到对应 token。
+ * 图标经 CSS url() 引用，由各宿主的 CSS 管线处理资源（编辑器包不在 JS 里 import 资源）。
+ */
+.callout.callout-tip {
+  --ed-callout-border: var(--ed-callout-tip);
+  --ed-callout-bg: var(--ed-callout-tip-bg);
+  --ed-callout-text: var(--ed-callout-tip-text);
+  --ed-callout-icon: url("../assets/icons/tip.svg");
+}
+
+.callout.callout-info {
+  --ed-callout-border: var(--ed-callout-info);
+  --ed-callout-bg: var(--ed-callout-info-bg);
+  --ed-callout-text: var(--ed-callout-info-text);
+  --ed-callout-icon: url("../assets/icons/info.svg");
+}
+
+.callout.callout-warning {
+  --ed-callout-border: var(--ed-callout-warning);
+  --ed-callout-bg: var(--ed-callout-warning-bg);
+  --ed-callout-text: var(--ed-callout-warning-text);
+  --ed-callout-icon: url("../assets/icons/warning.svg");
+}
+
+.callout.callout-danger {
+  --ed-callout-border: var(--ed-callout-danger);
+  --ed-callout-bg: var(--ed-callout-danger-bg);
+  --ed-callout-text: var(--ed-callout-danger-text);
+  --ed-callout-icon: url("../assets/icons/danger.svg");
+}
+
+.callout.callout-note {
+  --ed-callout-border: var(--ed-callout-note);
+  --ed-callout-bg: var(--ed-callout-note-bg);
+  --ed-callout-text: var(--ed-callout-note-text);
+  --ed-callout-icon: url("../assets/icons/note.svg");
+}
+
+/* 列表项折叠三角：同样只在最内层被悬停的列表项里出现（列表项可嵌套） */
+@scope (.ed-list-item:hover:not(:has(.ed-list-item:hover))) to (.ed-list-item) {
+  [data-list-fold-reveal] {
+    display: block;
+  }
+}
+
+/* 玻璃菜单（右键菜单、块面板）入场 */
+@keyframes ed-menu-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }

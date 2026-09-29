@@ -36,7 +36,6 @@
     "react-dnd-html5-backend": "^16.0.1",
     "react-dom": "19.1.0",
     "react-icons": "^4.12.0",
-    "react-image-crop": "^11.0.10",
     "react-inlinesvg": "^4.2.0",
     "react-resizable": "^3.0.5",
     "shiki": "^3.22.0",

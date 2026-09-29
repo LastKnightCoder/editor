@@ -3,6 +3,7 @@
 @import "@tau/themes/tokens.css";
 @import "@tau/themes/tailwind.css";
 @source "../../../packages/editor/src";
+@source "../../../packages/editor-webview/src";
 @source "../../../packages/shared/src";
 @source "../../../packages/ui/src";
 

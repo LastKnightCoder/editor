@@ -4,8 +4,6 @@ import { Transforms } from "slate";
 import useTheme from "../../../../hooks/useTheme";
 import { ICompilerService } from "../../../../services";
 
-import styles from "./index.module.less";
-
 import { type CustomBlockElement } from "../../../types";
 import PreviewWithEditor from "../../../../components/PreviewWithEditor";
 import { compileAndExecuteCustomBlock, rerenderCustomBlockTheme } from "../../utils/renderTemplate";
@@ -79,12 +77,14 @@ const CustomBlockElement: React.FC<PropsWithChildren<CustomBlockProps>> = props 
   };
 
   return (
-    <div className={styles.container} {...attributes}>
+    <div className="relative cursor-pointer" {...attributes}>
       <PreviewWithEditor mode={"jsx"} initValue={content} element={element} onChange={handleChange}>
         {content ? (
           <CustomBlock content={content} />
         ) : (
-          <div className={styles.empty}>点击编辑代码</div>
+          <div className="flex h-[3.75em] cursor-pointer items-center justify-center">
+            点击编辑代码
+          </div>
         )}
       </PreviewWithEditor>
       {children}

@@ -1,13 +1,10 @@
 import { ReactEditor, RenderElementProps, useSlate, useReadOnly } from "slate-react";
 import type { ListItemElement } from "../../../types";
 import { Editor, Node, Transforms } from "slate";
-import classnames from "classnames";
 import { useEffect, useRef, useState } from "react";
-import { Popover } from "@tau/ui";
+import { Popover, cn } from "@tau/ui";
 import IconPicker from "../IconPicker";
 import useUploadResource from "../../../../hooks/useUploadResource";
-
-import styles from "./index.module.less";
 
 interface IListItemProps {
   attributes: RenderElementProps["attributes"];
@@ -163,7 +160,12 @@ const ListItem = (props: IListItemProps) => {
       data-fold={isFold ? "fold" : "unfold"}
       data-multiline={isMultiline ? "true" : "false"}
       data-has-icon={hasIcon ? "true" : "false"}
-      className={styles.listItem}
+      className={cn(
+        "ed-list-item relative border-l border-solid border-l-transparent pl-[0.5em]",
+        // 内容超过一行时，从第一行底部起画左侧竖线
+        isMultiline &&
+          "after:absolute after:-left-[0.85em] after:bottom-[0.5em] after:top-[var(--first-line-height,1.5em)] after:w-[0.08em] after:bg-[var(--ed-border)] after:content-['']"
+      )}
       {...attributes}
       ref={listItemRef}
     >
@@ -177,17 +179,25 @@ const ListItem = (props: IListItemProps) => {
           trigger={
             <div
               contentEditable={false}
-              className={classnames(styles.bulletArea, {
-                [styles.clickable]: !readonly,
-                [styles.hasCustomIcon]: hasIcon,
-              })}
+              className={cn(
+                "absolute -left-[1.3em] top-[0.2em] z-[1] flex h-[1.4em] w-[1.4em] items-center justify-center rounded-[6px] transition-opacity duration-200 ease-in-out",
+                !readonly && "cursor-pointer opacity-85 hover:opacity-100 active:opacity-70"
+              )}
               onClick={handleBulletClick}
             >
               {hasIcon && (
-                <div className={styles.customIcon}>
-                  {iconType === "emoji" && <span className={styles.emojiIcon}>{icon}</span>}
+                <div className="flex h-full w-full items-center justify-center">
+                  {iconType === "emoji" && (
+                    <span className="text-[1.1em] leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.08)]">
+                      {icon}
+                    </span>
+                  )}
                   {iconType === "image" && iconUrl && (
-                    <img src={iconUrl} alt="icon" className={styles.imageIcon} />
+                    <img
+                      src={iconUrl}
+                      alt="icon"
+                      className="h-[18px] w-[18px] rounded-[4px] object-cover"
+                    />
                   )}
                 </div>
               )}
@@ -203,16 +213,16 @@ const ListItem = (props: IListItemProps) => {
           />
         </Popover>
       )}
-      <div
-        className={classnames(styles.arrowContainer, {
-          [styles.show]: isFold || foldAble,
-        })}
-      >
+      <div className="absolute -left-[2em] top-[0.9em] h-full w-[0.625em]">
+        {/* 折叠三角：可折叠时在列表项悬停时出现 */}
         <div
           contentEditable={false}
-          className={classnames(styles.arrow, {
-            [styles.fold]: isFold,
-          })}
+          className={cn(
+            "hidden h-0 w-0 border-[0.3125em] border-solid border-transparent border-t-[var(--ed-text-secondary)]",
+            isFold ? "-translate-y-[0.3125em] -rotate-90" : "-translate-y-[0.15625em]",
+            (isFold || foldAble) && "cursor-pointer"
+          )}
+          data-list-fold-reveal={isFold || foldAble || undefined}
           onClick={handleOnClick}
         />
       </div>

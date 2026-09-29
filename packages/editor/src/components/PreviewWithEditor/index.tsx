@@ -1,7 +1,7 @@
 import React, { PropsWithChildren, useRef, useState, memo, useEffect } from "react";
 import { UnControlled as CodeEditor } from "react-codemirror2";
 import { Editor, EditorChange } from "codemirror";
-import classnames from "classnames";
+import { cn } from "@tau/ui";
 import { useClickAway, useDebounceFn, useMemoizedFn } from "ahooks";
 import { ReactEditor, useSlateStatic, useReadOnly } from "slate-react";
 import { ErrorBoundary } from "@tau/shared";
@@ -23,7 +23,7 @@ import { BLOCK_DRAG_GROUP, DragHandle, DropIndicator, dimWhileDragging } from ".
 
 import { CustomElement } from "../../types";
 import type { BuildMenuParams, ContextMenuItem } from "../EditorContextMenu/types";
-import styles from "./index.module.less";
+import "./PreviewWithEditor.vendor.css";
 import useIsLastElement from "../../hooks/useIsLastElement";
 import {
   registerBlockNavigation,
@@ -41,6 +41,11 @@ interface IPreviewWithEditorProps {
   extend?: boolean;
   extraMenuItemsBuilder?: (params: BuildMenuParams<CustomElement>) => ContextMenuItem[];
 }
+
+const ACTION_ITEM_CLASS = "flex h-[1.75em] w-[1.75em] cursor-pointer items-center justify-center";
+
+const FULLSCREEN_BUTTON_CLASS =
+  "flex h-[1.75em] w-[1.75em] cursor-pointer items-center justify-center rounded-[0.25em] transition-all duration-200 hover:bg-[var(--ed-bg-hover)]";
 
 const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = memo(props => {
   const { mode, initValue, onChange, children, element, center, extend, extraMenuItemsBuilder } =
@@ -418,14 +423,15 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
     }
   });
 
-  const containerClassName = classnames(
-    styles.container,
-    { [styles.editing]: editing },
+  const containerClassName = cn(
+    // 悬停时显示右上角操作条（此块不会嵌套自身）
+    "group/preview relative",
+    editing && "bg-[var(--ed-code-bg)] pb-[1.25em]",
     dimWhileDragging(isDragging || (isOverCurrent && canDrop))
   );
 
   return (
-    <div className={classnames(styles.dropContainer, BLOCK_DRAG_GROUP)}>
+    <div className={cn("relative", BLOCK_DRAG_GROUP)}>
       <div contentEditable={false} ref={ref} className={containerClassName}>
         <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
         <div
@@ -458,7 +464,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
               autoCloseBrackets: true,
               tabindex: -1,
             }}
-            className={styles.editor}
+            className="ed-preview-codemirror h-auto px-[0.75em] pt-[1.125em]"
             onChange={handleInputChange}
             editorDidMount={editor => {
               editorRef.current = editor;
@@ -470,29 +476,31 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
           />
         </div>
         <If condition={editing}>
-          <div className={styles.divider}></div>
+          <div className="mx-[1.25em] mb-[1.25em] h-[0.125em] bg-[var(--ed-border)]"></div>
         </If>
         <div
           ref={node => {
             drop(node);
           }}
-          className={classnames(styles.preview, {
-            [styles.center]: center,
-            [styles.extend]: extend,
-          })}
+          className={cn(
+            "box-border min-h-[2.5em] whitespace-normal",
+            extend && "py-[0.3125em]",
+            center && "flex items-center justify-center"
+          )}
           onClick={onClick}
         >
           <ErrorBoundary>{children}</ErrorBoundary>
         </div>
         <If condition={!readOnly}>
-          <div className={styles.actions}>
-            <div onClick={toggleFullscreen} className={styles.item}>
+          {/* 压在预览上的固定深色操作条，不随主题 */}
+          <div className="absolute right-[0.625em] top-[0.625em] hidden rounded-[0.5em] bg-[rgba(38,38,38,0.6)] text-white group-hover/preview:flex">
+            <div onClick={toggleFullscreen} className={ACTION_ITEM_CLASS}>
               <MdFullscreen />
             </div>
-            <div onClick={editElement} className={styles.item}>
+            <div onClick={editElement} className={ACTION_ITEM_CLASS}>
               <Pencil size="1em" />
             </div>
-            <div onClick={deleteElement} className={styles.item}>
+            <div onClick={deleteElement} className={ACTION_ITEM_CLASS}>
               <Trash2 size="1em" />
             </div>
           </div>
@@ -515,14 +523,17 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
       <EditorContextMenu {...menuProps} readonly={readOnly} />
       <If condition={isFullscreen}>
         <PortalToBody>
-          <div className={classnames(styles.fullscreenOverlay, {})} onClick={toggleFullscreen}>
+          <div
+            className="fixed inset-0 z-[1001] flex items-center justify-center bg-[var(--ed-glass-bg)] text-[1.2em] backdrop-blur-[var(--ed-glass-blur)]"
+            onClick={toggleFullscreen}
+          >
             <div
-              className={classnames(styles.fullscreenContent, {})}
+              className="relative box-border flex h-[90%] w-[90%] flex-col overflow-hidden rounded-[0.5em] bg-[var(--ed-glass-bg)] px-[1.5em] py-[2.25em] shadow-[var(--ed-shadow-float)] backdrop-blur-[var(--ed-glass-blur)]"
               onClick={e => e.stopPropagation()}
               ref={fullscreenRef}
             >
               <If condition={fullscreenEditing}>
-                <div className={styles.fullscreenEditorContainer}>
+                <div className="relative z-[2] mb-[1.25em] max-h-[50vh] overflow-y-auto pb-[1.25em]">
                   <CodeEditor
                     key="fullscreen-editor"
                     value={value || ""}
@@ -547,7 +558,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
                       autoCloseBrackets: true,
                       tabindex: -1,
                     }}
-                    className={styles.fullscreenEditor}
+                    className="ed-preview-codemirror h-full [--ed-cm-line-pad:0.75em]"
                     onChange={handleInputChange}
                     editorDidMount={editor => {
                       fullscreenEditorRef.current = editor;
@@ -560,29 +571,26 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
                       fullscreenEditorRef.current = null;
                     }}
                   />
-                  <div className={styles.divider}></div>
+                  <div className="mx-[1.25em] mb-[1.25em] h-[0.125em] bg-[var(--ed-border)]"></div>
                 </div>
               </If>
               <div
-                className={classnames(styles.fullscreenPreview, {
-                  [styles.center]: center,
-                  [styles.extend]: extend,
-                  [styles.withEditor]: fullscreenEditing,
-                })}
+                className={cn(
+                  "relative z-[1] min-h-[2.5em] flex-1 overflow-auto",
+                  center && "flex items-center justify-center"
+                )}
               >
                 <ErrorBoundary>{children}</ErrorBoundary>
               </div>
-              <div className={styles.fullscreenControls} onClick={e => e.stopPropagation()}>
-                <div className={styles.closeButton} onClick={toggleFullscreen}>
+              <div
+                className="absolute right-[0.625em] top-[0.625em] z-[100] flex gap-[0.5em]"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className={FULLSCREEN_BUTTON_CLASS} onClick={toggleFullscreen}>
                   <MdFullscreenExit />
                 </div>
                 {!readOnly && (
-                  <div
-                    className={classnames(styles.editButton, {
-                      [styles.active]: fullscreenEditing,
-                    })}
-                    onClick={toggleFullscreenEditing}
-                  >
+                  <div className={FULLSCREEN_BUTTON_CLASS} onClick={toggleFullscreenEditing}>
                     <Pencil size="1em" />
                   </div>
                 )}

@@ -1,6 +1,7 @@
 import React, { memo, useCallback } from "react";
 import classnames from "classnames";
 import { Minus, MoreHorizontal, Waves } from "lucide-react";
+import { getUnderlineColor } from "../../../colors";
 
 interface IUnderlineSelectItemProps {
   type: "color" | "lineType";
@@ -11,23 +12,6 @@ interface IUnderlineSelectItemProps {
   isSelected?: boolean;
   currentColor?: string; // 当前选中的颜色，用于线型预览
 }
-
-const getColorValue = (color: string) => {
-  switch (color) {
-    case "yellow":
-      return "rgb(255, 212, 0)";
-    case "green":
-      return "rgb(42, 157, 143)";
-    case "blue":
-      return "rgb(162, 210, 255)";
-    case "purple":
-      return "rgb(94, 84, 142)";
-    case "red":
-      return "rgb(239, 35, 60)";
-    default:
-      return "currentColor";
-  }
-};
 
 const UnderlineSelectItem = memo((props: IUnderlineSelectItemProps) => {
   const { type, color, lineType, label, onClick, isSelected, currentColor } = props;
@@ -62,7 +46,7 @@ const UnderlineSelectItem = memo((props: IUnderlineSelectItemProps) => {
           isDefault && "border-slate-300/80 bg-white/40 dark:border-slate-600 dark:bg-zinc-800/40"
         )}
         style={{
-          backgroundColor: isDefault ? undefined : getColorValue(color || ""),
+          backgroundColor: isDefault ? undefined : getUnderlineColor(color),
         }}
         title={label}
       >
@@ -72,7 +56,7 @@ const UnderlineSelectItem = memo((props: IUnderlineSelectItemProps) => {
   }
 
   // 线型选择项
-  const lineColor = getColorValue(currentColor || "default");
+  const lineColor = getUnderlineColor(currentColor);
   const iconSize = 16;
 
   return (

@@ -12,13 +12,11 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { useMemoizedFn } from "ahooks";
 import { Type, X } from "lucide-react";
-import classNames from "classnames";
+import { cn } from "@tau/ui";
 import { Katex } from "@tau/shared";
 
 import { InlineMathElement, CustomText } from "../../../types";
 import InlineChromiumBugfix from "../../../../components/InlineChromiumBugFix";
-
-import styles from "./index.module.less";
 
 interface InlineMathProps {
   attributes: RenderElementProps["attributes"];
@@ -41,7 +39,7 @@ const IconButton = ({
   <button
     onClick={onClick}
     title={tooltip}
-    className={classNames(
+    className={cn(
       "flex h-7 w-7 items-center justify-center rounded-md transition-all duration-200",
       "text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-200",
       "hover:bg-black/5 dark:hover:bg-white/10",
@@ -181,7 +179,7 @@ const MathPopover = ({
           onClick={e => e.stopPropagation()}
         >
           <div
-            className={classNames(
+            className={cn(
               "min-w-75 flex max-w-[400px] items-center gap-3 p-1.5",
               "bg-white/80 saturate-150 backdrop-blur-xl dark:bg-zinc-900/80",
               "border border-black/5 dark:border-white/10",
@@ -334,14 +332,23 @@ const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = props => {
       <span
         {...attributes}
         ref={elementRef}
-        className={classNames(styles.inlineMath, {
-          [styles.inlineMathActive]: showActiveStyle,
-          [styles.inlineMathEditing]: isOpen,
-        })}
+        className={cn(
+          "relative inline-flex cursor-pointer items-center rounded-[4px] px-[0.125em] transition-[background-color,box-shadow] duration-150 ease-[ease]",
+          // 行内公式不套用块级 .katex-display 的横向滚动，恢复自然溢出
+          "[&_.katex-display>.katex]:m-0 [&_.katex-display>.katex]:w-auto [&_.katex-display]:overflow-visible [&_.katex-display]:p-0",
+          showActiveStyle &&
+            !isOpen &&
+            "bg-[var(--ed-accent-soft)] shadow-[0_0_0_1px_var(--ed-accent)]",
+          isOpen &&
+            "bg-[var(--ed-accent-soft)] shadow-[0_0_0_1px_var(--ed-accent),var(--ed-shadow-card)]"
+        )}
         onClick={handleClick}
       >
         {showIndicator && (
-          <span className={styles.inlineMathIndicator} aria-hidden="true">
+          <span
+            className="pointer-events-none absolute left-1/2 top-[-1.1em] -translate-x-1/2 -translate-y-[60%] whitespace-nowrap rounded-full border border-solid border-[var(--ed-accent)] bg-[var(--ed-accent-soft)] px-[6px] py-[2px] text-[0.65rem] font-semibold leading-none tracking-[0.05em] text-[var(--ed-accent-text)]"
+            aria-hidden="true"
+          >
             TeX
           </span>
         )}

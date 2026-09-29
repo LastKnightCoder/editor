@@ -1,13 +1,18 @@
 import { useMemoizedFn } from "ahooks";
 import { PortalToBody } from "@tau/shared";
-import classnames from "classnames";
+import { cn } from "@tau/ui";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useEffect } from "react";
 
 import { useImagesOverviewStore } from "../../stores";
 import { useEditorSlots } from "../../services";
 
-import styles from "./index.module.less";
+// 灯箱固定深色遮罩 + 白色图标，不随主题（浅色主题的 overlay 太淡，白图标会看不清）
+const navButtonClass =
+  "absolute flex cursor-pointer items-center justify-center rounded-full bg-[rgba(0,0,0,0.2)] hover:bg-[rgba(0,0,0,0.3)]";
+const sideButtonClass = cn(navButtonClass, "top-1/2 h-[56px] w-[56px] -translate-y-1/2");
+const imageClass =
+  "max-h-[90vh] max-w-full cursor-zoom-out object-contain object-center shadow-[0_5px_11px_0_rgba(0,0,0,0.18),0_4px_15px_0_rgba(0,0,0,0.15)]";
 
 const ImagesOverview = () => {
   const {
@@ -61,38 +66,40 @@ const ImagesOverview = () => {
   return (
     <div>
       <PortalToBody>
-        <div className={styles.container}>
-          <div className={styles.mask} onClick={closeImagesOverview}></div>
-          <div className={styles.imageContainer} onClick={closeImagesOverview}>
+        <div className="fixed inset-0 z-[1002] flex items-center justify-center text-white">
+          <div
+            className="absolute inset-0 bg-[rgba(0,0,0,0.6)]"
+            onClick={closeImagesOverview}
+          ></div>
+          <div className="relative z-[2] w-fit max-w-[80%]" onClick={closeImagesOverview}>
             {Image ? (
               <Image
                 url={imageElements[currentImageIndex].url}
                 alt={imageElements[currentImageIndex].alt}
-                className={styles.image}
+                className={imageClass}
               />
             ) : (
               <img
                 src={imageElements[currentImageIndex].url}
                 alt={imageElements[currentImageIndex].alt}
-                className={styles.image}
+                className={imageClass}
               />
             )}
           </div>
-          <div className={styles.close} onClick={closeImagesOverview}>
+          <div
+            className={cn(navButtonClass, "right-[15px] top-[15px] h-[46px] w-[46px]")}
+            onClick={closeImagesOverview}
+          >
             <X size="1em" />
           </div>
           <div
-            className={classnames(styles.prev, {
-              [styles.none]: !hasPrevImage,
-            })}
+            className={cn(sideButtonClass, "left-[10px]", !hasPrevImage && "hidden")}
             onClick={switchPrev}
           >
             <ChevronLeft size="1em" />
           </div>
           <div
-            className={classnames(styles.next, {
-              [styles.none]: !hasNextImage,
-            })}
+            className={cn(sideButtonClass, "right-[10px]", !hasNextImage && "hidden")}
             onClick={switchNext}
           >
             <ChevronRight size="1em" />

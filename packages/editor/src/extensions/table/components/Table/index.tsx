@@ -1,8 +1,7 @@
 import React, { useMemo, useCallback } from "react";
 import { RenderElementProps, useSlate, ReactEditor, useReadOnly } from "slate-react";
 import { Editor, Transforms } from "slate";
-import classnames from "classnames";
-import { Popover } from "@tau/ui";
+import { Popover, cn } from "@tau/ui";
 import {
   BLOCK_DRAG_GROUP,
   DragHandle,
@@ -29,7 +28,6 @@ import useIsLastElement from "../../../../hooks/useIsLastElement";
 
 import ActionItem from "./ActionItem";
 import Actions from "./Actions";
-import styles from "./index.module.less";
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 
 interface ITableProps {
@@ -227,8 +225,8 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
       ref={node => {
         drop(node);
       }}
-      className={classnames(
-        styles.dropContainer,
+      className={cn(
+        "relative overflow-x-auto",
         BLOCK_DRAG_GROUP,
         dimWhileDragging(isDragging || (isOverCurrent && canDrop))
       )}
@@ -236,18 +234,24 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
       <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
       <div
         contentEditable={false}
-        className={classnames(styles.operate, {
-          [styles.hide]: !isActive || readOnly,
-        })}
+        className={cn(
+          "flex h-[2.5em] select-none items-center justify-between transition-[height] duration-300 ease-in-out",
+          (!isActive || readOnly) && "h-0 overflow-hidden"
+        )}
       >
-        <div className={styles.left}></div>
-        <div className={styles.right}>
+        <div></div>
+        <div
+          className={cn(
+            "flex gap-[0.5em] transition-opacity delay-100 duration-200 ease-in-out",
+            (!isActive || readOnly) && "opacity-0"
+          )}
+        >
           <Popover
             placement="bottom-start"
             arrow={false}
             className="p-1"
             trigger={
-              <div className={classnames(styles.more, styles.item)}>
+              <div className="flex h-[1.875em] w-[1.875em] cursor-pointer items-center justify-center rounded-full hover:bg-[var(--ed-bg-hover)]">
                 <EllipsisVertical size="1em" />
               </div>
             }
@@ -255,7 +259,7 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
             <Actions items={items} />
           </Popover>
           <div
-            className={classnames(styles.delete, styles.item)}
+            className="flex h-[1.875em] w-[1.875em] cursor-pointer items-center justify-center rounded-full hover:bg-[var(--ed-bg-hover)]"
             onClick={() => {
               safeExecuteTableOperation(
                 editor,
@@ -271,7 +275,10 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
           </div>
         </div>
       </div>
-      <table {...attributes} className={styles.table}>
+      <table
+        {...attributes}
+        className="w-full border-collapse [&_td]:overflow-hidden [&_td]:text-ellipsis [&_td]:border [&_td]:border-solid [&_td]:border-[var(--ed-border)] [&_td]:px-[1em] [&_td]:py-[0.75em] [&_td]:text-left [&_td]:[word-break:break-word] [&_th]:overflow-hidden [&_th]:text-ellipsis [&_th]:border [&_th]:border-solid [&_th]:border-[var(--ed-border)] [&_th]:px-[1em] [&_th]:py-[0.75em] [&_th]:text-left [&_th]:[word-break:break-word] [&_tr:first-child]:font-bold [&_tr:nth-child(odd)]:bg-[var(--ed-bg-hover)]"
+      >
         <tbody>{children}</tbody>
       </table>
       {!(readOnly && isLast) && <AddParagraph element={element} />}

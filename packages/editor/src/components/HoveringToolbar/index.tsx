@@ -1,25 +1,12 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  memo,
-  ReactNode,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, memo, ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 import { Editor, Range } from "slate";
-import {
-  useSlate,
-  useSlateSelection,
-  useReadOnly,
-  ReactEditor,
-} from "slate-react";
+import { useSlate, useSlateSelection, useReadOnly, ReactEditor } from "slate-react";
 import { useLocalStorageState } from "ahooks";
-import classnames from "classnames";
 import { sortBy } from "lodash";
 import { Ellipsis, Type } from "lucide-react";
+import { cn } from "@tau/ui";
 
 import { IConfigItem } from "../../types";
 import CompactGroupMenu from "./CompactGroupMenu";
@@ -31,7 +18,7 @@ import {
 } from "./compactLayout";
 import { calculateFloatingPosition } from "./floatingPosition";
 
-import styles from "./index.module.less";
+import { menuGlassClass } from "../EditorContextMenu/menuClasses";
 
 const Portal = ({ children }: { children: ReactNode }) => {
   return createPortal(children, document.body);
@@ -70,17 +57,15 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
     },
   });
 
-  const [position, setPosition] = useState<{ left: number; top: number }>(
-    () => {
-      if (localStoragePosition) {
-        return localStoragePosition;
-      }
-      return {
-        left: 0,
-        top: 0,
-      };
-    },
-  );
+  const [position, setPosition] = useState<{ left: number; top: number }>(() => {
+    if (localStoragePosition) {
+      return localStoragePosition;
+    }
+    return {
+      left: 0,
+      top: 0,
+    };
+  });
 
   const displayedConfigs = useMemo(() => {
     if (!isCompact) {
@@ -88,7 +73,7 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
     }
 
     const layoutItems = buildCompactLayoutItems(sortedConfigs);
-    return layoutItems.map((item) => {
+    return layoutItems.map(item => {
       if (item.kind === "item") {
         return item.config;
       }
@@ -140,11 +125,9 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
       return;
     }
     const fullWidth = measureEl.offsetWidth;
-    const viewportWidth = Math.round(
-      window.visualViewport?.width ?? window.innerWidth,
-    );
+    const viewportWidth = Math.round(window.visualViewport?.width ?? window.innerWidth);
     const shouldCompact = fullWidth > viewportWidth - VIEWPORT_GAP * 2;
-    setIsCompact((prev) => (prev === shouldCompact ? prev : shouldCompact));
+    setIsCompact(prev => (prev === shouldCompact ? prev : shouldCompact));
   }, [isHoveringBarShow, readOnly]);
 
   const updateToolbarPosition = useCallback(() => {
@@ -171,12 +154,8 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
     const domRange = domSelection.getRangeAt(0);
     const rect = domRange.getBoundingClientRect();
 
-    const viewportWidth = Math.round(
-      window.visualViewport?.width ?? window.innerWidth,
-    );
-    const viewportHeight = Math.round(
-      window.visualViewport?.height ?? window.innerHeight,
-    );
+    const viewportWidth = Math.round(window.visualViewport?.width ?? window.innerWidth);
+    const viewportHeight = Math.round(window.visualViewport?.height ?? window.innerHeight);
     const nextPosition = calculateFloatingPosition({
       anchorRect: {
         top: rect.top,
@@ -281,32 +260,38 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
       isCompact,
       submenuTrigger: isCompact ? ("click" as const) : ("hover" as const),
     }),
-    [isCompact, isHoveringBarShow],
+    [isCompact, isHoveringBarShow]
   );
 
   return (
     <Portal>
       <HoveringBarContext.Provider value={contextValue}>
-        <div ref={measureRef} className={styles.measureToolbar} aria-hidden>
-          {sortedConfigs.map((config) => {
+        <div
+          ref={measureRef}
+          className="pointer-events-none invisible fixed left-[-10000px] top-[-10000px] z-[-1] flex items-center gap-[4px] border border-solid border-transparent p-[4px]"
+          aria-hidden
+        >
+          {sortedConfigs.map(config => {
             const { element: Element, id } = config;
             return <Element key={`measure-${id}`} />;
           })}
         </div>
         <div
           ref={ref}
-          className={classnames(styles.hoveringToolbar, {
-            [styles.show]: isHoveringBarShow && !readOnly,
-          })}
+          className={cn(
+            "pointer-events-none fixed left-[-500px] top-[-1000px] z-[9999] flex items-center gap-[4px] rounded-[12px] border border-solid border-[var(--ed-border-soft)] p-[4px] opacity-0 transition-[opacity,top,left] duration-300 ease-in-out",
+            menuGlassClass,
+            isHoveringBarShow && !readOnly && "pointer-events-auto opacity-100"
+          )}
           style={{
             left: position.left,
             top: position.top,
           }}
-          onPointerDown={(e) => {
+          onPointerDown={e => {
             e.stopPropagation();
           }}
         >
-          {displayedConfigs.map((config) => {
+          {displayedConfigs.map(config => {
             const { element: Element, id } = config;
             return <Element key={id} />;
           })}

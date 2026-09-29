@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useReadOnly, useSlateStatic } from "slate-react";
-import classnames from "classnames";
+import { cn } from "@tau/ui";
 import { Plus } from "lucide-react";
 import { CustomModal } from "@tau/shared";
 
@@ -21,7 +21,6 @@ import { EGalleryMode } from "../../../../constants";
 import { useImageAppearance, type ImageAppearanceOption } from "../../../image/appearanceOption";
 import { buildImageGalleryMenuItems, imageGalleryActionsMap } from "../../utils/menuItems";
 
-import styles from "./index.module.less";
 import {
   BLOCK_DRAG_GROUP,
   DragHandle,
@@ -127,10 +126,10 @@ const ImageGallery = (props: IImageGalleryProps) => {
       ref={node => {
         drop(node);
       }}
-      className={classnames(
-        styles.imageGalleryContainer,
+      className={cn(
+        "relative",
         BLOCK_DRAG_GROUP,
-        { [styles.wider]: wider },
+        wider && "w-[calc(100%+10em)] -translate-x-[5em]",
         dimWhileDragging(isDragging || (isOverCurrent && canDrop))
       )}
     >
@@ -178,13 +177,13 @@ const ImageGallery = (props: IImageGalleryProps) => {
         <If condition={images.length === 0}>
           <div
             contentEditable={false}
-            className={styles.emptySetting}
+            className="flex h-[10em] cursor-pointer items-center justify-center rounded-[0.5em] border-2 border-dashed border-[var(--ed-border)] bg-[var(--ed-bg-page)] text-[16px] hover:bg-[var(--ed-bg-hover)]"
             onClick={() => {
               setSettingModalOpen(true);
             }}
           >
-            <div className={styles.uploadTips}>
-              <Plus size="1em" className={styles.icon} />
+            <div className="flex flex-col items-center gap-[0.625em]">
+              <Plus size="1em" className="text-[1.5em]" />
               <div>上传图片</div>
             </div>
           </div>

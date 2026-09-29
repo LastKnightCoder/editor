@@ -28,8 +28,7 @@ import { imageActionsMap } from "../../index";
 import { buildImageMenuItems } from "../../utils/menuItems";
 import { getImageAppearanceStyle } from "../../utils/appearance";
 
-import styles from "./index.module.less";
-import classnames from "classnames";
+import { cn } from "@tau/ui";
 import {
   BLOCK_DRAG_GROUP,
   DragHandle,
@@ -42,6 +41,16 @@ import useTheme from "../../../../hooks/useTheme";
 import { useImageAppearance, type ImageAppearanceOption } from "../../appearanceOption";
 import { IMediaActions, useEditorSlots, useOptionalService } from "../../../../services";
 import { openLocalMediaPicker } from "../../../../utils/mediaInsert";
+import {
+  MEDIA_ACTION_BAR_CLASS,
+  MEDIA_ACTION_DIVIDER_CLASS,
+  MEDIA_ACTION_ITEM_CLASS,
+  MEDIA_ALIGN_CLASS,
+  MEDIA_CORNER_HANDLE_CLASS,
+  MEDIA_CORNER_POSITION_CLASS,
+  MEDIA_HOVER_GROUP,
+  MEDIA_RESIZE_INFO_CLASS,
+} from "../../../../utils/mediaFrameClasses";
 
 import { ImageCropper } from "@tau/shared";
 import type { CropperTransform } from "@tau/shared";
@@ -419,13 +428,13 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
     return (
       <div
         ref={containerRef}
-        className={classnames(styles.imageContainer, {
-          [styles.resizing]: resize.isResizing,
-          [styles.selected]: isSelected,
-          [styles.alignLeft]: align === "left",
-          [styles.alignCenter]: align === "center",
-          [styles.alignRight]: align === "right",
-        })}
+        className={cn(
+          MEDIA_HOVER_GROUP,
+          "relative my-0 block w-fit max-w-full rounded-[var(--image-border-radius,0)]",
+          MEDIA_ALIGN_CLASS[align],
+          isSelected &&
+            "after:pointer-events-none after:absolute after:-inset-[2px] after:rounded-[var(--image-border-radius,0)] after:border-[1.5px] after:border-solid after:border-[var(--ed-accent)] after:content-['']"
+        )}
         style={{
           width: resize.size.width
             ? `${resize.size.width / 16}em`
@@ -437,9 +446,10 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
         }}
       >
         <LocalImageComponent
-          className={classnames(styles.image, {
-            [styles.zoomIn]: readOnly || isSelected,
-          })}
+          className={cn(
+            "block h-auto w-full max-w-full",
+            readOnly || isSelected ? "cursor-zoom-in" : "cursor-default"
+          )}
           style={imageAppearanceStyle}
           url={displayUrl}
           alt={alt}
@@ -493,36 +503,32 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
             {RESIZE_HANDLES.map(({ direction, cursor }) => (
               <div
                 key={direction}
-                className={classnames(
-                  styles.resizeHandle,
-                  // @ts-ignore
-                  styles[`resize-${direction}`]
-                )}
+                className={cn(MEDIA_CORNER_HANDLE_CLASS, MEDIA_CORNER_POSITION_CLASS[direction])}
                 style={{ cursor }}
                 onPointerDown={e => resize.handleResizeStart(e, direction)}
               />
             ))}
             {resize.isResizing && (
-              <div className={styles.imageInfo}>{Math.round(resize.size.width || 0)} px</div>
+              <div className={MEDIA_RESIZE_INFO_CLASS}>{Math.round(resize.size.width || 0)} px</div>
             )}
           </>
         )}
         {!readOnly && (
-          <div className={styles.actions}>
-            <div onClick={showOverView} className={styles.item}>
+          <div className={MEDIA_ACTION_BAR_CLASS}>
+            <div onClick={showOverView} className={MEDIA_ACTION_ITEM_CLASS}>
               <Maximize2 size="1em" />
             </div>
-            <div className={styles.divider}></div>
+            <div className={MEDIA_ACTION_DIVIDER_CLASS}></div>
             <div
               onClick={toggleAlign}
-              className={styles.item}
+              className={MEDIA_ACTION_ITEM_CLASS}
               title={align === "left" ? "居中对齐" : align === "center" ? "右对齐" : "左对齐"}
             >
               {align === "left" && <AlignLeft size="1em" />}
               {align === "center" && <AlignCenter size="1em" />}
               {align === "right" && <AlignRight size="1em" />}
             </div>
-            <div className={styles.divider}></div>
+            <div className={MEDIA_ACTION_DIVIDER_CLASS}></div>
             {!description && !showDescEditor && (
               <>
                 <div
@@ -531,30 +537,30 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
                     setShowDescEditor(true);
                     setTimeout(() => descRef.current?.focusEnd(), 0);
                   }}
-                  className={styles.item}
+                  className={MEDIA_ACTION_ITEM_CLASS}
                 >
                   <FileText size="1em" />
                 </div>
-                <div className={styles.divider}></div>
+                <div className={MEDIA_ACTION_DIVIDER_CLASS}></div>
               </>
             )}
             {imageActions.map(action => (
               <React.Fragment key={action.id}>
                 <div
                   onClick={() => runMediaAction(action.id)}
-                  className={styles.item}
+                  className={MEDIA_ACTION_ITEM_CLASS}
                   title={action.label}
                 >
                   {action.icon}
                 </div>
-                <div className={styles.divider}></div>
+                <div className={MEDIA_ACTION_DIVIDER_CLASS}></div>
               </React.Fragment>
             ))}
-            <div onClick={() => setCropperOpen(true)} className={styles.item}>
+            <div onClick={() => setCropperOpen(true)} className={MEDIA_ACTION_ITEM_CLASS}>
               <Crop size="1em" />
             </div>
-            <div className={styles.divider}></div>
-            <div onClick={deleteImage} className={styles.item}>
+            <div className={MEDIA_ACTION_DIVIDER_CLASS}></div>
+            <div onClick={deleteImage} className={MEDIA_ACTION_ITEM_CLASS}>
               <Trash2 size="1em" />
             </div>
           </div>
@@ -573,7 +579,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
 
   return (
     <div
-      className={classnames(
+      className={cn(
         "relative",
         BLOCK_DRAG_GROUP,
         dimWhileDragging(isDragging || (isOverCurrent && canDrop))

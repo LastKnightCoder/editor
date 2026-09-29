@@ -1,7 +1,6 @@
 import React, { PropsWithChildren } from "react";
 import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
 import { type GraphvizElement } from "../../../types";
-import styles from "./index.module.less";
 import PreviewWithEditor from "../../../../components/PreviewWithEditor";
 import { Transforms } from "slate";
 import { Graphviz } from "graphviz-react";
@@ -12,22 +11,18 @@ interface GraphvizProps {
   element: GraphvizElement;
 }
 
-const GraphvizElement: React.FC<PropsWithChildren<GraphvizProps>> = (props) => {
+const GraphvizElement: React.FC<PropsWithChildren<GraphvizProps>> = props => {
   const { attributes, element, children } = props;
   const { dot } = element;
 
   const editor = useSlateStatic();
 
   const handleOnChange = (dot: string) => {
-    Transforms.setNodes(
-      editor,
-      { dot },
-      { at: ReactEditor.findPath(editor, element) },
-    );
+    Transforms.setNodes(editor, { dot }, { at: ReactEditor.findPath(editor, element) });
   };
 
   return (
-    <div {...attributes} className={styles.graphvizContainer}>
+    <div {...attributes} className="cursor-pointer">
       <PreviewWithEditor
         mode={"text/x-graphviz"}
         initValue={dot}
@@ -39,7 +34,10 @@ const GraphvizElement: React.FC<PropsWithChildren<GraphvizProps>> = (props) => {
           <Graphviz dot={dot} options={{ fit: true }} />
         </If>
         <If condition={!dot}>
-          <div contentEditable={false} className={styles.empty}>
+          <div
+            contentEditable={false}
+            className="flex h-[3.75em] cursor-pointer select-none items-center justify-center text-[var(--ed-text-tertiary)]"
+          >
             点击编辑图表
           </div>
         </If>

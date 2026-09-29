@@ -6,14 +6,12 @@ import { TikZ } from "@tau/shared";
 import type { TikzElement } from "../../../types";
 import PreviewWithEditor from "../../../../components/PreviewWithEditor";
 
-import styles from "./index.module.less";
-
 interface TikzProps {
   attributes: RenderElementProps["attributes"];
   element: TikzElement;
 }
 
-const Tikz: React.FC<PropsWithChildren<TikzProps>> = (props) => {
+const Tikz: React.FC<PropsWithChildren<TikzProps>> = props => {
   const { attributes, element, children } = props;
   const { content } = element;
 
@@ -23,8 +21,7 @@ const Tikz: React.FC<PropsWithChildren<TikzProps>> = (props) => {
     return (
       <div
         contentEditable={false}
-        style={{ userSelect: "none" }}
-        className={styles.empty}
+        className="flex h-[3.75em] cursor-pointer select-none items-center justify-center text-[var(--ed-text-tertiary)]"
       >
         点击编辑Tikz
       </div>
@@ -32,15 +29,11 @@ const Tikz: React.FC<PropsWithChildren<TikzProps>> = (props) => {
   };
 
   const handleChange = (code: string) => {
-    Transforms.setNodes(
-      editor,
-      { content: code },
-      { at: ReactEditor.findPath(editor, element) },
-    );
+    Transforms.setNodes(editor, { content: code }, { at: ReactEditor.findPath(editor, element) });
   };
 
   return (
-    <div {...attributes} className={styles.tikz}>
+    <div {...attributes} className="cursor-pointer">
       <PreviewWithEditor
         mode={"stex"}
         initValue={content}

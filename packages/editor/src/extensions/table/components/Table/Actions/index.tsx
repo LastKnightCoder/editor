@@ -3,8 +3,6 @@ import React from "react";
 import { If } from "@tau/shared";
 import { For } from "@tau/shared";
 
-import styles from "./index.module.less";
-
 interface IActionItem {
   isTitle?: boolean;
   content: React.ReactNode;
@@ -18,16 +16,22 @@ interface IActionsProps {
 const Actions = (props: IActionsProps) => {
   const { items } = props;
   return (
-    <div className={styles.itemContainer}>
+    <div className="flex max-h-[22.5em] flex-col gap-[0.5em] overflow-auto p-[0.5em]">
       <For
         data={items}
         renderItem={(item, index) => (
           <>
             <If condition={!!item.isTitle}>
-              <div className={styles.title}>{item.content}</div>
+              <div className="border-b border-solid border-[var(--ed-border)] py-[0.25em] text-[0.875em] text-[var(--ed-text-secondary)]">
+                {item.content}
+              </div>
             </If>
             <If condition={!item.isTitle}>
-              <div className={styles.item} key={index} onClick={item.onClick}>
+              <div
+                className="box-border flex h-[3.75em] items-center rounded-[0.5em] px-[0.5em] py-[0.25em] hover:cursor-pointer hover:bg-[var(--ed-bg-hover)]"
+                key={index}
+                onClick={item.onClick}
+              >
                 {item.content}
               </div>
             </If>
