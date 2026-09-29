@@ -286,22 +286,25 @@ export const useTranscriptionOptimization = (
       },
     ];
 
-    const handle = piStreamText({ provider, model, messages }, ({ text }) => {
-      setIsPending(false);
-      setRawOutput(text);
+    const handle = piStreamText(
+      { provider, model, messages, source: { feature: "transcriptionOptimization" } },
+      ({ text }) => {
+        setIsPending(false);
+        setRawOutput(text);
 
-      if (!parserRef.current) return;
+        if (!parserRef.current) return;
 
-      parserRef.current.reset();
-      parserRef.current.processChunk(text);
+        parserRef.current.reset();
+        parserRef.current.processChunk(text);
 
-      const allParsed = parserRef.current.getAllSegments();
-      const lastOriginalEnd =
-        originalSegmentsRef.current[originalSegmentsRef.current.length - 1]?.end || 0;
-      const withEndTimes = calculateStreamingEndTimes(allParsed, lastOriginalEnd);
+        const allParsed = parserRef.current.getAllSegments();
+        const lastOriginalEnd =
+          originalSegmentsRef.current[originalSegmentsRef.current.length - 1]?.end || 0;
+        const withEndTimes = calculateStreamingEndTimes(allParsed, lastOriginalEnd);
 
-      throttledUpdateSegments(withEndTimes);
-    });
+        throttledUpdateSegments(withEndTimes);
+      }
+    );
     chatHandleRef.current = handle;
     void handle.result.then(result => {
       if (result.ok && !result.aborted) {

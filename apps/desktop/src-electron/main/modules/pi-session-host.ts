@@ -65,6 +65,13 @@ import type {
 import { PiSessionInteractions } from "./pi-session-interactions";
 import { normalizePermissionMode } from "@/services/tool-permission/mode";
 import { resolveV2Providers } from "./pi-ai-runtime-core";
+import modelUsageModule from "./model-usage";
+import {
+  createSessionUsageTracker,
+  featureOfScope,
+  parseSessionScope,
+} from "./model-usage/trackers";
+import type { UsageSource } from "@/types/model-usage";
 import type { LLMProviderSetting, PiThinkingLevel } from "@/types/pi-llm";
 import type { ChatSessionMessage, RequestMessage } from "@/types";
 import type { AgentSession, ExtensionAPI, InlineExtension } from "@earendil-works/pi-coding-agent";
@@ -149,6 +156,8 @@ export interface PiSessionCreateRequest {
   retryMaxRetries?: number;
   /** 有审批条与提问卡的入口：注册 ask-question，需确认的工具等待用户 */
   interactive?: boolean;
+  /** 用量审计归属；缺省按 scope 推导功能 */
+  source?: UsageSource;
 }
 
 class PiSessionHostModule {
@@ -812,7 +821,21 @@ class PiSessionHostModule {
       const onSenderClosed = () => PiSessionHostModule.disposeSession(request.sessionId);
       sender.once("destroyed", onSenderClosed);
       sender.once("render-process-gone", onSenderClosed);
+      const parsedScope = parseSessionScope(request.scope);
+      const trackUsage = createSessionUsageTracker(
+        () => ({
+          providerId: request.modelRef.providerId,
+          modelId: request.modelRef.modelId,
+          feature: request.source?.feature || featureOfScope(parsedScope.scope),
+          scope: parsedScope.scope,
+          sessionId: session.sessionId,
+          entityId: request.source?.entityId ?? null,
+          library: request.source?.library ?? parsedScope.library ?? request.databaseName ?? null,
+        }),
+        input => modelUsageModule.record(input)
+      );
       const unsubscribe = session.subscribe(sessionEvent => {
+        trackUsage(sessionEvent);
         PiSessionHostModule.touch(request.sessionId);
         if (sender.isDestroyed()) return;
         try {

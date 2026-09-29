@@ -591,6 +591,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       const titleResult = await piCompleteChat({
         provider: titleProviderConfig,
         model: titleModelConfig,
+        source: { feature: "titleSummary" },
         messages: [
           {
             role: Role.System,

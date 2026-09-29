@@ -235,6 +235,7 @@ export const createSubAgentResearchTool = (): ToolDefinition => ({
               : {}),
             ...(toolScope ? { toolScope } : {}),
             excludeToolNames: [SUBAGENT_RESEARCH_TOOL_NAME],
+            source: { feature: "subagent" },
           },
           event => {
             executionsReducer.handle(event);

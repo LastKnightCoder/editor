@@ -185,16 +185,24 @@ export function runGenerationTask(
   options: GenerationRunOptions = {}
 ): void {
   const buildResult = buildGenerationRequest(request);
+  // 用量归属：播客走独立功能槽，其余生成任务按任务类型区分
+  const source = {
+    feature:
+      request.taskType === "podcast" ? "podcastGeneration" : `generation:${request.taskType}`,
+  };
 
   // 单发路径（provided_content）：直接消费 pi 原生事件（partial 全量快照）
   if (!buildResult.enableTools) {
-    const handle = piStreamChat({ provider, model, messages: buildResult.messages }, event => {
-      if (event.type === "text_delta" || event.type === "text_end") {
-        callbacks.onUpdate(piTextOf(event.partial));
-      } else if (event.type === "thinking_delta" || event.type === "thinking_end") {
-        callbacks.onReasoning?.(piThinkingOf(event.partial));
+    const handle = piStreamChat(
+      { provider, model, messages: buildResult.messages, source },
+      event => {
+        if (event.type === "text_delta" || event.type === "text_end") {
+          callbacks.onUpdate(piTextOf(event.partial));
+        } else if (event.type === "thinking_delta" || event.type === "thinking_end") {
+          callbacks.onReasoning?.(piThinkingOf(event.partial));
+        }
       }
-    });
+    );
     callbacks.onController?.(toAbortController(handle));
     void handle.result.then(result => {
       if (result.ok && !result.aborted) {
@@ -227,6 +235,7 @@ export function runGenerationTask(
       provider,
       model,
       messages: buildResult.messages,
+      source,
       additionalTools: options.additionalTools,
       ...(options.executeToolCall
         ? {

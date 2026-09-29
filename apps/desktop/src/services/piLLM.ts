@@ -7,7 +7,9 @@ import type { AssistantMessage, AssistantMessageEvent } from "@earendil-works/pi
 import { piAiCancel, piAiSingleShot, type PiSingleShotOptions } from "@/commands/piAi";
 import type { RequestMessage } from "@/types";
 import type { LLMModelSetting, LLMProviderSetting, PiThinkingLevel } from "@/types/pi-llm";
+import type { UsageSource } from "@/types/model-usage";
 import { Role } from "@/constants";
+import { getChatDatabase } from "./chatDatabase";
 
 export type PiChatRequest = PiSingleShotOptions;
 
@@ -17,6 +19,8 @@ export interface PiChatOptions {
   messages: RequestMessage[];
   /** 思考档位；缺省交给 pi 按模型能力取默认 */
   thinking?: PiThinkingLevel;
+  /** 用量审计归属；library 缺省取当前对话库 */
+  source?: UsageSource;
 }
 
 export interface PiChatResult {
@@ -104,6 +108,7 @@ function buildRequest(options: PiChatOptions): PiChatRequest {
   const { system, messages } = toPiChatMessages(options.messages);
   const thinking = options.thinking;
   const temperature = options.model.samplingParams?.temperature;
+  const library = options.source?.library ?? getChatDatabase();
   return {
     providerId: options.provider.id,
     modelId: options.model.id,
@@ -111,6 +116,7 @@ function buildRequest(options: PiChatOptions): PiChatRequest {
     messages,
     ...(thinking !== undefined ? { thinking } : {}),
     ...(typeof temperature === "number" ? { temperature } : {}),
+    source: { ...options.source, ...(library ? { library } : {}) },
   };
 }
 

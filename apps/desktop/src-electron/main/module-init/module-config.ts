@@ -11,6 +11,7 @@ import databaseModule from "../modules/database";
 import collaborationModule from "../modules/collaboration";
 import piAiRuntimeModule from "../modules/pi-ai-runtime";
 import piSessionHostModule from "../modules/pi-session-host";
+import modelUsageModule from "../modules/model-usage";
 import browserBridgeModule from "../modules/browser-bridge";
 import mcpModule from "../modules/mcp";
 import aliOssModule from "../modules/ali-oss";
@@ -230,10 +231,18 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
 
   // AI 模块
   {
-    name: "pi-ai",
+    // 模型用量审计（全局 usage.db）：pi-ai / pi-session 的采集点依赖它先就绪
+    name: "model-usage",
     group: ModuleGroup.AI,
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger"],
+    init: () => modelUsageModule.init(),
+  },
+  {
+    name: "pi-ai",
+    group: ModuleGroup.AI,
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["logger", "model-usage"],
     init: async () => {
       piAiRuntimeModule.init();
     },
@@ -242,7 +251,7 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     name: "pi-session",
     group: ModuleGroup.AI,
     layer: InitLayer.BACKGROUND,
-    dependencies: ["logger"],
+    dependencies: ["logger", "model-usage"],
     init: async () => {
       piSessionHostModule.init();
     },

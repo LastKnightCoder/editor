@@ -88,13 +88,16 @@ export const useContentPolish = (
     // 初始化对话历史
     conversationHistoryRef.current = [systemMessage, userMessage];
 
-    const handle = piStreamText({ provider, model, messages }, ({ text }) => {
-      setPending(false);
-      // 累积所有返回的内容
-      accumulatedMarkdownRef.current = text;
-      // 节流解析
-      throttledParse(text);
-    });
+    const handle = piStreamText(
+      { provider, model, messages, source: { feature: "contentPolish" } },
+      ({ text }) => {
+        setPending(false);
+        // 累积所有返回的内容
+        accumulatedMarkdownRef.current = text;
+        // 节流解析
+        throttledParse(text);
+      }
+    );
     chatHandleRef.current = handle;
     void handle.result.then(result => {
       if (result.ok && !result.aborted) {
@@ -164,7 +167,12 @@ export const useContentPolish = (
     conversationHistoryRef.current.push(userMessage);
 
     const handle = piStreamText(
-      { provider, model, messages: conversationHistoryRef.current },
+      {
+        provider,
+        model,
+        messages: conversationHistoryRef.current,
+        source: { feature: "contentPolish" },
+      },
       ({ text }) => {
         // 累积所有返回的内容
         accumulatedMarkdownRef.current = text;
