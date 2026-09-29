@@ -58,6 +58,7 @@ import { ModelPickerDialog } from "../components/ModelPickerDialog";
 import { useCatalogModels, useThinkingLevels } from "@/services/llmCatalog";
 import { ToolPermissionGroup } from "./ToolPermissionGroup";
 import { AgentShellGroup } from "./AgentShellGroup";
+import { ModelUsagePanel } from "./ModelUsagePanel";
 
 type FeatureKey = keyof ISetting["llmUsageSettings"];
 
@@ -608,7 +609,7 @@ export function LLMSection() {
     ).length;
 
   /* ── 页内 Tab：服务商与模型 / 功能分配 ── */
-  const [tab, setTab] = useState<"providers" | "assignment" | "permission">("providers");
+  const [tab, setTab] = useState<"providers" | "assignment" | "permission" | "usage">("providers");
   const unassignedCount = Object.values(llmUsageSettings).filter(usage => usage === null).length;
 
   /** 全部 (服务商, 模型) 平铺；选项 value 为下标，选择时反查成 providerId + modelId */
@@ -663,6 +664,7 @@ export function LLMSection() {
           { key: "providers", label: "服务商与模型" },
           { key: "assignment", label: "功能分配", badge: unassignedCount || undefined },
           { key: "permission", label: "工具权限" },
+          { key: "usage", label: "用量统计" },
         ]}
       />
 
@@ -779,6 +781,8 @@ export function LLMSection() {
           <ToolPermissionGroup />
           <AgentShellGroup />
         </>
+      ) : tab === "usage" ? (
+        <ModelUsagePanel />
       ) : (
         ASSIGNMENT_CATEGORIES.map(cat => (
           <SettingsGroup key={cat.label} title={cat.label}>

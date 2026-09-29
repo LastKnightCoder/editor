@@ -1,13 +1,28 @@
 import type Database from "better-sqlite3";
 import type {
+  ModelUsageBreakdownQuery,
+  ModelUsageBreakdownRow,
+  ModelUsageDimension,
   ModelUsageEvent,
   ModelUsageListResult,
   ModelUsageQuery,
   ModelUsageSummary,
+  ModelUsageTimeseriesPoint,
+  ModelUsageTimeseriesQuery,
 } from "@/types/model-usage";
 
 export const USAGE_SCHEMA_VERSION = 1;
 const MAX_LIST_LIMIT = 500;
+const HOUR_MS = 3_600_000;
+const DAY_MS = 86_400_000;
+
+/** 维度 → 列名（白名单，拼进 SQL 前必须经这里映射） */
+const DIMENSION_COLUMNS: Record<ModelUsageDimension, string> = {
+  model: "model",
+  feature: "feature",
+  provider: "provider_id",
+  library: "library",
+};
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS usage_meta (
@@ -225,6 +240,58 @@ export class ModelUsageStore {
       )
       .get(params) as ModelUsageSummary;
     return row;
+  }
+
+  /** 按时间分桶 × 维度聚合（趋势图）；桶按调用方给的时区偏移对齐本地整点 / 零点 */
+  timeseries(query: ModelUsageTimeseriesQuery): ModelUsageTimeseriesPoint[] {
+    const { where, params } = buildWhere(query);
+    const bucketMs = query.bucket === "hour" ? HOUR_MS : DAY_MS;
+    const offsetMs = Math.trunc(query.tzOffsetMinutes) * 60_000;
+    const column = DIMENSION_COLUMNS[query.groupBy];
+    return this.db
+      .prepare(
+        `SELECT
+           -- 绑定参数进来是 REAL，不强转会变成浮点除法、分桶失效
+           (CAST((ts + @offsetMs) AS INTEGER) / CAST(@bucketMs AS INTEGER)) * CAST(@bucketMs AS INTEGER)
+             - CAST(@offsetMs AS INTEGER) AS bucketStart,
+           COALESCE(${column}, '') AS key,
+           COUNT(*) AS calls,
+           COALESCE(SUM(total_tokens), 0) AS totalTokens,
+           COALESCE(SUM(cost), 0) AS cost
+         FROM model_usage_event ${where}
+         GROUP BY bucketStart, key
+         ORDER BY bucketStart ASC, key ASC`
+      )
+      .all({ ...params, offsetMs, bucketMs }) as ModelUsageTimeseriesPoint[];
+  }
+
+  /** 单维度排行（按费用、再按 token 倒序） */
+  breakdown(query: ModelUsageBreakdownQuery): ModelUsageBreakdownRow[] {
+    const { where, params } = buildWhere(query);
+    const column = DIMENSION_COLUMNS[query.groupBy];
+    // 服务商的展示名取最近一条记录的名字（服务商改名后跟随最新）
+    const label =
+      query.groupBy === "provider"
+        ? "COALESCE((SELECT provider_name FROM model_usage_event AS latest WHERE latest.provider_id = model_usage_event.provider_id AND latest.provider_name IS NOT NULL ORDER BY latest.ts DESC LIMIT 1), provider_id)"
+        : `COALESCE(${column}, '')`;
+    return this.db
+      .prepare(
+        `SELECT
+           COALESCE(${column}, '') AS key,
+           ${label} AS label,
+           COUNT(*) AS calls,
+           COALESCE(SUM(status = 'error'), 0) AS errors,
+           COALESCE(SUM(input_tokens), 0) AS inputTokens,
+           COALESCE(SUM(output_tokens), 0) AS outputTokens,
+           COALESCE(SUM(total_tokens), 0) AS totalTokens,
+           COALESCE(SUM(cost), 0) AS cost,
+           AVG(latency_ms) AS avgLatencyMs,
+           AVG(ttft_ms) AS avgTtftMs
+         FROM model_usage_event ${where}
+         GROUP BY key
+         ORDER BY cost DESC, totalTokens DESC, calls DESC`
+      )
+      .all(params) as ModelUsageBreakdownRow[];
   }
 
   list(query: ModelUsageQuery = {}): ModelUsageListResult {

@@ -153,6 +153,63 @@ describe("UsageRecorder + ModelUsageStore", () => {
     expect(store.summary({ library: "other" }).calls).toBe(0);
   });
 
+  it("timeseries 按本地时区零点分天、按维度分组", () => {
+    // 东八区：UTC 16:00 = 本地次日 00:00
+    const localMidnight = Date.UTC(2026, 8, 1, 16); // 本地 9/2 00:00
+    recorder.record(input({ ts: localMidnight - 60_000, model: "a", cost: 1 })); // 本地 9/1 23:59
+    recorder.record(input({ ts: localMidnight + 60_000, model: "a", cost: 2 }));
+    recorder.record(input({ ts: localMidnight + 120_000, model: "b", cost: 4 }));
+    recorder.flush();
+    const points = store.timeseries({
+      bucket: "day",
+      groupBy: "model",
+      tzOffsetMinutes: 480,
+    });
+    expect(points).toEqual([
+      { bucketStart: localMidnight - 86_400_000, key: "a", calls: 1, totalTokens: 15, cost: 1 },
+      { bucketStart: localMidnight, key: "a", calls: 1, totalTokens: 15, cost: 2 },
+      { bucketStart: localMidnight, key: "b", calls: 1, totalTokens: 15, cost: 4 },
+    ]);
+  });
+
+  it("timeseries 按小时分桶", () => {
+    const hour = Date.UTC(2026, 8, 1, 3);
+    recorder.record(input({ ts: hour + 10 }));
+    recorder.record(input({ ts: hour + 3_599_999 }));
+    recorder.record(input({ ts: hour + 3_600_000 }));
+    recorder.flush();
+    const points = store.timeseries({ bucket: "hour", groupBy: "feature", tzOffsetMinutes: 480 });
+    expect(points.map(p => [p.bucketStart - hour, p.calls])).toEqual([
+      [0, 2],
+      [3_600_000, 1],
+    ]);
+  });
+
+  it("breakdown 按费用倒序，服务商取最近的名字，统计失败与平均耗时", () => {
+    recorder.record(input({ ts: 1000, providerId: "p1", cost: 0.1, latencyMs: 100 }));
+    recorder.record(
+      input({ ts: 2000, providerId: "p1", cost: 0.1, latencyMs: 300, status: "error" })
+    );
+    recorder.record(input({ ts: 3000, providerId: "p2", cost: 1 }));
+    recorder.flush();
+    const rows = store.breakdown({ groupBy: "provider" });
+    expect(rows.map(r => r.key)).toEqual(["p2", "p1"]);
+    expect(rows[1]).toMatchObject({
+      label: "Provider One",
+      calls: 2,
+      errors: 1,
+      avgLatencyMs: 200,
+    });
+    expect(rows[0].label).toBe("p2");
+  });
+
+  it("breakdown 按库分组时未归属的库为空串", () => {
+    recorder.record(input({ library: "work" }));
+    recorder.flush();
+    db.prepare("UPDATE model_usage_event SET library = NULL").run();
+    expect(store.breakdown({ groupBy: "library" })[0].key).toBe("");
+  });
+
   it("list 按时间倒序分页", () => {
     for (let i = 1; i <= 5; i++) recorder.record(input({ ts: i * 1000 }));
     recorder.flush();

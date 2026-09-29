@@ -78,3 +78,47 @@ export interface ModelUsageListResult {
   total: number;
   items: ModelUsageEvent[];
 }
+
+/** 图表分组维度 */
+export type ModelUsageDimension = "model" | "feature" | "provider" | "library";
+export type ModelUsageBucket = "hour" | "day";
+
+export interface ModelUsageTimeseriesQuery extends ModelUsageQuery {
+  bucket: ModelUsageBucket;
+  groupBy: ModelUsageDimension;
+  /**
+   * 本地时区相对 UTC 的分钟偏移（东八区 = 480，即 -Date#getTimezoneOffset()）：
+   * 按「天」分桶要落在本地零点，主进程不猜时区
+   */
+  tzOffsetMinutes: number;
+}
+
+export interface ModelUsageTimeseriesPoint {
+  /** 桶起点（ms，本地时区对齐） */
+  bucketStart: number;
+  /** 分组键（模型 id / 功能名 / 服务商 id / 库名，缺省为空串） */
+  key: string;
+  calls: number;
+  totalTokens: number;
+  cost: number;
+}
+
+export interface ModelUsageBreakdownQuery extends ModelUsageQuery {
+  groupBy: ModelUsageDimension;
+}
+
+export interface ModelUsageBreakdownRow {
+  key: string;
+  /** 展示名：服务商取记录时的服务商名，其它维度同 key */
+  label: string;
+  calls: number;
+  errors: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  cost: number;
+  /** 平均耗时（ms），无耗时数据为 null */
+  avgLatencyMs: number | null;
+  /** 平均首 token 延迟（ms） */
+  avgTtftMs: number | null;
+}
