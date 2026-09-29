@@ -39,6 +39,7 @@ import type { IFileSyncStatus } from "@/types";
 import { ROW_DIVIDER } from "../components/rowDivider";
 import { SettingsGroup } from "../components/SettingsGroup";
 import { StatusChip } from "../components/StatusChip";
+import { SyncActions, SyncStats } from "../components/SyncCard";
 import { pendingOf, type FileFilter, type ResourceSyncModel } from "./useResourceSyncModel";
 
 const FILE_STATUS_TEXTS: Record<ResourceSyncStatus, string> = {
@@ -142,30 +143,16 @@ export function ResourceSyncCard({
         </>
       ) : null}
 
-      <dl className="mt-2.5 grid grid-cols-4">
-        {(
-          [
-            ["文件", counts.all],
-            ["待上传", counts.upload],
-            ["待下载", counts.download],
-            ["失败", counts.error],
-          ] as const
-        ).map(([label, value]) => (
-          <div key={label}>
-            <dt className="text-tau-sm text-ink-2">{label}</dt>
-            <dd
-              className={clsx(
-                "text-tau-title font-semibold tabular-nums",
-                label === "失败" && value > 0 && "text-danger"
-              )}
-            >
-              {value}
-            </dd>
-          </div>
-        ))}
-      </dl>
+      <SyncStats
+        items={[
+          { label: "文件", value: counts.all },
+          { label: "待上传", value: counts.upload },
+          { label: "待下载", value: counts.download },
+          { label: "失败", value: counts.error, valueClassName: counts.error > 0 && "text-danger" },
+        ]}
+      />
 
-      <div className="mt-auto flex gap-2 pt-3.5">
+      <SyncActions>
         {isSyncing ? (
           <Button
             variant="secondary"
@@ -186,11 +173,11 @@ export function ResourceSyncCard({
           </Button>
         )}
         {counts.error > 0 && !isSyncing && (
-          <Button variant="ghost" size="sm" icon={AlertTriangle} onClick={onShowIssues}>
+          <Button variant="secondary" size="sm" icon={AlertTriangle} onClick={onShowIssues}>
             查看失败项
           </Button>
         )}
-      </div>
+      </SyncActions>
     </Panel>
   );
 }

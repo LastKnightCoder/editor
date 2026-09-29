@@ -20,18 +20,19 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, CloudUpload, Database, Download, RefreshCw } from "lucide-react";
-import clsx from "clsx";
 import { produce } from "immer";
 import { Button, ConfirmDialog, Input, Panel, Segmented, toast } from "@tau/ui";
 import useSettingStore, { ESync } from "@/stores/useSettingStore";
 import { download, getOriginDatabaseInfo, upload } from "@/commands";
 import { isSyncConfigured } from "@/utils/sync";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { runUsageSync } from "@/services/usageSyncRunner";
 import { useSettingsStore } from "@/app/settingsStore";
 import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup } from "../components/SettingsGroup";
 import { SettingsTabs } from "../components/SettingsTabs";
 import { StatusChip } from "../components/StatusChip";
+import { SyncActions, SyncStats } from "../components/SyncCard";
 import { LocalDatabasePanel } from "./LocalDatabasePanel";
 import { ResourceSyncCard, ResourceSyncFiles } from "./ResourceSync";
 import { useResourceSyncModel, type FileFilter } from "./useResourceSyncModel";
@@ -94,9 +95,14 @@ export function SyncSection() {
   const localVersion = activeDatabase?.version ?? 0;
   const isConfigured = isSyncConfigured(active, sync, integration);
 
-  /* 远程版本：网络查询，配置就绪才拉；检查更新 refetch，同步/下载后手动更新 */
+  /* 远程版本：网络查询，配置就绪才拉；检查更新 refetch，同步/下载后手动更新。
+     key 含当前库、存储类型与定位字段：切换存储类型立即重新探测，同类型下的字段编辑防抖后再拉 */
+  const rawTarget = JSON.stringify([active, sync[active]]);
+  const debouncedTarget = useDebouncedValue(rawTarget, 500);
+  const remoteTarget = debouncedTarget.startsWith(`["${active}"`) ? debouncedTarget : rawTarget;
+  const remoteKey = ["settings", "sync", "remote-version", database.active, remoteTarget];
   const remoteQuery = useQuery({
-    queryKey: ["settings", "sync", "remote-version"],
+    queryKey: remoteKey,
     queryFn: async () => {
       const info = await getOriginDatabaseInfo();
       return Number((info?.databaseInfo as { version?: number } | undefined)?.version) || 0;
@@ -114,7 +120,7 @@ export function SyncSection() {
     try {
       const ok = await upload();
       if (ok) {
-        queryClient.setQueryData(["settings", "sync", "remote-version"], localVersion + 1);
+        queryClient.setQueryData(remoteKey, localVersion + 1);
         toast.success("同步成功");
         // 用量记录搭车同步，后台跑、失败只记在用量统计页
         void runUsageSync();
@@ -145,7 +151,7 @@ export function SyncSection() {
       const info = await getOriginDatabaseInfo();
       const originVersion =
         Number((info?.databaseInfo as { version?: number } | undefined)?.version) || 0;
-      queryClient.setQueryData(["settings", "sync", "remote-version"], originVersion);
+      queryClient.setQueryData(remoteKey, originVersion);
       if (localVersion < originVersion) {
         toast.success(`远程有新版本 v${originVersion}，可下载更新`);
       } else {
@@ -162,7 +168,7 @@ export function SyncSection() {
     try {
       const ok = await download();
       if (ok) {
-        queryClient.setQueryData(["settings", "sync", "remote-version"], localVersion);
+        queryClient.setQueryData(remoteKey, localVersion);
         toast.success("更新成功，已刷新数据库，原文件已备份至 backup 文件夹");
       } else {
         toast.error("下载失败");
@@ -195,6 +201,10 @@ export function SyncSection() {
 
   const dbChip = !isConfigured ? (
     <StatusChip tone="warn">未配置</StatusChip>
+  ) : remoteQuery.isFetching ? (
+    <StatusChip tone="accent">检查中</StatusChip>
+  ) : remoteQuery.isError ? (
+    <StatusChip tone="danger">连接失败</StatusChip>
   ) : !remoteKnown ? (
     <StatusChip>未检查</StatusChip>
   ) : hasUpdate ? (
@@ -230,26 +240,17 @@ export function SyncSection() {
                   {database.active}
                   {isConfigured && ` · ${PROVIDER_LABELS[active]}`}
                 </div>
-                <dl className="mt-3.5 flex gap-7">
-                  <div>
-                    <dt className="text-tau-sm text-ink-2">本地版本</dt>
-                    <dd className="text-[24px] font-semibold tabular-nums leading-tight">
-                      {localVersion}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-tau-sm text-ink-2">远程版本</dt>
-                    <dd
-                      className={clsx(
-                        "text-[24px] font-semibold tabular-nums leading-tight",
-                        hasUpdate ? "text-accent-text" : !remoteKnown && "text-ink-3"
-                      )}
-                    >
-                      {remoteKnown ? remoteVersion : "—"}
-                    </dd>
-                  </div>
-                </dl>
-                <div className="mt-auto flex gap-2 pt-3.5">
+                <SyncStats
+                  items={[
+                    { label: "本地版本", value: localVersion },
+                    {
+                      label: "远程版本",
+                      value: remoteKnown ? remoteVersion : "—",
+                      valueClassName: hasUpdate ? "text-accent-text" : !remoteKnown && "text-ink-3",
+                    },
+                  ]}
+                />
+                <SyncActions>
                   {!isConfigured ? (
                     <span className="text-tau-meta text-ink-2">
                       在下方选择存储类型并完善路径后即可同步
@@ -287,7 +288,7 @@ export function SyncSection() {
                         同步到云端
                       </Button>
                       <Button
-                        variant="ghost"
+                        variant="secondary"
                         size="sm"
                         icon={RefreshCw}
                         loading={isChecking}
@@ -298,7 +299,7 @@ export function SyncSection() {
                       </Button>
                     </>
                   )}
-                </div>
+                </SyncActions>
               </Panel>
               {isConfigured ? (
                 <ResourceSyncCard

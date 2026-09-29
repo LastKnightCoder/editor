@@ -12,6 +12,7 @@ import { useMarkdownWindowPrefs } from "../markdownWindowPrefs";
 import { sortEntries, type FilterResult, type TreeEntry, type TreeRow } from "./treeFilter";
 import TreeFilterWorker from "./treeFilter.worker?worker";
 import type { TreeFilterRequest, TreeFilterResponse } from "./treeFilter.worker";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
 export type { TreeEntry, TreeRow } from "./treeFilter";
 
@@ -233,13 +234,4 @@ export function useFileTree(rootPath: string, query: string) {
     reload,
     refreshDir: loadDir,
   };
-}
-
-function useDebouncedValue<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-  return debounced;
 }
