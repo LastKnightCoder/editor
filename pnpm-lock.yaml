@@ -1697,6 +1697,9 @@ importers:
       '@tau/shared':
         specifier: workspace:*
         version: link:../shared
+      '@tau/ui':
+        specifier: workspace:*
+        version: link:../ui
       ahooks:
         specifier: ^3.7.8
         version: 3.10.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)

@@ -23,13 +23,6 @@ export { default as showCustomModal } from "./components/CustomModal/showCustomM
 export { default as Webview } from "./components/Webview";
 export type { EditTextHandle } from "./components/EditText";
 export type { WebviewRef, WebviewProps } from "./components/Webview";
-export {
-  default as WebviewUrlInputForm,
-  type WebviewUrlInputFormProps,
-  type WebviewUrlInputFormServices,
-  type WebviewUrlInputFormNotify,
-  type WebviewUrlSourceType,
-} from "./components/WebviewUrlInputForm";
 export { default as Katex } from "./components/Katex";
 export {
   default as PlantUML,
