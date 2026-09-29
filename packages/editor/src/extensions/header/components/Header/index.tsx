@@ -1,11 +1,9 @@
 import React from "react";
 import { RenderElementProps, useSlateStatic } from "slate-react";
 import { cn } from "@tau/ui";
-import { dimWhileDragging, dropLineClass } from "../../../../components/BlockDrag";
 import type { HeaderElement } from "../../../types";
 import { useHeaderCollapse } from "./hooks";
-import useDragAndDrop from "../../../../hooks/useDragAndDrop";
-import { HeaderContent } from "./components";
+import { HeaderContent, LEVEL_MARGIN_TOP } from "./components";
 
 interface IHeaderProps {
   attributes: RenderElementProps["attributes"];
@@ -23,24 +21,15 @@ const Header: React.FC<React.PropsWithChildren<IHeaderProps>> = props => {
     element,
   });
 
-  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
-    element,
-  });
-
   // 如果禁用了 Header 折叠功能，则不显示折叠状态
   const effectiveCollapsed = disableCollapse ? false : collapsed;
-  const dropActive = isOverCurrent && canDrop;
+  const normalizedLevel = level >= 1 && level <= 6 ? level : 1;
 
   return (
     <div
-      ref={node => {
-        drop(node);
-      }}
       className={cn(
         "relative",
-        dimWhileDragging(isDragging || dropActive),
-        dropLineClass(dropActive, isBefore),
-        dropActive && (isBefore ? "before:-top-[0.25em]" : "after:-bottom-[0.125em]"),
+        LEVEL_MARGIN_TOP[normalizedLevel],
         effectiveCollapsed && "mb-[0.5em]"
       )}
     >
@@ -49,8 +38,6 @@ const Header: React.FC<React.PropsWithChildren<IHeaderProps>> = props => {
         collapsed={effectiveCollapsed}
         toggleCollapse={disableCollapse ? undefined : toggleCollapse}
         attributes={attributes}
-        dragRef={drag}
-        canDrag={canDrag}
       >
         {children}
       </HeaderContent>

@@ -11,6 +11,8 @@ import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
 class AudioExtension extends Base implements IExtension {
   type = "audio";
 
+  override dragSpec = true;
+
   override getPlugins() {
     return [
       pasteAudio,

@@ -11,6 +11,8 @@ export type { FileAttachmentElement } from "./types";
 class FileAttachmentExtension extends Base implements IExtension {
   type = "file-attachment";
 
+  override dragSpec = true;
+
   override getBlockPanelItems() {
     return blockPanelItems;
   }
@@ -23,10 +25,7 @@ class FileAttachmentExtension extends Base implements IExtension {
     const { element, attributes, children } = props;
 
     return (
-      <FileAttachment
-        element={element as unknown as FileAttachmentElement}
-        attributes={attributes}
-      >
+      <FileAttachment element={element as unknown as FileAttachmentElement} attributes={attributes}>
         {children}
       </FileAttachment>
     );

@@ -12,13 +12,14 @@ import IExtension from "../types";
 class BlockquoteExtension extends Base implements IExtension {
   type = "blockquote";
 
+  override dragSpec = {
+    self: true,
+    children: true,
+    handleClassName: "top-[0.25em] h-[1.5em] w-[1em] cursor-grab rounded transition-all",
+  };
+
   override getPlugins() {
-    return [
-      markdownSyntax,
-      quit,
-      withNormalizeBlockquote,
-      createBlockElementPlugin(this.type),
-    ];
+    return [markdownSyntax, quit, withNormalizeBlockquote, createBlockElementPlugin(this.type)];
   }
 
   override getBlockPanelItems() {
@@ -28,10 +29,7 @@ class BlockquoteExtension extends Base implements IExtension {
   render(props: RenderElementProps) {
     const { attributes, children, element } = props;
     return (
-      <Blockquote
-        attributes={attributes}
-        element={element as BlockquoteElement}
-      >
+      <Blockquote attributes={attributes} element={element as BlockquoteElement}>
         {children}
       </Blockquote>
     );

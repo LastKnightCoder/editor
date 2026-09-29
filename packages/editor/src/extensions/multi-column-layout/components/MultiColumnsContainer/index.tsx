@@ -4,17 +4,7 @@ import { Transforms } from "slate";
 import AddParagraph from "../../../../components/AddParagraph";
 import type { MultiColumnContainerElement } from "../../../types";
 import useIsLastElement from "../../../../hooks/useIsLastElement";
-import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
-import EditorContextMenu from "../../../../components/EditorContextMenu";
 
-import useDragAndDrop from "../../../../hooks/useDragAndDrop";
-import { cn } from "@tau/ui";
-import {
-  BLOCK_DRAG_GROUP,
-  DragHandle,
-  DropIndicator,
-  dimWhileDragging,
-} from "../../../../components/BlockDrag";
 import ColumnResizer from "../ColumnResizer";
 import { ColumnWidthsContext } from "../../context/ColumnWidthsContext";
 
@@ -36,12 +26,6 @@ const MultiColumnsContainer: React.FC<
 
   // 用于存储清理函数的 ref
   const cleanupRef = useRef<(() => void) | null>(null);
-
-  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
-    element,
-  });
-
-  const { menuProps, dragHandlerProps } = useDragHandlerMenu({ element, editor });
 
   const columnCount = element.children.length;
   const { ref: attributesRef, ...restAttributes } =
@@ -263,17 +247,7 @@ const MultiColumnsContainer: React.FC<
 
   return (
     <ColumnWidthsContext.Provider value={contextValue}>
-      <div
-        ref={node => {
-          drop(node);
-        }}
-        className={cn(
-          "relative",
-          BLOCK_DRAG_GROUP,
-          dimWhileDragging(isDragging || (isOverCurrent && canDrop))
-        )}
-      >
-        <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
+      <div className="relative">
         {/* gap 值需与 MultiColumnItem/index.tsx 中的 GAP_EM 保持同步 */}
         <div ref={setContainerRef} className="flex flex-nowrap gap-[0.625em]" {...restAttributes}>
           {children}
@@ -296,14 +270,6 @@ const MultiColumnsContainer: React.FC<
           </div>
         )}
         {!(readOnly && isLast) && <AddParagraph element={element} />}
-        <DragHandle
-          dragRef={node => {
-            drag(node);
-          }}
-          canDrag={canDrag}
-          onClick={dragHandlerProps.onClick}
-        />
-        <EditorContextMenu {...menuProps} readonly={readOnly} />
       </div>
     </ColumnWidthsContext.Provider>
   );

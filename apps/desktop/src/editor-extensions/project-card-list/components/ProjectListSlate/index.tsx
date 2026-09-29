@@ -1,17 +1,10 @@
 import ProjectList from "../ProjectList";
 import { RenderElementProps } from "slate-react";
-import {
-  AddParagraph,
-  BLOCK_DRAG_GROUP,
-  DragHandle,
-  DropIndicator,
-  dimWhileDragging,
-  useDragAndDrop,
-} from "@tau/editor/src";
+import { AddParagraph } from "@tau/editor/src";
 import type { ProjectCardListElement } from "../../types";
 import { ProjectItem } from "@/types";
 import React from "react";
-import { cn, toast } from "@tau/ui";
+import { toast } from "@tau/ui";
 import { openContent } from "@/services/open-content";
 
 interface IProjectCardExtensionProps {
@@ -22,11 +15,6 @@ interface IProjectCardExtensionProps {
 
 const ProjectListSlate = (props: IProjectCardExtensionProps) => {
   const { attributes, children, element } = props;
-
-  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
-    element,
-  });
-  const dropActive = isOverCurrent && canDrop;
 
   const onClickItem = async (item: ProjectItem) => {
     try {
@@ -39,22 +27,10 @@ const ProjectListSlate = (props: IProjectCardExtensionProps) => {
   const { projectItemId } = element;
 
   return (
-    <div
-      ref={node => {
-        drop(node);
-      }}
-      className={cn("relative", BLOCK_DRAG_GROUP, dimWhileDragging(isDragging || dropActive))}
-    >
-      <DropIndicator active={dropActive} before={isBefore} />
+    <div className="relative">
       <ProjectList projectItemId={projectItemId} onClick={onClickItem} />
       <div {...attributes}>{children}</div>
       <AddParagraph element={element as any} />
-      <DragHandle
-        dragRef={node => {
-          drag(node);
-        }}
-        canDrag={canDrag}
-      />
     </div>
   );
 };

@@ -62,7 +62,6 @@ export { notifierOf } from "./services/editorNotifier";
 export type { EditorSlots, ImageSlotProps, VideoSlotProps, AudioSlotProps } from "./services/slots";
 
 export { default as useTheme } from "./hooks/useTheme";
-export { default as useDragAndDrop } from "./hooks/useDragAndDrop";
 export { default as useIsLastElement } from "./hooks/useIsLastElement";
 export { default as useUploadResource } from "./hooks/useUploadResource";
 export { createMarkdownPasteImportExtension } from "./extensions/markdown-paste-import";
@@ -123,18 +122,8 @@ export * from "./types/custom-element";
 export { default as AddParagraph } from "./components/AddParagraph";
 export { default as InlineChromiumBugfix } from "./components/InlineChromiumBugFix";
 export { default as EditorContextMenu } from "./components/EditorContextMenu";
-export {
-  BLOCK_DRAG_GROUP,
-  DragHandle,
-  DropIndicator,
-  dimWhileDragging,
-  dropLineClass,
-  type DragHandleProps,
-  type DropIndicatorProps,
-} from "./components/BlockDrag";
-
-// Hooks
-export { useDragHandlerMenu } from "./hooks/useDragHandlerMenu";
+// 拖拽 chrome 已收进内核（BlockDragHost，01 §5.4）；类名常量供宿主样式与测试引用
+export { BLOCK_DRAG_GROUP } from "./components/BlockDrag";
 
 // Constants
 export * from "./constants";

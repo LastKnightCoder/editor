@@ -6,7 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cn } from "@tau/ui";
-import { BLOCK_DRAG_GROUP, DragHandle, DropIndicator, dimWhileDragging, dropLineClass } from "..";
+import { BLOCK_DRAG_GROUP, DragHandle, DropIndicator, dimWhileDragging } from "..";
 
 describe("BlockDrag", () => {
   let root: Root | null = null;
@@ -93,15 +93,5 @@ describe("BlockDrag", () => {
   it("拖拽中半透明", () => {
     expect(dimWhileDragging(true)).toBe("opacity-50");
     expect(dimWhileDragging(false)).toBeUndefined();
-  });
-
-  it("伪元素插入线：上方 / 下方各用 before / after，偏移经 cn 可覆盖", () => {
-    expect(dropLineClass(false, true)).toBeUndefined();
-    const before = dropLineClass(true, true)!;
-    expect(before).toContain("before:-top-[0.625em]");
-    expect(before).not.toContain("after:");
-    const after = cn(dropLineClass(true, false), "after:-bottom-[0.125em]");
-    expect(after).toContain("after:-bottom-[0.125em]");
-    expect(after).not.toContain("after:bottom-[0.375em]");
   });
 });

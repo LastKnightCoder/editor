@@ -2,21 +2,11 @@ import React, { PropsWithChildren, useState, useRef, useEffect } from "react";
 import { Transforms } from "slate";
 import { RenderElementProps, useSlateStatic, ReactEditor, useReadOnly } from "slate-react";
 import { BarChart2 } from "lucide-react";
-import { cn } from "@tau/ui";
 import { useMemoizedFn } from "ahooks";
 
 import type { ChartElement, ChartConfig } from "../../../types";
 import ChartPreview from "./ChartPreview";
 import ChartEditor from "./ChartEditor";
-import useDragAndDrop from "../../../hooks/useDragAndDrop";
-import { useDragHandlerMenu } from "../../../hooks/useDragHandlerMenu";
-import {
-  BLOCK_DRAG_GROUP,
-  DragHandle,
-  DropIndicator,
-  dimWhileDragging,
-} from "../../../components/BlockDrag";
-import EditorContextMenu from "../../../components/EditorContextMenu";
 import AddParagraph from "../../../components/AddParagraph";
 import { chartActionsMap } from "../utils/actions";
 import { ReactEChartsRef } from "./ReactECharts";
@@ -36,12 +26,6 @@ const ChartBlock: React.FC<PropsWithChildren<ChartBlockProps>> = props => {
   const chartRef = useRef<ReactEChartsRef>(null);
   const resizeStartYRef = useRef(0);
   const startHeightRef = useRef(0);
-
-  const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } = useDragAndDrop({
-    element,
-  });
-
-  const { menuProps, dragHandlerProps } = useDragHandlerMenu({ element, editor });
 
   // 注册操作到 actionsMap
   useEffect(() => {
@@ -99,22 +83,10 @@ const ChartBlock: React.FC<PropsWithChildren<ChartBlockProps>> = props => {
 
   const isEmpty = !data || data.length === 0;
 
-  const containerClassName = cn(
-    "relative transition-all duration-200",
-    dimWhileDragging(isDragging || (isOverCurrent && canDrop))
-  );
-
   return (
-    <div {...attributes} className={cn("relative my-[0.625em]", BLOCK_DRAG_GROUP)}>
-      <div contentEditable={false} ref={ref} className={containerClassName}>
-        <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
-        <div
-          ref={node => {
-            drop(node);
-          }}
-          className="cursor-pointer"
-          onClick={handleClick}
-        >
+    <div {...attributes} className="relative my-[0.625em]">
+      <div contentEditable={false} ref={ref} className="relative transition-all duration-200">
+        <div className="cursor-pointer" onClick={handleClick}>
           {isEmpty ? (
             <div className="flex h-[8em] select-none flex-col items-center justify-center gap-[0.5em] text-[var(--ed-text-tertiary)]">
               <BarChart2 size={32} />
@@ -135,19 +107,6 @@ const ChartBlock: React.FC<PropsWithChildren<ChartBlockProps>> = props => {
           </div>
         )}
       </div>
-      <DragHandle
-        dragRef={
-          canDrag
-            ? node => {
-                drag(node);
-              }
-            : () => {}
-        }
-        canDrag={canDrag}
-        onClick={dragHandlerProps.onClick}
-        iconClassName="translate-y-0"
-      />
-      <EditorContextMenu {...menuProps} readonly={readOnly} />
       {children}
       <AddParagraph element={element} />
       {editing && (

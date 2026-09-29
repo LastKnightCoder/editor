@@ -12,6 +12,7 @@ export class WebviewExtension extends Base implements IExtension {
 
   override commands = webviewCommands;
   override menuItems = webviewMenuItems;
+  override dragSpec = true;
 
   override getBlockPanelItems() {
     return blockPanelItems;

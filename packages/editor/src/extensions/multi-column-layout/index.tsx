@@ -2,25 +2,20 @@ import { RenderElementProps } from "slate-react";
 import Base from "../base";
 
 import IExtension from "../types";
-import {
-  MultiColumnContainerElement,
-  MultiColumnItemElement,
-} from "../../types";
+import { MultiColumnContainerElement, MultiColumnItemElement } from "../../types";
 
 import MultiColumnsContainer from "./components/MultiColumnsContainer";
 import MultiColumnItem from "./components/MultiColumnItem";
 
 import hotkeys from "./hotkeys";
 import blockPanelItems from "./block-panel-items";
-import {
-  normalizeColumnLayout,
-  deleteBackward,
-  normalizeItem,
-} from "./plugins";
+import { normalizeColumnLayout, deleteBackward, normalizeItem } from "./plugins";
 import { createBlockElementPlugin } from "../../utils";
 
 export class MultiColumnsContainerExtension extends Base implements IExtension {
   type = "multi-column-container";
+
+  override dragSpec = true;
 
   override getBlockPanelItems() {
     return blockPanelItems;
@@ -59,10 +54,7 @@ export class MultiColumnItemExtension extends Base implements IExtension {
     const { attributes, element, children } = props;
 
     return (
-      <MultiColumnItem
-        attributes={attributes}
-        element={element as MultiColumnItemElement}
-      >
+      <MultiColumnItem attributes={attributes} element={element as MultiColumnItemElement}>
         {children}
       </MultiColumnItem>
     );

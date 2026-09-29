@@ -10,6 +10,8 @@ export type { ProjectCardListElement } from "./types";
 
 class ProjectCardListExtension extends Base implements IExtension {
   type = "project-card-list";
+
+  override dragSpec = true;
   private projectId?: number;
 
   constructor(projectId?: number) {
@@ -29,10 +31,7 @@ class ProjectCardListExtension extends Base implements IExtension {
     const { element, attributes, children } = props;
 
     return (
-      <ProjectListSlate
-        element={element as any as ProjectCardListElement}
-        attributes={attributes}
-      >
+      <ProjectListSlate element={element as any as ProjectCardListElement} attributes={attributes}>
         {children}
       </ProjectListSlate>
     );

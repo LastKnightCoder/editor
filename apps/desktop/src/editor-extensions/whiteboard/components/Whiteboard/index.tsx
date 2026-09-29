@@ -4,16 +4,7 @@ import { MdFullscreen, MdFullscreenExit } from "react-icons/md";
 import { createPortal } from "react-dom";
 import { ReactEditor, useSlateStatic } from "slate-react";
 import { Transforms } from "slate";
-import { cn } from "@tau/ui";
-import {
-  AddParagraph,
-  BLOCK_DRAG_GROUP,
-  DragHandle,
-  DropIndicator,
-  IExtensionBaseProps,
-  dimWhileDragging,
-  useDragAndDrop,
-} from "@tau/editor/src";
+import { AddParagraph, IExtensionBaseProps } from "@tau/editor/src";
 
 import { If } from "@tau/shared";
 import WhiteBoard, {
@@ -51,9 +42,6 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
   const startHeightRef = useRef(0);
   const whiteboardRef = useRef<HTMLDivElement>(null);
   const isLast = useIsLastElement(element);
-  const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } = useDragAndDrop({
-    element,
-  });
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -259,17 +247,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
   }
 
   return (
-    <div
-      ref={node => {
-        drop(node);
-      }}
-      className={cn(
-        "relative",
-        BLOCK_DRAG_GROUP,
-        dimWhileDragging(isDragging || (isOverCurrent && canDrop))
-      )}
-    >
-      <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
+    <div className="relative">
       <div {...attributes} contentEditable={false}>
         <div className="border-line-1 relative my-[0.625em] w-full overflow-hidden rounded-[0.5em] border border-solid">
           <If condition={!isFullscreen}>
@@ -332,12 +310,6 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
             document.body
           )}
         {!(readOnly && isLast) && <AddParagraph element={element} />}
-        <DragHandle
-          dragRef={node => {
-            drag(node);
-          }}
-          canDrag={canDrag}
-        />
       </div>
     </div>
   );

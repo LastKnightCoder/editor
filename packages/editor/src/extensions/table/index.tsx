@@ -1,10 +1,6 @@
 import { RenderElementProps } from "slate-react";
 
-import {
-  TableElement,
-  TableRowElement,
-  TableCellElement,
-} from "../../types";
+import { TableElement, TableRowElement, TableCellElement } from "../../types";
 
 import Table from "./components/Table";
 import TableRow from "./components/TableRow";
@@ -19,6 +15,8 @@ import IExtension from "../types";
 
 export class TableExtension extends Base implements IExtension {
   type = "table";
+
+  override dragSpec = true;
 
   override getBlockPanelItems() {
     return blockPanelItems;

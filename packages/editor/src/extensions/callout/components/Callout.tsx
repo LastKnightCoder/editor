@@ -2,19 +2,10 @@ import React, { useState, useRef } from "react";
 import { Transforms } from "slate";
 import { RenderElementProps, useSlateStatic, useReadOnly, ReactEditor } from "slate-react";
 import { cn } from "@tau/ui";
-import {
-  BLOCK_DRAG_GROUP,
-  DragHandle,
-  DropIndicator,
-  dimWhileDragging,
-} from "../../../components/BlockDrag";
 
-import useDragAndDrop from "../../../hooks/useDragAndDrop";
-import { useDragHandlerMenu } from "../../../hooks/useDragHandlerMenu";
 import type { CalloutElement } from "../../../types";
 import AddParagraph from "../../../components/AddParagraph";
 import useIsLastElement from "../../../hooks/useIsLastElement";
-import EditorContextMenu from "../../../components/EditorContextMenu";
 
 import { DEFAULT_TITLE } from "../constants";
 import { useMemoizedFn } from "ahooks";
@@ -33,11 +24,6 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = props => {
   const [realTitle, setRealTitle] = useState<string>(title || defaultTitle);
   const titleRef = useRef<HTMLParagraphElement>(null);
   const isLast = useIsLastElement(element);
-  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
-    element,
-  });
-
-  const { menuProps, dragHandlerProps } = useDragHandlerMenu({ element, editor });
 
   const handleTitleBlur = useMemoizedFn(() => {
     const path = ReactEditor.findPath(editor, element);
@@ -46,19 +32,12 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = props => {
   });
 
   return (
-    <div
-      ref={node => {
-        drop(node);
-      }}
-      className={cn("relative", BLOCK_DRAG_GROUP)}
-    >
+    <div className="relative">
       <div {...attributes}>
-        <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
         <div
           className={cn(
             "callout relative rounded-[0.5em] border-l-[0.25em] p-[0.5em] pb-[1.25em] pl-[1em]",
-            `callout-${calloutType}`,
-            dimWhileDragging(isDragging || (isOverCurrent && canDrop))
+            `callout-${calloutType}`
           )}
           style={{
             borderLeftColor: "var(--ed-callout-border)",
@@ -86,12 +65,6 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = props => {
           <div>{children}</div>
         </div>
         {!(readOnly && isLast) && <AddParagraph element={element} />}
-        {!readOnly && (
-          <>
-            <DragHandle dragRef={drag} canDrag={canDrag} onClick={dragHandlerProps.onClick} />
-            <EditorContextMenu {...menuProps} readonly={readOnly} />
-          </>
-        )}
       </div>
     </div>
   );

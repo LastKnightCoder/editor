@@ -3,20 +3,11 @@ import { useMemoizedFn } from "ahooks";
 import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
 import { Transforms } from "slate";
 import { LoadingOverlay, cn } from "@tau/ui";
-import {
-  BLOCK_DRAG_GROUP,
-  DragHandle,
-  DropIndicator,
-  dimWhileDragging,
-} from "../../../../components/BlockDrag";
 
 import { IExtensionBaseProps } from "../../../../extensions/types";
 import type { VideoElement } from "../../../../types";
 import AddParagraph from "../../../../components/AddParagraph";
-import EditorContextMenu from "../../../../components/EditorContextMenu";
-import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 import { useImageResize, ResizeDirection } from "../../../../hooks/useImageResize";
-import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
 import useIsLastElement from "../../../../hooks/useIsLastElement";
 
 import { If, VideoPlayer } from "@tau/shared";
@@ -47,11 +38,6 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     () => videoProviders.find(provider => provider.match(element)),
     [videoProviders, element]
   );
-
-  const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } = useDragAndDrop({
-    element,
-  });
-  const { menuProps, dragHandlerProps } = useDragHandlerMenu({ element, editor });
 
   const { src, uploading, playbackRate = 1, width, align = "center" } = element;
 
@@ -217,18 +203,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   };
 
   return (
-    <div
-      contentEditable={false}
-      ref={node => {
-        drop(node);
-      }}
-      className={cn(
-        "relative",
-        BLOCK_DRAG_GROUP,
-        dimWhileDragging(isDragging || (isOverCurrent && canDrop))
-      )}
-    >
-      <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
+    <div contentEditable={false} className="relative">
       <div {...attributes}>
         <LoadingOverlay loading={!!uploading}>
           <If condition={!src}>{renderEmpty()}</If>
@@ -245,14 +220,6 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
           </If>
         </LoadingOverlay>
         {children}
-        <DragHandle
-          dragRef={node => {
-            drag(node);
-          }}
-          canDrag={canDrag}
-          onClick={dragHandlerProps.onClick}
-        />
-        <EditorContextMenu {...menuProps} readonly={readOnly} />
         {!(readOnly && isLast) && <AddParagraph element={element} />}
       </div>
     </div>

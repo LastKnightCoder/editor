@@ -2,16 +2,7 @@ import { IExtensionBaseProps } from "../../../../extensions/types";
 import type { AudioElement } from "../../../../types";
 
 import AddParagraph from "../../../../components/AddParagraph";
-import EditorContextMenu from "../../../../components/EditorContextMenu";
-import useDragAndDrop from "../../../../hooks/useDragAndDrop";
-import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
-import { LoadingOverlay, cn } from "@tau/ui";
-import {
-  BLOCK_DRAG_GROUP,
-  DragHandle,
-  DropIndicator,
-  dimWhileDragging,
-} from "../../../../components/BlockDrag";
+import { LoadingOverlay } from "@tau/ui";
 import { If } from "@tau/shared";
 import { useAttrInput } from "../../../../hooks/useAttrInput";
 import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
@@ -41,11 +32,6 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
   ) : undefined;
 
   const { src, uploading } = element;
-  const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } = useDragAndDrop({
-    element,
-  });
-  const dropActive = isOverCurrent && canDrop;
-  const { menuProps, dragHandlerProps } = useDragHandlerMenu({ element, editor });
 
   // 遗留空音频元素的最小占位（正常流程经 slash 菜单直接创建已填充的元素）
   const renderNoContent = () => {
@@ -72,34 +58,18 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
   };
 
   return (
-    <div
-      ref={node => {
-        drop(node);
-      }}
-      className={cn("relative", BLOCK_DRAG_GROUP)}
-      suppressContentEditableWarning
-      contentEditable={"false"}
-    >
+    <div className="relative" suppressContentEditableWarning contentEditable={"false"}>
       <div {...attributes}>
         <LoadingOverlay loading={!!uploading}>
           {src ? (
-            <div className={cn("relative", dimWhileDragging(isDragging || dropActive))}>
+            <div className="relative">
               <AudioSlot src={src} controls label={element.title} labelSlot={titleSlot} />
-              <DropIndicator active={dropActive} before={isBefore} />
             </div>
           ) : (
             <If condition={!src}>{renderNoContent()}</If>
           )}
         </LoadingOverlay>
         {children}
-        <DragHandle
-          dragRef={node => {
-            drag(node);
-          }}
-          canDrag={canDrag}
-          onClick={dragHandlerProps.onClick}
-        />
-        <EditorContextMenu {...menuProps} readonly={readOnly} />
         <AddParagraph element={element} />
       </div>
     </div>

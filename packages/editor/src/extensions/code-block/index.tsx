@@ -22,6 +22,7 @@ class CodeBlockExtension extends Base implements IExtension {
 
   override commands = codeBlockCommands;
   override menuItems = codeBlockMenuItems;
+  override dragSpec = true;
 
   override getPlugins() {
     return [

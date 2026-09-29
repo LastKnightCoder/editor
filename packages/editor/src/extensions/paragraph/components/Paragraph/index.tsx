@@ -1,18 +1,9 @@
 import React, { useEffect, memo } from "react";
 import { Editor, Transforms } from "slate";
-import { ReactEditor, RenderElementProps, useSlate, useReadOnly } from "slate-react";
+import { ReactEditor, RenderElementProps, useSlate } from "slate-react";
 import { cn } from "@tau/ui";
 
 import type { ParagraphElement } from "../../../types";
-import useDragAndDrop from "../../../../hooks/useDragAndDrop";
-import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
-import EditorContextMenu from "../../../../components/EditorContextMenu";
-import {
-  BLOCK_DRAG_GROUP,
-  DragHandle,
-  dimWhileDragging,
-  dropLineClass,
-} from "../../../../components/BlockDrag";
 
 import { useMemoizedFn } from "ahooks";
 import { findPathSafely } from "../../../../utils";
@@ -22,12 +13,11 @@ interface IParagraphProps {
   element: ParagraphElement;
 }
 
+// 拖拽手柄与手柄菜单由内核的 BlockDragHost 统一渲染（01 §5.4 拖拽声明化）
 const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = memo(props => {
   const { children, attributes, element } = props;
-  const { disableDrag } = element;
 
   const editor = useSlate();
-  const readOnly = useReadOnly();
   const path = findPathSafely(editor, element);
   const isLast = (() => {
     if (!path) {
@@ -46,13 +36,6 @@ const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = memo(props
       return false;
     }
   })();
-  const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } = useDragAndDrop({
-    element,
-    disableDrag,
-  });
-
-  // 菜单条目由扩展声明与内核默认菜单贡献（01 §5.4）
-  const { menuProps, dragHandlerProps } = useDragHandlerMenu({ element, editor });
 
   const handleFocus = useMemoizedFn((start = true) => {
     return (e: any) => {
@@ -93,37 +76,12 @@ const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = memo(props
     };
   }, [handleFocus]);
 
-  const dropActive = isOverCurrent && canDrop;
-
   return (
-    <div
-      ref={node => {
-        drop(node);
-      }}
-      // flow-root 建立 BFC，防止段落 margin 折叠出容器，悬停区域才包得住段落的下边距
-      className={cn("relative flow-root", BLOCK_DRAG_GROUP)}
-    >
-      <p
-        {...attributes}
-        className={cn(
-          "relative mb-[1.25em]",
-          dimWhileDragging(isDragging || dropActive),
-          dropLineClass(dropActive, isBefore),
-          dropActive && (isBefore ? "before:-top-[0.25em]" : "after:-bottom-[0.125em]"),
-          isLast && "mb-0!"
-        )}
-      >
+    // flow-root 建立 BFC，防止段落 margin 折叠出容器，悬停区域才包得住段落的下边距
+    <div className="relative flow-root">
+      <p {...attributes} className={cn("relative mb-[1.25em]", isLast && "mb-0!")}>
         {children}
       </p>
-      {!disableDrag && (
-        <DragHandle
-          dragRef={drag}
-          canDrag={canDrag}
-          onClick={dragHandlerProps.onClick}
-          className="top-[0.0625em]"
-        />
-      )}
-      <EditorContextMenu {...menuProps} readonly={readOnly} />
     </div>
   );
 });

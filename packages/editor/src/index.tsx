@@ -38,7 +38,8 @@ import {
   guardHotkeys,
   withUnknownElements,
 } from "./kit/extensionGuard";
-import { ElementErrorBoundary } from "./components/ElementGuard";
+import { ElementErrorBoundary, UnknownElement } from "./components/ElementGuard";
+import { BlockDragHost } from "./components/BlockDrag/BlockDragHost";
 import { consoleErrorReporter } from "./services/errorReporter";
 import {
   applyPlugin,
@@ -308,11 +309,16 @@ const Index = memo(
 
     const renderByType = useMemoizedFn((props: RenderElementProps) => assembly.render(props));
 
-    // 文档源可以接管个别元素（协作的私有块占位），其余按 type 分发给扩展
-    const renderElementContent = useMemoizedFn(
-      (props: RenderElementProps) =>
-        binding?.renderElement?.(props, renderByType) ?? renderByType(props)
-    );
+    // 文档源可以接管个别元素（协作的私有块占位），其余按 type 分发给扩展；
+    // 外面统一包拖拽 chrome（BlockDragHost）：块组件不再自己接手柄/插入线/手柄菜单。
+    // JSX 恒为真值，未知类型的兜底占位必须在这里显式给出（ElementGuard 内的 ?? 不再可达）
+    const renderElementContent = useMemoizedFn((props: RenderElementProps) => (
+      <BlockDragHost element={props.element}>
+        {binding?.renderElement?.(props, renderByType) ?? renderByType(props) ?? (
+          <UnknownElement {...props} />
+        )}
+      </BlockDragHost>
+    ));
     const reportRenderError = useMemoizedFn((type: string, error: unknown) =>
       breaker.report(assembly.getElementOwner(type)?.id ?? type, "render", error)
     );

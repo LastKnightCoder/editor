@@ -9,14 +9,20 @@ import {
   updateColumnWidths,
 } from "../utils/multi-columns-layout";
 import { findPathSafely, getNodeAtPathSafely } from "../utils/path";
-import type {
-  MultiColumnContainerElement,
-  MultiColumnItemElement,
-} from "../types";
+import type { ElementDragSpec } from "../api/drag";
+import type { MultiColumnContainerElement, MultiColumnItemElement } from "../types";
+
+/**
+ * 块级拖拽的内核实现（01 §5.4 拖拽声明化）：只给 BlockDragHost 用，
+ * 可拖性由元素类型上的 drag 声明决定——self 沿祖先链查 children，放置沿祖先链查 accepts。
+ */
 
 interface IUseDragAndDropParams {
   element: Element;
-  disableDrag?: boolean;
+  /** 本块的拖拽声明（装配聚合）；无声明就没有 chrome，不会进到这里 */
+  dragSpec: ElementDragSpec;
+  /** 全量声明表（查祖先链） */
+  dragSpecs: ReadonlyMap<string, ElementDragSpec>;
 }
 
 const EDITOR_DRAG_TYPE = "editor-item";
@@ -32,12 +38,7 @@ interface IDragItem {
   columnIndex?: number;
 }
 
-const moveNode = (
-  editor: Editor,
-  dragPath: Path,
-  dropPath: Path,
-  isBefore: boolean,
-) => {
+const moveNode = (editor: Editor, dragPath: Path, dropPath: Path, isBefore: boolean) => {
   // 如果 dropPath 是 dragPath 的子节点，不允许移动
   if (Path.isAncestor(dragPath, dropPath)) {
     return;
@@ -90,10 +91,50 @@ const moveNode = (
   }
 };
 
+/** 沿祖先链查 children: false——容器（如勾选项）声明子内容不参与拖拽时，更深的手柄都不显示 */
+const ancestorsAllowChildren = (
+  editor: Editor,
+  dragSpecs: ReadonlyMap<string, ElementDragSpec>,
+  path: Path
+): boolean => {
+  for (let current = Path.parent(path); current.length > 0; current = Path.parent(current)) {
+    try {
+      const ancestor = Node.get(editor, current) as Element;
+      const spec = dragSpecs.get(ancestor.type);
+      if (spec && !spec.children) return false;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+};
+
+/**
+ * 沿祖先链查 accepts：drop 目标自己与所有声明了 accepts 的祖先都要接受拖动元素。
+ * 「拖到容器内部的子块前后」意味着进入容器，所以祖先的 accepts 也作数（容器不必认识子块类型）。
+ */
+const ancestorsAccept = (
+  editor: Editor,
+  dragSpecs: ReadonlyMap<string, ElementDragSpec>,
+  dropPath: Path,
+  dragElement: Element
+): boolean => {
+  for (let current = dropPath; current.length > 0; current = Path.parent(current)) {
+    try {
+      const node = Node.get(editor, current) as Element;
+      const spec = dragSpecs.get(node.type);
+      if (spec?.accepts && !spec.accepts(dragElement)) return false;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+};
+
 const useDragAndDrop = (params: IUseDragAndDropParams) => {
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
-  const { element, disableDrag = false } = params;
+  const { element, dragSpec, dragSpecs } = params;
 
   const [isBefore, setIsBefore] = useState(false);
 
@@ -103,11 +144,15 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
 
   // 使用 useCallback 优化 canDrag 函数
   const canDragFn = useCallback(() => {
-    if (disableDrag) return false;
+    if (!dragSpec.self) return false;
+    const path = getCurrentElementPath();
+    if (!path) return false;
     return (
-      !!getCurrentElementPath() && Editor.isBlock(editor, element) && !readOnly
+      ancestorsAllowChildren(editor, dragSpecs, path) &&
+      Editor.isBlock(editor, element) &&
+      !readOnly
     );
-  }, [disableDrag, editor, element, getCurrentElementPath, readOnly]);
+  }, [dragSpec, dragSpecs, editor, element, getCurrentElementPath, readOnly]);
 
   // 拖拽相关部分
   const [{ isDragging, canDrag }, dragConnector] = useDrag(
@@ -125,12 +170,12 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
         };
       },
       canDrag: canDragFn,
-      collect: (monitor) => ({
+      collect: monitor => ({
         isDragging: monitor.isDragging(),
         canDrag: monitor.canDrag(),
       }),
     },
-    [readOnly, element, disableDrag, canDragFn],
+    [readOnly, element, canDragFn]
   );
 
   // 使用 useCallback 优化 canDrop 函数
@@ -144,22 +189,9 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
         return false;
       }
       const dragEditor = item.sourceEditor;
-      let dropParent;
-      if (dropPath.length > 1) {
-        try {
-          dropParent = Editor.parent(editor, dropPath);
-        } catch (e) {
-          console.error(e);
-        }
-      }
 
-      // 如果当前元素是 check-list-item，拖动的元素不是 check-list-item，则不允许移动
-      if (
-        (element.type === "check-list-item" ||
-          (element.type === "paragraph" &&
-            dropParent?.[0].type === "check-list-item")) &&
-        item.dragElementSnapshot.type !== "check-list-item"
-      ) {
+      // 放置谓词沿祖先链求值（如勾选项只接受同类落进来）
+      if (!ancestorsAccept(editor, dragSpecs, dropPath, item.dragElementSnapshot)) {
         return false;
       }
 
@@ -183,7 +215,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
       }
       return false;
     },
-    [editor, element, getCurrentElementPath, readOnly],
+    [editor, element, dragSpecs, getCurrentElementPath, readOnly]
   );
 
   // 使用 useCallback 优化 hover 函数
@@ -203,11 +235,10 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
         return;
       }
       const dropRect = dropDOMNode.getBoundingClientRect();
-      const isBefore =
-        monitorClientOffset.y - dropRect.top < dropRect.height / 2;
+      const isBefore = monitorClientOffset.y - dropRect.top < dropRect.height / 2;
       setIsBefore(isBefore);
     },
-    [editor, element],
+    [editor, element]
   );
 
   // 使用 useCallback 优化 drop 函数
@@ -261,19 +292,14 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
 
             const currentDropPath = dropPathRef.current;
             if (currentDropPath) {
-              const insertPath = isBefore
-                ? currentDropPath
-                : Path.next(currentDropPath);
+              const insertPath = isBefore ? currentDropPath : Path.next(currentDropPath);
               Transforms.insertNodes(editor, columnChildren, {
                 at: insertPath,
               });
             }
 
             if (Node.has(editor, currentContainerPath)) {
-              const [updatedContainer] = Editor.node(
-                editor,
-                currentContainerPath,
-              );
+              const [updatedContainer] = Editor.node(editor, currentContainerPath);
               const updatedElement = updatedContainer as Element;
               if (updatedElement.children.length > 0) {
                 updateColumnWidths(editor, currentContainerPath, newWidths);
@@ -297,9 +323,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
 
         if (editor !== dragEditor) {
           const currentDragElement =
-            (getNodeAtPathSafely(dragEditor, dragPath) as
-              | Element
-              | undefined) ?? dragElement;
+            (getNodeAtPathSafely(dragEditor, dragPath) as Element | undefined) ?? dragElement;
           Transforms.removeNodes(dragEditor, {
             at: dragPath,
           });
@@ -316,7 +340,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
         console.error(e);
       }
     },
-    [editor, element, getCurrentElementPath, isBefore],
+    [editor, element, getCurrentElementPath, isBefore]
   );
 
   // 放置相关部分
@@ -331,7 +355,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
     {
       accept: [EDITOR_DRAG_TYPE, COLUMN_ITEM_DRAG_TYPE],
       canDrop: canDropFn,
-      collect: (monitor) => {
+      collect: monitor => {
         return {
           isOverCurrent: monitor.isOver({ shallow: true }),
           canDrop: monitor.canDrop(),
@@ -340,21 +364,21 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
       hover: hoverFn,
       drop: dropFn,
     },
-    [readOnly, isBefore, element, canDropFn, hoverFn, dropFn],
+    [readOnly, isBefore, element, canDropFn, hoverFn, dropFn]
   );
 
   const drag = useCallback<RefCallback<HTMLDivElement>>(
-    (node) => {
+    node => {
       dragConnector(node);
     },
-    [dragConnector],
+    [dragConnector]
   );
 
   const drop = useCallback<RefCallback<HTMLDivElement>>(
-    (node) => {
+    node => {
       dropConnector(node);
     },
-    [dropConnector],
+    [dropConnector]
   );
 
   return {

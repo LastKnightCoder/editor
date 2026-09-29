@@ -2,12 +2,6 @@ import React, { useMemo, useCallback } from "react";
 import { RenderElementProps, useSlate, ReactEditor, useReadOnly } from "slate-react";
 import { Editor, Transforms } from "slate";
 import { Popover, cn } from "@tau/ui";
-import {
-  BLOCK_DRAG_GROUP,
-  DragHandle,
-  DropIndicator,
-  dimWhileDragging,
-} from "../../../../components/BlockDrag";
 import { EllipsisVertical, Trash2 } from "lucide-react";
 import { BiChevronDown, BiChevronUp, BiChevronLeft, BiChevronRight, BiTable } from "react-icons/bi";
 import {
@@ -28,7 +22,6 @@ import useIsLastElement from "../../../../hooks/useIsLastElement";
 
 import ActionItem from "./ActionItem";
 import Actions from "./Actions";
-import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 
 interface ITableProps {
   attributes: RenderElementProps["attributes"];
@@ -42,9 +35,6 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
   const readOnly = useReadOnly();
   const { selection } = editor;
   const isLast = useIsLastElement(element);
-  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
-    element,
-  });
 
   const isActive = useMemo(() => {
     // 是否在 table
@@ -221,17 +211,7 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
   }, [editor, deleteTable]);
 
   return (
-    <div
-      ref={node => {
-        drop(node);
-      }}
-      className={cn(
-        "relative overflow-x-auto",
-        BLOCK_DRAG_GROUP,
-        dimWhileDragging(isDragging || (isOverCurrent && canDrop))
-      )}
-    >
-      <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
+    <div className="relative overflow-x-auto">
       <div
         contentEditable={false}
         className={cn(
@@ -282,12 +262,6 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
         <tbody>{children}</tbody>
       </table>
       {!(readOnly && isLast) && <AddParagraph element={element} />}
-      <DragHandle
-        dragRef={node => {
-          drag(node);
-        }}
-        canDrag={canDrag}
-      />
     </div>
   );
 };

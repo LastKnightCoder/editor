@@ -88,6 +88,8 @@ const playVideoHotkey = (videoController: VideoController): IHotKeyConfig => {
 class VideoScreenshotExtension implements IExtension {
   type = "video-screenshot";
 
+  dragSpec = true;
+
   constructor(private videoController: VideoController) {}
 
   getPlugins() {

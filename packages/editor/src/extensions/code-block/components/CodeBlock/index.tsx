@@ -12,9 +12,7 @@ import { MdFullscreenExit, MdKeyboardArrowDown, MdKeyboardArrowUp } from "react-
 import type { CodeBlockElement, CodeBlockMagicMove } from "../../../../types";
 import AddParagraph, { AddParagraphRef } from "../../../../components/AddParagraph";
 import useTheme from "../../../../hooks/useTheme";
-import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 import useIsLastElement from "../../../../hooks/useIsLastElement";
-import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
 import {
   focusNextBlock,
   focusPreviousBlock,
@@ -25,7 +23,6 @@ import EditorContextMenu from "../../../../components/EditorContextMenu";
 import type { ContextMenuItem } from "../../../../components/EditorContextMenu/types";
 import SelectLanguage from "../SelectLanguage";
 import ToolbarButtons, { CODE_HOVER_GROUP } from "./ToolbarButtons";
-import DragHandle from "./DragHandle";
 import ShikiOverlayEditor, { OverlayKeydownHelpers } from "./ShikiOverlayEditor";
 import { codeBlockActionsMap, codeBlockMap } from "../../utils/controllerMaps";
 import { getShikiHighlighter, getShikiTheme } from "../../utils/shikiHighlighter";
@@ -46,11 +43,6 @@ import {
 import type { CodeBlockController } from "../../types";
 
 import "./CodeBlock.vendor.css";
-import {
-  BLOCK_DRAG_GROUP,
-  DropIndicator,
-  dimWhileDragging,
-} from "../../../../components/BlockDrag";
 import "shiki-magic-move/style.css";
 
 interface ICodeBlockProps {
@@ -148,12 +140,6 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
   const canFold = contentHeight > Math.max(normalizedFoldHeight, MIN_FOLD_HEIGHT);
   const isFolded = isFold && canFold;
   const overlayDisplayHeight = isFolded ? normalizedFoldHeight : null;
-
-  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
-    element,
-  });
-
-  const { menuProps, dragHandlerProps } = useDragHandlerMenu({ element, editor: slateEditor });
 
   useEffect(() => {
     let cancelled = false;
@@ -816,15 +802,9 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
       contentEditable={false}
       className={cn(
         "relative [--ed-code-pad-bottom:1.1em] [--ed-code-pad-left:1.5em] [--ed-code-pad-right:0.85em] [--ed-code-pad-top:3em]",
-        CODE_HOVER_GROUP,
-        BLOCK_DRAG_GROUP,
-        dimWhileDragging(isDragging || (isOverCurrent && canDrop))
+        CODE_HOVER_GROUP
       )}
-      ref={node => {
-        drop(node);
-      }}
     >
-      <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
       <div {...attributes}>
         {children}
         <ToolbarButtons
@@ -862,7 +842,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
             value={code || ""}
             language={language}
             isDark={isDark}
-            readOnly={readOnly || (canDrop && isOverCurrent) || isFullscreen}
+            readOnly={readOnly || isFullscreen}
             className="ed-code-overlay"
             allowScroll={isFolded}
             displayHeight={overlayDisplayHeight}
@@ -909,8 +889,6 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
           )}
         </div>
         {!(readOnly && isLast) && <AddParagraph element={element} ref={addParagraphRef} />}
-        <DragHandle canDrag={canDrag} dragRef={drag} onClick={dragHandlerProps.onClick} />
-        <EditorContextMenu {...menuProps} readonly={readOnly} />
         <EditorContextMenu
           visible={highlightContextMenu.visible}
           position={highlightContextMenu.position}

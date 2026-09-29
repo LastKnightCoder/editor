@@ -6,6 +6,7 @@ import type { Plugin } from "../utils/plugin";
 import type { IBlockPanelListItem, IConfigItem } from "../types";
 import type { EditorCommand, EditorHotkey } from "./command";
 import type { EditorMenuContribution } from "./menu";
+import type { ElementDrag } from "./drag";
 
 /**
  * 扩展 API v2（01 §5.1）：声明式描述「这个扩展贡献了什么」，内核负责装配、隔离与分发。
@@ -41,6 +42,8 @@ export interface ElementSpec<E extends Element = Element> {
   /** 渲染组件，可以是 `lazy()`：加载期间内核显示保留结构的空壳 */
   render: ComponentType<ElementRenderProps<E>>;
   behaviors?: ElementBehaviors<E>;
+  /** 拖拽声明（01 §5.4）：未声明的类型没有拖拽 chrome；块组件不再自己接手柄 */
+  drag?: ElementDrag;
 }
 
 export interface EditorExtension {

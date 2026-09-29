@@ -14,6 +14,7 @@ class DetailExtension extends Base implements IExtension {
   type = "detail";
   override commands = detailCommands;
   override menuItems = detailMenuItems;
+  override dragSpec = true;
   override getPlugins() {
     return [deleteBackward, quit, withNormalize, createBlockElementPlugin(this.type)];
   }

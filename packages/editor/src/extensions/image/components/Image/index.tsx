@@ -15,25 +15,16 @@ import {
 import { EditText } from "@tau/shared";
 import type { EditTextHandle } from "@tau/shared";
 
-import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 import { useUploadResource } from "../../../../hooks/useUploadResource";
 import useIsLastElement from "../../../../hooks/useIsLastElement";
-import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
 
 import AddParagraph from "../../../../components/AddParagraph";
 import { useImagesOverviewStore } from "../../../../stores";
 import type { ImageElement } from "../../../types";
-import EditorContextMenu from "../../../../components/EditorContextMenu";
 import { imageActionsMap } from "../../utils/actionsMap";
 import { getImageAppearanceStyle } from "../../utils/appearance";
 
 import { cn } from "@tau/ui";
-import {
-  BLOCK_DRAG_GROUP,
-  DragHandle,
-  DropIndicator,
-  dimWhileDragging,
-} from "../../../../components/BlockDrag";
 import { useImageResize, ResizeDirection } from "../../../../hooks/useImageResize";
 
 import useTheme from "../../../../hooks/useTheme";
@@ -82,18 +73,12 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
   const readOnly = useReadOnly();
   const { Image: LocalImageComponent } = useEditorSlots();
 
-  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
-    element,
-  });
-
   const [uploading, setUploading] = useState(false);
 
   const [isSelected, setIsSelected] = useState(false);
   const [showDescEditor, setShowDescEditor] = useState(false);
   const descRef = useRef<EditTextHandle | null>(null);
   const isLast = useIsLastElement(element);
-
-  const { menuProps, dragHandlerProps } = useDragHandlerMenu({ element, editor });
 
   const { showImageOverview } = useImagesOverviewStore(state => ({
     showImageOverview: state.showImageOverview,
@@ -573,29 +558,9 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
   };
 
   return (
-    <div
-      className={cn(
-        "relative",
-        BLOCK_DRAG_GROUP,
-        dimWhileDragging(isDragging || (isOverCurrent && canDrop))
-      )}
-      ref={node => {
-        drop(node);
-      }}
-      contentEditable={false}
-      style={{ userSelect: "none" }}
-    >
-      <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
+    <div className="relative" contentEditable={false} style={{ userSelect: "none" }}>
       <div {...attributes}>
         {renderContent()}
-        <DragHandle
-          dragRef={node => {
-            drag(node);
-          }}
-          canDrag={canDrag}
-          onClick={dragHandlerProps.onClick}
-        />
-        <EditorContextMenu {...menuProps} readonly={readOnly} />
         {children}
         {!(readOnly && isLast) && <AddParagraph element={element} />}
       </div>

@@ -5,8 +5,6 @@ import { cn } from "@tau/ui";
 import { Plus } from "lucide-react";
 import { CustomModal } from "@tau/shared";
 
-import useDragAndDrop from "../../../../hooks/useDragAndDrop";
-import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
 import ImageGallerySetting, { ISetting } from "../ImageGallerySetting";
 import { EDITOR_MODAL_THEME } from "../../../../theme/modalTheme";
 import { If } from "@tau/shared";
@@ -15,18 +13,10 @@ import SwipeImageGallery from "../SwipeImageGallery";
 import HorizontalImageGallery from "../HorizontalImageGallery";
 import VerticalImageGallery from "../VerticalImageGallery";
 import useIsLastElement from "../../../../hooks/useIsLastElement";
-import EditorContextMenu from "../../../../components/EditorContextMenu";
 import type { ImageGalleryElement } from "../../../../types";
 import { EGalleryMode } from "../../../../constants";
 import { useImageAppearance, type ImageAppearanceOption } from "../../../image/appearanceOption";
 import { imageGalleryActionsMap } from "../../utils/menu";
-
-import {
-  BLOCK_DRAG_GROUP,
-  DragHandle,
-  DropIndicator,
-  dimWhileDragging,
-} from "../../../../components/BlockDrag";
 
 interface IImageGalleryProps {
   attributes: RenderElementProps["attributes"];
@@ -49,9 +39,6 @@ const ImageGallery = (props: IImageGalleryProps) => {
     shadow,
   } = element;
   const isLast = useIsLastElement(element);
-  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
-    element,
-  });
 
   const [settingModalOpen, setSettingModalOpen] = useState(false);
   const [setting, setSetting] = useState<ISetting>({
@@ -72,8 +59,6 @@ const ImageGallery = (props: IImageGalleryProps) => {
   const appearance = useImageAppearance(appearanceOption);
   const effectiveBorderRadius = borderRadius ?? appearance?.borderRadius ?? "none";
   const effectiveShadow = shadow ?? appearance?.shadow ?? "none";
-
-  const { menuProps, dragHandlerProps } = useDragHandlerMenu({ element, editor });
 
   // 注册 actions 供菜单项调用
   useEffect(() => {
@@ -117,18 +102,7 @@ const ImageGallery = (props: IImageGalleryProps) => {
   };
 
   return (
-    <div
-      ref={node => {
-        drop(node);
-      }}
-      className={cn(
-        "relative",
-        BLOCK_DRAG_GROUP,
-        wider && "w-[calc(100%+10em)] -translate-x-[5em]",
-        dimWhileDragging(isDragging || (isOverCurrent && canDrop))
-      )}
-    >
-      <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
+    <div className={cn("relative", wider && "w-[calc(100%+10em)] -translate-x-[5em]")}>
       <div {...attributes}>
         <If condition={images.length > 0}>
           <div contentEditable={false}>
@@ -196,15 +170,6 @@ const ImageGallery = (props: IImageGalleryProps) => {
         </CustomModal>
         {children}
       </div>
-      <DragHandle
-        dragRef={node => {
-          drag(node);
-        }}
-        canDrag={canDrag}
-        onClick={dragHandlerProps.onClick}
-        className="h-[1em]"
-      />
-      <EditorContextMenu {...menuProps} readonly={readOnly} />
     </div>
   );
 };

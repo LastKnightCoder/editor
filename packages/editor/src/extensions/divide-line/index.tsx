@@ -36,6 +36,12 @@ const divideLineExtension = defineExtension({
       kind: "block",
       isVoid: true,
       render: DivideLine,
+      // 分割线很矮，手柄抬高加宽（原组件手柄的位置）
+      drag: {
+        self: true,
+        children: true,
+        handleClassName: "-left-[1.25em] -top-[0.75em] h-[1.75em] w-[1.25em] transition-opacity",
+      },
     }),
   ],
   blockPanel: blockPanelItems,
