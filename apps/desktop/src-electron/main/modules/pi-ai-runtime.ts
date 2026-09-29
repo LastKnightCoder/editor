@@ -6,10 +6,16 @@
  * M2 的会话 harness（PiSessionHost）复用本模块的注册表。
  */
 import { ipcMain } from "electron";
-import { normalizeContext } from "@earendil-works/pi-ai";
+import {
+  normalizeContext,
+  type AssistantMessage,
+  type AssistantMessageEvent,
+} from "@earendil-works/pi-ai";
 import userSettingModule from "./user-setting";
 import { rewriteThinkTagStream } from "./think-stream-rewriter";
 import {
+  applyCatalogCostFills,
+  collectCatalogCostFills,
   createProviderRegistry,
   buildSingleShotContext,
   listCatalogModels,
@@ -28,15 +34,19 @@ import type { LLMProviderSetting, PiSingleShotOutcome, PiSingleShotRequest } fro
 class PiAiRuntimeModule {
   private static registry: ProviderRegistry | null = null;
   private static readonly activeShots = new Map<string, AbortController>();
+  /** 启动时首次 provider 同步：后台任务可能早于它发起，complete 前先等 */
+  private static initialSync: Promise<void> = Promise.resolve();
 
   public static init() {
     PiAiRuntimeModule.registry = createProviderRegistry();
 
     userSettingModule.onSettingChanged(({ newSetting }) => {
       void PiAiRuntimeModule.syncProviders(resolveV2Providers(newSetting));
+      void PiAiRuntimeModule.backfillCatalogCosts(resolveV2Providers(newSetting));
     });
-    void userSettingModule.getSettingSnapshot().then(async setting => {
+    PiAiRuntimeModule.initialSync = userSettingModule.getSettingSnapshot().then(async setting => {
       await PiAiRuntimeModule.syncProviders(resolveV2Providers(setting));
+      void PiAiRuntimeModule.backfillCatalogCosts(resolveV2Providers(setting));
     });
 
     ipcMain.handle("pi-ai:single-shot", async (event, request: PiSingleShotRequest) => {
@@ -87,6 +97,37 @@ class PiAiRuntimeModule {
     );
   }
 
+  /** 该模型是否按用户改过的单价计费（会话路径的用量记录据此标 custom） */
+  public static isCustomPriced(providerId: string, modelId: string): boolean {
+    return PiAiRuntimeModule.registry?.hasCustomCost(providerId, modelId) ?? false;
+  }
+
+  /**
+   * 目录价自动填入：已配置但还没有单价的模型，按内置目录价写进设置，之后可在模型编辑里改。
+   * 只补空缺不覆盖；写入走设置模块广播，各窗口按远端设置应用、不回灌。
+   * 补完后再次触发的设置变更里已无空缺，不会循环。
+   */
+  private static backfilling = false;
+  private static async backfillCatalogCosts(providers: LLMProviderSetting[]) {
+    if (PiAiRuntimeModule.backfilling) return;
+    if (!providers.some(provider => provider.models.some(model => !model.cost))) return;
+    PiAiRuntimeModule.backfilling = true;
+    try {
+      const fills = await collectCatalogCostFills(providers);
+      if (fills.size === 0) return;
+      // 查目录是异步的：写回前取最新设置，只补仍然空缺的，避免覆盖期间的用户修改
+      const latest = await userSettingModule.getSettingSnapshot();
+      const next = applyCatalogCostFills(resolveV2Providers(latest), fills);
+      if (!next) return;
+      userSettingModule.handleSetUserSetting({ ...latest, llmProviders: next });
+      console.info(`[PiAiRuntime] 已为 ${fills.size} 个模型填入目录单价`);
+    } catch (error) {
+      console.error("[PiAiRuntime] 填入目录单价失败:", error);
+    } finally {
+      PiAiRuntimeModule.backfilling = false;
+    }
+  }
+
   private static async syncProviders(providers: LLMProviderSetting[] | undefined) {
     if (!PiAiRuntimeModule.registry) return;
     try {
@@ -100,14 +141,57 @@ class PiAiRuntimeModule {
     sender: Electron.WebContents,
     request: PiSingleShotRequest
   ): Promise<PiSingleShotOutcome> {
-    const registry = PiAiRuntimeModule.registry;
-    if (!registry) return { ok: false, error: "pi-ai runtime not initialized" };
-
-    const model = registry.resolveModel(request.providerId, request.modelId);
-    if (!model) return { ok: false, error: `模型未注册：${request.providerId}/${request.modelId}` };
-
     const abortController = new AbortController();
     PiAiRuntimeModule.activeShots.set(request.requestId, abortController);
+    try {
+      const outcome = await PiAiRuntimeModule.stream(request, abortController.signal, event => {
+        if (!sender.isDestroyed())
+          sender.send("pi-ai-stream-event", { requestId: request.requestId, ...event });
+      });
+      return outcome.ok ? { ok: true } : { ok: false, error: outcome.error };
+    } finally {
+      PiAiRuntimeModule.activeShots.delete(request.requestId);
+    }
+  }
+
+  /**
+   * 主进程内部单发（不经 IPC）：VL 断句优化、图片描述等后台任务用，
+   * 与渲染端单发共用注册表与用量采集。流内错误以 ok=false 返回，不抛出。
+   */
+  public static async complete(
+    request: Omit<PiSingleShotRequest, "requestId">,
+    signal?: AbortSignal
+  ): Promise<{ ok: boolean; text: string; message: AssistantMessage | null; error?: string }> {
+    await PiAiRuntimeModule.initialSync.catch(() => undefined);
+    const outcome = await PiAiRuntimeModule.stream({ ...request, requestId: "" }, signal);
+    if (outcome.error || signal?.aborted) {
+      return { ok: false, text: "", message: null, error: outcome.error ?? "已取消" };
+    }
+    const text =
+      outcome.message?.content
+        .filter(block => block.type === "text")
+        .map(block => block.text)
+        .join("\n\n") ?? "";
+    return { ...outcome, text };
+  }
+
+  private static async stream(
+    request: PiSingleShotRequest,
+    signal: AbortSignal | undefined,
+    onEvent?: (event: AssistantMessageEvent) => void
+  ): Promise<{ ok: boolean; message: AssistantMessage | null; error?: string }> {
+    const registry = PiAiRuntimeModule.registry;
+    if (!registry) return { ok: false, message: null, error: "pi-ai runtime not initialized" };
+
+    const model = registry.resolveModel(request.providerId, request.modelId);
+    if (!model) {
+      return {
+        ok: false,
+        message: null,
+        error: `模型未注册：${request.providerId}/${request.modelId}`,
+      };
+    }
+
     const usage = createStreamUsageTracker(
       {
         providerId: request.providerId,
@@ -117,10 +201,12 @@ class PiAiRuntimeModule {
         sessionId: null,
         entityId: request.source?.entityId ?? null,
         library: request.source?.library ?? null,
+        customCost: registry.hasCustomCost(request.providerId, request.modelId),
       },
       input => modelUsageModule.record(input)
     );
     let streamError: string | null = null;
+    let finalMessage: AssistantMessage | null = null;
     try {
       const stream = registry.models.streamSimple(
         model,
@@ -130,7 +216,7 @@ class PiAiRuntimeModule {
             ? { reasoning: request.thinking }
             : {}),
           ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
-          signal: abortController.signal,
+          ...(signal ? { signal } : {}),
         }
       );
       const events = registry.needsThinkStrip(request.providerId, request.modelId)
@@ -138,17 +224,17 @@ class PiAiRuntimeModule {
         : stream;
       for await (const event of events) {
         usage.observe(event);
+        if (event.type === "done") finalMessage = event.message;
         if (event.type === "error") streamError = event.error.errorMessage ?? "模型请求失败";
-        if (!sender.isDestroyed())
-          sender.send("pi-ai-stream-event", { requestId: request.requestId, ...event });
+        onEvent?.(event);
       }
-      return { ok: true };
+      // 流内 error 事件对 IPC 单发仍算 ok（渲染端从事件里读错误），主进程调用方看 error 字段
+      return { ok: true, message: finalMessage, ...(streamError ? { error: streamError } : {}) };
     } catch (error) {
       streamError = error instanceof Error ? error.message : String(error);
-      return { ok: false, error: streamError };
+      return { ok: false, message: null, error: streamError };
     } finally {
-      usage.finish({ aborted: abortController.signal.aborted, error: streamError });
-      PiAiRuntimeModule.activeShots.delete(request.requestId);
+      usage.finish({ aborted: signal?.aborted ?? false, error: streamError });
     }
   }
 }

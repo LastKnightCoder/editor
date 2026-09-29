@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ImageIcon, RefreshCw, Sparkle } from "lucide-react";
 import { Button, Checkbox, Dialog, DialogBody, Input, cn } from "@tau/ui";
 import type {
+  LLMModelCost,
   LLMModelSetting,
   LLMProviderSetting,
   PiCatalogModel,
@@ -27,6 +28,8 @@ export const catalogModelToSetting = (model: PiCatalogModel): LLMModelSetting =>
   contextWindow: model.contextWindow,
   maxTokens: model.maxTokens,
   api: model.api,
+  // 目录价格作为默认单价写入，之后可在编辑里改成实际价格（自定义优先于目录）
+  ...(model.cost ? { cost: { ...model.cost } } : {}),
 });
 
 /** 获取来的模型 → 设置条目：只写有依据的字段，能力未知按最保守（不推理、仅文本） */
@@ -38,6 +41,7 @@ export const discoveredModelToSetting = (model: PiDiscoveredModel): LLMModelSett
   ...(model.contextWindow ? { contextWindow: model.contextWindow } : {}),
   ...(model.maxTokens ? { maxTokens: model.maxTokens } : {}),
   ...(model.api ? { api: model.api } : {}),
+  ...(model.cost ? { cost: { ...model.cost } } : {}),
 });
 
 interface PickerItem {
@@ -47,7 +51,7 @@ interface PickerItem {
   input?: ("text" | "image")[];
   contextWindow?: number;
   maxTokens?: number;
-  cost?: { input: number; output: number };
+  cost?: LLMModelCost;
   /** 仅由服务商实时列出、预设列表里没有（新模型或自建服务的模型） */
   fromServiceOnly: boolean;
   setting: LLMModelSetting;

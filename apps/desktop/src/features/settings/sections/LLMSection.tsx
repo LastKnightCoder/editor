@@ -55,7 +55,7 @@ import {
 import { SettingsTabs } from "../components/SettingsTabs";
 import { ProviderCreateDialog, type NewProviderDraft } from "../components/ProviderCreateDialog";
 import { ModelPickerDialog } from "../components/ModelPickerDialog";
-import { useThinkingLevels } from "@/services/llmCatalog";
+import { useCatalogModels, useThinkingLevels } from "@/services/llmCatalog";
 import { ToolPermissionGroup } from "./ToolPermissionGroup";
 import { AgentShellGroup } from "./AgentShellGroup";
 
@@ -155,9 +155,46 @@ interface ModelFormState {
   maxTokens: string;
   temperature: string;
   userAgent: string;
+  /** 单价（美元 / 百万 tokens）；输入与输出都填才生效，缓存可空 */
+  costInput: string;
+  costOutput: string;
+  costCacheRead: string;
+  costCacheWrite: string;
   /** 编辑态按旧模型 ID 定位（支持改名） */
   initialId: string;
 }
+
+const COST_FIELDS = [
+  { key: "costInput", label: "输入" },
+  { key: "costOutput", label: "输出" },
+  { key: "costCacheRead", label: "缓存读取" },
+  { key: "costCacheWrite", label: "缓存写入" },
+] as const;
+
+const costToText = (value: number | undefined) => (value === undefined ? "" : String(value));
+
+/** 表单单价 → 设置；输入、输出任一无效则视为未设置（回落目录价格） */
+function parseCostForm(form: ModelFormState): LLMModelSetting["cost"] {
+  const rate = (text: string) => {
+    if (text.trim() === "") return undefined;
+    const value = Number(text);
+    return Number.isFinite(value) && value >= 0 ? value : undefined;
+  };
+  const input = rate(form.costInput);
+  const output = rate(form.costOutput);
+  if (input === undefined || output === undefined) return undefined;
+  const cacheRead = rate(form.costCacheRead);
+  const cacheWrite = rate(form.costCacheWrite);
+  return {
+    input,
+    output,
+    ...(cacheRead !== undefined ? { cacheRead } : {}),
+    ...(cacheWrite !== undefined ? { cacheWrite } : {}),
+  };
+}
+
+/** 单价展示：$输入/$输出 每百万 tokens */
+const formatCost = (cost: NonNullable<LLMModelSetting["cost"]>) => `$${cost.input}/$${cost.output}`;
 
 function blankModelForm(): ModelFormState {
   return {
@@ -171,12 +208,25 @@ function blankModelForm(): ModelFormState {
     maxTokens: "",
     temperature: "",
     userAgent: "",
+    costInput: "",
+    costOutput: "",
+    costCacheRead: "",
+    costCacheWrite: "",
     initialId: "",
   };
 }
 
-function modelToForm(model: LLMModelSetting): ModelFormState {
+/** 编辑表单初值：单价取设置里的值（目录价会被主进程自动填入）；尚未填入时临时用目录价 */
+function modelToForm(
+  model: LLMModelSetting,
+  catalogCost?: LLMModelSetting["cost"]
+): ModelFormState {
+  const cost = model.cost ?? catalogCost;
   return {
+    costInput: costToText(cost?.input),
+    costOutput: costToText(cost?.output),
+    costCacheRead: costToText(cost?.cacheRead),
+    costCacheWrite: costToText(cost?.cacheWrite),
     id: model.id,
     displayName: model.name && model.name !== model.id ? model.name : "",
     reasoning: model.reasoning,
@@ -226,6 +276,7 @@ function ModelRow({
             <MetaChip>上下文 {Math.round(model.contextWindow / 1024)}k</MetaChip>
           )}
           {model.maxTokens != null && <MetaChip>输出 {model.maxTokens}</MetaChip>}
+          {model.cost && <MetaChip>{formatCost(model.cost)} /百万</MetaChip>}
           {model.stripThinkTags && <MetaChip>清除思考内容</MetaChip>}
         </div>
         {description && description !== model.name && (
@@ -424,6 +475,12 @@ export function LLMSection() {
         ? ""
         : "（未能识别此模型，档位可能不生效）";
 
+  // 目录价格：编辑时作单价默认值与占位提示（目录外服务商为空）
+  const { models: catalogModels } = useCatalogModels(editing?.builtin);
+  const catalogCostOf = (modelId: string) =>
+    catalogModels.find(model => model.id === modelId)?.cost;
+  const formCatalogCost = catalogCostOf(modelForm.initialId || modelForm.id.trim());
+
   const openModelCreate = () => {
     setModelForm(blankModelForm());
     setAdvancedOpen(false);
@@ -431,7 +488,7 @@ export function LLMSection() {
   };
 
   const openModelEdit = (model: LLMModelSetting) => {
-    setModelForm(modelToForm(model));
+    setModelForm(modelToForm(model, catalogCostOf(model.id)));
     setAdvancedOpen(
       Boolean(
         model.headers?.["User-Agent"] ||
@@ -462,6 +519,12 @@ export function LLMSection() {
     const parsedContext = Number.parseInt(modelForm.contextWindow, 10);
     const parsedTemperature = Number.parseFloat(modelForm.temperature);
     const displayName = modelForm.displayName.trim();
+    const hasCostInput = modelForm.costInput.trim() !== "" || modelForm.costOutput.trim() !== "";
+    const cost = parseCostForm(modelForm);
+    if (hasCostInput && !cost) {
+      toast.warning("单价需同时填写输入和输出，且为非负数");
+      return;
+    }
     const next: LLMModelSetting = {
       id,
       ...(displayName && displayName !== id ? { name: displayName } : {}),
@@ -483,6 +546,12 @@ export function LLMSection() {
       ...(modelForm.userAgent.trim()
         ? { headers: { "User-Agent": modelForm.userAgent.trim() } }
         : {}),
+      // 单价留空时用目录价填入（手填的目录模型也一样），之后可改
+      ...(cost
+        ? { cost }
+        : !hasCostInput && catalogCostOf(id)
+          ? { cost: { ...catalogCostOf(id)! } }
+          : {}),
     };
     const providerId = editing.id;
     const initialId = modelForm.initialId;
@@ -806,6 +875,44 @@ export function LLMSection() {
                     <Icon size={12} strokeWidth={1.75} />
                     {def.label}
                   </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="pt-3">
+            <div className="text-tau-meta text-ink-2 pb-1.5 font-medium">
+              单价（美元 / 百万 tokens）
+              <span className="text-ink-3 ml-1 font-normal">
+                {formCatalogCost
+                  ? `已按目录价 ${formatCost(formCatalogCost)} 填入，可按实际改`
+                  : "目录未收录价格，填写后用于用量统计估算费用"}
+              </span>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {COST_FIELDS.map(field => {
+                const catalogValue =
+                  formCatalogCost?.[
+                    field.key === "costInput"
+                      ? "input"
+                      : field.key === "costOutput"
+                        ? "output"
+                        : field.key === "costCacheRead"
+                          ? "cacheRead"
+                          : "cacheWrite"
+                  ];
+                return (
+                  <label key={field.key} className="flex min-w-0 flex-col gap-1">
+                    <span className="text-tau-tiny text-ink-3">{field.label}</span>
+                    <Input
+                      className="font-tau-mono"
+                      inputMode="decimal"
+                      aria-label={`${field.label}单价`}
+                      value={modelForm[field.key]}
+                      placeholder={catalogValue !== undefined ? String(catalogValue) : "0"}
+                      spellCheck={false}
+                      onChange={e => setModelForm(f => ({ ...f, [field.key]: e.target.value }))}
+                    />
+                  </label>
                 );
               })}
             </div>

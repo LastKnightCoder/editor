@@ -16,6 +16,8 @@ export interface LlmUsageContext {
   sessionId: string | null;
   entityId: string | null;
   library: string | null;
+  /** 模型设置里有自定义单价（费用按它算，记为 custom） */
+  customCost?: boolean;
 }
 
 const FIRST_TOKEN_EVENTS = new Set<AssistantMessageEvent["type"]>([
@@ -71,7 +73,7 @@ export function buildLlmUsage(
       num(usage?.totalTokens) || inputTokens + outputTokens + cacheReadTokens + cacheWriteTokens,
     units: null,
     cost,
-    costSource: cost > 0 ? "catalog" : "none",
+    costSource: cost > 0 ? (context.customCost ? "custom" : "catalog") : "none",
   };
 }
 

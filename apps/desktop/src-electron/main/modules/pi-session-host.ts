@@ -65,6 +65,7 @@ import type {
 import { PiSessionInteractions } from "./pi-session-interactions";
 import { normalizePermissionMode } from "@/services/tool-permission/mode";
 import { resolveV2Providers } from "./pi-ai-runtime-core";
+import PiAiRuntimeModule from "./pi-ai-runtime";
 import modelUsageModule from "./model-usage";
 import {
   createSessionUsageTracker,
@@ -831,6 +832,10 @@ class PiSessionHostModule {
           sessionId: session.sessionId,
           entityId: request.source?.entityId ?? null,
           library: request.source?.library ?? parsedScope.library ?? request.databaseName ?? null,
+          customCost: PiAiRuntimeModule.isCustomPriced(
+            request.modelRef.providerId,
+            request.modelRef.modelId
+          ),
         }),
         input => modelUsageModule.record(input)
       );

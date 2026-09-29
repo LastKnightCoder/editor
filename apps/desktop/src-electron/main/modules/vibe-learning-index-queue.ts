@@ -26,7 +26,8 @@ import vibeLearningMediaCache, { hashPayload, hashString } from "./vibe-learning
 import { Jieba } from "@node-rs/jieba";
 import { dict } from "@node-rs/jieba/dict";
 import crypto from "node:crypto";
-import type { LLMUsageConfig, ProviderConfig } from "@/types/llm";
+import PiAiRuntimeModule from "./pi-ai-runtime";
+import { resolveUsageSlot, type LlmRef, type SettingForLlmSlots } from "./llm-usage-slot";
 import type {
   BilibiliSourceMeta,
   NoteSourceMeta,
@@ -109,35 +110,17 @@ interface SettingForEmbedding {
 interface TranscriptionConfig {
   model: string;
   modelDir: string;
-  llmProvider?: string;
-  llmApiKey?: string;
-  llmModel?: string;
-  llmBaseUrl?: string;
+  /** 断句优化模型；未分配时为 null（走句级转录、不做 LLM 优化） */
+  llm: LlmRef | null;
 }
 
-interface SettingForTranscription {
+interface SettingForTranscription extends SettingForLlmSlots {
   transcription?: {
     currentModel?: string;
   };
-  llmUsageSettings?: {
-    transcriptionOptimization?: LLMUsageConfig | null;
-  };
-  llmConfigs?: ProviderConfig[];
 }
 
-interface ImageDescriptionConfig {
-  llmProvider: string;
-  llmApiKey: string;
-  llmModel: string;
-  llmBaseUrl?: string;
-}
-
-interface SettingForImageDescription {
-  llmUsageSettings?: {
-    vibeLearningImageDescription?: LLMUsageConfig | null;
-  };
-  llmConfigs?: ProviderConfig[];
-}
+type ImageDescriptionConfig = LlmRef;
 
 interface BilibiliCredentialsConfig {
   SESSDATA?: string;
@@ -414,45 +397,19 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       const settingContent = await fs.readFile(settingPath, "utf-8");
       const setting: SettingForTranscription = JSON.parse(settingContent);
 
-      // 获取转录模型配置
-      const { transcription, llmUsageSettings, llmConfigs } = setting;
-
       // 提取模型尺寸（"faster-whisper-base" / "whisper-cpp-base" -> "base"）
-      const model = normalizeModelSize(transcription?.currentModel);
+      const model = normalizeModelSize(setting.transcription?.currentModel);
 
       // 获取模型目录
       const modelDir = transcriptionModule.getModelsDir();
 
-      // 获取 LLM 优化配置（始终启用）
-      let llmProvider: string | undefined;
-      let llmApiKey: string | undefined;
-      let llmModel: string | undefined;
-      let llmBaseUrl: string | undefined;
+      // 断句优化模型：分配了「转录断句优化」槽且模型仍在设置里才启用
+      const llm = resolveUsageSlot(setting, "transcriptionOptimization");
 
-      const transcriptionOptConfig = llmUsageSettings?.transcriptionOptimization;
-      if (transcriptionOptConfig?.providerId && llmConfigs) {
-        const llmConfig = llmConfigs.find(c => c.id === transcriptionOptConfig.providerId);
-        if (llmConfig) {
-          // Python 端只支持 openai/azure/ollama 三种 provider
-          // 大多数 LLM 服务都兼容 OpenAI API，统一使用 "openai"
-          llmProvider = "openai";
-          llmApiKey = llmConfig.apiKey;
-          llmBaseUrl = llmConfig.baseUrl;
-          llmModel = transcriptionOptConfig.modelName;
-        }
-      }
-
-      this.cachedTranscriptionConfig = {
-        model,
-        modelDir,
-        llmProvider,
-        llmApiKey,
-        llmModel,
-        llmBaseUrl,
-      };
+      this.cachedTranscriptionConfig = { model, modelDir, llm };
 
       log.info(
-        `[VibeLearningIndexQueue] Loaded transcription config: model=${model}, modelDir=${modelDir}, llmProvider=${llmProvider || "none"}`
+        `[VibeLearningIndexQueue] Loaded transcription config: model=${model}, modelDir=${modelDir}, llm=${llm ? `${llm.providerId}/${llm.modelId}` : "none"}`
       );
 
       return this.cachedTranscriptionConfig;
@@ -483,32 +440,16 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     try {
       const settingPath = join(PathUtil.getAppDir(), "setting.json");
       const settingContent = await fs.readFile(settingPath, "utf-8");
-      const setting: SettingForImageDescription = JSON.parse(settingContent);
+      const setting: SettingForLlmSlots = JSON.parse(settingContent);
 
-      const { llmUsageSettings, llmConfigs } = setting;
-
-      const imageDescConfig = llmUsageSettings?.vibeLearningImageDescription;
-      if (!imageDescConfig?.providerId || !llmConfigs) {
-        this.cachedImageDescriptionConfig = null;
-        return null;
-      }
-
-      const llmConfig = llmConfigs.find(c => c.id === imageDescConfig.providerId);
-      if (!llmConfig) {
-        this.cachedImageDescriptionConfig = null;
-        return null;
-      }
-
-      // Python 端使用 OpenAI 兼容接口
-      this.cachedImageDescriptionConfig = {
-        llmProvider: "openai",
-        llmApiKey: llmConfig.apiKey,
-        llmModel: imageDescConfig.modelName,
-        llmBaseUrl: llmConfig.baseUrl,
-      };
+      this.cachedImageDescriptionConfig = resolveUsageSlot(setting, "vibeLearningImageDescription");
 
       log.info(
-        `[VibeLearningIndexQueue] Loaded image description config: model=${imageDescConfig.modelName}, baseUrl=${llmConfig.baseUrl}`
+        `[VibeLearningIndexQueue] Loaded image description config: ${
+          this.cachedImageDescriptionConfig
+            ? `${this.cachedImageDescriptionConfig.providerId}/${this.cachedImageDescriptionConfig.modelId}`
+            : "none"
+        }`
       );
 
       return this.cachedImageDescriptionConfig;
@@ -1073,10 +1014,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
               const result = await markitdownModule.convertFile({
                 filePath: localFilePath,
                 fileName: originalPath.split("/").pop() || "file",
-                llmProvider: imageDescConfig?.llmProvider,
-                llmApiKey: imageDescConfig?.llmApiKey,
-                llmModel: imageDescConfig?.llmModel,
-                llmBaseUrl: imageDescConfig?.llmBaseUrl,
+                imageLlm: imageDescConfig,
               });
 
               if (!result.success || !result.textContent) {
@@ -1685,19 +1623,16 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     wordSegments: Array<{ text: string; start: number; end: number }>,
     language: string,
     config: {
-      llmApiKey: string;
-      llmModel: string;
-      llmBaseUrl?: string;
+      llm: LlmRef;
+      /** 用量归属：资源所在知识库与资源 id */
+      library: string;
+      entityId: string;
     },
     onProgress?: (progress: TaskProgress) => void
   ): Promise<Array<{ text: string; start: number; end: number }>> {
     const chunkMaxChars = 18_000;
     const overlapWords = 80;
     const maxAttempts = 2;
-    const client = new OpenAI({
-      apiKey: config.llmApiKey,
-      baseURL: config.llmBaseUrl,
-    });
 
     log.info(
       `[VibeLearningIndexQueue] Optimizing transcription with LLM: ${wordSegments.length} word segments`
@@ -1749,8 +1684,9 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         const userPrompt = buildTranscriptionOptimizationUserPrompt(chunk, language);
 
         // 模型特殊处理
-        const isKimiModel = config.llmModel.startsWith("kimi");
-        const noTemperature = ["o1", "o3", "o4", "gpt-5"].some(p => config.llmModel.startsWith(p));
+        const modelId = config.llm.modelId;
+        const isKimiModel = modelId.startsWith("kimi");
+        const noTemperature = ["o1", "o3", "o4", "gpt-5"].some(p => modelId.startsWith(p));
 
         let parsedChunk: Array<{ text: string; start: number }> | null = null;
 
@@ -1759,27 +1695,22 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
             log.info(
               `[VibeLearningIndexQueue] Optimizing chunk ${i + 1}/${chunks.length}, attempt=${attempt}, segments=${chunk.length}`
             );
-            const response = await client.chat.completions.create({
-              model: config.llmModel,
-              messages: [
-                {
-                  role: "system",
-                  content: TRANSCRIPTION_OPTIMIZATION_SYSTEM_PROMPT,
-                },
-                { role: "user", content: userPrompt },
-              ],
-              ...(isKimiModel
-                ? {
-                    temperature: 0.6,
-                    top_p: 0.95,
-                    thinking: { type: "disabled" },
-                  }
-                : noTemperature
-                  ? {}
-                  : { temperature: 0.3 }),
+            // 断句是机械任务：关推理省 token；kimi 官方推荐 0.6，o 系 / gpt-5 不接受 temperature
+            const result = await PiAiRuntimeModule.complete({
+              providerId: config.llm.providerId,
+              modelId: config.llm.modelId,
+              system: TRANSCRIPTION_OPTIMIZATION_SYSTEM_PROMPT,
+              messages: [{ role: "user", content: userPrompt }],
+              thinking: "off",
+              ...(isKimiModel ? { temperature: 0.6 } : noTemperature ? {} : { temperature: 0.3 }),
+              source: {
+                feature: "transcriptionOptimization",
+                library: config.library,
+                entityId: config.entityId,
+              },
             });
-            const content = response.choices[0]?.message?.content || "";
-            const parsed = this.parseTranscriptLines(content);
+            if (!result.ok) throw new Error(result.error ?? "模型请求失败");
+            const parsed = this.parseTranscriptLines(result.text);
 
             if (parsed.length === 0) {
               throw new Error("LLM 断句输出为空或无法解析");
@@ -1903,7 +1834,8 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       this.emit("status-change", resourceId, "transcribing");
 
       const transcriptionConfig = await this.getTranscriptionConfig();
-      const hasLLMConfig = !!transcriptionConfig?.llmProvider;
+      const optimizationLlm = transcriptionConfig?.llm ?? null;
+      const hasLLMConfig = optimizationLlm !== null;
 
       const modelSize: VLTranscriptionModelSize =
         (transcriptionConfig?.model as VLTranscriptionModelSize) || "base";
@@ -1973,16 +1905,16 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         end: number;
       }>;
 
-      if (hasLLMConfig && transcriptionConfig) {
+      if (optimizationLlm) {
         if (rawSegments.length === 0) {
           throw new Error("无可用词级时间戳，无法进行断句优化");
         }
 
         const optimizationKey = vibeLearningMediaCache.buildOptimizationKey({
           transcriptionKey,
-          llmProvider: transcriptionConfig.llmProvider || "openai",
-          llmModel: transcriptionConfig.llmModel || "",
-          llmBaseUrl: transcriptionConfig.llmBaseUrl || "",
+          llmProvider: optimizationLlm.providerId,
+          llmModel: optimizationLlm.modelId,
+          llmBaseUrl: "",
           promptHash: hashString(TRANSCRIPTION_OPTIMIZATION_SYSTEM_PROMPT),
           wordSegmentsHash: hashPayload({ rawSegments }),
         });
@@ -2004,11 +1936,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
           finalSegments = await this.optimizeTranscriptionWithLLM(
             rawSegments,
             optimizationLanguage,
-            {
-              llmApiKey: transcriptionConfig.llmApiKey || "",
-              llmModel: transcriptionConfig.llmModel || "",
-              llmBaseUrl: transcriptionConfig.llmBaseUrl,
-            },
+            { llm: optimizationLlm, library: mainDbName, entityId: String(resourceId) },
             progress => {
               this.sendStatusWithProgress(resourceId, "optimizing_transcript", progress);
             }

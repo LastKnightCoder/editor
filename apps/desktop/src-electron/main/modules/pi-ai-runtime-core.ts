@@ -17,6 +17,7 @@ import type {
   ProviderStreams,
 } from "@earendil-works/pi-ai";
 import type {
+  LLMModelCost,
   LLMModelSetting,
   LLMProviderSetting,
   PiApiKind,
@@ -43,7 +44,58 @@ const API_STREAMS: Record<PiApiKind, ProviderStreams> = {
   "anthropic-messages": anthropicMessagesApi,
 };
 
-/** 内置目录基底：命中时目录值权威（含 compat/thinkingLevelMap/cost），用户手填仅兜底未收录键 */
+const isValidRate = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value) && value >= 0;
+
+/** 模型设置里有有效的自定义单价（输入与输出都合法） */
+export const hasCustomCost = (model: LLMModelSetting | undefined): boolean =>
+  Boolean(model?.cost && isValidRate(model.cost.input) && isValidRate(model.cost.output));
+
+/** 目录单价（每百万 token）；目录没有价格信息（输入输出都为 0）时为 undefined */
+export function catalogCostOf(base: Model<Api> | undefined): LLMModelCost | undefined {
+  if (!base?.cost || (!base.cost.input && !base.cost.output)) return undefined;
+  return {
+    input: base.cost.input,
+    output: base.cost.output,
+    cacheRead: base.cost.cacheRead,
+    cacheWrite: base.cost.cacheWrite,
+  };
+}
+
+/**
+ * 设置里的单价是否真的是用户改过的价格：目录价自动填入的不算
+ * （仍按目录计费，保留分档价，用量记录标为 catalog）。
+ */
+export function isCustomPriced(model: LLMModelSetting, catalog: LLMModelCost | undefined): boolean {
+  if (!hasCustomCost(model)) return false;
+  if (!catalog) return true;
+  const cost = model.cost!;
+  return (
+    cost.input !== catalog.input ||
+    cost.output !== catalog.output ||
+    (cost.cacheRead ?? 0) !== (catalog.cacheRead ?? 0) ||
+    (cost.cacheWrite ?? 0) !== (catalog.cacheWrite ?? 0)
+  );
+}
+
+/**
+ * 单价：用户自定义优先（代理折扣、目录外模型），否则用目录价格。
+ * 自定义时不继承目录的分档价（tiers）——用户填的是一口价；与目录价相同则仍用目录（含分档）。
+ */
+export function resolveModelCost(model: LLMModelSetting, base?: Model<Api>): Model<Api>["cost"] {
+  const custom = model.cost;
+  if (custom && isCustomPriced(model, catalogCostOf(base))) {
+    return {
+      input: custom.input,
+      output: custom.output,
+      cacheRead: isValidRate(custom.cacheRead) ? custom.cacheRead : 0,
+      cacheWrite: isValidRate(custom.cacheWrite) ? custom.cacheWrite : 0,
+    };
+  }
+  return base?.cost ?? { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
+}
+
+/** 内置目录基底：命中时目录值权威（含 compat/thinkingLevelMap），用户手填仅兜底未收录键；单价例外，用户自定义优先 */
 export function toPiModel(
   model: LLMModelSetting,
   provider: LLMProviderSetting,
@@ -72,7 +124,7 @@ export function toPiModel(
     baseUrl: provider.baseUrl,
     reasoning: base?.reasoning ?? model.reasoning,
     input: base?.input ?? model.input,
-    cost: base?.cost ?? { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    cost: resolveModelCost(model, base),
     contextWindow,
     maxTokens,
   };
@@ -146,7 +198,14 @@ export function toCatalogModel(model: Model<Api>): PiCatalogModel {
     contextWindow: model.contextWindow,
     maxTokens: model.maxTokens,
     ...(model.cost && (model.cost.input || model.cost.output)
-      ? { cost: { input: model.cost.input, output: model.cost.output } }
+      ? {
+          cost: {
+            input: model.cost.input,
+            output: model.cost.output,
+            cacheRead: model.cost.cacheRead,
+            cacheWrite: model.cost.cacheWrite,
+          },
+        }
       : {}),
     thinkingLevels: levels,
   };
@@ -225,6 +284,55 @@ export async function lookupBuiltinModel(
   return runtime?.getModel(builtin, modelId);
 }
 
+/** 某已配置模型的目录单价（目录外服务商 / 模型、或目录无价格时为 undefined） */
+export async function lookupCatalogCost(
+  setting: LLMProviderSetting,
+  modelId: string
+): Promise<LLMModelCost | undefined> {
+  const builtin = await resolveBuiltinId(setting);
+  if (!builtin) return undefined;
+  return catalogCostOf(await lookupBuiltinModel(builtin, modelId));
+}
+
+const costKey = (providerId: string, modelId: string) => `${providerId}\u0000${modelId}`;
+
+/** 找出还没有单价、但目录有价格的模型（键为 providerId + modelId） */
+export async function collectCatalogCostFills(
+  providers: LLMProviderSetting[],
+  lookup: typeof lookupCatalogCost = lookupCatalogCost
+): Promise<Map<string, LLMModelCost>> {
+  const fills = new Map<string, LLMModelCost>();
+  for (const provider of providers) {
+    for (const model of provider.models) {
+      if (model.cost) continue;
+      const cost = await lookup(provider, model.id);
+      if (cost) fills.set(costKey(provider.id, model.id), cost);
+    }
+  }
+  return fills;
+}
+
+/** 把目录价写进仍然没有单价的模型；没有变化返回 null。只补空缺，不覆盖用户已填的价格 */
+export function applyCatalogCostFills(
+  providers: LLMProviderSetting[],
+  fills: Map<string, LLMModelCost>
+): LLMProviderSetting[] | null {
+  let changed = false;
+  const next = providers.map(provider => {
+    let providerChanged = false;
+    const models = provider.models.map(model => {
+      const cost = model.cost ? undefined : fills.get(costKey(provider.id, model.id));
+      if (!cost) return model;
+      providerChanged = true;
+      return { ...model, cost: { ...cost } };
+    });
+    if (!providerChanged) return provider;
+    changed = true;
+    return { ...provider, models };
+  });
+  return changed ? next : null;
+}
+
 /** 设置 v2 → pi Provider（内置目录兜底后）；apiKey 从设置内存值经 auth resolve 注入（BYO 网关模式） */
 export async function buildPiProvider(setting: LLMProviderSetting): Promise<Provider> {
   const builtin = await resolveBuiltinId(setting);
@@ -259,6 +367,8 @@ export interface ProviderRegistry {
   /** 全量同步设置里的 provider 列表：新增/变更 upsert，移除 delete（目录兜底为异步） */
   syncProviders(settings: LLMProviderSetting[]): Promise<void>;
   resolveModel(providerId: string, modelId: string): Model<Api> | undefined;
+  /** 该模型是否按用户改过的单价计费（与目录价相同的自动填充不算） */
+  hasCustomCost(providerId: string, modelId: string): boolean;
   /** 该模型是否启用 <think> 标签兜底剥离（见 think-stream-rewriter） */
   needsThinkStrip(providerId: string, modelId: string): boolean;
 }
@@ -267,6 +377,8 @@ export function createProviderRegistry(): ProviderRegistry {
   const models = createModels();
   const registered = new Map<string, string>();
   const settingsById = new Map<string, LLMProviderSetting>();
+  /** 单价与目录不同（用户改过）的模型，用量记录据此标 custom */
+  const customPriced = new Set<string>();
   return {
     models,
     async syncProviders(settings) {
@@ -276,6 +388,9 @@ export function createProviderRegistry(): ProviderRegistry {
           models.deleteProvider(id);
           registered.delete(id);
           settingsById.delete(id);
+          for (const key of [...customPriced]) {
+            if (key.startsWith(`${id}\u0000`)) customPriced.delete(key);
+          }
         }
       }
       for (const setting of settings) {
@@ -284,10 +399,21 @@ export function createProviderRegistry(): ProviderRegistry {
         models.setProvider(await buildPiProvider(setting));
         registered.set(setting.id, fingerprint);
         settingsById.set(setting.id, setting);
+        for (const key of [...customPriced]) {
+          if (key.startsWith(`${setting.id}\u0000`)) customPriced.delete(key);
+        }
+        for (const model of setting.models) {
+          if (isCustomPriced(model, await lookupCatalogCost(setting, model.id))) {
+            customPriced.add(costKey(setting.id, model.id));
+          }
+        }
       }
     },
     resolveModel(providerId, modelId) {
       return models.getModel(providerId, modelId);
+    },
+    hasCustomCost(providerId, modelId) {
+      return customPriced.has(costKey(providerId, modelId));
     },
     needsThinkStrip(providerId, modelId) {
       return (
@@ -305,7 +431,17 @@ export function buildSingleShotContext(
 ): Context {
   const messages: Message[] = request.messages.map(m =>
     m.role === "user"
-      ? { role: "user", content: m.content, timestamp: Date.now() }
+      ? {
+          role: "user",
+          content:
+            m.images && m.images.length > 0
+              ? [
+                  { type: "text" as const, text: m.content },
+                  ...m.images.map(image => ({ type: "image" as const, ...image })),
+                ]
+              : m.content,
+          timestamp: Date.now(),
+        }
       : {
           role: "assistant",
           content: [{ type: "text", text: m.content }],

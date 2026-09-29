@@ -355,7 +355,7 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     name: "vibe-learning-index-queue",
     group: ModuleGroup.FEATURE,
     layer: InitLayer.BACKGROUND,
-    dependencies: ["logger", "database", "vibe-learning-db", "markitdown"],
+    dependencies: ["logger", "database", "vibe-learning-db", "markitdown", "pi-ai"],
     init: () => vibeLearningIndexQueue.init(),
   },
   {
