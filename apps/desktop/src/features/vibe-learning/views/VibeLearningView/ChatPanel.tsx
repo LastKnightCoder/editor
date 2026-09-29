@@ -7,6 +7,7 @@
 import { useState, useMemo, memo, lazy, Suspense, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
 import "katex/dist/katex.min.css";
+import { SquarePen } from "lucide-react";
 
 import type { EditTextHandle } from "@/components/EditText";
 import ChatDropdownSelector from "@/components/ChatDropdownSelector";
@@ -22,7 +23,7 @@ import type { ChatContainerHandle } from "@/components/ChatSidebar/ChatContainer
 import type { VLResource } from "@/types/vibe-learning";
 
 import { useVibeLearningChat } from "./useVibeLearningChat";
-import { Loading, cn, toast } from "@tau/ui";
+import { IconButton, Loading, cn, toast } from "@tau/ui";
 
 const ChatContainer = lazy(() => import("@/components/ChatSidebar/ChatContainer"));
 
@@ -185,15 +186,20 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources,
     <MarkdownProvider isDark={isDark} isVisible={true}>
       <div className="box-border h-full min-h-0">
         <div className={cn("box-border flex h-full flex-col pb-3", docked ? "px-3" : "px-5")}>
-          <div className="flex h-[52px] shrink-0 items-center justify-between">
-            <ChatDropdownSelector
-              chats={rows}
-              currentChat={currentChat}
-              onChatSelect={handleChatSelect}
-              onTitleChange={onTitleChange}
-              onChatDelete={handleChatDelete}
-              titleRef={editTitleRef}
-            />
+          <div className="flex h-[52px] shrink-0 items-center gap-1">
+            <div className="min-w-0 flex-1">
+              <ChatDropdownSelector
+                chats={rows}
+                currentChat={currentChat}
+                onChatSelect={handleChatSelect}
+                onTitleChange={onTitleChange}
+                onChatDelete={handleChatDelete}
+                titleRef={editTitleRef}
+              />
+            </div>
+            <IconButton title="新对话" aria-label="新对话" onClick={newChat} className="size-7">
+              <SquarePen size={15} strokeWidth={1.75} />
+            </IconButton>
           </div>
 
           <Suspense fallback={<Loading minHeight={0} />}>

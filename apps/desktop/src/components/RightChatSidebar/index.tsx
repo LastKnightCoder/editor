@@ -1,6 +1,7 @@
 import { useShallow } from "zustand/react/shallow";
 import { useState, memo, lazy, Suspense, useRef, type ReactNode } from "react";
-import { Loading, toast } from "@tau/ui";
+import { IconButton, Loading, toast } from "@tau/ui";
+import { SquarePen } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import "katex/dist/katex.min.css";
 
@@ -104,6 +105,9 @@ export const RightChatPanel = memo(
                 onOpenLibrary={onOpenLibrary}
               />
             </div>
+            <IconButton title="新对话" aria-label="新对话" onClick={newChat} className="size-7">
+              <SquarePen size={15} strokeWidth={1.75} />
+            </IconButton>
             {headerActions}
           </div>
 

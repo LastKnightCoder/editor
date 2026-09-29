@@ -8,8 +8,8 @@ import {
   type ReactNode,
 } from "react";
 import { useMemoizedFn } from "ahooks";
-import { AtSign, CornerDownLeft, FileText } from "lucide-react";
-import { Loading, toast } from "@tau/ui";
+import { AtSign, CornerDownLeft, FileText, SquarePen } from "lucide-react";
+import { IconButton, Loading, toast } from "@tau/ui";
 import "katex/dist/katex.min.css";
 
 import type { EditTextHandle } from "@/components/EditText";
@@ -136,6 +136,9 @@ const ChatArea = memo(
                   onOpenLibrary={onOpenLibrary}
                 />
               </div>
+              <IconButton title="新对话" aria-label="新对话" onClick={newChat} className="size-7">
+                <SquarePen size={15} strokeWidth={1.75} />
+              </IconButton>
               {headerActions}
             </div>
 
