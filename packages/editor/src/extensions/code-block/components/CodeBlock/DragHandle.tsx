@@ -1,9 +1,6 @@
-import { MdDragIndicator } from "react-icons/md";
 import { memo } from "react";
-import classnames from "classnames";
-import styles from "./index.module.less";
+import { DragHandle as BlockDragHandle } from "../../../../components/BlockDrag";
 
-// 拖拽句柄组件
 interface DragHandleProps {
   canDrag: boolean;
   dragRef: React.Ref<HTMLDivElement>;
@@ -11,16 +8,7 @@ interface DragHandleProps {
 }
 
 const DragHandle = memo<DragHandleProps>(({ canDrag, dragRef, onClick }) => (
-  <div
-    className={classnames(styles.dragHandler, {
-      [styles.canDrag]: canDrag,
-    })}
-    contentEditable={false}
-    ref={dragRef}
-    onClick={onClick}
-  >
-    <MdDragIndicator className={styles.icon} />
-  </div>
+  <BlockDragHandle dragRef={dragRef} canDrag={canDrag} onClick={onClick} />
 ));
 
 DragHandle.displayName = "DragHandle";

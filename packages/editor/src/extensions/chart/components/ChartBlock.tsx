@@ -10,7 +10,12 @@ import ChartPreview from "./ChartPreview";
 import ChartEditor from "./ChartEditor";
 import useDragAndDrop from "../../../hooks/useDragAndDrop";
 import { useDragHandlerMenu } from "../../../hooks/useDragHandlerMenu";
-import { MdDragIndicator } from "react-icons/md";
+import {
+  BLOCK_DRAG_GROUP,
+  DragHandle,
+  DropIndicator,
+  dimWhileDragging,
+} from "../../../components/BlockDrag";
 import EditorContextMenu from "../../../components/EditorContextMenu";
 import AddParagraph from "../../../components/AddParagraph";
 import { buildChartMenuItems, chartActionsMap } from "../utils/menuItems";
@@ -99,16 +104,15 @@ const ChartBlock: React.FC<PropsWithChildren<ChartBlockProps>> = props => {
 
   const isEmpty = !data || data.length === 0;
 
-  const containerClassName = classnames(styles.container, {
-    [styles.dragging]: isDragging,
-    [styles.drop]: isOverCurrent && canDrop,
-    [styles.before]: isBefore,
-    [styles.after]: !isBefore,
-  });
+  const containerClassName = classnames(
+    styles.container,
+    dimWhileDragging(isDragging || (isOverCurrent && canDrop))
+  );
 
   return (
-    <div {...attributes} className={styles.dropContainer}>
+    <div {...attributes} className={classnames(styles.dropContainer, BLOCK_DRAG_GROUP)}>
       <div contentEditable={false} ref={ref} className={containerClassName}>
+        <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
         <div
           ref={node => {
             drop(node);
@@ -133,22 +137,18 @@ const ChartBlock: React.FC<PropsWithChildren<ChartBlockProps>> = props => {
           </div>
         )}
       </div>
-      <div
-        contentEditable={false}
-        ref={
+      <DragHandle
+        dragRef={
           canDrag
             ? node => {
                 drag(node);
               }
-            : undefined
+            : () => {}
         }
-        className={classnames(styles.dragHandler, {
-          [styles.canDrag]: canDrag,
-        })}
+        canDrag={canDrag}
         onClick={dragHandlerProps.onClick}
-      >
-        <MdDragIndicator />
-      </div>
+        iconClassName="translate-y-0"
+      />
       <EditorContextMenu {...menuProps} readonly={readOnly} />
       {children}
       <AddParagraph element={element} />

@@ -5,7 +5,6 @@ import { CustomModal, ResizeHandle, Webview } from "@tau/shared";
 import type { WebviewRef } from "@tau/shared";
 import { Transforms } from "slate";
 import classnames from "classnames";
-import { MdDragIndicator } from "react-icons/md";
 import { Edit, FileCode, Trash2, RefreshCw, Maximize2, X } from "lucide-react";
 
 import {
@@ -20,6 +19,10 @@ import {
   IResourceService,
   useNotifier,
   type EditorLoadingHandle,
+  BLOCK_DRAG_GROUP,
+  DragHandle,
+  DropIndicator,
+  dimWhileDragging,
 } from "@tau/editor";
 import type { WebviewElement } from "../types";
 import { WebLinkSourceType } from "../types";
@@ -247,13 +250,13 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
       ref={node => {
         drop(node);
       }}
-      className={classnames(styles.container, {
-        [styles.dragging]: isDragging,
-        [styles.drop]: isOverCurrent && canDrop,
-        [styles.before]: isBefore,
-        [styles.after]: !isBefore,
-      })}
+      className={classnames(
+        "relative",
+        BLOCK_DRAG_GROUP,
+        dimWhileDragging(isDragging || (isOverCurrent && canDrop))
+      )}
     >
+      <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
       <div {...attributes}>
         <div className={styles.webviewWrapper} ref={fullscreenContainerRef} style={{ height }}>
           {isFullscreen && (
@@ -295,18 +298,14 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
         {children}
 
         {!(readOnly && isLast) && <AddParagraph element={element} />}
-        <div
-          contentEditable={false}
-          ref={node => {
+        <DragHandle
+          dragRef={node => {
             drag(node);
           }}
-          className={classnames(styles.dragHandler, {
-            [styles.canDrag]: canDrag,
-          })}
-          {...dragHandlerProps}
-        >
-          <MdDragIndicator className={styles.icon} />
-        </div>
+          canDrag={canDrag}
+          onClick={dragHandlerProps.onClick}
+          iconClassName="text-[1.25em]"
+        />
         <EditorContextMenu {...menuProps} readonly={readOnly} />
 
         <CustomModal

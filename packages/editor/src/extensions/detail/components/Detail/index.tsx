@@ -1,5 +1,5 @@
-import React, { useRef, useState, memo, useEffect } from "react";
-import classnames from "classnames";
+import React, { useRef, useState, useEffect } from "react";
+import { cn } from "@tau/ui";
 import { Editor, Transforms } from "slate";
 import { RenderElementProps, useSlateStatic, useReadOnly, ReactEditor } from "slate-react";
 
@@ -8,8 +8,13 @@ import useIsLastElement from "../../../../hooks/useIsLastElement";
 import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
 
 import { CaretRight } from "../../../../ui/CaretRight";
-import { MdDragIndicator } from "react-icons/md";
 import { useNotifier } from "../../../../services/hooks";
+import {
+  BLOCK_DRAG_GROUP,
+  DragHandle,
+  DropIndicator,
+  dimWhileDragging,
+} from "../../../../components/BlockDrag";
 
 import type { DetailElement } from "../../../types";
 
@@ -18,39 +23,10 @@ import EditorContextMenu from "../../../../components/EditorContextMenu";
 import { buildDetailMenuItems } from "../../utils/menuItems";
 import { registerBlockNavigation, unregisterBlockNavigation } from "../../../../utils";
 
-import styles from "./index.module.less";
-
 interface ICollapseElementProps {
   attributes: RenderElementProps["attributes"];
   element: DetailElement;
 }
-
-const DragHandler = memo(
-  ({
-    drag,
-    canDrag,
-    onClick,
-  }: {
-    drag: React.Ref<HTMLDivElement>;
-    canDrag: boolean;
-    onClick?: (e: React.MouseEvent) => void;
-  }) => {
-    return (
-      <div
-        contentEditable={false}
-        ref={drag}
-        className={classnames(styles.dragHandler, {
-          [styles.canDrag]: canDrag,
-        })}
-        onClick={onClick}
-      >
-        <MdDragIndicator className={styles.icon} />
-      </div>
-    );
-  }
-);
-
-DragHandler.displayName = "DragHandler";
 
 const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = props => {
   const { attributes, children, element } = props;
@@ -92,15 +68,7 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = props =
     Transforms.setNodes(editor, { open: newOpen }, { at: path });
   };
 
-  const arrowClass = classnames(styles.arrow, {
-    [styles.show]: showContent,
-    [styles.hide]: !showContent,
-  });
-
-  const contentClass = classnames(styles.content, {
-    [styles.show]: showContent,
-    [styles.hide]: !showContent,
-  });
+  const dropActive = isOverCurrent && canDrop;
 
   useEffect(() => {
     const focusDetail = (toEnd: boolean) => {
@@ -128,24 +96,32 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = props =
   }, [editor, element, showContent]);
 
   return (
-    <div
-      style={{
-        position: "relative",
-      }}
-    >
+    <div className={cn("relative", BLOCK_DRAG_GROUP)}>
       <div
         ref={node => {
           drop(node);
         }}
-        className={classnames(styles.container, {
-          [styles.dragging]: isDragging,
-          [styles.drop]: isOverCurrent && canDrop,
-          [styles.before]: isBefore,
-          [styles.after]: !isBefore,
-        })}
+        className={cn(
+          "relative rounded-[0.5em] border border-[var(--ed-border)] bg-[var(--ed-bg-sunken)] px-[1em] py-[var(--block-distance)] transition-[padding-bottom] duration-200 ease-in-out",
+          dimWhileDragging(isDragging || dropActive)
+        )}
       >
-        <div className={styles.title} contentEditable={false} style={{ userSelect: "none" }}>
-          <div className={arrowClass} onClick={toggleShowContent}>
+        <DropIndicator active={dropActive} before={isBefore} />
+        <div
+          className={cn(
+            "flex gap-[0.25em] transition-[margin-bottom] duration-200 ease-in-out",
+            showContent && "mb-[calc(var(--block-distance)/2)]"
+          )}
+          contentEditable={false}
+          style={{ userSelect: "none" }}
+        >
+          <div
+            className={cn(
+              "cursor-pointer transition-transform duration-200 ease-linear",
+              showContent && "rotate-90"
+            )}
+            onClick={toggleShowContent}
+          >
             <CaretRight />
           </div>
           <div
@@ -158,11 +134,16 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = props =
             {title}
           </div>
         </div>
-        <div className={contentClass}>
+        <div
+          className={cn(
+            "grid overflow-hidden pl-[1em] transition-all duration-200 ease-in-out [&>div]:min-h-0",
+            showContent ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+          )}
+        >
           <div {...attributes}>{children}</div>
         </div>
       </div>
-      <DragHandler drag={drag} canDrag={canDrag} onClick={dragHandlerProps.onClick} />
+      <DragHandle dragRef={drag} canDrag={canDrag} onClick={dragHandlerProps.onClick} />
       <EditorContextMenu {...menuProps} readonly={readOnly} />
       {!(readOnly && isLast) && <AddParagraph element={element} />}
     </div>

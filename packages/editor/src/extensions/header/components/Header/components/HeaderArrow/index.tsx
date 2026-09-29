@@ -1,26 +1,26 @@
 import React from "react";
+import { cn } from "@tau/ui";
 import { CaretRight } from "../../../../../../ui/CaretRight";
-import classnames from "classnames";
-import styles from "../../index.module.less";
 
 interface HeaderArrowProps {
   collapsed: boolean;
-  level: number;
   onClick: (e: React.MouseEvent) => void;
 }
 
-const HeaderArrow: React.FC<HeaderArrowProps> = ({ collapsed, level, onClick }) => {
-  const arrowClass = classnames(styles.arrow, {
-    [styles.show]: !collapsed,
-    [styles.hide]: collapsed,
-    [styles[`level${level}`]]: true,
-  });
-
-  return (
-    <div className={arrowClass} onClick={onClick} contentEditable={false}>
-      <CaretRight />
-    </div>
-  );
-};
+/** 折叠箭头：悬停到标题上时出现，展开时旋转 90° */
+const HeaderArrow: React.FC<HeaderArrowProps> = ({ collapsed, onClick }) => (
+  <div
+    className={cn(
+      "absolute -left-[1.5em] top-0 flex h-[1.5em] w-[1.5em] origin-center cursor-pointer select-none items-center justify-center rounded-full opacity-0",
+      "transition-[transform,opacity] duration-200 ease-in-out hover:opacity-100",
+      collapsed ? "rotate-0 scale-90" : "rotate-90 scale-90"
+    )}
+    onClick={onClick}
+    contentEditable={false}
+    data-block-reveal
+  >
+    <CaretRight />
+  </div>
+);
 
 export default HeaderArrow;

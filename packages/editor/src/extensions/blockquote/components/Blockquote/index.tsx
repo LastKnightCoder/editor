@@ -1,4 +1,4 @@
-import React, { PropsWithChildren, memo } from "react";
+import React, { PropsWithChildren } from "react";
 import { RenderElementProps, useSlate, useReadOnly } from "slate-react";
 import classnames from "classnames";
 import type { BlockquoteElement } from "../../../types";
@@ -6,7 +6,7 @@ import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
 import EditorContextMenu from "../../../../components/EditorContextMenu";
 import { buildBlockquoteMenuItems } from "../../utils/menuItems";
-import { MdDragIndicator } from "react-icons/md";
+import { BLOCK_DRAG_GROUP, DragHandle } from "../../../../components/BlockDrag";
 import { useNotifier } from "../../../../services/hooks";
 import useIsLastElement from "../../../../hooks/useIsLastElement";
 import AddParagraph from "../../../../components/AddParagraph";
@@ -16,38 +16,13 @@ interface IBlockQuoteProps {
   element: BlockquoteElement;
 }
 
-const DragHandler = memo(
-  ({
-    drag,
-    onClick,
-  }: {
-    drag: React.Ref<HTMLDivElement>;
-    onClick?: (e: React.MouseEvent) => void;
-  }) => {
-    return (
-      <div
-        contentEditable={false}
-        ref={drag}
-        className={classnames(
-          "absolute -left-[1.25em] top-[0.25em] flex h-[1.5em] w-[1em] cursor-grab items-center justify-center rounded opacity-0 transition-all group-hover:opacity-100"
-        )}
-        onClick={onClick}
-      >
-        <MdDragIndicator className="text-lg text-[var(--ed-text-tertiary)]" />
-      </div>
-    );
-  }
-);
-
-DragHandler.displayName = "DragHandler";
-
 const Blockquote: React.FC<PropsWithChildren<IBlockQuoteProps>> = props => {
   const { attributes, element, children } = props;
 
   const editor = useSlate();
   const readOnly = useReadOnly();
   const message = useNotifier();
-  const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop } = useDragAndDrop({
+  const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } = useDragAndDrop({
     element,
   });
   const isLast = useIsLastElement(element);
@@ -63,7 +38,7 @@ const Blockquote: React.FC<PropsWithChildren<IBlockQuoteProps>> = props => {
       ref={node => {
         drop(node);
       }}
-      className={classnames("group relative")}
+      className={classnames("relative", BLOCK_DRAG_GROUP)}
     >
       <div {...attributes} className="relative">
         <div
@@ -85,7 +60,13 @@ const Blockquote: React.FC<PropsWithChildren<IBlockQuoteProps>> = props => {
           />
           {children}
         </div>
-        <DragHandler drag={drag} onClick={dragHandlerProps.onClick} />
+        <DragHandle
+          dragRef={drag}
+          canDrag={canDrag}
+          onClick={dragHandlerProps.onClick}
+          className="top-[0.25em] h-[1.5em] w-[1em] cursor-grab rounded transition-all"
+          iconClassName="translate-y-0 text-lg text-[var(--ed-text-tertiary)]"
+        />
         <EditorContextMenu {...menuProps} readonly={readOnly} />
       </div>
       {!(readOnly && isLast) && <AddParagraph element={element} />}

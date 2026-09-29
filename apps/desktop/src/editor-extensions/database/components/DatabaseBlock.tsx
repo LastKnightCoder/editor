@@ -4,7 +4,14 @@ import { memo, useMemo, useState, useRef, useEffect } from "react";
 import { RenderElementProps, ReactEditor, useSlateStatic, useReadOnly } from "slate-react";
 import { Transforms } from "slate";
 import { useEditDatabaseWithContext } from "@tau/shared";
-import { AddParagraph, useDragAndDrop } from "@tau/editor/src";
+import {
+  AddParagraph,
+  BLOCK_DRAG_GROUP,
+  DragHandle,
+  DropIndicator,
+  dimWhileDragging,
+  useDragAndDrop,
+} from "@tau/editor/src";
 import useIsLastElement from "@tau/editor/src/hooks/useIsLastElement";
 import Database from "@/components/Database";
 import type { DatabaseElement } from "../types";
@@ -122,13 +129,13 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
       ref={node => {
         drop(node);
       }}
-      className={classNames(styles.container, {
-        [styles.dragging]: isDragging,
-        [styles.drop]: isOverCurrent && canDrop,
-        [styles.before]: isBefore,
-        [styles.after]: !isBefore,
-      })}
+      className={classNames(
+        styles.container,
+        BLOCK_DRAG_GROUP,
+        dimWhileDragging(isDragging || (isOverCurrent && canDrop))
+      )}
     >
+      <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
       <div {...attributes} contentEditable={false}>
         <div className={styles.databaseWrapper}>{renderContent()}</div>
         <div
@@ -141,13 +148,12 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
         {children}
         {!(readOnly && isLast) && <AddParagraph element={element} />}
         {!readOnly && (
-          <div
-            ref={node => {
+          <DragHandle
+            dragRef={node => {
               drag(node);
             }}
-            className={classNames(styles.dragHandler, {
-              [styles.canDrag]: canDrag,
-            })}
+            canDrag={canDrag}
+            icon={null}
           />
         )}
       </div>

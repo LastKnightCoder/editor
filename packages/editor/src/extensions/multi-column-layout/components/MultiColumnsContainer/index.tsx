@@ -1,16 +1,5 @@
-import React, {
-  useRef,
-  useMemo,
-  useCallback,
-  useState,
-  useEffect,
-} from "react";
-import {
-  RenderElementProps,
-  useReadOnly,
-  useSlate,
-  ReactEditor,
-} from "slate-react";
+import React, { useRef, useMemo, useCallback, useState, useEffect } from "react";
+import { RenderElementProps, useReadOnly, useSlate, ReactEditor } from "slate-react";
 import { Transforms } from "slate";
 import { Trash2 } from "lucide-react";
 import AddParagraph from "../../../../components/AddParagraph";
@@ -21,10 +10,14 @@ import EditorContextMenu from "../../../../components/EditorContextMenu";
 import type { BuildMenuParams } from "../../../../components/EditorContextMenu/types";
 import { deleteNode } from "../../../../utils/nodeOperations";
 
-import styles from "./index.module.less";
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
-import classnames from "classnames";
-import { MdDragIndicator } from "react-icons/md";
+import { cn } from "@tau/ui";
+import {
+  BLOCK_DRAG_GROUP,
+  DragHandle,
+  DropIndicator,
+  dimWhileDragging,
+} from "../../../../components/BlockDrag";
 import ColumnResizer from "../ColumnResizer";
 import { ColumnWidthsContext } from "../../context/ColumnWidthsContext";
 
@@ -33,9 +26,7 @@ interface IMultiColumnsContainerProps {
   element: MultiColumnContainerElement;
 }
 
-function buildMultiColumnsMenuItems(
-  params: BuildMenuParams<MultiColumnContainerElement>,
-) {
+function buildMultiColumnsMenuItems(params: BuildMenuParams<MultiColumnContainerElement>) {
   const { editor, path } = params;
 
   return [
@@ -51,7 +42,7 @@ function buildMultiColumnsMenuItems(
 
 const MultiColumnsContainer: React.FC<
   React.PropsWithChildren<IMultiColumnsContainerProps>
-> = (props) => {
+> = props => {
   const { attributes, element, children } = props;
   const editor = useSlate();
   const readOnly = useReadOnly();
@@ -63,10 +54,9 @@ const MultiColumnsContainer: React.FC<
   // 用于存储清理函数的 ref
   const cleanupRef = useRef<(() => void) | null>(null);
 
-  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
-    useDragAndDrop({
-      element,
-    });
+  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
+    element,
+  });
 
   const { menuProps, dragHandlerProps } = useDragHandlerMenu({
     element,
@@ -89,14 +79,12 @@ const MultiColumnsContainer: React.FC<
         return;
       }
       try {
-        (
-          attributesRef as React.MutableRefObject<HTMLDivElement | null>
-        ).current = node;
+        (attributesRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
       } catch {
         // 忽略不可写 ref
       }
     },
-    [attributesRef],
+    [attributesRef]
   );
 
   // 获取当前列宽数组（百分比）
@@ -119,7 +107,7 @@ const MultiColumnsContainer: React.FC<
         console.error("Failed to save column widths:", e);
       }
     },
-    [editor, element],
+    [editor, element]
   );
 
   // 组件卸载时清理事件监听器
@@ -138,7 +126,7 @@ const MultiColumnsContainer: React.FC<
       leftColumnIndex: number,
       mode: "pointer" | "mouse",
       pointerId?: number,
-      targetElement?: HTMLElement,
+      targetElement?: HTMLElement
     ) => {
       if (!containerRef.current) {
         return;
@@ -157,11 +145,7 @@ const MultiColumnsContainer: React.FC<
       setResizingIndex(leftColumnIndex);
       setPreviewWidths(initialWidths);
 
-      if (
-        mode === "pointer" &&
-        targetElement &&
-        typeof pointerId === "number"
-      ) {
+      if (mode === "pointer" && targetElement && typeof pointerId === "number") {
         targetElement.setPointerCapture(pointerId);
       }
 
@@ -181,16 +165,12 @@ const MultiColumnsContainer: React.FC<
         if (newLeftWidth < minWidthPercent) {
           newLeftWidth = minWidthPercent;
           newRightWidth =
-            initialWidths[leftColumnIndex] +
-            initialWidths[rightColumnIndex] -
-            minWidthPercent;
+            initialWidths[leftColumnIndex] + initialWidths[rightColumnIndex] - minWidthPercent;
         }
         if (newRightWidth < minWidthPercent) {
           newRightWidth = minWidthPercent;
           newLeftWidth =
-            initialWidths[leftColumnIndex] +
-            initialWidths[rightColumnIndex] -
-            minWidthPercent;
+            initialWidths[leftColumnIndex] + initialWidths[rightColumnIndex] - minWidthPercent;
         }
 
         newWidths[leftColumnIndex] = newLeftWidth;
@@ -200,11 +180,7 @@ const MultiColumnsContainer: React.FC<
       };
 
       const cleanup = () => {
-        if (
-          mode === "pointer" &&
-          targetElement &&
-          typeof pointerId === "number"
-        ) {
+        if (mode === "pointer" && targetElement && typeof pointerId === "number") {
           try {
             if (targetElement.hasPointerCapture(pointerId)) {
               targetElement.releasePointerCapture(pointerId);
@@ -214,7 +190,7 @@ const MultiColumnsContainer: React.FC<
           }
         }
 
-        setPreviewWidths((currentWidths) => {
+        setPreviewWidths(currentWidths => {
           if (currentWidths) {
             saveColumnWidths(currentWidths);
           }
@@ -224,23 +200,11 @@ const MultiColumnsContainer: React.FC<
         setResizingIndex(null);
 
         if (mode === "pointer") {
-          document.removeEventListener(
-            "pointermove",
-            handleMove,
-            listenerOptions,
-          );
+          document.removeEventListener("pointermove", handleMove, listenerOptions);
           document.removeEventListener("pointerup", handleEnd, listenerOptions);
-          document.removeEventListener(
-            "pointercancel",
-            handleEnd,
-            listenerOptions,
-          );
+          document.removeEventListener("pointercancel", handleEnd, listenerOptions);
         } else {
-          document.removeEventListener(
-            "mousemove",
-            handleMove,
-            listenerOptions,
-          );
+          document.removeEventListener("mousemove", handleMove, listenerOptions);
           document.removeEventListener("mouseup", handleEnd, listenerOptions);
         }
 
@@ -264,7 +228,7 @@ const MultiColumnsContainer: React.FC<
         document.addEventListener("mouseup", handleEnd, listenerOptions);
       }
     },
-    [getColumnWidths, saveColumnWidths],
+    [getColumnWidths, saveColumnWidths]
   );
 
   // 处理指针调整开始
@@ -276,15 +240,9 @@ const MultiColumnsContainer: React.FC<
       e.preventDefault();
       e.stopPropagation();
 
-      startResize(
-        e.clientX,
-        leftColumnIndex,
-        "pointer",
-        e.pointerId,
-        e.target as HTMLElement,
-      );
+      startResize(e.clientX, leftColumnIndex, "pointer", e.pointerId, e.target as HTMLElement);
     },
-    [startResize],
+    [startResize]
   );
 
   // 处理鼠标调整开始（作为 pointer 事件的兼容兜底）
@@ -299,7 +257,7 @@ const MultiColumnsContainer: React.FC<
 
       startResize(e.clientX, leftColumnIndex, "mouse");
     },
-    [startResize],
+    [startResize]
   );
 
   // 计算调整器位置
@@ -321,56 +279,51 @@ const MultiColumnsContainer: React.FC<
     () => ({
       previewWidths,
     }),
-    [previewWidths],
+    [previewWidths]
   );
 
   return (
     <ColumnWidthsContext.Provider value={contextValue}>
       <div
-        ref={(node) => {
+        ref={node => {
           drop(node);
         }}
-        className={classnames(styles.dropContainer, {
-          [styles.dragging]: isDragging,
-          [styles.drop]: isOverCurrent && canDrop,
-          [styles.before]: isBefore,
-          [styles.after]: !isBefore,
-        })}
+        className={cn(
+          "relative",
+          BLOCK_DRAG_GROUP,
+          dimWhileDragging(isDragging || (isOverCurrent && canDrop))
+        )}
       >
-        <div
-          ref={setContainerRef}
-          className={styles.container}
-          {...restAttributes}
-        >
+        <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
+        {/* gap 值需与 MultiColumnItem/index.tsx 中的 GAP_EM 保持同步 */}
+        <div ref={setContainerRef} className="flex flex-nowrap gap-[0.625em]" {...restAttributes}>
           {children}
         </div>
         {/* 列宽调整器 */}
         {!readOnly && columnCount > 1 && (
-          <div className={styles.resizersContainer} contentEditable={false}>
+          <div
+            className="pointer-events-none absolute inset-0 z-20 [&>*]:pointer-events-auto"
+            contentEditable={false}
+          >
             {resizerPositions.map((position, index) => (
               <ColumnResizer
                 key={index}
                 isResizing={resizingIndex === index}
-                onResizeStart={(e) => handleResizeStart(e, index)}
-                onMouseResizeStart={(e) => handleMouseResizeStart(e, index)}
+                onResizeStart={e => handleResizeStart(e, index)}
+                onMouseResizeStart={e => handleMouseResizeStart(e, index)}
                 style={{ left: `${position}%` }}
               />
             ))}
           </div>
         )}
         {!(readOnly && isLast) && <AddParagraph element={element} />}
-        <div
-          contentEditable={false}
-          ref={(node) => {
+        <DragHandle
+          dragRef={node => {
             drag(node);
           }}
-          className={classnames(styles.dragHandler, {
-            [styles.canDrag]: canDrag,
-          })}
+          canDrag={canDrag}
           onClick={dragHandlerProps.onClick}
-        >
-          <MdDragIndicator className={styles.icon} />
-        </div>
+        />
         <EditorContextMenu {...menuProps} readonly={readOnly} />
       </div>
     </ColumnWidthsContext.Provider>

@@ -123,6 +123,15 @@ export * from "./types/custom-element";
 export { default as AddParagraph } from "./components/AddParagraph";
 export { default as InlineChromiumBugfix } from "./components/InlineChromiumBugFix";
 export { default as EditorContextMenu } from "./components/EditorContextMenu";
+export {
+  BLOCK_DRAG_GROUP,
+  DragHandle,
+  DropIndicator,
+  dimWhileDragging,
+  dropLineClass,
+  type DragHandleProps,
+  type DropIndicatorProps,
+} from "./components/BlockDrag";
 
 // Hooks
 export { useDragHandlerMenu } from "./hooks/useDragHandlerMenu";

@@ -87,8 +87,6 @@ import "codemirror/addon/edit/closebrackets.js";
 import "codemirror/lib/codemirror.css";
 import "codemirror/theme/blackboard.css";
 
-import "./extensions/drag-common.less";
-import "./extensions/drop-common.less";
 import styles from "./index.module.less";
 import "./theme/editor.css";
 import { EditorThemeScope } from "./theme/context";

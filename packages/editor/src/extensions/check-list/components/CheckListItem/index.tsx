@@ -3,29 +3,31 @@ import { ReactEditor, RenderElementProps, useSlateStatic } from "slate-react";
 import { CustomCheckbox } from "@tau/shared";
 import type { CheckListItemElement } from "../../../types";
 import { Transforms } from "slate";
-import styles from "./index.module.less";
-import classnames from "classnames";
-import { MdDragIndicator } from "react-icons/md";
+import { cn } from "@tau/ui";
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 import { useMemoizedFn } from "ahooks";
+import {
+  BLOCK_DRAG_GROUP,
+  DragHandle,
+  DropIndicator,
+  dimWhileDragging,
+} from "../../../../components/BlockDrag";
 
 interface CheckListItemProps {
   attributes: RenderElementProps["attributes"];
   element: CheckListItemElement;
 }
 
-const CheckListItem: React.FC<PropsWithChildren<CheckListItemProps>> = (
-  props,
-) => {
+const CheckListItem: React.FC<PropsWithChildren<CheckListItemProps>> = props => {
   const { attributes, children, element } = props;
   const { checked } = element;
 
   const editor = useSlateStatic();
 
-  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
-    useDragAndDrop({
-      element,
-    });
+  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
+    element,
+  });
+  const dropActive = isOverCurrent && canDrop;
 
   const onClick = useMemoizedFn(() => {
     const path = ReactEditor.findPath(editor, element);
@@ -35,35 +37,23 @@ const CheckListItem: React.FC<PropsWithChildren<CheckListItemProps>> = (
   return (
     <div
       data-check-list-item
-      ref={(node) => {
+      ref={node => {
         drop(node);
       }}
-      className={classnames(styles.container, {
-        [styles.dragging]: isDragging,
-        [styles.drop]: isOverCurrent && canDrop,
-        [styles.before]: isBefore,
-        [styles.after]: !isBefore,
-      })}
+      className={cn("relative", BLOCK_DRAG_GROUP, dimWhileDragging(isDragging || dropActive))}
     >
-      <li {...attributes} className={styles.item}>
-        <CustomCheckbox
-          className="mt-[0.25em]!"
-          checked={checked}
-          onChange={onClick}
-        />
-        <div className={styles.content}>{children}</div>
+      <DropIndicator active={dropActive} before={isBefore} />
+      <li {...attributes} className="relative flex items-start gap-[0.5em] leading-[1.8]">
+        <CustomCheckbox className="mt-[0.25em]!" checked={checked} onChange={onClick} />
+        <div className="flex-1">{children}</div>
       </li>
-      <div
-        contentEditable={false}
-        ref={(node) => {
+      <DragHandle
+        dragRef={node => {
           drag(node);
         }}
-        className={classnames(styles.dragHandler, {
-          [styles.canDrag]: canDrag,
-        })}
-      >
-        <MdDragIndicator className={styles.icon} />
-      </div>
+        canDrag={canDrag}
+        className="-left-[1.5em] top-[0.0625em]"
+      />
     </div>
   );
 };

@@ -1,19 +1,22 @@
-import React, { useEffect, useMemo, memo } from "react";
+import React, { useEffect, memo } from "react";
 import { Editor, Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useSlate, useReadOnly } from "slate-react";
+import { cn } from "@tau/ui";
 
-import classnames from "classnames";
 import { useNotifier } from "../../../../services/hooks";
-
-import { MdDragIndicator } from "react-icons/md";
 
 import type { ParagraphElement } from "../../../types";
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
 import EditorContextMenu from "../../../../components/EditorContextMenu";
+import {
+  BLOCK_DRAG_GROUP,
+  DragHandle,
+  dimWhileDragging,
+  dropLineClass,
+} from "../../../../components/BlockDrag";
 import { buildParagraphMenuItems } from "../../utils/menuItems";
 
-import styles from "./index.module.less";
 import { useMemoizedFn } from "ahooks";
 import { findPathSafely } from "../../../../utils";
 
@@ -21,37 +24,6 @@ interface IParagraphProps {
   attributes: RenderElementProps["attributes"];
   element: ParagraphElement;
 }
-
-// 拆分出拖拽指示器组件
-const DragHandler = memo(
-  ({
-    drag,
-    canDrag,
-    disableDrag,
-    onClick,
-  }: {
-    drag: any;
-    canDrag: boolean;
-    disableDrag?: boolean;
-    onClick?: (e: React.MouseEvent) => void;
-  }) => {
-    return (
-      <div
-        contentEditable={false}
-        ref={node => {
-          drag(node);
-        }}
-        className={classnames(styles.dragHandler, {
-          [styles.canDrag]: canDrag,
-          [styles.disableDrag]: disableDrag,
-        })}
-        onClick={onClick}
-      >
-        <MdDragIndicator className={styles.icon} />
-      </div>
-    );
-  }
-);
 
 const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = memo(props => {
   const { children, attributes, element } = props;
@@ -130,35 +102,36 @@ const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = memo(props
     };
   }, [handleFocus]);
 
-  // 使用 useMemo 缓存样式类名
-  const paragraphClassName = useMemo(
-    () =>
-      classnames(styles.paragraph, {
-        [styles.dragging]: isDragging,
-        [styles.drop]: isOverCurrent && canDrop,
-        [styles.before]: isBefore,
-        [styles.after]: !isBefore,
-        [styles.noMargin]: isLast,
-      }),
-    [isDragging, isOverCurrent, canDrop, isBefore, isLast]
-  );
+  const dropActive = isOverCurrent && canDrop;
 
   return (
     <div
       ref={node => {
         drop(node);
       }}
-      className={styles.container}
+      // flow-root 建立 BFC，防止段落 margin 折叠出容器，悬停区域才包得住段落的下边距
+      className={cn("relative flow-root", BLOCK_DRAG_GROUP)}
     >
-      <p {...attributes} className={classnames(paragraphClassName, { "mb-0!": isLast })}>
+      <p
+        {...attributes}
+        className={cn(
+          "relative mb-[1.25em]",
+          dimWhileDragging(isDragging || dropActive),
+          dropLineClass(dropActive, isBefore),
+          dropActive && (isBefore ? "before:-top-[0.25em]" : "after:-bottom-[0.125em]"),
+          isLast && "mb-0!"
+        )}
+      >
         {children}
       </p>
-      <DragHandler
-        drag={drag}
-        canDrag={canDrag}
-        disableDrag={disableDrag}
-        onClick={dragHandlerProps.onClick}
-      />
+      {!disableDrag && (
+        <DragHandle
+          dragRef={drag}
+          canDrag={canDrag}
+          onClick={dragHandlerProps.onClick}
+          className="top-[0.0625em]"
+        />
+      )}
       <EditorContextMenu {...menuProps} readonly={readOnly} />
     </div>
   );

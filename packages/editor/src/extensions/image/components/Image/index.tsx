@@ -30,7 +30,12 @@ import { getImageAppearanceStyle } from "../../utils/appearance";
 
 import styles from "./index.module.less";
 import classnames from "classnames";
-import { MdDragIndicator } from "react-icons/md";
+import {
+  BLOCK_DRAG_GROUP,
+  DragHandle,
+  DropIndicator,
+  dimWhileDragging,
+} from "../../../../components/BlockDrag";
 import { useImageResize, ResizeDirection } from "../../../../hooks/useImageResize";
 
 import useTheme from "../../../../hooks/useTheme";
@@ -568,32 +573,27 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
 
   return (
     <div
-      className={classnames(styles.dropContainer, {
-        [styles.dragging]: isDragging,
-        [styles.drop]: isOverCurrent && canDrop,
-        [styles.before]: isBefore,
-        [styles.after]: !isBefore,
-      })}
+      className={classnames(
+        "relative",
+        BLOCK_DRAG_GROUP,
+        dimWhileDragging(isDragging || (isOverCurrent && canDrop))
+      )}
       ref={node => {
         drop(node);
       }}
       contentEditable={false}
       style={{ userSelect: "none" }}
     >
+      <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
       <div {...attributes}>
         {renderContent()}
-        <div
-          contentEditable={false}
-          ref={node => {
+        <DragHandle
+          dragRef={node => {
             drag(node);
           }}
-          className={classnames(styles.dragHandler, {
-            [styles.canDrag]: canDrag,
-          })}
+          canDrag={canDrag}
           onClick={dragHandlerProps.onClick}
-        >
-          <MdDragIndicator className={styles.icon} />
-        </div>
+        />
         <EditorContextMenu {...menuProps} readonly={readOnly} />
         {children}
         {!(readOnly && isLast) && <AddParagraph element={element} />}

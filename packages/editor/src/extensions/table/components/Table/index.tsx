@@ -3,6 +3,12 @@ import { RenderElementProps, useSlate, ReactEditor, useReadOnly } from "slate-re
 import { Editor, Transforms } from "slate";
 import classnames from "classnames";
 import { Popover } from "@tau/ui";
+import {
+  BLOCK_DRAG_GROUP,
+  DragHandle,
+  DropIndicator,
+  dimWhileDragging,
+} from "../../../../components/BlockDrag";
 import { EllipsisVertical, Trash2 } from "lucide-react";
 import { BiChevronDown, BiChevronUp, BiChevronLeft, BiChevronRight, BiTable } from "react-icons/bi";
 import {
@@ -25,7 +31,6 @@ import ActionItem from "./ActionItem";
 import Actions from "./Actions";
 import styles from "./index.module.less";
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
-import { MdDragIndicator } from "react-icons/md";
 
 interface ITableProps {
   attributes: RenderElementProps["attributes"];
@@ -222,13 +227,13 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
       ref={node => {
         drop(node);
       }}
-      className={classnames(styles.dropContainer, {
-        [styles.dragging]: isDragging,
-        [styles.drop]: isOverCurrent && canDrop,
-        [styles.before]: isBefore,
-        [styles.after]: !isBefore,
-      })}
+      className={classnames(
+        styles.dropContainer,
+        BLOCK_DRAG_GROUP,
+        dimWhileDragging(isDragging || (isOverCurrent && canDrop))
+      )}
     >
+      <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
       <div
         contentEditable={false}
         className={classnames(styles.operate, {
@@ -270,17 +275,12 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
         <tbody>{children}</tbody>
       </table>
       {!(readOnly && isLast) && <AddParagraph element={element} />}
-      <div
-        contentEditable={false}
-        ref={node => {
+      <DragHandle
+        dragRef={node => {
           drag(node);
         }}
-        className={classnames(styles.dragHandler, {
-          [styles.canDrag]: canDrag,
-        })}
-      >
-        <MdDragIndicator className={styles.icon} />
-      </div>
+        canDrag={canDrag}
+      />
     </div>
   );
 };

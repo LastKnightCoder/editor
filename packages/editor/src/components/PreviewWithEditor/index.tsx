@@ -19,7 +19,7 @@ import { useDragHandlerMenu } from "../../hooks/useDragHandlerMenu";
 import If from "../If";
 import AddParagraph, { AddParagraphRef } from "../AddParagraph";
 import EditorContextMenu from "../EditorContextMenu";
-import { MdDragIndicator } from "react-icons/md";
+import { BLOCK_DRAG_GROUP, DragHandle, DropIndicator, dimWhileDragging } from "../BlockDrag";
 
 import { CustomElement } from "../../types";
 import type { BuildMenuParams, ContextMenuItem } from "../EditorContextMenu/types";
@@ -418,17 +418,16 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
     }
   });
 
-  const containerClassName = classnames(styles.container, {
-    [styles.editing]: editing,
-    [styles.dragging]: isDragging,
-    [styles.drop]: isOverCurrent && canDrop,
-    [styles.before]: isBefore,
-    [styles.after]: !isBefore,
-  });
+  const containerClassName = classnames(
+    styles.container,
+    { [styles.editing]: editing },
+    dimWhileDragging(isDragging || (isOverCurrent && canDrop))
+  );
 
   return (
-    <div className={classnames(styles.dropContainer)}>
+    <div className={classnames(styles.dropContainer, BLOCK_DRAG_GROUP)}>
       <div contentEditable={false} ref={ref} className={containerClassName}>
+        <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
         <div
           style={{
             height: editing ? "auto" : 0,
@@ -502,22 +501,17 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
       {!(readOnly && isLast) && (
         <AddParagraph ref={addParagraphRef} element={element} onAddParagraph={onAddParagraph} />
       )}
-      <div
-        contentEditable={false}
-        ref={
+      <DragHandle
+        dragRef={
           canDrag
             ? node => {
                 drag(node);
               }
-            : undefined
+            : () => {}
         }
-        className={classnames(styles.dragHandler, {
-          [styles.canDrag]: canDrag,
-        })}
+        canDrag={canDrag}
         onClick={dragHandlerProps.onClick}
-      >
-        <MdDragIndicator className={styles.icon} />
-      </div>
+      />
       <EditorContextMenu {...menuProps} readonly={readOnly} />
       <If condition={isFullscreen}>
         <PortalToBody>
