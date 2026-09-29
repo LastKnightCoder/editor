@@ -15,6 +15,7 @@ import {
 } from "../index";
 import { BottomSheet } from "../../components/BottomSheet";
 import { MobileConfirmDialog } from "../../components/MobileConfirmDialog";
+import { EditorConfirmHost, mobileEditorNotifier } from "../../services/editorNotifier";
 import { clearPageDefinitionsForTest } from "../registry";
 import { clearPageMetasForTest } from "../core/pageMeta";
 
@@ -127,6 +128,32 @@ function registerPages() {
     params: {},
     component: ConfirmHostPage,
   });
+  definePage({
+    key: "editorConfirmHost",
+    params: {},
+    component: EditorConfirmHostPage,
+  });
+}
+
+// 编辑器经 IEditorNotifier 发起的确认（webview 删除等）：返回手势同样先关确认框
+function EditorConfirmHostPage() {
+  const [result, setResult] = useState("pending");
+  return (
+    <div data-testid="editor-confirm-host">
+      <button
+        type="button"
+        onClick={() => {
+          void mobileEditorNotifier
+            .confirm({ title: "确认删除", confirmText: "删除", danger: true })
+            .then(confirmed => setResult(String(confirmed)));
+        }}
+      >
+        open-editor-confirm
+      </button>
+      <EditorConfirmHost />
+      <span data-testid="editor-confirm-result">{result}</span>
+    </div>
+  );
 }
 
 // 容器组件内置拦截的宿主页：页内 BottomSheet（默认拦截 / 显式关闭）+ 页面级 backHandler
@@ -678,6 +705,28 @@ describe("容器组件内置返回拦截", () => {
     });
     await waitFor(() => readFlag("confirm-cancelled") === "true");
     expect(document.querySelector('[data-testid="confirm-host"]')).toBeTruthy();
+    app.cleanup();
+  });
+
+  it("编辑器确认（IEditorNotifier）：返回等同取消，页面保留", async () => {
+    const app = mountApp();
+    act(() => {
+      getNavigator().push("editorConfirmHost", {});
+    });
+    act(() => {
+      (document.querySelector("button") as HTMLButtonElement).click(); // open-editor-confirm
+    });
+    expect(document.body.textContent).toContain("确认删除");
+
+    act(() => {
+      getNavigator().goBack("ui");
+    });
+    await waitFor(() => readFlag("editor-confirm-result") === "false");
+    expect(document.querySelector('[data-testid="editor-confirm-host"]')).toBeTruthy();
+    // 等待确认框退出动画排空，避免与 root.unmount 竞态
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 250));
+    });
     app.cleanup();
   });
 });
