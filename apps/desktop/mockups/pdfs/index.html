@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>PDF 列表页 · 方案与决策</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  [data-theme] body { background: var(--page); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 24px 60px; }
+  h1 { font-size: 25px; font-weight: 600; margin: 0 0 6px; }
+  .lead { color: var(--ink-2); margin: 0 0 26px; max-width: 920px; }
+  h2 { font-size: 16px; font-weight: 600; margin: 30px 0 4px; }
+  h2 + p { color: var(--ink-2); margin: 0 0 14px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .card { display: block; text-decoration: none; color: inherit; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 16px 18px; }
+  a.card:hover { box-shadow: var(--shadow-lift); }
+  .card h3 { margin: 0 0 4px; font-size: 14.5px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .card p { margin: 0; color: var(--ink-2); font-size: 12.5px; }
+  .card .fit { margin-top: 8px; font-size: 12px; color: var(--ink-3); }
+  .rec { font-size: 11px; font-weight: 500; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); }
+  .wf { height: 116px; border-radius: 10px; background: var(--page); display: flex; gap: 4px; padding: 6px; margin-bottom: 12px; }
+  .wf i { display: block; border-radius: 3px; }
+  .wf .s { width: 22px; } .wf .p { flex: 1; background: var(--surface); box-shadow: var(--shadow-card); border-radius: 6px; display: flex; gap: 4px; padding: 6px; }
+  .wf .a { background: var(--accent-soft); } .wf .b { background: var(--sunken); } .wf .l { background: var(--line-1); }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); overflow: hidden; font-size: 12.5px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { color: var(--ink-3); font-weight: 500; white-space: nowrap; }
+  tr + tr td { border-top: 1px solid var(--line-2); }
+  code { font: 12px var(--mono); padding: 1px 5px; border-radius: 5px; border: 1px solid var(--line-1); }
+  .dec { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 4px 0; }
+  .dec .q { display: grid; grid-template-columns: 34px 150px 1fr; gap: 12px; padding: 12px 18px; }
+  .dec .q + .q { border-top: 1px solid var(--line-2); }
+  .dec .q .no { width: 24px; height: 24px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-text); display: grid; place-items: center; font-weight: 600; font-size: 12px; }
+  .dec .q .t { font-weight: 600; }
+  .dec .opt { display: flex; gap: 8px; flex-wrap: wrap; }
+  .dec .o { padding: 6px 10px; border-radius: var(--r-sm); border: 1px solid var(--line-1); font-size: 12.5px; max-width: 320px; }
+  .dec .o.r { border-color: var(--accent); background: var(--accent-soft); }
+  .dec .o b { display: block; font-weight: 600; margin-bottom: 1px; }
+  .dec .o span { color: var(--ink-2); font-size: 12px; }
+  .ph { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 16px 20px; }
+  .ph ol { margin: 0; padding-left: 20px; } .ph li { margin: 6px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>PDF 列表页 · 方案与决策</h1>
+  <p class="lead">现状：<code>pages/PdfView/PdfListView</code> 是 320px 宽的渐变文字卡网格，只显示文件名 + 「本地 / 远程」标签；右下角浮动 + 打开 antd 弹窗（本地 / 远程两个 Tab，单选文件）；卡片「⋮」里只有上传、删除。<code>tags / category</code> 字段存在但从未有 UI。这次只定<b>列表页</b>，详情页（阅读器 + 标注 + AI 对话）下一步单独出方案。</p>
+
+  <h2>① 三套结构</h2>
+  <p>三套共用同一套空态、添加对话框、拖入导入、条目菜单与删除确认（在方案 A 页用顶栏按钮切换查看）。</p>
+  <div class="grid3">
+    <a class="card" href="a-shelf.html">
+      <div class="wf"><i class="s"></i><div class="p" style="flex-direction:column"><div style="display:flex;gap:4px"><i class="a" style="flex:1;height:20px"></i><i class="a" style="flex:1;height:20px"></i><i class="a" style="flex:1;height:20px"></i></div><div style="display:flex;gap:7px;flex-wrap:wrap"><i class="b" style="width:20px;height:26px"></i><i class="b" style="width:20px;height:26px"></i><i class="b" style="width:20px;height:26px"></i><i class="b" style="width:20px;height:26px"></i><i class="b" style="width:20px;height:26px"></i><i class="b" style="width:20px;height:26px"></i><i class="b" style="width:20px;height:26px"></i><i class="b" style="width:20px;height:26px"></i></div></div></div>
+      <h3>A 文档墙 + 列表切换 <span class="rec">推荐</span></h3>
+      <p>首页缩略图网格 + 「最近打开」续读行；右上角可切成行式列表。与微信读书书架同构。</p>
+      <div class="fit">识别度最高（论文 / 书一眼认出）；缩略图要生成与缓存。</div>
+    </a>
+    <a class="card" href="a-shelf.html" onclick="localStorage.setItem('pdf-mock-layout','list')">
+      <div class="wf"><i class="s"></i><div class="p" style="flex-direction:column;gap:5px"><i class="a" style="width:40%;height:10px"></i><i class="l" style="height:9px"></i><i class="l" style="height:9px"></i><i class="l" style="height:9px"></i><i class="l" style="height:9px"></i><i class="l" style="height:9px"></i><i class="l" style="height:9px"></i></div></div>
+      <h3>B 纯列表</h3>
+      <p>只有行式列表（= A 的列表排布），列头排序；无缩略图、无续读行。</p>
+      <div class="fit">最省工、密度高；像文件管理器，缺少「资料库」感。</div>
+    </a>
+    <a class="card" href="c-split.html">
+      <div class="wf"><i class="s"></i><div class="p"><div style="flex:1;display:flex;flex-direction:column;gap:5px"><i class="a" style="height:10px;width:50%"></i><i class="l" style="height:10px"></i><i class="l" style="height:10px"></i><i class="l" style="height:10px"></i><i class="l" style="height:10px"></i></div><div style="width:34%;display:flex;flex-direction:column;gap:5px;align-items:center"><i class="b" style="width:40px;height:52px"></i><i class="l" style="height:8px;width:80%"></i><i class="l" style="height:8px;width:80%"></i></div></div></div>
+      <h3>C 列表 + 预览栏</h3>
+      <p>左列表，右 360px 预览（缩略图 / 元信息 / 标注摘要），再点「打开」。</p>
+      <div class="fit">多一步；预览内容与详情页重复。</div>
+    </a>
+  </div>
+
+  <h2>② 需要你拍板的点</h2>
+  <p>高亮的是我的推荐。</p>
+  <div class="dec">
+    <div class="q"><span class="no">1</span><div class="t">页面结构</div><div class="opt">
+      <div class="o r"><b>A 文档墙 + 列表切换</b><span>与微信读书书架一致，心智统一</span></div>
+      <div class="o"><b>B 纯列表</b><span>最省工</span></div>
+      <div class="o"><b>C 列表 + 预览栏</b><span>先预览再打开</span></div></div></div>
+    <div class="q"><span class="no">2</span><div class="t">封面</div><div class="opt">
+      <div class="o r"><b>首页缩略图</b><span>首次打开 / 导入时渲染第 1 页并缓存成小图；远程文件未缓存前先用文字封面兜底</span></div>
+      <div class="o"><b>文字色块</b><span>按文件名派生色，零成本；论文之间难区分</span></div></div></div>
+    <div class="q"><span class="no">3</span><div class="t">「最近打开」续读行</div><div class="opt">
+      <div class="o r"><b>要</b><span>Pdf 表新增 <code>lastOpenTime / lastPage</code>，详情页翻页时写回；打开直接跳到读到的页</span></div>
+      <div class="o"><b>不要</b><span>排序用 updateTime 凑合，不改表</span></div></div></div>
+    <div class="q"><span class="no">4</span><div class="t">分类 / 标签</div><div class="opt">
+      <div class="o r"><b>暂不做</b><span>只按来源筛选 + 搜索；<code>tags / category</code> 字段保留不用（YAGNI）</span></div>
+      <div class="o"><b>标签挂侧栏子项</b><span>同文章 / 白板口径；需要补标签编辑 UI</span></div></div></div>
+    <div class="q"><span class="no">5</span><div class="t">列表里露出 AI 检索状态</div><div class="opt">
+      <div class="o r"><b>只在列表排布露出</b><span>「可检索 / 索引中 / 失败」一列 + 菜单「建立 AI 索引」；封面墙不显示</span></div>
+      <div class="o"><b>不露出</b><span>索引是后台细节，失败只在 AI 对话里提示</span></div></div></div>
+    <div class="q"><span class="no">6</span><div class="t">添加方式</div><div class="opt">
+      <div class="o r"><b>对话框 + 整页拖入，支持多选</b><span>本地 / 链接两个页签；链接自动推断文件名；「上传到云端」选项沿用本机偏好</span></div>
+      <div class="o"><b>保持现状</b><span>单文件、远程需手填文件名</span></div></div></div>
+  </div>
+
+  <h2>③ 数据面（不改的部分）</h2>
+  <table>
+    <tr><th>项</th><th>来源</th><th>备注</th></tr>
+    <tr><td>文件名 / 来源 / 添加时间</td><td>Pdf 表（<code>get-pdf-list</code>）</td><td>改走 react-query，替换 <code>usePdfsStore</code> 的列表职责</td></tr>
+    <tr><td>页数 / AI 检索状态</td><td>pdf-index 库（<code>getIndexStatus</code>）</td><td>未索引时页数取不到 → 需主进程聚合命令一次返回，或打开时补写</td></tr>
+    <tr><td>标注数</td><td>标注表</td><td>主进程加 <code>COUNT … GROUP BY pdf_id</code> 聚合，不逐个拉</td></tr>
+    <tr><td>最近打开 / 读到页</td><td>—</td><td>决策 3 选「要」才新增字段</td></tr>
+    <tr><td>文件丢失</td><td>本地路径 <code>pathExists</code></td><td>卡片置灰 + 「重新定位」</td></tr>
+  </table>
+
+  <h2>④ 落地分期（按推荐组合）</h2>
+  <div class="ph"><ol>
+    <li><b>列表页</b>：<code>features/pdfs</code> 新建 <code>pdfs.page.tsx</code>（definePage）+ queries（列表 + 聚合统计）；封面 / 列表两种排布、来源筛选、排序、搜索；添加对话框 + 拖入；条目菜单（重命名 / 上传 / 删除）。侧栏 <code>app/navigation.ts</code> 学习组加「PDF」。</li>
+    <li><b>缩略图</b>：主进程或渲染端渲染第 1 页 → 缓存目录，列表按需取。</li>
+    <li><b>详情页</b>：下一轮单独出 mockup；在此之前点击仍跳 legacy 详情。</li>
+  </ol></div>
+</div>
+<script>lucide.createIcons();document.documentElement.dataset.theme = localStorage.getItem("chat-mock-theme") || "cream";</script>
+</body>
+</html>

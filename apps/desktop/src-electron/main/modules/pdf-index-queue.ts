@@ -115,6 +115,14 @@ class PdfIndexQueue implements Module {
       async (_event, params: { pdfId: number; mainDbName: string }) =>
         this.getIndexStatus(params.mainDbName, params.pdfId)
     );
+    // 列表页批量查询：没有索引库的 PDF 不在结果里（视为未索引），不为查询而建库
+    ipcMain.handle(
+      "pdf-index:status-batch",
+      async (_event, params: { pdfIds: number[]; mainDbName: string }) =>
+        params.pdfIds
+          .filter(pdfId => pdfIndexDBManager.hasDatabase(params.mainDbName, pdfId))
+          .map(pdfId => this.getIndexStatus(params.mainDbName, pdfId))
+    );
     ipcMain.handle("pdf-index:search", async (_event, params: SearchPdfParams) => {
       return this.searchContent(params);
     });

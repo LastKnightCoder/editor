@@ -5,7 +5,7 @@
 
 import { useMemo, useState } from "react";
 import { FolderSymlink, Plus, Search, Sparkles } from "lucide-react";
-import { Button, ConfirmDialog, Input, Switch, cn, toast } from "@tau/ui";
+import { Button, ConfirmDialog, FilterPill, Input, Switch, cn, toast } from "@tau/ui";
 import { FadeScroll } from "@/components/FadeScroll";
 import useSkillStore from "@/stores/useSkillStore";
 import { useSkillItems, SOURCE_LABEL, type SkillItem } from "../useSkills";
@@ -20,42 +20,6 @@ const CARD =
   "focus-visible:shadow-[var(--tau-focus-ring)] focus-visible:outline-none";
 
 type Filter = "all" | "enabled" | "manual" | "issues";
-
-function Pill({
-  active,
-  onClick,
-  label,
-  count,
-  tone,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  count: number;
-  tone?: "warn";
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        "ease-tau-out flex h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[12px] outline-none transition-[background,color] duration-150 focus-visible:shadow-[var(--tau-focus-ring)]",
-        active
-          ? "bg-selected text-accent-text font-medium"
-          : cn(
-              "bg-surface shadow-card hover:text-ink-1",
-              tone === "warn" ? "text-warn" : "text-ink-2"
-            )
-      )}
-    >
-      {label}
-      <span className={cn("text-[10.5px] tabular-nums", active ? "opacity-75" : "text-ink-3")}>
-        {count}
-      </span>
-    </button>
-  );
-}
 
 function SkillCard({
   item,
@@ -230,31 +194,35 @@ export function SkillsView() {
             <kbd className="font-tau-mono text-ink-1 mx-0.5">$</kbd>点名时生效。
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2 px-0.5 pb-3">
-            <Pill
+            <FilterPill
+              variant="raised"
               active={filter === "all"}
               onClick={() => setFilter("all")}
               label="全部"
               count={counts.all}
             />
-            <Pill
+            <FilterPill
+              variant="raised"
               active={filter === "enabled"}
               onClick={() => setFilter("enabled")}
               label="已启用"
               count={counts.enabled}
             />
-            <Pill
+            <FilterPill
+              variant="raised"
               active={filter === "manual"}
               onClick={() => setFilter("manual")}
               label="仅手动"
               count={counts.manual}
             />
             {counts.issues > 0 && (
-              <Pill
+              <FilterPill
+                variant="raised"
                 active={filter === "issues"}
                 onClick={() => setFilter("issues")}
                 label="需要处理"
                 count={counts.issues}
-                tone="warn"
+                className={filter === "issues" ? undefined : "text-warn"}
               />
             )}
             <BudgetBar {...budget} className="ml-auto w-[420px] max-w-full" />

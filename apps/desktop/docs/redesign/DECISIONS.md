@@ -294,6 +294,7 @@
 - ~~whiteboard 白板列表~~ ✅ 2026-09-25 A 画廊落地（D-047；标签嵌侧栏，缩略图复用导出图片管线）
 - ~~whiteboard-detail 白板详情（多页）~~ ✅ 2026-09-25 A2 底部页签栏（XMind 式）落地（D-048；只迁页面外壳，画布内部浮动件换皮另起一轮 mockup）
 - ~~weread 微信读书~~ ✅ 2026-09-26 A 书架 + B 列表排布 + 整页笔记落地（D-059；笔记只读，legacy 页待 P-weread 删除）
+- ~~pdfs PDF 列表~~ ✅ 2026-09-29 A 文档墙 + 列表排布落地（D-069；pdf-detail 为过渡阅读页，status migrating，AI 对话随详情页迁移补上；legacy 列表页待 P-pdfs 删除）
 - resources 资源管理：已退役，管理页、资源库选择及主库资源索引整体移除；保留上传、同步、协作文件与学习资源。
 - chat 归位 feature
 - ~~settings 拆解（15 子页）~~ ✅ 2026-09-24 重排为 12 分区全量落地（D-036）
@@ -727,3 +728,15 @@
 - 数据：新增 `database_item`（id/时间/标题/desc/archived/pinned/data_table_id）与 `vibe_learning_project`（同前者去掉 data_table_id）两张列表实体表（schema 分片 `main/31_module_split.sql`，主库表数 64 → 66）。**id 原样搬迁、绝不重编号**——VL 的 per-project 索引库 `{mainDb}-project-{id}.db`、`<appDir>/vibe-learning/<db>/<id>` markdown 目录、`chat_session.domain_id`、`vl_note.project_id`、`operation`、`publish_selections` 都以该 id 命名；三张表共用 `migration_meta:'project:id-seq'` 序列（抽到 `tables/module-entity-id.ts`，取号时对三表 MAX(id) 取最大），保证跨模块不撞、历史 id 永不复用。`vibe_learning_resources.project_id` 的外键从 `project(id)` 改指 `vibe_learning_project(id)`（SQLite 不能改外键，按基线重建表）；**重建必须排在 `DELETE FROM project` 之前**，否则删父行触发外键约束（移动端 `foreign_keys=ON`，这一步写反会直接中止升级）。`project.project_type` / `data_table_id` 本版保留为 dead column（老库要靠它们被读到才能迁移），下一版 rebuild `project` 时去掉。
 - 迁移：桌面走 `ProjectTable.upgradeTable` 内的 `migrateSplitModules`，`migration_meta` 键 `project:split-modules` 幂等（沿用 `project:legacy-web-links` 的写法）；非文档树项目若携带 `children` 只告警不阻断，避免误删树。移动端 `MAIN_SCHEMA_VERSION` 3 → 4，`main_upgrade::split_project_modules` 实现同一套（建表由既有的 `table_definitions` 循环按基线完成）；移动端本来就只允许新建文档树（另两型点了只弹「即将上线」），故前端直接删三选一、`ProjectType` 与 `Project.projectType`。
 - 收尾：`DatabaseWorkspace` 从 `features/projects/components/ProjectView/shared/` 提升到 `features/shared/database/`（数据库详情与文档树的 table-view 条目共用）；`VibeLearningView/` 30 文件整目录搬到 `features/vibe-learning/views/`，左栏折叠态从共用的 `projectTreeStore` 分出 `vibe-learning/panelStore`（同 key 会让两模块互相干扰）；`InsertNoteToTreeModal` 的「只挑文档树」过滤条件失效后删除（VL 笔记插入文档树是刻意保留的跨模块通路）。验证：桌面 tsc 0 错误、vitest 新增 `project-split-modules-migration.test.ts`（外键重建 / id 不复用 / 幂等）+ VL 删除测试改挂 `VibeLearningProjectTable`；移动端 tsc、`cargo check`、`cargo test` 81 通过（新增 `split_modules_moves_parasite_projects_and_rewires_resource_foreign_key`）。
+
+## D-069 PDF 列表页定稿（A 文档墙 + 列表排布）+ 过渡阅读页
+
+（2026-09-29，已定）
+
+- 背景：新壳层里 PDF 没有任何入口（navigation 无条目，legacy 占位机制已删），只能在 `/legacy` 的旧 Tab 里用；旧列表 `pages/PdfView/PdfListView` 只显示文件名 + 本地 / 远程标签，右下角浮动 + 打开 antd 弹窗（单选文件），`tags / category` 字段从未有 UI。mockup：`mockups/pdfs/`（A 文档墙 + 列表切换 / B 纯列表 / C 列表 + 预览栏）。
+- 裁决（2026-09-29，均按推荐）：① **A 文档墙 + 列表排布**，与微信读书书架同构，右上角切「封面 / 列表」，列表只点列头排序；② 封面用**首页缩略图**，未生成时按 id 派生粉彩底 + 文件名；③ 保留「**最近打开**」续读行（读到第几页）；④ 分类 / 标签**暂不做**（`tags / category` 字段保留不用），只按来源（全部 / 本地 / 远程）筛选 + 文件名搜索；⑤ AI 检索状态只在列表排布露出一列，菜单可「建立 / 重建 AI 索引」；⑥ 添加 = 对话框（本地文件多选 / 链接，名称从链接推断）+ 整页拖入，「同时上传到云端」为本机偏好。
+- 数据：`pdfs` 表加 `page_count / last_open_time / last_page` 三个可空列（schema 分片 `10_core.sql`；桌面 `PdfTable.upgradeTable` 补列，移动端不读此表、由基线补齐循环在下次升级时带上，表 / 索引数不变）。新命令：`pdf:library`（Pdf 行 + 标注数子查询 + 缩略图路径 / 修改时间 + 本地文件是否丢失，一次返回）、`pdf:record-open` / `pdf:record-page`（**不改 update_time、不记 operation**——阅读器以 updateTime 作重载键，翻页写它会整个重挂载）、`pdf:save-thumbnail`（落盘并记页数，行已删则不写）、`pdf-index:status-batch`（只查已有索引库的文件，`getDatabase` 会按需建库，列表查询不能用它）。
+- 缩略图：渲染端 pdfjs 画第 1 页 → 360px 宽 webp，主进程存 `<编辑器目录>/pdf-thumbnails/<库名>/<id>.webp`（经 `convertFileSrc` 显示，地址带修改时间作版本），删 PDF 时一并删除。生成时机：导入时（已有字节）、打开阅读页时（文件已就位）、列表页为缺图的**本地**文件串行补生成；远程文件在列表页不补（会触发下载），打开过一次后才有图；本次运行失败过的不重试。
+- 阅读页（过渡）：`pdf-detail`（params `pdfId`，status **migrating**）只承载 `PdfEmbedViewer`（标注 / 书签 / 页内搜索），打开即记录打开时间、跳到上次读到的页，翻页 1.5s 防抖写回、离开时冲洗；AI 对话（legacy `PdfChatPanel`）不在本页，随详情页正式迁移补上。`PdfEmbedViewer` 新增可选 `onPageChange` / `onFileResolved`，旧调用方不受影响。
+- 共享层：weread 的分类 pill 提升为 `@tau/ui` 的 `FilterPill`（weread 与 PDF 共用，样板间已建档）；`FileDropZone` 新增 `onFiles` 多选模式（`onFile` 单选语义不变）。同日追记：闪卡卡组 pills（`DeckPills`）与 Skill 筛选 pills 也改用 `FilterPill`——二者未选中是 surface 底 + 卡片投影的浮起皮肤，与 weread 的描边皮肤不同且无裁决记录，故 `FilterPill` 增 `variant="outline" | "raised"`（默认 outline）与 `icon` 槽保持各页原样，不借机统一外观；Skill「需要处理」的警示色经 className（cn 合并）覆盖。卡组 pill 顺带补上 `aria-pressed`。
+- 删除：「删除 PDF」连标注、书签、索引库、AI 对话、缩略图一起删；工作区 resources 里的文件副本仍不删（沿用旧行为，确认文案如实说明）。legacy 列表页按 04 清单 §pdfs 登记，锚点 P-pdfs。

@@ -1,6 +1,9 @@
 import Database from "better-sqlite3";
-import { basename } from "node:path";
-import { Pdf, PdfAnnotation, PdfBookmark } from "@/types";
+import { basename, dirname, join } from "node:path";
+import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import log from "electron-log";
+import { Pdf, PdfAnnotation, PdfBookmark, PdfLibraryItem } from "@/types";
+import PathUtil from "../../utils/PathUtil";
 import Operation from "./operation";
 import pdfIndexDBManager from "../pdf-index-db";
 import ChatSessionTable from "./chat-session";
@@ -80,6 +83,13 @@ export default class PdfTable {
     if (!columnNames.includes("area_data")) {
       db.exec("ALTER TABLE pdf_annotations ADD COLUMN area_data TEXT");
     }
+
+    const pdfColumns = (db.pragma("table_info(pdfs)") as Array<{ name: string }>).map(c => c.name);
+    for (const column of ["page_count", "last_open_time", "last_page"]) {
+      if (!pdfColumns.includes(column)) {
+        db.exec(`ALTER TABLE pdfs ADD COLUMN ${column} INTEGER`);
+      }
+    }
   }
 
   static getListenEvents() {
@@ -89,6 +99,10 @@ export default class PdfTable {
       "get-pdf-list": this.getPdfList.bind(this),
       "update-pdf": this.updatePdf.bind(this),
       "delete-pdf": this.removePdf.bind(this),
+      "pdf:library": this.getPdfLibrary.bind(this),
+      "pdf:record-open": this.recordOpen.bind(this),
+      "pdf:record-page": this.recordPage.bind(this),
+      "pdf:save-thumbnail": this.saveThumbnail.bind(this),
       "add-pdf-annotation": this.addPdfAnnotation.bind(this),
       "update-pdf-annotation": this.updatePdfAnnotation.bind(this),
       "get-pdf-annotations": this.getPdfAnnotations.bind(this),
@@ -110,6 +124,9 @@ export default class PdfTable {
       fileName: pdf.file_name,
       filePath: pdf.file_path,
       remoteUrl: pdf.remote_url,
+      pageCount: pdf.page_count ?? null,
+      lastOpenTime: pdf.last_open_time ?? null,
+      lastPage: pdf.last_page ?? null,
     };
   }
 
@@ -201,6 +218,57 @@ export default class PdfTable {
     return pdfs.map(pdf => this.parsePdf(pdf));
   }
 
+  /** 缩略图按工作区数据库分目录：<编辑器目录>/pdf-thumbnails/<库名>/<id>.webp */
+  static getThumbnailPath(db: Database.Database, id: number): string {
+    const dbName = basename(db.name).replace(/\.db$/, "");
+    return join(PathUtil.getAppDir(), "pdf-thumbnails", dbName, `${id}.webp`);
+  }
+
+  static getPdfLibrary(db: Database.Database): PdfLibraryItem[] {
+    const rows = db
+      .prepare(
+        `SELECT p.*, (SELECT COUNT(*) FROM pdf_annotations a WHERE a.pdf_id = p.id) AS annotation_count
+         FROM pdfs p ORDER BY p.create_time DESC`
+      )
+      .all() as any[];
+    return rows.map(row => {
+      const thumbnailPath = this.getThumbnailPath(db, row.id);
+      const thumbnailVersion = existsSync(thumbnailPath) ? statSync(thumbnailPath).mtimeMs : null;
+      return {
+        ...this.parsePdf(row),
+        annotationCount: Number(row.annotation_count) || 0,
+        thumbnailPath: thumbnailVersion === null ? null : thumbnailPath,
+        thumbnailVersion,
+        fileMissing: Boolean(row.is_local) && (!row.file_path || !existsSync(row.file_path)),
+      };
+    });
+  }
+
+  // 阅读状态不是内容修改：不动 update_time（阅读器以 updateTime 作为重载键），也不记 operation
+  static recordOpen(db: Database.Database, id: number): void {
+    db.prepare("UPDATE pdfs SET last_open_time = ? WHERE id = ?").run(Date.now(), id);
+  }
+
+  static recordPage(db: Database.Database, id: number, page: number): void {
+    db.prepare("UPDATE pdfs SET last_page = ? WHERE id = ?").run(page, id);
+  }
+
+  static saveThumbnail(
+    db: Database.Database,
+    id: number,
+    image: Uint8Array,
+    pageCount: number
+  ): void {
+    // 生成期间文件可能已被删除：行不存在就不落盘，免得留下孤儿缩略图
+    const { changes } = db
+      .prepare("UPDATE pdfs SET page_count = ? WHERE id = ?")
+      .run(pageCount, id);
+    if (changes === 0) return;
+    const thumbnailPath = this.getThumbnailPath(db, id);
+    mkdirSync(dirname(thumbnailPath), { recursive: true });
+    writeFileSync(thumbnailPath, image);
+  }
+
   static removePdf(db: Database.Database, id: number): number {
     const removeAnnotations = db.prepare("DELETE FROM pdf_annotations WHERE pdf_id = ?");
     const removeBookmarks = db.prepare("DELETE FROM pdf_bookmarks WHERE pdf_id = ?");
@@ -219,6 +287,11 @@ export default class PdfTable {
       pdfIndexDBManager.deleteDatabase(basename(db.name), id);
       // PDF 对话（目录行 + 会话文件）随 PDF 一起删
       ChatSessionTable.removeByDomain(db, "pdf-chat", String(id));
+      try {
+        rmSync(this.getThumbnailPath(db, id), { force: true });
+      } catch (error) {
+        log.error(`[PdfTable] 删除缩略图失败: id=${id}, ${error}`);
+      }
     }
     return changes;
   }

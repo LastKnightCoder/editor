@@ -4,21 +4,31 @@ import { cn } from "../cn";
 export interface FileDropZoneProps {
   /** 同 <input accept> */
   accept?: string;
-  /** 只取第一个文件；多选场景暂不需要 */
-  onFile: (file: File) => void;
+  /** 单选：只取第一个文件 */
+  onFile?: (file: File) => void;
+  /** 多选：拖入或选择的全部文件（同时开启文件框多选） */
+  onFiles?: (files: File[]) => void;
   disabled?: boolean;
   className?: string;
   children: ReactNode;
 }
 
 /** 点击选择或拖入文件的区域；拖入时高亮 */
-export function FileDropZone({ accept, onFile, disabled, className, children }: FileDropZoneProps) {
+export function FileDropZone({
+  accept,
+  onFile,
+  onFiles,
+  disabled,
+  className,
+  children,
+}: FileDropZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
   const take = (files: FileList | null | undefined) => {
-    const file = files?.[0];
-    if (file) onFile(file);
+    if (!files?.length) return;
+    if (onFiles) onFiles([...files]);
+    else onFile?.(files[0]);
   };
 
   return (
@@ -57,6 +67,7 @@ export function FileDropZone({ accept, onFile, disabled, className, children }: 
         ref={inputRef}
         type="file"
         accept={accept}
+        multiple={Boolean(onFiles)}
         className="hidden"
         onChange={event => {
           take(event.target.files);

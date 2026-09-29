@@ -1,7 +1,7 @@
 /** 笔记页的内容件：书头、书评、划线条目、过滤条、目录 */
 
 import { BookOpen, Copy, MessageSquareQuote, PenLine, RefreshCw } from "lucide-react";
-import { Button, IconButton, Tooltip, cn, toast } from "@tau/ui";
+import { Button, FilterPill, IconButton, Tooltip, cn, toast } from "@tau/ui";
 import {
   HIGHLIGHT_COLORS,
   formatMinutes,
@@ -12,7 +12,7 @@ import {
   type NoteFilter,
   type WeReadBook,
 } from "../model";
-import { BookCover, Pill, ProgressBar } from "./bits";
+import { BookCover, ProgressBar } from "./bits";
 import { HIGHLIGHT_DOT, SERIF, markClass } from "./styles";
 
 async function copy(text: string) {
@@ -131,8 +131,8 @@ export function NoteFilterBar({
 }) {
   return (
     <div className="bg-surface sticky top-0 z-[2] -mx-1 mt-5 flex items-center gap-1.5 px-1 py-2.5">
-      <Pill active={filter === "all"} onClick={() => onChange("all")} label="全部" />
-      <Pill
+      <FilterPill active={filter === "all"} onClick={() => onChange("all")} label="全部" />
+      <FilterPill
         active={filter === "review"}
         onClick={() => onChange(filter === "review" ? "all" : "review")}
         label="有想法"

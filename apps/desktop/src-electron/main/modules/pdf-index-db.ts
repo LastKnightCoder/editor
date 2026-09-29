@@ -70,7 +70,7 @@ interface PersistPdfIndexParams {
 
 const flattenOutline = (
   nodes: PdfOutlineNode[],
-  parentId: string | null = null,
+  parentId: string | null = null
 ): Array<{
   id: string;
   parentId: string | null;
@@ -109,7 +109,7 @@ const parseJsonArray = (value: unknown): string[] => {
   try {
     const parsed = JSON.parse(value);
     return Array.isArray(parsed)
-      ? parsed.map((item) => String(item || "").trim()).filter(Boolean)
+      ? parsed.map(item => String(item || "").trim()).filter(Boolean)
       : [];
   } catch {
     return [];
@@ -129,11 +129,16 @@ class PdfIndexDBManager {
     return join(indexDir, `${this.getDatabaseKey(mainDbName, pdfId)}.db`);
   }
 
-  private getLegacyDatabasePath(mainDbName: string, pdfId: number): string {
-    return join(
-      PathUtil.getAppDir(),
-      `${this.getDatabaseKey(mainDbName, pdfId)}.db`,
+  /** 是否已有索引库（getDatabase 会按需创建，只读查询前先用它判断） */
+  hasDatabase(mainDbName: string, pdfId: number): boolean {
+    return (
+      existsSync(this.getDatabasePath(mainDbName, pdfId)) ||
+      existsSync(this.getLegacyDatabasePath(mainDbName, pdfId))
     );
+  }
+
+  private getLegacyDatabasePath(mainDbName: string, pdfId: number): string {
+    return join(PathUtil.getAppDir(), `${this.getDatabaseKey(mainDbName, pdfId)}.db`);
   }
 
   private migrateLegacyDatabase(mainDbName: string, pdfId: number): void {
@@ -145,11 +150,11 @@ class PdfIndexDBManager {
         return;
       }
       log.info(
-        `[PdfIndexDB] migrate legacy file: source=${result.source}, target=${result.target}, moved=${result.moved}, skipped=${result.skipped}, reason=${result.reason}`,
+        `[PdfIndexDB] migrate legacy file: source=${result.source}, target=${result.target}, moved=${result.moved}, skipped=${result.skipped}, reason=${result.reason}`
       );
     } catch (error) {
       log.warn(
-        `[PdfIndexDB] migrate legacy file failed: source=${legacyPath}, target=${targetPath}, error=${error}`,
+        `[PdfIndexDB] migrate legacy file failed: source=${legacyPath}, target=${targetPath}, error=${error}`
       );
     }
   }
@@ -166,9 +171,7 @@ class PdfIndexDBManager {
     let failed = 0;
 
     try {
-      const { files } = scanLegacyDbFiles((fileName) =>
-        /-pdf-\d+\.db$/i.test(fileName),
-      );
+      const { files } = scanLegacyDbFiles(fileName => /-pdf-\d+\.db$/i.test(fileName));
       found = files.length;
       for (const legacyPath of files) {
         const fileName = basename(legacyPath);
@@ -194,7 +197,7 @@ class PdfIndexDBManager {
         } catch (error) {
           failed += 1;
           log.warn(
-            `[PdfIndexDB] startup migration failed: source=${legacyPath}, target=${targetPath}, error=${error}`,
+            `[PdfIndexDB] startup migration failed: source=${legacyPath}, target=${targetPath}, error=${error}`
           );
         }
       }
@@ -204,7 +207,7 @@ class PdfIndexDBManager {
     }
 
     log.info(
-      `[PdfIndexDB] startup migration summary: found=${found}, migrated=${migrated}, skipped=${skipped}, failed=${failed}`,
+      `[PdfIndexDB] startup migration summary: found=${found}, migrated=${migrated}, skipped=${skipped}, failed=${failed}`
     );
   }
 
@@ -228,10 +231,7 @@ class PdfIndexDBManager {
     return db;
   }
 
-  private initTables(
-    db: Database.Database,
-    vecDimensions = DEFAULT_VEC_DIMENSIONS,
-  ) {
+  private initTables(db: Database.Database, vecDimensions = DEFAULT_VEC_DIMENSIONS) {
     db.exec(`
       CREATE TABLE IF NOT EXISTS pdf_index_meta (
         key TEXT PRIMARY KEY,
@@ -272,19 +272,14 @@ class PdfIndexDBManager {
       );
     `);
     db.exec(
-      "CREATE INDEX IF NOT EXISTS idx_pdf_sections_page_range ON pdf_sections(start_page, end_page)",
+      "CREATE INDEX IF NOT EXISTS idx_pdf_sections_page_range ON pdf_sections(start_page, end_page)"
     );
     this.initVecTable(db, vecDimensions);
   }
 
-  private initVecTable(
-    db: Database.Database,
-    vecDimensions = DEFAULT_VEC_DIMENSIONS,
-  ) {
+  private initVecTable(db: Database.Database, vecDimensions = DEFAULT_VEC_DIMENSIONS) {
     const tableExists = db
-      .prepare(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='pdf_chunks_vec'",
-      )
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='pdf_chunks_vec'")
       .get();
     if (tableExists) {
       return;
@@ -307,14 +302,13 @@ class PdfIndexDBManager {
         INSERT INTO pdf_index_meta(key, value, updated_at)
         VALUES(?, ?, ?)
         ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at
-      `,
+      `
     ).run(key, value, Date.now());
   }
 
   private getMeta(db: Database.Database, key: string): string | null {
-    const row = db
-      .prepare("SELECT value FROM pdf_index_meta WHERE key = ?")
-      .get(key) as { value?: string } | undefined;
+    const row = db.prepare("SELECT value FROM pdf_index_meta WHERE key = ?").get(key) as
+      { value?: string } | undefined;
     return row?.value ?? null;
   }
 
@@ -334,18 +328,14 @@ class PdfIndexDBManager {
     this.cleanTables(db);
     if (
       db
-        .prepare(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name='pdf_chunks_fts'",
-        )
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='pdf_chunks_fts'")
         .get()
     ) {
       db.prepare("DELETE FROM pdf_chunks_fts").run();
     }
     if (
       db
-        .prepare(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name='pdf_chunks_vec'",
-        )
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='pdf_chunks_vec'")
         .get()
     ) {
       db.exec("DROP TABLE IF EXISTS pdf_chunks_vec");
@@ -361,7 +351,7 @@ class PdfIndexDBManager {
       pageCount?: number;
       error?: string | null;
       embeddingFingerprint?: string | null;
-    },
+    }
   ): PdfIndexStatus {
     const db = this.getDatabase(mainDbName, pdfId);
     this.setMeta(db, META_STATE_KEY, state);
@@ -376,29 +366,21 @@ class PdfIndexDBManager {
       this.setMeta(db, META_ERROR_KEY, extras.error);
     }
     if (extras?.embeddingFingerprint !== undefined) {
-      this.setMeta(
-        db,
-        META_EMBEDDING_FINGERPRINT_KEY,
-        extras.embeddingFingerprint,
-      );
+      this.setMeta(db, META_EMBEDDING_FINGERPRINT_KEY, extras.embeddingFingerprint);
     }
     return this.getIndexStatus(mainDbName, pdfId);
   }
 
-  persistIndex(
-    mainDbName: string,
-    pdfId: number,
-    params: PersistPdfIndexParams,
-  ): PdfIndexStatus {
+  persistIndex(mainDbName: string, pdfId: number, params: PersistPdfIndexParams): PdfIndexStatus {
     const db = this.getDatabase(mainDbName, pdfId);
     this.initTables(db, params.vecDimensions || DEFAULT_VEC_DIMENSIONS);
     const outlineRows = flattenOutline(params.outline);
     const insertPage = db.prepare(
-      "INSERT INTO pdf_pages(page_number, content, char_count) VALUES (?, ?, ?)",
+      "INSERT INTO pdf_pages(page_number, content, char_count) VALUES (?, ?, ?)"
     );
     const insertOutline = db.prepare(
       `INSERT INTO pdf_outline_nodes(node_id, parent_node_id, title, page_number, order_index)
-       VALUES (?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?)`
     );
     const insertSection = db.prepare(
       `INSERT INTO pdf_sections(
@@ -411,11 +393,11 @@ class PdfIndexDBManager {
         order_index,
         path_titles,
         source
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
     const insertFts = db.prepare(
       `INSERT INTO pdf_chunks_fts(page_number, chunk_index, char_start, char_end, content, search_content)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?)`
     );
 
     const tx = db.transaction(() => {
@@ -425,13 +407,7 @@ class PdfIndexDBManager {
         insertPage.run(page.pageNumber, page.content, page.charCount);
       }
       for (const row of outlineRows) {
-        insertOutline.run(
-          row.id,
-          row.parentId,
-          row.title,
-          row.pageNumber,
-          row.orderIndex,
-        );
+        insertOutline.run(row.id, row.parentId, row.title, row.pageNumber, row.orderIndex);
       }
       for (const section of params.sections) {
         insertSection.run(
@@ -443,7 +419,7 @@ class PdfIndexDBManager {
           section.endPage,
           section.orderIndex,
           stringifyJson(section.pathTitles),
-          section.source,
+          section.source
         );
       }
       for (const chunk of params.chunks) {
@@ -453,7 +429,7 @@ class PdfIndexDBManager {
           chunk.charStart,
           chunk.charEnd,
           chunk.content,
-          this.segmentText(chunk.content),
+          this.segmentText(chunk.content)
         );
       }
 
@@ -461,7 +437,7 @@ class PdfIndexDBManager {
         this.initVecTable(db, params.vecDimensions);
         const insertVec = db.prepare(
           `INSERT INTO pdf_chunks_vec(page_number, chunk_index, char_start, char_end, content, vec_embedding)
-           VALUES (?, ?, ?, ?, ?, vec_f32(?))`,
+           VALUES (?, ?, ?, ?, ?, vec_f32(?))`
         );
         params.chunks.forEach((chunk, index) => {
           insertVec.run(
@@ -470,7 +446,7 @@ class PdfIndexDBManager {
             BigInt(Math.floor(chunk.charStart)),
             BigInt(Math.floor(chunk.charEnd)),
             chunk.content,
-            JSON.stringify(params.embeddings?.[index] || []),
+            JSON.stringify(params.embeddings?.[index] || [])
           );
         });
       }
@@ -480,15 +456,11 @@ class PdfIndexDBManager {
       this.setMeta(db, META_UPDATED_AT_KEY, String(Date.now()));
       this.setMeta(db, META_ERROR_KEY, null);
       this.setMeta(db, META_STATE_KEY, "ready");
-      this.setMeta(
-        db,
-        META_EMBEDDING_FINGERPRINT_KEY,
-        params.embeddingFingerprint || null,
-      );
+      this.setMeta(db, META_EMBEDDING_FINGERPRINT_KEY, params.embeddingFingerprint || null);
       this.setMeta(
         db,
         META_VEC_DIMENSIONS_KEY,
-        params.vecDimensions ? String(params.vecDimensions) : null,
+        params.vecDimensions ? String(params.vecDimensions) : null
       );
     });
 
@@ -498,8 +470,7 @@ class PdfIndexDBManager {
 
   getIndexStatus(mainDbName: string, pdfId: number): PdfIndexStatus {
     const db = this.getDatabase(mainDbName, pdfId);
-    const state = (this.getMeta(db, META_STATE_KEY) ||
-      "pending") as PdfIndexStatus["state"];
+    const state = (this.getMeta(db, META_STATE_KEY) || "pending") as PdfIndexStatus["state"];
     const pageCount = Number(this.getMeta(db, META_PAGE_COUNT_KEY) || 0);
     const updatedAtRaw = this.getMeta(db, META_UPDATED_AT_KEY);
     return {
@@ -514,17 +485,11 @@ class PdfIndexDBManager {
   }
 
   getEmbeddingFingerprint(mainDbName: string, pdfId: number): string | null {
-    return this.getMeta(
-      this.getDatabase(mainDbName, pdfId),
-      META_EMBEDDING_FINGERPRINT_KEY,
-    );
+    return this.getMeta(this.getDatabase(mainDbName, pdfId), META_EMBEDDING_FINGERPRINT_KEY);
   }
 
   getVectorDimensions(mainDbName: string, pdfId: number): number | null {
-    const raw = this.getMeta(
-      this.getDatabase(mainDbName, pdfId),
-      META_VEC_DIMENSIONS_KEY,
-    );
+    const raw = this.getMeta(this.getDatabase(mainDbName, pdfId), META_VEC_DIMENSIONS_KEY);
     const value = Number(raw);
     return Number.isFinite(value) && value > 0 ? value : null;
   }
@@ -538,7 +503,7 @@ class PdfIndexDBManager {
 
   private getSectionById(
     db: Database.Database,
-    sectionId: string,
+    sectionId: string
   ): Omit<PdfSectionNode, "children"> | null {
     const row = db
       .prepare(
@@ -553,7 +518,7 @@ class PdfIndexDBManager {
           path_titles,
           source
          FROM pdf_sections
-         WHERE section_id = ?`,
+         WHERE section_id = ?`
       )
       .get(sectionId) as
       | {
@@ -586,7 +551,7 @@ class PdfIndexDBManager {
 
   private getSectionContextByPage(
     db: Database.Database,
-    pageNumber: number,
+    pageNumber: number
   ): {
     sectionId: string;
     title: string;
@@ -600,7 +565,7 @@ class PdfIndexDBManager {
          FROM pdf_sections
          WHERE start_page <= ? AND end_page >= ?
          ORDER BY level DESC, start_page ASC
-         LIMIT 1`,
+         LIMIT 1`
       )
       .get(pageNumber, pageNumber) as
       | {
@@ -627,7 +592,7 @@ class PdfIndexDBManager {
     mainDbName: string,
     pdfId: number,
     query: string,
-    limit: number,
+    limit: number
   ): Array<
     PdfIndexChunkRecord & {
       rank?: number;
@@ -651,7 +616,7 @@ class PdfIndexDBManager {
           WHERE search_content MATCH ?
           ORDER BY rank
           LIMIT ?
-        `,
+        `
       )
       .all(segmented, Math.max(1, limit)) as Array<{
       page_number: number;
@@ -662,7 +627,7 @@ class PdfIndexDBManager {
       rank?: number;
     }>;
 
-    return rows.map((row) => {
+    return rows.map(row => {
       const section = this.getSectionContextByPage(db, row.page_number);
       return {
         pageNumber: row.page_number,
@@ -685,7 +650,7 @@ class PdfIndexDBManager {
     pdfId: number,
     queryEmbedding: number[],
     limit: number,
-    distance: number,
+    distance: number
   ): Array<
     PdfVecSearchResult & {
       sectionId?: string;
@@ -697,9 +662,7 @@ class PdfIndexDBManager {
   > {
     const db = this.getDatabase(mainDbName, pdfId);
     const hasTable = db
-      .prepare(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='pdf_chunks_vec'",
-      )
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='pdf_chunks_vec'")
       .get();
     if (!hasTable) {
       return [];
@@ -712,13 +675,9 @@ class PdfIndexDBManager {
           FROM pdf_chunks_vec
           WHERE distance < ? AND vec_embedding MATCH ? AND k = ?
           ORDER BY distance
-        `,
+        `
       )
-      .all(
-        distance,
-        JSON.stringify(queryEmbedding),
-        BigInt(Math.max(1, limit)),
-      ) as Array<{
+      .all(distance, JSON.stringify(queryEmbedding), BigInt(Math.max(1, limit))) as Array<{
       page_number: number;
       chunk_index: number;
       char_start: number;
@@ -727,7 +686,7 @@ class PdfIndexDBManager {
       distance: number;
     }>;
 
-    return rows.map((row) => {
+    return rows.map(row => {
       const section = this.getSectionContextByPage(db, row.page_number);
       return {
         pageNumber: row.page_number,
@@ -745,19 +704,11 @@ class PdfIndexDBManager {
     });
   }
 
-  getPageContent(
-    mainDbName: string,
-    pdfId: number,
-    pageNumber: number,
-  ): PdfPageContent | null {
+  getPageContent(mainDbName: string, pdfId: number, pageNumber: number): PdfPageContent | null {
     const db = this.getDatabase(mainDbName, pdfId);
     const row = db
-      .prepare(
-        "SELECT page_number, content, char_count FROM pdf_pages WHERE page_number = ?",
-      )
-      .get(pageNumber) as
-      | { page_number: number; content: string; char_count: number }
-      | undefined;
+      .prepare("SELECT page_number, content, char_count FROM pdf_pages WHERE page_number = ?")
+      .get(pageNumber) as { page_number: number; content: string; char_count: number } | undefined;
     if (!row) {
       return null;
     }
@@ -773,7 +724,7 @@ class PdfIndexDBManager {
     mainDbName: string,
     pdfId: number,
     startPage: number,
-    endPage: number,
+    endPage: number
   ): PdfPageContent[] {
     const db = this.getDatabase(mainDbName, pdfId);
     const rows = db
@@ -781,14 +732,14 @@ class PdfIndexDBManager {
         `SELECT page_number, content, char_count
          FROM pdf_pages
          WHERE page_number BETWEEN ? AND ?
-         ORDER BY page_number ASC`,
+         ORDER BY page_number ASC`
       )
       .all(startPage, endPage) as Array<{
       page_number: number;
       content: string;
       char_count: number;
     }>;
-    return rows.map((row) => ({
+    return rows.map(row => ({
       pdfId,
       pageNumber: row.page_number,
       content: row.content,
@@ -802,7 +753,7 @@ class PdfIndexDBManager {
       .prepare(
         `SELECT node_id, parent_node_id, title, page_number, order_index
          FROM pdf_outline_nodes
-         ORDER BY parent_node_id ASC, order_index ASC`,
+         ORDER BY parent_node_id ASC, order_index ASC`
       )
       .all() as Array<{
       node_id: string;
@@ -813,11 +764,9 @@ class PdfIndexDBManager {
     }>;
 
     const nodeMap = new Map<string, PdfOutlineNode>();
-    const roots: Array<
-      PdfOutlineNode & { __parent: string | null; __order: number }
-    > = [];
+    const roots: Array<PdfOutlineNode & { __parent: string | null; __order: number }> = [];
 
-    rows.forEach((row) => {
+    rows.forEach(row => {
       const node = {
         id: row.node_id,
         title: row.title,
@@ -832,9 +781,8 @@ class PdfIndexDBManager {
     });
 
     const result: PdfOutlineNode[] = [];
-    roots.forEach((node) => {
-      const parentId = (node as typeof node & { __parent: string | null })
-        .__parent;
+    roots.forEach(node => {
+      const parentId = (node as typeof node & { __parent: string | null }).__parent;
       if (parentId) {
         const parent = nodeMap.get(parentId);
         parent?.children.push(node);
@@ -845,17 +793,13 @@ class PdfIndexDBManager {
 
     const sortNodes = (nodes: PdfOutlineNode[]) => {
       nodes.sort((a, b) => a.orderIndex - b.orderIndex);
-      nodes.forEach((node) => sortNodes(node.children));
+      nodes.forEach(node => sortNodes(node.children));
     };
     sortNodes(result);
     return result;
   }
 
-  getSectionTree(
-    mainDbName: string,
-    pdfId: number,
-    depth?: number,
-  ): PdfSectionNode[] {
+  getSectionTree(mainDbName: string, pdfId: number, depth?: number): PdfSectionNode[] {
     const db = this.getDatabase(mainDbName, pdfId);
     const rows = db
       .prepare(
@@ -870,7 +814,7 @@ class PdfIndexDBManager {
           s.path_titles,
           s.source AS section_source
          FROM pdf_sections s
-         ORDER BY s.level ASC, s.order_index ASC, s.start_page ASC`,
+         ORDER BY s.level ASC, s.order_index ASC, s.start_page ASC`
       )
       .all() as Array<{
       section_id: string;
@@ -885,7 +829,7 @@ class PdfIndexDBManager {
     }>;
 
     const nodeMap = new Map<string, PdfSectionNode>();
-    rows.forEach((row) => {
+    rows.forEach(row => {
       nodeMap.set(row.section_id, {
         id: row.section_id,
         parentId: row.parent_section_id,
@@ -901,7 +845,7 @@ class PdfIndexDBManager {
     });
 
     const roots: PdfSectionNode[] = [];
-    nodeMap.forEach((node) => {
+    nodeMap.forEach(node => {
       if (node.parentId) {
         const parent = nodeMap.get(node.parentId);
         parent?.children.push(node);
@@ -917,7 +861,7 @@ class PdfIndexDBManager {
         }
         return a.orderIndex - b.orderIndex;
       });
-      nodes.forEach((node) => {
+      nodes.forEach(node => {
         if (typeof depth === "number" && currentDepth >= depth) {
           node.children = [];
         } else {
@@ -935,7 +879,7 @@ class PdfIndexDBManager {
     params: {
       fileName: string;
       depth?: number;
-    },
+    }
   ): PdfDocumentMap {
     const indexStatus = this.getIndexStatus(mainDbName, pdfId);
     return {
@@ -947,11 +891,7 @@ class PdfIndexDBManager {
     };
   }
 
-  getSectionDetail(
-    mainDbName: string,
-    pdfId: number,
-    sectionId: string,
-  ): PdfSectionDetail | null {
+  getSectionDetail(mainDbName: string, pdfId: number, sectionId: string): PdfSectionDetail | null {
     const db = this.getDatabase(mainDbName, pdfId);
     const sectionInfo = this.getSectionById(db, sectionId);
     if (!sectionInfo) {
@@ -961,7 +901,7 @@ class PdfIndexDBManager {
       mainDbName,
       pdfId,
       sectionInfo.startPage,
-      sectionInfo.endPage,
+      sectionInfo.endPage
     );
     return {
       pdfId,
@@ -972,7 +912,7 @@ class PdfIndexDBManager {
       })),
       pages,
       content: pages
-        .map((page) => page.content)
+        .map(page => page.content)
         .filter(Boolean)
         .join("\n\n"),
     };

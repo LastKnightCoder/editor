@@ -25,6 +25,7 @@ export * from "./primitives/Switch";
 export * from "./primitives/RadioGroup";
 export * from "./primitives/Radio";
 export * from "./primitives/Segmented";
+export * from "./primitives/FilterPill";
 export * from "./primitives/Tag";
 export * from "./primitives/ValueDisplay";
 export * from "./primitives/datepicker/DatePicker";

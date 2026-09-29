@@ -68,7 +68,10 @@ CREATE TABLE IF NOT EXISTS pdfs (
             category TEXT DEFAULT 'default',
             file_name TEXT,
             file_path TEXT,
-            remote_url TEXT
+            remote_url TEXT,
+            page_count INTEGER,
+            last_open_time INTEGER,
+            last_page INTEGER
         );
 CREATE TABLE IF NOT EXISTS pdf_annotations (
         id INTEGER PRIMARY KEY,

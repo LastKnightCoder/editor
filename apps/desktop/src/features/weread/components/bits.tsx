@@ -1,4 +1,4 @@
-/** 微信读书域的小件：封面、进度条、状态点、分类 pill、划线样式映射 */
+/** 微信读书域的小件：封面、进度条、状态点 */
 
 import { useState, type ReactNode } from "react";
 import { cn } from "@tau/ui";
@@ -88,38 +88,5 @@ export function StatusDot({ status }: { status: ReadingStatus }) {
       <span className={cn("size-1.5 rounded-full", STATUS_DOT[status])} />
       {STATUS_LABEL[status]}
     </span>
-  );
-}
-
-export function Pill({
-  active,
-  onClick,
-  label,
-  count,
-}: {
-  active: boolean;
-  onClick(): void;
-  label: string;
-  count?: number;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        "ease-tau-out flex h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[12px] outline-none transition-[background,color] duration-150 focus-visible:shadow-[var(--tau-focus-ring)]",
-        active
-          ? "bg-selected text-accent-text border border-transparent font-medium"
-          : "border-line-1 text-ink-2 hover:bg-hover hover:text-ink-1 border"
-      )}
-    >
-      {label}
-      {count !== undefined && (
-        <span className={cn("text-[10.5px] tabular-nums", active ? "opacity-75" : "text-ink-3")}>
-          {count}
-        </span>
-      )}
-    </button>
   );
 }

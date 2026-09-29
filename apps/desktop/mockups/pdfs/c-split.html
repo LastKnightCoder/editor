@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>方案 C · 分栏预览</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="../weread/weread.css?v=2" />
+<link rel="stylesheet" href="pdfs.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div class="mock-note">
+  <h3>方案 C · 列表 + 右侧预览栏</h3>
+  纸内左侧是行式列表，右侧 360px 预览栏：首页缩略图、元信息、最近几条标注，「打开」进详情页。↑↓ 切换选中项即时刷新预览，双击 / 回车打开。
+  <ul>
+    <li class="pro">不进详情就能确认「是不是这份」、看到标注摘要。</li>
+    <li class="con">预览栏的信息大多是详情页的重复；PDF 数量通常不多（几十份），分栏的「快速翻」优势不明显。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mockBar, sidebar, titlebar, icons, PDFS, byId, thumb, fmtDate, src, idx, sortPdfs, listHead, listRow } from "./pdfs.js?v=1";
+
+mockBar("c-split.html");
+const win = document.getElementById("win");
+const state = { sel: 1, sort: "opened" };
+const ANN = [
+  ["Scaled Dot-Product Attention 的缩放因子 1/√dk 是为了避免 softmax 进入梯度极小区。", "第 4 页"],
+  ["Multi-head 让模型在不同表示子空间里联合关注信息。", "第 5 页"],
+  ["位置编码用正弦函数，可外推到比训练更长的序列。", "第 6 页"],
+];
+
+function render() {
+  const p = byId(state.sel);
+  const list = sortPdfs(PDFS, state.sort);
+  win.innerHTML = `
+    ${sidebar()}
+    <div class="col">
+      ${titlebar("<b>PDF</b>")}
+      <div class="main"><section class="paper p-paper">
+        <div class="c-split">
+          <div class="p-scroll"><div class="p-wrap">
+            <div class="w-head"><h1>PDF</h1><span class="sp"></span><div class="w-search"><i data-lucide="search"></i>搜索文件名</div><button class="btn primary"><i data-lucide="plus"></i>添加 PDF</button></div>
+            <div class="p-list">${listHead(state.sort)}${list.map(x => listRow(x).replace('class="p-row"', `class="p-row" ${x.id === state.sel ? 'style="background:var(--selected)"' : ""}`)).join("")}</div>
+          </div></div>
+          <aside class="c-pane">
+            ${thumb(p)}
+            <h3>${p.title}</h3>
+            <div style="display:flex;gap:8px"><button class="btn primary" style="flex:1;justify-content:center"><i data-lucide="book-open"></i>打开${p.at ? `（第 ${p.at} 页）` : ""}</button><button class="ib"><i data-lucide="more-horizontal"></i></button></div>
+            <dl>
+              <dt>页数</dt><dd class="num">${p.pages}</dd>
+              <dt>来源</dt><dd>${src(p)}</dd>
+              <dt>AI 检索</dt><dd>${idx(p)}</dd>
+              <dt>添加于</dt><dd>${fmtDate(p.added)}</dd>
+              <dt>最近打开</dt><dd>${fmtDate(p.opened)}</dd>
+            </dl>
+            <div class="sec-t" style="margin:6px 0 0">标注<span class="h num">${p.annots} 条</span></div>
+            ${p.annots ? ANN.map(([t, s]) => `<div class="ann">${t}<span>${s}</span></div>`).join("") : '<div style="color:var(--ink-3);font-size:12.5px">还没有标注</div>'}
+          </aside>
+        </div>
+      </section></div>
+    </div>`;
+  icons();
+  win.querySelectorAll("[data-pdf]").forEach(el => (el.onclick = () => { state.sel = +el.dataset.pdf; render(); }));
+  win.querySelectorAll("[data-sort]").forEach(el => (el.onclick = () => { state.sort = el.dataset.sort; render(); }));
+}
+render();
+</script>
+</body>
+</html>

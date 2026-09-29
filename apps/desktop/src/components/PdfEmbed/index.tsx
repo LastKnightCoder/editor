@@ -119,6 +119,10 @@ interface PdfEmbedViewerProps {
   style?: CSSProperties;
   onAskAI?: (context: PdfAskAIContext) => void;
   jumpTarget?: PdfCitationTarget | null;
+  /** 当前页变化（从 1 开始） */
+  onPageChange?: (page: number) => void;
+  /** 文件已就位（远程文件已缓存到本地）时回调其路径 */
+  onFileResolved?: (resolvedPath: string) => void;
 }
 
 export interface PdfAskAIContext {
@@ -307,11 +311,24 @@ const extractBookmarkDestination = (bookmark: PdfBookmarkObject): PdfDestination
   return null;
 };
 
-const PdfEmbedViewer = ({ pdf, className, style, onAskAI, jumpTarget }: PdfEmbedViewerProps) => {
+const PdfEmbedViewer = ({
+  pdf,
+  className,
+  style,
+  onAskAI,
+  jumpTarget,
+  onPageChange,
+  onFileResolved,
+}: PdfEmbedViewerProps) => {
   const { engine, error: engineError } = usePdfiumEngine({
     worker: true,
   });
   const { error: fileError, pdfFile, resolvedPath } = usePdfFileSource(pdf);
+  const onFileResolvedRef = useRef(onFileResolved);
+  onFileResolvedRef.current = onFileResolved;
+  useEffect(() => {
+    if (resolvedPath) onFileResolvedRef.current?.(resolvedPath);
+  }, [resolvedPath]);
   const themeColors = useThemeColors();
 
   const panDefaultMode = useMemo<"mobile" | "never">(() => {
@@ -427,6 +444,7 @@ const PdfEmbedViewer = ({ pdf, className, style, onAskAI, jumpTarget }: PdfEmbed
             resolvedPath={resolvedPath}
             onAskAI={onAskAI}
             jumpTarget={jumpTarget}
+            onPageChange={onPageChange}
           />
         )}
       </EmbedPDF>
@@ -441,6 +459,7 @@ interface PdfEmbedLayoutProps {
   resolvedPath?: string;
   onAskAI?: (context: PdfAskAIContext) => void;
   jumpTarget?: PdfCitationTarget | null;
+  onPageChange?: (page: number) => void;
 }
 
 const createEmptyNoteValue = (): Descendant[] => [
@@ -583,6 +602,7 @@ const PdfEmbedLayout = ({
   resolvedPath,
   onAskAI,
   jumpTarget,
+  onPageChange,
 }: PdfEmbedLayoutProps) => {
   const { message } = App.useApp();
   const [outline, setOutline] = useState<PdfBookmarkObject[]>([]);
@@ -619,6 +639,12 @@ const PdfEmbedLayout = ({
   const scrollHook = useScroll();
   const scrollCapability = scrollHook.provides;
   const scrollState = scrollHook.state;
+  const onPageChangeRef = useRef(onPageChange);
+  onPageChangeRef.current = onPageChange;
+  const currentPage = scrollState?.currentPage;
+  useEffect(() => {
+    if (currentPage) onPageChangeRef.current?.(currentPage);
+  }, [currentPage]);
   const { provides: annotationCapability } = useAnnotationCapability();
   const { provides: selectionCapability } = useSelectionCapability();
   const { provides: zoomCapability } = useZoom();

@@ -4,6 +4,9 @@ import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 const mockPaths = vi.hoisted(() => ({ dir: "" }));
+// 缩略图目录指到临时目录，测试不碰真实的 ~/.editor
+const appDir = vi.hoisted(() => ({ dir: "" }));
+vi.mock("../../utils/PathUtil", () => ({ default: { getAppDir: () => appDir.dir } }));
 vi.mock("../pi-session-paths", async importOriginal => {
   const actual = await importOriginal<typeof import("../pi-session-paths")>();
   return { ...actual, chatSessionDirOfDb: () => mockPaths.dir || undefined };
@@ -26,6 +29,8 @@ vi.mock("../pdf-index-db", () => ({
 }));
 
 import PdfTable from "../tables/pdf";
+
+appDir.dir = mkdtempSync(join(tmpdir(), "pdf-app-"));
 
 describe("PdfTable.removePdf", () => {
   it("删除 PDF 时应清理关联数据并删除 sidecar 索引库", () => {
@@ -89,5 +94,29 @@ describe("PdfTable.removePdf", () => {
     expect(deleted).toEqual([["abc"]]);
     expect(existsSync(sessionFile)).toBe(false);
     rmSync(workDir, { recursive: true, force: true });
+  });
+});
+
+describe("PdfTable 缩略图", () => {
+  const dbNamed = (changes: number) =>
+    ({
+      name: join(tmpdir(), "notes.db"),
+      prepare: vi.fn(() => ({ run: () => ({ changes }), all: () => [], get: () => undefined })),
+      transaction: vi.fn((fn: () => number) => fn),
+    }) as any;
+
+  it("按库名分目录落盘；行已删除时不写文件", () => {
+    const thumb = join(appDir.dir, "pdf-thumbnails", "notes", "7.webp");
+    PdfTable.saveThumbnail(dbNamed(0), 7, new Uint8Array([1]), 3);
+    expect(existsSync(thumb)).toBe(false);
+    PdfTable.saveThumbnail(dbNamed(1), 7, new Uint8Array([1]), 3);
+    expect(existsSync(thumb)).toBe(true);
+  });
+
+  it("删除 PDF 时一并删除缩略图", () => {
+    const thumb = join(appDir.dir, "pdf-thumbnails", "notes", "8.webp");
+    PdfTable.saveThumbnail(dbNamed(1), 8, new Uint8Array([1]), 3);
+    PdfTable.removePdf(dbNamed(1), 8);
+    expect(existsSync(thumb)).toBe(false);
   });
 });

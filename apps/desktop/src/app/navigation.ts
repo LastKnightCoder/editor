@@ -14,6 +14,7 @@ import {
   Flame,
   Layers,
   FileText,
+  BookMarked,
   BookOpen,
   Presentation,
   PenLine,
@@ -110,6 +111,7 @@ export const NAV_SECTIONS: NavSection[] = [
         children: "question-groups",
       }, // features/questions（A2 三栏清单，D-044；分组嵌在此入口下）
       { key: "weread", label: "微信读书", icon: BookOpen }, // features/weread（书架 + 整页笔记，D-059）
+      { key: "pdfs", label: "PDF", icon: BookMarked }, // features/pdfs（文档墙 + 列表排布，D-069）
     ],
   },
   {
