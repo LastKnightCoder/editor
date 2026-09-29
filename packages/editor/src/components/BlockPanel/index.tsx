@@ -2,7 +2,8 @@ import { Box, Images } from "lucide-react";
 import { PortalToBody } from "@tau/shared";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useSlateStatic } from "slate-react";
-import List from "./List";
+import { cn } from "@tau/ui";
+import List, { blockPanelScrollPanelClass } from "./List";
 import { IBlockPanelListItem } from "../../types";
 import type { ExtensionAssembly } from "../../kit/ExtensionAssembly";
 
@@ -199,7 +200,7 @@ const BlockPanel = memo((props: IBlockPanelProps) => {
     <PortalToBody>
       <div
         ref={panelRef}
-        className={menuPanelClass}
+        className={cn(menuPanelClass, blockPanelScrollPanelClass)}
         style={{
           left: `${calculatedPosition.x}px`,
           top: `${calculatedPosition.y}px`,

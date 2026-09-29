@@ -47,23 +47,19 @@ const Item = memo(
         ref={buttonRef}
         className={cn(
           menuItemClass,
-          "flex w-full items-start gap-[12px] rounded-[16px] p-[10px_14px] text-left transition-[background-color,box-shadow] duration-150 ease-[ease]",
+          "flex w-full items-center gap-[10px] rounded-[12px] p-[6px_10px] text-left transition-[background-color,box-shadow] duration-150 ease-[ease]",
           active &&
             "bg-[var(--ed-bg-selected)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--ed-accent)_25%,transparent)]"
         )}
         onClick={onClick}
       >
-        <span className="flex size-[36px] shrink-0 items-center justify-center rounded-[14px] bg-[var(--ed-bg-press)]">
-          <IconComponent className="size-[18px] text-[var(--ed-text-secondary)]" />
+        <span className="flex size-[28px] shrink-0 items-center justify-center rounded-[9px] bg-[var(--ed-bg-press)]">
+          <IconComponent className="size-[16px] text-[var(--ed-text-secondary)]" />
         </span>
-        <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
-          <span className="text-[14px] font-semibold text-[var(--ed-text)]">{item.title}</span>
-          {item.description && (
-            <span className="block truncate text-[12px] leading-[1.4] text-[var(--ed-text-secondary)]">
-              {item.description}
-            </span>
-          )}
-        </div>
+        {/* description 多与标题重复，只参与搜索匹配，不展示 */}
+        <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-[var(--ed-text)]">
+          {item.title}
+        </span>
         {hasChildren && (
           <span className={cn(menuItemArrowClass, "ml-[8px]")}>
             <ChevronRight size={14} />

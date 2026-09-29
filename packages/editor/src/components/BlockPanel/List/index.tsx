@@ -9,7 +9,7 @@ import {
 } from "react";
 import { useSlateStatic } from "slate-react";
 import { PortalToBody } from "@tau/shared";
-import { cn } from "@tau/ui";
+import { cn, FADE_SCROLL_CLASS, useEdgeFade } from "@tau/ui";
 
 import { IBlockPanelListItem } from "../../types";
 
@@ -21,10 +21,27 @@ import {
   menuPanelClass,
 } from "../../EditorContextMenu/menuClasses";
 
-// 一级列表与子菜单共用的纵向滚动区：限高 + 4px 细滚动条。
+// 一级列表与子菜单共用的纵向滚动区：限高 + 边缘渐隐 + 内缩滚动条（同 FadeScroll）。
+// pr-[6px] 让菜单项与滚动条留缝；透明右边框收窄到 2px，配合面板 blockPanelScrollPanelClass 使左右留白接近对称。
 // thumb 需 !important：@tau/ui styles.css 的全局滚动条是未分层 CSS，会压过 utilities 层
-const scrollableMenuClass =
-  "max-h-[min(360px,70vh)] overflow-x-visible overflow-y-auto [&::-webkit-scrollbar]:w-[4px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-[999px]! [&::-webkit-scrollbar-thumb]:bg-[color-mix(in_oklab,var(--ed-text)_15%,transparent)]! [&::-webkit-scrollbar-thumb:hover]:bg-[color-mix(in_oklab,var(--ed-text)_25%,transparent)]!";
+const scrollableMenuClass = cn(
+  menuListClass,
+  FADE_SCROLL_CLASS,
+  "max-h-[min(360px,70vh)] border-r-[2px] pr-[6px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-[999px]! [&::-webkit-scrollbar-thumb]:bg-[color-mix(in_oklab,var(--ed-text)_15%,transparent)]! [&::-webkit-scrollbar-thumb:hover]:bg-[color-mix(in_oklab,var(--ed-text)_25%,transparent)]!"
+);
+
+/** 承载滚动列表的面板右内边距：右侧间距改由列表的透明边与 pr 提供 */
+export const blockPanelScrollPanelClass = "pr-[2px]";
+
+const ScrollableMenu = ({ className, children }: { className?: string; children: ReactNode }) => {
+  const [element, setElement] = useState<HTMLDivElement | null>(null);
+  useEdgeFade(element);
+  return (
+    <div ref={setElement} className={cn(scrollableMenuClass, className)}>
+      {children}
+    </div>
+  );
+};
 
 const buildPathKey = (path: number[]) => path.join("-");
 const buildPathKeys = (path: number[]) =>
@@ -196,7 +213,7 @@ const List = memo(() => {
       if (!items || items.length === 0) return null;
 
       return (
-        <div className={cn(menuListClass, scrollableMenuClass, level > 0 && "min-w-[220px]")}>
+        <ScrollableMenu className={cn(level > 0 && "min-w-[220px]")}>
           {items.map((item, index) => {
             const currentPath = [...path, index];
             const pathKey = buildPathKey(currentPath);
@@ -238,7 +255,7 @@ const List = memo(() => {
               </div>
             );
           })}
-        </div>
+        </ScrollableMenu>
       );
     },
     [
@@ -336,7 +353,11 @@ const SubMenuPortal = memo(
       <PortalToBody>
         <div
           ref={panelRef}
-          className={cn(menuPanelClass, "fixed z-[10000] min-w-[220px]")}
+          className={cn(
+            menuPanelClass,
+            blockPanelScrollPanelClass,
+            "fixed z-[10000] min-w-[220px]"
+          )}
           style={{
             left: `${position.left}px`,
             top: `${position.top}px`,
