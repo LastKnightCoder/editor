@@ -22,6 +22,7 @@ const DIMENSION_COLUMNS: Record<ModelUsageDimension, string> = {
   feature: "feature",
   provider: "provider_id",
   library: "library",
+  device: "device_id",
 };
 
 const SCHEMA_SQL = `
@@ -292,6 +293,68 @@ export class ModelUsageStore {
          ORDER BY cost DESC, totalTokens DESC, calls DESC`
       )
       .all(params) as ModelUsageBreakdownRow[];
+  }
+
+  /* ── 跨设备同步用 ── */
+
+  /** 某设备的全部事件，按主键升序逐条产出（导出 / 算哈希时不一次性载入内存） */
+  *iterateDevice(deviceId: string, from?: number, to?: number): Generator<ModelUsageEvent> {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM model_usage_event
+         WHERE device_id = @deviceId
+           AND (@from IS NULL OR ts >= @from) AND (@to IS NULL OR ts < @to)
+         ORDER BY event_id ASC`
+      )
+      .iterate({ deviceId, from: from ?? null, to: to ?? null }) as IterableIterator<EventRow>;
+    for (const row of rows) yield fromRow(row);
+  }
+
+  /** 用远端分段整体替换某设备某时间段的事件（分段是该设备该月的权威副本） */
+  replaceDeviceRange(deviceId: string, from: number, to: number, events: ModelUsageEvent[]): void {
+    this.db.transaction(() => {
+      this.db
+        .prepare("DELETE FROM model_usage_event WHERE device_id = ? AND ts >= ? AND ts < ?")
+        .run(deviceId, from, to);
+      for (const event of events) this.insertStmt.run(toRow(event));
+    })();
+  }
+
+  /** 删除某设备的事件；给了时间段只删该段 */
+  deleteDevice(deviceId: string, from?: number, to?: number): number {
+    if (from === undefined || to === undefined) {
+      return this.db.prepare("DELETE FROM model_usage_event WHERE device_id = ?").run(deviceId)
+        .changes;
+    }
+    return this.db
+      .prepare("DELETE FROM model_usage_event WHERE device_id = ? AND ts >= ? AND ts < ?")
+      .run(deviceId, from, to).changes;
+  }
+
+  /** 每台设备的事件数与最近一次调用时间 */
+  deviceStats(): Array<{ deviceId: string; events: number; lastTs: number }> {
+    return this.db
+      .prepare(
+        `SELECT device_id AS deviceId, COUNT(*) AS events, MAX(ts) AS lastTs
+         FROM model_usage_event GROUP BY device_id`
+      )
+      .all() as Array<{ deviceId: string; events: number; lastTs: number }>;
+  }
+
+  /** 按前缀读取 meta（同步标记、设备名等） */
+  metaWithPrefix(prefix: string): Record<string, string> {
+    const rows = this.db
+      .prepare("SELECT key, value FROM usage_meta WHERE key >= ? AND key < ?")
+      .all(prefix, `${prefix}￿`) as Array<{ key: string; value: string }>;
+    return Object.fromEntries(rows.map(row => [row.key, row.value]));
+  }
+
+  deleteMeta(key: string): void {
+    this.db.prepare("DELETE FROM usage_meta WHERE key = ?").run(key);
+  }
+
+  deleteMetaWithPrefix(prefix: string): void {
+    this.db.prepare("DELETE FROM usage_meta WHERE key >= ? AND key < ?").run(prefix, `${prefix}￿`);
   }
 
   list(query: ModelUsageQuery = {}): ModelUsageListResult {

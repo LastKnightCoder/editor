@@ -17,6 +17,7 @@ vi.mock("@/commands", () => ({
   removeFile: vi.fn(),
 }));
 vi.mock("@/utils/sync", () => ({ isSyncConfigured: () => true }));
+vi.mock("@/services/usageSyncRunner", () => ({ runUsageSync: vi.fn(async () => null) }));
 vi.mock("@/app/settingsStore", () => ({
   useSettingsStore: { getState: () => ({ openSettings: vi.fn() }) },
 }));

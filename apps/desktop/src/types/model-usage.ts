@@ -80,7 +80,7 @@ export interface ModelUsageListResult {
 }
 
 /** 图表分组维度 */
-export type ModelUsageDimension = "model" | "feature" | "provider" | "library";
+export type ModelUsageDimension = "model" | "feature" | "provider" | "library" | "device";
 export type ModelUsageBucket = "hour" | "day";
 
 export interface ModelUsageTimeseriesQuery extends ModelUsageQuery {
@@ -105,6 +105,52 @@ export interface ModelUsageTimeseriesPoint {
 
 export interface ModelUsageBreakdownQuery extends ModelUsageQuery {
   groupBy: ModelUsageDimension;
+}
+
+/* ── 跨设备同步：远端 usage/ 目录的文件格式 ── */
+
+/** usage/devices.json：设备登记表（唯一多方写入的文件，只在注册 / 改名 / 移除时写） */
+export interface UsageDeviceRegistry {
+  version: 1;
+  devices: Array<{ deviceId: string; name: string; registeredAt: number }>;
+}
+
+/** usage/<deviceId>/manifest.json：该设备的分段清单，只由该设备自己写（移除设备时写墓碑） */
+export interface UsageDeviceManifest {
+  version: 1;
+  deviceId: string;
+  name: string;
+  updatedAt: number;
+  /** 设备已被移除：其它设备同步时清掉它的本地缓存 */
+  removed?: boolean;
+  segments: UsageSegmentInfo[];
+}
+
+/** 一个分段 = 某设备某个 UTC 月的全部事件（ndjson + gzip），哈希取未压缩内容的 sha256 */
+export interface UsageSegmentInfo {
+  month: string;
+  count: number;
+  hash: string;
+}
+
+export interface UsageLocalSegments {
+  deviceId: string;
+  deviceName: string;
+  segments: UsageSegmentInfo[];
+}
+
+export interface UsageDeviceInfo {
+  deviceId: string;
+  name: string;
+  isSelf: boolean;
+  events: number;
+  lastTs: number | null;
+}
+
+export interface UsageSyncStatus {
+  lastSyncedAt: number | null;
+  lastError: string | null;
+  devices: UsageDeviceInfo[];
 }
 
 export interface ModelUsageBreakdownRow {
