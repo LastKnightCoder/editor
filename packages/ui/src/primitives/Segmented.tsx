@@ -11,6 +11,7 @@
  * press 加深一档、focus-visible 才显 ring（inset 2px 不被容器圆角裁切）。
  * 段数口径 2–5，再多该用 Select；图标段与纯图标段（label 省略，aria-label 必填）
  * 均支持。复合组件 Segmented.Item 须包在 Segmented 内（经 context 取 name/受控值）。
+ * 外框默认 w-fit：放进 flex-col 等拉伸容器也按内容宽排，不会出现框宽段窄的空尾。
  */
 
 import {
@@ -68,7 +69,7 @@ export function SegmentedRoot<Value extends string>({
       role="radiogroup"
       aria-label={label}
       className={cn(
-        "border-line-1 bg-surface rounded-tau-sm inline-flex items-stretch border",
+        "border-line-1 bg-surface rounded-tau-sm inline-flex w-fit items-stretch border",
         size === "md" && "rounded-[9px]",
         className
       )}

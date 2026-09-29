@@ -155,7 +155,6 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
               setError(null);
             }}
             disabled={isUploading}
-            className="w-full"
           >
             <Segmented.Item value="url" icon={Globe} label="远程网址" />
             <Segmented.Item value="local" icon={FileCode} label="本地 HTML" />
