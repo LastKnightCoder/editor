@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { getMarkdown, importFromMarkdown, isMarkdownLikeText } from "../index.ts";
+import { isMarkdownLikeText } from "../index.ts";
+import { bareProcessor } from "./fixtures.ts";
+
+const importFromMarkdown = bareProcessor.importFromMarkdown;
 
 // 原 packages/editor/src/utils/__tests__/markdownImport.test.ts，随导入端合并迁入
 describe("importFromMarkdown 选项与粘贴判定", () => {
@@ -109,12 +112,5 @@ describe("importFromMarkdown 选项与粘贴判定", () => {
     const text = JSON.stringify(content);
     expect(text).toContain("外层脚注");
     expect(text).toContain("内层脚注");
-  });
-
-  it("audio 的 title 导入导出往返保留", () => {
-    const markdown = ':::audio{src="a.mp3" title="播客"}\n:::';
-    const content = importFromMarkdown(markdown);
-    expect(content[0]).toMatchObject({ type: "audio", title: "播客" });
-    expect(getMarkdown(content).trim()).toBe(markdown);
   });
 });

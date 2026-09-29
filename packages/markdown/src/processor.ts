@@ -2,8 +2,6 @@ import type { Descendant } from "slate";
 
 import type { CustomDirectiveHandler, MarkdownCodec } from "./codec.ts";
 import {
-  BUILTIN_INLINE_WRAPPER_DIRECTIVES,
-  BUILTIN_VOID_TYPES,
   importFromMarkdownUsing,
   importFromMarkdownWithPositionsUsing,
   type ImportConfig,
@@ -37,20 +35,21 @@ export interface MarkdownProcessor {
 }
 
 export interface MarkdownProcessorOptions {
-  /** 宿主元素类型的编解码；同 type 覆盖内置 */
+  /** 元素类型的编解码（各扩展的 markdown.ts 提供）；处理器只认这里的类型，其余走 ER-006 兜底 */
   codecs?: MarkdownCodec[];
 }
 
 /**
- * 创建 Markdown 处理器（01 §8.2）：内置元素由框架处理，宿主类型经 codecs 注入。
- * 宿主只定义一次处理器，渲染进程和 Electron 主进程共用，避免两边漂移。
+ * 创建 Markdown 处理器（01 §8.2）：框架不带任何元素类型，全部经 codecs 注入，
+ * 宿主把扩展包的 codec 列表（如 @tau/editor/markdown）与自己的业务 codec 合成一次，
+ * 渲染进程和 Electron 主进程共用，避免两边漂移。
  */
 export function createMarkdownProcessor(options: MarkdownProcessorOptions = {}): MarkdownProcessor {
   const codecs = options.codecs ?? [];
 
   const directives: Record<string, CustomDirectiveHandler> = {};
-  const voidTypes = new Set(BUILTIN_VOID_TYPES);
-  const inlineWrapperDirectives = new Set(BUILTIN_INLINE_WRAPPER_DIRECTIVES);
+  const voidTypes = new Set<string>();
+  const inlineWrapperDirectives = new Set<string>();
   for (const codec of codecs) {
     Object.assign(directives, codec.directives);
     if (codec.isVoid) voidTypes.add(codec.type);

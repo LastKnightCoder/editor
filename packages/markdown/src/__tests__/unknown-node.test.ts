@@ -2,13 +2,17 @@
 import { describe, expect, it } from "vitest";
 import type { Descendant } from "slate";
 
-import {
-  createMarkdownProcessor,
+import { createMarkdownProcessor } from "../index.ts";
+import { paragraphCodec } from "./fixtures.ts";
+
+// 兜底只取决于「没有 codec」；段落是正常文档的外壳，给它 codec，
+// tabs / comment / whiteboard 这些没有 codec 的才走兜底
+const {
   getMarkdown,
   getMarkdownWithPositions,
   importFromMarkdown,
   importFromMarkdownWithPositions,
-} from "../index.ts";
+} = createMarkdownProcessor({ codecs: [paragraphCodec] });
 
 const text = (value: string) => ({ type: "formatted", text: value });
 const paragraph = (...children: unknown[]) => ({ type: "paragraph", children });

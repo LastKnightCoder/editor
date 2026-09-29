@@ -13,8 +13,12 @@ import {
  * 往返基准（docs/editor-refactor 02 P5）：夹具覆盖内置元素与 desktop 业务元素，
  * 快照在 @tau/markdown 拆出业务类型之前生成；之后 desktop 的输出（含两种位置映射）必须与之一致。
  */
-// jsdom 环境下 import.meta.url 不是 file: 协议，用 __dirname 定位夹具
-const fixture = readFileSync(path.join(__dirname, "__fixtures__/markdown-roundtrip.md"), "utf8");
+// jsdom 环境下 import.meta.url 不是 file: 协议，用 __dirname 定位夹具；
+// 统一 LF：core.autocrlf=true 的检出会把夹具变成 CRLF，\r 会进文本节点、污染位置映射快照
+const fixture = readFileSync(
+  path.join(__dirname, "__fixtures__/markdown-roundtrip.md"),
+  "utf8"
+).replace(/\r\n/g, "\n");
 
 // 图片等元素导入时生成随机 uuid，快照前抹平
 const stable = (value: unknown) =>
