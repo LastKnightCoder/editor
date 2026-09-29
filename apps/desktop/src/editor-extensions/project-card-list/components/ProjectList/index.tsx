@@ -6,8 +6,6 @@ import ItemCard from "@/editor-extensions/components/ItemCard";
 import { getProjectItemsByIds, getProjectItemById } from "@/commands";
 import { ProjectItem } from "@/types";
 
-import styles from "./index.module.less";
-
 interface IProps {
   projectItemId: number;
   onClick: (item: ProjectItem, index: number) => void;
@@ -48,7 +46,7 @@ const ProjectList = (props: IProps) => {
   }
 
   return (
-    <div className={styles.list}>
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(15em,1fr))] gap-[0.75em]">
       {items.map((item, i) => (
         <ItemCard key={item.id} item={item} onClick={() => onClick(item, i)} />
       ))}
