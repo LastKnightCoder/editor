@@ -1,6 +1,5 @@
 import React from "react";
 import { useSlate, useReadOnly } from "slate-react";
-import { Trash2 } from "lucide-react";
 import { cn } from "@tau/ui";
 
 import { type DivideLineElement } from "../../../types";
@@ -15,26 +14,7 @@ import {
 
 import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
 import EditorContextMenu from "../../../../components/EditorContextMenu";
-import { deleteNode } from "../../../../utils/nodeOperations";
-import type { BuildMenuParams } from "../../../../components/EditorContextMenu/types";
 import type { ElementRenderProps } from "../../../../api";
-
-/**
- * 构建分割线菜单项
- */
-function buildDivideLineMenuItems(params: BuildMenuParams<DivideLineElement>) {
-  const { editor, path } = params;
-
-  return [
-    {
-      key: "delete",
-      label: "删除",
-      icon: <Trash2 size={16} />,
-      danger: true,
-      onSelect: () => deleteNode(editor, path),
-    },
-  ];
-}
 
 const DivideLineElement: React.FC<ElementRenderProps<DivideLineElement>> = props => {
   const { attributes, children, element } = props;
@@ -45,12 +25,7 @@ const DivideLineElement: React.FC<ElementRenderProps<DivideLineElement>> = props
     element,
   });
 
-  // 菜单功能
-  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
-    element,
-    editor,
-    buildMenuItems: buildDivideLineMenuItems,
-  });
+  const { menuProps, dragHandlerProps } = useDragHandlerMenu({ element, editor });
 
   return (
     <div

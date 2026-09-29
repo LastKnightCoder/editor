@@ -24,8 +24,7 @@ import AddParagraph from "../../../../components/AddParagraph";
 import { useImagesOverviewStore } from "../../../../stores";
 import type { ImageElement } from "../../../types";
 import EditorContextMenu from "../../../../components/EditorContextMenu";
-import { imageActionsMap } from "../../index";
-import { buildImageMenuItems } from "../../utils/menuItems";
+import { imageActionsMap } from "../../utils/actionsMap";
 import { getImageAppearanceStyle } from "../../utils/appearance";
 
 import { cn } from "@tau/ui";
@@ -94,11 +93,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
   const descRef = useRef<EditTextHandle | null>(null);
   const isLast = useIsLastElement(element);
 
-  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
-    element,
-    editor,
-    buildMenuItems: params => buildImageMenuItems(params, messageApi, appearance),
-  });
+  const { menuProps, dragHandlerProps } = useDragHandlerMenu({ element, editor });
 
   const { showImageOverview } = useImagesOverviewStore(state => ({
     showImageOverview: state.showImageOverview,

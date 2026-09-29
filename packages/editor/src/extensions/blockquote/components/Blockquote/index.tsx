@@ -5,9 +5,7 @@ import type { BlockquoteElement } from "../../../types";
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
 import EditorContextMenu from "../../../../components/EditorContextMenu";
-import { buildBlockquoteMenuItems } from "../../utils/menuItems";
 import { BLOCK_DRAG_GROUP, DragHandle } from "../../../../components/BlockDrag";
-import { useNotifier } from "../../../../services/hooks";
 import useIsLastElement from "../../../../hooks/useIsLastElement";
 import AddParagraph from "../../../../components/AddParagraph";
 
@@ -21,17 +19,12 @@ const Blockquote: React.FC<PropsWithChildren<IBlockQuoteProps>> = props => {
 
   const editor = useSlate();
   const readOnly = useReadOnly();
-  const message = useNotifier();
   const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } = useDragAndDrop({
     element,
   });
   const isLast = useIsLastElement(element);
 
-  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
-    element,
-    editor,
-    buildMenuItems: params => buildBlockquoteMenuItems(params, message),
-  });
+  const { menuProps, dragHandlerProps } = useDragHandlerMenu({ element, editor });
 
   return (
     <div

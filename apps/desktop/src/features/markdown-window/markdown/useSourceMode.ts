@@ -19,7 +19,7 @@ import { ReactEditor } from "slate-react";
 import type { Editor as CodeMirrorEditor } from "codemirror";
 import { useMemoizedFn } from "ahooks";
 import type { EditorRef } from "@tau/editor/src";
-import { codeBlockMap } from "@tau/editor/src/extensions/code-block";
+import { codeBlockMap } from "@tau/editor/src/extensions/code-block/utils/controllerMaps";
 import { getMarkdownWithPositions, importFromMarkdownWithPositions } from "@/utils/markdown";
 
 type SlatePoint = { path: number[]; offset: number };

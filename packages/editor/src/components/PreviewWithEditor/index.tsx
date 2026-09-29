@@ -9,7 +9,7 @@ import { PortalToBody } from "@tau/shared";
 import { Transforms, Path, Element, Node } from "slate";
 import isHotkey from "is-hotkey";
 import { MdFullscreen, MdFullscreenExit } from "react-icons/md";
-import { Edit3, Maximize2, Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 
 import useTheme from "../../hooks/useTheme";
 
@@ -20,6 +20,7 @@ import If from "../If";
 import AddParagraph, { AddParagraphRef } from "../AddParagraph";
 import EditorContextMenu from "../EditorContextMenu";
 import { BLOCK_DRAG_GROUP, DragHandle, DropIndicator, dimWhileDragging } from "../BlockDrag";
+import { previewActionsMap } from "./menu";
 
 import { CustomElement } from "../../types";
 import type { BuildMenuParams, ContextMenuItem } from "../EditorContextMenu/types";
@@ -71,40 +72,24 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
   const { menuProps, dragHandlerProps } = useDragHandlerMenu({
     element,
     editor: slateEditor,
-    buildMenuItems: ({ path }) => {
-      const extraItems =
-        extraMenuItemsBuilder?.({
-          element,
-          editor: slateEditor,
-          path,
-        }) ?? [];
-
-      return [
-        {
-          key: "edit",
-          label: "编辑",
-          icon: <Edit3 size={16} />,
-          onSelect: () => setEditing(true),
-        },
-        {
-          key: "fullscreen",
-          label: "全屏",
-          icon: <Maximize2 size={16} />,
-          onSelect: () => setIsFullscreen(true),
-        },
-        ...extraItems,
-        {
-          key: "delete",
-          label: "删除",
-          icon: <Trash2 size={16} />,
-          danger: true,
-          onSelect: () => {
-            Transforms.removeNodes(slateEditor, { at: path });
-          },
-        },
-      ];
-    },
+    extraItems: ({ path }) =>
+      extraMenuItemsBuilder?.({
+        element,
+        editor: slateEditor,
+        path,
+      }) ?? [],
   });
+
+  // 「编辑 / 全屏」菜单命令（tau.preview.*）从这里取动作
+  useEffect(() => {
+    previewActionsMap.set(element, {
+      edit: () => setEditing(true),
+      fullscreen: () => setIsFullscreen(true),
+    });
+    return () => {
+      previewActionsMap.delete(element);
+    };
+  }, [element]);
 
   useClickAway(() => {
     if (editing && !isFullscreen) {

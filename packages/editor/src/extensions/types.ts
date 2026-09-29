@@ -3,6 +3,8 @@ import type { RenderElementProps } from "slate-react";
 import type { Editor } from "slate";
 import type { Plugin } from "../utils";
 import type { IBlockPanelListItem, IHotKeyConfig, IConfigItem } from "../types/index";
+import type { EditorCommand } from "../api/command";
+import type { EditorMenuContribution } from "../api/menu";
 
 export * from "../types/index";
 
@@ -14,6 +16,13 @@ export default interface IExtension {
   /** editor 由 BlockPanel 在装配菜单时传入（可据此动态构建子项） */
   getBlockPanelItems: (editor?: Editor) => IBlockPanelListItem[];
   getHoveringBarElements: () => IConfigItem[];
+  /** 菜单等入口引用的命令（过渡：等扩展迁 v2 时搬进 `defineExtension` 的 `commands`） */
+  commands?: EditorCommand[];
+  /**
+   * 手柄/右键菜单的特有条目（过渡：等扩展迁 v2 时搬进 `defineExtension` 的 `menu`）。
+   * 公共条目（删除/复制/转换等）由内核默认菜单扩展贡献，不在这里写。
+   */
+  menuItems?: EditorMenuContribution;
 }
 
 export interface IExtensionBaseProps<T> {

@@ -3,8 +3,6 @@ import { Editor, Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useSlate, useReadOnly } from "slate-react";
 import { cn } from "@tau/ui";
 
-import { useNotifier } from "../../../../services/hooks";
-
 import type { ParagraphElement } from "../../../types";
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
@@ -15,7 +13,6 @@ import {
   dimWhileDragging,
   dropLineClass,
 } from "../../../../components/BlockDrag";
-import { buildParagraphMenuItems } from "../../utils/menuItems";
 
 import { useMemoizedFn } from "ahooks";
 import { findPathSafely } from "../../../../utils";
@@ -49,19 +46,13 @@ const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = memo(props
       return false;
     }
   })();
-  const message = useNotifier();
-
   const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } = useDragAndDrop({
     element,
     disableDrag,
   });
 
-  // 菜单功能
-  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
-    element,
-    editor,
-    buildMenuItems: params => buildParagraphMenuItems(params, message),
-  });
+  // 菜单条目由扩展声明与内核默认菜单贡献（01 §5.4）
+  const { menuProps, dragHandlerProps } = useDragHandlerMenu({ element, editor });
 
   const handleFocus = useMemoizedFn((start = true) => {
     return (e: any) => {

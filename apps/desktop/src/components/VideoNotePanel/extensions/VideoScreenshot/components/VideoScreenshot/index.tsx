@@ -1,7 +1,6 @@
 import React, { PropsWithChildren } from "react";
 import { ReactEditor, RenderElementProps, useSlateStatic, useReadOnly } from "slate-react";
 import classnames from "classnames";
-import { DeleteOutlined } from "@ant-design/icons";
 import LocalImage from "@/components/LocalImage";
 import useTheme from "@/hooks/useTheme";
 import { VideoScreenshotElement } from "../../";
@@ -12,7 +11,7 @@ import {
   EditorContextMenu,
 } from "@tau/editor/src";
 import { MdDragIndicator } from "react-icons/md";
-import { Editor, Element, Path, Transforms, type Path as SlatePath } from "slate";
+import { Editor, Element, Path, Transforms } from "slate";
 import EditText from "@/components/EditText";
 
 interface VideoScreenshotProps {
@@ -37,21 +36,9 @@ const VideoScreenshot: React.FC<PropsWithChildren<VideoScreenshotProps>> = ({
     element: element as unknown as Element,
   });
 
-  // Menu for drag handler
   const { menuProps, dragHandlerProps } = useDragHandlerMenu({
     element: element as unknown as Element,
     editor,
-    buildMenuItems: ({ path }: { path: SlatePath }) => [
-      {
-        key: "delete",
-        label: "删除截图",
-        icon: <DeleteOutlined />,
-        danger: true,
-        onSelect: () => {
-          Transforms.removeNodes(editor, { at: path });
-        },
-      },
-    ],
   });
 
   const handleCaptionChange = (value: string) => {

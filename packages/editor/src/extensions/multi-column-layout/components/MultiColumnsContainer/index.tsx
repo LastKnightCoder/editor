@@ -1,14 +1,11 @@
 import React, { useRef, useMemo, useCallback, useState, useEffect } from "react";
 import { RenderElementProps, useReadOnly, useSlate, ReactEditor } from "slate-react";
 import { Transforms } from "slate";
-import { Trash2 } from "lucide-react";
 import AddParagraph from "../../../../components/AddParagraph";
 import type { MultiColumnContainerElement } from "../../../types";
 import useIsLastElement from "../../../../hooks/useIsLastElement";
 import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
 import EditorContextMenu from "../../../../components/EditorContextMenu";
-import type { BuildMenuParams } from "../../../../components/EditorContextMenu/types";
-import { deleteNode } from "../../../../utils/nodeOperations";
 
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 import { cn } from "@tau/ui";
@@ -24,20 +21,6 @@ import { ColumnWidthsContext } from "../../context/ColumnWidthsContext";
 interface IMultiColumnsContainerProps {
   attributes: RenderElementProps["attributes"];
   element: MultiColumnContainerElement;
-}
-
-function buildMultiColumnsMenuItems(params: BuildMenuParams<MultiColumnContainerElement>) {
-  const { editor, path } = params;
-
-  return [
-    {
-      key: "delete",
-      label: "删除",
-      icon: <Trash2 size={16} />,
-      danger: true,
-      onSelect: () => deleteNode(editor, path),
-    },
-  ];
 }
 
 const MultiColumnsContainer: React.FC<
@@ -58,11 +41,7 @@ const MultiColumnsContainer: React.FC<
     element,
   });
 
-  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
-    element,
-    editor,
-    buildMenuItems: buildMultiColumnsMenuItems,
-  });
+  const { menuProps, dragHandlerProps } = useDragHandlerMenu({ element, editor });
 
   const columnCount = element.children.length;
   const { ref: attributesRef, ...restAttributes } =

@@ -25,6 +25,12 @@ export {
   type CommandDispatcher,
   type CommandGuard,
 } from "./command";
+export {
+  type EditorMenuEntry,
+  type EditorMenuContext,
+  type EditorMenuContribution,
+  type MenuValue,
+} from "./menu";
 
 // 服务：扩展只经服务访问宿主能力，不碰宿主全局对象
 export {

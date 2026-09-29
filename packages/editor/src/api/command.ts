@@ -1,4 +1,4 @@
-import type { Editor } from "slate";
+import type { Editor, Element, Path } from "slate";
 
 /**
  * 命令注册表（01 §5.1）：命令是编辑器的唯一动词层——热键、菜单、块面板、宿主
@@ -9,6 +9,10 @@ export interface EditorCommandContext {
   event?: React.KeyboardEvent<HTMLDivElement>;
   /** 调用方传参（如待插入的类型） */
   payload?: unknown;
+  /** 入口针对的目标元素（块菜单打开的块）；热键路径没有 */
+  element?: Element;
+  /** 目标元素的路径（与 element 成对出现），命令省一次 ReactEditor.findPath */
+  path?: Path;
 }
 
 export interface EditorCommand {
@@ -97,5 +101,5 @@ export function createCommandDispatcher(
 
 /** 程序化执行命令的句柄，挂在 editor 实例上（热键、菜单与宿主统一入口） */
 export interface EditorCommandsHandle {
-  execute(id: string, payload?: unknown): boolean;
+  execute(id: string, payload?: unknown, element?: Element, path?: Path): boolean;
 }

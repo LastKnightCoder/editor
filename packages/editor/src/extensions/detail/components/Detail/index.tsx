@@ -8,7 +8,6 @@ import useIsLastElement from "../../../../hooks/useIsLastElement";
 import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
 
 import { CaretRight } from "../../../../ui/CaretRight";
-import { useNotifier } from "../../../../services/hooks";
 import {
   BLOCK_DRAG_GROUP,
   DragHandle,
@@ -20,7 +19,6 @@ import type { DetailElement } from "../../../types";
 
 import AddParagraph from "../../../../components/AddParagraph";
 import EditorContextMenu from "../../../../components/EditorContextMenu";
-import { buildDetailMenuItems } from "../../utils/menuItems";
 import { registerBlockNavigation, unregisterBlockNavigation } from "../../../../utils";
 
 interface ICollapseElementProps {
@@ -42,13 +40,7 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = props =
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
     element,
   });
-  const message = useNotifier();
-
-  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
-    element,
-    editor,
-    buildMenuItems: params => buildDetailMenuItems(params, message),
-  });
+  const { menuProps, dragHandlerProps } = useDragHandlerMenu({ element, editor });
 
   useEffect(() => {
     setShowContent(element.open || false);

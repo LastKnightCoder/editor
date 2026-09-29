@@ -7,20 +7,21 @@ import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
 import { RenderElementProps } from "slate-react";
 
 import blockPanelItems from "./block-panel-items";
+import { chartCommands, chartMenuItems } from "./utils/menu";
 const ChartBlock = loadable(() => import("./components/ChartBlock"));
 
 class ChartExtension extends Base implements IExtension {
   type = "chart";
+
+  override commands = chartCommands;
+  override menuItems = chartMenuItems;
 
   override getBlockPanelItems() {
     return blockPanelItems;
   }
 
   override getPlugins() {
-    return [
-      createBlockElementPlugin(this.type),
-      createVoidElementPlugin(this.type),
-    ];
+    return [createBlockElementPlugin(this.type), createVoidElementPlugin(this.type)];
   }
 
   render(props: RenderElementProps) {

@@ -34,3 +34,11 @@ export function useImageAppearance(
   }, [option]);
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
+
+/** 非 React 场景（如菜单工厂）的即时读取，不订阅变化 */
+export function readImageAppearance(
+  option: ImageAppearanceOption | undefined
+): ImageAppearanceConfig | undefined {
+  if (!option) return undefined;
+  return isSource(option) ? option.get() : option;
+}

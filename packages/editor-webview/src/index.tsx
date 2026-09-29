@@ -5,9 +5,13 @@ import type {} from "./augmentations";
 
 import WebviewComponent from "./WebviewComponent";
 import blockPanelItems from "./block-panel-items";
+import { webviewCommands, webviewMenuItems } from "./menu";
 
 export class WebviewExtension extends Base implements IExtension {
   type = "webview";
+
+  override commands = webviewCommands;
+  override menuItems = webviewMenuItems;
 
   override getBlockPanelItems() {
     return blockPanelItems;
