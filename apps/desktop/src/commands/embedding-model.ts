@@ -103,3 +103,62 @@ export function onEmbeddingDownloadProgress(
   on("embedding-model-download-progress", handler);
   return () => off("embedding-model-download-progress", handler);
 }
+
+/* ── 主内容向量索引状态（卡片 / 文章 / 项目文档 / 日记） ── */
+
+export type EmbeddingIndexContentType = "card" | "article" | "project-item" | "diary-daily";
+
+export interface EmbeddingIndexCounts {
+  total: number;
+  indexed: number;
+  outdated: number;
+  unindexed: number;
+}
+
+export interface EmbeddingIndexStats extends EmbeddingIndexCounts {
+  byType: Record<EmbeddingIndexContentType, EmbeddingIndexCounts>;
+}
+
+export interface EmbeddingIndexProgress {
+  mainDbName: string;
+  reason: string;
+  phase: "collecting" | "indexing" | "done" | "failed" | "aborted";
+  queued: number;
+  processed: number;
+  indexed: number;
+  failed: number;
+  startedAt: number;
+  finishedAt?: number;
+  error?: string;
+}
+
+export interface EmbeddingIndexStatus {
+  mainDbName: string;
+  configValid: boolean;
+  providerType: "local_python" | "remote_openai" | null;
+  model: string | null;
+  autoIndex: boolean;
+  stats: EmbeddingIndexStats | null;
+  running: EmbeddingIndexProgress | null;
+  lastRun: EmbeddingIndexProgress | null;
+  rebuildState: "pending" | "building" | "ready" | "failed" | null;
+}
+
+const invokeEmbeddingIndex = <T = any>(channel: string, ...args: any[]): Promise<T> =>
+  withModule("embedding-index-orchestrator", () => invoke<T>(channel, ...args));
+
+export async function getEmbeddingIndexStatus(): Promise<EmbeddingIndexStatus> {
+  return invokeEmbeddingIndex("embedding-index-get-status");
+}
+
+export async function startEmbeddingIndex(): Promise<{ started: boolean; error?: string }> {
+  return invokeEmbeddingIndex("embedding-index-start-manual");
+}
+
+export function onEmbeddingIndexProgress(
+  callback: (progress: EmbeddingIndexProgress) => void
+): () => void {
+  const handler = (_event: unknown, progress: EmbeddingIndexProgress) => callback(progress);
+  on("embedding-index-progress", handler);
+  return () => off("embedding-index-progress", handler);
+}
