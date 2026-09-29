@@ -16,9 +16,16 @@ describe("Node 原生加载 @tau/markdown", () => {
         codecs: [
           {
             type: "header",
+            importNode: node =>
+              node.type === "heading" ? { type: "header", level: node.depth, children: [] } : null,
             serializer: { isBlock: true, toMarkdown: (el, children) => "#".repeat(el.level || 1) + " " + children },
           },
-          { type: "paragraph", serializer: { isBlock: true, toMarkdown: (_el, children) => children } },
+          {
+            type: "paragraph",
+            importNode: node =>
+              node.type === "paragraph" ? { type: "paragraph", children: [] } : null,
+            serializer: { isBlock: true, toMarkdown: (_el, children) => children },
+          },
         ],
       });
       const value = md.importFromMarkdown("# 标题\\n\\n**粗体** 与 \`code\`");

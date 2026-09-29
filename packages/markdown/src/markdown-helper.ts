@@ -12,10 +12,12 @@ const isZeroWidthOnlyText = (text: string): boolean => {
   return ZERO_WIDTH_ONLY_REGEX.test(text);
 };
 
-/** 处理器级导出配置：注册表 + void 类型表（内置 + 宿主 codec） */
+/** 处理器级导出配置：注册表 + void 类型表 + 子元素接续表（内置 + 宿主 codec） */
 export interface ExportConfig {
   registry: MarkdownSerializerRegistry;
   voidTypes: ReadonlySet<string>;
+  /** 元素类型的子块级接续符（列表 / 表格为 "\n"，缺省 "\n\n"） */
+  childSeparators: ReadonlyMap<string, "\n" | "\n\n">;
 }
 
 /** 当前导出调用的配置：随公开入口入栈 / 出栈（同导入端的解析上下文） */
@@ -39,6 +41,10 @@ const withExportConfig = <T>(config: ExportConfig, run: () => T): T => {
 };
 
 const registry = (): MarkdownSerializerRegistry => currentExportConfig().registry;
+
+/** 子块级接续符（codec 的 childSeparator 声明，缺省 "\n\n"） */
+const joinsChildrenWithSingleNewline = (type: string): boolean =>
+  currentExportConfig().childSeparators.get(type) === "\n";
 
 /** codec 的序列化器登记脚注（如 annotation 的 [^n]），由导出入口统一追加到文末 */
 export const addExportFootnote = (content: string): number => registry().addFootnote(content);
@@ -118,7 +124,7 @@ export const elementToMarkdownUsing = (
 const elementToMarkdown = (element: CustomElement, parentElement: CustomElement | null): string => {
   if (isUnknownElement(element)) return serializeUnknown(element, parentElement);
   const { type, children } = element;
-  const isList = type === "bulleted-list" || type === "numbered-list" || type === "check-list";
+  const singleNewlineJoin = joinsChildrenWithSingleNewline(type);
 
   const childrenParts: string[] = [];
 
@@ -133,7 +139,7 @@ const elementToMarkdown = (element: CustomElement, parentElement: CustomElement 
     if (isBlockElement(node, element)) {
       if (isLast) {
         tail = "";
-      } else if (isList) {
+      } else if (singleNewlineJoin) {
         tail = "\n";
       } else {
         tail = "\n\n";
@@ -359,8 +365,7 @@ function serializeElementWithTracking(
   }
 
   // 3. 非 void 元素：递归处理子节点
-  const isList = type === "bulleted-list" || type === "numbered-list" || type === "check-list";
-  const isTable = type === "table";
+  const singleNewlineJoin = joinsChildrenWithSingleNewline(type);
 
   const childrenParts: string[] = [];
   const childContext = { ...context };
@@ -426,9 +431,7 @@ function serializeElementWithTracking(
       if (isBlockElement(node, element)) {
         if (isLast) {
           tail = "";
-        } else if (isList) {
-          tail = "\n";
-        } else if (isTable) {
+        } else if (singleNewlineJoin) {
           tail = "\n";
         } else {
           tail = "\n\n";

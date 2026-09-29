@@ -499,6 +499,67 @@ describe("源码 ↔ 富文本光标映射", () => {
   });
 });
 
+// 原 packages/markdown 框架测试里依赖完整方言的用例，随导入端认领 codec 化迁入
+describe("标准语法导入（codec 认领）", () => {
+  it("标题与列表导入为结构化节点", () => {
+    const result = md.importFromMarkdown("# 标题\n\n- 第一项\n- 第二项");
+    expect(result[0]).toMatchObject({ type: "header", level: 1 });
+    expect(result[1]).toMatchObject({ type: "bulleted-list" });
+  });
+
+  it("保留链接等行内结构", () => {
+    const result = md.importFromMarkdown("[OpenAI](https://openai.com)");
+    const paragraph = result[0] as { children?: unknown[] };
+    expect(result[0]).toMatchObject({ type: "paragraph" });
+    expect(paragraph.children?.[0]).toMatchObject({
+      type: "link",
+      url: "https://openai.com",
+    });
+  });
+
+  it("customDirective handler 内再次导入不会串用外层的脚注上下文", () => {
+    const importFromMarkdown = md.importFromMarkdown;
+    const result = importFromMarkdown("外层[^a]\n\n:::wrap\n:::\n\n[^a]: 外层脚注", [], {
+      customDirectives: {
+        wrap: () => {
+          const inner = importFromMarkdown("内层[^a]\n\n[^a]: 内层脚注");
+          return inner[0];
+        },
+      },
+    });
+    const text = JSON.stringify(result);
+    expect(text).toContain("外层脚注");
+    expect(text).toContain("内层脚注");
+  });
+});
+
+describe("代码块语言归一（原 markdown-code-language-normalization）", () => {
+  const importBlock = (fence: string) =>
+    md.importFromMarkdown("```" + fence + "\nconsole.log(1)\n```")[0] as {
+      type: string;
+      language: string;
+    };
+
+  it("js 与 javascript 归一为 JavaScript", () => {
+    expect(importBlock("js")).toMatchObject({ type: "code-block", language: "JavaScript" });
+    expect(importBlock("javascript")).toMatchObject({ type: "code-block", language: "JavaScript" });
+  });
+
+  it("html 归一为 HTML", () => {
+    expect(importBlock("html")).toMatchObject({ type: "code-block", language: "HTML" });
+  });
+
+  it("常见语言映射", () => {
+    expect(importBlock("ts").language).toBe("TypeScript");
+    expect(importBlock("py").language).toBe("Python");
+    expect(importBlock("md").language).toBe("Markdown");
+  });
+
+  it("未命中字典保留原始语言", () => {
+    expect(importBlock("mylang").language).toBe("mylang");
+  });
+});
+
 describe("Node 原生加载 @tau/editor/markdown", () => {
   it("headless 入口不带 DOM 与 React", () => {
     // 按相对路径导入而不是包名：@tau/editor 没有 exports 字段，裸 Node 的经典
@@ -532,5 +593,40 @@ describe("Node 原生加载 @tau/editor/markdown", () => {
       "callout",
       ':::tip{ title="提示"}\n内容\n:::',
     ]);
+  });
+});
+
+describe("插件围栏能力（walker 去类型化）", () => {
+  const myDiagramCodec = {
+    type: "my-diagram",
+    isVoid: true,
+    fence: { language: "mylang", property: "source" },
+    serializer: {
+      isBlock: true,
+      toMarkdown: (element: any) => "```mylang\n" + `${element.source}` + "\n```",
+    },
+  } as const;
+
+  it("第三方 codec 声明 fence 即可接入新围栏语言，导入导出往返", () => {
+    const plugin = createMarkdownProcessor({
+      codecs: [...editorMarkdownCodecs, myDiagramCodec],
+    });
+    const markdown = "```mylang\ndiagram A -> B\n```";
+    const value = plugin.importFromMarkdown(markdown);
+    expect(value[0]).toMatchObject({ type: "my-diagram", source: "diagram A -> B" });
+    expect(plugin.getMarkdown(value).trim()).toBe(markdown);
+  });
+
+  it("同一围栏语言被两个 codec 认领时建处理器直接报错", () => {
+    expect(() =>
+      createMarkdownProcessor({
+        codecs: [myDiagramCodec, { ...myDiagramCodec, type: "another-diagram" } as never],
+      })
+    ).toThrow(/mylang/);
+  });
+
+  it("没有声明 fence 的处理器里，该围栏落回 code-block 兜底", () => {
+    const value = md.importFromMarkdown("```mylang\ndiagram A -> B\n```");
+    expect(value[0]).toMatchObject({ type: "code-block", language: "mylang" });
   });
 });

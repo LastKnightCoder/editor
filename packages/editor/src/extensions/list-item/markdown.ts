@@ -1,7 +1,31 @@
-import type { MarkdownCodec } from "@tau/markdown";
+import type { Descendant } from "slate";
+import type { MarkdownCodec, MarkdownImportNode } from "@tau/markdown";
+
+/** 列表图标用自定义协议图片表达（emoji: / list-icon:），识别后从段落里移除那张图 */
+const extractIcon = (node: MarkdownImportNode) => {
+  const firstChild = node.children?.[0];
+  if (firstChild?.type !== "paragraph") return {};
+  const firstNode = firstChild.children?.[0];
+  if (firstNode?.type !== "image") return {};
+
+  const url = firstNode.url || "";
+  if (url.startsWith("emoji:") || url.startsWith("emoji://")) {
+    firstChild.children?.shift();
+    return { icon: url.replace(/^emoji:\/?\/?/, ""), iconType: "emoji" as const };
+  }
+  if (url.startsWith("list-icon:") || url.startsWith("list-icon://")) {
+    firstChild.children?.shift();
+    return { iconUrl: url.replace(/^list-icon:\/?\/?/, ""), iconType: "image" as const };
+  }
+  return {};
+};
 
 export const listItemCodec: MarkdownCodec = {
   type: "list-item",
+  importNode: node =>
+    node.type === "listItem"
+      ? ({ type: "list-item", children: [], ...extractIcon(node) } as Descendant)
+      : null,
   serializer: {
     isBlock: true,
     toMarkdown: (element, children, parentElement) => {

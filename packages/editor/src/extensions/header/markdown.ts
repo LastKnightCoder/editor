@@ -1,7 +1,12 @@
+import type { Descendant } from "slate";
 import type { MarkdownCodec } from "@tau/markdown";
 
 export const headerCodec: MarkdownCodec = {
   type: "header",
+  importNode: node =>
+    node.type === "heading"
+      ? ({ type: "header", level: node.depth, children: [] } as Descendant)
+      : null,
   serializer: {
     isBlock: true,
     toMarkdown: (element, childrenStr) => `${"#".repeat(element.level || 1)} ${childrenStr}`,
