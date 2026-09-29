@@ -14,6 +14,7 @@ import {
 } from "@/commands";
 import { on, off } from "@/electron";
 import { isSyncConfigured } from "@/utils/sync";
+import { runUsageSync } from "@/services/usageSyncRunner";
 
 type ProgressState = {
   open: boolean;
@@ -207,6 +208,10 @@ const AutoSyncManager = () => {
     }
     uploadInProgressRef.current = false;
     stopFakeUploadProgress();
+    // 用量同步搭车但不参与退出等待：退出时主进程最多等 8 秒，用量宁可留到下次启动
+    if (success && !pendingCloseRef.current && !pendingQuitRef.current) {
+      void runUsageSync();
+    }
     if (success) {
       setUploadState(prev => ({
         ...prev,
@@ -341,6 +346,8 @@ const AutoSyncManager = () => {
       }
     };
 
+    // 用量同步独立于库快照：启动时后台跑一轮（下载新库会重载窗口，重载后再跑一次也无妨）
+    void runUsageSync();
     checkRemoteVersion();
 
     return () => {

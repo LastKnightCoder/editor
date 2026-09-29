@@ -26,6 +26,7 @@ import { Button, ConfirmDialog, Input, Panel, Segmented, toast } from "@tau/ui";
 import useSettingStore, { ESync } from "@/stores/useSettingStore";
 import { download, getOriginDatabaseInfo, upload } from "@/commands";
 import { isSyncConfigured } from "@/utils/sync";
+import { runUsageSync } from "@/services/usageSyncRunner";
 import { useSettingsStore } from "@/app/settingsStore";
 import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup } from "../components/SettingsGroup";
@@ -115,6 +116,8 @@ export function SyncSection() {
       if (ok) {
         queryClient.setQueryData(["settings", "sync", "remote-version"], localVersion + 1);
         toast.success("同步成功");
+        // 用量记录搭车同步，后台跑、失败只记在用量统计页
+        void runUsageSync();
       } else {
         toast.error("同步失败");
       }

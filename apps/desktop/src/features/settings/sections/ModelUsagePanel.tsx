@@ -25,6 +25,7 @@ import { SettingsGroup } from "../components/SettingsGroup";
 import { StatusChip } from "../components/StatusChip";
 import { ROW_DIVIDER } from "../components/rowDivider";
 import { UsageChart, useUsageChartPalette, type UsageChartPalette } from "../components/UsageChart";
+import { UsageDevicesGroup } from "./UsageDevicesGroup";
 import {
   OTHER_KEY,
   RANGE_LABELS,
@@ -51,7 +52,7 @@ const METRIC_LABELS: Record<TrendMetric, string> = {
 };
 
 /** 界面提供的分组维度；主进程另支持按数据库分组，多数人只有一个库，界面不暴露 */
-type ChartDimension = Exclude<ModelUsageDimension, "library">;
+type ChartDimension = Exclude<ModelUsageDimension, "library" | "device">;
 
 const DIMENSION_LABELS: Record<ChartDimension, string> = {
   model: "模型",
@@ -190,6 +191,7 @@ function UsageOverview({ range, refreshToken }: { range: UsageRange; refreshToke
           <BreakdownGroup range={range} refreshToken={refreshToken} />
         </>
       )}
+      <UsageDevicesGroup refreshToken={refreshToken} />
     </>
   );
 }

@@ -8,7 +8,9 @@ import type {
   ModelUsageSummary,
   ModelUsageTimeseriesPoint,
   ModelUsageTimeseriesQuery,
+  UsageSyncStatus,
 } from "@/types/model-usage";
+import type { UsageSyncBackend } from "@/services/usageSync";
 
 const invokeModelUsage = <T = any>(channel: string, ...args: any[]): Promise<T> =>
   withModule("model-usage", () => invoke<T>(channel, ...args));
@@ -30,6 +32,33 @@ export async function getModelUsageTimeseries(
   query: ModelUsageTimeseriesQuery
 ): Promise<ModelUsageTimeseriesPoint[]> {
   return invokeModelUsage("model-usage:timeseries", query);
+}
+
+/* ── 跨设备同步（主进程侧的打包 / 导入 / 记账） ── */
+
+export const usageSyncBackend: UsageSyncBackend = {
+  localSegments: () => invokeModelUsage("model-usage:sync-local-segments"),
+  exportSegment: month => invokeModelUsage("model-usage:sync-export-segment", { month }),
+  importSegment: input => invokeModelUsage("model-usage:sync-import-segment", input),
+  imported: () => invokeModelUsage("model-usage:sync-imported"),
+  drop: async (deviceId, month) => {
+    await invokeModelUsage("model-usage:sync-drop", { deviceId, month });
+  },
+  setDeviceNames: async names => {
+    await invokeModelUsage("model-usage:sync-set-device-names", names);
+  },
+};
+
+export async function getUsageSyncStatus(): Promise<UsageSyncStatus> {
+  return invokeModelUsage("model-usage:sync-status");
+}
+
+export async function setUsageSyncResult(result: { ok: boolean; error?: string }): Promise<void> {
+  await invokeModelUsage("model-usage:sync-set-result", result);
+}
+
+export async function setUsageDeviceName(name: string): Promise<void> {
+  await invokeModelUsage("model-usage:sync-set-self-name", { name });
 }
 
 /** 排行：按维度聚合，费用倒序 */
