@@ -1,7 +1,7 @@
 import { useMemoizedFn } from "ahooks";
 import { PortalToBody } from "@tau/shared";
 import classnames from "classnames";
-import { CloseOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useEffect } from "react";
 
 import { useImagesOverviewStore } from "../../stores";
@@ -79,7 +79,7 @@ const ImagesOverview = () => {
             )}
           </div>
           <div className={styles.close} onClick={closeImagesOverview}>
-            <CloseOutlined />
+            <X size="1em" />
           </div>
           <div
             className={classnames(styles.prev, {
@@ -87,7 +87,7 @@ const ImagesOverview = () => {
             })}
             onClick={switchPrev}
           >
-            <LeftOutlined />
+            <ChevronLeft size="1em" />
           </div>
           <div
             className={classnames(styles.next, {
@@ -95,7 +95,7 @@ const ImagesOverview = () => {
             })}
             onClick={switchNext}
           >
-            <RightOutlined />
+            <ChevronRight size="1em" />
           </div>
         </div>
       </PortalToBody>

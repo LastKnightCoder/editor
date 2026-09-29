@@ -1,7 +1,7 @@
 import { Editor, Transforms } from "slate";
 import { insertAudio } from "../../../utils";
 import { IResourceService } from "../../../services";
-import { message } from "antd";
+import { notifierOf } from "../../../services/editorNotifier";
 
 export const pasteAudio = (editor: Editor) => {
   const { insertData } = editor;
@@ -25,7 +25,7 @@ export const pasteAudio = (editor: Editor) => {
       }
       const src = await editor.getService(IResourceService).upload(file);
       if (!src) {
-        message.error("上传失败");
+        notifierOf(editor).error("上传失败");
         Editor.withoutNormalizing(editor, () => {
           Transforms.delete(editor, {
             at: insertPath,

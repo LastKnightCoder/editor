@@ -1,14 +1,9 @@
-import {
-  ReactEditor,
-  RenderElementProps,
-  useSlate,
-  useReadOnly,
-} from "slate-react";
+import { ReactEditor, RenderElementProps, useSlate, useReadOnly } from "slate-react";
 import type { ListItemElement } from "../../../types";
 import { Editor, Node, Transforms } from "slate";
 import classnames from "classnames";
 import { useEffect, useRef, useState } from "react";
-import { Popover } from "antd";
+import { Popover } from "@tau/ui";
 import IconPicker from "../IconPicker";
 import useUploadResource from "../../../../hooks/useUploadResource";
 
@@ -22,13 +17,7 @@ interface IListItemProps {
 
 const ListItem = (props: IListItemProps) => {
   const { attributes, children, element } = props;
-  const {
-    isFold = false,
-    allContent = element.children,
-    icon,
-    iconType,
-    iconUrl,
-  } = element;
+  const { isFold = false, allContent = element.children, icon, iconType, iconUrl } = element;
   const [isMultiline, setIsMultiline] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const listItemRef = useRef<HTMLLIElement>(null);
@@ -41,8 +30,7 @@ const ListItem = (props: IListItemProps) => {
   const path = ReactEditor.findPath(editor, element);
   const parentPath = path.slice(0, -1);
   const parentNode = Node.get(editor, parentPath);
-  const isBulletedList =
-    parentNode && (parentNode as any).type === "bulleted-list";
+  const isBulletedList = parentNode && (parentNode as any).type === "bulleted-list";
 
   // 检测内容是否多行并测量第一行高度
   useEffect(() => {
@@ -50,21 +38,14 @@ const ListItem = (props: IListItemProps) => {
       const height = listItemRef.current.offsetHeight;
 
       // 找到下面的第一个 data-slate-node="element" children
-      const firstLine = listItemRef.current.querySelector(
-        '[data-slate-node="element"]',
-      );
-      const lineHeight = firstLine
-        ? parseInt(getComputedStyle(firstLine).lineHeight)
-        : 24;
+      const firstLine = listItemRef.current.querySelector('[data-slate-node="element"]');
+      const lineHeight = firstLine ? parseInt(getComputedStyle(firstLine).lineHeight) : 24;
 
       setIsMultiline(height > lineHeight * 2); // 如果高度超过2倍行高，认为是多行
 
       // 设置CSS变量，用于垂直线定位
       if (listItemRef.current) {
-        listItemRef.current.style.setProperty(
-          "--first-line-height",
-          `${lineHeight}px`,
-        );
+        listItemRef.current.style.setProperty("--first-line-height", `${lineHeight}px`);
       }
     }
   }, [children]);
@@ -87,7 +68,7 @@ const ListItem = (props: IListItemProps) => {
         },
         {
           at: path,
-        },
+        }
       );
     });
   };
@@ -111,7 +92,7 @@ const ListItem = (props: IListItemProps) => {
         },
         {
           at: path,
-        },
+        }
       );
     });
   };
@@ -134,7 +115,7 @@ const ListItem = (props: IListItemProps) => {
         iconType: "emoji",
         iconUrl: undefined,
       } as Partial<ListItemElement>,
-      { at: path },
+      { at: path }
     );
     setPickerOpen(false);
   };
@@ -149,7 +130,7 @@ const ListItem = (props: IListItemProps) => {
         iconType: "image",
         iconUrl: url,
       } as Partial<ListItemElement>,
-      { at: path },
+      { at: path }
     );
     setPickerOpen(false);
   };
@@ -164,17 +145,14 @@ const ListItem = (props: IListItemProps) => {
         iconType: undefined,
         iconUrl: undefined,
       } as Partial<ListItemElement>,
-      { at: path },
+      { at: path }
     );
     setPickerOpen(false);
   };
 
+  // 开合由 Popover 的触发器处理；这里只挡住冒泡，别让 Slate 把点击当成移动选区
   const handleBulletClick = (e: React.MouseEvent) => {
-    e.preventDefault();
     e.stopPropagation();
-    if (!readonly && isBulletedList) {
-      setPickerOpen(!pickerOpen);
-    }
   };
 
   const foldAble = element.children.length > 1;
@@ -191,49 +169,38 @@ const ListItem = (props: IListItemProps) => {
     >
       {isBulletedList && (
         <Popover
-          trigger="click"
           open={!readonly && pickerOpen}
           onOpenChange={setPickerOpen}
-          content={
-            <IconPicker
-              onEmojiSelect={handleEmojiSelect}
-              onImageSelect={handleImageSelect}
-              onRemoveIcon={hasIcon ? handleRemoveIcon : undefined}
-              uploadResource={uploadResource}
-              hasIcon={hasIcon}
-            />
-          }
           arrow={false}
-          placement="bottomLeft"
-          overlayClassName={styles.iconPickerPopover}
-          styles={{
-            container: {
-              padding: 0,
-              borderRadius: "16px",
-              boxShadow:
-                "0 0 1px rgba(0, 0, 0, 0.04), 0 2px 6px rgba(0, 0, 0, 0.04), 0 10px 20px rgba(0, 0, 0, 0.06), 0 20px 40px rgba(0, 0, 0, 0.06)",
-            },
-          }}
+          placement="bottom-start"
+          className="max-w-none overflow-hidden"
+          trigger={
+            <div
+              contentEditable={false}
+              className={classnames(styles.bulletArea, {
+                [styles.clickable]: !readonly,
+                [styles.hasCustomIcon]: hasIcon,
+              })}
+              onClick={handleBulletClick}
+            >
+              {hasIcon && (
+                <div className={styles.customIcon}>
+                  {iconType === "emoji" && <span className={styles.emojiIcon}>{icon}</span>}
+                  {iconType === "image" && iconUrl && (
+                    <img src={iconUrl} alt="icon" className={styles.imageIcon} />
+                  )}
+                </div>
+              )}
+            </div>
+          }
         >
-          <div
-            contentEditable={false}
-            className={classnames(styles.bulletArea, {
-              [styles.clickable]: !readonly,
-              [styles.hasCustomIcon]: hasIcon,
-            })}
-            onClick={handleBulletClick}
-          >
-            {hasIcon && (
-              <div className={styles.customIcon}>
-                {iconType === "emoji" && (
-                  <span className={styles.emojiIcon}>{icon}</span>
-                )}
-                {iconType === "image" && iconUrl && (
-                  <img src={iconUrl} alt="icon" className={styles.imageIcon} />
-                )}
-              </div>
-            )}
-          </div>
+          <IconPicker
+            onEmojiSelect={handleEmojiSelect}
+            onImageSelect={handleImageSelect}
+            onRemoveIcon={hasIcon ? handleRemoveIcon : undefined}
+            uploadResource={uploadResource}
+            hasIcon={hasIcon}
+          />
         </Popover>
       )}
       <div

@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { Editor, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { useMemoizedFn } from "ahooks";
-import { Tooltip } from "antd";
+import { Tooltip } from "../../../../ui/Tooltip";
 import { Sigma } from "lucide-react";
 
 import classnames from "classnames";
@@ -37,7 +37,7 @@ const InlineMathHoveringItem = () => {
   });
 
   return (
-    <Tooltip title={"行内公式"} trigger={"hover"}>
+    <Tooltip content={"行内公式"}>
       <div
         className={classnames(
           "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all duration-200",

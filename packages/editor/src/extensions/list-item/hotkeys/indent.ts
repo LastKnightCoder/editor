@@ -1,22 +1,18 @@
 import { IHotKeyConfig } from "../../../types";
 import { Editor, Transforms } from "slate";
-import {
-  getParentNodeByNode,
-  isAtParagraphStart,
-  getPreviousSiblingNode,
-} from "../../../utils";
-import { message } from "antd";
+import { getParentNodeByNode, isAtParagraphStart, getPreviousSiblingNode } from "../../../utils";
+import { notifierOf } from "../../../services/editorNotifier";
 
 export const indent: IHotKeyConfig[] = [
   {
     hotKey: "Tab",
     action: (editor, event) => {
       const [match] = Editor.nodes(editor, {
-        match: (n) => n.type === "list-item",
+        match: n => n.type === "list-item",
         mode: "lowest",
       });
       const [para] = Editor.nodes(editor, {
-        match: (n) => n.type === "paragraph",
+        match: n => n.type === "paragraph",
       });
       // 在段落的开头
       // 是第一个段落
@@ -31,7 +27,7 @@ export const indent: IHotKeyConfig[] = [
         const parent = getParentNodeByNode(editor, match[0]);
         const parentType = parent[0].type;
         if (!["bulleted-list", "numbered-list"].includes(parentType)) {
-          message.error("list-item 必须在 bulleted-list 或者 numbered-list 中");
+          notifierOf(editor).error("list-item 必须在 bulleted-list 或者 numbered-list 中");
           return;
         }
         // 上面保证过上一个 list 一定存在
@@ -46,12 +42,12 @@ export const indent: IHotKeyConfig[] = [
               children: [],
             },
             {
-              match: (n) => n.type === "list-item",
-            },
+              match: n => n.type === "list-item",
+            }
           );
           // 放在最后面
           Transforms.moveNodes(editor, {
-            match: (n) => n.type === parentType,
+            match: n => n.type === parentType,
             // @ts-ignore
             to: [...previousSibling[1], previousSibling[0].children.length],
           });

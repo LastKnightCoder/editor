@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useReadOnly, useSlateStatic } from "slate-react";
 import classnames from "classnames";
-import { PlusOutlined } from "@ant-design/icons";
+import { Plus } from "lucide-react";
 import { CustomModal } from "@tau/shared";
 
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
@@ -179,7 +179,7 @@ const ImageGallery = (props: IImageGalleryProps) => {
             }}
           >
             <div className={styles.uploadTips}>
-              <PlusOutlined className={styles.icon} />
+              <Plus size="1em" className={styles.icon} />
               <div>上传图片</div>
             </div>
           </div>

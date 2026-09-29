@@ -15,10 +15,7 @@ import {
   Circle,
 } from "lucide-react";
 
-import {
-  ContextMenuItem,
-  BuildMenuParams,
-} from "../../../components/EditorContextMenu/types";
+import { ContextMenuItem, BuildMenuParams } from "../../../components/EditorContextMenu/types";
 import {
   transformNodeType,
   copyNodeToClipboard,
@@ -27,14 +24,14 @@ import {
   convertChildrenToList,
 } from "../../../utils/nodeOperations";
 import type { BlockquoteElement } from "../../../types";
-import type { MessageInstance } from "antd/es/message/interface";
+import type { EditorFeedback } from "../../../services/notifier";
 
 /**
  * 构建引用块菜单项
  */
 export function buildBlockquoteMenuItems(
   params: BuildMenuParams<BlockquoteElement>,
-  message?: MessageInstance,
+  message?: EditorFeedback
 ): ContextMenuItem[] {
   const { element, editor, path } = params;
 
@@ -116,12 +113,7 @@ export function buildBlockquoteMenuItems(
             {
               key: "highlight-red",
               label: "红色",
-              icon: (
-                <Circle
-                  size={16}
-                  style={{ fill: "#ef4444", color: "#ef4444" }}
-                />
-              ),
+              icon: <Circle size={16} style={{ fill: "#ef4444", color: "#ef4444" }} />,
               onSelect: () =>
                 transformNodeType(editor, path, "highlight-block", {
                   color: "red",
@@ -130,12 +122,7 @@ export function buildBlockquoteMenuItems(
             {
               key: "highlight-orange",
               label: "橙色",
-              icon: (
-                <Circle
-                  size={16}
-                  style={{ fill: "#f97316", color: "#f97316" }}
-                />
-              ),
+              icon: <Circle size={16} style={{ fill: "#f97316", color: "#f97316" }} />,
               onSelect: () =>
                 transformNodeType(editor, path, "highlight-block", {
                   color: "orange",
@@ -144,12 +131,7 @@ export function buildBlockquoteMenuItems(
             {
               key: "highlight-yellow",
               label: "黄色",
-              icon: (
-                <Circle
-                  size={16}
-                  style={{ fill: "#eab308", color: "#eab308" }}
-                />
-              ),
+              icon: <Circle size={16} style={{ fill: "#eab308", color: "#eab308" }} />,
               onSelect: () =>
                 transformNodeType(editor, path, "highlight-block", {
                   color: "yellow",
@@ -158,12 +140,7 @@ export function buildBlockquoteMenuItems(
             {
               key: "highlight-green",
               label: "绿色",
-              icon: (
-                <Circle
-                  size={16}
-                  style={{ fill: "#22c55e", color: "#22c55e" }}
-                />
-              ),
+              icon: <Circle size={16} style={{ fill: "#22c55e", color: "#22c55e" }} />,
               onSelect: () =>
                 transformNodeType(editor, path, "highlight-block", {
                   color: "green",
@@ -172,12 +149,7 @@ export function buildBlockquoteMenuItems(
             {
               key: "highlight-blue",
               label: "蓝色",
-              icon: (
-                <Circle
-                  size={16}
-                  style={{ fill: "#3b82f6", color: "#3b82f6" }}
-                />
-              ),
+              icon: <Circle size={16} style={{ fill: "#3b82f6", color: "#3b82f6" }} />,
               onSelect: () =>
                 transformNodeType(editor, path, "highlight-block", {
                   color: "blue",
@@ -186,12 +158,7 @@ export function buildBlockquoteMenuItems(
             {
               key: "highlight-purple",
               label: "紫色",
-              icon: (
-                <Circle
-                  size={16}
-                  style={{ fill: "#a855f7", color: "#a855f7" }}
-                />
-              ),
+              icon: <Circle size={16} style={{ fill: "#a855f7", color: "#a855f7" }} />,
               onSelect: () =>
                 transformNodeType(editor, path, "highlight-block", {
                   color: "purple",

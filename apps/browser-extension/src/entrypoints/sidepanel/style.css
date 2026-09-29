@@ -1,8 +1,11 @@
 @import "../../../../desktop/src/styles/theme-colors.css";
 @import "tailwindcss";
 @import "@tau/themes/scale.css";
+/* 编辑器的浮层原语来自 @tau/ui，类名经 @tau/themes 的语义映射取 --tau-* */
+@import "@tau/themes/tailwind.css";
 @import "./tau-tokens.css";
 @source "../../../../../packages/editor/src";
+@source "../../../../../packages/ui/src";
 @source "../../../../../packages/shared/src";
 @source "../../../../../packages/themes/src";
 

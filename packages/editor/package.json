@@ -7,14 +7,12 @@
     "test": "vitest run"
   },
   "peerDependencies": {
-    "@ant-design/icons": "^6.0.6",
     "@babel/standalone": "^7.22.2",
     "@emoji-mart/data": "^1.2.1",
     "@emoji-mart/react": "^1.1.1",
     "@loadable/component": "^5.15.3",
     "abcjs": "^6.5.2",
     "ahooks": "^3.7.7",
-    "antd": "^6.0.0",
     "classnames": "^2.3.2",
     "codemirror": "5",
     "cropperjs": "^2.1.0",
@@ -48,7 +46,6 @@
     "zustand": "^4.3.8"
   },
   "devDependencies": {
-    "@ant-design/icons": "^6.0.6",
     "@babel/standalone": "^7.22.2",
     "@emoji-mart/data": "^1.2.1",
     "@emoji-mart/react": "^1.1.1",
@@ -64,7 +61,6 @@
     "@types/uuid": "^9.0.8",
     "abcjs": "^6.5.2",
     "ahooks": "^3.7.7",
-    "antd": "^6.0.0",
     "classnames": "^2.3.2",
     "codemirror": "5",
     "cropperjs": "^2.1.0",
@@ -105,6 +101,7 @@
   "dependencies": {
     "@tau/db-schema": "workspace:*",
     "@tau/shared": "workspace:*",
+    "@tau/ui": "workspace:*",
     "remark-cjk-friendly": "^2.3.1",
     "remark-cjk-friendly-gfm-strikethrough": "^2.3.1",
     "remark-directive": "^3.0.1",

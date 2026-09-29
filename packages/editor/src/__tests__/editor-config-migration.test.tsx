@@ -215,8 +215,8 @@ describe("P4 EditorConfig 拆解", () => {
       return container;
     };
 
-    // 折叠箭头是 antd 的 CaretRight 图标；折叠态靠 CSS 隐藏后续块，这里只看交互入口
-    const arrowOf = (host: HTMLElement) => host.querySelector("h2 .anticon-caret-right");
+    // 折叠态靠 CSS 隐藏后续块，这里只看交互入口（折叠箭头）
+    const arrowOf = (host: HTMLElement) => host.querySelector('h2 [data-icon="caret-right"]');
 
     it("默认显示折叠箭头", async () => {
       expect(arrowOf(await mountWith())).toBeTruthy();

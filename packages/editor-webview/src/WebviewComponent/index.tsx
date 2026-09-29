@@ -4,7 +4,6 @@ import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
 import { CustomModal, ResizeHandle, Webview } from "@tau/shared";
 import type { WebviewRef } from "@tau/shared";
 import { Transforms } from "slate";
-import { App } from "antd";
 import classnames from "classnames";
 import { MdDragIndicator } from "react-icons/md";
 import { Edit, FileCode, Trash2, RefreshCw, Maximize2, X } from "lucide-react";
@@ -19,6 +18,8 @@ import {
   useUploadResource,
   IFileService,
   IResourceService,
+  useNotifier,
+  type EditorLoadingHandle,
 } from "@tau/editor";
 import type { WebviewElement } from "../types";
 import { WebLinkSourceType } from "../types";
@@ -34,7 +35,7 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
   const { url, height = 400 } = element;
   const isLast = useIsLastElement(element);
   const webviewRef = useRef<WebviewRef>(null);
-  const { modal, message } = App.useApp();
+  const notifier = useNotifier();
   const readOnly = useReadOnly();
   const [editUrlOpen, setEditUrlOpen] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -114,20 +115,16 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
     }
   );
 
-  const handleDelete = useMemoizedFn(() => {
-    modal.confirm({
+  const handleDelete = useMemoizedFn(async () => {
+    const confirmed = await notifier.confirm({
       title: "确认删除",
-      content: "确定要删除这个网页视图吗？",
-      okText: "确定",
-      cancelText: "取消",
-      okButtonProps: {
-        danger: true,
-      },
-      onOk: () => {
-        const path = ReactEditor.findPath(editor, element);
-        Transforms.removeNodes(editor, { at: path });
-      },
+      description: "确定要删除这个网页视图吗？",
+      confirmText: "删除",
+      danger: true,
     });
+    if (!confirmed) return;
+    const path = ReactEditor.findPath(editor, element);
+    Transforms.removeNodes(editor, { at: path });
   });
 
   const handleRefresh = useMemoizedFn(() => {
@@ -156,7 +153,7 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
 
   const handleSelectLocalHtml = useMemoizedFn(async () => {
     if (!uploadResource) {
-      message.error("当前编辑器未配置上传能力");
+      notifier.error("当前编辑器未配置上传能力");
       return;
     }
     const filePaths = await selectFile?.({
@@ -170,13 +167,10 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
     });
     if (!filePaths || filePaths.length === 0) return;
     const filePath = filePaths[0];
+    let progress: EditorLoadingHandle | undefined;
     try {
       setLocalUploadLoading(true);
-      message.loading({
-        key: "webview-component-upload",
-        content: "正在上传 HTML 文件...",
-        duration: 0,
-      });
+      progress = notifier.loading("正在上传 HTML 文件…");
       const fileName = getFileBaseName?.(filePath) || "";
       const fileContent = await readTextFile?.(filePath);
       const htmlFile = new File([fileContent as any], fileName, {
@@ -184,10 +178,7 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
       });
       const uploadedUrl = await uploadResource(htmlFile);
       if (!uploadedUrl) {
-        message.error({
-          key: "webview-component-upload",
-          content: "上传 HTML 文件失败",
-        });
+        progress.error("上传 HTML 文件失败");
         return;
       }
       const normalizedUrl = normalizeWebviewUrl(uploadedUrl);
@@ -202,16 +193,11 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
           at: path,
         }
       );
-      message.success({
-        key: "webview-component-upload",
-        content: "HTML 文件已插入",
-      });
+      progress.success("HTML 文件已插入");
     } catch (error) {
       console.error("选择 HTML 文件失败:", error);
-      message.error({
-        key: "webview-component-upload",
-        content: "选择 HTML 文件失败",
-      });
+      if (progress) progress.error("选择 HTML 文件失败");
+      else notifier.error("选择 HTML 文件失败");
     } finally {
       setLocalUploadLoading(false);
     }

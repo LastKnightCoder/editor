@@ -53,11 +53,12 @@
 
 状态图例：⏳ 未开始 / 🚧 进行中 / ✅ 完成 / ⏸ 暂停（写原因）。
 
-**下一步**：P8 剩余——codec 按扩展归属、命令注册表（顺带补 v2 的 `commands` / `hotkeys`）、
-UI 原语（ER-P4，决定扩展目录能否只 import `@tau/editor/api`）、其余内置扩展迁到 v2（清单见 02 P8）。
+**下一步**：mobile 注册自己的 `IEditorNotifier`（目前编辑器提示在 mobile 不显示）。之后是 P8 剩余——
+编辑器 CSS Modules 转 Tailwind（先抽共用拖拽样式）、codec 按扩展归属、命令注册表、其余内置扩展迁到 v2（清单见 02 P8）。
 已完成：第一块（错误隔离 + 未知节点占位，Markdown 兜底语法见 ER-006）；第二块（`defineExtension`、
-`@tau/editor/api`、`fromLegacyExtension`，divide-line 已迁到 v2）。
-**实机待确认**：未知节点占位与「渲染失败」占位的观感；P7 遗留的协作 e2e、结束共享、白板测高、
+`@tau/editor/api`、`fromLegacyExtension`，divide-line 已迁到 v2）；第三块（移除 antd，UI 直接用 `@tau/ui`，ER-018）。
+**实机待确认**：移除 antd 后各浮层（Tooltip、代码块语言选择、表情、批注、行内 HTML、样式文本调色、列表图标、
+表格操作、行内图片上传）的观感与开合；两种未知节点占位的观感；P7 遗留的协作 e2e、结束共享、白板测高、
 mobile 回落与结束共享（清单见 02 P7 验收结果）。
 
 ## 5. 接手步骤

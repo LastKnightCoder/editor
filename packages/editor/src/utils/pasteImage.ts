@@ -1,6 +1,6 @@
 import { Editor, Transforms, Path, Element as SlateElement } from "slate";
 import { v4 as uuidv4 } from "uuid";
-import { message } from "antd";
+import { notifierOf } from "../services/editorNotifier";
 import { isParagraphAndEmpty } from "./editor";
 import { IResourceService } from "../services";
 
@@ -35,7 +35,7 @@ export async function handlePasteImage(
 
       const url = await uploadResource(file);
       if (!url) {
-        message.error("图片上传失败");
+        notifierOf(editor).error("图片上传失败");
         Transforms.setNodes(editor, { pasteUploading: false }, { at: insertPath });
         return true;
       }
@@ -50,7 +50,7 @@ export async function handlePasteImage(
 
       const url = await uploadResource(file);
       if (!url) {
-        message.error("图片上传失败");
+        notifierOf(editor).error("图片上传失败");
         updateNodeByUuid(editor, uuid, "inline-image", { url: "" });
         return true;
       }
@@ -60,7 +60,7 @@ export async function handlePasteImage(
     }
   } catch (error) {
     console.error("图片处理失败:", error);
-    message.error("图片处理错误");
+    notifierOf(editor).error("图片处理错误");
     return true;
   }
 }

@@ -1,7 +1,7 @@
 import { useState, memo, useEffect } from "react";
 import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
-import { Popover } from "antd";
 import { Transforms } from "slate";
+import { Popover } from "@tau/ui";
 import Picker from "@emoji-mart/react";
 import data from "@emoji-mart/data";
 
@@ -9,8 +9,6 @@ import type { EmojiElement } from "../../../../types";
 import InlineChromiumBugfix from "../../../../components/InlineChromiumBugFix";
 import { IExtensionBaseProps } from "../../../types";
 import useTheme from "../../../../hooks/useTheme";
-
-import styles from "./index.module.less";
 
 const Emoji = memo((props: IExtensionBaseProps<EmojiElement>) => {
   const { attributes, element, children } = props;
@@ -32,7 +30,7 @@ const Emoji = memo((props: IExtensionBaseProps<EmojiElement>) => {
         nativeEmoji: emojiData.native,
         shortcodes: emojiData.shortcodes,
       } as Partial<EmojiElement>,
-      { at: path },
+      { at: path }
     );
     setPickerOpen(false);
   };
@@ -52,43 +50,36 @@ const Emoji = memo((props: IExtensionBaseProps<EmojiElement>) => {
         },
         {
           at: path,
-        },
+        }
       );
     }
   }, [defaultOpen]);
 
   return (
-    <span
-      {...attributes}
-      contentEditable={false}
-      className={styles.emojiContainer}
-    >
+    <span {...attributes} contentEditable={false} className="relative inline-block">
       <InlineChromiumBugfix />
       <Popover
-        trigger="click"
         open={!readonly && pickerOpen}
         onOpenChange={onOpenChange}
-        content={
-          <Picker
-            data={data}
-            theme={isDark ? "dark" : "light"}
-            onEmojiSelect={onEmojiSelect}
-            locale="zh"
-            previewPosition="none"
-            skinTonePosition="none"
-            set="native"
-          />
-        }
         arrow={false}
         placement="bottom"
-        styles={{
-          content: {
-            background: "transparent",
-            boxShadow: "none",
-          },
-        }}
+        // emoji-mart 自带面板外观，浮层只做定位
+        className="max-w-none border-0 bg-transparent shadow-none"
+        trigger={
+          <span className='inline-block cursor-pointer select-none rounded-[3px] px-0.5 font-["Apple_Color_Emoji","Segoe_UI_Emoji","Noto_Color_Emoji",sans-serif] text-[1.2em] leading-none transition-colors duration-200 hover:bg-[var(--ed-bg-hover)]'>
+            {nativeEmoji || emoji}
+          </span>
+        }
       >
-        <span className={styles.emoji}>{nativeEmoji || emoji}</span>
+        <Picker
+          data={data}
+          theme={isDark ? "dark" : "light"}
+          onEmojiSelect={onEmojiSelect}
+          locale="zh"
+          previewPosition="none"
+          skinTonePosition="none"
+          set="native"
+        />
       </Popover>
       {children}
       <InlineChromiumBugfix />

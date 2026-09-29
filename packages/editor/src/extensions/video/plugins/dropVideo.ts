@@ -1,5 +1,5 @@
 import { Editor, Transforms, Element as SlateElement, Path } from "slate";
-import { message } from "antd";
+import { notifierOf } from "../../../services/editorNotifier";
 import { insertVideo } from "../../../utils";
 import { IResourceService } from "../../../services";
 
@@ -73,11 +73,11 @@ export const dropVideo = (editor: Editor) => {
         );
       } else {
         console.error("无法找到上传中的视频节点");
-        message.error("视频更新失败");
+        notifierOf(editor).error("视频更新失败");
       }
     } catch (error) {
       console.error("视频上传失败:", error);
-      message.error("视频上传失败");
+      notifierOf(editor).error("视频上传失败");
 
       // 查找并标记上传失败
       const nodeEntry = findUploadingVideoNode(editor, insertPath);

@@ -3,7 +3,7 @@ import { useContext, useEffect, useMemo, useState, memo } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Editor, Range, Transforms } from "slate";
 
-import { Tooltip } from "antd";
+import { Tooltip } from "../../../../ui/Tooltip";
 import { Highlighter, ChevronDown } from "lucide-react";
 import HighlightSelect from "../HighlightSelect";
 
@@ -56,7 +56,7 @@ const HighlightText = memo(() => {
       zIndex={10100}
       gap={10}
     >
-      <Tooltip title={"高亮"} trigger={"hover"}>
+      <Tooltip content={"高亮"}>
         <div
           className={classnames(
             "flex h-8 cursor-pointer items-center justify-center gap-0.5 rounded-lg px-1.5 transition-all duration-200",

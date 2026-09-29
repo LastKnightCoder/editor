@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Tabs, Upload, message } from "antd";
-import { DeleteOutlined, InboxOutlined } from "@ant-design/icons";
-import type { UploadProps } from "antd";
+import React, { useState, useEffect } from "react";
+import { Button, FileDropZone, Tabs, type TabItem } from "@tau/ui";
+import { Inbox, Trash2 } from "lucide-react";
 import Picker from "@emoji-mart/react";
 import data from "@emoji-mart/data";
 import useTheme from "../../../../hooks/useTheme";
-import styles from "./index.module.less";
+import { useNotifier } from "../../../../services/hooks";
 
 export interface IconPickerProps {
   onEmojiSelect: (emoji: string) => void;
@@ -23,9 +22,9 @@ const IconPicker: React.FC<IconPickerProps> = ({
   hasIcon = false,
 }) => {
   const { isDark } = useTheme();
+  const message = useNotifier();
   const [uploading, setUploading] = useState(false);
-  const [activeTab, setActiveTab] = useState("emoji");
-  const uploadTabRef = useRef<HTMLDivElement>(null);
+  const [activeTab, setActiveTab] = useState<"emoji" | "upload">("emoji");
 
   const handleEmojiSelect = (emojiData: any) => {
     onEmojiSelect(emojiData.native);
@@ -54,21 +53,12 @@ const IconPicker: React.FC<IconPickerProps> = ({
     }
   };
 
-  const uploadProps: UploadProps = {
-    name: "file",
-    multiple: false,
-    accept: "image/*",
-    showUploadList: false,
-    beforeUpload: async (file) => {
-      // 检查是否为图片文件
-      if (!file.type.startsWith("image/")) {
-        message.error("请上传图片文件");
-        return false;
-      }
-
-      await handleUploadImage(file);
-      return false; // 阻止默认上传行为
-    },
+  const handleDroppedFile = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      message.error("请上传图片文件");
+      return;
+    }
+    void handleUploadImage(file);
   };
 
   // 监听粘贴事件
@@ -105,12 +95,12 @@ const IconPicker: React.FC<IconPickerProps> = ({
     };
   }, [activeTab, uploadResource, onImageSelect]);
 
-  const tabItems = [
+  const tabItems: TabItem<"emoji" | "upload">[] = [
     {
       key: "emoji",
       label: "表情",
       children: (
-        <div className={styles.emojiTab}>
+        <div className="flex items-center justify-center px-3 pb-3 [&_em-emoji-picker]:rounded-none [&_em-emoji-picker]:border-0 [&_em-emoji-picker]:shadow-none">
           <Picker
             data={data}
             theme={isDark ? "dark" : "light"}
@@ -127,38 +117,32 @@ const IconPicker: React.FC<IconPickerProps> = ({
       key: "upload",
       label: "上传图片",
       children: (
-        <div className={styles.uploadTab} ref={uploadTabRef}>
-          <Upload.Dragger {...uploadProps} className={styles.uploadDragger}>
-            <p className={styles.uploadIcon}>
-              <InboxOutlined />
-            </p>
-            <p className={styles.uploadText}>
+        <div className="min-w-[360px] px-5 pb-5 pt-3">
+          <FileDropZone
+            accept="image/*"
+            onFile={handleDroppedFile}
+            disabled={uploading}
+            className="min-h-[200px]"
+          >
+            <Inbox size={40} strokeWidth={1.5} className="text-ink-3" />
+            <p className="text-tau-body text-ink-1 m-0">
               {uploading ? "上传中..." : "点击或拖拽图片到此处"}
             </p>
-            <p className={styles.uploadHint}>
-              支持 JPG、PNG、GIF 等格式，也可直接粘贴
-            </p>
-          </Upload.Dragger>
+            <p className="text-tau-sm text-ink-3 m-0">支持 JPG、PNG、GIF 等格式，也可直接粘贴</p>
+          </FileDropZone>
         </div>
       ),
     },
   ];
 
   return (
-    <div className={styles.iconPicker}>
-      <Tabs
-        defaultActiveKey="emoji"
-        activeKey={activeTab}
-        onChange={setActiveTab}
-        items={tabItems}
-        centered
-      />
+    <div className="overflow-hidden pt-2">
+      <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} centered />
       {hasIcon && onRemoveIcon && (
-        <div className={styles.removeButtonContainer}>
-          <button className={styles.removeButton} onClick={onRemoveIcon}>
-            <DeleteOutlined className={styles.removeIcon} />
-            <span>移除图标</span>
-          </button>
+        <div className="border-line-2 border-t px-4 pb-4 pt-3">
+          <Button variant="danger-soft" icon={Trash2} block onClick={onRemoveIcon}>
+            移除图标
+          </Button>
         </div>
       )}
     </div>

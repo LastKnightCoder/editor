@@ -2,7 +2,7 @@ import { useState, useContext, useEffect, useMemo, memo } from "react";
 import { Editor, Range, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { useMemoizedFn } from "ahooks";
-import { Tooltip } from "antd";
+import { Tooltip } from "../../../../ui/Tooltip";
 import useTheme from "../../../../hooks/useTheme";
 import {
   TEXT_GRADIENT_PRESETS,
@@ -91,7 +91,7 @@ const ColorText = memo(() => {
       zIndex={10100}
       gap={10}
     >
-      <Tooltip title={"颜色"} trigger={"hover"}>
+      <Tooltip content={"颜色"}>
         <div
           className={classnames(
             "flex h-8 cursor-pointer items-center justify-center gap-0.5 rounded-lg px-1.5 transition-all duration-200",

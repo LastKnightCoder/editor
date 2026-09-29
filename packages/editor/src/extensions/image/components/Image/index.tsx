@@ -1,17 +1,17 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { App } from "antd";
+import { useNotifier } from "../../../../services/hooks";
 import { Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useSlateStatic, useReadOnly } from "slate-react";
 import {
-  DeleteOutlined,
-  FullscreenOutlined,
-  ScissorOutlined,
-  FileTextOutlined,
-  AlignCenterOutlined,
-  AlignLeftOutlined,
-  AlignRightOutlined,
-} from "@ant-design/icons";
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  Crop,
+  FileText,
+  Maximize2,
+  Trash2,
+} from "lucide-react";
 import { EditText } from "@tau/shared";
 import type { EditTextHandle } from "@tau/shared";
 
@@ -64,7 +64,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
   const uploadResource = useUploadResource();
   const { isDark } = useTheme();
   const appearance = useImageAppearance(appearanceOption);
-  const { message: messageApi } = App.useApp();
+  const messageApi = useNotifier();
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
   const { Image: LocalImageComponent } = useEditorSlots();
@@ -505,7 +505,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
         {!readOnly && (
           <div className={styles.actions}>
             <div onClick={showOverView} className={styles.item}>
-              <FullscreenOutlined />
+              <Maximize2 size="1em" />
             </div>
             <div className={styles.divider}></div>
             <div
@@ -513,9 +513,9 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
               className={styles.item}
               title={align === "left" ? "居中对齐" : align === "center" ? "右对齐" : "左对齐"}
             >
-              {align === "left" && <AlignLeftOutlined />}
-              {align === "center" && <AlignCenterOutlined />}
-              {align === "right" && <AlignRightOutlined />}
+              {align === "left" && <AlignLeft size="1em" />}
+              {align === "center" && <AlignCenter size="1em" />}
+              {align === "right" && <AlignRight size="1em" />}
             </div>
             <div className={styles.divider}></div>
             {!description && !showDescEditor && (
@@ -528,7 +528,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
                   }}
                   className={styles.item}
                 >
-                  <FileTextOutlined />
+                  <FileText size="1em" />
                 </div>
                 <div className={styles.divider}></div>
               </>
@@ -546,11 +546,11 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
               </React.Fragment>
             ))}
             <div onClick={() => setCropperOpen(true)} className={styles.item}>
-              <ScissorOutlined />
+              <Crop size="1em" />
             </div>
             <div className={styles.divider}></div>
             <div onClick={deleteImage} className={styles.item}>
-              <DeleteOutlined />
+              <Trash2 size="1em" />
             </div>
           </div>
         )}

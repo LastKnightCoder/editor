@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
-import { Tooltip } from "antd";
+import { Tooltip } from "../../../../ui/Tooltip";
 import { Editor, NodeEntry, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import useTheme from "../../../../hooks/useTheme";
@@ -51,7 +51,7 @@ const HoveringItem = () => {
   });
 
   return (
-    <Tooltip title={"样式文本"} trigger={"hover"}>
+    <Tooltip content={"样式文本"}>
       <div
         className={classnames(
           "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all duration-200",

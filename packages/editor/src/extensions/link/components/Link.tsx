@@ -8,7 +8,7 @@ import { Copy, Edit2, Link2Off, ExternalLink } from "lucide-react";
 import { useOptionalService } from "../../../services/hooks";
 import { IOpenerService } from "../../../services/tokens";
 import classNames from "classnames";
-import { App } from "antd";
+import { useNotifier } from "../../../services/hooks";
 
 import InlineChromiumBugfix from "../../../components/InlineChromiumBugFix";
 import type { LinkElement } from "../../../types";
@@ -199,7 +199,7 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = props => {
   const { url, openEdit = false } = element;
   const readOnly = useReadOnly();
   const editor = useSlateStatic();
-  const { message } = App.useApp();
+  const message = useNotifier();
   const opener = useOptionalService(IOpenerService);
 
   const openUrl = async (url: string) => {

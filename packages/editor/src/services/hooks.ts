@@ -1,6 +1,7 @@
 import type { ServiceIdentifier } from "./tokens";
 import type { ServiceRegistry } from "./registry";
-import { IEditorSlots } from "./tokens";
+import { IEditorNotifier, IEditorSlots } from "./tokens";
+import { defaultEditorNotifier, type EditorNotifier } from "./notifier";
 import type { EditorSlots } from "./slots";
 import { useInheritedKit } from "../kit/context";
 
@@ -31,4 +32,9 @@ export function useOptionalService<T>(id: ServiceIdentifier<T>): T | undefined {
 /** 获取宿主注入的 UI 插槽组件 */
 export function useEditorSlots(): EditorSlots {
   return useService(IEditorSlots);
+}
+
+/** 轻提示与确认：宿主没注册时用默认实现，编辑器组件不需要判空 */
+export function useNotifier(): EditorNotifier {
+  return useOptionalService(IEditorNotifier) ?? defaultEditorNotifier;
 }

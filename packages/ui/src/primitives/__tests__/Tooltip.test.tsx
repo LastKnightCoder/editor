@@ -118,4 +118,17 @@ describe("Tooltip 条件禁用", () => {
     expectOpen(true);
     expect(changed).not.toHaveBeenCalled();
   });
+
+  it("className 经 cn 合并，可覆盖默认层级", () => {
+    act(() =>
+      root.render(
+        <Tooltip content="提示" className="z-[10200]">
+          <button type="button">触发</button>
+        </Tooltip>
+      )
+    );
+    const tooltip = document.querySelector('[role="tooltip"]')!;
+    expect(tooltip.className).toContain("z-[10200]");
+    expect(tooltip.className).not.toContain("z-[300]");
+  });
 });

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
 import { Transforms } from "slate";
-import { Spin } from "antd";
+import { LoadingOverlay } from "@tau/ui";
 import classnames from "classnames";
 import { MdDragIndicator } from "react-icons/md";
 
@@ -231,7 +231,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
       })}
     >
       <div {...attributes}>
-        <Spin spinning={uploading}>
+        <LoadingOverlay loading={!!uploading}>
           <If condition={!src}>{renderEmpty()}</If>
           <If condition={!!src}>
             {matchedProvider ? (
@@ -244,7 +244,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
               renderPlayback(src)
             )}
           </If>
-        </Spin>
+        </LoadingOverlay>
         {children}
         <div
           contentEditable={false}

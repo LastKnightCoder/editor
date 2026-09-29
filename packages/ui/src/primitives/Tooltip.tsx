@@ -29,7 +29,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { usePortalContainer } from "../UiProvider";
-import clsx from "clsx";
+import { cn } from "../cn";
 import {
   applyArrowPosition,
   type AnchoredAlign,
@@ -59,6 +59,8 @@ export interface TooltipProps {
   onOpenChange?: (open: boolean) => void;
   /** 触发器（克隆注入事件与 aria-describedby；disabled 元素自动包 wrapper） */
   children: ReactElement;
+  /** 浮层追加类名（经 cn 合并，可覆盖层级等默认值，如编辑器悬浮工具条之上的 z-[10110]） */
+  className?: string;
 }
 
 /** 组联动：上次关闭后该窗口内重开免延迟（相邻触发器快速扫过不重复等待） */
@@ -74,6 +76,7 @@ export function Tooltip({
   open: openProp,
   onOpenChange,
   children,
+  className,
 }: TooltipProps) {
   const portalContainer = usePortalContainer();
   const anchorRef = useRef<HTMLElement | null>(null);
@@ -164,12 +167,13 @@ export function Tooltip({
       id={tipId}
       role="tooltip"
       inert={!open}
-      className={clsx(
+      className={cn(
         "bg-ink-1 text-ink-inverse border-ink-inverse/15 shadow-card group/float",
         "pointer-events-none fixed left-0 top-0 z-[300] w-max max-w-[280px]",
         "rounded-tau-sm border px-2.5 py-[5px] text-[12px] leading-[1.55]",
         "ease-tau-out transition-[opacity,transform] duration-[130ms]",
-        open ? "opacity-100" : "translate-y-[2px] scale-[0.98] opacity-0"
+        open ? "opacity-100" : "translate-y-[2px] scale-[0.98] opacity-0",
+        className
       )}
     >
       {arrow && <FloatingArrow tone="tooltip" />}

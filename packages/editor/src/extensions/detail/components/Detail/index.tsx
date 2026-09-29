@@ -7,9 +7,9 @@ import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 import useIsLastElement from "../../../../hooks/useIsLastElement";
 import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
 
-import { CaretRightOutlined } from "@ant-design/icons";
+import { CaretRight } from "../../../../ui/CaretRight";
 import { MdDragIndicator } from "react-icons/md";
-import { App } from "antd";
+import { useNotifier } from "../../../../services/hooks";
 
 import type { DetailElement } from "../../../types";
 
@@ -66,7 +66,7 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = props =
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
     element,
   });
-  const { message } = App.useApp();
+  const message = useNotifier();
 
   const { menuProps, dragHandlerProps } = useDragHandlerMenu({
     element,
@@ -146,7 +146,7 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = props =
       >
         <div className={styles.title} contentEditable={false} style={{ userSelect: "none" }}>
           <div className={arrowClass} onClick={toggleShowContent}>
-            <CaretRightOutlined />
+            <CaretRight />
           </div>
           <div
             data-slate-editor

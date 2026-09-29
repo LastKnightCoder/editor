@@ -1,5 +1,5 @@
 import React, { memo, useCallback } from "react";
-import { Tooltip } from "antd";
+import { Tooltip } from "../../../../../ui/Tooltip";
 import classnames from "classnames";
 import type { TextGradientPresetId } from "../../../../../constants";
 
@@ -30,7 +30,7 @@ const ColorSelectItem = memo((props: IColorSelectItemProps) => {
   const isGradient = Boolean(gradientPreset);
 
   return (
-    <Tooltip title={label} key={label} placement="bottom">
+    <Tooltip content={label} key={label} placement="bottom">
       <div
         onMouseDown={handleMouseDown}
         onClick={handleClick}

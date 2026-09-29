@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useContext } from "react";
 import { useMemoizedFn } from "ahooks";
-import { Tooltip } from "antd";
+import { Tooltip } from "../../../../ui/Tooltip";
 import { Editor, NodeEntry, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { unwrapUnderline, wrapUnderline } from "../../../../utils";
@@ -160,7 +160,7 @@ const HoveringItem = () => {
         />
       }
     >
-      <Tooltip title={"下划线"} trigger={"hover"}>
+      <Tooltip content={"下划线"}>
         <div
           className={classnames(
             "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all duration-200",

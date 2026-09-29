@@ -28,7 +28,15 @@ export {
   IMediaSelectors,
   IEditorSlots,
   IExtensionErrorReporter,
+  IEditorNotifier,
 } from "./services/tokens";
+export { defaultEditorNotifier } from "./services/notifier";
+export type {
+  EditorNotifier,
+  EditorFeedback,
+  EditorLoadingHandle,
+  EditorConfirmOptions,
+} from "./services/notifier";
 export { consoleErrorReporter } from "./services/errorReporter";
 export type { ExtensionErrorEvent, ExtensionErrorReporter } from "./services/errorReporter";
 export type {
@@ -48,7 +56,9 @@ export {
   useService,
   useOptionalService,
   useEditorSlots,
+  useNotifier,
 } from "./services/hooks";
+export { notifierOf } from "./services/editorNotifier";
 export type { EditorSlots, ImageSlotProps, VideoSlotProps, AudioSlotProps } from "./services/slots";
 
 export { default as useTheme } from "./hooks/useTheme";

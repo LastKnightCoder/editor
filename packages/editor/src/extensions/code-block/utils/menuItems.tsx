@@ -1,24 +1,10 @@
-import {
-  Copy,
-  Trash2,
-  Code2,
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-  X,
-} from "lucide-react";
-import {
-  CODE_BLOCK_LANGUAGE_OPTIONS,
-  normalizeCodeBlockLanguageDisplayName,
-} from "@tau/shared";
+import { Copy, Trash2, Code2, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
+import { CODE_BLOCK_LANGUAGE_OPTIONS, normalizeCodeBlockLanguageDisplayName } from "@tau/shared";
 import { Transforms } from "slate";
 import { ReactEditor } from "slate-react";
-import { App } from "antd";
+import type { EditorFeedback } from "../../../services/notifier";
 
-import {
-  ContextMenuItem,
-  BuildMenuParams,
-} from "../../../components/EditorContextMenu/types";
+import { ContextMenuItem, BuildMenuParams } from "../../../components/EditorContextMenu/types";
 import type { CodeBlockElement } from "../../../types";
 import { codeBlockMap, codeBlockActionsMap } from "../index";
 import { deleteCodeBlock } from "./deleteCodeBlock";
@@ -36,7 +22,7 @@ import {
  */
 export function buildCodeBlockMenuItems(
   params: BuildMenuParams<CodeBlockElement>,
-  message?: ReturnType<typeof App.useApp>["message"],
+  message?: EditorFeedback
 ): ContextMenuItem[] {
   const { element, editor, path } = params;
   const actions = codeBlockActionsMap.get(element.uuid);
@@ -77,17 +63,14 @@ export function buildCodeBlockMenuItems(
       onSelect: () => {
         const elementPath = ReactEditor.findPath(editor, element);
         const sourceCode = element.code || "";
-        const nextMagicMove = createInitialMagicMove(
-          sourceCode,
-          element.highlightLines,
-        );
+        const nextMagicMove = createInitialMagicMove(sourceCode, element.highlightLines);
         Transforms.setNodes(
           editor,
           {
             code: sourceCode,
             magicMove: nextMagicMove,
           },
-          { at: elementPath },
+          { at: elementPath }
         );
         message?.success("已开启 Diff 动画");
       },
@@ -104,19 +87,16 @@ export function buildCodeBlockMenuItems(
         const nextMagicMove = insertNextMagicMoveStep(
           magicMove,
           element.code || "",
-          getActiveStepHighlightLines(magicMove),
+          getActiveStepHighlightLines(magicMove)
         );
-        const currentCode = getActiveStepCode(
-          nextMagicMove,
-          element.code || "",
-        );
+        const currentCode = getActiveStepCode(nextMagicMove, element.code || "");
         Transforms.setNodes(
           editor,
           {
             code: currentCode,
             magicMove: nextMagicMove,
           },
-          { at: elementPath },
+          { at: elementPath }
         );
         message?.success("已新增下一步");
       },
@@ -131,7 +111,7 @@ export function buildCodeBlockMenuItems(
         const result = removeMagicMoveStep(
           magicMove,
           element.code || "",
-          getActiveStepHighlightLines(magicMove),
+          getActiveStepHighlightLines(magicMove)
         );
         if (!result.removed) {
           return;
@@ -143,7 +123,7 @@ export function buildCodeBlockMenuItems(
               code: result.code,
               magicMove: result.magicMove,
             },
-            { at: elementPath },
+            { at: elementPath }
           );
           message?.success("已删除当前步骤");
           return;
@@ -154,7 +134,7 @@ export function buildCodeBlockMenuItems(
             code: result.code,
             highlightLines: result.highlightLines,
           },
-          { at: elementPath },
+          { at: elementPath }
         );
         Transforms.unsetNodes(editor, "magicMove", { at: elementPath });
         if (!result.highlightLines) {
@@ -177,7 +157,7 @@ export function buildCodeBlockMenuItems(
             code: currentCode,
             highlightLines: currentHighlightLines,
           },
-          { at: elementPath },
+          { at: elementPath }
         );
         Transforms.unsetNodes(editor, "magicMove", { at: elementPath });
         if (!currentHighlightLines) {
@@ -215,19 +195,13 @@ export function buildCodeBlockMenuItems(
       key: "change-language",
       label: "修改语言",
       icon: <Code2 size={16} />,
-      children: CODE_BLOCK_LANGUAGE_OPTIONS.map((lang) => ({
+      children: CODE_BLOCK_LANGUAGE_OPTIONS.map(lang => ({
         key: `lang-${lang.value}`,
         label: lang.label,
-        disabled:
-          normalizeCodeBlockLanguageDisplayName(element.language) ===
-          lang.value,
+        disabled: normalizeCodeBlockLanguageDisplayName(element.language) === lang.value,
         onSelect: () => {
           const elementPath = ReactEditor.findPath(editor, element);
-          Transforms.setNodes(
-            editor,
-            { language: lang.value },
-            { at: elementPath },
-          );
+          Transforms.setNodes(editor, { language: lang.value }, { at: elementPath });
         },
       })),
     },
@@ -238,7 +212,7 @@ export function buildCodeBlockMenuItems(
       icon: <Trash2 size={16} />,
       danger: true,
       onSelect: () => deleteCodeBlock(editor, path),
-    },
+    }
   );
 
   return menuItems;

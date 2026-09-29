@@ -1,6 +1,6 @@
 import { Editor, Element as SlateElement, Path, Transforms } from "slate";
 import { v4 as getUuid } from "uuid";
-import { message } from "antd";
+import { notifierOf } from "../services/editorNotifier";
 import { Link, Plus, Upload } from "lucide-react";
 import { ReactEditor } from "slate-react";
 
@@ -223,7 +223,7 @@ const uploadAndInsertMedia = async (
       );
     } catch (error) {
       console.error("上传媒体失败:", error);
-      message.error("上传失败");
+      notifierOf(editor).error("上传失败");
       setNodesOnElement(editor, targetElement, CLEAR_UPLOADING_FLAG[mediaType]);
     }
     return;
@@ -255,7 +255,7 @@ const uploadAndInsertMedia = async (
     }
   } catch (error) {
     console.error("上传媒体失败:", error);
-    message.error("上传失败");
+    notifierOf(editor).error("上传失败");
     const entry = findMediaByUuid(editor, mediaType, uuid);
     if (entry) {
       // 仅按 uuid 定位删除，避免上传期间文档被编辑导致静态 path 误删其它节点
