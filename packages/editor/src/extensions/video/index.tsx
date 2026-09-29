@@ -4,7 +4,7 @@ import IExtension from "../types";
 import type { VideoElement } from "../../types";
 
 import VideoComponent from "./components/VideoComponent";
-import { pasteVideo, dropVideo } from "./plugins";
+import { videoIngestSpec } from "./ingest";
 import blockPanelItems from "./block-panel-items";
 import { videoCommands, videoMenuItems } from "./utils/menu";
 import type { Editor } from "slate";
@@ -15,14 +15,10 @@ class VideoExtension extends Base implements IExtension {
   override commands = videoCommands;
   override menuItems = videoMenuItems;
   override dragSpec = true;
+  override ingestSpec = videoIngestSpec;
 
   override getPlugins() {
-    return [
-      pasteVideo,
-      dropVideo,
-      createBlockElementPlugin(this.type),
-      createVoidElementPlugin(this.type),
-    ];
+    return [createBlockElementPlugin(this.type), createVoidElementPlugin(this.type)];
   }
 
   override getBlockPanelItems(editor?: Editor) {
