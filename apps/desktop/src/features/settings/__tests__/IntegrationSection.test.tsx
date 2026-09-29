@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   getBilibiliQRCode: vi.fn(),
 }));
 
-vi.mock("@/commands/piAi", () => ({ verifyMinimaxApiKey: mocks.verifyMinimaxApiKey }));
+vi.mock("@/services/minimax", () => ({ verifyMinimaxApiKey: mocks.verifyMinimaxApiKey }));
 vi.mock("@/commands/extra", () => ({ openExternal: vi.fn() }));
 vi.mock("@/utils/github", () => ({ getGithubUserInfo: mocks.getGithubUserInfo }));
 vi.mock("@/services/weread", () => ({ default: { validateSession: mocks.validateSession } }));
