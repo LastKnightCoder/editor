@@ -5,6 +5,7 @@
    与本文件 @theme 同名的类（bg-surface / text-ink-2…）以本文件为准（后声明） */
 @import "@tau/themes/tailwind.css";
 @source "../../../packages/editor/src";
+@source "../../../packages/editor-webview/src";
 @source "../../../packages/shared/src";
 @source "../../../packages/ui/src";
 

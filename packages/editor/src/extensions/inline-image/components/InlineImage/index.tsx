@@ -6,10 +6,10 @@ import ImageUploader from "../../../../components/ImageUploader";
 import { Transforms, Editor, Element as SlateElement, NodeEntry } from "slate";
 import { useUploadResource } from "../../../../hooks/useUploadResource";
 import { useImageResize, ResizeDirection } from "../../../../hooks/useImageResize";
-import styles from "./index.module.less";
-import classnames from "classnames";
+import { cn } from "@tau/ui";
 import { useMemoizedFn } from "ahooks";
 import { useEditorSlots } from "../../../../services";
+import { MEDIA_RESIZE_INFO_CLASS } from "../../../../utils/mediaFrameClasses";
 interface InlineImageProps extends RenderElementProps {
   element: InlineImageElement;
 }
@@ -24,6 +24,18 @@ const RESIZE_HANDLES: { direction: ResizeDirection; cursor: string }[] = [
   { direction: "se", cursor: "nwse-resize" },
   { direction: "sw", cursor: "nesw-resize" },
 ];
+
+// 边句柄是透明热区（8px 条），四角热区 12px 见方
+const RESIZE_HANDLE_POSITION_CLASS: Record<ResizeDirection, string> = {
+  n: "left-0 top-0 h-[8px] w-full",
+  s: "bottom-0 left-0 h-[8px] w-full",
+  e: "right-0 top-0 h-full w-[8px]",
+  w: "left-0 top-0 h-full w-[8px]",
+  nw: "left-0 top-0 h-[12px] w-[12px]",
+  ne: "right-0 top-0 h-[12px] w-[12px]",
+  sw: "bottom-0 left-0 h-[12px] w-[12px]",
+  se: "bottom-0 right-0 h-[12px] w-[12px]",
+};
 
 type InlineLocalImageProps = {
   url: string;
@@ -133,16 +145,17 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo(props => {
   return (
     <span
       {...attributes}
-      className={classnames(styles.inlineImageContainer)}
+      className="relative inline-block"
       contentEditable={false}
       ref={containerRef}
     >
       {url ? (
         // 显示图片内容
         <span
-          className={classnames(styles.container, {
-            [styles.resizing]: resize.isResizing,
-          })}
+          className={cn(
+            "relative mx-[2px] my-0 inline-block overflow-hidden rounded-[4px] align-text-bottom",
+            resize.isResizing && "pointer-events-none select-none"
+          )}
           style={{
             width: resize.size.width ? `${resize.size.width / 16}em` : "auto",
             height: resize.size.height ? `${resize.size.height / 16}em` : "auto",
@@ -153,7 +166,7 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo(props => {
               url={url}
               ref={imageRef}
               alt={alt}
-              className={classnames(styles.image)}
+              className="h-full w-full object-contain align-bottom"
               onLoad={handleImageLoad}
             />
           ) : (
@@ -161,7 +174,7 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo(props => {
               ref={imageRef}
               src={url}
               alt={alt}
-              className={classnames(styles.image)}
+              className="h-full w-full object-contain align-bottom"
               onLoad={handleImageLoad}
             />
           )}
@@ -169,13 +182,16 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo(props => {
             RESIZE_HANDLES.map(({ direction, cursor }) => (
               <div
                 key={direction}
-                className={classnames(styles.resizeHandle, styles[`resize-${direction}`])}
+                className={cn(
+                  "absolute z-[2] touch-none bg-transparent",
+                  RESIZE_HANDLE_POSITION_CLASS[direction]
+                )}
                 style={{ cursor }}
                 onPointerDown={e => resize.handleResizeStart(e, direction)}
               />
             ))}
           {resize.isResizing && (
-            <div className={styles.imageInfo}>
+            <div className={MEDIA_RESIZE_INFO_CLASS}>
               {Math.round(resize.size.width || 0)} × {Math.round(resize.size.height || 0)}
             </div>
           )}

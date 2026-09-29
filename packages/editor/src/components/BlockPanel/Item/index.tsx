@@ -1,11 +1,10 @@
-import classNames from "classnames";
 import { ChevronRight } from "lucide-react";
+import { cn } from "@tau/ui";
 import { memo, useEffect, useRef } from "react";
 
 import { IBlockPanelListItem } from "../../types";
 
-import menuStyles from "../../EditorContextMenu/index.module.less";
-import styles from "./index.module.less";
+import { menuItemArrowClass, menuItemClass } from "../../EditorContextMenu/menuClasses";
 
 interface IItemProps {
   item: IBlockPanelListItem;
@@ -17,14 +16,7 @@ interface IItemProps {
 }
 
 const Item = memo(
-  ({
-    item,
-    active,
-    hasChildren,
-    shouldAutoScroll,
-    onAnchorChange,
-    onClick,
-  }: IItemProps) => {
+  ({ item, active, hasChildren, shouldAutoScroll, onAnchorChange, onClick }: IItemProps) => {
     const IconComponent = item.icon;
     const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -53,28 +45,33 @@ const Item = memo(
       <button
         type="button"
         ref={buttonRef}
-        className={classNames(menuStyles.menuItem, styles.item, {
-          [styles.itemActive]: active,
-        })}
+        className={cn(
+          menuItemClass,
+          "flex w-full items-start gap-[12px] rounded-[16px] p-[10px_14px] text-left transition-[background-color,box-shadow] duration-150 ease-[ease]",
+          active &&
+            "bg-[var(--ed-bg-selected)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--ed-accent)_25%,transparent)]"
+        )}
         onClick={onClick}
       >
-        <span className={styles.iconWrapper}>
-          <IconComponent className={styles.icon} />
+        <span className="flex size-[36px] shrink-0 items-center justify-center rounded-[14px] bg-[var(--ed-bg-press)]">
+          <IconComponent className="size-[18px] text-[var(--ed-text-secondary)]" />
         </span>
-        <div className={styles.content}>
-          <span className={styles.title}>{item.title}</span>
+        <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
+          <span className="text-[14px] font-semibold text-[var(--ed-text)]">{item.title}</span>
           {item.description && (
-            <span className={styles.description}>{item.description}</span>
+            <span className="block truncate text-[12px] leading-[1.4] text-[var(--ed-text-secondary)]">
+              {item.description}
+            </span>
           )}
         </div>
         {hasChildren && (
-          <span className={classNames(menuStyles.menuItemArrow, styles.arrow)}>
+          <span className={cn(menuItemArrowClass, "ml-[8px]")}>
             <ChevronRight size={14} />
           </span>
         )}
       </button>
     );
-  },
+  }
 );
 
 Item.displayName = "BlockPanelItem";

@@ -1,0 +1,34 @@
+/*
+ * 源码 + 预览块（公式、Mermaid、HTML 等）的 CodeMirror 5 覆盖：CodeMirror 的 DOM 由第三方生成，
+ * 块内与全屏两处共用同一份，保留为普通 CSS（03 指南 §4 白名单第 ④ 类）。
+ * 作用域：.ed-preview-codemirror；行内边距经 --ed-cm-line-pad 由调用方给（块内 12px，全屏 0.75em）。
+ */
+
+.ed-preview-codemirror .CodeMirror {
+  height: auto !important;
+  padding: 1.125em 0.75em;
+  border-radius: 0;
+  font-size: 0.75em;
+  font-family: var(--ed-font-mono);
+  box-shadow: var(--ed-code-shadow);
+  background-color: var(--ed-code-bg);
+}
+
+.ed-preview-codemirror .CodeMirror pre.CodeMirror-line,
+.ed-preview-codemirror .CodeMirror pre.CodeMirror-line-like {
+  padding: 0 var(--ed-cm-line-pad, 12px);
+}
+
+.ed-preview-codemirror .CodeMirror-scroll,
+.ed-preview-codemirror .CodeMirror-hscrollbar {
+  overflow: hidden;
+}
+
+.ed-preview-codemirror .CodeMirror-gutters {
+  background-color: unset;
+  border-right: none;
+}
+
+.ed-preview-codemirror .CodeMirror-linenumber {
+  cursor: pointer;
+}

@@ -2,7 +2,7 @@ import React, { PropsWithChildren, useState, useRef, useEffect } from "react";
 import { Transforms } from "slate";
 import { RenderElementProps, useSlateStatic, ReactEditor, useReadOnly } from "slate-react";
 import { BarChart2 } from "lucide-react";
-import classnames from "classnames";
+import { cn } from "@tau/ui";
 import { useMemoizedFn } from "ahooks";
 
 import type { ChartElement, ChartConfig } from "../../../types";
@@ -20,7 +20,6 @@ import EditorContextMenu from "../../../components/EditorContextMenu";
 import AddParagraph from "../../../components/AddParagraph";
 import { buildChartMenuItems, chartActionsMap } from "../utils/menuItems";
 import { ReactEChartsRef } from "./ReactECharts";
-import styles from "./ChartBlock.module.less";
 
 interface ChartBlockProps {
   attributes: RenderElementProps["attributes"];
@@ -104,36 +103,39 @@ const ChartBlock: React.FC<PropsWithChildren<ChartBlockProps>> = props => {
 
   const isEmpty = !data || data.length === 0;
 
-  const containerClassName = classnames(
-    styles.container,
+  const containerClassName = cn(
+    "relative transition-all duration-200",
     dimWhileDragging(isDragging || (isOverCurrent && canDrop))
   );
 
   return (
-    <div {...attributes} className={classnames(styles.dropContainer, BLOCK_DRAG_GROUP)}>
+    <div {...attributes} className={cn("relative my-[0.625em]", BLOCK_DRAG_GROUP)}>
       <div contentEditable={false} ref={ref} className={containerClassName}>
         <DropIndicator active={isOverCurrent && canDrop} before={isBefore} />
         <div
           ref={node => {
             drop(node);
           }}
-          className={styles.content}
+          className="cursor-pointer"
           onClick={handleClick}
         >
           {isEmpty ? (
-            <div className={styles.empty}>
+            <div className="flex h-[8em] select-none flex-col items-center justify-center gap-[0.5em] text-[var(--ed-text-tertiary)]">
               <BarChart2 size={32} />
               <span>点击编辑图表</span>
             </div>
           ) : (
-            <div className={styles.preview} style={{ height }}>
+            <div className="relative h-[400px] p-[1em]" style={{ height }}>
               <ChartPreview ref={chartRef} data={data} config={config} />
             </div>
           )}
         </div>
         {!isEmpty && (
-          <div className={styles.resizeHandle} onMouseDown={handleResizeStart}>
-            <div className={styles.resizeIndicator} />
+          <div
+            className="absolute bottom-0 left-0 z-10 flex h-[10px] w-full cursor-row-resize items-center justify-center"
+            onMouseDown={handleResizeStart}
+          >
+            <div className="h-[0.25em] w-[2em] rounded-[1em] bg-[var(--ed-border)]" />
           </div>
         )}
       </div>

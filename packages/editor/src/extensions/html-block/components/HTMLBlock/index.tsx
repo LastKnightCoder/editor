@@ -1,7 +1,6 @@
 import { RenderElementProps } from "slate-react";
 import type { HTMLBlockElement } from "../../../types";
 import React, { PropsWithChildren, Fragment } from "react";
-import styles from "./index.module.less";
 import PreviewWithEditor from "../../../../components/PreviewWithEditor";
 import { useTailwindRuntimeCss } from "../../../../hooks/useTailwindRuntimeCss";
 import { ICompilerService } from "../../../../services";
@@ -25,14 +24,17 @@ const HTMLBlock: React.FC<PropsWithChildren<HTMLBlockProps>> = props => {
 
   const renderEmpty = () => {
     return (
-      <div contentEditable={false} className={styles.empty}>
+      <div
+        contentEditable={false}
+        className="flex h-[3.75em] cursor-pointer select-none items-center justify-center text-[var(--ed-text-tertiary)]"
+      >
         点击编辑 HTML 内容
       </div>
     );
   };
 
   return (
-    <div {...attributes} className={styles.container}>
+    <div {...attributes} className="h-auto cursor-pointer">
       <PreviewWithEditor
         mode={"htmlmixed"}
         initValue={html}

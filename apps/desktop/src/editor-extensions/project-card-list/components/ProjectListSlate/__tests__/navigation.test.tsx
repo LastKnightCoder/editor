@@ -23,10 +23,17 @@ vi.mock("@/services/editorKit", () => ({
   getFlashcardKit: () => ({}),
   getArrowLabelKit: () => ({}),
 }));
-vi.mock("@tau/editor/src", () => ({
-  AddParagraph: () => null,
-  useDragAndDrop: () => ({ drag: vi.fn(), drop: vi.fn() }),
-}));
+vi.mock("@tau/editor/src", async () => {
+  // 拖拽手柄 / 插入线是纯展示件，用真实实现；只桩掉依赖编辑器上下文的部分
+  const blockDrag = await vi.importActual<typeof import("@tau/editor/src/components/BlockDrag")>(
+    "@tau/editor/src/components/BlockDrag"
+  );
+  return {
+    ...blockDrag,
+    AddParagraph: () => null,
+    useDragAndDrop: () => ({ drag: vi.fn(), drop: vi.fn() }),
+  };
+});
 vi.mock("@/commands", () => ({
   getProjectItemById: async () => ({ children: [11, 12] }),
   getProjectItemsByIds: async () => [

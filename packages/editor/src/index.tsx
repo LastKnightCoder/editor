@@ -11,7 +11,7 @@ import {
   CSSProperties,
 } from "react";
 import type { Node, Path } from "slate";
-import classnames from "classnames";
+import { cn } from "@tau/ui";
 import { createEditor, Descendant, Editor, Transforms, Range } from "slate";
 import {
   Slate,
@@ -87,7 +87,6 @@ import "codemirror/addon/edit/closebrackets.js";
 import "codemirror/lib/codemirror.css";
 import "codemirror/theme/blackboard.css";
 
-import styles from "./index.module.less";
 import "./theme/editor.css";
 import { EditorThemeScope } from "./theme/context";
 import { IExtensionErrorReporter, IThemeService } from "./services/tokens";
@@ -128,6 +127,17 @@ const defaultPlugins: Plugin[] = [
   withNormalizedCopy,
   withSlashCommands,
 ];
+
+/**
+ * 可编辑区根样式。正文色继承容器（容器没设时一路继承到宿主 body 的主题文字色；
+ * 容器自带配色时如白板思维导图深底节点，由容器说话）。
+ * Slate chunk 容器（性能分块）不影响块间距。
+ */
+const EDITABLE_CLASS = [
+  "text-inherit caret-current",
+  "selection:bg-[var(--ed-selection)] selection:text-current selection:[-webkit-text-fill-color:currentColor]",
+  "[&_[data-slate-chunk]>*+*]:mt-0",
+].join(" ");
 
 const EMPTY_EDITOR_CONTENT: Descendant[] = [
   { type: "paragraph", children: [{ type: "formatted", text: "" }] },
@@ -472,7 +482,7 @@ const Index = memo(
               style={binding?.renderOverlay ? { position: "relative" } : { display: "contents" }}
             >
               <Editable
-                className={classnames(styles.editor, props.className)}
+                className={cn(EDITABLE_CLASS, props.className)}
                 style={props.style}
                 readOnly={readonly}
                 renderElement={renderElement}

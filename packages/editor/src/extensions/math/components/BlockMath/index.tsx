@@ -3,18 +3,16 @@ import { RenderElementProps } from "slate-react";
 import { Transforms } from "slate";
 import { ReactEditor, useSlateStatic } from "slate-react";
 
-import { Katex } from '@tau/shared';
+import { Katex } from "@tau/shared";
 import type { BlockMathElement } from "../../../types";
 import PreviewWithEditor from "../../../../components/PreviewWithEditor";
-
-import styles from "./index.module.less";
 
 interface BlockMathProps {
   attributes: RenderElementProps["attributes"];
   element: BlockMathElement;
 }
 
-const BlockMath: React.FC<PropsWithChildren<BlockMathProps>> = (props) => {
+const BlockMath: React.FC<PropsWithChildren<BlockMathProps>> = props => {
   const { attributes, element, children } = props;
   const { tex } = element;
   const editor = useSlateStatic();
@@ -25,7 +23,16 @@ const BlockMath: React.FC<PropsWithChildren<BlockMathProps>> = (props) => {
   };
 
   return (
-    <div {...attributes} className={styles.blockMath}>
+    <div
+      {...attributes}
+      className={[
+        "cursor-pointer",
+        "[&_div_mjx-container[jax=CHTML][display=true]]:mx-auto [&_div_mjx-container[jax=CHTML][display=true]]:my-[0.25em]",
+        // 长公式在块内横向滚动，避免撑破编辑器容器
+        "[&_.katex-display]:overflow-x-auto [&_.katex-display]:overflow-y-hidden [&_.katex-display]:py-[2px]",
+        "[&_.katex-display>.katex]:mx-auto [&_.katex-display>.katex]:my-0 [&_.katex-display>.katex]:w-fit",
+      ].join(" ")}
+    >
       <PreviewWithEditor
         mode={"stex"}
         initValue={tex}
@@ -35,7 +42,10 @@ const BlockMath: React.FC<PropsWithChildren<BlockMathProps>> = (props) => {
         {tex ? (
           <Katex tex={tex} />
         ) : (
-          <div contentEditable={false} className={styles.empty}>
+          <div
+            contentEditable={false}
+            className="flex h-[3.75em] cursor-pointer select-none items-center justify-center text-[var(--ed-text-tertiary)]"
+          >
             点击编辑公式
           </div>
         )}

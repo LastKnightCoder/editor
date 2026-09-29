@@ -3,7 +3,7 @@ import { Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useReadOnly, useSlateStatic } from "slate-react";
 import { useNotifier } from "../../../../services/hooks";
 import isHotkey from "is-hotkey";
-import classnames from "classnames";
+import { cn } from "@tau/ui";
 import { useMemoizedFn } from "ahooks";
 import type { HighlighterCore } from "shiki/core";
 import { PortalToBody } from "@tau/shared";
@@ -24,7 +24,7 @@ import {
 import EditorContextMenu from "../../../../components/EditorContextMenu";
 import type { ContextMenuItem } from "../../../../components/EditorContextMenu/types";
 import SelectLanguage from "../SelectLanguage";
-import ToolbarButtons from "./ToolbarButtons";
+import ToolbarButtons, { CODE_HOVER_GROUP } from "./ToolbarButtons";
 import DragHandle from "./DragHandle";
 import ShikiOverlayEditor, { OverlayKeydownHelpers } from "./ShikiOverlayEditor";
 import { buildCodeBlockMenuItems } from "../../utils/menuItems";
@@ -46,7 +46,7 @@ import {
 } from "../../utils/highlightLineRanges";
 import type { CodeBlockController } from "../../types";
 
-import styles from "./index.module.less";
+import "./CodeBlock.vendor.css";
 import {
   BLOCK_DRAG_GROUP,
   DropIndicator,
@@ -819,8 +819,9 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
   return (
     <div
       contentEditable={false}
-      className={classnames(
-        styles.codeBlockContainer,
+      className={cn(
+        "relative [--ed-code-pad-bottom:1.1em] [--ed-code-pad-left:1.5em] [--ed-code-pad-right:0.85em] [--ed-code-pad-top:3em]",
+        CODE_HOVER_GROUP,
         BLOCK_DRAG_GROUP,
         dimWhileDragging(isDragging || (isOverCurrent && canDrop))
       )}
@@ -850,21 +851,24 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
         />
         <SelectLanguage
           readonly={readOnly}
-          className={styles.languageSelect}
+          className="absolute left-[1em] top-[0.625em] z-[4]"
           value={language}
           onChange={handleOnLanguageChange}
         />
         <div
-          className={classnames(styles.codeViewport, {
-            [styles.folded]: isFolded,
-          })}
+          className={cn(
+            "group/viewport relative overflow-hidden rounded-[0.5em] bg-[var(--ed-code-bg)] shadow-[var(--ed-code-shadow)]",
+            // 折叠时底部渐隐到代码底色
+            isFolded &&
+              "after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-[3em] after:bg-[linear-gradient(180deg,transparent_0%,var(--ed-code-bg)_100%)] after:content-['']"
+          )}
         >
           <ShikiOverlayEditor
             value={code || ""}
             language={language}
             isDark={isDark}
             readOnly={readOnly || (canDrop && isOverCurrent) || isFullscreen}
-            className={styles.overlayEditor}
+            className="ed-code-overlay"
             allowScroll={isFolded}
             displayHeight={overlayDisplayHeight}
             heightHintValue={magicMovePreview ? previewHeightHint : null}
@@ -893,13 +897,19 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
             }
           />
           {canFold && (
-            <div className={styles.foldToggle} onClick={handleToggleFold}>
+            <div
+              className="pointer-events-none absolute bottom-[0.75em] right-[0.75em] z-[4] flex cursor-pointer items-center justify-center text-[var(--ed-text-tertiary)] opacity-0 transition-colors duration-200 ease-[ease] hover:text-[var(--ed-text)] group-hover/viewport:pointer-events-auto group-hover/viewport:opacity-100"
+              onClick={handleToggleFold}
+            >
               {isFolded ? <MdKeyboardArrowDown size={18} /> : <MdKeyboardArrowUp size={18} />}
             </div>
           )}
           {isFolded && !readOnly && (
-            <div className={styles.resizeHandle} onMouseDown={handleResizeStart}>
-              <div className={styles.resizeIndicator} />
+            <div
+              className="pointer-events-none absolute bottom-0 left-1/2 flex h-[1.1em] w-[2.75em] -translate-x-1/2 cursor-ns-resize items-end justify-center opacity-0 transition-opacity duration-200 ease-[ease] group-hover/viewport:pointer-events-auto group-hover/viewport:opacity-100"
+              onMouseDown={handleResizeStart}
+            >
+              <div className="h-[0.25em] w-[2.5em] rounded-[0.125em] bg-[var(--ed-border)] group-hover/viewport:bg-[var(--ed-text-tertiary)]" />
             </div>
           )}
         </div>
@@ -934,29 +944,35 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
         />
         {isFullscreen && (
           <PortalToBody>
-            <div className={classnames(styles.fullscreenOverlay, {})} onClick={closeFullscreen}>
+            <div
+              className="fixed inset-0 z-[1001] flex items-center justify-center bg-[var(--ed-glass-bg)] backdrop-blur-[var(--ed-glass-blur)] [--ed-code-pad-bottom:1.2em] [--ed-code-pad-left:1.5em] [--ed-code-pad-right:0.85em] [--ed-code-pad-top:1.2em]"
+              onClick={closeFullscreen}
+            >
               <div
-                className={classnames(styles.fullscreenContent, {})}
+                className="relative box-border flex h-[90%] w-[90%] flex-col overflow-hidden rounded-[0.5em] bg-[var(--ed-glass-bg)] shadow-[var(--ed-shadow-float)] backdrop-blur-[var(--ed-glass-blur)]"
                 onClick={event => event.stopPropagation()}
               >
-                <div className={styles.fullscreenHeader}>
+                <div className="relative z-[2] flex h-[2.5em] items-center justify-between border-b border-solid border-[var(--ed-border)] px-[1.25em] py-[0.625em]">
                   <SelectLanguage
                     readonly={readOnly}
-                    className={styles.fullscreenLanguageSelect}
+                    className="static"
                     value={language}
                     onChange={handleOnLanguageChange}
                   />
-                  <div className={styles.closeButton} onClick={closeFullscreen}>
+                  <div
+                    className="flex h-[1.75em] w-[1.75em] cursor-pointer items-center justify-center rounded-[0.25em] p-[0.25em] transition-all duration-200"
+                    onClick={closeFullscreen}
+                  >
                     <MdFullscreenExit size={20} />
                   </div>
                 </div>
-                <div className={styles.fullscreenViewport}>
+                <div className="min-h-0 flex-1 overflow-hidden p-[1.25em]">
                   <ShikiOverlayEditor
                     value={code || ""}
                     language={language}
                     isDark={isDark}
                     readOnly={readOnly}
-                    className={styles.fullscreenOverlayEditor}
+                    className="ed-code-overlay rounded-[0.5em] bg-[var(--ed-code-bg)] shadow-[var(--ed-code-shadow)]"
                     allowScroll={true}
                     onChange={applyCodeChange}
                     onBlur={flushPendingPersist}

@@ -15,6 +15,7 @@
 @custom-variant dark (.dark &);
 
 @source "../../../../packages/editor/src";
+@source "../../../../packages/editor-webview/src";
 @source "../../../../packages/shared/src";
 @source "../templates";
 @source "../components";

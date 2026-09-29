@@ -1,8 +1,7 @@
 import React, { useMemo, memo } from "react";
 import { RenderLeafProps } from "slate-react";
-import classnames from "classnames";
+import { cn } from "@tau/ui";
 import useTheme from "../../hooks/useTheme";
-import styles from "./index.module.less";
 import { type FormattedText as FormattedTextType } from "../../types";
 import { resolveTextGradientStyle } from "../../constants";
 
@@ -42,12 +41,13 @@ const FormattedText: React.FC<IFormattedTextProps> = memo(props => {
 
   // 计算类名
   const className = useMemo(() => {
-    return classnames({
-      [styles.bold]: bold,
-      [styles.italic]: italic,
-      [styles.gradientText]: Boolean(resolvedGradientStyle),
-      [styles.padding]: true,
-    });
+    return cn(
+      "pl-[0.1px]",
+      bold && "font-bold",
+      italic && "italic",
+      // 渐变字的 -webkit-text-fill-color 为 transparent，选中时恢复实色，否则选区里文字不可见
+      resolvedGradientStyle && "selection:[-webkit-text-fill-color:currentColor]"
+    );
   }, [bold, italic, resolvedGradientStyle]);
 
   // 渲染内容，嵌套包装组件

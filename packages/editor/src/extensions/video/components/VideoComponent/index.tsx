@@ -3,7 +3,6 @@ import { useMemoizedFn } from "ahooks";
 import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
 import { Transforms } from "slate";
 import { LoadingOverlay, cn } from "@tau/ui";
-import classnames from "classnames";
 import {
   BLOCK_DRAG_GROUP,
   DragHandle,
@@ -22,10 +21,15 @@ import useIsLastElement from "../../../../hooks/useIsLastElement";
 
 import { If, VideoPlayer } from "@tau/shared";
 
-import styles from "./index.module.less";
 import { buildVideoMenuItems } from "../../utils/menuItems";
 import { IVideoContentProviders, useEditorSlots, useOptionalService } from "../../../../services";
 import { openLocalMediaPicker } from "../../../../utils/mediaInsert";
+import {
+  MEDIA_ALIGN_CLASS,
+  MEDIA_CORNER_HANDLE_CLASS,
+  MEDIA_CORNER_POSITION_CLASS,
+  MEDIA_RESIZE_INFO_CLASS,
+} from "../../../../utils/mediaFrameClasses";
 
 const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   const { element, children, attributes } = props;
@@ -142,13 +146,12 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     return (
       <div
         ref={containerRef}
-        className={classnames(styles.videoContainer, {
-          [styles.resizing]: resize.isResizing,
-          [styles.selected]: isSelected,
-          [styles.alignLeft]: align === "left",
-          [styles.alignCenter]: align === "center",
-          [styles.alignRight]: align === "right",
-        })}
+        className={cn(
+          "relative my-0 block w-fit max-w-full rounded-none",
+          MEDIA_ALIGN_CLASS[align],
+          isSelected &&
+            "after:pointer-events-none after:absolute after:-inset-[2px] after:rounded-none after:border-[1.5px] after:border-solid after:border-[var(--ed-accent)] after:content-['']"
+        )}
         style={{
           width: resize.size.width ? `${resize.size.width}px` : width ? `${width}px` : "auto",
           maxWidth: "100%",
@@ -157,7 +160,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
         {useLocalVideo ? (
           <Video
             ref={videoRef}
-            className={styles.video}
+            className="block max-w-full cursor-default"
             width={"100%"}
             controls
             src={videoUrl}
@@ -168,7 +171,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
         ) : (
           <VideoPlayer
             ref={videoRef}
-            className={styles.video}
+            className="block max-w-full cursor-default"
             src={videoUrl}
             playbackRate={playbackRate}
             onClick={handleSelect}
@@ -180,17 +183,13 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
             {RESIZE_HANDLES.map(({ direction, cursor }) => (
               <div
                 key={direction}
-                className={classnames(
-                  styles.resizeHandle,
-                  // @ts-ignore
-                  styles[`resize-${direction}`]
-                )}
+                className={cn(MEDIA_CORNER_HANDLE_CLASS, MEDIA_CORNER_POSITION_CLASS[direction])}
                 style={{ cursor }}
                 onPointerDown={e => resize.handleResizeStart(e, direction)}
               />
             ))}
             {resize.isResizing && (
-              <div className={styles.videoInfo}>{Math.round(resize.size.width || 0)} px</div>
+              <div className={MEDIA_RESIZE_INFO_CLASS}>{Math.round(resize.size.width || 0)} px</div>
             )}
           </>
         )}

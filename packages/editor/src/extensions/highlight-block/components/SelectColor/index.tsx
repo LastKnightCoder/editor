@@ -4,8 +4,6 @@ import { Color } from "../../../types";
 import { For } from "@tau/shared";
 import ColorItem from "./ColorItem";
 
-import styles from "./index.module.less";
-
 import { colors as colorsConfig } from "../../configs";
 
 interface ISelectColorProps {
@@ -19,14 +17,12 @@ const SelectColor = (props: ISelectColorProps) => {
   const { isDark } = useTheme();
 
   return (
-    <div className={styles.selectColorContainer}>
+    <div className="flex cursor-pointer gap-[10px] rounded-[12px] bg-[var(--ed-bg-page)] p-[10px] shadow-[var(--ed-shadow-card)]">
       <For
         data={Object.keys(colorsConfig) as Color[]}
-        renderItem={(color) => {
+        renderItem={color => {
           const themeColor = colorsConfig[color];
-          const { backgroundColor, borderColor } = isDark
-            ? themeColor.dark
-            : themeColor.light;
+          const { backgroundColor, borderColor } = isDark ? themeColor.dark : themeColor.light;
           return (
             <ColorItem
               key={color}

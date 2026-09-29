@@ -1,10 +1,17 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import classnames from "classnames";
 import { ChevronRight } from "lucide-react";
+import { cn } from "@tau/ui";
 
 import { ContextMenuItem, EditorContextMenuProps } from "./types";
-import styles from "./index.module.less";
+import {
+  menuGlassClass,
+  menuItemArrowClass,
+  menuItemClass,
+  menuItemWrapperClass,
+  menuListClass,
+  menuPanelClass,
+} from "./menuClasses";
 
 const EditorContextMenu = memo(
   ({ visible, position, items, onClose, readonly }: EditorContextMenuProps) => {
@@ -102,10 +109,11 @@ const EditorContextMenu = memo(
             prevPosition.left !== shouldBeLeft ||
             prevPosition.top !== topOffset
           ) {
+            // 右侧空间不足时子菜单翻到左侧，外观由 data-[placement=left] 变体承接
             if (shouldBeLeft) {
-              subMenuElement.classList.add(styles.subMenuLeft);
+              subMenuElement.dataset.placement = "left";
             } else {
-              subMenuElement.classList.remove(styles.subMenuLeft);
+              delete subMenuElement.dataset.placement;
             }
             subMenuElement.style.top = topOffset;
 
@@ -180,22 +188,23 @@ const EditorContextMenu = memo(
     };
 
     const renderMenu = (items: ContextMenuItem[], level = 0) => (
-      <div className={styles.menuList}>
+      <div className={menuListClass}>
         {items.map(item => {
           if (!item) return null;
 
           const hasChildren = Array.isArray(item.children) && item.children.length > 0;
           const isOpen = openKeys[level] === item.key;
 
-          const itemClass = classnames(styles.menuItem, {
-            [styles.menuItemDanger]: item.danger,
-            [styles.menuItemDisabled]: item.disabled,
-          });
+          const itemClass = cn(
+            menuItemClass,
+            item.danger && "text-[var(--ed-danger)] enabled:hover:bg-[var(--ed-danger-soft)]",
+            item.disabled && "cursor-not-allowed opacity-50"
+          );
 
           return (
             <div
               key={item.key}
-              className={styles.menuItemWrapper}
+              className={menuItemWrapperClass}
               onMouseEnter={() => handleItemWrapperEnter(item.key, hasChildren, level)}
               onMouseLeave={() => handleItemWrapperLeave(item.key, hasChildren, level)}
             >
@@ -205,10 +214,12 @@ const EditorContextMenu = memo(
                 onClick={() => handleItemSelect(item, hasChildren)}
                 disabled={item.disabled}
               >
-                {item.icon && <span className={styles.menuItemIcon}>{item.icon}</span>}
-                <span className={styles.menuItemLabel}>{item.label}</span>
+                {item.icon && (
+                  <span className="flex items-center justify-center text-[16px]">{item.icon}</span>
+                )}
+                <span className="flex-1">{item.label}</span>
                 {hasChildren && (
-                  <span className={styles.menuItemArrow}>
+                  <span className={menuItemArrowClass}>
                     <ChevronRight size="1em" />
                   </span>
                 )}
@@ -219,20 +230,24 @@ const EditorContextMenu = memo(
                 <>
                   {/* 安全三角区 */}
                   <div
-                    className={classnames(styles.safeArea, {
-                      [styles.safeAreaVisible]: isOpen,
-                    })}
+                    className={cn(
+                      "absolute right-[-8px] top-0 hidden h-full w-[16px]",
+                      isOpen && "block"
+                    )}
                   />
                   {/* 子菜单 */}
                   <div
-                    className={classnames(styles.subMenu, {
-                      [styles.subMenuVisible]: isOpen,
-                      [styles.subMenuLeft]: false, // 将在 useEffect 中动态计算
-                    })}
+                    className={cn(
+                      "absolute left-[calc(100%+8px)] top-0 box-border hidden min-w-[160px] max-w-[240px] overflow-visible rounded-[18px] border-[6px] border-solid border-transparent p-[8px]",
+                      menuGlassClass,
+                      "before:pointer-events-none before:absolute before:inset-0 before:rounded-[inherit] before:border before:border-solid before:border-[var(--ed-border-soft)] before:content-['']",
+                      "data-[placement=left]:left-auto data-[placement=left]:right-[calc(100%+8px)]",
+                      isOpen && "block"
+                    )}
                     data-submenu
                     data-submenu-key={item.key}
                   >
-                    <div className={styles.subMenuContent}>
+                    <div className="flex max-h-[min(24rem,calc(100vh-8rem))] flex-col">
                       {renderMenu(item.children!, level + 1)}
                     </div>
                   </div>
@@ -260,7 +275,7 @@ const EditorContextMenu = memo(
     return createPortal(
       <div
         ref={menuRef}
-        className={styles.menu}
+        className={menuPanelClass}
         style={{
           left: `${calculatedPosition.x}px`,
           top: `${calculatedPosition.y}px`,
@@ -272,7 +287,13 @@ const EditorContextMenu = memo(
         onContextMenu={stopAll}
         onWheel={stopPropagationOnly}
       >
-        {items.length > 0 ? renderMenu(items) : <div className={styles.empty}>暂无可用操作</div>}
+        {items.length > 0 ? (
+          renderMenu(items)
+        ) : (
+          <div className="p-[12px] text-center text-[13px] text-[var(--ed-text-tertiary)]">
+            暂无可用操作
+          </div>
+        )}
       </div>,
       document.body
     );

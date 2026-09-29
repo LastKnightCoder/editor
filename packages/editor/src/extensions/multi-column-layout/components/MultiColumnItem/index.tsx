@@ -8,6 +8,7 @@ import {
   useSlateSelection,
 } from "slate-react";
 import { If } from "@tau/shared";
+import { cn } from "@tau/ui";
 import { Trash2 } from "lucide-react";
 import { MdDragIndicator } from "react-icons/md";
 
@@ -17,14 +18,12 @@ import {
   calcWidthsAfterDelete,
   updateColumnWidths,
 } from "../../../../utils/multi-columns-layout";
-import classnames from "classnames";
 
 import { MultiColumnContainerElement, MultiColumnItemElement } from "../../../types";
 import useColumnDragAndDrop from "../../hooks/useColumnDragAndDrop";
 import useColumnEdgeDrop from "../../hooks/useColumnEdgeDrop";
 import { useColumnWidthsContext } from "../../context/ColumnWidthsContext";
-
-import styles from "./index.module.less";
+import { dimWhileDragging } from "../../../../components/BlockDrag";
 
 // gap 值（与 CSS 中 MultiColumnsContainer .container 的 gap 保持一致）
 // 如需修改，请同步更新 MultiColumnsContainer/index.tsx 中容器的 gap-[0.625em]
@@ -58,10 +57,17 @@ const EdgeDropZone = ({
         drop(node);
       }}
       contentEditable={false}
-      className={classnames(styles.edgeDropZone, styles[position], {
-        [styles.active]: isActive,
-        [styles.dragging]: isDragging,
-      })}
+      className={cn(
+        "pointer-events-none absolute bottom-0 top-0 z-[15] w-[40px]",
+        position === "left" ? "left-0" : "right-0",
+        isActive &&
+          "before:absolute before:bottom-0 before:top-0 before:w-[3px] before:bg-[var(--ed-accent-text)] before:content-['']",
+        isActive &&
+          (position === "left"
+            ? "bg-[linear-gradient(to_right,var(--ed-accent-soft),transparent)] before:left-0"
+            : "bg-[linear-gradient(to_left,var(--ed-accent-soft),transparent)] before:right-0"),
+        isDragging && "pointer-events-auto"
+      )}
     />
   );
 };
@@ -75,8 +81,9 @@ const MultiColumnItem = (props: IMultiColumnItemProps) => {
   const { previewWidths } = useColumnWidthsContext();
 
   // 列排序拖拽
-  const { drag, drop, isDragging, canDrag, canDrop, isOverCurrent, isBefore } =
-    useColumnDragAndDrop({ element });
+  const { drag, drop, isDragging, canDrop, isOverCurrent, isBefore } = useColumnDragAndDrop({
+    element,
+  });
 
   const isActive = useMemo(() => {
     const [columnItem] = Editor.nodes(editor, {
@@ -189,14 +196,20 @@ const MultiColumnItem = (props: IMultiColumnItemProps) => {
       ref={node => {
         drop(node);
       }}
-      className={classnames(styles.itemContainer, {
-        [styles.notLast]: !isLast,
-        [styles.active]: isActive,
-        [styles.dragging]: isDragging,
-        [styles.dropTarget]: isOverCurrent && canDrop,
-        [styles.dropBefore]: isBefore,
-        [styles.dropAfter]: !isBefore,
-      })}
+      className={cn(
+        "relative min-w-0 flex-auto overflow-visible p-[20px]",
+        // 悬停只点亮本列的直接子元素：列里可能嵌套分栏，用子代组合器而非 group，避免嵌套列一起亮
+        "[&:hover>[data-column-indicator]]:opacity-80",
+        "[&:hover>[data-column-actions]]:pointer-events-auto [&:hover>[data-column-actions]]:opacity-100",
+        !isLast &&
+          "after:absolute after:-right-[5px] after:top-[0.625em] after:h-[calc(100%-0.625em)] after:w-px after:bg-[var(--ed-border)] after:content-['']",
+        dimWhileDragging(isDragging),
+        isOverCurrent &&
+          canDrop &&
+          (isBefore
+            ? "before:absolute before:bottom-0 before:left-0 before:top-0 before:z-20 before:w-[3px] before:bg-[var(--ed-accent-text)] before:content-['']"
+            : "after:absolute after:bottom-0 after:right-0 after:top-0 after:z-20 after:w-[3px] after:bg-[var(--ed-accent-text)] after:content-['']")
+      )}
       style={containerStyle}
     >
       {/* 边缘放置区域 */}
@@ -208,34 +221,49 @@ const MultiColumnItem = (props: IMultiColumnItemProps) => {
       )}
 
       {/* 列位置指示器 */}
-      <div contentEditable={false} className={styles.columnIndicator}>
+      <div
+        contentEditable={false}
+        data-column-indicator
+        className={cn(
+          "pointer-events-none absolute left-0 top-0 z-10 -translate-y-full select-none rounded-[0_0_4px_0] bg-[var(--ed-accent-text)] px-[6px] py-[2px] text-[12px] leading-[1.1] text-[var(--ed-text-inverse)] opacity-0 transition-opacity duration-200",
+          isActive && "opacity-80"
+        )}
+      >
         {columnIndex + 1}/{totalColumns}
       </div>
 
       {/* 操作按钮区域 */}
       <If condition={!readOnly}>
-        <div className={styles.actionButtons} contentEditable={false}>
+        <div
+          contentEditable={false}
+          data-column-actions
+          className={cn(
+            "pointer-events-none absolute right-0 top-0 z-20 flex items-center gap-[4px] opacity-0 transition-opacity duration-200",
+            isActive && "pointer-events-auto opacity-100"
+          )}
+        >
           {/* 列拖拽排序手柄 */}
           {totalColumns > 1 && (
             <div
               ref={node => {
                 drag(node);
               }}
-              className={classnames(styles.columnDragHandle, {
-                [styles.canDrag]: canDrag,
-              })}
+              className="flex h-[1.75em] w-[1.75em] cursor-grab items-center justify-center rounded-full hover:bg-[var(--ed-bg-hover)] active:cursor-grabbing"
             >
               <MdDragIndicator />
             </div>
           )}
           {/* 删除按钮 */}
-          <div className={styles.delete} onClick={onDelete}>
+          <div
+            className="flex h-[1.75em] w-[1.75em] cursor-pointer items-center justify-center rounded-full hover:bg-[var(--ed-bg-hover)]"
+            onClick={onDelete}
+          >
             <Trash2 size="1em" />
           </div>
         </div>
       </If>
 
-      <div className={styles.content} {...attributes}>
+      <div className="relative w-full overflow-visible [word-break:break-word]" {...attributes}>
         {children}
       </div>
     </div>

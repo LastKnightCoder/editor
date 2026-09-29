@@ -7,7 +7,7 @@ import { IBlockPanelListItem } from "../../types";
 import type { ExtensionAssembly } from "../../kit/ExtensionAssembly";
 
 import useBlockPanelStore from "../../stores/useBlockPanelStore";
-import menuStyles from "../EditorContextMenu/index.module.less";
+import { menuPanelClass } from "../EditorContextMenu/menuClasses";
 
 interface IBlockPanelProps {
   assembly: ExtensionAssembly;
@@ -199,7 +199,7 @@ const BlockPanel = memo((props: IBlockPanelProps) => {
     <PortalToBody>
       <div
         ref={panelRef}
-        className={menuStyles.menu}
+        className={menuPanelClass}
         style={{
           left: `${calculatedPosition.x}px`,
           top: `${calculatedPosition.y}px`,

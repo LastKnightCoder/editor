@@ -101,6 +101,18 @@ const METRICS = [
     mode: "files",
   },
   {
+    key: "editor.lessImports",
+    desc: "editor / editor-webview / desktop editor-extensions 内 import less 的文件（P8 清零，样式走 Tailwind）",
+    roots: [
+      "packages/editor/src",
+      "packages/editor-webview/src",
+      "apps/desktop/src/editor-extensions",
+    ],
+    pattern: /import\s+(?:\w+\s+from\s+)?["'][^"']+\.less["']|@import\s+["'][^"']+\.less["']/g,
+    mode: "files",
+    includeTests: true,
+  },
+  {
     key: "editor.configConsumers",
     desc: "editor 内 useEditorConfig / useEditorEnvironment 的使用文件（不含定义处）",
     roots: EDITOR,

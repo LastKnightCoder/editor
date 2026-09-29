@@ -53,13 +53,14 @@
 
 状态图例：⏳ 未开始 / 🚧 进行中 / ✅ 完成 / ⏸ 暂停（写原因）。
 
-**下一步**：P8 剩余——编辑器 CSS Modules 转 Tailwind（拖拽样式已收口为 `BlockDrag`，剩 53 个 less，先转大组件）、codec 按扩展归属、
+**下一步**：P8 剩余——codec 按扩展归属、
 命令注册表、其余内置扩展迁到 v2（清单见 02 P8）。
 已完成：第一块（错误隔离 + 未知节点占位，Markdown 兜底语法见 ER-006）；第二块（`defineExtension`、
 `@tau/editor/api`、`fromLegacyExtension`，divide-line 已迁到 v2）；第三块（移除 antd，UI 直接用 `@tau/ui`，ER-018）；
-mobile 注册了自己的编辑器提示服务（mobile toast + `MobileConfirmDialog`，返回手势等同取消）。
+mobile 注册了自己的编辑器提示服务（mobile toast + `MobileConfirmDialog`，返回手势等同取消）；
+拖拽样式收口为 `BlockDrag`；编辑器 less 全部转 Tailwind（67 → 0，第三方覆盖留两份 `.vendor.css`）。
 **实机待确认**：移除 antd 后各浮层（Tooltip、代码块语言选择、表情、批注、行内 HTML、样式文本调色、列表图标、
-表格操作、行内图片上传）的观感与开合；两种未知节点占位的观感；各块拖拽手柄的悬停显示（只亮最内层被悬停的块）与拖拽插入线；P7 遗留的协作 e2e、结束共享、白板测高、
+表格操作、行内图片上传）的观感与开合；两种未知节点占位的观感；各块拖拽手柄的悬停显示（只亮最内层被悬停的块）与拖拽插入线；less 全量转 Tailwind 后的编辑态外观（代码块叠层编辑与全屏、源码 + 预览块的编辑 / 全屏、右键菜单与块面板、图片 / 视频缩放与工具条、分栏、行内公式选中态，blog 只读页覆盖不到编辑态）；P7 遗留的协作 e2e、结束共享、白板测高、
 mobile 回落与结束共享（清单见 02 P7 验收结果）。
 
 ## 5. 接手步骤

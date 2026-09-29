@@ -3,8 +3,6 @@ import { useCreation, useMemoizedFn } from "ahooks";
 import { renderMermaidSvg } from "@tau/shared";
 import useTheme from "../../../hooks/useTheme";
 
-import styles from "./Mermaid.module.less";
-
 interface IMermaidProps {
   chart: string;
   /** Cached SVG from previous render */
@@ -96,7 +94,8 @@ const Mermaid = (props: IMermaidProps) => {
         <div
           ref={ref}
           dangerouslySetInnerHTML={{ __html: svgContent }}
-          className={styles.container}
+          // 超宽时容器内横向滚动；svg 用 margin auto 居中（而非 justify-center），超宽时左侧仍可滚动到
+          className="flex w-full items-center overflow-x-auto p-[20px] [&>svg]:m-auto [&>svg]:shrink-0"
         />
       )}
     </>
