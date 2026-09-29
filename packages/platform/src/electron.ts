@@ -51,7 +51,6 @@ export function createElectronPlatform(rpc: PlatformInvoker, os: PlatformOs): Pl
       openEditorWindow: (target: EditorWindowTarget) => invoke<void>("open-editor-window", target),
       closeEditorWindow: (target: EditorWindowTarget) =>
         invoke<void>("close-editor-window", target),
-      openPomodoroWindow: () => invoke<void>("open-pomodoro-window"),
       openPomodoroMiniWindow: () => invoke<void>("open-pomodoro-mini-window"),
       hidePomodoroMiniWindow: () => invoke<void>("hide-pomodoro-mini-window"),
       openPomodoroImmersiveWindow: () => invoke<void>("open-pomodoro-immersive-window"),

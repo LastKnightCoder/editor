@@ -21,6 +21,7 @@ import useSyncTheme from "@/hooks/useSyncTheme";
 import useSyncTwoToneColor from "@/hooks/useSyncTwoToneColor";
 import useSearchWarmUp from "@/hooks/useSearchWarmUp";
 import { useItemUpdateListener } from "@/hooks/useItemUpdateListener";
+import useArticleDeletedCleanup from "@/hooks/useArticleDeletedCleanup";
 import useSyncSetting from "@/hooks/useSyncSetting";
 import useWeReadSessionBootstrap from "@/hooks/useWeReadSessionBootstrap";
 import { useInitChatData } from "@/hooks/useInitChatData";
@@ -64,6 +65,7 @@ const Application = () => {
 
   useSyncSetting();
   useItemUpdateListener();
+  useArticleDeletedCleanup();
   useSyncFont();
   useSyncTheme();
   useSyncTwoToneColor();

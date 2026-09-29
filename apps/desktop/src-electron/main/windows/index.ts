@@ -7,8 +7,7 @@ import { createBackgroundAudioWindow } from "./utility-windows";
 export { createMainWindow, getMainWindows, showOrCreateMainWindow } from "./main-window";
 export { openEditorWindow, closeEditorWindow } from "./editor-window";
 export { openMarkdownWindow } from "./markdown-window";
-export { createPomodoroWindow } from "./pomodoro-windows";
-export { createTodoWindow, createQuickCardWindow } from "./utility-windows";
+export { createQuickCardWindow } from "./utility-windows";
 
 /** 注册窗口 IPC，并预建常驻隐藏窗口（番茄小窗 / 沉浸、背景音） */
 export function initWindows(options: {

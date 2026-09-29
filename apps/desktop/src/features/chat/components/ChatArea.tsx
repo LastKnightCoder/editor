@@ -16,15 +16,13 @@ import type { EditTextHandle } from "@/components/EditText";
 import { MAIN_CHAT_BUCKET } from "@/stores/useChatSessionStore";
 import { useScopedChat } from "@/hooks/useScopedChat";
 import useTheme from "@/hooks/useTheme";
-import { MarkdownProvider } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
-import ChatDropdownSelector from "@/layouts/ContentLayout/components/RightChatSidebar/ChatDropdownSelector";
+import { MarkdownProvider } from "@/components/ChatSidebar/MarkdownContext";
+import ChatDropdownSelector from "@/components/ChatDropdownSelector";
 import { useChatMarkdownComponents } from "@/components/ChatUI";
-import type { ChatContainerHandle } from "@/layouts/ContentLayout/components/ChatSidebar/ChatContainer";
+import type { ChatContainerHandle } from "@/components/ChatSidebar/ChatContainer";
 import type { BlockData } from "@/types/block-preview";
 
-const ChatContainer = lazy(
-  () => import("@/layouts/ContentLayout/components/ChatSidebar/ChatContainer")
-);
+const ChatContainer = lazy(() => import("@/components/ChatSidebar/ChatContainer"));
 
 /** 阅读列宽：消息、提示条与输入框同一列（D-048，同文章正文 ~72ch 口径） */
 const READING_WIDTH = 760;

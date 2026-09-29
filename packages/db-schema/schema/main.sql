@@ -570,16 +570,6 @@ CREATE TABLE IF NOT EXISTS weread_notebook (
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       );
-CREATE TABLE IF NOT EXISTS weread_view (
-        id INTEGER PRIMARY KEY,
-        table_id INTEGER DEFAULT 0,
-        name TEXT NOT NULL,
-        type TEXT NOT NULL,
-        view_order INTEGER DEFAULT 0,
-        config TEXT NOT NULL,
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
-      );
 CREATE TABLE IF NOT EXISTS weread_config (
         key TEXT PRIMARY KEY,
         value TEXT,
@@ -795,7 +785,6 @@ CREATE INDEX IF NOT EXISTS idx_weread_notebook_title ON weread_notebook(title);
 CREATE INDEX IF NOT EXISTS idx_weread_notebook_reading_status ON weread_notebook(reading_status);
 CREATE INDEX IF NOT EXISTS idx_weread_notebook_last_read_date ON weread_notebook(last_read_date);
 CREATE INDEX IF NOT EXISTS idx_weread_notebook_updated_at ON weread_notebook(updated_at);
-CREATE INDEX IF NOT EXISTS idx_weread_view_order ON weread_view(view_order);
 CREATE INDEX IF NOT EXISTS idx_flashcards_deck ON flashcards(deck_id);
 CREATE INDEX IF NOT EXISTS idx_flashcards_due_time ON flashcards(due_time);
 CREATE INDEX IF NOT EXISTS idx_flashcard_reviews_card ON flashcard_reviews(card_id);

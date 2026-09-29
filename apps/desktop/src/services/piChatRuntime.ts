@@ -34,7 +34,7 @@ import {
   setInteractionSessionReady,
   usePiInteractionStore,
 } from "./piInteractions";
-import { withStreamingUpdateTime } from "@/layouts/ContentLayout/components/ChatSidebar/streamingUtils";
+import { withStreamingUpdateTime } from "@/components/ChatSidebar/streamingUtils";
 
 /** 组件提供的会话依赖（必须无组件生命周期：store action / IPC command） */
 export interface PiChatRuntimeDeps {

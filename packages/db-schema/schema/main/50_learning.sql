@@ -170,16 +170,6 @@ CREATE TABLE IF NOT EXISTS weread_notebook (
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       );
-CREATE TABLE IF NOT EXISTS weread_view (
-        id INTEGER PRIMARY KEY,
-        table_id INTEGER DEFAULT 0,
-        name TEXT NOT NULL,
-        type TEXT NOT NULL,
-        view_order INTEGER DEFAULT 0,
-        config TEXT NOT NULL,
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
-      );
 CREATE TABLE IF NOT EXISTS weread_config (
         key TEXT PRIMARY KEY,
         value TEXT,

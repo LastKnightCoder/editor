@@ -58,7 +58,7 @@ import WebNoteTable from "./tables/web-note";
 import WebViewPreferenceTable from "./tables/web-view-preference";
 import ContentLinkTable from "./tables/content-link";
 import WeReadNotebookTable from "./tables/weread-notebook";
-import WeReadViewTable from "./tables/weread-view";
+import WereadViewCleanupTable from "./tables/weread-view-cleanup";
 import WeReadConfigTable from "./tables/weread-config";
 import FlashcardTable from "./tables/flashcard";
 import EpubHardCleanupTable from "./tables/epub-hard-cleanup";
@@ -278,7 +278,7 @@ class DatabaseModule implements Module {
       WebViewPreferenceTable,
       ContentLinkTable,
       WeReadNotebookTable,
-      WeReadViewTable,
+      WereadViewCleanupTable,
       WeReadConfigTable,
       FlashcardTable,
       EpubHardCleanupTable,

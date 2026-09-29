@@ -3,8 +3,6 @@ import classnames from "classnames";
 import { Popover, App, Tag } from "antd";
 
 import { MdMoreVert } from "react-icons/md";
-import useTabStore from "@/stores/useTabStore";
-import { TabType } from "@/types/tab";
 import useTheme from "@/hooks/useTheme.ts";
 import usePdfsStore from "@/stores/usePdfsStore.ts";
 import useUploadResource from "@/hooks/useUploadResource.ts";
@@ -21,22 +19,14 @@ interface PdfCardProps {
 }
 
 const PdfCard = (props: PdfCardProps) => {
-  const {
-    className,
-    style,
-    pdf,
-    compact = false,
-    onCardClick,
-    showActions = true,
-  } = props;
+  const { className, style, pdf, compact = false, onCardClick, showActions = true } = props;
 
-  const navigateTo = useTabStore((state) => state.navigateTo);
   const { modal, message } = App.useApp();
   const { isDark } = useTheme();
   const [settingOpen, setSettingOpen] = useState(false);
   const uploadResource = useUploadResource();
 
-  const { removePdf, activePdf, updatePdf } = usePdfsStore((state) => ({
+  const { removePdf, activePdf, updatePdf } = usePdfsStore(state => ({
     removePdf: state.removePdf,
     activePdf: state.activePdf,
     updatePdf: state.updatePdf,
@@ -75,9 +65,7 @@ const PdfCard = (props: PdfCardProps) => {
           });
 
           // 读取本地文件内容
-          const fileContent = (await readBinaryFile(
-            pdf.filePath,
-          )) as Uint8Array<ArrayBuffer>;
+          const fileContent = (await readBinaryFile(pdf.filePath)) as Uint8Array<ArrayBuffer>;
           const file = new File([fileContent], pdf.fileName, {
             type: "application/pdf",
           });
@@ -111,29 +99,22 @@ const PdfCard = (props: PdfCardProps) => {
       return;
     }
     if (compact) {
-      // 在详情页的紧凑模式下，直接设置 activePdf
+      // 详情页紧凑模式：直接切换 activePdf（旧列表页的导航分支已随 /legacy 退役）
       usePdfsStore.setState({
         activePdf: pdf.id === activePdf?.id ? null : pdf,
       });
-    } else {
-      // 在列表页，导航到详情页
-      navigateTo(
-        TabType.PdfDetail,
-        { id: pdf.id },
-        `PDF - ${pdf.fileName || `#${pdf.id}`}`,
-      );
     }
   };
 
   return (
     <div
       className={classnames(
-        "flex gap-4 flex-col p-8 shadow-md rounded-2xl transition-all duration-200 ease-in-out cursor-pointer relative box-border",
+        "relative box-border flex cursor-pointer flex-col gap-4 rounded-2xl p-8 shadow-md transition-all duration-200 ease-in-out",
         {
           "bg-[#18151f] shadow-lg": isDark,
-          "p-4 gap-2": compact,
+          "gap-2 p-4": compact,
         },
-        className,
+        className
       )}
       style={{
         backgroundImage: `linear-gradient(
@@ -146,23 +127,21 @@ const PdfCard = (props: PdfCardProps) => {
     >
       <div
         className={classnames(
-          "select-none font-bold text-3xl overflow-hidden text-ellipsis line-clamp-2",
-          { "text-lg line-clamp-2": compact },
+          "line-clamp-2 select-none overflow-hidden text-ellipsis text-3xl font-bold",
+          { "line-clamp-2 text-lg": compact }
         )}
         onClick={handleClick}
       >
         {pdf.fileName}
       </div>
       <div className="mt-auto">
-        <Tag color={pdf.isLocal ? "blue" : "red"}>
-          {pdf.isLocal ? "本地" : "远程"}
-        </Tag>
+        <Tag color={pdf.isLocal ? "blue" : "red"}>{pdf.isLocal ? "本地" : "远程"}</Tag>
       </div>
       {showActions && (
         <div
           className={classnames(
-            "absolute top-2.5 right-2.5 w-7 h-7 flex items-center justify-center rounded-full hover:cursor-pointer hover:bg-white/20",
-            { "w-5 h-5 top-2 right-2": compact },
+            "absolute right-2.5 top-2.5 flex h-7 w-7 items-center justify-center rounded-full hover:cursor-pointer hover:bg-white/20",
+            { "right-2 top-2 h-5 w-5": compact }
           )}
         >
           <Popover
@@ -176,10 +155,10 @@ const PdfCard = (props: PdfCardProps) => {
               },
             }}
             content={
-              <div className="flex gap-2.5 flex-col">
+              <div className="flex flex-col gap-2.5">
                 {pdf.isLocal && (
                   <div
-                    className="px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800 cursor-pointer"
+                    className="cursor-pointer rounded px-4 py-2 hover:bg-gray-100 dark:hover:bg-zinc-800"
                     onClick={() => {
                       setSettingOpen(false);
                       onUploadPdf();
@@ -189,7 +168,7 @@ const PdfCard = (props: PdfCardProps) => {
                   </div>
                 )}
                 <div
-                  className="px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800 cursor-pointer"
+                  className="cursor-pointer rounded px-4 py-2 hover:bg-gray-100 dark:hover:bg-zinc-800"
                   onClick={onRemovePdf}
                 >
                   删除Pdf

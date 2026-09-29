@@ -1,17 +1,10 @@
 import { Descendant, Range } from "slate";
-import { TabType } from "@/types/tab";
-import type {
-  ActiveEditingSession,
-  EntityType,
-  SerializedSelection,
-} from "./types";
+import type { ActiveEditingSession, EntityType, SerializedSelection } from "./types";
 import { createContentSnapshot } from "./snapshot";
 
 const sessions = new Map<string, ActiveEditingSession>();
 
-const toSerializedSelection = (
-  selection: Range | null,
-): SerializedSelection | null => {
+const toSerializedSelection = (selection: Range | null): SerializedSelection | null => {
   if (!selection) return null;
   return {
     anchor: {
@@ -39,7 +32,7 @@ export const upsertActiveEditingSession = (payload: {
   entityId: number;
   tabId?: string;
   paneId?: string;
-  tabType?: TabType;
+  tabType?: string;
   content: Descendant[];
 }) => {
   const current = sessions.get(payload.sessionId);
@@ -66,10 +59,7 @@ export const removeActiveEditingSession = (sessionId: string) => {
   sessions.delete(sessionId);
 };
 
-export const updateActiveEditingSessionContent = (
-  sessionId: string,
-  content: Descendant[],
-) => {
+export const updateActiveEditingSessionContent = (sessionId: string, content: Descendant[]) => {
   const current = sessions.get(sessionId);
   if (!current) return null;
   const updated: ActiveEditingSession = {
@@ -81,10 +71,7 @@ export const updateActiveEditingSessionContent = (
   return updated;
 };
 
-export const updateActiveEditingSessionSelection = (
-  sessionId: string,
-  selection: Range | null,
-) => {
+export const updateActiveEditingSessionSelection = (sessionId: string, selection: Range | null) => {
   const current = sessions.get(sessionId);
   if (!current) return null;
   const updated: ActiveEditingSession = {
@@ -96,10 +83,7 @@ export const updateActiveEditingSessionSelection = (
   return updated;
 };
 
-export const setActiveEditingSessionFocus = (
-  sessionId: string,
-  focused: boolean,
-) => {
+export const setActiveEditingSessionFocus = (sessionId: string, focused: boolean) => {
   const current = sessions.get(sessionId);
   if (!current) return null;
   const ts = now();
@@ -122,7 +106,7 @@ export const getActiveEditingSession = (): ActiveEditingSession | null => {
   if (values.length === 0) return null;
 
   const focused = values
-    .filter((session) => session.focused)
+    .filter(session => session.focused)
     .sort((a, b) => b.focusedAt - a.focusedAt);
   if (focused.length > 0) {
     return focused[0];
@@ -133,11 +117,9 @@ export const getActiveEditingSession = (): ActiveEditingSession | null => {
 };
 
 export const getActiveEditingSessionByContentId = (
-  contentId: number,
+  contentId: number
 ): ActiveEditingSession | null => {
-  const matched = [...sessions.values()].filter(
-    (session) => session.contentId === contentId,
-  );
+  const matched = [...sessions.values()].filter(session => session.contentId === contentId);
   if (matched.length === 0) return null;
   matched.sort((a, b) => {
     if (a.focused !== b.focused) return a.focused ? -1 : 1;
@@ -146,8 +128,6 @@ export const getActiveEditingSessionByContentId = (
   return matched[0];
 };
 
-export const getActiveEditingSessionById = (
-  sessionId: string,
-): ActiveEditingSession | null => {
+export const getActiveEditingSessionById = (sessionId: string): ActiveEditingSession | null => {
   return sessions.get(sessionId) || null;
 };

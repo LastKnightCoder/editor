@@ -1,5 +1,4 @@
 import { Descendant } from "slate";
-import { TabType } from "@/types/tab";
 import type { PositionMapper } from "@tau/markdown";
 
 export type EntityType = "card" | "article" | "project-item";
@@ -40,7 +39,7 @@ export interface ActiveEditingSession {
   entityId: number;
   tabId?: string;
   paneId?: string;
-  tabType?: TabType;
+  tabType?: string;
   focused: boolean;
   selection: SerializedSelection | null;
   snapshot: ContentSnapshot;
@@ -253,8 +252,11 @@ export interface ResolvedContentTarget {
   contentId: number;
   entityType?: EntityType;
   entityId?: number;
+  /** 激活编辑会话（active-session 来源）或旧宿主透传的标识 */
+  sessionId?: string;
   tabId?: string;
   paneId?: string;
-  tabType?: TabType;
-  source: "explicit" | "active-session" | "active-tab";
+  /** 编辑宿主的种类标签（旧 Tab 体系遗留的自由字符串，仅作诊断透传） */
+  tabType?: string;
+  source: "explicit" | "active-session";
 }

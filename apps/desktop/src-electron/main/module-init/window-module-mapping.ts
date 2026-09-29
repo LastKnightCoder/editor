@@ -5,14 +5,7 @@ import { MODULE_CONFIGS } from "./module-config";
  * 窗口类型
  */
 export type WindowType =
-  | "main"
-  | "markdown"
-  | "editor"
-  | "todo"
-  | "pomodoro"
-  | "pomodoro-mini"
-  | "pomodoro-immersive"
-  | "quick-card";
+  "main" | "markdown" | "editor" | "pomodoro-mini" | "pomodoro-immersive" | "quick-card";
 
 /**
  * 窗口类型到需要的模块组的映射
@@ -44,24 +37,6 @@ export const WINDOW_MODULE_GROUPS: Record<WindowType, ModuleGroup[]> = {
     ModuleGroup.RENDER,
     ModuleGroup.CACHE,
     ModuleGroup.AI,
-  ],
-
-  // 任务清单窗口
-  todo: [
-    ModuleGroup.ESSENTIAL,
-    ModuleGroup.CORE,
-    ModuleGroup.DATABASE,
-    ModuleGroup.SERVER,
-    ModuleGroup.FEATURE,
-  ],
-
-  // 番茄专注窗口
-  pomodoro: [
-    ModuleGroup.ESSENTIAL,
-    ModuleGroup.CORE,
-    ModuleGroup.DATABASE,
-    ModuleGroup.SERVER,
-    ModuleGroup.FEATURE,
   ],
 
   // 番茄小窗

@@ -1,6 +1,5 @@
 import { createHashRouter, Navigate } from "react-router-dom";
 import loadable from "@loadable/component";
-import ContentLayout from "@/layouts/ContentLayout";
 import { RouteErrorPage } from "@/components/ErrorState/RouteErrorPage";
 
 const QuickCard = loadable(() => import("@/pages/QuickCard"));
@@ -9,8 +8,6 @@ const MarkdownWindowPage = loadable(() => import("@/features/markdown-window/Mar
 
 const QuickOpenLayout = loadable(() => import("@/layouts/QuickOpenLayout"));
 
-const TodoWindowPage = loadable(() => import("@/pages/TodoWindow"));
-const PomodoroWindowPage = loadable(() => import("@/pages/PomodoroWindow"));
 const PomodoroMiniPage = loadable(() => import("@/features/pomodoro/windows/MiniWindow"));
 const PomodoroImmersivePage = loadable(() => import("@/features/pomodoro/windows/ImmersiveWindow"));
 const BackgroundAudioPage = loadable(() => import("@/pages/BackgroundAudio"));
@@ -23,10 +20,6 @@ const routes = [
     // 主窗口默认进入新架构壳层（docs/redesign/03-架构实现指南.md）；旧主界面挪至 /legacy
     path: "/",
     element: <Navigate to="/shell" replace />,
-  },
-  {
-    path: "/legacy",
-    element: <ContentLayout />,
   },
   {
     path: "/quick-card",
@@ -47,26 +40,6 @@ const routes = [
     // 磁盘 Markdown 文件 / 文件夹窗口（自带标题栏与主题，不走 QuickOpenLayout）
     path: "/markdown-window",
     element: <MarkdownWindowPage />,
-  },
-  {
-    path: "/todo",
-    element: <QuickOpenLayout />,
-    children: [
-      {
-        index: true,
-        element: <TodoWindowPage />,
-      },
-    ],
-  },
-  {
-    path: "/pomodoro",
-    element: <QuickOpenLayout />,
-    children: [
-      {
-        index: true,
-        element: <PomodoroWindowPage />,
-      },
-    ],
   },
   {
     path: "/pomodoro/mini",

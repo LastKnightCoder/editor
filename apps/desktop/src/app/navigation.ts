@@ -1,9 +1,8 @@
 /**
  * 侧边栏模块清单 —— 真实信息架构（数据驱动，Sidebar 只负责渲染）。
  *
- * key 与 features/<域>/pages/*.page.tsx 的 definePage key 一一对应；
- * status 标注迁移进度（蓝图 §5.1），legacy 模块点击后由 LegacyPendingPage 过渡展示。
- * 修改本文件即修改侧边栏——不要在 Sidebar 组件里硬编码条目。
+ * key 与 features/<域>/pages/*.page.tsx 的 definePage key 一一对应（占位注册已随全部
+ * 模块迁入真实 page 退役）。修改本文件即修改侧边栏——不要在 Sidebar 组件里硬编码条目。
  *
  * 项目即文档树；数据库（数据表格）与 Notebook（原 Vibe Learning）自 2026-09-28 起各为独立顶级模块。
  *
@@ -74,7 +73,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "工作台",
     items: [
       { key: "home", label: "今日", icon: Flame },
-      { key: "schedule", label: "日程", icon: Calendar }, // legacy: Calendar + TimeRecordView
+      { key: "schedule", label: "日程", icon: Calendar },
       { key: "todos", label: "待办", icon: ListTodo, children: "todo-groups" }, // features/todos（独立页，不并入 schedule，D-040；项目嵌在此入口下）
       { key: "pomodoro", label: "番茄专注", icon: Timer, badge: "pomodoro-live" }, // features/pomodoro（独立页；小窗与沉浸为辅助窗口）
       {
@@ -131,6 +130,6 @@ export const NAV_SECTIONS: NavSection[] = [
 ];
 
 export const NAV_FOOTER: NavItem[] = [
-  // legacy 全屏设置页仍走 TabType.Settings（/legacy 侧）；新壳层入口打开设置弹窗（D-028）
+  // 设置入口打开壳层设置弹窗（D-028；legacy 全屏设置页已随 2026-09-29 第三批清理退役）
   { key: "settings", label: "设置", icon: SlidersHorizontal, opensOverlay: "settings" },
 ];

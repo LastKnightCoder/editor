@@ -422,12 +422,10 @@ export interface ISetting {
 interface IState {
   inited: boolean;
   setting: ISetting;
-  settingModalOpen: boolean;
 }
 
 interface IActions {
   initSetting: (clientId: string) => void;
-  setSettingModalOpen: (open: boolean) => void;
   onFontSettingChange: (fontSetting: ISetting["fontSetting"]) => void;
   onDarkModeChange: (darkMode: boolean) => void;
   updateLLMUsageSetting: (
@@ -827,7 +825,6 @@ const initialState: IState = {
       },
     },
   },
-  settingModalOpen: false,
 };
 
 const defaultSetting = structuredClone(initialState.setting);
@@ -903,11 +900,6 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     } catch (e) {
       console.error("initSetting error", e);
     }
-  },
-  setSettingModalOpen: open => {
-    set({
-      settingModalOpen: open,
-    });
   },
   onFontSettingChange: fontSetting => {
     const { setting } = get();

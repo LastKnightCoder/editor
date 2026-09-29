@@ -12,7 +12,7 @@ import type { Navigator } from "@/page/PageProvider";
 import type { BlockData } from "@/types/block-preview";
 import { morphAssist } from "@/app/assistMorph";
 import { useShellStore } from "@/app/shellStore";
-import useRightChatSidebarStore from "@/stores/useRightChatSidebarStore";
+import useChatSessionStore, { MAIN_CHAT_BUCKET } from "@/stores/useChatSessionStore";
 import { chatBlockId } from "./useChatBlocks";
 
 export const BLOCK_PREVIEW_PAGE = "block-preview";
@@ -35,7 +35,7 @@ export function openBlockPreviewFromChatPage(navigator: Navigator, block: BlockD
   const chatId = block.metadata.sourceChatId;
   morphAssist(() => {
     const shell = useShellStore.getState();
-    if (chatId) useRightChatSidebarStore.getState().setCurrentChatId(chatId);
+    if (chatId) useChatSessionStore.getState().setCurrent(MAIN_CHAT_BUCKET, chatId);
     if (!shell.assistOpen) {
       dockOpenedForPreview = true;
       shell.setAssistOpen(true);

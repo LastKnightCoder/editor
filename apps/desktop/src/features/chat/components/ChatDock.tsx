@@ -9,20 +9,22 @@ import { Maximize2, PanelRightClose } from "lucide-react";
 import { IconButton, Loading } from "@tau/ui";
 import { usePage } from "@/page/PageProvider";
 import { morphAssist } from "@/app/assistMorph";
-import useRightChatSidebarStore from "@/stores/useRightChatSidebarStore";
+import useChatSessionStore, { MAIN_CHAT_BUCKET, bucketKeyOf } from "@/stores/useChatSessionStore";
 import type { BlockData } from "@/types/block-preview";
 import { openBlockPreview } from "@/features/previews/openBlock";
 import { useChatLibraryStore } from "../libraryStore";
 
 const RightChatPanel = lazy(() =>
-  import("@/layouts/ContentLayout/components/RightChatSidebar").then(m => ({
+  import("@/components/RightChatSidebar").then(m => ({
     default: m.RightChatPanel,
   }))
 );
 
 export function ChatDock({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { navigator } = usePage();
-  const currentChatId = useRightChatSidebarStore(s => s.currentChatId);
+  const currentChatId = useChatSessionStore(
+    s => s.currentIds[bucketKeyOf(MAIN_CHAT_BUCKET)] ?? null
+  );
 
   const openBlock = (block: BlockData) => openBlockPreview(navigator, block);
 

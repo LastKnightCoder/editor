@@ -1,9 +1,6 @@
 import Database from "better-sqlite3";
-import { IArticle, ICard, Operation, ProjectItem } from "@/types";
+import { Operation } from "@/types";
 import dayjs from "dayjs";
-import CardTable from "./card.ts";
-import ArticleTable from "./article.ts";
-import ProjectTable from "./project.ts";
 
 export default class OperationTable {
   static upgradeTable(_db: Database.Database) {
@@ -15,9 +12,6 @@ export default class OperationTable {
       "create-operation": this.createOperation.bind(this),
       "get-operation-records-by-year": this.getOperationRecordsByYear.bind(this),
       "delete-invalid-operations": this.deleteInValidOperations.bind(this),
-      "get-latest-operations": this.getLatestOperations.bind(this),
-      "get-operations-by-dates": this.getOperationsByDates.bind(this),
-      "get-operations-by-date-range": this.getOperationsByDateRange.bind(this),
       "analyze-operations": this.analyzeOperations.bind(this),
     };
   }
@@ -154,56 +148,6 @@ export default class OperationTable {
     }
 
     return deleteIds;
-  }
-
-  static getLatestOperationByContentType(
-    db: Database.Database,
-    contentType: string,
-    number: number
-  ): number[] {
-    const deleteOperationIds = db
-      .prepare(
-        `
-      SELECT DISTINCT operation_id FROM operation
-      WHERE operation_action = 'delete' AND operation_content_type = ?
-    `
-      )
-      .all(contentType)
-      .map((item: any) => item.operation_id) as number[];
-
-    const placeholders = deleteOperationIds.map(() => "?").join(",");
-
-    const stmt = db.prepare(`
-      SELECT DISTINCT operation_id FROM operation
-      WHERE operation_content_type = ? AND operation_id NOT IN (${placeholders})
-      ORDER BY operation_time DESC
-      LIMIT ?
-    `);
-    return stmt.all(contentType, deleteOperationIds, number).map((item: any) => item.operation_id);
-  }
-
-  static getLatestOperations(
-    db: Database.Database,
-    number: number
-  ): {
-    cards: ICard[];
-    articles: IArticle[];
-    projectItems: ProjectItem[];
-  } {
-    const cardIds = this.getLatestOperationByContentType(db, "card", number);
-    const cards = CardTable.getCardByIds(db, cardIds);
-
-    const articleIds = this.getLatestOperationByContentType(db, "article", number);
-    const articles = ArticleTable.getArticleByIds(db, articleIds);
-
-    const projectItemIds = this.getLatestOperationByContentType(db, "project-item", number);
-    const projectItems = ProjectTable.getProjectItemsByIds(db, projectItemIds);
-
-    return {
-      cards: cards.sort((a, b) => b.update_time - a.update_time),
-      articles: articles.sort((a, b) => b.update_time - a.update_time),
-      projectItems: projectItems.sort((a, b) => b.updateTime - a.updateTime),
-    };
   }
 
   // 批量日期查询

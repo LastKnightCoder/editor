@@ -6,7 +6,6 @@ export * from "./resouce";
 export * from "./daily";
 export * from "./card";
 export * from "./time";
-export * from "./time_record";
 export * from "./helper.ts";
 export * from "./markdown.ts";
 export * from "./web-clip.ts";

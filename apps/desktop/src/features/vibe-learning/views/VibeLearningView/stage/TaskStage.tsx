@@ -16,9 +16,9 @@ import {
   useChatMarkdownComponents,
 } from "@/components/ChatUI";
 import useTheme from "@/hooks/useTheme";
-import { MarkdownProvider } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
-import MarkdownRenderer from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownRenderer";
-import MindMapRenderer from "@/layouts/ContentLayout/components/ChatSidebar/MindMapRenderer";
+import { MarkdownProvider } from "@/components/ChatSidebar/MarkdownContext";
+import MarkdownRenderer from "@/components/ChatSidebar/MarkdownRenderer";
+import MindMapRenderer from "@/components/ChatSidebar/MindMapRenderer";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { GENERATE_APPS, NOTE_ICONS } from "../appMeta";
 import { cancelVLTask, retryVLTask } from "../tasks/runner";

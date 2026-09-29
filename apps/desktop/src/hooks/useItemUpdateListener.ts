@@ -1,7 +1,5 @@
 import { useEffect } from "react";
 import useSettingStore from "@/stores/useSettingStore";
-import useTabStore from "@/stores/useTabStore";
-import { TabType } from "@/types/tab";
 import { getCardById, findOneArticle, getProjectItemById, getContentById } from "@/commands";
 import {
   defaultCardEventBus,
@@ -11,20 +9,6 @@ import {
 } from "@/utils";
 import { on, off } from "@/electron";
 import { useCreation } from "ahooks";
-
-const updateContentTabTitles = (type: TabType, id: number, title: string) => {
-  const store = useTabStore.getState();
-  for (const pane of store.panes)
-    for (const tab of pane.tabs) {
-      const params = tab.params as { id?: number; itemId?: number } | undefined;
-      if (
-        tab.type === type &&
-        (type === TabType.ArticleDetail ? params?.id : params?.itemId) === id &&
-        tab.title !== title
-      )
-        store.updateTab(pane.id, tab.id, { title });
-    }
-};
 
 export const useItemUpdateListener = () => {
   const cardEventBus = useCreation(() => defaultCardEventBus.createEditor(), []);
@@ -48,7 +32,6 @@ export const useItemUpdateListener = () => {
       if (data.databaseName.replace(".db", "") !== currentDatabaseName.replace(".db", "")) return;
       const article = await findOneArticle(data.articleId);
       if (!article) return;
-      updateContentTabTitles(TabType.ArticleDetail, article.id, article.title);
       articleEventBus.publishArticleEvent("article:updated", article);
     };
 
@@ -60,7 +43,6 @@ export const useItemUpdateListener = () => {
       if (data.databaseName.replace(".db", "") !== currentDatabaseName.replace(".db", "")) return;
       const projectItem = await getProjectItemById(data.projectItemId);
       if (!projectItem) return;
-      updateContentTabTitles(TabType.ProjectDetail, projectItem.id, projectItem.title);
       projectItemEventBus.publishProjectItemEvent("project-item:updated", projectItem);
     };
 

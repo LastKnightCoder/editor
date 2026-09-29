@@ -1,13 +1,7 @@
 import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
 import { getMarkdown } from "@/utils/markdown.ts";
-import {
-  ICreateCard,
-  IUpdateCard,
-  ICard,
-  ECardCategory,
-  WorkbenchExpiringCardsResponse,
-} from "@/types";
+import { ICreateCard, IUpdateCard, ICard, ECardCategory } from "@/types";
 import Operation from "./operation";
 import { basename } from "node:path";
 import FTSTable from "./fts";
@@ -50,7 +44,6 @@ export default class CardTable {
       "get-cards-by-dates": this.getCardsByDates.bind(this),
       "get-cards-by-date-range": this.getCardsByDateRange.bind(this),
       "get-cards-content-by-ids": this.getCardsContentByIds.bind(this),
-      "workbench:list-expiring-temporary-cards": this.listExpiringTemporaryCards.bind(this),
     };
   }
 
@@ -486,57 +479,6 @@ export default class CardTable {
 
     const cards = stmt.all(count);
     return cards.map(card => this.parseCard(card));
-  }
-
-  static listExpiringTemporaryCards(
-    db: Database.Database,
-    payload: { limit?: number; cursor?: number | null } = {}
-  ): WorkbenchExpiringCardsResponse {
-    const limit = Math.min(Math.max(payload.limit ?? 10, 1), 50);
-    const offset = Math.max(payload.cursor ?? 0, 0);
-    const now = Date.now();
-    const oneMonth = 30 * 24 * 60 * 60 * 1000;
-
-    const totalRow = db
-      .prepare(
-        `SELECT COUNT(*) as total
-         FROM cards c
-         LEFT JOIN contents ct ON c.content_id = ct.id
-         WHERE c.category = 'temporary' AND ct.content IS NOT NULL`
-      )
-      .get() as { total: number };
-
-    const rows = db
-      .prepare(
-        `SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top, c.podcast_id,
-                ct.content, ct.count, ct.update_time as content_update_time,
-                p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
-         FROM cards c
-         LEFT JOIN contents ct ON c.content_id = ct.id
-         LEFT JOIN podcasts p ON c.podcast_id = p.id
-         WHERE c.category = 'temporary'
-           AND ct.content IS NOT NULL
-         ORDER BY MAX(c.update_time, COALESCE(ct.update_time, c.update_time)) ASC, c.id ASC
-         LIMIT ? OFFSET ?`
-      )
-      .all(limit + 1, offset) as any[];
-
-    const pageRows = rows.slice(0, limit);
-    const items = pageRows.map(row => {
-      const card = this.parseCard(row);
-      const expiresAt = card.update_time + oneMonth;
-      return {
-        card,
-        expiresAt,
-        remainingMs: expiresAt - now,
-      };
-    });
-
-    return {
-      items,
-      nextCursor: rows.length > limit ? offset + limit : null,
-      total: Number(totalRow.total || 0),
-    };
   }
 
   static isContentIsCard(db: Database.Database, contentId: number): boolean {

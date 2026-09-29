@@ -10,8 +10,8 @@ import { FadeScroll } from "@/components/FadeScroll";
 import useTheme from "@/hooks/useTheme";
 import { readVLResourceRange } from "@/commands/vibe-learning";
 import { useChatMarkdownComponents } from "@/components/ChatUI";
-import { MarkdownProvider } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
-import MarkdownRenderer from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownRenderer";
+import { MarkdownProvider } from "@/components/ChatSidebar/MarkdownContext";
+import MarkdownRenderer from "@/components/ChatSidebar/MarkdownRenderer";
 import type { VLResource } from "@/types/vibe-learning";
 
 const CHUNK = 60_000;

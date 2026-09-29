@@ -1,5 +1,4 @@
 import useSettingStore from "@/stores/useSettingStore";
-import useSettingTabStore from "@/stores/useSettingTabStore";
 import type { TranscriptionOptions } from "@/commands/transcription";
 
 /**
@@ -40,17 +39,6 @@ export function checkLLMOptimizationConfig(): {
   }
 
   return { isConfigured: true };
-}
-
-/**
- * 打开设置弹窗并跳转到指定的 tab
- * @param tab 要跳转到的 tab key
- */
-export function openSettingsModal(tab: "transcription" | "sync" = "transcription"): void {
-  useSettingStore.setState({
-    settingModalOpen: true,
-  });
-  useSettingTabStore.getState().setActiveKey(tab);
 }
 
 /** 打开新设置对话框并直达 LLM 分区（旧弹窗的 llm tab 已随 legacy 页退役） */

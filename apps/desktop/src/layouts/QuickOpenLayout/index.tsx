@@ -9,7 +9,7 @@ import { setAlwaysOnTop as setTop } from "@/commands";
 import { platform, isMac } from "@/platform";
 import useSettingStore from "@/stores/useSettingStore";
 import FullScreenLoading from "@/components/FullScreenLoading";
-import GlobalTitlebar from "@/layouts/ContentLayout/components/GlobalTitlebar";
+import GlobalTitlebar from "@/components/GlobalTitlebar";
 import { ToastHost } from "@tau/ui";
 
 interface QuickOpenLayoutProps {

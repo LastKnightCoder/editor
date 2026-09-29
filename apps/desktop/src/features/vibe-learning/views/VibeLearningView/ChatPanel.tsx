@@ -9,24 +9,22 @@ import { useMemoizedFn } from "ahooks";
 import "katex/dist/katex.min.css";
 
 import type { EditTextHandle } from "@/components/EditText";
-import ChatDropdownSelector from "@/layouts/ContentLayout/components/RightChatSidebar/ChatDropdownSelector";
+import ChatDropdownSelector from "@/components/ChatDropdownSelector";
 
 import useTheme from "@/hooks/useTheme";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import { useScopedChat } from "@/hooks/useScopedChat";
 
-import { MarkdownProvider } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
+import { MarkdownProvider } from "@/components/ChatSidebar/MarkdownContext";
 import { useChatMarkdownComponents } from "@/components/ChatUI";
-import type { ChatContainerHandle } from "@/layouts/ContentLayout/components/ChatSidebar/ChatContainer";
+import type { ChatContainerHandle } from "@/components/ChatSidebar/ChatContainer";
 
 import type { VLResource } from "@/types/vibe-learning";
 
 import { useVibeLearningChat } from "./useVibeLearningChat";
 import { Loading, cn, toast } from "@tau/ui";
 
-const ChatContainer = lazy(
-  () => import("@/layouts/ContentLayout/components/ChatSidebar/ChatContainer")
-);
+const ChatContainer = lazy(() => import("@/components/ChatSidebar/ChatContainer"));
 
 /**
  * 构建 VL 系统提示词

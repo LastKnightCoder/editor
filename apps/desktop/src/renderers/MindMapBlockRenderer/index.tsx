@@ -6,7 +6,7 @@
 import { useRef, useState } from "react";
 import { Copy, FileImage, Network } from "lucide-react";
 import { toast } from "@tau/ui";
-import MindMapRenderer from "@/layouts/ContentLayout/components/ChatSidebar/MindMapRenderer";
+import MindMapRenderer from "@/components/ChatSidebar/MindMapRenderer";
 import type { MindMapRef } from "@/components/MindMap";
 import { copyElementsToClipboard } from "@/utils/clipboardHelpers";
 import { captureBlobWithSnapdom } from "@/utils/snapdom-export";

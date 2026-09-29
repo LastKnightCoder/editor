@@ -84,7 +84,6 @@ export interface WindowApi {
   openEditorWindow(target: EditorWindowTarget): Promise<void>;
   /** 关闭编辑该文档的窗口（文档被删除时收尾）；未打开则无操作 */
   closeEditorWindow(target: EditorWindowTarget): Promise<void>;
-  openPomodoroWindow(): Promise<void>;
   openPomodoroMiniWindow(): Promise<void>;
   hidePomodoroMiniWindow(): Promise<void>;
   openPomodoroImmersiveWindow(): Promise<void>;

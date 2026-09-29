@@ -3,8 +3,8 @@
  * components/ProjectView。
  *
  * ProjectView 系为 legacy 搬迁件（原 src/pages/ProjectView，2026-09-23 迁入，
- * 见 DECISIONS.md D-033）：antd 皮 / module.less / useTabStore(navigateTo) 残留
- * 等 A2 违反随迁保留，换皮阶段统一处理；此处不做任何样式适配。
+ * 见 DECISIONS.md D-033）：antd 皮 / module.less 等违反随迁保留，
+ * 换皮阶段统一处理；此处不做任何样式适配。
  */
 
 import { useMemo } from "react";
