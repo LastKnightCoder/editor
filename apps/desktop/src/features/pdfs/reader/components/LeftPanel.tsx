@@ -79,7 +79,7 @@ export function LeftPanel(props: LeftPanelProps) {
           size="sm"
           value={tab}
           onValueChange={onTabChange}
-          className="mr-2"
+          className="mr-2 w-auto"
         >
           {TABS.map(t => (
             <Segmented.Item
