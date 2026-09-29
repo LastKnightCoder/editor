@@ -240,12 +240,13 @@ const EditorContextMenu = memo(
                         isOpen && "block"
                       )}
                     />
-                    {/* 子菜单 */}
+                    {/* 子菜单：6px 透明边框是鼠标从父条目移入的缓冲区，描边画在 ::before
+                        并外扩到最外缘，与一级菜单的贴边描边对齐（不留无框玻璃圈） */}
                     <div
                       className={cn(
                         "absolute left-[calc(100%+8px)] top-0 box-border hidden min-w-[160px] max-w-[240px] overflow-visible rounded-[18px] border-[6px] border-solid border-transparent p-[8px]",
                         menuGlassClass,
-                        "before:pointer-events-none before:absolute before:inset-0 before:rounded-[inherit] before:border before:border-solid before:border-[var(--ed-border-soft)] before:content-['']",
+                        "before:pointer-events-none before:absolute before:-inset-[6px] before:rounded-[inherit] before:border before:border-solid before:border-[var(--ed-border-soft)] before:content-['']",
                         "data-[placement=left]:left-auto data-[placement=left]:right-[calc(100%+8px)]",
                         isOpen && "block"
                       )}
