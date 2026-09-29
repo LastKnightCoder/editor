@@ -393,6 +393,7 @@ const InlineAIComposerPanel = ({
           model: model as LLMModelSetting,
           messages: requestMessages,
           conversationKey: buildInlineConversationKey(activeContext.contentId),
+          source: { feature: "inlineAssistant", entityId: String(activeContext.contentId) },
           ...(options?.toolContext
             ? { toolContext: options.toolContext as Record<string, unknown> }
             : {}),

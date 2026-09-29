@@ -118,7 +118,12 @@ export const useAnswerJudgement = (): UseAnswerJudgementResult => {
         },
       ];
 
-      const outcome = await piCompleteChat({ provider, model, messages });
+      const outcome = await piCompleteChat({
+        provider,
+        model,
+        messages,
+        source: { feature: "aiJudgement" },
+      });
       if (version !== requestVersion.current) return;
 
       if (!outcome.ok) {

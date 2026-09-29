@@ -59,11 +59,14 @@ export function generateScriptStream(
 
   // 单发路径：pi 原生事件（partial 全量快照中的增量），播客脚本流只发新增内容
   if (!source.enableTools) {
-    const handle = piStreamChat({ provider, model, messages }, event => {
-      if (event.type === "text_delta") {
-        onUpdate(event.delta);
+    const handle = piStreamChat(
+      { provider, model, messages, source: { feature: "podcastGeneration" } },
+      event => {
+        if (event.type === "text_delta") {
+          onUpdate(event.delta);
+        }
       }
-    });
+    );
     void handle.result.then(result => {
       if (result.ok && !result.aborted) {
         onFinish();
@@ -76,18 +79,21 @@ export function generateScriptStream(
 
   // 带工具路径（vibe_learning）：一次性 pi 会话（message_update 携带的 pi 原生
   // assistantMessageEvent 直供 text_delta 增量）
-  const handle = runPiAgent({ provider, model, messages }, event => {
-    if (event.type === "message_update") {
-      const streamEvent = (
-        event as unknown as {
-          assistantMessageEvent?: { type: string; delta?: string };
+  const handle = runPiAgent(
+    { provider, model, messages, source: { feature: "podcastGeneration" } },
+    event => {
+      if (event.type === "message_update") {
+        const streamEvent = (
+          event as unknown as {
+            assistantMessageEvent?: { type: string; delta?: string };
+          }
+        ).assistantMessageEvent;
+        if (streamEvent?.type === "text_delta" && streamEvent.delta) {
+          onUpdate(streamEvent.delta);
         }
-      ).assistantMessageEvent;
-      if (streamEvent?.type === "text_delta" && streamEvent.delta) {
-        onUpdate(streamEvent.delta);
       }
     }
-  });
+  );
   void handle.result.then(result => {
     if (result.ok && !result.aborted) {
       onFinish();

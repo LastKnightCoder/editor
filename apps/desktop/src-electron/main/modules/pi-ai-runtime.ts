@@ -19,6 +19,8 @@ import {
   type ProviderRegistry,
 } from "./pi-ai-runtime-core";
 import { discoverProviderModels, ModelDiscoveryError } from "./pi-model-discovery";
+import modelUsageModule from "./model-usage";
+import { createStreamUsageTracker } from "./model-usage/trackers";
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
 import type { LLMProviderSetting, PiSingleShotOutcome, PiSingleShotRequest } from "@/types/pi-llm";
@@ -106,6 +108,19 @@ class PiAiRuntimeModule {
 
     const abortController = new AbortController();
     PiAiRuntimeModule.activeShots.set(request.requestId, abortController);
+    const usage = createStreamUsageTracker(
+      {
+        providerId: request.providerId,
+        modelId: request.modelId,
+        feature: request.source?.feature || "unknown",
+        scope: null,
+        sessionId: null,
+        entityId: request.source?.entityId ?? null,
+        library: request.source?.library ?? null,
+      },
+      input => modelUsageModule.record(input)
+    );
+    let streamError: string | null = null;
     try {
       const stream = registry.models.streamSimple(
         model,
@@ -122,13 +137,17 @@ class PiAiRuntimeModule {
         ? rewriteThinkTagStream(stream)
         : stream;
       for await (const event of events) {
+        usage.observe(event);
+        if (event.type === "error") streamError = event.error.errorMessage ?? "模型请求失败";
         if (!sender.isDestroyed())
           sender.send("pi-ai-stream-event", { requestId: request.requestId, ...event });
       }
       return { ok: true };
     } catch (error) {
-      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+      streamError = error instanceof Error ? error.message : String(error);
+      return { ok: false, error: streamError };
     } finally {
+      usage.finish({ aborted: abortController.signal.aborted, error: streamError });
       PiAiRuntimeModule.activeShots.delete(request.requestId);
     }
   }

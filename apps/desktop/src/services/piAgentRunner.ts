@@ -8,6 +8,7 @@ import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 import type { RequestMessage } from "@/types";
 import type { LLMModelSetting, LLMProviderSetting, PiThinkingLevel } from "@/types/pi-llm";
 import type { PiHostToolSpec } from "@/types/pi-session";
+import type { UsageSource } from "@/types/model-usage";
 import {
   onPiSessionEvent,
   piSessionAbort,
@@ -38,6 +39,8 @@ export interface PiAgentRunOptions {
   conversationKey?: string;
   toolContext?: Record<string, unknown>;
   cwd?: string;
+  /** 用量审计归属；缺省按 conversationKey 推导 */
+  source?: UsageSource;
   /** 额外工具（覆盖注册表同名），执行经 executeAdditionalTool 路由 */
   additionalTools?: Array<{
     type: "function";
@@ -106,6 +109,12 @@ export function runPiAgent(
         ...(system !== undefined ? { systemPrompt: system } : {}),
         persist: false,
         interactive: false,
+        source: {
+          ...options.source,
+          ...(options.databaseName
+            ? { library: options.source?.library ?? options.databaseName }
+            : {}),
+        },
         ...(customTools.length > 0 ? { customTools } : {}),
         ...(thinkingLevel ? { thinkingLevel } : {}),
         ...(initialMessages.length > 0 ? { initialMessages } : {}),

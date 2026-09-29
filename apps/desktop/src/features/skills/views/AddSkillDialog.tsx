@@ -497,6 +497,7 @@ export function AddSkillDialog({
           { role: Role.System, content: [{ type: "text", text: AI_SYSTEM_PROMPT }] },
           { role: Role.User, content: [{ type: "text", text: prompt.trim() }] },
         ],
+        source: { feature: "skillDraft" },
       },
       ({ text }) => setDraft(text.replace(/^```(?:markdown|md)?\n?|\n?```\s*$/g, ""))
     );

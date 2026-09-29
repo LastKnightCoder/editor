@@ -4,6 +4,7 @@
  */
 import type { MessageContent, RequestMessage } from "@/types";
 import type { PiThinkingLevel } from "./pi-llm";
+import type { UsageSource } from "./model-usage";
 import type { ToolRisk } from "./tool";
 import type { AskQuestionPayload } from "@/tools/askQuestionTypes";
 
@@ -167,4 +168,6 @@ export interface PiSessionCreateRequestV2 {
    * 其余入口需确认时直接拒绝。
    */
   interactive?: boolean;
+  /** 用量审计归属；缺省时主进程按 scope 推导功能 */
+  source?: UsageSource;
 }

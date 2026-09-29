@@ -90,11 +90,14 @@ export const useVideoEbookRewrite = (
       },
     ];
 
-    const handle = piStreamText({ provider, model, messages }, ({ text }) => {
-      setIsPending(false);
-      setStreamingMarkdown(text);
-      throttledParse(text);
-    });
+    const handle = piStreamText(
+      { provider, model, messages, source: { feature: "videoEbookRewrite" } },
+      ({ text }) => {
+        setIsPending(false);
+        setStreamingMarkdown(text);
+        throttledParse(text);
+      }
+    );
     chatHandleRef.current = handle;
     void handle.result.then(result => {
       if (result.ok && !result.aborted) {

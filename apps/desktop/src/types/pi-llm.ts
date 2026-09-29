@@ -6,6 +6,7 @@
  */
 
 import type { ThinkingLevel } from "@tau/shared";
+import type { UsageSource } from "./model-usage";
 
 /** pi 的线协议实现（原 messageFormat × apiProtocol 二维组合的收敛） */
 export type PiApiKind = "openai-completions" | "openai-responses" | "anthropic-messages";
@@ -128,6 +129,8 @@ export interface PiSingleShotRequest {
   messages: { role: "user" | "assistant"; content: string }[];
   thinking?: PiThinkingLevel;
   temperature?: number;
+  /** 用量审计归属（功能 / 实体 / 知识库） */
+  source?: UsageSource;
 }
 
 export interface PiSingleShotOutcome {

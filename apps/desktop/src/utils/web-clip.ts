@@ -69,6 +69,7 @@ export const convertHTMLToMarkdown = async (html: string): Promise<string> => {
     provider: providerConfig,
     model: modelConfig,
     messages: convertMessages,
+    source: { feature: "webClip" },
   }).catch(e => {
     console.error(e);
     return null;

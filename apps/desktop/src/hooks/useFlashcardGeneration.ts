@@ -159,11 +159,14 @@ export const useFlashcardGeneration = (
       },
     ];
 
-    const handle = piStreamText({ provider, model, messages }, ({ text }) => {
-      setIsPending(false);
-      accumulatedRef.current = text;
-      throttledParse(text);
-    });
+    const handle = piStreamText(
+      { provider, model, messages, source: { feature: "flashcardGeneration" } },
+      ({ text }) => {
+        setIsPending(false);
+        accumulatedRef.current = text;
+        throttledParse(text);
+      }
+    );
     chatHandleRef.current = handle;
     void handle.result.then(result => {
       if (result.ok && !result.aborted) {

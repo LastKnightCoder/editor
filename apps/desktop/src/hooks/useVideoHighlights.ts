@@ -88,7 +88,12 @@ export const useVideoHighlights = (
           },
         ];
 
-        const outcome = await piCompleteChat({ provider, model, messages });
+        const outcome = await piCompleteChat({
+          provider,
+          model,
+          messages,
+          source: { feature: "videoHighlights" },
+        });
         if (!outcome.ok) throw new Error(outcome.error ?? "模型请求失败");
         const content = outcome.text;
         const parsed = tryParseJsonArray(content || "");

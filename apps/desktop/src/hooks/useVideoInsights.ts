@@ -54,7 +54,12 @@ export const useVideoInsights = (
           },
         ];
 
-        const outcome = await piCompleteChat({ provider, model, messages });
+        const outcome = await piCompleteChat({
+          provider,
+          model,
+          messages,
+          source: { feature: "videoInsights" },
+        });
         if (!outcome.ok) throw new Error(outcome.error ?? "模型请求失败");
         const response = outcome.text;
         const transcriptHash = computeTranscriptHash("", transcriptSegments);
