@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
 import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
-import { CustomModal, ResizeHandle, Webview } from "@tau/shared";
+import { ResizeHandle, Webview } from "@tau/shared";
 import type { WebviewRef } from "@tau/shared";
 import { Transforms } from "slate";
 import classnames from "classnames";
@@ -287,24 +287,17 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
         />
         <EditorContextMenu {...menuProps} readonly={readOnly} />
 
-        <CustomModal
-          title={null}
+        <InputUrlModal
+          editor={editor}
           open={editUrlOpen}
-          footer={null}
-          showCloseButton={false}
-          width={460}
-          centered
+          title="编辑网页地址"
+          subtitle="修改远程网址，或重新上传本地 HTML 文件"
+          okText="保存"
+          defaultValue={url}
+          defaultSourceType={element.sourceType ?? WebLinkSourceType.REMOTE}
+          onOk={handleEditUrlConfirm}
           onCancel={() => setEditUrlOpen(false)}
-        >
-          <InputUrlModal
-            editor={editor}
-            title="编辑网页地址"
-            defaultValue={url}
-            defaultSourceType={element.sourceType ?? WebLinkSourceType.REMOTE}
-            onOk={handleEditUrlConfirm}
-            onCancel={() => setEditUrlOpen(false)}
-          />
-        </CustomModal>
+        />
       </div>
     </div>
   );
