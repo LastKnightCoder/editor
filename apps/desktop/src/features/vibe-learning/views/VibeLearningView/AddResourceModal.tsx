@@ -1061,7 +1061,6 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
               value={activeTab}
               onValueChange={v => setActiveTab(v as TabType)}
               disabled={busy}
-              className="w-full"
             >
               <Segmented.Item value="file" icon={FileText} label="文件" />
               <Segmented.Item value="url" icon={Globe} label="网页" />
