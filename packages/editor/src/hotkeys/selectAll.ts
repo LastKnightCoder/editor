@@ -1,18 +1,18 @@
-import React from "react";
 import { Editor, Transforms } from "slate";
-import { IHotKeyConfig } from "../types";
+import type { EditorCommand, EditorHotkey } from "../api/command";
 import { ReactEditor } from "slate-react";
 
-export const selectAll: IHotKeyConfig[] = [
+export const selectAllCommands: EditorCommand[] = [
   {
-    hotKey: "mod+a",
-    action: (editor: Editor, event: React.KeyboardEvent<HTMLDivElement>) => {
+    id: "tau.edit.select-all",
+    title: "全选",
+    run: (editor: Editor, ctx) => {
       if (editor.children.length === 0) {
         return;
       }
 
-      event.preventDefault();
-      event.stopPropagation();
+      ctx.event?.preventDefault();
+      ctx.event?.stopPropagation();
       ReactEditor.focus(editor as ReactEditor);
       Transforms.select(editor, {
         anchor: Editor.start(editor, []),
@@ -21,3 +21,5 @@ export const selectAll: IHotKeyConfig[] = [
     },
   },
 ];
+
+export const selectAllHotkeys: EditorHotkey[] = [{ key: "mod+a", command: "tau.edit.select-all" }];

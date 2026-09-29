@@ -58,7 +58,9 @@ import IExtension from "./extensions/types";
 import type { AnyExtension } from "./api/legacy";
 import type { EditorRef } from "./types/editor";
 
-import hotkeys from "./hotkeys";
+import legacyBuiltinHotkeys, { builtinCommands, builtinHotkeys } from "./hotkeys";
+import { CommandRegistry, createCommandDispatcher } from "./api/command";
+import type { ResolvedHotkey } from "./utils/hotkey";
 import ImagesOverview from "./components/ImagesOverview";
 import HoveringToolbar from "./components/HoveringToolbar";
 import BlockPanel from "./components/BlockPanel";
@@ -210,6 +212,21 @@ const Index = memo(
       )
     );
 
+    // 命令注册表：从 kit 装配拷贝一份再注册内核默认命令（kit 级共享实例不重复注册，
+    // 同 kit 多编辑器也不会撞 id）。热键、菜单、宿主程序化调用都经 dispatcher 执行
+    const commandRegistry = useMemo(() => {
+      const registry = new CommandRegistry();
+      for (const registered of assembly.commands.list()) {
+        registry.register(registered.owner, [registered.command]);
+      }
+      registry.register("editor", builtinCommands);
+      return registry;
+    }, [assembly]);
+    const commandDispatcher = useMemo(
+      () => createCommandDispatcher(commandRegistry, breaker),
+      [commandRegistry, breaker]
+    );
+
     const editor = useCreation(() => {
       const processedEditor = applyPlugin(
         createEditor(),
@@ -237,6 +254,10 @@ const Index = memo(
       slateEditor.getService = <T,>(id: ServiceIdentifier<T>): T => registryRef.current.get(id);
       slateEditor.tryGetService = <T,>(id: ServiceIdentifier<T>): T | undefined =>
         registryRef.current.tryGet(id);
+      slateEditor.commands = {
+        execute: (id: string, payload?: unknown) =>
+          commandDispatcher.execute(slateEditor, id, { payload }),
+      };
       return slateEditor;
     }, [assembly.plugins, documentProp?.lineage, editorIdentity, externalHistory]);
 
@@ -254,12 +275,27 @@ const Index = memo(
       return () => binding.disconnect(editor);
     }, [binding, editor]);
 
-    const finalHotKeyConfigs = useMemo(() => {
-      return guardHotkeys(
-        [...assembly.hotkeyConfigs, ...hotkeys, ...(hotkeyConfigs || [])],
-        config => assembly.getHotkeyOwner(config),
-        breaker
-      );
+    const finalHotkeys = useMemo<ResolvedHotkey[]>(() => {
+      const legacyEntries = (configs: readonly IHotKeyConfig[]): ResolvedHotkey[] =>
+        guardHotkeys(configs, config => assembly.getHotkeyOwner(config), breaker).map(config => ({
+          kind: "legacy" as const,
+          config,
+        }));
+      return [
+        ...assembly.commandHotkeys.map(({ hotkey }) => ({
+          kind: "command" as const,
+          keys: hotkey.key,
+          command: hotkey.command,
+        })),
+        ...legacyEntries(assembly.hotkeyConfigs),
+        ...builtinHotkeys.map(hotkey => ({
+          kind: "command" as const,
+          keys: hotkey.key,
+          command: hotkey.command,
+        })),
+        ...legacyEntries(legacyBuiltinHotkeys),
+        ...legacyEntries(hotkeyConfigs || []),
+      ];
     }, [assembly, hotkeyConfigs, breaker]);
 
     const finalHoveringBarConfigs = useMemo(() => {
@@ -491,7 +527,7 @@ const Index = memo(
                 placeholder={placeHolder}
                 decorate={decorate}
                 onKeyDown={event => {
-                  registerHotKey(editor, event, finalHotKeyConfigs);
+                  registerHotKey(editor, event, finalHotkeys, commandDispatcher);
                 }}
                 onDrag={e => {
                   e.preventDefault();

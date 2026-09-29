@@ -12,6 +12,8 @@ export type CustomField = {
   /** 非React插件代码获取可选服务，未注册时返回 undefined */
   tryGetService: <T>(id: ServiceIdentifier<T>) => T | undefined;
   handleDrop?: (files: FileList, point: Point) => Promise<void>;
+  /** 命令注册表的程序化入口（api/command.ts）；热键、菜单、宿主统一经它执行 */
+  commands?: import("../api/command").EditorCommandsHandle;
   dropHandlers?: {
     image?: (file: File) => Promise<void>;
     audio?: (file: File) => Promise<void>;

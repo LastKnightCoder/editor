@@ -2,7 +2,7 @@ import { createEditor, Descendant, Editor } from "slate";
 import { describe, expect, it, vi } from "vitest";
 
 import { createVoidElementPlugin } from "../../utils/plugin";
-import { selectAll } from "../selectAll";
+import { selectAllCommands } from "../selectAll";
 
 const createParagraph = (text = "") => ({
   type: "paragraph" as const,
@@ -41,7 +41,7 @@ describe("select all hotkey", () => {
 
     const event = createKeyboardEvent();
 
-    selectAll[0].action(editor, event);
+    selectAllCommands[0].run(editor, { event });
 
     expect(event.preventDefault).toHaveBeenCalledTimes(1);
     expect(event.stopPropagation).toHaveBeenCalledTimes(1);
@@ -61,7 +61,7 @@ describe("select all hotkey", () => {
 
     const event = createKeyboardEvent();
 
-    selectAll[0].action(editor, event);
+    selectAllCommands[0].run(editor, { event });
 
     expect(event.preventDefault).toHaveBeenCalledTimes(1);
     expect(event.stopPropagation).toHaveBeenCalledTimes(1);
