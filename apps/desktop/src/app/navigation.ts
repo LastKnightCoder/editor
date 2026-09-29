@@ -5,6 +5,7 @@
  * 模块迁入真实 page 退役）。修改本文件即修改侧边栏——不要在 Sidebar 组件里硬编码条目。
  *
  * 项目即文档树；数据库（数据表格）与 Notebook（原 Vibe Learning）自 2026-09-28 起各为独立顶级模块。
+ * 分组按「它是什么」划分（日常 / 知识 / 学习 / AI / 分享，D-071），用途差异在页面内部表达。
  *
  * 图标：lucide-react（线性单色）；多色图标用 react-icons（桌面已有依赖）。
  */
@@ -69,39 +70,31 @@ export interface NavSection {
 
 export const NAV_SECTIONS: NavSection[] = [
   {
-    // 今日 = 行动（复习/待办/日程）+ 继续 + 回顾（原统计页并入），即此组的工作流闭环；协作是多人实时会话，属日常工作流
-    label: "工作台",
+    // 以「天」为单位的日常：今日 = 行动（复习/待办/日程）+ 继续 + 回顾；日记按天记录，同属时间轴（D-071）
+    label: "日常",
     items: [
       { key: "home", label: "今日", icon: Flame },
       { key: "schedule", label: "日程", icon: Calendar },
       { key: "todos", label: "待办", icon: ListTodo, children: "todo-groups" }, // features/todos（独立页，不并入 schedule，D-040；项目嵌在此入口下）
+      { key: "diary", label: "日记", icon: PenLine, children: "diary-tags" }, // features/diary（一整张纸，标签频道嵌在此入口下，D-044）
       { key: "pomodoro", label: "番茄专注", icon: Timer, badge: "pomodoro-live" }, // features/pomodoro（独立页；小窗与沉浸为辅助窗口）
-      {
-        key: "collaboration",
-        label: "协作",
-        icon: Users,
-        badge: "collab-requests",
-        children: "collaboration-sessions",
-      }, // features/collaboration（共享内容作为子项嵌套在此入口下）
     ],
   },
   {
+    // 有体系的产出：卡片（原子）→ 文章（长文）→ 项目（体系梳理）→ 其他形态
     label: "知识",
     items: [
       { key: "cards", label: "卡片库", icon: Layers, children: "card-tags" }, // features/cards（一整张纸，标签树嵌在此入口下）
       { key: "articles", label: "文章", icon: FileText, children: "article-tags" }, // features/articles（一整张纸，标签嵌在此入口下）
-      { key: "diary", label: "日记", icon: PenLine, children: "diary-tags" }, // features/diary（一整张纸，标签频道嵌在此入口下，D-044）
+      { key: "projects", label: "项目", icon: FolderKanban }, // features/projects（驾驶舱列表 + 文档树工作台）
       { key: "whiteboard", label: "白板", icon: Presentation, children: "whiteboard-tags" }, // features/whiteboards（画廊，标签嵌在此入口下，D-047）
       { key: "databases", label: "数据库", icon: Table }, // features/databases（结构化数据表，2026-09-28 自项目 data-table 型拆出）
     ],
   },
   {
+    // 学习工作流：问题（起点）→ 学习形式与资料 → 闪卡巩固
     label: "学习",
     items: [
-      // 项目 = 文档树知识库，归学习组
-      { key: "projects", label: "项目", icon: FolderKanban }, // features/projects（驾驶舱列表 + 文档树工作台）
-      { key: "vibe-learning", label: "Notebook", icon: FlaskConical }, // features/vibe-learning（对外名 Notebook——仿 NotebookLM；2026-09-28 自项目 vibe-learning 型拆出，标识符跟数据库走不改名）
-      { key: "review", label: "闪卡复习", icon: Repeat, badge: "review-due" }, // features/flashcards（复习台，D-041）
       {
         key: "questions",
         label: "问题管理",
@@ -109,8 +102,10 @@ export const NAV_SECTIONS: NavSection[] = [
         badge: "questions-active",
         children: "question-groups",
       }, // features/questions（A2 三栏清单，D-044；分组嵌在此入口下）
+      { key: "vibe-learning", label: "Notebook", icon: FlaskConical }, // features/vibe-learning（对外名 Notebook——仿 NotebookLM；2026-09-28 自项目 vibe-learning 型拆出，标识符跟数据库走不改名）
       { key: "weread", label: "微信读书", icon: BookOpen }, // features/weread（书架 + 整页笔记，D-059）
       { key: "pdfs", label: "PDF", icon: BookMarked }, // features/pdfs（文档墙 + 列表排布，D-069）
+      { key: "review", label: "闪卡复习", icon: Repeat, badge: "review-due" }, // features/flashcards（复习台，D-041）
     ],
   },
   {
@@ -122,8 +117,16 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "工具",
+    // 对外：实时协作 → 静态发布
+    label: "分享",
     items: [
+      {
+        key: "collaboration",
+        label: "协作",
+        icon: Users,
+        badge: "collab-requests",
+        children: "collaboration-sessions",
+      }, // features/collaboration（共享内容作为子项嵌套在此入口下）
       { key: "publish", label: "发布", icon: Send }, // 新架构：静态站点发布（自设置弹窗抽出，D-035）
     ],
   },
