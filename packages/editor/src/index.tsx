@@ -32,6 +32,14 @@ import { useResolvedKit } from "./kit/context";
 import type { ServiceIdentifier } from "./services/tokens";
 
 import {
+  applyGuardedPlugins,
+  createCircuitBreaker,
+  guardHotkeys,
+  withUnknownElements,
+} from "./kit/extensionGuard";
+import { ElementErrorBoundary } from "./components/ElementGuard";
+import { consoleErrorReporter } from "./services/errorReporter";
+import {
   applyPlugin,
   normalizeEditorContent,
   registerHotKey,
@@ -81,7 +89,7 @@ import "./extensions/drop-common.less";
 import styles from "./index.module.less";
 import "./theme/editor.css";
 import { EditorThemeScope } from "./theme/context";
-import { IThemeService } from "./services/tokens";
+import { IExtensionErrorReporter, IThemeService } from "./services/tokens";
 
 interface IEditorProps {
   initValue?: Descendant[];
@@ -184,6 +192,12 @@ const Index = memo(
     // 同谱系换源（01 §7.3 第 3 层）：lineage 不变且新文档源支持 rebind 时沿用同一个
     // Slate editor，编辑器与块组件都不重建；否则换 binding 就是换文档，编辑器重建。
     const editorIdentity = binding?.rebind ? "rebindable" : binding;
+    // 扩展的错误隔离与熔断状态跟随编辑器实例；上报方读当前 kit 的服务
+    const [breaker] = useState(() =>
+      createCircuitBreaker(
+        () => registryRef.current.tryGet(IExtensionErrorReporter) ?? consoleErrorReporter
+      )
+    );
 
     const editor = useCreation(() => {
       const processedEditor = applyPlugin(
@@ -191,7 +205,10 @@ const Index = memo(
         externalHistory ? defaultPlugins.filter(plugin => plugin !== withHistory) : defaultPlugins
       );
 
-      const finalEditor = applyPlugin(processedEditor, [...assembly.plugins]);
+      const finalEditor = withUnknownElements(
+        applyGuardedPlugins(processedEditor, assembly.pluginGroups, breaker),
+        type => !!assembly.getExtension(type)
+      );
       const enhancedEditor = withBlockNavigation(finalEditor);
 
       // 启用 Chunking 优化大文档性能
@@ -223,8 +240,12 @@ const Index = memo(
     }, [binding, editor]);
 
     const finalHotKeyConfigs = useMemo(() => {
-      return [...assembly.hotkeyConfigs, ...hotkeys, ...(hotkeyConfigs || [])];
-    }, [assembly.hotkeyConfigs, hotkeyConfigs]);
+      return guardHotkeys(
+        [...assembly.hotkeyConfigs, ...hotkeys, ...(hotkeyConfigs || [])],
+        config => assembly.getHotkeyOwner(config),
+        breaker
+      );
+    }, [assembly, hotkeyConfigs, breaker]);
 
     const finalHoveringBarConfigs = useMemo(() => {
       const configs = [...assembly.hoveringBarElements];
@@ -238,18 +259,23 @@ const Index = memo(
       assembly.getExtension(props.element.type)?.render(props)
     );
 
-    const renderElement = useMemoizedFn((props: RenderElementProps) => {
-      const intercepted = binding?.renderElement?.(props, renderByType);
-      if (intercepted) return intercepted;
-      const rendered = renderByType(props);
-      if (rendered) return rendered;
-      const { type } = props.element;
-      return (
-        <span contentEditable={false} {...props}>
-          无法识别的类型 {type} {props.children}
-        </span>
-      );
-    });
+    // 文档源可以接管个别元素（协作的私有块占位），其余按 type 分发给扩展
+    const renderElementContent = useMemoizedFn(
+      (props: RenderElementProps) =>
+        binding?.renderElement?.(props, renderByType) ?? renderByType(props)
+    );
+    const reportRenderError = useMemoizedFn((type: string, error: unknown) =>
+      breaker.report(type, "render", error)
+    );
+
+    // 每个元素一个错误边界：扩展渲染出错只影响该元素；没有扩展的类型渲染只读占位（ER-006）
+    const renderElement = useMemoizedFn((props: RenderElementProps) => (
+      <ElementErrorBoundary
+        props={props}
+        render={renderElementContent}
+        onError={reportRenderError}
+      />
+    ));
 
     const renderLeaf = useMemoizedFn((props: RenderLeafProps) => {
       {

@@ -166,7 +166,10 @@ describe("ContentDetailPage 协作态的底部工具条", () => {
 
   it("协作 live 时正文用协作文档源", async () => {
     await renderCollabDetail();
-    expect(harness.documents.at(-1)).toMatchObject({ lineage: "content:1", history: "external" });
+    expect(harness.documents[harness.documents.length - 1]).toMatchObject({
+      lineage: "content:1",
+      history: "external",
+    });
   });
 
   it("聚焦协作正文后渲染工具条", async () => {

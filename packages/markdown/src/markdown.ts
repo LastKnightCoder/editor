@@ -7,6 +7,12 @@ import remarkMath from "remark-math";
 import remarkDirective from "remark-directive";
 import remarkRehype from "remark-rehype";
 import { RETIRED_TYPES } from "@tau/db-schema/src/retired-editor-blocks.ts";
+import {
+  UNKNOWN_NODE_DIRECTIVE,
+  isRestoredNode,
+  markRestored,
+  parseUnknownNode,
+} from "./unknownNode.ts";
 import remarkFrontmatter from "remark-frontmatter";
 import type { Descendant } from "slate";
 import { v4 as uuid } from "uuid";
@@ -334,12 +340,26 @@ const findMatchingKbdCloseIndex = (astNodes: MarkdownAstNode[], startIndex: numb
   return -1;
 };
 
+/** 兜底语法（unknownNode.ts）还原：块级取容器里的 json 围栏，行内取 json 属性 */
+const restoreUnknownNode = (node: MarkdownAstNode): Descendant | null => {
+  const json =
+    node.type === "containerDirective"
+      ? node.children?.find(child => child.type === "code" && child.lang === "json")?.value
+      : node.attributes?.json;
+  const restored = parseUnknownNode(json);
+  return restored ? markRestored(restored) : null;
+};
+
 const markdownToDescendant = (
   node: MarkdownAstNode,
   parentAstNode: unknown = null,
   astChildrenOfParent: unknown[] = []
 ): Descendant | Descendant[] | null => {
   if (node.type.endsWith("Directive") && RETIRED_TYPES.has(node.name)) return null;
+  if (node.type.endsWith("Directive") && node.name === UNKNOWN_NODE_DIRECTIVE) {
+    const restored = restoreUnknownNode(node);
+    if (restored) return restored;
+  }
   const parentNode = isMarkdownAstNode(parentAstNode) ? (parentAstNode as MarkdownAstNode) : null;
   const siblingNodes = astChildrenOfParent as MarkdownAstNode[];
 
@@ -1419,7 +1439,10 @@ const importWithPositionsInContext = (
           if (mapping) {
             positionMap.addTextMapping(mapping);
           }
-        } else if (astChildNode.position && isVoidSlateElementType(node.type)) {
+        } else if (
+          astChildNode.position &&
+          (isVoidSlateElementType(node.type) || isRestoredNode(node))
+        ) {
           const mdStart = toMarkdownPosition(astChildNode.position.start);
           const mdEnd = toMarkdownPosition(astChildNode.position.end);
           const elementMapping: ElementMapping = {
@@ -1454,7 +1477,7 @@ const importWithPositionsInContext = (
           positionMap.addElementMapping(elementMapping);
         }
 
-        if (astChildNode.children && node.type !== "formatted") {
+        if (astChildNode.children && node.type !== "formatted" && !isRestoredNode(node)) {
           const nextWrapper =
             astChildNode.type === "link" ||
             (astChildNode.type === "textDirective" &&
@@ -1612,7 +1635,7 @@ const importInContext = (markdown: string, ignoreTypes: string[]): Descendant[] 
       }
       if (!Array.isArray(slateNode)) {
         slateResultArray.push(slateNode);
-        if (astChildNode.children && slateNode.type !== "formatted") {
+        if (astChildNode.children && slateNode.type !== "formatted" && !isRestoredNode(slateNode)) {
           dfs(astChildNode.children, slateNode.children, ignoreTypes, astChildNode);
         }
       } else {
@@ -1663,6 +1686,11 @@ const normalizeEditorContent = (
 ): Descendant[] => {
   for (let i = 0; i < editor.length; i++) {
     const element = editor[i];
+    // 兜底还原的节点保持原样（ER-006）
+    if (isRestoredNode(element)) {
+      result.push(element);
+      continue;
+    }
     if (element.type !== "formatted" && element.children.length === 0) {
       continue;
     } else if (

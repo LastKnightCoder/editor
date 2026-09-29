@@ -69,7 +69,7 @@ export function getContentKit(): EditorKit {
 /**
  * 简短描述输入：时间记录、日程备注、项目描述、问题背景、PDF 批注、白板图形文字。
  * 内容内联在业务记录的 JSON 列里，没有任何完整编辑器会去渲染它，所以不装content 专属块。
- * 成对的只读预览点必须也用这个 kit，否则就是新的「无法识别的类型」来源。
+ * 成对的只读预览点必须也用这个 kit，否则同一段内容在预览里只剩通用占位。
  */
 export function getDescriptionKit(): EditorKit {
   return createDesktopKit();

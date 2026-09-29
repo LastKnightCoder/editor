@@ -4,7 +4,7 @@
  * 为什么插件也需要：笔记不是只上传。冲突时 `applyRemoteContentToNote`
  * （`entrypoints/sidepanel/components/tabs/NotesTab.tsx`）会把 desktop 那边的内容写回
  * 插件编辑器，所以 desktop 上插入的内容链接 / 附件 / 白板 / 数据库块都会流到这里。
- * 不注册就渲染成字面的「无法识别的类型 X」。
+ * 不注册就只剩内核的通用未知节点占位（ER-006）。
  *
  * 附件只显示文件名：`url` / `filePath` 是 desktop 的本地路径，在插件里点不开。
  */

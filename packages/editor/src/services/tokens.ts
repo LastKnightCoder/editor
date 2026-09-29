@@ -12,6 +12,7 @@ import type {
 } from "./mediaProviders";
 import type { EditorSlots } from "./slots";
 import type { ThemeService } from "../theme/ThemeService";
+import type { ExtensionErrorReporter } from "./errorReporter";
 
 /**
  * 服务标识符：注册与获取服务时使用的唯一 Token。
@@ -41,6 +42,10 @@ export const IOpenerService = createServiceId<OpenerService>("openerService");
 
 /** 主题服务：未注册时编辑器用 DOM 默认实现（读 <html> 的 data-mode / data-theme） */
 export const IThemeService = createServiceId<ThemeService>("themeService");
+
+/** 扩展运行期错误上报：未注册时写控制台 */
+export const IExtensionErrorReporter =
+  createServiceId<ExtensionErrorReporter>("extensionErrorReporter");
 
 // ==================== 媒体 Provider（业务注入，未注册即无业务能力） ====================
 
