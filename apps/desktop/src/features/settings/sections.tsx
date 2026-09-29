@@ -1,11 +1,10 @@
 /**
- * 设置分区清单 —— 单一信息架构（数据驱动，SettingsDialog 只负责渲染）。
+ * 设置分区清单 —— 单一信息架构（数据驱动，SettingsScreen 只负责渲染）。
  *
  * 2026-09-24 重排（mockups/settings/index.html 第三版定稿）：分区名按内容正名——
  * 「杂项」→ 剪藏与缓存、「集成」→ 账号与连接、「关于软件」→ 关于与更新；文字转语音与
  * 语音转录并为「语音」。分组：通用 → 数据 → 连接 → AI 服务 → 系统。
- * 页头（标题 + 说明）由 SettingsDialog 按 label / description 统一渲染，子页不再自绘；
- * keywords 供导航搜索命中分区内的设置项名。
+ * 页头（标题 + 说明）由 SettingsScreen 按 label / description 统一渲染，子页不再自绘。
  * 10 个分区已落地（D-036；「功能模块」分区随模块开关退役移除）；本文件即设置导航的唯一修改点。
  */
 
@@ -52,8 +51,6 @@ export interface SettingsSectionDef {
   /** 页头说明：一句话讲清这一页管什么 */
   description: string;
   icon: LucideIcon;
-  /** 导航搜索的额外命中词（分区内的设置项名） */
-  keywords?: string[];
   component: ComponentType;
 }
 
@@ -71,7 +68,6 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
         label: "外观",
         description: "主题、字体与内容图片的默认呈现，改动即刻生效",
         icon: Palette,
-        keywords: ["主题", "深色", "浅色", "字体", "字号", "代码字体", "图片圆角", "图片阴影"],
         component: AppearanceSection,
       },
     ],
@@ -84,17 +80,6 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
         label: "同步",
         description: "把数据库和本地资源文件同步到远端，全部手动触发",
         icon: RefreshCw,
-        keywords: [
-          "WebDAV",
-          "S3",
-          "OSS",
-          "GitHub",
-          "远程",
-          "数据库",
-          "资源同步",
-          "新建数据库",
-          "黑名单",
-        ],
         component: SyncSection,
       },
       {
@@ -102,7 +87,6 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
         label: "资源存储",
         description: "笔记里插入的图片和附件上传到哪里",
         icon: HardDrive,
-        keywords: ["图床", "上传", "本地目录"],
         component: ResourceSection,
       },
       {
@@ -110,7 +94,6 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
         label: "剪藏与缓存",
         description: "网页剪藏行为、远程媒体的自动缓存与空间占用",
         icon: Archive,
-        keywords: ["缓存", "翻译", "视频缓存", "音频缓存", "图片缓存"],
         component: CacheSection,
       },
     ],
@@ -123,7 +106,6 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
         label: "账号与连接",
         description: "第三方服务的账号与凭据，其它设置页从这里读取连接",
         icon: Plug,
-        keywords: ["集成", "Bilibili", "YouTube", "微信读书", "Minimax", "Token", "API Key"],
         component: IntegrationSection,
       },
     ],
@@ -136,18 +118,6 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
         label: "大语言模型",
         description: "接入服务商与模型，再为各项功能指定模型",
         icon: Sparkles,
-        keywords: [
-          "LLM",
-          "服务商",
-          "模型",
-          "功能分配",
-          "API Key",
-          "用量",
-          "费用",
-          "Token",
-          "统计",
-          "单价",
-        ],
         component: LLMSection,
       },
       {
@@ -155,7 +125,6 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
         label: "嵌入模型",
         description: "知识库检索用的向量模型，切换后会在后台重建索引",
         icon: Layers,
-        keywords: ["向量", "Embedding"],
         component: EmbeddingSection,
       },
       {
@@ -163,7 +132,6 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
         label: "图片生成",
         description: "文生图服务，兼容 OpenAI Images 接口",
         icon: ImageIcon,
-        keywords: ["文生图"],
         component: ImageGenerationSection,
       },
       {
@@ -171,7 +139,6 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
         label: "语音",
         description: "音视频转录与语音合成",
         icon: AudioLines,
-        keywords: ["转录", "whisper", "TTS", "文字转语音", "断句"],
         component: VoiceSection,
       },
     ],
@@ -184,7 +151,6 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
         label: "关于与更新",
         description: "版本、更新与命令行工具",
         icon: Info,
-        keywords: ["版本", "更新", "命令行"],
         component: AboutSection,
       },
     ],

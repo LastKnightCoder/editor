@@ -2,10 +2,10 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useSettingsStore } from "@/app/settingsStore";
-import { SettingsDialog } from "../SettingsDialog";
+import { SettingsScreen } from "../SettingsScreen";
 
 vi.mock("@/page/PageProvider", () => ({ useOverlayDismiss: () => {} }));
-// 子页各自依赖 IPC 命令，外壳测试只关心导航 / 页头 / 搜索
+// 子页各自依赖 IPC 命令，外壳测试只关心导航 / 页头 / 返回
 vi.mock("../sections/AppearanceSection", () => ({ AppearanceSection: () => <div>外观子页</div> }));
 vi.mock("../sections/SyncSection", () => ({ SyncSection: () => <div>同步子页</div> }));
 vi.mock("../sections/ResourceSection", () => ({ ResourceSection: () => <div>资源子页</div> }));
@@ -14,20 +14,14 @@ vi.mock("../sections/EmbeddingSection", () => ({ EmbeddingSection: () => <div>�
 
 let container: HTMLDivElement;
 let root: Root;
-const render = () => act(() => root.render(<SettingsDialog />));
-const navLabels = () =>
-  [...container.querySelectorAll('nav[aria-label="设置分区"] .edge-fade-scroll button')].map(
-    b => b.textContent
-  );
+const render = () => act(() => root.render(<SettingsScreen />));
+const navButtons = () => [
+  ...container.querySelectorAll<HTMLButtonElement>(
+    'nav[aria-label="设置分区"] .edge-fade-scroll button'
+  ),
+];
+const navLabels = () => navButtons().map(b => b.textContent);
 const header = () => container.querySelector("header")?.textContent ?? "";
-const search = () => container.querySelector<HTMLInputElement>('input[aria-label="搜索设置"]')!;
-
-const type = (value: string) =>
-  act(() => {
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
-    setter.call(search(), value);
-    search().dispatchEvent(new Event("input", { bubbles: true }));
-  });
 
 beforeEach(() => {
   useSettingsStore.setState({ open: true, section: "appearance" });
@@ -61,28 +55,22 @@ it("按新信息架构渲染全部分区，页头取分区 label + description",
 
 it("点击导航切换分区，当前项标记 aria-current", () => {
   render();
-  const syncBtn = [...container.querySelectorAll("nav button")].find(
-    b => b.textContent === "同步"
-  )!;
-  act(() => (syncBtn as HTMLButtonElement).click());
+  const syncBtn = navButtons().find(b => b.textContent === "同步")!;
+  act(() => syncBtn.click());
   expect(useSettingsStore.getState().section).toBe("sync");
   expect(header()).toContain("同步");
   expect(syncBtn.getAttribute("aria-current")).toBe("page");
   expect(container.textContent).toContain("同步子页");
 });
 
-it("搜索按分区名 / 关键词过滤，Enter 进入首个命中", () => {
+it("「返回应用」关闭设置页，且不再提供分区搜索框", () => {
   render();
-  type("whisper");
-  expect(navLabels()).toEqual(["语音"]);
-  act(() => {
-    search().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-  });
-  expect(useSettingsStore.getState().section).toBe("voice");
-
-  type("不存在的设置");
-  expect(navLabels()).toEqual([]);
-  expect(container.textContent).toContain("没有匹配的设置");
+  expect(container.querySelector("input")).toBeNull();
+  const back = [...container.querySelectorAll<HTMLButtonElement>("nav button")].find(
+    b => b.textContent === "返回应用"
+  )!;
+  act(() => back.click());
+  expect(useSettingsStore.getState().open).toBe(false);
 });
 
 it("持久化的旧分区 key 失效时回落到首个分区", () => {

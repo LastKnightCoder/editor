@@ -17,7 +17,7 @@ import { PageHost } from "@/page/PageHost";
 import { PageNavigationBridge } from "./PageNavigationBridge";
 import { Loading, NotificationHost, ToastHost, initScrollbarAutoHide } from "@tau/ui";
 import { SearchPalette } from "@/features/search/SearchPalette";
-import { SettingsDialog } from "@/features/settings/SettingsDialog";
+import { SettingsScreen } from "@/features/settings/SettingsScreen";
 import { useSearchStore } from "@/features/search/searchStore";
 import { isReplayableVisit } from "@/features/search/searchMeta";
 import useSettingStore from "@/stores/useSettingStore";
@@ -184,8 +184,8 @@ function ShellLayout() {
       </div>
       {/* 全局命令面板浮层（Ctrl+K，D-003）：fixed 定位，须在 PageProvider 内使用导航 */}
       <SearchPalette />
-      {/* 全局设置弹窗（Ctrl+,，D-028）：壳层浮层，同命令面板挂载模式 */}
-      <SettingsDialog />
+      {/* 全窗口设置页（Ctrl+,，D-028）：壳层浮层，同命令面板挂载模式，铺满窗口含侧栏 */}
+      <SettingsScreen />
       {/* 全局通知卡栈（右上角，D-038）：协作申请 / 应用更新 / 发布结果等后台事件 */}
       <NotificationHost />
       {/* 全局 toast（z 高于命令面板与通知卡栈，面板打开时反馈仍可见） */}
