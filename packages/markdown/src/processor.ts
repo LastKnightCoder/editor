@@ -50,18 +50,58 @@ export function createMarkdownProcessor(options: MarkdownProcessorOptions = {}):
   const directives: Record<string, CustomDirectiveHandler> = {};
   const voidTypes = new Set<string>();
   const inlineWrapperDirectives = new Set<string>();
+  const fenceByLanguage = new Map<string, { type: string; property: string }>();
+  const importNodes: NonNullable<MarkdownCodec["importNode"]>[] = [];
+  const fenceSourceProperties = new Map<string, string>();
   for (const codec of codecs) {
     Object.assign(directives, codec.directives);
     if (codec.isVoid) voidTypes.add(codec.type);
     if (codec.inlineWrapperDirective) inlineWrapperDirectives.add(codec.inlineWrapperDirective);
+    if (codec.fence) {
+      const languages =
+        typeof codec.fence.language === "string" ? [codec.fence.language] : codec.fence.language;
+      for (const language of languages) {
+        const key = language.trim().toLowerCase();
+        const existing = fenceByLanguage.get(key);
+        if (existing) {
+          throw new Error(
+            `[markdown] 围栏语言 ${key} 同时被 ${existing.type} 与 ${codec.type} 认领`
+          );
+        }
+        fenceByLanguage.set(key, { type: codec.type, property: codec.fence.property ?? "content" });
+      }
+    }
+    if (codec.importNode) importNodes.push(codec.importNode);
+    if (codec.fenceSourceProperty) fenceSourceProperties.set(codec.type, codec.fenceSourceProperty);
   }
 
-  const importConfig: ImportConfig = { directives, voidTypes, inlineWrapperDirectives };
+  const normalizeHooks = new Map(
+    codecs.filter(codec => codec.normalize).map(codec => [codec.type, codec.normalize!] as const)
+  );
+  const inlineForms = new Map(
+    codecs.filter(codec => codec.inlineForm).map(codec => [codec.type, codec.inlineForm!] as const)
+  );
+
+  const importConfig: ImportConfig = {
+    directives,
+    voidTypes,
+    inlineWrapperDirectives,
+    fenceByLanguage,
+    importNodes,
+    fenceSourceProperties,
+    normalizeHooks,
+    inlineForms,
+  };
   const exportConfig: ExportConfig = {
     registry: new MarkdownSerializerRegistry(
       codecs.flatMap(codec => (codec.serializer ? [{ ...codec.serializer, type: codec.type }] : []))
     ),
     voidTypes,
+    childSeparators: new Map(
+      codecs
+        .filter(codec => codec.childSeparator && codec.childSeparator !== "\n\n")
+        .map(codec => [codec.type, codec.childSeparator!] as const)
+    ),
   };
 
   return {

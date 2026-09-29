@@ -15,10 +15,8 @@ import {
 } from "./unknownNode.ts";
 import remarkFrontmatter from "remark-frontmatter";
 import type { Descendant } from "slate";
-import { v4 as uuid } from "uuid";
 import { visit } from "unist-util-visit";
-import { normalizeCodeBlockLanguageDisplayName } from "@tau/shared/src/utils/code-block-language.ts";
-import type { HighlightColor, HTMLBlockElement, ImageElement } from "./types.ts";
+import type { HighlightColor } from "./types.ts";
 import {
   TEXT_GRADIENT_PRESETS,
   type TextGradientPresetId,
@@ -26,7 +24,7 @@ import {
 import { PositionMapper } from "./positionMapper.ts";
 import type { ElementMapping, MarkdownPosition, TextMapping } from "./positionMapper.ts";
 
-import type { CustomDirectiveHandler } from "./codec.ts";
+import type { CustomDirectiveHandler, MarkdownCodec } from "./codec.ts";
 
 export interface SlateWithPositions {
   content: Descendant[];
@@ -174,118 +172,11 @@ const KBD_CLOSE_TAG_REGEX = /^<\/kbd>$/i;
 const TEXT_GRADIENT_PRESET_SET = new Set<TextGradientPresetId>(
   Object.keys(TEXT_GRADIENT_PRESETS) as TextGradientPresetId[]
 );
-const MAGIC_MOVE_META_PREFIX = "smm=";
-
-interface MarkdownMagicMoveStep {
-  id: string;
-  title?: string;
-  code: string;
-  highlightLines?: string;
-}
-
-interface MarkdownMagicMovePayload {
-  v: 1;
-  activeStep: number;
-  steps: MarkdownMagicMoveStep[];
-}
-
 const resolveTextGradientPreset = (preset: unknown): TextGradientPresetId | undefined => {
   if (typeof preset !== "string") return undefined;
   return TEXT_GRADIENT_PRESET_SET.has(preset as TextGradientPresetId)
     ? (preset as TextGradientPresetId)
     : undefined;
-};
-
-const decodeBase64Url = (value: string): string => {
-  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
-  const padding = normalized.length % 4;
-  const withPadding = padding === 0 ? normalized : `${normalized}${"=".repeat(4 - padding)}`;
-  const binary = atob(withPadding);
-  const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
-  return new TextDecoder().decode(bytes);
-};
-
-const HIGHLIGHT_META_REGEX = /\{([\d,\-\s]+)\}/;
-
-const normalizeHighlightLines = (highlightLines: unknown): string | undefined => {
-  if (typeof highlightLines !== "string" || !highlightLines.trim()) return undefined;
-  const normalized = highlightLines
-    .trim()
-    .replace(/\s*,\s*/g, ",")
-    .replace(/\s*-\s*/g, "-");
-  if (!/^[\d,\-]+$/.test(normalized)) return undefined;
-  return normalized;
-};
-
-const parseHighlightMeta = (meta: unknown): string | undefined => {
-  if (typeof meta !== "string" || !meta.trim()) return undefined;
-  const match = meta.match(HIGHLIGHT_META_REGEX);
-  if (!match) return undefined;
-  return normalizeHighlightLines(match[1]);
-};
-
-const parseMagicMoveMeta = (
-  meta: unknown,
-  fallbackCode: string
-): MarkdownMagicMovePayload | undefined => {
-  if (typeof meta !== "string" || !meta.trim()) {
-    return undefined;
-  }
-
-  const token = meta.split(/\s+/).find(item => item.startsWith(MAGIC_MOVE_META_PREFIX));
-  if (!token) {
-    return undefined;
-  }
-
-  try {
-    const encoded = token.slice(MAGIC_MOVE_META_PREFIX.length);
-    const parsed: unknown = JSON.parse(decodeBase64Url(encoded));
-    const parsedRecord =
-      typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : null;
-    const parsedSteps = parsedRecord?.steps;
-    if (
-      !parsedRecord ||
-      parsedRecord.v !== 1 ||
-      !Array.isArray(parsedSteps) ||
-      parsedSteps.length < 1
-    ) {
-      return undefined;
-    }
-
-    const steps = parsedSteps.map((step: unknown, index: number) => {
-      const stepRecord =
-        typeof step === "object" && step !== null ? (step as Record<string, unknown>) : {};
-      const stepId = stepRecord.id;
-      const stepTitle = stepRecord.title;
-      const stepCode = stepRecord.code;
-      const stepHighlightLines = stepRecord.highlightLines;
-
-      return {
-        id: typeof stepId === "string" && stepId.trim() ? stepId.trim() : `step-${index + 1}`,
-        title: typeof stepTitle === "string" ? stepTitle : undefined,
-        code: typeof stepCode === "string" ? stepCode : "",
-        highlightLines: normalizeHighlightLines(stepHighlightLines),
-      };
-    });
-
-    if (steps.length < 1) {
-      return undefined;
-    }
-
-    const activeStep = Math.min(
-      Math.max(Number(parsedRecord.activeStep) || 0, 0),
-      steps.length - 1
-    );
-    steps[activeStep].code = fallbackCode;
-
-    return {
-      v: 1,
-      activeStep,
-      steps,
-    };
-  } catch {
-    return undefined;
-  }
 };
 
 const isKbdOpenTagNode = (node: unknown): boolean => {
@@ -345,275 +236,39 @@ const markdownToDescendant = (
   const parentNode = isMarkdownAstNode(parentAstNode) ? (parentAstNode as MarkdownAstNode) : null;
   const siblingNodes = astChildrenOfParent as MarkdownAstNode[];
 
-  if (node.type === "heading") {
-    return {
-      type: "header",
-      level: node.depth,
-      children: [],
-    };
-  } else if (node.type === "paragraph") {
-    return {
-      type: "paragraph",
-      children: [],
-    };
-  } else if (node.type === "html") {
-    if (node.htmlType === "inline") {
+  // codec 认领（优先于内置分支）：围栏语言查表，其余按声明顺序问 importNode。
+  // directive 节点不经这里——它们的机制是 codec.directives（下方专门分支）
+  const parseContext = getCurrentParseContext();
+  if (node.type === "code") {
+    const fence = parseContext.fenceByLanguage.get((node.lang ?? "").trim().toLowerCase());
+    if (fence) {
       return {
-        type: "html-inline",
-        html: node.value,
-        openEdit: false,
-        children: [
-          {
-            type: "formatted",
-            text: "",
-          },
-        ],
-      };
+        type: fence.type,
+        [fence.property]: node.value,
+        children: [{ type: "formatted", text: "" }],
+      } as unknown as Descendant;
     }
-    return {
-      type: "html-block",
-      html: node.value,
-      children: [
-        {
-          type: "formatted",
-          text: "",
-        },
-      ],
-    };
-  } else if (node.type === "list") {
-    return {
-      type: node.ordered ? "numbered-list" : "bulleted-list",
-      children: [],
-    };
-  } else if (node.type === "listItem") {
-    const listItemElement: {
-      type: "list-item";
-      children: Descendant[];
-      icon?: string;
-      iconType?: "emoji" | "image";
-      iconUrl?: string;
-    } = {
-      type: "list-item",
-      children: [],
-    };
-
-    if (node.children && node.children.length > 0) {
-      const firstChild = node.children[0];
-      if (
-        firstChild.type === "paragraph" &&
-        firstChild.children &&
-        firstChild.children.length > 0
-      ) {
-        const firstNode = firstChild.children[0];
-
-        if (firstNode.type === "image") {
-          const url = firstNode.url || "";
-
-          // Match emoji protocol: emoji: or emoji://
-          if (url.startsWith("emoji:") || url.startsWith("emoji://")) {
-            const emoji = url.replace(/^emoji:\/?\/?/, "");
-            listItemElement.icon = emoji;
-            listItemElement.iconType = "emoji";
-
-            firstChild.children.shift();
-          } else if (url.startsWith("list-icon:") || url.startsWith("list-icon://")) {
-            const imageUrl = url.replace(/^list-icon:\/?\/?/, "");
-            listItemElement.iconUrl = imageUrl;
-            listItemElement.iconType = "image";
-
-            firstChild.children.shift();
-          }
-        }
-      }
+  }
+  if (!node.type.endsWith("Directive")) {
+    for (const claim of parseContext.importNodes) {
+      const claimed = claim(node, {
+        parent: parentNode,
+        siblings: siblingNodes,
+        getFootnote: identifier => parseContext.footnoteDefinitions.get(identifier) || "",
+      });
+      if (claimed) return claimed;
     }
+  }
 
-    return listItemElement as unknown as Descendant;
-  } else if (node.type === "code") {
-    if (node.lang?.trim?.() === "custom-block") {
-      return {
-        type: "custom-block",
-        content: node.value,
-        children: [
-          {
-            type: "formatted",
-            text: "",
-          },
-        ],
-      };
-    } else if (node.lang?.trim?.()?.toLowerCase?.() === "mermaid") {
-      return {
-        type: "mermaid",
-        chart: node.value,
-        children: [
-          {
-            type: "formatted",
-            text: "",
-          },
-        ],
-      };
-    } else if (node.lang?.trim?.()?.toLowerCase?.() === "abc") {
-      return {
-        type: "abc",
-        content: node.value,
-        children: [
-          {
-            type: "formatted",
-            text: "",
-          },
-        ],
-      };
-    } else if (node.lang?.trim?.()?.toLowerCase?.() === "plantuml") {
-      return {
-        type: "plantuml",
-        content: node.value,
-        children: [
-          {
-            type: "formatted",
-            text: "",
-          },
-        ],
-      };
-    } else if (node.lang?.trim?.()?.toLowerCase?.() === "tikz") {
-      return {
-        type: "tikz",
-        content: node.value,
-        children: [
-          {
-            type: "formatted",
-            text: "",
-          },
-        ],
-      };
-    } else if (node.lang?.trim?.()?.toLowerCase?.() === "typst") {
-      return {
-        type: "typst",
-        content: node.value,
-        children: [
-          {
-            type: "formatted",
-            text: "",
-          },
-        ],
-      };
-    }
-    const magicMove = parseMagicMoveMeta(node.meta, node.value);
-    let highlightLines = parseHighlightMeta(node.meta);
-    if (magicMove) {
-      const safeStep = Math.min(
-        Math.max(Number(magicMove.activeStep) || 0, 0),
-        magicMove.steps.length - 1
-      );
-      const activeStep = magicMove.steps[safeStep];
-      if (activeStep) {
-        if (!activeStep.highlightLines && highlightLines) {
-          activeStep.highlightLines = highlightLines;
-        }
-        highlightLines = activeStep.highlightLines ?? highlightLines;
-      }
-    }
-    return {
-      type: "code-block",
-      language: normalizeCodeBlockLanguageDisplayName(node.lang),
-      code: node.value,
-      uuid: uuid(),
-      ...(magicMove ? { magicMove } : {}),
-      ...(highlightLines ? { highlightLines } : {}),
-      children: [
-        {
-          type: "formatted",
-          text: "",
-        },
-      ],
-    };
-  } else if (node.type === "blockquote") {
-    return {
-      type: "blockquote",
-      children: [],
-    };
-  } else if (node.type === "math") {
-    return {
-      type: "block-math",
-      tex: node.value,
-      children: [
-        {
-          type: "formatted",
-          text: "",
-        },
-      ],
-    };
-  } else if (node.type === "table") {
-    return {
-      type: "table",
-      children: [],
-    };
-  } else if (node.type === "tableRow") {
-    return {
-      type: "table-row",
-      children: [],
-    };
-  } else if (node.type === "tableCell") {
-    return {
-      type: "table-cell",
-      children: [],
-    };
-  } else if (node.type === "containerDirective") {
+  if (node.type === "containerDirective") {
     const customContainerHandler = getCurrentParseContext().customDirectiveHandlers.get(node.name);
     if (customContainerHandler) {
       return customContainerHandler(node.attributes || {});
     }
     return null;
-  } else if (node.type === "inlineMath") {
-    return {
-      type: "inline-math",
-      tex: node.value,
-      children: [
-        {
-          type: "formatted",
-          text: "",
-        },
-      ],
-    };
-  } else if (node.type === "image") {
-    const isOnlyChildInParagraph =
-      parentNode &&
-      parentNode.type === "paragraph" &&
-      siblingNodes &&
-      siblingNodes.length === 1 &&
-      siblingNodes[0] === node;
+  }
 
-    if (isOnlyChildInParagraph) {
-      return {
-        type: "image",
-        url: node.url,
-        alt: node.alt,
-        children: [
-          {
-            type: "formatted",
-            text: "",
-          },
-        ],
-      };
-    } else {
-      return {
-        type: "inline-image",
-        url: node.url,
-        alt: node.alt,
-        uuid: uuid(),
-        children: [
-          {
-            type: "formatted",
-            text: "",
-          },
-        ],
-      };
-    }
-  } else if (node.type === "link") {
-    return {
-      type: "link",
-      url: node.url,
-      children: [],
-    };
-  } else if (node.type === "text") {
+  if (node.type === "text") {
     return {
       type: "formatted",
       text: node.value,
@@ -744,42 +399,12 @@ const markdownToDescendant = (
       })
       .filter(Boolean)
       .flat() as Descendant[];
-  } else if (node.type === "break" || node.type === "thematicBreak") {
-    return {
-      type: "divide-line",
-      children: [
-        {
-          type: "formatted",
-          text: "",
-        },
-      ],
-    };
-  } else if (node.type === "yaml") {
-    return {
-      type: "front-matter",
-      value: node.value,
-      children: [
-        {
-          type: "formatted",
-          text: "",
-        },
-      ],
-    };
-  } else if (node.type === "footnoteReference") {
-    // 将脚注引用转换为 annotation
-    const content = getCurrentParseContext().footnoteDefinitions.get(node.identifier) || "";
-    return {
-      type: "annotation",
-      content,
-      children: [
-        {
-          type: "formatted",
-          text: "",
-        },
-      ],
-    };
   } else if (node.type === "footnoteDefinition") {
-    // 脚注定义已经在第一次遍历中处理了，这里忽略
+    // 脚注定义已经在第一次遍历中处理了，这里忽略；引用式链接定义（definition）
+    // 同理——内容已折进 link 节点，此前落入未知兜底会造出 text 为 undefined 的
+    // 文本节点，导出即崩（差分语料发现，两侧共有的既有缺陷，修复为忽略）
+    return null;
+  } else if (node.type === "definition") {
     return null;
   } else {
     console.log("unknown node", node);
@@ -819,6 +444,16 @@ interface MarkdownParseContext {
   voidTypes: ReadonlySet<string>;
   /** 子文本按整体范围记前后缀的 text directive 名 */
   inlineWrapperDirectives: ReadonlySet<string>;
+  /** 围栏语言 → 认领该语言的元素（type + 源码字段名） */
+  fenceByLanguage: ReadonlyMap<string, { type: string; property: string }>;
+  /** 通用 mdast 认领（按声明顺序，首个认领生效） */
+  importNodes: readonly NonNullable<MarkdownCodec["importNode"]>[];
+  /** code 节点认领方的源码属性（导入侧属性级映射用） */
+  fenceSourceProperties: ReadonlyMap<string, string>;
+  /** 导入后规范化钩子（按元素类型） */
+  normalizeHooks: ReadonlyMap<string, NonNullable<MarkdownCodec["normalize"]>>;
+  /** 块级元素的段落内行内形态 */
+  inlineForms: ReadonlyMap<string, NonNullable<MarkdownCodec["inlineForm"]>>;
 }
 
 /** 处理器级配置：宿主 codec 合并后的结果（框架不自带任何元素类型） */
@@ -826,6 +461,11 @@ export interface ImportConfig {
   directives: Record<string, CustomDirectiveHandler>;
   voidTypes: ReadonlySet<string>;
   inlineWrapperDirectives: ReadonlySet<string>;
+  fenceByLanguage: ReadonlyMap<string, { type: string; property: string }>;
+  importNodes?: readonly NonNullable<MarkdownCodec["importNode"]>[];
+  fenceSourceProperties?: ReadonlyMap<string, string>;
+  normalizeHooks?: ReadonlyMap<string, NonNullable<MarkdownCodec["normalize"]>>;
+  inlineForms?: ReadonlyMap<string, NonNullable<MarkdownCodec["inlineForm"]>>;
 }
 
 const parseContextStack: MarkdownParseContext[] = [];
@@ -851,6 +491,11 @@ const withParseContext = <T>(
     ),
     voidTypes: config.voidTypes,
     inlineWrapperDirectives: config.inlineWrapperDirectives,
+    fenceByLanguage: config.fenceByLanguage ?? new Map(),
+    importNodes: config.importNodes ?? [],
+    fenceSourceProperties: config.fenceSourceProperties ?? new Map(),
+    normalizeHooks: config.normalizeHooks ?? new Map(),
+    inlineForms: config.inlineForms ?? new Map(),
   });
   try {
     return run();
@@ -1310,7 +955,12 @@ const importWithPositionsInContext = (
             mdEndCh: mdEnd.ch,
           };
 
-          if (node.type === "code-block" && astChildNode.type === "code") {
+          // codec 声明了源码属性（fenceSourceProperty）的 code 认领方，补属性级映射
+          const sourceProperty =
+            astChildNode.type === "code"
+              ? getCurrentParseContext().fenceSourceProperties.get(node.type)
+              : undefined;
+          if (sourceProperty) {
             const code = astChildNode.value || "";
             const lines = code.split("\n");
             const codeStartLine = mdStart.line + 1;
@@ -1319,7 +969,7 @@ const importWithPositionsInContext = (
             const codeEndCh =
               lines.length > 0 ? codeStartCh + lines[lines.length - 1].length : codeStartCh;
             elementMapping.propertyMappings = {
-              code: {
+              [sourceProperty]: {
                 mdStartLine: codeStartLine,
                 mdStartCh: codeStartCh,
                 mdEndLine: codeEndLine,
@@ -1538,6 +1188,12 @@ const normalizeEditorContent = (
   result: Descendant[] = [],
   parent: Descendant | null = null
 ): Descendant[] => {
+  const { normalizeHooks, inlineForms } = getCurrentParseContext();
+  const demote = (child: Descendant): Descendant => {
+    const inlineForm = inlineForms.get((child as { type?: string }).type ?? "");
+    return inlineForm ? inlineForm(child) : child;
+  };
+
   for (let i = 0; i < editor.length; i++) {
     const element = editor[i];
     // 兜底还原的节点保持原样（ER-006）
@@ -1547,79 +1203,22 @@ const normalizeEditorContent = (
     }
     if (element.type !== "formatted" && element.children.length === 0) {
       continue;
-    } else if (
-      element.type === "link" &&
-      element.children.some(child => child.type !== "formatted")
-    ) {
-      while (element.children.some(child => child.type !== "formatted")) {
-        element.children.splice(
-          element.children.findIndex(child => child.type !== "formatted"),
-          1
-        );
-      }
-    } else if (element.type === "paragraph") {
-      // 如果 paragraph 仅包含一个 image，则将该 image 提升为块级元素，避免被转换为 inline-image
-      if (
-        element.children.length === 1 &&
-        // @ts-ignore
-        element.children[0].type === "image"
-      ) {
-        const onlyChild = element.children[0] as ImageElement;
-        if (onlyChild && Array.isArray(onlyChild.children)) {
-          // 规范化 image 的子节点
-          onlyChild.children = [
-            {
-              type: "formatted",
-              text: "",
-            },
-          ];
-        }
-        result.push(onlyChild);
-        continue;
-      }
-      // 把 image 都变为 inline-image
-      // 把 html-block 变为 html-inline
-      element.children = element.children.map(child => {
-        // @ts-ignore
-        if (child.type === "image") {
-          return {
-            type: "inline-image",
-            url: (child as ImageElement).url,
-            alt: (child as ImageElement).alt,
-            uuid: (child as ImageElement).uuid || uuid(),
-            children: [
-              {
-                type: "formatted",
-                text: "",
-              },
-            ],
-          };
-        }
-        // @ts-ignore
-        if (child.type === "html-block") {
-          return {
-            type: "html-inline",
-            html: (child as HTMLBlockElement).html,
-            children: [
-              {
-                type: "formatted",
-                text: "",
-              },
-            ],
-          };
-        }
-        return child;
+    }
+    const normalize = normalizeHooks.get(element.type ?? "");
+    if (normalize) {
+      const replacement = normalize(element, {
+        parent,
+        previousSibling: editor[i - 1] ?? null,
+        nextSibling: editor[i + 1] ?? null,
+        demote,
       });
-      if (element.children.length === 0) {
+      if (replacement) {
+        // 钩子返回即定论：不再做子树递归与空检查（规则自己负责形状）
+        for (const item of replacement) {
+          result.push(item);
+        }
         continue;
       }
-    } else if (
-      parent &&
-      element.type === "divide-line" &&
-      // @ts-ignore
-      parent.children[i + 1]?.type === "divide-line"
-    ) {
-      continue;
     }
     if (element.type !== "formatted" && element.children) {
       element.children = normalizeEditorContent(element.children, [], element);

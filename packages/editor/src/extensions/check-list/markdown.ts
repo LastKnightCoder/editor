@@ -2,6 +2,7 @@ import type { MarkdownCodec } from "@tau/markdown";
 
 export const checkListCodec: MarkdownCodec = {
   type: "check-list",
+  childSeparator: "\n",
   serializer: {
     isBlock: true,
     toMarkdown: (_element, childrenStr) => childrenStr.split("\n").filter(Boolean).join("\n"),

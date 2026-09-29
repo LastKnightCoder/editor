@@ -1,7 +1,10 @@
+import type { Descendant } from "slate";
 import type { MarkdownCodec } from "@tau/markdown";
 
 export const blockquoteCodec: MarkdownCodec = {
   type: "blockquote",
+  importNode: node =>
+    node.type === "blockquote" ? ({ type: "blockquote", children: [] } as Descendant) : null,
   serializer: {
     isBlock: true,
     toMarkdown: (_element, childrenStr) =>

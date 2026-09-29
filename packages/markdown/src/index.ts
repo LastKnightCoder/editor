@@ -12,7 +12,12 @@ export {
   type MarkdownProcessor,
   type MarkdownProcessorOptions,
 } from "./processor.ts";
-export type { MarkdownCodec, CustomDirectiveHandler } from "./codec.ts";
+export type {
+  MarkdownCodec,
+  CustomDirectiveHandler,
+  MarkdownImportNode,
+  MarkdownImportContext,
+} from "./codec.ts";
 
 export {
   isMarkdownLikeText,
