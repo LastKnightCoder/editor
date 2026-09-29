@@ -50,6 +50,7 @@ import { ROW_DIVIDER } from "../components/rowDivider";
 import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup, SettingsNote } from "../components/SettingsGroup";
 import { StatusChip } from "../components/StatusChip";
+import { EmbeddingIndexStatusGroup } from "./EmbeddingIndexStatusGroup";
 
 /** 本地嵌入的唯一配置 id（API 配置之外常驻，legacy 同名常量对齐） */
 const LOCAL_CONFIG_ID = "embedding-default-local";
@@ -728,6 +729,10 @@ export function EmbeddingSection() {
           </SettingsGroup>
         </>
       )}
+
+      <EmbeddingIndexStatusGroup
+        modelKey={`${provider.currentConfigId}:${currentConfig?.currentModel ?? ""}`}
+      />
 
       <SettingsNote icon={<Zap size={14} strokeWidth={1.75} />}>
         切换模型来源、启用模型或切换 Provider 都会在后台重建向量索引，切换前会先确认。

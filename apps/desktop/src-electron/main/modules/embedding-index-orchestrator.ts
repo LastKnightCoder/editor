@@ -1,3 +1,4 @@
+import { BrowserWindow, ipcMain } from "electron";
 import log from "electron-log";
 import type Database from "better-sqlite3";
 import { Module } from "../types/module";
@@ -5,6 +6,8 @@ import databaseModule, { DatabaseConnectReason } from "./database";
 import userSettingModule, { SettingChangedPayload } from "./user-setting";
 import mainContentVecIndexQueue, {
   MainContentReconcileReason,
+  type MainContentIndexStats,
+  type MainContentVecIndexProgress,
 } from "./main-content-vec-index-queue";
 import vibeLearningIndexQueue from "./vibe-learning-index-queue";
 import localInference from "./local-inference";
@@ -16,6 +19,44 @@ const MAIN_CONTENT_FINGERPRINT_KEY = "main_content_embedding_fingerprint";
 const VL_FINGERPRINT_KEY = "vl_embedding_fingerprint";
 const VIDEO_NOTE_FINGERPRINT_KEY = "video_note_embedding_fingerprint";
 const STARTUP_RECONCILE_DELAY_MS = 5000;
+const EMBEDDING_INDEX_PROGRESS_CHANNEL = "embedding-index-progress";
+/** 停止写入多久后自动补索引 */
+export const IDLE_INDEX_DELAY_MS = 2 * 60 * 1000;
+
+const MAIN_CONTENT_WRITE_EVENTS = new Set([
+  "content:update",
+  "create-card",
+  "create-card-from-project-item",
+  "update-card",
+  "create-article",
+  "create-article-from-project-item",
+  "update-article",
+  "update-project-item",
+  "add-root-project-item",
+  "add-child-project-item",
+  "create-diary-entry",
+  "update-diary-entry",
+  "create-diary-segment",
+  "update-diary-segment",
+  "create-diary-moment",
+]);
+
+/** 会改变卡片 / 文章 / 项目文档 / 日记正文的写命令 */
+export const isMainContentWriteEvent = (eventName: string) =>
+  MAIN_CONTENT_WRITE_EVENTS.has(eventName);
+
+export interface EmbeddingIndexStatus {
+  mainDbName: string;
+  configValid: boolean;
+  providerType: ResolvedEmbeddingConfig["providerType"] | null;
+  model: string | null;
+  /** 该模型是否会被后台自动索引（仅本地模型） */
+  autoIndex: boolean;
+  stats: MainContentIndexStats | null;
+  running: MainContentVecIndexProgress | null;
+  lastRun: MainContentVecIndexProgress | null;
+  rebuildState: IndexRebuildState | null;
+}
 
 type ReconcileEvent =
   | {
@@ -35,6 +76,8 @@ class EmbeddingIndexOrchestrator implements Module {
   name = "embedding-index-orchestrator";
   private reconcileChain: Promise<void> = Promise.resolve();
   private lastReconciledDbName: string | null = null;
+  private idleIndexTimer: ReturnType<typeof setTimeout> | null = null;
+  private idleIndexDbName: string | null = null;
 
   private async waitForStartupDelay(trigger: string) {
     log.info(
@@ -49,6 +92,7 @@ class EmbeddingIndexOrchestrator implements Module {
     databaseModule.onDatabaseConnected((dbName, reason) => {
       // 数据库切换时，立即中止旧数据库的 embedding 工作（不等 reconcileChain）
       if (reason === "switch") {
+        this.clearIdleIndex();
         mainContentVecIndexQueue.abortCurrentRun();
         vibeLearningIndexQueue.abortCurrentRun();
         videoNoteIndexQueue.abortCurrentRun();
@@ -72,7 +116,69 @@ class EmbeddingIndexOrchestrator implements Module {
       this.enqueueReconcile({ type: "startup" });
     }, STARTUP_RECONCILE_DELAY_MS);
 
+    databaseModule.onDatabaseWrite((dbName, eventName) => {
+      if (isMainContentWriteEvent(eventName)) {
+        this.scheduleIdleIndex(dbName);
+      }
+    });
+
+    this.registerIpc();
+
     log.info("[EmbeddingIndexOrchestrator] Module initialized");
+  }
+
+  /**
+   * 内容写入后的空闲补索引：每次写入都把计时器往后推，连续编辑期间不会触发，
+   * 停止编辑 IDLE_INDEX_DELAY_MS 后跑一轮增量索引（只处理有变化的文档）。
+   * 仅本地模型生效，API 模型按量计费，仍由用户手动发起。
+   */
+  private scheduleIdleIndex(dbName: string) {
+    if (this.idleIndexTimer) {
+      clearTimeout(this.idleIndexTimer);
+    }
+    this.idleIndexDbName = dbName;
+    this.idleIndexTimer = setTimeout(() => {
+      void this.runIdleIndex();
+    }, IDLE_INDEX_DELAY_MS);
+  }
+
+  private clearIdleIndex() {
+    if (this.idleIndexTimer) {
+      clearTimeout(this.idleIndexTimer);
+    }
+    this.idleIndexTimer = null;
+    this.idleIndexDbName = null;
+  }
+
+  private async runIdleIndex() {
+    const dbName = this.idleIndexDbName;
+    this.clearIdleIndex();
+    if (!dbName || dbName !== databaseModule.getCurrentDatabaseName()) {
+      return;
+    }
+    // 已有一轮在跑（启动 / 同步 / 手动）：等它结束后再补，避免排队叠加
+    if (mainContentVecIndexQueue.isRunning()) {
+      this.scheduleIdleIndex(dbName);
+      return;
+    }
+    const setting = await userSettingModule.getSettingSnapshot();
+    const resolvedConfig = resolveEmbeddingConfig(setting);
+    if (
+      !resolvedConfig ||
+      resolvedConfig.providerType !== "local_python" ||
+      !localInference.isEmbeddingModelReady({
+        modelDir: resolvedConfig.localModelDir,
+        modelName: resolvedConfig.model,
+      })
+    ) {
+      return;
+    }
+    log.info(`[EmbeddingIndexOrchestrator] Idle index after content writes: db=${dbName}`);
+    this.reconcileChain = this.reconcileChain
+      .then(() => this.runIncrementalIndex(dbName, resolvedConfig, "content_idle"))
+      .catch(error => {
+        log.error("[EmbeddingIndexOrchestrator] idle index failed:", error);
+      });
   }
 
   /**
@@ -92,6 +198,106 @@ class EmbeddingIndexOrchestrator implements Module {
       .catch(error => {
         log.error("[EmbeddingIndexOrchestrator] model_ready reconcile failed:", error);
       });
+  }
+
+  /** 设置页「索引状态」：覆盖统计 + 进行中的进度 + 上一轮记录 */
+  async getIndexStatus(): Promise<EmbeddingIndexStatus> {
+    const mainDbName = databaseModule.getCurrentDatabaseName();
+    const setting = await userSettingModule.getSettingSnapshot();
+    const resolvedConfig = resolveEmbeddingConfig(setting);
+    const stats = await mainContentVecIndexQueue.getIndexStats(mainDbName);
+    const indexDb = databaseModule.getIndexDatabase(mainDbName);
+    const running = mainContentVecIndexQueue.getCurrentProgress();
+    return {
+      mainDbName,
+      configValid: !!resolvedConfig,
+      providerType: resolvedConfig?.providerType ?? null,
+      model: resolvedConfig?.model ?? null,
+      autoIndex: resolvedConfig?.providerType === "local_python",
+      stats,
+      running: running && running.mainDbName === mainDbName ? running : null,
+      lastRun: indexDb ? mainContentVecIndexQueue.getLastRun(indexDb) : null,
+      rebuildState: indexDb ? databaseModule.getIndexRebuildState(mainDbName, "vec") : null,
+    };
+  }
+
+  /**
+   * 用户手动发起一轮主内容增量索引（只补未索引 / 内容已更新的文档）。
+   * API 模型不会自动索引，手动发起时同样会执行（由用户显式触发）。
+   */
+  async startManualIndex(): Promise<{ started: boolean; error?: string }> {
+    if (mainContentVecIndexQueue.isRunning()) {
+      return { started: false, error: "索引正在进行中" };
+    }
+    const mainDbName = databaseModule.getCurrentDatabaseName();
+    const setting = await userSettingModule.getSettingSnapshot();
+    const resolvedConfig = resolveEmbeddingConfig(setting);
+    if (!resolvedConfig) {
+      return { started: false, error: "嵌入模型配置无效，请先启用一个模型" };
+    }
+    if (
+      resolvedConfig.providerType === "local_python" &&
+      !localInference.isEmbeddingModelReady({
+        modelDir: resolvedConfig.localModelDir,
+        modelName: resolvedConfig.model,
+      })
+    ) {
+      return { started: false, error: "本地向量模型尚未下载" };
+    }
+    this.clearIdleIndex();
+
+    this.reconcileChain = this.reconcileChain
+      .then(() => this.runIncrementalIndex(mainDbName, resolvedConfig, "manual"))
+      .catch(error => {
+        log.error("[EmbeddingIndexOrchestrator] manual index failed:", error);
+      });
+    return { started: true };
+  }
+
+  private async runIncrementalIndex(
+    mainDbName: string,
+    resolvedConfig: ResolvedEmbeddingConfig,
+    reason: "manual" | "content_idle"
+  ) {
+    const ensureResult = await databaseModule.ensureIndexDatabaseReady(
+      mainDbName,
+      `embedding:${reason}`
+    );
+    const indexDb = databaseModule.getIndexDatabase(mainDbName);
+    if (!ensureResult || !databaseModule.getDatabase(mainDbName) || !indexDb) {
+      log.info(
+        `[EmbeddingIndexOrchestrator] Skip ${reason} index, database not connected: ${mainDbName}`
+      );
+      return;
+    }
+    this.ensureMetaTable(indexDb);
+    const fingerprintChanged =
+      this.getMetaValue(indexDb, MAIN_CONTENT_FINGERPRINT_KEY) !== resolvedConfig.fingerprint;
+    const result = await mainContentVecIndexQueue.reconcileByPolicy({
+      mainDbName,
+      embeddingConfig: resolvedConfig,
+      fingerprintChanged,
+      autoIndex: true,
+      reason,
+    });
+    if (!result.stale) {
+      this.setMetaValue(indexDb, MAIN_CONTENT_FINGERPRINT_KEY, resolvedConfig.fingerprint);
+    }
+    log.info(
+      `[EmbeddingIndexOrchestrator] Incremental index finished: db=${mainDbName}, reason=${reason}, queued=${result.queued}, indexed=${result.indexed}, stale=${result.stale}`
+    );
+  }
+
+  private registerIpc() {
+    ipcMain.handle("embedding-index-get-status", () => this.getIndexStatus());
+    ipcMain.handle("embedding-index-start-manual", () => this.startManualIndex());
+    mainContentVecIndexQueue.onProgress(progress => {
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) {
+          win.webContents.send(EMBEDDING_INDEX_PROGRESS_CHANNEL, progress);
+        }
+      }
+    });
   }
 
   private enqueueReconcile(event: ReconcileEvent) {

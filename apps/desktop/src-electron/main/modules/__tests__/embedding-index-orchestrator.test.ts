@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockContext = vi.hoisted(() => {
   const metaStore = new Map<string, string>();
@@ -39,6 +39,7 @@ const mockContext = vi.hoisted(() => {
       getIndexDatabase: vi.fn(() => fakeIndexDb),
       getCurrentDatabaseName: vi.fn(() => "data.db"),
       getIndexRebuildState: vi.fn((_dbName: string, _target?: string) => "ready"),
+      onDatabaseWrite: vi.fn(),
     },
     userSettingModuleMock: {
       onSettingChanged: vi.fn(),
@@ -46,6 +47,7 @@ const mockContext = vi.hoisted(() => {
     },
     mainContentQueueMock: {
       abortCurrentRun: vi.fn(),
+      isRunning: vi.fn(() => false),
       reconcileByPolicy: vi.fn(async () => ({
         stale: false,
         queued: 0,
@@ -108,7 +110,10 @@ vi.mock("../../utils/embedding-config", () => ({
   resolveEmbeddingConfig: mockContext.resolveEmbeddingConfig,
 }));
 
-import embeddingIndexOrchestrator from "../embedding-index-orchestrator";
+import embeddingIndexOrchestrator, {
+  IDLE_INDEX_DELAY_MS,
+  isMainContentWriteEvent,
+} from "../embedding-index-orchestrator";
 
 describe("EmbeddingIndexOrchestrator(video-note)", () => {
   beforeEach(() => {
@@ -235,5 +240,72 @@ describe("EmbeddingIndexOrchestrator(video-note)", () => {
         reason: "sync_upload_reconnect",
       })
     );
+  });
+
+  describe("编辑后空闲补索引", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      mockContext.userSettingModuleMock.getSettingSnapshot.mockResolvedValue({});
+      mockContext.mainContentQueueMock.isRunning.mockReturnValue(false);
+    });
+
+    afterEach(() => {
+      (embeddingIndexOrchestrator as any).clearIdleIndex();
+      vi.useRealTimers();
+    });
+
+    const flush = async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await (embeddingIndexOrchestrator as any).reconcileChain;
+    };
+
+    it("只识别会改变正文的写命令", () => {
+      expect(isMainContentWriteEvent("content:update")).toBe(true);
+      expect(isMainContentWriteEvent("update-card")).toBe(true);
+      expect(isMainContentWriteEvent("get-all-cards")).toBe(false);
+      expect(isMainContentWriteEvent("update-article-is-top")).toBe(false);
+    });
+
+    it("连续写入会顺延，停止编辑后只跑一轮增量索引", async () => {
+      const orchestrator = embeddingIndexOrchestrator as any;
+      orchestrator.scheduleIdleIndex("data.db");
+      await vi.advanceTimersByTimeAsync(IDLE_INDEX_DELAY_MS - 1000);
+      orchestrator.scheduleIdleIndex("data.db");
+      await vi.advanceTimersByTimeAsync(IDLE_INDEX_DELAY_MS - 1000);
+
+      expect(mockContext.mainContentQueueMock.reconcileByPolicy).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(1000);
+      await orchestrator.reconcileChain;
+
+      expect(mockContext.mainContentQueueMock.reconcileByPolicy).toHaveBeenCalledTimes(1);
+      expect(mockContext.mainContentQueueMock.reconcileByPolicy).toHaveBeenCalledWith(
+        expect.objectContaining({ reason: "content_idle", autoIndex: true })
+      );
+    });
+
+    it("API 模型不自动补索引", async () => {
+      mockContext.resolveEmbeddingConfig.mockReturnValue({
+        configId: "remote",
+        providerType: "remote_openai",
+        model: "text-embedding-3-small",
+        dimensions: 1536,
+        fingerprint: "fp-remote",
+      });
+      (embeddingIndexOrchestrator as any).scheduleIdleIndex("data.db");
+      await flush();
+
+      expect(mockContext.mainContentQueueMock.reconcileByPolicy).not.toHaveBeenCalled();
+    });
+
+    it("已有一轮在跑时顺延到下一个空闲窗口", async () => {
+      mockContext.mainContentQueueMock.isRunning.mockReturnValue(true);
+      const orchestrator = embeddingIndexOrchestrator as any;
+      orchestrator.scheduleIdleIndex("data.db");
+      await flush();
+
+      expect(mockContext.mainContentQueueMock.reconcileByPolicy).not.toHaveBeenCalled();
+      expect(orchestrator.idleIndexTimer).not.toBeNull();
+    });
   });
 });

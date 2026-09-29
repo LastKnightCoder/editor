@@ -137,6 +137,25 @@ class DatabaseModule implements Module {
     (dbName: string, reason: DatabaseConnectReason) => void
   > = [];
   private indexEnsurePromises: Map<string, Promise<EnsureIndexReadyResult | null>> = new Map();
+  private databaseWriteCallbacks: Array<(dbName: string, eventName: string) => void> = [];
+
+  /** 渲染进程发起的数据库写命令提交成功后回调（索引调度等据此感知内容变化） */
+  onDatabaseWrite(callback: (dbName: string, eventName: string) => void): () => void {
+    this.databaseWriteCallbacks.push(callback);
+    return () => {
+      this.databaseWriteCallbacks = this.databaseWriteCallbacks.filter(cb => cb !== callback);
+    };
+  }
+
+  private notifyDatabaseWrite(dbName: string, eventName: string): void {
+    for (const cb of this.databaseWriteCallbacks) {
+      try {
+        cb(dbName, eventName);
+      } catch (error) {
+        log.warn(`[database] write callback failed: event=${eventName}`, error);
+      }
+    }
+  }
 
   private openReadOnlyDatabase(name: string): Database.Database {
     const dbPath = join(PathUtil.getAppDir(), `${this.formatDatabaseName(name)}.db`);
@@ -800,6 +819,7 @@ class DatabaseModule implements Module {
           if (useTransaction) {
             db.exec("COMMIT");
           }
+          this.notifyDatabaseWrite(dbName, eventName);
           return res;
         } catch (e) {
           log.error(`[database] event failed: db=${dbName}, event=${eventName}`, e);
