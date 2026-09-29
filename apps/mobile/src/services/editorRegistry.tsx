@@ -2,6 +2,7 @@ import { convertFileSrc as tauriConvertFileSrc } from "@tauri-apps/api/core";
 import { openUrl as tauriOpenUrl } from "@tauri-apps/plugin-opener";
 import {
   createServiceRegistry,
+  IEditorNotifier,
   IEditorSlots,
   IFileService,
   IVideoContentProviders,
@@ -26,6 +27,7 @@ import {
 } from "./tauri";
 import { getMobileSettingByPath, subscribeMobileSettingSnapshot } from "./mobileSettingsBridge";
 import { mobileVideoContentProviders } from "../editor-providers/videoProviders";
+import { mobileEditorNotifier } from "./editorNotifier";
 import { arrayBufferToBase64 } from "../utils/base64";
 import { compressImageForUpload } from "../utils/imageCompress";
 
@@ -107,6 +109,7 @@ export const mobileEditorServices: ServiceRegistration = register => {
   });
   register(IEditorSlots, mobileEditorSlots);
   register(IVideoContentProviders, mobileVideoContentProviders);
+  register(IEditorNotifier, mobileEditorNotifier);
 };
 
 export function createMobileEditorRegistry(): ServiceRegistry {
