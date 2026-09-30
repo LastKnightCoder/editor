@@ -331,8 +331,6 @@ const EditProjectItem = (props: { projectItemId: number }) => {
           onChange={onContentChange}
           onInit={onInit}
           onExit={handleImmersiveExit}
-          wordCount={projectItem.count}
-          readonly={false}
           extensions={extensions}
         />
       )}

@@ -655,21 +655,18 @@ export function CardDetailView() {
       {/* 演示模式（legacy 搬用） */}
       {presenting && <PresentationMode content={presenting} onExit={() => setPresenting(null)} />}
 
-      {/* 沉浸模式（legacy 搬用）：退出回传选区，正文 remount 后由上方 effect 恢复光标 */}
+      {/* 沉浸模式：退出回传选区，正文 remount 后由上方 effect 恢复光标 */}
       {immersive && (
         <ImmersiveEditorMode
           contentId={card.contentId}
           initValue={card.content}
           initialSelection={immersiveEntrySelectionRef.current}
           onChange={throttleHandleEditorContentChange}
-          onInit={() => undefined}
           onExit={payload => {
             pendingSelectionRef.current = payload?.selection ?? null;
             setImmersive(false);
             setEditorRemountKey(key => key + 1);
           }}
-          wordCount={card.count}
-          readonly={false}
         />
       )}
     </div>
