@@ -2,13 +2,13 @@
  * PageProvider —— 导航运行时枢纽（从移动端 RouterProvider 移植的最小核心）。
  *
  * 职责：持有栈机状态、暴露 navigator 命令对象（push/replace/back/forward/popToTop）、
- * Esc=后退（LIFO 退场，根页无操作；编辑上下文中让位）、match 去重（single/params 命中即激活不新建）。
+ * Esc 关闭浮层（LIFO，无浮层时不操作）、match 去重（single/params 命中即激活不新建）。
  *
  * 栈操作以 action 走 reducer、由 React 串行归约：同一 tick 内连续导航不会互相覆盖
  * （去重判定也在 reducer 内基于 prev 做，不依赖渲染期的 stateRef 桥）。
  *
  * 刻意未做（接线点见 03 指南）：window.history 同步（桌面不需要，栈机即唯一真相源）、
- * 浮层导航（dialog/drawer 不经 definePage，见 DECISIONS D-002）、canLeave 守卫拦截、
+ * 浮层导航（dialog/drawer 不经 definePage，见 DECISIONS D-002）、离页守卫、
  * 结果通道 pushForResult、实例级 store。
  */
 
@@ -177,7 +177,7 @@ export function PageProvider({
     return () => window.removeEventListener("keydown", onKeydown);
   }, []);
 
-  /* 页面级槽位注册表（面包屑；状态栏由页面自带 PageStatusBar）：按 page key 存 ReactNode，壳层只渲染
+  /* 页面级槽位注册表（面包屑）：按 page key 存 ReactNode，壳层只渲染
      栈顶 key 的条目。node 须由调用方 useMemo 稳定化（见 usePageSlot JSDoc），
      同值守卫避免无关重渲染级联 */
   const [breadcrumbs, setBreadcrumbs] = useState<ReadonlyMap<string, ReactNode>>(EMPTY_NODE_MAP);

@@ -164,7 +164,7 @@ function ShellLayout() {
         onDragChange={setSidebarResizing}
       />
       {/* 右列整体：标题栏/内容只属于主区，侧栏整高贯通窗口（融合骨架）。
-          壳层不提供全局状态栏：需要的页面自带 PageStatusBar，避免无内容页底部留空条 */}
+          壳层不提供全局状态栏，页面自行承载必要信息，避免无内容页底部留空条 */}
       <div className="grid min-w-0 grid-rows-[var(--tau-titlebar-h)_minmax(0,1fr)]">
         <Titlebar />
         {/* 正文 + 右侧辅助栏（AI 对话停靠栏，D-047）；覆盖浮层模式以本行为定位上下文。

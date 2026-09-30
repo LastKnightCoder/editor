@@ -16,7 +16,6 @@ export default definePage({
   key: "review",
   match: "single",
   label: "闪卡复习",
-  status: "new",
   params: schema.schema,
   component: FlashcardsView,
 });

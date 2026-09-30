@@ -23,7 +23,7 @@ const CustomCheckbox: React.FC<CustomCheckboxProps> = ({
 }) => {
   const [isChecked, setIsChecked] = useState(checked);
   const [showFireworks, setShowFireworks] = useState(false);
-  const checkboxAccentColor = accentColor || "#1890ff";
+  const checkboxAccentColor = accentColor || "var(--tau-accent)";
   const checkboxVars: CheckboxCSSVars = {
     "--checkbox-active-color": checkboxAccentColor,
   };

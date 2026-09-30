@@ -32,9 +32,7 @@ function collectSources(dir: string, acc: string[] = []): string[] {
 
 // 读源码而非 import：module-config.ts 会连带拉起 50 个模块的重依赖树
 function parseModuleConfig(source: string): { name: string; layer: string }[] {
-  const entries = source.matchAll(
-    /name:\s*"([^"]+)",\s*group:\s*ModuleGroup\.\w+,\s*layer:\s*InitLayer\.(\w+)/g
-  );
+  const entries = source.matchAll(/name:\s*"([^"]+)",\s*layer:\s*InitLayer\.(\w+)/g);
   return [...entries].map(match => ({ name: match[1], layer: match[2] }));
 }
 

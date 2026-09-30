@@ -9,7 +9,6 @@ export default definePage({
   key: "mcp",
   match: "single",
   label: "MCP 服务器",
-  status: "new",
   params: {},
   component: McpView,
 });

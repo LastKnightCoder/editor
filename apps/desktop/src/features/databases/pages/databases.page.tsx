@@ -12,7 +12,6 @@ export default definePage({
   key: "databases",
   match: "single", // 列表页全局一份，重复进入原位激活
   label: "数据库",
-  status: "new",
   params: schema.schema,
   component: DatabasesView,
 });

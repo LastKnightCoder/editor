@@ -1,22 +1,11 @@
 import { invoke } from "@/electron";
 
-export interface ModuleInitResult {
-  success: boolean;
-  readyModules: string[];
-  failedModules: { name: string; error: string }[];
-}
-
 export type ModuleStatus = "pending" | "initializing" | "ready" | "error";
 
 export interface ModuleState {
   status: ModuleStatus;
   error?: string;
 }
-
-/** 按窗口类型初始化其所需的模块集合 */
-export const initModulesForWindow = async (windowType: string): Promise<ModuleInitResult> => {
-  return invoke("module-init:init-for-window", windowType);
-};
 
 /** 按需初始化单个模块 */
 export const initModule = async (

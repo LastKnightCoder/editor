@@ -6,34 +6,8 @@ export enum InitLayer {
   IMMEDIATE = 0,
   /** 后台执行：窗口显示后后台初始化，如 server, database */
   BACKGROUND = 1,
-  /** 按需加载：根据窗口类型前端触发加载 */
+  /** 按需加载：由调用方显式确保模块就绪 */
   ON_DEMAND = 2,
-}
-
-/**
- * 模块分组
- */
-export enum ModuleGroup {
-  /** 必要模块（所有窗口都需要） */
-  ESSENTIAL = "essential",
-  /** 核心模块 */
-  CORE = "core",
-  /** 数据库相关 */
-  DATABASE = "database",
-  /** 服务器相关 */
-  SERVER = "server",
-  /** 渲染相关 */
-  RENDER = "render",
-  /** 缓存模块 */
-  CACHE = "cache",
-  /** 云存储模块 */
-  CLOUD = "cloud",
-  /** AI 模块 */
-  AI = "ai",
-  /** 集成模块 */
-  INTEGRATION = "integration",
-  /** 功能模块 */
-  FEATURE = "feature",
 }
 
 /**
@@ -56,8 +30,6 @@ export enum ModuleStatus {
 export interface ModuleConfig {
   /** 模块名称 */
   name: string;
-  /** 模块分组 */
-  group: ModuleGroup;
   /** 初始化层级 */
   layer: InitLayer;
   /** 依赖的模块名称列表 */

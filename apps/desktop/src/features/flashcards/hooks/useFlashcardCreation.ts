@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Descendant } from "slate";
 
 import { toast } from "@tau/ui";
 
-import useLLMConfig from "./useLLMConfig";
+import useLLMConfig from "@/hooks/useLLMConfig";
 import useFlashcardGeneration, { GeneratedFlashcard } from "./useFlashcardGeneration";
-import useFlashcardStore from "@/stores/useFlashcardStore";
+import { useFlashcardMutations } from "../queries";
+import useSettingStore from "@/stores/useSettingStore";
 import type { FlashcardDeck, FlashcardReferenceInput } from "@/types";
 
 interface UseFlashcardCreationOptions {
@@ -45,8 +46,20 @@ export default function useFlashcardCreation(options: UseFlashcardCreationOption
     reset: resetGeneration,
   } = useFlashcardGeneration(flashcardLLMProviderSetting, flashcardLLMModelSetting);
 
-  // 闪卡 store
-  const createFlashcard = useFlashcardStore(state => state.createCard);
+  const { createCard: createFlashcard } = useFlashcardMutations();
+  const database = useSettingStore(state => state.setting.database.active);
+  const previousDatabase = useRef(database);
+  useEffect(() => {
+    if (previousDatabase.current === database) return;
+    previousDatabase.current = database;
+    resetGeneration();
+    setDeckSelectorOpen(false);
+    setSelectedDeck(null);
+    setFlashcardEditorOpen(false);
+    setAiGenerationModalOpen(false);
+    setEditingGeneratedCard(null);
+    setGeneratedCardEditModalOpen(false);
+  }, [database, resetGeneration]);
 
   // 打开手动制卡
   const openManualFlashcard = useMemoizedFn(() => {
@@ -92,6 +105,7 @@ export default function useFlashcardCreation(options: UseFlashcardCreationOption
       let successCount = 0;
 
       for (const card of selectedCards) {
+        if (useSettingStore.getState().setting.database.active !== database) return;
         try {
           await createFlashcard({
             deckId: selectedDeck.id,
@@ -109,6 +123,7 @@ export default function useFlashcardCreation(options: UseFlashcardCreationOption
         }
       }
 
+      if (useSettingStore.getState().setting.database.active !== database) return;
       toast.success(`成功创建 ${successCount} 张闪卡`);
       setAiGenerationModalOpen(false);
       resetGeneration();

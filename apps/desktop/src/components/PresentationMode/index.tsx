@@ -20,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { EditorThemeOverride } from "@tau/editor/src";
-import { cn } from "@tau/ui";
+import { cn, PortalScope } from "@tau/ui";
 import { StageHud, StageHudButton, StageHudDivider, useStageTheme } from "@/components/Stage";
 import PortalToBody from "@/components/PortalToBody";
 import { useFindOwner } from "@/components/GlobalFindBar/findOwner";
@@ -114,12 +114,7 @@ const PresentationMode = ({ content, onExit }: PresentationModeProps) => {
   const [hudHovered, setHudHovered] = useState(false);
   const [nearBottom, setNearBottom] = useState(false);
   const [hint, setHint] = useState(true);
-  const {
-    mode: stageMode,
-    toggle: toggleStageMode,
-    rootProps: stageThemeProps,
-    scopeClass,
-  } = useStageTheme();
+  const { mode: stageMode, toggle: toggleStageMode, rootProps: stageThemeProps } = useStageTheme();
 
   const stage = useStage();
   const { fullScreen, toggle: toggleFullScreen } = useFullScreenWhileMounted();
@@ -359,153 +354,154 @@ const PresentationMode = ({ content, onExit }: PresentationModeProps) => {
         {...stageThemeProps}
         className={cn(
           "app-region-no-drag bg-surface text-ink-1 fixed inset-0 z-[95] select-none overflow-hidden",
-          scopeClass,
           cursorHidden && "cursor-none"
         )}
         onMouseMove={onMouseMove}
         onMouseLeave={() => setNearBottom(false)}
         onWheel={onWheel}
       >
-        <EditorThemeOverride mode={stageMode}>
-          {paged && (
-            <div
-              className="bg-accent ease-tau-out absolute left-0 top-0 z-10 h-[3px] transition-[width] duration-300"
-              style={{ width: `${((page + 1) / total) * 100}%` }}
-            />
-          )}
-
-          <div ref={frameRef} className="absolute inset-0" onClick={onStageClick}>
-            <div
-              className="absolute left-0 top-0 origin-top-left select-text"
-              style={{ transform: `scale(${stage.scale})` }}
-            >
-              <SlideFrame
-                key={page}
-                section={sections[page]}
-                width={stage.width}
-                height={stage.height}
-                step={current}
-                onPlan={handlePlan}
-                pageNumber={paged ? page + 1 : undefined}
+        <PortalScope>
+          <EditorThemeOverride mode={stageMode}>
+            {paged && (
+              <div
+                className="bg-accent ease-tau-out absolute left-0 top-0 z-10 h-[3px] transition-[width] duration-300"
+                style={{ width: `${((page + 1) / total) * 100}%` }}
               />
-            </div>
-          </div>
-
-          {hint && (
-            <div className="text-tau-sm text-ink-3 pointer-events-none absolute bottom-[84px] left-1/2 flex -translate-x-1/2 gap-3.5 whitespace-nowrap">
-              {canAdvance && (
-                <span>
-                  <Kbd>←</Kbd> <Kbd>→</Kbd> 推进
-                </span>
-              )}
-              {paged && (
-                <span>
-                  <Kbd>O</Kbd> 全览
-                </span>
-              )}
-              <span>
-                <Kbd>?</Kbd> 快捷键
-              </span>
-              <span>
-                <Kbd>Esc</Kbd> 退出
-              </span>
-            </div>
-          )}
-
-          <StageHud
-            visible={hudVisible}
-            onMouseEnter={() => setHudHovered(true)}
-            onMouseLeave={() => setHudHovered(false)}
-          >
-            {paged && (
-              <>
-                <StageHudButton
-                  label="上一屏"
-                  shortcut="←"
-                  onClick={prev}
-                  disabled={page === 0 && current === 0}
-                >
-                  <ChevronLeft className="size-4" strokeWidth={1.75} />
-                </StageHudButton>
-                <button
-                  type="button"
-                  onClick={openOverview}
-                  className="text-ink-1 hover:bg-hover h-8 min-w-16 rounded-full px-2 font-medium tabular-nums"
-                >
-                  {jump ? (
-                    <span className="text-accent-text">跳到 {jump}</span>
-                  ) : (
-                    <>
-                      {page + 1}
-                      <span className="text-ink-3 mx-[3px] font-normal">/</span>
-                      {total}
-                    </>
-                  )}
-                </button>
-                <StageHudButton
-                  label="下一屏"
-                  shortcut="→"
-                  onClick={next}
-                  disabled={page === total - 1 && lastScreen}
-                >
-                  <ChevronRight className="size-4" strokeWidth={1.75} />
-                </StageHudButton>
-                <StageHudDivider />
-              </>
             )}
-            {title && <span className="text-ink-1 max-w-60 truncate px-2.5">{title}</span>}
-            <StepDots count={screens} current={current} />
-            {(title || screens > 1) && <StageHudDivider />}
-            {paged && (
-              <StageHudButton label="全览" shortcut="O" onClick={openOverview} active={overview}>
-                <LayoutGrid className="size-4" strokeWidth={1.75} />
-              </StageHudButton>
-            )}
-            <StageHudButton
-              label={stageMode === "dark" ? "浅色画面" : "深色画面"}
-              shortcut="D"
-              onClick={toggleStageMode}
-            >
-              {stageMode === "dark" ? (
-                <Sun className="size-4" strokeWidth={1.75} />
-              ) : (
-                <Moon className="size-4" strokeWidth={1.75} />
-              )}
-            </StageHudButton>
-            {canToggleFullScreen() && (
-              <StageHudButton
-                label={fullScreen ? "退出全屏" : "全屏"}
-                shortcut="F"
-                onClick={toggleFullScreen}
+
+            <div ref={frameRef} className="absolute inset-0" onClick={onStageClick}>
+              <div
+                className="absolute left-0 top-0 origin-top-left select-text"
+                style={{ transform: `scale(${stage.scale})` }}
               >
-                {fullScreen ? (
-                  <Minimize className="size-4" strokeWidth={1.75} />
+                <SlideFrame
+                  key={page}
+                  section={sections[page]}
+                  width={stage.width}
+                  height={stage.height}
+                  step={current}
+                  onPlan={handlePlan}
+                  pageNumber={paged ? page + 1 : undefined}
+                />
+              </div>
+            </div>
+
+            {hint && (
+              <div className="text-tau-sm text-ink-3 pointer-events-none absolute bottom-[84px] left-1/2 flex -translate-x-1/2 gap-3.5 whitespace-nowrap">
+                {canAdvance && (
+                  <span>
+                    <Kbd>←</Kbd> <Kbd>→</Kbd> 推进
+                  </span>
+                )}
+                {paged && (
+                  <span>
+                    <Kbd>O</Kbd> 全览
+                  </span>
+                )}
+                <span>
+                  <Kbd>?</Kbd> 快捷键
+                </span>
+                <span>
+                  <Kbd>Esc</Kbd> 退出
+                </span>
+              </div>
+            )}
+
+            <StageHud
+              visible={hudVisible}
+              onMouseEnter={() => setHudHovered(true)}
+              onMouseLeave={() => setHudHovered(false)}
+            >
+              {paged && (
+                <>
+                  <StageHudButton
+                    label="上一屏"
+                    shortcut="←"
+                    onClick={prev}
+                    disabled={page === 0 && current === 0}
+                  >
+                    <ChevronLeft className="size-4" strokeWidth={1.75} />
+                  </StageHudButton>
+                  <button
+                    type="button"
+                    onClick={openOverview}
+                    className="text-ink-1 hover:bg-hover h-8 min-w-16 rounded-full px-2 font-medium tabular-nums"
+                  >
+                    {jump ? (
+                      <span className="text-accent-text">跳到 {jump}</span>
+                    ) : (
+                      <>
+                        {page + 1}
+                        <span className="text-ink-3 mx-[3px] font-normal">/</span>
+                        {total}
+                      </>
+                    )}
+                  </button>
+                  <StageHudButton
+                    label="下一屏"
+                    shortcut="→"
+                    onClick={next}
+                    disabled={page === total - 1 && lastScreen}
+                  >
+                    <ChevronRight className="size-4" strokeWidth={1.75} />
+                  </StageHudButton>
+                  <StageHudDivider />
+                </>
+              )}
+              {title && <span className="text-ink-1 max-w-60 truncate px-2.5">{title}</span>}
+              <StepDots count={screens} current={current} />
+              {(title || screens > 1) && <StageHudDivider />}
+              {paged && (
+                <StageHudButton label="全览" shortcut="O" onClick={openOverview} active={overview}>
+                  <LayoutGrid className="size-4" strokeWidth={1.75} />
+                </StageHudButton>
+              )}
+              <StageHudButton
+                label={stageMode === "dark" ? "浅色画面" : "深色画面"}
+                shortcut="D"
+                onClick={toggleStageMode}
+              >
+                {stageMode === "dark" ? (
+                  <Sun className="size-4" strokeWidth={1.75} />
                 ) : (
-                  <Maximize className="size-4" strokeWidth={1.75} />
+                  <Moon className="size-4" strokeWidth={1.75} />
                 )}
               </StageHudButton>
-            )}
-            <StageHudButton label="快捷键" shortcut="?" onClick={() => setHelp(true)}>
-              <Keyboard className="size-4" strokeWidth={1.75} />
-            </StageHudButton>
-            <StageHudDivider />
-            <StageHudButton label="退出演示" shortcut="Esc" onClick={onExit}>
-              <X className="size-4" strokeWidth={1.75} />
-            </StageHudButton>
-          </StageHud>
+              {canToggleFullScreen() && (
+                <StageHudButton
+                  label={fullScreen ? "退出全屏" : "全屏"}
+                  shortcut="F"
+                  onClick={toggleFullScreen}
+                >
+                  {fullScreen ? (
+                    <Minimize className="size-4" strokeWidth={1.75} />
+                  ) : (
+                    <Maximize className="size-4" strokeWidth={1.75} />
+                  )}
+                </StageHudButton>
+              )}
+              <StageHudButton label="快捷键" shortcut="?" onClick={() => setHelp(true)}>
+                <Keyboard className="size-4" strokeWidth={1.75} />
+              </StageHudButton>
+              <StageHudDivider />
+              <StageHudButton label="退出演示" shortcut="Esc" onClick={onExit}>
+                <X className="size-4" strokeWidth={1.75} />
+              </StageHudButton>
+            </StageHud>
 
-          {overview && (
-            <Overview
-              sections={sections}
-              stage={stage}
-              current={page}
-              selected={overviewSelected}
-              onColumns={handleColumns}
-              onEnter={enterFromOverview}
-            />
-          )}
-          {help && <HelpPanel paged={paged} onClose={() => setHelp(false)} />}
-        </EditorThemeOverride>
+            {overview && (
+              <Overview
+                sections={sections}
+                stage={stage}
+                current={page}
+                selected={overviewSelected}
+                onColumns={handleColumns}
+                onEnter={enterFromOverview}
+              />
+            )}
+            {help && <HelpPanel paged={paged} onClose={() => setHelp(false)} />}
+          </EditorThemeOverride>
+        </PortalScope>
       </div>
     </PortalToBody>
   );

@@ -26,14 +26,14 @@
 
   &.assistantMessage {
     width: 85%;
-    background: var(--th-tag-bg, rgba(127, 127, 127, 0.06));
-    border: 1px solid var(--th-border, rgba(127, 127, 127, 0.2));
+    background: var(--tau-bg-hover, rgba(127, 127, 127, 0.06));
+    border: 1px solid var(--tau-line-1, rgba(127, 127, 127, 0.2));
   }
 
   &.userMessage {
     width: fit-content;
     max-width: 85%;
-    background: var(--th-bg-hover, rgba(127, 127, 127, 0.16));
+    background: var(--tau-bg-hover, rgba(127, 127, 127, 0.16));
   }
 
   .toolCallsContainer {
@@ -268,7 +268,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--th-text-secondary);
+  color: var(--tau-ink-2);
 }
 
 .reasoningDuration {
@@ -285,14 +285,14 @@
 .reasoningExpandButton {
   background: transparent;
   border: none;
-  color: var(--th-text-secondary);
+  color: var(--tau-ink-2);
   font-size: 12px;
   cursor: pointer;
   padding: 4px;
   transition: transform 0.2s ease;
 
   &:hover {
-    color: var(--th-text);
+    color: var(--tau-ink-1);
   }
 }
 
@@ -302,7 +302,7 @@
   user-select: text;
   font-size: 14px;
   line-height: 1.8;
-  color: var(--th-text-secondary);
+  color: var(--tau-ink-2);
 }
 
 @keyframes slideDown {

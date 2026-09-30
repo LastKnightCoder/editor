@@ -1,5 +1,4 @@
 import React from "react";
-import useThemeColors from "@/hooks/useThemeColors";
 
 type LoadingSize = "sm" | "md" | "lg";
 
@@ -22,7 +21,7 @@ const glowInsetClasses: Record<LoadingSize, string> = {
   lg: "inset-2",
 };
 
-const Loading: React.FC<LoadingProps> = (props) => {
+const Loading: React.FC<LoadingProps> = props => {
   const {
     message = "",
     description,
@@ -36,10 +35,8 @@ const Loading: React.FC<LoadingProps> = (props) => {
     ...restProps
   } = props;
 
-  const themeColors = useThemeColors();
-  const accentTextClass =
-    themeColors.iconTextClass || themeColors.activeTextClass || "";
-  const glowBgClass = themeColors.tagBgClass || themeColors.activeBgClass || "";
+  const accentTextClass = "text-accent";
+  const glowBgClass = "bg-hover";
 
   const wrapperClasses = fullscreen
     ? "fixed inset-0 z-50 flex items-center justify-center"
@@ -63,27 +60,17 @@ const Loading: React.FC<LoadingProps> = (props) => {
       <div className={contentClasses}>
         <div className="relative flex items-center justify-center">
           <div
-            className={`absolute ${glowInsetClasses[size]} rounded-full blur-lg opacity-60 ${glowBgClass}`}
+            className={`absolute ${glowInsetClasses[size]} rounded-full opacity-60 blur-lg ${glowBgClass}`}
             aria-hidden="true"
           />
           <div
-            className={`animate-spin rounded-full border-solid border-current border-t-transparent border-r-transparent ${spinnerSizeClasses[size]} ${accentTextClass}`}
+            className={`animate-spin rounded-full border-solid border-current border-r-transparent border-t-transparent ${spinnerSizeClasses[size]} ${accentTextClass}`}
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          {message && (
-            <p
-              className={`text-sm font-semibold mt-2 ${themeColors.activeTextClass}`}
-            >
-              {message}
-            </p>
-          )}
-          {description && (
-            <p className={`text-xs ${themeColors.secondaryTextClass}`}>
-              {description}
-            </p>
-          )}
+          {message && <p className="text-accent-text mt-2 text-sm font-semibold">{message}</p>}
+          {description && <p className="text-ink-2 text-xs">{description}</p>}
         </div>
 
         {children && <div className="w-full pt-1">{children}</div>}

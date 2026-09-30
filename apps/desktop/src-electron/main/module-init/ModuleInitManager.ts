@@ -2,7 +2,6 @@ import { ipcMain, BrowserWindow } from "electron";
 import log from "electron-log";
 import { ModuleConfig, ModuleState, ModuleStatus, InitLayer, InitResult } from "./types";
 import { MODULE_CONFIGS, WEBSOCKET_DEPENDENT_MODULES } from "./module-config";
-import { WindowType, getRequiredModulesForWindow } from "./window-module-mapping";
 import BackendWebSocketServer from "../utils/BackendWebSocketServer";
 
 // 需要动态导入的 WebSocket 依赖模块
@@ -73,11 +72,6 @@ class ModuleInitManager {
     // 获取指定模块状态
     ipcMain.handle("module-init:get-module-status", (_, moduleName: string) => {
       return this.getModuleState(moduleName);
-    });
-
-    // 为窗口类型初始化模块
-    ipcMain.handle("module-init:init-for-window", async (_, windowType: WindowType) => {
-      return this.initModulesForWindow(windowType);
     });
 
     // 初始化指定模块
@@ -216,18 +210,6 @@ class ModuleInitManager {
     } catch (error) {
       log.error("[ModuleInitManager] WebSocket 依赖模块初始化失败:", error);
     }
-  }
-
-  /**
-   * 为特定窗口类型初始化模块
-   */
-  async initModulesForWindow(windowType: WindowType): Promise<InitResult> {
-    const requiredModules = getRequiredModulesForWindow(windowType);
-    log.info(
-      `[ModuleInitManager] 为窗口类型 ${windowType} 初始化模块，需要: ${requiredModules.join(", ")}`
-    );
-
-    return this.initModules(requiredModules);
   }
 
   /**

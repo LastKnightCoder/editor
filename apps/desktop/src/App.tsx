@@ -15,7 +15,6 @@ import {
 } from "@tau/shared";
 
 import useSyncFont from "@/hooks/useSyncFont.ts";
-import useSyncTheme from "@/hooks/useSyncTheme";
 import useSearchWarmUp from "@/hooks/useSearchWarmUp";
 import { useItemUpdateListener } from "@/hooks/useItemUpdateListener";
 import useArticleDeletedCleanup from "@/hooks/useArticleDeletedCleanup";
@@ -26,7 +25,7 @@ import { WindowFocusContext } from "@/hooks/useWindowFocus";
 import AutoSyncManager from "@/components/AutoSyncManager";
 import AutoUpdateChecker from "@/components/AutoUpdateChecker";
 import { MediaModalHost } from "@/editor-providers/mediaModalHost";
-import ConversationFlashcardModal from "@/components/ConversationFlashcardModal";
+import ConversationFlashcardModal from "@/features/flashcards/components/ConversationFlashcardDialog";
 import ExtNoteInsertModal from "@/components/ExtNoteInsertModal";
 import GlobalFindBar from "@/components/GlobalFindBar";
 import JoinRequestNotifications from "@/components/JoinRequestNotifications";
@@ -60,7 +59,6 @@ const Application = () => {
   useItemUpdateListener();
   useArticleDeletedCleanup();
   useSyncFont();
-  useSyncTheme();
   useSearchWarmUp();
   useInitChatData(); // 全局初始化聊天数据
   useWeReadSessionBootstrap();
@@ -191,34 +189,34 @@ const Application = () => {
   }, []);
 
   return (
-      <WindowFocusContext.Provider value={isFocused}>
-        <BilibiliVideoDepsProvider deps={bilibiliDeps}>
-          <YoutubeVideoDepsProvider deps={youtubeDeps}>
-            <RemoteVideoDepsProvider deps={remoteVideoDeps}>
-              <EditDatabaseDepsProvider deps={editDatabaseDeps}>
-                <div
-                  style={{
-                    height: "100%",
-                    fontSize: "var(--font-size)",
-                    color: "var(--th-text)",
-                  }}
-                >
-                  <AutoSyncManager />
-                  <AutoUpdateChecker />
-                  <MediaModalHost />
-                  <ConversationFlashcardModal />
-                  <ExtNoteInsertModal />
-                  <DndProvider backend={HTML5Backend}>
-                    <GlobalFindBar />
-                    <JoinRequestNotifications />
-                    <RouterProvider router={router} />
-                  </DndProvider>
-                </div>
-              </EditDatabaseDepsProvider>
-            </RemoteVideoDepsProvider>
-          </YoutubeVideoDepsProvider>
-        </BilibiliVideoDepsProvider>
-      </WindowFocusContext.Provider>
+    <WindowFocusContext.Provider value={isFocused}>
+      <BilibiliVideoDepsProvider deps={bilibiliDeps}>
+        <YoutubeVideoDepsProvider deps={youtubeDeps}>
+          <RemoteVideoDepsProvider deps={remoteVideoDeps}>
+            <EditDatabaseDepsProvider deps={editDatabaseDeps}>
+              <div
+                style={{
+                  height: "100%",
+                  fontSize: "var(--font-size)",
+                  color: "var(--tau-ink-1)",
+                }}
+              >
+                <AutoSyncManager />
+                <AutoUpdateChecker />
+                <MediaModalHost />
+                <ConversationFlashcardModal />
+                <ExtNoteInsertModal />
+                <DndProvider backend={HTML5Backend}>
+                  <GlobalFindBar />
+                  <JoinRequestNotifications />
+                  <RouterProvider router={router} />
+                </DndProvider>
+              </div>
+            </EditDatabaseDepsProvider>
+          </RemoteVideoDepsProvider>
+        </YoutubeVideoDepsProvider>
+      </BilibiliVideoDepsProvider>
+    </WindowFocusContext.Provider>
   );
 };
 

@@ -16,7 +16,6 @@ export default definePage({
   key: "chat",
   match: "single",
   label: "AI 对话",
-  status: "new",
   params: schema.schema,
   component: ChatView,
 });

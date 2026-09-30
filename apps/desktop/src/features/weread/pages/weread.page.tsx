@@ -10,7 +10,6 @@ export default definePage({
   key: "weread",
   match: "single",
   label: "微信读书",
-  status: "new",
   params: {},
   component: WeReadView,
 });

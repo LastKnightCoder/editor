@@ -266,6 +266,11 @@ pnpm add -D
 
 ## 桌面端重构规范（Page 架构）
 
+### 验证分工
+
+- Agent 不进行视觉验证、截图对照或浏览器视觉走查；视觉验收由用户后续完成。
+- 视觉问题记录到清单，后续按 bug 修复，不阻塞架构清理；仍须完成类型检查、行为测试、构建及必要的结构检查。
+
 背景：桌面端已从旧 Tab 系统迁移到 Page 协议（声明式页面 definePage + 纯函数栈机 + Activity 保活 + 自有设计系统，命名对齐移动端，见 DECISIONS.md D-002）。旧主界面与 Tab 骨架已退役，存量组件、主题兼容层和数据 store 按实际消费者继续清理，当前执行清单见 `apps/desktop/docs/redesign/05-桌面端清理调研.md`。
 
 **上手顺序（写桌面端代码前必做）**：
@@ -286,7 +291,7 @@ pnpm add -D
 - 导航只经 `navigator.push/replace/back/forward/popToTop`；Esc 只承担浮层退场（无浮层时无操作，「Esc=后退」已移除，见 DECISIONS.md D-003 追记）、Alt+←/→=后退/前进由 PageProvider/Titlebar 统一仲裁，业务代码禁止自行监听这些键；Alt+方向键必须让位编辑上下文（`isEditableTarget`）与输入法组合（`e.isComposing`）。
 - 全局浮层（命令面板等）按 D-003 模式承载：feature 级组件由壳层挂载（不经路由/页面栈），并经 `useOverlayDismiss` 接入 Esc 仲裁（LIFO 先关浮层、优先于编辑上下文）；浮层业务代码禁止自行监听 Esc。
 - `match: "single"/"params"` 的 page 重复 push 由栈机去重（栈顶同参 no-op、异参原位更新），不要在调用侧再做"是否已激活"判断。
-- page 的 `status` 只进不退（migrating→new）；回退必须在 `DECISIONS.md` 记录原因。
+- Page 迁移状态已退役（D-081），不得恢复 status/legacy 占位或未接线的协议字段；新增页面能力应先实现运行时与验证，再声明接口。
 
 ### UI 与主题
 

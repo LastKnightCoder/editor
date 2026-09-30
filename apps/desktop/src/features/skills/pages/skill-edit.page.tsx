@@ -13,7 +13,6 @@ export default definePage({
   match: "params",
   getId: params => `skill-${params.path}`,
   label: "编辑 Skill",
-  status: "new",
   params: schema.schema,
   component: SkillEditView,
 });

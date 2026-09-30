@@ -1,5 +1,25 @@
 # 决策记录（轻量 ADR）
 
+## D-082 退出窗口分组初始化链
+
+- 删除无调用方的 module-init:init-for-window、渲染端导出和窗口到模块组映射。模块不再通过窗口类型隐式拉起。
+- 删除只服务该映射的 ModuleGroup 配置与无消费者的配置查询 helper；保留 IMMEDIATE/BACKGROUND/ON_DEMAND 层级、依赖排序、显式 initModule/initModules、状态查询、防重入及 ensureModule/withModule。
+- 按需加载仍须有显式调用方并通过模块分层测试；本次不删除窗口路由或窗口类型的业务入口。
+
+## D-081 Page 迁移期字段与未兑现协议退出
+
+- 页面迁移已完成，删除 PageStatus、legacy/migrating/new 状态字段及 LegacyPendingPage；缺失组件统一使用可恢复错误态，不再显示迁移说明。
+- definePage 的 data/store/canLeave 和 keepAlive 策略没有运行接线与业务消费者，删除这些未兑现字段。当前保活仍由 PageHost 的 Activity 与栈机 LRU 负责，行为不变；未来守卫、实例 store 或数据恢复须作为独立能力实现后再引入协议。
+- 保留双注册表、参数净化、single/params/multi 去重、面包屑与浮层退场仲裁；不会为字段收缩增加旧页面兼容层。
+
+## D-080 桌面旧主题退役与验证分工
+
+- 明暗的 JavaScript 事实源为 `@tau/themes/react` 的 themeStore.mode；偏好与系统解析继续由公共运行时负责。桌面设置不再保存 darkMode、accent、backgroundType、backgroundGlow 或 backgroundAnimation，图片外观设置保留。
+- 删除旧 th 变量定义、accent 预设、useThemeColors/useBackgroundMode/useSyncTheme；存量 UI 消费 tau 变量和语义类，不保留另一套配色派生。
+- 局部主题使用 data-theme/data-mode；演示和沉浸舞台的 UI 浮层通过 PortalScope 留在舞台作用域。dark 变体当前承诺单层局部明暗，多层嵌套的呈现作为后续视觉问题处理，不扩展导航或页面协议。
+- 字体 DOM 写入统一归 App 根的 useSyncFont，设置 store 只负责数据和持久化；旧 body 字体覆盖由根 hook 清除。
+- 用户要求 Agent 后续不进行视觉验证、截图对照或浏览器视觉走查。视觉验收由用户完成，问题记录后按 bug 修复，不阻塞架构清理；类型检查、行为测试、构建和结构门禁继续执行。
+
 - **追记（2026-09-26，概况改抽屉）**：用户要求闪卡首页右栏（近 7 天评分 / 未来 7 天到期；选中卡组时为卡组概况）同番茄 / 待办一样改为右侧 Drawer。常驻右栏去掉，列表占满宽度；`OverviewSide` / `DeckSide` 移进非模态 `StatsDrawer`（top-0，Esc 经 `useOverlayDismiss`），由工具栏「概况」按钮开关（打开时 soft 态），默认关闭；抽屉内容随当前范围切换（今日总览 ↔ 卡组）。
 
 ## D-042 RSS、稍后读与博客 RSS 全面退役（2026-09-24，已定）

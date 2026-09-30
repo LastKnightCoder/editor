@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Layers, Plus } from "lucide-react";
-import { Dialog, DialogBody, Spinner } from "@tau/ui";
-import useFlashcardStore from "@/stores/useFlashcardStore";
+import { Button, Dialog, DialogBody, Spinner } from "@tau/ui";
+import { useFlashcardDecks } from "../../queries";
 import type { FlashcardDeck } from "@/types";
 import DeckFormModal from "./DeckFormModal";
 import DeckIcon from "@/components/DeckIcon";
@@ -21,20 +21,10 @@ const DeckSelectorModal = ({
   title = "选择卡组",
   subtitle = "选择要添加闪卡的卡组",
 }: DeckSelectorModalProps) => {
-  const { decks, loadingDecks, fetchDecks } = useFlashcardStore(state => ({
-    decks: state.decks,
-    loadingDecks: state.loadingDecks,
-    fetchDecks: state.fetchDecks,
-  }));
+  const { decks, loading: loadingDecks, error, retry } = useFlashcardDecks(open);
 
   const [createDeckModalOpen, setCreateDeckModalOpen] = useState(false);
   const [selectorVisible, setSelectorVisible] = useState(true);
-
-  useEffect(() => {
-    if (open && decks.length === 0) {
-      fetchDecks();
-    }
-  }, [open, decks.length, fetchDecks]);
 
   useEffect(() => {
     // 当外部 open 状态改变时，重置内部显示状态
@@ -63,7 +53,6 @@ const DeckSelectorModal = ({
     } else {
       // 否则重新显示选择卡组弹窗
       setSelectorVisible(true);
-      fetchDecks();
     }
   };
 
@@ -98,6 +87,14 @@ const DeckSelectorModal = ({
               </button>
 
               <div className="max-h-[400px] space-y-2 overflow-y-auto">
+                {error && (
+                  <div role="alert" className="text-danger flex items-center gap-2 py-4">
+                    <span>读取卡组失败</span>
+                    <Button variant="ghost" onClick={() => void retry()}>
+                      重试
+                    </Button>
+                  </div>
+                )}
                 {loadingDecks && (
                   <div className="text-ink-3 text-tau-body flex items-center justify-center gap-2 py-8">
                     <Spinner className="size-4" />
@@ -105,7 +102,7 @@ const DeckSelectorModal = ({
                   </div>
                 )}
 
-                {!loadingDecks && decks.length === 0 && (
+                {!loadingDecks && !error && decks.length === 0 && (
                   <div className="py-8 text-center">
                     <Layers
                       className="text-ink-3 mx-auto mb-3 size-12 opacity-50"
@@ -117,6 +114,7 @@ const DeckSelectorModal = ({
                 )}
 
                 {!loadingDecks &&
+                  !error &&
                   decks.map(deck => (
                     <button
                       key={deck.id}

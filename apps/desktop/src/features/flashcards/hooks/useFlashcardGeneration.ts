@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import type { Descendant } from "slate";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
 import { piStreamText, type PiChatHandle } from "@/services/piLLM";
@@ -118,8 +118,9 @@ export const useFlashcardGeneration = (
   const [rawOutput, setRawOutput] = useState("");
   const chatHandleRef = useRef<PiChatHandle | null>(null);
   const accumulatedRef = useRef<string>("");
+  const generationRevision = useRef(0);
 
-  const { run: throttledParse } = useThrottleFn(
+  const { run: throttledParse, cancel: cancelParse } = useThrottleFn(
     (text: string) => {
       setRawOutput(text);
       // Try to parse as we receive chunks
@@ -139,6 +140,9 @@ export const useFlashcardGeneration = (
       return;
     }
 
+    const revision = ++generationRevision.current;
+    chatHandleRef.current?.cancel();
+    cancelParse();
     setIsGenerating(true);
     setIsPending(true);
     setError(null);
@@ -162,6 +166,7 @@ export const useFlashcardGeneration = (
     const handle = piStreamText(
       { provider, model, messages, source: { feature: "flashcardGeneration" } },
       ({ text }) => {
+        if (revision !== generationRevision.current) return;
         setIsPending(false);
         accumulatedRef.current = text;
         throttledParse(text);
@@ -169,6 +174,8 @@ export const useFlashcardGeneration = (
     );
     chatHandleRef.current = handle;
     void handle.result.then(result => {
+      if (revision !== generationRevision.current) return;
+      chatHandleRef.current = null;
       if (result.ok && !result.aborted) {
         setIsGenerating(false);
         setIsPending(false);
@@ -193,11 +200,15 @@ export const useFlashcardGeneration = (
   });
 
   const stopGeneration = useCallback(() => {
+    generationRevision.current++;
+    cancelParse();
     chatHandleRef.current?.cancel();
     chatHandleRef.current = null;
     setIsGenerating(false);
     setIsPending(false);
-  }, []);
+  }, [cancelParse]);
+
+  useEffect(() => stopGeneration, [stopGeneration]);
 
   const toggleCardSelection = useCallback((cardId: string) => {
     setGeneratedCards(prev =>

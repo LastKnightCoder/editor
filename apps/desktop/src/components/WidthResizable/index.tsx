@@ -3,7 +3,6 @@ import classnames from "classnames";
 
 import styles from "./index.module.less";
 import { useThrottleFn } from "ahooks";
-import useThemeColors from "@/hooks/useThemeColors";
 
 interface IWidthResizableProps {
   defaultWidth: number;
@@ -39,8 +38,6 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = props 
     showDivider = false,
   } = props;
   const containerRef = useRef<HTMLDivElement>(null);
-  const themeColors = useThemeColors();
-  const handleHighlightColor = themeColors.accentSoftBg || "rgba(170, 198, 255, 0.4)";
 
   const [width, setWidth] = useState<number>(() => {
     if (minWidth && defaultWidth < minWidth) return minWidth;
@@ -174,7 +171,7 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = props 
               )}
               style={{
                 backgroundColor:
-                  showHandleHighlight || isResizing ? handleHighlightColor : "transparent",
+                  showHandleHighlight || isResizing ? "var(--tau-accent-soft)" : "transparent",
               }}
             />
           )}
