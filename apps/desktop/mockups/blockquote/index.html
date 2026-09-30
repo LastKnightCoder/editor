@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>引用块 · 样式 mockup</title>
+<style>
+  /* 取值同 packages/themes/src/tokens.css（mint / paper × light / dark） */
+  [data-theme="mint"][data-mode="light"] {
+    --page:#eef4ee; --surface:#fbfefb; --sunken:#d9e6da; --track:#d4dfd5; --surface-hover:#f3f8f3;
+    --hover:rgba(46,61,49,.05); --press:rgba(46,61,49,.09);
+    --ink-1:#2e3d31; --ink-2:#526350; --ink-3:#a5b3a3; --ink-inv:#f6fbf7;
+    --line-1:#dfe9df;
+    --accent:hsl(153 40% 33%); --accent-hover:hsl(153 40% 26%); --accent-soft:hsla(153,40%,33%,.12); --accent-text:#2f6b50;
+    --ring:0 0 0 3px rgba(74,157,120,.28);
+    --danger:#b0584f; --danger-soft:#f5e3e0;
+    --shadow-float:0 16px 40px -12px rgba(60,90,70,.4); --shadow-card:0 1px 2px rgba(60,90,70,.06),0 10px 24px -14px rgba(60,90,70,.2);
+    --shadow-lift:0 2px 4px rgba(60,90,70,.07),0 16px 32px -14px rgba(60,90,70,.28);
+    --tip-bg:#2e3d31; --tip-ink:#f6fbf7;
+  }
+  [data-theme="mint"][data-mode="dark"] {
+    --page:#151b18; --surface:#1e2521; --sunken:#0a0f0c; --track:#34403a; --surface-hover:#252d28;
+    --hover:rgba(224,234,227,.06); --press:rgba(224,234,227,.11);
+    --ink-1:#e0eae3; --ink-2:#98a69c; --ink-3:#728078; --ink-inv:#0f1612;
+    --line-1:#29322d;
+    --accent:hsl(155 36% 58%); --accent-hover:hsl(155 36% 65%); --accent-soft:hsla(155,36%,58%,.16); --accent-text:hsl(155 42% 64%);
+    --ring:0 0 0 3px hsla(155,36%,58%,.4);
+    --danger:#df8a80; --danger-soft:#35211e;
+    --shadow-float:0 16px 40px -12px rgba(0,0,0,.65); --shadow-card:0 1px 2px rgba(0,0,0,.24),0 10px 24px -14px rgba(0,0,0,.5);
+    --shadow-lift:0 2px 4px rgba(0,0,0,.3),0 16px 32px -14px rgba(0,0,0,.6);
+    --tip-bg:#e0eae3; --tip-ink:#0f1612;
+  }
+  [data-theme="paper"][data-mode="light"] {
+    --page:#f3eee2; --surface:#fffdf9; --sunken:#e7dbc8; --track:#e0d6c3; --surface-hover:#f8f3ea;
+    --hover:rgba(67,57,44,.05); --press:rgba(67,57,44,.09);
+    --ink-1:#43392c; --ink-2:#6a5c49; --ink-3:#a89a85; --ink-inv:#fff8ef;
+    --line-1:#e9e1d2;
+    --accent:hsl(22 58% 42%); --accent-hover:hsl(22 58% 35%); --accent-soft:hsla(22,58%,42%,.12); --accent-text:#a05236;
+    --ring:0 0 0 3px rgba(217,119,87,.28);
+    --danger:#b0564d; --danger-soft:#f6e3e0;
+    --shadow-float:0 16px 40px -12px rgba(120,100,70,.4); --shadow-card:0 1px 2px rgba(120,100,70,.05),0 10px 24px -14px rgba(120,100,70,.18);
+    --shadow-lift:0 2px 4px rgba(120,100,70,.06),0 16px 32px -14px rgba(120,100,70,.26);
+    --tip-bg:#43392c; --tip-ink:#fff8ef;
+  }
+  [data-theme="paper"][data-mode="dark"] {
+    --page:#221d16; --surface:#2e2820; --sunken:#100d08; --track:#463d31; --surface-hover:#362f26;
+    --hover:rgba(236,226,208,.06); --press:rgba(236,226,208,.11);
+    --ink-1:#ece2d0; --ink-2:#a89a85; --ink-3:#857768; --ink-inv:#241a10;
+    --line-1:#3a3227;
+    --accent:hsl(22 62% 65%); --accent-hover:hsl(22 62% 72%); --accent-soft:hsla(22,62%,65%,.16); --accent-text:hsl(22 66% 70%);
+    --ring:0 0 0 3px hsla(22,62%,65%,.4);
+    --danger:#d97e66; --danger-soft:#34201a;
+    --shadow-float:0 16px 40px -12px rgba(0,0,0,.65); --shadow-card:0 1px 2px rgba(0,0,0,.24),0 10px 24px -14px rgba(0,0,0,.5);
+    --shadow-lift:0 2px 4px rgba(0,0,0,.3),0 16px 32px -14px rgba(0,0,0,.6);
+    --tip-bg:#ece2d0; --tip-ink:#241a10;
+  }
+  /* mockup 专用补充色：callout 对照用，取值近似 tokens.css 的 info */
+  [data-mode="light"] { --info:#3f6fa8; --info-soft:#e6edf6; }
+  [data-mode="dark"]  { --info:#86aad8; --info-soft:#1e2833; }
+  /* 引用竖线的中性色：比 line-1 深、比 ink-3 浅，落地时收成 --ed-quote-bar */
+  :root { --q-bar:color-mix(in srgb, var(--ink-1) 20%, transparent); }
+
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html { background:var(--page); color:var(--ink-1); }
+  body { font:14px/1.7 -apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif; -webkit-font-smoothing:antialiased; padding:36px 5vw 160px; transition:background .2s; }
+  button { font:inherit; color:inherit; background:none; border:0; cursor:pointer; }
+
+  .top { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+  .top h1 { font-size:21px; font-weight:600; }
+  .top p { color:var(--ink-2); font-size:13.5px; margin-top:4px; max-width:92ch; }
+  .switch { display:flex; gap:4px; padding:3px; border-radius:10px; border:1px solid var(--line-1); background:var(--surface); }
+  .switch button { padding:3px 12px; border-radius:7px; font-size:12.5px; color:var(--ink-2); }
+  .switch button.on { background:var(--accent-soft); color:var(--accent-text); font-weight:500; }
+  .switches { display:flex; gap:10px; }
+
+  section { margin-top:64px; }
+  section > h2 { font-size:17px; font-weight:600; display:flex; align-items:baseline; gap:10px; }
+  section > h2 .no { font:600 12.5px ui-monospace,monospace; color:var(--accent-text); }
+  .desc { color:var(--ink-2); font-size:13.5px; max-width:96ch; margin:6px 0 22px; }
+  .desc b { color:var(--ink-1); font-weight:600; }
+  code { font:12.5px ui-monospace,Menlo,monospace; padding:1px 5px; border-radius:5px; background:var(--page); border:1px solid var(--line-1); }
+
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(460px,1fr)); gap:36px 32px; align-items:start; }
+  .card > .lbl { font-size:14px; font-weight:600; display:flex; align-items:center; gap:8px; }
+  .card > .lbl .tag { font-size:11.5px; font-weight:500; padding:0 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent-text); }
+  .card > .lbl .tag.bad { background:var(--danger-soft); color:var(--danger); }
+  .card > .sub { font-size:12.5px; color:var(--ink-2); margin:2px 0 12px; min-height:1.7em; }
+  .paper { background:var(--surface); border-radius:14px; box-shadow:var(--shadow-card); padding:26px 30px 28px; }
+  .pc { font-size:12.5px; color:var(--ink-2); margin-top:12px; padding-left:16px; }
+  .pc li { margin:2px 0; } .pc li::marker { color:var(--ink-3); }
+  .pc .p::marker { content:"＋ "; color:var(--accent-text); } .pc .c::marker { content:"－ "; color:var(--danger); }
+
+  /* ════ 编辑器正文（模拟） ════ */
+  .doc { font-size:15px; line-height:1.9; color:var(--ink-1); }
+  .doc p { margin:.3em 0; }
+  .doc h3 { font-size:1.2em; font-weight:600; margin:.4em 0 .2em; line-height:1.5; }
+  .doc ul { padding-left:1.35em; margin:.3em 0; }
+  .doc li { margin:.1em 0; } .doc li::marker { color:var(--ink-3); }
+  .doc b { font-weight:600; }
+  .doc .mark { background:color-mix(in srgb, #dc9b04 22%, transparent); border-radius:3px; padding:0 2px; }
+  .q { margin:1em 0; }
+  .q > :first-child { margin-top:0; } .q > :last-child { margin-bottom:0; }
+  .q .q { margin:.5em 0; }
+
+  /* 现状：4px accent 圆角竖条 + 伪斜体 + ink-2 */
+  .q-now { position:relative; padding:.75em 0 .75em 1.5em; font-style:italic; color:var(--ink-2); line-height:1.625; }
+  .q-now::before { content:""; position:absolute; left:0; top:.25rem; bottom:.25rem; width:4px; border-radius:9px; background:var(--accent); }
+
+  /* A 中性墨线 */
+  .q-a { position:relative; padding-left:1.1em; color:var(--ink-2); }
+  .q-a::before { content:""; position:absolute; left:0; top:.3em; bottom:.3em; width:3px; border-radius:3px; background:var(--q-bar); }
+
+  /* B 引号起笔 */
+  .q-b { position:relative; padding-left:2.1em; color:var(--ink-1); }
+  .q-b::before { content:"\201C"; position:absolute; left:-.02em; top:-.12em; font:400 2.9em/1 Georgia,"Times New Roman",serif; color:var(--accent); opacity:.5; }
+  .q-b .q-b { padding-left:1em; color:var(--ink-2); }
+  .q-b .q-b::before { content:""; top:.3em; bottom:.3em; left:0; width:2px; border-radius:2px; background:var(--q-bar); opacity:1; font:inherit; }
+
+  /* C 书摘衬线 */
+  .q-c { padding:.05em 0 .05em 1.3em; border-left:2px solid color-mix(in srgb, var(--accent) 50%, transparent);
+    font-family:"Songti SC","STSong","Source Han Serif SC","Noto Serif CJK SC",Georgia,serif; color:var(--ink-2); letter-spacing:.03em; font-size:1.04em; line-height:1.95; }
+  .q-c .q-c { border-left-color:var(--q-bar); font-size:1em; }
+  .q-c .cite { text-align:right; font:13px/1.8 -apple-system,"PingFang SC",sans-serif; color:var(--ink-3); letter-spacing:0; margin-top:.4em; }
+
+  /* D 淡底卡片 */
+  .q-d { position:relative; padding:.8em 1.2em .8em 2.8em; border-radius:12px; color:var(--ink-1);
+    background:color-mix(in srgb, var(--sunken) 40%, var(--surface)); }
+  .q-d::before { content:"\201C"; position:absolute; left:.42em; top:.12em; font:400 2.4em/1 Georgia,serif; color:var(--ink-3); }
+  .q-d .q-d { background:var(--surface); padding-left:2.6em; }
+
+  /* 大引号字形只用拉丁衬线：苹方的全角「“」是方块状，撑不起大字号 */
+  /* B1 大引号 + 竖线尾迹 */
+  .q-b1 { position:relative; padding-left:2em; color:var(--ink-1); }
+  .q-b1::before { content:"\201C"; position:absolute; left:-.02em; top:-.12em; font:400 2.9em/1 Georgia,"Times New Roman",serif; color:var(--accent); opacity:.55; }
+  .q-b1::after { content:""; position:absolute; left:.5em; top:1.6em; bottom:.35em; width:2px; border-radius:2px; background:var(--q-bar); }
+  .q-b1 .q-b1 { padding-left:1.1em; color:var(--ink-2); }
+  .q-b1 .q-b1::before { display:none; }
+  .q-b1 .q-b1::after { left:0; top:.3em; }
+
+  /* B2 首尾大引号 */
+  .q-b2 { position:relative; padding:0 2.2em 0 2em; color:var(--ink-1); }
+  .q-b2::before, .q-b2::after { position:absolute; font:400 2.9em/1 Georgia,"Times New Roman",serif; color:var(--accent); opacity:.55; }
+  .q-b2::before { content:"\201C"; left:-.02em; top:-.12em; }
+  .q-b2::after { content:"\201D"; right:0; bottom:-.62em; }
+  .q-b2 .q-b2 { padding:0 0 0 1.1em; color:var(--ink-2); }
+  .q-b2 .q-b2::before { content:""; left:0; top:.3em; bottom:.3em; width:2px; border-radius:2px; background:var(--q-bar); opacity:1; font:inherit; }
+  .q-b2 .q-b2::after { display:none; }
+
+  /* B3 实色大引号，嵌套逐级缩小 */
+  .q-b3 { position:relative; padding-left:2.3em; color:var(--ink-2); }
+  .q-b3::before { content:"\201C"; position:absolute; left:-.03em; top:-.14em; font:700 3.4em/1 Georgia,"Times New Roman",serif; color:var(--accent); }
+  .q-b3 .q-b3 { padding-left:1.5em; }
+  .q-b3 .q-b3::before { font-size:1.9em; top:-.08em; opacity:.6; }
+
+  /* E 引号帽 + 中性竖线 */
+  .q-e { position:relative; padding-left:1.4em; color:var(--ink-2); }
+  .q-e::after { content:"\201C"; position:absolute; left:0; top:.02em; width:.5em; text-align:center; font:700 1.5em/1 Georgia,"Times New Roman",serif; color:var(--accent); }
+  .q-e::before { content:""; position:absolute; left:.33em; top:1.35em; bottom:.3em; width:2px; border-radius:2px; background:var(--q-bar); }
+  .q-e .q-e { padding-left:1.1em; }
+  .q-e .q-e::after { display:none; }
+  .q-e .q-e::before { left:0; top:.3em; }
+
+  /* ════ 同屏对照：callout / 高亮块 / 代码块（取值同编辑器现状） ════ */
+  .callout { border-radius:.5em; border-left:.25em solid var(--info); background:var(--info-soft); padding:.5em .5em 1em 1em; margin:1em 0; }
+  .callout .ct { font-weight:600; margin:.4em 0 .6em; display:flex; align-items:center; gap:.45em; }
+  .callout .ct::before { content:"i"; width:1.15em; height:1.15em; border-radius:99px; background:var(--info); color:var(--surface); font:700 .75em/1.55 Georgia,serif; text-align:center; }
+  .callout.note { border-left-color:var(--ink-2); background:var(--hover); }
+  .callout.note .ct::before { background:var(--ink-2); }
+  .hl { border-radius:.5em; padding:1em 1.25em; background:color-mix(in srgb, #dc9b04 14%, var(--surface)); margin:1em 0; }
+  .code { font:13px/1.7 ui-monospace,Menlo,monospace; background:var(--page); box-shadow:inset 0 0 0 1px var(--line-1); border-radius:8px; padding:12px 16px; margin:1em 0; color:var(--ink-2); white-space:pre; }
+
+  .cmp { display:grid; grid-template-columns:1fr 1fr; gap:32px; }
+  @media (max-width:1100px) { .cmp { grid-template-columns:1fr; } }
+
+  table.spec { border-collapse:collapse; font-size:13px; margin-top:8px; width:100%; max-width:980px; }
+  table.spec th, table.spec td { text-align:left; padding:8px 12px; border-bottom:1px solid var(--line-1); vertical-align:top; }
+  table.spec th { color:var(--ink-3); font-weight:500; }
+  table.spec td:first-child { white-space:nowrap; font-weight:500; }
+  .notes { color:var(--ink-2); font-size:13px; padding-left:18px; max-width:96ch; margin-top:18px; }
+  .notes li { margin:4px 0; } .notes b { color:var(--ink-1); font-weight:600; }
+</style>
+</head>
+<body>
+<div class="top">
+  <div>
+    <h1>编辑器 · 引用块（blockquote）样式 mockup</h1>
+    <p>现状：4px accent 圆角竖条 + <code>italic</code> + ink-2。五个方向在同一段正文里对比，最后给出推荐方案的完整形态、与 callout / 高亮块同屏的辨识度，以及落地规格。右上角可切主题与明暗。</p>
+  </div>
+  <div class="switches">
+    <div class="switch" data-k="theme"><button data-v="paper" class="on">paper</button><button data-v="mint">mint</button></div>
+    <div class="switch" data-k="mode"><button data-v="light" class="on">浅色</button><button data-v="dark">深色</button></div>
+  </div>
+</div>
+
+<section>
+  <h2><span class="no">00</span>为什么现在「看不出是引用」</h2>
+  <p class="desc">
+    ① <b>中文没有斜体字形</b>，<code>italic</code> 让浏览器把苹方硬拧成伪斜体，笔画发虚，看起来像是渲染出错，而不是在表达引用；
+    ② <b>accent 左竖条和 callout 是同一套视觉语言</b>（callout 同样是 <code>border-l-[0.25em]</code> 加彩色竖线），少了底色和标题，读者会把它当成「坏掉的 callout」或装饰线；
+    ③ <b>ink-2 只是让文字变淡</b>，没有传达「这是别人说的话」；
+    ④ 上下 0.75em 内边距加上 1.625 的行高，和正文 1.9 的节奏不一致，块看起来像是松散地飘在段落中间；嵌套引用也只是竖条叠竖条，分不清层级。
+  </p>
+  <div class="grid"><div class="card" data-v="now"></div></div>
+</section>
+
+<section>
+  <h2><span class="no">01</span>五个方向</h2>
+  <p class="desc">每个方向用同一段上下文加两种形态（单段 + 署名、嵌套引用），下面的「＋/－」是取舍。判断标准只有两条：<b>扫一眼就知道是引用</b>，<b>不和 callout、高亮块混淆</b>。</p>
+  <div class="grid" id="variants"></div>
+</section>
+
+<section>
+  <h2><span class="no">02</span>第二轮 · 以 B 的大引号为基础</h2>
+  <p class="desc">保留 B 的大引号（2.9em），专门解决 B 的两个问题：<b>长引用读到结尾时分不清边界</b>；<b>嵌套时换回竖线，同一个块里有两套视觉语言</b>。四张卡片内容相同，都是长内容：含标题前后文、列表、行内高亮和三层嵌套。</p>
+  <div class="grid" id="round2"></div>
+</section>
+
+<section>
+  <h2><span class="no">03</span>同屏辨识度：引用 vs callout vs 高亮块 vs 代码块</h2>
+  <p class="desc">放在同一篇笔记里时最容易混淆，这是关键测试。左边是现状，右边是 B1。</p>
+  <div class="cmp">
+    <div class="paper"><div class="doc" id="mix-now"></div></div>
+    <div class="paper"><div class="doc" id="mix-b1"></div></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="no">04</span>落地规格（B1）</h2>
+  <table class="spec">
+    <tr><th>项</th><th>取值</th><th>说明</th></tr>
+    <tr><td>文字</td><td><code>--ed-quote-text: var(--ed-text)</code>，正体，行高继承正文；嵌套内层用 <code>--ed-text-secondary</code></td><td>去掉 <code>italic</code>；行高、段距与正文一致，不再单独设置 1.625</td></tr>
+    <tr><td>大引号</td><td>Georgia 400，2.9em，<code>--ed-quote-mark: var(--ed-accent)</code>，不透明度 0.55，放在 2em 宽的左栏顶端</td><td>必须用拉丁衬线字形（Georgia → Times New Roman → serif），苹方的全角「“」是方块状；<code>contentEditable={false}</code> + <code>select-none</code></td></tr>
+    <tr><td>竖线尾迹</td><td>2px，圆角，<code>--ed-quote-bar: color-mix(in srgb, var(--tau-ink-1) 20%, transparent)</code>，从 1.6em 起到块底，和引号的中轴对齐</td><td>中性色，与 callout 的状态色竖线区分；无底色。长引用靠它交代结尾在哪</td></tr>
+    <tr><td>内边距</td><td>左 2em（嵌套 1.1em），上下 0，外边距 1em</td><td>去掉现在上下各 0.75em 的 padding，块和段落节奏一致</td></tr>
+    <tr><td>嵌套</td><td>内层 blockquote 不渲染大引号，只有贴左的满高竖线</td><td>内层竖线和外层的尾迹是同一种线，只剩一套视觉语言；可以用 CSS 后代选择器，也可以在组件里用 <code>Editor.above</code> 判断</td></tr>
+    <tr><td>拖拽手柄</td><td>保持 <code>-left-[1.25em]</code> 在槽位里</td><td>大引号在块内左栏，不和手柄重叠；原来「压窄让出竖线位置」的 handleClassName 可以回到默认宽度</td></tr>
+    <tr><td>主题可调</td><td>三个 <code>--ed-quote-*</code> 进 <code>editor.css</code></td><td>主题作者可以调引号颜色、竖线深浅，不需要改组件</td></tr>
+  </table>
+  <ul class="notes">
+    <li><b>不在本次范围</b>：导出侧（<code>html-serializers</code>、公众号 <code>wechat-styles</code>、PDF）各有一套 blockquote 样式。编辑器定稿后再决定要不要统一。</li>
+    <li><b>署名行</b>（「—— 作者」右对齐、变小）只在 C 里演示过。它需要一条「以 —— 开头的末段」识别规则，属于新行为，建议单独立项，不和本次换样式放在一起。</li>
+  </ul>
+</section>
+
+<script>
+const V = {
+  now: { name:"现状", tag:"待替换", bad:true, sub:"4px accent 圆角竖条 · 伪斜体 · ink-2",
+    pc:[["c","中文伪斜体发虚"],["c","和 callout 的彩色竖线同源，看起来像装饰线"],["c","上下 padding 大，行高和正文不一致"]] },
+  a: { name:"A · 中性墨线", sub:"3px 中性色竖线 · 正体 · ink-2（Notion / GitHub 路线）",
+    pc:[["p","最克制，改动最小，符合 Markdown 读者的习惯"],["p","中性色竖线和 callout 的彩色竖线明显不同"],["c","身份仍然只靠一根线，扫读时存在感偏弱"]] },
+  b: { name:"B · 引号起笔", sub:"大号半透明「“」作为起笔 · 无竖线 · ink-1",
+    pc:[["p","一眼就能认出是引用，杂志感强"],["c","多段、长引用时只有开头有标记，结尾的边界不清楚"],["c","左缩进 2.1em 偏大，嵌套时还要换回竖线，两套语言并存"]] },
+  c: { name:"C · 书摘衬线", sub:"宋体 · 2px 淡 accent 竖线 · 署名右对齐",
+    pc:[["p","中文书摘的调性，衬线字体一换，读者就知道这段不是自己写的"],["p","适合读书笔记、文章摘录"],["c","技术笔记里偏文艺；Windows 缺宋体时回退效果不稳定"],["c","署名右对齐需要新增识别规则"]] },
+  d: { name:"D · 淡底卡片", sub:"圆角淡底 · 左上浅色引号 · ink-1",
+    pc:[["p","块的边界最清楚"],["c","和 callout-note（hover 底加竖线）、高亮块（圆角加色底）几乎撞脸"],["c","嵌套时卡片套卡片，显得很重"]] },
+  e: { name:"E · 引号帽 + 中性竖线", tag:"引号偏小", bad:true, sub:"accent「“」压在竖线顶端 · 2px 中性竖线 · 正体 ink-2",
+    pc:[["p","保留 Markdown 竖线的心智，引号记号负责说明身份"],["p","嵌套时内层只剩竖线，层级清楚"],["c","1.5em 的引号存在感不够（第一轮反馈）"]] },
+  b1: { name:"B1 · 大引号 + 竖线尾迹", tag:"推荐", sub:"B 的大引号 · 引号下方拖一条中性竖线直到块底",
+    pc:[["p","大引号负责说明身份，尾迹竖线交代结尾在哪"],["p","内层嵌套只有竖线，和外层尾迹是同一种线，只剩一套视觉语言"],["p","左缩进 2em，比 B 略收"],["c","竖线要和引号中轴对齐，换字体时需要微调"]] },
+  b2: { name:"B2 · 首尾大引号", sub:"左上「“」+ 右下「”」，像书页上的引文",
+    pc:[["p","首尾成对，长引用的边界最明确"],["p","装饰性最强，适合摘录型笔记"],["c","右侧要让出 2.2em，正文宽度变窄"],["c","末行很长时，右下引号会显得悬空；嵌套时又回到竖线"]] },
+  b3: { name:"B3 · 实色大引号 · 逐级缩小", sub:"3.4em 实色粗体引号 · 嵌套用小一号引号 · ink-2",
+    pc:[["p","存在感最强；嵌套也用引号，视觉语言统一"],["c","实色 accent 很抢眼，同屏引用一多就吵"],["c","结尾边界仍然只靠缩进"],["c","三层嵌套时引号叠在一起，显得密"]] },
+};
+
+const q = (v, inner) => `<blockquote class="q q-${v}">${inner}</blockquote>`;
+const cite = t => `<p class="cite">${t}</p>`;
+
+const sample = v => `
+  <p>重读这本书时，最打动我的还是结尾那句话：</p>
+  ${q(v, `<p>人是为活着本身而活着，而不是为了活着之外的任何事物所活着。</p>${cite("—— 余华《活着》")}`)}
+  <p>放到做产品上也成立：先让东西本身站得住。评审记录里有一段来回：</p>
+  ${q(v, `<p>小林在评审里写道：</p>${q(v, `<p>这个接口太浅了，调用方要知道的比它替你省下的还多。</p>`)}<p>我同意，但更担心的是它把错误处理也推给了调用方。</p>`)}
+  <p>最后我们把三个方法合成了一个。</p>`;
+
+const full = v => `
+  <h3>读书笔记 ·《软件设计的哲学》</h3>
+  <p>第四章讲模块深度，作者的结论很直接：</p>
+  ${q(v, `<p>最好的模块是<b>深</b>的：它们的接口很简单，却隐藏了大量功能。</p>
+    <p>一个深模块有三个特征：</p>
+    <ul><li>接口的心智负担远小于它的实现</li><li>调用方不需要知道内部的<span class="mark">任何决策</span></li><li>错误在模块内部被定义消除</li></ul>
+    ${cite("—— John Ousterhout")}`)}
+  <p>对照我们的 <b>BlockDrag</b>，dragSpec 就是个不错的例子。评审里还有一段嵌套的讨论：</p>
+  ${q(v, `<p>阿杰：</p>${q(v, `<p>handleClassName 暴露得太细，每个块都在调位置。</p>${q(v, `<p>但默认值覆盖了九成情况，细调只是逃生口。</p>`)}`)}<p>结论：保留，但文档里写清默认值。</p>`)}
+  <p>下周把这一章的例子补进 03 指南。</p>`;
+
+const mix = v => `
+  <p>部署前检查清单整理如下。</p>
+  <div class="callout"><div class="ct">信息</div><p>生产环境的迁移脚本需要先在预发跑一遍。</p></div>
+  ${q(v, `<p>永远不要在周五下午发版。</p>${cite("—— 运维组的口头禅")}`)}
+  <div class="callout note"><div class="ct">备注</div><p>回滚预案放在 wiki 的「发布」目录。</p></div>
+  <div class="hl"><p>本周的发布窗口是周三 14:00–16:00。</p></div>
+  <div class="code">pnpm db:schema:check &amp;&amp; pnpm build</div>
+  ${q(v, `<p>先跑校验，再谈上线。</p>`)}`;
+
+const card = (k, content = sample) => {
+  const m = V[k];
+  return `<div class="lbl">${m.name}${m.tag ? `<span class="tag${m.bad ? " bad" : ""}">${m.tag}</span>` : ""}</div>
+    <div class="sub">${m.sub}</div>
+    <div class="paper"><div class="doc">${content(k)}</div></div>
+    <ul class="pc">${m.pc.map(([t, s]) => `<li class="${t}">${s}</li>`).join("")}</ul>`;
+};
+
+document.querySelector('[data-v="now"]').innerHTML = card("now");
+document.getElementById("variants").innerHTML = ["a","b","c","d","e"].map(k => `<div class="card">${card(k)}</div>`).join("");
+document.getElementById("round2").innerHTML = ["b","b1","b2","b3"].map(k => `<div class="card">${card(k, full)}</div>`).join("");
+document.getElementById("mix-now").innerHTML = mix("now");
+document.getElementById("mix-b1").innerHTML = mix("b1");
+
+document.querySelectorAll(".switch").forEach(sw => sw.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  sw.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+  document.documentElement.dataset[sw.dataset.k] = b.dataset.v;
+}));
+</script>
+</body>
+</html>

@@ -77,3 +77,32 @@ describe("wechat-html-processor code space protection", () => {
     expect(html).toContain('class="footnote-url" style=');
   });
 });
+
+describe("wechat-html-processor 引用块", () => {
+  const nestedQuote =
+    '<blockquote class="blockquote"><p class="paragraph">外层</p>' +
+    '<blockquote class="blockquote"><p class="paragraph">内层</p></blockquote></blockquote>';
+
+  it("大引号只内联到最外层，嵌套内层的伪元素隐藏", () => {
+    const html = processHtmlForWechat(nestedQuote);
+
+    expect(html.match(/>“</g)).toHaveLength(1);
+    expect(html).not.toContain("201C");
+    expect(html).toContain("display: none");
+  });
+
+  it("内层引用是最后一个子元素时不在外层底部多留间距", () => {
+    const [, nested = ""] = processHtmlForWechat(nestedQuote).match(/<blockquote[^>]*>/g) ?? [];
+
+    expect(nested).toContain("margin-bottom: 0;");
+    expect(nested).not.toMatch(/margin(-bottom)?: 0\.5em(;| 0)/);
+    expect(nested).toContain("margin-top: 0.5em");
+  });
+
+  it("不依赖会被公众号过滤的 position，竖线用 border-left", () => {
+    const html = processHtmlForWechat(nestedQuote);
+
+    expect(html).not.toContain("position");
+    expect(html).toContain("border-left: 2px solid rgba(0, 0, 0, 0.15)");
+  });
+});
