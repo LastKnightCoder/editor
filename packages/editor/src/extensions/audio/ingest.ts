@@ -17,28 +17,39 @@ async function ingestAudioFile(ctx: IngestContext, file: File): Promise<void> {
     uploading: true,
   });
   if (!insertPath) return;
+  const target = Editor.pathRef(editor, insertPath);
+
+  const currentPath = () => {
+    const path = target.current;
+    return path && Editor.node(editor, path)[0].type === "audio" ? path : null;
+  };
 
   try {
     const src = await editor.getService(IResourceService).upload(file);
     if (!src) throw new Error("上传失败");
-    Transforms.setNodes(editor, { src, uploading: false }, { at: insertPath });
+    const path = currentPath();
+    if (path) Transforms.setNodes(editor, { src, uploading: false }, { at: path });
   } catch (error) {
     console.error("音频上传失败:", error);
     notifierOf(editor).error("上传失败");
+    const path = currentPath();
+    if (!path) return;
     if (point) {
       // 拖放：保留占位节点，结束上传态
-      Transforms.setNodes(editor, { uploading: false }, { at: insertPath });
+      Transforms.setNodes(editor, { uploading: false }, { at: path });
       return;
     }
     // 粘贴：删占位、补空段落承接光标
     Editor.withoutNormalizing(editor, () => {
-      Transforms.delete(editor, { at: insertPath });
+      Transforms.delete(editor, { at: path });
       Transforms.insertNodes(
         editor,
         { type: "paragraph", children: [{ type: "formatted", text: "" }] },
-        { at: insertPath, select: true }
+        { at: path, select: true }
       );
     });
+  } finally {
+    target.unref();
   }
 }
 

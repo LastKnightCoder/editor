@@ -20,13 +20,30 @@ const getDomService = (): ThemeService => {
   return domService;
 };
 
-/** 订阅 ThemeService 的明暗；service 变化时重新订阅 */
-function useServiceMode(service: ThemeService): EditorThemeMode {
-  const [subscribe, getSnapshot] = useMemo(
-    () => [(listener: () => void) => service.subscribe(listener), () => service.mode] as const,
-    [service]
-  );
-  return useSyncExternalStore(subscribe, getSnapshot, () => service.mode);
+/** 主题通知也可能只改 token，修订号让同明暗、同主题族的取色组件刷新。 */
+function useServiceSnapshot(service: ThemeService) {
+  const [subscribe, getSnapshot] = useMemo(() => {
+    let revision = 0;
+    let snapshot = { mode: service.mode, themeKey: service.themeKey, revision };
+    return [
+      (listener: () => void) =>
+        service.subscribe(() => {
+          revision += 1;
+          listener();
+        }),
+      () => {
+        if (
+          snapshot.revision !== revision ||
+          snapshot.mode !== service.mode ||
+          snapshot.themeKey !== service.themeKey
+        ) {
+          snapshot = { mode: service.mode, themeKey: service.themeKey, revision };
+        }
+        return snapshot;
+      },
+    ] as const;
+  }, [service]);
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
 /** 当前作用域生效的主题服务：上下文 → 给定的注册服务 → DOM 默认实现 */
@@ -69,9 +86,9 @@ export function EditorThemeScope({
   children: (scope: { themeKey: string; mode: EditorThemeMode; overridden: boolean }) => ReactNode;
 }) {
   const resolved = useResolvedService(service);
-  const mode = useServiceMode(resolved);
+  const { mode } = useServiceSnapshot(resolved);
   const dom = getDomService();
-  const documentMode = useServiceMode(dom);
+  const { mode: documentMode } = useServiceSnapshot(dom);
   return (
     <EditorThemeContext.Provider value={resolved}>
       {children({
@@ -93,9 +110,13 @@ export interface EditorTheme {
 /** 编辑器内部读主题：明暗 + token 取值。未挂载 Editor 时回落 DOM 实现。 */
 export function useEditorTheme(): EditorTheme {
   const service = useResolvedService();
-  const mode = useServiceMode(service);
+  const snapshot = useServiceSnapshot(service);
   return useMemo(
-    () => ({ mode, isDark: mode === "dark", token: word => service.token(word) }),
-    [mode, service]
+    () => ({
+      mode: snapshot.mode,
+      isDark: snapshot.mode === "dark",
+      token: word => service.token(word),
+    }),
+    [service, snapshot]
   );
 }
