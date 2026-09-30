@@ -34,12 +34,8 @@ export interface ImageCropperProps {
   onCancel: () => void;
   imageUrl: string;
   initialTransform?: CropperTransform;
-  onConfirm: (
-    transform: CropperTransform,
-    croppedBlob: Blob,
-  ) => void | Promise<void>;
+  onConfirm: (transform: CropperTransform, croppedBlob: Blob) => void | Promise<void>;
   alt?: string;
-  isDark?: boolean;
 }
 
 export type AspectRatioPreset = {

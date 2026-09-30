@@ -27,7 +27,6 @@ import { getImageAppearanceStyle } from "../../utils/appearance";
 import { cn } from "@tau/ui";
 import { useImageResize, ResizeDirection } from "../../../../hooks/useImageResize";
 
-import useTheme from "../../../../hooks/useTheme";
 import { useImageAppearance, type ImageAppearanceOption } from "../../appearanceOption";
 import { IMediaActions, useEditorSlots, useOptionalService } from "../../../../services";
 import { openLocalMediaPicker } from "../../../../utils/mediaInsert";
@@ -66,7 +65,6 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
   } = element;
 
   const uploadResource = useUploadResource();
-  const { isDark } = useTheme();
   const appearance = useImageAppearance(appearanceOption);
   const messageApi = useNotifier();
   const editor = useSlateStatic();
@@ -579,7 +577,6 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
         initialTransform={element.cropTransform}
         onConfirm={handleCropConfirm}
         alt={alt}
-        isDark={isDark}
       />
     </div>
   );

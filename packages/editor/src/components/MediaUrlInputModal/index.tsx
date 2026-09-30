@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSlate } from "slate-react";
 
-import { CustomModal } from "@tau/shared";
+import { Button, Dialog, DialogBody, Input } from "@tau/ui";
 
 import { useNotifier } from "../../services/hooks";
 import useMediaUrlInputStore from "../../stores/useMediaUrlInputStore";
@@ -44,34 +44,43 @@ const MediaUrlInputModal = () => {
     close();
   };
 
+  const handleCancel = () => {
+    setUrl("");
+    close();
+  };
+
   return (
-    <CustomModal
+    <Dialog
       open={open && isOwner}
+      onOpenChange={next => !next && handleCancel()}
       title={`插入网络${label}`}
-      okText="插入"
-      cancelText="取消"
-      onOk={handleOk}
-      onCancel={() => {
-        setUrl("");
-        close();
-      }}
-      destroyOnClose
-      width={520}
+      width={460}
+      footer={
+        <>
+          <Button variant="secondary" size="sm" onClick={handleCancel}>
+            取消
+          </Button>
+          <Button variant="primary" size="sm" disabled={!url.trim()} onClick={handleOk}>
+            插入
+          </Button>
+        </>
+      }
     >
-      <input
-        autoFocus
-        type="text"
-        className="w-full rounded-[0.75em] border border-gray-200 bg-gray-50 px-[1em] py-[0.875em] text-[0.875em] text-gray-800 shadow-inner outline-none transition-all duration-200 placeholder:text-gray-400 focus:border-[var(--ed-border-focus)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_var(--ed-border-focus)/20] dark:border-zinc-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-zinc-500 dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_var(--ed-border-focus)/25]"
-        placeholder={`https://example.com/${mediaType === "image" ? "image.png" : mediaType === "video" ? "video.mp4" : "audio.mp3"}`}
-        value={url}
-        onChange={e => setUrl(e.target.value)}
-        onKeyDown={e => {
-          if (e.key === "Enter") {
-            handleOk();
-          }
-        }}
-      />
-    </CustomModal>
+      <DialogBody>
+        <Input
+          data-autofocus
+          placeholder={`https://example.com/${mediaType === "image" ? "image.png" : mediaType === "video" ? "video.mp4" : "audio.mp3"}`}
+          value={url}
+          onChange={e => setUrl(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              handleOk();
+            }
+          }}
+        />
+      </DialogBody>
+    </Dialog>
   );
 };
 
