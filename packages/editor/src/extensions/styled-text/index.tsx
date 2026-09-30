@@ -1,36 +1,23 @@
-import { RenderElementProps } from "slate-react";
+import { defineElement, defineExtension, type ElementRenderProps } from "../../api";
 
-import Base from "../../extensions/base";
-import { IConfigItem, StyledTextElement } from "../../types";
-import IExtension from "../../extensions/types";
-
+import type { StyledTextElement } from "../../types";
 import StyledText from "./components/StyledText";
 import hoveringBarConfigs from "./hovering-bar-configs";
-import { createInlineElementPlugin } from "../../utils";
 
-class StyledTextExtension extends Base implements IExtension {
-  override type = "styled-text";
+const styledTextExtension = defineExtension({
+  id: "tau.styled-text",
+  elements: [
+    defineElement<StyledTextElement>({
+      type: "styled-text",
+      kind: "inline",
+      render: ({ attributes, element, children }: ElementRenderProps<StyledTextElement>) => (
+        <StyledText attributes={attributes} element={element}>
+          {children}
+        </StyledText>
+      ),
+    }),
+  ],
+  toolbar: hoveringBarConfigs,
+});
 
-  override getHoveringBarElements(): IConfigItem[] {
-    return hoveringBarConfigs;
-  }
-
-  override getPlugins() {
-    return [createInlineElementPlugin(this.type)];
-  }
-
-  render(props: RenderElementProps) {
-    const { attributes, children, element } = props;
-
-    return (
-      <StyledText
-        attributes={attributes}
-        element={element as unknown as StyledTextElement}
-      >
-        {children}
-      </StyledText>
-    );
-  }
-}
-
-export default StyledTextExtension;
+export default styledTextExtension;

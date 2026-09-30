@@ -1,32 +1,23 @@
-import { RenderElementProps } from "slate-react";
+import { defineElement, defineExtension, type ElementRenderProps } from "../../api";
 
-import type { IConfigItem, KbdElement } from "../../types";
-import Base from "../base";
-import IExtension from "../types";
-import { createInlineElementPlugin } from "../../utils";
-
+import type { KbdElement } from "../../types";
 import Kbd from "./components/Kbd";
 import hoveringBarConfigs from "./hovering-bar-configs";
 
-class KbdExtension extends Base implements IExtension {
-  override type = "kbd";
+const kbdExtension = defineExtension({
+  id: "tau.kbd",
+  elements: [
+    defineElement<KbdElement>({
+      type: "kbd",
+      kind: "inline",
+      render: ({ attributes, element, children }: ElementRenderProps<KbdElement>) => (
+        <Kbd attributes={attributes} element={element}>
+          {children}
+        </Kbd>
+      ),
+    }),
+  ],
+  toolbar: hoveringBarConfigs,
+});
 
-  override getHoveringBarElements(): IConfigItem[] {
-    return hoveringBarConfigs;
-  }
-
-  override getPlugins() {
-    return [createInlineElementPlugin(this.type)];
-  }
-
-  render(props: RenderElementProps) {
-    const { attributes, children, element } = props;
-    return (
-      <Kbd attributes={attributes} element={element as KbdElement}>
-        {children}
-      </Kbd>
-    );
-  }
-}
-
-export default KbdExtension;
+export default kbdExtension;

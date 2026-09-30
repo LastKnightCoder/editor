@@ -1,37 +1,27 @@
-import { RenderElementProps } from "slate-react";
-
 import loadable from "@loadable/component";
-import type { TypstElement } from "../../types";
 
-import Base from "../base";
-import IExtension from "../types";
-import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
+import { defineElement, defineExtension, type ElementRenderProps } from "../../api";
+
+import type { TypstElement } from "../../types";
 import blockPanelItems from "./block-panel-items";
 
 const Typst = loadable(() => import("./components/Typst"));
 
-class TypstExtension extends Base implements IExtension {
-  type = "typst";
+const typstExtension = defineExtension({
+  id: "tau.typst",
+  elements: [
+    defineElement<TypstElement>({
+      type: "typst",
+      kind: "block",
+      isVoid: true,
+      render: ({ attributes, element, children }: ElementRenderProps<TypstElement>) => (
+        <Typst element={element} attributes={attributes}>
+          {children}
+        </Typst>
+      ),
+    }),
+  ],
+  blockPanel: blockPanelItems,
+});
 
-  override getBlockPanelItems() {
-    return blockPanelItems;
-  }
-
-  override getPlugins() {
-    return [
-      createBlockElementPlugin(this.type),
-      createVoidElementPlugin(this.type),
-    ];
-  }
-
-  render(props: RenderElementProps) {
-    const { element, attributes, children } = props;
-    return (
-      <Typst element={element as TypstElement} attributes={attributes}>
-        {children}
-      </Typst>
-    );
-  }
-}
-
-export default TypstExtension;
+export default typstExtension;

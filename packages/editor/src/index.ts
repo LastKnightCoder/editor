@@ -68,7 +68,7 @@ export { createMarkdownPasteImportExtension } from "./extensions/markdown-paste-
 export type { MarkdownImportFn } from "./extensions/markdown-paste-import";
 export { isMarkdownLikeText } from "./plugins/withMarkdownPasteImport";
 export type { ImportFromMarkdownOptions } from "./plugins/withMarkdownPasteImport";
-export { default as PlantUMLExtension } from "./extensions/plantuml";
+export { default as plantUMLExtension, createPlantUMLExtension } from "./extensions/plantuml";
 export type { PlantUMLExtensionOptions } from "./extensions/plantuml";
 export { createImageExtensions } from "./extensions/image/createImageExtensions";
 export { default as headerExtension, createHeaderExtension } from "./extensions/header";

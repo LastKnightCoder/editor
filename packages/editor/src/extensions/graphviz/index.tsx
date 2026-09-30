@@ -1,35 +1,24 @@
+import { defineElement, defineExtension, type ElementRenderProps } from "../../api";
+
 import type { GraphvizElement } from "../../types";
 import Graphviz from "./components/Graphviz";
-
-import { RenderElementProps } from "slate-react";
-
 import blockPanelItems from "./block-panel-items";
-import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
-import Base from "../base";
-import IExtension from "../types";
 
-class GraphvizExtension extends Base implements IExtension {
-  type = "graphviz";
+const graphvizExtension = defineExtension({
+  id: "tau.graphviz",
+  elements: [
+    defineElement<GraphvizElement>({
+      type: "graphviz",
+      kind: "block",
+      isVoid: true,
+      render: ({ attributes, element, children }: ElementRenderProps<GraphvizElement>) => (
+        <Graphviz element={element} attributes={attributes}>
+          {children}
+        </Graphviz>
+      ),
+    }),
+  ],
+  blockPanel: blockPanelItems,
+});
 
-  override getBlockPanelItems() {
-    return blockPanelItems;
-  }
-
-  override getPlugins() {
-    return [
-      createBlockElementPlugin(this.type),
-      createVoidElementPlugin(this.type),
-    ];
-  }
-
-  render(props: RenderElementProps) {
-    const { element, attributes, children } = props;
-    return (
-      <Graphviz element={element as GraphvizElement} attributes={attributes}>
-        {children}
-      </Graphviz>
-    );
-  }
-}
-
-export default GraphvizExtension;
+export default graphvizExtension;

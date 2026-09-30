@@ -1,37 +1,23 @@
-import { RenderElementProps } from "slate-react";
+import { defineElement, defineExtension, type ElementRenderProps } from "../../api";
 
 import Underline from "./components/Underline";
 import type { UnderlineElement } from "../../types";
-
-import Base from "../base";
-import IExtension from "../types";
-import { createInlineElementPlugin } from "../../utils";
-
 import hoveringBarConfigs from "./hovering-bar-configs";
 
-class UnderlineExtension extends Base implements IExtension {
-  type = "underline";
+const underlineExtension = defineExtension({
+  id: "tau.underline",
+  elements: [
+    defineElement<UnderlineElement>({
+      type: "underline",
+      kind: "inline",
+      render: ({ attributes, element, children }: ElementRenderProps<UnderlineElement>) => (
+        <Underline element={element} attributes={attributes}>
+          {children}
+        </Underline>
+      ),
+    }),
+  ],
+  toolbar: hoveringBarConfigs,
+});
 
-  override getHoveringBarElements() {
-    return hoveringBarConfigs;
-  }
-
-  override getPlugins() {
-    return [createInlineElementPlugin(this.type)];
-  }
-
-  render(props: RenderElementProps) {
-    const { element, attributes, children } = props;
-
-    return (
-      <Underline
-        element={element as unknown as UnderlineElement}
-        attributes={attributes}
-      >
-        {children}
-      </Underline>
-    );
-  }
-}
-
-export default UnderlineExtension;
+export default underlineExtension;

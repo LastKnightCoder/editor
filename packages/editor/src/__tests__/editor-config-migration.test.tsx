@@ -8,7 +8,7 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 
 import {
   Editor,
-  PlantUMLExtension,
+  createPlantUMLExtension,
   type ImageAppearanceConfig,
   type ImageAppearanceSource,
   createEditorKit,
@@ -110,24 +110,28 @@ describe("P4 EditorConfig 拆解", () => {
 
   describe("plantumlServer / plantumlDarkTheme → plantuml 扩展参数", () => {
     // PlantUMLBlock 懒加载且依赖布局 API，jsdom 里挂不出来；这里钉住扩展把参数交给块组件
-    const renderProps = (extension: PlantUMLExtension) => {
-      const element = extension.render({
+    const renderProps = (extension: ReturnType<typeof createPlantUMLExtension>) => {
+      const element = (
+        extension.elements![0].render as (props: unknown) => {
+          props: { server?: string; darkTheme?: string };
+        }
+      )({
         attributes: {} as never,
         element: { type: "plantuml", content: "", children: [{ type: "formatted", text: "" }] },
         children: null,
       } as never);
-      return element.props as { server?: string; darkTheme?: string };
+      return element.props;
     };
 
     it("未传参数时不覆盖，由 @tau/shared 的默认值生效", () => {
-      const props = renderProps(new PlantUMLExtension());
+      const props = renderProps(createPlantUMLExtension());
       expect(props.server).toBeUndefined();
       expect(props.darkTheme).toBeUndefined();
     });
 
     it("扩展参数传给块组件", () => {
       const props = renderProps(
-        new PlantUMLExtension({ server: "https://uml.example.com", darkTheme: "" })
+        createPlantUMLExtension({ server: "https://uml.example.com", darkTheme: "" })
       );
       expect(props.server).toBe("https://uml.example.com");
       expect(props.darkTheme).toBe("");
