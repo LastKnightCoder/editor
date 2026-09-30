@@ -92,8 +92,8 @@
   --ed-callout-danger: var(--tau-danger);
   --ed-callout-danger-bg: var(--tau-danger-soft);
   --ed-callout-danger-text: var(--tau-ink-1);
-  --ed-callout-note: var(--tau-line-1);
-  --ed-callout-note-bg: var(--tau-bg-sunken);
+  --ed-callout-note: var(--tau-ink-2);
+  --ed-callout-note-bg: var(--tau-bg-hover);
   --ed-callout-note-text: var(--tau-ink-1);
 }
 
@@ -131,7 +131,8 @@
 
 /*
  * Callout 五类：按 callout-<type> 把本块的 --ed-callout-border / -bg / -text / -icon 指到对应 token。
- * 图标经 CSS url() 引用，由各宿主的 CSS 管线处理资源（编辑器包不在 JS 里 import 资源）。
+ * 图标经 CSS url() 引用并作为 mask 渲染（颜色取 --ed-callout-border，svg 自带填色不生效），
+ * 由各宿主的 CSS 管线处理资源（编辑器包不在 JS 里 import 资源）。
  */
 .callout.callout-tip {
   --ed-callout-border: var(--ed-callout-tip);
