@@ -52,7 +52,8 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = props => {
               onBlur={handleTitleBlur}
               className={cn(
                 "relative mb-[1em] mt-[0.625em] pl-[1.5em] font-semibold leading-tight",
-                "before:bg-(image:--ed-callout-icon) before:absolute before:left-0 before:h-[1.25em] before:w-[1.25em] before:bg-left before:bg-no-repeat before:content-['']",
+                "before:bg-(--ed-callout-border) before:absolute before:left-0 before:h-[1.25em] before:w-[1.25em] before:content-['']",
+                "before:[mask-image:var(--ed-callout-icon)] before:[mask-position:left_center] before:[mask-repeat:no-repeat] before:[mask-size:contain]",
                 "text-(--ed-callout-text)"
               )}
               // @ts-ignore
