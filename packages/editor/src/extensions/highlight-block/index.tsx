@@ -1,39 +1,26 @@
-import { RenderElementProps } from "slate-react";
+import { defineElement, defineExtension } from "../../api";
 
 import HighlightBlock from "./components/HighlightBlock";
-import Base from "../base";
-import IExtension from "../types";
 import type { HighlightBlockElement } from "../../types";
 
 import blockPanelItems from "./block-panel-items";
-import { quit, withNormalize } from "./plugins";
-import { createBlockElementPlugin } from "../../utils";
+import { highlightBlockBehaviors } from "./behaviors";
 import { highlightBlockCommands, highlightBlockMenuItems } from "./utils/menu";
 
-class HighlightBlockExtension extends Base implements IExtension {
-  type = "highlight-block";
+const highlightBlockExtension = defineExtension({
+  id: "tau.highlight-block",
+  elements: [
+    defineElement<HighlightBlockElement>({
+      type: "highlight-block",
+      kind: "block",
+      render: HighlightBlock,
+      drag: true,
+      behaviors: highlightBlockBehaviors,
+    }),
+  ],
+  blockPanel: blockPanelItems,
+  commands: highlightBlockCommands,
+  menu: highlightBlockMenuItems,
+});
 
-  override commands = highlightBlockCommands;
-  override menuItems = highlightBlockMenuItems;
-  override dragSpec = true;
-
-  override getBlockPanelItems() {
-    return blockPanelItems;
-  }
-
-  override getPlugins() {
-    return [quit, withNormalize, createBlockElementPlugin(this.type)];
-  }
-
-  render(props: RenderElementProps) {
-    const { attributes, element, children } = props;
-
-    return (
-      <HighlightBlock attributes={attributes} element={element as HighlightBlockElement}>
-        {children}
-      </HighlightBlock>
-    );
-  }
-}
-
-export default HighlightBlockExtension;
+export default highlightBlockExtension;

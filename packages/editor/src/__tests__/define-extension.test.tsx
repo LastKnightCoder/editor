@@ -615,3 +615,69 @@ describe("内置扩展迁到 v2：header（热键切命令 id + # 快捷语法�
     await done();
   });
 });
+
+describe("内置扩展迁到 v2：detail / highlight-block（插件改写转声明式行为，语义不变）", () => {
+  const mount = async (initValue: Descendant[]) => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const ref = createRef<EditorRef>();
+    const kit = createEditorKit({ services: services() });
+    await act(async () => {
+      root.render(
+        <DndProvider backend={HTML5Backend}>
+          <Editor ref={ref} kit={kit} readonly={false} initValue={initValue} />
+        </DndProvider>
+      );
+    });
+    return {
+      editor: ref.current!.getEditor(),
+      done: async () => {
+        await act(async () => root.unmount());
+        container.remove();
+      },
+    };
+  };
+
+  const typesOf = (editor: ReturnType<EditorRef["getEditor"]>) =>
+    editor.children.map(node => (node as Element).type);
+
+  it("detail 首段开头退格：unwrap 提出内容", async () => {
+    const { editor, done } = await mount([
+      {
+        type: "detail",
+        collapsed: false,
+        children: [paragraph("内容"), paragraph("后段")],
+      } as never,
+    ]);
+    Transforms.select(editor, SlateEditor.start(editor, [0, 0]));
+    await act(async () => editor.deleteBackward("character"));
+    // unwrapNodes split 只提出选区所在段落（与迁移前一致），detail 保留其余子段落
+    expect(typesOf(editor)).toEqual(["paragraph", "detail"]);
+    expect((editor.children[1] as Element).children).toHaveLength(1);
+    await done();
+  });
+
+  it("前一个兄弟块是 detail 时段首退格被吞掉，不并入 detail", async () => {
+    const { editor, done } = await mount([
+      { type: "detail", collapsed: false, children: [paragraph("折叠区")] } as never,
+      paragraph("内容"),
+    ]);
+    Transforms.select(editor, SlateEditor.start(editor, [1]));
+    await act(async () => editor.deleteBackward("character"));
+    expect(typesOf(editor)).toEqual(["detail", "paragraph"]);
+    expect((editor.children[1] as Element).children[0]).toMatchObject({ text: "内容" });
+    await done();
+  });
+
+  it("highlight-block 最后一个空段落回车：删该段并在下方补空段落", async () => {
+    const { editor, done } = await mount([
+      { type: "highlight-block", children: [paragraph("x"), paragraph("")] } as never,
+    ]);
+    Transforms.select(editor, SlateEditor.end(editor, [0, 1]));
+    await act(async () => editor.insertBreak());
+    expect((editor.children[0] as Element).children).toHaveLength(1);
+    expect(typesOf(editor)).toEqual(["highlight-block", "paragraph"]);
+    await done();
+  });
+});
