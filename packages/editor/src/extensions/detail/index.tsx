@@ -1,36 +1,29 @@
-import { RenderElementProps } from "slate-react";
+import { defineElement, defineExtension } from "../../api";
+
 import type { DetailElement } from "../../types";
 
 import Detail from "./components/Detail";
-import { deleteBackward, quit, withNormalize } from "./plugins";
 import blockPanelItems from "./block-panel-items";
-import { createBlockElementPlugin } from "../../utils";
+import { detailBehaviors, detailForParagraph } from "./behaviors";
 import { detailCommands, detailMenuItems } from "./utils/menu";
 
-import Base from "../base";
-import IExtension from "../types";
+const detailExtension = defineExtension({
+  id: "tau.detail",
+  elements: [
+    defineElement<DetailElement>({
+      type: "detail",
+      kind: "block",
+      render: Detail,
+      drag: true,
+      behaviors: detailBehaviors,
+    }),
+  ],
+  blockPanel: blockPanelItems,
+  commands: detailCommands,
+  menu: detailMenuItems,
+  behaviorsFor: {
+    paragraph: detailForParagraph,
+  },
+});
 
-class DetailExtension extends Base implements IExtension {
-  type = "detail";
-  override commands = detailCommands;
-  override menuItems = detailMenuItems;
-  override dragSpec = true;
-  override getPlugins() {
-    return [deleteBackward, quit, withNormalize, createBlockElementPlugin(this.type)];
-  }
-
-  override getBlockPanelItems() {
-    return blockPanelItems;
-  }
-
-  render(props: RenderElementProps) {
-    const { element, attributes, children } = props;
-    return (
-      <Detail element={element as DetailElement} attributes={attributes}>
-        {children}
-      </Detail>
-    );
-  }
-}
-
-export default DetailExtension;
+export default detailExtension;
