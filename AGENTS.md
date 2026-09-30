@@ -271,7 +271,7 @@ pnpm add -D
 - Agent 不进行视觉验证、截图对照或浏览器视觉走查；视觉验收由用户后续完成。
 - 视觉问题记录到清单，后续按 bug 修复，不阻塞架构清理；仍须完成类型检查、行为测试、构建及必要的结构检查。
 
-背景：桌面端已从旧 Tab 系统迁移到 Page 协议（声明式页面 definePage + 纯函数栈机 + Activity 保活 + 自有设计系统，命名对齐移动端，见 DECISIONS.md D-002）。旧主界面与 Tab 骨架已退役，存量组件、主题兼容层和数据 store 按实际消费者继续清理，当前执行清单见 `apps/desktop/docs/redesign/05-桌面端清理调研.md`。
+背景：桌面端已从旧 Tab 系统迁移到 Page 协议（声明式页面 definePage + 纯函数栈机 + Activity 保活 + 自有设计系统，命名对齐移动端，见 DECISIONS.md D-002）。旧主界面、Tab 骨架、双主题源及已调查的旧业务 store 已退役；当前约束以 03 指南为准，清理执行与保留边界见 `apps/desktop/docs/redesign/05-桌面端清理调研.md`。
 
 **上手顺序（写桌面端代码前必做）**：
 
@@ -296,7 +296,7 @@ pnpm add -D
 ### UI 与主题
 
 - 样式载体 Tailwind 优先（D-001）：颜色只允许消费 `--tau-*` 变量或 Tailwind 语义类（`bg-page` / `text-ink-1` / `bg-accent-soft`…）；尺度用 tau 命名空间词（`text-tau-*` / `rounded-tau-*` / `shadow-card` / `ease-tau-out`，词表见 02 规范 §3/§4）。禁止裸色值、内联十六进制、antd token。新增 token 词汇必须先进 `packages/themes/src/tokenContract.ts`。
-- 新代码禁止新增 `antd`、`@ant-design/icons` import（ESLint 棘轮已落地：全仓禁止，存量白名单 `scripts/antd-whitelist.json` 只减不增，由 `pnpm check:antd` / pre-commit 守护，清零一处跑 `node scripts/antd-ratchet.mjs --prune` 收缩，M5 移除依赖）；禁止新增 CSS Modules / less；手写 CSS 仅限四类白名单（`app/base.css` 的 .app 作用域 reset、keyframes、主题数据块、复杂伪元素，见 03 指南 §4）。
+- 全仓禁止 `antd`、`@ant-design/*` 导入及直接依赖，无存量豁免，由 ESLint、`pnpm check:antd` 与 pre-commit 守护；禁止新增 CSS Modules/Less。手写 CSS 只保留根基础规则与 .app reset、keyframes、主题数据块、复杂伪元素/遮罩（D-087）；组件布局使用静态 Tailwind，外观仍由用户验收。
 - 跨域复用的视觉模式收口 `packages/ui/src/primitives/` 组件（Panel/IconButton…，组件内写 Tailwind），不要在多个域重复同一段类串。
 - 组件默认样式允许被调用方 `className` 覆盖时，合并必须用 `packages/ui/src/cn.ts` 的 `cn()`（D-008）——裸 clsx 的先后顺序会被 Tailwind 生成顺序吃掉，覆盖静默失效；新增尺度 token 必须同步登记进 cn 的词表（`packages/ui/src/__tests__/cn.test.ts` 守护）。
 - 新主题用 `defineTheme` 声明（tokens 全键强制），且必须同步在 `tokens.css` 补 `[data-theme="<key>"]` 数据块——`theme-parity.test.ts` 守护二者一致（含 AA 对比度断言），codegen 落地后改为生成。
@@ -318,5 +318,5 @@ pnpm add -D
 
 ### 迁移流程
 
-- 迁移一个 legacy 模块的标准流程见 03 指南 §6；迁移前先按 04 删除清单模板做消费者调查并追加章节，删除动作跟锚点事件走（P-<page>/G1/G2），删前 `rg` 复核消费者清零。
+- 清理存量实现前按 04 模板记录消费者与保留边界，删前 `rg` 复核消费者清零；G1/G2 已完成，不再创建迁移占位或旧承载。修改数据/主题/壳层协议时同步 03，历史数据升级按独立版本退出条件保留。
 - 禁止恢复 `/legacy` 路由或旧 Tab 系统承载新功能；存量代码改造遵循新架构，并在消费者清零后删除旧实现。

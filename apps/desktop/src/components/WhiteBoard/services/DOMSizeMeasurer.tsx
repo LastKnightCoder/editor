@@ -8,7 +8,7 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import { Descendant } from "slate";
 import { TEXT_BOX, TextBoxPadding, toCssPadding } from "../constants/text-style";
 
-/** 与 RichText 的 .richTextContainer 保持一致（index.module.less），改那边要同步这里 */
+/** 与 RichText 的 .richTextContainer 保持一致（静态 Tailwind 类），改那边要同步这里 */
 const RICH_TEXT_BLOCK_DISTANCE = "10px";
 
 const DEFAULT_PADDING: TextBoxPadding = {

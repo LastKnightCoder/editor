@@ -1,5 +1,5 @@
 /**
- * AI 对话页纯函数：页面参数解析、侧栏子项取数（D-047）。
+ * AI 对话页纯函数：页面参数解析与侧栏子项取数。
  */
 
 import type { ChatSessionRow } from "@/types/chat-session";

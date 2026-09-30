@@ -167,7 +167,7 @@ function ShellLayout() {
           壳层不提供全局状态栏，页面自行承载必要信息，避免无内容页底部留空条 */}
       <div className="grid min-w-0 grid-rows-[var(--tau-titlebar-h)_minmax(0,1fr)]">
         <Titlebar />
-        {/* 正文 + 右侧辅助栏（AI 对话停靠栏，D-047）；覆盖浮层模式以本行为定位上下文。
+        {/* 正文与 AI 对话辅助栏；覆盖浮层以本行为定位上下文。
             横向 clip：辅助栏收起时滑出右缘，不撑出滚动区（纵向不裁，保留卡片阴影）。
             min-w-0 必需：clip 不是滚动容器，不会清零自动最小宽度，页面内容（nowrap 长标题等）
             的 min-content 会经隐式 auto 列轨道把整列连同标题栏撑出窗口 */}
