@@ -93,9 +93,10 @@ const markNodeIgnored = (element: Element) => {
 };
 
 /**
- * 等待异步媒体组件（LocalImage / LocalVideo / LocalAudio）完成 URL 解析并将标签渲染到 DOM
+ * 等待异步媒体组件（LocalImage / LocalVideo）完成 URL 解析并将标签渲染到 DOM
  *
- * 这些组件在异步解析 URL 期间返回 null，导致 DOM 中暂时不存在对应标签。
+ * 这些组件在异步解析 URL 期间返回 null，导致 DOM 中暂时不存在对应标签
+ * （LocalAudio 解析期间渲染加载占位，audio 标签始终存在）。
  * 通过轮询检测媒体标签的总数量是否稳定，来判断所有异步媒体组件是否已完成渲染。
  *
  * 这一步必须在 prepareCaptureNode 之前执行，否则：
@@ -236,7 +237,7 @@ export function useBoardCapture(board: Board): {
       }
 
       // 如果存在使用异步媒体组件的元素，等待它们完成 URL 解析并渲染到 DOM
-      // LocalImage / LocalVideo / LocalAudio 在解析期间返回 null，需要轮询等待
+      // LocalImage / LocalVideo 在解析期间返回 null，需要轮询等待
       const hasAsyncMedia = elements.some(
         el =>
           el.type === "image" || el.type === "card" || el.type === "video" || el.type === "audio"

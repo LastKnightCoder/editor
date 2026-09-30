@@ -35,6 +35,8 @@ export interface AudioSlotProps {
   controls?: boolean;
   label?: string;
   labelSlot?: ReactNode;
+  /** 生成该音频的原文（文本转语音），播放器据此显示「文本生成」标记与原文展开 */
+  sourceText?: string;
   className?: string;
   ref?: Ref<HTMLAudioElement>;
 }

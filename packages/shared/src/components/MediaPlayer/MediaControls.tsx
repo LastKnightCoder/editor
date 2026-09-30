@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { cn } from "@tau/ui";
+import { AnimatePresence, motion } from "motion/react";
 import {
   Check,
-  ChevronUp,
+  History,
   Maximize,
   Minimize,
   Pause,
@@ -14,13 +15,13 @@ import {
 } from "lucide-react";
 
 /**
- * 播放器的控件原子件（播放按钮/时间码/音量/倍速/画中画/全屏）。
- * 三套色板：surface 纸面底栏（视频常态）、float 深色浮层（视频全屏胶囊）、light 音频卡
+ * 播放器的控件原子件（播放按钮/时间码/音量/倍速/画中画/全屏/OSD/续播提示）。
+ * 两套色板：surface 纸面（视频底栏、音频卡）、float 深色浮层（视频全屏胶囊）
  */
 
 export const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
-export type MediaTone = "surface" | "float" | "light";
+export type MediaTone = "surface" | "float";
 
 interface ToneStyle {
   /** 图标按钮的尺寸与圆角 */
@@ -62,18 +63,6 @@ const TONES: Record<MediaTone, ToneStyle> = {
     fill: "bg-ink-inverse",
     knob: "bg-ink-inverse",
   },
-  light: {
-    iconBox: "size-7 rounded-full",
-    ghost: "text-gray-500 hover:bg-gray-200/70 dark:text-zinc-400 dark:hover:bg-zinc-700/70",
-    iconActive: "bg-gray-200/70 dark:bg-zinc-700/70",
-    time: "text-gray-500 dark:text-zinc-400",
-    pop: "border border-gray-200 bg-white text-gray-700 shadow-lg dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200",
-    popItem: "hover:bg-gray-100 dark:hover:bg-zinc-700/70",
-    popItemActive: "font-medium text-gray-900 dark:text-white",
-    track: "bg-gray-200 dark:bg-zinc-700",
-    fill: "bg-gray-800 dark:bg-zinc-300",
-    knob: "bg-white shadow-[0_0_0_2px_#1f2937] dark:shadow-[0_0_0_2px_#d4d4d8]",
-  },
 };
 
 const iconButtonClass = (tone: MediaTone, active = false) =>
@@ -88,12 +77,15 @@ export function PlayButton({
   playing,
   onToggle,
   tone,
+  size = "md",
 }: {
   playing: boolean;
   onToggle: () => void;
   tone: MediaTone;
+  size?: "md" | "lg";
 }) {
   const Icon = playing ? Pause : Play;
+  const large = size === "lg";
   return (
     <button
       type="button"
@@ -104,12 +96,15 @@ export function PlayButton({
         "grid shrink-0 place-items-center rounded-full",
         tone === "surface" &&
           "bg-accent text-ink-inverse hover:bg-accent-hover size-[30px] transition-colors",
-        tone === "float" && iconButtonClass("float"),
-        tone === "light" &&
-          "size-7 bg-gray-900 text-white transition-opacity hover:opacity-80 dark:bg-zinc-100 dark:text-gray-900"
+        tone === "surface" && large && "size-[42px]",
+        tone === "float" && iconButtonClass("float")
       )}
     >
-      <Icon size={14} className={playing ? undefined : "translate-x-px"} fill="currentColor" />
+      <Icon
+        size={large ? 18 : 14}
+        className={playing ? undefined : large ? "translate-x-0.5" : "translate-x-px"}
+        fill="currentColor"
+      />
     </button>
   );
 }
@@ -126,8 +121,7 @@ export function TimeCode({
   return (
     <span
       className={cn(
-        "shrink-0 whitespace-nowrap tabular-nums leading-none",
-        tone === "light" ? "font-mono text-[11px]" : "font-tau-mono text-tau-sm",
+        "font-tau-mono text-tau-sm shrink-0 whitespace-nowrap tabular-nums leading-none",
         TONES[tone].time,
         className
       )}
@@ -348,26 +342,19 @@ export function RateMenu({
         aria-expanded={open}
         onClick={() => setOpen(!open)}
         className={cn(
-          "flex items-center gap-0.5 px-2 transition-colors",
-          tone === "light"
-            ? "h-7 rounded-full font-mono text-[11px]"
-            : "rounded-tau-sm font-tau-mono text-tau-sm h-[26px]",
+          "rounded-tau-sm font-tau-mono text-tau-sm flex h-[26px] items-center px-2 transition-colors",
           styles.ghost,
           open && styles.iconActive
         )}
       >
         {rate}×
-        {tone === "light" && (
-          <ChevronUp size={12} className={cn("transition-transform", !open && "rotate-180")} />
-        )}
       </button>
       {open && (
         <div
           role="listbox"
           aria-label="播放速度"
           className={cn(
-            "absolute bottom-full right-0 z-30 mb-2 flex min-w-[88px] flex-col gap-0.5 p-1",
-            tone === "light" ? "rounded-xl" : "rounded-tau-sm",
+            "rounded-tau-sm absolute bottom-full right-0 z-30 mb-2 flex min-w-[88px] flex-col gap-0.5 p-1",
             styles.pop
           )}
         >
@@ -382,8 +369,7 @@ export function RateMenu({
                 setOpen(false);
               }}
               className={cn(
-                "flex items-center justify-between gap-3 rounded-[6px] px-2 py-1 transition-colors",
-                tone === "light" ? "font-mono text-[11px]" : "font-tau-mono text-tau-sm",
+                "font-tau-mono text-tau-sm flex items-center justify-between gap-3 rounded-[6px] px-2 py-1 transition-colors",
                 styles.popItem,
                 rate === option && styles.popItemActive
               )}
@@ -449,3 +435,47 @@ export const mediaToneTrack = (tone: MediaTone) => ({
   fill: TONES[tone].fill,
   knob: TONES[tone].knob,
 });
+
+/** 键盘操作反馈条：浮在播放器（画面或卡片）正中，淡入淡出 */
+export function MediaOsd({ osd }: { osd: { text: string; id: number } | null }) {
+  return (
+    <AnimatePresence>
+      {osd && (
+        <motion.div
+          key={osd.id}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.12 }}
+          className="bg-ink-1 text-ink-inverse shadow-float text-tau-meta pointer-events-none absolute left-1/2 top-1/2 z-30 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full px-3.5 py-1.5 font-semibold tabular-nums"
+        >
+          {osd.text}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+/** 续播提示：「已从上次的 xx 继续 · 从头播放」 */
+export function ResumeNotice({
+  label,
+  onRestart,
+}: {
+  /** 已格式化的续播位置 */
+  label: string;
+  onRestart: () => void;
+}) {
+  return (
+    <span className="text-accent-text flex min-w-0 items-center gap-1.5">
+      <History size={13} className="shrink-0" />
+      <span className="truncate">已从上次的 {label} 继续</span>
+      <button
+        type="button"
+        onClick={onRestart}
+        className="text-ink-2 hover:text-ink-1 shrink-0 underline underline-offset-[3px]"
+      >
+        从头播放
+      </button>
+    </span>
+  );
+}

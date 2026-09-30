@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>音频播放器 · UI 与交互升级 mockup</title>
+<style>
+  /* 取值同 packages/themes/src/tokens.css（mint / paper × light / dark） */
+  [data-theme="mint"][data-mode="light"] {
+    --page:#eef4ee; --surface:#fbfefb; --sunken:#d9e6da; --track:#d4dfd5;
+    --hover:rgba(46,61,49,.05); --press:rgba(46,61,49,.09);
+    --ink-1:#2e3d31; --ink-2:#526350; --ink-3:#a5b3a3; --ink-inv:#f6fbf7;
+    --line-1:#dfe9df;
+    --accent:hsl(153 40% 33%); --accent-hover:hsl(153 40% 26%); --accent-soft:hsla(153,40%,33%,.12); --accent-text:#2f6b50;
+    --ring:0 0 0 3px rgba(74,157,120,.28);
+    --danger:#b0584f; --danger-soft:#f5e3e0;
+    --shadow-float:0 16px 40px -12px rgba(60,90,70,.4); --shadow-card:0 1px 2px rgba(60,90,70,.06),0 10px 24px -14px rgba(60,90,70,.2);
+    --tip-bg:#2e3d31; --tip-ink:#f6fbf7; --tile-l:84%; --tile-s:42%;
+  }
+  [data-theme="mint"][data-mode="dark"] {
+    --page:#151b18; --surface:#1e2521; --sunken:#0a0f0c; --track:#34403a;
+    --hover:rgba(224,234,227,.06); --press:rgba(224,234,227,.11);
+    --ink-1:#e0eae3; --ink-2:#98a69c; --ink-3:#728078; --ink-inv:#0f1612;
+    --line-1:#29322d;
+    --accent:hsl(155 36% 58%); --accent-hover:hsl(155 36% 65%); --accent-soft:hsla(155,36%,58%,.16); --accent-text:hsl(155 42% 64%);
+    --ring:0 0 0 3px hsla(155,36%,58%,.4);
+    --danger:#df8a80; --danger-soft:#35211e;
+    --shadow-float:0 16px 40px -12px rgba(0,0,0,.65); --shadow-card:0 1px 2px rgba(0,0,0,.24),0 10px 24px -14px rgba(0,0,0,.5);
+    --tip-bg:#e0eae3; --tip-ink:#0f1612; --tile-l:30%; --tile-s:24%;
+  }
+  [data-theme="paper"][data-mode="light"] {
+    --page:#f3eee2; --surface:#fffdf9; --sunken:#e7dbc8; --track:#e0d6c3;
+    --hover:rgba(67,57,44,.05); --press:rgba(67,57,44,.09);
+    --ink-1:#43392c; --ink-2:#6a5c49; --ink-3:#a89a85; --ink-inv:#fff8ef;
+    --line-1:#e9e1d2;
+    --accent:hsl(22 58% 42%); --accent-hover:hsl(22 58% 35%); --accent-soft:hsla(22,58%,42%,.12); --accent-text:#a05236;
+    --ring:0 0 0 3px rgba(217,119,87,.28);
+    --danger:#b0564d; --danger-soft:#f6e3e0;
+    --shadow-float:0 16px 40px -12px rgba(120,100,70,.4); --shadow-card:0 1px 2px rgba(120,100,70,.05),0 10px 24px -14px rgba(120,100,70,.18);
+    --tip-bg:#43392c; --tip-ink:#fff8ef; --tile-l:84%; --tile-s:46%;
+  }
+  [data-theme="paper"][data-mode="dark"] {
+    --page:#221d16; --surface:#2e2820; --sunken:#100d08; --track:#463d31;
+    --hover:rgba(236,226,208,.06); --press:rgba(236,226,208,.11);
+    --ink-1:#ece2d0; --ink-2:#a89a85; --ink-3:#857768; --ink-inv:#241a10;
+    --line-1:#3a3227;
+    --accent:hsl(22 62% 65%); --accent-hover:hsl(22 62% 72%); --accent-soft:hsla(22,62%,65%,.16); --accent-text:hsl(22 66% 70%);
+    --ring:0 0 0 3px hsla(22,62%,65%,.4);
+    --danger:#d97e66; --danger-soft:#34201a;
+    --shadow-float:0 16px 40px -12px rgba(0,0,0,.65); --shadow-card:0 1px 2px rgba(0,0,0,.24),0 10px 24px -14px rgba(0,0,0,.5);
+    --tip-bg:#ece2d0; --tip-ink:#241a10; --tile-l:32%; --tile-s:26%;
+  }
+
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html { background:var(--page); color:var(--ink-1); }
+  body {
+    font:14px/1.7 -apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased; padding:36px 5vw 160px; transition:background .2s;
+  }
+  .mono { font-family:ui-monospace,"Cascadia Mono",Consolas,Menlo,monospace; }
+  button { font:inherit; color:inherit; background:none; border:0; cursor:pointer; }
+  svg { display:block; flex:none; }
+
+  .top { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+  .top h1 { font-size:21px; font-weight:600; }
+  .top p { color:var(--ink-2); font-size:13.5px; margin-top:4px; max-width:88ch; }
+  .switch { display:flex; gap:4px; padding:3px; border-radius:10px; border:1px solid var(--line-1); background:var(--surface); }
+  .switch button { padding:3px 12px; border-radius:7px; font-size:12.5px; color:var(--ink-2); }
+  .switch button.on { background:var(--accent-soft); color:var(--accent-text); font-weight:500; }
+  .switches { display:flex; gap:10px; }
+
+  section { margin-top:64px; }
+  section > h2 { font-size:16px; font-weight:600; display:flex; align-items:baseline; gap:10px; }
+  section > h2 .no { font:600 12.5px ui-monospace,monospace; color:var(--accent-text); }
+  .desc { color:var(--ink-2); font-size:13.5px; max-width:90ch; margin:6px 0 22px; }
+  .desc b { color:var(--ink-1); font-weight:600; }
+  .notes { color:var(--ink-2); font-size:13px; padding-left:18px; max-width:90ch; margin-top:22px; }
+  .notes li { margin:3px 0; } .notes b { color:var(--ink-1); font-weight:600; }
+
+  .paper { background:var(--surface); border-radius:16px; box-shadow:var(--shadow-card); padding:40px 0 44px; }
+  .doc { max-width:720px; margin:0 auto; padding:0 32px; font-size:15px; line-height:1.9; }
+  .doc h3 { font-size:20px; font-weight:600; margin-bottom:10px; }
+  .doc .ap { margin:20px 0; }
+  .hint { font-size:12.5px; color:var(--ink-3); margin-top:14px; }
+  .hint kbd, .keys kbd, .desc kbd {
+    font:500 11.5px ui-monospace,monospace; padding:1px 6px; border-radius:5px;
+    background:var(--surface); border:1px solid var(--line-1); color:var(--ink-2);
+  }
+
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(440px,1fr)); gap:36px 32px; margin-top:32px; align-items:start; }
+  .spec > .lbl { font-size:13px; font-weight:600; margin-bottom:2px; }
+  .spec > .sub { font-size:12.5px; color:var(--ink-2); margin-bottom:12px; min-height:1.7em; }
+  .spec.narrow .ap { width:300px; }
+
+  /* ════ 通用控件（与视频底栏同一套） ════ */
+  .ap {
+    position:relative; background:var(--surface); border-radius:14px; box-shadow:var(--shadow-card); outline:none;
+    container-type:inline-size;
+    --c-fg:var(--ink-2); --c-fg-strong:var(--ink-1); --c-hover:var(--hover);
+    --c-track:var(--track); --c-buf:color-mix(in srgb,var(--accent) 22%,var(--track));
+    --c-fill:var(--accent); --c-pop:var(--surface);
+  }
+  .ap:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+  .ib { width:30px; height:30px; display:grid; place-items:center; border-radius:8px; color:var(--c-fg); flex:none; transition:background .15s,color .15s; }
+  .ib:hover { background:var(--c-hover); color:var(--c-fg-strong); }
+  .chip { height:26px; padding:0 8px; border-radius:7px; font-size:12px; color:var(--c-fg); flex:none; transition:background .15s,color .15s; }
+  .chip:hover, .rate-open .chip.rate-btn { background:var(--c-hover); color:var(--c-fg-strong); }
+  .tc { font-size:12px; color:var(--c-fg); font-variant-numeric:tabular-nums; white-space:nowrap; flex:none; }
+  .tc b { font-weight:500; color:var(--c-fg-strong); }
+  .play { width:32px; height:32px; border-radius:50%; display:grid; place-items:center; background:var(--accent); color:var(--ink-inv); flex:none; transition:background .15s; }
+  .play:hover { background:var(--accent-hover); }
+  .play .i-play { transform:translateX(1px); }
+  .play.lg { width:42px; height:42px; }
+  .play.lg .i-play { transform:translateX(2px); }
+  .i-pause, .playing .i-play { display:none; }
+  .playing .i-pause { display:block; }
+  .i-mute, .muted .i-vol { display:none; }
+  .muted .i-mute { display:block; }
+
+  .seek { position:relative; height:14px; display:flex; align-items:center; cursor:pointer; touch-action:none; }
+  .seek .track { position:relative; width:100%; height:4px; border-radius:99px; background:var(--c-track); overflow:hidden; transition:transform .15s; }
+  .seek:hover .track, .seek.drag .track { transform:scaleY(1.5); }
+  .seek .buf { position:absolute; inset:0 auto 0 0; width:70%; background:var(--c-buf); }
+  .seek .fill { position:absolute; inset:0 auto 0 0; width:22%; background:var(--c-fill); border-radius:99px; }
+  .seek .knob { position:absolute; top:50%; left:22%; width:12px; height:12px; margin:-6px 0 0 -6px; border-radius:50%; background:var(--c-fill); box-shadow:0 1px 3px rgba(0,0,0,.3); transform:scale(0); transition:transform .15s; z-index:2; }
+  .seek:hover .knob, .seek.drag .knob, .tipdemo .knob { transform:scale(1); }
+  .stip { position:absolute; bottom:calc(100% + 8px); left:40%; transform:translateX(-50%); display:none; padding:3px 8px; border-radius:8px; background:var(--tip-bg); color:var(--tip-ink); box-shadow:var(--shadow-float); pointer-events:none; z-index:8; font-size:11.5px; white-space:nowrap; }
+  .stip small { opacity:.7; margin-left:6px; font-size:11px; }
+  .seek.tipon .stip, .seek.drag .stip, .tipdemo .stip { display:block; }
+  .tick { position:absolute; top:50%; width:2px; height:10px; margin:-5px 0 0 -1px; border-radius:1px; background:var(--surface); z-index:1; pointer-events:none; }
+
+  .vol { position:relative; flex:none; }
+  .vol-pop { position:absolute; bottom:100%; left:50%; transform:translateX(-50%); padding-bottom:8px; opacity:0; pointer-events:none; transition:opacity .15s; z-index:8; }
+  .vol:hover .vol-pop, .vol.open .vol-pop { opacity:1; pointer-events:auto; }
+  .vbox { width:36px; height:118px; border-radius:10px; background:var(--c-pop); box-shadow:var(--shadow-float); display:flex; flex-direction:column; align-items:center; gap:8px; padding:12px 0 8px; }
+  .vtrack { position:relative; flex:1; width:4px; border-radius:99px; background:var(--c-track); cursor:pointer; touch-action:none; }
+  .vtrack::before { content:""; position:absolute; inset:0 -12px; }
+  .vfill { position:absolute; left:0; right:0; bottom:0; height:70%; border-radius:99px; background:var(--c-fill); }
+  .vknob { position:absolute; left:50%; bottom:70%; width:12px; height:12px; margin:0 0 -6px -6px; border-radius:50%; background:var(--c-fill); box-shadow:0 1px 3px rgba(0,0,0,.3); }
+  .vbox .mono { font-size:10.5px; color:var(--c-fg); }
+
+  .rate { position:relative; flex:none; }
+  .rate-menu { position:absolute; bottom:calc(100% + 8px); right:-6px; display:none; padding:4px; border-radius:10px; background:var(--c-pop); box-shadow:var(--shadow-float); z-index:8; min-width:88px; }
+  .rate-open .rate-menu, .ratedemo .rate-menu { display:block; }
+  .rate-menu button { display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; padding:3px 8px; border-radius:6px; font-size:12px; color:var(--c-fg); }
+  .rate-menu button:hover { background:var(--c-hover); color:var(--c-fg-strong); }
+  .rate-menu button.on { color:var(--c-fg-strong); font-weight:600; }
+  .rate-menu button svg { visibility:hidden; } .rate-menu button.on svg { visibility:visible; }
+
+  .osd { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); padding:5px 14px; border-radius:99px; background:var(--tip-bg); color:var(--tip-ink); font-size:12.5px; font-weight:600; box-shadow:var(--shadow-float); pointer-events:none; opacity:0; transition:opacity .12s; z-index:9; white-space:nowrap; }
+  .osd.show { opacity:1; }
+
+  .ttl { font-size:14px; font-weight:500; color:var(--ink-1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border-radius:6px; padding:0 4px; margin-left:-4px; outline:none; }
+  .editable .ttl { cursor:text; }
+  .editable .ttl:hover { background:var(--hover); }
+  .editable .ttl:focus, .ttl.editing { background:var(--surface); box-shadow:0 0 0 1px var(--line-1), var(--ring); text-overflow:clip; }
+  .meta { font-size:12px; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; align-items:center; gap:6px; }
+  .meta .resumed { color:var(--accent-text); display:flex; align-items:center; gap:5px; }
+  .meta .resumed button { color:var(--ink-2); text-decoration:underline; text-underline-offset:3px; font-size:12px; }
+  .gen { font-size:11px; color:var(--ink-2); padding:0 6px; border-radius:6px; border:1px solid var(--line-1); line-height:18px; flex:none; }
+  .src-btn { font-size:12px; color:var(--ink-2); display:flex; align-items:center; gap:2px; padding:0 4px; border-radius:6px; }
+  .src-btn:hover { background:var(--hover); color:var(--ink-1); }
+  .src-btn svg { transition:transform .15s; } .text-open .src-btn svg { transform:rotate(180deg); }
+  .srctext { display:none; margin:0 14px 12px; padding:10px 12px; border-radius:10px; background:var(--hover); font-size:13px; line-height:1.8; color:var(--ink-2); }
+  .text-open .srctext { display:block; }
+
+  /* ════ A 单行条 ════ */
+  .aa .row { display:flex; align-items:center; gap:2px; height:64px; padding:0 10px 0 14px; }
+  .aa .mid { flex:1; min-width:0; margin:0 14px 0 12px; display:flex; flex-direction:column; gap:1px; }
+  .aa .mid .line1 { display:flex; align-items:center; gap:8px; min-width:0; }
+  .aa .seek { margin-top:1px; }
+  .aa .tc { margin-right:6px; }
+  @container (max-width:400px) { .aa .tc .dur, .aa .gen { display:none; } .aa .rate { display:none; } }
+
+  /* ════ B 波形卡 ════ */
+  .ab { padding:14px 12px 12px 16px; }
+  .ab .head { display:flex; align-items:center; gap:2px; }
+  .ab .head .mid { flex:1; min-width:0; margin:0 12px; }
+  .ab .head .line1 { display:flex; align-items:center; gap:8px; min-width:0; }
+  .ab .wrow { display:flex; align-items:center; gap:12px; margin-top:10px; padding-right:4px; }
+  .wave { position:relative; flex:1; height:40px; cursor:pointer; touch-action:none; }
+  .wave .bars { position:absolute; inset:0; display:flex; align-items:center; gap:2px; }
+  .wave .bars i { flex:1; min-width:1px; border-radius:2px; background:var(--track); }
+  .wave .bars.played i { background:var(--accent); }
+  .wave .bars.played { clip-path:inset(0 78% 0 0); }
+  .wave .hoverline { position:absolute; top:0; bottom:0; width:1px; background:var(--ink-2); opacity:0; pointer-events:none; }
+  .wave:hover .hoverline { opacity:.5; }
+  .wave .stip { bottom:calc(100% + 6px); }
+  .wave.tipon .stip, .wave.drag .stip, .tipdemo .wave .stip { display:block; }
+  @container (max-width:400px) { .ab .rate { display:none; } .ab .meta .dot2 { display:none; } }
+
+  /* ════ C 播客卡 ════ */
+  .ac { padding:16px 16px 12px; }
+  .ac .head { display:flex; align-items:center; gap:14px; }
+  .tile { width:52px; height:52px; border-radius:12px; flex:none; display:grid; place-items:center; color:color-mix(in srgb,var(--ink-1) 55%,transparent); background:linear-gradient(135deg,hsl(var(--h) var(--tile-s) var(--tile-l)),hsl(calc(var(--h) + 38) var(--tile-s) calc(var(--tile-l) - 8%))); }
+  .tile.cover { background:linear-gradient(160deg,#e9b98f,#9c6c7f 60%,#3f4460); color:transparent; }
+  .ac .head .mid { flex:1; min-width:0; }
+  .ac .head .line1 { display:flex; align-items:center; gap:8px; min-width:0; }
+  .ac .prog { margin-top:12px; }
+  .ac .times { display:flex; justify-content:space-between; margin-top:1px; }
+  .ac .ctrl { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; margin-top:2px; }
+  .ac .ctrl .l { display:flex; align-items:center; gap:2px; }
+  .ac .ctrl .c { display:flex; align-items:center; gap:14px; }
+  .ac .ctrl .r { display:flex; justify-content:flex-end; }
+  .skip { position:relative; width:34px; height:34px; border-radius:50%; display:grid; place-items:center; color:var(--ink-2); }
+  .skip:hover { background:var(--hover); color:var(--ink-1); }
+  .skip span { position:absolute; font:700 8.5px/1 ui-monospace,monospace; top:50%; left:50%; transform:translate(-50%,-38%); }
+  .chap { font-size:12px; color:var(--ink-2); margin-left:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  @container (max-width:400px) { .ac .chap { display:none; } .ac .ctrl .c { gap:6px; } }
+
+  /* ════ 现状复刻 ════ */
+  .cur { display:flex; align-items:center; gap:14px; border-radius:12px; border:1px solid #e5e7eb; background:#f9fafb; padding:14px 16px; color:#1f2937; }
+  [data-mode="dark"] .cur { border-color:#3f3f46; background:rgba(39,39,42,.5); color:#e4e4e7; }
+  .cur .tl { width:44px; height:44px; border-radius:8px; background:rgba(229,231,235,.8); display:grid; place-items:center; color:#4b5563; flex:none; }
+  [data-mode="dark"] .cur .tl { background:rgba(63,63,70,.6); color:#d4d4d8; }
+  .cur .b { flex:1; min-width:0; }
+  .cur .t { font-size:14px; font-weight:500; margin-bottom:6px; }
+  .cur .r { display:flex; align-items:center; gap:10px; font:11px ui-monospace,monospace; color:#6b7280; }
+  .cur .pb { width:28px; height:28px; border-radius:50%; background:#111827; color:#fff; display:grid; place-items:center; flex:none; }
+  [data-mode="dark"] .cur .pb { background:#f4f4f5; color:#111827; }
+  .cur .bar { flex:1; height:4px; border-radius:99px; background:#e5e7eb; position:relative; }
+  [data-mode="dark"] .cur .bar { background:#3f3f46; }
+  .cur .bar i { position:absolute; inset:0 auto 0 0; width:22%; border-radius:99px; background:#1f2937; }
+  [data-mode="dark"] .cur .bar i { background:#d4d4d8; }
+  .cur-wrap { display:grid; grid-template-columns:minmax(360px,520px) 1fr; gap:36px; align-items:start; }
+  .issues { color:var(--ink-2); font-size:13px; padding-left:18px; }
+  .issues li { margin:4px 0; } .issues b { color:var(--ink-1); font-weight:600; }
+  .cur-note { margin-top:18px; }
+  .cur-note .lbl { font-size:12.5px; color:var(--ink-3); margin-bottom:8px; }
+  .cur2 { border:1px solid var(--line-1); border-radius:16px; padding:18px; display:flex; flex-direction:column; gap:12px; }
+  .cur2 .ctl { display:flex; justify-content:center; align-items:center; gap:14px; }
+
+  /* 加载 / 失败 */
+  .ap .play.busy { background:var(--accent-soft); cursor:default; }
+  .spin { width:14px; height:14px; border-radius:50%; border:2px solid color-mix(in srgb,var(--accent) 25%,transparent); border-top-color:var(--accent); animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .play.err { background:var(--danger-soft); color:var(--danger); cursor:default; }
+  .btn { height:26px; padding:0 10px; border-radius:7px; font-size:12px; background:var(--accent); color:var(--ink-inv); flex:none; }
+  .ghost-track { height:4px; border-radius:99px; background:var(--track); margin-top:6px; }
+
+  .keys { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:10px 28px; background:var(--surface); border-radius:14px; box-shadow:var(--shadow-card); padding:20px 24px; font-size:13px; }
+  .keys div { display:flex; justify-content:space-between; gap:12px; color:var(--ink-2); }
+  .keys div span:last-child { display:flex; gap:4px; }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div>
+    <h1>音频播放器 · UI 与交互升级</h1>
+    <p>编辑器音频块、markdown 窗口、Vibe Learning 预览、blog、mobile、浏览器扩展共用 <span class="mono">@tau/shared</span> 的 AudioPlayer。三套方向都沿用视频播放器 A 的语言：纸面卡片、accent 播放按钮、同一套音量 / 倍速 / 进度控件，区别在信息密度和音频自己的视觉主体（进度线 / 波形 / 封面）。每套的文档内播放器都能点、能拖、能用键盘。</p>
+  </div>
+  <div class="switches">
+    <div class="switch" data-k="theme"><button data-v="paper" class="on">paper</button><button data-v="mint">mint</button></div>
+    <div class="switch" data-k="mode"><button data-v="light" class="on">浅色</button><button data-v="dark">深色</button></div>
+  </div>
+</div>
+
+<!-- ─── 现状 ─── -->
+<section>
+  <h2><span class="no">00</span>现状</h2>
+  <p class="desc">上：编辑器音频块（shared AudioPlayer，light 色板）。下：音频笔记里另一套自绘播放器。</p>
+  <div class="cur-wrap">
+    <div>
+      <div id="cur"></div>
+      <div class="cur-note"><div class="lbl">音频笔记（AudioNoteView 私有 AudioPlayer）</div><div id="cur2"></div></div>
+    </div>
+    <ul class="issues">
+      <li><b>皮肤没跟上新语言</b>：灰底 + 灰描边卡片（gray-50 / gray-200）、黑白实心播放钮，不吃主题，和刚做完的视频纸面卡片放在同一篇文档里会割裂。</li>
+      <li><b>两套播放器</b>：音频笔记自己画了一套（±10s、章节刻度、封面），倍速档位（含 1.75×）、进度条、按钮样式都和编辑器那套不同。</li>
+      <li><b>标题输入框聚焦时底色跳变</b>：常态透明、聚焦灰底，和「输入框常态与聚焦同底色」的偏好相反。</li>
+      <li><b>文本生成的音频看不到原文</b>：TTS 插入时存了 <span class="mono">audioText</span>，界面上没有任何入口。</li>
+      <li><b>缺交互</b>：进度条没有悬停时间；没有快捷键；续播只在 LocalAudio 里静默发生，用户不知道被跳过去了。</li>
+      <li><b>加载与失败不可见</b>：LocalAudio 解析地址期间返回 null，块会凭空消失再出现；播放失败没有提示，时长停在 0:00。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ─── A ─── -->
+<section>
+  <h2><span class="no">A</span>单行条</h2>
+  <p class="desc">一张 64px 高的纸面条：左侧 accent 播放钮，中间标题在上、进度线在下，右侧时间、音量、倍速。<b>和视频底栏是同一行控件</b>，只是把画面换成了标题。</p>
+  <div class="paper"><div class="doc" data-demo="a"></div></div>
+  <div class="grid" data-specs="a"></div>
+  <ul class="notes">
+    <li><b>优点</b>：占位最小，一段录音就是一行，不打断阅读；和视频卡片同构，同一篇文档里视频、音频是一家人；实现成本最低。</li>
+    <li><b>代价</b>：没有「看得见的声音」，长音频（播客、讲座）和 3 秒的语音片段长得一样；标题和进度挤在一列，窄宽度下标题更短。</li>
+  </ul>
+</section>
+
+<!-- ─── B ─── -->
+<section>
+  <h2><span class="no">B</span>波形卡</h2>
+  <p class="desc">标题行下面是一条<b>真实波形</b>（解码音频算出的峰值），波形本身就是进度条：已播放部分染 accent，悬停出现竖线和时间。像语音备忘录 / 录音笔。</p>
+  <div class="paper"><div class="doc" data-demo="b"></div></div>
+  <div class="grid" data-specs="b"></div>
+  <ul class="notes">
+    <li><b>优点</b>：一眼能看出哪里有人说话、哪里是停顿，按波形拖到想听的那段；辨识度最高，最有「音频」的样子。</li>
+    <li><b>代价</b>：波形要把整段音频解码一遍——按 8kHz 单声道离线解码，1 小时音频约 115MB 瞬时内存，结果按地址缓存；超过 30 分钟或远程未缓存的音频退回普通进度线（见标本「长音频」）。首次打开有一次计算，先显示空轨道再淡入。</li>
+  </ul>
+</section>
+
+<!-- ─── C ─── -->
+<section>
+  <h2><span class="no">C</span>播客卡</h2>
+  <p class="desc">左侧方形封面（有封面用封面，没有就按标题派生一块粉彩色块），右侧标题 + 来源；下面是带章节刻度的进度条和居中的「后退 15 秒 · 播放 · 前进 15 秒」。<b>可以同时替换音频笔记那套自绘播放器</b>，两处合成一个组件。</p>
+  <div class="paper"><div class="doc" data-demo="c"></div></div>
+  <div class="grid" data-specs="c"></div>
+  <ul class="notes">
+    <li><b>优点</b>：长音频体验最好（±15 秒、章节刻度与当前章节名）；音频笔记与编辑器共用一套，消掉第二个播放器；派生色封面让每段音频有自己的颜色。</li>
+    <li><b>代价</b>：约 150px 高，文档里放一段 5 秒的语音显得隆重；三行结构在窄栏里要收起章节名。</li>
+  </ul>
+</section>
+
+<!-- ─── 通用 ─── -->
+<section>
+  <h2><span class="no">+</span>交互升级（三案通用）</h2>
+  <p class="desc">与选哪一案无关的能力，控件与视频播放器是同一套。标本统一用 A 展示。</p>
+  <div class="grid" id="common"></div>
+
+  <h2 style="margin-top:48px"><span class="no">⌨</span>快捷键</h2>
+  <p class="desc">与视频一致：只在播放器<b>获得焦点</b>时生效，带 ⌘ / Ctrl / Alt 的组合键和输入法组合放行；标题正在编辑时不拦截任何按键。音频没有画面，反馈条浮在卡片中央。</p>
+  <div class="keys">
+    <div><span>播放 / 暂停</span><span><kbd>Space</kbd><kbd>K</kbd></span></div>
+    <div><span>后退 / 前进 5 秒</span><span><kbd>←</kbd><kbd>→</kbd></span></div>
+    <div><span>后退 / 前进 10 秒</span><span><kbd>J</kbd><kbd>L</kbd></span></div>
+    <div><span>音量 ±10%</span><span><kbd>↑</kbd><kbd>↓</kbd></span></div>
+    <div><span>静音</span><span><kbd>M</kbd></span></div>
+    <div><span>减速 / 加速</span><span><kbd>&lt;</kbd><kbd>&gt;</kbd></span></div>
+    <div><span>跳到 0%–90%</span><span><kbd>0</kbd>…<kbd>9</kbd></span></div>
+  </div>
+</section>
+
+<script>
+const fmt = t => {
+  t = Math.max(0, Math.floor(t));
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
+  return h ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`;
+};
+const svg = (d, { size = 16, fill = false, cls = "" } = {}) =>
+  `<svg class="${cls}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="${fill ? "currentColor" : "none"}" stroke="${fill ? "none" : "currentColor"}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const P = {
+  play: '<path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z"/>',
+  pause: '<rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/>',
+  vol: '<path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6A1.4 1.4 0 0 1 5.4 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19.4 18.4a9 9 0 0 0 0-12.8"/>',
+  mute: '<path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6A1.4 1.4 0 0 1 5.4 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5z"/><line x1="22" x2="16" y1="9" y2="15"/><line x1="16" x2="22" y1="9" y2="15"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  hist: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
+  alert: '<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>',
+  lines: '<path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/>',
+  back: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+  fwd: '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
+  down: '<path d="m6 9 6 6 6-6"/>',
+  mic: '<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/>',
+};
+const RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
+
+// ── 控件件 ──
+const toggleIcons = (size = 14) => svg(P.play, { size, fill: true, cls: "i-play" }) + svg(P.pause, { size, fill: true, cls: "i-pause" });
+const playBtn = (lg = false) => `<button class="play${lg ? " lg" : ""}" data-role="toggle" title="播放 / 暂停 (K)">${toggleIcons(lg ? 18 : 14)}</button>`;
+const seek = (ticks = []) => `
+  <div class="seek" data-role="seek">
+    <div class="track"><i class="buf"></i><i class="fill" data-role="fill"></i></div>
+    ${ticks.map(t => `<i class="tick" style="left:${t}%"></i>`).join("")}
+    <i class="knob" data-role="knob"></i>
+    <div class="stip" data-role="tip"><span class="mono" data-role="tiptime">0:58</span></div>
+  </div>`;
+const vol = (open = false) => `
+  <div class="vol${open ? " open" : ""}">
+    <button class="ib" data-role="mute" title="静音 (M)">${svg(P.vol, { size: 15, cls: "i-vol" })}${svg(P.mute, { size: 15, cls: "i-mute" })}</button>
+    <div class="vol-pop"><div class="vbox"><div class="vtrack" data-role="vtrack"><i class="vfill" data-role="vfill"></i><i class="vknob" data-role="vknob"></i></div><span class="mono" data-role="vnum">70</span></div></div>
+  </div>`;
+const rate = () => `
+  <div class="rate">
+    <button class="chip mono rate-btn" data-role="rate" title="播放速度">1×</button>
+    <div class="rate-menu">${RATES.map(r => `<button class="mono${r === 1 ? " on" : ""}" data-rate="${r}">${r}×${svg(P.check, { size: 12 })}</button>`).join("")}</div>
+  </div>`;
+const title = (text, editable = true) => `<span class="ttl"${editable ? ' contenteditable="plaintext-only" spellcheck="false"' : ""}>${text}</span>`;
+
+// 以文本派生色相：同一段音频永远同一色
+const hueOf = s => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 17);
+// 仅 mockup 用的示意波形（产品里取解码峰值，不造数据）
+const peaks = (n, seed) => Array.from({ length: n }, (_, i) => {
+  const x = Math.sin(i * 0.37 + seed) * 0.5 + Math.sin(i * 0.11 + seed * 2) * 0.35 + Math.sin(i * 1.7 + seed) * 0.15;
+  const pause = (i % 37 > 31) ? 0.15 : 1;
+  return Math.max(0.08, Math.min(1, (0.45 + x * 0.5) * pause));
+});
+
+const DEFAULT = { t: 43, dur: 195, name: "访谈录音 · 张老师谈以教代学.m4a", meta: "本地文件" };
+
+function audioA(o = {}) {
+  const { cls = "", t, dur, name, meta, extraMeta = "", gen = false, text = "" } = { ...DEFAULT, ...o };
+  return `
+  <div class="ap aa editable ${cls}" data-t="${t}" data-dur="${dur}" tabindex="0">
+    <div class="row">
+      ${playBtn()}
+      <div class="mid">
+        <div class="line1">${title(name)}${gen ? `<span class="gen">文本生成</span><button class="src-btn" data-role="srctoggle">原文${svg(P.down, { size: 13 })}</button>` : ""}${extraMeta}</div>
+        ${seek()}
+      </div>
+      <span class="tc"><b data-role="cur">${fmt(t)}</b><span class="dur"> / ${fmt(dur)}</span></span>
+      ${vol()}${rate()}
+    </div>
+    ${text ? `<div class="srctext">${text}</div>` : ""}
+    <div class="osd" data-role="osd"></div>
+  </div>`;
+}
+function audioB(o = {}) {
+  const { cls = "", t, dur, name, meta, long = false } = { ...DEFAULT, ...o };
+  const bars = peaks(96, name.length).map(v => `<i style="height:${Math.round(v * 100)}%"></i>`).join("");
+  const body = long
+    ? `<div class="wrow"><span class="tc"><b data-role="cur">${fmt(t)}</b></span><div style="flex:1">${seek()}</div><span class="tc">${fmt(dur)}</span></div>`
+    : `<div class="wrow"><span class="tc"><b data-role="cur">${fmt(t)}</b></span>
+        <div class="wave" data-role="seek"><div class="bars">${bars}</div><div class="bars played" data-role="played">${bars}</div><i class="hoverline" data-role="hline"></i><div class="stip" data-role="tip"><span class="mono" data-role="tiptime">0:58</span></div></div>
+        <span class="tc">${fmt(dur)}</span></div>`;
+  return `
+  <div class="ap ab editable ${cls}" data-t="${t}" data-dur="${dur}" tabindex="0">
+    <div class="head">
+      ${playBtn(true)}
+      <div class="mid">
+        <div class="line1">${title(name)}</div>
+        <div class="meta"><span>${meta}</span><span class="dot2">· ${fmt(dur)}</span>${long ? "<span>· 超过 30 分钟，不绘制波形</span>" : ""}</div>
+      </div>
+      ${vol()}${rate()}
+    </div>
+    ${body}
+    <div class="osd" data-role="osd"></div>
+  </div>`;
+}
+function audioC(o = {}) {
+  const { cls = "", t, dur, name, meta, chapters = [], cover = false } = { ...DEFAULT, ...o };
+  const ticks = chapters.map(c => (c.at / dur) * 100);
+  const curChap = chapters.filter(c => c.at <= t).pop();
+  return `
+  <div class="ap ac editable ${cls}" data-t="${t}" data-dur="${dur}" tabindex="0">
+    <div class="head">
+      <span class="tile${cover ? " cover" : ""}" style="--h:${hueOf(name)}">${svg(P.lines, { size: 20 })}</span>
+      <div class="mid">
+        <div class="line1">${title(name)}</div>
+        <div class="meta"><span>${meta}</span><span>· ${fmt(dur)}</span></div>
+      </div>
+    </div>
+    <div class="prog">${seek(ticks)}
+      <div class="times"><span class="tc"><b data-role="cur">${fmt(t)}</b></span><span class="tc">-${fmt(dur - t)}</span></div>
+    </div>
+    <div class="ctrl">
+      <div class="l">${rate()}${curChap ? `<span class="chap">${curChap.title}</span>` : ""}</div>
+      <div class="c">
+        <button class="skip" data-skip="-15" title="后退 15 秒">${svg(P.back, { size: 22 })}<span>15</span></button>
+        ${playBtn(true)}
+        <button class="skip" data-skip="15" title="前进 15 秒">${svg(P.fwd, { size: 22 })}<span>15</span></button>
+      </div>
+      <div class="r">${vol()}</div>
+    </div>
+    <div class="osd" data-role="osd"></div>
+  </div>`;
+}
+const AUDIOS = { a: audioA, b: audioB, c: audioC };
+const spec = (lbl, sub, body, extra = "") => `<div class="spec ${extra}"><div class="lbl">${lbl}</div><div class="sub">${sub}</div>${body}</div>`;
+
+const PODCAST = {
+  name: "第 42 期：怎样真正学会一件事", meta: "小宇宙 · 知行播客", dur: 3735, t: 1310, cover: true,
+  chapters: [{ at: 0, title: "开场" }, { at: 420, title: "费曼的四步" }, { at: 1180, title: "以教代学的误区" }, { at: 2300, title: "听众提问" }, { at: 3300, title: "结语" }],
+};
+
+document.querySelectorAll("[data-demo]").forEach(el => {
+  const k = el.dataset.demo;
+  el.innerHTML = `
+    <h3>费曼学习法 · 访谈整理</h3>
+    <p>下面是和张老师聊「以教代学」的原始录音，前 3 分钟讲了他带新人的做法，值得反复听。</p>
+    ${AUDIOS[k]()}
+    <p>要点：讲给别人听时卡住的地方，就是自己还没理解的地方；卡住后回到原材料，而不是换个说法绕过去。</p>
+    <div class="hint">点击播放；拖动进度${k === "b" ? "（波形）" : ""}；悬停停留 400ms 出时间；点标题可改名；聚焦后试试 <kbd>Space</kbd> <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>M</kbd>。</div>`;
+});
+
+const SPEC_TEXT = {
+  a: ["标题与进度线同列，时间在右", "窄宽度收起总时长与倍速", "长音频与短语音同一形态"],
+  b: ["已播放部分波形染 accent", "窄宽度收起倍速", "超过 30 分钟退回普通进度线，仍保留标题行"],
+  c: ["章节刻度 + 当前章节名，剩余时间在右", "窄宽度收起章节名", "没有封面时按标题派生色块"],
+};
+document.querySelectorAll("[data-specs]").forEach(el => {
+  const k = el.dataset.specs, make = AUDIOS[k], tx = SPEC_TEXT[k];
+  const specs = [
+    spec("暂停（初始）", "卡片即纸面，播放钮用 accent 实底", make({ t: 0 })),
+    spec("播放中 · 悬停进度", tx[0], k === "c" ? make({ ...PODCAST, cls: "playing tipdemo" }) : make({ cls: "playing tipdemo", t: 64 })),
+    spec("窄宽度 300px", tx[1], make({ t: 43 }), "narrow"),
+  ];
+  if (k === "a") specs.push(spec("长音频", tx[2], make({ name: PODCAST.name, meta: PODCAST.meta, dur: PODCAST.dur, t: PODCAST.t })));
+  if (k === "b") specs.push(spec("长音频", tx[2], make({ name: PODCAST.name, meta: PODCAST.meta, dur: PODCAST.dur, t: PODCAST.t, long: true })));
+  if (k === "c") specs.push(spec("无封面 · 短语音", tx[2], make({ name: "语音备忘 0930", meta: "录音", dur: 14, t: 0 })));
+  el.innerHTML = specs.join("");
+});
+
+document.getElementById("common").innerHTML = [
+  spec("悬停时间（停留 400ms）", "与视频相同：路过进度条不闪，停留才出时间；拖动时立即显示", audioA({ cls: "playing tipdemo", t: 64 })),
+  spec("续播提示", "音频较长（≥ 1 分钟）才记忆位置；打开时跳回并在标题下提示，8 秒后收起",
+    audioA({ t: 1312, dur: 3735, name: PODCAST.name, extraMeta: `<span class="meta" style="margin-left:4px"><span class="resumed">${svg(P.hist, { size: 13 })}已从 21:52 继续<button>从头</button></span></span>` })),
+  spec("标题就地编辑", "常态就是文字；悬停出浅底提示可改；编辑时纸色底 + 细线 + 焦点环（常态与编辑同底色，不做灰底跳变）",
+    audioA({ cls: "editing-demo" })),
+  spec("文本生成的音频：展开原文", "TTS 插入的音频带「文本生成」标记，点「原文」在卡片内展开 audioText（只读，可选中复制）",
+    audioA({ cls: "text-open", name: "语音配音", gen: true, t: 0, dur: 38, text: "费曼学习法的核心，是把刚学到的概念用最朴素的语言讲给一个完全不懂的人听。讲不下去的地方，就是你还没真正理解的地方——这时候回到原材料，重新学一遍，再讲一遍。" })),
+  spec("音量：纵向弹层", "悬停音量图标向上弹出竖向滑杆，不挤横向宽度；悬停时滚轮调节", audioA({ cls: "vol-demo" })),
+  spec("倍速菜单", "档位与视频一致；音频笔记原来多出的 1.75× 并入统一档位", audioA({ cls: "ratedemo" })),
+  spec("键盘反馈", "按键后卡片中央弹出反馈条，0.7 秒淡出", audioA({ cls: "playing osd-demo", t: 48 })),
+  spec("加载中", "解析地址 / 下载期间保留卡片占位（不再凭空消失），播放钮转圈，时长显示 --:--",
+    `<div class="ap aa"><div class="row"><button class="play busy"><span class="spin"></span></button>
+      <div class="mid"><div class="line1">${title(DEFAULT.name, false)}</div><div class="ghost-track"></div></div>
+      <span class="tc">--:--</span></div></div>`),
+  spec("加载失败", "播放钮位换成警示图标，标题下说明原因 + 重试；文件丢失时给出原路径",
+    `<div class="ap aa"><div class="row"><span class="play err">${svg(P.alert, { size: 15 })}</span>
+      <div class="mid"><div class="line1">${title(DEFAULT.name, false)}</div><div class="meta" style="color:var(--danger)">无法播放：文件不存在或已被移动</div></div>
+      <button class="btn">重试</button></div></div>`),
+].join("");
+document.querySelector(".vol-demo .vol").classList.add("open");
+document.querySelectorAll(".osd-demo [data-role=osd]").forEach(o => { o.textContent = "+5 秒"; o.classList.add("show"); });
+document.querySelectorAll(".editing-demo .ttl").forEach(t => t.classList.add("editing"));
+
+// 现状复刻
+document.getElementById("cur").innerHTML = `
+  <div class="cur"><span class="tl">${svg(P.lines, { size: 19 })}</span>
+    <div class="b"><div class="t">访谈录音 · 张老师谈以教代学.m4a</div>
+      <div class="r"><span class="pb">${svg(P.play, { size: 12, fill: true })}</span><span>0:43</span><span class="bar"><i></i></span><span>3:15</span>${svg(P.vol, { size: 15 })}<span>1x ▾</span></div>
+    </div></div>`;
+document.getElementById("cur2").innerHTML = `
+  <div class="cur2">
+    <div style="display:flex;gap:12px;align-items:center"><span class="tile cover"></span><div><div style="font-size:14px;font-weight:600">第 42 期：怎样真正学会一件事</div><div style="font-size:12px;color:var(--ink-2)">知行播客</div></div></div>
+    <div><div style="height:4px;border-radius:99px;background:var(--sunken);position:relative"><i style="position:absolute;inset:0 auto 0 0;width:35%;background:var(--accent);border-radius:99px"></i></div>
+      <div class="mono" style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink-2);margin-top:4px"><span>21:50</span><span>1:02:15</span></div></div>
+    <div class="ctl"><span class="skip">${svg(P.back, { size: 20 })}<span>10</span></span><span class="play lg">${svg(P.play, { size: 18, fill: true, cls: "i-play" })}</span><span class="skip">${svg(P.fwd, { size: 20 })}<span>10</span></span><span class="mono" style="font-size:12px;border:1px solid var(--line-1);border-radius:6px;padding:1px 8px;color:var(--ink-2);font-weight:600">1x ▾</span></div>
+  </div>`;
+
+// ── 交互 ──
+document.querySelectorAll(".ap[data-dur]").forEach(root => {
+  const DUR = +root.dataset.dur;
+  let t = +root.dataset.t || 0, rateV = 1, volV = 0.7, raf = 0, last = 0, osdTimer = 0;
+  const all = r => root.querySelectorAll(`[data-role="${r}"]`);
+  const render = () => {
+    const p = (t / DUR) * 100;
+    all("fill").forEach(e => (e.style.width = p + "%"));
+    all("knob").forEach(e => (e.style.left = p + "%"));
+    all("played").forEach(e => (e.style.clipPath = `inset(0 ${100 - p}% 0 0)`));
+    all("cur").forEach(e => (e.textContent = fmt(t)));
+    root.querySelectorAll(".times .tc:last-child").forEach(e => (e.textContent = "-" + fmt(DUR - t)));
+  };
+  const renderVol = () => {
+    const v = root.classList.contains("muted") ? 0 : volV;
+    all("vfill").forEach(e => (e.style.height = v * 100 + "%"));
+    all("vknob").forEach(e => (e.style.bottom = v * 100 + "%"));
+    all("vnum").forEach(e => (e.textContent = Math.round(v * 100)));
+  };
+  const loop = now => {
+    if (!root.classList.contains("playing")) return;
+    if (last) t = Math.min(DUR, t + ((now - last) / 1000) * rateV);
+    last = now; render();
+    if (t >= DUR) return play(false);
+    raf = requestAnimationFrame(loop);
+  };
+  const play = on => { root.classList.toggle("playing", on); cancelAnimationFrame(raf); last = 0; if (on) raf = requestAnimationFrame(loop); };
+  const toggle = () => play(!root.classList.contains("playing"));
+  const osd = text => {
+    all("osd").forEach(o => { o.textContent = text; o.classList.add("show"); });
+    clearTimeout(osdTimer);
+    osdTimer = setTimeout(() => all("osd").forEach(o => o.classList.remove("show")), 700);
+  };
+  const seekTo = v => { t = Math.max(0, Math.min(DUR, v)); render(); };
+  render(); renderVol();
+
+  all("toggle").forEach(b => b.addEventListener("click", e => { e.stopPropagation(); toggle(); root.focus(); }));
+  root.querySelectorAll("[data-skip]").forEach(b => b.addEventListener("click", () => { const d = +b.dataset.skip; seekTo(t + d); osd(`${d > 0 ? "+" : "−"}15 秒`); }));
+  all("srctoggle").forEach(b => b.addEventListener("click", () => root.classList.toggle("text-open")));
+
+  // 进度（进度线 / 波形）：拖动 + 悬停停留 400ms 出时间
+  all("seek").forEach(sk => {
+    let tipTimer = 0;
+    const ratio = e => { const r = sk.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); };
+    const hover = e => {
+      const v = ratio(e);
+      sk.querySelectorAll("[data-role=tip]").forEach(tip => (tip.style.left = v * 100 + "%"));
+      sk.querySelectorAll("[data-role=hline]").forEach(l => (l.style.left = v * 100 + "%"));
+      sk.querySelectorAll("[data-role=tiptime]").forEach(s => (s.textContent = fmt(v * DUR)));
+      return v;
+    };
+    sk.addEventListener("pointerenter", () => { clearTimeout(tipTimer); tipTimer = setTimeout(() => sk.classList.add("tipon"), 400); });
+    sk.addEventListener("pointerleave", () => { clearTimeout(tipTimer); sk.classList.remove("tipon"); });
+    sk.addEventListener("pointerdown", e => { sk.setPointerCapture(e.pointerId); sk.classList.add("drag"); seekTo(hover(e) * DUR); });
+    sk.addEventListener("pointermove", e => { const v = hover(e); if (sk.classList.contains("drag")) seekTo(v * DUR); });
+    sk.addEventListener("pointerup", () => sk.classList.remove("drag"));
+  });
+
+  all("mute").forEach(b => b.addEventListener("click", () => { root.classList.toggle("muted"); renderVol(); }));
+  all("vtrack").forEach(vt => {
+    const set = e => { const r = vt.getBoundingClientRect(); volV = Math.max(0, Math.min(1, (r.bottom - e.clientY) / r.height)); root.classList.remove("muted"); renderVol(); };
+    vt.addEventListener("pointerdown", e => { vt.setPointerCapture(e.pointerId); set(e); vt.dataset.drag = "1"; });
+    vt.addEventListener("pointermove", e => vt.dataset.drag && set(e));
+    vt.addEventListener("pointerup", () => delete vt.dataset.drag);
+  });
+  root.querySelectorAll(".vol").forEach(v => v.addEventListener("wheel", e => {
+    e.preventDefault(); volV = Math.max(0, Math.min(1, volV - Math.sign(e.deltaY) * 0.05)); root.classList.remove("muted"); renderVol();
+  }, { passive: false }));
+
+  const setRate = r => {
+    rateV = r;
+    all("rate").forEach(b => (b.textContent = r + "×"));
+    root.querySelectorAll("[data-rate]").forEach(b => b.classList.toggle("on", +b.dataset.rate === r));
+  };
+  all("rate").forEach(b => b.addEventListener("click", e => { e.stopPropagation(); root.classList.toggle("rate-open"); }));
+  root.querySelectorAll("[data-rate]").forEach(b => b.addEventListener("click", e => { e.stopPropagation(); setRate(+b.dataset.rate); root.classList.remove("rate-open", "ratedemo"); }));
+  document.addEventListener("pointerdown", e => { if (!root.contains(e.target) || !e.target.closest(".rate")) root.classList.remove("rate-open"); });
+
+  root.querySelectorAll(".ttl[contenteditable]").forEach(ttl => ttl.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); ttl.blur(); } }));
+
+  root.addEventListener("keydown", e => {
+    if (e.target.isContentEditable || e.metaKey || e.ctrlKey || e.altKey || e.isComposing) return;
+    const k = e.key; let handled = true;
+    if (k === " " || k === "k" || k === "K") toggle();
+    else if (k === "ArrowLeft" || k === "ArrowRight") { const d = k === "ArrowLeft" ? -5 : 5; seekTo(t + d); osd(`${d > 0 ? "+" : "−"}5 秒`); }
+    else if (k === "j" || k === "l") { const d = k === "j" ? -10 : 10; seekTo(t + d); osd(`${d > 0 ? "+" : "−"}10 秒`); }
+    else if (k === "ArrowUp" || k === "ArrowDown") { volV = Math.max(0, Math.min(1, volV + (k === "ArrowUp" ? 0.1 : -0.1))); root.classList.remove("muted"); renderVol(); osd(`音量 ${Math.round(volV * 100)}%`); }
+    else if (k === "m" || k === "M") { root.classList.toggle("muted"); renderVol(); osd(root.classList.contains("muted") ? "已静音" : `音量 ${Math.round(volV * 100)}%`); }
+    else if (k === ">" || k === "<") { const i = RATES.indexOf(rateV) + (k === ">" ? 1 : -1); if (RATES[i]) { setRate(RATES[i]); osd(`${RATES[i]}× 速度`); } }
+    else if (/^[0-9]$/.test(k)) { seekTo((DUR * +k) / 10); osd(`跳到 ${k}0%`); }
+    else handled = false;
+    if (handled) e.preventDefault();
+  });
+});
+
+document.querySelectorAll(".switch").forEach(sw => sw.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  sw.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+  document.documentElement.dataset[sw.dataset.k] = b.dataset.v;
+}));
+</script>
+</body>
+</html>

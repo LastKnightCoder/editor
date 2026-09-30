@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { resolveVideoShortcut, stepPlaybackRate } from "../videoShortcuts";
+import { resolveMediaShortcut, stepPlaybackRate } from "../mediaShortcuts";
 
 const key = (
   k: string,
   mods: Partial<Record<"metaKey" | "ctrlKey" | "altKey" | "isComposing", boolean>> = {}
 ) =>
-  resolveVideoShortcut({
+  resolveMediaShortcut({
     key: k,
     metaKey: false,
     ctrlKey: false,
@@ -14,7 +14,7 @@ const key = (
     ...mods,
   });
 
-describe("resolveVideoShortcut", () => {
+describe("resolveMediaShortcut", () => {
   it("空格与 K 切换播放", () => {
     expect(key(" ")).toEqual({ type: "togglePlay" });
     expect(key("k")).toEqual({ type: "togglePlay" });
