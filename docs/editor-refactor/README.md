@@ -54,66 +54,70 @@
 状态图例：⏳ 未开始 / 🚧 进行中 / ✅ 完成 / ⏸ 暂停（写原因）。
 
 **下一步**：P8 已完成（2026-09-30：内置扩展 43 个 + 内核热键 13 个命令 + desktop 宿主扩展 8 个
-+ editor-webview 全部迁到 v2；editor-collab 核实为非扩展无需迁移；ESLint headless 规则落地。
-热键全量走命令注册表，宿主命令命名空间 host.* 开用）。下一阶段是 P9 拆包（custom-block 试点、
-diagram 类拆包，清单见 02 P9）；实机待确认清单见下方。
-已完成：第一块（错误隔离 + 未知节点占位，Markdown 兜底语法见 ER-006）；第二块（`defineExtension`、
-`@tau/editor/api`、`fromLegacyExtension`，divide-line 已迁到 v2）；第三块（移除 antd，UI 直接用 `@tau/ui`，ER-018）；
-mobile 注册了自己的编辑器提示服务（mobile toast + `MobileConfirmDialog`，返回手势等同取消）；
-拖拽样式收口为 `BlockDrag`；编辑器 less 全部转 Tailwind（67 → 0，第三方覆盖留两份 `.vendor.css`）；
-第四块（Markdown codec 按扩展归属：`@tau/editor/markdown` 聚合 40 个内置 codec，`@tau/markdown` 变纯框架，
-宿主只合成一次 codec 列表，desktop 往返基准快照逐字节不变）；第五块（导入端 walker 去类型化：方言完全由 codec
-声明——fence / importNode / normalize / inlineForm / childSeparator，框架零元素类型知识，插件作者可声明新围栏语言；
-master 差分门 35 语料八维度零未知差异，顺带修掉 definition 节点导出崩溃的既有缺陷）。第六块（命令注册表：命令成为唯一动词层，热键绑命令 id，内置格式六命令与全选已迁移，editor.commands 可程序化执行）。
-第七块（菜单贡献层：手柄菜单与右键菜单统一为一个贡献点，条目只引用命令 id；内核默认菜单扩展贡献
-block 组与 transform 组，16 个菜单接线点全部声明式收敛，运行时动作经 WeakMap 注册表；同 id 覆盖让扩展可替换默认条目）。
-第八块（拖拽声明化：元素声明 drag 二维（self/children）+ accepts 谓词 + handleClassName，未声明的类型没有 chrome；
-BlockDragHost 成为手柄/插入线/手柄菜单唯一渲染点，22 个接线点去接线；canDrag/canDrop 沿祖先链求值，
-两处跨扩展感知硬编码与 disableDrag 数据字段一并删除）。
-第九块（ingest 内容注入：drop 与 paste 归并为认领式管线——files 按声明分桶认领、text 谓词认领排在
-markdown 导入前，每环隔离熔断；image/inline-image/audio/video 收敛为四个 ingest 声明，七个 paste/drop
-旧插件与 withFileDrop、editor.dropHandlers 删除；相同 accept 建 kit 抛错）。
-第十块（内置扩展迁 v2 第一批：callout / blockquote / bulleted-list / numbered-list / header。
-插件改写全部转声明式行为（quit/退格/规范化 → behaviors，段落快捷语法 `> ` `- ` `1. ` `# ` → behaviorsFor.paragraph），
-header 热键首个切命令 id（alt+=/alt+- → tau.header.promote/demote）、构造选项改 createHeaderExtension 工厂；
-等价性用「HEAD 对照 + 反向验证」守护，既有插件单测换真实 kit 装配，editor 283 例全过）。
-第十一块（第二批 5 个：custom-block / audio / video / detail / highlight-block。ingest 声明首次随迁；
-「段首退格 × 前一个特殊块」behaviorsFor 模式落满三例；custom-block 的 loadable 渲染包一层函数组件、
-旧退格插件嵌套容器误删整容器的缺陷随迁修正，editor 290 例全过）。
-第十二块（第三批 6 个：check-list 系 / list-item / tabs 系 / table 系。热键切命令 id 扩到 18 个
-（Tab 缩进、mod+方向移动、表格 11 键导航与插删行列）；table 的 delete/deleteFragment 改写保留为
-受信任层插件（行为 API 方法面之外的第一个案例）；测试抓出并修复一次行为分发顺序与旧插件分支顺序的
-冲突（跨两层挂行为的让路模式），editor 300 例全过）。
-第十三块（code-block：``` 围栏语法与前块聚焦挂 behaviorsFor、mod+` 切命令、loadable 渲染包函数
+
+- editor-webview 全部迁到 v2；editor-collab 核实为非扩展无需迁移；ESLint headless 规则落地。
+  热键全量走命令注册表，宿主命令命名空间 host.* 开用）。下一阶段是 P9 拆包（custom-block 试点、
+  diagram 类拆包，清单见 02 P9）；实机待确认清单见下方。
+  2026-09-30 整体审查确认的 8 项问题已修复并补回归测试：剪切失败与异步目标保护、音频上传路径漂移、
+  普通文档/kit 切换初始化、未知行内 Markdown 换行往返、协作换源光标开关、命令谓词与异步错误隔离、
+  同明暗主题订阅、未知节点位置缓存。验证结果见 02「P8 整体审查修复」与 04 最新条目。
+  已完成：第一块（错误隔离 + 未知节点占位，Markdown 兜底语法见 ER-006）；第二块（`defineExtension`、
+  `@tau/editor/api`、`fromLegacyExtension`，divide-line 已迁到 v2）；第三块（移除 antd，UI 直接用 `@tau/ui`，ER-018）；
+  mobile 注册了自己的编辑器提示服务（mobile toast + `MobileConfirmDialog`，返回手势等同取消）；
+  拖拽样式收口为 `BlockDrag`；编辑器 less 全部转 Tailwind（67 → 0，第三方覆盖留两份 `.vendor.css`）；
+  第四块（Markdown codec 按扩展归属：`@tau/editor/markdown` 聚合 40 个内置 codec，`@tau/markdown` 变纯框架，
+  宿主只合成一次 codec 列表，desktop 往返基准快照逐字节不变）；第五块（导入端 walker 去类型化：方言完全由 codec
+  声明——fence / importNode / normalize / inlineForm / childSeparator，框架零元素类型知识，插件作者可声明新围栏语言；
+  master 差分门 35 语料八维度零未知差异，顺带修掉 definition 节点导出崩溃的既有缺陷）。第六块（命令注册表：命令成为唯一动词层，热键绑命令 id，内置格式六命令与全选已迁移，editor.commands 可程序化执行）。
+  第七块（菜单贡献层：手柄菜单与右键菜单统一为一个贡献点，条目只引用命令 id；内核默认菜单扩展贡献
+  block 组与 transform 组，16 个菜单接线点全部声明式收敛，运行时动作经 WeakMap 注册表；同 id 覆盖让扩展可替换默认条目）。
+  第八块（拖拽声明化：元素声明 drag 二维（self/children）+ accepts 谓词 + handleClassName，未声明的类型没有 chrome；
+  BlockDragHost 成为手柄/插入线/手柄菜单唯一渲染点，22 个接线点去接线；canDrag/canDrop 沿祖先链求值，
+  两处跨扩展感知硬编码与 disableDrag 数据字段一并删除）。
+  第九块（ingest 内容注入：drop 与 paste 归并为认领式管线——files 按声明分桶认领、text 谓词认领排在
+  markdown 导入前，每环隔离熔断；image/inline-image/audio/video 收敛为四个 ingest 声明，七个 paste/drop
+  旧插件与 withFileDrop、editor.dropHandlers 删除；相同 accept 建 kit 抛错）。
+  第十块（内置扩展迁 v2 第一批：callout / blockquote / bulleted-list / numbered-list / header。
+  插件改写全部转声明式行为（quit/退格/规范化 → behaviors，段落快捷语法 `> ` `- ` `1. ` `# ` → behaviorsFor.paragraph），
+  header 热键首个切命令 id（alt+=/alt+- → tau.header.promote/demote）、构造选项改 createHeaderExtension 工厂；
+  等价性用「HEAD 对照 + 反向验证」守护，既有插件单测换真实 kit 装配，editor 283 例全过）。
+  第十一块（第二批 5 个：custom-block / audio / video / detail / highlight-block。ingest 声明首次随迁；
+  「段首退格 × 前一个特殊块」behaviorsFor 模式落满三例；custom-block 的 loadable 渲染包一层函数组件、
+  旧退格插件嵌套容器误删整容器的缺陷随迁修正，editor 290 例全过）。
+  第十二块（第三批 6 个：check-list 系 / list-item / tabs 系 / table 系。热键切命令 id 扩到 18 个
+  （Tab 缩进、mod+方向移动、表格 11 键导航与插删行列）；table 的 delete/deleteFragment 改写保留为
+  受信任层插件（行为 API 方法面之外的第一个案例）；测试抓出并修复一次行为分发顺序与旧插件分支顺序的
+  冲突（跨两层挂行为的让路模式），editor 300 例全过）。
+  第十三块（code-block：``` 围栏语法与前块聚焦挂 behaviorsFor、mod+` 切命令、loadable 渲染包函数
 组件。带插件与热键的复杂扩展全部迁完，editor 301 例全过）。
 第十四块（第五批纯渲染 14 个 + 第六批 9 个：纯渲染全走 kind+isVoid+render 模板（plantuml、
 image-gallery 构造选项改工厂）；第六批热键切命令 9 个（公式/链接/批注/注解/多列插删列）、
 multi-column 行为转声明式，键位竞争（mod+shift+m、mod+方向）经核对顺序与旧链一致。
 累计 41 个，仅剩 paragraph 与 image，editor 308 例全过）。
 第十五块（第七批收官：paragraph（memo 渲染器 + drag 迁 v2，「展开选区输 \` 加 code 标记」
-是文本级全局快捷语法保留为插件）与 image（ingest / appearance 菜单工厂 / createImageExtension
-工厂）。**内置扩展迁移全部完成：43 个扩展、28 个命令，registry 旧类清零**，editor 313 例全过）。
-第十六块（内核 legacy 热键全部切命令 id：escape 清标记、mod+左右兜底拦截、方向键 inline 边界
-移动、slash 面板六键、块导航 up/down——热键全量走命令注册表，legacy 直通数组清空；键位仲裁
-核对结论见 02。editor 314 例全过。**实机待确认**：块导航（up/down 跨 void 块）、slash 面板键盘
-（backspace 关面板 / enter 确认 / 左右进出子菜单）、escape 清标记、mod+左右不再触发宿主卡片收展）。
-第十七块（desktop 宿主扩展迁 v2 第一批 6 个：database / file-attachment / flashcard-blank /
-project-card-list / whiteboard / inline-ai-assistant。database 与 whiteboard 的 apply 引用计数
-保留为受信任层插件；mod+j 切 host.inline-ai.open-composer——宿主命令命名空间 host.* 开用；
-包出口补命令类型、desktop 侧 IExtension[] 标注放宽。editor 315 例全过）。
-第十八块（content-link 与 skill-ref：@ 提及面板挂 behaviorsFor.paragraph.insertText +
-面板五键切 host.content-link.mention-*（esc 与内核 clear-marks 同键位经段序保持先后）；
-skill-ref 的 $ 面板同模式切 host.skill-ref.*。**desktop editor-extensions 八个全部迁完、
-旧类清零**，editor 315 例全过）。
-第十九块（**P8 完成**：editor-webview 迁 v2（四端六个使用点收口，全仓再无 new XxxExtension()）；
-editor-collab 核实为非扩展（P7 已按文档源+协作绑定建包）无需迁移；ESLint headless 规则覆盖
-扩展 markdown.ts。editor 317 例全过、四端 tsc 0 error）。
-**实机待确认**：移除 antd 后各浮层（Tooltip、代码块语言选择、表情、批注、行内 HTML、样式文本调色、列表图标、
-表格操作、行内图片上传）的观感与开合；两种未知节点占位的观感；各块拖拽手柄的悬停显示（只亮最内层被悬停的块）与拖拽插入线；less 全量转 Tailwind 后的编辑态外观（代码块叠层编辑与全屏、源码 + 预览块的编辑 / 全屏、右键菜单与块面板、图片 / 视频缩放与工具条、分栏、行内公式选中态，blog 只读页覆盖不到编辑态）；**菜单贡献层：手柄菜单的组间分隔线与顺序（特有 → 转换成 → 移动/剪贴/删除）、新增的上移/下移/剪切/复制、void 块删除后补空段落与焦点落点、webview 删除确认框、代码块 Diff 动画与语言子菜单**；**拖拽声明化：chrome wrapper 对各块布局/间距的影响（margin 折叠应穿透）、手柄位置统一后的观感（标题/引用/勾选项的微调保留、其他块用默认位）、插入线统一位置、勾选项内段落不再有手柄、blockquote 拖放高亮变标准样式、嵌套块（分栏/标签页/详情内）的拖拽与手柄悬停**；**ingest：拖图片/音视频入正文与粘贴的落位与上传流（多文件逐个插入）、非空段落粘贴图片的行内落位、audio/video 上传失败的占位清理（粘贴清、拖放留）、拖任意文件（PDF 等）经 file-attachment 兜底认领上传成附件块、文件拖拽悬停时的落点指示线与实际插入位置一致**；P7 遗留的协作 e2e、结束共享、白板测高、
-mobile 回落与结束共享（清单见 02 P7 验收结果）。
-**实机待确认**：移除 antd 后各浮层（Tooltip、代码块语言选择、表情、批注、行内 HTML、样式文本调色、列表图标、
-表格操作、行内图片上传）的观感与开合；两种未知节点占位的观感；各块拖拽手柄的悬停显示（只亮最内层被悬停的块）与拖拽插入线；less 全量转 Tailwind 后的编辑态外观（代码块叠层编辑与全屏、源码 + 预览块的编辑 / 全屏、右键菜单与块面板、图片 / 视频缩放与工具条、分栏、行内公式选中态，blog 只读页覆盖不到编辑态）；P7 遗留的协作 e2e、结束共享、白板测高、
-mobile 回落与结束共享（清单见 02 P7 验收结果）。
+  是文本级全局快捷语法保留为插件）与 image（ingest / appearance 菜单工厂 / createImageExtension
+  工厂）。**内置扩展迁移全部完成：43 个扩展、28 个命令，registry 旧类清零**，editor 313 例全过）。
+  第十六块（内核 legacy 热键全部切命令 id：escape 清标记、mod+左右兜底拦截、方向键 inline 边界
+  移动、slash 面板六键、块导航 up/down——热键全量走命令注册表，legacy 直通数组清空；键位仲裁
+  核对结论见 02。editor 314 例全过。**实机待确认**：块导航（up/down 跨 void 块）、slash 面板键盘
+  （backspace 关面板 / enter 确认 / 左右进出子菜单）、escape 清标记、mod+左右不再触发宿主卡片收展）。
+  第十七块（desktop 宿主扩展迁 v2 第一批 6 个：database / file-attachment / flashcard-blank /
+  project-card-list / whiteboard / inline-ai-assistant。database 与 whiteboard 的 apply 引用计数
+  保留为受信任层插件；mod+j 切 host.inline-ai.open-composer——宿主命令命名空间 host.* 开用；
+  包出口补命令类型、desktop 侧 IExtension[] 标注放宽。editor 315 例全过）。
+  第十八块（content-link 与 skill-ref：@ 提及面板挂 behaviorsFor.paragraph.insertText +
+  面板五键切 host.content-link.mention-_（esc 与内核 clear-marks 同键位经段序保持先后）；
+  skill-ref 的 $ 面板同模式切 host.skill-ref._。**desktop editor-extensions 八个全部迁完、
+  旧类清零**，editor 315 例全过）。
+  第十九块（**P8 完成**：editor-webview 迁 v2（四端六个使用点收口，全仓再无 new XxxExtension()）；
+  editor-collab 核实为非扩展（P7 已按文档源+协作绑定建包）无需迁移；ESLint headless 规则覆盖
+  扩展 markdown.ts。editor 317 例全过、四端 tsc 0 error）。
+  **实机待确认**：移除 antd 后各浮层（Tooltip、代码块语言选择、表情、批注、行内 HTML、样式文本调色、列表图标、
+  表格操作、行内图片上传）的观感与开合；两种未知节点占位的观感；各块拖拽手柄的悬停显示（只亮最内层被悬停的块）与拖拽插入线；less 全量转 Tailwind 后的编辑态外观（代码块叠层编辑与全屏、源码 + 预览块的编辑 / 全屏、右键菜单与块面板、图片 / 视频缩放与工具条、分栏、行内公式选中态，blog 只读页覆盖不到编辑态）；**菜单贡献层：手柄菜单的组间分隔线与顺序（特有 → 转换成 → 移动/剪贴/删除）、新增的上移/下移/剪切/复制、void 块删除后补空段落与焦点落点、webview 删除确认框、代码块 Diff 动画与语言子菜单**；**拖拽声明化：chrome wrapper 对各块布局/间距的影响（margin 折叠应穿透）、手柄位置统一后的观感（标题/引用/勾选项的微调保留、其他块用默认位）、插入线统一位置、勾选项内段落不再有手柄、blockquote 拖放高亮变标准样式、嵌套块（分栏/标签页/详情内）的拖拽与手柄悬停**；**ingest：拖图片/音视频入正文与粘贴的落位与上传流（多文件逐个插入）、非空段落粘贴图片的行内落位、audio/video 上传失败的占位清理（粘贴清、拖放留）、拖任意文件（PDF 等）经 file-attachment 兜底认领上传成附件块、文件拖拽悬停时的落点指示线与实际插入位置一致**；P7 遗留的协作 e2e、结束共享、白板测高、
+  mobile 回落与结束共享（清单见 02 P7 验收结果）。
+  **实机待确认**：移除 antd 后各浮层（Tooltip、代码块语言选择、表情、批注、行内 HTML、样式文本调色、列表图标、
+  表格操作、行内图片上传）的观感与开合；两种未知节点占位的观感；各块拖拽手柄的悬停显示（只亮最内层被悬停的块）与拖拽插入线；less 全量转 Tailwind 后的编辑态外观（代码块叠层编辑与全屏、源码 + 预览块的编辑 / 全屏、右键菜单与块面板、图片 / 视频缩放与工具条、分栏、行内公式选中态，blog 只读页覆盖不到编辑态）；P7 遗留的协作 e2e、结束共享、白板测高、
+  mobile 回落与结束共享（清单见 02 P7 验收结果）。
 
 ## 5. 接手步骤
 

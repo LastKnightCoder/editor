@@ -22,6 +22,7 @@ export interface EditorCommand {
   title?: string;
   /** enablement：false 时热键跳过、菜单灰显 */
   when?: (editor: Editor) => boolean;
+  /** 异步动作应返回 Promise，交给 dispatcher 隔离失败 */
   run: (editor: Editor, ctx: EditorCommandContext) => void;
 }
 
@@ -68,7 +69,7 @@ export interface CommandGuard {
 export interface CommandDispatcher {
   /**
    * 执行命令。返回 false 表示未执行（没有这个命令会告警；when 不满足静默跳过），
-   * 调用方据此决定要不要回落到别的处理。
+   * 调用方据此决定要不要回落到别的处理；异步命令返回 true 表示已启动。
    */
   execute(editor: Editor, id: string, ctx?: EditorCommandContext): boolean;
 }
@@ -84,12 +85,13 @@ export function createCommandDispatcher(
         console.warn(`[editor] 命令 "${id}" 未注册`);
         return false;
       }
-      if (registered.command.when && !registered.command.when(editor)) {
-        return false;
-      }
       if (guard.isDisabled(registered.owner)) return false;
       try {
-        registered.command.run(editor, ctx ?? {});
+        if (registered.command.when && !registered.command.when(editor)) return false;
+        const result = registered.command.run(editor, ctx ?? {});
+        void Promise.resolve(result).catch(error =>
+          guard.record(registered.owner, "command", error)
+        );
       } catch (error) {
         guard.record(registered.owner, "command", error);
         return false;

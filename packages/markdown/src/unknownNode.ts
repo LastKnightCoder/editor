@@ -22,7 +22,8 @@ const plainText = (node: NodeLike): string =>
 const escapeAttribute = (value: string): string =>
   value.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
 
-const escapeLabel = (value: string): string => value.replace(/[\\[\]]/g, match => `\\${match}`);
+const escapeLabel = (value: string): string =>
+  value.replace(/[\r\n\u2028\u2029]+/g, " ").replace(/[\\[\]]/g, match => `\\${match}`);
 
 /** 围栏长度必须超过内容里最长的反引号串，否则 JSON 里的 ``` 会提前闭合围栏 */
 const fenceFor = (content: string): string => {

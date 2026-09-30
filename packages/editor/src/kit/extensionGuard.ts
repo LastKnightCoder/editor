@@ -256,9 +256,11 @@ export function withUnknownElements(editor: Editor, isKnown: (type: string) => b
   const { isVoid, isInline, normalizeNode } = editor;
   const isUnknown = (element: Element) => !isKnown(element.type);
   let inlineCache = new WeakMap<Element, boolean>();
+  let cachedChildren: Editor["children"] | undefined;
 
   const fillInlineCache = () => {
     inlineCache = new WeakMap();
+    cachedChildren = editor.children;
     const visit = (parent: Editor | Element) => {
       const inline = !Editor.isEditor(parent) && parent.children.some(child => Text.isText(child));
       for (const child of parent.children) {
@@ -271,7 +273,7 @@ export function withUnknownElements(editor: Editor, isKnown: (type: string) => b
   };
 
   const isUnknownInline = (element: Element): boolean => {
-    if (!inlineCache.has(element)) fillInlineCache();
+    if (cachedChildren !== editor.children || !inlineCache.has(element)) fillInlineCache();
     // 不在文档里的节点（如待插入的片段）无从判断，按块处理并记下，避免反复遍历
     if (!inlineCache.has(element)) inlineCache.set(element, false);
     return inlineCache.get(element)!;

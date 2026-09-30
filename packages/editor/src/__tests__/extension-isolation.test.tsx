@@ -2,7 +2,7 @@
 import { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Editor as SlateEditor, Transforms, type Descendant } from "slate";
+import { createEditor, Editor as SlateEditor, Node, Transforms, type Descendant } from "slate";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
@@ -17,7 +17,7 @@ import {
   type ExtensionErrorEvent,
 } from "../services";
 import { createBlockElementPlugin } from "../utils";
-import { CIRCUIT_BREAKER_THRESHOLD } from "../kit/extensionGuard";
+import { CIRCUIT_BREAKER_THRESHOLD, withUnknownElements } from "../kit/extensionGuard";
 
 const text = (value: string) => ({ type: "formatted", text: value });
 const paragraph = (value: string) => ({ type: "paragraph", children: [text(value)] });
@@ -88,6 +88,33 @@ const valueWithUnknown = [
 ] as unknown as Descendant[];
 
 describe("扩展错误隔离与未知节点", () => {
+  it("未知节点移动到新父级后重新判断行内性，规范化不丢数据", () => {
+    const editor = withUnknownElements(createEditor(), type => type === "paragraph");
+    const node = { type: "mystery", payload: "必须保留", children: [text("内容")] };
+    editor.children = [
+      { type: "paragraph", children: [text("前"), node, text("后")] },
+    ] as Descendant[];
+    expect(editor.isInline(node)).toBe(true);
+    Transforms.moveNodes(editor, { at: [0, 1], to: [1], voids: true });
+    expect(editor.isInline(node)).toBe(false);
+    expect(Node.get(editor, [1])).toEqual(node);
+
+    Transforms.moveNodes(editor, { at: [1], to: [0, 1], voids: true });
+    expect(editor.isInline(node)).toBe(true);
+    expect(JSON.stringify(editor.children)).toContain("必须保留");
+  });
+
+  it("换绑复用节点但替换整树时，未知节点判定跟随新位置", () => {
+    const editor = withUnknownElements(createEditor(), type => type === "paragraph");
+    const node = { type: "mystery", children: [text("内容")] };
+    editor.children = [node];
+    expect(editor.isInline(node)).toBe(false);
+    editor.children = [
+      { type: "paragraph", children: [text("前"), node, text("后")] },
+    ] as Descendant[];
+    expect(editor.isInline(node)).toBe(true);
+  });
+
   let root: Root | null = null;
   let container: HTMLDivElement | null = null;
 

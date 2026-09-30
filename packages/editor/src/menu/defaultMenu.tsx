@@ -129,20 +129,31 @@ const commands: EditorCommand[] = [
   {
     id: "tau.block.cut",
     title: "剪切",
-    run: (editor, ctx) => {
+    run: async (editor, ctx) => {
       const path = findElementPath(editor, ctx);
       if (!path || !ctx.element) return;
-      void copyNodeToClipboard(editor, ctx.element, notifierOf(editor)).then(() =>
-        deleteNode(editor, path)
-      );
+      const target = Editor.pathRef(editor, path);
+      try {
+        const copied = await copyNodeToClipboard(editor, ctx.element, notifierOf(editor), {
+          allowPlainTextFallback: false,
+        });
+        const currentPath = target.current;
+        // 等待期间被修改或替换的内容没有进入剪贴板，不能删除。
+        if (copied && currentPath && Node.get(editor, currentPath) === ctx.element) {
+          if (editor.isVoid(ctx.element)) deleteVoidBlock(editor, currentPath);
+          else deleteNode(editor, currentPath);
+        }
+      } finally {
+        target.unref();
+      }
     },
   },
   {
     id: "tau.block.copy",
     title: "复制",
-    run: (editor, ctx) => {
+    run: async (editor, ctx) => {
       if (!ctx.element) return;
-      void copyNodeToClipboard(editor, ctx.element, notifierOf(editor));
+      await copyNodeToClipboard(editor, ctx.element, notifierOf(editor));
     },
   },
   {
