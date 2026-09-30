@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { CloseOutlined } from "@ant-design/icons";
+import { X } from "lucide-react";
 import { Descendant, Range, Transforms } from "slate";
 import { useMemoizedFn } from "ahooks";
 import { ReactEditor } from "slate-react";
@@ -143,7 +143,7 @@ export default function ImmersiveEditorMode({
             onClick={handleExit}
             title="退出沉浸模式 (ESC)"
           >
-            <CloseOutlined className="text-lg" />
+            <X size={18} strokeWidth={1.75} />
           </div>
 
           {/* 编辑器滚动容器 */}
