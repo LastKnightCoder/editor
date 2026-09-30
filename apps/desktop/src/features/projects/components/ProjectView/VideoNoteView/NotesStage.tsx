@@ -260,6 +260,7 @@ export function NotesStage({ videoNoteId, videoController }: NotesStageProps) {
               initValue={initValue}
               extensions={extensions}
               readonly={false}
+              editingContext={{ entityType: "project-item", entityId: videoNoteId }}
               placeHolder="边看边记…"
             />
           ) : (

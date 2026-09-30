@@ -1,7 +1,8 @@
 import { Descendant } from "slate";
 import type { PositionMapper } from "@tau/markdown";
 
-export type EntityType = "card" | "article" | "project-item";
+export type EntityType =
+  "card" | "article" | "project-item" | "diary" | "vl-note" | "vl-resource" | "whiteboard";
 export type SnapshotSource = "active-session" | "database";
 
 export interface MarkdownPoint {
@@ -36,7 +37,7 @@ export interface ActiveEditingSession {
   id: string;
   contentId: number;
   entityType: EntityType;
-  entityId: number;
+  entityId: number | string;
   tabId?: string;
   paneId?: string;
   tabType?: string;
@@ -251,7 +252,7 @@ export interface RangeCandidate {
 export interface ResolvedContentTarget {
   contentId: number;
   entityType?: EntityType;
-  entityId?: number;
+  entityId?: number | string;
   /** 激活编辑会话（active-session 来源）或旧宿主透传的标识 */
   sessionId?: string;
   tabId?: string;

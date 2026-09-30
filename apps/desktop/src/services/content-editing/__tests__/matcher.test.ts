@@ -32,7 +32,7 @@ describe("content-editing/matcher", () => {
 
   it("fuzzy 模式应给出候选片段", () => {
     const content = importFromMarkdown(
-      "机器学习是人工智能的重要分支。\n\n大模型在写作辅助场景中非常常见。",
+      "机器学习是人工智能的重要分支。\n\n大模型在写作辅助场景中非常常见。"
     );
     const snapshot = createContentSnapshot(content, "database");
 

@@ -18,8 +18,7 @@ interface RawRange {
   confidence: number;
 }
 
-const collapseWhitespace = (text: string) =>
-  text.replace(/\s+/g, " ").trim().toLowerCase();
+const collapseWhitespace = (text: string) => text.replace(/\s+/g, " ").trim().toLowerCase();
 
 const normalizeWithMap = (text: string) => {
   const chars: string[] = [];
@@ -58,27 +57,21 @@ const findAllIndexes = (text: string, query: string): number[] => {
   return result;
 };
 
-const findExactRanges = (
-  snapshot: ContentSnapshot,
-  queryText: string,
-): RawRange[] => {
-  return findAllIndexes(snapshot.markdown, queryText).map((start) => ({
+const findExactRanges = (snapshot: ContentSnapshot, queryText: string): RawRange[] => {
+  return findAllIndexes(snapshot.markdown, queryText).map(start => ({
     start,
     end: start + queryText.length,
     confidence: 1,
   }));
 };
 
-const findNormalizedRanges = (
-  snapshot: ContentSnapshot,
-  queryText: string,
-): RawRange[] => {
+const findNormalizedRanges = (snapshot: ContentSnapshot, queryText: string): RawRange[] => {
   const normalizedSource = normalizeWithMap(snapshot.markdown);
   const normalizedQuery = collapseWhitespace(queryText);
   if (!normalizedQuery) return [];
 
   const indexes = findAllIndexes(normalizedSource.normalized, normalizedQuery);
-  return indexes.map((startInNormalized) => {
+  return indexes.map(startInNormalized => {
     const endInNormalized = startInNormalized + normalizedQuery.length;
     const start = normalizedSource.map[startInNormalized] ?? 0;
     const end =
@@ -111,15 +104,13 @@ const diceCoefficient = (a: string, b: string): number => {
   const gramsB = toBigrams(b);
   if (gramsA.size === 0 || gramsB.size === 0) return 0;
   let intersection = 0;
-  gramsA.forEach((gram) => {
+  gramsA.forEach(gram => {
     if (gramsB.has(gram)) intersection += 1;
   });
   return (2 * intersection) / (gramsA.size + gramsB.size);
 };
 
-const buildParagraphRanges = (
-  markdown: string,
-): Array<{ start: number; end: number }> => {
+const buildParagraphRanges = (markdown: string): Array<{ start: number; end: number }> => {
   const ranges: Array<{ start: number; end: number }> = [];
   let start = 0;
   for (let i = 0; i < markdown.length; i += 1) {
@@ -132,26 +123,20 @@ const buildParagraphRanges = (
   if (start <= markdown.length) {
     ranges.push({ start, end: markdown.length });
   }
-  return ranges.filter((item) => item.end > item.start);
+  return ranges.filter(item => item.end > item.start);
 };
 
-const findFuzzyRanges = (
-  snapshot: ContentSnapshot,
-  queryText: string,
-): RawRange[] => {
+const findFuzzyRanges = (snapshot: ContentSnapshot, queryText: string): RawRange[] => {
   const ranges = buildParagraphRanges(snapshot.markdown);
   const normalizedQuery = collapseWhitespace(queryText);
   const queryTokens = normalizedQuery.split(" ").filter(Boolean);
   const candidates: RawRange[] = [];
-  ranges.forEach((range) => {
+  ranges.forEach(range => {
     const text = snapshot.markdown.slice(range.start, range.end);
     const normalizedText = collapseWhitespace(text);
     const dice = diceCoefficient(queryText, text);
-    const tokenHitCount = queryTokens.filter((token) =>
-      normalizedText.includes(token),
-    ).length;
-    const tokenScore =
-      queryTokens.length > 0 ? tokenHitCount / queryTokens.length : 0;
+    const tokenHitCount = queryTokens.filter(token => normalizedText.includes(token)).length;
+    const tokenScore = queryTokens.length > 0 ? tokenHitCount / queryTokens.length : 0;
     const score = Math.max(dice, tokenScore * 0.75);
     if (score < 0.2) return;
     candidates.push({
@@ -195,7 +180,7 @@ const buildExcerpt = (markdown: string, start: number, end: number) => {
 
 export const findContentRanges = (
   snapshot: ContentSnapshot,
-  options: FindRangesOptions,
+  options: FindRangesOptions
 ): RangeCandidate[] => {
   const {
     queryText,
@@ -221,7 +206,7 @@ export const findContentRanges = (
 
   if (rawRanges.length === 0) return [];
 
-  const scored = rawRanges.map((candidate) => ({
+  const scored = rawRanges.map(candidate => ({
     ...candidate,
     confidence: Number(
       Math.min(
@@ -232,8 +217,8 @@ export const findContentRanges = (
             candidate,
             beforeHint,
             afterHint,
-          }),
-      ).toFixed(4),
+          })
+      ).toFixed(4)
     ),
   }));
 

@@ -258,6 +258,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
                   onInit={onInit}
                   onChange={onContentChange}
                   readonly={false}
+                  editingContext={{ entityType: "project-item", entityId: projectItem.id }}
                   extensions={extensions}
                 />
               </ErrorBoundary>

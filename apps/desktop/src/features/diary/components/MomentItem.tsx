@@ -280,6 +280,7 @@ function MomentEditor({
         onInit={() => requestAnimationFrame(() => placeCaret(editorRef.current, caret.current))}
         onChange={onChange}
         source={{ sourceType: "content", sourceId: moment.contentId }}
+        editingContext={{ entityType: "diary", entityId: moment.id }}
         className={EDITOR_CLASS}
       />
     </ErrorBoundary>
