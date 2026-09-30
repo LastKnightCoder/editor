@@ -1,17 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ArrowDownUp,
-  CalendarDays,
-  Filter,
-  Layers,
-  LayoutGrid,
-  MoreHorizontal,
-  Plus,
-  Search,
-  SquareKanban,
-  Table2,
-  X,
-} from "lucide-react";
+import { ArrowDownUp, Filter, Layers, MoreHorizontal, Plus, Search, Table2, X } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import { useDrag, useDrop } from "react-dnd";
 import { cn, Menu, Popover, Tooltip } from "@tau/ui";
@@ -27,13 +15,7 @@ import ViewTypeSelectModal from "./ViewTypeSelectModal";
 import ViewEditPanel from "./ViewEditPanel";
 import { DataTableViewType } from "@/types";
 import type { GalleryViewConfig, CalendarViewConfig, KanbanViewConfig } from "./types";
-
-const VIEW_TYPE_ICON: Record<DataTableViewType, typeof Table2> = {
-  table: Table2,
-  gallery: LayoutGrid,
-  calendar: CalendarDays,
-  kanban: SquareKanban,
-};
+import { VIEW_TYPE_ICON } from "./constants";
 
 interface DragItem {
   type: "view-tab";

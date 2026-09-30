@@ -1,6 +1,6 @@
 import React, { memo, useState, useMemo, useEffect, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
-import { useDatabaseStore } from "../../hooks";
+import { useDatabaseStore, useRowDetail } from "../../hooks";
 import PluginManager from "../../PluginManager";
 import { RowData, ColumnDef, CellValue, SelectOption, DatabaseConfig } from "../../types";
 import KanbanColumn from "./KanbanColumn";
@@ -47,8 +47,8 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
       deleteRow: state.deleteRow,
     }));
 
-    const [rowDetailOpen, setRowDetailOpen] = useState(false);
-    const [editingRow, setEditingRow] = useState<RowData | null>(null);
+    const { detailRowId, openRowDetail, showRowDetail, closeRowDetail } =
+      useRowDetail(onRowDetailOpen);
     const [columnEditOpen, setColumnEditOpen] = useState(false);
     const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
     const scrollParentRef = useRef<HTMLDivElement>(null);
@@ -93,29 +93,6 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
     const projection = useDatabaseStore(state => state.projection);
     const groupedData = projection.groups;
 
-    const handleOpenRowDetail = useMemoizedFn((row: RowData) => {
-      if (onRowDetailOpen) {
-        onRowDetailOpen(row);
-      } else {
-        setEditingRow(row);
-        setRowDetailOpen(true);
-      }
-    });
-
-    const handleCloseRowDetail = useMemoizedFn(() => {
-      setRowDetailOpen(false);
-      setEditingRow(null);
-    });
-
-    const handleSaveRowDetail = useMemoizedFn((rowData: Partial<RowData>) => {
-      if (!editingRow) return;
-      Object.keys(rowData).forEach(key => {
-        if (key !== "id") {
-          updateCellValue(editingRow.id, key, rowData[key]);
-        }
-      });
-    });
-
     const handleAddCard = useMemoizedFn((groupValue: CellValue) => {
       if (!groupColumnId) return;
 
@@ -131,20 +108,7 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
         newRowData.id = newId;
 
         addRow(newRowData);
-
-        // 构建完整的新行对象用于打开详情弹窗
-        const newRow: RowData = {
-          id: newId,
-        };
-        columns.forEach(column => {
-          newRow[column.id] = newRowData[column.id] ?? null;
-        });
-
-        // 只有在没有自定义 onRowDetailOpen 时才自动打开内部的详情弹窗
-        if (!onRowDetailOpen) {
-          setEditingRow(newRow);
-          setRowDetailOpen(true);
-        }
+        showRowDetail(newId);
       }
     });
 
@@ -261,7 +225,7 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
                 pluginManager={pluginManager}
                 theme={theme}
                 readonly={readonly}
-                onCardClick={handleOpenRowDetail}
+                onCardClick={openRowDetail}
                 onAddCard={config?.allowAddRow !== false ? handleAddCard : undefined}
                 onMoveCard={projection.canReorder ? handleMoveCard : undefined}
                 onChangeCardGroup={handleChangeCardGroup}
@@ -277,14 +241,14 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
           </div>
         </div>
 
-        {rowDetailOpen && editingRow && (
+        {detailRowId && (
           <RowDetailModal
-            row={editingRow}
+            rowId={detailRowId}
             columns={columns}
             pluginManager={pluginManager}
             theme={theme}
-            onClose={handleCloseRowDetail}
-            onSave={handleSaveRowDetail}
+            onClose={closeRowDetail}
+            onDeleteRow={config?.allowDeleteRow !== false ? handleDeleteCard : undefined}
             onAddColumn={handleAddColumn}
             readonly={readonly}
             allowDeleteColumn={allowDeleteColumn}

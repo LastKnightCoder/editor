@@ -2,7 +2,7 @@ import React, { useRef, memo, useState, useMemo, useEffect } from "react";
 import { useClickAway, useMemoizedFn } from "ahooks";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ColumnDef, CellValue, RowData, DatabaseConfig } from "../../types";
-import { useDatabaseStore } from "../../hooks";
+import { useDatabaseStore, useRowDetail } from "../../hooks";
 import ColumnHeader from "./components/ColumnHeader";
 import PluginManager from "../../PluginManager";
 import ColumnEditModal from "./components/ColumnEditModal";
@@ -91,8 +91,7 @@ const TableView: React.FC<TableViewProps> = memo(
 
     const [columnEditOpen, setColumnEditOpen] = useState(false);
     const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
-    const [rowDetailOpen, setRowDetailOpen] = useState(false);
-    const [editingRow, setEditingRow] = useState<RowData | null>(null);
+    const { detailRowId, openRowDetail, closeRowDetail } = useRowDetail(onRowDetailOpen);
 
     const handleMoveColumn = useMemoizedFn((columnId: string, targetId: string) => {
       moveColumn(columnId, targetId);
@@ -165,31 +164,6 @@ const TableView: React.FC<TableViewProps> = memo(
     const handleCellDoubleClick = useMemoizedFn((rowId: string, columnId: string) => {
       selectCell(rowId, columnId);
       startEditing(rowId, columnId);
-    });
-
-    const handleOpenRowDetail = useMemoizedFn((row: RowData) => {
-      if (onRowDetailOpen) {
-        onRowDetailOpen(row);
-      } else {
-        setEditingRow(row);
-        setRowDetailOpen(true);
-      }
-    });
-
-    const handleCloseRowDetail = useMemoizedFn(() => {
-      setRowDetailOpen(false);
-      setEditingRow(null);
-    });
-
-    const handleSaveRowDetail = useMemoizedFn((rowData: Partial<RowData>) => {
-      if (!editingRow) return;
-
-      // 更新行数据
-      Object.keys(rowData).forEach(key => {
-        if (key !== "id") {
-          updateCellValue(editingRow.id, key, rowData[key]);
-        }
-      });
     });
 
     const projection = useDatabaseStore(state => state.projection);
@@ -389,7 +363,7 @@ const TableView: React.FC<TableViewProps> = memo(
                       moveRow={projection.canReorder ? handleMoveRow : undefined}
                       theme={theme}
                       readonly={readonly}
-                      onOpenRowDetail={handleOpenRowDetail}
+                      onOpenRowDetail={openRowDetail}
                     />
                   </div>
                 );
@@ -445,14 +419,14 @@ const TableView: React.FC<TableViewProps> = memo(
             deleteRow(rowId);
           }}
         />
-        {rowDetailOpen && editingRow && (
+        {detailRowId && (
           <RowDetailModal
-            row={editingRow}
+            rowId={detailRowId}
             columns={storeColumns}
             pluginManager={pluginManager}
             theme={theme}
-            onClose={handleCloseRowDetail}
-            onSave={handleSaveRowDetail}
+            onClose={closeRowDetail}
+            onDeleteRow={config?.allowDeleteRow !== false ? handleDeleteRow : undefined}
             onAddColumn={handleAddColumn}
             readonly={readonly}
             allowDeleteColumn={allowDeleteColumn}

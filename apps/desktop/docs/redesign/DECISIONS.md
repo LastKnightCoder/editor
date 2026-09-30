@@ -1,5 +1,27 @@
 # 决策记录（轻量 ADR）
 
+## D-084 数据库行详情重做：Dialog 内双栏（正文 + 属性栏），实时保存，按视图行序切换
+
+（2026-09-30，已定；用户裁决）
+
+- 背景：行详情是 720×760 的小窗，头部是通用标题「行详情」、真正的行标题排在第二行；每个属性行常驻拖拽手柄、铅笔、垃圾桶；标签列与值之间空得太开；属性与正文之间有一条分隔线；正文里的视频挤不下。编辑先存在本地、关闭时一次性 `onSave`，四个视图各自重复一套打开 / 关闭 / 保存逻辑。D-026 条目里「RowDetailModal 保留 CustomModal 壳」早已不符（此前已改用 Dialog），本条一并取代。
+- 方案对比（`mockups/row-detail/`）：A 侧边速览（非模态抽屉，类 Notion Peek）/ B 文档页（居中大纸、横幅封面、三列属性网格）/ C 双栏（同一张纸里左正文、右属性栏，类 Linear）。用户选 **C**。
+- 选择：
+  - 承载：沿用 Dialog，新增 `header` 插槽替换内建标题行与 ×（焦点圈闭、Esc、PortalScope、退场动画都要，另写模态壳会重复一遍）。头部 = 视图名 › 行标题 · 第 N / M 条 · 上一条 / 下一条 · 更多（删除此行）· 关闭。Database 组件拿不到库名（多宿主复用），面包屑用当前视图名——上下条本来就按视图行序走。
+  - 布局：右栏 320px 透明、不另起卡片，封面取第一个有图的图片列（大图预览，增删仍在图片属性行里；加载失败不留空白也不写「加载失败」，按行 id 派生粉彩渐变兜底，与画廊卡、文章卡同一色板）；属性行的编辑 / 删除收进属性名点击菜单，拖拽手柄只在悬停时出现在左侧固定槽位；空值显示「空」，空属性折叠成「还有 N 个空属性」。窄于 960 退化单栏（编辑器独立窗口的数据库块最小 480 宽），同一棵树 CSS 重排。
+  - 数据：入参改为 `rowId`、从 store 实时读；属性与标题实时写回（与表格单元格同一套草稿 / 校验 / `transformBeforeSave`），卸载时补存且写回所属行；正文沿用「离开时创建内容」。上下条读 `projection.rowIds`，四个视图无需额外传行序。
+- 不做：A 方案的非模态抽屉；行级创建 / 更新时间（行数据没有这类字段）；正文首次输入即建内容（会让编辑器中途切到协作文档模式、丢光标）。
+- 影响：`packages/ui` Dialog（`header` + 单测）；`components/Database/components/RowDetailModal/`（重写，拆 `RowDetailHeader` / `TitleField` / `PropertyRow` / `utils`，含单测）；`hooks/useRowDetail`、`constants/viewType`（视图图标表从 ViewTabs 抽出）；四个视图改接 `rowId` / `onDeleteRow`，删除各自的 `handleSaveRowDetail`。03 指南 §5 Dialog 使用边界、Database 小节同步。
+
+## D-084 测验数据与弹窗作答会话拆分
+
+（2026-09-30，清理实施）
+
+- 测验集、题目、历史和最高分按库及项目/测验查询；前台写入绑定原库并拒绝切库旧闭包，事务提交后通知刷新原库。最高分以主进程聚合取代逐测验加载全部历史。
+- 每个测验弹窗持有独立作答会话与题目快照，成绩保存会话开始时的项目/测验身份；提交互斥并复用同一在途请求，失败保留答案以便重试，取消/切库拒绝迟到结果认领新会话。
+- 后台生成仍由任务执行器常驻运行，继续使用原库命令，只失效原库查询；不操纵当前项目或选中测验。删除 useVLQuizStore 与 vl-quiz-store 缓存，不迁移跨库歧义的项目/测验 ID。
+- 测验表、历史成绩、题面组件与生成任务保留；不改变评分口径，沿用 D-080 不做视觉验证。
+
 ## D-083 日程数据缓存与界面状态拆分
 
 （2026-09-30，清理实施）
@@ -267,7 +289,7 @@
 ## D-026 Database 组件 tau 主题化（原位换皮）
 
 - `components/Database` + `CardDatabaseView` + `editor-extensions/database` 全量换装 tau token 与 primitives、antd/react-icons/`--th-*` 清零（2026-09-21，M1–M6 六提交）；行为与 D-024/D-025 数据协议不变。
-- **RowDetailModal 保留 CustomModal 壳**：其全屏展开（覆盖标题栏、px-12 版式）是 Dialog 尺寸体系外的高度自定义表面，为不重构展开特性而保留自建壳（壳本身无 antd）；内部确认弹窗/图标/灰阶已换 tau。ViewTypeSelectModal / ColumnEditModal 已迁 Dialog。
+- **RowDetailModal 保留 CustomModal 壳**（已被 D-084 取代：行详情改为 Dialog + `header` 插槽的双栏）：其全屏展开（覆盖标题栏、px-12 版式）是 Dialog 尺寸体系外的高度自定义表面，为不重构展开特性而保留自建壳（壳本身无 antd）；内部确认弹窗/图标/灰阶已换 tau。ViewTypeSelectModal / ColumnEditModal 已迁 Dialog。
 - select 选项色：`constants/select.ts` 的 per-theme rgba 色表删除，`SELECT_COLORS` 七色词与 Tag 七色板恒等映射，展示统一 Tag（D-021 语感）；颜色修改走 ColorSwatch。
 - `theme: "light"|"dark"` prop 线保留：CellPlugin 的 Editor/Renderer 契约含 theme，清签名属数据契约变更，超出换皮边界；组件内已不再消费。
 - `editor-extensions/database/index.module.less` 保留：拖放视觉（drop-common/drag-common）是全部 editor 扩展共享的存量惯例，仅将包装层颜色换 `--tau-*` 变量，随 editor 域迁移一并清理。追记（2026-09-29）：两份公共 less 已由 `@tau/editor` 的 `BlockDrag` 组件取代并删除（见 `docs/editor-refactor/02-阶段计划.md` P8），该 less 只剩包装层自身样式。

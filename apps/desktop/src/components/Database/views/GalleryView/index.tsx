@@ -1,7 +1,7 @@
 import React, { memo, useState, useRef, useEffect, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useDatabaseStore } from "../../hooks";
+import { useDatabaseStore, useRowDetail } from "../../hooks";
 import PluginManager from "../../PluginManager";
 import { RowData, ColumnDef, CellValue, DatabaseConfig } from "../../types";
 import GalleryCard from "./GalleryCard";
@@ -28,28 +28,19 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
   ({ pluginManager, theme, readonly, onRowDetailOpen, onRowAdd, onRowDelete, config }) => {
     const [confirmDeleteRowId, setConfirmDeleteRowId] = useState<string | null>(null);
 
-    const {
-      columns,
-      viewConfig,
-      addRow,
-      updateCellValue,
-      addColumn,
-      editColumn,
-      columnWidths,
-      deleteRow,
-    } = useDatabaseStore(state => ({
-      columns: state.columns,
-      viewConfig: state.viewConfig,
-      addRow: state.addRow,
-      updateCellValue: state.updateCellValue,
-      addColumn: state.addColumn,
-      editColumn: state.editColumn,
-      columnWidths: state.columnWidths,
-      deleteRow: state.deleteRow,
-    }));
+    const { columns, viewConfig, addRow, addColumn, editColumn, columnWidths, deleteRow } =
+      useDatabaseStore(state => ({
+        columns: state.columns,
+        viewConfig: state.viewConfig,
+        addRow: state.addRow,
+        addColumn: state.addColumn,
+        editColumn: state.editColumn,
+        columnWidths: state.columnWidths,
+        deleteRow: state.deleteRow,
+      }));
 
-    const [rowDetailOpen, setRowDetailOpen] = useState(false);
-    const [editingRow, setEditingRow] = useState<RowData | null>(null);
+    const { detailRowId, openRowDetail, showRowDetail, closeRowDetail } =
+      useRowDetail(onRowDetailOpen);
     const [columnEditOpen, setColumnEditOpen] = useState(false);
     const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -61,31 +52,6 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
     const galleryConfig = viewConfig.galleryConfig ?? {
       coverType: "detail" as const,
     };
-
-    const handleOpenRowDetail = useMemoizedFn((row: RowData) => {
-      if (onRowDetailOpen) {
-        onRowDetailOpen(row);
-      } else {
-        setEditingRow(row);
-        setRowDetailOpen(true);
-      }
-    });
-
-    const handleCloseRowDetail = useMemoizedFn(() => {
-      setRowDetailOpen(false);
-      setEditingRow(null);
-    });
-
-    const handleSaveRowDetail = useMemoizedFn((rowData: Partial<RowData>) => {
-      if (!editingRow) return;
-
-      // 更新行数据
-      Object.keys(rowData).forEach(key => {
-        if (key !== "id") {
-          updateCellValue(editingRow.id, key, rowData[key]);
-        }
-      });
-    });
 
     const allowAddColumn = config?.allowAddColumn ?? true;
     const allowDeleteColumn = config?.allowDeleteColumn ?? true;
@@ -108,20 +74,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
 
         // 添加到 store（包含分组字段值）
         addRow(newRowData);
-
-        // 构建完整的新行对象用于打开详情弹窗
-        const newRow: RowData = {
-          id: newId,
-        };
-        columns.forEach(column => {
-          newRow[column.id] = newRowData[column.id] ?? null;
-        });
-
-        // 只有在没有自定义 onRowDetailOpen 时才自动打开内部的详情弹窗
-        if (!onRowDetailOpen) {
-          setEditingRow(newRow);
-          setRowDetailOpen(true);
-        }
+        showRowDetail(newId);
       }
     });
 
@@ -322,7 +275,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
                         columns={columns}
                         coverType={galleryConfig.coverType}
                         coverImageColumnId={galleryConfig.coverImageColumnId}
-                        onClick={() => handleOpenRowDetail(row)}
+                        onClick={() => openRowDetail(row)}
                         onDelete={readonly ? undefined : () => handleDeleteRow(row.id)}
                         readonly={readonly}
                         theme={theme}
@@ -353,14 +306,14 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
             })}
           </div>
         </div>
-        {rowDetailOpen && editingRow && (
+        {detailRowId && (
           <RowDetailModal
-            row={editingRow}
+            rowId={detailRowId}
             columns={columns}
             pluginManager={pluginManager}
             theme={theme}
-            onClose={handleCloseRowDetail}
-            onSave={handleSaveRowDetail}
+            onClose={closeRowDetail}
+            onDeleteRow={config?.allowDeleteRow !== false ? handleDeleteRow : undefined}
             onAddColumn={handleAddColumn}
             readonly={readonly}
             allowDeleteColumn={allowDeleteColumn}
