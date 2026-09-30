@@ -1,20 +1,28 @@
-import React, { useState, useEffect, useRef, memo, useMemo } from "react";
-import { Pencil, Plus, Trash2, GripVertical } from "lucide-react";
-import { ColumnDef, RowData, CellValue } from "../../types";
-import { PluginManager } from "../../PluginManager";
-import { getContentById, createContent } from "@/commands/content";
-import { EditorRef } from "@tau/editor/src";
-import Editor from "@/components/ContentEditor";
-import { Descendant } from "slate";
+import React, { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { Plus, ChevronDown, ChevronUp } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
-import ColumnIcon from "@/components/Database/ColumnIcon";
-import { useDrag, useDrop, DragSourceMonitor } from "react-dnd";
-import classNames from "classnames";
-import { ConfirmDialog, Dialog, DialogBody } from "@tau/ui";
+import type { Descendant } from "slate";
+import { cn, ConfirmDialog, Dialog, FADE_SCROLL_CLASS, ImagePreview, useEdgeFade } from "@tau/ui";
+import Editor from "@/components/ContentEditor";
+import LocalImage from "@/components/LocalImage";
+import { createContent } from "@/commands/content";
+import { isEditableTarget } from "@/page/dom";
+import type { CellValue, ColumnDef } from "../../types";
+import type PluginManager from "../../PluginManager";
 import ColumnEditModal from "../../views/TableView/components/ColumnEditModal";
 import { useDatabaseStore } from "../../hooks";
-
-const COLUMN_ITEM_TYPE = "rowDetailModalColumn";
+import PropertyRow from "./PropertyRow";
+import RowCover from "./RowCover";
+import RowDetailHeader from "./RowDetailHeader";
+import TitleField from "./TitleField";
+import {
+  collectFoldedColumnIds,
+  coverImagesOf,
+  isBlankDocument,
+  isEmptyCellValue,
+  neighborRowIds,
+  orderVisibleColumns,
+} from "./utils";
 
 const DEFAULT_CONTENT: Descendant[] = [
   {
@@ -23,150 +31,155 @@ const DEFAULT_CONTENT: Descendant[] = [
   },
 ];
 
+const PreviewImage = ({
+  src,
+  alt,
+  className,
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+}) => <LocalImage url={src} alt={alt} className={className} />;
+
 interface RowDetailModalProps {
-  row: RowData;
+  rowId: string;
   columns: ColumnDef[];
   pluginManager: PluginManager;
   theme: "light" | "dark";
   onClose: () => void;
-  onSave: (rowData: Partial<RowData>) => void;
   onAddColumn?: () => void;
+  /** 删除行的入口（确认流程由视图负责）；行消失后详情自动关闭 */
+  onDeleteRow?: (rowId: string) => void;
   readonly?: boolean;
   allowDeleteColumn?: boolean;
 }
 
+/**
+ * 行详情：左正文、右属性栏；弹窗内容宽度不足 960 时退化为单栏（标题 → 属性 → 正文），
+ * 两种形态是同一棵树，只靠容器查询与 order / display:contents 重排，编辑器不会重挂载。
+ * 属性与标题实时写回 store；没有正文内容 id 的行在离开
+ * （关闭或切换行）时才创建内容并回写 detailContentId。上一条 / 下一条按当前视图投影后的行序。
+ */
 const RowDetailModal: React.FC<RowDetailModalProps> = memo(
   ({
-    row,
+    rowId,
     columns,
     pluginManager,
     theme,
     onClose,
-    onSave,
     onAddColumn,
+    onDeleteRow,
     readonly = false,
     allowDeleteColumn = true,
   }) => {
-    const editorRef = useRef<EditorRef>(null);
-    const [description, setDescription] = useState<Descendant[]>(DEFAULT_CONTENT);
-    const [rowData, setRowData] = useState<RowData>({ ...row });
-    const [editingColumn, setEditingColumn] = useState<string | null>(null);
+    const [currentId, setCurrentId] = useState(rowId);
+    const {
+      row,
+      rowIds,
+      columnOrder,
+      moveColumn,
+      editColumn,
+      deleteColumnWithCleanup,
+      columnWidths,
+      updateCellValue,
+      activeView,
+    } = useDatabaseStore(state => ({
+      row: state.rows.find(r => r.id === currentId),
+      rowIds: state.projection.rowIds,
+      columnOrder: state.viewConfig.columnOrder,
+      moveColumn: state.moveColumn,
+      editColumn: state.editColumn,
+      deleteColumnWithCleanup: state.deleteColumnWithCleanup,
+      columnWidths: state.columnWidths,
+      updateCellValue: state.updateCellValue,
+      activeView: state.views.find(view => view.id === state.activeViewId),
+    }));
+
+    const orderedColumns = useMemo(
+      () => orderVisibleColumns(columns, columnOrder),
+      [columns, columnOrder]
+    );
+    const primaryColumn = orderedColumns.find(col => col.isPrimary);
+    const propertyColumns = orderedColumns.filter(col => !col.isPrimary);
+
     const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
     const [confirmDeleteColumn, setConfirmDeleteColumn] = useState<ColumnDef | null>(null);
+    const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+    const [showEmpty, setShowEmpty] = useState(false);
+    // 折叠集合在进入某行时定格：填了又清空的字段留在原位，不会突然跳走
+    const [fold, setFold] = useState<{ rowId: string; ids: Set<string> } | null>(null);
+    if (row && fold?.rowId !== row.id) {
+      setFold({ rowId: row.id, ids: collectFoldedColumnIds(row, propertyColumns, pluginManager) });
+      setShowEmpty(false);
+      setPreviewIndex(null);
+    }
 
-    const { columnOrder, moveColumn, editColumn, deleteColumnWithCleanup, columnWidths } =
-      useDatabaseStore(state => ({
-        columnOrder: state.viewConfig.columnOrder,
-        moveColumn: state.moveColumn,
-        editColumn: state.editColumn,
-        deleteColumnWithCleanup: state.deleteColumnWithCleanup,
-        columnWidths: state.columnWidths,
-      }));
-
-    const orderedColumns = useMemo(() => {
-      const visibleColumns = columns.filter(col => !col.hidden);
-      const orderIndexMap = new Map(columnOrder.map((id, index) => [id, index]));
-      return [...visibleColumns].sort((a, b) => {
-        const indexA = orderIndexMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
-        const indexB = orderIndexMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
-        return indexA - indexB;
-      });
-    }, [columns, columnOrder]);
-
-    const primaryColumn = orderedColumns.find(col => col.isPrimary);
-    const otherColumns = orderedColumns.filter(col => !col.isPrimary);
+    const [bodyEl, setBodyEl] = useState<HTMLDivElement | null>(null);
+    const [mainEl, setMainEl] = useState<HTMLDivElement | null>(null);
+    const [railEl, setRailEl] = useState<HTMLElement | null>(null);
+    useEdgeFade(bodyEl);
+    useEdgeFade(mainEl);
+    useEdgeFade(railEl);
 
     useEffect(() => {
-      const loadDescription = async () => {
-        if (row.detailContentId && row.detailContentId > 0) {
-          try {
-            const content = await getContentById(row.detailContentId);
-            if (content?.content) {
-              setDescription(content.content);
-              editorRef.current?.setEditorValue(content.content);
-            } else {
-              setDescription(DEFAULT_CONTENT);
-              editorRef.current?.setEditorValue(DEFAULT_CONTENT);
-            }
-          } catch (error) {
-            console.error("Failed to load description:", error);
-            setDescription(DEFAULT_CONTENT);
-            editorRef.current?.setEditorValue(DEFAULT_CONTENT);
-          }
-        } else {
-          setDescription(DEFAULT_CONTENT);
-          editorRef.current?.setEditorValue(DEFAULT_CONTENT);
-        }
-      };
+      if (!row) onClose();
+    }, [row, onClose]);
 
-      loadDescription();
-    }, [row.detailContentId]);
+    const commitCell = useMemoizedFn((targetRowId: string, columnId: string, value: CellValue) => {
+      const column = columns.find(col => col.id === columnId);
+      const next = column
+        ? pluginManager.transformBeforeSave(column.type, value, column.config)
+        : value;
+      updateCellValue(targetRowId, columnId, next);
+    });
+
+    const descriptionDraft = useRef<Descendant[] | null>(null);
+    const flushDescription = useMemoizedFn(async () => {
+      const draft = descriptionDraft.current;
+      descriptionDraft.current = null;
+      if (!row || (row.detailContentId ?? 0) > 0 || !draft || isBlankDocument(draft)) return;
+      try {
+        const contentId = await createContent(draft, 0);
+        if (contentId) updateCellValue(row.id, "detailContentId", contentId);
+      } catch (error) {
+        console.error("保存行详情正文失败:", error);
+      }
+    });
 
     const handleClose = useMemoizedFn(async () => {
-      const hasContent = JSON.stringify(description) !== JSON.stringify(DEFAULT_CONTENT);
-      let detailContentId = row.detailContentId || 0;
-
-      if (hasContent) {
-        if (row.detailContentId && row.detailContentId > 0) {
-          detailContentId = row.detailContentId;
-        } else {
-          const contentId = await createContent(description, 0);
-          if (contentId) {
-            detailContentId = contentId;
-          }
-        }
-      }
-
-      onSave({
-        ...rowData,
-        detailContentId,
-      });
+      await flushDescription();
       onClose();
     });
 
-    const handleColumnValueChange = useMemoizedFn((columnId: string, value: CellValue) => {
-      setRowData((prev: RowData) => ({
-        ...prev,
-        [columnId]: value,
-      }));
+    const { index, prev, next } = neighborRowIds(rowIds, currentId);
+    const goTo = useMemoizedFn(async (targetId: string | null) => {
+      if (!targetId) return;
+      await flushDescription();
+      setCurrentId(targetId);
     });
 
-    const handleOpenColumnEditor = useMemoizedFn((columnId: string) => {
-      if (readonly) return;
-      setEditingColumnId(columnId);
-    });
-
-    const handleCloseColumnEditor = useMemoizedFn(() => {
-      setEditingColumnId(null);
+    const handleKeyDown = useMemoizedFn((e: KeyboardEvent<HTMLDivElement>) => {
+      if (e.nativeEvent.isComposing || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isEditableTarget(e.target)) return;
+      if (e.key === "j" || e.key === "k") {
+        e.preventDefault();
+        void goTo(e.key === "j" ? next : prev);
+      }
     });
 
     const handleSaveColumnConfig = useMemoizedFn((columnData: Partial<ColumnDef>) => {
       if (!editingColumnId) return;
       editColumn(editingColumnId, columnData);
-      handleCloseColumnEditor();
+      setEditingColumnId(null);
     });
 
     const handleDeleteColumn = useMemoizedFn((column: ColumnDef) => {
-      if (readonly || column.isPrimary || !allowDeleteColumn) {
-        return;
-      }
-
+      if (readonly || column.isPrimary || !allowDeleteColumn) return;
       setConfirmDeleteColumn(column);
     });
 
-    const handleConfirmDeleteColumn = useMemoizedFn(async () => {
-      const column = confirmDeleteColumn;
-      if (!column) return;
-      await deleteColumnWithCleanup(column.id, pluginManager);
-      setRowData((prev: RowData) => {
-        const next = { ...prev } as RowData;
-        delete next[column.id];
-        return next;
-      });
-    });
-
     const handleColumnConfigChange = useMemoizedFn((updated: ColumnDef) => {
-      // 将在选择器中编辑产生的新列配置同步到全局 store
+      // 在选项编辑器里新建的选项要同步到列配置
       editColumn(updated.id, updated);
     });
 
@@ -174,89 +187,161 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
       if (!editingColumnId) return null;
       const found = columns.find(col => col.id === editingColumnId);
       if (!found) return null;
-      const width = columnWidths[editingColumnId] || found.width || 200;
-      return { ...found, width } as ColumnDef;
+      return { ...found, width: columnWidths[editingColumnId] || found.width || 200 } as ColumnDef;
     }, [editingColumnId, columns, columnWidths]);
+
+    if (!row) return null;
+
+    const title = primaryColumn ? String(row[primaryColumn.id] ?? "") : "";
+    const foldedIds = fold?.ids ?? new Set<string>();
+    const isHidden = (column: ColumnDef) =>
+      foldedIds.has(column.id) && isEmptyCellValue(row[column.id]);
+    const hiddenCount = propertyColumns.filter(isHidden).length;
+    const visibleColumns = showEmpty ? propertyColumns : propertyColumns.filter(c => !isHidden(c));
+    const cover = coverImagesOf(row, propertyColumns);
 
     return (
       <Dialog
         open
-        onOpenChange={next => !next && void handleClose()}
-        title="行详情"
-        width={720}
-        height={760}
+        onOpenChange={open => !open && void handleClose()}
+        title={title || "行详情"}
+        width={1120}
+        height={880}
+        onKeyDown={handleKeyDown}
+        className="overflow-hidden"
+        header={
+          <RowDetailHeader
+            viewName={activeView?.name}
+            viewType={activeView?.type}
+            title={title}
+            index={index}
+            total={rowIds.length}
+            onPrev={prev ? () => void goTo(prev) : undefined}
+            onNext={next ? () => void goTo(next) : undefined}
+            onDeleteRow={onDeleteRow && !readonly ? () => onDeleteRow(row.id) : undefined}
+            onClose={() => void handleClose()}
+          />
+        }
       >
-        {/* 主列标题钉在滚动区之上 */}
-        {primaryColumn && (
-          <div className="shrink-0 px-6 pb-2 pt-1">
-            <input
-              type="text"
-              value={String(rowData[primaryColumn.id] || "")}
-              onChange={e => handleColumnValueChange(primaryColumn.id, e.target.value)}
-              disabled={readonly || primaryColumn.readonly}
-              aria-label={primaryColumn.title}
-              className="text-ink-1 text-tau-title-lg placeholder:text-ink-3 w-full border-0 bg-transparent px-0 py-1 font-semibold focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
-              placeholder={`输入${primaryColumn.title}`}
-            />
-          </div>
-        )}
-        <DialogBody className="flex-1 pl-4">
-          {otherColumns.length > 0 && (
-            <div className="border-line-1 mb-4 border-b pb-3">
-              <div className="space-y-0.5">
-                {otherColumns.map(column => (
-                  <ColumnPropertyRow
-                    key={column.id}
+        <div className="@container/row-detail flex min-h-0 flex-1 flex-col">
+          <div
+            ref={setBodyEl}
+            className={cn(
+              FADE_SCROLL_CLASS,
+              "flex min-h-0 flex-1 flex-col pb-16 pl-8 pr-[26px]",
+              "@min-[960px]/row-detail:grid @min-[960px]/row-detail:grid-cols-[minmax(0,1fr)_320px] @min-[960px]/row-detail:grid-rows-[minmax(0,1fr)]",
+              "@min-[960px]/row-detail:overflow-hidden @min-[960px]/row-detail:border-r-0 @min-[960px]/row-detail:p-0"
+            )}
+          >
+            <div
+              ref={setMainEl}
+              className={cn(
+                FADE_SCROLL_CLASS,
+                "contents",
+                "@min-[960px]/row-detail:block @min-[960px]/row-detail:pb-[72px] @min-[960px]/row-detail:pl-[60px] @min-[960px]/row-detail:pr-[46px] @min-[960px]/row-detail:pt-2.5"
+              )}
+            >
+              {primaryColumn && (
+                <div className="@min-[960px]/row-detail:order-none order-1 mb-5 mt-2">
+                  <TitleField
+                    key={row.id}
+                    rowId={row.id}
+                    value={title}
+                    placeholder={`输入${primaryColumn.title}`}
+                    readonly={readonly || Boolean(primaryColumn.readonly)}
+                    onCommit={(targetRowId, value) =>
+                      commitCell(targetRowId, primaryColumn.id, value)
+                    }
+                  />
+                </div>
+              )}
+              <div className="@min-[960px]/row-detail:order-none @min-[960px]/row-detail:mt-0 order-3 mt-7 max-w-[700px]">
+                <Editor
+                  key={row.id}
+                  contentId={row.detailContentId || undefined}
+                  initValue={DEFAULT_CONTENT}
+                  onChange={value => {
+                    descriptionDraft.current = value;
+                  }}
+                  readonly={readonly}
+                  placeHolder="添加详细描述…"
+                  className="min-h-[200px] break-words [overflow-wrap:anywhere]"
+                />
+              </div>
+            </div>
+
+            <aside
+              ref={setRailEl}
+              className={cn(
+                FADE_SCROLL_CLASS,
+                "order-2",
+                "@min-[960px]/row-detail:order-none @min-[960px]/row-detail:pb-10 @min-[960px]/row-detail:pl-[26px] @min-[960px]/row-detail:pr-4 @min-[960px]/row-detail:pt-1.5"
+              )}
+            >
+              {cover.length > 0 && (
+                <RowCover rowId={row.id} image={cover[0]} onPreview={() => setPreviewIndex(0)} />
+              )}
+              <div className="flex flex-col gap-px">
+                {visibleColumns.map(column => (
+                  <PropertyRow
+                    key={`${row.id}:${column.id}`}
+                    rowId={row.id}
                     column={column}
-                    columnOrder={columnOrder}
-                    moveColumn={moveColumn}
+                    value={row[column.id]}
                     pluginManager={pluginManager}
                     theme={theme}
-                    rowData={rowData}
                     readonly={readonly}
-                    editingColumnId={editingColumn}
-                    setEditingColumnId={setEditingColumn}
-                    onColumnValueChange={handleColumnValueChange}
-                    allowDeleteColumn={allowDeleteColumn}
+                    columnOrder={columnOrder}
+                    moveColumn={moveColumn}
+                    allowDelete={allowDeleteColumn}
+                    onCommit={commitCell}
+                    onEditColumn={setEditingColumnId}
                     onDeleteColumn={handleDeleteColumn}
-                    onEditColumnConfig={handleOpenColumnEditor}
-                    onColumnConfigChange={handleColumnConfigChange}
+                    onColumnChange={handleColumnConfigChange}
                   />
                 ))}
               </div>
-              {!readonly && onAddColumn && (
-                <button
-                  onClick={e => {
-                    e.stopPropagation();
-                    onAddColumn();
-                  }}
-                  className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm text-tau-sm flex h-9 cursor-pointer items-center gap-2 px-2 transition-colors"
-                >
-                  <Plus className="h-[14px] w-[14px]" strokeWidth={1.75} />
-                  <span>添加属性</span>
-                </button>
+              {((!readonly && onAddColumn) || hiddenCount > 0) && (
+                <div className="mt-0.5 flex flex-wrap gap-0.5">
+                  {!readonly && onAddColumn && (
+                    <button type="button" onClick={onAddColumn} className={GHOST_BUTTON_CLASS}>
+                      <Plus className="size-3.5" strokeWidth={1.75} />
+                      添加属性
+                    </button>
+                  )}
+                  {hiddenCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowEmpty(v => !v)}
+                      className={GHOST_BUTTON_CLASS}
+                    >
+                      {showEmpty ? (
+                        <ChevronUp className="size-3.5" strokeWidth={1.75} />
+                      ) : (
+                        <ChevronDown className="size-3.5" strokeWidth={1.75} />
+                      )}
+                      {showEmpty ? "收起空属性" : `还有 ${hiddenCount} 个空属性`}
+                    </button>
+                  )}
+                </div>
               )}
-            </div>
-          )}
-
-          <div className="pl-2">
-            <Editor
-              contentId={row.detailContentId || undefined}
-              ref={editorRef}
-              initValue={DEFAULT_CONTENT}
-              onChange={setDescription}
-              readonly={readonly}
-              placeHolder="添加详细描述..."
-              className="min-h-[200px] break-words [overflow-wrap:anywhere]"
-              style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
-            />
+            </aside>
           </div>
-        </DialogBody>
+        </div>
+
+        <ImagePreview
+          images={cover.map(image => ({ src: image.url, alt: image.alt }))}
+          index={previewIndex ?? 0}
+          onIndexChange={setPreviewIndex}
+          open={previewIndex !== null}
+          onOpenChange={open => !open && setPreviewIndex(null)}
+          ImageComponent={PreviewImage}
+        />
         {editingColumnData && (
           <ColumnEditModal
-            open={Boolean(editingColumnData)}
+            open
             column={editingColumnData}
-            onCancel={handleCloseColumnEditor}
+            onCancel={() => setEditingColumnId(null)}
             onSave={handleSaveColumnConfig}
             theme={theme}
             pluginManager={pluginManager}
@@ -272,189 +357,19 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
           impact="删除属性将移除该列的所有数据"
           danger
           confirmText="删除"
-          onConfirm={() => handleConfirmDeleteColumn()}
+          onConfirm={async () => {
+            const column = confirmDeleteColumn;
+            if (column) await deleteColumnWithCleanup(column.id, pluginManager);
+          }}
         />
       </Dialog>
     );
   }
 );
 
+const GHOST_BUTTON_CLASS =
+  "text-ink-3 hover:bg-hover hover:text-ink-2 text-tau-meta ease-tau-out flex h-8 items-center gap-1.5 rounded-[7px] px-2 transition-colors";
+
 RowDetailModal.displayName = "RowDetailModal";
 
 export default RowDetailModal;
-
-interface ColumnPropertyRowProps {
-  column: ColumnDef;
-  columnOrder: string[];
-  moveColumn: (columnId: string, targetId: string) => void;
-  pluginManager: PluginManager;
-  theme: "light" | "dark";
-  rowData: RowData;
-  readonly: boolean;
-  editingColumnId: string | null;
-  setEditingColumnId: (columnId: string | null) => void;
-  onColumnValueChange: (columnId: string, value: CellValue) => void;
-  allowDeleteColumn: boolean;
-  onDeleteColumn: (column: ColumnDef) => void;
-  onEditColumnConfig: (columnId: string) => void;
-  onColumnConfigChange: (column: ColumnDef) => void;
-}
-
-interface DragItem {
-  id: string;
-  orderIndex: number;
-  type: string;
-}
-
-const ColumnPropertyRow: React.FC<ColumnPropertyRowProps> = ({
-  column,
-  columnOrder,
-  moveColumn,
-  pluginManager,
-  theme,
-  rowData,
-  readonly,
-  editingColumnId,
-  setEditingColumnId,
-  onColumnValueChange,
-  allowDeleteColumn,
-  onDeleteColumn,
-  onEditColumnConfig,
-  onColumnConfigChange,
-}) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const plugin = pluginManager.getPlugin(column.type);
-  const PluginEditor = plugin?.Editor;
-  const Renderer = plugin?.Renderer;
-  const isEditing = editingColumnId === column.id;
-  const isColumnReadonly = Boolean(readonly || column.readonly);
-  const orderIndex = columnOrder.indexOf(column.id);
-
-  const [{ isDragging }, drag] = useDrag(
-    () => ({
-      type: COLUMN_ITEM_TYPE,
-      item: { id: column.id, orderIndex, type: COLUMN_ITEM_TYPE },
-      canDrag: () => !readonly,
-      collect: (monitor: DragSourceMonitor) => ({
-        isDragging: monitor.isDragging(),
-      }),
-    }),
-    [column.id, orderIndex, readonly]
-  );
-
-  const [, drop] = useDrop(
-    () => ({
-      accept: COLUMN_ITEM_TYPE,
-      hover: (item: DragItem) => {
-        if (!ref.current || readonly) return;
-        if (item.id === column.id) return;
-
-        const hoverIndex = columnOrder.indexOf(column.id);
-        if (hoverIndex === -1 || item.orderIndex === hoverIndex) return;
-
-        moveColumn(item.id, column.id);
-        item.orderIndex = hoverIndex;
-      },
-    }),
-    [column.id, readonly, columnOrder, moveColumn]
-  );
-
-  drag(drop(ref));
-
-  const handleRowClick = () => {
-    if (!isColumnReadonly && !isEditing && PluginEditor) {
-      setEditingColumnId(column.id);
-    }
-  };
-
-  const valueRenderer = () => {
-    if (!isColumnReadonly && isEditing && PluginEditor) {
-      return (
-        <PluginEditor
-          value={rowData[column.id]}
-          column={column}
-          onCellValueChange={(value: CellValue) => {
-            onColumnValueChange(column.id, value);
-          }}
-          onFinishEdit={() => {
-            setEditingColumnId(null);
-          }}
-          onColumnChange={(updatedColumn: ColumnDef) => {
-            onColumnConfigChange(updatedColumn);
-          }}
-          theme={theme}
-          readonly={isColumnReadonly}
-        />
-      );
-    }
-
-    if (Renderer) {
-      return (
-        <Renderer
-          value={rowData[column.id]}
-          column={column}
-          theme={theme}
-          readonly={isColumnReadonly}
-          onCellValueChange={(value: CellValue) => onColumnValueChange(column.id, value)}
-        />
-      );
-    }
-
-    return <span className="text-tau-body text-ink-1">{String(rowData[column.id] || "")}</span>;
-  };
-
-  return (
-    <div
-      ref={ref}
-      className={classNames(
-        "rounded-tau-sm flex min-w-0 items-center gap-3 px-2 py-1 transition-colors",
-        {
-          "hover:bg-hover cursor-pointer": !readonly,
-          "opacity-50": isDragging,
-        }
-      )}
-      onClick={handleRowClick}
-    >
-      {!readonly && (
-        <span className="text-ink-3 cursor-grab">
-          <GripVertical className="size-4" strokeWidth={1.75} />
-        </span>
-      )}
-      <div className="flex w-32 shrink-0 items-center gap-2">
-        <ColumnIcon type={column.type} pluginManager={pluginManager} />
-        <span className="text-tau-sm text-ink-2 truncate">{column.title}</span>
-      </div>
-      <div className="flex min-h-[40px] min-w-0 flex-1 items-center">
-        <div className="w-full min-w-0">{valueRenderer()}</div>
-      </div>
-      {!readonly && (
-        <div className="flex shrink-0 items-center gap-1">
-          <button
-            type="button"
-            className="text-ink-3 hover:text-ink-1 grid size-6 place-items-center rounded-[7px]"
-            onClick={e => {
-              e.stopPropagation();
-              onEditColumnConfig(column.id);
-            }}
-            title="编辑属性"
-          >
-            <Pencil className="h-[14px] w-[14px]" strokeWidth={1.75} />
-          </button>
-          {allowDeleteColumn && (
-            <button
-              type="button"
-              className="text-ink-3 hover:text-danger grid size-6 place-items-center rounded-[7px]"
-              onClick={e => {
-                e.stopPropagation();
-                onDeleteColumn(column);
-              }}
-              title="删除属性"
-            >
-              <Trash2 className="h-[14px] w-[14px]" strokeWidth={1.75} />
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};

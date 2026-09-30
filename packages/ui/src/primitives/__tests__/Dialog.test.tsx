@@ -173,6 +173,32 @@ describe("Dialog", () => {
     h.cleanup();
   });
 
+  it("header：替换内建标题行与 ×，title 转为 aria-label，Esc 仍可关", async () => {
+    const changes: boolean[] = [];
+    const h = await renderControlled(({ open, change }) => (
+      <Dialog
+        open={open}
+        onOpenChange={v => {
+          changes.push(v);
+          change(v);
+        }}
+        title="行详情"
+        header={<nav>自定义头部</nav>}
+      >
+        正文
+      </Dialog>
+    ));
+    const card = h.card()!;
+    expect(card.getAttribute("aria-label")).toBe("行详情");
+    expect(card.getAttribute("aria-labelledby")).toBeNull();
+    expect(card.querySelector("h2")).toBeNull();
+    expect(card.querySelector('button[aria-label="关闭"]')).toBeNull();
+    expect(card.textContent).toContain("自定义头部");
+    keyDown(card, "Escape");
+    expect(changes).toEqual([false]);
+    h.cleanup();
+  });
+
   it("critical：无 ×，Esc 与遮罩点击均不关", async () => {
     const changes: boolean[] = [];
     const h = await renderControlled(({ open, change }) => (
