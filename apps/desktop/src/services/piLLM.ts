@@ -10,6 +10,7 @@ import type { LLMModelSetting, LLMProviderSetting, PiThinkingLevel } from "@/typ
 import type { UsageSource } from "@/types/model-usage";
 import { Role } from "@/constants";
 import { getChatDatabase } from "./chatDatabase";
+import { normalizePiSystemPrompt } from "./piPromptPayload";
 
 export type PiChatRequest = PiSingleShotOptions;
 
@@ -69,10 +70,13 @@ export function toPiChatMessages(messages: RequestMessage[]): {
   const chat: Array<{ role: "user" | "assistant"; content: string }> = [];
   for (const message of messages) {
     if (message.role === Role.System) {
-      if (typeof message.content === "string") systemParts.push(message.content);
+      if (typeof message.content === "string")
+        systemParts.push(normalizePiSystemPrompt(message.content));
       else if (Array.isArray(message.content)) {
         systemParts.push(
-          message.content.map(block => (block.type === "text" ? block.text : "")).join("")
+          normalizePiSystemPrompt(
+            message.content.map(block => (block.type === "text" ? block.text : "")).join("")
+          )
         );
       }
       continue;

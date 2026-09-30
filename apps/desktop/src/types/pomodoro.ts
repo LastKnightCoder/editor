@@ -1,5 +1,8 @@
 export type PomodoroMode = "countdown" | "countup";
 
+export type BackgroundSoundType =
+  null | "brook" | "birds" | "autumn" | "tide" | "summer" | "wind-chime" | "bonfire" | "rain";
+
 export interface PomodoroPreset {
   id: number;
   name: string;
@@ -11,12 +14,7 @@ export interface PomodoroPreset {
   updateTime: number;
 }
 
-export type PomodoroStatus =
-  | "running"
-  | "paused"
-  | "completed"
-  | "stopped"
-  | "aborted";
+export type PomodoroStatus = "running" | "paused" | "completed" | "stopped" | "aborted";
 
 export interface PauseSpan {
   start: number;

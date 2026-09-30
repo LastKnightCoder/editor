@@ -46,8 +46,6 @@ export interface InlineEditorContext {
   entityType?: EntityType;
   entityId?: number | string;
   tabType?: string;
-  tabId?: string;
-  paneId?: string;
   targetSource?: "explicit" | "active-session" | "active-tab";
   snapshotId: string;
   snapshotSource: "active-session" | "database";
@@ -154,8 +152,6 @@ export const buildInlineEditorContextFromSnapshot = (payload: {
     entityType?: EntityType;
     entityId?: number | string;
     tabType?: string;
-    tabId?: string;
-    paneId?: string;
     source: "explicit" | "active-session" | "active-tab";
   };
   options?: InlineContextBuildOptions;
@@ -239,8 +235,6 @@ export const buildInlineEditorContextFromSnapshot = (payload: {
     entityType: target.entityType,
     entityId: target.entityId,
     tabType: target.tabType,
-    tabId: target.tabId,
-    paneId: target.paneId,
     targetSource: target.source,
     snapshotId: snapshot.id,
     snapshotSource,
@@ -289,8 +283,6 @@ export const buildInlineContextPrompt = (
     entityType: context.entityType,
     entityId: context.entityId,
     tabType: context.tabType,
-    tabId: context.tabId,
-    paneId: context.paneId,
     snapshotId: context.snapshotId,
     snapshotSource: context.snapshotSource,
     targetSource: context.targetSource,

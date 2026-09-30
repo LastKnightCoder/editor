@@ -13,7 +13,6 @@ import { FileText } from "lucide-react";
 import { Button, Loading, ToastHost, initScrollbarAutoHide } from "@tau/ui";
 import { connectDatabaseByName } from "@/commands";
 import useSettingStore from "@/stores/useSettingStore";
-import useSyncFont from "@/hooks/useSyncFont";
 import { useThemeRuntime } from "@/app/useThemeRuntime";
 import "@/app/base.css";
 import { DOCUMENT_DRIVERS, isEditorWindowKind, type DocumentDriver } from "./documentDrivers";
@@ -34,7 +33,6 @@ export default function EditorWindowPage() {
   const driver = isEditorWindowKind(kind) ? DOCUMENT_DRIVERS[kind] : null;
   const valid = Boolean(driver && databaseName && Number.isSafeInteger(id) && id > 0);
 
-  useSyncFont();
   useThemeRuntime();
   useEffect(() => initScrollbarAutoHide(), []);
 

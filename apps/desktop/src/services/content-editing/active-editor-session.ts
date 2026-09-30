@@ -30,8 +30,6 @@ export const upsertActiveEditingSession = (payload: {
   contentId: number;
   entityType: EntityType;
   entityId: number | string;
-  tabId?: string;
-  paneId?: string;
   tabType?: string;
   content: Descendant[];
 }) => {
@@ -42,8 +40,6 @@ export const upsertActiveEditingSession = (payload: {
     contentId: payload.contentId,
     entityType: payload.entityType,
     entityId: payload.entityId,
-    tabId: payload.tabId,
-    paneId: payload.paneId,
     tabType: payload.tabType,
     focused: current?.focused ?? false,
     selection: current?.selection ?? null,

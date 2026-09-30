@@ -1,5 +1,3 @@
-@import "./themes/overlay.less";
-
 .app-region-drag {
   -webkit-app-region: drag;
 }
@@ -33,10 +31,13 @@ body {
   overscroll-behavior: none;
 }
 
-body {
+:root {
   --font: sans-serif;
   --mono-font: monospace;
   --font-size: 16px;
+}
+
+body {
   --block-distance: 1.25em;
   --sidebar-bg: var(--th-bg-page);
   --right-sidebar-bg: var(--th-bg-page);
@@ -86,70 +87,4 @@ code {
 
 &::-webkit-scrollbar-corner {
   background: transparent;
-}
-
-[class*="ant-"] {
-  font-family: var(--font) !important;
-}
-
-.command-palette {
-  z-index: 9999;
-}
-
-.clay {
-  background: var(--clay-background, rgba(0, 0, 0, 0.005));
-  border-radius: var(--clay-border-radius, 32px);
-  box-shadow:
-    var(--clay-shadow-outset, 8px 8px 16px 0 rgba(0, 0, 0, 0.25)),
-    inset var(--clay-shadow-inset-primary, -8px -8px 16px 0 rgba(0, 0, 0, 0.25)),
-    inset var(--clay-shadow-inset-secondary, 8px 8px 16px 0 hsla(0, 0%, 100%, 0.2));
-}
-
-// CodeMirror 编辑器样式（用于自定义组件源码编辑）
-.codemirror-container {
-  .CodeMirror {
-    height: 100%;
-    padding: 0;
-    border-radius: 0;
-    line-height: 1.6;
-    font-size: 14px;
-    font-family: "Consolas", "Monaco", "Courier New", monospace;
-    box-shadow: none;
-  }
-
-  .CodeMirror pre.CodeMirror-line,
-  .CodeMirror pre.CodeMirror-line-like {
-    padding: 0 16px;
-  }
-
-  .CodeMirror-scroll {
-    overflow: auto !important;
-  }
-
-  .CodeMirror-hscrollbar {
-    overflow: auto !important;
-  }
-
-  .CodeMirror-gutters {
-    border-right: 1px solid var(--th-border);
-    padding-right: 10px;
-  }
-
-  .CodeMirror-linenumber {
-    cursor: pointer;
-    color: var(--th-text-tertiary);
-    padding: 0 8px 0 5px;
-  }
-
-  .CodeMirror-cursor {
-    border-left: 2px solid #2563eb;
-  }
-
-  .CodeMirror-selected {
-    background: var(--th-accent-soft);
-  }
-
-  .CodeMirror-activeline-background {
-    background: var(--th-accent-soft);
-  }
 }

@@ -266,7 +266,7 @@ pnpm add -D
 
 ## 桌面端重构规范（Page 架构）
 
-背景：桌面端正从旧 Tab 系统（useTabStore + TabContent 33 分支）渐进迁移到 Page 协议（声明式页面 definePage + 纯函数栈机 + Activity 保活 + 自有设计系统，命名对齐移动端，见 DECISIONS.md D-002）。
+背景：桌面端已从旧 Tab 系统迁移到 Page 协议（声明式页面 definePage + 纯函数栈机 + Activity 保活 + 自有设计系统，命名对齐移动端，见 DECISIONS.md D-002）。旧主界面与 Tab 骨架已退役，存量组件、主题兼容层和数据 store 按实际消费者继续清理，当前执行清单见 `apps/desktop/docs/redesign/05-桌面端清理调研.md`。
 
 **上手顺序（写桌面端代码前必做）**：
 
@@ -314,4 +314,4 @@ pnpm add -D
 ### 迁移流程
 
 - 迁移一个 legacy 模块的标准流程见 03 指南 §6；迁移前先按 04 删除清单模板做消费者调查并追加章节，删除动作跟锚点事件走（P-<page>/G1/G2），删前 `rg` 复核消费者清零。
-- legacy 页面（`/legacy` 路由、旧 Tab 系统）允许修 bug，禁止加新功能；新功能必须走新架构。
+- 禁止恢复 `/legacy` 路由或旧 Tab 系统承载新功能；存量代码改造遵循新架构，并在消费者清零后删除旧实现。

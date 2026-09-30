@@ -3,7 +3,7 @@ import { Layers, Plus } from "lucide-react";
 import { Dialog, DialogBody, Spinner } from "@tau/ui";
 import useFlashcardStore from "@/stores/useFlashcardStore";
 import type { FlashcardDeck } from "@/types";
-import DeckFormModal from "@/pages/FlashcardCenter/DeckFormModal";
+import DeckFormModal from "./DeckFormModal";
 import DeckIcon from "@/components/DeckIcon";
 
 interface DeckSelectorModalProps {

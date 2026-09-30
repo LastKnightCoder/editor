@@ -252,19 +252,6 @@
     box-shadow: var(--th-shadow-md);
   }
 
-  /* 演示模式备注文字颜色 - 覆盖主题 CSS 变量 */
-  .slide-player-notes-container {
-    --th-text: rgba(255, 255, 255, 0.9);
-    --th-text: rgba(255, 255, 255, 0.9);
-    --th-text: rgba(255, 255, 255, 0.9);
-    --th-text-secondary: rgba(255, 255, 255, 0.7);
-    --th-text-secondary: rgba(255, 255, 255, 0.7);
-    --th-text-tertiary: rgba(255, 255, 255, 0.5);
-    --th-active-text: rgba(255, 255, 255, 0.85);
-    transparent: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.9);
-  }
-
   /* Electron 窗口拖拽区域 */
   .app-region-drag {
     -webkit-app-region: drag;
