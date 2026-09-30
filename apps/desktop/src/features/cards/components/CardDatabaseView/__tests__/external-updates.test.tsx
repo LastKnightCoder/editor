@@ -1,10 +1,10 @@
 import { act, createRef, useContext } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import Database, { type DatabaseRef } from "../../Database/Database";
+import Database, { type DatabaseRef } from "@/components/Database/Database";
 import CardDatabaseView from "..";
-import type { DatabaseStoreType } from "../../Database/DatabaseContext";
-import type { DatabaseProps } from "../../Database/types";
+import type { DatabaseStoreType } from "@/components/Database/DatabaseContext";
+import type { DatabaseProps } from "@/components/Database/types";
 import { ECardCategory, type ICard } from "@/types/card";
 
 const mocks = vi.hoisted(() => ({
@@ -15,19 +15,21 @@ vi.mock("@/commands", () => ({ deleteContent: vi.fn(), updateCard: vi.fn() }));
 vi.mock("@/utils/editor", () => ({ getEditorText: () => "标题" }));
 vi.mock("@/constants", () => ({ cardCategoryName: { temporary: "临时", permanent: "永久" } }));
 vi.mock("@/hooks/useTheme", () => ({ default: () => ({ theme: "light", isDark: false }) }));
-vi.mock("antd", () => ({ App: { useApp: () => ({ modal: {} }) } }));
 vi.mock("../plugins/CardLinksPlugin", () => ({ default: { type: "card-links" } }));
-vi.mock("../../Database/plugins", () => ({ builtInPlugins: [] }));
-vi.mock("../../Database/hooks", () => ({
+vi.mock("@/components/Database/plugins", async () => {
+  const { default: select } = await import("@/components/Database/plugins/SelectPlugin");
+  return { builtInPlugins: [select] };
+});
+vi.mock("@/components/Database/hooks", () => ({
   useColumnResize: () => ({ isResizing: false, startResize: () => {} }),
   useKeyboardNavigation: () => {},
 }));
-vi.mock("../../Database/ViewTabs", () => ({ default: () => null }));
-vi.mock("../../Database/views/GalleryView", () => ({ default: () => null }));
-vi.mock("../../Database/views/CalendarView", () => ({ default: () => null }));
-vi.mock("../../Database/views/KanbanView", () => ({ default: () => null }));
-vi.mock("../../Database/views/TableView", async () => {
-  const { DatabaseContext } = await import("../../Database/DatabaseContext");
+vi.mock("@/components/Database/ViewTabs", () => ({ default: () => null }));
+vi.mock("@/components/Database/views/GalleryView", () => ({ default: () => null }));
+vi.mock("@/components/Database/views/CalendarView", () => ({ default: () => null }));
+vi.mock("@/components/Database/views/KanbanView", () => ({ default: () => null }));
+vi.mock("@/components/Database/views/TableView", async () => {
+  const { DatabaseContext } = await import("@/components/Database/DatabaseContext");
   return {
     default: function MockTableView() {
       const store = useContext(DatabaseContext)!;
@@ -38,7 +40,7 @@ vi.mock("../../Database/views/TableView", async () => {
     },
   };
 });
-vi.mock("@/stores/useCardDatabaseViewStore", () => {
+vi.mock("../../../databasePreferences", () => {
   const config = {
     columnOrder: ["title"],
     rowOrder: ["1", "2"],
@@ -64,7 +66,7 @@ vi.mock("@/stores/useCardDatabaseViewStore", () => {
     initializeDefaultView: () => {},
     updateView: mocks.updateView,
   };
-  return { default: () => state };
+  return { useCardDatabasePreferences: () => state };
 });
 
 let host: HTMLDivElement;
@@ -166,6 +168,39 @@ it("props 重渲染不覆盖内部状态，显式外部补丁保留编辑且不�
   expect(onViewConfigChange).not.toHaveBeenCalled();
 });
 
+it("外部列宽更新保留编辑草稿并不触发保存回写", async () => {
+  const ref = createRef<DatabaseRef>();
+  const onDataChange = vi.fn();
+  const onViewConfigChange = vi.fn();
+  await act(async () =>
+    root.render(
+      <Database
+        {...props}
+        ref={ref}
+        onDataChange={onDataChange}
+        onViewConfigChange={onViewConfigChange}
+      />
+    )
+  );
+  await act(async () => {
+    ref.current?.updateRow("1", { title: "未保存的输入" });
+    mocks.store?.getState().startEditing("1", "title");
+  });
+  onDataChange.mockClear();
+  onViewConfigChange.mockClear();
+  await act(async () =>
+    ref.current?.dispatch({ type: "column.resize", id: "title", width: 420 }, "external")
+  );
+  expect(mocks.store?.getState()).toMatchObject({
+    columnWidths: { title: 420 },
+    editingCell: { rowId: "1", columnId: "title" },
+    viewConfig: { columnWidths: { title: 420 } },
+  });
+  expect(ref.current?.getRows().find(row => row.id === "1")?.title).toBe("未保存的输入");
+  expect(onDataChange).not.toHaveBeenCalled();
+  expect(onViewConfigChange).not.toHaveBeenCalled();
+});
+
 it("搜索范围按相关性呈现，清空后恢复内部行序和分组", async () => {
   const ref = createRef<DatabaseRef>();
   await act(async () => root.render(<Database {...props} ref={ref} />));
@@ -192,7 +227,7 @@ it("搜索范围按相关性呈现，清空后恢复内部行序和分组", asyn
   expect(mocks.store!.getState().viewConfig).toBe(before);
 });
 
-it("卡片宿主通过增量操作接入新增、筛选、搜索和删除", async () => {
+it("卡片宿主通过增量操作接入新增、筛选和删除", async () => {
   const card = (id: number): ICard => ({
     id,
     contentId: id,
@@ -208,6 +243,7 @@ it("卡片宿主通过增量操作接入新增、筛选、搜索和删除", asyn
   const first = card(1);
   const second = card(2);
   const callbacks = {
+    databaseName: "a",
     selectCategory: "all" as const,
     onCardClick: vi.fn(),
     onOpenCreateCard: vi.fn(),
@@ -216,25 +252,21 @@ it("卡片宿主通过增量操作接入新增、筛选、搜索和删除", asyn
   };
   await act(async () => root.render(<CardDatabaseView {...callbacks} cards={[first]} />));
   expect(host.textContent).toBe("1");
+  await act(async () => root.render(<CardDatabaseView {...callbacks} cards={[second, first]} />));
+  expect(host.textContent).toBe("1,2");
+  const permanent = { ...second, category: ECardCategory.Permanent };
   await act(async () =>
     root.render(
       <CardDatabaseView
         {...callbacks}
-        cards={[second, first]}
-
-        searchResults={new Set([2, 1])}
+        cards={[first, permanent]}
+        selectCategory={ECardCategory.Permanent}
       />
-    )
-  );
-  expect(host.textContent).toBe("2,1");
-  await act(async () =>
-    root.render(
-      <CardDatabaseView {...callbacks} cards={[first, second]} searchResults={new Set([2])} />
     )
   );
   expect(host.textContent).toBe("2");
   expect(mocks.store!.getState().rows).toHaveLength(2);
-  await act(async () => root.render(<CardDatabaseView {...callbacks} cards={[second]} />));
+  await act(async () => root.render(<CardDatabaseView {...callbacks} cards={[permanent]} />));
   expect(mocks.store!.getState().rows.map(row => row.id)).toEqual(["2"]);
   expect(callbacks.onUpdateCard).not.toHaveBeenCalled();
 });
