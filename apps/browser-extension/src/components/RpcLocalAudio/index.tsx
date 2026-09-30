@@ -1,18 +1,16 @@
-import React, { forwardRef, useState, useRef, useEffect, useCallback, memo } from "react";
-import { useAsyncEffect, useMemoizedFn } from "ahooks";
+import { forwardRef, useState, useRef, useCallback, memo } from "react";
+import { useAsyncEffect } from "ahooks";
 import type WebSocketClient from "../../utils/WebSocketClient";
-import { AudioPlayer } from "@tau/shared";
+import { AudioPlayer, type AudioPlayerProps } from "@tau/shared";
 
 interface RpcLocalAudioProps {
   src: string;
   wsClient: WebSocketClient | null;
 }
 
-type RpcLocalAudioElementProps = Omit<React.AudioHTMLAttributes<HTMLAudioElement>, "src">;
+type RpcLocalAudioElementProps = Omit<AudioPlayerProps, "src">;
 
 type RpcLocalAudioCombinedProps = RpcLocalAudioProps & RpcLocalAudioElementProps;
-
-const AUDIO_POSITION_PREFIX = "audio_position_";
 
 /**
  * 浏览器扩展版本的 LocalAudio 组件
@@ -25,16 +23,6 @@ const RpcLocalAudio = memo(
     const [previewUrl, setPreviewUrl] = useState<string>("");
     const [loading, setLoading] = useState(true);
     const innerRef = useRef<HTMLAudioElement>(null);
-
-    const getAudioElement = useMemoizedFn(() => {
-      if (typeof ref === "function") {
-        return null;
-      } else if (ref && ref.current) {
-        return ref.current;
-      } else {
-        return innerRef.current;
-      }
-    });
 
     const rpc = useCallback(
       async <T,>(method: string, params: unknown): Promise<T> => {
@@ -97,49 +85,18 @@ const RpcLocalAudio = memo(
       }
     }, [src, wsClient?.isConnected, rpc]);
 
-    // 播放位置记忆
-    useEffect(() => {
-      const audio = getAudioElement();
-      if (!audio || loading) return;
-
-      const storageKey = `${AUDIO_POSITION_PREFIX}${src}`;
-
-      const handleLoadedMetadata = () => {
-        const savedPosition = localStorage.getItem(storageKey);
-        if (savedPosition) {
-          const position = parseFloat(savedPosition);
-          if (!isNaN(position) && position >= 0 && position < audio.duration) {
-            audio.currentTime = position;
-          }
-        }
-      };
-
-      const handleTimeUpdate = () => {
-        if (audio.currentTime >= 0) {
-          localStorage.setItem(storageKey, audio.currentTime.toString());
-        }
-      };
-
-      const handleEnded = () => {
-        localStorage.removeItem(storageKey);
-      };
-
-      audio.addEventListener("loadedmetadata", handleLoadedMetadata);
-      audio.addEventListener("timeupdate", handleTimeUpdate);
-      audio.addEventListener("ended", handleEnded);
-
-      return () => {
-        audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
-        audio.removeEventListener("timeupdate", handleTimeUpdate);
-        audio.removeEventListener("ended", handleEnded);
-      };
-    }, [src, loading, getAudioElement]);
-
     const audioRef = ref || innerRef;
 
-    if (loading || !previewUrl) return null;
-
-    return <AudioPlayer ref={audioRef} src={previewUrl} crossOrigin="anonymous" {...rest} />;
+    // 解析期间以空 src 渲染，播放器保留卡片占位显示加载态
+    return (
+      <AudioPlayer
+        ref={audioRef}
+        src={loading ? "" : previewUrl}
+        crossOrigin="anonymous"
+        persistKey={src}
+        {...rest}
+      />
+    );
   })
 );
 

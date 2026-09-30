@@ -844,3 +844,19 @@
   - 在线视频取源浮层：`VideoSourceLoader` 新增 `framed`（自带 16:9 纸面卡片，与播放器同形，就绪原位替换不跳高度）与 `onRetry`（取源 hook 新增 `retry`）；缺 metaInfo 改走同一失败版式。
 - 不做：进度条章节 / 时间戳标记（只有视频笔记用得上，YAGNI）；属性条「更多」（块菜单已有）；帧预览缩略图缓存。
 - 影响：`packages/shared/src/components/MediaPlayer/` 重写 VideoPlayer / MediaControls / ProgressBar，新增 `useFramePreview`、`usePlaybackResume`、`videoShortcuts`（纯函数 + 单测）；desktop `LocalVideo` 与扩展 `RpcLocalVideo` 删去各自的播放位置持久化改传 `persistKey`；编辑器 `VideoSlotProps` 增 `onPlaybackRateChange` / `info`；视频 Markdown codec 的 metaInfo 解码改为与编码对称的 UTF-8（原先 `atob` 直解，中文标题往返会乱码）；视频笔记、Vibe Learning、白板三处外框按新布局调整，视频笔记的非缓存直链路径也换成 VideoPlayer。
+
+## D-077 音频播放器重做：波形卡（与视频共用控件与交互）
+
+（2026-09-30，已定；用户裁决）
+
+- 背景：`@tau/shared` 的 AudioPlayer（编辑器音频块、markdown 窗口、Vibe Learning 预览、blog / mobile / 浏览器扩展共用）仍是 legacy `light` 灰卡皮肤；标题输入框聚焦灰底跳变；TTS 插入时存了 `audioText` 但界面无入口；无悬停时间、无快捷键，续播在 LocalAudio 里静默发生；LocalAudio 解析地址期间返回 null，块凭空消失再出现，播放失败无提示。
+- 方案对比（`mockups/audio-player/`）：A 单行条（视频底栏同构，64px 一行）、B 波形卡（标题行 + 真实波形即进度条）、C 播客卡（封面 + 章节刻度 + ±15 秒，可顺带替换音频笔记的私有播放器）。推荐 A（文档）+ C（音频笔记），用户选 **B**，音频笔记不纳入。
+- 选择：
+  - 卡片同视频纸面卡片；标题行 = 42px accent 播放钮 + 标题（可被编辑器输入框替换）+ 信息位（来源 · 时长）+ 音量 / 倍速；波形行 = 当前时间 + 波形 + 总时长，行高固定，数据未就绪或不画波形时同位退回进度线，不跳高度。
+  - 波形取真实峰值（不造数据）：时长 ≤ 30 分钟才解码，8kHz 单声道 OfflineAudioContext 离线解码，240 个峰值按宽度最大值池化，结果按持久化键 LRU 缓存 32 条；取数默认 `fetch(src)`，宿主可注入 `loadWaveformData`——desktop 本地文件走 `readBinaryFile`（`ltoh://` 未注册为可 fetch 的特权协议，渲染进程 fetch 不到）；任何失败静默退回进度线。
+  - 通用能力与视频一致：悬停停留 400ms 出时间气泡（拖动立即）、快捷键 + 卡片中央 OSD（全屏 / 画中画 / 逐帧放行）、竖向音量弹层、统一倍速档位；续播沿用 `audio_position_` 存储前缀兼容旧数据，**1 分钟以内的音频不续播**。
+  - 状态内置：src 为空即加载态（保留卡片、播放钮转圈、时长 `--:--`），LocalAudio / RpcLocalAudio 解析期间以空 src 渲染而非返回 null；播放失败在播放钮位显示警示、信息位说明原因（按 MediaError code），「重试」重新 load。
+  - 文本生成：`sourceText` 提供时标题旁显示「文本生成」+「原文」，原文在卡片内展开（可选中复制）；编辑器音频块对 `isFromGenerate` 节点传入 `audioText`。
+  - 标题就地编辑：常态即文字，悬停浅底，编辑时纸色底 + 细线 + 焦点环（常态与编辑同底色）。
+- 不做：音频笔记播放器统一（用户明确不要）；章节刻度与 ±15 秒（C 的能力）；波形 Web Worker 化（30 分钟上限下主线程计算峰值约数十毫秒）。
+- 影响：MediaPlayer 抽出音视频共用件——`useScrubber` / `ScrubTooltip`（进度条与波形共用的拖动 + 悬停延迟内核）、`useMediaKeyboard`（快捷键执行 / OSD / 静音切换）、`MediaOsd` / `ResumeNotice`；`videoShortcuts` 更名 `mediaShortcuts`（`resolveMediaShortcut`）；控件色板删除 `light`，只剩 `surface` / `float`；`usePlaybackResume` 增 `prefix` / `minDuration` 选项；新增 `useAudioPeaks`（`computePeaks` / `resamplePeaks` 纯函数 + 单测）与 `Waveform`；编辑器 `AudioSlotProps` 增 `sourceText`；三端 LocalAudio 的播放位置持久化收进播放器。

@@ -1,9 +1,9 @@
 import { forwardRef, useEffect, useState } from "react";
 import type { SyntheticEvent } from "react";
 import { resolveLocalMediaSource } from "./localMedia";
-import { AudioPlayer } from "@tau/shared";
+import { AudioPlayer, type AudioPlayerProps } from "@tau/shared";
 
-type LocalAudioProps = React.AudioHTMLAttributes<HTMLAudioElement> & {
+type LocalAudioProps = AudioPlayerProps & {
   src: string;
 };
 
