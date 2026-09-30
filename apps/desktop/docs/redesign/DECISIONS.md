@@ -12,6 +12,16 @@
 - 同批修复 DateRangePicker（见 D-017 追记）。
 - 同批修复单元格编辑提交丢值：编辑器在同一事件里先 `onCellValueChange` 再 `onFinishEdit`（日期「确定」、Enter 等），`useCellEditor` 保存读 state 拿到的是上一拍草稿，导致首次不保存、下次打开才带出。改为草稿同步写 ref、保存与校验都读最新草稿（`finishEdit`，校验抽纯函数 `validateCellValue`）；表格 `Cell` 每次进入编辑以当前值重置草稿，杜绝旧草稿回写覆盖外部修改。其他编辑器里的 `setTimeout(onFinishEdit)` 绕法不再必要，存量不动。
 
+## D-086 卡片数据库视图归域与用户配置隔离
+
+（2026-09-30，清理实施）
+
+- CardDatabaseView 与专属 CardLinksPlugin 仅卡片页消费，归 features/cards/components；通用 Database 留在共享层，不反向依赖卡片域。
+- 视图、筛选/排序/分组、活动视图及列宽按库持久化。旧 card-database-views 没有库身份，作为首次初始化模板保留；各库深拷贝后独立修改，已有新配置优先。新状态保存成功后清旧键，迁移失败保留旧数据。
+- 删除旧全局 store、未使用的 ref/searchResults 端口和直接全量更新卡片的兜底；卡片元数据写入统一交域 mutation。数据库实例仍不受控，外部配置经 external 命令接线，跨库重建实例，保活不清草稿。
+- 视图重排忽略未知/重复 ID，并保留未包含的现存视图；生成本地视图 ID 时防同毫秒冲突，避免清理期间丢配置。
+- 用户配置继续持久化，不转成服务器查询，不删除卡片业务表；视觉验收仍由用户负责。
+
 ## D-085 测验数据与弹窗作答会话拆分
 
 （2026-09-30，清理实施）
