@@ -10,7 +10,6 @@ import {
   getProjectItemsByIds,
   updateProjectItem,
   createEmptyVideoNote,
-  createEmptyAudioNote,
   createWhiteBoardContent,
   addChildProjectItem,
   createDataTable,
@@ -42,7 +41,6 @@ import {
   createChildPdfStrategy,
   createProjectItemFromPdf,
 } from "../../shared/hooks/usePdfHandlers";
-import { useAudioHandlers, createChildAudioStrategy } from "../../shared/hooks/useAudioHandlers";
 import { ADD_MENU_ITEMS } from "../../shared/constants/menuItems";
 import { renderMenuEntries } from "../../shared/menuEntries";
 import { ModalKey } from "../../shared/constants/modalKeys";
@@ -75,8 +73,6 @@ import YoutubeVideoSelectModal from "@/components/YoutubeVideoSelectModal";
 import BilibiliVideoSelectModal from "@/components/BilibiliVideoSelectModal";
 import RemoteVideoSelectModal from "@/components/RemoteVideoSelectModal";
 import RemotePdfSelectModal from "@/components/RemotePdfSelectModal";
-import RemoteAudioSelectModal from "@/components/RemoteAudioSelectModal";
-import XiaoyuzhouInput from "../../AudioNoteView/components/XiaoyuzhouInput";
 import WebViewSelectModal, { type WebViewSelectResult } from "@/components/WebViewSelectModal";
 
 import { createProjectCardListExtension } from "@/editor-extensions";
@@ -218,28 +214,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const { handleRemotePdfConfirm, handleSelectPdfConfirm } = usePdfHandlers({
     closeModal,
     strategy: pdfStrategy,
-  });
-
-  const audioStrategy = useMemo(
-    () =>
-      createChildAudioStrategy({
-        projectItem,
-        projectId,
-        addChildProjectItem,
-        setProjectItem,
-        projectItemEventBus,
-      }),
-    [projectItem, projectId, projectItemEventBus]
-  );
-
-  const {
-    handleRemoteAudioConfirm,
-    handleXiaoyuzhouConfirm,
-    handleBilibiliAudioConfirm,
-    handleYoutubeAudioConfirm,
-  } = useAudioHandlers({
-    closeModal,
-    strategy: audioStrategy,
   });
 
   const {
@@ -584,49 +558,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       openModal(ModalKey.Bilibili);
     } else if (key === "add-youtube-video-note-project-item") {
       openModal(ModalKey.Youtube);
-    } else if (key === "add-local-audio-note-project-item") {
-      const filePath = await selectFile({
-        properties: ["openFile"],
-        filters: [
-          {
-            name: "Audio",
-            extensions: ["mp3", "wav", "m4a", "flac", "ogg", "aac", "wma"],
-          },
-        ],
-      });
-      if (!filePath) return;
-      const audioNote = await createEmptyAudioNote({
-        type: "local",
-        filePath: filePath[0],
-      });
-      if (!audioNote) {
-        toast.error("创建音频笔记失败");
-        return;
-      }
-      const audioFileName = await getFileBaseName(filePath[0], true);
-      const createAudioProjectItem: CreateProjectItem = {
-        title: audioFileName,
-        content: [],
-        children: [],
-        refType: "audio-note",
-        refId: audioNote.id,
-        projectItemType: EProjectItemType.AudioNote,
-        count: 0,
-        whiteBoardContentId: 0,
-      };
-      const [parentItem] = await addChildProjectItem(projectItemId, createAudioProjectItem);
-      if (parentItem) {
-        setProjectItem(parentItem);
-        projectItemEventBus.publishProjectItemEvent("project-item:updated", parentItem);
-      }
-    } else if (key === "add-remote-audio-note-project-item") {
-      openModal(ModalKey.RemoteAudio);
-    } else if (key === "add-xiaoyuzhou-audio-note-project-item") {
-      openModal(ModalKey.XiaoyuzhouPodcast);
-    } else if (key === "add-bilibili-audio-note-project-item") {
-      openModal(ModalKey.BilibiliAudio);
-    } else if (key === "add-youtube-audio-note-project-item") {
-      openModal(ModalKey.YoutubeAudio);
     } else if (key === "add-webview-project-item") {
       openModal(ModalKey.Webview);
     } else if (key === "add-table-project-item") {
@@ -1004,30 +935,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         open={modalStates.youtube}
         onCancel={() => closeModal(ModalKey.Youtube)}
         onConfirm={handleYoutubeConfirm}
-      />
-
-      <RemoteAudioSelectModal
-        open={modalStates.remoteAudio}
-        onCancel={() => closeModal(ModalKey.RemoteAudio)}
-        onConfirm={handleRemoteAudioConfirm}
-      />
-
-      <XiaoyuzhouInput
-        open={modalStates.xiaoyuzhouPodcast}
-        onClose={() => closeModal(ModalKey.XiaoyuzhouPodcast)}
-        onConfirm={handleXiaoyuzhouConfirm}
-      />
-
-      <BilibiliVideoSelectModal
-        open={modalStates.bilibiliAudio}
-        onCancel={() => closeModal(ModalKey.BilibiliAudio)}
-        onConfirm={handleBilibiliAudioConfirm}
-      />
-
-      <YoutubeVideoSelectModal
-        open={modalStates.youtubeAudio}
-        onCancel={() => closeModal(ModalKey.YoutubeAudio)}
-        onConfirm={handleYoutubeAudioConfirm}
       />
 
       {moreActionModals}

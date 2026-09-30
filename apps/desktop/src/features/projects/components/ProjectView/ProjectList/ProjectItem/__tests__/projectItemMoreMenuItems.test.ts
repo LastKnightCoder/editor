@@ -77,17 +77,6 @@ describe("getProjectItemMoreMenuItems", () => {
     ).toEqual(["remove", "edit-title"]);
   });
 
-  it("为音频笔记返回有效的 more 菜单项", () => {
-    expect(
-      getProjectItemMoreMenuItems({
-        projectItemType: EProjectItemType.AudioNote,
-      })
-    ).toEqual([
-      { key: "remove", label: "删除音频" },
-      { key: "edit-title", label: "编辑标题" },
-    ]);
-  });
-
   it("为视频、网页、表格和 PDF 返回各自菜单项", () => {
     expect(
       getKeys(

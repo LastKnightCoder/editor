@@ -333,13 +333,9 @@ function migrateJsonColumns(db: MigrationDatabase, mapping: KnowledgeMapping) {
     ["chat_run", "request_payload", true],
     ["chat_run", "tool_snapshot", true],
     ["vibe_learning_resources", "source_meta_info"],
-    ...[
-      "chat_message",
-      "pdf_chats",
-      "video_note_chats",
-      "audio_note_chats",
-      "vibe_learning_chats",
-    ].map(table => [table, "messages", true] as [string, string, boolean]),
+    ...["chat_message", "pdf_chats", "video_note_chats", "vibe_learning_chats"].map(
+      table => [table, "messages", true] as [string, string, boolean]
+    ),
   ];
   const citations = (value: unknown): unknown => {
     if (typeof value === "string") return migrateKnowledgeCitations(value, mapping);
