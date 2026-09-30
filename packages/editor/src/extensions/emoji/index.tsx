@@ -1,36 +1,24 @@
-import { RenderElementProps } from "slate-react";
+import { defineElement, defineExtension, type ElementRenderProps } from "../../api";
+
 import type { EmojiElement } from "../../types";
-import {
-  createInlineElementPlugin,
-  createVoidElementPlugin,
-} from "../../utils";
-import IExtension from "../types";
-import Base from "../base";
 import Emoji from "./components/Emoji";
 import blockPanelItems from "./block-panel-items";
 
-class EmojiExtension extends Base implements IExtension {
-  type = "emoji";
+const emojiExtension = defineExtension({
+  id: "tau.emoji",
+  elements: [
+    defineElement<EmojiElement>({
+      type: "emoji",
+      kind: "inline",
+      isVoid: true,
+      render: ({ attributes, element, children }: ElementRenderProps<EmojiElement>) => (
+        <Emoji element={element} attributes={attributes}>
+          {children}
+        </Emoji>
+      ),
+    }),
+  ],
+  blockPanel: blockPanelItems,
+});
 
-  override getBlockPanelItems() {
-    return blockPanelItems;
-  }
-
-  override getPlugins() {
-    return [
-      createInlineElementPlugin(this.type),
-      createVoidElementPlugin(this.type),
-    ];
-  }
-
-  render(props: RenderElementProps) {
-    const { element, attributes, children } = props;
-    return (
-      <Emoji element={element as EmojiElement} attributes={attributes}>
-        {children}
-      </Emoji>
-    );
-  }
-}
-
-export default EmojiExtension;
+export default emojiExtension;

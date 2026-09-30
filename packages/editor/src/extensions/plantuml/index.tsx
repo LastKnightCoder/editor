@@ -1,12 +1,10 @@
 import loadable from "@loadable/component";
+
+import { defineElement, defineExtension, type ElementRenderProps } from "../../api";
+
 import type { PlantUMLElement } from "../../types";
-
-import Base from "../base";
-import IExtension from "../types";
-import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
-import { RenderElementProps } from "slate-react";
-
 import blockPanelItems from "./block-panel-items";
+
 const PlantUMLBlock = loadable(() => import("./components/PlantUMLBlock.tsx"));
 
 export interface PlantUMLExtensionOptions {
@@ -16,37 +14,28 @@ export interface PlantUMLExtensionOptions {
   darkTheme?: string;
 }
 
-class PlantUMLExtension extends Base implements IExtension {
-  type = "plantuml";
+export const createPlantUMLExtension = (options: PlantUMLExtensionOptions = {}) =>
+  defineExtension({
+    id: "tau.plantuml",
+    elements: [
+      defineElement<PlantUMLElement>({
+        type: "plantuml",
+        kind: "block",
+        isVoid: true,
+        render: ({ attributes, element, children }: ElementRenderProps<PlantUMLElement>) => (
+          <PlantUMLBlock
+            element={element}
+            attributes={attributes}
+            server={options.server}
+            darkTheme={options.darkTheme}
+          >
+            {children}
+          </PlantUMLBlock>
+        ),
+      }),
+    ],
+    blockPanel: blockPanelItems,
+  });
 
-  private readonly options: PlantUMLExtensionOptions;
-
-  constructor(options: PlantUMLExtensionOptions = {}) {
-    super();
-    this.options = options;
-  }
-
-  override getBlockPanelItems() {
-    return blockPanelItems;
-  }
-
-  override getPlugins() {
-    return [createBlockElementPlugin(this.type), createVoidElementPlugin(this.type)];
-  }
-
-  render(props: RenderElementProps) {
-    const { attributes, children, element } = props;
-    return (
-      <PlantUMLBlock
-        element={element as PlantUMLElement}
-        attributes={attributes}
-        server={this.options.server}
-        darkTheme={this.options.darkTheme}
-      >
-        {children}
-      </PlantUMLBlock>
-    );
-  }
-}
-
-export default PlantUMLExtension;
+const plantUMLExtension = createPlantUMLExtension();
+export default plantUMLExtension;

@@ -1,37 +1,27 @@
-import { RenderElementProps } from "slate-react";
-
 import loadable from "@loadable/component";
-import type { TikzElement } from "../../types";
 
-import Base from "../base";
-import IExtension from "../types";
-import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
+import { defineElement, defineExtension, type ElementRenderProps } from "../../api";
+
+import type { TikzElement } from "../../types";
 import blockPanelItems from "./block-panel-items";
 
 const Tikz = loadable(() => import("./components/Tikz"));
 
-class TikzExtension extends Base implements IExtension {
-  type = "tikz";
+const tikzExtension = defineExtension({
+  id: "tau.tikz",
+  elements: [
+    defineElement<TikzElement>({
+      type: "tikz",
+      kind: "block",
+      isVoid: true,
+      render: ({ attributes, element, children }: ElementRenderProps<TikzElement>) => (
+        <Tikz element={element} attributes={attributes}>
+          {children}
+        </Tikz>
+      ),
+    }),
+  ],
+  blockPanel: blockPanelItems,
+});
 
-  override getBlockPanelItems() {
-    return blockPanelItems;
-  }
-
-  override getPlugins() {
-    return [
-      createBlockElementPlugin(this.type),
-      createVoidElementPlugin(this.type),
-    ];
-  }
-
-  render(props: RenderElementProps) {
-    const { element, attributes, children } = props;
-    return (
-      <Tikz element={element as TikzElement} attributes={attributes}>
-        {children}
-      </Tikz>
-    );
-  }
-}
-
-export default TikzExtension;
+export default tikzExtension;
