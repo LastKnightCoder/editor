@@ -538,6 +538,7 @@ const loadCachedSetting = (): Partial<ISetting> | null => {
     window.localStorage.removeItem("cards-management");
     window.localStorage.removeItem("small-component-sidebar");
     window.localStorage.removeItem("flashcard-center");
+    window.localStorage.removeItem("vl-quiz-store");
     // pi 迁移遗留（M8）：旧聊天 store（M4 起事实源在 pi 会话文件）与渲染端提问 store（M3-b 起宿主原生）
     window.localStorage.removeItem("chat-message");
     window.localStorage.removeItem("ask-question-session");

@@ -16,7 +16,6 @@ import { getVLNotesByProjectId, getVLResourcesByProjectId } from "@/commands/vib
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import { FadeScroll } from "@/components/FadeScroll";
-import useVLQuizStore from "@/stores/useVLQuizStore";
 import { useVibeLearningPanelStore } from "../../panelStore";
 import type { VibeLearningProject } from "@/types";
 import type { VLNote, VLResource } from "@/types/vibe-learning";
@@ -78,7 +77,6 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
 
   const generationRef = useRef<GenerationHostRef>(null);
   const outputRef = useRef<OutputGroupRef>(null);
-  const fetchQuizSets = useVLQuizStore(s => s.fetchQuizSets);
   const startDockResize = useDockResize(dockWidth, setChatWidth);
 
   const refreshResources = useMemoizedFn(async () => {
@@ -156,8 +154,7 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
   useEffect(() => {
     if (productVersion === 0) return;
     void refreshNotes();
-    void fetchQuizSets(projectId);
-  }, [productVersion, projectId, refreshNotes, fetchQuizSets]);
+  }, [productVersion, projectId, refreshNotes]);
 
   // 正在看的笔记任务从进行中结束：拉最新标题后重挂阅读区，切到产物
   const noteTaskStatus = noteTask?.status;

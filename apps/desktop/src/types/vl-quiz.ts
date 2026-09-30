@@ -1,9 +1,5 @@
 import type { Descendant } from "slate";
-import type {
-  FlashcardType,
-  FlashcardData,
-  FlashcardDifficulty,
-} from "./flashcard";
+import type { FlashcardType, FlashcardData, FlashcardDifficulty } from "./flashcard";
 
 /**
  * 测验题类型（复用 FlashcardType）
@@ -175,21 +171,4 @@ export interface GeneratedQuizItem {
   difficulty: QuizItemDifficulty;
   /** 是否被选中 */
   selected: boolean;
-}
-
-/**
- * 测验状态
- */
-export type QuizTestStatus = "idle" | "testing" | "submitted" | "reviewing";
-
-/**
- * 测验会话（运行时状态）
- */
-export interface QuizTestSession {
-  quizSetId: number;
-  items: VLQuizItem[];
-  currentIndex: number;
-  answers: Map<number, QuizAnswerRecord>;
-  startTime: number;
-  status: QuizTestStatus;
 }

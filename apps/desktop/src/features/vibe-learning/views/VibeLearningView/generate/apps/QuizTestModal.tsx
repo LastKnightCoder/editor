@@ -12,9 +12,20 @@ import {
   Target,
 } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
-import { Button, Dialog, DialogBody, Textarea, cn } from "@tau/ui";
+import {
+  Button,
+  Dialog,
+  DialogBody,
+  Spinner,
+  Textarea,
+  cn,
+  toast,
+  useRetainedValue,
+} from "@tau/ui";
 
-import useVLQuizStore from "@/stores/useVLQuizStore";
+import { useQuizItems } from "../../../../quizQueries";
+import { useQuizSession } from "../../../../hooks/useQuizSession";
+import { ErrorState } from "@/components/ErrorState";
 import useTheme from "@/hooks/useTheme";
 import type { VLQuizSet, VLQuizItem, QuizAnswerRecord, VLQuizRecord } from "@/types";
 import type { FlashcardBlankElement } from "@/editor-extensions/flashcard-blank/types";
@@ -82,19 +93,22 @@ function optionTone(showResult: boolean, isSelected: boolean, isCorrect: boolean
 }
 
 const QuizTestModal = memo((props: QuizTestModalProps) => {
-  const { open, quizSet, onClose } = props;
+  const { open, quizSet: requestedQuizSet, onClose } = props;
+  const quizSet = useRetainedValue(requestedQuizSet);
+  const itemsQuery = useQuizItems(quizSet?.id, open);
   const { isDark } = useTheme();
 
-  // Store
   const {
     testSession,
+    startTest,
     submitAnswer,
     nextQuestion,
     prevQuestion,
     finishTest,
     cancelTest,
     getTestProgress,
-  } = useVLQuizStore();
+    submitting: finishing,
+  } = useQuizSession();
 
   // Local state
   const [step, setStep] = useState<ModalStep>("testing");
@@ -102,7 +116,6 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
   const [currentAnswer, setCurrentAnswer] = useState<any>(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [quizRecord, setQuizRecord] = useState<VLQuizRecord | null>(null);
-  const [finishing, setFinishing] = useState(false);
 
   // 当前题目
   const currentItem = useMemo(() => {
@@ -132,11 +145,34 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
   // 打开时重置状态
   useEffect(() => {
     if (open) {
+      cancelTest();
       setStep("testing");
       setQuizRecord(null);
-      setFinishing(false);
+      setCurrentAnswer(null);
+      setShowAnswer(false);
     }
-  }, [open]);
+  }, [open, quizSet?.id, cancelTest]);
+
+  useEffect(() => {
+    if (
+      open &&
+      quizSet &&
+      !testSession &&
+      itemsQuery.isSuccess &&
+      !itemsQuery.isFetching &&
+      itemsQuery.items.length
+    ) {
+      startTest(quizSet.projectId, quizSet.id, itemsQuery.items);
+    }
+  }, [
+    open,
+    quizSet,
+    testSession,
+    itemsQuery.isSuccess,
+    itemsQuery.isFetching,
+    itemsQuery.items,
+    startTest,
+  ]);
 
   // 检查答案是否正确
   const checkAnswer = useCallback(
@@ -226,13 +262,13 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
 
   // 完成测验
   const handleFinish = useMemoizedFn(async () => {
-    setFinishing(true);
     try {
       const record = await finishTest();
+      if (!record) return;
       setQuizRecord(record);
       setStep("result");
-    } finally {
-      setFinishing(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "成绩保存失败，请重试");
     }
   });
 
@@ -524,7 +560,29 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
   };
 
   if (!currentItem || !progress) {
-    return null;
+    return (
+      <Dialog
+        open={open}
+        onOpenChange={next => !next && handleClose()}
+        onAfterClose={handleAfterClose}
+        title={quizSet?.name || "测验"}
+        width={680}
+      >
+        <DialogBody>
+          {itemsQuery.isError ? (
+            <ErrorState
+              title="测验题加载失败"
+              error={itemsQuery.error}
+              actions={[{ label: "重试", onClick: () => void itemsQuery.refetch() }]}
+            />
+          ) : itemsQuery.isSuccess && !itemsQuery.isFetching && !itemsQuery.items.length ? (
+            <p className="text-ink-3 text-tau-meta">测验集没有题目</p>
+          ) : (
+            <Spinner className="mx-auto my-8 size-5" />
+          )}
+        </DialogBody>
+      </Dialog>
+    );
   }
 
   const testingFooter = (
@@ -534,7 +592,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
         size="sm"
         icon={ChevronLeft}
         className="mr-auto"
-        disabled={progress.current <= 1}
+        disabled={finishing || progress.current <= 1}
         onClick={handlePrev}
       >
         上一题

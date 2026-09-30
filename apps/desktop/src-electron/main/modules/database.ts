@@ -91,6 +91,7 @@ import { recoverSessionDownload } from "./pi-session-store";
 import { assertDatabaseNotSyncing } from "@tau/db-schema/sync";
 import { chatSessionDirOf } from "./pi-session-paths";
 import { broadcastScheduleChange, isScheduleWrite } from "./schedule-changes";
+import { broadcastDatabaseChange } from "./database-notifications";
 
 export type DatabaseConnectMode = "normal" | "maintenance";
 export type DatabaseReconnectSource = "sync_upload_reconnect" | "sync_download_reconnect";
@@ -146,6 +147,9 @@ class DatabaseModule implements Module {
 
   private notifyDatabaseWrite(dbName: string, eventName: string): void {
     if (isScheduleWrite(eventName)) broadcastScheduleChange(dbName);
+    if (/^vl-quiz:(create|update|delete)(-|$)/.test(eventName)) {
+      broadcastDatabaseChange("vl-quiz:changed", dbName);
+    }
     for (const cb of this.databaseWriteCallbacks) {
       try {
         cb(dbName, eventName);

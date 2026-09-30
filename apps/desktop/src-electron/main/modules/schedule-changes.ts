@@ -1,5 +1,4 @@
-import { BrowserWindow } from "electron";
-import log from "electron-log";
+import { broadcastDatabaseChange } from "./database-notifications";
 
 /** 日历直接写入及待办/番茄同步入口；读取命令不触发失效。 */
 export function isScheduleWrite(channel: string) {
@@ -9,11 +8,5 @@ export function isScheduleWrite(channel: string) {
 }
 
 export function broadcastScheduleChange(databaseName: string) {
-  for (const window of BrowserWindow.getAllWindows()) {
-    try {
-      if (!window.isDestroyed()) window.webContents.send("schedule:changed", { databaseName });
-    } catch (error) {
-      log.warn("[schedule] 日程通知失败：", error);
-    }
-  }
+  broadcastDatabaseChange("schedule:changed", databaseName);
 }
