@@ -92,6 +92,8 @@ import "codemirror/theme/blackboard.css";
 
 import "./theme/editor.css";
 import { EditorThemeScope } from "./theme/context";
+import { FocusAttributes, FocusModeContext } from "./components/FocusPath";
+import { FOCUS_MODE_CLASS } from "./components/FocusPath/focusPath";
 import { IExtensionErrorReporter, IThemeService } from "./services/tokens";
 
 interface IEditorProps {
@@ -120,6 +122,11 @@ interface IEditorProps {
   decorate?: (entry: [Node, Path]) => Range[];
   /** 自定义 renderLeaf 函数（用于自定义叶子节点渲染） */
   customRenderLeaf?: (props: RenderLeafProps) => React.ReactElement;
+  /**
+   * 聚焦模式：沿光标所在的文档路径，同级兄弟元素退后（其余顶层块、列表的其他项、表格的其他单元格…）。
+   * 退后程度由宿主在容器上设置 `--ed-focus-dim`（缺省 0.26）。
+   */
+  focusMode?: boolean;
 }
 
 const defaultPlugins: Plugin[] = [
@@ -173,6 +180,7 @@ const Index = memo(
       placeHolder,
       decorate,
       customRenderLeaf,
+      focusMode = false,
     } = props;
 
     // 文档源给定时由它提供内容与只读状态，否则沿用 initValue / onChange
@@ -225,9 +233,11 @@ const Index = memo(
         const line = fileDropLineRef.current;
         if (line) {
           line.style.display = "block";
-          line.style.top = `${(before ? rect.top : rect.bottom) - 1}px`;
-          line.style.left = `${rect.left}px`;
-          line.style.width = `${rect.width}px`;
+          // 指示线在编辑器 DOM 内：祖先有 CSS zoom（沉浸写作）时 fixed 坐标也会被放大，按实际缩放反除
+          const zoom = (line as HTMLElement & { currentCSSZoom?: number }).currentCSSZoom || 1;
+          line.style.top = `${((before ? rect.top : rect.bottom) - 1) / zoom}px`;
+          line.style.left = `${rect.left / zoom}px`;
+          line.style.width = `${rect.width / zoom}px`;
         }
       } catch {
         // 找不到事件对应的文档位置（如只读态的只读区域）就不显示
@@ -370,12 +380,18 @@ const Index = memo(
       breaker.report(assembly.getElementOwner(type)?.id ?? type, "render", error)
     );
 
-    // 每个元素一个错误边界：扩展渲染出错只影响该元素；没有扩展的类型渲染只读占位（ER-006）
+    // 每个元素一个错误边界：扩展渲染出错只影响该元素；没有扩展的类型渲染只读占位（ER-006）。
+    // 聚焦标记在最外层写进 attributes，由元素组件展开到根节点（focusMode 关闭时原样透传）
     const renderElement = useMemoizedFn((props: RenderElementProps) => (
-      <ElementErrorBoundary
+      <FocusAttributes
         props={props}
-        render={renderElementContent}
-        onError={reportRenderError}
+        render={focusedProps => (
+          <ElementErrorBoundary
+            props={focusedProps}
+            render={renderElementContent}
+            onError={reportRenderError}
+          />
+        )}
       />
     ));
 
@@ -563,72 +579,74 @@ const Index = memo(
             onChange={handleOnChange}
             key={kit.assembly.extensions.map(extension => extension.id).join("-")}
           >
-            <div
-              ref={overlayContainerRef}
-              className="tau-editor"
-              data-theme={scope.overridden ? scope.themeKey || undefined : undefined}
-              data-mode={scope.overridden ? scope.mode : undefined}
-              style={binding?.renderOverlay ? { position: "relative" } : { display: "contents" }}
-            >
-              <Editable
-                className={cn(EDITABLE_CLASS, props.className)}
-                style={props.style}
-                readOnly={readonly}
-                renderElement={renderElement}
-                renderLeaf={renderLeaf}
-                renderChunk={renderChunk}
-                placeholder={placeHolder}
-                decorate={decorate}
-                onKeyDown={event => {
-                  registerHotKey(editor, event, finalHotkeys, commandDispatcher);
-                }}
-                onDrag={e => {
-                  e.preventDefault();
-                }}
-                onDragOver={handleFileDragOver}
-                onDragLeave={handleFileDragLeave}
-                onDrop={async e => {
-                  e.preventDefault();
-
-                  const data = e.dataTransfer;
-                  if (!data?.files?.length || readonly) {
-                    hideFileDropLine();
-                    return;
-                  }
-
-                  // 指示线停在哪就插到哪（dragover 记录的块前后）；没有记录时退回事件光标位置
-                  const target = fileDropTargetRef.current;
-                  hideFileDropLine();
-                  const point = target
-                    ? resolveFileDropPoint(editor, target)
-                    : ReactEditor.findEventRange(editor, e)?.anchor;
-                  if (point) {
-                    await editor.handleDrop(data, point);
-                  }
-                }}
-                onSelect={() => {
-                  if (syncSelectionSnapshot()) {
-                    onSelectionChange?.();
-                  }
-                }}
-                scrollSelectionIntoView={scrollSelectionIntoView}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-              {binding?.renderOverlay?.(overlayContainerRef)}
-              {/* 文件拖拽的落点指示线（与块拖拽的插入线同款；fixed 定位，位置由 dragover 直接写 style） */}
+            <FocusModeContext.Provider value={focusMode}>
               <div
-                ref={fileDropLineRef}
-                aria-hidden
-                style={{ display: "none" }}
-                className="pointer-events-none fixed z-[9998] h-[2px] rounded-full bg-[var(--ed-accent-text)]"
-              />
-            </div>
-            <ImagesOverview />
-            <ConfirmHost />
-            {!readonly && <MediaUrlInputModal />}
-            {!readonly && <HoveringToolbar configs={finalHoveringBarConfigs} />}
-            {!readonly && <BlockPanel assembly={kit.assembly} />}
+                ref={overlayContainerRef}
+                className="tau-editor"
+                data-theme={scope.overridden ? scope.themeKey || undefined : undefined}
+                data-mode={scope.overridden ? scope.mode : undefined}
+                style={binding?.renderOverlay ? { position: "relative" } : { display: "contents" }}
+              >
+                <Editable
+                  className={cn(EDITABLE_CLASS, focusMode && FOCUS_MODE_CLASS, props.className)}
+                  style={props.style}
+                  readOnly={readonly}
+                  renderElement={renderElement}
+                  renderLeaf={renderLeaf}
+                  renderChunk={renderChunk}
+                  placeholder={placeHolder}
+                  decorate={decorate}
+                  onKeyDown={event => {
+                    registerHotKey(editor, event, finalHotkeys, commandDispatcher);
+                  }}
+                  onDrag={e => {
+                    e.preventDefault();
+                  }}
+                  onDragOver={handleFileDragOver}
+                  onDragLeave={handleFileDragLeave}
+                  onDrop={async e => {
+                    e.preventDefault();
+
+                    const data = e.dataTransfer;
+                    if (!data?.files?.length || readonly) {
+                      hideFileDropLine();
+                      return;
+                    }
+
+                    // 指示线停在哪就插到哪（dragover 记录的块前后）；没有记录时退回事件光标位置
+                    const target = fileDropTargetRef.current;
+                    hideFileDropLine();
+                    const point = target
+                      ? resolveFileDropPoint(editor, target)
+                      : ReactEditor.findEventRange(editor, e)?.anchor;
+                    if (point) {
+                      await editor.handleDrop(data, point);
+                    }
+                  }}
+                  onSelect={() => {
+                    if (syncSelectionSnapshot()) {
+                      onSelectionChange?.();
+                    }
+                  }}
+                  scrollSelectionIntoView={scrollSelectionIntoView}
+                  onFocus={onFocus}
+                  onBlur={onBlur}
+                />
+                {binding?.renderOverlay?.(overlayContainerRef)}
+                {/* 文件拖拽的落点指示线（与块拖拽的插入线同款；fixed 定位，位置由 dragover 直接写 style） */}
+                <div
+                  ref={fileDropLineRef}
+                  aria-hidden
+                  style={{ display: "none" }}
+                  className="pointer-events-none fixed z-[9998] h-[2px] rounded-full bg-[var(--ed-accent-text)]"
+                />
+              </div>
+              <ImagesOverview />
+              <ConfirmHost />
+              {!readonly && <MediaUrlInputModal />}
+              {!readonly && <HoveringToolbar configs={finalHoveringBarConfigs} />}
+              {!readonly && <BlockPanel assembly={kit.assembly} />}
+            </FocusModeContext.Provider>
           </Slate>
         )}
       </EditorThemeScope>
