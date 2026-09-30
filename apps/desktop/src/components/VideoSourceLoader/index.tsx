@@ -1,11 +1,12 @@
 /**
  * 在线视频取源浮层：下载进度 / 失败态的统一版式（Bilibili / YouTube / 远程直链共用）。
- * 铺满父容器（通常是 bg-sunken 的视频框）居中，不自带卡片底色；
+ * 默认铺满父容器（通常是 bg-sunken 的视频框）居中、不自带卡片底色；
+ * framed 时自带 16:9 纸面卡片（与播放器同形，就绪后原位换成播放器不跳高度）。
  * 就绪后返回 null，由调用方渲染 video 元素。
  */
 
 import { Check, CircleAlert } from "lucide-react";
-import { Spinner } from "@tau/ui";
+import { Button, Spinner, cn } from "@tau/ui";
 import type { VideoLoaderStreamProgress } from "@/editor-providers/types";
 
 export interface VideoSourceLoaderProps {
@@ -16,6 +17,10 @@ export interface VideoSourceLoaderProps {
   sourceLabel?: string;
   /** 失败时的排查建议 */
   tips: string[];
+  /** 自带 16:9 纸面卡片（调用方没有视频框时使用） */
+  framed?: boolean;
+  /** 失败后重新取源；不传则不显示重试按钮 */
+  onRetry?: () => void;
 }
 
 interface ProgressTrack {
@@ -95,6 +100,7 @@ function Track({ label, percent, detail }: ProgressTrack) {
 }
 
 const FRAME_CLASS = "flex h-full min-h-[220px] w-full items-center justify-center px-8 py-6";
+const CARD_CLASS = "rounded-tau-md bg-surface shadow-card aspect-video w-full overflow-hidden";
 
 export function VideoSourceLoader({
   loading,
@@ -102,14 +108,18 @@ export function VideoSourceLoader({
   streamProgress,
   sourceLabel,
   tips,
+  framed = false,
+  onRetry,
 }: VideoSourceLoaderProps) {
+  const frameClass = cn(FRAME_CLASS, framed && CARD_CLASS, framed && "min-h-0");
+
   if (loading) {
     const tracks = streamProgress ? getTracks(streamProgress) : [];
     const completed = streamProgress?.stage === "completed";
     const title = sourceLabel ? `正在缓存 ${sourceLabel} 视频` : "正在下载视频";
 
     return (
-      <div role="status" aria-live="polite" className={FRAME_CLASS}>
+      <div role="status" aria-live="polite" className={frameClass}>
         <div className="flex w-full max-w-[360px] flex-col gap-5">
           <div className="flex items-center gap-3">
             {completed ? (
@@ -144,7 +154,7 @@ export function VideoSourceLoader({
 
   if (error) {
     return (
-      <div role="alert" className={FRAME_CLASS}>
+      <div role="alert" className={frameClass}>
         <div className="flex w-full max-w-[360px] flex-col gap-4">
           <div className="flex items-start gap-3">
             <span className="bg-danger-soft text-danger grid size-8 shrink-0 place-items-center rounded-full">
@@ -166,6 +176,13 @@ export function VideoSourceLoader({
                 </li>
               ))}
             </ul>
+          )}
+          {onRetry && (
+            <div className="pl-11">
+              <Button size="sm" variant="primary" onClick={onRetry}>
+                重试
+              </Button>
+            </div>
           )}
         </div>
       </div>

@@ -155,7 +155,10 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
           height,
         }}
       >
-        <div className="group relative h-full w-full" data-whiteboard-stop-keyboard="true">
+        <div
+          className="group relative box-border h-full w-full p-4"
+          data-whiteboard-stop-keyboard="true"
+        >
           <Tooltip content="视频笔记">
             <button
               type="button"
@@ -177,14 +180,7 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
                 streamProgress={bilibiliProgress}
               />
               <If condition={!!bilibiliVideoUrl && !bilibiliLoading && !bilibiliError}>
-                <LocalVideo
-                  ref={setVideoRef}
-                  src={bilibiliVideoUrl as string}
-                  controls
-                  style={{ padding: 16, boxSizing: "border-box" }}
-                  width={"100%"}
-                  height={"100%"}
-                />
+                <LocalVideo ref={setVideoRef} src={bilibiliVideoUrl as string} className="h-full" />
               </If>
             </>
           </If>
@@ -196,14 +192,7 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
                 streamProgress={youtubeProgress}
               />
               <If condition={!!youtubeVideoUrl && !youtubeLoading && !youtubeError}>
-                <LocalVideo
-                  ref={setVideoRef}
-                  src={youtubeVideoUrl as string}
-                  controls
-                  style={{ padding: 16, boxSizing: "border-box" }}
-                  width={"100%"}
-                  height={"100%"}
-                />
+                <LocalVideo ref={setVideoRef} src={youtubeVideoUrl as string} className="h-full" />
               </If>
             </>
           </If>
@@ -212,10 +201,7 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
               <LocalVideo
                 ref={setVideoRef}
                 src={src}
-                controls
-                style={{ padding: 16, boxSizing: "border-box" }}
-                width={"100%"}
-                height={"100%"}
+                className="h-full"
                 onClick={(e: React.MouseEvent) => {
                   e.preventDefault();
                 }}
@@ -225,11 +211,7 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
                 ref={setVideoRef}
                 src={src}
                 controls
-                style={{
-                  padding: 16,
-                  boxSizing: "border-box",
-                  display: "block",
-                }}
+                style={{ display: "block" }}
                 width={"100%"}
                 height={"100%"}
                 onClick={(e: React.MouseEvent) => {

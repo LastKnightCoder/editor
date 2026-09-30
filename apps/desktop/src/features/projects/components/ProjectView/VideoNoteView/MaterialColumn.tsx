@@ -6,7 +6,8 @@
 
 import { useCallback, useRef } from "react";
 import { Captions } from "lucide-react";
-import { Button, Spinner, cn } from "@tau/ui";
+import { Button, Spinner } from "@tau/ui";
+import { VideoPlayer } from "@tau/shared";
 import LocalVideo from "@/components/LocalVideo";
 import { FadeScroll } from "@/components/FadeScroll";
 import TranscriptPanel from "@/components/MediaTranscript/TranscriptPanel";
@@ -68,38 +69,33 @@ export function MaterialColumn({
   return (
     // pb-4：转录视口与纸面下缘留出间距（同文档 / 网页条目正文），列表在视口边缘渐隐而非贴边硬切
     <div className="flex h-full min-h-0 flex-col pb-4">
-      {/* 视频：就绪前用主题化底色，避免下载 / 错误态在亮色下出现黑底 */}
+      {/* 视频：就绪前用主题化底色的 16:9 框承载下载 / 错误态，就绪后换成播放器卡片 */}
       <div className="shrink-0 px-3 pb-3">
-        <div
-          className={cn(
-            "rounded-tau-md relative aspect-video w-full overflow-hidden",
-            source.ready ? "bg-black" : "bg-sunken"
-          )}
-        >
-          {source.loader}
-          {source.ready &&
-            (source.useLocalVideo ? (
-              <LocalVideo
-                ref={setVideoRef}
-                src={source.src!}
-                controls
-                crossOrigin="anonymous"
-                className="absolute inset-0 h-full w-full object-contain"
-              >
-                {track}
-              </LocalVideo>
-            ) : (
-              <video
-                ref={setVideoRef}
-                src={source.src!}
-                controls
-                crossOrigin="anonymous"
-                className="absolute inset-0 h-full w-full object-contain"
-              >
-                {track}
-              </video>
-            ))}
-        </div>
+        {source.ready ? (
+          source.useLocalVideo ? (
+            <LocalVideo
+              ref={setVideoRef}
+              src={source.src!}
+              crossOrigin="anonymous"
+              className="w-full"
+            >
+              {track}
+            </LocalVideo>
+          ) : (
+            <VideoPlayer
+              ref={setVideoRef}
+              src={source.src!}
+              crossOrigin="anonymous"
+              className="w-full"
+            >
+              {track}
+            </VideoPlayer>
+          )
+        ) : (
+          <div className="rounded-tau-md bg-sunken relative aspect-video w-full overflow-hidden">
+            {source.loader}
+          </div>
+        )}
       </div>
 
       <div className="text-tau-sm text-ink-3 flex h-7 shrink-0 items-center gap-2 px-5">

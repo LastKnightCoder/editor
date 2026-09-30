@@ -15,7 +15,8 @@ export const videoCodec: MarkdownCodec = {
       if (attributes.playbackRate) element.playbackRate = parseFloat(attributes.playbackRate);
       if (attributes.metaInfo) {
         try {
-          element.metaInfo = JSON.parse(atob(attributes.metaInfo));
+          // 与 toMarkdown 的 UTF-8 编码对称，metaInfo 里的中文标题才能往返
+          element.metaInfo = JSON.parse(decodeURIComponent(escape(atob(attributes.metaInfo))));
         } catch {
           // ignore invalid metaInfo
         }
