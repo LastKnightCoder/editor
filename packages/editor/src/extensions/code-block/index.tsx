@@ -1,66 +1,50 @@
-import { RenderElementProps } from "slate-react";
-
 import loadable from "@loadable/component";
+
+import { defineElement, defineExtension, type ElementRenderProps } from "../../api";
 
 import type { CodeBlockElement } from "../../types";
 
-import Base from "../base";
-import IExtension from "../types";
-import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
-
-import { deleteBackward, markdownSyntax } from "./plugins";
-import hotkeys from "./hotkeys";
 import blockPanelItems from "./block-panel-items";
 import { codeBlockCommands, codeBlockMenuItems } from "./utils/menu";
+import { codeBlockHotkeyCommands, codeBlockHotkeys } from "./commands";
+import { codeBlockForParagraph } from "./behaviors";
 import { codeBlockMap } from "./utils/controllerMaps";
 import type { CodeBlockController } from "./types";
 
+// loadable 组件走 Suspense，加载期间内核渲染保留结构的空壳
 const CodeBlock = loadable(() => import("./components/CodeBlock"));
 
-class CodeBlockExtension extends Base implements IExtension {
-  override type = "code-block";
+const codeBlockExtension = defineExtension({
+  id: "tau.code-block",
+  elements: [
+    defineElement<CodeBlockElement>({
+      type: "code-block",
+      kind: "block",
+      isVoid: true,
+      render: ({ attributes, element, children }: ElementRenderProps<CodeBlockElement>) => (
+        <CodeBlock
+          element={element}
+          attributes={attributes}
+          onDidMount={(controller: CodeBlockController) => {
+            codeBlockMap.set(element.uuid, controller);
+          }}
+          onWillUnmount={() => {
+            codeBlockMap.delete(element.uuid);
+          }}
+        >
+          {children}
+        </CodeBlock>
+      ),
+      drag: true,
+    }),
+  ],
+  blockPanel: blockPanelItems,
+  commands: [...codeBlockCommands, ...codeBlockHotkeyCommands],
+  menu: codeBlockMenuItems,
+  hotkeys: codeBlockHotkeys,
+  behaviorsFor: {
+    paragraph: codeBlockForParagraph,
+  },
+});
 
-  override commands = codeBlockCommands;
-  override menuItems = codeBlockMenuItems;
-  override dragSpec = true;
-
-  override getPlugins() {
-    return [
-      deleteBackward,
-      markdownSyntax,
-      createBlockElementPlugin(this.type),
-      createVoidElementPlugin(this.type),
-    ];
-  }
-
-  override getHotkeyConfigs() {
-    return hotkeys;
-  }
-
-  override getBlockPanelItems() {
-    return blockPanelItems;
-  }
-
-  render(props: RenderElementProps) {
-    const { element, attributes, children } = props;
-    const onDidMount = (controller: CodeBlockController) => {
-      codeBlockMap.set((element as CodeBlockElement).uuid, controller);
-    };
-    const onWillUnmount = () => {
-      codeBlockMap.delete((element as CodeBlockElement).uuid);
-    };
-
-    return (
-      <CodeBlock
-        element={element as CodeBlockElement}
-        attributes={attributes}
-        onDidMount={onDidMount}
-        onWillUnmount={onWillUnmount}
-      >
-        {children}
-      </CodeBlock>
-    );
-  }
-}
-
-export default CodeBlockExtension;
+export default codeBlockExtension;
