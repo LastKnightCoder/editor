@@ -6,16 +6,13 @@
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { AnyExtension } from "@tau/editor/src";
+import { defineExtension } from "@tau/editor/api";
 
-const extensionOf = (type: string) =>
-  ({
-    type,
-    getPlugins: () => [],
-    getHotkeyConfigs: () => [],
-    getBlockPanelItems: () => [],
-    getHoveringBarElements: () => [],
-    render: () => null,
-  }) as unknown as AnyExtension;
+const extensionOf = (type: string): AnyExtension =>
+  defineExtension({
+    id: `test.${type}`,
+    elements: [{ type, kind: "block", render: () => null }],
+  });
 
 /** desktop 静态扩展（markdown 粘贴导入、webview、图片覆盖）在此用 webview 一个哨兵代表 */
 vi.mock("@/editor-extensions", () => ({
