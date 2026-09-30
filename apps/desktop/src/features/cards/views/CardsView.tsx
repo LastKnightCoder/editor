@@ -23,7 +23,7 @@ import { cardCategoryName } from "@/constants/card";
 import { isElectron } from "@/electron";
 import useSettingStore from "@/stores/useSettingStore";
 import PresentationMode from "@/components/PresentationMode";
-import CardDatabaseView from "@/components/CardDatabaseView";
+import CardDatabaseView from "../components/CardDatabaseView";
 import ContentExportModal from "@/components/ContentExportModal";
 import EpubExportModal from "@/components/EpubExportModal";
 import { PdfExportModal } from "@/components/PdfExportModal";
@@ -354,6 +354,7 @@ export function CardsView() {
         {view === "database" && (
           <div className="flex min-h-0 flex-1 flex-col">
             <CardDatabaseView
+              databaseName={databaseName}
               bare
               cards={sorted}
               selectCategory={category}
