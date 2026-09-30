@@ -914,7 +914,9 @@ describe("内置扩展迁到 v2：code-block（``` 快捷语法 + mod+` 命令�
   it("段落整段 ```ts 回车：变成 ts 代码块；mod+` 绑命令可插入默认代码块", async () => {
     const fence = await mount([paragraph("```ts")]);
     expect(
-      fence.kit.assembly.commandHotkeys.filter(entry => entry.hotkey.command.startsWith("tau.code-block."))
+      fence.kit.assembly.commandHotkeys.filter(entry =>
+        entry.hotkey.command.startsWith("tau.code-block.")
+      )
     ).toHaveLength(1);
     Transforms.select(fence.editor, SlateEditor.end(fence.editor, [0]));
     await act(async () => fence.editor.insertBreak());
@@ -926,5 +928,63 @@ describe("内置扩展迁到 v2：code-block（``` 快捷语法 + mod+` 命令�
     expect(hotkey.editor.commands.execute("tau.code-block.insert")).toBe(true);
     expect(hotkey.editor.children[0]).toMatchObject({ type: "code-block", language: "javascript" });
     await hotkey.done();
+  });
+});
+
+describe("内置扩展迁到 v2：multi-column（列行为 + mod+方向插删列命令）", () => {
+  const mount = async (initValue: Descendant[]) => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const ref = createRef<EditorRef>();
+    const kit = createEditorKit({ services: services() });
+    await act(async () => {
+      root.render(
+        <DndProvider backend={HTML5Backend}>
+          <Editor ref={ref} kit={kit} readonly={false} initValue={initValue} />
+        </DndProvider>
+      );
+    });
+    return {
+      kit,
+      editor: ref.current!.getEditor(),
+      done: async () => {
+        await act(async () => root.unmount());
+        container.remove();
+      },
+    };
+  };
+
+  const column = (children: Descendant[]) => ({ type: "multi-column-item", children }) as never;
+  const layout = (...items: Descendant[]) =>
+    ({ type: "multi-column-container", children: items }) as never;
+
+  it("列内唯一空段落退格：删除该列", async () => {
+    const { editor, done } = await mount([
+      layout(column([paragraph("内容")]), column([paragraph("")])),
+    ]);
+    Transforms.select(editor, { path: [0, 1, 0, 0], offset: 0 });
+    await act(async () => editor.deleteBackward("character"));
+    expect((editor.children[0] as Element).children).toHaveLength(1);
+    await done();
+  });
+
+  it("空容器规范化：退化为空段落；mod+右插列经命令生效", async () => {
+    const empty = await mount([layout()]);
+    await act(async () => {});
+    // 空容器挂载即被规范化删除并补空段落
+    expect((empty.editor.children[0] as Element).type).toBe("paragraph");
+    await empty.done();
+
+    const { kit, editor, done } = await mount([layout(column([paragraph("一")]))]);
+    expect(
+      kit.assembly.commandHotkeys.filter(entry =>
+        entry.hotkey.command.startsWith("tau.multi-column.")
+      )
+    ).toHaveLength(4);
+    Transforms.select(editor, SlateEditor.end(editor, [0, 0, 0]));
+    expect(editor.commands.execute("tau.multi-column.insert-right")).toBe(true);
+    expect((editor.children[0] as Element).children).toHaveLength(2);
+    await done();
   });
 });

@@ -180,13 +180,25 @@ describe("P4 EditorConfig 拆解", () => {
     it("createImageExtensions 同时覆盖 image 与 image-gallery，并把参数交给块组件", () => {
       const appearance = { borderRadius: "md" as const };
       const extensions = createImageExtensions({ appearance });
-      expect(extensions.map(extension => extension.type)).toEqual(["image", "image-gallery"]);
+      // image 迁移前是旧 IExtension（type/render 在顶层）、迁移后在 elements 里
+      const typeOf = (extension: unknown) =>
+        (extension as { type?: string }).type ??
+        ((extension as { elements?: { type: string }[] }).elements?.[0].type as string);
+      expect(extensions.map(typeOf)).toEqual(["image", "image-gallery"]);
       for (const extension of extensions) {
-        const element = extension.render({
+        // 旧 IExtension 的 render 是类方法（依赖 this），保持方法调用；v2 的在 elements[0]
+        const props = {
           attributes: {} as never,
-          element: { type: extension.type, children: [{ type: "formatted", text: "" }] },
+          element: { type: typeOf(extension), children: [{ type: "formatted", text: "" }] },
           children: null,
-        } as never);
+        } as never;
+        const legacy = extension as { render?: (props: unknown) => unknown };
+        const element =
+          typeof legacy.render === "function"
+            ? legacy.render(props)
+            : (
+                extension as { elements: { render: (props: unknown) => unknown }[] }
+              ).elements[0].render(props);
         expect((element.props as { appearance?: unknown }).appearance).toBe(appearance);
       }
     });

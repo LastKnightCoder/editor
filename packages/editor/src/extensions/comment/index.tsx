@@ -1,37 +1,27 @@
-import IExtension from "../types";
-import Base from "../base";
+import { defineElement, defineExtension, type ElementRenderProps } from "../../api";
+
 import Comment from "./components/Comment";
-
-import { RenderElementProps } from "slate-react";
 import type { CommentElement } from "../../types";
-import { createInlineElementPlugin } from "../../utils";
 
-import hotkeys from "./hotkeys";
 import hoveringBarConfigs from "./hovering-bar-configs";
+import { commentCommands, commentHotkeys } from "./commands";
 
-class CommentExtension extends Base implements IExtension {
-  type = "comment";
+const commentExtension = defineExtension({
+  id: "tau.comment",
+  elements: [
+    defineElement<CommentElement>({
+      type: "comment",
+      kind: "inline",
+      render: ({ attributes, element, children }: ElementRenderProps<CommentElement>) => (
+        <Comment attributes={attributes} element={element}>
+          {children}
+        </Comment>
+      ),
+    }),
+  ],
+  toolbar: hoveringBarConfigs,
+  commands: commentCommands,
+  hotkeys: commentHotkeys,
+});
 
-  override getHotkeyConfigs() {
-    return hotkeys;
-  }
-
-  override getHoveringBarElements() {
-    return hoveringBarConfigs;
-  }
-
-  override getPlugins() {
-    return [createInlineElementPlugin(this.type)];
-  }
-
-  render(props: RenderElementProps) {
-    const { attributes, children, element } = props;
-    return (
-      <Comment attributes={attributes} element={element as CommentElement}>
-        {children}
-      </Comment>
-    );
-  }
-}
-
-export default CommentExtension;
+export default commentExtension;

@@ -1,46 +1,28 @@
-import { RenderElementProps } from "slate-react";
+import { defineElement, defineExtension, type ElementRenderProps } from "../../api";
+
 import type { AnnotationElement } from "../../types";
 
 import blockPanelItems from "./block-panel-items/index";
-import hotkeys from "./hotkeys/index";
 import Annotation from "./components/Annotation/index.tsx";
-import {
-  createInlineElementPlugin,
-  createVoidElementPlugin,
-} from "../../utils";
+import { annotationCommands, annotationHotkeys } from "./commands";
 
-import Base from "../base";
-import IExtension from "../types";
+const annotationExtension = defineExtension({
+  id: "tau.annotation",
+  elements: [
+    defineElement<AnnotationElement>({
+      type: "annotation",
+      kind: "inline",
+      isVoid: true,
+      render: ({ attributes, element, children }: ElementRenderProps<AnnotationElement>) => (
+        <Annotation element={element} attributes={attributes}>
+          {children}
+        </Annotation>
+      ),
+    }),
+  ],
+  blockPanel: blockPanelItems,
+  commands: annotationCommands,
+  hotkeys: annotationHotkeys,
+});
 
-class AnnotationExtension extends Base implements IExtension {
-  type = "annotation";
-
-  override getPlugins() {
-    return [
-      createInlineElementPlugin(this.type),
-      createVoidElementPlugin(this.type),
-    ];
-  }
-
-  override getHotkeyConfigs() {
-    return hotkeys;
-  }
-
-  override getBlockPanelItems() {
-    return blockPanelItems;
-  }
-
-  render(props: RenderElementProps) {
-    const { element, attributes, children } = props;
-    return (
-      <Annotation
-        element={element as AnnotationElement}
-        attributes={attributes}
-      >
-        {children}
-      </Annotation>
-    );
-  }
-}
-
-export default AnnotationExtension;
+export default annotationExtension;
