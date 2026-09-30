@@ -791,3 +791,13 @@
 - 追记（2026-09-30，用户实机反馈「要全屏」）：画框卡片（下沉底色 + 四周留白 + 圆角投影）改为**全屏舞台**——进入演示即窗口全屏（退出还原到进入前状态，平台只提供 toggle，按目标状态查后再切），舞台铺满窗口：逻辑宽 1000 固定、高度随窗口比例（16:10 屏也用满高度，窗口过宽时逻辑高不低于 480），正文列 768 水平居中，底部多留 72 给 HUD；缩略图沿用放映比例。镜头计划末屏改为内容底边贴视口底边（原按块顶对齐，末屏下方留大段空白）。上文「880×495 画框」口径作废。
 - 追记（2026-09-30，用户实机反馈「底部条时有时无、向下箭头奇怪、没看到 D 切深浅」）：① **HUD 显隐改为位置驱动**——仅在进场提示期间、鼠标位于屏幕底部 140px 带内、悬停 HUD 或全览 / 帮助打开时显示，离开即收起；原「任意移动唤出、静止 2s 隐藏」叠加「贴底边滑出胶片条把 HUD 顶上去」，表现为无规律闪现。光标仍按静止 2s 隐藏。② **胶片条删除**——与 `O` 全览重复，且与 HUD 抢底边。③ **画面底部的「下方还有」箭头删除**，多屏提示只留右侧屏点与上下渐隐。④ **恢复 `D` 切深浅色，只作用于演示层**：演示根节点写 `data-theme`（沿用当前主题族）+ `data-mode` + `th-scope-dark/light`，`@theme inline` 的语义色在子树内重算；编辑器经 `EditorThemeOverride` 按演示明暗渲染（shiki / mermaid 等 JS 取色随之切换，与导出预览 ContentExportModal 同一机制）。不写全局偏好、不动 `<html>`——这是「业务代码禁止操作 data-theme」的受控例外，仅限演示根节点这一局部作用域。已知边界：Tooltip 经 Portal 挂在 body，仍随应用明暗。上文「不做：演示内独立明暗切换」作废。
 - 影响：`src/components/PresentationMode/` 整体重写（sections / cameraPlan 纯函数 + 单测、frame 常量、SlideFrame / SectionThumbnail / Overview / HelpPanel），旧 `components/`、`hooks/`、`index.module.less` 删除；调用方（文章 / 卡片 / 项目共五处）无改动；白板演示模式不受影响；03 指南 §5 新增「演示模式」小节。
+
+## D-075 快捷卡片窗口并入卡片编辑窗口：打开即建闪念笔记
+
+（2026-09-30，已定；用户裁决：要「卡片打开新窗口」那种，而非新建卡片弹窗式的草稿 + 保存）
+
+- 选择：`/quick-card` 不再是独立的草稿表单（旧 `QuickOpenLayout` + `pages/QuickCard`：编辑器 + 标签 + 「保存并关闭」），改为 `features/cards/windows/QuickCardWindow`：连库后新建一张闪念笔记（`ECardCategory.Temporary`，经卡片域 `useCardsMutations().create`），随即渲染 D-063 的 `EditorWindow`（卡片驱动，自动保存、大纲、⋯菜单、状态栏全部复用），正文打开即聚焦（`EditorWindow` 新增 `autoFocus`）。
+- 空卡片不留存：关窗（beforeunload）时正文为空即删除；删除未及执行时，下次唤起按 localStorage `quick-card-last` 复用该空卡片，不再新建。
+- 主进程：`createQuickCardWindow` 改为键控单例（`window-registry` key `quick-card`，再次 ⌘⇧N 聚焦已有窗口），尺寸同卡片编辑窗口并记忆位置；仍默认置顶。
+- 编辑窗口纸面（三类内容共用）：正文列改纵向 flex，正文区撑满余高，标签行内容短时贴纸面底部、内容长时跟在正文末；点正文下方空白落到正文末尾。
+- 随删：`layouts/QuickOpenLayout`（`layouts/` 目录清空）、`pages/QuickCard`、`components/FullScreenLoading`、`TitlebarIcon`、`GlobalTitlebar`、`stores/useModuleStore`（后四者唯一消费链来自 QuickOpenLayout）；主进程 `window-module-mapping` 的 `quick-card` 窗口类型同步删除。

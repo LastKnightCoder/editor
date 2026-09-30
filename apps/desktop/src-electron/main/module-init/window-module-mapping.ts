@@ -4,8 +4,7 @@ import { MODULE_CONFIGS } from "./module-config";
 /**
  * 窗口类型
  */
-export type WindowType =
-  "main" | "markdown" | "editor" | "pomodoro-mini" | "pomodoro-immersive" | "quick-card";
+export type WindowType = "main" | "markdown" | "editor" | "pomodoro-mini" | "pomodoro-immersive";
 
 /**
  * 窗口类型到需要的模块组的映射
@@ -44,9 +43,6 @@ export const WINDOW_MODULE_GROUPS: Record<WindowType, ModuleGroup[]> = {
 
   // 番茄沉浸模式
   "pomodoro-immersive": [ModuleGroup.ESSENTIAL, ModuleGroup.CORE, ModuleGroup.SERVER],
-
-  // 快速卡片窗口
-  "quick-card": [ModuleGroup.ESSENTIAL, ModuleGroup.CORE, ModuleGroup.DATABASE, ModuleGroup.SERVER],
 };
 
 /**

@@ -1,6 +1,5 @@
 /**
- * 窗口控制按钮 —— mac 自绘信号灯 + Windows/Linux 三键，行为对齐 legacy
- * GlobalTitlebar/CustomTrafficLights：命令走 commands/window.ts（IPC），
+ * 窗口控制按钮 —— mac 自绘信号灯 + Windows/Linux 三键：命令走 commands/window.ts（IPC），
  * 最大化状态经 platform.window.onMaximizedChange。
  * 平台习惯色（信号灯三原色 / 关闭键 danger / 符号深色）刻意不走主题 token。
  */
