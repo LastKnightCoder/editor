@@ -18,8 +18,9 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { Button, ConfirmDialog, IconButton, Menu, Tooltip, cn, useEdgeFade } from "@tau/ui";
-import useCalendarStore from "@/stores/useCalendarStore";
+import { Button, ConfirmDialog, IconButton, Menu, Tooltip, cn, useEdgeFade, toast } from "@tau/ui";
+import { useScheduleStore } from "../../uiStore";
+import { useCalendarCatalog, useScheduleMutations } from "../../queries";
 import type { Calendar, CalendarGroup } from "@/types";
 import { TONE, toneStyle } from "../../eventTone";
 import CalendarFormDialog from "../CalendarFormDialog";
@@ -30,26 +31,26 @@ type PendingConfirm =
   { kind: "calendar"; calendar: Calendar } | { kind: "group"; group: CalendarGroup; count: number };
 
 const CalendarSidebar = memo(() => {
-  const calendars = useCalendarStore(s => s.calendars);
-  const calendarGroups = useCalendarStore(s => s.calendarGroups);
-  const selectedCalendarIds = useCalendarStore(s => s.selectedCalendarIds);
-  const showSystemSection = useCalendarStore(s => s.showSystemSection);
-  const showMyCalendarSection = useCalendarStore(s => s.showMyCalendarSection);
-  const showArchivedSection = useCalendarStore(s => s.showArchivedSection);
-  const mergeModeEnabled = useCalendarStore(s => s.mergeModeEnabled);
-  const selectedCalendarsForMerge = useCalendarStore(s => s.selectedCalendarsForMerge);
+  const { calendars, calendarGroups } = useCalendarCatalog();
+  const showSystemSection = useScheduleStore(s => s.showSystemSection);
+  const showMyCalendarSection = useScheduleStore(s => s.showMyCalendarSection);
+  const showArchivedSection = useScheduleStore(s => s.showArchivedSection);
+  const mergeModeEnabled = useScheduleStore(s => s.mergeModeEnabled);
+  const selectedCalendarsForMerge = useScheduleStore(s => s.selectedCalendarsForMerge);
   const {
     toggleCalendarVisibility,
     deleteCalendar,
     archiveCalendar,
     unarchiveCalendar,
     deleteCalendarGroup,
+  } = useScheduleMutations();
+  const {
     setShowSystemSection,
     setShowMyCalendarSection,
     setShowArchivedSection,
     toggleMergeMode,
     toggleCalendarForMerge,
-  } = useCalendarStore.getState();
+  } = useScheduleStore.getState();
 
   const [createGroupId, setCreateGroupId] = useState<number | null | undefined>(undefined);
   const [editingCalendar, setEditingCalendar] = useState<Calendar | null>(null);
@@ -88,7 +89,7 @@ const CalendarSidebar = memo(() => {
     });
 
   const renderCalendar = (calendar: Calendar, indent: boolean) => {
-    const visible = selectedCalendarIds.includes(calendar.id);
+    const visible = calendar.visible;
     const canMerge = !calendar.isInSystemGroup && !calendar.archived;
     const mergeRow = mergeModeEnabled && canMerge;
     const checked = mergeRow ? selectedCalendarsForMerge.includes(calendar.id) : visible;
@@ -110,7 +111,11 @@ const CalendarSidebar = memo(() => {
           aria-label={mergeRow ? `选择合并：${calendar.title}` : `显示 ${calendar.title}`}
           disabled={mergeModeEnabled && !canMerge}
           onClick={() =>
-            mergeRow ? toggleCalendarForMerge(calendar.id) : toggleCalendarVisibility(calendar.id)
+            mergeRow
+              ? toggleCalendarForMerge(calendar.id)
+              : void toggleCalendarVisibility(calendar.id).catch(() =>
+                  toast.error("更新日历显隐失败")
+                )
           }
           className={cn(
             "grid size-3.5 shrink-0 place-items-center rounded-[4px] transition-colors",
@@ -158,14 +163,18 @@ const CalendarSidebar = memo(() => {
                 {calendar.archived ? (
                   <Menu.Item
                     icon={<ArchiveRestore className="size-[15px]" strokeWidth={1.75} />}
-                    onSelect={() => void unarchiveCalendar(calendar.id)}
+                    onSelect={() =>
+                      void unarchiveCalendar(calendar.id).catch(() => toast.error("取消归档失败"))
+                    }
                   >
                     取消归档
                   </Menu.Item>
                 ) : (
                   <Menu.Item
                     icon={<Archive className="size-[15px]" strokeWidth={1.75} />}
-                    onSelect={() => void archiveCalendar(calendar.id)}
+                    onSelect={() =>
+                      void archiveCalendar(calendar.id).catch(() => toast.error("归档失败"))
+                    }
                   >
                     归档
                   </Menu.Item>

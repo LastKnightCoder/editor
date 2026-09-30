@@ -9,8 +9,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Dialog, DialogBody, cn, toast } from "@tau/ui";
-import useCalendarStore from "@/stores/useCalendarStore";
-import { useCalendarEvents } from "@/hooks/useCalendarEvents";
+import { useScheduleStore } from "../../uiStore";
+import { useCalendarCatalog, useCalendarEvents } from "../../queries";
 import { useDateRangeDrag } from "@/hooks/useDateRangeDrag";
 import { getDateStart, getMonthGridRange, isToday } from "@/utils/calendar";
 import { assignMonthViewLevels, type MonthEventSpan } from "@/utils/eventLayoutAlgorithm";
@@ -52,10 +52,10 @@ function spansBetween(startIndex: number, endIndex: number) {
 }
 
 const MonthView = () => {
-  const currentDate = useCalendarStore(s => s.currentDate);
-  const calendars = useCalendarStore(s => s.calendars);
-  const editingEvent = useCalendarStore(s => s.editingEvent);
-  const { setEditingEvent, setCurrentDate } = useCalendarStore.getState();
+  const currentDate = useScheduleStore(s => s.currentDate);
+  const { calendars } = useCalendarCatalog();
+  const editingEvent = useScheduleStore(s => s.editingEvent);
+  const { setEditingEvent, setCurrentDate } = useScheduleStore.getState();
   const peek = usePeekStore(s => s.peek);
   const { events } = useCalendarEvents();
   const decorOf = useEventDecor(events);

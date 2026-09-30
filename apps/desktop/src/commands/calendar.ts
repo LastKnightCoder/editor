@@ -54,6 +54,12 @@ export const getEventsByCalendarId = async (calendarId: number): Promise<Calenda
   return await invoke("calendar-event:get-by-calendar-id", calendarId);
 };
 
+export const countCalendarEvents = async (
+  calendarIds: number[]
+): Promise<Record<number, number>> => {
+  return await invoke("calendar-event:count-by-calendar-ids", calendarIds);
+};
+
 export const getEventsByDateRange = async (
   startDate: number,
   endDate: number,

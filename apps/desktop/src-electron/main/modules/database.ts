@@ -90,6 +90,7 @@ import { retireLegacyChats } from "./legacy-chat-retirement";
 import { recoverSessionDownload } from "./pi-session-store";
 import { assertDatabaseNotSyncing } from "@tau/db-schema/sync";
 import { chatSessionDirOf } from "./pi-session-paths";
+import { broadcastScheduleChange, isScheduleWrite } from "./schedule-changes";
 
 export type DatabaseConnectMode = "normal" | "maintenance";
 export type DatabaseReconnectSource = "sync_upload_reconnect" | "sync_download_reconnect";
@@ -144,6 +145,7 @@ class DatabaseModule implements Module {
   }
 
   private notifyDatabaseWrite(dbName: string, eventName: string): void {
+    if (isScheduleWrite(eventName)) broadcastScheduleChange(dbName);
     for (const cb of this.databaseWriteCallbacks) {
       try {
         cb(dbName, eventName);

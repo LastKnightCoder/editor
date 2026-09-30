@@ -2,7 +2,8 @@ import { useState } from "react";
 import dayjs from "dayjs";
 import { ChevronDown, ChevronLeft, ChevronRight, CalendarDays, Plus } from "lucide-react";
 import { Button, DatePickerPanel, IconButton, Popover, Segmented, cn, toast } from "@tau/ui";
-import useCalendarStore from "@/stores/useCalendarStore";
+import { useScheduleStore } from "../../uiStore";
+import { useCalendarCatalog } from "../../queries";
 import { getDateStart, getWeekStart } from "@/utils/calendar";
 import type { CalendarEvent, CalendarViewType } from "@/types";
 import { useDayEvents } from "../DayColumn";
@@ -79,10 +80,10 @@ function isoWeek(monday: Date) {
 }
 
 const CalendarHeader = () => {
-  const currentView = useCalendarStore(s => s.currentView);
-  const currentDate = useCalendarStore(s => s.currentDate);
-  const calendars = useCalendarStore(s => s.calendars);
-  const showDayPanel = useCalendarStore(s => s.showDayPanel);
+  const currentView = useScheduleStore(s => s.currentView);
+  const currentDate = useScheduleStore(s => s.currentDate);
+  const { calendars } = useCalendarCatalog();
+  const showDayPanel = useScheduleStore(s => s.showDayPanel);
   const {
     setCurrentView,
     setCurrentDate,
@@ -91,7 +92,7 @@ const CalendarHeader = () => {
     goToNext,
     setEditingEvent,
     setShowDayPanel,
-  } = useCalendarStore.getState();
+  } = useScheduleStore.getState();
   const [jumpOpen, setJumpOpen] = useState(false);
 
   const title = formatTitle(currentView, currentDate);
