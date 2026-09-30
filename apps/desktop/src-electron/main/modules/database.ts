@@ -135,6 +135,7 @@ class DatabaseModule implements Module {
     (dbName: string, reason: DatabaseConnectReason) => void
   > = [];
   private indexEnsurePromises: Map<string, Promise<EnsureIndexReadyResult | null>> = new Map();
+  private readyDatabaseTasks: Map<string, Promise<Database.Database>> = new Map();
   private databaseWriteCallbacks: Array<(dbName: string, eventName: string) => void> = [];
 
   /** 渲染进程发起的数据库写命令提交成功后回调（索引调度等据此感知内容变化） */
@@ -522,9 +523,12 @@ class DatabaseModule implements Module {
           `[database] chat session migration row failed: db=${name}, table=${failure.table}, id=${failure.id}, error=${failure.error}`
         );
       }
+      if (result.failed.length > 0) {
+        throw new Error(`聊天数据迁移失败：${result.failed.length} 条记录未转换，旧数据已保留`);
+      }
     } catch (error) {
-      // 整体失败不阻塞开库：旧表原样保留，migration_meta 没记账，下次开库重试
       log.error(`[database] chat session migration failed: db=${name}`, error);
+      throw error;
     }
     this.mergeChatSessionTrees(database, name, dbPath);
   }
@@ -546,11 +550,15 @@ class DatabaseModule implements Module {
       );
       for (const failure of result.failed) {
         log.error(
-          `[database] chat session tree migration branch failed (kept as standalone): db=${name}, id=${failure.id}, error=${failure.error}`
+          `[database] chat session tree migration branch failed: db=${name}, id=${failure.id}, error=${failure.error}`
         );
+      }
+      if (result.failed.length > 0) {
+        throw new Error(`聊天分支迁移失败：${result.failed.length} 个分支未转换，关系已保留`);
       }
     } catch (error) {
       log.error(`[database] chat session tree migration failed: db=${name}`, error);
+      throw error;
     }
     this.retireLegacyChatTables(database, name, dbPath);
   }
@@ -564,30 +572,51 @@ class DatabaseModule implements Module {
         `[database] legacy chat tables retired: db=${name}, tables=${result.droppedTables.join(",") || "none"}, branchColumns=${result.droppedBranchColumns}, backup=${result.backupPath ?? "none"}`
       );
     } catch (error) {
-      // 失败不阻塞开库：表原样留着，下次开库重试
       log.error(`[database] legacy chat retirement failed: db=${name}`, error);
+      throw error;
     }
+  }
+
+  private openReadyDatabase(name: string, mode: DatabaseConnectMode, allowOwnedSync = false) {
+    const pending = this.readyDatabaseTasks.get(name);
+    if (pending) return pending;
+    const task = Promise.resolve()
+      .then(async () => {
+        const database = this.openDatabase(name, mode, allowOwnedSync);
+        try {
+          if (mode === "maintenance") {
+            await this.migrateChatSessions(
+              database,
+              name,
+              join(PathUtil.getAppDir(), `${this.formatDatabaseName(name)}.db`)
+            );
+          }
+          this.databases.set(name, database);
+          return database;
+        } catch (error) {
+          database.close();
+          throw error;
+        }
+      })
+      .finally(() => {
+        this.readyDatabaseTasks.delete(name);
+      });
+    this.readyDatabaseTasks.set(name, task);
+    return task;
   }
 
   async reconnectForSync(name: string, source: DatabaseReconnectSource) {
     log.info(`[database] reconnectForSync: db=${name}, source=${source}`);
     if (this.databases.has(name)) {
       this.databases.get(name)!.close();
+      this.databases.delete(name);
       mainContentIndexDBManager.closeDatabase(name);
     }
-    const database = this.openDatabase(
+    await this.openReadyDatabase(
       name,
       source === "sync_download_reconnect" ? "maintenance" : "normal",
       true
     );
-    this.databases.set(name, database);
-    if (source === "sync_download_reconnect") {
-      await this.migrateChatSessions(
-        database,
-        name,
-        join(PathUtil.getAppDir(), `${this.formatDatabaseName(name)}.db`)
-      );
-    }
     this.warmIndexDatabaseInBackground(name, "connect_or_reconnect");
     this.currentDatabaseName = name;
     this.notifyDatabaseConnected(name, source);
@@ -657,19 +686,14 @@ class DatabaseModule implements Module {
         );
         if (this.databases.has(name)) {
           this.databases.get(name)!.close();
+          this.databases.delete(name);
           mainContentIndexDBManager.closeDatabase(name);
         }
-        const database = this.openDatabase(
+        await this.openReadyDatabase(
           name,
           connectMode,
           source === "sync_upload_reconnect" || source === "sync_download_reconnect"
         );
-        this.databases.set(name, database);
-        // 老对话迁到 pi 会话文件（M4）：必须在 notifyDatabaseConnected 之前跑完——
-        // 渲染端一连上就查目录表，迁移没完成会看到空列表
-        if (connectMode === "maintenance") {
-          await this.migrateChatSessions(database, name, dbPath);
-        }
       }
 
       const database = this.getDatabase(name);

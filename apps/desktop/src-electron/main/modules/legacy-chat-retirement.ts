@@ -5,7 +5,7 @@
  *
  * - 只在两次迁移都已记账后执行（老对话迁移 chat-session-pi-jsonl:v1、树合并 chat-session-tree:v1）：
  *   没迁过的库（比如刚从旧版本远程下载、还没以维护模式开过）原样保留，下次开库迁完再删；
- * - 删前 VACUUM INTO 备份整库（迁移失败的行、扩展旧对话、audio_note_chats 只剩备份里有，用户裁决）；
+ * - 迁移失败不删旧表；删前 VACUUM INTO 备份整库；
  * - 幂等：没有可删的就什么都不做、也不备份。
  *
  * electron-free，可单测。移动端不删（它不做 pi 迁移，旧表可能还没迁）。
@@ -27,7 +27,10 @@ const marked = (db: Database.Database, key: string): boolean => {
   const hasMeta = db
     .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='migration_meta'")
     .get();
-  return Boolean(hasMeta && db.prepare("SELECT 1 FROM migration_meta WHERE key = ?").get(key));
+  if (!hasMeta) return false;
+  const mark = db.prepare("SELECT value FROM migration_meta WHERE key = ?").get(key) as
+    { value: string } | undefined;
+  return Boolean(mark && !(JSON.parse(mark.value) as { failed?: number }).failed);
 };
 
 export interface LegacyChatRetirementResult {

@@ -2,7 +2,7 @@
  * 扩展一次性运行的 v2 协议（M5，渲染端 aiServer）：ai.run.start 立即返回、过程经 ai.run.event 推送、
  * 最后一条一定是 settled；停止转交 pi；侧栏持久对话不该打到这里；模型报错按失败收尾。
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 import type { AiRunEventNotification } from "@tau/shared";
 import type { RpcRequestMessage } from "@/types/rpc";
@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   singleEvent: null as ((event: unknown) => void) | null,
   singleResolve: null as ((result: unknown) => void) | null,
   singleCancel: vi.fn(),
+  handlers: new Map<string, (request: RpcRequestMessage) => Promise<unknown>>(),
 }));
 
 vi.mock("@/constants", () => ({
@@ -56,7 +57,14 @@ vi.mock("@/stores/useSettingStore", () => ({
 }));
 vi.mock("@/stores/useSkillStore", () => ({ default: { getState: () => ({ skills: [] }) } }));
 vi.mock("@/tools", () => ({ ensureToolingReady: vi.fn() }));
-vi.mock("@/utils/WebSocketServer", () => ({ default: class {} }));
+vi.mock("@/utils/WebSocketServer", () => ({
+  default: class {
+    addRequestHandler(name: string, handler: (request: RpcRequestMessage) => Promise<unknown>) {
+      mocks.handlers.set(name, handler);
+    }
+    close() {}
+  },
+}));
 vi.mock("@/utils/WebSocketClient", () => ({ default: class {} }));
 vi.mock("../open-content", () => ({ openContent: vi.fn() }));
 vi.mock("../page-navigation", () => ({ openPage: vi.fn() }));
@@ -80,9 +88,49 @@ vi.mock("@/stores/useExtNoteInsertStore", () => ({ default: { getState: () => ({
 vi.mock("@/commands/window", () => ({ showAndFocusWindow: vi.fn() }));
 vi.mock("@/utils/embedding-model-info", () => ({ resolveEmbeddingModelInfoFromSetting: vi.fn() }));
 
-import { __aiServerTestUtils } from "../aiServer";
+import { __aiServerTestUtils, closeAiServer, initAiServer } from "../aiServer";
+import { openContent } from "../open-content";
 
 const { handleRunStart, handleRunAbort } = __aiServerTestUtils;
+
+describe("内容打开 RPC", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    mocks.handlers.clear();
+    vi.mocked(openContent).mockReset();
+    initAiServer();
+  });
+  afterEach(() => {
+    closeAiServer();
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  });
+
+  it("仅注册当前入口，打开完成后才返回成功", async () => {
+    expect(mocks.handlers.has("tab.open")).toBe(false);
+    expect(mocks.handlers.has("block.preview.open")).toBe(true);
+    let finish!: () => void;
+    vi.mocked(openContent).mockImplementation(
+      () =>
+        new Promise<void>(resolve => {
+          finish = resolve;
+        })
+    );
+    const handler = mocks.handlers.get("content.open")!;
+    const pending = handler(request("content.open", { type: "card", id: 7 }));
+    await Promise.resolve();
+    expect(openContent).toHaveBeenCalledWith("card", 7);
+    finish();
+    await expect(pending).resolves.toEqual({ success: true });
+  });
+
+  it("无有效内容目标时返回明确错误", async () => {
+    vi.mocked(openContent).mockRejectedValue(new Error("无法打开该内容"));
+    await expect(
+      mocks.handlers.get("content.open")!(request("content.open", { type: "unknown", id: 7 }))
+    ).resolves.toEqual({ success: false, error: "无法打开该内容" });
+  });
+});
 
 const flush = async () => {
   for (let i = 0; i < 10; i++) await Promise.resolve();

@@ -312,11 +312,11 @@ pnpm add -D
 
 ### 主进程能力
 
-- 新增主进程模块一律 `layer: BACKGROUND`（`src-electron/main/module-init/module-config.ts`），随应用启动初始化，不依赖调用方；禁止新增 `ON_DEMAND` 模块——它的初始化靠「窗口类型 → 模块组」隐式拉起，入口一变就静默失效（主窗口换新壳层即导致 39 个模块 handler 未注册，见 DECISIONS.md D-014）。
-- 确需按需加载时，必须在渲染端用 `ensureModule`/`withModule`（`src/commands/module-init.ts`）兜底；`module-init/__tests__/module-layering.test.ts` 守护该约定。
+- 新增主进程模块一律 `layer: BACKGROUND`（`src-electron/main/module-init/module-config.ts`），随应用启动初始化，不依赖调用方。仅保留 IMMEDIATE/BACKGROUND 两个启动阶段，禁止恢复按窗口隐式初始化链；`module-init/__tests__/module-layering.test.ts` 守护该约定。
+- 后台模块的启动竞态与失败重试使用 `ensureModule`/`withModule`（`src/commands/module-init.ts`），不把当前就绪保障当作旧架构兼容删除。
 - 模块 `init()` 无防重入（重复注册 handler 会抛 `Attempted to register a second handler`），防重入只在 `ModuleInitManager`，故渲染端并发去重必须走 `ensureModule`，不要自行 `invoke("module-init:init-module")`。
 
 ### 迁移流程
 
-- 清理存量实现前按 04 模板记录消费者与保留边界，删前 `rg` 复核消费者清零；G1/G2 已完成，不再创建迁移占位或旧承载。修改数据/主题/壳层协议时同步 03，历史数据升级按独立版本退出条件保留。
+- 清理存量实现前按 04 模板记录消费者与保留边界，删前 `rg` 复核消费者清零；G1/G2 已完成，不再创建迁移占位或旧承载。修改数据/主题/壳层协议时同步 03。当前版本需为存量数据完成最后升级，失败不放行；全部数据与配置转换完成后的版本应拒绝旧格式并删除历史转换代码，不长期保留兼容层（D-091）。
 - 禁止恢复 `/legacy` 路由或旧 Tab 系统承载新功能；存量代码改造遵循新架构，并在消费者清零后删除旧实现。

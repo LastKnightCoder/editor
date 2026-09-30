@@ -128,7 +128,7 @@ export function ChatMessage({
         return;
       }
       try {
-        await wsClient.sendRequest("tab.open", { type, id });
+        await wsClient.sendRequest("content.open", { type, id });
       } catch (error) {
         console.error("[ChatMessage] 打开文档引用失败:", error);
       }
@@ -199,13 +199,7 @@ export function ChatMessage({
         messageApi={toast}
       />
     ),
-    [
-      handleLinkClick,
-      handlePreviewCodeBlock,
-      handleReferenceClick,
-      isDark,
-      wsClient?.isConnected,
-    ]
+    [handleLinkClick, handlePreviewCodeBlock, handleReferenceClick, isDark, wsClient?.isConnected]
   );
 
   return (

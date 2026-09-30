@@ -109,10 +109,7 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
   },
 
   // === 应用级能力：与窗口无关，随应用后台并行初始化 ===
-  // 原先标为 ON_DEMAND，靠「窗口类型 → 模块组」隐式拉起；新壳层接管主窗口后不再经过
-  // 该入口，handler 从未注册（updater:check 即因此报 No handler registered）。
-  // 这些模块 init 只注册 handler/建目录，重活均有延后机制，归入 BACKGROUND 后
-  // 初始化不再依赖任何调用方。
+  // 初始化只注册 handler/建目录，重活延后执行，不依赖窗口入口。
 
   // 渲染模块
   {
@@ -353,15 +350,4 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     dependencies: ["logger", "database", "pdf-index-queue"],
     init: () => pdfIndexOrchestrator.init(),
   },
-];
-
-/**
- * 需要 BackendWebSocketServer 的模块（特殊处理）
- * 这些模块的 init 方法需要传入 backendServer 参数
- */
-export const WEBSOCKET_DEPENDENT_MODULES = [
-  "user-setting",
-  "pomodoro",
-  "web-clip",
-  "resource-sync",
 ];

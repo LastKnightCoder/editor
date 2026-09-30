@@ -4,7 +4,7 @@
  * 按分支深度从深到浅（孙分支先并进子分支，子分支再并进根），每个分支文件嫁接进父文件后删掉
  * 文件与目录行。嫁接规则见 pi-session-graft.ts。
  *
- * - 父文件对不上（第一条消息就不同）或读写失败：分支降级为独立对话（清掉父子关系），不丢数据；
+ * - 父文件对不上：分支独立保留；读写失败保留关系，不记完成以便重试；
  * - 合并前备份整个会话目录（文件会被改写与删除，.db 里只删行，VACUUM INTO 一并备份）；
  * - migration_meta 记账，只跑一次。记账跟着 .db 同步：另一台机器下载到没合并过的库与会话包时
  *   两者是配对的，开库时会再合并一次。
@@ -51,8 +51,12 @@ export function mergeChatSessionBranches(options: {
   ChatSessionTable.upgradeTable(db);
   const done = db
     .prepare("SELECT value FROM migration_meta WHERE key = ?")
-    .get(CHAT_SESSION_TREE_MIGRATION_KEY);
-  if (done) return { skipped: true, merged: 0, detached: 0, failed: [] };
+    .get(CHAT_SESSION_TREE_MIGRATION_KEY) as { value: string } | undefined;
+  if (done) {
+    if (!(JSON.parse(done.value) as { failed?: number }).failed)
+      return { skipped: true, merged: 0, detached: 0, failed: [] };
+    db.prepare("DELETE FROM migration_meta WHERE key = ?").run(CHAT_SESSION_TREE_MIGRATION_KEY);
+  }
 
   // 新装机与 M8 之后的库没有分支列：老对话迁移已在迁移时直接合并，这里只记账
   const rows = hasBranchColumns(db)
@@ -85,16 +89,18 @@ export function mergeChatSessionBranches(options: {
     }))
   );
   // 并完的分支行已删；剩下的（降级成独立对话的）清掉父子关系
-  if (rows.length > 0) {
+  if (rows.length > 0 && failed.length === 0) {
     db.exec(
       "UPDATE chat_session SET parent_session_id = NULL, branch_index = 0 WHERE parent_session_id IS NOT NULL"
     );
   }
 
-  db.prepare("INSERT OR REPLACE INTO migration_meta (key, value) VALUES (?, ?)").run(
-    CHAT_SESSION_TREE_MIGRATION_KEY,
-    JSON.stringify({ merged, detached, failed: failed.length, at: Date.now() })
-  );
+  if (failed.length === 0) {
+    db.prepare("INSERT OR REPLACE INTO migration_meta (key, value) VALUES (?, ?)").run(
+      CHAT_SESSION_TREE_MIGRATION_KEY,
+      JSON.stringify({ merged, detached, failed: 0, at: Date.now() })
+    );
+  }
   return { skipped: false, merged, detached, failed, ...(backupPath ? { backupPath } : {}) };
 }
 
