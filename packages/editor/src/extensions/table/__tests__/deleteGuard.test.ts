@@ -1,8 +1,8 @@
 import { createEditor, Descendant, Transforms } from "slate";
 import { describe, expect, it, vi } from "vitest";
 
-import { withNormalize } from "../../../../plugins/withNormalize";
-import { deleteBackward as withTableDeleteBackward } from "../deleteBackward";
+import { withNormalize } from "../../../plugins/withNormalize";
+import { withTableDeleteGuard as withTableDeleteBackward } from "../deleteGuard";
 
 const createParagraph = (text: string) => ({
   type: "paragraph" as const,
@@ -12,7 +12,7 @@ const createParagraph = (text: string) => ({
 const selectRange = (
   editor: ReturnType<typeof createEditor>,
   anchor: { path: number[]; offset: number },
-  focus: { path: number[]; offset: number },
+  focus: { path: number[]; offset: number }
 ) => {
   Transforms.select(editor, { anchor, focus });
 };
@@ -37,11 +37,7 @@ describe("table deleteBackward plugin", () => {
       createParagraph("after"),
     ] as Descendant[];
 
-    selectRange(
-      editor,
-      { path: [0, 0], offset: 0 },
-      { path: [2, 0], offset: 5 },
-    );
+    selectRange(editor, { path: [0, 0], offset: 0 }, { path: [2, 0], offset: 5 });
 
     editor.delete({ unit: "character" });
 
@@ -78,11 +74,7 @@ describe("table deleteBackward plugin", () => {
       },
     ] as Descendant[];
 
-    selectRange(
-      editor,
-      { path: [0, 0], offset: 0 },
-      { path: [2, 0], offset: 5 },
-    );
+    selectRange(editor, { path: [0, 0], offset: 0 }, { path: [2, 0], offset: 5 });
 
     editor.delete({ at: editor.selection! } as any);
 
@@ -147,11 +139,7 @@ describe("table deleteBackward plugin", () => {
       },
     ] as Descendant[];
 
-    selectRange(
-      editor,
-      { path: [0, 0], offset: 0 },
-      { path: [2, 0, 0, 0], offset: 7 },
-    );
+    selectRange(editor, { path: [0, 0], offset: 0 }, { path: [2, 0, 0, 0], offset: 7 });
 
     editor.deleteFragment();
 
@@ -183,11 +171,7 @@ describe("table deleteBackward plugin", () => {
       },
     ] as Descendant[];
 
-    selectRange(
-      editor,
-      { path: [0, 0, 0, 0], offset: 0 },
-      { path: [0, 0, 1, 0], offset: 1 },
-    );
+    selectRange(editor, { path: [0, 0, 0, 0], offset: 0 }, { path: [0, 0, 1, 0], offset: 1 });
 
     editor.delete({ unit: "character" });
 
@@ -211,11 +195,7 @@ describe("table deleteBackward plugin", () => {
       },
     ] as Descendant[];
 
-    selectRange(
-      editor,
-      { path: [0, 0, 0, 0], offset: 1 },
-      { path: [0, 0, 0, 0], offset: 3 },
-    );
+    selectRange(editor, { path: [0, 0, 0, 0], offset: 1 }, { path: [0, 0, 0, 0], offset: 3 });
 
     editor.delete({ unit: "character" });
 

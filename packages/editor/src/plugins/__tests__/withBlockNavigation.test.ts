@@ -1,12 +1,11 @@
 import { createEditor, Descendant, Transforms } from "slate";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { insertBreak as withListItemInsertBreak } from "../../extensions/list-item/plugins/insertBreak";
+import { listItemBehaviors } from "../../extensions/list-item/behaviors";
 import { createVoidElementPlugin } from "../../utils/plugin";
-import {
-  registerBlockNavigation,
-  unregisterBlockNavigation,
-} from "../../utils/blockNavigation";
+import { createCircuitBreaker, withElementBehaviors } from "../../kit/extensionGuard";
+import { consoleErrorReporter } from "../../services/errorReporter";
+import { registerBlockNavigation, unregisterBlockNavigation } from "../../utils/blockNavigation";
 import { withBlockNavigation } from "../withBlockNavigation";
 
 const createParagraph = (text = "") => ({
@@ -22,10 +21,7 @@ const createCodeBlock = () => ({
   children: [{ text: "" }],
 });
 
-const selectPath = (
-  editor: ReturnType<typeof createEditor>,
-  path: number[],
-) => {
+const selectPath = (editor: ReturnType<typeof createEditor>, path: number[]) => {
   Transforms.select(editor, {
     anchor: { path, offset: 0 },
     focus: { path, offset: 0 },
@@ -36,9 +32,7 @@ describe("withBlockNavigation", () => {
   const registeredBlocks = new Set<object>();
 
   afterEach(() => {
-    registeredBlocks.forEach((block) =>
-      unregisterBlockNavigation(block as any),
-    );
+    registeredBlocks.forEach(block => unregisterBlockNavigation(block as any));
     registeredBlocks.clear();
   });
 
@@ -73,7 +67,12 @@ describe("withBlockNavigation", () => {
 
     let editor = createEditor();
     editor = createVoidElementPlugin("code-block")(editor);
-    editor = withListItemInsertBreak(editor);
+    // list-item 的回车行为经 v2 行为分发器装配（旧插件已随 list-item 迁 v2 删除）
+    editor = withElementBehaviors(
+      editor,
+      new Map([["list-item", [{ extension: "tau.list-item", behaviors: listItemBehaviors }]]]),
+      createCircuitBreaker(() => consoleErrorReporter)
+    );
     editor = withBlockNavigation(editor);
     editor.children = [
       {

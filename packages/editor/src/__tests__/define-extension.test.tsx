@@ -681,3 +681,208 @@ describe("内置扩展迁到 v2：detail / highlight-block（插件改写转声�
     await done();
   });
 });
+
+describe("内置扩展迁到 v2：list-item（行为 + 热键切命令 id）", () => {
+  const mount = async (initValue: Descendant[]) => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const ref = createRef<EditorRef>();
+    const kit = createEditorKit({ services: services() });
+    await act(async () => {
+      root.render(
+        <DndProvider backend={HTML5Backend}>
+          <Editor ref={ref} kit={kit} readonly={false} initValue={initValue} />
+        </DndProvider>
+      );
+    });
+    return {
+      kit,
+      editor: ref.current!.getEditor(),
+      done: async () => {
+        await act(async () => root.unmount());
+        container.remove();
+      },
+    };
+  };
+
+  const listItem = (value: string) => ({ type: "list-item", children: [paragraph(value)] });
+  const bulleted = (...items: ReturnType<typeof listItem>[]) =>
+    ({ type: "bulleted-list", children: items }) as never;
+
+  it("空列表项回车：退出列表转为段落", async () => {
+    const { editor, done } = await mount([bulleted(listItem(""))]);
+    Transforms.select(editor, { path: [0, 0, 0, 0], offset: 0 });
+    await act(async () => editor.insertBreak());
+    expect(editor.children[0]).toMatchObject({ type: "paragraph" });
+    await done();
+  });
+
+  it("列表项段首退格：唯一项时解包整个列表", async () => {
+    const { editor, done } = await mount([bulleted(listItem("内容"))]);
+    Transforms.select(editor, SlateEditor.start(editor, [0, 0, 0]));
+    await act(async () => editor.deleteBackward("character"));
+    expect(editor.children[0]).toMatchObject({ type: "paragraph" });
+    await done();
+  });
+
+  it("Tab 缩进第二项到第一项内；shift+Tab 提升回来", async () => {
+    const { kit, editor, done } = await mount([bulleted(listItem("一"), listItem("二"))]);
+    const entries = kit.assembly.commandHotkeys;
+    expect(entries.filter(entry => entry.hotkey.command.startsWith("tau.list-item."))).toHaveLength(
+      4
+    );
+
+    // 第二项段首 Tab：成为第一项的子项
+    Transforms.select(editor, SlateEditor.start(editor, [0, 1, 0]));
+    expect(editor.commands.execute("tau.list-item.indent")).toBe(true);
+    expect((editor.children[0] as Element).children).toHaveLength(1);
+    expect((editor.children[0] as Element).children[0]).toMatchObject({ type: "list-item" });
+    const nested = (editor.children[0] as Element).children[0] as Element;
+    expect(nested.children[1]).toMatchObject({ type: "bulleted-list" });
+
+    // 嵌套项段首 shift+Tab：提升回顶层（中间隔一帧，ReactEditor 的 node→key 映射需要渲染周期同步）
+    await act(async () => {});
+    Transforms.select(editor, SlateEditor.start(editor, [0, 0, 1, 0]));
+    editor.commands.execute("tau.list-item.outdent");
+    expect((editor.children[0] as Element).children).toHaveLength(2);
+    await done();
+  });
+
+  it("mod+↑/↓ 在同级内移动列表项", async () => {
+    const { editor, done } = await mount([bulleted(listItem("一"), listItem("二"))]);
+    Transforms.select(editor, SlateEditor.end(editor, [0, 1, 0]));
+    expect(editor.commands.execute("tau.list-item.move-up")).toBe(true);
+    expect(SlateEditor.string(editor, [0, 0])).toBe("二");
+    expect(editor.commands.execute("tau.list-item.move-down")).toBe(true);
+    expect(SlateEditor.string(editor, [0, 0])).toBe("一");
+    // 已在最上时无操作（选区移到第一项）
+    Transforms.select(editor, SlateEditor.end(editor, [0, 0]));
+    editor.commands.execute("tau.list-item.move-up");
+    expect(SlateEditor.string(editor, [0, 0])).toBe("一");
+    await done();
+  });
+});
+
+describe("内置扩展迁到 v2：check-list 的 Tab 命令", () => {
+  it("Tab 把第二项缩进为第一项的子勾选项，shift+Tab 提升", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const ref = createRef<EditorRef>();
+    const kit = createEditorKit({ services: services() });
+    const item = (text: string) => ({
+      type: "check-list-item",
+      checked: false,
+      children: [paragraph(text)],
+    });
+    await act(async () => {
+      root.render(
+        <DndProvider backend={HTML5Backend}>
+          <Editor
+            ref={ref}
+            kit={kit}
+            readonly={false}
+            initValue={[{ type: "check-list", children: [item("一"), item("二")] }] as never}
+          />
+        </DndProvider>
+      );
+    });
+    const editor = ref.current!.getEditor();
+    const entries = kit.assembly.commandHotkeys.filter(entry =>
+      entry.hotkey.command.startsWith("tau.check-list.")
+    );
+    expect(entries).toHaveLength(2);
+
+    Transforms.select(editor, SlateEditor.start(editor, [0, 1, 0]));
+    expect(editor.commands.execute("tau.check-list.indent")).toBe(true);
+    expect((editor.children[0] as Element).children).toHaveLength(1);
+    expect(((editor.children[0] as Element).children[0] as Element).children[1]).toMatchObject({
+      type: "check-list",
+    });
+
+    // 嵌套项段首 shift+Tab：提升回顶层（中间隔一帧，ReactEditor 的 node→key 映射需要渲染周期同步）
+    await act(async () => {});
+    Transforms.select(editor, SlateEditor.start(editor, [0, 0, 1, 0]));
+    editor.commands.execute("tau.check-list.outdent");
+    expect((editor.children[0] as Element).children).toHaveLength(2);
+    await act(async () => root.unmount());
+    container.remove();
+  });
+});
+
+describe("内置扩展迁到 v2：table（单元格行为 + 导航热键切命令 id）", () => {
+  const mount = async (initValue: Descendant[]) => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const ref = createRef<EditorRef>();
+    const kit = createEditorKit({ services: services() });
+    await act(async () => {
+      root.render(
+        <DndProvider backend={HTML5Backend}>
+          <Editor ref={ref} kit={kit} readonly={false} initValue={initValue} />
+        </DndProvider>
+      );
+    });
+    return {
+      kit,
+      editor: ref.current!.getEditor(),
+      done: async () => {
+        await act(async () => root.unmount());
+        container.remove();
+      },
+    };
+  };
+
+  const cell = (value: string) => ({ type: "table-cell", children: [paragraph(value)] });
+  const table = () =>
+    ({
+      type: "table",
+      children: [
+        { type: "table-row", children: [cell("A1"), cell("B1")] },
+        { type: "table-row", children: [cell("A2"), cell("B2")] },
+      ],
+    }) as never;
+
+  it("单元格内回车不拆行：光标落到下一行同列", async () => {
+    const { editor, done } = await mount([table()]);
+    Transforms.select(editor, { path: [0, 0, 0, 0, 0], offset: 1 });
+    await act(async () => editor.insertBreak());
+    // A1 内部不拆出第二个段落，表格结构不变
+    const row = (editor.children[0] as Element).children[0] as unknown as {
+      children: { type: string; children: unknown[] }[];
+    };
+    expect(row.children[0]).toMatchObject({ type: "table-cell" });
+    expect(row.children[0].children).toHaveLength(1);
+    expect((editor.children[0] as Element).children).toHaveLength(2);
+    await done();
+  });
+
+  it("单元格内首个文本开头退格：移到前一列末尾而不是并出单元格", async () => {
+    const { editor, done } = await mount([table()]);
+    await act(async () => {}); // ReactEditor 的 node→key 映射需要渲染周期
+    Transforms.select(editor, { path: [0, 0, 1, 0, 0], offset: 0 });
+    await act(async () => editor.deleteBackward("character"));
+    // 选区移到 A1（前一列），B1 结构原样
+    expect(editor.selection?.anchor.path.slice(0, 3)).toEqual([0, 0, 0]);
+    expect(editor.children).toHaveLength(1);
+    expect((editor.children[0] as Element).children[0]).toMatchObject({ type: "table-row" });
+    await done();
+  });
+
+  it("tab / shift+tab 等热键绑命令 id，单元格内经 editor.commands 导航", async () => {
+    const { kit, editor, done } = await mount([table()]);
+    expect(
+      kit.assembly.commandHotkeys.filter(entry => entry.hotkey.command.startsWith("tau.table."))
+    ).toHaveLength(12);
+
+    Transforms.select(editor, { path: [0, 0, 0, 0, 0], offset: 0 });
+    expect(editor.commands.execute("tau.table.next-cell")).toBe(true);
+    expect(editor.selection?.anchor.path.slice(0, 4)).toEqual([0, 0, 1, 0]);
+    expect(editor.commands.execute("tau.table.next-row")).toBe(true);
+    // B1 下移到第二行同列（B2）
+    expect(editor.selection?.anchor.path.slice(0, 3)).toEqual([0, 1, 1]);
+    await done();
+  });
+});

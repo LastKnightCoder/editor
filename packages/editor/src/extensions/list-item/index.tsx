@@ -1,35 +1,22 @@
-import { RenderElementProps } from "slate-react";
+import { defineElement, defineExtension } from "../../api";
 
-import ListItem from "./components/ListItem";
-import { deleteBackward, insertBreak, withNormalize } from "./plugins";
-import hotKeyConfigs from "./hotkeys";
-import Base from "../base";
-import IExtension from "../types";
 import type { ListItemElement } from "../../types";
-import { createBlockElementPlugin } from "../../utils";
-class ListItemExtension extends Base implements IExtension {
-  type = "list-item";
-  override getPlugins() {
-    return [
-      deleteBackward,
-      insertBreak,
-      withNormalize,
-      createBlockElementPlugin(this.type),
-    ];
-  }
+import ListItem from "./components/ListItem";
+import { listItemBehaviors } from "./behaviors";
+import { listItemCommands, listItemHotkeys } from "./commands";
 
-  override getHotkeyConfigs() {
-    return hotKeyConfigs;
-  }
+const listItemExtension = defineExtension({
+  id: "tau.list-item",
+  elements: [
+    defineElement<ListItemElement>({
+      type: "list-item",
+      kind: "block",
+      render: ListItem,
+      behaviors: listItemBehaviors,
+    }),
+  ],
+  commands: listItemCommands,
+  hotkeys: listItemHotkeys,
+});
 
-  render(props: RenderElementProps) {
-    const { attributes, children, element } = props;
-    return (
-      <ListItem attributes={attributes} element={element as ListItemElement}>
-        {children}
-      </ListItem>
-    );
-  }
-}
-
-export default ListItemExtension;
+export default listItemExtension;
