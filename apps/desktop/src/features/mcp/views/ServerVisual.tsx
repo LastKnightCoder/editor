@@ -4,34 +4,53 @@
  */
 
 import {
-  Calendar,
+  BookMarked,
   Cloud,
   Database,
   FileText,
+  FlaskConical,
   FolderOpen,
   Globe,
   Image,
+  Locate,
   PenLine,
   Terminal,
+  Video,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@tau/ui";
 import type { McpServerItem, McpServerStatus } from "../useMcpServers";
 
 const BUILTIN_ICONS: Record<string, LucideIcon> = {
-  "calendar-event-tools": Calendar,
   "content-edit-tools": PenLine,
+  "context-tools": Locate,
   "fetch-tools": Globe,
   "filesystem-tools": FolderOpen,
   "openai-image-tools": Image,
   "sql-query-tools": Database,
 };
 
+/** 功能工具分组 → 图标（与侧栏导航同一套视觉语言；id 见 scopedToolCatalog） */
+const SCOPED_ICONS: Record<string, LucideIcon> = {
+  "scoped-pdf": BookMarked,
+  "scoped-video-note": Video,
+  "scoped-vibe-learning": FlaskConical,
+};
+
+const scopedIcon = (item: McpServerItem): LucideIcon => SCOPED_ICONS[item.id] ?? FileText;
+
 const customIcon = (item: McpServerItem): LucideIcon =>
   item.server?.transport.type === "stdio" ? Terminal : Cloud;
 
 export function ServerIcon({ item, size = "md" }: { item: McpServerItem; size?: "md" | "lg" }) {
-  const Icon = item.kind === "builtin" ? (BUILTIN_ICONS[item.id] ?? FileText) : customIcon(item);
+  const Icon =
+    item.kind === "builtin"
+      ? (BUILTIN_ICONS[item.id] ?? FileText)
+      : item.kind === "scoped"
+        ? scopedIcon(item)
+        : item.kind === "pi"
+          ? Terminal
+          : customIcon(item);
   return (
     <span
       className={cn(
@@ -57,6 +76,7 @@ export function StatusDot({ status }: { status: McpServerStatus }) {
 }
 
 export function statusText(item: McpServerItem): string {
+  if (item.locked) return `${item.tools.length} 个工具 · 常开`;
   switch (item.status) {
     case "ready":
       return item.tools.length > 0

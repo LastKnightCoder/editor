@@ -14,6 +14,8 @@ import type { ScopedToolSource } from "@/tools/toolRegistry";
 import { clearMcpServerLogs, getMcpServerLogs, type McpLogEntry } from "@/commands/mcp";
 import { off, on } from "@/electron";
 import type { SettingsSectionKey } from "@/features/settings/sections";
+import { PI_BUILTIN_TOOLS } from "./piBuiltinTools";
+import { SCOPED_TOOL_GROUPS } from "./scopedToolCatalog";
 import { describeTransport, draftToPayload, type ServerDraft } from "./serverConfig";
 
 /** ready = 可用；off = 已停用；unavailable = 内置但依赖的配置缺失 */
@@ -21,7 +23,8 @@ export type McpServerStatus = "ready" | "connecting" | "error" | "off" | "unavai
 
 export interface McpServerItem {
   id: string;
-  kind: "builtin" | "custom";
+  /** scoped = 功能专属工具（PDF / 视频笔记 / 学习项目，常开）；pi = AI 助手自带工具 */
+  kind: "builtin" | "custom" | "scoped" | "pi";
   name: string;
   description: string;
   enabled: boolean;
@@ -29,6 +32,8 @@ export interface McpServerItem {
   error?: string;
   tools: MCPServerToolInfo[];
   disabledTools: Set<string>;
+  /** 常开不可关（功能专属 / AI 内置），所有开关只读 */
+  locked?: boolean;
   /** 自定义：启动命令或 URL */
   target?: string;
   /** 内置不可用时去哪个设置分区补配置 */
@@ -119,13 +124,50 @@ export function useMcpServers() {
   return { builtin, custom };
 }
 
-/** 某个作用域注册的页面专属工具（Vibe Learning、视频笔记、PDF），常开不可关；无作用域返回 undefined */
+/** 某个作用域注册的功能专属工具（Vibe Learning、视频笔记、PDF），常开不可关；无作用域返回 undefined */
 export function useScopedToolSource(scope: string | undefined): ScopedToolSource | undefined {
   const sources = useSyncExternalStore(
     toolRegistry.subscribeScopedSources,
     toolRegistry.getScopedSources
   );
   return scope ? sources.find(source => source.scope === scope) : undefined;
+}
+
+/** 功能专属工具分组（静态目录，常驻展示；工具实例随对应功能页面打开时注册） */
+export function getScopedServerItems(): McpServerItem[] {
+  return SCOPED_TOOL_GROUPS.map(group => ({
+    id: group.id,
+    kind: "scoped" as const,
+    name: group.label,
+    description: group.description,
+    enabled: true,
+    status: "ready" as const,
+    locked: true,
+    tools: group.tools.map(tool => ({
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.parameters,
+    })),
+    disabledTools: new Set<string>(),
+  }));
+}
+
+/** AI 助手自带的默认工具（静态展示，不经工具注册表；实现来自 pi 运行时，对用户不可见） */
+export function getPiBuiltinServerItem(): McpServerItem {
+  return {
+    id: "pi-builtin-tools",
+    kind: "pi",
+    name: "AI 基础工具",
+    description: "AI 助手自带的文件读取、编辑与命令执行工具，每次对话默认可用。",
+    enabled: true,
+    status: "ready",
+    locked: true,
+    tools: PI_BUILTIN_TOOLS.map(tool => ({
+      name: tool.name,
+      description: tool.description,
+    })),
+    disabledTools: new Set<string>(),
+  };
 }
 
 /** 已启用且连接失败的自定义服务器数（侧栏徽标） */
@@ -136,6 +178,7 @@ export function useMcpErrorCount(): number {
 }
 
 export async function setServerEnabled(item: McpServerItem, enabled: boolean) {
+  if (item.locked) return;
   const store = useMCPStore.getState();
   if (item.kind === "builtin") {
     store.setProviderEnabled(item.id, enabled);

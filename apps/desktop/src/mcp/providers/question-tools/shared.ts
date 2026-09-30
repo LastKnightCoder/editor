@@ -1,22 +1,13 @@
 import type { ToolJsonSchema, ToolParameterSchema } from "@/types";
-import type {
-  QuestionMutationAction,
-  QuestionMutationEntityType,
-} from "@/mcp/question/mutation";
+import type { QuestionMutationAction, QuestionMutationEntityType } from "@/mcp/question/mutation";
 import { emitQuestionMutation } from "@/mcp/question/mutation";
 
-export const toJson = (
-  payload: unknown,
-  metadata?: Record<string, unknown>,
-) => ({
+export const toJson = (payload: unknown, metadata?: Record<string, unknown>) => ({
   content: JSON.stringify(payload, null, 2),
   metadata,
 });
 
-export const buildRendererMetadata = (
-  rendererKey: string,
-  payload?: Record<string, unknown>,
-) => ({
+export const buildRendererMetadata = (rendererKey: string, payload?: Record<string, unknown>) => ({
   render: {
     rendererKey,
     version: 1,
@@ -40,8 +31,7 @@ export const questionQuerySchema: ToolJsonSchema = {
         groupTitles: {
           type: "array",
           items: { type: "string" },
-          description:
-            "按问题分组名称精确筛选。用户明确提到分组名时优先使用该字段。",
+          description: "按问题分组名称精确筛选。用户明确提到分组名时优先使用该字段。",
         },
         statuses: {
           type: "array",
@@ -70,10 +60,8 @@ export const questionQuerySchema: ToolJsonSchema = {
   additionalProperties: false,
 };
 
-export const toQueryResult = (
-  payload: unknown,
-  renderPayload?: Record<string, unknown>,
-) => toJson(payload, buildRendererMetadata("question-query", renderPayload));
+export const toQueryResult = (payload: unknown, renderPayload?: Record<string, unknown>) =>
+  toJson(payload, buildRendererMetadata("question-query", renderPayload));
 
 export const toFailureResult = (params: {
   entityType?: QuestionMutationEntityType;
@@ -94,7 +82,7 @@ export const toFailureResult = (params: {
       entityType: params.entityType,
       action: params.action,
       success: false,
-    }),
+    })
   );
 
 export const toMutationResult = <T>(params: {
@@ -134,6 +122,6 @@ export const toMutationResult = <T>(params: {
       entityType: params.entityType,
       action: params.action,
       success: true,
-    }),
+    })
   );
 };
