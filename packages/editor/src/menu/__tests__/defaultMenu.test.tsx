@@ -155,8 +155,8 @@ describe("内核默认菜单 · transform 组", () => {
     expect(calloutKeys).not.toContain("tau.transform.header-1");
     expect(calloutKeys).not.toContain("tau.transform.callout-info");
 
-    const chartEditor = withValue([{ type: "chart", data: [], children: [text("")] }]);
-    expect(keysOf(menuOf(chartEditor, chartEditor.children[0] as Element))).not.toContain(
+    const imageEditor = withValue([{ type: "image", url: "", children: [text("")] }]);
+    expect(keysOf(menuOf(imageEditor, imageEditor.children[0] as Element))).not.toContain(
       "tau.transform"
     );
   });

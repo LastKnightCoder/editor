@@ -29,9 +29,7 @@ export const isListItemElement = (node: Node): node is ListItemElement => {
   return node.type === "list-item";
 };
 
-export const isCheckListItemElement = (
-  node: Node,
-): node is CheckListItemElement => {
+export const isCheckListItemElement = (node: Node): node is CheckListItemElement => {
   return node.type === "check-list-item";
 };
 
@@ -52,9 +50,7 @@ export const getPreviousSiblingNode = (editor: Editor, node: Node) => {
   return Editor.node(editor, preSiblingPath);
 };
 
-export const isInlineElementEmpty = (
-  element: InlineElement | FormattedText,
-) => {
+export const isInlineElementEmpty = (element: InlineElement | FormattedText) => {
   if (element.type === "link") {
     return element.children.length === 1 && element.children[0].text === "";
   }
@@ -89,23 +85,23 @@ export const isTableElementEmpty = (element: TableElement) => {
     return true;
   }
 
-  return children.every((child) => isTableRowEmpty(child));
+  return children.every(child => isTableRowEmpty(child));
 };
 
 const isTableRowEmpty = (element: TableRowElement) => {
   const { children } = element;
-  return children.every((child) => isTableCellEmpty(child));
+  return children.every(child => isTableCellEmpty(child));
 };
 
 const isTableCellEmpty = (element: TableCellElement) => {
   const { children } = element;
-  return children.every((child) => isInlineElementEmpty(child));
+  return children.every(child => isInlineElementEmpty(child));
 };
 
 export const isBlockElementEmpty = (element: BlockElement): boolean => {
   switch (element.type) {
     case "paragraph":
-      return element.children.every((child) => isInlineElementEmpty(child));
+      return element.children.every(child => isInlineElementEmpty(child));
     case "list-item":
     case "check-list-item":
     case "blockquote":
@@ -114,7 +110,7 @@ export const isBlockElementEmpty = (element: BlockElement): boolean => {
     case "bulleted-list":
     case "numbered-list":
     case "check-list":
-      return element.children.every((child) => isBlockElementEmpty(child));
+      return element.children.every(child => isBlockElementEmpty(child));
     case "table":
       return isTableElementEmpty(element);
     case "code-block":
@@ -125,8 +121,6 @@ export const isBlockElementEmpty = (element: BlockElement): boolean => {
       return element.tex === "";
     case "tikz":
       return element.content === "";
-    case "graphviz":
-      return element.dot === "";
     case "html-block":
       return element.html === "";
     case "custom-block":

@@ -17,7 +17,16 @@ const CARRIERS: &[(&str, &str)] = &[
 /// 退役类型权威清单在 packages/db-schema/src/retired-editor-blocks.ts（RETIRED_TYPES），
 /// 双端一致由 fixtures/editor-block-retirement.json 测试守护；新增退役块时同步此处与 fixtures。
 fn retired_type(value: &str) -> bool {
-    matches!(value, "chat-reference" | "question" | "question-card")
+    matches!(
+        value,
+        "chat-reference"
+            | "question"
+            | "question-card"
+            | "chart"
+            | "graphviz"
+            | "multi-column-container"
+            | "multi-column-item"
+    )
 }
 
 fn retired(value: &Value) -> bool {
@@ -58,7 +67,6 @@ fn visit(value: &mut Value, parent: &str, key: &str) -> usize {
                             | "check-list-item"
                             | "bulleted-list"
                             | "numbered-list"
-                            | "multi-column-item"
                             | "detail"
                             | "callout"
                             | "highlight-block"

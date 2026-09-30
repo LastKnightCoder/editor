@@ -28,8 +28,6 @@ import { abcCodec } from "./extensions/abc/markdown.ts";
 import { plantumlCodec } from "./extensions/plantuml/markdown.ts";
 import { tikzCodec } from "./extensions/tikz/markdown.ts";
 import { typstCodec } from "./extensions/typst/markdown.ts";
-import { graphvizCodec } from "./extensions/graphviz/markdown.ts";
-import { chartCodec } from "./extensions/chart/markdown.ts";
 import { calloutCodec } from "./extensions/callout/markdown.ts";
 import { detailCodec } from "./extensions/detail/markdown.ts";
 import { divideLineCodec } from "./extensions/divide-line/markdown.ts";
@@ -69,8 +67,6 @@ export const editorMarkdownCodecs: MarkdownCodec[] = [
   plantumlCodec,
   tikzCodec,
   typstCodec,
-  graphvizCodec,
-  chartCodec,
   calloutCodec,
   detailCodec,
   divideLineCodec,

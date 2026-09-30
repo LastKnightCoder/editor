@@ -44,7 +44,7 @@ export function collectSharedResources(
     if (PRIVATE_BLOCKS.has(String(node.type))) return;
     for (const [name, entry] of Object.entries(node)) visit(entry, name);
   };
-  // 物化内容里块字段已合并进节点，chart config 之类嵌套结构中的资源也能覆盖
+  // 物化内容里块字段已合并进节点，块配置之类嵌套结构中的资源也能覆盖
   visit(
     materializeNodes(
       doc,
@@ -202,7 +202,7 @@ function rewriteAttribute(
   if (next !== value) node.setAttribute(key, next as never);
 }
 
-/** 块字段（源码文本、chart 的 data/config 等）里的资源引用改写 */
+/** 块字段（源码文本、块配置等）里的资源引用改写 */
 function rewriteFields(doc: Y.Doc, resources: Map<string, string>) {
   if (!resources.size) return;
   for (const [, fields] of getFields(doc)) {

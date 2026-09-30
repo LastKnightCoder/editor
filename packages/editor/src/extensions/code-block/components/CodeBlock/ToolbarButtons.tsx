@@ -1,14 +1,5 @@
 import { memo } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Code2,
-  Copy,
-  Maximize2,
-  Minimize2,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Code2, Copy, Plus, Trash2 } from "lucide-react";
 
 /** 代码块悬停 group 名：容器加它，工具条随悬停显隐（代码块不会嵌套代码块） */
 export const CODE_HOVER_GROUP = "group/code";
@@ -23,9 +14,6 @@ interface ToolbarButtonsProps {
   onDeleteCurrentStep?: () => void;
   canDeleteCurrentStep?: boolean;
   diffEnabled?: boolean;
-  onFullscreen?: () => void;
-  showFullscreen?: boolean;
-  isFullscreen?: boolean;
   onPreviousStep?: () => void;
   onNextStep?: () => void;
   hasPreviousStep?: boolean;
@@ -42,9 +30,6 @@ const ToolbarButtons = memo<ToolbarButtonsProps>(
     onDeleteCurrentStep,
     canDeleteCurrentStep = false,
     diffEnabled = false,
-    onFullscreen,
-    showFullscreen = false,
-    isFullscreen = false,
     onPreviousStep,
     onNextStep,
     hasPreviousStep = false,
@@ -63,16 +48,6 @@ const ToolbarButtons = memo<ToolbarButtonsProps>(
           aria-label={diffEnabled ? "新增下一步" : "开启 Diff 动画"}
         >
           {diffEnabled ? <Plus size={16} /> : <Code2 size={16} />}
-        </button>
-      )}
-      {showFullscreen && onFullscreen && (
-        <button
-          type="button"
-          className={ICON_BUTTON_CLASS}
-          onClick={onFullscreen}
-          aria-label={isFullscreen ? "退出全屏编辑" : "全屏编辑"}
-        >
-          {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
         </button>
       )}
       {diffEnabled && onDeleteCurrentStep && (

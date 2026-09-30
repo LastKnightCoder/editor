@@ -89,7 +89,7 @@ const PDF_PRINT_CSS = `
   }
 
   /* 图表避免截断 */
-  .diagram-svg, .mermaid, .echarts-container {
+  .diagram-svg, .mermaid {
     page-break-inside: avoid;
     break-inside: avoid;
   }
@@ -172,7 +172,7 @@ const resolvePdfMargins = (margins?: {
 
 const getPaperSizeInInch = (
   pageSize: PdfExportPayload["options"]["pageSize"] = "A4",
-  landscape = false,
+  landscape = false
 ) => {
   const paperSizeMap: Record<
     PdfExportPayload["options"]["pageSize"],
@@ -195,18 +195,15 @@ const getPaperSizeInInch = (
   };
 };
 
-const applyAdaptiveCodeBlockBreaks = async (
-  win: BrowserWindow,
-  payload: PdfExportPayload,
-) => {
+const applyAdaptiveCodeBlockBreaks = async (win: BrowserWindow, payload: PdfExportPayload) => {
   const marginsInInch = resolvePdfMargins(payload.options.margins);
   const paper = getPaperSizeInInch(
     payload.options.pageSize || "A4",
-    payload.options.landscape || false,
+    payload.options.landscape || false
   );
   const printableHeightPx = Math.max(
     1,
-    (paper.height - marginsInInch.top - marginsInInch.bottom) * 96,
+    (paper.height - marginsInInch.top - marginsInInch.bottom) * 96
   );
 
   await win.webContents.executeJavaScript(`
@@ -318,14 +315,12 @@ const waitForPageReady = async (win: BrowserWindow): Promise<void> => {
 /**
  * 导出 PDF（带保存对话框）
  */
-export const exportPdfWithDialog = async (
-  payload: PdfExportPayload,
-): Promise<PdfExportResult> => {
+export const exportPdfWithDialog = async (payload: PdfExportPayload): Promise<PdfExportResult> => {
   const warnings: string[] = [];
 
   // 1. 显示保存对话框
   const defaultFileName = ensurePdfExtension(
-    payload.defaultFileName || payload.metadata.title || "未命名文档",
+    payload.defaultFileName || payload.metadata.title || "未命名文档"
   );
 
   const result = await dialog.showSaveDialog({

@@ -3,12 +3,10 @@ import { createImageExtensions, createMarkdownPasteImportExtension } from "@tau/
 import { desktopImportFromMarkdown } from "@/services/editorServiceImplementations";
 import useSettingStore from "@/stores/useSettingStore";
 
-
 export { default as contentLinkExtension } from "./content-link";
 export { default as skillRefExtension } from "./skill-ref";
 export { default as fileAttachmentExtension } from "./file-attachment";
 export { createProjectCardListExtension } from "./project-card-list";
-export { default as inlineAIAssistantExtension } from "./inline-ai-assistant";
 
 /** 应用级扩展由 Desktop 根 Provider 注入，作用域限定在当前 React 树。 */
 export const createDesktopEditorExtensions = () => [
