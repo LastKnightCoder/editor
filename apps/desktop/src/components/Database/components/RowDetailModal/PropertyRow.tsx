@@ -57,18 +57,16 @@ const PropertyRow = ({
   const isColumnReadonly = Boolean(readonly || column.readonly);
 
   const commit = useMemoizedFn((next: CellValue) => onCommit(rowId, column.id, next));
-  const { isEditing, draftValue, startEditing, handleSave, handleCancel, handleChange } =
-    useCellEditor(value, commit);
+  const { isEditing, draftValue, startEditing, handleChange, finishEdit } = useCellEditor(
+    value,
+    commit,
+    column.validation
+  );
   const { error } = useValidation(draftValue, column.validation);
 
-  const finishEdit = useMemoizedFn(() => {
-    if (error) handleCancel();
-    else handleSave();
-  });
-
-  // 关闭弹窗或切换行时编辑器直接卸载、不会触发失焦，这里补存一次草稿
+  // 关闭弹窗或切换行时编辑器直接卸载、不会触发失焦，这里补存一次草稿（校验不过则丢弃）
   const flushRef = useRef<(() => void) | undefined>(undefined);
-  flushRef.current = isEditing && !error ? handleSave : undefined;
+  flushRef.current = isEditing ? finishEdit : undefined;
   useEffect(() => () => flushRef.current?.(), []);
 
   const orderIndex = columnOrder.indexOf(column.id);
