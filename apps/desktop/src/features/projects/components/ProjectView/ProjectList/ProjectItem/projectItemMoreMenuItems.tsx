@@ -171,19 +171,6 @@ export const getProjectItemMoreMenuItems = (
     ];
   }
 
-  if (projectItem?.projectItemType === EProjectItemType.AudioNote) {
-    return [
-      {
-        key: "remove",
-        label: "删除音频",
-      },
-      {
-        key: "edit-title",
-        label: "编辑标题",
-      },
-    ];
-  }
-
   if (projectItem?.projectItemType === EProjectItemType.WebView) {
     return [
       {

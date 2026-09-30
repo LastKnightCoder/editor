@@ -12,7 +12,6 @@ vi.mock("../../EditProjectItem", () => ({
   default: ({ projectItemId }: { projectItemId: number }) => <div>文档 {projectItemId}</div>,
 }));
 vi.mock("../../VideoNoteView", () => ({ default: () => null }));
-vi.mock("../../AudioNoteView", () => ({ default: () => null }));
 vi.mock("../../WhiteBoardProjectItemView", () => ({ default: () => null }));
 vi.mock("../../WebViewProjectItemView", () => ({ default: () => null }));
 vi.mock("../../TableProjectItemView", () => ({ default: () => null }));

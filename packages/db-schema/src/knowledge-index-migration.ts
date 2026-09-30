@@ -1,7 +1,9 @@
 import { readKnowledgeMapping, type MigrationDatabase } from "./knowledge-migration";
+import { retireAudioNoteIndexes } from "./audio-note-retirement";
 
 /** 迁移派生索引身份并复用向量，避免仅为改实体类型重新请求嵌入模型。 */
 export function migrateKnowledgeIndex(main: MigrationDatabase, index: MigrationDatabase) {
+  retireAudioNoteIndexes(main, index);
   const mapping = readKnowledgeMapping(main);
   if (!mapping) return;
   const ordered = (entries: Record<string, number>) =>

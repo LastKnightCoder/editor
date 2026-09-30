@@ -18,7 +18,6 @@ export * from "./statistic";
 export * from "./search";
 export * from "./video-note";
 export * from "./video-note-item";
-export * from "./audio-note";
 export * from "./sync";
 export * from "./question";
 export * from "./entity";

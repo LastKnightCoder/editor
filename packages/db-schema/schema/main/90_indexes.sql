@@ -102,8 +102,6 @@ CREATE INDEX IF NOT EXISTS idx_flashcard_references_card ON flashcard_references
 CREATE INDEX IF NOT EXISTS idx_flashcard_references_content ON flashcard_references(content_id);
 CREATE INDEX IF NOT EXISTS idx_vlr_project_id
       ON vibe_learning_resources(project_id);
-CREATE INDEX IF NOT EXISTS idx_audio_note_item_audio
-      ON audio_note_item(audio_note_id);
 CREATE INDEX IF NOT EXISTS idx_vl_note_project ON vl_note(project_id);
 CREATE INDEX IF NOT EXISTS idx_vl_quiz_set_project ON vl_quiz_set(project_id);
 CREATE INDEX IF NOT EXISTS idx_vl_quiz_item_set ON vl_quiz_item(quiz_set_id);

@@ -21,9 +21,6 @@ import VecDocumentTable from "./tables/vec-document";
 import FtsTable from "./tables/fts";
 import VideoNoteTable from "./tables/video-note";
 import VideoNoteItemTable from "./tables/video-note-item";
-import AudioNoteTable from "./tables/audio-note";
-import AudioNoteItemTable from "./tables/audio-note-item";
-import { getXiaoyuzhouListenEvents } from "./xiaoyuzhou";
 import ContentTable from "./tables/content";
 import QuestionTable from "./tables/question";
 import QuestionLinkTable from "./tables/question-link";
@@ -70,7 +67,6 @@ import TranscriptionTable from "./tables/transcription";
 import VibeLearningResourceTable from "./tables/vibe-learning-resource";
 import VLNoteTable from "./tables/vl-note";
 import VLQuizTable from "./tables/vl-quiz";
-import { shouldWrapDatabaseEventInTransaction } from "./database-event-transaction";
 import { shouldVacuumDatabase } from "./database-maintenance";
 import mainContentIndexDBManager, {
   EnsureIndexReadyResult,
@@ -246,8 +242,6 @@ class DatabaseModule implements Module {
       StatisticTable,
       VideoNoteItemTable, // Must be before VideoNoteTable for migration
       VideoNoteTable,
-      AudioNoteItemTable,
-      AudioNoteTable,
       QuestionGroupTable,
       QuestionTable,
       QuestionEventTable,
@@ -303,7 +297,6 @@ class DatabaseModule implements Module {
       },
       {} as Record<string, (args: any) => Promise<any>>
     );
-    Object.assign(this.eventAndHandlers, getXiaoyuzhouListenEvents());
     this.indexEventAndHandlers = {
       ...FtsTable.getListenEvents(),
       ...VecDocumentTable.getListenEvents(),
@@ -806,26 +799,19 @@ class DatabaseModule implements Module {
         if (!db) throw new Error("No database found");
 
         log.info(`database ${dbName} event ${eventName}`);
-        const useTransaction = shouldWrapDatabaseEventInTransaction(eventName);
         try {
-          if (useTransaction) {
-            db.exec("BEGIN");
-          }
+          db.exec("BEGIN");
           const res = await this.eventAndHandlers[eventName](
             db,
             ...args,
             createWindowCommandContext(win)
           );
-          if (useTransaction) {
-            db.exec("COMMIT");
-          }
+          db.exec("COMMIT");
           this.notifyDatabaseWrite(dbName, eventName);
           return res;
         } catch (e) {
           log.error(`[database] event failed: db=${dbName}, event=${eventName}`, e);
-          if (useTransaction) {
-            db.exec("ROLLBACK");
-          }
+          db.exec("ROLLBACK");
           throw e;
         }
       });

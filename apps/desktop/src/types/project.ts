@@ -19,7 +19,6 @@ export enum EProjectItemType {
   Document = "document",
   WhiteBoard = "white-board",
   VideoNote = "video-note",
-  AudioNote = "audio-note",
   WebView = "web-view",
   TableView = "table-view",
   Pdf = "pdf",

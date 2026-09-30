@@ -16,12 +16,6 @@ const cmd = vi.hoisted(() => ({
   listRemoteAudioCache: vi.fn(),
   deleteRemoteAudioCacheEntry: vi.fn(),
   clearRemoteAudioCache: vi.fn(),
-  listYoutubeAudioCache: vi.fn(),
-  deleteYoutubeAudioCache: vi.fn(),
-  clearYoutubeAudioCache: vi.fn(),
-  listBilibiliAudioCache: vi.fn(),
-  deleteBilibiliAudioCache: vi.fn(),
-  clearBilibiliAudioCache: vi.fn(),
   listRemoteImageCache: vi.fn(),
   deleteRemoteImageCacheEntry: vi.fn(),
   clearRemoteImageCache: vi.fn(),
@@ -32,8 +26,6 @@ vi.mock("@/commands/remote-video-cache", () => cmd);
 vi.mock("@/commands/youtube-cache", () => cmd);
 vi.mock("@/commands/bilibili-cache", () => cmd);
 vi.mock("@/commands/remote-audio-cache", () => cmd);
-vi.mock("@/commands/youtube-audio-cache", () => cmd);
-vi.mock("@/commands/bilibili-audio-cache", () => cmd);
 vi.mock("@/commands/remote-image-cache", () => cmd);
 
 const MB = 1024 * 1024;
@@ -79,8 +71,6 @@ beforeEach(() => {
   cmd.listRemoteAudioCache.mockResolvedValue([
     entry({ id: "a1", url: "https://a.com/p.mp3", fileName: "podcast.mp3", fileSize: MB }),
   ]);
-  cmd.listYoutubeAudioCache.mockResolvedValue([]);
-  cmd.listBilibiliAudioCache.mockResolvedValue([]);
   cmd.listRemoteImageCache.mockResolvedValue([]);
   cmd.deleteYoutubeCache.mockResolvedValue(true);
   cmd.deleteBilibiliCache.mockResolvedValue(true);

@@ -2,7 +2,6 @@ import { memo, ReactNode, useCallback, useEffect, useMemo, useRef, useState } fr
 import { renderMenuEntries, type MenuEntryList } from "../shared/menuEntries";
 import { Menu, ContextMenu } from "@tau/ui";
 import { FileText, FolderOpen, Globe, Plus, Table, Video } from "lucide-react";
-import { AudioLines } from "lucide-react";
 import { useDrag, useDrop } from "react-dnd";
 import classnames from "classnames";
 import EditText, { EditTextHandle } from "@/components/EditText";
@@ -53,8 +52,6 @@ const getItemIcon = (type?: EProjectItemType, hasChildren = false) => {
   if (type === EProjectItemType.WhiteBoard)
     return <FolderOpen className="size-4" strokeWidth={1.75} />;
   if (type === EProjectItemType.VideoNote) return <Video className="size-4" strokeWidth={1.75} />;
-  if (type === EProjectItemType.AudioNote)
-    return <AudioLines className="size-3.5" strokeWidth={1.75} />;
   if (type === EProjectItemType.WebView) return <Globe className="size-4" strokeWidth={1.75} />;
   if (type === EProjectItemType.TableView) return <Table className="size-4" strokeWidth={1.75} />;
   if (type === EProjectItemType.Pdf)

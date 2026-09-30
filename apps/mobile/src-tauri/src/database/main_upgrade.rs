@@ -34,7 +34,7 @@ pub(super) fn has_column(conn: &Connection, table: &str, name: &str) -> rusqlite
 }
 
 /// 已下线功能留在老库里的表与列（与桌面 packages/db-schema/src/feature-table-retirement.ts 同一清单）
-pub(super) const RETIRED_FEATURE_TABLES: [&str; 4] = ["history", "prompt", "skill", "notion_sync"];
+pub(super) const RETIRED_FEATURE_TABLES: [&str; 6] = ["history", "prompt", "skill", "notion_sync", "audio_note_item", "audio_notes"];
 const RETIRED_FEATURE_COLUMNS: [(&str, &str); 2] = [
     ("vibe_learning_resources", "is_chunked"),
     ("vibe_learning_resources", "chapter_count"),
@@ -42,6 +42,7 @@ const RETIRED_FEATURE_COLUMNS: [(&str, &str); 2] = [
 
 /// 是否有需要退役的残留（调用方据此先备份整库）
 pub(super) fn has_retired_features(conn: &Connection) -> rusqlite::Result<bool> {
+    if super::audio_note_retirement::has_items(conn)? { return Ok(true); }
     for table in RETIRED_FEATURE_TABLES {
         if !columns(conn, table)?.is_empty() {
             return Ok(true);
@@ -57,6 +58,12 @@ pub(super) fn has_retired_features(conn: &Connection) -> rusqlite::Result<bool> 
 
 /// 删掉下线功能的残留表与列；幂等。在升级事务内调用（备份由调用方在事务外做）
 pub(super) fn retire_feature_tables(conn: &Connection) -> rusqlite::Result<()> {
+    if super::audio_note_retirement::has_items(conn)?
+        || !columns(conn, "audio_notes")?.is_empty()
+        || !columns(conn, "audio_note_item")?.is_empty()
+    {
+        super::audio_note_retirement::retire(conn)?;
+    }
     for table in RETIRED_FEATURE_TABLES {
         conn.execute_batch(&format!("DROP TABLE IF EXISTS {}", quote(table)))?;
     }

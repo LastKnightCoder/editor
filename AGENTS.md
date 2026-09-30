@@ -249,6 +249,7 @@ pnpm add -D
 - 当修改 `packages/db-schema/schema/main*.sql` 或 `packages/db-schema/schema/main/*.sql` 中的库表、索引定义时，必须同步检查并更新 `scripts/db/check-schema-parity.mjs` 里的数量常量与相关断言。
 - 每次新增、删除、重命名数据库表或索引后，必须执行 `pnpm db:schema:build`、`pnpm db:schema:check`，必要时再执行 `pnpm db:schema:prepare`，确保 bundle 文件与校验脚本同步通过。
 - 禁止只改 schema SQL 而不更新校验脚本；如果表数量或索引数量发生变化，必须在同一提交中同时更新脚本常量。
+- 新增、删除或修改表的字段后，必须同步 `apps/desktop/src/constants/internal-skills/database-schema.md` 对应小节（表清单 + 全字段，顺序同建表语句）；`apps/desktop/src/constants/internal-skills/__tests__/database-schema.test.ts` 会对账二者，漂移即测试失败。
 
 ## 移动端浮层与返回手势规范
 
