@@ -23,11 +23,7 @@ export class EditEngineError extends Error {
   code: string;
   details?: Record<string, unknown>;
 
-  constructor(
-    code: string,
-    message: string,
-    details?: Record<string, unknown>,
-  ) {
+  constructor(code: string, message: string, details?: Record<string, unknown>) {
     super(message);
     this.name = "EditEngineError";
     this.code = code;
@@ -35,12 +31,11 @@ export class EditEngineError extends Error {
   }
 }
 
-const normalizeCompareText = (value: string) =>
-  value.replace(/\s+/g, " ").trim();
+const normalizeCompareText = (value: string) => value.replace(/\s+/g, " ").trim();
 
 const normalizeInsertRange = (
   payload: PlannedPatch,
-  position?: "start" | "end" | "before" | "after",
+  position?: "start" | "end" | "before" | "after"
 ) => {
   if (position === "start" || position === "before") {
     return {
@@ -80,7 +75,7 @@ const ensureNoOverlap = (patches: PlannedPatch[]) => {
             end: next.end,
             locatorKind: next.locatorKind,
           },
-        },
+        }
       );
     }
   }
@@ -149,7 +144,7 @@ export const applyEditOperations = (payload: {
   ensureNoOverlap(planned);
 
   const markdown = snapshot.markdown;
-  planned.forEach((patch) => {
+  planned.forEach(patch => {
     if (patch.op !== "replace") return;
     if (patch.expectedText == null) return;
     const actual = markdown.slice(patch.start, patch.end);
@@ -175,13 +170,11 @@ export const applyEditOperations = (payload: {
           expectedLength: patch.expectedText.length,
           actualLength: actual.length,
           normalizedEqual: expectedNormalized === actualNormalized,
-          likelyCause: maybeRangeMismatch
-            ? "locator_range_mismatch"
-            : "target_text_changed",
+          likelyCause: maybeRangeMismatch ? "locator_range_mismatch" : "target_text_changed",
           suggestion: maybeRangeMismatch
             ? "match-id 对应范围明显短于 expectedText，请重新定位或改用 replace_content_by_text/rewrite_content_full"
             : "目标片段可能被改动，请重新获取上下文后重试",
-        },
+        }
       );
     }
   });
@@ -194,12 +187,9 @@ export const applyEditOperations = (payload: {
   let nextMarkdown = markdown;
   const applied: AppliedPatch[] = [];
 
-  applyOrder.forEach((patch) => {
+  applyOrder.forEach(patch => {
     const beforeText = nextMarkdown.slice(patch.start, patch.end);
-    nextMarkdown =
-      nextMarkdown.slice(0, patch.start) +
-      patch.text +
-      nextMarkdown.slice(patch.end);
+    nextMarkdown = nextMarkdown.slice(0, patch.start) + patch.text + nextMarkdown.slice(patch.end);
     applied.push({
       operationId: patch.operationId,
       op: patch.op,
@@ -212,12 +202,8 @@ export const applyEditOperations = (payload: {
   });
 
   applied.sort((a, b) => {
-    const aOrder = planned.findIndex(
-      (item) => item.operationId === a.operationId,
-    );
-    const bOrder = planned.findIndex(
-      (item) => item.operationId === b.operationId,
-    );
+    const aOrder = planned.findIndex(item => item.operationId === a.operationId);
+    const bOrder = planned.findIndex(item => item.operationId === b.operationId);
     return aOrder - bOrder;
   });
 

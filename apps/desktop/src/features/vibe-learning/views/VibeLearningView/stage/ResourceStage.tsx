@@ -145,10 +145,12 @@ function NoteResourceBody({ meta }: { meta: NoteSourceMeta }) {
             contentId={meta.contentId}
             ref={editorRef}
             initValue={content}
+            readonly={false}
             onChange={next => {
               setContent(next);
               throttleHandleEditorContentChange(next);
             }}
+            editingContext={{ entityType: "vl-resource", entityId: meta.originalId }}
           />
         </ErrorBoundary>
       </div>

@@ -44,7 +44,7 @@ export interface InlineSelectionRange {
 export interface InlineEditorContext {
   contentId: number | null;
   entityType?: EntityType;
-  entityId?: number;
+  entityId?: number | string;
   tabType?: string;
   tabId?: string;
   paneId?: string;
@@ -152,7 +152,7 @@ export const buildInlineEditorContextFromSnapshot = (payload: {
   target: {
     contentId: number;
     entityType?: EntityType;
-    entityId?: number;
+    entityId?: number | string;
     tabType?: string;
     tabId?: string;
     paneId?: string;

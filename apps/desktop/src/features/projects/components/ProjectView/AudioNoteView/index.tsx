@@ -895,6 +895,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                               ref={editorRef}
                               initValue={content}
                               readonly={false}
+                              editingContext={{ entityType: "project-item", entityId: audioNoteId }}
                               onChange={value => handleNoteContentChange(item.contentId, value)}
                             />
                           );

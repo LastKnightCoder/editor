@@ -29,7 +29,7 @@ export const upsertActiveEditingSession = (payload: {
   sessionId: string;
   contentId: number;
   entityType: EntityType;
-  entityId: number;
+  entityId: number | string;
   tabId?: string;
   paneId?: string;
   tabType?: string;

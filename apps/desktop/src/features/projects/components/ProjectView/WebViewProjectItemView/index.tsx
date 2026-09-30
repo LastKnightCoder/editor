@@ -913,6 +913,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
                 initValue={currentParsedContent}
                 onChange={handleEditorChange}
                 readonly={isAnyClipping}
+                editingContext={{ entityType: "project-item", entityId: projectItemId }}
                 onInit={editorInstance => {
                   slateEditorRef.current = editorInstance as CustomEditor;
                 }}

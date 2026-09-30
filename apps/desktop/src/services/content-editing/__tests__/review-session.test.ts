@@ -82,7 +82,7 @@ const resetReviewStore = () => {
   localStorage.removeItem("content-edit-review-tool-session");
 };
 
-const nextTick = () => new Promise((resolve) => setTimeout(resolve, 0));
+const nextTick = () => new Promise(resolve => setTimeout(resolve, 0));
 
 describe("content-editing/review-session", () => {
   beforeEach(() => {
@@ -126,12 +126,11 @@ describe("content-editing/review-session", () => {
 
     expect(applied.proposal.status).toBe("applied");
     expect(applied.checkpoint.beforeHash).toBe(
-      createContentSnapshot(importFromMarkdown("hello world"), "active-session")
-        .hash,
+      createContentSnapshot(importFromMarkdown("hello world"), "active-session").hash
     );
-    expect(
-      createContentSnapshot(currentContent, "active-session").markdown.trim(),
-    ).toBe("hello tau");
+    expect(createContentSnapshot(currentContent, "active-session").markdown.trim()).toBe(
+      "hello tau"
+    );
 
     const restored = await restoreContentCheckpoint({
       checkpointId: applied.checkpoint.checkpointId,
@@ -141,9 +140,9 @@ describe("content-editing/review-session", () => {
       throw new Error("expected restore success");
     }
 
-    expect(
-      createContentSnapshot(currentContent, "active-session").markdown.trim(),
-    ).toBe("hello world");
+    expect(createContentSnapshot(currentContent, "active-session").markdown.trim()).toBe(
+      "hello world"
+    );
     expect(restored.proposal?.status).toBe("restored");
   });
 
@@ -154,9 +153,9 @@ describe("content-editing/review-session", () => {
     });
 
     expect(next).toBe("auto_apply_allowed");
-    expect(
-      useContentEditReviewStore.getState().permissions["main-chat:9"],
-    ).toBe("auto_apply_allowed");
+    expect(useContentEditReviewStore.getState().permissions["main-chat:9"]).toBe(
+      "auto_apply_allowed"
+    );
   });
 
   it("应创建待审会话，并在用户确认应用后返回结构化工具结果", async () => {
@@ -193,9 +192,7 @@ describe("content-editing/review-session", () => {
     });
     await nextTick();
 
-    const session = Object.values(
-      getContentEditReviewSessionStore().records,
-    )[0];
+    const session = Object.values(getContentEditReviewSessionStore().records)[0];
     expect(session?.status).toBe("pending");
 
     const submitResult = submitContentEditReviewDecisionByExecution(
@@ -206,7 +203,7 @@ describe("content-editing/review-session", () => {
       {
         action: "apply",
         submittedAt: Date.now(),
-      },
+      }
     );
     expect(submitResult).toBe("resolved");
 
@@ -217,9 +214,7 @@ describe("content-editing/review-session", () => {
       contentId: 1,
     });
     expect(
-      useContentEditReviewStore.getState().proposals[
-        created.proposal.proposalId
-      ]?.status,
+      useContentEditReviewStore.getState().proposals[created.proposal.proposalId]?.status
     ).toBe("applied");
   });
 
@@ -257,9 +252,9 @@ describe("content-editing/review-session", () => {
     });
     await nextTick();
 
-    const session = Object.values(
-      getContentEditReviewSessionStore().records,
-    ).find((item) => item.toolCallId === "tool-call-2");
+    const session = Object.values(getContentEditReviewSessionStore().records).find(
+      item => item.toolCallId === "tool-call-2"
+    );
     expect(session?.payload.proposedMarkdown?.trim()).toBe("hello tau");
 
     submitContentEditReviewDecisionByExecution(
@@ -271,7 +266,7 @@ describe("content-editing/review-session", () => {
         action: "feedback",
         feedback: "请更简洁一些",
         submittedAt: Date.now(),
-      },
+      }
     );
 
     const result = await executionPromise;
@@ -281,9 +276,7 @@ describe("content-editing/review-session", () => {
       feedback: "请更简洁一些",
     });
     expect(
-      useContentEditReviewStore.getState().proposals[
-        created.proposal.proposalId
-      ]?.feedbackHistory,
+      useContentEditReviewStore.getState().proposals[created.proposal.proposalId]?.feedbackHistory
     ).toContain("请更简洁一些");
   });
 
@@ -296,7 +289,7 @@ describe("content-editing/review-session", () => {
     expect(
       shouldAutoApplyContentProposal({
         conversationKey: "main-chat:1",
-      }),
+      })
     ).toBe(true);
 
     expect(
@@ -308,7 +301,7 @@ describe("content-editing/review-session", () => {
             feedbackProposalId: "proposal-1",
           },
         },
-      }),
+      })
     ).toBe(false);
   });
 

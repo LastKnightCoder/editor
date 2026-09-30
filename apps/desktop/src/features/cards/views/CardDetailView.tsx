@@ -506,6 +506,7 @@ export function CardDetailView() {
                   onChange={throttleHandleEditorContentChange}
                   readonly={false}
                   source={{ sourceType: "card", sourceId: card.id }}
+                  editingContext={{ entityType: "card", entityId: card.id }}
                   className="min-h-[80px]"
                 />
               </ErrorBoundary>

@@ -36,7 +36,7 @@ describe("content-editing/editor-inline-context", () => {
     expect(context.selectionAfter).toContain("next");
     expect(context.selectionRange?.startOffset).toBeGreaterThanOrEqual(0);
     expect(context.selectionRange?.endOffset).toBeGreaterThan(
-      context.selectionRange?.startOffset || 0,
+      context.selectionRange?.startOffset || 0
     );
   });
 

@@ -491,6 +491,7 @@ export function ArticleDetailView() {
                       throttleHandleEditorContentChange(content);
                       onContentChange(content);
                     }}
+                    editingContext={{ entityType: "article", entityId: editingArticle.id }}
                     readonly={false}
                   />
                 </ErrorBoundary>

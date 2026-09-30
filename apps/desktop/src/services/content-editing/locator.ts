@@ -8,8 +8,7 @@ import type {
   SerializedSelection,
 } from "./types";
 
-const pathEquals = (left: number[], right: number[]) =>
-  Path.equals(left, right);
+const pathEquals = (left: number[], right: number[]) => Path.equals(left, right);
 
 const isPathPrefix = (prefix: number[], fullPath: number[]) => {
   if (prefix.length > fullPath.length) return false;
@@ -19,18 +18,10 @@ const isPathPrefix = (prefix: number[], fullPath: number[]) => {
 const toOffsetRangeFromPosition = (
   snapshot: ContentSnapshot,
   start: { line: number; ch: number },
-  end: { line: number; ch: number },
+  end: { line: number; ch: number }
 ) => {
-  const startOffset = markdownPointToOffset(
-    start,
-    snapshot.lineOffsets,
-    snapshot.markdown.length,
-  );
-  const endOffset = markdownPointToOffset(
-    end,
-    snapshot.lineOffsets,
-    snapshot.markdown.length,
-  );
+  const startOffset = markdownPointToOffset(start, snapshot.lineOffsets, snapshot.markdown.length);
+  const endOffset = markdownPointToOffset(end, snapshot.lineOffsets, snapshot.markdown.length);
 
   return {
     start: Math.min(startOffset, endOffset),
@@ -40,7 +31,7 @@ const toOffsetRangeFromPosition = (
 
 const resolveSelectionRange = (
   snapshot: ContentSnapshot,
-  selection: SerializedSelection,
+  selection: SerializedSelection
 ): { start: number; end: number } | null => {
   const anchorPos = snapshot.positionMap.slateToMarkdown({
     path: selection.anchor.path,
@@ -57,15 +48,14 @@ const resolveSelectionRange = (
 
 const resolveSlatePathRange = (
   snapshot: ContentSnapshot,
-  path: number[],
+  path: number[]
 ): { start: number; end: number } => {
-  const elementMapping =
-    snapshot.positionMap.getElementMappingBySlatePath(path);
+  const elementMapping = snapshot.positionMap.getElementMappingBySlatePath(path);
   if (elementMapping) {
     return toOffsetRangeFromPosition(
       snapshot,
       { line: elementMapping.mdStartLine, ch: elementMapping.mdStartCh },
-      { line: elementMapping.mdEndLine, ch: elementMapping.mdEndCh },
+      { line: elementMapping.mdEndLine, ch: elementMapping.mdEndCh }
     );
   }
 
@@ -73,16 +63,13 @@ const resolveSlatePathRange = (
   let min = Number.POSITIVE_INFINITY;
   let max = Number.NEGATIVE_INFINITY;
 
-  mappings.forEach((mapping) => {
+  mappings.forEach(mapping => {
     if (mapping.type === "text") {
-      if (
-        pathEquals(mapping.slateTextPath, path) ||
-        isPathPrefix(path, mapping.slateTextPath)
-      ) {
+      if (pathEquals(mapping.slateTextPath, path) || isPathPrefix(path, mapping.slateTextPath)) {
         const start = markdownPointToOffset(
           { line: mapping.mdLine, ch: mapping.mdCh },
           snapshot.lineOffsets,
-          snapshot.markdown.length,
+          snapshot.markdown.length
         );
         const end = markdownPointToOffset(
           {
@@ -90,7 +77,7 @@ const resolveSlatePathRange = (
             ch: mapping.mdCh + mapping.mdLength,
           },
           snapshot.lineOffsets,
-          snapshot.markdown.length,
+          snapshot.markdown.length
         );
         min = Math.min(min, start);
         max = Math.max(max, end);
@@ -105,7 +92,7 @@ const resolveSlatePathRange = (
       const range = toOffsetRangeFromPosition(
         snapshot,
         { line: mapping.mdStartLine, ch: mapping.mdStartCh },
-        { line: mapping.mdEndLine, ch: mapping.mdEndCh },
+        { line: mapping.mdEndLine, ch: mapping.mdEndCh }
       );
       min = Math.min(min, range.start);
       max = Math.max(max, range.end);
@@ -113,9 +100,7 @@ const resolveSlatePathRange = (
   });
 
   if (!Number.isFinite(min) || !Number.isFinite(max)) {
-    throw new Error(
-      `INVALID_LOCATOR: 无法解析 slate-path ${JSON.stringify(path)}`,
-    );
+    throw new Error(`INVALID_LOCATOR: 无法解析 slate-path ${JSON.stringify(path)}`);
   }
 
   return {
@@ -140,11 +125,7 @@ export const resolveLocatorToRange = (payload: {
   }
 
   if (locator.kind === "markdown-range") {
-    const range = toOffsetRangeFromPosition(
-      snapshot,
-      locator.start,
-      locator.end,
-    );
+    const range = toOffsetRangeFromPosition(snapshot, locator.start, locator.end);
     return { ...range, locator };
   }
 
@@ -181,9 +162,7 @@ export const resolveLocatorToRange = (payload: {
     throw new Error(`INVALID_LOCATOR: 未找到 match-id ${locator.matchId}`);
   }
   if (matchRange.snapshotId !== snapshot.id) {
-    throw new Error(
-      `INVALID_LOCATOR: match-id ${locator.matchId} 不属于当前快照，请重新定位`,
-    );
+    throw new Error(`INVALID_LOCATOR: match-id ${locator.matchId} 不属于当前快照，请重新定位`);
   }
   return {
     start: matchRange.start,
