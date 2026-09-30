@@ -1,12 +1,20 @@
 import { randomUUID } from "node:crypto";
 import type { MigrationDatabase } from "./knowledge-migration";
+import { hasRetiredAudioItems, retireAudioNotes } from "./audio-note-retirement";
 
 /**
  * 已下线功能留在老库里的表与列（功能下线时只删了建表语句，老库里的一直没删）：
  * history（浏览历史）、prompt（提示词库）、skill（数据库版 Skill，现存文件）、notion_sync（Notion 同步），
- * 以及 vibe_learning_resources 上不再使用的分章节字段。代码里已无任何读写。
+ * 音频笔记表与项目节点，以及 vibe_learning_resources 上不再使用的分章节字段。
  */
-const RETIRED_TABLES = ["history", "prompt", "skill", "notion_sync"];
+const RETIRED_TABLES = [
+  "history",
+  "prompt",
+  "skill",
+  "notion_sync",
+  "audio_note_item",
+  "audio_notes",
+];
 const RETIRED_COLUMNS: Array<[table: string, column: string]> = [
   ["vibe_learning_resources", "is_chunked"],
   ["vibe_learning_resources", "chapter_count"],
@@ -30,7 +38,8 @@ export function retireFeatureTables(db: MigrationDatabase, databasePath: string)
   const columns = RETIRED_COLUMNS.filter(
     ([table, column]) => tableExists(db, table) && columnExists(db, table, column)
   );
-  if (tables.length === 0 && columns.length === 0) return [];
+  const audioItems = hasRetiredAudioItems(db);
+  if (tables.length === 0 && columns.length === 0 && !audioItems) return [];
 
   try {
     if (databasePath !== ":memory:") {
@@ -40,6 +49,9 @@ export function retireFeatureTables(db: MigrationDatabase, databasePath: string)
     }
     db.exec("BEGIN IMMEDIATE");
     try {
+      if (audioItems || tables.some(name => name === "audio_notes" || name === "audio_note_item")) {
+        retireAudioNotes(db);
+      }
       // 表上的索引随表一起删；这几列上没有索引，可以直接 DROP COLUMN
       for (const name of tables) db.exec(`DROP TABLE IF EXISTS "${name}"`);
       for (const [table, column] of columns) {
@@ -55,5 +67,9 @@ export function retireFeatureTables(db: MigrationDatabase, databasePath: string)
       `FEATURE_TABLE_RETIREMENT_FAILED: ${error instanceof Error ? error.message : String(error)}`
     );
   }
-  return [...tables, ...columns.map(([table, column]) => `${table}.${column}`)];
+  return [
+    ...tables,
+    ...columns.map(([table, column]) => `${table}.${column}`),
+    ...(audioItems ? ["project_item.audio-note"] : []),
+  ];
 }

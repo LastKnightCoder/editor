@@ -22,8 +22,6 @@ import tailwindRuntimeModule from "../modules/tailwind-runtime";
 import skillModule from "../modules/skill";
 import bilibiliCacheModule from "../modules/bilibili-cache";
 import youtubeCacheModule from "../modules/youtube-cache";
-import bilibiliAudioCacheModule from "../modules/bilibili-audio-cache";
-import youtubeAudioCacheModule from "../modules/youtube-audio-cache";
 import remoteVideoCacheModule from "../modules/remote-video-cache";
 import remoteAudioCacheModule from "../modules/remote-audio-cache";
 import remoteImageCacheModule from "../modules/remote-image-cache";
@@ -162,20 +160,6 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "resource"],
     init: () => youtubeCacheModule.init(),
-  },
-  {
-    name: "bilibili-audio-cache",
-    group: ModuleGroup.CACHE,
-    layer: InitLayer.BACKGROUND,
-    dependencies: ["logger", "resource"],
-    init: () => bilibiliAudioCacheModule.init(),
-  },
-  {
-    name: "youtube-audio-cache",
-    group: ModuleGroup.CACHE,
-    layer: InitLayer.BACKGROUND,
-    dependencies: ["logger", "resource"],
-    init: () => youtubeAudioCacheModule.init(),
   },
   {
     name: "remote-video-cache",

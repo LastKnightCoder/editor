@@ -32,32 +32,6 @@ export const ADD_MENU_ITEMS: MenuEntryList = [
     ],
   },
   {
-    key: "add-audio-note-project-item",
-    label: "添加音频",
-    children: [
-      {
-        key: "add-local-audio-note-project-item",
-        label: "本地音频",
-      },
-      {
-        key: "add-remote-audio-note-project-item",
-        label: "远程音频",
-      },
-      {
-        key: "add-xiaoyuzhou-audio-note-project-item",
-        label: "小宇宙播客",
-      },
-      {
-        key: "add-bilibili-audio-note-project-item",
-        label: "Bilibili 音频",
-      },
-      {
-        key: "add-youtube-audio-note-project-item",
-        label: "YouTube 音频",
-      },
-    ],
-  },
-  {
     key: "add-webview-project-item",
     label: "添加网页",
   },

@@ -56,6 +56,70 @@ fn subscription_retirement_failure_rolls_back() {
 }
 
 #[test]
+fn audio_note_retirement_promotes_children_and_preserves_shared_content() {
+    let conn = Connection::open_in_memory().unwrap();
+    ensure_main_schema(&conn).unwrap();
+    conn.execute_batch(include_str!("../../../../../packages/db-schema/fixtures/audio-note-retirement.sql")).unwrap();
+    ensure_main_schema(&conn).unwrap();
+    ensure_main_schema(&conn).unwrap();
+    let remaining: i64 = conn.query_row("SELECT COUNT(*) FROM sqlite_master WHERE name IN ('audio_notes','audio_note_item','idx_audio_note_item_audio')", [], |r| r.get(0)).unwrap();
+    assert_eq!(remaining, 0);
+    let roots: String = conn.query_row("SELECT children FROM project WHERE id=1", [], |r| r.get(0)).unwrap();
+    assert_eq!(roots, "[10,26,12]");
+    let children: String = conn.query_row("SELECT children FROM project_item WHERE id=10", [], |r| r.get(0)).unwrap();
+    assert_eq!(children, "[21,23,25]");
+    let relation: (String,String) = conn.query_row("SELECT parents,projects FROM project_item WHERE id=21", [], |r| Ok((r.get(0)?,r.get(1)?))).unwrap();
+    assert_eq!(relation, ("[10]".into(),"[1,2]".into()));
+    let refs = conn.prepare("SELECT id,ref_count FROM contents ORDER BY id").unwrap().query_map([], |r| Ok((r.get::<_,i64>(0)?,r.get::<_,i64>(1)?))).unwrap().collect::<rusqlite::Result<Vec<_>>>().unwrap();
+    assert_eq!(refs, vec![(101,1),(102,2),(104,1),(105,1)]);
+    let body: String = conn.query_row("SELECT content FROM contents WHERE id=105", [], |r| r.get(0)).unwrap();
+    assert!(body.contains("saved.mp3"));
+    conn.prepare("SELECT messages FROM audio_note_chats").unwrap();
+}
+
+#[test]
+fn audio_note_retirement_rolls_back_and_retries_without_tables() {
+    let conn = Connection::open_in_memory().unwrap();
+    ensure_main_schema(&conn).unwrap();
+    conn.execute_batch(include_str!("../../../../../packages/db-schema/fixtures/audio-note-retirement.sql")).unwrap();
+    conn.execute_batch("CREATE TRIGGER fail_retirement BEFORE DELETE ON contents BEGIN SELECT RAISE(ABORT,'模拟清理失败'); END;").unwrap();
+    assert!(ensure_main_schema(&conn).unwrap_err().contains("模拟清理失败"));
+    let roots: String = conn.query_row("SELECT children FROM project WHERE id=1", [], |r| r.get(0)).unwrap();
+    assert_eq!(roots, "[10,11,12]");
+    conn.prepare("SELECT content_id FROM audio_note_item").unwrap();
+    conn.execute_batch("DROP TRIGGER fail_retirement; DROP TABLE audio_note_item; DROP TABLE audio_notes;").unwrap();
+    ensure_main_schema(&conn).unwrap();
+    assert!(!super::super::audio_note_retirement::has_items(&conn).unwrap());
+}
+
+#[test]
+fn audio_note_indexes_retire_without_knowledge_mapping_and_preserve_reused_ids() {
+    let conn = Connection::open_in_memory().unwrap();
+    ensure_main_schema(&conn).unwrap();
+    conn.execute_batch(include_str!("../../../../../packages/db-schema/fixtures/audio-note-retirement.sql")).unwrap();
+    ensure_main_schema(&conn).unwrap();
+    conn.execute_batch("INSERT INTO project_item(id,create_time,update_time,title) VALUES(11,1,1,'新文档');
+        DELETE FROM migration_meta WHERE key='knowledge-to-project:v1';").unwrap();
+    let index = Connection::open_in_memory().unwrap();
+    index.execute_batch("CREATE TABLE index_meta(key TEXT PRIMARY KEY,value TEXT,updated_at INTEGER);
+        CREATE VIRTUAL TABLE content_fts USING fts5(prefixed_id,type,content);
+        CREATE TABLE vec_documents(prefixed_id TEXT);
+        INSERT INTO content_fts VALUES('project-item:20','project-item','旧音频'),('project-item:11','project-item','新文档');
+        INSERT INTO vec_documents VALUES('project-item:20'),('project-item:11');
+        CREATE TRIGGER fail_index BEFORE DELETE ON vec_documents BEGIN SELECT RAISE(ABORT,'模拟索引失败'); END;").unwrap();
+    assert!(super::super::knowledge_migration::migrate_index(&conn,&index).unwrap_err().contains("模拟索引失败"));
+    let count: i64 = index.query_row("SELECT COUNT(*) FROM content_fts", [], |r| r.get(0)).unwrap();
+    assert_eq!(count, 2);
+    index.execute_batch("DROP TRIGGER fail_index;").unwrap();
+    super::super::knowledge_migration::migrate_index(&conn,&index).unwrap();
+    super::super::knowledge_migration::migrate_index(&conn,&index).unwrap();
+    for table in ["content_fts","vec_documents"] {
+        let id: String = index.query_row(&format!("SELECT prefixed_id FROM {table}"), [], |r| r.get(0)).unwrap();
+        assert_eq!(id, "project-item:11");
+    }
+}
+
+#[test]
 fn subscription_retirement_snapshots_wal_and_restored_databases() {
     let dir = std::env::temp_dir().join(format!("tau-retirement-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).unwrap();
