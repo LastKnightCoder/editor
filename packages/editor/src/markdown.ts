@@ -11,12 +11,10 @@ import type { MarkdownCodec } from "@tau/markdown";
 import { paragraphCodec } from "./extensions/paragraph/markdown.ts";
 import { headerCodec } from "./extensions/header/markdown.ts";
 import { linkCodec } from "./extensions/link/markdown.ts";
-import { codeBlockCodec } from "./extensions/code-block/markdown.ts";
 import { blockquoteCodec } from "./extensions/blockquote/markdown.ts";
 import { imageCodec } from "./extensions/image/markdown.ts";
 import { inlineImageCodec } from "./extensions/inline-image/markdown.ts";
 import { imageGalleryCodec } from "./extensions/image-gallary/markdown.ts";
-import { blockMathCodec, inlineMathCodec } from "./extensions/math/markdown.ts";
 import { bulletedListCodec } from "./extensions/bulleted-list/markdown.ts";
 import { numberedListCodec } from "./extensions/numbered-list/markdown.ts";
 import { listItemCodec } from "./extensions/list-item/markdown.ts";
@@ -39,13 +37,10 @@ export const editorMarkdownCodecs: MarkdownCodec[] = [
   paragraphCodec,
   headerCodec,
   linkCodec,
-  codeBlockCodec,
   blockquoteCodec,
   imageCodec,
   inlineImageCodec,
   imageGalleryCodec,
-  blockMathCodec,
-  inlineMathCodec,
   bulletedListCodec,
   numberedListCodec,
   listItemCodec,

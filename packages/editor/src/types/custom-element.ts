@@ -1,12 +1,10 @@
 import type { ParagraphElement } from "./element/paragraph";
-import type { CodeBlockElement } from "./element/code-block";
 import type { ImageGalleryElement } from "./element/gallery";
 import type { StyledTextElement } from "./element/styled-text";
 import type { CalloutElement } from "./element/callout";
 import type { HeaderElement } from "./element/header";
 import type { BulletedListElement, NumberedListElement, ListItemElement } from "./element/list";
 import type { CheckListElement, CheckListItemElement } from "./element/check-list";
-import type { InlineMathElement, BlockMathElement } from "./element/math";
 import type { TableElement, TableRowElement, TableCellElement } from "./element/table";
 import type { ImageElement } from "./element/image";
 import type { DetailElement } from "./element/detail";
@@ -33,7 +31,6 @@ declare const __externalInlineElementMapBrand: unique symbol;
 
 export interface BuiltinElementMap {
   paragraph: ParagraphElement;
-  "code-block": CodeBlockElement;
   callout: CalloutElement;
   header: HeaderElement;
   "bulleted-list": BulletedListElement;
@@ -46,8 +43,6 @@ export interface BuiltinElementMap {
   table: TableElement;
   "table-row": TableRowElement;
   "table-cell": TableCellElement;
-  "inline-math": InlineMathElement;
-  "block-math": BlockMathElement;
   "check-list-item": CheckListItemElement;
   "check-list": CheckListElement;
   "divide-line": DivideLineElement;
@@ -77,7 +72,6 @@ export type CustomElement = (BuiltinElementMap &
 
 export interface BuiltinInlineElementMap {
   link: LinkElement;
-  "inline-math": InlineMathElement;
   underline: UnderlineElement;
   "styled-text": StyledTextElement;
   "inline-image": InlineImageElement;

@@ -8,6 +8,9 @@
 @source "../../../packages/editor-custom-block/src";
 @source "../../../packages/editor-diagram/src";
 @source "../../../packages/editor-html/src";
+@source "../../../packages/editor-source-view/src";
+@source "../../../packages/editor-code-block/src";
+@source "../../../packages/editor-math/src";
 @source "../../../packages/editor-diagram/renderers.tsx";
 @source "../../../packages/editor-webview/src";
 @source "../../../packages/shared/src";

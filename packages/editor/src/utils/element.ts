@@ -55,9 +55,6 @@ export const isInlineElementEmpty = (element: InlineElement | FormattedText, edi
   if (element.type === "link") {
     return element.children.length === 1 && element.children[0].text === "";
   }
-  if (element.type === "inline-math") {
-    return element.tex === "";
-  }
   if (element.type === "underline") {
     return element.children.length === 1 && element.children[0].text === "";
   }
@@ -111,10 +108,6 @@ export const isBlockElementEmpty = (element: BlockElement, editor?: Editor): boo
       return element.children.every(child => isBlockElementEmpty(child, editor));
     case "table":
       return isTableElementEmpty(element, editor);
-    case "code-block":
-      return element.code === "";
-    case "block-math":
-      return element.tex === "";
     case "image":
       return element.url === "";
     default:
@@ -126,7 +119,6 @@ export const isInlineElement = (element: Element): element is InlineElement => {
   const { type } = element;
 
   return (
-    type === "inline-math" ||
     type === "link" ||
     type === "underline" ||
     type === "styled-text" ||

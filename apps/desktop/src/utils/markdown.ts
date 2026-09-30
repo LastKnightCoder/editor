@@ -8,11 +8,15 @@ import { editorMarkdownCodecs } from "@tau/editor/markdown";
 import { customBlockCodec } from "@tau/editor-custom-block/markdown";
 import { diagramMarkdownCodecs } from "@tau/editor-diagram/markdown";
 import { htmlMarkdownCodecs } from "@tau/editor-html/markdown";
+import { codeBlockCodec } from "@tau/editor-code-block/markdown";
+import { mathMarkdownCodecs } from "@tau/editor-math/markdown";
 import { webviewCodec } from "@tau/editor-webview/markdown";
 import { desktopMarkdownCodecs } from "./markdown-codecs.ts";
 
 export const desktopCodecComposition = [
   ...editorMarkdownCodecs,
+  codeBlockCodec,
+  ...mathMarkdownCodecs,
   ...htmlMarkdownCodecs,
   ...diagramMarkdownCodecs,
   customBlockCodec,

@@ -5,7 +5,7 @@ import TypstRenderer from "../../../../renderers/Typst";
 import { ITypstCompiler } from "../../../../../services";
 
 import type { TypstElement } from "../../../../types/typst";
-import { PreviewWithEditor } from "@tau/editor/api";
+import { PreviewWithEditor } from "@tau/editor-source-view";
 
 interface TypstProps {
   attributes: RenderElementProps["attributes"];

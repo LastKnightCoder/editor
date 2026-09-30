@@ -4,7 +4,7 @@ import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
 import Abc from "./Abc";
 
 import type { AbcElement } from "../../../types/abc";
-import { PreviewWithEditor } from "@tau/editor/api";
+import { PreviewWithEditor } from "@tau/editor-source-view";
 
 interface AbcBlockProps {
   attributes: RenderElementProps["attributes"];

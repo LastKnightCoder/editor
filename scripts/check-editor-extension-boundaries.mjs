@@ -13,8 +13,21 @@ const extensionNames = new Set([
   "@tau/editor-custom-block",
   "@tau/editor-diagram",
   "@tau/editor-html",
+  "@tau/editor-source-view",
+  "@tau/editor-code-block",
+  "@tau/editor-math",
 ]);
-const heavy = new Set(["mermaid", "abcjs", "plantuml-encoder", "@babel/standalone", "yjs"]);
+const heavy = new Set([
+  "mermaid",
+  "abcjs",
+  "plantuml-encoder",
+  "@babel/standalone",
+  "yjs",
+  "codemirror",
+  "react-codemirror2",
+  "shiki",
+  "shiki-magic-move",
+]);
 
 const sourceFiles = directory =>
   readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
@@ -58,7 +71,14 @@ for (const file of [
       `内核反向引用扩展：${relative(root, file)} → ${specifier}`
     );
 }
-for (const name of ["editor-custom-block", "editor-diagram", "editor-html"]) {
+for (const name of [
+  "editor-custom-block",
+  "editor-diagram",
+  "editor-html",
+  "editor-source-view",
+  "editor-code-block",
+  "editor-math",
+]) {
   for (const file of sourceFiles(resolve(root, "packages", name, "src"))) {
     for (const specifier of importsOf(file)) {
       assert(
@@ -129,6 +149,8 @@ const serviceScript = `
   assert.equal(createServiceId('test').id, 'test');
   assert.equal(IRuntimeStyleCompiler.id, 'tau.host.runtime-style-compiler');
   assert.equal(ITypstCompiler.id, 'tau.diagram.typst-compiler');
+  const { getCodeBlockController } = await import('@tau/editor-code-block/runtime');
+  assert.equal(getCodeBlockController('missing'), undefined);
   assert.equal(typeof document, 'undefined');
 `;
 execFileSync(process.execPath, ["--input-type=module", "-e", serviceScript], {
@@ -151,6 +173,13 @@ for (const [host, entry, exportName] of hosts) {
       const source = fence + type + '\\n源码\\n' + fence;
       const parsed = md.importFromMarkdownWithPositions(source);
       assert.equal(parsed.content[0].type, type);
+      assert.equal(md.getMarkdown(parsed.content).trim(), source);
+      assert.equal(md.getMarkdownWithPositions(parsed.content).markdown.trim(), source);
+    }
+    const lineBreak = String.fromCharCode(10);
+    const codeSource = [fence + 'TypeScript', 'const x = 1;', fence].join(lineBreak);
+    for (const source of [codeSource, '$x^2$', ['$$', 'x^2', '$$'].join(lineBreak)]) {
+      const parsed = md.importFromMarkdownWithPositions(source);
       assert.equal(md.getMarkdown(parsed.content).trim(), source);
       assert.equal(md.getMarkdownWithPositions(parsed.content).markdown.trim(), source);
     }
@@ -185,7 +214,7 @@ if (process.argv.includes("--bundle")) {
   const inputs = Object.keys(result.metafile.inputs);
   for (const input of inputs)
     assert(
-      !/(?:editor-diagram|editor-custom-block|editor-html|node_modules\/(?:mermaid|abcjs|plantuml-encoder|@babel\/standalone))/.test(
+      !/(?:editor-diagram|editor-custom-block|editor-html|editor-source-view|editor-code-block|editor-math|node_modules\/(?:mermaid|abcjs|plantuml-encoder|@babel\/standalone|codemirror|react-codemirror2|shiki))/.test(
         input
       ),
       `内核实际加载图包含扩展实现：${input}`

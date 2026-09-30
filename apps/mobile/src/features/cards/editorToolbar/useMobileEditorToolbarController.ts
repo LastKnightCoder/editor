@@ -1,10 +1,8 @@
 import { useCallback, useMemo, useRef, useState, type RefObject } from "react";
 import type { EditorRef } from "@tau/editor/src";
 import {
-  insertBlockMath,
   insertCallout,
   insertCheckList,
-  insertCodeBlock,
   insertDetails,
   insertHighlightBlock,
   insertImageGallery,
@@ -13,6 +11,8 @@ import {
   insertAnnotation,
 } from "@tau/editor/src/utils/insertElement";
 import { insertMermaid } from "@tau/editor-diagram";
+import { insertCodeBlock } from "@tau/editor-code-block";
+import { insertBlockMath } from "@tau/editor-math";
 import { openLocalMediaPicker, openMediaUrlInput } from "@tau/editor/src/utils/mediaInsert";
 import type { Editor as SlateEditor } from "slate";
 import { Range, Transforms, type BaseSelection } from "slate";

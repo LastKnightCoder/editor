@@ -58,7 +58,7 @@
 
 **实机确认由用户负责**：四端编辑、插入、主题和协作交互，以及 Electron Typst 编译。TikZ 的 `input.dvi` 错误已在起点组件复现，仍是既有未解决事项。按用户要求停止后续视觉验证，临时页面与预览进程已清理。
 
-**后续拆包已进入实施**：依据 05 完成首批服务契约与 HTML：纯 DI/共用运行时样式契约归 shared 子入口，Typst 契约归 diagram `/services`，两种 HTML 元素归 `editor-html`，四端显式组合。混合 `ICompilerService` 已删除；HTML/tsx 的真实 CSS 对照、缺服务降级、RPC 断连稳定性与 headless 护栏通过。下一批是源码视图与代码块，随后数学/表情、媒体及基础领域收口；未完成项仍按 05 逐批调查实施。
+**后续拆包已完成前两批**：服务契约与 HTML 首批已提交 `468371efe`。源码预览/CodeMirror/预览菜单归 `editor-source-view`，代码块 textarea＋Shiki/控制器/codec 归 `editor-code-block`；公式因直接消费预览在同批前置迁入 `editor-math`。四端显式组合稳定实例，桌面源码定位经代码块 `/runtime`，内核不反向引用新包、不再加载 CodeMirror/Shiki。导航、回写、空态删除、退出保存与往返快照通过。下一批清理数学的 shared 重依赖与表情，再推进媒体及基础领域收口；未完成项仍按 05 逐批调查实施。
 
 **前阶段记录**：P8 已完成（2026-09-30：内置扩展 43 个 + 内核热键 13 个命令 + desktop 宿主扩展 8 个
 

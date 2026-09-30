@@ -6,6 +6,9 @@ import webviewExtension from "@tau/editor-webview";
 import customBlockExtension from "@tau/editor-custom-block";
 import { diagramExtensions } from "@tau/editor-diagram";
 import { htmlExtensions } from "@tau/editor-html";
+import { previewMenuExtension } from "@tau/editor-source-view/menu";
+import codeBlockExtension from "@tau/editor-code-block";
+import { mathExtensions } from "@tau/editor-math";
 import type WebSocketClient from "../utils/WebSocketClient";
 import { createExtensionEditorServices, extensionImportFromMarkdown } from "./editorRegistry";
 import {
@@ -26,6 +29,9 @@ export function getExtensionKit(wsClient?: WebSocketClient | null): EditorKit {
       extensions: [
         ...diagramExtensions,
         ...htmlExtensions,
+        previewMenuExtension,
+        codeBlockExtension,
+        ...mathExtensions,
         customBlockExtension,
         createMarkdownPasteImportExtension(extensionImportFromMarkdown),
         webviewExtension,

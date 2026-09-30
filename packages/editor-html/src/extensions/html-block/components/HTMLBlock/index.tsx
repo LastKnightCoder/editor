@@ -1,7 +1,7 @@
 import { RenderElementProps } from "slate-react";
 import type { HTMLBlockElement } from "../../../../types";
 import React, { PropsWithChildren, Fragment } from "react";
-import { PreviewWithEditor } from "@tau/editor/api";
+import { PreviewWithEditor } from "@tau/editor-source-view";
 import { useTailwindRuntimeCss } from "../../../../hooks/useTailwindRuntimeCss";
 import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
 import { Transforms } from "slate";

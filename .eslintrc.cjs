@@ -88,6 +88,9 @@ module.exports = {
         "packages/editor-custom-block/src/**/*.{ts,tsx}",
         "packages/editor-diagram/src/**/*.{ts,tsx}",
         "packages/editor-html/src/**/*.{ts,tsx}",
+        "packages/editor-source-view/src/**/*.{ts,tsx}",
+        "packages/editor-code-block/src/**/*.{ts,tsx}",
+        "packages/editor-math/src/**/*.{ts,tsx}",
       ],
       excludedFiles: ["**/__tests__/**"],
       rules: {
@@ -197,6 +200,10 @@ module.exports = {
         "packages/editor-diagram/src/**/markdown.ts",
         "packages/editor-html/markdown.ts",
         "packages/editor-html/src/**/markdown.ts",
+        "packages/editor-code-block/markdown.ts",
+        "packages/editor-code-block/src/**/markdown.ts",
+        "packages/editor-math/markdown.ts",
+        "packages/editor-math/src/markdown.ts",
       ],
       rules: {
         "no-restricted-imports": [
