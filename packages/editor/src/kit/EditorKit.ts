@@ -90,7 +90,7 @@ const mergeExtensions = (
  * 扩展实例的稳定标识：派生 kit 要按「扩展实例集合」缓存，不能按数组身份缓存。
  * 宿主常在 render 里写 `extensions={[a, b]}`，数组每次都是新的，但实例没变——
  * 这时必须返回同一个派生 kit，否则编辑器会被重建（原 PluginOptimizer 也是这么做的）。
- * 旧扩展的适配对象按实例缓存（fromLegacyExtension），所以按适配后的对象计键即可。
+ * 扩展对象本身就是稳定标识，按对象集合计键。
  */
 const instanceIds = new WeakMap<EditorExtension, string>();
 let instanceCounter = 0;

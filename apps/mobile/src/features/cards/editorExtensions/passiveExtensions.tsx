@@ -1,6 +1,4 @@
-import { Base, createBlockElementPlugin, createVoidElementPlugin } from "@tau/editor/src";
-import type { IExtension } from "@tau/editor/src";
-import type { ReactElement } from "react";
+import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor/src";
 
 type FileAttachmentElement = {
   type: "file-attachment";
@@ -22,38 +20,36 @@ function readText(value: unknown, fallback: string): string {
   return fallback;
 }
 
-export class MobileFileAttachmentExtension extends Base implements IExtension {
-  type = "file-attachment";
+export const mobileFileAttachmentExtension = defineExtension({
+  id: "host.file-attachment",
+  elements: [
+    defineElement({
+      type: "file-attachment",
+      kind: "block",
+      isVoid: true,
+      render: ({ attributes, children, element }: ElementRenderProps) => {
+        const current = element as unknown as FileAttachmentElement;
+        const name = readText(current.name ?? current.fileName, "附件文件");
+        const fileType = readText(current.fileType, "unknown");
+        const sizeText =
+          typeof current.size === "number" && current.size > 0
+            ? `${Math.round(current.size / 1024)} KB`
+            : "--";
+        const urlText = readText(current.url, "无可用链接");
 
-  override getPlugins() {
-    return [
-      createBlockElementPlugin("file-attachment"),
-      createVoidElementPlugin("file-attachment"),
-    ];
-  }
-
-  render(props: any): ReactElement {
-    const { attributes, children, element } = props;
-    const current = element as unknown as FileAttachmentElement;
-    const name = readText(current.name ?? current.fileName, "附件文件");
-    const fileType = readText(current.fileType, "unknown");
-    const sizeText =
-      typeof current.size === "number" && current.size > 0
-        ? `${Math.round(current.size / 1024)} KB`
-        : "--";
-    const urlText = readText(current.url, "无可用链接");
-
-    return (
-      <div
-        {...attributes}
-        contentEditable={false}
-        className="border-line bg-surface text-ink-2 my-2 rounded-xl border px-3 py-2 text-xs"
-      >
-        <p className="text-ink font-bold">{name}</p>
-        <p className="text-ink-3 mt-1 text-[11px]">{`类型: ${fileType} · 大小: ${sizeText}`}</p>
-        <p className="text-ink-3 mt-1 break-all text-[11px]">{urlText}</p>
-        {children}
-      </div>
-    );
-  }
-}
+        return (
+          <div
+            {...attributes}
+            contentEditable={false}
+            className="border-line bg-surface text-ink-2 my-2 rounded-xl border px-3 py-2 text-xs"
+          >
+            <p className="text-ink font-bold">{name}</p>
+            <p className="text-ink-3 mt-1 text-[11px]">{`类型: ${fileType} · 大小: ${sizeText}`}</p>
+            <p className="text-ink-3 mt-1 break-all text-[11px]">{urlText}</p>
+            {children}
+          </div>
+        );
+      },
+    }),
+  ],
+});

@@ -11,7 +11,7 @@ import type { ElementIngestSpec } from "./ingest";
 
 /**
  * 扩展 API v2（01 §5.1）：声明式描述「这个扩展贡献了什么」，内核负责装配、隔离与分发。
- * 旧 `IExtension` 经 `fromLegacyExtension` 包成这个形状，二者可以在同一个 kit 里混用。
+ * 所有扩展都是 defineExtension 的产物（旧 IExtension 适配层已删除，ER-019）。
  */
 
 export const EXTENSION_API_VERSION = 1;

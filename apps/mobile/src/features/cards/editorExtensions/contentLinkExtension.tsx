@@ -1,13 +1,12 @@
-import { Base, createInlineElementPlugin } from "@tau/editor/src";
+import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor/src";
 import { Z_INDEX } from "../../../router/zIndex";
-import type { EditorKit, IConfigItem, IExtension } from "@tau/editor/src";
+import type { EditorKit, IConfigItem } from "@tau/editor/src";
 import {
   useEffect,
   useMemo,
   useRef,
   useState,
   type ComponentType,
-  type ReactElement,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from "react";
@@ -470,26 +469,21 @@ const hoveringBarConfigs: IConfigItem[] = [
   },
 ];
 
-export class MobileContentLinkExtension extends Base implements IExtension {
-  type = "content-link";
-
-  override getPlugins() {
-    return [createInlineElementPlugin("content-link")];
-  }
-
-  override getHoveringBarElements() {
-    return hoveringBarConfigs;
-  }
-
-  render(props: any): ReactElement {
-    const { attributes, children, element } = props;
-    return (
-      <InteractiveContentLink
-        attributes={attributes}
-        element={element as unknown as ContentLinkElement}
-      >
-        {children}
-      </InteractiveContentLink>
-    );
-  }
-}
+export const mobileContentLinkExtension = defineExtension({
+  id: "host.content-link",
+  elements: [
+    defineElement({
+      type: "content-link",
+      kind: "inline",
+      render: ({ attributes, children, element }: ElementRenderProps) => (
+        <InteractiveContentLink
+          attributes={attributes}
+          element={element as unknown as ContentLinkElement}
+        >
+          {children}
+        </InteractiveContentLink>
+      ),
+    }),
+  ],
+  toolbar: hoveringBarConfigs,
+});

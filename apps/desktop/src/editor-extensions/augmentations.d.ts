@@ -5,6 +5,9 @@ import type { FileAttachmentElement } from "./file-attachment/types";
 import type { FlashcardBlankElement } from "./flashcard-blank/types";
 import type { ProjectCardListElement } from "./project-card-list/types";
 import type { WhiteboardElement } from "./whiteboard/types";
+import type { VideoScreenshotElement } from "@/components/VideoNotePanel/extensions/VideoScreenshot";
+import type { VideoTimestampElement } from "@/components/VideoNotePanel/extensions/VideoTimestamp";
+import type { SummaryTimestampElement } from "@/components/VideoNotePanel/extensions/SummaryTimestamp";
 import type {} from "@tau/editor/src/types/custom-element";
 
 declare module "@tau/editor/src/types/custom-element" {
@@ -16,12 +19,17 @@ declare module "@tau/editor/src/types/custom-element" {
     whiteboard: WhiteboardElement;
     database: DatabaseElement;
     "flashcard-blank": FlashcardBlankElement;
+    "video-screenshot": VideoScreenshotElement;
+    "video-timestamp": VideoTimestampElement;
+    "summary-timestamp": SummaryTimestampElement;
   }
 
   interface ExternalInlineElementMap {
     "content-link": ContentLinkElement;
     "skill-ref": SkillRefElement;
     "flashcard-blank": FlashcardBlankElement;
+    "video-timestamp": VideoTimestampElement;
+    "summary-timestamp": SummaryTimestampElement;
   }
 }
 

@@ -8,65 +8,49 @@
  *   那些是 desktop 的本地路径，blog 是公开站点，输出会泄露用户的目录结构。
  * - 白板 / 数据库：数据在 desktop 本机库里，不随内容发布。
  */
-import { Base, createBlockElementPlugin, createVoidElementPlugin } from "@tau/editor";
-import type { IExtension } from "@tau/editor";
+import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor";
 import { privateBlockPlaceholderText, type ContentElementType } from "@tau/shared";
-import type { ReactElement } from "react";
-import type { RenderElementProps } from "slate-react";
 
-class BlogPrivateBlock extends Base implements IExtension {
-  constructor(public readonly type: ContentElementType) {
-    super();
-  }
+const createPrivateBlockExtension = (type: ContentElementType) =>
+  defineExtension({
+    id: `host.private-block.${type}`,
+    elements: [
+      defineElement({
+        type,
+        kind: "block",
+        isVoid: true,
+        render: ({ attributes, children }: ElementRenderProps) => (
+          <div {...attributes} contentEditable={false} className="blog-private-block">
+            {privateBlockPlaceholderText(type)}
+            {children}
+          </div>
+        ),
+      }),
+    ],
+  });
 
-  override getPlugins() {
-    return [createBlockElementPlugin(this.type), createVoidElementPlugin(this.type)];
-  }
-
-  render(props: RenderElementProps): ReactElement {
-    const { attributes, children } = props;
-    return (
-      <div {...attributes} contentEditable={false} className="blog-private-block">
-        {privateBlockPlaceholderText(this.type)}
-        {children}
-      </div>
-    );
-  }
-}
-
-export class BlogWhiteboardExtension extends BlogPrivateBlock {
-  constructor() {
-    super("whiteboard");
-  }
-}
-
-export class BlogDatabaseExtension extends BlogPrivateBlock {
-  constructor() {
-    super("database");
-  }
-}
+export const blogWhiteboardExtension = createPrivateBlockExtension("whiteboard");
+export const blogDatabaseExtension = createPrivateBlockExtension("database");
 
 type FileAttachmentElement = { fileName?: string; name?: string };
 
-export class BlogFileAttachmentExtension extends Base implements IExtension {
-  type = "file-attachment";
-
-  override getPlugins() {
-    return [
-      createBlockElementPlugin("file-attachment"),
-      createVoidElementPlugin("file-attachment"),
-    ];
-  }
-
-  render(props: RenderElementProps): ReactElement {
-    const { attributes, children, element } = props;
-    const current = element as unknown as FileAttachmentElement;
-    const name = (current.fileName || current.name || "").trim();
-    return (
-      <div {...attributes} contentEditable={false} className="blog-file-attachment">
-        {name ? `附件：${name}` : "附件"}
-        {children}
-      </div>
-    );
-  }
-}
+export const blogFileAttachmentExtension = defineExtension({
+  id: "host.file-attachment",
+  elements: [
+    defineElement({
+      type: "file-attachment",
+      kind: "block",
+      isVoid: true,
+      render: ({ attributes, children, element }: ElementRenderProps) => {
+        const current = element as unknown as FileAttachmentElement;
+        const name = (current.fileName || current.name || "").trim();
+        return (
+          <div {...attributes} contentEditable={false} className="blog-file-attachment">
+            {name ? `附件：${name}` : "附件"}
+            {children}
+          </div>
+        );
+      },
+    }),
+  ],
+});

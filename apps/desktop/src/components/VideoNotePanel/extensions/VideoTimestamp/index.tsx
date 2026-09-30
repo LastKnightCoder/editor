@@ -1,6 +1,12 @@
-import { Element, Editor, Transforms, Node, Path, Text } from "slate";
+import { Editor, Node, Path, Text, Transforms } from "slate";
 import { VideoController } from "../../VideoController";
-import { IExtension, IHotKeyConfig } from "@tau/editor/src";
+import {
+  defineElement,
+  defineExtension,
+  type EditorCommand,
+  type ElementRenderProps,
+  type Plugin,
+} from "@tau/editor/src";
 import { ReactEditor } from "slate-react";
 import VideoTimestamp from "./components/VideoTimestamp";
 
@@ -32,36 +38,17 @@ const createTimestampElement = async (
   };
 };
 
-// Plugins
-const createInlineElementPlugin = (type: string) => {
-  return (editor: Editor) => {
-    const { isInline } = editor;
-    editor.isInline = element => {
-      return element.type === type ? true : isInline(element);
-    };
-    return editor;
-  };
-};
-
-const createVoidElementPlugin = (type: string) => {
-  return (editor: Editor) => {
-    const { isVoid } = editor;
-    editor.isVoid = element => {
-      return element.type === type ? true : isVoid(element);
-    };
-    return editor;
-  };
-};
-
-const createInlineNormalizePlugin = (type: string) => {
-  return (editor: Editor) => {
+/** 行内 void 两侧补零宽字符（光标落点守护；与内核 inline-math 的规则同款） */
+const withInlineVoidPadding =
+  (type: string): Plugin =>
+  editor => {
     const { normalizeNode } = editor;
+    const zeroWidthChar = "\uFEFF";
 
     editor.normalizeNode = entry => {
-      const zeroWidthChar = "\uFEFF";
       const [node, path] = entry;
 
-      if ((node as any).type === type) {
+      if ((node as { type?: string }).type === type) {
         const parentNode = Node.parent(editor, path);
         const isFirstChild = !Path.hasPrevious(path);
         const isLastChild = path[path.length - 1] === parentNode.children.length - 1;
@@ -71,23 +58,23 @@ const createInlineNormalizePlugin = (type: string) => {
         let hasPreviousAdjacentInlineVoid = false;
         if (!isFirstChild) {
           const prevSibling = Node.get(editor, Path.previous(path));
-          hasPreviousAdjacentInlineVoid = (prevSibling as any).type === type;
+          hasPreviousAdjacentInlineVoid = (prevSibling as { type?: string }).type === type;
         }
 
         if (isLastChild) {
-          Transforms.insertNodes(editor, { type: "formatted", text: zeroWidthChar } as any, {
+          Transforms.insertNodes(editor, { type: "formatted", text: zeroWidthChar } as never, {
             at: nextPath,
           });
         }
         if (isFirstChild || hasPreviousAdjacentInlineVoid) {
-          Transforms.insertNodes(editor, { type: "formatted", text: zeroWidthChar } as any, {
+          Transforms.insertNodes(editor, { type: "formatted", text: zeroWidthChar } as never, {
             at: path,
           });
         }
       }
 
-      if (Text.isText(node) && (node as any).type !== "formatted") {
-        Transforms.setNodes(editor, { type: "formatted" } as any, { at: path });
+      if (Text.isText(node) && (node as { type?: string }).type !== "formatted") {
+        Transforms.setNodes(editor, { type: "formatted" } as never, { at: path });
         return;
       }
 
@@ -96,7 +83,6 @@ const createInlineNormalizePlugin = (type: string) => {
 
     return editor;
   };
-};
 
 /** 在光标处插入当前播放时间戳（无选区时落到文末）；快捷键与工具栏按钮共用 */
 export const insertVideoTimestamp = async (editor: Editor, videoController: VideoController) => {
@@ -104,62 +90,38 @@ export const insertVideoTimestamp = async (editor: Editor, videoController: Vide
   const timestampNode = await createTimestampElement(videoController);
 
   Transforms.collapse(editor, { edge: "end" });
-  Transforms.insertNodes(editor, timestampNode as any);
-  Transforms.insertNodes(editor, { type: "formatted", text: "" } as any);
+  Transforms.insertNodes(editor, timestampNode as never);
+  Transforms.insertNodes(editor, { type: "formatted", text: "" } as never);
   ReactEditor.focus(editor);
 };
 
-// Hotkey
-const createTimestampHotkey = (videoController: VideoController): IHotKeyConfig => {
-  return {
-    hotKey: "mod+shift+t",
-    action: async (editor: Editor) => {
-      if (!editor.selection) return;
-      await insertVideoTimestamp(editor, videoController);
-    },
-  };
-};
+const timestampCommand = (videoController: VideoController): EditorCommand => ({
+  id: "host.video-note.timestamp",
+  title: "插入当前时间戳",
+  run: async editor => {
+    if (!editor.selection) return;
+    await insertVideoTimestamp(editor, videoController);
+  },
+});
 
-class VideoTimestampExtension implements IExtension {
-  type = "video-timestamp";
-
-  constructor(private videoController: VideoController) {}
-
-  getPlugins() {
-    return [
-      createInlineElementPlugin(this.type),
-      createVoidElementPlugin(this.type),
-      createInlineNormalizePlugin(this.type),
-    ];
-  }
-
-  getHotkeyConfigs(): IHotKeyConfig[] {
-    return [createTimestampHotkey(this.videoController)];
-  }
-
-  render(props: any) {
-    return (
-      <VideoTimestamp
-        {...props}
-        onSeek={this.videoController.seekTo}
-        videoController={this.videoController}
-      />
-    );
-  }
-
-  getBlockPanelItems() {
-    return [];
-  }
-
-  getHoveringBarElements() {
-    return [];
-  }
-
-  toMarkdown(node: Element) {
-    const text = (node.children as any[]).map(child => child.text).join("");
-    return `[${text}](时间戳:${(node as any).time})`;
-  }
-}
+export const createVideoTimestampExtension = (videoController: VideoController) =>
+  defineExtension({
+    id: "host.video-timestamp",
+    elements: [
+      defineElement({
+        type: "video-timestamp",
+        kind: "inline",
+        isVoid: true,
+        render: ({ attributes, element, children }: ElementRenderProps<VideoTimestampElement>) => (
+          <VideoTimestamp attributes={attributes} element={element} onSeek={videoController.seekTo}>
+            {children}
+          </VideoTimestamp>
+        ),
+      }),
+    ],
+    plugins: [withInlineVoidPadding("video-timestamp")],
+    commands: [timestampCommand(videoController)],
+    hotkeys: [{ key: "mod+shift+t", command: "host.video-note.timestamp" }],
+  });
 
 export { formatTimestamp };
-export default VideoTimestampExtension;
