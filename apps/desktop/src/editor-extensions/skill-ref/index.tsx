@@ -4,16 +4,17 @@
  * `/` 仍归编辑器的块命令面板，两者互不干扰。
  */
 
-import { Editor } from "slate";
-import type { RenderElementProps } from "slate-react";
+import type { Editor } from "slate";
 import { Sparkles } from "lucide-react";
 import {
-  Base,
-  createInlineElementPlugin,
-  createVoidElementPlugin,
-  type IExtension,
-  type IHotKeyConfig,
+  defineElement,
+  defineExtension,
+  type EditorCommand,
+  type EditorHotkey,
+  type ElementBehaviors,
+  type ElementRenderProps,
 } from "@tau/editor/src";
+import type { ParagraphElement } from "@tau/editor/src";
 import type { SkillRefElement } from "./types";
 import {
   closeSkillPicker,
@@ -26,60 +27,56 @@ import {
 
 export type { SkillRefElement } from "./types";
 
-const withSkillTrigger = (editor: Editor) => {
-  const { insertText, deleteBackward } = editor;
-
-  editor.insertText = text => {
-    if (text === "$") {
-      openSkillPicker(editor);
-    } else if (isPickerOpenFor(editor)) {
-      if (/\s/.test(text)) closeSkillPicker();
-      else useSkillPickerStore.setState(s => ({ query: s.query + text, activeIndex: 0 }));
-    }
-    insertText(text);
-  };
-
-  editor.deleteBackward = unit => {
-    if (isPickerOpenFor(editor)) {
-      const { query } = useSkillPickerStore.getState();
-      if (!query) closeSkillPicker();
-      else useSkillPickerStore.setState({ query: query.slice(0, -1), activeIndex: 0 });
-    }
-    deleteBackward(unit);
-  };
-
-  return editor;
+/** 段落里输入 $ 打开 Skill 列表；列表开着时其他输入更新 query、空白关闭。文本本身交给默认行为 */
+const insertText: ElementBehaviors<ParagraphElement>["insertText"] = (editor, _entry, text) => {
+  if (text === "$") {
+    openSkillPicker(editor);
+  } else if (isPickerOpenFor(editor)) {
+    if (/\s/.test(text)) closeSkillPicker();
+    else useSkillPickerStore.setState(s => ({ query: s.query + text, activeIndex: 0 }));
+  }
+  return false;
 };
 
-const pickerHotkeys: IHotKeyConfig[] = [
-  {
-    hotKey: "esc",
-    action: (editor, event) => {
-      if (!isPickerOpenFor(editor)) return;
-      closeSkillPicker();
-      event.preventDefault();
-      event.stopPropagation();
-    },
+/** 列表开着时退格同步缩减 query；字符删除交给默认行为 */
+const deleteBackward: ElementBehaviors<ParagraphElement>["deleteBackward"] = editor => {
+  if (isPickerOpenFor(editor)) {
+    const { query } = useSkillPickerStore.getState();
+    if (!query) closeSkillPicker();
+    else useSkillPickerStore.setState({ query: query.slice(0, -1), activeIndex: 0 });
+  }
+  return false;
+};
+
+const skillRefForParagraph: ElementBehaviors<ParagraphElement> = {
+  insertText,
+  deleteBackward,
+};
+
+const pickerCommand = (
+  id: string,
+  title: string,
+  run: (editor: Editor) => void,
+  stop = false
+): EditorCommand => ({
+  id,
+  title,
+  run: (editor, ctx) => {
+    if (!isPickerOpenFor(editor)) return;
+    run(editor);
+    ctx.event?.preventDefault();
+    if (stop) ctx.event?.stopPropagation();
   },
+});
+
+export const skillPickerCommands: EditorCommand[] = [
+  pickerCommand("host.skill-ref.dismiss", "关闭 Skill 列表", closeSkillPicker, true),
+  pickerCommand("host.skill-ref.next", "Skill 列表下一项", () => moveSkillPickerActive(true)),
+  pickerCommand("host.skill-ref.prev", "Skill 列表上一项", () => moveSkillPickerActive(false)),
   {
-    hotKey: "down",
-    action: (editor, event) => {
-      if (!isPickerOpenFor(editor)) return;
-      moveSkillPickerActive(true);
-      event.preventDefault();
-    },
-  },
-  {
-    hotKey: "up",
-    action: (editor, event) => {
-      if (!isPickerOpenFor(editor)) return;
-      moveSkillPickerActive(false);
-      event.preventDefault();
-    },
-  },
-  {
-    hotKey: ["enter", "tab"],
-    action: (editor, event) => {
+    id: "host.skill-ref.confirm",
+    title: "Skill 列表确认",
+    run: (editor, ctx) => {
       if (!isPickerOpenFor(editor)) return;
       const { items, activeIndex } = useSkillPickerStore.getState();
       const item = items[activeIndex];
@@ -87,40 +84,43 @@ const pickerHotkeys: IHotKeyConfig[] = [
         closeSkillPicker();
         return;
       }
-      event.preventDefault();
-      event.stopPropagation();
+      ctx.event?.preventDefault();
+      ctx.event?.stopPropagation();
       selectSkill(item);
     },
   },
 ];
 
-class SkillRefExtension extends Base implements IExtension {
-  type = "skill-ref";
+export const skillPickerHotkeys: EditorHotkey[] = [
+  { key: "escape", command: "host.skill-ref.dismiss" },
+  { key: "ArrowDown", command: "host.skill-ref.next" },
+  { key: "ArrowUp", command: "host.skill-ref.prev" },
+  { key: ["enter", "tab"], command: "host.skill-ref.confirm" },
+];
 
-  override getPlugins() {
-    return [
-      createInlineElementPlugin("skill-ref"),
-      createVoidElementPlugin("skill-ref"),
-      withSkillTrigger,
-    ];
-  }
-
-  override getHotkeyConfigs() {
-    return pickerHotkeys;
-  }
-
-  render({ attributes, children, element }: RenderElementProps) {
-    const skill = element as unknown as SkillRefElement;
-    return (
-      <span {...attributes} contentEditable={false} className="mx-px inline-block align-baseline">
-        <span className="bg-accent-soft text-accent-text text-tau-sm inline-flex h-[22px] items-center gap-1 rounded-full px-2 font-medium leading-none">
-          <Sparkles className="size-3" strokeWidth={2} />
-          {skill.name}
+const skillRefExtension = defineExtension({
+  id: "host.skill-ref",
+  elements: [
+    defineElement<SkillRefElement>({
+      type: "skill-ref",
+      kind: "inline",
+      isVoid: true,
+      render: ({ attributes, element, children }: ElementRenderProps<SkillRefElement>) => (
+        <span {...attributes} contentEditable={false} className="mx-px inline-block align-baseline">
+          <span className="bg-accent-soft text-accent-text text-tau-sm inline-flex h-[22px] items-center gap-1 rounded-full px-2 font-medium leading-none">
+            <Sparkles className="size-3" strokeWidth={2} />
+            {element.name}
+          </span>
+          {children}
         </span>
-        {children}
-      </span>
-    );
-  }
-}
+      ),
+    }),
+  ],
+  commands: skillPickerCommands,
+  hotkeys: skillPickerHotkeys,
+  behaviorsFor: {
+    paragraph: skillRefForParagraph,
+  },
+});
 
-export default SkillRefExtension;
+export default skillRefExtension;

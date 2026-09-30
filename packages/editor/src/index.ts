@@ -102,6 +102,9 @@ export {
   type ElementSpec,
   type ElementBehaviors,
   type ElementRenderProps,
+  type EditorCommand,
+  type EditorCommandContext,
+  type EditorHotkey,
 } from "./api";
 export { default as Base } from "./extensions/base";
 

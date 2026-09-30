@@ -16,7 +16,7 @@ export const editorPanels = new WeakMap<
 >();
 
 // 创建面板
-function createPanel(editor: Editor) {
+export function createPanel(editor: Editor) {
   const existing = editorPanels.get(editor);
   if (existing) {
     return existing;

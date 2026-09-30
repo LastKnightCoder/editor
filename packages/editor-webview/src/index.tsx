@@ -1,5 +1,4 @@
-import { RenderElementProps } from "slate-react";
-import { Base, IExtension, createVoidElementPlugin, createBlockElementPlugin } from "@tau/editor";
+import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor";
 import type { WebviewElement } from "./types";
 import type {} from "./augmentations";
 
@@ -7,33 +6,27 @@ import WebviewComponent from "./WebviewComponent";
 import blockPanelItems from "./block-panel-items";
 import { webviewCommands, webviewMenuItems } from "./menu";
 
-export class WebviewExtension extends Base implements IExtension {
-  type = "webview";
+const webviewExtension = defineExtension({
+  id: "tau.webview",
+  elements: [
+    defineElement<WebviewElement>({
+      type: "webview",
+      kind: "block",
+      isVoid: true,
+      render: ({ attributes, element, children }: ElementRenderProps<WebviewElement>) => (
+        <WebviewComponent element={element} attributes={attributes}>
+          {children}
+        </WebviewComponent>
+      ),
+      drag: true,
+    }),
+  ],
+  blockPanel: blockPanelItems,
+  commands: webviewCommands,
+  menu: webviewMenuItems,
+});
 
-  override commands = webviewCommands;
-  override menuItems = webviewMenuItems;
-  override dragSpec = true;
-
-  override getBlockPanelItems() {
-    return blockPanelItems;
-  }
-
-  override getPlugins() {
-    return [createBlockElementPlugin(this.type), createVoidElementPlugin(this.type)];
-  }
-
-  render(props: RenderElementProps) {
-    const { element, children, attributes } = props;
-
-    return (
-      <WebviewComponent element={element as unknown as WebviewElement} attributes={attributes}>
-        {children}
-      </WebviewComponent>
-    );
-  }
-}
-
-export default WebviewExtension;
+export default webviewExtension;
 
 export type { WebviewElement } from "./types";
 export { WebLinkSourceType } from "./types";

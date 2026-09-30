@@ -16,16 +16,15 @@ import {
   createEditorKit,
   type AnyExtension,
   type EditorKit,
-  type IExtension,
 } from "@tau/editor/src";
 import { inlineMath, link, paragraph } from "@tau/editor/src/extensions";
 import { createDesktopEditorExtensions, fileAttachmentExtension } from "@/editor-extensions";
-import FlashcardBlankExtension from "@/editor-extensions/flashcard-blank";
+import flashcardBlankExtension from "@/editor-extensions/flashcard-blank";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { desktopEditorServices } from "./editorRegistry";
 
 /** 异步装载的宿主扩展必须先就位：kit 只建一次，少拿了就整个应用少几种块，且不会报错 */
-function requireHostExtensions(): IExtension[] {
+function requireHostExtensions(): AnyExtension[] {
   const state = useDynamicExtensionsStore.getState();
   if (!state.initialized) {
     throw new Error(
@@ -95,7 +94,7 @@ export function getSkillFileKit(): EditorKit {
   return createDesktopKit();
 }
 
-let flashcardBlank: IExtension | null = null;
+let flashcardBlank: AnyExtension | null = null;
 
 /**
  * 闪卡正文与背面：只多一个填空元素。
@@ -103,7 +102,7 @@ let flashcardBlank: IExtension | null = null;
  */
 export function getFlashcardKit({ blanks = true }: { blanks?: boolean } = {}): EditorKit {
   if (!blanks) return createDesktopKit();
-  flashcardBlank ??= new FlashcardBlankExtension();
+  flashcardBlank ??= flashcardBlankExtension;
   return createDesktopKit([flashcardBlank]);
 }
 

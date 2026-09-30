@@ -1,26 +1,22 @@
-import { RenderElementProps } from "slate-react";
-import { Base, IExtension } from "@tau/editor/src";
+import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor/src";
 import type { FlashcardBlankElement } from "./types";
 import FlashcardBlank from "./components/FlashcardBlank";
-import { withSetting } from "./plugins";
 export type { FlashcardBlankElement } from "./types";
 
-class FlashcardBlankExtension extends Base implements IExtension {
-  type = "flashcard-blank";
+const flashcardBlankExtension = defineExtension({
+  id: "host.flashcard-blank",
+  elements: [
+    // flashcard-blank 不是 void 元素，可以包含文本（不设 isVoid）
+    defineElement<FlashcardBlankElement>({
+      type: "flashcard-blank",
+      kind: "inline",
+      render: ({ attributes, element, children }: ElementRenderProps<FlashcardBlankElement>) => (
+        <FlashcardBlank attributes={attributes} element={element}>
+          {children}
+        </FlashcardBlank>
+      ),
+    }),
+  ],
+});
 
-  override getPlugins() {
-    return [withSetting];
-  }
-
-  render(props: RenderElementProps) {
-    const { attributes, children, element } = props;
-
-    return (
-      <FlashcardBlank attributes={attributes} element={element as unknown as FlashcardBlankElement}>
-        {children}
-      </FlashcardBlank>
-    );
-  }
-}
-
-export default FlashcardBlankExtension;
+export default flashcardBlankExtension;

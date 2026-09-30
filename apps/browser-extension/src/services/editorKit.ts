@@ -2,7 +2,7 @@
  * 浏览器扩展的 EditorKit：服务依赖 WebSocket 连接，所以按 wsClient 建一个。
  */
 import { createEditorKit, createMarkdownPasteImportExtension, type EditorKit } from "@tau/editor";
-import WebviewExtension from "@tau/editor-webview";
+import webviewExtension from "@tau/editor-webview";
 import type WebSocketClient from "../utils/WebSocketClient";
 import { createExtensionEditorServices, extensionImportFromMarkdown } from "./editorRegistry";
 import {
@@ -22,7 +22,7 @@ export function getExtensionKit(wsClient?: WebSocketClient | null): EditorKit {
       // 笔记会被 desktop 那边的内容覆盖写回，所以这四种块都要能渲染
       extensions: [
         createMarkdownPasteImportExtension(extensionImportFromMarkdown),
-        new WebviewExtension(),
+        webviewExtension,
         new ExtensionContentLinkExtension(),
         new ExtensionFileAttachmentExtension(),
         new ExtensionWhiteboardExtension(),

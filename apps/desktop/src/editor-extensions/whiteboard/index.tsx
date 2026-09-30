@@ -1,33 +1,28 @@
-import { RenderElementProps } from "slate-react";
-import { Base, IExtension } from "@tau/editor/src";
+import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor/src";
 import Whiteboard from "./components/Whiteboard";
 import { withSetting } from "./plugins";
 import blockPanelItems from "./block-panel-items";
 import type { WhiteboardElement } from "./types";
 export type { WhiteboardElement } from "./types";
-import { createBlockElementPlugin, createVoidElementPlugin } from "@tau/editor/src";
 
-class WhiteboardExtension extends Base implements IExtension {
-  type = "whiteboard";
+const whiteboardExtension = defineExtension({
+  id: "host.whiteboard",
+  elements: [
+    defineElement<WhiteboardElement>({
+      type: "whiteboard",
+      kind: "block",
+      isVoid: true,
+      render: ({ attributes, element, children }: ElementRenderProps<WhiteboardElement>) => (
+        <Whiteboard attributes={attributes} element={element}>
+          {children}
+        </Whiteboard>
+      ),
+      drag: true,
+    }),
+  ],
+  blockPanel: blockPanelItems,
+  // 白板删除/插入的引用计数走 apply（编辑器级方法），保留为受信任层插件
+  plugins: [withSetting],
+});
 
-  override dragSpec = true;
-
-  override getBlockPanelItems() {
-    return blockPanelItems;
-  }
-
-  override getPlugins() {
-    return [withSetting, createBlockElementPlugin(this.type), createVoidElementPlugin(this.type)];
-  }
-
-  render(props: RenderElementProps) {
-    const { attributes, children, element } = props;
-    return (
-      <Whiteboard attributes={attributes} element={element as unknown as WhiteboardElement}>
-        {children}
-      </Whiteboard>
-    );
-  }
-}
-
-export default WhiteboardExtension;
+export default whiteboardExtension;

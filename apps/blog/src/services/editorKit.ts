@@ -2,7 +2,7 @@
  * Blog 的 EditorKit：图片外观来自发布设置，所以按设置快照建一个（同一快照复用同一个 kit）。
  */
 import { createEditorKit, createImageExtensions, type EditorKit } from "@tau/editor";
-import WebviewExtension from "@tau/editor-webview";
+import webviewExtension from "@tau/editor-webview";
 import { blogContentLinkExtension } from "../editorExtensions/contentLinkExtension";
 import {
   blogEditorServices,
@@ -18,7 +18,7 @@ export function getBlogKit(settings?: BlogPublishSettings): EditorKit {
     kit = createEditorKit({
       extensions: [
         blogContentLinkExtension,
-        new WebviewExtension(),
+        webviewExtension,
         ...createImageExtensions({ appearance: getBlogImageAppearance(settings) }),
       ],
       services: [blogEditorServices],
