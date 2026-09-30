@@ -1,13 +1,14 @@
-import { IHotKeyConfig } from "../types";
+import type { EditorCommand, EditorHotkey } from "../api/command";
 import useBlockPanelStore from "../stores/useBlockPanelStore";
 
-export const slashCommandConfig: IHotKeyConfig[] = [
+/** 块面板（斜杠菜单）打开时的键盘管理。未命中（面板不可见或不归当前编辑器）时不拦默认 */
+export const slashCommandCommands: EditorCommand[] = [
   {
-    hotKey: "backspace",
-    action: (editor) => {
+    id: "tau.panel.backspace",
+    title: "块面板删除字符",
+    run: editor => {
       // 关闭 blockPanel
-      const { blockPanelVisible, ownerEditor, inputValue, reset } =
-        useBlockPanelStore.getState();
+      const { blockPanelVisible, ownerEditor, inputValue, reset } = useBlockPanelStore.getState();
       if (blockPanelVisible && ownerEditor === editor) {
         if (inputValue.length <= 1) {
           reset();
@@ -31,59 +32,52 @@ export const slashCommandConfig: IHotKeyConfig[] = [
     },
   },
   {
-    hotKey: "down",
-    action: (editor, event) => {
+    id: "tau.panel.next",
+    title: "块面板下一项",
+    run: (editor, ctx) => {
       // 选择下一个
-      const { blockPanelVisible, ownerEditor, setActiveIndex } =
-        useBlockPanelStore.getState();
+      const { blockPanelVisible, ownerEditor, setActiveIndex } = useBlockPanelStore.getState();
       if (blockPanelVisible && ownerEditor === editor) {
         setActiveIndex(true);
-        event.preventDefault();
+        ctx.event?.preventDefault();
       }
     },
   },
   {
-    hotKey: "up",
-    action: (editor, event) => {
+    id: "tau.panel.prev",
+    title: "块面板上一项",
+    run: (editor, ctx) => {
       // 选择上一个
-      const { blockPanelVisible, ownerEditor, setActiveIndex } =
-        useBlockPanelStore.getState();
+      const { blockPanelVisible, ownerEditor, setActiveIndex } = useBlockPanelStore.getState();
       if (blockPanelVisible && ownerEditor === editor) {
         setActiveIndex(false);
-        event.preventDefault();
+        ctx.event?.preventDefault();
       }
     },
   },
   {
-    hotKey: "enter",
-    action: (editor, event) => {
-      const {
-        blockPanelVisible,
-        ownerEditor,
-        selectItem,
-        getActiveItem,
-        enterSubmenu,
-      } = useBlockPanelStore.getState();
+    id: "tau.panel.confirm",
+    title: "块面板确认",
+    run: (editor, ctx) => {
+      const { blockPanelVisible, ownerEditor, selectItem, getActiveItem, enterSubmenu } =
+        useBlockPanelStore.getState();
       if (blockPanelVisible && ownerEditor === editor) {
         const currentItem = getActiveItem();
 
         // 如果当前项有子菜单且没有 onClick，进入子菜单
-        if (
-          currentItem?.children &&
-          currentItem.children.length > 0 &&
-          !currentItem.onClick
-        ) {
+        if (currentItem?.children && currentItem.children.length > 0 && !currentItem.onClick) {
           enterSubmenu();
         } else {
           selectItem(editor);
         }
-        event.preventDefault();
+        ctx.event?.preventDefault();
       }
     },
   },
   {
-    hotKey: "right",
-    action: (editor, event) => {
+    id: "tau.panel.enter-submenu",
+    title: "块面板进入子菜单",
+    run: (editor, ctx) => {
       const { blockPanelVisible, ownerEditor, getActiveItem, enterSubmenu } =
         useBlockPanelStore.getState();
       if (!blockPanelVisible || ownerEditor !== editor) return;
@@ -91,23 +85,29 @@ export const slashCommandConfig: IHotKeyConfig[] = [
       const currentItem = getActiveItem();
       if (currentItem?.children && currentItem.children.length > 0) {
         enterSubmenu();
-        event.preventDefault();
+        ctx.event?.preventDefault();
       }
     },
   },
   {
-    hotKey: "left",
-    action: (editor, event) => {
+    id: "tau.panel.exit-submenu",
+    title: "块面板退出子菜单",
+    run: (editor, ctx) => {
       const { blockPanelVisible, ownerEditor, activePath, exitSubmenu } =
         useBlockPanelStore.getState();
-      if (
-        blockPanelVisible &&
-        ownerEditor === editor &&
-        activePath.length > 1
-      ) {
+      if (blockPanelVisible && ownerEditor === editor && activePath.length > 1) {
         exitSubmenu();
-        event.preventDefault();
+        ctx.event?.preventDefault();
       }
     },
   },
+];
+
+export const slashCommandHotkeys: EditorHotkey[] = [
+  { key: "backspace", command: "tau.panel.backspace" },
+  { key: "ArrowDown", command: "tau.panel.next" },
+  { key: "ArrowUp", command: "tau.panel.prev" },
+  { key: "enter", command: "tau.panel.confirm" },
+  { key: "right", command: "tau.panel.enter-submenu" },
+  { key: "left", command: "tau.panel.exit-submenu" },
 ];

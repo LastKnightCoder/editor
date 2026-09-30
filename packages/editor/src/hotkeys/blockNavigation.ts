@@ -1,6 +1,5 @@
-import React from "react";
 import { Editor, Element as SlateElement, Range, NodeEntry } from "slate";
-import { IHotKeyConfig } from "../types";
+import type { EditorCommand, EditorHotkey } from "../api/command";
 import {
   focusPreviousBlock,
   focusNextBlock,
@@ -17,7 +16,7 @@ const getCurrentBlockEntry = (editor: Editor) => {
     return null;
   }
   const blockEntry = Editor.above(editor, {
-    match: (n) => SlateElement.isElement(n) && editor.isBlock(n),
+    match: n => SlateElement.isElement(n) && editor.isBlock(n),
   });
   if (!blockEntry) {
     return null;
@@ -25,11 +24,10 @@ const getCurrentBlockEntry = (editor: Editor) => {
   return blockEntry as NodeEntry<SlateElement>;
 };
 
-const createArrowHandler = (direction: BlockNavigationMeta["direction"]) => {
-  return (editor: Editor, event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.defaultPrevented) {
-      return;
-    }
+const createArrowCommand = (direction: BlockNavigationMeta["direction"]): EditorCommand => ({
+  id: direction === "backward" ? "tau.edit.block-up" : "tau.edit.block-down",
+  title: direction === "backward" ? "聚焦上一块" : "聚焦下一块",
+  run: (editor, ctx) => {
     const { blockPanelVisible, ownerEditor } = useBlockPanelStore.getState();
     if (blockPanelVisible && ownerEditor === editor) {
       return;
@@ -40,9 +38,7 @@ const createArrowHandler = (direction: BlockNavigationMeta["direction"]) => {
       return;
     }
 
-    if (
-      hasAncestorBlockType(editor, blockEntry[1], ["tabs", "multi-column-item"])
-    ) {
+    if (hasAncestorBlockType(editor, blockEntry[1], ["tabs", "multi-column-item"])) {
       return;
     }
 
@@ -66,8 +62,7 @@ const createArrowHandler = (direction: BlockNavigationMeta["direction"]) => {
     }
     const [siblingNode] = siblingEntry;
     const isVoidSibling = editor.isVoid(siblingNode);
-    const hasNavigator =
-      SlateElement.isElement(siblingNode) && hasBlockNavigation(siblingNode);
+    const hasNavigator = SlateElement.isElement(siblingNode) && hasBlockNavigation(siblingNode);
     if (!isVoidSibling && !hasNavigator) {
       return;
     }
@@ -81,18 +76,17 @@ const createArrowHandler = (direction: BlockNavigationMeta["direction"]) => {
         ? focusPreviousBlock(editor, blockEntry[1], meta)
         : focusNextBlock(editor, blockEntry[1], meta);
     if (focused) {
-      event.preventDefault();
+      ctx.event?.preventDefault();
     }
-  };
-};
+  },
+});
 
-export const blockNavigationHotkeys: IHotKeyConfig[] = [
-  {
-    hotKey: "up",
-    action: createArrowHandler("backward"),
-  },
-  {
-    hotKey: "down",
-    action: createArrowHandler("forward"),
-  },
+export const blockNavigationCommands: EditorCommand[] = [
+  createArrowCommand("backward"),
+  createArrowCommand("forward"),
+];
+
+export const blockNavigationHotkeys: EditorHotkey[] = [
+  { key: "ArrowUp", command: "tau.edit.block-up" },
+  { key: "ArrowDown", command: "tau.edit.block-down" },
 ];
