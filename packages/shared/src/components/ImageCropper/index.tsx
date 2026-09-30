@@ -8,12 +8,8 @@ import {
   MdZoomOut,
 } from "react-icons/md";
 import "cropperjs";
-import CustomModal from "../CustomModal";
-import type {
-  ImageCropperProps,
-  AspectRatioPreset,
-  CropperTransform,
-} from "./types";
+import { Button, Checkbox, Dialog, IconButton, Select, Tooltip } from "@tau/ui";
+import type { ImageCropperProps, AspectRatioPreset, CropperTransform } from "./types";
 import type {
   CropperCanvasElement,
   CropperImageElement,
@@ -22,9 +18,6 @@ import type {
   CropperCrosshairElement,
   CropperShadeElement,
 } from "./cropper-types";
-import IconButton from "./components/IconButton";
-import Dropdown, { DropdownOption } from "./components/Dropdown";
-import CustomCheckbox from "../CustomCheckbox";
 
 const ImageCropper: React.FC<ImageCropperProps> = ({
   open,
@@ -33,7 +26,6 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
   initialTransform,
   onConfirm,
   alt = "",
-  isDark = false,
 }) => {
   // Refs for cropperjs Web Components
   const canvasContainerRef = useRef<HTMLDivElement>(null);
@@ -46,11 +38,9 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
 
   // State
   const [aspectRatio, setAspectRatio] = useState<number | undefined>(
-    initialTransform?.selection.aspectRatio,
+    initialTransform?.selection.aspectRatio
   );
-  const [rotation, setRotation] = useState<number>(
-    initialTransform?.rotation || 0,
-  );
+  const [rotation, setRotation] = useState<number>(initialTransform?.rotation || 0);
   const [showGrid, setShowGrid] = useState<boolean>(true);
   const [showCrosshair, setShowCrosshair] = useState<boolean>(false);
   const [selectionSize, setSelectionSize] = useState<{
@@ -71,30 +61,25 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
     { label: "21:9 (超宽)", value: 21 / 9 },
   ];
 
-  const dropdownOptions: DropdownOption[] = aspectRatioPresets.map(
-    (preset) => ({
-      label: preset.label,
-      value: preset.value === undefined ? "free" : preset.value,
-    }),
-  );
+  const aspectRatioOptions = aspectRatioPresets.map(preset => ({
+    label: preset.label,
+    value: preset.value === undefined ? "free" : preset.value,
+  }));
 
   // Initialize cropperjs Web Components
   useEffect(() => {
     if (!open || !canvasContainerRef.current) return;
 
     // Create elements
-    const canvas = document.createElement(
-      "cropper-canvas",
-    ) as CropperCanvasElement;
+    const canvas = document.createElement("cropper-canvas") as CropperCanvasElement;
     canvas.setAttribute("background", "true");
-    canvas.setAttribute("theme-color", isDark ? "#666" : "#6366f1");
+    // cropperjs 把它写进 :host 的 --theme-color，var() 在宿主上下文解析，随主题切换
+    canvas.setAttribute("theme-color", "var(--tau-accent)");
     canvas.style.width = "100%";
     canvas.style.height = "100%";
     canvas.style.display = "block";
 
-    const image = document.createElement(
-      "cropper-image",
-    ) as CropperImageElement;
+    const image = document.createElement("cropper-image") as CropperImageElement;
     image.setAttribute("src", imageUrl);
     image.setAttribute("alt", alt);
     image.setAttribute("rotatable", "true");
@@ -103,13 +88,9 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
     image.setAttribute("crossorigin", "anonymous");
     image.setAttribute("initial-center-size", "contain"); // 图片初始居中显示
 
-    const shade = document.createElement(
-      "cropper-shade",
-    ) as CropperShadeElement;
+    const shade = document.createElement("cropper-shade") as CropperShadeElement;
 
-    const selection = document.createElement(
-      "cropper-selection",
-    ) as CropperSelectionElement;
+    const selection = document.createElement("cropper-selection") as CropperSelectionElement;
     selection.setAttribute("initial-coverage", "0.95"); // 增大裁剪区域
     selection.setAttribute("movable", "true");
     selection.setAttribute("resizable", "true");
@@ -127,9 +108,7 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
     }
 
     // Add crosshair
-    const crosshair = document.createElement(
-      "cropper-crosshair",
-    ) as CropperCrosshairElement;
+    const crosshair = document.createElement("cropper-crosshair") as CropperCrosshairElement;
     crosshair.setAttribute("centered", "true");
     if (!showCrosshair) {
       crosshair.setAttribute("hidden", "true");
@@ -158,7 +137,7 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
       "se-resize",
       "sw-resize",
     ];
-    handleActions.forEach((action) => {
+    handleActions.forEach(action => {
       const handle = document.createElement("cropper-handle");
       handle.setAttribute("action", action);
       selection.appendChild(handle);
@@ -238,7 +217,7 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
       crosshairRef.current = null;
       shadeRef.current = null;
     };
-  }, [open, imageUrl, alt, isDark, initialTransform]);
+  }, [open, imageUrl, alt, initialTransform]);
 
   // Handle grid visibility separately to avoid re-creating cropper
   useEffect(() => {
@@ -414,8 +393,8 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
       }
 
       // Convert to blob
-      const blob = await new Promise<Blob | null>((resolve) => {
-        canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.95);
+      const blob = await new Promise<Blob | null>(resolve => {
+        canvas.toBlob(blob => resolve(blob), "image/jpeg", 0.95);
       });
 
       if (!blob) {
@@ -433,138 +412,105 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
     }
   };
 
+  const toolButton = (title: string, icon: React.ReactNode, onClick: () => void) => (
+    <Tooltip content={title}>
+      <IconButton aria-label={title} onClick={onClick} className="[&_svg]:size-[18px]">
+        {icon}
+      </IconButton>
+    </Tooltip>
+  );
+
+  const toolGroupLabel = "text-ink-3 text-tau-meta whitespace-nowrap";
+
   return (
-    <CustomModal
+    <Dialog
       open={open}
-      onCancel={onCancel}
-      onOk={handleConfirm}
+      onOpenChange={next => !next && onCancel()}
+      locked={confirmLoading}
       title="裁剪图片"
-      width={1200}
-      okText="确定"
-      cancelText="取消"
-      confirmLoading={confirmLoading}
-      destroyOnClose
+      width={1100}
+      height={780}
+      footer={
+        <>
+          <Button variant="secondary" size="sm" onClick={onCancel} disabled={confirmLoading}>
+            取消
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            loading={confirmLoading}
+            loadingText="裁剪中…"
+            onClick={handleConfirm}
+          >
+            确定
+          </Button>
+        </>
+      }
     >
-      {/* Toolbar */}
-      <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-zinc-800/50 rounded-lg mb-4 flex-wrap">
-        {/* Aspect Ratio */}
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-gray-600 dark:text-slate-400 whitespace-nowrap font-medium">
-            宽高比
-          </label>
-          <Dropdown
-            options={dropdownOptions}
-            value={aspectRatio === undefined ? "free" : aspectRatio}
-            onChange={handleAspectRatioChange}
-          />
-        </div>
-
-        {/* Rotation */}
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-gray-600 dark:text-slate-400 whitespace-nowrap font-medium">
-            旋转
-          </label>
-          <div className="flex gap-1">
-            <IconButton
-              icon={<MdRotateLeft className="w-5 h-5" />}
-              onClick={() => handleRotate(-90)}
-              title="逆时针旋转 90°"
-            />
-            <IconButton
-              icon={<MdRotateRight className="w-5 h-5" />}
-              onClick={() => handleRotate(90)}
-              title="顺时针旋转 90°"
+      <div className="flex min-h-0 flex-1 flex-col gap-3 px-6 pb-5 pt-3">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          <div className="flex items-center gap-2">
+            <span className={toolGroupLabel}>宽高比</span>
+            <Select<string | number>
+              size="sm"
+              className="w-[140px]"
+              options={aspectRatioOptions}
+              value={aspectRatio === undefined ? "free" : aspectRatio}
+              onValueChange={handleAspectRatioChange}
             />
           </div>
-        </div>
 
-        {/* Zoom */}
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-gray-600 dark:text-slate-400 whitespace-nowrap font-medium">
-            缩放
-          </label>
-          <div className="flex gap-1">
-            <IconButton
-              icon={<MdZoomOut className="w-5 h-5" />}
-              onClick={handleZoomOut}
-              title="缩小"
-            />
-            <IconButton
-              icon={<MdZoomIn className="w-5 h-5" />}
-              onClick={handleZoomIn}
-              title="放大"
-            />
+          <div className="flex items-center gap-1">
+            <span className={`${toolGroupLabel} mr-1`}>旋转</span>
+            {toolButton("逆时针旋转 90°", <MdRotateLeft />, () => handleRotate(-90))}
+            {toolButton("顺时针旋转 90°", <MdRotateRight />, () => handleRotate(90))}
           </div>
-        </div>
 
-        {/* Flip */}
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-gray-600 dark:text-slate-400 whitespace-nowrap font-medium">
-            翻转
-          </label>
-          <div className="flex gap-1">
-            <IconButton
-              icon={<MdFlip className="w-5 h-5" />}
-              onClick={() => handleFlip("horizontal")}
-              title="水平翻转"
-            />
-            <IconButton
-              icon={<MdFlip className="w-5 h-5 rotate-90" />}
-              onClick={() => handleFlip("vertical")}
-              title="垂直翻转"
-            />
+          <div className="flex items-center gap-1">
+            <span className={`${toolGroupLabel} mr-1`}>缩放</span>
+            {toolButton("缩小", <MdZoomOut />, handleZoomOut)}
+            {toolButton("放大", <MdZoomIn />, handleZoomIn)}
           </div>
-        </div>
 
-        {/* Grid & Crosshair */}
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-1.5 cursor-pointer">
-            <CustomCheckbox
+          <div className="flex items-center gap-1">
+            <span className={`${toolGroupLabel} mr-1`}>翻转</span>
+            {toolButton("水平翻转", <MdFlip />, () => handleFlip("horizontal"))}
+            {toolButton("垂直翻转", <MdFlip className="rotate-90" />, () => handleFlip("vertical"))}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Checkbox
               checked={showGrid}
-              onChange={() => handleGridToggle(!showGrid)}
+              onChange={event => handleGridToggle(event.target.checked)}
+              label="网格"
             />
-            <span className="text-xs text-gray-600 dark:text-slate-400">
-              网格
-            </span>
-          </label>
-          <label className="flex items-center gap-1.5 cursor-pointer">
-            <CustomCheckbox
+            <Checkbox
               checked={showCrosshair}
-              onChange={() => handleCrosshairToggle(!showCrosshair)}
+              onChange={event => handleCrosshairToggle(event.target.checked)}
+              label="十字线"
             />
-            <span className="text-xs text-gray-600 dark:text-slate-400">
-              十字线
-            </span>
-          </label>
+          </div>
+
+          <div className="ml-auto">{toolButton("重置", <MdRefresh />, handleReset)}</div>
         </div>
 
-        {/* Reset */}
-        <IconButton
-          icon={<MdRefresh className="w-5 h-5" />}
-          onClick={handleReset}
-          title="重置"
-        />
-      </div>
+        <div className="bg-sunken border-line-1 rounded-tau-md relative min-h-0 flex-1 overflow-hidden border">
+          <div ref={canvasContainerRef} className="h-full w-full" />
 
-      {/* Canvas Area */}
-      <div className="relative w-full h-[600px] flex items-center justify-center bg-gray-100 dark:bg-zinc-900 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700">
-        <div ref={canvasContainerRef} className="w-full h-full" />
+          {selectionSize && (
+            <div className="bg-surface text-ink-2 text-tau-meta shadow-card rounded-tau-sm pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 tabular-nums">
+              {selectionSize.width} × {selectionSize.height} px
+            </div>
+          )}
+        </div>
 
-        {/* Size Hint */}
-        {selectionSize && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/80 text-white px-3 py-1.5 rounded-lg text-xs font-medium pointer-events-none shadow-lg">
-            {selectionSize.width} × {selectionSize.height} px
-          </div>
+        {error && (
+          <p className="bg-danger-soft text-danger rounded-tau-sm px-3 py-2 text-[12.5px]">
+            {error}
+          </p>
         )}
       </div>
-
-      {/* Error Message */}
-      {error && (
-        <div className="mt-3 px-3 py-2 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg text-sm text-red-600 dark:text-red-400">
-          {error}
-        </div>
-      )}
-    </CustomModal>
+    </Dialog>
   );
 };
 

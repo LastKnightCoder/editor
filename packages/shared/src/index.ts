@@ -16,10 +16,7 @@ export {
 export { formatTime } from "./components/MediaPlayer/formatTime";
 export { default as CustomCheckbox } from "./components/CustomCheckbox";
 export { default as ImageGallery } from "./components/ImageGallery";
-export { default as CustomModal } from "./components/CustomModal";
 export { default as SelectDropDown } from "./components/SelectDropDown";
-export type { ThemeColors } from "./components/CustomModal";
-export { default as showCustomModal } from "./components/CustomModal/showCustomModal";
 export { default as Webview } from "./components/Webview";
 export type { EditTextHandle } from "./components/EditText";
 export type { WebviewRef, WebviewProps } from "./components/Webview";
