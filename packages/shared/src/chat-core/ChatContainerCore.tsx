@@ -13,8 +13,8 @@ import {
   type Ref,
   type RefObject,
 } from "react";
-import { Tooltip } from "antd";
-import type { MenuProps } from "antd";
+import { Tooltip } from "@tau/ui";
+import type { ChatDropdownItem } from "../components/ChatInputArea/types";
 import { Trash2, AlertTriangle, LoaderCircle, Unplug } from "lucide-react";
 import classNames from "classnames";
 import { useVirtualizer, type VirtualItem, type Virtualizer } from "@tanstack/react-virtual";
@@ -156,7 +156,7 @@ export interface ChatContainerCoreProps {
   chatInputClassName?: string;
   chatHeader?: ReactNode;
   extraToolbarButtons?: ReactNode;
-  modelSelectItems?: MenuProps["items"];
+  modelSelectItems?: ChatDropdownItem[];
   createMessageLoading?: boolean;
   allowSendWhileLoading?: boolean;
   queuedMessageCount?: number;
@@ -487,7 +487,7 @@ export const ChatContainerCore = forwardRef<ChatContainerCoreHandle, ChatContain
         return null;
       }
       return (
-        <Tooltip title="清空对话">
+        <Tooltip content="清空对话">
           <button
             type="button"
             onClick={onClearMessages}

@@ -1,11 +1,11 @@
 import { Editor } from "slate";
 import { setOrInsertNode } from "@tau/editor/src";
-import { message } from "antd";
+import { toast } from "@tau/ui";
 import type { ProjectCardListElement } from "./types";
 
 export const insertProjectCardList = (editor: Editor, projectId?: number) => {
   if (!projectId) {
-    message.warning("无法获取到当前项目 ID");
+    toast.warning("无法获取到当前项目 ID");
     return;
   }
 

@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import PortalToBody from "../PortalToBody";
 import { IoClose } from "react-icons/io5";
-import { LeftOutlined, RightOutlined } from "@ant-design/icons";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import styles from "./index.module.less";
 
@@ -231,14 +231,14 @@ const ImageGallery = memo(
               className={`${styles.navButton} ${styles.prevButton}`}
               onClick={handlePrev}
             >
-              <LeftOutlined />
+              <ChevronLeft size={16} />
             </button>
 
             <button
               className={`${styles.navButton} ${styles.nextButton}`}
               onClick={handleNext}
             >
-              <RightOutlined />
+              <ChevronRight size={16} />
             </button>
 
             <div className={styles.thumbnailContainer}>

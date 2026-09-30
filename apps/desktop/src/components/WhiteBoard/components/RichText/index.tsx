@@ -511,6 +511,7 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>((props: RichTextProps, r
                 initValue={initValue}
                 onChange={handleOnContentChange}
                 readonly={readonly}
+                editingContext={{ entityType: "whiteboard", entityId: elementId }}
                 onFocus={handleFocus}
                 onBlur={handleBlur}
               />

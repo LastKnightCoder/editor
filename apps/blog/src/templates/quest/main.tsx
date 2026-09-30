@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { ToastHost } from "@tau/ui";
 import QuestPage from "./QuestPage";
 import "@blog/styles/global.css";
 import { initTheme } from "@blog/utils";
@@ -15,6 +16,7 @@ if (import.meta.env.DEV) {
       initTheme();
       createRoot(document.getElementById("root")!).render(
         <StrictMode>
+          <ToastHost />
           <QuestPage />
         </StrictMode>,
       );
@@ -24,6 +26,7 @@ if (import.meta.env.DEV) {
   initTheme();
   createRoot(document.getElementById("root")!).render(
     <StrictMode>
+      <ToastHost />
       <QuestPage />
     </StrictMode>,
   );

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { App } from "antd";
+import { toast } from "@tau/ui";
 import { useMemoizedFn } from "ahooks";
 
 import { connectDatabaseByName } from "@/commands";
@@ -7,8 +7,6 @@ import useSettingStore from "@/stores/useSettingStore";
 import useGlobalStateStore, { DatabaseConnectionStatus } from "@/stores/useGlobalStateStore";
 
 const useInitDatabase = () => {
-  const { message } = App.useApp();
-
   const databaseStatus = useGlobalStateStore(state => state.databaseStatus);
 
   const inited = useSettingStore(state => state.inited);
@@ -29,26 +27,18 @@ const useInitDatabase = () => {
 
   useEffect(() => {
     if (!inited || !active) return;
-    message.open({
-      type: "loading",
-      content: "正在初始化数据库...",
-      key: "initDatabase",
-      duration: 0,
-    });
+    const toastId = toast.loading("正在初始化数据库...");
     handleDatabaseStatus(active, "connecting");
     connectDatabaseByName(active)
       .then(async () => {
-        message.destroy("initDatabase");
+        toast.dismiss(toastId);
         handleDatabaseStatus(active, "ready");
       })
       .catch(e => {
         handleDatabaseStatus(active, "error");
-        message.error({
-          key: "initDatabase",
-          content: e.message,
-        });
+        toast.reject(toastId, e.message);
       });
-  }, [inited, active, message, handleDatabaseStatus]);
+  }, [inited, active, handleDatabaseStatus]);
 
   return {
     databaseStatus,

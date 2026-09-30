@@ -5,12 +5,19 @@ import remarkCjkFriendly from "remark-cjk-friendly/parseOnly";
 import remarkCjkFriendlyGfmStrikethrough from "remark-cjk-friendly-gfm-strikethrough/parseOnly";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
-import type { MessageInstance } from "antd/es/message/interface";
 import classNames from "classnames";
 import remarkDocumentReference from "../../utils/remark-document-reference";
 import MermaidRenderer from "../MermaidRenderer";
 import LazySyntaxHighlighter from "../LazySyntaxHighlighter";
 import PlantUML from "../PlantUML";
+/**
+ * message 实例的最小消费面（Mermaid 通知）；antd message 与 @tau/ui toast 结构均满足。
+ * 纯类型依赖不产出运行时代码，browser-extension 侧消费本组件不受影响（D-073）。
+ */
+interface MessageApiLike {
+  success(content: React.ReactNode): void;
+  error(content: React.ReactNode): void;
+}
 
 // 默认的 remark 和 rehype 插件
 const defaultRemarkPlugins = [
@@ -61,7 +68,7 @@ export interface MarkdownRendererProps {
   /** 特定代码语言的自定义渲染器，key 为语言名（优先级高于内置渲染器） */
   codeLanguageRenderers?: Record<string, React.ComponentType<{ code: string; isDark?: boolean }>>;
   /** antd message 实例，由消费端通过 App.useApp() 获取后传入，用于 Mermaid 等组件的通知反馈 */
-  messageApi?: MessageInstance;
+  messageApi?: MessageApiLike;
 }
 
 /**
@@ -168,7 +175,7 @@ const createSpanComponent = (
  */
 const createCodeComponent = (options: {
   isDark: boolean;
-  messageApi?: MessageInstance;
+  messageApi?: MessageApiLike;
   codeLanguageRenderers?: Record<string, React.ComponentType<{ code: string; isDark?: boolean }>>;
 }) => {
   return memo(function CodeComponent(props: { children?: React.ReactNode; className?: string }) {

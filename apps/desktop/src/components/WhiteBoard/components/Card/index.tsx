@@ -1,5 +1,4 @@
 import useEditCard from "./useEditCard.ts";
-import { Skeleton } from "antd";
 import { useRafInterval, useUnmount } from "ahooks";
 import { memo, useRef } from "react";
 
@@ -73,8 +72,14 @@ const Card = memo((props: CardProps) => {
 
   if (loading) {
     return (
-      <div style={{ width, height }}>
-        <Skeleton paragraph={{ rows: 4 }} />
+      <div style={{ width, height }} className="space-y-2.5 p-4">
+        {[100, 88, 94, 60].map((widthPercent, index) => (
+          <div
+            key={index}
+            className="h-3 animate-pulse rounded bg-black/10 dark:bg-white/10"
+            style={{ width: `${widthPercent}%` }}
+          />
+        ))}
       </div>
     );
   }

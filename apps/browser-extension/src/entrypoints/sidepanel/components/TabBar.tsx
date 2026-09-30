@@ -1,4 +1,4 @@
-import { Tooltip } from "antd";
+import { Tooltip } from "@tau/ui";
 import type { TabType } from "../../../utils/types";
 
 interface TabBarProps {
@@ -100,7 +100,7 @@ export default function TabBar({
         const isActive = currentTab === tab.id;
         const showBadge = tab.id === "highlights" && highlightCount > 0;
         return (
-          <Tooltip key={tab.id} title={tab.label} placement="top">
+          <Tooltip key={tab.id} content={tab.label} placement="top">
             <button
               onClick={() => onTabChange(tab.id)}
               className={`relative flex h-10 w-10 items-center justify-center rounded-lg transition-colors before:absolute before:inset-x-2.5 before:top-0 before:h-[2px] before:rounded-full before:transition-opacity before:content-[""] ${
@@ -124,7 +124,7 @@ export default function TabBar({
       <div className="flex-1" />
 
       {/* 全部笔记按钮 */}
-      <Tooltip title="全部笔记" placement="top">
+      <Tooltip content="全部笔记" placement="top">
         <button
           onClick={onAllNotesClick}
           className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-[var(--sb-tab-hover-bg)] hover:text-gray-700 dark:text-[#6e7681] dark:hover:text-[#adbac7]"

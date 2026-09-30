@@ -1,4 +1,4 @@
-import { message } from "antd";
+import { toast } from "@tau/ui";
 import { produce } from "immer";
 import dayjs from "dayjs";
 
@@ -99,7 +99,7 @@ export const getDatabasePath = async (databaseName: string): Promise<string> => 
 export const upload = async (options?: SyncCommandOptions) => {
   const syncProvider = SyncProviderFactory.getSyncProvider();
   if (!syncProvider) {
-    message.error("请先配置同步设置");
+    toast.error("请先配置同步设置");
     return false;
   }
 
@@ -112,7 +112,7 @@ export const upload = async (options?: SyncCommandOptions) => {
   const databasePath = await getDatabasePath(databaseName);
 
   if (!databasePath) {
-    message.error("请先设置数据库目录");
+    toast.error("请先设置数据库目录");
     return false;
   }
 
@@ -121,7 +121,7 @@ export const upload = async (options?: SyncCommandOptions) => {
 
   const locked = await piSessionLockLibrary(databaseName);
   if (!locked.ok) {
-    message.error(locked.error);
+    toast.error(locked.error ?? "数据库会话锁定失败");
     return false;
   }
 
@@ -138,13 +138,13 @@ export const upload = async (options?: SyncCommandOptions) => {
 
   const originVersion = Number(databaseInfo.version || 0);
   if (isNaN(originVersion)) {
-    message.error("远程数据库信息版本号不是一个数字");
+    toast.error("远程数据库信息版本号不是一个数字");
     await reconnectAfterSync(databaseName, "sync_upload_reconnect");
     await piSessionUnlockLibrary(databaseName);
     return false;
   }
   if (originVersion > currentVersion) {
-    message.error("远程的数据库版本高于本地版本，请先同步远程数据库");
+    toast.error("远程的数据库版本高于本地版本，请先同步远程数据库");
     await reconnectAfterSync(databaseName, "sync_upload_reconnect");
     await piSessionUnlockLibrary(databaseName);
     return false;
@@ -168,7 +168,7 @@ export const upload = async (options?: SyncCommandOptions) => {
     const dataSuccess = await syncProvider.uploadFile(dataObjectName, contents);
 
     if (!dataSuccess) {
-      message.error("上传数据库文件失败");
+      toast.error("上传数据库文件失败");
       return false;
     }
 
@@ -177,7 +177,7 @@ export const upload = async (options?: SyncCommandOptions) => {
     emitProgress(options, 60, "正在上传对话记录...");
     const packed = await piSessionPack(databaseName);
     if (!packed.ok || !packed.archive) {
-      message.error(`打包对话记录失败：${packed.error ?? "未知错误"}`);
+      toast.error(`打包对话记录失败：${packed.error ?? "未知错误"}`);
       return false;
     }
     const sessionsSuccess = await syncProvider.uploadFile(
@@ -185,7 +185,7 @@ export const upload = async (options?: SyncCommandOptions) => {
       packed.archive
     );
     if (!sessionsSuccess) {
-      message.error("上传对话记录失败");
+      toast.error("上传对话记录失败");
       return false;
     }
 
@@ -207,7 +207,7 @@ export const upload = async (options?: SyncCommandOptions) => {
     emitProgress(options, 100, "同步完成");
     return true;
   } catch (e) {
-    message.error("上传数据库失败: " + e);
+    toast.error("上传数据库失败: " + e);
     return false;
   } finally {
     try {
@@ -221,7 +221,7 @@ export const upload = async (options?: SyncCommandOptions) => {
 export const download = async (options?: SyncCommandOptions) => {
   const syncProvider = SyncProviderFactory.getSyncProvider();
   if (!syncProvider) {
-    message.error("请先配置同步设置");
+    toast.error("请先配置同步设置");
     return false;
   }
 
@@ -236,7 +236,7 @@ export const download = async (options?: SyncCommandOptions) => {
   const walFilePath = `${databasePath}-wal`;
   const shmFilePath = `${databasePath}-shm`;
   if (!databasePath) {
-    message.error("请先设置数据库目录");
+    toast.error("请先设置数据库目录");
     return false;
   }
 
@@ -246,7 +246,7 @@ export const download = async (options?: SyncCommandOptions) => {
 
   const originVersion = Number(databaseInfo.version || 0);
   if (currentVersion > originVersion) {
-    message.error("本地的数据库版本高于远程版本，请先同步本地数据库");
+    toast.error("本地的数据库版本高于远程版本，请先同步本地数据库");
     return false;
   }
 
@@ -254,7 +254,7 @@ export const download = async (options?: SyncCommandOptions) => {
   const dataObjectName = databaseInfo.databaseObject ?? databaseName;
   const locked = await piSessionLockLibrary(databaseName);
   if (!locked.ok) {
-    message.error(locked.error);
+    toast.error(locked.error ?? "数据库会话锁定失败");
     return false;
   }
   try {
@@ -276,7 +276,7 @@ export const download = async (options?: SyncCommandOptions) => {
       await writeBinaryFile(backupPath, originContents);
       emitProgress(options, 40, "正在备份本地数据库...");
     } catch (e) {
-      message.warning("备份数据库文件失败，停止下载");
+      toast.warning("备份数据库文件失败，停止下载");
       console.error(e);
       return false;
     }
@@ -339,7 +339,7 @@ export const download = async (options?: SyncCommandOptions) => {
         const dataContent = await readBinaryFile(backupPath);
         await writeBinaryFile(databasePath, dataContent);
       } catch (e) {
-        message.error("恢复数据库文件失败，当前数据库文件可能存在损坏，可从备份文件夹手动备份");
+        toast.error("恢复数据库文件失败，当前数据库文件可能存在损坏，可从备份文件夹手动备份");
       }
     }
 
@@ -349,7 +349,7 @@ export const download = async (options?: SyncCommandOptions) => {
 
     return true;
   } catch (e) {
-    message.error("下载数据库文件失败: " + e);
+    toast.error("下载数据库文件失败: " + e);
     return false;
   } finally {
     try {

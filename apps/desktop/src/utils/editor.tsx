@@ -7,7 +7,7 @@ import {
   BlockMathElement,
   InlineElement,
 } from "@tau/editor/src";
-import { Typography } from "antd";
+import classnames from "classnames";
 import { Katex } from "@tau/shared";
 import { wordsCount } from "words-count";
 import { StyledTextColorStyle } from "@tau/editor/src";
@@ -46,22 +46,24 @@ const getParagraphContent = (
       switch (node.type) {
         case "formatted":
           return (
-            <Typography.Text
+            <span
               key={index}
-              code={node.code}
-              strong={node.bold}
-              underline={node.underline}
-              italic={node.italic}
-              delete={node.strikethrough}
+              className={classnames({
+                "font-mono": node.code,
+                "font-semibold": node.bold,
+                italic: node.italic,
+                underline: node.underline,
+                "line-through": node.strikethrough,
+              })}
             >
               {node.text}
-            </Typography.Text>
+            </span>
           );
         case "link":
           return (
-            <Typography.Link key={index}>
+            <a key={index} className="cursor-pointer text-[var(--th-accent)]">
               {node.children?.[0].text}
-            </Typography.Link>
+            </a>
           );
         case "inline-math":
           return <Katex tex={node.tex} key={index} inline />;
@@ -77,16 +79,16 @@ const getParagraphContent = (
           );
         case "underline":
           return (
-            <Typography.Text key={index} underline>
+            <span key={index} className="underline">
               {node.children?.[0].text}
-            </Typography.Text>
+            </span>
           );
         case "styled-text":
           return (
-            <Typography.Text
+            <span
               key={index}
-              color={StyledTextColorStyle["light"][node.color].color}
               style={{
+                color: StyledTextColorStyle["light"][node.color].color,
                 backgroundColor:
                   StyledTextColorStyle["light"][node.color].backgroundColor,
                 border: `1px solid ${StyledTextColorStyle["light"][node.color].color}`,
@@ -94,7 +96,7 @@ const getParagraphContent = (
               }}
             >
               {node.children?.[0].text}
-            </Typography.Text>
+            </span>
           );
         case "kbd":
           return <kbd key={index}>{node.children?.[0]?.text}</kbd>;

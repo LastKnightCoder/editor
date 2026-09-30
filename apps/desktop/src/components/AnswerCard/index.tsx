@@ -1,13 +1,8 @@
-import React, { useRef, useEffect, useState, useMemo } from "react";
-import { Card, App, Dropdown, MenuItemProps } from "antd";
+import React, { useRef, useEffect, useState } from "react";
+import { ConfirmDialog, Menu, Panel, toast } from "@tau/ui";
 import { useMemoizedFn } from "ahooks";
 
-import {
-  DeleteOutlined,
-  MoreOutlined,
-  FileTextOutlined,
-  FolderOpenOutlined,
-} from "@ant-design/icons";
+import { MoreHorizontal, FileText, FolderOpen, Trash2 } from "lucide-react";
 import { BsCardText } from "react-icons/bs";
 import { IAnswer } from "@/types";
 import { defaultArticleEventBus, defaultCardEventBus } from "@/utils";
@@ -38,11 +33,11 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
   onViewAnswer,
   contentId,
 }) => {
-  const { modal, message } = App.useApp();
   const editorRef = useRef<EditorRef>(null);
   const [isCard, setIsCard] = useState(false);
   const [isArticle, setIsArticle] = useState(false);
   const [titleModalTarget, setTitleModalTarget] = useState<"article" | "project" | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (contentId) {
@@ -64,7 +59,7 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
     setIsArticle(status.isArticle);
   });
 
-  const handleBuildCard: MenuItemProps["onClick"] = useMemoizedFn(() => {
+  const handleBuildCard = useMemoizedFn(() => {
     if (!contentId) return;
     throttleHandleEditorContentChange.flush();
 
@@ -73,9 +68,9 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
         setIsCard(true);
         defaultCardEventBus.createEditor().publishCardEvent("card:created", card);
         void reloadContentStatus();
-        message.success("创建卡片成功");
+        toast.success("创建卡片成功");
       } else {
-        message.error("创建卡片失败");
+        toast.error("创建卡片失败");
       }
     });
   });
@@ -94,9 +89,9 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
         setIsArticle(true);
         defaultArticleEventBus.createEditor().publishArticleEvent("article:created", article);
         void reloadContentStatus();
-        message.success("创建文章成功");
+        toast.success("创建文章成功");
       } else {
-        message.error("创建文章失败");
+        toast.error("创建文章失败");
       }
     });
   });
@@ -119,22 +114,14 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
     setTitleModalTarget(target);
   });
 
-  const handleDeleteAnswer: MenuItemProps["onClick"] = useMemoizedFn(() => {
+  const handleDeleteAnswer = useMemoizedFn(() => {
     if (!onDeleteAnswer) return;
+    setDeleteConfirmOpen(true);
+  });
 
-    modal.confirm({
-      title: "删除答案",
-      content: "确定删除该答案吗？",
-      okText: "确定",
-      cancelText: "取消",
-      okButtonProps: {
-        danger: true,
-      },
-      onOk: () => {
-        onDeleteAnswer(answer.id);
-        message.success("删除成功");
-      },
-    });
+  const handleConfirmDelete = useMemoizedFn(() => {
+    onDeleteAnswer?.(answer.id);
+    toast.success("删除成功");
   });
 
   const handleConfirmTitle = useMemoizedFn(({ title }: { title: string }) => {
@@ -150,60 +137,19 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
     handleCreateTreeItem("project", title);
   });
 
-  const items = useMemo(() => {
-    return [
-      onDeleteAnswer
-        ? {
-            key: "delete",
-            label: "删除答案",
-            icon: <DeleteOutlined />,
-            onClick: handleDeleteAnswer,
-          }
-        : null,
-      !isCard
-        ? {
-            key: "build-card",
-            label: "创建卡片",
-            icon: <BsCardText />,
-            onClick: handleBuildCard,
-          }
-        : null,
-      !isArticle
-        ? {
-            key: "build-article",
-            label: "创建文章",
-            icon: <FileTextOutlined />,
-            onClick: () => handleOpenTitleModal("article"),
-          }
-        : null,
-      {
-        key: "build-project-item",
-        label: "创建项目文档",
-        icon: <FolderOpenOutlined />,
-        onClick: () => handleOpenTitleModal("project"),
-      },
-    ].filter(val => val !== null);
-  }, [
-    handleBuildCard,
-    handleDeleteAnswer,
-    handleOpenTitleModal,
-    isArticle,
-    isCard,
-    onDeleteAnswer,
-  ]);
-
   const handleClick = useMemoizedFn(() => {
     if (onViewAnswer) {
       onViewAnswer(answer.id);
     }
   });
 
+  const hasMenuItems = Boolean(onDeleteAnswer) || !isCard || !isArticle;
+
   return (
-    <Card
+    <Panel
       key={answer.id}
+      className="relative"
       style={{
-        boxSizing: "border-box",
-        position: "relative",
         cursor: onViewAnswer ? "pointer" : "default",
       }}
     >
@@ -216,16 +162,40 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
           className={styles.editor}
         />
       </div>
-      {items.length > 0 && (
-        <Dropdown
-          menu={{
-            items,
-          }}
+      {hasMenuItems && (
+        <Menu
+          align="end"
+          trigger={
+            <div className={styles.moreIcon} onClick={e => e.stopPropagation()}>
+              <MoreHorizontal size={14} />
+            </div>
+          }
         >
-          <div className={styles.moreIcon} onClick={e => e.stopPropagation()}>
-            <MoreOutlined />
-          </div>
-        </Dropdown>
+          {onDeleteAnswer && (
+            <Menu.Item onSelect={handleDeleteAnswer} danger icon={<Trash2 size={14} />}>
+              删除答案
+            </Menu.Item>
+          )}
+          {!isCard && (
+            <Menu.Item onSelect={handleBuildCard} icon={<BsCardText />}>
+              创建卡片
+            </Menu.Item>
+          )}
+          {!isArticle && (
+            <Menu.Item
+              onSelect={() => handleOpenTitleModal("article")}
+              icon={<FileText size={14} />}
+            >
+              创建文章
+            </Menu.Item>
+          )}
+          <Menu.Item
+            onSelect={() => handleOpenTitleModal("project")}
+            icon={<FolderOpen size={14} />}
+          >
+            创建项目文档
+          </Menu.Item>
+        </Menu>
       )}
       <EditTitleModal
         open={titleModalTarget !== null}
@@ -236,7 +206,16 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
         modalDescription={titleModalTarget === "article" ? "请输入文章标题" : "请输入项目文档标题"}
         placeholder={titleModalTarget === "article" ? "请输入文章标题" : "请输入项目文档标题"}
       />
-    </Card>
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="删除答案"
+        description="确定删除该答案吗？"
+        danger
+        confirmText="删除"
+        onConfirm={handleConfirmDelete}
+      />
+    </Panel>
   );
 };
 

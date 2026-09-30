@@ -1,6 +1,6 @@
 import React, { PropsWithChildren } from "react";
 import { RenderElementProps } from "slate-react";
-import { Tooltip } from "antd";
+import { Tooltip } from "@tau/ui";
 import useTheme from "@/hooks/useTheme";
 import { formatTimestamp, VideoTimestampElement } from "../../";
 import LocalImage from "@/components/LocalImage";
@@ -28,16 +28,11 @@ const VideoTimestamp: React.FC<PropsWithChildren<VideoTimestampProps>> = ({
 
   return (
     <Tooltip
-      title={previewContent}
+      content={previewContent}
+      disabled={!previewUrl}
       placement="top"
-      styles={{
-        container: {
-          padding: 0,
-          overflow: "hidden",
-          borderRadius: 8,
-        },
-      }}
-      mouseEnterDelay={0.3}
+      className="p-0 overflow-hidden rounded-lg"
+      delay={300}
     >
       <span
         {...attributes}

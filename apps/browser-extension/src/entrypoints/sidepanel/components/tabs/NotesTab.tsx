@@ -13,7 +13,8 @@ import {
   FolderInput,
   RefreshCw,
 } from "lucide-react";
-import { App } from "antd";
+import { toast } from "@tau/ui";
+import { useConfirmPrompt } from "../../../../hooks/useConfirmPrompt";
 import { Editor } from "@tau/editor/src";
 import WebviewExtension from "@tau/editor-webview";
 import { SelectDropDown, EditText } from "@tau/shared";
@@ -80,7 +81,7 @@ interface SyncHintState {
 export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef }: NotesTabProps) {
   // 连接 aiServer，用于 settings/content/card/article 等 RPC 调用
   const { client: aiWsClient, status: aiWsStatus } = useAiServerWebSocket();
-  const { message: antdMessage, modal } = App.useApp();
+  const { confirm: confirmPrompt, confirmDialog } = useConfirmPrompt();
 
   const titleRef = useRef<EditTextHandle>(null);
   const contentSubscriberIdRef = useRef(uuidv4());
@@ -219,18 +220,12 @@ export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef 
     }
   );
 
-  const confirmSyncFromApp = useMemoizedFn(
-    (content: string): Promise<boolean> =>
-      new Promise(resolve => {
-        modal.confirm({
-          title: "同步应用中的最新内容",
-          content,
-          okText: "同步回来",
-          cancelText: "取消",
-          onOk: () => resolve(true),
-          onCancel: () => resolve(false),
-        });
-      })
+  const confirmSyncFromApp = useMemoizedFn((content: string) =>
+    confirmPrompt({
+      title: "同步应用中的最新内容",
+      description: content,
+      confirmText: "同步回来",
+    })
   );
 
   const applyRemoteContentToNote = useMemoizedFn(
@@ -445,7 +440,7 @@ export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef 
           remote,
         });
         showSyncHint("已自动同步应用更新", "success");
-        antdMessage.info("已自动同步应用中的最新内容");
+        toast.info("已自动同步应用中的最新内容");
         return;
       }
 
@@ -470,7 +465,7 @@ export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef 
         remote,
       });
       showSyncHint("已同步应用中的最新内容", "success");
-      antdMessage.info("已同步应用中的最新内容");
+      toast.info("已同步应用中的最新内容");
     }
   );
 
@@ -564,13 +559,13 @@ export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef 
       await aiWsClient.sendRequest("card.buildFromContent", {
         contentId: ensured.contentId,
       });
-      antdMessage.success(
+      toast.success(
         ensured.mode === "synced-from-app" ? "已同步应用内容并刷新卡片" : "卡片创建成功"
       );
     } catch (error) {
       if ((error as Error)?.message === "SYNC_CANCELLED") return;
       console.error("创建/更新卡片失败:", error);
-      antdMessage.error("创建卡片失败");
+      toast.error("创建卡片失败");
     } finally {
       setActionLoading(false);
     }
@@ -593,13 +588,13 @@ export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef 
         contentId: ensured.contentId,
         title: activeNote?.title || "",
       });
-      antdMessage.success(
+      toast.success(
         ensured.mode === "synced-from-app" ? "已同步应用内容并刷新文章" : "文章创建成功"
       );
     } catch (error) {
       if ((error as Error)?.message === "SYNC_CANCELLED") return;
       console.error("创建/更新文章失败:", error);
-      antdMessage.error("创建文章失败");
+      toast.error("创建文章失败");
     } finally {
       setActionLoading(false);
     }
@@ -622,11 +617,11 @@ export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef 
         mode: "project",
         sourceContentId: ensured.contentId,
       });
-      antdMessage.success("已发送到桌面端");
+      toast.success("已发送到桌面端");
     } catch (error) {
       if ((error as Error)?.message === "SYNC_CANCELLED") return;
       console.error("插入到项目失败:", error);
-      antdMessage.error("插入到项目失败");
+      toast.error("插入到项目失败");
     } finally {
       setActionLoading(false);
     }
@@ -642,13 +637,13 @@ export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef 
       if (!dbName) throw new Error("未连接到桌面端");
       const ensured = await ensureContentId(dbName);
       if (!ensured?.contentId) throw new Error("内容更新失败");
-      antdMessage.success(
+      toast.success(
         ensured.mode === "synced-from-app" ? "已从应用同步最新内容" : "内容更新成功"
       );
     } catch (error) {
       if ((error as Error)?.message === "SYNC_CANCELLED") return;
       console.error("更新内容失败:", error);
-      antdMessage.error("更新内容失败");
+      toast.error("更新内容失败");
     } finally {
       setActionLoading(false);
     }
@@ -666,7 +661,7 @@ export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef 
       });
       const changed = await syncContentFromApp();
       showSyncHint(changed ? "已从应用同步最新内容" : "已与应用保持同步", "success");
-      antdMessage.success(changed ? "已从应用同步最新内容" : "已与应用内容保持同步");
+      toast.success(changed ? "已从应用同步最新内容" : "已与应用内容保持同步");
     } catch (error) {
       if ((error as Error)?.message === "SYNC_CANCELLED") {
         showSyncHint("已保留本地修改", "warning");
@@ -676,7 +671,7 @@ export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef 
         durationMs: 4000,
       });
       console.error("从应用同步内容失败:", error);
-      antdMessage.error("同步应用内容失败");
+      toast.error("同步应用内容失败");
     } finally {
       setActionLoading(false);
     }
@@ -827,17 +822,16 @@ export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef 
     setShowDropdown(false);
   });
 
-  const handleDeleteClick = useMemoizedFn((e: React.MouseEvent, noteId: string) => {
+  const handleDeleteClick = useMemoizedFn(async (e: React.MouseEvent, noteId: string) => {
     e.stopPropagation();
 
-    modal.confirm({
+    const ok = await confirmPrompt({
       title: "删除笔记",
-      content: "确定删除这个笔记吗？",
-      okText: "删除",
-      cancelText: "取消",
-      okButtonProps: { danger: true },
-      onOk: () => deleteNote(noteId),
+      description: "确定删除这个笔记吗？",
+      danger: true,
+      confirmText: "删除",
     });
+    if (ok) deleteNote(noteId);
   });
 
   const renderMenuItem = useMemoizedFn((item: NoteMenuItem) => {
@@ -930,6 +924,7 @@ export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef 
 
   return (
     <div className="flex h-full flex-col">
+      {confirmDialog}
       <div className="flex h-12 shrink-0 items-center border-b border-gray-100 px-4 dark:border-[#21262d]">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <div

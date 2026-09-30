@@ -4,12 +4,11 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type MouseEvent,
   type ReactNode,
 } from "react";
 import classNames from "classnames";
-import { Popover, message } from "antd";
+import { Tooltip, toast } from "@tau/ui";
 import { RenderElementProps } from "slate-react";
 import { Base, createInlineElementPlugin, Editor } from "@tau/editor";
 import type { IExtension } from "@tau/editor";
@@ -47,24 +46,6 @@ const linkPreviewLoader = createContentLinkPreviewLoader();
 const unresolvedMessage = "目标未发布或不可用";
 const DEFAULT_CONTENT_LINK_LABEL = "关联内容";
 const COMPACT_CONTENT_LINK_LABEL = "内容";
-const contentLinkPopoverRootStyle = {
-  "--antd-arrow-background-color": "var(--color-bg-container)",
-  background: "transparent",
-  padding: 0,
-} as CSSProperties;
-const contentLinkPopoverContainerStyle: CSSProperties = {
-  padding: 0,
-  background: "var(--color-bg-container)",
-  border: "1px solid var(--color-border-ring)",
-  borderRadius: 8,
-  overflow: "hidden",
-  boxShadow: "var(--shadow-dropdown)",
-};
-const contentLinkPopoverContentStyle: CSSProperties = {
-  padding: 0,
-  background: "transparent",
-};
-
 function readText(input: unknown, fallback = ""): string {
   if (typeof input === "string" && input.trim()) {
     return input.trim();
@@ -217,7 +198,7 @@ const ContentLinkNode = memo((props: ContentLinkProps) => {
     event.stopPropagation();
 
     if (!target || !targetHref) {
-      message.info(unresolvedMessage);
+      toast.info(unresolvedMessage);
       return;
     }
 
@@ -248,27 +229,17 @@ const ContentLinkNode = memo((props: ContentLinkProps) => {
   }
 
   return (
-    <Popover
-      trigger="hover"
+    <Tooltip
       open={open}
       onOpenChange={setOpen}
       placement="bottom"
-      autoAdjustOverflow
-      mouseEnterDelay={0.35}
-      mouseLeaveDelay={0.1}
-      content={<ContentLinkPreviewPanel state={previewState} />}
-      styles={{
-        root: contentLinkPopoverRootStyle,
-        container: contentLinkPopoverContainerStyle,
-        content: contentLinkPopoverContentStyle,
-      }}
-      classNames={{
-        root: "blog-content-link-popover",
-      }}
       arrow={false}
+      delay={350}
+      className="bg-page text-ink-1 border-line-1 shadow-card max-w-[480px] overflow-hidden rounded-lg border p-0"
+      content={<ContentLinkPreviewPanel state={previewState} />}
     >
       {linkNode}
-    </Popover>
+    </Tooltip>
   );
 });
 

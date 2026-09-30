@@ -1,6 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Tooltip, Alert, Spin } from "antd";
-import { Code, Eye, Copy, Download, Maximize2, RotateCw } from "lucide-react";
+import { Tooltip } from "@tau/ui";
+import {
+  CircleAlert,
+  Code,
+  Copy,
+  Download,
+  Eye,
+  Loader2,
+  Maximize2,
+  RotateCw,
+} from "lucide-react";
 import { measurePerformance } from "../../utils/performance";
 import styles from "./index.module.less";
 import { useDebounce, useCreation } from "ahooks";
@@ -183,13 +192,19 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
       if (isLoading) {
         return (
           <div className="flex min-h-[320px] items-center justify-center">
-            <Spin size="large" />
+            <Loader2 size={28} className="animate-spin text-gray-400" />
           </div>
         );
       }
 
       if (error) {
-        return <Alert type="error" message="Diagram render error" description={error} showIcon />;
+        return <div className="m-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900/50 dark:bg-red-950/50">
+            <div className="flex items-center gap-2 font-medium text-red-600 dark:text-red-400">
+              <CircleAlert size={16} />
+              Diagram render error
+            </div>
+            <p className="mt-1 pl-6 text-xs text-red-500/90 dark:text-red-400/80">{error}</p>
+          </div>;
       }
 
       return (
@@ -226,7 +241,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <Tooltip title="刷新">
+            <Tooltip content="刷新">
               <button
                 className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 active:translate-y-px dark:text-gray-300 dark:hover:bg-neutral-700 dark:hover:text-white"
                 onClick={handleRefresh}
@@ -234,7 +249,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
                 <RotateCw size={16} />
               </button>
             </Tooltip>
-            <Tooltip title={viewMode === "preview" ? "查看源码" : "查看预览"}>
+            <Tooltip content={viewMode === "preview" ? "查看源码" : "查看预览"}>
               <button
                 className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 active:translate-y-px dark:text-gray-300 dark:hover:bg-neutral-700 dark:hover:text-white"
                 onClick={() => setViewMode(viewMode === "preview" ? "source" : "preview")}
@@ -243,7 +258,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
               </button>
             </Tooltip>
             {viewMode === "source" && (
-              <Tooltip title="复制源码">
+              <Tooltip content="复制源码">
                 <button
                   className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 active:translate-y-px dark:text-gray-300 dark:hover:bg-neutral-700 dark:hover:text-white"
                   onClick={handleCopySource}
@@ -253,7 +268,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
               </Tooltip>
             )}
             {viewMode === "preview" && svgContent && (
-              <Tooltip title="下载为图片">
+              <Tooltip content="下载为图片">
                 <button
                   className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 active:translate-y-px dark:text-gray-300 dark:hover:bg-neutral-700 dark:hover:text-white"
                   onClick={handleDownload}
@@ -262,7 +277,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
                 </button>
               </Tooltip>
             )}
-            <Tooltip title="全屏">
+            <Tooltip content="全屏">
               <button
                 className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 active:translate-y-px dark:text-gray-300 dark:hover:bg-neutral-700 dark:hover:text-white"
                 onClick={() => setIsFullscreen(true)}

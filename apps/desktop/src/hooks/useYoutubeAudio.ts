@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
-import { App } from "antd";
+import { toast } from "@tau/ui";
 import useSettingStore from "@/stores/useSettingStore";
 import {
   youtubeAudioToLocal,
@@ -37,7 +37,6 @@ export function useYoutubeAudio(
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<AudioCacheProgress | null>(null);
   const initedRef = useRef(false);
-  const { message } = App.useApp();
 
   const { setting } = useSettingStore((s) => ({ setting: s.setting }));
 
@@ -97,7 +96,7 @@ export function useYoutubeAudio(
       } catch (e) {
         const msg = e instanceof Error ? e.message : "下载失败";
         setError(msg);
-        message.error(`YouTube 音频加载失败: ${msg}`);
+        toast.error(`YouTube 音频加载失败: ${msg}`);
       } finally {
         setLoading(false);
       }

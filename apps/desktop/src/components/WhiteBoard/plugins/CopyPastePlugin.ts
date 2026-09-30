@@ -21,13 +21,13 @@ import { incrementContentRefCount } from "@/commands/content";
 import { v4 as getUuid } from "uuid";
 import React from "react";
 import {
-  CopyOutlined,
-  DeleteOutlined,
-  DownOutlined,
-  UpOutlined,
-  VerticalAlignBottomOutlined,
-  VerticalAlignTopOutlined,
-} from "@ant-design/icons";
+  ArrowDown,
+  ArrowDownToLine,
+  ArrowUp,
+  ArrowUpToLine,
+  Copy,
+  Trash2,
+} from "lucide-react";
 import { isMarkdownLikeText } from "@tau/markdown";
 import { importFromMarkdown } from "@/utils/markdown";
 import { Descendant } from "slate";
@@ -128,7 +128,7 @@ export class CopyPastePlugin implements IBoardPlugin {
       items.push({
         key: "copy",
         label: "复制",
-        icon: React.createElement(CopyOutlined),
+        icon: React.createElement(Copy, { size: 14 }),
         shortcut: copyShortcut,
         priority: 300,
         disabled: true,
@@ -140,7 +140,7 @@ export class CopyPastePlugin implements IBoardPlugin {
       items.push({
         key: "copy",
         label: `复制${labelSuffix}`,
-        icon: React.createElement(CopyOutlined),
+        icon: React.createElement(Copy, { size: 14 }),
         shortcut: copyShortcut,
         priority: 300,
         onSelect: (ctx: ContextMenuContext) => {
@@ -160,7 +160,7 @@ export class CopyPastePlugin implements IBoardPlugin {
         {
           key: "layer-move-up",
           label: "上移一层",
-          icon: React.createElement(UpOutlined),
+          icon: React.createElement(ArrowUp, { size: 14 }),
           priority: 304,
           disabled: layerActionState.moveUpDisabled,
           onSelect: (ctx: ContextMenuContext) => {
@@ -170,7 +170,7 @@ export class CopyPastePlugin implements IBoardPlugin {
         {
           key: "layer-move-down",
           label: "下移一层",
-          icon: React.createElement(DownOutlined),
+          icon: React.createElement(ArrowDown, { size: 14 }),
           priority: 305,
           disabled: layerActionState.moveDownDisabled,
           onSelect: (ctx: ContextMenuContext) => {
@@ -180,7 +180,7 @@ export class CopyPastePlugin implements IBoardPlugin {
         {
           key: "layer-move-top",
           label: "移至顶层",
-          icon: React.createElement(VerticalAlignTopOutlined),
+          icon: React.createElement(ArrowUpToLine, { size: 14 }),
           priority: 306,
           disabled: layerActionState.moveTopDisabled,
           onSelect: (ctx: ContextMenuContext) => {
@@ -190,7 +190,7 @@ export class CopyPastePlugin implements IBoardPlugin {
         {
           key: "layer-move-bottom",
           label: "移至底层",
-          icon: React.createElement(VerticalAlignBottomOutlined),
+          icon: React.createElement(ArrowDownToLine, { size: 14 }),
           priority: 307,
           disabled: layerActionState.moveBottomDisabled,
           onSelect: (ctx: ContextMenuContext) => {
@@ -209,7 +209,7 @@ export class CopyPastePlugin implements IBoardPlugin {
         items.push({
           key: "delete",
           label: `删除${labelSuffix}`,
-          icon: React.createElement(DeleteOutlined),
+          icon: React.createElement(Trash2, { size: 14 }),
           shortcut: deleteShortcut,
           priority: 310,
           danger: true,

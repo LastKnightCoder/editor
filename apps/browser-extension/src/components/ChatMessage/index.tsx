@@ -1,5 +1,5 @@
 import { memo, useCallback, useMemo } from "react";
-import { App } from "antd";
+import { toast } from "@tau/ui";
 import {
   ChatMessageView,
   type ChatMessageViewFile,
@@ -100,7 +100,6 @@ export function ChatMessage({
   onCopyError,
   onDeleteConfirm,
 }: ChatMessageProps) {
-  const { message: messageApi } = App.useApp();
   const localMessage = message as LocalChatMessage;
   const isUser = message.role === "user";
   const userText = getUserText(localMessage);
@@ -144,7 +143,7 @@ export function ChatMessage({
   const handlePreviewCodeBlock = useCallback(
     async (payload: CodeBlockPreviewPayload) => {
       if (!wsClient?.isConnected) {
-        messageApi.warning("桌面端未连接，无法打开预览");
+        toast.warning("桌面端未连接，无法打开预览");
         return;
       }
 
@@ -152,16 +151,16 @@ export function ChatMessage({
         await wsClient.sendRequest("block.preview.open", { block: payload });
       } catch (error) {
         console.error("[ChatMessage] 打开 block 预览失败:", error);
-        messageApi.error("打开预览失败");
+        toast.error("打开预览失败");
       }
     },
-    [messageApi, wsClient]
+    [wsClient]
   );
 
   const openFileInFolder = useCallback(
     async (file: ChatMessageViewFile) => {
       if (!wsClient?.isConnected) {
-        messageApi.warning("桌面端未连接，无法打开文件位置");
+        toast.warning("桌面端未连接，无法打开文件位置");
         return;
       }
       try {
@@ -171,10 +170,10 @@ export function ChatMessage({
         });
       } catch (error) {
         console.error("[ChatMessage] 打开文件位置失败:", error);
-        messageApi.error("打开文件位置失败");
+        toast.error("打开文件位置失败");
       }
     },
-    [wsClient, messageApi]
+    [wsClient]
   );
 
   const handleDelete = useCallback(
@@ -197,7 +196,7 @@ export function ChatMessage({
         onReferenceClick={handleReferenceClick}
         onLinkClick={handleLinkClick}
         onPreviewCodeBlock={handlePreviewCodeBlock}
-        messageApi={messageApi}
+        messageApi={toast}
       />
     ),
     [
@@ -205,7 +204,6 @@ export function ChatMessage({
       handlePreviewCodeBlock,
       handleReferenceClick,
       isDark,
-      messageApi,
       wsClient?.isConnected,
     ]
   );

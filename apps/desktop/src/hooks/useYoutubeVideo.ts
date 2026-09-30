@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
-import { App } from "antd";
+import { toast } from "@tau/ui";
 import useSettingStore from "@/stores/useSettingStore";
 import {
   cacheYoutubeVideo,
@@ -46,7 +46,6 @@ export function useYoutubeVideo(
     null,
   );
   const initedRef = useRef(false);
-  const { message } = App.useApp();
 
   const { setting } = useSettingStore((s) => ({ setting: s.setting }));
 
@@ -150,7 +149,7 @@ export function useYoutubeVideo(
         console.error(e);
         const msg = e instanceof Error ? e.message : "下载失败";
         setError(msg);
-        message.error(`YouTube 视频加载失败: ${msg}`);
+        toast.error(`YouTube 视频加载失败: ${msg}`);
       } finally {
         setLoading(false);
       }

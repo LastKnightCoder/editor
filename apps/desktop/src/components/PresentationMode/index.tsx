@@ -20,13 +20,13 @@ import {
   X,
 } from "lucide-react";
 import { EditorThemeOverride } from "@tau/editor/src";
-import { useThemeStore, type ThemeMode } from "@tau/themes/react";
-import { IconButton, Tooltip, cn } from "@tau/ui";
+import { cn } from "@tau/ui";
+import { StageHud, StageHudButton, StageHudDivider, useStageTheme } from "@/components/Stage";
 import PortalToBody from "@/components/PortalToBody";
 import { useFindOwner } from "@/components/GlobalFindBar/findOwner";
 import { isEditableTarget } from "@/page/dom";
 import { useOverlayDismiss } from "@/page/PageProvider";
-import { platform } from "@/platform";
+import { canToggleFullScreen, useFullScreenWhileMounted } from "@/hooks/useFullScreenWhileMounted";
 import { SINGLE_SCREEN, type CameraPlan } from "./cameraPlan";
 import { HelpPanel, Kbd } from "./HelpPanel";
 import { Overview } from "./Overview";
@@ -68,75 +68,6 @@ function useStage() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
   return useMemo(() => fitStage(size.width, size.height), [size.width, size.height]);
-}
-
-const canFullScreen = () => platform.supports("window.toggle-fullscreen");
-
-/** 按目标状态切换窗口全屏（平台只提供 toggle，先查当前状态） */
-async function ensureFullScreen(want: boolean) {
-  if (!canFullScreen()) return;
-  const { isFullScreen } = await platform.window.getState();
-  if (isFullScreen !== want) await platform.window.toggleFullScreen();
-}
-
-/** 放映期间窗口全屏：进入时若未全屏则打开，退出时还原到进入前的状态 */
-function usePresentationFullScreen() {
-  const [fullScreen, setFullScreen] = useState(false);
-
-  useEffect(() => {
-    if (!canFullScreen()) return;
-    let disposed = false;
-    let wasFullScreen = true;
-    const unsubscribe = platform.supports("window.fullscreen-events")
-      ? platform.window.onFullScreenChange(setFullScreen)
-      : undefined;
-    void platform.window.getState().then(state => {
-      if (disposed) return;
-      wasFullScreen = state.isFullScreen;
-      setFullScreen(state.isFullScreen);
-      if (!state.isFullScreen) void platform.window.toggleFullScreen();
-    });
-    return () => {
-      disposed = true;
-      unsubscribe?.();
-      if (!wasFullScreen) void ensureFullScreen(false);
-    };
-  }, []);
-
-  const toggle = useCallback(() => {
-    if (canFullScreen()) void platform.window.toggleFullScreen();
-  }, []);
-
-  return { fullScreen, toggle };
-}
-
-function HudButton({
-  label,
-  shortcut,
-  onClick,
-  disabled,
-  active,
-  children,
-}: {
-  label: string;
-  shortcut?: string;
-  onClick(): void;
-  disabled?: boolean;
-  active?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <Tooltip content={shortcut ? `${label} ${shortcut}` : label} placement="top">
-      <IconButton
-        aria-label={label}
-        disabled={disabled}
-        onClick={onClick}
-        className={cn("size-8 rounded-full", active && "bg-selected text-accent-text")}
-      >
-        {children}
-      </IconButton>
-    </Tooltip>
-  );
 }
 
 function StepDots({ count, current }: { count: number; current: number }) {
@@ -183,16 +114,15 @@ const PresentationMode = ({ content, onExit }: PresentationModeProps) => {
   const [hudHovered, setHudHovered] = useState(false);
   const [nearBottom, setNearBottom] = useState(false);
   const [hint, setHint] = useState(true);
-  const themeKey = useThemeStore(s => s.theme);
-  const appMode = useThemeStore(s => s.mode);
-  const [stageMode, setStageMode] = useState<ThemeMode>(appMode);
-  const toggleStageMode = useCallback(
-    () => setStageMode(mode => (mode === "dark" ? "light" : "dark")),
-    []
-  );
+  const {
+    mode: stageMode,
+    toggle: toggleStageMode,
+    rootProps: stageThemeProps,
+    scopeClass,
+  } = useStageTheme();
 
   const stage = useStage();
-  const { fullScreen, toggle: toggleFullScreen } = usePresentationFullScreen();
+  const { fullScreen, toggle: toggleFullScreen } = useFullScreenWhileMounted();
   const frameRef = useRef<HTMLDivElement>(null);
   const enterDirection = useRef<Direction | null>(null);
   const columnsRef = useRef(1);
@@ -426,14 +356,12 @@ const PresentationMode = ({ content, onExit }: PresentationModeProps) => {
       <div
         role="dialog"
         aria-label="演示"
-        data-theme={themeKey}
-        data-mode={stageMode}
+        {...stageThemeProps}
         className={cn(
           "app-region-no-drag bg-surface text-ink-1 fixed inset-0 z-[95] select-none overflow-hidden",
-          stageMode === "dark" ? "th-scope-dark" : "th-scope-light",
+          scopeClass,
           cursorHidden && "cursor-none"
         )}
-        style={{ colorScheme: stageMode }}
         onMouseMove={onMouseMove}
         onMouseLeave={() => setNearBottom(false)}
         onWheel={onWheel}
@@ -484,24 +412,21 @@ const PresentationMode = ({ content, onExit }: PresentationModeProps) => {
             </div>
           )}
 
-          <div
-            className={cn(
-              "bg-surface/90 shadow-float ring-line-1 text-tau-sm text-ink-2 ease-tau-out absolute bottom-[26px] left-1/2 z-10 flex h-11 -translate-x-1/2 items-center gap-0.5 rounded-full px-1.5 ring-1 backdrop-blur-[10px] transition-[opacity,translate] duration-[260ms]",
-              !hudVisible && "pointer-events-none translate-y-2.5 opacity-0"
-            )}
+          <StageHud
+            visible={hudVisible}
             onMouseEnter={() => setHudHovered(true)}
             onMouseLeave={() => setHudHovered(false)}
           >
             {paged && (
               <>
-                <HudButton
+                <StageHudButton
                   label="上一屏"
                   shortcut="←"
                   onClick={prev}
                   disabled={page === 0 && current === 0}
                 >
                   <ChevronLeft className="size-4" strokeWidth={1.75} />
-                </HudButton>
+                </StageHudButton>
                 <button
                   type="button"
                   onClick={openOverview}
@@ -517,26 +442,26 @@ const PresentationMode = ({ content, onExit }: PresentationModeProps) => {
                     </>
                   )}
                 </button>
-                <HudButton
+                <StageHudButton
                   label="下一屏"
                   shortcut="→"
                   onClick={next}
                   disabled={page === total - 1 && lastScreen}
                 >
                   <ChevronRight className="size-4" strokeWidth={1.75} />
-                </HudButton>
-                <span className="bg-line-1 mx-1 h-[18px] w-px" />
+                </StageHudButton>
+                <StageHudDivider />
               </>
             )}
             {title && <span className="text-ink-1 max-w-60 truncate px-2.5">{title}</span>}
             <StepDots count={screens} current={current} />
-            {(title || screens > 1) && <span className="bg-line-1 mx-1 h-[18px] w-px" />}
+            {(title || screens > 1) && <StageHudDivider />}
             {paged && (
-              <HudButton label="全览" shortcut="O" onClick={openOverview} active={overview}>
+              <StageHudButton label="全览" shortcut="O" onClick={openOverview} active={overview}>
                 <LayoutGrid className="size-4" strokeWidth={1.75} />
-              </HudButton>
+              </StageHudButton>
             )}
-            <HudButton
+            <StageHudButton
               label={stageMode === "dark" ? "浅色画面" : "深色画面"}
               shortcut="D"
               onClick={toggleStageMode}
@@ -546,9 +471,9 @@ const PresentationMode = ({ content, onExit }: PresentationModeProps) => {
               ) : (
                 <Moon className="size-4" strokeWidth={1.75} />
               )}
-            </HudButton>
-            {canFullScreen() && (
-              <HudButton
+            </StageHudButton>
+            {canToggleFullScreen() && (
+              <StageHudButton
                 label={fullScreen ? "退出全屏" : "全屏"}
                 shortcut="F"
                 onClick={toggleFullScreen}
@@ -558,16 +483,16 @@ const PresentationMode = ({ content, onExit }: PresentationModeProps) => {
                 ) : (
                   <Maximize className="size-4" strokeWidth={1.75} />
                 )}
-              </HudButton>
+              </StageHudButton>
             )}
-            <HudButton label="快捷键" shortcut="?" onClick={() => setHelp(true)}>
+            <StageHudButton label="快捷键" shortcut="?" onClick={() => setHelp(true)}>
               <Keyboard className="size-4" strokeWidth={1.75} />
-            </HudButton>
-            <span className="bg-line-1 mx-1 h-[18px] w-px" />
-            <HudButton label="退出演示" shortcut="Esc" onClick={onExit}>
+            </StageHudButton>
+            <StageHudDivider />
+            <StageHudButton label="退出演示" shortcut="Esc" onClick={onExit}>
               <X className="size-4" strokeWidth={1.75} />
-            </HudButton>
-          </div>
+            </StageHudButton>
+          </StageHud>
 
           {overview && (
             <Overview

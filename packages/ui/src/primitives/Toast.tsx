@@ -111,6 +111,9 @@ export const toast = {
   resolve(id: number, message?: string) {
     useToastStore.getState().update(id, { type: "success", message: message ?? "完成" });
   },
+  reject(id: number, message?: string) {
+    useToastStore.getState().update(id, { type: "error", message: message ?? "失败" });
+  },
   dismiss(id?: number) {
     if (id === undefined) useToastStore.setState({ items: [] });
     else useToastStore.getState().remove(id);
