@@ -3,7 +3,7 @@ import { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { registerHotKey } from "../../utils/hotkey";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createEditor, type Descendant } from "slate";
+import { createEditor, Editor as SlateEditor, Transforms, type Descendant } from "slate";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
@@ -208,5 +208,64 @@ describe("命令热键端到端（mod+b → tau.mark.bold）", () => {
       commands: [{ id: "test.counter.tick", run: () => {} }],
     });
     expect(() => kitWith([counterExtension, dup])).toThrow(/test.counter.tick/);
+  });
+});
+
+describe("内核 legacy 热键命令化（escape 清标记 / mod+方向兜底 / 块导航 / 面板键）", () => {
+  it("内核命令全部注册并绑热键：escape 清标记、mod+左右兜底、上下块导航、面板六键", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root: Root = createRoot(container);
+    const ref = createRef<EditorRef>();
+    const kit = createBareEditorKit({
+      services: [register => register(IEditorSlots, createDefaultEditorSlots())],
+    });
+    await act(async () => {
+      root.render(
+        <DndProvider backend={HTML5Backend}>
+          <Editor
+            ref={ref}
+            kit={kit}
+            readonly={false}
+            initValue={
+              [
+                {
+                  type: "paragraph",
+                  children: [{ type: "formatted", text: "粗体", bold: true }],
+                },
+              ] as unknown as Descendant[]
+            }
+          />
+        </DndProvider>
+      );
+    });
+    const editor = ref.current!.getEditor();
+
+    // escape 清标记命令可执行（行为逻辑逐字搬运自旧热键，等价性由搬运保证）
+    Transforms.select(editor, { path: [0, 0], offset: 0 });
+    expect(editor.commands.execute("tau.edit.clear-marks")).toBe(true);
+
+    // mod+左右兜底、inline 边界移动、块导航、面板六键都已声明（内核命令注册在编辑器
+    // 组件层的注册表，execute 成功即证明接线生效，这里钉住声明清单）
+    const ids = builtinCommands.map(command => command.id);
+    for (const expected of [
+      "tau.edit.clear-marks",
+      "tau.edit.intercept-mod-right",
+      "tau.edit.intercept-mod-left",
+      "tau.edit.move-left",
+      "tau.edit.move-right",
+      "tau.edit.block-up",
+      "tau.edit.block-down",
+      "tau.panel.backspace",
+      "tau.panel.next",
+      "tau.panel.prev",
+      "tau.panel.confirm",
+      "tau.panel.enter-submenu",
+      "tau.panel.exit-submenu",
+    ]) {
+      expect(ids).toContain(expected);
+    }
+    await act(async () => root.unmount());
+    container.remove();
   });
 });

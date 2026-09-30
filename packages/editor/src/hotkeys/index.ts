@@ -1,30 +1,44 @@
 import type { EditorCommand, EditorHotkey } from "../api/command";
-import type { IHotKeyConfig } from "../types";
 import {
   formattedTextCommands,
   formattedTextHotkeys,
-  quitFormattedMarks,
-  modMove,
+  quitFormattedMarksCommands,
+  quitFormattedMarksHotkeys,
+  modMoveCommands,
+  modMoveHotkeys,
 } from "./formattedText";
-import { inline } from "./inline";
-import { slashCommandConfig } from "./slashCommand";
-import { blockNavigationHotkeys } from "./blockNavigation";
+import { inlineCommands, inlineHotkeys } from "./inline";
+import { slashCommandCommands, slashCommandHotkeys } from "./slashCommand";
+import { blockNavigationCommands, blockNavigationHotkeys } from "./blockNavigation";
 import { selectAllCommands, selectAllHotkeys } from "./selectAll";
 
 /**
- * 内核默认的命令与热键。命令热键经命令注册表执行（隔离与 enablement 一份）；
- * 导航类（escape / 方向 / mod+方向 / slash / 块导航）暂留 legacy 直通，后续批次再转。
+ * 内核默认的命令与热键，全部经命令注册表执行（隔离与 enablement 一份）。
+ * 内置命令热键的匹配顺序在扩展命令热键之后（index.tsx 的 finalHotkeys 段序）：
+ * 同键位的扩展命令（表格 / 多列的 mod+方向、表格的 enter/方向导航）先匹配，
+ * 内置的兜底项（mod+方向拦截、块导航）不遮蔽它们。
  */
-export const builtinCommands: EditorCommand[] = [...selectAllCommands, ...formattedTextCommands];
+export const builtinCommands: EditorCommand[] = [
+  ...selectAllCommands,
+  ...formattedTextCommands,
+  ...quitFormattedMarksCommands,
+  ...modMoveCommands,
+  ...inlineCommands,
+  ...slashCommandCommands,
+  ...blockNavigationCommands,
+];
 
-export const builtinHotkeys: EditorHotkey[] = [...selectAllHotkeys, ...formattedTextHotkeys];
-
-const legacyHotKeyConfigs: IHotKeyConfig[] = [
-  ...quitFormattedMarks,
-  ...modMove,
-  ...inline,
-  ...slashCommandConfig,
+export const builtinHotkeys: EditorHotkey[] = [
+  ...selectAllHotkeys,
+  ...formattedTextHotkeys,
+  ...quitFormattedMarksHotkeys,
+  ...modMoveHotkeys,
+  ...inlineHotkeys,
+  ...slashCommandHotkeys,
   ...blockNavigationHotkeys,
 ];
+
+/** @deprecated 内核热键已全部命令化；保留空数组过渡，宿主 prop 的 legacy 热键仍走直通 */
+const legacyHotKeyConfigs: never[] = [];
 
 export default legacyHotKeyConfigs;
