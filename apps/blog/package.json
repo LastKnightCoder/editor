@@ -37,7 +37,6 @@
     "react-dom": "19.1.0",
     "react-icons": "^4.12.0",
     "react-inlinesvg": "^4.2.0",
-    "react-resizable": "^3.0.5",
     "shiki": "^3.22.0",
     "shiki-magic-move": "^1.2.1",
     "slate": "^0.123.0",

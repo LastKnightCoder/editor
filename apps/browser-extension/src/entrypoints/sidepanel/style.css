@@ -1,4 +1,3 @@
-@import "../../../../desktop/src/styles/theme-colors.css";
 @import "tailwindcss";
 @import "@tau/themes/scale.css";
 /* 编辑器的浮层原语来自 @tau/ui，类名经 @tau/themes 的语义映射取 --tau-* */
