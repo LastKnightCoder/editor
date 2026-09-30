@@ -1,15 +1,13 @@
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useRef } from "react";
 import { SwiperSlide, Swiper } from "swiper/react";
 import { Pagination, Thumbs } from "swiper/modules";
 import type { Swiper as SwiperType } from "swiper";
-import { ImageGallery } from "@tau/shared";
 import type {
   ImageBorderRadiusPreset,
   ImageGalleryItem,
   ObjectFitMode,
   ImageShadowPreset,
 } from "../../../../types";
-import useTheme from "../../../../hooks/useTheme";
 import { getImageAppearanceStyle } from "../../../image/utils/appearance";
 
 import "swiper/css";
@@ -23,29 +21,29 @@ interface ISwipeImageGalleryProps {
   objectFit?: ObjectFitMode;
   borderRadius?: ImageBorderRadiusPreset;
   shadow?: ImageShadowPreset | boolean;
+  /** 单击 / 双击当前这张，参数为该图在 items 中的序号 */
+  onItemClick?: (index: number) => void;
+  onItemDoubleClick?: (index: number) => void;
 }
 
 const SwipeImageGallery = (props: ISwipeImageGalleryProps) => {
-  const { items, objectFit = "contain", borderRadius = "none", shadow = false } = props;
+  const {
+    items,
+    objectFit = "contain",
+    borderRadius = "none",
+    shadow = false,
+    onItemClick,
+    onItemDoubleClick,
+  } = props;
   const { Image } = useEditorSlots();
-  const { theme } = useTheme();
   const swiperRef = useRef<SwiperType | null>(null);
-  const [showGallery, setShowGallery] = useState(false);
-  const [galleryIndex, setGalleryIndex] = useState(0);
   const imageAppearanceStyle = useMemo(
     () => getImageAppearanceStyle({ borderRadius, shadow }),
     [borderRadius, shadow]
   );
 
-  // 全屏浏览用的图片列表
-  const galleryImages = useMemo(() => items.map(item => item.url), [items]);
-
-  const handleImageClick = () => {
-    // 获取当前 swiper 的真实索引
-    const realIndex = swiperRef.current?.realIndex ?? 0;
-    setGalleryIndex(realIndex);
-    setShowGallery(true);
-  };
+  // loop 模式下 DOM 里有复制的 slide，序号取 swiper 的真实索引
+  const currentIndex = () => swiperRef.current?.realIndex ?? 0;
 
   const renderImage = (url: string, alt?: string) => (
     <div
@@ -105,19 +103,13 @@ const SwipeImageGallery = (props: ISwipeImageGalleryProps) => {
               alignItems: "center",
               cursor: "pointer",
             }}
-            onClick={handleImageClick}
+            onClick={() => onItemClick?.(currentIndex())}
+            onDoubleClick={() => onItemDoubleClick?.(currentIndex())}
           >
             {renderImage(item.url, item.desc || "")}
           </SwiperSlide>
         ))}
       </Swiper>
-      <ImageGallery
-        images={galleryImages}
-        open={showGallery}
-        onClose={() => setShowGallery(false)}
-        defaultIndex={galleryIndex}
-        theme={theme}
-      />
     </div>
   );
 };

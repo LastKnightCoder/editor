@@ -1,48 +1,49 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { useNotifier } from "../../../../services/hooks";
 import { Transforms } from "slate";
-import { ReactEditor, RenderElementProps, useSlateStatic, useReadOnly } from "slate-react";
-import {
-  AlignCenter,
-  AlignLeft,
-  AlignRight,
-  Crop,
-  FileText,
-  Maximize2,
-  Trash2,
-} from "lucide-react";
+import { ReactEditor, RenderElementProps, useReadOnly, useSlateStatic } from "slate-react";
+import { Button, Spinner, cn } from "@tau/ui";
+import { ImageOff } from "lucide-react";
 import { EditText } from "@tau/shared";
 import type { EditTextHandle } from "@tau/shared";
 
-import { useUploadResource } from "../../../../hooks/useUploadResource";
-import useIsLastElement from "../../../../hooks/useIsLastElement";
-
 import AddParagraph from "../../../../components/AddParagraph";
-import { useImagesOverviewStore } from "../../../../stores";
-import type { ImageElement } from "../../../types";
-import { imageActionsMap } from "../../utils/actionsMap";
-import { getImageAppearanceStyle } from "../../utils/appearance";
-
-import { cn } from "@tau/ui";
-import { useImageResize, ResizeDirection } from "../../../../hooks/useImageResize";
-
-import { useImageAppearance, type ImageAppearanceOption } from "../../appearanceOption";
-import { IMediaActions, useEditorSlots, useOptionalService } from "../../../../services";
-import { openLocalMediaPicker } from "../../../../utils/mediaInsert";
+import EditorContextMenu from "../../../../components/EditorContextMenu";
+import type { ContextMenuItem } from "../../../../components/EditorContextMenu/types";
+import ImageCropEditor, { type ImageCropTransform } from "../../../../components/ImageCropEditor";
+import { resolveElementMenu } from "../../../../hooks/useDragHandlerMenu";
+import { useImageResize, type ResizeDirection } from "../../../../hooks/useImageResize";
+import useIsLastElement from "../../../../hooks/useIsLastElement";
+import { useUploadResource } from "../../../../hooks/useUploadResource";
+import { useInheritedKit } from "../../../../kit/context";
 import {
-  MEDIA_ACTION_BAR_CLASS,
-  MEDIA_ACTION_DIVIDER_CLASS,
-  MEDIA_ACTION_ITEM_CLASS,
+  IMediaActions,
+  useEditorSlots,
+  useNotifier,
+  useOptionalService,
+} from "../../../../services";
+import { openImageLightbox } from "../../../../stores";
+import type { ImageElement } from "../../../../types";
+import { copyImageElement, imageElementToBlob } from "../../../../utils/imageBlob";
+import {
   MEDIA_ALIGN_CLASS,
   MEDIA_CORNER_HANDLE_CLASS,
   MEDIA_CORNER_POSITION_CLASS,
-  MEDIA_HOVER_GROUP,
   MEDIA_RESIZE_INFO_CLASS,
+  MEDIA_SELECTED_OUTLINE_CLASS,
+  MEDIA_SIDE_HANDLE_CLASS,
+  MEDIA_SIDE_POSITION_CLASS,
 } from "../../../../utils/mediaFrameClasses";
-
-import { ImageCropper } from "@tau/shared";
-import type { CropperTransform } from "@tau/shared";
+import { editorContentWidth, matchWidthPreset } from "../../../../utils/mediaWidth";
+import {
+  isOverlayTarget,
+  isTextTarget,
+  shouldIgnoreBlockKey,
+} from "../../../../utils/keyboardTarget";
+import { useImageAppearance, type ImageAppearanceOption } from "../../appearanceOption";
+import { imageActionsMap } from "../../utils/actionsMap";
+import { getImageAppearanceStyle } from "../../utils/appearance";
+import ImageSelectionToolbar from "./ImageSelectionToolbar";
 
 interface IImageProps {
   attributes: RenderElementProps["attributes"];
@@ -50,6 +51,27 @@ interface IImageProps {
   appearance?: ImageAppearanceOption;
 }
 
+type LoadStatus = "loading" | "loaded" | "error";
+
+/** 加载前不知道原图比例时的占位比例 */
+const FALLBACK_ASPECT = "16 / 9";
+
+const RESIZE_HANDLES: { direction: ResizeDirection; cursor: string; side?: boolean }[] = [
+  { direction: "nw", cursor: "nwse-resize" },
+  { direction: "ne", cursor: "nesw-resize" },
+  { direction: "se", cursor: "nwse-resize" },
+  { direction: "sw", cursor: "nesw-resize" },
+  { direction: "w", cursor: "ew-resize", side: true },
+  { direction: "e", cursor: "ew-resize", side: true },
+];
+
+const imageFileOf = (data: DataTransfer | null) =>
+  Array.from(data?.files ?? []).find(file => file.type.startsWith("image/")) ?? null;
+
+/**
+ * 图片块：悬停不出控件，单击选中、双击预览；选中后上方浮出属性条，四角等比缩放、两侧拖宽（吸附 50 / 75 / 100%），
+ * 下方就地写说明。加载前按存下的原图比例占位，失败给出重试 / 替换；选中时拖入或粘贴图片即替换。
+ */
 const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
   const { attributes, children, element, appearance: appearanceOption } = props;
   const {
@@ -62,163 +84,78 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
     align = "center",
     borderRadius,
     shadow,
+    naturalWidth,
+    naturalHeight,
   } = element;
 
-  const uploadResource = useUploadResource();
-  const appearance = useImageAppearance(appearanceOption);
-  const messageApi = useNotifier();
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
-  const { Image: LocalImageComponent } = useEditorSlots();
-
-  const [uploading, setUploading] = useState(false);
-
-  const [isSelected, setIsSelected] = useState(false);
-  const [showDescEditor, setShowDescEditor] = useState(false);
-  const descRef = useRef<EditTextHandle | null>(null);
+  const kit = useInheritedKit();
+  const notifier = useNotifier();
+  const uploadResource = useUploadResource();
+  const appearance = useImageAppearance(appearanceOption);
+  const { Image: ImageSlot } = useEditorSlots();
   const isLast = useIsLastElement(element);
 
-  const { showImageOverview } = useImagesOverviewStore(state => ({
-    showImageOverview: state.showImageOverview,
-  }));
-
-  const showOverView = useMemoizedFn(() => {
-    showImageOverview(element, editor);
-  });
-
-  const deleteImage = useMemoizedFn(() => {
-    if (readOnly) {
-      return;
-    }
-    const path = ReactEditor.findPath(editor, element);
-    Transforms.delete(editor, {
-      at: path,
-    });
-    Transforms.insertNodes(
-      editor,
-      {
-        type: "paragraph",
-        children: [{ type: "formatted", text: "" }],
-      },
-      {
-        at: path,
-        select: true,
-      }
-    );
-  });
-
-  const toggleAlign = () => {
-    if (readOnly) return;
-    const path = ReactEditor.findPath(editor, element);
-    let newAlign: "left" | "center" | "right";
-
-    // 循环切换：left -> center -> right -> left
-    if (align === "left") {
-      newAlign = "center";
-    } else if (align === "center") {
-      newAlign = "right";
-    } else {
-      newAlign = "left";
-    }
-
-    Transforms.setNodes(
-      editor,
-      {
-        align: newAlign,
-      },
-      {
-        at: path,
-      }
-    );
-  };
-
-  // ImageCropper state
-  const [cropperOpen, setCropperOpen] = useState(false);
-
-  const imgRef = useRef<HTMLImageElement>(null);
-  const displayImgRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const displayImgRef = useRef<HTMLImageElement>(null);
+  const descRef = useRef<EditTextHandle | null>(null);
+  // 上传等异步操作结束时按最新节点定位（期间节点对象可能已被替换）
+  const elementRef = useRef(element);
+  elementRef.current = element;
 
-  const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
-  const [maxWidth, setMaxWidth] = useState<number>(Infinity);
+  const displayUrl = previewUrl || url;
+  const isCropped = !!previewUrl && previewUrl !== url;
 
-  // 从 img 元素获取 blob
-  const getImageBlob = async (): Promise<Blob | null> => {
-    try {
-      const imgElement = displayImgRef.current || imgRef.current;
-      if (!imgElement) return null;
-
-      // 创建 canvas
-      const canvas = document.createElement("canvas");
-      canvas.width = imgElement.naturalWidth;
-      canvas.height = imgElement.naturalHeight;
-
-      // 绘制图片
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return null;
-
-      ctx.drawImage(imgElement, 0, 0);
-
-      // 转换为 blob
-      return new Promise(resolve => {
-        canvas.toBlob(blob => {
-          resolve(blob);
-        }, "image/png");
-      });
-    } catch (error) {
-      console.error("获取图片 blob 失败:", error);
-      return null;
-    }
-  };
-
-  // Register actions for menu access
-  useEffect(() => {
-    imageActionsMap.set(element, {
-      showOverview: showOverView,
-      deleteImage,
-      startCrop: () => setCropperOpen(true),
-      runMediaAction: (actionId: string) => setActiveActionId(actionId),
-      showDescEditor: () => setShowDescEditor(true),
-      getImageBlob,
-    });
-    return () => {
-      imageActionsMap.delete(element);
-    };
-  }, [element, showOverView, deleteImage]);
+  const [isSelected, setIsSelected] = useState(false);
+  const [status, setStatus] = useState<LoadStatus>("loading");
+  const [reloadKey, setReloadKey] = useState(0);
+  const [loadedSize, setLoadedSize] = useState<{ width: number; height: number } | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [showDescEditor, setShowDescEditor] = useState(false);
+  const [contentWidth, setContentWidth] = useState(0);
+  const [menu, setMenu] = useState<{
+    position: { x: number; y: number };
+    items: ContextMenuItem[];
+  } | null>(null);
+  const menuOpenRef = useRef(false);
+  menuOpenRef.current = !!menu;
+  const [cropOpen, setCropOpen] = useState(false);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
 
   const imageActions = (useOptionalService(IMediaActions) ?? []).filter(
     action => action.mediaTypes.includes("image") && (action.isAvailable?.() ?? true)
   );
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
   const activeAction = imageActions.find(action => action.id === activeActionId) ?? null;
-  const runMediaAction = (actionId: string) => setActiveActionId(actionId);
 
-  const handleActionApply = (patch: Record<string, unknown>) => {
-    const path = ReactEditor.findPath(editor, element);
-    Transforms.setNodes(editor, patch as Partial<ImageElement>, { at: path });
-  };
-
-  useEffect(() => {
-    if (!previewUrl && url) {
-      const path = ReactEditor.findPath(editor, element);
-      Transforms.setNodes(
-        editor,
-        {
-          previewUrl: url,
-        },
-        {
-          at: path,
-        }
-      );
+  // ---- 节点读写 ----
+  const setProps = useMemoizedFn((patch: Partial<ImageElement>) => {
+    try {
+      const path = ReactEditor.findPath(editor, elementRef.current);
+      Transforms.setNodes(editor, patch, { at: path });
+      return true;
+    } catch {
+      return false;
     }
-  }, [url, previewUrl, editor, element]);
+  });
 
-  // 外部点击取消选中
   useEffect(() => {
-    const handleDocMouseDown = (e: MouseEvent) => {
-      if (!containerRef.current) return;
-      const target = e.target as Node;
-      if (!containerRef.current.contains(target)) {
+    if (!previewUrl && url && !readOnly) {
+      setProps({ previewUrl: url });
+    }
+  }, [url, previewUrl, readOnly, setProps]);
+
+  useEffect(() => {
+    setStatus("loading");
+  }, [displayUrl]);
+
+  // ---- 选中 / 取消 ----
+  useEffect(() => {
+    const handleDocMouseDown = (event: MouseEvent) => {
+      if (menuOpenRef.current) return;
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsSelected(false);
       }
     };
@@ -226,358 +163,547 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
     return () => document.removeEventListener("mousedown", handleDocMouseDown);
   }, []);
 
-  // 选中图片后，按 Delete/Backspace 删除图片
   useEffect(() => {
-    const handleDocKeyDown = (e: KeyboardEvent) => {
-      if (readOnly || !isSelected) return;
-      if (e.key !== "Delete" && e.key !== "Backspace") return;
-
-      const target = e.target as HTMLElement | null;
-      if (target?.isContentEditable) return;
-      if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA") {
-        return;
-      }
-
-      e.preventDefault();
-      e.stopPropagation();
-      setIsSelected(false);
-      deleteImage();
-    };
-
-    document.addEventListener("keydown", handleDocKeyDown);
-    return () => document.removeEventListener("keydown", handleDocKeyDown);
-  }, [deleteImage, isSelected, readOnly]);
-
-  // 计算编辑器可用最大宽度
-  useEffect(() => {
-    const editorEl = containerRef.current?.closest(
-      '[data-slate-editor="true"]'
-    ) as HTMLElement | null;
-    if (editorEl) {
-      setMaxWidth(editorEl.clientWidth);
-    }
-  }, []);
-
-  const updateElementWidth = useMemoizedFn((newWidth?: number) => {
-    if (typeof newWidth !== "number") return;
-    const path = ReactEditor.findPath(editor, element);
-    Transforms.setNodes(editor, { width: newWidth }, { at: path });
-  });
-
-  const updateDescription = useMemoizedFn((value: string) => {
-    const path = ReactEditor.findPath(editor, element);
-    Transforms.setNodes(editor, { description: value }, { at: path });
-  });
-
-  const exitDescEditing = useMemoizedFn(() => {
-    const val = descRef.current?.getValue() || "";
-    if (!val.trim()) {
-      updateDescription("");
-      setShowDescEditor(false);
+    if (isSelected) {
+      setContentWidth(editorContentWidth(containerRef.current));
     } else {
       setShowDescEditor(false);
     }
-  });
+  }, [isSelected]);
 
-  // Handle crop confirm
-  const handleCropConfirm = useMemoizedFn(async (transform: CropperTransform, blob: Blob) => {
-    setUploading(true);
-    try {
-      const file = new File([blob], "cropped.jpg", { type: "image/jpeg" });
-      const uploadRes = await uploadResource(file);
+  const preview = useMemoizedFn(() => openImageLightbox(editor, element));
 
-      if (uploadRes) {
-        const path = ReactEditor.findPath(editor, element);
-        Transforms.setNodes(
-          editor,
-          {
-            cropTransform: transform,
-            previewUrl: uploadRes,
-          },
-          { at: path }
-        );
-        messageApi.success("裁剪图片已保存");
-      } else {
-        messageApi.warning("裁剪图片上传失败");
-      }
-    } catch (error) {
-      console.error("裁剪图片上传失败:", error);
-      messageApi.error("裁剪图片上传失败");
-    } finally {
-      setUploading(false);
-      setCropperOpen(false);
-    }
-  });
-
-  const handleDisplayImageLoad = useMemoizedFn(() => {
-    if (displayImgRef.current) {
-      const img = displayImgRef.current;
-      const imgNaturalWidth = img.naturalWidth;
-      const imgNaturalHeight = img.naturalHeight;
-      setNaturalSize({ width: imgNaturalWidth, height: imgNaturalHeight });
-
-      if (!width) {
-        const editorEl = containerRef.current?.closest(
-          '[data-slate-editor="true"]'
-        ) as HTMLElement | null;
-        const editorWidth = editorEl?.clientWidth || 0;
-        const dpr = window.devicePixelRatio || 1;
-        const initialWidth = Math.min(imgNaturalWidth / dpr, editorWidth || imgNaturalWidth);
-        updateElementWidth(initialWidth);
-        resize.setSize({ width: initialWidth });
-      }
-    }
-  });
-
-  const resize = useImageResize({
-    initialSize: { width },
-    emElementRef: containerRef,
-    minWidth: 50,
-    maxWidth,
-    minHeight: 10,
-    aspectRatio:
-      naturalSize.width && naturalSize.height ? naturalSize.width / naturalSize.height : undefined,
-    onResizeEnd: size => {
-      if (size.width) {
-        updateElementWidth(size.width);
-      }
-    },
-    readonly: readOnly,
-    keepAspectRatio: true,
-  });
-
-  const handleSelect = useMemoizedFn((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleFrameClick = useMemoizedFn((event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
     if (readOnly) {
-      // 只读下直接预览
-      showOverView();
-      return;
-    }
-    if (isSelected) {
-      // 选中后再次点击进行预览
-      showOverView();
+      preview();
     } else {
       setIsSelected(true);
     }
   });
 
-  // 仅四角句柄，样式更明显
-  const RESIZE_HANDLES: { direction: ResizeDirection; cursor: string }[] = [
-    { direction: "nw", cursor: "nwse-resize" },
-    { direction: "ne", cursor: "nesw-resize" },
-    { direction: "se", cursor: "nwse-resize" },
-    { direction: "sw", cursor: "nesw-resize" },
-  ];
+  // ---- 删除 / 替换 ----
+  const deleteImage = useMemoizedFn(() => {
+    if (readOnly) return;
+    const path = ReactEditor.findPath(editor, element);
+    Transforms.delete(editor, { at: path });
+    Transforms.insertNodes(
+      editor,
+      { type: "paragraph", children: [{ type: "formatted", text: "" }] },
+      { at: path, select: true }
+    );
+  });
 
-  // 遗留空图片元素的最小占位（正常流程经 slash 菜单直接创建已填充的元素）
+  const replaceWithFile = useMemoizedFn(async (file: File) => {
+    if (readOnly) return;
+    setUploading(true);
+    try {
+      const uploaded = await uploadResource(file);
+      if (!uploaded) {
+        notifier.error("图片上传失败");
+        return;
+      }
+      // 换图保留宽度、对齐与说明，裁剪参数和原图尺寸随新图作废
+      setProps({
+        url: uploaded,
+        previewUrl: uploaded,
+        cropTransform: undefined,
+        naturalWidth: undefined,
+        naturalHeight: undefined,
+      });
+    } catch (error) {
+      console.error("替换图片失败:", error);
+      notifier.error("图片上传失败");
+    } finally {
+      setUploading(false);
+    }
+  });
+
+  const pickReplacement = useMemoizedFn(() => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (file) void replaceWithFile(file);
+    };
+    input.click();
+  });
+
+  // ---- 裁剪 ----
+  const startCrop = useMemoizedFn(() => {
+    if (readOnly || !url) return;
+    // 未裁剪过：显示图就是原图，直接用它已解析的地址；裁剪过则另行解析原图（见下方隐藏的插槽图片）
+    setCropSrc(!isCropped ? (displayImgRef.current?.currentSrc ?? null) : null);
+    setCropOpen(true);
+  });
+
+  const closeCrop = useMemoizedFn(() => {
+    setCropOpen(false);
+    setCropSrc(null);
+  });
+
+  const handleCropConfirm = useMemoizedFn(
+    async ({
+      transform,
+      blob,
+      ext,
+    }: {
+      transform: ImageCropTransform;
+      blob: Blob;
+      ext: string;
+    }) => {
+      const file = new File([blob], `crop-${Date.now()}.${ext}`, { type: blob.type });
+      const uploaded = await uploadResource(file);
+      if (!uploaded) {
+        throw new Error("裁剪结果上传失败，请重试");
+      }
+      setProps({
+        cropTransform: transform,
+        previewUrl: uploaded,
+        naturalWidth: Math.round(transform.cropWidth),
+        naturalHeight: Math.round(transform.cropHeight),
+      });
+      closeCrop();
+    }
+  );
+
+  // ---- 说明 ----
+  const openDescEditor = useMemoizedFn(() => {
+    if (readOnly) return;
+    setShowDescEditor(true);
+    setTimeout(() => descRef.current?.focusEnd(), 0);
+  });
+
+  const exitDescEditing = useMemoizedFn(() => {
+    const value = descRef.current?.getValue() || "";
+    if (!value.trim()) setProps({ description: "" });
+    setShowDescEditor(false);
+  });
+
+  // 菜单命令通过 actionsMap 调用组件内的动作
+  useEffect(() => {
+    imageActionsMap.set(element, {
+      replaceImage: pickReplacement,
+      deleteImage,
+      startCrop,
+      runMediaAction: setActiveActionId,
+      showDescEditor: openDescEditor,
+      getImageBlob: async () =>
+        displayImgRef.current ? imageElementToBlob(displayImgRef.current) : null,
+    });
+    return () => {
+      imageActionsMap.delete(element);
+    };
+  }, [element, pickReplacement, deleteImage, startCrop, openDescEditor]);
+
+  // ---- 选中时的键盘与粘贴：捕获阶段抢在编辑器之前处理 ----
+  useEffect(() => {
+    if (!isSelected || readOnly) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (cropOpen || shouldIgnoreBlockKey(event, containerRef.current)) return;
+      const mod = event.metaKey || event.ctrlKey;
+      let handled = true;
+      if (!mod && event.key === " ") preview();
+      else if (!mod && (event.key === "c" || event.key === "C")) startCrop();
+      else if (!mod && event.key === "Enter") openDescEditor();
+      else if (!mod && (event.key === "Delete" || event.key === "Backspace")) {
+        setIsSelected(false);
+        deleteImage();
+      } else if (!mod && event.key === "Escape") setIsSelected(false);
+      else if (mod && event.key.toLowerCase() === "c" && !window.getSelection()?.toString()) {
+        void (async () => {
+          const ok = displayImgRef.current ? await copyImageElement(displayImgRef.current) : false;
+          if (ok) notifier.success("图片已复制");
+          else notifier.error("复制失败：图片来源不允许读取");
+        })();
+      } else handled = false;
+      if (handled) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+    const handlePaste = (event: ClipboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (cropOpen || isOverlayTarget(target)) return;
+      if (!target?.contains?.(containerRef.current) && isTextTarget(target)) return;
+      const file = imageFileOf(event.clipboardData);
+      if (!file) return;
+      event.preventDefault();
+      event.stopPropagation();
+      void replaceWithFile(file);
+    };
+    document.addEventListener("keydown", handleKeyDown, true);
+    document.addEventListener("paste", handlePaste, true);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown, true);
+      document.removeEventListener("paste", handlePaste, true);
+    };
+  }, [
+    isSelected,
+    readOnly,
+    cropOpen,
+    preview,
+    startCrop,
+    openDescEditor,
+    deleteImage,
+    replaceWithFile,
+    notifier,
+  ]);
+
+  // ---- 尺寸 ----
+  const emScale = () => {
+    const el = containerRef.current;
+    return el ? (parseFloat(getComputedStyle(el).fontSize) || 16) / 16 : 1;
+  };
+
+  const handleDisplayImageLoad = useMemoizedFn(() => {
+    const img = displayImgRef.current;
+    if (!img) return;
+    setStatus("loaded");
+    const size = { width: img.naturalWidth, height: img.naturalHeight };
+    setLoadedSize(size);
+    if (readOnly) return;
+    const patch: Partial<ImageElement> = {};
+    if (naturalWidth !== size.width || naturalHeight !== size.height) {
+      patch.naturalWidth = size.width;
+      patch.naturalHeight = size.height;
+    }
+    if (!width) {
+      const available = editorContentWidth(containerRef.current) || size.width;
+      const initial = Math.min(size.width / (window.devicePixelRatio || 1), available) / emScale();
+      patch.width = initial;
+      resize.setSize({ width: initial });
+    }
+    if (Object.keys(patch).length) setProps(patch);
+  });
+
+  const aspectWidth = naturalWidth ?? loadedSize?.width;
+  const aspectHeight = naturalHeight ?? loadedSize?.height;
+  const aspectRatio =
+    aspectWidth && aspectHeight ? `${aspectWidth} / ${aspectHeight}` : FALLBACK_ASPECT;
+
+  const resize = useImageResize({
+    initialSize: { width },
+    emElementRef: containerRef,
+    minWidth: 50,
+    minHeight: 10,
+    aspectRatio: aspectWidth && aspectHeight ? aspectWidth / aspectHeight : undefined,
+    onResizeEnd: size => size.width && setProps({ width: size.width }),
+    readonly: readOnly,
+    keepAspectRatio: true,
+    symmetric: align === "center",
+    snap: true,
+  });
+
+  const currentWidth = resize.size.width ?? width;
+  const applyWidthPreset = (ratio: number) => {
+    const available = editorContentWidth(containerRef.current);
+    if (!available) return;
+    const next = (available * ratio) / emScale();
+    resize.setSize({ width: next });
+    setProps({ width: next });
+  };
+
+  const openMore = (anchor: DOMRect) => {
+    setMenu({
+      position: { x: anchor.left, y: anchor.bottom + 6 },
+      items: resolveElementMenu(kit, editor, elementRef.current),
+    });
+  };
+
+  // ---- 渲染 ----
+  const effectiveBorderRadius = borderRadius ?? appearance?.borderRadius ?? "none";
+  const effectiveShadow = shadow ?? appearance?.shadow ?? "none";
+  const appearanceStyle = getImageAppearanceStyle({
+    borderRadius: effectiveBorderRadius,
+    shadow: effectiveShadow,
+  });
+  const showHandles = !readOnly && isSelected && status !== "error";
+  const busy = uploading || pasteUploading;
+
   const renderPlaceholder = () => {
     if (readOnly) return null;
     return (
-      <div className="flex items-center justify-center gap-[0.5em] rounded-[0.75em] border border-dashed border-gray-300 p-[1.5em] text-[0.875em] text-gray-500 dark:border-zinc-700 dark:text-zinc-400">
-        {uploading || pasteUploading ? (
-          <span>图片上传中...</span>
-        ) : (
+      <button
+        type="button"
+        onClick={pickReplacement}
+        className="text-tau-body flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-[12px] border-none bg-[var(--ed-bg-surface)] py-10 text-[var(--ed-text-secondary)] shadow-[0_0_0_1px_var(--ed-border)] transition-colors hover:bg-[var(--ed-bg-hover)]"
+      >
+        {busy ? (
           <>
-            <span>空图片，</span>
-            <button
-              type="button"
-              className="cursor-pointer border-none bg-transparent p-0 font-semibold text-[var(--ed-text-inverse)] underline-offset-2 hover:underline"
-              onClick={() => openLocalMediaPicker(editor, "image", element)}
-            >
-              选择文件
-            </button>
-            <span>上传</span>
+            <Spinner className="size-4" />
+            图片上传中…
           </>
+        ) : (
+          "选择图片，或把图片拖到这里"
         )}
-      </div>
+      </button>
     );
   };
 
-  const renderPreview = () => {
-    const displayUrl = previewUrl || url;
-    const effectiveBorderRadius = borderRadius ?? appearance?.borderRadius ?? "none";
-    const effectiveShadow = shadow ?? appearance?.shadow ?? "none";
-    const imageAppearanceStyle = getImageAppearanceStyle({
-      borderRadius: effectiveBorderRadius,
-      shadow: effectiveShadow,
-    });
-
+  const renderFrameContent = () => {
+    if (status === "error") {
+      return (
+        <div className="absolute inset-0 grid place-items-center bg-[var(--ed-bg-sunken)] p-4">
+          <div className="flex max-w-full flex-col items-center gap-1.5 text-center">
+            <span className="grid size-9 place-items-center rounded-full bg-[var(--ed-bg-surface)] text-[var(--ed-text-secondary)]">
+              <ImageOff size={17} />
+            </span>
+            <span className="text-tau-body font-medium text-[var(--ed-text)]">图片加载失败</span>
+            <span className="text-tau-sm line-clamp-2 max-w-[42ch] break-all text-[var(--ed-text-tertiary)] [font-family:var(--ed-font-mono)]">
+              {displayUrl}
+            </span>
+            <span className="mt-1 flex gap-1.5">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={event => {
+                  event.stopPropagation();
+                  setStatus("loading");
+                  setReloadKey(key => key + 1);
+                }}
+              >
+                重试
+              </Button>
+              {!readOnly && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={event => {
+                    event.stopPropagation();
+                    pickReplacement();
+                  }}
+                >
+                  替换图片
+                </Button>
+              )}
+            </span>
+          </div>
+        </div>
+      );
+    }
     return (
-      <div
-        ref={containerRef}
-        className={cn(
-          MEDIA_HOVER_GROUP,
-          "relative my-0 block w-fit max-w-full rounded-[var(--image-border-radius,0)]",
-          MEDIA_ALIGN_CLASS[align],
-          isSelected &&
-            "after:pointer-events-none after:absolute after:-inset-[2px] after:rounded-[var(--image-border-radius,0)] after:border-[1.5px] after:border-solid after:border-[var(--ed-accent)] after:content-['']"
+      <>
+        {status === "loading" && (
+          <div className="absolute inset-0 animate-pulse bg-[var(--ed-bg-sunken)]" />
         )}
-        style={{
-          width: resize.size.width
-            ? `${resize.size.width / 16}em`
-            : width
-              ? `${width / 16}em`
-              : "auto",
-          maxWidth: "100%",
-          ["--image-border-radius" as string]: imageAppearanceStyle.borderRadius,
-        }}
-      >
-        <LocalImageComponent
-          className={cn(
-            "block h-auto w-full max-w-full",
-            readOnly || isSelected ? "cursor-zoom-in" : "cursor-default"
-          )}
-          style={imageAppearanceStyle}
+        <ImageSlot
+          key={reloadKey}
+          ref={displayImgRef}
           url={displayUrl}
           alt={alt}
-          ref={displayImgRef}
-          onClick={handleSelect}
-          onLoad={handleDisplayImageLoad}
           crossOrigin="anonymous"
+          draggable={false}
+          className={cn(
+            "absolute inset-0 block h-full w-full object-contain transition-opacity duration-200",
+            status === "loaded" ? "opacity-100" : "opacity-0"
+          )}
+          onLoad={handleDisplayImageLoad}
+          onLoadError={() => setStatus("error")}
         />
-        {/* 描述编辑/展示区域 */}
-        {(showDescEditor || (description && description.trim().length > 0)) && (
-          <div
-            style={{
-              marginTop: "0.5em",
-              color: "rgba(0,0,0,0.65)",
-              fontSize: "0.875em",
-              lineHeight: 1.4,
-              wordBreak: "break-word",
-              textAlign: "center",
-            }}
-          >
-            {showDescEditor ? (
-              <EditText
-                ref={r => {
-                  descRef.current = r;
-                }}
-                defaultValue={description || ""}
-                placeholder="请输入图片描述"
-                contentEditable={!readOnly}
-                defaultFocus
-                onChange={val => updateDescription(val)}
-                onBlur={exitDescEditing}
-                onPressEnter={exitDescEditing}
-                isSlateEditor={true}
-              />
-            ) : (
-              <div
-                onClick={() => {
-                  if (readOnly) return;
-                  setShowDescEditor(true);
-                  setTimeout(() => descRef.current?.focusEnd(), 0);
-                }}
-                style={{ cursor: readOnly ? "default" : "pointer" }}
-              >
-                {description}
-              </div>
-            )}
-          </div>
-        )}
-        {!readOnly && isSelected && (
-          <>
-            {RESIZE_HANDLES.map(({ direction, cursor }) => (
-              <div
-                key={direction}
-                className={cn(MEDIA_CORNER_HANDLE_CLASS, MEDIA_CORNER_POSITION_CLASS[direction])}
-                style={{ cursor }}
-                onPointerDown={e => resize.handleResizeStart(e, direction)}
-              />
-            ))}
-            {resize.isResizing && (
-              <div className={MEDIA_RESIZE_INFO_CLASS}>{Math.round(resize.size.width || 0)} px</div>
-            )}
-          </>
-        )}
-        {!readOnly && (
-          <div className={MEDIA_ACTION_BAR_CLASS}>
-            <div onClick={showOverView} className={MEDIA_ACTION_ITEM_CLASS}>
-              <Maximize2 size="1em" />
-            </div>
-            <div className={MEDIA_ACTION_DIVIDER_CLASS}></div>
-            <div
-              onClick={toggleAlign}
-              className={MEDIA_ACTION_ITEM_CLASS}
-              title={align === "left" ? "居中对齐" : align === "center" ? "右对齐" : "左对齐"}
-            >
-              {align === "left" && <AlignLeft size="1em" />}
-              {align === "center" && <AlignCenter size="1em" />}
-              {align === "right" && <AlignRight size="1em" />}
-            </div>
-            <div className={MEDIA_ACTION_DIVIDER_CLASS}></div>
-            {!description && !showDescEditor && (
-              <>
-                <div
-                  onClick={() => {
-                    if (readOnly) return;
-                    setShowDescEditor(true);
-                    setTimeout(() => descRef.current?.focusEnd(), 0);
-                  }}
-                  className={MEDIA_ACTION_ITEM_CLASS}
-                >
-                  <FileText size="1em" />
-                </div>
-                <div className={MEDIA_ACTION_DIVIDER_CLASS}></div>
-              </>
-            )}
-            {imageActions.map(action => (
-              <React.Fragment key={action.id}>
-                <div
-                  onClick={() => runMediaAction(action.id)}
-                  className={MEDIA_ACTION_ITEM_CLASS}
-                  title={action.label}
-                >
-                  {action.icon}
-                </div>
-                <div className={MEDIA_ACTION_DIVIDER_CLASS}></div>
-              </React.Fragment>
-            ))}
-            <div onClick={() => setCropperOpen(true)} className={MEDIA_ACTION_ITEM_CLASS}>
-              <Crop size="1em" />
-            </div>
-            <div className={MEDIA_ACTION_DIVIDER_CLASS}></div>
-            <div onClick={deleteImage} className={MEDIA_ACTION_ITEM_CLASS}>
-              <Trash2 size="1em" />
-            </div>
-          </div>
-        )}
-      </div>
+      </>
     );
   };
 
-  const renderContent = () => {
-    if (url) {
-      return renderPreview();
-    } else {
-      return renderPlaceholder();
-    }
-  };
+  const renderBlock = () => (
+    <div
+      ref={containerRef}
+      className={cn("relative my-0 w-fit max-w-full", MEDIA_ALIGN_CLASS[align])}
+      style={{
+        // 未存宽度（只读下的老文档）：加载后按原图尺寸，加载前占满一行作占位
+        width: currentWidth
+          ? `${currentWidth / 16}em`
+          : loadedSize
+            ? `${loadedSize.width / (window.devicePixelRatio || 1)}px`
+            : "100%",
+        maxWidth: "100%",
+      }}
+    >
+      {!readOnly && isSelected && (
+        <ImageSelectionToolbar
+          align={align}
+          activePreset={matchWidthPreset(
+            currentWidth ? currentWidth * emScale() : undefined,
+            contentWidth
+          )}
+          actions={imageActions.map(action => ({
+            id: action.id,
+            label: action.label,
+            icon: action.icon,
+          }))}
+          onAlign={next => setProps({ align: next })}
+          onWidthPreset={applyWidthPreset}
+          onCrop={startCrop}
+          onAction={setActiveActionId}
+          onPreview={preview}
+          onMore={openMore}
+        />
+      )}
+
+      <div className="relative">
+        <div
+          className={cn(
+            "relative overflow-hidden",
+            readOnly ? "cursor-zoom-in" : isSelected ? "cursor-default" : "cursor-pointer",
+            isSelected && !readOnly && MEDIA_SELECTED_OUTLINE_CLASS
+          )}
+          style={{ ...appearanceStyle, aspectRatio }}
+          onClick={handleFrameClick}
+          onDoubleClick={event => {
+            event.preventDefault();
+            preview();
+          }}
+          onDragOver={event => {
+            if (readOnly || !isSelected || !event.dataTransfer.types.includes("Files")) return;
+            event.preventDefault();
+            event.stopPropagation();
+            setDragOver(true);
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={event => {
+            const file = isSelected && !readOnly ? imageFileOf(event.dataTransfer) : null;
+            setDragOver(false);
+            if (!file) return;
+            event.preventDefault();
+            event.stopPropagation();
+            void replaceWithFile(file);
+          }}
+        >
+          {renderFrameContent()}
+          {busy && (
+            <div className="text-tau-sm absolute inset-x-3 bottom-3 flex items-center gap-2 rounded-[10px] bg-[var(--ed-bg-surface)] px-3 py-1.5 text-[var(--ed-text-secondary)] shadow-[var(--ed-shadow-float)]">
+              <Spinner className="size-3.5" />
+              上传中…
+            </div>
+          )}
+          {dragOver && (
+            <div className="pointer-events-none absolute inset-0 grid place-items-center bg-[var(--ed-accent-soft)] outline-dashed outline-2 -outline-offset-8 outline-[var(--ed-accent)]">
+              <span className="text-tau-body rounded-full bg-[var(--ed-bg-surface)] px-3.5 py-1.5 font-semibold text-[var(--ed-accent-text)] shadow-[var(--ed-shadow-float)]">
+                松开以替换这张图片
+              </span>
+            </div>
+          )}
+        </div>
+
+        {showHandles &&
+          RESIZE_HANDLES.map(({ direction, cursor, side }) => (
+            <div
+              key={direction}
+              className={cn(
+                side ? MEDIA_SIDE_HANDLE_CLASS : MEDIA_CORNER_HANDLE_CLASS,
+                side ? MEDIA_SIDE_POSITION_CLASS[direction] : MEDIA_CORNER_POSITION_CLASS[direction]
+              )}
+              style={{ cursor }}
+              onPointerDown={event => resize.handleResizeStart(event, direction)}
+            />
+          ))}
+        {resize.isResizing && resize.availableWidth > 0 && (
+          <div
+            className={cn(
+              MEDIA_RESIZE_INFO_CLASS,
+              resize.snappedPreset != null && "bg-[var(--ed-accent)] text-[var(--ed-text-inverse)]"
+            )}
+          >
+            {Math.round((((resize.size.width || 0) * emScale()) / resize.availableWidth) * 100)}% ·{" "}
+            {Math.round((resize.size.width || 0) * emScale())} px
+          </div>
+        )}
+      </div>
+
+      {(showDescEditor || description || (isSelected && !readOnly)) && (
+        <div className="text-tau-sm mt-2 break-words text-center leading-relaxed text-[var(--ed-text-tertiary)]">
+          {showDescEditor ? (
+            // 编辑与展示同一版式：不加输入框，只有光标，文字位置不动
+            <EditText
+              ref={instance => {
+                descRef.current = instance;
+              }}
+              className="text-[var(--ed-text-secondary)] caret-[var(--ed-accent)] outline-none"
+              defaultValue={description || ""}
+              placeholder="添加图片说明…"
+              contentEditable={!readOnly}
+              defaultFocus
+              onChange={value => setProps({ description: value })}
+              onBlur={exitDescEditing}
+              onPressEnter={exitDescEditing}
+              isSlateEditor
+            />
+          ) : description ? (
+            <div
+              className={cn(
+                !readOnly && "cursor-text transition-colors hover:text-[var(--ed-text-secondary)]"
+              )}
+              onClick={openDescEditor}
+            >
+              {description}
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="cursor-text border-none bg-transparent p-0 text-inherit opacity-70 transition-opacity hover:opacity-100"
+              onClick={openDescEditor}
+            >
+              添加图片说明…
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
 
   return (
-    <div className="relative" contentEditable={false} style={{ userSelect: "none" }}>
+    <div className="relative select-none" contentEditable={false}>
       <div {...attributes}>
-        {renderContent()}
+        {url ? renderBlock() : renderPlaceholder()}
         {children}
         {!(readOnly && isLast) && <AddParagraph element={element} />}
       </div>
+
+      {menu && (
+        <EditorContextMenu
+          visible
+          position={menu.position}
+          items={menu.items}
+          readonly={readOnly}
+          onClose={() => setMenu(null)}
+        />
+      )}
+
       {activeAction && (
         <activeAction.Modal
           element={element}
           open={activeActionId === activeAction.id}
           onCancel={() => setActiveActionId(null)}
-          onApply={handleActionApply}
+          onApply={patch => setProps(patch as Partial<ImageElement>)}
         />
       )}
-      <ImageCropper
-        open={cropperOpen}
-        onCancel={() => setCropperOpen(false)}
-        imageUrl={url}
-        initialTransform={element.cropTransform}
-        onConfirm={handleCropConfirm}
-        alt={alt}
-      />
+
+      {/* 裁剪过的图：显示的是裁剪结果，另行解析原图地址给编辑器 */}
+      {cropOpen && !cropSrc && (
+        <ImageSlot
+          url={url}
+          alt=""
+          loading="eager"
+          crossOrigin="anonymous"
+          className="pointer-events-none fixed left-0 top-0 h-px w-px opacity-0"
+          onLoad={event => setCropSrc(event.currentTarget.currentSrc)}
+          onLoadError={() => {
+            notifier.error("原图加载失败，无法裁剪");
+            closeCrop();
+          }}
+        />
+      )}
+      {cropOpen && cropSrc && (
+        <ImageCropEditor
+          imageSrc={cropSrc}
+          originalUrl={url}
+          initialTransform={element.cropTransform}
+          onCancel={closeCrop}
+          onConfirm={handleCropConfirm}
+        />
+      )}
     </div>
   );
 };

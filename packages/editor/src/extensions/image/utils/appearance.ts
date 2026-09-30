@@ -1,8 +1,5 @@
 import type { CSSProperties } from "react";
-import type {
-  ImageBorderRadiusPreset,
-  ImageShadowPreset,
-} from "../../../types";
+import type { ImageBorderRadiusPreset, ImageShadowPreset } from "../../../types";
 
 export interface ImageAppearanceConfig {
   borderRadius?: ImageBorderRadiusPreset;
@@ -13,10 +10,10 @@ export const IMAGE_BORDER_RADIUS_OPTIONS: Array<{
   value: ImageBorderRadiusPreset;
   label: string;
 }> = [
-  { value: "none", label: "无圆角" },
-  { value: "sm", label: "小圆角" },
-  { value: "md", label: "中圆角" },
-  { value: "lg", label: "大圆角" },
+  { value: "none", label: "直角" },
+  { value: "sm", label: "圆角 8" },
+  { value: "md", label: "圆角 12" },
+  { value: "lg", label: "圆角 16" },
 ];
 
 export const IMAGE_SHADOW_OPTIONS: Array<{
@@ -24,31 +21,32 @@ export const IMAGE_SHADOW_OPTIONS: Array<{
   label: string;
 }> = [
   { value: "none", label: "无阴影" },
-  { value: "sm", label: "小阴影" },
-  { value: "md", label: "中阴影" },
-  { value: "lg", label: "大阴影" },
+  { value: "sm", label: "卡片" },
+  { value: "md", label: "轻抬" },
+  { value: "lg", label: "浮起" },
 ];
 
+/** 圆角对齐主题尺度（rounded-tau-sm / md / lg） */
 const IMAGE_BORDER_RADIUS_MAP: Record<ImageBorderRadiusPreset, string> = {
   none: "0",
-  sm: "0.25em",
-  md: "0.5em",
-  lg: "1em",
+  sm: "var(--tau-radius-sm)",
+  md: "var(--tau-radius-md)",
+  lg: "var(--tau-radius-lg)",
 };
 
+/** 阴影对齐主题三档（card / lift / float），跟随主题明暗 */
 const IMAGE_SHADOW_MAP: Record<ImageShadowPreset, string | undefined> = {
   none: undefined,
-  sm: "0 2px 8px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.05)",
-  md: "0 6px 18px rgba(15, 23, 42, 0.11), 0 2px 8px rgba(15, 23, 42, 0.06)",
-  lg: "0 10px 26px rgba(15, 23, 42, 0.14), 0 4px 12px rgba(15, 23, 42, 0.08)",
+  sm: "var(--ed-shadow-card)",
+  md: "var(--ed-shadow-lift)",
+  lg: "var(--ed-shadow-float)",
 };
 
-export const getImageBorderRadiusValue = (
-  borderRadius?: ImageBorderRadiusPreset,
-) => IMAGE_BORDER_RADIUS_MAP[borderRadius || "none"];
+export const getImageBorderRadiusValue = (borderRadius?: ImageBorderRadiusPreset) =>
+  IMAGE_BORDER_RADIUS_MAP[borderRadius || "none"];
 
 export const normalizeImageShadowPreset = (
-  shadow?: ImageShadowPreset | boolean,
+  shadow?: ImageShadowPreset | boolean
 ): ImageShadowPreset => {
   if (shadow === true) {
     return "md";
