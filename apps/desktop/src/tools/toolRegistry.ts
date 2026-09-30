@@ -4,6 +4,7 @@ import type {
   ToolExecutionContext,
   ToolExecutionResult,
   ToolFunctionSchema,
+  ToolJsonSchema,
 } from "@/types";
 
 export interface RegisteredTool extends ToolDefinition {
@@ -15,7 +16,7 @@ export interface RegisteredTool extends ToolDefinition {
 export interface ScopedToolSource {
   scope: string;
   label: string;
-  toolNames: string[];
+  tools: Array<{ name: string; description: string; parameters: ToolJsonSchema }>;
 }
 
 const safeStringify = (payload: unknown) => {
@@ -95,7 +96,11 @@ export class ToolRegistry {
     this.scopedSnapshot = Array.from(this.scopedTools, ([scope, { label, tools }]) => ({
       scope,
       label,
-      toolNames: tools.map(tool => tool.name),
+      tools: tools.map(tool => ({
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters,
+      })),
     }));
     this.scopedListeners.forEach(listener => listener());
   }
