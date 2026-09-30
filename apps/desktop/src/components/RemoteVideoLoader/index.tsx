@@ -1,11 +1,6 @@
-import VideoSourceLoader from "@/components/VideoSourceLoader";
-import type { VideoLoaderStreamProgress } from "@/editor-providers/types";
+import VideoSourceLoader, { type VideoSourceLoaderProps } from "@/components/VideoSourceLoader";
 
-interface RemoteVideoLoaderProps {
-  loading: boolean;
-  error: string | null;
-  streamProgress: VideoLoaderStreamProgress | null;
-}
+type RemoteVideoLoaderProps = Omit<VideoSourceLoaderProps, "sourceLabel" | "tips">;
 
 const TIPS = ["检查网络连接是否正常", "确认视频链接是否有效", "稍后重试或尝试其他视频链接"];
 

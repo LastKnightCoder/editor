@@ -1,11 +1,6 @@
-import VideoSourceLoader from "@/components/VideoSourceLoader";
-import type { VideoLoaderStreamProgress } from "@/editor-providers/types";
+import VideoSourceLoader, { type VideoSourceLoaderProps } from "@/components/VideoSourceLoader";
 
-interface BilibiliVideoLoaderProps {
-  loading: boolean;
-  error: string | null;
-  streamProgress: VideoLoaderStreamProgress | null;
-}
+type BilibiliVideoLoaderProps = Omit<VideoSourceLoaderProps, "sourceLabel" | "tips">;
 
 const TIPS = [
   "检查网络连接是否正常",

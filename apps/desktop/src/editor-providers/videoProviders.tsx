@@ -10,6 +10,7 @@ import type { MediaInsertSource, VideoContentProvider, VideoElementMeta } from "
 import BilibiliVideoLoader from "@/components/BilibiliVideoLoader";
 import YoutubeVideoLoader from "@/components/YoutubeVideoLoader";
 import RemoteVideoLoader from "@/components/RemoteVideoLoader";
+import VideoSourceLoader from "@/components/VideoSourceLoader";
 import BilibiliVideoSelectModal from "@/components/BilibiliVideoSelectModal";
 import YoutubeVideoSelectModal from "@/components/YoutubeVideoSelectModal";
 import { Tv, Youtube } from "lucide-react";
@@ -26,9 +27,14 @@ import { showMediaNode } from "./mediaModalHost";
 // ---- 内容渲染 ----
 
 const MissingMetaHint = ({ platform }: { platform: string }) => (
-  <div style={{ color: "#ff4d4f", padding: 8 }}>
-    缺少 {platform} metaInfo，请通过添加视频入口创建
-  </div>
+  <VideoSourceLoader
+    framed
+    loading={false}
+    error="缺少视频解析信息，请通过「添加视频」入口重新插入"
+    streamProgress={null}
+    sourceLabel={platform}
+    tips={[]}
+  />
 );
 
 const BilibiliContent: VideoContentProvider["Content"] = ({ element, renderPlayback }) => {
@@ -36,12 +42,18 @@ const BilibiliContent: VideoContentProvider["Content"] = ({ element, renderPlayb
     element.metaInfo?.type === "bilibili"
       ? (element.metaInfo as unknown as Parameters<typeof useBilibiliVideoWithContext>[0])
       : undefined;
-  const { videoUrl, loading, error, streamProgress } = useBilibiliVideoWithContext(meta);
+  const { videoUrl, loading, error, streamProgress, retry } = useBilibiliVideoWithContext(meta);
 
   if (!meta) return <MissingMetaHint platform="Bilibili" />;
   return (
     <>
-      <BilibiliVideoLoader loading={loading} error={error} streamProgress={streamProgress} />
+      <BilibiliVideoLoader
+        framed
+        loading={loading}
+        error={error}
+        streamProgress={streamProgress}
+        onRetry={retry}
+      />
       {videoUrl && !loading && !error ? renderPlayback(videoUrl) : null}
     </>
   );
@@ -52,22 +64,36 @@ const YoutubeContent: VideoContentProvider["Content"] = ({ element, renderPlayba
     element.metaInfo?.type === "youtube"
       ? (element.metaInfo as unknown as Parameters<typeof useYoutubeVideoWithContext>[0])
       : undefined;
-  const { videoUrl, loading, error, streamProgress } = useYoutubeVideoWithContext(meta);
+  const { videoUrl, loading, error, streamProgress, retry } = useYoutubeVideoWithContext(meta);
 
   if (!meta) return <MissingMetaHint platform="YouTube" />;
   return (
     <>
-      <YoutubeVideoLoader loading={loading} error={error} streamProgress={streamProgress} />
+      <YoutubeVideoLoader
+        framed
+        loading={loading}
+        error={error}
+        streamProgress={streamProgress}
+        onRetry={retry}
+      />
       {videoUrl && !loading && !error ? renderPlayback(videoUrl) : null}
     </>
   );
 };
 
 const RemoteContent: VideoContentProvider["Content"] = ({ element, renderPlayback }) => {
-  const { videoUrl, loading, error, streamProgress } = useRemoteVideoWithContext(element.src);
+  const { videoUrl, loading, error, streamProgress, retry } = useRemoteVideoWithContext(
+    element.src
+  );
   return (
     <>
-      <RemoteVideoLoader loading={loading} error={error} streamProgress={streamProgress} />
+      <RemoteVideoLoader
+        framed
+        loading={loading}
+        error={error}
+        streamProgress={streamProgress}
+        onRetry={retry}
+      />
       {videoUrl && !loading && !error ? renderPlayback(videoUrl, false) : null}
     </>
   );
@@ -84,7 +110,7 @@ function createSelectModalSource<T extends { url: string }>(options: {
     onCancel: () => void;
     onConfirm: (result: T) => void;
   }>;
-  /** 由弹窗结果构造写入文档的 metaInfo（流地址等解析信息），插入后据此匹配渲染 Provider */
+  /** 由弹窗结果构造写入文档的 metaInfo（流地址等解析信息 + 标题），插入后据此匹配渲染 Provider */
   buildMetaInfo: (result: T) => VideoElementMeta | undefined;
 }): MediaInsertSource {
   return {
@@ -113,6 +139,7 @@ function createSelectModalSource<T extends { url: string }>(options: {
 
 const bilibiliVideoProvider: VideoContentProvider = {
   id: "bilibili",
+  label: "Bilibili",
   match: element => element.metaInfo?.type === "bilibili",
   isSourceUrl: isBilibiliUrl,
   Content: BilibiliContent,
@@ -120,6 +147,7 @@ const bilibiliVideoProvider: VideoContentProvider = {
 
 const youtubeVideoProvider: VideoContentProvider = {
   id: "youtube",
+  label: "YouTube",
   match: element => element.metaInfo?.type === "youtube",
   isSourceUrl: isYoutubeUrl,
   Content: YoutubeContent,
@@ -143,7 +171,7 @@ export const desktopVideoInsertSources: MediaInsertSource[] = [
     label: "Bilibili",
     icon: Tv,
     SelectModal: BilibiliVideoSelectModal,
-    buildMetaInfo: result => ({ ...result.metaInfo }),
+    buildMetaInfo: result => ({ ...result.metaInfo, title: result.title }),
   }),
   createSelectModalSource({
     id: "youtube",
@@ -155,6 +183,7 @@ export const desktopVideoInsertSources: MediaInsertSource[] = [
       url: result.url,
       videoStream: result.videoStream,
       audioStream: result.audioStream,
+      title: result.title,
     }),
   }),
 ];

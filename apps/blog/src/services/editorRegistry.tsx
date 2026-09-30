@@ -12,6 +12,7 @@ import {
   type ImageShadowPreset,
   type EditorSlots,
   type ImageAppearanceConfig,
+  type VideoSlotProps,
 } from "@tau/editor";
 import { AudioPlayer, VideoPlayer } from "@tau/shared";
 import { blogVideoContentProviders } from "../editor-providers/videoProviders";
@@ -59,7 +60,7 @@ const createBlogEditorSlots = (): EditorSlots => {
 
   return {
     Image,
-    Video: ({ src }: { src: string }) => <VideoPlayer src={src} className="w-full" />,
+    Video: ({ src, ...rest }: VideoSlotProps) => <VideoPlayer src={src} {...rest} />,
     Audio: ({ src, label }: { src: string; label?: string }) => (
       <AudioPlayer src={src} label={label} className="w-full" />
     ),

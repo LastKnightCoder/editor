@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useRef } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, useRef } from "react";
 
 // Type definitions
 export interface StreamProgress {
@@ -11,7 +11,7 @@ export interface StreamProgress {
   audioDownloaded?: number;
   videoTotal?: number;
   audioTotal?: number;
-  type?: 'video' | 'audio';
+  type?: "video" | "audio";
 }
 
 export interface UseYoutubeVideoResult {
@@ -19,6 +19,8 @@ export interface UseYoutubeVideoResult {
   loading: boolean;
   error: string | null;
   streamProgress: StreamProgress | null;
+  /** 失败后重新取源 */
+  retry: () => void;
 }
 
 export interface StreamOption {
@@ -34,7 +36,7 @@ export interface StreamOption {
 }
 
 export interface YouTubeVideoMetaInfo {
-  type: 'youtube';
+  type: "youtube";
   url: string;
   videoStream?: StreamOption | string;
   audioStream?: StreamOption | string;
@@ -51,7 +53,7 @@ export interface YoutubeCacheProgress {
   audioDownloaded?: number;
   videoTotal?: number;
   audioTotal?: number;
-  type?: 'video' | 'audio';
+  type?: "video" | "audio";
 }
 
 // Dependency injection interface
@@ -82,15 +84,17 @@ export function useYoutubeVideo(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [streamProgress, setStreamProgress] = useState<StreamProgress | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => setAttempt(value => value + 1), []);
   const initedRef = useRef(false);
 
   useEffect(() => {
     if (!deps) {
-      console.warn('useYoutubeVideo: deps not provided');
+      console.warn("useYoutubeVideo: deps not provided");
       return;
     }
 
-    if (!meta || meta.type !== 'youtube' || initedRef.current) return;
+    if (!meta || meta.type !== "youtube" || initedRef.current) return;
     initedRef.current = true;
 
     const processVideo = async () => {
@@ -102,21 +106,33 @@ export function useYoutubeVideo(
 
         // Convert string streams to StreamOption objects if needed
         const videoStream: StreamOption | undefined = rawVideoStream
-          ? typeof rawVideoStream === 'string'
-            ? { id: rawVideoStream, resolution: 'unknown', format: 'unknown', videoOnly: false, audioOnly: false }
+          ? typeof rawVideoStream === "string"
+            ? {
+                id: rawVideoStream,
+                resolution: "unknown",
+                format: "unknown",
+                videoOnly: false,
+                audioOnly: false,
+              }
             : rawVideoStream
           : undefined;
 
         const audioStream: StreamOption | undefined = rawAudioStream
-          ? typeof rawAudioStream === 'string'
-            ? { id: rawAudioStream, resolution: 'unknown', format: 'unknown', videoOnly: false, audioOnly: true }
+          ? typeof rawAudioStream === "string"
+            ? {
+                id: rawAudioStream,
+                resolution: "unknown",
+                format: "unknown",
+                videoOnly: false,
+                audioOnly: true,
+              }
             : rawAudioStream
           : undefined;
 
         // Validate required streams
         if (!videoStream || !audioStream) {
-          setError('视频流或音频流信息缺失');
-          deps.showError('YouTube 视频加载失败: 视频流或音频流信息缺失');
+          setError("视频流或音频流信息缺失");
+          deps.showError("YouTube 视频加载失败: 视频流或音频流信息缺失");
           return;
         }
 
@@ -124,7 +140,7 @@ export function useYoutubeVideo(
         const cached = await deps.getCacheStatus(url);
         if (cached && cached.localPath) {
           const convertedUrl =
-            typeof deps.convertFileSrc === 'function'
+            typeof deps.convertFileSrc === "function"
               ? await deps.convertFileSrc(cached.localPath)
               : cached.localPath;
           setVideoUrl(convertedUrl);
@@ -132,7 +148,7 @@ export function useYoutubeVideo(
             downloaded: cached.fileSize || 0,
             total: cached.fileSize || 0,
             processed: 100,
-            stage: 'completed',
+            stage: "completed",
           });
           setTimeout(() => setStreamProgress(null), 1200);
           return;
@@ -142,8 +158,8 @@ export function useYoutubeVideo(
           downloaded: 0,
           total: 0,
           processed: 0,
-          stage: 'downloading',
-          message: '开始下载视频和音频...',
+          stage: "downloading",
+          message: "开始下载视频和音频...",
         });
 
         // Get proxy settings
@@ -157,7 +173,7 @@ export function useYoutubeVideo(
             audioStream,
             proxy: proxySettings.proxy,
           },
-          (progress) => {
+          progress => {
             const next: StreamProgress = {
               downloaded: progress.downloaded || 0,
               total: progress.total || 0,
@@ -171,9 +187,9 @@ export function useYoutubeVideo(
               type: progress.type,
             };
 
-            if (progress.stage === 'downloading') {
-              if (progress.type === 'video') {
-                setStreamProgress((prev) => {
+            if (progress.stage === "downloading") {
+              if (progress.type === "video") {
+                setStreamProgress(prev => {
                   if (!prev) return next;
                   return {
                     ...prev,
@@ -185,8 +201,8 @@ export function useYoutubeVideo(
                   };
                 });
                 return;
-              } else if (progress.type === 'audio') {
-                setStreamProgress((prev) => {
+              } else if (progress.type === "audio") {
+                setStreamProgress(prev => {
                   if (!prev) return next;
                   return {
                     ...prev,
@@ -206,7 +222,7 @@ export function useYoutubeVideo(
         );
 
         const convertedUrl =
-          typeof deps.convertFileSrc === 'function'
+          typeof deps.convertFileSrc === "function"
             ? await deps.convertFileSrc(result.localPath)
             : result.localPath;
         setVideoUrl(convertedUrl);
@@ -214,12 +230,12 @@ export function useYoutubeVideo(
           downloaded: result.fileSize,
           total: result.fileSize,
           processed: 100,
-          stage: 'completed',
+          stage: "completed",
         });
         setTimeout(() => setStreamProgress(null), 1200);
       } catch (e) {
         console.error(e);
-        const msg = e instanceof Error ? e.message : '下载失败';
+        const msg = e instanceof Error ? e.message : "下载失败";
         setError(msg);
         deps.showError(`YouTube 视频加载失败: ${msg}`);
       } finally {
@@ -230,23 +246,19 @@ export function useYoutubeVideo(
     processVideo();
 
     return () => setStreamProgress(null);
-  }, [meta?.url, meta?.videoStream, meta?.audioStream, meta?.type, deps]);
+  }, [meta?.url, meta?.videoStream, meta?.audioStream, meta?.type, deps, attempt]);
 
-  return { videoUrl, loading, error, streamProgress };
+  return { videoUrl, loading, error, streamProgress, retry };
 }
 
 // Context for dependency injection
 const YoutubeVideoDepsContext = createContext<UseYoutubeVideoDeps | null>(null);
 
 // Convenience hook that gets deps from context
-export function useYoutubeVideoWithContext(
-  meta?: YouTubeVideoMetaInfo
-): UseYoutubeVideoResult {
+export function useYoutubeVideoWithContext(meta?: YouTubeVideoMetaInfo): UseYoutubeVideoResult {
   const deps = useContext(YoutubeVideoDepsContext);
   if (!deps) {
-    throw new Error(
-      'useYoutubeVideoWithContext must be used within YoutubeVideoDepsProvider'
-    );
+    throw new Error("useYoutubeVideoWithContext must be used within YoutubeVideoDepsProvider");
   }
   return useYoutubeVideo(meta, deps);
 }
@@ -260,8 +272,6 @@ export function YoutubeVideoDepsProvider({
   deps: UseYoutubeVideoDeps;
 }) {
   return (
-    <YoutubeVideoDepsContext.Provider value={deps}>
-      {children}
-    </YoutubeVideoDepsContext.Provider>
+    <YoutubeVideoDepsContext.Provider value={deps}>{children}</YoutubeVideoDepsContext.Provider>
   );
 }

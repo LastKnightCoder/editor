@@ -1,5 +1,6 @@
-import React, { useRef, useState } from "react";
-import classNames from "classnames";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { cn } from "@tau/ui";
+import { type MediaTone, mediaToneTrack } from "./MediaControls";
 
 interface ProgressBarProps {
   /** 当前值，0 - 1 */
@@ -10,31 +11,61 @@ interface ProgressBarProps {
   onScrub?: (value: number) => void;
   /** 点击 / 松手定档回调 */
   onCommit: (value: number) => void;
-  /** 悬停提示渲染（进度条的时间气泡），不传则无 */
+  /** 气泡显示期间的指针位置（气泡收起时为 null），供帧预览按需取帧 */
+  onPointerValue?: (value: number | null) => void;
+  /** 悬停气泡内容（时间 / 帧预览），不传则无气泡 */
   renderTooltip?: (value: number) => React.ReactNode;
-  /** dark: 浮于视频画面（白色系）；light: 普通表面（强调色填充） */
-  tone?: "dark" | "light";
+  tone?: MediaTone;
+  /** 轨道直角：进度条横贯容器边缘（如贴在画面与底栏的接缝上）时使用 */
+  square?: boolean;
   className?: string;
 }
 
 const clamp = (value: number) => Math.min(1, Math.max(0, value));
+
+/** 悬停停留多久才出气泡：指针只是路过进度条时不闪一下；拖动时立即显示 */
+export const TOOLTIP_HOVER_DELAY_MS = 400;
+
+const BUFFER_CLASS: Record<MediaTone, string> = {
+  surface: "bg-accent-soft",
+  float: "bg-ink-inverse/20",
+  light: "bg-gray-300 dark:bg-zinc-600",
+};
 
 const ProgressBar = ({
   value,
   buffered,
   onScrub,
   onCommit,
+  onPointerValue,
   renderTooltip,
-  tone = "dark",
+  tone = "surface",
+  square = false,
   className,
 }: ProgressBarProps) => {
   const trackRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const [dragValue, setDragValue] = useState(0);
-  const [hovering, setHovering] = useState(false);
+  const [hoverRevealed, setHoverRevealed] = useState(false);
   const [hoverValue, setHoverValue] = useState(0);
+  const hoverValueRef = useRef(0);
+  const hoverTimerRef = useRef<number | undefined>(undefined);
+  const [tooltipHalfWidth, setTooltipHalfWidth] = useState(0);
 
   const shown = dragging ? dragValue : clamp(value);
+  const pointerValue = clamp(dragging ? dragValue : hoverValue);
+  const tooltipVisible = !!renderTooltip && (hoverRevealed || dragging);
+
+  useEffect(() => () => window.clearTimeout(hoverTimerRef.current), []);
+  const colors = mediaToneTrack(tone);
+
+  // 气泡按实际宽度夹在轨道两端之内，避免被外层圆角容器裁掉
+  useLayoutEffect(() => {
+    if (tooltipVisible && tooltipRef.current) {
+      setTooltipHalfWidth(tooltipRef.current.offsetWidth / 2);
+    }
+  }, [tooltipVisible, pointerValue]);
 
   const valueAt = (clientX: number): number => {
     const rect = trackRef.current?.getBoundingClientRect();
@@ -53,14 +84,36 @@ const ProgressBar = ({
     setDragging(true);
     setDragValue(next);
     onScrub?.(next);
+    onPointerValue?.(next);
+  };
+
+  const handlePointerEnter = () => {
+    window.clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = window.setTimeout(() => {
+      setHoverRevealed(true);
+      onPointerValue?.(hoverValueRef.current);
+    }, TOOLTIP_HOVER_DELAY_MS);
+  };
+
+  const handlePointerLeave = () => {
+    window.clearTimeout(hoverTimerRef.current);
+    setHoverRevealed(false);
+    if (!dragging) {
+      onPointerValue?.(null);
+    }
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const next = valueAt(event.clientX);
     if (!dragging) {
-      setHoverValue(valueAt(event.clientX));
+      hoverValueRef.current = next;
+      setHoverValue(next);
+      if (hoverRevealed) {
+        onPointerValue?.(next);
+      }
       return;
     }
-    const next = valueAt(event.clientX);
+    onPointerValue?.(next);
     setDragValue(next);
     onScrub?.(next);
   };
@@ -76,12 +129,10 @@ const ProgressBar = ({
     onCommit(valueAt(event.clientX));
   };
 
-  const dark = tone === "dark";
-
   return (
     <div
       ref={trackRef}
-      className={classNames(
+      className={cn(
         "group/slider relative flex h-4 cursor-pointer touch-none select-none items-center",
         className
       )}
@@ -89,53 +140,48 @@ const ProgressBar = ({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={() => setDragging(false)}
-      onPointerEnter={() => setHovering(true)}
-      onPointerLeave={() => setHovering(false)}
+      onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
     >
       <div
-        className={classNames(
-          "pointer-events-none absolute inset-x-0 h-1 overflow-hidden rounded-full transition-[height] duration-200 group-hover/slider:h-1.5",
-          dark ? "bg-white/25" : "bg-gray-200 dark:bg-zinc-700"
+        className={cn(
+          "pointer-events-none absolute inset-x-0 h-1 overflow-hidden transition-[height] duration-200 group-hover/slider:h-1.5",
+          !square && "rounded-full",
+          dragging && "h-1.5",
+          colors.track
         )}
       >
         {buffered != null && buffered > 0 && (
           <div
-            className={classNames(
-              "absolute inset-y-0 left-0 rounded-full",
-              dark ? "bg-white/35" : "bg-gray-300 dark:bg-zinc-600"
-            )}
+            className={cn("absolute inset-y-0 left-0", BUFFER_CLASS[tone])}
             style={{ width: `${clamp(Math.max(buffered, shown)) * 100}%` }}
           />
         )}
         <div
-          className={classNames(
-            "absolute inset-y-0 left-0 rounded-full",
-            dark ? "bg-white" : "bg-gray-800 dark:bg-zinc-300"
-          )}
+          className={cn("absolute inset-y-0 left-0", !square && "rounded-full", colors.fill)}
           style={{ width: `${shown * 100}%` }}
         />
       </div>
       <span
         aria-hidden
-        className={classNames(
-          "pointer-events-none absolute size-3 rounded-full bg-white transition-transform duration-150",
+        className={cn(
+          "pointer-events-none absolute size-3 rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.3)] transition-transform duration-150",
           dragging
             ? "scale-110"
             : "scale-0 group-hover/slider:scale-100 group-focus-visible/slider:scale-100",
-          dark
-            ? "shadow-[0_1px_2px_rgba(0,0,0,0.35),0_0_0_2px_rgba(0,0,0,0.3)]"
-            : "shadow-[0_1px_2px_rgba(0,0,0,0.15),0_0_0_2px_#1f2937] dark:shadow-[0_1px_2px_rgba(0,0,0,0.4),0_0_0_2px_#d4d4d8]"
+          colors.knob
         )}
         style={{ left: `calc(${shown * 100}% - 6px)` }}
       />
-      {renderTooltip && (hovering || dragging) && (
+      {tooltipVisible && (
         <div
-          className="pointer-events-none absolute bottom-full z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-black/85 px-1.5 py-0.5 font-mono text-[11px] tabular-nums text-white shadow-lg"
+          ref={tooltipRef}
+          className="bg-ink-1 text-ink-inverse rounded-tau-sm shadow-float pointer-events-none absolute bottom-full z-30 mb-2.5 -translate-x-1/2 whitespace-nowrap p-1"
           style={{
-            left: `${clamp(dragging ? dragValue : hoverValue) * 100}%`,
+            left: `clamp(${tooltipHalfWidth}px, ${pointerValue * 100}%, calc(100% - ${tooltipHalfWidth}px))`,
           }}
         >
-          {renderTooltip(clamp(dragging ? dragValue : hoverValue))}
+          {renderTooltip(pointerValue)}
         </div>
       )}
     </div>
