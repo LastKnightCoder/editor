@@ -221,6 +221,7 @@
 - 提交模型跟着 precision 走：day 点日期即提交；minute 点日期只挂起，底栏时刻区（自由键入任意分钟 + 步长网格快捷通道）+「确定」显式提交；范围手选走「起点 → 悬停预览 → 终点（自动交换）→ 确定」三道闸，预设一律即选即定。
 - 实现：`packages/ui/src/primitives/datepicker/`（calendarEngine 纯函数 + CalendarPanel + TimeField + 两导出），替换同日未提交的初版实现（range/showTime 布尔 prop + 时间戳值模型，无消费者）；database 包 DateEditor/DateFilter 同步迁移（时间戳 ↔ string 桥接放消费侧）。
 - 验证：`__tests__/datepicker.test.tsx` + `calendarEngine.test.ts` 22 例（值协议越界拒绝 · day 即点即定 · minute 挂起与确定 · 时刻宽松键入/越界还原/网格选格 · 预设即点即定与命中回显 · 钻取 · 键盘开合/方向键/Enter/Esc 不冒泡 · 禁用日期 · 范围三道闸与反序交换 · 外点关闭）；@tau/ui 全量 130 例回归绿；@tau/ui / apps/desktop 两处 tsc 0 错误；样板间「DatePicker」档案已登记。
+- 追记（2026-09-30，数据库日期列实机反馈「范围不知道怎么选」）：① **已有值时点新起点，终点必须重新选**——原实现终点回落到旧值，导致悬停预览失效、一次点击即可确定、提交出逆序值；草稿存在时终点只取草稿，逆序存量值按升序读取与回显。② **双月范围面板隐藏界外日**（`CalendarPanel` 的 `hideOutsideDays`，留空占位保持六周高度）——界外日带范围/端点底色会让同一天在两个面板各出现一次；单日期形态仍保留界外日可点跨月。③ **范围支持 `precision="minute"`**：两月下方各一个时刻区（左开始 / 右结束，默认 09:00 / 18:00），同日结束早于开始时禁止确定并在底栏标 danger；`formatRangeDisplay` 随之支持时刻（同日只写一次日期）。④ **打开期间触发器实时跟随草稿**（`onPreviewChange`），未确定时 accent-text 标记，Esc/外点关闭回到已提交值——提交模型不变，只消除「点了没反应」的错觉。⑤ **时刻框键入后直接 Enter 提交新时刻**——TimeField 先回调新时刻再触发提交，单日期与范围两形态的提交都改读同步记录的最新时刻，不再提交键入前的旧值。
 
 ---
 

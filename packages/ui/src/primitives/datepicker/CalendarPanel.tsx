@@ -35,6 +35,8 @@ export interface CalendarPanelProps {
   onPickDate: (date: Date) => void;
   /** 标题钻取（months/years 视图）；默认开 */
   drillable?: boolean;
+  /** 隐藏界外日（留空占位保持六周高度）；双月并排时避免同一天在两个面板重复出现 */
+  hideOutsideDays?: boolean;
   className?: string;
 }
 
@@ -50,6 +52,7 @@ export function CalendarPanel({
   onHighlight,
   onPickDate,
   drillable = true,
+  hideOutsideDays = false,
   className,
 }: CalendarPanelProps) {
   const gridId = useId();
@@ -174,6 +177,7 @@ export function CalendarPanel({
           </div>
           <div className="grid grid-cols-7 gap-[3px]">
             {monthCells(year, monthIndex).map(({ date, key, inMonth }) => {
+              if (hideOutsideDays && !inMonth) return <div key={key} aria-hidden className="h-8" />;
               const selected = isSelected(date);
               const disabled = isDateDisabled?.(date) === true;
               const isToday = sameDay(date, new Date());
