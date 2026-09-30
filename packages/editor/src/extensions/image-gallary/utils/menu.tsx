@@ -1,4 +1,4 @@
-import { Settings } from "lucide-react";
+import { Images } from "lucide-react";
 
 import type { EditorCommand } from "../../../api/command";
 import type { EditorMenuEntry } from "../../../api/menu";
@@ -16,7 +16,7 @@ export const imageGalleryActionsMap = new WeakMap<
 export const imageGalleryCommands: EditorCommand[] = [
   {
     id: "tau.image-gallery.open-settings",
-    title: "画廊设置",
+    title: "编辑画廊",
     run: (_editor, ctx) => {
       if (ctx.element?.type !== "image-gallery") return;
       imageGalleryActionsMap.get(ctx.element as ImageGalleryElement)?.openSettings();
@@ -27,8 +27,8 @@ export const imageGalleryCommands: EditorCommand[] = [
 export const imageGalleryMenuItems: EditorMenuEntry[] = [
   {
     id: "tau.image-gallery.open-settings",
-    title: "设置",
-    icon: <Settings size={16} />,
+    title: "编辑画廊",
+    icon: <Images size={16} />,
     command: "tau.image-gallery.open-settings",
   },
 ];

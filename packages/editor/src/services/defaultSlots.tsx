@@ -5,8 +5,8 @@ import type { AudioSlotProps, EditorSlots, ImageSlotProps, VideoSlotProps } from
  * 供只读渲染或无平台能力的应用作为注册基底，可按需覆盖单项。
  */
 
-function DefaultImage({ url, alt, ref, ...rest }: ImageSlotProps) {
-  return <img ref={ref} src={url} alt={alt} {...rest} />;
+function DefaultImage({ url, alt, ref, onLoadError, ...rest }: ImageSlotProps) {
+  return <img ref={ref} src={url} alt={alt} onError={onLoadError} {...rest} />;
 }
 DefaultImage.displayName = "DefaultImageSlot";
 

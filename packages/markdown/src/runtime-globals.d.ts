@@ -11,5 +11,3 @@ declare class TextDecoder {
 declare class TextEncoder {
   encode(input?: string): Uint8Array;
 }
-// 仅供 @tau/shared 的 ImageCropper 类型引用解析（CropperTransform 所在文件），包内不使用
-declare class Blob {}
