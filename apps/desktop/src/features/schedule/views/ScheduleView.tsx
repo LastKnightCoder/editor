@@ -21,6 +21,7 @@ import { CalendarChips } from "../components/CalendarChips";
 import { DayColumn } from "../components/DayColumn";
 import { EventDrawer } from "../components/EventDrawer";
 import { usePeekStore } from "../peekStore";
+import { useAppContextProvider } from "@/hooks/useAppContextProvider";
 
 export function ScheduleView() {
   const init = useCalendarStore(s => s.init);
@@ -29,6 +30,22 @@ export function ScheduleView() {
   const peeking = usePeekStore(s => s.event !== null);
   const closeDayPanel = () => useCalendarStore.getState().setShowDayPanel(false);
   useOverlayDismiss(closeDayPanel, showDayPanel && !peeking);
+
+  // AI 上下文：详情抽屉当前查看的日程（pull 模式读取 store，抽屉关闭时为 null）
+  useAppContextProvider("schedule-peek", "日程详情", () => {
+    const event = usePeekStore.getState().event;
+    if (!event) return null;
+    return {
+      id: event.id,
+      title: event.title,
+      calendarId: event.calendarId,
+      startDate: event.startDate,
+      endDate: event.endDate,
+      startTime: event.startTime,
+      endTime: event.endTime,
+      allDay: event.allDay,
+    };
+  });
 
   // 在数据库连接或切换时自动重新加载日历数据
   useDatabaseChangeEffect(() => {

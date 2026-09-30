@@ -50,6 +50,7 @@ import { QuickAddBar } from "../components/QuickAddBar";
 import { TodayDrawer } from "../components/TodayDrawer";
 import { TodoDrawer } from "../components/TodoDrawer";
 import { GroupDot } from "../components/TodoBits";
+import { useAppContextProvider } from "@/hooks/useAppContextProvider";
 
 const UNDO_MS = 5000;
 
@@ -193,6 +194,24 @@ export function TodosView() {
       habitsToday: roots.filter(e => scheduledToday(e, now)),
     };
   }, [snapshot, pendingDelete, groupFilter, now]);
+
+  // AI 上下文：当前打开的待办详情（selectedId 经 ref 保鲜，详情抽屉关闭时返回 null）
+  useAppContextProvider("todo-detail", "待办详情", () => {
+    if (selectedId == null || !snapshot) return null;
+    const entry = snapshot.byId.get(selectedId);
+    if (!entry) return null;
+    return {
+      id: entry.id,
+      title: entry.title,
+      type: entry.type,
+      isCompleted: entry.isCompleted,
+      groupId: entry.groupId,
+      parentId: entry.parentId,
+      startAt: entry.startAt ?? null,
+      dueAt: entry.dueAt ?? null,
+      completedAt: entry.completedAt ?? null,
+    };
+  });
 
   if (loading || !snapshot || !derived) return <Loading />;
 
