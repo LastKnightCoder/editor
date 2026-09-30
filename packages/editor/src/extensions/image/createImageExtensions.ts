@@ -1,5 +1,5 @@
-import ImageExtension from "./index";
-import ImageGalleryExtension from "../image-gallary";
+import { createImageExtension } from "./index";
+import { createImageGalleryExtension } from "../image-gallary";
 import type { ImageExtensionOptions } from "./appearanceOption";
 
 /**
@@ -7,5 +7,5 @@ import type { ImageExtensionOptions } from "./appearanceOption";
  * 按 type 覆盖内置的同名扩展。
  */
 export function createImageExtensions(options: ImageExtensionOptions) {
-  return [new ImageExtension(options), new ImageGalleryExtension(options)];
+  return [createImageExtension(options), createImageGalleryExtension(options)];
 }

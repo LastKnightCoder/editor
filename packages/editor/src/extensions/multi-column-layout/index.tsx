@@ -1,62 +1,50 @@
-import { RenderElementProps } from "slate-react";
-import Base from "../base";
+import { defineElement, defineExtension, type ElementRenderProps } from "../../api";
 
-import IExtension from "../types";
-import { MultiColumnContainerElement, MultiColumnItemElement } from "../../types";
+import type { MultiColumnContainerElement, MultiColumnItemElement } from "../../types";
 
 import MultiColumnsContainer from "./components/MultiColumnsContainer";
 import MultiColumnItem from "./components/MultiColumnItem";
 
-import hotkeys from "./hotkeys";
+import { multiColumnContainerBehaviors, multiColumnItemBehaviors } from "./behaviors";
+import { multiColumnCommands, multiColumnHotkeys } from "./commands";
 import blockPanelItems from "./block-panel-items";
-import { normalizeColumnLayout, deleteBackward, normalizeItem } from "./plugins";
-import { createBlockElementPlugin } from "../../utils";
 
-export class MultiColumnsContainerExtension extends Base implements IExtension {
-  type = "multi-column-container";
+export const multiColumnContainerExtension = defineExtension({
+  id: "tau.multi-column-container",
+  elements: [
+    defineElement<MultiColumnContainerElement>({
+      type: "multi-column-container",
+      kind: "block",
+      render: ({
+        attributes,
+        element,
+        children,
+      }: ElementRenderProps<MultiColumnContainerElement>) => (
+        <MultiColumnsContainer attributes={attributes} element={element}>
+          {children}
+        </MultiColumnsContainer>
+      ),
+      drag: true,
+      behaviors: multiColumnContainerBehaviors,
+    }),
+  ],
+  blockPanel: blockPanelItems,
+});
 
-  override dragSpec = true;
-
-  override getBlockPanelItems() {
-    return blockPanelItems;
-  }
-
-  override getPlugins() {
-    return [normalizeColumnLayout, createBlockElementPlugin(this.type)];
-  }
-
-  render(props: RenderElementProps) {
-    const { attributes, element, children } = props;
-
-    return (
-      <MultiColumnsContainer
-        attributes={attributes}
-        element={element as MultiColumnContainerElement}
-      >
-        {children}
-      </MultiColumnsContainer>
-    );
-  }
-}
-
-export class MultiColumnItemExtension extends Base implements IExtension {
-  type = "multi-column-item";
-
-  override getHotkeyConfigs() {
-    return hotkeys;
-  }
-
-  override getPlugins() {
-    return [deleteBackward, normalizeItem, createBlockElementPlugin(this.type)];
-  }
-
-  render(props: RenderElementProps) {
-    const { attributes, element, children } = props;
-
-    return (
-      <MultiColumnItem attributes={attributes} element={element as MultiColumnItemElement}>
-        {children}
-      </MultiColumnItem>
-    );
-  }
-}
+export const multiColumnItemExtension = defineExtension({
+  id: "tau.multi-column-item",
+  elements: [
+    defineElement<MultiColumnItemElement>({
+      type: "multi-column-item",
+      kind: "block",
+      render: ({ attributes, element, children }: ElementRenderProps<MultiColumnItemElement>) => (
+        <MultiColumnItem attributes={attributes} element={element}>
+          {children}
+        </MultiColumnItem>
+      ),
+      behaviors: multiColumnItemBehaviors,
+    }),
+  ],
+  commands: multiColumnCommands,
+  hotkeys: multiColumnHotkeys,
+});

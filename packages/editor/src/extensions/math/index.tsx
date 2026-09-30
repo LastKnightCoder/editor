@@ -1,75 +1,52 @@
-import { RenderElementProps } from "slate-react";
-import { InlineMathElement, BlockMathElement } from "../../types";
+import { defineElement, defineExtension, type ElementRenderProps } from "../../api";
+
+import type { BlockMathElement, InlineMathElement } from "../../types";
 import InlineMath from "./components/InlineMath";
 import BlockMath from "./components/BlockMath";
 
-import Base from "../base";
-import IExtension from "../types";
 import {
-  createBlockElementPlugin,
-  createInlineElementPlugin,
-  createVoidElementPlugin,
-} from "../../utils";
-
-import { inlineShortcut, blockShortcut } from "./hotkeys";
+  inlineMathCommands,
+  inlineMathHotkeys,
+  blockMathCommands,
+  blockMathHotkeys,
+} from "./commands";
 import blockPanelItems from "./block-panel-items";
 import hoveringBarConfigs from "./hovering-bar-configs";
 
-export class InlineMathExtension extends Base implements IExtension {
-  type = "inline-math";
+export const inlineMathExtension = defineExtension({
+  id: "tau.inline-math",
+  elements: [
+    defineElement<InlineMathElement>({
+      type: "inline-math",
+      kind: "inline",
+      isVoid: true,
+      render: ({ attributes, element, children }: ElementRenderProps<InlineMathElement>) => (
+        <InlineMath attributes={attributes} element={element}>
+          {children}
+        </InlineMath>
+      ),
+    }),
+  ],
+  toolbar: hoveringBarConfigs,
+  blockPanel: blockPanelItems,
+  commands: inlineMathCommands,
+  hotkeys: inlineMathHotkeys,
+});
 
-  override getHotkeyConfigs() {
-    return [...inlineShortcut];
-  }
-
-  override getHoveringBarElements() {
-    return hoveringBarConfigs;
-  }
-
-  override getPlugins() {
-    return [
-      createInlineElementPlugin(this.type),
-      createVoidElementPlugin(this.type),
-    ];
-  }
-
-  override getBlockPanelItems() {
-    return blockPanelItems;
-  }
-
-  render(props: RenderElementProps) {
-    const { attributes, children, element } = props;
-    return (
-      <InlineMath
-        attributes={attributes}
-        element={element as InlineMathElement}
-      >
-        {children}
-      </InlineMath>
-    );
-  }
-}
-
-export class BlockMathExtension extends Base {
-  type = "block-math";
-
-  override getPlugins() {
-    return [
-      createBlockElementPlugin(this.type),
-      createVoidElementPlugin(this.type),
-    ];
-  }
-
-  override getHotkeyConfigs() {
-    return [...blockShortcut];
-  }
-
-  render(props: RenderElementProps) {
-    const { attributes, children, element } = props;
-    return (
-      <BlockMath attributes={attributes} element={element as BlockMathElement}>
-        {children}
-      </BlockMath>
-    );
-  }
-}
+export const blockMathExtension = defineExtension({
+  id: "tau.block-math",
+  elements: [
+    defineElement<BlockMathElement>({
+      type: "block-math",
+      kind: "block",
+      isVoid: true,
+      render: ({ attributes, element, children }: ElementRenderProps<BlockMathElement>) => (
+        <BlockMath attributes={attributes} element={element}>
+          {children}
+        </BlockMath>
+      ),
+    }),
+  ],
+  commands: blockMathCommands,
+  hotkeys: blockMathHotkeys,
+});

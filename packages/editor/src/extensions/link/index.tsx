@@ -1,37 +1,27 @@
-import IExtension from "../types";
-import Base from "../base";
-import Link from "./components/Link.tsx";
+import { defineElement, defineExtension, type ElementRenderProps } from "../../api";
 
-import { RenderElementProps } from "slate-react";
+import Link from "./components/Link.tsx";
 import type { LinkElement } from "../../types";
 
-import hotkeys from "./hotkeys";
 import hoveringBarConfigs from "./hovering-bar-configs";
-import { createInlineElementPlugin } from "../../utils";
+import { linkCommands, linkHotkeys } from "./commands";
 
-class LinkExtension extends Base implements IExtension {
-  type = "link";
+const linkExtension = defineExtension({
+  id: "tau.link",
+  elements: [
+    defineElement<LinkElement>({
+      type: "link",
+      kind: "inline",
+      render: ({ attributes, element, children }: ElementRenderProps<LinkElement>) => (
+        <Link attributes={attributes} element={element}>
+          {children}
+        </Link>
+      ),
+    }),
+  ],
+  toolbar: hoveringBarConfigs,
+  commands: linkCommands,
+  hotkeys: linkHotkeys,
+});
 
-  override getHotkeyConfigs() {
-    return hotkeys;
-  }
-
-  override getHoveringBarElements() {
-    return hoveringBarConfigs;
-  }
-
-  override getPlugins() {
-    return [createInlineElementPlugin(this.type)];
-  }
-
-  render(props: RenderElementProps) {
-    const { attributes, children, element } = props;
-    return (
-      <Link attributes={attributes} element={element as LinkElement}>
-        {children}
-      </Link>
-    );
-  }
-}
-
-export default LinkExtension;
+export default linkExtension;

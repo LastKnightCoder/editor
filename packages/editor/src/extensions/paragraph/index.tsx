@@ -4,13 +4,9 @@ import React from "react";
 
 import Paragraph from "./components/Paragraph";
 
-import Base from "../base";
-import IExtension from "../types";
-import { inlineCode, normalizeParagraph } from "./plugins";
+import { defineElement, defineExtension } from "../../api";
+import { inlineCode } from "./plugins/inlineCode";
 import hoveringBarElements from "./hovering-bar-configs";
-import { createBlockElementPlugin } from "../../utils";
-// 缓存插件和悬浮栏元素，避免每次实例化都重新创建
-const hoveringElements = hoveringBarElements;
 
 // 创建一个 memo 化的渲染器组件
 const MemoizedParagraphRenderer = React.memo(
@@ -23,22 +19,19 @@ const MemoizedParagraphRenderer = React.memo(
   }
 );
 
-class ParagraphExtension extends Base implements IExtension {
-  override type = "paragraph";
+const paragraphExtension = defineExtension({
+  id: "tau.paragraph",
+  elements: [
+    defineElement<ParagraphElement>({
+      type: "paragraph",
+      kind: "block",
+      render: MemoizedParagraphRenderer as never,
+      drag: true,
+    }),
+  ],
+  toolbar: hoveringBarElements,
+  // 展开选区输入 ` 加 code 标记是文本级快捷语法（选区在任何块内都生效），保留为插件
+  plugins: [inlineCode],
+});
 
-  override dragSpec = true;
-
-  override getPlugins() {
-    return [inlineCode, normalizeParagraph, createBlockElementPlugin(this.type)];
-  }
-
-  override getHoveringBarElements() {
-    return hoveringElements;
-  }
-
-  render(props: RenderElementProps) {
-    return <MemoizedParagraphRenderer {...props} />;
-  }
-}
-
-export default ParagraphExtension;
+export default paragraphExtension;
