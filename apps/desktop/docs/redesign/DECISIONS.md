@@ -815,10 +815,10 @@
   - **进入即窗口全屏**（与演示共用 `useFullScreenWhileMounted`，退出还原），背景 surface，无常驻 chrome：右下一行淡字数；控制条（字数 · 本次 +N · 用时 / 缩放 −·%·+ / 打字机 / 聚焦 / 深浅 / 退出）位置驱动显隐，一输入即收起并隐藏指针。
   - **放大 = 版心整列 CSS `zoom`**，按屏宽自适应（版心约占 60% 屏宽，1×–1.75×），控制条在其上 ±10% 微调（0.8–1.5）。**不用演示的 transform**：可编辑需要真实布局（光标命中、滚动高度、Portal 浮层定位不必换算；Chromium 标准化 zoom 后 getBoundingClientRect 即屏幕像素）。编辑器唯一一处「DOM 内 fixed + 视口坐标」的文件落点指示线改为按 `currentCSSZoom` 反除。
   - **打字机滚动**：光标行钉在视口 45%，上下留白 45vh / 55vh（在 zoom 之外）；关掉后退为舒适带跟随（越出 20%–75% 才滚）。只响应键盘引起的光标移动，鼠标点击 / 滚轮回看不拉回。
-  - **段落聚焦**：光标所在顶层块全亮，其余 30% 透明度，按 DOM 选区打标记（不读 editor.selection）。
+  - **段落聚焦**：编辑器通用能力 `focusMode`——按选区的文档路径（元素祖先链）标记，链外的同级兄弟退后（顶层块、列表项、表格单元格…一视同仁），不认元素类型与渲染 DOM；退后程度由宿主经 `--ed-focus-dim` 设定（打字机开 0.26、只开聚焦 0.42，与样板间一致）。初版曾在沉浸层按 DOM 结构（拖拽容器 / chunk / ul·li）找「顶层块」，列表整块常亮，属按实现打补丁，已废弃。实机「第一个标题之后全部常亮」的根因不在聚焦：标题折叠 `useHeaderCollapse` 挂载时就跑展开动画，给整节写内联 `opacity: 1` 且结束后不清，内联样式压过一切 class；已改为只在折叠状态变化时动画、结束后清掉 opacity（`header/__tests__/collapseStyles.test.tsx` 守护）。扩展以内联样式做动画时，结束后必须清干净。
   - 深浅色只作用于沉浸层（与演示共用 `useStageTheme`）；Esc 经 `useOverlayDismiss`；`useFindOwner` 吞掉 Ctrl/⌘+F。
 - 不做：写作目标（C 的目标环，YAGNI）；缩放快捷键——`Ctrl+=` / `Ctrl+-` 已被主进程注册为整窗缩放全局快捷键，沉浸层只给控制条按钮；顶部标题 / 保存状态栏（接口不携带标题与保存态，按需再议）；开关状态跨次记忆。
-- 影响：`src/components/ImmersiveEditorMode/` 原位重写（layout 纯函数 + 单测、useCaretFollow、useCurrentBlock），`useTypewriterScroll` 删除；接口删去 `wordCount` / `readonly`（字数改由组件自身内容实时计算——卡片 / 项目传入的 count 要等持久化后才更新），`onInit` 改可选；演示模式的全屏 hook、HUD 胶囊与局部主题抽到 `hooks/useFullScreenWhileMounted` 与 `components/Stage` 共用；03 指南 §5 新增「沉浸写作」小节。
+- 影响：`src/components/ImmersiveEditorMode/` 原位重写（layout 纯函数 + 单测、useCaretFollow），编辑器新增 `focusMode`（`components/FocusPath`：focusPathOf / focusRoleOf 纯函数 + 单测、FocusAttributes 在 renderElement 里把标记并进 attributes，按节点身份判断角色——协作文档下 findPath 会给出过期路径；挂真实 Editor 与 Yjs 文档源的回归测试），`useTypewriterScroll` 删除；接口删去 `wordCount` / `readonly`（字数改由组件自身内容实时计算——卡片 / 项目传入的 count 要等持久化后才更新），`onInit` 改可选；演示模式的全屏 hook、HUD 胶囊与局部主题抽到 `hooks/useFullScreenWhileMounted` 与 `components/Stage` 共用；03 指南 §5 新增「沉浸写作」小节。
 
 ## D-075 快捷卡片窗口并入卡片编辑窗口：打开即建闪念笔记
 

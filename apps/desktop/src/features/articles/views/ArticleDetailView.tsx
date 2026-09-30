@@ -75,7 +75,6 @@ import {
   copyWechatHtmlToClipboard,
   defaultArticleEventBus,
   downloadMarkdown,
-  getContentLength,
   getMarkdown,
 } from "@/utils";
 import type { IArticle } from "@/types";
@@ -491,8 +490,8 @@ export function ArticleDetailView() {
                       throttleHandleEditorContentChange(content);
                       onContentChange(content);
                     }}
-                    editingContext={{ entityType: "article", entityId: editingArticle.id }}
                     readonly={false}
+                    editingContext={{ entityType: "article", entityId: editingArticle.id }}
                   />
                 </ErrorBoundary>
               </div>
@@ -607,7 +606,7 @@ export function ArticleDetailView() {
       {/* 演示模式（legacy 搬用） */}
       {presenting && <PresentationMode content={presenting} onExit={() => setPresenting(null)} />}
 
-      {/* 沉浸模式（legacy 搬用）：退出回传选区，正文 remount 后由上方 effect 恢复光标 */}
+      {/* 沉浸模式：退出回传选区，正文 remount 后由上方 effect 恢复光标 */}
       {immersive && (
         <ImmersiveEditorMode
           contentId={editingArticle.contentId}
@@ -623,8 +622,6 @@ export function ArticleDetailView() {
             setImmersive(false);
             setEditorRemountKey(key => key + 1);
           }}
-          wordCount={getContentLength(editingArticle.content)}
-          readonly={false}
         />
       )}
     </div>

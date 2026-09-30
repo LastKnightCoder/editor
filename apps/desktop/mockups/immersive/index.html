@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cocoa">
+<head>
+<meta charset="utf-8" />
+<title>沉浸写作 · 三方案样板间</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  body { overflow-x: hidden; }
+  .mock-bar .grp { display: flex; gap: 10px; align-items: center; }
+  .mock-bar .lbl { color: #a89a85; }
+
+  /* ── 模拟显示器：固定逻辑分辨率整体缩进浏览器（样板间外壳） ── */
+  .monitor-wrap { display: flex; justify-content: center; padding: 14px 0 6px; }
+  .monitor-box { position: relative; }
+  .screen { position: absolute; left: 0; top: 0; transform-origin: 0 0; overflow: hidden; border-radius: 6px; box-shadow: 0 0 0 10px #0d0b08, 0 40px 90px -30px rgba(0,0,0,.8); }
+
+  /* ── 沉浸根：主题只作用于此 ── */
+  .imm { position: absolute; inset: 0; background: var(--page); color: var(--ink-1); font-family: var(--font); overflow: hidden; }
+  .imm.typing, .imm.typing * { cursor: none !important; }
+  .imm.typing .doc [contenteditable] { cursor: text; }
+  .imm.enter .stage { animation: enter 420ms var(--ease); }
+  @keyframes enter { from { opacity: 0; transform: scale(0.985); } to { opacity: 1; transform: none; } }
+
+  /* ── 正文：一律按编辑器常规 px 排版，放大交给外层 zoom（可编辑，布局真实） ── */
+  .doc { font-size: 16px; line-height: 1.8; color: var(--ink-1); outline: none; caret-color: var(--accent); }
+  .doc h1 { font-size: 32px; line-height: 1.3; margin: 0 0 6px; font-weight: 650; letter-spacing: -0.01em; }
+  .doc h2 { font-size: 22px; line-height: 1.4; margin: 0; font-weight: 620; }
+  .doc h3 { font-size: 18px; margin: 0; font-weight: 600; }
+  .doc p { margin: 0; }
+  .doc .meta { color: var(--ink-3); font-size: 13px; }
+  .doc ul { margin: 0; padding-left: 22px; }
+  .doc pre { margin: 0; background: var(--code-bg); border: 1px solid var(--line-1); border-radius: 10px; padding: 12px 14px; font: 13.5px/1.65 var(--mono); white-space: pre-wrap; }
+  .doc blockquote { margin: 0; padding: 2px 16px; border-left: 3px solid var(--accent); color: var(--ink-2); }
+  .doc.doc > * + * { margin-top: 16px; }
+  .doc.doc > h2 { margin-top: 36px; }
+  .doc.doc > .meta { margin-top: 4px; }
+  .doc > * { transition: opacity 320ms var(--ease), filter 320ms var(--ease); }
+  .doc ::selection { background: var(--selected); }
+
+  /* 聚焦：当前块全亮，其余退后 */
+  .focus .doc > * { opacity: 0.26; }
+  .focus .doc > .cur { opacity: 1; }
+  .focus.focus-soft .doc > * { opacity: 0.42; }
+  .focus.focus-soft .doc > .cur { opacity: 1; }
+
+  /* ── 舞台 ── */
+  .stage { position: absolute; inset: 0; }
+  .vp { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; }
+  .vp::-webkit-scrollbar { width: 0; }
+  .col { width: 720px; margin: 0 auto; }
+  /* 打字机：上下各留半屏，首行 / 末行也能停在视线高度 */
+  .vp .pad { padding: calc(var(--vh) * 16) 0 calc(var(--vh) * 50); }
+  .vp.tw .pad { padding: calc(var(--vh) * 45) 0 calc(var(--vh) * 55); }
+  .vp.mask { -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 18%, #000 78%, transparent 100%); mask-image: linear-gradient(180deg, transparent 0, #000 18%, #000 78%, transparent 100%); }
+  .vp.mask-soft { -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 90px, #000 calc(100% - 90px), transparent 100%); mask-image: linear-gradient(180deg, transparent 0, #000 90px, #000 calc(100% - 90px), transparent 100%); }
+
+  /* C 书桌：下沉底 + 纸张 */
+  .imm.desk { background: var(--sunken); }
+  .desk .vp .pad { padding: 56px 0 calc(var(--vh) * 50); }
+  .desk .sheet { background: var(--surface); border-radius: 6px; box-shadow: 0 0 0 1px var(--line-1), var(--shadow-float); padding: 72px 80px 120px; min-height: 900px; }
+
+  /* 左缘大纲（C）：贴左边唤出 */
+  .outline { position: absolute; left: 0; top: 0; bottom: 0; width: 260px; padding: 96px 16px 0 26px; z-index: 4; font-size: 13px; transform: translateX(-100%); opacity: 0; transition: transform 240ms var(--ease), opacity 240ms var(--ease); }
+  .desk .outline { background: linear-gradient(90deg, var(--sunken) 72%, transparent); }
+  .outline.show { transform: none; opacity: 1; }
+  .outline .ot { color: var(--ink-3); font-size: 11.5px; margin-bottom: 10px; letter-spacing: 0.04em; }
+  .outline .oi { padding: 5px 10px; border-radius: 0 8px 8px 0; color: var(--ink-2); cursor: pointer; border-left: 2px solid var(--line-1); }
+  .outline .oi.l3 { padding-left: 22px; font-size: 12.5px; }
+  .outline .oi:hover { background: var(--hover); }
+  .outline .oi.on { color: var(--accent-text); border-left-color: var(--accent); background: var(--accent-soft); }
+  /* 左缘常驻细刻度（提示可唤出） */
+  .ticks { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 8px; z-index: 3; transition: opacity 240ms var(--ease); }
+  .ticks b { width: 12px; height: 2px; border-radius: 2px; background: var(--line-1); }
+  .ticks b.on { width: 20px; background: var(--accent); }
+  .imm.typing .ticks { opacity: 0.25; }
+
+  /* 顶部：文档标题 + 保存状态，鼠标贴顶边唤出 */
+  .top { position: absolute; left: 0; right: 0; top: 0; height: 64px; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 13px; color: var(--ink-3); z-index: 5; opacity: 0; transform: translateY(-6px); transition: opacity 240ms var(--ease), transform 240ms var(--ease); pointer-events: none; }
+  .top.show { opacity: 1; transform: none; }
+  .top b { color: var(--ink-2); font-weight: 550; }
+  .top .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+  .top .dot.saving { background: var(--warn); }
+
+  /* ── HUD 胶囊：鼠标进底部带显示；输入时立即收起 ── */
+  .hud { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); display: flex; align-items: center; gap: 2px; height: 44px; padding: 0 6px; border-radius: 999px; background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(10px); box-shadow: 0 0 0 1px var(--line-1), var(--shadow-float); font-size: 13px; color: var(--ink-2); transition: opacity 260ms var(--ease), transform 260ms var(--ease); z-index: 6; white-space: nowrap; }
+  .hud.hide { opacity: 0; transform: translate(-50%, 10px); pointer-events: none; }
+  .hud .hb { height: 32px; min-width: 32px; padding: 0 8px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 999px; color: var(--ink-2); border: 0; background: none; cursor: pointer; font: inherit; }
+  .hud .hb:hover { background: var(--hover); color: var(--ink-1); }
+  .hud .hb.on { background: var(--selected); color: var(--accent-text); }
+  .hud .hb svg { width: 16px; height: 16px; stroke-width: 1.75; }
+  .hud .sep { width: 1px; height: 18px; background: var(--line-1); margin: 0 4px; }
+  .hud .stat { padding: 0 10px; font-variant-numeric: tabular-nums; color: var(--ink-1); }
+  .hud .stat i { font-style: normal; color: var(--ink-3); margin-left: 6px; }
+  .hud .stat .plus { color: var(--ok); margin-left: 6px; }
+  .hud .zm { min-width: 46px; text-align: center; font-variant-numeric: tabular-nums; color: var(--ink-1); }
+
+  /* 底部极简状态（A/B 常驻，打字时淡到几乎不可见） */
+  .whisper { position: absolute; right: 30px; bottom: 26px; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; transition: opacity 400ms var(--ease); z-index: 3; }
+  .imm.typing .whisper { opacity: 0.35; }
+  .whisper.hide { opacity: 0 !important; }
+
+  /* 字数目标环（C） */
+  .goal { position: absolute; right: 30px; bottom: 26px; display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--ink-3); z-index: 3; transition: opacity 400ms var(--ease); }
+  .imm.typing .goal { opacity: 0.4; }
+  .goal svg { width: 28px; height: 28px; transform: rotate(-90deg); }
+  .goal .t { font-variant-numeric: tabular-nums; }
+  .goal .t b { color: var(--ink-1); font-weight: 550; }
+
+  .hint { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); font-size: 12.5px; color: var(--ink-3); display: flex; gap: 14px; transition: opacity 600ms var(--ease); z-index: 4; white-space: nowrap; pointer-events: none; }
+  .hint.gone { opacity: 0; }
+  .toast { position: absolute; left: 50%; top: 22px; transform: translateX(-50%) translateY(-8px); padding: 0 14px; line-height: 32px; border-radius: 999px; background: var(--ink-1); color: var(--ink-inv); font-size: 13px; opacity: 0; transition: all 200ms var(--ease); z-index: 9; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateX(-50%); }
+  .exited { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ink-3); font-size: 14px; }
+  .exited button { margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="mock-bar">
+  <b>沉浸写作</b>
+  <span class="grp" id="plans">
+    <a href="#a" data-plan="a">A 静室</a>
+    <a href="#b" data-plan="b">B 聚光</a>
+    <a href="#c" data-plan="c">C 书桌</a>
+  </span>
+  <span class="sp"></span>
+  <span class="lbl">屏幕</span>
+  <select id="screenSel">
+    <option value="1440x900">1440×900 笔记本</option>
+    <option value="1920x1080">1920×1080 外接屏</option>
+    <option value="2560x1600">2560×1600 大屏</option>
+  </select>
+  <span class="lbl">画面</span>
+  <select id="themeSel"><option value="cocoa">深色</option><option value="cream">浅色</option></select>
+  <span class="lbl">点进正文直接打字 · 鼠标移到屏幕底部看控制条</span>
+</div>
+
+<div class="monitor-wrap"><div class="monitor-box" id="monitorBox"><div class="screen" id="screen"><div class="imm" id="imm"></div></div></div></div>
+
+<div class="mock-note" id="note"></div>
+<div style="height:30px"></div>
+
+<script>
+const DOC = `
+<h1>笔记同步冲突复盘</h1>
+<p class="meta">技术笔记 · 2026-09-12</p>
+<p>上个月陆续收到几例「两台设备同时改同一篇笔记，其中一台的修改丢失」的反馈。排查下来问题不在网络层，而在我们对「最后写入者获胜」这条策略的实现细节上。</p>
+<h2>背景</h2>
+<p>同步模块最早是按「文档级快照」设计的：每次保存把整篇文档序列化成 JSON，连同本地修改时间一起推到服务端，服务端按修改时间比较，新的覆盖旧的。这个模型在单设备场景下完全没问题，也足够简单，因此一直沿用到现在。</p>
+<p>问题出在多设备场景。两台设备的系统时钟并不同步，误差从几十毫秒到几分钟都有；更麻烦的是，笔记本合盖休眠后恢复，本地时间可能被 NTP 校正而回拨，导致「更晚的修改」反而带着更早的时间戳。</p>
+<h2>冲突是怎么产生的</h2>
+<p>为了复现，我们在测试环境里把两台设备的时钟人为错开 3 秒，然后用脚本模拟交替编辑。</p>
+<pre>t=0.8  A 自动保存 → ts=3.8
+t=2.0  B 自动保存 → ts=2.0
+t=2.9  A 自动保存 → ts=5.9
+// 2.0 &lt; 5.9 → 丢弃 B 的「第二段」</pre>
+<p>B 的修改在语义上发生在 A 的「补充」之前，但两者改的是不同的段落。文档级覆盖把两次互不相干的修改当成了一次冲突，并且用一个不可靠的时间戳做了裁决。</p>
+<h3>影响面</h3>
+<ul><li>双设备交替编辑：段落消失</li><li>休眠恢复：整篇回退</li><li>离线编辑后上线：离线内容丢失</li></ul>
+<blockquote>用户描述的是「内容没了」，而日志里的每一次写入都是「合法」的。</blockquote>
+<h2>新的同步链路</h2>
+<p>改为按块合并 + 向量时钟，时间戳只做展示，不参与冲突裁决。同一块被并发编辑时才生成冲突副本，并在编辑器里给出提示。</p>
+<p><br></p>`;
+
+const S = { plan: (location.hash || "#a").slice(1), screen: "1440x900", theme: "cocoa", zoomAdj: 1, tw: null, focus: null, exited: false, start: Date.now(), baseCount: 0 };
+const $ = s => document.querySelector(s);
+const imm = $("#imm"), screenEl = $("#screen");
+let W = 1440, H = 900, screenScale = 1;
+
+const PLAN = {
+  a: { tw: false, focus: false, desk: false },
+  b: { tw: true, focus: true, desk: false },
+  c: { tw: false, focus: false, desk: true },
+};
+
+function fitMonitor() {
+  [W, H] = S.screen.split("x").map(Number);
+  const availW = window.innerWidth - 60, availH = window.innerHeight - $(".mock-bar").offsetHeight - 50;
+  screenScale = Math.min(availW / W, availH / H);
+  screenEl.style.width = W + "px"; screenEl.style.height = H + "px";
+  screenEl.style.transform = `scale(${screenScale})`;
+  imm.style.setProperty("--vh", H / 100 + "px");
+  $("#monitorBox").style.width = W * screenScale + "px"; $("#monitorBox").style.height = H * screenScale + "px";
+}
+
+/* 核心缩放口径：版心按编辑器常规 720（书桌含纸边 880）排版，整列 zoom 到屏宽约 52%，上限 1.6 */
+const colWidth = () => (PLAN[S.plan].desk ? 880 : 720);
+const autoZoom = () => Math.max(1, Math.min(1.6, (W * 0.52) / colWidth()));
+const zoom = () => autoZoom() * S.zoomAdj;
+
+const countChars = t => (t.match(/[一-龥]/g) || []).length + (t.replace(/[一-龥]/g, " ").match(/[A-Za-z0-9]+/g) || []).length;
+const fmtTime = ms => { const s = Math.floor(ms / 1000); return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`; };
+
+function render() {
+  const p = PLAN[S.plan];
+  const tw = S.tw ?? p.tw, focus = S.focus ?? p.focus;
+  imm.setAttribute("data-theme", S.theme);
+  document.documentElement.setAttribute("data-theme", S.theme);
+  if (S.exited) {
+    imm.className = "imm";
+    imm.innerHTML = `<div class="exited"><div style="text-align:center">已退出沉浸模式，回到文章详情，光标停在退出时的位置<br><button class="mb-btn" id="reenter">重新进入</button></div></div>`;
+    $("#reenter").onclick = () => { S.exited = false; render(); };
+    return;
+  }
+  imm.className = "imm enter" + (p.desk ? " desk" : "") + (focus ? " focus" : "") + (focus && !tw ? " focus-soft" : "");
+  const heads = [...new DOMParser().parseFromString(DOC, "text/html").body.querySelectorAll("h2,h3")].map(h => ({ t: h.textContent, l: h.tagName === "H3" ? 3 : 2 }));
+  const colInner = `<div class="doc" contenteditable="true" spellcheck="false" id="doc">${DOC}</div>`;
+  imm.innerHTML = `
+    <div class="stage">
+      <div class="vp ${tw ? "tw mask" : "mask-soft"}" id="vp">
+        <div class="pad"><div class="col" style="zoom:${zoom()}">${p.desk ? `<div class="sheet">${colInner}</div>` : colInner}</div></div>
+      </div>
+    </div>
+    <div class="top" id="top"><span class="dot" id="saveDot"></span><b>笔记同步冲突复盘</b><span>·</span><span id="saveTxt">已保存</span></div>
+    ${p.desk ? `<div class="ticks" id="ticks">${heads.filter(h => h.l === 2).map(() => "<b></b>").join("")}</div>
+    <div class="outline" id="outline"><div class="ot">大纲</div>${heads.map((h, i) => `<div class="oi l${h.l}" data-h="${i}">${h.t}</div>`).join("")}</div>` : ""}
+    ${p.desk
+      ? `<div class="goal" id="goal"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" fill="none" stroke="var(--line-1)" stroke-width="3"/><circle id="ring" cx="18" cy="18" r="15" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round" stroke-dasharray="94.2" stroke-dashoffset="94.2"/></svg><span class="t">本次 <b id="goalN">0</b> / 500 字 · <span id="goalT">00:00</span></span></div>`
+      : `<div class="whisper" id="whisper"></div>`}
+    <div class="hud hide" id="hud">
+      <span class="stat" id="stat"></span>
+      <span class="sep"></span>
+      <button class="hb" data-act="zoom-" title="缩小"><i data-lucide="minus"></i></button>
+      <button class="hb zm" data-act="zoom0" title="恢复自适应" id="zm"></button>
+      <button class="hb" data-act="zoom+" title="放大"><i data-lucide="plus"></i></button>
+      <span class="sep"></span>
+      <button class="hb ${tw ? "on" : ""}" data-act="tw" title="打字机滚动"><i data-lucide="text-cursor-input"></i></button>
+      <button class="hb ${focus ? "on" : ""}" data-act="focus" title="聚焦当前段落"><i data-lucide="focus"></i></button>
+      <button class="hb" data-act="theme" title="深浅色 · 只作用于沉浸层"><i data-lucide="${S.theme === "cocoa" ? "sun" : "moon"}"></i></button>
+      <span class="sep"></span>
+      <button class="hb" data-act="exit" title="退出沉浸 Esc"><i data-lucide="minimize-2"></i></button>
+    </div>
+    <div class="hint" id="hint"><span><span class="kbd">Esc</span> 退出</span><span>鼠标移到底部 · 控制条</span>${p.desk ? "<span>贴左边缘 · 大纲</span>" : ""}</div>
+    <div class="toast" id="toast"></div>`;
+  lucide.createIcons();
+  requestAnimationFrame(() => imm.classList.remove("enter"));
+  setTimeout(() => $("#hint")?.classList.add("gone"), 3200);
+  wire(tw);
+  updateStats();
+  note();
+}
+
+function toast(t) { const el = $("#toast"); if (!el) return; el.textContent = t; el.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("show"), 1400); }
+
+function updateStats() {
+  const doc = $("#doc"); if (!doc) return;
+  const n = countChars(doc.innerText), plus = Math.max(0, n - S.baseCount), t = fmtTime(Date.now() - S.start);
+  const stat = $("#stat"); if (stat) stat.innerHTML = `${n.toLocaleString()} 字<span class="plus">+${plus}</span><i>${t}</i>`;
+  const w = $("#whisper"); if (w) w.textContent = `${n.toLocaleString()} 字`;
+  const zm = $("#zm"); if (zm) zm.textContent = Math.round(zoom() * 100) + "%";
+  const ring = $("#ring"); if (ring) { ring.style.strokeDashoffset = 94.2 * (1 - Math.min(1, plus / 500)); $("#goalN").textContent = plus; $("#goalT").textContent = t; }
+}
+setInterval(updateStats, 1000);
+
+function currentBlock() {
+  const sel = getSelection(); if (!sel.rangeCount) return null;
+  let n = sel.getRangeAt(0).startContainer; const doc = $("#doc");
+  while (n && n.parentNode !== doc) n = n.parentNode;
+  return n && n.nodeType === 1 ? n : null;
+}
+
+/* 打字机：光标行固定在视口 45% 高度；关闭时只在光标越出 20%–75% 舒适带才滚 */
+function keepCaret(tw) {
+  const vp = $("#vp"), sel = getSelection(); if (!vp || !sel.rangeCount) return;
+  let rect = sel.getRangeAt(0).getBoundingClientRect();
+  if (!rect.height) { const b = currentBlock(); if (!b) return; rect = b.getBoundingClientRect(); }
+  const vr = vp.getBoundingClientRect(), ratio = vr.height / vp.clientHeight;
+  const y = (rect.top + rect.height / 2 - vr.top) / ratio, h = vp.clientHeight;
+  let target = null;
+  if (tw) target = h * 0.45;
+  else if (y < h * 0.2) target = h * 0.3;
+  else if (y > h * 0.75) target = h * 0.6;
+  if (target === null || Math.abs(y - target) < 4) return;
+  vp.scrollTo({ top: vp.scrollTop + (y - target), behavior: "smooth" });
+}
+
+function markCurrent() {
+  const doc = $("#doc"); if (!doc) return;
+  const cur = currentBlock();
+  [...doc.children].forEach(el => el.classList.toggle("cur", el === cur));
+  // 大纲 / 刻度高亮当前所在章节
+  const heads = [...doc.querySelectorAll("h2,h3")];
+  let idx = -1; if (cur) heads.forEach((h, i) => { if (h.compareDocumentPosition(cur) & Node.DOCUMENT_POSITION_FOLLOWING || h === cur) idx = i; });
+  document.querySelectorAll(".oi").forEach((el, i) => el.classList.toggle("on", i === idx));
+  const h2s = heads.filter(h => h.tagName === "H2"); let i2 = -1; h2s.forEach((h, i) => { if (h.compareDocumentPosition(cur || doc) & Node.DOCUMENT_POSITION_FOLLOWING || h === cur) i2 = i; });
+  document.querySelectorAll(".ticks b").forEach((el, i) => el.classList.toggle("on", i === i2));
+}
+
+function wire(tw) {
+  const doc = $("#doc"), hud = $("#hud"), top = $("#top"), outline = $("#outline");
+  let hudHover = false, saveTimer = 0;
+  // 进场：光标放到末段
+  const last = doc.lastElementChild; const r = document.createRange(); r.setStart(last, 0); r.collapse(true);
+  getSelection().removeAllRanges(); getSelection().addRange(r); doc.focus({ preventScroll: true });
+  setTimeout(() => { window.scrollTo(0, 0); keepCaret(tw); markCurrent(); }, 60);
+  S.baseCount = S.baseCount || countChars(doc.innerText);
+
+  doc.addEventListener("input", () => {
+    imm.classList.add("typing"); hud.classList.add("hide"); top.classList.remove("show");
+    $("#saveDot").classList.add("saving"); $("#saveTxt").textContent = "保存中…";
+    clearTimeout(saveTimer); saveTimer = setTimeout(() => { $("#saveDot").classList.remove("saving"); $("#saveTxt").textContent = "已保存"; }, 900);
+    requestAnimationFrame(() => { keepCaret(tw); markCurrent(); updateStats(); });
+  });
+  document.onselectionchange = () => { if (imm.contains(getSelection().anchorNode)) { markCurrent(); } };
+  doc.addEventListener("keyup", e => { if (e.key.startsWith("Arrow") || e.key === "Enter") keepCaret(tw); });
+  doc.addEventListener("mouseup", () => setTimeout(markCurrent));
+
+  // 显隐按位置驱动：底部 140px → HUD；顶部 64px → 标题；左缘 40px → 大纲（C）
+  imm.onmousemove = e => {
+    const rect = screenEl.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / screenScale, y = (e.clientY - rect.top) / screenScale;
+    imm.classList.remove("typing");
+    hud.classList.toggle("hide", !(y > H - 140 || hudHover));
+    top.classList.toggle("show", y < 64);
+    if (outline) { if (x < 40) outline.classList.add("show"); else if (x > 280) outline.classList.remove("show"); }
+  };
+  imm.onmouseleave = () => { if (!hudHover) hud.classList.add("hide"); top.classList.remove("show"); outline?.classList.remove("show"); };
+  hud.onmouseenter = () => (hudHover = true);
+  hud.onmouseleave = () => (hudHover = false);
+  hud.onmousedown = e => e.preventDefault(); // 点控制条不抢编辑器焦点
+  hud.onclick = e => {
+    const act = e.target.closest("[data-act]")?.dataset.act; if (!act) return;
+    const p = PLAN[S.plan];
+    if (act === "zoom+") S.zoomAdj = Math.min(1.6, +(S.zoomAdj + 0.1).toFixed(2));
+    if (act === "zoom-") S.zoomAdj = Math.max(0.7, +(S.zoomAdj - 0.1).toFixed(2));
+    if (act === "zoom0") S.zoomAdj = 1;
+    if (act.startsWith("zoom")) { $(".col").style.zoom = zoom(); updateStats(); keepCaret(S.tw ?? p.tw); return; }
+    if (act === "tw") { S.tw = !(S.tw ?? p.tw); toast(S.tw ? "打字机滚动：开" : "打字机滚动：关"); }
+    if (act === "focus") { S.focus = !(S.focus ?? p.focus); toast(S.focus ? "聚焦当前段落：开" : "聚焦当前段落：关"); }
+    if (act === "theme") S.theme = S.theme === "cocoa" ? "cream" : "cocoa";
+    if (act === "exit") { S.exited = true; }
+    const html = doc.innerHTML; render(); if (!S.exited) $("#doc").innerHTML = html, markCurrent();
+    setTimeout(() => $("#hud")?.classList.remove("hide"));
+  };
+  outline?.addEventListener("click", e => {
+    const i = e.target.closest("[data-h]")?.dataset.h; if (i == null) return;
+    const h = doc.querySelectorAll("h2,h3")[i]; const rr = document.createRange(); rr.selectNodeContents(h); rr.collapse(false);
+    getSelection().removeAllRanges(); getSelection().addRange(rr); doc.focus({ preventScroll: true });
+    const vp = $("#vp"), ratio = vp.getBoundingClientRect().height / vp.clientHeight;
+    vp.scrollTo({ top: vp.scrollTop + (h.getBoundingClientRect().top - vp.getBoundingClientRect().top) / ratio - vp.clientHeight * 0.3, behavior: "smooth" });
+    markCurrent();
+  });
+}
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && !S.exited) { S.exited = true; render(); }
+});
+
+const NOTES = {
+  a: `<h3>A 静室 · 什么都不留，只剩字</h3><ul>
+    <li><b>进入即窗口全屏</b>（与演示同一套 usePresentationFullScreen，退出还原）；背景就是阅读面的 page 色，不加遮罩、不加卡片。</li>
+    <li><b>放大 = 整列 zoom</b>：编辑器按常规 16px 排版，外层 CSS <code>zoom</code> 自适应屏宽（约 52%，1×–1.6×），HUD 的 −/+ 在其上 ±10% 微调（Ctrl+= / Ctrl+- 已被主进程注册为整窗缩放的全局快捷键，沉浸层不再占用）；不改字号、不对块样式单位做任何假设。可编辑场景用 zoom 而非演示的 transform：布局是真的，滚动高度、光标命中、浮动工具栏定位都不用换算。</li>
+    <li><b>无常驻 chrome</b>：右下角一行极淡字数；鼠标进底部 140px → 控制条（字数 / 本次 +N / 用时 · 缩放 · 打字机 · 聚焦 · 深浅 · 退出）；贴顶边 → 标题 + 保存状态。一开始打字：控制条立刻收起、光标隐藏。</li>
+    <li><b>滚动</b>：默认「舒适带」——光标越出视口 20%–75% 才平滑跟随，不强制居中；上下边缘柔和渐隐。</li></ul>`,
+  b: `<h3>B 聚光 · iA Writer 式专注</h3><ul>
+    <li>在 A 的基础上<b>默认打开打字机 + 段落聚焦</b>：光标行钉在视口 45% 高度（上下各留半屏，首行也能停到视线位），非当前块退到 26% 透明度，视口上下大幅渐隐。</li>
+    <li>两个开关都可在控制条单独关掉；只开聚焦不开打字机时，退后程度更轻（42%）。</li>
+    <li>适合长时间连续输出；缺点是回看、改前文时「只看得见一段」，需要随手关掉。</li></ul>`,
+  c: `<h3>C 书桌 · 纸张 + 大纲 + 写作目标</h3><ul>
+    <li>下沉底色上放一张纸（surface + 投影），纸宽 880（含 80 边距）整体 zoom；更有「在写一份稿子」的物件感，但屏幕利用率比 A 低。</li>
+    <li><b>左缘大纲</b>：常驻一列极细章节刻度（当前章节高亮），鼠标贴左边缘滑出完整大纲，点击跳转并把光标放过去。</li>
+    <li><b>右下写作目标环</b>：本次新增字数 / 目标（500，可设） + 用时，替代 A 的一行字数。</li>
+    <li>打字机 / 聚焦同样在控制条可开，默认关。</li></ul>`,
+};
+const COMMON = `<h3 style="margin-top:14px">三方案共通（与演示模式 D-072 同一套口径）</h3><ul>
+  <li>Esc 经 <code>useOverlayDismiss</code> 退场（编辑器自身的斜杠菜单 / 浮动工具栏等浮层先关），组件内不再挂 window 监听；退出后原编辑器光标回到沉浸里最后的位置（接口 <code>initialSelection / onExit(selection)</code> 保留）。</li>
+  <li>深浅色只作用于沉浸层（根节点 data-theme / data-mode + EditorThemeOverride），不写全局偏好。</li>
+  <li>样式全部 Tailwind 语义类 + tau token，删掉旧的 bg-white/95、#1e1e1e 与写死 24px 字号。</li></ul>`;
+function note() { $("#note").innerHTML = NOTES[S.plan] + COMMON; }
+
+function syncBar() { document.querySelectorAll("#plans a").forEach(a => a.classList.toggle("on", a.dataset.plan === S.plan)); }
+window.addEventListener("hashchange", () => { S.plan = (location.hash || "#a").slice(1); S.tw = S.focus = null; S.zoomAdj = 1; S.exited = false; syncBar(); render(); });
+$("#screenSel").onchange = e => { S.screen = e.target.value; fitMonitor(); render(); };
+$("#themeSel").onchange = e => { S.theme = e.target.value; render(); };
+window.addEventListener("resize", fitMonitor);
+syncBar(); fitMonitor(); render();
+</script>
+</body>
+</html>
