@@ -91,6 +91,43 @@ describe("CommandRegistry", () => {
     expect(dispatcher.execute(createEditor(), "x.throw")).toBe(false);
     expect(recorded).toHaveLength(1);
   });
+
+  it("when 抛错被隔离，熔断后不再求值谓词", () => {
+    const error = new Error("enablement 出错");
+    const when = vi.fn(() => {
+      throw error;
+    });
+    const run = vi.fn();
+    const record = vi.fn();
+    let disabled = false;
+    const registry = new CommandRegistry();
+    registry.register("ext.bad", [{ id: "x.when", when, run }]);
+    const dispatcher = createCommandDispatcher(registry, { isDisabled: () => disabled, record });
+    expect(dispatcher.execute(createEditor(), "x.when")).toBe(false);
+    expect(record).toHaveBeenCalledWith("ext.bad", "command", error);
+    disabled = true;
+    expect(dispatcher.execute(createEditor(), "x.when")).toBe(false);
+    expect(when).toHaveBeenCalledTimes(1);
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it("异步命令的拒绝被记录，不产生未处理拒绝", async () => {
+    const error = new Error("异步动作出错");
+    const record = vi.fn();
+    const registry = new CommandRegistry();
+    registry.register("ext.async", [
+      {
+        id: "x.async",
+        run: async () => {
+          throw error;
+        },
+      },
+    ]);
+    const dispatcher = createCommandDispatcher(registry, { isDisabled: () => false, record });
+    expect(dispatcher.execute(createEditor(), "x.async")).toBe(true);
+    await Promise.resolve();
+    expect(record).toHaveBeenCalledWith("ext.async", "command", error);
+  });
 });
 
 const fakeGuard = (): CommandGuard => ({ isDisabled: () => false, record: () => {} });

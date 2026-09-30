@@ -102,8 +102,9 @@ export function transformNodeType(
 export async function copyNodeToClipboard(
   _editor: Editor,
   element: Node,
-  message?: EditorFeedback
-): Promise<void> {
+  message?: EditorFeedback,
+  options: { allowPlainTextFallback?: boolean } = {}
+): Promise<boolean> {
   const slateClipboardFormat = "application/x-slate-fragment";
   const plainText = Node.string(element);
 
@@ -129,16 +130,22 @@ export async function copyNodeToClipboard(
       }),
     ]);
     message?.success("复制成功");
-    return;
+    return true;
   } catch (error) {
     console.error("复制失败:", error);
+    if (options.allowPlainTextFallback === false) {
+      message?.error("复制失败，原内容已保留");
+      return false;
+    }
     // 降级方案：使用旧的 API
     try {
       await navigator.clipboard.writeText(plainText);
       message?.success("复制成功");
+      return true;
     } catch (fallbackError) {
       console.error("降级复制也失败:", fallbackError);
       message?.error("复制失败，请稍后重试");
+      return false;
     }
   }
 }

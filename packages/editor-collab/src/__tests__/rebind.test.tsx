@@ -171,6 +171,44 @@ describe("同谱系换源", () => {
     expect(JSON.stringify(readSharedContent(shared.doc).content)).not.toContain("新第一段");
   });
 
+  it("本机关闭光标发送，升级共享后开启，降级后再次关闭，始终复用实例", async () => {
+    const local = makeBinding(content(), "local");
+    const shared = upgraded(local);
+    const downgraded = makeBinding(content(), "local");
+    const editorRef = createRef<EditorRef>();
+    const view = (binding: EditorCollaborationBinding, cursors: boolean) => (
+      <Editor
+        kit={kit}
+        ref={editorRef}
+        document={createYjsDocument(binding, { lineage: "content:1", cursors })}
+        readonly={false}
+      />
+    );
+    try {
+      await render(view(local, false));
+      const original = editorRef.current!.getEditor();
+      await act(async () => Transforms.select(original, { path: [0, 0], offset: 1 }));
+      expect(local.awareness.getLocalState()?.selection).toBeUndefined();
+
+      await render(view(shared, true));
+      expect(editorRef.current!.getEditor()).toBe(original);
+      await act(async () => Transforms.select(original, { path: [0, 0], offset: 2 }));
+      expect(shared.awareness.getLocalState()?.selection).toBeTruthy();
+
+      await render(view(downgraded, false));
+      expect(editorRef.current!.getEditor()).toBe(original);
+      await act(async () => Transforms.select(original, { path: [0, 0], offset: 3 }));
+      expect(downgraded.awareness.getLocalState()?.selection).toBeUndefined();
+    } finally {
+      await act(async () => root?.unmount());
+      root = null;
+      for (const binding of [local, shared, downgraded]) {
+        binding.awareness.destroy();
+        binding.doc.destroy();
+      }
+    }
+  });
+
   it("只有一段不同时，其余段落不重新挂载，差异段重建", async () => {
     const local = makeBinding(content(), "local");
     const shared = upgraded(local);

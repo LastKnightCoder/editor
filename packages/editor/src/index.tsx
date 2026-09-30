@@ -152,6 +152,8 @@ const EMPTY_EDITOR_CONTENT: Descendant[] = [
   { type: "paragraph", children: [{ type: "formatted", text: "" }] },
 ];
 
+let editorInstanceCounter = 0;
+
 /** 订阅文档源自身状态（只读、在线状态等）的变化，触发重渲染 */
 function useDocumentRevision(document: EditorDocument | undefined): void {
   const subscribe = useMemo(
@@ -203,8 +205,6 @@ const Index = memo(
     const registry = kit.registry;
     const registryRef = useRef(registry);
     registryRef.current = registry;
-    const currentValue = useRef<Descendant[]>(initValue);
-    const pendingSetEditorValueJson = useRef<string | null>(null);
     const overlayContainerRef = useRef<HTMLDivElement>(null);
     // 文件拖拽的落点指示线：dragover 定位最内层块，drop 用同一落点插入（线在哪、插在哪）
     const fileDropLineRef = useRef<HTMLDivElement>(null);
@@ -319,6 +319,17 @@ const Index = memo(
       return slateEditor;
     }, [assembly.plugins, documentProp?.lineage, editorIdentity, externalHistory]);
 
+    // 快照与 Slate 挂载键归实例所有；同谱系换绑保留，重建编辑器时一起复位。
+    const instance = useCreation(
+      () => ({
+        key: ++editorInstanceCounter,
+        value: initValue,
+        pendingValueJson: null as string | null,
+        selection: null as Range | null,
+      }),
+      [editor]
+    );
+
     useEffect(() => documentProp?.attach?.(editor), [documentProp, editor]);
 
     // 已经挂在这个 editor 上的文档源：区分「首次连接」与「换源」
@@ -409,21 +420,19 @@ const Index = memo(
       }
     });
 
-    const lastSelectionRef = useRef<Range | null>(null);
-
     const syncSelectionSnapshot = useMemoizedFn(() => {
       const selection = editor.selection;
       if (selection == null) {
-        if (lastSelectionRef.current === null) {
+        if (instance.selection === null) {
           return false;
         }
-        lastSelectionRef.current = null;
+        instance.selection = null;
         return true;
       }
-      if (lastSelectionRef.current && Range.equals(selection, lastSelectionRef.current)) {
+      if (instance.selection && Range.equals(selection, instance.selection)) {
         return false;
       }
-      lastSelectionRef.current = selection;
+      instance.selection = selection;
       return true;
     });
 
@@ -462,15 +471,11 @@ const Index = memo(
       }
     );
 
-    const [isNormalized, setIsNormalized] = useState(false);
-    const [isInit, setIsInit] = useState(false);
+    const initializedEditor = useRef<Editor | null>(null);
 
     useEffect(() => {
-      if (!isNormalized) {
-        Editor.normalize(editor, { force: true });
-        setIsNormalized(true);
-      }
-    }, [isNormalized, editor]);
+      Editor.normalize(editor, { force: true });
+    }, [editor]);
 
     useImperativeHandle(
       ref,
@@ -515,9 +520,7 @@ const Index = memo(
               []
             );
           });
-          pendingSetEditorValueJson.current = JSON.stringify(
-            normalizeEditorContent(editor.children)
-          );
+          instance.pendingValueJson = JSON.stringify(normalizeEditorContent(editor.children));
           editor.isResetValue = false;
         },
         getEditor: () => editor,
@@ -534,7 +537,7 @@ const Index = memo(
           return ReactEditor.isFocused(editor);
         },
       }),
-      [editor, binding]
+      [editor, binding, instance]
     );
 
     const handleOnChange = (value: Descendant[]) => {
@@ -543,32 +546,32 @@ const Index = memo(
       if (syncSelectionSnapshot()) {
         onSelectionChange?.();
       }
-      const valueChanged = JSON.stringify(currentValue.current) !== nextValueJson;
+      const valueChanged = JSON.stringify(instance.value) !== nextValueJson;
       if (editor.isResetValue) {
         if (valueChanged) {
-          currentValue.current = normalizedValue;
+          instance.value = normalizedValue;
         }
         return;
       }
-      const isSetEditorValueChange = pendingSetEditorValueJson.current === nextValueJson;
+      const isSetEditorValueChange = instance.pendingValueJson === nextValueJson;
       if (isSetEditorValueChange) {
         if (valueChanged) {
-          currentValue.current = normalizedValue;
+          instance.value = normalizedValue;
         }
-        pendingSetEditorValueJson.current = null;
+        instance.pendingValueJson = null;
         return;
       }
       if (!valueChanged) return;
-      pendingSetEditorValueJson.current = null;
-      currentValue.current = normalizedValue;
+      instance.pendingValueJson = null;
+      instance.value = normalizedValue;
       onChange && onChange(normalizedValue, editor);
     };
 
     useEffect(() => {
-      if (isInit || !editor) return;
+      if (initializedEditor.current === editor) return;
+      initializedEditor.current = editor;
       onInit && onInit(editor, initValue);
-      setIsInit(true);
-    }, [editor, initValue, isInit, onInit]);
+    }, [editor, initValue, onInit]);
 
     const content = (
       <EditorThemeScope service={registry?.tryGet(IThemeService)}>
@@ -577,7 +580,7 @@ const Index = memo(
             editor={editor}
             initialValue={initValue}
             onChange={handleOnChange}
-            key={kit.assembly.extensions.map(extension => extension.id).join("-")}
+            key={instance.key}
           >
             <FocusModeContext.Provider value={focusMode}>
               <div

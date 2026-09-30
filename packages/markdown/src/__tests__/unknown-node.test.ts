@@ -60,6 +60,29 @@ describe("未知节点 Markdown 兜底", () => {
     expect(importFromMarkdownWithPositions(markdown).content).toEqual(doc);
   });
 
+  it.each(["第一行\n\n第二行", "第一行\r\n\r\n第二行", "第一行\u2028\u2029第二行"])(
+    "含换行的未知行内正文 %s 两种往返都无损",
+    value => {
+      const content = [
+        paragraph(
+          text("前"),
+          {
+            type: "comment",
+            comments: [{ id: "c1", content: "批注属性" }],
+            children: [text(value)],
+          },
+          text("后")
+        ),
+      ] as unknown as Descendant[];
+      const markdown = getMarkdown(content);
+      expect(markdown).toContain(":tau-node[第一行 第二行]");
+      expect(importFromMarkdown(markdown)).toEqual(content);
+      const positioned = getMarkdownWithPositions(content);
+      expect(positioned.markdown).toBe(markdown);
+      expect(importFromMarkdownWithPositions(markdown).content).toEqual(content);
+    }
+  );
+
   it("JSON 里含反引号时围栏加长，不会提前闭合", () => {
     const node = { type: "mystery", code: "```js\nx\n````", children: [text("")] };
     const markdown = getMarkdown([node] as unknown as Descendant[]);

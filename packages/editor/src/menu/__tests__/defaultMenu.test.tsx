@@ -1,6 +1,6 @@
 // P8：内核默认菜单——block 组命令（移动/删除）与 transform 组的类型限定（01 §5.4）。
-import { describe, expect, it } from "vitest";
-import { createEditor, Transforms, type Editor, type Element } from "slate";
+import { describe, expect, it, vi } from "vitest";
+import { createEditor, Node, Transforms, type Editor, type Element, type Path } from "slate";
 
 import { defaultMenuExtension } from "../defaultMenu";
 import { resolveBlockMenuItems } from "../resolveMenu";
@@ -41,6 +41,51 @@ const keysOf = (items: ReturnType<typeof resolveBlockMenuItems>): string[] =>
   items.flatMap(item => [item.key, ...(item.children ? keysOf(item.children) : [])]);
 
 describe("内核默认菜单 · block 组", () => {
+  it.each(["失败", "移动", "删除", "修改"] as const)(
+    "剪切等待期间目标%s时只处理已复制的原节点",
+    async scenario => {
+      let finish!: () => void;
+      const write = vi.fn(() =>
+        scenario === "失败"
+          ? Promise.reject(new Error("剪贴板不可用"))
+          : new Promise<void>(resolve => (finish = resolve))
+      );
+      const writeText = vi.fn(async () => {});
+      vi.stubGlobal("navigator", { clipboard: { write, writeText } });
+      vi.stubGlobal("ClipboardItem", class {});
+      const report = vi.spyOn(console, "error").mockImplementation(() => {});
+      const editor = withValue([paragraph("原文"), paragraph("后文")]);
+      editor.tryGetService = () => ({ success: vi.fn(), error: vi.fn() }) as never;
+      const original = editor.children[0] as Element;
+      const command = commandsOf().find(item => item.id === "tau.block.cut")!;
+      try {
+        const task = command.run(editor, { element: original, path: [0] });
+        if (scenario === "移动") {
+          Transforms.insertNodes(editor, paragraph("新增"), { at: [0] });
+        } else if (scenario === "删除") {
+          Transforms.removeNodes(editor, { at: [0] });
+          Transforms.insertNodes(editor, paragraph("替代内容"), { at: [0] });
+        } else if (scenario === "修改") {
+          Transforms.insertText(editor, "新", { at: { path: [0, 0], offset: 0 } });
+        }
+        if (scenario !== "失败") finish();
+        await task;
+        const expected = {
+          失败: "原文后文",
+          移动: "新增后文",
+          删除: "替代内容后文",
+          修改: "新原文后文",
+        }[scenario];
+        expect(Node.string(editor)).toBe(expected);
+        expect(writeText).not.toHaveBeenCalled();
+        expect(editor.pathRefs().size).toBe(0);
+      } finally {
+        vi.unstubAllGlobals();
+        report.mockRestore();
+      }
+    }
+  );
+
   it("delete 对 void 块删除并补空段落（图片/音视频/代码块的删除语义）", () => {
     const editor = withValue(
       [paragraph("前文"), { type: "image", url: "x.png", children: [text("")] }, paragraph("后文")],
