@@ -1,49 +1,49 @@
-import { RenderElementProps } from "slate-react";
-import Base from "../base";
-import IExtension from "../types";
-import type { TabsElement, TabPaneElement } from "../../types";
+import { defineElement, defineExtension, type ElementRenderProps } from "../../api";
+
+import type { TabPaneElement, TabsElement } from "../../types";
 
 import Tabs from "./components/Tabs";
 import TabPane from "./components/TabPane";
 import EnsureDndProvider from "./components/EnsureDndProvider";
 import blockPanelItems from "./block-panel-items";
-import { deleteEmptyTab, quit, withNormalize } from "./plugins";
-import { createBlockElementPlugin } from "../../utils";
+import { tabsBehaviors, tabPaneBehaviors } from "./behaviors";
 
-class TabsExtension extends Base implements IExtension {
-  type = "tabs";
+const tabsExtension = defineExtension({
+  id: "tau.tabs",
+  elements: [
+    defineElement<TabsElement>({
+      type: "tabs",
+      kind: "block",
+      render: ({ attributes, element, children }: ElementRenderProps<TabsElement>) => (
+        <EnsureDndProvider>
+          <Tabs element={element} attributes={attributes}>
+            {children}
+          </Tabs>
+        </EnsureDndProvider>
+      ),
+      drag: true,
+      behaviors: tabsBehaviors,
+    }),
+  ],
+  blockPanel: blockPanelItems,
+});
 
-  override dragSpec = true;
-
-  override getBlockPanelItems() {
-    return blockPanelItems;
-  }
-
-  override getPlugins() {
-    return [deleteEmptyTab, quit, withNormalize, createBlockElementPlugin(this.type)];
-  }
-
-  render(props: RenderElementProps) {
-    const { attributes, element, children } = props;
-
-    return (
-      <EnsureDndProvider>
-        <Tabs element={element as TabsElement} attributes={attributes}>
+const tabPaneExtension = defineExtension({
+  id: "tau.tab-pane",
+  elements: [
+    defineElement<TabPaneElement>({
+      type: "tab-pane",
+      kind: "block",
+      render: ({ attributes, element, children }: ElementRenderProps<TabPaneElement>) => (
+        <TabPane attributes={attributes} element={element}>
           {children}
-        </Tabs>
-      </EnsureDndProvider>
-    );
-  }
-}
+        </TabPane>
+      ),
+      behaviors: tabPaneBehaviors,
+    }),
+  ],
+});
 
-class TabPaneExtension extends Base implements IExtension {
-  type = "tab-pane";
+export { tabPaneExtension };
 
-  render(props: RenderElementProps) {
-    return <TabPane {...props} element={props.element as TabPaneElement} />;
-  }
-}
-
-export { TabPaneExtension };
-
-export default TabsExtension;
+export default tabsExtension;

@@ -1,5 +1,5 @@
 import { Editor, NodeEntry, Path, Transforms } from "slate";
-import type { TabPaneElement, TabsElement } from "../../../types";
+import type { TabPaneElement, TabsElement } from "../../types";
 
 /**
  * 删除指定 pane 节点；若删除后 tabs 无剩余 pane 则整个 tabs 块退化为空段落。

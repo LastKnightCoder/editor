@@ -53,10 +53,10 @@
 
 状态图例：⏳ 未开始 / 🚧 进行中 / ✅ 完成 / ⏸ 暂停（写原因）。
 
-**下一步**：P8 剩余——其余内置扩展继续迁 v2（已迁 11 个：divide-line / callout / blockquote /
-bulleted-list / numbered-list / header（热键已切命令 id）/ custom-block / audio / video（ingest 随迁）/
-detail / highlight-block；下批 check-list / tabs / table / list-item / code-block（带插件与热键，
-table 与 code-block 改写面大）、其余纯渲染扩展）、legacy 内核热键（escape / mod+方向 / 方向键 / slash /
+**下一步**：P8 剩余——其余内置扩展继续迁 v2（已迁 17 个：divide-line / callout / blockquote /
+bulleted-list / numbered-list / header / custom-block / audio / video / detail / highlight-block /
+check-list 系 / list-item / tabs 系 / table 系，热键切命令 id 已落地 18 个命令；下批 code-block
+（改写面最大，单独一批）与纯渲染扩展）、legacy 内核热键（escape / mod+方向 / 方向键 / slash /
 块导航，导航类与键盘仲裁一起核）、desktop `editor-extensions/*` / editor-webview / editor-collab 迁 v2、
 ESLint headless 规则（清单见 02 P8）。
 已完成：第一块（错误隔离 + 未知节点占位，Markdown 兜底语法见 ER-006）；第二块（`defineExtension`、
@@ -82,6 +82,10 @@ header 热键首个切命令 id（alt+=/alt+- → tau.header.promote/demote）�
 第十一块（第二批 5 个：custom-block / audio / video / detail / highlight-block。ingest 声明首次随迁；
 「段首退格 × 前一个特殊块」behaviorsFor 模式落满三例；custom-block 的 loadable 渲染包一层函数组件、
 旧退格插件嵌套容器误删整容器的缺陷随迁修正，editor 290 例全过）。
+第十二块（第三批 6 个：check-list 系 / list-item / tabs 系 / table 系。热键切命令 id 扩到 18 个
+（Tab 缩进、mod+方向移动、表格 11 键导航与插删行列）；table 的 delete/deleteFragment 改写保留为
+受信任层插件（行为 API 方法面之外的第一个案例）；测试抓出并修复一次行为分发顺序与旧插件分支顺序的
+冲突（跨两层挂行为的让路模式），editor 300 例全过）。
 **实机待确认**：移除 antd 后各浮层（Tooltip、代码块语言选择、表情、批注、行内 HTML、样式文本调色、列表图标、
 表格操作、行内图片上传）的观感与开合；两种未知节点占位的观感；各块拖拽手柄的悬停显示（只亮最内层被悬停的块）与拖拽插入线；less 全量转 Tailwind 后的编辑态外观（代码块叠层编辑与全屏、源码 + 预览块的编辑 / 全屏、右键菜单与块面板、图片 / 视频缩放与工具条、分栏、行内公式选中态，blog 只读页覆盖不到编辑态）；**菜单贡献层：手柄菜单的组间分隔线与顺序（特有 → 转换成 → 移动/剪贴/删除）、新增的上移/下移/剪切/复制、void 块删除后补空段落与焦点落点、webview 删除确认框、代码块 Diff 动画与语言子菜单**；**拖拽声明化：chrome wrapper 对各块布局/间距的影响（margin 折叠应穿透）、手柄位置统一后的观感（标题/引用/勾选项的微调保留、其他块用默认位）、插入线统一位置、勾选项内段落不再有手柄、blockquote 拖放高亮变标准样式、嵌套块（分栏/标签页/详情内）的拖拽与手柄悬停**；**ingest：拖图片/音视频入正文与粘贴的落位与上传流（多文件逐个插入）、非空段落粘贴图片的行内落位、audio/video 上传失败的占位清理（粘贴清、拖放留）、拖任意文件（PDF 等）经 file-attachment 兜底认领上传成附件块、文件拖拽悬停时的落点指示线与实际插入位置一致**；P7 遗留的协作 e2e、结束共享、白板测高、
 mobile 回落与结束共享（清单见 02 P7 验收结果）。

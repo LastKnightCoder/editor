@@ -1,75 +1,55 @@
-import { RenderElementProps } from "slate-react";
+import { defineElement, defineExtension } from "../../api";
 
-import { TableElement, TableRowElement, TableCellElement } from "../../types";
+import type { TableElement, TableCellElement, TableRowElement } from "../../types";
 
 import Table from "./components/Table";
 import TableRow from "./components/TableRow";
 import TableCell from "./components/TableCell";
-import { insertBreak, deleteBackward } from "./plugins";
-import hotkeys from "./hotkeys";
+import { tableCellBehaviors, tableForParagraph } from "./behaviors";
+import { tableCommands, tableHotkeys } from "./commands";
+import { withTableDeleteGuard } from "./deleteGuard";
 import blockPanelItems from "./block-panel-items";
-import { createBlockElementPlugin } from "../../utils";
 
-import Base from "../base";
-import IExtension from "../types";
+export const tableExtension = defineExtension({
+  id: "tau.table",
+  elements: [
+    defineElement<TableElement>({
+      type: "table",
+      kind: "block",
+      render: Table,
+      drag: true,
+    }),
+  ],
+  blockPanel: blockPanelItems,
+  // delete / deleteFragment 的改写是编辑器级方法（跨单元格选区防护、全选删除重置），
+  // 不在 ElementBehaviors 方法面上，保留为受信任层插件（ER-005）
+  plugins: [withTableDeleteGuard],
+  behaviorsFor: {
+    paragraph: tableForParagraph,
+  },
+});
 
-export class TableExtension extends Base implements IExtension {
-  type = "table";
+export const tableRowExtension = defineExtension({
+  id: "tau.table-row",
+  elements: [
+    defineElement<TableRowElement>({
+      type: "table-row",
+      kind: "block",
+      render: TableRow,
+    }),
+  ],
+});
 
-  override dragSpec = true;
-
-  override getBlockPanelItems() {
-    return blockPanelItems;
-  }
-
-  override getPlugins() {
-    return [createBlockElementPlugin(this.type)];
-  }
-
-  render(props: RenderElementProps) {
-    const { attributes, children, element } = props;
-    return (
-      <Table element={element as TableElement} attributes={attributes}>
-        {children}
-      </Table>
-    );
-  }
-}
-
-export class TableRowExtension extends Base implements IExtension {
-  type = "table-row";
-
-  override getPlugins() {
-    return [createBlockElementPlugin(this.type)];
-  }
-
-  render(props: RenderElementProps) {
-    const { attributes, children, element } = props;
-    return (
-      <TableRow element={element as TableRowElement} attributes={attributes}>
-        {children}
-      </TableRow>
-    );
-  }
-}
-
-export class TableCellExtension extends Base implements IExtension {
-  type = "table-cell";
-
-  override getPlugins() {
-    return [insertBreak, deleteBackward, createBlockElementPlugin(this.type)];
-  }
-
-  override getHotkeyConfigs() {
-    return hotkeys;
-  }
-
-  render(props: RenderElementProps) {
-    const { attributes, children, element } = props;
-    return (
-      <TableCell element={element as TableCellElement} attributes={attributes}>
-        {children}
-      </TableCell>
-    );
-  }
-}
+export const tableCellExtension = defineExtension({
+  id: "tau.table-cell",
+  elements: [
+    defineElement<TableCellElement>({
+      type: "table-cell",
+      kind: "block",
+      render: TableCell,
+      behaviors: tableCellBehaviors,
+    }),
+  ],
+  commands: tableCommands,
+  hotkeys: tableHotkeys,
+});
