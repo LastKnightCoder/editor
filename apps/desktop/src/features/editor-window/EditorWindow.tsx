@@ -95,14 +95,30 @@ export function EditorWindow({
   document: doc,
   saveState,
   updateFields,
+  autoFocus = false,
 }: {
   driver: DocumentDriver;
   databaseName: string;
   document: EditorDocument;
   saveState: SaveState;
   updateFields: (fields: DocumentFields) => void;
+  /** 打开即聚焦正文（快捷卡片窗口用） */
+  autoFocus?: boolean;
 }) {
   const editorRef = useRef<EditorRef>(null);
+
+  // 正文要等内容会话就绪才挂载，短时轮询到编辑器出现再聚焦
+  useEffect(() => {
+    if (!autoFocus) return;
+    let tries = 0;
+    const timer = window.setInterval(() => {
+      if (editorRef.current || ++tries > 20) {
+        window.clearInterval(timer);
+        editorRef.current?.focus();
+      }
+    }, 100);
+    return () => window.clearInterval(timer);
+  }, [autoFocus]);
   const collaborationRef = useRef<ContentCollaborationControlHandle>(null);
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   const [editorEl, setEditorEl] = useState<HTMLDivElement | null>(null);
@@ -386,7 +402,8 @@ export function EditorWindow({
                 : "grid-cols-[1fr_minmax(0,720px)_1fr]"
             )}
           >
-            <div className="col-start-2 min-w-0 px-10 pb-16 pt-8">
+            {/* 纵向 flex：正文区撑满余高，标签行内容短时贴纸面底部、内容长时跟在正文末 */}
+            <div className="col-start-2 flex min-w-0 flex-col px-10 pb-8 pt-8">
               {driver.hasTitle && (
                 <CollaborativeTitleField
                   binding={collab.binding}
@@ -411,7 +428,16 @@ export function EditorWindow({
                 <span className="mx-0.5 opacity-50">·</span>
                 <span>修改于 {formatDate(doc.updateTime, true)}</span>
               </div>
-              <div ref={setEditorEl}>
+              {/* 点正文下方空白处落到正文末尾 */}
+              <div
+                ref={setEditorEl}
+                className="min-h-[120px] flex-1 cursor-text"
+                onMouseDown={event => {
+                  if (event.target !== event.currentTarget) return;
+                  event.preventDefault();
+                  editorRef.current?.focus();
+                }}
+              >
                 <ErrorBoundary>
                   <ContentEditor
                     ref={editorRef}
@@ -424,10 +450,11 @@ export function EditorWindow({
                     }}
                     extensions={extensions}
                     readonly={false}
+                    editingContext={{ entityType: driver.kind, entityId: doc.id }}
                   />
                 </ErrorBoundary>
               </div>
-              {/* 标签在正文末独占一行（同文章详情页） */}
+              {/* 标签独占一行（样式同文章详情页） */}
               {driver.hasTags && (
                 <ArticleTags
                   tags={doc.tags ?? []}
