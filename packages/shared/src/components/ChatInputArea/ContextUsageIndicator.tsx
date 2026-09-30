@@ -1,4 +1,4 @@
-import { Button, Popover } from "antd";
+import { Popover } from "@tau/ui";
 import { Gauge } from "lucide-react";
 import classNames from "classnames";
 import type { ChatContextUsage } from "./types";
@@ -137,19 +137,20 @@ export const ContextUsageIndicator = ({
   );
 
   return (
-    <Popover content={content} trigger="click" placement="topLeft">
-      <Button
-        type="text"
-        size="small"
+    <Popover placement="top-start" trigger={
+      <button
+        type="button"
         aria-label="查看上下文用量"
-        className="flex items-center gap-1.5 border-none! bg-none! p-1! text-gray-600! shadow-none! hover:!bg-gray-100! dark:text-gray-400! dark:hover:!bg-white/10!"
+        className="flex cursor-pointer items-center gap-1.5 rounded-md p-1 text-xs text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10"
       >
         <Gauge className="h-3.5 w-3.5" />
-        <span className="text-xs tabular-nums">
+        <span className="tabular-nums">
           {hasUsage ? formatTokenCount(summary.usedTokens) : "--"} /{" "}
           {contextWindowK}k
         </span>
-      </Button>
+      </button>
+    }>
+      <div className="p-1">{content}</div>
     </Popover>
   );
 };

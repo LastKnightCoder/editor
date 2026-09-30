@@ -1,7 +1,7 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 import classNames from "classnames";
 import { BiCopy, BiEdit, BiGitBranch, BiRefresh, BiTrash } from "react-icons/bi";
-import { BulbOutlined, FilePdfOutlined, LoadingOutlined } from "@ant-design/icons";
+import { FileText, Lightbulb, Loader2 } from "lucide-react";
 import type { ContentBlock, ToolCallExecutionState } from "./types";
 import ChatMarkdownRenderer, { type ChatMarkdownRendererProps } from "./ChatMarkdownRenderer";
 import ChatToolCallDisplay from "./ChatToolCallDisplay";
@@ -104,9 +104,9 @@ const ReasoningBlock = memo(function ReasoningBlock({
       <div className={styles.reasoningHeader} onClick={() => setIsExpanded(value => !value)}>
         <div className={styles.reasoningHeaderContent}>
           {isThinking ? (
-            <LoadingOutlined className={styles.reasoningIcon} spin />
+            <Loader2 size={14} className={`animate-spin ${styles.reasoningIcon}`} />
           ) : (
-            <BulbOutlined className={styles.reasoningIcon} />
+            <Lightbulb size={14} className={styles.reasoningIcon} />
           )}
           <span className={styles.reasoningTitle}>{isThinking ? "思考中" : "已思考"}</span>
           {block.startTime && (
@@ -287,7 +287,7 @@ export const ChatMessageView: React.FC<ChatMessageViewProps> = memo(function Cha
                       onClick={() => void onOpenFile?.(file)}
                     >
                       <div className={styles.fileInfo}>
-                        <FilePdfOutlined />
+                        <FileText size={14} />
                         <span>{file.name}</span>
                       </div>
                       <span className={styles.fileAction}>在文件夹中打开</span>

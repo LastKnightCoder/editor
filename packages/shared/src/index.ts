@@ -73,6 +73,7 @@ export { applyDarkTheme } from "./components/PlantUML";
 // ChatInputArea 组件
 export {
   default as ChatInputArea,
+  type ChatDropdownItem,
   type ChatInputAreaHandle,
   type ChatInputAreaProps,
   type ChatInputAreaServices,

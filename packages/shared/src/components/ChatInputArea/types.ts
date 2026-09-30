@@ -1,5 +1,18 @@
 import type { ReactNode } from "react";
-import type { MenuProps } from "antd";
+
+/**
+ * 模型下拉菜单项（antd Dropdown 时代的结构子集；ChatInputArea 换 @tau/ui Menu 后收敛为原语协议）。
+ * ext / desktop 侧构造的字段不超出此面，antd message 等 UI 库类型不得回流 shared 类型层。
+ */
+export interface ChatDropdownItem {
+  key: string;
+  label: ReactNode;
+  /** 分组小标题（非交互项，如模型菜单的 provider 名） */
+  group?: boolean;
+  danger?: boolean;
+  disabled?: boolean;
+  icon?: ReactNode;
+}
 
 /**
  * 思考档位——全仓唯一定义，取值与运行时（pi ThinkingLevel）逐项对齐。
@@ -78,7 +91,7 @@ export interface ChatInputAreaProps {
   /** 创建新消息的回调 */
   onCreateNewMessage?: () => void;
   /** 模型选择菜单项 */
-  modelSelectItems?: MenuProps["items"];
+  modelSelectItems?: ChatDropdownItem[];
   /** 模型选择回调 */
   onModelSelect?: ({ key }: { key: string }) => void;
   /** 当前模型名称 */

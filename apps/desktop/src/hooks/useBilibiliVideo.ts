@@ -5,7 +5,7 @@ import {
   bilibiliVideoToLocal,
   isBilibiliVideoCached,
 } from "@/utils/bilibili-cache";
-import { message } from "antd";
+import { toast } from "@tau/ui";
 import useSettingStore from "@/stores/useSettingStore";
 
 export interface StreamProgress {
@@ -184,7 +184,7 @@ export function useBilibiliVideo(
       const errorMessage =
         error instanceof Error ? error.message : "处理 Bilibili 视频失败";
       setError(errorMessage);
-      message.error(`Bilibili 视频加载失败: ${errorMessage}`);
+      toast.error(`Bilibili 视频加载失败: ${errorMessage}`);
     } finally {
       setLoading(false);
     }

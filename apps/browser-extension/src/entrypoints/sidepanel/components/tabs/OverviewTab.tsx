@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Tooltip } from "antd";
+import { Tooltip } from "@tau/ui";
 import { RefreshCw, Copy, Check, AlertTriangle, Unplug } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import type WebSocketClient from "../../../../utils/WebSocketClient";
@@ -369,7 +369,7 @@ export default function OverviewTab({ wsClient: _wsClient, url }: OverviewTabPro
             </span>
             <div className="flex shrink-0 items-center gap-0.5">
               {summary && (
-                <Tooltip title={copied ? "已复制" : "复制内容"}>
+                <Tooltip content={copied ? "已复制" : "复制内容"}>
                   <button
                     onClick={handleCopy}
                     className="rounded-md p-1.5 text-gray-400 transition-colors hover:bg-black/5 hover:text-gray-600 dark:text-[#484f58] dark:hover:bg-white/10 dark:hover:text-[#8b949e]"
@@ -382,7 +382,7 @@ export default function OverviewTab({ wsClient: _wsClient, url }: OverviewTabPro
                   </button>
                 </Tooltip>
               )}
-              <Tooltip title="重新生成">
+              <Tooltip content="重新生成">
                 <button
                   onClick={handleRegenerate}
                   disabled={isLoading}

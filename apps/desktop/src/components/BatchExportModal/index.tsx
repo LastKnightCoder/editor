@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, type ComponentType } from "react";
-import { App, Checkbox, Select, Tree } from "antd";
-import type { TreeDataNode } from "antd";
+import { Checkbox, Select, toast } from "@tau/ui";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { MdDescription, MdFolderZip, MdMenuBook, MdPictureAsPdf } from "react-icons/md";
 import {
@@ -90,17 +89,70 @@ const FORMAT_CARDS: FormatCard[] = [
 
 const normalizeText = (value?: string) => (value || "").trim();
 
-const toTreeData = (nodes: BatchExportTreeNode[]): TreeDataNode[] =>
-  nodes.map(node => ({
-    key: node.id,
-    title: node.exportable ? node.title : `${node.title}（${node.disabledReason || "不参与导出"}）`,
-    disableCheckbox: !node.exportable,
-    children: toTreeData(node.children),
-  }));
+/** 勾选子树内全部可导出条目的 id（与 collectExportableIds 同集） */
+const collectSubtreeExportableIds = (node: BatchExportTreeNode): number[] => [
+  ...(node.exportable ? [node.id] : []),
+  ...node.children.flatMap(collectSubtreeExportableIds),
+];
+
+/**
+ * 勾选树（antd Tree 的就地替代）：checkedKeys 语义与原实现一致——
+ * 集合内容为「被勾选的 exportable 节点 id（父 + 子）」，勾父节点级联全选子树。
+ * 非 exportable 节点禁勾，仅作分组展示（flattenSelectedChapters 按 hasSelectedDescendant 处理）。
+ */
+const ExportCheckTree = ({
+  nodes,
+  checkedKeys,
+  onCheckedKeysChange,
+}: {
+  nodes: BatchExportTreeNode[];
+  checkedKeys: number[];
+  onCheckedKeysChange: (keys: number[]) => void;
+}) => {
+  const checkedSet = useMemo(() => new Set(checkedKeys), [checkedKeys]);
+
+  const stateOf = (node: BatchExportTreeNode): "checked" | "indeterminate" | "unchecked" => {
+    const ids = collectSubtreeExportableIds(node);
+    if (ids.length === 0) return "unchecked";
+    const hit = ids.filter(id => checkedSet.has(id)).length;
+    return hit === ids.length ? "checked" : hit > 0 ? "indeterminate" : "unchecked";
+  };
+
+  const toggle = (node: BatchExportTreeNode, next: boolean) => {
+    const ids = new Set(collectSubtreeExportableIds(node));
+    onCheckedKeysChange(
+      next
+        ? [...new Set([...checkedKeys, ...ids])]
+        : checkedKeys.filter(id => !ids.has(id))
+    );
+  };
+
+  const renderNode = (node: BatchExportTreeNode, level: number) => (
+    <div key={node.id}>
+      <div className="flex items-start gap-1.5 py-[3px]" style={{ paddingLeft: level * 18 }}>
+        <Checkbox
+          checked={stateOf(node) === "checked"}
+          indeterminate={stateOf(node) === "indeterminate"}
+          disabled={!node.exportable}
+          onChange={event => toggle(node, event.target.checked)}
+        />
+        <span
+          className={`text-[13px] leading-6 ${
+            node.exportable ? "text-gray-800 dark:text-slate-200" : "text-gray-400 dark:text-slate-500"
+          }`}
+        >
+          {node.exportable ? node.title : `${node.title}（${node.disabledReason || "不参与导出"}）`}
+        </span>
+      </div>
+      {node.children.map(child => renderNode(child, level + 1))}
+    </div>
+  );
+
+  return <div>{nodes.map(node => renderNode(node, 0))}</div>;
+};
 
 const BatchExportModal = (props: BatchExportModalProps) => {
   const { open, onClose, scope } = props;
-  const { message } = App.useApp();
   const dbName = useSettingStore(state => state.setting.database.active);
 
   const storageKey = useMemo(
@@ -158,7 +210,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
           return;
         }
         const msg = error instanceof Error ? error.message : String(error);
-        message.error(`加载内容失败：${msg}`);
+        toast.error(`加载内容失败：${msg}`);
         setLoading(false);
       });
 
@@ -169,7 +221,6 @@ const BatchExportModal = (props: BatchExportModalProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, scope.type, scope.id, scope.title, storageKey]);
 
-  const treeData = useMemo(() => toTreeData(tree), [tree]);
   const exportableIds = useMemo(() => collectExportableIds(tree), [tree]);
   const selectedCount = useMemo(
     () => checkedKeys.filter(id => exportableIds.includes(id)).length,
@@ -186,13 +237,13 @@ const BatchExportModal = (props: BatchExportModalProps) => {
   const handleConfirm = useMemoizedFn(async () => {
     const title = normalizeText(bookTitle);
     if (!title) {
-      message.error("书名不能为空");
+      toast.error("书名不能为空");
       return;
     }
 
     const chapters = flattenSelectedChapters(tree, new Set(checkedKeys));
     if (chapters.filter(chapter => !chapter.isGroup).length === 0) {
-      message.error("请至少选择一篇要导出的内容");
+      toast.error("请至少选择一篇要导出的内容");
       return;
     }
 
@@ -312,9 +363,9 @@ const BatchExportModal = (props: BatchExportModalProps) => {
       });
 
       if (canceled) {
-        message.info("已取消导出");
+        toast.info("已取消导出");
       } else {
-        message.success(
+        toast.success(
           savedPaths.length > 0 ? `导出成功，已保存：${savedPaths.join("、")}` : "导出成功"
         );
         if (savedPaths[0]) {
@@ -325,14 +376,14 @@ const BatchExportModal = (props: BatchExportModalProps) => {
           }
         }
         if (warnings.length > 0) {
-          message.warning(`导出完成，但有 ${warnings.length} 条警告`);
+          toast.warning(`导出完成，但有 ${warnings.length} 条警告`);
           console.warn("整体导出警告:", warnings);
         }
       }
       onClose();
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      message.error(`导出失败：${msg}`);
+      toast.error(`导出失败：${msg}`);
     } finally {
       setExporting(false);
       setExportProgress(null);
@@ -370,14 +421,11 @@ const BatchExportModal = (props: BatchExportModalProps) => {
               <div className="py-6 text-center text-xs text-gray-500 dark:text-slate-400">
                 正在加载内容...
               </div>
-            ) : treeData.length > 0 ? (
-              <Tree
-                checkable
-                defaultExpandAll
-                selectable={false}
-                treeData={treeData}
+            ) : tree.length > 0 ? (
+              <ExportCheckTree
+                nodes={tree}
                 checkedKeys={checkedKeys}
-                onCheck={keys => setCheckedKeys(keys as number[])}
+                onCheckedKeysChange={setCheckedKeys}
               />
             ) : (
               <div className="py-6 text-center text-xs text-gray-500 dark:text-slate-400">
@@ -457,9 +505,8 @@ const BatchExportModal = (props: BatchExportModalProps) => {
                     pageBreak: event.target.checked,
                   }))
                 }
-              >
-                每个文档分页（EPUB 中每个文档天然一章）
-              </Checkbox>
+                label="每个文档分页（EPUB 中每个文档天然一章）"
+              />
               <div className="flex items-center gap-3">
                 <Checkbox
                   checked={rule.asHeading}
@@ -470,14 +517,13 @@ const BatchExportModal = (props: BatchExportModalProps) => {
                       asHeading: event.target.checked,
                     }))
                   }
-                >
-                  文档标题作为标题插入正文
-                </Checkbox>
+                  label="文档标题作为标题插入正文"
+                />
                 <Select
-                  size="small"
+                  className="w-[80px]"
                   value={rule.headingLevel}
                   disabled={!rulesApplicable || !rule.asHeading}
-                  onChange={value =>
+                  onValueChange={value =>
                     setRule(prev => ({
                       ...prev,
                       headingLevel: value as BatchExportRule["headingLevel"],
@@ -505,9 +551,8 @@ const BatchExportModal = (props: BatchExportModalProps) => {
                       outline: event.target.checked,
                     }))
                   }
-                >
-                  生成书签导航（PDF 阅读器侧边栏大纲，按标题层级展示）
-                </Checkbox>
+                  label="生成书签导航（PDF 阅读器侧边栏大纲，按标题层级展示）"
+                />
                 <Checkbox
                   checked={pdfSettings.tocPage && rule.asHeading}
                   disabled={!rule.asHeading}
@@ -517,9 +562,8 @@ const BatchExportModal = (props: BatchExportModalProps) => {
                       tocPage: event.target.checked,
                     }))
                   }
-                >
-                  插入目录页（正文开头单独一页，点击条目跳转）
-                </Checkbox>
+                  label="插入目录页（正文开头单独一页，点击条目跳转）"
+                />
                 {!rule.asHeading && (
                   <span className="text-xs text-gray-400 dark:text-slate-500">
                     目录页需开启“文档标题作为标题插入正文”

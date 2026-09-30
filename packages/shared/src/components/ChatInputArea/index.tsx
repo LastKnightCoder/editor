@@ -7,19 +7,19 @@ import React, {
   useMemo,
 } from "react";
 import { useMemoizedFn } from "ahooks";
-import { Button, Upload, message, Dropdown, Tooltip, Input, Popover } from "antd";
-import type { TextAreaRef } from "antd/es/input/TextArea";
+import { Menu, Popover, Tooltip, toast } from "@tau/ui";
 import {
-  PictureOutlined,
-  FilePdfOutlined,
-  WechatWorkOutlined,
-  SettingOutlined,
-  SendOutlined,
-  CloseOutlined,
-  StopOutlined,
-  CheckOutlined,
-  ApiOutlined,
-} from "@ant-design/icons";
+  Check,
+  FileText,
+  Image as ImageIcon,
+  Loader2,
+  MessageSquarePlus,
+  Plug,
+  Send,
+  Settings,
+  Square,
+  X,
+} from "lucide-react";
 import classnames from "classnames";
 import { v4 as uuid } from "uuid";
 import { LuBrain } from "react-icons/lu";
@@ -57,9 +57,8 @@ export {
   getContextUsageSummary,
   formatTokenCount,
 } from "./ContextUsageIndicator";
-export type { ChatContextUsage } from "./types";
+export type { ChatContextUsage, ChatDropdownItem } from "./types";
 
-const { TextArea } = Input;
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 interface ThinkingLevelOption {
@@ -213,26 +212,6 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     const currentThinkingOption = availableThinkingLevelOptions.find(
       option => option.value === thinkingLevel
     );
-    const thinkingLevelMenuItems = useMemo(
-      () =>
-        availableThinkingLevelOptions.map(option => ({
-          key: option.value,
-          label: (
-            <div
-              className={classnames("flex min-w-[180px] items-center justify-between gap-3", {
-                "text-blue-600": option.value === thinkingLevel,
-              })}
-            >
-              <div className="flex flex-col">
-                <span className="text-sm font-medium">{option.label}</span>
-                <span className="text-xs text-gray-500">{option.description}</span>
-              </div>
-              {option.value === thinkingLevel && <CheckOutlined className="text-blue-500" />}
-            </div>
-          ),
-        })),
-      [availableThinkingLevelOptions, thinkingLevel]
-    );
     const thinkingControlDisabled = thinkingLevelDisabled || sendLoading || !contentEditable;
 
     useEffect(() => {
@@ -326,7 +305,21 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       setFiles(prev => [...prev, fileItem]);
     });
 
-    const textAreaRef = useRef<TextAreaRef>(null);
+    const textAreaRef = useRef<HTMLTextAreaElement>(null);
+    const imageFileInputRef = useRef<HTMLInputElement>(null);
+    const pdfFileInputRef = useRef<HTMLInputElement>(null);
+
+    // 自增长高度：1 行起步、最多 6 行，超出转滚动（取代 antd TextArea 的 autoSize）
+    useEffect(() => {
+      const el = textAreaRef.current;
+      if (!el) return;
+      el.style.height = "auto";
+      const lineHeight = Number.parseFloat(window.getComputedStyle(el).lineHeight) || 24;
+      const maxHeight = lineHeight * 6;
+      const next = Math.max(lineHeight, Math.min(el.scrollHeight, maxHeight));
+      el.style.height = `${next}px`;
+      el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
+    }, [textContent]);
     const closeMentionPanel = useMemoizedFn(() => {
       setMentionPanelOpen(false);
       setMentionPanelLoading(false);
@@ -364,8 +357,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       closeMentionPanel();
 
       setTimeout(() => {
-        const textArea = textAreaRef.current?.resizableTextArea?.textArea as
-          HTMLTextAreaElement | undefined;
+        const textArea = textAreaRef.current;
         if (!textArea) {
           return;
         }
@@ -430,8 +422,8 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         closeMentionPanel();
       },
       focusEnd: () => {
-        if (textAreaRef.current?.resizableTextArea?.textArea) {
-          const textArea = textAreaRef.current.resizableTextArea.textArea as HTMLTextAreaElement;
+        if (textAreaRef.current) {
+          const textArea = textAreaRef.current;
           textArea.focus();
           const length = textContent.length;
           textArea.setSelectionRange(length, length);
@@ -444,15 +436,15 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         setUploadingImage(true);
         const uploadedPath = await uploadFile(file);
         if (!uploadedPath) {
-          message.error("图片上传失败");
+          toast.error("图片上传失败");
           return false;
         }
         const attachment = { name: file.name, path: uploadedPath };
         await appendImageAttachment(attachment);
-        message.success("图片上传成功");
+        toast.success("图片上传成功");
       } catch (error) {
         console.error("图片上传失败:", error);
-        message.error("图片上传失败");
+        toast.error("图片上传失败");
       } finally {
         setUploadingImage(false);
       }
@@ -461,11 +453,11 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
 
     const handlePdfUpload = async (file: File) => {
       if (file.type.toLowerCase() !== "application/pdf") {
-        message.error("仅支持 PDF 文件");
+        toast.error("仅支持 PDF 文件");
         return false;
       }
       if (file.size > MAX_FILE_SIZE) {
-        message.error("PDF 文件需小于 50MB");
+        toast.error("PDF 文件需小于 50MB");
         return false;
       }
 
@@ -473,15 +465,15 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         setUploadingPdf(true);
         const uploadedPath = await uploadFile(file);
         if (!uploadedPath) {
-          message.error("PDF 上传失败");
+          toast.error("PDF 上传失败");
           return false;
         }
         const attachment = { name: file.name, path: uploadedPath };
         appendFileAttachment(attachment);
-        message.success("PDF 上传成功");
+        toast.success("PDF 上传成功");
       } catch (error) {
         console.error("PDF 上传失败:", error);
-        message.error("PDF 上传失败");
+        toast.error("PDF 上传失败");
       } finally {
         setUploadingPdf(false);
       }
@@ -599,8 +591,9 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                   className="h-12 w-12 cursor-zoom-in rounded-lg border border-gray-200 object-cover"
                   onClick={() => setPreviewImage(image.previewUrl)}
                 />
-                <CloseOutlined
-                  className="text-white! hover:bg-gray-500! absolute right-1 top-1 h-4 w-4 cursor-pointer rounded-full p-1 opacity-0 transition-opacity duration-200 group-hover/image:opacity-100"
+                <X
+                  size={12}
+                  className="absolute right-1 top-1 cursor-pointer rounded-full bg-black/40 p-0.5 text-white opacity-0 transition-opacity duration-200 hover:bg-gray-500 group-hover/image:opacity-100"
                   onClick={() => removeImage(image.id)}
                 />
               </div>
@@ -616,13 +609,14 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-zinc-800"
               >
                 <div className="flex items-center gap-2 overflow-hidden">
-                  <FilePdfOutlined className="shrink-0 text-red-500" />
+                  <FileText size={14} className="shrink-0 text-red-500" />
                   <span className="truncate text-sm text-gray-800 dark:text-gray-100">
                     {file.name}
                   </span>
                 </div>
-                <CloseOutlined
-                  className="h-4 w-4 cursor-pointer text-gray-400 hover:text-gray-700"
+                <X
+                  size={14}
+                  className="cursor-pointer text-gray-400 hover:text-gray-700"
                   onClick={() => removeFile(file.id)}
                 />
               </div>
@@ -635,33 +629,33 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
             {composerMentions.map((mention, index) => (
               <Popover
                 key={`${mention.entityType}-${mention.entityId}-${mention.contentId}-${index}`}
-                trigger={["hover", "click"]}
-                placement="topLeft"
-                content={
-                  <div className="max-w-[320px] text-sm leading-6">
-                    <div className="font-medium text-gray-900">{mention.title}</div>
-                    <div className="mt-1 whitespace-pre-wrap text-gray-600">
-                      {mention.previewText || "暂无摘要"}
+                placement="top-start"
+                trigger={
+                  <div className="group flex items-start justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-left dark:border-blue-500/20 dark:bg-blue-500/10">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-blue-700 dark:text-blue-200">
+                        @{mention.title}
+                      </div>
+                      <div className="truncate text-xs text-blue-600/80 dark:text-blue-200/70">
+                        {mention.previewText || "暂无摘要"}
+                      </div>
                     </div>
+                    <X
+                      size={12}
+                      className="mt-0.5 text-blue-500/70 opacity-0 transition-opacity group-hover:opacity-100 dark:text-blue-200/70"
+                      onClick={event => {
+                        event.stopPropagation();
+                        removeMentionMarkup(mention);
+                      }}
+                    />
                   </div>
                 }
               >
-                <div className="group flex items-start justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-left dark:border-blue-500/20 dark:bg-blue-500/10">
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium text-blue-700 dark:text-blue-200">
-                      @{mention.title}
-                    </div>
-                    <div className="truncate text-xs text-blue-600/80 dark:text-blue-200/70">
-                      {mention.previewText || "暂无摘要"}
-                    </div>
+                <div className="max-w-[320px] p-2 text-sm leading-6">
+                  <div className="font-medium text-gray-900">{mention.title}</div>
+                  <div className="mt-1 whitespace-pre-wrap text-gray-600">
+                    {mention.previewText || "暂无摘要"}
                   </div>
-                  <CloseOutlined
-                    className="mt-0.5 text-xs text-blue-500/70 opacity-0 transition-opacity group-hover:opacity-100 dark:text-blue-200/70"
-                    onClick={event => {
-                      event.stopPropagation();
-                      removeMentionMarkup(mention);
-                    }}
-                  />
                 </div>
               </Popover>
             ))}
@@ -669,7 +663,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         )}
 
         <div className="mb-2">
-          <TextArea
+          <textarea
             ref={textAreaRef}
             value={textContent}
             onChange={e => {
@@ -687,13 +681,9 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
               }, 120);
             }}
             placeholder={resolvedPlaceholder}
-            autoSize={{ minRows: 1, maxRows: 6 }}
             disabled={!contentEditable}
-            className="px-0! dark:text-[#e6edf3]! w-full resize-none border-none bg-transparent text-base focus:border-blue-400 focus:ring-0"
-            classNames={{
-              textarea: "shared-chat-input-textarea",
-            }}
-            variant="borderless"
+            rows={1}
+            className="shared-chat-input-textarea dark:text-[#e6edf3] w-full resize-none border-none bg-transparent px-0 text-base focus:border-blue-400 focus:ring-0 focus:outline-none"
           />
           {mentionPanelOpen && (
             <div className="mt-2 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-zinc-900">
@@ -743,10 +733,8 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             {onCreateNewMessage && (
               <Tooltip
-                title="新建对话"
-                trigger={["hover"]}
+                content="新建对话"
                 open={isNewChatTooltipOpen}
-                destroyOnHidden
                 onOpenChange={open => {
                   setIsNewChatTooltipOpen(
                     resolveNewChatTooltipOpen({
@@ -759,124 +747,161 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                   );
                 }}
               >
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<WechatWorkOutlined />}
+                <button
+                  type="button"
                   onMouseDown={() => {
                     setIsNewChatTooltipOpen(false);
                     setIsNewChatTooltipReopenLocked(true);
                   }}
                   onMouseLeave={handleNewChatTooltipMouseLeave}
                   onClick={handleCreateNewMessageClick}
-                  loading={createMessageLoading}
-                  disabled={sendLoading}
-                  className="p-1! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400!"
-                />
+                  disabled={sendLoading || createMessageLoading}
+                  className="flex cursor-pointer items-center rounded-md p-1 text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-default disabled:opacity-40 dark:text-gray-400 dark:hover:bg-white/10"
+                >
+                  {createMessageLoading ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <MessageSquarePlus size={14} />
+                  )}
+                </button>
               </Tooltip>
             )}
 
             {modelSelectItems.length > 0 && onModelSelect && (
-              <Dropdown
-                menu={{
-                  items: modelSelectItems,
-                  onClick: onModelSelect,
-                }}
-                trigger={["click"]}
-                disabled={sendLoading}
-              >
-                <Tooltip title={currentModelName || "选择模型"}>
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<SettingOutlined />}
+              <Menu
+                align="start"
+                trigger={
+                  <button
+                    type="button"
+                    title={currentModelName || "选择模型"}
                     disabled={sendLoading}
-                    className="p-1! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400!"
-                  />
-                </Tooltip>
-              </Dropdown>
+                    className="flex cursor-pointer items-center rounded-md p-1 text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-default disabled:opacity-40 dark:text-gray-400 dark:hover:bg-white/10"
+                  >
+                    <Settings size={14} />
+                  </button>
+                }
+              >
+                {modelSelectItems.map(item =>
+                  item.group ? (
+                    <Menu.Group key={item.key}>{item.label}</Menu.Group>
+                  ) : (
+                    <Menu.Item
+                      key={item.key}
+                      disabled={item.disabled}
+                      onSelect={() => onModelSelect?.({ key: item.key })}
+                    >
+                      {item.label}
+                    </Menu.Item>
+                  )
+                )}
+              </Menu>
             )}
             {showThinkingLevelControl && (
-              <Dropdown
-                menu={{
-                  items: thinkingLevelMenuItems,
-                  onClick: ({ key }) => onThinkingLevelChange?.(key as ThinkingLevel),
-                }}
-                trigger={["click"]}
-                disabled={thinkingControlDisabled}
-              >
-                <span
-                  style={{
-                    display: "inline-block",
-                    cursor: thinkingControlDisabled ? "not-allowed" : "pointer",
-                  }}
-                >
-                  <Button
-                    type="text"
-                    size="small"
+              <Menu
+                align="start"
+                trigger={
+                  <button
+                    type="button"
                     disabled={thinkingControlDisabled}
-                    className="p-1! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400! flex items-center gap-1.5"
-                    style={{
-                      pointerEvents: thinkingControlDisabled ? "none" : "auto",
-                    }}
+                    className="flex cursor-pointer items-center gap-1.5 rounded-md p-1 text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-default disabled:opacity-40 dark:text-gray-400 dark:hover:bg-white/10"
                   >
                     <LuBrain className="text-base" />
                     <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
                       {currentThinkingOption?.label ?? "立答如流"}
                     </span>
-                  </Button>
-                </span>
-              </Dropdown>
+                  </button>
+                }
+              >
+                {availableThinkingLevelOptions.map(option => (
+                  <Menu.Item
+                    key={option.value}
+                    onSelect={() => onThinkingLevelChange?.(option.value)}
+                  >
+                    <div
+                      className={classnames(
+                        "flex min-w-[180px] items-center justify-between gap-3",
+                        { "text-blue-600": option.value === thinkingLevel }
+                      )}
+                    >
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">{option.label}</span>
+                        <span className="text-xs text-gray-500">{option.description}</span>
+                      </div>
+                      {option.value === thinkingLevel && (
+                        <Check size={14} className="text-blue-500" />
+                      )}
+                    </div>
+                  </Menu.Item>
+                ))}
+              </Menu>
             )}
             {onMcpManagerClick && (
-              <Tooltip title="MCP 管理中心">
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<ApiOutlined />}
+              <Tooltip content="MCP 管理中心">
+                <button
+                  type="button"
                   disabled={sendLoading}
-                  className="p-1! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400!"
                   onClick={onMcpManagerClick}
-                />
+                  className="flex cursor-pointer items-center rounded-md p-1 text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-default disabled:opacity-40 dark:text-gray-400 dark:hover:bg-white/10"
+                >
+                  <Plug size={14} />
+                </button>
               </Tooltip>
             )}
             <ContextUsageIndicator contextWindowK={contextWindowK} usage={contextUsage} />
+            <input
+              ref={imageFileInputRef}
+              type="file"
+              accept="image/png, image/jpeg, image/webp"
+              className="hidden"
+              disabled={!contentEditable || sendLoading || uploadingImage}
+              onChange={event => {
+                const file = event.target.files?.[0];
+                if (file) void handleImageUpload(file);
+                event.target.value = "";
+              }}
+            />
             {isSupportImage && (
-              <Tooltip title="上传图片">
-                <Upload
-                  accept="image/png, image/jpeg, image/webp"
-                  showUploadList={false}
-                  beforeUpload={handleImageUpload}
+              <Tooltip content="上传图片">
+                <button
+                  type="button"
                   disabled={!contentEditable || sendLoading || uploadingImage}
+                  onClick={() => imageFileInputRef.current?.click()}
+                  className="flex cursor-pointer items-center rounded-md p-1 text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-default disabled:opacity-40 dark:text-gray-400 dark:hover:bg-white/10"
                 >
-                  <Button
-                    type="text"
-                    icon={<PictureOutlined />}
-                    size="small"
-                    disabled={!contentEditable || sendLoading || uploadingImage}
-                    loading={uploadingImage}
-                    className="p-1! rounded! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400!"
-                  />
-                </Upload>
+                  {uploadingImage ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <ImageIcon size={14} />
+                  )}
+                </button>
               </Tooltip>
             )}
+            <input
+              ref={pdfFileInputRef}
+              type="file"
+              accept="application/pdf"
+              className="hidden"
+              disabled={!contentEditable || sendLoading || uploadingPdf}
+              onChange={event => {
+                const file = event.target.files?.[0];
+                if (file) void handlePdfUpload(file);
+                event.target.value = "";
+              }}
+            />
             {isSupportFile && (
-              <Tooltip title="上传 PDF">
-                <Upload
-                  accept="application/pdf"
-                  showUploadList={false}
-                  beforeUpload={handlePdfUpload}
+              <Tooltip content="上传 PDF">
+                <button
+                  type="button"
                   disabled={!contentEditable || sendLoading || uploadingPdf}
+                  onClick={() => pdfFileInputRef.current?.click()}
+                  className="flex cursor-pointer items-center rounded-md p-1 text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-default disabled:opacity-40 dark:text-gray-400 dark:hover:bg-white/10"
                 >
-                  <Button
-                    type="text"
-                    icon={<FilePdfOutlined />}
-                    size="small"
-                    disabled={!contentEditable || sendLoading || uploadingPdf}
-                    loading={uploadingPdf}
-                    className="p-1! rounded! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400!"
-                  />
-                </Upload>
+                  {uploadingPdf ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <FileText size={14} />
+                  )}
+                </button>
               </Tooltip>
             )}
             {extraToolbarButtons}
@@ -884,25 +909,25 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
 
           <div className="flex items-center gap-1">
             {sendLoading && (
-              <Button
-                type="text"
-                size="small"
+              <button
+                type="button"
                 onClick={onStop}
-                icon={<StopOutlined />}
-                className="border-none! bg-none! text-gray-600! dark:text-gray-400! hover:text-red-500! hover:bg-red-50! dark:hover:bg-red-900/20! shadow-none! rounded p-1"
                 title="停止生成"
-              />
+                className="flex cursor-pointer items-center rounded p-1 text-gray-600 transition-colors hover:bg-red-50 hover:text-red-500 dark:text-gray-400 dark:hover:bg-red-900/20"
+              >
+                <Square size={14} />
+              </button>
             )}
             {(!sendLoading || allowSendWhileLoading) && (
               <span className="relative inline-flex">
-                <Button
-                  type="text"
-                  size="small"
+                <button
+                  type="button"
                   onClick={onPressEnter}
-                  icon={<SendOutlined />}
-                  className="border-none! bg-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400! shadow-none! rounded p-1"
                   title={sendLoading ? "加入发送队列" : "发送"}
-                />
+                  className="flex cursor-pointer items-center rounded p-1 text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10"
+                >
+                  <Send size={14} />
+                </button>
                 {queuedMessageCount > 0 && (
                   <span className="absolute -right-1.5 -top-1.5 min-w-4 rounded-full bg-blue-500 px-1 text-center text-[10px] leading-4 text-white">
                     {queuedMessageCount}
@@ -921,8 +946,9 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
             >
               <div className="-z-1 absolute inset-0 bg-black bg-opacity-50" />
               <img src={previewImage} alt="预览" className="max-h-full max-w-full" />
-              <CloseOutlined
-                className="text-white! hover:bg-gray-500! absolute right-4 top-4 h-5 w-5 cursor-pointer rounded-full p-1 duration-200"
+              <X
+                size={16}
+                className="absolute right-4 top-4 cursor-pointer rounded-full bg-black/40 p-1 text-white transition-colors duration-200 hover:bg-gray-500"
                 onClick={() => setPreviewImage(null)}
               />
             </div>

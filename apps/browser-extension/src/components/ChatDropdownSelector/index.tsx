@@ -1,8 +1,8 @@
 import { memo, useMemo, useState, useRef } from "react";
-import { DownOutlined, PlusOutlined, MoreOutlined, DeleteOutlined } from "@ant-design/icons";
-import { App, Dropdown } from "antd";
-import type { MenuProps } from "antd";
+import { ChevronDown, MoreHorizontal, Plus, Trash2 } from "lucide-react";
+import { Menu, toast } from "@tau/ui";
 import { SelectDropDown, EditText } from "@tau/shared";
+import { useConfirmPrompt } from "../../hooks/useConfirmPrompt";
 import type { EditTextHandle } from "@tau/shared";
 import type { ChatSession } from "../../types/chat-session";
 import styles from "./index.module.css";
@@ -39,7 +39,7 @@ const ChatDropdownSelector = memo(
   }: ChatDropdownSelectorProps) => {
     const [showDropdown, setShowDropdown] = useState(false);
     const triggerRef = useRef<HTMLDivElement>(null);
-    const { modal, message } = App.useApp();
+    const { confirm: confirmPrompt, confirmDialog } = useConfirmPrompt();
 
     // 构建菜单项（分支在对话内部的会话树上，在用户消息的 ‹ i/n › 切换，M4-d）
     const menuItems: MenuItem[] = useMemo(() => {
@@ -76,43 +76,21 @@ const ChatDropdownSelector = memo(
       }
     };
 
-    const handleDeleteClick = (chatId: string) => {
+    const handleDeleteClick = async (chatId: string) => {
       if (!onChatDelete) return;
-      modal.confirm({
-        title: "确定删除这个对话吗？",
-        content: "对话里的所有版本会一起删除。",
-        okButtonProps: { danger: true },
-        onOk: async () => {
-          try {
-            await onChatDelete(chatId);
-            message.success("对话删除成功");
-          } catch (error) {
-            message.error("删除对话失败");
-            console.error(error);
-          }
-        },
+      const ok = await confirmPrompt({
+        title: "删除对话",
+        description: "对话里的所有版本会一起删除。",
+        danger: true,
+        confirmText: "删除",
       });
-    };
-
-    const headerMenuItems: MenuProps["items"] = useMemo(() => {
-      if (!onChatDelete || currentChat.draft) {
-        return [];
-      }
-
-      return [
-        {
-          key: "delete",
-          danger: true,
-          icon: <DeleteOutlined />,
-          label: "删除对话",
-        },
-      ];
-    }, [currentChat.draft, onChatDelete]);
-
-    const handleHeaderMenuClick: MenuProps["onClick"] = ({ key, domEvent }) => {
-      domEvent.stopPropagation();
-      if (key === "delete" && !currentChat.draft) {
-        handleDeleteClick(currentChat.id);
+      if (!ok) return;
+      try {
+        await onChatDelete(chatId);
+        toast.success("对话删除成功");
+      } catch (error) {
+        toast.error("删除对话失败");
+        console.error(error);
       }
     };
 
@@ -120,7 +98,7 @@ const ChatDropdownSelector = memo(
       if (item.type === "new") {
         return (
           <div className="flex items-center gap-2">
-            <PlusOutlined style={{ fontSize: 14 }} />
+            <Plus size={14} />
             <span>{item.title}</span>
           </div>
         );
@@ -143,14 +121,15 @@ const ChatDropdownSelector = memo(
       <div
         className={`flex w-full items-center justify-between gap-2 ${styles.chatDropdownSelector}`}
       >
+        {confirmDialog}
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <div
             ref={triggerRef}
             className={`flex cursor-pointer items-center gap-1 ${styles.dropdownTrigger}`}
             onClick={() => setShowDropdown(!showDropdown)}
           >
-            <DownOutlined
-              style={{ fontSize: 15 }}
+            <ChevronDown
+              size={15}
               className={`shrink-0 opacity-60 ${styles.icon}`}
             />
           </div>
@@ -184,22 +163,28 @@ const ChatDropdownSelector = memo(
           </div>
 
           {onChatDelete && !currentChat.draft && (
-            <Dropdown
-              menu={{
-                items: headerMenuItems,
-                onClick: handleHeaderMenuClick,
-              }}
-              trigger={["click"]}
-              placement="bottomRight"
+            <Menu
+              align="end"
+              trigger={
+                <button
+                  className={`shrink-0 rounded p-1 text-gray-500 dark:text-gray-400 ${styles.headerActionButton}`}
+                  title="更多操作"
+                  onClick={e => e.stopPropagation()}
+                >
+                  <MoreHorizontal size={14} />
+                </button>
+              }
             >
-              <button
-                className={`shrink-0 rounded p-1 text-gray-500 dark:text-gray-400 ${styles.headerActionButton}`}
-                title="更多操作"
-                onClick={e => e.stopPropagation()}
+              <Menu.Item
+                danger
+                icon={<Trash2 size={14} />}
+                onSelect={() => {
+                  if (!currentChat.draft) void handleDeleteClick(currentChat.id);
+                }}
               >
-                <MoreOutlined style={{ fontSize: 14 }} />
-              </button>
-            </Dropdown>
+                删除对话
+              </Menu.Item>
+            </Menu>
           )}
         </div>
       </div>

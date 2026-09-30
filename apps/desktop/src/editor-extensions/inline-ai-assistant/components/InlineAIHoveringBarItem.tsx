@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { useMemoizedFn } from "ahooks";
-import { Tooltip } from "antd";
+import { Tooltip } from "@tau/ui";
 import { Sparkles } from "lucide-react";
 import { Editor, Range, Transforms } from "slate";
 import { ReactEditor, useSlateSelection, useSlateStatic } from "slate-react";
@@ -48,7 +48,7 @@ const InlineAIHoveringBarItem = memo(() => {
   });
 
   return (
-    <Tooltip title="Ask AI" trigger="hover">
+    <Tooltip content="Ask AI">
       <div
         className={classnames(
           "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all duration-200",

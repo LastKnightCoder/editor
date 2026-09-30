@@ -792,6 +792,34 @@
 - 追记（2026-09-30，用户实机反馈「底部条时有时无、向下箭头奇怪、没看到 D 切深浅」）：① **HUD 显隐改为位置驱动**——仅在进场提示期间、鼠标位于屏幕底部 140px 带内、悬停 HUD 或全览 / 帮助打开时显示，离开即收起；原「任意移动唤出、静止 2s 隐藏」叠加「贴底边滑出胶片条把 HUD 顶上去」，表现为无规律闪现。光标仍按静止 2s 隐藏。② **胶片条删除**——与 `O` 全览重复，且与 HUD 抢底边。③ **画面底部的「下方还有」箭头删除**，多屏提示只留右侧屏点与上下渐隐。④ **恢复 `D` 切深浅色，只作用于演示层**：演示根节点写 `data-theme`（沿用当前主题族）+ `data-mode` + `th-scope-dark/light`，`@theme inline` 的语义色在子树内重算；编辑器经 `EditorThemeOverride` 按演示明暗渲染（shiki / mermaid 等 JS 取色随之切换，与导出预览 ContentExportModal 同一机制）。不写全局偏好、不动 `<html>`——这是「业务代码禁止操作 data-theme」的受控例外，仅限演示根节点这一局部作用域。已知边界：Tooltip 经 Portal 挂在 body，仍随应用明暗。上文「不做：演示内独立明暗切换」作废。
 - 影响：`src/components/PresentationMode/` 整体重写（sections / cameraPlan 纯函数 + 单测、frame 常量、SlideFrame / SectionThumbnail / Overview / HelpPanel），旧 `components/`、`hooks/`、`index.module.less` 删除；调用方（文章 / 卡片 / 项目共五处）无改动；白板演示模式不受影响；03 指南 §5 新增「演示模式」小节。
 
+## D-073 @tau/shared 聊天组件族 antd 就地换 @tau/ui（推翻「跨端阻断」预判）
+
+（2026-09-30，已定；消费链调查驱动）
+
+- 背景：§antd-exit 曾把 shared 聊天组件族记为 M5 前置阻断项（「mobile 与 desktop 共用、antd 打进移动端 bundle、需拆包或跨端替代」）。2026-09-30 消费链调查**推翻该预判**：聊天 UI 组件族（ChatInputArea / ChatContainerCore / ChatMessageView / ChatToolCallDisplay / ContextUsageIndicator / ImageGallery / MermaidRenderer）的消费者**仅 desktop**（ChatSidebar 链、SkillPickerPanel、InlineAIComposerPanel、MentionPanel）；mobile 只消费 shared 的编辑器模块（LocalVideo / LocalAudio / DepsProvider 族 / markdownCustomDirectives，均不含 antd，tree-shaking 后 mobile 产物无 antd）；browser-extension 的 sidepanel 用 MarkdownRenderer，但其 antd 是 `MessageInstance` **纯类型导入**，编译后消失；blog 不涉聊天 UI。
+- 方案对比：**A 就地换 `@tau/ui` + lucide + 自定义最小类型接口**（选定）；B fork 到 desktop（双份维护，且无第二消费端存在的证据，YAGNI）；C 拆独立 chat-ui 包（消费面单一，过度设计）。
+- 可行性已验证：依赖方向 `shared → @tau/ui` 无环（ui 仅依赖 @tau/themes）；`usePortalContainer` 无 Provider 时 fallback `document.body`（inline-ai 面板的独立 createRoot 安全）；shared 已依赖 lucide-react。
+- 执行口径（按依赖形态分三档）：
+  - 纯类型 ×3：`types.ts` 的 MenuProps、ChatMarkdownRenderer / MarkdownRenderer 的 `MessageInstance` → 自定义最小接口；
+  - 仅图标 ×3：ChatMessageView / ChatToolCallDisplay / ImageGallery → lucide 直换；
+  - 运行时组件 ×4：ChatContainerCore（Tooltip）、ContextUsageIndicator（Button/Popover）、ChatInputArea（Button/Upload/Dropdown/Tooltip/Input/Popover/message + icons + TextAreaRef）、MermaidRenderer（Tooltip/Alert/Spin）→ `@tau/ui` 对应原语 + toast。
+- 影响：shared 的 package.json 增 `@tau/ui` 依赖；shared 清零后 desktop 的 `App.tsx` ConfigProvider 补丁链、`useSyncTwoToneColor`、e2e / ChatInputArea 测试宿主全部解锁随删；antd / @ant-design/icons 随之移出 desktop 与 shared 依赖，§antd-exit 收官。ext / blog 的自有 antd（各 7 / 1 文件）独立处理，与本裁决解耦。
+
+## D-074 沉浸写作重做：全屏聚光 + 整列 zoom，放大与编辑器字号解耦
+
+（2026-09-30，已定；用户裁决）
+
+- 背景：旧沉浸模式是一层 `bg-white/95` 遮罩 + 写死 `font-size: 24px` 让编辑器按 em 级联放大（与 D-072 之前的演示模式同一耦合），不全屏、常驻圆形关闭钮与字数胶囊，颜色写死 `#1e1e1e`，Esc 自挂 window 监听（违反 D-003）。用户评价「完全没有沉浸感、设计过时」，要求完全重构并参考演示模式。
+- 方案对比（`mockups/immersive/`）：A 静室（只剩字，光标越出舒适带才跟随）、B 聚光（iA Writer 式：打字机滚动 + 段落聚焦默认开）、C 书桌（下沉底 + 纸张 + 左缘大纲 + 写作目标环）。用户选 B。
+- 选择：
+  - **进入即窗口全屏**（与演示共用 `useFullScreenWhileMounted`，退出还原），背景 surface，无常驻 chrome：右下一行淡字数；控制条（字数 · 本次 +N · 用时 / 缩放 −·%·+ / 打字机 / 聚焦 / 深浅 / 退出）位置驱动显隐，一输入即收起并隐藏指针。
+  - **放大 = 版心整列 CSS `zoom`**，按屏宽自适应（版心约占 60% 屏宽，1×–1.75×），控制条在其上 ±10% 微调（0.8–1.5）。**不用演示的 transform**：可编辑需要真实布局（光标命中、滚动高度、Portal 浮层定位不必换算；Chromium 标准化 zoom 后 getBoundingClientRect 即屏幕像素）。编辑器唯一一处「DOM 内 fixed + 视口坐标」的文件落点指示线改为按 `currentCSSZoom` 反除。
+  - **打字机滚动**：光标行钉在视口 45%，上下留白 45vh / 55vh（在 zoom 之外）；关掉后退为舒适带跟随（越出 20%–75% 才滚）。只响应键盘引起的光标移动，鼠标点击 / 滚轮回看不拉回。
+  - **段落聚焦**：光标所在顶层块全亮，其余 30% 透明度，按 DOM 选区打标记（不读 editor.selection）。
+  - 深浅色只作用于沉浸层（与演示共用 `useStageTheme`）；Esc 经 `useOverlayDismiss`；`useFindOwner` 吞掉 Ctrl/⌘+F。
+- 不做：写作目标（C 的目标环，YAGNI）；缩放快捷键——`Ctrl+=` / `Ctrl+-` 已被主进程注册为整窗缩放全局快捷键，沉浸层只给控制条按钮；顶部标题 / 保存状态栏（接口不携带标题与保存态，按需再议）；开关状态跨次记忆。
+- 影响：`src/components/ImmersiveEditorMode/` 原位重写（layout 纯函数 + 单测、useCaretFollow、useCurrentBlock），`useTypewriterScroll` 删除；接口删去 `wordCount` / `readonly`（字数改由组件自身内容实时计算——卡片 / 项目传入的 count 要等持久化后才更新），`onInit` 改可选；演示模式的全屏 hook、HUD 胶囊与局部主题抽到 `hooks/useFullScreenWhileMounted` 与 `components/Stage` 共用；03 指南 §5 新增「沉浸写作」小节。
+
 ## D-075 快捷卡片窗口并入卡片编辑窗口：打开即建闪念笔记
 
 （2026-09-30，已定；用户裁决：要「卡片打开新窗口」那种，而非新建卡片弹窗式的草稿 + 保存）

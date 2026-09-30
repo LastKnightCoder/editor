@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
-import { App } from "antd";
+import { toast } from "@tau/ui";
 
 import useConversationFlashcardStore from "@/stores/useConversationFlashcardStore";
 import useFlashcardStore from "@/stores/useFlashcardStore";
@@ -14,7 +14,6 @@ import { importFromMarkdown } from "@/utils/markdown";
 import type { FlashcardDeck, FlashcardReferenceInput } from "@/types";
 
 const ConversationFlashcardModal = () => {
-  const { message } = App.useApp();
   const { isDark } = useTheme();
 
   // Store 状态
@@ -53,13 +52,13 @@ const ConversationFlashcardModal = () => {
     if (isModalOpen && conversationContent) {
       // 检查 LLM 配置
       if (!provider || !model) {
-        message.error("请先在设置中配置闪卡生成的模型");
+        toast.error("请先在设置中配置闪卡生成的模型");
         reset();
         return;
       }
       setDeckSelectorOpen(true);
     }
-  }, [isModalOpen, conversationContent, provider, model, message, reset]);
+  }, [isModalOpen, conversationContent, provider, model, reset]);
 
   // 处理卡组选择
   const handleDeckSelect = useMemoizedFn((deck: FlashcardDeck) => {
@@ -86,7 +85,7 @@ const ConversationFlashcardModal = () => {
 
     const selectedCards = generatedCards.filter(c => c.selected);
     if (selectedCards.length === 0) {
-      message.warning("请至少选择一张闪卡");
+      toast.warning("请至少选择一张闪卡");
       return;
     }
 
@@ -118,10 +117,10 @@ const ConversationFlashcardModal = () => {
         }
       }
 
-      message.success(`成功创建 ${successCount} 张闪卡`);
+      toast.success(`成功创建 ${successCount} 张闪卡`);
       handleCloseAll();
     } catch (err) {
-      message.error("创建闪卡失败");
+      toast.error("创建闪卡失败");
       console.error(err);
     }
   });
@@ -163,7 +162,7 @@ const ConversationFlashcardModal = () => {
       updateCard(editingCard.id, updates);
       setEditModalOpen(false);
       setEditingCard(null);
-      message.success("闪卡已更新");
+      toast.success("闪卡已更新");
     }
   );
 

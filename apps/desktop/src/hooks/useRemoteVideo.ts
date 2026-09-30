@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { message } from "antd";
+import { toast } from "@tau/ui";
 import {
   downloadRemoteVideoWithProgress,
   getRemoteVideoCacheStatus,
@@ -111,7 +111,7 @@ export function useRemoteVideo(src?: string): UseRemoteVideoResult {
       const errorMessage =
         err instanceof Error ? err.message : "视频下载失败";
       setError(errorMessage);
-      message.error(`视频下载失败: ${errorMessage}`);
+      toast.error(`视频下载失败: ${errorMessage}`);
 
       // Fallback to original URL on error
       setVideoUrl(src || null);

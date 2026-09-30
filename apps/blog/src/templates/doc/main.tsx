@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { ToastHost } from "@tau/ui";
 import DocPage from "./DocPage";
 import "@blog/styles/global.css";
 import { initTheme } from "@blog/utils";
@@ -13,6 +14,7 @@ if (import.meta.env.DEV) {
     initTheme();
     createRoot(document.getElementById("root")!).render(
       <StrictMode>
+        <ToastHost />
         <DocPage />
       </StrictMode>,
     );

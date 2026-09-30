@@ -1,13 +1,13 @@
 import React, { memo, useState } from "react";
 import {
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  ClockCircleOutlined,
-  LoadingOutlined,
-  ReloadOutlined,
-  StopOutlined,
-  WarningOutlined,
-} from "@ant-design/icons";
+  CircleAlert,
+  CircleCheck,
+  CircleX,
+  Clock,
+  Loader2,
+  RefreshCw,
+  Square,
+} from "lucide-react";
 import type {
   ToolCallDefaultItemRenderParams,
   ToolCallDisplayProps as BaseToolCallDisplayProps,
@@ -45,20 +45,20 @@ export const ChatToolCallDefaultItem: React.FC<ChatToolCallDefaultItemProps> =
     const getStatusIcon = () => {
       switch (execution.status) {
         case "pending":
-          return <ClockCircleOutlined className={styles.iconPending} />;
+          return <Clock size={14} className={styles.iconPending} />;
         case "executing":
-          return <LoadingOutlined className={styles.iconExecuting} spin />;
+          return <Loader2 size={14} className={`animate-spin ${styles.iconExecuting}`} />;
         case "retrying":
-          return <ReloadOutlined className={styles.iconRetrying} spin />;
+          return <RefreshCw size={14} className={`animate-spin ${styles.iconRetrying}`} />;
         case "cancelled":
-          return <StopOutlined className={styles.iconPending} />;
+          return <Square size={14} className={styles.iconPending} />;
         case "success":
-          return <CheckCircleOutlined className={styles.iconSuccess} />;
+          return <CircleCheck size={14} className={styles.iconSuccess} />;
         case "failed":
           return execution.errorType === "parameter" ? (
-            <WarningOutlined className={styles.iconFailed} />
+            <CircleAlert size={14} className={styles.iconFailed} />
           ) : (
-            <CloseCircleOutlined className={styles.iconFailed} />
+            <CircleX size={14} className={styles.iconFailed} />
           );
       }
     };

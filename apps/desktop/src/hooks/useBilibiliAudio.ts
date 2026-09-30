@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
-import { App } from "antd";
+import { toast } from "@tau/ui";
 import { getPlayUrl, checkStreamAvailability } from "@/utils/bilibili";
 import {
   bilibiliAudioToLocal,
@@ -38,7 +38,6 @@ export function useBilibiliAudio(
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<AudioCacheProgress | null>(null);
   const initedRef = useRef(false);
-  const { message } = App.useApp();
 
   const { setting } = useSettingStore((s) => ({ setting: s.setting }));
 
@@ -114,7 +113,7 @@ export function useBilibiliAudio(
       } catch (e) {
         const msg = e instanceof Error ? e.message : "处理 Bilibili 音频失败";
         setError(msg);
-        message.error(`Bilibili 音频加载失败: ${msg}`);
+        toast.error(`Bilibili 音频加载失败: ${msg}`);
       } finally {
         setLoading(false);
       }

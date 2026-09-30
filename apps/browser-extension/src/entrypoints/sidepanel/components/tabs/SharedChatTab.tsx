@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef, type Ref } from "react";
-import { App } from "antd";
-import type { MenuProps } from "antd";
+import { toast } from "@tau/ui";
+import type { ChatDropdownItem } from "@tau/shared";
+import { useConfirmPrompt } from "../../../../hooks/useConfirmPrompt";
 import type WebSocketClient from "../../../../utils/WebSocketClient";
 import {
   ChatInputArea,
@@ -36,7 +37,7 @@ export interface ChatTabProps {
 
 export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }: ChatTabProps) {
   const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>("off");
-  const { message: antdMessage, modal } = App.useApp();
+  const { confirm: confirmPrompt, confirmDialog } = useConfirmPrompt();
 
   const { themeMode } = useThemeStore();
   const resolvedTheme = useTheme(themeMode);
@@ -180,12 +181,12 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
     []
   );
 
-  const modelSelectItems: MenuProps["items"] = useMemo(() => {
+  const modelSelectItems: ChatDropdownItem[] = useMemo(() => {
     return llmConfigs.flatMap(provider => [
       {
         key: `provider-${provider.id}`,
         label: provider.name,
-        type: "group" as const,
+        group: true,
       },
       ...(provider.models || []).map(model => ({
         key: `${provider.id}:${model.id ?? model.name}`,
@@ -202,15 +203,15 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
         await setLlmUsage(providerId, modelId ?? "");
       } catch (err) {
         console.error("设置模型失败:", err);
-        antdMessage.error("设置模型失败");
+        toast.error("设置模型失败");
       }
     },
-    [setLlmUsage, antdMessage]
+    [setLlmUsage]
   );
 
   const handleMcpManagerClick = useCallback(async () => {
     if (!aiWsClient?.isConnected) {
-      antdMessage.warning("桌面端未连接，无法打开 MCP 管理中心");
+      toast.warning("桌面端未连接，无法打开 MCP 管理中心");
       return;
     }
 
@@ -218,9 +219,9 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
       await aiWsClient.sendRequest("mcp.manager.open", {});
     } catch (error) {
       console.error("打开 MCP 管理中心失败:", error);
-      antdMessage.error("打开 MCP 管理中心失败");
+      toast.error("打开 MCP 管理中心失败");
     }
-  }, [aiWsClient, antdMessage]);
+  }, [aiWsClient]);
 
   const handleDeleteMessage = useCallback(
     (messageIndex: number) => {
@@ -260,14 +261,14 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
     (messageIndex: number) => {
       if (isLoading) return;
       if (messageIndex === messages.length - 1) {
-        antdMessage.info("已经是最新的回答，直接发送消息即可继续");
+        toast.info("已经是最新的回答，直接发送消息即可继续");
         return;
       }
       void createBranch(messageIndex).then(ok => {
-        if (ok) antdMessage.success("已从这里分叉，发送的消息会成为新分支");
+        if (ok) toast.success("已从这里分叉，发送的消息会成为新分支");
       });
     },
-    [antdMessage, createBranch, isLoading, messages.length]
+    []
   );
 
   const handleSwitchVersion = useCallback(
@@ -278,27 +279,24 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
     [isLoading, switchVersion]
   );
 
-  const handleDeleteConfirm = useCallback((): Promise<boolean> => {
-    return new Promise(resolve => {
-      modal.confirm({
-        title: "确定删除该消息吗？",
-        content: "删除后无法恢复",
-        okText: "确定",
-        cancelText: "取消",
-        okButtonProps: { danger: true },
-        onOk: () => resolve(true),
-        onCancel: () => resolve(false),
-      });
-    });
-  }, [modal]);
+  const handleDeleteConfirm = useCallback(
+    () =>
+      confirmPrompt({
+        title: "删除消息",
+        description: "删除后无法恢复",
+        danger: true,
+        confirmText: "删除",
+      }),
+    [confirmPrompt]
+  );
 
   const handleCopySuccess = useCallback(() => {
-    antdMessage.success("已复制到剪贴板");
-  }, [antdMessage]);
+    toast.success("已复制到剪贴板");
+  }, []);
 
   const handleCopyError = useCallback(() => {
-    antdMessage.error("复制失败");
-  }, [antdMessage]);
+    toast.error("复制失败");
+  }, []);
 
   const chatInputServices: ChatInputAreaServices = useMemo(
     () => ({
@@ -389,7 +387,9 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
   }, [messages, scrollToBottom]);
 
   return (
-    <ChatContainerCore
+    <>
+      {confirmDialog}
+      <ChatContainerCore
       ref={coreRef}
       isDark={isDark}
       isConnected={isConnected}
@@ -473,6 +473,7 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
           />
         </div>
       )}
-    />
+      />
+    </>
   );
 }

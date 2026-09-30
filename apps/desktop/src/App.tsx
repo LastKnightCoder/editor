@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { App, ConfigProvider, theme, message as antdMessage } from "antd";
-import zhCN from "antd/locale/zh_CN";
+import { toast } from "@tau/ui";
 import { RouterProvider } from "react-router-dom";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -15,10 +14,8 @@ import {
   type UseRemoteVideoDeps,
 } from "@tau/shared";
 
-import useTheme from "@/hooks/useTheme.ts";
 import useSyncFont from "@/hooks/useSyncFont.ts";
 import useSyncTheme from "@/hooks/useSyncTheme";
-import useSyncTwoToneColor from "@/hooks/useSyncTwoToneColor";
 import useSearchWarmUp from "@/hooks/useSearchWarmUp";
 import { useItemUpdateListener } from "@/hooks/useItemUpdateListener";
 import useArticleDeletedCleanup from "@/hooks/useArticleDeletedCleanup";
@@ -26,7 +23,6 @@ import useSyncSetting from "@/hooks/useSyncSetting";
 import useWeReadSessionBootstrap from "@/hooks/useWeReadSessionBootstrap";
 import { useInitChatData } from "@/hooks/useInitChatData";
 import { WindowFocusContext } from "@/hooks/useWindowFocus";
-import useAntdThemeToken from "@/hooks/useAntdThemeToken";
 import AutoSyncManager from "@/components/AutoSyncManager";
 import AutoUpdateChecker from "@/components/AutoUpdateChecker";
 import { MediaModalHost } from "@/editor-providers/mediaModalHost";
@@ -60,15 +56,11 @@ import {
 import { router } from "@/router.tsx";
 
 const Application = () => {
-  const { isDark } = useTheme();
-  const { token, isSolid } = useAntdThemeToken();
-
   useSyncSetting();
   useItemUpdateListener();
   useArticleDeletedCleanup();
   useSyncFont();
   useSyncTheme();
-  useSyncTwoToneColor();
   useSearchWarmUp();
   useInitChatData(); // 全局初始化聊天数据
   useWeReadSessionBootstrap();
@@ -91,7 +83,7 @@ const Application = () => {
       },
       cacheVideo: bilibiliVideoToLocal,
       getCacheStatus: isBilibiliVideoCached,
-      showError: msg => antdMessage.error(msg),
+      showError: msg => toast.error(msg),
     }),
     []
   );
@@ -116,7 +108,7 @@ const Application = () => {
       },
       cacheVideo: cacheYoutubeVideo,
       convertFileSrc,
-      showError: msg => antdMessage.error(msg),
+      showError: msg => toast.error(msg),
     }),
     []
   );
@@ -170,7 +162,7 @@ const Application = () => {
           fileSize: status.fileSize,
         };
       },
-      showError: msg => antdMessage.error(msg),
+      showError: msg => toast.error(msg),
       isRemoteUrl: url => url.startsWith("http://") || url.startsWith("https://"),
     }),
     []
@@ -199,203 +191,12 @@ const Application = () => {
   }, []);
 
   return (
-    <ConfigProvider
-      theme={{
-        algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
-        token,
-        components: {
-          Calendar: {
-            fullBg: "transparent",
-          },
-          Table: {
-            headerBg: isSolid
-              ? isDark
-                ? "#1f1f1f"
-                : "#fafafa"
-              : isDark
-                ? "rgba(0, 0, 0, 0.2)"
-                : "rgba(255, 255, 255, 0.6)",
-            rowHoverBg: isSolid
-              ? isDark
-                ? "#2a2a2a"
-                : "#fafafa"
-              : isDark
-                ? "rgba(255, 255, 255, 0.06)"
-                : "rgba(0, 0, 0, 0.03)",
-            rowSelectedBg: isSolid
-              ? isDark
-                ? "#1a1a1a"
-                : "#e6f4ff"
-              : isDark
-                ? "rgba(255, 255, 255, 0.08)"
-                : "rgba(0, 0, 0, 0.04)",
-            rowSelectedHoverBg: isSolid
-              ? isDark
-                ? "#1a1a1a"
-                : "#e6f4ff"
-              : isDark
-                ? "rgba(255, 255, 255, 0.08)"
-                : "rgba(0, 0, 0, 0.04)",
-            headerSortActiveBg: isSolid
-              ? isDark
-                ? "#262626"
-                : "#f0f0f0"
-              : isDark
-                ? "rgba(255, 255, 255, 0.1)"
-                : "rgba(0, 0, 0, 0.04)",
-            headerFilterHoverBg: isSolid
-              ? isDark
-                ? "#333333"
-                : "#e5e5e5"
-              : isDark
-                ? "rgba(255, 255, 255, 0.15)"
-                : "rgba(0, 0, 0, 0.06)",
-          },
-          Button: {
-            primaryShadow: "none",
-            defaultShadow: "none",
-            dangerShadow: "none",
-            defaultBg: isSolid
-              ? isDark
-                ? "#262626"
-                : "#ffffff"
-              : isDark
-                ? "rgba(255, 255, 255, 0.1)"
-                : "rgba(255, 255, 255, 0.8)",
-            defaultBorderColor: isSolid
-              ? isDark
-                ? "#424242"
-                : "#d9d9d9"
-              : isDark
-                ? "rgba(255, 255, 255, 0.2)"
-                : "rgba(0, 0, 0, 0.15)",
-            defaultHoverBg: isSolid
-              ? isDark
-                ? "#333333"
-                : "#f5f5f5"
-              : isDark
-                ? "rgba(255, 255, 255, 0.15)"
-                : "rgba(255, 255, 255, 0.9)",
-            defaultHoverBorderColor: isSolid
-              ? isDark
-                ? "#525252"
-                : "#b3b3b3"
-              : isDark
-                ? "rgba(255, 255, 255, 0.3)"
-                : "rgba(0, 0, 0, 0.2)",
-          },
-          Select: {
-            optionSelectedBg: isSolid
-              ? isDark
-                ? "#262626"
-                : "#f0f0f0"
-              : isDark
-                ? "rgba(255, 255, 255, 0.1)"
-                : "rgba(0, 0, 0, 0.04)",
-            selectorBg: isSolid
-              ? isDark
-                ? "#1f1f1f"
-                : "#ffffff"
-              : isDark
-                ? "rgba(255, 255, 255, 0.1)"
-                : "rgba(255, 255, 255, 0.8)",
-            optionActiveBg: isSolid
-              ? isDark
-                ? "#333333"
-                : "#e6e6e6"
-              : isDark
-                ? "rgba(255, 255, 255, 0.15)"
-                : "rgba(0, 0, 0, 0.06)",
-          },
-          Pagination: {
-            itemBg: isSolid
-              ? "transparent"
-              : isDark
-                ? "rgba(255, 255, 255, 0.05)"
-                : "rgba(255, 255, 255, 0.6)",
-            itemActiveBg: isSolid
-              ? isDark
-                ? "#262626"
-                : "#ffffff"
-              : isDark
-                ? "rgba(255, 255, 255, 0.15)"
-                : "rgba(255, 255, 255, 0.9)",
-            itemInputBg: isSolid
-              ? isDark
-                ? "#1f1f1f"
-                : "#ffffff"
-              : isDark
-                ? "rgba(255, 255, 255, 0.1)"
-                : "rgba(255, 255, 255, 0.8)",
-          },
-          Input: {
-            activeShadow: "none",
-            activeBorderColor: "var(--th-border-focus)",
-            hoverBorderColor: "var(--th-border-hover)",
-            activeBg: isSolid
-              ? isDark
-                ? "#1f1f1f"
-                : "#ffffff"
-              : isDark
-                ? "rgba(255, 255, 255, 0.1)"
-                : "rgba(255, 255, 255, 0.9)",
-            hoverBg: isSolid
-              ? isDark
-                ? "#262626"
-                : "#ffffff"
-              : isDark
-                ? "rgba(255, 255, 255, 0.08)"
-                : "rgba(255, 255, 255, 0.85)",
-          },
-          Modal: {
-            contentBg: isSolid
-              ? isDark
-                ? "#1f1f1f"
-                : "#ffffff"
-              : isDark
-                ? "rgba(20, 20, 20, 0.95)"
-                : "rgba(255, 255, 255, 0.95)",
-            headerBg: "transparent",
-          },
-          Dropdown: {
-            colorBgElevated: isDark ? "rgba(24, 24, 27, 0.92)" : "rgba(248, 250, 255, 0.92)",
-            colorBorder: isDark ? "rgba(255, 255, 255, 0.10)" : "rgba(255, 255, 255, 0.45)",
-            colorSplit: isDark ? "rgba(255, 255, 255, 0.10)" : "rgba(255, 255, 255, 0.45)",
-            colorText: isDark ? "rgba(244, 244, 245, 0.95)" : "rgba(15, 23, 42, 0.95)",
-            colorTextDescription: isDark ? "rgba(161, 161, 170, 0.7)" : "rgba(100, 116, 139, 0.7)",
-            boxShadowSecondary: isDark
-              ? "0 22px 60px rgba(0, 0, 0, 0.65)"
-              : "0 18px 45px rgba(15, 23, 42, 0.25)",
-            controlItemBgHover: isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(255, 255, 255, 0.6)",
-            controlItemBgActive: isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(255, 255, 255, 0.6)",
-            controlItemBgActiveHover: isDark
-              ? "rgba(255, 255, 255, 0.12)"
-              : "rgba(255, 255, 255, 0.6)",
-          },
-          Popover: {
-            colorBgElevated: isDark ? "rgba(24, 24, 27, 0.92)" : "rgba(248, 250, 255, 0.92)",
-            colorText: isDark ? "rgba(244, 244, 245, 0.95)" : "rgba(15, 23, 42, 0.95)",
-            colorTextDescription: isDark ? "rgba(161, 161, 170, 0.7)" : "rgba(100, 116, 139, 0.7)",
-            colorTextHeading: isDark ? "rgba(244, 244, 245, 0.95)" : "rgba(15, 23, 42, 0.95)",
-            colorSplit: isDark ? "rgba(255, 255, 255, 0.10)" : "rgba(255, 255, 255, 0.45)",
-            boxShadowSecondary: isDark
-              ? "0 22px 60px rgba(0, 0, 0, 0.65)"
-              : "0 18px 45px rgba(15, 23, 42, 0.25)",
-          },
-          Tooltip: {
-            colorBgSpotlight: isDark ? "#1f1f1f" : "#ffffff",
-            colorTextLightSolid: isDark ? "#e5e5e5" : "#262626",
-          },
-        },
-      }}
-      locale={zhCN}
-    >
       <WindowFocusContext.Provider value={isFocused}>
         <BilibiliVideoDepsProvider deps={bilibiliDeps}>
           <YoutubeVideoDepsProvider deps={youtubeDeps}>
             <RemoteVideoDepsProvider deps={remoteVideoDeps}>
               <EditDatabaseDepsProvider deps={editDatabaseDeps}>
-                <App
+                <div
                   style={{
                     height: "100%",
                     fontSize: "var(--font-size)",
@@ -412,13 +213,12 @@ const Application = () => {
                     <JoinRequestNotifications />
                     <RouterProvider router={router} />
                   </DndProvider>
-                </App>
+                </div>
               </EditDatabaseDepsProvider>
             </RemoteVideoDepsProvider>
           </YoutubeVideoDepsProvider>
         </BilibiliVideoDepsProvider>
       </WindowFocusContext.Provider>
-    </ConfigProvider>
   );
 };
 

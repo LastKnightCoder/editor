@@ -17,8 +17,7 @@ import { getWhiteBoardContentById, updateSubWhiteBoard } from "@/commands";
 import { WhiteBoardContent } from "@/types";
 
 import { useMemoizedFn } from "ahooks";
-import { LoadingOutlined } from "@ant-design/icons";
-import { Empty } from "antd";
+import { Loader2 } from "lucide-react";
 import useIsLastElement from "@tau/editor/src/hooks/useIsLastElement";
 import type { WhiteboardElement } from "../../types";
 type IWhiteboardProps = IExtensionBaseProps<WhiteboardElement>;
@@ -229,7 +228,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
   if (loading) {
     return (
       <div className="flex w-full items-center justify-center" style={{ height }}>
-        <LoadingOutlined />
+        <Loader2 className="animate-spin" />
       </div>
     );
   }
@@ -241,7 +240,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
         style={{ height }}
         contentEditable={false}
       >
-        <Empty description="白板不存在或者被删除" />
+        <p className="text-sm text-ink-3">白板不存在或者被删除</p>
       </div>
     );
   }

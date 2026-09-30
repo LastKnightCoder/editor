@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { App } from "antd";
+import { toast } from "@tau/ui";
 import classNames from "classnames";
 
 import CustomModal from "@/components/CustomModal";
@@ -95,7 +95,6 @@ const AutoSyncManager = () => {
   const integration = useSettingStore(state => state.setting.integration);
   const database = useSettingStore(state => state.setting.database);
   const isDevMode = process.env.NODE_ENV === "development";
-  const { message } = App.useApp();
 
   const activeDatabase = useMemo(
     () => database.databases.find(item => item.name === database.active),
@@ -141,9 +140,9 @@ const AutoSyncManager = () => {
   }, []);
 
   const handleUploadFailureWhileClosing = useCallback(async () => {
-    message.error("自动同步失败，正在直接关闭应用");
+    toast.error("自动同步失败，正在直接关闭应用");
     await closeAfterSync();
-  }, [closeAfterSync, message]);
+  }, [closeAfterSync]);
 
   const stopFakeUploadProgress = useCallback(() => {
     if (uploadProgressTimerRef.current !== null) {

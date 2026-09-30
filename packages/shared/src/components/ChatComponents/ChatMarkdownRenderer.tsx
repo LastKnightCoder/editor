@@ -1,11 +1,18 @@
 import React, { memo, useCallback, useMemo } from "react";
 import classNames from "classnames";
-import type { MessageInstance } from "antd/es/message/interface";
 import MarkdownRenderer, {
   type MarkdownRendererProps,
 } from "../MarkdownRenderer";
 import LazySyntaxHighlighter from "../LazySyntaxHighlighter";
 import styles from "./ChatMarkdownRenderer.module.less";
+/**
+ * message 实例的最小消费面（Mermaid 通知）；antd message 与 @tau/ui toast 结构均满足。
+ * 纯类型依赖不产出运行时代码，browser-extension 侧消费本组件不受影响（D-073）。
+ */
+interface MessageApiLike {
+  success(content: React.ReactNode): void;
+  error(content: React.ReactNode): void;
+}
 
 export interface CodeBlockPreviewPayload {
   id: string;
@@ -39,7 +46,7 @@ export interface ChatMarkdownRendererProps extends Omit<
     React.ComponentType<{ code: string; isDark?: boolean }>
   >;
   onPreviewCodeBlock?: (payload: CodeBlockPreviewPayload) => void;
-  messageApi?: MessageInstance;
+  messageApi?: MessageApiLike;
 }
 
 const DEFAULT_PREVIEW_LANGUAGES = [

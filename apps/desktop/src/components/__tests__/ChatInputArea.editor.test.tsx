@@ -1,4 +1,3 @@
-import { App } from "antd";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -180,9 +179,7 @@ const renderChatInputArea = async (ref: React.RefObject<ChatInputAreaHandle | nu
   root = createRoot(container);
   await act(async () => {
     root?.render(
-      <App>
         <ChatInputArea ref={ref} />
-      </App>
     );
   });
 };
@@ -222,22 +219,20 @@ describe("桌面端 ChatInputArea Editor 输入", () => {
       root = createRoot(container);
       await act(async () => {
         root?.render(
-          <App>
-            {variant === "desktop" ? (
-              <ChatInputArea ref={ref} isSupportImage isSupportFile />
-            ) : (
-              <SharedChatInputArea
-                ref={ref}
-                isSupportImage
-                isSupportFile
-                services={{
-                  uploadFile: uploadFileMock,
-                  convertFileSrc: async path => `file://${path}`,
-                  getHomeDir: async () => "/home/test",
-                }}
-              />
-            )}
-          </App>
+          variant === "desktop" ? (
+            <ChatInputArea ref={ref} isSupportImage isSupportFile />
+          ) : (
+            <SharedChatInputArea
+              ref={ref}
+              isSupportImage
+              isSupportFile
+              services={{
+                uploadFile: uploadFileMock,
+                convertFileSrc: async path => `file://${path}`,
+                getHomeDir: async () => "/home/test",
+              }}
+            />
+          )
         );
       });
       for (const [accept, name, type] of [
@@ -352,9 +347,7 @@ describe("桌面端 ChatInputArea Editor 输入", () => {
     root = createRoot(container);
     await act(async () => {
       root?.render(
-        <App>
           <ChatInputArea ref={ref} onPressEnter={onPressEnter} />
-        </App>
       );
     });
 

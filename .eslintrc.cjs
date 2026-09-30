@@ -1,3 +1,9 @@
+// antd 退场棘轮（docs/redesign/01-重构蓝图.md §3.6）：全仓默认禁止新增 antd / @ant-design import，
+// 存量白名单文件豁免；白名单唯一事实源是 scripts/antd-whitelist.json，
+// 由 scripts/antd-ratchet.mjs --check 守护只减不增（迁移一处收缩一处）。
+// eslint-disable-next-line @typescript-eslint/no-var-requires -- CJS 配置只能 require 读 JSON
+const antdWhitelist = require("./scripts/antd-whitelist.json");
+
 // 白板插件隔离护栏：跨插件协作必须走能力协议（CapabilityService），
 // 禁止引用其它插件的专属 Util 或对其元素类型做强转。
 // 宿主插件与测试豁免（领域知识归属宿主自身）。
@@ -67,11 +73,39 @@ module.exports = {
       {
         patterns: [
           { group: ["@tau/ui/theme", "@tau/ui/theme/*"], message: "主题从 @tau/themes 导入" },
+          {
+            group: ["antd", "antd/*", "@ant-design/*"],
+            message:
+              "antd 只减不增（蓝图 §3.6，存量白名单见 scripts/antd-whitelist.json）：新 UI 用 @tau/ui + Tailwind，图标用 lucide-react",
+          },
         ],
       },
     ],
   },
   overrides: [
+    // 存量白名单豁免 antd 禁令（该文件清单由 scripts/antd-ratchet.mjs 守护只减不增）；
+    // override 会整体替换根配置的同名规则，主题禁令需在此重复保留。
+    // 白名单清零后空数组是非法 files 配置，会让整个 eslint 崩溃（lint-staged 随之吞工作区），条件展开规避
+    ...(antdWhitelist.length > 0
+      ? [
+          {
+            files: antdWhitelist,
+            rules: {
+              "no-restricted-imports": [
+                "error",
+                {
+                  patterns: [
+                    {
+                      group: ["@tau/ui/theme", "@tau/ui/theme/*"],
+                      message: "主题从 @tau/themes 导入",
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ]
+      : []),
     {
       files: [
         "apps/desktop/src/components/WhiteBoard/plugins/**/*.{ts,tsx}",

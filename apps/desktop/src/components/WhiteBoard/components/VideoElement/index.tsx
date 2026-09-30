@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
-import { Tooltip } from "antd";
+import { Tooltip } from "@tau/ui";
 import { StickyNote } from "lucide-react";
 import If from "@/components/If";
 import LocalVideo from "@/components/LocalVideo";
@@ -156,7 +156,7 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
         }}
       >
         <div className="group relative h-full w-full" data-whiteboard-stop-keyboard="true">
-          <Tooltip title="视频笔记">
+          <Tooltip content="视频笔记">
             <button
               type="button"
               className="absolute right-5 top-5 z-10 flex h-8 w-8 items-center justify-center rounded-md border border-black/10 bg-white/90 text-gray-600 opacity-0 shadow-sm transition-opacity hover:bg-white hover:text-[var(--th-accent)] group-hover:opacity-100 dark:border-white/10 dark:bg-zinc-900/90 dark:text-gray-300 dark:hover:bg-zinc-900"
@@ -248,7 +248,7 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
           height={32}
           className="overflow-visible"
         >
-          <Tooltip title="视频笔记">
+          <Tooltip content="视频笔记">
             <button
               type="button"
               className="flex h-8 w-8 items-center justify-center rounded-md border border-black/10 bg-white text-gray-600 shadow-sm transition-colors hover:text-[var(--th-accent)] dark:border-white/10 dark:bg-zinc-900 dark:text-gray-300"

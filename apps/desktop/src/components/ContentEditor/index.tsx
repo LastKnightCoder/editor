@@ -1,10 +1,19 @@
 import { forwardRef, useEffect, useRef, type ComponentProps, type ReactNode } from "react";
-import { LoadingOutlined } from "@ant-design/icons";
+import { Loader2 } from "lucide-react";
 import { Editor, type EditorRef } from "@tau/editor/src";
 import { useCollaborationKit } from "@/hooks/useCollaborationKit";
 import useCollaborationStore from "@/stores/useCollaborationStore";
 import useContentDocument from "@/hooks/useContentDocument";
 import useCollaborationPresence from "@/hooks/useCollaborationPresence";
+import {
+  createActiveEditingSessionId,
+  removeActiveEditingSession,
+  setActiveEditingSessionFocus,
+  updateActiveEditingSessionContent,
+  updateActiveEditingSessionSelection,
+  upsertActiveEditingSession,
+} from "@/services/content-editing";
+import type { EntityType } from "@/services/content-editing";
 import type { ContentSessionTarget } from "@tau/collaboration";
 import type { Descendant } from "slate";
 
@@ -14,10 +23,15 @@ type ContentEditorProps = ComponentProps<typeof Editor> & {
   onLoadError?: (error: string) => void;
   /** 会话就绪前的占位（缺省为转圈）；传只读渲染可让「阅读 → 编辑」切换不闪不跳 */
   fallback?: ReactNode;
+  /** 声明编辑目标身份后，可写实例会注册为 AI 可感知的「当前编辑上下文」（选区/光标/内容） */
+  editingContext?: { entityType: EntityType; entityId?: number | string };
 };
 
+/** 内容快照重建要全量序列化 markdown，防抖到输入停顿后执行 */
+const EDITING_SESSION_SNAPSHOT_DEBOUNCE_MS = 500;
+
 const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
-  ({ contentId, source, onLoadError, fallback, ...props }, ref) => {
+  ({ contentId, source, onLoadError, fallback, editingContext, ...props }, ref) => {
     const sessions = useCollaborationStore(state => state.sessions);
     const readonly = props.readonly ?? true;
     const { document, binding, article, error, sessionError, frozen, swapping } =
@@ -29,19 +43,62 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
     const presence = useCollaborationPresence(binding, readonly || frozen);
     // 场景 kit 要经协作派生（共享模式下资源与音视频服务被覆盖），不能让 props.kit 直接覆盖
     const kit = useCollaborationKit(binding, props.kit);
+
+    // AI 编辑上下文（active-editor-session）注册：非只读 + 声明身份才登记
+    const { entityType, entityId } = editingContext ?? {};
+    const canRegisterEditing = Boolean(!readonly && contentId && entityType && entityId);
+    const editingSessionRef = useRef<string | null>(null);
+    const contentRef = useRef<Descendant[] | null>(null);
+    const snapshotTimerRef = useRef<number | undefined>(undefined);
+
+    const trackEditingContent = (content: Descendant[]) => {
+      contentRef.current = content;
+      const sessionId = editingSessionRef.current;
+      if (!sessionId) return;
+      window.clearTimeout(snapshotTimerRef.current);
+      snapshotTimerRef.current = window.setTimeout(() => {
+        if (editingSessionRef.current && contentRef.current) {
+          updateActiveEditingSessionContent(editingSessionRef.current, contentRef.current);
+        }
+      }, EDITING_SESSION_SNAPSHOT_DEBOUNCE_MS);
+    };
+
     useEffect(() => {
       const loadError = sessionError || (!document && error);
       if (loadError) onLoadError?.(loadError);
     }, [sessionError, error, document, onLoadError]);
+
     useEffect(() => {
-      if (binding && article && editorRef.current)
+      if (binding && article && editorRef.current) {
+        trackEditingContent(article.content as Descendant[]);
         callback.current?.(article.content as Descendant[], editorRef.current.getEditor());
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [binding, article]);
+
+    useEffect(() => {
+      if (!canRegisterEditing || !contentId || !entityType || !entityId) return;
+      const sessionId = createActiveEditingSessionId();
+      editingSessionRef.current = sessionId;
+      upsertActiveEditingSession({
+        sessionId,
+        contentId,
+        entityType,
+        entityId,
+        content: contentRef.current ?? [],
+      });
+      return () => {
+        window.clearTimeout(snapshotTimerRef.current);
+        removeActiveEditingSession(sessionId);
+        editingSessionRef.current = null;
+      };
+    }, [canRegisterEditing, contentId, entityType, entityId]);
+
     if (contentId && !document) {
       if (fallback !== undefined && !sessionError && !error) return <>{fallback}</>;
       return (
         <div role="status" className="text-text-3 flex min-h-40 items-center justify-center">
-          {sessionError || error || <LoadingOutlined spin />}
+          {sessionError || error || <Loader2 className="animate-spin" />}
         </div>
       );
     }
@@ -64,14 +121,38 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
           readonly={
             readonly || frozen || swapping || Boolean(session && session.status !== "active")
           }
-          onChange={document ? undefined : props.onChange}
+          onChange={
+            document
+              ? undefined
+              : (value, editor) => {
+                  trackEditingContent(value);
+                  props.onChange?.(value, editor);
+                }
+          }
+          onSelectionChange={() => {
+            props.onSelectionChange?.();
+            if (!editingSessionRef.current) return;
+            updateActiveEditingSessionSelection(
+              editingSessionRef.current,
+              editorRef.current?.getEditor().selection ?? null
+            );
+          }}
           onFocus={() => {
             presence.onFocus();
             props.onFocus?.();
+            if (!editingSessionRef.current) return;
+            setActiveEditingSessionFocus(editingSessionRef.current, true);
+            updateActiveEditingSessionSelection(
+              editingSessionRef.current,
+              editorRef.current?.getEditor().selection ?? null
+            );
           }}
           onBlur={() => {
             presence.onBlur();
             props.onBlur?.();
+            if (editingSessionRef.current) {
+              setActiveEditingSessionFocus(editingSessionRef.current, false);
+            }
           }}
         />
       </>

@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from "react";
 import "../../src/commands/contracts/install";
 import { createRoot } from "react-dom/client";
-import { App } from "antd";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -28,7 +27,6 @@ const queryClient = new QueryClient();
 function View() {
   const [second, setSecond] = useState(true);
   return (
-    <App>
       <QueryClientProvider client={queryClient}>
         <DndProvider backend={HTML5Backend}>
           <main style={{ padding: 24 }}>
@@ -73,7 +71,6 @@ function View() {
           <ToastHost />
         </DndProvider>
       </QueryClientProvider>
-    </App>
   );
 }
 // 宿主扩展先装载再渲染（与 src/main.tsx 同序）：kit 只建一次，装载晚了补不回来

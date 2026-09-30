@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Empty, message } from "antd";
+import { toast } from "@tau/ui";
 import { useAsyncEffect } from "ahooks";
 import ItemCard from "@/editor-extensions/components/ItemCard";
 
@@ -33,14 +33,14 @@ const ProjectList = (props: IProps) => {
       setItems(items);
     } catch (e) {
       console.error(e);
-      message.error("ProjectItems 拉取失败" + e);
+      toast.error("ProjectItems 拉取失败" + e);
     }
   }, [projectItemId]);
 
   if (items.length === 0) {
     return (
       <div contentEditable={false} style={{ userSelect: "none" }}>
-        <Empty description={"暂无子文档"} />
+        <p className="text-ink-3 py-6 text-center text-xs">暂无子文档</p>
       </div>
     );
   }

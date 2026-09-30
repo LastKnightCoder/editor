@@ -1,6 +1,5 @@
 import { createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { App as AntdApp } from "antd";
 import type { Editor } from "slate";
 import type { SerializedSelection } from "@/services/content-editing";
 import DndProvider from "@/components/DndProvider";
@@ -51,18 +50,14 @@ export const openInlineAIComposer = (
   const panelRoot = ensureRoot();
   panelRoot.render(
     createElement(
-      AntdApp,
+      DndProvider,
       null,
-      createElement(
-        DndProvider,
-        null,
-        createElement(InlineAIComposerPanel, {
-          editor,
-          source,
-          initialSelection: options?.initialSelection || null,
-          onClose: closeInlineAIComposer,
-        })
-      )
+      createElement(InlineAIComposerPanel, {
+        editor,
+        source,
+        initialSelection: options?.initialSelection || null,
+        onClose: closeInlineAIComposer,
+      })
     )
   );
 };

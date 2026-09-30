@@ -30,8 +30,6 @@
     }
   },
   "peerDependencies": {
-    "@ant-design/icons": "^6.0.0",
-    "antd": "^6.0.0",
     "react": "19.1.x",
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",
@@ -41,6 +39,7 @@
   "dependencies": {
     "@tanstack/react-virtual": "^3.0.0",
     "@tau/db-schema": "workspace:*",
+    "@tau/ui": "workspace:*",
     "ahooks": "^3.7.8",
     "classnames": "^2.3.2",
     "cropperjs": "^2.0.0",
@@ -61,14 +60,12 @@
     "uuid": "^9.0.1"
   },
   "devDependencies": {
-    "@ant-design/icons": "^6.0.6",
     "@types/katex": "^0.16.7",
     "@types/plantuml-encoder": "^1.4.2",
     "@types/react": "19.1.8",
     "@types/react-dom": "19.1.6",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@types/uuid": "^9.0.8",
-    "antd": "^6.0.0",
     "react": "19.1.0",
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",

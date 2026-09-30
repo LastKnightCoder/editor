@@ -1,7 +1,7 @@
 import { memo, useMemo, useState, useEffect, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
-import { Dropdown, App } from "antd";
-import { MoreOutlined, EditOutlined, SyncOutlined, UploadOutlined } from "@ant-design/icons";
+import { Menu, toast } from "@tau/ui";
+import { MoreHorizontal, Pencil, RefreshCw, Upload } from "lucide-react";
 import If from "@/components/If";
 import ResizeCircle from "../ResizeCircle";
 import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
@@ -61,7 +61,6 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
   const [tempUrl, setTempUrl] = useState(url);
   const webviewRef = useRef<WebviewRef>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { message } = App.useApp();
   const uploadResource = useUploadResource();
   const [localUploadLoading, setLocalUploadLoading] = useState(false);
 
@@ -129,7 +128,7 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
     if (tempUrl !== url) {
       const normalizedUrl = normalizeWebviewUrl(tempUrl);
       if (!normalizedUrl) {
-        message.error("请输入有效的网页地址");
+        toast.error("请输入有效的网页地址");
         setTempUrl(url);
         return;
       }
@@ -148,7 +147,7 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
 
   const handleSelectLocalHtml = useMemoizedFn(async () => {
     if (!uploadResource) {
-      message.error("当前环境未配置上传能力");
+      toast.error("当前环境未配置上传能力");
       return;
     }
     const filePaths = await selectFile({
@@ -171,7 +170,7 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
       });
       const uploadedUrl = await uploadResource(htmlFile);
       if (!uploadedUrl) {
-        message.error("上传 HTML 文件失败");
+        toast.error("上传 HTML 文件失败");
         return;
       }
       const path = board.children.findIndex(item => item.id === id);
@@ -183,11 +182,11 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
           newProperties: { url: uploadedUrl, sourceType: "local" },
         });
         setTempUrl(uploadedUrl);
-        message.success("HTML 文件已添加");
+        toast.success("HTML 文件已添加");
       }
     } catch (error) {
       console.error(error);
-      message.error("选择 HTML 文件失败");
+      toast.error("选择 HTML 文件失败");
     } finally {
       setLocalUploadLoading(false);
     }
@@ -269,36 +268,28 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
               </div>
             </If>
             <If condition={!isEditingUrl}>
-              <Dropdown
-                menu={{
-                  items: [
-                    {
-                      key: "editUrl",
-                      label: "编辑地址",
-                      onClick: () => handleUrlEdit(),
-                      icon: <EditOutlined />,
-                    },
-                    {
-                      key: "selectLocal",
-                      label: localUploadLoading ? "上传中..." : "选择本地 HTML",
-                      onClick: handleSelectLocalHtml,
-                      icon: <UploadOutlined />,
-                      disabled: localUploadLoading,
-                    },
-                    {
-                      key: "refresh",
-                      label: "刷新",
-                      onClick: () => handleRefresh(),
-                      icon: <SyncOutlined />,
-                    },
-                  ],
-                }}
-                trigger={["click"]}
+              <Menu
+                align="end"
+                trigger={
+                  <div className={styles.settings}>
+                    <MoreHorizontal size={14} />
+                  </div>
+                }
               >
-                <div className={styles.settings}>
-                  <MoreOutlined />
-                </div>
-              </Dropdown>
+                <Menu.Item onSelect={() => handleUrlEdit()} icon={<Pencil size={14} />}>
+                  编辑地址
+                </Menu.Item>
+                <Menu.Item
+                  onSelect={handleSelectLocalHtml}
+                  disabled={localUploadLoading}
+                  icon={<Upload size={14} />}
+                >
+                  {localUploadLoading ? "上传中..." : "选择本地 HTML"}
+                </Menu.Item>
+                <Menu.Item onSelect={() => handleRefresh()} icon={<RefreshCw size={14} />}>
+                  刷新
+                </Menu.Item>
+              </Menu>
             </If>
           </div>
         </If>

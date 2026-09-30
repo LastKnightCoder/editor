@@ -1,4 +1,4 @@
-import { message } from "antd";
+import { toast } from "@tau/ui";
 import { BoardElement } from "@/components/WhiteBoard/types/board";
 
 const CLIPBOARD_SOURCE = "editor-white-board";
@@ -145,28 +145,28 @@ export async function copyElementsToClipboard(
 ): Promise<void> {
   try {
     if (!elements || elements.length === 0) {
-      message.error("没有可复制的内容");
+      toast.error("没有可复制的内容");
       return;
     }
 
     // 构建剪贴板数据
     const payload = buildWhiteBoardClipboardPayload(elements);
     if (!payload) {
-      message.error("无法构建剪贴板数据");
+      toast.error("无法构建剪贴板数据");
       return;
     }
 
     // 写入剪贴板
     const success = await writeClipboardData(payload);
     if (!success) {
-      message.error("写入剪贴板失败");
+      toast.error("写入剪贴板失败");
       return;
     }
 
-    message.success("已复制到剪贴板");
+    toast.success("已复制到剪贴板");
   } catch (error) {
     console.error("复制失败:", error);
     const errorMessage = error instanceof Error ? error.message : "未知错误";
-    message.error(`复制失败: ${errorMessage}`);
+    toast.error(`复制失败: ${errorMessage}`);
   }
 }
