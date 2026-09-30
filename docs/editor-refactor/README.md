@@ -60,6 +60,9 @@
   三端与 VideoNotePanel 系的旧扩展全部迁 v2 后，Base / IExtension / fromLegacyExtension /
   装配层 legacy 分支一并移除，全仓再无 legacy 扩展。下一阶段是 P9 拆包（custom-block 试点、
   diagram 类拆包，清单见 02 P9）；实机待确认清单见下方。
+  2026-09-30 整体审查确认的 8 项问题已修复并补回归测试：剪切失败与异步目标保护、音频上传路径漂移、
+  普通文档/kit 切换初始化、未知行内 Markdown 换行往返、协作换源光标开关、命令谓词与异步错误隔离、
+  同明暗主题订阅、未知节点位置缓存。验证结果见 02「P8 整体审查修复」与 04 最新条目。
   已完成：第一块（错误隔离 + 未知节点占位，Markdown 兜底语法见 ER-006）；第二块（`defineExtension`、
   `@tau/editor/api`、`fromLegacyExtension`，divide-line 已迁到 v2）；第三块（移除 antd，UI 直接用 `@tau/ui`，ER-018）；
   mobile 注册了自己的编辑器提示服务（mobile toast + `MobileConfirmDialog`，返回手势等同取消）；

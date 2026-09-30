@@ -27,7 +27,10 @@ import type { EditorCollaborationBinding } from "./types";
 const PROJECTION_ORIGIN = Symbol("collaboration-projection");
 
 /** 换绑入口：编辑器里所有读 binding 的闭包都经这里换到新绑定（见 rebindCollaboration） */
-const REBINDABLE = new WeakMap<Editor, (next: EditorCollaborationBinding) => void>();
+const REBINDABLE = new WeakMap<
+  Editor,
+  (next: EditorCollaborationBinding, cursors: boolean) => void
+>();
 
 export function withCollaboration<T extends Editor>(
   base: T,
@@ -36,6 +39,7 @@ export function withCollaboration<T extends Editor>(
 ) {
   // 可变绑定：下面所有改写都在闭包里读它，换源时只换这一个引用
   let binding = initialBinding;
+  let cursorsEnabled = cursors;
   const editor = withCursors(
     withYHistory(
       withYjs(base, binding.root || getBody(binding.doc), {
@@ -43,12 +47,18 @@ export function withCollaboration<T extends Editor>(
       })
     ),
     binding.awareness,
-    { cursorDataField: "user", autoSend: cursors }
+    { cursorDataField: "user", autoSend: false }
   );
   const sendCursorPosition = editor.sendCursorPosition;
   editor.sendCursorPosition = range => {
     // 失焦时保留最后选区，窗口关闭时由 awareness 移除。
-    if (cursors && range) sendCursorPosition(range);
+    if (cursorsEnabled && range) sendCursorPosition(range);
+  };
+  // 只安装一次发送钩子；连接/换绑不重复叠加 onChange。
+  const onChange = editor.onChange;
+  editor.onChange = () => {
+    onChange();
+    if (YjsEditor.connected(editor)) editor.sendCursorPosition(editor.selection);
   };
   editor.undoManager.addToScope(getFields(binding.doc));
   const insertText = editor.insertText;
@@ -259,8 +269,9 @@ export function withCollaboration<T extends Editor>(
     getFields(binding.doc).unobserveDeep(update);
     disconnect();
   };
-  REBINDABLE.set(editor, next => {
+  REBINDABLE.set(editor, (next, nextCursors) => {
     binding = next;
+    cursorsEnabled = nextCursors;
   });
   return editor;
 }
@@ -272,7 +283,11 @@ export function withCollaboration<T extends Editor>(
  * 结构共享是关键：slate-react 以节点对象身份作 key（NODE_TO_KEY），内容相同的子树
  * 换回旧对象，块组件（mermaid、codemirror 等）就不会重新挂载。
  */
-export function rebindCollaboration(editor: Editor, next: EditorCollaborationBinding): boolean {
+export function rebindCollaboration(
+  editor: Editor,
+  next: EditorCollaborationBinding,
+  { cursors = true }: { cursors?: boolean } = {}
+): boolean {
   const setBinding = REBINDABLE.get(editor);
   if (!setBinding || !YjsEditor.isYjsEditor(editor)) return false;
   const target = editor as unknown as CollaborativeEditor;
@@ -282,7 +297,7 @@ export function rebindCollaboration(editor: Editor, next: EditorCollaborationBin
   // 并与 localOrigin 比较来判断「这是本地改动吗」。换掉 localOrigin 会让本地编辑被判成远端，
   // 从此不再写回 Y.Doc。所以让新绑定沿用编辑器已有的 origin。
   next.origin = target.localOrigin as object;
-  setBinding(next);
+  setBinding(next, cursors);
   target.sharedRoot = next.root || getBody(next.doc);
   target.awareness = next.awareness;
   target.undoManager.destroy();

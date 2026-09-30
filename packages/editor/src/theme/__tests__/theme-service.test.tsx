@@ -159,4 +159,39 @@ describe("EditorThemeScope", () => {
     expect(span?.dataset.mode).toBe("dark");
     expect(span?.dataset.token).toBe("#abc");
   });
+
+  it("同明暗的主题族切换和仅 token 变化都会刷新取色组件", async () => {
+    let color = "red";
+    const listeners = new Set<() => void>();
+    const service = {
+      mode: "light" as const,
+      themeKey: "paper",
+      token: () => color,
+      subscribe: (listener: () => void) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+    };
+    const container = await render(
+      <EditorThemeScope service={service}>{() => <Probe />}</EditorThemeScope>
+    );
+    const token = () => container.querySelector("span")?.dataset.token;
+    expect(token()).toBe("red");
+    await act(async () => {
+      service.themeKey = "ocean";
+      color = "blue";
+      listeners.forEach(listener => listener());
+    });
+    expect(token()).toBe("blue");
+    await act(async () => {
+      color = "green";
+      listeners.forEach(listener => listener());
+    });
+    expect(token()).toBe("green");
+    await act(async () => reactRoot?.unmount());
+    reactRoot = null;
+    expect(listeners.size).toBe(0);
+  });
 });

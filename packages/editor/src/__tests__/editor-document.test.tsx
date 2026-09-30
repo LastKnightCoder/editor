@@ -1,5 +1,5 @@
 // P6：文档源（EditorDocument）的内核接入。协作用的 Yjs 文档源见 P7。
-import { act } from "react";
+import { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Descendant, Editor as SlateEditor } from "slate";
@@ -8,7 +8,7 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
 import { Editor, createEditorKit, createValueDocument } from "../index";
-import type { EditorDocument } from "../index";
+import type { EditorDocument, EditorRef } from "../index";
 import { createDefaultEditorSlots, IEditorSlots, IOpenerService } from "../services";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -46,6 +46,63 @@ describe("EditorDocument", () => {
     const doc = createValueDocument([paragraph("来自文档源")]);
     const host = await render(<Editor kit={kit} document={doc} readonly />);
     expect(host.textContent).toContain("来自文档源");
+  });
+
+  it("普通文档切换后重新初始化正文与回调，并重置内容快照", async () => {
+    const ref = createRef<EditorRef>();
+    const onInit = vi.fn();
+    const firstChange = vi.fn();
+    const secondChange = vi.fn();
+    const first = createValueDocument([paragraph("第一篇")], firstChange);
+    const second = createValueDocument([paragraph("第二篇")], secondChange);
+    const view = (doc: EditorDocument) => (
+      <Editor ref={ref} kit={kit} document={doc} readonly={false} onInit={onInit} />
+    );
+    const host = await render(view(first));
+    const original = ref.current!.getEditor();
+    await act(async () => {
+      Transforms.select(original, SlateEditorValue.end(original, []));
+      original.insertText("旧");
+    });
+    const firstCalls = firstChange.mock.calls.length;
+
+    await act(async () =>
+      root?.render(<DndProvider backend={HTML5Backend}>{view(second)}</DndProvider>)
+    );
+    const current = ref.current!.getEditor();
+    expect(current).not.toBe(original);
+    expect(SlateEditorValue.string(current, [])).toBe("第二篇");
+    expect(host.textContent).toContain("第二篇");
+    expect(host.textContent).not.toContain("第一篇");
+    expect(onInit).toHaveBeenCalledTimes(2);
+    expect(onInit.mock.calls[1][0]).toBe(current);
+    expect(secondChange).not.toHaveBeenCalled();
+
+    await act(async () => {
+      Transforms.select(current, SlateEditorValue.end(current, []));
+      current.insertText("新");
+    });
+    expect(secondChange.mock.calls.at(-1)![0]).toEqual([paragraph("第二篇新")]);
+    expect(firstChange).toHaveBeenCalledTimes(firstCalls);
+  });
+
+  it("同 id 扩展的 kit 被替换时，新 editor 仍有完整正文", async () => {
+    const ref = createRef<EditorRef>();
+    const value = [paragraph("正文")];
+    await render(<Editor ref={ref} kit={kit} initValue={value} readonly />);
+    const original = ref.current!.getEditor();
+    const replacement = createEditorKit({
+      services: [register => register(IEditorSlots, createDefaultEditorSlots())],
+    });
+    await act(async () =>
+      root?.render(
+        <DndProvider backend={HTML5Backend}>
+          <Editor ref={ref} kit={replacement} initValue={value} readonly />
+        </DndProvider>
+      )
+    );
+    expect(ref.current!.getEditor()).not.toBe(original);
+    expect(ref.current!.getEditor().children).toEqual(value);
   });
 
   it("文档源可以要求只读，与 readonly prop 取或", async () => {

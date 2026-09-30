@@ -50,7 +50,7 @@ export function createYjsDocument(
       YjsEditor.disconnect(editor);
     },
     rebind: editor => {
-      if (!rebindCollaboration(editor, binding)) return false;
+      if (!rebindCollaboration(editor, binding, { cursors })) return false;
       if (YjsEditor.isYjsEditor(editor))
         binding.flushLocal = () => YjsEditor.flushLocalChanges(editor);
       return true;
