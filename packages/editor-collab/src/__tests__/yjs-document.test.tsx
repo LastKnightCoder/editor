@@ -8,6 +8,7 @@ import { Awareness } from "y-protocols/awareness";
 import { YjsEditor } from "@slate-yjs/core";
 import { createSharedDocument, readSharedContent, type SharedContent } from "@tau/collaboration";
 import { Editor, createEditorKit } from "@tau/editor";
+import { defineExtension } from "@tau/editor/api";
 import { createDefaultEditorSlots, IEditorSlots } from "@tau/editor/src/services";
 
 import { createYjsDocument } from "../document";
@@ -114,19 +115,21 @@ describe("createYjsDocument", () => {
     }
     const probeKit = kit.extend({
       extensions: [
-        {
-          type: "probe",
-          getPlugins: () => [],
-          getHotkeyConfigs: () => [],
-          getBlockPanelItems: () => [],
-          getHoveringBarElements: () => [],
-          render: ({ attributes, children }) => (
-            <p {...attributes}>
-              <Probe />
-              {children}
-            </p>
-          ),
-        },
+        defineExtension({
+          id: "test.collaboration-probe",
+          elements: [
+            {
+              type: "probe",
+              kind: "block",
+              render: ({ attributes, children }) => (
+                <p {...attributes}>
+                  <Probe />
+                  {children}
+                </p>
+              ),
+            },
+          ],
+        }),
       ],
       override: true,
     });

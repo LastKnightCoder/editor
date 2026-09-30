@@ -13,6 +13,7 @@ import { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
 import { createSharedDocument, readSharedContent, type ContentNode } from "@tau/collaboration";
 import { Editor, createEditorKit, type EditorRef } from "@tau/editor";
+import { defineExtension } from "@tau/editor/api";
 import { createDefaultEditorSlots, IEditorSlots } from "@tau/editor/src/services";
 
 import { createYjsDocument } from "../document";
@@ -37,14 +38,10 @@ const kit = createEditorKit({
   services: [register => register(IEditorSlots, createDefaultEditorSlots())],
 }).extend({
   extensions: [
-    {
-      type: "paragraph",
-      getPlugins: () => [],
-      getHotkeyConfigs: () => [],
-      getBlockPanelItems: () => [],
-      getHoveringBarElements: () => [],
-      render: props => <TrackedParagraph {...props} />,
-    },
+    defineExtension({
+      id: "test.tracked-paragraph",
+      elements: [{ type: "paragraph", kind: "block", render: TrackedParagraph }],
+    }),
   ],
   override: true,
 });

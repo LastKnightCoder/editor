@@ -546,9 +546,10 @@ const markWholeSubtree = (
       return node;
     }
 
+    const children: Descendant[] = node.children;
     return {
       ...node,
-      children: node.children.map(markNode),
+      children: children.map(markNode),
     } as Descendant;
   };
 
