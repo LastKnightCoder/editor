@@ -4,19 +4,20 @@ import type { MenuEntryList } from "../../shared/menuEntries";
 import { produce } from "immer";
 
 import ContentExportModal from "@/components/ContentExportModal";
-import DeckSelectorModal from "@/components/DeckSelectorModal";
+import DeckSelectorModal from "@/features/flashcards/components/DeckSelectorDialog";
 import EditTitleModal from "@/components/EditTitleModal";
 import EpubExportModal from "@/components/EpubExportModal";
-import FlashcardEditor from "@/components/FlashcardEditor";
-import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
-import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModal";
+import FlashcardEditor from "@/features/flashcards/components/CreateFlashcardDialog";
+import FlashcardGenerationModal from "@/features/flashcards/components/FlashcardGenerationDialog";
+import GeneratedFlashcardEditModal from "@/features/flashcards/components/GeneratedFlashcardEditDialog";
 import PodcastGenerationModal from "@/components/PodcastGenerationModal";
 import PresentationMode from "@/components/PresentationMode";
 import { PdfExportModal } from "@/components/PdfExportModal";
-import useFlashcardCreation from "@/hooks/useFlashcardCreation";
+import useFlashcardCreation from "@/features/flashcards/hooks/useFlashcardCreation";
 import usePodcastAttachment from "@/hooks/usePodcastAttachment";
 import useProjectWebLinkMeta from "@/hooks/useProjectWebLinkMeta";
 import useSettingStore from "@/stores/useSettingStore";
+import { useThemeStore } from "@tau/themes/react";
 import { usePage } from "@/page/PageProvider";
 import { attachPodcastToProjectItem, detachPodcastFromProjectItem } from "@/commands/podcast";
 import {
@@ -85,7 +86,7 @@ export const useProjectItemMoreActions = (
   const [editTitleModalOpen, setEditTitleModalOpen] = useState(false);
   const [isPresentation, setIsPresentation] = useState(false);
 
-  const darkMode = useSettingStore(state => state.setting.darkMode);
+  const darkMode = useThemeStore(state => state.mode === "dark");
   const { navigator } = usePage();
   const projectItemEventBus = useMemo(() => defaultProjectItemEventBus.createEditor(), []);
   const whiteboardMutations = useWhiteboardMutations();
@@ -365,10 +366,8 @@ export const useProjectItemMoreActions = (
       {flashcard.flashcardEditorOpen && flashcard.selectedDeck && (
         <FlashcardEditor
           open={flashcard.flashcardEditorOpen}
-          mode="create"
           activeDeckId={flashcard.selectedDeck.id}
           onClose={flashcard.closeFlashcardEditor}
-          isDark={darkMode}
           initialReferences={[flashcard.getReference()]}
         />
       )}

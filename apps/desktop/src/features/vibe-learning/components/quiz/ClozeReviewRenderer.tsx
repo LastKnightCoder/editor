@@ -95,8 +95,8 @@ const ClozeReviewRenderer = ({
               border: "none",
               borderBottom: revealed
                 ? isCorrect
-                  ? "2px solid var(--th-success)"
-                  : "2px solid var(--th-danger)"
+                  ? "2px solid var(--tau-ok)"
+                  : "2px solid var(--tau-danger)"
                 : `2px solid ${isDark ? "#475569" : "#cbd5e1"}`,
               borderRadius: "2px",
               backgroundColor:
@@ -120,7 +120,7 @@ const ClozeReviewRenderer = ({
                 e.target.style.backgroundColor = isDark
                   ? "rgba(255, 255, 255, 0.05)"
                   : "rgba(0, 0, 0, 0.04)";
-                e.target.style.borderBottomColor = "var(--th-border-focus)";
+                e.target.style.borderBottomColor = "var(--tau-accent)";
               }
             }}
             onBlur={e => {
@@ -137,15 +137,15 @@ const ClozeReviewRenderer = ({
               className="correct-answer-hint"
               style={{
                 marginLeft: "8px",
-                color: "var(--th-success)",
+                color: "var(--tau-ok)",
                 fontSize: "inherit",
                 fontWeight: "500",
                 backgroundColor: isDark
-                  ? "color-mix(in srgb, var(--th-success) 15%, transparent)"
-                  : "color-mix(in srgb, var(--th-success) 8%, transparent)",
+                  ? "color-mix(in srgb, var(--tau-ok) 15%, transparent)"
+                  : "color-mix(in srgb, var(--tau-ok) 8%, transparent)",
                 padding: "2px 8px",
                 borderRadius: "4px",
-                border: `1px solid color-mix(in srgb, var(--th-success) ${isDark ? 30 : 20}%, transparent)`,
+                border: `1px solid color-mix(in srgb, var(--tau-ok) ${isDark ? 30 : 20}%, transparent)`,
               }}
             >
               {element.answer}

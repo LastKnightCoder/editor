@@ -3,7 +3,7 @@ import type { Descendant } from "slate";
 import { CreditCard, Trash2 } from "lucide-react";
 import { Button, Checkbox, Dialog, DialogBody, Input, Radio, Tag, Textarea } from "@tau/ui";
 import RichTextEditor from "@/components/FlashcardEditor/components/RichTextEditor";
-import type { GeneratedFlashcard } from "@/hooks/useFlashcardGeneration";
+import type { GeneratedFlashcard } from "../hooks/useFlashcardGeneration";
 import { FLASHCARD_TYPE_META, textToDescendants } from "@/utils/flashcard";
 import type { FlashcardDifficulty, FlashcardData, FlashcardType } from "@/types/flashcard";
 

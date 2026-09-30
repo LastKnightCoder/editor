@@ -22,7 +22,6 @@ export default definePage({
   key: "questions",
   match: "single",
   label: "问题",
-  status: "new",
   params: schema.schema,
   component: QuestionsView,
 });

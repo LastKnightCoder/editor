@@ -53,43 +53,43 @@
   font-family: var(--mono-font, "Monaco", "Menlo", "Consolas", monospace);
   font-size: 14px;
   font-weight: 600;
-  color: var(--th-text);
+  color: var(--tau-ink-1);
   overflow-wrap: anywhere;
 }
 
 .statusText {
   font-size: 12px;
-  color: var(--th-text-secondary);
+  color: var(--tau-ink-2);
   margin-left: auto;
   white-space: nowrap;
 }
 
 .iconPending {
-  color: var(--th-text-tertiary);
+  color: var(--tau-ink-3);
   font-size: 16px;
   flex: none;
 }
 
 .iconExecuting {
-  color: var(--th-accent);
+  color: var(--tau-accent);
   font-size: 16px;
   flex: none;
 }
 
 .iconRetrying {
-  color: var(--th-warning);
+  color: var(--tau-warn);
   font-size: 16px;
   flex: none;
 }
 
 .iconSuccess {
-  color: var(--th-success);
+  color: var(--tau-ok);
   font-size: 16px;
   flex: none;
 }
 
 .iconFailed {
-  color: var(--th-danger);
+  color: var(--tau-danger);
   font-size: 16px;
   flex: none;
 }
@@ -97,14 +97,14 @@
 .expandButton {
   background: transparent;
   border: none;
-  color: var(--th-text-secondary);
+  color: var(--tau-ink-2);
   font-size: 12px;
   cursor: pointer;
   padding: 4px;
   transition: color 0.2s ease;
 
   &:hover {
-    color: var(--th-text);
+    color: var(--tau-ink-1);
   }
 }
 
@@ -139,19 +139,19 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--th-text-tertiary);
+  color: var(--tau-ink-3);
   margin-bottom: 6px;
 }
 
 .codeBlock {
-  background: var(--th-input-bg);
-  border: 1px solid var(--th-divide);
+  background: var(--tau-bg-surface);
+  border: 1px solid var(--tau-line-2);
   border-radius: 6px;
   padding: 10px 12px;
   font-family: var(--mono-font, "Monaco", "Menlo", "Consolas", monospace);
   font-size: 12px;
   line-height: 1.5;
-  color: var(--th-text);
+  color: var(--tau-ink-1);
   overflow-x: auto;
   margin: 0;
   white-space: pre-wrap;
@@ -165,7 +165,7 @@
   padding: 10px 12px;
   font-size: 13px;
   line-height: 1.5;
-  color: var(--th-danger);
+  color: var(--tau-danger);
 
   .dark & {
     background: rgba(248, 113, 113, 0.15);

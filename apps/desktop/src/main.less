@@ -39,20 +39,15 @@ body {
 
 body {
   --block-distance: 1.25em;
-  --sidebar-bg: var(--th-bg-page);
-  --right-sidebar-bg: var(--th-bg-page);
-  --search-tips-bg: var(--th-bg-page);
-  --card-item-bg: var(--th-bg-page);
-  --block-panel-bg: var(--th-bg-page);
   font-family: var(--font);
-  color: var(--th-text);
+  color: var(--tau-ink-1);
   font-size: var(--font-size);
   padding: 0;
   margin: 0;
 }
 
 ::selection {
-  background: var(--th-accent-soft);
+  background: var(--tau-accent-soft);
 }
 
 pre,
@@ -64,10 +59,6 @@ code {
   outline-style: none;
 }
 
-:root[data-theme="dark"] img {
-  filter: brightness(0.75);
-}
-
 &::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -75,13 +66,13 @@ code {
 
 &::-webkit-scrollbar-track {
   border-radius: 4px;
-  background: var(--th-bg-hover);
+  background: var(--tau-bg-hover);
   -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.08);
 }
 
 &::-webkit-scrollbar-thumb {
   border-radius: 3px;
-  background: var(--th-border-hover);
+  background: var(--tau-line-1);
   -webkit-box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
 }
 

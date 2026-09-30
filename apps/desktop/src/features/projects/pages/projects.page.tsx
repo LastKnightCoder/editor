@@ -13,7 +13,6 @@ export default definePage({
   key: "projects",
   match: "single", // 列表页全局一份，重复进入原位激活
   label: "项目",
-  status: "new",
   params: schema.schema,
   component: ProjectsView,
 });

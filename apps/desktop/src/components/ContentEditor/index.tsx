@@ -97,7 +97,7 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
     if (contentId && !document) {
       if (fallback !== undefined && !sessionError && !error) return <>{fallback}</>;
       return (
-        <div role="status" className="text-text-3 flex min-h-40 items-center justify-center">
+        <div role="status" className="text-ink-3 flex min-h-40 items-center justify-center">
           {sessionError || error || <Loader2 className="animate-spin" />}
         </div>
       );

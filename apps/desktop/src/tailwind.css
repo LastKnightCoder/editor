@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "./styles/theme-colors.css";
 @import "@tau/themes/tokens.css";
 @import "@tau/themes/tailwind.css";
 @source "../../../packages/editor/src";
@@ -55,203 +54,6 @@
 }
 
 @layer utilities {
-  .bg-bg-page {
-    background-color: var(--th-bg-page);
-  }
-  .bg-bg-container {
-    background-color: var(--th-card-bg);
-  }
-  .bg-bg-elevated {
-    background-color: var(--th-bg-elevated);
-  }
-  .bg-bg-canvas {
-    background-color: var(--th-bg-page);
-  }
-  .bg-bg-input {
-    background-color: var(--th-input-bg);
-  }
-
-  .text-text-1 {
-    color: var(--th-text);
-  }
-  .text-text-2 {
-    color: var(--th-text-secondary);
-  }
-  .text-text-3 {
-    color: var(--th-text-tertiary);
-  }
-  .text-text-4 {
-    color: var(--th-text-tertiary);
-  }
-
-  .border-border-1 {
-    border-color: var(--th-border);
-  }
-  .border-border-2 {
-    border-color: var(--th-divide);
-  }
-
-  .bg-brand {
-    background-color: var(--th-accent);
-  }
-  .bg-brand-hover {
-    background-color: var(--th-accent-hover);
-  }
-  .bg-brand-active {
-    background-color: var(--th-accent-active);
-  }
-  .text-brand {
-    color: var(--th-accent);
-  }
-  .text-brand-hover {
-    color: var(--th-accent-hover);
-  }
-  .text-brand-active {
-    color: var(--th-accent-active);
-  }
-  .border-brand {
-    border-color: var(--th-accent);
-  }
-
-  .text-status-success {
-    color: var(--th-success);
-  }
-  .text-status-warning {
-    color: var(--th-warning);
-  }
-  .text-status-error {
-    color: var(--th-danger);
-  }
-  .text-status-info {
-    color: var(--th-info);
-  }
-  .bg-status-success {
-    background-color: var(--th-success);
-  }
-  .bg-status-warning {
-    background-color: var(--th-warning);
-  }
-  .bg-status-error {
-    background-color: var(--th-danger);
-  }
-  .bg-status-info {
-    background-color: var(--th-info);
-  }
-
-  .bg-tag-bg {
-    background-color: var(--th-tag-bg);
-  }
-  .text-tag-text {
-    color: var(--th-tag-text);
-  }
-
-  .bg-mask {
-    background-color: var(--th-overlay);
-  }
-
-  .bg-primary-bg {
-    background-color: var(--th-bg-page);
-  }
-  /* .bg-surface / .bg-hover 已删（D-001）：与 tokens.css @theme 语义类同名双定义，
-     且无裸类消费者（hover:bg-hover 走 @theme 生成版），语义词唯一归属 --tau-* */
-  .border-line {
-    border-color: var(--th-border);
-  }
-  .text-text-normal {
-    color: var(--th-text);
-  }
-
-  .bg-panel-active {
-    background-color: var(--th-bg-hover);
-  }
-  .bg-item-hover {
-    background-color: var(--th-bg-hover);
-  }
-  .border-divider {
-    border-color: var(--th-border);
-  }
-  .bg-table-odd {
-    background-color: var(--th-bg-hover);
-  }
-  .bg-card-bg {
-    background-color: var(--th-glass);
-  }
-  .border-card-line {
-    border-color: var(--th-border);
-  }
-
-  .bg-bottom-line {
-    background-color: var(--th-accent);
-  }
-  .text-tab-active {
-    color: var(--th-accent-soft);
-  }
-  .bg-selection {
-    background-color: var(--th-accent-soft);
-  }
-
-  .bg-scroll-track {
-    background-color: var(--th-bg-hover);
-  }
-  .bg-scroll-thumb {
-    background-color: var(--th-border-hover);
-  }
-
-  .bg-normal-card {
-    background-color: var(--th-card-bg);
-  }
-  .bg-normal-icon {
-    background-color: var(--th-tag-bg);
-  }
-  .bg-active {
-    background-color: var(--th-accent-soft);
-  }
-  .text-active-text {
-    color: var(--th-active-text);
-  }
-  .bg-active-icon {
-    background-color: var(--th-accent-soft);
-  }
-
-  .bg-sidebar {
-    background-color: transparent;
-  }
-  .bg-sidebar-active {
-    background-color: var(--th-accent-soft);
-  }
-  .bg-sidebar-2nd {
-    background-color: var(--th-bg-elevated);
-  }
-
-  .bg-bg-secondary {
-    background-color: var(--th-bg-page);
-  }
-  .bg-bg-tertiary {
-    background-color: var(--th-input-bg);
-  }
-  .text-text-primary {
-    color: var(--th-text);
-  }
-  .text-text-secondary {
-    color: var(--th-text-secondary);
-  }
-  .border-ui-border {
-    border-color: var(--th-border);
-  }
-  .border-ui-outline {
-    border-color: var(--th-focus-ring);
-  }
-
-  .shadow-1 {
-    box-shadow: var(--th-shadow-sm);
-  }
-  .shadow-2 {
-    box-shadow: var(--th-shadow-md);
-  }
-  .shadow-layer {
-    box-shadow: var(--th-shadow-md);
-  }
-
   /* Electron 窗口拖拽区域 */
   .app-region-drag {
     -webkit-app-region: drag;
@@ -272,7 +74,7 @@
 
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: var(--th-tag-bg, rgba(0, 0, 0, 0.1)) transparent;
+    scrollbar-color: var(--tau-bg-hover, rgba(0, 0, 0, 0.1)) transparent;
   }
   .scrollbar-thin::-webkit-scrollbar {
     width: 5px;
@@ -281,51 +83,17 @@
     background: transparent;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: var(--th-tag-bg, rgba(0, 0, 0, 0.1));
+    background: var(--tau-bg-hover, rgba(0, 0, 0, 0.1));
     border-radius: 9999px;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: var(--th-bg-hover, rgba(0, 0, 0, 0.2));
+    background: var(--tau-bg-hover, rgba(0, 0, 0, 0.2));
   }
 }
 
-/* dark 变体认 .th-scope-light / .th-scope-dark 局部明暗（见 theme-colors.css）；
-   :not(:where()) 不增加优先级，与原 `.dark &` 同级 */
-@custom-variant dark (&:is(.dark *, .th-scope-dark *):not(:where(.th-scope-light *)));
+/* 局部浅色让位于主题属性；多层局部明暗不作为当前变体协议。 */
+@custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *):not(:where([data-mode="light"]:not(html), [data-mode="light"]:not(html) *)));
 /* hover 变体去 v4 默认的 @media (hover: hover) 包裹，恢复纯 :hover——
    桌面端鼠标永远存在，触摸屏设备（Surface 等）被 Chromium 判为 hover:none 时
    会静默杀掉全应用所有 hover: 反馈（2026-09-19 文章页实机排查，DECISIONS D-016） */
 @custom-variant hover (&:hover);
-
-@layer components {
-  .prose-reader img {
-    max-width: 100%;
-    height: auto;
-    border-radius: 4px;
-    margin: 12px 0;
-  }
-
-  .prose-reader a {
-    color: var(--th-active-text, oklch(0.55 0.15 250));
-    text-decoration: none;
-  }
-
-  .prose-reader a:hover {
-    text-decoration: underline;
-  }
-
-  .prose-reader pre {
-    background: var(--th-input-bg, oklch(0.96 0.005 250));
-    padding: 12px 16px;
-    border-radius: 6px;
-    overflow-x: auto;
-    font-size: 13px;
-  }
-
-  .prose-reader blockquote {
-    border-left: 2px solid var(--th-border, oklch(0.88 0.01 250));
-    padding-left: 14px;
-    margin-left: 0;
-    opacity: 0.85;
-  }
-}

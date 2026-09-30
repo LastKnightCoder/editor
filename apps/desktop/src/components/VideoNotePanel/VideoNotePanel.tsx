@@ -25,7 +25,6 @@ import { formatDate } from "@/utils";
 import type { CustomEditor } from "@tau/editor/src";
 import EditTitleModal from "@/components/EditTitleModal";
 import useUploadResource from "@/hooks/useUploadResource.ts";
-import useThemeColors from "@/hooks/useThemeColors";
 import useSettingStore from "@/stores/useSettingStore";
 import {
   getVideoNoteById,
@@ -93,7 +92,6 @@ const VideoNotePanel = ({
   reserveCloseButtonSpace = false,
 }: VideoNotePanelProps) => {
   const uploadResource = useUploadResource();
-  const themeColors = useThemeColors();
   const activeDatabase = useSettingStore(state => state.setting.database.active);
 
   const { provider: ebookRewriteLLMProviderSetting, model: ebookRewriteLLMModelSetting } =
@@ -559,12 +557,12 @@ const VideoNotePanel = ({
           <span
             className={classNames(
               "absolute inset-0 animate-spin rounded-full border-2 border-transparent",
-              themeColors.iconTextClass
+              "text-accent"
             )}
             style={{ borderTopColor: "currentColor" }}
           />
         </div>
-        <span className={classNames("text-sm", themeColors.secondaryTextClass)}>加载中...</span>
+        <span className={classNames("text-sm", "text-ink-2")}>加载中...</span>
       </div>
     );
   }
@@ -575,16 +573,14 @@ const VideoNotePanel = ({
         <div
           className={classNames(
             "flex h-14 w-14 items-center justify-center rounded-2xl",
-            themeColors.iconBgClass,
-            themeColors.iconTextClass
+            "bg-hover",
+            "text-accent"
           )}
         >
           <FileText size={26} />
         </div>
-        <p className={classNames("text-sm font-medium", themeColors.textClass)}>视频笔记不存在</p>
-        <p className={classNames("text-xs", themeColors.secondaryTextClass)}>
-          该笔记可能已被删除或加载异常
-        </p>
+        <p className={classNames("text-sm font-medium", "text-ink-1")}>视频笔记不存在</p>
+        <p className={classNames("text-xs", "text-ink-2")}>该笔记可能已被删除或加载异常</p>
       </div>
     );
   }
@@ -600,7 +596,7 @@ const VideoNotePanel = ({
             className={classNames(
               "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200",
               activeTab === "transcript"
-                ? [themeColors.activeClass, themeColors.activeTextClass, "shadow-sm"]
+                ? ["bg-accent-soft text-accent-text", "text-accent-text", "shadow-sm"]
                 : [
                     "text-gray-600 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200",
                   ]
@@ -615,7 +611,7 @@ const VideoNotePanel = ({
             className={classNames(
               "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-40",
               activeTab === "chat"
-                ? [themeColors.activeClass, themeColors.activeTextClass, "shadow-sm"]
+                ? ["bg-accent-soft text-accent-text", "text-accent-text", "shadow-sm"]
                 : [
                     "text-gray-600 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200",
                   ]
@@ -629,7 +625,7 @@ const VideoNotePanel = ({
             className={classNames(
               "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200",
               activeTab === "note"
-                ? [themeColors.activeClass, themeColors.activeTextClass, "shadow-sm"]
+                ? ["bg-accent-soft text-accent-text", "text-accent-text", "shadow-sm"]
                 : [
                     "text-gray-600 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200",
                   ]
@@ -665,7 +661,7 @@ const VideoNotePanel = ({
                           })
                         }
                       >
-                        <span className="shrink-0 font-mono text-xs leading-5 text-[var(--th-accent)]">
+                        <span className="shrink-0 font-mono text-xs leading-5 text-[var(--tau-accent)]">
                           {formatTime(segment.start)}
                         </span>
                         <span className="text-sm text-gray-700 dark:text-gray-300">
@@ -706,13 +702,11 @@ const VideoNotePanel = ({
                     }}
                     className={classNames(
                       "group flex items-start gap-3 rounded-md p-2 transition-colors",
-                      currentSegmentIndex === index
-                        ? "bg-[var(--th-info)]/15 dark:"
-                        : "hover:bg-gray-100 dark:hover:bg-zinc-800"
+                      currentSegmentIndex === index ? "bg-info-soft" : "hover:bg-hover"
                     )}
                   >
                     <span
-                      className="shrink-0 cursor-pointer font-mono text-xs leading-5 text-[var(--th-accent)]"
+                      className="shrink-0 cursor-pointer font-mono text-xs leading-5 text-[var(--tau-accent)]"
                       onClick={() => handleSegmentClick(segment)}
                     >
                       {formatTime(segment.start)}
@@ -767,17 +761,17 @@ const VideoNotePanel = ({
                 <div
                   className={classNames(
                     "flex h-14 w-14 items-center justify-center rounded-2xl",
-                    themeColors.iconBgClass,
-                    themeColors.iconTextClass
+                    "bg-hover",
+                    "text-accent"
                   )}
                 >
                   <MessageCircle size={26} />
                 </div>
                 <div className="space-y-1">
-                  <p className={classNames("text-sm font-medium", themeColors.textClass)}>
+                  <p className={classNames("text-sm font-medium", "text-ink-1")}>
                     需要先完成转录，才可开启对话
                   </p>
-                  <p className={classNames("text-xs", themeColors.secondaryTextClass)}>
+                  <p className={classNames("text-xs", "text-ink-2")}>
                     完成转录后，即可基于视频内容向 AI 提问
                   </p>
                 </div>
@@ -785,7 +779,7 @@ const VideoNotePanel = ({
                   type="button"
                   className={classNames(
                     "mt-1 flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50",
-                    themeColors.primaryButtonClass
+                    "bg-accent text-ink-inverse hover:bg-accent-hover active:brightness-95"
                   )}
                   disabled={isTranscribing || !videoNote}
                   onClick={handleTranscribe}
@@ -809,15 +803,15 @@ const VideoNotePanel = ({
                 <div
                   className={classNames(
                     "mb-3 flex items-center gap-3 border-b px-1 pb-2",
-                    themeColors.borderClass
+                    "border-line-1"
                   )}
                 >
                   <button
                     type="button"
                     className={classNames(
                       "flex h-8 w-8 items-center justify-center rounded-md transition-all",
-                      themeColors.textClass,
-                      themeColors.hoverClass
+                      "text-ink-1",
+                      "hover:bg-hover"
                     )}
                     onClick={handleBackToNoteList}
                   >
@@ -828,7 +822,7 @@ const VideoNotePanel = ({
                     placeholder="请输入标题"
                     className={classNames(
                       "min-w-0 flex-1 border-none bg-transparent p-0 text-base font-medium outline-none placeholder:text-gray-400",
-                      themeColors.activeTextClass
+                      "text-accent-text"
                     )}
                     onChange={event => handleChangeNoteTitle(activeNoteItem.id, event.target.value)}
                     onBlur={event => handleBlurNoteTitle(activeNoteItem.id, event.target.value)}
@@ -865,17 +859,17 @@ const VideoNotePanel = ({
             {!(noteViewMode === "edit" && activeNoteItem) && (
               <div className="mx-auto flex h-full min-h-0 w-full max-w-4xl flex-col">
                 <div className="mb-3 flex shrink-0 items-center justify-between">
-                  <h4 className={classNames("m-0 text-sm font-semibold", themeColors.textClass)}>
+                  <h4 className={classNames("m-0 text-sm font-semibold", "text-ink-1")}>
                     创作内容
                   </h4>
                   <button
                     type="button"
                     className={classNames(
                       "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all",
-                      themeColors.cardBgClass,
-                      themeColors.cardBorderClass,
-                      themeColors.hoverClass,
-                      themeColors.textClass
+                      "bg-surface",
+                      "border-line-1",
+                      "hover:bg-hover",
+                      "text-ink-1"
                     )}
                     onClick={handleAddNote}
                   >
@@ -976,20 +970,20 @@ const VideoNotePanel = ({
                     <div
                       className={classNames(
                         "flex h-16 w-16 items-center justify-center rounded-2xl shadow-lg",
-                        themeColors.iconBgClass,
-                        themeColors.iconTextClass
+                        "bg-hover",
+                        "text-accent"
                       )}
                       style={{
-                        boxShadow: "0 10px 30px -10px var(--th-input-bg, rgba(0,0,0,0.15))",
+                        boxShadow: "0 10px 30px -10px var(--tau-bg-surface, rgba(0,0,0,0.15))",
                       }}
                     >
                       <StickyNote size={28} />
                     </div>
                     <div className="space-y-1.5">
-                      <p className={classNames("text-base font-semibold", themeColors.textClass)}>
+                      <p className={classNames("text-base font-semibold", "text-ink-1")}>
                         还没有笔记卡片
                       </p>
-                      <p className={classNames("text-sm", themeColors.secondaryTextClass)}>
+                      <p className={classNames("text-sm", "text-ink-2")}>
                         创建卡片，边看视频边记录灵感与思考
                       </p>
                     </div>
@@ -997,7 +991,7 @@ const VideoNotePanel = ({
                       type="button"
                       className={classNames(
                         "mt-1 flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-all",
-                        themeColors.primaryButtonClass
+                        "bg-accent text-ink-inverse hover:bg-accent-hover active:brightness-95"
                       )}
                       onClick={handleAddNote}
                     >
@@ -1065,7 +1059,7 @@ const VideoNotePanel = ({
             <button
               className={classNames(
                 "flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50",
-                themeColors.primaryButtonClass
+                "bg-accent text-ink-inverse hover:bg-accent-hover active:brightness-95"
               )}
               disabled={isTranscribing || !videoNote}
               onClick={handleTranscribe}
@@ -1083,10 +1077,10 @@ const VideoNotePanel = ({
               <button
                 className={classNames(
                   "flex h-8 w-8 items-center justify-center rounded-lg text-sm transition-all disabled:cursor-not-allowed disabled:opacity-50",
-                  themeColors.cardBgClass,
-                  themeColors.cardBorderClass,
-                  themeColors.hoverClass,
-                  themeColors.textClass
+                  "bg-surface",
+                  "border-line-1",
+                  "hover:bg-hover",
+                  "text-ink-1"
                 )}
                 disabled={isTranscribing}
                 onClick={handleAIOptimize}
@@ -1099,10 +1093,10 @@ const VideoNotePanel = ({
             <button
               className={classNames(
                 "flex h-8 w-8 items-center justify-center rounded-lg text-sm transition-all",
-                themeColors.cardBgClass,
-                themeColors.cardBorderClass,
-                themeColors.hoverClass,
-                themeColors.textClass
+                "bg-surface",
+                "border-line-1",
+                "hover:bg-hover",
+                "text-ink-1"
               )}
               onClick={handleOpenEbookExportModal}
             >
@@ -1123,13 +1117,8 @@ const VideoNotePanel = ({
                 className={classNames(
                   "flex h-8 w-8 items-center justify-center rounded-lg text-sm transition-all disabled:cursor-not-allowed disabled:opacity-50",
                   subtitleMounted
-                    ? [themeColors.activeClass, themeColors.activeTextClass]
-                    : [
-                        themeColors.cardBgClass,
-                        themeColors.cardBorderClass,
-                        themeColors.hoverClass,
-                        themeColors.textClass,
-                      ]
+                    ? ["bg-accent-soft text-accent-text", "text-accent-text"]
+                    : ["bg-surface", "border-line-1", "hover:bg-hover", "text-ink-1"]
                 )}
                 disabled={!hasTranscriptSegments}
                 onClick={() => onSubtitleMountedChange(!subtitleMounted)}

@@ -16,7 +16,6 @@ export default definePage({
   match: "params",
   getId: params => `pdf-detail-${params.pdfId}`,
   label: "PDF",
-  status: "new",
   params: schema.schema,
   component: PdfDetailView,
 });

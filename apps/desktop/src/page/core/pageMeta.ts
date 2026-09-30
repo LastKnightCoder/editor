@@ -8,16 +8,12 @@
 import type { ParamFields } from "./paramsSchema";
 
 export type MatchPolicy = "single" | "params" | "multi";
-export type KeepAlivePolicy = "keep" | "data";
-export type PageStatus = "new" | "migrating" | "legacy";
 
 export interface PageMeta {
   key: string;
   match: MatchPolicy;
   getId?: (params: Record<string, unknown>) => string;
-  keepAlive: KeepAlivePolicy;
   label: string;
-  status: PageStatus;
   fields: ParamFields;
 }
 

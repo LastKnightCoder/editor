@@ -10,7 +10,6 @@
 import { Activity, useMemo } from "react";
 import * as sm from "./core/stackMachine";
 import { getPageDefinition } from "./registry";
-import { LegacyPendingPage } from "./LegacyPendingPage";
 import { PageParamsProvider, usePage } from "./PageProvider";
 import { ErrorState, RecoverableBoundary } from "@/components/ErrorState";
 
@@ -47,11 +46,7 @@ export function PageHost({ state }: { state: sm.StackMachineState }) {
                   resetKeys={[entry.params]}
                   fallback={({ error, reset }) => <PageErrorFallback error={error} reset={reset} />}
                 >
-                  {definition ? (
-                    <definition.component />
-                  ) : (
-                    <LegacyPendingPage pageKey={entry.key} />
-                  )}
+                  {definition ? <definition.component /> : <MissingPageFallback />}
                 </RecoverableBoundary>
               </Activity>
             </PageParamsProvider>
@@ -59,6 +54,20 @@ export function PageHost({ state }: { state: sm.StackMachineState }) {
         );
       })}
     </>
+  );
+}
+
+function MissingPageFallback() {
+  const { navigator } = usePage();
+  return (
+    <ErrorState
+      title="页面暂时无法打开"
+      description="可以返回上一页，或回到今日后重试。"
+      actions={[
+        ...(navigator.canBack() ? [{ label: "返回上一页", onClick: () => navigator.back() }] : []),
+        { label: "回到今日", onClick: () => navigator.push("home") },
+      ]}
+    />
   );
 }
 

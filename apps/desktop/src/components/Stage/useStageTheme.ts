@@ -4,7 +4,7 @@ import { useThemeStore, type ThemeMode } from "@tau/themes/react";
 /**
  * 全屏舞台的局部深浅色：只作用于舞台根节点（沿用当前主题族），不写全局偏好、不动 <html>。
  * 根节点铺 rootProps，内容再包 EditorThemeOverride mode={mode}（编辑器 JS 取色随之切换）。
- * 已知边界：经 Portal 挂在 body 的浮层（Tooltip、编辑器工具栏）仍随应用明暗。
+ * 舞台内的 UI 浮层通过 PortalScope 挂回局部作用域。
  */
 export function useStageTheme() {
   const themeKey = useThemeStore(s => s.theme);
@@ -20,6 +20,5 @@ export function useStageTheme() {
       "data-mode": mode,
       style: { colorScheme: mode },
     },
-    scopeClass: mode === "dark" ? "th-scope-dark" : "th-scope-light",
   };
 }

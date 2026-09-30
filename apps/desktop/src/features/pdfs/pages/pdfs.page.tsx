@@ -10,7 +10,6 @@ export default definePage({
   key: "pdfs",
   match: "single",
   label: "PDF",
-  status: "new",
   params: {},
   component: PdfsView,
 });

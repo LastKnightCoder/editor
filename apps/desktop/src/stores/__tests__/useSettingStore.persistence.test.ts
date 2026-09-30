@@ -5,6 +5,32 @@ import useSettingStore, {
 } from "../useSettingStore";
 
 describe("useSettingStore persistence snapshot", () => {
+  it("旧明暗和 accent 字段退出持久设置，保留图片、上传和同步配置", () => {
+    const current = structuredClone(useSettingStore.getState().setting);
+    const legacy = {
+      ...current,
+      darkMode: true,
+      appearance: {
+        ...current.appearance,
+        accent: "violet",
+        backgroundType: "gradient1",
+        backgroundGlow: true,
+        backgroundAnimation: true,
+      },
+    };
+    for (const result of [
+      mergeSettingWithDefaults(legacy),
+      buildPersistedSettingSnapshot(legacy),
+    ]) {
+      expect(result).not.toHaveProperty("darkMode");
+      expect(result.appearance).toEqual(current.appearance);
+      expect(result.imageBed).toEqual(current.imageBed);
+      expect(result.sync).toEqual(current.sync);
+    }
+    expect(legacy.darkMode).toBe(true);
+    expect(legacy.appearance.accent).toBe("violet");
+  });
+
   it("合并设置时应丢弃已退役的功能模块开关字段，保留上传和同步设置", () => {
     const setting = structuredClone(useSettingStore.getState().setting) as any;
     setting.module = { card: { enable: false, name: "卡片" } };

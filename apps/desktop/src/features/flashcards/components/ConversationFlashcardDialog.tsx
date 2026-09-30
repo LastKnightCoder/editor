@@ -1,15 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
 import { toast } from "@tau/ui";
 
 import useConversationFlashcardStore from "@/stores/useConversationFlashcardStore";
-import useFlashcardStore from "@/stores/useFlashcardStore";
-import useFlashcardGeneration, { GeneratedFlashcard } from "@/hooks/useFlashcardGeneration";
+import { useFlashcardMutations } from "../queries";
+import useSettingStore from "@/stores/useSettingStore";
+import useFlashcardGeneration, { GeneratedFlashcard } from "../hooks/useFlashcardGeneration";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useTheme from "@/hooks/useTheme";
-import DeckSelectorModal from "@/components/DeckSelectorModal";
-import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
-import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModal";
+import DeckSelectorModal from "@/features/flashcards/components/DeckSelectorDialog";
+import FlashcardGenerationModal from "@/features/flashcards/components/FlashcardGenerationDialog";
+import GeneratedFlashcardEditModal from "@/features/flashcards/components/GeneratedFlashcardEditDialog";
 import { importFromMarkdown } from "@/utils/markdown";
 import type { FlashcardDeck, FlashcardReferenceInput } from "@/types";
 
@@ -44,8 +45,20 @@ const ConversationFlashcardModal = () => {
     reset: resetGeneration,
   } = useFlashcardGeneration(provider, model);
 
-  // 闪卡 store
-  const createFlashcard = useFlashcardStore(state => state.createCard);
+  const { createCard: createFlashcard } = useFlashcardMutations();
+  const database = useSettingStore(state => state.setting.database.active);
+  const previousDatabase = useRef(database);
+  useEffect(() => {
+    if (previousDatabase.current === database) return;
+    previousDatabase.current = database;
+    resetGeneration();
+    setDeckSelectorOpen(false);
+    setSelectedDeck(null);
+    setGenerationModalOpen(false);
+    setEditingCard(null);
+    setEditModalOpen(false);
+    reset();
+  }, [database, resetGeneration, reset]);
 
   // 当 store 被触发打开时，显示卡组选择器
   useEffect(() => {
@@ -100,6 +113,7 @@ const ConversationFlashcardModal = () => {
       let successCount = 0;
 
       for (const card of selectedCards) {
+        if (useSettingStore.getState().setting.database.active !== database) return;
         try {
           await createFlashcard({
             deckId: selectedDeck.id,
@@ -117,6 +131,7 @@ const ConversationFlashcardModal = () => {
         }
       }
 
+      if (useSettingStore.getState().setting.database.active !== database) return;
       toast.success(`成功创建 ${successCount} 张闪卡`);
       handleCloseAll();
     } catch (err) {

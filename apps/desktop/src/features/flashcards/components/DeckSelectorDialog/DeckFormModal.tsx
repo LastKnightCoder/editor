@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Button, Dialog, DialogBody, Input, Textarea } from "@tau/ui";
+import { Button, Dialog, DialogBody, Input, Textarea, toast } from "@tau/ui";
 import type { FlashcardDeck } from "@/types";
-import useFlashcardStore from "@/stores/useFlashcardStore";
+import { useFlashcardMutations } from "../../queries";
 import { flashcardDeckColors, flashcardDeckIconKeys, flashcardDeckIcons } from "@/utils/flashcard";
 
 interface DeckFormModalProps {
@@ -17,8 +17,7 @@ interface DeckFormModalProps {
 const FIELD_LABEL = "text-ink-1 text-tau-meta font-medium";
 
 const DeckFormModal = ({ state, onClose }: DeckFormModalProps) => {
-  const createDeck = useFlashcardStore(store => store.createDeck);
-  const updateDeck = useFlashcardStore(store => store.updateDeck);
+  const { createDeck, updateDeck } = useFlashcardMutations();
 
   const [form, setForm] = useState({
     name: "",
@@ -69,6 +68,8 @@ const DeckFormModal = ({ state, onClose }: DeckFormModalProps) => {
         });
         onClose();
       }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "保存卡组失败");
     } finally {
       setSubmitting(false);
     }

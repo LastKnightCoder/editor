@@ -18,7 +18,6 @@ import {
 } from "../../constants";
 import { AUDIO_CARD_HEIGHT } from "../../constants/audio";
 import useTheme from "@/hooks/useTheme";
-import useThemeColors from "@/hooks/useThemeColors";
 
 import styles from "./index.module.less";
 
@@ -32,14 +31,14 @@ interface AudioElementProps {
     startPoint: Point,
     endPoint: Point,
     isPreserveRatio?: boolean,
-    isAdsorb?: boolean,
+    isAdsorb?: boolean
   ) => void;
   onResizeEnd?: (
     board: Board,
     element: AudioElement,
     position: EHandlerPosition,
     startPoint: Point,
-    endPoint: Point,
+    endPoint: Point
   ) => void;
 }
 
@@ -75,7 +74,7 @@ const AudioElementComponent = memo((props: AudioElementProps) => {
   const height = AUDIO_CARD_HEIGHT;
 
   const { isDark } = useTheme();
-  const { accentColor } = useThemeColors();
+  const accentColor = "var(--tau-accent)";
   const board = useBoard();
   const { isSelected } = useSelectState(id);
 
@@ -89,12 +88,8 @@ const AudioElementComponent = memo((props: AudioElementProps) => {
   const [isMuted, setIsMuted] = useState(false);
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
 
-  const {
-    isMoveArrowClosing,
-    activeConnectId,
-    arrowConnectPoints,
-    arrowConnectExtendPoints,
-  } = useDropArrow(element);
+  const { isMoveArrowClosing, activeConnectId, arrowConnectPoints, arrowConnectExtendPoints } =
+    useDropArrow(element);
 
   // Only show left and right resize handles for audio
   const resizePoints = useMemo(() => {
@@ -121,24 +116,16 @@ const AudioElementComponent = memo((props: AudioElementProps) => {
       startPoint: Point,
       endPoint: Point,
       isPreserveRatio?: boolean,
-      isAdsorb?: boolean,
+      isAdsorb?: boolean
     ) => {
-      onResize(
-        board,
-        element,
-        position,
-        startPoint,
-        endPoint,
-        isPreserveRatio,
-        isAdsorb,
-      );
-    },
+      onResize(board, element, position, startPoint, endPoint, isPreserveRatio, isAdsorb);
+    }
   );
 
   const handleOnResizeEnd = useMemoizedFn(
     (position: EHandlerPosition, startPoint: Point, endPoint: Point) => {
       onResizeEnd?.(board, element, position, startPoint, endPoint);
-    },
+    }
   );
 
   // Audio event handlers
@@ -180,23 +167,21 @@ const AudioElementComponent = memo((props: AudioElementProps) => {
     }
   });
 
-  const handleVolumeChange = useMemoizedFn(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      e.stopPropagation();
-      const newVolume = parseFloat(e.target.value);
-      setVolume(newVolume);
-      if (audioRef.current) {
-        audioRef.current.volume = newVolume;
-        if (newVolume === 0) {
-          setIsMuted(true);
-          audioRef.current.muted = true;
-        } else if (isMuted) {
-          setIsMuted(false);
-          audioRef.current.muted = false;
-        }
+  const handleVolumeChange = useMemoizedFn((e: React.ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    const newVolume = parseFloat(e.target.value);
+    setVolume(newVolume);
+    if (audioRef.current) {
+      audioRef.current.volume = newVolume;
+      if (newVolume === 0) {
+        setIsMuted(true);
+        audioRef.current.muted = true;
+      } else if (isMuted) {
+        setIsMuted(false);
+        audioRef.current.muted = false;
       }
-    },
-  );
+    }
+  });
 
   useEffect(() => {
     const handleMouseUp = () => {
@@ -270,7 +255,7 @@ const AudioElementComponent = memo((props: AudioElementProps) => {
                 max={duration || 1}
                 step="0.1"
                 value={currentTime}
-                onChange={(e) => {
+                onChange={e => {
                   const time = parseFloat(e.target.value);
                   setCurrentTime(time);
                   if (audioRef.current) {
@@ -316,11 +301,7 @@ const AudioElementComponent = memo((props: AudioElementProps) => {
               onMouseDown={stopAllPropagation}
               onPointerDown={stopAllPropagation}
             >
-              {isMuted || volume === 0 ? (
-                <VolumeX size={16} />
-              ) : (
-                <Volume2 size={16} />
-              )}
+              {isMuted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
             </button>
           </div>
         </div>
@@ -362,7 +343,7 @@ const AudioElementComponent = memo((props: AudioElementProps) => {
         disabled={isMoveArrowClosing}
       />
       <If condition={isMoveArrowClosing}>
-        {arrowConnectPoints.map((point) => (
+        {arrowConnectPoints.map(point => (
           <ArrowDropConnectPoint
             key={point.connectId}
             cx={point.point.x}

@@ -14,9 +14,7 @@ import { StyledTextColorStyle } from "@tau/editor/src";
 import type { ReactElement } from "react";
 import LocalImage from "@/components/LocalImage";
 
-export const getEditorTextValue = (
-  value: Descendant[],
-): ReactElement[] | undefined => {
+export const getEditorTextValue = (value: Descendant[]): ReactElement[] | undefined => {
   if (value.length === 0) {
     return;
   }
@@ -38,9 +36,7 @@ export const getEditorTextValue = (
   return;
 };
 
-const getParagraphContent = (
-  paragraph: ParagraphElement,
-): Array<ReactElement> => {
+const getParagraphContent = (paragraph: ParagraphElement): Array<ReactElement> => {
   return paragraph.children
     .map((node, index): ReactElement | undefined => {
       switch (node.type) {
@@ -61,16 +57,14 @@ const getParagraphContent = (
           );
         case "link":
           return (
-            <a key={index} className="cursor-pointer text-[var(--th-accent)]">
+            <a key={index} className="cursor-pointer text-[var(--tau-accent)]">
               {node.children?.[0].text}
             </a>
           );
         case "inline-math":
           return <Katex tex={node.tex} key={index} inline />;
         case "html-inline":
-          return (
-            <span dangerouslySetInnerHTML={{ __html: node.html }} key={index} />
-          );
+          return <span dangerouslySetInnerHTML={{ __html: node.html }} key={index} />;
         case "inline-image":
           return (
             <span style={{ display: "inline-block" }} key={index}>
@@ -89,8 +83,7 @@ const getParagraphContent = (
               key={index}
               style={{
                 color: StyledTextColorStyle["light"][node.color].color,
-                backgroundColor:
-                  StyledTextColorStyle["light"][node.color].backgroundColor,
+                backgroundColor: StyledTextColorStyle["light"][node.color].backgroundColor,
                 border: `1px solid ${StyledTextColorStyle["light"][node.color].color}`,
                 padding: "4px 8px",
               }}
@@ -120,13 +113,13 @@ export const getEditorText = (value: Descendant[], maxLength = 20): string => {
       return;
     }
     if (node.children && node.children.length > 0) {
-      node.children.forEach((child) => {
+      node.children.forEach(child => {
         traverse(child);
       });
     }
   };
 
-  value.forEach((node) => {
+  value.forEach(node => {
     traverse(node);
   });
 
@@ -136,15 +129,12 @@ export const getEditorText = (value: Descendant[], maxLength = 20): string => {
 
   // 按照顺序拼接
   return formattedNodes
-    .map((node) => node.text)
+    .map(node => node.text)
     .join("")
     .slice(0, maxLength);
 };
 
-export const getEditorTextLength = (
-  editor: Editor,
-  value: Descendant[],
-): number => {
+export const getEditorTextLength = (editor: Editor, value: Descendant[]): number => {
   // 找到所有的 CodeBlock
   const codeBlocks: Array<CodeBlockElement> = [];
   const mathElements: Array<InlineMathElement | BlockMathElement> = [];
@@ -160,7 +150,7 @@ export const getEditorTextLength = (
     // @ts-ignore
     if (node.children && node.children.length > 0) {
       // @ts-ignore
-      node.children.forEach((child) => {
+      node.children.forEach(child => {
         traverse(child);
       });
     }
@@ -169,12 +159,12 @@ export const getEditorTextLength = (
     traverse(node);
   }
   let codeBlockLength = 0;
-  codeBlocks.forEach((node) => {
+  codeBlocks.forEach(node => {
     codeBlockLength += wordsCount(node.code);
   });
 
   let mathLength = 0;
-  mathElements.forEach((node) => {
+  mathElements.forEach(node => {
     mathLength += wordsCount(node.tex);
   });
 
@@ -183,16 +173,14 @@ export const getEditorTextLength = (
       Editor.string(editor, {
         anchor: Editor.start(editor, [0]),
         focus: Editor.end(editor, []),
-      }),
+      })
     ) +
     codeBlockLength +
     mathLength
   );
 };
 
-export const getInlineElementText = (
-  element: InlineElement | FormattedText,
-): string => {
+export const getInlineElementText = (element: InlineElement | FormattedText): string => {
   switch (element.type) {
     case "formatted":
       return element.text;

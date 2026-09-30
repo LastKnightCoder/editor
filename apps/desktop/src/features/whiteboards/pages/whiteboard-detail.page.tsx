@@ -24,7 +24,6 @@ export default definePage({
   match: "params",
   getId: params => `whiteboard-detail-${params.id}`,
   label: "白板",
-  status: "new",
   params: schema.schema,
   component: WhiteboardDetailView,
 });

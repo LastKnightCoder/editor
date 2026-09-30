@@ -10,7 +10,6 @@ export default definePage({
   key: "pomodoro",
   match: "single",
   label: "番茄专注",
-  status: "new",
   params: {},
   component: PomodoroView,
 });
