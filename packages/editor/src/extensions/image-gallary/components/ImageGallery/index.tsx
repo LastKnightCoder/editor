@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
 import { Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useReadOnly, useSlateStatic } from "slate-react";
-import { cn } from "@tau/ui";
+import { Button, Dialog, DialogBody, cn } from "@tau/ui";
 import { Plus } from "lucide-react";
-import { CustomModal } from "@tau/shared";
 
 import ImageGallerySetting, { ISetting } from "../ImageGallerySetting";
-import { EDITOR_MODAL_THEME } from "../../../../theme/modalTheme";
 import { If } from "@tau/shared";
 import AddParagraph from "../../../../components/AddParagraph";
 import SwipeImageGallery from "../SwipeImageGallery";
@@ -158,16 +156,26 @@ const ImageGallery = (props: IImageGalleryProps) => {
           </div>
         </If>
         {!(readOnly && isLast) && <AddParagraph element={element} />}
-        <CustomModal
-          width={720}
+        <Dialog
           open={settingModalOpen}
-          onCancel={onCancel}
-          onOk={onOk}
-          themeColors={EDITOR_MODAL_THEME}
-          bodyClassName="max-h-[calc(100vh-12rem)] overflow-y-auto"
+          onOpenChange={next => !next && onCancel()}
+          title="图集设置"
+          width={720}
+          footer={
+            <>
+              <Button variant="secondary" size="sm" onClick={onCancel}>
+                取消
+              </Button>
+              <Button variant="primary" size="sm" onClick={onOk}>
+                确定
+              </Button>
+            </>
+          }
         >
-          <ImageGallerySetting setting={setting} onSettingChange={setSetting} />
-        </CustomModal>
+          <DialogBody>
+            <ImageGallerySetting setting={setting} onSettingChange={setSetting} />
+          </DialogBody>
+        </Dialog>
         {children}
       </div>
     </div>

@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { Button, Input } from "@tau/ui";
+import { Button, Dialog, DialogBody, Input } from "@tau/ui";
 import { Link, Loader2, CircleAlert } from "lucide-react";
 import {
   parseXiaoyuzhouUrl,
   fetchXiaoyuzhouEpisode,
   XiaoyuzhouEpisodeInfo,
 } from "@/commands/xiaoyuzhou";
-import CustomModal from "@/components/CustomModal";
 
 interface XiaoyuzhouInputProps {
   open: boolean;
@@ -76,22 +75,34 @@ const XiaoyuzhouInput = (props: XiaoyuzhouInputProps) => {
   };
 
   return (
-    <CustomModal
+    <Dialog
       open={open}
-      onCancel={handleClose}
+      onOpenChange={next => !next && handleClose()}
       title="添加小宇宙播客"
-      footer={null}
       width={480}
+      footer={
+        episodeInfo && (
+          <>
+            <Button variant="secondary" size="sm" onClick={handleClose}>
+              取消
+            </Button>
+            <Button variant="primary" size="sm" onClick={handleConfirm}>
+              添加
+            </Button>
+          </>
+        )
+      }
     >
-      <div className="flex flex-col gap-4 py-2">
+      <DialogBody className="flex flex-col gap-4">
         <div className="flex gap-2">
           <Input
+            data-autofocus
             placeholder="粘贴小宇宙播客链接..."
             lead={Link}
             value={url}
             onChange={e => setUrl(e.target.value)}
             onKeyDown={e => {
-              if (e.key === "Enter") handleParse();
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) handleParse();
             }}
             disabled={loading}
           />
@@ -138,19 +149,8 @@ const XiaoyuzhouInput = (props: XiaoyuzhouInputProps) => {
             </div>
           </div>
         )}
-
-        {episodeInfo && (
-          <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={handleClose}>
-              取消
-            </Button>
-            <Button variant="primary" onClick={handleConfirm}>
-              添加
-            </Button>
-          </div>
-        )}
-      </div>
-    </CustomModal>
+      </DialogBody>
+    </Dialog>
   );
 };
 

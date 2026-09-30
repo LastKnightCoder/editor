@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState, type ComponentType } from "react";
-import { Checkbox, Select, toast } from "@tau/ui";
+import { Button, Checkbox, Dialog, DialogBody, Input, Select, cn, toast } from "@tau/ui";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { MdDescription, MdFolderZip, MdMenuBook, MdPictureAsPdf } from "react-icons/md";
+import { Check } from "lucide-react";
 import {
   exportEpubWithDialog,
   exportPdfWithDialog,
   saveFileWithDialog,
   showInFolder,
 } from "@/commands";
-import CustomModal from "@/components/CustomModal";
 import useSettingStore from "@/stores/useSettingStore";
 import type {
   BatchExportRule,
@@ -62,28 +62,28 @@ const FORMAT_CARDS: FormatCard[] = [
     label: "PDF",
     description: "适合打印分享，支持目录导航",
     icon: MdPictureAsPdf,
-    iconClass: "text-red-500",
+    iconClass: "text-danger",
   },
   {
     key: "epub",
     label: "EPUB",
     description: "电子书格式，阅读器中翻阅",
     icon: MdMenuBook,
-    iconClass: "text-teal-500",
+    iconClass: "text-ok",
   },
   {
     key: "markdown",
     label: "Markdown",
     description: "合并为单个 .md 文件",
     icon: MdDescription,
-    iconClass: "text-status-info",
+    iconClass: "text-info",
   },
   {
     key: "markdownZip",
     label: "Markdown ZIP",
     description: "保持目录结构，逐篇打包",
     icon: MdFolderZip,
-    iconClass: "text-amber-500",
+    iconClass: "text-warn",
   },
 ];
 
@@ -121,9 +121,7 @@ const ExportCheckTree = ({
   const toggle = (node: BatchExportTreeNode, next: boolean) => {
     const ids = new Set(collectSubtreeExportableIds(node));
     onCheckedKeysChange(
-      next
-        ? [...new Set([...checkedKeys, ...ids])]
-        : checkedKeys.filter(id => !ids.has(id))
+      next ? [...new Set([...checkedKeys, ...ids])] : checkedKeys.filter(id => !ids.has(id))
     );
   };
 
@@ -137,9 +135,7 @@ const ExportCheckTree = ({
           onChange={event => toggle(node, event.target.checked)}
         />
         <span
-          className={`text-[13px] leading-6 ${
-            node.exportable ? "text-gray-800 dark:text-slate-200" : "text-gray-400 dark:text-slate-500"
-          }`}
+          className={cn("text-[13px] leading-6", node.exportable ? "text-ink-1" : "text-ink-3")}
         >
           {node.exportable ? node.title : `${node.title}（${node.disabledReason || "不参与导出"}）`}
         </span>
@@ -390,242 +386,233 @@ const BatchExportModal = (props: BatchExportModalProps) => {
     }
   });
 
-  const inputClass =
-    "w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-[var(--th-border-focus)]";
-  const labelClass =
-    "text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400";
+  const labelClass = "text-ink-2 text-tau-meta font-[550]";
+  const hintClass = "text-ink-3 text-tau-meta";
+  const boxClass = "bg-sunken border-line-1 rounded-tau-md border";
 
   return (
-    <CustomModal
-      title={`整体导出 - ${scope.title || "未命名"}`}
+    <Dialog
+      title="整体导出"
+      context={scope.title || "未命名"}
       subtitle="勾选要导出的内容，可同时选择多种格式；排除项会按数据库记住，下次打开自动应用。"
       open={open}
-      onCancel={onClose}
-      onOk={handleConfirm}
-      okText={exporting ? `导出中 ${exportProgress?.percent ?? 0}%` : "导出"}
-      confirmLoading={exporting}
-      okButtonProps={{ disabled: !canExport }}
+      onOpenChange={next => !next && onClose()}
+      locked={exporting}
       width={880}
-      bodyClassName="p-5 overflow-y-auto"
+      footer={
+        <>
+          <Button variant="secondary" size="sm" onClick={onClose} disabled={exporting}>
+            取消
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            loading={exporting}
+            loadingText={`导出中 ${exportProgress?.percent ?? 0}%`}
+            disabled={!canExport}
+            onClick={handleConfirm}
+          >
+            导出
+          </Button>
+        </>
+      }
     >
-      <div className="grid grid-cols-[minmax(230px,290px)_1fr] items-start gap-5">
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <label className={labelClass}>导出内容</label>
-            <span className="text-xs text-gray-500 dark:text-slate-400">
-              已选 {selectedCount} / 共 {exportableIds.length} 篇
-            </span>
+      <DialogBody>
+        <div className="grid grid-cols-[minmax(230px,290px)_1fr] items-start gap-5">
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <label className={labelClass}>导出内容</label>
+              <span className={hintClass}>
+                已选 {selectedCount} / 共 {exportableIds.length} 篇
+              </span>
+            </div>
+            <div className={cn(boxClass, "max-h-[440px] min-h-[280px] overflow-y-auto px-3 py-2")}>
+              {loading ? (
+                <div className={cn(hintClass, "py-6 text-center")}>正在加载内容...</div>
+              ) : tree.length > 0 ? (
+                <ExportCheckTree
+                  nodes={tree}
+                  checkedKeys={checkedKeys}
+                  onCheckedKeysChange={setCheckedKeys}
+                />
+              ) : (
+                <div className={cn(hintClass, "py-6 text-center")}>暂无可导出的内容</div>
+              )}
+            </div>
           </div>
-          <div className="max-h-[440px] min-h-[280px] overflow-y-auto rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 dark:border-slate-700 dark:bg-zinc-950">
-            {loading ? (
-              <div className="py-6 text-center text-xs text-gray-500 dark:text-slate-400">
-                正在加载内容...
+
+          <div className="flex min-w-0 flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className={labelClass}>导出格式</label>
+              <div className="grid grid-cols-2 gap-2">
+                {FORMAT_CARDS.map(card => {
+                  const selected = formats[card.key];
+                  const Icon = card.icon;
+                  return (
+                    <button
+                      key={card.key}
+                      type="button"
+                      onClick={() =>
+                        setFormats(prev => ({
+                          ...prev,
+                          [card.key]: !prev[card.key],
+                        }))
+                      }
+                      aria-pressed={selected}
+                      className={cn(
+                        "rounded-tau-md ease-tau-out relative flex cursor-pointer items-start gap-2.5 border p-3 text-left transition-[background,border-color] duration-[140ms]",
+                        selected
+                          ? "border-accent bg-accent-soft"
+                          : "border-line-1 bg-surface hover:border-ink-3"
+                      )}
+                    >
+                      <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${card.iconClass}`} />
+                      <span className="flex min-w-0 flex-col gap-0.5">
+                        <span className="text-ink-1 text-[13px] font-[550]">{card.label}</span>
+                        <span className={hintClass}>{card.description}</span>
+                      </span>
+                      {selected && (
+                        <span className="bg-accent text-ink-inverse absolute right-2 top-2 grid size-[18px] place-items-center rounded-full">
+                          <Check className="size-3" strokeWidth={3} />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
-            ) : tree.length > 0 ? (
-              <ExportCheckTree
-                nodes={tree}
-                checkedKeys={checkedKeys}
-                onCheckedKeysChange={setCheckedKeys}
-              />
-            ) : (
-              <div className="py-6 text-center text-xs text-gray-500 dark:text-slate-400">
-                暂无可导出的内容
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <label className={labelClass}>导出规则</label>
+                {!rulesApplicable && (
+                  <span className={hintClass}>ZIP 按目录分文件导出，规则不适用</span>
+                )}
+              </div>
+              <div className={cn(boxClass, "flex flex-col gap-2 px-3.5 py-2.5")}>
+                <Checkbox
+                  checked={rule.pageBreak}
+                  disabled={!rulesApplicable}
+                  onChange={event =>
+                    setRule(prev => ({
+                      ...prev,
+                      pageBreak: event.target.checked,
+                    }))
+                  }
+                  label="每个文档分页（EPUB 中每个文档天然一章）"
+                />
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    checked={rule.asHeading}
+                    disabled={!rulesApplicable}
+                    onChange={event =>
+                      setRule(prev => ({
+                        ...prev,
+                        asHeading: event.target.checked,
+                      }))
+                    }
+                    label="文档标题作为标题插入正文"
+                  />
+                  <Select
+                    className="w-[80px]"
+                    value={rule.headingLevel}
+                    disabled={!rulesApplicable || !rule.asHeading}
+                    onValueChange={value =>
+                      setRule(prev => ({
+                        ...prev,
+                        headingLevel: value as BatchExportRule["headingLevel"],
+                      }))
+                    }
+                    options={[
+                      { value: 1, label: "H1" },
+                      { value: 2, label: "H2" },
+                      { value: 3, label: "H3" },
+                    ]}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {formats.pdf && (
+              <div className="flex flex-col gap-1.5">
+                <label className={labelClass}>PDF 目录</label>
+                <div className={cn(boxClass, "flex flex-col gap-2 px-3.5 py-2.5")}>
+                  <Checkbox
+                    checked={pdfSettings.outline}
+                    onChange={event =>
+                      setPdfSettings(prev => ({
+                        ...prev,
+                        outline: event.target.checked,
+                      }))
+                    }
+                    label="生成书签导航（PDF 阅读器侧边栏大纲，按标题层级展示）"
+                  />
+                  <Checkbox
+                    checked={pdfSettings.tocPage && rule.asHeading}
+                    disabled={!rule.asHeading}
+                    onChange={event =>
+                      setPdfSettings(prev => ({
+                        ...prev,
+                        tocPage: event.target.checked,
+                      }))
+                    }
+                    label="插入目录页（正文开头单独一页，点击条目跳转）"
+                  />
+                  {!rule.asHeading && (
+                    <span className={hintClass}>目录页需开启“文档标题作为标题插入正文”</span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className={labelClass}>书名</label>
+                <Input
+                  value={bookTitle}
+                  placeholder="请输入书名"
+                  onChange={event => setBookTitle(event.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className={labelClass}>作者</label>
+                <Input
+                  value={author}
+                  placeholder="可选"
+                  onChange={event => setAuthor(event.target.value)}
+                />
+              </div>
+            </div>
+
+            {formats.epub && (
+              <div className="flex flex-col gap-1.5">
+                <label className={labelClass}>语言（EPUB）</label>
+                <Input
+                  value={language}
+                  placeholder="例如 zh-CN / en"
+                  onChange={event => setLanguage(event.target.value)}
+                />
               </div>
             )}
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className={labelClass}>导出格式</label>
-            <div className="grid grid-cols-2 gap-2">
-              {FORMAT_CARDS.map(card => {
-                const selected = formats[card.key];
-                const Icon = card.icon;
-                return (
-                  <button
-                    key={card.key}
-                    type="button"
-                    onClick={() =>
-                      setFormats(prev => ({
-                        ...prev,
-                        [card.key]: !prev[card.key],
-                      }))
-                    }
-                    className={`relative flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 text-left transition-all ${
-                      selected
-                        ? "border-[var(--th-border-focus)] bg-[var(--th-accent-soft)]"
-                        : "border-gray-200 bg-gray-50 hover:border-gray-300 dark:border-slate-700 dark:bg-zinc-950 dark:hover:border-slate-600"
-                    }`}
-                  >
-                    <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${card.iconClass}`} />
-                    <span className="flex min-w-0 flex-col gap-0.5">
-                      <span className="text-sm font-medium text-gray-800 dark:text-white">
-                        {card.label}
-                      </span>
-                      <span className="text-xs text-gray-500 dark:text-slate-400">
-                        {card.description}
-                      </span>
-                    </span>
-                    {selected && (
-                      <span className="absolute right-2 top-2 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-[var(--th-btn-bg)] text-[var(--th-btn-text)]">
-                        <svg
-                          className="h-3 w-3"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                        >
-                          <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+        {exporting && exportProgress && (
+          <div className="mt-4 flex flex-col gap-1.5">
+            <div className={cn(hintClass, "flex items-center justify-between gap-3")}>
+              <span className="min-w-0 truncate">{exportProgress.label || "正在导出..."}</span>
+              <span className="shrink-0 tabular-nums">{exportProgress.percent}%</span>
             </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
-              <label className={labelClass}>导出规则</label>
-              {!rulesApplicable && (
-                <span className="text-xs text-gray-400 dark:text-slate-500">
-                  ZIP 按目录分文件导出，规则不适用
-                </span>
-              )}
-            </div>
-            <div className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 dark:border-slate-700 dark:bg-zinc-950">
-              <Checkbox
-                checked={rule.pageBreak}
-                disabled={!rulesApplicable}
-                onChange={event =>
-                  setRule(prev => ({
-                    ...prev,
-                    pageBreak: event.target.checked,
-                  }))
-                }
-                label="每个文档分页（EPUB 中每个文档天然一章）"
-              />
-              <div className="flex items-center gap-3">
-                <Checkbox
-                  checked={rule.asHeading}
-                  disabled={!rulesApplicable}
-                  onChange={event =>
-                    setRule(prev => ({
-                      ...prev,
-                      asHeading: event.target.checked,
-                    }))
-                  }
-                  label="文档标题作为标题插入正文"
-                />
-                <Select
-                  className="w-[80px]"
-                  value={rule.headingLevel}
-                  disabled={!rulesApplicable || !rule.asHeading}
-                  onValueChange={value =>
-                    setRule(prev => ({
-                      ...prev,
-                      headingLevel: value as BatchExportRule["headingLevel"],
-                    }))
-                  }
-                  options={[
-                    { value: 1, label: "H1" },
-                    { value: 2, label: "H2" },
-                    { value: 3, label: "H3" },
-                  ]}
-                />
-              </div>
-            </div>
-          </div>
-
-          {formats.pdf && (
-            <div className="flex flex-col gap-1.5">
-              <label className={labelClass}>PDF 目录</label>
-              <div className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 dark:border-slate-700 dark:bg-zinc-950">
-                <Checkbox
-                  checked={pdfSettings.outline}
-                  onChange={event =>
-                    setPdfSettings(prev => ({
-                      ...prev,
-                      outline: event.target.checked,
-                    }))
-                  }
-                  label="生成书签导航（PDF 阅读器侧边栏大纲，按标题层级展示）"
-                />
-                <Checkbox
-                  checked={pdfSettings.tocPage && rule.asHeading}
-                  disabled={!rule.asHeading}
-                  onChange={event =>
-                    setPdfSettings(prev => ({
-                      ...prev,
-                      tocPage: event.target.checked,
-                    }))
-                  }
-                  label="插入目录页（正文开头单独一页，点击条目跳转）"
-                />
-                {!rule.asHeading && (
-                  <span className="text-xs text-gray-400 dark:text-slate-500">
-                    目录页需开启“文档标题作为标题插入正文”
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className={labelClass}>书名</label>
-              <input
-                type="text"
-                value={bookTitle}
-                placeholder="请输入书名"
-                onChange={event => setBookTitle(event.target.value)}
-                className={inputClass}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className={labelClass}>作者</label>
-              <input
-                type="text"
-                value={author}
-                placeholder="可选"
-                onChange={event => setAuthor(event.target.value)}
-                className={inputClass}
+            <div className="bg-track h-1.5 overflow-hidden rounded-full">
+              <div
+                className="bg-accent ease-tau-out h-full rounded-full transition-[width] duration-300"
+                style={{ width: `${exportProgress.percent}%` }}
               />
             </div>
           </div>
-
-          {formats.epub && (
-            <div className="flex flex-col gap-1.5">
-              <label className={labelClass}>语言（EPUB）</label>
-              <input
-                type="text"
-                value={language}
-                placeholder="例如 zh-CN / en"
-                onChange={event => setLanguage(event.target.value)}
-                className={inputClass}
-              />
-            </div>
-          )}
-        </div>
-      </div>
-
-      {exporting && exportProgress && (
-        <div className="mt-4 flex flex-col gap-1.5">
-          <div className="flex items-center justify-between gap-3 text-xs text-gray-500 dark:text-slate-400">
-            <span className="min-w-0 truncate">{exportProgress.label || "正在导出..."}</span>
-            <span className="shrink-0 tabular-nums">{exportProgress.percent}%</span>
-          </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-zinc-800">
-            <div
-              className="h-full rounded-full bg-[var(--th-accent)] transition-all duration-300"
-              style={{ width: `${exportProgress.percent}%` }}
-            />
-          </div>
-        </div>
-      )}
-    </CustomModal>
+        )}
+      </DialogBody>
+    </Dialog>
   );
 };
 

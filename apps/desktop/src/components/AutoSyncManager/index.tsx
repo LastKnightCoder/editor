@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "@tau/ui";
-import classNames from "classnames";
+import { Dialog, DialogBody, toast } from "@tau/ui";
 
-import CustomModal from "@/components/CustomModal";
-import useThemeColors from "@/hooks/useThemeColors";
 import useSettingStore from "@/stores/useSettingStore";
 import {
   closeWindow,
@@ -27,70 +24,30 @@ const clampProgress = (value: number) => {
   return Math.max(0, Math.min(100, value));
 };
 
-const noop = () => undefined;
-
 interface ProgressModalProps extends ProgressState {
   title: string;
   subtitle: string;
-  themeColors: ReturnType<typeof useThemeColors>;
 }
 
-const ProgressModal = ({
-  open,
-  progress,
-  status,
-  title,
-  subtitle,
-  themeColors,
-}: ProgressModalProps) => {
-  return (
-    <CustomModal
-      open={open}
-      onCancel={noop}
-      maskClosable={false}
-      closeOnEscape={false}
-      showCloseButton={false}
-      footer={null}
-      width={420}
-      overlayClassName="z-[120]"
-      bodyClassName="space-y-6"
-    >
-      <div className="space-y-2">
-        <div className={classNames("text-lg font-semibold", themeColors.activeTextClass)}>
-          {title}
-        </div>
-        <p className={classNames("text-sm leading-relaxed", themeColors.secondaryTextClass)}>
-          {subtitle}
-        </p>
+/** 同步进行中不可关闭：半途退出会留下不完整的库 */
+const ProgressModal = ({ open, progress, status, title, subtitle }: ProgressModalProps) => (
+  <Dialog open={open} onOpenChange={() => undefined} critical title={title} subtitle={subtitle}>
+    <DialogBody>
+      <div className="text-tau-meta mb-2 flex items-center justify-between gap-3">
+        <span className="text-ink-1 min-w-0 truncate">{status}</span>
+        <span className="text-ink-3 shrink-0 tabular-nums">{Math.round(progress)}%</span>
       </div>
-      <div
-        className={classNames(
-          "rounded-2xl border p-5",
-          themeColors.cardBgClass,
-          themeColors.cardBorderClass
-        )}
-      >
-        <div className="mb-3 flex items-center justify-between text-sm font-medium">
-          <span className={themeColors.activeTextClass}>{status}</span>
-          <span className={themeColors.secondaryTextClass}>{Math.round(progress)}%</span>
-        </div>
-        <div className="h-2 overflow-hidden rounded-full bg-white/30 dark:bg-zinc-800/70">
-          <div
-            className="h-full rounded-full shadow-lg transition-all duration-300 ease-out"
-            style={{
-              width: `${clampProgress(progress)}%`,
-              background: `linear-gradient(90deg, ${themeColors.accentSoftBg}, ${themeColors.accentColor})`,
-              boxShadow: `0 0 20px ${themeColors.accentSoftBg}`,
-            }}
-          />
-        </div>
+      <div className="bg-track h-1.5 overflow-hidden rounded-full">
+        <div
+          className="bg-accent ease-tau-out h-full rounded-full transition-[width] duration-300"
+          style={{ width: `${clampProgress(progress)}%` }}
+        />
       </div>
-    </CustomModal>
-  );
-};
+    </DialogBody>
+  </Dialog>
+);
 
 const AutoSyncManager = () => {
-  const themeColors = useThemeColors();
   const sync = useSettingStore(state => state.setting.sync);
   const integration = useSettingStore(state => state.setting.integration);
   const database = useSettingStore(state => state.setting.database);
@@ -369,7 +326,6 @@ const AutoSyncManager = () => {
         status={uploadState.status}
         title="正在自动同步数据"
         subtitle="应用将在同步完成后自动关闭，请稍候。"
-        themeColors={themeColors}
       />
       <ProgressModal
         open={downloadState.open}
@@ -377,7 +333,6 @@ const AutoSyncManager = () => {
         status={downloadState.status}
         title="正在下载远程数据"
         subtitle="检测到云端存在新的数据库版本，正在为你下载并刷新数据。"
-        themeColors={themeColors}
       />
     </>
   );
