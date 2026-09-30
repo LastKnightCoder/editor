@@ -96,6 +96,14 @@
   --ed-callout-note: var(--tau-ink-2);
   --ed-callout-note-bg: var(--tau-bg-hover);
   --ed-callout-note-text: var(--tau-ink-1);
+
+  /* ── 引用块：大引号 + 中性竖线尾迹，竖线不用状态色以免与 callout 混淆 ── */
+  --ed-quote-text: var(--tau-ink-1);
+  --ed-quote-nested-text: var(--tau-ink-2);
+  --ed-quote-mark: var(--tau-accent);
+  /* 只用拉丁衬线：中文字体的全角引号是方块状，撑不起大字号 */
+  --ed-quote-mark-font: Georgia, "Times New Roman", serif;
+  --ed-quote-bar: color-mix(in srgb, var(--tau-ink-1) 20%, transparent);
 }
 
 /*
