@@ -26,7 +26,12 @@ import useUploadResource from "@/hooks/useUploadResource";
 import { selectFile, readTextFile, getFileBaseName } from "@/commands";
 import { normalizeWebviewUrl } from "@/utils";
 
-import styles from "./index.module.less";
+const styles = {
+  toolBar: "box-border flex h-full items-center justify-between rounded-tau-sm px-2 py-1",
+  urlInput:
+    "bg-surface text-ink-1 h-6 w-full flex-1 rounded-[2px] border border-accent px-2 text-tau-meta outline-none",
+  settings: "flex size-7 cursor-pointer items-center justify-center rounded-tau-sm",
+};
 
 interface WebviewElementProps {
   element: WebviewElement;

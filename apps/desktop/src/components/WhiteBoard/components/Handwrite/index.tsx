@@ -14,13 +14,10 @@ import {
 } from "../../constants";
 import { denormalizeOutline, outlineToSvgPath, PointUtil } from "../../utils";
 import { useBoard, useDropArrow, useSelectState } from "../../hooks";
-import {
-  getDefaultThemeColorId,
-  getThemeColorById,
-} from "../../constants/theme-colors";
+import { getDefaultThemeColorId, getThemeColorById } from "../../constants/theme-colors";
 import useTheme from "@/hooks/useTheme";
 import type { HandwriteElement } from "../../plugins/HandwritePlugin";
-import styles from "./index.module.less";
+const styles = { container: "", strokePath: "[pointer-events:visiblePainted]" };
 
 interface HandwriteProps {
   element: HandwriteElement;
@@ -32,14 +29,14 @@ interface HandwriteProps {
     startPoint: Point,
     endPoint: Point,
     isPreserveRatio?: boolean,
-    isAdsorb?: boolean,
+    isAdsorb?: boolean
   ) => void;
   onResizeEnd?: (
     board: Board,
     element: HandwriteElement,
     position: EHandlerPosition,
     startPoint: Point,
-    endPoint: Point,
+    endPoint: Point
   ) => void;
 }
 
@@ -51,12 +48,8 @@ const Handwrite = memo((props: HandwriteProps) => {
   const { isDark } = useTheme();
   const { isSelected } = useSelectState(id);
 
-  const {
-    isMoveArrowClosing,
-    activeConnectId,
-    arrowConnectPoints,
-    arrowConnectExtendPoints,
-  } = useDropArrow(element);
+  const { isMoveArrowClosing, activeConnectId, arrowConnectPoints, arrowConnectExtendPoints } =
+    useDropArrow(element);
 
   const outlinePoints = useMemo(() => {
     return denormalizeOutline(element.outline, {
@@ -67,14 +60,9 @@ const Handwrite = memo((props: HandwriteProps) => {
     });
   }, [element.outline, x, y, width, height]);
 
-  const pathData = useMemo(
-    () => outlineToSvgPath(outlinePoints),
-    [outlinePoints],
-  );
+  const pathData = useMemo(() => outlineToSvgPath(outlinePoints), [outlinePoints]);
 
-  const themeColorPair = getThemeColorById(
-    style.themeColorId || getDefaultThemeColorId(),
-  );
+  const themeColorPair = getThemeColorById(style.themeColorId || getDefaultThemeColorId());
   const fillColor = themeColorPair
     ? isDark
       ? themeColorPair.dark
@@ -102,24 +90,16 @@ const Handwrite = memo((props: HandwriteProps) => {
       startPoint: Point,
       endPoint: Point,
       isPreserveRatio?: boolean,
-      isAdsorb?: boolean,
+      isAdsorb?: boolean
     ) => {
-      onResize(
-        board,
-        element,
-        position,
-        startPoint,
-        endPoint,
-        isPreserveRatio,
-        isAdsorb,
-      );
-    },
+      onResize(board, element, position, startPoint, endPoint, isPreserveRatio, isAdsorb);
+    }
   );
 
   const handleOnResizeEnd = useMemoizedFn(
     (position: EHandlerPosition, startPoint: Point, endPoint: Point) => {
       onResizeEnd?.(board, element, position, startPoint, endPoint);
-    },
+    }
   );
 
   return (
@@ -169,7 +149,7 @@ const Handwrite = memo((props: HandwriteProps) => {
       />
 
       <If condition={isMoveArrowClosing}>
-        {arrowConnectPoints.map((point) => (
+        {arrowConnectPoints.map(point => (
           <ArrowDropConnectPoint
             key={point.connectId}
             cx={point.point.x}

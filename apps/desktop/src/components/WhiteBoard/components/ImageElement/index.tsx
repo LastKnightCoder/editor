@@ -5,7 +5,7 @@ import ResizeCircle from "../ResizeCircle";
 import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 
-import classnames from "classnames";
+import { cn as classnames } from "@tau/ui";
 
 import { Board, EHandlerPosition, Point, ImageElement } from "../../types";
 import { PointUtil } from "../../utils";
@@ -35,7 +35,15 @@ import EditText, { EditTextHandle } from "@/components/EditText";
 import useTheme from "@/hooks/useTheme";
 import LocalImage from "@/components/LocalImage";
 
-import styles from "./index.module.less";
+const styles = {
+  descriptionContainer: "flex size-full items-center overflow-visible",
+  left: "justify-start",
+  center: "justify-center",
+  right: "justify-end",
+  descriptionText:
+    "flex h-full min-w-2 w-fit cursor-text items-center text-ellipsis whitespace-normal break-words pl-2 leading-[1.4]",
+  placeholder: "font-normal opacity-60",
+};
 
 interface ImageElementProps {
   element: ImageElement;
@@ -47,14 +55,14 @@ interface ImageElementProps {
     startPoint: Point,
     endPoint: Point,
     isPreserveRatio?: boolean,
-    isAdsorb?: boolean,
+    isAdsorb?: boolean
   ) => void;
   onResizeEnd?: (
     board: Board,
     element: ImageElement,
     position: EHandlerPosition,
     startPoint: Point,
-    endPoint: Point,
+    endPoint: Point
   ) => void;
 }
 
@@ -89,12 +97,8 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
   const board = useBoard();
   const { isSelected } = useSelectState(id);
 
-  const {
-    isMoveArrowClosing,
-    activeConnectId,
-    arrowConnectPoints,
-    arrowConnectExtendPoints,
-  } = useDropArrow(element);
+  const { isMoveArrowClosing, activeConnectId, arrowConnectPoints, arrowConnectExtendPoints } =
+    useDropArrow(element);
 
   const [resizePoints] = useMemo(() => {
     const resizePoints = PointUtil.getResizePointFromRect({
@@ -117,24 +121,16 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
       startPoint: Point,
       endPoint: Point,
       isPreserveRatio?: boolean,
-      isAdsorb?: boolean,
+      isAdsorb?: boolean
     ) => {
-      onResize(
-        board,
-        element,
-        position,
-        startPoint,
-        endPoint,
-        isPreserveRatio,
-        isAdsorb,
-      );
-    },
+      onResize(board, element, position, startPoint, endPoint, isPreserveRatio, isAdsorb);
+    }
   );
 
   const handleOnResizeEnd = useMemoizedFn(
     (position: EHandlerPosition, startPoint: Point, endPoint: Point) => {
       onResizeEnd?.(board, element, position, startPoint, endPoint);
-    },
+    }
   );
 
   const handleDescriptionChange = useMemoizedFn((value: string) => {
@@ -148,7 +144,7 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
 
   const saveDescription = useMemoizedFn(() => {
     if (tempDescription !== description) {
-      const path = board.children.findIndex((item) => item.id === id);
+      const path = board.children.findIndex(item => item.id === id);
       if (path !== -1) {
         board.apply({
           type: "set_node",
@@ -192,19 +188,13 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
     (isDark ? IMAGE_DESCRIPTION_DARK_COLOR : IMAGE_DESCRIPTION_LIGHT_COLOR);
 
   // 获取描述文字大小
-  const descriptionFontSize =
-    element.descriptionStyle?.fontSize || DEFAULT_DESCRIPTION_FONT_SIZE;
+  const descriptionFontSize = element.descriptionStyle?.fontSize || DEFAULT_DESCRIPTION_FONT_SIZE;
 
-  const descriptionBackgroundColor =
-    element.descriptionStyle?.backgroundColor || "transparent";
-  const descriptionBorderColor =
-    element.descriptionStyle?.borderColor || "transparent";
+  const descriptionBackgroundColor = element.descriptionStyle?.backgroundColor || "transparent";
+  const descriptionBorderColor = element.descriptionStyle?.borderColor || "transparent";
 
   // 计算描述区域高度 - 根据字体大小动态调整
-  const descriptionHeight = Math.max(
-    IMAGE_DESCRIPTION_HEIGHT,
-    descriptionFontSize * 2.5,
-  );
+  const descriptionHeight = Math.max(IMAGE_DESCRIPTION_HEIGHT, descriptionFontSize * 2.5);
 
   // 计算描述的位置
   const descriptionY =
@@ -258,20 +248,14 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
               onPressEnter={handleDescriptionPressEnter}
               contentEditable={isEditingDescription}
               defaultFocus={isEditingDescription}
-              className={classnames(
-                styles.descriptionText,
-                styles[descriptionAlignment],
-                {
-                  "hidden!": !isEditingDescription && !description.trim(),
-                },
-              )}
+              className={classnames(styles.descriptionText, styles[descriptionAlignment], {
+                "hidden!": !isEditingDescription && !description.trim(),
+              })}
               style={descriptionTextStyle}
               onBlur={handleDescriptionPressEnter}
             />
             {!isEditingDescription && !description.trim() && (
-              <span style={descriptionTextStyle}>
-                {IMAGE_DESCRIPTION_PLACEHOLDER}
-              </span>
+              <span style={descriptionTextStyle}>{IMAGE_DESCRIPTION_PLACEHOLDER}</span>
             )}
           </div>
         </foreignObject>
@@ -293,7 +277,7 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
           alt={description}
           width={width}
           height={height}
-          className="object-contain select-none object-center"
+          className="select-none object-contain object-center"
           draggable={false}
           onDoubleClick={stopPropagation}
           style={{
@@ -339,7 +323,7 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
         disabled={isMoveArrowClosing}
       />
       <If condition={isMoveArrowClosing}>
-        {arrowConnectPoints.map((point) => (
+        {arrowConnectPoints.map(point => (
           <ArrowDropConnectPoint
             key={point.connectId}
             cx={point.point.x}

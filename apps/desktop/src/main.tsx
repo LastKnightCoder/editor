@@ -13,7 +13,7 @@ import "./init";
 // 命令契约桥装配须早于任何 command 调用（与 init 同步区执行）
 import "./commands/contracts/install";
 import "./tailwind.css";
-import "./main.less";
+import "./app/base.css";
 
 import App from "@/App.tsx";
 import { initializeTooling } from "@/tools";

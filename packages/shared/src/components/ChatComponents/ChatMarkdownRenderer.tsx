@@ -1,10 +1,8 @@
 import React, { memo, useCallback, useMemo } from "react";
-import classNames from "classnames";
-import MarkdownRenderer, {
-  type MarkdownRendererProps,
-} from "../MarkdownRenderer";
+import { cn as classNames } from "@tau/ui";
+import MarkdownRenderer, { type MarkdownRendererProps } from "../MarkdownRenderer";
 import LazySyntaxHighlighter from "../LazySyntaxHighlighter";
-import styles from "./ChatMarkdownRenderer.module.less";
+import { markdownClasses as styles } from "./classes";
 /**
  * message 实例的最小消费面（Mermaid 通知）；antd message 与 @tau/ui toast 结构均满足。
  * 纯类型依赖不产出运行时代码，browser-extension 侧消费本组件不受影响（D-073）。
@@ -41,10 +39,7 @@ export interface ChatMarkdownRendererProps extends Omit<
   className?: string;
   isDark?: boolean;
   codeBlockPreviewLanguages?: string[];
-  codeLanguageRenderers?: Record<
-    string,
-    React.ComponentType<{ code: string; isDark?: boolean }>
-  >;
+  codeLanguageRenderers?: Record<string, React.ComponentType<{ code: string; isDark?: boolean }>>;
   onPreviewCodeBlock?: (payload: CodeBlockPreviewPayload) => void;
   messageApi?: MessageApiLike;
 }
@@ -104,8 +99,7 @@ const PREVIEW_META: Record<string, { title: string; description: string }> = {
   },
 };
 
-const isCompleteHtmlDocument = (code: string) =>
-  /^<!DOCTYPE\s+html>/i.test(code.trim());
+const isCompleteHtmlDocument = (code: string) => /^<!DOCTYPE\s+html>/i.test(code.trim());
 
 const toSizeLabel = (content: string) => {
   const sizeKB = (content.length / 1024).toFixed(1);
@@ -135,7 +129,7 @@ const extractBlockTitle = (type: string, content: string) => {
 
 export const buildCodeBlockPreviewPayload = (
   language: string,
-  code: string,
+  code: string
 ): CodeBlockPreviewPayload | null => {
   const normalized = LANGUAGE_ALIAS[language.toLowerCase()];
   if (!normalized) {
@@ -146,17 +140,14 @@ export const buildCodeBlockPreviewPayload = (
   const title = extractBlockTitle(normalized, code);
 
   return {
-    id: `chat-block-${normalized}-${now}-${Math.random()
-      .toString(36)
-      .slice(2, 8)}`,
+    id: `chat-block-${normalized}-${now}-${Math.random().toString(36).slice(2, 8)}`,
     type: normalized,
     content: code,
     metadata: {
       type: normalized,
       language: normalized,
       title,
-      description:
-        PREVIEW_META[normalized]?.description ?? `点击打开 ${normalized} 预览`,
+      description: PREVIEW_META[normalized]?.description ?? `点击打开 ${normalized} 预览`,
       timestamp: now,
       size: toSizeLabel(code),
     },
@@ -178,7 +169,7 @@ export const CodeBlockPreviewCard: React.FC<CodeBlockPreviewCardProps> = memo(
         <div className={styles.previewTag}>{payload.metadata.size}</div>
       </button>
     );
-  },
+  }
 );
 
 const normalizePreviewLanguage = (language: string) =>
@@ -195,23 +186,16 @@ export const ChatMarkdownRenderer: React.FC<ChatMarkdownRendererProps> = memo(
     ...props
   }) {
     const previewLanguageSet = useMemo(
-      () =>
-        new Set(
-          codeBlockPreviewLanguages.map((language) =>
-            normalizePreviewLanguage(language),
-          ),
-        ),
-      [codeBlockPreviewLanguages],
+      () => new Set(codeBlockPreviewLanguages.map(language => normalizePreviewLanguage(language))),
+      [codeBlockPreviewLanguages]
     );
 
     const mergedCodeLanguageRenderers = useMemo(() => {
-      const renderers: NonNullable<
-        ChatMarkdownRendererProps["codeLanguageRenderers"]
-      > = {
+      const renderers: NonNullable<ChatMarkdownRendererProps["codeLanguageRenderers"]> = {
         ...codeLanguageRenderers,
       };
 
-      DEFAULT_PREVIEW_LANGUAGES.forEach((language) => {
+      DEFAULT_PREVIEW_LANGUAGES.forEach(language => {
         if (renderers[language]) {
           return;
         }
@@ -260,7 +244,7 @@ export const ChatMarkdownRenderer: React.FC<ChatMarkdownRendererProps> = memo(
       (href: string, event: React.MouseEvent) => {
         props.onLinkClick?.(href, event);
       },
-      [props],
+      [props]
     );
 
     return (
@@ -273,7 +257,7 @@ export const ChatMarkdownRenderer: React.FC<ChatMarkdownRendererProps> = memo(
         onLinkClick={props.onLinkClick ? handleLinkClick : undefined}
       />
     );
-  },
+  }
 );
 
 export default ChatMarkdownRenderer;

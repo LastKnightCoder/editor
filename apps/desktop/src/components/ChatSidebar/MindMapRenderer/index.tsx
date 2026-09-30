@@ -1,9 +1,19 @@
 import React, { useMemo, lazy, Suspense, useCallback, forwardRef } from "react";
 import { useDebounce, useLocalStorageState } from "ahooks";
-import classNames from "classnames";
+import { cn as classNames } from "@tau/ui";
 import { parseMindMapList } from "./parseMindMapList";
 import { MindMapRef } from "@/components/MindMap";
-import styles from "./index.module.less";
+const styles = {
+  mindMapContainer: "relative my-2 w-full overflow-x-auto",
+  fillContainer: "my-0 flex h-full flex-col",
+  mindMapWrapper: "mt-2 overflow-hidden rounded-tau-sm border border-line-1",
+  fillWrapper: "m-0 h-full flex-1 rounded-none border-0",
+  resizeHandle:
+    "relative mt-1 h-2 cursor-ns-resize bg-transparent after:absolute after:left-1/2 after:top-1/2 after:h-1 after:w-10 after:-translate-x-1/2 after:-translate-y-1/2 after:rounded-[2px] after:bg-line-1 after:transition-colors after:content-[''] hover:after:bg-ink-3",
+  mindMapLoading: "text-ink-2 flex min-h-[200px] items-center justify-center text-tau-body",
+  mindMapError:
+    "bg-danger-soft text-danger my-2 rounded-tau-sm border border-line-1 p-2 text-tau-body [&_p]:mb-2 [&_p]:font-bold [&_pre]:m-0 [&_pre]:whitespace-pre-wrap [&_pre]:break-words [&_pre]:font-tau-mono",
+};
 
 const MindMap = lazy(() => import("@/components/MindMap"));
 

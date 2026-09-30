@@ -1,17 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Tooltip } from "@tau/ui";
-import {
-  CircleAlert,
-  Code,
-  Copy,
-  Download,
-  Eye,
-  Loader2,
-  Maximize2,
-  RotateCw,
-} from "lucide-react";
+import { CircleAlert, Code, Copy, Download, Eye, Loader2, Maximize2, RotateCw } from "lucide-react";
 import { measurePerformance } from "../../utils/performance";
-import styles from "./index.module.less";
 import { useDebounce, useCreation } from "ahooks";
 import LazySyntaxHighlighter from "../LazySyntaxHighlighter";
 import FullscreenPortal from "../FullscreenPortal";
@@ -198,13 +188,15 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
       }
 
       if (error) {
-        return <div className="m-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900/50 dark:bg-red-950/50">
+        return (
+          <div className="m-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900/50 dark:bg-red-950/50">
             <div className="flex items-center gap-2 font-medium text-red-600 dark:text-red-400">
               <CircleAlert size={16} />
               Diagram render error
             </div>
             <p className="mt-1 pl-6 text-xs text-red-500/90 dark:text-red-400/80">{error}</p>
-          </div>;
+          </div>
+        );
       }
 
       return (
@@ -212,7 +204,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
           <div
             ref={containerRef}
             dangerouslySetInnerHTML={{ __html: svgContent }}
-            className={styles.svgContainer}
+            className="flex min-h-[320px] items-center justify-center p-5 [&_svg]:h-auto [&_svg]:max-w-full"
           />
           {/* 隐藏的 mermaid 锚点 */}
           <code id={mermaidId} style={{ display: "none" }}></code>
