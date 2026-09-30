@@ -56,6 +56,7 @@ export type {
   EditorFeedback,
   EditorLoadingHandle,
   EditorConfirmOptions,
+  EditorPromptOptions,
 } from "../services/notifier";
 
 // 主题

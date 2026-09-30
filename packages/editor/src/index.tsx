@@ -64,8 +64,8 @@ import type { ResolvedHotkey } from "./utils/hotkey";
 import ImagesOverview from "./components/ImagesOverview";
 import HoveringToolbar from "./components/HoveringToolbar";
 import BlockPanel from "./components/BlockPanel";
-import MediaUrlInputModal from "./components/MediaUrlInputModal";
 import ConfirmHost from "./components/ConfirmHost";
+import PromptHost from "./components/PromptHost";
 import FormattedText from "./components/FormattedText";
 import { IConfigItem, IHotKeyConfig } from "./types";
 
@@ -644,7 +644,7 @@ const Index = memo(
               </div>
               <ImagesOverview />
               <ConfirmHost />
-              {!readonly && <MediaUrlInputModal />}
+              <PromptHost />
               {!readonly && <HoveringToolbar configs={finalHoveringBarConfigs} />}
               {!readonly && <BlockPanel assembly={kit.assembly} />}
             </FocusModeContext.Provider>
