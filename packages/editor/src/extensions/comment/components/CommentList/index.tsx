@@ -1,7 +1,9 @@
-import React, { useMemo, useState } from "react";
-import dayjs from "dayjs";
+import React, { useState } from "react";
+import { Pencil, Reply, Trash2 } from "lucide-react";
+import { cn } from "@tau/ui";
 import type { Comment as CommentType } from "../../../types";
 import CommentInput from "../CommentInput";
+import { formatCommentTime, isCommentEdited } from "../../utils/comments";
 
 interface CommentListProps {
   comments: CommentType[];
@@ -11,6 +13,13 @@ interface CommentListProps {
   readOnly?: boolean;
 }
 
+const actionClass =
+  "flex size-6 cursor-pointer items-center justify-center rounded-[7px] border-none bg-transparent text-[var(--ed-text-tertiary)] transition-colors hover:bg-[var(--ed-bg-hover)] hover:text-[var(--ed-text)]";
+
+/**
+ * 批注线程：无卡片无分隔线，元信息一行 + 正文一段；回复靠缩进 + 细竖线表达从属。
+ * 操作悬停才显出，绝对定位在右上角，不挤布局。
+ */
 const CommentList: React.FC<CommentListProps> = ({
   comments,
   onEdit,
@@ -21,18 +30,18 @@ const CommentList: React.FC<CommentListProps> = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [replyingId, setReplyingId] = useState<string | null>(null);
 
-  const normalizedComments = useMemo(() => comments ?? [], [comments]);
-
-  const renderComment = (comment: CommentType, _level = 0) => {
+  const renderComment = (comment: CommentType, level = 0) => {
     const replies = comment.replies ?? [];
     const isEditing = editingId === comment.id;
     const isReplying = replyingId === comment.id;
 
     return (
-      <div
-        key={comment.id}
-        className="rounded-xl border border-gray-100 bg-white/80 p-3 dark:border-slate-800/70 dark:bg-zinc-900/40"
-      >
+      <div key={comment.id} className="group/comment relative">
+        <div className="flex h-[22px] items-center text-[11.5px] text-[var(--ed-text-tertiary)]">
+          {formatCommentTime(comment.createTime)}
+          {isCommentEdited(comment) && " · 已编辑"}
+        </div>
+
         {isEditing ? (
           <CommentInput
             initialValue={comment.content}
@@ -42,73 +51,74 @@ const CommentList: React.FC<CommentListProps> = ({
             }}
             onCancel={() => setEditingId(null)}
             autoFocus
+            className="mt-0.5"
           />
         ) : (
-          <>
-            <div className="text-sm leading-relaxed text-[var(--ed-text)]">{comment.content}</div>
-            <div className="mt-2 flex items-center gap-3 text-[11px] font-medium text-[var(--ed-text-secondary)]">
-              <span>{dayjs(comment.updateTime).format("YYYY-MM-DD HH:mm")}</span>
-              {!readOnly && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setReplyingId(comment.id)}
-                    className="transition-colors hover:text-indigo-500"
-                  >
-                    回复
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditingId(comment.id)}
-                    className="transition-colors hover:text-indigo-500"
-                  >
-                    编辑
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onDelete(comment.id)}
-                    className="transition-colors hover:text-rose-500"
-                  >
-                    删除
-                  </button>
-                </>
-              )}
-            </div>
-          </>
-        )}
-
-        {isReplying && (
-          <div className="mt-3">
-            <CommentInput
-              placeholder="回复..."
-              onSubmit={content => {
-                onReply(comment.id, content);
-                setReplyingId(null);
-              }}
-              onCancel={() => setReplyingId(null)}
-              autoFocus
-            />
+          <div
+            className={cn(
+              "whitespace-pre-wrap break-words leading-[1.65] text-[var(--ed-text)]",
+              level === 0 ? "text-[13.5px]" : "text-[13px]"
+            )}
+          >
+            {comment.content}
           </div>
         )}
 
-        {replies.length > 0 && (
-          <div
-            className="mt-4 space-y-3 border-l-2 border-gray-100 pl-4 dark:border-slate-800/80"
-            style={{ borderLeftColor: "var(--ed-comment-border)" }}
-          >
-            {replies.map(reply => renderComment(reply, _level + 1))}
+        {!readOnly && !isEditing && (
+          <div className="absolute -right-1 -top-0.5 flex rounded-[8px] bg-[var(--ed-bg-surface)] opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover/comment:opacity-100">
+            <button
+              type="button"
+              aria-label="回复"
+              className={actionClass}
+              onClick={() => setReplyingId(comment.id)}
+            >
+              <Reply size={14} />
+            </button>
+            <button
+              type="button"
+              aria-label="编辑"
+              className={actionClass}
+              onClick={() => setEditingId(comment.id)}
+            >
+              <Pencil size={13} />
+            </button>
+            <button
+              type="button"
+              aria-label="删除"
+              className={cn(
+                actionClass,
+                "hover:bg-[var(--ed-danger-soft)] hover:text-[var(--ed-danger)]"
+              )}
+              onClick={() => onDelete(comment.id)}
+            >
+              <Trash2 size={13} />
+            </button>
+          </div>
+        )}
+
+        {(replies.length > 0 || isReplying) && (
+          <div className="ml-0.5 mt-2.5 flex flex-col gap-2.5 border-0 border-l-2 border-solid border-[var(--ed-border)] pl-3">
+            {replies.map(reply => renderComment(reply, level + 1))}
+            {isReplying && (
+              <CommentInput
+                placeholder="回复…"
+                submitText="回复"
+                onSubmit={content => {
+                  onReply(comment.id, content);
+                  setReplyingId(null);
+                }}
+                onCancel={() => setReplyingId(null)}
+                autoFocus
+              />
+            )}
           </div>
         )}
       </div>
     );
   };
 
-  if (!normalizedComments.length) {
-    return <div className="py-6 text-center text-sm text-[var(--ed-text-tertiary)]">暂无批注</div>;
-  }
-
   return (
-    <div className="space-y-3">{normalizedComments.map(comment => renderComment(comment))}</div>
+    <div className="flex flex-col gap-3.5">{comments.map(comment => renderComment(comment))}</div>
   );
 };
 

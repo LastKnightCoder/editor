@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState, memo, ReactNode } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  memo,
+  ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 
 import { Editor, Range } from "slate";
@@ -25,6 +34,28 @@ const Portal = ({ children }: { children: ReactNode }) => {
 };
 
 const VIEWPORT_GAP = 8;
+
+/**
+ * 工具条分组按 order 区间划分：字形（<10）/ 颜色（10–19）/ 引用关系（20–89）/ AI（≥90）；
+ * 相邻两项跨组时插一根短竖线作分组节拍。
+ */
+const toolbarGroupOf = (order: number) => (order < 10 ? 0 : order < 20 ? 1 : order < 90 ? 2 : 3);
+
+const renderToolbarItems = (configs: IConfigItem[], keyPrefix = "") =>
+  configs.map((config, index) => {
+    const { element: Element, id } = config;
+    const previous = configs[index - 1];
+    const crossesGroup =
+      previous !== undefined && toolbarGroupOf(previous.order) !== toolbarGroupOf(config.order);
+    return (
+      <Fragment key={`${keyPrefix}${id}`}>
+        {crossesGroup && (
+          <span aria-hidden className="mx-[3px] h-4 w-px shrink-0 bg-[var(--ed-border)]" />
+        )}
+        <Element />
+      </Fragment>
+    );
+  });
 
 interface IHoveringToolbarProps {
   configs: IConfigItem[];
@@ -268,18 +299,15 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
       <HoveringBarContext.Provider value={contextValue}>
         <div
           ref={measureRef}
-          className="pointer-events-none invisible fixed left-[-10000px] top-[-10000px] z-[-1] flex items-center gap-[4px] border border-solid border-transparent p-[4px]"
+          className="pointer-events-none invisible fixed left-[-10000px] top-[-10000px] z-[-1] flex items-center gap-[2px] border border-solid border-transparent p-[4px]"
           aria-hidden
         >
-          {sortedConfigs.map(config => {
-            const { element: Element, id } = config;
-            return <Element key={`measure-${id}`} />;
-          })}
+          {renderToolbarItems(sortedConfigs, "measure-")}
         </div>
         <div
           ref={ref}
           className={cn(
-            "pointer-events-none fixed left-[-500px] top-[-1000px] z-[9999] flex items-center gap-[4px] rounded-[12px] border border-solid border-[var(--ed-border-soft)] p-[4px] opacity-0 transition-[opacity,top,left] duration-300 ease-in-out",
+            "pointer-events-none fixed left-[-500px] top-[-1000px] z-[9999] flex items-center gap-[2px] rounded-[12px] border border-solid border-[var(--ed-border)] p-[4px] opacity-0 transition-[opacity,top,left] duration-300 ease-in-out",
             menuGlassClass,
             isHoveringBarShow && !readOnly && "pointer-events-auto opacity-100"
           )}
@@ -291,10 +319,7 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
             e.stopPropagation();
           }}
         >
-          {displayedConfigs.map(config => {
-            const { element: Element, id } = config;
-            return <Element key={id} />;
-          })}
+          {renderToolbarItems(displayedConfigs)}
         </div>
       </HoveringBarContext.Provider>
     </Portal>

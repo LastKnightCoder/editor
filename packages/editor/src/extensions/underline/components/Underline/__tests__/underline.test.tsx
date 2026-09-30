@@ -1,10 +1,9 @@
-// 下划线：四种线型都用用户选的颜色，不取主题色。
+// 下划线：四种线型都用统一行内色板里的用户选色（CSS 变量随明暗切换），不取主题色。
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 import Underline from "..";
-import { UNDERLINE_COLORS, getUnderlineColor } from "../../../colors";
-import { wavyBackground } from "..";
+import { getUnderlineColor } from "../../../colors";
 import type { UnderlineElement } from "../../../../../types";
 
 describe("Underline", () => {
@@ -44,19 +43,15 @@ describe("Underline", () => {
 
   it.each(["solid", "dashed", "dotted"])("%s 线的颜色是用户选色", lineType => {
     const span = render("red", lineType);
-    expect(span.style.borderBottomColor).toBe(UNDERLINE_COLORS.red);
+    expect(span.style.borderBottomColor).toBe("var(--ed-palette-red)");
     expect(span.className).toContain(`border-${lineType}`);
   });
 
-  // jsdom 的 CSS 解析器不认 url 里带单引号的 data URL，会丢掉 backgroundImage，
-  // 所以波浪 SVG 的颜色直接断言生成函数；浏览器渲染已在 blog 预览实测
-  it("波浪线用选色画 SVG，且不画边框", () => {
-    expect(decodeURIComponent(wavyBackground(UNDERLINE_COLORS.green))).toContain(
-      `stroke='${UNDERLINE_COLORS.green}'`
-    );
+  it("波浪线用 text-decoration 着色，且不画边框", () => {
     const span = render("green", "wavy");
+    expect(span.style.textDecorationColor).toBe("var(--ed-palette-green)");
     expect(span.style.borderBottomColor).toBe("");
-    expect(span.className).not.toContain("border-b-2");
+    expect(span.className).toContain("decoration-wavy");
   });
 
   it("default 与未知颜色跟随文字色", () => {

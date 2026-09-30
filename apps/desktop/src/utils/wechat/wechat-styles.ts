@@ -3,6 +3,20 @@
  * Strictly based on editor extensions styles from packages/editor/src/extensions/
  */
 
+import { INLINE_PALETTE, exportHighlightColors } from "@tau/editor/src/constants/inline-palette";
+
+/** 高亮 / 下划线色取编辑器统一行内色板（导出为浅色版） */
+const inlinePaletteHighlightStyles = INLINE_PALETTE.map(({ id }) => {
+  const colors = exportHighlightColors(id)!;
+  return `.highlight-${id} { background: ${colors.background}; border-bottom: 2px solid ${colors.line}; }`;
+}).join("\n");
+
+const inlinePaletteUnderlineStyles = INLINE_PALETTE.map(
+  ({ id, light }) =>
+    `.underline.underline-${id} { border-bottom-color: ${light}; }\n` +
+    `.underline-wavy.underline-${id} { text-decoration-color: ${light}; }`
+).join("\n");
+
 // Callout icons as inline SVG data URIs
 const CALLOUT_ICONS = {
   tip: `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23009400'%3E%3Cpath d='M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm2.85 11.1l-.85.6V16h-4v-2.3l-.85-.6A4.997 4.997 0 0 1 7 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.63-.8 3.16-2.15 4.1z'/%3E%3C/svg%3E`,
@@ -614,55 +628,18 @@ mark {
   border-radius: 2px;
 }
 
-.highlight-yellow {
-  background: rgba(255, 212, 0, 0.14);
-  border-bottom: 2px solid rgb(255, 212, 0);
-}
-.highlight-red {
-  background: rgba(239, 35, 60, 0.14);
-  border-bottom: 2px solid rgb(239, 35, 60);
-}
-.highlight-green {
-  background: rgba(42, 157, 143, 0.14);
-  border-bottom: 2px solid rgb(42, 157, 143);
-}
-.highlight-blue {
-  background: rgba(162, 210, 255, 0.14);
-  border-bottom: 2px solid rgb(162, 210, 255);
-}
-.highlight-purple {
-  background: rgba(94, 84, 142, 0.14);
-  border-bottom: 2px solid rgb(94, 84, 142);
-}
-.highlight-orange {
-  background: rgba(255, 165, 0, 0.14);
-  border-bottom: 2px solid rgb(255, 165, 0);
-}
+${inlinePaletteHighlightStyles}
 
 /* ========== Underline ========== */
 .underline {
   border-bottom: 2px solid currentColor;
 }
 
-/* Underline colors */
+/* Underline colors（统一行内色板） */
 .underline.underline-default {
   border-bottom-color: currentColor;
 }
-.underline.underline-red {
-  border-bottom-color: rgb(239, 35, 60);
-}
-.underline.underline-yellow {
-  border-bottom-color: rgb(255, 212, 0);
-}
-.underline.underline-blue {
-  border-bottom-color: rgb(162, 210, 255);
-}
-.underline.underline-green {
-  border-bottom-color: rgb(42, 157, 143);
-}
-.underline.underline-purple {
-  border-bottom-color: rgb(94, 84, 142);
-}
+${inlinePaletteUnderlineStyles}
 
 /* Underline line types */
 .underline-solid { border-bottom-style: solid; }
@@ -674,13 +651,6 @@ mark {
   text-decoration-color: currentColor;
   text-underline-offset: 2px;
 }
-
-/* Wavy underline colors (using text-decoration-color) */
-.underline-wavy.underline-red { text-decoration-color: rgb(239, 35, 60); }
-.underline-wavy.underline-yellow { text-decoration-color: rgb(255, 212, 0); }
-.underline-wavy.underline-blue { text-decoration-color: rgb(162, 210, 255); }
-.underline-wavy.underline-green { text-decoration-color: rgb(42, 157, 143); }
-.underline-wavy.underline-purple { text-decoration-color: rgb(94, 84, 142); }
 
 /* ========== Math ========== */
 .block-math {

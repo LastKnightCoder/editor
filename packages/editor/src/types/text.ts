@@ -1,6 +1,8 @@
 import type { TextGradientPresetId } from "../constants/text-gradient";
 
-export type HighlightColor = "blue" | "yellow" | "green" | "red" | "purple";
+import type { InlinePaletteColor } from "../constants/inline-palette";
+
+export type HighlightColor = InlinePaletteColor;
 
 export interface FormattedText {
   type: "formatted";

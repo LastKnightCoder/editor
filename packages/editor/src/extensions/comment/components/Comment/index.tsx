@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Transforms } from "slate";
+import { Node, Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useReadOnly, useSlateStatic } from "slate-react";
 import { v4 as uuidv4 } from "uuid";
 import { produce } from "immer";
@@ -147,11 +147,18 @@ const Comment: React.FC<CommentProps> = ({ attributes, children, element }) => {
     Transforms.setNodes(editor, { openEdit: false }, { at: commentPath });
   };
 
+  const handleRemoveAll = () => {
+    setOpen(false);
+    unwrapComment(editor, commentPath);
+  };
+
+  const quote = Node.string(element);
+
   return (
     <>
       <span
         {...attributes}
-        className="relative inline cursor-pointer border-b-2 border-[var(--ed-comment-border)] bg-[var(--ed-comment-bg)] transition-colors hover:bg-[var(--ed-comment-hover-bg)]"
+        className="relative inline border-0 border-b-2 border-solid border-[var(--ed-comment-border)] bg-[var(--ed-comment-bg)] transition-colors hover:bg-[var(--ed-comment-hover-bg)]"
       >
         <InlineChromiumBugfix />
         {children}
@@ -163,15 +170,17 @@ const Comment: React.FC<CommentProps> = ({ attributes, children, element }) => {
               setAnchorElement(node);
             }
           }}
-          className="ml-1 inline-flex items-center gap-1 text-[11px] text-[var(--ed-comment-icon)]"
+          role="button"
+          aria-label={totalCommentsCount > 0 ? `查看 ${totalCommentsCount} 条批注` : "添加批注"}
+          className="ml-0.5 inline-flex h-[18px] cursor-pointer select-none items-center gap-0.5 rounded-[6px] px-1 align-text-bottom font-mono text-[11px] font-semibold leading-none text-[var(--ed-comment-icon)] transition-colors hover:bg-[var(--ed-bg-press)]"
           contentEditable={false}
           onClick={event => {
             event.stopPropagation();
             setOpen(prev => !prev);
           }}
         >
-          <MessageCircle className="h-3.5 w-3.5" strokeWidth={2} />
-          <span className="font-medium">{totalCommentsCount}</span>
+          <MessageCircle className="h-3 w-3" strokeWidth={2.2} />
+          {totalCommentsCount > 0 && <span>{totalCommentsCount}</span>}
         </span>
       </span>
 
@@ -179,11 +188,13 @@ const Comment: React.FC<CommentProps> = ({ attributes, children, element }) => {
         anchorElement={anchorElement}
         open={open}
         onClose={handleClosePopover}
+        quote={quote}
         comments={comments}
         onAddComment={handleAddComment}
         onEditComment={handleEditComment}
         onDeleteComment={handleDeleteComment}
         onReplyComment={handleReplyComment}
+        onRemoveAll={handleRemoveAll}
         readOnly={readOnly}
       />
     </>

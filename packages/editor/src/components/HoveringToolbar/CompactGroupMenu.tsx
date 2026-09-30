@@ -103,7 +103,7 @@ function CompactGroupMenu(props: CompactGroupMenuProps) {
       ? createPortal(
           <div
             ref={panelRef}
-            className="bg-white/92 dark:border-white/12 fixed z-[10020] flex items-center gap-1 rounded-xl border border-white/40 p-1 shadow-[0_12px_34px_rgba(15,23,42,0.24)] backdrop-blur-xl dark:bg-zinc-950/90 dark:shadow-[0_16px_40px_rgba(2,6,23,0.62)]"
+            className="fixed z-[10020] flex animate-[ed-menu-fade-in_120ms_ease-out] items-center gap-[2px] rounded-[12px] border border-solid border-[var(--ed-border)] bg-[var(--ed-bg-surface)] p-[4px] shadow-[var(--ed-shadow-float)]"
             style={{ left: position.left, top: position.top }}
             onPointerDown={event => {
               event.stopPropagation();
@@ -132,13 +132,13 @@ function CompactGroupMenu(props: CompactGroupMenuProps) {
 
   return (
     <>
-      <Tooltip content={title}>
+      <Tooltip content={title} disabled={open}>
         <div
           ref={triggerRef}
           className={classnames(
             "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all duration-200",
             "ed-toolbar-item",
-            open && "is-active"
+            open && "is-open"
           )}
           onClick={event => {
             event.preventDefault();
