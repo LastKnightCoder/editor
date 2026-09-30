@@ -1,18 +1,20 @@
 import React, { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@tau/ui";
 import { AnimatePresence, motion } from "motion/react";
-import { FastForward, History, LoaderCircle, Play } from "lucide-react";
+import { FastForward, LoaderCircle, Play } from "lucide-react";
 import ProgressBar from "./ProgressBar";
 import { formatTime } from "./formatTime";
 import { useMediaController } from "./useMediaController";
 import { useFramePreview } from "./useFramePreview";
 import { usePlaybackResume } from "./usePlaybackResume";
-import { resolveVideoShortcut, stepPlaybackRate } from "./videoShortcuts";
+import { useMediaKeyDown, useOsd, useToggleMute } from "./useMediaKeyboard";
 import {
   FullscreenToggle,
+  MediaOsd,
   PipButton,
   PlayButton,
   RateMenu,
+  ResumeNotice,
   TimeCode,
   VolumeControl,
 } from "./MediaControls";
@@ -37,19 +39,12 @@ const LONG_PRESS_DELAY = 400;
 const SUPPRESS_CLICK_MS = 350;
 /** 全屏时指针静置多久收起胶囊 */
 const IDLE_HIDE_MS = 2000;
-const OSD_DURATION_MS = 700;
-const FRAME_SECONDS = 1 / 30;
-
-const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 const noop = () => undefined;
-
-const isTextInput = (element: HTMLElement) =>
-  element.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(element.tagName);
 
 /**
  * 视频播放器：常态是纸面卡片 + 画面下方的底栏（控件不遮画面），
  * 全屏时底栏换成画面内的深色胶囊，静置后完全收起、只留底边进度细线。
- * 聚焦后支持键盘快捷键（见 videoShortcuts），操作结果以画面中央的 OSD 反馈。
+ * 聚焦后支持键盘快捷键（见 mediaShortcuts），操作结果以画面中央的 OSD 反馈。
  */
 const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
   (
@@ -220,15 +215,7 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
       poke();
     }, [fullscreen, poke]);
 
-    // ---- 键盘反馈 OSD ----
-    const [osd, setOsd] = useState<{ text: string; id: number } | null>(null);
-    const osdTimerRef = useRef<number | undefined>(undefined);
-    const showOsd = useCallback((text: string) => {
-      setOsd(prev => ({ text, id: (prev?.id ?? 0) + 1 }));
-      window.clearTimeout(osdTimerRef.current);
-      osdTimerRef.current = window.setTimeout(() => setOsd(null), OSD_DURATION_MS);
-    }, []);
-    useEffect(() => () => window.clearTimeout(osdTimerRef.current), []);
+    const { osd, showOsd } = useOsd();
 
     // ---- 长按加速 ----
     const [speedUp, setSpeedUp] = useState(false);
@@ -313,20 +300,7 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
     const preview = useFramePreview(showPreview ? src : undefined, rest.crossOrigin);
 
     // ---- 音量 ----
-    const lastVolumeRef = useRef(1);
-    useEffect(() => {
-      if (volume > 0) {
-        lastVolumeRef.current = volume;
-      }
-    }, [volume]);
-    const toggleMute = useCallback(() => {
-      if (muted || volume === 0) {
-        setMuted(false);
-        setVolume(lastVolumeRef.current || 1);
-      } else {
-        setMuted(true);
-      }
-    }, [muted, setMuted, setVolume, volume]);
+    const { toggleMute, lastVolumeRef } = useToggleMute(volume, muted, setVolume, setMuted);
     const handleVolumeChange = useCallback(
       (next: number) => {
         setMuted(false);
@@ -336,78 +310,25 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
     );
 
     // ---- 键盘快捷键 ----
-    const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-      const target = event.target as HTMLElement;
-      const onControl = target !== event.currentTarget;
-      if (onControl && isTextInput(target)) {
-        return;
-      }
-      const action = resolveVideoShortcut(event.nativeEvent);
-      // 焦点在控件按钮上时，空格交还按钮自身的激活语义
-      if (!action || (onControl && target.tagName === "BUTTON" && event.key === " ")) {
-        return;
-      }
-      const video = videoRef.current;
-      if (!video) {
-        return;
-      }
-      event.preventDefault();
-      event.stopPropagation();
-      poke();
-
-      switch (action.type) {
-        case "togglePlay":
-          togglePlay();
-          break;
-        case "seekBy":
-          seek(video.currentTime + action.seconds);
-          showOsd(`${action.seconds > 0 ? "+" : "−"}${Math.abs(action.seconds)} 秒`);
-          break;
-        case "volumeBy": {
-          const next = clamp01((muted ? 0 : volume) + action.delta);
-          setVolume(next);
-          if (next === 0) {
-            setMuted(true);
-          }
-          showOsd(next === 0 ? "已静音" : `音量 ${Math.round(next * 100)}%`);
-          break;
-        }
-        case "toggleMute": {
-          const willMute = !(muted || volume === 0);
-          toggleMute();
-          showOsd(
-            willMute ? "已静音" : `音量 ${Math.round((volume || lastVolumeRef.current) * 100)}%`
-          );
-          break;
-        }
-        case "toggleFullscreen":
-          toggleFullscreen();
-          break;
-        case "togglePip":
-          togglePip();
-          break;
-        case "rateStep": {
-          const next = stepPlaybackRate(baseRate, action.step);
-          if (next != null) {
-            changeRate(next);
-            showOsd(`${next}× 速度`);
-          }
-          break;
-        }
-        case "frameStep":
-          if (video.paused) {
-            seek(video.currentTime + action.direction * FRAME_SECONDS);
-            showOsd(action.direction > 0 ? "下一帧" : "上一帧");
-          }
-          break;
-        case "seekToFraction":
-          if (duration > 0) {
-            seek(duration * action.fraction);
-            showOsd(`跳到 ${Math.round(action.fraction * 100)}%`);
-          }
-          break;
-      }
-    };
+    const handleKeyDown = useMediaKeyDown({
+      mediaRef: videoRef,
+      duration,
+      volume,
+      muted,
+      setVolume,
+      setMuted,
+      togglePlay,
+      seek,
+      toggleMute,
+      lastVolumeRef,
+      rate: baseRate,
+      changeRate,
+      showOsd,
+      onActivity: poke,
+      toggleFullscreen,
+      togglePip: pipSupported ? togglePip : undefined,
+      frameStep: true,
+    });
 
     // ---- 控件组装（底栏与全屏胶囊共用，只换色板） ----
     const [rateOpen, setRateOpen] = useState(false);
@@ -477,17 +398,7 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
 
     const infoContent =
       resume.resumedAt != null ? (
-        <span className="text-accent-text flex min-w-0 items-center gap-1.5">
-          <History size={13} className="shrink-0" />
-          <span className="truncate">已从上次的 {formatTime(resume.resumedAt)} 继续</span>
-          <button
-            type="button"
-            onClick={resume.restart}
-            className="text-ink-2 hover:text-ink-1 shrink-0 underline underline-offset-[3px]"
-          >
-            从头播放
-          </button>
-        </span>
+        <ResumeNotice label={formatTime(resume.resumedAt)} onRestart={resume.restart} />
       ) : info ? (
         <span className="@max-sm:hidden flex min-w-0 items-center gap-1.5">{info}</span>
       ) : null;
@@ -586,20 +497,7 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
             </AnimatePresence>
 
             {/* 键盘操作反馈 */}
-            <AnimatePresence>
-              {osd && (
-                <motion.div
-                  key={osd.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.12 }}
-                  className="bg-ink-1 text-ink-inverse shadow-float text-tau-meta pointer-events-none absolute left-1/2 top-1/2 z-30 -translate-x-1/2 -translate-y-1/2 rounded-full px-3.5 py-1.5 font-semibold tabular-nums"
-                >
-                  {osd.text}
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <MediaOsd osd={osd} />
 
             {/* 全屏：画面内胶囊；收起时只留底边进度细线（压在画面上，固定白色不随主题） */}
             {fullscreen && (

@@ -1,7 +1,7 @@
-﻿import { useState, useRef, useEffect, memo, forwardRef } from "react";
-import { useAsyncEffect, useMemoizedFn } from "ahooks";
+﻿import { useState, useRef, memo, forwardRef, useCallback } from "react";
+import { useAsyncEffect } from "ahooks";
 import { remoteResourceToLocal } from "@/utils";
-import { getHomeDir } from "@/commands";
+import { getHomeDir, readBinaryFile } from "@/commands";
 import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
 import useSettingStore from "@/stores/useSettingStore";
 import { addRemoteAudioCacheEntry } from "@/commands/remote-audio-cache";
@@ -10,14 +10,11 @@ import {
   resolveLocalMediaPath,
   toLocalMediaPreviewUrl,
 } from "@/utils/localMediaPath";
-import { AudioPlayer } from "@tau/shared";
+import { AudioPlayer, type AudioPlayerProps } from "@tau/shared";
 
-interface LocalAudioProps {
+type LocalAudioProps = AudioPlayerProps & {
   src: string;
-  [key: string]: any;
-}
-
-const AUDIO_POSITION_PREFIX = "audio_position_";
+};
 
 const LocalAudio = memo(
   forwardRef<HTMLAudioElement, LocalAudioProps>((props, ref) => {
@@ -25,22 +22,15 @@ const LocalAudio = memo(
     const normalizedSrc = useGithubCdnUrl(src) ?? src;
 
     const [previewUrl, setPreviewUrl] = useState<string>("");
+    // 解析出的本地文件路径：波形直接经 IPC 读文件（ltoh:// 协议不支持 fetch）
+    const [localFilePath, setLocalFilePath] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const innerRef = useRef<HTMLAudioElement>(null);
     const autoCacheRemoteAudio = useSettingStore(state => state.setting.misc.audio.autoCacheRemote);
 
-    const getAudioElement = useMemoizedFn(() => {
-      if (typeof ref === "function") {
-        return null;
-      } else if (ref && ref.current) {
-        return ref.current;
-      } else {
-        return innerRef.current;
-      }
-    });
-
     useAsyncEffect(async () => {
       setLoading(true);
+      setLocalFilePath(null);
       try {
         if (!normalizedSrc) {
           setPreviewUrl("");
@@ -66,6 +56,7 @@ const LocalAudio = memo(
               localPath: localUrl,
             });
             const { url: localPreviewUrl } = await toLocalMediaPreviewUrl(localUrl);
+            setLocalFilePath(localUrl);
             setPreviewUrl(localPreviewUrl);
           } catch (error) {
             console.error(error);
@@ -77,6 +68,7 @@ const LocalAudio = memo(
             ? `${homeDir}${resolvedSrc.slice(1)}`
             : resolvedSrc;
           const { url: localPreviewUrl } = await toLocalMediaPreviewUrl(absolutePath);
+          setLocalFilePath(absolutePath);
           setPreviewUrl(localPreviewUrl);
         }
       } catch (e) {
@@ -87,48 +79,27 @@ const LocalAudio = memo(
       }
     }, [normalizedSrc, autoCacheRemoteAudio]);
 
-    useEffect(() => {
-      const audio = getAudioElement();
-      if (!audio || loading) return;
-
-      const storageKey = `${AUDIO_POSITION_PREFIX}${normalizedSrc}`;
-
-      const handleLoadedMetadata = () => {
-        const savedPosition = localStorage.getItem(storageKey);
-        if (savedPosition) {
-          const position = parseFloat(savedPosition);
-          if (!isNaN(position) && position >= 0 && position < audio.duration) {
-            audio.currentTime = position;
-          }
-        }
-      };
-
-      const handleTimeUpdate = () => {
-        if (audio.currentTime >= 0) {
-          localStorage.setItem(storageKey, audio.currentTime.toString());
-        }
-      };
-
-      const handleEnded = () => {
-        localStorage.removeItem(storageKey);
-      };
-
-      audio.addEventListener("loadedmetadata", handleLoadedMetadata);
-      audio.addEventListener("timeupdate", handleTimeUpdate);
-      audio.addEventListener("ended", handleEnded);
-
-      return () => {
-        audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
-        audio.removeEventListener("timeupdate", handleTimeUpdate);
-        audio.removeEventListener("ended", handleEnded);
-      };
-    }, [normalizedSrc, loading, getAudioElement]);
+    const loadWaveformData = useCallback(async () => {
+      if (!localFilePath) {
+        throw new Error("no local file");
+      }
+      const data = await readBinaryFile(localFilePath);
+      return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
+    }, [localFilePath]);
 
     const audioRef = ref || innerRef;
 
-    if (loading || !previewUrl) return null;
-
-    return <AudioPlayer ref={audioRef} src={previewUrl} crossOrigin={"anonymous"} {...rest} />;
+    // 解析期间以空 src 渲染，播放器保留卡片占位显示加载态，避免块凭空消失再出现
+    return (
+      <AudioPlayer
+        ref={audioRef}
+        src={loading ? "" : previewUrl}
+        crossOrigin={"anonymous"}
+        persistKey={normalizedSrc}
+        loadWaveformData={localFilePath ? loadWaveformData : undefined}
+        {...rest}
+      />
+    );
   })
 );
 

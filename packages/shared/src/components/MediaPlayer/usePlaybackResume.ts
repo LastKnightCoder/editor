@@ -1,16 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-/** 与历史 LocalVideo 的存储键保持一致，升级后已有的播放位置继续可用 */
+/** 与历史 LocalVideo / LocalAudio 的存储键保持一致，升级后已有的播放位置继续可用 */
 export const VIDEO_POSITION_PREFIX = "video_position_";
+export const AUDIO_POSITION_PREFIX = "audio_position_";
 
 /** 距开头 / 结尾不足该秒数的位置不续播（刚开始看或已看完） */
 const RESUME_EDGE_SECONDS = 5;
 const SAVE_INTERVAL_MS = 1000;
 const NOTICE_DURATION_MS = 8000;
 
-/** 解析已保存的播放位置，不值得续播时返回 null */
-export function resolveResumePosition(saved: string | null, duration: number): number | null {
-  if (saved == null || !Number.isFinite(duration) || duration <= 0) {
+/** 解析已保存的播放位置，不值得续播时返回 null；短于 minDuration 的媒体不续播 */
+export function resolveResumePosition(
+  saved: string | null,
+  duration: number,
+  minDuration = 0
+): number | null {
+  if (saved == null || !Number.isFinite(duration) || duration <= 0 || duration < minDuration) {
     return null;
   }
   const position = Number.parseFloat(saved);
@@ -31,7 +36,11 @@ export function resolveResumePosition(saved: string | null, duration: number): n
  */
 export function usePlaybackResume(
   mediaRef: React.RefObject<HTMLMediaElement | null>,
-  persistKey: string | undefined
+  persistKey: string | undefined,
+  {
+    prefix = VIDEO_POSITION_PREFIX,
+    minDuration = 0,
+  }: { prefix?: string; minDuration?: number } = {}
 ) {
   const [resumedAt, setResumedAt] = useState<number | null>(null);
   const noticeTimerRef = useRef<number | undefined>(undefined);
@@ -47,7 +56,7 @@ export function usePlaybackResume(
     if (!media || !persistKey) {
       return;
     }
-    const storageKey = `${VIDEO_POSITION_PREFIX}${persistKey}`;
+    const storageKey = `${prefix}${persistKey}`;
     let lastSavedAt = 0;
 
     const handleLoadedMetadata = () => {
@@ -55,7 +64,11 @@ export function usePlaybackResume(
       if (media.currentTime > 0.5) {
         return;
       }
-      const position = resolveResumePosition(localStorage.getItem(storageKey), media.duration);
+      const position = resolveResumePosition(
+        localStorage.getItem(storageKey),
+        media.duration,
+        minDuration
+      );
       if (position == null) {
         return;
       }
@@ -88,7 +101,7 @@ export function usePlaybackResume(
       media.removeEventListener("timeupdate", handleTimeUpdate);
       media.removeEventListener("ended", handleEnded);
     };
-  }, [mediaRef, persistKey]);
+  }, [mediaRef, persistKey, prefix, minDuration]);
 
   const restart = useCallback(() => {
     const media = mediaRef.current;

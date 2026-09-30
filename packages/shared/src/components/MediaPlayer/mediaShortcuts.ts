@@ -1,7 +1,7 @@
 import { PLAYBACK_RATES } from "./MediaControls";
 
 /** 播放器快捷键解析出的动作；执行与 OSD 反馈由播放器负责 */
-export type VideoShortcutAction =
+export type MediaShortcutAction =
   | { type: "togglePlay" }
   | { type: "seekBy"; seconds: number }
   | { type: "volumeBy"; delta: number }
@@ -21,7 +21,7 @@ type ShortcutKeyEvent = Pick<
  * 按键 → 动作。带 ⌘/Ctrl/Alt 的组合键一律放行给应用级快捷键（如 Alt+←/→ 后退前进），
  * 输入法组合中的按键也不拦截。
  */
-export function resolveVideoShortcut(event: ShortcutKeyEvent): VideoShortcutAction | null {
+export function resolveMediaShortcut(event: ShortcutKeyEvent): MediaShortcutAction | null {
   if (event.metaKey || event.ctrlKey || event.altKey || event.isComposing) {
     return null;
   }
