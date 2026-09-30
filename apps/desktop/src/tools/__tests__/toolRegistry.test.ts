@@ -56,9 +56,11 @@ describe("ToolRegistry 作用域工具", () => {
     expect(registry.getScopedTools(undefined)).toEqual([]);
 
     const snapshot = registry.getScopedSources();
-    expect(snapshot).toEqual([
-      { scope: "pdf-1", label: "PDF 文档", toolNames: ["search_pdf"] },
-      { scope: "pdf-2", label: "PDF 文档", toolNames: ["search_pdf"] },
+    expect(
+      snapshot.map(s => ({ scope: s.scope, label: s.label, names: s.tools.map(t => t.name) }))
+    ).toEqual([
+      { scope: "pdf-1", label: "PDF 文档", names: ["search_pdf"] },
+      { scope: "pdf-2", label: "PDF 文档", names: ["search_pdf"] },
     ]);
     expect(registry.getScopedSources()).toBe(snapshot);
 
