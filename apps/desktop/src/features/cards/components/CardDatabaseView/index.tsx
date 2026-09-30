@@ -1,4 +1,4 @@
-import { memo, useMemo, useRef, useEffect, forwardRef, useImperativeHandle } from "react";
+import { memo, useMemo, useRef, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
 import Database, {
   DatabaseRef,
@@ -9,39 +9,33 @@ import Database, {
   DatabaseChange,
   FilterGroup,
 } from "@/components/Database";
-import useCardDatabaseViewStore from "@/stores/useCardDatabaseViewStore";
+import { useCardDatabasePreferences } from "../../databasePreferences";
 import { ICard, ECardCategory, DataTableView, CreateDataTableView } from "@/types";
 import { getEditorText } from "@/utils/editor";
 import { cardCategoryName } from "@/constants";
 import CardLinksPlugin from "./plugins/CardLinksPlugin";
-import { updateCard } from "@/commands";
 import { DateValue } from "@/components/Database/plugins/DatePlugin";
 import useTheme from "@/hooks/useTheme";
 import type { CardMetadataPatch } from "@/types/card";
 
 interface CardDatabaseViewProps {
+  databaseName: string;
   cards: ICard[];
   tag?: string;
-  searchResults?: ReadonlySet<number> | null;
   selectCategory: ECardCategory | "all";
   onCardClick: (card: ICard) => void;
   onOpenCreateCard: (defaultCategory: ECardCategory) => void;
   onDeleteCard: (cardId: number) => Promise<void>;
-  onUpdateCard?: (cardId: number, patch: CardMetadataPatch) => Promise<ICard>;
+  onUpdateCard: (cardId: number, patch: CardMetadataPatch) => Promise<ICard>;
   /** 透传 Database：铺在页面纸上，去掉自身卡片外壳 */
   bare?: boolean;
 }
 
-export interface CardDatabaseViewRef {
-  addCardRow: (card: ICard) => void;
-  deleteCardRow: (cardId: number) => void;
-}
-
-const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>((props, ref) => {
+function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
   const {
+    databaseName,
     cards,
     tag = "",
-    searchResults = null,
     selectCategory,
     onCardClick,
     onOpenCreateCard,
@@ -52,6 +46,7 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
   const { isDark } = useTheme();
 
   const databaseRef = useRef<DatabaseRef>(null);
+  const receivedViews = useRef<DataTableView[]>([]);
 
   const {
     views,
@@ -64,7 +59,7 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
     reorderViews,
     setColumnWidth,
     initializeDefaultView,
-  } = useCardDatabaseViewStore();
+  } = useCardDatabasePreferences(databaseName);
 
   // 初始化默认视图
   useEffect(() => {
@@ -72,36 +67,6 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
   }, [initializeDefaultView]);
 
   const getCardText = useMemoizedFn((card: ICard) => getEditorText(card.content, 50));
-
-  useImperativeHandle(ref, () => ({
-    addCardRow: (card: ICard) => {
-      const rowData: RowData = {
-        id: String(card.id),
-        title: getCardText(card),
-        category: card.category,
-        tags: card.tags,
-        links: card.links,
-        create_time: {
-          start: card.create_time,
-          end: card.create_time,
-        } as DateValue,
-        update_time: {
-          start: card.update_time,
-          end: card.update_time,
-        } as DateValue,
-      };
-      databaseRef.current?.dispatch(
-        { type: "rows.apply", changes: { upsert: [rowData], remove: [] } },
-        "external"
-      );
-    },
-    deleteCardRow: (cardId: number) => {
-      databaseRef.current?.dispatch(
-        { type: "rows.apply", changes: { upsert: [], remove: [String(cardId)] } },
-        "external"
-      );
-    },
-  }));
 
   // 收集所有标签
   const allTags = useMemo(() => {
@@ -234,10 +199,8 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
       });
     databaseRef.current?.setQuery({
       filters,
-      searchResults: searchResults === null ? null : Array.from(searchResults, String),
-      grouping: searchResults === null ? "view" : "none",
     });
-  }, [selectCategory, tag, searchResults, allTags, currentView?.id]);
+  }, [selectCategory, tag, allTags, currentView?.id]);
 
   useEffect(() => {
     for (const column of columns) {
@@ -311,6 +274,42 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
     return normalizedConfig;
   }, [currentView, columns, rows]);
 
+  const receiveViews = useMemoizedFn(() => {
+    for (const previous of receivedViews.current) {
+      if (!views.some(view => view.id === previous.id)) {
+        databaseRef.current?.dispatch({ type: "view.remove", id: previous.id }, "external");
+      }
+    }
+    for (const view of views) {
+      databaseRef.current?.dispatch(
+        {
+          type: "view.receive",
+          view: view.id === activeViewId ? { ...view, config: viewConfig } : view,
+          activate: view.id === activeViewId,
+        },
+        "external"
+      );
+    }
+    databaseRef.current?.dispatch(
+      { type: "views.reorder", ids: views.map(view => view.id) },
+      "external"
+    );
+    receivedViews.current = views;
+  });
+  useEffect(() => receiveViews(), [databaseName, views, activeViewId, receiveViews]);
+
+  const receiveWidths = useMemoizedFn(() => {
+    for (const column of columns) {
+      const width = currentView?.config.columnWidths?.[column.id] ?? column.width;
+      if (width !== undefined)
+        databaseRef.current?.dispatch({ type: "column.resize", id: column.id, width }, "external");
+    }
+  });
+  useEffect(
+    () => receiveWidths(),
+    [databaseName, columnWidths, currentView?.id, currentView?.config.columnWidths, receiveWidths]
+  );
+
   const handleRowAdd = useMemoizedFn((defaultData?: Partial<RowData>) => {
     // 提取默认分类
     let defaultCategory: ECardCategory = ECardCategory.Temporary;
@@ -339,8 +338,7 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
       if ("links" in row) patch.links = Array.isArray(row.links) ? (row.links as number[]) : [];
       if (!Object.keys(patch).length) continue;
       try {
-        if (onUpdateCard) await onUpdateCard(id, patch);
-        else await updateCard({ ...card, ...patch });
+        await onUpdateCard(id, patch);
       } catch (error) {
         console.error("Failed to update card:", error);
       }
@@ -372,8 +370,7 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
         createTime: Date.now(),
         updateTime: Date.now(),
       };
-      addView(newView);
-      return newView;
+      return addView(newView);
     }
   );
 
@@ -519,8 +516,10 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
       />
     </div>
   );
-});
+}
 
-CardDatabaseView.displayName = "CardDatabaseView";
+function CardDatabaseView(props: CardDatabaseViewProps) {
+  return <CardDatabaseViewInstance key={props.databaseName} {...props} />;
+}
 
 export default memo(CardDatabaseView);

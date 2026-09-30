@@ -70,6 +70,7 @@ export type DatabaseCommand =
   | { type: "rows.apply"; changes: RowChanges }
   | { type: "rows.receive"; rows: RowData[] }
   | { type: "column.configure"; id: string; config: unknown }
+  | { type: "column.resize"; id: string; width: number }
   | { type: "view.receive"; view: DataTableView; activate?: boolean }
   | { type: "view.remove"; id: number }
   | { type: "views.reorder"; ids: number[] };
