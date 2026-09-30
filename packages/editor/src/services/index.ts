@@ -32,6 +32,7 @@ export type {
   EditorFeedback,
   EditorLoadingHandle,
   EditorConfirmOptions,
+  EditorPromptOptions,
 } from "./notifier";
 
 export { createDefaultEditorSlots } from "./defaultSlots";

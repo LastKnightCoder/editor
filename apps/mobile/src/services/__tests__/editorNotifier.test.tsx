@@ -1,9 +1,15 @@
-// mobile 的编辑器提示服务：提示进 mobile 自己的 toast，确认走 MobileConfirmDialog（返回手势见 router 集成测试）。
+// mobile 的编辑器提示服务：提示进 mobile 自己的 toast，确认走 MobileConfirmDialog，输入走 BottomSheet（返回手势见 router 集成测试）。
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useToastStore } from "../../components/toast";
-import { EditorConfirmHost, mobileEditorNotifier, useEditorConfirmStore } from "../editorNotifier";
+import {
+  EditorConfirmHost,
+  EditorPromptHost,
+  mobileEditorNotifier,
+  useEditorConfirmStore,
+  useEditorPromptStore,
+} from "../editorNotifier";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -80,6 +86,81 @@ describe("mobileEditorNotifier", () => {
       });
       act(() => button("取消").click());
       await expect(result).resolves.toBe(false);
+    });
+  });
+
+  describe("输入", () => {
+    let root: Root;
+    let container: HTMLDivElement;
+
+    beforeEach(() => {
+      vi.stubGlobal("prompt", vi.fn());
+      useEditorPromptStore.setState({ pending: null });
+      container = document.createElement("div");
+      document.body.appendChild(container);
+      root = createRoot(container);
+      act(() => root.render(<EditorPromptHost />));
+    });
+
+    afterEach(() => {
+      act(() => root.unmount());
+      container.remove();
+      document.body.innerHTML = "";
+      vi.unstubAllGlobals();
+    });
+
+    const button = (text: string) =>
+      [...document.querySelectorAll<HTMLButtonElement>("button")].find(
+        b => b.textContent === text
+      )!;
+    const input = () => document.querySelector<HTMLInputElement>("input")!;
+    const type = (value: string) => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+      act(() => {
+        setter.call(input(), value);
+        input().dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    };
+
+    it("弹出底部面板，提交返回去掉首尾空白的值", async () => {
+      let result!: Promise<string | null>;
+      act(() => {
+        result = mobileEditorNotifier.prompt({
+          title: "插入网络图片",
+          confirmText: "插入",
+          inputMode: "url",
+        });
+      });
+      expect(document.body.textContent).toContain("插入网络图片");
+      expect(input().inputMode).toBe("url");
+      expect(button("插入").disabled).toBe(true);
+      type("  https://example.com/a.png ");
+      act(() => button("插入").click());
+      await expect(result).resolves.toBe("https://example.com/a.png");
+      expect(window.prompt).not.toHaveBeenCalled();
+    });
+
+    it("校验不通过时保持打开并就地提示", () => {
+      act(() => {
+        void mobileEditorNotifier.prompt({
+          title: "插入网络视频",
+          confirmText: "插入",
+          validate: () => "该地址属于特殊内容源",
+        });
+      });
+      type("https://b23.tv/x");
+      act(() => button("插入").click());
+      expect(document.querySelector('[role="alert"]')?.textContent).toBe("该地址属于特殊内容源");
+      expect(useEditorPromptStore.getState().pending).not.toBeNull();
+    });
+
+    it("点取消 resolve null", async () => {
+      let result!: Promise<string | null>;
+      act(() => {
+        result = mobileEditorNotifier.prompt({ title: "输入地址" });
+      });
+      act(() => button("取消").click());
+      await expect(result).resolves.toBeNull();
     });
   });
 });

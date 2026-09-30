@@ -1,24 +1,17 @@
-import { useEffect, useState } from "react";
 import { ConfirmDialog } from "@tau/ui";
 import useConfirmStore from "../../stores/useConfirmStore";
+import { useHostedRequestLeader } from "../../stores/createHostedRequestStore";
 
 /**
- * 默认提示服务的确认框（`@tau/ui` ConfirmDialog）。挂在编辑器内，宿主不需要额外挂载。
- * 同页多个编辑器各挂一个：按挂载顺序只让队首渲染，队首卸载后下一个接手，避免叠出两层对话框。
+ * 默认提示服务的确认框（`@tau/ui` ConfirmDialog）。挂在编辑器内，宿主不需要额外挂载；
+ * 同页多个编辑器时只由队首渲染。
  */
 export default function ConfirmHost() {
   const pending = useConfirmStore(state => state.pending);
   const settle = useConfirmStore(state => state.settle);
-  const hosts = useConfirmStore(state => state.hosts);
-  const [token] = useState(() => Symbol("confirm-host"));
+  const isLeader = useHostedRequestLeader(useConfirmStore);
 
-  useEffect(() => {
-    const { attachHost, detachHost } = useConfirmStore.getState();
-    attachHost(token);
-    return () => detachHost(token);
-  }, [token]);
-
-  if (hosts[0] !== token) return null;
+  if (!isLeader) return null;
 
   return (
     <ConfirmDialog

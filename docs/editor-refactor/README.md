@@ -66,7 +66,8 @@
   远程 ER-019 已与本地后续重构整合：协作与桌面 kit 测试夹具补迁 v2，桌面审阅子树遍历补统一类型；原本未提交的图库设置修改保留，验证见 04「远程整合」。
   已完成：第一块（错误隔离 + 未知节点占位，Markdown 兜底语法见 ER-006）；第二块（`defineExtension`、
   `@tau/editor/api`、`fromLegacyExtension`，divide-line 已迁到 v2）；第三块（移除 antd，UI 直接用 `@tau/ui`，ER-018）；
-  mobile 注册了自己的编辑器提示服务（mobile toast + `MobileConfirmDialog`，返回手势等同取消）；
+  mobile 注册了自己的编辑器提示服务（mobile toast + `MobileConfirmDialog` + 输入用 `BottomSheet`，返回手势等同取消；
+  内核单行输入框经 `IEditorNotifier.prompt` 交给宿主，见 ER-020）；
   拖拽样式收口为 `BlockDrag`；编辑器 less 全部转 Tailwind（67 → 0，第三方覆盖留两份 `.vendor.css`）；
   第四块（Markdown codec 按扩展归属：`@tau/editor/markdown` 聚合 40 个内置 codec，`@tau/markdown` 变纯框架，
   宿主只合成一次 codec 列表，desktop 往返基准快照逐字节不变）；第五块（导入端 walker 去类型化：方言完全由 codec

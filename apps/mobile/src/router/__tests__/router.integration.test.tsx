@@ -15,7 +15,11 @@ import {
 } from "../index";
 import { BottomSheet } from "../../components/BottomSheet";
 import { MobileConfirmDialog } from "../../components/MobileConfirmDialog";
-import { EditorConfirmHost, mobileEditorNotifier } from "../../services/editorNotifier";
+import {
+  EditorConfirmHost,
+  EditorPromptHost,
+  mobileEditorNotifier,
+} from "../../services/editorNotifier";
 import { clearPageDefinitionsForTest } from "../registry";
 import { clearPageMetasForTest } from "../core/pageMeta";
 
@@ -133,6 +137,11 @@ function registerPages() {
     params: {},
     component: EditorConfirmHostPage,
   });
+  definePage({
+    key: "editorPromptHost",
+    params: {},
+    component: EditorPromptHostPage,
+  });
 }
 
 // 编辑器经 IEditorNotifier 发起的确认（webview 删除等）：返回手势同样先关确认框
@@ -152,6 +161,27 @@ function EditorConfirmHostPage() {
       </button>
       <EditorConfirmHost />
       <span data-testid="editor-confirm-result">{result}</span>
+    </div>
+  );
+}
+
+// 编辑器经 IEditorNotifier.prompt 发起的输入（插入网络图片 / 视频 / 音频地址）：返回手势先关输入面板
+function EditorPromptHostPage() {
+  const [result, setResult] = useState("pending");
+  return (
+    <div data-testid="editor-prompt-host">
+      <button
+        type="button"
+        onClick={() => {
+          void mobileEditorNotifier
+            .prompt({ title: "插入网络图片", confirmText: "插入" })
+            .then(value => setResult(String(value)));
+        }}
+      >
+        open-editor-prompt
+      </button>
+      <EditorPromptHost />
+      <span data-testid="editor-prompt-result">{result}</span>
     </div>
   );
 }
@@ -727,6 +757,32 @@ describe("容器组件内置返回拦截", () => {
     await act(async () => {
       await new Promise(resolve => setTimeout(resolve, 250));
     });
+    app.cleanup();
+  });
+
+  it("编辑器输入（IEditorNotifier.prompt）：返回等同取消，页面保留", async () => {
+    const app = mountApp();
+    act(() => {
+      getNavigator().push("editorPromptHost", {});
+    });
+    act(() => {
+      (document.querySelector("button") as HTMLButtonElement).click(); // open-editor-prompt
+    });
+    expect(document.body.textContent).toContain("插入网络图片");
+
+    act(() => {
+      getNavigator().goBack("ui");
+    });
+    // BottomSheet 先播退场动画再回调 onClose → 按取消结算
+    await waitFor(() => readFlag("editor-prompt-result") === "null");
+    expect(document.querySelector('[data-testid="editor-prompt-host"]')).toBeTruthy();
+    expect(document.body.textContent).not.toContain("插入网络图片");
+
+    // 输入面板关掉后，下一次返回才弹页面
+    act(() => {
+      getNavigator().goBack("ui");
+    });
+    await waitFor(() => document.querySelector('[data-testid="editor-prompt-host"]') === null);
     app.cleanup();
   });
 });
