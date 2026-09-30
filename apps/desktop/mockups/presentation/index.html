@@ -1,0 +1,846 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cocoa">
+<head>
+<meta charset="utf-8" />
+<title>演示模式 · 三方案样板间</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  body { overflow-x: hidden; }
+  .mock-bar .grp { display: flex; gap: 10px; align-items: center; }
+  .mock-bar .lbl { color: #a89a85; }
+
+  /* ── 模拟显示器：固定逻辑分辨率，整体缩放塞进浏览器 ── */
+  .monitor-wrap { display: flex; justify-content: center; padding: 14px 0 6px; }
+  .monitor-box { position: relative; }
+  .screen { position: absolute; left: 0; top: 0; transform-origin: 0 0; overflow: hidden; border-radius: 6px; box-shadow: 0 0 0 10px #0d0b08, 0 40px 90px -30px rgba(0,0,0,.8); }
+
+  /* ── 演示根：主题只作用于此（不写全局设置） ── */
+  .pres { position: absolute; inset: 0; background: var(--page); color: var(--ink-1); font-family: var(--font); overflow: hidden; }
+  .pres.idle, .pres.idle * { cursor: none !important; }
+
+  /* ── 正文：一律按编辑器常规 px 排版，放大交给外层 zoom ── */
+  .doc { font-size: 16px; line-height: 1.75; color: var(--ink-1); }
+  .doc h1 { font-size: 34px; line-height: 1.3; margin: 0 0 10px; font-weight: 650; letter-spacing: -0.01em; }
+  .doc h2 { font-size: 24px; line-height: 1.35; margin: 0 0 12px; font-weight: 620; }
+  .doc h3 { font-size: 18px; margin: 0 0 8px; font-weight: 600; }
+  .doc p { margin: 0; }
+  .doc .sub { color: var(--ink-2); font-size: 17px; }
+  .doc .meta { color: var(--ink-3); font-size: 13px; margin-top: 18px; }
+  .doc ul, .doc ol { margin: 0; padding-left: 22px; }
+  .doc li + li { margin-top: 4px; }
+  .doc pre { margin: 0; background: var(--code-bg); border: 1px solid var(--line-1); border-radius: 10px; padding: 12px 14px; font: 13.5px/1.65 var(--mono); color: var(--ink-1); overflow: hidden; }
+  .doc pre .k { color: var(--accent-text); } .doc pre .c { color: var(--ink-3); } .doc pre .s { color: var(--ok); }
+  .doc code { font: 0.875em var(--mono); background: var(--hover); padding: 1px 5px; border-radius: 4px; }
+  .doc blockquote { margin: 0; padding: 2px 16px; border-left: 3px solid var(--accent); color: var(--ink-2); font-size: 18px; }
+  .doc .callout { display: flex; gap: 10px; padding: 12px 14px; border-radius: 10px; background: var(--info-soft); color: var(--ink-1); font-size: 15px; }
+  .doc .callout svg.lucide { color: var(--info); margin-top: 4px; }
+  .doc table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  .doc th, .doc td { border: 1px solid var(--line-1); padding: 6px 10px; text-align: left; }
+  .doc th { background: var(--hover); font-weight: 600; }
+  .doc .fig { border: 1px solid var(--line-1); border-radius: 10px; background: var(--surface); padding: 14px; }
+  .doc .fig figcaption { font-size: 12px; color: var(--ink-3); margin-top: 6px; text-align: center; }
+  .blk + .blk { margin-top: 18px; }
+  .blk { transition: opacity 260ms var(--ease), filter 260ms var(--ease); }
+
+  /* ── 文稿滚动视口（A / C） ── */
+  .vp { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; scroll-behavior: smooth; }
+  .vp::-webkit-scrollbar { width: 0; }
+  .col { width: 720px; margin: 0 auto; }
+  .vp.doc-mode .col { padding: 14vh 0 40vh; }
+  .vp.fade-b { -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 80px), transparent); mask-image: linear-gradient(180deg, #000 calc(100% - 80px), transparent); }
+
+  /* 分页（A / C）：页居中，放不下先缩小再滚动 */
+  .pg { min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 8vh 0; }
+  .pg.top { align-items: flex-start; }
+
+  /* 翻页过渡 + 到头回弹 */
+  @keyframes in-next { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+  @keyframes in-prev { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+  @keyframes bounce-r { 30% { transform: translateX(-12px); } }
+  @keyframes bounce-l { 30% { transform: translateX(12px); } }
+  .anim-next { animation: in-next 280ms var(--ease); }
+  .anim-prev { animation: in-prev 280ms var(--ease); }
+  .bounce-r { animation: bounce-r 320ms var(--ease); }
+  .bounce-l { animation: bounce-l 320ms var(--ease); }
+
+  /* ── C 聚光：当前块全亮，其余退后 ── */
+  .spot .blk { opacity: 0.22; filter: saturate(0.4); cursor: pointer; }
+  .spot .blk.cur { opacity: 1; filter: none; cursor: default; }
+  .spot .blk.done { opacity: 0.4; }
+
+  /* ── B 画框舞台 ── */
+  .pres.plan-b { background: var(--sunken); }
+  .frame-wrap { position: absolute; inset: 0; display: grid; place-items: center; }
+  .frame { position: relative; width: 880px; height: 495px; background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-float); overflow: hidden; }
+  .frame-in { position: absolute; inset: 0; padding: 40px 56px; overflow-y: auto; display: flex; flex-direction: column; justify-content: center; }
+  .frame-in.top { justify-content: flex-start; }
+  .frame-in::-webkit-scrollbar { width: 0; }
+  .frame-in.fade-b { -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 50px), transparent); mask-image: linear-gradient(180deg, #000 calc(100% - 50px), transparent); }
+  /* B 镜头推进：画框不动，内容轨道在框内按屏上移 */
+  .frame-in.cam { overflow: hidden; }
+  .frame-in.cam .cam-track { transition: transform 420ms var(--ease); will-change: transform; }
+  .frame-in.cam.fade-t { -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 64px); mask-image: linear-gradient(180deg, transparent 0, #000 64px); }
+  .frame-in.cam.fade-b { -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 64px), transparent); mask-image: linear-gradient(180deg, #000 calc(100% - 64px), transparent); }
+  .frame-in.cam.fade-tb { -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 64px, #000 calc(100% - 64px), transparent); mask-image: linear-gradient(180deg, transparent 0, #000 64px, #000 calc(100% - 64px), transparent); }
+  .cam-dots { position: absolute; right: 18px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 6px; }
+  .cam-dots b { width: 4px; height: 12px; border-radius: 4px; background: var(--line-1); transition: all 240ms var(--ease); }
+  .cam-dots b.on { height: 22px; background: var(--accent); }
+  .cam-more { position: absolute; left: 50%; bottom: 8px; transform: translate(-50%, 4px); color: var(--ink-3); opacity: 0; transition: all 240ms var(--ease); }
+  .cam-more.show { opacity: 1; transform: translate(-50%, 0); animation: nudge 1.8s var(--ease) 0.6s infinite; }
+  @keyframes nudge { 0%, 70%, 100% { transform: translate(-50%, 0); } 35% { transform: translate(-50%, 3px); } }
+  .hud-steps { display: inline-flex; gap: 4px; margin: 0 8px 0 2px; }
+  .hud-steps b { width: 6px; height: 6px; border-radius: 50%; background: var(--line-1); transition: all 200ms var(--ease); }
+  .hud-steps b.on { width: 16px; border-radius: 6px; background: var(--accent); }
+  .th .th-screens { position: absolute; right: 8px; top: 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; padding: 0 7px; line-height: 18px; border-radius: 999px; background: var(--hover); color: var(--ink-2); backdrop-filter: blur(4px); }
+  .th .th-screens svg.lucide { width: 11px; height: 11px; }
+  .th-b .th-in.top { justify-content: flex-start; }
+  .frame .pgno { position: absolute; right: 18px; bottom: 12px; font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+  /* B 底部胶片条：鼠标贴近底边滑出 */
+  .strip { position: absolute; left: 0; right: 0; bottom: 0; height: 128px; display: flex; gap: 12px; justify-content: center; align-items: center; padding: 0 30px; background: linear-gradient(0deg, color-mix(in srgb, var(--sunken) 96%, transparent), transparent); transform: translateY(100%); transition: transform 240ms var(--ease); }
+  .strip.show { transform: none; }
+  .strip .th { flex: none; }
+
+  /* ── 缩略图（全览 / 胶片条共用同一渲染，只换比例） ── */
+  .th { position: relative; border-radius: 10px; overflow: hidden; background: var(--surface); box-shadow: 0 0 0 1px var(--line-1); cursor: pointer; transition: box-shadow 160ms var(--ease), transform 160ms var(--ease); }
+  .th:hover { box-shadow: 0 0 0 2px var(--line-1), var(--shadow-lift); }
+  .th.sel { box-shadow: 0 0 0 2px var(--accent), var(--shadow-lift); }
+  .th.cur::after { content: "当前"; position: absolute; left: 8px; top: 8px; font-size: 10.5px; padding: 0 7px; line-height: 18px; border-radius: 999px; background: var(--accent); color: var(--ink-inv); }
+  .th .th-in { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; }
+  .th .th-no { position: absolute; right: 8px; bottom: 6px; font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .th-a .th-in { width: 720px; padding: 48px 40px; }
+  .th-b .th-in { width: 880px; height: 495px; padding: 40px 56px; display: flex; flex-direction: column; justify-content: center; }
+
+  /* ── 全览 ── */
+  .ov { position: absolute; inset: 0; background: color-mix(in srgb, var(--page) 94%, transparent); backdrop-filter: blur(12px); overflow-y: auto; padding: 64px 90px 80px; opacity: 0; pointer-events: none; transition: opacity 220ms var(--ease); }
+  .ov.show { opacity: 1; pointer-events: auto; }
+  .ov-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 22px; font-size: 20px; font-weight: 600; }
+  .ov-head span { font-size: 13px; font-weight: 400; color: var(--ink-3); }
+  .ov-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 22px; }
+  .ov-grid .th { aspect-ratio: 16 / 10; }
+  .ov-grid .th-b { aspect-ratio: 16 / 9; }
+
+  /* ── HUD 胶囊 ── */
+  .hud { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); display: flex; align-items: center; gap: 2px; height: 44px; padding: 0 6px; border-radius: 999px; background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(10px); box-shadow: 0 0 0 1px var(--line-1), var(--shadow-float); font-size: 13px; color: var(--ink-2); transition: opacity 260ms var(--ease), transform 260ms var(--ease); z-index: 5; }
+  .pres.idle .hud { opacity: 0; transform: translate(-50%, 10px); pointer-events: none; }
+  .plan-b .hud.lift { bottom: 142px; }
+  .hud .hb { height: 32px; min-width: 32px; padding: 0 8px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 999px; color: var(--ink-2); }
+  .hud .hb:hover { background: var(--hover); color: var(--ink-1); }
+  .hud .hb.on { background: var(--selected); color: var(--accent-text); }
+  .hud .hb:disabled { opacity: 0.35; pointer-events: none; }
+  .hud .sep { width: 1px; height: 18px; background: var(--line-1); margin: 0 4px; }
+  .hud .cnt { min-width: 64px; font-variant-numeric: tabular-nums; color: var(--ink-1); font-weight: 550; }
+  .hud .cnt i { font-style: normal; color: var(--ink-3); font-weight: 400; margin: 0 3px; }
+  .hud .sec { max-width: 240px; padding: 0 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink-1); }
+  .hud .sec:empty { display: none; }
+  .hud .jump { color: var(--accent-text); }
+
+  /* 顶部细进度条 */
+  .prog { position: absolute; left: 0; top: 0; height: 3px; background: var(--accent); transition: width 280ms var(--ease); z-index: 4; }
+  .pres.idle .prog { opacity: 0.55; }
+
+  /* A 文稿：右侧章节轨 */
+  .rail { position: absolute; right: 26px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 10px; align-items: flex-end; z-index: 4; transition: opacity 260ms var(--ease); }
+  .pres.idle .rail { opacity: 0.35; }
+  .rail .tk { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .rail .tk b { width: 14px; height: 3px; border-radius: 3px; background: var(--line-1); transition: all 200ms var(--ease); }
+  .rail .tk.past b { background: var(--ink-3); }
+  .rail .tk.on b { width: 26px; background: var(--accent); }
+  .rail .tk span { font-size: 12.5px; color: var(--ink-2); opacity: 0; transform: translateX(6px); transition: all 180ms var(--ease); white-space: nowrap; background: var(--surface); padding: 2px 8px; border-radius: 6px; box-shadow: 0 0 0 1px var(--line-1); }
+  .rail:hover .tk span { opacity: 1; transform: none; }
+  .rail .tk.on span { color: var(--accent-text); }
+
+  /* C 左侧大纲：贴左边缘唤出 */
+  .outline { position: absolute; left: 0; top: 0; bottom: 0; width: 250px; padding: 90px 18px 0 26px; background: linear-gradient(90deg, var(--page) 70%, transparent); transform: translateX(-100%); transition: transform 240ms var(--ease); z-index: 4; font-size: 13px; }
+  .outline.show { transform: none; }
+  .outline .ot { color: var(--ink-3); font-size: 11.5px; margin-bottom: 10px; letter-spacing: 0.04em; }
+  .outline .oi { padding: 5px 10px; border-radius: 8px; color: var(--ink-2); cursor: pointer; border-left: 2px solid transparent; }
+  .outline .oi:hover { background: var(--hover); }
+  .outline .oi.on { color: var(--accent-text); border-left-color: var(--accent); border-radius: 0 8px 8px 0; background: var(--accent-soft); }
+
+  /* 目录浮层（A 文稿） */
+  .toc-pop { position: absolute; left: 50%; bottom: 82px; transform: translateX(-50%) translateY(6px); width: 300px; padding: 6px; border-radius: 14px; background: var(--surface); box-shadow: 0 0 0 1px var(--line-1), var(--shadow-float); font-size: 13.5px; opacity: 0; pointer-events: none; transition: all 180ms var(--ease); z-index: 6; }
+  .toc-pop.show { opacity: 1; pointer-events: auto; transform: translateX(-50%); }
+  .toc-pop div { padding: 7px 12px; border-radius: 9px; cursor: pointer; display: flex; justify-content: space-between; }
+  .toc-pop div:hover { background: var(--hover); }
+  .toc-pop div.on { color: var(--accent-text); background: var(--selected); }
+  .toc-pop div span { color: var(--ink-3); font-size: 12px; }
+
+  /* 进场提示（替代首次自动弹帮助） */
+  .hint { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); font-size: 12.5px; color: var(--ink-3); display: flex; gap: 14px; transition: opacity 600ms var(--ease); z-index: 4; white-space: nowrap; }
+  .hint.gone { opacity: 0; }
+  .plan-b .hint { bottom: 74px; }
+  .hint .kbd { font-size: 11px; }
+
+  /* 帮助面板 */
+  .help { position: absolute; inset: 0; display: grid; place-items: center; background: var(--overlay); opacity: 0; pointer-events: none; transition: opacity 180ms var(--ease); z-index: 8; }
+  .help.show { opacity: 1; pointer-events: auto; }
+  .help-card { width: 520px; padding: 22px 24px; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-float); font-size: 13.5px; }
+  .help-card h3 { margin: 0 0 14px; font-size: 16px; display: flex; justify-content: space-between; align-items: center; }
+  .help-card .rows { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; }
+  .help-card .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; color: var(--ink-2); }
+  .help-card .row span:last-child { display: flex; gap: 4px; }
+  .help-card .gt { grid-column: 1 / -1; font-size: 11.5px; color: var(--ink-3); margin-top: 6px; letter-spacing: 0.04em; }
+
+  /* 顶部 toast */
+  .toast { position: absolute; left: 50%; top: 22px; transform: translateX(-50%) translateY(-8px); padding: 0 14px; line-height: 32px; border-radius: 999px; background: var(--ink-1); color: var(--ink-inv); font-size: 13px; opacity: 0; transition: all 200ms var(--ease); z-index: 9; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateX(-50%); }
+
+  /* 测量盒 */
+  #measure { position: absolute; left: -99999px; top: 0; visibility: hidden; }
+</style>
+</head>
+<body>
+<div class="mock-bar">
+  <b>演示模式</b>
+  <span class="grp" id="plans">
+    <a href="#a" data-plan="a">A 纸面沉浸</a>
+    <a href="#b" data-plan="b">B 画框舞台（定稿）</a>
+    <a href="#c" data-plan="c">C 聚光讲稿</a>
+  </span>
+  <span class="sp"></span>
+  <span class="lbl">内容</span>
+  <select id="contentSel">
+    <option value="article">长文 · 非演示向（无分割线）</option>
+    <option value="doc">短文稿（无分割线）</option>
+    <option value="note">一张卡片（无标题无分割线）</option>
+    <option value="paged">分页 · 5 页</option>
+    <option value="long">分页 · 含超长页</option>
+  </select>
+  <span class="lbl bonly">B 断页</span>
+  <select id="bModeSel" class="bonly">
+    <option value="camera">分节 + 镜头推进（新）</option>
+    <option value="split">按高度自动分屏（原 B）</option>
+  </select>
+  <span class="lbl">屏幕</span>
+  <select id="screenSel">
+    <option value="1920x1080">1920×1080 投影</option>
+    <option value="1440x900">1440×900 笔记本</option>
+    <option value="2560x1600">2560×1600 大屏</option>
+  </select>
+  <span class="lbl">画面</span>
+  <select id="themeSel"><option value="cream">浅色</option><option value="cocoa">深色</option></select>
+  <span class="lbl">点画面后用键盘操作 · <span class="kbd">?</span> 看快捷键</span>
+</div>
+
+<div class="monitor-wrap"><div class="monitor-box" id="monitorBox"><div class="screen" id="screen"><div class="pres" id="pres" tabindex="0"></div></div></div></div>
+
+<div class="mock-note" id="note"></div>
+<div style="height:30px"></div>
+<div id="measure"></div>
+
+<script>
+/* ────────── 内容：divider 即分割线块 ────────── */
+const I = n => `<i data-lucide="${n}"></i>`;
+const BASE = [
+  { h: `<h1>一次搞懂事件循环</h1><p class="sub">为什么 <code>setTimeout(fn, 0)</code> 永远排在 Promise 后面</p><p class="meta">前端分享会 · 2026-09-30</p>` },
+  { divider: 1 },
+  { h: `<h2>为什么要关心</h2>`, sec: "为什么要关心" },
+  { h: `<p>页面卡顿、状态更新「慢一拍」、测试里时序偶发失败——这些问题的根源，大多可以追到事件循环的调度顺序。</p>` },
+  { h: `<ul><li>理解渲染时机，避免强制同步布局</li><li>写出可预测的异步代码</li><li>读懂框架的批处理与调度策略</li></ul>` },
+  { divider: 1 },
+  { h: `<h2>宏任务与微任务</h2>`, sec: "宏任务与微任务" },
+  { h: `<p>每轮循环只取<strong>一个</strong>宏任务执行，随后把微任务队列<strong>清空</strong>，再视情况渲染。</p>` },
+  { h: `<pre><span class="k">setTimeout</span>(() => log(<span class="s">"timeout"</span>), 0);
+<span class="k">Promise</span>.resolve().then(() => log(<span class="s">"micro"</span>));
+log(<span class="s">"sync"</span>);
+<span class="c">// sync → micro → timeout</span></pre>` },
+  { h: `<div class="callout">${I("info")}<div>微任务里再排微任务，会在同一轮内继续执行——无限递归会饿死渲染。</div></div>` },
+  { divider: 1 },
+  { h: `<h2>一张图看懂</h2>`, sec: "一张图看懂" },
+  { h: `<figure class="fig" style="margin:0"><svg viewBox="0 0 600 150" width="100%" style="display:block">
+      <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink-3)"/></marker></defs>
+      <g font-size="13" text-anchor="middle" fill="var(--ink-1)">
+        <rect x="10" y="45" width="120" height="56" rx="10" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="70" y="78">宏任务</text>
+        <rect x="170" y="45" width="120" height="56" rx="10" fill="var(--info-soft)" stroke="var(--info)"/><text x="230" y="78">清空微任务</text>
+        <rect x="330" y="45" width="120" height="56" rx="10" fill="var(--ok-soft)" stroke="var(--ok)"/><text x="390" y="78">rAF · 渲染</text>
+        <rect x="490" y="45" width="100" height="56" rx="10" fill="var(--hover)" stroke="var(--line-1)"/><text x="540" y="78">下一轮</text>
+      </g>
+      <g stroke="var(--ink-3)" stroke-width="1.5" fill="none" marker-end="url(#ar)"><path d="M132 73 H166"/><path d="M292 73 H326"/><path d="M452 73 H486"/><path d="M540 43 C540 5 70 5 70 41"/></g>
+    </svg><figcaption>图 1 · 一轮事件循环</figcaption></figure>` },
+  { h: `<p>渲染不是每轮都发生：浏览器按刷新率节流，大约 16.7ms 一次。</p>` },
+  { divider: 1 },
+  { h: `<h2>小结</h2>`, sec: "小结" },
+  { h: `<blockquote>同步代码 → 微任务清空 → 可能的渲染 → 下一个宏任务。</blockquote>` },
+  { h: `<ol><li>别在微任务里做重活</li><li>需要等渲染用 <code>requestAnimationFrame</code></li><li>测试里用假定时器控制宏任务</li></ol>` },
+];
+const LONG_EXTRA = [
+  { h: `<h3>常见任务来源对照</h3>` },
+  { h: `<table><tr><th>来源</th><th>类型</th><th>备注</th></tr><tr><td>setTimeout / setInterval</td><td>宏任务</td><td>最小延迟被钳制到 4ms（嵌套 5 层后）</td></tr><tr><td>Promise.then</td><td>微任务</td><td>async/await 本质相同</td></tr><tr><td>queueMicrotask</td><td>微任务</td><td>比 Promise 更轻</td></tr><tr><td>MessageChannel</td><td>宏任务</td><td>React 调度器用它切片</td></tr><tr><td>requestAnimationFrame</td><td>渲染前回调</td><td>后台标签页暂停</td></tr><tr><td>requestIdleCallback</td><td>空闲回调</td><td>不保证执行时机</td></tr></table>` },
+  { h: `<p>React 18 的并发渲染把长任务切成 5ms 左右的切片，每片结束后通过 <code>MessageChannel</code> 让出主线程，这样输入事件和渲染可以插队。</p>` },
+  { h: `<pre><span class="k">const</span> channel = <span class="k">new</span> MessageChannel();
+channel.port1.onmessage = performWorkUntilDeadline;
+<span class="k">function</span> schedule() { channel.port2.postMessage(<span class="k">null</span>); }</pre>` },
+  { h: `<p>这也解释了为什么 Vue 的 <code>nextTick</code> 选择微任务：它希望在同一轮渲染之前批量刷新 DOM，而不是推迟到下一帧。</p>` },
+];
+
+/* 非演示向长文：节长短悬殊、大段落、长代码、大表、高图 */
+const ARTICLE = [
+  { h: `<h1>笔记同步冲突复盘</h1><p class="meta">技术笔记 · 2026-09-12 · 约 3,200 字</p>` },
+  { h: `<p>上个月陆续收到几例「两台设备同时改同一篇笔记，其中一台的修改丢失」的反馈。排查下来问题不在网络层，而在我们对「最后写入者获胜」这条策略的实现细节上。这篇笔记记录排查过程、根因和修复方案，顺便整理一下同步链路里几个容易误解的时序问题。</p>` },
+  { h: `<h2>背景</h2>`, sec: "背景" },
+  { h: `<p>同步模块最早是按「文档级快照」设计的：每次保存把整篇文档序列化成 JSON，连同本地修改时间一起推到服务端，服务端按修改时间比较，新的覆盖旧的。这个模型在单设备场景下完全没问题，也足够简单，因此一直沿用到现在。</p>` },
+  { h: `<p>问题出在多设备场景。两台设备的系统时钟并不同步，误差从几十毫秒到几分钟都有；更麻烦的是，笔记本合盖休眠后恢复，本地时间可能被 NTP 校正而回拨，导致「更晚的修改」反而带着更早的时间戳。</p>` },
+  { h: `<p>另外，编辑器的自动保存是防抖 800ms 触发的，用户在 A 设备停笔后立刻切到 B 设备继续写，A 的最后一次保存可能在 B 的第一次保存之后才到达服务端。两种因素叠加，就出现了反馈里描述的丢失现象。</p>` },
+  { h: `<h2>结论先行</h2>`, sec: "结论先行" },
+  { h: `<p>改为按块合并 + 向量时钟，时间戳只做展示，不参与冲突裁决。</p>` },
+  { h: `<h2>冲突是怎么产生的</h2>`, sec: "冲突是怎么产生的" },
+  { h: `<p>为了复现，我们在测试环境里把两台设备的时钟人为错开 3 秒，然后用脚本模拟交替编辑。下面是一次典型失败的时序。</p>` },
+  { h: `<h3>时序还原</h3>` },
+  { h: `<pre><span class="c">// 设备 A（时钟快 3s）            设备 B</span>
+t=0.0  A 输入「第一段」
+t=0.8  A 自动保存 → ts=3.8
+t=1.0                                B 拉取，得到「第一段」
+t=1.2                                B 输入「第二段」
+t=2.0                                B 自动保存 → ts=2.0
+t=2.1  A 输入「补充」
+t=2.9  A 自动保存 → ts=5.9
+<span class="c">// 服务端按 ts 比较：</span>
+<span class="c">//   3.8 &lt; 5.9 → 接受 A</span>
+<span class="c">//   2.0 &lt; 5.9 → 丢弃 B 的「第二段」</span>
+<span class="k">return</span> latest(<span class="s">"ts"</span>); <span class="c">// ← 问题所在</span></pre>` },
+  { h: `<p>可以看到，B 的修改在语义上发生在 A 的「补充」之前，但它与 A 的修改并不冲突——两者改的是不同的段落。文档级覆盖把两次互不相干的修改当成了一次冲突，并且用一个不可靠的时间戳做了裁决。</p>` },
+  { h: `<h3>影响面</h3>` },
+  { h: `<table><tr><th>场景</th><th>触发条件</th><th>丢失概率</th><th>用户感知</th></tr><tr><td>双设备交替编辑</td><td>时钟偏差 &gt; 防抖间隔</td><td>高</td><td>段落消失</td></tr><tr><td>休眠恢复</td><td>NTP 回拨</td><td>中</td><td>整篇回退</td></tr><tr><td>离线编辑后上线</td><td>离线期间另一端有修改</td><td>高</td><td>离线内容丢失</td></tr><tr><td>多窗口同设备</td><td>两窗口打开同一篇</td><td>低</td><td>偶发覆盖</td></tr><tr><td>移动端后台</td><td>系统挂起保存任务</td><td>中</td><td>最后几字丢失</td></tr></table>` },
+  { h: `<p>排查中还顺带发现几个相关的小问题：</p>` },
+  { h: `<ul><li>保存失败后重试没有退避，弱网下会连续覆盖</li><li>冲突时没有任何提示，用户以为是自己误删</li><li>回收站只记录整篇删除，不记录内容覆盖</li><li>服务端日志不含设备 ID，无法定位是哪端写入</li><li>移动端与桌面端的防抖间隔不一致（500ms / 800ms）</li><li>导入的旧笔记没有块 ID，无法按块合并</li></ul>` },
+  { h: `<p>这些问题单独看都不大，但叠加在一起让排查变得很困难：用户描述的是「内容没了」，而我们从日志里看到的每一次写入都是「合法」的。</p>` },
+  { h: `<h2>新的同步链路</h2>`, sec: "新的同步链路" },
+  { h: `<figure class="fig" style="margin:0"><svg viewBox="0 0 640 330" width="100%" style="display:block">
+      <defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink-3)"/></marker></defs>
+      <g font-size="13" text-anchor="middle" fill="var(--ink-1)">
+        <rect x="20" y="30" width="150" height="60" rx="10" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="95" y="65">设备 A · 块操作日志</text>
+        <rect x="20" y="240" width="150" height="60" rx="10" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="95" y="275">设备 B · 块操作日志</text>
+        <rect x="245" y="120" width="150" height="90" rx="10" fill="var(--info-soft)" stroke="var(--info)"/><text x="320" y="158">合并器</text><text x="320" y="180" font-size="11" fill="var(--ink-2)">向量时钟 · 按块</text>
+        <rect x="470" y="40" width="150" height="60" rx="10" fill="var(--ok-soft)" stroke="var(--ok)"/><text x="545" y="75">服务端文档</text>
+        <rect x="470" y="230" width="150" height="60" rx="10" fill="var(--warn-soft)" stroke="var(--warn)"/><text x="545" y="265">冲突副本 + 提示</text>
+      </g>
+      <g stroke="var(--ink-3)" stroke-width="1.5" fill="none" marker-end="url(#ar2)"><path d="M170 60 C210 60 210 150 243 150"/><path d="M170 270 C210 270 210 180 243 180"/><path d="M395 150 C430 150 430 70 468 70"/><path d="M395 180 C430 180 430 260 468 260"/></g>
+    </svg><figcaption>图 1 · 按块合并后的同步链路：同块并发编辑才生成冲突副本</figcaption></figure>` },
+  { h: `<h2>下一步</h2>`, sec: "下一步" },
+  { h: `<ol><li>给存量笔记补块 ID（迁移脚本已写好）</li><li>冲突副本在编辑器内以并排对比呈现</li><li>服务端日志补设备 ID 与块级 diff</li><li>统一两端防抖间隔为 600ms</li></ol>` },
+];
+
+function buildBlocks(kind) {
+  if (kind === "article") return ARTICLE;
+  if (kind === "note") return ARTICLE.slice(9, 13).concat(ARTICLE.slice(16, 18)).map(b => ({ h: b.h }));
+  if (kind === "doc") return BASE.filter(b => !b.divider);
+  if (kind === "long") { const arr = BASE.slice(); const i = arr.findIndex(b => b.sec === "一张图看懂"); arr.splice(i + 3, 0, ...LONG_EXTRA); return arr; }
+  return BASE;
+}
+function splitPages(blocks) {
+  const pages = []; let cur = [];
+  for (const b of blocks) { if (b.divider) { if (cur.length) pages.push(cur); cur = []; } else cur.push(b); }
+  if (cur.length) pages.push(cur);
+  return pages;
+}
+const blocksHtml = (bs, offset = 0) => bs.map((b, i) => `<div class="blk" data-i="${offset + i}">${b.h}</div>`).join("");
+
+/* ────────── 状态 ────────── */
+const S = {
+  plan: (location.hash || "#a").slice(1), content: "article", bMode: "camera", step: 0, screen: "1920x1080", theme: "cream",
+  page: 0, block: 0, overview: false, ovSel: 0, help: false, toc: false, spotlight: true, zoomAdj: 1, jump: "",
+  pages: [], docBlocks: [], autoPages: null,
+};
+const $ = s => document.querySelector(s);
+const pres = $("#pres"), screenEl = $("#screen");
+let W = 1920, H = 1080, screenScale = 1;
+
+/* 模拟显示器缩放（样板间外壳，非方案内容） */
+function fitMonitor() {
+  [W, H] = S.screen.split("x").map(Number);
+  const availW = window.innerWidth - 60, availH = window.innerHeight - $(".mock-bar").offsetHeight - 50;
+  screenScale = Math.min(availW / W, availH / H);
+  screenEl.style.width = W + "px"; screenEl.style.height = H + "px";
+  screenEl.style.transform = `scale(${screenScale})`;
+  $("#monitorBox").style.width = W * screenScale + "px"; $("#monitorBox").style.height = H * screenScale + "px";
+}
+
+/* 核心缩放口径：版心按编辑器 720 排版，整体放大到屏宽约 68% */
+const docZoom = () => ((W - W * 0.32) / 720) * S.zoomAdj;
+const frameZoom = () => Math.min((W - 120) / 880, (H - 120) / 495);
+const MIN_FIT = 0.75;
+
+function measure(html, width, cls = "") {
+  const m = $("#measure"); m.setAttribute("data-theme", S.theme);
+  m.innerHTML = `<div class="doc ${cls}" style="width:${width}px">${html}</div>`;
+  return m.firstChild.offsetHeight;
+}
+function measureBlocks(bs, width) {
+  const m = $("#measure"); m.setAttribute("data-theme", S.theme);
+  m.innerHTML = `<div class="doc" style="width:${width}px">${blocksHtml(bs)}</div>`;
+  return [...m.firstChild.children].map(el => el.offsetHeight);
+}
+
+/* B 文稿：按标题强制断页 + 放不下断页，自动分屏 */
+function autoPaginate(bs) {
+  const avail = 495 - 80, gap = 18; const hs = measureBlocks(bs, 880 - 112);
+  const pages = []; let cur = [], acc = 0;
+  bs.forEach((b, i) => {
+    const h = hs[i]; const need = cur.length ? acc + gap + h : h;
+    if (cur.length && (b.sec || need > avail)) { pages.push(cur); cur = [b]; acc = h; }
+    else { cur.push(b); acc = need; }
+  });
+  if (cur.length) pages.push(cur);
+  return pages;
+}
+
+/* B 镜头推进：断页只看结构（分割线 > 二级标题），不看高度 */
+function sectionPages(bs) {
+  const pages = []; let cur = [];
+  for (const b of bs) { if (b.sec && cur.length) { pages.push(cur); cur = []; } cur.push(b); }
+  if (cur.length) pages.push(cur);
+  return pages;
+}
+const FRAME = { w: 880, h: 495, px: 56, py: 40, gap: 18 };
+const CAM_W = FRAME.w - FRAME.px * 2, CAM_H = FRAME.h - FRAME.py * 2;
+const SHRINK_MIN = 0.8;
+const isHeading = b => /^<h[1-3]/.test(b.h);
+
+/* 一节的放映计划：放得下居中 → 超一点整体缩小 → 再长按块边界切成若干「屏」，画框不动内容上移 */
+function planCamera(bs) {
+  const hs = measureBlocks(bs, CAM_W);
+  const tops = []; let y = 0;
+  hs.forEach(h => { tops.push(y); y += h + FRAME.gap; });
+  const total = y - FRAME.gap;
+  if (total <= CAM_H) return { fit: 1, steps: [0], total, center: true };
+  if (total * SHRINK_MIN <= CAM_H) return { fit: CAM_H / total, steps: [0], total, center: true };
+  const steps = [0]; let off = 0;
+  while (off + CAM_H < total) {
+    const limit = off + CAM_H;
+    const i = hs.findIndex((h, k) => tops[k] + h > limit);
+    let nextOff = tops[i];
+    // 标题不落单：屏底的标题跟随下一块进下一屏
+    if (i > 0 && isHeading(bs[i - 1]) && tops[i - 1] > off) nextOff = tops[i - 1];
+    // 单块高于一屏：块内按 85% 屏高推进，保留一行上下文
+    if (nextOff <= off) nextOff = off + CAM_H * 0.85;
+    steps.push(nextOff); off = nextOff;
+  }
+  return { fit: 1, steps, total, center: false };
+}
+
+function derive() {
+  const bs = buildBlocks(S.content);
+  S.docBlocks = bs.filter(b => !b.divider);
+  S.isDoc = !bs.some(b => b.divider);
+  const camera = S.plan === "b" && S.bMode === "camera";
+  if (camera) S.pages = S.isDoc ? sectionPages(S.docBlocks) : splitPages(bs);
+  else S.pages = S.isDoc ? (S.plan === "b" ? autoPaginate(S.docBlocks) : [S.docBlocks]) : splitPages(bs);
+  S.page = Math.min(S.page, S.pages.length - 1);
+  S.cams = camera ? S.pages.map(planCamera) : null;
+  if (S.cams) S.step = Math.min(S.step, S.cams[S.page].steps.length - 1);
+}
+const cam = () => S.cams && S.cams[S.page];
+const paged = () => S.pages.length > 1 && !(S.isDoc && S.plan !== "b");
+
+/* ────────── 渲染 ────────── */
+function render(anim) {
+  derive();
+  pres.setAttribute("data-theme", S.theme);
+  pres.className = "pres plan-" + S.plan + (pres.classList.contains("idle") ? " idle" : "");
+  let html = "";
+  if (S.plan === "b") html += renderFrame(anim);
+  else html += S.isDoc ? renderDocScroll() : renderPage(anim);
+  html += renderHud() + renderOverview() + renderHelp() + `<div class="toast" id="toast"></div>`;
+  if (!hintShown) html += renderHint();
+  pres.innerHTML = html;
+  lucide.createIcons();
+  afterRender();
+}
+
+function renderDocScroll() {
+  const spot = S.plan === "c" && S.spotlight;
+  let h = `<div class="vp doc-mode ${spot ? "spot" : ""}" id="vp"><div class="col doc" style="zoom:${docZoom()}">${blocksHtml(S.docBlocks)}</div></div>`;
+  h += `<div class="prog" id="prog" style="width:0"></div>`;
+  const secs = S.docBlocks.map((b, i) => b.sec ? { t: b.sec, i } : null).filter(Boolean);
+  if (S.plan === "a") h += `<div class="rail" id="rail">${secs.map(s => `<div class="tk" data-go="${s.i}"><span>${s.t}</span><b></b></div>`).join("")}</div>`;
+  if (S.plan === "c") h += `<div class="outline" id="outline"><div class="ot">大纲</div>${secs.map(s => `<div class="oi" data-go="${s.i}">${s.t}</div>`).join("")}</div>`;
+  if (S.plan === "a") h += `<div class="toc-pop ${S.toc ? "show" : ""}" id="toc">${secs.map((s, n) => `<div data-go="${s.i}">${s.t}<span>${n + 1}</span></div>`).join("")}</div>`;
+  return h;
+}
+
+function renderPage(anim) {
+  const bs = S.pages[S.page]; const z = docZoom();
+  const hNat = measure(blocksHtml(bs), 720);
+  const avail = H * 0.84;
+  const fit = Math.max(MIN_FIT, Math.min(1, avail / (hNat * z)));
+  const overflow = hNat * z * fit > avail;
+  const spot = S.plan === "c" && S.spotlight;
+  const offset = S.pages.slice(0, S.page).reduce((n, p) => n + p.length, 0);
+  let h = `<div class="vp ${overflow ? "fade-b" : ""} ${spot ? "spot" : ""}" id="vp"><div class="pg ${overflow ? "top" : ""}"><div class="col doc ${anim ? "anim-" + anim : ""}" id="pgcol" style="zoom:${z * fit}">${blocksHtml(bs, offset)}</div></div></div>`;
+  h += `<div class="prog" style="width:${((S.page + 1) / S.pages.length) * 100}%"></div>`;
+  if (fit < 1) setTimeout(() => toast(overflow ? `本页过长：已缩小到 ${Math.round(fit * 100)}%，剩余可滚动` : `本页较长：已自动缩小到 ${Math.round(fit * 100)}%`), 50);
+  if (S.plan === "c") {
+    const secs = S.pages.map((p, i) => ({ t: (p.find(b => b.sec) || {}).sec || "封面", i }));
+    h += `<div class="outline" id="outline"><div class="ot">页面</div>${secs.map(s => `<div class="oi ${s.i === S.page ? "on" : ""}" data-page="${s.i}">${s.i + 1}　${s.t}</div>`).join("")}</div>`;
+  }
+  return h;
+}
+
+function renderCameraFrame(anim) {
+  const bs = S.pages[S.page]; const c = cam(); const z = frameZoom();
+  if (c.fit < 1) setTimeout(() => toast(`本节略长：已缩小到 ${Math.round(c.fit * 100)}%`), 50);
+  const offset = S.pages.slice(0, S.page).reduce((n, p) => n + p.length, 0);
+  const multi = c.steps.length > 1;
+  let h = `<div class="frame-wrap" id="fw"><div class="frame ${anim ? "anim-" + anim : ""}" style="zoom:${z}">
+    <div class="frame-in cam ${c.center ? "" : "top"}" id="vp"><div class="doc cam-track" id="track" style="zoom:${c.fit}">${blocksHtml(bs, offset)}</div></div>
+    ${multi ? `<div class="cam-dots" id="camDots">${c.steps.map((_, i) => `<b data-step="${i}"></b>`).join("")}</div><div class="cam-more" id="camMore">${I("chevron-down")}</div>` : ""}
+    ${S.pages.length > 1 ? `<div class="pgno">${S.page + 1}</div>` : ""}</div></div>`;
+  if (S.pages.length > 1) {
+    h += `<div class="prog" style="width:${((S.page + 1) / S.pages.length) * 100}%"></div>`;
+    h += `<div class="strip" id="strip">${S.pages.map((p, i) => thumb(p, i, "b", 0.17, i === S.page)).join("")}</div>`;
+  }
+  return h;
+}
+
+/* 同一页内换屏不重渲染，只移镜头，保证过渡连贯 */
+function applyCamera() {
+  const c = cam(); if (!c) return;
+  const track = $("#track"), vp = $("#vp"); if (!track) return;
+  const off = c.steps[S.step] || 0;
+  track.style.transform = `translateY(${-off}px)`;
+  const more = off + CAM_H < c.total - 1;
+  vp.classList.toggle("fade-t", S.step > 0);
+  vp.classList.toggle("fade-b", more);
+  vp.classList.toggle("fade-tb", S.step > 0 && more);
+  $("#camMore")?.classList.toggle("show", more);
+  document.querySelectorAll("#camDots b").forEach((d, i) => d.classList.toggle("on", i === S.step));
+  document.querySelectorAll("#hudSteps b").forEach((d, i) => d.classList.toggle("on", i === S.step));
+}
+
+function renderFrame(anim) {
+  if (cam()) return renderCameraFrame(anim);
+  const bs = S.pages[S.page]; const z = frameZoom();
+  const hNat = measure(blocksHtml(bs), 880 - 112);
+  const avail = 495 - 80;
+  const fit = Math.max(0.7, Math.min(1, avail / hNat));
+  const overflow = hNat * fit > avail;
+  if (fit < 1) setTimeout(() => toast(overflow ? `本页过长：已缩小到 ${Math.round(fit * 100)}%，画框内可滚动` : `本页较长：已自动缩小到 ${Math.round(fit * 100)}%`), 50);
+  const offset = S.pages.slice(0, S.page).reduce((n, p) => n + p.length, 0);
+  let h = `<div class="frame-wrap" id="fw"><div class="frame ${anim ? "anim-" + anim : ""}" style="zoom:${z}">
+    <div class="frame-in ${overflow ? "top fade-b" : ""}" id="vp"><div class="doc" style="zoom:${fit}">${blocksHtml(bs, offset)}</div></div>
+    ${S.pages.length > 1 ? `<div class="pgno">${S.page + 1}</div>` : ""}</div></div>`;
+  if (S.pages.length > 1) {
+    h += `<div class="prog" style="width:${((S.page + 1) / S.pages.length) * 100}%"></div>`;
+    h += `<div class="strip" id="strip">${S.pages.map((p, i) => thumb(p, i, "b", 0.17, i === S.page)).join("")}</div>`;
+  }
+  return h;
+}
+
+function thumb(bs, i, kind, scale, isCur, isSel) {
+  const w = (kind === "b" ? 880 : 720) * scale;
+  const style = kind === "b" && scale !== 1 ? `width:${w}px;height:${495 * scale}px` : "";
+  const c = kind === "b" && S.cams ? S.cams[i] : null;
+  const screens = c ? c.steps.length : 1;
+  return `<div class="th th-${kind} ${isCur ? "cur" : ""} ${isSel ? "sel" : ""}" data-page="${i}" style="${style}">
+    <div class="th-in doc ${c && !c.center ? "top" : ""}" style="transform:scale(${scale})"><div style="zoom:${c ? c.fit : 1}">${blocksHtml(bs)}</div></div>
+    ${screens > 1 ? `<span class="th-screens">${I("layers")}${screens} 屏</span>` : ""}
+    <span class="th-no">${i + 1}</span></div>`;
+}
+
+function curSection() {
+  if (paged() || (S.plan === "b")) {
+    const p = S.pages[S.page]; const sec = (p.find(b => b.sec) || {}).sec; if (sec) return sec;
+    const h1 = (p[0].h.match(/^<h1>(.*?)<\/h1>/) || [])[1];
+    return h1 || (S.pages.length > 1 && S.page === 0 ? "开篇" : "");
+  }
+  return S.curSec || S.docBlocks[0] && "开篇";
+}
+
+function renderHud() {
+  const P = paged();
+  const pc = S.pages.length;
+  let h = `<div class="hud ${S.plan === "b" && stripOpen ? "lift" : ""}" id="hud">`;
+  if (P) {
+    h += `<button class="hb" data-act="prev" ${S.page === 0 ? "disabled" : ""} title="上一页 ←">${I("chevron-left")}</button>`;
+    h += `<button class="hb cnt" data-act="ov" title="全览 O">${S.jump ? `<span class="jump">跳到 ${S.jump}▍</span>` : `${S.page + 1}<i>/</i>${pc}`}</button>`;
+    const lastScreen = !cam() || S.step === cam().steps.length - 1;
+    h += `<button class="hb" data-act="next" ${S.page === pc - 1 && lastScreen ? "disabled" : ""} title="下一页 →">${I("chevron-right")}</button>`;
+    h += `<span class="sep"></span><span class="sec" id="sec">${curSection()}</span>${stepDots()}<span class="sep"></span>`;
+    h += `<button class="hb ${S.overview ? "on" : ""}" data-act="ov" title="全览 O">${I("layout-grid")}</button>`;
+  } else if (cam()) {
+    // 只有一节：不显示 1/1，多屏时只露屏点
+    h += `<span class="sec" id="sec">${curSection()}</span>${stepDots()}<span class="sep"></span>`;
+  } else {
+    // 文稿：不显示 1/1，只露当前章节
+    h += `<button class="hb" data-act="toc" title="${S.plan === "c" ? "大纲" : "目录 G"}">${I("list")}</button>`;
+    h += `<span class="sec" id="sec">${curSection()}</span><span class="sep"></span>`;
+    h += `<button class="hb" data-act="zoomout" title="缩小 −">${I("minus")}</button><button class="hb" data-act="zoomin" title="放大 +">${I("plus")}</button>`;
+  }
+  if (S.plan === "c") h += `<button class="hb ${S.spotlight ? "on" : ""}" data-act="spot" title="聚光 S">${I("sparkles")}</button>`;
+  h += `<button class="hb" data-act="theme" title="画面明暗 T">${I(S.theme === "cream" ? "moon" : "sun")}</button>`;
+  h += `<button class="hb" data-act="full" title="全屏 F">${I("maximize")}</button>`;
+  h += `<button class="hb" data-act="help" title="快捷键 ?">${I("keyboard")}</button>`;
+  h += `<span class="sep"></span><button class="hb" data-act="exit" title="退出 Esc">${I("x")}</button></div>`;
+  return h;
+}
+
+function stepDots() {
+  const c = cam(); if (!c || c.steps.length < 2) return "";
+  return `<span class="hud-steps" id="hudSteps" title="本节第几屏">${c.steps.map((_, i) => `<b class="${i === S.step ? "on" : ""}"></b>`).join("")}</span>`;
+}
+
+function renderOverview() {
+  if (!paged() && S.plan !== "b") return "";
+  if (S.pages.length < 2) return "";
+  const kind = S.plan === "b" ? "b" : "a";
+  return `<div class="ov ${S.overview ? "show" : ""}" id="ov"><div class="ov-head">全览<span>${S.pages.length} 页 · 方向键选择 · Enter 进入 · Esc 返回</span></div>
+    <div class="ov-grid">${S.pages.map((p, i) => thumb(p, i, kind, 1, i === S.page, i === S.ovSel)).join("")}</div></div>`;
+}
+
+function renderHelp() {
+  const P = paged() || S.plan === "b" && S.pages.length > 1;
+  const row = (t, ...k) => `<div class="row"><span>${t}</span><span>${k.map(x => `<span class="kbd">${x}</span>`).join("")}</span></div>`;
+  let r = `<div class="gt">${P ? "翻页" : "阅读"}</div>`;
+  if (P) r += row("下一页", "→", "Space", "PgDn") + row("上一页", "←", "PgUp") + row("首页 / 末页", "Home", "End") + row("跳到第 N 页", "数字", "Enter") + row("点击画面", "右侧下翻 / 左侧上翻");
+  else if (S.plan === "c") r += row("下一块", "↓", "Space") + row("上一块", "↑") + row("上 / 下一节", "←", "→") + row("聚光开关", "S");
+  else r += row("下翻一屏", "Space", "PgDn") + row("上 / 下一节", "←", "→") + row("目录", "G") + row("放大 / 缩小", "+", "−");
+  if (S.plan === "c" && P) r += row("逐块推进", "↓", "↑") + row("聚光开关", "S");
+  r += `<div class="gt">画面</div>` + (P ? row("全览", "O") : "") + row("画面明暗（仅演示）", "T") + row("全屏", "F") + row("快捷键", "?") + row("退出", "Esc");
+  return `<div class="help ${S.help ? "show" : ""}" id="help"><div class="help-card"><h3>快捷键 <button class="ib" data-act="help">${I("x")}</button></h3><div class="rows">${r}</div></div></div>`;
+}
+
+let hintShown = false;
+function renderHint() {
+  const P = paged() || (S.plan === "b" && S.pages.length > 1);
+  const k = x => `<span class="kbd">${x}</span>`;
+  const parts = P ? [`${k("←")} ${k("→")} 翻页`, `${k("O")} 全览`] : S.plan === "c" ? [`${k("↓")} 推进到下一块`, `${k("S")} 关闭聚光`] : [`${k("Space")} 下翻`, `${k("←")} ${k("→")} 切换章节`];
+  parts.push(`${k("?")} 快捷键`, `${k("Esc")} 退出`);
+  return `<div class="hint" id="hint">${parts.map(p => `<span>${p}</span>`).join("")}</div>`;
+}
+
+/* ────────── 渲染后：滚动联动 / 聚光 / 缩略图填充 ────────── */
+function afterRender() {
+  if (!hintShown) { setTimeout(() => { const h = $("#hint"); h && h.classList.add("gone"); hintShown = true; }, 3200); }
+  // 全览缩略图：按卡片宽度等比缩放同一份渲染
+  document.querySelectorAll(".ov-grid .th").forEach(th => {
+    const inner = th.querySelector(".th-in"); const base = th.classList.contains("th-b") ? 880 : 720;
+    inner.style.transform = `scale(${th.clientWidth / base})`;
+  });
+  const vp = $("#vp");
+  if (!vp) return;
+  if (S.isDoc && S.plan !== "b") {
+    vp.addEventListener("scroll", onDocScroll);
+    if (S.restoreScroll != null) { vp.style.scrollBehavior = "auto"; vp.scrollTop = S.restoreScroll; vp.style.scrollBehavior = ""; S.restoreScroll = null; }
+    onDocScroll(); requestAnimationFrame(() => requestAnimationFrame(onDocScroll));
+  }
+  applySpot(false);
+  applyCamera();
+}
+
+function onDocScroll() {
+  const vp = $("#vp"); if (!vp) return;
+  const p = vp.scrollTop / Math.max(1, vp.scrollHeight - vp.clientHeight);
+  const prog = $("#prog"); if (prog) prog.style.width = p * 100 + "%";
+  const vr = vp.getBoundingClientRect(); const line = vr.top + vr.height * 0.35;
+  let cur = "开篇", curIdx = -1;
+  vp.querySelectorAll(".blk").forEach(el => { const b = S.docBlocks[+el.dataset.i]; if (b.sec && el.getBoundingClientRect().top <= line) { cur = b.sec; curIdx = +el.dataset.i; } });
+  S.curSec = cur; S.curSecIdx = curIdx;
+  const sec = $("#sec"); if (sec) sec.textContent = cur;
+  let past = true;
+  document.querySelectorAll("#rail .tk, #outline .oi[data-go], #toc div").forEach(el => {
+    const on = +el.dataset.go === curIdx; el.classList.toggle("on", on);
+  });
+  document.querySelectorAll("#rail .tk").forEach(el => { el.classList.toggle("past", +el.dataset.go < curIdx); });
+}
+
+function scrollToBlock(i, where = 0.3) {
+  const vp = $("#vp"); const el = vp.querySelector(`.blk[data-i="${i}"]`); if (!el) return;
+  const delta = (el.getBoundingClientRect().top - vp.getBoundingClientRect().top) / screenScale;
+  vp.scrollTop += delta - vp.clientHeight * where;
+}
+
+function applySpot(scroll = true) {
+  if (S.plan !== "c" || !S.spotlight) return;
+  const vp = $("#vp"); if (!vp) return;
+  vp.querySelectorAll(".blk").forEach(el => { const i = +el.dataset.i; el.classList.toggle("cur", i === S.block); el.classList.toggle("done", i < S.block); });
+  if (scroll && S.isDoc) scrollToBlock(S.block, 0.38);
+  if (!S.isDoc && scroll) { const el = vp.querySelector(`.blk[data-i="${S.block}"]`); if (el && vp.scrollHeight > vp.clientHeight) scrollToBlock(S.block, 0.38); }
+}
+
+/* ────────── 动作 ────────── */
+let toastT;
+function toast(t) { const el = $("#toast"); if (!el) return; el.textContent = t; el.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("show"), 1800); }
+function bounce(dir) { const el = $("#pgcol") || $(".frame") || $("#vp"); if (!el) return; el.classList.remove("anim-next", "anim-prev", "bounce-l", "bounce-r"); void el.offsetWidth; el.classList.add(dir > 0 ? "bounce-r" : "bounce-l"); }
+const pageStart = p => S.pages.slice(0, p).reduce((n, x) => n + x.length, 0);
+
+function goPage(p, anim, atEnd) {
+  if (p < 0 || p >= S.pages.length) { bounce(p < 0 ? -1 : 1); return; }
+  const dir = anim || (p > S.page ? "next" : "prev");
+  S.page = p; S.block = pageStart(p);
+  S.step = atEnd && S.cams ? S.cams[p].steps.length - 1 : 0;
+  render(dir);
+}
+function setStep(n) { S.step = n; applyCamera(); refreshHud(); }
+function next() {
+  if (S.plan === "c" && S.spotlight && !paged()) { if (S.block < S.docBlocks.length - 1) { S.block++; applySpot(); } else bounce(1); return; }
+  if (S.plan === "c" && S.spotlight && paged()) { const end = pageStart(S.page) + S.pages[S.page].length - 1; if (S.block < end) { S.block++; applySpot(); return; } }
+  if (cam() && S.step < cam().steps.length - 1) return setStep(S.step + 1);
+  if (paged() || S.plan === "b") return goPage(S.page + 1);
+  const vp = $("#vp"); vp.scrollTop += vp.clientHeight * 0.8;
+}
+function prev() {
+  if (S.plan === "c" && S.spotlight && !paged()) { if (S.block > 0) { S.block--; applySpot(); } else bounce(-1); return; }
+  if (S.plan === "c" && S.spotlight && paged()) { if (S.block > pageStart(S.page)) { S.block--; applySpot(); return; } if (S.page > 0) { goPage(S.page - 1); S.block = pageStart(S.page) + S.pages[S.page].length - 1; applySpot(false); return; } }
+  if (cam() && S.step > 0) return setStep(S.step - 1);
+  if (paged() || S.plan === "b") return goPage(S.page - 1, "prev", true);
+  const vp = $("#vp"); vp.scrollTop -= vp.clientHeight * 0.8;
+}
+function jumpSection(dir) {
+  const secs = S.docBlocks.map((b, i) => b.sec ? i : -1).filter(i => i >= 0);
+  const cur = S.plan === "c" && S.spotlight ? S.block : (S.curSecIdx ?? -1);
+  const target = dir > 0 ? secs.find(i => i > cur) : [...secs].reverse().find(i => i < cur) ?? (cur > 0 ? 0 : undefined);
+  if (target == null) { bounce(dir); return; }
+  if (S.plan === "c" && S.spotlight) { S.block = target; applySpot(); } else scrollToBlock(target, 0.12);
+}
+function setZoom(d) {
+  S.zoomAdj = Math.min(1.6, Math.max(0.7, +(S.zoomAdj + d).toFixed(2)));
+  const vp = $("#vp"); S.restoreScroll = vp ? vp.scrollTop / Math.max(1, vp.scrollHeight) : 0;
+  const ratio = S.restoreScroll; S.restoreScroll = null; render();
+  const v2 = $("#vp"); if (v2) { v2.style.scrollBehavior = "auto"; v2.scrollTop = ratio * v2.scrollHeight; v2.style.scrollBehavior = ""; }
+  toast(`演示缩放 ${Math.round(S.zoomAdj * 100)}%`);
+}
+function toggleTheme() {
+  const vp = $("#vp"); const st = vp ? vp.scrollTop : null;
+  S.theme = S.theme === "cream" ? "cocoa" : "cream"; $("#themeSel").value = S.theme;
+  if (st != null && S.isDoc && S.plan !== "b") S.restoreScroll = st;
+  render(); toast(S.theme === "cream" ? "画面：浅色（仅本次演示）" : "画面：深色（仅本次演示）");
+}
+function openOverview() {
+  if (!(paged() || (S.plan === "b" && S.pages.length > 1))) { if (S.plan === "a") { S.toc = !S.toc; $("#toc")?.classList.toggle("show", S.toc); } else { outlineOpen = !outlineOpen; $("#outline")?.classList.toggle("show", outlineOpen); } return; }
+  S.overview = true; S.ovSel = S.page; render();
+}
+function exitAll() {
+  if (S.help) { S.help = false; $("#help").classList.remove("show"); return; }
+  if (S.toc) { S.toc = false; $("#toc").classList.remove("show"); return; }
+  if (S.overview) { S.overview = false; $("#ov").classList.remove("show"); return; }
+  toast(paged() || S.plan === "b" ? `退出演示 → 编辑器定位到第 ${S.page + 1} 页` : `退出演示 → 编辑器定位到「${curSection()}」`);
+}
+function ovColumns() {
+  const items = [...document.querySelectorAll(".ov-grid .th")]; if (!items.length) return 1;
+  const top = items[0].offsetTop; return items.filter(el => el.offsetTop === top).length;
+}
+function ovSelect(i) {
+  S.ovSel = Math.max(0, Math.min(S.pages.length - 1, i));
+  document.querySelectorAll(".ov-grid .th").forEach((el, n) => el.classList.toggle("sel", n === S.ovSel));
+}
+
+/* ────────── 事件：统一一处键盘仲裁 ────────── */
+pres.addEventListener("keydown", e => {
+  const k = e.key;
+  if (k === "Escape") return exitAll();
+  if (k === "?" ) { S.help = !S.help; $("#help").classList.toggle("show", S.help); return; }
+  if (S.help) return;
+  if (S.overview) {
+    const c = ovColumns();
+    const m = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: c, ArrowUp: -c }[k];
+    if (m) { e.preventDefault(); ovSelect(S.ovSel + m); }
+    if (k === "Enter") { S.overview = false; goPage(S.ovSel, "next"); }
+    if (k === "o" || k === "O") exitAll();
+    return;
+  }
+  const P = paged() || S.plan === "b";
+  if (P && /^[0-9]$/.test(k)) { S.jump = (S.jump + k).slice(0, 3); refreshHud(); return; }
+  if (P && k === "Enter" && S.jump) { const n = +S.jump - 1; S.jump = ""; if (n >= 0 && n < S.pages.length) goPage(n); else { refreshHud(); toast(`没有第 ${n + 1} 页`); } return; }
+  if (P && k === "Backspace" && S.jump) { S.jump = S.jump.slice(0, -1); refreshHud(); return; }
+  if (S.jump) { S.jump = ""; refreshHud(); }
+  const docLike = !P;
+  if (["ArrowRight", "PageDown", " "].includes(k) || (k === "ArrowDown" && (P || S.plan === "c"))) {
+    if (docLike && k === "ArrowRight") { e.preventDefault(); return jumpSection(1); }
+    e.preventDefault(); return next();
+  }
+  if (["ArrowLeft", "PageUp"].includes(k) || (k === "ArrowUp" && (P || S.plan === "c"))) {
+    if (docLike && k === "ArrowLeft") { e.preventDefault(); return jumpSection(-1); }
+    e.preventDefault(); return prev();
+  }
+  if (P && k === "Home") return goPage(0, "prev");
+  if (P && k === "End") return goPage(S.pages.length - 1, "next");
+  if (k === "o" || k === "O" || k === "g" || k === "G") return openOverview();
+  if (k === "t" || k === "T") return toggleTheme();
+  if (k === "f" || k === "F") return toast("切换窗口全屏（走 BrowserWindow.setFullScreen）");
+  if ((k === "s" || k === "S") && S.plan === "c") { S.spotlight = !S.spotlight; const vp = $("#vp"); S.restoreScroll = vp && S.isDoc ? vp.scrollTop : null; render(); toast(S.spotlight ? "聚光：开" : "聚光：关（普通阅读）"); return; }
+  if (docLike && (k === "+" || k === "=")) return setZoom(0.1);
+  if (docLike && (k === "-" || k === "_")) return setZoom(-0.1);
+});
+function refreshHud() { const h = $("#hud"); if (!h) return; h.outerHTML = renderHud(); lucide.createIcons(); }
+
+pres.addEventListener("click", e => {
+  pres.focus();
+  const a = e.target.closest("[data-act]");
+  if (a) {
+    const act = a.dataset.act;
+    ({ prev, next, ov: () => (S.overview ? exitAll() : openOverview()), toc: openOverview, theme: toggleTheme, help: () => { S.help = !S.help; $("#help").classList.toggle("show", S.help); },
+       full: () => toast("切换窗口全屏（走 BrowserWindow.setFullScreen）"), exit: () => { S.help = S.toc = S.overview = false; exitAll(); }, zoomin: () => setZoom(0.1), zoomout: () => setZoom(-0.1),
+       spot: () => { S.spotlight = !S.spotlight; const vp = $("#vp"); S.restoreScroll = vp && S.isDoc ? vp.scrollTop : null; render(); } })[act]?.();
+    return;
+  }
+  const th = e.target.closest(".th"); if (th) { S.overview = false; goPage(+th.dataset.page, "next"); return; }
+  const go = e.target.closest("[data-go]"); if (go) { S.toc = false; $("#toc")?.classList.remove("show"); const i = +go.dataset.go; if (S.plan === "c" && S.spotlight) { S.block = i; applySpot(); } else scrollToBlock(i, 0.12); return; }
+  const pg = e.target.closest(".oi[data-page]"); if (pg) { goPage(+pg.dataset.page); return; }
+  if (e.target.closest(".help-card") || e.target.closest(".toc-pop") || e.target.closest(".hud")) return;
+  if (e.target.closest("#help")) { S.help = false; $("#help").classList.remove("show"); return; }
+  // C 聚光：点任意块即聚焦
+  const blk = e.target.closest(".spot .blk"); if (blk) { S.block = +blk.dataset.i; applySpot(); return; }
+  // 分页：点击右 2/3 下一页、左 1/3 上一页（文稿不拦截点击，便于选字）
+  if (paged() || (S.plan === "b" && S.pages.length > 1)) {
+    if (window.getSelection().toString()) return;
+    const r = screenEl.getBoundingClientRect(); ((e.clientX - r.left) / r.width > 1 / 3 ? next : prev)();
+  }
+});
+
+/* 鼠标静止 2s 隐藏 HUD 与光标；贴底边唤出 B 胶片条，贴左边缘唤出 C 大纲 */
+let idleT, stripOpen = false, outlineOpen = false;
+pres.addEventListener("mousemove", e => {
+  pres.classList.remove("idle"); clearTimeout(idleT);
+  idleT = setTimeout(() => { if (!S.overview && !S.help && !S.toc && !stripOpen) pres.classList.add("idle"); }, 2000);
+  const r = screenEl.getBoundingClientRect(); const y = (e.clientY - r.top) / screenScale, x = (e.clientX - r.left) / screenScale;
+  if (S.plan === "b") { const want = y > H - (stripOpen ? 150 : 70); if (want !== stripOpen) { stripOpen = want; $("#strip")?.classList.toggle("show", want); $("#hud")?.classList.toggle("lift", want && !!$("#strip")); } }
+  if (S.plan === "c") { const want = x < (outlineOpen ? 270 : 36); if (want !== outlineOpen) { outlineOpen = want; $("#outline")?.classList.toggle("show", want); } }
+});
+pres.addEventListener("wheel", e => {
+  // 分页：触控板横扫翻页（纵向滚轮留给超长页内滚动）
+  if (cam() && Math.abs(e.deltaY) > 40 && Math.abs(e.deltaY) > Math.abs(e.deltaX) && !wheelLock) { wheelLock = true; (e.deltaY > 0 ? next : prev)(); setTimeout(() => (wheelLock = false), 600); return; }
+  if (!(paged() || (S.plan === "b" && S.pages.length > 1))) return;
+  if (Math.abs(e.deltaX) > 30 && Math.abs(e.deltaX) > Math.abs(e.deltaY) && !wheelLock) { wheelLock = true; (e.deltaX > 0 ? next : prev)(); setTimeout(() => (wheelLock = false), 600); }
+}, { passive: true });
+let wheelLock = false;
+
+/* ────────── 样板间外壳 ────────── */
+const NOTES = {
+  a: `<h3>A 纸面沉浸 · 把编辑器的那张纸直接放大</h3>
+  <ul><li>版心与编辑页一致按 720 排版，外层整体放大到屏宽约 68%——所见即所讲，编辑器块怎么写（px / em / rem）都不影响。</li>
+  <li><b>文稿（无分割线）</b>：连续滚动，不显示页码；右侧章节轨标出讲到哪一节（悬停出标题），胶囊只露当前章节 + 目录 + 缩放；<span class="kbd">Space</span> 下翻一屏、<span class="kbd">←</span><span class="kbd">→</span> 跳节、<span class="kbd">+</span><span class="kbd">−</span> 现场调缩放。</li>
+  <li><b>分页</b>：每页垂直居中，横向滑入；太长先缩到 75% 仍放不下才页内滚动 + 底边渐隐。</li>
+  <li class="pro">优点：最贴近「文稿演示」，对内容零约束；实现最轻（一个缩放容器）。</li><li class="con">代价：没有固定画幅，投影上每页留白不一；页感弱于幻灯片。</li></ul>`,
+  b: `<h3>B 画框舞台 · 固定 16:9，但不要求作者按幻灯片写</h3>
+  <ul><li><b>断页只看结构，不看高度</b>：有分割线按分割线；没有就按二级标题分节；两者都没有，整篇就是一节。页码只数「节」，全篇只有一节时不显示页码。</li>
+  <li><b>一节怎么放进画框，按三级阶梯处理</b>：① 放得下就居中；② 超出不多（缩到 80% 以内能放下）就整体缩小；③ 再长就<b>镜头推进</b>——画框不动，内容在框里一屏屏上移（Space / → / 滚轮）。每屏的切点落在块的边界上，标题不会单独留在屏底；单块高过一屏时在块内推进，并留一行上下文。</li>
+  <li><b>提示</b>：框右侧的竖条和胶囊里的小点表示本节第几屏，底边的 ⌄ 表示下面还有内容。全览和胶片条的缩略图上用「N 屏」角标标出多屏的节。</li>
+  <li>顶部可以切到「按高度自动分屏（原 B）」对比：原方案会把一节切成好几页，长段落的上下文被截断，还会出现只剩一两行的尾页。</li>
+  <li class="pro">优点：保留画框的仪式感和稳定的画幅，不要求作者为演示重新排版；缩略图和放映所见即所得。</li><li class="con">代价：很长的一节要按好几次才能讲完。之后可以加一个可选的节内拆分：列表、表格按行拆，续页加「（续）」。</li></ul>`,
+  c: `<h3>C 聚光讲稿 · 讲到哪亮到哪</h3>
+  <ul><li>排版同 A，但当前块全亮、已讲过的半透明、未讲的退后；<span class="kbd">↓</span>/<span class="kbd">Space</span> 逐块推进，自动滚到视线 38% 处；点任意块直接聚焦；<span class="kbd">S</span> 关聚光即回到 A 的普通阅读。</li>
+  <li><b>文稿</b>：不显示页码，只露当前章节；<span class="kbd">←</span><span class="kbd">→</span> 跳节。鼠标贴左边缘唤出大纲。</li>
+  <li><b>分页</b>：页内逐块推进，推进到最后一块再翻页（类似 v-click，但不需要任何标记语法）。</li>
+  <li class="pro">优点：最适合「拿笔记讲给人听」，听众视线有焦点，不需要为演示单独排版。</li><li class="con">代价：按键次数多；图表类大块的聚光意义不大。</li></ul>`,
+};
+function syncShell() {
+  document.querySelectorAll("#plans a").forEach(a => a.classList.toggle("on", a.dataset.plan === S.plan));
+  document.querySelectorAll(".bonly").forEach(el => (el.style.display = S.plan === "b" ? "" : "none"));
+  $("#note").innerHTML = NOTES[S.plan] + `<p style="margin:10px 0 0;color:var(--ink-3)">三方案共用：一处键盘仲裁（Esc 按 帮助 → 目录/全览 → 退出 逐层关）、画面明暗只作用于演示层、鼠标静止 2s 隐藏 HUD 与光标、翻页笔 PgUp/PgDn、数字 + Enter 跳页、到头回弹代替 toast、进场 3s 提示代替首次强弹帮助、退出时编辑器定位回当前页/节。</p>`;
+  document.documentElement.setAttribute("data-theme", S.theme);
+}
+function reset() { S.page = 0; S.step = 0; S.block = 0; S.overview = false; S.help = false; S.toc = false; S.jump = ""; S.zoomAdj = 1; stripOpen = false; outlineOpen = false; }
+document.querySelectorAll("#plans a").forEach(a => a.addEventListener("click", e => { e.preventDefault(); S.plan = a.dataset.plan; history.replaceState(null, "", "#" + S.plan); reset(); syncShell(); render(); pres.focus(); }));
+$("#contentSel").addEventListener("change", e => { S.content = e.target.value; reset(); render(); pres.focus(); });
+$("#bModeSel").addEventListener("change", e => { S.bMode = e.target.value; reset(); render(); pres.focus(); });
+$("#screenSel").addEventListener("change", e => { S.screen = e.target.value; fitMonitor(); render(); pres.focus(); });
+$("#themeSel").addEventListener("change", e => { S.theme = e.target.value; syncShell(); render(); pres.focus(); });
+window.addEventListener("resize", () => { fitMonitor(); });
+
+if (!["a", "b", "c"].includes(S.plan)) S.plan = "a";
+fitMonitor(); syncShell(); render(); pres.focus();
+</script>
+</body>
+</html>
