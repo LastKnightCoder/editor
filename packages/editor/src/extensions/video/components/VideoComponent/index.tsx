@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
 import { Transforms } from "slate";
@@ -12,7 +12,12 @@ import useIsLastElement from "../../../../hooks/useIsLastElement";
 
 import { If, VideoPlayer } from "@tau/shared";
 
-import { IVideoContentProviders, useEditorSlots, useOptionalService } from "../../../../services";
+import {
+  IVideoContentProviders,
+  useEditorSlots,
+  useNotifier,
+  useOptionalService,
+} from "../../../../services";
 import { openLocalMediaPicker } from "../../../../utils/mediaInsert";
 import {
   MEDIA_ALIGN_CLASS,
@@ -20,6 +25,20 @@ import {
   MEDIA_CORNER_POSITION_CLASS,
   MEDIA_RESIZE_INFO_CLASS,
 } from "../../../../utils/mediaFrameClasses";
+import VideoSelectionToolbar, { WIDTH_PRESETS } from "./VideoSelectionToolbar";
+
+const MIN_WIDTH = 200;
+
+/** 从地址里取文件名作为无标题视频的显示名 */
+const fileNameOf = (src: string) => {
+  const path = src.split(/[?#]/)[0];
+  const name = path.split(/[\\/]/).filter(Boolean).pop() ?? "";
+  try {
+    return decodeURIComponent(name);
+  } catch {
+    return name;
+  }
+};
 
 const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   const { element, children, attributes } = props;
@@ -32,6 +51,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   const [maxWidth, setMaxWidth] = useState<number>(Infinity);
   const [isSelected, setIsSelected] = useState(false);
   const { Video } = useEditorSlots();
+  const notifier = useNotifier();
   const videoProviders = useOptionalService(IVideoContentProviders) ?? [];
 
   const matchedProvider = useMemo(
@@ -40,6 +60,17 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   );
 
   const { src, uploading, playbackRate = 1, width, align = "center" } = element;
+
+  // 底栏信息位：「来源 · 标题」，无标题的直链 / 本地文件退回文件名
+  const info = useMemo(() => {
+    const title = typeof element.metaInfo?.title === "string" ? element.metaInfo.title : undefined;
+    const parts = [
+      matchedProvider?.label,
+      title ?? (matchedProvider ? undefined : fileNameOf(src)),
+    ];
+    const text = parts.filter(Boolean).join(" · ");
+    return text ? <span className="truncate">{text}</span> : undefined;
+  }, [element.metaInfo, matchedProvider, src]);
 
   // 外部点击取消选中
   useEffect(() => {
@@ -54,29 +85,60 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     return () => document.removeEventListener("mousedown", handleDocMouseDown);
   }, []);
 
-  // 计算编辑器可用最大宽度
-  useEffect(() => {
+  const getEditorWidth = useMemoizedFn(() => {
     const editorEl = containerRef.current?.closest(
       '[data-slate-editor="true"]'
     ) as HTMLElement | null;
-    if (editorEl) {
-      setMaxWidth(editorEl.clientWidth);
+    return editorEl?.clientWidth ?? 0;
+  });
+
+  // 计算编辑器可用最大宽度
+  useEffect(() => {
+    const editorWidth = getEditorWidth();
+    if (editorWidth) {
+      setMaxWidth(editorWidth);
     }
-  }, []);
+  }, [getEditorWidth]);
+
+  const setElementProps = useMemoizedFn((props: Partial<VideoElement>) => {
+    const path = ReactEditor.findPath(editor, element);
+    Transforms.setNodes(editor, props, { at: path });
+  });
 
   const updateElementWidth = useMemoizedFn((newWidth?: number) => {
     if (typeof newWidth !== "number") return;
-    const path = ReactEditor.findPath(editor, element);
-    Transforms.setNodes(editor, { width: newWidth }, { at: path });
+    setElementProps({ width: newWidth });
   });
 
-  const handleSelect = useMemoizedFn((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (readOnly) {
-      return;
+  // 捕获阶段选中：暂停态的播放覆盖层、底栏按钮上按下同样算选中本块
+  const handleSelect = useMemoizedFn(() => {
+    if (!readOnly) {
+      setIsSelected(true);
     }
-    setIsSelected(true);
+  });
+
+  const presetWidth = (ratio: number) => {
+    const available = getEditorWidth() || maxWidth;
+    return Number.isFinite(available) ? Math.max(MIN_WIDTH, Math.round(available * ratio)) : 0;
+  };
+
+  const handleWidthPreset = useMemoizedFn((ratio: number) => {
+    const next = presetWidth(ratio);
+    resize.setSize({ width: next });
+    updateElementWidth(next);
+  });
+
+  const handleCopyLink = useMemoizedFn(() => {
+    navigator.clipboard
+      .writeText(src)
+      .then(() => notifier.success("视频地址已复制"))
+      .catch(() => notifier.error("复制失败"));
+  });
+
+  const handlePlaybackRateChange = useMemoizedFn((rate: number) => {
+    if (!readOnly) {
+      setElementProps({ playbackRate: rate });
+    }
   });
 
   const handleVideoLoad = useMemoizedFn(() => {
@@ -100,7 +162,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
 
   const resize = useImageResize({
     initialSize: { width },
-    minWidth: 200,
+    minWidth: MIN_WIDTH,
     maxWidth,
     minHeight: 100,
     aspectRatio:
@@ -124,40 +186,51 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
 
   // 包裹视频的容器，添加调整大小功能；也是业务内容源解析出地址后的通用播放入口
   const renderPlayback = (videoUrl: string, useLocalVideo = true) => {
+    const currentWidth = resize.size.width ?? width;
+    const activePreset =
+      currentWidth == null
+        ? null
+        : (WIDTH_PRESETS.find(ratio => Math.abs(presetWidth(ratio) - currentWidth) <= 2) ?? null);
+    const playerProps = {
+      ref: videoRef,
+      className: "w-full cursor-default",
+      src: videoUrl,
+      playbackRate,
+      onPlaybackRateChange: handlePlaybackRateChange,
+      info,
+      onLoadedMetadata: handleVideoLoad,
+    };
+
     return (
       <div
         ref={containerRef}
         className={cn(
-          "relative my-0 block w-fit max-w-full rounded-none",
+          "rounded-tau-md relative my-0 block w-fit max-w-full",
           MEDIA_ALIGN_CLASS[align],
           isSelected &&
-            "after:pointer-events-none after:absolute after:-inset-[2px] after:rounded-none after:border-[1.5px] after:border-solid after:border-[var(--ed-accent)] after:content-['']"
+            !readOnly &&
+            "outline-solid outline-2 outline-offset-[3px] outline-[var(--ed-accent)]"
         )}
         style={{
           width: resize.size.width ? `${resize.size.width}px` : width ? `${width}px` : "auto",
           maxWidth: "100%",
         }}
+        onPointerDownCapture={handleSelect}
       >
+        {!readOnly && isSelected && (
+          <VideoSelectionToolbar
+            align={align}
+            activePreset={activePreset}
+            onAlign={next => setElementProps({ align: next })}
+            onWidthPreset={handleWidthPreset}
+            onCopyLink={handleCopyLink}
+          />
+        )}
         {useLocalVideo ? (
-          <Video
-            ref={videoRef}
-            className="block max-w-full cursor-default"
-            width={"100%"}
-            controls
-            src={videoUrl}
-            playbackRate={playbackRate}
-            onClick={handleSelect}
-            onLoadedMetadata={handleVideoLoad}
-          />
+          <Video {...playerProps} controls />
         ) : (
-          <VideoPlayer
-            ref={videoRef}
-            className="block max-w-full cursor-default"
-            src={videoUrl}
-            playbackRate={playbackRate}
-            onClick={handleSelect}
-            onLoadedMetadata={handleVideoLoad}
-          />
+          // 流式地址每次解析都会变，续播按节点的原始地址记忆
+          <VideoPlayer {...playerProps} persistKey={src} />
         )}
         {!readOnly && isSelected && (
           <>

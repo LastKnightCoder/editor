@@ -385,6 +385,15 @@ describe("导入导出往返（directive 语法）", () => {
     expect(md.getMarkdown(content).trim()).toBe(markdown);
   });
 
+  it("video metaInfo 里的中文标题往返不乱码", () => {
+    const meta = { type: "bilibili", bvid: "BV1xx", cid: "1", title: "费曼学习法 · 第 3 讲" };
+    const metaInfo = btoa(unescape(encodeURIComponent(JSON.stringify(meta))));
+    const markdown = `:::video{src="https://www.bilibili.com/video/BV1xx" metaInfo="${metaInfo}"}\n:::`;
+    const content = md.importFromMarkdown(markdown);
+    expect(content[0]).toMatchObject({ type: "video", metaInfo: meta });
+    expect(md.getMarkdown(content).trim()).toBe(markdown);
+  });
+
   it("chart 数据往返保留", () => {
     const data = btoa(unescape(encodeURIComponent(JSON.stringify([{ x: 1 }]))));
     const config = btoa(unescape(encodeURIComponent(JSON.stringify({ type: "line" }))));

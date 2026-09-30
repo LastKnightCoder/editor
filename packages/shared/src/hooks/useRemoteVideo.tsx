@@ -1,10 +1,10 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 // Type definitions
 export interface RemoteVideoStreamProgress {
   downloaded: number;
   total: number;
-  stage: 'downloading' | 'completed' | 'error';
+  stage: "downloading" | "completed" | "error";
   message?: string;
   percent?: number;
 }
@@ -14,6 +14,8 @@ export interface UseRemoteVideoResult {
   loading: boolean;
   error: string | null;
   streamProgress: RemoteVideoStreamProgress | null;
+  /** 失败后重新取源 */
+  retry: () => void;
 }
 
 // Platform-agnostic progress type
@@ -34,24 +36,25 @@ export interface UseRemoteVideoDeps {
     },
     onProgress?: (progress: RemoteVideoCacheProgress) => void
   ) => Promise<{ localUrl: string; fileSize: number; cached: boolean }>;
-  getCacheStatus: (url: string) => Promise<{ cached: boolean; localPath?: string; fileSize?: number } | null>;
+  getCacheStatus: (
+    url: string
+  ) => Promise<{ cached: boolean; localPath?: string; fileSize?: number } | null>;
   showError: (message: string) => void;
   isRemoteUrl: (url: string) => boolean;
 }
 
 // Base hook with explicit dependencies
-export function useRemoteVideo(
-  src?: string,
-  deps?: UseRemoteVideoDeps
-): UseRemoteVideoResult {
+export function useRemoteVideo(src?: string, deps?: UseRemoteVideoDeps): UseRemoteVideoResult {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [streamProgress, setStreamProgress] = useState<RemoteVideoStreamProgress | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => setAttempt(value => value + 1), []);
 
   useEffect(() => {
     if (!deps) {
-      console.warn('useRemoteVideo: deps not provided');
+      console.warn("useRemoteVideo: deps not provided");
       return;
     }
 
@@ -69,12 +72,12 @@ export function useRemoteVideo(
         const cacheStatus = await deps.getCacheStatus(src);
 
         if (cacheStatus?.cached && cacheStatus.localPath) {
-          console.log('[useRemoteVideo] Video already cached:', cacheStatus.localPath);
+          console.log("[useRemoteVideo] Video already cached:", cacheStatus.localPath);
           setVideoUrl(cacheStatus.localPath);
           setStreamProgress({
             downloaded: cacheStatus.fileSize || 0,
             total: cacheStatus.fileSize || 0,
-            stage: 'completed',
+            stage: "completed",
             message: `Using cached file (${((cacheStatus.fileSize || 0) / 1024 / 1024).toFixed(2)}MB)`,
             percent: 100,
           });
@@ -92,31 +95,28 @@ export function useRemoteVideo(
         setStreamProgress({
           downloaded: 0,
           total: 0,
-          stage: 'downloading',
-          message: 'Starting video download...',
+          stage: "downloading",
+          message: "Starting video download...",
           percent: 0,
         });
 
         // Cache the video with progress
-        const result = await deps.cacheVideo(
-          { url: src },
-          (progress) => {
-            setStreamProgress({
-              downloaded: progress.downloaded || 0,
-              total: progress.total || 0,
-              stage: progress.stage as 'downloading' | 'completed' | 'error',
-              message: progress.message,
-              percent: progress.progress,
-            });
-          }
-        );
+        const result = await deps.cacheVideo({ url: src }, progress => {
+          setStreamProgress({
+            downloaded: progress.downloaded || 0,
+            total: progress.total || 0,
+            stage: progress.stage as "downloading" | "completed" | "error",
+            message: progress.message,
+            percent: progress.progress,
+          });
+        });
 
         setVideoUrl(result.localUrl);
 
         setStreamProgress({
           downloaded: result.fileSize,
           total: result.fileSize,
-          stage: 'completed',
+          stage: "completed",
           message: result.cached
             ? `Using cached file (${(result.fileSize / 1024 / 1024).toFixed(2)}MB)`
             : `Download completed (${(result.fileSize / 1024 / 1024).toFixed(2)}MB)`,
@@ -127,8 +127,8 @@ export function useRemoteVideo(
           setStreamProgress(null);
         }, 2000);
       } catch (err) {
-        console.error('Failed to process remote video:', err);
-        const errorMessage = err instanceof Error ? err.message : 'Failed to download video';
+        console.error("Failed to process remote video:", err);
+        const errorMessage = err instanceof Error ? err.message : "Failed to download video";
         setError(errorMessage);
         deps.showError(`Video download failed: ${errorMessage}`);
 
@@ -144,13 +144,14 @@ export function useRemoteVideo(
     return () => {
       setStreamProgress(null);
     };
-  }, [src, deps]);
+  }, [src, deps, attempt]);
 
   return {
     videoUrl,
     loading,
     error,
     streamProgress,
+    retry,
   };
 }
 
@@ -161,9 +162,7 @@ const RemoteVideoDepsContext = createContext<UseRemoteVideoDeps | null>(null);
 export function useRemoteVideoWithContext(src?: string): UseRemoteVideoResult {
   const deps = useContext(RemoteVideoDepsContext);
   if (!deps) {
-    throw new Error(
-      'useRemoteVideoWithContext must be used within RemoteVideoDepsProvider'
-    );
+    throw new Error("useRemoteVideoWithContext must be used within RemoteVideoDepsProvider");
   }
   return useRemoteVideo(src, deps);
 }
@@ -176,9 +175,5 @@ export function RemoteVideoDepsProvider({
   children: React.ReactNode;
   deps: UseRemoteVideoDeps;
 }) {
-  return (
-    <RemoteVideoDepsContext.Provider value={deps}>
-      {children}
-    </RemoteVideoDepsContext.Provider>
-  );
+  return <RemoteVideoDepsContext.Provider value={deps}>{children}</RemoteVideoDepsContext.Provider>;
 }

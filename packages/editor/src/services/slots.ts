@@ -22,6 +22,10 @@ export interface ImageSlotProps {
 export type VideoSlotProps = React.VideoHTMLAttributes<HTMLVideoElement> & {
   src: string;
   playbackRate?: number;
+  /** 用户在播放器里改了倍速（宿主播放器支持时回调，编辑器据此写回节点） */
+  onPlaybackRateChange?: (rate: number) => void;
+  /** 播放器底栏信息位（来源 · 标题），原生实现忽略 */
+  info?: ReactNode;
   ref?: Ref<HTMLVideoElement>;
 };
 

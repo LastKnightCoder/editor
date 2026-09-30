@@ -1,18 +1,16 @@
 import React, { forwardRef, useState, useRef, useEffect, useCallback, memo } from "react";
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import type WebSocketClient from "../../utils/WebSocketClient";
-import { VideoPlayer } from "@tau/shared";
+import { VideoPlayer, type VideoPlayerProps } from "@tau/shared";
 
 interface RpcLocalVideoProps {
   src: string;
   wsClient: WebSocketClient | null;
 }
 
-type RpcLocalVideoElementProps = Omit<React.VideoHTMLAttributes<HTMLVideoElement>, "src">;
+type RpcLocalVideoElementProps = Omit<VideoPlayerProps, "src">;
 
 type RpcLocalVideoCombinedProps = RpcLocalVideoProps & RpcLocalVideoElementProps;
-
-const VIDEO_POSITION_PREFIX = "video_position_";
 
 function getMimeType(ext: string): string {
   const mimeTypes: Record<string, string> = {
@@ -165,45 +163,6 @@ const RpcLocalVideo = memo(
       }
     }, [previewUrl, getVideoElement]);
 
-    // 播放位置记忆
-    useEffect(() => {
-      const videoElement = getVideoElement();
-      if (!videoElement || !previewUrl) return;
-
-      const storageKey = `${VIDEO_POSITION_PREFIX}${src}`;
-
-      const handleLoadedMetadata = () => {
-        const savedPosition = localStorage.getItem(storageKey);
-        if (savedPosition && currentTime.current === 0) {
-          const position = parseFloat(savedPosition);
-          if (!isNaN(position) && position >= 0 && position < videoElement.duration) {
-            videoElement.currentTime = position;
-            currentTime.current = position;
-          }
-        }
-      };
-
-      const handleTimeUpdate = () => {
-        if (videoElement.currentTime >= 0) {
-          localStorage.setItem(storageKey, videoElement.currentTime.toString());
-        }
-      };
-
-      const handleEnded = () => {
-        localStorage.removeItem(storageKey);
-      };
-
-      videoElement.addEventListener("loadedmetadata", handleLoadedMetadata);
-      videoElement.addEventListener("timeupdate", handleTimeUpdate);
-      videoElement.addEventListener("ended", handleEnded);
-
-      return () => {
-        videoElement.removeEventListener("loadedmetadata", handleLoadedMetadata);
-        videoElement.removeEventListener("timeupdate", handleTimeUpdate);
-        videoElement.removeEventListener("ended", handleEnded);
-      };
-    }, [src, previewUrl, getVideoElement]);
-
     const handleOnError = useMemoizedFn(async () => {
       // 错误时回退到原始 URL
       if (currentMethod.current !== "default") {
@@ -224,6 +183,7 @@ const RpcLocalVideo = memo(
         onError={handleOnError}
         src={previewUrl}
         crossOrigin="anonymous"
+        persistKey={src}
         {...rest}
       />
     );
