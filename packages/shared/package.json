@@ -4,6 +4,8 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "exports": {
+    "./service-contract": "./service-contract.ts",
+    "./runtime-style": "./runtime-style.ts",
     "./markdown-directives": "./markdown-directives.ts",
     ".": {
       "types": "./src/index.ts",

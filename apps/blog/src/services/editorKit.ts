@@ -5,6 +5,7 @@ import { createEditorKit, createImageExtensions, type EditorKit } from "@tau/edi
 import webviewExtension from "@tau/editor-webview";
 import customBlockExtension from "@tau/editor-custom-block";
 import { diagramExtensions } from "@tau/editor-diagram";
+import { htmlExtensions } from "@tau/editor-html";
 import { blogContentLinkExtension } from "../editorExtensions/contentLinkExtension";
 import {
   blogEditorServices,
@@ -20,6 +21,7 @@ export function getBlogKit(settings?: BlogPublishSettings): EditorKit {
     kit = createEditorKit({
       extensions: [
         ...diagramExtensions,
+        ...htmlExtensions,
         customBlockExtension,
         blogContentLinkExtension,
         webviewExtension,

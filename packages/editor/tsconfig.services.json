@@ -1,0 +1,5 @@
+{
+  "extends": "../markdown/tsconfig.json",
+  "include": ["api/services.ts"],
+  "exclude": []
+}

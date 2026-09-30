@@ -2,7 +2,6 @@ export {
   createServiceId,
   IResourceService,
   IFileService,
-  ICompilerService,
   IOpenerService,
   IThemeService,
   IExtensionErrorReporter,

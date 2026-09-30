@@ -1,4 +1,4 @@
-import type { ServiceIdentifier } from "./tokens";
+import type { ServiceIdentifier } from "@tau/shared/service-contract";
 
 /**
  * 服务注册表：编辑器所有平台能力的唯一容器。

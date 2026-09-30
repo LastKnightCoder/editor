@@ -43,7 +43,7 @@ const deleteBackward: ElementBehaviors<HeaderElement>["deleteBackward"] = (
   if (!selection || !Range.isCollapsed(selection)) return false;
   if (!Editor.isStart(editor, selection.anchor, path)) return false;
 
-  const isEmpty = node.children.every(child => isInlineElementEmpty(child));
+  const isEmpty = node.children.every(child => isInlineElementEmpty(child, editor));
   if (!isEmpty) {
     const prevBlock = Editor.previous(editor, {
       at: path,

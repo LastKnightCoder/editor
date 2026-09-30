@@ -87,6 +87,7 @@ module.exports = {
       files: [
         "packages/editor-custom-block/src/**/*.{ts,tsx}",
         "packages/editor-diagram/src/**/*.{ts,tsx}",
+        "packages/editor-html/src/**/*.{ts,tsx}",
       ],
       excludedFiles: ["**/__tests__/**"],
       rules: {
@@ -96,7 +97,7 @@ module.exports = {
             paths: [{ name: "@tau/editor", message: "扩展访问内核只能通过 @tau/editor/api" }],
             patterns: [
               {
-                group: ["@tau/editor/*", "!@tau/editor/api"],
+                group: ["@tau/editor/*", "!@tau/editor/api", "!@tau/editor/api/services"],
                 message: "扩展访问内核只能通过 @tau/editor/api",
               },
               { group: ["**/editor/src/**"], message: "禁止相对路径深引内核实现" },
@@ -194,6 +195,8 @@ module.exports = {
         "packages/editor-custom-block/src/markdown.ts",
         "packages/editor-diagram/markdown.ts",
         "packages/editor-diagram/src/**/markdown.ts",
+        "packages/editor-html/markdown.ts",
+        "packages/editor-html/src/**/markdown.ts",
       ],
       rules: {
         "no-restricted-imports": [

@@ -1,7 +1,6 @@
 import React, { forwardRef } from "react";
 import {
   createServiceRegistry,
-  ICompilerService,
   IEditorSlots,
   IFileService,
   IResourceService,
@@ -9,6 +8,8 @@ import {
   type ServiceRegistration,
   type VideoContentProvider,
 } from "@tau/editor";
+import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
+import { ITypstCompiler } from "@tau/editor-diagram/services";
 export { extensionImportFromMarkdown } from "./editorMarkdown";
 import type WebSocketClient from "../utils/WebSocketClient";
 import type { ResolvedTheme } from "../utils/types";
@@ -99,12 +100,14 @@ export function createExtensionEditorServices({
       getHomeDir: async () => "",
     });
 
-    register(ICompilerService, {
-      typst: async (code: string) => {
+    register(ITypstCompiler, {
+      compile: async (code: string) => {
         return rpc<string>("compiler.typst", { code });
       },
-      tailwindRuntime: async (html: string) => {
-        return rpc<string>("compiler.tailwindRuntime", { html });
+    });
+    register(IRuntimeStyleCompiler, {
+      compile: async ({ source, language }) => {
+        return rpc<string>("compiler.tailwindRuntime", { html: source, extension: language });
       },
     });
 

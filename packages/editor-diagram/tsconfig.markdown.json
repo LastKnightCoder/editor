@@ -2,6 +2,7 @@
   "extends": "../markdown/tsconfig.json",
   "include": [
     "markdown.ts",
+    "services.ts",
     "src/extensions/*/markdown.ts",
     "src/types/**/*.ts",
     "../markdown/src/runtime-globals.d.ts"

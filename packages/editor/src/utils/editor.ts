@@ -125,7 +125,7 @@ export const isParagraphAndEmpty = (editor: Editor) => {
     return false;
   }
   const [node] = match as NodeEntry<ParagraphElement>;
-  return node.children.length === 1 && isInlineElementEmpty(node.children[0]);
+  return node.children.length === 1 && isInlineElementEmpty(node.children[0], editor);
 };
 
 export const isCollapsed = (editor: Editor) => {

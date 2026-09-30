@@ -1,9 +1,9 @@
 import { RenderElementProps } from "slate-react";
-import type { HTMLBlockElement } from "../../../types";
+import type { HTMLBlockElement } from "../../../../types";
 import React, { PropsWithChildren, Fragment } from "react";
-import PreviewWithEditor from "../../../../components/PreviewWithEditor";
+import { PreviewWithEditor } from "@tau/editor/api";
 import { useTailwindRuntimeCss } from "../../../../hooks/useTailwindRuntimeCss";
-import { ICompilerService } from "../../../../services";
+import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
 import { Transforms } from "slate";
 import { ReactEditor, useSlateStatic } from "slate-react";
 
@@ -16,7 +16,11 @@ const HTMLBlock: React.FC<PropsWithChildren<HTMLBlockProps>> = props => {
   const { attributes, children, element } = props;
   const { html } = element;
   const editor = useSlateStatic();
-  const tailwindCss = useTailwindRuntimeCss(html, "html", editor.tryGetService(ICompilerService));
+  const tailwindCss = useTailwindRuntimeCss(
+    html,
+    "html",
+    editor.tryGetService(IRuntimeStyleCompiler)
+  );
 
   const handleOnChange = (code: string) => {
     Transforms.setNodes(editor, { html: code }, { at: ReactEditor.findPath(editor, element) });

@@ -1,8 +1,10 @@
-import { defineElement, defineExtension, type ElementRenderProps } from "../../api";
+import React, { lazy } from "react";
+import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor/api";
 
 import type { HTMLBlockElement } from "../../types";
-import HTMLBlock from "./components/HTMLBlock";
 import blockPanelItems from "./block-panel-items";
+
+const HTMLBlock = lazy(() => import("./components/HTMLBlock"));
 
 const htmlBlockExtension = defineExtension({
   id: "tau.html-block",
@@ -11,10 +13,13 @@ const htmlBlockExtension = defineExtension({
       type: "html-block",
       kind: "block",
       isVoid: true,
+      isEmpty: element => element.html === "",
       render: ({ attributes, element, children }: ElementRenderProps<HTMLBlockElement>) => (
-        <HTMLBlock element={element} attributes={attributes}>
-          {children}
-        </HTMLBlock>
+        <React.Suspense fallback={null}>
+          <HTMLBlock element={element} attributes={attributes}>
+            {children}
+          </HTMLBlock>
+        </React.Suspense>
       ),
     }),
   ],

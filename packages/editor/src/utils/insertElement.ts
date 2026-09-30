@@ -14,7 +14,6 @@ import {
   TabPaneElement,
   AudioElement,
   VideoElement,
-  HTMLInlineElement,
   InlineImageElement,
   AnnotationElement,
 } from "../types";
@@ -450,16 +449,6 @@ export const insertCodeBlock = (editor: Editor, language = "javascript", code = 
   return res;
 };
 
-export const insertHTMLBlock = (editor: Editor) => {
-  const path = setOrInsertNode(editor, {
-    type: "html-block",
-    html: "",
-    children: [{ type: "formatted", text: "" }],
-  });
-  focusInsertedPreviewElement(editor, path);
-  return path;
-};
-
 export const insertDivideLine = (editor: Editor) => {
   return setOrInsertNode(editor, {
     type: "divide-line",
@@ -736,17 +725,4 @@ export const unwrapComment = (editor: Editor, path?: Path) => {
     match: n => Element.isElement(n) && n.type === "comment",
     at: path,
   });
-};
-
-export const insertInlineHtmlElement = (editor: Editor, html: string, openEdit?: boolean) => {
-  if (!editor.selection) return;
-
-  const inlineHtml: HTMLInlineElement = {
-    type: "html-inline",
-    html,
-    openEdit,
-    children: [{ type: "formatted", text: "" }],
-  };
-
-  Transforms.insertNodes(editor, inlineHtml);
 };

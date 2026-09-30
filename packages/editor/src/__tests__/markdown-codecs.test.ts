@@ -26,8 +26,6 @@ describe("内置扩展 codec 覆盖", () => {
       "image-gallery",
       "block-math",
       "inline-math",
-      "html-block",
-      "html-inline",
       "bulleted-list",
       "numbered-list",
       "list-item",
@@ -177,27 +175,13 @@ describe("导出：块级", () => {
     ).toBe("![](1.png)\n![](2.png)");
   });
 
-  it("block-math / inline-math / html-block / html-inline", () => {
+  it("block-math / inline-math", () => {
     expect(
       exportOne({ type: "block-math", tex: "E=mc^2", children: [{ type: "formatted", text: "" }] })
     ).toBe("$$\nE=mc^2\n$$");
     expect(
       exportOne({ type: "inline-math", tex: "a", children: [{ type: "formatted", text: "" }] })
     ).toBe("$a$");
-    expect(
-      exportOne({
-        type: "html-block",
-        html: "<div>x</div>",
-        children: [{ type: "formatted", text: "" }],
-      })
-    ).toBe("<div>x</div>");
-    expect(
-      exportOne({
-        type: "html-inline",
-        html: "<b>x</b>",
-        children: [{ type: "formatted", text: "" }],
-      })
-    ).toBe("<b>x</b>");
   });
 
   it("无序列表与图标、有序列表", () => {

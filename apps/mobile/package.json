@@ -39,6 +39,7 @@
     "@tau/editor": "workspace:*",
     "@tau/editor-custom-block": "workspace:*",
     "@tau/editor-diagram": "workspace:*",
+    "@tau/editor-html": "workspace:*",
     "@tau/editor-collab": "workspace:*",
     "@tau/editor-webview": "workspace:*",
     "@tau/markdown": "workspace:*",

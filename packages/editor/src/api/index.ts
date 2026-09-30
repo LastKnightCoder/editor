@@ -1,5 +1,5 @@
 /**
- * `@tau/editor/api`：扩展作者的唯一入口（ER-008、01 §5.4）。
+ * `@tau/editor/api`：扩展作者的渲染入口；纯服务契约经 /api/services（ER-021）。
  *
  * 只放写扩展需要的东西：声明、服务、主题、少量工具。编辑器组件、kit 工厂等宿主用的留在包根入口。
  * 这里导出的都视为稳定 API；新增前先想清楚「将来开放给第三方时愿不愿意长期维护它」。
@@ -37,7 +37,6 @@ export {
   createServiceId,
   IResourceService,
   IFileService,
-  ICompilerService,
   IOpenerService,
   IThemeService,
   IExtensionErrorReporter,
@@ -73,3 +72,4 @@ export type { ParagraphElement } from "../types/element/paragraph";
 export { default as PreviewWithEditor } from "../components/PreviewWithEditor";
 export { isAtParagraphStart, isParagraphAndEmpty } from "../utils/editor";
 export { setOrInsertNode, focusInsertedPreviewElement } from "../utils/insertElement";
+export { default as InlineChromiumBugfix } from "../components/InlineChromiumBugFix";

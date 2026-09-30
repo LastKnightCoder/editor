@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./api": "./api.ts",
+    "./api/services": "./api/services.ts",
     "./markdown": "./markdown.ts",
     "./src": "./src/index.ts",
     "./src/services": "./src/services/index.ts",

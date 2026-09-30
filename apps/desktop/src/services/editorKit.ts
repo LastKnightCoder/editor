@@ -20,6 +20,7 @@ import {
 import { inlineMath, link, paragraph } from "@tau/editor/src/extensions";
 import customBlockExtension from "@tau/editor-custom-block";
 import { diagramExtensions } from "@tau/editor-diagram";
+import { htmlExtensions } from "@tau/editor-html";
 import { createDesktopEditorExtensions, fileAttachmentExtension } from "@/editor-extensions";
 import flashcardBlankExtension from "@/editor-extensions/flashcard-blank";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
@@ -51,6 +52,7 @@ export function createDesktopKit(extras: readonly AnyExtension[] = []): EditorKi
     kit = createEditorKit({
       extensions: [
         ...diagramExtensions,
+        ...htmlExtensions,
         customBlockExtension,
         ...createDesktopEditorExtensions(),
         ...extras,

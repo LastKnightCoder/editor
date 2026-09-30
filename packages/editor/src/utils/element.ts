@@ -51,15 +51,12 @@ export const getPreviousSiblingNode = (editor: Editor, node: Node) => {
   return Editor.node(editor, preSiblingPath);
 };
 
-export const isInlineElementEmpty = (element: InlineElement | FormattedText) => {
+export const isInlineElementEmpty = (element: InlineElement | FormattedText, editor?: Editor) => {
   if (element.type === "link") {
     return element.children.length === 1 && element.children[0].text === "";
   }
   if (element.type === "inline-math") {
     return element.tex === "";
-  }
-  if (element.type === "html-inline") {
-    return element.html === "";
   }
   if (element.type === "underline") {
     return element.children.length === 1 && element.children[0].text === "";
@@ -77,32 +74,32 @@ export const isInlineElementEmpty = (element: InlineElement | FormattedText) => 
     return (element as any).text === "";
   }
 
-  return false;
+  return Element.isElement(element) && isDeclaredElementEmpty(editor, element);
 };
 
-export const isTableElementEmpty = (element: TableElement) => {
+export const isTableElementEmpty = (element: TableElement, editor?: Editor) => {
   const { children } = element;
   if (children.length === 0) {
     return true;
   }
 
-  return children.every(child => isTableRowEmpty(child));
+  return children.every(child => isTableRowEmpty(child, editor));
 };
 
-const isTableRowEmpty = (element: TableRowElement) => {
+const isTableRowEmpty = (element: TableRowElement, editor?: Editor) => {
   const { children } = element;
-  return children.every(child => isTableCellEmpty(child));
+  return children.every(child => isTableCellEmpty(child, editor));
 };
 
-const isTableCellEmpty = (element: TableCellElement) => {
+const isTableCellEmpty = (element: TableCellElement, editor?: Editor) => {
   const { children } = element;
-  return children.every(child => isInlineElementEmpty(child));
+  return children.every(child => isInlineElementEmpty(child, editor));
 };
 
 export const isBlockElementEmpty = (element: BlockElement, editor?: Editor): boolean => {
   switch (element.type) {
     case "paragraph":
-      return element.children.every(child => isInlineElementEmpty(child));
+      return element.children.every(child => isInlineElementEmpty(child, editor));
     case "list-item":
     case "check-list-item":
     case "blockquote":
@@ -113,13 +110,11 @@ export const isBlockElementEmpty = (element: BlockElement, editor?: Editor): boo
     case "check-list":
       return element.children.every(child => isBlockElementEmpty(child, editor));
     case "table":
-      return isTableElementEmpty(element);
+      return isTableElementEmpty(element, editor);
     case "code-block":
       return element.code === "";
     case "block-math":
       return element.tex === "";
-    case "html-block":
-      return element.html === "";
     case "image":
       return element.url === "";
     default:
@@ -134,7 +129,6 @@ export const isInlineElement = (element: Element): element is InlineElement => {
     type === "inline-math" ||
     type === "link" ||
     type === "underline" ||
-    type === "html-inline" ||
     type === "styled-text" ||
     type === "kbd" ||
     type === "inline-image"

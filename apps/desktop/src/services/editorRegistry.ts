@@ -5,7 +5,6 @@
 
 import {
   createServiceRegistry,
-  ICompilerService,
   IEditorSlots,
   IFileService,
   IMediaActions,
@@ -16,6 +15,9 @@ import {
   type ServiceRegistration,
   type ServiceRegistry,
 } from "@tau/editor/src";
+import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
+import { ITypstCompiler } from "@tau/editor-diagram/services";
+import { desktopRuntimeStyleCompiler } from "./tailwindRuntime";
 import {
   desktopVideoContentProviders,
   desktopVideoInsertSources,
@@ -25,7 +27,7 @@ import { aiImageEditAction, aiImageInsertSource } from "@/editor-providers/AIIma
 import { openExternal } from "@/commands/extra";
 
 import {
-  desktopCompilerService,
+  desktopTypstCompiler,
   desktopEditorSlots,
   desktopFileService,
   desktopResourceService,
@@ -38,7 +40,8 @@ export const desktopEditorServices: ServiceRegistration = register => {
   register(IFileService, desktopFileService);
 
   // 可选服务（desktop 全量提供）
-  register(ICompilerService, desktopCompilerService);
+  register(ITypstCompiler, desktopTypstCompiler);
+  register(IRuntimeStyleCompiler, desktopRuntimeStyleCompiler);
   register(IOpenerService, {
     open: url => {
       void openExternal(url);

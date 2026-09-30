@@ -7,11 +7,13 @@ import { createMarkdownProcessor } from "@tau/markdown";
 import { editorMarkdownCodecs } from "@tau/editor/markdown";
 import { customBlockCodec } from "@tau/editor-custom-block/markdown";
 import { diagramMarkdownCodecs } from "@tau/editor-diagram/markdown";
+import { htmlMarkdownCodecs } from "@tau/editor-html/markdown";
 import { webviewCodec } from "@tau/editor-webview/markdown";
 import { desktopMarkdownCodecs } from "./markdown-codecs.ts";
 
 export const desktopCodecComposition = [
   ...editorMarkdownCodecs,
+  ...htmlMarkdownCodecs,
   ...diagramMarkdownCodecs,
   customBlockCodec,
   webviewCodec,

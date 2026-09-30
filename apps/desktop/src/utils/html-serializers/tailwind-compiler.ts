@@ -1,4 +1,4 @@
-import { compileCustomBlockTailwind } from "@/services/tailwindRuntime";
+import { desktopRuntimeStyleCompiler } from "@/services/tailwindRuntime";
 
 /**
  * Compile Tailwind CSS for HTML content
@@ -6,7 +6,7 @@ import { compileCustomBlockTailwind } from "@/services/tailwindRuntime";
  */
 export async function compileTailwindForHtml(
   content: string,
-  extension = "html",
+  extension: "html" | "tsx" = "html"
 ): Promise<string> {
   const trimmed = content?.trim();
   if (!trimmed) {
@@ -14,7 +14,7 @@ export async function compileTailwindForHtml(
   }
 
   try {
-    const css = await compileCustomBlockTailwind(trimmed, extension);
+    const css = await desktopRuntimeStyleCompiler.compile({ source: trimmed, language: extension });
     return css;
   } catch (error) {
     console.error("Failed to compile Tailwind CSS:", error);

@@ -13,6 +13,7 @@
     "@tau/editor": "workspace:*",
     "@tau/editor-custom-block": "workspace:*",
     "@tau/editor-diagram": "workspace:*",
+    "@tau/editor-html": "workspace:*",
     "@tau/markdown": "workspace:*",
     "@tau/editor-webview": "workspace:*",
     "@tau/shared": "workspace:*",

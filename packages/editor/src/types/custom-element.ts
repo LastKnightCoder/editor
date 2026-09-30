@@ -12,8 +12,6 @@ import type { ImageElement } from "./element/image";
 import type { DetailElement } from "./element/detail";
 import type { LinkElement } from "./element/link";
 import type { BlockquoteElement } from "./element/block-quote";
-import type { HTMLBlockElement } from "./element/html-block";
-import type { HTMLInlineElement } from "./element/html-inline";
 import type { DivideLineElement } from "./element/divide-line";
 import type { HighlightBlockElement } from "./element/highlight-block";
 import type { TabsElement, TabPaneElement } from "./element/tabs";
@@ -52,7 +50,6 @@ export interface BuiltinElementMap {
   "block-math": BlockMathElement;
   "check-list-item": CheckListItemElement;
   "check-list": CheckListElement;
-  "html-block": HTMLBlockElement;
   "divide-line": DivideLineElement;
   "highlight-block": HighlightBlockElement;
   "image-gallery": ImageGalleryElement;
@@ -64,7 +61,6 @@ export interface BuiltinElementMap {
   video: VideoElement;
   comment: CommentElement;
   "front-matter": FrontMatterElement;
-  "html-inline": HTMLInlineElement;
   "inline-image": InlineImageElement;
   kbd: KbdElement;
   emoji: EmojiElement;
@@ -84,7 +80,6 @@ export interface BuiltinInlineElementMap {
   "inline-math": InlineMathElement;
   underline: UnderlineElement;
   "styled-text": StyledTextElement;
-  "html-inline": HTMLInlineElement;
   "inline-image": InlineImageElement;
   kbd: KbdElement;
   emoji: EmojiElement;
