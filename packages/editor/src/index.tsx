@@ -10,9 +10,9 @@ import {
   memo,
   CSSProperties,
 } from "react";
-import type { Node, Path, Element } from "slate";
 import { cn } from "@tau/ui";
-import { createEditor, Descendant, Editor, Transforms, Range } from "slate";
+import type { Node, Path } from "slate";
+import { createEditor, Descendant, Editor, Transforms, Range, Element } from "slate";
 import {
   Slate,
   Editable,
@@ -54,7 +54,7 @@ import {
   withBlockNavigation,
   withNormalizedCopy,
 } from "./plugins";
-import { withIngest } from "./plugins/withIngest";
+import { withIngest, resolveFileDropPoint } from "./plugins/withIngest";
 import IExtension from "./extensions/types";
 import type { AnyExtension } from "./api/legacy";
 import type { EditorRef } from "./types/editor";
@@ -198,6 +198,49 @@ const Index = memo(
     const currentValue = useRef<Descendant[]>(initValue);
     const pendingSetEditorValueJson = useRef<string | null>(null);
     const overlayContainerRef = useRef<HTMLDivElement>(null);
+    // 文件拖拽的落点指示线：dragover 定位最内层块，drop 用同一落点插入（线在哪、插在哪）
+    const fileDropLineRef = useRef<HTMLDivElement>(null);
+    const fileDropTargetRef = useRef<{ path: Path; before: boolean } | null>(null);
+
+    const hideFileDropLine = () => {
+      fileDropTargetRef.current = null;
+      if (fileDropLineRef.current) fileDropLineRef.current.style.display = "none";
+    };
+
+    const handleFileDragOver = (e: React.DragEvent) => {
+      if (readonly || !e.dataTransfer?.types?.includes("Files")) return;
+      // 允许 drop；块拖拽（React DnD 的自定义 type）不经这里
+      e.preventDefault();
+      try {
+        const range = ReactEditor.findEventRange(editor, e);
+        const entry = Editor.above(editor, {
+          at: range,
+          match: n => Element.isElement(n) && !editor.isInline(n as Element),
+        }) as [Element, Path] | undefined;
+        if (!entry) return;
+        const [block, path] = entry;
+        const rect = ReactEditor.toDOMNode(editor, block).getBoundingClientRect();
+        const before = e.clientY < rect.top + rect.height / 2;
+        fileDropTargetRef.current = { path, before };
+        const line = fileDropLineRef.current;
+        if (line) {
+          line.style.display = "block";
+          line.style.top = `${(before ? rect.top : rect.bottom) - 1}px`;
+          line.style.left = `${rect.left}px`;
+          line.style.width = `${rect.width}px`;
+        }
+      } catch {
+        // 找不到事件对应的文档位置（如只读态的只读区域）就不显示
+      }
+    };
+
+    const handleFileDragLeave = (e: React.DragEvent) => {
+      if (!e.dataTransfer?.types?.includes("Files")) return;
+      // 拖拽在子元素间移动也会触发 dragleave，离开整个编辑区才隐藏
+      if (!e.currentTarget.contains(e.relatedTarget as globalThis.Node | null)) {
+        hideFileDropLine();
+      }
+    };
     const binding = documentProp?.binding;
     const externalHistory = documentProp?.history === "external";
     const bindingRef = useRef(binding);
@@ -542,16 +585,25 @@ const Index = memo(
                 onDrag={e => {
                   e.preventDefault();
                 }}
+                onDragOver={handleFileDragOver}
+                onDragLeave={handleFileDragLeave}
                 onDrop={async e => {
                   e.preventDefault();
 
                   const data = e.dataTransfer;
-                  if (!data?.files?.length || readonly) return;
+                  if (!data?.files?.length || readonly) {
+                    hideFileDropLine();
+                    return;
+                  }
 
-                  // 计算拖放位置
-                  const range = ReactEditor.findEventRange(editor, e);
-                  if (range) {
-                    await editor.handleDrop(data, range.anchor);
+                  // 指示线停在哪就插到哪（dragover 记录的块前后）；没有记录时退回事件光标位置
+                  const target = fileDropTargetRef.current;
+                  hideFileDropLine();
+                  const point = target
+                    ? resolveFileDropPoint(editor, target)
+                    : ReactEditor.findEventRange(editor, e)?.anchor;
+                  if (point) {
+                    await editor.handleDrop(data, point);
                   }
                 }}
                 onSelect={() => {
@@ -564,6 +616,13 @@ const Index = memo(
                 onBlur={onBlur}
               />
               {binding?.renderOverlay?.(overlayContainerRef)}
+              {/* 文件拖拽的落点指示线（与块拖拽的插入线同款；fixed 定位，位置由 dragover 直接写 style） */}
+              <div
+                ref={fileDropLineRef}
+                aria-hidden
+                style={{ display: "none" }}
+                className="pointer-events-none fixed z-[9998] h-[2px] rounded-full bg-[var(--ed-accent-text)]"
+              />
             </div>
             <ImagesOverview />
             <ConfirmHost />

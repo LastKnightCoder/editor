@@ -50,7 +50,6 @@ import { StageHeader } from "@/components/StageHeader";
 const DEFAULT_CONTENT: Descendant[] = [
   {
     type: "paragraph",
-    disableDrag: false,
     children: [{ type: "formatted", text: "" }],
   },
 ];
@@ -1028,6 +1027,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
                 initValue={content}
                 onChange={handleContentChange}
                 readonly={false}
+                editingContext={{ entityType: "vl-note", entityId: currentNote?.id }}
               />
             )}
           </ErrorBoundary>

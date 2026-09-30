@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createEditor, Editor, Transforms, type Editor as SlateEditor } from "slate";
 
 import { ingestAccepts, type IngestSource } from "../ingest";
-import { withIngest } from "../../plugins/withIngest";
+import { withIngest, resolveFileDropPoint } from "../../plugins/withIngest";
 import { createCircuitBreaker, type ExtensionCircuitBreaker } from "../../kit/extensionGuard";
 import { defineElement, defineExtension } from "../extension";
 import Base from "../../extensions/base";
@@ -203,6 +203,22 @@ describe("withIngest · drop 与隔离", () => {
 
     await wrapped.insertData(fakeTransfer([imageFile()]));
     expect(recoverRun).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("文件拖拽的落点（drop 指示线一致）", () => {
+  it("目标块之前取块首；之后取下一块首；最后一块之后取文档末尾", () => {
+    const editor = createEditor();
+    editor.children = [paragraph("一"), paragraph("二")] as any;
+
+    const beforeFirst = resolveFileDropPoint(editor, { path: [0], before: true });
+    expect(beforeFirst.path).toEqual([0, 0]);
+
+    const afterFirst = resolveFileDropPoint(editor, { path: [0], before: false });
+    expect(afterFirst.path).toEqual([1, 0]);
+
+    const afterLast = resolveFileDropPoint(editor, { path: [1], before: false });
+    expect(afterLast).toEqual(Editor.end(editor, []));
   });
 });
 

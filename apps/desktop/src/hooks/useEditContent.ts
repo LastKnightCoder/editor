@@ -9,7 +9,6 @@ import useContentSessionStore, { contentSessionKey } from "@/stores/useContentSe
 const createDefaultContent = (): Descendant[] => [
   {
     type: "paragraph",
-    disableDrag: false,
     children: [{ type: "formatted", text: "" }],
   },
 ];

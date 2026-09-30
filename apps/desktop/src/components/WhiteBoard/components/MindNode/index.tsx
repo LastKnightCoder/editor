@@ -59,7 +59,6 @@ const scheduleRelayoutMindRoot = (board: ReturnType<typeof useBoard>, rootId: st
 const DEFAULT_CONTENT: Descendant[] = [
   {
     type: "paragraph",
-    disableDrag: false,
     children: [{ type: "formatted", text: "" }],
   },
 ];
