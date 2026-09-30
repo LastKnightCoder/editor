@@ -275,35 +275,3 @@ code {
 .tau-scrollbar::-webkit-scrollbar-corner {
   background: transparent;
 }
-
-/* ==================== antd 毛玻璃效果 ==================== */
-/* 对应 desktop themes/light.less 和 dark.less 中的 antd 样式覆盖 */
-.ant-dropdown,
-.ant-popover-inner {
-  backdrop-filter: blur(18px) saturate(180%);
-  border-radius: 18px !important;
-}
-
-.ant-dropdown-menu {
-  border-radius: 18px;
-  padding: 8px;
-}
-
-.ant-dropdown-menu-item,
-.ant-dropdown-menu-submenu-title {
-  border-radius: 14px;
-  margin-bottom: 2px;
-}
-
-.ant-dropdown-menu-item:last-child,
-.ant-dropdown-menu-submenu-title:last-child {
-  margin-bottom: 0;
-}
-
-.ant-popover-inner {
-  border-radius: 18px;
-}
-
-.ant-popover-inner-content {
-  padding: 12px;
-}

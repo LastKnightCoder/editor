@@ -71,16 +71,8 @@ const mockContext = vi.hoisted(() => {
       async (_databaseName: string, _archive: Uint8Array) =>
         ({ ok: true }) as { ok: boolean; error?: string }
     ),
-    message: {
-      error: vi.fn(),
-      warning: vi.fn(),
-    },
   };
 });
-
-vi.mock("antd", () => ({
-  message: mockContext.message,
-}));
 
 vi.mock("@/electron", () => ({
   invoke: mockContext.invoke,
@@ -154,8 +146,6 @@ describe("sync commands reconnect source", () => {
     mockContext.closeDatabase.mockClear();
     mockContext.removeFile.mockClear();
     mockContext.invoke.mockClear();
-    mockContext.message.error.mockClear();
-    mockContext.message.warning.mockClear();
     mockContext.piSessionPack.mockClear();
     mockContext.piSessionPack.mockResolvedValue({ ok: true, archive: new Uint8Array([7, 7]) });
     mockContext.piSessionUnpack.mockClear();
