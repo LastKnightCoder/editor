@@ -1,112 +1,73 @@
 import { memo } from "react";
-import { For } from "@tau/shared";
-import UnderlineSelectItem from "./UnderlineSelectItem";
+import { INLINE_PALETTE, getInlinePaletteEntry, inlineInk } from "../../../../constants";
+import { PanelGroup, Swatch, inlineStylePanelClass } from "../../../../components/InlineStylePanel";
+import { getUnderlineColor } from "../../colors";
 
-const underlineColors = [
-  {
-    label: "默认",
-    value: "default",
-  },
-  {
-    label: "黄色",
-    value: "yellow",
-  },
-  {
-    label: "绿色",
-    value: "green",
-  },
-  {
-    label: "蓝色",
-    value: "blue",
-  },
-  {
-    label: "紫色",
-    value: "purple",
-  },
-  {
-    label: "红色",
-    value: "red",
-  },
-];
+export type UnderlineLineType = "solid" | "dashed" | "dotted" | "wavy";
 
-const lineTypes = [
-  {
-    label: "实线",
-    value: "solid" as const,
-  },
-  {
-    label: "虚线",
-    value: "dashed" as const,
-  },
-  {
-    label: "点线",
-    value: "dotted" as const,
-  },
-  {
-    label: "波浪线",
-    value: "wavy" as const,
-  },
+const LINE_TYPES: { value: UnderlineLineType; label: string }[] = [
+  { value: "solid", label: "实线" },
+  { value: "dashed", label: "虚线" },
+  { value: "dotted", label: "点线" },
+  { value: "wavy", label: "波浪线" },
 ];
 
 interface IUnderlineSelectProps {
   selectedColor: string;
-  selectedLineType: "solid" | "dashed" | "dotted" | "wavy";
+  selectedLineType: UnderlineLineType;
   onColorSelect: (color: string) => void;
-  onLineTypeSelect: (lineType: "solid" | "dashed" | "dotted" | "wavy") => void;
+  onLineTypeSelect: (lineType: UnderlineLineType) => void;
 }
 
+/** 下划线面板：颜色与统一色板同列同色（首格跟随文字），线型格直接画当前颜色的效果 */
 const UnderlineSelect = memo((props: IUnderlineSelectProps) => {
   const { selectedColor, selectedLineType, onColorSelect, onLineTypeSelect } = props;
+  const lineColor = getUnderlineColor(selectedColor);
+  const colorLabel = getInlinePaletteEntry(selectedColor)?.label ?? "跟随文字";
 
   return (
-    <div
-      className={
-        "flex min-w-[220px] flex-col gap-3 rounded-2xl px-4 py-3 " +
-        "max-h-[calc(100vh-24px)] max-w-[calc(100vw-24px)] overflow-y-auto overflow-x-hidden" +
-        "relative z-[10060] border bg-white/90 dark:bg-zinc-900/85" +
-        "border-white/40 backdrop-blur-2xl dark:border-white/10" +
-        "shadow-[0_18px_45px_rgba(15,23,42,0.25)] backdrop-saturate-150" +
-        "dark:shadow-[0_22px_60px_rgba(2,6,23,0.7)]"
-      }
-    >
-      <div className="flex flex-col gap-2">
-        <div className="px-1 text-xs font-semibold text-[var(--ed-text)]">颜色</div>
-        <div className="flex flex-wrap items-center gap-2">
-          <For
-            data={underlineColors}
-            renderItem={color => (
-              <UnderlineSelectItem
-                type="color"
-                color={color.value}
-                label={color.label}
-                onClick={onColorSelect}
-                isSelected={selectedColor === color.value}
-              />
-            )}
-          />
-        </div>
-      </div>
+    <div className={inlineStylePanelClass}>
+      <PanelGroup label="颜色" value={colorLabel}>
+        <Swatch
+          label="跟随文字"
+          active={!getInlinePaletteEntry(selectedColor)}
+          onPick={() => onColorSelect("default")}
+        >
+          <span className="h-[3px] w-4 rounded-[2px] bg-[var(--ed-text)]" />
+        </Swatch>
+        {INLINE_PALETTE.map(entry => (
+          <Swatch
+            key={entry.id}
+            label={entry.label}
+            active={selectedColor === entry.id}
+            onPick={() => onColorSelect(entry.id)}
+          >
+            <span
+              className="h-[3px] w-4 rounded-[2px]"
+              style={{ backgroundColor: inlineInk(entry.id) }}
+            />
+          </Swatch>
+        ))}
+      </PanelGroup>
 
-      <div className="h-px w-full bg-slate-200/90 dark:bg-zinc-700/60" />
-
-      <div className="flex flex-col gap-2">
-        <div className="px-1 text-xs font-semibold text-[var(--ed-text)]">线型</div>
-        <div className="flex flex-wrap items-center gap-2">
-          <For
-            data={lineTypes}
-            renderItem={lineType => (
-              <UnderlineSelectItem
-                type="lineType"
-                lineType={lineType.value}
-                label={lineType.label}
-                onClick={onLineTypeSelect}
-                isSelected={selectedLineType === lineType.value}
-                currentColor={selectedColor}
-              />
-            )}
-          />
-        </div>
-      </div>
+      <PanelGroup label="线型">
+        {LINE_TYPES.map(lineType => (
+          <Swatch
+            key={lineType.value}
+            label={lineType.label}
+            active={selectedLineType === lineType.value}
+            onPick={() => onLineTypeSelect(lineType.value)}
+            className="h-[34px] w-[60px]"
+          >
+            <span
+              className="text-[13px] underline decoration-[1.5px] underline-offset-4"
+              style={{ textDecorationStyle: lineType.value, textDecorationColor: lineColor }}
+            >
+              文字
+            </span>
+          </Swatch>
+        ))}
+      </PanelGroup>
     </div>
   );
 });

@@ -98,19 +98,63 @@
 }
 
 /*
+ * 行内着色色板（字色 / 高亮 / 下划线 / 渐变字共用）：用户挑的内容色，不随主题族变，只随明暗切。
+ * 取值与 constants/inline-palette.ts、text-gradient.ts 一致（inline-palette 测试守护）。
+ * 按 [data-mode] 就近继承：<html> 与局部强制明暗的编辑器根节点都带 data-mode；无属性的宿主落到 :root 浅色档。
+ */
+:root,
+[data-mode="light"] {
+  --ed-palette-gray: #8f959e;
+  --ed-palette-red: #e33a32;
+  --ed-palette-orange: #e57d05;
+  --ed-palette-yellow: #dc9b04;
+  --ed-palette-green: #2ea121;
+  --ed-palette-blue: #245bdb;
+  --ed-palette-purple: #6425d0;
+  --ed-gradient-sunset: linear-gradient(90deg, #f97316 0%, #ef4444 52%, #ec4899 100%);
+  --ed-gradient-ocean: linear-gradient(90deg, #0ea5e9 0%, #2563eb 52%, #4f46e5 100%);
+  --ed-gradient-forest: linear-gradient(90deg, #22c55e 0%, #16a34a 52%, #14b8a6 100%);
+  --ed-gradient-violet: linear-gradient(90deg, #8b5cf6 0%, #a855f7 52%, #6366f1 100%);
+  --ed-gradient-gold: linear-gradient(90deg, #f59e0b 0%, #facc15 52%, #fb923c 100%);
+  --ed-gradient-rose: linear-gradient(90deg, #fb7185 0%, #f43f5e 52%, #a855f7 100%);
+  --ed-highlight-bg-mix: 16%;
+  --ed-highlight-line-mix: 65%;
+}
+
+[data-mode="dark"] {
+  --ed-palette-gray: #9a9a9a;
+  --ed-palette-red: #fa7873;
+  --ed-palette-orange: #f5a54a;
+  --ed-palette-yellow: #fcd456;
+  --ed-palette-green: #6dd162;
+  --ed-palette-blue: #70a0ff;
+  --ed-palette-purple: #a472fc;
+  --ed-gradient-sunset: linear-gradient(90deg, #fb923c 0%, #f87171 52%, #f472b6 100%);
+  --ed-gradient-ocean: linear-gradient(90deg, #38bdf8 0%, #60a5fa 52%, #818cf8 100%);
+  --ed-gradient-forest: linear-gradient(90deg, #4ade80 0%, #34d399 52%, #2dd4bf 100%);
+  --ed-gradient-violet: linear-gradient(90deg, #a78bfa 0%, #c084fc 52%, #818cf8 100%);
+  --ed-gradient-gold: linear-gradient(90deg, #fbbf24 0%, #fde047 52%, #fdba74 100%);
+  --ed-gradient-rose: linear-gradient(90deg, #fda4af 0%, #fb7185 52%, #c084fc 100%);
+  --ed-highlight-bg-mix: 24%;
+  --ed-highlight-line-mix: 75%;
+}
+
+/*
  * 工具条按钮（悬浮工具条、行内菜单项）的统一外观。
  * 原先由宿主经 EditorConfig.theme.colors 传 Tailwind 类名，现收回编辑器自己定义。
  */
 .ed-toolbar-item {
-  color: var(--ed-text);
+  color: var(--ed-text-secondary);
   transition:
     background-color var(--tau-dur-fast, 160ms) var(--tau-ease-out, ease),
     color var(--tau-dur-fast, 160ms) var(--tau-ease-out, ease);
 }
 
-.ed-toolbar-item:hover {
+/* 悬停与子面板展开同一态：中性底 + 墨色加深；激活才用 accent */
+.ed-toolbar-item:hover,
+.ed-toolbar-item.is-open {
   background-color: var(--ed-bg-hover);
-  color: var(--ed-accent-text);
+  color: var(--ed-text);
 }
 
 .ed-toolbar-item.is-active {

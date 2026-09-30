@@ -2,7 +2,7 @@ import { useMemo, useState, useRef, useContext, memo } from "react";
 import { BaseSelection, Editor, Element, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { useMemoizedFn } from "ahooks";
-import { message, Tooltip } from "antd";
+import { Tooltip, toast } from "@tau/ui";
 import { FileText } from "lucide-react";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import { EditContentContext } from "@/context";
@@ -54,7 +54,7 @@ const LinkHoveringItem = memo(() => {
   const onSelectOk = async (selectedResult: SearchResult | SearchResult[]) => {
     const cardResults = Array.isArray(selectedResult) ? selectedResult : [selectedResult];
     if (cardResults.length === 0) {
-      message.warning("请选择内容");
+      toast.warning("请选择内容");
       return;
     }
     selectionRef.current && Transforms.select(editor, selectionRef.current);
@@ -73,10 +73,11 @@ const LinkHoveringItem = memo(() => {
 
   return (
     <div>
-      <Tooltip title={"关联内容"} trigger={"hover"}>
+      {/* 层级抬到悬浮工具条（z 9999）之上，与编辑器内置按钮的提示一致 */}
+      <Tooltip content={"关联内容"} className="z-[10200]">
         <div
           className={classnames(
-            "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all duration-200",
+            "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg",
             "ed-toolbar-item",
             isActive && "is-active"
           )}

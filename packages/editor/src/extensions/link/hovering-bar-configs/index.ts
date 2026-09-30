@@ -3,7 +3,7 @@ import LinkHoveringItem from "../components/LinkHoveringItem";
 export default [
   {
     id: "link",
-    order: 6,
+    order: 20,
     element: LinkHoveringItem,
   },
 ];

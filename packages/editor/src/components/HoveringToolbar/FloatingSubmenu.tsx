@@ -1,22 +1,14 @@
-import React, {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import classnames from "classnames";
 
 import type { HoveringSubmenuTrigger } from "./context";
-import {
-  calculateFloatingPosition,
-  type FloatingPlacement,
-} from "./floatingPosition";
+import { calculateFloatingPosition, type FloatingPlacement } from "./floatingPosition";
 
 const DEFAULT_GAP = 8;
 const HOVER_CLOSE_DELAY = 120;
+/** 悬停意图：停留这么久才展开，鼠标划过工具条不连环弹面板 */
+const HOVER_OPEN_DELAY = 120;
 
 interface FloatingSubmenuProps {
   open: boolean;
@@ -55,12 +47,29 @@ const FloatingSubmenu = (props: FloatingSubmenuProps) => {
   const [position, setPosition] = useState({ left: 0, top: 0 });
   const [positionReady, setPositionReady] = useState(false);
 
+  const openTimerRef = useRef<number | null>(null);
+
   const clearCloseTimer = useCallback(() => {
     if (closeTimerRef.current !== null) {
       window.clearTimeout(closeTimerRef.current);
       closeTimerRef.current = null;
     }
+    if (openTimerRef.current !== null) {
+      window.clearTimeout(openTimerRef.current);
+      openTimerRef.current = null;
+    }
   }, []);
+
+  const openWithDelay = useCallback(() => {
+    clearCloseTimer();
+    if (open) {
+      return;
+    }
+    openTimerRef.current = window.setTimeout(() => {
+      onOpenChange(true);
+      openTimerRef.current = null;
+    }, HOVER_OPEN_DELAY);
+  }, [clearCloseTimer, onOpenChange, open]);
 
   const closeWithDelay = useCallback(() => {
     if (trigger !== "hover") {
@@ -83,12 +92,8 @@ const FloatingSubmenu = (props: FloatingSubmenuProps) => {
     const anchorRect = triggerEl.getBoundingClientRect();
     const panelRect = panelEl.getBoundingClientRect();
     const visualViewport = window.visualViewport;
-    const viewportWidth = Math.round(
-      visualViewport?.width ?? window.innerWidth,
-    );
-    const viewportHeight = Math.round(
-      visualViewport?.height ?? window.innerHeight,
-    );
+    const viewportWidth = Math.round(visualViewport?.width ?? window.innerWidth);
+    const viewportHeight = Math.round(visualViewport?.height ?? window.innerHeight);
     const next = calculateFloatingPosition({
       anchorRect,
       viewportWidth,
@@ -175,11 +180,7 @@ const FloatingSubmenu = (props: FloatingSubmenuProps) => {
 
     document.addEventListener("pointerdown", handleOutsidePointerDown, true);
     return () => {
-      document.removeEventListener(
-        "pointerdown",
-        handleOutsidePointerDown,
-        true,
-      );
+      document.removeEventListener("pointerdown", handleOutsidePointerDown, true);
     };
   }, [open, onOpenChange]);
 
@@ -226,16 +227,16 @@ const FloatingSubmenu = (props: FloatingSubmenuProps) => {
             onMouseLeave={() => {
               closeWithDelay();
             }}
-            onPointerDown={(event) => {
+            onPointerDown={event => {
               event.stopPropagation();
             }}
-            onClick={(event) => {
+            onClick={event => {
               event.stopPropagation();
             }}
           >
             {content}
           </div>,
-          document.body,
+          document.body
         )
       : null;
 
@@ -247,8 +248,7 @@ const FloatingSubmenu = (props: FloatingSubmenuProps) => {
         className={classnames("inline-flex", triggerClassName)}
         onMouseEnter={() => {
           if (trigger === "hover") {
-            clearCloseTimer();
-            onOpenChange(true);
+            openWithDelay();
           }
         }}
         onMouseLeave={() => {

@@ -3,7 +3,7 @@ import CommentHoveringItem from "../components/CommentHoveringItem";
 export default [
   {
     id: "comment",
-    order: 5,
+    order: 23,
     element: CommentHoveringItem,
   },
 ];

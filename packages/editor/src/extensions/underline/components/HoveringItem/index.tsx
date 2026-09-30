@@ -5,14 +5,15 @@ import { Editor, NodeEntry, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { unwrapUnderline, wrapUnderline } from "../../../../utils";
 import classnames from "classnames";
-import { Underline } from "lucide-react";
-import UnderlineSelect from "../UnderlineSelect";
+import { ChevronDown, Underline } from "lucide-react";
+import UnderlineSelect, { type UnderlineLineType } from "../UnderlineSelect";
+import { getInlinePaletteEntry } from "../../../../constants";
 import { HoveringBarContext } from "../../../../components/HoveringToolbar";
 import FloatingSubmenu from "../../../../components/HoveringToolbar/FloatingSubmenu";
 import type { UnderlineElement } from "../../../types";
 
-type UnderlineColor = "default" | "yellow" | "green" | "blue" | "purple" | "red";
-type UnderlineLineType = "solid" | "dashed" | "dotted" | "wavy";
+/** "default" 跟随文字色，其余取统一行内色板的色相 id */
+type UnderlineColor = string;
 
 const UNDERLINE_COLOR_KEY = "underline-color";
 const UNDERLINE_LINE_TYPE_KEY = "underline-line-type";
@@ -21,7 +22,8 @@ const readStoredColor = (): UnderlineColor => {
   if (typeof window === "undefined") {
     return "red";
   }
-  return (localStorage.getItem(UNDERLINE_COLOR_KEY) as UnderlineColor | null) || "red";
+  const value = localStorage.getItem(UNDERLINE_COLOR_KEY);
+  return value === "default" || getInlinePaletteEntry(value) ? (value as string) : "red";
 };
 
 const readStoredLineType = (): UnderlineLineType => {
@@ -160,16 +162,18 @@ const HoveringItem = () => {
         />
       }
     >
-      <Tooltip content={"下划线"}>
+      <Tooltip content={"下划线"} disabled={popoverOpen}>
         <div
           className={classnames(
-            "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all duration-200",
+            "flex h-8 cursor-pointer items-center justify-center gap-0.5 rounded-lg px-1.5",
             "ed-toolbar-item",
-            isActive && "is-active"
+            isActive && "is-active",
+            popoverOpen && "is-open"
           )}
           onClick={handleClick}
         >
           <Underline size={16} strokeWidth={2.5} />
+          <ChevronDown size={11} strokeWidth={3} className="opacity-60" />
         </div>
       </Tooltip>
     </FloatingSubmenu>

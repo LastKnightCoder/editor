@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="mint" data-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>编辑器 · 行内样式菜单与批注 mockup</title>
+<style>
+  /* 取值同 packages/themes/src/tokens.css（mint / paper × light / dark） */
+  [data-theme="mint"][data-mode="light"] {
+    --page:#eef4ee; --surface:#fbfefb; --sunken:#d9e6da; --track:#d4dfd5;
+    --hover:rgba(46,61,49,.05); --press:rgba(46,61,49,.09);
+    --ink-1:#2e3d31; --ink-2:#526350; --ink-3:#a5b3a3; --ink-inv:#f6fbf7;
+    --line-1:#dfe9df; --line-2:rgba(223,233,223,.55);
+    --accent:hsl(153 40% 33%); --accent-hover:hsl(153 40% 26%); --accent-soft:hsla(153,40%,33%,.12); --accent-text:#2f6b50;
+    --ring:0 0 0 3px rgba(74,157,120,.28);
+    --warn:#9c8d54; --warn-soft:#f4efd8; --danger:#b0584f; --danger-soft:#f5e3e0;
+    --shadow-float:0 16px 40px -12px rgba(60,90,70,.4); --shadow-card:0 1px 2px rgba(60,90,70,.06),0 10px 24px -14px rgba(60,90,70,.2);
+    --tip-bg:#2e3d31; --tip-ink:#f6fbf7;
+  }
+  [data-theme="mint"][data-mode="dark"] {
+    --page:#151b18; --surface:#1e2521; --sunken:#0a0f0c; --track:#34403a;
+    --hover:rgba(224,234,227,.06); --press:rgba(224,234,227,.11);
+    --ink-1:#e0eae3; --ink-2:#98a69c; --ink-3:#728078; --ink-inv:#0f1612;
+    --line-1:#29322d; --line-2:rgba(41,50,45,.55);
+    --accent:hsl(155 36% 58%); --accent-hover:hsl(155 36% 65%); --accent-soft:hsla(155,36%,58%,.16); --accent-text:hsl(155 42% 64%);
+    --ring:0 0 0 3px hsla(155,36%,58%,.4);
+    --warn:#c8b56e; --warn-soft:#2d2a1a; --danger:#df8a80; --danger-soft:#35211e;
+    --shadow-float:0 16px 40px -12px rgba(0,0,0,.65); --shadow-card:0 1px 2px rgba(0,0,0,.24),0 10px 24px -14px rgba(0,0,0,.5);
+    --tip-bg:#e0eae3; --tip-ink:#0f1612;
+  }
+  [data-theme="paper"][data-mode="light"] {
+    --page:#f3eee2; --surface:#fffdf9; --sunken:#e7dbc8; --track:#e0d6c3;
+    --hover:rgba(67,57,44,.05); --press:rgba(67,57,44,.09);
+    --ink-1:#43392c; --ink-2:#6a5c49; --ink-3:#a89a85; --ink-inv:#fff8ef;
+    --line-1:#e9e1d2; --line-2:rgba(233,225,210,.55);
+    --accent:hsl(22 58% 42%); --accent-hover:hsl(22 58% 35%); --accent-soft:hsla(22,58%,42%,.12); --accent-text:#a05236;
+    --ring:0 0 0 3px rgba(217,119,87,.28);
+    --warn:#a38c4d; --warn-soft:#f6efd6; --danger:#b0564d; --danger-soft:#f6e3e0;
+    --shadow-float:0 16px 40px -12px rgba(120,100,70,.4); --shadow-card:0 1px 2px rgba(120,100,70,.05),0 10px 24px -14px rgba(120,100,70,.18);
+    --tip-bg:#43392c; --tip-ink:#fff8ef;
+  }
+  [data-theme="paper"][data-mode="dark"] {
+    --page:#221d16; --surface:#2e2820; --sunken:#100d08; --track:#463d31;
+    --hover:rgba(236,226,208,.06); --press:rgba(236,226,208,.11);
+    --ink-1:#ece2d0; --ink-2:#a89a85; --ink-3:#857768; --ink-inv:#241a10;
+    --line-1:#3a3227; --line-2:rgba(58,50,39,.55);
+    --accent:hsl(22 62% 65%); --accent-hover:hsl(22 62% 72%); --accent-soft:hsla(22,62%,65%,.16); --accent-text:hsl(22 66% 70%);
+    --ring:0 0 0 3px hsla(22,62%,65%,.4);
+    --warn:#c4a458; --warn-soft:#302917; --danger:#d97e66; --danger-soft:#34201a;
+    --shadow-float:0 16px 40px -12px rgba(0,0,0,.65); --shadow-card:0 1px 2px rgba(0,0,0,.24),0 10px 24px -14px rgba(0,0,0,.5);
+    --tip-bg:#ece2d0; --tip-ink:#241a10;
+  }
+
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html { background:var(--page); color:var(--ink-1); }
+  body {
+    font:14px/1.7 -apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased; padding:36px 5vw 160px; transition:background .2s;
+  }
+  .mono { font-family:ui-monospace,"Cascadia Mono",Consolas,Menlo,monospace; }
+  button { font:inherit; color:inherit; background:none; border:0; cursor:pointer; }
+  svg { display:block; }
+
+  /* ── 页头 ── */
+  .top { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+  .top h1 { font-size:21px; font-weight:600; }
+  .top p { color:var(--ink-2); font-size:13.5px; margin-top:4px; max-width:78ch; }
+  .switch { display:flex; gap:4px; padding:3px; border-radius:10px; border:1px solid var(--line-1); background:var(--surface); }
+  .switch button { padding:3px 12px; border-radius:7px; font-size:12.5px; color:var(--ink-2); }
+  .switch button.on { background:var(--accent-soft); color:var(--accent-text); font-weight:500; }
+  .switches { display:flex; gap:10px; }
+
+  section { margin-top:56px; }
+  section > h2 { font-size:16px; font-weight:600; display:flex; align-items:baseline; gap:10px; }
+  section > h2 .no { font:600 12.5px ui-monospace,monospace; color:var(--accent-text); }
+  .desc { color:var(--ink-2); font-size:13.5px; max-width:86ch; margin:6px 0 20px; }
+  .desc b { color:var(--ink-1); font-weight:600; }
+  .notes { color:var(--ink-2); font-size:13px; padding-left:18px; max-width:86ch; margin-top:18px; }
+  .notes li { margin:3px 0; } .notes b { color:var(--ink-1); font-weight:600; }
+  .stage { display:flex; gap:40px; flex-wrap:wrap; align-items:flex-start; }
+  .cap { font-size:12px; color:var(--ink-3); margin-top:10px; }
+  .sheet { background:var(--surface); border-radius:16px; box-shadow:var(--shadow-card); padding:28px 36px 36px; position:relative; }
+
+  /* ── 编辑器正文 ── */
+  .doc { font-size:15px; line-height:1.9; color:var(--ink-1); max-width:640px; }
+  .doc p + p { margin-top:10px; }
+  .sel { background:var(--accent-soft); border-radius:2px; }
+  .hl { border-bottom:2px solid; padding-bottom:1px; }
+
+  /* ── 悬浮工具条 ── */
+  .toolbar {
+    display:inline-flex; align-items:center; gap:2px; padding:4px; border-radius:12px;
+    background:var(--surface); border:1px solid var(--line-1); box-shadow:var(--shadow-float);
+  }
+  .tb-sep { width:1px; height:16px; background:var(--line-1); margin:0 3px; }
+  .tb {
+    position:relative; height:30px; min-width:30px; padding:0 7px; border-radius:8px;
+    display:inline-flex; align-items:center; justify-content:center; gap:2px; color:var(--ink-2);
+    transition:background-color .16s, color .16s;
+  }
+  .tb:hover, .tb.open { background:var(--hover); color:var(--ink-1); }
+  .tb.active { background:var(--accent-soft); color:var(--accent-text); }
+  .tb .chev { width:10px; height:10px; opacity:.55; margin-left:1px; }
+  .split { display:inline-flex; border-radius:8px; }
+  .split .tb:first-child { border-top-right-radius:0; border-bottom-right-radius:0; padding-right:4px; }
+  .split .tb:last-child { border-top-left-radius:0; border-bottom-left-radius:0; padding:0 3px; min-width:0; }
+  .split:hover .tb { background:var(--hover); color:var(--ink-1); }
+  .split:hover .tb:hover { background:var(--press); }
+  .split.open .tb { background:var(--hover); color:var(--ink-1); }
+  /* 颜色触发器：A 下方色条实时反映当前字色 / 高亮 */
+  .a-glyph { position:relative; width:16px; height:18px; display:flex; flex-direction:column; align-items:center; }
+  .a-glyph b { font:650 13px/14px -apple-system,sans-serif; }
+  .a-glyph i { position:absolute; bottom:0; left:1px; right:1px; height:3px; border-radius:2px; }
+
+  /* 统一 Tooltip（@tau/ui 同款） */
+  .tip {
+    position:absolute; bottom:calc(100% + 8px); left:50%; transform:translate(-50%,3px); white-space:nowrap;
+    background:var(--tip-bg); color:var(--tip-ink); font-size:12px; line-height:1.4; padding:5px 9px; border-radius:8px;
+    opacity:0; pointer-events:none; transition:opacity .12s, transform .12s; z-index:5; display:flex; gap:8px; align-items:center;
+  }
+  .tip kbd { font:11px ui-monospace,monospace; opacity:.6; }
+  .tb:hover > .tip, .split > .tb:first-child:hover > .tip { opacity:1; transform:translate(-50%,0); transition-delay:.35s; }
+  .tipw:hover > .tip { opacity:1; transform:translate(-50%,0); transition-delay:.25s; }
+  .open > .tip, .split.open .tip { opacity:0 !important; }
+
+  /* ── 子菜单公共形制 ── */
+  .menu {
+    position:absolute; top:calc(100% + 8px); left:0; z-index:10; width:max-content;
+    background:var(--surface); border:1px solid var(--line-1); border-radius:14px; box-shadow:var(--shadow-float);
+    padding:10px; display:flex; flex-direction:column; gap:12px;
+    opacity:0; visibility:hidden; transform:translateY(-4px) scale(.98); transform-origin:top left;
+    transition:opacity .16s cubic-bezier(.2,.8,.2,1), transform .16s cubic-bezier(.2,.8,.2,1), visibility .16s;
+  }
+  .menu.show { opacity:1; visibility:visible; transform:none; }
+  .menu.static { position:static; opacity:1; visibility:visible; transform:none; }
+  .grp-label { font-size:12px; color:var(--ink-3); font-weight:500; padding:0 4px 6px; display:flex; justify-content:space-between; }
+  .grp-label em { font-style:normal; color:var(--ink-2); }
+  .row { display:flex; gap:4px; }
+  .sw {
+    width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; position:relative;
+    transition:background-color .12s;
+  }
+  .sw:hover { background:var(--hover); }
+  .sw.on { background:var(--accent-soft); box-shadow:inset 0 0 0 1.5px var(--accent); }
+  .sw b { font:650 15px/1 -apple-system,sans-serif; }
+  .sw .grad { background-clip:text; -webkit-background-clip:text; color:transparent; }
+  .sw .chip { width:20px; height:20px; border-radius:6px; display:flex; align-items:center; justify-content:center; font:600 12px/1 -apple-system,sans-serif; color:var(--ink-1); border-bottom:2px solid; }
+  .sw .bar { width:16px; height:3px; border-radius:2px; }
+  .pal { border-collapse:separate; border-spacing:0; font-size:13.5px; }
+  .pal th { font-weight:500; font-size:12px; color:var(--ink-3); text-align:left; padding:0 18px 10px 0; }
+  .pal td { padding:8px 18px 8px 0; white-space:nowrap; }
+  .pal td:first-child { font-size:12px; color:var(--ink-3); padding-right:22px; }
+  .sw .none { color:var(--ink-3); }
+  .menu-foot {
+    margin:0 -4px -4px; display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; color:var(--ink-2); font-size:12.5px;
+  }
+  .menu-foot:hover { background:var(--hover); color:var(--ink-1); }
+  .menu-foot svg { width:14px; height:14px; }
+  .lt { width:60px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; color:var(--ink-1); }
+  .lt:hover { background:var(--hover); }
+  .lt.on { background:var(--accent-soft); box-shadow:inset 0 0 0 1.5px var(--accent); }
+  .lt span { text-decoration-line:underline; text-decoration-thickness:1.5px; text-underline-offset:4px; }
+
+  /* 旧版对照（刻意还原现状问题） */
+  .legacy { background:#fff; border-radius:16px; border:1px solid #111; padding:14px 18px; box-shadow:0 18px 45px rgba(15,23,42,.25); color:#333; font-size:12px; }
+
+  /* ── 批注 ── */
+  .cmt-mark { background:var(--warn-soft); border-bottom:2px solid var(--warn); cursor:pointer; transition:background-color .15s; }
+  .cmt-badge {
+    display:inline-flex; align-items:center; gap:2px; vertical-align:1px; margin-left:2px; padding:0 4px; height:18px; border-radius:6px;
+    color:var(--warn); font:600 11px/1 ui-monospace,monospace; transition:background-color .15s;
+  }
+  .cmt-badge:hover { background:var(--warn-soft); }
+  .cmt-badge svg { width:12px; height:12px; }
+
+  .pop {
+    width:360px; background:var(--surface); border:1px solid var(--line-1); border-radius:16px; box-shadow:var(--shadow-float);
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  .pop-head { display:flex; align-items:center; gap:8px; padding:12px 12px 0 16px; }
+  .pop-head h3 { font-size:13.5px; font-weight:600; flex:1; display:flex; gap:6px; align-items:baseline; }
+  .pop-head h3 span { font:500 12px ui-monospace,monospace; color:var(--ink-3); }
+  .ib { width:26px; height:26px; border-radius:7px; display:inline-flex; align-items:center; justify-content:center; color:var(--ink-3); transition:background-color .12s,color .12s; }
+  .ib:hover { background:var(--hover); color:var(--ink-1); }
+  .ib.danger:hover { background:var(--danger-soft); color:var(--danger); }
+  .ib svg { width:15px; height:15px; }
+  .quote {
+    margin:8px 16px 0; padding-left:10px; border-left:2px solid var(--warn); color:var(--ink-2); font-size:12.5px; line-height:1.6;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .thread { padding:14px 16px 4px; display:flex; flex-direction:column; gap:14px; max-height:320px; overflow:auto; }
+  .c { position:relative; }
+  .c-meta { display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink-3); height:22px; }
+  .c-body { font-size:13.5px; line-height:1.65; color:var(--ink-1); white-space:pre-wrap; }
+  .c-acts { position:absolute; right:-4px; top:-2px; display:flex; gap:0; opacity:0; transition:opacity .12s; background:var(--surface); border-radius:8px; }
+  .c:hover > .c-acts { opacity:1; }
+  .c-acts .ib { width:24px; height:24px; }
+  .c-acts .ib svg { width:14px; height:14px; }
+  .replies { margin-top:10px; margin-left:2px; padding-left:12px; border-left:2px solid var(--line-1); display:flex; flex-direction:column; gap:10px; }
+  .replies .c-body { font-size:13px; }
+  .reply-link { font-size:11.5px; color:var(--ink-3); margin-top:4px; }
+  .reply-link:hover { color:var(--accent-text); }
+
+  .composer {
+    margin:12px; border:1px solid var(--line-1); border-radius:12px; background:var(--surface);
+    transition:border-color .15s, box-shadow .15s;
+  }
+  .composer:focus-within { border-color:var(--accent); box-shadow:var(--ring); }
+  .composer textarea {
+    display:block; width:100%; border:0; outline:0; resize:none; background:transparent; color:var(--ink-1);
+    font:13.5px/1.6 inherit; padding:9px 12px 0; min-height:30px; max-height:160px; field-sizing:content;
+  }
+  .composer textarea::placeholder { color:var(--ink-3); }
+  .composer-foot { display:flex; align-items:center; justify-content:space-between; padding:4px 6px 6px 12px; }
+  .hint { font-size:11px; color:var(--ink-3); }
+  .hint kbd { font:11px ui-monospace,monospace; padding:0 4px; border-radius:4px; border:1px solid var(--line-1); }
+  .send {
+    width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+    background:var(--accent); color:var(--ink-inv); transition:background-color .15s, opacity .15s;
+  }
+  .send:hover { background:var(--accent-hover); }
+  .send:disabled { background:var(--track); color:var(--ink-3); cursor:default; }
+  .send svg { width:15px; height:15px; }
+  .edit-box { border:1px solid var(--accent); box-shadow:var(--ring); border-radius:10px; margin-top:2px; }
+  .edit-box textarea { display:block; width:100%; border:0; outline:0; resize:none; background:transparent; color:var(--ink-1); font:13.5px/1.6 inherit; padding:7px 10px 0; field-sizing:content; }
+  .edit-foot { display:flex; justify-content:flex-end; gap:6px; padding:4px 6px 6px; }
+  .btn { height:26px; padding:0 10px; border-radius:7px; font-size:12.5px; }
+  .btn.ghost { color:var(--ink-2); } .btn.ghost:hover { background:var(--hover); color:var(--ink-1); }
+  .btn.primary { background:var(--accent); color:var(--ink-inv); font-weight:500; } .btn.primary:hover { background:var(--accent-hover); }
+
+  .compare { display:grid; grid-template-columns:auto auto; gap:12px 40px; align-items:start; }
+  .tag-old { font-size:11.5px; color:var(--danger); background:var(--danger-soft); padding:1px 8px; border-radius:99px; }
+  .tag-new { font-size:11.5px; color:var(--accent-text); background:var(--accent-soft); padding:1px 8px; border-radius:99px; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="i-bold" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8"/></symbol>
+    <symbol id="i-italic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M19 4h-9M14 20H5M15 4 9 20"/></symbol>
+    <symbol id="i-underline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 4v6a6 6 0 0 0 12 0V4M4 20h16"/></symbol>
+    <symbol id="i-strike" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M16 4H9a3 3 0 0 0-2.83 4M14 12a4 4 0 0 1 0 8H6M4 12h16"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8"/></symbol>
+    <symbol id="i-hl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></symbol>
+    <symbol id="i-cmt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 17a2 2 0 0 1-2 2H6.83a2 2 0 0 0-1.41.59l-2.2 2.2A.71.71 0 0 1 2 21.3V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/><path d="M12 8v6M9 11h6"/></symbol>
+    <symbol id="i-msg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 17a2 2 0 0 1-2 2H6.83a2 2 0 0 0-1.41.59l-2.2 2.2A.71.71 0 0 1 2 21.3V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/></symbol>
+    <symbol id="i-sigma" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 7V5a1 1 0 0 0-1-1H6.5a.5.5 0 0 0-.4.8l4.5 6a2 2 0 0 1 0 2.4l-4.5 6a.5.5 0 0 0 .4.8H17a1 1 0 0 0 1-1v-2"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.13-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.13a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.13 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.13a.5.5 0 0 1-.96 0z"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-ban" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></symbol>
+    <symbol id="i-eraser" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21M22 21H7M5 11l9 9"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+    <symbol id="i-pen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/></symbol>
+    <symbol id="i-reply" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 18v-2a4 4 0 0 0-4-4H4M9 17l-5-5 5-5"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7M12 19V5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></symbol>
+  </defs>
+</svg>
+
+<header class="top">
+  <div>
+    <h1>编辑器 · 行内样式菜单与批注</h1>
+    <p>悬浮工具条的「下划线 / 颜色 / 高亮 / 关联内容」四个入口与批注浮层重做。全部取 <span class="mono">--tau-*</span> token，切主题与明暗验证跟随；用户挑的内容色（字色、高亮、下划线色）按「换皮不动用户内容」保持原值。</p>
+  </div>
+  <div class="switches">
+    <div class="switch" id="sw-theme"><button data-v="mint" class="on">薄荷</button><button data-v="paper">暖纸</button></div>
+    <div class="switch" id="sw-mode"><button data-v="light" class="on">浅色</button><button data-v="dark">深色</button></div>
+  </div>
+</header>
+
+<!-- ─────────── 00 色板 ─────────── -->
+<section>
+  <h2><span class="no">00</span>统一行内色板</h2>
+  <p class="desc">字色、高亮、下划线<b>共用一套 7 色相</b>（灰 / 红 / 橙 / 黄 / 绿 / 蓝 / 紫），每个色相明暗各一档：字色直接用它，高亮取同色相淡底 + 底线，下划线取同色相的线。三个面板的色块列一一对齐，同一个「红」在三处是同一个红。
+    现状三套各自为政：字色是一套调过明暗的 7 色，高亮和下划线另是一套不分明暗的 5 色（蓝是浅天蓝、紫是深灰紫，和字色的蓝紫不是一家；深色下浅天蓝底线几乎看不见）。</p>
+  <div class="sheet" id="palette"></div>
+  <ul class="notes">
+    <li><b>数据兼容</b>：高亮与下划线在文档里存的是色名（<span class="mono">yellow</span> / <span class="mono">red</span>…），只换色名对应的取值，旧文档自动变成新色，无需迁移；新增 <span class="mono">gray</span> / <span class="mono">orange</span> 两个色名。字色存的是具体色值，保持不变。</li>
+    <li><b>明暗</b>：高亮与下划线改为跟随明暗取值（现状固定一档），深色下不再发灰发脏。</li>
+    <li><b>单一来源</b>：色板收成编辑器 <span class="mono">constants</span> 里一张表，三个面板与正文渲染都从它派生。</li>
+  </ul>
+</section>
+
+<!-- ─────────── 01 工具条 ─────────── -->
+<section>
+  <h2><span class="no">01</span>工具条：一个家族、一种提示</h2>
+  <p class="desc">所有按钮统一 30px 槽、中性墨色图标，激活 = accent 淡底；<b>提示一律走 @tau/ui Tooltip</b>（关联内容不再是 antd 的另一种样子），并在子菜单展开时自动收起，避免「提示压在面板上」。
+    <b>颜色与高亮合并为一个入口</b>：左半点一下直接套用上次的组合，右侧箭头展开面板；按钮上的 A 与色条实时显示当前字色 / 高亮色。工具条少一格，也不用在两个相邻菜单间来回找。悬停下列按钮试试。</p>
+  <div class="sheet" style="padding-top:64px;padding-bottom:300px">
+    <div class="toolbar" id="tb">
+      <button class="tb"><svg width="16" height="16"><use href="#i-bold"/></svg><span class="tip">加粗<kbd>⌘B</kbd></span></button>
+      <button class="tb"><svg width="16" height="16"><use href="#i-italic"/></svg><span class="tip">斜体<kbd>⌘I</kbd></span></button>
+      <div style="position:relative" class="hov" data-menu="m-ul">
+        <button class="tb active" id="ul-btn"><svg width="16" height="16"><use href="#i-underline"/></svg><svg class="chev"><use href="#i-chev"/></svg><span class="tip">下划线<kbd>⌘U</kbd></span></button>
+        <div class="menu" id="m-ul"></div>
+      </div>
+      <button class="tb"><svg width="16" height="16"><use href="#i-strike"/></svg><span class="tip">删除线</span></button>
+      <button class="tb"><svg width="16" height="16"><use href="#i-code"/></svg><span class="tip">行内代码<kbd>⌘E</kbd></span></button>
+      <span class="tb-sep"></span>
+      <div style="position:relative" class="hov" data-menu="m-color">
+        <div class="split" id="color-split">
+          <button class="tb" id="color-apply"><span class="a-glyph"><b id="a-letter">A</b><i id="a-bar"></i></span><span class="tip" id="color-tip">套用 黄色高亮</span></button>
+          <button class="tb"><svg class="chev" style="opacity:.7"><use href="#i-chev"/></svg></button>
+        </div>
+        <div class="menu" id="m-color"></div>
+      </div>
+      <span class="tb-sep"></span>
+      <button class="tb"><svg width="16" height="16"><use href="#i-link"/></svg><span class="tip">链接<kbd>⌘K</kbd></span></button>
+      <button class="tb"><svg width="16" height="16"><use href="#i-file"/></svg><span class="tip">关联内容</span></button>
+      <button class="tb"><svg width="16" height="16"><use href="#i-sigma"/></svg><span class="tip">公式</span></button>
+      <button class="tb"><svg width="16" height="16"><use href="#i-cmt"/></svg><span class="tip">批注<kbd>⌘⇧M</kbd></span></button>
+      <span class="tb-sep"></span>
+      <button class="tb"><svg width="16" height="16"><use href="#i-spark"/></svg><span class="tip">AI 助手</span></button>
+    </div>
+    <div class="doc" style="margin-top:36px">
+      <p>有一个 <span class="mono" style="font-size:13px;background:var(--hover);padding:1px 5px;border-radius:5px">lsof</span> 的命令，它<span id="sample" class="sel">的作用是查看进程打开的文件，网络套接字也被认为是文件的一种</span>，因此可以根据此命令找到端口对应的信息。</p>
+    </div>
+  </div>
+  <ul class="notes">
+    <li><b>分隔</b>：工具条内按「字形 / 颜色 / 引用关系 / AI」分成四组，组间一根 16px 短竖线（工具条内唯一的线，仅作分组节拍）。</li>
+    <li><b>展开时机</b>：悬停 120ms 意图延迟后展开（避免划过就弹），紧凑模式改为点击；展开态按钮保持 hover 底色，提示隐藏。</li>
+    <li><b>关联内容</b>：只换提示与反馈（antd <span class="mono">message</span> → 编辑器 notifier），选择弹窗本身已是 @tau/ui，不动。</li>
+  </ul>
+</section>
+
+<!-- ─────────── 02 颜色面板 ─────────── -->
+<section>
+  <h2><span class="no">02</span>颜色面板（字色 + 渐变 + 高亮）</h2>
+  <p class="desc">每个色块直接画<b>成品样子</b>：字色格是彩色的「A」、高亮格是带底色与底线的「A」、渐变格是渐变字——看一眼就知道套上去什么效果，不用猜圆点代表什么。当前选区的取值带 accent 描边；分组靠留白与小标题，不画横线。底部「清除颜色」一次性去掉字色、渐变与高亮。</p>
+  <div class="stage">
+    <div>
+      <div class="menu static" id="m-color-static"></div>
+      <div class="cap">常显标本 · 当前：默认字色 + 黄色高亮；文字 / 高亮两行按色相列对齐</div>
+    </div>
+    <div>
+      <div class="legacy" style="width:300px">
+        <div style="font-weight:600;margin-bottom:8px">现状（两个独立菜单）</div>
+        <div style="color:#888;margin-bottom:6px">纯色 ────────────</div>
+        <div style="display:flex;gap:10px;margin-bottom:10px"><span style="width:24px;height:24px;border-radius:50%;border:1px solid #ccc;display:flex;align-items:center;justify-content:center;font-weight:700">A</span><span style="width:24px;height:24px;border-radius:50%;background:#8f959e"></span><span style="width:24px;height:24px;border-radius:50%;background:#e33a32"></span><span style="width:24px;height:24px;border-radius:50%;background:#e57d05"></span><span style="width:24px;height:24px;border-radius:50%;background:#dc9b04"></span><span style="width:24px;height:24px;border-radius:50%;background:#245bdb"></span></div>
+        <div style="color:#888;margin-bottom:6px">渐变 ────────────</div>
+        <div style="display:flex;gap:10px"><span style="width:24px;height:24px;border-radius:50%;background:linear-gradient(90deg,#f97316,#ec4899)"></span><span style="width:24px;height:24px;border-radius:50%;background:linear-gradient(90deg,#0ea5e9,#4f46e5)"></span><span style="width:24px;height:24px;border-radius:50%;background:linear-gradient(90deg,#22c55e,#14b8a6)"></span></div>
+      </div>
+      <div class="cap" style="max-width:300px">裸白底 / 黑描边 / 硬编码阴影，不跟主题；圆点看不出是字色还是高亮；无当前值标记；拼接类名漏空格，部分样式实际失效。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── 03 下划线 ─────────── -->
+<section>
+  <h2><span class="no">03</span>下划线面板</h2>
+  <p class="desc">颜色与 00 色板同列同色（首格「跟随文字」），色块画成一小段线而不是圆点，和它最终的样子一致；线型格直接渲染「文字」+ 当前颜色的对应线型（实 / 虚 / 点 / 波浪），换色时同步变色。点主按钮 = 用当前组合开关下划线；在已有下划线上改色 / 改线型原位生效，不会重复包一层。</p>
+  <div class="stage">
+    <div>
+      <div class="menu static" id="m-ul-static"></div>
+      <div class="cap">常显标本 · 当前：红色 · 波浪线</div>
+    </div>
+    <div>
+      <div class="legacy" style="width:300px">
+        <div style="margin-bottom:6px">颜色</div>
+        <div style="display:flex;gap:10px;margin-bottom:10px"><span style="width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700">A</span><span style="width:24px;height:24px;border-radius:50%;background:#ffd400"></span><span style="width:24px;height:24px;border-radius:50%;background:#2a9d8f"></span><span style="width:24px;height:24px;border-radius:50%;background:#a2d2ff"></span><span style="width:24px;height:24px;border-radius:50%;background:#5e548e"></span><span style="width:24px;height:24px;border-radius:50%;background:#ef233c"></span></div>
+        <div style="height:1px;background:#ddd;margin:8px 0"></div>
+        <div style="margin-bottom:6px">线型</div>
+        <div style="display:flex;gap:8px"><span style="width:44px;height:28px;border:2px solid #3b82f6;border-radius:10px"></span><span style="width:44px;height:28px;border:1px solid #ddd;border-radius:10px"></span><span style="width:44px;height:28px;border:1px solid #ddd;border-radius:10px"></span><span style="width:44px;height:28px;border:1px solid #ddd;border-radius:10px"></span></div>
+      </div>
+      <div class="cap" style="max-width:300px">选中用 blue-500 描边（与主题 accent 无关）；图标化的线型（Minus / Waves）和实际效果对不上。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── 04 批注 ─────────── -->
+<section>
+  <h2><span class="no">04</span>批注：锚点、空态直写、线程</h2>
+  <p class="desc">正文里批注只留<b>一枚小徽标</b>（有内容才显示条数，不再显示「💬 0」）。浮层顶部引用被批注的原文，让人知道在评哪一句；<b>新建时不出现「0 条批注 / 暂无批注」</b>，直接落焦到输入框。线程无卡片无横线：元信息一行、正文一段，回复用缩进 + 细竖线表达从属；操作悬停才出现，位置固定不挤布局。输入框常态 surface 底 + 细线，聚焦只换 accent 线 + 焦点环；<span class="mono">⌘↵</span> 发送。</p>
+  <div class="stage">
+    <div>
+      <div class="pop" id="pop-new">
+        <div class="pop-head"><h3>添加批注</h3><button class="ib"><svg><use href="#i-x"/></svg></button></div>
+        <div class="quote">的作用是查看进程打开的文件，网络套接字也被认为是文件的一种</div>
+        <div class="composer"><textarea rows="1" placeholder="写下你的想法…" id="ta-new"></textarea>
+          <div class="composer-foot"><span class="hint"><kbd>⌘</kbd> <kbd>↵</kbd> 发送 · <kbd>Esc</kbd> 关闭</span><button class="send" disabled id="send-new"><svg><use href="#i-up"/></svg></button></div>
+        </div>
+      </div>
+      <div class="cap">新建（空态）：只有引用 + 输入框；关闭时仍为空则自动移除批注标记</div>
+    </div>
+
+    <div>
+      <div class="pop">
+        <div class="pop-head"><h3>批注<span>3</span></h3>
+          <button class="ib danger" title="移除整条批注"><svg><use href="#i-trash"/></svg></button>
+          <button class="ib" title="关闭"><svg><use href="#i-x"/></svg></button></div>
+        <div class="quote">的作用是查看进程打开的文件，网络套接字也被认为是文件的一种</div>
+        <div class="thread">
+          <div class="c">
+            <div class="c-meta">今天 14:32</div>
+            <div class="c-body">「一切皆文件」的直接体现，socket 也有 fd，所以 lsof -i 能列出来。</div>
+            <div class="c-acts"><button class="ib" title="回复"><svg><use href="#i-reply"/></svg></button><button class="ib" title="编辑"><svg><use href="#i-pen"/></svg></button><button class="ib danger" title="删除"><svg><use href="#i-trash"/></svg></button></div>
+            <div class="replies">
+              <div class="c">
+                <div class="c-meta">今天 15:08 · 已编辑</div>
+                <div class="c-body">补充：配合 -t 只输出 PID，可以直接 kill $(lsof -t -i:3000)。</div>
+                <div class="c-acts"><button class="ib" title="编辑"><svg><use href="#i-pen"/></svg></button><button class="ib danger" title="删除"><svg><use href="#i-trash"/></svg></button></div>
+              </div>
+            </div>
+          </div>
+          <div class="c">
+            <div class="c-meta">昨天 21:17</div>
+            <div class="c-body">macOS 上需要 sudo 才能看到别的用户的进程。</div>
+            <div class="c-acts"><button class="ib" title="回复"><svg><use href="#i-reply"/></svg></button><button class="ib" title="编辑"><svg><use href="#i-pen"/></svg></button><button class="ib danger" title="删除"><svg><use href="#i-trash"/></svg></button></div>
+            <div class="edit-box" style="margin-top:8px;margin-left:14px"><textarea rows="1" placeholder="回复…"></textarea>
+              <div class="edit-foot"><button class="btn ghost">取消</button><button class="btn primary">回复</button></div></div>
+          </div>
+        </div>
+        <div class="composer"><textarea rows="1" placeholder="继续批注…"></textarea>
+          <div class="composer-foot"><span class="hint"><kbd>⌘</kbd> <kbd>↵</kbd> 发送</span><button class="send" disabled><svg><use href="#i-up"/></svg></button></div>
+        </div>
+      </div>
+      <div class="cap">有内容：悬停一条批注查看操作；第二条展开了行内回复</div>
+    </div>
+
+    <div style="max-width:360px">
+      <div class="sheet" style="padding:20px 22px">
+        <div class="doc" style="font-size:14.5px">
+          <p>它<span class="cmt-mark">的作用是查看进程打开的文件，网络套接字也被认为是文件的一种</span><span class="cmt-badge"><svg><use href="#i-msg"/></svg>3</span>，因此可以根据此命令找到端口对应的信息。</p>
+        </div>
+      </div>
+      <div class="cap">正文锚点：warn 淡底 + 底线（沿用现有 --ed-comment-* token），徽标悬停出底色；点击标记文字或徽标都能打开</div>
+      <div class="legacy" style="margin-top:22px;width:360px;padding:0;overflow:hidden">
+        <div style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-weight:600">0 条批注</div>
+        <div style="padding:22px;text-align:center;color:#999">暂无批注</div>
+        <div style="padding:10px 14px;border-top:1px solid #e5e7eb"><div style="height:60px;border-radius:12px;background:#dbe7dc"></div><div style="text-align:right;margin-top:8px"><span style="display:inline-block;background:#e5e7eb;color:#999;padding:6px 14px;border-radius:8px">提交</span></div></div>
+      </div>
+      <div class="cap">现状：两条横线切三段、空态占位、深色填充输入框、indigo 按钮；Esc 自行监听 window，深色模式还会铺半透明黑遮罩。</div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li><b>承载</b>：改用 @tau/ui <span class="mono">Popover</span>（受控 open、锚点 = 徽标），外点关闭 / Esc LIFO / 焦点落 <span class="mono">[data-autofocus]</span> 都由基础件仲裁，删掉手写定位、keyframes 注入与 window 级 Esc 监听。</li>
+    <li><b>时间</b>：今天 / 昨天 / 本年省略年份，编辑过标「已编辑」；只读模式隐藏输入框与操作。</li>
+  </ul>
+</section>
+
+<script>
+  const root = document.documentElement;
+  const bindSwitch = (id, attr) => document.querySelectorAll(`#${id} button`).forEach(b => b.onclick = () => {
+    document.querySelectorAll(`#${id} button`).forEach(x => x.classList.toggle("on", x === b));
+    root.dataset[attr] = b.dataset.v; renderAll();
+  });
+  bindSwitch("sw-theme", "theme"); bindSwitch("sw-mode", "mode");
+  const dark = () => root.dataset.mode === "dark";
+
+  // 统一行内色板：7 个色相 × 明暗两档；字色 = 原值，高亮 = 同色相淡底 + 底线，下划线 = 同色相线
+  const PALETTE = [
+    ["gray","灰色","#8f959e","#9a9a9a"],["red","红色","#e33a32","#fa7873"],["orange","橙色","#e57d05","#f5a54a"],
+    ["yellow","黄色","#dc9b04","#fcd456"],["green","绿色","#2ea121","#6dd162"],["blue","蓝色","#245bdb","#70a0ff"],
+    ["purple","紫色","#6425d0","#a472fc"],
+  ];
+  const ink = p => dark() ? p[3] : p[2];
+  const alpha = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
+  const hlBg = p => alpha(ink(p), dark() ? .24 : .16);
+  const hlLine = p => alpha(ink(p), dark() ? .75 : .65);
+  const byKey = k => PALETTE.find(p => p[0] === k);
+  const GRAD = [
+    ["日落","linear-gradient(90deg,#f97316,#ef4444 52%,#ec4899)","linear-gradient(90deg,#fb923c,#f87171 52%,#f472b6)"],
+    ["海洋","linear-gradient(90deg,#0ea5e9,#2563eb 52%,#4f46e5)","linear-gradient(90deg,#38bdf8,#60a5fa 52%,#818cf8)"],
+    ["森林","linear-gradient(90deg,#22c55e,#16a34a 52%,#14b8a6)","linear-gradient(90deg,#4ade80,#34d399 52%,#2dd4bf)"],
+    ["紫罗兰","linear-gradient(90deg,#8b5cf6,#a855f7 52%,#6366f1)","linear-gradient(90deg,#a78bfa,#c084fc 52%,#818cf8)"],
+    ["金辉","linear-gradient(90deg,#f59e0b,#facc15 52%,#fb923c)","linear-gradient(90deg,#fbbf24,#fde047 52%,#fdba74)"],
+    ["玫瑰","linear-gradient(90deg,#fb7185,#f43f5e 52%,#a855f7)","linear-gradient(90deg,#fda4af,#fb7185 52%,#c084fc)"],
+  ];
+  const LINES = [["solid","实线"],["dashed","虚线"],["dotted","点线"],["wavy","波浪线"]];
+
+  const state = { color: null, grad: null, hl: "yellow", ul: "red", line: "wavy" };
+
+  const tipWrap = (inner, label) => `<span class="tipw" style="position:relative;display:inline-flex">${inner}<span class="tip">${label}</span></span>`;
+
+  const sw = (on, inner, label, act) => tipWrap(`<button class="sw ${on ? "on" : ""}" data-act="${act}">${inner}</button>`, label);
+  function colorMenuHTML() {
+    const cur = state.grad || (state.color ? byKey(state.color)[1] : "默认");
+    const hlCur = state.hl ? byKey(state.hl)[1] : "无";
+    return `
+      <div><div class="grp-label">文字<em>${cur}</em></div><div class="row">
+        ${sw(!state.color && !state.grad, `<b style="color:var(--ink-1)">A</b>`, "默认", "c:")}
+        ${PALETTE.map(p => sw(state.color === p[0], `<b style="color:${ink(p)}">A</b>`, p[1], "c:" + p[0])).join("")}
+      </div></div>
+      <div><div class="grp-label">高亮<em>${hlCur}</em></div><div class="row">
+        ${sw(!state.hl, `<svg class="none" width="16" height="16"><use href="#i-ban"/></svg>`, "无高亮", "h:")}
+        ${PALETTE.map(p => sw(state.hl === p[0], `<span class="chip" style="background:${hlBg(p)};border-color:${hlLine(p)}">A</span>`, p[1] + "高亮", "h:" + p[0])).join("")}
+      </div></div>
+      <div><div class="grp-label">渐变字</div><div class="row">
+        ${GRAD.map(g => sw(state.grad === g[0], `<b class="grad" style="background-image:${dark() ? g[2] : g[1]}">A</b>`, g[0], "g:" + g[0])).join("")}
+      </div></div>
+      <button class="menu-foot" data-act="clear"><svg><use href="#i-eraser"/></svg>清除颜色</button>`;
+  }
+  const ulInk = () => state.ul === "default" ? "var(--ink-1)" : ink(byKey(state.ul));
+  function ulMenuHTML() {
+    const cur = state.ul === "default" ? "跟随文字" : byKey(state.ul)[1];
+    return `
+      <div><div class="grp-label">颜色<em>${cur}</em></div><div class="row">
+        ${sw(state.ul === "default", `<span class="bar" style="background:var(--ink-1)"></span>`, "跟随文字", "u:default")}
+        ${PALETTE.map(p => sw(state.ul === p[0], `<span class="bar" style="background:${ink(p)}"></span>`, p[1], "u:" + p[0])).join("")}
+      </div></div>
+      <div><div class="grp-label">线型</div><div class="row">
+        ${LINES.map(l => tipWrap(`<button class="lt ${state.line === l[0] ? "on" : ""}" data-act="l:${l[0]}"><span style="text-decoration-style:${l[0]};text-decoration-color:${ulInk()}">文字</span></button>`, l[1])).join("")}
+      </div></div>`;
+  }
+  function paletteHTML() {
+    const lines = ["solid","wavy"];
+    return `<table class="pal"><thead><tr><th></th>${PALETTE.map(p => `<th>${p[1]}</th>`).join("")}</tr></thead><tbody>
+      <tr><td>字色</td>${PALETTE.map(p => `<td><span style="color:${ink(p)};font-weight:500">示例文字</span></td>`).join("")}</tr>
+      <tr><td>高亮</td>${PALETTE.map(p => `<td><span style="background:${hlBg(p)};border-bottom:2px solid ${hlLine(p)}">示例文字</span></td>`).join("")}</tr>
+      <tr><td>下划线</td>${PALETTE.map((p, i) => `<td><span style="text-decoration:underline ${lines[i % 2]} ${ink(p)};text-decoration-thickness:1.5px;text-underline-offset:4px">示例文字</span></td>`).join("")}</tr>
+    </tbody></table>`;
+  }
+
+  function applySample() {
+    const el = document.getElementById("sample");
+    const c = state.color && byKey(state.color), g = GRAD.find(x => x[0] === state.grad), h = state.hl && byKey(state.hl);
+    el.style.cssText = ""; el.className = "";
+    if (g) Object.assign(el.style, { backgroundImage: dark() ? g[2] : g[1], webkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" });
+    else if (c) el.style.color = ink(c);
+    if (h && !g) { el.style.backgroundColor = hlBg(h); el.style.borderBottom = `2px solid ${hlLine(h)}`; }
+    Object.assign(el.style, { textDecorationLine: "underline", textDecorationStyle: state.line, textDecorationColor: state.ul === "default" ? "currentColor" : ulInk(), textUnderlineOffset: "5px", textDecorationThickness: "1.5px" });
+    document.getElementById("a-letter").style.cssText = g ? `background-image:${dark() ? g[2] : g[1]};-webkit-background-clip:text;background-clip:text;color:transparent` : c ? `color:${ink(c)}` : "";
+    document.getElementById("a-bar").style.background = h ? hlLine(h) : "transparent";
+    document.getElementById("color-tip").textContent = "套用 " + ([g ? g[0] + "渐变" : c ? c[1] : null, h ? h[1] + "高亮" : null].filter(Boolean).join(" + ") || "默认");
+  }
+
+  function renderAll() {
+    ["m-color", "m-color-static"].forEach(id => document.getElementById(id).innerHTML = colorMenuHTML());
+    ["m-ul", "m-ul-static"].forEach(id => document.getElementById(id).innerHTML = ulMenuHTML());
+    document.getElementById("palette").innerHTML = paletteHTML();
+    applySample();
+  }
+
+  document.addEventListener("click", e => {
+    const b = e.target.closest("[data-act]"); if (!b) return;
+    const [k, v] = b.dataset.act.split(":");
+    if (k === "c") { state.color = v || null; state.grad = null; }
+    if (k === "g") { state.grad = v; state.color = null; }
+    if (k === "h") state.hl = v || null;
+    if (k === "u") state.ul = v;
+    if (k === "l") state.line = v;
+    if (k === "clear") { state.color = null; state.grad = null; state.hl = null; }
+    renderAll();
+  });
+
+  // 悬停意图延迟展开
+  document.querySelectorAll(".hov").forEach(w => {
+    const menu = document.getElementById(w.dataset.menu); let t;
+    const trig = w.querySelector(".split") || w.querySelector(".tb");
+    w.addEventListener("mouseenter", () => { clearTimeout(t); t = setTimeout(() => { menu.classList.add("show"); trig.classList.add("open"); }, 120); });
+    w.addEventListener("mouseleave", () => { clearTimeout(t); t = setTimeout(() => { menu.classList.remove("show"); trig.classList.remove("open"); }, 140); });
+  });
+
+  const ta = document.getElementById("ta-new"), send = document.getElementById("send-new");
+  ta.addEventListener("input", () => send.disabled = !ta.value.trim());
+
+  renderAll();
+</script>
+</body>
+</html>

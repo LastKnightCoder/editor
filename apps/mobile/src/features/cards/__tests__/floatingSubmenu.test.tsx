@@ -19,8 +19,7 @@ function setViewportSize(width: number, height: number) {
 
 function mockRect(
   element: Element,
-  partial: Partial<DOMRect> &
-    Pick<DOMRect, "top" | "left" | "width" | "height">,
+  partial: Partial<DOMRect> & Pick<DOMRect, "top" | "left" | "width" | "height">
 ) {
   const rect: DOMRect = {
     x: partial.left,
@@ -50,10 +49,7 @@ function FloatingSubmenuProbe(props: { trigger: "hover" | "click" }) {
       trigger={props.trigger}
       isHoveringBarShow={true}
       content={
-        <div
-          data-testid="submenu-content"
-          style={{ width: 220, height: 160, background: "#fff" }}
-        >
+        <div data-testid="submenu-content" style={{ width: 220, height: 160, background: "#fff" }}>
           submenu
         </div>
       }
@@ -72,7 +68,7 @@ describe("FloatingSubmenu", () => {
 
   beforeEach(() => {
     setViewportSize(300, 220);
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation(callback => {
       callback(0);
       return 1;
     });
@@ -97,14 +93,14 @@ describe("FloatingSubmenu", () => {
     });
 
     const trigger = document.querySelector(
-      '[data-floating-submenu-trigger="true"]',
+      '[data-floating-submenu-trigger="true"]'
     ) as HTMLElement | null;
     expect(trigger).toBeTruthy();
     if (!trigger) return;
     mockRect(trigger, { top: 190, left: 260, width: 30, height: 20 });
 
     const button = document.querySelector(
-      '[data-testid="submenu-trigger-button"]',
+      '[data-testid="submenu-trigger-button"]'
     ) as HTMLButtonElement | null;
     expect(button).toBeTruthy();
     act(() => {
@@ -112,7 +108,7 @@ describe("FloatingSubmenu", () => {
     });
 
     const panel = document.querySelector(
-      '[data-floating-submenu-panel="true"]',
+      '[data-floating-submenu-panel="true"]'
     ) as HTMLElement | null;
     expect(panel).toBeTruthy();
     if (!panel) return;
@@ -128,9 +124,7 @@ describe("FloatingSubmenu", () => {
     act(() => {
       document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
     });
-    expect(
-      document.querySelector('[data-floating-submenu-panel="true"]'),
-    ).toBeNull();
+    expect(document.querySelector('[data-floating-submenu-panel="true"]')).toBeNull();
   });
 
   it("hover 模式下从 trigger 移入 panel 不应闪退，离开后延时关闭", () => {
@@ -140,7 +134,7 @@ describe("FloatingSubmenu", () => {
     });
 
     const trigger = document.querySelector(
-      '[data-floating-submenu-trigger="true"]',
+      '[data-floating-submenu-trigger="true"]'
     ) as HTMLElement | null;
     expect(trigger).toBeTruthy();
     if (!trigger) return;
@@ -149,9 +143,14 @@ describe("FloatingSubmenu", () => {
     act(() => {
       trigger.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
     });
+    // 悬停意图延迟内划过不展开
+    expect(document.querySelector('[data-floating-submenu-panel="true"]')).toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
 
     const panel = document.querySelector(
-      '[data-floating-submenu-panel="true"]',
+      '[data-floating-submenu-panel="true"]'
     ) as HTMLElement | null;
     expect(panel).toBeTruthy();
     if (!panel) return;
@@ -166,16 +165,12 @@ describe("FloatingSubmenu", () => {
       panel.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
       vi.advanceTimersByTime(200);
     });
-    expect(
-      document.querySelector('[data-floating-submenu-panel="true"]'),
-    ).toBeTruthy();
+    expect(document.querySelector('[data-floating-submenu-panel="true"]')).toBeTruthy();
 
     act(() => {
       panel.dispatchEvent(new MouseEvent("mouseout", { bubbles: true }));
       vi.advanceTimersByTime(200);
     });
-    expect(
-      document.querySelector('[data-floating-submenu-panel="true"]'),
-    ).toBeNull();
+    expect(document.querySelector('[data-floating-submenu-panel="true"]')).toBeNull();
   });
 });
