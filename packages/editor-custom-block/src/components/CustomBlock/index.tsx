@@ -1,7 +1,8 @@
 import React, { PropsWithChildren, useEffect, useRef } from "react";
 import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
 import { Transforms } from "slate";
-import { useEditorTheme, PreviewWithEditor } from "@tau/editor/api";
+import { useEditorTheme } from "@tau/editor/api";
+import { PreviewWithEditor } from "@tau/editor-source-view";
 import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
 
 import { type CustomBlockElement } from "../../types";

@@ -12,6 +12,10 @@ import { diagramExtensions } from "@tau/editor-diagram";
 import { ITypstCompiler } from "@tau/editor-diagram/services";
 import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
 import { htmlExtensions, insertHTMLBlock } from "@tau/editor-html";
+import { previewMenuExtension } from "@tau/editor-source-view/menu";
+import codeBlockExtension from "@tau/editor-code-block";
+import { getCodeBlockController } from "@tau/editor-code-block/runtime";
+import { mathExtensions } from "@tau/editor-math";
 import { isBlockElementEmpty, isParagraphAndEmpty } from "@tau/editor";
 import useBlockPanelStore from "@tau/editor/src/stores/useBlockPanelStore";
 
@@ -58,7 +62,15 @@ describe("外包扩展的真实编辑器接线", () => {
     extras: NonNullable<Parameters<typeof createEditorKit>[0]>["extensions"] = []
   ) => {
     const kit = createEditorKit({
-      extensions: [customBlockExtension, ...diagramExtensions, ...htmlExtensions, ...extras],
+      extensions: [
+        customBlockExtension,
+        ...diagramExtensions,
+        ...htmlExtensions,
+        previewMenuExtension,
+        codeBlockExtension,
+        ...mathExtensions,
+        ...extras,
+      ],
       services: [
         register => {
           register(IEditorSlots, createDefaultEditorSlots());
@@ -312,5 +324,106 @@ describe("外包扩展的真实编辑器接线", () => {
       Transforms.select(editor, { path: [0, 0], offset: 0 });
     });
     expect(isParagraphAndEmpty(editor)).toBe(false);
+  });
+
+  it("块级公式消费迁出的预览，源码回写保留 tex 字段", async () => {
+    const { editor } = await mount([
+      { type: "block-math", tex: "x^2", children: [{ type: "formatted", text: "" }] },
+    ]);
+    expect(host.querySelector(".katex")).toBeTruthy();
+    await act(async () => {
+      codeChanges.at(-1)!("y^2");
+      await new Promise(resolve => setTimeout(resolve, 650));
+    });
+    expect(editor.children[0]).toMatchObject({ type: "block-math", tex: "y^2" });
+    expect(host.querySelector(".katex")).toBeTruthy();
+  });
+
+  it("相邻行内公式的首尾光标落点由数学扩展规范化", async () => {
+    const { editor } = await mount([
+      {
+        type: "paragraph",
+        children: [
+          { type: "inline-math", tex: "x", children: [{ type: "formatted", text: "" }] },
+          { type: "inline-math", tex: "y", children: [{ type: "formatted", text: "" }] },
+        ],
+      },
+    ]);
+    const children = (editor.children[0] as { children: Array<{ type: string; text?: string }> })
+      .children;
+    expect(children.map(child => child.type)).toEqual([
+      "formatted",
+      "inline-math",
+      "formatted",
+      "inline-math",
+      "formatted",
+    ]);
+    expect(children.filter(child => child.type === "formatted").map(child => child.text)).toEqual([
+      "\uFEFF",
+      "\uFEFF",
+      "\uFEFF",
+    ]);
+  });
+
+  it("代码块使用叠层 textarea，输入与失焦保存通过同一运行时控制器", async () => {
+    const { editor } = await mount([
+      {
+        type: "code-block",
+        code: "const x = 1;",
+        language: "TypeScript",
+        uuid: "code-test",
+        highlightLines: "1",
+        children: [{ type: "formatted", text: "" }],
+      },
+    ]);
+    const textarea = host.querySelector("textarea")!;
+    expect(textarea.readOnly).toBe(false);
+    expect(host.querySelector(".CodeMirror")).toBeNull();
+    const controller = getCodeBlockController("code-test");
+    expect(controller?.getValue()).toBe("const x = 1;");
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(
+        textarea,
+        "const x = 2;"
+      );
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+      textarea.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+    });
+    expect(editor.children[0]).toMatchObject({
+      uuid: "code-test",
+      code: "const x = 2;",
+      highlightLines: "1",
+    });
+    expect(getCodeBlockController("code-test")).toBe(controller);
+    expect(controller?.getValue()).toBe("const x = 2;");
+  });
+
+  it("空代码块退格补回段落并移除控制器，不恢复代码块全屏", async () => {
+    const { editor, kit } = await mount([
+      {
+        type: "code-block",
+        code: "",
+        language: "TypeScript",
+        uuid: "code-empty",
+        children: [{ type: "formatted", text: "" }],
+      },
+    ]);
+    const textarea = host.querySelector("textarea")!;
+    const event = new KeyboardEvent("keydown", {
+      key: "Backspace",
+      bubbles: true,
+      cancelable: true,
+    });
+    Object.defineProperties(event, { which: { value: 8 }, keyCode: { value: 8 } });
+    await act(async () => textarea.dispatchEvent(event));
+    expect(editor.children[0]).toMatchObject({ type: "paragraph" });
+    expect(getCodeBlockController("code-empty")).toBeUndefined();
+    expect(
+      kit.extensions
+        .flatMap(extension => extension.commands || [])
+        .some(
+          command => command.id.startsWith("tau.code-block") && command.id.includes("fullscreen")
+        )
+    ).toBe(false);
   });
 });

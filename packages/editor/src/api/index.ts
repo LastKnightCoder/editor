@@ -69,7 +69,21 @@ export type { CustomElement } from "../types/custom-element";
 export type { ParagraphElement } from "../types/element/paragraph";
 
 // 源码预览块共用的编辑、聚焦与插入机制
-export { default as PreviewWithEditor } from "../components/PreviewWithEditor";
 export { isAtParagraphStart, isParagraphAndEmpty } from "../utils/editor";
 export { setOrInsertNode, focusInsertedPreviewElement } from "../utils/insertElement";
 export { default as InlineChromiumBugfix } from "../components/InlineChromiumBugFix";
+export { default as AddParagraph, type AddParagraphRef } from "../components/AddParagraph";
+export { default as useIsLastElement } from "../hooks/useIsLastElement";
+export {
+  registerBlockNavigation,
+  unregisterBlockNavigation,
+  focusPreviousBlock,
+  focusNextBlock,
+  type BlockNavigationHandler,
+} from "../utils/blockNavigation";
+export { isCollapsed, getCurrentTextNode } from "../utils/editor";
+export { isParagraphElement } from "../utils/element";
+export { deleteVoidBlock } from "../utils/nodeOperations";
+export { default as EditorContextMenu } from "../components/EditorContextMenu";
+export type { ContextMenuItem } from "../components/EditorContextMenu/types";
+export { getSelectionSnapshot, isSelectionSnapshotUnchanged } from "../utils/selectionSnapshot";

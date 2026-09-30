@@ -8,10 +8,8 @@ import bulletedListExtension from "./bulleted-list";
 import numberedListExtension from "./numbered-list";
 import { checkListExtension, checkListItemExtension } from "./check-list";
 import listItemExtension from "./list-item";
-import codeBlockExtension from "./code-block";
 import calloutExtension from "./callout";
 import detailExtension from "./detail";
-import { inlineMathExtension, blockMathExtension } from "./math";
 import blockquoteExtension from "./blockquote";
 import linkExtension from "./link";
 import commentExtension from "./comment";
@@ -28,7 +26,6 @@ import kbdExtension from "./kbd";
 import emojiExtension from "./emoji";
 import annotationExtension from "./annotation";
 import { defaultMenuExtension } from "../menu/defaultMenu";
-import { previewMenuExtension } from "../components/PreviewWithEditor/menu";
 
 export const paragraph = paragraphExtension;
 export const underline = underlineExtension;
@@ -40,10 +37,7 @@ export const numberedList = numberedListExtension;
 export const checkList = checkListExtension;
 export const checkListItem = checkListItemExtension;
 export const listItem = listItemExtension;
-export const codeBlock = codeBlockExtension;
 export const detail = detailExtension;
-export const inlineMath = inlineMathExtension;
-export const blockMath = blockMathExtension;
 export const blockquote = blockquoteExtension;
 export const callout = calloutExtension;
 export const link = linkExtension;
@@ -68,7 +62,6 @@ export const annotation = annotationExtension;
 /** 内置 v2 扩展；独立扩展包由宿主场景 kit 显式组合。 */
 export const startExtensions: AnyExtension[] = [
   defaultMenuExtension,
-  previewMenuExtension,
   paragraph,
   underline,
   header,
@@ -80,13 +73,10 @@ export const startExtensions: AnyExtension[] = [
   checkListItem,
   numberedList,
   listItem,
-  codeBlock,
   tabs,
   tabPane,
   detail,
   highlightBlock,
-  inlineMath,
-  blockMath,
   blockquote,
   callout,
   link,

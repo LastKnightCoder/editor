@@ -4,7 +4,7 @@ import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
 import Mermaid from "./Mermaid";
 
 import type { MermaidElement } from "../../../types/mermaid";
-import { PreviewWithEditor } from "@tau/editor/api";
+import { PreviewWithEditor } from "@tau/editor-source-view";
 
 interface MermaidProps {
   attributes: RenderElementProps["attributes"];

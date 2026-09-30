@@ -1,7 +1,7 @@
 /**
  * 富文本 ⇄ 源码切换与光标双向映射（逻辑沿用旧 Markdown 窗口）：
  * - 富文本 → 源码：getMarkdownWithPositions 生成 Markdown 与位置表；光标在代码块内时取代码块
- *   自带 CodeMirror 的光标换算，否则按 Slate 点映射；
+ *   内部控制器的光标换算，否则按 Slate 点映射；
  * - 源码 → 富文本：importFromMarkdownWithPositions 解析；落在代码块内时等代码块编辑器挂载后
  *   把光标放回代码块（最多等 2s），否则按映射点 / 进入源码前的位置聚焦（路径越界时就近夹取）。
  * 富文本编辑器在源码模式下卸载，切回时以 initValue 重建。
@@ -19,7 +19,7 @@ import { ReactEditor } from "slate-react";
 import type { Editor as CodeMirrorEditor } from "codemirror";
 import { useMemoizedFn } from "ahooks";
 import type { EditorRef } from "@tau/editor/src";
-import { codeBlockMap } from "@tau/editor/src/extensions/code-block/utils/controllerMaps";
+import { getCodeBlockController } from "@tau/editor-code-block/runtime";
 import { getMarkdownWithPositions, importFromMarkdownWithPositions } from "@/utils/markdown";
 
 type SlatePoint = { path: number[]; offset: number };
@@ -135,7 +135,7 @@ export function useSourceMode({
       });
       if (codeBlock) {
         const [node, path] = codeBlock as [{ uuid?: string }, number[]];
-        const codeEditor = node.uuid ? codeBlockMap.get(node.uuid) : null;
+        const codeEditor = node.uuid ? getCodeBlockController(node.uuid) : null;
         const codeMapping = positionMap.getElementMappingBySlatePath(path)?.propertyMappings?.code;
         if (codeEditor && codeMapping) {
           const cursor = codeEditor.getCursor();
@@ -231,13 +231,13 @@ export function useSourceMode({
             focusFallback(editor);
             return;
           }
-          let codeEditor = focus.uuid ? codeBlockMap.get(focus.uuid) : null;
+          let codeEditor = focus.uuid ? getCodeBlockController(focus.uuid) : null;
           if (!codeEditor) {
             const [node] = SlateEditor.node(editor, focus.path);
             const uuid = (node as { uuid?: unknown }).uuid;
             if (typeof uuid === "string") {
               pendingCodeBlock.current = { ...focus, uuid };
-              codeEditor = codeBlockMap.get(uuid);
+              codeEditor = getCodeBlockController(uuid);
             }
           }
           if (!codeEditor) {

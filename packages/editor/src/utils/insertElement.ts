@@ -18,29 +18,13 @@ import {
   AnnotationElement,
 } from "../types";
 import { EGalleryMode, EStyledColor } from "../constants";
-import { codeBlockMap } from "../extensions/code-block/utils/controllerMaps";
+import { getSelectionSnapshot, isSelectionSnapshotUnchanged } from "./selectionSnapshot";
 import { STYLED_TEXT_SELECT_COLOR_KEY } from "../extensions/styled-text/components/StyledText";
 
 interface InsertElementOptions {
   select?: boolean;
   reverse?: boolean;
 }
-
-const getSelectionSnapshot = (selection: Editor["selection"]) => {
-  if (!selection) {
-    return null;
-  }
-  const anchorPath = selection.anchor.path.join(",");
-  const focusPath = selection.focus.path.join(",");
-  return `${anchorPath}:${selection.anchor.offset}-${focusPath}:${selection.focus.offset}`;
-};
-
-const isSelectionSnapshotUnchanged = (editor: Editor, expectedSnapshot: string | null) => {
-  if (!expectedSnapshot) {
-    return false;
-  }
-  return getSelectionSnapshot(editor.selection) === expectedSnapshot;
-};
 
 export const focusInsertedPreviewElement = (editor: Editor, path?: Path, retry = 5) => {
   if (!path || retry <= 0 || typeof document === "undefined") {
@@ -76,38 +60,6 @@ export const focusInsertedPreviewElement = (editor: Editor, path?: Path, retry =
       focusEditor(leftTryCount - 1);
     }, 80);
   };
-  focusEditor(retry);
-};
-
-const focusInsertedCodeBlock = (editor: Editor, uuid: string, retry = 5) => {
-  if (retry <= 0) {
-    return;
-  }
-  const selectionSnapshot = getSelectionSnapshot(editor.selection);
-  const shouldKeepFocusing = () =>
-    !selectionSnapshot || isSelectionSnapshotUnchanged(editor, selectionSnapshot);
-
-  const focusEditor = (leftTryCount: number) => {
-    if (leftTryCount <= 0 || !shouldKeepFocusing()) {
-      return;
-    }
-
-    setTimeout(() => {
-      if (!shouldKeepFocusing()) {
-        return;
-      }
-
-      const codeMirrorEditor = codeBlockMap.get(uuid);
-      if (codeMirrorEditor) {
-        codeMirrorEditor.focus();
-        codeMirrorEditor.setCursor({ line: 0, ch: 0 });
-        return;
-      }
-
-      focusEditor(leftTryCount - 1);
-    }, 80);
-  };
-
   focusEditor(retry);
 };
 
@@ -395,16 +347,6 @@ export const insertCheckList = (editor: Editor) => {
   return path;
 };
 
-export const insertBlockMath = (editor: Editor) => {
-  const path = setOrInsertNode(editor, {
-    type: "block-math",
-    tex: "",
-    children: [{ type: "formatted", text: "" }],
-  });
-  focusInsertedPreviewElement(editor, path);
-  return path;
-};
-
 export const insertTable = (editor: Editor, rows: number, cols: number) => {
   // 根据行数和列数创建一个表格
   const tableRowElements: TableRowElement[] = Array.from({ length: rows }).map(() => {
@@ -434,19 +376,6 @@ export const insertTable = (editor: Editor, rows: number, cols: number) => {
   });
 
   return insertPath;
-};
-
-export const insertCodeBlock = (editor: Editor, language = "javascript", code = "") => {
-  const uuid = getUuid();
-  const res = setOrInsertNode(editor, {
-    type: "code-block",
-    code,
-    language: language,
-    uuid,
-    children: [{ type: "formatted", text: "" }],
-  });
-  focusInsertedCodeBlock(editor, uuid);
-  return res;
 };
 
 export const insertDivideLine = (editor: Editor) => {
@@ -581,36 +510,6 @@ export const wrapLink = (editor: Editor, url: string, open = false) => {
   } else {
     Transforms.wrapNodes(editor, link, { split: true });
     Transforms.collapse(editor, { edge: "end" });
-  }
-};
-
-export const unWrapInlineMath = (editor: Editor) => {
-  Transforms.unwrapNodes(editor, {
-    match: n => n.type === "inline-math",
-  });
-};
-
-export const wrapInlineMath = (editor: Editor) => {
-  const { selection } = editor;
-  const [node] = getCurrentTextNode(editor);
-  if (selection && !Range.isCollapsed(selection) && node.type === "formatted") {
-    const text = Editor.string(editor, selection);
-    ["bold", "code", "italic", "underline", "highlight", "color"].forEach(type => {
-      Editor.removeMark(editor, type);
-    });
-    editor.deleteBackward("character");
-    Transforms.wrapNodes(
-      editor,
-      {
-        type: "inline-math",
-        tex: text,
-        children: [{ type: "formatted", text: "" }],
-      },
-      {
-        at: selection,
-        split: true,
-      }
-    );
   }
 };
 

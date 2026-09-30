@@ -4,7 +4,7 @@ import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
 import TikZ from "../../../../renderers/TikZ";
 
 import type { TikzElement } from "../../../../types/tikz";
-import { PreviewWithEditor } from "@tau/editor/api";
+import { PreviewWithEditor } from "@tau/editor-source-view";
 
 interface TikzProps {
   attributes: RenderElementProps["attributes"];

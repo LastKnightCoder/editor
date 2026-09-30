@@ -5,7 +5,7 @@ import PlantUML from "../../../renderers/PlantUML";
 import { useEditorTheme as useTheme } from "@tau/editor/api";
 
 import type { PlantUMLElement } from "../../../types/plantuml";
-import { PreviewWithEditor } from "@tau/editor/api";
+import { PreviewWithEditor } from "@tau/editor-source-view";
 
 interface PlantUMLBlockProps {
   attributes: RenderElementProps["attributes"];

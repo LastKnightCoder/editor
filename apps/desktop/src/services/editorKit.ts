@@ -17,10 +17,14 @@ import {
   type AnyExtension,
   type EditorKit,
 } from "@tau/editor/src";
-import { inlineMath, link, paragraph } from "@tau/editor/src/extensions";
+import { link, paragraph } from "@tau/editor/src/extensions";
+import { inlineMathExtension as inlineMath } from "@tau/editor-math";
 import customBlockExtension from "@tau/editor-custom-block";
 import { diagramExtensions } from "@tau/editor-diagram";
 import { htmlExtensions } from "@tau/editor-html";
+import { previewMenuExtension } from "@tau/editor-source-view/menu";
+import codeBlockExtension from "@tau/editor-code-block";
+import { mathExtensions } from "@tau/editor-math";
 import { createDesktopEditorExtensions, fileAttachmentExtension } from "@/editor-extensions";
 import flashcardBlankExtension from "@/editor-extensions/flashcard-blank";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
@@ -53,6 +57,9 @@ export function createDesktopKit(extras: readonly AnyExtension[] = []): EditorKi
       extensions: [
         ...diagramExtensions,
         ...htmlExtensions,
+        previewMenuExtension,
+        codeBlockExtension,
+        ...mathExtensions,
         customBlockExtension,
         ...createDesktopEditorExtensions(),
         ...extras,

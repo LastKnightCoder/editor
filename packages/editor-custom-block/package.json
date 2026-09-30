@@ -15,6 +15,7 @@
     "check:markdown": "tsc --noEmit -p tsconfig.markdown.json"
   },
   "dependencies": {
+    "@tau/editor-source-view": "workspace:*",
     "@babel/standalone": "^7.22.2",
     "@loadable/component": "^5.15.3",
     "@tau/markdown": "workspace:*",
