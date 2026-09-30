@@ -14,7 +14,7 @@ export const SIDEBAR_COLLAPSED_W = 58;
 export const SIDEBAR_EXPAND_W = SIDEBAR_MIN_W;
 export const SIDEBAR_COLLAPSE_W = SIDEBAR_MIN_W - 20;
 
-/** 右侧辅助栏（AI 对话停靠栏，D-047）宽度范围与默认值 */
+/** 右侧辅助栏宽度范围与默认值 */
 export const ASSIST_MIN_W = 360;
 export const ASSIST_MAX_W = 560;
 export const ASSIST_DEFAULT_W = 400;
