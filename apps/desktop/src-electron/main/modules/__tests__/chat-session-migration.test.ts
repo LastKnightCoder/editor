@@ -8,7 +8,11 @@ import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { migrateLegacyChatsToSessions } from "../chat-session-migration";
+import {
+  CHAT_SESSION_MIGRATION_KEY,
+  migrateLegacyChatsToSessions,
+} from "../chat-session-migration";
+import { retireLegacyChats } from "../legacy-chat-retirement";
 import { loadSessionTranscript } from "../pi-session-host-core";
 import { piEntriesToDesktopMessages } from "../pi-session-transcript";
 import ChatSessionTable from "../tables/chat-session";
@@ -261,7 +265,7 @@ describe.skipIf(!nativeAvailable)("老对话迁移到 pi 会话", () => {
     expect(ChatSessionTable.list(db, { scope: "main-chat" })).toHaveLength(1);
   });
 
-  it("单行消息损坏不拖垮整体：记入失败清单，其余照常迁移", async () => {
+  it("单行失败不记完成、不删旧表；修复重试复用已迁行身份", async () => {
     insertMain(1, [{ role: "user", content: "正常" }]);
     db.prepare(
       "INSERT INTO chat_message (id, create_time, update_time, messages, title) VALUES (2, 1, 1, '{坏的json', '坏行')"
@@ -269,6 +273,31 @@ describe.skipIf(!nativeAvailable)("老对话迁移到 pi 会话", () => {
     const result = await migrate();
     expect(result.migrated).toBe(1);
     expect(result.failed).toEqual([expect.objectContaining({ table: "chat_message", id: 2 })]);
+    expect(
+      db.prepare("SELECT value FROM migration_meta WHERE key=?").get(CHAT_SESSION_MIGRATION_KEY)
+    ).toBeUndefined();
+    expect(retireLegacyChats(db, ":memory:").retired).toBe(false);
+    const firstId = ChatSessionTable.list(db)[0].id;
+    db.prepare("UPDATE chat_message SET messages=? WHERE id=2").run(
+      JSON.stringify([{ role: "user", content: "已修复" }])
+    );
+    expect(await migrate()).toMatchObject({ skipped: false, migrated: 2, failed: [] });
+    const rows = ChatSessionTable.list(db);
+    expect(rows).toHaveLength(2);
+    expect(rows.some(row => row.id === firstId)).toBe(true);
+    expect((await migrate()).skipped).toBe(true);
+  });
+
+  it("旧版本把失败记为完成时重新迁移，并拒绝提前删旧表", async () => {
+    insertMain(1, [{ role: "user", content: "重试" }]);
+    db.exec("CREATE TABLE migration_meta (key TEXT PRIMARY KEY, value TEXT)");
+    db.prepare("INSERT INTO migration_meta VALUES (?, ?)").run(
+      CHAT_SESSION_MIGRATION_KEY,
+      JSON.stringify({ migrated: 0, failed: 1 })
+    );
+    db.prepare("INSERT INTO migration_meta VALUES ('chat-session-tree:v1', '{}')").run();
+    expect(retireLegacyChats(db, ":memory:").retired).toBe(false);
+    expect(await migrate()).toMatchObject({ skipped: false, migrated: 1, failed: [] });
   });
 
   it("旧表不存在（新装机）也能完成并记账", async () => {

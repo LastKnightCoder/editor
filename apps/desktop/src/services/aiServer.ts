@@ -633,19 +633,11 @@ const handleBlockPreviewOpen = async (request: RpcRequestMessage) => {
   }
 };
 
-const handleTabOpen = async (request: RpcRequestMessage) => {
-  const params = request.params as unknown as { type: string; id: number; block?: BlockData };
+const handleContentOpen = async (request: RpcRequestMessage) => {
+  const params = request.params as unknown as { type: string; id: number };
   await showAndFocusWindow();
   try {
-    if (params.type === "block-preview") {
-      const block = params.block;
-      if (!block || !block.id || typeof block.content !== "string" || !block.metadata) {
-        return { success: false, error: "预览内容无效" };
-      }
-      openPage("block-preview", { id: block.id, block: JSON.stringify(block) });
-    } else {
-      await openContent(params.type, params.id);
-    }
+    await openContent(params.type, params.id);
     return { success: true };
   } catch (error) {
     return { success: false, error: (error as Error).message };
@@ -781,8 +773,8 @@ export const initAiServer = () => {
   aiServer.addRequestHandler("mcp.manager.open", handleMcpManagerOpen);
   aiServer.addRequestHandler("block.preview.open", handleBlockPreviewOpen);
 
-  // 注册 Tab 操作 RPC 处理器
-  aiServer.addRequestHandler("tab.open", handleTabOpen);
+  // 内容引用打开使用当前内容入口，不保留旧 Tab 协议。
+  aiServer.addRequestHandler("content.open", handleContentOpen);
 
   // 注册扩展对话 RPC 处理器（浏览器插件 → 桌面按页面存放的 pi 会话文件）
   aiServer.addRequestHandler("chat.list", handleChatList);
