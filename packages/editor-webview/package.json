@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "main": "src/index.tsx",
   "types": "src/index.tsx",
+  "exports": {
+    ".": "./src/index.tsx",
+    "./markdown": "./markdown.ts"
+  },
   "dependencies": {
     "@tau/editor": "workspace:*",
     "@tau/markdown": "workspace:*",

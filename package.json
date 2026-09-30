@@ -30,7 +30,7 @@
     "prepare": "husky",
     "postinstall": "node scripts/postinstall.mjs",
     "test:collaboration:desktop": "pnpm --filter desktop exec vitest run src-electron/main/modules/collaboration/__tests__",
-    "check:editor-refactor": "node scripts/editor-refactor-baseline.mjs --check --quiet",
+    "check:editor-refactor": "node scripts/editor-refactor-baseline.mjs --check --quiet && node scripts/check-editor-extension-boundaries.mjs",
     "check:antd": "node scripts/antd-ratchet.mjs --check"
   },
   "devDependencies": {

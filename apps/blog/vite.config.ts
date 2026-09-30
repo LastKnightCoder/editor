@@ -10,6 +10,7 @@ export default defineConfig({
   base: "./", // 相对路径，支持任意部署位置
   plugins: [react(), tailwindcss()],
   resolve: {
+    dedupe: ["react", "react-dom", "slate", "slate-react", "react-dnd", "react-dnd-html5-backend"],
     alias: {
       // blog 自己的模块
       "@blog": resolve(__dirname, "src"),
@@ -17,8 +18,8 @@ export default defineConfig({
       "@": resolve(mainProjectPath, "src"),
       "@editor": resolve(mainProjectPath, "src/components/Editor"),
       // monorepo packages
-      "@tau/editor": resolve(__dirname, "../../packages/editor/src"),
-      "@tau/shared": resolve(__dirname, "../../packages/shared/src"),
+      "@tau/editor": resolve(__dirname, "../../packages/editor"),
+      "@tau/shared": resolve(__dirname, "../../packages/shared"),
     },
   },
   // 确保可以解析主项目的依赖和样式

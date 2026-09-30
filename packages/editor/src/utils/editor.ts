@@ -21,18 +21,15 @@ import { ParagraphElement, BlockElement } from "../types";
 
 export const getCurrentTextNode = (editor: Editor) => {
   const [match] = Editor.nodes(editor, {
-    match: (n) => isLeafNode(n),
+    match: n => isLeafNode(n),
     mode: "lowest",
   });
   return match;
 };
 
-export const getClosestCurrentElement = (
-  editor: Editor,
-): NodeEntry<BlockElement> => {
+export const getClosestCurrentElement = (editor: Editor): NodeEntry<BlockElement> => {
   const [match] = Editor.nodes(editor, {
-    match: (n) =>
-      !Editor.isEditor(n) && isElementNode(n) && Editor.isBlock(editor, n),
+    match: n => !Editor.isEditor(n) && isElementNode(n) && Editor.isBlock(editor, n),
     mode: "lowest",
   });
   return match as NodeEntry<BlockElement>;
@@ -40,7 +37,7 @@ export const getClosestCurrentElement = (
 
 export const getLeafParent = (editor: Editor) => {
   const [curLeafNode] = Editor.nodes(editor, {
-    match: (n) => isLeafNode(n),
+    match: n => isLeafNode(n),
   });
   if (!curLeafNode) {
     return;
@@ -50,7 +47,7 @@ export const getLeafParent = (editor: Editor) => {
 
 export const getElementParent = (editor: Editor) => {
   const [curEle] = Editor.nodes(editor, {
-    match: (n) => isElementNode(n),
+    match: n => isElementNode(n),
     mode: "lowest",
   });
   if (!curEle) {
@@ -92,16 +89,11 @@ export const insertParagraphAndFocus = (editor: Editor, node: Node) => {
     {
       at: nextPath,
       select: true,
-    },
+    }
   );
 };
 
-export const replaceNode = (
-  editor: Editor,
-  node: Node,
-  match: NodeMatch<Node>,
-  options = {},
-) => {
+export const replaceNode = (editor: Editor, node: Node, match: NodeMatch<Node>, options = {}) => {
   const [curEle] = Editor.nodes(editor, {
     match,
     mode: "lowest",
@@ -127,7 +119,7 @@ export const replaceNode = (
 
 export const isParagraphAndEmpty = (editor: Editor) => {
   const [match] = Editor.nodes(editor, {
-    match: (n) => n.type === "paragraph",
+    match: n => n.type === "paragraph",
   });
   if (!match) {
     return false;
@@ -143,20 +135,17 @@ export const isCollapsed = (editor: Editor) => {
 
 const getCurrentEmptyNodeRecursive = (
   editor: Editor,
-  emptyNode: NodeEntry<BlockElement>,
+  emptyNode: NodeEntry<BlockElement>
 ): NodeEntry<BlockElement> => {
   const parent = Editor.parent(editor, emptyNode[1]);
   if (
     !parent ||
-    !isBlockElementEmpty(parent[0] as BlockElement) ||
+    !isBlockElementEmpty(parent[0] as BlockElement, editor) ||
     Editor.isEditor(parent[0])
   ) {
     return emptyNode;
   }
-  return getCurrentEmptyNodeRecursive(
-    editor,
-    parent as NodeEntry<BlockElement>,
-  );
+  return getCurrentEmptyNodeRecursive(editor, parent as NodeEntry<BlockElement>);
 };
 
 export const getCurrentEmptyNode = (editor: Editor) => {
@@ -166,7 +155,7 @@ export const getCurrentEmptyNode = (editor: Editor) => {
     return;
   }
   const [curEle] = curNodeEntry;
-  const isEmpty = isBlockElementEmpty(curEle);
+  const isEmpty = isBlockElementEmpty(curEle, editor);
   if (!isEmpty) {
     return;
   }
@@ -232,21 +221,13 @@ export const updateNodeRecursively = (
   editor: Editor,
   oldNode: Node,
   newNode: Node,
-  path: number[],
+  path: number[]
 ): void => {
   // 如果类型相同，更新节点属性
   if (oldNode.type === newNode.type) {
     // 更新节点属性（排除 children）
-    const {
-      children: _oldChildren,
-      type: oldType,
-      ...oldNodeProperties
-    } = oldNode as any;
-    const {
-      children: _newChildren,
-      type: newType,
-      ...nodeProperties
-    } = newNode as any;
+    const { children: _oldChildren, type: oldType, ...oldNodeProperties } = oldNode as any;
+    const { children: _newChildren, type: newType, ...nodeProperties } = newNode as any;
 
     const oldChildren = _oldChildren || [];
     const newChildren = _newChildren || [];
@@ -256,29 +237,18 @@ export const updateNodeRecursively = (
       JSON.stringify(oldNodeProperties) !== JSON.stringify(nodeProperties)
     ) {
       // 不能通过 apply 设置 text 属性，如果是文本节点并且 text 发生了变化，选中文本，调用 insertText
-      if (
-        oldType === "formatted" &&
-        oldNodeProperties.text !== nodeProperties.text
-      ) {
+      if (oldType === "formatted" && oldNodeProperties.text !== nodeProperties.text) {
         const text = String(oldNodeProperties.text ?? "");
         const nextText = String(nodeProperties.text ?? "");
         let start = 0;
         let oldEnd = text.length;
         let newEnd = nextText.length;
 
-        while (
-          start < oldEnd &&
-          start < newEnd &&
-          text[start] === nextText[start]
-        ) {
+        while (start < oldEnd && start < newEnd && text[start] === nextText[start]) {
           start += 1;
         }
 
-        while (
-          oldEnd > start &&
-          newEnd > start &&
-          text[oldEnd - 1] === nextText[newEnd - 1]
-        ) {
+        while (oldEnd > start && newEnd > start && text[oldEnd - 1] === nextText[newEnd - 1]) {
           oldEnd -= 1;
           newEnd -= 1;
         }
@@ -308,17 +278,15 @@ export const updateNodeRecursively = (
       }
     }
 
-    (newChildren as Descendant[]).forEach(
-      (newChild: Descendant, index: number) => {
-        const childPath = [...path, index];
-        if (index < oldChildren.length) {
-          const oldChild = oldChildren[index];
-          updateNodeRecursively(editor, oldChild, newChild, childPath);
-        } else {
-          Transforms.insertNodes(editor, newChild, { at: childPath });
-        }
-      },
-    );
+    (newChildren as Descendant[]).forEach((newChild: Descendant, index: number) => {
+      const childPath = [...path, index];
+      if (index < oldChildren.length) {
+        const oldChild = oldChildren[index];
+        updateNodeRecursively(editor, oldChild, newChild, childPath);
+      } else {
+        Transforms.insertNodes(editor, newChild, { at: childPath });
+      }
+    });
 
     // 删除多余的旧子节点
     if (oldChildren.length > newChildren.length) {

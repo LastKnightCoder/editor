@@ -6,7 +6,7 @@
 
 import { forwardRef, useEffect, useId, useState } from "react";
 import { useDebounce } from "ahooks";
-import { renderMermaidSvg } from "@tau/shared";
+import { renderMermaidSvg } from "@tau/editor-diagram/mermaid";
 import useTheme from "@/hooks/useTheme";
 
 export const MermaidDiagram = forwardRef<HTMLDivElement, { code: string; generating: boolean }>(

@@ -9,10 +9,7 @@ import {
   type ServiceRegistration,
   type VideoContentProvider,
 } from "@tau/editor";
-import { createMarkdownProcessor } from "@tau/markdown";
-import { editorMarkdownCodecs } from "@tau/editor/markdown";
-import { webviewCodec } from "@tau/editor-webview/markdown";
-import { markdownCustomDirectives } from "@tau/shared";
+export { extensionImportFromMarkdown } from "./editorMarkdown";
 import type WebSocketClient from "../utils/WebSocketClient";
 import type { ResolvedTheme } from "../utils/types";
 import RpcLocalImage from "../components/RpcLocalImage";
@@ -126,21 +123,3 @@ export function createExtensionEditorServices({
     register(IVideoContentProviders, createDegradedVideoProviders());
   };
 }
-
-/** 扩展侧的 Markdown 处理器：内置扩展 + webview，粘贴导入用 */
-const extensionMarkdown = createMarkdownProcessor({
-  codecs: [...editorMarkdownCodecs, webviewCodec],
-});
-
-/** markdown 粘贴导入用的解析函数（合并业务 customDirectives），供宿主扩展工厂注入 */
-export const extensionImportFromMarkdown = (
-  markdown: string,
-  ignoreTypes?: string[],
-  options?: Parameters<typeof extensionMarkdown.importFromMarkdown>[2]
-) =>
-  extensionMarkdown.importFromMarkdown(markdown, ignoreTypes, {
-    customDirectives: {
-      ...markdownCustomDirectives,
-      ...options?.customDirectives,
-    },
-  });

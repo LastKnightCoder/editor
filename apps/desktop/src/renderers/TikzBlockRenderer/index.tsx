@@ -4,7 +4,7 @@
  */
 
 import { Sigma } from "lucide-react";
-import { TikZ } from "@tau/shared";
+import { TikZ } from "@tau/editor-diagram/renderers";
 import useTheme from "@/hooks/useTheme";
 import { defineBlockRenderer, type BlockPreviewProps } from "@/types/block-preview";
 import { ZoomSurface } from "@/features/previews/components/ZoomSurface";

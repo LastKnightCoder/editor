@@ -7,9 +7,7 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import classNames from "classnames";
 import remarkDocumentReference from "../../utils/remark-document-reference";
-import MermaidRenderer from "../MermaidRenderer";
 import LazySyntaxHighlighter from "../LazySyntaxHighlighter";
-import PlantUML from "../PlantUML";
 /**
  * message 实例的最小消费面（Mermaid 通知）；antd message 与 @tau/ui toast 结构均满足。
  * 纯类型依赖不产出运行时代码，browser-extension 侧消费本组件不受影响（D-073）。
@@ -171,7 +169,7 @@ const createSpanComponent = (
 
 /**
  * 创建代码块渲染组件
- * 内置 mermaid / plantuml 检测，支持自定义语言渲染器扩展
+ * 图表等专属语言通过宿主插槽注入，shared 不加载专属渲染器。
  */
 const createCodeComponent = (options: {
   isDark: boolean;
@@ -192,19 +190,7 @@ const createCodeComponent = (options: {
         return <CustomRenderer code={code} isDark={options.isDark} />;
       }
 
-      // 2. 内置 mermaid 渲染
-      if (language === "mermaid") {
-        return (
-          <MermaidRenderer code={code} isDark={options.isDark} messageApi={options.messageApi} />
-        );
-      }
-
-      // 3. 内置 plantuml 渲染（经渲染服务器 img 直出，无需宿主 fetch）
-      if (language === "plantuml") {
-        return <PlantUML content={code} isDark={options.isDark} />;
-      }
-
-      // 4. 其他语言使用 LazySyntaxHighlighter
+      // 其他语言使用通用高亮器。
       return (
         <LazySyntaxHighlighter language={language} isDark={options.isDark} {...rest}>
           {code}

@@ -38,6 +38,8 @@ export default defineConfig(() => {
       dedupe: [
         "react",
         "react-dom",
+        "slate",
+        "slate-react",
         "react-dnd",
         "react-dnd-html5-backend",
         "dnd-core",

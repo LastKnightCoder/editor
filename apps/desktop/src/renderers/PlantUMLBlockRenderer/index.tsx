@@ -5,7 +5,7 @@
 
 import { useState } from "react";
 import { GitFork, WifiOff } from "lucide-react";
-import { buildPlantumlSvgUrl, applyDarkTheme } from "@tau/shared";
+import { buildPlantumlSvgUrl, applyDarkTheme } from "@tau/editor-diagram/plantuml";
 import useTheme from "@/hooks/useTheme";
 import { defineBlockRenderer, type BlockPreviewProps } from "@/types/block-preview";
 import { ZoomSurface } from "@/features/previews/components/ZoomSurface";

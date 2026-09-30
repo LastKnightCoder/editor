@@ -7,6 +7,8 @@
  * （内置扩展见 @tau/editor/markdown，图表类见 P9 的 @tau/editor-diagram/markdown）。
  * 宿主把 codec 列表合成一次建处理器，渲染进程与主进程共用。
  */
+import type {} from "./slate-types.d.ts";
+
 export {
   createMarkdownProcessor,
   type MarkdownProcessor,

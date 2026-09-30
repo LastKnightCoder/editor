@@ -5,6 +5,9 @@
 @import "@tau/themes/tailwind.css";
 @import "./tau-tokens.css";
 @source "../../../../../packages/editor/src";
+@source "../../../../../packages/editor-custom-block/src";
+@source "../../../../../packages/editor-diagram/src";
+@source "../../../../../packages/editor-diagram/renderers.tsx";
 @source "../../../../../packages/editor-webview/src";
 @source "../../../../../packages/ui/src";
 @source "../../../../../packages/shared/src";

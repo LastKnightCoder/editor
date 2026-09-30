@@ -16,11 +16,8 @@ import {
 import remarkFrontmatter from "remark-frontmatter";
 import type { Descendant } from "slate";
 import { visit } from "unist-util-visit";
-import type { HighlightColor } from "./types.ts";
-import {
-  TEXT_GRADIENT_PRESETS,
-  type TextGradientPresetId,
-} from "@tau/editor/src/constants/text-gradient.ts";
+import type { HighlightColor, FormattedText } from "./types.ts";
+import { TEXT_GRADIENT_PRESETS, type TextGradientPresetId } from "./text-gradient.ts";
 import { PositionMapper } from "./positionMapper.ts";
 import type { ElementMapping, MarkdownPosition, TextMapping } from "./positionMapper.ts";
 
@@ -78,6 +75,12 @@ const getFormattedText = (node: Descendant): string => {
   if (!("text" in node)) return "";
   return typeof node.text === "string" ? node.text : "";
 };
+
+const getNodeType = (node: Descendant): string =>
+  "type" in node && typeof node.type === "string" ? node.type : "";
+
+const isFormattedNode = (node: Descendant): node is FormattedText =>
+  getNodeType(node) === "formatted";
 
 const remarkHtmlProcessor = () => (tree: unknown) => {
   const visitTree = tree as Parameters<typeof visit>[0];
@@ -301,12 +304,12 @@ const markdownToDescendant = (
           if (Array.isArray(item)) {
             return item
               .map(i => {
-                if (i.type !== "formatted") return undefined;
+                if (!isFormattedNode(i)) return undefined;
                 return { ...i, ...colorAttributes };
               })
               .filter(Boolean) as Descendant[];
           }
-          if (item.type !== "formatted") return item;
+          if (!isFormattedNode(item)) return item;
           return { ...item, ...colorAttributes };
         })
         .filter(Boolean)
@@ -321,12 +324,12 @@ const markdownToDescendant = (
           if (Array.isArray(item)) {
             return item
               .map(i => {
-                if (i.type !== "formatted") return undefined;
+                if (!isFormattedNode(i)) return undefined;
                 return { ...i, ...gradientAttributes };
               })
               .filter(Boolean) as Descendant[];
           }
-          if (item.type !== "formatted") return item;
+          if (!isFormattedNode(item)) return item;
           return { ...item, ...gradientAttributes };
         })
         .filter(Boolean)
@@ -341,12 +344,12 @@ const markdownToDescendant = (
           if (Array.isArray(item)) {
             return item
               .map(i => {
-                if (i.type !== "formatted") return undefined;
+                if (!isFormattedNode(i)) return undefined;
                 return { ...i, highlight: highlightColor };
               })
               .filter(Boolean) as Descendant[];
           }
-          if (item.type !== "formatted") return item;
+          if (!isFormattedNode(item)) return item;
           return { ...item, highlight: highlightColor };
         })
         .filter(Boolean)
@@ -383,7 +386,7 @@ const markdownToDescendant = (
         if (Array.isArray(item)) {
           return item
             .map(i => {
-              if (i.type !== "formatted") return;
+              if (!isFormattedNode(i)) return;
               return {
                 ...i,
                 ...attributes,
@@ -391,7 +394,7 @@ const markdownToDescendant = (
             })
             .filter(Boolean) as Descendant[];
         }
-        if (item.type !== "formatted") return;
+        if (!isFormattedNode(item)) return;
         return {
           ...item,
           ...attributes,
@@ -427,7 +430,7 @@ const markdownToDescendant = (
           text: node.value,
         },
       ],
-    };
+    } as Descendant;
   }
 };
 
@@ -528,7 +531,7 @@ type MarkContext = {
 };
 
 const applyMarks = (node: Descendant, marks: MarkContext): Descendant => {
-  if (node.type !== "formatted") return node;
+  if (!isFormattedNode(node)) return node;
   return {
     ...node,
     ...marks,
@@ -928,7 +931,7 @@ const importWithPositionsInContext = (
         slateResultArray.push(node);
         const slatePath = [...parentPath, insertIndex];
 
-        if (node.type === "formatted") {
+        if (isFormattedNode(node)) {
           const mapping = buildTextMapping({
             slateTextPath: slatePath,
             text: getFormattedText(node),
@@ -940,14 +943,14 @@ const importWithPositionsInContext = (
           }
         } else if (
           astChildNode.position &&
-          (isVoidSlateElementType(node.type) || isRestoredNode(node))
+          (isVoidSlateElementType(getNodeType(node)) || isRestoredNode(node))
         ) {
           const mdStart = toMarkdownPosition(astChildNode.position.start);
           const mdEnd = toMarkdownPosition(astChildNode.position.end);
           const elementMapping: ElementMapping = {
             type: "element",
             slateElementPath: slatePath,
-            elementType: node.type,
+            elementType: getNodeType(node),
             isVoid: true,
             mdStartLine: mdStart.line,
             mdStartCh: mdStart.ch,
@@ -958,7 +961,7 @@ const importWithPositionsInContext = (
           // codec 声明了源码属性（fenceSourceProperty）的 code 认领方，补属性级映射
           const sourceProperty =
             astChildNode.type === "code"
-              ? getCurrentParseContext().fenceSourceProperties.get(node.type)
+              ? getCurrentParseContext().fenceSourceProperties.get(getNodeType(node))
               : undefined;
           if (sourceProperty) {
             const code = astChildNode.value || "";
@@ -981,7 +984,7 @@ const importWithPositionsInContext = (
           positionMap.addElementMapping(elementMapping);
         }
 
-        if (astChildNode.children && node.type !== "formatted" && !isRestoredNode(node)) {
+        if (astChildNode.children && !isFormattedNode(node) && !isRestoredNode(node)) {
           const nextWrapper =
             astChildNode.type === "link" ||
             (astChildNode.type === "textDirective" &&
@@ -1035,7 +1038,7 @@ const importWithPositionsInContext = (
                 text: "",
               },
             ],
-          },
+          } as Descendant,
         ];
 
   positionMap.pruneInvalidPaths(path => isPathInNodes(content, path));
@@ -1139,8 +1142,8 @@ const importInContext = (markdown: string, ignoreTypes: string[]): Descendant[] 
       }
       if (!Array.isArray(slateNode)) {
         slateResultArray.push(slateNode);
-        if (astChildNode.children && slateNode.type !== "formatted" && !isRestoredNode(slateNode)) {
-          dfs(astChildNode.children, slateNode.children, ignoreTypes, astChildNode);
+        if (astChildNode.children && !isFormattedNode(slateNode) && !isRestoredNode(slateNode)) {
+          dfs(astChildNode.children, getDescendantChildren(slateNode), ignoreTypes, astChildNode);
         }
       } else {
         slateResultArray.push(...slateNode);
@@ -1177,7 +1180,7 @@ const importInContext = (markdown: string, ignoreTypes: string[]): Descendant[] 
             text: "",
           },
         ],
-      },
+      } as Descendant,
     ];
   }
   return afterNormalize;
@@ -1201,10 +1204,10 @@ const normalizeEditorContent = (
       result.push(element);
       continue;
     }
-    if (element.type !== "formatted" && element.children.length === 0) {
+    if (!isFormattedNode(element) && getDescendantChildren(element).length === 0) {
       continue;
     }
-    const normalize = normalizeHooks.get(element.type ?? "");
+    const normalize = normalizeHooks.get(getNodeType(element));
     if (normalize) {
       const replacement = normalize(element, {
         parent,
@@ -1220,7 +1223,7 @@ const normalizeEditorContent = (
         continue;
       }
     }
-    if (element.type !== "formatted" && element.children) {
+    if (!isFormattedNode(element) && "children" in element) {
       element.children = normalizeEditorContent(element.children, [], element);
     }
 

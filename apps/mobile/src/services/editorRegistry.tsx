@@ -14,10 +14,7 @@ import {
   type ImageAppearanceConfig,
   type ImageAppearanceSource,
 } from "@tau/editor/src";
-import { createMarkdownProcessor } from "@tau/markdown";
-import { editorMarkdownCodecs } from "@tau/editor/markdown";
-import { webviewCodec } from "@tau/editor-webview/markdown";
-import { markdownCustomDirectives } from "@tau/shared";
+export { mobileImportFromMarkdown } from "./editorMarkdown";
 import LocalAudio from "../components/editor/LocalAudio";
 import LocalImage from "../components/editor/LocalImage";
 import LocalVideo from "../components/editor/LocalVideo";
@@ -117,24 +114,6 @@ export const mobileEditorServices: ServiceRegistration = register => {
 export function createMobileEditorRegistry(): ServiceRegistry {
   return createServiceRegistry(mobileEditorServices);
 }
-
-/** mobile 的 Markdown 处理器：内置扩展 + webview，粘贴导入用 */
-const mobileMarkdown = createMarkdownProcessor({
-  codecs: [...editorMarkdownCodecs, webviewCodec],
-});
-
-/** markdown 粘贴导入用的解析函数（合并业务 customDirectives），供宿主扩展工厂注入 */
-export const mobileImportFromMarkdown = (
-  markdown: string,
-  ignoreTypes?: string[],
-  options?: Parameters<typeof mobileMarkdown.importFromMarkdown>[2]
-) =>
-  mobileMarkdown.importFromMarkdown(markdown, ignoreTypes, {
-    customDirectives: {
-      ...markdownCustomDirectives,
-      ...options?.customDirectives,
-    },
-  });
 
 /** 图片默认外观：读设置桥快照，快照更新时编辑器随之刷新 */
 export const mobileImageAppearance: ImageAppearanceSource = {

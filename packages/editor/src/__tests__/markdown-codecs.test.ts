@@ -34,11 +34,6 @@ describe("内置扩展 codec 覆盖", () => {
       "table",
       "table-row",
       "table-cell",
-      "mermaid",
-      "abc",
-      "plantuml",
-      "tikz",
-      "typst",
       "callout",
       "detail",
       "divide-line",
@@ -47,7 +42,6 @@ describe("内置扩展 codec 覆盖", () => {
       "check-list",
       "check-list-item",
       "highlight-block",
-      "custom-block",
       "front-matter",
       "emoji",
       "annotation",
@@ -110,23 +104,6 @@ describe("导出：块级", () => {
     expect(markdown).toContain("第二步");
     expect(markdown).not.toContain("旧代码");
     expect(markdown).toMatch(/smm=/);
-  });
-
-  it("mermaid / abc / plantuml / tikz / typst 围栏", () => {
-    for (const [type, source, fence] of [
-      ["mermaid", "chart", "graph TD"],
-      ["abc", "content", "X: 1"],
-      ["plantuml", "content", "@startuml"],
-      ["tikz", "content", "\\draw;"],
-      ["typst", "content", "= hi"],
-    ] as const) {
-      const markdown = exportOne({
-        type,
-        [source]: fence,
-        children: [{ type: "formatted", text: "" }],
-      });
-      expect(markdown).toBe("```" + type + "\n" + fence + "\n```");
-    }
   });
 
   it("callout 有标题用标题，没标题用默认标题", () => {
@@ -200,7 +177,7 @@ describe("导出：块级", () => {
     ).toBe("![](1.png)\n![](2.png)");
   });
 
-  it("block-math / inline-math / html-block / html-inline / custom-block", () => {
+  it("block-math / inline-math / html-block / html-inline", () => {
     expect(
       exportOne({ type: "block-math", tex: "E=mc^2", children: [{ type: "formatted", text: "" }] })
     ).toBe("$$\nE=mc^2\n$$");
@@ -221,13 +198,6 @@ describe("导出：块级", () => {
         children: [{ type: "formatted", text: "" }],
       })
     ).toBe("<b>x</b>");
-    expect(
-      exportOne({
-        type: "custom-block",
-        content: "return 1",
-        children: [{ type: "formatted", text: "" }],
-      })
-    ).toBe("```custom-block\nreturn 1\n```");
   });
 
   it("无序列表与图标、有序列表", () => {

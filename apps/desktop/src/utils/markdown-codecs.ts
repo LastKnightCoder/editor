@@ -6,7 +6,7 @@
  * 两边解析规则只维护一份。
  */
 // 深路径：@tau/shared 根入口会带出 React 组件，主进程不能引
-import { markdownCustomDirectives } from "@tau/shared/src/utils/markdown-custom-directives";
+import { markdownCustomDirectives } from "@tau/shared/markdown-directives";
 import type { MarkdownCodec, MarkdownSerializer } from "@tau/markdown";
 
 type Serializer = Omit<MarkdownSerializer, "type">;

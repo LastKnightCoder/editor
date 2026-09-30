@@ -43,7 +43,7 @@ const isSelectionSnapshotUnchanged = (editor: Editor, expectedSnapshot: string |
   return getSelectionSnapshot(editor.selection) === expectedSnapshot;
 };
 
-const focusInsertedPreviewElement = (editor: Editor, path?: Path, retry = 5) => {
+export const focusInsertedPreviewElement = (editor: Editor, path?: Path, retry = 5) => {
   if (!path || retry <= 0 || typeof document === "undefined") {
     return;
   }
@@ -450,56 +450,6 @@ export const insertCodeBlock = (editor: Editor, language = "javascript", code = 
   return res;
 };
 
-export const insertMermaid = (editor: Editor) => {
-  const path = setOrInsertNode(editor, {
-    type: "mermaid",
-    chart: "",
-    children: [{ type: "formatted", text: "" }],
-  });
-  focusInsertedPreviewElement(editor, path);
-  return path;
-};
-
-export const insertAbc = (editor: Editor) => {
-  const path = setOrInsertNode(editor, {
-    type: "abc",
-    content: "",
-    children: [{ type: "formatted", text: "" }],
-  });
-  focusInsertedPreviewElement(editor, path);
-  return path;
-};
-
-export const insertPlantUML = (editor: Editor) => {
-  const path = setOrInsertNode(editor, {
-    type: "plantuml",
-    content: "",
-    children: [{ type: "formatted", text: "" }],
-  });
-  focusInsertedPreviewElement(editor, path);
-  return path;
-};
-
-export const insertTikz = (editor: Editor) => {
-  const path = setOrInsertNode(editor, {
-    type: "tikz",
-    content: "",
-    children: [{ type: "formatted", text: "" }],
-  });
-  focusInsertedPreviewElement(editor, path);
-  return path;
-};
-
-export const insertTypst = (editor: Editor) => {
-  const path = setOrInsertNode(editor, {
-    type: "typst",
-    content: "",
-    children: [{ type: "formatted", text: "" }],
-  });
-  focusInsertedPreviewElement(editor, path);
-  return path;
-};
-
 export const insertHTMLBlock = (editor: Editor) => {
   const path = setOrInsertNode(editor, {
     type: "html-block",
@@ -507,20 +457,6 @@ export const insertHTMLBlock = (editor: Editor) => {
     children: [{ type: "formatted", text: "" }],
   });
   focusInsertedPreviewElement(editor, path);
-  return path;
-};
-
-const defaultCustomBlockContent = `const Component = () => {
-  
-}`;
-
-export const insertCustomBlock = (editor: Editor) => {
-  const path = setOrInsertNode(editor, {
-    type: "custom-block",
-    content: defaultCustomBlockContent,
-    children: [{ type: "formatted", text: "" }],
-  });
-  focusInsertedPreviewElement(editor, path, 5);
   return path;
 };
 

@@ -3,15 +3,42 @@
   "version": "0.1.0",
   "main": "src/index.ts",
   "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./api": "./api.ts",
+    "./markdown": "./markdown.ts",
+    "./src": "./src/index.ts",
+    "./src/services": "./src/services/index.ts",
+    "./src/utils": "./src/utils/index.ts",
+    "./src/types": "./src/types/index.ts",
+    "./src/constants": "./src/constants/index.ts",
+    "./src/extensions": "./src/extensions/index.ts",
+    "./src/components/BlockDrag": "./src/components/BlockDrag/index.tsx",
+    "./src/components/FormattedText": "./src/components/FormattedText/index.tsx",
+    "./src/*": {
+      "types": [
+        "./src/*",
+        "./src/*.ts",
+        "./src/*.tsx",
+        "./src/*/index.ts",
+        "./src/*/index.tsx"
+      ],
+      "default": [
+        "./src/*",
+        "./src/*.ts",
+        "./src/*.tsx",
+        "./src/*/index.ts",
+        "./src/*/index.tsx"
+      ]
+    }
+  },
   "scripts": {
     "test": "vitest run"
   },
   "peerDependencies": {
-    "@babel/standalone": "^7.22.2",
     "@emoji-mart/data": "^1.2.1",
     "@emoji-mart/react": "^1.1.1",
     "@loadable/component": "^5.15.3",
-    "abcjs": "^6.5.2",
     "ahooks": "^3.7.7",
     "classnames": "^2.3.2",
     "codemirror": "5",
@@ -22,9 +49,7 @@
     "immer": "^10.0.2",
     "is-hotkey": "^0.2.0",
     "katex": "^0.16.8",
-    "mermaid": "^10.1.0",
     "motion": "12.26.2",
-    "plantuml-encoder": "^1.4.0",
     "react": "19.1.x",
     "react-codemirror2": "^7.2.1",
     "react-color": "^2.19.3",
@@ -45,11 +70,9 @@
     "zustand": "^4.3.8"
   },
   "devDependencies": {
-    "@babel/standalone": "^7.22.2",
     "@emoji-mart/data": "^1.2.1",
     "@emoji-mart/react": "^1.1.1",
     "@loadable/component": "^5.15.3",
-    "@types/babel__standalone": "^7.1.8",
     "@types/codemirror": "^5.60.7",
     "@types/is-hotkey": "^0.1.7",
     "@types/loadable__component": "^5.13.10",
@@ -58,7 +81,6 @@
     "@types/react-dom": "19.1.6",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@types/uuid": "^9.0.8",
-    "abcjs": "^6.5.2",
     "ahooks": "^3.7.7",
     "classnames": "^2.3.2",
     "codemirror": "5",
@@ -71,9 +93,7 @@
     "katex": "^0.16.25",
     "lodash": "^4.17.21",
     "lucide-react": "^0.399.0",
-    "mermaid": "^10.1.0",
     "motion": "12.26.2",
-    "plantuml-encoder": "^1.4.0",
     "react": "19.1.0",
     "react-codemirror2": "^7.2.1",
     "react-color": "^2.19.3",

@@ -10,6 +10,7 @@ import type { MenuContributionSource } from "../menu/resolveMenu";
 import { toEditorExtension, elementTypesOf, type AnyExtension } from "../api/legacy";
 import type { Plugin } from "../utils/plugin";
 import type { IBlockPanelListItem, IConfigItem } from "../types";
+import { registerElementEmpty } from "./elementEmpty";
 
 /** 一个扩展贡献的插件：内核按扩展逐组应用，出错隔离到组（extensionGuard.ts） */
 export interface ExtensionPluginGroup {
@@ -37,6 +38,7 @@ type ElementRenderer = (props: RenderElementProps) => ReactElement | undefined;
 const schemaPlugin =
   (elements: readonly ElementSpec[]): Plugin =>
   (editor: Editor) => {
+    registerElementEmpty(editor, elements);
     const inline = new Set(elements.filter(e => e.kind === "inline").map(e => e.type));
     const block = new Set(elements.filter(e => e.kind === "block").map(e => e.type));
     const voids = new Set(elements.filter(e => e.isVoid).map(e => e.type));

@@ -5,12 +5,19 @@
  */
 import { createMarkdownProcessor } from "@tau/markdown";
 import { editorMarkdownCodecs } from "@tau/editor/markdown";
+import { customBlockCodec } from "@tau/editor-custom-block/markdown";
+import { diagramMarkdownCodecs } from "@tau/editor-diagram/markdown";
 import { webviewCodec } from "@tau/editor-webview/markdown";
-import { desktopMarkdownCodecs } from "./markdown-codecs";
+import { desktopMarkdownCodecs } from "./markdown-codecs.ts";
 
-export const desktopMarkdown = createMarkdownProcessor({
-  codecs: [...editorMarkdownCodecs, webviewCodec, ...desktopMarkdownCodecs],
-});
+export const desktopCodecComposition = [
+  ...editorMarkdownCodecs,
+  ...diagramMarkdownCodecs,
+  customBlockCodec,
+  webviewCodec,
+  ...desktopMarkdownCodecs,
+];
+export const desktopMarkdown = createMarkdownProcessor({ codecs: desktopCodecComposition });
 
 export const importFromMarkdown = desktopMarkdown.importFromMarkdown;
 export const importFromMarkdownWithPositions = desktopMarkdown.importFromMarkdownWithPositions;

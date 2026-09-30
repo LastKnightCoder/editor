@@ -21,6 +21,14 @@ export default defineConfig({
   vite: () => ({
     plugins: [tailwindcss() as any],
     resolve: {
+      dedupe: [
+        "react",
+        "react-dom",
+        "slate",
+        "slate-react",
+        "react-dnd",
+        "react-dnd-html5-backend",
+      ],
       alias: {
         "@": path.resolve(__dirname, "src"),
       },

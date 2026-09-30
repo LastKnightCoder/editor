@@ -6,7 +6,9 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./model": "./src/model.ts",
+    "./text-gradient": "./src/text-gradient.ts"
   },
   "scripts": {
     "test": "vitest run",
@@ -14,8 +16,6 @@
   },
   "dependencies": {
     "@tau/db-schema": "workspace:*",
-    "@tau/editor": "workspace:*",
-    "@tau/shared": "workspace:*",
     "remark-cjk-friendly": "^2.3.1",
     "remark-cjk-friendly-gfm-strikethrough": "^2.3.1",
     "remark-directive": "^3.0.1",

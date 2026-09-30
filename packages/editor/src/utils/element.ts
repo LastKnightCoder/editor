@@ -12,6 +12,7 @@ import {
 } from "../types";
 import { Element, isEditor, Node, Editor, Path } from "slate";
 import { ReactEditor } from "slate-react";
+import { isDeclaredElementEmpty } from "../kit/elementEmpty";
 
 export const isLeafNode = (node: Node) => {
   return !Element.isElement(node) && Node.isNode(node) && !isEditor(node);
@@ -98,7 +99,7 @@ const isTableCellEmpty = (element: TableCellElement) => {
   return children.every(child => isInlineElementEmpty(child));
 };
 
-export const isBlockElementEmpty = (element: BlockElement): boolean => {
+export const isBlockElementEmpty = (element: BlockElement, editor?: Editor): boolean => {
   switch (element.type) {
     case "paragraph":
       return element.children.every(child => isInlineElementEmpty(child));
@@ -110,25 +111,19 @@ export const isBlockElementEmpty = (element: BlockElement): boolean => {
     case "bulleted-list":
     case "numbered-list":
     case "check-list":
-      return element.children.every(child => isBlockElementEmpty(child));
+      return element.children.every(child => isBlockElementEmpty(child, editor));
     case "table":
       return isTableElementEmpty(element);
     case "code-block":
       return element.code === "";
-    case "mermaid":
-      return element.chart === "";
     case "block-math":
       return element.tex === "";
-    case "tikz":
-      return element.content === "";
     case "html-block":
       return element.html === "";
-    case "custom-block":
-      return element.content === "";
     case "image":
       return element.url === "";
     default:
-      return false;
+      return isDeclaredElementEmpty(editor, element);
   }
 };
 

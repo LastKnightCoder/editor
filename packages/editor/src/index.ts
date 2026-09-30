@@ -68,8 +68,6 @@ export { createMarkdownPasteImportExtension } from "./extensions/markdown-paste-
 export type { MarkdownImportFn } from "./extensions/markdown-paste-import";
 export { isMarkdownLikeText } from "./plugins/withMarkdownPasteImport";
 export type { ImportFromMarkdownOptions } from "./plugins/withMarkdownPasteImport";
-export { default as plantUMLExtension, createPlantUMLExtension } from "./extensions/plantuml";
-export type { PlantUMLExtensionOptions } from "./extensions/plantuml";
 export { createImageExtensions } from "./extensions/image/createImageExtensions";
 export { default as headerExtension, createHeaderExtension } from "./extensions/header";
 export type { HeaderExtensionOptions } from "./extensions/header";
@@ -83,12 +81,6 @@ export { useEditorTheme, EditorThemeOverride } from "./theme/context";
 export type { EditorTheme } from "./theme/context";
 export { createDomThemeService, createStaticThemeService } from "./theme/ThemeService";
 export type { ThemeService, EditorThemeMode } from "./theme/ThemeService";
-
-export {
-  generateExecutableCode,
-  compileAndExecuteCustomBlock,
-  rerenderCustomBlockTheme,
-} from "./extensions/custom-block/utils/renderTemplate";
 
 export * from "./utils/element";
 

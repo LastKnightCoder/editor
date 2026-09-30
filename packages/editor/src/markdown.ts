@@ -23,11 +23,6 @@ import { bulletedListCodec } from "./extensions/bulleted-list/markdown.ts";
 import { numberedListCodec } from "./extensions/numbered-list/markdown.ts";
 import { listItemCodec } from "./extensions/list-item/markdown.ts";
 import { tableCodec, tableRowCodec, tableCellCodec } from "./extensions/table/markdown.ts";
-import { mermaidCodec } from "./extensions/mermaid/markdown.ts";
-import { abcCodec } from "./extensions/abc/markdown.ts";
-import { plantumlCodec } from "./extensions/plantuml/markdown.ts";
-import { tikzCodec } from "./extensions/tikz/markdown.ts";
-import { typstCodec } from "./extensions/typst/markdown.ts";
 import { calloutCodec } from "./extensions/callout/markdown.ts";
 import { detailCodec } from "./extensions/detail/markdown.ts";
 import { divideLineCodec } from "./extensions/divide-line/markdown.ts";
@@ -35,7 +30,6 @@ import { videoCodec } from "./extensions/video/markdown.ts";
 import { audioCodec } from "./extensions/audio/markdown.ts";
 import { checkListCodec, checkListItemCodec } from "./extensions/check-list/markdown.ts";
 import { highlightBlockCodec } from "./extensions/highlight-block/markdown.ts";
-import { customBlockCodec } from "./extensions/custom-block/markdown.ts";
 import { frontMatterCodec } from "./extensions/front-matter/markdown.ts";
 import { emojiCodec } from "./extensions/emoji/markdown.ts";
 import { annotationCodec } from "./extensions/annotation/markdown.ts";
@@ -62,11 +56,6 @@ export const editorMarkdownCodecs: MarkdownCodec[] = [
   tableCodec,
   tableRowCodec,
   tableCellCodec,
-  mermaidCodec,
-  abcCodec,
-  plantumlCodec,
-  tikzCodec,
-  typstCodec,
   calloutCodec,
   detailCodec,
   divideLineCodec,
@@ -75,7 +64,6 @@ export const editorMarkdownCodecs: MarkdownCodec[] = [
   checkListCodec,
   checkListItemCodec,
   highlightBlockCodec,
-  customBlockCodec,
   frontMatterCodec,
   emojiCodec,
   annotationCodec,

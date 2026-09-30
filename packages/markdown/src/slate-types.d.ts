@@ -1,14 +1,11 @@
 /**
- * headless 的 slate 类型增强：只声明 Element / Text。
- * 编辑器的完整增强（types/editor.ts）会带出 slate-react 与 DOM 类型，这里不引用；
- * 两处声明的 Element / Text 相同，同一编译单元里合并不冲突。
+ * headless 只声明共用的文本标记；元素由消费端的 Slate 类型增强决定。
+ * 框架不引用编辑器的联合元素类型或 React/DOM 增强。
  */
-import type { CustomElement } from "@tau/editor/src/types/custom-element.ts";
-import type { FormattedText } from "@tau/editor/src/types/text.ts";
+import type { FormattedText } from "./model.ts";
 
 declare module "slate" {
   interface CustomTypes {
-    Element: CustomElement;
     Text: FormattedText;
   }
 }

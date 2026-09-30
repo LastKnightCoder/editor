@@ -48,12 +48,14 @@
 | P6.6 | desktop kit 按场景拆分，恢复平滑性                             | ✅     |
 | P7   | 协作治理：`editor-collab`、会话升级、无缝换源                  | ✅     |
 | P8   | 扩展 API v2（声明式贡献点、错误隔离、codec 归属）              | ✅     |
-| P9   | 拆包（custom-block 试点、diagram）                             | 🚧     |
+| P9   | 拆包（custom-block 试点、diagram）                             | ✅     |
 | 远期 | 第三方加载、市场、授权、custom-block 沙箱                      | 不排期 |
 
 状态图例：⏳ 未开始 / 🚧 进行中 / ✅ 完成 / ⏸ 暂停（写原因）。
 
-**P9 当前任务**：独立 worktree 已从 `7cbe5b42a94f02d27b3d68a06151aa32c32c2828` 建立基线，先做 custom-block 试点，再迁 mermaid / plantuml / abc / tikz / typst。chart / graphviz / multi-column / inline-ai-assistant 与代码块全屏已删除，不恢复。工作状态见 [P9-任务记录.md](P9-任务记录.md)。
+**P9 已完成代码拆包与自动化验收**：custom-block 与现存五种图表分别归 `editor-custom-block`、`editor-diagram`，四端显式接线；内核不反向引用新包，Markdown 与 editor 的循环依赖已切断。已删除能力不恢复。工作环境及基线见 [拆包任务记录.md](拆包任务记录.md)，验证明细见 04。
+
+**实机确认由用户负责**：四端编辑、插入、主题和协作交互，以及 Electron Typst 编译。TikZ 的 `input.dvi` 错误已在起点组件复现，仍是既有未解决事项。按用户要求停止后续视觉验证，临时页面与预览进程已清理。
 
 **前阶段记录**：P8 已完成（2026-09-30：内置扩展 43 个 + 内核热键 13 个命令 + desktop 宿主扩展 8 个
 

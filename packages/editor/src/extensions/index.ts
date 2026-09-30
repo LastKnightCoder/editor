@@ -16,12 +16,8 @@ import blockquoteExtension from "./blockquote";
 import linkExtension from "./link";
 import commentExtension from "./comment";
 import divideLineExtension from "./divide-line";
-import mermaidExtension from "./mermaid";
 import { tableExtension, tableRowExtension, tableCellExtension } from "./table";
 import htmlBlockExtension from "./html-block";
-import tikzExtension from "./tikz";
-import typstExtension from "./typst";
-import customBlockExtension from "./custom-block";
 import highlightBlockExtension from "./highlight-block";
 import tabsExtension, { tabPaneExtension } from "./tabs";
 import styledTextExtension from "./styled-text";
@@ -33,8 +29,6 @@ import inlineImageExtension from "./inline-image";
 import kbdExtension from "./kbd";
 import emojiExtension from "./emoji";
 import annotationExtension from "./annotation";
-import abcExtension from "./abc";
-import plantUMLExtension from "./plantuml";
 import { defaultMenuExtension } from "../menu/defaultMenu";
 import { previewMenuExtension } from "../components/PreviewWithEditor/menu";
 
@@ -57,16 +51,11 @@ export const callout = calloutExtension;
 export const link = linkExtension;
 export const comment = commentExtension;
 export const divideLine = divideLineExtension;
-export const mermaid = mermaidExtension;
 export const htmlBlock = htmlBlockExtension;
 export const table = tableExtension;
 export const tableRow = tableRowExtension;
 export const tableCell = tableCellExtension;
-export const tikz = tikzExtension;
-export const typst = typstExtension;
 export const frontMatter = frontMatterExtension;
-
-export const customBlock = customBlockExtension;
 
 export const highlightBlock = highlightBlockExtension;
 export const tabs = tabsExtension;
@@ -79,10 +68,8 @@ export const inlineImage = inlineImageExtension;
 export const kbd = kbdExtension;
 export const emoji = emojiExtension;
 export const annotation = annotationExtension;
-export const abc = abcExtension;
-export const plantuml = plantUMLExtension;
 
-/** 内置扩展：v2 与旧 IExtension 混排，迁移期间逐个换成 defineExtension */
+/** 内置 v2 扩展；独立扩展包由宿主场景 kit 显式组合。 */
 export const startExtensions: AnyExtension[] = [
   defaultMenuExtension,
   previewMenuExtension,
@@ -109,22 +96,16 @@ export const startExtensions: AnyExtension[] = [
   link,
   comment,
   divideLine,
-  mermaid,
   htmlBlock,
   htmlInline,
   kbd,
   table,
   tableRow,
   tableCell,
-  tikz,
-  typst,
-  customBlock,
   styledText,
   audio,
   video,
   frontMatter,
   emoji,
   annotation,
-  abc,
-  plantuml,
 ];

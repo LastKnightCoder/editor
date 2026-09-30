@@ -13,4 +13,11 @@ describe("插件笔记编辑器的元素覆盖", () => {
       expect(types, `插件缺少 ${required}，该块只会显示通用占位`).toContain(required);
     }
   });
+
+  it("未连接的场景 kit 复用实例并保留已拆扩展", () => {
+    const kit = getExtensionKit();
+    expect(getExtensionKit()).toBe(kit);
+    for (const type of ["custom-block", "mermaid", "plantuml", "abc", "tikz", "typst"])
+      expect(kit.elementTypes).toContain(type);
+  });
 });

@@ -13,4 +13,11 @@ describe("mobile content 场景的元素覆盖", () => {
       expect(types, `mobile 缺少 ${required}，该块只会显示通用占位`).toContain(required);
     }
   });
+
+  it("场景 kit 保留已拆扩展并复用实例", () => {
+    const kit = getMobileContentKit();
+    expect(getMobileContentKit()).toBe(kit);
+    for (const type of ["custom-block", "mermaid", "plantuml", "abc", "tikz", "typst"])
+      expect(kit.elementTypes).toContain(type);
+  });
 });

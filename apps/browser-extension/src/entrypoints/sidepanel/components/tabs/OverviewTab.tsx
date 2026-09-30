@@ -11,6 +11,7 @@ import {
   type AiRunEventNotification,
 } from "@tau/shared";
 import { useTheme } from "../../../../hooks/useTheme";
+import { diagramLanguageRenderers } from "@tau/editor-diagram/renderers";
 import { useThemeStore } from "../../../../stores/useThemeStore";
 import { useSettingsStore } from "../../../../stores/useSettingsStore";
 import { useSummaryCache } from "../../../../hooks/useSummaryCache";
@@ -424,7 +425,11 @@ export default function OverviewTab({ wsClient: _wsClient, url }: OverviewTabPro
         {/* 总结内容 */}
         {summary && (
           <div className="px-4 pb-4 text-sm text-gray-700 dark:text-[#c9d1d9]">
-            <MarkdownRenderer content={summary} isDark={isDark} />
+            <MarkdownRenderer
+              content={summary}
+              isDark={isDark}
+              codeLanguageRenderers={diagramLanguageRenderers}
+            />
           </div>
         )}
 
