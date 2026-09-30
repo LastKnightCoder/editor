@@ -4,7 +4,7 @@ import type { ImageElement } from "../../../types";
 export const imageActionsMap = new WeakMap<
   ImageElement,
   {
-    showOverview: () => void;
+    replaceImage: () => void;
     deleteImage: () => void;
     startCrop: () => void;
     runMediaAction: (actionId: string) => void;

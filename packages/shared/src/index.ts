@@ -15,7 +15,6 @@ export {
 } from "./components/MediaPlayer/AudioPlayer";
 export { formatTime } from "./components/MediaPlayer/formatTime";
 export { default as CustomCheckbox } from "./components/CustomCheckbox";
-export { default as ImageGallery } from "./components/ImageGallery";
 export { default as SelectDropDown } from "./components/SelectDropDown";
 export { default as Webview } from "./components/Webview";
 export type { EditTextHandle } from "./components/EditText";
@@ -28,7 +27,6 @@ export {
 } from "./components/PlantUML";
 export { default as TikZ } from "./components/TikZ";
 export { default as Typst } from "./components/Typst";
-export { default as ImageCropper } from "./components/ImageCropper";
 export { default as FullscreenPortal } from "./components/FullscreenPortal";
 export { default as LazySyntaxHighlighter } from "./components/LazySyntaxHighlighter";
 export { default as MermaidRenderer } from "./components/MermaidRenderer";
@@ -196,8 +194,6 @@ export {
   type AiRunSnapshot,
   type AiRunStateResult,
 } from "./chat-core/aiRunProtocol";
-
-export type { CropperTransform, ImageCropperProps } from "./components/ImageCropper/types";
 
 export type {
   ColumnDef,
