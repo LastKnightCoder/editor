@@ -8,13 +8,13 @@ import type { Descendant } from "slate";
 import { createContent, getContentById, updateContent } from "@/commands";
 import { createVLNote, updateVLNote } from "@/commands/vibe-learning";
 import { createPodcast } from "@/commands/podcast";
-import { createVLQuizSet, createVLQuizItemsBatch, listVLQuizSets } from "@/commands/vl-quiz";
+import { createVLQuizSet, createVLQuizItemsBatch } from "@/commands/vl-quiz";
 import { bindDatabaseCommands } from "@/services/command-context";
-import { getChatDatabase } from "@/services/chatDatabase";
 import { runGenerationTask, type GenerationRequest } from "@/services/generation-orchestrator";
 import { parseScript } from "@/services/podcast";
 import useSettingStore from "@/stores/useSettingStore";
-import useVLQuizStore from "@/stores/useVLQuizStore";
+import { invalidateQuizzes } from "../../../quizQueries";
+import { queryClient } from "@/queryClient";
 import { createUnifiedVibeLearningTool } from "@/tools/vibeLearningSearchTool";
 import { cleanPPTHtmlContent } from "@/constants/prompts/ppt-generation";
 import { cleanReportHtmlContent } from "@/constants/prompts/report-generation";
@@ -90,18 +90,9 @@ const commandsFor = (databaseName: string, signal?: AbortSignal) =>
       createPodcast,
       createVLQuizSet,
       createVLQuizItemsBatch,
-      listVLQuizSets,
     },
     { databaseName, signal }
   );
-
-async function refreshQuizzes(input: VLTaskInput, signal?: AbortSignal) {
-  const quizSets = await commandsFor(input.mainDbName, signal).listVLQuizSets(input.projectId);
-  if (input.mainDbName.replace(/\.db$/, "") !== getChatDatabase()) return;
-  useVLQuizStore.setState(state => ({
-    quizSetsByProject: { ...state.quizSetsByProject, [input.projectId]: quizSets },
-  }));
-}
 
 function llmConfig(feature: "chat" | "podcastGeneration"): {
   provider: LLMProviderSetting;
@@ -266,9 +257,7 @@ export async function startVLTask(
         prompt: input.userPrompt || undefined,
       });
       quizSetId = quizSet.id;
-      await refreshQuizzes(input, startSignal);
-      if (input.mainDbName.replace(/\.db$/, "") === getChatDatabase())
-        useVLQuizStore.getState().selectQuizSet(quizSetId);
+      void invalidateQuizzes(queryClient, input.mainDbName);
     }
   } else {
     const meta = NOTE_KIND[input.kind];
@@ -512,7 +501,7 @@ async function persist(taskId: string, runtime: Runtime, content: string) {
           sortOrder: index,
         }))
       );
-      await refreshQuizzes(input);
+      void invalidateQuizzes(queryClient, input.mainDbName);
       return;
     }
     case "podcast": {

@@ -3,7 +3,7 @@
  * 按更新时间合成一列。＋ 菜单 = 新建笔记 + 8 个生成应用；测验集点行即开始测验。
  */
 
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import { forwardRef, useImperativeHandle, useMemo, useState } from "react";
 import {
   CircleHelp,
   History,
@@ -19,7 +19,13 @@ import {
 import { useMemoizedFn } from "ahooks";
 import { ConfirmDialog, Dialog, DialogBody, IconButton, Menu, toast } from "@tau/ui";
 
-import useVLQuizStore from "@/stores/useVLQuizStore";
+import {
+  useQuizBestScores,
+  useQuizMutations,
+  useQuizRecords,
+  useQuizSets,
+} from "../../../quizQueries";
+import { ErrorState } from "@/components/ErrorState";
 import type { VLNote } from "@/types/vibe-learning";
 import type { VLQuizSet, VLQuizRecord } from "@/types";
 import { deleteVLNote, ensureVLNoteResource } from "@/commands/vibe-learning";
@@ -219,32 +225,11 @@ export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
     const [recordsOf, setRecordsOf] = useState<VLQuizSet | null>(null);
     const [editingQuiz, setEditingQuiz] = useState<VLQuizSet | null>(null);
 
-    const {
-      quizSetsByProject,
-      loadingRecords,
-      fetchQuizSets,
-      deleteQuizSet,
-      fetchRecords,
-      recordsByQuizSet,
-      setCurrentProject,
-      startTest,
-    } = useVLQuizStore();
-    const quizSets = useMemo(
-      () => quizSetsByProject[projectId] ?? [],
-      [quizSetsByProject, projectId]
-    );
-
-    useEffect(() => {
-      setCurrentProject(projectId);
-      fetchQuizSets(projectId);
-    }, [projectId, setCurrentProject, fetchQuizSets]);
-
-    // 测验集行显示最高分：逐个补拉记录
-    useEffect(() => {
-      quizSets.forEach(q => {
-        if (!recordsByQuizSet[q.id]) fetchRecords({ quizSetId: q.id });
-      });
-    }, [quizSets, recordsByQuizSet, fetchRecords]);
+    const quizQuery = useQuizSets(projectId);
+    const quizSets = quizQuery.sets;
+    const scoresQuery = useQuizBestScores(projectId);
+    const recordsQuery = useQuizRecords(recordsOf?.id, recordsOf !== null);
+    const { deleteQuizSet } = useQuizMutations();
 
     const items = useMemo<OutputItem[]>(
       () =>
@@ -260,8 +245,7 @@ export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
     );
 
     const bestScore = (id: number) => {
-      const records = recordsByQuizSet[id] ?? [];
-      return records.length ? Math.max(...records.map(r => r.score)) : null;
+      return scoresQuery.scores[id] ?? null;
     };
 
     const addToResources = useMemoizedFn(async (note: VLNote) => {
@@ -309,23 +293,19 @@ export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
         action: async () => {
           try {
             await deleteQuizSet(quizSet.id);
-          } catch {
+          } catch (error) {
             toast.error("删除失败");
+            throw error;
           }
         },
       });
 
-    const handleStartTest = useMemoizedFn(async (quizSet: VLQuizSet) => {
+    const handleStartTest = useMemoizedFn((quizSet: VLQuizSet) => {
       if (quizSet.itemCount === 0) {
         toast.info("这个测验集还没有题目");
         return;
       }
-      try {
-        await startTest(quizSet.id);
-        setTesting(quizSet);
-      } catch (error) {
-        toast.error((error as Error).message || "无法开始测验");
-      }
+      setTesting(quizSet);
     });
 
     useImperativeHandle(ref, () => ({
@@ -335,9 +315,8 @@ export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
       },
     }));
 
-    const openRecords = useMemoizedFn(async (quizSet: VLQuizSet) => {
+    const openRecords = useMemoizedFn((quizSet: VLQuizSet) => {
       setRecordsOf(quizSet);
-      await fetchRecords({ quizSetId: quizSet.id });
     });
 
     return (
@@ -377,6 +356,13 @@ export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
             </Menu>
           }
         />
+        {quizQuery.isError && (
+          <ErrorState
+            title="测验列表加载失败"
+            error={quizQuery.error}
+            actions={[{ label: "重试", onClick: () => void quizQuery.refetch() }]}
+          />
+        )}
         {open &&
           (items.length === 0 ? (
             /* 一行够了：能生成什么由标题右侧的生成菜单逐项列着，不在此重复 */
@@ -426,16 +412,14 @@ export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
           open={testing !== null}
           quizSet={testing}
           onClose={() => {
-            if (testing) fetchRecords({ quizSetId: testing.id });
             setTesting(null);
           }}
         />
         <QuizEditModal
           open={editingQuiz !== null}
-          quizSet={editingQuiz}
+          quizSet={quizSets.find(item => item.id === editingQuiz?.id) ?? editingQuiz}
           onClose={() => {
             setEditingQuiz(null);
-            fetchQuizSets(projectId);
           }}
         />
         <Dialog
@@ -447,12 +431,16 @@ export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
           size="sm"
         >
           <DialogBody>
-            {recordsOf && (
-              <QuizRecords
-                records={recordsByQuizSet[recordsOf.id] ?? []}
-                loading={loadingRecords}
-              />
-            )}
+            {recordsOf &&
+              (recordsQuery.isError ? (
+                <ErrorState
+                  title="测验记录加载失败"
+                  error={recordsQuery.error}
+                  actions={[{ label: "重试", onClick: () => void recordsQuery.refetch() }]}
+                />
+              ) : (
+                <QuizRecords records={recordsQuery.records} loading={recordsQuery.isPending} />
+              ))}
           </DialogBody>
         </Dialog>
         <ConfirmDialog
@@ -464,8 +452,8 @@ export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
           confirmText="删除"
           onConfirm={async () => {
             const pending = pendingDelete;
-            setPendingDelete(null);
             await pending?.action();
+            setPendingDelete(null);
           }}
         />
       </section>

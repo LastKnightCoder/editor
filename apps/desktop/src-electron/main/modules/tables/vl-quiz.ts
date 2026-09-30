@@ -144,6 +144,7 @@ class VLQuizTable {
   static getListenEvents() {
     return {
       "vl-quiz:list-sets": this.listQuizSets.bind(this),
+      "vl-quiz:best-scores": this.getBestScores.bind(this),
       "vl-quiz:get-set": this.getQuizSet.bind(this),
       "vl-quiz:create-set": this.createQuizSet.bind(this),
       "vl-quiz:update-set": this.updateQuizSet.bind(this),
@@ -165,10 +166,7 @@ class VLQuizTable {
     // 预留增量更新
   }
 
-  private static parseJSON<T>(
-    value: string | null | undefined,
-    fallback: T,
-  ): T {
+  private static parseJSON<T>(value: string | null | undefined, fallback: T): T {
     if (!value) return fallback;
     try {
       return JSON.parse(value) as T;
@@ -178,14 +176,9 @@ class VLQuizTable {
     }
   }
 
-  private static getItemCount(
-    db: Database.Database,
-    quizSetId: number,
-  ): number {
+  private static getItemCount(db: Database.Database, quizSetId: number): number {
     const result = db
-      .prepare(
-        `SELECT COUNT(*) as count FROM vl_quiz_item WHERE quiz_set_id = ?`,
-      )
+      .prepare(`SELECT COUNT(*) as count FROM vl_quiz_item WHERE quiz_set_id = ?`)
       .get(quizSetId) as { count: number };
     return result?.count ?? 0;
   }
@@ -281,12 +274,10 @@ class VLQuizTable {
 
   static listQuizSets(db: Database.Database, projectId: number): VLQuizSet[] {
     const rows = db
-      .prepare(
-        `SELECT * FROM vl_quiz_set WHERE project_id = ? ORDER BY update_time DESC`,
-      )
+      .prepare(`SELECT * FROM vl_quiz_set WHERE project_id = ? ORDER BY update_time DESC`)
       .all(projectId) as QuizSetRow[];
 
-    return rows.map((row) => {
+    return rows.map(row => {
       const itemCount = this.getItemCount(db, row.id);
       return this.mapQuizSetRow(row, itemCount);
     });
@@ -294,17 +285,13 @@ class VLQuizTable {
 
   static getQuizSet(db: Database.Database, id: number): VLQuizSet | null {
     const row = db.prepare(`SELECT * FROM vl_quiz_set WHERE id = ?`).get(id) as
-      | QuizSetRow
-      | undefined;
+      QuizSetRow | undefined;
     if (!row) return null;
     const itemCount = this.getItemCount(db, id);
     return this.mapQuizSetRow(row, itemCount);
   }
 
-  static createQuizSet(
-    db: Database.Database,
-    payload: CreateVLQuizSetInput,
-  ): VLQuizSet {
+  static createQuizSet(db: Database.Database, payload: CreateVLQuizSetInput): VLQuizSet {
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO vl_quiz_set (project_id, name, description, emoji, resource_ids, prompt, create_time, update_time)
@@ -318,15 +305,12 @@ class VLQuizTable {
       JSON.stringify(payload.resourceIds ?? []),
       payload.prompt ?? null,
       now,
-      now,
+      now
     );
     return this.getQuizSet(db, Number(res.lastInsertRowid)) as VLQuizSet;
   }
 
-  static updateQuizSet(
-    db: Database.Database,
-    payload: UpdateVLQuizSetInput,
-  ): VLQuizSet | null {
+  static updateQuizSet(db: Database.Database, payload: UpdateVLQuizSetInput): VLQuizSet | null {
     const existing = this.getQuizSet(db, payload.id);
     if (!existing) return null;
 
@@ -334,7 +318,7 @@ class VLQuizTable {
     db.prepare(
       `UPDATE vl_quiz_set 
        SET name = ?, description = ?, emoji = ?, resource_ids = ?, prompt = ?, update_time = ?
-       WHERE id = ?`,
+       WHERE id = ?`
     ).run(
       payload.name ?? existing.name,
       payload.description ?? existing.description,
@@ -344,7 +328,7 @@ class VLQuizTable {
         : JSON.stringify(existing.resourceIds),
       payload.prompt !== undefined ? payload.prompt : existing.prompt,
       now,
-      payload.id,
+      payload.id
     );
 
     return this.getQuizSet(db, payload.id);
@@ -381,24 +365,21 @@ class VLQuizTable {
   static listQuizItems(db: Database.Database, quizSetId: number): VLQuizItem[] {
     const rows = db
       .prepare(
-        `SELECT * FROM vl_quiz_item WHERE quiz_set_id = ? ORDER BY sort_order ASC, create_time ASC`,
+        `SELECT * FROM vl_quiz_item WHERE quiz_set_id = ? ORDER BY sort_order ASC, create_time ASC`
       )
       .all(quizSetId) as QuizItemRow[];
-    return rows.map((row) => this.mapQuizItemRow(row));
+    return rows.map(row => this.mapQuizItemRow(row));
   }
 
   static getQuizItem(db: Database.Database, id: number): VLQuizItem | null {
-    const row = db
-      .prepare(`SELECT * FROM vl_quiz_item WHERE id = ?`)
-      .get(id) as QuizItemRow | undefined;
+    const row = db.prepare(`SELECT * FROM vl_quiz_item WHERE id = ?`).get(id) as
+      QuizItemRow | undefined;
     if (!row) return null;
     return this.mapQuizItemRow(row);
   }
 
-  static createQuizItem(
-    db: Database.Database,
-    payload: CreateVLQuizItemInput,
-  ): VLQuizItem {
+  static createQuizItem(db: Database.Database, payload: CreateVLQuizItemInput): VLQuizItem {
+    if (!this.getQuizSet(db, payload.quizSetId)) throw new Error("测验集已不存在");
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO vl_quiz_item (quiz_set_id, type, prompt, detail, data, tags, difficulty, sort_order, create_time, update_time)
@@ -407,9 +388,7 @@ class VLQuizTable {
 
     const promptJson = JSON.stringify(payload.prompt);
     const detailJson = JSON.stringify(
-      payload.detail ?? [
-        { type: "paragraph", children: [{ type: "formatted", text: "" }] },
-      ],
+      payload.detail ?? [{ type: "paragraph", children: [{ type: "formatted", text: "" }] }]
     );
 
     const res = stmt.run(
@@ -422,16 +401,16 @@ class VLQuizTable {
       payload.difficulty ?? "standard",
       payload.sortOrder ?? 0,
       now,
-      now,
+      now
     );
 
     return this.getQuizItem(db, Number(res.lastInsertRowid)) as VLQuizItem;
   }
 
-  static createQuizItemsBatch(
-    db: Database.Database,
-    items: CreateVLQuizItemInput[],
-  ): VLQuizItem[] {
+  static createQuizItemsBatch(db: Database.Database, items: CreateVLQuizItemInput[]): VLQuizItem[] {
+    for (const id of new Set(items.map(item => item.quizSetId))) {
+      if (!this.getQuizSet(db, id)) throw new Error("测验集已不存在");
+    }
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO vl_quiz_item (quiz_set_id, type, prompt, detail, data, tags, difficulty, sort_order, create_time, update_time)
@@ -444,9 +423,7 @@ class VLQuizTable {
       const payload = items[i];
       const promptJson = JSON.stringify(payload.prompt);
       const detailJson = JSON.stringify(
-        payload.detail ?? [
-          { type: "paragraph", children: [{ type: "formatted", text: "" }] },
-        ],
+        payload.detail ?? [{ type: "paragraph", children: [{ type: "formatted", text: "" }] }]
       );
 
       const res = stmt.run(
@@ -459,34 +436,26 @@ class VLQuizTable {
         payload.difficulty ?? "standard",
         payload.sortOrder ?? i,
         now,
-        now,
+        now
       );
 
       createdIds.push(Number(res.lastInsertRowid));
     }
 
     return createdIds
-      .map((id) => this.getQuizItem(db, id))
+      .map(id => this.getQuizItem(db, id))
       .filter((item): item is VLQuizItem => item !== null);
   }
 
-  static updateQuizItem(
-    db: Database.Database,
-    payload: UpdateVLQuizItemInput,
-  ): VLQuizItem | null {
-    const existingRow = db
-      .prepare(`SELECT * FROM vl_quiz_item WHERE id = ?`)
-      .get(payload.id) as QuizItemRow | undefined;
+  static updateQuizItem(db: Database.Database, payload: UpdateVLQuizItemInput): VLQuizItem | null {
+    const existingRow = db.prepare(`SELECT * FROM vl_quiz_item WHERE id = ?`).get(payload.id) as
+      QuizItemRow | undefined;
     if (!existingRow) return null;
 
     const now = Date.now();
 
-    const promptJson = payload.prompt
-      ? JSON.stringify(payload.prompt)
-      : existingRow.prompt;
-    const detailJson = payload.detail
-      ? JSON.stringify(payload.detail)
-      : existingRow.detail;
+    const promptJson = payload.prompt ? JSON.stringify(payload.prompt) : existingRow.prompt;
+    const detailJson = payload.detail ? JSON.stringify(payload.detail) : existingRow.detail;
 
     db.prepare(
       `UPDATE vl_quiz_item SET
@@ -498,7 +467,7 @@ class VLQuizTable {
         difficulty = ?,
         sort_order = ?,
         update_time = ?
-       WHERE id = ?`,
+       WHERE id = ?`
     ).run(
       payload.type ?? existingRow.type,
       promptJson,
@@ -508,7 +477,7 @@ class VLQuizTable {
       payload.difficulty ?? existingRow.difficulty,
       payload.sortOrder ?? existingRow.sort_order,
       now,
-      payload.id,
+      payload.id
     );
 
     return this.getQuizItem(db, payload.id);
@@ -521,9 +490,22 @@ class VLQuizTable {
 
   // ========== Quiz Record CRUD ==========
 
+  static getBestScores(db: Database.Database, projectId: number): Record<number, number> {
+    const rows = db
+      .prepare(
+        `
+      SELECT r.quiz_set_id AS id, MAX(r.score) AS score FROM vl_quiz_record r
+      JOIN vl_quiz_set s ON s.id = r.quiz_set_id
+      WHERE s.project_id = ? GROUP BY r.quiz_set_id
+    `
+      )
+      .all(projectId) as { id: number; score: number }[];
+    return Object.fromEntries(rows.map(row => [row.id, row.score]));
+  }
+
   static listQuizRecords(
     db: Database.Database,
-    params: { quizSetId?: number; projectId?: number },
+    params: { quizSetId?: number; projectId?: number }
   ): VLQuizRecord[] {
     const conditions: string[] = ["1=1"];
     const values: any[] = [];
@@ -540,25 +522,25 @@ class VLQuizTable {
 
     const rows = db
       .prepare(
-        `SELECT * FROM vl_quiz_record WHERE ${conditions.join(" AND ")} ORDER BY create_time DESC`,
+        `SELECT * FROM vl_quiz_record WHERE ${conditions.join(" AND ")} ORDER BY create_time DESC`
       )
       .all(...values) as QuizRecordRow[];
 
-    return rows.map((row) => this.mapQuizRecordRow(row));
+    return rows.map(row => this.mapQuizRecordRow(row));
   }
 
   static getQuizRecord(db: Database.Database, id: number): VLQuizRecord | null {
-    const row = db
-      .prepare(`SELECT * FROM vl_quiz_record WHERE id = ?`)
-      .get(id) as QuizRecordRow | undefined;
+    const row = db.prepare(`SELECT * FROM vl_quiz_record WHERE id = ?`).get(id) as
+      QuizRecordRow | undefined;
     if (!row) return null;
     return this.mapQuizRecordRow(row);
   }
 
-  static createQuizRecord(
-    db: Database.Database,
-    payload: CreateVLQuizRecordInput,
-  ): VLQuizRecord {
+  static createQuizRecord(db: Database.Database, payload: CreateVLQuizRecordInput): VLQuizRecord {
+    const quizSet = this.getQuizSet(db, payload.quizSetId);
+    if (!quizSet) throw new Error("测验集已不存在");
+    if (quizSet.projectId !== payload.projectId)
+      throw new Error("测验所属项目不一致，请重新打开测验");
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO vl_quiz_record (quiz_set_id, project_id, score, correct_count, total_count, answers, duration, create_time)
@@ -572,15 +554,13 @@ class VLQuizTable {
       payload.totalCount,
       JSON.stringify(payload.answers),
       payload.duration,
-      now,
+      now
     );
     return this.getQuizRecord(db, Number(res.lastInsertRowid)) as VLQuizRecord;
   }
 
   static deleteQuizRecord(db: Database.Database, id: number): boolean {
-    const result = db
-      .prepare(`DELETE FROM vl_quiz_record WHERE id = ?`)
-      .run(id);
+    const result = db.prepare(`DELETE FROM vl_quiz_record WHERE id = ?`).run(id);
     return result.changes > 0;
   }
 }

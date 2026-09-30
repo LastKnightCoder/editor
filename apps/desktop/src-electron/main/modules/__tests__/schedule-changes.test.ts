@@ -4,6 +4,7 @@ const { windows, warn } = vi.hoisted(() => ({ windows: vi.fn(), warn: vi.fn() })
 vi.mock("electron", () => ({ BrowserWindow: { getAllWindows: windows } }));
 vi.mock("electron-log", () => ({ default: { warn } }));
 import { broadcastScheduleChange, isScheduleWrite } from "../schedule-changes";
+import { broadcastDatabaseChange } from "../database-notifications";
 
 beforeEach(() => {
   windows.mockReset();
@@ -11,6 +12,17 @@ beforeEach(() => {
 });
 
 describe("日程变更通知", () => {
+  it("测验通知共用底盘，携带原库身份发给全部存活窗口", () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    windows.mockReturnValue([
+      { isDestroyed: () => false, webContents: { send: first } },
+      { isDestroyed: () => false, webContents: { send: second } },
+    ]);
+    broadcastDatabaseChange("vl-quiz:changed", "a.db");
+    expect(first).toHaveBeenCalledWith("vl-quiz:changed", { databaseName: "a.db" });
+    expect(second).toHaveBeenCalledWith("vl-quiz:changed", { databaseName: "a.db" });
+  });
   it("直接写入与待办/番茄同步均刷新，读取与无关领域不刷新", () => {
     for (const channel of [
       "calendar:update",
