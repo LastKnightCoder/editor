@@ -6,6 +6,22 @@ import { useInheritedKit } from "../kit/context";
 import { resolveBlockMenuItems } from "../menu/resolveMenu";
 import { findPathSafely } from "../utils";
 
+type Kit = ReturnType<typeof useInheritedKit>;
+
+/** 按 kit 聚合的扩展菜单声明对目标元素求值（手柄菜单与媒体属性条「更多」共用） */
+export function resolveElementMenu<T extends Element>(
+  kit: Kit,
+  editor: Editor,
+  element: T,
+  extraItems?: (params: { element: T; editor: Editor; path: Path }) => ContextMenuItem[]
+): ContextMenuItem[] {
+  const path = findPathSafely(editor, element);
+  const extras = path ? (extraItems?.({ element, editor, path }) ?? []) : [];
+  return kit && path
+    ? resolveBlockMenuItems(kit.assembly.menuSources, { editor, element, path }, extras)
+    : extras;
+}
+
 export interface UseDragHandlerMenuOptions<T extends Element> {
   element: T;
   editor: Editor;
@@ -29,13 +45,7 @@ export function useDragHandlerMenu<T extends Element>(options: UseDragHandlerMen
   const handleDragHandlerClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    const path = findPathSafely(editor, element);
-    const extras = path ? (extraItems?.({ element, editor, path }) ?? []) : [];
-    setMenuItems(
-      kit && path
-        ? resolveBlockMenuItems(kit.assembly.menuSources, { editor, element, path }, extras)
-        : extras
-    );
+    setMenuItems(resolveElementMenu(kit, editor, element, extraItems));
     setPosition({ x: e.clientX, y: e.clientY });
     setVisible(true);
   };

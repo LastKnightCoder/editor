@@ -6,10 +6,12 @@ type LocalImageProps = Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src"> & 
   url: string;
   /** 列表等小图场景：走后端缩略图通道，避免全尺寸图经 base64 IPC */
   thumbnail?: boolean;
+  /** 回退到原始地址后仍失败时回调 */
+  onLoadError?: () => void;
 };
 
 const LocalImage = forwardRef<HTMLImageElement, LocalImageProps>(
-  ({ url, thumbnail = false, onError, ...restProps }, ref) => {
+  ({ url, thumbnail = false, onError, onLoadError, ...restProps }, ref) => {
     const [resolvedUrl, setResolvedUrl] = useState(url);
 
     useEffect(() => {
@@ -38,6 +40,8 @@ const LocalImage = forwardRef<HTMLImageElement, LocalImageProps>(
     const handleError = (event: SyntheticEvent<HTMLImageElement, Event>) => {
       if (resolvedUrl !== url) {
         setResolvedUrl(url);
+      } else {
+        onLoadError?.();
       }
       onError?.(event);
     };

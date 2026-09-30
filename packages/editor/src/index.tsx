@@ -61,7 +61,7 @@ import type { EditorRef } from "./types/editor";
 import { builtinCommands, builtinHotkeys } from "./hotkeys";
 import { CommandRegistry, createCommandDispatcher } from "./api/command";
 import type { ResolvedHotkey } from "./utils/hotkey";
-import ImagesOverview from "./components/ImagesOverview";
+import ImageLightbox from "./components/ImageLightbox";
 import HoveringToolbar from "./components/HoveringToolbar";
 import BlockPanel from "./components/BlockPanel";
 import ConfirmHost from "./components/ConfirmHost";
@@ -642,7 +642,7 @@ const Index = memo(
                   className="pointer-events-none fixed z-[9998] h-[2px] rounded-full bg-[var(--ed-accent-text)]"
                 />
               </div>
-              <ImagesOverview />
+              <ImageLightbox />
               <ConfirmHost />
               <PromptHost />
               {!readonly && <HoveringToolbar configs={finalHoveringBarConfigs} />}
