@@ -5,7 +5,6 @@ import { getProjectItemById } from "@/commands";
 import { EProjectItemType, ProjectItem } from "@/types";
 import { useProjectContext } from "../ProjectContext";
 import VideoNoteView from "../VideoNoteView";
-import AudioNoteView from "../AudioNoteView";
 import WhiteBoardProjectView from "../WhiteBoardProjectItemView";
 import WebViewProjectItemView from "../WebViewProjectItemView";
 import TableProjectItemView from "../TableProjectItemView";
@@ -43,18 +42,6 @@ const EditProjectView = () => {
     return (
       <div className="h-full w-full">
         <VideoNoteView key={projectItem.id} videoNoteId={projectItem.refId} />
-      </div>
-    );
-  }
-
-  if (projectItem.projectItemType === EProjectItemType.AudioNote) {
-    return (
-      <div className="h-full w-full">
-        <AudioNoteView
-          key={projectItem.id}
-          audioNoteId={projectItem.refId}
-          title={projectItem.title}
-        />
       </div>
     );
   }

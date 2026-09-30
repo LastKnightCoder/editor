@@ -860,3 +860,14 @@
   - 标题就地编辑：常态即文字，悬停浅底，编辑时纸色底 + 细线 + 焦点环（常态与编辑同底色）。
 - 不做：音频笔记播放器统一（用户明确不要）；章节刻度与 ±15 秒（C 的能力）；波形 Web Worker 化（30 分钟上限下主线程计算峰值约数十毫秒）。
 - 影响：MediaPlayer 抽出音视频共用件——`useScrubber` / `ScrubTooltip`（进度条与波形共用的拖动 + 悬停延迟内核）、`useMediaKeyboard`（快捷键执行 / OSD / 静音切换）、`MediaOsd` / `ResumeNotice`；`videoShortcuts` 更名 `mediaShortcuts`（`resolveMediaShortcut`）；控件色板删除 `light`，只剩 `surface` / `float`；`usePlaybackResume` 增 `prefix` / `minDuration` 选项；新增 `useAudioPeaks`（`computePeaks` / `resamplePeaks` 纯函数 + 单测）与 `Waveform`；编辑器 `AudioSlotProps` 增 `sourceText`；三端 LocalAudio 的播放位置持久化收进播放器。
+
+## D-078 音频笔记功能整体移除（含数据库表）
+
+（2026-09-30，已定；用户裁决）
+
+- 背景：项目条目类型 `audio-note`（AudioNoteView 的转写 / 高亮 / 摘要 / 笔记视图、小宇宙 / B 站 / YouTube 音频抓取缓存及相关主进程 IPC handler）功能整体下线；移动端仅有 `soon: true` 占位，无实现。用户裁决全面清除，已有音频笔记数据不再保留访问入口。
+- 边界（勿误删，均属其它功能）：编辑器通用音频块 `:::audio`（D-077 波形卡的宿主，TTS 配音 / 播客嵌入依赖）；共享转写链路（`transcription.ts` / `TranscriptionQueueManager.ts`，视频笔记与 Vibe Learning 共用）；播客（podcasts 表）、TTS、背景音；`RemoteAudioSelectModal` 组件本体（白板仍在用）；`remote-audio-cache` / `LocalAudio` / `useLocalPath`；`audio_note_chats` 历史表清理器与 parity 护栏。该历史表正文不再参与知识引用迁移，TS / Rust 同步移除其 messages 映射；桌面历史聊天退役后数据仅留备份，移动端沿用既有保留策略。
+- 删除面：`audio_notes` / `audio_note_item` 两表（`check-schema-parity.mjs` 常量 65→63 / 104→103，两表登记 `REMOVED_TABLES`）；主进程 `tables/audio-note*.ts`、`xiaoyuzhou.ts`、`bilibili-audio-cache.ts`、`youtube-audio-cache.ts` 及其模块注册；渲染端 `AudioNoteView/`、`useAudioHandlers`、`commands/audio-note*.ts` / `xiaoyuzhou.ts` / `*-audio-cache.ts` / `audio-cache-progress.ts`、`useBilibiliAudio` / `useYoutubeAudio`；`EProjectItemType.AudioNote` 枚举成员与「添加音频」菜单、三音频弹窗接线；设置页缓存管理的 YouTube / Bilibili 音频两桶；移动端类型占位。`mockups/audio-player/` 是 D-077 波形卡播放器的方案对比 mockup（编辑器音频块，保留侧），不随迁删除。
+- 附带重构：`database-event-transaction.ts`（xiaoyuzhou 事件的免事务豁免是其唯一用途）随迁删除，database 事件统一包事务；`project.ts` 删除项目条目时不再联动清理音频笔记。
+- 旧库退役：桌面开库、下载校验、CLI 和移动端升级接入现有功能退役流程，实际删除两表及专属索引；删除前整库备份，失败回滚、恢复旧库后重新检测。存量音频项目节点删除，普通后代按原顺序提升并去重、更新 parents / projects；正文按移除的持有引用释放，仍有实体引用时保留。独立 FTS / 向量索引按退役节点记录清理，已复用 ID 的新文档保留，失败可重试。
+- 文档守护：内置数据库 Skill 对账测试由内存 SQLite 读取表与列定义，包含虚拟表、排除影子表；字段及顺序须与实际 schema 一致，同步补齐存量文档缺失的 47 个字段。

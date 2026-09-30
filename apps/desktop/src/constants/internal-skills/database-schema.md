@@ -21,16 +21,18 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ### `podcasts`
 
-| 字段          | SQLite 定义           |
-| ------------- | --------------------- |
-| `id`          | `INTEGER PRIMARY KEY` |
-| `create_time` | `INTEGER NOT NULL`    |
-| `update_time` | `INTEGER NOT NULL`    |
-| `audio_url`   | `TEXT NOT NULL`       |
-| `script`      | `TEXT`                |
-| `duration`    | `INTEGER`             |
-| `speakers`    | `TEXT NOT NULL`       |
-| `ref_count`   | `INTEGER DEFAULT 0`   |
+| 字段           | SQLite 定义           |
+| -------------- | --------------------- |
+| `id`           | `INTEGER PRIMARY KEY` |
+| `create_time`  | `INTEGER NOT NULL`    |
+| `update_time`  | `INTEGER NOT NULL`    |
+| `audio_url`    | `TEXT NOT NULL`       |
+| `script`       | `TEXT`                |
+| `duration`     | `INTEGER`             |
+| `speakers`     | `TEXT NOT NULL`       |
+| `ref_count`    | `INTEGER DEFAULT 0`   |
+| `name`         | `TEXT`                |
+| `script_lines` | `TEXT`                |
 
 ### `contents`
 
@@ -53,18 +55,21 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `name`        | `TEXT`                         |
 | `data`        | `TEXT`                         |
 | `ref_count`   | `INTEGER DEFAULT 0`            |
+| `img_url`     | `TEXT DEFAULT ''`              |
 
 ### `white_boards`
 
-| 字段          | SQLite 定义                    |
-| ------------- | ------------------------------ |
-| `id`          | `INTEGER PRIMARY KEY NOT NULL` |
-| `create_time` | `INTEGER NOT NULL`             |
-| `update_time` | `INTEGER NOT NULL`             |
-| `tags`        | `TEXT`                         |
-| `title`       | `TEXT`                         |
-| `description` | `TEXT`                         |
-| `snapshot`    | `TEXT`                         |
+| 字段                            | SQLite 定义                    |
+| ------------------------------- | ------------------------------ |
+| `id`                            | `INTEGER PRIMARY KEY NOT NULL` |
+| `create_time`                   | `INTEGER NOT NULL`             |
+| `update_time`                   | `INTEGER NOT NULL`             |
+| `tags`                          | `TEXT`                         |
+| `title`                         | `TEXT`                         |
+| `description`                   | `TEXT`                         |
+| `snapshot`                      | `TEXT`                         |
+| `white_board_content_ids`       | `TEXT DEFAULT '[]'`            |
+| `active_white_board_content_id` | `INTEGER DEFAULT NULL`         |
 
 ### `cards`
 
@@ -76,18 +81,27 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `tags`        | `TEXT`                     |
 | `links`       | `TEXT`                     |
 | `category`    | `TEXT DEFAULT 'permanent'` |
+| `content_id`  | `INTEGER`                  |
+| `is_top`      | `INTEGER DEFAULT 0`        |
+| `podcast_id`  | `INTEGER DEFAULT NULL`     |
 
 ### `articles`
 
-| 字段          | SQLite 定义           |
-| ------------- | --------------------- |
-| `id`          | `INTEGER PRIMARY KEY` |
-| `title`       | `TEXT NOT NULL`       |
-| `author`      | `TEXT`                |
-| `create_time` | `INTEGER NOT NULL`    |
-| `update_time` | `INTEGER NOT NULL`    |
-| `tags`        | `TEXT`                |
-| `links`       | `TEXT`                |
+| 字段              | SQLite 定义             |
+| ----------------- | ----------------------- |
+| `id`              | `INTEGER PRIMARY KEY`   |
+| `title`           | `TEXT NOT NULL`         |
+| `author`          | `TEXT`                  |
+| `create_time`     | `INTEGER NOT NULL`      |
+| `update_time`     | `INTEGER NOT NULL`      |
+| `tags`            | `TEXT`                  |
+| `links`           | `TEXT`                  |
+| `banner_bg`       | `TEXT DEFAULT ''`       |
+| `is_top`          | `INTEGER DEFAULT 0`     |
+| `is_delete`       | `INTEGER DEFAULT 0`     |
+| `banner_position` | `TEXT DEFAULT 'center'` |
+| `content_id`      | `INTEGER`               |
+| `podcast_id`      | `INTEGER DEFAULT NULL`  |
 
 ### `collaboration_bindings`
 
@@ -143,23 +157,6 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `update_time`      | `INTEGER NOT NULL`    |
 | `pdf_id`           | `INTEGER NOT NULL`    |
 | `bookmark_payload` | `TEXT NOT NULL`       |
-
-### `pdf_chats`
-
-| 字段                     | SQLite 定义            |
-| ------------------------ | ---------------------- |
-| `id`                     | `INTEGER PRIMARY KEY`  |
-| `pdf_id`                 | `INTEGER NOT NULL`     |
-| `create_time`            | `INTEGER NOT NULL`     |
-| `update_time`            | `INTEGER NOT NULL`     |
-| `messages`               | `TEXT`                 |
-| `title`                  | `TEXT`                 |
-| `archived`               | `INTEGER DEFAULT 0`    |
-| `parent_chat_id`         | `INTEGER`              |
-| `branch_index`           | `INTEGER DEFAULT 0`    |
-| `message_schema_version` | `INTEGER DEFAULT 3`    |
-| `agent_type`             | `TEXT DEFAULT 'local'` |
-| `agent_session_id`       | `TEXT`                 |
 
 ### `daily_notes`
 
@@ -237,34 +234,6 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ### `video_notes`
 
-| 字段          | SQLite 定义           |
-| ------------- | --------------------- |
-| `id`          | `INTEGER PRIMARY KEY` |
-| `create_time` | `INTEGER NOT NULL`    |
-| `update_time` | `INTEGER NOT NULL`    |
-| `meta_info`   | `TEXT NOT NULL`       |
-| `description` | `TEXT DEFAULT ''`     |
-| `transcript`  | `TEXT DEFAULT ''`     |
-
-### `video_note_chats`
-
-| 字段                     | SQLite 定义            |
-| ------------------------ | ---------------------- |
-| `id`                     | `INTEGER PRIMARY KEY`  |
-| `video_note_id`          | `INTEGER NOT NULL`     |
-| `create_time`            | `INTEGER NOT NULL`     |
-| `update_time`            | `INTEGER NOT NULL`     |
-| `messages`               | `TEXT`                 |
-| `title`                  | `TEXT`                 |
-| `archived`               | `INTEGER DEFAULT 0`    |
-| `parent_chat_id`         | `INTEGER`              |
-| `branch_index`           | `INTEGER DEFAULT 0`    |
-| `message_schema_version` | `INTEGER DEFAULT 3`    |
-| `agent_type`             | `TEXT DEFAULT 'local'` |
-| `agent_session_id`       | `TEXT`                 |
-
-### `audio_notes`
-
 | 字段                       | SQLite 定义           |
 | -------------------------- | --------------------- |
 | `id`                       | `INTEGER PRIMARY KEY` |
@@ -278,34 +247,6 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `summary`                  | `TEXT DEFAULT ''`     |
 | `highlights`               | `TEXT DEFAULT '[]'`   |
 | `insights`                 | `TEXT DEFAULT ''`     |
-| `speakers`                 | `TEXT DEFAULT '[]'`   |
-| `chapters`                 | `TEXT DEFAULT '[]'`   |
-
-### `audio_note_item`
-
-| 字段            | SQLite 定义                |
-| --------------- | -------------------------- |
-| `id`            | `INTEGER PRIMARY KEY`      |
-| `create_time`   | `INTEGER NOT NULL`         |
-| `update_time`   | `INTEGER NOT NULL`         |
-| `audio_note_id` | `INTEGER NOT NULL`         |
-| `content_id`    | `INTEGER NOT NULL`         |
-| `title`         | `TEXT NOT NULL DEFAULT ''` |
-
-### `audio_note_chats`
-
-| 字段                     | SQLite 定义           |
-| ------------------------ | --------------------- |
-| `id`                     | `INTEGER PRIMARY KEY` |
-| `audio_note_id`          | `INTEGER NOT NULL`    |
-| `create_time`            | `INTEGER NOT NULL`    |
-| `update_time`            | `INTEGER NOT NULL`    |
-| `messages`               | `TEXT`                |
-| `title`                  | `TEXT`                |
-| `archived`               | `INTEGER DEFAULT 0`   |
-| `parent_chat_id`         | `INTEGER`             |
-| `branch_index`           | `INTEGER DEFAULT 0`   |
-| `message_schema_version` | `INTEGER DEFAULT 3`   |
 
 ### `chat_group`
 
@@ -318,14 +259,24 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `create_time` | `INTEGER NOT NULL`    |
 | `update_time` | `INTEGER NOT NULL`    |
 
-### `chat_message`
+### `chat_session`
 
-| 字段          | SQLite 定义           |
-| ------------- | --------------------- |
-| `id`          | `INTEGER PRIMARY KEY` |
-| `create_time` | `INTEGER NOT NULL`    |
-| `update_time` | `INTEGER NOT NULL`    |
-| `messages`    | `TEXT`                |
+| 字段            | SQLite 定义                       |
+| --------------- | --------------------------------- |
+| `id`            | `TEXT PRIMARY KEY`                |
+| `scope`         | `TEXT NOT NULL`                   |
+| `domain_ref`    | `TEXT`                            |
+| `session_file`  | `TEXT NOT NULL`                   |
+| `cwd`           | `TEXT NOT NULL DEFAULT ''`        |
+| `title`         | `TEXT NOT NULL DEFAULT ''`        |
+| `title_dirty`   | `INTEGER NOT NULL DEFAULT 0`      |
+| `group_id`      | `INTEGER`                         |
+| `order_num`     | `INTEGER`                         |
+| `archived`      | `INTEGER NOT NULL DEFAULT 0`      |
+| `source`        | `TEXT NOT NULL DEFAULT 'desktop'` |
+| `message_count` | `INTEGER NOT NULL DEFAULT 0`      |
+| `create_time`   | `INTEGER NOT NULL`                |
+| `update_time`   | `INTEGER NOT NULL`                |
 
 ### `question_group`
 
@@ -339,37 +290,20 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `create_time` | `INTEGER NOT NULL`                                  |
 | `update_time` | `INTEGER NOT NULL`                                  |
 
-### `chat_run`
-
-| 字段                          | SQLite 定义                     |
-| ----------------------------- | ------------------------------- |
-| `run_id`                      | `TEXT PRIMARY KEY`              |
-| `session_key`                 | `TEXT NOT NULL`                 |
-| `source`                      | `TEXT NOT NULL`                 |
-| `chat_id`                     | `INTEGER NOT NULL`              |
-| `agent_type`                  | `TEXT NOT NULL DEFAULT 'local'` |
-| `status`                      | `TEXT NOT NULL`                 |
-| `request_payload`             | `TEXT NOT NULL`                 |
-| `user_message_client_id`      | `TEXT NOT NULL`                 |
-| `assistant_message_client_id` | `TEXT NOT NULL`                 |
-| `agent_session_id`            | `TEXT`                          |
-| `attempt`                     | `INTEGER NOT NULL DEFAULT 0`    |
-| `assistant_snapshot`          | `TEXT NOT NULL DEFAULT ''`      |
-| `reasoning_snapshot`          | `TEXT NOT NULL DEFAULT ''`      |
-| `tool_snapshot`               | `TEXT NOT NULL DEFAULT '[]'`    |
-| `error_message`               | `TEXT`                          |
-| `created_at`                  | `INTEGER NOT NULL`              |
-| `updated_at`                  | `INTEGER NOT NULL`              |
-
 ### `questions`
 
-| 字段               | SQLite 定义           |
-| ------------------ | --------------------- |
-| `id`               | `INTEGER PRIMARY KEY` |
-| `create_time`      | `INTEGER NOT NULL`    |
-| `update_time`      | `INTEGER NOT NULL`    |
-| `question_content` | `TEXT`                |
-| `answers`          | `TEXT DEFAULT '[]'`   |
+| 字段               | SQLite 定义                           |
+| ------------------ | ------------------------------------- |
+| `id`               | `INTEGER PRIMARY KEY`                 |
+| `create_time`      | `INTEGER NOT NULL`                    |
+| `update_time`      | `INTEGER NOT NULL`                    |
+| `question_content` | `TEXT`                                |
+| `answers`          | `TEXT DEFAULT '[]'`                   |
+| `group_id`         | `INTEGER`                             |
+| `sort_index`       | `INTEGER NOT NULL DEFAULT 0`          |
+| `resolved_time`    | `INTEGER`                             |
+| `status`           | `TEXT NOT NULL DEFAULT 'not_started'` |
+| `description`      | `TEXT`                                |
 
 ### `question_link`
 
@@ -403,6 +337,7 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `columns`        | `TEXT NOT NULL`       |
 | `rows`           | `TEXT NOT NULL`       |
 | `active_view_id` | `INTEGER`             |
+| `ref_count`      | `INTEGER DEFAULT 1`   |
 
 ### `data_table_views`
 
@@ -417,30 +352,52 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `create_time` | `INTEGER NOT NULL`    |
 | `update_time` | `INTEGER NOT NULL`    |
 
+### `database_item`
+
+| 字段            | SQLite 定义                  |
+| --------------- | ---------------------------- |
+| `id`            | `INTEGER PRIMARY KEY`        |
+| `create_time`   | `INTEGER NOT NULL`           |
+| `update_time`   | `INTEGER NOT NULL`           |
+| `title`         | `TEXT NOT NULL`              |
+| `desc`          | `TEXT`                       |
+| `archived`      | `INTEGER DEFAULT 0`          |
+| `pinned`        | `INTEGER DEFAULT 0`          |
+| `data_table_id` | `INTEGER NOT NULL DEFAULT 0` |
+
 ### `project`
 
-| 字段          | SQLite 定义           |
-| ------------- | --------------------- |
-| `id`          | `INTEGER PRIMARY KEY` |
-| `create_time` | `INTEGER NOT NULL`    |
-| `update_time` | `INTEGER NOT NULL`    |
-| `title`       | `TEXT NOT NULL`       |
-| `desc`        | `TEXT`                |
-| `children`    | `TEXT`                |
+| 字段            | SQLite 定义                    |
+| --------------- | ------------------------------ |
+| `id`            | `INTEGER PRIMARY KEY`          |
+| `create_time`   | `INTEGER NOT NULL`             |
+| `update_time`   | `INTEGER NOT NULL`             |
+| `title`         | `TEXT NOT NULL`                |
+| `desc`          | `TEXT`                         |
+| `children`      | `TEXT`                         |
+| `archived`      | `INTEGER DEFAULT 0`            |
+| `pinned`        | `INTEGER DEFAULT 0`            |
+| `project_type`  | `TEXT DEFAULT 'document-tree'` |
+| `data_table_id` | `INTEGER DEFAULT 0`            |
 
 ### `project_item`
 
-| 字段          | SQLite 定义           |
-| ------------- | --------------------- |
-| `id`          | `INTEGER PRIMARY KEY` |
-| `create_time` | `INTEGER NOT NULL`    |
-| `update_time` | `INTEGER NOT NULL`    |
-| `title`       | `TEXT NOT NULL`       |
-| `children`    | `TEXT`                |
-| `parents`     | `TEXT`                |
-| `projects`    | `TEXT`                |
-| `ref_type`    | `TEXT`                |
-| `ref_id`      | `INTEGER`             |
+| 字段                     | SQLite 定义                  |
+| ------------------------ | ---------------------------- |
+| `id`                     | `INTEGER PRIMARY KEY`        |
+| `create_time`            | `INTEGER NOT NULL`           |
+| `update_time`            | `INTEGER NOT NULL`           |
+| `title`                  | `TEXT NOT NULL`              |
+| `children`               | `TEXT`                       |
+| `parents`                | `TEXT`                       |
+| `projects`               | `TEXT`                       |
+| `ref_type`               | `TEXT`                       |
+| `ref_id`                 | `INTEGER`                    |
+| `project_item_type`      | `TEXT DEFAULT 'document'`    |
+| `content_id`             | `INTEGER`                    |
+| `white_board_content_id` | `INTEGER`                    |
+| `podcast_id`             | `INTEGER DEFAULT NULL`       |
+| `tags`                   | `TEXT NOT NULL DEFAULT '[]'` |
 
 ### `migration_meta`
 
@@ -562,6 +519,8 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `is_archived` | `INTEGER NOT NULL DEFAULT 0 CHECK(is_archived IN (0` |
 | `create_time` | `INTEGER NOT NULL`                                   |
 | `update_time` | `INTEGER NOT NULL`                                   |
+| `is_system`   | `INTEGER NOT NULL DEFAULT 0`                         |
+| `system_type` | `TEXT`                                               |
 
 ### `todo_item`
 
@@ -579,6 +538,9 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `is_archived`            | `INTEGER NOT NULL DEFAULT 0 CHECK(is_archived IN (0`  |
 | `create_time`            | `INTEGER NOT NULL`                                    |
 | `update_time`            | `INTEGER NOT NULL`                                    |
+| `type`                   | `TEXT NOT NULL DEFAULT 'normal'`                      |
+| `start_at`               | `INTEGER`                                             |
+| `remind_before`          | `INTEGER`                                             |
 
 ### `todo_note_link`
 
@@ -610,6 +572,7 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `end_date`         | `INTEGER`                    |
 | `create_time`      | `INTEGER NOT NULL`           |
 | `update_time`      | `INTEGER NOT NULL`           |
+| `max_occurrences`  | `INTEGER`                    |
 
 ### `todo_recurrence_completion`
 
@@ -674,29 +637,31 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ### `calendar_group`
 
-| 字段          | SQLite 定义           |
-| ------------- | --------------------- |
-| `id`          | `INTEGER PRIMARY KEY` |
-| `name`        | `TEXT NOT NULL`       |
-| `is_system`   | `INTEGER DEFAULT 0`   |
-| `order_index` | `INTEGER DEFAULT 0`   |
-| `create_time` | `INTEGER NOT NULL`    |
-| `update_time` | `INTEGER NOT NULL`    |
+| 字段              | SQLite 定义            |
+| ----------------- | ---------------------- |
+| `id`              | `INTEGER PRIMARY KEY`  |
+| `name`            | `TEXT NOT NULL`        |
+| `is_system`       | `INTEGER DEFAULT 0`    |
+| `order_index`     | `INTEGER DEFAULT 0`    |
+| `create_time`     | `INTEGER NOT NULL`     |
+| `update_time`     | `INTEGER NOT NULL`     |
+| `parent_group_id` | `INTEGER DEFAULT NULL` |
 
 ### `calendar`
 
-| 字段                     | SQLite 定义           |
-| ------------------------ | --------------------- |
-| `id`                     | `INTEGER PRIMARY KEY` |
-| `create_time`            | `INTEGER NOT NULL`    |
-| `update_time`            | `INTEGER NOT NULL`    |
-| `title`                  | `TEXT NOT NULL`       |
-| `color`                  | `TEXT NOT NULL`       |
-| `description_content_id` | `INTEGER DEFAULT 0`   |
-| `archived`               | `INTEGER DEFAULT 0`   |
-| `pinned`                 | `INTEGER DEFAULT 0`   |
-| `visible`                | `INTEGER DEFAULT 1`   |
-| `order_index`            | `INTEGER DEFAULT 0`   |
+| 字段                     | SQLite 定义            |
+| ------------------------ | ---------------------- |
+| `id`                     | `INTEGER PRIMARY KEY`  |
+| `create_time`            | `INTEGER NOT NULL`     |
+| `update_time`            | `INTEGER NOT NULL`     |
+| `title`                  | `TEXT NOT NULL`        |
+| `color`                  | `TEXT NOT NULL`        |
+| `description_content_id` | `INTEGER DEFAULT 0`    |
+| `archived`               | `INTEGER DEFAULT 0`    |
+| `pinned`                 | `INTEGER DEFAULT 0`    |
+| `visible`                | `INTEGER DEFAULT 1`    |
+| `order_index`            | `INTEGER DEFAULT 0`    |
+| `group_id`               | `INTEGER DEFAULT NULL` |
 
 ### `calendar_event`
 
@@ -753,19 +718,6 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `book_review`        | `TEXT`              |
 | `created_at`         | `INTEGER NOT NULL`  |
 | `updated_at`         | `INTEGER NOT NULL`  |
-
-### `weread_view`
-
-| 字段         | SQLite 定义           |
-| ------------ | --------------------- |
-| `id`         | `INTEGER PRIMARY KEY` |
-| `table_id`   | `INTEGER DEFAULT 0`   |
-| `name`       | `TEXT NOT NULL`       |
-| `type`       | `TEXT NOT NULL`       |
-| `view_order` | `INTEGER DEFAULT 0`   |
-| `config`     | `TEXT NOT NULL`       |
-| `created_at` | `INTEGER NOT NULL`    |
-| `updated_at` | `INTEGER NOT NULL`    |
 
 ### `weread_config`
 
@@ -837,49 +789,49 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `create_time` | `INTEGER NOT NULL`    |
 | `update_time` | `INTEGER NOT NULL`    |
 
-### `vibe_learning_resources`
-
-| 字段            | SQLite 定义                  |
-| --------------- | ---------------------------- |
-| `id`            | `INTEGER PRIMARY KEY`        |
-| `project_id`    | `INTEGER NOT NULL`           |
-| `sort_index`    | `INTEGER NOT NULL DEFAULT 0` |
-| `create_time`   | `INTEGER NOT NULL`           |
-| `update_time`   | `INTEGER NOT NULL`           |
-| `name`          | `TEXT NOT NULL`              |
-| `original_path` | `TEXT NOT NULL`              |
-| `markdown_path` | `TEXT`                       |
-| `resource_type` | `TEXT NOT NULL`              |
-| `file_size`     | `INTEGER`                    |
-| `duration`      | `INTEGER`                    |
-
-### `vibe_learning_chats`
-
-| 字段                     | SQLite 定义            |
-| ------------------------ | ---------------------- |
-| `id`                     | `INTEGER PRIMARY KEY`  |
-| `project_id`             | `INTEGER NOT NULL`     |
-| `create_time`            | `INTEGER NOT NULL`     |
-| `update_time`            | `INTEGER NOT NULL`     |
-| `messages`               | `TEXT`                 |
-| `title`                  | `TEXT`                 |
-| `archived`               | `INTEGER DEFAULT 0`    |
-| `parent_chat_id`         | `INTEGER`              |
-| `branch_index`           | `INTEGER DEFAULT 0`    |
-| `message_schema_version` | `INTEGER DEFAULT 3`    |
-| `agent_type`             | `TEXT DEFAULT 'local'` |
-| `agent_session_id`       | `TEXT`                 |
-
-### `vl_note`
+### `vibe_learning_project`
 
 | 字段          | SQLite 定义           |
 | ------------- | --------------------- |
 | `id`          | `INTEGER PRIMARY KEY` |
 | `create_time` | `INTEGER NOT NULL`    |
 | `update_time` | `INTEGER NOT NULL`    |
-| `project_id`  | `INTEGER NOT NULL`    |
-| `content_id`  | `INTEGER NOT NULL`    |
 | `title`       | `TEXT NOT NULL`       |
+| `desc`        | `TEXT`                |
+| `archived`    | `INTEGER DEFAULT 0`   |
+| `pinned`      | `INTEGER DEFAULT 0`   |
+
+### `vibe_learning_resources`
+
+| 字段                  | SQLite 定义                  |
+| --------------------- | ---------------------------- |
+| `id`                  | `INTEGER PRIMARY KEY`        |
+| `project_id`          | `INTEGER NOT NULL`           |
+| `sort_index`          | `INTEGER NOT NULL DEFAULT 0` |
+| `create_time`         | `INTEGER NOT NULL`           |
+| `update_time`         | `INTEGER NOT NULL`           |
+| `name`                | `TEXT NOT NULL`              |
+| `original_path`       | `TEXT NOT NULL`              |
+| `markdown_path`       | `TEXT`                       |
+| `resource_type`       | `TEXT NOT NULL`              |
+| `file_size`           | `INTEGER`                    |
+| `duration`            | `INTEGER`                    |
+| `source_type`         | `TEXT`                       |
+| `source_meta_info`    | `TEXT`                       |
+| `transcript_segments` | `TEXT`                       |
+
+### `vl_note`
+
+| 字段          | SQLite 定义                    |
+| ------------- | ------------------------------ |
+| `id`          | `INTEGER PRIMARY KEY`          |
+| `create_time` | `INTEGER NOT NULL`             |
+| `update_time` | `INTEGER NOT NULL`             |
+| `project_id`  | `INTEGER NOT NULL`             |
+| `content_id`  | `INTEGER NOT NULL`             |
+| `title`       | `TEXT NOT NULL`                |
+| `type`        | `TEXT NOT NULL DEFAULT 'note'` |
+| `podcast_id`  | `INTEGER DEFAULT NULL`         |
 
 ### `vl_quiz_set`
 

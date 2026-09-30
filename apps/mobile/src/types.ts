@@ -153,14 +153,7 @@ export interface Project {
 }
 
 export type ProjectItemType =
-  | "document"
-  | "white-board"
-  | "video-note"
-  | "audio-note"
-  | "web-view"
-  | "table-view"
-  | "pdf"
-  | string;
+  "document" | "white-board" | "video-note" | "web-view" | "table-view" | "pdf" | string;
 
 export interface ProjectItem {
   id: number;

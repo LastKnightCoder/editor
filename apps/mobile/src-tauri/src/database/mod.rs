@@ -24,6 +24,7 @@ mod flashcard;
 mod home_stats;
 mod index_db;
 mod knowledge_migration;
+mod audio_note_retirement;
 mod main_upgrade;
 mod migrator;
 mod pomodoro;

@@ -9,10 +9,6 @@ export const useProjectItemModalStates = () => {
     [ModalKey.Youtube]: false,
     [ModalKey.RemotePdf]: false,
     [ModalKey.SelectPdf]: false,
-    [ModalKey.RemoteAudio]: false,
-    [ModalKey.XiaoyuzhouPodcast]: false,
-    [ModalKey.BilibiliAudio]: false,
-    [ModalKey.YoutubeAudio]: false,
   });
 
   const openModal = useCallback((key: ModalKey) => {

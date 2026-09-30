@@ -42,16 +42,6 @@ import {
   deleteRemoteAudioCacheEntry,
   listRemoteAudioCache,
 } from "@/commands/remote-audio-cache";
-import {
-  clearYoutubeAudioCache,
-  deleteYoutubeAudioCache,
-  listYoutubeAudioCache,
-} from "@/commands/youtube-audio-cache";
-import {
-  clearBilibiliAudioCache,
-  deleteBilibiliAudioCache,
-  listBilibiliAudioCache,
-} from "@/commands/bilibili-audio-cache";
 import { clearYoutubeCache, deleteYoutubeCache, listYoutubeCache } from "@/commands/youtube-cache";
 import {
   clearBilibiliCache,
@@ -66,14 +56,7 @@ type Media = "video" | "audio" | "image";
 type Source = "remote" | "youtube" | "bilibili";
 type SourceFilter = "all" | Source;
 
-type BucketKey =
-  | "remoteVideo"
-  | "youtubeVideo"
-  | "bilibiliVideo"
-  | "remoteAudio"
-  | "youtubeAudio"
-  | "bilibiliAudio"
-  | "remoteImage";
+type BucketKey = "remoteVideo" | "youtubeVideo" | "bilibiliVideo" | "remoteAudio" | "remoteImage";
 
 /** 桶内条目（与桶无关的统一形状；remove 闭包持有各命令所需的删除键） */
 interface RawItem {
@@ -166,38 +149,6 @@ const BUCKETS: Bucket[] = [
         remove: () => deleteRemoteAudioCacheEntry(item.id),
       })),
     clear: clearRemoteAudioCache,
-  },
-  {
-    key: "youtubeAudio",
-    media: "audio",
-    source: "youtube",
-    label: "YouTube 音频",
-    list: async () =>
-      (await listYoutubeAudioCache()).map(item => ({
-        id: item.url,
-        name: item.title || item.url,
-        subtitle: item.url,
-        fileSize: item.fileSize,
-        localPath: item.localPath,
-        remove: () => deleteYoutubeAudioCache(item.url),
-      })),
-    clear: clearYoutubeAudioCache,
-  },
-  {
-    key: "bilibiliAudio",
-    media: "audio",
-    source: "bilibili",
-    label: "Bilibili 音频",
-    list: async () =>
-      (await listBilibiliAudioCache()).map(item => ({
-        id: `${item.bvid}-${item.cid}`,
-        name: item.title || `Bilibili ${item.bvid}`,
-        subtitle: `BVID ${item.bvid} · CID ${item.cid}`,
-        fileSize: item.fileSize,
-        localPath: item.localPath,
-        remove: () => deleteBilibiliAudioCache(item.bvid, item.cid),
-      })),
-    clear: clearBilibiliAudioCache,
   },
   {
     key: "remoteImage",

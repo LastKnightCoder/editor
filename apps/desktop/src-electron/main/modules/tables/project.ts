@@ -21,7 +21,6 @@ import { canonicalContentTitle, setCanonicalContentTitle } from "../collaboratio
 import CardTable from "./card";
 import ArticleTable from "./article";
 import VideoNoteTable from "./video-note";
-import AudioNoteTable from "./audio-note";
 import WhiteBoardContentTable from "./white-board-content";
 import WebLinkTable from "./web-link";
 import { WebLinkSourceType } from "@/types";
@@ -603,9 +602,6 @@ export default class ProjectTable {
       }
       if (itemInfo.projectItemType === EProjectItemType.VideoNote) {
         VideoNoteTable.deleteVideoNote(db, itemInfo.refId);
-      }
-      if (itemInfo.projectItemType === EProjectItemType.AudioNote) {
-        AudioNoteTable.deleteAudioNote(db, itemInfo.refId);
       }
       log.info(`删除白板内容: ${JSON.stringify(itemInfo, null, 2)}`);
       if (
