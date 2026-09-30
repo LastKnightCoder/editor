@@ -1,11 +1,5 @@
 import { useEffect, useRef } from "react";
-import {
-  Editor,
-  Node as SlateNode,
-  Path,
-  Element as SlateElement,
-  Transforms,
-} from "slate";
+import { Editor, Node as SlateNode, Path, Element as SlateElement, Transforms } from "slate";
 import { ReactEditor } from "slate-react";
 import { useMemoizedFn } from "ahooks";
 import type { HeaderElement } from "../../../../types";
@@ -20,6 +14,9 @@ const useHeaderCollapse = ({ editor, element }: UseHeaderCollapseParams) => {
 
   // Store references to hidden nodes for cleanup
   const hiddenNodesRef = useRef<Array<HTMLElement>>([]);
+  // 上一次生效的折叠状态：挂载时为 null。展开动画只在「折叠 → 展开」时播放，
+  // 否则挂载时会给整节写上内联样式，压过宿主对这些块的样式（如聚焦模式的 opacity）
+  const appliedRef = useRef<boolean | null>(null);
 
   const getCurrentPath = useMemoizedFn((): Path | null => {
     try {
@@ -48,12 +45,10 @@ const useHeaderCollapse = ({ editor, element }: UseHeaderCollapseParams) => {
   });
 
   // Determine if a header node is at the same or higher level as current header
-  const isSameOrHigherLevelHeader = useMemoizedFn(
-    (node: SlateNode): boolean => {
-      if (!isHeaderNode(node)) return false;
-      return (node as HeaderElement).level <= level;
-    },
-  );
+  const isSameOrHigherLevelHeader = useMemoizedFn((node: SlateNode): boolean => {
+    if (!isHeaderNode(node)) return false;
+    return (node as HeaderElement).level <= level;
+  });
 
   // Get all nodes in the header section
   const getHeaderSectionNodes = useMemoizedFn(() => {
@@ -64,8 +59,7 @@ const useHeaderCollapse = ({ editor, element }: UseHeaderCollapseParams) => {
         return nodes;
       }
 
-      const parentPath =
-        currentPath.length > 1 ? Path.parent(currentPath) : null;
+      const parentPath = currentPath.length > 1 ? Path.parent(currentPath) : null;
       const parent = parentPath
         ? (Editor.node(editor, parentPath)[0] as SlateElement | Editor)
         : editor;
@@ -126,7 +120,7 @@ const useHeaderCollapse = ({ editor, element }: UseHeaderCollapseParams) => {
   useEffect(() => {
     return () => {
       // Reset all node styles on component unmount
-      hiddenNodesRef.current.forEach((node) => {
+      hiddenNodesRef.current.forEach(node => {
         if (node) {
           node.style.display = "";
           node.style.height = "";
@@ -145,10 +139,13 @@ const useHeaderCollapse = ({ editor, element }: UseHeaderCollapseParams) => {
 
   // Apply collapse/expand effects
   useEffect(() => {
+    const previous = appliedRef.current;
+    appliedRef.current = collapsed;
+    if (previous === collapsed || (previous === null && !collapsed)) return;
     const { domNodes } = getDomNodesToToggle();
 
     // Apply collapse/expand effects to all nodes in the section
-    domNodes.forEach((domNode) => {
+    domNodes.forEach(domNode => {
       // Save node reference
       hiddenNodesRef.current.push(domNode);
 
@@ -200,6 +197,8 @@ const useHeaderCollapse = ({ editor, element }: UseHeaderCollapseParams) => {
           domNode.style.overflow = "";
           domNode.style.transition = "";
           domNode.style.height = "";
+          // opacity 也要清：残留的内联值会一直压着外部样式
+          domNode.style.opacity = "";
         }, 250);
       }
     });
