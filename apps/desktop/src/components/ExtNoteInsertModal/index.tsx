@@ -8,7 +8,6 @@ import InsertNoteToTreeModal from "@/components/InsertNoteToTreeModal";
 const DEFAULT_CONTENT: Descendant[] = [
   {
     type: "paragraph",
-    disableDrag: false,
     children: [{ type: "formatted", text: "" }],
   },
 ];

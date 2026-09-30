@@ -1,4 +1,4 @@
-import { Editor, Transforms } from "slate";
+import { Editor, Node, Path, Transforms, type Point } from "slate";
 
 import { ingestAccepts, type IngestContext, type IngestSource } from "../api/ingest";
 import type { ExtensionCircuitBreaker } from "../kit/extensionGuard";
@@ -38,6 +38,19 @@ const partitionByClaim = (
     }
   }
   return buckets;
+};
+
+/**
+ * 文件拖拽的插入点（drop 指示线停在哪就插到哪）：目标块之前取块首，之后取下一块首
+ * （没有下一块时取文档末尾），三个分支都是有效 point，run 的插入落在指示线位置。
+ */
+export const resolveFileDropPoint = (
+  editor: Editor,
+  target: { path: Path; before: boolean }
+): Point => {
+  if (target.before) return Editor.start(editor, target.path);
+  const next = Path.next(target.path);
+  return Node.has(editor, next) ? Editor.start(editor, next) : Editor.end(editor, []);
 };
 
 export const withIngest = (

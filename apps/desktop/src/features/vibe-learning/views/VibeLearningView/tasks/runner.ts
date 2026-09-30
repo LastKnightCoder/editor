@@ -68,7 +68,7 @@ const LIVE_SAVE: VLTaskKind[] = ["outline", "highlights", "article"];
 const KEEP_PARTIAL: VLTaskKind[] = [...LIVE_SAVE, "mindmap"];
 
 const EMPTY_CONTENT: Descendant[] = [
-  { type: "paragraph", disableDrag: false, children: [{ type: "formatted", text: "" }] },
+  { type: "paragraph", children: [{ type: "formatted", text: "" }] },
 ] as unknown as Descendant[];
 
 interface Runtime {

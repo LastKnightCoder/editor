@@ -120,6 +120,13 @@ export * from "./types/custom-element";
 
 // Components
 export { default as AddParagraph } from "./components/AddParagraph";
+// 内容注入声明的类型（run/when 的签名，01 §5.4）
+export type {
+  IngestContext,
+  IngestFilesRule,
+  IngestTextRule,
+  ElementIngestSpec,
+} from "./api/ingest";
 export { default as InlineChromiumBugfix } from "./components/InlineChromiumBugFix";
 export { default as EditorContextMenu } from "./components/EditorContextMenu";
 // 拖拽 chrome 已收进内核（BlockDragHost，01 §5.4）；类名常量供宿主样式与测试引用

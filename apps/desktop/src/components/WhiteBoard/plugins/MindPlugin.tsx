@@ -55,7 +55,6 @@ import useSettingStore from "@/stores/useSettingStore.ts";
 const DEFAULT_CONTENT: Descendant[] = [
   {
     type: "paragraph",
-    disableDrag: false,
     children: [{ type: "formatted", text: "" }],
   },
 ];
