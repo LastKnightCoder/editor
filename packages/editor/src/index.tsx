@@ -55,11 +55,10 @@ import {
   withNormalizedCopy,
 } from "./plugins";
 import { withIngest, resolveFileDropPoint } from "./plugins/withIngest";
-import IExtension from "./extensions/types";
 import type { AnyExtension } from "./api/legacy";
 import type { EditorRef } from "./types/editor";
 
-import legacyBuiltinHotkeys, { builtinCommands, builtinHotkeys } from "./hotkeys";
+import { builtinCommands, builtinHotkeys } from "./hotkeys";
 import { CommandRegistry, createCommandDispatcher } from "./api/command";
 import type { ResolvedHotkey } from "./utils/hotkey";
 import ImagesOverview from "./components/ImagesOverview";
@@ -334,8 +333,9 @@ const Index = memo(
     }, [binding, editor]);
 
     const finalHotkeys = useMemo<ResolvedHotkey[]>(() => {
-      const legacyEntries = (configs: readonly IHotKeyConfig[]): ResolvedHotkey[] =>
-        guardHotkeys(configs, config => assembly.getHotkeyOwner(config), breaker).map(config => ({
+      // 宿主 prop 传入的场景热键（IHotKeyConfig）走直通；来自扩展的热键全部经命令注册表
+      const propEntries = (configs: readonly IHotKeyConfig[]): ResolvedHotkey[] =>
+        guardHotkeys(configs, () => undefined, breaker).map(config => ({
           kind: "legacy" as const,
           config,
         }));
@@ -345,14 +345,12 @@ const Index = memo(
           keys: hotkey.key,
           command: hotkey.command,
         })),
-        ...legacyEntries(assembly.hotkeyConfigs),
         ...builtinHotkeys.map(hotkey => ({
           kind: "command" as const,
           keys: hotkey.key,
           command: hotkey.command,
         })),
-        ...legacyEntries(legacyBuiltinHotkeys),
-        ...legacyEntries(hotkeyConfigs || []),
+        ...propEntries(hotkeyConfigs || []),
       ];
     }, [assembly, hotkeyConfigs, breaker]);
 
@@ -659,8 +657,6 @@ const Index = memo(
 );
 
 export default Index;
-
-export type { IExtension };
 
 // 重导出 CustomBlock 相关工具
 export {

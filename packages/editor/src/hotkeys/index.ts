@@ -37,8 +37,3 @@ export const builtinHotkeys: EditorHotkey[] = [
   ...slashCommandHotkeys,
   ...blockNavigationHotkeys,
 ];
-
-/** @deprecated 内核热键已全部命令化；保留空数组过渡，宿主 prop 的 legacy 热键仍走直通 */
-const legacyHotKeyConfigs: never[] = [];
-
-export default legacyHotKeyConfigs;

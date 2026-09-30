@@ -92,11 +92,10 @@ export {
 
 export * from "./utils/element";
 
-export type { default as IExtension, IExtensionBaseProps } from "./extensions/types";
+export type { IExtensionBaseProps } from "./extensions/types";
 export {
   defineExtension,
   defineElement,
-  fromLegacyExtension,
   type EditorExtension,
   type AnyExtension,
   type ElementSpec,
@@ -106,13 +105,6 @@ export {
   type EditorCommandContext,
   type EditorHotkey,
 } from "./api";
-export { default as Base } from "./extensions/base";
-
-export {
-  createBlockElementPlugin,
-  createInlineElementPlugin,
-  createVoidElementPlugin,
-} from "./utils/plugin";
 
 // Editor utilities
 export * from "./utils";

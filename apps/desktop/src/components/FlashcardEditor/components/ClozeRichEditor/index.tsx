@@ -2,7 +2,6 @@ import { useMemo, useCallback } from "react";
 import { createEditor, Descendant } from "slate";
 import { Slate, Editable, withReact, RenderElementProps } from "slate-react";
 import { withHistory } from "slate-history";
-import { createInlineElementPlugin } from "@tau/editor/src";
 import type { FlashcardBlankElement } from "@/editor-extensions/flashcard-blank/types";
 import FlashcardBlankComponent from "./FlashcardBlankComponent";
 import ClozeEditorToolbar from "./ClozeEditorToolbar";
@@ -18,7 +17,9 @@ const ClozeRichEditor = ({ value, onChange, isDark }: ClozeRichEditorProps) => {
   const editor = useMemo(() => {
     const base = withHistory(withReact(createEditor()));
     // 注册 flashcard-blank 为 inline 元素
-    return createInlineElementPlugin("flashcard-blank")(base);
+    const { isInline } = base;
+    base.isInline = element => element.type === "flashcard-blank" || isInline(element);
+    return base;
   }, []);
 
   const renderElement = useCallback(

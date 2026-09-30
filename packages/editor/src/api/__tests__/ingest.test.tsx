@@ -7,8 +7,6 @@ import { ingestAccepts, type IngestSource } from "../ingest";
 import { withIngest, resolveFileDropPoint } from "../../plugins/withIngest";
 import { createCircuitBreaker, type ExtensionCircuitBreaker } from "../../kit/extensionGuard";
 import { defineElement, defineExtension } from "../extension";
-import Base from "../../extensions/base";
-import IExtension from "../../extensions/types";
 import { createBareEditorKit } from "../../index";
 
 const text = (value: string) => ({ type: "formatted", text: value });
@@ -223,20 +221,19 @@ describe("文件拖拽的落点（drop 指示线一致）", () => {
 });
 
 describe("装配：ingest 声明收集与冲突", () => {
-  class LegacyWithIngest extends Base implements IExtension {
-    type = "legacy-ingest";
-    override ingestSpec = {
-      files: { accept: "audio/*", run: () => {} },
-    };
-    getPlugins() {
-      return [];
-    }
-    render() {
-      return null as any;
-    }
-  }
+  const audioIngest = defineExtension({
+    id: "test.audio-ingest",
+    elements: [
+      defineElement({
+        type: "audio-ingest",
+        kind: "block",
+        render: () => null,
+        ingest: { files: { accept: "audio/*", run: () => {} } },
+      }),
+    ],
+  });
 
-  it("legacy ingestSpec 与 v2 defineElement.ingest 都进装配；未声明不进", () => {
+  it("defineElement.ingest 进装配；未声明不进", () => {
     const v2 = defineExtension({
       id: "test.v2-ingest",
       elements: [
@@ -249,7 +246,7 @@ describe("装配：ingest 声明收集与冲突", () => {
       ],
     });
     // bare kit：全量 kit 的内置 audio/image 扩展已声明同名 accept，会撞冲突检测
-    const kit = createBareEditorKit({ extensions: [new LegacyWithIngest(), v2] });
+    const kit = createBareEditorKit({ extensions: [audioIngest, v2] });
     const accepts = kit.assembly.ingestSources.map(source => source.files?.accept);
     expect(accepts).toEqual(expect.arrayContaining(["audio/*", "image/*"]));
   });

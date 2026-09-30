@@ -8,95 +8,74 @@
  *
  * 附件只显示文件名：`url` / `filePath` 是 desktop 的本地路径，在插件里点不开。
  */
-import {
-  Base,
-  createBlockElementPlugin,
-  createInlineElementPlugin,
-  createVoidElementPlugin,
-} from "@tau/editor";
-import type { IExtension } from "@tau/editor";
+import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor";
 import { privateBlockPlaceholderText, type ContentElementType } from "@tau/shared";
-import type { ReactElement } from "react";
-import type { RenderElementProps } from "slate-react";
 
 const BOX =
   "my-2 rounded-lg border border-dashed border-gray-300 px-3 py-3 text-center text-xs text-gray-500 dark:border-gray-600 dark:text-gray-400";
 
-class ExtensionPrivateBlock extends Base implements IExtension {
-  constructor(public readonly type: ContentElementType) {
-    super();
-  }
+const createPrivateBlockExtension = (type: ContentElementType) =>
+  defineExtension({
+    id: `host.private-block.${type}`,
+    elements: [
+      defineElement({
+        type,
+        kind: "block",
+        isVoid: true,
+        render: ({ attributes, children }: ElementRenderProps) => (
+          <div {...attributes} contentEditable={false} className={BOX}>
+            {privateBlockPlaceholderText(type)}
+            {children}
+          </div>
+        ),
+      }),
+    ],
+  });
 
-  override getPlugins() {
-    return [createBlockElementPlugin(this.type), createVoidElementPlugin(this.type)];
-  }
-
-  render(props: RenderElementProps): ReactElement {
-    const { attributes, children } = props;
-    return (
-      <div {...attributes} contentEditable={false} className={BOX}>
-        {privateBlockPlaceholderText(this.type)}
-        {children}
-      </div>
-    );
-  }
-}
-
-export class ExtensionWhiteboardExtension extends ExtensionPrivateBlock {
-  constructor() {
-    super("whiteboard");
-  }
-}
-
-export class ExtensionDatabaseExtension extends ExtensionPrivateBlock {
-  constructor() {
-    super("database");
-  }
-}
+export const extensionWhiteboardExtension = createPrivateBlockExtension("whiteboard");
+export const extensionDatabaseExtension = createPrivateBlockExtension("database");
 
 type FileAttachmentElement = { fileName?: string; name?: string };
 
-export class ExtensionFileAttachmentExtension extends Base implements IExtension {
-  type = "file-attachment";
-
-  override getPlugins() {
-    return [
-      createBlockElementPlugin("file-attachment"),
-      createVoidElementPlugin("file-attachment"),
-    ];
-  }
-
-  render(props: RenderElementProps): ReactElement {
-    const { attributes, children, element } = props;
-    const current = element as unknown as FileAttachmentElement;
-    const name = (current.fileName || current.name || "").trim();
-    return (
-      <div {...attributes} contentEditable={false} className={BOX}>
-        {name ? `附件：${name}` : "附件"}
-        {children}
-      </div>
-    );
-  }
-}
+export const extensionFileAttachmentExtension = defineExtension({
+  id: "host.file-attachment",
+  elements: [
+    defineElement({
+      type: "file-attachment",
+      kind: "block",
+      isVoid: true,
+      render: ({ attributes, children, element }: ElementRenderProps) => {
+        const current = element as unknown as FileAttachmentElement;
+        const name = (current.fileName || current.name || "").trim();
+        return (
+          <div {...attributes} contentEditable={false} className={BOX}>
+            {name ? `附件：${name}` : "附件"}
+            {children}
+          </div>
+        );
+      },
+    }),
+  ],
+});
 
 type ContentLinkElement = { contentTitle?: string };
 
 /** 内容链接：插件里没有目标内容可跳转，只渲染标题文本 */
-export class ExtensionContentLinkExtension extends Base implements IExtension {
-  type = "content-link";
-
-  override getPlugins() {
-    return [createInlineElementPlugin("content-link")];
-  }
-
-  render(props: RenderElementProps): ReactElement {
-    const { attributes, children, element } = props;
-    const title = ((element as unknown as ContentLinkElement).contentTitle || "").trim();
-    return (
-      <span {...attributes} className="text-blue-500 underline dark:text-blue-400">
-        {title || "内容链接"}
-        {children}
-      </span>
-    );
-  }
-}
+export const extensionContentLinkExtension = defineExtension({
+  id: "host.content-link",
+  elements: [
+    defineElement({
+      type: "content-link",
+      kind: "inline",
+      render: ({ attributes, children, element }: ElementRenderProps) => {
+        const title = ((element as unknown as ContentLinkElement).contentTitle || "").trim();
+        return (
+          <span {...attributes} className="text-blue-500 underline dark:text-blue-400">
+            {title || "内容链接"}
+            {children}
+          </span>
+        );
+      },
+    }),
+  ],
+});

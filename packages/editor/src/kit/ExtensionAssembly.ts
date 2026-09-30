@@ -4,18 +4,12 @@ import type { RenderElementProps } from "slate-react";
 
 import type { EditorExtension, ElementBehaviors, ElementSpec } from "../api/extension";
 import { CommandRegistry, type EditorHotkey } from "../api/command";
-import type { EditorMenuContribution } from "../api/menu";
 import { normalizeDragSpec, type ElementDragSpec } from "../api/drag";
 import type { ElementIngestSpec } from "../api/ingest";
 import type { MenuContributionSource } from "../menu/resolveMenu";
-import {
-  isLegacyAdapter,
-  toEditorExtension,
-  elementTypesOf,
-  type AnyExtension,
-} from "../api/legacy";
+import { toEditorExtension, elementTypesOf, type AnyExtension } from "../api/legacy";
 import type { Plugin } from "../utils/plugin";
-import type { IBlockPanelListItem, IConfigItem, IHotKeyConfig } from "../types";
+import type { IBlockPanelListItem, IConfigItem } from "../types";
 
 /** 一个扩展贡献的插件：内核按扩展逐组应用，出错隔离到组（extensionGuard.ts） */
 export interface ExtensionPluginGroup {
@@ -80,8 +74,7 @@ export class ExtensionAssembly {
   readonly extensions: readonly EditorExtension[];
   readonly plugins: readonly Plugin[];
   readonly pluginGroups: readonly ExtensionPluginGroup[];
-  readonly hotkeyConfigs: readonly IHotKeyConfig[];
-  /** v2 命令热键（绑命令 id）；与 legacy 热键混排时在前 */
+  /** v2 命令热键（绑命令 id） */
   readonly commandHotkeys: readonly CommandHotkeyEntry[];
   readonly commands: CommandRegistry;
   readonly hoveringBarElements: readonly IConfigItem[];
@@ -97,13 +90,11 @@ export class ExtensionAssembly {
   readonly behaviors: ReadonlyMap<string, readonly ElementBehaviorEntry[]>;
   private readonly renderers = new Map<string, ElementRenderer>();
   private readonly owners = new Map<string, EditorExtension>();
-  private readonly hotkeyOwners = new WeakMap<IHotKeyConfig, string>();
 
   constructor(extensions: readonly AnyExtension[]) {
     this.extensions = extensions.map(toEditorExtension);
 
     const pluginGroups: ExtensionPluginGroup[] = [];
-    const hotkeyConfigs: IHotKeyConfig[] = [];
     const commandHotkeys: CommandHotkeyEntry[] = [];
     const commands = new CommandRegistry();
     const hoveringBarElements: IConfigItem[] = [];
@@ -117,8 +108,6 @@ export class ExtensionAssembly {
       try {
         const collected = this.collect(extension);
         pluginGroups.push({ type: extension.id, plugins: collected.plugins });
-        for (const config of collected.hotkeys) this.hotkeyOwners.set(config, extension.id);
-        hotkeyConfigs.push(...collected.hotkeys);
         for (const hotkey of collected.hotkeyDeclarations) {
           commandHotkeys.push({ hotkey, owner: extension.id });
         }
@@ -147,7 +136,6 @@ export class ExtensionAssembly {
     }
     this.pluginGroups = pluginGroups;
     this.plugins = pluginGroups.flatMap(group => group.plugins);
-    this.hotkeyConfigs = hotkeyConfigs;
     this.commandHotkeys = commandHotkeys;
     this.commands = commands;
     // 命令注册在 try 外：id 冲突要冒泡到 kit 创建处，不让 per-extension 容错吞掉
@@ -190,25 +178,6 @@ export class ExtensionAssembly {
     const attached = new Map<string, ElementBehaviorEntry>();
     const dragSpecs = new Map<string, ElementDragSpec>();
     const ingest: IngestSource[] = [];
-    if (isLegacyAdapter(extension)) {
-      renderers.set(extension.legacy.type, extension.legacyRender);
-      const dragSpec = normalizeDragSpec(extension.legacy.dragSpec);
-      if (dragSpec) dragSpecs.set(extension.legacy.type, dragSpec);
-      const spec = extension.legacy.ingestSpec;
-      if (spec) ingest.push({ owner: extension.id, files: spec.files, text: spec.text });
-      return {
-        plugins: [...(extension.plugins ?? [])],
-        hotkeys: [...extension.legacyHotkeys],
-        hotkeyDeclarations: [],
-        toolbar: [...(extension.toolbar ?? [])],
-        menu: extension.legacy.menuItems as EditorMenuContribution | undefined,
-        dragSpecs,
-        ingest,
-        renderers,
-        behaviors,
-        attached,
-      };
-    }
     const elements = extension.elements ?? [];
     for (const spec of elements) {
       renderers.set(spec.type, renderSpec(spec));
@@ -227,7 +196,6 @@ export class ExtensionAssembly {
     }
     return {
       plugins: [...(elements.length ? [schemaPlugin(elements)] : []), ...(extension.plugins ?? [])],
-      hotkeys: [] as IHotKeyConfig[],
       hotkeyDeclarations: [...(extension.hotkeys ?? [])],
       commands: [...(extension.commands ?? [])],
       toolbar: [...(extension.toolbar ?? [])],
@@ -251,11 +219,6 @@ export class ExtensionAssembly {
   /** 元素类型归哪个扩展（上报与熔断按扩展 id） */
   getElementOwner(type: string): EditorExtension | undefined {
     return this.owners.get(type);
-  }
-
-  /** 快捷键来自哪个扩展（熔断按扩展停用） */
-  getHotkeyOwner(config: IHotKeyConfig): string | undefined {
-    return this.hotkeyOwners.get(config);
   }
 
   /** 块菜单条目：每次打开菜单求值；单个扩展出错只丢它自己的条目 */

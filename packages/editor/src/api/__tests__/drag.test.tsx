@@ -9,8 +9,6 @@ import type { Descendant } from "slate";
 
 import { Editor, createBareEditorKit } from "../../index";
 import { defineElement, defineExtension } from "../extension";
-import Base from "../../extensions/base";
-import IExtension from "../../extensions/types";
 import { createDefaultEditorSlots, IEditorSlots } from "../../services";
 import { normalizeDragSpec } from "../drag";
 
@@ -29,17 +27,18 @@ describe("normalizeDragSpec", () => {
   });
 });
 
-/** 只渲染段落与勾选项的最小编辑器：legacy 段落 + v2 勾选项 */
-class LegacyParagraphExtension extends Base implements IExtension {
-  type = "paragraph";
-  override dragSpec = true;
-  getPlugins() {
-    return [];
-  }
-  render(props: any) {
-    return <p {...props.attributes}>{props.children}</p>;
-  }
-}
+/** 只渲染段落与勾选项的最小编辑器 */
+const paragraphExtension = defineExtension({
+  id: "test.paragraph",
+  elements: [
+    defineElement({
+      type: "paragraph",
+      kind: "block",
+      render: ({ attributes, children }) => <p {...attributes}>{children}</p>,
+      drag: true,
+    }),
+  ],
+});
 
 const checkListExtension = defineExtension({
   id: "test.check-list-item",
@@ -87,7 +86,7 @@ describe("拖拽声明 → 装配与 chrome", () => {
   it("legacy dragSpec 与 v2 defineElement.drag 都进装配；未声明的类型没有 chrome", async () => {
     const kit = createBareEditorKit({
       ...kitOptions,
-      extensions: [new LegacyParagraphExtension(), checkListExtension],
+      extensions: [paragraphExtension, checkListExtension],
     });
     expect(kit.assembly.dragSpecs.get("paragraph")).toEqual({ self: true, children: true });
     expect(kit.assembly.dragSpecs.get("check-list-item")?.self).toBe(true);
@@ -97,7 +96,7 @@ describe("拖拽声明 → 装配与 chrome", () => {
   it("有声明的块渲染 ed-block chrome 与手柄；children:false 的祖先屏蔽子块手柄", async () => {
     const kit = createBareEditorKit({
       ...kitOptions,
-      extensions: [new LegacyParagraphExtension(), checkListExtension],
+      extensions: [paragraphExtension, checkListExtension],
     });
     const doc: Descendant[] = [
       paragraph("独立段落"),
@@ -121,16 +120,17 @@ describe("拖拽声明 → 装配与 chrome", () => {
   });
 
   it("未声明的块（无 drag 声明）不渲染 chrome，DOM 与迁移前一致", async () => {
-    class PlainExtension extends Base implements IExtension {
-      type = "plain";
-      getPlugins() {
-        return [];
-      }
-      render(props: any) {
-        return <div {...props.attributes}>{props.children}</div>;
-      }
-    }
-    const kit = createBareEditorKit({ ...kitOptions, extensions: [new PlainExtension()] });
+    const plainExtension = defineExtension({
+      id: "test.plain",
+      elements: [
+        defineElement({
+          type: "plain",
+          kind: "block",
+          render: ({ attributes, children }) => <div {...attributes}>{children}</div>,
+        }),
+      ],
+    });
+    const kit = createBareEditorKit({ ...kitOptions, extensions: [plainExtension] });
     const doc: Descendant[] = [
       { type: "plain", children: [{ type: "formatted", text: "" }] } as Descendant,
     ];

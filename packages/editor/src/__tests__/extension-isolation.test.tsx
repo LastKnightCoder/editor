@@ -8,21 +8,19 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 
 import { Editor, createEditorKit } from "../index";
 import type { EditorRef } from "../types/editor";
-import Base from "../extensions/base";
-import type IExtension from "../extensions/types";
+import { defineExtension, type AnyExtension } from "../api";
 import {
   createDefaultEditorSlots,
   IEditorSlots,
   IExtensionErrorReporter,
   type ExtensionErrorEvent,
 } from "../services";
-import { createBlockElementPlugin } from "../utils";
 import { CIRCUIT_BREAKER_THRESHOLD } from "../kit/extensionGuard";
 
 const text = (value: string) => ({ type: "formatted", text: value });
 const paragraph = (value: string) => ({ type: "paragraph", children: [text(value)] });
 
-const createKit = (extensions: IExtension[] = []) => {
+const createKit = (extensions: AnyExtension[] = []) => {
   const events: ExtensionErrorEvent[] = [];
   const kit = createEditorKit({
     extensions,
@@ -35,37 +33,43 @@ const createKit = (extensions: IExtension[] = []) => {
 };
 
 /** render 必定抛错的块扩展 */
-class ExplodingRenderExtension extends Base implements IExtension {
-  type = "exploding";
-  override getPlugins() {
-    return [createBlockElementPlugin(this.type)];
-  }
-  render(): never {
-    throw new Error("render boom");
-  }
-}
+/** render 必定抛错的块扩展 */
+const explodingRenderExtension = defineExtension({
+  id: "test.exploding",
+  elements: [
+    {
+      type: "exploding",
+      kind: "block",
+      render: (): never => {
+        throw new Error("render boom");
+      },
+    },
+  ],
+});
 
 /** 接管 insertBreak 且必定抛错的扩展 */
 const createExplodingBehavior = () => {
   const calls = { count: 0 };
-  class ExplodingBehaviorExtension extends Base implements IExtension {
-    type = "exploding-behavior";
-    override getPlugins() {
-      return [
-        (editor: SlateEditor) => {
-          editor.insertBreak = () => {
-            calls.count += 1;
-            throw new Error("behavior boom");
-          };
-          return editor;
-        },
-      ];
-    }
-    render() {
-      return <div />;
-    }
-  }
-  return { extension: new ExplodingBehaviorExtension(), calls };
+  const extension = defineExtension({
+    id: "test.exploding-behavior",
+    elements: [
+      {
+        type: "exploding-behavior",
+        kind: "block",
+        render: () => <div />,
+      },
+    ],
+    plugins: [
+      (editor: SlateEditor) => {
+        editor.insertBreak = () => {
+          calls.count += 1;
+          throw new Error("behavior boom");
+        };
+        return editor;
+      },
+    ],
+  });
+  return { extension, calls };
 };
 
 const valueWithUnknown = [
@@ -111,7 +115,7 @@ describe("扩展错误隔离与未知节点", () => {
 
   it("render 抛错：只该元素显示占位，其余正常渲染，数据不变", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const { kit, events } = createKit([new ExplodingRenderExtension()]);
+    const { kit, events } = createKit([explodingRenderExtension]);
     const ref = createRef<EditorRef>();
     const initValue = [
       paragraph("前面的段落"),
@@ -130,7 +134,7 @@ describe("扩展错误隔离与未知节点", () => {
     );
     expect(ref.current!.getEditor().children[1]).toEqual(initValue[1]);
     expect(events).toContainEqual(
-      expect.objectContaining({ extension: "exploding", phase: "render" })
+      expect.objectContaining({ extension: "test.exploding", phase: "render" })
     );
   });
 
@@ -158,7 +162,7 @@ describe("扩展错误隔离与未知节点", () => {
     // 熔断后不再调用出错的实现
     expect(calls.count).toBe(CIRCUIT_BREAKER_THRESHOLD);
     expect(events.filter(event => event.disabled)).toEqual([
-      expect.objectContaining({ extension: "exploding-behavior", phase: "behavior" }),
+      expect.objectContaining({ extension: "test.exploding-behavior", phase: "behavior" }),
     ]);
   });
 

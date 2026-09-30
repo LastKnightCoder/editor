@@ -1,17 +1,9 @@
-import {
-  memo,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type MouseEvent,
-  type ReactNode,
-} from "react";
+import { memo, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import classNames from "classnames";
 import { Tooltip, toast } from "@tau/ui";
+import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor";
 import { RenderElementProps } from "slate-react";
-import { Base, createInlineElementPlugin, Editor } from "@tau/editor";
-import type { IExtension } from "@tau/editor";
+import { Editor } from "@tau/editor";
 import { joinPath, getInitData } from "@blog/utils";
 import type { ContentLinkTarget } from "@blog/types";
 import {
@@ -75,74 +67,64 @@ function readNodeText(input: unknown): string {
   return "";
 }
 
-const ContentLinkPreviewPanel = memo(
-  ({ state }: { state: LinkPreviewState }) => {
-    if (state.loading) {
-      return (
-        <div className="blog-content-link-preview">
-          <p className="blog-content-link-preview-tip">正在加载预览...</p>
-        </div>
-      );
-    }
-
-    if (state.error) {
-      return (
-        <div className="blog-content-link-preview">
-          <p className="blog-content-link-preview-error">预览加载失败</p>
-        </div>
-      );
-    }
-
-    if (!state.data) {
-      return (
-        <div className="blog-content-link-preview">
-          <p className="blog-content-link-preview-tip">暂无可预览内容</p>
-        </div>
-      );
-    }
-
+const ContentLinkPreviewPanel = memo(({ state }: { state: LinkPreviewState }) => {
+  if (state.loading) {
     return (
       <div className="blog-content-link-preview">
-        <div className="blog-content-link-preview-body">
-          <Editor
-            initValue={state.data.content}
-            readonly
-            extensions={blogContentLinkPreviewExtensions}
-          />
-        </div>
+        <p className="blog-content-link-preview-tip">正在加载预览...</p>
       </div>
     );
-  },
-);
+  }
+
+  if (state.error) {
+    return (
+      <div className="blog-content-link-preview">
+        <p className="blog-content-link-preview-error">预览加载失败</p>
+      </div>
+    );
+  }
+
+  if (!state.data) {
+    return (
+      <div className="blog-content-link-preview">
+        <p className="blog-content-link-preview-tip">暂无可预览内容</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="blog-content-link-preview">
+      <div className="blog-content-link-preview-body">
+        <Editor
+          initValue={state.data.content}
+          readonly
+          extensions={blogContentLinkPreviewExtensions}
+        />
+      </div>
+    </div>
+  );
+});
 
 ContentLinkPreviewPanel.displayName = "ContentLinkPreviewPanel";
 
 const ContentLinkNode = memo((props: ContentLinkProps) => {
   const { attributes, element, children, enablePreview } = props;
   const { contentLinkTargets, site } = getInitData();
-  const targetMap = contentLinkTargets as
-    | Record<string, ContentLinkTarget>
-    | undefined;
+  const targetMap = contentLinkTargets as Record<string, ContentLinkTarget> | undefined;
   const target = useMemo(
     () =>
       resolveContentLinkTarget(
         { contentType: element.contentType, refId: element.refId },
-        targetMap,
+        targetMap
       ),
-    [element.contentType, element.refId, targetMap],
+    [element.contentType, element.refId, targetMap]
   );
 
   const inlineLabel = readText(readNodeText(element.children));
-  const displayTitle = readText(
-    element.contentTitle,
-    COMPACT_CONTENT_LINK_LABEL,
-  );
+  const displayTitle = readText(element.contentTitle, COMPACT_CONTENT_LINK_LABEL);
   const shouldCompactLabel =
-    !readText(element.contentTitle) &&
-    inlineLabel === DEFAULT_CONTENT_LINK_LABEL;
-  const targetHref = target
-    ? joinPath(site.basePath, target.href, { raw: true })
-    : "";
+    !readText(element.contentTitle) && inlineLabel === DEFAULT_CONTENT_LINK_LABEL;
+  const targetHref = target ? joinPath(site.basePath, target.href, { raw: true }) : "";
   const canPreview = enablePreview && !!target && !!targetHref;
   const [open, setOpen] = useState(false);
   const requestIdRef = useRef(0);
@@ -159,7 +141,7 @@ const ContentLinkNode = memo((props: ContentLinkProps) => {
 
     let cancelled = false;
     const currentRequestId = ++requestIdRef.current;
-    setPreviewState((previous) => ({
+    setPreviewState(previous => ({
       ...previous,
       loading: true,
       error: "",
@@ -167,7 +149,7 @@ const ContentLinkNode = memo((props: ContentLinkProps) => {
 
     linkPreviewLoader
       .load(targetHref, displayTitle)
-      .then((data) => {
+      .then(data => {
         if (cancelled || requestIdRef.current !== currentRequestId) {
           return;
         }
@@ -245,32 +227,25 @@ const ContentLinkNode = memo((props: ContentLinkProps) => {
 
 ContentLinkNode.displayName = "ContentLinkNode";
 
-class BlogContentLinkExtension extends Base implements IExtension {
-  type = "content-link";
+const createBlogContentLinkExtension = (enablePreview: boolean) =>
+  defineExtension({
+    id: "host.content-link",
+    elements: [
+      defineElement({
+        type: "content-link",
+        kind: "inline",
+        render: ({ attributes, children, element }: ElementRenderProps) => (
+          <ContentLinkNode
+            attributes={attributes}
+            element={element as unknown as ContentLinkElement}
+            enablePreview={enablePreview}
+          >
+            {children}
+          </ContentLinkNode>
+        ),
+      }),
+    ],
+  });
 
-  constructor(private readonly enablePreview = true) {
-    super();
-  }
-
-  override getPlugins() {
-    return [createInlineElementPlugin("content-link")];
-  }
-
-  render(props: RenderElementProps) {
-    const { attributes, children, element } = props;
-    return (
-      <ContentLinkNode
-        attributes={attributes}
-        element={element as unknown as ContentLinkElement}
-        enablePreview={this.enablePreview}
-      >
-        {children}
-      </ContentLinkNode>
-    );
-  }
-}
-
-export const blogContentLinkExtension = new BlogContentLinkExtension(true);
-export const blogContentLinkPreviewExtensions: IExtension[] = [
-  new BlogContentLinkExtension(false),
-];
+export const blogContentLinkExtension = createBlogContentLinkExtension(true);
+export const blogContentLinkPreviewExtensions = [createBlogContentLinkExtension(false)];

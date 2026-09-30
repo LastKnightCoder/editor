@@ -2,9 +2,9 @@ import { createImageExtensions, type AnyExtension } from "@tau/editor";
 import webviewExtension from "@tau/editor-webview";
 import { blogContentLinkExtension } from "./contentLinkExtension";
 import {
-  BlogDatabaseExtension,
-  BlogFileAttachmentExtension,
-  BlogWhiteboardExtension,
+  blogDatabaseExtension,
+  blogFileAttachmentExtension,
+  blogWhiteboardExtension,
 } from "./passiveExtensions";
 import { getBlogImageAppearance, type BlogPublishSettings } from "../services/editorRegistry";
 
@@ -12,9 +12,9 @@ import { getBlogImageAppearance, type BlogPublishSettings } from "../services/ed
 export const blogEditorExtensions: AnyExtension[] = [
   blogContentLinkExtension,
   webviewExtension,
-  new BlogFileAttachmentExtension(),
-  new BlogWhiteboardExtension(),
-  new BlogDatabaseExtension(),
+  blogFileAttachmentExtension,
+  blogWhiteboardExtension,
+  blogDatabaseExtension,
 ];
 
 /** 页面级扩展：在公共扩展上叠加按发布设置定制外观的 image / image-gallery */

@@ -5,7 +5,7 @@
  * 这里失败，迫使改动者说明理由。P6.5 曾在没有这层守护时静默改掉 36 个调用点的扩展集。
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import type IExtension from "@tau/editor/src/extensions/types";
+import type { AnyExtension } from "@tau/editor/src";
 
 const extensionOf = (type: string) =>
   ({
@@ -15,7 +15,7 @@ const extensionOf = (type: string) =>
     getBlockPanelItems: () => [],
     getHoveringBarElements: () => [],
     render: () => null,
-  }) as unknown as IExtension;
+  }) as unknown as AnyExtension;
 
 /** desktop 静态扩展（markdown 粘贴导入、webview、图片覆盖）在此用 webview 一个哨兵代表 */
 vi.mock("@/editor-extensions", () => ({

@@ -19,10 +19,12 @@ import {
   updateVideoNoteItem,
 } from "@/commands";
 import type { VideoNoteItem } from "@/types";
-import VideoTimestampExtension, {
+import {
+  createVideoTimestampExtension,
   insertVideoTimestamp,
 } from "@/components/VideoNotePanel/extensions/VideoTimestamp";
-import VideoScreenshotExtension, {
+import {
+  createVideoScreenshotExtension,
   insertVideoScreenshot,
 } from "@/components/VideoNotePanel/extensions/VideoScreenshot";
 import type { VideoController } from "@/components/VideoNotePanel/VideoController";
@@ -98,8 +100,8 @@ export function NotesStage({ videoNoteId, videoController }: NotesStageProps) {
 
   const extensions = useMemo(
     () => [
-      new VideoTimestampExtension(videoController),
-      new VideoScreenshotExtension(videoController),
+      createVideoTimestampExtension(videoController),
+      createVideoScreenshotExtension(videoController),
     ],
     [videoController]
   );

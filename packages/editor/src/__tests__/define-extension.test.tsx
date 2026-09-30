@@ -1,4 +1,4 @@
-// P8：扩展 API v2（defineExtension）与旧扩展适配（fromLegacyExtension）的装配与分发。
+// P8：扩展 API v2（defineExtension）的装配与分发。
 import { act, createRef, lazy } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -7,12 +7,7 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
 import { Editor, createBareEditorKit, createEditorKit } from "../index";
-import {
-  defineElement,
-  defineExtension,
-  fromLegacyExtension,
-  type ElementRenderProps,
-} from "../api";
+import { defineElement, defineExtension, type ElementRenderProps } from "../api";
 import type { EditorRef } from "../types/editor";
 import { paragraph as paragraphExtension } from "../extensions";
 import {
@@ -293,9 +288,8 @@ describe("defineExtension", () => {
     expect(titles).toContain("便签");
   });
 
-  it("旧扩展的适配对象按实例缓存，kit 派生缓存因此仍然生效", () => {
+  it("kit 派生缓存按扩展实例集合生效", () => {
     const kit = createEditorKit({ services: services() });
-    expect(fromLegacyExtension(paragraphExtension)).toBe(fromLegacyExtension(paragraphExtension));
     expect(kit.extend({ extensions: [noteExtension] })).toBe(
       kit.extend({ extensions: [noteExtension] })
     );

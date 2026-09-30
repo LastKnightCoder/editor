@@ -6,10 +6,10 @@ import webviewExtension from "@tau/editor-webview";
 import type WebSocketClient from "../utils/WebSocketClient";
 import { createExtensionEditorServices, extensionImportFromMarkdown } from "./editorRegistry";
 import {
-  ExtensionContentLinkExtension,
-  ExtensionDatabaseExtension,
-  ExtensionFileAttachmentExtension,
-  ExtensionWhiteboardExtension,
+  extensionContentLinkExtension,
+  extensionDatabaseExtension,
+  extensionFileAttachmentExtension,
+  extensionWhiteboardExtension,
 } from "./passiveExtensions";
 
 const cache = new WeakMap<WebSocketClient, EditorKit>();
@@ -23,10 +23,10 @@ export function getExtensionKit(wsClient?: WebSocketClient | null): EditorKit {
       extensions: [
         createMarkdownPasteImportExtension(extensionImportFromMarkdown),
         webviewExtension,
-        new ExtensionContentLinkExtension(),
-        new ExtensionFileAttachmentExtension(),
-        new ExtensionWhiteboardExtension(),
-        new ExtensionDatabaseExtension(),
+        extensionContentLinkExtension,
+        extensionFileAttachmentExtension,
+        extensionWhiteboardExtension,
+        extensionDatabaseExtension,
       ],
       services: [createExtensionEditorServices({ wsClient: wsClient ?? null })],
     });

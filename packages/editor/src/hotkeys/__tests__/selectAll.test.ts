@@ -1,8 +1,16 @@
 import { createEditor, Descendant, Editor } from "slate";
 import { describe, expect, it, vi } from "vitest";
 
-import { createVoidElementPlugin } from "../../utils/plugin";
 import { selectAllCommands } from "../selectAll";
+
+/** void 判定的最小替身：本测试只关心全选命令，schema 细节无关 */
+const createVoidElementPlugin =
+  (type: string) =>
+  (editor: ReturnType<typeof createEditor>): ReturnType<typeof createEditor> => {
+    const { isVoid } = editor;
+    editor.isVoid = element => element.type === type || isVoid(element);
+    return editor;
+  };
 
 const createParagraph = (text = "") => ({
   type: "paragraph" as const,

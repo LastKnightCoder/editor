@@ -41,8 +41,8 @@ import { openLLMSettingsSection } from "@/utils/transcription";
 import { useLLMConfig } from "@/hooks/useLLMConfig";
 import { type VideoNote as IVideoNote, type VideoNoteItem, type TranscriptSegment } from "@/types";
 import {} from "@/editor-extensions";
-import VideoTimestampExtension from "./extensions/VideoTimestamp";
-import VideoScreenshotExtension from "./extensions/VideoScreenshot";
+import { createVideoTimestampExtension } from "./extensions/VideoTimestamp";
+import { createVideoScreenshotExtension } from "./extensions/VideoScreenshot";
 import { VideoController } from "./VideoController";
 import VideoNoteChatPanel from "./VideoNoteChatPanel";
 import LanguageSelect from "./LanguageSelect";
@@ -210,8 +210,8 @@ const VideoNotePanel = ({
   // Custom extensions for editor
   const customExtensions = useMemo(() => {
     return [
-      new VideoTimestampExtension(videoController),
-      new VideoScreenshotExtension(videoController),
+      createVideoTimestampExtension(videoController),
+      createVideoScreenshotExtension(videoController),
     ];
   }, [videoController]);
 

@@ -1,9 +1,17 @@
-import { Element, Editor, Path, Transforms } from "slate";
+import { Editor, Path, Transforms } from "slate";
 import { VideoController } from "../../VideoController";
-import { IExtension, IHotKeyConfig, FormattedText, setOrInsertNode } from "@tau/editor/src";
+import {
+  setOrInsertNode,
+  defineElement,
+  defineExtension,
+  type EditorCommand,
+  type EditorHotkey,
+  type ElementRenderProps,
+} from "@tau/editor/src";
 import { ReactEditor } from "slate-react";
 import VideoScreenshot from "./components/VideoScreenshot";
 import { formatTimestamp } from "../VideoTimestamp";
+import type { FormattedText } from "@tau/editor/src";
 
 export interface VideoScreenshotElement {
   type: "video-screenshot";
@@ -29,96 +37,73 @@ const createScreenshotElement = async (videoController: VideoController) => {
   };
 };
 
-const createVoidElementPlugin = (type: string) => {
-  return (editor: Editor) => {
-    const { isVoid } = editor;
-    editor.isVoid = element => {
-      return element.type === type ? true : isVoid(element);
-    };
-    return editor;
-  };
-};
-
 /** 在光标处插入当前帧截图（无选区时落到文末）；快捷键与工具栏按钮共用 */
 export const insertVideoScreenshot = async (editor: Editor, videoController: VideoController) => {
   if (!editor.selection) Transforms.select(editor, Editor.end(editor, []));
   const screenshotNode = await createScreenshotElement(videoController);
   if (!screenshotNode) return;
 
-  const path = setOrInsertNode(editor, screenshotNode as any);
+  const path = setOrInsertNode(editor, screenshotNode as never);
   if (!path) return;
 
   const nextPath = Path.next(path);
   ReactEditor.focus(editor);
   Transforms.insertNodes(
     editor,
-    { type: "paragraph", children: [{ type: "formatted", text: "" }] } as any,
+    { type: "paragraph", children: [{ type: "formatted", text: "" }] } as never,
     { at: nextPath, select: true }
   );
 };
 
-const createScreenshotHotkey = (videoController: VideoController): IHotKeyConfig => {
-  return {
-    hotKey: "mod+shift+s",
-    action: async (editor: Editor) => {
+/** 截图与播放控制命令（原三个散装热键） */
+const videoControlCommands = (videoController: VideoController): EditorCommand[] => [
+  {
+    id: "host.video-note.screenshot",
+    title: "截取当前帧",
+    run: async editor => {
       if (!editor.selection) return;
       await insertVideoScreenshot(editor, videoController);
     },
-  };
-};
-
-const pauseVideoHotkey = (videoController: VideoController): IHotKeyConfig => {
-  return {
-    hotKey: "mod+shift+p",
-    action: () => {
-      videoController.pause();
-    },
-  };
-};
-
-const playVideoHotkey = (videoController: VideoController): IHotKeyConfig => {
-  return {
-    hotKey: "mod+shift+l",
-    action: () => {
+  },
+  {
+    id: "host.video-note.play",
+    title: "播放视频",
+    run: () => {
       videoController.play();
     },
-  };
-};
+  },
+  {
+    id: "host.video-note.pause",
+    title: "暂停视频",
+    run: () => {
+      videoController.pause();
+    },
+  },
+];
 
-class VideoScreenshotExtension implements IExtension {
-  type = "video-screenshot";
-
-  dragSpec = true;
-
-  constructor(private videoController: VideoController) {}
-
-  getPlugins() {
-    return [createVoidElementPlugin(this.type)];
-  }
-
-  getHotkeyConfigs(): IHotKeyConfig[] {
-    return [
-      createScreenshotHotkey(this.videoController),
-      pauseVideoHotkey(this.videoController),
-      playVideoHotkey(this.videoController),
-    ];
-  }
-
-  render(props: any) {
-    return <VideoScreenshot {...props} onSeek={this.videoController.seekTo} />;
-  }
-
-  getBlockPanelItems() {
-    return [];
-  }
-
-  getHoveringBarElements() {
-    return [];
-  }
-
-  toMarkdown(node: Element) {
-    return `![${(node as any).caption}](${(node as any).url} "时间戳:${(node as any).time}")`;
-  }
-}
-
-export default VideoScreenshotExtension;
+export const createVideoScreenshotExtension = (videoController: VideoController) =>
+  defineExtension({
+    id: "host.video-screenshot",
+    elements: [
+      defineElement({
+        type: "video-screenshot",
+        kind: "block",
+        isVoid: true,
+        render: ({ attributes, element, children }: ElementRenderProps<VideoScreenshotElement>) => (
+          <VideoScreenshot
+            attributes={attributes}
+            element={element}
+            children={children}
+            onSeek={videoController.seekTo}
+          />
+        ),
+        drag: true,
+      }),
+    ],
+    commands: videoControlCommands(videoController),
+    hotkeys: [
+      { key: "mod+shift+s", command: "host.video-note.screenshot" },
+      { key: "mod+shift+l", command: "host.video-note.play" },
+      { key: "mod+shift+p", command: "host.video-note.pause" },
+    ] as EditorHotkey[],
+  });

@@ -2,11 +2,19 @@ import { createEditor, Descendant, Transforms } from "slate";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { listItemBehaviors } from "../../extensions/list-item/behaviors";
-import { createVoidElementPlugin } from "../../utils/plugin";
 import { createCircuitBreaker, withElementBehaviors } from "../../kit/extensionGuard";
 import { consoleErrorReporter } from "../../services/errorReporter";
 import { registerBlockNavigation, unregisterBlockNavigation } from "../../utils/blockNavigation";
 import { withBlockNavigation } from "../withBlockNavigation";
+
+/** void 判定的最小替身：本测试只关心块导航，schema 细节无关 */
+const createVoidElementPlugin =
+  (type: string) =>
+  (editor: ReturnType<typeof createEditor>): ReturnType<typeof createEditor> => {
+    const { isVoid } = editor;
+    editor.isVoid = element => element.type === type || isVoid(element);
+    return editor;
+  };
 
 const createParagraph = (text = "") => ({
   type: "paragraph" as const,

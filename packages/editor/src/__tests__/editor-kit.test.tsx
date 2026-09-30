@@ -8,8 +8,7 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 
 import { Editor, createBareEditorKit, createEditorKit } from "../index";
 import type { EditorRef } from "../types/editor";
-import Base from "../extensions/base";
-import type IExtension from "../extensions/types";
+import { defineExtension } from "../api";
 import { createDefaultEditorSlots, IEditorSlots } from "../services";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -19,19 +18,21 @@ const slots: Parameters<typeof createEditorKit>[0] = {
 };
 
 /** 用 type 标记自己的测试扩展：render 输出带 data-mark，便于断言分发到了哪一个实现 */
-const markerExtension = (type: string, mark: string): IExtension => {
-  class MarkerExtension extends Base implements IExtension {
-    type = type;
-    render(props: Parameters<IExtension["render"]>[0]) {
-      return (
-        <div {...props.attributes} data-mark={mark}>
-          {props.children}
-        </div>
-      );
-    }
-  }
-  return new MarkerExtension();
-};
+const markerExtension = (type: string, mark: string) =>
+  defineExtension({
+    id: `test.marker-${type}-${mark}`,
+    elements: [
+      {
+        type,
+        kind: "block",
+        render: ({ attributes, children }) => (
+          <div {...attributes} data-mark={mark}>
+            {children}
+          </div>
+        ),
+      },
+    ],
+  });
 
 const docOf = (type: string): Descendant[] => [
   { type, children: [{ type: "formatted", text: "内容" }] } as Descendant,
@@ -64,7 +65,8 @@ describe("createEditorKit", () => {
     });
     expect(kit.assembly.hasElement("paragraph")).toBe(true);
     expect(kit.elementTypes.filter(type => type === "paragraph")).toHaveLength(1);
-    expect(kit.extensions.filter(extension => extension.id === "paragraph")).toHaveLength(1);
+    // 内置 paragraph（tau.paragraph）被整体移除，只留覆盖者
+    expect(kit.extensions.filter(extension => extension.id === "tau.paragraph")).toHaveLength(0);
   });
 
   it("extend 追加扩展不影响原 kit", () => {
@@ -166,22 +168,26 @@ describe("<Editor kit> 与嵌套继承", () => {
 
   it("嵌套编辑器默认继承外层 kit", async () => {
     // 真实的嵌套发生在扩展的 render 里（如内容链接预览），内层不传 kit
-    class HostExtension extends Base implements IExtension {
-      type = "host";
-      render(props: Parameters<IExtension["render"]>[0]) {
-        return (
-          <div {...props.attributes}>
-            <div contentEditable={false}>
-              <Editor initValue={docOf("marker")} readonly />
+    const hostExtension = defineExtension({
+      id: "test.host",
+      elements: [
+        {
+          type: "host",
+          kind: "block",
+          render: ({ attributes, children }) => (
+            <div {...attributes}>
+              <div contentEditable={false}>
+                <Editor initValue={docOf("marker")} readonly />
+              </div>
+              {children}
             </div>
-            {props.children}
-          </div>
-        );
-      }
-    }
+          ),
+        },
+      ],
+    });
     const kit = createEditorKit({
       ...slots,
-      extensions: [new HostExtension(), markerExtension("marker", "outer")],
+      extensions: [hostExtension, markerExtension("marker", "outer")],
     });
     const host = await render(<Editor kit={kit} initValue={docOf("host")} readonly />);
     expect(host.querySelector("[data-mark='outer']")).toBeTruthy();

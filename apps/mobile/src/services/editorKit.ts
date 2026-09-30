@@ -5,9 +5,9 @@
  * 用函数延迟创建，避免与扩展模块的初始化顺序耦合（同 desktop，见 04 踩坑）。
  */
 import { createEditorKit, createImageExtensions, type EditorKit } from "@tau/editor/src";
-import { createMarkdownPasteImportExtension, type IExtension } from "@tau/editor/src";
+import { createMarkdownPasteImportExtension, type AnyExtension } from "@tau/editor/src";
 import webviewExtension from "@tau/editor-webview";
-import { FlashcardBlankExtension } from "../features/flashcard/blank/FlashcardBlankExtension";
+import { flashcardBlankExtension } from "../features/flashcard/blank/FlashcardBlankExtension";
 import { mobileCardPreviewExtensions } from "../features/cards/editorExtensions";
 import {
   mobileEditorServices,
@@ -18,8 +18,10 @@ import {
 const byExtras = new Map<string, EditorKit>();
 
 /** 底座：内置扩展 + mobile 静态扩展（markdown 粘贴导入、webview、图片覆盖）+ mobile 服务 */
-function createMobileKit(extras: readonly IExtension[] = []): EditorKit {
-  const key = extras.map(extension => extension.type).join(",");
+function createMobileKit(extras: readonly AnyExtension[] = []): EditorKit {
+  const key = extras
+    .map(extension => ("type" in extension ? extension.type : extension.id))
+    .join(",");
   let kit = byExtras.get(key);
   if (!kit) {
     kit = createEditorKit({
@@ -47,11 +49,11 @@ export function getMobileContentKit(): EditorKit {
   return createMobileKit(mobileCardPreviewExtensions);
 }
 
-let flashcardBlank: IExtension | null = null;
+let flashcardBlank: AnyExtension | null = null;
 
 /** 闪卡题干与背面补充：只多一个填空元素；背面与非挖空题不需要 */
 export function getMobileFlashcardKit({ blanks = true }: { blanks?: boolean } = {}): EditorKit {
   if (!blanks) return createMobileKit();
-  flashcardBlank ??= new FlashcardBlankExtension();
+  flashcardBlank ??= flashcardBlankExtension;
   return createMobileKit([flashcardBlank!]);
 }

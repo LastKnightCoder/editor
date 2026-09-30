@@ -14,7 +14,7 @@ export {
   type ElementBehaviors,
   type ElementRenderProps,
 } from "./extension";
-export { fromLegacyExtension, type AnyExtension } from "./legacy";
+export type { AnyExtension } from "./legacy";
 export {
   CommandRegistry,
   createCommandDispatcher,
