@@ -45,6 +45,16 @@ export const formattedTextHotkeys: EditorHotkey[] = [
   { key: "mod+e", command: "tau.mark.code" },
 ];
 
+const CLEARABLE_MARKS = [
+  "bold",
+  "italic",
+  "underline",
+  "highlight",
+  "code",
+  "strikethrough",
+  "color",
+];
+
 export const quitFormattedMarksCommands: EditorCommand[] = [
   {
     id: "tau.edit.clear-marks",
@@ -52,18 +62,13 @@ export const quitFormattedMarksCommands: EditorCommand[] = [
     run: (editor: Editor, ctx: EditorCommandContext) => {
       const { selection } = editor;
       if (!selection || !Range.isCollapsed(selection)) return;
-      const [match] = Editor.nodes(editor, {
-        match: n => n.type === "formatted",
-      });
-      if (!match) return;
-      ["bold", "italic", "underline", "highlight", "code", "strikethrough", "color"].forEach(
-        type => {
-          Editor.removeMark(editor, type);
-          // 阻止默认行为
-          ctx.event?.preventDefault();
-          ctx.event?.stopPropagation();
-        }
-      );
+      // 只在光标处确有标记时消费 Esc；没有可清的标记就放行，交给宿主（关浮层、退出沉浸等）
+      const marks = (Editor.marks(editor) ?? {}) as Record<string, unknown>;
+      const active = CLEARABLE_MARKS.filter(type => marks[type]);
+      if (active.length === 0) return;
+      active.forEach(type => Editor.removeMark(editor, type));
+      ctx.event?.preventDefault();
+      ctx.event?.stopPropagation();
     },
   },
 ];
