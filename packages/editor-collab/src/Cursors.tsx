@@ -2,6 +2,8 @@ import { memo } from "react";
 import { useRemoteCursorOverlayPositions } from "@slate-yjs/react";
 import type { CSSProperties, RefObject } from "react";
 import { memberColor } from "@tau/collaboration";
+import { useCollaboration } from "./context";
+import { effectiveZoom, isOwnDevice, toContainerSpace } from "./cursorOverlay";
 
 const LABEL_MAX_WIDTH = 160;
 const DEFAULT_COLOR = "oklch(0.62 0.11 185)";
@@ -53,9 +55,12 @@ const CollaborationCursors = memo(function CollaborationCursors({
   const [cursors] = useRemoteCursorOverlayPositions<CursorUser>({
     containerRef: containerRef as RefObject<HTMLDivElement>,
   });
+  const binding = useCollaboration();
+  const localUserId = (binding?.awareness.getLocalState()?.user as CursorUser | undefined)?.id;
   const container = containerRef.current;
   const containerWidth = container?.clientWidth || LABEL_MAX_WIDTH;
   const containerHeight = container?.clientHeight || 0;
+  const zoom = effectiveZoom(container);
   return (
     <div
       aria-hidden
@@ -69,10 +74,14 @@ const CollaborationCursors = memo(function CollaborationCursors({
       {cursors
         .filter(
           cursor =>
-            (cursor.caretPosition && cursor.caretPosition.height > 0) ||
-            cursor.selectionRects.length > 0
+            !isOwnDevice(cursor.data?.id, localUserId) &&
+            ((cursor.caretPosition && cursor.caretPosition.height > 0) ||
+              cursor.selectionRects.length > 0)
         )
-        .map(cursor => {
+        .map(({ clientId, data, caretPosition: rawCaret, selectionRects: rawRects }) => {
+          const caretPosition = rawCaret && toContainerSpace(rawCaret, zoom);
+          const selectionRects = rawRects.map(rect => toContainerSpace(rect, zoom));
+          const cursor = { clientId, data, caretPosition, selectionRects };
           // 以设备 ID 派生颜色，与头像保持一致；旧数据回退到下发的 color 字段。
           const color = cursor.data?.id
             ? memberColor(cursor.data.id)
