@@ -71,7 +71,7 @@ export type { ImportFromMarkdownOptions } from "./plugins/withMarkdownPasteImpor
 export { default as PlantUMLExtension } from "./extensions/plantuml";
 export type { PlantUMLExtensionOptions } from "./extensions/plantuml";
 export { createImageExtensions } from "./extensions/image/createImageExtensions";
-export { default as HeaderExtension } from "./extensions/header";
+export { default as headerExtension, createHeaderExtension } from "./extensions/header";
 export type { HeaderExtensionOptions } from "./extensions/header";
 export type {
   ImageExtensionOptions,

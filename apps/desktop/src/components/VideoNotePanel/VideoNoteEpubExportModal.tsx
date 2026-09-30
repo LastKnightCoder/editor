@@ -24,7 +24,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { Descendant } from "slate";
-import { Editor, EditorRef, HeaderExtension } from "@tau/editor/src";
+import { Editor, EditorRef, createHeaderExtension } from "@tau/editor/src";
 import { Button, ConfirmDialog, Dialog, Input, Textarea, cn, toast } from "@tau/ui";
 import { FadeScroll } from "@/components/FadeScroll";
 import { readBinaryFile, selectFile, showInFolder } from "@/commands";
@@ -48,7 +48,7 @@ import { summarizeExportResults, type ExportFormatResult } from "./export-result
 /** EPUB 导出草稿场景（ER-016）：标题不可折叠，其余按底座 */
 let draftKit: EditorKit | null = null;
 const getEpubDraftKit = () =>
-  (draftKit ??= createDesktopKit([new HeaderExtension({ disableCollapse: true })]));
+  (draftKit ??= createDesktopKit([createHeaderExtension({ disableCollapse: true })]));
 
 const DEFAULT_CONTENT: Descendant[] = [
   {

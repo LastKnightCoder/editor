@@ -14,6 +14,7 @@
 import {
   createBareEditorKit,
   createEditorKit,
+  type AnyExtension,
   type EditorKit,
   type IExtension,
 } from "@tau/editor/src";
@@ -38,10 +39,12 @@ const byExtras = new Map<string, EditorKit>();
 
 /**
  * 建一个场景 kit：底座（内置 + desktop 静态 + desktop 服务）加上该场景的额外扩展。
- * 按额外扩展的 type 缓存，同一场景反复调用拿到同一个实例（否则编辑器会被重建）。
+ * 按额外扩展的标识（旧扩展 type、v2 扩展 id）缓存，同一场景反复调用拿到同一个实例（否则编辑器会被重建）。
  */
-export function createDesktopKit(extras: readonly IExtension[] = []): EditorKit {
-  const key = extras.map(extension => extension.type).join(",");
+export function createDesktopKit(extras: readonly AnyExtension[] = []): EditorKit {
+  const key = extras
+    .map(extension => ("type" in extension ? extension.type : extension.id))
+    .join(",");
   let kit = byExtras.get(key);
   if (!kit) {
     kit = createEditorKit({

@@ -53,9 +53,12 @@
 
 状态图例：⏳ 未开始 / 🚧 进行中 / ✅ 完成 / ⏸ 暂停（写原因）。
 
-**下一步**：P8 剩余——legacy 热键随 v2 迁移切命令 id、
-其余内置扩展迁到 v2（先 callout 这类简单的，再 custom-block；每个扩展带上 commands/hotkeys/menu/drag/ingest 五件声明）、
-desktop `editor-extensions/*` / editor-webview / editor-collab 迁 v2、ESLint headless 规则（清单见 02 P8）。
+**下一步**：P8 剩余——其余内置扩展继续迁 v2（已迁 divide-line / callout / blockquote / bulleted-list /
+numbered-list / header，其中 header 的热键已切命令 id，等价迁移的方法论与坑见 04 同日条目；下批
+custom-block、audio/video（带 ingest）、check-list / detail / highlight-block / tabs / table / list-item /
+code-block（带插件与热键）、其余纯渲染扩展）、legacy 内核热键（escape / mod+方向 / 方向键 / slash /
+块导航，导航类与键盘仲裁一起核）、desktop `editor-extensions/*` / editor-webview / editor-collab 迁 v2、
+ESLint headless 规则（清单见 02 P8）。
 已完成：第一块（错误隔离 + 未知节点占位，Markdown 兜底语法见 ER-006）；第二块（`defineExtension`、
 `@tau/editor/api`、`fromLegacyExtension`，divide-line 已迁到 v2）；第三块（移除 antd，UI 直接用 `@tau/ui`，ER-018）；
 mobile 注册了自己的编辑器提示服务（mobile toast + `MobileConfirmDialog`，返回手势等同取消）；
@@ -72,6 +75,10 @@ BlockDragHost 成为手柄/插入线/手柄菜单唯一渲染点，22 个接线�
 第九块（ingest 内容注入：drop 与 paste 归并为认领式管线——files 按声明分桶认领、text 谓词认领排在
 markdown 导入前，每环隔离熔断；image/inline-image/audio/video 收敛为四个 ingest 声明，七个 paste/drop
 旧插件与 withFileDrop、editor.dropHandlers 删除；相同 accept 建 kit 抛错）。
+第十块（内置扩展迁 v2 第一批：callout / blockquote / bulleted-list / numbered-list / header。
+插件改写全部转声明式行为（quit/退格/规范化 → behaviors，段落快捷语法 `> ` `- ` `1. ` `# ` → behaviorsFor.paragraph），
+header 热键首个切命令 id（alt+=/alt+- → tau.header.promote/demote）、构造选项改 createHeaderExtension 工厂；
+等价性用「HEAD 对照 + 反向验证」守护，既有插件单测换真实 kit 装配，editor 283 例全过）。
 **实机待确认**：移除 antd 后各浮层（Tooltip、代码块语言选择、表情、批注、行内 HTML、样式文本调色、列表图标、
 表格操作、行内图片上传）的观感与开合；两种未知节点占位的观感；各块拖拽手柄的悬停显示（只亮最内层被悬停的块）与拖拽插入线；less 全量转 Tailwind 后的编辑态外观（代码块叠层编辑与全屏、源码 + 预览块的编辑 / 全屏、右键菜单与块面板、图片 / 视频缩放与工具条、分栏、行内公式选中态，blog 只读页覆盖不到编辑态）；**菜单贡献层：手柄菜单的组间分隔线与顺序（特有 → 转换成 → 移动/剪贴/删除）、新增的上移/下移/剪切/复制、void 块删除后补空段落与焦点落点、webview 删除确认框、代码块 Diff 动画与语言子菜单**；**拖拽声明化：chrome wrapper 对各块布局/间距的影响（margin 折叠应穿透）、手柄位置统一后的观感（标题/引用/勾选项的微调保留、其他块用默认位）、插入线统一位置、勾选项内段落不再有手柄、blockquote 拖放高亮变标准样式、嵌套块（分栏/标签页/详情内）的拖拽与手柄悬停**；**ingest：拖图片/音视频入正文与粘贴的落位与上传流（多文件逐个插入）、非空段落粘贴图片的行内落位、audio/video 上传失败的占位清理（粘贴清、拖放留）、拖任意文件（PDF 等）经 file-attachment 兜底认领上传成附件块、文件拖拽悬停时的落点指示线与实际插入位置一致**；P7 遗留的协作 e2e、结束共享、白板测高、
 mobile 回落与结束共享（清单见 02 P7 验收结果）。

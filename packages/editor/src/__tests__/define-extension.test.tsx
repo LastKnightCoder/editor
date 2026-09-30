@@ -351,3 +351,267 @@ describe("内置扩展迁到 v2：divide-line", () => {
     container.remove();
   });
 });
+
+describe("内置扩展迁到 v2：callout（插件改写转声明式行为，语义不变）", () => {
+  const callout = (children: Descendant[]) =>
+    ({ type: "callout", calloutType: "tip", title: "", children }) as never;
+
+  const mount = async (initValue: Descendant[]) => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const ref = createRef<EditorRef>();
+    const kit = createEditorKit({ services: services() });
+    await act(async () => {
+      root.render(
+        <DndProvider backend={HTML5Backend}>
+          <Editor ref={ref} kit={kit} readonly={false} initValue={initValue} />
+        </DndProvider>
+      );
+    });
+    return {
+      editor: ref.current!.getEditor(),
+      done: async () => {
+        await act(async () => root.unmount());
+        container.remove();
+      },
+    };
+  };
+
+  const typesOf = (editor: ReturnType<EditorRef["getEditor"]>) =>
+    editor.children.map(node => (node as Element).type);
+
+  it("第一行的空 callout 退格：删除 callout 落回空段落", async () => {
+    const { editor, done } = await mount([callout([paragraph("")])]);
+    Transforms.select(editor, SlateEditor.end(editor, [0, 0]));
+    await act(async () => editor.deleteBackward("character"));
+    // 与迁移前一致：delete 后空文档先被补一个空段落，insertNodes 再插一个（既有行为，不修）
+    expect(typesOf(editor)).toEqual(["paragraph", "paragraph"]);
+    await done();
+  });
+
+  it("非第一行或非空的 callout 退格：行为不接管，交给默认删除", async () => {
+    const { editor, done } = await mount([paragraph("前"), callout([paragraph("x")])]);
+    Transforms.select(editor, SlateEditor.end(editor, [1, 0]));
+    await act(async () => editor.deleteBackward("character"));
+    expect(typesOf(editor)).toEqual(["paragraph", "callout"]);
+    expect(SlateEditor.string(editor, [1])).toBe("");
+    await done();
+  });
+
+  it("callout 最后一个空段落回车：删除该段并在 callout 下方补空段落", async () => {
+    const { editor, done } = await mount([callout([paragraph("x"), paragraph("")])]);
+    Transforms.select(editor, SlateEditor.end(editor, [0, 1]));
+    await act(async () => editor.insertBreak());
+    expect((editor.children[0] as Element).children).toHaveLength(1);
+    expect(typesOf(editor)).toEqual(["callout", "paragraph"]);
+    await done();
+  });
+
+  it("callout 首个空段落回车：lift 到 callout 外，callout 随之移除", async () => {
+    const { editor, done } = await mount([callout([paragraph("")])]);
+    Transforms.select(editor, SlateEditor.end(editor, [0, 0]));
+    await act(async () => editor.insertBreak());
+    expect(typesOf(editor)).toEqual(["paragraph"]);
+    await done();
+  });
+
+  it("裸文本子节点规范化：包进段落；空 callout 移除", async () => {
+    const bare = await mount([callout([text("裸文本")])]);
+    expect((bare.editor.children[0] as Element).children[0]).toMatchObject({ type: "paragraph" });
+    await bare.done();
+
+    const empty = await mount([callout([])]);
+    expect(typesOf(empty.editor)).toEqual(["paragraph"]);
+    await empty.done();
+  });
+});
+
+describe("内置扩展迁到 v2：blockquote（插件改写转声明式行为，语义不变）", () => {
+  const mount = async (initValue: Descendant[]) => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const ref = createRef<EditorRef>();
+    const kit = createEditorKit({ services: services() });
+    await act(async () => {
+      root.render(
+        <DndProvider backend={HTML5Backend}>
+          <Editor ref={ref} kit={kit} readonly={false} initValue={initValue} />
+        </DndProvider>
+      );
+    });
+    return {
+      editor: ref.current!.getEditor(),
+      done: async () => {
+        await act(async () => root.unmount());
+        container.remove();
+      },
+    };
+  };
+
+  const typesOf = (editor: ReturnType<EditorRef["getEditor"]>) =>
+    editor.children.map(node => (node as Element).type);
+
+  it("段落开头输入 > 加空格：包进 blockquote", async () => {
+    const { editor, done } = await mount([paragraph(">")]);
+    Transforms.select(editor, { path: [0, 0], offset: 1 });
+    await act(async () => editor.insertText(" "));
+    expect(typesOf(editor)).toEqual(["blockquote"]);
+    expect(SlateEditor.string(editor, [0])).toBe("");
+    await done();
+  });
+
+  it("普通文本输入不受影响；最后一个空段落回车退出 blockquote", async () => {
+    const { editor, done } = await mount([
+      { type: "blockquote", children: [paragraph("x"), paragraph("")] } as never,
+    ]);
+    // 非快捷语法前缀：正常输入
+    Transforms.select(editor, SlateEditor.end(editor, [0, 0]));
+    await act(async () => editor.insertText(" "));
+    expect(SlateEditor.string(editor, [0])).toBe("x ");
+    // 最后一个空段落回车：删该段并在下方补空段落
+    Transforms.select(editor, SlateEditor.end(editor, [0, 1]));
+    await act(async () => editor.insertBreak());
+    expect((editor.children[0] as Element).children).toHaveLength(1);
+    expect(typesOf(editor)).toEqual(["blockquote", "paragraph"]);
+    await done();
+  });
+
+  it("裸文本子节点规范化：包进段落", async () => {
+    const { editor, done } = await mount([
+      { type: "blockquote", children: [text("裸文本")] } as never,
+    ]);
+    expect((editor.children[0] as Element).children[0]).toMatchObject({ type: "paragraph" });
+    await done();
+  });
+});
+
+describe("内置扩展迁到 v2：列表（插件改写转声明式行为，语义不变）", () => {
+  const mount = async (initValue: Descendant[]) => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const ref = createRef<EditorRef>();
+    const kit = createEditorKit({ services: services() });
+    await act(async () => {
+      root.render(
+        <DndProvider backend={HTML5Backend}>
+          <Editor ref={ref} kit={kit} readonly={false} initValue={initValue} />
+        </DndProvider>
+      );
+    });
+    return {
+      editor: ref.current!.getEditor(),
+      done: async () => {
+        await act(async () => root.unmount());
+        container.remove();
+      },
+    };
+  };
+
+  const typesOf = (editor: ReturnType<EditorRef["getEditor"]>) =>
+    editor.children.map(node => (node as Element).type);
+
+  const listItem = (value: string) => ({ type: "list-item", children: [paragraph(value)] });
+
+  it("段落开头输入 - 加空格：包进无序列表；输入 1. 加空格：包进有序列表", async () => {
+    const bullet = await mount([paragraph("-")]);
+    Transforms.select(bullet.editor, { path: [0, 0], offset: 1 });
+    await act(async () => bullet.editor.insertText(" "));
+    expect(typesOf(bullet.editor)).toEqual(["bulleted-list"]);
+    expect((bullet.editor.children[0] as Element).children[0]).toMatchObject({ type: "list-item" });
+    await bullet.done();
+
+    const numbered = await mount([paragraph("1.")]);
+    Transforms.select(numbered.editor, { path: [0, 0], offset: 2 });
+    await act(async () => numbered.editor.insertText(" "));
+    expect(typesOf(numbered.editor)).toEqual(["numbered-list"]);
+    await numbered.done();
+  });
+
+  it("相邻同类列表规范化合并；非 list-item 子节点包进 list-item", async () => {
+    const merge = await mount([
+      { type: "bulleted-list", children: [listItem("a")] } as never,
+      { type: "bulleted-list", children: [listItem("b")] } as never,
+    ]);
+    expect(typesOf(merge.editor)).toEqual(["bulleted-list"]);
+    expect((merge.editor.children[0] as Element).children).toHaveLength(2);
+    await merge.done();
+
+    const wrap = await mount([{ type: "numbered-list", children: [paragraph("裸")] } as never]);
+    expect((wrap.editor.children[0] as Element).children[0]).toMatchObject({ type: "list-item" });
+    await wrap.done();
+  });
+});
+
+describe("内置扩展迁到 v2：header（热键切命令 id + # 快捷语法）", () => {
+  const mount = async (initValue: Descendant[]) => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const ref = createRef<EditorRef>();
+    const kit = createEditorKit({ services: services() });
+    await act(async () => {
+      root.render(
+        <DndProvider backend={HTML5Backend}>
+          <Editor ref={ref} kit={kit} readonly={false} initValue={initValue} />
+        </DndProvider>
+      );
+    });
+    return {
+      kit,
+      editor: ref.current!.getEditor(),
+      done: async () => {
+        await act(async () => root.unmount());
+        container.remove();
+      },
+    };
+  };
+
+  const header = (level: number, value = "") =>
+    ({ type: "header", level, children: [text(value)] }) as never;
+
+  it("段落开头输入 # 加空格变一级标题；### 变三级", async () => {
+    const h1 = await mount([paragraph("#")]);
+    Transforms.select(h1.editor, { path: [0, 0], offset: 1 });
+    await act(async () => h1.editor.insertText(" "));
+    expect(h1.editor.children[0]).toMatchObject({ type: "header", level: 1 });
+    await h1.done();
+
+    const h3 = await mount([paragraph("###")]);
+    Transforms.select(h3.editor, { path: [0, 0], offset: 3 });
+    await act(async () => h3.editor.insertText(" "));
+    expect(h3.editor.children[0]).toMatchObject({ type: "header", level: 3 });
+    await h3.done();
+  });
+
+  it("热键绑命令 id：alt+= 升级（段落变 h6、标题减一级），alt+- 降级（h6 变回段落）", async () => {
+    const entries = (await mount([paragraph("x")])).kit.assembly.commandHotkeys;
+    expect(entries.filter(entry => entry.hotkey.command.startsWith("tau.header."))).toHaveLength(2);
+
+    const { editor, done } = await mount([header(2, "标题")]);
+    // h2 升级 → h1；h1 再升无操作
+    Transforms.select(editor, SlateEditor.end(editor, [0]));
+    expect(editor.commands.execute("tau.header.promote")).toBe(true);
+    expect(editor.children[0]).toMatchObject({ type: "header", level: 1 });
+    editor.commands.execute("tau.header.promote");
+    expect(editor.children[0]).toMatchObject({ type: "header", level: 1 });
+    // h1 降级 → h2；降到 h6 再降变回段落
+    editor.commands.execute("tau.header.demote");
+    expect(editor.children[0]).toMatchObject({ type: "header", level: 2 });
+    for (let round = 0; round < 4; round += 1) editor.commands.execute("tau.header.demote");
+    expect(editor.children[0]).toMatchObject({ type: "header", level: 6 });
+    editor.commands.execute("tau.header.demote");
+    expect(editor.children[0]).toMatchObject({ type: "paragraph" });
+    await done();
+  });
+
+  it("段落上升级：直接变 h6", async () => {
+    const { editor, done } = await mount([paragraph("普通段落")]);
+    Transforms.select(editor, SlateEditor.end(editor, [0]));
+    expect(editor.commands.execute("tau.header.promote")).toBe(true);
+    expect(editor.children[0]).toMatchObject({ type: "header", level: 6 });
+    await done();
+  });
+});
