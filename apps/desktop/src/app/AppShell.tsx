@@ -7,7 +7,7 @@
  *   │ （整高贯通）  │ statusbar（右列专属）   │
  *   └──────────┴──────────────────────────┘
  *
- * 挂载：主窗口 / 默认重定向 /shell（router.tsx）；旧主界面在 /legacy。
+ * 挂载：主窗口 / 默认重定向 /shell（router.tsx）。
  */
 
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
@@ -21,7 +21,6 @@ import { SettingsScreen } from "@/features/settings/SettingsScreen";
 import { useSearchStore } from "@/features/search/searchStore";
 import { isReplayableVisit } from "@/features/search/searchMeta";
 import useSettingStore from "@/stores/useSettingStore";
-import useSyncFont from "@/hooks/useSyncFont";
 import { useThemeRuntime } from "./useThemeRuntime";
 import { Sidebar } from "./Sidebar";
 import { Titlebar } from "./Titlebar";
@@ -58,9 +57,6 @@ function ShellBody() {
   const [boot, setBoot] = useState<"connecting" | "failed" | "ready">("connecting");
   const [bootError, setBootError] = useState("");
 
-  // 字体设置 → body CSS 变量（--font/--font-size/--mono-font）。legacy 挂在 App.tsx，
-  // 新壳层不渲染它——不挂则 /shell 下字体设置全部失效（2026-09-21 外观页接线发现）
-  useSyncFont();
   useThemeRuntime();
 
   const connect = useCallback(() => {

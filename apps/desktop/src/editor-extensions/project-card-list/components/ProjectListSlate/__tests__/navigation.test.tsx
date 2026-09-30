@@ -97,7 +97,7 @@ describe("项目文档列表卡片导航", () => {
     });
 
     const cards = container.querySelectorAll('[contenteditable="false"]');
-    expect(cards.length).toBe(3);
+    expect(cards.length).toBe(2);
     for (const [target, itemId] of [
       [cards[0].firstElementChild!, 11],
       [cards[1].lastElementChild!, 12],

@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import useSettingStore from "@/stores/useSettingStore.ts";
 
 /**
- * tau 字号档位默认值——与 packages/ui tokens.css 的 :root 字面值层（--tau-text-*）
+ * tau 字号档位默认值——与 packages/themes/src/scale.css 的 :root 字面值层（--tau-text-*）
  * 同源，改档位/增删档位时两处同步（token 契约双写惯例）。
  */
 const TAU_TEXT_STEPS: Record<string, number> = {

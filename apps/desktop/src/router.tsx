@@ -8,14 +8,14 @@ const MarkdownWindowPage = loadable(() => import("@/features/markdown-window/Mar
 
 const PomodoroMiniPage = loadable(() => import("@/features/pomodoro/windows/MiniWindow"));
 const PomodoroImmersivePage = loadable(() => import("@/features/pomodoro/windows/ImmersiveWindow"));
-const BackgroundAudioPage = loadable(() => import("@/pages/BackgroundAudio"));
+const BackgroundAudioPage = loadable(() => import("@/features/pomodoro/windows/BackgroundAudio"));
 
-// 新架构壳层预览入口（docs/redesign/03-架构实现指南.md）
+// 主窗口壳层
 const AppShell = loadable(() => import("@/app/AppShell"));
 
 const routes = [
   {
-    // 主窗口默认进入新架构壳层（docs/redesign/03-架构实现指南.md）；旧主界面挪至 /legacy
+    // 根路径转到主窗口壳层
     path: "/",
     element: <Navigate to="/shell" replace />,
   },

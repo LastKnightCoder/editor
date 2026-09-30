@@ -27,7 +27,7 @@ import {
   updateProjectItem,
   updateWebLink,
 } from "@/commands";
-import useWhiteBoardStore from "@/stores/useWhiteBoardStore";
+import { useWhiteboardMutations } from "@/features/whiteboards/queries";
 import {
   copyMarkdownToClipboard,
   copyWechatHtmlToClipboard,
@@ -35,7 +35,7 @@ import {
   downloadMarkdown,
   getMarkdown,
 } from "@/utils";
-import { EProjectItemType, ProjectItem, WhiteBoardContent } from "@/types";
+import { EProjectItemType, ProjectItem } from "@/types";
 import { useMemoizedFn } from "ahooks";
 import useContentShared from "@/hooks/useContentShared";
 import { getProjectItemMoreMenuItems } from "./projectItemMoreMenuItems";
@@ -88,9 +88,7 @@ export const useProjectItemMoreActions = (
   const darkMode = useSettingStore(state => state.setting.darkMode);
   const { navigator } = usePage();
   const projectItemEventBus = useMemo(() => defaultProjectItemEventBus.createEditor(), []);
-  const { createWhiteBoard } = useWhiteBoardStore(state => ({
-    createWhiteBoard: state.createWhiteBoard,
-  }));
+  const whiteboardMutations = useWhiteboardMutations();
 
   const {
     title: projectItemTitle,
@@ -235,34 +233,12 @@ export const useProjectItemMoreActions = (
         return;
       }
       if (projectItem.refType === "white-board") return;
-      const createWhiteBoardData = {
-        title: projectItem.title,
-        description: projectItem.title,
-        tags: [],
-        whiteBoardContentList: [
-          {
-            name: projectItem.title,
-            data: {
-              children: [],
-              viewPort: {
-                zoom: 1,
-                minX: 0,
-                minY: 0,
-                width: 0,
-                height: 0,
-              },
-              selection: {
-                selectArea: null,
-                selectedElements: [],
-              },
-              presentationSequences: [],
-            },
-          } as Pick<WhiteBoardContent, "data" | "name">,
-        ],
-        snapshot: "",
-      };
       try {
-        const createdWhiteBoard = await createWhiteBoard(createWhiteBoardData);
+        const createdWhiteBoard = await whiteboardMutations.create({
+          title: projectItem.title,
+          description: projectItem.title,
+          tags: [],
+        });
         const nextProjectItem = produce(projectItem, draft => {
           draft.refId = createdWhiteBoard.id;
           draft.refType = "white-board";

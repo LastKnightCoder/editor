@@ -1,4 +1,4 @@
-import { BackgroundSoundType } from "@/stores/usePomodoroStore";
+import type { BackgroundSoundType } from "@/types/pomodoro";
 
 import brookAudio from "@/assets/audio/brook.mp3";
 import birdsAudio from "@/assets/audio/birds.mp3";
@@ -9,10 +9,7 @@ import windChimeAudio from "@/assets/audio/wind-chime.mp3";
 import bonfireAudio from "@/assets/audio/bonfire.mp3";
 import rainAudio from "@/assets/audio/rain.mp3";
 
-export const BACKGROUND_SOUND_NAMES: Record<
-  Exclude<BackgroundSoundType, null>,
-  string
-> = {
+export const BACKGROUND_SOUND_NAMES: Record<Exclude<BackgroundSoundType, null>, string> = {
   brook: "小溪",
   birds: "小鸟",
   autumn: "秋风",
@@ -23,10 +20,7 @@ export const BACKGROUND_SOUND_NAMES: Record<
   rain: "大雨",
 };
 
-export const BACKGROUND_SOUND_FILES: Record<
-  Exclude<BackgroundSoundType, null>,
-  string
-> = {
+export const BACKGROUND_SOUND_FILES: Record<Exclude<BackgroundSoundType, null>, string> = {
   brook: brookAudio,
   birds: birdsAudio,
   autumn: autumnAudio,

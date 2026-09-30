@@ -34,7 +34,6 @@ import { IconButton, Menu, ToastHost, cn, initScrollbarAutoHide, toast } from "@
 import { AuxWindowTitlebar } from "@/app/AuxWindowTitlebar";
 import { ThemeToggle } from "@/app/Titlebar";
 import { useThemeRuntime } from "@/app/useThemeRuntime";
-import useSyncFont from "@/hooks/useSyncFont";
 import ContentExportModal from "@/components/ContentExportModal";
 import EpubExportModal from "@/components/EpubExportModal";
 import { PdfExportModal } from "@/components/PdfExportModal";
@@ -75,7 +74,6 @@ const toastAdapter = {
 type ExportState = { kind: "image" | "epub" | "pdf"; content: Descendant[]; title: string } | null;
 
 export default function MarkdownWindowPage() {
-  useSyncFont();
   useThemeRuntime();
   useEffect(() => initScrollbarAutoHide(), []);
 

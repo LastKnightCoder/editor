@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { usePomodoroStore } from "@/stores/usePomodoroStore";
+import { syncPomodoroTimer, usePomodoroTimer } from "../timerStore";
 import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
 import { BACKGROUND_SOUND_FILES } from "@/constants/backgroundSounds";
 import useInitDatabase from "@/hooks/useInitDatabase";
@@ -14,13 +14,10 @@ const BackgroundAudio: React.FC = () => {
   const isConnected = useDatabaseConnected();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const {
-    activeSession,
-    backgroundSound,
-    backgroundVolume,
-    initPomodoro,
-    inited,
-    syncActiveSession,
-  } = usePomodoroStore();
+    session: activeSession,
+    sound: backgroundSound,
+    volume: backgroundVolume,
+  } = usePomodoroTimer();
   const { isSocketOpen, isServerReady } = useBackendWebsocketStore();
 
   // 初始化
@@ -29,22 +26,10 @@ const BackgroundAudio: React.FC = () => {
       return;
     }
 
-    if (!inited) {
-      initPomodoro();
-      return;
-    }
-
-    syncActiveSession().catch((err) => {
+    syncPomodoroTimer().catch(err => {
       console.warn("Background audio sync active session failed:", err);
     });
-  }, [
-    initPomodoro,
-    inited,
-    isConnected,
-    isServerReady,
-    isSocketOpen,
-    syncActiveSession,
-  ]);
+  }, [isConnected, isServerReady, isSocketOpen]);
 
   // 初始化音频元素
   useEffect(() => {
@@ -78,14 +63,13 @@ const BackgroundAudio: React.FC = () => {
 
       // 只有当源改变时才重新加载
       if (!currentSrc.endsWith(newSrc)) {
-        const wasPlaying =
-          !audioRef.current.paused && audioRef.current.currentTime > 0;
+        const wasPlaying = !audioRef.current.paused && audioRef.current.currentTime > 0;
         audioRef.current.src = newSrc;
         audioRef.current.load();
 
         // 如果之前在播放且有活动会话且正在运行，切换后继续播放
         if (wasPlaying && activeSession?.status === "running") {
-          audioRef.current.play().catch((err) => {
+          audioRef.current.play().catch(err => {
             console.warn("Background sound play failed:", err);
           });
         }
@@ -104,7 +88,7 @@ const BackgroundAudio: React.FC = () => {
     if (activeSession) {
       if (activeSession.status === "running") {
         // 正在运行时播放
-        audioRef.current.play().catch((err) => {
+        audioRef.current.play().catch(err => {
           console.warn("Background sound play failed:", err);
         });
       } else if (activeSession.status === "paused") {

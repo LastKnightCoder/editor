@@ -18,8 +18,8 @@ import useVLQuizStore from "@/stores/useVLQuizStore";
 import useTheme from "@/hooks/useTheme";
 import type { VLQuizSet, VLQuizItem, QuizAnswerRecord, VLQuizRecord } from "@/types";
 import type { FlashcardBlankElement } from "@/editor-extensions/flashcard-blank/types";
-import RichTextRenderer from "@/pages/FlashcardCenter/components/RichTextRenderer";
-import ClozeReviewRenderer from "@/pages/FlashcardCenter/components/ClozeReviewRenderer";
+import RichTextRenderer from "@/features/vibe-learning/components/quiz/RichTextRenderer";
+import ClozeReviewRenderer from "@/features/vibe-learning/components/quiz/ClozeReviewRenderer";
 
 interface QuizTestModalProps {
   open: boolean;
