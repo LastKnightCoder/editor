@@ -8,7 +8,15 @@ import { blogEditorExtensions } from "../index";
 
 describe("blog 已发布内容的元素覆盖", () => {
   it("覆盖 CONTENT_ELEMENT_TYPES 的每一项", () => {
-    const types = blogEditorExtensions.map(extension => extension.type);
+    // 迁移过渡期两种形状并存：旧 IExtension 的 type 在顶层，v2 在 elements 里
+    const typeOf = (extension: unknown): string | string[] => {
+      const legacy = (extension as { type?: string }).type;
+      if (legacy) return legacy;
+      return (extension as { elements: { type: string }[] }).elements.map(
+        element => element.type
+      );
+    };
+    const types = blogEditorExtensions.flatMap(typeOf);
     for (const required of CONTENT_ELEMENT_TYPES) {
       expect(types, `blog 缺少 ${required}，该块只会显示通用占位`).toContain(required);
     }

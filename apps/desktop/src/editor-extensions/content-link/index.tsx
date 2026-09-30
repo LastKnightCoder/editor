@@ -1,43 +1,33 @@
-import { RenderElementProps } from "slate-react";
+import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor/src";
 
-import { Base } from "@tau/editor/src";
-import { IExtension } from "@tau/editor/src";
 import type { ContentLinkElement } from "./types";
 import ContentLink from "./components/ContentLink";
 
-import { withSetting, normalize } from "./plugins";
-import { withMentionCommands } from "./plugins/withMentionCommands";
+import { contentLinkBehaviors, contentLinkForParagraph } from "./behaviors";
+import { mentionCommands, mentionHotkeys } from "./commands";
 import hoveringBarConfigs from "./hovering-bar-configs";
-import { mentionCommandConfig } from "./hotkeys/mentionCommand";
 export type { ContentLinkElement } from "./types";
 
-class ContentLinkExtension extends Base implements IExtension {
-  type = "content-link";
+const contentLinkExtension = defineExtension({
+  id: "host.content-link",
+  elements: [
+    defineElement<ContentLinkElement>({
+      type: "content-link",
+      kind: "inline",
+      render: ({ attributes, element, children }: ElementRenderProps<ContentLinkElement>) => (
+        <ContentLink attributes={attributes} element={element}>
+          {children}
+        </ContentLink>
+      ),
+      behaviors: contentLinkBehaviors,
+    }),
+  ],
+  toolbar: hoveringBarConfigs,
+  commands: mentionCommands,
+  hotkeys: mentionHotkeys,
+  behaviorsFor: {
+    paragraph: contentLinkForParagraph,
+  },
+});
 
-  override getPlugins() {
-    return [withSetting, normalize, withMentionCommands];
-  }
-
-  override getHotkeyConfigs() {
-    return mentionCommandConfig;
-  }
-
-  override getHoveringBarElements() {
-    return hoveringBarConfigs;
-  }
-
-  render(props: RenderElementProps) {
-    const { attributes, children, element } = props;
-
-    return (
-      <ContentLink
-        attributes={attributes}
-        element={element as unknown as ContentLinkElement}
-      >
-        {children}
-      </ContentLink>
-    );
-  }
-}
-
-export default ContentLinkExtension;
+export default contentLinkExtension;

@@ -6,7 +6,7 @@ import { ReactEditor } from "slate-react";
 import PortalToBody from "@/components/PortalToBody";
 import { EditorRef } from "@tau/editor/src";
 import Editor from "@/components/ContentEditor";
-import type IExtension from "@tau/editor/src/extensions/types";
+import type { AnyExtension } from "@tau/editor/src";
 import { useTypewriterScroll } from "./useTypewriterScroll";
 import useSettingStore from "@/stores/useSettingStore";
 
@@ -16,7 +16,7 @@ export interface ImmersiveEditorExitPayload {
 
 interface ImmersiveEditorModeProps {
   /** 实例特有扩展（如项目文档的卡片列表）；宿主通用扩展来自 kit，不必传 */
-  extensions?: IExtension[];
+  extensions?: AnyExtension[];
   contentId?: number;
   initValue: Descendant[];
   initialSelection?: Range | null;

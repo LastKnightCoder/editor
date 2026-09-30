@@ -13,11 +13,15 @@ type WhiteboardEditor = Editor & {
 const isWhiteboardElement = (node: Node): node is WhiteboardElement =>
   Element.isElement(node) && node.type === "whiteboard";
 
+/**
+ * 白板的引用计数（受信任层 plugin）：apply 不在 ElementBehaviors 的方法面上。
+ * isBlock / isVoid 已由 v2 声明（kind / isVoid）承担。
+ */
 export const withSetting = (editor: Editor) => {
   const whiteboardEditor = editor as WhiteboardEditor;
   const { apply } = editor;
 
-  editor.apply = (op) => {
+  editor.apply = op => {
     if (
       op.type === "insert_node" &&
       isWhiteboardElement(op.node) &&

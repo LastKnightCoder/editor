@@ -1,5 +1,5 @@
-import { createImageExtensions, type AnyExtension, type IExtension } from "@tau/editor";
-import WebviewExtension from "@tau/editor-webview";
+import { createImageExtensions, type AnyExtension } from "@tau/editor";
+import webviewExtension from "@tau/editor-webview";
 import { blogContentLinkExtension } from "./contentLinkExtension";
 import {
   BlogDatabaseExtension,
@@ -9,9 +9,9 @@ import {
 import { getBlogImageAppearance, type BlogPublishSettings } from "../services/editorRegistry";
 
 /** content 正文在 blog 上要覆盖的业务元素（清单见 @tau/shared 的 CONTENT_ELEMENT_TYPES） */
-export const blogEditorExtensions: IExtension[] = [
+export const blogEditorExtensions: AnyExtension[] = [
   blogContentLinkExtension,
-  new WebviewExtension(),
+  webviewExtension,
   new BlogFileAttachmentExtension(),
   new BlogWhiteboardExtension(),
   new BlogDatabaseExtension(),

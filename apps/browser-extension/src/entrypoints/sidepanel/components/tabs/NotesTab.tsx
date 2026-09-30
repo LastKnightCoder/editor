@@ -16,7 +16,7 @@ import {
 import { toast } from "@tau/ui";
 import { useConfirmPrompt } from "../../../../hooks/useConfirmPrompt";
 import { Editor } from "@tau/editor/src";
-import WebviewExtension from "@tau/editor-webview";
+import webviewExtension from "@tau/editor-webview";
 import { SelectDropDown, EditText } from "@tau/shared";
 import type { EditTextHandle } from "@tau/shared";
 import type { Descendant } from "slate";

@@ -1,37 +1,29 @@
-import { RenderElementProps } from "slate-react";
-import { Base } from "@tau/editor/src";
-import { IExtension } from "@tau/editor/src";
+import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor/src";
 
 import FileAttachment from "./components/FileAttachment";
-import { overwrite } from "./plugins";
 import blockPanelItems from "./block-panel-items";
 import { fileAttachmentIngestSpec } from "./ingest";
 import { FileAttachmentElement } from "./types";
 export type { FileAttachmentElement } from "./types";
 
-class FileAttachmentExtension extends Base implements IExtension {
-  type = "file-attachment";
+const fileAttachmentExtension = defineExtension({
+  id: "host.file-attachment",
+  elements: [
+    defineElement<FileAttachmentElement>({
+      type: "file-attachment",
+      kind: "block",
+      isVoid: true,
+      render: ({ attributes, element, children }: ElementRenderProps<FileAttachmentElement>) => (
+        <FileAttachment element={element} attributes={attributes}>
+          {children}
+        </FileAttachment>
+      ),
+      drag: true,
+      // 任意文件拖入的兜底认领（accept:*，装配顺序在内置 image/audio/video 之后）
+      ingest: fileAttachmentIngestSpec,
+    }),
+  ],
+  blockPanel: blockPanelItems,
+});
 
-  override dragSpec = true;
-  override ingestSpec = fileAttachmentIngestSpec;
-
-  override getBlockPanelItems() {
-    return blockPanelItems;
-  }
-
-  override getPlugins() {
-    return [overwrite];
-  }
-
-  render(props: RenderElementProps) {
-    const { element, attributes, children } = props;
-
-    return (
-      <FileAttachment element={element as unknown as FileAttachmentElement} attributes={attributes}>
-        {children}
-      </FileAttachment>
-    );
-  }
-}
-
-export default FileAttachmentExtension;
+export default fileAttachmentExtension;

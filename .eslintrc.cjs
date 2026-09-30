@@ -162,5 +162,34 @@ module.exports = {
         ],
       },
     },
+    {
+      // 扩展的 markdown.ts 是 headless 代码（宿主把它与 @tau/markdown 一起合成 codec 列表，
+      // Electron 主进程共用，01 §8.3）：不许引 React / UI / 编辑器运行时
+      files: ["packages/editor/src/extensions/*/markdown.ts"],
+      rules: {
+        "no-restricted-imports": [
+          "error",
+          {
+            patterns: [
+              {
+                group: [
+                  "react",
+                  "react-dom",
+                  "react-dom/*",
+                  "slate-react",
+                  "slate-dom",
+                  "slate-history",
+                  "antd",
+                  "antd/*",
+                  "@tau/ui",
+                  "@tau/ui/*",
+                ],
+                message: "扩展的 markdown.ts 是 headless 代码（主进程共用），不能依赖 UI / DOM 库",
+              },
+            ],
+          },
+        ],
+      },
+    },
   ],
 };

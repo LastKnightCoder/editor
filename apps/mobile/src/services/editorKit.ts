@@ -6,7 +6,7 @@
  */
 import { createEditorKit, createImageExtensions, type EditorKit } from "@tau/editor/src";
 import { createMarkdownPasteImportExtension, type IExtension } from "@tau/editor/src";
-import WebviewExtension from "@tau/editor-webview";
+import webviewExtension from "@tau/editor-webview";
 import { FlashcardBlankExtension } from "../features/flashcard/blank/FlashcardBlankExtension";
 import { mobileCardPreviewExtensions } from "../features/cards/editorExtensions";
 import {
@@ -25,7 +25,7 @@ function createMobileKit(extras: readonly IExtension[] = []): EditorKit {
     kit = createEditorKit({
       extensions: [
         createMarkdownPasteImportExtension(mobileImportFromMarkdown),
-        new WebviewExtension(),
+        webviewExtension,
         ...createImageExtensions({ appearance: mobileImageAppearance }),
         ...extras,
       ],

@@ -1,25 +1,19 @@
-import ContentLinkExtension from "./content-link";
-import SkillRefExtension from "./skill-ref";
-import FileAttachmentExtension from "./file-attachment";
-import ProjectCardListExtension from "./project-card-list";
-import InlineAIAssistantExtension from "./inline-ai-assistant";
-import WebviewExtension from "@tau/editor-webview";
+import webviewExtension from "@tau/editor-webview";
 import { createImageExtensions, createMarkdownPasteImportExtension } from "@tau/editor/src";
 import { desktopImportFromMarkdown } from "@/services/editorServiceImplementations";
 import useSettingStore from "@/stores/useSettingStore";
 
-export const createProjectCardListExtension = (projectId?: number) =>
-  new ProjectCardListExtension(projectId);
 
-export const contentLinkExtension = new ContentLinkExtension();
-export const skillRefExtension = new SkillRefExtension();
-export const fileAttachmentExtension = new FileAttachmentExtension();
-export const inlineAIAssistantExtension = new InlineAIAssistantExtension();
+export { default as contentLinkExtension } from "./content-link";
+export { default as skillRefExtension } from "./skill-ref";
+export { default as fileAttachmentExtension } from "./file-attachment";
+export { createProjectCardListExtension } from "./project-card-list";
+export { default as inlineAIAssistantExtension } from "./inline-ai-assistant";
 
 /** 应用级扩展由 Desktop 根 Provider 注入，作用域限定在当前 React 树。 */
 export const createDesktopEditorExtensions = () => [
   createMarkdownPasteImportExtension(desktopImportFromMarkdown),
-  new WebviewExtension(),
+  webviewExtension,
   // 图片默认外观随设置变化，订阅 store，不必重建扩展
   ...createImageExtensions({
     appearance: {
