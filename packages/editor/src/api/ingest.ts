@@ -25,7 +25,7 @@ export interface IngestFilesRule {
 }
 
 export interface IngestTextRule {
-  /** 文本侧认领谓词（如 chart 认领 CSV）；求值在 markdown 导入之前 */
+  /** 文本侧认领谓词；求值在 markdown 导入之前 */
   when: (data: DataTransfer) => boolean;
   run: (ctx: IngestContext) => void | Promise<void>;
 }

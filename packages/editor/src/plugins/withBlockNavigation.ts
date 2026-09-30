@@ -1,10 +1,4 @@
-import {
-  Editor,
-  Element as SlateElement,
-  Range,
-  Transforms,
-  NodeEntry,
-} from "slate";
+import { Editor, Element as SlateElement, Range, Transforms, NodeEntry } from "slate";
 import {
   BlockNavigationMeta,
   focusPreviousBlock,
@@ -15,16 +9,14 @@ import {
 import { isBlockElementEmpty } from "../utils";
 import { BlockElement } from "../types";
 
-const getCurrentParagraphEntry = (
-  editor: Editor,
-): NodeEntry<SlateElement> | null => {
+const getCurrentParagraphEntry = (editor: Editor): NodeEntry<SlateElement> | null => {
   const { selection } = editor;
   if (!selection || Range.isExpanded(selection)) {
     return null;
   }
 
   const blockEntry = Editor.above(editor, {
-    match: (n) => SlateElement.isElement(n) && editor.isBlock(n),
+    match: n => SlateElement.isElement(n) && editor.isBlock(n),
   });
   if (!blockEntry) {
     return null;
@@ -36,10 +28,7 @@ const getCurrentParagraphEntry = (
   return blockEntry as NodeEntry<SlateElement>;
 };
 
-const shouldNavigatePrev = (
-  editor: Editor,
-  blockEntry: NodeEntry<SlateElement>,
-) => {
+const shouldNavigatePrev = (editor: Editor, blockEntry: NodeEntry<SlateElement>) => {
   const { selection } = editor;
   if (!selection || Range.isExpanded(selection)) {
     return false;
@@ -57,9 +46,7 @@ const tryNavigatePrevious = (editor: Editor, removeIfEmpty: boolean) => {
     return false;
   }
 
-  if (
-    hasAncestorBlockType(editor, blockEntry[1], ["tabs", "multi-column-item"])
-  ) {
+  if (hasAncestorBlockType(editor, blockEntry[1], ["tabs"])) {
     return false;
   }
 
@@ -70,9 +57,7 @@ const tryNavigatePrevious = (editor: Editor, removeIfEmpty: boolean) => {
 
   const [prevNode] = prevEntry;
   const isPrevVoid = editor.isVoid(prevNode);
-  const hasNavigator = SlateElement.isElement(prevNode)
-    ? hasBlockNavigation(prevNode)
-    : false;
+  const hasNavigator = SlateElement.isElement(prevNode) ? hasBlockNavigation(prevNode) : false;
 
   if (!isPrevVoid && !hasNavigator) {
     return false;
@@ -99,7 +84,7 @@ const tryNavigatePrevious = (editor: Editor, removeIfEmpty: boolean) => {
 export const withBlockNavigation = (editor: Editor) => {
   const { deleteBackward } = editor;
 
-  editor.deleteBackward = (unit) => {
+  editor.deleteBackward = unit => {
     const handled = tryNavigatePrevious(editor, true);
     if (handled) {
       return;

@@ -38,7 +38,7 @@ const createArrowCommand = (direction: BlockNavigationMeta["direction"]): Editor
       return;
     }
 
-    if (hasAncestorBlockType(editor, blockEntry[1], ["tabs", "multi-column-item"])) {
+    if (hasAncestorBlockType(editor, blockEntry[1], ["tabs"])) {
       return;
     }
 

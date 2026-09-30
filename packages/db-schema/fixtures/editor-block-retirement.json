@@ -534,5 +534,111 @@
       }
     ],
     "removed": 1
+  },
+  {
+    "name": "图表与 graphviz 退役剥离",
+    "input": [
+      {
+        "type": "chart",
+        "data": [{ "name": "A", "value": 1 }],
+        "children": [
+          {
+            "type": "formatted",
+            "text": ""
+          }
+        ]
+      },
+      {
+        "type": "graphviz",
+        "dot": "digraph {}",
+        "children": [
+          {
+            "type": "formatted",
+            "text": ""
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "formatted",
+            "text": "保留"
+          }
+        ]
+      }
+    ],
+    "expected": [
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "formatted",
+            "text": "保留"
+          }
+        ]
+      }
+    ],
+    "removed": 2
+  },
+  {
+    "name": "多列容器整棵删除",
+    "input": [
+      {
+        "type": "multi-column-container",
+        "columnWidths": [50, 50],
+        "children": [
+          {
+            "type": "multi-column-item",
+            "children": [
+              {
+                "type": "paragraph",
+                "children": [
+                  {
+                    "type": "formatted",
+                    "text": "列一"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "multi-column-item",
+            "children": [
+              {
+                "type": "paragraph",
+                "children": [
+                  {
+                    "type": "formatted",
+                    "text": "列二"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "formatted",
+            "text": "保留"
+          }
+        ]
+      }
+    ],
+    "expected": [
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "formatted",
+            "text": "保留"
+          }
+        ]
+      }
+    ],
+    "removed": 3
   }
 ]

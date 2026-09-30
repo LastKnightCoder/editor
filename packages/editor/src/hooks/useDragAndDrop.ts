@@ -3,14 +3,8 @@ import { Editor, Element, Node, Path, Transforms } from "slate";
 import { useDrag, useDrop } from "react-dnd";
 import { ReactEditor, useSlateStatic, useReadOnly } from "slate-react";
 import type { DropTargetMonitor } from "react-dnd";
-import {
-  calcWidthsAfterDelete,
-  getColumnWidths,
-  updateColumnWidths,
-} from "../utils/multi-columns-layout";
 import { findPathSafely, getNodeAtPathSafely } from "../utils/path";
 import type { ElementDragSpec } from "../api/drag";
-import type { MultiColumnContainerElement, MultiColumnItemElement } from "../types";
 
 /**
  * 块级拖拽的内核实现（01 §5.4 拖拽声明化）：只给 BlockDragHost 用，
@@ -26,16 +20,11 @@ interface IUseDragAndDropParams {
 }
 
 const EDITOR_DRAG_TYPE = "editor-item";
-const COLUMN_ITEM_DRAG_TYPE = "multi-column-item-reorder";
 
 interface IDragItem {
   sourceEditor: Editor;
   dragPath: Path;
   dragElementSnapshot: Element;
-  isColumnDrag?: boolean;
-  columnPath?: Path;
-  containerPath?: Path;
-  columnIndex?: number;
 }
 
 const moveNode = (editor: Editor, dragPath: Path, dropPath: Path, isBefore: boolean) => {
@@ -195,19 +184,6 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
         return false;
       }
 
-      if (item.isColumnDrag) {
-        if (editor !== dragEditor) {
-          return false;
-        }
-        if (!item.containerPath || !item.columnPath) {
-          return false;
-        }
-        const isInsideContainer =
-          Path.equals(item.containerPath, dropPath) ||
-          Path.isAncestor(item.containerPath, dropPath);
-        return !isInsideContainer;
-      }
-
       const dragPath = item.dragPath;
       const dragElement = item.dragElementSnapshot;
       if (editor.isBlock(dragElement) && editor.isBlock(element)) {
@@ -254,64 +230,6 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
           return;
         }
 
-        if (item.isColumnDrag && item.columnPath && item.containerPath) {
-          if (editor !== item.sourceEditor) {
-            return;
-          }
-          if (
-            Path.equals(item.containerPath, dropPath) ||
-            Path.isAncestor(item.containerPath, dropPath)
-          ) {
-            return;
-          }
-
-          const columnPath = item.columnPath;
-          const columnIndex =
-            typeof item.columnIndex === "number"
-              ? item.columnIndex
-              : columnPath[columnPath.length - 1];
-
-          const [columnNode] = Editor.node(editor, columnPath);
-          const columnElement = columnNode as MultiColumnItemElement;
-          const columnChildren = columnElement.children;
-
-          const containerPathRef = Editor.pathRef(editor, item.containerPath);
-          const dropPathRef = Editor.pathRef(editor, dropPath);
-
-          Editor.withoutNormalizing(editor, () => {
-            const currentContainerPath = containerPathRef.current;
-            if (!currentContainerPath) {
-              return;
-            }
-            const [containerNode] = Editor.node(editor, currentContainerPath);
-            const container = containerNode as MultiColumnContainerElement;
-            const currentWidths = getColumnWidths(container);
-            const newWidths = calcWidthsAfterDelete(currentWidths, columnIndex);
-
-            Transforms.removeNodes(editor, { at: columnPath });
-
-            const currentDropPath = dropPathRef.current;
-            if (currentDropPath) {
-              const insertPath = isBefore ? currentDropPath : Path.next(currentDropPath);
-              Transforms.insertNodes(editor, columnChildren, {
-                at: insertPath,
-              });
-            }
-
-            if (Node.has(editor, currentContainerPath)) {
-              const [updatedContainer] = Editor.node(editor, currentContainerPath);
-              const updatedElement = updatedContainer as Element;
-              if (updatedElement.children.length > 0) {
-                updateColumnWidths(editor, currentContainerPath, newWidths);
-              }
-            }
-          });
-
-          containerPathRef.unref();
-          dropPathRef.unref();
-          return;
-        }
-
         const dragEditor = item.sourceEditor;
         const dragElement = item.dragElementSnapshot;
         const dragPathRef = Editor.pathRef(dragEditor, item.dragPath);
@@ -353,7 +271,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
     }
   >(
     {
-      accept: [EDITOR_DRAG_TYPE, COLUMN_ITEM_DRAG_TYPE],
+      accept: EDITOR_DRAG_TYPE,
       canDrop: canDropFn,
       collect: monitor => {
         return {
