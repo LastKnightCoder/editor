@@ -19,7 +19,26 @@ import {
 import { AUDIO_CARD_HEIGHT } from "../../constants/audio";
 import useTheme from "@/hooks/useTheme";
 
-import styles from "./index.module.less";
+const slider =
+  "h-1 appearance-none cursor-pointer rounded-[2px] outline-none transition-[height] hover:h-[5px] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:size-[var(--thumb-size)] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-current [&::-webkit-slider-thumb]:bg-surface [&::-webkit-slider-thumb]:shadow-card [&::-moz-range-thumb]:size-[var(--thumb-size)] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-current [&::-moz-range-thumb]:bg-surface";
+const styles = {
+  dark: "",
+  audioCard: "bg-hover box-border flex items-center gap-2 rounded-tau-md px-3 py-2.5",
+  playButton:
+    "text-ink-3 hover:text-ink-1 hover:bg-hover flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-tau-sm border-0 bg-transparent transition-colors active:scale-95 [&_svg]:ml-px",
+  content: "flex min-w-0 flex-1 flex-col gap-1",
+  titleRow: "flex items-center gap-[5px]",
+  musicIcon: "text-ink-3 m-0 shrink-0 border-0 bg-transparent p-0",
+  title: "text-ink-1 flex-1 truncate text-tau-body font-medium leading-[1.3]",
+  progressRow: "flex items-center gap-1.5",
+  progressSlider: `${slider} flex-1 [--thumb-size:12px]`,
+  time: "text-ink-3 min-w-7 shrink-0 text-center text-[10px] tabular-nums",
+  volumeControl: "relative flex shrink-0 items-center gap-1",
+  volumeButton:
+    "text-ink-3 hover:text-ink-1 hover:bg-hover flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-tau-sm border-0 bg-transparent transition-colors",
+  volumeSlider: `${slider} w-0 shrink-0 opacity-0 transition-[width,opacity] [--thumb-size:10px]`,
+  visible: "w-[50px] opacity-100",
+};
 
 interface AudioElementProps {
   element: AudioElement;

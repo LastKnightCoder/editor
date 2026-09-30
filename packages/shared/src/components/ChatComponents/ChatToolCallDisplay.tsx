@@ -1,20 +1,13 @@
 import React, { memo, useState } from "react";
-import {
-  CircleAlert,
-  CircleCheck,
-  CircleX,
-  Clock,
-  Loader2,
-  RefreshCw,
-  Square,
-} from "lucide-react";
+import { CircleAlert, CircleCheck, CircleX, Clock, Loader2, RefreshCw, Square } from "lucide-react";
 import type {
   ToolCallDefaultItemRenderParams,
   ToolCallDisplayProps as BaseToolCallDisplayProps,
 } from "./ToolCallDisplay";
 import { ToolCallDisplay } from "./ToolCallDisplay";
 import type { ToolCallExecutionState } from "./types";
-import styles from "./ChatToolCallDisplay.module.less";
+import { toolClasses as styles } from "./classes";
+import "../animations.css";
 
 export interface ChatToolCallDefaultItemProps {
   execution: ToolCallExecutionState;
@@ -36,10 +29,10 @@ const parseJsonSafe = (str: string) => {
   }
 };
 
-export const ChatToolCallDefaultItem: React.FC<ChatToolCallDefaultItemProps> =
-  memo(function ChatToolCallDefaultItem({ execution, isDark }) {
+export const ChatToolCallDefaultItem: React.FC<ChatToolCallDefaultItemProps> = memo(
+  function ChatToolCallDefaultItem({ execution, isDark }) {
     const [isExpanded, setIsExpanded] = useState(
-      execution.status === "failed" || execution.status === "retrying",
+      execution.status === "failed" || execution.status === "retrying"
     );
 
     const getStatusIcon = () => {
@@ -74,16 +67,12 @@ export const ChatToolCallDefaultItem: React.FC<ChatToolCallDefaultItemProps> =
             ? `Retrying (${execution.retryCount}/${2})...`
             : "Retrying...";
         case "success":
-          return execution.duration
-            ? `Completed in ${execution.duration}ms`
-            : "Completed";
+          return execution.duration ? `Completed in ${execution.duration}ms` : "Completed";
         case "failed":
           if (execution.errorType === "parameter") {
             return "Parameter error";
           }
-          return execution.retryCount
-            ? `Failed after ${execution.retryCount} retries`
-            : "Failed";
+          return execution.retryCount ? `Failed after ${execution.retryCount} retries` : "Failed";
         case "cancelled":
           return "Cancelled";
       }
@@ -91,10 +80,7 @@ export const ChatToolCallDefaultItem: React.FC<ChatToolCallDefaultItemProps> =
 
     return (
       <div className={`${styles.toolCallCard} ${isDark ? styles.dark : ""}`}>
-        <div
-          className={styles.toolCallHeader}
-          onClick={() => setIsExpanded(!isExpanded)}
-        >
+        <div className={styles.toolCallHeader} onClick={() => setIsExpanded(!isExpanded)}>
           <div className={styles.headerLeft}>
             {getStatusIcon()}
             <span className={styles.toolName}>{execution.toolName}</span>
@@ -109,9 +95,7 @@ export const ChatToolCallDefaultItem: React.FC<ChatToolCallDefaultItemProps> =
           <div className={styles.toolCallBody}>
             <div className={styles.section}>
               <div className={styles.sectionLabel}>Input</div>
-              <pre className={styles.codeBlock}>
-                {parseJsonSafe(execution.input)}
-              </pre>
+              <pre className={styles.codeBlock}>{parseJsonSafe(execution.input)}</pre>
             </div>
 
             {execution.output && (
@@ -124,9 +108,7 @@ export const ChatToolCallDefaultItem: React.FC<ChatToolCallDefaultItemProps> =
             {execution.error && (
               <div className={styles.section}>
                 <div className={styles.sectionLabel}>
-                  {execution.errorType === "parameter"
-                    ? "Parameter Error"
-                    : "Error"}
+                  {execution.errorType === "parameter" ? "Parameter Error" : "Error"}
                 </div>
                 <div className={styles.errorBlock}>{execution.error}</div>
               </div>
@@ -135,22 +117,15 @@ export const ChatToolCallDefaultItem: React.FC<ChatToolCallDefaultItemProps> =
         )}
       </div>
     );
-  });
+  }
+);
 
-const renderChatDefaultItem = ({
-  execution,
-  isDark,
-}: ToolCallDefaultItemRenderParams) => (
+const renderChatDefaultItem = ({ execution, isDark }: ToolCallDefaultItemRenderParams) => (
   <ChatToolCallDefaultItem execution={execution} isDark={isDark} />
 );
 
 export const ChatToolCallDisplay: React.FC<ChatToolCallDisplayProps> = memo(
-  function ChatToolCallDisplay({
-    execution,
-    isDark,
-    className = "my-0 space-y-0",
-    ...props
-  }) {
+  function ChatToolCallDisplay({ execution, isDark, className = "my-0 space-y-0", ...props }) {
     return (
       <ToolCallDisplay
         {...props}
@@ -160,7 +135,7 @@ export const ChatToolCallDisplay: React.FC<ChatToolCallDisplayProps> = memo(
         renderDefaultItem={renderChatDefaultItem}
       />
     );
-  },
+  }
 );
 
 export default ChatToolCallDisplay;

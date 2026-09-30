@@ -2,7 +2,7 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { getDescriptionKit } from "@/services/editorKit";
 import { useMemoizedFn } from "ahooks";
 import { Descendant } from "slate";
-import classnames from "classnames";
+import { cn as classnames } from "@tau/ui";
 
 import If from "@/components/If";
 import { Editor, EditorRef, EditorThemeOverride } from "@tau/editor/src";
@@ -24,7 +24,14 @@ import {
   RESIZE_CIRCLE_RADIUS,
 } from "../../constants";
 import { registerGeometryRenderers } from "./registerGeometryRenderers";
-import styles from "./index.module.less";
+const styles = {
+  textContainer: "box-border flex size-full items-center justify-center p-3 text-center",
+  left: "justify-start text-left",
+  right: "justify-end text-right",
+  center: "justify-center text-center",
+  readonly: "pointer-events-none select-none",
+  svgContainer: "overflow-visible",
+};
 
 interface GeometryProps {
   element: GeometryElement;

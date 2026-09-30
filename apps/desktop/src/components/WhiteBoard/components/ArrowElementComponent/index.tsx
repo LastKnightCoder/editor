@@ -15,7 +15,11 @@ import { ArrowUtil, BoardUtil, PathUtil } from "../../utils";
 import { getArrowDisplayColor } from "../../utils/color";
 import useTheme from "@/hooks/useTheme";
 import { getLabelAnchorByPath, offsetAnchorAlongNormal } from "./labelGeometry";
-import styles from "./index.module.less";
+const styles = {
+  descriptionContainer: "pointer-events-auto inline-flex h-fit w-fit items-center justify-start",
+  descriptionEditor: "min-h-9 w-fit rounded-tau-sm",
+  readonly: "[&_[data-slate-editor]]:cursor-pointer",
+};
 
 interface ArrowElementProps {
   element: ArrowElement;

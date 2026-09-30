@@ -52,7 +52,16 @@ import { useBoardState } from "../../hooks/useBoardState";
 import { useViewPort } from "../../hooks/useViewPort";
 import { toast, useEdgeFade } from "@tau/ui";
 
-import styles from "./index.module.less";
+import "./mask.css";
+
+const styles = {
+  richTextContainer: "relative size-full [--block-distance:10px]",
+  surface: "absolute left-0 top-0 -z-10 overflow-hidden shadow-[inset_0_0_0_1px_var(--text-edge)]",
+  band: "w-full",
+  editor: "tau-board-text-mask [&::-webkit-scrollbar]:hidden",
+  simplifiedSkeleton: "flex size-full flex-col justify-start overflow-hidden",
+  skeletonLine: "rounded-full bg-current opacity-[0.18]",
+};
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 
 type RichTextNodeType = Omit<RichTextElement, "type"> & any;

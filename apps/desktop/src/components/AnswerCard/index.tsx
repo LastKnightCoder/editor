@@ -16,7 +16,11 @@ import { getAnswerContentStatus } from "@/utils/answer-content";
 import { getEditorText } from "@/utils/editor";
 import EditTitleModal from "@/components/EditTitleModal";
 
-import styles from "./index.module.less";
+const styles = {
+  answerContent: "box-border max-h-[200px] overflow-y-hidden",
+  editor: "",
+  moreIcon: "absolute right-2 top-2 flex size-6 cursor-pointer items-center justify-center",
+};
 
 interface AnswerCardProps {
   answer: IAnswer;

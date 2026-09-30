@@ -34,7 +34,6 @@ import {
   DEFAULT_CHAT_INPUT_PLACEHOLDER,
   resolveChatInputPlaceholder,
 } from "../../utils/chat-input-placeholder";
-import "./index.less";
 import type {
   ChatInputAreaHandle,
   ChatInputAreaProps,
@@ -683,7 +682,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
             placeholder={resolvedPlaceholder}
             disabled={!contentEditable}
             rows={1}
-            className="shared-chat-input-textarea dark:text-[#e6edf3] w-full resize-none border-none bg-transparent px-0 text-base focus:border-blue-400 focus:ring-0 focus:outline-none"
+            className="text-ink-1 placeholder:text-ink-3 w-full resize-none border-none bg-transparent px-0 text-base focus:outline-none focus:ring-0"
           />
           {mentionPanelOpen && (
             <div className="mt-2 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-zinc-900">

@@ -1,5 +1,54 @@
 @import "@tau/ui/styles.css";
 
+:root {
+  --font: sans-serif;
+  --mono-font: monospace;
+  --font-size: 16px;
+}
+
+html,
+body {
+  overscroll-behavior: none;
+}
+
+body {
+  --block-distance: 1.25em;
+  font-family: var(--font);
+  font-size: var(--font-size);
+  color: var(--tau-ink-1);
+}
+
+pre,
+code {
+  font-family: var(--mono-font);
+}
+
+[contenteditable] {
+  outline-style: none;
+}
+
+.app-region-drag {
+  -webkit-app-region: drag;
+}
+.app-region-no-drag {
+  -webkit-app-region: no-drag;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.katex-display {
+  margin: 0 !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 0;
+}
+
+.katex-display > .katex {
+  width: fit-content;
+  margin: 0 auto;
+}
+
 /*
  * 新架构全局 base（D-001 CSS 白名单第一类）：.app 作用域的 reset 补充与全局状态，
  * 只放 Tailwind 工具类表达不了的部分，组件样式一律 Tailwind。

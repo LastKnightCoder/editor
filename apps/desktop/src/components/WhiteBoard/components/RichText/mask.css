@@ -1,0 +1,18 @@
+.tau-board-text-mask {
+  --fade-top: calc(var(--gap-top) + var(--fade-size) * var(--edge-top-on, 0));
+  --fade-bottom: calc(var(--gap-bottom) + var(--fade-size) * var(--edge-bottom-on, 0));
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    transparent var(--gap-top),
+    #000 var(--fade-top),
+    #000 calc(100% - var(--fade-bottom)),
+    transparent calc(100% - var(--gap-bottom))
+  );
+  mask-image: linear-gradient(
+    180deg,
+    transparent var(--gap-top),
+    #000 var(--fade-top),
+    #000 calc(100% - var(--fade-bottom)),
+    transparent calc(100% - var(--gap-bottom))
+  );
+}

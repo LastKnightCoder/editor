@@ -15,18 +15,9 @@ export default defineConfig({
       "@blog": resolve(__dirname, "src"),
       // 主项目的模块（与主项目的 @ 保持一致）
       "@": resolve(mainProjectPath, "src"),
-      "@editor": resolve(mainProjectPath, "src/components/Editor"),
       // monorepo packages
       "@tau/editor": resolve(__dirname, "../../packages/editor/src"),
       "@tau/shared": resolve(__dirname, "../../packages/shared/src"),
-    },
-  },
-  // 确保可以解析主项目的依赖和样式
-  css: {
-    preprocessorOptions: {
-      less: {
-        javascriptEnabled: true,
-      },
     },
   },
   optimizeDeps: {

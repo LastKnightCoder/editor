@@ -54,7 +54,6 @@
     "@types/react-dom": "19.1.6",
     "@vitejs/plugin-react-swc": "^3.5.0",
     "cal-sans": "^1.0.1",
-    "less": "^4.2.0",
     "mime-types": "^3.0.2",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.2.2",
