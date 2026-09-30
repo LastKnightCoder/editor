@@ -1,39 +1,30 @@
-import { RenderElementProps } from "slate-react";
-import type { BlockquoteElement } from "../../types";
+import { defineElement, defineExtension } from "../../api";
 
+import type { BlockquoteElement } from "../../types";
 import Blockquote from "./components/Blockquote";
 import blockPanelItems from "./block-panel-items";
-import { markdownSyntax, quit, withNormalizeBlockquote } from "./plugins";
-import { createBlockElementPlugin } from "../../utils";
+import { blockquoteBehaviors, blockquoteForParagraph } from "./behaviors";
 
-import Base from "../base";
-import IExtension from "../types";
+const blockquoteExtension = defineExtension({
+  id: "tau.blockquote",
+  elements: [
+    defineElement<BlockquoteElement>({
+      type: "blockquote",
+      kind: "block",
+      render: Blockquote,
+      // 手柄与正文左线重叠，压窄让出位置（原组件手柄的位置）
+      drag: {
+        self: true,
+        children: true,
+        handleClassName: "top-[0.25em] h-[1.5em] w-[1em] cursor-grab rounded transition-all",
+      },
+      behaviors: blockquoteBehaviors,
+    }),
+  ],
+  blockPanel: blockPanelItems,
+  behaviorsFor: {
+    paragraph: blockquoteForParagraph,
+  },
+});
 
-class BlockquoteExtension extends Base implements IExtension {
-  type = "blockquote";
-
-  override dragSpec = {
-    self: true,
-    children: true,
-    handleClassName: "top-[0.25em] h-[1.5em] w-[1em] cursor-grab rounded transition-all",
-  };
-
-  override getPlugins() {
-    return [markdownSyntax, quit, withNormalizeBlockquote, createBlockElementPlugin(this.type)];
-  }
-
-  override getBlockPanelItems() {
-    return blockPanelItems;
-  }
-
-  render(props: RenderElementProps) {
-    const { attributes, children, element } = props;
-    return (
-      <Blockquote attributes={attributes} element={element as BlockquoteElement}>
-        {children}
-      </Blockquote>
-    );
-  }
-}
-
-export default BlockquoteExtension;
+export default blockquoteExtension;

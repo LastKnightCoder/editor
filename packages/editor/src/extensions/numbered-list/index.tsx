@@ -1,34 +1,24 @@
-import { RenderElementProps } from "slate-react";
+import { defineElement, defineExtension } from "../../api";
+
 import type { NumberedListElement } from "../../types";
-
 import NumberedList from "./components/NumberedList";
-import { markdownSyntax, withNormalize } from "./plugins";
 import blockPanelItems from "./block-panel-items";
-import { createBlockElementPlugin } from "../../utils";
-import Base from "../base";
-import IExtension from "../types";
+import { numberedListBehaviors, numberedListForParagraph } from "./behaviors";
 
-class NumberedListExtension extends Base implements IExtension {
-  type = "numbered-list";
-  override getPlugins() {
-    return [withNormalize, markdownSyntax, createBlockElementPlugin(this.type)];
-  }
+const numberedListExtension = defineExtension({
+  id: "tau.numbered-list",
+  elements: [
+    defineElement<NumberedListElement>({
+      type: "numbered-list",
+      kind: "block",
+      render: NumberedList,
+      behaviors: numberedListBehaviors,
+    }),
+  ],
+  blockPanel: blockPanelItems,
+  behaviorsFor: {
+    paragraph: numberedListForParagraph,
+  },
+});
 
-  override getBlockPanelItems() {
-    return blockPanelItems;
-  }
-
-  render(props: RenderElementProps) {
-    const { element, attributes, children } = props;
-    return (
-      <NumberedList
-        element={element as NumberedListElement}
-        attributes={attributes}
-      >
-        {children}
-      </NumberedList>
-    );
-  }
-}
-
-export default NumberedListExtension;
+export default numberedListExtension;

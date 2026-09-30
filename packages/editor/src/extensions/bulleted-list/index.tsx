@@ -1,36 +1,24 @@
-import { RenderElementProps } from "slate-react";
+import { defineElement, defineExtension } from "../../api";
+
 import type { BulletedListElement } from "../../types";
-
 import BulletedList from "./components/BulletedList";
-import { markdownSyntax, withNormalize } from "./plugins";
 import blockPanelItems from "./block-panle-items";
-import { createBlockElementPlugin } from "../../utils";
+import { bulletedListBehaviors, bulletedListForParagraph } from "./behaviors";
 
-import Base from "../base";
-import IExtension from "../types";
+const bulletedListExtension = defineExtension({
+  id: "tau.bulleted-list",
+  elements: [
+    defineElement<BulletedListElement>({
+      type: "bulleted-list",
+      kind: "block",
+      render: BulletedList,
+      behaviors: bulletedListBehaviors,
+    }),
+  ],
+  blockPanel: blockPanelItems,
+  behaviorsFor: {
+    paragraph: bulletedListForParagraph,
+  },
+});
 
-class BulletedListExtension extends Base implements IExtension {
-  type = "bulleted-list";
-
-  override getPlugins() {
-    return [markdownSyntax, withNormalize, createBlockElementPlugin(this.type)];
-  }
-
-  override getBlockPanelItems() {
-    return blockPanelItems;
-  }
-
-  render(props: RenderElementProps) {
-    const { element, attributes, children } = props;
-    return (
-      <BulletedList
-        element={element as BulletedListElement}
-        attributes={attributes}
-      >
-        {children}
-      </BulletedList>
-    );
-  }
-}
-
-export default BulletedListExtension;
+export default bulletedListExtension;

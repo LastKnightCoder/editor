@@ -8,11 +8,12 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 
 import {
   Editor,
-  HeaderExtension,
   PlantUMLExtension,
   type ImageAppearanceConfig,
   type ImageAppearanceSource,
   createEditorKit,
+  createHeaderExtension,
+  type EditorExtension,
 } from "../index";
 import { useImageAppearance } from "../extensions/image/appearanceOption";
 import { createImageExtensions } from "../extensions/image/createImageExtensions";
@@ -198,7 +199,7 @@ describe("P4 EditorConfig 拆解", () => {
       { type: "paragraph", children: [{ type: "formatted", text: "正文" }] } as Descendant,
     ];
 
-    const mountWith = async (extensions?: HeaderExtension[]) => {
+    const mountWith = async (extensions?: EditorExtension[]) => {
       const kit = createEditorKit({
         services: [register => register(IEditorSlots, createDefaultEditorSlots())],
       });
@@ -223,7 +224,9 @@ describe("P4 EditorConfig 拆解", () => {
     });
 
     it("disableCollapse 时不显示折叠箭头", async () => {
-      expect(arrowOf(await mountWith([new HeaderExtension({ disableCollapse: true })]))).toBeNull();
+      expect(
+        arrowOf(await mountWith([createHeaderExtension({ disableCollapse: true })]))
+      ).toBeNull();
     });
   });
 });

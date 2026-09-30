@@ -1,38 +1,25 @@
-import { RenderElementProps } from "slate-react";
-import type { CalloutElement } from "../../types";
+import { defineElement, defineExtension } from "../../api";
 
+import type { CalloutElement } from "../../types";
 import blockPanelItems from "./blockPanelItems";
 import Callout from "./components/Callout.tsx";
-import { deleteFirstLineCallout, quit, withNormalize } from "./plugins";
-import { createBlockElementPlugin } from "../../utils";
+import { calloutBehaviors } from "./behaviors";
 import { calloutCommands, calloutMenuItems } from "./utils/menu";
 
-import Base from "../base";
-import IExtension from "../types";
+const calloutExtension = defineExtension({
+  id: "tau.callout",
+  elements: [
+    defineElement<CalloutElement>({
+      type: "callout",
+      kind: "block",
+      render: Callout,
+      drag: true,
+      behaviors: calloutBehaviors,
+    }),
+  ],
+  blockPanel: blockPanelItems,
+  commands: calloutCommands,
+  menu: calloutMenuItems,
+});
 
-class CalloutExtension extends Base implements IExtension {
-  type = "callout";
-
-  override commands = calloutCommands;
-  override menuItems = calloutMenuItems;
-  override dragSpec = true;
-
-  override getPlugins() {
-    return [deleteFirstLineCallout, quit, withNormalize, createBlockElementPlugin(this.type)];
-  }
-
-  override getBlockPanelItems() {
-    return blockPanelItems;
-  }
-
-  render(props: RenderElementProps) {
-    const { element, attributes, children } = props;
-    return (
-      <Callout element={element as CalloutElement} attributes={attributes}>
-        {children}
-      </Callout>
-    );
-  }
-}
-
-export default CalloutExtension;
+export default calloutExtension;
