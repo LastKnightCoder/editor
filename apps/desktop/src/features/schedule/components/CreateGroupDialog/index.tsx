@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button, Dialog, DialogBody, Input, toast } from "@tau/ui";
-import useCalendarStore from "@/stores/useCalendarStore";
+import { useScheduleMutations } from "../../queries";
 
 interface CreateGroupDialogProps {
   open: boolean;
@@ -8,6 +8,7 @@ interface CreateGroupDialogProps {
 }
 
 const CreateGroupDialog = ({ open, onClose }: CreateGroupDialogProps) => {
+  const { createCalendarGroup } = useScheduleMutations();
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -22,7 +23,7 @@ const CreateGroupDialog = ({ open, onClose }: CreateGroupDialogProps) => {
     }
     setSaving(true);
     try {
-      await useCalendarStore.getState().createCalendarGroup({
+      await createCalendarGroup({
         name: name.trim(),
         isSystem: false,
         parentGroupId: null,

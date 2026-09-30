@@ -3,8 +3,8 @@ import dayjs from "dayjs";
 import { CalendarRange } from "lucide-react";
 import { cn } from "@tau/ui";
 import { FadeScroll } from "@/components/FadeScroll";
-import useCalendarStore from "@/stores/useCalendarStore";
-import { useCalendarEvents } from "@/hooks/useCalendarEvents";
+import { useScheduleStore } from "../../uiStore";
+import { useCalendarCatalog, useCalendarEvents } from "../../queries";
 import type { CalendarEvent } from "@/types";
 import { usePeekStore } from "../../peekStore";
 import { AgendaRow } from "../AgendaRow";
@@ -34,8 +34,8 @@ function groupEventsByDay(events: CalendarEvent[], year: number, month: number) 
 }
 
 const AgendaView = () => {
-  const currentDate = useCalendarStore(s => s.currentDate);
-  const calendars = useCalendarStore(s => s.calendars);
+  const currentDate = useScheduleStore(s => s.currentDate);
+  const { calendars } = useCalendarCatalog();
   const peek = usePeekStore(s => s.peek);
   const { events } = useCalendarEvents();
   const decorOf = useEventDecor(events);

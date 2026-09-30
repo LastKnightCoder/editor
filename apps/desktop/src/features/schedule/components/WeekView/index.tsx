@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import { cn, toast } from "@tau/ui";
 import { FadeScroll } from "@/components/FadeScroll";
-import useCalendarStore from "@/stores/useCalendarStore";
-import { useCalendarEvents } from "@/hooks/useCalendarEvents";
+import { useScheduleStore } from "../../uiStore";
+import { useCalendarCatalog, useCalendarEvents } from "../../queries";
 import { useTimeSlotDrag } from "@/hooks/useTimeSlotDrag";
 import { useEventOverlap } from "@/hooks/useEventOverlap";
 import { getWeekStart, isToday, getDateStart } from "@/utils/calendar";
@@ -36,11 +36,11 @@ const WEEKDAY_NAMES = ["一", "二", "三", "四", "五", "六", "日"];
 const LANE = 22;
 
 const WeekView = () => {
-  const currentDate = useCalendarStore(s => s.currentDate);
-  const calendars = useCalendarStore(s => s.calendars);
-  const editingEvent = useCalendarStore(s => s.editingEvent);
-  const setEditingEvent = useCalendarStore(s => s.setEditingEvent);
-  const setCurrentDate = useCalendarStore(s => s.setCurrentDate);
+  const currentDate = useScheduleStore(s => s.currentDate);
+  const { calendars } = useCalendarCatalog();
+  const editingEvent = useScheduleStore(s => s.editingEvent);
+  const setEditingEvent = useScheduleStore(s => s.setEditingEvent);
+  const setCurrentDate = useScheduleStore(s => s.setCurrentDate);
   const peek = usePeekStore(s => s.peek);
   const { events } = useCalendarEvents();
 

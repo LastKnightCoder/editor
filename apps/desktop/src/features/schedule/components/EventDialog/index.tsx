@@ -5,12 +5,12 @@
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { Button, ConfirmDialog, Dialog, DialogBody } from "@tau/ui";
-import useCalendarStore from "@/stores/useCalendarStore";
+import { useScheduleStore } from "../../uiStore";
 import { useEventForm } from "./useEventForm";
 
 const EventDialog = () => {
-  const editingEvent = useCalendarStore(s => s.editingEvent);
-  const close = () => useCalendarStore.getState().setEditingEvent(null);
+  const editingEvent = useScheduleStore(s => s.editingEvent);
+  const close = () => useScheduleStore.getState().setEditingEvent(null);
   const form = useEventForm(editingEvent, close, { autoFocusTitle: true });
   const [confirmDelete, setConfirmDelete] = useState(false);
 

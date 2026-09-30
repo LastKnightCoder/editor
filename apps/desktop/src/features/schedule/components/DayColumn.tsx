@@ -9,10 +9,10 @@ import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, CornerDownLeft, Plus } from "lucide-react";
 import { IconButton, cn, toast } from "@tau/ui";
 import { FadeScroll } from "@/components/FadeScroll";
-import useCalendarStore from "@/stores/useCalendarStore";
-import { useCalendarEvents } from "@/hooks/useCalendarEvents";
+import { useScheduleStore } from "../uiStore";
+import { useCalendarCatalog, useCalendarEvents, useScheduleMutations } from "../queries";
 import { formatTime, getDateStart } from "@/utils/calendar";
-import type { CalendarEvent } from "@/types";
+import type { Calendar, CalendarEvent } from "@/types";
 import { TONE, TONE_SOFT_BG, eventToneStyle } from "../eventTone";
 import { usePeekStore } from "../peekStore";
 import { parseQuickAdd } from "../quickAdd";
@@ -34,7 +34,7 @@ const hours = (minutes: number) => `${Number((minutes / 60).toFixed(1))} 小时`
 
 /** 选中日（store.currentDate）及其日程：当日时间线与工具条的当日按钮共用 */
 export function useDayEvents() {
-  const currentDate = useCalendarStore(s => s.currentDate);
+  const currentDate = useScheduleStore(s => s.currentDate);
   const { events } = useCalendarEvents();
   const day = getDateStart(currentDate);
   const isToday = day === getDateStart(Date.now());
@@ -51,8 +51,8 @@ export function useDayEvents() {
 }
 
 export function DayColumn() {
-  const calendars = useCalendarStore(s => s.calendars);
-  const { setCurrentDate, setEditingEvent } = useCalendarStore.getState();
+  const { calendars } = useCalendarCatalog();
+  const { setCurrentDate, setEditingEvent } = useScheduleStore.getState();
   const peek = usePeekStore(s => s.peek);
   const nowMinutes = useNowMinutes();
   const { day, isToday, dayEvents } = useDayEvents();
@@ -219,7 +219,7 @@ function TimelineRow({
   past: boolean;
   onPeek: (event: CalendarEvent, anchor: HTMLElement) => void;
   onSchedule: (start: number) => void;
-  calendars: ReturnType<typeof useCalendarStore.getState>["calendars"];
+  calendars: Calendar[];
   decorOf: ReturnType<typeof useEventDecor>;
 }) {
   const at = item.kind === "now" ? item.at : item.start;
@@ -313,7 +313,8 @@ function TimelineRow({
 
 /** 底部快速添加：输入即解析，命中片段以标签回显；回车创建 */
 function QuickAdd({ day }: { day: number }) {
-  const calendars = useCalendarStore(s => s.calendars);
+  const { calendars } = useCalendarCatalog();
+  const { createEvent } = useScheduleMutations();
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -343,7 +344,7 @@ function QuickAdd({ day }: { day: number }) {
     const timed = parsed.startTime !== null;
     setSaving(true);
     try {
-      await useCalendarStore.getState().createEvent({
+      await createEvent({
         title: parsed.title,
         calendarId: calendar.id,
         detailContentId: 0,

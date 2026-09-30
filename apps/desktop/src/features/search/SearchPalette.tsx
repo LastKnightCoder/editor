@@ -35,7 +35,6 @@ import {
   ListPlus,
   X,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import clsx from "clsx";
 import { usePage, useOverlayDismiss } from "@/page/PageProvider";
 import { useSearchStore, type VisitRecord } from "./searchStore";
@@ -64,8 +63,7 @@ import { describeQuickAdd, parseQuickAdd as parseTodoQuickAdd } from "@/features
 import { createTodoFromQuickAdd, useTodoGroups } from "@/features/todos/queries";
 import { dayWord } from "@/features/todos/model";
 import { parseQuickAdd as parseEventQuickAdd } from "@/features/schedule/quickAdd";
-import { getAllCalendars } from "@/commands/calendar";
-import useCalendarStore from "@/stores/useCalendarStore";
+import { useCalendarCatalog, useScheduleMutations } from "@/features/schedule/queries";
 import { formatTime } from "@/utils/calendar";
 import { extractDateTime } from "@/utils/quickDateTime";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
@@ -171,15 +169,11 @@ export function SearchPalette() {
 
   // 快速添加用：面板打开才拉（待办项目与待办页共享缓存；日历排除系统日历与归档）
   const todoGroups = useTodoGroups(open);
-  const calendarsQuery = useQuery({
-    queryKey: ["search-palette", "calendars"],
-    queryFn: getAllCalendars,
-    enabled: open,
-    staleTime: 30_000,
-  });
+  const calendarsQuery = useCalendarCatalog(open);
+  const { createEvent } = useScheduleMutations();
   const calendars = useMemo(
-    () => (calendarsQuery.data ?? []).filter(c => !c.isInSystemGroup && !c.archived),
-    [calendarsQuery.data]
+    () => calendarsQuery.calendars.filter(c => !c.isInSystemGroup && !c.archived),
+    [calendarsQuery.calendars]
   );
 
   const setAppearance = useThemeStore(s => s.setAppearance);
@@ -318,19 +312,17 @@ export function SearchPalette() {
         }
         const timed = parsed.startTime !== null;
         closeAnd(() => {
-          useCalendarStore
-            .getState()
-            .createEvent({
-              title,
-              calendarId: calendar.id,
-              detailContentId: 0,
-              startDate: parsed.date,
-              endDate: timed ? parsed.date : null,
-              startTime: parsed.startTime,
-              endTime: parsed.endTime,
-              color: null,
-              allDay: !timed,
-            })
+          createEvent({
+            title,
+            calendarId: calendar.id,
+            detailContentId: 0,
+            startDate: parsed.date,
+            endDate: timed ? parsed.date : null,
+            startTime: parsed.startTime,
+            endTime: parsed.endTime,
+            color: null,
+            allDay: !timed,
+          })
             .then(() => {
               const d = new Date(parsed.date);
               toast.success(`已添加到 ${d.getMonth() + 1}月${d.getDate()}日 · ${calendar.title}`, {
@@ -515,6 +507,7 @@ export function SearchPalette() {
     commands,
     todoGroups,
     calendars,
+    createEvent,
     contentQuery.data,
     contentQuery.isFetching,
     visits,
