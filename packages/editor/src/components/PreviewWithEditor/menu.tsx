@@ -6,7 +6,7 @@ import type { EditorCommand } from "../../api/command";
 import type { EditorMenuEntry } from "../../api/menu";
 
 /**
- * 预览类块（mermaid / plantuml / graphviz 等 PreviewWithEditor 的使用方）的
+ * PreviewWithEditor 使用方的
  * 共享菜单：组件把「编辑 / 全屏」动作注册进 previewActionsMap，这里提供命令与条目，
  * `when` 按注册表判断——任何块只要注册了动作就免费获得这两条菜单。
  */

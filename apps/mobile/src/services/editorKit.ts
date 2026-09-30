@@ -7,6 +7,8 @@
 import { createEditorKit, createImageExtensions, type EditorKit } from "@tau/editor/src";
 import { createMarkdownPasteImportExtension, type AnyExtension } from "@tau/editor/src";
 import webviewExtension from "@tau/editor-webview";
+import customBlockExtension from "@tau/editor-custom-block";
+import { diagramExtensions } from "@tau/editor-diagram";
 import { flashcardBlankExtension } from "../features/flashcard/blank/FlashcardBlankExtension";
 import { mobileCardPreviewExtensions } from "../features/cards/editorExtensions";
 import {
@@ -26,6 +28,8 @@ function createMobileKit(extras: readonly AnyExtension[] = []): EditorKit {
   if (!kit) {
     kit = createEditorKit({
       extensions: [
+        ...diagramExtensions,
+        customBlockExtension,
         createMarkdownPasteImportExtension(mobileImportFromMarkdown),
         webviewExtension,
         ...createImageExtensions({ appearance: mobileImageAppearance }),

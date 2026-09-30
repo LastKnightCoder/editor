@@ -37,6 +37,8 @@
     "@tau/collaboration": "workspace:*",
     "@tau/db-schema": "workspace:*",
     "@tau/editor": "workspace:*",
+    "@tau/editor-custom-block": "workspace:*",
+    "@tau/editor-diagram": "workspace:*",
     "@tau/editor-collab": "workspace:*",
     "@tau/editor-webview": "workspace:*",
     "@tau/markdown": "workspace:*",

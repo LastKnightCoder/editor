@@ -35,6 +35,7 @@ export default defineConfig({
     },
   },
   resolve: {
+    dedupe: ["react", "react-dom", "slate", "slate-react", "react-dnd", "react-dnd-html5-backend"],
     alias: {
       "@": path.resolve(__dirname, "./src"),
       "@tau/rpc": path.resolve(__dirname, "../../packages/rpc"),

@@ -1,0 +1,54 @@
+{
+  "name": "@tau/editor-diagram",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./markdown": "./markdown.ts",
+    "./types": "./src/types/index.ts",
+    "./renderers": "./renderers.tsx",
+    "./mermaid": "./src/renderers/mermaid-render-core.ts",
+    "./abc": "./src/renderers/abc-html.ts",
+    "./plantuml": "./src/renderers/plantuml-source.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "check:markdown": "tsc --noEmit -p tsconfig.markdown.json"
+  },
+  "dependencies": {
+    "@loadable/component": "^5.15.3",
+    "@tau/markdown": "workspace:*",
+    "@tau/shared": "workspace:*",
+    "@tau/ui": "workspace:*",
+    "abcjs": "^6.5.2",
+    "ahooks": "^3.7.7",
+    "lucide-react": "^0.399.0",
+    "mermaid": "^10.1.0",
+    "plantuml-encoder": "^1.4.0",
+    "uuid": "^9.0.1"
+  },
+  "peerDependencies": {
+    "@tau/editor": "workspace:*",
+    "react": "19.1.x",
+    "react-dom": "19.1.x",
+    "slate": "0.126.2",
+    "slate-react": "0.126.4"
+  },
+  "devDependencies": {
+    "@tau/editor": "workspace:*",
+    "@types/loadable__component": "^5.13.10",
+    "@types/plantuml-encoder": "^1.4.2",
+    "@types/react": "19.1.8",
+    "@types/react-dom": "19.1.6",
+    "@types/uuid": "^9.0.8",
+    "jsdom": "^24.1.3",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "slate": "0.126.2",
+    "slate-react": "0.126.4",
+    "typescript": "^5.0.4",
+    "vitest": "^3.2.4"
+  }
+}

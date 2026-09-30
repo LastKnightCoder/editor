@@ -4,6 +4,7 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "exports": {
+    "./markdown-directives": "./markdown-directives.ts",
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
@@ -45,9 +46,7 @@
     "cropperjs": "^2.0.0",
     "katex": "^0.16.25",
     "lucide-react": "^0.468.0",
-    "mermaid": "^10.1.0",
     "motion": "12.26.2",
-    "plantuml-encoder": "^1.4.0",
     "react-icons": "^4.11.0",
     "react-markdown": "^9.0.3",
     "react-syntax-highlighter": "^15.6.1",
@@ -61,7 +60,6 @@
   },
   "devDependencies": {
     "@types/katex": "^0.16.7",
-    "@types/plantuml-encoder": "^1.4.2",
     "@types/react": "19.1.8",
     "@types/react-dom": "19.1.6",
     "@types/react-syntax-highlighter": "^15.5.13",

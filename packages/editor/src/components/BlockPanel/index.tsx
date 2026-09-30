@@ -143,6 +143,12 @@ const BlockPanel = memo((props: IBlockPanelProps) => {
     if (!blockPanelVisible || !isOwner) return;
 
     const handleClickOutside = (event: MouseEvent) => {
+      // 子菜单挂在 body 的 Portal 中，仍属于当前块面板。
+      if (
+        event.target instanceof Element &&
+        event.target.closest("[data-editor-block-panel-layer]")
+      )
+        return;
       if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
         reset();
       }

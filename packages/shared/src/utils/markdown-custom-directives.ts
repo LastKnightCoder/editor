@@ -1,6 +1,6 @@
 import type { Descendant } from "slate";
 import { v4 as uuid } from "uuid";
-import { RETIRED_TYPES } from "@tau/db-schema/src/retired-editor-blocks";
+import { RETIRED_TYPES } from "@tau/db-schema/src/retired-editor-blocks.ts";
 
 /**
  * 业务元素的 markdown directive 解析器：

@@ -8,11 +8,11 @@ import {
   insertDetails,
   insertHighlightBlock,
   insertImageGallery,
-  insertMermaid,
   insertTable,
   insertTabs,
   insertAnnotation,
 } from "@tau/editor/src/utils/insertElement";
+import { insertMermaid } from "@tau/editor-diagram";
 import { openLocalMediaPicker, openMediaUrlInput } from "@tau/editor/src/utils/mediaInsert";
 import type { Editor as SlateEditor } from "slate";
 import { Range, Transforms, type BaseSelection } from "slate";

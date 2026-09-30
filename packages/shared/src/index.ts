@@ -21,18 +21,9 @@ export { default as Webview } from "./components/Webview";
 export type { EditTextHandle } from "./components/EditText";
 export type { WebviewRef, WebviewProps } from "./components/Webview";
 export { default as Katex } from "./components/Katex";
-export {
-  default as PlantUML,
-  buildPlantumlSvgUrl,
-  PLANTUML_DEFAULT_SERVER,
-} from "./components/PlantUML";
-export { default as TikZ } from "./components/TikZ";
-export { default as Typst } from "./components/Typst";
 export { default as ImageCropper } from "./components/ImageCropper";
 export { default as FullscreenPortal } from "./components/FullscreenPortal";
 export { default as LazySyntaxHighlighter } from "./components/LazySyntaxHighlighter";
-export { default as MermaidRenderer } from "./components/MermaidRenderer";
-export type { MermaidRendererProps } from "./components/MermaidRenderer";
 export {
   default as MarkdownRenderer,
   type MarkdownRendererProps,
@@ -57,7 +48,6 @@ export {
   normalizeCodeBlockLanguageDisplayName,
   type CodeBlockLanguageOption,
 } from "./utils/code-block-language";
-export { renderMermaidSvg } from "./utils/mermaid-render-core";
 export { markdownCustomDirectives } from "./utils/markdown-custom-directives";
 export {
   CONTENT_ELEMENT_TYPES,
@@ -65,7 +55,6 @@ export {
   privateBlockPlaceholderText,
   type ContentElementType,
 } from "./utils/editor-element-coverage";
-export { applyDarkTheme } from "./components/PlantUML";
 
 // ChatInputArea 组件
 export {

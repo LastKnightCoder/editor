@@ -1,9 +1,9 @@
 import { HtmlSerializer } from "../htmlSerializerRegistry";
 import { renderBlockMath } from "./mathjax-renderer";
-import { renderAbc } from "./abc-renderer";
+import { renderAbc } from "@tau/editor-diagram/abc";
 import { compileTailwindForHtml } from "./tailwind-compiler";
 import { renderCodeWithShiki } from "./shiki-renderer";
-import { buildPlantumlSvgUrl } from "@tau/shared";
+import { buildPlantumlSvgUrl } from "@tau/editor-diagram/plantuml";
 import { CALLOUT_ICONS } from "../wechat";
 
 const DEFAULT_CALLOUT_TITLE: Record<string, string> = {

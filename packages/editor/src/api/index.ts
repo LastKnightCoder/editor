@@ -64,3 +64,12 @@ export type { ThemeService, EditorThemeMode } from "../theme/ThemeService";
 
 // 块菜单 / 工具条条目的形状
 export type { IBlockPanelListItem, IConfigItem } from "../types";
+
+// 扩展行为引用目标元素的类型
+export type { CustomElement } from "../types/custom-element";
+export type { ParagraphElement } from "../types/element/paragraph";
+
+// 源码预览块共用的编辑、聚焦与插入机制
+export { default as PreviewWithEditor } from "../components/PreviewWithEditor";
+export { isAtParagraphStart, isParagraphAndEmpty } from "../utils/editor";
+export { setOrInsertNode, focusInsertedPreviewElement } from "../utils/insertElement";

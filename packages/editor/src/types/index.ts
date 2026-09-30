@@ -1,5 +1,4 @@
 // Element types
-export type { AbcElement } from "./element/abc";
 export type { AnnotationElement } from "./element/annotation";
 export type { AudioElement } from "./element/audio";
 export type { BlockquoteElement } from "./element/block-quote";
@@ -11,7 +10,6 @@ export type {
   CodeBlockMagicMoveStep,
 } from "./element/code-block";
 export type { Comment, CommentElement } from "./element/comment";
-export type { CustomBlockElement } from "./element/custom-block";
 export type { DetailElement } from "./element/detail";
 export type { DivideLineElement } from "./element/divide-line";
 export type { EmojiElement } from "./element/emoji";
@@ -33,14 +31,10 @@ export type { KbdElement } from "./element/kbd";
 export type { LinkElement } from "./element/link";
 export type { ListItemElement, BulletedListElement, NumberedListElement } from "./element/list";
 export type { InlineMathElement, BlockMathElement } from "./element/math";
-export type { MermaidElement } from "./element/mermaid";
 export type { ParagraphElement } from "./element/paragraph";
-export type { PlantUMLElement } from "./element/plantuml";
 export type { StyledTextElement } from "./element/styled-text";
 export type { TableCellElement, TableRowElement, TableElement } from "./element/table";
 export type { ITabsContent, TabsElement, TabPaneElement, ITabItem } from "./element/tabs";
-export type { TikzElement } from "./element/tikz";
-export type { TypstElement } from "./element/typst";
 export type { UnderlineElement } from "./element/underline";
 export type { VideoElement, VideoElementMeta } from "./element/video";
 

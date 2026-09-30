@@ -352,6 +352,7 @@ const SubMenuPortal = memo(
     return (
       <PortalToBody>
         <div
+          data-editor-block-panel-layer
           ref={panelRef}
           className={cn(
             menuPanelClass,

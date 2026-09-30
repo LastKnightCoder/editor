@@ -8,7 +8,8 @@ import { TEXT_GRADIENT_PRESETS, type TextGradientPresetId } from "./text-gradien
  * 渲染一律引用 editor.css 里按 [data-mode] 切换的 --ed-palette-* / --ed-gradient-* 变量，
  * 组件无需感知明暗；这里的具体色值供写入字色 mark 与导出使用，两边由 inline-palette 测试守护一致。
  */
-export type InlinePaletteColor = "gray" | "red" | "orange" | "yellow" | "green" | "blue" | "purple";
+export type { HighlightColor as InlinePaletteColor } from "@tau/markdown/model";
+import type { HighlightColor as InlinePaletteColor } from "@tau/markdown/model";
 
 export interface InlinePaletteEntry {
   id: InlinePaletteColor;

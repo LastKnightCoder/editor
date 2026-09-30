@@ -83,6 +83,29 @@ module.exports = {
     ],
   },
   overrides: [
+    {
+      files: [
+        "packages/editor-custom-block/src/**/*.{ts,tsx}",
+        "packages/editor-diagram/src/**/*.{ts,tsx}",
+      ],
+      excludedFiles: ["**/__tests__/**"],
+      rules: {
+        "no-restricted-imports": [
+          "error",
+          {
+            paths: [{ name: "@tau/editor", message: "扩展访问内核只能通过 @tau/editor/api" }],
+            patterns: [
+              {
+                group: ["@tau/editor/*", "!@tau/editor/api"],
+                message: "扩展访问内核只能通过 @tau/editor/api",
+              },
+              { group: ["**/editor/src/**"], message: "禁止相对路径深引内核实现" },
+              { group: ["antd", "antd/*", "@ant-design/*"], message: "新 UI 使用 @tau/ui" },
+            ],
+          },
+        ],
+      },
+    },
     // 存量白名单豁免 antd 禁令（该文件清单由 scripts/antd-ratchet.mjs 守护只减不增）；
     // override 会整体替换根配置的同名规则，主题禁令需在此重复保留。
     // 白名单清零后空数组是非法 files 配置，会让整个 eslint 崩溃（lint-staged 随之吞工作区），条件展开规避
@@ -124,7 +147,7 @@ module.exports = {
     },
     {
       // @tau/markdown 是 headless 包（docs/editor-refactor 01 §8.3）：Electron 主进程在用，
-      // 不许引 UI 与编辑器运行时；元素类型只能按文件深路径 import type
+      // 不许引 UI 或编辑器；框架只消费自己的结构类型与文本契约
       files: ["packages/markdown/src/**/*.ts"],
       rules: {
         "no-restricted-imports": [
@@ -133,11 +156,11 @@ module.exports = {
             paths: [
               {
                 name: "@tau/editor",
-                message: "@tau/markdown 不依赖编辑器运行时，元素类型按文件深路径 import type",
+                message: "@tau/markdown 不依赖编辑器，使用框架结构类型",
               },
               {
                 name: "@tau/editor/src",
-                message: "@tau/markdown 不依赖编辑器运行时，元素类型按文件深路径 import type",
+                message: "@tau/markdown 不依赖编辑器，使用框架结构类型",
               },
             ],
             patterns: [
@@ -165,7 +188,13 @@ module.exports = {
     {
       // 扩展的 markdown.ts 是 headless 代码（宿主把它与 @tau/markdown 一起合成 codec 列表，
       // Electron 主进程共用，01 §8.3）：不许引 React / UI / 编辑器运行时
-      files: ["packages/editor/src/extensions/*/markdown.ts"],
+      files: [
+        "packages/editor/src/extensions/*/markdown.ts",
+        "packages/editor-custom-block/markdown.ts",
+        "packages/editor-custom-block/src/markdown.ts",
+        "packages/editor-diagram/markdown.ts",
+        "packages/editor-diagram/src/**/markdown.ts",
+      ],
       rules: {
         "no-restricted-imports": [
           "error",

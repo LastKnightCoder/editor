@@ -31,11 +31,6 @@
       "@tau/shared/*": ["../../packages/shared/*"]
     }
   },
-  "include": [
-    "src",
-    "src-electron",
-    "../../packages/shared/src/components/Katex",
-    "../../packages/shared/src/components/PlantUML"
-  ],
+  "include": ["src", "src-electron", "../../packages/shared/src/components/Katex"],
   "exclude": ["demos", "node_modules"]
 }

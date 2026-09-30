@@ -1,5 +1,6 @@
 import type { Descendant } from "slate";
 import type { CustomElement, FormattedText } from "./types.ts";
+import { isFormattedText } from "./types.ts";
 import type { MarkdownSerializerRegistry, SerializerOutput } from "./markdownSerializerRegistry.ts";
 import { PositionMapper } from "./positionMapper.ts";
 import { isInlinePosition, serializeUnknownBlock, serializeUnknownInline } from "./unknownNode.ts";
@@ -129,7 +130,7 @@ const elementToMarkdown = (element: CustomElement, parentElement: CustomElement 
   const childrenParts: string[] = [];
 
   children.forEach((node, index) => {
-    if (node.type === "formatted") {
+    if (isFormattedText(node)) {
       childrenParts.push(leafToMarkdown(node));
       return;
     }
@@ -371,7 +372,7 @@ function serializeElementWithTracking(
   const childContext = { ...context };
 
   children.forEach((node, index) => {
-    if (node.type === "formatted") {
+    if (isFormattedText(node)) {
       if (isZeroWidthOnlyText(node.text || "")) {
         const textPath = [...path, index];
         const leafStart = { ...childContext };

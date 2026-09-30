@@ -40,6 +40,8 @@ export interface ElementSpec<E extends Element = Element> {
   type: string;
   kind: "block" | "inline";
   isVoid?: boolean;
+  /** 判定源码等非 children 内容是否为空；未声明时内核不推断扩展私有字段 */
+  isEmpty?: (element: E) => boolean;
   /** 渲染组件，可以是 `lazy()`：加载期间内核显示保留结构的空壳 */
   render: ComponentType<ElementRenderProps<E>>;
   behaviors?: ElementBehaviors<E>;

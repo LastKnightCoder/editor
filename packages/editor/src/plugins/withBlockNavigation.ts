@@ -72,7 +72,7 @@ const tryNavigatePrevious = (editor: Editor, removeIfEmpty: boolean) => {
     return false;
   }
 
-  if (removeIfEmpty && isBlockElementEmpty(blockEntry[0] as BlockElement)) {
+  if (removeIfEmpty && isBlockElementEmpty(blockEntry[0] as BlockElement, editor)) {
     Transforms.removeNodes(editor, {
       at: blockEntry[1],
     });

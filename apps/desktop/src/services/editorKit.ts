@@ -18,6 +18,8 @@ import {
   type EditorKit,
 } from "@tau/editor/src";
 import { inlineMath, link, paragraph } from "@tau/editor/src/extensions";
+import customBlockExtension from "@tau/editor-custom-block";
+import { diagramExtensions } from "@tau/editor-diagram";
 import { createDesktopEditorExtensions, fileAttachmentExtension } from "@/editor-extensions";
 import flashcardBlankExtension from "@/editor-extensions/flashcard-blank";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
@@ -47,7 +49,12 @@ export function createDesktopKit(extras: readonly AnyExtension[] = []): EditorKi
   let kit = byExtras.get(key);
   if (!kit) {
     kit = createEditorKit({
-      extensions: [...createDesktopEditorExtensions(), ...extras],
+      extensions: [
+        ...diagramExtensions,
+        customBlockExtension,
+        ...createDesktopEditorExtensions(),
+        ...extras,
+      ],
       services: [desktopEditorServices],
       // createImageExtensions 按 type 替换内置 image / image-gallery
       override: true,
