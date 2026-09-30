@@ -1,7 +1,4 @@
-import {
-  createImageToolDefinitions,
-  getImageToolsEnabled,
-} from "@/tools/openaiImageTools";
+import { createImageToolDefinitions, getImageToolsEnabled } from "@/tools/openaiImageTools";
 import type { MCPProviderDefinition } from "./types";
 
 export const openAIImageToolsProvider: MCPProviderDefinition = {

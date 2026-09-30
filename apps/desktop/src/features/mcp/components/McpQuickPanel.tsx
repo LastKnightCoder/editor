@@ -50,7 +50,7 @@ function ScopedRow({ scene }: { scene: ScopedToolSource }) {
       <StatusDot status="ready" />
       <span className="min-w-0 flex-1 truncate">{scene.label}</span>
       <span className="text-tau-sm text-ink-3 shrink-0 tabular-nums">
-        {scene.toolNames.length} 个工具
+        {scene.tools.length} 个工具
       </span>
       <Switch size="sm" aria-label={`${scene.label}（常开）`} checked disabled />
     </div>

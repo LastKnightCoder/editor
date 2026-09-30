@@ -1,17 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { filesystemToolsProvider } from "../filesystem-tools";
 
-vi.mock("@/utils/localMediaPath", () => ({
-  resolveLocalMediaPath: vi.fn(async (path: string) => path),
-}));
-
-vi.mock("@/commands/file", () => ({
-  getFileExtension: vi.fn(async () => "png"),
-  getHomeDir: vi.fn(async () => "C:/Users/test"),
-  readBinaryFile: vi.fn(async () => new Uint8Array([1, 2, 3])),
-  readTextFile: vi.fn(async () => "text"),
-}));
-
 vi.mock("@/commands/extra", () => ({
   nodeFetch: vi.fn(),
 }));
@@ -27,6 +16,11 @@ const getReadImageTool = () => {
 describe("filesystem read_image tool", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("provider 只提供 read_image（read_file 已由 pi 内置 read 取代）", () => {
+    const names = filesystemToolsProvider.tools().map(tool => tool.name);
+    expect(names).toEqual(["read_image"]);
   });
 
   it("直接读取 data URL 并返回 modelContent 图片块", async () => {
@@ -46,14 +40,15 @@ describe("filesystem read_image tool", () => {
     });
   });
 
-  it("读取本地图片并编码为 data URL", async () => {
+  it("本地路径返回参数错误并引导使用 read 工具", async () => {
     const tool = getReadImageTool();
     const result = await tool.executor({ path: "C:/tmp/image.png" });
 
-    expect((result as any).modelContent[1]).toEqual({
-      type: "image",
-      image: "data:image/png;base64,AQID",
+    expect((result as any).isParameterError).toBe(true);
+    expect(JSON.parse((result as any).content)).toMatchObject({
+      success: false,
     });
+    expect((result as any).content).toContain("read");
   });
 
   it("空路径返回参数错误", async () => {

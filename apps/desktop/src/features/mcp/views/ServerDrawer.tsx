@@ -82,6 +82,7 @@ function ToolsPane({
       )
     : item.tools;
   const enabledCount = item.tools.length - item.disabledTools.size;
+  const locked = item.locked ?? false;
 
   const banner =
     item.status === "error" ? (
@@ -155,43 +156,47 @@ function ToolsPane({
         />
         <span className="flex-1" />
         <span className="text-tau-sm text-ink-3 tabular-nums">
-          {enabledCount} / {item.tools.length} 已启用
+          {locked
+            ? `${item.tools.length} 个工具 · 常开`
+            : `${enabledCount} / ${item.tools.length} 已启用`}
         </span>
-        <Menu
-          align="end"
-          trigger={
-            <Button size="sm" variant="ghost">
-              批量
-            </Button>
-          }
-        >
-          <Menu.Item
-            onSelect={() =>
-              setToolsEnabled(
-                item,
-                item.tools.map(t => t.name),
-                true
-              )
+        {!locked && (
+          <Menu
+            align="end"
+            trigger={
+              <Button size="sm" variant="ghost">
+                批量
+              </Button>
             }
           >
-            全部启用
-          </Menu.Item>
-          <Menu.Item
-            onSelect={() =>
-              setToolsEnabled(
-                item,
-                item.tools.map(t => t.name),
-                false
-              )
-            }
-          >
-            全部停用
-          </Menu.Item>
-        </Menu>
+            <Menu.Item
+              onSelect={() =>
+                setToolsEnabled(
+                  item,
+                  item.tools.map(t => t.name),
+                  true
+                )
+              }
+            >
+              全部启用
+            </Menu.Item>
+            <Menu.Item
+              onSelect={() =>
+                setToolsEnabled(
+                  item,
+                  item.tools.map(t => t.name),
+                  false
+                )
+              }
+            >
+              全部停用
+            </Menu.Item>
+          </Menu>
+        )}
       </div>
       <ul className="-mx-2 flex flex-col">
         {tools.map(tool => {
-          const enabled = !item.disabledTools.has(tool.name);
+          const enabled = locked || !item.disabledTools.has(tool.name);
           const params = Object.keys(tool.parameters?.properties ?? {});
           const required = new Set(tool.parameters?.required ?? []);
           return (
@@ -220,8 +225,11 @@ function ToolsPane({
               </div>
               <Switch
                 size="sm"
-                aria-label={`${enabled ? "停用" : "启用"} ${tool.name}`}
+                aria-label={
+                  locked ? `${tool.name}（常开）` : `${enabled ? "停用" : "启用"} ${tool.name}`
+                }
                 checked={enabled}
+                disabled={locked}
                 onCheckedChange={v => setToolsEnabled(item, [tool.name], v)}
                 className="mt-0.5"
               />
@@ -431,9 +439,15 @@ export function ServerDrawer({
               </>
             )}
             <Switch
-              aria-label={current.enabled ? "停用服务器" : "启用服务器"}
+              aria-label={
+                current.locked
+                  ? `${current.name}（常开）`
+                  : current.enabled
+                    ? "停用服务器"
+                    : "启用服务器"
+              }
               checked={current.enabled}
-              disabled={current.status === "unavailable"}
+              disabled={current.locked || current.status === "unavailable"}
               onCheckedChange={v => void setServerEnabled(current, v)}
               className="mx-1.5"
             />

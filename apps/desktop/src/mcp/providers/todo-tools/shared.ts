@@ -114,13 +114,7 @@ export const todoQuerySchema: ToolJsonSchema = {
     },
     sort: {
       type: "string",
-      enum: [
-        "manual",
-        "dueAtAsc",
-        "updateTimeDesc",
-        "createTimeDesc",
-        "completedAtDesc",
-      ],
+      enum: ["manual", "dueAtAsc", "updateTimeDesc", "createTimeDesc", "completedAtDesc"],
     },
     page: { type: "number" },
     pageSize: { type: "number" },

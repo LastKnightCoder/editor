@@ -13,6 +13,8 @@ import {
   removeServer,
   setServerEnabled,
   useMcpServers,
+  getScopedServerItems,
+  getPiBuiltinServerItem,
   type McpServerItem,
 } from "../useMcpServers";
 import { AddServerDialog } from "./AddServerDialog";
@@ -26,7 +28,7 @@ const CARD =
   "focus-visible:shadow-[var(--tau-focus-ring)] focus-visible:outline-none";
 
 function subtitle(item: McpServerItem): string {
-  if (item.kind === "builtin") return "内置";
+  if (item.kind !== "custom") return "内置";
   return item.server?.transport.type === "stdio" ? "本地进程 · stdio" : "远程 · HTTP";
 }
 
@@ -54,13 +56,19 @@ function ServerCard({
           <div className="truncate text-[13.5px] font-semibold">{item.name}</div>
           <div className="text-tau-sm text-ink-3">{subtitle(item)}</div>
         </div>
-        {/* 开关不触发打开详情 */}
+        {/* 开关不触发打开详情；常开项（功能工具 / AI 基础工具）只读 */}
         <span onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
           <Switch
             size="sm"
-            aria-label={item.enabled ? `停用 ${item.name}` : `启用 ${item.name}`}
+            aria-label={
+              item.locked
+                ? `${item.name}（常开）`
+                : item.enabled
+                  ? `停用 ${item.name}`
+                  : `启用 ${item.name}`
+            }
             checked={item.enabled}
-            disabled={item.status === "unavailable"}
+            disabled={item.locked || item.status === "unavailable"}
             onCheckedChange={v => void setServerEnabled(item, v)}
           />
         </span>
@@ -106,6 +114,13 @@ const matches = (item: McpServerItem, q: string) =>
 
 export function McpView() {
   const { builtin, custom } = useMcpServers();
+  const scoped = useMemo(() => getScopedServerItems(), []);
+  const piBuiltin = useMemo(() => getPiBuiltinServerItem(), []);
+  /* 内置 = provider 工具 + 功能工具 + AI 基础工具：对用户一律是「内置」，只是部分常开不可关 */
+  const builtinAll = useMemo(
+    () => [...builtin, ...scoped, piBuiltin],
+    [builtin, scoped, piBuiltin]
+  );
   const customServers = useMCPStore(s => s.customServers);
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -114,17 +129,20 @@ export function McpView() {
 
   const q = query.trim().toLowerCase();
   const shownCustom = q ? custom.filter(i => matches(i, q)) : custom;
-  const shownBuiltin = q ? builtin.filter(i => matches(i, q)) : builtin;
+  const shownBuiltin = q ? builtinAll.filter(i => matches(i, q)) : builtinAll;
 
   const openItem = useMemo(
-    () => [...custom, ...builtin].find(i => i.id === openId) ?? null,
-    [custom, builtin, openId]
+    () => [...custom, ...builtinAll].find(i => i.id === openId) ?? null,
+    [custom, builtinAll, openId]
   );
 
   const enabledServers = [...custom, ...builtin].filter(
     i => i.enabled && i.status !== "unavailable"
   );
-  const toolCount = enabledServers.reduce((n, i) => n + i.tools.length - i.disabledTools.size, 0);
+  const toolCount =
+    enabledServers.reduce((n, i) => n + i.tools.length - i.disabledTools.size, 0) +
+    scoped.reduce((n, i) => n + i.tools.length, 0) +
+    piBuiltin.tools.length;
   const nothing = shownCustom.length + shownBuiltin.length === 0;
 
   const exportAll = async () => {
@@ -216,7 +234,7 @@ export function McpView() {
           )}
 
           {shownBuiltin.length > 0 && (
-            <Section title="内置" hint="随应用提供，可停用不可删除">
+            <Section title="内置" hint="随应用提供，部分常开不可关">
               {shownBuiltin.map(item => (
                 <ServerCard
                   key={item.id}
