@@ -55,8 +55,3 @@ export interface OpenerService {
   /** 打开链接：外部 URL，或宿主能解析的本地 / 相对路径。未注册时编辑器用 window.open */
   open: (url: string) => void | Promise<void>;
 }
-
-export interface CompilerService {
-  typst: (code: string) => Promise<string>; // Returns SVG or PDF
-  tailwindRuntime: (html: string) => Promise<string>;
-}

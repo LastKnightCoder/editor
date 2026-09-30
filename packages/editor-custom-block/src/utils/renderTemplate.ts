@@ -1,5 +1,6 @@
 import * as ahooks from "ahooks";
 import type { Root } from "react-dom/client";
+import type { RuntimeStyleCompiler } from "@tau/shared/runtime-style";
 
 const CUSTOM_BLOCK_ROOT_KEY = "__customBlockRoot__";
 const CUSTOM_BLOCK_RUNTIME_KEY = "__customBlockRuntime__";
@@ -124,7 +125,7 @@ export const compileAndExecuteCustomBlock = async (
   isDark: boolean,
   targetElement: HTMLElement,
   hooks?: CustomBlockHookMap,
-  compilerService?: { tailwindRuntime?: (html: string) => Promise<string> },
+  compilerService?: RuntimeStyleCompiler,
   abortSignal?: AbortSignal
 ): Promise<(() => void) | undefined> => {
   const container = getRuntimeContainer(targetElement);
@@ -155,7 +156,9 @@ export const compileAndExecuteCustomBlock = async (
   };
 
   try {
-    const runtimeCss = compilerService ? await compilerService.tailwindRuntime?.(content) : "";
+    const runtimeCss = compilerService
+      ? await compilerService.compile({ source: content, language: "tsx" })
+      : "";
     if (runtimeCss && typeof document !== "undefined") {
       const styleElement = document.createElement("style");
       styleElement.dataset.customBlockTailwind = "runtime";

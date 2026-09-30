@@ -5,15 +5,14 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { Transforms, type Descendant } from "slate";
 import { Editor, createEditorKit, type EditorRef } from "@tau/editor";
-import {
-  ICompilerService,
-  IEditorSlots,
-  focusInsertedPreviewElement,
-  defineExtension,
-} from "@tau/editor/api";
+import { IEditorSlots, focusInsertedPreviewElement, defineExtension } from "@tau/editor/api";
 import { createDefaultEditorSlots } from "@tau/editor/src/services";
 import customBlockExtension, { insertCustomBlock } from "@tau/editor-custom-block";
 import { diagramExtensions } from "@tau/editor-diagram";
+import { ITypstCompiler } from "@tau/editor-diagram/services";
+import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
+import { htmlExtensions, insertHTMLBlock } from "@tau/editor-html";
+import { isBlockElementEmpty, isParagraphAndEmpty } from "@tau/editor";
 import useBlockPanelStore from "@tau/editor/src/stores/useBlockPanelStore";
 
 vi.mock("@tau/editor-diagram/mermaid", () => ({
@@ -59,14 +58,12 @@ describe("外包扩展的真实编辑器接线", () => {
     extras: NonNullable<Parameters<typeof createEditorKit>[0]>["extensions"] = []
   ) => {
     const kit = createEditorKit({
-      extensions: [customBlockExtension, ...diagramExtensions, ...extras],
+      extensions: [customBlockExtension, ...diagramExtensions, ...htmlExtensions, ...extras],
       services: [
         register => {
           register(IEditorSlots, createDefaultEditorSlots());
-          register(ICompilerService, {
-            typst: async code => `<div>Typst:${code}</div>`,
-            tailwindRuntime: compiler,
-          });
+          register(ITypstCompiler, { compile: async code => `<div>Typst:${code}</div>` });
+          register(IRuntimeStyleCompiler, { compile: compiler });
         },
       ],
     });
@@ -97,7 +94,7 @@ describe("外包扩展的真实编辑器接线", () => {
     ]);
     expect(host.textContent).toContain("初始模板");
     expect(host.querySelector("textarea")?.readOnly).toBe(false);
-    expect(compiler).toHaveBeenCalledWith(initial);
+    expect(compiler).toHaveBeenCalledWith({ source: initial, language: "tsx" });
     const next = "const Component = () => <div>编辑后的模板</div>;";
     await act(async () => {
       codeChanges.at(-1)!(next);
@@ -108,7 +105,7 @@ describe("外包扩展的真实编辑器接线", () => {
     });
     expect(editor.children[0]).toMatchObject({ content: next });
     expect(host.textContent).toContain("编辑后的模板");
-    expect(compiler).toHaveBeenCalledWith(next);
+    expect(compiler).toHaveBeenCalledWith({ source: next, language: "tsx" });
   });
 
   it("插入入口替换空段落，保留默认模板和聚焦事件", async () => {
@@ -140,10 +137,7 @@ describe("外包扩展的真实编辑器接线", () => {
     );
     expect(
       kit.extend({
-        services: [
-          register =>
-            register(ICompilerService, { typst: async () => "", tailwindRuntime: async () => "" }),
-        ],
+        services: [register => register(IRuntimeStyleCompiler, { compile: async () => "" })],
       }).assembly
     ).toBe(kit.assembly);
   });
@@ -263,6 +257,60 @@ describe("外包扩展的真实编辑器接线", () => {
     );
     expect(host.textContent).toContain("嵌套模板");
     expect(host.textContent).not.toContain("无法显示");
-    expect(compiler).toHaveBeenCalledWith(expect.stringContaining("嵌套模板"));
+    expect(compiler).toHaveBeenCalledWith({
+      source: expect.stringContaining("嵌套模板"),
+      language: "tsx",
+    });
+  });
+
+  it("HTML 块懒加载渲染、源码回写与 HTML 样式服务保持接线", async () => {
+    const initial = '<div class="p-4">初始 HTML</div>';
+    const { editor } = await mount(
+      [{ type: "html-block", html: initial, children: [{ type: "formatted", text: "" }] }],
+      vi.fn(async () => ".p-4 { padding: 1rem; }")
+    );
+    expect(host.textContent).toContain("初始 HTML");
+    expect(host.querySelector("style")?.textContent).toContain("padding");
+    const next = '<div class="p-4">更新 HTML</div>';
+    await act(async () => {
+      codeChanges.at(-1)!(next);
+      await new Promise(resolve => setTimeout(resolve, 650));
+    });
+    expect(editor.children[0]).toMatchObject({ type: "html-block", html: next });
+    expect(host.textContent).toContain("更新 HTML");
+  });
+
+  it("HTML 插入替换空段落，两种 HTML 空态由扩展声明", async () => {
+    const { editor } = await mount([
+      { type: "paragraph", children: [{ type: "formatted", text: "" }] },
+    ]);
+    await act(async () => {
+      Transforms.select(editor, { path: [0, 0], offset: 0 });
+      expect(insertHTMLBlock(editor)).toEqual([0]);
+    });
+    expect(editor.children).toHaveLength(1);
+    expect(isBlockElementEmpty(editor.children[0] as never, editor)).toBe(true);
+    await act(async () => Transforms.setNodes(editor, { html: "<div>内容</div>" }, { at: [0] }));
+    expect(isBlockElementEmpty(editor.children[0] as never, editor)).toBe(false);
+  });
+
+  it("行内 HTML 渲染与段落空态使用当前 Kit 的扩展规则", async () => {
+    const { editor } = await mount([
+      {
+        type: "paragraph",
+        children: [
+          {
+            type: "html-inline",
+            html: "<b>行内 HTML</b>",
+            children: [{ type: "formatted", text: "" }],
+          },
+        ],
+      },
+    ]);
+    expect(host.querySelector("b")?.textContent).toBe("行内 HTML");
+    await act(async () => {
+      Transforms.select(editor, { path: [0, 0], offset: 0 });
+    });
+    expect(isParagraphAndEmpty(editor)).toBe(false);
   });
 });

@@ -5,6 +5,7 @@ import { createEditorKit, createMarkdownPasteImportExtension, type EditorKit } f
 import webviewExtension from "@tau/editor-webview";
 import customBlockExtension from "@tau/editor-custom-block";
 import { diagramExtensions } from "@tau/editor-diagram";
+import { htmlExtensions } from "@tau/editor-html";
 import type WebSocketClient from "../utils/WebSocketClient";
 import { createExtensionEditorServices, extensionImportFromMarkdown } from "./editorRegistry";
 import {
@@ -24,6 +25,7 @@ export function getExtensionKit(wsClient?: WebSocketClient | null): EditorKit {
       // 笔记会被 desktop 那边的内容覆盖写回，所以这四种块都要能渲染
       extensions: [
         ...diagramExtensions,
+        ...htmlExtensions,
         customBlockExtension,
         createMarkdownPasteImportExtension(extensionImportFromMarkdown),
         webviewExtension,

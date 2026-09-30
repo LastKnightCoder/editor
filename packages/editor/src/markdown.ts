@@ -17,8 +17,6 @@ import { imageCodec } from "./extensions/image/markdown.ts";
 import { inlineImageCodec } from "./extensions/inline-image/markdown.ts";
 import { imageGalleryCodec } from "./extensions/image-gallary/markdown.ts";
 import { blockMathCodec, inlineMathCodec } from "./extensions/math/markdown.ts";
-import { htmlBlockCodec } from "./extensions/html-block/markdown.ts";
-import { htmlInlineCodec } from "./extensions/html-inline/markdown.ts";
 import { bulletedListCodec } from "./extensions/bulleted-list/markdown.ts";
 import { numberedListCodec } from "./extensions/numbered-list/markdown.ts";
 import { listItemCodec } from "./extensions/list-item/markdown.ts";
@@ -48,8 +46,6 @@ export const editorMarkdownCodecs: MarkdownCodec[] = [
   imageGalleryCodec,
   blockMathCodec,
   inlineMathCodec,
-  htmlBlockCodec,
-  htmlInlineCodec,
   bulletedListCodec,
   numberedListCodec,
   listItemCodec,

@@ -4,10 +4,10 @@ import { ReactEditor, RenderElementProps, useSlateStatic } from "slate-react";
 import { Input, Popover } from "@tau/ui";
 import { useMemoizedFn } from "ahooks";
 import { useTailwindRuntimeCss } from "../../../../hooks/useTailwindRuntimeCss";
-import { ICompilerService } from "../../../../services";
+import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
 
-import type { HTMLInlineElement } from "../../../types";
-import InlineChromiumBugfix from "../../../../components/InlineChromiumBugFix";
+import type { HTMLInlineElement } from "../../../../types";
+import { InlineChromiumBugfix } from "@tau/editor/api";
 
 interface InlineHtmlProps {
   attributes: RenderElementProps["attributes"];
@@ -22,7 +22,11 @@ const InlineHtml: React.FC<PropsWithChildren<InlineHtmlProps>> = props => {
   const [popoverOpen, setPopoverOpen] = useState(openEdit);
   const inputRef = useRef<HTMLInputElement>(null);
   const previewHtml = popoverOpen ? inputValue : html;
-  const tailwindCss = useTailwindRuntimeCss(html, "html", editor.tryGetService(ICompilerService));
+  const tailwindCss = useTailwindRuntimeCss(
+    html,
+    "html",
+    editor.tryGetService(IRuntimeStyleCompiler)
+  );
 
   const getElementPath = useMemoizedFn(() => ReactEditor.findPath(editor, element));
 

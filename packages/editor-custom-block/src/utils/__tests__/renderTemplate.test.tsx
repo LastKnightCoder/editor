@@ -39,7 +39,7 @@ const Component = () => {
       false,
       container,
       {},
-      { tailwindRuntime }
+      { compile: tailwindRuntime }
     );
 
     rerenderCustomBlockTheme(container, true);

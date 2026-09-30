@@ -2,7 +2,7 @@ import React, { PropsWithChildren } from "react";
 import { Transforms } from "slate";
 import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
 import TypstRenderer from "../../../../renderers/Typst";
-import { ICompilerService } from "@tau/editor/api";
+import { ITypstCompiler } from "../../../../../services";
 
 import type { TypstElement } from "../../../../types/typst";
 import { PreviewWithEditor } from "@tau/editor/api";
@@ -17,7 +17,7 @@ const Typst: React.FC<PropsWithChildren<TypstProps>> = props => {
   const { content, html, compiledFrom } = element;
 
   const editor = useSlateStatic();
-  const compileTypst = editor.tryGetService(ICompilerService)?.typst;
+  const compileTypst = editor.tryGetService(ITypstCompiler)?.compile;
 
   const renderEmpty = () => {
     return (

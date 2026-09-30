@@ -23,8 +23,6 @@ export type {
 export type { ImageBorderRadiusPreset, ImageShadowPreset } from "./element/image-appearance";
 export type { HeaderElement } from "./element/header";
 export type { Color, HighlightBlockElement } from "./element/highlight-block";
-export type { HTMLBlockElement } from "./element/html-block";
-export type { HTMLInlineElement } from "./element/html-inline";
 export type { ImageElement } from "./element/image";
 export type { InlineImageElement } from "./element/inline-image";
 export type { KbdElement } from "./element/kbd";

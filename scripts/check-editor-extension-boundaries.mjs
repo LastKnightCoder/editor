@@ -9,7 +9,11 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const editorRoot = resolve(root, "packages/editor");
 const require = createRequire(resolve(editorRoot, "package.json"));
 const ts = require("typescript");
-const extensionNames = new Set(["@tau/editor-custom-block", "@tau/editor-diagram"]);
+const extensionNames = new Set([
+  "@tau/editor-custom-block",
+  "@tau/editor-diagram",
+  "@tau/editor-html",
+]);
 const heavy = new Set(["mermaid", "abcjs", "plantuml-encoder", "@babel/standalone", "yjs"]);
 
 const sourceFiles = directory =>
@@ -54,13 +58,13 @@ for (const file of [
       `内核反向引用扩展：${relative(root, file)} → ${specifier}`
     );
 }
-for (const name of ["editor-custom-block", "editor-diagram"]) {
+for (const name of ["editor-custom-block", "editor-diagram", "editor-html"]) {
   for (const file of sourceFiles(resolve(root, "packages", name, "src"))) {
     for (const specifier of importsOf(file)) {
       assert(
         !specifier.startsWith("@tau/editor") ||
           !/^@tau\/editor(?:\/|$)/.test(specifier) ||
-          specifier === "@tau/editor/api",
+          ["@tau/editor/api", "@tau/editor/api/services"].includes(specifier),
         `扩展深引内核：${relative(root, file)} → ${specifier}`
       );
       if (specifier.startsWith("."))
@@ -111,6 +115,27 @@ const hosts = [
   ["blog", "src/services/editorMarkdown.ts", "blogMarkdown"],
   ["browser-extension", "src/services/editorMarkdown.ts", "extensionMarkdown"],
 ];
+
+const serviceScript = `
+  import { registerHooks } from 'node:module';
+  import assert from 'node:assert/strict';
+  registerHooks({resolve(specifier, context, next) {
+    if (/^(react(?:-dom)?(?:\\/|$)|slate-(?:react|dom)|@tau\\/(?:ui(?:\\/|$)|editor$|editor\\/api$|shared$)|mermaid$|abcjs$|@babel\\/)/.test(specifier)) throw Error('纯服务入口连带加载 ' + specifier);
+    return next(specifier, context);
+  }});
+  const { createServiceId } = await import('@tau/editor/api/services');
+  const { IRuntimeStyleCompiler } = await import('@tau/shared/runtime-style');
+  const { ITypstCompiler } = await import('@tau/editor-diagram/services');
+  assert.equal(createServiceId('test').id, 'test');
+  assert.equal(IRuntimeStyleCompiler.id, 'tau.host.runtime-style-compiler');
+  assert.equal(ITypstCompiler.id, 'tau.diagram.typst-compiler');
+  assert.equal(typeof document, 'undefined');
+`;
+execFileSync(process.execPath, ["--input-type=module", "-e", serviceScript], {
+  cwd: resolve(root, "apps/desktop"),
+  stdio: "pipe",
+});
+
 for (const [host, entry, exportName] of hosts) {
   const url = pathToFileURL(resolve(root, "apps", host, entry)).href;
   const script = `
@@ -130,6 +155,11 @@ for (const [host, entry, exportName] of hosts) {
       assert.equal(md.getMarkdownWithPositions(parsed.content).markdown.trim(), source);
     }
     assert.equal(typeof document, 'undefined');
+    for (const source of ['<div>HTML</div>', '<b>行内</b>']) {
+      const parsed = md.importFromMarkdownWithPositions(source);
+      assert.equal(md.getMarkdown(parsed.content).trim(), source);
+      assert.equal(md.getMarkdownWithPositions(parsed.content).markdown.trim(), source);
+    }
   `;
   execFileSync(
     process.execPath,
@@ -155,7 +185,7 @@ if (process.argv.includes("--bundle")) {
   const inputs = Object.keys(result.metafile.inputs);
   for (const input of inputs)
     assert(
-      !/(?:editor-diagram|editor-custom-block|node_modules\/(?:mermaid|abcjs|plantuml-encoder|@babel\/standalone))/.test(
+      !/(?:editor-diagram|editor-custom-block|editor-html|node_modules\/(?:mermaid|abcjs|plantuml-encoder|@babel\/standalone))/.test(
         input
       ),
       `内核实际加载图包含扩展实现：${input}`

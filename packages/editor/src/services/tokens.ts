@@ -1,9 +1,4 @@
-import type {
-  CompilerService,
-  FileService,
-  OpenerService,
-  ResourceService,
-} from "../types/services";
+import type { FileService, OpenerService, ResourceService } from "../types/services";
 import type {
   MediaAction,
   MediaInsertSource,
@@ -15,19 +10,8 @@ import type { ThemeService } from "../theme/ThemeService";
 import type { ExtensionErrorReporter } from "./errorReporter";
 import type { EditorNotifier } from "./notifier";
 
-/**
- * 服务标识符：注册与获取服务时使用的唯一 Token。
- * `__serviceType` 为幻影类型字段，运行时不存在，仅用于让不同服务的
- * ServiceIdentifier 在类型层面互不兼容，避免误传。
- */
-export interface ServiceIdentifier<T> {
-  readonly id: string;
-  readonly __serviceType: T;
-}
-
-export function createServiceId<T>(id: string): ServiceIdentifier<T> {
-  return { id } as ServiceIdentifier<T>;
-}
+import { createServiceId } from "@tau/shared/service-contract";
+export { createServiceId, type ServiceIdentifier } from "@tau/shared/service-contract";
 
 // ==================== 必选服务（未注册时 get/useService 抛错） ====================
 
@@ -35,8 +19,6 @@ export const IResourceService = createServiceId<ResourceService>("resourceServic
 export const IFileService = createServiceId<FileService>("fileService");
 
 // ==================== 可选服务（useOptionalService / tryGetService 获取） ====================
-
-export const ICompilerService = createServiceId<CompilerService>("compilerService");
 
 /** 打开链接：未注册时编辑器用 window.open 新开标签页 */
 export const IOpenerService = createServiceId<OpenerService>("openerService");

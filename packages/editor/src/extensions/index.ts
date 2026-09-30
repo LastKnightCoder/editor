@@ -17,14 +17,12 @@ import linkExtension from "./link";
 import commentExtension from "./comment";
 import divideLineExtension from "./divide-line";
 import { tableExtension, tableRowExtension, tableCellExtension } from "./table";
-import htmlBlockExtension from "./html-block";
 import highlightBlockExtension from "./highlight-block";
 import tabsExtension, { tabPaneExtension } from "./tabs";
 import styledTextExtension from "./styled-text";
 import audioExtension from "./audio";
 import videoExtension from "./video";
 import frontMatterExtension from "./front-matter";
-import htmlInlineExtension from "./html-inline";
 import inlineImageExtension from "./inline-image";
 import kbdExtension from "./kbd";
 import emojiExtension from "./emoji";
@@ -51,7 +49,6 @@ export const callout = calloutExtension;
 export const link = linkExtension;
 export const comment = commentExtension;
 export const divideLine = divideLineExtension;
-export const htmlBlock = htmlBlockExtension;
 export const table = tableExtension;
 export const tableRow = tableRowExtension;
 export const tableCell = tableCellExtension;
@@ -63,7 +60,6 @@ export const tabPane = tabPaneExtension;
 export const styledText = styledTextExtension;
 export const audio = audioExtension;
 export const video = videoExtension;
-export const htmlInline = htmlInlineExtension;
 export const inlineImage = inlineImageExtension;
 export const kbd = kbdExtension;
 export const emoji = emojiExtension;
@@ -96,8 +92,6 @@ export const startExtensions: AnyExtension[] = [
   link,
   comment,
   divideLine,
-  htmlBlock,
-  htmlInline,
   kbd,
   table,
   tableRow,

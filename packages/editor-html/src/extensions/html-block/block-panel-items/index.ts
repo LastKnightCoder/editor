@@ -1,8 +1,7 @@
 import { FileCode, Code } from "lucide-react";
 import { Editor } from "slate";
-import { IBlockPanelListItem } from "../../../types";
-import { insertHTMLBlock } from "../../../utils";
-import { insertInlineHtmlElement } from "../utils/insertElement";
+import type { IBlockPanelListItem } from "@tau/editor/api";
+import { insertHTMLBlock, insertInlineHtml } from "../../../insert";
 
 const htmlChildren: IBlockPanelListItem[] = [
   {
@@ -20,7 +19,7 @@ const htmlChildren: IBlockPanelListItem[] = [
     keywords: ["html-inline", "行内HTML", "hangnei"],
     description: "插入行内HTML片段",
     onClick: (editor: Editor) => {
-      insertInlineHtmlElement(editor);
+      insertInlineHtml(editor);
     },
   },
 ];

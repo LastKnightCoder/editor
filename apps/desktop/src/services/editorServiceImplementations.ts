@@ -3,7 +3,8 @@
  * 经 editorRegistry.ts 组合注册后由编辑器消费，实现间不感知注册机制。
  */
 
-import type { CompilerService, FileService, ResourceService } from "@tau/editor/src/types/services";
+import type { FileService, ResourceService } from "@tau/editor/src/types/services";
+import type { TypstCompiler } from "@tau/editor-diagram/services";
 import type { EditorSlots } from "@tau/editor/src";
 import useSettingStore from "@/stores/useSettingStore";
 import { selectFile, readTextFile, getHomeDir, convertFileSrc } from "@/commands/file";
@@ -18,7 +19,6 @@ import { remoteResourceToLocal } from "@/utils";
 import { getGithubCdnUrl } from "@/hooks/useGithubCdnUrl";
 
 import { uploadResource as uploadResourceCommand } from "@/hooks/useUploadResource";
-import { compileCustomBlockTailwind } from "@/services/tailwindRuntime";
 
 let cachedHomeDir: string | null = null;
 void getHomeDir()
@@ -78,17 +78,9 @@ export const desktopFileService: FileService = {
 
 // ==================== Compiler ====================
 
-export const desktopCompilerService: CompilerService = {
-  typst: async (code: string) => {
+export const desktopTypstCompiler: TypstCompiler = {
+  compile: async (code: string) => {
     return await compileTypst(code);
-  },
-
-  tailwindRuntime: async (content: string) => {
-    const trimmed = content?.trim();
-    if (!trimmed) {
-      return "";
-    }
-    return await compileCustomBlockTailwind(trimmed, "tsx");
   },
 };
 

@@ -1,7 +1,8 @@
 import React, { PropsWithChildren, useEffect, useRef } from "react";
 import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
 import { Transforms } from "slate";
-import { useEditorTheme, ICompilerService, PreviewWithEditor } from "@tau/editor/api";
+import { useEditorTheme, PreviewWithEditor } from "@tau/editor/api";
+import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
 
 import { type CustomBlockElement } from "../../types";
 import { compileAndExecuteCustomBlock, rerenderCustomBlockTheme } from "../../utils/renderTemplate";
@@ -16,7 +17,7 @@ const CustomBlock = (props: { content: string }) => {
   const { isDark } = useEditorTheme();
   const { content } = props;
   const editor = useSlateStatic();
-  const compilerService = editor.tryGetService(ICompilerService);
+  const compilerService = editor.tryGetService(IRuntimeStyleCompiler);
   const latestThemeRef = useRef(isDark);
   latestThemeRef.current = isDark;
 

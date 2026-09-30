@@ -8,19 +8,13 @@ export type {
   ValueDocumentOptions,
 } from "./document/EditorDocument";
 
-export type {
-  ResourceService,
-  FileService,
-  CompilerService,
-  OpenerService,
-} from "./types/services";
+export type { ResourceService, FileService, OpenerService } from "./types/services";
 
 // Service Registry DI
 export {
   createServiceId,
   IResourceService,
   IFileService,
-  ICompilerService,
   IOpenerService,
   IMediaInsertSources,
   IVideoContentProviders,

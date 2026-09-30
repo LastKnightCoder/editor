@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
+import type { RuntimeStyleCompiler, RuntimeStyleRequest } from "@tau/shared/runtime-style";
 
 export function useTailwindRuntimeCss(
   content: string | undefined,
-  extension = "tsx",
-  compilerService?: { tailwindRuntime: (html: string) => Promise<string> },
+  extension: RuntimeStyleRequest["language"] = "tsx",
+  compilerService?: RuntimeStyleCompiler
 ) {
   const [css, setCss] = useState("");
 
@@ -17,8 +18,8 @@ export function useTailwindRuntimeCss(
 
     if (compilerService) {
       compilerService
-        .tailwindRuntime(trimmed)
-        .then((result) => {
+        .compile({ source: trimmed, language: extension })
+        .then(result => {
           if (!cancelled) {
             setCss(result);
           }

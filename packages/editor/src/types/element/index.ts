@@ -13,8 +13,6 @@ export type { ImageGalleryItem, ImageGalleryElement, LastRowMode, ObjectFitMode 
 export type { ImageBorderRadiusPreset, ImageShadowPreset } from "./image-appearance";
 export type { HeaderElement } from "./header";
 export type { Color, HighlightBlockElement } from "./highlight-block";
-export type { HTMLBlockElement } from "./html-block";
-export type { HTMLInlineElement } from "./html-inline";
 export type { ImageElement } from "./image";
 export type { InlineImageElement } from "./inline-image";
 export type { KbdElement } from "./kbd";

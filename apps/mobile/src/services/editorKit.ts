@@ -9,6 +9,7 @@ import { createMarkdownPasteImportExtension, type AnyExtension } from "@tau/edit
 import webviewExtension from "@tau/editor-webview";
 import customBlockExtension from "@tau/editor-custom-block";
 import { diagramExtensions } from "@tau/editor-diagram";
+import { htmlExtensions } from "@tau/editor-html";
 import { flashcardBlankExtension } from "../features/flashcard/blank/FlashcardBlankExtension";
 import { mobileCardPreviewExtensions } from "../features/cards/editorExtensions";
 import {
@@ -29,6 +30,7 @@ function createMobileKit(extras: readonly AnyExtension[] = []): EditorKit {
     kit = createEditorKit({
       extensions: [
         ...diagramExtensions,
+        ...htmlExtensions,
         customBlockExtension,
         createMarkdownPasteImportExtension(mobileImportFromMarkdown),
         webviewExtension,
