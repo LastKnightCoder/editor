@@ -15,12 +15,10 @@ import type { ImageElement } from "./element/image";
 import type { DetailElement } from "./element/detail";
 import type { LinkElement } from "./element/link";
 import type { BlockquoteElement } from "./element/block-quote";
-import type { GraphvizElement } from "./element/graphviz";
 import type { CustomBlockElement } from "./element/custom-block";
 import type { HTMLBlockElement } from "./element/html-block";
 import type { HTMLInlineElement } from "./element/html-inline";
 import type { DivideLineElement } from "./element/divide-line";
-import type { MultiColumnItemElement, MultiColumnContainerElement } from "./element/multi-column";
 import type { HighlightBlockElement } from "./element/highlight-block";
 import type { TabsElement, TabPaneElement } from "./element/tabs";
 import type { UnderlineElement } from "./element/underline";
@@ -34,7 +32,6 @@ import type { EmojiElement } from "./element/emoji";
 import type { AnnotationElement } from "./element/annotation";
 import type { AbcElement } from "./element/abc";
 import type { PlantUMLElement } from "./element/plantuml";
-import type { ChartElement } from "./element/chart";
 
 import type { FormattedText } from "./text";
 
@@ -64,11 +61,8 @@ export interface BuiltinElementMap {
   tikz: TikzElement;
   typst: TypstElement;
   "html-block": HTMLBlockElement;
-  graphviz: GraphvizElement;
   "custom-block": CustomBlockElement;
   "divide-line": DivideLineElement;
-  "multi-column-container": MultiColumnContainerElement;
-  "multi-column-item": MultiColumnItemElement;
   "highlight-block": HighlightBlockElement;
   "image-gallery": ImageGalleryElement;
   tabs: TabsElement;
@@ -86,7 +80,6 @@ export interface BuiltinElementMap {
   annotation: AnnotationElement;
   abc: AbcElement;
   plantuml: PlantUMLElement;
-  chart: ChartElement;
 }
 
 export interface ExternalElementMap {

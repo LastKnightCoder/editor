@@ -5,7 +5,6 @@ export * from "./hotkey";
 export * from "./path";
 export * from "./table";
 export * from "./insertElement";
-export * from "./multi-columns-layout";
 export * from "./blockNavigation";
 export * from "./normalizeEditorContent";
 export * from "../extensions/utils";

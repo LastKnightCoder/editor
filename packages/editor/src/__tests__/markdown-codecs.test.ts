@@ -39,8 +39,6 @@ describe("内置扩展 codec 覆盖", () => {
       "plantuml",
       "tikz",
       "typst",
-      "graphviz",
-      "chart",
       "callout",
       "detail",
       "divide-line",
@@ -129,15 +127,6 @@ describe("导出：块级", () => {
       });
       expect(markdown).toBe("```" + type + "\n" + fence + "\n```");
     }
-  });
-
-  it("graphviz 没有 serializer，走 ER-006 兜底", () => {
-    const markdown = exportOne({
-      type: "graphviz",
-      dot: "digraph {}",
-      children: [{ type: "formatted", text: "" }],
-    });
-    expect(markdown).toContain(':::tau-node{type="graphviz"}');
   });
 
   it("callout 有标题用标题，没标题用默认标题", () => {
@@ -391,15 +380,6 @@ describe("导入导出往返（directive 语法）", () => {
     const markdown = `:::video{src="https://www.bilibili.com/video/BV1xx" metaInfo="${metaInfo}"}\n:::`;
     const content = md.importFromMarkdown(markdown);
     expect(content[0]).toMatchObject({ type: "video", metaInfo: meta });
-    expect(md.getMarkdown(content).trim()).toBe(markdown);
-  });
-
-  it("chart 数据往返保留", () => {
-    const data = btoa(unescape(encodeURIComponent(JSON.stringify([{ x: 1 }]))));
-    const config = btoa(unescape(encodeURIComponent(JSON.stringify({ type: "line" }))));
-    const markdown = `:::chart{data="${data}" config="${config}"}\n:::`;
-    const content = md.importFromMarkdown(markdown);
-    expect(content[0]).toMatchObject({ type: "chart", data: [{ x: 1 }], config: { type: "line" } });
     expect(md.getMarkdown(content).trim()).toBe(markdown);
   });
 

@@ -22,7 +22,6 @@ import htmlBlockExtension from "./html-block";
 import tikzExtension from "./tikz";
 import typstExtension from "./typst";
 import customBlockExtension from "./custom-block";
-import { multiColumnContainerExtension, multiColumnItemExtension } from "./multi-column-layout";
 import highlightBlockExtension from "./highlight-block";
 import tabsExtension, { tabPaneExtension } from "./tabs";
 import styledTextExtension from "./styled-text";
@@ -36,7 +35,6 @@ import emojiExtension from "./emoji";
 import annotationExtension from "./annotation";
 import abcExtension from "./abc";
 import plantUMLExtension from "./plantuml";
-import chartExtension from "./chart";
 import { defaultMenuExtension } from "../menu/defaultMenu";
 import { previewMenuExtension } from "../components/PreviewWithEditor/menu";
 
@@ -70,9 +68,6 @@ export const frontMatter = frontMatterExtension;
 
 export const customBlock = customBlockExtension;
 
-export const multiColumnContainer = multiColumnContainerExtension;
-export const multiColumnItem = multiColumnItemExtension;
-
 export const highlightBlock = highlightBlockExtension;
 export const tabs = tabsExtension;
 export const tabPane = tabPaneExtension;
@@ -86,7 +81,6 @@ export const emoji = emojiExtension;
 export const annotation = annotationExtension;
 export const abc = abcExtension;
 export const plantuml = plantUMLExtension;
-export const chart = chartExtension;
 
 /** 内置扩展：v2 与旧 IExtension 混排，迁移期间逐个换成 defineExtension */
 export const startExtensions: AnyExtension[] = [
@@ -125,8 +119,6 @@ export const startExtensions: AnyExtension[] = [
   tikz,
   typst,
   customBlock,
-  multiColumnContainer,
-  multiColumnItem,
   styledText,
   audio,
   video,
@@ -135,5 +127,4 @@ export const startExtensions: AnyExtension[] = [
   annotation,
   abc,
   plantuml,
-  chart,
 ];

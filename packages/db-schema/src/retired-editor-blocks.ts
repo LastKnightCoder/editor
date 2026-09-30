@@ -1,5 +1,13 @@
 /** 退役块类型权威清单：导入过滤、strip 判定与 fixtures 断言统一引用此处，双端一致由共享 fixtures 守护。 */
-export const RETIRED_TYPES = new Set(["chat-reference", "question", "question-card"]);
+export const RETIRED_TYPES = new Set([
+  "chat-reference",
+  "question",
+  "question-card",
+  "chart",
+  "graphviz",
+  "multi-column-container",
+  "multi-column-item",
+]);
 
 export const emptyEditorParagraph = () => ({
   type: "paragraph",
@@ -49,7 +57,6 @@ export function stripRetiredEditorBlocks<T>(value: T): {
             "check-list-item",
             "bulleted-list",
             "numbered-list",
-            "multi-column-item",
             "detail",
             "callout",
             "highlight-block",

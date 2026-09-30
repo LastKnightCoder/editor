@@ -1,7 +1,6 @@
 import { HtmlSerializer } from "../htmlSerializerRegistry";
 import { renderBlockMath } from "./mathjax-renderer";
 import { renderAbc } from "./abc-renderer";
-import { renderChartToSvg } from "./chart-renderer";
 import { compileTailwindForHtml } from "./tailwind-compiler";
 import { renderCodeWithShiki } from "./shiki-renderer";
 import { buildPlantumlSvgUrl } from "@tau/shared";
@@ -357,24 +356,6 @@ export const blockSerializers: HtmlSerializer[] = [
     },
   },
 
-  // Multi Column Container
-  {
-    type: "multi-column-container",
-    isBlock: true,
-    toHtml: (_element, childrenHtml) => {
-      return `<div class="multi-column">${childrenHtml}</div>`;
-    },
-  },
-
-  // Multi Column Item
-  {
-    type: "multi-column-item",
-    isBlock: true,
-    toHtml: (_element, childrenHtml) => {
-      return `<div class="column-item">${childrenHtml}</div>`;
-    },
-  },
-
   // Tabs
   {
     type: "tabs",
@@ -453,31 +434,6 @@ export const blockSerializers: HtmlSerializer[] = [
 
       // Fallback to code block
       return `<pre class="typst-fallback"><code>${escapeHtml(content)}</code></pre>`;
-    },
-  },
-
-  // Chart (render to SVG using ECharts)
-  {
-    type: "chart",
-    isBlock: true,
-    toHtml: element => {
-      const data = element.data || [];
-      const config = element.config;
-      const height = element.height || 400;
-
-      if (!data || data.length === 0 || !config) {
-        return `<div class="chart-placeholder">[图表: 无数据]</div>`;
-      }
-
-      // Render chart to SVG
-      const svgStr = renderChartToSvg(data, config, 600, height);
-
-      if (svgStr) {
-        return `<div class="diagram-svg chart-svg">${svgStr}</div>`;
-      }
-
-      // Fallback if rendering fails
-      return `<div class="chart-placeholder">[图表: ${config.type}]</div>`;
     },
   },
 ];

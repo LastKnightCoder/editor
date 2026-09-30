@@ -10,7 +10,6 @@ import {
   TableElement,
   TableRowElement,
   LinkElement,
-  MultiColumnItemElement,
   Color,
   TabPaneElement,
   AudioElement,
@@ -500,34 +499,6 @@ export const insertTypst = (editor: Editor) => {
   focusInsertedPreviewElement(editor, path);
   return path;
 };
-export const insertGraphviz = (editor: Editor) => {
-  const path = setOrInsertNode(editor, {
-    type: "graphviz",
-    dot: "",
-    children: [{ type: "formatted", text: "" }],
-  });
-  focusInsertedPreviewElement(editor, path);
-  return path;
-};
-
-export const insertChart = (editor: Editor) => {
-  return setOrInsertNode(editor, {
-    type: "chart",
-    data: [
-      { name: "A", value: 100 },
-      { name: "B", value: 200 },
-      { name: "C", value: 150 },
-    ],
-    config: {
-      type: "bar",
-      xAxisKey: "name",
-      series: [{ dataKey: "value", name: "Value", color: "#6366f1" }],
-      showLegend: true,
-      showGrid: true,
-    },
-    children: [{ type: "formatted", text: "" }],
-  });
-};
 
 export const insertHTMLBlock = (editor: Editor) => {
   const path = setOrInsertNode(editor, {
@@ -574,51 +545,6 @@ export const insertAnnotation = (editor: Editor, content: string) => {
   };
 
   Transforms.insertNodes(editor, annotation);
-};
-
-export const insertMultiColumnsContainer = (editor: Editor, columns = 2) => {
-  if (columns < 1) {
-    return;
-  }
-
-  const children: MultiColumnItemElement[] = Array.from({
-    length: columns,
-  }).map(() => {
-    return {
-      type: "multi-column-item",
-      children: [
-        {
-          type: "paragraph",
-          children: [
-            {
-              type: "formatted",
-              text: "",
-            },
-          ],
-        },
-      ],
-    };
-  });
-
-  const res = setOrInsertNode(
-    editor,
-    {
-      type: "multi-column-container",
-      children,
-    },
-    {
-      select: true,
-    }
-  );
-
-  if (res) {
-    Transforms.select(editor, {
-      anchor: Editor.start(editor, [...res, 0]),
-      focus: Editor.start(editor, [...res, 0]),
-    });
-  }
-
-  return res;
 };
 
 export const insertHighlightBlock = (editor: Editor, color = "red" as Color) => {
