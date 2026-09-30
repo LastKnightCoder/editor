@@ -72,6 +72,8 @@ export interface SelectedMedia {
  */
 export interface VideoContentProvider {
   id: string;
+  /** 来源名（如「Bilibili」），与节点标题一起显示在播放器底栏信息位 */
+  label?: string;
   /** 判定元素是否属于本 Provider（通常依据 metaInfo.type 与 src 形态） */
   match: (element: Pick<VideoElement, "src" | "metaInfo">) => boolean;
   /**

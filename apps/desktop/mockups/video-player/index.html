@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>视频播放器 · UI 与交互升级 mockup</title>
+<style>
+  /* 取值同 packages/themes/src/tokens.css（mint / paper × light / dark） */
+  [data-theme="mint"][data-mode="light"] {
+    --page:#eef4ee; --surface:#fbfefb; --sunken:#d9e6da; --track:#d4dfd5;
+    --hover:rgba(46,61,49,.05); --press:rgba(46,61,49,.09);
+    --ink-1:#2e3d31; --ink-2:#526350; --ink-3:#a5b3a3; --ink-inv:#f6fbf7;
+    --line-1:#dfe9df;
+    --accent:hsl(153 40% 33%); --accent-hover:hsl(153 40% 26%); --accent-soft:hsla(153,40%,33%,.12); --accent-text:#2f6b50;
+    --ring:0 0 0 3px rgba(74,157,120,.28);
+    --danger:#b0584f; --danger-soft:#f5e3e0;
+    --shadow-float:0 16px 40px -12px rgba(60,90,70,.4); --shadow-card:0 1px 2px rgba(60,90,70,.06),0 10px 24px -14px rgba(60,90,70,.2);
+    --tip-bg:#2e3d31; --tip-ink:#f6fbf7;
+  }
+  [data-theme="mint"][data-mode="dark"] {
+    --page:#151b18; --surface:#1e2521; --sunken:#0a0f0c; --track:#34403a;
+    --hover:rgba(224,234,227,.06); --press:rgba(224,234,227,.11);
+    --ink-1:#e0eae3; --ink-2:#98a69c; --ink-3:#728078; --ink-inv:#0f1612;
+    --line-1:#29322d;
+    --accent:hsl(155 36% 58%); --accent-hover:hsl(155 36% 65%); --accent-soft:hsla(155,36%,58%,.16); --accent-text:hsl(155 42% 64%);
+    --ring:0 0 0 3px hsla(155,36%,58%,.4);
+    --danger:#df8a80; --danger-soft:#35211e;
+    --shadow-float:0 16px 40px -12px rgba(0,0,0,.65); --shadow-card:0 1px 2px rgba(0,0,0,.24),0 10px 24px -14px rgba(0,0,0,.5);
+    --tip-bg:#e0eae3; --tip-ink:#0f1612;
+  }
+  [data-theme="paper"][data-mode="light"] {
+    --page:#f3eee2; --surface:#fffdf9; --sunken:#e7dbc8; --track:#e0d6c3;
+    --hover:rgba(67,57,44,.05); --press:rgba(67,57,44,.09);
+    --ink-1:#43392c; --ink-2:#6a5c49; --ink-3:#a89a85; --ink-inv:#fff8ef;
+    --line-1:#e9e1d2;
+    --accent:hsl(22 58% 42%); --accent-hover:hsl(22 58% 35%); --accent-soft:hsla(22,58%,42%,.12); --accent-text:#a05236;
+    --ring:0 0 0 3px rgba(217,119,87,.28);
+    --danger:#b0564d; --danger-soft:#f6e3e0;
+    --shadow-float:0 16px 40px -12px rgba(120,100,70,.4); --shadow-card:0 1px 2px rgba(120,100,70,.05),0 10px 24px -14px rgba(120,100,70,.18);
+    --tip-bg:#43392c; --tip-ink:#fff8ef;
+  }
+  [data-theme="paper"][data-mode="dark"] {
+    --page:#221d16; --surface:#2e2820; --sunken:#100d08; --track:#463d31;
+    --hover:rgba(236,226,208,.06); --press:rgba(236,226,208,.11);
+    --ink-1:#ece2d0; --ink-2:#a89a85; --ink-3:#857768; --ink-inv:#241a10;
+    --line-1:#3a3227;
+    --accent:hsl(22 62% 65%); --accent-hover:hsl(22 62% 72%); --accent-soft:hsla(22,62%,65%,.16); --accent-text:hsl(22 66% 70%);
+    --ring:0 0 0 3px hsla(22,62%,65%,.4);
+    --danger:#d97e66; --danger-soft:#34201a;
+    --shadow-float:0 16px 40px -12px rgba(0,0,0,.65); --shadow-card:0 1px 2px rgba(0,0,0,.24),0 10px 24px -14px rgba(0,0,0,.5);
+    --tip-bg:#ece2d0; --tip-ink:#241a10;
+  }
+
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html { background:var(--page); color:var(--ink-1); }
+  body {
+    font:14px/1.7 -apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased; padding:36px 5vw 160px; transition:background .2s;
+  }
+  .mono { font-family:ui-monospace,"Cascadia Mono",Consolas,Menlo,monospace; }
+  button { font:inherit; color:inherit; background:none; border:0; cursor:pointer; }
+  svg { display:block; flex:none; }
+
+  /* ── 页头 ── */
+  .top { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+  .top h1 { font-size:21px; font-weight:600; }
+  .top p { color:var(--ink-2); font-size:13.5px; margin-top:4px; max-width:84ch; }
+  .switch { display:flex; gap:4px; padding:3px; border-radius:10px; border:1px solid var(--line-1); background:var(--surface); }
+  .switch button { padding:3px 12px; border-radius:7px; font-size:12.5px; color:var(--ink-2); }
+  .switch button.on { background:var(--accent-soft); color:var(--accent-text); font-weight:500; }
+  .switches { display:flex; gap:10px; }
+
+  section { margin-top:64px; }
+  section > h2 { font-size:16px; font-weight:600; display:flex; align-items:baseline; gap:10px; }
+  section > h2 .no { font:600 12.5px ui-monospace,monospace; color:var(--accent-text); }
+  .desc { color:var(--ink-2); font-size:13.5px; max-width:90ch; margin:6px 0 22px; }
+  .desc b { color:var(--ink-1); font-weight:600; }
+  .notes { color:var(--ink-2); font-size:13px; padding-left:18px; max-width:90ch; margin-top:22px; }
+  .notes li { margin:3px 0; } .notes b { color:var(--ink-1); font-weight:600; }
+
+  /* 文档语境：一张纸里的正文列 */
+  .paper { background:var(--surface); border-radius:16px; box-shadow:var(--shadow-card); padding:40px 0 44px; }
+  .doc { max-width:720px; margin:0 auto; padding:0 32px; font-size:15px; line-height:1.9; }
+  .doc h3 { font-size:20px; font-weight:600; margin-bottom:10px; }
+  .doc p { color:var(--ink-1); }
+  .doc .player { margin:22px 0; }
+  .hint { font-size:12.5px; color:var(--ink-3); margin-top:14px; }
+  .hint kbd, .keys kbd {
+    font:500 11.5px ui-monospace,monospace; padding:1px 6px; border-radius:5px;
+    background:var(--surface); border:1px solid var(--line-1); color:var(--ink-2);
+  }
+
+  /* 标本网格：标签在上、示例在下 */
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(440px,1fr)); gap:36px 32px; margin-top:32px; align-items:start; }
+  .spec > .lbl { font-size:13px; font-weight:600; margin-bottom:2px; }
+  .spec > .sub { font-size:12.5px; color:var(--ink-2); margin-bottom:12px; min-height:1.7em; }
+  .spec.narrow .player { width:300px; }
+
+  /* ════ 画面 ════ */
+  .player { position:relative; container-type:inline-size; outline:none; }
+  .player:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+  .pic { position:relative; aspect-ratio:16/9; background:#0d0e0d; overflow:hidden; user-select:none; }
+  .player:not(.playing) .pic { cursor:pointer; }
+  .scene { position:absolute; inset:0; background:
+    radial-gradient(circle at 72% 34%, #ffe9c2 0 4.6%, transparent 5%),
+    radial-gradient(circle at 72% 34%, rgba(255,226,170,.45) 0 11%, transparent 18%),
+    radial-gradient(120% 60% at 18% 106%, #3a473d 0 40%, transparent 40.5%),
+    radial-gradient(90% 55% at 86% 112%, #29332d 0 45%, transparent 45.5%),
+    radial-gradient(140% 70% at 52% 122%, #55665a 0 42%, transparent 42.5%),
+    linear-gradient(180deg, #f1c7a1 0%, #e6a384 34%, #9c7189 66%, #4a4a66 100%); }
+
+  /* 控件色板：纸面（surface）与深色浮层（tip）两套，组件只消费 --c-* */
+  .on-surface {
+    --c-fg:var(--ink-2); --c-fg-strong:var(--ink-1); --c-hover:var(--hover);
+    --c-track:var(--track); --c-buf:color-mix(in srgb,var(--accent) 22%,var(--track));
+    --c-fill:var(--accent); --c-knob:var(--accent); --c-pop:var(--surface);
+  }
+  .on-tip {
+    --c-fg:color-mix(in srgb,var(--tip-ink) 78%,transparent); --c-fg-strong:var(--tip-ink);
+    --c-hover:color-mix(in srgb,var(--tip-ink) 14%,transparent);
+    --c-track:color-mix(in srgb,var(--tip-ink) 22%,transparent); --c-buf:color-mix(in srgb,var(--tip-ink) 36%,transparent);
+    --c-fill:var(--tip-ink); --c-knob:var(--tip-ink); --c-pop:var(--tip-bg);
+  }
+  .ib { width:30px; height:30px; display:grid; place-items:center; border-radius:8px; color:var(--c-fg); flex:none; transition:background .15s,color .15s; }
+  .ib:hover { background:var(--c-hover); color:var(--c-fg-strong); }
+  .chip { height:26px; padding:0 8px; border-radius:7px; font-size:12px; color:var(--c-fg); flex:none; transition:background .15s,color .15s; }
+  .chip:hover, .rate-open .chip { background:var(--c-hover); color:var(--c-fg-strong); }
+  .tc { font-size:12px; color:var(--c-fg); font-variant-numeric:tabular-nums; white-space:nowrap; flex:none; }
+  .tc b { font-weight:500; color:var(--c-fg-strong); }
+
+  .i-pause, .playing .i-play { display:none; }
+  .playing .i-pause { display:block; }
+  .i-mute, .muted .i-vol { display:none; }
+  .muted .i-mute { display:block; }
+
+  /* 进度条：悬停只做 scaleY，不改占位高度 */
+  .seek { position:relative; height:14px; display:flex; align-items:center; cursor:pointer; touch-action:none; }
+  .seek .track { position:relative; width:100%; height:4px; border-radius:99px; background:var(--c-track); overflow:hidden; transition:transform .15s; }
+  .seek:hover .track, .seek.drag .track { transform:scaleY(1.5); }
+  .seek .buf { position:absolute; inset:0 auto 0 0; width:62%; background:var(--c-buf); }
+  .seek .fill { position:absolute; inset:0 auto 0 0; width:28%; background:var(--c-fill); border-radius:99px; }
+  .seek .knob { position:absolute; top:50%; left:28%; width:12px; height:12px; margin:-6px 0 0 -6px; border-radius:50%; background:var(--c-knob); box-shadow:0 1px 3px rgba(0,0,0,.3); transform:scale(0); transition:transform .15s; }
+  .seek:hover .knob, .seek.drag .knob, .tipdemo .knob { transform:scale(1); }
+  .stip { position:absolute; bottom:calc(100% + 10px); left:40%; transform:translateX(-50%); display:none; flex-direction:column; align-items:center; gap:3px; padding:4px; border-radius:10px; background:var(--tip-bg); color:var(--tip-ink); box-shadow:var(--shadow-float); pointer-events:none; z-index:8; }
+  .seek:hover .stip, .seek.drag .stip, .tipdemo .stip { display:flex; }
+  .stip .thumb { position:relative; width:136px; aspect-ratio:16/9; border-radius:6px; overflow:hidden; }
+  .stip span { font-size:11.5px; line-height:1.4; padding:0 4px 1px; }
+
+  /* 音量：纵向弹层，不挤横向宽度 */
+  .vol { position:relative; flex:none; }
+  .vol-pop { position:absolute; bottom:100%; left:50%; transform:translateX(-50%); padding-bottom:8px; opacity:0; pointer-events:none; transition:opacity .15s; z-index:8; }
+  .vol:hover .vol-pop, .vol.open .vol-pop { opacity:1; pointer-events:auto; }
+  .vbox { width:36px; height:118px; border-radius:10px; background:var(--c-pop); box-shadow:var(--shadow-float); display:flex; flex-direction:column; align-items:center; gap:8px; padding:12px 0 8px; }
+  .vtrack { position:relative; flex:1; width:4px; border-radius:99px; background:var(--c-track); cursor:pointer; touch-action:none; }
+  .vtrack::before { content:""; position:absolute; inset:0 -12px; }
+  .vfill { position:absolute; left:0; right:0; bottom:0; height:70%; border-radius:99px; background:var(--c-fill); }
+  .vknob { position:absolute; left:50%; bottom:70%; width:12px; height:12px; margin:0 0 -6px -6px; border-radius:50%; background:var(--c-knob); box-shadow:0 1px 3px rgba(0,0,0,.3); }
+  .vbox .mono { font-size:10.5px; color:var(--c-fg); }
+
+  /* 倍速菜单 */
+  .rate { position:relative; flex:none; }
+  .rate-menu { position:absolute; bottom:calc(100% + 8px); right:-6px; display:none; padding:4px; border-radius:10px; background:var(--c-pop); box-shadow:var(--shadow-float); z-index:8; min-width:88px; }
+  .rate-open .rate-menu, .ratedemo .rate-menu { display:block; }
+  .rate-menu button { display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; padding:3px 8px; border-radius:6px; font-size:12px; color:var(--c-fg); }
+  .rate-menu button:hover { background:var(--c-hover); color:var(--c-fg-strong); }
+  .rate-menu button.on { color:var(--c-fg-strong); font-weight:600; }
+  .rate-menu button svg { visibility:hidden; } .rate-menu button.on svg { visibility:visible; }
+
+  /* 画面内通用件：暂停大按钮 / 长按加速徽标 / 键盘反馈 */
+  .bigplay { position:absolute; left:50%; top:50%; width:56px; height:56px; margin:-28px 0 0 -28px; border-radius:50%; display:grid; place-items:center; box-shadow:var(--shadow-float); transition:opacity .18s, background .15s; }
+  .bigplay svg { transform:translateX(2px); }
+  .playing .bigplay { opacity:0; pointer-events:none; }
+  .badge, .osd { position:absolute; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:6px; padding:4px 12px; border-radius:99px; background:var(--tip-bg); color:var(--tip-ink); font-size:12.5px; font-weight:600; box-shadow:var(--shadow-float); pointer-events:none; opacity:0; transition:opacity .15s; }
+  .badge { top:14px; }
+  .osd { top:50%; margin-top:-16px; padding:6px 14px; }
+  .boost .badge, .osd.show { opacity:1; }
+  .resume { position:absolute; left:12px; top:12px; display:flex; align-items:center; gap:8px; padding:4px 6px 4px 10px; border-radius:10px; background:var(--tip-bg); color:var(--tip-ink); font-size:12px; box-shadow:var(--shadow-float); }
+  .resume button { padding:1px 8px; border-radius:6px; font-size:12px; color:var(--tip-ink); background:color-mix(in srgb,var(--tip-ink) 14%,transparent); }
+
+  /* ════ A 纸框底栏 ════ */
+  .va { background:var(--surface); border-radius:14px; box-shadow:var(--shadow-card); overflow:hidden; }
+  .va .bigplay { background:var(--surface); color:var(--accent-text); }
+  .va-bar { position:relative; display:flex; align-items:center; gap:2px; height:48px; padding:5px 8px 0; }
+  .va-seek { position:absolute; left:0; right:0; top:-5px; }
+  .va-seek .track { border-radius:0; }
+  .va-play { width:30px; height:30px; margin-right:8px; border-radius:50%; display:grid; place-items:center; background:var(--accent); color:var(--ink-inv); flex:none; transition:background .15s; }
+  .va-play:hover { background:var(--accent-hover); }
+  .va-play .i-play { transform:translateX(1px); }
+  .va .src { flex:1; min-width:0; display:flex; align-items:center; gap:6px; margin-left:14px; color:var(--ink-3); font-size:12px; white-space:nowrap; }
+  .va .src span { overflow:hidden; text-overflow:ellipsis; }
+  .va .src.resumed { color:var(--accent-text); }
+  .va .src.resumed button { color:var(--ink-2); text-decoration:underline; text-underline-offset:3px; margin-left:4px; }
+  @container (max-width:400px) { .va .src span, .va .pip { display:none; } }
+
+  /* ════ B 浮岛胶囊 ════ */
+  .vb { border-radius:14px; overflow:hidden; box-shadow:var(--shadow-card); }
+  .vb .bigplay, .vc .bigplay { background:var(--tip-bg); color:var(--tip-ink); }
+  .vb-cap { position:absolute; left:12px; right:12px; bottom:12px; height:42px; display:flex; align-items:center; gap:2px; padding:0 6px; border-radius:12px; background:var(--tip-bg); box-shadow:0 10px 28px -10px rgba(0,0,0,.5); transition:opacity .2s; }
+  .vb-cap .tc { margin:0 2px 0 4px; }
+  .vb-cap .seek { flex:1; margin:0 10px; }
+  .vb-line { position:absolute; left:0; right:0; bottom:0; height:3px; background:rgba(255,255,255,.22); opacity:0; transition:opacity .2s; }
+  .vb-line .fill { position:absolute; inset:0 auto 0 0; width:28%; background:#fff; }
+  .vb.playing .vb-cap { opacity:0; pointer-events:none; }
+  .vb.playing .vb-line { opacity:1; }
+  .vb.playing:hover:not(.idle) .vb-cap, .vb.show .vb-cap, .vb.rate-open .vb-cap { opacity:1; pointer-events:auto; }
+  .vb.playing:hover:not(.idle) .vb-line, .vb.show .vb-line, .vb.rate-open .vb-line { opacity:0; }
+  @container (max-width:400px) { .vb .dur, .vb .pip { display:none; } .vb-cap { left:8px; right:8px; bottom:8px; } }
+
+  /* ════ C 边缘极简 ════ */
+  .vc { border-radius:14px; overflow:hidden; box-shadow:var(--shadow-card); background:var(--surface); }
+  .vc-chip { position:absolute; bottom:12px; height:34px; display:flex; align-items:center; gap:2px; padding:0 3px; border-radius:10px; background:var(--tip-bg); box-shadow:0 10px 28px -10px rgba(0,0,0,.5); transition:opacity .2s; }
+  .vc-l { left:12px; padding-right:12px; } .vc-l .tc { margin-left:4px; }
+  .vc-r { right:12px; }
+  .vc.playing .vc-chip { opacity:0; pointer-events:none; }
+  .vc.playing:hover:not(.idle) .vc-chip, .vc.show .vc-chip, .vc.rate-open .vc-chip { opacity:1; pointer-events:auto; }
+  .vc-edge { height:6px; }
+  .vc-edge::before { content:""; position:absolute; left:0; right:0; bottom:0; height:20px; }
+  .vc-edge .track { height:6px; border-radius:0; }
+  .vc-edge:hover .track, .vc-edge.drag .track { transform:none; }
+  .vc-edge .knob { margin-top:-6px; }
+  @container (max-width:400px) { .vc .pip, .vc .rate { display:none; } .vc-chip { bottom:8px; } .vc-l { left:8px; } .vc-r { right:8px; } }
+
+  /* ════ 现状复刻 ════ */
+  .cur { position:relative; background:#000; }
+  .cur .bp { position:absolute; left:50%; top:50%; width:64px; height:64px; margin:-32px 0 0 -32px; border-radius:50%; background:rgba(255,255,255,.9); color:#111827; display:grid; place-items:center; box-shadow:0 10px 15px -3px rgba(0,0,0,.2); }
+  .cur .bp svg { transform:translateX(2px); }
+  .cur .ctrl { position:absolute; left:0; right:0; bottom:0; padding:40px 12px 10px; background:linear-gradient(to top,rgba(0,0,0,.8),rgba(0,0,0,.4) 50%,transparent); color:#fff; }
+  .cur .bar { height:4px; border-radius:99px; background:rgba(255,255,255,.25); margin-bottom:6px; position:relative; }
+  .cur .bar i { position:absolute; inset:0 auto 0 0; width:28%; border-radius:99px; background:#fff; }
+  .cur .row { display:flex; align-items:center; gap:6px; font:11px ui-monospace,monospace; }
+  .cur .row .sp { flex:1; }
+  .cur-sel { position:relative; }
+  .cur-sel::after { content:""; position:absolute; inset:-2px; border:1.5px solid var(--accent); pointer-events:none; }
+  .cur-sel .h { position:absolute; width:12px; height:12px; border-radius:50%; border:2px solid var(--accent); background:#fff; z-index:2; }
+  .issues { color:var(--ink-2); font-size:13px; padding-left:18px; margin-top:0; }
+  .issues li { margin:4px 0; } .issues b { color:var(--ink-1); font-weight:600; }
+  .cur-wrap { display:grid; grid-template-columns:minmax(360px,520px) 1fr; gap:36px; align-items:start; }
+
+  /* ════ 加载 / 失败 ════ */
+  .frame { position:relative; aspect-ratio:16/9; border-radius:14px; background:var(--surface); box-shadow:var(--shadow-card); display:grid; place-items:center; padding:24px; }
+  .lf { width:min(330px,100%); display:flex; flex-direction:column; gap:16px; }
+  .lf-head { display:flex; gap:12px; align-items:flex-start; }
+  .lf-ico { width:32px; height:32px; border-radius:50%; background:var(--accent-soft); color:var(--accent-text); display:grid; place-items:center; flex:none; }
+  .lf-ico.danger { background:var(--danger-soft); color:var(--danger); }
+  .lf-t { font-size:14px; font-weight:500; line-height:1.5; }
+  .lf-s { font-size:12.5px; color:var(--ink-3); line-height:1.5; }
+  .spin { width:16px; height:16px; border-radius:50%; border:2px solid var(--accent-soft); border-top-color:var(--accent); animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .tr-row { display:flex; justify-content:space-between; font-size:12.5px; color:var(--ink-2); }
+  .tr-row .mono { color:var(--ink-3); font-size:11.5px; }
+  .tr { height:4px; border-radius:99px; background:var(--track); overflow:hidden; margin-top:6px; }
+  .tr i { display:block; height:100%; border-radius:99px; background:var(--accent); }
+  .lf ul { font-size:12.5px; color:var(--ink-2); padding-left:18px; }
+  .lf-btns { display:flex; gap:8px; margin-top:2px; }
+  .btn { height:28px; padding:0 12px; border-radius:8px; font-size:12.5px; }
+  .btn.pri { background:var(--accent); color:var(--ink-inv); }
+  .btn.ghost { color:var(--ink-2); } .btn.ghost:hover { background:var(--hover); }
+
+  /* ════ 编辑态 ════ */
+  .selwrap { position:relative; padding-top:58px; }
+  .selected { outline:2px solid var(--accent); outline-offset:3px; }
+  .hd { position:absolute; width:12px; height:12px; border-radius:50%; background:var(--surface); border:2px solid var(--accent); z-index:4; }
+  .hd.nw { left:-10px; top:-10px; } .hd.ne { right:-10px; top:-10px; }
+  .hd.sw { left:-10px; bottom:-10px; } .hd.se { right:-10px; bottom:-10px; }
+  .seltb { position:absolute; top:0; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:2px; padding:4px; border-radius:10px; background:var(--surface); box-shadow:var(--shadow-float); white-space:nowrap; z-index:5; }
+  .seltb .gap { width:10px; }
+  .seltb .ib.on, .seltb .chip.on { background:var(--accent-soft); color:var(--accent-text); }
+  .rs-info { position:absolute; left:10px; bottom:58px; padding:2px 8px; border-radius:6px; background:var(--tip-bg); color:var(--tip-ink); font-size:11.5px; z-index:4; }
+
+  /* 快捷键表 */
+  .keys { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:10px 28px; background:var(--surface); border-radius:14px; box-shadow:var(--shadow-card); padding:20px 24px; font-size:13px; }
+  .keys div { display:flex; justify-content:space-between; gap:12px; color:var(--ink-2); }
+  .keys div span:last-child { display:flex; gap:4px; }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div>
+    <h1>视频播放器 · UI 与交互升级</h1>
+    <p>编辑器视频块、视频笔记、Vibe Learning 预览、白板视频共用 <span class="mono">@tau/shared</span> 的 VideoPlayer，这里的方案会一次作用到所有场景。三套方向的控件组成相同，差别在控件放在哪里、画面被遮住多少。每套方案的第一个播放器都能点、能拖、能用键盘操作，页面里的标本也能直接交互。</p>
+  </div>
+  <div class="switches">
+    <div class="switch" data-k="theme"><button data-v="paper" class="on">paper</button><button data-v="mint">mint</button></div>
+    <div class="switch" data-k="mode"><button data-v="light" class="on">浅色</button><button data-v="dark">深色</button></div>
+  </div>
+</div>
+
+<!-- ─── 现状 ─── -->
+<section>
+  <h2><span class="no">00</span>现状</h2>
+  <p class="desc">按当前代码复刻（VideoPlayer + 编辑器视频块的选中态）。</p>
+  <div class="cur-wrap">
+    <div class="cur-sel" id="cur"></div>
+    <ul class="issues">
+      <li><b>画面和纸面没有融合</b>：直角黑框、直角选中描边，和纸面的圆角 + 投影语言对不上。</li>
+      <li><b>皮肤不跟主题</b>：控件写死 <span class="mono">bg-black / text-white / bg-white/90</span>，换主题、换深浅色都不变。</li>
+      <li><b>悬停会撑开布局</b>：音量滑条宽度从 0 撑到 80px，把倍速、全屏按钮挤开。</li>
+      <li><b>控件隐藏后看不到进度</b>：只能再悬停一次才知道播放到哪里。</li>
+      <li><b>没有快捷键</b>：空格、方向键都不响应；拖动进度条时只有时间提示，看不到画面。</li>
+      <li><b>编辑态能力藏得深</b>：选中后只有四个角的缩放点，对齐要去块菜单里找，宽度只能手动拖。</li>
+      <li><b>异常态粗糙</b>：缺少 metaInfo 时显示裸红字（<span class="mono">#ff4d4f</span>）。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ─── A ─── -->
+<section>
+  <h2><span class="no">A</span>纸框底栏</h2>
+  <p class="desc">视频放进一张 surface 卡片，控件是画面<b>下方</b>的一条纸色底栏，进度条贴在画面和底栏的接缝处。<b>画面永远不被控件遮挡</b>；底栏常驻、不随悬停显隐，右侧还能放来源和标题这类信息。</p>
+  <div class="paper"><div class="doc" data-demo="a"></div></div>
+  <div class="grid" data-specs="a"></div>
+  <ul class="notes">
+    <li><b>优点</b>：最像文档里的内容卡，和纸面语言一致；控件用主题色板（按钮用 accent 实底，进度条用 accent）；没有悬停显隐，布局零抖动；符合「悬浮控件不要半透明叠在内容上」。</li>
+    <li><b>代价</b>：比画面多占 48px 高度；全屏时底栏改成深色贴底，交互不变。</li>
+  </ul>
+</section>
+
+<!-- ─── B ─── -->
+<section>
+  <h2><span class="no">B</span>浮岛胶囊</h2>
+  <p class="desc">控件收进画面底部的一块<b>不透明</b>深色胶囊，悬停时出现，静置 2 秒完全收起，只在画面底边留一条 3px 的进度细线。画面占满整张卡片。</p>
+  <div class="paper"><div class="doc" data-demo="b"></div></div>
+  <div class="grid" data-specs="b"></div>
+  <ul class="notes">
+    <li><b>优点</b>：画面最大、最沉浸；控件都集中在一处，全屏和内嵌是同一形态；胶囊实底不透明，不会和画面混在一起。</li>
+    <li><b>代价</b>：悬停时会盖住画面底部约 54px（字幕区）；文档里并排多个视频时，每一个都是一块暗色画面，没有「卡片」的感觉。</li>
+  </ul>
+</section>
+
+<!-- ─── C ─── -->
+<section>
+  <h2><span class="no">C</span>边缘极简</h2>
+  <p class="desc">进度条就是卡片的<b>下边沿</b>（6px accent 细条，常驻），悬停时画面左下、右下各浮出一枚小药丸：左边是播放和时间，右边是音量、倍速、画中画、全屏。整块控件区最小。</p>
+  <div class="paper"><div class="doc" data-demo="c"></div></div>
+  <div class="grid" data-specs="c"></div>
+  <ul class="notes">
+    <li><b>优点</b>：静态时几乎没有 chrome，文档里最安静；进度常驻在边沿、不遮画面；两枚药丸只压住画面的两个角，遮挡最少。</li>
+    <li><b>代价</b>：边沿进度条只有 6px 高，靠一块向上扩展的 20px 透明热区来保证好拖；控件分在两处，找「倍速」要多扫一眼。</li>
+  </ul>
+</section>
+
+<!-- ─── 通用 ─── -->
+<section>
+  <h2><span class="no">+</span>交互升级（三案通用）</h2>
+  <p class="desc">下面这些能力与选哪一案无关，控件是同一套，只是换色板（A 用纸面色板，B / C 用深色浮层色板）。标本统一用 A 展示。</p>
+  <div class="grid" id="common"></div>
+
+  <h2 style="margin-top:48px"><span class="no">⌨</span>快捷键</h2>
+  <p class="desc">只在播放器<b>获得焦点</b>（点过画面或 Tab 进入）时生效。编辑器里正文光标在别处时不拦截按键；<kbd class="mono">Esc</kbd> 退出全屏交给浏览器原生处理，不接入浮层的 Esc 仲裁。每次按键在画面中央弹出一个短暂的反馈条（OSD）。</p>
+  <div class="keys">
+    <div><span>播放 / 暂停</span><span><kbd>Space</kbd><kbd>K</kbd></span></div>
+    <div><span>后退 / 前进 5 秒</span><span><kbd>←</kbd><kbd>→</kbd></span></div>
+    <div><span>后退 / 前进 10 秒</span><span><kbd>J</kbd><kbd>L</kbd></span></div>
+    <div><span>音量 ±10%</span><span><kbd>↑</kbd><kbd>↓</kbd></span></div>
+    <div><span>静音</span><span><kbd>M</kbd></span></div>
+    <div><span>全屏</span><span><kbd>F</kbd></span></div>
+    <div><span>画中画</span><span><kbd>P</kbd></span></div>
+    <div><span>减速 / 加速</span><span><kbd>&lt;</kbd><kbd>&gt;</kbd></span></div>
+    <div><span>逐帧（暂停时）</span><span><kbd>,</kbd><kbd>.</kbd></span></div>
+    <div><span>跳到 0%–90%</span><span><kbd>0</kbd>…<kbd>9</kbd></span></div>
+    <div><span>临时 2× 加速</span><span>长按画面</span></div>
+  </div>
+</section>
+
+<script>
+const DUR = 728;
+const fmt = t => `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+const svg = (d, { size = 16, fill = false, cls = "" } = {}) =>
+  `<svg class="${cls}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="${fill ? "currentColor" : "none"}" stroke="${fill ? "none" : "currentColor"}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const P = {
+  play: '<path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z"/>',
+  pause: '<rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/>',
+  vol: '<path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6A1.4 1.4 0 0 1 5.4 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19.4 18.4a9 9 0 0 0 0-12.8"/>',
+  mute: '<path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6A1.4 1.4 0 0 1 5.4 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5z"/><line x1="22" x2="16" y1="9" y2="15"/><line x1="16" x2="22" y1="9" y2="15"/>',
+  max: '<path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>',
+  pip: '<path d="M21 9V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10c0 1.1.9 2 2 2h4"/><rect width="10" height="7" x="12" y="13" rx="2"/>',
+  tv: '<rect width="20" height="15" x="2" y="7" rx="2"/><polyline points="17 2 12 7 7 2"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  ff: '<polygon points="13 19 22 12 13 5 13 19" fill="currentColor"/><polygon points="2 19 11 12 2 5 2 19" fill="currentColor"/>',
+  hist: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
+  alert: '<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>',
+  al: '<path d="M15 12H3"/><path d="M17 18H3"/><path d="M21 6H3"/>',
+  ac: '<path d="M17 12H7"/><path d="M19 18H5"/><path d="M21 6H3"/>',
+  ar: '<path d="M21 12H9"/><path d="M21 18H7"/><path d="M21 6H3"/>',
+  more: '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+};
+const RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
+
+// ── 控件件 ──
+const toggleIcons = (size = 14) => svg(P.play, { size, fill: true, cls: "i-play" }) + svg(P.pause, { size, fill: true, cls: "i-pause" });
+const seek = (cls = "") => `
+  <div class="seek ${cls}" data-role="seek">
+    <div class="track"><i class="buf"></i><i class="fill" data-role="fill"></i></div>
+    <i class="knob" data-role="knob"></i>
+    <div class="stip" data-role="tip"><div class="thumb"><div class="scene" data-role="thumb"></div></div><span class="mono" data-role="tiptime">05:15</span></div>
+  </div>`;
+const vol = (open = false) => `
+  <div class="vol${open ? " open" : ""}">
+    <button class="ib" data-role="mute" title="静音 (M)">${svg(P.vol, { cls: "i-vol" })}${svg(P.mute, { cls: "i-mute" })}</button>
+    <div class="vol-pop"><div class="vbox"><div class="vtrack" data-role="vtrack"><i class="vfill" data-role="vfill"></i><i class="vknob" data-role="vknob"></i></div><span class="mono" data-role="vnum">70</span></div></div>
+  </div>`;
+const rate = () => `
+  <div class="rate">
+    <button class="chip mono" data-role="rate" title="播放速度">1×</button>
+    <div class="rate-menu">${RATES.map(r => `<button class="mono${r === 1 ? " on" : ""}" data-rate="${r}">${r}×${svg(P.check, { size: 12 })}</button>`).join("")}</div>
+  </div>`;
+const tail = () => `${vol()}${rate()}<button class="ib pip" title="画中画 (P)">${svg(P.pip)}</button><button class="ib" title="全屏 (F)">${svg(P.max)}</button>`;
+const overlays = () => `
+  <div class="badge">2× ${svg(P.ff, { size: 12 })}</div>
+  <div class="osd" data-role="osd"></div>`;
+const bigplay = () => `<button class="bigplay" data-role="toggle" title="播放 (Space)">${svg(P.play, { size: 22, fill: true })}</button>`;
+
+// ── 三套播放器 ──
+function playerA({ cls = "", t = 204, src, inPic = "" } = {}) {
+  const source = src ?? `<span class="src">${svg(P.tv, { size: 13 })}<span>Bilibili · 费曼学习法 · 第 3 讲 以教代学</span></span>`;
+  return `
+  <div class="player va ${cls}" data-t="${t}" tabindex="0">
+    <div class="pic" data-role="pic"><div class="scene"></div>${bigplay()}${overlays()}${inPic}</div>
+    <div class="va-bar on-surface">
+      ${seek("va-seek")}
+      <button class="va-play" data-role="toggle" title="播放 / 暂停">${toggleIcons()}</button>
+      <span class="tc"><b data-role="cur">${fmt(t)}</b> / ${fmt(DUR)}</span>
+      ${source}
+      ${tail()}
+    </div>
+  </div>`;
+}
+function playerB({ cls = "", t = 204, inPic = "" } = {}) {
+  return `
+  <div class="player vb ${cls}" data-t="${t}" tabindex="0">
+    <div class="pic" data-role="pic"><div class="scene"></div>${bigplay()}${overlays()}${inPic}
+      <div class="vb-line"><i class="fill" data-role="fill"></i></div>
+      <div class="vb-cap on-tip">
+        <button class="ib" data-role="toggle" title="播放 / 暂停">${toggleIcons()}</button>
+        <span class="tc"><b data-role="cur">${fmt(t)}</b></span>
+        ${seek()}
+        <span class="tc dur">${fmt(DUR)}</span>
+        ${tail()}
+      </div>
+    </div>
+  </div>`;
+}
+function playerC({ cls = "", t = 204, inPic = "" } = {}) {
+  return `
+  <div class="player vc ${cls}" data-t="${t}" tabindex="0">
+    <div class="pic" data-role="pic"><div class="scene"></div>${bigplay()}${overlays()}${inPic}
+      <div class="vc-chip vc-l on-tip">
+        <button class="ib" data-role="toggle" title="播放 / 暂停">${toggleIcons()}</button>
+        <span class="tc"><b data-role="cur">${fmt(t)}</b> / ${fmt(DUR)}</span>
+      </div>
+      <div class="vc-chip vc-r on-tip">${tail()}</div>
+    </div>
+    <div class="on-surface">${seek("vc-edge")}</div>
+  </div>`;
+}
+const PLAYERS = { a: playerA, b: playerB, c: playerC };
+
+const spec = (lbl, sub, body, extra = "") => `<div class="spec ${extra}"><div class="lbl">${lbl}</div><div class="sub">${sub}</div>${body}</div>`;
+
+// 文档语境 demo
+document.querySelectorAll("[data-demo]").forEach(el => {
+  el.innerHTML = `
+    <h3>费曼学习法 · 第 3 讲笔记</h3>
+    <p>这一讲的核心是「以教代学」：把刚学到的概念讲给完全不懂的人听，讲不下去的地方，就是自己还没真正理解的地方。下面是课程原片。</p>
+    ${PLAYERS[el.dataset.demo]()}
+    <p>看完后记下三个要点：用自己的话复述，不照搬术语；找到卡住的地方就回到原材料；用类比把抽象概念落到具体经验上。</p>
+    <div class="hint">点击画面播放；悬停进度条看帧预览；长按画面 2× 加速；聚焦后试试 <kbd>Space</kbd> <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>M</kbd> <kbd>0</kbd>–<kbd>9</kbd>。</div>`;
+});
+
+// 各方案标本
+const SPEC_TEXT = {
+  a: {
+    hover: "底栏常驻；悬停进度条时变粗并出现帧预览",
+    idle: "和悬停时完全一样，没有显隐变化",
+    narrow: "窄宽度下收起来源文字和画中画按钮",
+  },
+  b: {
+    hover: "胶囊实底浮在画面底部",
+    idle: "胶囊完全收起，只剩底边的 3px 进度细线",
+    narrow: "窄宽度下收起总时长和画中画按钮",
+  },
+  c: {
+    hover: "左右两枚药丸；边沿进度条出现拖动点",
+    idle: "药丸收起，边沿进度条常驻",
+    narrow: "窄宽度下收起倍速和画中画按钮",
+  },
+};
+document.querySelectorAll("[data-specs]").forEach(el => {
+  const k = el.dataset.specs, make = PLAYERS[k], tx = SPEC_TEXT[k];
+  el.innerHTML = [
+    spec("暂停（初始）", "整个画面可点击播放", make({ t: 0 })),
+    spec("播放中 · 悬停", tx.hover, make({ cls: "playing show tipdemo", t: 204 })),
+    spec("播放中 · 静置 2 秒", tx.idle, make({ cls: "playing idle", t: 318 })),
+    spec("窄宽度 300px", tx.narrow, make({ cls: "show", t: 204 }), "narrow"),
+  ].join("");
+});
+
+// 通用能力标本
+document.getElementById("common").innerHTML = [
+  spec("进度条帧预览", "悬停或拖动时，时间气泡上方出现该时刻的画面缩略图（隐藏 video 解码 + canvas 截帧，节流取帧）",
+    playerA({ cls: "playing show tipdemo" })),
+  spec("续播提示", "打开时如果有保存的播放位置（LocalVideo 已经在存），自动跳过去，并在底栏明确告诉用户，提供「从头播放」",
+    playerA({ t: 252, src: `<span class="src resumed">${svg(P.hist, { size: 13 })}<span>已从上次的 04:12 继续</span><button>从头播放</button></span>` })),
+  spec("音量：纵向弹层", "悬停音量图标，在图标上方弹出竖向滑条，不挤占横向宽度；在图标上滚动滚轮也能调音量",
+    `<div style="padding-top:0">${playerA({ cls: "vol-demo" })}</div>`),
+  spec("倍速菜单", "点击倍速按钮弹出菜单；这里设置的速度会写回块属性（playbackRate），下次打开沿用",
+    playerA({ cls: "ratedemo" })),
+  spec("长按加速", "长按画面临时 2× 播放（保留现有能力），徽标换成主题色板",
+    playerA({ cls: "playing boost" })),
+  spec("键盘反馈 OSD", "按快捷键后，画面中央弹出反馈条，0.7 秒后淡出",
+    playerA({ cls: "playing osd-demo" })),
+  spec("加载中 · 在线视频缓存", "Bilibili / YouTube / 远程直链共用，保持 16:9 占位，就绪后原位换成画面，不跳高度",
+    `<div class="frame"><div class="lf">
+      <div class="lf-head"><span class="lf-ico"><span class="spin"></span></span><div><div class="lf-t">正在缓存 Bilibili 视频</div><div class="lf-s">音视频分流下载，完成后自动合并</div></div></div>
+      <div><div class="tr-row"><span>视频</span><span class="mono">41.6 MB / 64.0 MB</span></div><div class="tr"><i style="width:65%"></i></div></div>
+      <div><div class="tr-row"><span>音频</span><span class="mono">5.2 MB / 5.8 MB</span></div><div class="tr"><i style="width:90%"></i></div></div>
+    </div></div>`),
+  spec("加载失败", "错误标题 + 排查建议 + 重试；缺少 metaInfo 这类情况也统一走这套版式，不再显示裸红字",
+    `<div class="frame"><div class="lf">
+      <div class="lf-head"><span class="lf-ico danger">${svg(P.alert)}</span><div><div class="lf-t">Bilibili 视频加载失败</div><div class="lf-s">网络错误（MEDIA_ERR_NETWORK）</div></div></div>
+      <ul><li>检查网络连接是否正常</li><li>在设置中配置 Bilibili 凭证（SESSDATA）</li></ul>
+      <div class="lf-btns"><button class="btn pri">重试</button><button class="btn ghost">打开设置</button></div>
+    </div></div>`),
+  spec("编辑态 · 选中", "选中后 accent 描边改为圆角，外扩 3px；上方浮出属性条，提供对齐、宽度预设（写回 width）、复制链接和更多；四个角仍可拖动缩放",
+    `<div class="selwrap">
+      <div class="seltb on-surface">
+        <button class="ib" title="左对齐">${svg(P.al)}</button><button class="ib on" title="居中">${svg(P.ac)}</button><button class="ib" title="右对齐">${svg(P.ar)}</button>
+        <span class="gap"></span>
+        <button class="chip">50%</button><button class="chip">75%</button><button class="chip on">100%</button>
+        <span class="gap"></span>
+        <button class="ib" title="复制链接">${svg(P.link)}</button><button class="ib" title="更多">${svg(P.more)}</button>
+      </div>
+      <div style="position:relative">
+        ${playerA({ cls: "selected" })}
+        <i class="hd nw"></i><i class="hd ne"></i><i class="hd sw"></i><i class="hd se"></i>
+        <span class="rs-info mono">640 px</span>
+      </div>
+    </div>`),
+].join("");
+document.querySelector(".vol-demo .vol").classList.add("open");
+document.querySelectorAll(".osd-demo [data-role=osd]").forEach(o => { o.textContent = "+5 秒"; o.classList.add("show"); });
+
+// 现状复刻
+document.getElementById("cur").innerHTML = `
+  <div class="cur"><div class="pic" style="cursor:default"><div class="scene"></div>
+    <div class="bp">${svg(P.play, { size: 24, fill: true })}</div>
+    <div class="ctrl"><div class="bar"><i></i></div>
+      <div class="row">${svg(P.play, { size: 14, fill: true })}<span>03:24 / 12:08</span><span class="sp"></span>${svg(P.vol, { size: 15 })}<span>1x ▾</span>${svg(P.max, { size: 15 })}</div>
+    </div>
+  </div></div>
+  <i class="h" style="left:-6px;top:-6px"></i><i class="h" style="right:-6px;top:-6px"></i><i class="h" style="left:-6px;bottom:-6px"></i><i class="h" style="right:-6px;bottom:-6px"></i>`;
+
+// ── 交互 ──
+document.querySelectorAll(".player").forEach(root => {
+  let t = +root.dataset.t || 0, rateV = 1, volV = 0.7, raf = 0, last = 0, idleTimer = 0, pressTimer = 0, boosted = false, suppressClick = 0, osdTimer = 0;
+  const all = r => root.querySelectorAll(`[data-role="${r}"]`);
+  const render = () => {
+    const p = (t / DUR) * 100;
+    all("fill").forEach(e => (e.style.width = p + "%"));
+    all("knob").forEach(e => (e.style.left = p + "%"));
+    all("cur").forEach(e => (e.textContent = fmt(t)));
+  };
+  const renderVol = () => {
+    const v = root.classList.contains("muted") ? 0 : volV;
+    all("vfill").forEach(e => (e.style.height = v * 100 + "%"));
+    all("vknob").forEach(e => (e.style.bottom = v * 100 + "%"));
+    all("vnum").forEach(e => (e.textContent = Math.round(v * 100)));
+  };
+  const loop = now => {
+    if (!root.classList.contains("playing")) return;
+    if (last) t = Math.min(DUR, t + ((now - last) / 1000) * rateV * (boosted ? 2 : 1));
+    last = now; render();
+    if (t >= DUR) return play(false);
+    raf = requestAnimationFrame(loop);
+  };
+  const poke = () => {
+    root.classList.remove("idle");
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      if (root.classList.contains("playing") && !root.classList.contains("show") && !root.classList.contains("rate-open")) root.classList.add("idle");
+    }, 2000);
+  };
+  const play = on => {
+    root.classList.toggle("playing", on);
+    cancelAnimationFrame(raf); last = 0;
+    if (on) raf = requestAnimationFrame(loop);
+    poke();
+  };
+  const toggle = () => play(!root.classList.contains("playing"));
+  const osd = text => {
+    all("osd").forEach(o => { o.textContent = text; o.classList.add("show"); });
+    clearTimeout(osdTimer);
+    osdTimer = setTimeout(() => all("osd").forEach(o => o.classList.remove("show")), 700);
+  };
+  const seekTo = v => { t = Math.max(0, Math.min(DUR, v)); render(); };
+
+  render(); renderVol();
+  root.addEventListener("mousemove", poke);
+  all("toggle").forEach(b => b.addEventListener("click", e => { e.stopPropagation(); toggle(); root.focus(); }));
+
+  // 画面：点击切换、长按加速
+  const pic = root.querySelector("[data-role=pic]");
+  const isControl = e => e.target.closest("button, .seek, .vb-cap, .vc-chip, .resume");
+  pic.addEventListener("click", e => {
+    if (isControl(e) || performance.now() < suppressClick) return;
+    toggle(); root.focus();
+  });
+  pic.addEventListener("dblclick", e => { if (!isControl(e)) osd("全屏（mockup 不演示）"); });
+  pic.addEventListener("pointerdown", e => {
+    if (isControl(e) || e.button !== 0) return;
+    pressTimer = setTimeout(() => {
+      boosted = true; root.classList.add("boost");
+      if (!root.classList.contains("playing")) play(true);
+    }, 400);
+  });
+  const endPress = () => {
+    clearTimeout(pressTimer);
+    if (boosted) { boosted = false; root.classList.remove("boost"); suppressClick = performance.now() + 350; }
+  };
+  ["pointerup", "pointerleave", "pointercancel"].forEach(ev => pic.addEventListener(ev, endPress));
+
+  // 进度条：拖动 + 帧预览
+  all("seek").forEach(sk => {
+    const ratio = e => { const r = sk.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); };
+    const hover = e => {
+      const v = ratio(e);
+      sk.querySelectorAll("[data-role=tip]").forEach(tip => (tip.style.left = v * 100 + "%"));
+      sk.querySelectorAll("[data-role=tiptime]").forEach(s => (s.textContent = fmt(v * DUR)));
+      sk.querySelectorAll("[data-role=thumb]").forEach(th => (th.style.filter = `hue-rotate(${Math.round(v * 140 - 40)}deg) brightness(${0.85 + v * 0.3})`));
+      return v;
+    };
+    sk.addEventListener("pointerdown", e => { e.stopPropagation(); sk.setPointerCapture(e.pointerId); sk.classList.add("drag"); seekTo(hover(e) * DUR); });
+    sk.addEventListener("pointermove", e => { const v = hover(e); if (sk.classList.contains("drag")) seekTo(v * DUR); });
+    sk.addEventListener("pointerup", () => sk.classList.remove("drag"));
+    sk.addEventListener("click", e => e.stopPropagation());
+  });
+
+  // 音量
+  all("mute").forEach(b => b.addEventListener("click", e => { e.stopPropagation(); root.classList.toggle("muted"); renderVol(); }));
+  all("vtrack").forEach(vt => {
+    const set = e => { const r = vt.getBoundingClientRect(); volV = Math.max(0, Math.min(1, (r.bottom - e.clientY) / r.height)); root.classList.remove("muted"); renderVol(); };
+    vt.addEventListener("pointerdown", e => { e.stopPropagation(); vt.setPointerCapture(e.pointerId); set(e); vt.dataset.drag = "1"; });
+    vt.addEventListener("pointermove", e => vt.dataset.drag && set(e));
+    vt.addEventListener("pointerup", () => delete vt.dataset.drag);
+  });
+  root.querySelectorAll(".vol").forEach(v => v.addEventListener("wheel", e => {
+    e.preventDefault(); volV = Math.max(0, Math.min(1, volV - Math.sign(e.deltaY) * 0.05)); root.classList.remove("muted"); renderVol();
+  }, { passive: false }));
+
+  // 倍速
+  const setRate = r => {
+    rateV = r;
+    all("rate").forEach(b => (b.textContent = r + "×"));
+    root.querySelectorAll("[data-rate]").forEach(b => b.classList.toggle("on", +b.dataset.rate === r));
+  };
+  all("rate").forEach(b => b.addEventListener("click", e => { e.stopPropagation(); root.classList.toggle("rate-open"); }));
+  root.querySelectorAll("[data-rate]").forEach(b => b.addEventListener("click", e => {
+    e.stopPropagation(); setRate(+b.dataset.rate); root.classList.remove("rate-open", "ratedemo");
+  }));
+  document.addEventListener("pointerdown", e => { if (!e.target.closest(".rate") || !root.contains(e.target)) root.classList.remove("rate-open"); });
+
+  // 键盘
+  root.addEventListener("keydown", e => {
+    const k = e.key;
+    let handled = true;
+    if (k === " " || k === "k" || k === "K") toggle();
+    else if (k === "ArrowLeft" || k === "ArrowRight") { const d = k === "ArrowLeft" ? -5 : 5; seekTo(t + d); osd(`${d > 0 ? "+" : "−"}5 秒`); }
+    else if (k === "j" || k === "l") { const d = k === "j" ? -10 : 10; seekTo(t + d); osd(`${d > 0 ? "+" : "−"}10 秒`); }
+    else if (k === "ArrowUp" || k === "ArrowDown") { volV = Math.max(0, Math.min(1, volV + (k === "ArrowUp" ? 0.1 : -0.1))); root.classList.remove("muted"); renderVol(); osd(`音量 ${Math.round(volV * 100)}%`); }
+    else if (k === "m" || k === "M") { root.classList.toggle("muted"); renderVol(); osd(root.classList.contains("muted") ? "已静音" : `音量 ${Math.round(volV * 100)}%`); }
+    else if (k === ">" || k === "<") { const i = RATES.indexOf(rateV) + (k === ">" ? 1 : -1); if (RATES[i]) { setRate(RATES[i]); osd(`${RATES[i]}× 速度`); } }
+    else if (k === "," || k === ".") { if (!root.classList.contains("playing")) { seekTo(t + (k === "." ? 1 / 30 : -1 / 30)); osd(k === "." ? "下一帧" : "上一帧"); } }
+    else if (/^[0-9]$/.test(k)) { seekTo((DUR * +k) / 10); osd(`跳到 ${k}0%`); }
+    else if (k === "f" || k === "F") osd("全屏（mockup 不演示）");
+    else if (k === "p" || k === "P") osd("画中画（mockup 不演示）");
+    else handled = false;
+    if (handled) { e.preventDefault(); poke(); }
+  });
+});
+
+// 主题切换
+document.querySelectorAll(".switch").forEach(sw => sw.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  sw.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+  document.documentElement.dataset[sw.dataset.k] = b.dataset.v;
+}));
+</script>
+</body>
+</html>

@@ -10,7 +10,14 @@ function DefaultImage({ url, alt, ref, ...rest }: ImageSlotProps) {
 }
 DefaultImage.displayName = "DefaultImageSlot";
 
-function DefaultVideo({ src, ref, ...rest }: VideoSlotProps) {
+function DefaultVideo({
+  src,
+  ref,
+  playbackRate: _playbackRate,
+  onPlaybackRateChange: _onPlaybackRateChange,
+  info: _info,
+  ...rest
+}: VideoSlotProps) {
   return <video ref={ref} src={src} {...rest} />;
 }
 DefaultVideo.displayName = "DefaultVideoSlot";

@@ -829,3 +829,18 @@
 - 主进程：`createQuickCardWindow` 改为键控单例（`window-registry` key `quick-card`，再次 ⌘⇧N 聚焦已有窗口），尺寸同卡片编辑窗口并记忆位置；仍默认置顶。
 - 编辑窗口纸面（三类内容共用）：正文列改纵向 flex，正文区撑满余高，标签行内容短时贴纸面底部、内容长时跟在正文末；点正文下方空白落到正文末尾。
 - 随删：`layouts/QuickOpenLayout`（`layouts/` 目录清空）、`pages/QuickCard`、`components/FullScreenLoading`、`TitlebarIcon`、`GlobalTitlebar`、`stores/useModuleStore`（后四者唯一消费链来自 QuickOpenLayout）；主进程 `window-module-mapping` 的 `quick-card` 窗口类型同步删除。
+
+## D-076 视频播放器重做：纸框底栏为常态，全屏切浮岛胶囊
+
+（2026-09-30，已定；用户裁决）
+
+- 背景：`@tau/shared` 的 VideoPlayer（编辑器视频块、视频笔记、Vibe Learning 预览、白板视频、mobile / blog / 浏览器扩展共用）是直角黑框 + 白色渐变控制条，不跟主题；音量滑条悬停时宽度 0→80px 顶开布局（违反「悬停不改变尺寸」）；控件隐藏后看不到进度；无快捷键；编辑器选中态只有四角句柄；缺 metaInfo 时显示裸红字。
+- 方案对比（`mockups/video-player/`）：A 纸框底栏（控件在画面下方的纸色底栏，进度条贴接缝，常驻不显隐）、B 浮岛胶囊（画面内不透明深色胶囊，静置收起留 3px 进度细线）、C 边缘极简（进度条即卡片下沿，悬停浮出两角药丸）。用户选 **A 为常态 + 全屏用 B**，通用交互升级全部要。
+- 选择：
+  - 播放器根节点是纸面卡片（`rounded-tau-md bg-surface shadow-card`，调用方经 `cn()` 覆盖），内层纵向 flex：父级给定高度时画面区收缩让出底栏，不给时按视频比例撑开——消费方不要再给根节点加 `aspect-video` / padding。容器查询挂在底栏 / 胶囊上而不是根节点（根节点做 inline-size 容器会让 `w-fit` 外层按内容推宽时塌成 0）。
+  - 控件原子件三套色板：`surface`（纸面底栏）、`float`（全屏胶囊，`bg-ink-1` + `ink-inverse`）、`light`（音频卡，待音频重做时换掉）。音量改为上方弹出的竖向滑杆，悬停时滚轮调节。
+  - 通用能力：进度条帧预览（悬停停留 400ms 才出时间 / 帧气泡并开始取帧，拖动时立即显示——每次路过进度条都闪一下体验差；首次取帧才创建离屏 video 解码同一地址，同一时刻只有一次 seek 在途、只保留最新请求）；续播（`persistKey` 启用，存储键沿用 `video_position_` 前缀兼容旧数据，开头 / 结尾 5 秒内不续播，底栏提示 8 秒并给「从头播放」）；键盘快捷键（仅播放器聚焦时生效，带 ⌘/Ctrl/Alt 的组合键与输入法组合放行，Esc 退出全屏交给浏览器原生，不接入 D-003 浮层仲裁）+ 画面中央 OSD 反馈；画中画；倍速改动经 `onPlaybackRateChange` 交宿主持久化。
+  - 编辑器视频块：选中改为圆角 outline（外扩 3px），上方浮出属性条（对齐 / 宽度 50·75·100% / 复制地址），选中改在容器捕获阶段完成（原先暂停态的播放覆盖层吞掉点击，只有播放中点画面才能选中）；倍速写回节点；底栏信息位显示「来源 · 标题」（Provider 新增 `label`，插入 B 站 / YouTube 时把标题写进 metaInfo，老节点无标题只显示来源名，直链 / 本地文件退回文件名）。
+  - 在线视频取源浮层：`VideoSourceLoader` 新增 `framed`（自带 16:9 纸面卡片，与播放器同形，就绪原位替换不跳高度）与 `onRetry`（取源 hook 新增 `retry`）；缺 metaInfo 改走同一失败版式。
+- 不做：进度条章节 / 时间戳标记（只有视频笔记用得上，YAGNI）；属性条「更多」（块菜单已有）；帧预览缩略图缓存。
+- 影响：`packages/shared/src/components/MediaPlayer/` 重写 VideoPlayer / MediaControls / ProgressBar，新增 `useFramePreview`、`usePlaybackResume`、`videoShortcuts`（纯函数 + 单测）；desktop `LocalVideo` 与扩展 `RpcLocalVideo` 删去各自的播放位置持久化改传 `persistKey`；编辑器 `VideoSlotProps` 增 `onPlaybackRateChange` / `info`；视频 Markdown codec 的 metaInfo 解码改为与编码对称的 UTF-8（原先 `atob` 直解，中文标题往返会乱码）；视频笔记、Vibe Learning、白板三处外框按新布局调整，视频笔记的非缓存直链路径也换成 VideoPlayer。

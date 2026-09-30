@@ -10,13 +10,11 @@ import {
   resolveLocalMediaPath,
   toLocalMediaPreviewUrl,
 } from "@/utils/localMediaPath";
-import { VideoPlayer } from "@tau/shared";
+import { VideoPlayer, type VideoPlayerProps } from "@tau/shared";
 
-type LocalVideoProps = React.VideoHTMLAttributes<HTMLVideoElement> & {
+type LocalVideoProps = VideoPlayerProps & {
   src: string;
 };
-
-const VIDEO_POSITION_PREFIX = "video_position_";
 
 const LocalVideo = memo(
   forwardRef<HTMLVideoElement, LocalVideoProps>((props, ref) => {
@@ -133,44 +131,6 @@ const LocalVideo = memo(
       }
     }, [previewUrl, getVideoElement]);
 
-    useEffect(() => {
-      const videoElement = getVideoElement();
-      if (!videoElement || !previewUrl) return;
-
-      const storageKey = `${VIDEO_POSITION_PREFIX}${normalizedSrc}`;
-
-      const handleLoadedMetadata = () => {
-        const savedPosition = localStorage.getItem(storageKey);
-        if (savedPosition && currentTime.current === 0) {
-          const position = parseFloat(savedPosition);
-          if (!isNaN(position) && position >= 0 && position < videoElement.duration) {
-            videoElement.currentTime = position;
-            currentTime.current = position;
-          }
-        }
-      };
-
-      const handleTimeUpdate = () => {
-        if (videoElement.currentTime >= 0) {
-          localStorage.setItem(storageKey, videoElement.currentTime.toString());
-        }
-      };
-
-      const handleEnded = () => {
-        localStorage.removeItem(storageKey);
-      };
-
-      videoElement.addEventListener("loadedmetadata", handleLoadedMetadata);
-      videoElement.addEventListener("timeupdate", handleTimeUpdate);
-      videoElement.addEventListener("ended", handleEnded);
-
-      return () => {
-        videoElement.removeEventListener("loadedmetadata", handleLoadedMetadata);
-        videoElement.removeEventListener("timeupdate", handleTimeUpdate);
-        videoElement.removeEventListener("ended", handleEnded);
-      };
-    }, [normalizedSrc, previewUrl, getVideoElement]);
-
     const handleOnError = useMemoizedFn(
       async (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
         // @ts-ignore
@@ -229,6 +189,7 @@ const LocalVideo = memo(
         onError={handleOnError}
         src={previewUrl}
         crossOrigin="anonymous"
+        persistKey={normalizedSrc}
         {...rest}
       >
         {children}

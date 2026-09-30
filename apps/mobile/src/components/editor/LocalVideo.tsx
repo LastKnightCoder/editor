@@ -1,9 +1,9 @@
 import { forwardRef, useEffect, useState } from "react";
 import type { SyntheticEvent } from "react";
 import { resolveLocalMediaSource } from "./localMedia";
-import { VideoPlayer } from "@tau/shared";
+import { VideoPlayer, type VideoPlayerProps } from "@tau/shared";
 
-type LocalVideoProps = React.VideoHTMLAttributes<HTMLVideoElement> & {
+type LocalVideoProps = VideoPlayerProps & {
   src: string;
 };
 
