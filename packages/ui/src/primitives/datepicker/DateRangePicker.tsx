@@ -2,7 +2,7 @@
  * DateRangePicker 基础件 —— 范围形态（B 形态并入，mockups/datepicker/ 方案 B）。
  *
  * 值形状拆分的范围侧：value: readonly [string, string] | null（两端均
- * "YYYY-MM-DD"，升序）。与 DatePicker 同一引擎（CalendarPanel/弹层契约/触发器皮），
+ * "YYYY-MM-DD"，precision="minute" 时为 "YYYY-MM-DD HH:mm"；升序，逆序输入按升序读取）。与 DatePicker 同一引擎（CalendarPanel/弹层契约/触发器皮），
  * 收起预设列与底栏、去掉 range 即回到单日期形态——不是第二个日历，是同一结构的
  * 范围扩展态。
  *
@@ -13,7 +13,9 @@
  * 行为内建（不做成 props）：
  *  - 提交模型：手选范围走「点起点 → 悬停预览 → 点终点（自动交换）→ 确定」三道闸
  *    （范围错一格就触发下游重查询，不做即点即定）；预设即选即定
- *  - 双月并排（跨月范围不翻页）：左 ‹ 右 › 承载翻月，中间 line-2 弱分隔
+ *  - 双月并排（跨月范围不翻页）：左 ‹ 右 › 承载翻月，中间 line-2 弱分隔；
+ *    界外日隐藏，同一天不会在两个面板重复出现
+ *  - minute 精度：两月下方各一个时刻区（左开始 / 右结束），同日结束早于开始时禁止确定
  *  - 用色纪律：端点 accent 实底、中段 accent-soft，色彩表意不装饰
  *  - 底栏摘要（"9月12日 – 9月19日 · 共 8 天"）是提交前最后一眼确认
  *  - 键盘：Enter 确定 / Esc 放弃预览并关闭（焦点归还触发器）
@@ -39,11 +41,14 @@ import {
   addMonths,
   formatDisplay,
   formatRangeDisplay,
+  formatValue,
   parseValue,
   sameDay,
   toDateKey,
+  type DatePrecision,
 } from "./calendarEngine";
 import { CalendarPanel } from "./CalendarPanel";
+import { TimeField } from "./TimeField";
 
 export interface DateRangePreset {
   label: string;
@@ -64,6 +69,16 @@ const daysBetween = (start: Date, end: Date) =>
       86400000
   ) + 1;
 
+/** 日期 + "HH:mm" 时刻 → 新 Date */
+const withTime = (date: Date, time: string) =>
+  new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    Number(time.slice(0, 2)),
+    Number(time.slice(3))
+  );
+
 /** 禁用日期谓词转 Date 版（"YYYY-MM-DD" 入参，业务侧零 Date 依赖） */
 const dateDisabledOf = (isDateDisabled?: (day: string) => boolean) =>
   isDateDisabled
@@ -76,10 +91,16 @@ const dateDisabledOf = (isDateDisabled?: (day: string) => boolean) =>
 /* ───────── 内嵌面板（宿主托管） ───────── */
 
 export interface DateRangePickerPanelProps {
-  /** 受控显示值（两端 "YYYY-MM-DD"，升序） */
+  /** 受控显示值（两端按 precision 的值串，升序） */
   value: readonly [string, string] | null;
+  /** day 只选日期；minute 追加开始/结束时刻区。默认 day */
+  precision?: DatePrecision;
+  /** 时刻网格步长（分钟），默认 15 */
+  timeStep?: number;
   /** 确定提交：手选「确定」/ 预设即点即定 / 清空 */
   onCommit: (value: [string, string] | null) => void;
+  /** 面板当前展示的区间（含未确定的草稿）变化时回调；只选了起点时终点为 "" */
+  onPreviewChange?: (value: readonly [string, string] | null) => void;
   presets?: readonly DateRangePreset[];
   disabled?: boolean;
   /** 禁用日期谓词（入参 "YYYY-MM-DD"，业务侧零 Date 依赖） */
@@ -89,8 +110,11 @@ export interface DateRangePickerPanelProps {
 }
 
 export function DateRangePickerPanel({
-  value,
+  value: valueProp,
   onCommit,
+  onPreviewChange,
+  precision = "day",
+  timeStep,
   presets,
   disabled = false,
   isDateDisabled,
@@ -98,6 +122,20 @@ export function DateRangePickerPanel({
   ref,
 }: DateRangePickerPanelProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const value = valueProp ? ordered(valueProp[0], valueProp[1]) : null;
+  const minute = precision === "minute";
+  const [startTime, setStartTime] = useState(() => value?.[0].slice(11) || "09:00");
+  const [endTime, setEndTime] = useState(() => value?.[1].slice(11) || "18:00");
+  // TimeField 的 Enter 先回调新时刻再触发提交，提交需读到同一拍里的最新值
+  const latestTimes = useRef({ start: startTime, end: endTime });
+  const changeStartTime = (time: string) => {
+    latestTimes.current.start = time;
+    setStartTime(time);
+  };
+  const changeEndTime = (time: string) => {
+    latestTimes.current.end = time;
+    setEndTime(time);
+  };
   const [month, setMonth] = useState(() => {
     const base = parseValue(value?.[0] ?? "") ?? new Date();
     return new Date(base.getFullYear(), base.getMonth(), 1);
@@ -106,9 +144,20 @@ export function DateRangePickerPanel({
   const [draft, setDraft] = useState<{ start: Date; end: Date | null } | null>(null);
   const [hover, setHover] = useState<Date | null>(null);
 
-  /** 面板当前展示的区间：手选草稿优先，否则已提交值 */
-  const rangeStart = draft?.start ?? parseValue(value?.[0] ?? "") ?? null;
-  const rangeEnd = draft?.end ?? parseValue(value?.[1] ?? "") ?? null;
+  /** 面板当前展示的区间：手选草稿优先（点完起点后终点必须重新选），否则已提交值 */
+  const rangeStart = draft ? draft.start : parseValue(value?.[0] ?? "");
+  const rangeEnd = draft ? draft.end : parseValue(value?.[1] ?? "");
+  /** 同日范围结束时刻早于开始时刻 */
+  const isTimeInvalid = (start: string, end: string) =>
+    minute &&
+    rangeStart != null &&
+    rangeEnd != null &&
+    sameDay(rangeStart, rangeEnd) &&
+    end < start;
+  const timeInvalid = isTimeInvalid(startTime, endTime);
+  const canApply = rangeStart != null && rangeEnd != null && !timeInvalid;
+  const toValue = (date: Date, time: string) =>
+    minute ? formatValue(withTime(date, time), "minute") : toDateKey(date);
   /** 预览终点：end 已定用 end，否则用 hover（悬停预览） */
   const previewEnd = rangeEnd ?? hover;
   const inRange = (date: Date) => {
@@ -124,6 +173,13 @@ export function DateRangePickerPanel({
 
   const dateDisabled = dateDisabledOf(isDateDisabled);
 
+  const previewKey = rangeStart
+    ? `${toValue(rangeStart, startTime)}|${rangeEnd ? toValue(rangeEnd, endTime) : ""}`
+    : "";
+  useEffect(() => {
+    onPreviewChange?.(previewKey ? (previewKey.split("|") as [string, string]) : null);
+  }, [previewKey, onPreviewChange]);
+
   const pickDate = (date: Date) => {
     if (!draft || draft.end != null) {
       setDraft({ start: date, end: null });
@@ -134,8 +190,9 @@ export function DateRangePickerPanel({
     setDraft({ start: s, end: e }); // 等确定才提交
   };
   const apply = () => {
-    if (!rangeStart || !rangeEnd) return;
-    onCommit([toDateKey(rangeStart), toDateKey(rangeEnd)]);
+    const { start, end } = latestTimes.current;
+    if (!rangeStart || !rangeEnd || isTimeInvalid(start, end)) return;
+    onCommit([toValue(rangeStart, start), toValue(rangeEnd, end)]);
     setDraft(null);
     setHover(null);
   };
@@ -171,7 +228,7 @@ export function DateRangePickerPanel({
 
   const onRootKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (e.nativeEvent.isComposing || e.altKey || e.ctrlKey || e.metaKey) return;
-    if (e.key === "Enter" && rangeStart && rangeEnd) {
+    if (e.key === "Enter" && canApply) {
       e.preventDefault();
       apply();
     }
@@ -181,10 +238,11 @@ export function DateRangePickerPanel({
     ? "选择起始日期…"
     : !rangeEnd
       ? `起 ${formatDisplay(toDateKey(rangeStart))} · 再选终止日期`
-      : (() => {
-          const [s, e] = rangeStart <= rangeEnd ? [rangeStart, rangeEnd] : [rangeEnd, rangeStart];
-          return `${formatRangeDisplay(toDateKey(s), toDateKey(e))} · 共 ${daysBetween(s, e)} 天`;
-        })();
+      : timeInvalid
+        ? "结束时刻早于开始时刻"
+        : minute
+          ? formatRangeDisplay(toValue(rangeStart, startTime), toValue(rangeEnd, endTime))
+          : `${formatRangeDisplay(toDateKey(rangeStart), toDateKey(rangeEnd))} · 共 ${daysBetween(rangeStart, rangeEnd)} 天`;
 
   /** 预设高亮回显：动态预设调用时求值比对（升序化后端点相等） */
   const presetMatches = (preset: DateRangePreset) => {
@@ -225,34 +283,62 @@ export function DateRangePickerPanel({
           </div>
         )}
         <div className="flex gap-2.5">
-          <CalendarPanel
-            month={month}
-            onMonthChange={setMonth}
-            drillable={false}
-            isSelected={isEdge}
-            isInRange={inRange}
-            isDateDisabled={dateDisabled}
-            onPickDate={pickDate}
-            onHighlight={setHover}
-          />
-          <div className="border-line-2 flex gap-2.5 border-l pl-2.5">
+          <div>
             <CalendarPanel
-              month={addMonths(month, 1)}
-              onMonthChange={next => setMonth(addMonths(next, -1))}
+              month={month}
+              onMonthChange={setMonth}
               drillable={false}
+              hideOutsideDays
               isSelected={isEdge}
               isInRange={inRange}
               isDateDisabled={dateDisabled}
               onPickDate={pickDate}
               onHighlight={setHover}
             />
+            {minute && (
+              <TimeRow
+                label="开始时刻"
+                value={startTime}
+                onValueChange={changeStartTime}
+                step={timeStep}
+                onSubmit={apply}
+                disabled={disabled}
+              />
+            )}
+          </div>
+          <div className="border-line-2 border-l pl-2.5">
+            <CalendarPanel
+              month={addMonths(month, 1)}
+              onMonthChange={next => setMonth(addMonths(next, -1))}
+              drillable={false}
+              hideOutsideDays
+              isSelected={isEdge}
+              isInRange={inRange}
+              isDateDisabled={dateDisabled}
+              onPickDate={pickDate}
+              onHighlight={setHover}
+            />
+            {minute && (
+              <TimeRow
+                label="结束时刻"
+                value={endTime}
+                onValueChange={changeEndTime}
+                step={timeStep}
+                onSubmit={apply}
+                disabled={disabled}
+                invalid={timeInvalid}
+              />
+            )}
           </div>
         </div>
       </div>
       <div className="border-line-2 mt-2.5 flex items-center gap-2 border-t pt-2.5">
         <span
           aria-live="polite"
-          className="text-ink-2 min-w-0 flex-1 truncate text-[12px] tabular-nums"
+          className={cn(
+            "min-w-0 flex-1 truncate text-[12px] tabular-nums",
+            timeInvalid ? "text-danger" : "text-ink-2"
+          )}
         >
           {summary}
         </span>
@@ -266,7 +352,7 @@ export function DateRangePickerPanel({
         </button>
         <button
           type="button"
-          disabled={!(rangeStart && rangeEnd)}
+          disabled={!canApply}
           onClick={apply}
           className="bg-accent text-ink-inverse hover:bg-accent-hover h-[28px] cursor-pointer rounded-[8px] px-4 text-[12px] font-[550] outline-none focus-visible:shadow-[var(--tau-focus-ring)] disabled:pointer-events-none disabled:opacity-50"
         >
@@ -277,12 +363,38 @@ export function DateRangePickerPanel({
   );
 }
 
+/** 日历下方的时刻行：标签 + TimeField */
+function TimeRow({
+  label,
+  invalid = false,
+  ...props
+}: {
+  label: string;
+  value: string;
+  onValueChange: (time: string) => void;
+  step?: number;
+  onSubmit: () => void;
+  disabled: boolean;
+  invalid?: boolean;
+}) {
+  return (
+    <div className="mt-2 flex items-center gap-2">
+      <span className={cn("text-[12px]", invalid ? "text-danger" : "text-ink-3")}>{label}</span>
+      <TimeField aria-label={label} {...props} />
+    </div>
+  );
+}
+
 /* ───────── 触发式组合件 ───────── */
 
 export interface DateRangePickerProps {
   value?: readonly [string, string] | null;
   defaultValue?: readonly [string, string] | null;
   onValueChange?: (value: [string, string] | null) => void;
+  /** day 只选日期；minute 追加开始/结束时刻区。默认 day */
+  precision?: DatePrecision;
+  /** 时刻网格步长（分钟），默认 15 */
+  timeStep?: number;
   /** 预设列（面板左列）：数据驱动，即选即定 */
   presets?: readonly DateRangePreset[];
   placeholder?: string;
@@ -301,6 +413,8 @@ export function DateRangePicker({
   value: valueProp,
   defaultValue = null,
   onValueChange,
+  precision = "day",
+  timeStep,
   presets,
   placeholder = "日期范围",
   size = "md",
@@ -323,12 +437,15 @@ export function DateRangePicker({
   const [internalOpen, setInternalOpen] = useState(false);
   // 打开会话号：递增即重挂面板（草稿/悬停/月份复位 + 落焦网格）
   const [session, setSession] = useState(0);
+  // 打开期间触发器跟随面板草稿，关闭即回到已提交值
+  const [preview, setPreview] = useState<readonly [string, string] | null>(null);
 
   const value = valueProp !== undefined ? valueProp : internalValue;
   const open = openProp ?? internalOpen;
   const panelId = useId();
 
   const setOpen = (v: boolean) => {
+    if (!v) setPreview(null);
     setInternalOpen(v);
     onOpenChange?.(v);
   };
@@ -387,7 +504,16 @@ export function DateRangePicker({
     // Enter 由面板内 onRootKeyDown 提交
   };
 
-  const display = value == null ? null : formatRangeDisplay(value[0], value[1]);
+  const committedDisplay =
+    value == null ? null : formatRangeDisplay(...ordered(value[0], value[1]));
+  const previewDisplay =
+    open && preview
+      ? preview[1]
+        ? formatRangeDisplay(preview[0], preview[1])
+        : `${formatDisplay(preview[0])} – …`
+      : null;
+  const pending = previewDisplay != null && previewDisplay !== committedDisplay;
+  const display = pending ? previewDisplay : committedDisplay;
 
   const panel = createPortal(
     <div
@@ -410,7 +536,10 @@ export function DateRangePicker({
       <DateRangePickerPanel
         key={session}
         value={value}
+        precision={precision}
+        timeStep={timeStep}
         presets={presets}
+        onPreviewChange={setPreview}
         disabled={disabled}
         isDateDisabled={isDateDisabled}
         onCommit={next => {
@@ -458,10 +587,16 @@ export function DateRangePicker({
             : "text-tau-body h-[34px] min-w-[210px] pl-3 pr-1.5"
         )}
       >
-        <span className={cn("min-w-0 flex-1 truncate text-left", display == null && "text-ink-3")}>
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate text-left",
+            display == null && "text-ink-3",
+            pending && "text-accent-text"
+          )}
+        >
           {display ?? placeholder}
         </span>
-        {clearable && display != null && (
+        {clearable && committedDisplay != null && (
           <span
             role="button"
             aria-label="清空"
