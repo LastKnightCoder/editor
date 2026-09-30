@@ -68,11 +68,6 @@
 :::
 ```
 
-```md
-:::chart{data="BASE64_JSON" config="BASE64_JSON"}
-:::
-```
-
 ## 代码块扩展
 
 ````md

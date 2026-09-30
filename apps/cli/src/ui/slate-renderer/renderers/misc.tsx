@@ -125,19 +125,6 @@ registry.register({
   },
 });
 
-// Chart
-registry.register({
-  type: "chart",
-  render: (element: any) => {
-    const chartType = element.config?.type || "chart";
-    return (
-      <Box marginTop={1} marginBottom={1}>
-        <Text dimColor>[Chart: {chartType}]</Text>
-      </Box>
-    );
-  },
-});
-
 // HTML block
 registry.register({
   type: "html-block",
@@ -280,28 +267,6 @@ registry.register({
   },
 });
 
-// Graphviz
-registry.register({
-  type: "graphviz",
-  render: (element: any) => {
-    return (
-      <Box
-        flexDirection="column"
-        marginTop={1}
-        marginBottom={1}
-        borderStyle="round"
-        borderColor="gray"
-        paddingX={1}
-      >
-        <Text dimColor bold>
-          graphviz
-        </Text>
-        <Text>{element.dot || ""}</Text>
-      </Box>
-    );
-  },
-});
-
 // Tabs
 registry.register({
   type: "tabs",
@@ -328,32 +293,6 @@ registry.register({
 // Tab Pane
 registry.register({
   type: "tab-pane",
-  render: (element: any, _children: ReactNode, context: TerminalRendererContext) => {
-    const blocks = (element.children || []).map((child: any, i: number) =>
-      renderNode(child, i, context, element)
-    );
-    return <Box flexDirection="column">{blocks}</Box>;
-  },
-});
-
-// Multi-column container
-registry.register({
-  type: "multi-column-container",
-  render: (element: any, _children: ReactNode, context: TerminalRendererContext) => {
-    const items = (element.children || []).map((child: any, i: number) =>
-      renderNode(child, i, context, element)
-    );
-    return (
-      <Box flexDirection="column" marginTop={1} marginBottom={1}>
-        {items}
-      </Box>
-    );
-  },
-});
-
-// Multi-column item
-registry.register({
-  type: "multi-column-item",
   render: (element: any, _children: ReactNode, context: TerminalRendererContext) => {
     const blocks = (element.children || []).map((child: any, i: number) =>
       renderNode(child, i, context, element)

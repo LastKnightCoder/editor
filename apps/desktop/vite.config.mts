@@ -105,7 +105,6 @@ export default defineConfig(() => {
                   "katex",
                   "@babel/standalone",
                   "cheerio",
-                  "echarts",
                 ],
                 plugins: [
                   {

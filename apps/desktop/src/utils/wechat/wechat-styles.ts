@@ -706,7 +706,6 @@ ${inlinePaletteUnderlineStyles}
 /* ========== Placeholders ========== */
 .video-placeholder,
 .audio-placeholder,
-.chart-placeholder,
 .webview-placeholder,
 .database-placeholder,
 .whiteboard-placeholder {
@@ -740,17 +739,6 @@ ${inlinePaletteUnderlineStyles}
   margin: 1em 0;
 }
 
-/* ========== Multi Column ========== */
-.multi-column {
-  display: flex;
-  gap: 1em;
-  margin: 1em 0;
-}
-
-.column-item {
-  flex: 1;
-}
-
 /* ========== Tabs ========== */
 .tabs {
   margin: 1em 0;
@@ -760,8 +748,7 @@ ${inlinePaletteUnderlineStyles}
 .mermaid-fallback,
 .plantuml-fallback,
 .tikz-fallback,
-.typst-fallback,
-.graphviz-fallback {
+.typst-fallback {
   background: rgba(246, 248, 250, 0.9);
   border-radius: 0.5em;
   padding: 1em;

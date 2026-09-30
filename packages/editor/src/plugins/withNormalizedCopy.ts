@@ -8,7 +8,6 @@ const PARTIAL_STRUCTURE_TYPES: Record<string, string> = {
   "check-list": "check-list-item",
   table: "table-row",
   "table-row": "table-cell",
-  "multi-column-container": "multi-column-item",
 };
 
 const MANAGED_TYPES = new Set([
@@ -20,7 +19,6 @@ const MANAGED_TYPES = new Set([
   "detail",
   "list-item",
   "check-list-item",
-  "multi-column-item",
 ]);
 
 const FULL_SELECTION_PRESERVE_TYPES = new Set([
@@ -28,7 +26,6 @@ const FULL_SELECTION_PRESERVE_TYPES = new Set([
   "blockquote",
   "callout",
   "detail",
-  "multi-column-item",
 ]);
 
 const isManagedElement = (

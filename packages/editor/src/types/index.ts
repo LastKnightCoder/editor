@@ -4,7 +4,6 @@ export type { AnnotationElement } from "./element/annotation";
 export type { AudioElement } from "./element/audio";
 export type { BlockquoteElement } from "./element/block-quote";
 export type { CalloutType, CalloutElement } from "./element/callout";
-export type { ChartType, ChartSeries, ChartConfig, ChartElement } from "./element/chart";
 export type { CheckListItemElement, CheckListElement } from "./element/check-list";
 export type {
   CodeBlockElement,
@@ -24,7 +23,6 @@ export type {
   ObjectFitMode,
 } from "./element/gallery";
 export type { ImageBorderRadiusPreset, ImageShadowPreset } from "./element/image-appearance";
-export type { GraphvizElement } from "./element/graphviz";
 export type { HeaderElement } from "./element/header";
 export type { Color, HighlightBlockElement } from "./element/highlight-block";
 export type { HTMLBlockElement } from "./element/html-block";
@@ -36,7 +34,6 @@ export type { LinkElement } from "./element/link";
 export type { ListItemElement, BulletedListElement, NumberedListElement } from "./element/list";
 export type { InlineMathElement, BlockMathElement } from "./element/math";
 export type { MermaidElement } from "./element/mermaid";
-export type { MultiColumnContainerElement, MultiColumnItemElement } from "./element/multi-column";
 export type { ParagraphElement } from "./element/paragraph";
 export type { PlantUMLElement } from "./element/plantuml";
 export type { StyledTextElement } from "./element/styled-text";

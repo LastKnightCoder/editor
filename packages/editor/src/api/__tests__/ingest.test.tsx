@@ -121,21 +121,21 @@ describe("withIngest · paste", () => {
   });
 
   it("text 认领：第一个 when 为真的声明消费，其余与默认链都不再走", async () => {
-    const chartRun = vi.fn();
+    const csvRun = vi.fn();
     const declined = vi.fn();
     const fallback = vi.fn();
     const editor = createEditor();
     editor.insertData = async () => fallback();
     const wrapped = withSources(editor, [
       {
-        owner: "chart",
-        text: { when: data => data.getData("text/plain").startsWith("col1,"), run: chartRun },
+        owner: "csv",
+        text: { when: data => data.getData("text/plain").startsWith("col1,"), run: csvRun },
       },
       { owner: "other", text: { when: () => true, run: declined } },
     ]);
 
     await wrapped.insertData(fakeTransfer([], { "text/plain": "col1,col2\n1,2" }));
-    expect(chartRun).toHaveBeenCalledTimes(1);
+    expect(csvRun).toHaveBeenCalledTimes(1);
     expect(declined).not.toHaveBeenCalled();
     expect(fallback).not.toHaveBeenCalled();
   });

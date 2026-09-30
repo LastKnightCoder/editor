@@ -19,7 +19,6 @@ export const SOURCE_FIELDS: Record<string, string[]> = {
   mermaid: ["chart"],
   plantuml: ["content"],
   abc: ["content"],
-  graphviz: ["dot"],
   "html-block": ["html"],
   "html-inline": ["html"],
   "custom-block": ["content"],
@@ -253,11 +252,7 @@ function updateSharedObject(map: Y.Map<unknown>, value: Record<string, unknown>)
 }
 
 export function sharedProperty(type: string, key: string) {
-  return (
-    SOURCE_FIELDS[type]?.includes(key) ||
-    (type === "chart" && ["data", "config"].includes(key)) ||
-    (type === "code-block" && key === "magicMove")
-  );
+  return SOURCE_FIELDS[type]?.includes(key) || (type === "code-block" && key === "magicMove");
 }
 
 export function prepareNodes(

@@ -224,8 +224,7 @@ blockquote {
 }
 
 .diagram-svg,
-.mermaid,
-.echarts-container {
+.mermaid {
   text-align: center;
   margin: 1em 0;
 }

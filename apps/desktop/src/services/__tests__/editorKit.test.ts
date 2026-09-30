@@ -23,18 +23,11 @@ vi.mock("@/editor-extensions", () => ({
   fileAttachmentExtension: extensionOf("file-attachment"),
 }));
 vi.mock("@/editor-extensions/flashcard-blank", () => ({
-  default: class {
-    type = "flashcard-blank";
-    getPlugins = () => [];
-    getHotkeyConfigs = () => [];
-    getBlockPanelItems = () => [];
-    getHoveringBarElements = () => [];
-    render = () => null;
-  },
+  default: extensionOf("flashcard-blank"),
 }));
 vi.mock("../editorRegistry", () => ({ desktopEditorServices: () => {} }));
 
-const HOST = ["content-link", "file-attachment", "inline-ai-assistant", "whiteboard", "database"];
+const HOST = ["content-link", "file-attachment", "whiteboard", "database"];
 const TRACKED = new Set([...HOST, "webview", "flashcard-blank"]);
 
 const loadStore = async () => {

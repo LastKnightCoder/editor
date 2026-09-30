@@ -2,7 +2,7 @@
  * 主题服务：编辑器读取「当前明暗」与「token 实际取值」的唯一入口。
  *
  * CSS 能表达的地方一律写 --ed-*（见 editor.css），不必经过本服务；本服务服务于 CSS 表达不了
- * 的场景：mermaid / shiki / codemirror / echarts / canvas 这类要把颜色当值传进去的渲染器。
+ * 的场景：mermaid / shiki / codemirror / canvas 这类要把颜色当值传进去的渲染器。
  */
 
 export type EditorThemeMode = "light" | "dark";

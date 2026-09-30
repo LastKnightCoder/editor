@@ -6,8 +6,7 @@ import isHotkey from "is-hotkey";
 import { cn } from "@tau/ui";
 import { useMemoizedFn } from "ahooks";
 import type { HighlighterCore } from "shiki/core";
-import { PortalToBody } from "@tau/shared";
-import { MdFullscreenExit, MdKeyboardArrowDown, MdKeyboardArrowUp } from "react-icons/md";
+import { MdKeyboardArrowDown, MdKeyboardArrowUp } from "react-icons/md";
 
 import type { CodeBlockElement, CodeBlockMagicMove } from "../../../../types";
 import AddParagraph, { AddParagraphRef } from "../../../../components/AddParagraph";
@@ -89,7 +88,6 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
   const isLast = useIsLastElement(element);
   const addParagraphRef = useRef<AddParagraphRef>(null);
   const [code, setCode] = useState(defaultCode || "");
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [contentHeight, setContentHeight] = useState(0);
   const [readOnlyStepIndex, setReadOnlyStepIndex] = useState(0);
   const [magicMovePreview, setMagicMovePreview] = useState(false);
@@ -483,22 +481,6 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     }
   });
 
-  const toggleFullscreen = useMemoizedFn(() => {
-    if (readOnly) {
-      return;
-    }
-    flushPendingPersist();
-    setIsFullscreen(prev => !prev);
-  });
-
-  const closeFullscreen = useMemoizedFn(() => {
-    if (!isFullscreen) {
-      return;
-    }
-    flushPendingPersist();
-    setIsFullscreen(false);
-  });
-
   const updateFoldHeight = useMemoizedFn((nextHeight: number) => {
     if (readOnly) {
       return;
@@ -813,9 +795,6 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
           onDeleteCurrentStep={readOnly ? undefined : handleDeleteCurrentStep}
           canDeleteCurrentStep={canDeleteCurrentStep}
           diffEnabled={Boolean(magicMove)}
-          onFullscreen={readOnly ? undefined : toggleFullscreen}
-          showFullscreen={!readOnly}
-          isFullscreen={isFullscreen}
           onPreviousStep={goToPreviousStep}
           onNextStep={goToNextStep}
           hasPreviousStep={hasPreviousStep}
@@ -842,7 +821,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
             value={code || ""}
             language={language}
             isDark={isDark}
-            readOnly={readOnly || isFullscreen}
+            readOnly={readOnly}
             className="ed-code-overlay"
             allowScroll={isFolded}
             displayHeight={overlayDisplayHeight}
@@ -851,8 +830,8 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
             onChange={applyCodeChange}
             onBlur={flushPendingPersist}
             onKeyDown={readOnly ? undefined : handleEditorKeyDown}
-            onDidMount={readOnly || isFullscreen ? undefined : onDidMount}
-            onWillUnmount={readOnly || isFullscreen ? undefined : onWillUnmount}
+            onDidMount={readOnly ? undefined : onDidMount}
+            onWillUnmount={readOnly ? undefined : onWillUnmount}
             magicMoveEnabled={hasMagicMove}
             enableMagicMovePreview={magicMovePreview && hasMagicMove}
             magicMoveHighlighter={highlighter}
@@ -915,65 +894,6 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
             } as ContextMenuItem,
           ]}
         />
-        {isFullscreen && (
-          <PortalToBody>
-            <div
-              className="fixed inset-0 z-[1001] flex items-center justify-center bg-[var(--ed-glass-bg)] backdrop-blur-[var(--ed-glass-blur)] [--ed-code-pad-bottom:1.2em] [--ed-code-pad-left:1.5em] [--ed-code-pad-right:0.85em] [--ed-code-pad-top:1.2em]"
-              onClick={closeFullscreen}
-            >
-              <div
-                className="relative box-border flex h-[90%] w-[90%] flex-col overflow-hidden rounded-[0.5em] bg-[var(--ed-glass-bg)] shadow-[var(--ed-shadow-float)] backdrop-blur-[var(--ed-glass-blur)]"
-                onClick={event => event.stopPropagation()}
-              >
-                <div className="relative z-[2] flex h-[2.5em] items-center justify-between border-b border-solid border-[var(--ed-border)] px-[1.25em] py-[0.625em]">
-                  <SelectLanguage
-                    readonly={readOnly}
-                    className="static"
-                    value={language}
-                    onChange={handleOnLanguageChange}
-                  />
-                  <div
-                    className="flex h-[1.75em] w-[1.75em] cursor-pointer items-center justify-center rounded-[0.25em] p-[0.25em] transition-all duration-200"
-                    onClick={closeFullscreen}
-                  >
-                    <MdFullscreenExit size={20} />
-                  </div>
-                </div>
-                <div className="min-h-0 flex-1 overflow-hidden p-[1.25em]">
-                  <ShikiOverlayEditor
-                    value={code || ""}
-                    language={language}
-                    isDark={isDark}
-                    readOnly={readOnly}
-                    className="ed-code-overlay rounded-[0.5em] bg-[var(--ed-code-bg)] shadow-[var(--ed-code-shadow)]"
-                    allowScroll={true}
-                    onChange={applyCodeChange}
-                    onBlur={flushPendingPersist}
-                    onKeyDown={readOnly ? undefined : handleEditorKeyDown}
-                    onContentHeightChange={setContentHeight}
-                    magicMoveEnabled={hasMagicMove}
-                    enableMagicMovePreview={magicMovePreview && hasMagicMove}
-                    magicMoveHighlighter={highlighter}
-                    magicMoveTheme={shikiTheme}
-                    highlightLines={currentStepHighlightLines}
-                    onContextMenu={
-                      readOnly
-                        ? undefined
-                        : (e, sel) => {
-                            e.preventDefault();
-                            setHighlightContextMenu({
-                              visible: true,
-                              position: { x: e.clientX, y: e.clientY },
-                              selectedLines: sel,
-                            });
-                          }
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-          </PortalToBody>
-        )}
       </div>
     </div>
   );
