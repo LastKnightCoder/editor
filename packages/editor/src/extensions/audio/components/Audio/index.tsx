@@ -27,7 +27,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
     <input
       {...titleInput}
       placeholder="音频标题…"
-      className="mb-1.5 w-full rounded-md bg-transparent px-1 py-0.5 text-sm font-medium text-gray-800 outline-none placeholder:font-normal placeholder:text-gray-400 focus:bg-gray-200/60 dark:text-zinc-200 dark:placeholder:text-zinc-500 dark:focus:bg-zinc-700/40"
+      className="text-tau-body -ml-1 w-full truncate rounded-[6px] border-none bg-transparent px-1 font-medium text-[var(--ed-text)] outline-none transition-colors placeholder:font-normal placeholder:text-[var(--ed-text-tertiary)] hover:bg-[var(--ed-bg-hover)] focus:bg-[var(--ed-bg-surface)] focus:shadow-[0_0_0_1px_var(--ed-border),var(--ed-focus-ring)]"
     />
   ) : undefined;
 
@@ -63,7 +63,13 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
         <LoadingOverlay loading={!!uploading}>
           {src ? (
             <div className="relative">
-              <AudioSlot src={src} controls label={element.title} labelSlot={titleSlot} />
+              <AudioSlot
+                src={src}
+                controls
+                label={element.title}
+                labelSlot={titleSlot}
+                sourceText={element.isFromGenerate ? element.audioText : undefined}
+              />
             </div>
           ) : (
             <If condition={!src}>{renderNoContent()}</If>

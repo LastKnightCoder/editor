@@ -22,7 +22,14 @@ function DefaultVideo({
 }
 DefaultVideo.displayName = "DefaultVideoSlot";
 
-function DefaultAudio({ src, ref, ...rest }: AudioSlotProps) {
+function DefaultAudio({
+  src,
+  ref,
+  label: _label,
+  labelSlot: _labelSlot,
+  sourceText: _sourceText,
+  ...rest
+}: AudioSlotProps) {
   return <audio ref={ref} src={src} {...rest} />;
 }
 DefaultAudio.displayName = "DefaultAudioSlot";

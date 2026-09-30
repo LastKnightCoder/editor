@@ -18,4 +18,9 @@ describe("resolveResumePosition", () => {
     expect(resolveResumePosition("120", Number.POSITIVE_INFINITY)).toBeNull();
     expect(resolveResumePosition("120", 0)).toBeNull();
   });
+
+  it("短于 minDuration 的媒体不续播", () => {
+    expect(resolveResumePosition("20", 45, 60)).toBeNull();
+    expect(resolveResumePosition("20", 90, 60)).toBe(20);
+  });
 });
