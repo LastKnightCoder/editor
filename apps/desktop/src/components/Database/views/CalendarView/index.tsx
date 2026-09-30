@@ -3,7 +3,7 @@ import { useMemoizedFn } from "ahooks";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import dayjs from "dayjs";
 import { v4 as uuidv4 } from "uuid";
-import { useDatabaseStore } from "../../hooks";
+import { useDatabaseStore, useRowDetail } from "../../hooks";
 import PluginManager from "../../PluginManager";
 import { RowData, ColumnDef, DatabaseConfig } from "../../types";
 import { DateValue, DatePluginConfig } from "../../plugins/DatePlugin";
@@ -35,31 +35,22 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
     config,
     bare = false,
   }) => {
-    const [confirmDeleteRow, setConfirmDeleteRow] = useState<RowData | null>(null);
+    const [confirmDeleteRowId, setConfirmDeleteRowId] = useState<string | null>(null);
 
-    const {
-      columns,
-      viewConfig,
-      updateCellValue,
-      addRow,
-      addColumn,
-      editColumn,
-      columnWidths,
-      deleteRow,
-    } = useDatabaseStore(state => ({
-      columns: state.columns,
-      viewConfig: state.viewConfig,
-      updateCellValue: state.updateCellValue,
-      addRow: state.addRow,
-      addColumn: state.addColumn,
-      editColumn: state.editColumn,
-      columnWidths: state.columnWidths,
-      deleteRow: state.deleteRow,
-    }));
+    const { columns, viewConfig, addRow, addColumn, editColumn, columnWidths, deleteRow } =
+      useDatabaseStore(state => ({
+        columns: state.columns,
+        viewConfig: state.viewConfig,
+        addRow: state.addRow,
+        addColumn: state.addColumn,
+        editColumn: state.editColumn,
+        columnWidths: state.columnWidths,
+        deleteRow: state.deleteRow,
+      }));
 
     const [currentDate, setCurrentDate] = useState(Date.now());
-    const [rowDetailOpen, setRowDetailOpen] = useState(false);
-    const [editingRow, setEditingRow] = useState<RowData | null>(null);
+    const { detailRowId, openRowDetail, showRowDetail, closeRowDetail } =
+      useRowDetail(onRowDetailOpen);
     const [columnEditOpen, setColumnEditOpen] = useState(false);
     const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
 
@@ -134,14 +125,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
       setCurrentDate(Date.now());
     });
 
-    const handleEventClick = useMemoizedFn((rowData: RowData) => {
-      if (onRowDetailOpen) {
-        onRowDetailOpen(rowData);
-      } else {
-        setEditingRow(rowData);
-        setRowDetailOpen(true);
-      }
-    });
+    const handleEventClick = openRowDetail;
 
     const handleDateClick = useMemoizedFn((date: number) => {
       if (readonly || !dateColumn) return;
@@ -160,22 +144,8 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
         const newId = uuidv4();
         newRowData.id = newId;
 
-        // 添加到 store
         addRow(newRowData);
-
-        // 构建完整的新行对象用于打开详情弹窗
-        const newRow: RowData = {
-          id: newId,
-        };
-        columns.forEach(column => {
-          newRow[column.id] = newRowData[column.id] ?? null;
-        });
-
-        // 只有在没有自定义 onRowDetailOpen 时才自动打开内部的详情弹窗
-        if (!onRowDetailOpen) {
-          setEditingRow(newRow);
-          setRowDetailOpen(true);
-        }
+        showRowDetail(newId);
       }
     });
 
@@ -200,48 +170,20 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
         const newId = uuidv4();
         newRowData.id = newId;
 
-        // 添加到 store
         addRow(newRowData);
-
-        // 构建完整的新行对象用于打开详情弹窗
-        const newRow: RowData = {
-          id: newId,
-        };
-        columns.forEach(column => {
-          newRow[column.id] = newRowData[column.id] ?? null;
-        });
-
-        // 只有在没有自定义 onRowDetailOpen 时才自动打开内部的详情弹窗
-        if (!onRowDetailOpen) {
-          setEditingRow(newRow);
-          setRowDetailOpen(true);
-        }
+        showRowDetail(newId);
       }
     });
 
-    const handleEventDelete = useMemoizedFn((rowData: RowData) => {
+    const handleDeleteRow = useMemoizedFn((rowId: string) => {
       if (onRowDelete) {
-        onRowDelete(rowData.id);
+        onRowDelete(rowId);
       } else {
-        setConfirmDeleteRow(rowData);
+        setConfirmDeleteRowId(rowId);
       }
     });
 
-    const handleCloseRowDetail = useMemoizedFn(() => {
-      setRowDetailOpen(false);
-      setEditingRow(null);
-    });
-
-    const handleSaveRowDetail = useMemoizedFn((rowData: Partial<RowData>) => {
-      if (!editingRow) return;
-
-      // 更新行数据
-      Object.keys(rowData).forEach(key => {
-        if (key !== "id") {
-          updateCellValue(editingRow.id, key, rowData[key]);
-        }
-      });
-    });
+    const handleEventDelete = useMemoizedFn((rowData: RowData) => handleDeleteRow(rowData.id));
 
     const allowAddColumn = config?.allowAddColumn ?? true;
     const allowDeleteColumn = config?.allowDeleteColumn ?? true;
@@ -341,14 +283,14 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
           />
         </div>
 
-        {rowDetailOpen && editingRow && (
+        {detailRowId && (
           <RowDetailModal
-            row={editingRow}
+            rowId={detailRowId}
             columns={columns}
             pluginManager={pluginManager}
             theme={theme}
-            onClose={handleCloseRowDetail}
-            onSave={handleSaveRowDetail}
+            onClose={closeRowDetail}
+            onDeleteRow={config?.allowDeleteRow !== false ? handleDeleteRow : undefined}
             onAddColumn={handleAddColumn}
             readonly={readonly}
             allowDeleteColumn={allowDeleteColumn}
@@ -375,17 +317,17 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
           />
         )}
         <ConfirmDialog
-          open={confirmDeleteRow !== null}
+          open={confirmDeleteRowId !== null}
           onOpenChange={open => {
-            if (!open) setConfirmDeleteRow(null);
+            if (!open) setConfirmDeleteRowId(null);
           }}
           title="确定删除此事件吗？"
           danger
           confirmText="删除"
           onConfirm={() => {
-            const row = confirmDeleteRow;
-            if (!row) return;
-            deleteRow(row.id);
+            const rowId = confirmDeleteRowId;
+            if (!rowId) return;
+            deleteRow(rowId);
           }}
         />
       </div>
