@@ -46,15 +46,15 @@ export function EntityDialog({
   const [desc, setDesc] = useState<Descendant[]>(EMPTY_DESC);
   const [saving, setSaving] = useState(false);
   const editorRef = useRef<EditorRef>(null);
+  const [editorRevision, setEditorRevision] = useState(0);
 
-  /* 开启时以目标条目（或空表单）重置，关闭残留不带入下次；
-     ContentEditor 的 initValue 非受控，值切换经 ref 同步 */
+  /* 开启时为目标条目建立新编辑会话，关闭残留不带入下次。 */
   useEffect(() => {
     if (!open) return;
     setTitle(item?.title ?? "");
     const nextDesc = item?.desc?.length ? item.desc : EMPTY_DESC;
     setDesc(nextDesc);
-    editorRef.current?.setEditorValue(nextDesc);
+    setEditorRevision(revision => revision + 1);
   }, [open, item]);
 
   const handleSave = () => {
@@ -122,6 +122,7 @@ export function EntityDialog({
             <div className="border-line-1 bg-surface rounded-tau-sm ease-tau-out hover:not-focus-within:border-ink-3/50 focus-within:border-accent min-h-[136px] border px-3 py-2 transition-[border-color,box-shadow] duration-[160ms] focus-within:shadow-[var(--tau-focus-ring)]">
               <ErrorBoundary>
                 <ContentEditor
+                  key={editorRevision}
                   ref={editorRef}
                   kit={getDescriptionKit()}
                   initValue={desc}

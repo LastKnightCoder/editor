@@ -9,7 +9,8 @@ import {
   type Operation,
   type SetNodeOperation,
 } from "slate";
-import { withCursors, withYHistory, withYjs, YjsEditor } from "@slate-yjs/core";
+import { withCursors, YjsEditor } from "@slate-yjs/core";
+import { withYjsDocument } from "./yjsBinding";
 import {
   getBody,
   getFields,
@@ -41,11 +42,7 @@ export function withCollaboration<T extends Editor>(
   let binding = initialBinding;
   let cursorsEnabled = cursors;
   const editor = withCursors(
-    withYHistory(
-      withYjs(base, binding.root || getBody(binding.doc), {
-        localOrigin: binding.origin,
-      })
-    ),
+    withYjsDocument(base, binding.root || getBody(binding.doc), binding.origin),
     binding.awareness,
     { cursorDataField: "user", autoSend: false }
   );

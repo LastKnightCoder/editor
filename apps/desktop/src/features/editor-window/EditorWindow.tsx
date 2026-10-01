@@ -154,7 +154,6 @@ export function EditorWindow({
 
   /* 正文：远端 / 初始内容推给编辑器；本地变更节流落库 */
   const { throttleHandleEditorContentChange } = useEditContent(doc.contentId, content => {
-    editorRef.current?.setEditorValue(content);
     updateFields({ content });
   });
   const extensions = useMemo(() => driver.extensions?.(doc.id) ?? [], [driver, doc.id]);

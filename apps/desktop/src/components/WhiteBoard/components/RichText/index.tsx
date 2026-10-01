@@ -1,11 +1,4 @@
-import React, {
-  useState,
-  useRef,
-  useEffect,
-  useMemo,
-  forwardRef,
-  useImperativeHandle,
-} from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
 import { EditorRef } from "@tau/editor";
@@ -100,15 +93,11 @@ interface RichTextProps {
   ) => void;
 }
 
-export interface RichtextRef {
-  setEditorValue: (value: Descendant[]) => void;
-}
-
 /** 留白内沿的渐隐带高度 */
 const EDGE_FADE_SIZE = 16;
 const isSameContent = (a: Descendant[], b: Descendant[]) => JSON.stringify(a) === JSON.stringify(b);
 
-const Richtext = forwardRef<RichtextRef, RichTextProps>((props: RichTextProps, ref) => {
+const Richtext = (props: RichTextProps) => {
   const {
     element,
     onResizeStart,
@@ -169,7 +158,6 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>((props: RichTextProps, r
     latestContentRef.current = nextContent;
     setInitialState(nextContent);
     onElementChange?.(board, element, { content: nextContent });
-    editorRef.current?.setEditorValue(nextContent);
   });
 
   useEffect(() => {
@@ -239,12 +227,6 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>((props: RichTextProps, r
       pendingContentIdPromiseRef.current = null;
     }
   });
-
-  useImperativeHandle(ref, () => ({
-    setEditorValue: (value: Descendant[]) => {
-      editorRef.current?.setEditorValue(value);
-    },
-  }));
 
   const { isMoveArrowClosing, activeConnectId, arrowConnectPoints, arrowConnectExtendPoints } =
     useDropArrow(element);
@@ -578,6 +560,6 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>((props: RichTextProps, r
       </If>
     </>
   );
-});
+};
 
 export default Richtext;

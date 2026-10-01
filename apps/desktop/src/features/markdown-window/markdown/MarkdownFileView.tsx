@@ -14,8 +14,9 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
+  Activity,
 } from "react";
-import type { Descendant } from "slate";
 import type { Editor as CodeMirrorEditor } from "codemirror";
 import "codemirror/mode/markdown/markdown.js";
 import "codemirror/mode/gfm/gfm.js";
@@ -31,13 +32,14 @@ import {
   resolveEditorHeaderAnchor,
   type OutlineHeader,
 } from "@/components/ContentOutline";
-import { getContentLength, getMarkdown, importFromMarkdown } from "@/utils";
+import { getContentLength, importFromMarkdown } from "@/utils";
 import { FileBanner, FileStatusBar } from "../FileChrome";
 import { useTextFileSession } from "../useTextFileSession";
 import type { FileViewStatus, MarkdownViewHandle } from "../types";
 import { CodeMirrorView } from "./CodeMirrorView";
 import { useMarkdownEditorServices } from "./editorServices";
 import { useSourceMode } from "./useSourceMode";
+import { createMarkdownDocument } from "./markdownDocument";
 
 const WORDS_PER_MINUTE = 400;
 const SOURCE_MODE = { name: "yaml-frontmatter", base: "gfm" };
@@ -72,52 +74,79 @@ export const MarkdownFileView = forwardRef<
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   useEdgeFade(scrollEl);
 
-  const [content, setContent] = useState<Descendant[] | null>(null);
-  const contentRef = useRef<Descendant[]>([]);
-  contentRef.current = content ?? [];
-  /** 载入 / 外部同步时的原文与它的归一化结果 */
-  const loadedText = useRef("");
-  const loadedNormalized = useRef("");
-  const setLoaded = (text: string, nodes: Descendant[]) => {
-    loadedText.current = text;
-    loadedNormalized.current = getMarkdown(nodes);
-  };
+  const surfaceActive = useRef(true);
+  const [fileDocument] = useState(() =>
+    createMarkdownDocument(children => (
+      <Activity mode={surfaceActive.current ? "visible" : "hidden"}>{children}</Activity>
+    ))
+  );
+  const snapshot = useSyncExternalStore(fileDocument.subscribe, fileDocument.getSnapshot);
+  const content = snapshot.content;
+  const getText = useCallback(() => fileDocument.getText(), [fileDocument]);
+  const applySource = useCallback(
+    (text: string) => fileDocument.applyMarkdown(text, "user"),
+    [fileDocument]
+  );
 
-  const { sourceMode, toggle, sourceEditorRef, sourceTextRef } = useSourceMode({
+  const { sourceMode, toggle, showSource, sourceEditorRef, sourceTextRef } = useSourceMode({
     editorRef,
-    getContent: () => contentRef.current,
-    setContent,
+    getText,
+    applySource,
+    stopCapturing: fileDocument.stopCapturing,
   });
   const sourceModeRef = useRef(sourceMode);
   sourceModeRef.current = sourceMode;
-
-  const getText = useCallback(() => {
-    const text = sourceModeRef.current ? sourceTextRef.current : getMarkdown(contentRef.current);
-    return text === loadedNormalized.current ? loadedText.current : text;
-  }, [sourceTextRef]);
+  surfaceActive.current = !sourceMode && !snapshot.error;
 
   const applyExternalText = useCallback(
     (text: string) => {
-      const nodes = importFromMarkdown(text);
-      setLoaded(text, nodes);
-      sourceTextRef.current = text;
-      setContent(nodes);
-      editorRef.current?.setEditorValue(nodes);
-      sourceEditorRef.current?.setValue(text);
+      fileDocument.applyMarkdown(text, "external");
     },
-    [sourceEditorRef, sourceTextRef]
+    [fileDocument]
   );
 
-  const session = useTextFileSession({ path, getText, applyExternalText });
+  const session = useTextFileSession({ path, getText, applyExternalText, ready: snapshot.loaded });
+  const { markDirty, flush, save } = session;
 
   // 首次读到文件
   useEffect(() => {
-    if (session.initialText === null || content !== null) return;
-    const nodes = importFromMarkdown(session.initialText);
-    setLoaded(session.initialText, nodes);
-    sourceTextRef.current = session.initialText;
-    setContent(nodes);
-  }, [content, session.initialText, sourceTextRef]);
+    if (session.initialText !== null && !snapshot.loaded) applyExternalText(session.initialText);
+  }, [applyExternalText, snapshot.loaded, session.initialText]);
+
+  useEffect(
+    () =>
+      fileDocument.onChange(source => {
+        if (source === "user") markDirty();
+      }),
+    [fileDocument, markDirty]
+  );
+  const lifetime = useRef({ revision: 0 });
+  useEffect(() => {
+    const tracker = lifetime.current;
+    const revision = ++tracker.revision;
+    return () => {
+      queueMicrotask(async () => {
+        if (tracker.revision !== revision) return;
+        await flush();
+        if (tracker.revision === revision) fileDocument.dispose();
+      });
+    };
+  }, [fileDocument, flush]);
+
+  useEffect(() => {
+    sourceTextRef.current = snapshot.text;
+    const editor = sourceEditorRef.current;
+    if (editor && editor.getValue() !== snapshot.text) {
+      const cursor = editor.getCursor();
+      editor.setValue(snapshot.text);
+      editor.clearHistory();
+      const line = Math.min(cursor.line, editor.lastLine());
+      editor.setCursor({ line, ch: Math.min(cursor.ch, editor.getLine(line).length) });
+    }
+  }, [snapshot.text, sourceEditorRef, sourceTextRef]);
+  useEffect(() => {
+    if (snapshot.error && !sourceMode) showSource();
+  }, [snapshot.error, sourceMode, showSource]);
 
   const markdownKit = useMarkdownEditorServices(path, onOpenMarkdown);
 
@@ -130,10 +159,14 @@ export const MarkdownFileView = forwardRef<
   const { run: refreshStats } = useThrottleFn(
     () => {
       if (sourceModeRef.current) {
-        setWords(getContentLength(importFromMarkdown(sourceTextRef.current)));
+        const sourceText = sourceTextRef.current;
+        const sourceContent = fileDocument.getSnapshot().error
+          ? [{ type: "formatted" as const, text: sourceText }]
+          : importFromMarkdown(sourceText);
+        setWords(getContentLength(sourceContent));
         setSource(sourceHeaders(sourceTextRef.current));
       } else {
-        setWords(getContentLength(contentRef.current));
+        setWords(getContentLength(fileDocument.getContent()));
       }
     },
     { wait: 1000 }
@@ -184,10 +217,7 @@ export const MarkdownFileView = forwardRef<
     });
   }, [dirty, onStatus, resolveAnchor, richHeaders, scrollEl, source.headers, sourceMode]);
 
-  const getContent = useCallback(
-    () => (sourceModeRef.current ? importFromMarkdown(sourceTextRef.current) : contentRef.current),
-    [sourceTextRef]
-  );
+  const getContent = useCallback(() => fileDocument.getContent(), [fileDocument]);
 
   useImperativeHandle(
     ref,
@@ -201,7 +231,7 @@ export const MarkdownFileView = forwardRef<
       if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return;
       if (event.key === "s" && !sourceModeRef.current) {
         event.preventDefault();
-        void session.save();
+        void save();
       } else if (event.key === "/") {
         event.preventDefault();
         toggle();
@@ -209,13 +239,14 @@ export const MarkdownFileView = forwardRef<
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [session.save, toggle]);
+  }, [save, toggle]);
 
   const onSourceMount = useCallback(
     (editor: CodeMirrorEditor | null) => {
       sourceEditorRef.current = editor;
+      if (editor && snapshot.loaded) editor.setValue(fileDocument.getText());
     },
-    [sourceEditorRef]
+    [sourceEditorRef, fileDocument, snapshot.loaded]
   );
 
   if (session.loadError) {
@@ -225,12 +256,17 @@ export const MarkdownFileView = forwardRef<
       </div>
     );
   }
-  if (content === null) return <Loading />;
+  if (!snapshot.loaded) return <Loading />;
 
   const column = cn("mx-auto w-full px-10 pb-24 pt-8", wide ? "max-w-[1040px]" : "max-w-[800px]");
 
   return (
     <>
+      {snapshot.error && (
+        <FileBanner tone="warn" actions={[]}>
+          暂时无法显示富文本，原文已保留，可继续编辑和保存源码：{snapshot.error}
+        </FileBanner>
+      )}
       {session.conflict !== null && (
         <FileBanner
           tone="warn"
@@ -261,33 +297,27 @@ export const MarkdownFileView = forwardRef<
             scrollEl={scrollEl}
             onMount={onSourceMount}
             onSave={() => void session.save()}
+            onUndo={fileDocument.undo}
+            onRedo={fileDocument.redo}
             onCursorChange={setCursor}
             onChange={(text, origin) => {
               sourceTextRef.current = text;
               if (origin === "setValue") return;
-              session.markDirty();
+              applySource(text);
               refreshStats();
             }}
           />
         </div>
-        {!sourceMode && (
-          <div ref={richRef} className={column}>
-            <ErrorBoundary>
-              <Editor
-                kit={markdownKit}
-                ref={editorRef}
-                initValue={content}
-                onChange={value => {
-                  // 仅选区变化时 children 引用不变：不算编辑
-                  if (value === contentRef.current) return;
-                  setContent(value);
-                  session.markDirty();
-                }}
-                readonly={false}
-              />
-            </ErrorBoundary>
-          </div>
-        )}
+        <div ref={richRef} className={cn(column, (sourceMode || !!snapshot.error) && "hidden")}>
+          <ErrorBoundary>
+            <Editor
+              kit={markdownKit}
+              ref={editorRef}
+              document={fileDocument.document}
+              readonly={sourceMode || !!snapshot.error}
+            />
+          </ErrorBoundary>
+        </div>
       </div>
       <FileStatusBar cursor={sourceMode ? cursor : null} saveState={session.saveState}>
         <button

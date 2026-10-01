@@ -24,7 +24,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { Descendant } from "slate";
-import { Editor, EditorRef } from "@tau/editor";
+import { Editor } from "@tau/editor";
+import { useLocalEditorDocument } from "@/hooks/useLocalEditorDocument";
 import { createHeaderExtension } from "@tau/editor-header";
 import { Button, ConfirmDialog, Dialog, Input, Textarea, cn, toast } from "@tau/ui";
 import { FadeScroll } from "@/components/FadeScroll";
@@ -270,13 +271,19 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     model,
     onOpenLLMSettings,
   } = props;
-  const editorRef = useRef<EditorRef>(null);
   const [step, setStep] = useState<Step>("rewrite");
   const [editorSessionId, setEditorSessionId] = useState(0);
   const [selectedStyle, setSelectedStyle] = useState<VideoEbookRewriteStyle>("magazine");
   const [selectedFormats, setSelectedFormats] = useState<Set<ExportFormat>>(new Set(["epub"]));
   const [draftContent, setDraftContent] = useState<Descendant[]>(DEFAULT_CONTENT);
   const [hasDraft, setHasDraft] = useState(false);
+  const draftDocument = useLocalEditorDocument(
+    `video:${videoNoteId}:${editorSessionId}`,
+    content => {
+      setDraftContent(content);
+      setHasDraft(Boolean(normalizeText(getMarkdown(content))));
+    }
+  );
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<{ formats: string; details: string } | null>(null);
   const [coverCandidates, setCoverCandidates] = useState<CoverCandidate[]>([]);
@@ -384,13 +391,13 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
   }, [open, videoTitle, remembered, resetRewriteState]);
 
   useEffect(() => {
-    if (!open || !isRewriting || !ebookContent) {
+    if (!open || !ebookContent) {
       return;
     }
     setHasDraft(true);
     setDraftContent(ebookContent);
-    editorRef.current?.setEditorValue(ebookContent);
-  }, [open, isRewriting, ebookContent]);
+    draftDocument.updateContent(ebookContent, "external");
+  }, [open, ebookContent, draftDocument]);
 
   useEffect(() => {
     if (!open || !finalMarkdown) {
@@ -400,11 +407,11 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
       const parsed = importFromMarkdown(finalMarkdown);
       setHasDraft(Boolean(normalizeText(finalMarkdown)));
       setDraftContent(parsed);
-      editorRef.current?.setEditorValue(parsed);
+      draftDocument.updateContent(parsed, "external");
     } catch (error) {
       console.error("最终草稿解析失败:", error);
     }
-  }, [open, finalMarkdown]);
+  }, [open, finalMarkdown, draftDocument]);
 
   useEffect(() => {
     if (!open || !rewriteError) {
@@ -514,21 +521,15 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
       return;
     }
 
+    setEditorSessionId(previous => previous + 1);
+    setDraftContent(createEmptyContent());
+    setHasDraft(false);
     startRewrite({
       transcript,
       videoTitle,
       videoDescription,
       style: selectedStyle,
     });
-  });
-
-  const handleEditorChange = useMemoizedFn((content: Descendant[]) => {
-    setDraftContent(content);
-    if (isRewriting) {
-      return;
-    }
-    const markdown = getMarkdown(content);
-    setHasDraft(Boolean(normalizeText(markdown)));
   });
 
   const handleGoToExportSettings = useMemoizedFn(() => {
@@ -785,10 +786,8 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
           <div className="pb-8 pl-8 pr-[26px] pt-5 [&_[data-slate-editor]]:outline-none">
             <Editor
               kit={getEpubDraftKit()}
-              ref={editorRef}
               key={`video-note-ebook-${videoNoteId}-${editorSessionId}`}
-              initValue={draftContent}
-              onChange={handleEditorChange}
+              document={draftDocument.document}
               readonly={isRewriting}
               placeHolder="草稿会在这里逐步出现"
             />

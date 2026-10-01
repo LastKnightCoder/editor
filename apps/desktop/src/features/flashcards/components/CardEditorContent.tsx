@@ -6,7 +6,7 @@ import { Input, Segmented, Textarea } from "@tau/ui";
 import { TYPE_LABEL, TYPE_ORDER } from "../model";
 import { TYPE_ICON } from "../typeIcons";
 
-import type { FormState } from "../editorModel";
+import { createFormReference, type FormState } from "../editorModel";
 import { AnswerFields } from "./AnswerFields";
 import { Field } from "./Field";
 
@@ -45,7 +45,7 @@ export function CardEditorContent({
       >
         <RichTextEditor
           key={`prompt-${revision}-${form.type === "cloze"}`}
-          value={form.prompt}
+          initialValue={form.prompt}
           onChange={value => patch({ prompt: value?.length ? value : textToDescendants("") })}
           allowBlanks={form.type === "cloze"}
           isDark={isDark}
@@ -57,7 +57,7 @@ export function CardEditorContent({
       <Field label="补充说明" aux="可选，复习时显示在题干下方">
         <RichTextEditor
           key={`detail-${revision}`}
-          value={form.detail}
+          initialValue={form.detail}
           onChange={value => patch({ detail: value?.length ? value : textToDescendants("") })}
           isDark={isDark}
           placeholder="背景、限定条件等"
@@ -95,12 +95,12 @@ export function CardEditorContent({
               patch({
                 references: [
                   ...form.references,
-                  {
+                  createFormReference({
                     refType: "content",
                     title: "",
                     contentId: undefined,
                     customContent: undefined,
-                  },
+                  }),
                 ],
               })
             }
@@ -115,11 +115,15 @@ export function CardEditorContent({
           <div className="space-y-4">
             {form.references.map((ref, i) => (
               <ReferenceEditor
-                key={`${revision}-${i}`}
+                key={`${revision}-${ref.formId}`}
                 reference={ref}
                 isDark={isDark}
                 onChange={next =>
-                  patch({ references: form.references.map((r, j) => (j === i ? next : r)) })
+                  patch({
+                    references: form.references.map((r, j) =>
+                      j === i ? { ...next, formId: ref.formId } : r
+                    ),
+                  })
                 }
                 onRemove={() => patch({ references: form.references.filter((_, j) => j !== i) })}
               />

@@ -1,4 +1,4 @@
-import { act, forwardRef, useImperativeHandle, useState, type ReactElement } from "react";
+import { act, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Calendar, CalendarEvent } from "../types";
@@ -39,11 +39,14 @@ vi.mock("../../../services/editorKit", () => ({
   getMobileFlashcardKit: () => ({}),
 }));
 vi.mock("@tau/editor", () => ({
-  Editor: forwardRef(({ initValue }: { initValue: unknown }, ref) => {
-    const [value, setValue] = useState(initValue);
-    useImperativeHandle(ref, () => ({ setEditorValue: setValue }), []);
-    return <div data-testid="editor">{JSON.stringify(value)}</div>;
-  }),
+  createValueDocument: (initialValue: unknown) => ({ initialValue }),
+  Editor: ({
+    initValue,
+    document,
+  }: {
+    initValue?: unknown;
+    document?: { initialValue: unknown };
+  }) => <div data-testid="editor">{JSON.stringify(document?.initialValue ?? initValue)}</div>,
 }));
 
 let host: HTMLDivElement;

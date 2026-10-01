@@ -1,0 +1,212 @@
+import { act, createRef, useEffect } from "react";
+import { createRoot } from "react-dom/client";
+import { createEditor, Editor as SlateEditor, Transforms, type Descendant } from "slate";
+import { DndProvider } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
+import { describe, expect, it } from "vitest";
+import { Editor, createEditorKit, type EditorRef } from "@tau/editor";
+import { defineExtension, captureElementSubmission } from "@tau/editor/api";
+import { createLocalYjsDocument } from "../localDocument";
+
+const paragraph = (text: string): Descendant => ({
+  type: "paragraph",
+  children: [{ type: "formatted", text }],
+});
+
+describe("本地 Y.Doc 文档", () => {
+  it("同一文档的两个投影使用独立 origin，编辑能互相同步", () => {
+    const session = createLocalYjsDocument([paragraph("正文")]);
+    const binding = session.document.binding;
+    if (!binding) throw new Error("缺少绑定");
+    const first = binding.install(createEditor());
+    const second = binding.install(createEditor());
+    binding.connect(first);
+    binding.connect(second);
+    try {
+      Transforms.insertText(first, "更新", { at: { path: [0, 0], offset: 2 } });
+      session.flush();
+      expect(second.children).toEqual(first.children);
+      expect(session.getContent()).toEqual([paragraph("正文更新")]);
+    } finally {
+      session.dispose();
+    }
+  });
+  it("文本、属性和结构增量更新，未修改 Y.XmlText 身份保持", () => {
+    const session = createLocalYjsDocument([paragraph("甲"), paragraph("乙")]);
+    try {
+      const first = session.root.toDelta()[0].insert;
+      const second = session.root.toDelta()[1].insert;
+      session.updateContent([paragraph("新增"), paragraph("甲"), paragraph("乙")], "external");
+      expect(session.root.toDelta()[1].insert).toBe(first);
+      expect(session.root.toDelta()[2].insert).toBe(second);
+      session.updateContent([paragraph("新增"), paragraph("甲修改"), paragraph("乙")], "external");
+      expect(session.root.toDelta()[1].insert).toBe(first);
+      expect(session.root.toDelta()[2].insert).toBe(second);
+      expect(session.getContent()).toEqual([
+        paragraph("新增"),
+        paragraph("甲修改"),
+        paragraph("乙"),
+      ]);
+    } finally {
+      session.dispose();
+    }
+  });
+
+  it("保留未知节点和文本字段，删除已移除属性，不执行产品退役清理", () => {
+    const initial = [
+      {
+        type: "question",
+        custom: { enabled: true },
+        children: [{ type: "formatted", text: "未知文本", vendor: [1, 2] }],
+      },
+    ] as unknown as Descendant[];
+    const session = createLocalYjsDocument(initial);
+    try {
+      expect(session.getContent()).toEqual(initial);
+      const next = [
+        { type: "question", children: [{ type: "formatted", text: "未知文本" }] },
+      ] as unknown as Descendant[];
+      session.updateContent(next);
+      expect(session.getContent()).toEqual(next);
+      session.undo();
+      expect(session.getContent()).toEqual(initial);
+    } finally {
+      session.dispose();
+    }
+  });
+
+  it("无法无损表达的空文本属性在写入前明确拒绝", () => {
+    const session = createLocalYjsDocument([paragraph("原文")]);
+    try {
+      expect(() =>
+        session.updateContent([
+          { type: "paragraph", children: [{ type: "formatted", text: "", vendor: true }] },
+        ] as unknown as Descendant[])
+      ).toThrow("空文本");
+      expect(session.getContent()).toEqual([paragraph("原文")]);
+    } finally {
+      session.dispose();
+    }
+  });
+
+  it("嵌套内联节点、格式拆分合并和 Unicode 文本连续对账不丢内容", () => {
+    const session = createLocalYjsDocument();
+    try {
+      for (let version = 0; version < 40; version++) {
+        const next = Array.from({ length: 1 + (version % 7) }, (_, index) => ({
+          type: index % 2 ? "paragraph" : "custom-container",
+          ...(version % 3 ? { alignment: "center" } : {}),
+          children: [
+            {
+              type: "formatted",
+              text: `第${index}段🙂${version % 4}`,
+              ...(version % 2 ? { bold: true } : {}),
+            },
+            {
+              type: "custom-inline",
+              value: version % 3,
+              children: [{ type: "formatted", text: "内联内容" }],
+            },
+            { type: "formatted", text: "e\u0301尾部", italic: true },
+          ],
+        })) as unknown as Descendant[];
+        session.updateContent(next, "external");
+        expect(session.getContent()).toEqual(next);
+      }
+      const split = [
+        {
+          type: "paragraph",
+          children: [
+            { type: "formatted", text: "前缀" },
+            { type: "formatted", text: "中间", bold: true },
+            { type: "formatted", text: "后缀" },
+          ],
+        },
+      ] as Descendant[];
+      session.updateContent([paragraph("前缀中间后缀")], "external");
+      session.updateContent(split, "external");
+      expect(session.getContent()).toEqual(split);
+      session.updateContent([paragraph("前缀中间后缀")], "external");
+      expect(session.getContent()).toEqual([paragraph("前缀中间后缀")]);
+    } finally {
+      session.dispose();
+    }
+  });
+
+  it("真实编辑器不重挂载未修改块，富文本与外部更新共用 Y.Doc 和撤销", async () => {
+    let mounts = 0;
+    const Probe = ({
+      attributes,
+      children,
+    }: {
+      attributes: Record<string, unknown>;
+      children: React.ReactNode;
+    }) => {
+      useEffect(() => {
+        mounts++;
+      }, []);
+      return <div {...attributes}>{children}</div>;
+    };
+    const block = {
+      type: "probe",
+      children: [{ type: "formatted", text: "保留组件" }],
+    } as unknown as Descendant;
+    const session = createLocalYjsDocument([paragraph("正文"), block]);
+    const kit = createEditorKit({
+      extensions: [
+        defineExtension({
+          id: "test.probe",
+          elements: [{ type: "probe", kind: "block", render: Probe }],
+        }),
+      ],
+    });
+    const ref = createRef<EditorRef>();
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    try {
+      await act(async () =>
+        root.render(
+          <DndProvider backend={HTML5Backend}>
+            <Editor ref={ref} document={session.document} kit={kit} readonly={false} />
+          </DndProvider>
+        )
+      );
+      const editor = ref.current?.getEditor();
+      if (!editor) throw new Error("编辑器未挂载");
+      expect(mounts).toBe(1);
+      const stableNode = editor.children[1];
+      const target = editor.children[0];
+      if (target.type !== "paragraph") throw new Error("段落未挂载");
+      const submission = captureElementSubmission(editor, { element: target });
+      await act(async () =>
+        session.updateContent([paragraph("新增"), paragraph("正文"), block], "external")
+      );
+      expect(ref.current?.getEditor()).toBe(editor);
+      expect(editor.children[2]).toBe(stableNode);
+      expect(mounts).toBe(1);
+      expect(
+        submission.commit(({ path }) => {
+          expect(path).toEqual([1]);
+        }).status
+      ).toBe("committed");
+      session.undoManager.stopCapturing();
+      await act(async () =>
+        Transforms.insertText(editor, "本地", { at: SlateEditor.end(editor, [1]) })
+      );
+      expect(session.getContent()[1]).toEqual(paragraph("正文本地"));
+      await act(async () =>
+        session.updateContent([paragraph("外部"), paragraph("正文本地"), block], "external")
+      );
+      await act(async () => session.undo());
+      expect(session.getContent().slice(0, 2)).toEqual([paragraph("外部"), paragraph("正文")]);
+      await act(async () => session.redo());
+      expect(session.getContent()[1]).toEqual(paragraph("正文本地"));
+      expect(mounts).toBe(1);
+    } finally {
+      await act(async () => root.unmount());
+      session.dispose();
+      host.remove();
+    }
+  });
+});

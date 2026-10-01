@@ -128,7 +128,7 @@ const ReferenceEditor = ({ reference, onChange, onRemove, isDark }: ReferenceEdi
         </div>
       ) : (
         <RichTextEditor
-          value={reference.customContent || []}
+          initialValue={reference.customContent || []}
           onChange={handleCustomContentChange}
           allowBlanks={false}
           isDark={isDark}

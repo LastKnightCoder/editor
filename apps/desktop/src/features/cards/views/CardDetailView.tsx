@@ -140,9 +140,7 @@ export function CardDetailView() {
   const [exportKind, setExportKind] = useState<"image" | "epub" | "pdf" | null>(null);
 
   /* 正文：content 表节流持久化，远端更新推回编辑器（字数/时间经 queries 并入缓存） */
-  const { throttleHandleEditorContentChange } = useEditContent(card?.contentId, content => {
-    editorRef.current?.setEditorValue(content);
-  });
+  const { throttleHandleEditorContentChange } = useEditContent(card?.contentId);
 
   /* 沉浸模式：进入记录选区，退出回传选区，正文 remount 后恢复光标（文章页同款） */
   const immersiveEntrySelectionRef = useRef<Range | null>(null);

@@ -116,7 +116,6 @@ vi.mock("@tau/editor", () => {
   const MockEditor = forwardRef<
     {
       focus: () => void;
-      setEditorValue: (nodes: Descendant[]) => void;
       getEditor: () => { insertText: (text: string) => void };
       isFocus: () => boolean;
       deselect: () => void;
@@ -130,7 +129,7 @@ vi.mock("@tau/editor", () => {
         action: (editor: unknown, event: React.KeyboardEvent<HTMLDivElement>) => void;
       }>;
     }
-  >(({ initValue = [], onChange, className, hotkeyConfigs = [] }, ref) => {
+  >(({ initValue = [], className, hotkeyConfigs = [] }, ref) => {
     const [value, setValue] = useState<Descendant[]>(initValue);
 
     capturedHotkeyConfigs = hotkeyConfigs;
@@ -141,10 +140,6 @@ vi.mock("@tau/editor", () => {
 
     useImperativeHandle(ref, () => ({
       focus: () => undefined,
-      setEditorValue: (nodes: Descendant[]) => {
-        setValue(nodes);
-        onChange?.(nodes);
-      },
       getEditor: () => ({ insertText: insertTextMock }),
       isFocus: () => true,
       deselect: () => undefined,

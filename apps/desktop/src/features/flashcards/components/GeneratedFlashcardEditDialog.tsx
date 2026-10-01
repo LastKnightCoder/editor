@@ -45,9 +45,10 @@ const GeneratedFlashcardEditModal = ({
   const [cardData, setCardData] = useState<FlashcardData>({});
   // 跟踪当前已初始化的 card id，用于判断是否需要等待 state 同步
   const [initializedCardId, setInitializedCardId] = useState<string | null>(null);
+  const [editorRevision, setEditorRevision] = useState(0);
 
   // 使用 card.id 作为 editorKey，确保不同卡片使用不同的编辑器实例
-  const editorKey = card?.id ?? "empty";
+  const editorKey = `${card?.id ?? "empty"}:${editorRevision}`;
 
   useEffect(() => {
     if (card && open) {
@@ -59,6 +60,7 @@ const GeneratedFlashcardEditModal = ({
       setCardData({ ...card.data });
       // 标记当前 card 已初始化，这会在下一次渲染时生效
       setInitializedCardId(card.id);
+      setEditorRevision(revision => revision + 1);
     }
   }, [card, open]);
 
@@ -228,7 +230,7 @@ const GeneratedFlashcardEditModal = ({
               {isEditorReady ? (
                 <RichTextEditor
                   key={`prompt-${editorKey}`}
-                  value={prompt}
+                  initialValue={prompt}
                   onChange={value =>
                     setPrompt(
                       !value || value.length === 0
@@ -260,7 +262,7 @@ const GeneratedFlashcardEditModal = ({
               {isEditorReady ? (
                 <RichTextEditor
                   key={`detail-${editorKey}`}
-                  value={detail}
+                  initialValue={detail}
                   onChange={value =>
                     setDetail(
                       !value || value.length === 0

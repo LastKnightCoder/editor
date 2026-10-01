@@ -56,9 +56,7 @@ export function CardPreviewDialog({
   const { patch } = useCardsMutations();
   const saving = useRef<Promise<ICard | null> | null>(null);
   /* 正文会话与卡片元数据分别同步，避免标签保存覆盖正文或其他元数据。 */
-  const { throttleHandleEditorContentChange } = useEditContent(editing?.contentId, content => {
-    editorRef.current?.setEditorValue(content);
-  });
+  const { throttleHandleEditorContentChange } = useEditContent(editing?.contentId);
 
   /* 打开 / 切卡：以传入卡片为基准，记录保存比对基线 */
   useEffect(() => {

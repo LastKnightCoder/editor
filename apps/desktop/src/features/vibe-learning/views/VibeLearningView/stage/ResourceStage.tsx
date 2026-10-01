@@ -108,7 +108,6 @@ function NoteResourceBody({ meta }: { meta: NoteSourceMeta }) {
 
   const handleSync = useMemoizedFn((next: Descendant[]) => {
     setContent(next);
-    editorRef.current?.setEditorValue(next);
   });
   const { throttleHandleEditorContentChange } = useEditContent(meta.contentId, handleSync);
 

@@ -1,4 +1,4 @@
-import { BaseEditor, Descendant, Editor as SlateEditor, Point } from "slate";
+import { BaseEditor, Editor as SlateEditor, Point } from "slate";
 import { ReactEditor } from "slate-react";
 import { HistoryEditor } from "slate-history";
 import { CustomElement, CustomText } from "./custom-element";
@@ -6,7 +6,6 @@ import type { ServiceIdentifier } from "../services/tokens";
 
 export type CustomField = {
   type: string;
-  isResetValue: boolean;
   /** 非React插件代码获取必选服务，未注册时抛错 */
   getService: <T>(id: ServiceIdentifier<T>) => T;
   /** 非React插件代码获取可选服务，未注册时返回 undefined */
@@ -27,8 +26,6 @@ export interface EditorRef {
   focus: () => void;
   /** Deselect the current selection */
   deselect: () => void;
-  /** Set editor content to new nodes */
-  setEditorValue: (nodes: Descendant[]) => void;
   /** Get the underlying Slate editor instance */
   getEditor: () => SlateEditor;
   /** Check if the editor is currently focused */

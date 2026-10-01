@@ -138,6 +138,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
   );
   const normalizedDescription = useMemo(() => normalizeDescription(description), [description]);
   const [draftDescription, setDraftDescription] = useState<Descendant[]>(normalizedDescription);
+  const [descriptionRevision, setDescriptionRevision] = useState(0);
   const [labelBoxSize, setLabelBoxSize] = useState(() => ({
     width: board.isEditingElements.includes(id)
       ? ARROW_LABEL_MIN_WIDTH
@@ -486,7 +487,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
   useEffect(() => {
     if (isEditingDescriptionRef.current) return;
     setDraftDescription(normalizedDescription);
-    editorRef.current?.setEditorValue(normalizedDescription);
+    setDescriptionRevision(revision => revision + 1);
   }, [normalizedDescription]);
 
   useEffect(() => {
@@ -601,6 +602,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
             })}
           >
             <Editor
+              key={descriptionRevision}
               ref={editorRef}
               initValue={draftDescription}
               onChange={handleDescriptionChange}

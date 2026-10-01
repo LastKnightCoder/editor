@@ -4,7 +4,6 @@ import type { DatabaseElement } from "../types";
 
 type DatabaseEditor = Editor & {
   isInsertDatabase?: boolean;
-  isResetValue?: boolean;
 };
 
 const isDatabaseElement = (node: Node): node is DatabaseElement =>
@@ -19,11 +18,11 @@ export const overwrite = (editor: Editor) => {
   const { apply } = editor;
 
   editor.apply = op => {
-    if (op.type === "remove_node" && isDatabaseElement(op.node) && !databaseEditor.isResetValue) {
+    if (op.type === "remove_node" && isDatabaseElement(op.node)) {
       void deleteDataTable(op.node.tableId);
     }
 
-    if (op.type === "insert_node" && isDatabaseElement(op.node) && !databaseEditor.isResetValue) {
+    if (op.type === "insert_node" && isDatabaseElement(op.node)) {
       if (databaseEditor.isInsertDatabase) {
         databaseEditor.isInsertDatabase = false;
       } else {

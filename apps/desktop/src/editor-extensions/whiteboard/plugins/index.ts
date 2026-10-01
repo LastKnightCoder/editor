@@ -7,7 +7,6 @@ import type { WhiteboardElement } from "../types";
 
 type WhiteboardEditor = Editor & {
   isInsertNewWhiteboard?: boolean;
-  isResetValue?: boolean;
 };
 
 const isWhiteboardElement = (node: Node): node is WhiteboardElement =>
@@ -22,11 +21,7 @@ export const withSetting = (editor: Editor) => {
   const { apply } = editor;
 
   editor.apply = op => {
-    if (
-      op.type === "insert_node" &&
-      isWhiteboardElement(op.node) &&
-      !whiteboardEditor.isResetValue
-    ) {
+    if (op.type === "insert_node" && isWhiteboardElement(op.node)) {
       // 如果是新建白板或引用已有白板，则不恢复引用数
       // 因为新建时 createWhiteBoardContent 已设置 ref_count = 1
       // 引用时 incrementWhiteBoardContentRefCount 已手动增加
@@ -38,11 +33,7 @@ export const withSetting = (editor: Editor) => {
       }
     }
 
-    if (
-      op.type === "remove_node" &&
-      isWhiteboardElement(op.node) &&
-      !whiteboardEditor.isResetValue
-    ) {
+    if (op.type === "remove_node" && isWhiteboardElement(op.node)) {
       // 删除白板：减少引用计数
       void deleteWhiteBoardContent(op.node.whiteBoardContentId);
     }

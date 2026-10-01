@@ -1,10 +1,10 @@
 // 日程详情页（定稿 A 全屏页面式）：日历归属行 + 大标题 + 信息卡（时间/日历/数值）
 // + 富文本详情卡（真实 Editor 只读）+ 底部操作条；系统日程只读并提供来源模块入口。
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { getMobileContentKit } from "../../services/editorKit";
 import type { Descendant } from "slate";
-import { Editor, type EditorRef } from "@tau/editor";
+import { Editor, createValueDocument } from "@tau/editor";
 import { useMobileTheme } from "../../hooks/useMobileTheme";
 import { MobileConfirmDialog } from "../../components/MobileConfirmDialog";
 import { ActionSheet } from "../../components/ActionSheet";
@@ -49,15 +49,12 @@ export function CalendarEventDetailPage({
   const { data: calendars = [] } = useCalendars();
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const editorRef = useRef<EditorRef | null>(null);
+  const document = useMemo(
+    () => createValueDocument((event?.detailContent ?? []) as Descendant[]),
+    [event?.detailContent]
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
   useEdgeFade(scrollRef);
-
-  useEffect(() => {
-    if (Array.isArray(event?.detailContent) && event.detailContent.length > 0) {
-      editorRef.current?.setEditorValue(event.detailContent as Descendant[]);
-    }
-  }, [event?.detailContent]);
 
   // 事件行展示色：事件覆盖色 > 日历色 > 兜底（详情数据缺日历字段时再查一次日历表）
   const calendar = useMemo(
@@ -206,8 +203,7 @@ export function CalendarEventDetailPage({
                   {hasDetail ? (
                     <Editor
                       kit={getMobileContentKit()}
-                      ref={editorRef}
-                      initValue={event.detailContent as Descendant[]}
+                      document={document}
                       readonly={true}
                       className="text-ink w-full text-[13.5px] font-medium leading-[1.85] outline-none"
                     />

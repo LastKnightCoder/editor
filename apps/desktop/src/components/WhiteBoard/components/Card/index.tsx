@@ -1,8 +1,8 @@
 import useEditCard from "./useEditCard.ts";
 import { useRafInterval, useUnmount } from "ahooks";
-import { memo, useRef } from "react";
+import { memo } from "react";
 
-import RichText, { RichtextRef } from "../RichText";
+import RichText from "../RichText";
 import { CardElement, CommonElement } from "../../plugins";
 import { EHandlerPosition, Point, Board } from "../../types";
 import { Descendant } from "slate";
@@ -10,19 +10,14 @@ import useEditContent from "@/hooks/useEditContent";
 
 interface CardProps {
   element: CardElement;
-  onEditorSizeChange: (
-    board: Board,
-    element: CardElement,
-    width: number,
-    height: number,
-  ) => void;
+  onEditorSizeChange: (board: Board, element: CardElement, width: number, height: number) => void;
   onResizeStart?: (element: CommonElement & any) => void;
   onResizeEnd?: (
     board: Board,
     element: CommonElement & any,
     position: EHandlerPosition,
     startPoint: Point,
-    endPoint: Point,
+    endPoint: Point
   ) => void;
   onResize: (
     board: Board,
@@ -31,20 +26,16 @@ interface CardProps {
     startPoint: Point,
     endPoint: Point,
     isPreserveRatio?: boolean,
-    isAdsorb?: boolean,
+    isAdsorb?: boolean
   ) => void;
 }
 
 const Card = memo((props: CardProps) => {
-  const { element, onEditorSizeChange, onResizeStart, onResizeEnd, onResize } =
-    props;
-
-  const richtextRef = useRef<RichtextRef>(null);
+  const { element, onEditorSizeChange, onResizeStart, onResizeEnd, onResize } = props;
 
   const { cardId, width, height } = element;
 
-  const { loading, editingCard, saveCard, onContentChange } =
-    useEditCard(cardId);
+  const { loading, editingCard, saveCard, onContentChange } = useEditCard(cardId);
 
   useRafInterval(() => {
     saveCard();
@@ -54,18 +45,9 @@ const Card = memo((props: CardProps) => {
     saveCard();
   });
 
-  const { throttleHandleEditorContentChange } = useEditContent(
-    editingCard?.contentId,
-    (data) => {
-      richtextRef.current?.setEditorValue(data);
-    },
-  );
+  const { throttleHandleEditorContentChange } = useEditContent(editingCard?.contentId);
 
-  const handleOnContentChange = (
-    _board: Board,
-    _element: CardElement,
-    value: Descendant[],
-  ) => {
+  const handleOnContentChange = (_board: Board, _element: CardElement, value: Descendant[]) => {
     onContentChange(value);
     throttleHandleEditorContentChange(value);
   };
@@ -92,7 +74,6 @@ const Card = memo((props: CardProps) => {
         ...element,
         content: editingCard.content,
       }}
-      ref={richtextRef}
       onEditorSizeChange={onEditorSizeChange}
       onContentChange={handleOnContentChange}
       onResizeStart={onResizeStart}

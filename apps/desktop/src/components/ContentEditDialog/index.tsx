@@ -55,7 +55,6 @@ export function ContentEditDialog({
   const { throttleHandleEditorContentChange } = useEditContent(
     contentId ?? undefined,
     value => {
-      editorRef.current?.setEditorValue(value);
       setCount(getContentLength(value));
     },
     open && contentId != null

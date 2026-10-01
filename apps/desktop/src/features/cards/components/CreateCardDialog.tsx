@@ -39,6 +39,7 @@ export function CreateCardDialog({
   const [category, setCategory] = useState<ECardCategory>(defaultCategory);
   const [saving, setSaving] = useState(false);
   const editorRef = useRef<EditorRef>(null);
+  const [editorRevision, setEditorRevision] = useState(0);
   const { create } = useCardsMutations();
 
   useEffect(() => {
@@ -52,7 +53,7 @@ export function CreateCardDialog({
   const resetDraft = () => {
     setContent(DEFAULT_CARD_CONTENT);
     setTags([]);
-    editorRef.current?.setEditorValue(DEFAULT_CARD_CONTENT);
+    setEditorRevision(revision => revision + 1);
   };
 
   const handleSave = async () => {
@@ -134,6 +135,7 @@ export function CreateCardDialog({
           </div>
           <ErrorBoundary>
             <ContentEditor
+              key={editorRevision}
               ref={editorRef}
               initValue={content ?? DEFAULT_CARD_CONTENT}
               readonly={false}

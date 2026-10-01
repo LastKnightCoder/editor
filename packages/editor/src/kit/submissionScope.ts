@@ -40,10 +40,6 @@ export function beginSubmissionScope(editor: Editor) {
   return () => endSubmissionScope(editor);
 }
 
-export function renewSubmissionScope(editor: Editor) {
-  if (scopes.get(editor)?.active) beginSubmissionScope(editor);
-}
-
 /** 纯 Slate 宿主通过操作的 signal 提供生命周期；React 编辑器始终使用已登记会话。 */
 export const submissionScopeSignal = (editor: Editor): AbortSignal | undefined =>
   scopes.get(editor)?.controller.signal;

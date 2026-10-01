@@ -5,10 +5,11 @@
 // 产品设计：标签与具体 segment 绑定（一天可发多条日记，各自独立打标签），
 // 卡片读取/编辑的都是 segment.tags，不要改回 entry.tags（那是旧模型遗留）。
 
-import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { getMobileContentKit } from "../../services/editorKit";
 import type { Descendant } from "slate";
-import { Editor, type EditorRef } from "@tau/editor";
+import { Editor, createValueDocument } from "@tau/editor";
+import { isEditorContentEmpty } from "../cards/editorContentUtils";
 import { MoreHorizontal, Tags, Trash2 } from "lucide-react";
 import type { DiaryEntry, DiarySegment } from "../../types";
 import { useReadonlyContentSync } from "../../hooks/useReadonlyContentSync";
@@ -72,7 +73,6 @@ const DiaryCardItem = memo(
     onEditTags,
     onDeleteSegment,
   }: DiaryCardItemProps) => {
-    const editorRef = useRef<EditorRef | null>(null);
     const desc = useMemo(() => describeEntry(entry), [entry]);
     const [menuOpen, setMenuOpen] = useState(false);
     const [menuAnchor, setMenuAnchor] = useState<HTMLButtonElement | null>(null);
@@ -102,12 +102,10 @@ const DiaryCardItem = memo(
       }
       return [];
     }, [segment.content]);
+    const [document, setDocument] = useState(() => createValueDocument(editorContent));
 
     const handleSyncedContent = useCallback((nextContent: Descendant[]) => {
-      if (!Array.isArray(nextContent) || nextContent.length === 0) {
-        return;
-      }
-      editorRef.current?.setEditorValue(nextContent.slice(0, PREVIEW_BLOCK_COUNT));
+      setDocument(createValueDocument(nextContent.slice(0, PREVIEW_BLOCK_COUNT)));
     }, []);
 
     useReadonlyContentSync(segment.contentId, {
@@ -116,7 +114,7 @@ const DiaryCardItem = memo(
     });
 
     const isToday = entry.type === "daily" && entry.date === getTodayDateKey();
-    const hasBody = editorContent.length > 0 && segment.wordCount > 0;
+    const hasBody = !isEditorContentEmpty(document.initialValue);
 
     return (
       <article
@@ -157,10 +155,9 @@ const DiaryCardItem = memo(
           {hasBody ? (
             <Editor
               kit={getMobileContentKit()}
-              ref={editorRef}
               className="overflow-hidden"
               readonly={true}
-              initValue={editorContent}
+              document={document}
             />
           ) : (
             <p className="text-ink-3 text-[13px]">空白</p>

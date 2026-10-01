@@ -295,6 +295,8 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     const pdfInputRef = useRef<HTMLInputElement>(null);
 
     const [editorContent, setEditorContent] = useState<Descendant[]>(createEmptyEditorContent);
+    const [editorRevision, setEditorRevision] = useState(0);
+    const restoreEditorFocus = useRef(false);
     const [images, setImages] = useState<ChatImageItem[]>([]);
     const [files, setFiles] = useState<ChatFileItem[]>([]);
     const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -428,8 +430,9 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     });
 
     const applyEditorContent = useMemoizedFn((nextContent: Descendant[]) => {
+      restoreEditorFocus.current = editorRef.current?.isFocus() ?? false;
       setEditorContent(nextContent);
-      editorRef.current?.setEditorValue(nextContent);
+      setEditorRevision(revision => revision + 1);
     });
 
     const hotkeyConfigs = useMemo<IHotKeyConfig[]>(
@@ -514,6 +517,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         editor.insertText(" ");
       },
       focusEnd: () => {
+        restoreEditorFocus.current = true;
         editorRef.current?.focus();
       },
     }));
@@ -766,6 +770,11 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         >
           <div className="max-h-[min(240px,34vh)] overflow-y-auto overflow-x-hidden overscroll-contain pr-1">
             <Editor
+              key={editorRevision}
+              onInit={() => {
+                if (restoreEditorFocus.current) editorRef.current?.focus();
+                restoreEditorFocus.current = false;
+              }}
               kit={getChatInputKit()}
               ref={editorRef}
               initValue={editorContent}

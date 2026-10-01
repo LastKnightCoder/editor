@@ -20,6 +20,8 @@ export function CodeMirrorView({
   onCursorChange,
   onMount,
   onSave,
+  onUndo,
+  onRedo,
   className,
 }: {
   value: string;
@@ -30,12 +32,14 @@ export function CodeMirrorView({
   onCursorChange?(position: { line: number; column: number }): void;
   onMount?(editor: Editor | null): void;
   onSave?(): void;
+  onUndo?(): void;
+  onRedo?(): void;
   className?: string;
 }) {
   const initialValue = useRef(value).current;
   const editorRef = useRef<Editor | null>(null);
-  const latest = useRef({ scrollEl, onCursorChange, onSave });
-  latest.current = { scrollEl, onCursorChange, onSave };
+  const latest = useRef({ scrollEl, onCursorChange, onSave, onUndo, onRedo });
+  latest.current = { scrollEl, onCursorChange, onSave, onUndo, onRedo };
 
   useEffect(() => {
     const editor = editorRef.current;
@@ -62,6 +66,25 @@ export function CodeMirrorView({
 
   useEffect(() => () => onMount?.(null), [onMount]);
 
+  useEffect(() => {
+    const wrapper = editorRef.current?.getWrapperElement();
+    if (!wrapper) return;
+    const handleHistoryInput = (event: InputEvent) => {
+      const action =
+        event.inputType === "historyUndo"
+          ? latest.current.onUndo
+          : event.inputType === "historyRedo"
+            ? latest.current.onRedo
+            : undefined;
+      if (!action) return;
+      event.preventDefault();
+      event.stopPropagation();
+      action();
+    };
+    wrapper.addEventListener("beforeinput", handleHistoryInput, true);
+    return () => wrapper.removeEventListener("beforeinput", handleHistoryInput, true);
+  }, []);
+
   return (
     <div
       className={cn(
@@ -84,6 +107,7 @@ export function CodeMirrorView({
           autoCloseBrackets: true,
           styleActiveLine: true,
           inputStyle: "textarea",
+          ...(onUndo ? { undoDepth: 0 } : {}),
           extraKeys: {
             "Shift-Tab": "indentLess",
             "Cmd-S": () => latest.current.onSave?.(),
@@ -92,6 +116,8 @@ export function CodeMirrorView({
         }}
         editorDidMount={editor => {
           editorRef.current = editor;
+          if (onUndo) editor.undo = () => latest.current.onUndo?.();
+          if (onRedo) editor.redo = () => latest.current.onRedo?.();
           onMount?.(editor);
         }}
         onChange={(_editor, change, next) => onChange(next, change.origin)}
