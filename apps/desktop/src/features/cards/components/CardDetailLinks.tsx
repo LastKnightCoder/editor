@@ -1,8 +1,8 @@
 /**
  * 卡片连接：脉络浮层里的「连接」分区（KL-018，原正文下方的连接区并入）+ 添加连接选卡浮层。
  *
- * 连接口径：显式 links ∪ 正文内联 content-link 引用（getInlineLinks）合并去重，
- * chip 角标区分双向 / 仅内联；双向链接的建立与解除都是双边写（本卡与对方卡
+ * 连接口径：双向链接 links ∪ 正文内联 content-link 对任何实体的引用（卡片、文章、项目文档、
+ * 日记）合并去重，角标区分双向 / 仅内联；双向链接的建立与解除都是双边写（本卡与对方卡
  * 各提交一次元数据补丁，等价 legacy useEditCard 的 onAddLinks/onRemoveLink）。
  * 悬浮球式的图谱入口不做（图谱在卡片库列表页，2026-09-20 裁决）。
  */
@@ -18,6 +18,9 @@ import { Dialog, DialogBody, useEdgeFade } from "@tau/ui";
 import { CATEGORY_COLORS } from "../categoryColors";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { ContextRow, ContextSection } from "@/features/context/components/ContextList";
+import { ENTITY_KIND_META } from "@/features/context/model";
+import { extractInlineRefs } from "@/entity/inline-refs";
+import { entityRefKey, type EntityRef } from "@/entity/ref";
 
 /** links ∪ 内联引用，去重并排除自身；返回 id 与「是否仅来自正文内联」 */
 function mergedLinks(card: ICard): { id: number; inlineOnly: boolean }[] {
@@ -31,14 +34,37 @@ function mergedLinks(card: ICard): { id: number; inlineOnly: boolean }[] {
   return [...merged.values()].filter(item => item.id !== card.id);
 }
 
-/** 连接数：显式 links ∪ 正文内联引用（去重、排除自身），计入脉络入口的关联数 */
-export const cardConnectionCount = (card: ICard) => mergedLinks(card).length;
+interface Connection {
+  ref: EntityRef;
+  /** 只来自正文引用（不是双向链接），不可在这里解除 */
+  inlineOnly: boolean;
+  /** 正文引用节点上的标题，非卡片目标用它展示 */
+  label: string;
+}
+
+/** 连接：双向链接 ∪ 正文里对任何实体的内联引用，去重并排除自身 */
+function connectionsOf(card: ICard): Connection[] {
+  const merged = new Map<string, Connection>();
+  for (const id of card.links) {
+    if (id !== card.id)
+      merged.set(`card:${id}`, { ref: { kind: "card", id }, inlineOnly: false, label: "" });
+  }
+  for (const { dst, snippet } of extractInlineRefs(card.content)) {
+    if (dst.kind === "card" && dst.id === card.id) continue;
+    const key = entityRefKey(dst);
+    if (!merged.has(key)) merged.set(key, { ref: dst, inlineOnly: true, label: snippet.label });
+  }
+  return [...merged.values()];
+}
+
+/** 连接数，计入脉络入口的关联数 */
+export const cardConnectionCount = (card: ICard) => connectionsOf(card).length;
 
 export interface CardConnectionsProps {
   card: ICard;
   /** 轻表全集：标题解析（找不到的 id 视为已删除，退化为 #id 占位） */
   cards: ICard[];
-  onNavigate(cardId: number): void;
+  onNavigate(ref: EntityRef): void;
   onUnlink(targetId: number): void;
   onOpenAddDialog(): void;
 }
@@ -53,31 +79,36 @@ export function CardConnections({
 }: CardConnectionsProps) {
   const linked = useMemo(
     () =>
-      mergedLinks(card).map(({ id, inlineOnly }) => ({
-        id,
-        inlineOnly,
-        target: cards.find(item => item.id === id) ?? null,
+      connectionsOf(card).map(connection => ({
+        ...connection,
+        target:
+          connection.ref.kind === "card"
+            ? (cards.find(item => item.id === connection.ref.id) ?? null)
+            : null,
       })),
     [card, cards]
   );
 
   return (
     <ContextSection title="连接">
-      {linked.map(({ target, id, inlineOnly }) => {
-        const title = target ? getEditorText(target.content, 26) || `卡片 #${id}` : `卡片 #${id}`;
-        const dotColor = target ? CATEGORY_COLORS[target.category].text : "var(--tau-ink-3)";
-        const KindIcon = inlineOnly ? TextQuote : Link2;
+      {linked.map(({ ref, inlineOnly, label, target }) => {
+        const isCard = ref.kind === "card";
+        const title = isCard
+          ? (target && getEditorText(target.content, 26)) || label || `卡片 #${ref.id}`
+          : label || ENTITY_KIND_META[ref.kind].label;
+        const LinkIcon = inlineOnly ? TextQuote : Link2;
+        const KindIcon = ENTITY_KIND_META[ref.kind].icon;
         return (
           <ContextRow
-            key={id}
-            onClick={() => onNavigate(id)}
+            key={entityRefKey(ref)}
+            onClick={() => onNavigate(ref)}
             action={
               inlineOnly ? undefined : (
                 <button
                   type="button"
                   aria-label="解除链接"
                   title="解除链接（双边清理）"
-                  onClick={() => onUnlink(id)}
+                  onClick={() => onUnlink(ref.id)}
                   className="text-ink-3 hover:bg-danger-soft hover:text-danger rounded-tau-sm grid size-[22px] place-items-center"
                 >
                   <X className="size-[12px]" strokeWidth={1.75} />
@@ -86,9 +117,23 @@ export function CardConnections({
             }
           >
             <span className="flex min-w-0 items-center gap-1.5 text-[13px]">
-              <span className="size-[7px] shrink-0 rounded-full" style={{ background: dotColor }} />
+              {isCard ? (
+                <span
+                  className="size-[7px] shrink-0 rounded-full"
+                  style={{
+                    background: target ? CATEGORY_COLORS[target.category].text : "var(--tau-ink-3)",
+                  }}
+                />
+              ) : (
+                <KindIcon className="text-ink-3 size-[13px] shrink-0" strokeWidth={1.75} />
+              )}
               <span className="text-ink-1 min-w-0 truncate">{title}</span>
-              <KindIcon
+              {!isCard && (
+                <span className="text-ink-3 shrink-0 text-[12px]">
+                  {ENTITY_KIND_META[ref.kind].label}
+                </span>
+              )}
+              <LinkIcon
                 className="text-ink-3 size-3 shrink-0"
                 strokeWidth={1.75}
                 aria-label={inlineOnly ? "正文内联引用" : "双向链接"}
