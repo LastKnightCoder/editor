@@ -32,12 +32,12 @@ function excerptInfo(excerpt: Excerpt): MaterialInfo {
     meta = ["微信读书", `《${excerpt.sourceTitle || "未知书名"}》`, chapter]
       .filter(Boolean)
       .join(" · ");
-    // external_id = bookId:bookmarkId；只有想法的条目（bookId:review:…）没有划线可定位
-    const rest = excerpt.externalId.slice(excerpt.sourceKey.length + 1);
+    // external_id = bookId:bookmarkId 或 bookId:review:reviewId；单书页以 bookmarkId / reviewId 标识每条
+    const rest = excerpt.externalId.slice(excerpt.sourceKey.length + 1).replace(/^review:/, "");
     open = {
       page: "weread-book",
       bookId: excerpt.sourceKey,
-      ...(rest && !rest.startsWith("review:") ? { bookmark: rest } : {}),
+      ...(rest ? { bookmark: rest } : {}),
     };
   } else {
     meta = `网页 · ${excerpt.sourceTitle || hostOf(excerpt.sourceKey)}`;

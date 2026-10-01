@@ -149,6 +149,12 @@ class DatabaseModule implements Module {
     };
   }
 
+  /** 不经 eventAndHandlers 的写入（如自有 IPC 的模块）提交后，补发写事件给订阅方 */
+  notifyExternalWrite(eventName: string): void {
+    const dbName = this.getCurrentDatabaseName();
+    if (dbName) this.notifyDatabaseWrite(dbName, eventName);
+  }
+
   private notifyDatabaseWrite(dbName: string, eventName: string): void {
     if (isScheduleWrite(eventName)) broadcastScheduleChange(dbName);
     if (/^vl-quiz:(create|update|delete)(-|$)/.test(eventName)) {

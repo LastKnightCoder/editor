@@ -3,7 +3,8 @@
  * 书架同步是跨页面的一次性任务，状态放模块级 store（同一时刻只跑一轮）。
  *
  * 数据流：API Key → Agent Gateway（只读）→ SQLite 缓存（weread_notebook）→ 本域查询。
- * 书架同步只拉元数据（默认增量）；划线 / 想法在打开某本书时按需拉取并回写缓存。
+ * 书架同步拉元数据（默认增量），再对笔记指纹变化的书只拉划线 / 想法（摘录入库，KL-034）；
+ * 打开某本书时拉全量详情并回写缓存。
  */
 
 import { useEffect, useMemo } from "react";
@@ -22,7 +23,8 @@ import {
 import weReadService from "@/services/weread";
 import useSettingStore from "@/stores/useSettingStore";
 import type { Metadata, Notebook } from "@/types/weread";
-import { hasNotes, preferNonEmpty, toBook, type WeReadBook } from "./model";
+import type { NoteFingerprint } from "@/services/weread";
+import { hasNotes, planNoteSync, preferNonEmpty, toBook, type WeReadBook } from "./model";
 
 const hasBridge = typeof window !== "undefined" && Boolean(window.electron);
 const activeDatabase = () => useSettingStore.getState().setting.database.active;
@@ -113,6 +115,81 @@ function mergeMetadata(existing: Notebook[], metas: Metadata[], removed: Set<str
   return [...map.values()];
 }
 
+const NOTE_SYNC_CONCURRENCY = 2;
+
+/**
+ * 书架同步的第二步：指纹变了的书只拉划线与想法并写回（主进程同一事务里同步摘录）。
+ * 拉回为空的不记指纹（可能是限流），下次再试；源端删光的书清空笔记。返回更新后的笔记本。
+ */
+async function syncNotes(
+  notebooks: Notebook[],
+  fingerprints: Record<string, NoteFingerprint>,
+  options: {
+    full: boolean;
+    database: string;
+    onProgress?: (completed: number, total: number) => void;
+  }
+): Promise<{ notebooks: Notebook[]; failed: number }> {
+  const { fetch, clear } = planNoteSync(notebooks, fingerprints, options.full);
+  const byId = new Map(notebooks.map(nb => [nb.metaData.bookId, nb]));
+  const withNotes = (
+    nb: Notebook,
+    notes: Pick<Notebook, "chapterHighlights" | "bookReview">,
+    fingerprint: NoteFingerprint
+  ) => ({
+    ...nb,
+    ...notes,
+    metaData: {
+      ...nb.metaData,
+      synckeys: {
+        ...nb.metaData.synckeys,
+        highlights: fingerprint.sort,
+        reviews: fingerprint.count,
+      },
+    },
+  });
+
+  const cleared = clear.flatMap(bookId => {
+    const nb = byId.get(bookId);
+    if (!nb) return [];
+    const next = withNotes(
+      nb,
+      { chapterHighlights: [], bookReview: { chapterReviews: [], bookReviews: [] } },
+      { sort: 0, count: 0 }
+    );
+    byId.set(bookId, next);
+    return [next];
+  });
+  if (cleared.length && activeDatabase() === options.database) await saveWeReadNotebooks(cleared);
+
+  let completed = 0;
+  let failed = 0;
+  const queue = [...fetch];
+  const worker = async () => {
+    for (let bookId = queue.shift(); bookId; bookId = queue.shift()) {
+      const nb = byId.get(bookId);
+      if (!nb || activeDatabase() !== options.database) continue;
+      try {
+        const notes = await weReadService.fetchNotes(bookId);
+        const fetched = withNotes(nb, notes, fingerprints[bookId]);
+        // 拉回为空而缓存有内容：多半是限流，保留缓存且不记指纹，下次重试
+        const next = hasNotes(fetched) || !hasNotes(nb) ? fetched : nb;
+        if (next !== nb && activeDatabase() === options.database) {
+          await saveWeReadNotebook(next);
+          byId.set(bookId, next);
+        }
+      } catch (error) {
+        failed += 1;
+        console.error("[WeRead] 拉取划线失败", bookId, error);
+      }
+      completed += 1;
+      options.onProgress?.(completed, fetch.length);
+    }
+  };
+  await Promise.all(Array.from({ length: NOTE_SYNC_CONCURRENCY }, worker));
+  return { notebooks: notebooks.map(nb => byId.get(nb.metaData.bookId) ?? nb), failed };
+}
+
 async function readCachedNotebooks(client: QueryClient, database: string) {
   return (
     client.getQueryData<ShelfData>(shelfKey(database))?.notebooks ?? (await getAllWeReadNotebooks())
@@ -153,12 +230,22 @@ export async function syncShelf(
     const updated = new Set(result.metadataList.map(m => m.bookId));
     await saveWeReadNotebooks(merged.filter(nb => updated.has(nb.metaData.bookId)));
     await Promise.all([...removed].map(bookId => deleteWeReadNotebook(bookId)));
+    const notes = await syncNotes(merged, result.noteFingerprints, {
+      full,
+      database,
+      onProgress: silent
+        ? undefined
+        : (completed, total) => store.setState({ progress: { completed, total } }),
+    });
     const now = Date.now();
     await updateWeReadSyncTime(now);
     if (activeDatabase() !== database) return;
-    client.setQueryData<ShelfData>(shelfKey(database), { notebooks: merged, lastSyncedAt: now });
+    client.setQueryData<ShelfData>(shelfKey(database), {
+      notebooks: notes.notebooks,
+      lastSyncedAt: now,
+    });
     if (!silent) {
-      const failed = result.failedBookIds.length;
+      const failed = result.failedBookIds.length + notes.failed;
       toast.success(
         `同步完成，共 ${merged.length} 本书，更新 ${result.requested - failed} 本` +
           (failed ? `，${failed} 本下次重试` : "")

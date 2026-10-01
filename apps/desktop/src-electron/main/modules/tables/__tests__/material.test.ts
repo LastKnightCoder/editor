@@ -22,7 +22,7 @@ describe("MaterialTable.resolve", () => {
   });
   afterEach(() => db.close());
 
-  it("微信读书摘录：打开到单书页对应划线；只有想法的条目不带划线；软删除不可打开", () => {
+  it("微信读书摘录：打开到单书页对应条目（划线或想法）；软删除不可打开", () => {
     ExcerptTable.syncSource(db, "weread", "b1", "置身事内", [
       input("b1:bm_1", "一句话"),
       input("b1:review:r9", "摘要"),
@@ -39,7 +39,7 @@ describe("MaterialTable.resolve", () => {
       deleted: false,
       open: { page: "weread-book", bookId: "b1", bookmark: "bm_1" },
     });
-    expect(b.open).toEqual({ page: "weread-book", bookId: "b1" });
+    expect(b.open).toEqual({ page: "weread-book", bookId: "b1", bookmark: "r9" });
 
     ExcerptTable.deleteSource(db, "weread", "b1");
     expect(MaterialTable.resolveOne(db, { kind: "excerpt", id: hl.id })).toMatchObject({

@@ -258,7 +258,7 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
   {
     name: "weread",
     layer: InitLayer.BACKGROUND,
-    dependencies: ["logger", "setting"],
+    dependencies: ["logger", "setting", "database"],
     init: () => wereadModule.init(),
   },
   {
