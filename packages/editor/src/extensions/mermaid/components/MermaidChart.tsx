@@ -5,6 +5,7 @@ import Mermaid from "./Mermaid";
 
 import type { MermaidElement } from "../../../types";
 import PreviewWithEditor from "../../../components/PreviewWithEditor";
+import { Workflow } from "lucide-react";
 
 interface MermaidProps {
   attributes: RenderElementProps["attributes"];
@@ -15,17 +16,6 @@ const MermaidChart: React.FC<PropsWithChildren<MermaidProps>> = props => {
   const { attributes, element, children } = props;
   const { chart, svg, compiledFrom } = element;
   const editor = useSlateStatic();
-
-  const renderEmpty = () => {
-    return (
-      <div
-        contentEditable={false}
-        className="flex h-14 cursor-pointer select-none items-center justify-center text-[#99A1AF]"
-      >
-        点击编辑图表
-      </div>
-    );
-  };
 
   const onChange = (value: string) => {
     // Clear SVG cache when chart code changes
@@ -59,21 +49,19 @@ const MermaidChart: React.FC<PropsWithChildren<MermaidProps>> = props => {
       <div contentEditable={false}>
         <PreviewWithEditor
           mode={"mermaid"}
+          title="Mermaid"
+          icon={Workflow}
           initValue={chart}
           onChange={onChange}
           element={element}
           center
         >
-          {chart ? (
-            <Mermaid
-              chart={chart}
-              initialSvg={svg}
-              compiledFrom={compiledFrom}
-              onCompiled={handleCompiled}
-            />
-          ) : (
-            renderEmpty()
-          )}
+          <Mermaid
+            chart={chart}
+            initialSvg={svg}
+            compiledFrom={compiledFrom}
+            onCompiled={handleCompiled}
+          />
         </PreviewWithEditor>
       </div>
       {children}

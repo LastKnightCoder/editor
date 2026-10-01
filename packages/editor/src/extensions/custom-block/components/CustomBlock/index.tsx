@@ -1,4 +1,4 @@
-import React, { PropsWithChildren, useEffect, useRef } from "react";
+import React, { PropsWithChildren, useEffect, useRef, useState } from "react";
 import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
 import { Transforms } from "slate";
 import useTheme from "../../../../hooks/useTheme";
@@ -6,7 +6,9 @@ import { ICompilerService } from "../../../../services";
 
 import { type CustomBlockElement } from "../../../types";
 import PreviewWithEditor from "../../../../components/PreviewWithEditor";
+import { useReportPreviewError } from "../../../../components/PreviewWithEditor/previewError";
 import { compileAndExecuteCustomBlock, rerenderCustomBlockTheme } from "../../utils/renderTemplate";
+import { Blocks } from "lucide-react";
 
 interface CustomBlockProps {
   attributes: RenderElementProps["attributes"];
@@ -21,6 +23,9 @@ const CustomBlock = (props: { content: string }) => {
   const compilerService = editor.tryGetService(ICompilerService);
   const latestThemeRef = useRef(isDark);
   latestThemeRef.current = isDark;
+  // 失败时容器已被上一次的清理清空，没有可保留的旧结果
+  const [error, setError] = useState<string | null>(null);
+  useReportPreviewError(error, { stale: false });
 
   useEffect(() => {
     if (!ref.current || !content) return;
@@ -40,6 +45,7 @@ const CustomBlock = (props: { content: string }) => {
       abortController.signal
     )
       .then(cleanupFn => {
+        if (!disposed) setError(null);
         if (!cleanupFn) return;
         if (disposed) {
           cleanupFn();
@@ -49,6 +55,7 @@ const CustomBlock = (props: { content: string }) => {
       })
       .catch(err => {
         console.error("Custom block render error", err);
+        if (!disposed) setError(err instanceof Error ? err.message : String(err));
       });
 
     return () => {
@@ -78,14 +85,15 @@ const CustomBlockElement: React.FC<PropsWithChildren<CustomBlockProps>> = props 
 
   return (
     <div className="relative cursor-pointer" {...attributes}>
-      <PreviewWithEditor mode={"jsx"} initValue={content} element={element} onChange={handleChange}>
-        {content ? (
-          <CustomBlock content={content} />
-        ) : (
-          <div className="flex h-[3.75em] cursor-pointer items-center justify-center">
-            点击编辑代码
-          </div>
-        )}
+      <PreviewWithEditor
+        mode={"jsx"}
+        title="自定义块"
+        icon={Blocks}
+        initValue={content}
+        element={element}
+        onChange={handleChange}
+      >
+        <CustomBlock content={content} />
       </PreviewWithEditor>
       {children}
     </div>

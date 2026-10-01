@@ -65,6 +65,7 @@
   同明暗主题订阅、未知节点位置缓存。验证结果见 02「P8 整体审查修复」与 04 最新条目。
   标签页块重设计为「书签下划线」，三个组件裸色清零、全走 `--ed-*`（mockup 在 `apps/desktop/mockups/editor-tabs/`，见 04 同名条目）。
   引用块重设计为「大引号 + 中性竖线尾迹」，去掉伪斜体与 accent 竖条，新增 `--ed-quote-*` 五个 token，嵌套内层只留竖线；PDF 与编辑器一致，公众号 / EPUB 因不支持定位用文档流降级版（mockup 在 `apps/desktop/mockups/blockquote/`，见 04 同名条目；视觉待实机确认）。
+  源码预览块（`PreviewWithEditor`）重设计为「卡片展开」：浅色悬停操作条、编辑态描边卡片 + 类型标题行 + 完成、统一空块占位、渲染出错保留上次结果（`useReportPreviewError`，除 HTML 块外的渲染器全部接入）、全屏改为左右工作台（滚轮缩放、拖动平移、Esc 关闭）；代码块操作条同步换为共用的浅色 `FloatingToolbar`；源码类块底色统一为 surface-hover（ER-021，mockup 在 `apps/desktop/mockups/preview-editor/`；视觉待实机确认）。
   远程 ER-019 已与本地后续重构整合：协作与桌面 kit 测试夹具补迁 v2，桌面审阅子树遍历补统一类型；原本未提交的图库设置修改保留，验证见 04「远程整合」。
   已完成：第一块（错误隔离 + 未知节点占位，Markdown 兜底语法见 ER-006）；第二块（`defineExtension`、
   `@tau/editor/api`、`fromLegacyExtension`，divide-line 已迁到 v2）；第三块（移除 antd，UI 直接用 `@tau/ui`，ER-018）；

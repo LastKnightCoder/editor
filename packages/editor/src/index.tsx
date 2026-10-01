@@ -87,7 +87,6 @@ import "codemirror/mode/vue/vue.js";
 import "codemirror/addon/edit/closebrackets.js";
 
 import "codemirror/lib/codemirror.css";
-import "codemirror/theme/blackboard.css";
 
 import "./theme/editor.css";
 import { EditorThemeScope } from "./theme/context";
