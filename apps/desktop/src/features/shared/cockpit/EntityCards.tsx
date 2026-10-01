@@ -21,6 +21,7 @@ import {
 import { IconButton, Menu, cn } from "@tau/ui";
 import type { CockpitCardHandlers, CockpitCopy, CockpitItem, CockpitVisual } from "./types";
 import { cockpitExcerpt, cockpitRelativeTime } from "./text";
+import { CARD_HOVER } from "./styles";
 
 interface CardProps {
   item: CockpitItem;
@@ -40,15 +41,22 @@ function MenuIcon({ icon: Icon }: { icon: LucideIcon }) {
 const OPS_BTN =
   "shadow-card size-[23px] rounded-[7px] bg-surface-hover outline-1 -outline-offset-1 outline-line-1 enabled:hover:bg-surface-hover";
 
-/** 卡片落在列表页那张纸上：细描边分隔，hover 时 lift 轻抬阴影、描边隐去（同 Skill 页卡片；
-    纸上再叠阴影卡会糊成一片） */
-const CARD_HOVER =
-  "border border-line-1 transition-[box-shadow,border-color] duration-200 hover:shadow-lift hover:border-transparent";
-
-function CardOps({ item, handlers }: { item: CockpitItem; handlers: CockpitCardHandlers }) {
+/** 悬停浮现的置顶 + ⋯ 菜单（宿主须带 group 与定位上下文；className 覆盖默认的右上角定位） */
+export function CardOps({
+  item,
+  handlers,
+  className,
+}: {
+  item: CockpitItem;
+  handlers: CockpitCardHandlers;
+  className?: string;
+}) {
   return (
     <div
-      className="absolute right-3.5 top-3.5 z-[1] flex gap-0.5 opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100"
+      className={cn(
+        "absolute right-3.5 top-3.5 z-[1] flex gap-0.5 opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100",
+        className
+      )}
       onClick={e => e.stopPropagation()}
     >
       <IconButton
@@ -96,7 +104,7 @@ function CardOps({ item, handlers }: { item: CockpitItem; handlers: CockpitCardH
   );
 }
 
-function PinnedStar() {
+export function PinnedStar() {
   return (
     <Star
       className="text-accent fill-accent size-[13px] shrink-0"

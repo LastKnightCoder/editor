@@ -7,6 +7,13 @@
 
 import type { Project } from "@/types/project";
 
-/** 列表条目：主进程 Project + itemCount 派生（项目内全部条目数，含文档树深层节点
- *  ——不是 Project.children 顶层 id 数；来源主进程 get-project-item-counts 聚合） */
-export type ProjectPageItem = Project & { itemCount: number };
+/** 列表条目：主进程 Project + 派生
+ *  - itemCount：项目内全部条目数，含文档树深层节点（不是 Project.children 顶层 id 数；
+ *    来源主进程 get-project-item-counts 聚合）；
+ *  - openedAt / lastItemId / lastItemTitle：打开记录（来源 project:open-states，从未打开为 null） */
+export type ProjectPageItem = Project & {
+  itemCount: number;
+  openedAt: number | null;
+  lastItemId: number | null;
+  lastItemTitle: string | null;
+};

@@ -256,7 +256,7 @@ CREATE TABLE IF NOT EXISTS project (
             title TEXT NOT NULL,
             desc TEXT,
             children TEXT
-        , archived INTEGER DEFAULT 0, pinned INTEGER DEFAULT 0, project_type TEXT DEFAULT 'document-tree', data_table_id INTEGER DEFAULT 0);
+        , archived INTEGER DEFAULT 0, pinned INTEGER DEFAULT 0, project_type TEXT DEFAULT 'document-tree', data_table_id INTEGER DEFAULT 0, last_open_time INTEGER, last_open_item_id INTEGER);
 CREATE TABLE IF NOT EXISTS project_item (
             id INTEGER PRIMARY KEY,
             create_time INTEGER NOT NULL,

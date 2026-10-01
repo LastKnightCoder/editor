@@ -6,10 +6,12 @@
  *
  * 一整张纸（同 Skill 页）：纸顶固定工具栏，纸内 FadeScroll 只装段落
  * （sticky 段头纸色实底 + 底缘渐透）。新建只有一个入口。无页内搜索（D-024 口径：
- * 语义检索走全局 Ctrl+K，空态引导同一入口）、无排序 UI（默认「置顶 → 更新时间」序）。
+ * 语义检索走全局 Ctrl+K，空态引导同一入口）。默认无排序 UI（「置顶 → 更新时间」序）；
+ * 模块可经 toolbar / renderActive / renderArchived 扩展工具栏与条目排布（项目页的排序与网格 / 列表切换），
+ * 纸面、摘要、归档折叠与新建 / 编辑 / 删除弹层仍由驾驶舱承载。
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { ChevronDown, Plus } from "lucide-react";
 import { FadeScroll } from "@/components/FadeScroll";
 import { Button, ConfirmDialog, Loading, cn, toast } from "@tau/ui";
@@ -23,8 +25,8 @@ import type {
   CockpitVisual,
 } from "./types";
 
-export interface EntityCockpitProps {
-  items: CockpitItem[];
+export interface EntityCockpitProps<T extends CockpitItem = CockpitItem> {
+  items: T[];
   loading: boolean;
   visual: CockpitVisual;
   copy: CockpitCopy;
@@ -34,10 +36,16 @@ export interface EntityCockpitProps {
   /** 新建成功后的去向，默认不跳转 */
   onCreated?(created: { id: number }): void;
   /** 整体导出弹窗（仅项目支持，其余模块不传则菜单项隐去） */
-  renderExport?: (item: CockpitItem, close: () => void) => React.ReactNode;
+  renderExport?: (item: CockpitItem, close: () => void) => ReactNode;
+  /** 工具栏扩展位（排序 / 视图等），渲染在「新建」主按钮左侧 */
+  toolbar?: ReactNode;
+  /** 替换默认的「置顶 hero 段 + 全部网格」；入参为未归档条目（更新序） */
+  renderActive?: (items: T[], handlers: CockpitCardHandlers) => ReactNode;
+  /** 替换归档段内的默认紧凑卡网格 */
+  renderArchived?: (items: T[], handlers: CockpitCardHandlers) => ReactNode;
 }
 
-export function EntityCockpit({
+export function EntityCockpit<T extends CockpitItem>({
   items,
   loading,
   visual,
@@ -46,7 +54,10 @@ export function EntityCockpit({
   onOpen,
   onCreated,
   renderExport,
-}: EntityCockpitProps) {
+  toolbar,
+  renderActive,
+  renderArchived,
+}: EntityCockpitProps<T>) {
   const [archivedOpen, setArchivedOpen] = useState(false);
 
   /* 弹层状态：新建 / 编辑 / 删除确认 / 整体导出（只保留在当前页面） */
@@ -106,6 +117,7 @@ export function EntityCockpit({
               <b className="text-ink-1 font-semibold">{metricTotal}</b> {copy.metricUnit}
               {archived.length > 0 && ` · 已归档 ${archived.length}`}
             </span>
+            {total > 0 && toolbar}
             <Button
               variant="primary"
               size="sm"
@@ -122,10 +134,12 @@ export function EntityCockpit({
           不留 pt：段头贴滚动区顶边，scrollTop=0 起即处于吸顶位，滚动时不抖。
           首行卡片 hover 的 lift 阴影由段头的 pb 留白承接，不会被顶边裁掉 */}
         <FadeScroll topFade={false} className="mb-4 min-h-0 flex-1 pb-2 pl-8 pr-[26px]">
+          {renderActive && rest.length > 0 && renderActive(rest, handlers)}
+
           {/* 置顶：升格 hero（无置顶不渲染） */}
-          {heroes.length > 0 && (
+          {!renderActive && heroes.length > 0 && (
             <section className="mb-[26px]">
-              <SectionHead
+              <CockpitSectionHead
                 label="置顶"
                 hint={`${heroes.length} ${copy.entityUnit} · ${heroes.reduce((sum, item) => sum + item.metric, 0)} ${copy.metricUnit}`}
               />
@@ -144,9 +158,9 @@ export function EntityCockpit({
           )}
 
           {/* 全部：紧凑网格 */}
-          {rest.length > 0 && (
+          {!renderActive && rest.length > 0 && (
             <section className="mb-[26px]">
-              <SectionHead
+              <CockpitSectionHead
                 label="全部"
                 hint={`${rest.length} ${copy.entityUnit} · ${metricTotal} ${copy.metricUnit}`}
               />
@@ -191,17 +205,21 @@ export function EntityCockpit({
                 )}
               >
                 <div className="overflow-hidden">
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(268px,1fr))] gap-2.5">
-                    {archived.map(item => (
-                      <EntityMiniCard
-                        key={item.id}
-                        item={item}
-                        visual={visual}
-                        copy={copy}
-                        handlers={handlers}
-                      />
-                    ))}
-                  </div>
+                  {renderArchived ? (
+                    renderArchived(archived, handlers)
+                  ) : (
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(268px,1fr))] gap-2.5">
+                      {archived.map(item => (
+                        <EntityMiniCard
+                          key={item.id}
+                          item={item}
+                          visual={visual}
+                          copy={copy}
+                          handlers={handlers}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </section>
@@ -273,7 +291,7 @@ export function EntityCockpit({
    滚动区不能有 pt：sticky 以扣掉 padding 的内容盒为吸顶边界，顶边会留一条无遮挡
    的缝漏出卡片；用负 top 抵消又会让段头先随内容上移几像素再停住（抖一下） */
 
-function SectionHead({ label, hint }: { label: string; hint: string }) {
+export function CockpitSectionHead({ label, hint }: { label: string; hint: string }) {
   return (
     <header className="sticky top-0 z-[2] flex items-baseline gap-3 bg-[linear-gradient(180deg,var(--tau-bg-surface)_calc(100%_-_13px),transparent)] pb-[13px] pl-0.5 pt-0.5">
       <span className="text-[16px] font-semibold tracking-[-0.01em]">{label}</span>
