@@ -7,13 +7,23 @@ import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkCjkFriendly from "remark-cjk-friendly/parseOnly";
 import remarkCjkFriendlyGfmStrikethrough from "remark-cjk-friendly-gfm-strikethrough/parseOnly";
-import { FileText, FolderKanban, Layers, PenLine, type LucideIcon } from "lucide-react";
+import {
+  FileText,
+  FolderKanban,
+  Globe,
+  Highlighter,
+  Layers,
+  PenLine,
+  type LucideIcon,
+} from "lucide-react";
 import { Tooltip, toast } from "@tau/ui";
 import MarkdownContext, { useMarkdownContext, MarkdownMessageMeta } from "./MarkdownContext";
 import { remarkDocumentReference } from "@tau/shared";
 import remarkPdfCitation from "@/utils/remark-pdf-citation";
 import { getRefTypeLabel } from "@/utils";
 import { openContent } from "@/services/open-content";
+import { openMaterial } from "@/services/open-material";
+import { isMaterialKind } from "@/entity/material";
 import LocalImage from "@/components/LocalImage";
 import LocalImagePreviewPortal from "@/components/LocalImagePreviewPortal";
 import { MARKDOWN_BLOCK_CODE_ATTRIBUTE, MARKDOWN_BLOCK_CODE_VALUE } from "./codeBlockUtils";
@@ -39,12 +49,16 @@ const REF_ICONS: Record<string, LucideIcon> = {
   article: FileText,
   "project-item": FolderKanban,
   "diary-daily": PenLine,
+  excerpt: Highlighter,
+  "pdf-annotation": FileText,
+  "web-clip": Globe,
 };
 
-/** 文档引用在新壳层内打开（卡片 / 文章 / 项目文档 / 日记）；未就绪或不支持时 toast 说明 */
+/** 文档引用在新壳层内打开（卡片 / 文章 / 项目文档 / 日记；外部材料打开到原处）；不支持时 toast 说明 */
 async function openReference(id: number, type: string) {
   try {
-    await openContent(type, id);
+    if (isMaterialKind(type)) await openMaterial({ kind: type, id });
+    else await openContent(type, id);
   } catch (error) {
     toast.error(error instanceof Error ? error.message : "无法打开引用内容");
   }

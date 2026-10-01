@@ -59,6 +59,7 @@ import { useThemeStore } from "@tau/themes/react";
 import { Spinner, toast } from "@tau/ui";
 import { openMarkdownInNewWindow } from "@/commands/file";
 import type { SearchResult } from "@/types";
+import { openMaterialTarget } from "@/services/open-material";
 import { captureQuestion } from "@/commands/question";
 import { looksLikeQuestion, parseCapture } from "@/features/questions/capture";
 import { describeQuickAdd, parseQuickAdd as parseTodoQuickAdd } from "@/features/todos/quickAdd";
@@ -373,6 +374,25 @@ export function SearchPalette() {
 
   const contentRow = (r: SearchResult): Row => {
     const meta = CONTENT_TYPES[r.type];
+    if (r.material) {
+      // 外部材料：标题是引文，次行是来源，点击打开到原处（单书页划线 / PDF 标注 / 网页 / 网页条目）
+      const { material } = r;
+      return {
+        key: `material:${r.type}:${r.id}`,
+        icon: meta.icon,
+        title: material.title,
+        sub: material.meta,
+        tag: { label: meta.label, cls: meta.tag },
+        meta: relativeTime(r.updateTime),
+        run: () =>
+          closeAnd(() => {
+            if (!material.open) return navigator.push(meta.navKey);
+            openMaterialTarget(material.open).catch(error =>
+              toast.error(error instanceof Error ? error.message : "打开失败")
+            );
+          }),
+      };
+    }
     const { title, snippet } = resultDisplay(r);
     return {
       key: `content:${r.type}:${r.contentId}`,
