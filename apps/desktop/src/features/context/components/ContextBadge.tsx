@@ -22,13 +22,15 @@ export interface ContextLeading {
 interface ContextBadgeProps {
   entity: EntityRef | null;
   leading?: ContextLeading;
+  /** 不显示也不计入「引用了」：调用方的前置分区已包含出链（卡片的「连接」） */
+  hideOutlinks?: boolean;
   className?: string;
 }
 
-export function ContextBadge({ entity, leading, className }: ContextBadgeProps) {
+export function ContextBadge({ entity, leading, hideOutlinks, className }: ContextBadgeProps) {
   const { data: context } = useEntityContext(entity);
   const [open, setOpen] = useState(false);
-  const count = contextCount(context) + (leading?.count ?? 0);
+  const count = contextCount(context, { hideOutlinks }) + (leading?.count ?? 0);
   if (count === 0) return null;
   const close = () => setOpen(false);
 
@@ -69,6 +71,7 @@ export function ContextBadge({ entity, leading, className }: ContextBadgeProps) 
         <ContextPopoverContent
           context={context ?? null}
           leading={leading && leading.count > 0 ? leading.render(close) : undefined}
+          hideOutlinks={hideOutlinks}
           onOpenEntity={openRef}
           onOpenQuestion={openQuestion}
         />

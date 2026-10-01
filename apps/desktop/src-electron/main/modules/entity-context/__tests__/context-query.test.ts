@@ -141,6 +141,11 @@ describe("getEntityContext", () => {
       [q2, "not_started"],
     ]);
 
+    // 文章引用了卡片；卡片自己没有出链
+    const fromArticle = getEntityContext(mainDb, indexDb, { kind: "article", id: articleId })!;
+    expect(fromArticle.outlinks.map(e => e.ref)).toEqual([{ kind: "card", id: cardId }]);
+    expect(ctx.outlinks).toEqual([]);
+
     // 从项目文档看，同样能看到卡片身份与被引用
     const fromItem = getEntityContext(mainDb, indexDb, { kind: "project-item", id: itemId })!;
     expect(fromItem.projections.map(e => e.ref)).toEqual([{ kind: "card", id: cardId }]);
@@ -195,6 +200,28 @@ describe("getEntityContext", () => {
     const ctx = getEntityContext(mainDb, indexDb, { kind: "diary", id: diaryId })!;
     expect(ctx.backlinkTotal).toBe(1);
     expect(ctx.projections).toEqual([]);
+  });
+
+  it("出链去重，排除自身、共用正文的身份与已删除的目标", () => {
+    const targetContent = insertContent([p(text("目标"))]);
+    const targetId = insertArticle("目标文章", targetContent);
+    const selfContent = insertContent([]);
+    const itemId = insertProjectItem("渲染篇", selfContent);
+    const cardId = insertCard(selfContent);
+    mainDb
+      .prepare(`UPDATE contents SET content = ? WHERE id = ?`)
+      .run(
+        JSON.stringify([
+          p(link("article", targetId, "目标文章"), link("article", targetId, "目标文章")),
+          p(link("article", 999, "已删除")),
+          p(link("project-item", itemId, "渲染篇"), link("card", cardId, "自己")),
+        ]),
+        selfContent
+      );
+    const ctx = getEntityContext(mainDb, indexDb, { kind: "project-item", id: itemId })!;
+    expect(ctx.outlinks.map(e => [e.ref, e.title])).toEqual([
+      [{ kind: "article", id: targetId }, "目标文章"],
+    ]);
   });
 
   it("实体不存在返回 null", () => {

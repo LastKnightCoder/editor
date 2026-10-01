@@ -20,6 +20,7 @@ import { contextCount } from "../model";
 
 const CONTEXT: EntityContext = {
   self: { ref: { kind: "card", id: 1 }, title: "重排与重绘", meta: "" },
+  outlinks: [{ ref: { kind: "article", id: 8 }, title: "深度学习简介", meta: "" }],
   projections: [{ ref: { kind: "project-item", id: 7 }, title: "渲染篇", meta: "前端体系" }],
   backlinks: [
     {
@@ -62,7 +63,8 @@ afterEach(() => {
 
 describe("contextCount", () => {
   it("引用来源总数 + 共用正文 + 问题", () => {
-    expect(contextCount(CONTEXT)).toBe(4);
+    expect(contextCount(CONTEXT)).toBe(5);
+    expect(contextCount(CONTEXT, { hideOutlinks: true })).toBe(4);
     expect(contextCount(null)).toBe(0);
   });
 });
@@ -71,7 +73,14 @@ describe("ContextBadge", () => {
   it("没有关联时不渲染", () => {
     render();
     expect(container.innerHTML).toBe("");
-    mocks.context = { ...CONTEXT, projections: [], backlinks: [], backlinkTotal: 0, questions: [] };
+    mocks.context = {
+      ...CONTEXT,
+      outlinks: [],
+      projections: [],
+      backlinks: [],
+      backlinkTotal: 0,
+      questions: [],
+    };
     render();
     expect(container.innerHTML).toBe("");
   });
@@ -79,9 +88,10 @@ describe("ContextBadge", () => {
   it("显示关联数，点开后列出三个分区与片段", () => {
     mocks.context = CONTEXT;
     render();
-    expect(container.textContent).toContain("4 处关联");
+    expect(container.textContent).toContain("5 处关联");
     click(findButton("处关联"));
     const text = document.body.textContent ?? "";
+    expect(text).toContain("引用了");
     expect(text).toContain("被引用");
     expect(text).toContain("也出现在");
     expect(text).toContain("相关问题");
@@ -123,7 +133,7 @@ describe("ContextBadge", () => {
     expect(container.textContent).toContain("2 处关联");
     mocks.context = CONTEXT;
     render(leading);
-    expect(container.textContent).toContain("6 处关联");
+    expect(container.textContent).toContain("7 处关联");
     click(findButton("处关联"));
     const text = document.body.textContent ?? "";
     expect(text.indexOf("连接分区")).toBeLessThan(text.indexOf("被引用"));
@@ -137,5 +147,15 @@ describe("ContextBadge", () => {
     render({ count: 0, render: () => <span>连接分区</span> });
     click(findButton("处关联"));
     expect(document.body.textContent).not.toContain("连接分区");
+  });
+
+  it("hideOutlinks 时不显示也不计入「引用了」", () => {
+    mocks.context = CONTEXT;
+    act(() => {
+      root.render(<ContextBadge entity={{ kind: "card", id: 1 }} hideOutlinks />);
+    });
+    expect(container.textContent).toContain("4 处关联");
+    click(findButton("处关联"));
+    expect(document.body.textContent).not.toContain("引用了");
   });
 });

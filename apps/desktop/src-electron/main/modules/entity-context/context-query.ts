@@ -1,7 +1,7 @@
 /**
- * 组装一个实体的脉络：共用正文的身份、被引用（索引库 entity_refs）、相关问题。
+ * 组装一个实体的脉络：引用了（解析自身正文）、共用正文的身份、被引用（索引库 entity_refs）、相关问题。
  *
- * 显式链接 cards.links 与出链不在这里：卡片详情的「连接」区已经展示（KL-014、KL-015）。
+ * 显式链接 cards.links 不在这里：卡片在浮层里有自己的「连接」分区（KL-014、KL-018）。
  */
 
 import type Database from "better-sqlite3";
@@ -12,7 +12,7 @@ import {
   type EntityRef,
   type EntityRefKind,
 } from "@/entity/ref";
-import type { InlineRefSnippet } from "@/entity/inline-refs";
+import { extractInlineRefs, type InlineRefSnippet } from "@/entity/inline-refs";
 import type { EntityKind } from "@/types/entity";
 import type {
   ContextBacklink,
@@ -182,6 +182,40 @@ function questionsOf(
   return [...seen.values()].slice(0, CONTEXT_LIMIT);
 }
 
+/** 自身正文里引用的实体；exclude 为自身与共用正文的身份，目标已不存在的丢弃 */
+function outlinksOf(
+  db: Database.Database,
+  contentIds: number[],
+  exclude: Set<string>
+): ContextEntity[] {
+  if (contentIds.length === 0) return [];
+  const marks = contentIds.map(() => "?").join(",");
+  const rows = db
+    .prepare(
+      `SELECT content FROM contents WHERE id IN (${marks}) AND instr(content, '"content-link"') > 0`
+    )
+    .all(...contentIds) as Array<{ content: string }>;
+  const seen = new Set(exclude);
+  const outlinks: ContextEntity[] = [];
+  for (const row of rows) {
+    let content: unknown;
+    try {
+      content = JSON.parse(row.content);
+    } catch {
+      continue;
+    }
+    for (const { dst } of extractInlineRefs(content)) {
+      const key = entityRefKey(dst);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const entity = toContextEntity(db, dst);
+      if (entity) outlinks.push(entity);
+      if (outlinks.length >= CONTEXT_LIMIT) return outlinks;
+    }
+  }
+  return outlinks;
+}
+
 /** 实体不存在时返回 null */
 export function getEntityContext(
   mainDb: Database.Database,
@@ -209,6 +243,7 @@ export function getEntityContext(
   const { backlinks, total } = backlinksOf(mainDb, indexDb, ref, contentIds);
   return {
     self,
+    outlinks: outlinksOf(mainDb, contentIds, seen),
     projections,
     backlinks,
     backlinkTotal: total,
