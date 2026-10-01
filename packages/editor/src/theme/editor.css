@@ -61,11 +61,12 @@
   --ed-selection: var(--tau-accent-soft);
 
   /* ── 行内代码 / 标签药丸 ── */
-  /* 与桌面端聊天消息的行内代码 / 代码块同一套取色：页面底色 + line-1 描边 */
+  /* 与桌面端聊天消息的行内代码同一套取色：页面底色 + line-1 描边 */
   --ed-tag-bg: var(--tau-bg-page);
 
   /* ── 代码块 ── */
-  --ed-code-bg: var(--tau-bg-page);
+  /* 卡片悬停档：只比正文深半档；源码预览块的源码区、聊天代码块同色 */
+  --ed-code-bg: var(--tau-bg-surface-hover);
   /* 1px 内描边等同聊天代码块的 border-line-1，不占布局 */
   --ed-code-shadow: inset 0 0 0 1px var(--tau-line-1);
   --ed-code-caret: var(--tau-ink-1);

@@ -30,7 +30,6 @@ export type { ServiceRegistry, ServiceRegister, ServiceRegistration } from "./se
 export { useServiceRegistry, useService, useOptionalService, useNotifier } from "./services/hooks";
 export { notifierOf } from "./services/editorNotifier";
 
-export { default as useTheme } from "./hooks/useTheme";
 export { default as useIsLastElement } from "./hooks/useIsLastElement";
 
 export { createMarkdownPasteImportExtension } from "./extensions/markdown-paste-import";

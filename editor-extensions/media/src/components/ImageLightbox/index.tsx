@@ -17,6 +17,7 @@ import { useEditorSlots } from "../../services/hooks";
 import { useNotifier, OverlayBackDismiss } from "@tau/editor/api";
 import { fileNameOfUrl, useImageLightboxStore } from "../../stores";
 import { copyImageElement, imageElementToBlob } from "../../utils/imageBlob";
+import { panAroundAnchor, pointFromCenter } from "@tau/editor/api";
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 8;
@@ -99,23 +100,16 @@ const LightboxView = ({ items, index, setIndex, close }: LightboxViewProps) => {
   const zoomAt = useCallback(
     (nextZoom: number, anchor?: { x: number; y: number }) => {
       const target = clampZoom(nextZoom);
-      const k = target / zoom;
-      const a = anchor ?? { x: 0, y: 0 };
       setZoom(target);
       setPan(
-        target <= 1 ? { x: 0, y: 0 } : { x: a.x - (a.x - pan.x) * k, y: a.y - (a.y - pan.y) * k }
+        target <= 1 ? { x: 0, y: 0 } : panAroundAnchor(pan, zoom, target, anchor ?? { x: 0, y: 0 })
       );
     },
     [pan, zoom]
   );
 
-  const anchorOf = (event: { clientX: number; clientY: number }) => {
-    const rect = stageRef.current!.getBoundingClientRect();
-    return {
-      x: event.clientX - rect.left - rect.width / 2,
-      y: event.clientY - rect.top - rect.height / 2,
-    };
-  };
+  const anchorOf = (event: { clientX: number; clientY: number }) =>
+    pointFromCenter(stageRef.current!, event);
 
   // React 的 wheel 是 passive 的，拦截页面滚动需要原生监听
   const zoomAtRef = useRef(zoomAt);

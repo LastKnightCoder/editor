@@ -8,9 +8,11 @@ import useChatSessionStore, {
   bucketOfChatScope,
   draftFor,
   isDraftChat,
+  resolveChatCwd,
   selectRows,
   type ChatBucketRef,
 } from "../useChatSessionStore";
+import useSettingStore from "../useSettingStore";
 import { createChatSession, listChatSessions, updateChatSession } from "@/commands/chat-session";
 import { piSessionEdit, piSessionTranscript } from "@/commands/piSession";
 import { setChatDatabase } from "@/services/chatDatabase";
@@ -62,6 +64,7 @@ const echoInsert = (input: ChatSessionInsert): Promise<ChatSessionRow> =>
       scope: input.scope,
       domainRef: input.domainRef ?? null,
       sessionFile: input.sessionFile,
+      cwd: input.cwd ?? "",
       title: input.title ?? "新对话",
       titleDirty: input.titleDirty ?? false,
       groupId: input.groupId ?? null,
@@ -91,7 +94,13 @@ const ids = (bucket: ChatBucketRef) =>
 beforeEach(() => {
   setChatDatabase("");
   vi.clearAllMocks();
-  useChatSessionStore.setState({ buckets: {}, currentIds: {}, opened: {}, groups: [] });
+  useChatSessionStore.setState({
+    buckets: {},
+    currentIds: {},
+    opened: {},
+    groups: [],
+    draftCwds: {},
+  });
   vi.mocked(createChatSession).mockImplementation(echoInsert);
   seedCatalog([]);
 });
@@ -289,5 +298,63 @@ describe("五个场景分桶", () => {
       scope: "vibe-learning-chat",
       domainRef: "a:b",
     });
+  });
+});
+
+/**
+ * 对话工作目录：草稿选的目录登记时写进目录行，没选就以登记那一刻的默认目录为准（之后改默认不影响它）；
+ * 早于本功能的对话目录行为空，跟随默认；已登记对话换目录不动更新时间。
+ */
+describe("对话工作目录", () => {
+  const setDefaultCwd = (defaultCwd: string) =>
+    useSettingStore.setState(state => ({
+      setting: { ...state.setting, agentWorkspace: { defaultCwd } },
+    }));
+
+  beforeEach(() => setDefaultCwd("/default"));
+
+  it("草稿没选目录：登记时写入当时的默认目录，之后改默认不影响它", async () => {
+    await useChatSessionStore.getState().loadBucket(MAIN);
+    const draft = draftFor("page|main-chat|", MAIN);
+    expect(resolveChatCwd(draft.id)).toBe("/default");
+
+    await useChatSessionStore.getState().registerChat(draft, "f_d.jsonl");
+    expect(createChatSession).toHaveBeenCalledWith(
+      expect.objectContaining({ cwd: "/default" }),
+      ""
+    );
+    setDefaultCwd("/elsewhere");
+    expect(resolveChatCwd(draft.id)).toBe("/default");
+  });
+
+  it("PDF / 视频笔记 / 学习项目对话不记目录（由场景决定）", async () => {
+    await useChatSessionStore.getState().loadBucket(PDF_12);
+    const draft = draftFor("dock|pdf-chat|12", PDF_12);
+    await useChatSessionStore.getState().registerChat(draft, "f_p.jsonl");
+    expect(createChatSession).toHaveBeenCalledWith(expect.objectContaining({ cwd: "" }), "");
+  });
+
+  it("草稿选过的目录登记时带上", async () => {
+    await useChatSessionStore.getState().loadBucket(MAIN);
+    const draft = draftFor("dock|main-chat|", MAIN);
+    await useChatSessionStore.getState().setChatCwd(draft.id, "/repo");
+    expect(resolveChatCwd(draft.id)).toBe("/repo");
+
+    await useChatSessionStore.getState().registerChat(draft, "f_r.jsonl");
+    expect(createChatSession).toHaveBeenCalledWith(expect.objectContaining({ cwd: "/repo" }), "");
+    expect(useChatSessionStore.getState().draftCwds).toEqual({});
+  });
+
+  it("目录行为空（旧对话）跟随默认；换目录写目录行且保留更新时间", async () => {
+    seedCatalog([row({ id: "old", updateTime: 42 })]);
+    await useChatSessionStore.getState().loadBucket(MAIN);
+    expect(resolveChatCwd("old")).toBe("/default");
+
+    vi.mocked(updateChatSession).mockResolvedValue(
+      row({ id: "old", cwd: "/repo", updateTime: 42 })
+    );
+    await useChatSessionStore.getState().setChatCwd("old", "/repo");
+    expect(updateChatSession).toHaveBeenCalledWith("old", { cwd: "/repo", updateTime: 42 }, "");
+    expect(resolveChatCwd("old")).toBe("/repo");
   });
 });

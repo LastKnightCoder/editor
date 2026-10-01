@@ -3,7 +3,7 @@ import { Tooltip } from "@tau/ui";
 import { CircleAlert, Code, Copy, Download, Eye, Loader2, Maximize2, RotateCw } from "lucide-react";
 import { measurePerformance } from "@tau/shared/src/utils/performance";
 import { useDebounce, useCreation } from "ahooks";
-import { LazySyntaxHighlighter, FullscreenPortal } from "@tau/shared";
+import { LazySyntaxHighlighter, FullscreenPortal, useDocumentTheme } from "@tau/shared";
 import { renderMermaidSvg } from "../mermaid-render-core";
 
 export interface MermaidRendererProps {
@@ -30,6 +30,8 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [internalRefreshKey, setInternalRefreshKey] = useState(0);
+  // 配色取 <html> 上的 --tau-*，主题族变化也要重绘
+  const documentTheme = useDocumentTheme();
   const debouncedCode = useDebounce(code, {
     wait: 500,
   });
@@ -81,7 +83,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [debouncedCode, isDark, mermaidId, refreshKey, internalRefreshKey]);
+  }, [debouncedCode, isDark, documentTheme, mermaidId, refreshKey, internalRefreshKey]);
 
   const handleRefresh = () => {
     setInternalRefreshKey(prev => prev + 1);
@@ -199,7 +201,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
       }
 
       return (
-        <div className="flex-1 overflow-auto bg-white dark:bg-black">
+        <div className="bg-surface flex-1 overflow-auto">
           <div
             ref={containerRef}
             dangerouslySetInnerHTML={{ __html: svgContent }}

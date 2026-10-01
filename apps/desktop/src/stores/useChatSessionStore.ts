@@ -34,6 +34,7 @@ import {
 } from "@/commands/chat-message";
 import { piSessionEdit, piSessionTranscript, type PiSessionEdit } from "@/commands/piSession";
 import { chatIdentity, getChatDatabase } from "@/services/chatDatabase";
+import useSettingStore from "@/stores/useSettingStore";
 
 const deletedChats = new Set<string>();
 const libraryGenerations = new Map<string, number>();
@@ -117,6 +118,8 @@ interface ChatSessionState {
   /** 已打开对话（含草稿）：消息为 JSONL 投影 + 运行时实时快照 */
   opened: Record<string, ChatMessage>;
   groups: ChatGroup[];
+  /** 草稿选过的工作目录（不落库，登记时写进目录行） */
+  draftCwds: Record<string, string>;
 }
 
 interface ChatSessionActions {
@@ -148,6 +151,8 @@ interface ChatSessionActions {
     sessionFile?: string
   ): Promise<ChatSessionMessage[] | null>;
   renameChat(id: string, title: string, databaseName?: string): Promise<void>;
+  /** 改对话的工作目录（下一轮起生效，宿主会话按新目录重建；空串 = 跟随默认） */
+  setChatCwd(id: string, cwd: string): Promise<void>;
   evictChat(id: string, databaseName?: string): void;
   archiveChat(id: string, archived: boolean): Promise<void>;
   moveChatToGroup(id: string, groupId: number | null): Promise<void>;
@@ -234,6 +239,7 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
         currentIds: {},
         opened: {},
         groups: [],
+        draftCwds: {},
 
         loadBucket: async bucket => {
           const databaseName = getChatDatabase();
@@ -403,6 +409,10 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
               scope: chat.scope ?? "main-chat",
               domainRef: chat.domainRef ?? null,
               sessionFile,
+              cwd:
+                (chat.scope ?? "main-chat") === "main-chat"
+                  ? (get().draftCwds[chat.id] ?? defaultChatCwd())
+                  : "",
               title: chat.title,
               titleDirty: chat.titleDirty ?? false,
               groupId: chat.groupId ?? null,
@@ -415,6 +425,13 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
             throw new Error("对话已删除");
           }
           releaseDraft(chat.id);
+          if (chat.id in get().draftCwds) {
+            set(state => {
+              const draftCwds = { ...state.draftCwds };
+              delete draftCwds[chat.id];
+              return { draftCwds };
+            });
+          }
           if (
             databaseName === getChatDatabase() &&
             !deletedChats.has(chatIdentity(chat.id, databaseName))
@@ -463,6 +480,16 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
           }
           // 手动改名与生成的标题都置 titleDirty（生成过就不再生成）
           await patchRow(id, { title, titleDirty: true });
+        },
+
+        setChatCwd: async (id, cwd) => {
+          const row = findRow(id);
+          if (!row) {
+            set(state => ({ draftCwds: { ...state.draftCwds, [id]: cwd } }));
+            return;
+          }
+          // 换目录不算内容更新：保留 update_time，列表顺序不动
+          await patchRow(id, { cwd, updateTime: row.updateTime });
         },
 
         archiveChat: (id, archived) => patchRow(id, { archived }),
@@ -609,4 +636,30 @@ export const resetDraft = (slot: string): void => {
 /** 草稿已登记为正式对话：从所有槽里摘掉 */
 export const releaseDraft = (id: string): void => {
   for (const [slot, draft] of draftSlots) if (draft.id === id) draftSlots.delete(slot);
+};
+
+/** 设置里的新对话默认工作目录（空 = 应用数据目录） */
+const defaultChatCwd = (): string =>
+  useSettingStore.getState().setting.agentWorkspace?.defaultCwd?.trim() ?? "";
+
+const chatCwdIn = (state: ChatSessionState, id: string): string | undefined => {
+  for (const bucket of Object.values(state.buckets)) {
+    const row = bucket.rows.find(item => item.id === id);
+    if (row) return row.cwd || undefined;
+  }
+  return state.draftCwds[id];
+};
+
+/**
+ * 主对话的工作目录：目录行登记的 → 草稿选的 → 设置默认。空串交主进程落到应用数据目录。
+ * 早于本功能登记的对话目录行为空，跟随默认。
+ */
+export const resolveChatCwd = (id: string): string =>
+  chatCwdIn(useChatSessionStore.getState(), id) ?? defaultChatCwd();
+
+/** 订阅版 resolveChatCwd（对话栏展示用） */
+export const useChatCwd = (id: string): string => {
+  const own = useChatSessionStore(state => chatCwdIn(state, id));
+  const fallback = useSettingStore(state => state.setting.agentWorkspace?.defaultCwd?.trim() ?? "");
+  return own ?? fallback;
 };

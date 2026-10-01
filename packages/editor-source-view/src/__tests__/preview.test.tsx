@@ -16,6 +16,7 @@ import {
   type ElementRenderProps,
 } from "@tau/editor/api";
 import { PreviewWithEditor } from "../index";
+import { Code2 } from "lucide-react";
 import { previewMenuExtension } from "../../menu";
 import { IOverlayBackDismiss, type OverlayBackDismissProps } from "@tau/editor/api";
 
@@ -113,6 +114,8 @@ const PreviewBlock = ({ attributes, element, children }: ElementRenderProps<Prev
   return (
     <div {...attributes}>
       <PreviewWithEditor
+        title="源码"
+        icon={Code2}
         element={element as never}
         mode="javascript"
         initValue={element.source}

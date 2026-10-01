@@ -58,6 +58,7 @@ import { ModelPickerDialog } from "../components/ModelPickerDialog";
 import { useCatalogModels, useThinkingLevels } from "@/services/llmCatalog";
 import { ToolPermissionGroup } from "./ToolPermissionGroup";
 import { AgentShellGroup } from "./AgentShellGroup";
+import { AgentWorkspaceGroup } from "./AgentWorkspaceGroup";
 import { ModelUsagePanel } from "./ModelUsagePanel";
 
 type FeatureKey = keyof ISetting["llmUsageSettings"];
@@ -779,6 +780,7 @@ export function LLMSection() {
       ) : tab === "permission" ? (
         <>
           <ToolPermissionGroup />
+          <AgentWorkspaceGroup />
           <AgentShellGroup />
         </>
       ) : tab === "usage" ? (

@@ -21,6 +21,7 @@ import ChatDropdownSelector from "@/components/ChatDropdownSelector";
 import { useChatMarkdownComponents } from "@/components/ChatUI";
 import type { ChatContainerHandle } from "@/components/ChatSidebar/ChatContainer";
 import type { BlockData } from "@/types/block-preview";
+import { WorkspaceBar } from "./WorkspaceBar";
 
 const ChatContainer = lazy(() => import("@/components/ChatSidebar/ChatContainer"));
 
@@ -158,6 +159,7 @@ const ChatArea = memo(
                   onChatCreated={chatId => onSelectChat(chatId)}
                   contentMaxWidth={READING_WIDTH}
                   emptyState={<EmptyHint />}
+                  composerAccessory={<WorkspaceBar chatId={currentChat.id} busy={sendLoading} />}
                 />
               </Suspense>
             </div>

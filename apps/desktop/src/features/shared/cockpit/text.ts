@@ -14,8 +14,8 @@ export function cockpitExcerpt(desc: Descendant[]): string {
 }
 
 /** 相对更新时间（自然日语义，与 articles 域同构） */
-export function cockpitRelativeTime(ts: number): string {
-  const days = Math.floor((startOfDay(Date.now()) - startOfDay(ts)) / DAY_MS);
+export function cockpitRelativeTime(ts: number, now = Date.now()): string {
+  const days = Math.floor((startOfDay(now) - startOfDay(ts)) / DAY_MS);
   if (days <= 0) return "今天";
   if (days === 1) return "昨天";
   if (days < 7) return `${days} 天前`;

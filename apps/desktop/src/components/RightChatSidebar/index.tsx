@@ -17,6 +17,7 @@ import { useChatMarkdownComponents } from "@/components/ChatUI";
 
 import type { ChatContainerHandle } from "@/components/ChatSidebar/ChatContainer";
 import ChatDropdownSelector from "@/components/ChatDropdownSelector";
+import { WorkspaceBar } from "@/features/chat/components/WorkspaceBar";
 
 const ChatContainer = lazy(() => import("@/components/ChatSidebar/ChatContainer"));
 
@@ -128,6 +129,7 @@ export const RightChatPanel = memo(
                 scrollPositionScope="right-chat-sidebar"
                 onChatCreated={select}
                 compact
+                composerAccessory={<WorkspaceBar chatId={currentChat.id} busy={sendLoading} />}
               />
             </Suspense>
           </div>

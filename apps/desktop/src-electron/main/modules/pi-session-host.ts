@@ -55,6 +55,13 @@ import {
   type HostedSessionState,
 } from "./pi-session-lifecycle";
 import { conversationTreeOf, type DesktopDisplayData } from "./pi-session-files";
+import {
+  checkoutWorkspaceBranch,
+  listWorkspaceBranches,
+  readWorkspaceInfo,
+  resolveSessionCwd,
+  resolveWorkspaceCwd,
+} from "./pi-workspace";
 import type {
   PiHostToolSpec,
   PiPromptDisplay,
@@ -115,6 +122,8 @@ interface HostedSession {
   scope: string;
   modelRef: { providerId: string; modelId: string };
   thinkingLevel?: PiThinkingLevel;
+  /** 渲染端请求的工作目录（原样，收养时据此判断是否需要重建） */
+  requestedCwd: string;
   /** 展示 entry 写入器：prompt/steer 登记，用户消息落盘后紧跟着写 */
   displayWriter: ReturnType<typeof createDisplayEntryWriter>;
   /** 最近活动时间（空闲回收用，M4-e） */
@@ -126,6 +135,8 @@ export interface PiSessionCreateRequest {
   databaseName?: string;
   sessionId: string;
   scope: string;
+  /** 聊天场景（带所属对象，如 `vibe-learning-chat:12`）；学习项目对话据此固定工作目录 */
+  chatScope?: string;
   cwd: string;
   modelRef: { providerId: string; modelId: string };
   systemPrompt?: string;
@@ -384,6 +395,30 @@ class PiSessionHostModule {
         effective: PiSessionHostModule.resolveShellPath(setting),
       };
     });
+    // 对话工作目录：对话栏据此显示实际目录与仓库分支（空 / 不存在 = 应用数据目录）
+    ipcMain.handle("pi-session:workspace-info", async (_event, payload?: { cwd?: string }) =>
+      PiSessionHostModule.guard(async () => ({
+        info: await readWorkspaceInfo(payload?.cwd, PathUtil.getAppDir()),
+      }))
+    );
+    ipcMain.handle("pi-session:workspace-branches", async (_event, payload: { cwd: string }) =>
+      PiSessionHostModule.guard(async () => ({
+        branches: await listWorkspaceBranches(
+          resolveWorkspaceCwd(payload.cwd, PathUtil.getAppDir()).cwd
+        ),
+      }))
+    );
+    ipcMain.handle(
+      "pi-session:workspace-checkout",
+      async (_event, payload: { cwd: string; branch: string }) =>
+        PiSessionHostModule.guard(async () => {
+          await checkoutWorkspaceBranch(
+            resolveWorkspaceCwd(payload.cwd, PathUtil.getAppDir()).cwd,
+            payload.branch
+          );
+          return {};
+        })
+    );
     // 打开对话（M4）：读会话文件当前叶子路径，投影成桌面展示消息。纯读，不起 pi 会话
     ipcMain.handle("pi-session:transcript", async (_event, location: PiSessionLocation) =>
       PiSessionHostModule.guard(async () => {
@@ -537,6 +572,7 @@ class PiSessionHostModule {
         sessionId: found,
         modelRef: hosted?.modelRef,
         thinkingLevel: hosted?.thinkingLevel,
+        cwd: hosted?.requestedCwd,
         toolSpecs: hosted?.toolSpecs,
         toolScope: hosted?.toolScope,
       };
@@ -772,9 +808,12 @@ class PiSessionHostModule {
               request.modelRef.modelId
             )
           : [];
+      const workspace = resolveSessionCwd(request, PathUtil.getAppDir());
+      if (workspace.missing) {
+        console.warn(`[PiSessionHost] 对话工作目录不存在，改用应用数据目录：${request.cwd}`);
+      }
       const session = await assembleHostSession({
-        // cwd 为空时落到应用数据目录（正式会话的「当前项目根」绑定在 M4 接入）
-        cwd: request.cwd || PathUtil.getAppDir(),
+        cwd: workspace.cwd,
         agentDir: join(PathUtil.getAppDir(), "pi"),
         modelRuntime,
         modelRef: request.modelRef,
@@ -796,7 +835,7 @@ class PiSessionHostModule {
         ...(request.systemPrompt !== undefined
           ? {
               resourceLoader: await createHostResourceLoader({
-                cwd: request.cwd || PathUtil.getAppDir(),
+                cwd: workspace.cwd,
                 agentDir: join(PathUtil.getAppDir(), "pi"),
                 systemPrompt: request.systemPrompt,
                 extensionFactories: [createDynamicSystemPromptExtension(systemPromptRef)],
@@ -867,6 +906,7 @@ class PiSessionHostModule {
         scope: request.scope,
         modelRef: request.modelRef,
         thinkingLevel: request.thinkingLevel,
+        requestedCwd: request.cwd,
         displayWriter,
         lastActive: Date.now(),
       });

@@ -222,3 +222,4 @@ export {
   type RemoteVideoStreamProgress,
   type RemoteVideoCacheProgress,
 } from "./hooks/useRemoteVideo";
+export { useDocumentTheme } from "./hooks/useDocumentTheme";
