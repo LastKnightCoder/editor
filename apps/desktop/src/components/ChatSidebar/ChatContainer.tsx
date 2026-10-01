@@ -86,10 +86,6 @@ import {
   getChatContentDragReference,
 } from "@/utils/chat-content-dnd";
 import { getErrorMessage } from "@/utils/chat-retry";
-import { openEntity } from "@/services/open-content";
-import { saveChatAnswer } from "@/services/save-chat-answer";
-import useConversationFlashcardStore from "@/stores/useConversationFlashcardStore";
-import type { MessageSaveTarget } from "@/components/ChatUI";
 
 /** 本条用户消息里 `$` 点名的 Skill（folderName，去重） */
 const extractForcedSkills = (requestMessage: RequestMessage): string[] => {
@@ -1373,58 +1369,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       }
     });
 
-    /**
-     * 回答「存为…」（KL-024）：存为卡片 / 文章是复制一份正文并记谱系；生成闪卡的素材是这条回答
-     * 与它对应的提问（KL-025），由闪卡弹窗接手。
-     */
-    const handleSaveAs = useMemoizedFn(
-      async (messageIndex: number, target: MessageSaveTarget, markdown: string) => {
-        const currentChat = actualChatRef.current;
-        const messages = visibleMessagesOf(currentChat);
-        const answerIds = messages[messageIndex]?.piEntryIds ?? [];
-        if (isDraftChat(currentChat) || answerIds.length === 0) {
-          message.warning("这条回答还没有保存下来，稍后再试");
-          return;
-        }
-        const chatTitle = currentChat.title || "未命名对话";
-        if (target === "flashcards") {
-          let question: RequestMessage | undefined;
-          for (let index = messageIndex - 1; index >= 0 && !question; index -= 1) {
-            if (messages[index].role === Role.User) question = messages[index] as RequestMessage;
-          }
-          const questionText = question ? getRequestMessageText(question).trim() : "";
-          useConversationFlashcardStore.getState().openGenerationModal({
-            conversationContent: questionText
-              ? `## 提问\n\n${questionText}\n\n## 回答\n\n${markdown}`
-              : markdown,
-            source: {
-              sessionId: currentChat.id,
-              messageIds: [...(question?.piEntryIds?.slice(0, 1) ?? []), ...answerIds],
-            },
-            chatTitle,
-          });
-          return;
-        }
-        try {
-          const ref = await saveChatAnswer(target, markdown, {
-            sessionId: currentChat.id,
-            messageIds: answerIds,
-            chatTitle,
-          });
-          message.success(target === "card" ? "已存为卡片" : "已存为文章", {
-            action: {
-              label: "打开",
-              onClick: () => {
-                openEntity(ref).catch(error => message.error(getErrorMessage(error)));
-              },
-            },
-          });
-        } catch (error) {
-          message.error(`保存失败：${getErrorMessage(error)}`);
-        }
-      }
-    );
-
     /** 切到这条用户消息的另一个版本：后面的整段对话一起换成那个版本的 */
     const handleSwitchVersion = useMemoizedFn(
       async (messageIndex: number, versionIndex: number) => {
@@ -1815,7 +1759,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                         : undefined
                     }
                     onCreateBranch={handleCreateBranch}
-                    {...(!isStreaming ? { onSaveAs: handleSaveAs } : {})}
                     {...(!sendLoading ? { onSwitchVersion: handleSwitchVersion } : {})}
                     messageMeta={{
                       chatId: actualChatRef.current.id,
