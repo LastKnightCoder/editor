@@ -56,6 +56,9 @@ files:
   - "!node_modules/**/*.js.map"
   - "!node_modules/**/*.mjs.map"
   - "!node_modules/**/*.cjs.map"
+  - "!node_modules/@earendil-works/pi-coding-agent/dist/bundle/**/*"
+  - "!node_modules/esbuild/**/*"
+  - "!node_modules/@esbuild/**/*"
 
 nsis:
   oneClick: false
