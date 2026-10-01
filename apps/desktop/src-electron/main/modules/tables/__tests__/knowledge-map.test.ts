@@ -265,4 +265,19 @@ describe("KnowledgeMapTable.readInputs", () => {
     // 没有 vec_documents 表（未配置 embedding）时不抛错、没有向量
     expect(chunks).toEqual([]);
   });
+
+  it("项目文档连到最近的、在地图上的祖先，跨过空文档", () => {
+    const pid = project("Docker");
+    const root = item(content(), { projectId: pid, title: "Docker" });
+    const empty = item(content([], 0), { projectId: pid, title: "空章节", parent: root });
+    const leaf = item(content(), { projectId: pid, title: "镜像", parent: empty });
+    const child = item(content(), { projectId: pid, title: "容器", parent: root });
+    const { nodes } = KnowledgeMapTable.readInputs(mainDb, indexDb);
+    const byKey = new Map(nodes.map(n => [n.key, n]));
+    const rootIndex = byKey.get(`project-item:${root}`)!.id;
+    expect(byKey.has(`project-item:${empty}`)).toBe(false);
+    expect(byKey.get(`project-item:${leaf}`)!.links).toEqual([rootIndex]);
+    expect(byKey.get(`project-item:${child}`)!.links).toEqual([rootIndex]);
+    expect(byKey.get(`project-item:${root}`)!.links).toEqual([]);
+  });
 });
