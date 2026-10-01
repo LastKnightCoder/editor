@@ -89,6 +89,12 @@ const resolveToolScope = (context?: ToolExecutionContext): string | undefined =>
   return typeof runtime.toolScope === "string" ? runtime.toolScope : undefined;
 };
 
+/** 父对话的工作目录（piChatSession 注册工具上下文时带上） */
+const resolveCwd = (context?: ToolExecutionContext): string | undefined => {
+  const runtime = isRecord(context?.toolContext) ? context.toolContext : {};
+  return typeof runtime.cwd === "string" ? runtime.cwd : undefined;
+};
+
 const buildSummary = (payload: SubAgentResearchPayload) => {
   const successful = payload.tasks.filter(task => task.status === "success");
   const failed = payload.tasks.filter(task => task.status === "failed");
@@ -187,6 +193,7 @@ export const createSubAgentResearchTool = (): ToolDefinition => ({
 
     const skills: Skill[] = useSkillStore.getState().skills;
     const toolScope = resolveToolScope(context);
+    const cwd = resolveCwd(context);
     const subAgentSystem = buildPiChatSystemPrompt(
       "你是独立执行任务的 SubAgent。可以使用当前可用工具完成任务；涉及危险操作时遵循工具层确认机制。输出要简明，并说明关键依据。",
       skills,
@@ -234,6 +241,7 @@ export const createSubAgentResearchTool = (): ToolDefinition => ({
               ? { conversationKey: `${context.conversationKey}:subagent:${task.id}` }
               : {}),
             ...(toolScope ? { toolScope } : {}),
+            ...(cwd ? { cwd } : {}),
             excludeToolNames: [SUBAGENT_RESEARCH_TOOL_NAME],
             source: { feature: "subagent" },
           },
