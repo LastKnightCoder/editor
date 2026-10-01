@@ -48,6 +48,7 @@ export const blockMathExtension = defineExtension({
     defineElement<BlockMathElement>({
       type: "block-math",
       kind: "block",
+      drag: true,
       isVoid: true,
       isEmpty: element => element.tex === "",
       render: ({ attributes, element, children }: ElementRenderProps<BlockMathElement>) => (
