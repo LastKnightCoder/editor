@@ -668,12 +668,6 @@ importers:
       '@tau/rpc':
         specifier: workspace:*
         version: link:../../packages/rpc
-      '@tau/themes':
-        specifier: workspace:*
-        version: link:../../packages/themes
-      '@tau/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
       '@vscode/ripgrep':
         specifier: ^1.15.14
         version: 1.18.0
@@ -915,6 +909,12 @@ importers:
       '@tau/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@tau/themes':
+        specifier: workspace:*
+        version: link:../../packages/themes
+      '@tau/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@types/adm-zip':
         specifier: ^0.5.7
         version: 0.5.8
