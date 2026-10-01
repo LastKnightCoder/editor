@@ -3,11 +3,13 @@
  *  - 用户：右对齐气泡（accent-soft 轻染，右下角收尖），附件在气泡上方；
  *  - 助手：无气泡通栏正文（气泡与背景同色、只靠阴影才分得出，反而显糊），思考 / 工具调用为轻量折叠行，按内容块原序排列；
  *  - 操作：消息下方固定高度一行，悬停原位淡入（不顶开布局）；
- *  - 版本：会话树上同一位置有多个用户消息版本时，操作行末尾常显 ‹ i/n ›（M4-d）。
+ *  - 版本：会话树上同一位置有多个用户消息版本时，操作行末尾常显 ‹ i/n ›（M4-d）；
+ *  - 存为：助手回答可存为卡片 / 文章、生成闪卡（只取最终文本，不含思考与工具调用，KL-024）。
  */
 
 import { memo, useMemo, useState, type ReactNode } from "react";
 import {
+  BookmarkPlus,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -15,8 +17,10 @@ import {
   FileText,
   FolderOpen,
   GitBranch,
+  Layers,
   Pencil,
   RefreshCw,
+  Repeat,
   Trash2,
 } from "lucide-react";
 import {
@@ -24,7 +28,7 @@ import {
   type ContentBlock,
   type ToolCallExecutionState,
 } from "@tau/shared";
-import { IconButton, Tooltip, cn, toast } from "@tau/ui";
+import { IconButton, Menu, Tooltip, cn, toast } from "@tau/ui";
 import { ReasoningBlock } from "./ReasoningBlock";
 
 export interface MessageViewImage {
@@ -44,6 +48,8 @@ export interface MessageMarkdownParams {
   textContent?: string;
 }
 
+export type MessageSaveTarget = "card" | "article" | "flashcards";
+
 export interface MessageViewProps {
   role: "user" | "assistant";
   messageIndex: number;
@@ -55,6 +61,8 @@ export interface MessageViewProps {
   onRegenerate?: (messageIndex: number) => void;
   regenerateLabel?: string;
   onCreateBranch?: (messageIndex: number) => void;
+  /** 助手回答「存为…」；markdown 为回答的最终文本 */
+  onSaveAs?: (messageIndex: number, target: MessageSaveTarget, markdown: string) => void;
   onEditUserMessage?: (messageIndex: number, content: string) => void;
   /** 会话树上这条用户消息的版本（编辑重发/重新生成/建分支产生）；有多个时显示 ‹ i/n › */
   versions?: { index: number; count: number };
@@ -95,6 +103,7 @@ export const MessageView = memo(function MessageView({
   onRegenerate,
   regenerateLabel = "重新生成",
   onCreateBranch,
+  onSaveAs,
   onEditUserMessage,
   versions,
   onSwitchVersion,
@@ -151,6 +160,39 @@ export const MessageView = memo(function MessageView({
     }
   };
 
+  const answerText = isUser
+    ? ""
+    : blocks
+        .flatMap(block => (block.type === "text" ? [block.content.trim()] : []))
+        .filter(Boolean)
+        .join("\n\n");
+  const saveMenu =
+    !isUser && onSaveAs && answerText ? (
+      <Menu
+        trigger={
+          <IconButton aria-label="存为" title="存为…" className="size-[26px] [&_svg]:size-3.5">
+            <BookmarkPlus />
+          </IconButton>
+        }
+      >
+        <Menu.Item icon={<Layers />} onSelect={() => onSaveAs(messageIndex, "card", answerText)}>
+          存为卡片
+        </Menu.Item>
+        <Menu.Item
+          icon={<FileText />}
+          onSelect={() => onSaveAs(messageIndex, "article", answerText)}
+        >
+          存为文章
+        </Menu.Item>
+        <Menu.Item
+          icon={<Repeat />}
+          onSelect={() => onSaveAs(messageIndex, "flashcards", answerText)}
+        >
+          生成闪卡
+        </Menu.Item>
+      </Menu>
+    ) : null;
+
   // 版本切换常显（悬停才出现的话用户不知道这里还有别的版本）
   const versionSwitcher =
     isUser && versions && versions.count > 1 ? (
@@ -202,6 +244,7 @@ export const MessageView = memo(function MessageView({
           <RefreshCw />
         </Action>
       )}
+      {saveMenu}
       {!isUser && onCreateBranch && (
         <Action label="从这里创建分支" onClick={() => onCreateBranch(messageIndex)}>
           <GitBranch />

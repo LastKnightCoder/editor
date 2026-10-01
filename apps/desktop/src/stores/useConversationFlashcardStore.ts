@@ -1,54 +1,51 @@
 import { create } from "zustand";
 
+/** 生成闪卡的素材出处：哪段对话的哪几条消息（写谱系 saved_from 用） */
+export interface ConversationFlashcardSource {
+  /** chat_session.id（= pi 会话 id） */
+  sessionId: string;
+  messageIds: string[];
+}
+
 interface ConversationFlashcardState {
-  // 弹窗状态
   isModalOpen: boolean;
+  /** Markdown 格式的对话素材 */
+  conversationContent: string | null;
+  source: ConversationFlashcardSource | null;
+  chatTitle: string | null;
 
-  // 生成上下文
-  conversationContent: string | null; // Markdown 格式对话内容
-  chatGroupId: number | null; // 聊天会话 ID
-  chatTitle: string | null; // 聊天标题
-
-  // Actions
   openGenerationModal: (params: {
     conversationContent: string;
-    chatGroupId: number;
+    source: ConversationFlashcardSource;
     chatTitle: string;
   }) => void;
   closeModal: () => void;
   reset: () => void;
 }
 
-const useConversationFlashcardStore = create<ConversationFlashcardState>(
-  (set) => ({
-    // 初始状态
-    isModalOpen: false,
-    conversationContent: null,
-    chatGroupId: null,
-    chatTitle: null,
+const useConversationFlashcardStore = create<ConversationFlashcardState>(set => ({
+  isModalOpen: false,
+  conversationContent: null,
+  source: null,
+  chatTitle: null,
 
-    // Actions
-    openGenerationModal: (params) =>
-      set({
-        isModalOpen: true,
-        conversationContent: params.conversationContent,
-        chatGroupId: params.chatGroupId,
-        chatTitle: params.chatTitle,
-      }),
+  openGenerationModal: params =>
+    set({
+      isModalOpen: true,
+      conversationContent: params.conversationContent,
+      source: params.source,
+      chatTitle: params.chatTitle,
+    }),
 
-    closeModal: () =>
-      set({
-        isModalOpen: false,
-      }),
+  closeModal: () => set({ isModalOpen: false }),
 
-    reset: () =>
-      set({
-        isModalOpen: false,
-        conversationContent: null,
-        chatGroupId: null,
-        chatTitle: null,
-      }),
-  }),
-);
+  reset: () =>
+    set({
+      isModalOpen: false,
+      conversationContent: null,
+      source: null,
+      chatTitle: null,
+    }),
+}));
 
 export default useConversationFlashcardStore;
