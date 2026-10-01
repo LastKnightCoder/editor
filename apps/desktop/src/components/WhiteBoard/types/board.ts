@@ -1,4 +1,5 @@
 import React from "react";
+import type { EntityRef } from "@/entity/ref";
 import { Selection } from "./selection.ts";
 import Board from "../Board.tsx";
 import { Point } from "./point.ts";
@@ -23,6 +24,10 @@ export enum ECreateBoardElementType {
   Column = "column",
 }
 
+/**
+ * 白板元素。指向笔记（卡片、文章、项目文档、日记）的元素要能出现在脉络「被使用 · 白板」里，
+ * 字段按 src/entity/whiteboard-refs.ts 文件头的接入约定写（优先用通用的 entityRef）。
+ */
 export interface BoardElement {
   id: string;
   type: string;
@@ -33,6 +38,8 @@ export interface BoardElement {
   // 通用行为控制属性
   resizable?: boolean; // 是否允许 resize，默认 true
   autoHeight?: boolean; // 是否高度自适应，默认 false
+  /** 指向正文实体（kind 用 EntityRefKind 的写法）；白板引用索引通用识别 */
+  entityRef?: EntityRef;
   [key: string]: any;
 }
 

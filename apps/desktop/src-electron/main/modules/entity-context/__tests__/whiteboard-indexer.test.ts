@@ -91,4 +91,16 @@ describe("白板引用索引", () => {
     expect(refsOf(b)).toEqual([]);
     expect((await reconcileWhiteboardRefs(mainDb, indexDb)).processed).toBe(0);
   });
+
+  it("解析口径升级后，画布没变的页也在下次对账时重解析", async () => {
+    const id = insertPage(canvas({ id: "a", type: "article-embed", entityRef: { kind: "article", id: 8 } }));
+    // 模拟旧口径下已索引过、但没认出新元素的状态
+    indexDb
+      .prepare(`INSERT INTO whiteboard_ref_sources (page_id, update_time) VALUES (?, ?)`)
+      .run(id, clock - 1);
+    expect(diffWhiteboardSources(mainDb, indexDb)).toEqual([]);
+    await reconcileWhiteboardRefs(mainDb, indexDb);
+    expect(refsOf(id)).toEqual([{ dst_kind: "article", dst_id: 8, via: "entity" }]);
+    expect((await reconcileWhiteboardRefs(mainDb, indexDb)).processed).toBe(0);
+  });
 });

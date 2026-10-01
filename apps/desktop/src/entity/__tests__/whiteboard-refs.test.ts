@@ -66,6 +66,21 @@ describe("extractWhiteboardRefs", () => {
     ]);
   });
 
+  it("按约定带 entityRef 的元素无需改解析即可识别；不认识的 kind 忽略", () => {
+    expect(
+      extractWhiteboardRefs({
+        children: [
+          { id: "a", type: "article-embed", entityRef: { kind: "article", id: 8 } },
+          { id: "p", type: "doc-card", entityRef: { kind: "project_item", id: 9 } },
+          { id: "x", type: "pdf", entityRef: { kind: "pdf", id: 1 } },
+        ],
+      })
+    ).toEqual([
+      { dstKind: "article", dstId: 8, via: "entity" },
+      { dstKind: "project-item", dstId: 9, via: "entity" },
+    ]);
+  });
+
   it("无效数据、重复与非法 id 被忽略", () => {
     expect(extractWhiteboardRefs("{坏的")).toEqual([]);
     expect(extractWhiteboardRefs(null)).toEqual([]);
