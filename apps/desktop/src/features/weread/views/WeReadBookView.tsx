@@ -11,12 +11,15 @@ import { FadeScroll } from "@/components/FadeScroll";
 import { openExternal } from "@/commands/extra";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import { scrollToAndFlash } from "@/utils/flash-element";
+import { findExcerptByExternal } from "@/commands/excerpt";
+import { convertMaterialToCard } from "@/services/material-to-card";
 import {
   buildBookNotes,
   countNotes,
   filterNotes,
   notesToMarkdown,
   toBook,
+  type BookNote,
   type HighlightColor,
   type NoteFilter,
 } from "../model";
@@ -119,6 +122,22 @@ export function WeReadBookView() {
     scrollToAndFlash(el);
   }, [scrollEl, chapters, filter]);
 
+  // 单书页的条目 id 是 bookmarkId（划线）或 reviewId（只有想法），对应摘录的两种外部 id
+  const toCard = useCallback(
+    async (note: BookNote) => {
+      const excerpt = await findExcerptByExternal("weread", [
+        `${bookId}:${note.id}`,
+        `${bookId}:review:${note.id}`,
+      ]);
+      if (!excerpt) {
+        toast.error("这条划线还没有同步为摘录，请稍后重试");
+        return;
+      }
+      await convertMaterialToCard({ kind: "excerpt", id: excerpt.id });
+    },
+    [bookId]
+  );
+
   const jump = useCallback(
     (key: string) => {
       scrollEl
@@ -202,6 +221,7 @@ export function WeReadBookView() {
                     key={chapter.key}
                     chapter={chapter}
                     index={notes.chapters.findIndex(c => c.key === chapter.key)}
+                    onToCard={toCard}
                   />
                 ))}
               </>

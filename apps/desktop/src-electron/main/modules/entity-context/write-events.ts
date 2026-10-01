@@ -5,6 +5,8 @@
  * 命中时通知渲染端刷新脉络（引用本身的变化由引用索引器负责通知）。
  */
 
+import { WEREAD_EXCERPTS_CHANGED_EVENT } from "../tables/excerpt";
+
 export const CONTEXT_WRITE_EVENTS: ReadonlySet<string> = new Set([
   // 卡片
   "cards:create-scoped",
@@ -57,6 +59,12 @@ export const CONTEXT_WRITE_EVENTS: ReadonlySet<string> = new Set([
   "flashcard:create-card",
   "flashcard:delete-card",
   "flashcard:delete-deck",
+  // 外部材料（谱系 excerpt_of 的来源端：源端删除后卡片来源显示「原划线已删除」）
+  WEREAD_EXCERPTS_CHANGED_EVENT,
+  "excerpt:sync-web-page",
+  "update-pdf-annotation",
+  "delete-pdf-annotation",
+  "delete-pdf",
   // 待办关联
   "todoNote:attachExisting",
   "todoNote:createAndAttach",

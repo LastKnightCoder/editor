@@ -4,14 +4,13 @@ import type { Notebook } from "@/types/weread";
 import databaseModule from "./database";
 import WeReadNotebookTable from "./tables/weread-notebook";
 import WeReadConfigTable from "./tables/weread-config";
+import { WEREAD_EXCERPTS_CHANGED_EVENT } from "./tables/excerpt";
 import { backfillWeReadExcerpts } from "./tables/weread-excerpts";
 import { hasExcerptChanges, type ExcerptSyncResult } from "@/entity/excerpt/types";
 
-/** 摘录变化时补发写事件：微信读书走自有 IPC，不经 eventAndHandlers */
-export const WEREAD_EXCERPT_WRITE_EVENT = "weread:excerpts-changed";
 const notifyExcerpts = (changed: ExcerptSyncResult | boolean | number | null) => {
   const dirty = typeof changed === "object" ? hasExcerptChanges(changed) : Boolean(changed);
-  if (dirty) databaseModule.notifyExternalWrite(WEREAD_EXCERPT_WRITE_EVENT);
+  if (dirty) databaseModule.notifyExternalWrite(WEREAD_EXCERPTS_CHANGED_EVENT);
 };
 
 class WeReadModule {
