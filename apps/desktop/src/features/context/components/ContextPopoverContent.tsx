@@ -159,6 +159,8 @@ export function ContextPopoverContent({
     usages,
   } = context ?? EMPTY;
   const hidden = backlinkTotal - backlinks.length;
+  const openEntityRow = (entity: ContextEntity) =>
+    entity.open ? onOpenTarget(entity.open) : onOpenEntity(entity.ref);
   return (
     <div className="px-1.5 pb-2 pt-2.5">
       {sources.length > 0 && (
@@ -172,7 +174,7 @@ export function ContextPopoverContent({
           {outlinks.map(entity => (
             <Row
               key={`${entity.ref.kind}:${entity.ref.id}`}
-              onClick={() => onOpenEntity(entity.ref)}
+              onClick={() => openEntityRow(entity)}
             >
               <SourceLine entity={entity} />
             </Row>
@@ -182,10 +184,7 @@ export function ContextPopoverContent({
       {backlinks.length > 0 && (
         <Section title="被引用">
           {backlinks.map(({ source, snippets }) => (
-            <Row
-              key={`${source.ref.kind}:${source.ref.id}`}
-              onClick={() => onOpenEntity(source.ref)}
-            >
+            <Row key={`${source.ref.kind}:${source.ref.id}`} onClick={() => openEntityRow(source)}>
               <SourceLine entity={source} />
               {snippets.map((snippet, index) => (
                 <Snippet key={index} snippet={snippet} />
@@ -202,7 +201,7 @@ export function ContextPopoverContent({
           {projections.map(entity => (
             <Row
               key={`${entity.ref.kind}:${entity.ref.id}`}
-              onClick={() => onOpenEntity(entity.ref)}
+              onClick={() => openEntityRow(entity)}
             >
               <SourceLine entity={entity} />
             </Row>

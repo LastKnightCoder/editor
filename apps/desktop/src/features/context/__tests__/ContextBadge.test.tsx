@@ -229,6 +229,28 @@ describe("ContextBadge", () => {
     expect(mocks.openPage).toHaveBeenCalledWith("whiteboard-detail", { id: 3, page: 5 });
   });
 
+  it("来源带打开位置时按位置打开（日记定位到那一条）", () => {
+    mocks.context = {
+      ...CONTEXT,
+      backlinks: [
+        {
+          source: {
+            ref: { kind: "diary", id: 4 },
+            title: "2025-11-13",
+            meta: "日记",
+            open: { page: "diary", date: "2025-11-13", momentId: 12 },
+          },
+          snippets: [],
+        },
+      ],
+    };
+    render();
+    click(findButton("处关联"));
+    click(findButton("2025-11-13"));
+    expect(mocks.openPage).toHaveBeenCalledWith("diary", { date: "2025-11-13", moment: "12" });
+    expect(mocks.openEntity).not.toHaveBeenCalled();
+  });
+
   it("hideOutlinks 时不显示也不计入「引用了」", () => {
     mocks.context = CONTEXT;
     act(() => {

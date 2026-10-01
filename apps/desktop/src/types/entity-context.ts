@@ -12,6 +12,8 @@ export interface ContextEntity {
   title: string;
   /** 次级信息，如项目文档所在的项目 */
   meta: string;
+  /** 打开到实体里的具体位置（日记一天有多条时定位到相关那条）；缺省按 ref 打开 */
+  open?: ContextOpenTarget;
 }
 
 /** 一个来源对我的引用；同一来源里的多处引用合并 */
@@ -32,6 +34,7 @@ export type ContextOpenTarget =
   | { page: "chat"; id: string }
   | { page: "vibe-learning-detail"; id: number }
   | { page: "review"; deckId: number }
+  | { page: "diary"; date: string; momentId: number }
   | { page: "whiteboard-detail"; id: number; pageId: number }
   | { page: "todos"; selectedId: number };
 

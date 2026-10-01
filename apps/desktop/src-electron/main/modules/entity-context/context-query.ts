@@ -14,10 +14,12 @@ import {
   type EntityRefKind,
 } from "@/entity/ref";
 import { extractInlineRefs, type InlineRefSnippet } from "@/entity/inline-refs";
+import { normalizeDiaryDay } from "@/utils/diary-day";
 import type { EntityKind } from "@/types/entity";
 import type {
   ContextBacklink,
   ContextEntity,
+  ContextOpenTarget,
   ContextQuestion,
   EntityContext,
 } from "@/types/entity-context";
@@ -83,6 +85,30 @@ function toContextEntity(db: Database.Database, ref: EntityRef): ContextEntity |
   return { ref, title: candidate.title, meta: candidate.meta };
 }
 
+/** 日记一天有多条（segment），按引用所在的正文定位到那一条 */
+function diaryMomentTarget(db: Database.Database, contentId: number): ContextOpenTarget | undefined {
+  const row = db
+    .prepare(
+      `SELECT s.id, s.create_time, e.date FROM diary_segments s
+       JOIN diary_entries e ON e.id = s.diary_id WHERE s.content_id = ?`
+    )
+    .get(contentId) as { id: number; create_time: number; date: string } | undefined;
+  return row
+    ? { page: "diary", date: normalizeDiaryDay(row.date, row.create_time), momentId: row.id }
+    : undefined;
+}
+
+/** 实体是日记时，打开位置定位到 contentId 所在的那一条 */
+function withDiaryMoment(
+  db: Database.Database,
+  entity: ContextEntity,
+  contentId: number | null
+): ContextEntity {
+  if (entity.ref.kind !== "diary" || contentId == null) return entity;
+  const open = diaryMomentTarget(db, contentId);
+  return open ? { ...entity, open } : entity;
+}
+
 interface RefRow {
   src_content_id: number;
   snippet_before: string;
@@ -121,7 +147,11 @@ function backlinksOf(
   );
 
   // 一份来源正文被多个实体共用时，以优先级最高的身份展示
-  const groups = new Map<string, { ref: EntityRef; time: number; snippets: InlineRefSnippet[] }>();
+  // contentId：第一处引用所在的来源正文，用于打开到具体位置
+  const groups = new Map<
+    string,
+    { ref: EntityRef; time: number; contentId: number; snippets: InlineRefSnippet[] }
+  >();
   // 解析不到身份的来源正文（白板文本块、思维导图节点的正文），交给「被使用 · 白板」归属
   const unresolved = new Set<number>();
   for (const row of external) {
@@ -132,6 +162,7 @@ function backlinksOf(
     const group = groups.get(key) ?? {
       ref,
       time: updateTimes.get(row.src_content_id) ?? 0,
+      contentId: row.src_content_id,
       snippets: [],
     };
     if (group.snippets.length < SNIPPETS_PER_SOURCE) {
@@ -151,7 +182,8 @@ function backlinksOf(
   for (const group of sorted) {
     if (backlinks.length >= CONTEXT_LIMIT) break;
     const source = toContextEntity(mainDb, group.ref);
-    if (source) backlinks.push({ source, snippets: group.snippets });
+    if (!source) continue;
+    backlinks.push({ source: withDiaryMoment(mainDb, source, group.contentId), snippets: group.snippets });
   }
   return { backlinks, total: groups.size, unresolved: [...unresolved] };
 }
@@ -218,12 +250,12 @@ function outlinksOf(
     } catch {
       continue;
     }
-    for (const { dst } of extractInlineRefs(content)) {
+    for (const { dst, dstContentId } of extractInlineRefs(content)) {
       const key = entityRefKey(dst);
       if (seen.has(key)) continue;
       seen.add(key);
       const entity = toContextEntity(db, dst);
-      if (entity) outlinks.push(entity);
+      if (entity) outlinks.push(withDiaryMoment(db, entity, dstContentId));
       if (outlinks.length >= CONTEXT_LIMIT) return outlinks;
     }
   }
