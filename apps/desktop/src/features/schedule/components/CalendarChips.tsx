@@ -5,15 +5,14 @@
 
 import { useState } from "react";
 import { Plus, SlidersHorizontal } from "lucide-react";
-import { Button, Dialog, DialogBody, IconButton, Tooltip, cn } from "@tau/ui";
-import useCalendarStore from "@/stores/useCalendarStore";
+import { Button, Dialog, DialogBody, IconButton, Tooltip, cn, toast } from "@tau/ui";
+import { useCalendarCatalog, useScheduleMutations } from "../queries";
 import { TONE, toneStyle } from "../eventTone";
 import CalendarSidebar from "./CalendarSidebar";
 
 export function CalendarChips() {
-  const calendars = useCalendarStore(s => s.calendars);
-  const selectedCalendarIds = useCalendarStore(s => s.selectedCalendarIds);
-  const toggleCalendarVisibility = useCalendarStore(s => s.toggleCalendarVisibility);
+  const { calendars } = useCalendarCatalog();
+  const { toggleCalendarVisibility } = useScheduleMutations();
   const [managing, setManaging] = useState(false);
 
   // 我的日历在前、系统日历在后；归档不出现在筛选里
@@ -33,14 +32,18 @@ export function CalendarChips() {
         </>
       )}
       {active.map(calendar => {
-        const on = selectedCalendarIds.includes(calendar.id);
+        const on = calendar.visible;
         return (
           <button
             key={calendar.id}
             type="button"
             aria-pressed={on}
             title={on ? `隐藏「${calendar.title}」` : `显示「${calendar.title}」`}
-            onClick={() => void toggleCalendarVisibility(calendar.id)}
+            onClick={() =>
+              void toggleCalendarVisibility(calendar.id).catch(() =>
+                toast.error("更新日历显隐失败")
+              )
+            }
             style={toneStyle(calendar.color)}
             className={cn(
               "text-tau-sm inline-flex h-[26px] items-center gap-1.5 rounded-full pl-2 pr-2.5 transition-colors",

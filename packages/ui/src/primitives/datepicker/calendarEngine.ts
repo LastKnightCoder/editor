@@ -121,13 +121,21 @@ export function formatDisplay(value: string): string {
   return value.includes(" ") ? `${day} ${value.slice(11)}` : day;
 }
 
-/** 范围显示格式：同年省年份（"9月12日 – 9月19日"），跨年两端补全 */
+/**
+ * 范围显示格式：同年省年份（"9月12日 – 9月19日"），跨年两端补全；
+ * minute 值追加时刻，同日只写一次日期（"9月12日 09:00 – 18:00"）
+ */
 export function formatRangeDisplay(start: string, end: string): string {
-  const s = parseDateKey(start);
-  const e = parseDateKey(end);
+  const s = parseValue(start);
+  const e = parseValue(end);
   if (!s || !e) return `${start} – ${end}`;
+  const timeOf = (value: string, date: Date) =>
+    /\s/.test(value.trim()) ? ` ${formatValue(date, "minute").slice(11)}` : "";
+  const startTime = timeOf(start, s);
+  const endTime = timeOf(end, e);
   const md = (d: Date) => `${d.getMonth() + 1}月${d.getDate()}日`;
+  if (sameDay(s, e) && startTime && endTime) return `${md(s)}${startTime} –${endTime}`;
   return s.getFullYear() === e.getFullYear()
-    ? `${md(s)} – ${md(e)}`
-    : `${s.getFullYear()}年${md(s)} – ${e.getFullYear()}年${md(e)}`;
+    ? `${md(s)}${startTime} – ${md(e)}${endTime}`
+    : `${s.getFullYear()}年${md(s)}${startTime} – ${e.getFullYear()}年${md(e)}${endTime}`;
 }

@@ -9,7 +9,7 @@
  * 类型筛选（chips 单选/Ctrl+点击多选/Shift+←→、前缀「卡片:」追加、全角冒号、
  * 空输入退格删筛选、Esc 分层退场）与 IME 让位行为见 D-003。
  *
- * 输入即记录（D-043）：任何查询都附带「添加待办：…」「记为问题：…」两行（识别出日期 / 时刻时再加
+ * 输入即记录：任何查询都附带「添加待办：…」「记为问题：…」两行（识别出日期 / 时刻时再加
  * 「添加日程：…」），回车落库。日期时刻词表与日程 / 待办快速添加同源（utils/quickDateTime），
  * #名称 分别匹配待办项目 / 日历 / 问题分组。
  * 像问题的输入（以问号结尾或带 #分组）记录组置顶；否则放在末尾（↑ 从首项回绕即达），不抢搜索的回车。
@@ -35,7 +35,6 @@ import {
   ListPlus,
   X,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import clsx from "clsx";
 import { usePage, useOverlayDismiss } from "@/page/PageProvider";
 import { useSearchStore, type VisitRecord } from "./searchStore";
@@ -64,8 +63,7 @@ import { describeQuickAdd, parseQuickAdd as parseTodoQuickAdd } from "@/features
 import { createTodoFromQuickAdd, useTodoGroups } from "@/features/todos/queries";
 import { dayWord } from "@/features/todos/model";
 import { parseQuickAdd as parseEventQuickAdd } from "@/features/schedule/quickAdd";
-import { getAllCalendars } from "@/commands/calendar";
-import useCalendarStore from "@/stores/useCalendarStore";
+import { useCalendarCatalog, useScheduleMutations } from "@/features/schedule/queries";
 import { formatTime } from "@/utils/calendar";
 import { extractDateTime } from "@/utils/quickDateTime";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
@@ -171,15 +169,11 @@ export function SearchPalette() {
 
   // 快速添加用：面板打开才拉（待办项目与待办页共享缓存；日历排除系统日历与归档）
   const todoGroups = useTodoGroups(open);
-  const calendarsQuery = useQuery({
-    queryKey: ["search-palette", "calendars"],
-    queryFn: getAllCalendars,
-    enabled: open,
-    staleTime: 30_000,
-  });
+  const calendarsQuery = useCalendarCatalog(open);
+  const { createEvent } = useScheduleMutations();
   const calendars = useMemo(
-    () => (calendarsQuery.data ?? []).filter(c => !c.isInSystemGroup && !c.archived),
-    [calendarsQuery.data]
+    () => calendarsQuery.calendars.filter(c => !c.isInSystemGroup && !c.archived),
+    [calendarsQuery.calendars]
   );
 
   const setAppearance = useThemeStore(s => s.setAppearance);
@@ -318,19 +312,17 @@ export function SearchPalette() {
         }
         const timed = parsed.startTime !== null;
         closeAnd(() => {
-          useCalendarStore
-            .getState()
-            .createEvent({
-              title,
-              calendarId: calendar.id,
-              detailContentId: 0,
-              startDate: parsed.date,
-              endDate: timed ? parsed.date : null,
-              startTime: parsed.startTime,
-              endTime: parsed.endTime,
-              color: null,
-              allDay: !timed,
-            })
+          createEvent({
+            title,
+            calendarId: calendar.id,
+            detailContentId: 0,
+            startDate: parsed.date,
+            endDate: timed ? parsed.date : null,
+            startTime: parsed.startTime,
+            endTime: parsed.endTime,
+            color: null,
+            allDay: !timed,
+          })
             .then(() => {
               const d = new Date(parsed.date);
               toast.success(`已添加到 ${d.getMonth() + 1}月${d.getDate()}日 · ${calendar.title}`, {
@@ -515,6 +507,7 @@ export function SearchPalette() {
     commands,
     todoGroups,
     calendars,
+    createEvent,
     contentQuery.data,
     contentQuery.isFetching,
     visits,

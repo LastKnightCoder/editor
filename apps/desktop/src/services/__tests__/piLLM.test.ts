@@ -15,7 +15,7 @@ vi.mock("@/commands/piAi", () => ({
   piAiCancel: cancelMock,
 }));
 
-import { piStreamChat, piStreamText } from "../piLLM";
+import { piStreamChat, piStreamText, toPiChatMessages } from "../piLLM";
 
 const provider: LLMProviderSetting = {
   id: "p1",
@@ -56,6 +56,28 @@ const emitAndResolve = (events: unknown[], ok = true) =>
 beforeEach(() => {
   singleShotMock.mockReset();
   cancelMock.mockReset();
+});
+
+describe("pi 系统消息兼容", () => {
+  it("仅系统消息剥离退役代理片段，用户原文保持完整", () => {
+    const text = "自定义规则\n<TAU_CODEX_CONTEXT>旧代理指令</TAU_CODEX_CONTEXT>\n后续规则";
+    const input: RequestMessage[] = [
+      { role: "system" as Role.System, content: text },
+      { role: "system" as Role.System, content: [{ type: "text", text }] },
+      { role: "user" as Role.User, content: text },
+    ];
+    expect(toPiChatMessages(input)).toEqual({
+      system: "自定义规则\n后续规则\n\n自定义规则\n后续规则",
+      messages: [{ role: "user", content: text }],
+    });
+    expect(input[0].content).toBe(text);
+  });
+
+  it("普通系统提示保留原有空白，不改写缓存前缀", () => {
+    expect(toPiChatMessages([{ role: "system" as Role.System, content: "规则\n\n" }]).system).toBe(
+      "规则\n\n"
+    );
+  });
 });
 
 describe("piStreamChat", () => {

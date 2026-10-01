@@ -40,19 +40,38 @@ function getBlogImageSettingValue<T extends "borderRadius" | "shadow">(
 const createBlogEditorSlots = (): EditorSlots => {
   const Image = forwardRef<
     HTMLImageElement,
-    ImgHTMLAttributes<HTMLImageElement> & { url: string; alt?: string }
-  >(({ url, alt, className, style, onClick, onLoad, crossOrigin }, ref) => (
-    <img
-      ref={ref}
-      src={url}
-      alt={alt || url}
-      className={className}
-      style={style}
-      onClick={onClick}
-      onLoad={onLoad}
-      crossOrigin={crossOrigin}
-    />
-  ));
+    ImgHTMLAttributes<HTMLImageElement> & { url: string; alt?: string; onLoadError?: () => void }
+  >(
+    (
+      {
+        url,
+        alt,
+        className,
+        style,
+        onClick,
+        onDoubleClick,
+        onLoad,
+        onLoadError,
+        crossOrigin,
+        draggable,
+      },
+      ref
+    ) => (
+      <img
+        ref={ref}
+        src={url}
+        alt={alt || url}
+        className={className}
+        style={style}
+        onClick={onClick}
+        onDoubleClick={onDoubleClick}
+        onLoad={onLoad}
+        onError={onLoadError}
+        crossOrigin={crossOrigin}
+        draggable={draggable}
+      />
+    )
+  );
   Image.displayName = "BlogImage";
 
   return {

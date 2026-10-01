@@ -1,55 +1,39 @@
-import React, { memo, useState, useRef, useEffect, forwardRef } from "react";
+import React, { memo, useEffect, useRef, useState } from "react";
 import { RenderElementProps, useSlateStatic, useReadOnly, ReactEditor } from "slate-react";
-import { InlineChromiumBugfix, getCommandElementPath } from "@tau/editor/api";
-import { type InlineImageElement } from "../../../../types/index";
-import ImageUploader from "../../../../components/ImageUploader/index";
 import { Transforms, Editor, Element as SlateElement, NodeEntry } from "slate";
+import { useMemoizedFn } from "ahooks";
+import { cn, mergeRefs } from "@tau/ui";
+import { ImageOff } from "lucide-react";
+
+import { InlineChromiumBugfix, getCommandElementPath } from "@tau/editor/api";
+import ImageUploader from "../../../../components/ImageUploader";
+import type { InlineImageElement } from "../../../../types";
 import { useUploadResource } from "../../../../hooks/useUploadResource";
 import { useImageResize, ResizeDirection } from "../../../../hooks/useImageResize";
-import { cn, mergeRefs } from "@tau/ui";
-import { useMemoizedFn } from "ahooks";
 import { useEditorSlots } from "../../../../services/hooks";
-import { MEDIA_RESIZE_INFO_CLASS } from "../../../../utils/mediaFrameClasses";
+import { openImageLightbox } from "../../../../stores";
+import {
+  MEDIA_CORNER_HANDLE_CLASS,
+  MEDIA_CORNER_POSITION_CLASS,
+  MEDIA_SELECTED_OUTLINE_CLASS,
+} from "../../../../utils/mediaFrameClasses";
+import { shouldIgnoreBlockKey } from "../../../../utils/keyboardTarget";
+
 interface InlineImageProps extends RenderElementProps {
   element: InlineImageElement;
 }
 
 const RESIZE_HANDLES: { direction: ResizeDirection; cursor: string }[] = [
-  { direction: "n", cursor: "ns-resize" },
-  { direction: "s", cursor: "ns-resize" },
-  { direction: "e", cursor: "ew-resize" },
-  { direction: "w", cursor: "ew-resize" },
-  { direction: "ne", cursor: "nesw-resize" },
   { direction: "nw", cursor: "nwse-resize" },
+  { direction: "ne", cursor: "nesw-resize" },
   { direction: "se", cursor: "nwse-resize" },
   { direction: "sw", cursor: "nesw-resize" },
 ];
 
-// 边句柄是透明热区（8px 条），四角热区 12px 见方
-const RESIZE_HANDLE_POSITION_CLASS: Record<ResizeDirection, string> = {
-  n: "left-0 top-0 h-[8px] w-full",
-  s: "bottom-0 left-0 h-[8px] w-full",
-  e: "right-0 top-0 h-full w-[8px]",
-  w: "left-0 top-0 h-full w-[8px]",
-  nw: "left-0 top-0 h-[12px] w-[12px]",
-  ne: "right-0 top-0 h-[12px] w-[12px]",
-  sw: "bottom-0 left-0 h-[12px] w-[12px]",
-  se: "bottom-0 right-0 h-[12px] w-[12px]",
-};
-
-type InlineLocalImageProps = {
-  url: string;
-  alt?: string;
-  className?: string;
-  style?: React.CSSProperties;
-  onLoad?: () => void;
-};
-
-const DefaultInlineInlineImage = forwardRef<HTMLImageElement, InlineLocalImageProps>(
-  ({ url, alt, ...rest }, ref) => <img ref={ref} src={url} alt={alt} {...rest} />
-);
-DefaultInlineInlineImage.displayName = "DefaultInlineImage";
-
+/**
+ * 行内图片：与图片块同一套交互——悬停不出控件，单击选中（圆角描边 + 四角等比缩放把手），
+ * 双击进入灯箱；只读下单击直接预览。选中时 Delete / Backspace 删除、Esc 取消。
+ */
 const InlineImageComponent: React.FC<InlineImageProps> = memo(props => {
   const { attributes, children, element } = props;
   const { url, alt, uuid, width, height } = element;
@@ -60,74 +44,76 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo(props => {
   const imageRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLSpanElement>(null);
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
-  const [maxWidth, setMaxWidth] = useState(0);
+  const [isSelected, setIsSelected] = useState(false);
+  const [failed, setFailed] = useState(false);
 
-  // 计算编辑器最大宽度
-  useEffect(() => {
-    const editorEl = containerRef.current?.closest('[contenteditable="true"]');
-    if (editorEl) {
-      setMaxWidth(editorEl.clientWidth);
-    }
-  }, []);
+  useEffect(() => setFailed(false), [url]);
 
-  // 更新元素的尺寸属性
-  const updateElementSize = useMemoizedFn((widthValue?: number, heightValue?: number) => {
-    if (typeof widthValue !== "number" || typeof heightValue !== "number") return;
-
+  const setProps = useMemoizedFn((patch: Partial<InlineImageElement>) => {
     const path = getCommandElementPath(editor, { element });
-    if (path) Transforms.setNodes(editor, { width: widthValue, height: heightValue }, { at: path });
+    if (path) Transforms.setNodes(editor, patch, { at: path });
   });
 
-  // 图片加载完成后获取原始尺寸
-  const handleImageLoad = useMemoizedFn(() => {
-    if (imageRef.current) {
-      const imgNaturalWidth = imageRef.current.naturalWidth;
-      const imgNaturalHeight = imageRef.current.naturalHeight;
-      const aspectRatio = imgNaturalWidth / imgNaturalHeight;
-
-      setNaturalSize({
-        width: imgNaturalWidth,
-        height: imgNaturalHeight,
-      });
-
-      // 如果没有指定尺寸，使用原始尺寸
-      if (!width && !height) {
-        const editorWidth =
-          containerRef.current?.closest('[data-slate-editor="true"]')?.clientWidth || 0;
-        // 处理 DPR 缩放
-        const dpr = window.devicePixelRatio || 1;
-        const imgWidth = Math.min(imgNaturalWidth / dpr, editorWidth || 800);
-        const imgHeight = imgWidth / aspectRatio;
-
-        // 更新元素属性
-        updateElementSize(imgWidth, imgHeight);
-        // 更新 size 初始值
-        resize.setSize({ width: imgWidth, height: imgHeight });
-      }
-    }
-  });
-
-  // 使用 resize hook 处理图片调整大小
   const resize = useImageResize({
     initialSize: { width, height },
     emElementRef: imageRef,
     minWidth: 10,
-    maxWidth,
     minHeight: 10,
     aspectRatio: naturalSize.width / naturalSize.height || 16 / 9,
     onResizeEnd: newSize => {
       if (newSize.width && newSize.height) {
-        updateElementSize(newSize.width, newSize.height);
+        setProps({ width: newSize.width, height: newSize.height });
       }
     },
     readonly: readOnly,
     keepAspectRatio: true,
   });
 
-  // 图片上传成功时更新节点
+  // 首次加载后按原图尺寸（DPR 折算、不超过编辑区）写入宽高
+  const handleImageLoad = useMemoizedFn(() => {
+    const img = imageRef.current;
+    if (!img) return;
+    setNaturalSize({ width: img.naturalWidth, height: img.naturalHeight });
+    if (!width && !height && !readOnly) {
+      const editorWidth =
+        containerRef.current?.closest('[data-slate-editor="true"]')?.clientWidth || 800;
+      const imgWidth = Math.min(img.naturalWidth / (window.devicePixelRatio || 1), editorWidth);
+      const imgHeight = imgWidth / (img.naturalWidth / img.naturalHeight);
+      setProps({ width: imgWidth, height: imgHeight });
+      resize.setSize({ width: imgWidth, height: imgHeight });
+    }
+  });
+
+  useEffect(() => {
+    if (!isSelected) return;
+    const handleMouseDown = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) setIsSelected(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (shouldIgnoreBlockKey(event, containerRef.current)) return;
+      if (event.key === "Escape") {
+        setIsSelected(false);
+      } else if ((event.key === "Delete" || event.key === "Backspace") && !readOnly) {
+        event.preventDefault();
+        event.stopPropagation();
+        setIsSelected(false);
+        try {
+          Transforms.removeNodes(editor, { at: ReactEditor.findPath(editor, element) });
+        } catch {
+          // 节点已被删除
+        }
+      }
+    };
+    document.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("keydown", handleKeyDown, true);
+    return () => {
+      document.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("keydown", handleKeyDown, true);
+    };
+  }, [isSelected, readOnly, editor, element]);
+
+  // 图片上传成功时按 uuid 定位节点更新（上传期间节点对象可能已被替换）
   const handleUploadSuccess = useMemoizedFn((uploadedUrl: string) => {
-    if (ReactEditor.isReadOnly(editor)) return;
-    // 查找当前元素节点路径
     const nodeEntries = Array.from(
       Editor.nodes(editor, {
         at: [],
@@ -135,12 +121,18 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo(props => {
           SlateElement.isElement(n) && n.type === "inline-image" && n.uuid === uuid,
       })
     );
-
     if (nodeEntries.length > 0) {
       const nodeEntry = nodeEntries[0] as NodeEntry<InlineImageElement>;
       Transforms.setNodes(editor, { url: uploadedUrl }, { at: nodeEntry[1] });
     }
   });
+
+  const handleClick = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (readOnly) openImageLightbox(editor, element);
+    else setIsSelected(true);
+  };
 
   return (
     <span
@@ -150,50 +142,60 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo(props => {
       ref={mergeRefs(attributes.ref, containerRef)}
     >
       {url ? (
-        // 显示图片内容
         <span
           className={cn(
-            "relative mx-[2px] my-0 inline-block overflow-hidden rounded-[4px] align-text-bottom",
-            resize.isResizing && "pointer-events-none select-none"
+            "relative mx-[2px] my-0 inline-block rounded-[4px] align-text-bottom",
+            readOnly ? "cursor-zoom-in" : "cursor-pointer",
+            isSelected && !readOnly && MEDIA_SELECTED_OUTLINE_CLASS,
+            resize.isResizing && "select-none"
           )}
           style={{
             width: resize.size.width ? `${resize.size.width / 16}em` : "auto",
             height: resize.size.height ? `${resize.size.height / 16}em` : "auto",
           }}
+          onClick={handleClick}
+          onDoubleClick={event => {
+            event.preventDefault();
+            openImageLightbox(editor, element);
+          }}
         >
-          {Image ? (
+          {failed ? (
+            <span
+              title={`图片加载失败：${url}`}
+              className="inline-grid h-full min-h-[1.5em] w-full min-w-[1.5em] place-items-center rounded-[4px] bg-[var(--ed-bg-sunken)] align-bottom text-[var(--ed-text-tertiary)]"
+            >
+              <ImageOff size="0.9em" />
+            </span>
+          ) : (
             <Image
               url={url}
               ref={imageRef}
               alt={alt}
-              className="h-full w-full object-contain align-bottom"
+              draggable={false}
+              className="h-full w-full rounded-[4px] object-contain align-bottom"
               onLoad={handleImageLoad}
-            />
-          ) : (
-            <img
-              ref={imageRef}
-              src={url}
-              alt={alt}
-              className="h-full w-full object-contain align-bottom"
-              onLoad={handleImageLoad}
+              onLoadError={() => setFailed(true)}
             />
           )}
           {!readOnly &&
+            isSelected &&
+            !failed &&
             RESIZE_HANDLES.map(({ direction, cursor }) => (
-              <div
+              <span
                 key={direction}
                 className={cn(
-                  "absolute z-[2] touch-none bg-transparent",
-                  RESIZE_HANDLE_POSITION_CLASS[direction]
+                  MEDIA_CORNER_HANDLE_CLASS,
+                  MEDIA_CORNER_POSITION_CLASS[direction],
+                  "h-[10px] w-[10px]"
                 )}
                 style={{ cursor }}
-                onPointerDown={e => resize.handleResizeStart(e, direction)}
+                onPointerDown={event => resize.handleResizeStart(event, direction)}
               />
             ))}
           {resize.isResizing && (
-            <div className={MEDIA_RESIZE_INFO_CLASS}>
+            <span className="text-tau-micro pointer-events-none absolute bottom-full left-1/2 z-[3] mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-full bg-[var(--ed-text)] px-2 py-0.5 tabular-nums text-[var(--ed-text-inverse)] [font-family:var(--ed-font-mono)]">
               {Math.round(resize.size.width || 0)} × {Math.round(resize.size.height || 0)}
-            </div>
+            </span>
           )}
         </span>
       ) : !readOnly ? (

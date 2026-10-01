@@ -9,7 +9,6 @@ export default definePage({
   key: "skills",
   match: "single",
   label: "Skill",
-  status: "new",
   params: {},
   component: SkillsView,
 });

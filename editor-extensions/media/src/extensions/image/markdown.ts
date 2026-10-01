@@ -49,6 +49,7 @@ export const imageCodec: MarkdownCodec = {
     }) as Descendant,
   serializer: {
     isBlock: true,
-    toMarkdown: element => `![${element.alt || ""}](${element.url})`,
+    // 裁剪过的图导出裁剪结果（Markdown 表达不了裁剪参数）
+    toMarkdown: element => `![${element.alt || ""}](${element.previewUrl || element.url})`,
   },
 };

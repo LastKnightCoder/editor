@@ -7,7 +7,7 @@
  *   │ （整高贯通）  │ statusbar（右列专属）   │
  *   └──────────┴──────────────────────────┘
  *
- * 挂载：主窗口 / 默认重定向 /shell（router.tsx）；旧主界面在 /legacy。
+ * 挂载：主窗口 / 默认重定向 /shell（router.tsx）。
  */
 
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
@@ -21,7 +21,6 @@ import { SettingsScreen } from "@/features/settings/SettingsScreen";
 import { useSearchStore } from "@/features/search/searchStore";
 import { isReplayableVisit } from "@/features/search/searchMeta";
 import useSettingStore from "@/stores/useSettingStore";
-import useSyncFont from "@/hooks/useSyncFont";
 import { useThemeRuntime } from "./useThemeRuntime";
 import { Sidebar } from "./Sidebar";
 import { Titlebar } from "./Titlebar";
@@ -58,9 +57,6 @@ function ShellBody() {
   const [boot, setBoot] = useState<"connecting" | "failed" | "ready">("connecting");
   const [bootError, setBootError] = useState("");
 
-  // 字体设置 → body CSS 变量（--font/--font-size/--mono-font）。legacy 挂在 App.tsx，
-  // 新壳层不渲染它——不挂则 /shell 下字体设置全部失效（2026-09-21 外观页接线发现）
-  useSyncFont();
   useThemeRuntime();
 
   const connect = useCallback(() => {
@@ -168,10 +164,10 @@ function ShellLayout() {
         onDragChange={setSidebarResizing}
       />
       {/* 右列整体：标题栏/内容只属于主区，侧栏整高贯通窗口（融合骨架）。
-          壳层不提供全局状态栏：需要的页面自带 PageStatusBar，避免无内容页底部留空条 */}
+          壳层不提供全局状态栏，页面自行承载必要信息，避免无内容页底部留空条 */}
       <div className="grid min-w-0 grid-rows-[var(--tau-titlebar-h)_minmax(0,1fr)]">
         <Titlebar />
-        {/* 正文 + 右侧辅助栏（AI 对话停靠栏，D-047）；覆盖浮层模式以本行为定位上下文。
+        {/* 正文与 AI 对话辅助栏；覆盖浮层以本行为定位上下文。
             横向 clip：辅助栏收起时滑出右缘，不撑出滚动区（纵向不裁，保留卡片阴影）。
             min-w-0 必需：clip 不是滚动容器，不会清零自动最小宽度，页面内容（nowrap 长标题等）
             的 min-content 会经隐式 auto 列轨道把整列连同标题栏撑出窗口 */}

@@ -8,7 +8,20 @@ import {
 import { createPortal } from "react-dom";
 import { ChevronDown, ChevronUp, Search, X } from "lucide-react";
 import { openOwnedFind } from "./findOwner";
-import styles from "./index.module.less";
+import "./highlights.css";
+
+const styles = {
+  findBar:
+    "bg-surface text-ink-1 font-tau text-tau-body rounded-tau-md fixed right-6 top-[58px] z-[10020] flex h-10 items-center gap-0.5 py-0 pl-3 pr-1.5 shadow-[0_0_0_1px_var(--tau-line-1),var(--tau-shadow-float)] animate-[tau-find-bar-in_var(--tau-dur-fast)_var(--tau-ease-out)] motion-reduce:animate-none max-[520px]:left-2 max-[520px]:right-2 max-[520px]:top-14",
+  searchIcon: "text-ink-3 flex-none",
+  input:
+    "text-inherit placeholder:text-ink-3 h-7 w-[200px] border-0 bg-transparent px-2 font-[inherit] text-[inherit] outline-none max-[520px]:min-w-0 max-[520px]:w-auto max-[520px]:flex-1",
+  resultCount:
+    "text-ink-3 text-tau-sm min-w-11 whitespace-nowrap pl-1 pr-2 text-right tabular-nums data-[empty=true]:text-danger",
+  iconButton:
+    "text-ink-2 rounded-tau-sm inline-flex size-[26px] flex-none cursor-pointer items-center justify-center border-0 bg-transparent p-0 transition-colors hover:bg-hover hover:text-ink-1 active:bg-press focus-visible:shadow-[var(--tau-focus-ring)] focus-visible:outline-none disabled:cursor-default disabled:text-ink-3 disabled:opacity-50 disabled:hover:bg-transparent",
+  divider: "bg-line-1 mx-1 h-4 w-px flex-none",
+};
 
 interface SearchTextNode {
   node: Text;

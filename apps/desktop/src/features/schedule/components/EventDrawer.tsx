@@ -12,7 +12,7 @@ import type { CalendarEvent } from "@/types";
 import { Trash2 } from "lucide-react";
 import { Button, ConfirmDialog, Drawer, cn, toast, useRetainedValue } from "@tau/ui";
 import { useOverlayDismiss } from "@/page/PageProvider";
-import useCalendarStore from "@/stores/useCalendarStore";
+import { useCalendarCatalog } from "../queries";
 import { TONE, eventToneStyle } from "../eventTone";
 import { usePeekStore } from "../peekStore";
 import { eventTimeLabel } from "./AgendaRow";
@@ -33,7 +33,7 @@ function dateLabel(start: number, end: number | null) {
 export function EventDrawer() {
   const requested = usePeekStore(s => s.event);
   const close = usePeekStore(s => s.close);
-  const calendars = useCalendarStore(s => s.calendars);
+  const { calendars } = useCalendarCatalog();
   /** 抽屉实际展示的日程（requested 经未保存守卫后才落到这里） */
   const [selected, setSelected] = useState<CalendarEvent | null>(null);
   /** 等待确认的请求：放弃修改后切到 next（null = 关闭） */

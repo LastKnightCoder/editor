@@ -15,7 +15,6 @@ export default definePage({
   key: "schedule",
   match: "single",
   label: "日程",
-  status: "new",
   params: schema.schema,
   component: ScheduleView,
 });

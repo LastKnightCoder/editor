@@ -134,12 +134,55 @@ th {
   background: #f8fafc;
 }
 
+/* 引用块与编辑器一致：左栏大引号 + 中性竖线尾迹，嵌套内层只留竖线 */
 blockquote {
-  border-left: 4px solid #d1d5db;
-  padding-left: 1em;
+  position: relative;
   margin-left: 0;
-  color: #666;
-  font-style: italic;
+  margin-right: 0;
+  padding-left: 2em;
+}
+
+blockquote::before {
+  content: "\\201C";
+  position: absolute;
+  left: -0.02em;
+  top: -0.12em;
+  font: 400 2.9em/1 Georgia, "Times New Roman", serif;
+  color: rgba(15, 118, 110, 0.55);
+}
+
+blockquote::after {
+  content: "";
+  position: absolute;
+  left: 0.5em;
+  top: 1.6em;
+  bottom: 0.35em;
+  width: 2px;
+  border-radius: 2px;
+  background: rgba(17, 17, 17, 0.2);
+}
+
+blockquote > :first-child {
+  margin-top: 0;
+}
+
+blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+blockquote blockquote {
+  padding-left: 1.1em;
+  color: #555;
+}
+
+blockquote blockquote::before {
+  content: none;
+}
+
+blockquote blockquote::after {
+  left: 0;
+  top: 0.3em;
+  bottom: 0.3em;
 }
 
 .callout {

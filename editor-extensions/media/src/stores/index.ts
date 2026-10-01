@@ -1,1 +1,1 @@
-export * from "./useImagesOverviewStore";
+export * from "./useImageLightboxStore";

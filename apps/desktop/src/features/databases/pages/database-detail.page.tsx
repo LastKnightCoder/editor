@@ -15,7 +15,6 @@ export default definePage({
   match: "params",
   getId: params => `database-${params.id}`,
   label: "数据库详情",
-  status: "new",
   params: schema.schema,
   component: DatabaseDetailView,
 });

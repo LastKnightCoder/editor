@@ -19,7 +19,6 @@ export default definePage({
   match: "params",
   getId: params => `project-${params.id}`,
   label: "项目详情",
-  status: "new",
   params: schema.schema,
   component: ProjectDetailView,
 });

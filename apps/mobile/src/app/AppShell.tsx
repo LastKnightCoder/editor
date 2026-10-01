@@ -32,7 +32,7 @@ import { useTodoStore } from "../features/todo/store/useTodoStore";
 import { useDiaryStore } from "../features/diary/store/useDiaryStore";
 import { invalidateCalendarQueries } from "../features/calendar/queries";
 import { ToastViewport } from "../components/ToastViewport";
-import { EditorConfirmHost } from "../services/editorNotifier";
+import { EditorConfirmHost, EditorPromptHost } from "../services/editorNotifier";
 import { KeyboardViewportProvider } from "../components/KeyboardViewportProvider";
 import { AppDock } from "../components/AppDock";
 import { toast } from "../components/toast";
@@ -529,6 +529,7 @@ function AppShellInner() {
                         <AppDock />
                         <OverlayHost />
                         <EditorConfirmHost />
+                        <EditorPromptHost />
                         <ToastViewport />
                         {import.meta.env.DEV && <RouterDevTools />}
                       </main>

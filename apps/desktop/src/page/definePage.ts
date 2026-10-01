@@ -16,26 +16,14 @@
 
 import type { ComponentType } from "react";
 import type { InferFields, ParamFields } from "./core/paramsSchema";
-import {
-  registerPageMeta,
-  type KeepAlivePolicy,
-  type MatchPolicy,
-  type PageStatus,
-} from "./core/pageMeta";
+import { registerPageMeta, type MatchPolicy } from "./core/pageMeta";
 import { registerPageDefinition } from "./registry";
-
-export interface CanLeaveContext {
-  params: Record<string, unknown>;
-}
 
 export interface PageDefinition {
   key: string;
   match: MatchPolicy;
-  keepAlive: KeepAlivePolicy;
   label: string;
-  status: PageStatus;
   fields: ParamFields;
-  canLeave?: (ctx: CanLeaveContext) => boolean | Promise<boolean>;
   component: ComponentType;
 }
 
@@ -44,39 +32,25 @@ export interface PageDefinitionArgs<F extends ParamFields> {
   /** 宿主声明流（对齐 Android launchMode）：single 全局一份 / params 按 getId 去重 / multi 每次新建 */
   match?: MatchPolicy;
   getId?: (params: InferFields<F>) => string;
-  /** keep = 保活（DOM/state 保留）；data = 卸载内容靠 query 缓存恢复（后续接线） */
-  keepAlive?: KeepAlivePolicy;
   /** 侧边栏/面包屑/命令面板展示名 */
   label: string;
-  /** 升级状态机（迁移期专用，见蓝图 §5.1） */
-  status?: PageStatus;
   params: F;
-  canLeave?: (ctx: CanLeaveContext) => boolean | Promise<boolean>;
   component: ComponentType;
-  /** 页面级 query 声明（按移动端 PageDataDefinition 移植，后续接线） */
-  data?: unknown;
-  /** 实例级 store 工厂（按移动端 PageStoreScope 移植，后续接线） */
-  store?: unknown;
 }
 
 export function definePage<F extends ParamFields>(args: PageDefinitionArgs<F>): PageDefinition {
   const definition: PageDefinition = {
     key: args.key,
     match: args.match ?? "single",
-    keepAlive: args.keepAlive ?? "keep",
     label: args.label,
-    status: args.status ?? "new",
     fields: args.params,
-    canLeave: args.canLeave,
     component: args.component,
   };
   registerPageMeta({
     key: definition.key,
     match: definition.match,
     getId: args.getId as ((params: Record<string, unknown>) => string) | undefined,
-    keepAlive: definition.keepAlive,
     label: definition.label,
-    status: definition.status,
     fields: definition.fields,
   });
   registerPageDefinition(definition);

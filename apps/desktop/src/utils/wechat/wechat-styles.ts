@@ -188,28 +188,46 @@ export const wechatBaseStyles = `
 }
 
 /* ========== Blockquote ========== */
+/*
+ * 公众号会过滤 position，无法照搬编辑器的左栏定位：降级为文档流版本，
+ * 竖线贴左满高、大引号独占首行。juice 不解析 Unicode 转义，content 必须写字面字符。
+ */
 .blockquote {
-  position: relative;
-  padding-left: 1.5em;
-  padding-top: 0.75em;
-  padding-bottom: 0.75em;
   margin: 1em 0;
-  font-style: italic;
-  color: #6a737d;
+  padding-left: 1.4em;
+  border-left: 2px solid rgba(0, 0, 0, 0.15);
 }
 
 .blockquote::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0.25em;
-  bottom: 0.25em;
-  width: 4px;
-  background-color: #3b82f6;
-  border-radius: 2px;
+  content: "“";
+  display: block;
+  height: 0.55em;
+  font-size: 2.9em;
+  line-height: 1;
+  font-family: Georgia, 'Times New Roman', serif;
+  color: rgba(30, 107, 184, 0.55);
 }
 
-.blockquote p:last-child {
+/* juice 内联时简写与长属性各自保留、简写可能排在后面，这里只写长属性 */
+.blockquote .blockquote {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  padding-left: 1.1em;
+}
+
+/* juice 对 content: none 仍会生成空 span，需一并隐藏 */
+.blockquote .blockquote::before {
+  content: none;
+  display: none;
+}
+
+.blockquote .blockquote .paragraph {
+  color: #6a737d;
+}
+
+/* 嵌套规则里的 margin-bottom 优先级更高，需单独选中内层末位 */
+.blockquote > :last-child,
+.blockquote .blockquote:last-child {
   margin-bottom: 0;
 }
 

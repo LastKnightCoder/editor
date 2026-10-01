@@ -15,12 +15,8 @@ const blockquoteExtension = defineExtension({
       kind: "block",
       isEmpty: (element, context) => element.children.every(context.isEmpty),
       render: Blockquote,
-      // 手柄与正文左线重叠，压窄让出位置（原组件手柄的位置）
-      drag: {
-        self: true,
-        children: true,
-        handleClassName: "top-[0.25em] h-[1.5em] w-[1em] cursor-grab rounded transition-all",
-      },
+      // 大引号与竖线都在块内左栏，手柄留在默认槽位不会重叠
+      drag: { self: true, children: true },
       behaviors: blockquoteBehaviors,
       copy: ({ fullySelected }) => (fullySelected ? "keep" : "unwrap"),
     }),

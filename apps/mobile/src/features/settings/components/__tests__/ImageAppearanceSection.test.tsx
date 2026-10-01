@@ -91,21 +91,21 @@ describe("ImageAppearanceSection", () => {
     const { root, host } = await renderSection();
 
     for (const label of [
-      "无圆角",
-      "小圆角",
-      "中圆角",
-      "大圆角",
+      "直角",
+      "圆角 8",
+      "圆角 12",
+      "圆角 16",
       "无阴影",
-      "小阴影",
-      "中阴影",
-      "大阴影",
+      "卡片",
+      "轻抬",
+      "浮起",
     ]) {
       expect(() => findRowByLabel(label), `缺少选项「${label}」`).not.toThrow();
     }
     // 预览 icon 与 CheckBubble 都渲染 svg，选中态以 CheckBubble 的 bg-accent 容器区分
-    expect(findRowByLabel("中圆角").querySelector(".bg-accent")).not.toBeNull();
-    expect(findRowByLabel("小阴影").querySelector(".bg-accent")).not.toBeNull();
-    expect(findRowByLabel("无圆角").querySelector(".bg-accent")).toBeNull();
+    expect(findRowByLabel("圆角 12").querySelector(".bg-accent")).not.toBeNull();
+    expect(findRowByLabel("卡片").querySelector(".bg-accent")).not.toBeNull();
+    expect(findRowByLabel("直角").querySelector(".bg-accent")).toBeNull();
 
     await act(async () => {
       root.unmount();
@@ -113,7 +113,7 @@ describe("ImageAppearanceSection", () => {
     host.remove();
   });
 
-  it("点选大圆角时以 persist 写入 appearance.image.borderRadius", async () => {
+  it("点选圆角 16时以 persist 写入 appearance.image.borderRadius", async () => {
     const setting = {
       ...baseSetting(),
       appearance: { image: { borderRadius: "none", shadow: "none" } },
@@ -123,7 +123,7 @@ describe("ImageAppearanceSection", () => {
     const { root, host } = await renderSection();
 
     await act(async () => {
-      findRowByLabel("大圆角").dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      findRowByLabel("圆角 16").dispatchEvent(new MouseEvent("click", { bubbles: true }));
       await Promise.resolve();
     });
 
@@ -140,7 +140,7 @@ describe("ImageAppearanceSection", () => {
     host.remove();
   });
 
-  it("旧版布尔 shadow（true）展示为中阴影", async () => {
+  it("旧版布尔 shadow（true）展示为轻抬", async () => {
     appContextHolder.current = buildMockApp({
       ...baseSetting(),
       appearance: { image: { borderRadius: "none", shadow: true } },
@@ -148,7 +148,7 @@ describe("ImageAppearanceSection", () => {
 
     const { root, host } = await renderSection();
 
-    expect(findRowByLabel("中阴影").querySelector(".bg-accent")).not.toBeNull();
+    expect(findRowByLabel("轻抬").querySelector(".bg-accent")).not.toBeNull();
     expect(findRowByLabel("无阴影").querySelector(".bg-accent")).toBeNull();
 
     await act(async () => {

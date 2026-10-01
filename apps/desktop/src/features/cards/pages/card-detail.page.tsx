@@ -15,7 +15,6 @@ export default definePage({
   match: "params",
   getId: params => `card-${params.id}`,
   label: "卡片详情",
-  status: "new",
   params: schema.schema,
   component: CardDetailView,
 });

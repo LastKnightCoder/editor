@@ -83,6 +83,7 @@ pub(crate) fn read_mapping(conn: &Connection) -> Result<Option<Arc<Mapping>>, St
 }
 
 pub(crate) fn migrate_index(main: &Connection, index: &Connection) -> Result<(), String> {
+    super::audio_note_retirement::retire_indexes(main, index)?;
     let Some(mapping) = read_mapping(main)? else {
         return Ok(());
     };
@@ -578,7 +579,6 @@ fn migrate_json(conn: &Connection, mapping: &Mapping) -> Result<(), String> {
         ("chat_message", "messages"),
         ("pdf_chats", "messages"),
         ("video_note_chats", "messages"),
-        ("audio_note_chats", "messages"),
         ("vibe_learning_chats", "messages"),
     ] {
         if !table_exists(conn, table)? {

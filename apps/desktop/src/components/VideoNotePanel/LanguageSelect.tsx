@@ -1,7 +1,6 @@
 import { useState, useRef } from "react";
 import { SelectDropDown } from "@tau/shared";
 import { ChevronDown, Check, Globe } from "lucide-react";
-import useThemeColors from "@/hooks/useThemeColors";
 import classNames from "classnames";
 
 interface LanguageOption {
@@ -28,7 +27,6 @@ const LanguageSelect = ({
 }: LanguageSelectProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const themeColors = useThemeColors();
 
   const selectedOption = options.find(opt => opt.value === value);
   const displayValue = selectedOption?.label || value || placeholder;
@@ -48,16 +46,16 @@ const LanguageSelect = ({
         disabled={disabled}
         className={classNames(
           "flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium outline-none transition-all",
-          themeColors.cardBgClass,
-          themeColors.cardBorderClass,
-          themeColors.textClass,
-          themeColors.hoverClass,
-          themeColors.focusBorderClass,
-          themeColors.focusRingClass,
+          "bg-surface",
+          "border-line-1",
+          "text-ink-1",
+          "hover:bg-hover",
+          "focus:border-accent",
+          "focus:shadow-[var(--tau-focus-ring)]",
           "disabled:cursor-not-allowed disabled:opacity-50"
         )}
       >
-        <Globe size={13} className={hasValue ? "text-[var(--th-active-text)]" : "opacity-50"} />
+        <Globe size={13} className={hasValue ? "text-[var(--tau-accent-text)]" : "opacity-50"} />
         <span className={classNames("max-w-[7rem] truncate", !hasValue && "opacity-50")}>
           {displayValue}
         </span>
@@ -82,7 +80,7 @@ const LanguageSelect = ({
           <div className="flex items-center justify-between gap-3">
             <span className="truncate">{item.label}</span>
             {item.value === value && (
-              <Check size={14} className="shrink-0 text-[var(--th-active-text)]" />
+              <Check size={14} className="shrink-0 text-[var(--tau-accent-text)]" />
             )}
           </div>
         )}

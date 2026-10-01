@@ -35,6 +35,7 @@ import {
 } from "@/constants";
 import { piCompleteChat } from "@/services/piLLM";
 import { remoteResourceToLocal } from "@/utils/resouce";
+import { buildPiPromptPayload } from "@/services/piPromptPayload";
 import {
   buildPiChatSystemPrompt,
   chatSessionKey,
@@ -625,32 +626,12 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
      * 文件转成本地路径提示交模型自己 read；图片只传定位信息（image 是 protocol URL，
      * path 才是真实路径），主进程读文件转 base64。
      */
-    const buildPromptPayload = useMemoizedFn(async (contentItems: MessageContentItem[]) => {
-      const fileReferences = await Promise.all(
-        contentItems
-          .filter(item => item.type === "file")
-          .map(async item => {
-            const localPath = /^https?:\/\//i.test(item.file)
-              ? await remoteResourceToLocal(item.file, item.fileName)
-              : item.file;
-            return `[文件：${item.fileName ?? item.file}]\n路径：${localPath}\n请使用 pi 的 read 工具读取该文件。`;
-          })
-      );
-      const promptText = [
-        ...contentItems.filter(item => item.type === "text").map(item => item.text),
-        ...fileReferences,
-      ].join("\n");
-      const images = supportImage
-        ? contentItems
-            .filter(item => item.type === "image")
-            .map(item =>
-              item.image.startsWith("data:")
-                ? { dataUrl: item.image }
-                : { path: item.path ?? item.image }
-            )
-        : [];
-      return { promptText, images };
-    });
+    const buildPromptPayload = useMemoizedFn((contentItems: MessageContentItem[]) =>
+      buildPiPromptPayload(contentItems, {
+        includeImages: supportImage,
+        resolveRemoteFile: remoteResourceToLocal,
+      })
+    );
 
     /**
      * 改会话树（M4-d）：回退/分叉/切版本/删除都在同一文件的树上。宿主会话开着且空闲时主进程

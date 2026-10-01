@@ -13,6 +13,7 @@ import { piToolDefinitionKey } from "@/types/pi-session";
 import type { Skill } from "@/types";
 import type { RegisteredTool } from "@/tools/toolRegistry";
 import { getChatDatabase } from "./chatDatabase";
+import { normalizePiSystemPrompt } from "./piPromptPayload";
 import {
   piSessionCreate,
   piSessionDispose,
@@ -375,6 +376,7 @@ export function buildPiChatSystemPrompt(
   skills: Skill[],
   forcedSkills: string[]
 ): string {
+  baseSystem = normalizePiSystemPrompt(baseSystem);
   const resolved = resolveAgentSkills(skills, forcedSkills);
   if (resolved.length === 0 && forcedSkills.length === 0) return baseSystem;
 

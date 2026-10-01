@@ -19,7 +19,7 @@ import {
   stopPomodoroSession,
 } from "@/commands/pomodoro";
 import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
-import type { BackgroundSoundType } from "@/stores/usePomodoroStore";
+import type { BackgroundSoundType } from "@/types/pomodoro";
 import type { PomodoroPreset, PomodoroSession } from "@/types";
 import { endedSession, sessionTiming, type EndedSession } from "./model";
 

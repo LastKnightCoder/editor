@@ -1,7 +1,7 @@
 import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
-import { UiProvider } from "../UiProvider";
+import { PortalScope, UiProvider } from "../UiProvider";
 import { Popover } from "../primitives/Popover";
 import { Select } from "../primitives/Select";
 import { lockBodyScroll } from "../hooks/lockBodyScroll";
@@ -13,6 +13,30 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 describe("公共 UI 运行时", () => {
+  it("局部明暗中的浮层挂回最近的作用域，不继承外层主题", () => {
+    const element = document.createElement("div");
+    document.body.append(element);
+    const root = createRoot(element);
+    cleanup.push(() => act(() => root.unmount()));
+    act(() =>
+      root.render(
+        <UiProvider theme="paper" mode="dark">
+          <div data-theme="mint" data-mode="light">
+            <PortalScope>
+              <Popover trigger={<button>局部浮层</button>}>
+                <Popover.Body>内容</Popover.Body>
+              </Popover>
+            </PortalScope>
+          </div>
+        </UiProvider>
+      )
+    );
+    act(() => element.querySelector("button")?.click());
+    const scope = document.querySelector('[role="dialog"]')?.closest("[data-mode]");
+    expect(scope?.getAttribute("data-mode")).toBe("light");
+    expect(scope?.getAttribute("data-theme")).toBe("mint");
+  });
+
   it("嵌套滚动锁乱序释放后恢复原始状态", () => {
     document.body.style.overflow = "auto";
     const first = lockBodyScroll(document);

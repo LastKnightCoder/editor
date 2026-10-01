@@ -9,7 +9,6 @@ definePage({
   key: "editor-overlay-test",
   match: "single",
   label: "编辑器浮层",
-  status: "new",
   params: {},
   component: () => null,
 });

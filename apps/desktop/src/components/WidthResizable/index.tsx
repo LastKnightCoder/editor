@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState, PropsWithChildren } from "react";
 import classnames from "classnames";
 
-import styles from "./index.module.less";
+import { cn } from "@tau/ui";
 import { useThrottleFn } from "ahooks";
-import useThemeColors from "@/hooks/useThemeColors";
 
 interface IWidthResizableProps {
   defaultWidth: number;
@@ -39,8 +38,6 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = props 
     showDivider = false,
   } = props;
   const containerRef = useRef<HTMLDivElement>(null);
-  const themeColors = useThemeColors();
-  const handleHighlightColor = themeColors.accentSoftBg || "rgba(170, 198, 255, 0.4)";
 
   const [width, setWidth] = useState<number>(() => {
     if (minWidth && defaultWidth < minWidth) return minWidth;
@@ -137,7 +134,7 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = props 
 
   return (
     <div
-      className={classnames(styles.widthResizable, className)}
+      className={cn("relative", className)}
       style={{
         ...style,
         width,
@@ -153,9 +150,10 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = props 
           onMouseUp={handleMouseUp}
           onMouseEnter={handleHoverStart}
           onMouseLeave={handleHoverEnd}
-          className={classnames(styles.resizeBar, {
-            [styles.left]: side === "left",
-          })}
+          className={cn(
+            "absolute top-0 z-10 h-full w-[10px] cursor-col-resize",
+            side === "left" ? "left-0" : "right-0"
+          )}
           style={handleOffset ? { [side === "left" ? "left" : "right"]: -handleOffset } : undefined}
         >
           {showDivider ? (
@@ -174,7 +172,7 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = props 
               )}
               style={{
                 backgroundColor:
-                  showHandleHighlight || isResizing ? handleHighlightColor : "transparent",
+                  showHandleHighlight || isResizing ? "var(--tau-accent-soft)" : "transparent",
               }}
             />
           )}

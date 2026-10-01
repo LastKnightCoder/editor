@@ -128,6 +128,23 @@ describe("DatePicker（A+ 单日期）", () => {
     expect(trigger.textContent).toContain("10:37");
   });
 
+  it("minute 精度：时刻框键入后直接 Enter，提交键入的新时刻", () => {
+    const onValueChange = vi.fn();
+    const h = render(
+      <DatePicker
+        precision="minute"
+        defaultValue="2026-09-19 09:00"
+        onValueChange={onValueChange}
+      />
+    );
+    cleanups.push(h.cleanup);
+    click(h.container.querySelector('[role="combobox"]')!);
+    const timeInput = panel()!.querySelector<HTMLInputElement>('input[aria-label="时刻"]')!;
+    typeInto(timeInput, "16:45");
+    key(timeInput, "Enter");
+    expect(onValueChange).toHaveBeenCalledWith("2026-09-19 16:45");
+  });
+
   it("时刻键入：宽松写法归一化、越界失焦还原", () => {
     const h = render(<DatePicker precision="minute" defaultValue="2026-09-19 09:00" />);
     cleanups.push(h.cleanup);
@@ -335,5 +352,116 @@ describe("DateRangePicker（范围三道闸）", () => {
     );
     expect(onValueChange).toHaveBeenCalledWith(null);
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  });
+});
+
+describe("DateRangePicker（已有值 / 界外日 / 时刻）", () => {
+  let cleanups: Array<() => void> = [];
+  afterEach(() => {
+    cleanups.forEach(fn => fn());
+    cleanups = [];
+  });
+
+  const button = (p: HTMLElement, text: string) =>
+    [...p.querySelectorAll<HTMLButtonElement>("button")].find(b => b.textContent === text)!;
+  const summary = (p: HTMLElement) => p.querySelector('span[aria-live="polite"]')!.textContent;
+
+  it("已有值时点新起点：终点清空待选，不能直接确定，反序终点升序提交", () => {
+    const onValueChange = vi.fn();
+    const h = render(
+      <DateRangePicker defaultValue={["2026-09-10", "2026-09-24"]} onValueChange={onValueChange} />
+    );
+    cleanups.push(h.cleanup);
+    click(h.container.querySelector('[role="combobox"]')!);
+    const p = panel()!;
+    click(dayCell(p, 29));
+    expect(button(p, "确定").disabled).toBe(true);
+    expect(summary(p)).toContain("再选终止日期");
+    click(dayCell(p, 15));
+    click(button(p, "确定"));
+    expect(onValueChange).toHaveBeenCalledWith(["2026-09-15", "2026-09-29"]);
+  });
+
+  it("逆序存量值按升序回显与提交", () => {
+    const onValueChange = vi.fn();
+    const h = render(
+      <DateRangePicker defaultValue={["2026-10-29", "2026-09-24"]} onValueChange={onValueChange} />
+    );
+    cleanups.push(h.cleanup);
+    const trigger = h.container.querySelector('[role="combobox"]')!;
+    expect(trigger.textContent).toContain("9月24日 – 10月29日");
+    click(trigger);
+    click(button(panel()!, "确定"));
+    expect(onValueChange).toHaveBeenCalledWith(["2026-09-24", "2026-10-29"]);
+  });
+
+  it("双月面板隐藏界外日：格子数等于两月天数", () => {
+    const h = render(<DateRangePicker defaultValue={["2026-10-05", "2026-10-09"]} />);
+    cleanups.push(h.cleanup);
+    click(h.container.querySelector('[role="combobox"]')!);
+    const grids = [...panel()!.querySelectorAll<HTMLElement>('[role="grid"]')];
+    expect(grids.map(g => g.querySelectorAll('[role="gridcell"]').length)).toEqual([31, 30]);
+  });
+
+  it("minute：回显时刻，同日结束早于开始禁止确定，Enter 提交最新时刻", () => {
+    const onValueChange = vi.fn();
+    const h = render(
+      <DateRangePicker
+        precision="minute"
+        defaultValue={["2026-09-30 14:00", "2026-09-30 16:30"]}
+        onValueChange={onValueChange}
+      />
+    );
+    cleanups.push(h.cleanup);
+    const trigger = h.container.querySelector('[role="combobox"]')!;
+    expect(trigger.textContent).toContain("9月30日 14:00 – 16:30");
+    click(trigger);
+    const p = panel()!;
+    const end = p.querySelector<HTMLInputElement>('input[aria-label="结束时刻"]')!;
+    expect(p.querySelector<HTMLInputElement>('input[aria-label="开始时刻"]')!.value).toBe("14:00");
+    typeInto(end, "13:00");
+    blur(end);
+    expect(button(p, "确定").disabled).toBe(true);
+    expect(summary(p)).toBe("结束时刻早于开始时刻");
+    typeInto(end, "17:15");
+    key(end, "Enter");
+    expect(onValueChange).toHaveBeenCalledWith(["2026-09-30 14:00", "2026-09-30 17:15"]);
+  });
+
+  it("minute：新选跨日范围沿用时刻区的时刻", () => {
+    const onValueChange = vi.fn();
+    const h = render(
+      <DateRangePicker
+        precision="minute"
+        defaultValue={["2026-09-01 08:00", "2026-09-02 20:00"]}
+        onValueChange={onValueChange}
+      />
+    );
+    cleanups.push(h.cleanup);
+    click(h.container.querySelector('[role="combobox"]')!);
+    const p = panel()!;
+    click(dayCell(p, 10));
+    click(dayCell(p, 12));
+    expect(summary(p)).toBe("9月10日 08:00 – 9月12日 20:00");
+    click(button(p, "确定"));
+    expect(onValueChange).toHaveBeenCalledWith(["2026-09-10 08:00", "2026-09-12 20:00"]);
+  });
+
+  it("触发器实时跟随草稿（强调色标未确定），Esc 关闭回到已提交值", () => {
+    const h = render(<DateRangePicker defaultValue={["2026-09-01", "2026-09-05"]} />);
+    cleanups.push(h.cleanup);
+    const trigger = h.container.querySelector<HTMLButtonElement>('[role="combobox"]')!;
+    const label = () => trigger.querySelector("span")!;
+    click(trigger);
+    const p = panel()!;
+    expect(label().textContent).toBe("9月1日 – 9月5日");
+    click(dayCell(p, 10));
+    expect(label().textContent).toBe("2026年9月10日 – …");
+    expect(label().className).toContain("text-accent-text");
+    click(dayCell(p, 12));
+    expect(label().textContent).toBe("9月10日 – 9月12日");
+    key(p, "Escape");
+    expect(label().textContent).toBe("9月1日 – 9月5日");
+    expect(label().className).not.toContain("text-accent-text");
   });
 });

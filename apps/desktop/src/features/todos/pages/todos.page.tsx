@@ -23,7 +23,6 @@ export default definePage({
   key: "todos",
   match: "single",
   label: "待办",
-  status: "new",
   params: schema.schema,
   component: TodosView,
 });

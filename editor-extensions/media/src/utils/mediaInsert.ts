@@ -1,5 +1,6 @@
 import { IResourceService } from "@tau/shared/host-services";
 import { Editor, Element as SlateElement, Path, Transforms } from "slate";
+import { ReactEditor } from "slate-react";
 import { v4 as getUuid } from "uuid";
 import { notifierOf } from "@tau/editor/api";
 import { Link, Plus, Upload } from "lucide-react";
@@ -7,8 +8,7 @@ import { Link, Plus, Upload } from "lucide-react";
 import { type IBlockPanelListItem } from "@tau/editor/api";
 import { type MediaInsertPayload, type MediaType } from "../services/mediaProviders";
 import { IMediaInsertSources, IVideoContentProviders } from "../services/tokens";
-import useMediaUrlInputStore from "../stores/useMediaUrlInputStore";
-import { setOrInsertNode } from "@tau/editor/api";
+import { canSetOrInsertNode, setOrInsertNode } from "@tau/editor/api";
 import { getCommandElementPath } from "@tau/editor/api";
 import type { ImageElement } from "../types/element/image";
 import type { VideoElement } from "../types/element/video";
@@ -273,9 +273,41 @@ const uploadAndInsertMedia = async (
   }
 };
 
-/** 打开"网络地址"输入弹窗（由编辑器根部的 MediaUrlInputModal 承接） */
-export const openMediaUrlInput = (editor: Editor, mediaType: MediaType) => {
-  useMediaUrlInputStore.getState().show(editor, mediaType);
+const MEDIA_URL_PLACEHOLDERS: Record<MediaType, string> = {
+  image: "https://example.com/image.png",
+  video: "https://example.com/video.mp4",
+  audio: "https://example.com/audio.mp3",
+};
+
+const CANNOT_INSERT_HINT = "当前选区无法插入，请将光标置于正文空行后重试";
+
+/** 打开"网络地址"输入框并在光标处插入；输入框由提示服务承接（桌面默认 Dialog，mobile 底部面板） */
+export const openMediaUrlInput = async (editor: Editor, mediaType: MediaType) => {
+  if (ReactEditor.isReadOnly(editor)) return;
+  const notifier = notifierOf(editor);
+  const url = await notifier.prompt({
+    title: `插入网络${MEDIA_TYPE_LABELS[mediaType]}`,
+    placeholder: MEDIA_URL_PLACEHOLDERS[mediaType],
+    confirmText: "插入",
+    inputMode: "url",
+    validate: value => {
+      if (mediaType === "video" && isProviderSourceUrl(editor, value)) {
+        return "该地址属于特殊内容源，请通过对应入口创建视频";
+      }
+      if (ReactEditor.isReadOnly(editor) || !canSetOrInsertNode(editor)) {
+        return CANNOT_INSERT_HINT;
+      }
+    },
+  });
+  if (!url || ReactEditor.isReadOnly(editor)) return;
+  try {
+    if (!ReactEditor.toDOMNode(editor, editor).isConnected) return;
+  } catch {
+    return;
+  }
+  if (!insertMediaByUrl(editor, mediaType, url)) {
+    notifier.warning(CANNOT_INSERT_HINT);
+  }
 };
 
 /**
@@ -303,7 +335,7 @@ export const getMediaInsertMenuItems = (
       title: "网络地址",
       keywords: ["网络", "链接", "url", ...getMediaTypeKeywords(mediaType)],
       description: `通过${label}的网络地址插入`,
-      onClick: () => openMediaUrlInput(editor, mediaType),
+      onClick: () => void openMediaUrlInput(editor, mediaType),
     },
   ];
 

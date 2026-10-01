@@ -31,7 +31,7 @@ const VideoTimestamp: React.FC<PropsWithChildren<VideoTimestampProps>> = ({
       content={previewContent}
       disabled={!previewUrl}
       placement="top"
-      className="p-0 overflow-hidden rounded-lg"
+      className="overflow-hidden rounded-lg p-0"
       delay={300}
     >
       <span
@@ -39,8 +39,8 @@ const VideoTimestamp: React.FC<PropsWithChildren<VideoTimestampProps>> = ({
         onClick={() => onSeek(time)}
         className={`inline-flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-sm font-medium transition-colors ${
           isDark
-            ? "bg-[var(--th-accent)]/30 hover:bg-[var(--th-accent)]/40"
-            : "hover:bg-[var(--th-accent)]/15 bg-[var(--th-accent-soft)] text-[var(--th-active-text)]"
+            ? "bg-[var(--tau-accent)]/30 hover:bg-[var(--tau-accent)]/40"
+            : "hover:bg-[var(--tau-accent)]/15 bg-[var(--tau-accent-soft)] text-[var(--tau-accent-text)]"
         } `}
       >
         {formatTimestamp(time)}

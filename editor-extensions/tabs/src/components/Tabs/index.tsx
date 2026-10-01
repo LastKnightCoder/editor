@@ -158,7 +158,7 @@ const Tabs = (props: ITabsProps) => {
 
   return (
     <div className="relative">
-      <div className="overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_3px_10px_rgba(15,23,42,0.03)] dark:border-zinc-700/50 dark:bg-zinc-900/40 dark:shadow-none">
+      <div className="overflow-hidden rounded-[10px] border border-[var(--ed-border)] bg-[var(--ed-bg-surface)]">
         <TabsDragScopeContext.Provider value={scope.current}>
           <TabsHeader
             tabs={tabs}
@@ -171,10 +171,7 @@ const Tabs = (props: ITabsProps) => {
           />
         </TabsDragScopeContext.Provider>
         <TabsActiveContext.Provider value={activeKey}>
-          <div
-            className="relative border-t border-zinc-950/[0.055] px-5 py-4 dark:border-white/[0.07]"
-            {...attributes}
-          >
+          <div className="relative px-[18px] pb-4 pt-3.5" {...attributes}>
             {children}
           </div>
         </TabsActiveContext.Provider>

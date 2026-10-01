@@ -14,7 +14,6 @@ export default definePage({
   key: "collaboration",
   match: "single",
   label: "协作",
-  status: "new",
   params: schema.schema,
   component: CollaborationView,
 });

@@ -1,13 +1,20 @@
 /**
  * 合并日历：源日历（带日程数，可移除）→ 选目标日历 → 二次确认 → Toast 结果。
- * 流程与 store action 与 legacy 一致；只换 tau Dialog / ConfirmDialog / Toast 皮。
+ * 日程数量由主进程聚合，合并写入经日程域 mutation。
  */
 
 import { memo, useEffect, useState } from "react";
 import { Check, X } from "lucide-react";
 import { Button, ConfirmDialog, Dialog, DialogBody, IconButton, cn, toast } from "@tau/ui";
-import useCalendarStore from "@/stores/useCalendarStore";
-import { getEventsByCalendarId } from "@/commands";
+import { useQuery } from "@tanstack/react-query";
+import useDatabaseConnected from "@/hooks/useDatabaseConnected";
+import { useScheduleStore } from "../../uiStore";
+import {
+  scheduleKeys,
+  useCalendarCatalog,
+  useScheduleCommands,
+  useScheduleMutations,
+} from "../../queries";
 import { TONE, toneStyle } from "../../eventTone";
 
 interface MergeCalendarsDialogProps {
@@ -18,37 +25,28 @@ interface MergeCalendarsDialogProps {
 
 const MergeCalendarsDialog = memo(
   ({ open, onClose, sourceCalendarIds }: MergeCalendarsDialogProps) => {
-    const calendars = useCalendarStore(s => s.calendars);
-    const calendarGroups = useCalendarStore(s => s.calendarGroups);
-    const { mergeCalendars, toggleCalendarForMerge } = useCalendarStore.getState();
+    const { calendars, calendarGroups } = useCalendarCatalog();
+    const { mergeCalendars } = useScheduleMutations();
+    const toggleCalendarForMerge = useScheduleStore(s => s.toggleCalendarForMerge);
+    const { database, commands } = useScheduleCommands();
+    const connected = useDatabaseConnected();
 
     const [targetCalendarId, setTargetCalendarId] = useState<number | null>(null);
-    const [eventCounts, setEventCounts] = useState<Record<number, number>>({});
     const [confirming, setConfirming] = useState(false);
 
     const sourceCalendars = calendars.filter(c => sourceCalendarIds.includes(c.id));
     const targetCalendars = calendars.filter(
       c => !sourceCalendarIds.includes(c.id) && !c.isInSystemGroup && !c.archived
     );
-    const totalEvents = sourceCalendarIds.reduce((sum, id) => sum + (eventCounts[id] ?? 0), 0);
 
-    // 加载各源日历的日程数
-    useEffect(() => {
-      if (!open || sourceCalendarIds.length === 0) return;
-      let cancelled = false;
-      Promise.all(
-        sourceCalendarIds.map(id =>
-          getEventsByCalendarId(id)
-            .then(events => [id, events.length] as const)
-            .catch(() => [id, 0] as const)
-        )
-      ).then(entries => {
-        if (!cancelled) setEventCounts(Object.fromEntries(entries));
-      });
-      return () => {
-        cancelled = true;
-      };
-    }, [open, sourceCalendarIds]);
+    const countsQuery = useQuery({
+      queryKey: [...scheduleKeys.root(database), "merge-counts", sourceCalendarIds],
+      queryFn: () => commands.countCalendarEvents(sourceCalendarIds),
+      enabled: open && connected && sourceCalendarIds.length > 0,
+      staleTime: 0,
+    });
+    const eventCounts = countsQuery.data ?? {};
+    const totalEvents = sourceCalendarIds.reduce((sum, id) => sum + (eventCounts[id] ?? 0), 0);
 
     useEffect(() => {
       if (!open) setTargetCalendarId(null);
@@ -75,7 +73,9 @@ const MergeCalendarsDialog = memo(
               <Button
                 variant="primary"
                 size="sm"
-                disabled={!targetCalendarId || sourceCalendars.length === 0}
+                disabled={
+                  !targetCalendarId || sourceCalendars.length === 0 || !countsQuery.isSuccess
+                }
                 onClick={() => setConfirming(true)}
               >
                 合并

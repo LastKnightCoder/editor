@@ -1,9 +1,9 @@
-import React, { memo } from "react";
+import React, { memo, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
 
 import { CellValue, ColumnDef, CellPlugin, RowData } from "../../../types";
-import { useCellEditor, useValidation } from "../../../hooks";
+import { useCellEditor } from "../../../hooks";
 import PrimaryColumnRenderer from "../../../plugins/TextPlugin/PrimaryColumnRenderer";
 
 interface CellProps {
@@ -132,22 +132,23 @@ const Cell: React.FC<CellProps> = memo(
     });
 
     // 设置单元格编辑器状态
-    const { draftValue, handleChange, handleSave, handleCancel } = useCellEditor(
+    const { draftValue, startEditing, handleChange, finishEdit } = useCellEditor(
       value,
-      handleValueChange
+      handleValueChange,
+      column.validation
     );
 
-    // 设置验证
-    const { error } = useValidation(draftValue, column.validation);
+    // 编辑态由外部驱动：每次进入编辑都以当前值重置草稿（渲染期同步，编辑器首帧即拿到新值）
+    const [editingSession, setEditingSession] = useState(isEditing);
+    if (isEditing !== editingSession) {
+      setEditingSession(isEditing);
+      if (isEditing) startEditing();
+    }
 
     // 处理失焦事件（保存单元格）
     const handleFinishEdit = useMemoizedFn(() => {
       if (isColumnReadonly) return;
-      if (error) {
-        handleCancel();
-      } else {
-        handleSave();
-      }
+      finishEdit();
       onStopEditing();
     });
 

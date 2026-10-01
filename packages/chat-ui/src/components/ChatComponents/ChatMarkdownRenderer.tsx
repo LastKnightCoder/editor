@@ -1,8 +1,8 @@
 import React, { memo, useCallback, useMemo } from "react";
-import classNames from "classnames";
+import { cn as classNames } from "@tau/ui";
 import MarkdownRenderer, { type MarkdownRendererProps } from "../MarkdownRenderer";
 import { LazySyntaxHighlighter } from "@tau/shared";
-import styles from "./ChatMarkdownRenderer.module.less";
+import { markdownClasses as styles } from "./classes";
 /**
  * message 实例的最小消费面（Mermaid 通知）；antd message 与 @tau/ui toast 结构均满足。
  * 纯类型依赖不产出运行时代码，browser-extension 侧消费本组件不受影响（D-073）。

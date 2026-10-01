@@ -14,19 +14,19 @@ export function listVLQuizSets(projectId: number): Promise<VLQuizSet[]> {
   return invoke("vl-quiz:list-sets", projectId);
 }
 
+export function getVLQuizBestScores(projectId: number): Promise<Record<number, number>> {
+  return invoke("vl-quiz:best-scores", projectId);
+}
+
 export function getVLQuizSet(id: number): Promise<VLQuizSet | null> {
   return invoke("vl-quiz:get-set", id);
 }
 
-export function createVLQuizSet(
-  payload: CreateVLQuizSetInput,
-): Promise<VLQuizSet> {
+export function createVLQuizSet(payload: CreateVLQuizSetInput): Promise<VLQuizSet> {
   return invoke("vl-quiz:create-set", payload);
 }
 
-export function updateVLQuizSet(
-  payload: UpdateVLQuizSetInput,
-): Promise<VLQuizSet | null> {
+export function updateVLQuizSet(payload: UpdateVLQuizSetInput): Promise<VLQuizSet | null> {
   return invoke("vl-quiz:update-set", payload);
 }
 
@@ -44,21 +44,15 @@ export function getVLQuizItem(id: number): Promise<VLQuizItem | null> {
   return invoke("vl-quiz:get-item", id);
 }
 
-export function createVLQuizItem(
-  payload: CreateVLQuizItemInput,
-): Promise<VLQuizItem> {
+export function createVLQuizItem(payload: CreateVLQuizItemInput): Promise<VLQuizItem> {
   return invoke("vl-quiz:create-item", payload);
 }
 
-export function createVLQuizItemsBatch(
-  items: CreateVLQuizItemInput[],
-): Promise<VLQuizItem[]> {
+export function createVLQuizItemsBatch(items: CreateVLQuizItemInput[]): Promise<VLQuizItem[]> {
   return invoke("vl-quiz:create-items-batch", items);
 }
 
-export function updateVLQuizItem(
-  payload: UpdateVLQuizItemInput,
-): Promise<VLQuizItem | null> {
+export function updateVLQuizItem(payload: UpdateVLQuizItemInput): Promise<VLQuizItem | null> {
   return invoke("vl-quiz:update-item", payload);
 }
 
@@ -79,9 +73,7 @@ export function getVLQuizRecord(id: number): Promise<VLQuizRecord | null> {
   return invoke("vl-quiz:get-record", id);
 }
 
-export function createVLQuizRecord(
-  payload: CreateVLQuizRecordInput,
-): Promise<VLQuizRecord> {
+export function createVLQuizRecord(payload: CreateVLQuizRecordInput): Promise<VLQuizRecord> {
   return invoke("vl-quiz:create-record", payload);
 }
 

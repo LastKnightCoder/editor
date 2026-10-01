@@ -57,7 +57,7 @@ export interface NavItem {
    *  collab-requests = 待审批的加入申请数；mcp-errors = 连接失败的 MCP 服务器数） */
   badge?: NavItemBadge;
   /** 该页在栈顶时于条目下方展开的子项（collaboration-sessions = 共享内容列表，协作页 A3；
-   *  todo-groups = 待办项目；card-tags = 卡片标签树（限高滚动）；article-tags = 文章标签（限高滚动）；diary-tags = 日记标签频道，D-044；whiteboard-tags = 白板标签，D-047；question-groups = 问题分组；chat-sessions = 置顶与最近 AI 会话，D-047） */
+   *  todo-groups = 待办项目；card-tags = 卡片标签树（限高滚动）；article-tags = 文章标签（限高滚动）；diary-tags = 日记标签频道，D-044；whiteboard-tags = 白板标签，D-047；question-groups = 问题分组；chat-sessions = 置顶与最近 AI 会话） */
   children?: NavItemChildren;
   /** 不导航页面、打开壳层浮层的入口（当前仅设置弹窗，D-028） */
   opensOverlay?: "settings";
@@ -101,7 +101,7 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: CircleHelp,
         badge: "questions-active",
         children: "question-groups",
-      }, // features/questions（A2 三栏清单，D-044；分组嵌在此入口下）
+      }, // 问题分组嵌在侧栏入口下（D-089）
       { key: "vibe-learning", label: "Notebook", icon: FlaskConical }, // features/vibe-learning（对外名 Notebook——仿 NotebookLM；2026-09-28 自项目 vibe-learning 型拆出，标识符跟数据库走不改名）
       { key: "weread", label: "微信读书", icon: BookOpen }, // features/weread（书架 + 整页笔记，D-059）
       { key: "pdfs", label: "PDF", icon: BookMarked }, // features/pdfs（文档墙 + 列表排布，D-069）
@@ -111,7 +111,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: "AI",
     items: [
-      { key: "chat", label: "AI 对话", icon: MessageCircle, children: "chat-sessions" }, // features/chat（会话嵌侧栏 + 右侧停靠栏，D-047）
+      { key: "chat", label: "AI 对话", icon: MessageCircle, children: "chat-sessions" }, // 会话导航嵌在侧栏入口下
       { key: "skills", label: "Skill", icon: Sparkles }, // features/skills（卡片库 + 抽屉 + 整页编辑，D-060）
       { key: "mcp", label: "MCP 服务器", icon: Plug, badge: "mcp-errors" }, // features/mcp（连接失败数作徽标）
     ],

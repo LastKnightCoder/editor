@@ -12,8 +12,7 @@
  * - 批注卡片须随正文滚动对齐锚点，不能进固定侧栏：解析文档含批注时自动铺在页边。
  */
 
-import { useState, useRef, useEffect, useMemo } from "react";
-import { scrollHeaderIntoView } from "@tau/editor-header";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   Loader2,
   RotateCw,
@@ -58,7 +57,12 @@ import {
 import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
 import { EditorRef } from "@tau/editor";
 import Editor from "@/components/ContentEditor";
-import EditorOutline from "@/components/EditorOutline";
+import {
+  ContentOutline,
+  extractContentHeaders,
+  resolveEditorHeaderAnchor,
+  type OutlineHeader,
+} from "@/components/ContentOutline";
 import EditorComment from "@/components/EditorComment";
 import EditTitleModal from "@/components/EditTitleModal";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
@@ -130,6 +134,16 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const noteEditorRef = useRef<EditorRef>(null);
   const slateEditorRef = useRef<CustomEditor | null>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
+  const [editorScrollEl, setEditorScrollEl] = useState<HTMLDivElement | null>(null);
+  const setEditorContainer = useCallback((node: HTMLDivElement | null) => {
+    editorContainerRef.current = node;
+    setEditorScrollEl(node);
+  }, []);
+  const resolveOutlineAnchor = useCallback(
+    (_header: OutlineHeader, index: number) =>
+      resolveEditorHeaderAnchor(editorRef.current?.getEditor(), index),
+    []
+  );
   const projectItemEventBus = defaultProjectItemEventBus.createEditor();
   /* 命令式 modal.confirm → 声明式：待确认动作（重新解析覆盖 ×2 / 删除笔记） */
   const [pendingConfirm, setPendingConfirm] = useState<null | {
@@ -716,11 +730,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     }));
   });
 
-  // 点击大纲标题跳转
-  const onClickHeader = useMemoizedFn((index: number) => {
-    scrollHeaderIntoView(editorRef.current?.getEditor(), index);
-  });
-
   const handleSidebarCommentClick = useMemoizedFn((_element: CommentElement, path: Path) => {
     const slateEditor = slateEditorRef.current;
     if (!slateEditor) return;
@@ -841,6 +850,10 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   });
 
   const currentParsedContent = isClipping ? clipContent : parsedContent;
+  const parsedHeaders = useMemo(
+    () => extractContentHeaders(currentParsedContent),
+    [currentParsedContent]
+  );
   const showComments = useMemo(
     () => hasClipResult && !isAnyClipping && hasCommentNode(parsedContent),
     [hasClipResult, isAnyClipping, parsedContent]
@@ -888,7 +901,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     return (
       <div className="h-full py-4">
         <FadeScroll
-          scrollRef={editorContainerRef}
+          scrollRef={setEditorContainer}
           className="@container/web-clip-editor tau-sheet-scroll h-full w-full [--edge-fade-bottom-size:24px] [--edge-fade-top-size:24px]"
         >
           <div className="mx-auto flex w-full items-start justify-center gap-6 px-5 py-5">
@@ -943,11 +956,12 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       return (
         <FadeScroll className="h-full py-3 pl-4 pr-2.5">
           {hasClipResult || isAnyClipping ? (
-            <EditorOutline
+            <ContentOutline
               className="w-full"
-              content={currentParsedContent}
-              show={true}
-              onClickHeader={onClickHeader}
+              headers={parsedHeaders}
+              scrollEl={editorScrollEl}
+              resolveAnchor={resolveOutlineAnchor}
+              showTitle={false}
             />
           ) : (
             <p className="text-ink-3 text-tau-sm pt-2">解析后显示文档目录</p>

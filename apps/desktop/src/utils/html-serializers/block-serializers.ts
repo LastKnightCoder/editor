@@ -98,7 +98,8 @@ export const blockSerializers: HtmlSerializer[] = [
     isBlock: true,
     toHtml: element => {
       const alt = element.alt || "";
-      const url = element.url || "";
+      // 裁剪过的图导出裁剪结果
+      const url = element.previewUrl || element.url || "";
       const widthAttr = element.width ? ` width="${element.width}"` : "";
       return `<figure class="image-container"><img src="${url}" alt="${alt}"${widthAttr} class="image" /></figure>`;
     },

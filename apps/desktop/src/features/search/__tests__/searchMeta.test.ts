@@ -26,9 +26,7 @@ describe("isReplayableVisit", () => {
     registerPageMeta({
       key: "test-multi-page",
       match: "multi",
-      keepAlive: "keep",
       label: "多实例测试页",
-      status: "new",
       fields: {},
     });
     expect(isReplayableVisit("test-multi-page")).toBe(false);

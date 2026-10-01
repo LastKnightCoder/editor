@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * 用量计费链路：自定义单价优先于目录价、单发图片内容组装、
  * 以及经 mock 网关的真实流式请求 → pi 按单价算出 cost。

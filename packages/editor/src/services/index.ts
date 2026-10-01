@@ -12,6 +12,7 @@ export type {
   EditorFeedback,
   EditorLoadingHandle,
   EditorConfirmOptions,
+  EditorPromptOptions,
 } from "./notifier";
 
 export { consoleErrorReporter } from "./errorReporter";

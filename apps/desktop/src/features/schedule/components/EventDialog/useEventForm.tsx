@@ -14,14 +14,18 @@ import dayjs from "dayjs";
 import type { Descendant } from "slate";
 import { Editor, type EditorRef } from "@tau/editor";
 import { AlarmClock, CalendarDays, NotebookText, Palette, Sun } from "lucide-react";
-import { DatePicker, Input, Select, Switch, cn, toast, type SelectOption } from "@tau/ui";
-import useCalendarStore from "@/stores/useCalendarStore";
+import { Button, DatePicker, Input, Select, Switch, cn, toast, type SelectOption } from "@tau/ui";
 import { PROJECT_COLORS, type ProjectColorName } from "@/constants/project-colors";
-import { createContent, getContentById, updateContent } from "@/commands/content";
 import type { CalendarEvent, CreateCalendarEvent, UpdateCalendarEvent } from "@/types";
 import { richTextPlainText } from "@/utils/richTextText";
 import { TONE, toneStyle } from "../../eventTone";
-import { useCalendarKinds } from "../../queries";
+import {
+  useCalendarCatalog,
+  useCalendarKinds,
+  useEventContent,
+  useScheduleCommands,
+  useScheduleMutations,
+} from "../../queries";
 
 const DEFAULT_CONTENT: Descendant[] = [
   {
@@ -46,8 +50,11 @@ export function useEventForm(
   onDone: () => void,
   { autoFocusTitle = false }: { autoFocusTitle?: boolean } = {}
 ) {
-  const calendars = useCalendarStore(s => s.calendars);
-  const { createEvent, updateEvent, deleteEvent } = useCalendarStore.getState();
+  const { calendars } = useCalendarCatalog();
+  const { createEvent, updateEvent, deleteEvent } = useScheduleMutations();
+  const { commands, assertCurrentDatabase } = useScheduleCommands();
+  const needsContent = !!editingEvent?.detailContentId && !editingEvent.detailContent;
+  const contentQuery = useEventContent(editingEvent?.detailContentId ?? 0, needsContent);
   const kinds = useCalendarKinds();
 
   const [title, setTitle] = useState("");
@@ -94,7 +101,6 @@ export function useEventForm(
 
   useEffect(() => {
     if (!editingEvent) return;
-    let cancelled = false;
     setBaseline(null);
     setTitle(editingEvent.title);
     setCalendarId(editingEvent.calendarId);
@@ -104,9 +110,11 @@ export function useEventForm(
     setColor(editingEvent.color);
     setStartTime(editingEvent.startTime !== null ? toHHmm(editingEvent.startTime) : "09:00");
     setEndTime(editingEvent.endTime !== null ? toHHmm(editingEvent.endTime) : "10:00");
+  }, [editingEvent, reloadToken]);
 
+  useEffect(() => {
+    if (!editingEvent) return;
     const apply = (content: Descendant[]) => {
-      if (cancelled) return;
       setDescription(content);
       setBaselineToken(t => t + 1);
       editorRef.current?.setEditorValue(content);
@@ -115,19 +123,11 @@ export function useEventForm(
     if (editingEvent.detailContent) {
       apply(editingEvent.detailContent);
     } else if (editingEvent.detailContentId) {
-      getContentById(editingEvent.detailContentId)
-        .then(content => apply(content?.content ?? DEFAULT_CONTENT))
-        .catch(error => {
-          console.error("Failed to load description:", error);
-          apply(DEFAULT_CONTENT);
-        });
+      if (contentQuery.data !== undefined) apply(contentQuery.data?.content ?? DEFAULT_CONTENT);
     } else {
       apply(DEFAULT_CONTENT);
     }
-    return () => {
-      cancelled = true;
-    };
-  }, [editingEvent, reloadToken]);
+  }, [editingEvent, reloadToken, contentQuery.data]);
 
   const calendarOptions = useMemo<SelectOption<number>[]>(
     () =>
@@ -166,14 +166,16 @@ export function useEventForm(
 
     setSaving(true);
     try {
+      assertCurrentDatabase();
       const hasContent = JSON.stringify(description) !== JSON.stringify(DEFAULT_CONTENT);
       let detailContentId = editingEvent?.detailContentId || 0;
       if (hasContent) {
         if (detailContentId) {
-          await updateContent(detailContentId, description);
+          await commands.updateContent(detailContentId, description);
         } else {
-          const contentId = await createContent(description, 0);
-          if (contentId) detailContentId = contentId;
+          const contentId = await commands.createContent(description, 0);
+          if (!contentId) throw new Error("日程备注保存失败");
+          detailContentId = contentId;
         }
       }
 
@@ -242,6 +244,14 @@ export function useEventForm(
 
   const fields = (
     <div className="flex flex-col gap-1">
+      {needsContent && contentQuery.isError && (
+        <div role="alert" className="text-danger flex items-center gap-2">
+          备注加载失败，请重试后保存。
+          <Button variant="secondary" size="sm" onClick={() => void contentQuery.refetch()}>
+            重试
+          </Button>
+        </div>
+      )}
       <div className="mb-2">
         <Input
           data-autofocus={autoFocusTitle || undefined}
@@ -369,7 +379,7 @@ export function useEventForm(
     save: handleSave,
     remove,
     saving,
-    canSave: !!title.trim() && !!calendarId,
+    canSave: !!title.trim() && !!calendarId && (!needsContent || contentQuery.isSuccess),
     /** 有未保存的修改（载入完成前恒为 false） */
     dirty,
     /** 丢弃修改，按当前日程重新载入 */

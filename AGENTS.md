@@ -249,6 +249,7 @@ pnpm add -D
 - 当修改 `packages/db-schema/schema/main*.sql` 或 `packages/db-schema/schema/main/*.sql` 中的库表、索引定义时，必须同步检查并更新 `scripts/db/check-schema-parity.mjs` 里的数量常量与相关断言。
 - 每次新增、删除、重命名数据库表或索引后，必须执行 `pnpm db:schema:build`、`pnpm db:schema:check`，必要时再执行 `pnpm db:schema:prepare`，确保 bundle 文件与校验脚本同步通过。
 - 禁止只改 schema SQL 而不更新校验脚本；如果表数量或索引数量发生变化，必须在同一提交中同时更新脚本常量。
+- 新增、删除或修改表的字段后，必须同步 `apps/desktop/src/constants/internal-skills/database-schema.md` 对应小节（表清单 + 全字段，顺序同建表语句）；`apps/desktop/src/constants/internal-skills/__tests__/database-schema.test.ts` 会对账二者，漂移即测试失败。
 
 ## 移动端浮层与返回手势规范
 
@@ -265,7 +266,12 @@ pnpm add -D
 
 ## 桌面端重构规范（Page 架构）
 
-背景：桌面端正从旧 Tab 系统（useTabStore + TabContent 33 分支）渐进迁移到 Page 协议（声明式页面 definePage + 纯函数栈机 + Activity 保活 + 自有设计系统，命名对齐移动端，见 DECISIONS.md D-002）。
+### 验证分工
+
+- Agent 不进行视觉验证、截图对照或浏览器视觉走查；视觉验收由用户后续完成。
+- 视觉问题记录到清单，后续按 bug 修复，不阻塞架构清理；仍须完成类型检查、行为测试、构建及必要的结构检查。
+
+背景：桌面端已从旧 Tab 系统迁移到 Page 协议（声明式页面 definePage + 纯函数栈机 + Activity 保活 + 自有设计系统，命名对齐移动端，见 DECISIONS.md D-002）。旧主界面、Tab 骨架、双主题源及已调查的旧业务 store 已退役；当前约束以 03 指南为准，清理执行与保留边界见 `apps/desktop/docs/redesign/05-桌面端清理调研.md`。
 
 **上手顺序（写桌面端代码前必做）**：
 
@@ -285,12 +291,12 @@ pnpm add -D
 - 导航只经 `navigator.push/replace/back/forward/popToTop`；Esc 只承担浮层退场（无浮层时无操作，「Esc=后退」已移除，见 DECISIONS.md D-003 追记）、Alt+←/→=后退/前进由 PageProvider/Titlebar 统一仲裁，业务代码禁止自行监听这些键；Alt+方向键必须让位编辑上下文（`isEditableTarget`）与输入法组合（`e.isComposing`）。
 - 全局浮层（命令面板等）按 D-003 模式承载：feature 级组件由壳层挂载（不经路由/页面栈），并经 `useOverlayDismiss` 接入 Esc 仲裁（LIFO 先关浮层、优先于编辑上下文）；浮层业务代码禁止自行监听 Esc。
 - `match: "single"/"params"` 的 page 重复 push 由栈机去重（栈顶同参 no-op、异参原位更新），不要在调用侧再做"是否已激活"判断。
-- page 的 `status` 只进不退（migrating→new）；回退必须在 `DECISIONS.md` 记录原因。
+- Page 迁移状态已退役（D-081），不得恢复 status/legacy 占位或未接线的协议字段；新增页面能力应先实现运行时与验证，再声明接口。
 
 ### UI 与主题
 
 - 样式载体 Tailwind 优先（D-001）：颜色只允许消费 `--tau-*` 变量或 Tailwind 语义类（`bg-page` / `text-ink-1` / `bg-accent-soft`…）；尺度用 tau 命名空间词（`text-tau-*` / `rounded-tau-*` / `shadow-card` / `ease-tau-out`，词表见 02 规范 §3/§4）。禁止裸色值、内联十六进制、antd token。新增 token 词汇必须先进 `packages/themes/src/tokenContract.ts`。
-- 新代码禁止新增 `antd`、`@ant-design/icons` import（ESLint 棘轮已落地：全仓禁止，存量白名单 `scripts/antd-whitelist.json` 只减不增，由 `pnpm check:antd` / pre-commit 守护，清零一处跑 `node scripts/antd-ratchet.mjs --prune` 收缩，M5 移除依赖）；禁止新增 CSS Modules / less；手写 CSS 仅限四类白名单（`app/base.css` 的 .app 作用域 reset、keyframes、主题数据块、复杂伪元素，见 03 指南 §4）。
+- 全仓禁止 `antd`、`@ant-design/*` 导入及直接依赖，无存量豁免，由 ESLint、`pnpm check:antd` 与 pre-commit 守护；禁止新增 CSS Modules/Less。手写 CSS 只保留根基础规则与 .app reset、keyframes、主题数据块、复杂伪元素/遮罩（D-087）；组件布局使用静态 Tailwind，外观仍由用户验收。
 - 跨域复用的视觉模式收口 `packages/ui/src/primitives/` 组件（Panel/IconButton…，组件内写 Tailwind），不要在多个域重复同一段类串。
 - 组件默认样式允许被调用方 `className` 覆盖时，合并必须用 `packages/ui/src/cn.ts` 的 `cn()`（D-008）——裸 clsx 的先后顺序会被 Tailwind 生成顺序吃掉，覆盖静默失效；新增尺度 token 必须同步登记进 cn 的词表（`packages/ui/src/__tests__/cn.test.ts` 守护）。
 - 新主题用 `defineTheme` 声明（tokens 全键强制），且必须同步在 `tokens.css` 补 `[data-theme="<key>"]` 数据块——`theme-parity.test.ts` 守护二者一致（含 AA 对比度断言），codegen 落地后改为生成。
@@ -306,11 +312,11 @@ pnpm add -D
 
 ### 主进程能力
 
-- 新增主进程模块一律 `layer: BACKGROUND`（`src-electron/main/module-init/module-config.ts`），随应用启动初始化，不依赖调用方；禁止新增 `ON_DEMAND` 模块——它的初始化靠「窗口类型 → 模块组」隐式拉起，入口一变就静默失效（主窗口换新壳层即导致 39 个模块 handler 未注册，见 DECISIONS.md D-014）。
-- 确需按需加载时，必须在渲染端用 `ensureModule`/`withModule`（`src/commands/module-init.ts`）兜底；`module-init/__tests__/module-layering.test.ts` 守护该约定。
+- 新增主进程模块一律 `layer: BACKGROUND`（`src-electron/main/module-init/module-config.ts`），随应用启动初始化，不依赖调用方。仅保留 IMMEDIATE/BACKGROUND 两个启动阶段，禁止恢复按窗口隐式初始化链；`module-init/__tests__/module-layering.test.ts` 守护该约定。
+- 后台模块的启动竞态与失败重试使用 `ensureModule`/`withModule`（`src/commands/module-init.ts`），不把当前就绪保障当作旧架构兼容删除。
 - 模块 `init()` 无防重入（重复注册 handler 会抛 `Attempted to register a second handler`），防重入只在 `ModuleInitManager`，故渲染端并发去重必须走 `ensureModule`，不要自行 `invoke("module-init:init-module")`。
 
 ### 迁移流程
 
-- 迁移一个 legacy 模块的标准流程见 03 指南 §6；迁移前先按 04 删除清单模板做消费者调查并追加章节，删除动作跟锚点事件走（P-<page>/G1/G2），删前 `rg` 复核消费者清零。
-- legacy 页面（`/legacy` 路由、旧 Tab 系统）允许修 bug，禁止加新功能；新功能必须走新架构。
+- 清理存量实现前按 04 模板记录消费者与保留边界，删前 `rg` 复核消费者清零；G1/G2 已完成，不再创建迁移占位或旧承载。修改数据/主题/壳层协议时同步 03。当前版本需为存量数据完成最后升级，失败不放行；全部数据与配置转换完成后的版本应拒绝旧格式并删除历史转换代码，不长期保留兼容层（D-091）。
+- 禁止恢复 `/legacy` 路由或旧 Tab 系统承载新功能；存量代码改造遵循新架构，并在消费者清零后删除旧实现。

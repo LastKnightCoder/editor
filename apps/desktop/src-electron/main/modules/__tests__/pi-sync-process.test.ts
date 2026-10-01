@@ -82,7 +82,7 @@ it("主线程阻塞超过一个心跳周期，独立线程仍续租且另一进�
     child.kill();
     rmSync(dir, { recursive: true, force: true });
   }
-});
+}, 15_000);
 
 it.each(["journal", "sessions-backup", "sessions-installed", "database-installed", "committed"])(
   "真实 SIGKILL：%s 后恢复数据库和会话一致",

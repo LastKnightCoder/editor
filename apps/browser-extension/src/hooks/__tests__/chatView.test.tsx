@@ -11,8 +11,6 @@ vi.mock("@tau/chat-ui", () => ({
     return null;
   },
 }));
-vi.mock("@tau/shared", () => ({ useChatAutoScroll: () => ({}) }));
-vi.mock("antd", () => ({ App: { useApp: () => ({ message: {}, modal: {} }) } }));
 vi.mock("../useAiChat", () => ({
   useAiChat: () => ({
     messages: data.live,

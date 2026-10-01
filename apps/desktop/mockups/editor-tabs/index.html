@@ -1,0 +1,1262 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>编辑器 · 标签页块重设计 mockup</title>
+<style>
+/* ── 主题数据块：原样取自 packages/themes/src/scale.css + tokens.css ── */
+/*
+ * 尺度层：圆角 / 动效 / 字体栈 / 字号档位，与主题正交，任何宿主都可单独引入。
+ * 自带主题体系、只桥接 --tau-* 颜色的宿主（移动端、blog、浏览器扩展）只引本文件，
+ * 不引 tokens.css 的主题数据块（避免 data-theme 同名主题互相覆盖）。
+ * 字号档位是字面值层：@theme inline 的 --text-tau-* 经 var 桥接引用此处，
+ * 用户「全局字号」设置在运行时覆盖本层。
+ */
+:root {
+  /* 圆角三档 */
+  --tau-radius-sm: 8px;
+  --tau-radius-md: 12px;
+  --tau-radius-lg: 16px;
+
+  /* 动效 */
+  --tau-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --tau-dur-fast: 160ms;
+  --tau-dur-normal: 240ms;
+
+  /* 字体栈 */
+  --tau-font:
+    -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans",
+    "Microsoft YaHei", sans-serif;
+  --tau-font-mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+
+  /* 字号档位（桌面 useSyncFont 按用户全局字号等比缩放） */
+  --tau-text-hero: 25px;
+  --tau-text-title-lg: 20px;
+  --tau-text-title: 14.5px;
+  --tau-text-body-lg: 13.5px;
+  --tau-text-body: 13px;
+  --tau-text-meta: 12.5px;
+  --tau-text-sm: 12px;
+  --tau-text-micro: 11.5px;
+  --tau-text-tiny: 11px;
+}
+
+/*
+ * 主题 CSS 变量：尺度层（scale.css）+ 各主题族 × 明暗的 --tau-* 数据块。
+ *
+ * 不依赖 Tailwind；Tailwind 语义类映射在 tailwind.css。使用 @tau/themes 主题族的宿主引本文件，
+ * 自带主题体系的宿主只引 scale.css 并自行桥接 --tau-*（见各 app 的 tau-tokens.css）。
+ */
+
+/*
+ * 主题取值块 —— 运行时切换只改 <html data-theme data-mode>，变量由这里级联（零 JS 切换）。
+ * 每个主题族 × 明暗一个数据块，取值与 themes/<key>.theme.ts 的 light/dark 一一对应；
+ * 当前手工同步，由 packages/themes/src/__tests__/theme-parity.test.ts 守护漂移，`pnpm ui:themes`
+ * codegen 落地后改为生成产物（03 指南 §9 任务 7）。新增主题必须同时补深浅两个数据块。
+ */
+/* 主题「暖纸」· 浅色（晨） */
+[data-theme="paper"][data-mode="light"] {
+  color-scheme: light;
+
+  --tau-bg-page: #f3eee2;
+  --tau-bg-surface: #fffdf9;
+  --tau-bg-surface-hover: #f6f3ef;
+  --tau-bg-sunken: #e7dbc8;
+  --tau-bg-track: #e0d6c3;
+
+  --tau-bg-hover: rgba(67, 57, 44, 0.05);
+  --tau-bg-press: rgba(67, 57, 44, 0.09);
+  --tau-bg-selected: rgba(217, 119, 87, 0.12);
+
+  --tau-ink-1: #43392c;
+  --tau-ink-2: #6a5c49;
+  --tau-ink-3: #a89a85;
+  --tau-ink-inverse: #fff8ef;
+
+  --tau-line-1: #e9e1d2;
+  --tau-line-2: rgba(233, 225, 210, 0.55);
+
+  --tau-accent: hsl(22 58% 42%);
+  --tau-accent-hover: hsl(22 58% 35%);
+  --tau-accent-soft: hsla(22, 58%, 42%, 0.12);
+  --tau-accent-text: #a05236;
+  --tau-focus-ring: 0 0 0 3px rgba(217, 119, 87, 0.28);
+
+  --tau-ok: #61795f;
+  --tau-ok-soft: #e5ede2;
+  --tau-warn: #a38c4d;
+  --tau-warn-soft: #f6efd6;
+  --tau-danger: #b0564d;
+  --tau-danger-soft: #f6e3e0;
+  --tau-info: #5c7d99;
+  --tau-info-soft: #e2ebf3;
+
+  --tau-tag-1: #61795f;
+  --tau-tag-1-soft: #e5ede2;
+  --tau-tag-2: #5c7d99;
+  --tau-tag-2-soft: #e2ebf3;
+  --tau-tag-3: #8a7aa6;
+  --tau-tag-3-soft: #ebe6f3;
+  --tau-tag-4: #a38c4d;
+  --tau-tag-4-soft: #f6efd6;
+  --tau-tag-5: #b06a5e;
+  --tau-tag-5-soft: #f6e3e0;
+
+  --tau-overlay: rgba(67, 57, 44, 0.35);
+  --tau-shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+  --tau-shadow-lift: 0 1px 2px rgba(120, 100, 70, 0.06), 0 6px 16px -10px rgba(120, 100, 70, 0.22);
+  --tau-shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+}
+
+/* 主题「暖纸」· 深色（夜）：同一张暖纸的烛光版 */
+[data-theme="paper"][data-mode="dark"] {
+  color-scheme: dark;
+
+  --tau-bg-page: #221d16;
+  --tau-bg-surface: #2e2820;
+  --tau-bg-surface-hover: #39332b;
+  --tau-bg-sunken: #100d08;
+  --tau-bg-track: #463d31;
+
+  --tau-bg-hover: rgba(236, 226, 208, 0.06);
+  --tau-bg-press: rgba(236, 226, 208, 0.11);
+  --tau-bg-selected: hsla(22, 62%, 65%, 0.2);
+
+  --tau-ink-1: #ece2d0;
+  --tau-ink-2: #a89a85;
+  --tau-ink-3: #857768;
+  --tau-ink-inverse: #241a10;
+
+  --tau-line-1: #3a3227;
+  --tau-line-2: rgba(58, 50, 39, 0.55);
+
+  --tau-accent: hsl(22 62% 65%);
+  --tau-accent-hover: hsl(22 62% 72%);
+  --tau-accent-soft: hsla(22, 62%, 65%, 0.16);
+  --tau-accent-text: hsl(22 66% 70%);
+  --tau-focus-ring: 0 0 0 3px hsla(22, 62%, 65%, 0.4);
+
+  --tau-ok: #8cab87;
+  --tau-ok-soft: #243023;
+  --tau-warn: #c4a458;
+  --tau-warn-soft: #302917;
+  --tau-danger: #d97e66;
+  --tau-danger-soft: #34201a;
+  --tau-info: #83aecf;
+  --tau-info-soft: #1e2a35;
+
+  --tau-tag-1: #8cab87;
+  --tau-tag-1-soft: #243023;
+  --tau-tag-2: #83aecf;
+  --tau-tag-2-soft: #1e2a35;
+  --tau-tag-3: #a596c8;
+  --tau-tag-3-soft: #292335;
+  --tau-tag-4: #c4a458;
+  --tau-tag-4-soft: #302917;
+  --tau-tag-5: #d0806a;
+  --tau-tag-5-soft: #30211b;
+
+  --tau-overlay: rgba(10, 8, 5, 0.55);
+  --tau-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+  --tau-shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.26), 0 6px 16px -10px rgba(0, 0, 0, 0.52);
+  --tau-shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+}
+
+/* 主题「海盐」· 浅色（晴） */
+[data-theme="ocean"][data-mode="light"] {
+  color-scheme: light;
+
+  --tau-bg-page: #edf2f8;
+  --tau-bg-surface: #fcfdff;
+  --tau-bg-surface-hover: #f2f3f6;
+  --tau-bg-sunken: #d6e0ec;
+  --tau-bg-track: #d3dce8;
+
+  --tau-bg-hover: rgba(45, 54, 68, 0.05);
+  --tau-bg-press: rgba(45, 54, 68, 0.09);
+  --tau-bg-selected: rgba(77, 127, 196, 0.12);
+
+  --tau-ink-1: #2d3644;
+  --tau-ink-2: #56637a;
+  --tau-ink-3: #a6b1c2;
+  --tau-ink-inverse: #f7faff;
+
+  --tau-line-1: #dde5ef;
+  --tau-line-2: rgba(221, 229, 239, 0.55);
+
+  --tau-accent: hsl(214 50% 44%);
+  --tau-accent-hover: hsl(214 50% 37%);
+  --tau-accent-soft: hsla(214, 50%, 44%, 0.12);
+  --tau-accent-text: #35659f;
+  --tau-focus-ring: 0 0 0 3px rgba(77, 127, 196, 0.28);
+
+  --tau-ok: #527f63;
+  --tau-ok-soft: #e2eee6;
+  --tau-warn: #97894e;
+  --tau-warn-soft: #f3eed6;
+  --tau-danger: #b4555b;
+  --tau-danger-soft: #f5e3e4;
+  --tau-info: #4d6f9e;
+  --tau-info-soft: #dfe9f5;
+
+  --tau-tag-1: #527f63;
+  --tau-tag-1-soft: #e2eee6;
+  --tau-tag-2: #4d6f9e;
+  --tau-tag-2-soft: #dfe9f5;
+  --tau-tag-3: #7f74a8;
+  --tau-tag-3-soft: #e8e5f3;
+  --tau-tag-4: #97894e;
+  --tau-tag-4-soft: #f3eed6;
+  --tau-tag-5: #a56677;
+  --tau-tag-5-soft: #f5e3e6;
+
+  --tau-overlay: rgba(45, 54, 68, 0.35);
+  --tau-shadow-card: 0 1px 2px rgba(60, 80, 120, 0.06), 0 10px 24px -14px rgba(60, 80, 120, 0.2);
+  --tau-shadow-lift: 0 1px 2px rgba(60, 80, 120, 0.07), 0 6px 16px -10px rgba(60, 80, 120, 0.24);
+  --tau-shadow-float: 0 16px 40px -12px rgba(60, 80, 120, 0.4);
+}
+
+/* 主题「海盐」· 深色（夜） */
+[data-theme="ocean"][data-mode="dark"] {
+  color-scheme: dark;
+
+  --tau-bg-page: #161c25;
+  --tau-bg-surface: #1f2733;
+  --tau-bg-surface-hover: #2b333f;
+  --tau-bg-sunken: #0b1017;
+  --tau-bg-track: #37424f;
+
+  --tau-bg-hover: rgba(227, 234, 244, 0.06);
+  --tau-bg-press: rgba(227, 234, 244, 0.11);
+  --tau-bg-selected: hsla(214, 62%, 66%, 0.2);
+
+  --tau-ink-1: #e3eaf4;
+  --tau-ink-2: #9aa7b9;
+  --tau-ink-3: #748196;
+  --tau-ink-inverse: #0f1722;
+
+  --tau-line-1: #2c3542;
+  --tau-line-2: rgba(44, 53, 66, 0.55);
+
+  --tau-accent: hsl(214 62% 66%);
+  --tau-accent-hover: hsl(214 62% 73%);
+  --tau-accent-soft: hsla(214, 62%, 66%, 0.16);
+  --tau-accent-text: hsl(214 70% 72%);
+  --tau-focus-ring: 0 0 0 3px hsla(214, 62%, 66%, 0.4);
+
+  --tau-ok: #82b394;
+  --tau-ok-soft: #1f2e26;
+  --tau-warn: #c9b36a;
+  --tau-warn-soft: #2e2a1a;
+  --tau-danger: #e0848a;
+  --tau-danger-soft: #36202a;
+  --tau-info: #86abd9;
+  --tau-info-soft: #1c2838;
+
+  --tau-tag-1: #82b394;
+  --tau-tag-1-soft: #1f2e26;
+  --tau-tag-2: #86abd9;
+  --tau-tag-2-soft: #1c2838;
+  --tau-tag-3: #a79ad6;
+  --tau-tag-3-soft: #272338;
+  --tau-tag-4: #c9b36a;
+  --tau-tag-4-soft: #2e2a1a;
+  --tau-tag-5: #d48a9b;
+  --tau-tag-5-soft: #33212a;
+
+  --tau-overlay: rgba(5, 8, 12, 0.55);
+  --tau-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+  --tau-shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.26), 0 6px 16px -10px rgba(0, 0, 0, 0.52);
+  --tau-shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+}
+
+/* 主题「薄荷」· 浅色（晴） */
+[data-theme="mint"][data-mode="light"] {
+  color-scheme: light;
+
+  --tau-bg-page: #eef4ee;
+  --tau-bg-surface: #fbfefb;
+  --tau-bg-surface-hover: #f1f4f1;
+  --tau-bg-sunken: #d9e6da;
+  --tau-bg-track: #d4dfd5;
+
+  --tau-bg-hover: rgba(46, 61, 49, 0.05);
+  --tau-bg-press: rgba(46, 61, 49, 0.09);
+  --tau-bg-selected: rgba(74, 157, 120, 0.12);
+
+  --tau-ink-1: #2e3d31;
+  --tau-ink-2: #526350;
+  --tau-ink-3: #a5b3a3;
+  --tau-ink-inverse: #f6fbf7;
+
+  --tau-line-1: #dfe9df;
+  --tau-line-2: rgba(223, 233, 223, 0.55);
+
+  --tau-accent: hsl(153 40% 33%);
+  --tau-accent-hover: hsl(153 40% 26%);
+  --tau-accent-soft: hsla(153, 40%, 33%, 0.12);
+  --tau-accent-text: #2f6b50;
+  --tau-focus-ring: 0 0 0 3px rgba(74, 157, 120, 0.28);
+
+  --tau-ok: #4a8a62;
+  --tau-ok-soft: #e3efe6;
+  --tau-warn: #9c8d54;
+  --tau-warn-soft: #f4efd8;
+  --tau-danger: #b0584f;
+  --tau-danger-soft: #f5e3e0;
+  --tau-info: #567f96;
+  --tau-info-soft: #e0ebf0;
+
+  --tau-tag-1: #4a8a62;
+  --tau-tag-1-soft: #e3efe6;
+  --tau-tag-2: #567f96;
+  --tau-tag-2-soft: #e0ebf0;
+  --tau-tag-3: #8378a4;
+  --tau-tag-3-soft: #e9e6f2;
+  --tau-tag-4: #9c8d54;
+  --tau-tag-4-soft: #f4efd8;
+  --tau-tag-5: #a86e64;
+  --tau-tag-5-soft: #f4e4e2;
+
+  --tau-overlay: rgba(46, 61, 49, 0.35);
+  --tau-shadow-card: 0 1px 2px rgba(60, 90, 70, 0.06), 0 10px 24px -14px rgba(60, 90, 70, 0.2);
+  --tau-shadow-lift: 0 1px 2px rgba(60, 90, 70, 0.07), 0 6px 16px -10px rgba(60, 90, 70, 0.24);
+  --tau-shadow-float: 0 16px 40px -12px rgba(60, 90, 70, 0.4);
+}
+
+/* 主题「薄荷」· 深色（夜林） */
+[data-theme="mint"][data-mode="dark"] {
+  color-scheme: dark;
+
+  --tau-bg-page: #151b18;
+  --tau-bg-surface: #1e2521;
+  --tau-bg-surface-hover: #2a312d;
+  --tau-bg-sunken: #0a0f0c;
+  --tau-bg-track: #34403a;
+
+  --tau-bg-hover: rgba(224, 234, 227, 0.06);
+  --tau-bg-press: rgba(224, 234, 227, 0.11);
+  --tau-bg-selected: hsla(155, 36%, 58%, 0.2);
+
+  --tau-ink-1: #e0eae3;
+  --tau-ink-2: #98a69c;
+  --tau-ink-3: #728078;
+  --tau-ink-inverse: #0f1612;
+
+  --tau-line-1: #29322d;
+  --tau-line-2: rgba(41, 50, 45, 0.55);
+
+  --tau-accent: hsl(155 36% 58%);
+  --tau-accent-hover: hsl(155 36% 65%);
+  --tau-accent-soft: hsla(155, 36%, 58%, 0.16);
+  --tau-accent-text: hsl(155 42% 64%);
+  --tau-focus-ring: 0 0 0 3px hsla(155, 36%, 58%, 0.4);
+
+  --tau-ok: #84b294;
+  --tau-ok-soft: #1d2b23;
+  --tau-warn: #c8b56e;
+  --tau-warn-soft: #2d2a1a;
+  --tau-danger: #df8a80;
+  --tau-danger-soft: #35211e;
+  --tau-info: #87b3c9;
+  --tau-info-soft: #1b2a31;
+
+  --tau-tag-1: #84b294;
+  --tau-tag-1-soft: #1d2b23;
+  --tau-tag-2: #87b3c9;
+  --tau-tag-2-soft: #1b2a31;
+  --tau-tag-3: #a99fd0;
+  --tau-tag-3-soft: #262336;
+  --tau-tag-4: #c8b56e;
+  --tau-tag-4-soft: #2d2a1a;
+  --tau-tag-5: #d49488;
+  --tau-tag-5-soft: #33221f;
+
+  --tau-overlay: rgba(4, 7, 5, 0.55);
+  --tau-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+  --tau-shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.26), 0 6px 16px -10px rgba(0, 0, 0, 0.52);
+  --tau-shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+}
+
+/* 主题「紫藤」· 浅色（晴） */
+[data-theme="wisteria"][data-mode="light"] {
+  color-scheme: light;
+
+  --tau-bg-page: #f1eff6;
+  --tau-bg-surface: #fdfcff;
+  --tau-bg-surface-hover: #f3f2f6;
+  --tau-bg-sunken: #dfdbea;
+  --tau-bg-track: #dad5e6;
+
+  --tau-bg-hover: rgba(52, 45, 70, 0.05);
+  --tau-bg-press: rgba(52, 45, 70, 0.09);
+  --tau-bg-selected: rgba(114, 82, 181, 0.12);
+
+  --tau-ink-1: #342d46;
+  --tau-ink-2: #5f5775;
+  --tau-ink-3: #aba4bd;
+  --tau-ink-inverse: #fbf9ff;
+
+  --tau-line-1: #e5e1ee;
+  --tau-line-2: rgba(229, 225, 238, 0.55);
+
+  --tau-accent: hsl(262 42% 50%);
+  --tau-accent-hover: hsl(262 42% 43%);
+  --tau-accent-soft: hsla(262, 42%, 50%, 0.12);
+  --tau-accent-text: #62449f;
+  --tau-focus-ring: 0 0 0 3px rgba(114, 82, 181, 0.28);
+
+  --tau-ok: #5a7f66;
+  --tau-ok-soft: #e3eee6;
+  --tau-warn: #9a8651;
+  --tau-warn-soft: #f4eed8;
+  --tau-danger: #b0566a;
+  --tau-danger-soft: #f6e2e7;
+  --tau-info: #5a74a0;
+  --tau-info-soft: #e1e8f4;
+
+  --tau-tag-1: #5a7f66;
+  --tau-tag-1-soft: #e3eee6;
+  --tau-tag-2: #5a74a0;
+  --tau-tag-2-soft: #e1e8f4;
+  --tau-tag-3: #8a6fb0;
+  --tau-tag-3-soft: #ece5f5;
+  --tau-tag-4: #9a8651;
+  --tau-tag-4-soft: #f4eed8;
+  --tau-tag-5: #b0667c;
+  --tau-tag-5-soft: #f5e3e9;
+
+  --tau-overlay: rgba(52, 45, 70, 0.35);
+  --tau-shadow-card: 0 1px 2px rgba(80, 64, 120, 0.06), 0 10px 24px -14px rgba(80, 64, 120, 0.2);
+  --tau-shadow-lift: 0 1px 2px rgba(80, 64, 120, 0.07), 0 6px 16px -10px rgba(80, 64, 120, 0.24);
+  --tau-shadow-float: 0 16px 40px -12px rgba(80, 64, 120, 0.4);
+}
+
+/* 主题「紫藤」· 深色（夜紫） */
+[data-theme="wisteria"][data-mode="dark"] {
+  color-scheme: dark;
+
+  --tau-bg-page: #1a1724;
+  --tau-bg-surface: #242031;
+  --tau-bg-surface-hover: #302c3d;
+  --tau-bg-sunken: #0e0c15;
+  --tau-bg-track: #3d374d;
+
+  --tau-bg-hover: rgba(232, 227, 242, 0.06);
+  --tau-bg-press: rgba(232, 227, 242, 0.11);
+  --tau-bg-selected: hsla(262, 60%, 72%, 0.2);
+
+  --tau-ink-1: #e8e3f2;
+  --tau-ink-2: #a59fb8;
+  --tau-ink-3: #7f7893;
+  --tau-ink-inverse: #16121f;
+
+  --tau-line-1: #302b3d;
+  --tau-line-2: rgba(48, 43, 61, 0.55);
+
+  --tau-accent: hsl(262 60% 72%);
+  --tau-accent-hover: hsl(262 60% 79%);
+  --tau-accent-soft: hsla(262, 60%, 72%, 0.16);
+  --tau-accent-text: hsl(262 66% 78%);
+  --tau-focus-ring: 0 0 0 3px hsla(262, 60%, 72%, 0.4);
+
+  --tau-ok: #86b596;
+  --tau-ok-soft: #1f2d25;
+  --tau-warn: #cbb46f;
+  --tau-warn-soft: #2e2a1b;
+  --tau-danger: #e48ca0;
+  --tau-danger-soft: #37202a;
+  --tau-info: #8fa9dc;
+  --tau-info-soft: #1e2638;
+
+  --tau-tag-1: #86b596;
+  --tau-tag-1-soft: #1f2d25;
+  --tau-tag-2: #8fa9dc;
+  --tau-tag-2-soft: #1e2638;
+  --tau-tag-3: #b39be0;
+  --tau-tag-3-soft: #2a2340;
+  --tau-tag-4: #cbb46f;
+  --tau-tag-4-soft: #2e2a1b;
+  --tau-tag-5: #d98fa6;
+  --tau-tag-5-soft: #35212b;
+
+  --tau-overlay: rgba(6, 5, 10, 0.55);
+  --tau-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+  --tau-shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.26), 0 6px 16px -10px rgba(0, 0, 0, 0.52);
+  --tau-shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+}
+
+/* 主题「樱花」· 浅色（晴） */
+[data-theme="sakura"][data-mode="light"] {
+  color-scheme: light;
+
+  --tau-bg-page: #f9eef1;
+  --tau-bg-surface: #fffafb;
+  --tau-bg-surface-hover: #f6f0f1;
+  --tau-bg-sunken: #eddde2;
+  --tau-bg-track: #e8d6dc;
+
+  --tau-bg-hover: rgba(66, 45, 53, 0.05);
+  --tau-bg-press: rgba(66, 45, 53, 0.09);
+  --tau-bg-selected: rgba(194, 46, 95, 0.14);
+
+  --tau-ink-1: #422d35;
+  --tau-ink-2: #6d5560;
+  --tau-ink-3: #b3a2a8;
+  --tau-ink-inverse: #fffafb;
+
+  --tau-line-1: #f0e2e6;
+  --tau-line-2: rgba(240, 226, 230, 0.55);
+
+  --tau-accent: hsl(340 62% 47%);
+  --tau-accent-hover: hsl(340 62% 40%);
+  --tau-accent-soft: hsla(340, 62%, 47%, 0.14);
+  --tau-accent-text: #a8295a;
+  --tau-focus-ring: 0 0 0 3px rgba(194, 46, 95, 0.28);
+
+  --tau-ok: #5f7d67;
+  --tau-ok-soft: #e3ede5;
+  --tau-warn: #9f8850;
+  --tau-warn-soft: #f5eed9;
+  --tau-danger: #b3483f;
+  --tau-danger-soft: #f7e2de;
+  --tau-info: #58739a;
+  --tau-info-soft: #e2e8f2;
+
+  --tau-tag-1: #5f7d67;
+  --tau-tag-1-soft: #e3ede5;
+  --tau-tag-2: #58739a;
+  --tau-tag-2-soft: #e2e8f2;
+  --tau-tag-3: #8873a6;
+  --tau-tag-3-soft: #ebe5f3;
+  --tau-tag-4: #9f8850;
+  --tau-tag-4-soft: #f5eed9;
+  --tau-tag-5: #b0606e;
+  --tau-tag-5-soft: #f6e3e7;
+
+  --tau-overlay: rgba(66, 45, 53, 0.35);
+  --tau-shadow-card: 0 1px 2px rgba(110, 70, 85, 0.06), 0 10px 24px -14px rgba(110, 70, 85, 0.2);
+  --tau-shadow-lift: 0 1px 2px rgba(110, 70, 85, 0.07), 0 6px 16px -10px rgba(110, 70, 85, 0.24);
+  --tau-shadow-float: 0 16px 40px -12px rgba(110, 70, 85, 0.4);
+}
+
+/* 主题「樱花」· 深色（夜樱） */
+[data-theme="sakura"][data-mode="dark"] {
+  color-scheme: dark;
+
+  --tau-bg-page: #1c1719;
+  --tau-bg-surface: #271f23;
+  --tau-bg-surface-hover: #332b2f;
+  --tau-bg-sunken: #100b0d;
+  --tau-bg-track: #42363b;
+
+  --tau-bg-hover: rgba(240, 226, 232, 0.06);
+  --tau-bg-press: rgba(240, 226, 232, 0.11);
+  --tau-bg-selected: hsla(340, 62%, 72%, 0.22);
+
+  --tau-ink-1: #f0e2e8;
+  --tau-ink-2: #ae9ea6;
+  --tau-ink-3: #85767d;
+  --tau-ink-inverse: #1a1216;
+
+  --tau-line-1: #34292e;
+  --tau-line-2: rgba(52, 41, 46, 0.55);
+
+  --tau-accent: hsl(340 62% 72%);
+  --tau-accent-hover: hsl(340 62% 79%);
+  --tau-accent-soft: hsla(340, 62%, 72%, 0.18);
+  --tau-accent-text: hsl(340 68% 78%);
+  --tau-focus-ring: 0 0 0 3px hsla(340, 62%, 72%, 0.4);
+
+  --tau-ok: #8cb094;
+  --tau-ok-soft: #1f2a22;
+  --tau-warn: #cbb26f;
+  --tau-warn-soft: #2e2a1b;
+  --tau-danger: #e3897c;
+  --tau-danger-soft: #36211d;
+  --tau-info: #8fa9d4;
+  --tau-info-soft: #1e2533;
+
+  --tau-tag-1: #8cb094;
+  --tau-tag-1-soft: #1f2a22;
+  --tau-tag-2: #8fa9d4;
+  --tau-tag-2-soft: #1e2533;
+  --tau-tag-3: #b39fd6;
+  --tau-tag-3-soft: #29233a;
+  --tau-tag-4: #cbb26f;
+  --tau-tag-4-soft: #2e2a1b;
+  --tau-tag-5: #d992a0;
+  --tau-tag-5-soft: #352127;
+
+  --tau-overlay: rgba(6, 4, 5, 0.55);
+  --tau-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+  --tau-shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.26), 0 6px 16px -10px rgba(0, 0, 0, 0.52);
+  --tau-shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+}
+
+/* 主题「水墨」· 浅色（宣纸） */
+[data-theme="ink"][data-mode="light"] {
+  color-scheme: light;
+
+  --tau-bg-page: #f5f4f0;
+  --tau-bg-surface: #fcfbf8;
+  --tau-bg-surface-hover: #f1f0ed;
+  --tau-bg-sunken: #e2e0da;
+  --tau-bg-track: #dcdad3;
+
+  --tau-bg-hover: rgba(31, 31, 29, 0.05);
+  --tau-bg-press: rgba(31, 31, 29, 0.09);
+  --tau-bg-selected: rgba(67, 84, 96, 0.1);
+
+  --tau-ink-1: #1f1f1d;
+  --tau-ink-2: #55544f;
+  --tau-ink-3: #a3a19a;
+  --tau-ink-inverse: #fbfaf7;
+
+  --tau-line-1: #e6e4de;
+  --tau-line-2: rgba(230, 228, 222, 0.55);
+
+  --tau-accent: hsl(205 18% 32%);
+  --tau-accent-hover: hsl(205 18% 25%);
+  --tau-accent-soft: hsla(205, 18%, 32%, 0.12);
+  --tau-accent-text: #3f4f5c;
+  --tau-focus-ring: 0 0 0 3px rgba(67, 84, 96, 0.25);
+
+  --tau-ok: #5d7a68;
+  --tau-ok-soft: #e4ebe6;
+  --tau-warn: #98814f;
+  --tau-warn-soft: #f1ecdd;
+  --tau-danger: #a8554a;
+  --tau-danger-soft: #f4e3df;
+  --tau-info: #4f6a80;
+  --tau-info-soft: #e1e8ee;
+
+  --tau-tag-1: #5d7a68;
+  --tau-tag-1-soft: #e4ebe6;
+  --tau-tag-2: #4f6a80;
+  --tau-tag-2-soft: #e1e8ee;
+  --tau-tag-3: #7a7090;
+  --tau-tag-3-soft: #e9e6ee;
+  --tau-tag-4: #98814f;
+  --tau-tag-4-soft: #f1ecdd;
+  --tau-tag-5: #9c6b55;
+  --tau-tag-5-soft: #f2e6df;
+
+  --tau-overlay: rgba(31, 31, 29, 0.35);
+  --tau-shadow-card: 0 1px 2px rgba(40, 38, 30, 0.04), 0 10px 24px -14px rgba(40, 38, 30, 0.14);
+  --tau-shadow-lift: 0 1px 2px rgba(40, 38, 30, 0.05), 0 6px 16px -10px rgba(40, 38, 30, 0.18);
+  --tau-shadow-float: 0 16px 40px -12px rgba(40, 38, 30, 0.3);
+}
+
+/* 主题「水墨」· 深色（松烟） */
+[data-theme="ink"][data-mode="dark"] {
+  color-scheme: dark;
+
+  --tau-bg-page: #1a1a19;
+  --tau-bg-surface: #232321;
+  --tau-bg-surface-hover: #2f2f2c;
+  --tau-bg-sunken: #0d0d0c;
+  --tau-bg-track: #393936;
+
+  --tau-bg-hover: rgba(230, 228, 223, 0.06);
+  --tau-bg-press: rgba(230, 228, 223, 0.11);
+  --tau-bg-selected: hsla(205, 22%, 68%, 0.2);
+
+  --tau-ink-1: #e6e4df;
+  --tau-ink-2: #a09e97;
+  --tau-ink-3: #78766f;
+  --tau-ink-inverse: #161615;
+
+  --tau-line-1: #2e2e2b;
+  --tau-line-2: rgba(46, 46, 43, 0.55);
+
+  --tau-accent: hsl(205 22% 68%);
+  --tau-accent-hover: hsl(205 22% 75%);
+  --tau-accent-soft: hsla(205, 22%, 68%, 0.16);
+  --tau-accent-text: hsl(205 28% 74%);
+  --tau-focus-ring: 0 0 0 3px hsla(205, 22%, 68%, 0.4);
+
+  --tau-ok: #8fae99;
+  --tau-ok-soft: #1f2a23;
+  --tau-warn: #c4ad78;
+  --tau-warn-soft: #2c281c;
+  --tau-danger: #d68c80;
+  --tau-danger-soft: #33221f;
+  --tau-info: #8faac0;
+  --tau-info-soft: #1d252c;
+
+  --tau-tag-1: #8fae99;
+  --tau-tag-1-soft: #1f2a23;
+  --tau-tag-2: #8faac0;
+  --tau-tag-2-soft: #1d252c;
+  --tau-tag-3: #a79fbd;
+  --tau-tag-3-soft: #26232f;
+  --tau-tag-4: #c4ad78;
+  --tau-tag-4-soft: #2c281c;
+  --tau-tag-5: #c99a84;
+  --tau-tag-5-soft: #30251f;
+
+  --tau-overlay: rgba(0, 0, 0, 0.6);
+  --tau-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+  --tau-shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.26), 0 6px 16px -10px rgba(0, 0, 0, 0.52);
+  --tau-shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+}
+
+
+* { box-sizing:border-box; margin:0; padding:0; }
+html { background:var(--tau-bg-page); color:var(--tau-ink-1); }
+body { font:14px/1.7 var(--tau-font); -webkit-font-smoothing:antialiased; padding:36px 5vw 160px; transition:background .2s; }
+button { font:inherit; color:inherit; background:none; border:0; cursor:pointer; }
+svg { display:block; flex:none; }
+.mono { font-family:var(--tau-font-mono); }
+
+/* ── 页面框架 ── */
+.top { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+.top h1 { font-size:21px; font-weight:600; }
+.top p { color:var(--tau-ink-2); font-size:13.5px; margin-top:4px; max-width:92ch; }
+.switches { display:flex; gap:10px; flex-wrap:wrap; }
+.switch { display:flex; gap:4px; padding:3px; border-radius:10px; border:1px solid var(--tau-line-1); background:var(--tau-bg-surface); }
+.switch button { padding:3px 12px; border-radius:7px; font-size:12.5px; color:var(--tau-ink-2); }
+.switch button.on { background:var(--tau-accent-soft); color:var(--tau-accent-text); font-weight:500; }
+
+.part { margin-top:84px; }
+.ptitle { font-size:19px; font-weight:600; display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+.ptitle .no { font:600 13px var(--tau-font-mono); color:var(--tau-accent-text); }
+.ptitle .badge { font-size:11.5px; font-weight:500; padding:1px 8px; border-radius:99px; background:var(--tau-ok-soft); color:var(--tau-ok); }
+.pdesc { color:var(--tau-ink-2); font-size:13.5px; margin-top:6px; max-width:96ch; }
+.pdesc b { color:var(--tau-ink-1); font-weight:600; }
+.h3 { font-size:13px; font-weight:600; color:var(--tau-ink-2); margin:30px 0 12px; letter-spacing:.02em; }
+
+/* 模拟编辑器文档面：编辑器正文坐在 surface 上，代码块取 page 底 */
+.doc { background:var(--tau-bg-surface); border-radius:var(--tau-radius-lg); box-shadow:var(--tau-shadow-card); padding:30px 40px 34px; max-width:780px; font-size:15px; line-height:1.75; margin-top:22px; }
+.doc > p { color:var(--tau-ink-1); }
+.doc > p + .tb-host, .doc > .tb-host + p { margin-top:14px; }
+.doc h4 { font-size:17px; font-weight:600; margin-bottom:8px; }
+.code { font:13px/1.65 var(--tau-font-mono); background:var(--tau-bg-page); box-shadow:inset 0 0 0 1px var(--tau-line-1); border-radius:8px; padding:10px 14px; margin-top:8px; color:var(--tau-ink-1); white-space:pre; overflow:auto; }
+.code .c { color:var(--tau-ink-3); }
+.pane p + p, .pane p + ul, .pane ul + p { margin-top:6px; }
+.pane ul { padding-left:1.3em; }
+.pane kbd { font:12px var(--tau-font-mono); padding:0 5px; border-radius:4px; background:var(--tau-bg-page); box-shadow:inset 0 0 0 1px var(--tau-line-1); }
+
+.states { display:grid; grid-template-columns:repeat(auto-fill,minmax(360px,1fr)); gap:18px; }
+.state { background:var(--tau-bg-surface); border-radius:var(--tau-radius-md); box-shadow:var(--tau-shadow-card); padding:14px 16px 18px; font-size:14.5px; line-height:1.7; }
+.state > .cap { font-size:12px; color:var(--tau-ink-3); margin-bottom:10px; display:flex; justify-content:space-between; gap:8px; }
+.state > .cap b { color:var(--tau-ink-2); font-weight:500; }
+.state.narrow { max-width:375px; }
+
+.spec { margin-top:22px; display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:4px 28px; font-size:12.5px; color:var(--tau-ink-2); max-width:1100px; }
+.spec div { display:flex; gap:10px; padding:5px 0; border-bottom:1px dashed var(--tau-line-1); }
+.spec div > span:first-child { color:var(--tau-ink-3); min-width:84px; }
+.spec code { font:12px var(--tau-font-mono); color:var(--tau-accent-text); }
+
+.probs { margin-top:16px; display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:10px 22px; max-width:1100px; }
+.probs div { font-size:13px; color:var(--tau-ink-2); padding-left:14px; position:relative; }
+.probs div::before { content:""; position:absolute; left:0; top:.62em; width:5px; height:5px; border-radius:50%; background:var(--tau-danger); }
+.probs b { color:var(--tau-ink-1); font-weight:600; }
+
+table.cmp { margin-top:20px; border-collapse:collapse; font-size:13px; background:var(--tau-bg-surface); border-radius:var(--tau-radius-md); overflow:hidden; box-shadow:var(--tau-shadow-card); max-width:1100px; width:100%; }
+table.cmp th, table.cmp td { text-align:left; padding:10px 14px; border-bottom:1px solid var(--tau-line-1); vertical-align:top; }
+table.cmp th { font-weight:600; color:var(--tau-ink-2); font-size:12.5px; background:var(--tau-bg-surface-hover); }
+table.cmp tr:last-child td { border-bottom:0; }
+table.cmp td:first-child { font-weight:600; white-space:nowrap; }
+table.cmp tr.rec td { background:var(--tau-accent-soft); }
+.g { color:var(--tau-ok); } .w { color:var(--tau-warn); } .r { color:var(--tau-danger); }
+
+/* ════════════ 共用：标签页块骨架 ════════════ */
+.tb { position:relative; font-size:14px; line-height:1.7; }
+.tb-head { display:flex; align-items:center; min-width:0; }
+.tb-scroll { display:flex; align-items:center; min-width:0; flex:1 1 auto; overflow-x:auto; scrollbar-width:none; }
+.tb-scroll::-webkit-scrollbar { display:none; }
+/* 溢出时边缘渐隐：只在有被裁内容的一侧 */
+.tb-scroll.fade-r { -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 36px),transparent); mask-image:linear-gradient(to right,#000 calc(100% - 36px),transparent); }
+.tb-scroll.fade-l { -webkit-mask-image:linear-gradient(to right,transparent,#000 36px); mask-image:linear-gradient(to right,transparent,#000 36px); }
+.tb-scroll.fade-l.fade-r { -webkit-mask-image:linear-gradient(to right,transparent,#000 36px,#000 calc(100% - 36px),transparent); mask-image:linear-gradient(to right,transparent,#000 36px,#000 calc(100% - 36px),transparent); }
+
+.tb-tab { position:relative; display:flex; align-items:center; gap:2px; flex:none; white-space:nowrap; cursor:pointer; user-select:none; color:var(--tau-ink-2); outline:none;
+  transition:color var(--tau-dur-fast) var(--tau-ease-out), background-color var(--tau-dur-fast) var(--tau-ease-out), opacity var(--tau-dur-fast); }
+.tb-tab:focus-visible { box-shadow:var(--tau-focus-ring); border-radius:6px; }
+.tb-t { max-width:12em; overflow:hidden; text-overflow:ellipsis; }
+.tb-tab.dragging { opacity:.35; }
+
+/* 删除钮：占位固定（无布局跳变），仅悬停/激活时显形；只读直接不渲染 */
+.tb-x { width:18px; height:18px; margin-right:-4px; border-radius:5px; display:grid; place-items:center; color:var(--tau-ink-3); opacity:0;
+  transition:opacity var(--tau-dur-fast), color var(--tau-dur-fast), background-color var(--tau-dur-fast); }
+.tb-tab:hover .tb-x, .tb-tab.is-hover .tb-x, .tb-tab.on .tb-x { opacity:1; }
+.tb-x:hover { color:var(--tau-danger); background:var(--tau-danger-soft); }
+@media (hover:none) { .tb-tab:not(.on) .tb-x { opacity:0; pointer-events:none; } }
+.touch .tb-tab:not(.on) .tb-x { opacity:0; pointer-events:none; }
+.touch .tb-tab.is-hover .tb-x { opacity:0; }
+
+.tb-add { flex:none; display:grid; place-items:center; width:28px; height:28px; border-radius:7px; color:var(--tau-ink-3); transition:color var(--tau-dur-fast), background-color var(--tau-dur-fast); }
+.tb-add:hover { color:var(--tau-ink-1); background:var(--tau-bg-hover); }
+
+/* 原地重命名：镜像文本撑宽 + input 铺满，外加 focus ring */
+.tb-edit { position:relative; display:inline-flex; min-width:1.5ch; border-radius:4px; box-shadow:var(--tau-focus-ring); background:var(--tau-bg-surface); padding:0 3px; margin:0 -3px; }
+.tb-edit .mirror { visibility:hidden; white-space:pre; }
+.tb-edit input { position:absolute; inset:0 3px; width:calc(100% - 6px); border:0; background:transparent; font:inherit; color:inherit; outline:none; padding:0; caret-color:var(--tau-accent); }
+.tb-tab.editing { cursor:text; }
+
+/* 拖拽插入线 */
+.tb-drop { position:absolute; top:50%; width:2px; height:16px; margin-top:-8px; border-radius:2px; background:var(--tau-accent); pointer-events:none; z-index:3; }
+.tb-body { position:relative; }
+.pane { animation:paneIn var(--tau-dur-normal) var(--tau-ease-out); }
+@keyframes paneIn { from { opacity:0; transform:translateY(3px); } to { opacity:1; transform:none; } }
+.tb-empty { color:var(--tau-ink-3); }
+
+/* ════════════ 00 · 现状复刻（裸 zinc 色，不随主题） ════════════ */
+.tb-legacy { border-radius:12px; border:1px solid rgba(228,228,231,.8); background:#fff; box-shadow:0 1px 2px rgba(15,23,42,.04),0 3px 10px rgba(15,23,42,.03); overflow:hidden; }
+.tb-legacy .tb-head { background:rgba(9,9,11,.04); padding:6px; gap:4px; }
+.tb-legacy .tb-scroll { gap:4px; }
+.tb-legacy .tb-tab { height:28px; padding:0 12px; border-radius:6px; font-size:13px; color:#71717a; gap:4px; }
+.tb-legacy .tb-tab:hover { color:#18181b; }
+.tb-legacy .tb-tab.on { background:#fff; color:#18181b; font-weight:500; box-shadow:0 1px 2px rgba(0,0,0,.05); }
+.tb-legacy .tb-x { opacity:1; width:15px; height:15px; border-radius:50%; color:rgba(161,161,170,.7); margin:0; }
+.tb-legacy .tb-x:hover { color:#ef4444; background:rgba(239,68,68,.1); }
+.tb-legacy .tb-add { color:#a1a1aa; }
+.tb-legacy .tb-body { border-top:1px solid rgba(9,9,11,.055); padding:16px 20px; color:#18181b; }
+[data-mode="dark"] .tb-legacy { border-color:rgba(63,63,70,.5); background:rgba(24,24,27,.4); box-shadow:none; }
+[data-mode="dark"] .tb-legacy .tb-head { background:rgba(255,255,255,.05); }
+[data-mode="dark"] .tb-legacy .tb-tab.on { background:#3f3f46; color:#fafafa; }
+[data-mode="dark"] .tb-legacy .tb-body { border-color:rgba(255,255,255,.07); color:#fafafa; }
+
+/* ════════════ A · 书签下划线 ════════════ */
+.tb-A { border:1px solid var(--tau-line-1); border-radius:10px; background:var(--tau-bg-surface); --gap:22px; }
+.tb-A .tb-head { height:42px; padding:0 8px 0 16px; box-shadow:inset 0 -1px 0 var(--tau-line-1); gap:10px; }
+.tb-A .tb-scroll { gap:var(--gap); height:100%; align-items:stretch; }
+.tb-A .tb-tab { font-size:13.5px; padding:0 1px; }
+.tb-A .tb-tab::after { content:""; position:absolute; left:0; right:0; bottom:0; height:2px; border-radius:2px 2px 0 0; background:transparent; transition:background-color var(--tau-dur-fast) var(--tau-ease-out); }
+.tb-A .tb-tab:hover, .tb-A .tb-tab.is-hover { color:var(--tau-ink-1); }
+.tb-A .tb-tab:hover:not(.on)::after, .tb-A .tb-tab.is-hover:not(.on)::after { background:var(--tau-line-1); }
+.tb-A .tb-tab.on, .tb-A .tb-tab.editing { color:var(--tau-ink-1); font-weight:500; }
+.tb-A .tb-tab.on::after { background:var(--tau-accent); }
+.tb-A .tb-drop { left:calc(var(--gap) / -2 - 1px); }
+.tb-A .tb-drop.after { left:auto; right:calc(var(--gap) / -2 - 1px); }
+.tb-A .tb-body { padding:14px 18px 16px; }
+.tb-A .tb-tab:focus-visible { box-shadow:none; }
+.tb-A .tb-tab:focus-visible .tb-t { box-shadow:var(--tau-focus-ring); border-radius:4px; }
+
+/* ════════════ B · 文件夹页签 ════════════ */
+.tb-B { border:1px solid var(--tau-line-1); border-radius:10px; background:var(--tau-bg-surface); overflow:hidden; --gap:2px; }
+.tb-B .tb-head { background:var(--tau-bg-page); padding:6px 6px 0; box-shadow:inset 0 -1px 0 var(--tau-line-1); align-items:flex-end; gap:4px; }
+.tb-B .tb-scroll { gap:var(--gap); align-items:flex-end; }
+.tb-B .tb-tab { height:32px; padding:0 10px 0 12px; border-radius:8px 8px 0 0; border:1px solid transparent; border-bottom:0; font-size:13px; }
+.tb-B .tb-tab:hover:not(.on), .tb-B .tb-tab.is-hover:not(.on) { color:var(--tau-ink-1); background:var(--tau-bg-hover); }
+.tb-B .tb-tab.on, .tb-B .tb-tab.editing { background:var(--tau-bg-surface); border-color:var(--tau-line-1); color:var(--tau-ink-1); font-weight:500; z-index:1; }
+.tb-B .tb-add { width:26px; height:26px; margin:0 0 3px; }
+.tb-B .tb-drop { left:-2px; }
+.tb-B .tb-drop.after { left:auto; right:-2px; }
+.tb-B .tb-body { padding:14px 18px 16px; }
+
+/* ════════════ C · 淡墨签 ════════════ */
+.tb-C { border:1px solid var(--tau-line-1); border-radius:12px; background:var(--tau-bg-surface); --gap:4px; }
+.tb-C .tb-head { padding:8px 8px 0 10px; gap:4px; }
+.tb-C .tb-scroll { gap:var(--gap); }
+.tb-C .tb-tab { height:28px; padding:0 9px 0 10px; border-radius:7px; font-size:13px; }
+.tb-C .tb-tab:hover:not(.on), .tb-C .tb-tab.is-hover:not(.on) { color:var(--tau-ink-1); background:var(--tau-bg-hover); }
+.tb-C .tb-tab.on, .tb-C .tb-tab.editing { background:var(--tau-bg-selected); color:var(--tau-accent-text); font-weight:500; }
+.tb-C .tb-tab.on .tb-x { color:var(--tau-accent-text); opacity:.6; }
+.tb-C .tb-tab.on .tb-x:hover { opacity:1; color:var(--tau-danger); }
+.tb-C .tb-drop { left:-3px; } .tb-C .tb-drop.after { left:auto; right:-3px; }
+.tb-C .tb-body { margin:8px 12px 0; border-top:1px solid var(--tau-line-1); padding:12px 6px 14px; }
+
+/* ════════════ D · 侧栏目录 ════════════ */
+.tb-D { display:grid; grid-template-columns:164px minmax(0,1fr); border:1px solid var(--tau-line-1); border-radius:10px; background:var(--tau-bg-surface); --gap:2px; }
+.tb-D .tb-head { flex-direction:column; align-items:stretch; padding:8px; box-shadow:inset -1px 0 0 var(--tau-line-1); gap:2px; }
+.tb-D .tb-scroll { flex-direction:column; align-items:stretch; gap:var(--gap); overflow:visible; }
+.tb-D .tb-tab { height:30px; padding:0 6px 0 11px; border-radius:6px; font-size:13px; }
+.tb-D .tb-t { max-width:none; flex:1; }
+.tb-D .tb-tab::before { content:""; position:absolute; left:3px; top:8px; bottom:8px; width:2px; border-radius:2px; background:transparent; }
+.tb-D .tb-tab:hover:not(.on), .tb-D .tb-tab.is-hover:not(.on) { color:var(--tau-ink-1); background:var(--tau-bg-hover); }
+.tb-D .tb-tab.on, .tb-D .tb-tab.editing { color:var(--tau-ink-1); font-weight:500; background:var(--tau-bg-hover); }
+.tb-D .tb-tab.on::before { background:var(--tau-accent); }
+.tb-D .tb-add { width:auto; height:30px; display:flex; gap:6px; align-items:center; padding:0 10px; font-size:12.5px; justify-content:flex-start; }
+.tb-D .tb-drop { top:-2px; left:8px; right:8px; width:auto; height:2px; margin:0; }
+.tb-D .tb-drop.after { top:auto; bottom:-2px; }
+.tb-D .tb-body { padding:12px 18px 14px; min-height:100%; }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div>
+    <h1>编辑器 · 标签页块重设计</h1>
+    <p>四个方向，全部只消费主题 token（实现时落到 <span class="mono">--ed-*</span>），切主题/明暗检验契合度。每个方向的主演示可交互：点击切换、双击或 Enter 重命名、拖动排序、中键关闭、× 删除、＋ 新建；标签多时可滚轮横向滚动。</p>
+  </div>
+  <div class="switches">
+    <div class="switch" id="themeSwitch">
+      <button data-v="paper" class="on">暖纸</button><button data-v="mint">薄荷</button><button data-v="ocean">海盐</button><button data-v="ink">墨</button><button data-v="sakura">樱</button>
+    </div>
+    <div class="switch" id="modeSwitch">
+      <button data-v="light" class="on">浅色</button><button data-v="dark">深色</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────── 00 现状 ─────────── -->
+<div class="part">
+  <div class="ptitle"><span class="no">00</span>现状（复刻当前实现，用作对照）</div>
+  <div class="pdesc">切到「暖纸 / 薄荷」或深色看：它不随主题变，永远是一块冷灰 + 白胶囊。</div>
+  <div class="doc">
+    <p>下面是当前 <span class="mono">extensions/tabs</span> 的渲染效果：</p>
+    <div class="tb-host" data-mount="legacy" data-set="install"></div>
+    <p>接着是正文段落。</p>
+  </div>
+  <div class="probs">
+    <div><b>颜色绕开主题</b>：<span class="mono">zinc-*</span> / <span class="mono">white</span> / 裸 rgba 阴影，暖色主题下发冷发脏；深色是 zinc-700 灰块。</div>
+    <div><b>Segmented 观感</b>：灰色轨道里浮一颗白胶囊，像设置页的分段开关，而不是文档里的内容分组。</div>
+    <div><b>× 常驻每一项</b>：三个标签三个叉，噪音比标题还多；删除这种低频危险操作不该常显。</div>
+    <div><b>视觉体系不一</b>：卡片自带投影，而代码块 / callout 都是「平面 + 1px line-1 描边」。</div>
+    <div><b>双重分隔</b>：灰底头部 + <span class="mono">border-t</span> 两层分界，头部显得厚重。</div>
+    <div><b>溢出无提示</b>：标签超宽时硬裁剪、滚动条隐藏，用户不知道后面还有标签。</div>
+  </div>
+</div>
+
+<!-- ─────────── A ─────────── -->
+<div class="part">
+  <div class="ptitle"><span class="no">A</span>书签下划线<span class="badge">推荐</span></div>
+  <div class="pdesc">最轻的一种：头部无底色，只有一条 <b>line-1 基线</b>；激活项文字转 ink-1、下方一道 <b>accent 短线</b>压在基线上。与桌面端设置页 <span class="mono">SettingsTabs</span>、代码块同属「平面描边」家族，放在文档流里不抢正文。</div>
+  <div class="doc">
+    <h4>安装 Tau CLI</h4>
+    <p>按你的系统选择安装方式：</p>
+    <div class="tb-host" data-mount="A" data-set="install"></div>
+    <p>安装完成后执行 <span class="mono">tau --version</span> 验证。</p>
+  </div>
+  <div class="h3">状态</div>
+  <div class="states">
+    <div class="state"><div class="cap"><b>悬停未激活项</b><span>文字转 ink-1 + 基线色短线预示</span></div><div data-mount="A" data-set="install" data-hover="1"></div></div>
+    <div class="state"><div class="cap"><b>重命名中</b><span>原地编辑，focus ring</span></div><div data-mount="A" data-set="install" data-editing="1"></div></div>
+    <div class="state"><div class="cap"><b>拖拽排序</b><span>accent 插入线落在间隙中点</span></div><div data-mount="A" data-set="install" data-drag="0" data-drop="2,after"></div></div>
+    <div class="state"><div class="cap"><b>标签溢出</b><span>被裁一侧渐隐，＋ 始终可见</span></div><div data-mount="A" data-set="many" data-active="2" data-scroll="60"></div></div>
+    <div class="state"><div class="cap"><b>只读</b><span>无 ×、无 ＋</span></div><div data-mount="A" data-set="install" data-readonly="1"></div></div>
+    <div class="state narrow touch"><div class="cap"><b>触屏 / 移动端</b><span>× 只跟激活项</span></div><div data-mount="A" data-set="install" data-active="1"></div></div>
+  </div>
+  <div class="spec">
+    <div><span>容器</span><span><code>--ed-bg-surface</code> + 1px <code>--ed-border</code>，圆角 10，无投影</span></div>
+    <div><span>头部</span><span>高 42，透明底，底部 inset 1px <code>--ed-border</code></span></div>
+    <div><span>标签文字</span><span>13.5px <code>--ed-text-secondary</code> → 激活 <code>--ed-text</code> 500</span></div>
+    <div><span>激活指示</span><span>2px <code>--ed-accent</code>，顶部圆角，160ms ease-tau-out</span></div>
+    <div><span>悬停</span><span>文字 <code>--ed-text</code> + 2px <code>--ed-border</code> 短线</span></div>
+    <div><span>×</span><span>占位固定、opacity 0→1；hover <code>--ed-danger</code> / <code>-soft</code></span></div>
+  </div>
+</div>
+
+<!-- ─────────── B ─────────── -->
+<div class="part">
+  <div class="ptitle"><span class="no">B</span>文件夹页签</div>
+  <div class="pdesc">经典实体隐喻：头部是 <b>page 底色</b>的凹槽（与代码块同底），激活页签是 <b>surface 色的纸片</b>，和下方内容区无缝连成一张。容器感最强，适合 Tab 里内容很长、需要明确边界的场景。</div>
+  <div class="doc">
+    <h4>安装 Tau CLI</h4>
+    <p>按你的系统选择安装方式：</p>
+    <div class="tb-host" data-mount="B" data-set="install"></div>
+    <p>安装完成后执行 <span class="mono">tau --version</span> 验证。</p>
+  </div>
+  <div class="h3">状态</div>
+  <div class="states">
+    <div class="state"><div class="cap"><b>悬停未激活项</b><span>淡墨底</span></div><div data-mount="B" data-set="install" data-hover="1"></div></div>
+    <div class="state"><div class="cap"><b>重命名中</b></div><div data-mount="B" data-set="install" data-editing="0"></div></div>
+    <div class="state"><div class="cap"><b>拖拽排序</b></div><div data-mount="B" data-set="install" data-drag="2" data-drop="0,before"></div></div>
+    <div class="state"><div class="cap"><b>标签溢出</b></div><div data-mount="B" data-set="many" data-active="3" data-scroll="80"></div></div>
+    <div class="state"><div class="cap"><b>只读</b></div><div data-mount="B" data-set="install" data-readonly="1"></div></div>
+    <div class="state narrow touch"><div class="cap"><b>触屏 / 移动端</b></div><div data-mount="B" data-set="install" data-active="1"></div></div>
+  </div>
+  <div class="spec">
+    <div><span>头部凹槽</span><span><code>--ed-bg-page</code>（= 代码块底），底部 inset <code>--ed-border</code></span></div>
+    <div><span>激活页签</span><span><code>--ed-bg-surface</code> + 三边 <code>--ed-border</code>，盖住底线与内容连通</span></div>
+    <div><span>未激活</span><span>透明，hover <code>--ed-bg-hover</code></span></div>
+    <div><span>风险</span><span>页签块内再嵌代码块时 page 底色出现两次，层级稍重</span></div>
+  </div>
+</div>
+
+<!-- ─────────── C ─────────── -->
+<div class="part">
+  <div class="ptitle"><span class="no">C</span>淡墨签</div>
+  <div class="pdesc">保留「胶囊」的亲和力但<b>去掉轨道</b>：标签直接浮在白底上，激活项是 <b>bg-selected 淡染 + accent-text</b>（与 Database 视图胶囊的激活语义一致）。比 A 更有「可点」的提示，但颜色存在感也更强。</div>
+  <div class="doc">
+    <h4>安装 Tau CLI</h4>
+    <p>按你的系统选择安装方式：</p>
+    <div class="tb-host" data-mount="C" data-set="install"></div>
+    <p>安装完成后执行 <span class="mono">tau --version</span> 验证。</p>
+  </div>
+  <div class="h3">状态</div>
+  <div class="states">
+    <div class="state"><div class="cap"><b>悬停未激活项</b></div><div data-mount="C" data-set="install" data-hover="2"></div></div>
+    <div class="state"><div class="cap"><b>重命名中</b></div><div data-mount="C" data-set="install" data-editing="0"></div></div>
+    <div class="state"><div class="cap"><b>拖拽排序</b></div><div data-mount="C" data-set="install" data-drag="0" data-drop="1,after"></div></div>
+    <div class="state"><div class="cap"><b>标签溢出</b></div><div data-mount="C" data-set="many" data-active="2" data-scroll="70"></div></div>
+    <div class="state"><div class="cap"><b>只读</b></div><div data-mount="C" data-set="install" data-readonly="1"></div></div>
+    <div class="state narrow touch"><div class="cap"><b>触屏 / 移动端</b></div><div data-mount="C" data-set="install" data-active="1"></div></div>
+  </div>
+  <div class="spec">
+    <div><span>激活</span><span><code>--ed-bg-selected</code> + <code>--ed-accent-text</code> 500</span></div>
+    <div><span>分隔</span><span>内容区上方内缩 1px <code>--ed-border</code>，不贯通到边</span></div>
+    <div><span>与 Segmented 区别</span><span>无轨道、无白色凸起胶囊、无投影</span></div>
+    <div><span>风险</span><span>文档里多个页签块时 accent 色块偏多</span></div>
+  </div>
+</div>
+
+<!-- ─────────── D ─────────── -->
+<div class="part">
+  <div class="ptitle"><span class="no">D</span>侧栏目录</div>
+  <div class="pdesc">标签竖排在左侧 164px 栏，激活项 <b>淡墨底 + 左侧 accent 竖条</b>。长标题、标签多（6+）时最从容，像一份小目录；代价是内容区变窄，窄屏需要退化成 A。可作为「布局」选项和 A 并存（块菜单里切换），而不是替代。</div>
+  <div class="doc">
+    <h4>项目文档</h4>
+    <p>各部分说明如下：</p>
+    <div class="tb-host" data-mount="D" data-set="many"></div>
+    <p>以上内容随版本更新。</p>
+  </div>
+  <div class="h3">状态</div>
+  <div class="states">
+    <div class="state"><div class="cap"><b>悬停 + 拖拽排序</b><span>插入线横向</span></div><div data-mount="D" data-set="install" data-hover="1" data-drag="2" data-drop="0,before"></div></div>
+    <div class="state"><div class="cap"><b>重命名中</b></div><div data-mount="D" data-set="install" data-editing="1"></div></div>
+    <div class="state"><div class="cap"><b>只读</b></div><div data-mount="D" data-set="install" data-readonly="1"></div></div>
+    <div class="state narrow touch"><div class="cap"><b>窄屏 / 移动端</b><span>自动退化为 A</span></div><div data-mount="A" data-set="many" data-active="0"></div></div>
+  </div>
+</div>
+
+<!-- ─────────── 对比 ─────────── -->
+<div class="part">
+  <div class="ptitle"><span class="no">∑</span>对比与建议</div>
+  <table class="cmp">
+    <tr><th>方案</th><th>气质</th><th>主题契合</th><th>标签多 / 长标题</th><th>嵌套代码块时</th><th>移动端</th><th>改动量</th></tr>
+    <tr class="rec"><td>A 书签下划线</td><td>克制、文档感，像目录标签</td><td class="g">最好：只用 line + accent</td><td class="w">横滚 + 渐隐</td><td class="g">层级清爽</td><td class="g">原样可用</td><td>小：3 个组件换类串</td></tr>
+    <tr><td>B 文件夹页签</td><td>实体、边界清晰</td><td class="g">好：page / surface 双层</td><td class="w">横滚 + 渐隐</td><td class="w">page 底色重复</td><td class="g">原样可用</td><td>小</td></tr>
+    <tr><td>C 淡墨签</td><td>亲和、可点性强</td><td class="w">中：accent 面积大</td><td class="w">横滚 + 渐隐</td><td class="g">清爽</td><td class="g">原样可用</td><td>小</td></tr>
+    <tr><td>D 侧栏目录</td><td>结构化、像小目录</td><td class="g">好</td><td class="g">最佳</td><td class="g">清爽</td><td class="r">需退化为 A</td><td>中：新增布局属性 + 竖向拖拽</td></tr>
+  </table>
+  <div class="pdesc" style="margin-top:16px">
+    <b>建议 A 作为默认</b>；如果你喜欢 D 的结构，可以做成块菜单里的「布局：顶部 / 侧栏」二选一（数据上给 <span class="mono">TabsElement</span> 加一个可选 <span class="mono">layout</span> 字段，缺省即顶部，旧文档零迁移）。
+    所有方案共用的交互细节：× 悬停/激活才显形但占位固定（不跳变）、触屏只在激活项显示；溢出一侧渐隐 + 纵向滚轮转横向 + 激活项自动滚入视野；重命名用 focus ring；插入线用 accent。
+  </div>
+</div>
+
+<script>
+const ICON_X = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+const ICON_PLUS = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
+
+const SETS = {
+  install: [
+    { title: "macOS", html: `<p>推荐用 Homebrew 安装，Apple Silicon 与 Intel 均支持：</p><div class="code">brew install tau-cli\n<span class="c"># 升级</span>\nbrew upgrade tau-cli</div>` },
+    { title: "Windows", html: `<p>使用 winget 或 Scoop：</p><div class="code">winget install Tau.CLI\n<span class="c"># 或</span>\nscoop install tau</div><p>安装后重开终端，使 PATH 生效。</p>` },
+    { title: "Linux", html: `<p>一行脚本安装到 <span class="mono">~/.local/bin</span>：</p><div class="code">curl -fsSL https://tau.dev/install.sh | sh</div>` },
+  ],
+  many: [
+    { title: "概览", html: `<p>Tau 是一款本地优先的知识管理工具，文档、白板、卡片共用一套数据层。</p>` },
+    { title: "快速开始", html: `<ul><li>新建一个知识库</li><li>按 <kbd>/</kbd> 打开块面板插入内容</li><li>用 <kbd>⌘</kbd> <kbd>K</kbd> 在全局搜索</li></ul>` },
+    { title: "配置文件说明", html: `<p>配置位于 <span class="mono">~/.tau/config.json</span>：</p><div class="code">{\n  "theme": "paper",\n  "sync": { "enabled": true }\n}</div>` },
+    { title: "命令行", html: `<p>所有命令都支持 <span class="mono">--help</span>。</p>` },
+    { title: "常见问题", html: `<p>同步冲突时会保留两份副本，可在「历史版本」里比对合并。</p>` },
+    { title: "更新日志", html: `<p>2026-09 · 标签页块重设计。</p>` },
+    { title: "贡献指南", html: `<p>欢迎提交 Issue 与 PR。</p>` },
+    { title: "许可协议", html: `<p>MIT License。</p>` },
+  ],
+};
+
+let uid = 0;
+function mount(host) {
+  const d = host.dataset;
+  const variant = d.mount;
+  const readOnly = d.readonly === "1";
+  const interactive = host.classList.contains("tb-host");
+  const state = {
+    tabs: SETS[d.set].map(t => ({ ...t, key: "k" + uid++ })),
+    active: Number(d.active || 0),
+    editing: d.editing != null ? Number(d.editing) : -1,
+    draft: "",
+  };
+  if (state.editing >= 0) state.draft = state.tabs[state.editing].title;
+  let counter = state.tabs.length;
+
+  const root = document.createElement("div");
+  root.className = "tb tb-" + variant;
+  host.appendChild(root);
+
+  function render() {
+    root.innerHTML = "";
+    const head = el("div", "tb-head");
+    head.setAttribute("role", "tablist");
+    head.contentEditable = "false";
+    const scroll = el("div", "tb-scroll");
+    head.appendChild(scroll);
+
+    state.tabs.forEach((tab, i) => {
+      const on = i === state.active;
+      const editing = i === state.editing;
+      const t = el("div", "tb-tab" + (on ? " on" : "") + (editing ? " editing" : ""));
+      t.setAttribute("role", "tab");
+      t.tabIndex = on ? 0 : -1;
+      t.dataset.i = i;
+      if (d.hover == i && !interactive) t.classList.add("is-hover");
+      if (d.drag == i && !interactive) t.classList.add("dragging");
+
+      if (editing) {
+        const wrap = el("span", "tb-edit");
+        const mirror = el("span", "mirror");
+        mirror.textContent = state.draft + " ";
+        const input = document.createElement("input");
+        input.value = state.draft;
+        input.maxLength = 100;
+        input.oninput = () => { state.draft = input.value; mirror.textContent = input.value + " "; };
+        input.onkeydown = e => {
+          e.stopPropagation();
+          if (e.key === "Enter") commit();
+          if (e.key === "Escape") { state.editing = -1; render(); }
+        };
+        input.onblur = () => interactive && commit();
+        wrap.append(mirror, input);
+        t.appendChild(wrap);
+        if (interactive) requestAnimationFrame(() => { input.focus(); input.select(); });
+      } else {
+        const label = el("span", "tb-t");
+        label.textContent = tab.title || "标签";
+        t.appendChild(label);
+      }
+      if (!readOnly && !editing) {
+        const x = el("button", "tb-x");
+        x.innerHTML = ICON_X;
+        x.title = "删除标签（可撤销）";
+        x.onclick = e => { e.stopPropagation(); remove(i); };
+        t.appendChild(x);
+      }
+      if (!interactive && d.drop) {
+        const [idx, pos] = d.drop.split(",");
+        if (Number(idx) === i) t.appendChild(el("i", "tb-drop" + (pos === "after" ? " after" : "")));
+      }
+
+      if (interactive) {
+        t.onclick = () => { if (state.editing < 0) activate(i); };
+        t.ondblclick = () => beginRename(i);
+        t.onauxclick = e => { if (e.button === 1 && !readOnly) { e.preventDefault(); remove(i); } };
+        t.onkeydown = e => {
+          if (state.editing >= 0) return;
+          if (e.key === "Enter") { e.preventDefault(); beginRename(i); }
+          const next = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+          if (next) { e.preventDefault(); activate((i + next + state.tabs.length) % state.tabs.length, true); }
+        };
+        if (!readOnly && !editing) wireDrag(t, i, scroll);
+      }
+      scroll.appendChild(t);
+    });
+
+    if (!readOnly) {
+      const add = el("button", "tb-add");
+      add.innerHTML = variant === "D" ? ICON_PLUS + "<span>新标签</span>" : ICON_PLUS;
+      add.title = "添加标签";
+      add.onclick = () => {
+        if (!interactive) return;
+        counter += 1;
+        state.tabs.push({ key: "k" + uid++, title: "标签 " + counter, html: `<p class="tb-empty">空标签，开始输入…</p>` });
+        state.active = state.tabs.length - 1;
+        render();
+      };
+      (variant === "D" ? scroll : head).appendChild(add);
+    }
+
+    const body = el("div", "tb-body");
+    const pane = el("div", "pane");
+    pane.innerHTML = state.tabs[state.active]?.html || "";
+    body.appendChild(pane);
+    root.append(head, body);
+
+    if (variant !== "D") {
+      const updateFade = () => {
+        const max = scroll.scrollWidth - scroll.clientWidth;
+        scroll.classList.toggle("fade-l", scroll.scrollLeft > 2);
+        scroll.classList.toggle("fade-r", scroll.scrollLeft < max - 2);
+      };
+      scroll.addEventListener("scroll", updateFade);
+      scroll.addEventListener("wheel", e => {
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && scroll.scrollWidth > scroll.clientWidth) {
+          e.preventDefault();
+          scroll.scrollLeft += e.deltaY;
+        }
+      }, { passive: false });
+      requestAnimationFrame(() => {
+        if (d.scroll && !interactive) scroll.scrollLeft = Number(d.scroll);
+        const activeEl = scroll.querySelector(".tb-tab.on");
+        if (interactive && activeEl) activeEl.scrollIntoView({ block: "nearest", inline: "nearest" });
+        updateFade();
+      });
+    }
+  }
+
+  function activate(i, focus) {
+    state.active = i;
+    render();
+    if (focus) root.querySelector(".tb-tab.on")?.focus();
+  }
+  function beginRename(i) {
+    if (readOnly) return;
+    state.editing = i;
+    state.draft = state.tabs[i].title;
+    render();
+  }
+  function commit() {
+    if (state.editing < 0) return;
+    const title = state.draft.trim().slice(0, 100);
+    if (title) state.tabs[state.editing].title = title;
+    state.editing = -1;
+    render();
+  }
+  function remove(i) {
+    if (!interactive) return;
+    state.tabs.splice(i, 1);
+    if (!state.tabs.length) { host.innerHTML = '<p class="tb-empty">（最后一个标签被删除，块退化为空段落）</p>'; return; }
+    if (state.active >= state.tabs.length) state.active = state.tabs.length - 1;
+    else if (i < state.active) state.active -= 1;
+    render();
+  }
+
+  // 拖拽期间只增删插入线，不重渲染，避免打断原生拖拽
+  let dragFrom = -1, hint = null;
+  function clearDrop() { root.querySelectorAll(".tb-drop").forEach(n => n.remove()); }
+  function wireDrag(t, i, scroll) {
+    t.draggable = true;
+    t.ondragstart = e => { dragFrom = i; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", ""); setTimeout(() => t.classList.add("dragging")); };
+    t.ondragend = () => { t.classList.remove("dragging"); clearDrop(); dragFrom = -1; };
+    t.ondragover = e => {
+      if (dragFrom < 0 || dragFrom === i) return;
+      e.preventDefault();
+      const r = t.getBoundingClientRect();
+      const before = variant === "D" ? e.clientY < r.top + r.height / 2 : e.clientX < r.left + r.width / 2;
+      if (hint && hint.i === i && hint.before === before) return;
+      hint = { i, before };
+      clearDrop();
+      t.appendChild(el("i", "tb-drop" + (before ? "" : " after")));
+    };
+    t.ondrop = e => {
+      e.preventDefault();
+      if (dragFrom < 0 || !hint) return;
+      const activeKey = state.tabs[state.active].key;
+      const [moved] = state.tabs.splice(dragFrom, 1);
+      let to = hint.before ? hint.i : hint.i + 1;
+      if (dragFrom < to) to -= 1;
+      state.tabs.splice(to, 0, moved);
+      state.active = state.tabs.findIndex(x => x.key === activeKey);
+      hint = null;
+      dragFrom = -1;
+      render();
+    };
+  }
+
+  render();
+}
+
+function el(tag, cls) { const n = document.createElement(tag); if (cls) n.className = cls; return n; }
+
+document.querySelectorAll("[data-mount]").forEach(mount);
+
+function bindSwitch(id, attr) {
+  const box = document.getElementById(id);
+  box.onclick = e => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    box.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+    document.documentElement.setAttribute(attr, b.dataset.v);
+  };
+}
+bindSwitch("themeSwitch", "data-theme");
+bindSwitch("modeSwitch", "data-mode");
+</script>
+</body>
+</html>

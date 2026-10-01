@@ -59,15 +59,16 @@ import ContentCollaborationControl, {
   type ContentCollaborationControlHandle,
 } from "@/components/ContentCollaborationControl";
 import useContentShared from "@/hooks/useContentShared";
-import DeckSelectorModal from "@/components/DeckSelectorModal";
-import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
-import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModal";
-import FlashcardEditor from "@/components/FlashcardEditor";
+import DeckSelectorModal from "@/features/flashcards/components/DeckSelectorDialog";
+import FlashcardGenerationModal from "@/features/flashcards/components/FlashcardGenerationDialog";
+import GeneratedFlashcardEditModal from "@/features/flashcards/components/GeneratedFlashcardEditDialog";
+import FlashcardEditor from "@/features/flashcards/components/CreateFlashcardDialog";
 import useEditArticle from "@/hooks/useEditArticle";
 import useEditContent from "@/hooks/useEditContent";
-import useFlashcardCreation from "@/hooks/useFlashcardCreation";
+import useFlashcardCreation from "@/features/flashcards/hooks/useFlashcardCreation";
 import useUploadResource from "@/hooks/useUploadResource";
 import useSettingStore from "@/stores/useSettingStore";
+import { useThemeStore } from "@tau/themes/react";
 import { openArticleInNewWindow, updateArticleBannerBg } from "@/commands/article";
 import { getFileBaseName, readBinaryFile, selectFile } from "@/commands";
 import {
@@ -131,7 +132,7 @@ export function ArticleDetailView() {
   const { remove } = useArticleMutations();
   const uploadResource = useUploadResource();
   const databaseName = useSettingStore(state => state.setting.database.active);
-  const darkMode = useSettingStore(state => state.setting.darkMode);
+  const darkMode = useThemeStore(state => state.mode === "dark");
 
   /* 版心滚动容器：callback ref（挂载后接线目录同步与阅读进度） */
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
@@ -547,10 +548,8 @@ export function ArticleDetailView() {
       {flashcard.flashcardEditorOpen && flashcard.selectedDeck && (
         <FlashcardEditor
           open={flashcard.flashcardEditorOpen}
-          mode="create"
           activeDeckId={flashcard.selectedDeck.id}
           onClose={flashcard.closeFlashcardEditor}
-          isDark={darkMode}
           initialReferences={[flashcard.getReference()]}
         />
       )}

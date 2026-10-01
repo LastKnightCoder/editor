@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="ocean" data-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>数据库行详情 · 三个方向</title>
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  /* ---------- tokens：取值与 packages/themes/src/tokens.css 一致（海盐 / 暖纸 × 明暗） ---------- */
+  [data-theme="ocean"][data-mode="light"] {
+    color-scheme: light;
+    --page: #edf2f8; --surface: #fcfdff; --surface-hover: #f2f3f6; --sunken: #d6e0ec;
+    --hover: rgba(45, 54, 68, 0.05); --press: rgba(45, 54, 68, 0.09); --selected: rgba(77, 127, 196, 0.12);
+    --ink-1: #2d3644; --ink-2: #56637a; --ink-3: #a6b1c2; --ink-inverse: #f7faff;
+    --line-1: #dde5ef; --line-2: rgba(221, 229, 239, 0.55);
+    --accent: hsl(214 50% 44%); --accent-soft: hsla(214, 50%, 44%, 0.12); --accent-text: #35659f;
+    --danger: #b4555b; --danger-soft: #f5e3e4;
+    --tag-1: #527f63; --tag-1-soft: #e2eee6; --tag-2: #4d6f9e; --tag-2-soft: #dfe9f5; --tag-3: #7f74a8; --tag-3-soft: #e8e5f3;
+    --tag-4: #97894e; --tag-4-soft: #f3eed6; --tag-5: #a56677; --tag-5-soft: #f5e3e6;
+    --overlay: rgba(45, 54, 68, 0.35);
+    --shadow-card: 0 1px 2px rgba(60, 80, 120, 0.06), 0 10px 24px -14px rgba(60, 80, 120, 0.2);
+    --shadow-lift: 0 1px 2px rgba(60, 80, 120, 0.07), 0 6px 16px -10px rgba(60, 80, 120, 0.24);
+    --shadow-float: 0 16px 40px -12px rgba(60, 80, 120, 0.4);
+    --star: #e2a226;
+  }
+  [data-theme="ocean"][data-mode="dark"] {
+    color-scheme: dark;
+    --page: #161c25; --surface: #1f2733; --surface-hover: #2b333f; --sunken: #0b1017;
+    --hover: rgba(227, 234, 244, 0.06); --press: rgba(227, 234, 244, 0.11); --selected: hsla(214, 62%, 66%, 0.2);
+    --ink-1: #e3eaf4; --ink-2: #9aa7b9; --ink-3: #748196; --ink-inverse: #0f1722;
+    --line-1: #2c3542; --line-2: rgba(44, 53, 66, 0.55);
+    --accent: hsl(214 62% 66%); --accent-soft: hsla(214, 62%, 66%, 0.16); --accent-text: hsl(214 70% 72%);
+    --danger: #e0848a; --danger-soft: #36202a;
+    --tag-1: #82b394; --tag-1-soft: #1f2e26; --tag-2: #86abd9; --tag-2-soft: #1c2838; --tag-3: #a79ad6; --tag-3-soft: #272338;
+    --tag-4: #c9b36a; --tag-4-soft: #2e2a1a; --tag-5: #d48a9b; --tag-5-soft: #33212a;
+    --overlay: rgba(5, 8, 12, 0.55);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+    --shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.26), 0 6px 16px -10px rgba(0, 0, 0, 0.52);
+    --shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+    --star: #e0a33a;
+  }
+  [data-theme="paper"][data-mode="light"] {
+    color-scheme: light;
+    --page: #f3eee2; --surface: #fffdf9; --surface-hover: #f6f3ef; --sunken: #e7dbc8;
+    --hover: rgba(67, 57, 44, 0.05); --press: rgba(67, 57, 44, 0.09); --selected: rgba(217, 119, 87, 0.12);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+    --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.55);
+    --accent: hsl(22 58% 42%); --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+    --danger: #b0564d; --danger-soft: #f6e3e0;
+    --tag-1: #61795f; --tag-1-soft: #e5ede2; --tag-2: #5c7d99; --tag-2-soft: #e2ebf3; --tag-3: #8a7aa6; --tag-3-soft: #ebe6f3;
+    --tag-4: #a38c4d; --tag-4-soft: #f6efd6; --tag-5: #b06a5e; --tag-5-soft: #f6e3e0;
+    --overlay: rgba(67, 57, 44, 0.35);
+    --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+    --shadow-lift: 0 1px 2px rgba(120, 100, 70, 0.06), 0 6px 16px -10px rgba(120, 100, 70, 0.22);
+    --shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+    --star: #e9a21b;
+  }
+  [data-theme="paper"][data-mode="dark"] {
+    color-scheme: dark;
+    --page: #221d16; --surface: #2e2820; --surface-hover: #39332b; --sunken: #100d08;
+    --hover: rgba(236, 226, 208, 0.06); --press: rgba(236, 226, 208, 0.11); --selected: hsla(22, 62%, 65%, 0.2);
+    --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768; --ink-inverse: #241a10;
+    --line-1: #3a3227; --line-2: rgba(58, 50, 39, 0.55);
+    --accent: hsl(22 62% 65%); --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+    --danger: #d97e66; --danger-soft: #34201a;
+    --tag-1: #8cab87; --tag-1-soft: #243023; --tag-2: #83aecf; --tag-2-soft: #1e2a35; --tag-3: #a596c8; --tag-3-soft: #292335;
+    --tag-4: #c4a458; --tag-4-soft: #302917; --tag-5: #d0806a; --tag-5-soft: #30211b;
+    --overlay: rgba(10, 8, 5, 0.55);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+    --shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.26), 0 6px 16px -10px rgba(0, 0, 0, 0.52);
+    --shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+    --star: #e0a33a;
+  }
+  :root {
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+    --serif: "Songti SC", "STSong", "Noto Serif SC", Georgia, serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--page); color: var(--ink-1); font: 13px/1.6 var(--font); -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; text-align: left; }
+  button:disabled { cursor: default; opacity: .35; }
+  svg { width: 15px; height: 15px; flex: none; stroke-width: 1.75; }
+  [contenteditable] { outline: none; }
+  [contenteditable]:empty::before { content: attr(data-ph); color: var(--ink-3); }
+
+  /* ---------- mock 自身的控制条（不属于方案） ---------- */
+  .ctrl { position: sticky; top: 0; z-index: 100; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 28px;
+    background: color-mix(in srgb, var(--page) 88%, transparent); backdrop-filter: blur(12px); }
+  .ctrl h1 { font-size: 13.5px; font-weight: 600; margin-right: 4px; }
+  .grp { display: flex; gap: 2px; padding: 2px; border-radius: 9px; box-shadow: inset 0 0 0 1px var(--line-1); }
+  .grp button { height: 26px; padding: 0 11px; border-radius: 7px; font-size: 12.5px; color: var(--ink-2); transition: background-color .16s var(--ease), color .16s var(--ease); }
+  .grp button.on { background: var(--surface); color: var(--ink-1); font-weight: 500; box-shadow: var(--shadow-lift); }
+  .grp button .rec { font-size: 10.5px; color: var(--accent-text); margin-left: 4px; }
+  .ctrl .sp { flex: 1; }
+  .ctrl .hint { font-size: 12px; color: var(--ink-3); }
+
+  .stage { padding: 12px 28px 28px; }
+
+  /* ---------- 应用窗口 ---------- */
+  .win { position: relative; height: 800px; min-width: 1180px; display: grid; grid-template-columns: 196px minmax(0, 1fr);
+    background: var(--page); border-radius: 14px; box-shadow: var(--shadow-float), 0 0 0 1px var(--line-1); overflow: hidden; }
+  .sb { padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; }
+  .sb .logo { height: 30px; display: flex; align-items: center; gap: 8px; padding: 0 8px 0 64px; margin-bottom: 10px; color: var(--ink-3); }
+  .sb .it { height: 32px; display: flex; align-items: center; gap: 10px; padding: 0 10px; border-radius: 8px; color: var(--ink-2); }
+  .sb .it.on { background: var(--hover); color: var(--ink-1); font-weight: 500; }
+  .sb .it svg { color: var(--ink-3); }
+  .sb .it.on svg { color: var(--ink-2); }
+  .main { display: flex; flex-direction: column; min-width: 0; padding: 0 10px 10px 0; }
+  .tbar { height: 44px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 6px; color: var(--ink-3); font-size: 12.5px; }
+  .tbar b { color: var(--ink-2); font-weight: 500; }
+  .paper { flex: 1; min-height: 0; background: var(--surface); border-radius: 12px; box-shadow: var(--shadow-card); position: relative; overflow: hidden; display: flex; flex-direction: column; }
+
+  /* 数据库页（背景） */
+  .dbh { padding: 26px 32px 12px; }
+  .dbh h2 { font-size: 22px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+  .dbh h2 svg { width: 20px; height: 20px; color: var(--ink-3); }
+  .dbtb { display: flex; align-items: center; gap: 4px; margin-top: 14px; }
+  .vt { height: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border-radius: 8px; color: var(--ink-2); font-size: 12.5px; }
+  .vt.on { background: var(--hover); color: var(--ink-1); font-weight: 500; }
+  .dbtb .sp { flex: 1; }
+  .ib { width: 28px; height: 28px; display: inline-grid; place-items: center; border-radius: 8px; color: var(--ink-2); transition: background-color .14s var(--ease), color .14s var(--ease); }
+  .ib:not(:disabled):hover { background: var(--hover); color: var(--ink-1); }
+  .btn-new { height: 28px; padding: 0 12px; border-radius: 8px; background: var(--accent); color: var(--ink-inverse); font-size: 12.5px; font-weight: 500; display: inline-flex; align-items: center; gap: 5px; margin-left: 4px; }
+  .tbl { padding: 0 32px; font-size: 13px; }
+  .tr { display: grid; grid-template-columns: 250px 124px 170px 80px 110px 124px 64px minmax(40px, 1fr); align-items: center; min-height: 40px; border-bottom: 1px solid var(--line-2); cursor: pointer; border-radius: 0; transition: background-color .14s var(--ease); }
+  .tr > * { padding: 0 10px; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px; }
+  .tr.th { min-height: 36px; color: var(--ink-3); font-size: 12px; cursor: default; }
+  .tr.th svg { width: 13px; height: 13px; }
+  .tr:not(.th):hover { background: var(--hover); }
+  .tr.act { background: var(--selected); }
+  .tr .nm { font-weight: 500; }
+  .tr .nm .open { margin-left: auto; opacity: 0; font-size: 11.5px; color: var(--ink-2); font-weight: 400; display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px; border-radius: 6px; box-shadow: inset 0 0 0 1px var(--line-1); background: var(--surface); transition: opacity .12s; }
+  .tr:hover .nm .open { opacity: 1; }
+  .tr .muted { color: var(--ink-3); }
+  .addrow { height: 38px; display: flex; align-items: center; gap: 6px; padding: 0 10px; color: var(--ink-3); }
+
+  /* ---------- 共用：值渲染 ---------- */
+  .chip { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 6px; font-size: 12.5px; line-height: 1; background: var(--tag-soft); color: var(--tag); white-space: nowrap; }
+  .stars { display: inline-flex; gap: 2px; }
+  .stars svg { width: 16px; height: 16px; color: var(--ink-3); opacity: .45; cursor: pointer; }
+  .stars svg.on { color: var(--star); fill: currentColor; opacity: 1; }
+  .ro .stars svg { cursor: default; }
+  .cb { width: 16px; height: 16px; border-radius: 4px; box-shadow: inset 0 0 0 1.5px var(--ink-3); display: inline-grid; place-items: center; cursor: pointer; }
+  .cb svg { width: 12px; height: 12px; stroke-width: 3; color: var(--ink-inverse); opacity: 0; }
+  .cb.on { background: var(--accent); box-shadow: none; }
+  .cb.on svg { opacity: 1; }
+  .lnk { color: var(--accent-text); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+  .lnk span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lnk svg { width: 13px; height: 13px; opacity: .7; }
+  .empty { color: var(--ink-3); }
+  .txt { min-width: 1em; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* 封面占位：真实实现是用户上传的图片，这里用派生渐变代替 */
+  .poster { position: relative; overflow: hidden; color: #fff; background: linear-gradient(155deg, hsl(var(--h) 44% 60%), hsl(calc(var(--h) + 28) 40% 30%)); }
+  .poster::after { content: ""; position: absolute; inset: 0; background: radial-gradient(120% 70% at 20% 0%, rgba(255,255,255,.22), transparent 60%); }
+  .poster .pt { position: absolute; left: 16px; bottom: 14px; right: 16px; font: 600 22px/1.2 var(--serif); letter-spacing: .04em; text-shadow: 0 1px 12px rgba(0,0,0,.25); z-index: 1; }
+  .poster .py { display: block; font: 500 11px var(--mono); letter-spacing: .12em; opacity: .75; margin-top: 4px; }
+  .thumb { width: 34px; height: 46px; border-radius: 5px; box-shadow: 0 0 0 1px var(--line-1); }
+
+  /* ---------- 共用：详情头 ---------- */
+  .dh { height: 50px; flex: none; display: flex; align-items: center; gap: 2px; padding: 0 12px 0 20px; }
+  .crumb { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--ink-3); font-size: 12.5px; }
+  .crumb svg { width: 14px; height: 14px; }
+  .crumb .sep { width: 12px; height: 12px; opacity: .7; }
+  .crumb .cur { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px; }
+  .dh .sp { flex: 1; }
+  .dh .count { font: 11.5px var(--mono); color: var(--ink-3); margin-right: 6px; }
+  .dh .div { width: 1px; height: 16px; background: var(--line-1); margin: 0 6px; }
+
+  /* ---------- 共用：属性列表（A / C） ---------- */
+  .props { display: flex; flex-direction: column; gap: 1px; }
+  .prop { position: relative; display: grid; grid-template-columns: var(--lw, 120px) minmax(0, 1fr); align-items: start; gap: 6px; }
+  .grip { position: absolute; left: -22px; top: 6px; width: 18px; height: 22px; display: grid; place-items: center; border-radius: 5px; color: var(--ink-3); opacity: 0; cursor: grab; transition: opacity .12s; }
+  .grip svg { width: 14px; height: 14px; }
+  .prop:hover .grip { opacity: 1; }
+  .pk { height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 8px; border-radius: 7px; color: var(--ink-2); min-width: 0; font-size: 13px; transition: background-color .14s var(--ease); }
+  .pk span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pk svg { width: 14px; height: 14px; color: var(--ink-3); }
+  .pk:hover { background: var(--hover); }
+  .ro .pk { cursor: default; }
+  .ro .pk:hover { background: none; }
+  .pv { min-height: 34px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px; padding: 5px 8px; border-radius: 7px; min-width: 0; font-size: 13.5px; cursor: pointer; transition: background-color .14s var(--ease); }
+  .pv:hover { background: var(--hover); }
+  .ro .pv { cursor: default; }
+  .ro .pv:hover { background: none; }
+  .pfoot { display: flex; gap: 2px; margin-top: 2px; }
+  .gb { height: 32px; display: inline-flex; align-items: center; gap: 7px; padding: 0 8px; border-radius: 7px; color: var(--ink-3); font-size: 13px; transition: background-color .14s var(--ease), color .14s var(--ease); }
+  .gb svg { width: 14px; height: 14px; }
+  .gb:hover { background: var(--hover); color: var(--ink-2); }
+
+  /* ---------- 共用：正文 ---------- */
+  .doc { font-size: 15px; line-height: 1.8; color: var(--ink-1); }
+  .doc p { margin: 0 0 .75em; }
+  .doc h3 { font-size: 17px; font-weight: 600; margin: 1.5em 0 .45em; }
+  .doc ul { padding-left: 1.3em; margin: 0 0 .9em; }
+  .doc li { margin: .15em 0; }
+  .doc li::marker { color: var(--ink-3); }
+  .doc .ph { color: var(--ink-3); }
+  .vid { margin: 1.1em 0 1.3em; border-radius: 12px; overflow: hidden; box-shadow: 0 0 0 1px var(--line-1); }
+  .vid .fr { aspect-ratio: 16 / 9; background: #0c0f14; display: grid; place-items: center; }
+  .vid .pl { width: 54px; height: 54px; border-radius: 50%; background: rgba(255,255,255,.94); color: #1d2533; display: grid; place-items: center; }
+  .vid .pl svg { width: 20px; height: 20px; fill: currentColor; margin-left: 3px; }
+  .vid .bar { height: 42px; display: flex; align-items: center; gap: 4px; padding: 0 8px; background: var(--surface-hover); font-size: 12px; color: var(--ink-2); }
+  .vid .bar .t { font: 11.5px var(--mono); color: var(--ink-2); margin: 0 8px 0 2px; }
+  .vid .bar .fn { color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vid .bar .sp { flex: 1; }
+  .vid .bar .ib { width: 28px; height: 28px; }
+  .vid .bar .sx { font: 11.5px var(--mono); padding: 0 6px; }
+
+  /* ---------- 浮层层 ---------- */
+  .layer { position: absolute; inset: 0; pointer-events: none; z-index: 40; }
+  .layer > * { pointer-events: auto; }
+  .ov { position: absolute; inset: 0; background: var(--overlay); display: grid; place-items: center; }
+  .ov.enter { animation: fade .2s var(--ease); }
+  .sheet { background: var(--surface); border-radius: 16px; box-shadow: var(--shadow-float); display: flex; flex-direction: column; overflow: hidden; }
+  .ov.enter .sheet { animation: pop .26s var(--ease); }
+  @keyframes fade { from { opacity: 0; } }
+  @keyframes pop { from { opacity: 0; transform: scale(.975) translateY(6px); } }
+  @keyframes slide { from { opacity: 0; transform: translateX(28px); } }
+  .swap { animation: fade .16s var(--ease); }
+
+  .ttl { font-weight: 600; letter-spacing: .01em; line-height: 1.3; color: var(--ink-1); word-break: break-word; }
+
+  /* ---------- 方案 A：侧边速览 ---------- */
+  .peek { position: absolute; top: 52px; right: 18px; bottom: 18px; width: 560px; background: var(--surface); border-radius: 14px;
+    box-shadow: var(--shadow-float), 0 0 0 1px var(--line-1); display: flex; flex-direction: column; overflow: hidden; }
+  .peek.enter { animation: slide .26s var(--ease); }
+  .peek .body { flex: 1; overflow: auto; padding: 6px 32px 56px 38px; }
+  .peek .ttl { font-size: 24px; margin: 6px 0 16px 8px; }
+  .peek .doc { margin: 26px 0 0 8px; }
+
+  /* ---------- 方案 B：文档页 ---------- */
+  .sheet.b { width: min(900px, calc(100% - 80px)); height: calc(100% - 44px); }
+  .b-scroll { flex: 1; overflow: auto; }
+  .b-cover { height: 196px; margin: 0 14px; border-radius: 12px; }
+  .b-cover .pt { font-size: 30px; left: 28px; bottom: 22px; }
+  .b-col { max-width: 760px; margin: 0 auto; padding: 0 56px 72px; }
+  .b-head { position: relative; padding-top: 34px; }
+  .b-head.nocover { padding-top: 40px; }
+  .b-add { position: absolute; top: 4px; left: -8px; opacity: 0; transition: opacity .14s; }
+  .b-head:hover .b-add { opacity: 1; }
+  .b .ttl { font-size: 32px; }
+  .pgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px 6px; margin: 20px -10px 0; }
+  .pc { position: relative; padding: 7px 10px 8px; border-radius: 9px; min-width: 0; transition: background-color .14s var(--ease); }
+  .pc:hover { background: var(--hover); }
+  .ro .pc:hover { background: none; }
+  .pc .lab { height: 22px; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-3); max-width: 100%; border-radius: 5px; padding: 0 4px; margin-left: -4px; }
+  .pc .lab svg { width: 13px; height: 13px; }
+  .pc .lab:hover { color: var(--ink-2); }
+  .pc .val { min-height: 26px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px; font-size: 13.5px; cursor: pointer; min-width: 0; }
+  .pc .val .lnk { max-width: 100%; }
+  .ro .pc .val { cursor: default; }
+  .pc .grip { left: auto; right: 6px; top: 7px; }
+  .pc:hover .grip { opacity: 1; }
+  .pc.add { display: flex; align-items: center; gap: 7px; color: var(--ink-3); cursor: pointer; }
+  .pc.add svg { width: 14px; height: 14px; }
+  .b .pfoot { margin: 4px -8px 0; }
+  .b .doc { margin-top: 34px; font-size: 15.5px; }
+
+  /* ---------- 方案 C：双栏 ---------- */
+  .sheet.c { width: min(1120px, calc(100% - 64px)); height: calc(100% - 40px); }
+  .c-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 320px; }
+  .c-main { overflow: auto; padding: 10px 52px 72px 60px; }
+  .c-main .ttl { font-size: 28px; margin: 8px 0 22px; }
+  .c-main .doc { max-width: 700px; }
+  .c-rail { overflow: auto; padding: 6px 22px 40px 26px; }
+  .c-cover { aspect-ratio: 4 / 3; border-radius: 12px; margin: 4px 0 16px 8px; cursor: zoom-in; }
+  .c-cover .pt { font-size: 24px; }
+  .c-addcover { height: 72px; margin: 4px 0 14px 8px; border-radius: 12px; display: grid; place-items: center; color: var(--ink-3); font-size: 12.5px; box-shadow: inset 0 0 0 1px var(--line-1); transition: background-color .14s var(--ease), color .14s var(--ease); }
+  .c-addcover span { display: inline-flex; align-items: center; gap: 6px; }
+  .c-addcover svg { width: 14px; height: 14px; }
+  .c-addcover:hover { background: var(--hover); color: var(--ink-2); }
+  .c-rail .pk { font-size: 12.5px; }
+  .c-rail .pv { font-size: 13px; }
+  .c-rail .grip { left: -20px; }
+
+  /* ---------- 菜单 / 选项浮层 ---------- */
+  .menu { position: absolute; z-index: 80; min-width: 176px; padding: 5px; border-radius: 11px; background: var(--surface); box-shadow: var(--shadow-float), 0 0 0 1px var(--line-1); animation: fade .12s var(--ease); }
+  .menu .mi { width: 100%; height: 32px; display: flex; align-items: center; gap: 9px; padding: 0 10px; border-radius: 7px; font-size: 13px; color: var(--ink-1); }
+  .menu .mi svg { width: 14px; height: 14px; color: var(--ink-2); }
+  .menu .mi:hover { background: var(--hover); }
+  .menu .mi.danger, .menu .mi.danger svg { color: var(--danger); }
+  .menu .mi.danger:hover { background: var(--danger-soft); }
+  .menu .mi kbd { margin-left: auto; font: 11px var(--mono); color: var(--ink-3); }
+  .menu .ms { height: 1px; margin: 5px 6px; background: var(--line-1); }
+  .menu .mh { padding: 6px 10px 4px; font-size: 11.5px; color: var(--ink-3); }
+  .menu.sel { width: 240px; }
+  .menu .srch { height: 32px; margin: 2px 2px 6px; padding: 0 10px; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--line-1); display: flex; align-items: center; gap: 7px; }
+  .menu .srch input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; font: 13px var(--font); color: var(--ink-1); }
+  .menu .srch input::placeholder { color: var(--ink-3); }
+  .menu .srch svg { width: 14px; height: 14px; color: var(--ink-3); }
+  .menu .opt { width: 100%; height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 8px; border-radius: 7px; }
+  .menu .opt:hover { background: var(--hover); }
+  .menu .opt .ck { margin-left: auto; width: 14px; height: 14px; color: var(--accent); opacity: 0; }
+  .menu .opt.on .ck { opacity: 1; }
+
+  /* ---------- 说明 ---------- */
+  .notes { padding: 8px 28px 72px; max-width: 1400px; }
+  .notes h2 { font-size: 16px; font-weight: 600; margin: 26px 0 12px; }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .card { background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-card); padding: 16px 18px 18px; cursor: pointer; transition: box-shadow .16s var(--ease); }
+  .card:hover { box-shadow: var(--shadow-lift), 0 0 0 1px var(--line-1); }
+  .card.on { box-shadow: var(--shadow-card), 0 0 0 1.5px var(--accent); }
+  .card h3 { font-size: 14.5px; font-weight: 600; display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .card h3 .k { font: 600 12px var(--mono); color: var(--ink-3); }
+  .card h3 .rec { font-size: 11px; font-weight: 500; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); }
+  .card p { color: var(--ink-2); font-size: 12.5px; margin-bottom: 10px; }
+  .card dl { display: grid; grid-template-columns: 34px 1fr; gap: 4px 6px; font-size: 12.5px; }
+  .card dt { color: var(--ink-3); }
+  .card dd { color: var(--ink-2); }
+  .panel { background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-card); padding: 16px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 36px; }
+  .panel h4 { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  .panel ul { padding-left: 16px; color: var(--ink-2); font-size: 12.5px; }
+  .panel li { margin: 3px 0; }
+  .panel li::marker { color: var(--ink-3); }
+  code { font: 11.5px var(--mono); padding: 1px 5px; border-radius: 5px; background: var(--hover); color: var(--ink-1); }
+</style>
+</head>
+<body>
+
+<div class="ctrl">
+  <h1>数据库行详情</h1>
+  <div class="grp" id="g-v">
+    <button data-v="a">A 侧边速览</button>
+    <button data-v="b">B 文档页</button>
+    <button data-v="c">C 双栏<span class="rec">推荐</span></button>
+  </div>
+  <div class="grp" id="g-theme"><button data-theme="ocean">海盐</button><button data-theme="paper">暖纸</button></div>
+  <div class="grp" id="g-mode"><button data-mode="light">浅</button><button data-mode="dark">深</button></div>
+  <div class="grp" id="g-cover"><button data-cover="1">有封面</button><button data-cover="0">无封面</button></div>
+  <div class="grp" id="g-ro"><button data-ro="0">可编辑</button><button data-ro="1">只读</button></div>
+  <span class="sp"></span>
+  <span class="hint">点表格行打开 · 点属性名出菜单 · 点分类 / 年份选值 · J / K 切换行 · Esc 关闭</span>
+</div>
+
+<div class="stage">
+  <div class="win" id="win">
+    <nav class="sb">
+      <div class="logo"></div>
+      <div class="it"><i data-lucide="house"></i>首页</div>
+      <div class="it"><i data-lucide="file-text"></i>文档</div>
+      <div class="it on"><i data-lucide="table-2"></i>数据库</div>
+      <div class="it"><i data-lucide="calendar-days"></i>日程</div>
+      <div class="it"><i data-lucide="book-open"></i>微信读书</div>
+      <div class="it"><i data-lucide="square-pen"></i>白板</div>
+    </nav>
+    <div class="main">
+      <div class="tbar"><i data-lucide="table-2"></i>数据库<i data-lucide="chevron-right" style="width:12px;height:12px"></i><b>片单</b></div>
+      <div class="paper">
+        <div class="dbh">
+          <h2><i data-lucide="film"></i>片单</h2>
+          <div class="dbtb">
+            <span class="vt on"><i data-lucide="table-2"></i>表格</span>
+            <span class="vt"><i data-lucide="layout-grid"></i>画廊</span>
+            <span class="sp"></span>
+            <button class="ib"><i data-lucide="search"></i></button>
+            <button class="ib"><i data-lucide="list-filter"></i></button>
+            <button class="ib"><i data-lucide="arrow-up-down"></i></button>
+            <button class="btn-new"><i data-lucide="plus"></i>新建</button>
+          </div>
+        </div>
+        <div class="tbl" id="tbl"></div>
+      </div>
+    </div>
+    <div class="layer" id="layer"></div>
+  </div>
+</div>
+
+<section class="notes">
+  <h2>三个方向</h2>
+  <div class="cards">
+    <div class="card" data-v="a">
+      <h3><span class="k">A</span>侧边速览</h3>
+      <p>从右侧滑出、不遮罩，表格还在、当前行高亮；点另一行就地切换，适合一边看表一边逐行补数据。Notion 的 Peek 就是这个形态。</p>
+      <dl><dt>适合</dt><dd>在表格里连续录入、快速过一遍</dd><dt>代价</dt><dd>只有 560 宽，长正文和视频局促；画廊、看板视图下会挡住不少卡片</dd></dl>
+    </div>
+    <div class="card" data-v="b">
+      <h3><span class="k">B</span>文档页</h3>
+      <p>居中一张大纸，像打开一篇文档：横幅封面、大标题，属性用三列网格压成两三行，正文独占阅读列。</p>
+      <dl><dt>适合</dt><dd>正文是主角的库（影评、读书笔记）</dd><dt>代价</dt><dd>属性一多（十几个）网格会把正文推下去；滚到正文后属性就看不到了</dd></dl>
+    </div>
+    <div class="card on" data-v="c">
+      <h3><span class="k">C</span>双栏<span class="rec">推荐</span></h3>
+      <p>同一张纸里左正文、右属性，右栏透明、不另起卡片，封面放在属性栏顶端。正文滚到哪里属性都在旁边，宽屏也不浪费。Linear 的 Issue 详情是这种排法。</p>
+      <dl><dt>适合</dt><dd>属性多、正文长，大多数库</dd><dt>代价</dt><dd>需要 ≥ 960 宽，窗口太窄时要退回 B 的单栏</dd></dl>
+    </div>
+  </div>
+
+  <h2>三个方案都做的改动</h2>
+  <div class="panel">
+    <div>
+      <h4>看得见的</h4>
+      <ul>
+        <li>去掉「行详情」通用标题，头部改为「库名 › 行标题」、第 N / M 条和上一条 / 下一条</li>
+        <li>每行常驻的铅笔和垃圾桶收进属性名的点击菜单（编辑属性 / 删除属性）；拖拽手柄只在悬停时出现在左侧留好的位置，不挤动布局</li>
+        <li>空值显示「空」，空属性默认折叠成「还有 N 个空属性」</li>
+        <li>属性和正文之间不画分隔线，靠留白和字号区分</li>
+        <li>正文里的视频沿用编辑器的纸色底栏，不压在画面上</li>
+      </ul>
+    </div>
+    <div>
+      <h4>实现时要动的</h4>
+      <ul>
+        <li>插件 Renderer 自带表格单元格的 <code>px-2 h-full</code>，详情里需要紧凑形态（或由容器抵消），否则值和标签对不齐</li>
+        <li>上一条 / 下一条：四个视图要把当前可见行序传给详情，现在只传单行；切换前先落库当前行（现在是关闭时一次性 <code>onSave</code>）</li>
+        <li>A 是非模态抽屉：Esc 走 <code>useOverlayDismiss</code>，点表格行要切换而不是关闭</li>
+        <li>行没有创建 / 更新时间字段，所以不展示这类元信息</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<script>
+const TAG = { 动作: 2, 犯罪: 5, 动画: 1, 奇幻: 3, 喜剧: 4, 剧情: 2, 悬疑: 3, 2023: 1, 2024: 3, 2025: 2 };
+const OPTS = { genre: ["动作", "犯罪", "动画", "奇幻", "喜剧", "剧情", "悬疑"], year: ["2023", "2024", "2025"] };
+
+const COLS = [
+  { id: "cover", type: "image", title: "封面", icon: "image" },
+  { id: "rating", type: "star", title: "个人评价", icon: "star" },
+  { id: "genre", type: "multi", title: "分类", icon: "list-checks" },
+  { id: "year", type: "select", title: "年份", icon: "circle-chevron-down" },
+  { id: "director", type: "text", title: "导演", icon: "type" },
+  { id: "watched", type: "date", title: "观看日期", icon: "calendar" },
+  { id: "done", type: "check", title: "已看", icon: "square-check" },
+  { id: "link", type: "link", title: "豆瓣", icon: "link" },
+  { id: "memo", type: "text", title: "一句话", icon: "type" },
+  { id: "files", type: "file", title: "附件", icon: "paperclip" },
+];
+
+const ROWS = [
+  { name: "捕风追影", hue: 214, cover: true, rating: 5, genre: ["动作", "犯罪"], year: "2025", director: "梁乐民", watched: "2025-08-16", done: true, link: "movie.douban.com/subject/…", memo: "老派港式动作片的体面还在", files: null, body: "full" },
+  { name: "哪吒之魔童闹海", hue: 8, cover: true, rating: 5, genre: ["动画", "奇幻"], year: "2025", director: "饺子", watched: "2025-02-01", done: true, link: "movie.douban.com/subject/…", memo: "", files: null, body: "short" },
+  { name: "好东西", hue: 150, cover: true, rating: 4, genre: ["喜剧", "剧情"], year: "2024", director: "邵艺辉", watched: "2024-11-30", done: true, link: "movie.douban.com/subject/…", memo: "", files: null, body: "two" },
+  { name: "疯狂动物城 2", hue: 38, cover: false, rating: 0, genre: ["动画", "喜剧"], year: "2025", director: "", watched: "", done: false, link: "", memo: "", files: null, body: "" },
+  { name: "酱园弄", hue: 280, cover: true, rating: 3, genre: ["剧情", "犯罪"], year: "2025", director: "陈可辛", watched: "2025-07-05", done: true, link: "movie.douban.com/subject/…", memo: "", files: null, body: "short2" },
+];
+
+const BODIES = {
+  full: `
+    <p>成龙演一个退休的跟踪专家，被请回澳门警队带一群年轻人，去追一伙反侦察能力极强的劫匪。梁家辉的反派把整部戏撑了起来，两位老演员同框的几场比任何打斗都好看。</p>
+    <h3>记住的几场</h3>
+    <ul>
+      <li>开场的街头跟踪，一镜到底的调度很舒服，全程没有一句台词</li>
+      <li>天台对峙，两个人只靠眼神交手</li>
+      <li>结尾的打斗节奏偏拖，剪掉三分钟会更利落</li>
+    </ul>
+    <div class="vid">
+      <div class="fr"><span class="pl"><i data-lucide="play"></i></span></div>
+      <div class="bar">
+        <button class="ib"><i data-lucide="play"></i></button>
+        <span class="t">0:00 / 2:14</span>
+        <span class="fn">捕风追影-终极预告.mp4</span>
+        <span class="sp"></span>
+        <button class="ib"><i data-lucide="volume-2"></i></button>
+        <button class="ib sx">1×</button>
+        <button class="ib"><i data-lucide="picture-in-picture-2"></i></button>
+        <button class="ib"><i data-lucide="maximize"></i></button>
+      </div>
+    </div>
+    <p>推荐给喜欢《跟踪》的朋友，最好在影院看。</p>`,
+  short: `<p>二刷。特效和群像都比第一部扎实，申公豹那条线是全片最好的部分。</p>`,
+  two: `<p>节奏轻快，笑点密但不廉价。小叶和王铁梅之间的关系写得很细。</p><p>结尾那场演出戏让人想起自己第一次上台的样子。</p>`,
+  short2: `<p>演员都很卖力，但叙事的切换让人出戏，前半小时可以更紧凑。</p>`,
+  "": `<p class="ph">写点什么…　输入 / 插入块</p>`,
+};
+
+const S = { v: "c", theme: "ocean", mode: "light", cover: true, ro: false, open: true, idx: 0, showEmpty: false, enter: true, pop: null };
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const row = () => ROWS[S.idx];
+const hasCover = r => S.cover && r.cover;
+const fmtDate = d => { const [y, m, dd] = d.split("-").map(Number); return `${y}年${m}月${dd}日`; };
+
+function isEmpty(c, r) {
+  const v = c.id === "cover" ? hasCover(r) : r[c.id];
+  if (c.type === "star" || c.type === "check") return false;
+  return v == null || v === "" || v === false || (Array.isArray(v) && !v.length);
+}
+
+function chip(t) { const n = TAG[t] || 2; return `<span class="chip" style="--tag:var(--tag-${n});--tag-soft:var(--tag-${n}-soft)">${esc(t)}</span>`; }
+function poster(r, cls, withText = true) {
+  return `<div class="poster ${cls}" style="--h:${r.hue}">${withText ? `<span class="pt">${esc(r.name)}<span class="py">${esc(r.year)}</span></span>` : ""}</div>`;
+}
+
+function valueHTML(c, r) {
+  const v = r[c.id];
+  const empty = `<span class="empty">空</span>`;
+  switch (c.type) {
+    case "star":
+      return `<span class="stars">${[1, 2, 3, 4, 5].map(i => `<i data-lucide="star" class="st ${i <= v ? "on" : ""}" data-n="${i}"></i>`).join("")}</span>`;
+    case "multi":
+    case "select":
+      return (Array.isArray(v) ? v : v ? [v] : []).map(chip).join("") || empty;
+    case "text":
+      return `<span class="txt" ${S.ro ? "" : "contenteditable"} data-col="${c.id}" data-ph="空">${esc(v)}</span>`;
+    case "date":
+      return v ? `<span class="num">${fmtDate(v)}</span>` : empty;
+    case "check":
+      return `<span class="cb ${v ? "on" : ""}" data-act="check"><i data-lucide="check"></i></span>`;
+    case "link":
+      return v ? `<a class="lnk" href="javascript:void 0"><span>${esc(v)}</span><i data-lucide="arrow-up-right"></i></a>` : empty;
+    case "image":
+      return hasCover(r) ? poster(r, "thumb", false) : empty;
+    default:
+      return empty;
+  }
+}
+
+function splitProps(exclude = []) {
+  const r = row();
+  const all = COLS.filter(c => !exclude.includes(c.id));
+  const empties = all.filter(c => isEmpty(c, r));
+  const shown = S.showEmpty ? all : all.filter(c => !isEmpty(c, r));
+  return { shown, emptyN: empties.length };
+}
+
+function propRow(c) {
+  return `<div class="prop">
+    ${S.ro ? "" : `<span class="grip" title="拖动调整顺序"><i data-lucide="grip-vertical"></i></span>`}
+    <button class="pk" ${S.ro ? "" : `data-act="pmenu" data-col="${c.id}"`}><i data-lucide="${c.icon}"></i><span>${c.title}</span></button>
+    <div class="pv" data-act="edit" data-col="${c.id}">${valueHTML(c, row())}</div>
+  </div>`;
+}
+
+function propCell(c) {
+  return `<div class="pc">
+    ${S.ro ? "" : `<span class="grip" title="拖动调整顺序"><i data-lucide="grip-vertical"></i></span>`}
+    <button class="lab" ${S.ro ? "" : `data-act="pmenu" data-col="${c.id}"`}><i data-lucide="${c.icon}"></i>${c.title}</button>
+    <div class="val" data-act="edit" data-col="${c.id}">${valueHTML(c, row())}</div>
+  </div>`;
+}
+
+function foot(emptyN, withAdd = true) {
+  const add = !S.ro && withAdd ? `<button class="gb" data-act="addprop"><i data-lucide="plus"></i>添加属性</button>` : "";
+  const fold = emptyN ? `<button class="gb" data-act="toggleEmpty"><i data-lucide="${S.showEmpty ? "chevron-up" : "chevron-down"}"></i>${S.showEmpty ? "收起空属性" : `还有 ${emptyN} 个空属性`}</button>` : "";
+  return add || fold ? `<div class="pfoot">${add}${fold}</div>` : "";
+}
+
+function head(withTitle) {
+  const r = row();
+  return `<div class="dh">
+    <div class="crumb"><i data-lucide="film"></i><span>片单</span>${withTitle ? `<i data-lucide="chevron-right" class="sep"></i><span class="cur">${esc(r.name) || "未命名"}</span>` : ""}</div>
+    <span class="sp"></span>
+    <span class="count">${S.idx + 1} / ${ROWS.length}</span>
+    <button class="ib" data-act="prev" title="上一条  K" ${S.idx === 0 ? "disabled" : ""}><i data-lucide="chevron-up"></i></button>
+    <button class="ib" data-act="next" title="下一条  J" ${S.idx === ROWS.length - 1 ? "disabled" : ""}><i data-lucide="chevron-down"></i></button>
+    <span class="div"></span>
+    ${S.ro ? "" : `<button class="ib" data-act="rowmenu" title="更多"><i data-lucide="ellipsis"></i></button>`}
+    <button class="ib" data-act="close" title="关闭  Esc"><i data-lucide="x"></i></button>
+  </div>`;
+}
+
+function title(cls) {
+  return `<h1 class="ttl ${cls}" ${S.ro ? "" : "contenteditable"} data-act="title" data-ph="未命名">${esc(row().name)}</h1>`;
+}
+
+function body() { return `<div class="doc">${BODIES[row().body]}</div>`; }
+
+function viewA() {
+  const { shown, emptyN } = splitProps();
+  return `<aside class="peek ${S.enter ? "enter" : ""} ${S.ro ? "ro" : ""}">
+    ${head(false)}
+    <div class="body swap">
+      ${title("a")}
+      <div class="props" style="--lw:116px">${shown.map(propRow).join("")}</div>
+      ${foot(emptyN)}
+      ${body()}
+    </div>
+  </aside>`;
+}
+
+function viewB() {
+  const r = row();
+  const { shown, emptyN } = splitProps(["cover"]);
+  const cells = shown.map(propCell).join("") + (S.ro ? "" : `<div class="pc add" data-act="addprop"><i data-lucide="plus"></i>添加属性</div>`);
+  return `<div class="ov ${S.enter ? "enter" : ""}" data-act="ovclose">
+    <div class="sheet b ${S.ro ? "ro" : ""}">
+      ${head(true)}
+      <div class="b-scroll swap">
+        ${hasCover(r) ? poster(r, "b-cover") : ""}
+        <div class="b-col">
+          <div class="b-head ${hasCover(r) ? "" : "nocover"}">
+            ${!hasCover(r) && !S.ro ? `<button class="gb b-add"><i data-lucide="image-plus"></i>添加封面</button>` : ""}
+            ${title("")}
+          </div>
+          <div class="pgrid">${cells}</div>
+          ${foot(emptyN, false)}
+          ${body()}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function viewC() {
+  const r = row();
+  const { shown, emptyN } = splitProps(["cover"]);
+  const cover = hasCover(r)
+    ? poster(r, "c-cover")
+    : S.ro ? "" : `<button class="c-addcover"><span><i data-lucide="image-plus"></i>添加封面</span></button>`;
+  return `<div class="ov ${S.enter ? "enter" : ""}" data-act="ovclose">
+    <div class="sheet c ${S.ro ? "ro" : ""}">
+      ${head(true)}
+      <div class="c-grid swap">
+        <div class="c-main">${title("")}${body()}</div>
+        <aside class="c-rail">
+          ${cover}
+          <div class="props" style="--lw:88px">${shown.map(propRow).join("")}</div>
+          ${foot(emptyN)}
+        </aside>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderTable() {
+  const th = `<div class="tr th"><span><i data-lucide="type"></i>名称</span><span><i data-lucide="star"></i>个人评价</span><span><i data-lucide="list-checks"></i>分类</span><span><i data-lucide="circle-chevron-down"></i>年份</span><span><i data-lucide="type"></i>导演</span><span><i data-lucide="calendar"></i>观看日期</span><span><i data-lucide="square-check"></i>已看</span><span></span></div>`;
+  const rows = ROWS.map((r, i) => `<div class="tr ${S.open && S.v === "a" && i === S.idx ? "act" : ""}" data-row="${i}">
+    <span class="nm">${esc(r.name)}<span class="open"><i data-lucide="panel-right" style="width:12px;height:12px"></i>打开</span></span>
+    <span>${valueHTML(COLS[1], r)}</span>
+    <span>${r.genre.map(chip).join("")}</span>
+    <span>${chip(r.year)}</span>
+    <span class="${r.director ? "" : "muted"}">${esc(r.director)}</span>
+    <span class="num">${r.watched ? fmtDate(r.watched) : ""}</span>
+    <span><span class="cb ${r.done ? "on" : ""}"><i data-lucide="check"></i></span></span>
+    <span></span>
+  </div>`).join("");
+  $("#tbl").innerHTML = th + rows + `<div class="addrow"><i data-lucide="plus"></i>新建</div>`;
+}
+
+function renderDetail() {
+  const layer = $("#layer");
+  layer.innerHTML = S.open ? { a: viewA, b: viewB, c: viewC }[S.v]() : "";
+  S.enter = false;
+}
+
+function syncCtrl() {
+  const root = document.documentElement;
+  root.dataset.theme = S.theme;
+  root.dataset.mode = S.mode;
+  document.querySelectorAll("#g-v button").forEach(b => b.classList.toggle("on", b.dataset.v === S.v));
+  document.querySelectorAll("#g-theme button").forEach(b => b.classList.toggle("on", b.dataset.theme === S.theme));
+  document.querySelectorAll("#g-mode button").forEach(b => b.classList.toggle("on", b.dataset.mode === S.mode));
+  document.querySelectorAll("#g-cover button").forEach(b => b.classList.toggle("on", b.dataset.cover === (S.cover ? "1" : "0")));
+  document.querySelectorAll("#g-ro button").forEach(b => b.classList.toggle("on", b.dataset.ro === (S.ro ? "1" : "0")));
+  document.querySelectorAll(".card").forEach(c => c.classList.toggle("on", c.dataset.v === S.v));
+}
+
+function render() {
+  closeMenu();
+  syncCtrl();
+  renderTable();
+  renderDetail();
+  lucide.createIcons();
+}
+
+/* ---------- 菜单 ---------- */
+let menuEl = null;
+function closeMenu() { menuEl?.remove(); menuEl = null; S.pop = null; }
+function placeMenu(el, anchor) {
+  const win = $("#win").getBoundingClientRect();
+  const a = anchor.getBoundingClientRect();
+  $("#win").appendChild(el);
+  let left = a.left - win.left;
+  let top = a.bottom - win.top + 4;
+  const w = el.offsetWidth, h = el.offsetHeight;
+  if (left + w > win.width - 12) left = a.right - win.left - w;
+  if (top + h > win.height - 12) top = a.top - win.top - h - 4;
+  el.style.left = left + "px";
+  el.style.top = top + "px";
+}
+function openMenu(anchor, items) {
+  closeMenu();
+  menuEl = document.createElement("div");
+  menuEl.className = "menu";
+  menuEl.innerHTML = items.map(it => it === "-" ? `<div class="ms"></div>` : `<button class="mi ${it.danger ? "danger" : ""}"><i data-lucide="${it.icon}"></i>${it.label}${it.kbd ? `<kbd>${it.kbd}</kbd>` : ""}</button>`).join("");
+  placeMenu(menuEl, anchor);
+  lucide.createIcons();
+  menuEl.addEventListener("click", closeMenu);
+}
+function selectHTML(colId) {
+  const v = row()[colId];
+  const sel = Array.isArray(v) ? v : [v];
+  return `<div class="srch"><i data-lucide="search"></i><input placeholder="搜索或新建选项"></div>
+    <div class="mh">${colId === "genre" ? "可多选" : "单选"}</div>
+    ${OPTS[colId].map(o => `<button class="opt ${sel.includes(o) ? "on" : ""}" data-opt="${o}">${chip(o)}<i data-lucide="check" class="ck"></i></button>`).join("")}`;
+}
+function openSelect(anchor, colId) {
+  closeMenu();
+  S.pop = colId;
+  menuEl = document.createElement("div");
+  menuEl.className = "menu sel";
+  menuEl.innerHTML = selectHTML(colId);
+  placeMenu(menuEl, anchor);
+  lucide.createIcons();
+  menuEl.addEventListener("click", e => {
+    const o = e.target.closest("[data-opt]");
+    if (!o) return;
+    const r = row();
+    if (colId === "genre") {
+      const cur = r.genre;
+      r.genre = cur.includes(o.dataset.opt) ? cur.filter(x => x !== o.dataset.opt) : [...cur, o.dataset.opt];
+      menuEl.innerHTML = selectHTML(colId);
+      lucide.createIcons();
+      refreshDetailKeepMenu();
+    } else {
+      r.year = o.dataset.opt;
+      render();
+    }
+  });
+}
+function refreshDetailKeepMenu() {
+  const keep = menuEl;
+  menuEl = null;
+  renderTable();
+  renderDetail();
+  lucide.createIcons();
+  menuEl = keep;
+  $("#win").appendChild(keep);
+}
+
+/* ---------- 交互 ---------- */
+function go(delta) {
+  const n = S.idx + delta;
+  if (n < 0 || n >= ROWS.length) return;
+  S.idx = n;
+  render();
+}
+
+document.addEventListener("click", e => {
+  const t = e.target;
+  // 选项重绘后被点元素已脱离 DOM，按事件路径判断是否点在菜单内
+  if (menuEl && !e.composedPath().includes(menuEl) && !t.closest("[data-act=pmenu],[data-act=rowmenu],[data-act=edit]")) closeMenu();
+  if (menuEl && e.composedPath().includes(menuEl)) return;
+
+  const ctl = t.closest(".ctrl button, .card");
+  if (ctl) {
+    const d = ctl.dataset;
+    if (d.v) { S.v = d.v; S.open = true; S.enter = true; }
+    if (d.theme) S.theme = d.theme;
+    if (d.mode) S.mode = d.mode;
+    if (d.cover) S.cover = d.cover === "1";
+    if (d.ro) S.ro = d.ro === "1";
+    render();
+    return;
+  }
+
+  const tr = t.closest(".tr[data-row]");
+  if (tr) {
+    const i = Number(tr.dataset.row);
+    if (!S.open) S.enter = true;
+    S.idx = i;
+    S.open = true;
+    render();
+    return;
+  }
+
+  const star = t.closest(".layer .st");
+  if (star && !S.ro) {
+    const n = Number(star.dataset.n);
+    row().rating = row().rating === n ? 0 : n;
+    render();
+    return;
+  }
+
+  const act = t.closest("[data-act]");
+  if (!act) return;
+  switch (act.dataset.act) {
+    case "close": S.open = false; render(); break;
+    case "ovclose": if (t === act) { S.open = false; render(); } break;
+    case "prev": go(-1); break;
+    case "next": go(1); break;
+    case "toggleEmpty": S.showEmpty = !S.showEmpty; render(); break;
+    case "check": if (!S.ro) { row().done = !row().done; render(); } break;
+    case "rowmenu": openMenu(act, [{ icon: "trash-2", label: "删除此行", danger: true }]); break;
+    case "pmenu": {
+      const c = COLS.find(x => x.id === act.dataset.col);
+      openMenu(act, [{ icon: "pencil", label: `编辑属性「${c.title}」` }, "-", { icon: "trash-2", label: "删除属性", danger: true }]);
+      break;
+    }
+    case "edit": {
+      if (S.ro) break;
+      const id = act.dataset.col;
+      if (id === "genre" || id === "year") openSelect(act, id);
+      else act.querySelector("[contenteditable]")?.focus();
+      break;
+    }
+  }
+});
+
+document.addEventListener("input", e => {
+  const t = e.target;
+  if (t.dataset.act === "title") {
+    row().name = t.textContent;
+    const cur = document.querySelector(".crumb .cur");
+    if (cur) cur.textContent = t.textContent || "未命名";
+  } else if (t.dataset.col) {
+    row()[t.dataset.col] = t.textContent;
+  }
+});
+document.addEventListener("focusout", e => {
+  if (e.target.matches?.("[contenteditable]")) renderTable(), lucide.createIcons();
+});
+
+const isEditable = el => el?.closest?.("[contenteditable], input, textarea");
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") {
+    if (menuEl) { closeMenu(); return; }
+    if (isEditable(e.target)) { e.target.blur(); return; }
+    if (S.open) { S.open = false; render(); }
+    return;
+  }
+  if (!S.open || isEditable(e.target) || e.isComposing || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === "j") go(1);
+  if (e.key === "k") go(-1);
+});
+
+render();
+</script>
+</body>
+</html>

@@ -19,6 +19,7 @@ export type {
   EditorFeedback,
   EditorLoadingHandle,
   EditorConfirmOptions,
+  EditorPromptOptions,
 } from "./services/notifier";
 export { consoleErrorReporter } from "./services/errorReporter";
 export type { ExtensionErrorEvent, ExtensionErrorReporter } from "./services/errorReporter";

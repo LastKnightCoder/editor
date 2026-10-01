@@ -164,6 +164,15 @@ describe("导出：块级", () => {
     ).toBe("![图](a.png)");
     expect(
       exportOne({
+        type: "image",
+        url: "a.png",
+        previewUrl: "a-crop.png",
+        alt: "裁剪过",
+        children: [{ type: "formatted", text: "" }],
+      })
+    ).toBe("![裁剪过](a-crop.png)");
+    expect(
+      exportOne({
         type: "inline-image",
         url: "a.png",
         alt: "",

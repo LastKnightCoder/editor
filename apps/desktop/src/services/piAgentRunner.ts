@@ -17,6 +17,8 @@ import {
   piSessionPrompt,
 } from "@/commands/piSession";
 import { toPiChatMessages } from "@/services/piLLM";
+import { buildPiPromptPayload } from "./piPromptPayload";
+import { remoteResourceToLocal } from "@/utils/resouce";
 import { getToolRegistryAgentTools } from "@/agent/toolRegistryAgentTools";
 import { getChatDatabase } from "./chatDatabase";
 import {
@@ -149,6 +151,18 @@ export function runPiAgent(
           : {}),
       });
 
+      const contentItems = Array.isArray(lastMessage.content)
+        ? lastMessage.content
+        : [{ type: "text" as const, text: lastMessage.content as string }];
+      const { promptText, images } = await buildPiPromptPayload(contentItems, {
+        resolveRemoteFile: remoteResourceToLocal,
+      });
+      if (aborted) {
+        unregisterPiToolSessionContext(sessionId);
+        await piSessionDispose(sessionId);
+        return { ok: false, lastAssistantText: "", aborted: true };
+      }
+
       let lastAssistantText = "";
       const unsubscribe = onPiSessionEvent(sessionId, event => {
         if (event.type === "message_end" && event.message.role === "assistant") {
@@ -164,22 +178,6 @@ export function runPiAgent(
         if (event.type === "agent_settled") settled = true;
         onEvent?.(event);
       });
-
-      const contentItems = Array.isArray(lastMessage.content)
-        ? lastMessage.content
-        : [{ type: "text" as const, text: lastMessage.content as string }];
-      const promptText = contentItems
-        .filter(item => item.type === "text")
-        .map(item => item.text)
-        .join("\n");
-      // 图片只传定位信息（image 字段可能是 protocol URL，path 才是真实路径），主进程读文件转 base64
-      const images = contentItems
-        .filter(item => item.type === "image")
-        .map(item =>
-          item.image.startsWith("data:")
-            ? { dataUrl: item.image }
-            : { path: item.path ?? item.image }
-        );
 
       const prompted = await piSessionPrompt(sessionId, promptText, images);
       if (!prompted.ok) {

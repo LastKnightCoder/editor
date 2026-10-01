@@ -308,7 +308,7 @@ command-registry.ts（中立，零 electron 依赖）
 结论与后续约束：
 
 - **win 尾参问题已按"显式 ctx 尾参"小刀方案落地（2026-09-11 第二次尝试，成功）**：仅改造 12 个真正用 win 的方法（article×4、card、project、document、content、diary×3、daily-note），签名尾部 `...res`/`win: BrowserWindow` 统一为**可选的** `ctx: CommandContext = fallbackCommandContext`（默认参数）；database.ts 包装层以 `createWindowCommandContext(win)` 构造并作尾参传入；`@tau/rpc` 提供 `CommandContext` 接口与 `setCommandBroadcastSink` 注入式全广播出口。**行为与旧机制逐路径保真**：IPC 直达调用排除来源窗口（旧 win 语义）、联动调用链不传 ctx 走默认全广播（旧 win=undefined 语义），27 处联动调用点零修改。7 个文件 BrowserWindow 清零（audio-note/video-note 的形态 C 全量广播按设计保留 electron 依赖）。验收：tsc 零错 + 全量测试与基线逐项一致（35 failed | 1026 passed | 7 skipped | 1068）。
-- 后续若要进一步收敛：把 audio-note/video-note 的形态 C 也统一到 ctx.broadcastAll；web-clip.ts 绕行代码回迁 ContentTable.updateContent（其 BrowserWindow 前置障碍已消除）。
+- 后续若要进一步收敛：把 video-note 的形态 C 也统一到 ctx.broadcastAll（audio-note 表模块已随音频笔记功能移除而删除，2026-09-30）；web-clip.ts 绕行代码回迁 ContentTable.updateContent（其 BrowserWindow 前置障碍已消除）。
 - types/table.ts 的 handler 类型保持 `(db, ...args: any)`（尾参 ctx 天然被 rest 容纳，无需改接口）。
 
 风险清单：
