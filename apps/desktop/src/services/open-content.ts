@@ -2,6 +2,7 @@ import { getDiaryEntryById } from "@/commands/diary";
 import { getProjectItemById } from "@/commands/project";
 import { normalizeEntityRefKind, type EntityRef } from "@/entity/ref";
 import useSettingStore from "@/stores/useSettingStore";
+import { normalizeDiaryDay } from "@/utils/diary-day";
 import { getPageNavigation, openPage } from "./page-navigation";
 
 /** 打开一个实体对应的 Page；异步查询期间切库则放弃导航 */
@@ -39,7 +40,8 @@ export async function openEntity(ref: EntityRef) {
       const entry = await getDiaryEntryById(id);
       ensureDatabase();
       if (!entry?.date) throw new Error("日记不存在");
-      openPage("diary", { date: entry.date });
+      // 旧 weekly / monthly 条目的 date 是 YYYY-Www / YYYY-MM，日记页按归属日定位
+      openPage("diary", { date: normalizeDiaryDay(entry.date, entry.createTime) });
       return;
     }
   }

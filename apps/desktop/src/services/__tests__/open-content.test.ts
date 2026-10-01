@@ -44,6 +44,11 @@ describe("内容打开入口", () => {
     await openContent("project_item", 5);
     expect(mocks.openPage).toHaveBeenLastCalledWith("project-detail", { id: 7, itemId: 5 });
   });
+  it("旧周记条目按归属日（该周周一）打开", async () => {
+    mocks.getDiaryEntryById.mockResolvedValue({ date: "2025-W46", createTime: 0 });
+    await openEntity({ kind: "diary", id: 3 });
+    expect(mocks.openPage).toHaveBeenLastCalledWith("diary", { date: "2025-11-10" });
+  });
   it("日记查询期间切库不导航", async () => {
     mocks.getDiaryEntryById.mockImplementation(async () => {
       mocks.database = "other";

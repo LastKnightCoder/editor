@@ -71,7 +71,16 @@ function contentIdsOf(db: Database.Database, ref: EntityRef): number[] {
 
 function toContextEntity(db: Database.Database, ref: EntityRef): ContextEntity | null {
   const candidate = EntitySearchTable.resolve(db, PICKER_KIND[ref.kind], ref.id, 0);
-  return candidate ? { ref, title: candidate.title, meta: candidate.meta } : null;
+  if (!candidate) return null;
+  // 搜索标题是「YYYY-MM-DD 日记」；浮层行尾已有类型名，标题只留日期
+  if (ref.kind === "diary") {
+    return {
+      ref,
+      title: candidate.title.replace(/\s*日记$/, ""),
+      meta: candidate.meta ? `日记 · ${candidate.meta}` : "日记",
+    };
+  }
+  return { ref, title: candidate.title, meta: candidate.meta };
 }
 
 interface RefRow {
