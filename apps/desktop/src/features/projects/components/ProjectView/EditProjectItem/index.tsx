@@ -27,6 +27,7 @@ import ImmersiveEditorMode, {
 } from "@/components/ImmersiveEditorMode";
 
 import { createProjectCardListExtension } from "@/editor-extensions";
+import { ContextBadge } from "@/features/context/components/ContextBadge";
 
 const DOCUMENT_COLUMNS = "grid grid-cols-[minmax(0,720px)] items-start justify-center gap-7 px-6";
 
@@ -220,6 +221,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
                   {/* 字数属于文档本身，随信息行走（项目详情不设底部状态栏） */}
                   <div className="tabular-nums">{projectItem.count.toLocaleString("zh-CN")} 字</div>
                 </div>
+                <ContextBadge entity={{ kind: "project-item", id: projectItem.id }} />
                 {/* 协作：已共享时常驻成员条（点开成员 Popover）；未共享不占位，由列表菜单「发起协作」打开对话框 */}
                 <span className="ml-auto">
                   <ContentCollaborationControl
