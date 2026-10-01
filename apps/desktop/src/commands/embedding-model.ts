@@ -130,6 +130,8 @@ export interface EmbeddingIndexProgress {
   startedAt: number;
   finishedAt?: number;
   error?: string;
+  /** 实时覆盖率（索引进行中由主进程逐篇更新） */
+  stats?: EmbeddingIndexStats;
 }
 
 export interface EmbeddingIndexStatus {
