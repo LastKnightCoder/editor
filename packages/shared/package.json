@@ -4,8 +4,10 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "exports": {
+    "./chat-renderers": "./chat-renderers.ts",
     "./code-block-language": "./code-block-language.ts",
     "./service-contract": "./service-contract.ts",
+    "./host-services": "./host-services.ts",
     "./runtime-style": "./runtime-style.ts",
     "./markdown-directives": "./markdown-directives.ts",
     ".": {
@@ -47,13 +49,11 @@
     "ahooks": "^3.7.8",
     "classnames": "^2.3.2",
     "cropperjs": "^2.0.0",
-    "katex": "^0.16.25",
     "lucide-react": "^0.468.0",
     "motion": "12.26.2",
     "react-icons": "^4.11.0",
     "react-markdown": "^9.0.3",
     "react-syntax-highlighter": "^15.6.1",
-    "rehype-katex": "^7.0.0",
     "remark-cjk-friendly": "^2.3.1",
     "remark-cjk-friendly-gfm-strikethrough": "^2.3.1",
     "remark-gfm": "^4.0.0",
@@ -62,7 +62,6 @@
     "uuid": "^9.0.1"
   },
   "devDependencies": {
-    "@types/katex": "^0.16.7",
     "@types/react": "19.1.8",
     "@types/react-dom": "19.1.6",
     "@types/react-syntax-highlighter": "^15.5.13",

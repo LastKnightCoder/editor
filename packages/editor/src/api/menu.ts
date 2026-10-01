@@ -34,6 +34,8 @@ export interface EditorMenuEntry {
   order?: number;
   danger?: boolean;
   children?: readonly EditorMenuEntry[];
+  /** 同名顶层无命令菜单均声明时合并子项；未声明仍整项覆盖。 */
+  mergeChildren?: boolean;
 }
 
 /** 扩展贡献的菜单：静态数组，或需要按 editor 求值的工厂（如过滤服务提供的动作） */

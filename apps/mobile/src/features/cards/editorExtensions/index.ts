@@ -1,4 +1,4 @@
-import type { AnyExtension } from "@tau/editor/src";
+import type { AnyExtension } from "@tau/editor";
 import { mobileContentLinkExtension } from "./contentLinkExtension";
 import { mobileFileAttachmentExtension } from "./passiveExtensions";
 import { mobileWhiteboardExtension, mobileDatabaseExtension } from "./privateBlockExtensions";

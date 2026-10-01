@@ -5,7 +5,9 @@ import { createEditor, type Editor, type Element } from "slate";
 import { resolveBlockMenuItems } from "../resolveMenu";
 import type { EditorMenuContribution } from "../../api/menu";
 
-const element = (type: string): Element => ({ type, children: [{ text: "" }] }) as Element;
+// 菜单解析允许未知领域，夹具只在输入边界声明其元素形状。
+const element = (type: string): Element =>
+  ({ type, children: [{ type: "formatted", text: "" }] }) as unknown as Element;
 
 const ctxOf = (element: Element, editor: Editor = createEditor()) => ({
   editor,
@@ -225,5 +227,100 @@ describe("resolveBlockMenuItems", () => {
     );
 
     expect(items.map(item => item.key)).toEqual(["a.action", "host.extra"]);
+  });
+
+  it("显式合并同名顶层子菜单，子项按 order 排序且重复 id 后者覆盖", () => {
+    const items = resolveBlockMenuItems(
+      [
+        source("first", [
+          {
+            id: "shared",
+            title: "组合",
+            mergeChildren: true,
+            children: [
+              { id: "late", title: "后", command: "old", order: 20 },
+              { id: "hidden", title: "隐藏", command: "x", when: () => false },
+            ],
+          },
+        ]),
+        source("second", [
+          {
+            id: "shared",
+            title: "组合",
+            mergeChildren: true,
+            children: [
+              { id: "first", title: "前", command: "first", order: 10 },
+              { id: "late", title: "新版", command: "new", order: 20 },
+            ],
+          },
+        ]),
+      ],
+      ctxOf(element("paragraph"))
+    );
+    expect(items).toHaveLength(1);
+    expect(items[0].children?.map(item => [item.key, item.label])).toEqual([
+      ["first", "前"],
+      ["late", "新版"],
+    ]);
+  });
+
+  it("未声明合并的覆盖项保留原语义，异常来源不影响其他来源的共享菜单", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const shared = source("first", [
+        {
+          id: "shared",
+          title: "组合",
+          mergeChildren: true,
+          children: [{ id: "old", title: "旧", command: "old" }],
+        },
+      ]);
+      const replacement = source("second", [
+        {
+          id: "shared",
+          title: "覆盖",
+          children: [{ id: "new", title: "新", command: "new" }],
+        },
+      ]);
+      const items = resolveBlockMenuItems([shared, replacement], ctxOf(element("paragraph")));
+      expect(items[0].children?.map(item => item.key)).toEqual(["new"]);
+      const broken = source("broken", [
+        {
+          id: "shared",
+          title: () => {
+            throw new Error("标题失败");
+          },
+          mergeChildren: true,
+          children: [{ id: "bad", title: "坏", command: "bad" }],
+        },
+      ]);
+      const kept = resolveBlockMenuItems([shared, broken], ctxOf(element("paragraph")));
+      expect(kept[0].children?.map(item => item.key)).toEqual(["old"]);
+      const brokenChild = source("child", [
+        {
+          id: "shared",
+          title: "组合",
+          mergeChildren: true,
+          children: [
+            {
+              id: "bad",
+              title: () => {
+                throw new Error("子项失败");
+              },
+              command: "bad",
+            },
+            { id: "good", title: "保留", command: "good" },
+          ],
+        },
+      ]);
+      expect(
+        resolveBlockMenuItems([shared, brokenChild], ctxOf(element("paragraph")))[0].children?.map(
+          item => item.key
+        )
+      ).toEqual(["old", "good"]);
+      expect(error).toHaveBeenCalled();
+    } finally {
+      error.mockRestore();
+    }
   });
 });

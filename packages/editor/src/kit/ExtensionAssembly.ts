@@ -11,6 +11,10 @@ import { toEditorExtension, elementTypesOf, type AnyExtension } from "../api/leg
 import type { Plugin } from "../utils/plugin";
 import type { IBlockPanelListItem, IConfigItem } from "../types";
 import { registerElementEmpty } from "./elementEmpty";
+import { registerBlockNavigationBoundaries } from "../utils/blockNavigation";
+import type { RegisteredCopy } from "../api/copy";
+import type { RegisteredMark } from "../api/marks";
+import type { RegisteredLayer } from "../components/ExtensionLayers";
 
 /** 一个扩展贡献的插件：内核按扩展逐组应用，出错隔离到组（extensionGuard.ts） */
 export interface ExtensionPluginGroup {
@@ -39,6 +43,7 @@ const schemaPlugin =
   (elements: readonly ElementSpec[]): Plugin =>
   (editor: Editor) => {
     registerElementEmpty(editor, elements);
+    registerBlockNavigationBoundaries(editor, elements);
     const inline = new Set(elements.filter(e => e.kind === "inline").map(e => e.type));
     const block = new Set(elements.filter(e => e.kind === "block").map(e => e.type));
     const voids = new Set(elements.filter(e => e.isVoid).map(e => e.type));
@@ -90,6 +95,9 @@ export class ExtensionAssembly {
   readonly elementTypes: readonly string[];
   /** 元素类型 → 行为列表：该类型自己的在前，其他扩展经 behaviorsFor 挂上来的按扩展顺序在后 */
   readonly behaviors: ReadonlyMap<string, readonly ElementBehaviorEntry[]>;
+  readonly copyPolicies: ReadonlyMap<string, RegisteredCopy>;
+  readonly marks: readonly RegisteredMark[];
+  readonly layers: readonly RegisteredLayer[];
   private readonly renderers = new Map<string, ElementRenderer>();
   private readonly owners = new Map<string, EditorExtension>();
 
@@ -105,6 +113,7 @@ export class ExtensionAssembly {
     const ingestSources: IngestSource[] = [];
     const own = new Map<string, ElementBehaviorEntry>();
     const attached = new Map<string, ElementBehaviorEntry[]>();
+    const copyPolicies = new Map<string, RegisteredCopy>();
     for (const extension of this.extensions) {
       // 单个扩展的收集出错不应连带整个编辑器起不来
       try {
@@ -124,9 +133,15 @@ export class ExtensionAssembly {
             types: types.length ? types : undefined,
           });
         }
+        for (const [type, menu] of collected.menuFor) {
+          menuSources.push({ owner: extension.id, menu, types: [type] });
+        }
         for (const [type, renderer] of collected.renderers) {
           this.renderers.set(type, renderer);
           this.owners.set(type, extension);
+          const copy = collected.copyPolicies.get(type);
+          if (copy) copyPolicies.set(type, copy);
+          else copyPolicies.delete(type);
         }
         for (const [type, entry] of collected.behaviors) own.set(type, entry);
         for (const [type, entry] of collected.attached) {
@@ -138,13 +153,39 @@ export class ExtensionAssembly {
     }
     this.pluginGroups = pluginGroups;
     this.plugins = pluginGroups.flatMap(group => group.plugins);
-    this.commandHotkeys = commandHotkeys;
+    this.commandHotkeys = [
+      ...commandHotkeys.filter(entry => !entry.hotkey.fallback),
+      ...commandHotkeys.filter(entry => entry.hotkey.fallback),
+    ];
     this.commands = commands;
     // 命令注册在 try 外：id 冲突要冒泡到 kit 创建处，不让 per-extension 容错吞掉
     for (const extension of this.extensions) {
       if (!extension.commands) continue;
       commands.register(extension.id, extension.commands);
     }
+    const marks: RegisteredMark[] = [];
+    const markIds = new Set<string>();
+    const markKeys = new Set<string>();
+    for (const extension of this.extensions) {
+      for (const spec of extension.marks ?? []) {
+        if (!spec.id || markIds.has(spec.id)) {
+          throw new Error(`[editor] 标记声明 id 缺失或重复：${spec.id}`);
+        }
+        markIds.add(spec.id);
+        if (!spec.keys.length) throw new Error(`[editor] 标记 ${spec.id} 未声明字段`);
+        for (const key of spec.keys) {
+          if (!key || key === "text" || key === "type" || key === "children" || markKeys.has(key)) {
+            throw new Error(`[editor] 标记字段无效、保留或重复：${key}`);
+          }
+          markKeys.add(key);
+        }
+        marks.push({ owner: extension.id, spec });
+      }
+    }
+    this.marks = marks;
+    this.layers = this.extensions.flatMap(extension =>
+      (extension.layers ?? []).map(component => ({ owner: extension.id, component }))
+    );
     this.hoveringBarElements = hoveringBarElements;
     this.menuSources = menuSources;
     this.dragSpecs = dragSpecs;
@@ -170,11 +211,13 @@ export class ExtensionAssembly {
       ]);
     }
     this.behaviors = behaviors;
+    this.copyPolicies = copyPolicies;
     this.elementTypes = [...this.renderers.keys()];
   }
 
   /** 先把一个扩展的全部贡献收齐，中途抛错则整个扩展都不装，不留半截 */
   private collect(extension: EditorExtension) {
+    const copyPolicies = new Map<string, RegisteredCopy>();
     const renderers = new Map<string, ElementRenderer>();
     const behaviors = new Map<string, ElementBehaviorEntry>();
     const attached = new Map<string, ElementBehaviorEntry>();
@@ -183,6 +226,9 @@ export class ExtensionAssembly {
     const elements = extension.elements ?? [];
     for (const spec of elements) {
       renderers.set(spec.type, renderSpec(spec));
+      if (spec.copy && spec.kind === "block" && !spec.isVoid) {
+        copyPolicies.set(spec.type, { owner: extension.id, copy: spec.copy });
+      }
       if (spec.behaviors) {
         behaviors.set(spec.type, { extension: extension.id, behaviors: spec.behaviors });
       }
@@ -202,11 +248,13 @@ export class ExtensionAssembly {
       commands: [...(extension.commands ?? [])],
       toolbar: [...(extension.toolbar ?? [])],
       menu: extension.menu,
+      menuFor: Object.entries(extension.menuFor ?? {}),
       dragSpecs,
       ingest,
       renderers,
       behaviors,
       attached,
+      copyPolicies,
     };
   }
 

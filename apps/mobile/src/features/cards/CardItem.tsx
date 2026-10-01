@@ -5,7 +5,7 @@
 import { memo, useCallback, useMemo, useRef } from "react";
 import { getMobileContentKit } from "../../services/editorKit";
 import type { Descendant } from "slate";
-import { Editor, type EditorRef } from "@tau/editor/src";
+import { Editor, type EditorRef } from "@tau/editor";
 import { CardListItem } from "../../types";
 import { cardCategoryDotClass, cardCategoryLabel, cardCategoryTextClass } from "./cardCategory";
 import TagChips from "./TagChips";

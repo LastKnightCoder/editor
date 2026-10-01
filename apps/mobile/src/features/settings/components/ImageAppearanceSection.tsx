@@ -10,8 +10,8 @@ import {
   getImageBorderRadiusValue,
   getImageShadowValue,
   normalizeImageShadowPreset,
-} from "@tau/editor/src/extensions/image/utils/appearance";
-import type { ImageBorderRadiusPreset, ImageShadowPreset } from "@tau/editor/src";
+} from "@tau/editor-media/appearance";
+import { type ImageBorderRadiusPreset, type ImageShadowPreset } from "@tau/editor-media/types";
 import { useAppContext } from "../../../app/AppContext";
 import { CheckBubble, GroupRow } from "./ui";
 

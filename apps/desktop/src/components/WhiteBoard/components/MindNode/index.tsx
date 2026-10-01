@@ -1,6 +1,6 @@
 import React, { MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { getContentKit } from "@/services/editorKit";
-import { Editor, EditorRef, EditorThemeOverride } from "@tau/editor/src";
+import { Editor, EditorRef, EditorThemeOverride } from "@tau/editor";
 import If from "@/components/If";
 
 import { useMemoizedFn } from "ahooks";

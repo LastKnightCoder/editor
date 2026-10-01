@@ -1,6 +1,6 @@
 import { Presentation } from "lucide-react";
 import { Editor } from "slate";
-import { IBlockPanelListItem } from "@tau/editor/src";
+import { IBlockPanelListItem } from "@tau/editor";
 import { insertWhiteboard, insertExistingWhiteboard } from "./utils";
 import { createRoot } from "react-dom/client";
 import SelectWhiteBoardContentModal from "./components/SelectWhiteBoardContentModal";
@@ -11,10 +11,7 @@ const showSelectWhiteBoardModal = (editor: Editor) => {
   document.body.appendChild(container);
   const root = createRoot(container);
 
-  const handleOk = async (
-    whiteBoardContent: WhiteBoardContent,
-    _whiteBoard: WhiteBoard,
-  ) => {
+  const handleOk = async (whiteBoardContent: WhiteBoardContent, _whiteBoard: WhiteBoard) => {
     await insertExistingWhiteboard(editor, whiteBoardContent);
     root.unmount();
     container.remove();
@@ -25,13 +22,7 @@ const showSelectWhiteBoardModal = (editor: Editor) => {
     container.remove();
   };
 
-  root.render(
-    <SelectWhiteBoardContentModal
-      open={true}
-      onOk={handleOk}
-      onCancel={handleCancel}
-    />,
-  );
+  root.render(<SelectWhiteBoardContentModal open={true} onOk={handleOk} onCancel={handleCancel} />);
 };
 
 const blockPanelItems: IBlockPanelListItem[] = [

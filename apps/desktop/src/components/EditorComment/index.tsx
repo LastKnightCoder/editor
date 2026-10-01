@@ -2,7 +2,8 @@ import React, { CSSProperties, RefObject, useCallback, useState } from "react";
 import classNames from "classnames";
 import { motion } from "motion/react";
 import type { Path } from "slate";
-import type { CommentElement, CustomEditor } from "@tau/editor/src";
+import type { CustomEditor } from "@tau/editor";
+import { type CommentElement } from "@tau/editor-comment/types";
 import CommentCard from "./CommentCard";
 import useCommentPositions from "./hooks/useCommentPositions";
 
@@ -33,11 +34,11 @@ const EditorComment: React.FC<EditorCommentProps> = ({
     containerRef,
     minCardHeight,
     cardGap,
-    cardHeights,
+    cardHeights
   );
 
   const handleHeightChange = useCallback((id: string, height: number) => {
-    setCardHeights((prev) => {
+    setCardHeights(prev => {
       if (Math.abs((prev[id] ?? 0) - height) < 1) {
         return prev;
       }
@@ -55,7 +56,7 @@ const EditorComment: React.FC<EditorCommentProps> = ({
       }
       onCommentClick?.(position.element, position.path);
     },
-    [onCommentClick],
+    [onCommentClick]
   );
 
   return (
@@ -64,20 +65,18 @@ const EditorComment: React.FC<EditorCommentProps> = ({
       layoutRoot
       className={classNames(
         "relative transition-all duration-300",
-        !show && "pointer-events-none opacity-0 translate-x-4",
-        className,
+        !show && "pointer-events-none translate-x-4 opacity-0",
+        className
       )}
       style={style}
     >
       <div className="relative h-full">
-        {positions.map((position) => (
+        {positions.map(position => (
           <CommentCard
             key={position.element.uuid}
             position={position}
             onClick={() => handleCardClick(position)}
-            onHeightChange={(height) =>
-              handleHeightChange(position.element.uuid, height)
-            }
+            onHeightChange={height => handleHeightChange(position.element.uuid, height)}
           />
         ))}
       </div>

@@ -1,0 +1,59 @@
+import { Editor, Transforms } from "slate";
+
+import type { EditorCommand } from "@tau/editor/api";
+import { getParentNodeByNode, isAtParagraphStart, getPreviousSiblingNode } from "../../../utils";
+import { notifierOf } from "@tau/editor/api";
+
+/** Tab：把当前列表项缩进到前一个列表项中（段首且非首项时） */
+export const indent: EditorCommand = {
+  id: "tau.list-item.indent",
+  title: "缩进列表项",
+  run: (editor, ctx) => {
+    const [match] = Editor.nodes(editor, {
+      match: n => n.type === "list-item",
+      mode: "lowest",
+    });
+    const [para] = Editor.nodes(editor, {
+      match: n => n.type === "paragraph",
+    });
+    // 在段落的开头、是第一个段落、前面必须还有 list-item
+    if (!(
+      para &&
+      match &&
+      isAtParagraphStart(editor) &&
+      para[1][para[1].length - 1] === 0 &&
+      match[1][match[1].length - 1] !== 0
+    )) {
+      return;
+    }
+    const parent = getParentNodeByNode(editor, match[0]);
+    const parentType = parent[0].type;
+    if (!["bulleted-list", "numbered-list"].includes(parentType)) {
+      notifierOf(editor).error("list-item 必须在 bulleted-list 或者 numbered-list 中");
+      return;
+    }
+    // 上面保证过上一个 list 一定存在
+    const previousSibling = getPreviousSiblingNode(editor, match[0])!;
+    Editor.withoutNormalizing(editor, () => {
+      // 包裹为 bulleted-list 或 numbered-list，并包裹在上一个 list-item 中
+      Transforms.wrapNodes(
+        editor,
+        {
+          // @ts-ignore
+          type: parentType,
+          children: [],
+        },
+        {
+          match: n => n.type === "list-item",
+        }
+      );
+      // 放在最后面
+      Transforms.moveNodes(editor, {
+        match: n => n.type === parentType,
+        // @ts-ignore
+        to: [...previousSibling[1], previousSibling[0].children.length],
+      });
+    });
+    ctx.event?.preventDefault();
+  },
+};

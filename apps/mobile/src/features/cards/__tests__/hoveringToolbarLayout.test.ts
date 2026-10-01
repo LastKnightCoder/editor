@@ -1,16 +1,21 @@
 import { describe, expect, it } from "vitest";
-import type { IConfigItem } from "@tau/editor/src";
+import type { IConfigItem } from "@tau/editor";
 import {
   buildCompactLayoutItems,
   COMPACT_MORE_GROUP_ID,
   COMPACT_TEXT_STYLE_GROUP_ID,
-} from "@tau/editor/src/components/HoveringToolbar/compactLayout";
-import { calculateFloatingPosition } from "@tau/editor/src/components/HoveringToolbar/floatingPosition";
+} from "@tau/editor/toolbar";
+import { calculateFloatingPosition } from "@tau/editor/toolbar";
 
-function createConfig(id: string, order: number): IConfigItem {
+function createConfig(
+  id: string,
+  order: number,
+  compactGroup?: IConfigItem["compactGroup"]
+): IConfigItem {
   return {
     id,
     order,
+    compactGroup,
     element: (() => null) as IConfigItem["element"],
   };
 }
@@ -125,23 +130,34 @@ describe("HoveringToolbar floatingPosition", () => {
 });
 
 describe("HoveringToolbar compactLayout", () => {
+  it("第三方条目按声明分组，旧 id 没有声明也不被核心特判", () => {
+    const items = buildCompactLayoutItems([
+      createConfig("third-party.small-caps", 1, "text-style"),
+      createConfig("bold", 2),
+      createConfig("third-party.inspect", 3, "more"),
+    ]);
+    expect(items.map(item => (item.kind === "item" ? item.config.id : item.id))).toEqual([
+      COMPACT_TEXT_STYLE_GROUP_ID,
+      "bold",
+      COMPACT_MORE_GROUP_ID,
+    ]);
+  });
+
   it("compact 下应将 kbd 并入文本样式组，并把 comment/content-link 收敛到 more", () => {
     const sortedConfigs: IConfigItem[] = [
-      createConfig("bold", 1),
-      createConfig("italic", 2),
+      createConfig("bold", 1, "text-style"),
+      createConfig("italic", 2, "text-style"),
       createConfig("underline", 3),
-      createConfig("strikethrough", 4),
-      createConfig("comment", 5),
-      createConfig("kbd", 5.5),
+      createConfig("strikethrough", 4, "text-style"),
+      createConfig("comment", 5, "more"),
+      createConfig("kbd", 5.5, "text-style"),
       createConfig("link", 6),
-      createConfig("content-link", 7),
+      createConfig("content-link", 7, "more"),
       createConfig("color", 10),
     ];
 
     const compactItems = buildCompactLayoutItems(sortedConfigs);
-    const ids = compactItems.map((item) =>
-      item.kind === "item" ? item.config.id : item.id,
-    );
+    const ids = compactItems.map(item => (item.kind === "item" ? item.config.id : item.id));
 
     expect(ids).toEqual([
       COMPACT_TEXT_STYLE_GROUP_ID,
@@ -152,22 +168,17 @@ describe("HoveringToolbar compactLayout", () => {
     ]);
 
     const textGroup = compactItems.find(
-      (item) =>
-        item.kind === "group" && item.id === COMPACT_TEXT_STYLE_GROUP_ID,
+      item => item.kind === "group" && item.id === COMPACT_TEXT_STYLE_GROUP_ID
     );
     const moreGroup = compactItems.find(
-      (item) => item.kind === "group" && item.id === COMPACT_MORE_GROUP_ID,
+      item => item.kind === "group" && item.id === COMPACT_MORE_GROUP_ID
     );
 
     expect(
-      textGroup && textGroup.kind === "group"
-        ? textGroup.items.map((item) => item.id)
-        : [],
+      textGroup && textGroup.kind === "group" ? textGroup.items.map(item => item.id) : []
     ).toEqual(["bold", "italic", "strikethrough", "kbd"]);
     expect(
-      moreGroup && moreGroup.kind === "group"
-        ? moreGroup.items.map((item) => item.id)
-        : [],
+      moreGroup && moreGroup.kind === "group" ? moreGroup.items.map(item => item.id) : []
     ).toEqual(["comment", "content-link"]);
   });
 
@@ -180,11 +191,11 @@ describe("HoveringToolbar compactLayout", () => {
 
     const compactItems = buildCompactLayoutItems(sortedConfigs);
 
-    expect(compactItems.every((item) => item.kind === "item")).toBe(true);
-    expect(
-      compactItems.map((item) =>
-        item.kind === "item" ? item.config.id : item.id,
-      ),
-    ).toEqual(["underline", "link", "color"]);
+    expect(compactItems.every(item => item.kind === "item")).toBe(true);
+    expect(compactItems.map(item => (item.kind === "item" ? item.config.id : item.id))).toEqual([
+      "underline",
+      "link",
+      "color",
+    ]);
   });
 });

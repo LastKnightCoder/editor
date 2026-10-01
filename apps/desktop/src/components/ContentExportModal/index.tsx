@@ -6,7 +6,7 @@ import { X } from "lucide-react";
 import { Button as TauButton, toast } from "@tau/ui";
 import { useLocalStorageState } from "ahooks";
 
-import { Editor, EditorThemeOverride } from "@tau/editor/src";
+import { Editor, EditorThemeOverride } from "@tau/editor";
 
 import { produce } from "immer";
 import { captureBlobWithSnapdom } from "@/utils/snapdom-export";

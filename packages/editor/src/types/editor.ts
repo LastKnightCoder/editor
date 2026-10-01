@@ -31,8 +31,6 @@ export interface EditorRef {
   setEditorValue: (nodes: Descendant[]) => void;
   /** Get the underlying Slate editor instance */
   getEditor: () => SlateEditor;
-  /** Scroll a header element into view by index */
-  scrollHeaderIntoView: (index: number) => void;
   /** Check if the editor is currently focused */
   isFocus: () => boolean;
 }

@@ -2,7 +2,7 @@
 // 节点结构与桌面 apps/desktop/src/editor-extensions/flashcard-blank 完全一致（数据互通）；
 // 触屏适配见 FlashcardBlankInline（配置入口不依赖 hover，配置面板为 BottomSheet）。
 
-import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor/src";
+import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor";
 import type { FlashcardBlankElement } from "./flashcardBlankTransforms";
 import { FlashcardBlankInline } from "./FlashcardBlankInline";
 

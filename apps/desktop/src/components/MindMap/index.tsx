@@ -12,7 +12,7 @@ import React, {
 } from "react";
 import { getContentKit } from "@/services/editorKit";
 import clsx from "classnames";
-import { Editor, EditorThemeOverride } from "@tau/editor/src";
+import { Editor, EditorThemeOverride } from "@tau/editor";
 import { MindUtil } from "@/components/WhiteBoard/utils/MindUtil";
 import { MindNodeElement } from "@/components/WhiteBoard/types/mind";
 import MindThemeUtil, {

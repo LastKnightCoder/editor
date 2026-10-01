@@ -2,7 +2,7 @@
 // 内置返回手势拦截）。配置写回 Slate 节点按 blankId 全树定位，不依赖选区。
 
 import { useEffect, useState } from "react";
-import { InlineChromiumBugfix } from "@tau/editor/src";
+import { InlineChromiumBugfix } from "@tau/editor";
 import type { RenderElementProps } from "slate-react";
 import { useSlateStatic } from "slate-react";
 import { Editor, Transforms } from "slate";

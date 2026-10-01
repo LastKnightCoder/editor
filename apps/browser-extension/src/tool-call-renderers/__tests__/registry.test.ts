@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getToolCallRenderer, unregisterToolCallRenderer } from "@tau/shared";
+import { getToolCallRenderer, unregisterToolCallRenderer } from "@tau/chat-ui/renderers";
 import { initToolCallRenderers } from "../builtin";
 import { ASK_QUESTION_TOOL_NAME } from "@/tools/askQuestionTypes";
 

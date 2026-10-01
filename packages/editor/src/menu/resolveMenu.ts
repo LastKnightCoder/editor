@@ -52,16 +52,18 @@ function safePredicate(
 function renderEntry(
   entry: EditorMenuEntry,
   ctx: EditorMenuContext,
-  owner: string
+  owner: string,
+  childOrders: WeakMap<ContextMenuItem, number>
 ): ContextMenuItem | null {
   if (entry.when && !safePredicate(entry.when, ctx, owner, false)) return null;
 
   const children = (entry.children ?? [])
-    .map(child => renderEntry(child, ctx, owner))
-    .filter((item): item is ContextMenuItem => item !== null);
+    .map(child => safeRenderEntry(child, ctx, owner, childOrders))
+    .filter((item): item is ContextMenuItem => item !== null)
+    .sort((a, b) => (childOrders.get(a) ?? 0) - (childOrders.get(b) ?? 0));
   if (!entry.command && children.length === 0) return null;
 
-  return {
+  const item: ContextMenuItem = {
     key: entry.id,
     label: resolveMenuValue(entry.title, ctx) ?? entry.id,
     icon: resolveMenuValue(entry.icon, ctx),
@@ -72,6 +74,22 @@ function renderEntry(
       ? () => ctx.editor.commands?.execute(entry.command!, entry.payload, ctx.element, ctx.path)
       : undefined,
   };
+  childOrders.set(item, entry.order ?? Number.MAX_SAFE_INTEGER);
+  return item;
+}
+
+function safeRenderEntry(
+  entry: EditorMenuEntry,
+  ctx: EditorMenuContext,
+  owner: string,
+  childOrders: WeakMap<ContextMenuItem, number>
+): ContextMenuItem | null {
+  try {
+    return renderEntry(entry, ctx, owner, childOrders);
+  } catch (error) {
+    console.error(`[editor] 扩展 "${owner}" 的菜单条目出错:`, error);
+    return null;
+  }
 }
 
 export function resolveBlockMenuItems(
@@ -84,9 +102,11 @@ export function resolveBlockMenuItems(
     group: string;
     order: number;
     seq: number;
+    mergeChildren: boolean;
   }
   // 顶层条目按 id 去重：后声明的覆盖先声明的（扩展可覆盖内核默认条目，如带确认的删除）
   const collected = new Map<string, ScoredItem>();
+  const childOrders = new WeakMap<ContextMenuItem, number>();
 
   for (const source of sources) {
     // 特有菜单锚定到贡献者自己的元素类型，不需要（也不应该）逐条目写 when
@@ -99,13 +119,27 @@ export function resolveBlockMenuItems(
       continue;
     }
     for (const entry of entries) {
-      const item = renderEntry(entry, ctx, source.owner);
+      const item = safeRenderEntry(entry, ctx, source.owner, childOrders);
       if (item) {
+        const previous = collected.get(item.key);
+        const mergeChildren = entry.mergeChildren === true && !entry.command;
+        if (mergeChildren && previous?.mergeChildren) {
+          const children = new Map(
+            [...(previous.item.children ?? []), ...(item.children ?? [])].map(child => [
+              child.key,
+              child,
+            ])
+          );
+          item.children = [...children.values()].sort(
+            (a, b) => (childOrders.get(a) ?? 0) - (childOrders.get(b) ?? 0)
+          );
+        }
         collected.set(item.key, {
           item,
           group: entry.group ?? DEFAULT_GROUP,
           order: entry.order ?? Number.MAX_SAFE_INTEGER,
           seq: collected.size,
+          mergeChildren,
         });
       }
     }

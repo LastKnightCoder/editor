@@ -5,10 +5,11 @@
  * - 链接打开：带协议的走系统浏览器；本地 / 相对路径按当前文件目录解析，.md 在本窗口打开，
  *   目录与其它文件交给系统默认应用。
  */
+import { IOpenerService, IResourceService } from "@tau/shared/host-services";
 
 import { useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
-import { IOpenerService, IResourceService, type EditorKit } from "@tau/editor/src";
+import { type EditorKit } from "@tau/editor";
 import { getMarkdownFileKit } from "@/services/editorKit";
 import { toast } from "@tau/ui";
 import {

@@ -47,7 +47,7 @@ import {
   Trash2,
   Wand2,
 } from "lucide-react";
-import type { EditorRef } from "@tau/editor/src";
+import type { EditorRef } from "@tau/editor";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import { isElectron } from "@/electron";
 import ContentEditor from "@/components/ContentEditor";

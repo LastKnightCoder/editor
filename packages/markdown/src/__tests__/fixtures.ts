@@ -1,5 +1,6 @@
 import type { Descendant } from "slate";
 import { createMarkdownProcessor, type MarkdownCodec } from "../index.ts";
+import { textFormattingCodec } from "@tau/editor-text-formatting/markdown";
 
 /**
  * 框架测试用的最小 codec 夹具：框架不自带任何元素类型后，只测 walker / 位置映射 / 兜底
@@ -35,6 +36,7 @@ export const headerCodec: MarkdownCodec = {
 
 /** 带段落 codec 的处理器：导入导出都能处理最简单的文档 */
 export const fixtureProcessor = createMarkdownProcessor({
+  textCodecs: [textFormattingCodec],
   codecs: [paragraphCodec, headerCodec],
 });
 

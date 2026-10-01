@@ -1,14 +1,15 @@
 /**
  * 工具调用（D-048）：
  *  - ToolCallRow：通用折叠行「✓ tool_name · 1.2 秒」，失败 / 重试默认展开；展开看输入 / 输出 / 错误。
- *  - ToolCallBlock：接 shared 的渲染注册表——有自定义渲染器（日程、待办、检索……）走渲染器，
+ *  - ToolCallBlock：接 chat-ui 的渲染注册表——有自定义渲染器（日程、待办、检索……）走渲染器，
  *    否则落到 ToolCallRow；渲染器内部的 renderDefault() 也回到 ToolCallRow。
  * 状态只用语义色：成功 ok、失败 danger、重试 warn、执行中 accent 转圈、等待 / 取消 ink-3。
  */
 
 import { memo, useState, type ReactNode } from "react";
 import { Ban, Check, Clock, RotateCw, ShieldQuestion, TriangleAlert, X } from "lucide-react";
-import { ToolCallDisplay, type ToolCallExecutionState } from "@tau/shared";
+import type { ToolCallExecutionState } from "@tau/shared";
+import { ToolCallDisplay } from "@tau/chat-ui";
 import { Spinner, cn } from "@tau/ui";
 import { FoldBody, FoldRow } from "./FoldRow";
 import { ToolApprovalBar } from "./ToolApprovalBar";

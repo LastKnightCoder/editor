@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { RenderElementProps } from "slate-react";
 import type { FlashcardBlankElement } from "@/editor-extensions/flashcard-blank/types";
-import { InlineChromiumBugfix } from "@tau/editor/src";
+import { InlineChromiumBugfix } from "@tau/editor";
 import BlankConfigPopover from "./BlankConfigPopover";
 
 interface FlashcardBlankComponentProps {

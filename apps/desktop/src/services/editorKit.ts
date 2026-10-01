@@ -11,13 +11,10 @@
  * 用函数而不是模块级常量：`@/editor-extensions` 会经扩展组件绕回本模块，
  * 模块初始化期创建 kit 会拿到未初始化的导入（详见 04 踩坑）。首次调用时才创建并缓存。
  */
-import {
-  createBareEditorKit,
-  createEditorKit,
-  type AnyExtension,
-  type EditorKit,
-} from "@tau/editor/src";
-import { link, paragraph } from "@tau/editor/src/extensions";
+import { createEditorKit, type AnyExtension, type EditorKit } from "@tau/editor";
+import { textFormattingExtension } from "@tau/editor-text-formatting";
+import { default as link } from "@tau/editor-link";
+import { standardExtensions } from "../../../../editor-extensions/standard";
 import { inlineMathExtension as inlineMath } from "@tau/editor-math";
 import customBlockExtension from "@tau/editor-custom-block";
 import { diagramExtensions } from "@tau/editor-diagram";
@@ -25,6 +22,7 @@ import { htmlExtensions } from "@tau/editor-html";
 import { previewMenuExtension } from "@tau/editor-source-view/menu";
 import codeBlockExtension from "@tau/editor-code-block";
 import { mathExtensions } from "@tau/editor-math";
+import emojiExtension from "@tau/editor-emoji";
 import { createDesktopEditorExtensions, fileAttachmentExtension } from "@/editor-extensions";
 import flashcardBlankExtension from "@/editor-extensions/flashcard-blank";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
@@ -55,11 +53,13 @@ export function createDesktopKit(extras: readonly AnyExtension[] = []): EditorKi
   if (!kit) {
     kit = createEditorKit({
       extensions: [
+        ...standardExtensions,
         ...diagramExtensions,
         ...htmlExtensions,
         previewMenuExtension,
         codeBlockExtension,
         ...mathExtensions,
+        emojiExtension,
         customBlockExtension,
         ...createDesktopEditorExtensions(),
         ...extras,
@@ -126,11 +126,11 @@ let arrowLabelKit: EditorKit | null = null;
 
 /**
  * 白板箭头描述：SVG `foreignObject` 里的迷你单行编辑器，只要段落、行内公式、链接。
- * 这是唯一需要**比内置更少**的场景，所以不走 `createDesktopKit`（它总带全部内置扩展）。
+ * 显式保留格式能力，不展开正文场景的产品扩展集合。
  */
 export function getArrowLabelKit(): EditorKit {
-  return (arrowLabelKit ??= createBareEditorKit({
-    extensions: [paragraph, inlineMath, link],
+  return (arrowLabelKit ??= createEditorKit({
+    extensions: [inlineMath, link, textFormattingExtension],
     services: [desktopEditorServices],
   }));
 }

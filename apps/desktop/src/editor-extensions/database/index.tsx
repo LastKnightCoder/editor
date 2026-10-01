@@ -1,4 +1,4 @@
-import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor/src";
+import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor";
 import DatabaseBlock from "./components/DatabaseBlock";
 import blockPanelItems from "./block-panel-items";
 import { overwrite } from "./plugins";

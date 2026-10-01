@@ -1,6 +1,6 @@
 import ProjectList from "../ProjectList";
 import { RenderElementProps } from "slate-react";
-import { AddParagraph } from "@tau/editor/src";
+import { AddParagraph } from "@tau/editor";
 import type { ProjectCardListElement } from "../../types";
 import { ProjectItem } from "@/types";
 import React from "react";

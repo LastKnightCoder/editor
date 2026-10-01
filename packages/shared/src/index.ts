@@ -20,14 +20,9 @@ export { default as SelectDropDown } from "./components/SelectDropDown";
 export { default as Webview } from "./components/Webview";
 export type { EditTextHandle } from "./components/EditText";
 export type { WebviewRef, WebviewProps } from "./components/Webview";
-export { default as Katex } from "./components/Katex";
 export { default as ImageCropper } from "./components/ImageCropper";
 export { default as FullscreenPortal } from "./components/FullscreenPortal";
 export { default as LazySyntaxHighlighter } from "./components/LazySyntaxHighlighter";
-export {
-  default as MarkdownRenderer,
-  type MarkdownRendererProps,
-} from "./components/MarkdownRenderer";
 
 // Remark 插件
 export { default as remarkDocumentReference } from "./utils/remark-document-reference";
@@ -75,48 +70,17 @@ export {
   shouldCloseNewChatTooltip,
 } from "./components/ChatInputArea";
 
-// 聊天组件
+// 聊天展示投影与消息类型
 export {
-  StatusBadge,
-  ToolCallDisplay,
-  ChatToolCallDisplay,
-  ChatToolCallDefaultItem,
-  ReasoningDisplay,
-  ChatMessage,
-  ChatMarkdownRenderer,
-  CodeBlockPreviewCard,
-  buildCodeBlockPreviewPayload,
-  ChatMessageView,
-  toolCallRendererRegistry,
-  registerToolCallRenderer,
-  registerToolCallRenderers,
-  unregisterToolCallRenderer,
-  getToolCallRenderer,
   buildLegacyAssistantDisplayBlocks,
   getDisplayTextFromBlocks,
-  type StatusBadgeProps,
-  type ToolCallDisplayProps,
-  type ToolCallDefaultItemRenderParams,
-  type ChatToolCallDisplayProps,
-  type ChatToolCallDefaultItemProps,
-  type ReasoningDisplayProps,
-  type ChatMessageProps,
-  type ChatMarkdownRendererProps,
-  type CodeBlockPreviewPayload,
-  type CodeBlockPreviewCardProps,
-  type ChatMessageViewProps,
-  type ChatMessageViewFile,
-  type ChatMessageViewImage,
-  type ChatMessageViewMarkdownRenderParams,
-  type ToolCallCustomRenderer,
-  type ToolCallCustomRendererProps,
   type ContentBlockType,
   type TextContentBlock,
   type ReasoningContentBlock,
   type ToolCallsContentBlock,
   type MessageRole,
   type ChatMessageType,
-} from "./components/ChatComponents";
+} from "./chat-renderers";
 
 export {
   Role,
@@ -262,10 +226,3 @@ export {
   type RemoteVideoStreamProgress,
   type RemoteVideoCacheProgress,
 } from "./hooks/useRemoteVideo";
-
-export {
-  default as ChatContainerCore,
-  type ChatContainerCoreProps,
-  type ChatContainerCoreHandle,
-  type ChatContainerCoreMessageRendererParams,
-} from "./chat-core/ChatContainerCore";

@@ -1,6 +1,6 @@
-import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor/src";
+import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor";
 import { Z_INDEX } from "../../../router/zIndex";
-import type { EditorKit, IConfigItem } from "@tau/editor/src";
+import type { EditorKit, IConfigItem } from "@tau/editor";
 import {
   useEffect,
   useMemo,
@@ -104,7 +104,7 @@ async function loadPreviewRenderer(): Promise<PreviewRenderer> {
   }
 
   previewRendererPromise = Promise.all([
-    import("@tau/editor/src"),
+    import("@tau/editor"),
     import("../../../services/editorKit"),
   ])
     .then(([editorModule, kitModule]) => {
@@ -464,6 +464,7 @@ function MobileContentLinkHoveringItem() {
 const hoveringBarConfigs: IConfigItem[] = [
   {
     id: "content-link",
+    compactGroup: "more" as const,
     order: 7,
     element: MobileContentLinkHoveringItem,
   },

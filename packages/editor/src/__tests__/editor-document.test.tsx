@@ -1,3 +1,4 @@
+import { IOpenerService } from "@tau/shared/host-services";
 // P6：文档源（EditorDocument）的内核接入。协作用的 Yjs 文档源见 P7。
 import { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -9,7 +10,8 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 
 import { Editor, createEditorKit, createValueDocument } from "../index";
 import type { EditorDocument, EditorRef } from "../index";
-import { createDefaultEditorSlots, IEditorSlots, IOpenerService } from "../services";
+import { createDefaultEditorSlots } from "@tau/editor-media/slots";
+import { IEditorSlots } from "@tau/editor-media/services";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -118,7 +120,7 @@ describe("EditorDocument", () => {
 
   it("attach 在挂载时执行、卸载时清理", async () => {
     const dispose = vi.fn();
-    const attach = vi.fn(() => dispose);
+    const attach = vi.fn<NonNullable<EditorDocument["attach"]>>(() => dispose);
     const doc: EditorDocument = { ...createValueDocument([paragraph("x")]), attach };
 
     await render(<Editor kit={kit} document={doc} readonly />);

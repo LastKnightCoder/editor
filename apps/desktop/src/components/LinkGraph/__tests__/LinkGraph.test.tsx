@@ -22,7 +22,7 @@ vi.mock("@/services/editorKit", () => ({
   getFlashcardKit: () => ({}),
   getArrowLabelKit: () => ({}),
 }));
-vi.mock("@tau/editor/src", () => ({ Editor: () => null }));
+vi.mock("@tau/editor", () => ({ Editor: () => null }));
 vi.mock("@/components/Loading", () => ({ default: () => <span>加载中</span> }));
 
 let root: Root;

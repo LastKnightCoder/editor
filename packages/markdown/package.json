@@ -7,15 +7,13 @@
   "types": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./model": "./src/model.ts",
-    "./text-gradient": "./src/text-gradient.ts"
+    "./model": "./src/model.ts"
   },
   "scripts": {
     "test": "vitest run",
     "check": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@tau/db-schema": "workspace:*",
     "remark-cjk-friendly": "^2.3.1",
     "remark-cjk-friendly-gfm-strikethrough": "^2.3.1",
     "remark-directive": "^3.0.1",
@@ -32,6 +30,8 @@
     "slate": ">=0.123.0"
   },
   "devDependencies": {
+    "@tau/editor-link": "workspace:*",
+    "@tau/editor-text-formatting": "workspace:*",
     "@types/node": "^20.2.1",
     "@types/uuid": "^9.0.8",
     "slate": "0.126.2",

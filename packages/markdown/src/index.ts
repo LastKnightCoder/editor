@@ -14,6 +14,7 @@ export {
   type MarkdownProcessor,
   type MarkdownProcessorOptions,
 } from "./processor.ts";
+export type { MarkdownTextCodec, MarkdownTextRule, LeafSerializationResult } from "./textCodec.ts";
 export type {
   MarkdownCodec,
   CustomDirectiveHandler,
@@ -26,12 +27,7 @@ export {
   type ImportFromMarkdownOptions,
   type SlateWithPositions,
 } from "./markdown.ts";
-export {
-  addExportFootnote,
-  leafToMarkdown,
-  leafToMarkdownStructured,
-  type MarkdownWithPositions,
-} from "./markdown-helper.ts";
+export { addExportFootnote, type MarkdownWithPositions } from "./markdown-helper.ts";
 export {
   MarkdownSerializerRegistry,
   type MarkdownSerializer,

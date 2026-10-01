@@ -5,7 +5,7 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import type { Descendant } from "slate";
-import type { EditorRef } from "@tau/editor/src";
+import type { EditorRef } from "@tau/editor";
 import {
   ChevronDown,
   ExternalLink,

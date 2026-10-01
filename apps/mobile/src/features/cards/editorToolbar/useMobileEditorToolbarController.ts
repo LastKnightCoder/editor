@@ -1,19 +1,17 @@
 import { useCallback, useMemo, useRef, useState, type RefObject } from "react";
-import type { EditorRef } from "@tau/editor/src";
-import {
-  insertCallout,
-  insertCheckList,
-  insertDetails,
-  insertHighlightBlock,
-  insertImageGallery,
-  insertTable,
-  insertTabs,
-  insertAnnotation,
-} from "@tau/editor/src/utils/insertElement";
+import type { EditorRef } from "@tau/editor";
+import { insertTabs } from "@tau/editor-tabs";
+import { insertCallout } from "@tau/editor-callout";
+import { insertDetails } from "@tau/editor-detail";
+import { insertHighlightBlock } from "@tau/editor-highlight-block";
+import { insertTable } from "@tau/editor-table";
+import { insertCheckList } from "@tau/editor-list";
+import { insertAnnotation } from "@tau/editor-annotation";
+import { insertImageGallery } from "@tau/editor-media";
 import { insertMermaid } from "@tau/editor-diagram";
 import { insertCodeBlock } from "@tau/editor-code-block";
 import { insertBlockMath } from "@tau/editor-math";
-import { openLocalMediaPicker, openMediaUrlInput } from "@tau/editor/src/utils/mediaInsert";
+import { openLocalMediaPicker, openMediaUrlInput } from "@tau/editor-media";
 import type { Editor as SlateEditor } from "slate";
 import { Range, Transforms, type BaseSelection } from "slate";
 import { ReactEditor } from "slate-react";

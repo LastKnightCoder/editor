@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { produce } from "immer";
 import { merge } from "lodash";
-import type { ImageBorderRadiusPreset, ImageShadowPreset } from "@tau/editor";
+import { type ImageBorderRadiusPreset, type ImageShadowPreset } from "@tau/editor-media/types";
 import { useThemeStore } from "@tau/themes/react";
 
 import { EGithubCDN } from "@/constants/github";

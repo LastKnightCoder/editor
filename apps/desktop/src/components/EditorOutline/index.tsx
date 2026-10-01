@@ -7,7 +7,7 @@ import Outline from "@/components/Outline";
 import If from "@/components/If";
 
 import styles from "./index.module.less";
-import { HeaderElement } from "@tau/editor/src";
+import { HeaderElement } from "@tau/editor-header";
 import { getInlineElementText } from "@/utils";
 
 interface EditorOutlineProps {

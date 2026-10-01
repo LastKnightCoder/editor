@@ -112,7 +112,7 @@ vi.mock("@/services/editorKit", () => ({
   getFlashcardKit: () => ({}),
   getArrowLabelKit: () => ({}),
 }));
-vi.mock("@tau/editor/src", () => {
+vi.mock("@tau/editor", () => {
   const MockEditor = forwardRef<
     {
       focus: () => void;
@@ -120,7 +120,6 @@ vi.mock("@tau/editor/src", () => {
       getEditor: () => { insertText: (text: string) => void };
       isFocus: () => boolean;
       deselect: () => void;
-      scrollHeaderIntoView: () => void;
     },
     {
       initValue?: Descendant[];
@@ -149,7 +148,6 @@ vi.mock("@tau/editor/src", () => {
       getEditor: () => ({ insertText: insertTextMock }),
       isFocus: () => true,
       deselect: () => undefined,
-      scrollHeaderIntoView: () => undefined,
     }));
 
     const renderedText = value
@@ -178,9 +176,7 @@ const renderChatInputArea = async (ref: React.RefObject<ChatInputAreaHandle | nu
   document.body.appendChild(container);
   root = createRoot(container);
   await act(async () => {
-    root?.render(
-        <ChatInputArea ref={ref} />
-    );
+    root?.render(<ChatInputArea ref={ref} />);
   });
 };
 
@@ -346,9 +342,7 @@ describe("桌面端 ChatInputArea Editor 输入", () => {
     document.body.appendChild(container);
     root = createRoot(container);
     await act(async () => {
-      root?.render(
-          <ChatInputArea ref={ref} onPressEnter={onPressEnter} />
-      );
+      root?.render(<ChatInputArea ref={ref} onPressEnter={onPressEnter} />);
     });
 
     const plainEnterHotkey = capturedHotkeyConfigs.find(config => config.hotKey === "enter");

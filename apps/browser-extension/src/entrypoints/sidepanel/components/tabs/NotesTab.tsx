@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "@tau/ui";
 import { useConfirmPrompt } from "../../../../hooks/useConfirmPrompt";
-import { Editor } from "@tau/editor/src";
+import { Editor } from "@tau/editor";
 import webviewExtension from "@tau/editor-webview";
 import { SelectDropDown, EditText } from "@tau/shared";
 import type { EditTextHandle } from "@tau/shared";
@@ -637,9 +637,7 @@ export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef 
       if (!dbName) throw new Error("未连接到桌面端");
       const ensured = await ensureContentId(dbName);
       if (!ensured?.contentId) throw new Error("内容更新失败");
-      toast.success(
-        ensured.mode === "synced-from-app" ? "已从应用同步最新内容" : "内容更新成功"
-      );
+      toast.success(ensured.mode === "synced-from-app" ? "已从应用同步最新内容" : "内容更新成功");
     } catch (error) {
       if ((error as Error)?.message === "SYNC_CANCELLED") return;
       console.error("更新内容失败:", error);

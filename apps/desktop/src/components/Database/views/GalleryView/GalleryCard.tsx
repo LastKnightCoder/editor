@@ -3,7 +3,7 @@ import { Trash2 } from "lucide-react";
 import { RowData, ColumnDef, CellValue } from "../../types";
 import { getContentById } from "@/commands/content";
 import { Descendant } from "slate";
-import { EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor";
 import Editor from "@/components/ContentEditor";
 import { ImageItem } from "../../plugins/ImagePlugin/types";
 import { coverGradientOfKey } from "@/utils/cover";

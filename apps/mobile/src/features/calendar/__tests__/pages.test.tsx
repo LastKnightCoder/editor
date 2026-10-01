@@ -38,7 +38,7 @@ vi.mock("../../../services/editorKit", () => ({
   getMobileContentKit: () => ({}),
   getMobileFlashcardKit: () => ({}),
 }));
-vi.mock("@tau/editor/src", () => ({
+vi.mock("@tau/editor", () => ({
   Editor: forwardRef(({ initValue }: { initValue: unknown }, ref) => {
     const [value, setValue] = useState(initValue);
     useImperativeHandle(ref, () => ({ setEditorValue: setValue }), []);

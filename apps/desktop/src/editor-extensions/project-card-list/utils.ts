@@ -1,5 +1,5 @@
 import { Editor } from "slate";
-import { setOrInsertNode } from "@tau/editor/src";
+import { setOrInsertNode } from "@tau/editor";
 import { toast } from "@tau/ui";
 import type { ProjectCardListElement } from "./types";
 

@@ -22,7 +22,7 @@ vi.mock("@/services/editorKit", () => ({
   getFlashcardKit: () => ({}),
   getArrowLabelKit: () => ({}),
 }));
-vi.mock("@tau/editor/src", () => ({
+vi.mock("@tau/editor", () => ({
   Editor: ({ initValue, collaboration, readonly }: any) => {
     expect(collaboration).toBeUndefined();
     expect(readonly).toBe(true);

@@ -1,4 +1,4 @@
-import { AnyExtension } from "@tau/editor/src";
+import { AnyExtension } from "@tau/editor";
 import { create } from "zustand";
 
 /**

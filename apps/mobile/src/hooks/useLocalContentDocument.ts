@@ -4,7 +4,7 @@ import { Awareness } from "y-protocols/awareness";
 import { createSharedDocument } from "@tau/collaboration/src/document";
 import type { ContentNode } from "@tau/collaboration/src/protocol";
 import { createYjsDocument, type EditorCollaborationBinding } from "@tau/editor-collab";
-import type { EditorDocument } from "@tau/editor/src";
+import type { EditorDocument } from "@tau/editor";
 import { normalizeEditorContent } from "../features/cards/editorContentUtils";
 
 /** 内容谱系：本机编辑与协作编辑用同一个值，编辑器据此走换源而不是重建（01 §7.3 第 3 层） */

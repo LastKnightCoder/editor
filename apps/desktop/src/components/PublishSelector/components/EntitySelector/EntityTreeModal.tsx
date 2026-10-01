@@ -2,7 +2,7 @@ import { memo, useState, useMemo, useCallback, useEffect } from "react";
 import { getContentKit } from "@/services/editorKit";
 import clsx from "clsx";
 import { Dialog, Button, Spinner } from "@tau/ui";
-import { Editor } from "@tau/editor/src";
+import { Editor } from "@tau/editor";
 import { FileText, Folder } from "lucide-react";
 import { Project } from "@/types/project";
 import { DocTreeNode, EntityScope } from "../../types";

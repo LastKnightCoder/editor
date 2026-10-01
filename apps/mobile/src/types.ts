@@ -1,5 +1,5 @@
 import type { Descendant } from "slate";
-import type { ImageBorderRadiusPreset, ImageShadowPreset } from "@tau/editor/src";
+import { type ImageBorderRadiusPreset, type ImageShadowPreset } from "@tau/editor-media/types";
 
 export interface DatabaseItem {
   name: string;

@@ -8,9 +8,10 @@ import {
   applyGuardedPlugins,
   createCircuitBreaker,
   withElementBehaviors,
-} from "@tau/editor/src/kit/extensionGuard";
-import { consoleErrorReporter } from "@tau/editor/src/services/errorReporter";
-import { createDefaultEditorSlots, IEditorSlots } from "@tau/editor/src/services";
+} from "../../../../../packages/editor/src/kit/extensionGuard";
+import { consoleErrorReporter } from "@tau/editor";
+import { createDefaultEditorSlots } from "@tau/editor-media/slots";
+import { IEditorSlots } from "@tau/editor-media/services";
 
 const text = (value: string) => ({ type: "formatted", text: value });
 const paragraph = (value: string) => ({ type: "paragraph", children: [text(value)] });

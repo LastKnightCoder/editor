@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
-import { EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor";
 import Editor from "@/components/ContentEditor";
 import useEditContent from "@/hooks/useEditContent";
 import { createContent, updateContent } from "@/commands/content";

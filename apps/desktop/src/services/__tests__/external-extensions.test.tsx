@@ -1,3 +1,4 @@
+import { IResourceService } from "@tau/shared/host-services";
 import { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -5,8 +6,9 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { Transforms, type Descendant } from "slate";
 import { Editor, createEditorKit, type EditorRef } from "@tau/editor";
-import { IEditorSlots, focusInsertedPreviewElement, defineExtension } from "@tau/editor/api";
-import { createDefaultEditorSlots } from "@tau/editor/src/services";
+import { focusInsertedPreviewElement, defineExtension } from "@tau/editor/api";
+import { IEditorSlots } from "@tau/editor-media/services";
+import { createDefaultEditorSlots } from "@tau/editor-media/slots";
 import customBlockExtension, { insertCustomBlock } from "@tau/editor-custom-block";
 import { diagramExtensions } from "@tau/editor-diagram";
 import { ITypstCompiler } from "@tau/editor-diagram/services";
@@ -16,8 +18,10 @@ import { previewMenuExtension } from "@tau/editor-source-view/menu";
 import codeBlockExtension from "@tau/editor-code-block";
 import { getCodeBlockController } from "@tau/editor-code-block/runtime";
 import { mathExtensions } from "@tau/editor-math";
+import emojiExtension from "@tau/editor-emoji";
 import { isBlockElementEmpty, isParagraphAndEmpty } from "@tau/editor";
-import useBlockPanelStore from "@tau/editor/src/stores/useBlockPanelStore";
+import useBlockPanelStore from "../../../../../packages/editor/src/stores/useBlockPanelStore";
+import { bulletedList, listItem } from "@tau/editor-list";
 
 vi.mock("@tau/editor-diagram/mermaid", () => ({
   renderMermaidSvg: async ({ code }: { code: string }) => `<svg><text>${code}</text></svg>`,
@@ -31,6 +35,22 @@ vi.mock("abcjs", () => ({
 }));
 
 // 只替代 jsdom 不具备布局的源码输入器，扩展、预览容器和模板执行使用真实实现。
+vi.mock("@emoji-mart/react", () => ({
+  default: ({
+    onEmojiSelect,
+    theme,
+  }: {
+    onEmojiSelect: (emoji: { id: string; native: string; shortcodes: string }) => void;
+    theme: string;
+  }) => (
+    <button
+      data-picker-theme={theme}
+      onClick={() => onEmojiSelect({ id: "rocket", native: "🚀", shortcodes: ":rocket:" })}
+    >
+      选择测试表情
+    </button>
+  ),
+}));
 const codeChanges = vi.hoisted(() => [] as Array<(code: string) => void>);
 Object.defineProperty(Element.prototype, "scrollIntoView", { configurable: true, value: vi.fn() });
 vi.mock("react-codemirror2", () => ({
@@ -69,11 +89,13 @@ describe("外包扩展的真实编辑器接线", () => {
         previewMenuExtension,
         codeBlockExtension,
         ...mathExtensions,
+        emojiExtension,
         ...extras,
       ],
       services: [
         register => {
           register(IEditorSlots, createDefaultEditorSlots());
+          register(IResourceService, { upload: async () => "测试图片地址" });
           register(ITypstCompiler, { compile: async code => `<div>Typst:${code}</div>` });
           register(IRuntimeStyleCompiler, { compile: compiler });
         },
@@ -425,5 +447,105 @@ describe("外包扩展的真实编辑器接线", () => {
           command => command.id.startsWith("tau.code-block") && command.id.includes("fullscreen")
         )
     ).toBe(false);
+  });
+
+  it("表情懒加载选择器回写原字段，关闭默认打开标记", async () => {
+    const { editor } = await mount([
+      {
+        type: "paragraph",
+        children: [
+          {
+            type: "emoji",
+            emoji: "smile",
+            nativeEmoji: "😊",
+            defaultOpen: true,
+            children: [{ type: "formatted", text: "" }],
+          },
+        ],
+      },
+    ]);
+    const button = document.querySelector("[data-picker-theme]") as HTMLButtonElement;
+    expect(button).toBeTruthy();
+    expect(button.dataset.pickerTheme).toBe("light");
+    await act(async () => {
+      button.click();
+      await new Promise(resolve => setTimeout(resolve, 300));
+    });
+    expect(JSON.stringify(editor.children)).toContain('"nativeEmoji":"🚀"');
+    expect(JSON.stringify(editor.children)).toContain('"defaultOpen":false');
+    expect(host.querySelector('span[aria-haspopup="dialog"]')?.getAttribute("aria-expanded")).toBe(
+      "false"
+    );
+  });
+
+  it("显式列表扩展内置图标选择，保留 icon/iconType 字段", async () => {
+    const { editor } = await mount(
+      [
+        {
+          type: "bulleted-list",
+          children: [
+            {
+              type: "list-item",
+              children: [{ type: "paragraph", children: [{ type: "formatted", text: "列表" }] }],
+            },
+          ],
+        },
+      ],
+      undefined,
+      [bulletedList, listItem]
+    );
+    const trigger = host.querySelector(
+      'li div[contenteditable="false"][class*="-left-"]'
+    ) as HTMLDivElement;
+    expect(trigger).toBeTruthy();
+    await act(async () => {
+      trigger.click();
+      await new Promise(resolve => setTimeout(resolve, 250));
+    });
+    const button = document.querySelector("[data-picker-theme]") as HTMLButtonElement;
+    expect(button).toBeTruthy();
+    await act(async () => button.click());
+    const item = (editor.children[0] as { children: unknown[] }).children[0];
+    expect(item).toMatchObject({ icon: "🚀", iconType: "emoji" });
+  });
+
+  it("代码右键高亮从设计系统菜单进入命令通道", async () => {
+    const { editor } = await mount([
+      {
+        type: "code-block",
+        uuid: "menu-highlight",
+        language: "TypeScript",
+        code: "a\nb\nc",
+        children: [{ type: "formatted", text: "" }],
+      },
+    ]);
+    const textarea = host.querySelector("textarea")!;
+    const execute = vi.spyOn(editor.commands!, "execute");
+    await act(async () => {
+      textarea.setSelectionRange(2, 5);
+      textarea.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 12, clientY: 12 })
+      );
+    });
+    const add = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).find(
+      item => item.textContent === "高亮选中行"
+    );
+    expect(add).toBeTruthy();
+    await act(async () => add!.click());
+    expect(execute).toHaveBeenCalledWith(
+      "tau.code-block.highlight-lines.add",
+      { start: 2, end: 3 },
+      expect.objectContaining({ uuid: "menu-highlight" })
+    );
+    expect(editor.children[0]).toMatchObject({ highlightLines: "2-3" });
+    await act(async () =>
+      textarea.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }))
+    );
+    const remove = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).find(
+      item => item.textContent === "取消高亮选中行"
+    );
+    expect(remove?.getAttribute("data-disabled")).not.toBe("true");
+    await act(async () => remove!.click());
+    expect(editor.children[0]).not.toHaveProperty("highlightLines");
   });
 });

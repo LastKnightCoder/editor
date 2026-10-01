@@ -8,7 +8,8 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 
 import { Editor, createEditorKit, notifierOf } from "../index";
 import type { EditorRef } from "../types/editor";
-import { createDefaultEditorSlots, IEditorSlots } from "../services";
+import { createDefaultEditorSlots } from "@tau/editor-media/slots";
+import { IEditorSlots } from "@tau/editor-media/services";
 
 const kit = createEditorKit({
   services: [register => register(IEditorSlots, createDefaultEditorSlots())],

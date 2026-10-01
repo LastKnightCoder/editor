@@ -6,20 +6,17 @@ import { createEditor, Editor as SlateEditor, Element, Transforms, type Descenda
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
-import { Editor, createBareEditorKit, createEditorKit } from "../index";
+import { Editor, createEditorKit } from "../index";
 import { defineElement, defineExtension, type ElementRenderProps } from "../api";
 import type { EditorRef } from "../types/editor";
-import { paragraph as paragraphExtension } from "../extensions";
-import {
-  createDefaultEditorSlots,
-  IEditorSlots,
-  IExtensionErrorReporter,
-  type ExtensionErrorEvent,
-} from "../services";
+import { standardExtensions } from "../../../../editor-extensions/standard";
+import { IExtensionErrorReporter, type ExtensionErrorEvent } from "../services";
+import { createDefaultEditorSlots } from "@tau/editor-media/slots";
+import { IEditorSlots } from "@tau/editor-media/services";
 import { CIRCUIT_BREAKER_THRESHOLD } from "../kit/extensionGuard";
 
-const text = (value: string) => ({ type: "formatted", text: value });
-const paragraph = (value: string) => ({ type: "paragraph", children: [text(value)] });
+const text = (value: string) => ({ type: "formatted" as const, text: value });
+const paragraph = (value: string) => ({ type: "paragraph" as const, children: [text(value)] });
 
 const services = (events: ExtensionErrorEvent[] = []) =>
   [
@@ -28,6 +25,11 @@ const services = (events: ExtensionErrorEvent[] = []) =>
   ] satisfies Parameters<typeof createEditorKit>[0]["services"];
 
 type NoteElement = { type: "note"; tone: string; children: Descendant[] };
+declare module "@tau/editor/api" {
+  interface ExtensionElementMap {
+    note: NoteElement;
+  }
+}
 
 const Note = ({ attributes, element, children }: ElementRenderProps<NoteElement>) => (
   <aside {...attributes} data-tone={element.tone}>
@@ -123,7 +125,7 @@ describe("defineExtension", () => {
         { type: "banner", kind: "block", isVoid: true, render: () => null },
       ],
     });
-    const kit = createBareEditorKit({ extensions: [schema], services: services() });
+    const kit = createEditorKit({ extensions: [schema], services: services() });
     const editor = kit.assembly.plugins.reduce((acc, plugin) => plugin(acc), createEditor());
     const chip = { type: "chip", children: [text("")] } as never;
     const banner = { type: "banner", children: [text("")] } as never;
@@ -279,8 +281,8 @@ describe("defineExtension", () => {
   });
 
   it("块菜单条目来自 v2 与旧扩展", async () => {
-    const kit = createBareEditorKit({
-      extensions: [paragraphExtension, noteExtension],
+    const kit = createEditorKit({
+      extensions: [noteExtension],
       services: services(),
     });
     const editor = SlateEditor.isEditor as never;
@@ -289,7 +291,7 @@ describe("defineExtension", () => {
   });
 
   it("kit 派生缓存按扩展实例集合生效", () => {
-    const kit = createEditorKit({ services: services() });
+    const kit = createEditorKit({ extensions: standardExtensions, services: services() });
     expect(kit.extend({ extensions: [noteExtension] })).toBe(
       kit.extend({ extensions: [noteExtension] })
     );
@@ -297,19 +299,19 @@ describe("defineExtension", () => {
 
   it("v2 扩展按元素类型覆盖内置实现需要 override", () => {
     const replacement = defineExtension({
-      id: "test.paragraph",
-      elements: [{ type: "paragraph", kind: "block", render: () => null }],
+      id: "test.header",
+      elements: [{ type: "header", kind: "block", render: () => null }],
     });
-    expect(() => createEditorKit({ extensions: [replacement], services: services() })).toThrow(
-      /重复注册/
-    );
+    expect(() =>
+      createEditorKit({ extensions: [...standardExtensions, replacement], services: services() })
+    ).toThrow(/重复注册/);
     const kit = createEditorKit({
-      extensions: [replacement],
+      extensions: [...standardExtensions, replacement],
       services: services(),
       override: true,
     });
-    expect(kit.extensions.map(extension => extension.id)).not.toContain("paragraph");
-    expect(kit.extensions.map(extension => extension.id)).toContain("test.paragraph");
+    expect(kit.extensions.map(extension => extension.id)).not.toContain("tau.header");
+    expect(kit.extensions.map(extension => extension.id)).toContain("test.header");
   });
 });
 
@@ -319,7 +321,7 @@ describe("内置扩展迁到 v2：divide-line", () => {
     document.body.appendChild(container);
     const root = createRoot(container);
     const ref = createRef<EditorRef>();
-    const kit = createEditorKit({ services: services() });
+    const kit = createEditorKit({ extensions: standardExtensions, services: services() });
     await act(async () => {
       root.render(
         <DndProvider backend={HTML5Backend}>
@@ -355,7 +357,7 @@ describe("内置扩展迁到 v2：callout（插件改写转声明式行为，语
     document.body.appendChild(container);
     const root = createRoot(container);
     const ref = createRef<EditorRef>();
-    const kit = createEditorKit({ services: services() });
+    const kit = createEditorKit({ extensions: standardExtensions, services: services() });
     await act(async () => {
       root.render(
         <DndProvider backend={HTML5Backend}>
@@ -427,7 +429,7 @@ describe("内置扩展迁到 v2：blockquote（插件改写转声明式行为，
     document.body.appendChild(container);
     const root = createRoot(container);
     const ref = createRef<EditorRef>();
-    const kit = createEditorKit({ services: services() });
+    const kit = createEditorKit({ extensions: standardExtensions, services: services() });
     await act(async () => {
       root.render(
         <DndProvider backend={HTML5Backend}>
@@ -487,7 +489,7 @@ describe("内置扩展迁到 v2：列表（插件改写转声明式行为，语�
     document.body.appendChild(container);
     const root = createRoot(container);
     const ref = createRef<EditorRef>();
-    const kit = createEditorKit({ services: services() });
+    const kit = createEditorKit({ extensions: standardExtensions, services: services() });
     await act(async () => {
       root.render(
         <DndProvider backend={HTML5Backend}>
@@ -545,7 +547,7 @@ describe("内置扩展迁到 v2：header（热键切命令 id + # 快捷语法�
     document.body.appendChild(container);
     const root = createRoot(container);
     const ref = createRef<EditorRef>();
-    const kit = createEditorKit({ services: services() });
+    const kit = createEditorKit({ extensions: standardExtensions, services: services() });
     await act(async () => {
       root.render(
         <DndProvider backend={HTML5Backend}>
@@ -616,7 +618,7 @@ describe("内置扩展迁到 v2：detail / highlight-block（插件改写转声�
     document.body.appendChild(container);
     const root = createRoot(container);
     const ref = createRef<EditorRef>();
-    const kit = createEditorKit({ services: services() });
+    const kit = createEditorKit({ extensions: standardExtensions, services: services() });
     await act(async () => {
       root.render(
         <DndProvider backend={HTML5Backend}>
@@ -682,7 +684,7 @@ describe("内置扩展迁到 v2：list-item（行为 + 热键切命令 id）", (
     document.body.appendChild(container);
     const root = createRoot(container);
     const ref = createRef<EditorRef>();
-    const kit = createEditorKit({ services: services() });
+    const kit = createEditorKit({ extensions: standardExtensions, services: services() });
     await act(async () => {
       root.render(
         <DndProvider backend={HTML5Backend}>
@@ -764,7 +766,7 @@ describe("内置扩展迁到 v2：check-list 的 Tab 命令", () => {
     document.body.appendChild(container);
     const root = createRoot(container);
     const ref = createRef<EditorRef>();
-    const kit = createEditorKit({ services: services() });
+    const kit = createEditorKit({ extensions: standardExtensions, services: services() });
     const item = (text: string) => ({
       type: "check-list-item",
       checked: false,
@@ -811,7 +813,7 @@ describe("内置扩展迁到 v2：table（单元格行为 + 导航热键切命�
     document.body.appendChild(container);
     const root = createRoot(container);
     const ref = createRef<EditorRef>();
-    const kit = createEditorKit({ services: services() });
+    const kit = createEditorKit({ extensions: standardExtensions, services: services() });
     await act(async () => {
       root.render(
         <DndProvider backend={HTML5Backend}>

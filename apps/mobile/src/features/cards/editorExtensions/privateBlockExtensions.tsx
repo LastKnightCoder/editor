@@ -4,7 +4,7 @@
  * 白板与数据库的数据在 desktop 本机库里，不随 content 同步，mobile 拿不到。
  * 仍注册这两个类型，给出针对性的说明；不注册只会落到内核的通用未知节点占位（ER-006）。
  */
-import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor/src";
+import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor";
 import { privateBlockPlaceholderText, type ContentElementType } from "@tau/shared";
 
 const createPrivateBlockExtension = (type: ContentElementType) =>

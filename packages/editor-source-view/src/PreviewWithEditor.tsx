@@ -12,7 +12,12 @@ import { MdFullscreen, MdFullscreenExit } from "react-icons/md";
 import { Pencil, Trash2 } from "lucide-react";
 
 import { If } from "@tau/shared";
-import { useEditorTheme as useTheme, AddParagraph, type AddParagraphRef } from "@tau/editor/api";
+import {
+  useEditorTheme as useTheme,
+  AddParagraph,
+  type AddParagraphRef,
+  OverlayBackDismiss,
+} from "@tau/editor/api";
 import { previewActionsMap } from "./menu";
 
 import type { CustomElement } from "@tau/editor/api";
@@ -393,6 +398,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
 
   return (
     <div className="relative">
+      <OverlayBackDismiss open={isFullscreen} onDismiss={toggleFullscreen} />
       <div contentEditable={false} ref={ref} className={containerClassName}>
         <div
           style={{

@@ -50,7 +50,7 @@ import {
   Workflow,
 } from "lucide-react";
 
-import { calculateFloatingPosition } from "@tau/editor/src/components/HoveringToolbar/floatingPosition";
+import { calculateFloatingPosition } from "@tau/editor/toolbar";
 
 import ActionSheet, { type ActionSheetItem } from "../../../components/ActionSheet";
 import ContentLinkPickerSheet from "../editorExtensions/ContentLinkPickerSheet";

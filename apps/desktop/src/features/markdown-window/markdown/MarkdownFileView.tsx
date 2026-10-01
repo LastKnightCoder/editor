@@ -23,7 +23,7 @@ import "codemirror/mode/yaml/yaml.js";
 import "codemirror/mode/yaml-frontmatter/yaml-frontmatter.js";
 import { useThrottleFn } from "ahooks";
 import { Code2 } from "lucide-react";
-import { Editor, type EditorRef } from "@tau/editor/src";
+import { Editor, type EditorRef } from "@tau/editor";
 import { Loading, cn, useEdgeFade, FADE_SCROLL_CLASS } from "@tau/ui";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import {

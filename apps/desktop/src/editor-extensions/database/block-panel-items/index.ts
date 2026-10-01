@@ -1,5 +1,5 @@
 import { Table } from "lucide-react";
-import { IBlockPanelListItem } from "@tau/editor/src";
+import { IBlockPanelListItem } from "@tau/editor";
 import { insertDatabase } from "../utils";
 
 const items: IBlockPanelListItem[] = [

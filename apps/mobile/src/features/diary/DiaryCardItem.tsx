@@ -8,7 +8,7 @@
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { getMobileContentKit } from "../../services/editorKit";
 import type { Descendant } from "slate";
-import { Editor, type EditorRef } from "@tau/editor/src";
+import { Editor, type EditorRef } from "@tau/editor";
 import { MoreHorizontal, Tags, Trash2 } from "lucide-react";
 import type { DiaryEntry, DiarySegment } from "../../types";
 import { useReadonlyContentSync } from "../../hooks/useReadonlyContentSync";

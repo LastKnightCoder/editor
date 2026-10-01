@@ -1,18 +1,8 @@
-import type { TextGradientPresetId } from "./text-gradient.ts";
+/** 扩展通过纯类型入口增强标记字段，框架不拥有具体格式。 */
+// eslint-disable-next-line @typescript-eslint/no-empty-interface -- 用于扩展的模块增强
+export interface TextMarkMap {}
 
-export type HighlightColor = "gray" | "red" | "orange" | "yellow" | "green" | "blue" | "purple";
-
-/** 富文本标记是序列化契约，渲染器与 headless 框架消费同一份定义。 */
-export interface FormattedText {
+export interface FormattedText extends TextMarkMap {
   type: "formatted";
   text: string;
-  bold?: boolean;
-  italic?: boolean;
-  underline?: boolean;
-  highlight?: boolean | HighlightColor;
-  strikethrough?: boolean;
-  code?: boolean;
-  color?: string;
-  darkColor?: string;
-  textGradient?: TextGradientPresetId;
 }

@@ -34,7 +34,7 @@ vi.mock("../../../services/editorKit", () => ({
   getMobileContentKit: () => ({}),
   getMobileFlashcardKit: () => ({}),
 }));
-vi.mock("@tau/editor/src", () => ({
+vi.mock("@tau/editor", () => ({
   Editor: ({ initValue, onChange }: { initValue: unknown; onChange: (value: unknown) => void }) => (
     <button data-editor onClick={() => onChange(content("修改后的详情"))}>
       {JSON.stringify(initValue)}

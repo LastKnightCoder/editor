@@ -19,7 +19,7 @@ import {
   Sun,
   X,
 } from "lucide-react";
-import { EditorThemeOverride } from "@tau/editor/src";
+import { EditorThemeOverride } from "@tau/editor";
 import { cn } from "@tau/ui";
 import { StageHud, StageHudButton, StageHudDivider, useStageTheme } from "@/components/Stage";
 import PortalToBody from "@/components/PortalToBody";

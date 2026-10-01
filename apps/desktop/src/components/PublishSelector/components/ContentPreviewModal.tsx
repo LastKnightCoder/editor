@@ -3,7 +3,7 @@ import { getContentKit } from "@/services/editorKit";
 import { Descendant } from "slate";
 import { Dialog, DialogBody } from "@tau/ui";
 import { FileText } from "lucide-react";
-import { Editor } from "@tau/editor/src";
+import { Editor } from "@tau/editor";
 import { formatDate, getContentLength } from "@/utils";
 
 interface ContentPreviewModalProps {

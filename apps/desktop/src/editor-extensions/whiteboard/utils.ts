@@ -1,5 +1,5 @@
 import { Editor } from "slate";
-import { setOrInsertNode } from "@tau/editor/src";
+import { setOrInsertNode } from "@tau/editor";
 import { v4 as getId } from "uuid";
 import {
   createWhiteBoardContent,
@@ -46,7 +46,7 @@ export const insertWhiteboard = async (editor: Editor) => {
 
 export const insertExistingWhiteboard = async (
   editor: Editor,
-  whiteBoardContent: WhiteBoardContent,
+  whiteBoardContent: WhiteBoardContent
 ) => {
   const whiteboardEditor = editor as WhiteboardEditor;
   await incrementWhiteBoardContentRefCount(whiteBoardContent.id);

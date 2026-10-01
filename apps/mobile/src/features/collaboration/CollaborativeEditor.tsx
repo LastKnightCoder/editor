@@ -8,7 +8,7 @@
 // 「保留本机 / 采用云端」裁决。
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight, Loader2, RefreshCw, Users, WifiOff } from "lucide-react";
-import type { EditorDocument } from "@tau/editor/src";
+import type { EditorDocument } from "@tau/editor";
 import { createYjsDocument } from "@tau/editor-collab";
 import { contentLineage } from "../../hooks/useLocalContentDocument";
 import { AvatarStack, StatusDot } from "./components/CollaborationUI";

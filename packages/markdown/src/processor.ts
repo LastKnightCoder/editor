@@ -17,6 +17,12 @@ import {
 } from "./markdown-helper.ts";
 import { MarkdownSerializerRegistry } from "./markdownSerializerRegistry.ts";
 import type { CustomElement } from "./types.ts";
+import type { FormattedText } from "./model.ts";
+import {
+  MarkdownTextRegistry,
+  type MarkdownTextCodec,
+  type LeafSerializationResult,
+} from "./textCodec.ts";
 
 export interface MarkdownProcessor {
   importFromMarkdown(
@@ -32,11 +38,14 @@ export interface MarkdownProcessor {
   getMarkdown(value: Descendant[]): string;
   getMarkdownWithPositions(value: Descendant[]): MarkdownWithPositions;
   elementToMarkdown(element: CustomElement, parentElement: CustomElement | null): string;
+  leafToMarkdown(leaf: FormattedText): string;
+  leafToMarkdownStructured(leaf: FormattedText): LeafSerializationResult;
 }
 
 export interface MarkdownProcessorOptions {
   /** 元素类型的编解码（各扩展的 markdown.ts 提供）；处理器只认这里的类型，其余走 ER-006 兜底 */
   codecs?: MarkdownCodec[];
+  textCodecs?: readonly MarkdownTextCodec[];
 }
 
 /**
@@ -46,10 +55,12 @@ export interface MarkdownProcessorOptions {
  */
 export function createMarkdownProcessor(options: MarkdownProcessorOptions = {}): MarkdownProcessor {
   const codecs = options.codecs ?? [];
+  const textRegistry = new MarkdownTextRegistry(options.textCodecs ?? []);
 
   const directives: Record<string, CustomDirectiveHandler> = {};
   const voidTypes = new Set<string>();
   const inlineWrapperDirectives = new Set<string>();
+  const inlineHtmlWrappers = new Map<string, NonNullable<MarkdownCodec["inlineHtmlWrapper"]>>();
   const fenceByLanguage = new Map<string, { type: string; property: string }>();
   const importNodes: NonNullable<MarkdownCodec["importNode"]>[] = [];
   const fenceSourceProperties = new Map<string, string>();
@@ -57,6 +68,15 @@ export function createMarkdownProcessor(options: MarkdownProcessorOptions = {}):
     Object.assign(directives, codec.directives);
     if (codec.isVoid) voidTypes.add(codec.type);
     if (codec.inlineWrapperDirective) inlineWrapperDirectives.add(codec.inlineWrapperDirective);
+    if (codec.inlineHtmlWrapper) {
+      const rule = codec.inlineHtmlWrapper;
+      const tag = rule.tag.toLowerCase();
+      if (!/^[a-z][a-z0-9-]*$/.test(tag) || typeof rule.create !== "function") {
+        throw new Error("[markdown] 无效的行内 HTML 包裹声明");
+      }
+      if (inlineHtmlWrappers.has(tag)) throw new Error(`[markdown] HTML 标签 ${tag} 重复认领`);
+      inlineHtmlWrappers.set(tag, rule);
+    }
     if (codec.fence) {
       const languages =
         typeof codec.fence.language === "string" ? [codec.fence.language] : codec.fence.language;
@@ -78,14 +98,34 @@ export function createMarkdownProcessor(options: MarkdownProcessorOptions = {}):
   const normalizeHooks = new Map(
     codecs.filter(codec => codec.normalize).map(codec => [codec.type, codec.normalize!] as const)
   );
+  const contributedNormalizers = new Map<string, NonNullable<MarkdownCodec["normalize"]>[]>();
+  for (const codec of codecs) {
+    for (const [type, normalize] of Object.entries(codec.normalizeFor ?? {})) {
+      const rules = contributedNormalizers.get(type) ?? [];
+      rules.push(normalize);
+      contributedNormalizers.set(type, rules);
+    }
+  }
+  for (const [type, rules] of contributedNormalizers) {
+    const ownNormalize = normalizeHooks.get(type);
+    normalizeHooks.set(type, (element, context) => {
+      for (const normalize of rules) {
+        const replacement = normalize(element, context);
+        if (replacement) return replacement;
+      }
+      return ownNormalize?.(element, context) ?? null;
+    });
+  }
   const inlineForms = new Map(
     codecs.filter(codec => codec.inlineForm).map(codec => [codec.type, codec.inlineForm!] as const)
   );
 
   const importConfig: ImportConfig = {
+    textRegistry,
     directives,
     voidTypes,
     inlineWrapperDirectives,
+    inlineHtmlWrappers,
     fenceByLanguage,
     importNodes,
     fenceSourceProperties,
@@ -93,6 +133,7 @@ export function createMarkdownProcessor(options: MarkdownProcessorOptions = {}):
     inlineForms,
   };
   const exportConfig: ExportConfig = {
+    textRegistry,
     registry: new MarkdownSerializerRegistry(
       codecs.flatMap(codec => (codec.serializer ? [{ ...codec.serializer, type: codec.type }] : []))
     ),
@@ -105,6 +146,8 @@ export function createMarkdownProcessor(options: MarkdownProcessorOptions = {}):
   };
 
   return {
+    leafToMarkdown: leaf => textRegistry.serialize(leaf).output,
+    leafToMarkdownStructured: leaf => textRegistry.serialize(leaf),
     importFromMarkdown: (markdown, ignoreTypes, importOptions) =>
       importFromMarkdownUsing(importConfig, markdown, ignoreTypes, importOptions),
     importFromMarkdownWithPositions: (markdown, ignoreTypes, importOptions) =>

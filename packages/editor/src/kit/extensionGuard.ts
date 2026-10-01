@@ -1,5 +1,4 @@
 import { Editor, Element, Node, Text, type Path } from "slate";
-import { isRetiredEditorBlock } from "@tau/db-schema";
 
 import type { Plugin } from "../utils/plugin";
 import type { IHotKeyConfig } from "../types";
@@ -20,7 +19,7 @@ export interface ExtensionCircuitBreaker {
   /** 记一次行为错误并上报，窗口内达到阈值即停用该扩展 */
   record(
     extension: string,
-    phase: "plugin" | "behavior" | "hotkey" | "command" | "ingest",
+    phase: "plugin" | "behavior" | "hotkey" | "command" | "ingest" | "copy",
     error: unknown
   ): void;
   /** 只上报不计数：渲染错误由错误边界各自兜住，不牵连行为；内核自带逻辑也不熔断 */
@@ -287,7 +286,7 @@ export function withUnknownElements(editor: Editor, isKnown: (type: string) => b
     for (const index of path) {
       if (!Element.isElement(node) && !Editor.isEditor(node)) return false;
       node = node.children[index];
-      if (Element.isElement(node) && isUnknown(node) && !isRetiredEditorBlock(node)) return true;
+      if (Element.isElement(node) && isUnknown(node)) return true;
     }
     return false;
   };

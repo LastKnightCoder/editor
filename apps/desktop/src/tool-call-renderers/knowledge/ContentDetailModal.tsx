@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
-import { EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor";
 import { Dialog, DialogBody, Spinner } from "@tau/ui";
 import Editor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";

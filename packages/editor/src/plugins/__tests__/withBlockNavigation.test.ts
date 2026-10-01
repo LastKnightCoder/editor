@@ -1,7 +1,7 @@
 import { createEditor, Descendant, Transforms } from "slate";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { listItemBehaviors } from "../../extensions/list-item/behaviors";
+import { listItemBehaviors } from "../../../../../editor-extensions/list/src/extensions/list-item/behaviors";
 import { createCircuitBreaker, withElementBehaviors } from "../../kit/extensionGuard";
 import { consoleErrorReporter } from "../../services/errorReporter";
 import { registerBlockNavigation, unregisterBlockNavigation } from "../../utils/blockNavigation";

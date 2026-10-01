@@ -1,5 +1,5 @@
 import { act } from "react";
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -17,37 +17,22 @@ vi.mock("@/services/editorKit", () => ({
   getFlashcardKit: () => ({}),
   getArrowLabelKit: () => ({}),
 }));
-vi.mock("@tau/editor/src", () => ({
+vi.mock("@tau/editor", () => ({
   Editor: ({
-    customRenderLeaf,
+    leafWrapper: Wrapper,
   }: {
-    customRenderLeaf: (props: {
-      attributes: Record<string, string>;
+    leafWrapper: ComponentType<{
       children: ReactNode;
       leaf: Record<string, unknown>;
-    }) => ReactNode;
+    }>;
   }) => (
     <div data-testid="editor-root">
-      {customRenderLeaf({
-        attributes: { "data-slate-leaf": "true" },
-        children: <span data-testid="leaf-children">x</span>,
-        leaf: mockLeaf,
-      })}
+      <span data-slate-leaf="true">
+        <Wrapper leaf={mockLeaf}>
+          <strong data-testid="formatted-children">x</strong>
+        </Wrapper>
+      </span>
     </div>
-  ),
-}));
-
-vi.mock("@tau/editor/src/components/FormattedText", () => ({
-  default: ({
-    attributes,
-    children,
-  }: {
-    attributes: Record<string, string>;
-    children: ReactNode;
-  }) => (
-    <span data-testid="formatted-text" {...attributes}>
-      {children}
-    </span>
   ),
 }));
 
@@ -85,7 +70,7 @@ describe("DiffHighlightedEditor", () => {
     await unmount(root, container);
   });
 
-  it("应将删除样式挂到最外层 leaf 节点", async () => {
+  it("删除外观包装保留已完成格式组合的内容，不接管 Slate 属性", async () => {
     mockLeaf = {
       text: "x",
       diffType: "delete",
@@ -96,8 +81,11 @@ describe("DiffHighlightedEditor", () => {
 
     const outerLeaf = container.querySelector('[data-slate-leaf="true"]') as HTMLElement;
 
-    expect(outerLeaf.className).toContain("line-through");
-    expect(outerLeaf.getAttribute("title")).toBe("变更：delete-1");
+    const wrapper = outerLeaf.firstElementChild as HTMLElement;
+    expect(wrapper.className).toContain("line-through");
+    expect(wrapper.getAttribute("title")).toBe("变更：delete-1");
+    expect(wrapper.querySelector('[data-testid="formatted-children"]')?.textContent).toBe("x");
+    expect(wrapper.hasAttribute("data-slate-leaf")).toBe(false);
     expect(outerLeaf.getAttribute("data-slate-leaf")).toBe("true");
 
     await unmount(root, container);

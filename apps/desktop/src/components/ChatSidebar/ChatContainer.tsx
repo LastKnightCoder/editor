@@ -58,12 +58,11 @@ import { useConversationTree } from "@/features/chat/useConversationTree";
 import { ConversationTreePanel } from "@/features/chat/components/ConversationTreePanel";
 import type { ConversationTreeRow } from "@/features/chat/conversationTree";
 import {
-  ChatContainerCore,
-  type ChatContainerCoreHandle,
   type ChatMessageType as CoreChatMessageType,
   type MessageContentItem,
   useChatAutoScroll,
 } from "@tau/shared";
+import { ChatContainerCore, type ChatContainerCoreHandle } from "@tau/chat-ui";
 import { ToolRendererInteractionProvider } from "@/tool-call-renderers/ToolRendererInteractionContext";
 import { createAssistantMessage } from "@/services/assistantMessageBlocks";
 import { createChatMessageClientId } from "@/services/chatMessageSchema";

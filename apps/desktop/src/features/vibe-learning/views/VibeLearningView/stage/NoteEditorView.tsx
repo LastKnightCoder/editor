@@ -19,7 +19,7 @@ import { useMemoizedFn, useUnmount } from "ahooks";
 import InsertNoteToTreeModal from "@/components/InsertNoteToTreeModal";
 import { captureBlobWithSnapdom } from "@/utils/snapdom-export";
 
-import { EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor";
 import Editor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import MindMapRenderer from "@/components/ChatSidebar/MindMapRenderer";

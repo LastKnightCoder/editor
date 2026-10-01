@@ -5,12 +5,12 @@
 import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { useQuery } from "@tanstack/react-query";
-import type { ImageBorderRadiusPreset, ImageShadowPreset } from "@tau/editor/src";
+import { type ImageBorderRadiusPreset, type ImageShadowPreset } from "@tau/editor-media/types";
 import {
   IMAGE_BORDER_RADIUS_OPTIONS,
   IMAGE_SHADOW_OPTIONS,
   normalizeImageShadowPreset,
-} from "@tau/editor/src/extensions/image/utils/appearance";
+} from "@tau/editor-media/appearance";
 import { IconCircleHelp, IconCloud, IconDatabase, IconImage, IconMoon, IconUsers } from "./ui";
 import { getResourceSyncSummary } from "./SyncStatusSections";
 import { useThemeStore } from "../../../theme/themeStore";

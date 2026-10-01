@@ -14,7 +14,7 @@ import { Editor as SlateEditor, Transforms, type BasePoint, type Descendant } fr
 import { ReactEditor } from "slate-react";
 import { useThrottleFn, useUnmount } from "ahooks";
 import { Copy, Hash, MoreHorizontal, Trash2 } from "lucide-react";
-import { Editor, type EditorRef } from "@tau/editor/src";
+import { Editor, type EditorRef } from "@tau/editor";
 import { IconButton, Menu, Tag, cn, toast, type TagColor } from "@tau/ui";
 import ContentEditor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";

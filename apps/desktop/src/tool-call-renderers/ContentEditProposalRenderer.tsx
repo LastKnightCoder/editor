@@ -5,7 +5,7 @@ import { CircleCheck, CircleX, MessageSquareText, type LucideIcon } from "lucide
 import { Button, ConfirmDialog, Segmented, Textarea, cn, toast } from "@tau/ui";
 import type { ToolCallCustomRendererProps } from "./types";
 import { ToolBadge, ToolCard, ToolCardBody, ToolCardHeader, ToolMutedText } from "./ui";
-import { Editor } from "@tau/editor/src";
+import { Editor } from "@tau/editor";
 import {
   getSnapshot,
   markdownToContent,

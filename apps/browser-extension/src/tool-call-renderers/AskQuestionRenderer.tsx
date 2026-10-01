@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import classNames from "classnames";
-import type { ToolCallCustomRendererProps } from "@tau/shared";
+import type { ToolCallCustomRendererProps } from "@tau/chat-ui/renderers";
 import { CustomCheckbox } from "@tau/shared";
 import {
   normalizeAskQuestionPayload,

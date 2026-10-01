@@ -13,7 +13,7 @@ import { useRafInterval, useUnmount } from "ahooks";
 import { produce } from "immer";
 import type { Descendant, Editor as SlateEditor } from "slate";
 import { Maximize2, MoreHorizontal } from "lucide-react";
-import type { EditorRef } from "@tau/editor/src";
+import type { EditorRef } from "@tau/editor";
 import AddTag from "@/components/AddTag";
 import ContentEditor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";

@@ -1,1 +1,1 @@
-export type { FormattedText, HighlightColor } from "@tau/markdown/model";
+export type { FormattedText } from "@tau/markdown/model";

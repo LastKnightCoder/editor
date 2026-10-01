@@ -9,7 +9,7 @@ import { useMemoizedFn } from "ahooks";
 import type { Descendant } from "slate";
 import { Button, IconButton, Menu, Tooltip, toast } from "@tau/ui";
 
-import type { EditorRef } from "@tau/editor/src";
+import type { EditorRef } from "@tau/editor";
 import Editor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import LocalImage from "@/components/LocalImage";

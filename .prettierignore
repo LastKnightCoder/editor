@@ -9,7 +9,7 @@ node_modules
 **/data
 pnpm-lock.yaml
 package-lock.json
-packages/editor-diagram/src/renderers/TikZ/tikzjax.js
-packages/editor-diagram/src/renderers/TikZ/tikz.vendor.css
+editor-extensions/diagram/src/renderers/TikZ/tikzjax.js
+editor-extensions/diagram/src/renderers/TikZ/tikz.vendor.css
 # Markdown 往返基准夹具：内容本身就是被测输入，格式化会改变位置映射
 **/__fixtures__/*.md

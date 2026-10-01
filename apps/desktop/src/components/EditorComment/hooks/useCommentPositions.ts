@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Editor, Element as SlateElement, NodeEntry, Path } from "slate";
 import { ReactEditor } from "slate-react";
-import type { CommentElement, CustomEditor } from "@tau/editor/src";
+import type { CustomEditor } from "@tau/editor";
+import { type CommentElement } from "@tau/editor-comment/types";
 import type { CommentPosition } from "../types";
 import { resolveCollisions } from "../utils/collisionDetection";
 
@@ -14,7 +15,7 @@ const useCommentPositions = (
   containerRef: React.RefObject<HTMLDivElement | null>,
   minCardHeight: number,
   cardGap: number,
-  cardHeights: Record<string, number>,
+  cardHeights: Record<string, number>
 ) => {
   const [positions, setPositions] = useState<CommentPosition[]>([]);
   const rafRef = useRef<number | null>(null);
@@ -30,7 +31,7 @@ const useCommentPositions = (
     const entries: NodeEntry<CommentElement>[] = [];
     for (const entry of Editor.nodes(editor, {
       at: [],
-      match: (node) => !Editor.isEditor(node) && isCommentElement(node),
+      match: node => !Editor.isEditor(node) && isCommentElement(node),
     })) {
       entries.push(entry as NodeEntry<CommentElement>);
     }
@@ -45,13 +46,9 @@ const useCommentPositions = (
         const domNode = ReactEditor.toDOMNode(editor, node);
         const rect = domNode.getBoundingClientRect();
 
-        const offsetTop =
-          rect.top - containerRect.top + (container.scrollTop ?? 0);
+        const offsetTop = rect.top - containerRect.top + (container.scrollTop ?? 0);
 
-        const cardHeight = Math.max(
-          cardHeights[node.uuid] ?? minCardHeight,
-          minCardHeight,
-        );
+        const cardHeight = Math.max(cardHeights[node.uuid] ?? minCardHeight, minCardHeight);
 
         nextPositions.push({
           element: node,

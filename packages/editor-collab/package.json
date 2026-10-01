@@ -21,6 +21,7 @@
     "slate-react": "0.126.4"
   },
   "devDependencies": {
+    "@tau/editor-media": "workspace:*",
     "@types/react": "19.1.8",
     "@types/react-dom": "19.1.6",
     "jsdom": "^24.1.3",

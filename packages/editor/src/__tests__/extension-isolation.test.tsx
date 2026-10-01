@@ -2,23 +2,27 @@
 import { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createEditor, Editor as SlateEditor, Node, Transforms, type Descendant } from "slate";
+import {
+  createEditor,
+  Editor as SlateEditor,
+  Node,
+  Transforms,
+  type Descendant,
+  type Element,
+} from "slate";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
 import { Editor, createEditorKit } from "../index";
 import type { EditorRef } from "../types/editor";
 import { defineExtension, type AnyExtension } from "../api";
-import {
-  createDefaultEditorSlots,
-  IEditorSlots,
-  IExtensionErrorReporter,
-  type ExtensionErrorEvent,
-} from "../services";
+import { IExtensionErrorReporter, type ExtensionErrorEvent } from "../services";
+import { createDefaultEditorSlots } from "@tau/editor-media/slots";
+import { IEditorSlots } from "@tau/editor-media/services";
 import { CIRCUIT_BREAKER_THRESHOLD, withUnknownElements } from "../kit/extensionGuard";
 
-const text = (value: string) => ({ type: "formatted", text: value });
-const paragraph = (value: string) => ({ type: "paragraph", children: [text(value)] });
+const text = (value: string) => ({ type: "formatted" as const, text: value });
+const paragraph = (value: string) => ({ type: "paragraph" as const, children: [text(value)] });
 
 const createKit = (extensions: AnyExtension[] = []) => {
   const events: ExtensionErrorEvent[] = [];
@@ -94,7 +98,12 @@ const valueWithUnknown = [
 describe("扩展错误隔离与未知节点", () => {
   it("未知节点移动到新父级后重新判断行内性，规范化不丢数据", () => {
     const editor = withUnknownElements(createEditor(), type => type === "paragraph");
-    const node = { type: "mystery", payload: "必须保留", children: [text("内容")] };
+    // 外来文档故意不登记类型，断言集中在加载边界。
+    const node = {
+      type: "mystery",
+      payload: "必须保留",
+      children: [text("内容")],
+    } as unknown as Element;
     editor.children = [
       { type: "paragraph", children: [text("前"), node, text("后")] },
     ] as Descendant[];
@@ -110,7 +119,7 @@ describe("扩展错误隔离与未知节点", () => {
 
   it("换绑复用节点但替换整树时，未知节点判定跟随新位置", () => {
     const editor = withUnknownElements(createEditor(), type => type === "paragraph");
-    const node = { type: "mystery", children: [text("内容")] };
+    const node = { type: "mystery", children: [text("内容")] } as unknown as Element;
     editor.children = [node];
     expect(editor.isInline(node)).toBe(false);
     editor.children = [

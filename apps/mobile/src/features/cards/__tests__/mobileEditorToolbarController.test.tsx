@@ -1,7 +1,7 @@
 import { act, useEffect, type RefObject } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { EditorRef } from "@tau/editor/src";
+import type { EditorRef } from "@tau/editor";
 import { Editor, Element, createEditor, type BaseSelection, type Descendant } from "slate";
 import { ReactEditor } from "slate-react";
 
@@ -9,7 +9,8 @@ const { openLocalMediaPickerMock, openMediaUrlInputMock } = vi.hoisted(() => ({
   openLocalMediaPickerMock: vi.fn(),
   openMediaUrlInputMock: vi.fn(),
 }));
-vi.mock("@tau/editor/src/utils/mediaInsert", () => ({
+vi.mock("@tau/editor-media", async importOriginal => ({
+  ...(await importOriginal<typeof import("@tau/editor-media")>()),
   openLocalMediaPicker: (...args: unknown[]) => openLocalMediaPickerMock(...args),
   openMediaUrlInput: (...args: unknown[]) => openMediaUrlInputMock(...args),
 }));
@@ -32,7 +33,6 @@ function createEditorRef(
     deselect: vi.fn(),
     setEditorValue: vi.fn(),
     getEditor: () => editor,
-    scrollHeaderIntoView: vi.fn(),
     isFocus: vi.fn(() => options?.isFocus?.() ?? true),
   };
   return {
@@ -424,7 +424,7 @@ describe("useMobileEditorToolbarController", () => {
       onComplete: expect.any(Function),
     });
 
-    // 网络媒体：唤起内核 URL 输入弹窗
+    // 网络媒体：唤起媒体扩展的 URL 输入弹窗
     act(() => {
       mediaController.handleSelectInsertItem("video-url");
     });

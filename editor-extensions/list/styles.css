@@ -1,0 +1,6 @@
+/* 折叠三角仅在最内层被悬停的列表项出现。 */
+@scope (.ed-list-item:hover:not(:has(.ed-list-item:hover))) to (.ed-list-item) {
+  [data-list-fold-reveal] {
+    display: block;
+  }
+}

@@ -6,7 +6,7 @@ import {
   getSiblingBlockEntry,
   BlockNavigationMeta,
   hasBlockNavigation,
-  hasAncestorBlockType,
+  hasBlockNavigationBoundary,
 } from "../utils";
 import useBlockPanelStore from "../stores/useBlockPanelStore";
 
@@ -38,7 +38,7 @@ const createArrowCommand = (direction: BlockNavigationMeta["direction"]): Editor
       return;
     }
 
-    if (hasAncestorBlockType(editor, blockEntry[1], ["tabs"])) {
+    if (hasBlockNavigationBoundary(editor, blockEntry[1])) {
       return;
     }
 

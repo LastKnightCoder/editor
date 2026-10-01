@@ -11,7 +11,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
-import { Editor } from "@tau/editor/src";
+import { Editor } from "@tau/editor";
 import type { Descendant } from "slate";
 import * as tauri from "../../services/tauri";
 import { getQueryClient } from "../../router";

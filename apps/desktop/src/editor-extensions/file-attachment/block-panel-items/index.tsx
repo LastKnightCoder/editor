@@ -1,5 +1,5 @@
 import { Paperclip } from "lucide-react";
-import { IBlockPanelListItem } from "@tau/editor/src";
+import { IBlockPanelListItem } from "@tau/editor";
 import SelectFileModal from "../components/SelectFileModal";
 import { insertFileAttachment } from "../utils.ts";
 import { showMediaNode } from "@/editor-providers/mediaModalHost";

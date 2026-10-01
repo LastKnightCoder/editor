@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from "react";
-import type { Editor, Element, NodeEntry, TextUnit } from "slate";
+import type { Descendant, Editor, Element, NodeEntry, TextUnit } from "slate";
 import type { RenderElementProps } from "slate-react";
 
 import type { Plugin } from "../utils/plugin";
@@ -8,6 +8,8 @@ import type { EditorCommand, EditorHotkey } from "./command";
 import type { EditorMenuContribution } from "./menu";
 import type { ElementDrag } from "./drag";
 import type { ElementIngestSpec } from "./ingest";
+import type { ElementCopy } from "./copy";
+import type { MarkSpec } from "./marks";
 
 /**
  * 扩展 API v2（01 §5.1）：声明式描述「这个扩展贡献了什么」，内核负责装配、隔离与分发。
@@ -35,20 +37,34 @@ export interface ElementBehaviors<E extends Element = Element> {
   normalize?(editor: Editor, entry: NodeEntry<E>): boolean;
 }
 
+export interface ElementEmptyContext {
+  /** 使用当前编辑器已安装的声明判断子节点；未知或失败时保留。 */
+  isEmpty(node: Descendant): boolean;
+}
+
 export interface ElementSpec<E extends Element = Element> {
   /** 元素 type；内置类型沿用现有名字，兼容已有文档 */
   type: string;
   kind: "block" | "inline";
   isVoid?: boolean;
+  /** 后代的方向键/退格导航由领域接管，核心不执行默认相邻块导航。 */
+  isolateBlockNavigation?: boolean;
   /** 判定源码等非 children 内容是否为空；未声明时内核不推断扩展私有字段 */
-  isEmpty?: (element: E) => boolean;
+  isEmpty?: (element: E, context: ElementEmptyContext) => boolean;
   /** 渲染组件，可以是 `lazy()`：加载期间内核显示保留结构的空壳 */
   render: ComponentType<ElementRenderProps<E>>;
   behaviors?: ElementBehaviors<E>;
+  /** 选区复制的包装策略；未声明时保留整棵片段子树。仅非 void 块生效。 */
+  copy?: ElementCopy<E>;
   /** 拖拽声明（01 §5.4）：未声明的类型没有拖拽 chrome；块组件不再自己接手柄 */
   drag?: ElementDrag;
   /** 内容注入声明（01 §5.4）：drop 与 paste 共用的认领规则；块组件不再改写 insertData */
   ingest?: ElementIngestSpec;
+}
+
+export interface ExtensionLayerProps {
+  /** 根 UI 在 Editable 外，不能通过 Slate 的 useReadOnly 读取此状态。 */
+  readonly readOnly: boolean;
 }
 
 export interface EditorExtension {
@@ -56,6 +72,9 @@ export interface EditorExtension {
   readonly id: string;
   readonly apiVersion: typeof EXTENSION_API_VERSION;
   readonly elements?: readonly ElementSpec[];
+  readonly marks?: readonly MarkSpec[];
+  /** 在编辑器的 Slate/Kit 上下文挂载辅助 UI，组件自行接宿主浮层仲裁。 */
+  readonly layers?: readonly ComponentType<ExtensionLayerProps>[];
   /** 块菜单条目；给函数时每次打开菜单求值 */
   readonly blockPanel?:
     readonly IBlockPanelListItem[] | ((editor: Editor) => readonly IBlockPanelListItem[]);
@@ -67,6 +86,8 @@ export interface EditorExtension {
   readonly hotkeys?: readonly EditorHotkey[];
   /** 手柄菜单与右键菜单的特有条目（01 §5.4）；条目只引用命令 id */
   readonly menu?: EditorMenuContribution;
+  /** 贡献到指定源类型的菜单；不改变 menu 默认归属自身元素的规则。 */
+  readonly menuFor?: Readonly<Record<string, EditorMenuContribution>>;
   /**
    * 挂到**其他**元素类型上的行为，给「在别的元素里触发、产出本元素」的场景，
    * 典型是快捷语法（段落里输入 `---` 回车变分割线）。与该类型自身的行为按扩展顺序一起分发。

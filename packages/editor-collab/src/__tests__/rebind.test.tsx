@@ -14,7 +14,8 @@ import * as Y from "yjs";
 import { createSharedDocument, readSharedContent, type ContentNode } from "@tau/collaboration";
 import { Editor, createEditorKit, type EditorRef } from "@tau/editor";
 import { defineExtension } from "@tau/editor/api";
-import { createDefaultEditorSlots, IEditorSlots } from "@tau/editor/src/services";
+import { createDefaultEditorSlots } from "@tau/editor-media/slots";
+import { IEditorSlots } from "@tau/editor-media/services";
 
 import { createYjsDocument } from "../document";
 import type { EditorCollaborationBinding } from "../types";
@@ -24,8 +25,8 @@ import type { EditorCollaborationBinding } from "../types";
 const mounts = new Map<string, number>();
 const unmounts = new Map<string, number>();
 
-/** 统计挂载次数的段落扩展：换源后块组件不应重新挂载 */
-function TrackedParagraph({ attributes, children, element }: RenderElementProps) {
+/** 自定义块统计挂载次数，避免替换核心段落实现。 */
+function TrackedBlock({ attributes, children, element }: RenderElementProps) {
   const id = String((element as unknown as ContentNode).probeId);
   useEffect(() => {
     mounts.set(id, (mounts.get(id) ?? 0) + 1);
@@ -36,20 +37,18 @@ function TrackedParagraph({ attributes, children, element }: RenderElementProps)
 
 const kit = createEditorKit({
   services: [register => register(IEditorSlots, createDefaultEditorSlots())],
-}).extend({
   extensions: [
     defineExtension({
-      id: "test.tracked-paragraph",
-      elements: [{ type: "paragraph", kind: "block", render: TrackedParagraph }],
+      id: "test.tracked-block",
+      elements: [{ type: "tracked-block", kind: "block", render: TrackedBlock }],
     }),
   ],
-  override: true,
 });
 
 const content = (suffix = ""): ContentNode[] => [
-  { type: "paragraph", probeId: "a", children: [{ text: `第一段${suffix}` }] },
-  { type: "paragraph", probeId: "b", children: [{ text: "第二段" }] },
-  { type: "paragraph", probeId: "c", children: [{ text: "第三段" }] },
+  { type: "tracked-block", probeId: "a", children: [{ text: `第一段${suffix}` }] },
+  { type: "tracked-block", probeId: "b", children: [{ text: "第二段" }] },
+  { type: "tracked-block", probeId: "c", children: [{ text: "第三段" }] },
 ];
 
 function makeBinding(nodes: ContentNode[], mode: "local" | "shared") {

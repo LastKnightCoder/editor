@@ -1,6 +1,5 @@
 import type { Descendant } from "slate";
 import { v4 as uuid } from "uuid";
-import { RETIRED_TYPES } from "@tau/db-schema/src/retired-editor-blocks.ts";
 
 /**
  * 业务元素的 markdown directive 解析器：
@@ -25,7 +24,6 @@ export const markdownCustomDirectives: Record<
     };
     return element as unknown as Descendant;
   },
-  ...Object.fromEntries([...RETIRED_TYPES].map(name => [name, (): Descendant | null => null])),
   "content-link": attributes => {
     const rawTitle = attributes.title || attributes.contentTitle || "";
     const contentTitle = typeof rawTitle === "string" ? rawTitle.replace(/&quot;/g, '"') : "";

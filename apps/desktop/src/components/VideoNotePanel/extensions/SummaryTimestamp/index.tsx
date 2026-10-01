@@ -1,11 +1,6 @@
 import { Node, Path, Text, Transforms } from "slate";
 import { VideoController } from "../../VideoController";
-import {
-  defineElement,
-  defineExtension,
-  type ElementRenderProps,
-  type Plugin,
-} from "@tau/editor/src";
+import { defineElement, defineExtension, type ElementRenderProps, type Plugin } from "@tau/editor";
 import SummaryTimestamp from "./components/SummaryTimestamp";
 
 export interface SummaryTimestampElement {

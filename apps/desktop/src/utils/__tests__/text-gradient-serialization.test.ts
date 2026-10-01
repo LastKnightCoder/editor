@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { FormattedText } from "@tau/editor/src";
+import type { FormattedText } from "@tau/editor";
 import { htmlSerializerRegistry } from "../htmlSerializerRegistry";
 
 // Markdown 部分的用例已迁到 packages/markdown/src/__tests__/text-gradient-serialization.test.ts

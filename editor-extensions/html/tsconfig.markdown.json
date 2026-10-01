@@ -1,0 +1,10 @@
+{
+  "extends": "../../packages/markdown/tsconfig.json",
+  "include": [
+    "markdown.ts",
+    "src/**/markdown.ts",
+    "src/types/*.ts",
+    "../../packages/markdown/src/runtime-globals.d.ts"
+  ],
+  "exclude": ["src/**/__tests__"]
+}

@@ -7,10 +7,16 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { ReactNode } from "react";
 import type { Descendant } from "slate";
 
-import { Editor, createBareEditorKit } from "../../index";
+import { Editor, createEditorKit } from "../../index";
 import { defineElement, defineExtension } from "../extension";
-import { createDefaultEditorSlots, IEditorSlots } from "../../services";
+import { createDefaultEditorSlots } from "@tau/editor-media/slots";
+import { IEditorSlots } from "@tau/editor-media/services";
 import { normalizeDragSpec } from "../drag";
+declare module "@tau/editor/api" {
+  interface ExtensionElementMap {
+    plain: { type: "plain"; children: { type: "formatted"; text: string }[] };
+  }
+}
 
 const paragraph = (text: string): Descendant =>
   ({ type: "paragraph", children: [{ type: "formatted", text }] }) as Descendant;
@@ -25,19 +31,6 @@ describe("normalizeDragSpec", () => {
       children: true,
     });
   });
-});
-
-/** 只渲染段落与勾选项的最小编辑器 */
-const paragraphExtension = defineExtension({
-  id: "test.paragraph",
-  elements: [
-    defineElement({
-      type: "paragraph",
-      kind: "block",
-      render: ({ attributes, children }) => <p {...attributes}>{children}</p>,
-      drag: true,
-    }),
-  ],
 });
 
 const checkListExtension = defineExtension({
@@ -84,9 +77,9 @@ describe("拖拽声明 → 装配与 chrome", () => {
   };
 
   it("legacy dragSpec 与 v2 defineElement.drag 都进装配；未声明的类型没有 chrome", async () => {
-    const kit = createBareEditorKit({
+    const kit = createEditorKit({
       ...kitOptions,
-      extensions: [paragraphExtension, checkListExtension],
+      extensions: [checkListExtension],
     });
     expect(kit.assembly.dragSpecs.get("paragraph")).toEqual({ self: true, children: true });
     expect(kit.assembly.dragSpecs.get("check-list-item")?.self).toBe(true);
@@ -94,9 +87,9 @@ describe("拖拽声明 → 装配与 chrome", () => {
   });
 
   it("有声明的块渲染 ed-block chrome 与手柄；children:false 的祖先屏蔽子块手柄", async () => {
-    const kit = createBareEditorKit({
+    const kit = createEditorKit({
       ...kitOptions,
-      extensions: [paragraphExtension, checkListExtension],
+      extensions: [checkListExtension],
     });
     const doc: Descendant[] = [
       paragraph("独立段落"),
@@ -130,10 +123,8 @@ describe("拖拽声明 → 装配与 chrome", () => {
         }),
       ],
     });
-    const kit = createBareEditorKit({ ...kitOptions, extensions: [plainExtension] });
-    const doc: Descendant[] = [
-      { type: "plain", children: [{ type: "formatted", text: "" }] } as Descendant,
-    ];
+    const kit = createEditorKit({ ...kitOptions, extensions: [plainExtension] });
+    const doc: Descendant[] = [{ type: "plain", children: [{ type: "formatted", text: "" }] }];
     const host = await render(<Editor kit={kit} initValue={doc} readonly={false} />);
     expect(host.querySelector(".ed-block")).toBeNull();
     expect(host.querySelector("[data-drag-handle]")).toBeNull();

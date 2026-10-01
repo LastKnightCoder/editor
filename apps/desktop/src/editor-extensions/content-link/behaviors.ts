@@ -1,6 +1,6 @@
 import { Editor, Element, Transforms } from "slate";
-import type { ParagraphElement } from "@tau/editor/src";
-import type { ElementBehaviors } from "@tau/editor/src";
+import type { ParagraphElement } from "@tau/editor";
+import type { ElementBehaviors } from "@tau/editor";
 
 import type { ContentLinkElement } from "./types";
 import { editorPanels, createPanel } from "./plugins/withMentionCommands";

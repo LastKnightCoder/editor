@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getMobileContentKit } from "../../services/editorKit";
 import { X } from "lucide-react";
-import { Editor, type EditorRef } from "@tau/editor/src";
+import { Editor, type EditorRef } from "@tau/editor";
 import type { Descendant } from "slate";
 import { SnapSheet } from "../../components/SnapSheet";
 import { ActionSheet } from "../settings/components/ActionSheet";

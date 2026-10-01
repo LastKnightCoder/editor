@@ -30,6 +30,8 @@ export interface EditorCommand {
 export interface EditorHotkey {
   key: string | string[];
   command: string;
+  /** 普通扩展热键未消费时才尝试，仍早于内核通用兜底；同段保持声明顺序。 */
+  fallback?: boolean;
 }
 
 export interface RegisteredCommand {
@@ -103,5 +105,6 @@ export function createCommandDispatcher(
 
 /** 程序化执行命令的句柄，挂在 editor 实例上（热键、菜单与宿主统一入口） */
 export interface EditorCommandsHandle {
+  /** payload 仅传领域参数；目标 element/path 单独传入，run 会收到组合后的上下文。 */
   execute(id: string, payload?: unknown, element?: Element, path?: Path): boolean;
 }

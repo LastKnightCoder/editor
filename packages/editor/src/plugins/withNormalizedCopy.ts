@@ -1,215 +1,166 @@
-import { Descendant, Editor, Element as SlateElement, NodeEntry, Point, Range } from "slate";
+import { Editor, Element, Node, Path, Point, Range, type Descendant } from "slate";
+import type { RegisteredCopy } from "../api/copy";
+import type { ExtensionCircuitBreaker } from "../kit/extensionGuard";
 
-const FULL_SELECTION_ONLY_TYPES = new Set(["table-cell"]);
+interface CopyTrace {
+  node: Descendant;
+  policy?: RegisteredCopy;
+  children?: CopyTrace[];
+  fullySelected: boolean;
+  ancestorTypes: readonly string[];
+}
 
-const PARTIAL_STRUCTURE_TYPES: Record<string, string> = {
-  "bulleted-list": "list-item",
-  "numbered-list": "list-item",
-  "check-list": "check-list-item",
-  table: "table-row",
-  "table-row": "table-cell",
+const ABORT_COPY = Symbol("abort-copy");
+
+const sameData = (left: unknown, right: unknown, seen = new WeakMap<object, object>()): boolean => {
+  if (Object.is(left, right)) return true;
+  if (!left || !right || typeof left !== "object" || typeof right !== "object") return false;
+  if (Array.isArray(left) !== Array.isArray(right)) return false;
+  if (Array.isArray(left) && Array.isArray(right) && left.length !== right.length) return false;
+  if (Object.getPrototypeOf(left) !== Object.getPrototypeOf(right)) return false;
+  if (!Array.isArray(left) && Object.prototype.toString.call(left) !== "[object Object]")
+    return false;
+  if (seen.has(left)) return seen.get(left) === right;
+  seen.set(left, right);
+  const keys = Object.keys(left);
+  if (keys.length !== Object.keys(right).length) return false;
+  return keys.every(
+    key =>
+      Object.prototype.hasOwnProperty.call(right, key) &&
+      sameData(
+        (left as Record<string, unknown>)[key],
+        (right as Record<string, unknown>)[key],
+        seen
+      )
+  );
 };
 
-const MANAGED_TYPES = new Set([
-  ...FULL_SELECTION_ONLY_TYPES,
-  ...Object.keys(PARTIAL_STRUCTURE_TYPES),
-  "highlight-block",
-  "blockquote",
-  "callout",
-  "detail",
-  "list-item",
-  "check-list-item",
-]);
-
-const FULL_SELECTION_PRESERVE_TYPES = new Set([
-  "highlight-block",
-  "blockquote",
-  "callout",
-  "detail",
-]);
-
-const isManagedElement = (
-  node: Descendant
-): node is SlateElement & { type: string; children: Descendant[] } => {
-  return SlateElement.isElement(node) && MANAGED_TYPES.has(String(node.type));
-};
-
-const isFullyCovered = (
-  editor: Editor,
-  selection: NonNullable<Editor["selection"]>,
-  path: number[]
-): boolean => {
-  const [selectionStart, selectionEnd] = Range.edges(selection);
-  const [nodeStart, nodeEnd] = Range.edges(Editor.range(editor, path));
-  return Point.compare(selectionStart, nodeStart) <= 0 && Point.compare(selectionEnd, nodeEnd) >= 0;
-};
-
-const getIntersectingChildEntries = (
-  editor: Editor,
-  selection: NonNullable<Editor["selection"]>,
-  path: number[],
-  node: SlateElement & { children: Descendant[] }
-): Array<NodeEntry<Descendant>> => {
-  return node.children.flatMap((child, index) => {
-    const childPath = [...path, index];
-    const childRange = Editor.range(editor, childPath);
-    if (!Range.intersection(selection, childRange)) {
-      return [];
+const freezeDeep = <T>(value: T, seen = new WeakSet<object>()): T => {
+  if (value && typeof value === "object" && !seen.has(value)) {
+    // 文档片段只处理数据对象；Date/Map 等可变内置对象无法靠 freeze 保护。
+    if (!Array.isArray(value) && Object.prototype.toString.call(value) !== "[object Object]") {
+      throw ABORT_COPY;
     }
-    return [[child, childPath] as NodeEntry<Descendant>];
-  });
-};
-
-const hasAncestorOfType = (editor: Editor, path: number[], type: string) => {
-  for (let index = path.length - 1; index > 0; index -= 1) {
-    const [ancestor] = Editor.node(editor, path.slice(0, index));
-    if (SlateElement.isElement(ancestor) && ancestor.type === type) {
-      return true;
-    }
+    seen.add(value);
+    for (const child of Object.values(value)) freezeDeep(child, seen);
+    Object.freeze(value);
   }
-
-  return false;
-};
-
-const normalizeManagedNode = (
-  editor: Editor,
-  selection: NonNullable<Editor["selection"]>,
-  originalNode: SlateElement & { type: string; children: Descendant[] },
-  fragmentNode: SlateElement & { type: string; children: Descendant[] },
-  path: number[]
-): Descendant[] => {
-  const intersectingChildren = getIntersectingChildEntries(editor, selection, path, originalNode);
-
-  const normalizedChildren =
-    intersectingChildren.length === fragmentNode.children.length
-      ? fragmentNode.children.flatMap((child, index) => {
-          const originalChildEntry = intersectingChildren[index];
-          if (!originalChildEntry || !isManagedElement(child)) {
-            return [child];
-          }
-
-          const [originalChild, childPath] = originalChildEntry;
-          if (!isManagedElement(originalChild) || originalChild.type !== child.type) {
-            return [child];
-          }
-
-          return normalizeManagedNode(editor, selection, originalChild, child, childPath);
-        })
-      : fragmentNode.children;
-
-  if (fragmentNode.type === "list-item") {
-    const shouldKeepListItem =
-      isFullyCovered(editor, selection, path) &&
-      (hasAncestorOfType(editor, path, "list-item") ||
-        normalizedChildren.some(child => {
-          return SlateElement.isElement(child) && child.type !== "paragraph";
-        }));
-
-    if (shouldKeepListItem) {
-      return [
-        {
-          ...fragmentNode,
-          children: normalizedChildren,
-        } as unknown as Descendant,
-      ];
-    }
-
-    return normalizedChildren;
-  }
-
-  if (FULL_SELECTION_PRESERVE_TYPES.has(fragmentNode.type)) {
-    if (isFullyCovered(editor, selection, path)) {
-      return [
-        {
-          ...fragmentNode,
-          children: normalizedChildren,
-        } as unknown as Descendant,
-      ];
-    }
-
-    return normalizedChildren;
-  }
-
-  if (FULL_SELECTION_ONLY_TYPES.has(fragmentNode.type)) {
-    if (isFullyCovered(editor, selection, path)) {
-      return [
-        {
-          ...fragmentNode,
-          children: normalizedChildren,
-        } as unknown as Descendant,
-      ];
-    }
-    return normalizedChildren;
-  }
-
-  const expectedChildType = PARTIAL_STRUCTURE_TYPES[fragmentNode.type];
-  const canKeepPartialStructure =
-    normalizedChildren.length > 0 &&
-    normalizedChildren.every(child => {
-      return SlateElement.isElement(child) && child.type === expectedChildType;
-    });
-
-  if (isFullyCovered(editor, selection, path) || canKeepPartialStructure) {
-    return [
-      {
-        ...fragmentNode,
-        children: normalizedChildren,
-      } as unknown as Descendant,
-    ];
-  }
-
-  return normalizedChildren;
+  return value;
 };
 
 export const normalizeCopiedFragment = (
   editor: Editor,
   fragment: Descendant[],
+  policies: ReadonlyMap<string, RegisteredCopy>,
+  breaker: ExtensionCircuitBreaker,
   selection = editor.selection
 ): Descendant[] => {
-  if (!selection || Range.isCollapsed(selection) || fragment.length === 0) {
+  if (!selection || Range.isCollapsed(selection) || !fragment.length || !policies.size) {
     return fragment;
   }
+  if (!fragment.some(node => Element.isElement(node) && policies.has(node.type))) return fragment;
 
-  const highestSelectedBlocks = Array.from(
-    Editor.nodes(editor, {
-      at: selection,
-      match: node => SlateElement.isElement(node) && Editor.isBlock(editor, node),
-      mode: "highest",
-    })
-  ) as Array<NodeEntry<SlateElement>>;
+  try {
+    // 上游插件可能改写 getFragment；不能将同类型、同数量误当成原节点对应关系。
+    if (!sameData(fragment, Node.fragment(editor, selection))) return fragment;
+    const snapshot = structuredClone(fragment);
+    const frozen = new WeakSet<object>();
+    freezeDeep(snapshot, frozen);
+    const [start, end] = Range.edges(selection);
 
-  if (highestSelectedBlocks.length !== fragment.length) {
+    const traceChildren = (
+      original: readonly Descendant[],
+      copied: readonly Descendant[],
+      parentPath: Path,
+      ancestorTypes: readonly string[]
+    ): CopyTrace[] => {
+      const selected = original.flatMap((node, index) => {
+        const path = [...parentPath, index];
+        return Range.includes(selection, path) ? [{ node, path }] : [];
+      });
+      if (selected.length !== copied.length) throw ABORT_COPY;
+      return copied.map((node, index) => {
+        const entry = selected[index];
+        if (
+          Element.isElement(node) !== Element.isElement(entry.node) ||
+          node.type !== entry.node.type
+        )
+          throw ABORT_COPY;
+        const policy =
+          Element.isElement(node) &&
+          Editor.isBlock(editor, entry.node as Element) &&
+          !editor.isVoid(entry.node as Element)
+            ? policies.get(node.type)
+            : undefined;
+        const trace: CopyTrace = { node, policy, fullySelected: false, ancestorTypes };
+        // 未声明策略的节点是保留边界，不进入未知领域的内部结构。
+        if (!policy || !Element.isElement(node) || !Element.isElement(entry.node)) return trace;
+        const [nodeStart, nodeEnd] = Range.edges(Editor.range(editor, entry.path));
+        trace.fullySelected =
+          Point.compare(start, nodeStart) <= 0 && Point.compare(end, nodeEnd) >= 0;
+        trace.children = traceChildren(
+          entry.node.children,
+          node.children,
+          entry.path,
+          Object.freeze([...ancestorTypes, entry.node.type])
+        );
+        return trace;
+      });
+    };
+
+    // 一次性建好 trace，之后的解包不再影响原路径和祖先信息。
+    const traces = traceChildren(editor.children, snapshot, [], Object.freeze([]));
+    const apply = (trace: CopyTrace): Descendant[] => {
+      if (!trace.policy || !trace.children || !Element.isElement(trace.node)) return [trace.node];
+      const { owner, copy } = trace.policy;
+      if (breaker.isDisabled(owner)) throw ABORT_COPY;
+      const children = trace.children.flatMap(apply);
+      const element = freezeDeep({ ...trace.node, children }, frozen);
+      try {
+        const decision: unknown = copy(
+          Object.freeze({
+            element,
+            fullySelected: trace.fullySelected,
+            ancestorTypes: trace.ancestorTypes,
+          })
+        );
+        if (decision === "keep") return [element as unknown as Descendant];
+        if (decision === "unwrap") return children;
+        // 错误声明的异步回调也必须吸收拒绝，避免复制之外产生未处理异常。
+        void Promise.resolve(decision).catch(() => undefined);
+        throw new Error("复制策略必须同步返回 keep 或 unwrap");
+      } catch (error) {
+        breaker.record(owner, "copy", error);
+        throw ABORT_COPY;
+      }
+    };
+    // 冻结只约束策略输入，调用方仍获得普通可编辑的独立片段。
+    return structuredClone(traces.flatMap(apply));
+  } catch {
+    // 任一策略或对应关系失效时整体回退，不留下半次解包结果。
     return fragment;
   }
-
-  const normalized = fragment.flatMap((fragmentNode, index) => {
-    if (!isManagedElement(fragmentNode)) {
-      return [fragmentNode];
-    }
-
-    const originalEntry = highestSelectedBlocks[index];
-    if (!originalEntry) {
-      return [fragmentNode];
-    }
-
-    const [originalNode, path] = originalEntry;
-    if (!isManagedElement(originalNode) || originalNode.type !== fragmentNode.type) {
-      return [fragmentNode];
-    }
-
-    return normalizeManagedNode(editor, selection, originalNode, fragmentNode, path);
-  });
-
-  return normalized;
 };
 
-export const withNormalizedCopy = (editor: Editor) => {
+export const withNormalizedCopy = (
+  editor: Editor,
+  policies: ReadonlyMap<string, RegisteredCopy>,
+  breaker: ExtensionCircuitBreaker
+): Editor => {
+  if (!policies.size) return editor;
   const { getFragment } = editor;
-
   editor.getFragment = () => {
+    const content = editor.children;
+    const selection = editor.selection ? structuredClone(editor.selection) : null;
+    const operationCount = editor.operations.length;
     const fragment = getFragment();
-    return normalizeCopiedFragment(editor, fragment);
+    if (
+      editor.children !== content ||
+      editor.operations.length !== operationCount ||
+      !sameData(editor.selection, selection)
+    )
+      return fragment;
+    return normalizeCopiedFragment(editor, fragment, policies, breaker, selection);
   };
-
   return editor;
 };

@@ -2,7 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@tau/editor/src/components/HoveringToolbar/floatingPosition", () => ({
+vi.mock("@tau/editor/toolbar", () => ({
   calculateFloatingPosition: () => ({
     left: 8,
     top: 8,

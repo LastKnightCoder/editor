@@ -9,7 +9,7 @@ import { Editor as SlateEditor, Transforms } from "slate";
 import { ReactEditor } from "slate-react";
 import { v4 as uuid } from "uuid";
 import { Button, cn } from "@tau/ui";
-import { Editor } from "@tau/editor/src";
+import { Editor } from "@tau/editor";
 import { getDescriptionKit } from "@/services/editorKit";
 import { useOverlayDismiss } from "@/page/PageProvider";
 import type { Note, PdfAnnotation } from "@/types";

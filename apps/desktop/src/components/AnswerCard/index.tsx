@@ -6,7 +6,7 @@ import { MoreHorizontal, FileText, FolderOpen, Trash2 } from "lucide-react";
 import { BsCardText } from "react-icons/bs";
 import { IAnswer } from "@/types";
 import { defaultArticleEventBus, defaultCardEventBus } from "@/utils";
-import { EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor";
 import Editor from "@/components/ContentEditor";
 import useEditContent from "@/hooks/useEditContent";
 import { buildCardFromContent } from "@/commands/card";

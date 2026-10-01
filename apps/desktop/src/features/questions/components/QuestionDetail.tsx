@@ -19,7 +19,7 @@ import {
   Presentation,
 } from "lucide-react";
 import { Button, Drawer, IconButton, Loading, Menu, cn, toast, useRetainedValue } from "@tau/ui";
-import type { EditorRef } from "@tau/editor/src";
+import type { EditorRef } from "@tau/editor";
 import ContentEditor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { useOverlayDismiss } from "@/page/PageProvider";

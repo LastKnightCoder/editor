@@ -1,7 +1,7 @@
 import If from "@/components/If";
 import { getArrowLabelKit } from "@/services/editorKit";
-import { Editor, EditorRef } from "@tau/editor/src";
-import type { IHotKeyConfig } from "@tau/editor/src";
+import { Editor, EditorRef } from "@tau/editor";
+import type { IHotKeyConfig } from "@tau/editor";
 import classNames from "classnames";
 import { Descendant, Node } from "slate";
 import { useEffect, memo, useMemo, useRef, useState } from "react";

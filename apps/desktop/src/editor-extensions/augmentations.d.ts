@@ -8,10 +8,10 @@ import type { WhiteboardElement } from "./whiteboard/types";
 import type { VideoScreenshotElement } from "@/components/VideoNotePanel/extensions/VideoScreenshot";
 import type { VideoTimestampElement } from "@/components/VideoNotePanel/extensions/VideoTimestamp";
 import type { SummaryTimestampElement } from "@/components/VideoNotePanel/extensions/SummaryTimestamp";
-import type {} from "@tau/editor/src/types/custom-element";
+import type {} from "@tau/editor/api";
 
-declare module "@tau/editor/src/types/custom-element" {
-  interface ExternalElementMap {
+declare module "@tau/editor/api" {
+  interface ExtensionElementMap {
     "content-link": ContentLinkElement;
     "skill-ref": SkillRefElement;
     "file-attachment": FileAttachmentElement;
@@ -24,7 +24,7 @@ declare module "@tau/editor/src/types/custom-element" {
     "summary-timestamp": SummaryTimestampElement;
   }
 
-  interface ExternalInlineElementMap {
+  interface ExtensionInlineElementMap {
     "content-link": ContentLinkElement;
     "skill-ref": SkillRefElement;
     "flashcard-blank": FlashcardBlankElement;

@@ -1,5 +1,5 @@
 import { Descendant } from "slate";
-import type { ImageBorderRadiusPreset, ImageShadowPreset } from "@tau/editor";
+import { type ImageBorderRadiusPreset, type ImageShadowPreset } from "@tau/editor-media/types";
 
 // 站点配置
 export interface SiteConfig {

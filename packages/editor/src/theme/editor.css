@@ -3,7 +3,7 @@
  *
  * 取值从宿主提供的语义 token --tau-* 派生（@tau/themes 契约，各宿主都注入）。编辑器组件
  * 只写 --ed-*，不直接读宿主变量；语义完全一致时也可直接写 --tau-*（如字体栈、圆角）。
- * 主题作者可以覆盖 --ed-* 做编辑器细调（callout 配色、代码块底色等），不必改组件。
+ * 主题作者可以覆盖 --ed-* 做编辑器细调（代码块底色等），不必改组件。
  *
  * 声明在 :root 上：编辑器的悬浮工具条、块面板等会 Portal 到 body，不在编辑器子树内。
  * `.tau-editor`（编辑器根节点）与 `.tau-editor-surface`（宿主可给自己的浮层加）重复声明一遍，
@@ -63,12 +63,6 @@
   /* 与桌面端聊天消息的行内代码 / 代码块同一套取色：页面底色 + line-1 描边 */
   --ed-tag-bg: var(--tau-bg-page);
 
-  /* ── 批注（划线高亮 + 图标）── */
-  --ed-comment-bg: var(--tau-warn-soft);
-  --ed-comment-hover-bg: var(--tau-warn-soft);
-  --ed-comment-border: var(--tau-warn);
-  --ed-comment-icon: var(--tau-warn);
-
   /* ── 代码块 ── */
   --ed-code-bg: var(--tau-bg-page);
   /* 1px 内描边等同聊天代码块的 border-line-1，不占布局 */
@@ -78,65 +72,6 @@
   /* 玻璃浮层（代码块工具条等） */
   --ed-glass-bg: var(--tau-bg-surface);
   --ed-glass-blur: blur(10px);
-
-  /* ── Callout 五类 ── */
-  --ed-callout-tip: var(--tau-ok);
-  --ed-callout-tip-bg: var(--tau-ok-soft);
-  --ed-callout-tip-text: var(--tau-ink-1);
-  --ed-callout-info: var(--tau-info);
-  --ed-callout-info-bg: var(--tau-info-soft);
-  --ed-callout-info-text: var(--tau-ink-1);
-  --ed-callout-warning: var(--tau-warn);
-  --ed-callout-warning-bg: var(--tau-warn-soft);
-  --ed-callout-warning-text: var(--tau-ink-1);
-  --ed-callout-danger: var(--tau-danger);
-  --ed-callout-danger-bg: var(--tau-danger-soft);
-  --ed-callout-danger-text: var(--tau-ink-1);
-  --ed-callout-note: var(--tau-ink-2);
-  --ed-callout-note-bg: var(--tau-bg-hover);
-  --ed-callout-note-text: var(--tau-ink-1);
-}
-
-/*
- * 行内着色色板（字色 / 高亮 / 下划线 / 渐变字共用）：用户挑的内容色，不随主题族变，只随明暗切。
- * 取值与 constants/inline-palette.ts、text-gradient.ts 一致（inline-palette 测试守护）。
- * 按 [data-mode] 就近继承：<html> 与局部强制明暗的编辑器根节点都带 data-mode；无属性的宿主落到 :root 浅色档。
- */
-:root,
-[data-mode="light"] {
-  --ed-palette-gray: #8f959e;
-  --ed-palette-red: #e33a32;
-  --ed-palette-orange: #e57d05;
-  --ed-palette-yellow: #dc9b04;
-  --ed-palette-green: #2ea121;
-  --ed-palette-blue: #245bdb;
-  --ed-palette-purple: #6425d0;
-  --ed-gradient-sunset: linear-gradient(90deg, #f97316 0%, #ef4444 52%, #ec4899 100%);
-  --ed-gradient-ocean: linear-gradient(90deg, #0ea5e9 0%, #2563eb 52%, #4f46e5 100%);
-  --ed-gradient-forest: linear-gradient(90deg, #22c55e 0%, #16a34a 52%, #14b8a6 100%);
-  --ed-gradient-violet: linear-gradient(90deg, #8b5cf6 0%, #a855f7 52%, #6366f1 100%);
-  --ed-gradient-gold: linear-gradient(90deg, #f59e0b 0%, #facc15 52%, #fb923c 100%);
-  --ed-gradient-rose: linear-gradient(90deg, #fb7185 0%, #f43f5e 52%, #a855f7 100%);
-  --ed-highlight-bg-mix: 16%;
-  --ed-highlight-line-mix: 65%;
-}
-
-[data-mode="dark"] {
-  --ed-palette-gray: #9a9a9a;
-  --ed-palette-red: #fa7873;
-  --ed-palette-orange: #f5a54a;
-  --ed-palette-yellow: #fcd456;
-  --ed-palette-green: #6dd162;
-  --ed-palette-blue: #70a0ff;
-  --ed-palette-purple: #a472fc;
-  --ed-gradient-sunset: linear-gradient(90deg, #fb923c 0%, #f87171 52%, #f472b6 100%);
-  --ed-gradient-ocean: linear-gradient(90deg, #38bdf8 0%, #60a5fa 52%, #818cf8 100%);
-  --ed-gradient-forest: linear-gradient(90deg, #4ade80 0%, #34d399 52%, #2dd4bf 100%);
-  --ed-gradient-violet: linear-gradient(90deg, #a78bfa 0%, #c084fc 52%, #818cf8 100%);
-  --ed-gradient-gold: linear-gradient(90deg, #fbbf24 0%, #fde047 52%, #fdba74 100%);
-  --ed-gradient-rose: linear-gradient(90deg, #fda4af 0%, #fb7185 52%, #c084fc 100%);
-  --ed-highlight-bg-mix: 24%;
-  --ed-highlight-line-mix: 75%;
 }
 
 /*
@@ -170,53 +105,6 @@
 @scope (.ed-block:hover:not(:has(.ed-block:hover))) to (.ed-block) {
   [data-block-reveal] {
     opacity: 1;
-  }
-}
-
-/*
- * Callout 五类：按 callout-<type> 把本块的 --ed-callout-border / -bg / -text / -icon 指到对应 token。
- * 图标经 CSS url() 引用并作为 mask 渲染（颜色取 --ed-callout-border，svg 自带填色不生效），
- * 由各宿主的 CSS 管线处理资源（编辑器包不在 JS 里 import 资源）。
- */
-.callout.callout-tip {
-  --ed-callout-border: var(--ed-callout-tip);
-  --ed-callout-bg: var(--ed-callout-tip-bg);
-  --ed-callout-text: var(--ed-callout-tip-text);
-  --ed-callout-icon: url("../assets/icons/tip.svg");
-}
-
-.callout.callout-info {
-  --ed-callout-border: var(--ed-callout-info);
-  --ed-callout-bg: var(--ed-callout-info-bg);
-  --ed-callout-text: var(--ed-callout-info-text);
-  --ed-callout-icon: url("../assets/icons/info.svg");
-}
-
-.callout.callout-warning {
-  --ed-callout-border: var(--ed-callout-warning);
-  --ed-callout-bg: var(--ed-callout-warning-bg);
-  --ed-callout-text: var(--ed-callout-warning-text);
-  --ed-callout-icon: url("../assets/icons/warning.svg");
-}
-
-.callout.callout-danger {
-  --ed-callout-border: var(--ed-callout-danger);
-  --ed-callout-bg: var(--ed-callout-danger-bg);
-  --ed-callout-text: var(--ed-callout-danger-text);
-  --ed-callout-icon: url("../assets/icons/danger.svg");
-}
-
-.callout.callout-note {
-  --ed-callout-border: var(--ed-callout-note);
-  --ed-callout-bg: var(--ed-callout-note-bg);
-  --ed-callout-text: var(--ed-callout-note-text);
-  --ed-callout-icon: url("../assets/icons/note.svg");
-}
-
-/* 列表项折叠三角：同样只在最内层被悬停的列表项里出现（列表项可嵌套） */
-@scope (.ed-list-item:hover:not(:has(.ed-list-item:hover))) to (.ed-list-item) {
-  [data-list-fold-reveal] {
-    display: block;
   }
 }
 

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { isMarkdownLikeText } from "../index.ts";
-import { bareProcessor } from "./fixtures.ts";
+import { fixtureProcessor } from "./fixtures.ts";
 
-const importFromMarkdown = bareProcessor.importFromMarkdown;
+const importFromMarkdown = fixtureProcessor.importFromMarkdown;
 
 // 原 packages/editor/src/utils/__tests__/markdownImport.test.ts，随导入端合并迁入
 describe("importFromMarkdown 选项与粘贴判定", () => {

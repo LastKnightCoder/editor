@@ -1,4 +1,4 @@
-import type { Descendant } from "slate";
+import type { Descendant, Element } from "slate";
 
 import type { MarkdownSerializer } from "./markdownSerializerRegistry.ts";
 
@@ -66,6 +66,11 @@ export interface MarkdownCodec {
    * 值为 directive 名
    */
   inlineWrapperDirective?: string;
+  /** 配对 HTML 标签的行内认领；框架匹配同名嵌套标签并回填 children，领域负责创建节点。 */
+  inlineHtmlWrapper?: {
+    tag: string;
+    create: (opening: MarkdownImportNode) => Element;
+  };
   /** 导入后规范化：返回替换本元素的序列（空数组 = 删除）或 null（保持原样） */
   normalize?: (
     element: any,
@@ -77,6 +82,8 @@ export interface MarkdownCodec {
       demote: (child: Descendant) => Descendant;
     }
   ) => Descendant[] | null;
+  /** 按目标类型贡献规范化，先于该类型自身 normalize；按 codec 顺序首个非 null 替换生效。 */
+  normalizeFor?: Readonly<Record<string, NonNullable<MarkdownCodec["normalize"]>>>;
   /** 段落内行内形态的构造（导入规范化时框架经 ctx.demote 调用） */
   inlineForm?: (element: any) => Descendant;
   /**

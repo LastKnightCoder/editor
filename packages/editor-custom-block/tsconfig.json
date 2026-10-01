@@ -1,4 +1,0 @@
-{
-  "extends": "../editor/tsconfig.json",
-  "include": ["src", "runtime.ts", "markdown.ts"]
-}
