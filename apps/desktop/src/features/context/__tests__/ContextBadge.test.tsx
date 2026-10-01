@@ -34,9 +34,9 @@ const CONTEXT: EntityContext = {
 let container: HTMLDivElement;
 let root: Root;
 
-const render = () =>
+const render = (leading?: Parameters<typeof ContextBadge>[0]["leading"]) =>
   act(() => {
-    root.render(<ContextBadge entity={{ kind: "card", id: 1 }} />);
+    root.render(<ContextBadge entity={{ kind: "card", id: 1 }} leading={leading} />);
   });
 const click = (el: Element | null | undefined) =>
   act(() => {
@@ -102,5 +102,40 @@ describe("ContextBadge", () => {
     click(findButton("处关联"));
     click(findButton("为什么 transform"));
     expect(mocks.openPage).toHaveBeenCalledWith("questions", { selectedId: 9 });
+  });
+
+  it("前置分区计入数量并排在最前；只有前置分区时也显示入口", () => {
+    const onPick = vi.fn();
+    const leading = {
+      count: 2,
+      render: (close: () => void) => (
+        <button
+          onClick={() => {
+            close();
+            onPick();
+          }}
+        >
+          连接分区
+        </button>
+      ),
+    };
+    render(leading);
+    expect(container.textContent).toContain("2 处关联");
+    mocks.context = CONTEXT;
+    render(leading);
+    expect(container.textContent).toContain("6 处关联");
+    click(findButton("处关联"));
+    const text = document.body.textContent ?? "";
+    expect(text.indexOf("连接分区")).toBeLessThan(text.indexOf("被引用"));
+    click(findButton("连接分区"));
+    expect(onPick).toHaveBeenCalled();
+    expect(findButton("处关联")?.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("前置分区数量为 0 时不渲染该分区", () => {
+    mocks.context = CONTEXT;
+    render({ count: 0, render: () => <span>连接分区</span> });
+    click(findButton("处关联"));
+    expect(document.body.textContent).not.toContain("连接分区");
   });
 });
