@@ -22,6 +22,9 @@ const INDEX_CORE_TABLES = [
   "knowledge_map_topics",
   "entity_refs",
   "entity_ref_sources",
+  "whiteboard_refs",
+  "whiteboard_ref_sources",
+  "whiteboard_embeds",
 ];
 const REMOVED_TABLES = [
   "rss_feed",

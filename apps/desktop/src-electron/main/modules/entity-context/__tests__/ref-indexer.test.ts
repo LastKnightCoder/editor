@@ -139,3 +139,45 @@ describe("reconcileRefs", () => {
     expect(result.processed).toBe(RECONCILE_BATCH);
   });
 });
+
+describe("文档里嵌入的白板块", () => {
+  const board = (pageId: number) => ({
+    type: "whiteboard",
+    whiteBoardContentId: pageId,
+    children: [text("")],
+  });
+  const embedsOf = (hostId: number) =>
+    (
+      indexDb
+        .prepare(`SELECT page_id FROM whiteboard_embeds WHERE host_content_id = ? ORDER BY page_id`)
+        .all(hostId) as Array<{ page_id: number }>
+    ).map(row => row.page_id);
+
+  it("随正文解析写入，修改与删除时更新", () => {
+    const id = insertContent([p(text("见图")), board(5)]);
+    expect(reindexContents(mainDb, indexDb, [id]).changed).toBe(1);
+    expect(embedsOf(id)).toEqual([5]);
+
+    updateContent(id, [board(5), board(6)]);
+    expect(reindexContents(mainDb, indexDb, [id]).changed).toBe(1);
+    expect(embedsOf(id)).toEqual([5, 6]);
+
+    updateContent(id, [board(6), board(5)]);
+    expect(reindexContents(mainDb, indexDb, [id]).changed).toBe(0);
+
+    mainDb.prepare(`DELETE FROM contents WHERE id = ?`).run(id);
+    expect(reindexContents(mainDb, indexDb, [id]).changed).toBe(1);
+    expect(embedsOf(id)).toEqual([]);
+  });
+
+  it("解析口径升级后，已对账的正文在下次对账时重解析", async () => {
+    const id = insertContent([board(7)]);
+    indexDb
+      .prepare(`INSERT INTO entity_ref_sources (content_id, update_time) VALUES (?, ?)`)
+      .run(id, clock - 1);
+    expect(diffSources(mainDb, indexDb)).toEqual([]);
+    await reconcileRefs(mainDb, indexDb);
+    expect(embedsOf(id)).toEqual([7]);
+    expect((await reconcileRefs(mainDb, indexDb)).processed).toBe(0);
+  });
+});

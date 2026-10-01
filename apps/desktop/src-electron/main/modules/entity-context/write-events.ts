@@ -40,4 +40,26 @@ export const CONTEXT_WRITE_EVENTS: ReadonlySet<string> = new Set([
   "question:create-answer",
   "question:add-answer",
   "question:delete-answer",
+  // 白板的增删与改名（画布内容的变化由白板引用索引负责通知）
+  "create-white-board",
+  "delete-white-board",
+  "update-white-board-meta",
+  "add-sub-white-board",
+  "delete-sub-white-board",
+  "rename-sub-white-board",
+]);
+
+/** 可能改变白板画布内容的写事件：命中后防抖对账白板引用索引 */
+export const WHITEBOARD_CANVAS_EVENTS: ReadonlySet<string> = new Set([
+  "white-board-content:create",
+  "white-board-content:update",
+  "white-board-content:delete",
+  "white-board-content:increment-ref-count",
+  "create-white-board",
+  "delete-white-board",
+  "update-white-board",
+  "add-sub-white-board",
+  "delete-sub-white-board",
+  "update-sub-white-board",
+  "duplicate-sub-white-board",
 ]);

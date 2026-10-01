@@ -20,9 +20,11 @@ import DiaryTable from "../../tables/diary";
 import ProjectTable from "../../tables/project";
 import QuestionLinkTable from "../../tables/question-link";
 import QuestionTable from "../../tables/question";
+import WhiteBoardContentTable from "../../tables/white-board-content";
+import WhiteboardTable from "../../tables/whiteboard";
 import { getEntityContext } from "../context-query";
 import { reconcileRefs } from "../ref-indexer";
-import { CONTEXT_WRITE_EVENTS } from "../write-events";
+import { CONTEXT_WRITE_EVENTS, WHITEBOARD_CANVAS_EVENTS } from "../write-events";
 
 const SCHEMA_DIR = resolve(__dirname, "../../../../../../../packages/db-schema/schema");
 const MAIN_SQL = readFileSync(resolve(SCHEMA_DIR, "main.sql"), "utf8");
@@ -232,11 +234,20 @@ describe("getEntityContext", () => {
 describe("CONTEXT_WRITE_EVENTS", () => {
   it("每个事件名都是实际注册的 IPC 写事件", () => {
     const registered = new Set(
-      [ArticleTable, CardTable, DiaryTable, ProjectTable, QuestionLinkTable, QuestionTable].flatMap(
-        table => Object.keys(table.getListenEvents())
-      )
+      [
+        ArticleTable,
+        CardTable,
+        DiaryTable,
+        ProjectTable,
+        QuestionLinkTable,
+        QuestionTable,
+        WhiteboardTable,
+        WhiteBoardContentTable,
+      ].flatMap(table => Object.keys(table.getListenEvents()))
     );
-    const unknown = [...CONTEXT_WRITE_EVENTS].filter(name => !registered.has(name));
+    const unknown = [...CONTEXT_WRITE_EVENTS, ...WHITEBOARD_CANVAS_EVENTS].filter(
+      name => !registered.has(name)
+    );
     expect(unknown).toEqual([]);
   });
 });

@@ -5,11 +5,13 @@
  * - 对账：reconcileRefs 比较主库 contents.update_time 与 entity_ref_sources，处理新增、变更与已删除，
  *   在数据库连接时执行，兜住迁移、同步下载、移动端写入等不经过总线的路径。
  *
- * 不含 content-link 的正文不解析 JSON（SQL 先过滤），只更新对账状态。
+ * 同时维护文档里嵌入的白板块（whiteboard_embeds），供「被白板使用」解析白板页的归属。
+ * 不含 content-link 与白板块的正文不解析 JSON（SQL 先过滤），只更新对账状态。
  */
 
 import type Database from "better-sqlite3";
 import { extractInlineRefs } from "@/entity/inline-refs";
+import { extractWhiteboardEmbeds } from "@/entity/whiteboard-refs";
 
 /** 对账时每批处理的正文数，批间让出事件循环 */
 export const RECONCILE_BATCH = 50;
@@ -24,7 +26,7 @@ export interface RefIndexResult {
 interface ContentRow {
   id: number;
   update_time: number;
-  /** 只有含 content-link 的正文才取正文 */
+  /** 只有含 content-link 或白板块的正文才取正文 */
   content: string | null;
 }
 
@@ -34,7 +36,8 @@ function readContents(mainDb: Database.Database, ids: number[]): Map<number, Con
   const rows = mainDb
     .prepare(
       `SELECT id, update_time,
-         CASE WHEN instr(content, '"content-link"') > 0 THEN content END AS content
+         CASE WHEN instr(content, '"content-link"') > 0
+                OR instr(content, '"whiteBoardContentId"') > 0 THEN content END AS content
        FROM contents WHERE id IN (${marks})`
     )
     .all(...ids) as ContentRow[];
@@ -63,6 +66,13 @@ export function reindexContents(
   );
   const deleteRefs = indexDb.prepare(`DELETE FROM entity_refs WHERE src_content_id = ?`);
   const deleteSource = indexDb.prepare(`DELETE FROM entity_ref_sources WHERE content_id = ?`);
+  const embedsOf = indexDb.prepare(
+    `SELECT page_id FROM whiteboard_embeds WHERE host_content_id = ? ORDER BY page_id`
+  );
+  const deleteEmbeds = indexDb.prepare(`DELETE FROM whiteboard_embeds WHERE host_content_id = ?`);
+  const insertEmbed = indexDb.prepare(
+    `INSERT OR IGNORE INTO whiteboard_embeds (host_content_id, page_id) VALUES (?, ?)`
+  );
   const insertRef = indexDb.prepare(
     `INSERT INTO entity_refs
        (src_content_id, dst_kind, dst_id, dst_content_id, snippet_before, snippet_label, snippet_after)
@@ -76,14 +86,19 @@ export function reindexContents(
   indexDb.transaction(() => {
     for (const id of ids) {
       const before = (countRefs.get(id) as { n: number }).n;
+      const embedsBefore = (embedsOf.all(id) as Array<{ page_id: number }>).map(r => r.page_id);
       deleteRefs.run(id);
+      deleteEmbeds.run(id);
       const row = rows.get(id);
       if (!row) {
         deleteSource.run(id);
-        if (before > 0) changed++;
+        if (before > 0 || embedsBefore.length > 0) changed++;
         continue;
       }
-      const refs = extractInlineRefs(parseContent(row.content));
+      const content = parseContent(row.content);
+      const refs = extractInlineRefs(content);
+      const embeds = extractWhiteboardEmbeds(content).sort((a, b) => a - b);
+      for (const pageId of embeds) insertEmbed.run(id, pageId);
       for (const ref of refs) {
         insertRef.run(
           id,
@@ -96,7 +111,7 @@ export function reindexContents(
         );
       }
       upsertSource.run(id, row.update_time);
-      if (before > 0 || refs.length > 0) changed++;
+      if (before > 0 || refs.length > 0 || embeds.join() !== embedsBefore.join()) changed++;
     }
   })();
   return { processed: ids.length, changed };
@@ -126,6 +141,29 @@ export function diffSources(mainDb: Database.Database, indexDb: Database.Databas
   return stale;
 }
 
+/**
+ * 解析口径的版本：口径变化（如新增白板块）时清空对账状态，下次对账全量重解析。
+ * 1 = 只有 content-link；2 = 加白板块（whiteboard_embeds）
+ */
+export const REF_INDEX_VERSION = "2";
+const REF_INDEX_VERSION_KEY = "entity-refs:version";
+
+function ensureIndexVersion(indexDb: Database.Database) {
+  const current = indexDb
+    .prepare(`SELECT value FROM index_meta WHERE key = ?`)
+    .get(REF_INDEX_VERSION_KEY) as { value: string } | undefined;
+  if (current?.value === REF_INDEX_VERSION) return;
+  indexDb.transaction(() => {
+    indexDb.prepare(`DELETE FROM entity_ref_sources`).run();
+    indexDb
+      .prepare(
+        `INSERT INTO index_meta (key, value, updated_at) VALUES (?, ?, ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+      )
+      .run(REF_INDEX_VERSION_KEY, REF_INDEX_VERSION, Date.now());
+  })();
+}
+
 const yieldToEventLoop = () => new Promise<void>(resolve => setImmediate(resolve));
 
 /** 整库对账；isStale 返回 true（切库或新一轮开始）时中途停止 */
@@ -134,6 +172,7 @@ export async function reconcileRefs(
   indexDb: Database.Database,
   isStale: () => boolean = () => false
 ): Promise<RefIndexResult & { aborted: boolean }> {
+  ensureIndexVersion(indexDb);
   const stale = diffSources(mainDb, indexDb);
   const total: RefIndexResult = { processed: 0, changed: 0 };
   for (let start = 0; start < stale.length; start += RECONCILE_BATCH) {
