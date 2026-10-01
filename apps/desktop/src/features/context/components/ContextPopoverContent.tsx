@@ -1,8 +1,10 @@
 /**
- * 脉络浮层内容：被引用（来源 + 原文片段，被引用的标题在句中点亮）、也出现在、相关问题。
+ * 脉络浮层内容：调用方的前置分区（如卡片的「连接」）、被引用（来源 + 原文片段，被引用的标题
+ * 在句中点亮）、也出现在、相关问题。
  * 只负责展示与点击回调，数据与开合由 ContextBadge 管理。
  */
 
+import type { ReactNode } from "react";
 import { CircleHelp } from "lucide-react";
 import { cn } from "@tau/ui";
 import type { EntityRef } from "@/entity/ref";
@@ -10,9 +12,12 @@ import type { InlineRefSnippet } from "@/entity/inline-refs";
 import type { ContextEntity, ContextQuestion, EntityContext } from "@/types/entity-context";
 import { STATUS_META } from "@/features/questions/model";
 import { ENTITY_KIND_META } from "../model";
+import { ContextRow as Row, ContextSection as Section } from "./ContextList";
 
 interface ContextPopoverContentProps {
-  context: EntityContext;
+  context: EntityContext | null;
+  /** 排在最前的分区，由调用方提供 */
+  leading?: ReactNode;
   onOpenEntity: (ref: EntityRef) => void;
   onOpenQuestion: (questionId: number) => void;
 }
@@ -22,27 +27,6 @@ const STATUS_TONE: Record<ContextQuestion["status"], string> = {
   in_progress: "text-warn",
   resolved: "text-ok",
 };
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="[&+&]:mt-2.5">
-      <h5 className="text-ink-3 mx-2.5 mb-1 mt-1 text-[12px] font-normal">{title}</h5>
-      {children}
-    </section>
-  );
-}
-
-function Row({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="hover:bg-hover rounded-tau-sm block w-full px-2.5 py-[7px] text-left transition-colors focus-visible:shadow-[var(--tau-focus-ring)] focus-visible:outline-none"
-    >
-      {children}
-    </button>
-  );
-}
 
 function SourceLine({ entity }: { entity: ContextEntity }) {
   const { icon: Icon, label } = ENTITY_KIND_META[entity.ref.kind];
@@ -67,15 +51,24 @@ function Snippet({ snippet }: { snippet: InlineRefSnippet }) {
   );
 }
 
+const EMPTY: Pick<EntityContext, "backlinks" | "backlinkTotal" | "projections" | "questions"> = {
+  backlinks: [],
+  backlinkTotal: 0,
+  projections: [],
+  questions: [],
+};
+
 export function ContextPopoverContent({
   context,
+  leading,
   onOpenEntity,
   onOpenQuestion,
 }: ContextPopoverContentProps) {
-  const { backlinks, backlinkTotal, projections, questions } = context;
+  const { backlinks, backlinkTotal, projections, questions } = context ?? EMPTY;
   const hidden = backlinkTotal - backlinks.length;
   return (
     <div className="px-1.5 pb-2 pt-2.5">
+      {leading}
       {backlinks.length > 0 && (
         <Section title="被引用">
           {backlinks.map(({ source, snippets }) => (

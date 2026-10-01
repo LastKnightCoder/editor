@@ -1,8 +1,9 @@
 /**
  * 脉络入口：元信息行里的「N 处关联」，点开浮层（KL-015）。没有任何关联时不渲染。
+ * 调用方可经 leading 在浮层最前加入自己域的分区（如卡片的「连接」，KL-018），其数量计入总数。
  */
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Waypoints } from "lucide-react";
 import { Popover, cn, toast } from "@tau/ui";
 import type { EntityRef } from "@/entity/ref";
@@ -12,25 +13,33 @@ import { contextCount } from "../model";
 import { useEntityContext } from "../queries";
 import { ContextPopoverContent } from "./ContextPopoverContent";
 
+export interface ContextLeading {
+  count: number;
+  /** close：分区内的导航操作先关闭浮层 */
+  render: (close: () => void) => ReactNode;
+}
+
 interface ContextBadgeProps {
   entity: EntityRef | null;
+  leading?: ContextLeading;
   className?: string;
 }
 
-export function ContextBadge({ entity, className }: ContextBadgeProps) {
+export function ContextBadge({ entity, leading, className }: ContextBadgeProps) {
   const { data: context } = useEntityContext(entity);
   const [open, setOpen] = useState(false);
-  const count = contextCount(context);
-  if (!context || count === 0) return null;
+  const count = contextCount(context) + (leading?.count ?? 0);
+  if (count === 0) return null;
+  const close = () => setOpen(false);
 
   const openRef = (ref: EntityRef) => {
-    setOpen(false);
+    close();
     openEntity(ref).catch(error =>
       toast.error(error instanceof Error ? error.message : "无法打开内容")
     );
   };
   const openQuestion = (questionId: number) => {
-    setOpen(false);
+    close();
     openPage("questions", { selectedId: questionId });
   };
 
@@ -58,7 +67,8 @@ export function ContextBadge({ entity, className }: ContextBadgeProps) {
     >
       <div className="max-h-[460px] overflow-y-auto">
         <ContextPopoverContent
-          context={context}
+          context={context ?? null}
+          leading={leading && leading.count > 0 ? leading.render(close) : undefined}
           onOpenEntity={openRef}
           onOpenQuestion={openQuestion}
         />

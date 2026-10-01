@@ -94,7 +94,11 @@ import {
   useCardsMutations,
 } from "../queries";
 import { CATEGORY_COLORS } from "../categoryColors";
-import { AddCardLinkDialog, CardDetailLinks } from "../components/CardDetailLinks";
+import {
+  AddCardLinkDialog,
+  CardConnections,
+  cardConnectionCount,
+} from "../components/CardDetailLinks";
 import { CategoryBadge } from "../components/CardItemView";
 import { ContextBadge } from "@/features/context/components/ContextBadge";
 
@@ -299,7 +303,28 @@ export function CardDetailView() {
                   创建于 {formatDate(card.create_time, true)} · 最后修改{" "}
                   {formatDate(card.update_time, true)} · {card.count.toLocaleString("zh-CN")} 字
                 </span>
-                <ContextBadge entity={{ kind: "card", id: card.id }} />
+                {/* 脉络入口：连接（links ∪ 内联引用）并入浮层首个分区（KL-018） */}
+                <ContextBadge
+                  entity={{ kind: "card", id: card.id }}
+                  leading={{
+                    count: cardConnectionCount(card),
+                    render: close => (
+                      <CardConnections
+                        card={card}
+                        cards={feed.cards}
+                        onNavigate={targetId => {
+                          close();
+                          navigator.push("card-detail", { id: targetId });
+                        }}
+                        onUnlink={targetId => void unlinkCard(targetId)}
+                        onOpenAddDialog={() => {
+                          close();
+                          setAddLinkOpen(true);
+                        }}
+                      />
+                    ),
+                  }}
+                />
 
                 {/* ⋯ 更多（时间右侧）：按频率排布——场景（演示/沉浸，高频）与连接在前，
                   复制/导出居中，生成类（制卡/播客，低频）收二级垫底，删除殿后。
@@ -529,21 +554,12 @@ export function CardDetailView() {
                   });
                 }}
               />
-
-              {/* 连接区：links ∪ 内联引用，有关联才渲染 */}
-              <CardDetailLinks
-                card={card}
-                cards={feed.cards}
-                onNavigate={targetId => navigator.push("card-detail", { id: targetId })}
-                onUnlink={targetId => void unlinkCard(targetId)}
-                onOpenAddDialog={() => setAddLinkOpen(true)}
-              />
             </article>
           </div>
         </FadeScroll>
       </div>
 
-      {/* 添加连接（空卡时唯一连接入口在 ⋯ 菜单） */}
+      {/* 添加连接：入口在 ⋯ 菜单与脉络浮层的「连接」分区 */}
       <AddCardLinkDialog
         open={addLinkOpen}
         card={card}
