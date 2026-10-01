@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { AI_RUN_METHODS, createRunEventFilter, type AiRunEventNotification } from "@tau/shared";
 import WebSocketClient from "@/utils/WebSocketClient";
 import { AI_SERVER_WS_URL } from "@/utils/aiServerAddress";
+import { RelayedWebSocket } from "@/utils/wsRelay";
 import { extractPageContent } from "../context-extractor";
 import { injectInlineTimeContext } from "@/utils/systemPrompt";
 
@@ -64,7 +65,8 @@ export function useInlineAiChat({
       return;
     }
 
-    const client = new WebSocketClient(AI_SERVER_WS_URL);
+    // content script 直连会带网页 Origin 被桌面端拒绝，经后台转发
+    const client = new WebSocketClient(AI_SERVER_WS_URL, () => new RelayedWebSocket());
 
     client.onOpenHandler = () => {
       setIsConnected(true);

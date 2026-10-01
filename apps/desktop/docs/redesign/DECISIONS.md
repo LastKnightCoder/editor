@@ -1,5 +1,14 @@
 # 决策记录（轻量 ADR）
 
+## D-094 本地服务 24678 只对本机与可信来源开放
+
+（2026-10-02，用户确认先按来源收口，暂不加 token 与配对）
+
+- 背景：主进程 24678 原先监听所有网卡，静态服务把整个 `~/.editor`（`setting.json` 里的模型密钥、各库 `.db`、`pi/auth.json`、会话记录）以 `Access-Control-Allow-Origin: *` 开放；WS 中转（`/backendServer` `/aiServer` `/aiServerMain` `/extToolServer`）不查来源。任意网页一个 `fetch` 即可读走密钥与数据库，或连 `/aiServer` 调写库方法；局域网设备同理。
+- 约束（`src-electron/main/modules/server-access.ts`，单测守护）：① 只监听 `127.0.0.1`，本机 node 客户端（主进程、CLI）用 `127.0.0.1` 直连，不经 `localhost` 解析；② WS 握手只放行不带 Origin（本机进程）、`file://`（打包渲染端）、`chrome-extension://<id>`、开发期 vite 渲染端自身，其余 403——不放行 `null`（任意网站的沙箱 iframe 都是它）；③ CORS 只对插件与开发期渲染端回显，打包渲染端的 HTTP 请求不带 Origin、不需要 CORS；④ 静态服务不出根目录文件、库 / 备份 / 日志类文件与凭据、会话、索引、协作库等目录，只出子目录里的资源。新增 24678 的消费方先确认自己的 Origin 落在白名单内，不得为此放回 `*`。
+- 插件 content script 的连接带的是所在网页的 Origin，一律经后台 service worker 转发（`utils/wsRelay.ts`，runtime Port + 保活），不直连。
+- 不做 / 已知边界：本机进程可伪造 Origin，暂不防（同用户进程本可直接读 `~/.editor`）；任意已安装的浏览器插件同样能连。若要挡住二者，需 token + 插件配对（桌面端确认后下发），届时另立条目。写库 RPC 的参数校验另行处理。
+
 ## D-093 AI 对话工作目录：按对话记录，设置只给默认值；对话栏显示目录与分支
 
 （2026-10-01，用户提出：设置里可配工作目录，对话上方显示当前目录与 git 分支，可直接换目录、切分支）
