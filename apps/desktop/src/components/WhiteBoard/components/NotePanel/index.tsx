@@ -5,14 +5,11 @@
  * 白板在 document 上的快捷键（删除、方向键移动等）不会被笔记输入触发。
  */
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Drawer, Loading, useRetainedValue } from "@tau/ui";
-import { EditorRef } from "@tau/editor";
+import React, { useState } from "react";
+import { Drawer, useRetainedValue } from "@tau/ui";
 import Editor from "@/components/ContentEditor";
-import useEditContent from "@/hooks/useEditContent";
 import { getEditorText } from "@/utils/editor";
-import { useLocalStorageState, useMemoizedFn } from "ahooks";
-import { Descendant } from "slate";
+import { useLocalStorageState } from "ahooks";
 
 interface NotePanelProps {
   contentTitle?: string;
@@ -27,23 +24,10 @@ function NoteBody({
   contentId: number;
   onTextChange: (text: string) => void;
 }) {
-  const editorRef = useRef<EditorRef>(null);
-  const { content, throttleHandleEditorContentChange } = useEditContent(contentId);
-
-  const text = useMemo(() => (content ? getEditorText(content, 20).trim() : ""), [content]);
-  useEffect(() => onTextChange(text), [text, onTextChange]);
-
-  const handleContentChange = useMemoizedFn((value: Descendant[]) => {
-    throttleHandleEditorContentChange(value);
-  });
-
-  if (!content) return <Loading />;
   return (
     <Editor
       contentId={contentId}
-      ref={editorRef}
-      initValue={content}
-      onChange={handleContentChange}
+      onChange={value => onTextChange(getEditorText(value, 20).trim())}
       className="min-h-full"
       readonly={false}
     />

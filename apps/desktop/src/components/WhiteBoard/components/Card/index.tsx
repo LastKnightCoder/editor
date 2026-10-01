@@ -6,7 +6,6 @@ import RichText from "../RichText";
 import { CardElement, CommonElement } from "../../plugins";
 import { EHandlerPosition, Point, Board } from "../../types";
 import { Descendant } from "slate";
-import useEditContent from "@/hooks/useEditContent";
 
 interface CardProps {
   element: CardElement;
@@ -45,11 +44,8 @@ const Card = memo((props: CardProps) => {
     saveCard();
   });
 
-  const { throttleHandleEditorContentChange } = useEditContent(editingCard?.contentId);
-
   const handleOnContentChange = (_board: Board, _element: CardElement, value: Descendant[]) => {
     onContentChange(value);
-    throttleHandleEditorContentChange(value);
   };
 
   if (loading) {

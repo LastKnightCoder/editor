@@ -5,7 +5,6 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import type { Descendant } from "slate";
-import type { EditorRef } from "@tau/editor";
 import {
   ChevronDown,
   ExternalLink,
@@ -34,7 +33,6 @@ import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
 import { CreateCardDialog } from "@/features/cards/components/CreateCardDialog";
 import { usePage } from "@/page/PageProvider";
 import { clampText, richTextPlainText } from "@/utils/richTextText";
-import useEditContent from "@/hooks/useEditContent";
 import { ECardCategory, type EntityCandidate, type EntityKind, type TodoNoteLink } from "@/types";
 import {
   doneToday,
@@ -518,18 +516,12 @@ export function DescriptionSection({
   entry: TodoEntry;
   mutations: TodoMutations;
 }) {
-  const editorRef = useRef<EditorRef>(null);
   const creating = useRef(false);
-  const { throttleHandleEditorContentChange } = useEditContent(
-    entry.descriptionContentId ?? undefined
-  );
 
   const handleChange = (content: Descendant[]) => {
-    if (isEmptyContent(content) && !entry.descriptionContentId) return;
-    if (entry.descriptionContentId) {
-      throttleHandleEditorContentChange(content);
-    } else if (!creating.current) {
-      // 首次写入非空内容才建 content（legacy 同口径，避免空描述占库）
+    if (entry.descriptionContentId || isEmptyContent(content)) return;
+    if (!creating.current) {
+      // 首次写入非空内容才建正文，后续编辑由文档会话持久化。
       creating.current = true;
       mutations
         .attachDescription(entry, content)
@@ -545,7 +537,6 @@ export function DescriptionSection({
         <ErrorBoundary>
           <ContentEditor
             key={entry.id}
-            ref={editorRef}
             contentId={entry.descriptionContentId ?? undefined}
             initValue={entry.descriptionContent?.length ? entry.descriptionContent : EMPTY_DESC}
             onChange={handleChange}

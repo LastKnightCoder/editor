@@ -2,7 +2,7 @@
  * 编辑窗口主体：标题栏 + 纸面（头部字段 · 正文 · 大纲 · 状态栏）。
  * 内容类型差异全部收在 DocumentDriver（标题 / 标签有无、读写、扩展）。
  *
- * 保存分工：正文走 useEditContent（content 表 + Yjs 会话）；标题绑定会话文档的 title
+ * 保存分工：正文走 ContentEditor 文档会话；标题绑定会话文档的 title
  * 文本（本地 / 共享模式一致）；标签等元数据由 useEditorDocument 定时落库。
  */
 
@@ -43,7 +43,6 @@ import {
 } from "@/components/ContentOutline";
 import { ThemeToggle } from "@/app/Titlebar";
 import { ArticleTags } from "@/features/articles/components/ArticleTags";
-import useEditContent from "@/hooks/useEditContent";
 import useContentSession from "@/hooks/useContentSession";
 import useCollaborationDocument from "@/hooks/useCollaborationDocument";
 import useCollaborationStore from "@/stores/useCollaborationStore";
@@ -151,11 +150,6 @@ export function EditorWindow({
   const session = useCollaborationStore(state =>
     entry?.mode === "shared" ? state.sessions.find(item => item.id === entry.documentId) : undefined
   );
-
-  /* 正文：远端 / 初始内容推给编辑器；本地变更节流落库 */
-  const { throttleHandleEditorContentChange } = useEditContent(doc.contentId, content => {
-    updateFields({ content });
-  });
   const extensions = useMemo(() => driver.extensions?.(doc.id) ?? [], [driver, doc.id]);
 
   const headers = useMemo(() => extractContentHeaders(doc.content), [doc.content]);
@@ -444,7 +438,6 @@ export function EditorWindow({
                     source={source}
                     initValue={doc.content}
                     onChange={content => {
-                      throttleHandleEditorContentChange(content);
                       updateFields({ content });
                     }}
                     extensions={extensions}

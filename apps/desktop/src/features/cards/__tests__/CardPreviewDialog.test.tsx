@@ -24,9 +24,6 @@ vi.mock("ahooks", () => ({
   useUnmount: () => {},
 }));
 vi.mock("@/utils", () => ({ formatDate: () => "日期", getContentLength: () => 0 }));
-vi.mock("@/hooks/useEditContent", () => ({
-  default: () => ({ throttleHandleEditorContentChange: vi.fn() }),
-}));
 vi.mock("@/components/ContentEditor", () => ({
   default: function MockContentEditor({ contentId, onInit, onLoadError }: any) {
     mocks.editorReady = () => onInit?.({}, []);

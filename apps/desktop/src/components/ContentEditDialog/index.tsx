@@ -2,7 +2,7 @@
  * ContentEditDialog —— 就地编辑一份已有 content 的弹窗（新体系，替代 legacy RichTextEditModal）。
  * 版式与「新建卡片」弹窗同构（CreateCardDialog）：大标题 + 编辑器，底部应答区。
  *
- * - 正文：ContentEditor + useEditContent（加载、跨窗口同步、节流自动保存），无保存按钮
+ * - 正文：ContentEditor 文档会话负责加载、跨窗口同步和保存，无保存按钮
  * - 标题行：不传 title 即无（卡片没有标题）；传 onTitleChange 可编辑，否则只读
  * - 底部：字数 · 已自动保存；「完成」关闭（footerActions 排在「完成」之前）
  */
@@ -13,7 +13,6 @@ import type { EditorRef } from "@tau/editor";
 import { Button, Dialog, DialogBody } from "@tau/ui";
 import ContentEditor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import useEditContent from "@/hooks/useEditContent";
 import { getContentLength } from "@/utils";
 
 const EMPTY: Descendant[] = [
@@ -52,13 +51,6 @@ export function ContentEditDialog({
 }: ContentEditDialogProps) {
   const editorRef = useRef<EditorRef>(null);
   const [count, setCount] = useState(0);
-  const { throttleHandleEditorContentChange } = useEditContent(
-    contentId ?? undefined,
-    value => {
-      setCount(getContentLength(value));
-    },
-    open && contentId != null
-  );
 
   return (
     <Dialog
@@ -100,7 +92,6 @@ export function ContentEditDialog({
                 readonly={false}
                 onChange={value => {
                   setCount(getContentLength(value));
-                  throttleHandleEditorContentChange(value);
                 }}
                 placeHolder={placeholder}
                 className="min-h-[260px]"

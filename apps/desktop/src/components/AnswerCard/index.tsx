@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ConfirmDialog, Menu, Panel, toast } from "@tau/ui";
 import { useMemoizedFn } from "ahooks";
 
@@ -6,9 +6,7 @@ import { MoreHorizontal, FileText, FolderOpen, Trash2 } from "lucide-react";
 import { BsCardText } from "react-icons/bs";
 import { IAnswer } from "@/types";
 import { defaultArticleEventBus, defaultCardEventBus } from "@/utils";
-import { EditorRef } from "@tau/editor";
 import Editor from "@/components/ContentEditor";
-import useEditContent from "@/hooks/useEditContent";
 import { buildCardFromContent } from "@/commands/card";
 import { buildArticleFromContent } from "@/commands/article";
 import useExtNoteInsertStore from "@/stores/useExtNoteInsertStore";
@@ -37,11 +35,11 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
   onViewAnswer,
   contentId,
 }) => {
-  const editorRef = useRef<EditorRef>(null);
   const [isCard, setIsCard] = useState(false);
   const [isArticle, setIsArticle] = useState(false);
   const [titleModalTarget, setTitleModalTarget] = useState<"article" | "project" | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [content, setContent] = useState(answer.content);
 
   useEffect(() => {
     if (contentId) {
@@ -52,8 +50,6 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
     }
   }, [contentId]);
 
-  const { content, throttleHandleEditorContentChange } = useEditContent(contentId);
-
   const reloadContentStatus = useMemoizedFn(async () => {
     if (!contentId) return;
     const status = await getAnswerContentStatus(contentId);
@@ -63,7 +59,6 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
 
   const handleBuildCard = useMemoizedFn(() => {
     if (!contentId) return;
-    throttleHandleEditorContentChange.flush();
 
     buildCardFromContent(contentId).then(card => {
       if (card) {
@@ -84,7 +79,6 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
 
   const handleBuildArticle = useMemoizedFn((title: string) => {
     if (!contentId) return;
-    throttleHandleEditorContentChange.flush();
 
     buildArticleFromContent(contentId, title).then(article => {
       if (article) {
@@ -100,7 +94,6 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
 
   const handleCreateTreeItem = useMemoizedFn((mode: "project", title: string) => {
     if (!contentId) return;
-    throttleHandleEditorContentChange.flush();
     useExtNoteInsertStore.getState().openModal({
       mode,
       sourceContentId: contentId,
@@ -158,8 +151,8 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
       <div className={styles.answerContent} onClick={handleClick}>
         <Editor
           contentId={contentId}
-          ref={editorRef}
           initValue={answer.content}
+          onChange={setContent}
           readonly={readOnly}
           className={styles.editor}
         />

@@ -22,7 +22,6 @@ import {
   type OutlineHeader,
 } from "@/components/ContentOutline";
 import { EditCardContext } from "@/context.ts";
-import useEditContent from "@/hooks/useEditContent";
 import ImmersiveEditorMode, {
   type ImmersiveEditorExitPayload,
 } from "@/components/ImmersiveEditorMode";
@@ -86,10 +85,6 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   }, [projectItemId]);
 
   const extensions = editorExtensions;
-
-  const { throttleHandleEditorContentChange } = useEditContent(projectItem?.contentId, content => {
-    onContentChangeFromEditProjectItem(content);
-  });
   useRafInterval(async () => {
     const updatedProjectItem = await saveProjectItem();
     if (updatedProjectItem) {
@@ -98,7 +93,6 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   }, 1000);
 
   useUnmount(async () => {
-    throttleHandleEditorContentChange.flush();
     const updatedProjectItem = await saveProjectItem();
     if (updatedProjectItem) {
       projectItemEventBus.publishProjectItemEvent("project-item:updated", updatedProjectItem);
@@ -106,7 +100,6 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   });
 
   const onContentChange = useMemoizedFn((content: Descendant[]) => {
-    throttleHandleEditorContentChange(content);
     onContentChangeFromEditProjectItem(content);
   });
 
