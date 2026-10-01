@@ -30,6 +30,8 @@ import VibeLearningResourceTable from "../../tables/vibe-learning-resource";
 import VLNoteTable from "../../tables/vl-note";
 import WhiteBoardContentTable from "../../tables/white-board-content";
 import WhiteboardTable from "../../tables/whiteboard";
+import ExcerptTable, { WEREAD_EXCERPTS_CHANGED_EVENT } from "../../tables/excerpt";
+import PdfTable from "../../tables/pdf";
 import { getEntityContext } from "../context-query";
 import { reconcileRefs } from "../ref-indexer";
 import { CONTEXT_WRITE_EVENTS, WHITEBOARD_CANVAS_EVENTS } from "../write-events";
@@ -323,8 +325,12 @@ describe("CONTEXT_WRITE_EVENTS", () => {
         VibeLearningProjectTable,
         VibeLearningResourceTable,
         VLNoteTable,
+        ExcerptTable,
+        PdfTable,
       ].flatMap(table => Object.keys(table.getListenEvents()))
     );
+    // 微信读书走自有 IPC，摘录变化由模块经 notifyExternalWrite 补发
+    registered.add(WEREAD_EXCERPTS_CHANGED_EVENT);
     const unknown = [...CONTEXT_WRITE_EVENTS, ...WHITEBOARD_CANVAS_EVENTS].filter(
       name => !registered.has(name)
     );

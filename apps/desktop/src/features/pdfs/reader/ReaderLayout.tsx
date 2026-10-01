@@ -67,6 +67,7 @@ import {
   type ReaderOverlay,
 } from "./readerContext";
 import { useReaderPrefs } from "./readerPrefs";
+import { convertMaterialToCard } from "@/services/material-to-card";
 import { useAnnotationSync } from "./useAnnotationSync";
 import { usePinchZoom } from "./usePinchZoom";
 import { AnnotationMenu, type SelectionMenuProps } from "./components/AnnotationMenu";
@@ -770,6 +771,9 @@ export function ReaderLayout({
           bookmarks={bookmarks}
           onJumpPage={page => scroll?.scrollToPage({ pageNumber: page, behavior: "smooth" })}
           onJumpAnnotation={jumpToRecord}
+          onAnnotationToCard={record =>
+            void convertMaterialToCard({ kind: "pdf-annotation", id: record.id })
+          }
           onRemoveBookmark={bookmark => void bookmarkStore.remove(bookmark)}
         />
         <div

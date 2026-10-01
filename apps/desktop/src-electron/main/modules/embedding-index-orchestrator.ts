@@ -14,6 +14,7 @@ import localInference from "./local-inference";
 import videoNoteIndexQueue from "./video-note-index-queue";
 import { resolveEmbeddingConfig, type ResolvedEmbeddingConfig } from "../utils/embedding-config";
 import { IndexRebuildState } from "./main-content-index-db";
+import { WEREAD_EXCERPTS_CHANGED_EVENT } from "./tables/excerpt";
 
 const MAIN_CONTENT_FINGERPRINT_KEY = "main_content_embedding_fingerprint";
 const VL_FINGERPRINT_KEY = "vl_embedding_fingerprint";
@@ -40,7 +41,7 @@ const MAIN_CONTENT_WRITE_EVENTS = new Set([
   "update-diary-segment",
   "create-diary-moment",
   // 外部材料（KL-037）：摘录、PDF 标注、剪藏
-  "weread:excerpts-changed",
+  WEREAD_EXCERPTS_CHANGED_EVENT,
   "excerpt:sync-web-page",
   "add-pdf-annotation",
   "update-pdf-annotation",

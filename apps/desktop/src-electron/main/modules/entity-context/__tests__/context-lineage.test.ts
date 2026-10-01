@@ -15,6 +15,7 @@ vi.mock("../../video-note-index-queue", () => ({
 }));
 
 import EntityLineageTable from "../../tables/entity-lineage";
+import ExcerptTable from "../../tables/excerpt";
 import { getEntityContext } from "../context-query";
 import { reconcileRefs } from "../ref-indexer";
 import { reconcileWhiteboardRefs } from "../whiteboard-indexer";
@@ -110,6 +111,49 @@ afterEach(() => {
 });
 
 describe("来源与衍生", () => {
+  it("由划线转成的卡片：来源显示引文与出处，可打开到原处；源端删除后保留引文、不可打开", () => {
+    const input = {
+      externalId: "b1:bm",
+      quote: "地方政府的事权",
+      note: "",
+      anchor: { chapterUid: 1, chapterIdx: 1, chapterTitle: "第一章", range: "1-2" },
+      color: null,
+      sourceTime: null,
+    };
+    ExcerptTable.syncSource(mainDb, "weread", "b1", "置身事内", [input]);
+    const [excerpt] = ExcerptTable.listActive(mainDb);
+    const cardId = insertCard(insertContent([p(text("> 地方政府的事权"))]));
+    EntityLineageTable.record(mainDb, {
+      src: { kind: "excerpt", id: excerpt.id },
+      dst: { kind: "card", id: cardId },
+      relation: "excerpt_of",
+    });
+
+    expect(contextOf("card", cardId).sources).toEqual([
+      {
+        node: { kind: "excerpt", id: excerpt.id },
+        relation: "excerpt_of",
+        title: "地方政府的事权",
+        meta: "微信读书 · 《置身事内》 · 第一章",
+        missing: false,
+        open: {
+          page: "material",
+          target: { page: "weread-book", bookId: "b1", bookmark: "bm" },
+        },
+      },
+    ]);
+
+    ExcerptTable.syncSource(mainDb, "weread", "b1", "置身事内", []);
+    expect(contextOf("card", cardId).sources).toEqual([
+      expect.objectContaining({
+        title: "地方政府的事权",
+        meta: "微信读书 · 《置身事内》 · 第一章 · 原划线已删除",
+        missing: false,
+        open: null,
+      }),
+    ]);
+  });
+
   it("从对话存下的卡片显示来源；对话删除后保留灰显一行", () => {
     run(
       `INSERT INTO chat_session (id, scope, session_file, title, create_time, update_time) VALUES ('s1', 'main-chat', 'f', '层叠上下文', 1, 1)`

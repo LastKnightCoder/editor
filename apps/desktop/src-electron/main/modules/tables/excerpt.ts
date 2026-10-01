@@ -52,6 +52,9 @@ const toExcerpt = (row: ExcerptRow): Excerpt => ({
 
 const anchorText = (anchor: ExcerptAnchor | null) => (anchor ? JSON.stringify(anchor) : null);
 
+/** 微信读书保存 / 删书后摘录有变化时补发的写事件（微信读书走自有 IPC，不经 eventAndHandlers） */
+export const WEREAD_EXCERPTS_CHANGED_EVENT = "weread:excerpts-changed";
+
 /**
  * 摘录（主库 excerpt）。一个来源（书 / 网页）整体同步：按 external_id diff，
  * 不在新集合里的软删除、重新出现的复位（KL-032）。
@@ -62,8 +65,23 @@ export default class ExcerptTable {
   static getListenEvents() {
     return {
       "excerpt:get-by-ids": this.getByIds.bind(this),
+      "excerpt:find-by-external": this.findByExternal.bind(this),
       "excerpt:sync-web-page": this.syncWebPage.bind(this),
     };
+  }
+
+  /** 按外部 id 找摘录（含软删除的）；按候选顺序返回第一个命中的 */
+  static findByExternal(
+    db: Database.Database,
+    sourceType: ExcerptSourceType,
+    externalIds: string[]
+  ): Excerpt | null {
+    const lookup = db.prepare(`SELECT * FROM excerpt WHERE source_type = ? AND external_id = ?`);
+    for (const externalId of externalIds) {
+      const row = lookup.get(sourceType, externalId) as ExcerptRow | undefined;
+      if (row) return toExcerpt(row);
+    }
+    return null;
   }
 
   /** 浏览器插件按页发来的划线快照；参数在这里校验（来自无鉴权的 RPC，KL-035） */
