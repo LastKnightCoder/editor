@@ -13,6 +13,7 @@ const abcExtension = defineExtension({
     defineElement<AbcElement>({
       type: "abc",
       kind: "block",
+      drag: true,
       isVoid: true,
       render: ({ attributes, element, children }: ElementRenderProps<AbcElement>) => (
         <AbcBlock element={element} attributes={attributes}>

@@ -13,6 +13,7 @@ const tikzExtension = defineExtension({
     defineElement<TikzElement>({
       type: "tikz",
       kind: "block",
+      drag: true,
       isVoid: true,
       isEmpty: element => element.content === "",
       render: ({ attributes, element, children }: ElementRenderProps<TikzElement>) => (
