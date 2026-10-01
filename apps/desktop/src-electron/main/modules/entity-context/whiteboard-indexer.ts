@@ -101,6 +101,29 @@ export function diffWhiteboardSources(
   return stale;
 }
 
+/**
+ * 解析口径的版本：extractWhiteboardRefs 的规则变化（如新增认识的元素类型）时加一，
+ * 下次对账清空对账状态、全量重解析。按 update_time 对账发现不了「规则变了但画布没变」的页。
+ */
+export const WHITEBOARD_REF_VERSION = "1";
+const WHITEBOARD_REF_VERSION_KEY = "whiteboard-refs:version";
+
+function ensureIndexVersion(indexDb: Database.Database) {
+  const current = indexDb
+    .prepare(`SELECT value FROM index_meta WHERE key = ?`)
+    .get(WHITEBOARD_REF_VERSION_KEY) as { value: string } | undefined;
+  if (current?.value === WHITEBOARD_REF_VERSION) return;
+  indexDb.transaction(() => {
+    indexDb.prepare(`DELETE FROM whiteboard_ref_sources`).run();
+    indexDb
+      .prepare(
+        `INSERT INTO index_meta (key, value, updated_at) VALUES (?, ?, ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+      )
+      .run(WHITEBOARD_REF_VERSION_KEY, WHITEBOARD_REF_VERSION, Date.now());
+  })();
+}
+
 const yieldToEventLoop = () => new Promise<void>(resolve => setImmediate(resolve));
 
 /** 白板整库对账；isStale 返回 true（切库或新一轮开始）时中途停止 */
@@ -109,6 +132,7 @@ export async function reconcileWhiteboardRefs(
   indexDb: Database.Database,
   isStale: () => boolean = () => false
 ): Promise<RefIndexResult & { aborted: boolean }> {
+  ensureIndexVersion(indexDb);
   const stale = diffWhiteboardSources(mainDb, indexDb);
   const total: RefIndexResult = { processed: 0, changed: 0 };
   for (let start = 0; start < stale.length; start += RECONCILE_BATCH) {

@@ -69,7 +69,8 @@ CREATE TABLE IF NOT EXISTS entity_ref_sources (
 -- 白板对笔记的使用：由主进程按元素类型解析白板页画布，脉络的「被使用 · 白板」从这里查。
 -- 可从主库重算的派生数据，丢了会在连接数据库时对账重建，因此放在索引库。
 -- dst_kind：card / article / project-item / diary（按实体）或 content（按正文 id）；
--- via：card（卡片元素）/ richtext（文本块）/ mind-node（思维导图节点关联的笔记）/ inline（元素文字里的引用）
+-- via：card（卡片元素）/ richtext（文本块）/ mind-node（思维导图节点关联的笔记）/
+--      entity（元素的通用 entityRef）/ inline（元素文字里的引用）
 CREATE TABLE IF NOT EXISTS whiteboard_refs (
         page_id INTEGER NOT NULL,
         dst_kind TEXT NOT NULL,
