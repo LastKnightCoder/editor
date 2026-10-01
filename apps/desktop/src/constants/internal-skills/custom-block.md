@@ -87,7 +87,7 @@ const Component = () => {
 **尺度**：
 
 - 字号：`text-tau-body`（默认）、`text-tau-meta`、`text-tau-sm`，大号数字或标题 `text-tau-title`；代码与数值 `font-tau-mono`。
-- 圆角：`rounded-tau-sm`（舞台内元素）、`rounded-tau-md`（舞台）；阴影只用 `shadow-card`；过渡缓动 `ease-tau-out`。
+- 圆角：`rounded-tau-sm`（舞台内元素）、`rounded-tau-md`（舞台）；正圆与胶囊形用 `rounded-full`；阴影只用 `shadow-card`；过渡缓动 `ease-tau-out`。
 - 不用 Tailwind 默认字号、圆角、阴影刻度（`text-sm`、`rounded-lg`、`shadow-md`）；间距、宽高用默认刻度即可。
 
 **版式**：
@@ -102,6 +102,9 @@ const Component = () => {
 
 - `addEventListener`、`setInterval`、`requestAnimationFrame`、`ResizeObserver` 都要在 effect 的清理函数里释放：块会因编辑、滚动、主题切换反复挂载卸载。
 - 只通过 ref 操作自己的 DOM；不用 `document.querySelector` 读写块外元素，不改 `document.body`。
+- 原生事件对象的 `eventPhase`、`currentTarget` 只在派发期间有效：在处理器里同步读出再交给 `setState`，不要在更新函数里读 `event`。
+- 演示事件目标、冒泡路径时，目标元素内部的文字标签加 `pointer-events-none`，否则点在文字上时目标会变成文字节点所在的元素。
+- 演示原生 DOM 行为（`value` 与特性同步、属性反射等）时，不要用 React 的 `defaultValue` / 受控 `value` 设初值：React 挂载时会赋值 `.value`，让输入框提前进入「已修改」状态；改为挂载后经 ref 调用 `setAttribute`。
 - 不发网络请求，不用 `localStorage`，不读写 `window` 上的全局变量，不用动态 `import()`。
 - Canvas：按 `devicePixelRatio` 设置画布像素尺寸，用 `ResizeObserver` 跟随宽度重绘；颜色取 `useTokens().color(...)`，并把 `color` 放进 effect 依赖，主题切换即重绘；`getContext` 可能返回 `null`，要判空。
 
