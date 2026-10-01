@@ -1,20 +1,28 @@
 /**
- * 列表驾驶舱（原 features/projects/views/ProjectsView.tsx，方案 C 定稿
- * mockups/projects/plan-c-cockpit.html，拆模块后由项目 / 数据库 / Vibe Learning 共用）：
- * 首屏「置顶」升格 hero 大卡（置顶全部、更新序；无置顶整段不渲染；被升格条目仍在下方
- * 全部网格——hero 是入口的放大不是分流）→「全部」紧凑网格 → 底部归档折叠段。
+ * 列表驾驶舱（原 features/projects/views/ProjectsView.tsx，拆模块后由项目 / 数据库 / Vibe Learning 共用）：
+ * 工具栏（标题 + 摘要 + 排序 + 视图 + 新建）→ 网格时「最近打开」续读行 → 「全部」（网格卡或行式列表，
+ * 置顶始终在前）→ 底部归档折叠段（沿用当前排布）。排布与排序按模块存本机偏好（D-092）。
  *
  * 一整张纸（同 Skill 页）：纸顶固定工具栏，纸内 FadeScroll 只装段落
  * （sticky 段头纸色实底 + 底缘渐透）。新建只有一个入口。无页内搜索（D-024 口径：
- * 语义检索走全局 Ctrl+K，空态引导同一入口）、无排序 UI（默认「置顶 → 更新时间」序）。
+ * 语义检索走全局 Ctrl+K，空态引导同一入口）。
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { ChevronDown, Plus } from "lucide-react";
 import { FadeScroll } from "@/components/FadeScroll";
 import { Button, ConfirmDialog, Loading, cn, toast } from "@tau/ui";
-import { EntityHeroCard, EntityMiniCard } from "./EntityCards";
+import { CockpitGridCard, CockpitListRows, CockpitRecentCard } from "./EntityCards";
+import { CockpitToolbar } from "./CockpitToolbar";
 import { EntityDialog } from "./EntityDialog";
+import {
+  COCKPIT_SORTS,
+  recentCockpitItems,
+  sortCockpitItems,
+  type CockpitLayout,
+  type CockpitSort,
+} from "./model";
+import { useCockpitPrefs } from "./prefs";
 import type {
   CockpitCardHandlers,
   CockpitCopy,
@@ -24,6 +32,8 @@ import type {
 } from "./types";
 
 export interface EntityCockpitProps {
+  /** 本机偏好（排布 / 排序）的分区键，每个模块一个 */
+  prefsKey: string;
   items: CockpitItem[];
   loading: boolean;
   visual: CockpitVisual;
@@ -34,10 +44,11 @@ export interface EntityCockpitProps {
   /** 新建成功后的去向，默认不跳转 */
   onCreated?(created: { id: number }): void;
   /** 整体导出弹窗（仅项目支持，其余模块不传则菜单项隐去） */
-  renderExport?: (item: CockpitItem, close: () => void) => React.ReactNode;
+  renderExport?: (item: CockpitItem, close: () => void) => ReactNode;
 }
 
 export function EntityCockpit({
+  prefsKey,
   items,
   loading,
   visual,
@@ -47,6 +58,7 @@ export function EntityCockpit({
   onCreated,
   renderExport,
 }: EntityCockpitProps) {
+  const { layout, sort, setLayout, setSort } = useCockpitPrefs(prefsKey);
   const [archivedOpen, setArchivedOpen] = useState(false);
 
   /* 弹层状态：新建 / 编辑 / 删除确认 / 整体导出（只保留在当前页面） */
@@ -56,22 +68,22 @@ export function EntityCockpit({
   const [deletingBusy, setDeletingBusy] = useState(false);
   const [exporting, setExporting] = useState<CockpitItem | null>(null);
 
-  /* ---------- 派生：置顶段与全部网格 ---------- */
+  /* ---------- 派生：最近打开、全部、归档 ---------- */
 
-  const { heroes, rest, archived } = useMemo(() => {
-    const active = items.filter(item => !item.archived);
-    const byUpdate = [...active].sort((a, b) => b.updateTime - a.updateTime);
+  const { recent, active, archived } = useMemo(() => {
+    const activeItems = items.filter(item => !item.archived);
     return {
-      /* 置顶段 = 置顶条目升格 hero（全部，更新序）；无置顶整段不渲染，
-         最近条目由「全部」网格首行承接 */
-      heroes: byUpdate.filter(item => item.pinned),
-      /* 「升格不分流」：全部网格仍含置顶的 mini 卡（完整索引），按更新序 */
-      rest: byUpdate,
-      archived: items.filter(item => item.archived),
+      recent: recentCockpitItems(activeItems),
+      active: sortCockpitItems(activeItems, sort),
+      archived: sortCockpitItems(
+        items.filter(item => item.archived),
+        sort
+      ),
     };
-  }, [items]);
+  }, [items, sort]);
 
-  const metricTotal = rest.reduce((sum, item) => sum + item.metric, 0);
+  const metricTotal = active.reduce((sum, item) => sum + item.metric, 0);
+  const sortLabel = COCKPIT_SORTS.find(s => s.value === sort)?.label ?? "";
 
   /* ---------- 卡片操作 ---------- */
 
@@ -89,23 +101,43 @@ export function EntityCockpit({
   if (loading) return <Loading />;
 
   const total = items.length;
+  const collection = (list: CockpitItem[], showHead = true) => (
+    <ItemCollection
+      items={list}
+      layout={layout}
+      sort={sort}
+      onSort={setSort}
+      visual={visual}
+      copy={copy}
+      handlers={handlers}
+      showHead={showHead}
+    />
+  );
 
   return (
     <div className="@container mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
       {/* 一整张纸：工具栏固定在纸顶，段落在纸内滚动 */}
       <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="flex flex-none flex-col px-8 pt-5">
-          {/* 工具栏：标题 + 摘要（原底部状态栏的读数）+ 唯一的「新建」 */}
+          {/* 工具栏：标题 + 摘要 + 排序 / 视图 + 唯一的「新建」 */}
           <div className="flex h-10 flex-none items-center gap-3.5">
             <h1 className="text-tau-title-lg shrink-0 whitespace-nowrap font-semibold tracking-[-0.01em]">
               {copy.title}
             </h1>
             <span className="text-tau-meta text-ink-2 w-0 flex-1 truncate whitespace-nowrap tabular-nums">
-              <b className="text-ink-1 font-semibold">{rest.length}</b> {copy.entityUnit}
+              <b className="text-ink-1 font-semibold">{active.length}</b> {copy.entityUnit}
               <span className="text-ink-3 mx-1.5">·</span>
               <b className="text-ink-1 font-semibold">{metricTotal}</b> {copy.metricUnit}
               {archived.length > 0 && ` · 已归档 ${archived.length}`}
             </span>
+            {total > 0 && (
+              <CockpitToolbar
+                layout={layout}
+                sort={sort}
+                onLayoutChange={setLayout}
+                onSortChange={setSort}
+              />
+            )}
             <Button
               variant="primary"
               size="sm"
@@ -122,45 +154,31 @@ export function EntityCockpit({
           不留 pt：段头贴滚动区顶边，scrollTop=0 起即处于吸顶位，滚动时不抖。
           首行卡片 hover 的 lift 阴影由段头的 pb 留白承接，不会被顶边裁掉 */}
         <FadeScroll topFade={false} className="mb-4 min-h-0 flex-1 pb-2 pl-8 pr-[26px]">
-          {/* 置顶：升格 hero（无置顶不渲染） */}
-          {heroes.length > 0 && (
+          {/* 最近打开：只在网格时出现；列表由「上次打开」列承担 */}
+          {layout === "grid" && recent.length > 0 && (
             <section className="mb-[26px]">
-              <SectionHead
-                label="置顶"
-                hint={`${heroes.length} ${copy.entityUnit} · ${heroes.reduce((sum, item) => sum + item.metric, 0)} ${copy.metricUnit}`}
-              />
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-3.5">
-                {heroes.map(item => (
-                  <EntityHeroCard
+              <CockpitSectionHead label="最近打开" hint={copy.recentHint} />
+              <div className="grid grid-cols-3 gap-3">
+                {recent.map(item => (
+                  <CockpitRecentCard
                     key={item.id}
                     item={item}
                     visual={visual}
                     copy={copy}
-                    handlers={handlers}
+                    onOpen={handlers.onOpen}
                   />
                 ))}
               </div>
             </section>
           )}
 
-          {/* 全部：紧凑网格 */}
-          {rest.length > 0 && (
+          {active.length > 0 && (
             <section className="mb-[26px]">
-              <SectionHead
+              <CockpitSectionHead
                 label="全部"
-                hint={`${rest.length} ${copy.entityUnit} · ${metricTotal} ${copy.metricUnit}`}
+                hint={`${active.length} ${copy.entityUnit} · 按${sortLabel}`}
               />
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(268px,1fr))] gap-2.5">
-                {rest.map(item => (
-                  <EntityMiniCard
-                    key={item.id}
-                    item={item}
-                    visual={visual}
-                    copy={copy}
-                    handlers={handlers}
-                  />
-                ))}
-              </div>
+              {collection(active)}
             </section>
           )}
 
@@ -190,19 +208,7 @@ export function EntityCockpit({
                   archivedOpen && "grid-rows-[1fr]"
                 )}
               >
-                <div className="overflow-hidden">
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(268px,1fr))] gap-2.5">
-                    {archived.map(item => (
-                      <EntityMiniCard
-                        key={item.id}
-                        item={item}
-                        visual={visual}
-                        copy={copy}
-                        handlers={handlers}
-                      />
-                    ))}
-                  </div>
-                </div>
+                <div className="overflow-hidden">{collection(archived, false)}</div>
               </div>
             </section>
           )}
@@ -268,12 +274,60 @@ export function EntityCockpit({
   );
 }
 
+function ItemCollection({
+  items,
+  layout,
+  sort,
+  onSort,
+  visual,
+  copy,
+  handlers,
+  showHead,
+}: {
+  items: CockpitItem[];
+  layout: CockpitLayout;
+  sort: CockpitSort;
+  onSort(sort: CockpitSort): void;
+  visual: CockpitVisual;
+  copy: CockpitCopy;
+  handlers: CockpitCardHandlers;
+  showHead: boolean;
+}) {
+  if (layout === "list") {
+    return (
+      <CockpitListRows
+        items={items}
+        visual={visual}
+        copy={copy}
+        sort={sort}
+        onSort={onSort}
+        handlers={handlers}
+        showHead={showHead}
+      />
+    );
+  }
+  return (
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
+      {items.map(item => (
+        <CockpitGridCard
+          key={item.id}
+          item={item}
+          visual={visual}
+          copy={copy}
+          sort={sort}
+          handlers={handlers}
+        />
+      ))}
+    </div>
+  );
+}
+
 /* ---------- 段头（sticky 实底 + 底缘渐透，零横线） ----------
    上部纸色实底、底部 13px（= pb）渐透到透明：卡片滑到段头下是渐隐而非硬切。
    滚动区不能有 pt：sticky 以扣掉 padding 的内容盒为吸顶边界，顶边会留一条无遮挡
    的缝漏出卡片；用负 top 抵消又会让段头先随内容上移几像素再停住（抖一下） */
 
-function SectionHead({ label, hint }: { label: string; hint: string }) {
+function CockpitSectionHead({ label, hint }: { label: string; hint: string }) {
   return (
     <header className="sticky top-0 z-[2] flex items-baseline gap-3 bg-[linear-gradient(180deg,var(--tau-bg-surface)_calc(100%_-_13px),transparent)] pb-[13px] pl-0.5 pt-0.5">
       <span className="text-[16px] font-semibold tracking-[-0.01em]">{label}</span>

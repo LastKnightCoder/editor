@@ -5,7 +5,8 @@ import TypstRenderer from "../../../../renderers/Typst";
 import { ITypstCompiler } from "../../../../../services";
 
 import type { TypstElement } from "../../../../types/typst";
-import { PreviewWithEditor } from "@tau/editor-source-view";
+import { PreviewWithEditor, PreviewErrorReporter } from "@tau/editor-source-view";
+import { FileType } from "lucide-react";
 
 interface TypstProps {
   attributes: RenderElementProps["attributes"];
@@ -18,18 +19,6 @@ const Typst: React.FC<PropsWithChildren<TypstProps>> = props => {
 
   const editor = useSlateStatic();
   const compileTypst = editor.tryGetService(ITypstCompiler)?.compile;
-
-  const renderEmpty = () => {
-    return (
-      <div
-        contentEditable={false}
-        className="py-3 text-[var(--ed-text-tertiary)]"
-        style={{ userSelect: "none" }}
-      >
-        点击编辑 Typst
-      </div>
-    );
-  };
 
   const handleChange = (code: string) => {
     Transforms.setNodes(
@@ -60,22 +49,25 @@ const Typst: React.FC<PropsWithChildren<TypstProps>> = props => {
     <div {...attributes}>
       <PreviewWithEditor
         mode={"stex"}
+        title="Typst"
+        icon={FileType}
         initValue={content}
         onChange={handleChange}
         element={element}
         center
       >
-        {content.trim() ? (
-          <TypstRenderer
-            content={content}
-            compileTypst={compileTypst}
-            initialHtml={html || ""}
-            compiledFrom={compiledFrom}
-            onCompiled={handleChangeHtml}
-          />
-        ) : (
-          renderEmpty()
-        )}
+        <PreviewErrorReporter>
+          {onError => (
+            <TypstRenderer
+              content={content}
+              compileTypst={compileTypst}
+              initialHtml={html || ""}
+              compiledFrom={compiledFrom}
+              onCompiled={handleChangeHtml}
+              onError={onError}
+            />
+          )}
+        </PreviewErrorReporter>
       </PreviewWithEditor>
       {children}
     </div>

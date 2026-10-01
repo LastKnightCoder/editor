@@ -4,7 +4,8 @@ import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
 import TikZ from "../../../../renderers/TikZ";
 
 import type { TikzElement } from "../../../../types/tikz";
-import { PreviewWithEditor } from "@tau/editor-source-view";
+import { PreviewWithEditor, PreviewErrorReporter } from "@tau/editor-source-view";
+import { PenTool } from "lucide-react";
 
 interface TikzProps {
   attributes: RenderElementProps["attributes"];
@@ -17,17 +18,6 @@ const Tikz: React.FC<PropsWithChildren<TikzProps>> = props => {
 
   const editor = useSlateStatic();
 
-  const renderEmpty = () => {
-    return (
-      <div
-        contentEditable={false}
-        className="flex h-[3.75em] cursor-pointer select-none items-center justify-center text-[var(--ed-text-tertiary)]"
-      >
-        点击编辑Tikz
-      </div>
-    );
-  };
-
   const handleChange = (code: string) => {
     Transforms.setNodes(editor, { content: code }, { at: ReactEditor.findPath(editor, element) });
   };
@@ -36,12 +26,16 @@ const Tikz: React.FC<PropsWithChildren<TikzProps>> = props => {
     <div {...attributes} className="cursor-pointer">
       <PreviewWithEditor
         mode={"stex"}
+        title="TikZ"
+        icon={PenTool}
         initValue={content}
         onChange={handleChange}
         element={element}
         center
       >
-        {content.trim() ? <TikZ content={content} /> : renderEmpty()}
+        <PreviewErrorReporter>
+          {onError => <TikZ content={content} onError={onError} />}
+        </PreviewErrorReporter>
       </PreviewWithEditor>
       {children}
     </div>

@@ -9,6 +9,8 @@ interface ITypstProps {
   initialHtml?: string;
   compiledFrom?: string;
   onCompiled?: (html: string, compiledFrom: string) => void;
+  /** 传入时由调用方展示错误：编译失败回调错误信息并保留上一次成功的结果（hasPrevious），恢复时回调 null */
+  onError?: (error: string | null, hasPrevious?: boolean) => void;
 }
 
 const Typst = (props: ITypstProps) => {
@@ -20,6 +22,7 @@ const Typst = (props: ITypstProps) => {
     initialHtml = "",
     compiledFrom,
     onCompiled,
+    onError,
   } = props;
 
   const hasLegacyCache = !compiledFrom && !!initialHtml;
@@ -66,7 +69,7 @@ const Typst = (props: ITypstProps) => {
           }
         }
         setError(msg);
-        setHtml("");
+        if (!onError) setHtml("");
       }
     },
     { wait: 200 }
@@ -106,10 +109,23 @@ const Typst = (props: ITypstProps) => {
       return;
     }
 
-    setHtml("");
+    if (!onError) setHtml("");
     setError("");
     run(content);
-  }, [cacheMatches, compileTypst, compileUnavailable, content, hasLegacyCache, initialHtml, run]);
+  }, [
+    cacheMatches,
+    compileTypst,
+    compileUnavailable,
+    content,
+    hasLegacyCache,
+    initialHtml,
+    run,
+    onError,
+  ]);
+
+  useEffect(() => {
+    onError?.(error || null, !!html);
+  }, [error, html, onError]);
 
   if (!content.trim()) {
     return (
@@ -119,7 +135,7 @@ const Typst = (props: ITypstProps) => {
     );
   }
 
-  if (error) {
+  if (error && !onError) {
     return (
       <div
         className={`w-full whitespace-pre-wrap pl-5 font-mono text-sm text-red-600 dark:text-red-400 ${className || ""}`}
@@ -128,6 +144,9 @@ const Typst = (props: ITypstProps) => {
       </div>
     );
   }
+
+  // 交给调用方展示错误、又没有可保留的旧结果时留空，不显示「Loading」
+  if (!html && error) return <div className={className} />;
 
   if (!html) {
     return (

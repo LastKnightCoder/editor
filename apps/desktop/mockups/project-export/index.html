@@ -1,0 +1,731 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="ocean" data-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>项目整体导出 · 重设计方案</title>
+<style>
+  /* 取值与 packages/themes/src/tokens.css 同步（海盐 / 暖纸 × 浅 / 深） */
+  [data-theme="ocean"][data-mode="light"] {
+    --tau-bg-page: #edf2f8; --tau-bg-surface: #fcfdff; --tau-bg-surface-hover: #f2f3f6; --tau-bg-sunken: #d6e0ec; --tau-bg-track: #d3dce8;
+    --tau-bg-hover: rgba(45, 54, 68, 0.05); --tau-bg-press: rgba(45, 54, 68, 0.09); --tau-bg-selected: rgba(77, 127, 196, 0.12);
+    --tau-ink-1: #2d3644; --tau-ink-2: #56637a; --tau-ink-3: #a6b1c2; --tau-ink-inverse: #f7faff;
+    --tau-line-1: #dde5ef; --tau-line-2: rgba(221, 229, 239, 0.55);
+    --tau-accent: hsl(214 50% 44%); --tau-accent-hover: hsl(214 50% 37%); --tau-accent-soft: hsla(214, 50%, 44%, 0.12); --tau-accent-text: #35659f;
+    --tau-focus-ring: 0 0 0 3px rgba(77, 127, 196, 0.28);
+    --tau-ok: #527f63; --tau-ok-soft: #e2eee6; --tau-warn: #97894e; --tau-warn-soft: #f3eed6; --tau-danger: #b4555b; --tau-danger-soft: #f5e3e4; --tau-info: #4d6f9e; --tau-info-soft: #dfe9f5;
+    --tau-overlay: rgba(45, 54, 68, 0.35);
+    --tau-shadow-card: 0 1px 2px rgba(60, 80, 120, 0.06), 0 10px 24px -14px rgba(60, 80, 120, 0.2);
+    --tau-shadow-float: 0 16px 40px -12px rgba(60, 80, 120, 0.4);
+    --desk: #dfe6ef;
+  }
+  [data-theme="ocean"][data-mode="dark"] {
+    --tau-bg-page: #161c25; --tau-bg-surface: #1f2733; --tau-bg-surface-hover: #2b333f; --tau-bg-sunken: #0b1017; --tau-bg-track: #37424f;
+    --tau-bg-hover: rgba(227, 234, 244, 0.06); --tau-bg-press: rgba(227, 234, 244, 0.11); --tau-bg-selected: hsla(214, 62%, 66%, 0.2);
+    --tau-ink-1: #e3eaf4; --tau-ink-2: #9aa7b9; --tau-ink-3: #748196; --tau-ink-inverse: #0f1722;
+    --tau-line-1: #2c3542; --tau-line-2: rgba(44, 53, 66, 0.55);
+    --tau-accent: hsl(214 62% 66%); --tau-accent-hover: hsl(214 62% 73%); --tau-accent-soft: hsla(214, 62%, 66%, 0.16); --tau-accent-text: hsl(214 70% 72%);
+    --tau-focus-ring: 0 0 0 3px hsla(214, 62%, 66%, 0.4);
+    --tau-ok: #82b394; --tau-ok-soft: #1f2e26; --tau-warn: #c9b36a; --tau-warn-soft: #2e2a1a; --tau-danger: #e0848a; --tau-danger-soft: #36202a; --tau-info: #86abd9; --tau-info-soft: #1c2838;
+    --tau-overlay: rgba(5, 8, 12, 0.55);
+    --tau-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+    --tau-shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+    --desk: #0e131a;
+  }
+  [data-theme="paper"][data-mode="light"] {
+    --tau-bg-page: #f3eee2; --tau-bg-surface: #fffdf9; --tau-bg-surface-hover: #f6f3ef; --tau-bg-sunken: #e7dbc8; --tau-bg-track: #e0d6c3;
+    --tau-bg-hover: rgba(67, 57, 44, 0.05); --tau-bg-press: rgba(67, 57, 44, 0.09); --tau-bg-selected: rgba(217, 119, 87, 0.12);
+    --tau-ink-1: #43392c; --tau-ink-2: #6a5c49; --tau-ink-3: #a89a85; --tau-ink-inverse: #fff8ef;
+    --tau-line-1: #e9e1d2; --tau-line-2: rgba(233, 225, 210, 0.55);
+    --tau-accent: hsl(22 58% 42%); --tau-accent-hover: hsl(22 58% 35%); --tau-accent-soft: hsla(22, 58%, 42%, 0.12); --tau-accent-text: #a05236;
+    --tau-focus-ring: 0 0 0 3px rgba(217, 119, 87, 0.28);
+    --tau-ok: #61795f; --tau-ok-soft: #e5ede2; --tau-warn: #a38c4d; --tau-warn-soft: #f6efd6; --tau-danger: #b0564d; --tau-danger-soft: #f6e3e0; --tau-info: #5c7d99; --tau-info-soft: #e2ebf3;
+    --tau-overlay: rgba(67, 57, 44, 0.35);
+    --tau-shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+    --tau-shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+    --desk: #e8e1d1;
+  }
+  [data-theme="paper"][data-mode="dark"] {
+    --tau-bg-page: #221d16; --tau-bg-surface: #2e2820; --tau-bg-surface-hover: #39332b; --tau-bg-sunken: #100d08; --tau-bg-track: #463d31;
+    --tau-bg-hover: rgba(236, 226, 208, 0.06); --tau-bg-press: rgba(236, 226, 208, 0.11); --tau-bg-selected: hsla(22, 62%, 65%, 0.2);
+    --tau-ink-1: #ece2d0; --tau-ink-2: #a89a85; --tau-ink-3: #857768; --tau-ink-inverse: #241a10;
+    --tau-line-1: #3a3227; --tau-line-2: rgba(58, 50, 39, 0.55);
+    --tau-accent: hsl(22 62% 65%); --tau-accent-hover: hsl(22 62% 72%); --tau-accent-soft: hsla(22, 62%, 65%, 0.16); --tau-accent-text: hsl(22 66% 70%);
+    --tau-focus-ring: 0 0 0 3px hsla(22, 62%, 65%, 0.4);
+    --tau-ok: #8cab87; --tau-ok-soft: #243023; --tau-warn: #c4a458; --tau-warn-soft: #302917; --tau-danger: #d97e66; --tau-danger-soft: #34201a; --tau-info: #83aecf; --tau-info-soft: #1e2a35;
+    --tau-overlay: rgba(10, 8, 5, 0.55);
+    --tau-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+    --tau-shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+    --desk: #15110c;
+  }
+  :root {
+    --r-sm: 8px; --r-md: 12px; --r-lg: 16px;
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--desk); color: var(--tau-ink-1);
+    font: 13px/1.6 -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; padding: 32px 3vw 80px; transition: background .2s;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  input { font: inherit; color: inherit; background: none; border: 0; outline: 0; }
+  svg { display: block; }
+
+  /* ---------- 说明区 ---------- */
+  .intro h1 { font-size: 22px; font-weight: 650; }
+  .intro > p { color: var(--tau-ink-2); max-width: 96ch; margin-top: 6px; font-size: 13.5px; }
+  .diag { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 14px; max-width: 1100px; }
+  .diag div { background: var(--tau-bg-surface); border-radius: 10px; padding: 10px 12px; font-size: 12.5px; color: var(--tau-ink-2); box-shadow: var(--tau-shadow-card); }
+  .diag b { display: block; color: var(--tau-ink-1); font-weight: 600; font-size: 13px; margin-bottom: 2px; }
+  .bar-ctl { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; margin: 22px 0 10px; font-size: 12.5px; color: var(--tau-ink-2); }
+  .bar-ctl .grp { display: flex; gap: 4px; align-items: center; }
+  .bar-ctl .grp > span { margin-right: 4px; color: var(--tau-ink-3); }
+  .bar-ctl button { padding: 4px 12px; border-radius: 99px; background: var(--tau-bg-hover); }
+  .bar-ctl button.on { background: var(--tau-ink-1); color: var(--tau-bg-page); }
+  .note { max-width: 1100px; margin: 0 0 14px; font-size: 12.5px; color: var(--tau-ink-2); }
+  .note b { color: var(--tau-ink-1); font-weight: 600; }
+  .note ul { margin: 4px 0 0 18px; } .note li { margin-top: 2px; }
+
+  /* ---------- 窗口背景（模糊的项目页） ---------- */
+  .win { height: 800px; border-radius: 14px; overflow: hidden; background: var(--tau-bg-page); position: relative; display: flex; flex-direction: column;
+    box-shadow: 0 2px 6px rgba(0,0,0,.06), 0 20px 50px rgba(0,0,0,.12); }
+  .titlebar { height: 40px; flex: none; display: flex; align-items: center; gap: 14px; padding: 0 16px; }
+  .dots { display: flex; gap: 7px; } .dots i { width: 11px; height: 11px; border-radius: 50%; background: var(--tau-bg-track); }
+  .bg { flex: 1; display: flex; gap: 16px; padding: 4px 22px 22px 14px; min-height: 0; }
+  .bg .side { width: 44px; display: flex; flex-direction: column; gap: 14px; align-items: center; padding-top: 10px; }
+  .bg .side i { width: 18px; height: 18px; border-radius: 6px; background: var(--tau-bg-track); opacity: .7; }
+  .bg .main { flex: 1; display: flex; flex-direction: column; gap: 14px; }
+  .bg .h { width: 280px; height: 22px; border-radius: 6px; background: var(--tau-bg-track); }
+  .bg .cards { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .bg .cards i { border-radius: 14px; background: var(--tau-bg-surface); box-shadow: var(--tau-shadow-card); }
+  .scrim { position: absolute; inset: 0; background: var(--tau-overlay); display: grid; place-items: center; padding: 24px; }
+
+  /* ---------- 弹窗骨架（对齐 @tau/ui Dialog） ---------- */
+  .dlg { background: var(--tau-bg-surface); border-radius: var(--r-lg); box-shadow: var(--tau-shadow-float); display: flex; flex-direction: column; max-height: 100%; overflow: hidden; }
+  .dlg-h { display: flex; align-items: center; gap: 10px; padding: 18px 20px 4px 24px; }
+  .dlg-h h2 { font-size: 16px; font-weight: 650; letter-spacing: .01em; }
+  .ctx { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--tau-ink-2); padding: 1px 9px 1px 7px; border-radius: 99px; background: var(--tau-bg-hover); max-width: 260px; }
+  .ctx svg { width: 13px; height: 13px; flex: none; color: var(--tau-ink-3); }
+  .ctx span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .x { margin-left: auto; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: var(--tau-ink-3); }
+  .x:hover { background: var(--tau-bg-hover); color: var(--tau-ink-1); }
+  .x svg { width: 16px; height: 16px; }
+  .dlg-b { flex: 1; min-height: 0; overflow: auto; }
+  .dlg-f { display: flex; align-items: center; gap: 10px; padding: 12px 20px 16px 24px; border-top: 1px solid var(--tau-line-1); }
+  .dlg-f .sum { flex: 1; min-width: 0; font-size: 12.5px; color: var(--tau-ink-2); display: flex; align-items: center; gap: 8px; }
+  .dlg-f .sum b { color: var(--tau-ink-1); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .dlg-f .sum .warn { color: var(--tau-ink-3); }
+  .dlg-f .sum svg { width: 14px; height: 14px; flex: none; color: var(--tau-ink-3); }
+
+  .btn { height: 32px; padding: 0 14px; border-radius: 9px; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; transition: background .15s; }
+  .btn.sec { background: var(--tau-bg-surface); box-shadow: 0 0 0 1px var(--tau-line-1) inset; }
+  .btn.sec:hover { background: var(--tau-bg-surface-hover); }
+  .btn.ghost { color: var(--tau-ink-2); } .btn.ghost:hover { background: var(--tau-bg-hover); color: var(--tau-ink-1); }
+  .btn.pri { background: var(--tau-accent); color: var(--tau-ink-inverse); }
+  .btn.pri:hover { background: var(--tau-accent-hover); }
+  .btn.pri[disabled] { background: var(--tau-bg-hover); color: var(--tau-ink-3); cursor: not-allowed; }
+  .btn.pri .n { font: 500 11.5px var(--mono); padding: 0 6px; border-radius: 99px; background: color-mix(in srgb, var(--tau-ink-inverse) 22%, transparent); }
+  .btn.prog { position: relative; overflow: hidden; background: var(--tau-accent-soft); color: var(--tau-accent-text); cursor: default; min-width: 132px; justify-content: center; }
+  .btn.prog::before { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--p); background: var(--tau-accent-soft); transition: width .3s var(--ease); }
+  .btn.prog span { position: relative; font-variant-numeric: tabular-nums; }
+  .btn svg { width: 15px; height: 15px; }
+
+  /* ---------- 基础控件 ---------- */
+  .lbl { font-size: 12px; font-weight: 600; color: var(--tau-ink-2); letter-spacing: .02em; display: flex; align-items: center; gap: 8px; }
+  .lbl small { font-weight: 400; color: var(--tau-ink-3); letter-spacing: 0; }
+  .lbl .r { margin-left: auto; font-weight: 400; letter-spacing: 0; }
+  .link { color: var(--tau-accent-text); font-size: 12px; }
+  .link:hover { text-decoration: underline; }
+  .link[disabled] { color: var(--tau-ink-3); pointer-events: none; }
+
+  .cb { width: 16px; height: 16px; border-radius: 5px; box-shadow: 0 0 0 1.5px var(--tau-bg-track) inset; flex: none; display: grid; place-items: center; background: var(--tau-bg-surface); transition: background .12s; }
+  .cb.on, .cb.mix { background: var(--tau-accent); box-shadow: none; }
+  .cb.on::after { content: ""; width: 8px; height: 4.5px; border: 1.8px solid var(--tau-ink-inverse); border-top: 0; border-right: 0; transform: translateY(-1px) rotate(-45deg); }
+  .cb.mix::after { content: ""; width: 8px; height: 1.8px; background: var(--tau-ink-inverse); border-radius: 1px; }
+  .cb.dis { opacity: .45; }
+
+  .sw { width: 30px; height: 18px; border-radius: 99px; background: var(--tau-bg-track); position: relative; flex: none; transition: background .16s var(--ease); }
+  .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--tau-bg-surface); box-shadow: 0 1px 2px rgba(0,0,0,.18); transition: transform .16s var(--ease); }
+  .sw.on { background: var(--tau-accent); } .sw.on::after { transform: translateX(12px); }
+  .sw.dis { opacity: .45; }
+
+  .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .inp { height: 32px; border-radius: var(--r-sm); box-shadow: 0 0 0 1px var(--tau-line-1) inset; padding: 0 10px; display: flex; align-items: center; background: var(--tau-bg-surface); transition: box-shadow .15s; }
+  .inp:focus-within { box-shadow: 0 0 0 1px var(--tau-accent) inset, var(--tau-focus-ring); }
+  .inp input { flex: 1; min-width: 0; font-size: 13px; }
+  .inp input::placeholder { color: var(--tau-ink-3); }
+  .inp .suf { font: 11.5px var(--mono); color: var(--tau-ink-3); }
+
+  .pick { height: 26px; padding: 0 6px 0 9px; border-radius: 7px; box-shadow: 0 0 0 1px var(--tau-line-1) inset; display: inline-flex; align-items: center; gap: 4px; font: 500 12px var(--mono); color: var(--tau-ink-1); background: var(--tau-bg-surface); }
+  .pick:hover { background: var(--tau-bg-surface-hover); }
+  .pick svg { width: 13px; height: 13px; color: var(--tau-ink-3); }
+  .pick[disabled] { opacity: .45; pointer-events: none; }
+
+  .fmt-tag { font: 600 10px var(--mono); letter-spacing: .04em; padding: 1px 5px; border-radius: 4px; color: var(--tau-ink-2); box-shadow: 0 0 0 1px var(--tau-line-1) inset; }
+  .ref-tag { font-size: 11px; padding: 0 7px; border-radius: 99px; background: var(--tau-bg-hover); color: var(--tau-ink-3); white-space: nowrap; flex: none; }
+
+  /* ---------- 内容树 ---------- */
+  .tree { display: flex; flex-direction: column; padding: 4px; }
+  .node { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; border-radius: 7px; cursor: pointer; user-select: none; }
+  .node:hover { background: var(--tau-bg-hover); }
+  .node .car { width: 14px; height: 14px; color: var(--tau-ink-3); flex: none; transition: transform .15s var(--ease); display: grid; place-items: center; }
+  .node .car svg { width: 12px; height: 12px; }
+  .node.open .car { transform: rotate(90deg); }
+  .node .car.leaf { visibility: hidden; }
+  .node .nm { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .node.off .nm { color: var(--tau-ink-3); }
+  .node.ref { cursor: default; } .node.ref:hover { background: none; }
+  .node.ref .nm { color: var(--tau-ink-3); }
+  .node .cnt { font: 11px var(--mono); color: var(--tau-ink-3); }
+  .node .htag { font: 500 10.5px var(--mono); color: var(--tau-ink-3); width: 22px; text-align: right; flex: none; }
+
+  .empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 36px 20px; color: var(--tau-ink-2); }
+  .empty .ic { width: 40px; height: 40px; border-radius: 12px; background: var(--tau-bg-hover); display: grid; place-items: center; color: var(--tau-ink-3); margin-bottom: 4px; }
+  .empty .ic svg { width: 20px; height: 20px; }
+  .empty b { color: var(--tau-ink-1); font-weight: 600; font-size: 13.5px; }
+  .empty p { font-size: 12.5px; max-width: 30ch; color: var(--tau-ink-3); }
+
+  /* ---------- 设置列表（无底色块，靠细线分组） ---------- */
+  .opts { border-radius: var(--r-md); box-shadow: 0 0 0 1px var(--tau-line-1) inset; }
+  .opt { display: flex; align-items: center; gap: 12px; padding: 10px 14px; cursor: pointer; }
+  .opt + .opt { border-top: 1px solid var(--tau-line-1); }
+  .opt .t { flex: 1; min-width: 0; }
+  .opt .t b { display: flex; align-items: center; gap: 7px; font-weight: 500; font-size: 13px; }
+  .opt .t span { display: block; font-size: 12px; color: var(--tau-ink-3); margin-top: 1px; }
+  .opt.dis { cursor: default; } .opt.dis .t b { color: var(--tau-ink-3); }
+  .opt .side { display: flex; align-items: center; gap: 10px; }
+
+  /* ================= 方案 A：安静清单 ================= */
+  .A { width: 900px; }
+  .A .grid { display: grid; grid-template-columns: 300px minmax(0, 1fr); min-height: 560px; }
+  .A .left { border-right: 1px solid var(--tau-line-1); display: flex; flex-direction: column; min-height: 0; padding: 14px 0 0; }
+  .A .left .lbl { padding: 0 20px 8px 24px; }
+  .A .left .tree { flex: 1; overflow: auto; padding: 0 12px 8px 16px; }
+  .A .left .foot { padding: 10px 20px 12px 24px; font-size: 11.5px; color: var(--tau-ink-3); display: flex; gap: 6px; align-items: flex-start; }
+  .A .left .foot svg { width: 13px; height: 13px; margin-top: 2px; flex: none; }
+  .A .right { padding: 14px 24px 20px 22px; display: flex; flex-direction: column; gap: 18px; }
+  .A .sec { display: flex; flex-direction: column; gap: 8px; }
+  .fmts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .fmt { position: relative; text-align: left; border-radius: var(--r-md); padding: 12px 12px 11px; box-shadow: 0 0 0 1px var(--tau-line-1) inset; background: var(--tau-bg-surface); transition: box-shadow .14s var(--ease), background .14s; display: flex; flex-direction: column; gap: 8px; }
+  .fmt:hover { background: var(--tau-bg-surface-hover); }
+  .fmt .ico { width: 30px; height: 36px; position: relative; color: var(--tau-ink-3); transition: color .14s; }
+  .fmt .ico svg { width: 30px; height: 36px; }
+  .fmt .ico em { position: absolute; left: 50%; bottom: 7px; transform: translateX(-50%); font: 700 7.5px var(--mono); letter-spacing: .02em; font-style: normal; color: currentColor; }
+  .fmt b { font-weight: 600; font-size: 13px; display: block; }
+  .fmt span { font-size: 11.5px; color: var(--tau-ink-3); line-height: 1.45; display: block; }
+  .fmt .tick { position: absolute; top: 10px; right: 10px; }
+  .fmt.on { box-shadow: 0 0 0 1.5px var(--tau-accent) inset; }
+  .fmt.on .ico { color: var(--tau-accent); }
+  .A .meta { display: grid; grid-template-columns: 1.3fr 1fr; gap: 12px; }
+  .A .meta.three { grid-template-columns: 1.3fr 1fr .7fr; }
+
+  /* ================= 方案 B：目录即预览 ================= */
+  .B { width: 960px; }
+  .B .grid { display: grid; grid-template-columns: 400px minmax(0, 1fr); min-height: 580px; }
+  .B .book { background: var(--tau-bg-page); margin: 12px 0 0 16px; border-radius: var(--r-md); display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  .B .cover { display: flex; gap: 14px; padding: 16px 16px 14px; align-items: flex-start; }
+  .B .cv { width: 74px; height: 98px; border-radius: 3px 7px 7px 3px; flex: none; background: var(--tau-bg-surface); box-shadow: var(--tau-shadow-card), inset 4px 0 0 var(--tau-accent-soft); padding: 12px 9px 8px 12px; display: flex; flex-direction: column; }
+  .B .cv i { display: block; width: 18px; height: 2px; background: var(--tau-accent); border-radius: 2px; margin-bottom: 7px; }
+  .B .cv b { font-size: 10px; line-height: 1.35; font-weight: 650; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; }
+  .B .cv span { margin-top: auto; font-size: 8px; color: var(--tau-ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .B .cmeta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .B .cmeta .ti { font-size: 15px; font-weight: 650; border-radius: 6px; padding: 1px 6px; margin-left: -6px; }
+  .B .cmeta .au { font-size: 12.5px; color: var(--tau-ink-2); border-radius: 6px; padding: 1px 6px; margin-left: -6px; }
+  .B .cmeta .ti:hover, .B .cmeta .au:hover { background: var(--tau-bg-hover); }
+  .B .cmeta .ti:focus, .B .cmeta .au:focus { background: var(--tau-bg-surface); box-shadow: 0 0 0 1px var(--tau-accent) inset; }
+  .B .cmeta .au::placeholder { color: var(--tau-ink-3); }
+  .B .cmeta .st { margin-top: 8px; font-size: 11.5px; color: var(--tau-ink-3); display: flex; gap: 10px; }
+  .B .cmeta .st b { color: var(--tau-ink-2); font-weight: 500; font-variant-numeric: tabular-nums; }
+  .B .tochead { display: flex; align-items: center; gap: 8px; padding: 4px 16px 6px 20px; font-size: 11px; font-weight: 600; color: var(--tau-ink-3); letter-spacing: .12em; }
+  .B .tochead .r { margin-left: auto; letter-spacing: 0; font-weight: 400; }
+  .B .tree { flex: 1; overflow: auto; padding: 0 10px 10px; }
+  .B .node:hover { background: var(--tau-bg-hover); }
+  .B .node .no { font: 500 11px var(--mono); color: var(--tau-ink-3); min-width: 26px; flex: none; }
+  .B .node.top .nm { font-weight: 550; }
+  .B .brk { display: flex; align-items: center; gap: 8px; height: 14px; padding: 0 8px 0 34px; font: 9.5px var(--mono); color: var(--tau-ink-3); opacity: .8; }
+  .B .brk::before, .B .brk::after { content: ""; flex: 1; border-top: 1px dashed var(--tau-line-1); }
+  .B .right { padding: 14px 24px 20px 22px; display: flex; flex-direction: column; gap: 18px; }
+  .B .sec { display: flex; flex-direction: column; gap: 8px; }
+  .flist { display: flex; flex-direction: column; border-radius: var(--r-md); box-shadow: 0 0 0 1px var(--tau-line-1) inset; }
+  .frow { display: flex; align-items: center; gap: 12px; padding: 9px 14px; text-align: left; }
+  .frow + .frow { border-top: 1px solid var(--tau-line-1); }
+  .frow:hover { background: var(--tau-bg-hover); }
+  .frow:first-child { border-radius: var(--r-md) var(--r-md) 0 0; } .frow:last-child { border-radius: 0 0 var(--r-md) var(--r-md); }
+  .frow .t { flex: 1; min-width: 0; }
+  .frow .t b { font-weight: 500; }
+  .frow .t span { color: var(--tau-ink-3); font-size: 12px; margin-left: 8px; }
+  .frow .ext { font: 11px var(--mono); color: var(--tau-ink-3); }
+  .frow.on .ext { color: var(--tau-accent-text); }
+  .sub-opts { margin: -2px 0 0 0; padding: 2px 14px 10px 42px; display: flex; flex-direction: column; gap: 6px; border-top: 0 !important; }
+  .sub-opt { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--tau-ink-2); cursor: pointer; }
+  .sub-opt.dis { color: var(--tau-ink-3); cursor: default; }
+  .sub-opt .cb { width: 14px; height: 14px; border-radius: 4px; }
+  .sub-opt .cb.on::after { width: 7px; height: 4px; }
+  .B .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* ================= 方案 C：两步向导 ================= */
+  .C { width: 640px; }
+  .steps { display: flex; align-items: center; gap: 10px; padding: 6px 24px 0; font-size: 12.5px; color: var(--tau-ink-3); }
+  .steps .s { display: flex; align-items: center; gap: 7px; }
+  .steps .s i { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font: 600 10.5px var(--mono); font-style: normal; box-shadow: 0 0 0 1.5px var(--tau-bg-track) inset; }
+  .steps .s.on { color: var(--tau-ink-1); font-weight: 500; }
+  .steps .s.on i { background: var(--tau-accent); color: var(--tau-ink-inverse); box-shadow: none; }
+  .steps .s.done { color: var(--tau-ink-2); cursor: pointer; }
+  .steps .s.done i { background: var(--tau-accent-soft); color: var(--tau-accent-text); box-shadow: none; }
+  .steps .ln { flex: none; width: 36px; height: 1px; background: var(--tau-line-1); }
+  .C .body1 { padding: 14px 24px 8px; display: flex; flex-direction: column; gap: 10px; height: 520px; }
+  .C .tools { display: flex; align-items: center; gap: 10px; }
+  .C .tools .inp { flex: 1; height: 30px; }
+  .C .tools .inp svg { width: 14px; height: 14px; color: var(--tau-ink-3); margin-right: 6px; }
+  .C .treebox { flex: 1; min-height: 0; overflow: auto; border-radius: var(--r-md); box-shadow: 0 0 0 1px var(--tau-line-1) inset; padding: 2px; }
+  .C .body2 { padding: 14px 24px 18px; display: flex; flex-direction: column; gap: 18px; min-height: 520px; }
+  .C .sec { display: flex; flex-direction: column; gap: 8px; }
+  .C .fmts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .C .fmt { flex-direction: row; align-items: center; gap: 12px; padding: 10px 12px; }
+  .C .fmt .ico, .C .fmt .ico svg { width: 24px; height: 29px; }
+  .C .fmt .ico em { bottom: 6px; font-size: 6.5px; }
+  .C .fmt .tick { top: 50%; transform: translateY(-50%); right: 12px; }
+  .C .meta { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; }
+</style>
+</head>
+<body>
+
+<section class="intro">
+  <h1>项目整体导出 · 重设计</h1>
+  <p>三个方向共用同一套数据与交互，可切换主题 / 明暗 / 数据情形对比。所有颜色只取 <code>--tau-*</code>，实现时一一映射到 Tailwind 语义类，不新增 token。</p>
+  <div class="diag">
+    <div><b>① 灰蓝色块太重</b>树和两组规则都铺了 <code>bg-sunken</code>（海盐浅色下是 #d6e0ec），面积大，弹窗看着发灰发闷。新方案只用细线分组，不再铺底色。</div>
+    <div><b>② 格式图标四种颜色</b>PDF 红、EPUB 绿、MD 蓝、ZIP 黄，和主题色互相打架。新方案统一用墨色线框文件图标，选中后只换成 accent 色。</div>
+    <div><b>③ 不可导出的说明折成三行</b>「（引用类型条目，不参与导出）」直接拼进标题导致折行，而且「引用」实际指 PDF / 白板等非文档条目；空白文档也被禁用。新方案：非文档条目用类型小标签标出并禁勾，空白文档可勾选、只标「空白」；没有文档时给出空态说明。</div>
+  </div>
+</section>
+
+<div class="bar-ctl">
+  <div class="grp" id="ctl-dir"><span>方案</span>
+    <button data-dir="A" class="on">A · 安静清单</button>
+    <button data-dir="B">B · 目录即预览</button>
+    <button data-dir="C">C · 两步向导</button>
+  </div>
+  <div class="grp" id="ctl-theme"><span>主题</span>
+    <button data-theme-key="ocean" class="on">海盐</button>
+    <button data-theme-key="paper">暖纸</button>
+  </div>
+  <div class="grp" id="ctl-mode"><span>明暗</span>
+    <button data-mode-key="light" class="on">浅</button>
+    <button data-mode-key="dark">深</button>
+  </div>
+  <div class="grp" id="ctl-data"><span>数据</span>
+    <button data-data="normal" class="on">正常项目</button>
+    <button data-data="refs">全是 PDF（截图情形）</button>
+  </div>
+  <div class="grp"><span>状态</span>
+    <button id="ctl-run">模拟导出中</button>
+  </div>
+</div>
+
+<div class="note" id="note"></div>
+
+<div class="win">
+  <div class="titlebar"><div class="dots"><i></i><i></i><i></i></div></div>
+  <div class="bg">
+    <div class="side"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="main"><div class="h"></div><div class="cards"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+  </div>
+  <div class="scrim" id="stage"></div>
+</div>
+
+<script>
+const P = {
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  car: '<path d="m9 6 6 6-6 6"/>',
+  down: '<path d="m6 9 6 6 6-6"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>',
+  arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  back: '<path d="M19 12H5M11 6l-6 6 6 6"/>',
+  dl: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+};
+const svg = (p, sw = 1.9) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+// 墨色线框文件图标：角标文字替代彩色品牌图标
+const fileIcon = ext => `<span class="ico"><svg viewBox="0 0 30 36" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M5 2.75h13.5L25.25 9.5v22.25a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5V4.25A1.5 1.5 0 0 1 5 2.75Z" fill="var(--tau-bg-surface)"/><path d="M18.5 2.75V9.5h6.75"/></svg><em>${ext}</em></span>`;
+
+const FORMATS = [
+  { key: 'pdf', label: 'PDF', ext: 'PDF', file: '.pdf', desc: '打印与分享，带书签目录' },
+  { key: 'epub', label: 'EPUB', ext: 'EPUB', file: '.epub', desc: '电子书，阅读器里翻页' },
+  { key: 'markdown', label: 'Markdown', ext: 'MD', file: '.md', desc: '合并成一个文件' },
+  { key: 'markdownZip', label: 'Markdown 包', ext: 'ZIP', file: '.zip', desc: '按目录逐篇打包' },
+];
+
+const TREE_NORMAL = [
+  { id: 1, title: '欢迎来到未来', children: [{ id: 2, title: '课程介绍' }, { id: 3, title: '学习路线与资源' }] },
+  { id: 4, title: '提示词工程', children: [{ id: 5, title: '提示词基础' }, { id: 6, title: '少样本与思维链' }, { id: 7, title: '结构化输出' }] },
+  { id: 8, title: '软件仓库管理', ref: 'PDF' },
+  { id: 15, title: '待补充：部署实践', empty: true },
+  { id: 9, title: 'Agent 工作流', children: [{ id: 10, title: '工具调用' }, { id: 11, title: '评测与回归', children: [{ id: 12, title: '基准集构建' }, { id: 13, title: '线上回放' }] }] },
+  { id: 14, title: '附录：常用提示词模板' },
+];
+const TREE_REFS = [
+  { id: 101, title: '欢迎来到未来', ref: 'PDF' },
+  { id: 102, title: '提示词工程', ref: 'PDF' },
+  { id: 103, title: '软件仓库管理', ref: 'PDF' },
+];
+
+const S = {
+  dir: 'A', data: 'normal', step: 1, running: false, progress: 0, query: '',
+  formats: { pdf: true, epub: false, markdown: false, markdownZip: false },
+  rule: { pageBreak: true, asHeading: true, level: 1 },
+  pdf: { outline: true, toc: true },
+  title: '生成式软件工程', author: '', lang: 'zh-CN',
+  checked: new Set(), collapsed: new Set(),
+};
+const tree = () => (S.data === 'normal' ? TREE_NORMAL : TREE_REFS);
+const walk = (nodes, fn, depth = 0, parent = null) => nodes.forEach(n => { fn(n, depth, parent); if (n.children) walk(n.children, fn, depth + 1, n); });
+const exportableIds = () => { const ids = []; walk(tree(), n => { if (!n.ref) ids.push(n.id); }); return ids; };
+const subIds = n => { const ids = []; walk([n], m => { if (!m.ref) ids.push(m.id); }); return ids; };
+const stateOf = n => {
+  const ids = subIds(n); if (!ids.length) return 'off';
+  const hit = ids.filter(id => S.checked.has(id)).length;
+  return hit === ids.length ? 'on' : hit ? 'mix' : 'off';
+};
+const resetChecked = () => { S.checked = new Set(exportableIds()); };
+resetChecked();
+
+const selCount = () => exportableIds().filter(id => S.checked.has(id)).length;
+const refCount = () => { let c = 0; walk(tree(), n => { if (n.ref) c++; }); return c; };
+const pickedFormats = () => FORMATS.filter(f => S.formats[f.key]);
+const rulesApplicable = () => S.formats.pdf || S.formats.epub || S.formats.markdown;
+const needsBookMeta = () => S.formats.pdf || S.formats.epub;
+const canExport = () => selCount() > 0 && pickedFormats().length > 0 && S.title.trim();
+const blockReason = () => {
+  if (!exportableIds().length) return '没有可导出的条目';
+  if (!selCount()) return '至少勾选一篇内容';
+  if (!pickedFormats().length) return '至少选择一种格式';
+  if (!S.title.trim()) return '请填写书名';
+  return '';
+};
+const headingOf = depth => 'H' + Math.min(6, S.rule.level + depth);
+
+const cb = (st, dis) => `<span class="cb ${st}${dis ? ' dis' : ''}"></span>`;
+const sw = (on, dis) => `<span class="sw${on ? ' on' : ''}${dis ? ' dis' : ''}"></span>`;
+
+/* ---------- 共享片段 ---------- */
+const header = () => `
+  <div class="dlg-h">
+    <h2>整体导出</h2>
+    <span class="ctx">${svg(P.folder)}<span>${esc(S.title || '未命名')}</span></span>
+    <button class="x" title="关闭">${svg(P.x)}</button>
+  </div>`;
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+const treeRows = (opts = {}) => {
+  const rows = [];
+  const counters = [];
+  const visit = (nodes, depth, prevTopChecked) => {
+    nodes.forEach((n, i) => {
+      if (S.query && !matches(n)) return;
+      const st = n.ref ? 'off' : stateOf(n);
+      const hasKids = n.children && n.children.length;
+      const open = hasKids && !S.collapsed.has(n.id);
+      const off = !n.ref && st === 'off';
+      if (opts.numbered && !n.ref && st !== 'off') {
+        counters.length = depth + 1; counters[depth] = (counters[depth] || 0) + 1;
+      }
+      // 方案 B：顶层文档之间的分页提示
+      if (opts.numbered && depth === 0 && S.rule.pageBreak && rulesApplicable() && !n.ref && st !== 'off' && rows.some(r => r.top)) {
+        rows.push({ html: '<div class="brk">分页</div>' });
+      }
+      const no = opts.numbered && !n.ref && st !== 'off' ? counters.slice(0, depth + 1).join('.') : '';
+      rows.push({ top: depth === 0 && !n.ref && st !== 'off', html: `
+        <div class="node${open ? ' open' : ''}${off ? ' off' : ''}${n.ref ? ' ref' : ''}${depth === 0 ? ' top' : ''}" data-act="${n.ref ? '' : 'check'}" data-id="${n.id}" style="padding-left:${8 + depth * 18}px">
+          <span class="car${hasKids ? '' : ' leaf'}" data-act="fold" data-id="${n.id}">${svg(P.car, 2.2)}</span>
+          ${n.ref ? cb('off', true) : cb(st)}
+          ${opts.numbered ? `<span class="no">${no}</span>` : ''}
+          <span class="nm" title="${esc(n.title)}">${esc(n.title)}</span>
+          ${n.ref ? `<span class="ref-tag" title="该类型暂不支持整体导出">${n.ref}</span>` : ''}${n.empty ? `<span class="ref-tag" title="没有正文，导出时只保留标题">空白</span>` : ''}
+          ${!n.ref && hasKids && !open ? `<span class="cnt">${subIds(n).filter(id => S.checked.has(id)).length}/${subIds(n).length}</span>` : ''}
+          ${opts.numbered && S.rule.asHeading && rulesApplicable() && !n.ref && !off ? `<span class="htag">${headingOf(depth)}</span>` : ''}
+        </div>` });
+      if (open) visit(n.children, depth + 1);
+    });
+  };
+  visit(tree(), 0);
+  return rows.map(r => r.html).join('');
+};
+const matches = n => n.title.includes(S.query) || (n.children || []).some(matches);
+
+const emptyState = () => `
+  <div class="empty">
+    <span class="ic">${svg(P.link)}</span>
+    <b>这个项目里没有文档</b>
+    <p>PDF、白板、视频笔记、网页和数据表暂不支持整体导出。</p>
+  </div>`;
+
+const treeOrEmpty = opts => exportableIds().length ? `<div class="tree">${treeRows(opts)}</div>` : emptyState();
+
+const allToggle = () => {
+  const n = selCount(), total = exportableIds().length;
+  if (!total) return '';
+  return `<button class="link" data-act="all">${n === total ? '全不选' : '全选'}</button>`;
+};
+
+const ruleOpts = (withPdf = true) => {
+  const na = !rulesApplicable();
+  const pdfOn = S.formats.pdf && withPdf;
+  return `
+  <div class="opts">
+    <div class="opt${na ? ' dis' : ''}" data-act="${na ? '' : 'rule:pageBreak'}">
+      <div class="t"><b>每篇文档另起一页</b><span>EPUB 中每篇天然是一章</span></div>
+      ${sw(S.rule.pageBreak && !na, na)}
+    </div>
+    <div class="opt${na ? ' dis' : ''}" data-act="${na ? '' : 'rule:asHeading'}">
+      <div class="t"><b>把文档标题写进正文</b><span>顶层文档用所选级别，子文档逐级下沉</span></div>
+      <div class="side">
+        <button class="pick" data-act="level" ${na || !S.rule.asHeading ? 'disabled' : ''} title="切换标题级别（实现时为 Menu）">H${S.rule.level}${svg(P.down)}</button>
+        ${sw(S.rule.asHeading && !na, na)}
+      </div>
+    </div>
+    ${pdfOn ? `
+    <div class="opt" data-act="pdf:outline">
+      <div class="t"><b>书签导航 <span class="fmt-tag">PDF</span></b><span>阅读器侧边栏按标题层级展开</span></div>
+      ${sw(S.pdf.outline)}
+    </div>
+    <div class="opt${S.rule.asHeading ? '' : ' dis'}" data-act="${S.rule.asHeading ? 'pdf:toc' : ''}">
+      <div class="t"><b>目录页 <span class="fmt-tag">PDF</span></b><span>${S.rule.asHeading ? '正文前单独一页，条目可点击跳转' : '需先开启「把文档标题写进正文」'}</span></div>
+      ${sw(S.pdf.toc && S.rule.asHeading, !S.rule.asHeading)}
+    </div>` : ''}
+  </div>
+  ${na ? `<div class="lbl" style="font-weight:400;color:var(--tau-ink-3);letter-spacing:0">${svg(P.info)} Markdown 包按目录逐篇保存，以上规则不适用</div>` : ''}`;
+};
+
+const metaFields = cls => `
+  <div class="meta${cls ? ' ' + cls : ''}">
+    <label class="field"><span class="lbl">${needsBookMeta() ? '书名' : '文件名'}</span>
+      <span class="inp"><input data-field="title" value="${esc(S.title)}" placeholder="必填">${needsBookMeta() ? '' : `<span class="suf">${pickedFormats().map(f => f.file).join(' ') || ''}</span>`}</span></label>
+    ${needsBookMeta() ? `<label class="field"><span class="lbl">作者 <small>可选</small></span>
+      <span class="inp"><input data-field="author" value="${esc(S.author)}" placeholder="写入书籍元数据"></span></label>` : ''}
+    ${S.formats.epub ? `<label class="field"><span class="lbl">语言 <small>EPUB</small></span>
+      <span class="inp"><input data-field="lang" value="${esc(S.lang)}" placeholder="zh-CN"></span></label>` : ''}
+  </div>`;
+
+const summary = () => {
+  const reason = blockReason();
+  if (reason) return `<span class="sum">${svg(P.info)}<span class="warn">${reason}</span></span>`;
+  const f = pickedFormats();
+  return `<span class="sum">将导出 <b>${selCount()}</b> 篇 → ${f.map(x => x.label).join('、')}</span>`;
+};
+
+const primaryBtn = () => {
+  if (S.running) return `<button class="btn prog" style="--p:${S.progress}%"><span>正在生成 ${S.progress}%</span></button>`;
+  const n = pickedFormats().length;
+  return `<button class="btn pri" ${canExport() ? '' : 'disabled'}>${svg(P.dl)}导出${n > 1 ? `<span class="n">${n} 个文件</span>` : ''}</button>`;
+};
+
+/* ---------- 方案 A ---------- */
+const formatTiles = () => `<div class="fmts">${FORMATS.map(f => `
+  <button class="fmt${S.formats[f.key] ? ' on' : ''}" data-act="fmt:${f.key}" aria-pressed="${S.formats[f.key]}">
+    ${fileIcon(f.ext)}
+    <span class="tick">${cb(S.formats[f.key] ? 'on' : 'off')}</span>
+    <div><b>${f.label}</b><span>${f.desc}</span></div>
+  </button>`).join('')}</div>`;
+
+const renderA = () => `
+  <div class="dlg A">
+    ${header()}
+    <div class="dlg-b">
+      <div class="grid">
+        <div class="left">
+          <div class="lbl">导出内容 <small>${selCount()} / ${exportableIds().length} 篇</small><span class="r">${allToggle()}</span></div>
+          ${treeOrEmpty()}
+          ${exportableIds().length ? `<div class="foot">${svg(P.info)}<span>取消勾选的条目会被记住，下次打开自动排除</span></div>` : ''}
+        </div>
+        <div class="right">
+          <div class="sec"><div class="lbl">格式 <small>可多选，每种生成一个文件</small></div>${formatTiles()}</div>
+          <div class="sec"><div class="lbl">排版</div>${ruleOpts()}</div>
+          ${metaFields(S.formats.epub ? 'three' : '')}
+        </div>
+      </div>
+    </div>
+    <div class="dlg-f">${summary()}<button class="btn sec" ${S.running ? 'disabled' : ''}>取消</button>${primaryBtn()}</div>
+  </div>`;
+
+/* ---------- 方案 B ---------- */
+const formatList = () => `<div class="flist">${FORMATS.map(f => {
+  const on = S.formats[f.key];
+  return `
+  <button class="frow${on ? ' on' : ''}" data-act="fmt:${f.key}">
+    ${cb(on ? 'on' : 'off')}
+    <span class="t"><b>${f.label}</b><span>${f.desc}</span></span>
+    <span class="ext">${f.file}</span>
+  </button>
+  ${f.key === 'pdf' && on ? `<div class="sub-opts">
+    <span class="sub-opt" data-act="pdf:outline">${cb(S.pdf.outline ? 'on' : 'off')}书签导航</span>
+    <span class="sub-opt${S.rule.asHeading ? '' : ' dis'}" data-act="${S.rule.asHeading ? 'pdf:toc' : ''}">${cb(S.pdf.toc && S.rule.asHeading ? 'on' : 'off', !S.rule.asHeading)}目录页${S.rule.asHeading ? '' : '（需开启标题写入正文）'}</span>
+  </div>` : ''}
+  ${f.key === 'epub' && on ? `<div class="sub-opts"><span class="sub-opt" style="cursor:default">语言
+    <span class="inp" style="height:26px;width:96px;margin-left:4px"><input data-field="lang" value="${esc(S.lang)}" style="font-size:12px"></span></span></div>` : ''}`;
+}).join('')}</div>`;
+
+const renderB = () => {
+  const total = exportableIds().length;
+  let groups = 0; walk(tree(), n => { if (!n.ref && n.children && stateOf(n) !== 'off') groups++; });
+  return `
+  <div class="dlg B">
+    ${header()}
+    <div class="dlg-b">
+      <div class="grid">
+        <div class="book">
+          <div class="cover">
+            <div class="cv"><i></i><b data-bind="title">${esc(S.title || '未命名')}</b><span data-bind="author">${esc(S.author || ' ')}</span></div>
+            <div class="cmeta">
+              <input class="ti" data-field="title" value="${esc(S.title)}" placeholder="书名（必填）">
+              <input class="au" data-field="author" value="${esc(S.author)}" placeholder="添加作者">
+              <div class="st"><span><b>${selCount()}</b> 篇</span>${groups ? `<span><b>${groups}</b> 个分组</span>` : ''}${refCount() ? `<span><b>${refCount()}</b> 个非文档条目不导出</span>` : ''}</div>
+            </div>
+          </div>
+          <div class="tochead">目 录<span class="r">${allToggle()}</span></div>
+          ${total ? `<div class="tree">${treeRows({ numbered: true })}</div>` : emptyState()}
+        </div>
+        <div class="right">
+          <div class="sec"><div class="lbl">格式 <small>可多选</small></div>${formatList()}</div>
+          <div class="sec"><div class="lbl">排版 <small>左侧目录实时反映</small></div>${ruleOpts(false)}</div>
+          <div class="lbl" style="font-weight:400;color:var(--tau-ink-3);letter-spacing:0">${svg(P.info)} 取消勾选的条目会被记住，下次打开自动排除</div>
+        </div>
+      </div>
+    </div>
+    <div class="dlg-f">${summary()}<button class="btn sec" ${S.running ? 'disabled' : ''}>取消</button>${primaryBtn()}</div>
+  </div>`;
+};
+
+/* ---------- 方案 C ---------- */
+const renderC = () => {
+  const total = exportableIds().length;
+  const steps = `
+    <div class="steps">
+      <span class="s ${S.step === 1 ? 'on' : 'done'}" data-act="step:1"><i>1</i>选择内容</span>
+      <span class="ln"></span>
+      <span class="s ${S.step === 2 ? 'on' : ''}"><i>2</i>格式与排版</span>
+    </div>`;
+  const body1 = `
+    <div class="body1">
+      <div class="tools">
+        <span class="inp">${svg(P.search)}<input data-field="query" value="${esc(S.query)}" placeholder="筛选条目"></span>
+        ${allToggle()}
+      </div>
+      <div class="treebox">${total ? `<div class="tree">${treeRows()}</div>` : emptyState()}</div>
+      ${total ? `<div class="lbl" style="font-weight:400;color:var(--tau-ink-3);letter-spacing:0">${svg(P.info)} 取消勾选的条目会被记住，下次打开自动排除</div>` : ''}
+    </div>`;
+  const body2 = `
+    <div class="body2">
+      <div class="sec"><div class="lbl">格式 <small>可多选</small></div>${formatTiles()}</div>
+      <div class="sec"><div class="lbl">排版</div>${ruleOpts()}</div>
+      ${metaFields()}
+      ${S.formats.epub ? `<label class="field" style="width:160px"><span class="lbl">语言 <small>EPUB</small></span><span class="inp"><input data-field="lang" value="${esc(S.lang)}"></span></label>` : ''}
+    </div>`;
+  const foot1 = `<span class="sum">${total ? `已选 <b>${selCount()}</b> / ${total} 篇` : `${svg(P.info)}<span class="warn">没有可导出的条目</span>`}</span>
+    <button class="btn sec">取消</button>
+    <button class="btn pri" data-act="step:2" ${selCount() ? '' : 'disabled'}>下一步${svg(P.arrow)}</button>`;
+  const foot2 = `${summary()}<button class="btn ghost" data-act="step:1" ${S.running ? 'disabled' : ''}>${svg(P.back)}上一步</button>${primaryBtn()}`;
+  return `
+  <div class="dlg C">
+    ${header()}${steps}
+    <div class="dlg-b">${S.step === 1 ? body1 : body2}</div>
+    <div class="dlg-f">${S.step === 1 ? foot1 : foot2}</div>
+  </div>`;
+};
+
+const NOTES = {
+  A: `<b>A · 安静清单</b>：保留现有左右两栏的信息架构，改动最小，主要是视觉降噪。<ul>
+    <li>左栏去掉灰底，改用分隔线；非文档条目以类型小标签标出（PDF / 白板…）并禁勾，空白文档可勾选、标「空白」；表头加「全选 / 全不选」。</li>
+    <li>四种格式一行排开，墨色文件图标 + 角标；选中只描 accent 边、图标变色，不再铺浅蓝底。</li>
+    <li>导出规则和 PDF 目录合并成一张「排版」设置表，用开关代替复选框；PDF 专属项挂 <code>PDF</code> 小标签，不再单独开一个区块。</li>
+    <li>说明文案从标题副标题挪到树底部；底栏左侧给出导出摘要或不能导出的原因。</li></ul>`,
+  B: `<b>B · 目录即预览</b>：左侧是「这本书长什么样」，右侧是「怎么导出」。<ul>
+    <li>封面卡片可以直接改书名和作者；内容树按书籍目录排版，带章节编号（1 / 1.1 / 1.1.1）。</li>
+    <li>排版开关实时反映在目录上：打开「标题写进正文」会显示 H1/H2…，打开「另起一页」会在顶层章节之间出现分页线。</li>
+    <li>格式改成清单；PDF 的书签和目录页、EPUB 的语言都折叠在对应格式下面，只在选中后展开。</li>
+    <li>代价是信息密度最高，弹窗宽 960。</li></ul>`,
+  C: `<b>C · 两步向导</b>：先选内容，再选格式。弹窗收窄到 640，每一步只做一件事。<ul>
+    <li>第 1 步：树占满主体，配筛选框，适合条目多、层级深的项目。</li>
+    <li>第 2 步：2×2 格式卡 + 排版设置表 + 书名 / 作者。</li>
+    <li>代价是多一次点击；勾选结果和格式都会记住，常用路径下第 1 步通常可以直接点「下一步」。</li></ul>`,
+};
+
+/* ---------- 渲染与交互 ---------- */
+const stage = document.getElementById('stage');
+const render = () => {
+  stage.innerHTML = { A: renderA, B: renderB, C: renderC }[S.dir]();
+  document.getElementById('note').innerHTML = NOTES[S.dir];
+};
+
+const setOn = (groupId, btn) => { document.querySelectorAll(`#${groupId} button`).forEach(b => b.classList.toggle('on', b === btn)); };
+document.getElementById('ctl-dir').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.dir = b.dataset.dir; S.step = 1; setOn('ctl-dir', b); render(); });
+document.getElementById('ctl-theme').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; document.documentElement.dataset.theme = b.dataset.themeKey; setOn('ctl-theme', b); });
+document.getElementById('ctl-mode').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; document.documentElement.dataset.mode = b.dataset.modeKey; setOn('ctl-mode', b); });
+document.getElementById('ctl-data').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.data = b.dataset.data; resetChecked(); setOn('ctl-data', b); render(); });
+let timer = null;
+document.getElementById('ctl-run').addEventListener('click', e => {
+  const b = e.currentTarget;
+  if (S.running) { clearInterval(timer); S.running = false; b.classList.remove('on'); render(); return; }
+  if (S.dir === 'C') S.step = 2;
+  S.running = true; S.progress = 0; b.classList.add('on');
+  timer = setInterval(() => { S.progress = (S.progress + 3) % 100; render(); }, 120);
+  render();
+});
+
+stage.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  if (!el || !el.dataset.act || S.running) return;
+  const act = el.dataset.act;
+  if (act === 'fold') {
+    e.stopPropagation();
+    const id = +el.dataset.id;
+    S.collapsed.has(id) ? S.collapsed.delete(id) : S.collapsed.add(id);
+  } else if (act === 'check') {
+    const n = find(+el.dataset.id); const ids = subIds(n); const next = stateOf(n) !== 'on';
+    ids.forEach(id => next ? S.checked.add(id) : S.checked.delete(id));
+  } else if (act === 'all') {
+    selCount() === exportableIds().length ? S.checked.clear() : resetChecked();
+  } else if (act.startsWith('fmt:')) {
+    const k = act.slice(4); S.formats[k] = !S.formats[k];
+  } else if (act === 'level') {
+    e.stopPropagation(); S.rule.level = S.rule.level % 3 + 1;
+  } else if (act.startsWith('rule:')) {
+    const k = act.slice(5); S.rule[k] = !S.rule[k];
+  } else if (act.startsWith('pdf:')) {
+    const k = act.slice(4); S.pdf[k] = !S.pdf[k];
+  } else if (act.startsWith('step:')) {
+    S.step = +act.slice(5);
+  }
+  render();
+});
+const find = id => { let hit; walk(tree(), n => { if (n.id === id) hit = n; }); return hit; };
+
+// 输入框不整页重渲染，避免丢焦点；只刷新依赖文本
+stage.addEventListener('input', e => {
+  const f = e.target.dataset.field; if (!f) return;
+  S[f] = e.target.value;
+  if (f === 'query') {
+    const box = stage.querySelector('.treebox .tree');
+    if (box) box.innerHTML = treeRows();
+    return;
+  }
+  stage.querySelectorAll(`[data-bind="${f}"]`).forEach(n => { n.textContent = e.target.value || (f === 'title' ? '未命名' : ' '); });
+  stage.querySelectorAll(`[data-field="${f}"]`).forEach(n => { if (n !== e.target) n.value = e.target.value; });
+  const ctx = stage.querySelector('.ctx span'); if (f === 'title' && ctx) ctx.textContent = e.target.value || '未命名';
+  const foot = stage.querySelector('.dlg-f');
+  if (foot && !(S.dir === 'C' && S.step === 1)) {
+    foot.querySelector('.sum').outerHTML = summary();
+    const pri = foot.querySelector('.btn.pri'); if (pri) pri.disabled = !canExport();
+  }
+});
+
+render();
+</script>
+</body>
+</html>

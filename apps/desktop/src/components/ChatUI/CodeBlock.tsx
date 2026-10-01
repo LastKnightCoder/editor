@@ -1,5 +1,5 @@
 /**
- * 对话里的代码块（D-048）：surface 亮底 + line-1 描边（D-009 / D-032 代码块口径），
+ * 对话里的代码块（D-048）：surface-hover 底 + line-1 描边，与编辑器代码块（--ed-code-bg）同色，
  * 头行 = 语言 + 复制；高亮器按需懒加载，加载前以纯文本等高占位（不闪「Loading」字样）。
  */
 
@@ -89,7 +89,7 @@ export function CodeBlock({
   return (
     <div
       className={cn(
-        "border-line-1 bg-page rounded-tau-md group/code my-3 min-w-0 overflow-hidden border first:mt-0 last:mb-0",
+        "border-line-1 bg-surface-hover rounded-tau-md group/code my-3 min-w-0 overflow-hidden border first:mt-0 last:mb-0",
         className
       )}
     >

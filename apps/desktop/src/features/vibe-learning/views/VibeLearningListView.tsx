@@ -21,9 +21,10 @@ const VISUAL: CockpitVisual = {
 
 const COPY: CockpitCopy = {
   title: "Notebook",
-  badgeLabel: "Notebook",
   entityUnit: "个 Notebook",
   metricUnit: "份资料",
+  metricLabel: "资料",
+  recentHint: "从上次看到的资料继续",
   createLabel: "新建 Notebook",
   createTitle: "新建 Notebook",
   editTitle: "编辑 Notebook",
@@ -45,8 +46,10 @@ export function VibeLearningListView() {
     [items]
   );
 
+  // 详情页自行恢复上次打开的资料 / 笔记，列表只需打开 Notebook
   return (
     <EntityCockpit
+      prefsKey="vibe-learning"
       items={cockpitItems}
       loading={loading}
       visual={VISUAL}

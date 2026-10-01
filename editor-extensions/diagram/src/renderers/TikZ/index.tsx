@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import "./tikz.vendor.css";
 
@@ -6,11 +6,24 @@ interface ITikZProps {
   content: string;
   isDark?: boolean;
   className?: string;
+  /** 编译失败回调错误信息、成功回调 null；传入时由调用方展示错误 */
+  onError?: (error: string | null, hasPrevious?: boolean) => void;
 }
 
+const COMPILE_ERROR = "TikZ 编译失败，请检查语法与宏包";
+
+/** tikzjax 编译失败时不抛错，而是把加载占位换成这张不存在的图 */
+const isFailurePlaceholder = (node: ParentNode) => !!node.querySelector('img[src*="invalid.site"]');
+
 const TikZ = (props: ITikZProps) => {
-  const { content, isDark = false, className } = props;
+  const { content, isDark = false, className, onError } = props;
   const containerRef = useRef<HTMLDivElement>(null);
+  const stagingRef = useRef<HTMLDivElement>(null);
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
+  const [failed, setFailed] = useState(false);
+  // 还没有成功结果时隐藏区保持可见，让 tikzjax 的加载占位露出来
+  const [hasResult, setHasResult] = useState(false);
 
   const cleanedCode = useMemo(() => {
     const tikzSource = content.split("&nbsp;").join("");
@@ -24,9 +37,28 @@ const TikZ = (props: ITikZProps) => {
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || !cleanedCode) {
+    const staging = stagingRef.current;
+    if (!container || !staging || !cleanedCode) {
       return;
     }
+
+    // 先在隐藏区编译，成功后才替换显示区：编译中与失败时都保留上一次成功的图
+    const settle = (error: string | null) => {
+      setFailed(!!error);
+      onErrorRef.current?.(error, container.hasChildNodes());
+    };
+    const onFinished = () => {
+      container.replaceChildren(...Array.from(staging.childNodes));
+      setHasResult(true);
+      settle(null);
+    };
+    const observer = new MutationObserver(() => {
+      if (!isFailurePlaceholder(staging)) return;
+      staging.replaceChildren();
+      settle(COMPILE_ERROR);
+    });
+    staging.addEventListener("tikzjax-load-finished", onFinished);
+    observer.observe(staging, { childList: true, subtree: true });
 
     // tikzjax 为超大体积（transform 后 20MB+）的浏览器脚本，静态 import 会拖入首屏
     // 模块图，Electron 渲染进程编译该模块时永久挂起导致整页白屏，故改为按需加载
@@ -35,16 +67,18 @@ const TikZ = (props: ITikZProps) => {
       if (cancelled) {
         return;
       }
-      container.replaceChildren();
+      staging.replaceChildren();
       const script = document.createElement("script");
       script.type = "text/tikz";
       script.textContent = cleanedCode;
-      container.appendChild(script);
+      staging.appendChild(script);
     });
 
     return () => {
       cancelled = true;
-      container.replaceChildren();
+      observer.disconnect();
+      staging.removeEventListener("tikzjax-load-finished", onFinished);
+      staging.replaceChildren();
     };
   }, [cleanedCode]);
 
@@ -57,13 +91,19 @@ const TikZ = (props: ITikZProps) => {
   }
 
   return (
-    <div
-      ref={containerRef}
-      className={className}
-      style={{
-        filter: isDark ? "invert(1) hue-rotate(180deg)" : "none",
-      }}
-    />
+    <>
+      <div
+        ref={containerRef}
+        className={className}
+        style={{
+          filter: isDark ? "invert(1) hue-rotate(180deg)" : "none",
+        }}
+      />
+      <div ref={stagingRef} hidden={hasResult} aria-hidden={hasResult} />
+      {failed && !onError && (
+        <div className="py-2 text-center text-sm text-[var(--tau-danger)]">{COMPILE_ERROR}</div>
+      )}
+    </>
   );
 };
 

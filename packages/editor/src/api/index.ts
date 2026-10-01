@@ -125,3 +125,5 @@ export { replaceNode } from "../utils/editor";
 export { findPathSafely } from "../utils/path";
 export type { Plugin } from "../utils/plugin";
 export { BLOCK_DRAG_GROUP, DragHandle, type DragHandleProps } from "../components/BlockDrag";
+export { panAroundAnchor, pointFromCenter, type Point as ZoomPanPoint } from "../utils/zoomPan";
+export { FloatingToolbar, ToolbarDivider, ToolbarIconButton } from "../components/FloatingToolbar";

@@ -5,7 +5,8 @@ import { ReactEditor, useSlateStatic } from "slate-react";
 
 import Katex from "../../renderers/Katex";
 import type { BlockMathElement } from "../../types";
-import { PreviewWithEditor } from "@tau/editor-source-view";
+import { PreviewWithEditor, PreviewErrorReporter } from "@tau/editor-source-view";
+import { Sigma } from "lucide-react";
 
 interface BlockMathProps {
   attributes: RenderElementProps["attributes"];
@@ -35,20 +36,15 @@ const BlockMath: React.FC<PropsWithChildren<BlockMathProps>> = props => {
     >
       <PreviewWithEditor
         mode={"stex"}
+        title="公式"
+        icon={Sigma}
         initValue={tex}
         onChange={handleInputChange}
         element={element}
       >
-        {tex ? (
-          <Katex tex={tex} />
-        ) : (
-          <div
-            contentEditable={false}
-            className="flex h-[3.75em] cursor-pointer select-none items-center justify-center text-[var(--ed-text-tertiary)]"
-          >
-            点击编辑公式
-          </div>
-        )}
+        <PreviewErrorReporter>
+          {onError => <Katex tex={tex} onError={onError} />}
+        </PreviewErrorReporter>
       </PreviewWithEditor>
       {children}
     </div>

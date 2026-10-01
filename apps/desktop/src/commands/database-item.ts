@@ -22,3 +22,8 @@ export const getDatabaseItem = async (id: number): Promise<DatabaseItem | null> 
 export const listDatabaseItems = async (): Promise<DatabaseItemSummary[]> => {
   return invoke("database-item:list");
 };
+
+/** 记录打开（不改 updateTime） */
+export const recordDatabaseItemOpen = async (id: number): Promise<void> => {
+  await invoke("database-item:record-open", id);
+};

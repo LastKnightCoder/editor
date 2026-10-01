@@ -1,7 +1,8 @@
 import { useRef, useEffect, useState } from "react";
 import { useCreation, useMemoizedFn } from "ahooks";
 import { renderMermaidSvg } from "../../../renderers/mermaid-render-core";
-import { useEditorTheme as useTheme } from "@tau/editor/api";
+import { useEditorTheme } from "@tau/editor/api";
+import { useReportPreviewError } from "@tau/editor-source-view";
 
 interface IMermaidProps {
   chart: string;
@@ -15,10 +16,13 @@ interface IMermaidProps {
 
 const Mermaid = (props: IMermaidProps) => {
   const { chart, initialSvg, compiledFrom, onCompiled } = props;
-  const { isDark } = useTheme();
+  // token 随主题族 / 明暗 / 局部强制明暗变化而换引用，借此触发重渲染
+  const { isDark, token } = useEditorTheme();
   const ref = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string>("");
   const [svgContent, setSvgContent] = useState<string>("");
+  // 在源码预览块内时错误交给块的错误条，这里保留上一次成功的图
+  const errorReported = useReportPreviewError(error || null, { stale: !!svgContent });
 
   const stableOnCompiled = useMemoizedFn(onCompiled ?? (() => {}));
 
@@ -51,6 +55,7 @@ const Mermaid = (props: IMermaidProps) => {
           code: chart,
           mermaidId,
           isDark,
+          token,
         });
 
         if (!isMounted) return;
@@ -65,7 +70,6 @@ const Mermaid = (props: IMermaidProps) => {
         if (!isMounted) return;
         const errorMsg = typeof e === "string" ? e : e instanceof Error ? e.message : "渲染失败";
         setError(errorMsg);
-        setSvgContent("");
       }
     };
 
@@ -74,22 +78,13 @@ const Mermaid = (props: IMermaidProps) => {
     return () => {
       isMounted = false;
     };
-  }, [chart, mermaidId, isDark, stableOnCompiled]);
+  }, [chart, mermaidId, isDark, token, stableOnCompiled]);
 
   return (
     <>
       <code id={mermaidId} style={{ display: "none" }}></code>
-      {error ? (
-        <div
-          style={{
-            color: "#e13238",
-            padding: "1em",
-            fontSize: "14px",
-            textAlign: "center",
-          }}
-        >
-          {error}
-        </div>
+      {error && !errorReported ? (
+        <div className="p-[1em] text-center text-[0.875em] text-[var(--ed-danger)]">{error}</div>
       ) : (
         <div
           ref={ref}

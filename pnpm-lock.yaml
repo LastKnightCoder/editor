@@ -3413,9 +3413,6 @@ importers:
       react-codemirror2:
         specifier: ^7.2.1
         version: 7.3.0(codemirror@5.65.21)(react@19.2.0)
-      react-icons:
-        specifier: ^4.10.1
-        version: 4.12.0(react@19.2.0)
     devDependencies:
       '@tau/editor':
         specifier: workspace:*

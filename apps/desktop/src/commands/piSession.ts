@@ -19,6 +19,7 @@ import type {
   PiToolCallPayload,
   PiToolApprovalChoice,
   PiSessionInteractionSnapshot,
+  PiWorkspaceInfo,
 } from "@/types/pi-session";
 import type { AskQuestionAnswerItem } from "@/tools/askQuestionTypes";
 import type { ChatSessionMessage } from "@/types";
@@ -194,6 +195,7 @@ export function piSessionFindByScope(scope: string): Promise<
     sessionId?: string;
     modelRef?: { providerId: string; modelId: string };
     thinkingLevel?: PiThinkingLevel;
+    cwd?: string;
     toolSpecs?: PiHostToolSpec[];
     toolScope?: string;
   }
@@ -216,6 +218,19 @@ export interface PiShellInfo {
 /** 命令执行环境状态；probe 传入待校验的路径（设置页边输入边提示） */
 export function piSessionShellInfo(probe?: string): Promise<PiShellInfo> {
   return invoke("pi-session:shell-info", probe === undefined ? {} : { probe });
+}
+
+/** 对话工作目录的实际路径与仓库分支；cwd 为空即应用数据目录 */
+export function piWorkspaceInfo(cwd: string): Promise<Outcome & { info?: PiWorkspaceInfo }> {
+  return invoke("pi-session:workspace-info", { cwd });
+}
+
+export function piWorkspaceBranches(cwd: string): Promise<Outcome & { branches?: string[] }> {
+  return invoke("pi-session:workspace-branches", { cwd });
+}
+
+export function piWorkspaceCheckout(cwd: string, branch: string): Promise<Outcome> {
+  return invoke("pi-session:workspace-checkout", { cwd, branch });
 }
 
 /**

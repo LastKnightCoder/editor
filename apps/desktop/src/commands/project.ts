@@ -4,6 +4,7 @@ import { EDragPosition, IDragItem } from "@/hooks/useDragAndDrop";
 import {
   Project,
   ProjectItem,
+  ProjectOpenState,
   CreateProject,
   UpdateProject,
   CreateProjectItem,
@@ -34,6 +35,16 @@ export const getProjectList = async (): Promise<Project[]> => {
 /** 全部项目的条目计数（含文档树深层节点）：projectId → 条目数 */
 export const getProjectItemCounts = async (): Promise<Record<number, number>> => {
   return await invoke("get-project-item-counts");
+};
+
+/** 记录打开项目（不改 updateTime）；itemId 缺省时保留上次停留的文档 */
+export const recordProjectOpen = async (projectId: number, itemId?: number): Promise<void> => {
+  await invoke("project:record-open", projectId, itemId ?? null);
+};
+
+/** 打开过的项目：projectId → 打开时间 + 上次停留的文档 */
+export const getProjectOpenStates = async (): Promise<Record<number, ProjectOpenState>> => {
+  return await invoke("project:open-states");
 };
 
 export const updateProjectItem = async (item: UpdateProjectItem): Promise<ProjectItem | null> => {

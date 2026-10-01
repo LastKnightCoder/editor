@@ -18,8 +18,7 @@
     "codemirror": "5",
     "react-codemirror2": "^7.2.1",
     "is-hotkey": "^0.2.0",
-    "lucide-react": "^0.399.0",
-    "react-icons": "^4.10.1"
+    "lucide-react": "^0.399.0"
   },
   "peerDependencies": {
     "@tau/editor": "workspace:*",

@@ -49,7 +49,11 @@ import {
   piSessionSteer,
   type PiSessionEdit,
 } from "@/commands/piSession";
-import useChatSessionStore, { bucketOfChatScope, isDraftChat } from "@/stores/useChatSessionStore";
+import useChatSessionStore, {
+  bucketOfChatScope,
+  isDraftChat,
+  resolveChatCwd,
+} from "@/stores/useChatSessionStore";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useSettingStore from "@/stores/useSettingStore";
 import useSkillStore from "@/stores/useSkillStore";
@@ -751,6 +755,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             provider: chatProviderConfig,
             model: chatModelConfig,
             systemPrompt,
+            // 只有主对话可选工作目录；学习项目由主进程按场景固定，PDF / 视频笔记在应用数据目录
+            cwd: chatScope === "main-chat" ? resolveChatCwd(actualCurrentChat.id) : "",
             ...(chatModelConfig.reasoning ? { thinkingLevel } : {}),
             ...(toolScope ? { toolScope } : {}),
             ...(options?.toolContext
@@ -1643,6 +1649,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                         ))}
                       </div>
                     ) : null}
+                    {/* 附件区排在编辑横幅之前：横幅靠 -mb-2 贴住输入框，中间不能插别的 */}
+                    {composerAccessory}
                     {editingDraft || hiddenPromptContext ? (
                       <div className="bg-accent-soft text-tau-sm -mb-2 flex items-center justify-between gap-3 rounded-t-[16px] px-3.5 pb-4 pt-2">
                         <div className="text-accent-text min-w-0">
@@ -1666,7 +1674,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                         </button>
                       </div>
                     ) : null}
-                    {composerAccessory}
                     {/* 输入框外框：＋ / @ 面板按它的矩形定位（同宽、贴上沿） */}
                     <div
                       {...{ [COMPOSER_ANCHOR_ATTR]: "" }}
