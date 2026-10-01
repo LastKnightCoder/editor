@@ -222,6 +222,7 @@ export default class KnowledgeMapTable {
    * 而且编辑刚保存时向量多半还没重算，这时按旧向量落位等于没挪。编辑的效果（主题名、
    * 归属、位置）留给整体重算，这里只把它计入漂移，编辑够多了自然触发重算。
    * 两边按卡片 id 去重：新建的卡既被放置过、update_time 也晚于重算时间，只算一次。
+   * 编辑时间取 max(cards.update_time, contents.update_time)：改正文只刷新 contents，不碰 cards。
    */
   static driftCount(
     mainDb: Database.Database,
@@ -236,7 +237,11 @@ export default class KnowledgeMapTable {
       ).map(row => row.card_id)
     );
     for (const row of mainDb
-      .prepare("SELECT id FROM cards WHERE update_time > ?")
+      .prepare(
+        `SELECT c.id FROM cards c
+         LEFT JOIN contents ct ON c.content_id = ct.id
+         WHERE MAX(c.update_time, COALESCE(ct.update_time, 0)) > ?`
+      )
       .all(computedAt) as Array<{ id: number }>) {
       changed.add(row.id);
     }
