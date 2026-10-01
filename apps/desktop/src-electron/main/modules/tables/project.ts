@@ -3,6 +3,7 @@ import Database from "better-sqlite3";
 import {
   Project,
   ProjectItem,
+  ProjectOpenState,
   CreateProject,
   UpdateProject,
   CreateProjectItem,
@@ -107,6 +108,12 @@ export default class ProjectTable {
     if (!hasDataTableId) {
       db.exec("ALTER TABLE project ADD COLUMN data_table_id INTEGER DEFAULT 0");
       db.exec(`UPDATE project SET data_table_id = 0 WHERE data_table_id IS NULL`);
+    }
+
+    for (const column of ["last_open_time", "last_open_item_id"]) {
+      if (!tableInfo.some(info => info.name === column)) {
+        db.exec(`ALTER TABLE project ADD COLUMN ${column} INTEGER`);
+      }
     }
 
     // 检查 project_item 表是否有 podcast_id 字段
@@ -304,6 +311,8 @@ export default class ProjectTable {
       "get-project-item-by-ref": this.getProjectItemByRef.bind(this),
       "get-project-item-count-in-project": this.getProjectItemCountInProject.bind(this),
       "get-project-item-counts": this.getProjectItemCounts.bind(this),
+      "project:record-open": this.recordOpen.bind(this),
+      "project:open-states": this.getOpenStates.bind(this),
       "get-all-project-items-not-in-project": this.getAllProjectItemsNotInProject.bind(this),
       "is-project-item-not-in-any-project": this.isProjectItemNotInAnyProject.bind(this),
       "get-project-items-not-in-any-project": this.getProjectItemsNotInAnyProject.bind(this),
@@ -715,6 +724,33 @@ export default class ProjectTable {
     `);
     const rows = stmt.all() as { projectId: number; count: number }[];
     return Object.fromEntries(rows.map(row => [row.projectId, row.count]));
+  }
+
+  // 打开记录不是内容修改：不动 update_time（列表「最近更新」口径），也不记 operation。
+  // itemId 缺省（从列表进入、未定位文档）时保留上次停留的文档
+  static recordOpen(db: Database.Database, projectId: number, itemId?: number | null): void {
+    db.prepare(
+      "UPDATE project SET last_open_time = ?, last_open_item_id = COALESCE(?, last_open_item_id) WHERE id = ?"
+    ).run(Date.now(), itemId ?? null, projectId);
+  }
+
+  /** 打开过的项目：projectId → 打开时间 + 上次停留的文档（文档已删除或移出项目时为 null） */
+  static getOpenStates(db: Database.Database): Record<number, ProjectOpenState> {
+    const rows = db
+      .prepare(
+        `SELECT p.id AS projectId, p.last_open_time AS openedAt, pi.id AS itemId, pi.title AS itemTitle
+         FROM project p
+         LEFT JOIN project_item pi ON pi.id = p.last_open_item_id
+           AND EXISTS (SELECT 1 FROM json_each(pi.projects) je WHERE je.value = p.id)
+         WHERE p.last_open_time IS NOT NULL`
+      )
+      .all() as Array<{
+      projectId: number;
+      openedAt: number;
+      itemId: number | null;
+      itemTitle: string | null;
+    }>;
+    return Object.fromEntries(rows.map(({ projectId, ...state }) => [projectId, state]));
   }
 
   static getAllProjectItemsNotInProject(db: Database.Database, projectId: number): ProjectItem[] {

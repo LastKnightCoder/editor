@@ -367,18 +367,20 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ### `project`
 
-| 字段            | SQLite 定义                    |
-| --------------- | ------------------------------ |
-| `id`            | `INTEGER PRIMARY KEY`          |
-| `create_time`   | `INTEGER NOT NULL`             |
-| `update_time`   | `INTEGER NOT NULL`             |
-| `title`         | `TEXT NOT NULL`                |
-| `desc`          | `TEXT`                         |
-| `children`      | `TEXT`                         |
-| `archived`      | `INTEGER DEFAULT 0`            |
-| `pinned`        | `INTEGER DEFAULT 0`            |
-| `project_type`  | `TEXT DEFAULT 'document-tree'` |
-| `data_table_id` | `INTEGER DEFAULT 0`            |
+| 字段                | SQLite 定义                    |
+| ------------------- | ------------------------------ |
+| `id`                | `INTEGER PRIMARY KEY`          |
+| `create_time`       | `INTEGER NOT NULL`             |
+| `update_time`       | `INTEGER NOT NULL`             |
+| `title`             | `TEXT NOT NULL`                |
+| `desc`              | `TEXT`                         |
+| `children`          | `TEXT`                         |
+| `archived`          | `INTEGER DEFAULT 0`            |
+| `pinned`            | `INTEGER DEFAULT 0`            |
+| `project_type`      | `TEXT DEFAULT 'document-tree'` |
+| `data_table_id`     | `INTEGER DEFAULT 0`            |
+| `last_open_time`    | `INTEGER`                      |
+| `last_open_item_id` | `INTEGER`                      |
 
 ### `project_item`
 

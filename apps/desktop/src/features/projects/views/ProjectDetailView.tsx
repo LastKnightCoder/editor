@@ -11,13 +11,14 @@ import { useMemo } from "react";
 import { ArrowLeft, PanelLeft } from "lucide-react";
 import { usePage, usePageParams, usePageBreadcrumb } from "@/page/PageProvider";
 import { Button, IconButton, Loading, Tooltip } from "@tau/ui";
-import { useProjectDetail } from "../queries";
+import { useProjectDetail, useRecordProjectOpen } from "../queries";
 import { useProjectTreeStore } from "../projectTreeStore";
 import ProjectView from "../components/ProjectView";
 
 export function ProjectDetailView() {
   const { id, itemId } = usePageParams<{ id: number; itemId?: number }>();
   const { project, loading } = useProjectDetail(id);
+  useRecordProjectOpen(id, itemId, !!project);
   const { navigator } = usePage();
   const treeCollapsed = useProjectTreeStore(s => s.collapsed);
   const toggleTree = useProjectTreeStore(s => s.toggle);

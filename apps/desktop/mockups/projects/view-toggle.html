@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>项目列表 · 网格 / 列表切换 + 最近打开</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  /* 文档树数据色（沿用 ProjectsView VISUAL 的青蓝，cocoa 提亮一档） */
+  [data-theme="cream"] { --proj: #3f857c; --proj-soft: rgba(63, 133, 124, 0.13); --proj-paper: #f4f8f6; }
+  [data-theme="cocoa"] { --proj: #7fb8ae; --proj-soft: rgba(127, 184, 174, 0.16); --proj-paper: #33302a; }
+
+  .sb { background: transparent; padding: 10px 8px; display: flex; flex-direction: column; min-height: 0; }
+  .sb-head { display: flex; align-items: center; gap: 9px; padding: 6px 10px 14px; font-weight: 600; }
+  .sb-logo { width: 24px; height: 24px; border-radius: 7px; background: var(--accent); color: var(--ink-inv); display: grid; place-items: center; font-size: 13px; }
+  .sb-scroll { flex: 1; overflow: auto; }
+  .sb-gt { font-size: 11px; color: var(--ink-3); padding: 10px 10px 4px; }
+  .sb-item { display: flex; align-items: center; gap: 9px; height: 30px; padding: 0 10px; border-radius: var(--r-sm); color: var(--ink-2); font-size: 13px; }
+  .sb-item.on { background: var(--selected); color: var(--accent-text); font-weight: 500; }
+
+  .pj-paper { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .pj-head { flex: none; display: flex; align-items: center; gap: 12px; height: 40px; margin: 20px 32px 0; }
+  .pj-head h1 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+  .pj-head .sum { flex: 1; min-width: 0; color: var(--ink-2); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pj-head .sum b { color: var(--ink-1); font-weight: 600; }
+  .dot-sep { color: var(--ink-3); margin: 0 6px; }
+  .btn .cv { width: 13px; height: 13px; color: var(--ink-3); margin-left: -2px; }
+  .btn.ghost.on { background: var(--hover); color: var(--ink-1); }
+  .dd { position: relative; }
+
+  .menu { position: absolute; z-index: 30; top: calc(100% + 4px); right: 0; min-width: 168px; padding: 4px; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-float); border: 1px solid var(--line-1); }
+  .menu .mi { display: flex; align-items: center; gap: 9px; height: 30px; padding: 0 10px; border-radius: 8px; font-size: 12.5px; color: var(--ink-1); cursor: pointer; white-space: nowrap; }
+  .menu .mi:hover { background: var(--hover); }
+  .menu .mi svg.lucide { width: 15px; height: 15px; color: var(--ink-2); }
+  .menu .mi.on { color: var(--accent-text); font-weight: 500; }
+  .menu .mi.on svg.lucide { color: var(--accent); }
+  .menu .mi .k { margin-left: auto; color: var(--ink-3); font-size: 11px; font-family: var(--mono); }
+  .menu .sep { height: 1px; background: var(--line-1); margin: 4px 6px; }
+  .menu .cap { font-size: 11px; color: var(--ink-3); padding: 6px 10px 2px; }
+  .menu .mi.danger { color: var(--danger); }
+  .menu .mi.danger svg.lucide { color: var(--danger); }
+
+  .pj-scroll { flex: 1; min-height: 0; overflow: auto; padding: 14px 26px 24px 32px; margin-right: 6px; }
+  .sec { margin-bottom: 26px; }
+  .sec-h { position: sticky; top: -14px; z-index: 2; display: flex; align-items: baseline; gap: 10px; padding: 2px 2px 12px; background: linear-gradient(180deg, var(--surface) calc(100% - 12px), transparent); }
+  .sec-h .l { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+  .sec-h .h { font-size: 11.5px; color: var(--ink-3); }
+  .sec-h.fold { cursor: pointer; }
+  .sec-h.fold svg.lucide { width: 13px; height: 13px; color: var(--ink-3); transition: transform var(--fast) var(--ease); }
+  .sec-h.fold.closed svg.lucide { transform: rotate(-90deg); }
+
+  /* 通用：身份图标块、置顶星、悬停操作钮 */
+  .ico { flex: none; display: grid; place-items: center; background: var(--proj-soft); color: var(--proj); border-radius: 8px; width: 26px; height: 26px; }
+  .ico svg.lucide { width: 14px; height: 14px; stroke-width: 1.9; }
+  .star { width: 13px !important; height: 13px !important; color: var(--accent); fill: var(--accent); flex: none; }
+  .ops { position: absolute; top: 10px; right: 10px; z-index: 3; display: flex; gap: 2px; opacity: 0; transition: opacity var(--fast); }
+  .hov:hover .ops, .ops.on { opacity: 1; }
+  .ops .ib { width: 23px; height: 23px; border-radius: 7px; background: var(--surface-hover); box-shadow: var(--shadow-card), inset 0 0 0 1px var(--line-1); }
+  .ops .ib svg.lucide { width: 13px; height: 13px; }
+
+  /* ── 最近打开：续读行 ── */
+  .recent { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .rc { position: relative; display: flex; gap: 14px; padding: 14px 16px; border-radius: var(--r-lg); border: 1px solid var(--line-1); cursor: pointer; transition: box-shadow var(--normal), border-color var(--normal); overflow: hidden; }
+  .rc:hover { box-shadow: var(--shadow-lift); border-color: transparent; }
+  .rc::before { content: ""; position: absolute; inset: 0 0 auto; height: 3px; background: linear-gradient(90deg, var(--proj), transparent); }
+  .rc .ico { width: 42px; height: 42px; border-radius: 12px; }
+  .rc .ico svg.lucide { width: 19px; height: 19px; }
+  .rc .info { min-width: 0; flex: 1; }
+  .rc .t { display: flex; align-items: center; gap: 6px; font-size: 14.5px; font-weight: 600; letter-spacing: -0.005em; }
+  .rc .t span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rc .doc { margin-top: 4px; display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); min-width: 0; }
+  .rc .doc svg.lucide { width: 13px; height: 13px; color: var(--ink-3); }
+  .rc .doc span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rc .m { margin-top: 6px; font-size: 11.5px; color: var(--ink-3); }
+  .rc .go { position: absolute; right: 14px; bottom: 12px; display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border-radius: 8px; background: var(--accent-soft); color: var(--accent-text); font-size: 12px; font-weight: 500; opacity: 0; transition: opacity var(--fast); }
+  .rc .go svg.lucide { width: 13px; height: 13px; }
+  .rc:hover .go { opacity: 1; }
+
+  /* ── 网格 · 项目卡：标题 + 两行简介 + 上次看到的文档 + meta（无封面，同行卡片等高） ── */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .pc { position: relative; display: flex; flex-direction: column; padding: 14px 16px 13px; border-radius: 14px; border: 1px solid var(--line-1); cursor: pointer; transition: box-shadow var(--normal), border-color var(--normal); }
+  .pc:hover { box-shadow: var(--shadow-lift); border-color: transparent; }
+  .pc .hd { display: flex; align-items: center; gap: 10px; min-width: 0; padding-right: 54px; }
+  .pc .hd .ico { width: 32px; height: 32px; border-radius: 10px; }
+  .pc .hd .ico svg.lucide { width: 16px; height: 16px; }
+  .pc .hd h3 { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 14.5px; font-weight: 600; letter-spacing: -0.005em; min-width: 0; }
+  .pc .hd h3 span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pc .ds { margin: 9px 0 0; color: var(--ink-2); font-size: 12.5px; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .pc .ds.none { color: var(--ink-3); }
+  .pc .last { margin-top: auto; display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 10px; border-radius: 8px; background: var(--hover); font-size: 12px; color: var(--ink-2); min-width: 0; }
+  .pc .ds + .last { margin-top: 12px; }
+  .pc .last svg.lucide { width: 13px; height: 13px; color: var(--ink-3); flex: none; }
+  .pc .last .k { color: var(--ink-3); flex: none; }
+  .pc .last span.v { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pc .last.none { color: var(--ink-3); background: transparent; box-shadow: inset 0 0 0 1px var(--line-2); }
+  .pc .m { margin-top: 9px; font-size: 11.5px; color: var(--ink-3); display: flex; align-items: center; gap: 8px; }
+  .pc .m i.d { width: 2.5px; height: 2.5px; border-radius: 50%; background: var(--ink-3); opacity: 0.6; }
+  .pc.arch { opacity: 0.6; }
+  .pc.arch:hover { opacity: 1; }
+
+  /* ── 列表：行式无横线，列头排序 ── */
+  .lst { --cols: minmax(0, 1fr) 76px 210px 96px 96px 58px; }
+  .lh, .lr { display: grid; grid-template-columns: var(--cols); align-items: center; gap: 14px; padding: 0 12px; }
+  .lh { height: 30px; font-size: 11.5px; color: var(--ink-3); position: sticky; top: 16px; z-index: 2; background: var(--surface); }
+  .lh span { display: inline-flex; align-items: center; gap: 3px; cursor: pointer; white-space: nowrap; }
+  .lh span.on { color: var(--ink-1); font-weight: 500; }
+  .lh span svg.lucide { width: 12px; height: 12px; }
+  .lh .r, .lr .r { justify-content: flex-end; text-align: right; }
+  .lr { position: relative; height: 54px; border-radius: 10px; cursor: pointer; }
+  .lr:hover { background: var(--hover); }
+  .lr .nm { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .lr .nm .tx { min-width: 0; }
+  .lr .nm .t { display: flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 500; }
+  .lr .nm .t span, .lr .nm .d { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lr .nm .d { font-size: 11.5px; color: var(--ink-3); }
+  .lr .c { font-size: 12.5px; color: var(--ink-2); white-space: nowrap; }
+  .lr .op { min-width: 0; }
+  .lr .op .w { font-size: 12.5px; color: var(--ink-2); }
+  .lr .op .x { font-size: 11.5px; color: var(--ink-3); display: flex; align-items: center; gap: 4px; overflow: hidden; white-space: nowrap; }
+  .lr .op .x span { overflow: hidden; text-overflow: ellipsis; }
+  .lr .op .x svg.lucide { width: 11px; height: 11px; flex: none; }
+  .lr .ops { position: static; opacity: 0; justify-content: flex-end; }
+  .lr:hover .ops, .lr .ops.on { opacity: 1; }
+  .lr .ops .ib { background: transparent; box-shadow: none; }
+  .lr .ops .ib:hover { background: var(--hover); }
+  .lr.arch { opacity: 0.6; }
+  .ldiv { height: 1px; background: var(--line-2); margin: 6px 12px; }
+
+  .empty { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; }
+  .empty .ico { width: 52px; height: 52px; border-radius: 16px; margin-bottom: 6px; }
+  .empty .ico svg.lucide { width: 24px; height: 24px; }
+  .empty b { font-size: 15px; font-weight: 600; }
+  .empty p { margin: 0; color: var(--ink-2); font-size: 12.5px; }
+
+  .tb .crumb .vsw { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 7px; border-radius: 7px; color: var(--ink-1); font-weight: 500; }
+  .tb .crumb .vsw:hover, .tb .crumb .vsw.on { background: var(--hover); }
+  .tb .crumb .vsw svg.lucide { width: 14px; height: 14px; }
+  .tb .crumb .vsw .cv { width: 12px; height: 12px; color: var(--ink-3); }
+  .tb .crumb .dd .menu { left: 0; right: auto; }
+  .tb { position: relative; z-index: 20; }
+</style>
+</head>
+<body>
+<div class="mock-note">
+  <h3>项目列表 · 网格 / 列表切换 + 最近打开</h3>
+  参照 PDF 与微信读书书架：同一份数据两种排布，并在网格顶部放「最近打开」续读行。点续读卡直接回到上次看的那篇文档（<code>project-detail {id, itemId}</code>）。
+  <ul>
+    <li><b>视图切换</b>：用「按钮 + Menu」，不用 Segmented。A 放在工具栏右侧，B 放在标题栏面包屑，同卡片库「卡片墙 ▾」的做法（D-024 追记）。菜单项是命令项，当前项高亮，不用 Radio。偏好按本机保存。</li>
+    <li><b>最近打开</b>：网格模式取最近打开的 3 个项目，每张卡显示「上次看到的文档」。列表模式不单独放这一段，由「上次打开」列和默认排序承担。从没打开过的项目不进续读行。</li>
+    <li><b>网格卡片</b>：项目没有封面，网格就是卡片，不做封面。卡片上有标题、两行简介、「上次看到」的文档条和 meta 行。卡片纵向撑满，同一行的卡片等高，文档条统一压在底部。只有打开过、记录到文档的项目才显示文档条。</li>
+    <li><b>置顶</b>：原来的 hero 段并进「全部」，任何排序下置顶项都排在最前，带星标。续读行接替首屏入口的位置，避免首屏同时出现两段大卡。</li>
+    <li><b>排序</b>：最近打开（默认） / 最近更新 / 名称 / 创建时间；列表模式下也可以点列头排序。这会推翻 D-031「无排序 UI」，需要在 DECISIONS 里补一条。</li>
+    <li><b>数据</b>：project 表新增 <code>last_open_time</code> 和 <code>last_open_item_id</code>，在进入详情或切换文档时写入（PDF 表已有 <code>last_open_time</code>，可以照着做）。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { titlebar, anno, icons } from "../chat/shared.js?v=3";
+
+/* ── 数据：opened = [距今天数, 时刻]，null 表示从未打开 ── */
+const P = [
+  { id: 1, title: "Transformer 与大模型", desc: "从注意力机制到推理优化，把论文、笔记和实验串成一条线", docs: 38, upd: 0, created: "2026-03-02", opened: [0, "14:32"], last: "FlashAttention 的 IO 感知分块", pinned: true },
+  { id: 2, title: "Rust 系统编程", desc: "所有权、生命周期与异步运行时的学习笔记", docs: 24, upd: 1, created: "2026-05-18", opened: [0, "09:10"], last: "Pin 与自引用结构" },
+  { id: 3, title: "分布式系统读书会", desc: "DDIA 逐章精读 + Raft / Paxos 论文对照", docs: 41, upd: 2, created: "2026-01-09", opened: [1, "21:45"], last: "第 9 章 · 一致性与共识", pinned: true },
+  { id: 4, title: "产品设计方法论", desc: "用户研究、信息架构与交互原则的案例库", docs: 17, upd: 5, created: "2026-06-21", opened: [3, "16:02"], last: "渐进披露的边界" },
+  { id: 5, title: "考研数学", desc: "高数 / 线代 / 概率，错题与定理卡片", docs: 56, upd: 8, created: "2025-11-03", opened: [9, "20:18"], last: "拉格朗日中值定理" },
+  { id: 6, title: "WebGPU 渲染实验", desc: "", docs: 9, upd: 14, created: "2026-08-02", opened: [16, "11:30"], last: "计算着色器与粒子" },
+  { id: 7, title: "家庭理财", desc: "年度预算、保险与基金定投记录", docs: 12, upd: 21, created: "2025-12-30", opened: null },
+  { id: 8, title: "日语 N2 备考", desc: "语法点、听力素材与每日单词", docs: 29, upd: 33, created: "2025-09-14", opened: [40, "07:50"], last: "〜わけにはいかない" },
+  { id: 9, title: "旧版博客迁移", desc: "", docs: 6, upd: 120, created: "2025-04-11", opened: [118, "15:00"], last: "迁移脚本", archived: true },
+  { id: 10, title: "2025 年度复盘", desc: "", docs: 4, upd: 260, created: "2025-01-02", opened: null, archived: true },
+];
+
+const DAY = d => (d === 0 ? "今天" : d === 1 ? "昨天" : d < 7 ? `${d} 天前` : (() => { const t = new Date(2026, 9, 1 - d); return `${t.getMonth() + 1}月${t.getDate()}日`; })());
+const openedLabel = p => (p.opened ? (p.opened[0] <= 1 ? `${DAY(p.opened[0])} ${p.opened[1]}` : DAY(p.opened[0])) : "—");
+const createdLabel = p => { const [y, m, d] = p.created.split("-"); return `${y === "2026" ? "" : y + "/"}${+m}/${+d}`; };
+
+const SORTS = [
+  ["opened", "最近打开", "history"],
+  ["updated", "最近更新", "pencil-line"],
+  ["name", "名称", "a-large-small"],
+  ["created", "创建时间", "calendar-plus"],
+];
+const VIEWS = [
+  ["grid", "网格", "layout-grid"],
+  ["list", "列表", "list"],
+];
+const openedKey = p => (p.opened ? p.opened[0] : 1e9);
+const cmp = {
+  opened: (a, b) => openedKey(a) - openedKey(b) || a.upd - b.upd,
+  updated: (a, b) => a.upd - b.upd,
+  name: (a, b) => a.title.localeCompare(b.title, "zh-CN"),
+  created: (a, b) => b.created.localeCompare(a.created),
+};
+// 置顶在任何排序下都排最前
+const sortItems = (list, key) => [...list].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || cmp[key](a, b));
+
+const state = {
+  m: "normal",
+  view: localStorage.getItem("proj-mock-view") || "grid",
+  entry: localStorage.getItem("proj-mock-entry") || "toolbar",
+  sort: "opened",
+  menu: null,
+  more: null,
+  archOpen: false,
+};
+
+/* ── 控制条 ── */
+const bar = document.createElement("div");
+bar.className = "mock-bar";
+const seg = (id, items, cur) => `<span class="seg" id="${id}">${items.map(([k, l]) => `<button data-v="${k}" class="mb-btn" style="${k === cur ? "background:#d97757;color:#fff;border-color:#d97757" : ""}">${l}</button>`).join("")}</span>`;
+function renderBar() {
+  bar.innerHTML = `
+    <b>项目 · 样板间</b>
+    <span>视图</span>${seg("mb-view", [["grid", "网格"], ["list", "列表"]], state.view)}
+    <span>切换入口</span>${seg("mb-entry", [["toolbar", "A 工具栏"], ["crumb", "B 面包屑"]], state.entry)}
+    <span>状态</span>${seg("mb-m", [["normal", "默认"], ["fresh", "无打开记录"], ["empty", "空态"], ["viewmenu", "视图菜单"], ["sortmenu", "排序菜单"]], state.m)}
+    <span class="sp"></span>
+    <span style="opacity:.7">缩放 <span id="mb-zoom">100%</span></span>
+    <label>窗口宽 <select id="mb-width"><option value="1280">1280</option><option value="1440">1440</option><option value="1680">1680</option><option value="1920">1920</option></select></label>
+    <button class="mb-btn" id="mb-theme">切换深浅</button>
+    <button class="mb-btn" id="mb-note">方案说明</button>
+    <button class="mb-btn" id="mb-anno">标注</button>`;
+  const bind = (id, fn) => bar.querySelectorAll(`#${id} button`).forEach(b => (b.onclick = () => { fn(b.dataset.v); renderBar(); render(); }));
+  bind("mb-view", v => setView(v));
+  bind("mb-entry", v => { state.entry = v; localStorage.setItem("proj-mock-entry", v); });
+  bind("mb-m", v => { state.m = v; state.menu = v === "viewmenu" ? "view" : v === "sortmenu" ? "sort" : null; });
+  bar.querySelector("#mb-theme").onclick = () => {
+    const next = document.documentElement.dataset.theme === "cream" ? "cocoa" : "cream";
+    document.documentElement.dataset.theme = next;
+    localStorage.setItem("chat-mock-theme", next);
+  };
+  bar.querySelector("#mb-anno").onclick = () => document.body.classList.toggle("no-anno");
+  bar.querySelector("#mb-note").onclick = () => { document.body.classList.toggle("no-note"); fit(); };
+  const sel = bar.querySelector("#mb-width");
+  sel.value = localStorage.getItem("chat-mock-width") || "1440";
+  if (!sel.value) sel.value = "1440";
+  sel.onchange = () => { localStorage.setItem("chat-mock-width", sel.value); applyWidth(); };
+}
+document.body.prepend(bar);
+document.documentElement.dataset.theme = localStorage.getItem("chat-mock-theme") || "cream";
+document.body.classList.add("no-anno");
+
+const win = document.getElementById("win");
+function fit() {
+  if (window.innerWidth < 100 || window.innerHeight < 100) return;
+  const w = +(localStorage.getItem("chat-mock-width") || 1440);
+  const top = bar.offsetHeight + (document.body.classList.contains("no-note") ? 0 : (document.querySelector(".mock-note")?.offsetHeight || 0) + 18);
+  const z = Math.min(1, (window.innerWidth - 24) / w, Math.max(0.35, (window.innerHeight - top - 24) / 820));
+  win.style.zoom = z;
+  const ro = bar.querySelector("#mb-zoom");
+  if (ro) ro.textContent = Math.round(z * 100) + "%";
+}
+function applyWidth() {
+  win.style.width = (localStorage.getItem("chat-mock-width") || 1440) + "px";
+  fit();
+}
+window.addEventListener("resize", fit);
+
+function setView(v) {
+  state.view = v;
+  state.menu = null;
+  if (state.m === "viewmenu") state.m = "normal";
+  localStorage.setItem("proj-mock-view", v);
+}
+
+/* ── 侧栏 ── */
+function sidebar() {
+  const groups = [
+    ["工作台", [["flame", "今日"], ["calendar", "日程"], ["list-todo", "待办"], ["timer", "番茄专注"]]],
+    ["知识", [["layers", "卡片库"], ["file-text", "文章"], ["pen-line", "日记"], ["presentation", "白板"], ["table", "数据库"]]],
+    ["学习", [["folder-tree", "项目", true], ["flask-conical", "Vibe Learning"], ["repeat", "闪卡复习"], ["book-open", "微信读书"], ["book-marked", "PDF"]]],
+    ["AI", [["message-circle", "AI 对话"], ["sparkles", "Skill"]]],
+  ];
+  return `<aside class="sb"><div class="sb-head"><div class="sb-logo">τ</div><span>Tau</span></div><div class="sb-scroll">${groups
+    .map(([g, items]) => `<div class="sb-group"><div class="sb-gt">${g}</div>${items.map(([ic, l, on]) => `<div class="sb-item ${on ? "on" : ""}"><i data-lucide="${ic}"></i><span>${l}</span></div>`).join("")}</div>`)
+    .join("")}</div><div class="sb-item"><i data-lucide="sliders-horizontal"></i><span>设置</span></div></aside>`;
+}
+
+/* ── 菜单 ── */
+const viewMenu = () =>
+  state.menu === "view"
+    ? `<div class="menu">${VIEWS.map(([k, l, ic]) => `<div class="mi ${state.view === k ? "on" : ""}" data-view="${k}"><i data-lucide="${ic}"></i>${l}</div>`).join("")}</div>`
+    : "";
+const sortMenu = () =>
+  state.menu === "sort"
+    ? `<div class="menu"><div class="cap">排序 · 置顶始终在前</div>${SORTS.map(([k, l, ic]) => `<div class="mi ${state.sort === k ? "on" : ""}" data-sort="${k}"><i data-lucide="${ic}"></i>${l}</div>`).join("")}</div>`
+    : "";
+const moreMenu = p =>
+  state.more === p.id
+    ? `<div class="menu" style="top:28px">
+        <div class="mi"><i data-lucide="pencil"></i>编辑信息</div>
+        <div class="mi"><i data-lucide="${p.archived ? "archive-restore" : "archive"}"></i>${p.archived ? "取消归档" : "归档"}</div>
+        <div class="mi"><i data-lucide="arrow-right"></i>整体导出</div>
+        <div class="sep"></div>
+        <div class="mi danger"><i data-lucide="trash-2"></i>删除</div></div>`
+    : "";
+const ops = p => `<div class="ops ${state.more === p.id ? "on" : ""}">
+    <button class="ib" title="${p.pinned ? "取消置顶" : "置顶"}"><i data-lucide="pin"></i></button>
+    <div class="dd"><button class="ib" data-more="${p.id}" title="更多操作"><i data-lucide="more-horizontal"></i></button>${moreMenu(p)}</div>
+  </div>`;
+
+/* ── 页头 ── */
+function head(active, archived) {
+  const cur = VIEWS.find(v => v[0] === state.view);
+  const sortCur = SORTS.find(s => s[0] === state.sort);
+  const docs = active.reduce((s, p) => s + p.docs, 0);
+  return `<div class="pj-head">
+    <h1>项目</h1>
+    <span class="sum">${active.length ? `<b>${active.length}</b> 个项目<span class="dot-sep">·</span><b>${docs}</b> 个文档${archived.length ? `<span class="dot-sep">·</span>已归档 ${archived.length}` : ""}` : ""}</span>
+    ${active.length ? `
+    <div class="dd"><button class="btn ghost ${state.menu === "sort" ? "on" : ""}" data-menu="sort"><i data-lucide="arrow-down-up"></i>${sortCur[1]}<i data-lucide="chevron-down" class="cv"></i></button>${sortMenu()}</div>
+    ${state.entry === "toolbar" ? `<div class="dd"><button class="btn ghost ${state.menu === "view" ? "on" : ""}" data-menu="view" title="切换视图"><i data-lucide="${cur[2]}"></i>${cur[1]}<i data-lucide="chevron-down" class="cv"></i></button>${viewMenu()}</div>` : ""}` : ""}
+    <button class="btn primary"><i data-lucide="plus"></i>新建项目</button>
+  </div>`;
+}
+
+/* ── 最近打开 ── */
+function recentRow(active) {
+  const list = active.filter(p => p.opened).sort((a, b) => openedKey(a) - openedKey(b)).slice(0, 3);
+  if (!list.length) return "";
+  return `<section class="sec">
+    <div class="sec-h"><span class="l">最近打开</span><span class="h">从上次看到的文档继续</span></div>
+    <div class="recent">${list
+      .map(
+        p => `<div class="rc">
+          <span class="ico"><i data-lucide="folder-tree"></i></span>
+          <div class="info">
+            <div class="t">${p.pinned ? '<i data-lucide="star" class="star"></i>' : ""}<span>${p.title}</span></div>
+            <div class="doc"><i data-lucide="file-text"></i><span>${p.last}</span></div>
+            <div class="m num">${openedLabel(p)}<span class="dot-sep">·</span>${p.docs} 个文档</div>
+          </div>
+          <span class="go">继续<i data-lucide="arrow-right"></i></span>
+        </div>`
+      )
+      .join("")}</div>
+  </section>`;
+}
+
+/* ── 网格 ── */
+const seen = p => p.opened && state.m !== "fresh";
+const projectCard = p => `<div class="pc hov ${p.archived ? "arch" : ""}">
+    ${ops(p)}
+    <div class="hd"><span class="ico"><i data-lucide="folder-tree"></i></span><h3>${p.pinned ? '<i data-lucide="star" class="star"></i>' : ""}<span>${p.title}</span></h3></div>
+    ${p.desc ? `<p class="ds">${p.desc}</p>` : ""}
+    ${seen(p) ? `<div class="last"><i data-lucide="file-text"></i><span class="k">上次看到</span><span class="v">${p.last}</span></div>` : ""}
+    <div class="m num"><span>${p.docs} 个文档</span><i class="d"></i><span>${sortMeta(p)}</span></div>
+  </div>`;
+// 网格卡的时间位跟随当前排序口径：按打开排就显示打开时间，按更新排就显示更新时间
+function sortMeta(p) {
+  if (state.sort === "updated") return `${DAY(p.upd)}更新`;
+  if (state.sort === "created") return `创建于 ${createdLabel(p)}`;
+  if (state.sort === "name") return `${p.docs} 个文档`;
+  return seen(p) ? `${DAY(p.opened[0])}打开` : `${DAY(p.upd)}更新`;
+}
+const gridOf = list => `<div class="grid">${list.map(projectCard).join("")}</div>`;
+
+/* ── 列表 ── */
+function listHead() {
+  const col = (k, l, cls = "") => `<span data-sort="${k}" class="${cls} ${state.sort === k ? "on" : ""}">${l}${state.sort === k ? `<i data-lucide="${k === "name" ? "arrow-up" : "arrow-down"}"></i>` : ""}</span>`;
+  return `<div class="lh">${col("name", "名称")}<span class="r" style="cursor:default">文档</span>${col("opened", "上次打开")}${col("updated", "更新")}${col("created", "创建")}<span></span></div>`;
+}
+const listRow = p => `<div class="lr ${p.archived ? "arch" : ""}">
+    <div class="nm"><span class="ico"><i data-lucide="folder-tree"></i></span>
+      <div class="tx"><div class="t">${p.pinned ? '<i data-lucide="star" class="star"></i>' : ""}<span>${p.title}</span></div>${p.desc ? `<div class="d">${p.desc}</div>` : ""}</div></div>
+    <span class="c r num">${p.docs}</span>
+    <div class="op">${p.opened && state.m !== "fresh" ? `<div class="w num">${openedLabel(p)}</div><div class="x"><i data-lucide="file-text"></i><span>${p.last}</span></div>` : `<div class="w" style="color:var(--ink-3)">未打开过</div>`}</div>
+    <span class="c num">${DAY(p.upd)}</span>
+    <span class="c num">${createdLabel(p)}</span>
+    ${ops(p)}
+  </div>`;
+
+function archivedSection(archived) {
+  if (!archived.length) return "";
+  const body = state.view === "list" ? `<div class="lst">${archived.map(listRow).join("")}</div>` : gridOf(archived);
+  return `<section class="sec">
+    <div class="sec-h fold ${state.archOpen ? "" : "closed"}" data-arch><i data-lucide="chevron-down"></i><span class="l">已归档</span><span class="h num">${archived.length} 个</span></div>
+    ${state.archOpen ? body : ""}
+  </section>`;
+}
+
+function body() {
+  if (state.m === "empty")
+    return `${head([], [])}<div class="pj-scroll"><div class="empty">
+      <span class="ico"><i data-lucide="folder-tree"></i></span>
+      <b>还没有项目</b><p>从一个文档树开始，把资料组织成可检索的知识结构</p>
+      <button class="btn primary" style="margin-top:8px"><i data-lucide="plus"></i>新建项目</button></div></div>`;
+
+  const data = state.m === "fresh" ? P.map(p => ({ ...p, opened: null })) : P;
+  const active = data.filter(p => !p.archived);
+  const archived = data.filter(p => p.archived);
+  const sorted = sortItems(active, state.sort);
+  const sortLabel = SORTS.find(s => s[0] === state.sort)[1];
+  const all =
+    state.view === "list"
+      ? `<section class="sec lst">${listHead()}${sorted.map(listRow).join("")}</section>`
+      : `<section class="sec"><div class="sec-h"><span class="l">全部</span><span class="h num">${sorted.length} 个 · 按${sortLabel}</span></div>${gridOf(sorted)}</section>`;
+  return `${head(active, archived)}
+    <div class="pj-scroll">
+      ${state.view === "grid" ? recentRow(active) : ""}
+      ${all}
+      ${archivedSection(archived)}
+    </div>`;
+}
+
+function crumb() {
+  if (state.entry !== "crumb") return "<b>项目</b>";
+  const cur = VIEWS.find(v => v[0] === state.view);
+  return `<b>项目</b><span style="color:var(--ink-3)">/</span><div class="dd"><button class="vsw ${state.menu === "view" ? "on" : ""}" data-menu="view"><i data-lucide="${cur[2]}"></i>${cur[1]}<i data-lucide="chevron-down" class="cv"></i></button>${viewMenu()}</div>`;
+}
+
+function render() {
+  const sc = win.querySelector(".pj-scroll");
+  const keep = sc ? sc.scrollTop : 0;
+  const normal = state.m === "normal";
+  win.innerHTML = `
+    ${sidebar()}
+    <div class="col">
+      ${titlebar(crumb())}
+      <div class="main"><section class="paper pj-paper">${body()}</section></div>
+    </div>
+    ${normal && state.view === "grid" ? anno(1, state.entry === "toolbar" ? "排序 + 视图：按钮 + Menu（不用 Segmented），偏好按本机保存" : "视图切换在面包屑里（同卡片库），工具栏只放排序", state.entry === "toolbar" ? "right:190px;top:106px" : "left:300px;top:44px") + anno(2, "最近打开 3 个：显示上次看到的文档，点击直接回到那篇", "left:300px;top:178px") + anno(3, "置顶排最前（星标），原 hero 段并入这里", "left:300px;top:330px") + anno(4, "无封面：简介两行 + 「上次看到」文档条压底，同行卡片等高", "left:520px;top:470px") : ""}
+    ${normal && state.view === "list" ? anno(1, "列表不放续读行：「上次打开」列带文档名，默认按这一列排序", "left:760px;top:120px") + anno(2, "点列头排序，与工具栏排序菜单同步", "left:300px;top:120px") : ""}`;
+  icons();
+  const nsc = win.querySelector(".pj-scroll");
+  if (nsc) nsc.scrollTop = keep;
+
+  const on = (sel, fn) => win.querySelectorAll(sel).forEach(el => (el.onclick = e => { e.stopPropagation(); fn(el); renderBar(); render(); }));
+  on("[data-menu]", el => { state.more = null; state.menu = state.menu === el.dataset.menu ? null : el.dataset.menu; });
+  on("[data-view]", el => setView(el.dataset.view));
+  on("[data-sort]", el => { state.sort = el.dataset.sort; state.menu = null; if (state.m === "sortmenu") state.m = "normal"; });
+  on("[data-more]", el => { state.menu = null; state.more = state.more === +el.dataset.more ? null : +el.dataset.more; });
+  on("[data-arch]", () => (state.archOpen = !state.archOpen));
+}
+win.onclick = () => {
+  if (state.menu || state.more) {
+    state.menu = null;
+    state.more = null;
+    if (state.m === "viewmenu" || state.m === "sortmenu") state.m = "normal";
+    renderBar();
+    render();
+  }
+};
+
+renderBar();
+render();
+requestAnimationFrame(applyWidth);
+</script>
+</body>
+</html>
