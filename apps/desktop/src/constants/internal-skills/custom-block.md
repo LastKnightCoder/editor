@@ -92,7 +92,7 @@ const Component = () => {
 
 **版式**：
 
-- 编辑器已提供块的外框，不要再包一层带阴影的大卡片，也不要给整块铺深色底。
+- 编辑器已提供块的外框与四周内边距（悬停时有浅底），模板最外层不要再加 padding，不要再包一层带阴影的大卡片，也不要给整块铺深色底。
 - 宽度跟随正文栏，不写死宽度；高度由内容撑开，Canvas 这类需要定高时用 `h-[200px]`。
 - 侧栏、读数面板用弹性宽度（`grid-cols-[minmax(0,1fr)_minmax(240px,38%)]`），不写死窄宽；方法名、URL 这类不能断行的等宽长串加 `min-w-0 break-all`，避免撑出容器。
 - 推荐骨架：舞台 `rounded-tau-md border border-line-1 p-4`，不加底色（放被演示对象）→ 控件行 `flex flex-wrap items-center gap-3` → 读数 `text-tau-meta text-ink-3 font-tau-mono`，整体 `flex flex-col gap-4`。

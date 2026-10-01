@@ -69,7 +69,8 @@ const CustomBlock = (props: { content: string }) => {
     rerenderCustomBlockTheme(ref.current, theme);
   }, [theme]);
 
-  return <div ref={ref}></div>;
+  // 内边距由块容器统一提供：悬停底色出现时内容不贴边，模板无需再写外层留白
+  return <div ref={ref} className="px-[1em] py-[0.875em]"></div>;
 };
 
 const CustomBlockElement: React.FC<PropsWithChildren<CustomBlockProps>> = props => {
