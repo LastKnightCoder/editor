@@ -6,12 +6,14 @@
 
 import { forwardRef, useEffect, useId, useState } from "react";
 import { useDebounce } from "ahooks";
-import { renderMermaidSvg } from "@tau/shared";
+import { renderMermaidSvg, useDocumentTheme } from "@tau/shared";
 import useTheme from "@/hooks/useTheme";
 
 export const MermaidDiagram = forwardRef<HTMLDivElement, { code: string; generating: boolean }>(
   ({ code, generating }, ref) => {
     const { isDark } = useTheme();
+    // 配色取 <html> 上的 --tau-*，主题族变化也要重绘
+    const documentTheme = useDocumentTheme();
     const debounced = useDebounce(code, { wait: 300 });
     const id = `mermaid-${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
     const [svg, setSvg] = useState("");
@@ -26,7 +28,7 @@ export const MermaidDiagram = forwardRef<HTMLDivElement, { code: string; generat
       return () => {
         alive = false;
       };
-    }, [debounced, id, isDark]);
+    }, [debounced, id, isDark, documentTheme]);
 
     if (error && !svg && !generating) throw error;
     if (!svg)

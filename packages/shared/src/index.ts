@@ -56,6 +56,7 @@ export {
   type CodeBlockLanguageOption,
 } from "./utils/code-block-language";
 export { renderMermaidSvg } from "./utils/mermaid-render-core";
+export type { MermaidTokenReader } from "./utils/mermaid-theme";
 export { markdownCustomDirectives } from "./utils/markdown-custom-directives";
 export {
   CONTENT_ELEMENT_TYPES,
@@ -269,6 +270,8 @@ export {
   type RemoteVideoStreamProgress,
   type RemoteVideoCacheProgress,
 } from "./hooks/useRemoteVideo";
+
+export { useDocumentTheme } from "./hooks/useDocumentTheme";
 
 export {
   default as ChatContainerCore,

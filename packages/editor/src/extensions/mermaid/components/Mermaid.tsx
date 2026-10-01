@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from "react";
 import { useCreation, useMemoizedFn } from "ahooks";
 import { renderMermaidSvg } from "@tau/shared";
-import useTheme from "../../../hooks/useTheme";
+import { useEditorTheme } from "../../../theme/context";
 
 interface IMermaidProps {
   chart: string;
@@ -15,7 +15,8 @@ interface IMermaidProps {
 
 const Mermaid = (props: IMermaidProps) => {
   const { chart, initialSvg, compiledFrom, onCompiled } = props;
-  const { isDark } = useTheme();
+  // token 随主题族 / 明暗 / 局部强制明暗变化而换引用，借此触发重渲染
+  const { isDark, token } = useEditorTheme();
   const ref = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string>("");
   const [svgContent, setSvgContent] = useState<string>("");
@@ -51,6 +52,7 @@ const Mermaid = (props: IMermaidProps) => {
           code: chart,
           mermaidId,
           isDark,
+          token,
         });
 
         if (!isMounted) return;
@@ -74,7 +76,7 @@ const Mermaid = (props: IMermaidProps) => {
     return () => {
       isMounted = false;
     };
-  }, [chart, mermaidId, isDark, stableOnCompiled]);
+  }, [chart, mermaidId, isDark, token, stableOnCompiled]);
 
   return (
     <>
