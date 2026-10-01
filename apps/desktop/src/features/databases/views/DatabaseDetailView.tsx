@@ -10,12 +10,18 @@ import { useState } from "react";
 import { Menu, cn, Loading } from "@tau/ui";
 import { usePage, usePageParams, usePageBreadcrumb } from "@/page/PageProvider";
 import DatabaseWorkspace from "@/features/shared/database/DatabaseWorkspace";
-import { useDatabaseDetail, useDatabasesSnapshot, useDatabaseMutations } from "../queries";
+import {
+  useDatabaseDetail,
+  useDatabasesSnapshot,
+  useDatabaseMutations,
+  useRecordDatabaseOpen,
+} from "../queries";
 
 const DatabaseDetailView = memo(() => {
   const { id } = usePageParams<{ id: number }>();
   const { navigator } = usePage();
   const { item, loading } = useDatabaseDetail(id);
+  useRecordDatabaseOpen(id, !!item);
   const { items } = useDatabasesSnapshot();
   const mutations = useDatabaseMutations();
   const [switcherOpen, setSwitcherOpen] = useState(false);

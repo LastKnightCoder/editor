@@ -21,9 +21,10 @@ const VISUAL: CockpitVisual = {
 
 const COPY: CockpitCopy = {
   title: "数据库",
-  badgeLabel: "数据表格",
   entityUnit: "个数据库",
   metricUnit: "行",
+  metricLabel: "行数",
+  recentHint: "最近打开过的数据库",
   createLabel: "新建数据库",
   createTitle: "新建数据库",
   editTitle: "编辑数据库",
@@ -41,13 +42,15 @@ export function DatabasesView() {
   const { items, loading } = useDatabasesSnapshot();
   const mutations = useDatabaseMutations();
 
+  // 数据库没有子条目，只有打开时间，卡片不出现「上次看到」
   const cockpitItems: CockpitItem[] = useMemo(
-    () => items.map(item => ({ ...item, metric: item.rowCount })),
+    () => items.map(item => ({ ...item, metric: item.rowCount, lastItemTitle: null })),
     [items]
   );
 
   return (
     <EntityCockpit
+      prefsKey="databases"
       items={cockpitItems}
       loading={loading}
       visual={VISUAL}

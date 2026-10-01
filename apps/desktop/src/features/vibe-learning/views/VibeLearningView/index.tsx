@@ -17,6 +17,7 @@ import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import { FadeScroll } from "@/components/FadeScroll";
 import { useVibeLearningPanelStore } from "../../panelStore";
+import { useRecordVibeLearningOpen } from "../../queries";
 import type { VibeLearningProject } from "@/types";
 import type { VLNote, VLResource } from "@/types/vibe-learning";
 
@@ -73,6 +74,12 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
   const [opened, setOpened] = useLocalStorageState<Opened | null>(
     `vibe-learning-opened-${projectId}`,
     { defaultValue: null }
+  );
+  // 列表的「最近打开」：资料 / 笔记记为上次看到的条目，生成任务与新建笔记只刷新打开时间
+  useRecordVibeLearningOpen(
+    projectId,
+    opened?.kind === "resource" || opened?.kind === "note" ? opened : undefined,
+    !loading
   );
 
   const generationRef = useRef<GenerationHostRef>(null);
