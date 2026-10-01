@@ -39,6 +39,8 @@ export interface MainContentVecIndexProgress {
   startedAt: number;
   finishedAt?: number;
   error?: string;
+  /** 实时覆盖率：开始时扫库得出基数，之后每处理成功一篇在内存里挪一格，随进度推送 */
+  stats?: MainContentIndexStats;
 }
 
 export interface MainContentIndexCounts {
@@ -55,6 +57,31 @@ export interface MainContentIndexCounts {
 export interface MainContentIndexStats extends MainContentIndexCounts {
   byType: Record<MainContentIndexType, MainContentIndexCounts>;
 }
+
+/** 一篇索引成功：从「未索引」或「待更新」挪到「已索引」（计数不为负） */
+export function markIndexed(
+  stats: MainContentIndexStats,
+  type: string,
+  wasIndexedBefore: boolean
+): void {
+  const from: keyof MainContentIndexCounts = wasIndexedBefore ? "outdated" : "unindexed";
+  const bucket = stats.byType[type as MainContentIndexType];
+  for (const counts of bucket ? [stats, bucket] : [stats]) {
+    if (counts[from] <= 0) continue;
+    counts[from] -= 1;
+    counts.indexed += 1;
+  }
+}
+
+const cloneProgress = (progress: MainContentVecIndexProgress): MainContentVecIndexProgress => ({
+  ...progress,
+  stats: progress.stats && {
+    ...progress.stats,
+    byType: Object.fromEntries(
+      Object.entries(progress.stats.byType).map(([type, counts]) => [type, { ...counts }])
+    ) as MainContentIndexStats["byType"],
+  },
+});
 
 const LAST_RUN_META_KEY = "main_content_last_run";
 const PROGRESS_EMIT_INTERVAL_MS = 300;
@@ -141,6 +168,13 @@ class MainContentVecIndexQueue implements Module {
       return null;
     }
 
+    return this.computeStats(mainDb, indexDb);
+  }
+
+  private async computeStats(
+    mainDb: Database.Database,
+    indexDb: Database.Database
+  ): Promise<MainContentIndexStats> {
     const emptyCounts = (): MainContentIndexCounts => ({
       total: 0,
       indexed: 0,
@@ -285,7 +319,9 @@ class MainContentVecIndexQueue implements Module {
 
     try {
       const tasks = await this.collectTasks(mainDb, indexDb, params.fingerprintChanged);
-      this.updateProgress({ phase: "indexing", queued: tasks.length }, true);
+      const stats = await this.computeStats(mainDb, indexDb);
+      const previouslyIndexed = this.loadIndexedUpdateTimes(indexDb);
+      this.updateProgress({ phase: "indexing", queued: tasks.length, stats }, true);
       let indexed = 0;
       let failed = 0;
       let consecutiveFailures = 0;
@@ -318,6 +354,7 @@ class MainContentVecIndexQueue implements Module {
         if (ok) {
           indexed += 1;
           consecutiveFailures = 0;
+          markIndexed(stats, task.type, previouslyIndexed.has(`${task.type}:${task.id}`));
           this.updateProgress({ processed: indexed + failed, indexed, failed });
         } else {
           failed += 1;
@@ -387,7 +424,7 @@ class MainContentVecIndexQueue implements Module {
       return;
     }
     const finished: MainContentVecIndexProgress = {
-      ...this.currentProgress,
+      ...cloneProgress(this.currentProgress),
       ...patch,
       finishedAt: Date.now(),
     };
@@ -421,7 +458,7 @@ class MainContentVecIndexQueue implements Module {
       return;
     }
     this.lastEmitAt = now;
-    this.notifyListeners({ ...this.currentProgress });
+    this.notifyListeners(cloneProgress(this.currentProgress));
   }
 
   private notifyListeners(progress: MainContentVecIndexProgress) {

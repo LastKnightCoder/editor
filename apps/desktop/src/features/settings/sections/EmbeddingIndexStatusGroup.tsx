@@ -98,6 +98,9 @@ export function EmbeddingIndexStatusGroup({ modelKey }: { modelKey: string }) {
         void refresh();
       } else {
         setRunning(progress);
+        // 覆盖率随进度推送，进行中不用再拉
+        const stats = progress.stats;
+        if (stats) setStatus(current => (current ? { ...current, stats } : current));
       }
     });
     return () => unsubscribe();
