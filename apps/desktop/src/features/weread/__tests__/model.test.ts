@@ -7,6 +7,7 @@ import {
   formatReadDay,
   matchStatus,
   notesToMarkdown,
+  planNoteSync,
   preferNonEmpty,
   rankArchives,
   readingNow,
@@ -234,5 +235,33 @@ describe("格式", () => {
     expect(formatReadDay("2026-03-04", now)).toBe("3/4");
     expect(formatReadDay("2025-03-04", now)).toBe("2025/3/4");
     expect(formatReadDay("", now)).toBe("—");
+  });
+});
+
+describe("书架同步拉划线（planNoteSync）", () => {
+  const withKeys = (bookId: string, highlights?: number, reviews?: number) =>
+    notebook(meta(bookId, { synckeys: { highlights, reviews } }));
+
+  it("指纹变了或从未拉过的有笔记书拉取；没变的跳过；full 全部重拉", () => {
+    const books = [
+      withKeys("a", 100, 3),
+      withKeys("b", 100, 3),
+      withKeys("c"),
+      withKeys("d", 9, 1),
+    ];
+    const fingerprints = {
+      a: { sort: 100, count: 3 },
+      b: { sort: 100, count: 4 },
+      c: { sort: 50, count: 1 },
+    };
+    expect(planNoteSync(books, fingerprints)).toEqual({ fetch: ["b", "c"], clear: ["d"] });
+    expect(planNoteSync(books, fingerprints, true).fetch).toEqual(["a", "b", "c"]);
+  });
+
+  it("从没拉到过笔记的书不在概览里时不清空", () => {
+    expect(planNoteSync([withKeys("x", 0, 0), withKeys("y")], {})).toEqual({
+      fetch: [],
+      clear: [],
+    });
   });
 });

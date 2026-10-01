@@ -43,3 +43,6 @@ export interface ExcerptSyncResult {
 
 export const isExcerptSourceType = (value: unknown): value is ExcerptSourceType =>
   typeof value === "string" && (EXCERPT_SOURCE_TYPES as readonly string[]).includes(value);
+
+export const hasExcerptChanges = (result: ExcerptSyncResult | null | undefined): boolean =>
+  !!result && result.inserted + result.updated + result.deleted > 0;

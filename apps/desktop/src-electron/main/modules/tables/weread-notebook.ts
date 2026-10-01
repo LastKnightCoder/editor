@@ -1,6 +1,9 @@
 import { Database } from "better-sqlite3";
 import { Table } from "../../types/table";
 import type { Notebook } from "@/types/weread";
+import { hasExcerptChanges, type ExcerptSyncResult } from "@/entity/excerpt/types";
+import { expandWeReadExcerpts } from "@/entity/excerpt/weread";
+import ExcerptTable from "./excerpt";
 
 class WeReadNotebookTable implements Table {
   upgradeTable(db: Database): void {
@@ -29,8 +32,42 @@ class WeReadNotebookTable implements Table {
     return {};
   }
 
-  // 保存或更新笔记本
-  save(db: Database, notebook: Notebook): void {
+  /**
+   * 保存或更新笔记本；划线（或书名）有变化时在同一事务里同步摘录（KL-033），返回摘录的变化，
+   * 未变化返回 null。书架同步带着旧划线整行写回时文本相同，不重新展开。
+   */
+  save(db: Database, notebook: Notebook): ExcerptSyncResult | null {
+    return db.transaction(() => {
+      const bookId = notebook.metaData.bookId;
+      const before = db
+        .prepare("SELECT title, chapter_highlights FROM weread_notebook WHERE book_id = ?")
+        .get(bookId) as { title: string; chapter_highlights: string | null } | undefined;
+      this.upsert(db, notebook);
+      const highlights = JSON.stringify(notebook.chapterHighlights);
+      if (
+        before &&
+        before.chapter_highlights === highlights &&
+        before.title === notebook.metaData.title
+      ) {
+        return null;
+      }
+      return this.syncExcerpts(db, notebook);
+    })();
+  }
+
+  /** 按缓存的划线重建这本书的摘录（diff 写入，幂等） */
+  syncExcerpts(db: Database, notebook: Notebook): ExcerptSyncResult {
+    const { bookId, title } = notebook.metaData;
+    return ExcerptTable.syncSource(
+      db,
+      "weread",
+      bookId,
+      title ?? "",
+      expandWeReadExcerpts(bookId, notebook.chapterHighlights ?? []),
+    );
+  }
+
+  private upsert(db: Database, notebook: Notebook): void {
     const metaData = notebook.metaData;
     const readInfo = metaData.readInfo;
     const synckeys = metaData.synckeys || {};
@@ -140,12 +177,12 @@ class WeReadNotebookTable implements Table {
     );
   }
 
-  // 批量保存
-  saveMany(db: Database, notebooks: Notebook[]): void {
-    const transaction = db.transaction(() => {
-      notebooks.forEach((notebook) => this.save(db, notebook));
-    });
-    transaction();
+  // 批量保存；返回是否有摘录变化
+  saveMany(db: Database, notebooks: Notebook[]): boolean {
+    const transaction = db.transaction(() =>
+      notebooks.map((notebook) => this.save(db, notebook)).some(hasExcerptChanges),
+    );
+    return transaction();
   }
 
   // 获取所有笔记本
@@ -154,6 +191,17 @@ class WeReadNotebookTable implements Table {
       SELECT * FROM weread_notebook ORDER BY updated_at DESC
     `);
     const rows = stmt.all() as any[];
+    return rows.map((row) => this.rowToNotebook(row));
+  }
+
+  // 缓存了划线的书（摘录回填用）
+  getAllWithHighlights(db: Database): Notebook[] {
+    const rows = db
+      .prepare(
+        `SELECT * FROM weread_notebook
+         WHERE chapter_highlights IS NOT NULL AND chapter_highlights NOT IN ('', '[]')`,
+      )
+      .all() as any[];
     return rows.map((row) => this.rowToNotebook(row));
   }
 
@@ -166,12 +214,12 @@ class WeReadNotebookTable implements Table {
     return row ? this.rowToNotebook(row) : null;
   }
 
-  // 删除笔记本
-  delete(db: Database, bookId: string): void {
-    const stmt = db.prepare(`
-      DELETE FROM weread_notebook WHERE book_id = ?
-    `);
-    stmt.run(bookId);
+  // 删除笔记本（移出书架）：这本书的摘录一并软删除；返回软删除的条数
+  delete(db: Database, bookId: string): number {
+    return db.transaction(() => {
+      db.prepare("DELETE FROM weread_notebook WHERE book_id = ?").run(bookId);
+      return ExcerptTable.deleteSource(db, "weread", bookId);
+    })();
   }
 
   // 将数据库行转换为 Notebook 对象
