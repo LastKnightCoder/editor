@@ -51,6 +51,7 @@ import { getContentLength } from "@/utils/helper";
 import { CollaborationLocalStore } from "./local-store";
 import { getDevelopmentServerUrl } from "./dev-server";
 import { findCollaborationBinding } from "../collaboration-guard";
+import { emitContentWritten } from "../content-events";
 import { localSessionId, resolveSessionId } from "./session-identity";
 import {
   findContentTitle,
@@ -921,11 +922,13 @@ class CollaborationManager {
           databaseName: basename(database.name),
           [entry.field]: entry.id,
         });
-      if (changed)
+      if (changed) {
         this.broadcast("content:updated", {
           databaseName: basename(database.name),
           contentId: source.contentId,
         });
+        emitContentWritten(database, source.contentId, "update");
+      }
       session.info.title = value.title;
       if (local && session.info.error) {
         session.info.error = undefined;

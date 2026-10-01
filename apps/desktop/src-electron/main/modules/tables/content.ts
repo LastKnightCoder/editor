@@ -12,6 +12,7 @@ import WhiteBoardContentTable from "./white-board-content";
 import CardTable from "./card";
 import QuestionTable from "./question";
 import { assertContentIsLocal } from "../collaboration-guard";
+import { emitContentWritten } from "../content-events";
 import {
   contentSession,
   contentRevision,
@@ -209,6 +210,7 @@ export default class ContentTable {
     );
     const createdContentId = Number(res.lastInsertRowid);
     Operation.insertOperation(db, "content", "insert", createdContentId, now);
+    emitContentWritten(db, createdContentId, "create");
     return createdContentId;
   }
 
@@ -234,6 +236,7 @@ export default class ContentTable {
     stmt.run(now, JSON.stringify(content || []), actualCount, contentId);
     Operation.insertOperation(db, "content", "update", contentId, now);
     ctx.broadcastOthers("content:updated", { databaseName: basename(db.name), contentId });
+    emitContentWritten(db, contentId, "update");
     return this.getContentById(db, contentId);
   }
 
@@ -275,7 +278,9 @@ export default class ContentTable {
         QuestionTable.deleteQuestion(db, id);
       });
 
-      return deleteStmt.run(contentId).changes;
+      const changes = deleteStmt.run(contentId).changes;
+      emitContentWritten(db, contentId, "delete");
+      return changes;
     }
 
     return 0;
