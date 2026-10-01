@@ -35,7 +35,7 @@ export function AgentWorkspaceGroup() {
   return (
     <SettingsGroup
       title="工作目录"
-      description="AI 对话页与停靠栏里，新对话执行命令、读写文件的位置。每个对话还可以在对话标题下方单独切换目录。"
+      description="AI 对话页与停靠栏里，新对话执行命令、读写文件的位置。每个对话还可以在输入框上方单独切换目录。"
     >
       <SettingRow title="默认目录" description={description}>
         <FieldBox>
