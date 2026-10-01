@@ -19,6 +19,7 @@ let client: QueryClient;
 let root: Root | undefined;
 let host: HTMLDivElement;
 let mutations: ReturnType<typeof import("../queries").useFlashcardMutations>;
+let snapshot: ReturnType<typeof import("../queries").useFlashcardSnapshot>;
 
 const deck = (name: string): FlashcardDeck => ({
   id: 1,
@@ -83,6 +84,7 @@ afterEach(() => {
   host?.remove();
   client.clear();
   sharedClient.clear();
+  vi.restoreAllMocks();
 });
 
 async function mount(component: React.ReactNode) {
@@ -106,8 +108,30 @@ function MutationProbe() {
   mutations = api.useFlashcardMutations();
   return null;
 }
+function SnapshotProbe() {
+  snapshot = api.useFlashcardSnapshot();
+  return <output>{snapshot.error?.message ?? snapshot.snapshot?.decks[0]?.name}</output>;
+}
 
 describe("闪卡数据库隔离", () => {
+  it("加载失败保留错误并记录所属库，重试成功后恢复快照", async () => {
+    const failure = new Error("闪卡读取失败");
+    const logError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    invoke.mockRejectedValueOnce(failure);
+    await mount(<SnapshotProbe />);
+    await waitFor(() => expect(host.textContent).toBe(failure.message));
+    expect(snapshot.error).toBe(failure);
+    expect(snapshot.snapshot).toBeUndefined();
+    expect(logError).toHaveBeenCalledWith("[flashcards] 加载失败", { database: "a" }, failure);
+
+    await act(async () => {
+      await snapshot.retry();
+    });
+    await waitFor(() => expect(host.textContent).toBe("a"));
+    expect(snapshot.error).toBeNull();
+    expect(invoke).toHaveBeenCalledWith("flashcard:list-cards", {}, { toolDatabaseName: "a" });
+  });
+
   it("选择卡组只读轻表，切库期间不展示旧库列表", async () => {
     await mount(<DecksProbe />);
     await waitFor(() => expect(host.textContent).toBe("a"));
