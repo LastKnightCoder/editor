@@ -449,16 +449,18 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `project_item_id`      | `INTEGER PRIMARY KEY` |
 | `preferred_content_id` | `INTEGER`             |
 
-### `content_link`
+### `entity_lineage`
 
-| 字段          | SQLite 定义           |
-| ------------- | --------------------- |
-| `id`          | `INTEGER PRIMARY KEY` |
-| `create_time` | `INTEGER NOT NULL`    |
-| `source_id`   | `INTEGER NOT NULL`    |
-| `source_type` | `TEXT NOT NULL`       |
-| `target_id`   | `INTEGER NOT NULL`    |
-| `target_type` | `TEXT NOT NULL`       |
+| 字段          | SQLite 定义                         |
+| ------------- | ----------------------------------- |
+| `id`          | `INTEGER PRIMARY KEY AUTOINCREMENT` |
+| `src_kind`    | `TEXT NOT NULL`                     |
+| `src_id`      | `TEXT NOT NULL`                     |
+| `src_anchor`  | `TEXT`                              |
+| `dst_kind`    | `TEXT NOT NULL`                     |
+| `dst_id`      | `TEXT NOT NULL`                     |
+| `relation`    | `TEXT NOT NULL`                     |
+| `create_time` | `INTEGER NOT NULL`                  |
 
 ### `resource_sync_blacklist`
 

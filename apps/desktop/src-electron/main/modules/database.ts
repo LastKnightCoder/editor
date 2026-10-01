@@ -53,7 +53,7 @@ import WebLinkTable from "./tables/web-link";
 import WebClipTable from "./tables/web-clip";
 import WebNoteTable from "./tables/web-note";
 import WebViewPreferenceTable from "./tables/web-view-preference";
-import ContentLinkTable from "./tables/content-link";
+import EntityLineageTable from "./tables/entity-lineage";
 import WeReadNotebookTable from "./tables/weread-notebook";
 import WereadViewCleanupTable from "./tables/weread-view-cleanup";
 import WeReadConfigTable from "./tables/weread-config";
@@ -77,6 +77,7 @@ import MAIN_SCHEMA_SQL from "@tau/db-schema/schema/main.sql?raw";
 import { upgradeKnowledgeDatabase } from "@tau/db-schema/src/knowledge-migration-node";
 import { retireSubscriptions } from "@tau/db-schema/src/subscription-retirement";
 import { retireFeatureTables } from "@tau/db-schema/src/feature-table-retirement";
+import { retireContentLink } from "@tau/db-schema/src/content-link-retirement";
 import {
   retireEditorBlocks,
   installEditorBlockGuards,
@@ -277,7 +278,7 @@ class DatabaseModule implements Module {
       WebClipTable,
       WebNoteTable,
       WebViewPreferenceTable,
-      ContentLinkTable,
+      EntityLineageTable,
       WeReadNotebookTable,
       WereadViewCleanupTable,
       WeReadConfigTable,
@@ -373,6 +374,12 @@ class DatabaseModule implements Module {
       }
       database.exec(MAIN_SCHEMA_SQL);
       upgradeKnowledgeDatabase(database, dbPath);
+      const migratedContentLinks = retireContentLink(database, dbPath);
+      if (migratedContentLinks > 0) {
+        log.info(
+          `[database] content_link retired: db=${name}, migrated=${migratedContentLinks}`
+        );
+      }
       migrateContentBindings(database);
       retireEditorBlocks(database, dbPath);
       log.info(
@@ -641,6 +648,7 @@ class DatabaseModule implements Module {
         db.exec(MAIN_SCHEMA_SQL);
         // 知识库迁移可复用下载副本，订阅退役仍保留专属快照。
         upgradeKnowledgeDatabase(db, path, { skipBackup: true });
+        retireContentLink(db, path);
         migrateContentBindings(db);
         retireEditorBlocks(db, path);
         const checkpoint = db.pragma("wal_checkpoint(TRUNCATE)") as { busy: number }[];

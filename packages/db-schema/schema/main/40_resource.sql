@@ -27,13 +27,15 @@ CREATE TABLE IF NOT EXISTS web_view_preference (
         project_item_id INTEGER PRIMARY KEY,
         preferred_content_id INTEGER
       );
-CREATE TABLE IF NOT EXISTS content_link (
-        id INTEGER PRIMARY KEY,
-        create_time INTEGER NOT NULL,
-        source_id INTEGER NOT NULL,
-        source_type TEXT NOT NULL,
-        target_id INTEGER NOT NULL,
-        target_type TEXT NOT NULL
+CREATE TABLE IF NOT EXISTS entity_lineage (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        src_kind TEXT NOT NULL,
+        src_id TEXT NOT NULL,
+        src_anchor TEXT,
+        dst_kind TEXT NOT NULL,
+        dst_id TEXT NOT NULL,
+        relation TEXT NOT NULL,
+        create_time INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS resource_sync_blacklist (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

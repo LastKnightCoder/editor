@@ -18,6 +18,7 @@ mod calendar_time;
 mod calendar_holidays;
 mod collaboration;
 mod common;
+mod content_link_retirement;
 mod diary;
 mod editor_block_retirement;
 mod flashcard;

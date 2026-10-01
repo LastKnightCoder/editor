@@ -1,0 +1,7 @@
+[
+  "CREATE TABLE IF NOT EXISTS entity_lineage (id INTEGER PRIMARY KEY AUTOINCREMENT, src_kind TEXT NOT NULL, src_id TEXT NOT NULL, src_anchor TEXT, dst_kind TEXT NOT NULL, dst_id TEXT NOT NULL, relation TEXT NOT NULL, create_time INTEGER NOT NULL);",
+  "CREATE UNIQUE INDEX IF NOT EXISTS idx_entity_lineage_unique ON entity_lineage(src_kind, src_id, dst_kind, dst_id, relation);",
+  "CREATE INDEX IF NOT EXISTS idx_entity_lineage_dst ON entity_lineage(dst_kind, dst_id);",
+  "INSERT OR IGNORE INTO entity_lineage (src_kind, src_id, src_anchor, dst_kind, dst_id, relation, create_time) SELECT 'project-item', CAST(source_id AS TEXT), NULL, 'web-clip', CAST(target_id AS TEXT), 'clipped_from', create_time FROM content_link WHERE source_type = 'project_item' AND target_type = 'web_clip';",
+  "DROP TABLE content_link;"
+]
