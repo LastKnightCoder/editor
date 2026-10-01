@@ -29,7 +29,7 @@ import {
   toast,
   useRetainedValue,
 } from "@tau/ui";
-import { Editor } from "@tau/editor/src";
+import { Editor } from "@tau/editor";
 import { usePage } from "@/page/PageProvider";
 import useSkillStore from "@/stores/useSkillStore";
 import { importFromMarkdown } from "@/utils/markdown";

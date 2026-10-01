@@ -6,7 +6,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createDesktopKit } from "@/services/editorKit";
-import type { EditorKit } from "@tau/editor/src";
+import type { EditorKit } from "@tau/editor";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -24,7 +24,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { Descendant } from "slate";
-import { Editor, EditorRef, createHeaderExtension } from "@tau/editor/src";
+import { Editor, EditorRef } from "@tau/editor";
+import { createHeaderExtension } from "@tau/editor-header";
 import { Button, ConfirmDialog, Dialog, Input, Textarea, cn, toast } from "@tau/ui";
 import { FadeScroll } from "@/components/FadeScroll";
 import { readBinaryFile, selectFile, showInFolder } from "@/commands";

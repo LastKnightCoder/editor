@@ -4,13 +4,29 @@ import { createEditor, Node, Transforms, type Editor, type Element, type Path } 
 
 import { defaultMenuExtension } from "../defaultMenu";
 import { resolveBlockMenuItems } from "../resolveMenu";
-import type { EditorMenuContribution } from "../../api/menu";
+import { createEditorKit } from "../../kit/EditorKit";
+import { createCommandDispatcher } from "../../api/command";
+import { standardExtensions } from "../../../../../editor-extensions/standard";
 
-const text = (value: string) => ({ type: "formatted", text: value });
-const paragraph = (value: string) => ({ type: "paragraph", children: [text(value)] });
+const kit = createEditorKit({ extensions: standardExtensions });
+const dispatcher = createCommandDispatcher(kit.assembly.commands, {
+  isDisabled: () => false,
+  record: (_owner, _phase, error) => {
+    throw error;
+  },
+});
+
+const text = (value: string) => ({ type: "formatted" as const, text: value });
+const paragraph = (value: string) => ({ type: "paragraph" as const, children: [text(value)] });
 
 const withValue = (children: any[], isVoidType?: string): Editor => {
   const editor = createEditor();
+  editor.getService = id => kit.registry.get(id);
+  editor.tryGetService = id => kit.registry.tryGet(id);
+  editor.commands = {
+    execute: (id, payload, element, path) =>
+      dispatcher.execute(editor, id, { payload, element, path }),
+  };
   editor.children = children;
   if (isVoidType) {
     editor.isVoid = element => element.type === isVoidType;
@@ -32,10 +48,7 @@ const runCommand = (
 };
 
 const menuOf = (editor: Editor, element: Element, path: Path = [0]) =>
-  resolveBlockMenuItems(
-    [{ owner: defaultMenuExtension.id, menu: defaultMenuExtension.menu as EditorMenuContribution }],
-    { editor, element, path }
-  );
+  resolveBlockMenuItems(kit.assembly.menuSources, { editor, element, path });
 
 const keysOf = (items: ReturnType<typeof resolveBlockMenuItems>): string[] =>
   items.flatMap(item => [item.key, ...(item.children ? keysOf(item.children) : [])]);
@@ -139,7 +152,7 @@ describe("内核默认菜单 · block 组", () => {
   });
 });
 
-describe("内核默认菜单 · transform 组", () => {
+describe("显式领域扩展 · transform 组", () => {
   it("段落上有标题/列表/高亮/详情/Callout/引用；容器块上有段落且无标题；其他类型整组不出现", () => {
     const paragraphEditor = withValue([paragraph("正文")]);
     const paragraphKeys = keysOf(menuOf(paragraphEditor, paragraphEditor.children[0] as Element));

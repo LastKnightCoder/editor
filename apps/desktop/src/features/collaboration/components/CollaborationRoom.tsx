@@ -30,7 +30,7 @@ import type { CollaborationSession, JoinRequest } from "@tau/collaboration";
 import type { EditorCollaborationBinding } from "@tau/editor-collab";
 import { FadeScroll } from "@/components/FadeScroll";
 import useCollaborationDocument from "@/hooks/useCollaborationDocument";
-import { Editor } from "@tau/editor/src";
+import { Editor } from "@tau/editor";
 import { createYjsDocument } from "@tau/editor-collab";
 import { useCollaborationKit } from "@/hooks/useCollaborationKit";
 import useCollaborationPresence from "@/hooks/useCollaborationPresence";

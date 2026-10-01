@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getMobileContentKit } from "../../services/editorKit";
 import type { Descendant } from "slate";
-import { Editor } from "@tau/editor/src";
+import { Editor } from "@tau/editor";
 import { Paperclip } from "lucide-react";
 import { MobileConfirmDialog } from "../../components/MobileConfirmDialog";
 import { SnapSheet } from "../../components/SnapSheet";

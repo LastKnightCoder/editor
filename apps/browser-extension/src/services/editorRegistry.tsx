@@ -1,13 +1,11 @@
+import { IFileService, IResourceService } from "@tau/shared/host-services";
 import React, { forwardRef } from "react";
+import { createServiceRegistry, type ServiceRegistration } from "@tau/editor";
 import {
-  createServiceRegistry,
   IEditorSlots,
-  IFileService,
-  IResourceService,
   IVideoContentProviders,
-  type ServiceRegistration,
   type VideoContentProvider,
-} from "@tau/editor";
+} from "@tau/editor-media/services";
 import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
 import { ITypstCompiler } from "@tau/editor-diagram/services";
 export { extensionImportFromMarkdown } from "./editorMarkdown";

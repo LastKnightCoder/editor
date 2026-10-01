@@ -2,22 +2,20 @@
  * Desktop 编辑器服务注册表：组合各服务实现并注册到 token。
  * 与 getContentKit() 共用同一份注册项。
  */
+import { IFileService, IOpenerService, IResourceService } from "@tau/shared/host-services";
 
+import { createServiceRegistry, type ServiceRegistration, type ServiceRegistry } from "@tau/editor";
 import {
-  createServiceRegistry,
   IEditorSlots,
-  IFileService,
   IMediaActions,
   IMediaInsertSources,
-  IOpenerService,
-  IResourceService,
   IVideoContentProviders,
-  type ServiceRegistration,
-  type ServiceRegistry,
-} from "@tau/editor/src";
+} from "@tau/editor-media/services";
 import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
 import { ITypstCompiler } from "@tau/editor-diagram/services";
 import { desktopRuntimeStyleCompiler } from "./tailwindRuntime";
+import { IOverlayBackDismiss } from "@tau/editor/api";
+import { DesktopEditorOverlayDismiss } from "./editorOverlayDismiss";
 import {
   desktopVideoContentProviders,
   desktopVideoInsertSources,
@@ -35,6 +33,7 @@ import {
 
 /** Desktop 的服务注册项：kit 与（过渡期的）registry 共用同一份 */
 export const desktopEditorServices: ServiceRegistration = register => {
+  register(IOverlayBackDismiss, { Layer: DesktopEditorOverlayDismiss });
   // 必选服务
   register(IResourceService, desktopResourceService);
   register(IFileService, desktopFileService);

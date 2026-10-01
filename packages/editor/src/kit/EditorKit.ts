@@ -1,4 +1,4 @@
-import { startExtensions } from "../extensions";
+import paragraphExtension from "../extensions/paragraph";
 import { elementTypesOf, toEditorExtension, type AnyExtension } from "../api/legacy";
 import type { EditorExtension } from "../api/extension";
 import { createServiceRegistry, createChildRegistry } from "../services/registry";
@@ -25,13 +25,13 @@ export interface EditorKit {
 }
 
 export interface EditorKitOptions {
-  /** 元素与功能扩展（v2 或旧 IExtension）；同元素类型重复会报错，除非 `override: true` */
+  /** 元素与功能扩展；同元素类型重复会报错，除非 `override: true` */
   extensions?: readonly AnyExtension[];
   /** 平台能力与 UI 插槽 */
   services?: ServiceRegistration[];
   /** 主题服务；等价于注册 IThemeService，缺省时编辑器读 DOM */
   theme?: ThemeService;
-  /** 允许后来的扩展按 type 覆盖先前的（宿主替换内置实现时用） */
+  /** 允许后来的扩展按 type 覆盖先前的功能扩展；核心段落不可替换。 */
   override?: boolean;
 }
 
@@ -41,11 +41,6 @@ export interface EditorKitExtendOptions {
   theme?: ThemeService;
   override?: boolean;
 }
-
-/** 内置扩展适配一次后复用（适配对象按实例缓存，这里只省去每次 map） */
-let builtins: EditorExtension[] | null = null;
-const builtinExtensions = (): EditorExtension[] =>
-  (builtins ??= startExtensions.map(toEditorExtension));
 
 const themeRegistration =
   (theme: ThemeService): ServiceRegistration =>
@@ -65,6 +60,9 @@ const mergeExtensions = (
   for (const raw of added) {
     const extension = toEditorExtension(raw);
     const types = new Set(elementTypesOf(extension));
+    if (extension.id === paragraphExtension.id || types.has("paragraph")) {
+      throw new Error("[editor] paragraph 是核心基础，不能重复注册或覆盖");
+    }
     const clashes = merged.filter(
       existing =>
         existing.id === extension.id || elementTypesOf(existing).some(type => types.has(type))
@@ -74,6 +72,18 @@ const mergeExtensions = (
       throw new Error(
         `[editor] 扩展${type ? `类型 "${type}"` : ` "${extension.id}"`} 重复注册。` +
           `要替换已有实现请显式声明 override: true`
+      );
+    }
+    if (
+      clashes.some(
+        existing =>
+          existing.id !== extension.id &&
+          (existing.marks?.length || existing.layers?.length) &&
+          elementTypesOf(existing).every(type => types.has(type))
+      )
+    ) {
+      throw new Error(
+        "[editor] 覆盖元素会移除同扩展的标记贡献或根 UI；请按扩展 id 显式替换整个扩展"
       );
     }
     merged = merged.filter(
@@ -155,10 +165,7 @@ const createKit = (
   };
 };
 
-/**
- * 创建 kit。`extensions` 只列宿主自己的扩展，内置扩展由内核补齐；
- * 要「裸编辑器」（只含列出的扩展）时用 `createBareEditorKit`。
- */
+/** 核心只提供基础段落，产品功能由调用方显式选择。 */
 export function createEditorKit(options: EditorKitOptions = {}): EditorKit {
   const registrations = [
     ...(options.services ?? []),
@@ -166,33 +173,6 @@ export function createEditorKit(options: EditorKitOptions = {}): EditorKit {
   ];
   return createKit(
     createServiceRegistry(...registrations),
-    mergeExtensions(builtinExtensions(), options.extensions ?? [], options.override ?? false)
-  );
-}
-
-/** 裸编辑器：不含内置扩展，只有列出的（发布预览、白板箭头描述等） */
-export function createBareEditorKit(options: EditorKitOptions = {}): EditorKit {
-  const registrations = [
-    ...(options.services ?? []),
-    ...(options.theme ? [themeRegistration(options.theme)] : []),
-  ];
-  return createKit(
-    createServiceRegistry(...registrations),
-    mergeExtensions([], options.extensions ?? [], options.override ?? false)
-  );
-}
-
-/**
- * 用已有的服务注册表建 kit。给两种场景：
- * 「裸编辑器」需要沿用宿主服务但不装内置扩展时用它（发布预览、白板箭头描述）。
- */
-export function createEditorKitFromRegistry(
-  registry: ServiceRegistry,
-  options: { extensions?: readonly AnyExtension[]; builtins?: boolean; override?: boolean } = {}
-): EditorKit {
-  const base = options.builtins === false ? [] : builtinExtensions();
-  return createKit(
-    registry,
-    mergeExtensions(base, options.extensions ?? [], options.override ?? false)
+    mergeExtensions([paragraphExtension], options.extensions ?? [], options.override ?? false)
   );
 }

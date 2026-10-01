@@ -3,7 +3,7 @@ import { Editor, Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useSlate } from "slate-react";
 import { cn } from "@tau/ui";
 
-import type { ParagraphElement } from "../../../types";
+import type { ParagraphElement } from "../../../../model/paragraph";
 
 import { useMemoizedFn } from "ahooks";
 import { findPathSafely } from "../../../../utils";

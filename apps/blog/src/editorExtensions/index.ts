@@ -1,4 +1,5 @@
-import { createImageExtensions, type AnyExtension } from "@tau/editor";
+import { type AnyExtension } from "@tau/editor";
+import { createImageExtensions } from "@tau/editor-media";
 import webviewExtension from "@tau/editor-webview";
 import { blogContentLinkExtension } from "./contentLinkExtension";
 import {

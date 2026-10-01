@@ -1,5 +1,7 @@
 packages:
   - packages/*
+  - editor-extensions/*
+  - examples/*
   - apps/*
 
 overrides:

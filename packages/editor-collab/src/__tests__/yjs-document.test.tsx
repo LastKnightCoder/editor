@@ -9,7 +9,8 @@ import { YjsEditor } from "@slate-yjs/core";
 import { createSharedDocument, readSharedContent, type SharedContent } from "@tau/collaboration";
 import { Editor, createEditorKit } from "@tau/editor";
 import { defineExtension } from "@tau/editor/api";
-import { createDefaultEditorSlots, IEditorSlots } from "@tau/editor/src/services";
+import { createDefaultEditorSlots } from "@tau/editor-media/slots";
+import { IEditorSlots } from "@tau/editor-media/services";
 
 import { createYjsDocument } from "../document";
 import { useCollaboration } from "../context";

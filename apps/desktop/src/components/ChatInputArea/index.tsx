@@ -8,7 +8,7 @@ import {
   type ComponentProps,
 } from "react";
 import { createDesktopKit } from "@/services/editorKit";
-import type { EditorKit } from "@tau/editor/src";
+import type { EditorKit } from "@tau/editor";
 import { useMemoizedFn } from "ahooks";
 import {
   ArrowUp,
@@ -28,7 +28,7 @@ import {
 import { v4 as uuid } from "uuid";
 import type { Descendant } from "slate";
 
-import { Editor, type EditorRef, type IHotKeyConfig } from "@tau/editor/src";
+import { Editor, type EditorRef, type IHotKeyConfig } from "@tau/editor";
 import {
   DEFAULT_CHAT_INPUT_PLACEHOLDER,
   resolveChatInputPlaceholder,

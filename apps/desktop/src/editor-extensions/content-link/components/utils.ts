@@ -1,11 +1,10 @@
 import { Editor, Transforms, Element, Path, Range } from "slate";
-import { getCurrentTextNode } from "@tau/editor/src";
+import { getCurrentTextNode } from "@tau/editor";
 import type { ContentLinkElement } from "../types";
 
 export const unwrapContentLink = (editor: Editor) => {
   Transforms.unwrapNodes(editor, {
-    match: (n) =>
-      !Editor.isEditor(n) && Element.isElement(n) && n.type === "content-link",
+    match: n => !Editor.isEditor(n) && Element.isElement(n) && n.type === "content-link",
   });
 };
 
@@ -15,7 +14,7 @@ export const wrapContentLink = (
   contentType: string,
   contentTitle: string,
   refId: number,
-  displayText?: string,
+  displayText?: string
 ) => {
   const { selection } = editor;
 
@@ -26,11 +25,9 @@ export const wrapContentLink = (
   // 如果有选中文本，包裹选中文本
   if (!Range.isCollapsed(selection) && node.type === "formatted") {
     const text = Editor.string(editor, selection);
-    ["bold", "code", "italic", "underline", "highlight", "color"].forEach(
-      (type) => {
-        Editor.removeMark(editor, type);
-      },
-    );
+    ["bold", "code", "italic", "underline", "highlight", "color"].forEach(type => {
+      Editor.removeMark(editor, type);
+    });
     editor.deleteBackward("character");
     const contentLinkNode: ContentLinkElement = {
       type: "content-link",

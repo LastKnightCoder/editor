@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocalStorageState } from "ahooks";
 import type { Descendant } from "slate";
-import type { EditorRef } from "@tau/editor/src";
+import type { EditorRef } from "@tau/editor";
 import AddTag from "@/components/AddTag";
 import ContentEditor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";

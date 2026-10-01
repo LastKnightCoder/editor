@@ -13,7 +13,7 @@ import {
 } from "react";
 import type { Descendant } from "slate";
 import { ReactEditor } from "slate-react";
-import { Editor, type EditorRef } from "@tau/editor/src";
+import { Editor, type EditorRef } from "@tau/editor";
 import { cn } from "@tau/ui";
 import { getContentKit } from "@/services/editorKit";
 import {

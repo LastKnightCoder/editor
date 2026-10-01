@@ -8,6 +8,9 @@ import path from "path";
 const nodeSqlite = createRequire(
   path.resolve(__dirname, "../collaboration-server/package.json")
 ).resolve("better-sqlite3");
+const emojiPicker = createRequire(
+  path.resolve(__dirname, "../../editor-extensions/list/package.json")
+).resolve("@emoji-mart/react");
 
 export default defineConfig({
   test: {
@@ -44,6 +47,7 @@ export default defineConfig({
       "@tau/editor-collab": path.resolve(__dirname, "../../packages/editor-collab"),
       "@tau/db-schema": path.resolve(__dirname, "../../packages/db-schema"),
       "better-sqlite3": nodeSqlite,
+      "@emoji-mart/react": emojiPicker,
       // 单测环境不需要渲染 TikZ，避免 tikzjax 在 JSDOM 下执行导致崩溃
       "./tikzjax.js": path.resolve(__dirname, "./src/test-mocks/tikzjax.ts"),
     },

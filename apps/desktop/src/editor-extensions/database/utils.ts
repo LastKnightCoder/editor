@@ -1,6 +1,6 @@
 import { Editor } from "slate";
 import { v4 as uuid } from "uuid";
-import { setOrInsertNode } from "@tau/editor/src";
+import { setOrInsertNode } from "@tau/editor";
 import { createDataTable } from "@/commands/data-table";
 
 export const insertDatabase = async (editor: Editor) => {

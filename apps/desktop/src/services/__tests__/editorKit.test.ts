@@ -5,7 +5,7 @@
  * 这里失败，迫使改动者说明理由。P6.5 曾在没有这层守护时静默改掉 36 个调用点的扩展集。
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import type { AnyExtension } from "@tau/editor/src";
+import type { AnyExtension } from "@tau/editor";
 import { defineExtension } from "@tau/editor/api";
 
 const extensionOf = (type: string): AnyExtension =>
@@ -32,7 +32,7 @@ const loadStore = async () => {
   store.setState({ extensions: HOST.map(extensionOf), initialized: true });
 };
 
-/** 只看非内置的 type：内置扩展由内核补齐，不是场景差异所在 */
+/** 只比较宿主专有类型，显式产品组合的能力另行断言。 */
 const extrasOf = (kit: { elementTypes: readonly string[] }) =>
   kit.elementTypes.filter(type => TRACKED.has(type)).sort();
 
@@ -97,6 +97,10 @@ describe("desktop 场景 kit", { timeout: 30_000 }, () => {
       "link",
       "paragraph",
     ]);
+    expect(getArrowLabelKit().assembly.marks.map(entry => entry.owner)).toEqual([
+      "tau.text-formatting",
+    ]);
+    expect(getArrowLabelKit().assembly.commands.get("tau.mark.bold")).toBeDefined();
   });
 
   it("同一场景反复取到同一个 kit 实例（否则编辑器会被重建）", async () => {
@@ -104,5 +108,37 @@ describe("desktop 场景 kit", { timeout: 30_000 }, () => {
     const { getContentKit, getDescriptionKit } = await import("../editorKit");
     expect(getContentKit()).toBe(getContentKit());
     expect(getDescriptionKit()).not.toBe(getContentKit());
+  });
+
+  it("正文、描述、文件与闪卡都显式保留格式、转换和预览能力", async () => {
+    await loadStore();
+    const {
+      getContentKit,
+      getDescriptionKit,
+      getMarkdownFileKit,
+      getSkillFileKit,
+      getFlashcardKit,
+    } = await import("../editorKit");
+    for (const kit of [
+      getContentKit(),
+      getDescriptionKit(),
+      getMarkdownFileKit(),
+      getSkillFileKit(),
+      getFlashcardKit(),
+      getFlashcardKit({ blanks: false }),
+    ]) {
+      for (const id of [
+        "tau.mark.bold",
+        "tau.header.promote",
+        "tau.transform.to.bulleted-list",
+        "tau.preview.edit",
+      ])
+        expect(kit.assembly.commands.get(id), id).toBeDefined();
+      expect(kit.assembly.commandHotkeys.some(entry => entry.hotkey.key === "mod+b")).toBe(true);
+      expect(kit.assembly.hoveringBarElements.length).toBeGreaterThan(0);
+      expect(kit.extensions.filter(extension => extension.id === "tau.preview-menu")).toHaveLength(
+        1
+      );
+    }
   });
 });

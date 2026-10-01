@@ -1,0 +1,6 @@
+@import "tailwindcss";
+@import "@tau/themes/tokens.css";
+@import "@tau/themes/tailwind.css";
+@source "../../node_modules/@tau/editor";
+@source "../../node_modules/@tau/ui";
+@custom-variant dark (.dark &);

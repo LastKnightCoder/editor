@@ -36,6 +36,10 @@ export interface TextMapping {
   // 格式标记长度
   prefixLength: number; // 前缀长度，如 "**" 为 2
   suffixLength: number; // 后缀长度，如 "**" 为 2
+  sourceOffsets?: readonly number[];
+  /** 手工改写的载体无法证明字符对应时，只提供首尾边界。 */
+  opaque?: boolean;
+  mdEnd?: MarkdownPosition;
 }
 
 /**
@@ -131,9 +135,15 @@ export class PositionMapper {
 
     // 3.2 限制在有效范围内
     const clampedOffset = Math.max(0, Math.min(relativeOffset, textMapping.slateLength));
+    if (textMapping.opaque) {
+      return clampedOffset > 0 && clampedOffset === textMapping.slateLength && textMapping.mdEnd
+        ? { ...textMapping.mdEnd }
+        : { line: textMapping.mdLine, ch: textMapping.mdCh };
+    }
 
     // 3.3 计算 Markdown 位置（跳过前缀）
-    const mdOffset = textMapping.prefixLength + clampedOffset;
+    const mdOffset =
+      textMapping.sourceOffsets?.[clampedOffset] ?? textMapping.prefixLength + clampedOffset;
 
     // 3.4 处理单行情况（简化版，TODO: 多行支持）
     return {
@@ -179,6 +189,18 @@ export class PositionMapper {
     // 3. 文本映射：计算精确位置
     const textMapping = mapping as TextMapping;
 
+    if (textMapping.opaque) {
+      const end = textMapping.mdEnd ?? {
+        line: textMapping.mdLine,
+        ch: textMapping.mdCh + textMapping.mdLength,
+      };
+      const atEnd = pos.line > end.line || (pos.line === end.line && pos.ch >= end.ch);
+      return {
+        path: [...textMapping.slateTextPath],
+        offset: textMapping.slateOffset + (atEnd ? textMapping.slateLength : 0),
+      };
+    }
+
     if (pos.line < textMapping.mdLine) {
       return {
         path: [...textMapping.slateTextPath],
@@ -195,6 +217,17 @@ export class PositionMapper {
 
     // 3.1 计算相对偏移（在当前行内）
     const mdRelativeOffset = pos.ch - textMapping.mdCh;
+    if (textMapping.sourceOffsets) {
+      const offsets = textMapping.sourceOffsets;
+      let low = 0;
+      let high = offsets.length - 1;
+      while (low < high) {
+        const middle = Math.ceil((low + high) / 2);
+        if (offsets[middle] <= mdRelativeOffset) low = middle;
+        else high = middle - 1;
+      }
+      return { path: [...textMapping.slateTextPath], offset: textMapping.slateOffset + low };
+    }
 
     // 3.2 判断位置
     if (mdRelativeOffset < textMapping.prefixLength) {
@@ -338,6 +371,14 @@ export class PositionMapper {
         // 文本映射：调整起始位置
         const originalLine = mapping.mdLine;
         const relativeLine = originalLine - baseLineNumber;
+        if (mapping.mdEnd) {
+          const endRelativeLine = mapping.mdEnd.line - baseLineNumber;
+          mapping.mdEnd = {
+            line: mapping.mdEnd.line + childrenStart.line,
+            ch:
+              mapping.mdEnd.ch + (endRelativeLine === 0 ? childrenStart.ch : (perLineOffset ?? 0)),
+          };
+        }
 
         // 调整行号
         mapping.mdLine += childrenStart.line;
@@ -415,6 +456,7 @@ export class PositionMapper {
       }
       if (mapping.type === "text") {
         mapping.mdLine += lineDelta;
+        if (mapping.mdEnd) mapping.mdEnd.line += lineDelta;
       } else {
         mapping.mdStartLine += lineDelta;
         mapping.mdEndLine += lineDelta;
@@ -458,11 +500,14 @@ export class PositionMapper {
       first.mdCh = Math.max(0, first.mdCh - wrapperPrefixLength);
       first.mdLength += wrapperPrefixLength;
       first.prefixLength += wrapperPrefixLength;
+      if (first.sourceOffsets)
+        first.sourceOffsets = first.sourceOffsets.map(offset => offset + wrapperPrefixLength);
     }
 
     if (wrapperSuffixLength > 0) {
       last.mdLength += wrapperSuffixLength;
       last.suffixLength += wrapperSuffixLength;
+      if (last.mdEnd) last.mdEnd.ch += wrapperSuffixLength;
     }
   }
 
@@ -533,17 +578,14 @@ export class PositionMapper {
         // 单行文本映射
         const startLine = mapping.mdLine;
         const startCh = mapping.mdCh;
-        const endLine = mapping.mdLine;
-        const endCh = mapping.mdCh + mapping.mdLength;
+        const endLine = mapping.mdEnd?.line ?? mapping.mdLine;
+        const endCh = mapping.mdEnd?.ch ?? mapping.mdCh + mapping.mdLength;
 
-        if (pos.line === startLine) {
-          if (pos.ch >= startCh && pos.ch < endCh) {
-            return mapping;
-          }
-          if (pos.ch === endCh) {
-            return mapping;
-          }
-        }
+        if (
+          !isBefore(pos.line, pos.ch, startLine, startCh) &&
+          !isBefore(endLine, endCh, pos.line, pos.ch)
+        )
+          return mapping;
 
         const isBeforePos = isBefore(endLine, endCh, pos.line, pos.ch);
         if (isBeforePos || (endLine === pos.line && endCh === pos.ch)) {

@@ -1,5 +1,5 @@
 import type { Descendant } from "slate";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { createMarkdownProcessor } from "../index.ts";
 import type { MarkdownCodec } from "../index.ts";
@@ -22,6 +22,68 @@ const mentionCodec: MarkdownCodec = {
 };
 
 describe("createMarkdownProcessor codecs", () => {
+  it.each([false, true])("目标规范化贡献先于自身规则，codec 前后位置不影响：%s", reverse => {
+    const own = vi.fn(() => null);
+    const order: string[] = [];
+    const replacement = [
+      { type: "external", children: [{ type: "formatted", text: "接管" }] },
+    ] as unknown as Descendant[];
+    const target = { ...paragraphCodec, normalize: own };
+    const contributors: MarkdownCodec[] = [
+      {
+        type: "first",
+        normalizeFor: {
+          paragraph: () => {
+            order.push("first");
+            return null;
+          },
+        },
+      },
+      {
+        type: "second",
+        normalizeFor: {
+          paragraph: () => {
+            order.push("second");
+            return replacement;
+          },
+        },
+      },
+      {
+        type: "third",
+        normalizeFor: {
+          paragraph: () => {
+            order.push("third");
+            return [];
+          },
+        },
+      },
+    ];
+    const codecs = reverse ? [...contributors, target] : [target, ...contributors];
+    const processor = createMarkdownProcessor({ codecs });
+    expect(processor.importFromMarkdown("正文")).toEqual(replacement);
+    expect(order).toEqual(["first", "second"]);
+    expect(own).not.toHaveBeenCalled();
+  });
+
+  it("空数组是删除；未认领时回到自身规则，不同处理器的贡献互不泄漏", () => {
+    const own = vi.fn(() => null);
+    const target = { ...paragraphCodec, normalize: own };
+    const remove: MarkdownCodec = { type: "external", normalizeFor: { paragraph: () => [] } };
+    expect(
+      createMarkdownProcessor({ codecs: [target, remove] }).importFromMarkdown("正文")
+    ).toEqual([{ type: "paragraph", children: [{ type: "formatted", text: "" }] }]);
+    expect(own).not.toHaveBeenCalled();
+    const pass: MarkdownCodec = { type: "external", normalizeFor: { paragraph: () => null } };
+    const ordinary = createMarkdownProcessor({ codecs: [target, pass] }).importFromMarkdown("正文");
+    expect(ordinary).toEqual([
+      { type: "paragraph", children: [{ type: "formatted", text: "正文" }] },
+    ]);
+    expect(own).toHaveBeenCalled();
+    expect(
+      createMarkdownProcessor({ codecs: [paragraphCodec] }).importFromMarkdown("正文")
+    ).toEqual(ordinary);
+  });
+
   it("无 codec 的处理器不认识宿主类型：directive 按原样退化为文本", () => {
     const value = createMarkdownProcessor().importFromMarkdown(":mention{id=1}");
     expect(JSON.stringify(value)).not.toContain('"mention"');

@@ -6,7 +6,9 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
 import { Editor, createEditorKit, type EditorRef } from "../../../index";
-import { createDefaultEditorSlots, IEditorSlots } from "../../../services";
+import highlightBlockExtension from "@tau/editor-highlight-block";
+import { createDefaultEditorSlots } from "@tau/editor-media/slots";
+import { IEditorSlots } from "@tau/editor-media/services";
 import { FOCUS_PATH_ATTR, FOCUS_UNIT_ATTR } from "../focusPath";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -18,6 +20,7 @@ const VALUE = [
   { type: "highlight-block", color: "red", children: [p("H0"), p("H1")] },
 ] as unknown as Descendant[];
 const kit = createEditorKit({
+  extensions: [highlightBlockExtension],
   services: [register => register(IEditorSlots, createDefaultEditorSlots())],
 });
 

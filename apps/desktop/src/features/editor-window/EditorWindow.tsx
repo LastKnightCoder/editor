@@ -27,7 +27,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import type { EditorRef } from "@tau/editor/src";
+import type { EditorRef } from "@tau/editor";
 import { IconButton, Menu, Popover, cn, toast, useEdgeFade, FADE_SCROLL_CLASS } from "@tau/ui";
 import ContentEditor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";

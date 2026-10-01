@@ -5,6 +5,7 @@ import type { MarkdownSerializerRegistry, SerializerOutput } from "./markdownSer
 import { PositionMapper } from "./positionMapper.ts";
 import { isInlinePosition, serializeUnknownBlock, serializeUnknownInline } from "./unknownNode.ts";
 import type { MarkdownPosition, TextMapping, ElementMapping } from "./positionMapper.ts";
+import type { MarkdownTextRegistry, LeafSerializationResult } from "./textCodec.ts";
 
 // eslint-disable-next-line no-misleading-character-class
 const ZERO_WIDTH_ONLY_REGEX = /^[\u200B\u200C\u200D\uFEFF]+$/;
@@ -15,6 +16,7 @@ const isZeroWidthOnlyText = (text: string): boolean => {
 
 /** 处理器级导出配置：注册表 + void 类型表 + 子元素接续表（内置 + 宿主 codec） */
 export interface ExportConfig {
+  textRegistry: MarkdownTextRegistry;
   registry: MarkdownSerializerRegistry;
   voidTypes: ReadonlySet<string>;
   /** 元素类型的子块级接续符（列表 / 表格为 "\n"，缺省 "\n\n"） */
@@ -87,34 +89,8 @@ const getMarkdownInContext = (value: Descendant[]): string => {
   return content + footnoteDefinitions;
 };
 
-export const leafToMarkdown = (leaf: FormattedText): string => {
-  const { text, code, highlight, strikethrough, bold, italic, color, darkColor, textGradient } =
-    leaf;
-  // 历史版本曾为绕过 CJK 加粗解析问题在文本中驻留零宽空格，导出时剥离兜底
-  let str = text.replace(/\u200B/g, "");
-  if (code) {
-    str = `\`${str}\``;
-  }
-  if (italic) {
-    str = `*${str}*`;
-  }
-  if (strikethrough) {
-    str = `~~${str}~~`;
-  }
-  if (bold) {
-    str = `**${str}**`;
-  }
-  if (textGradient) {
-    str = `:gradient[${str}]{preset=${textGradient}}`;
-  } else if (color && darkColor) {
-    str = `:color[${str}]{color=${color} darkColor=${darkColor}}`;
-  }
-  if (highlight && typeof highlight === "string") {
-    str = `:highlight[${str}]{color=${highlight}}`;
-  }
-
-  return str;
-};
+const leafToMarkdown = (leaf: FormattedText): string =>
+  currentExportConfig().textRegistry.serialize(leaf).output;
 
 export const elementToMarkdownUsing = (
   config: ExportConfig,
@@ -175,78 +151,10 @@ export interface MarkdownWithPositions {
 }
 
 /**
- * 带格式信息的 leaf 序列化结果
- */
-interface LeafSerializationResult {
-  output: string;
-  prefixLength: number;
-  suffixLength: number;
-}
-
-/**
  * 计算格式标记长度的 leaf 序列化
  */
-export function leafToMarkdownStructured(leaf: FormattedText): LeafSerializationResult {
-  const { text, code, highlight, strikethrough, bold, italic, color, darkColor, textGradient } =
-    leaf;
-
-  // 历史版本曾为绕过 CJK 加粗解析问题在文本中驻留零宽空格，导出时剥离兜底
-  let output = text.replace(/\u200B/g, "");
-  let prefixLength = 0;
-  let suffixLength = 0;
-
-  // 按照嵌套顺序应用格式
-  if (code) {
-    output = `\`${output}\``;
-    prefixLength += 1;
-    suffixLength += 1;
-  }
-
-  if (italic) {
-    output = `*${output}*`;
-    prefixLength += 1;
-    suffixLength += 1;
-  }
-
-  if (strikethrough) {
-    output = `~~${output}~~`;
-    prefixLength += 2;
-    suffixLength += 2;
-  }
-
-  if (bold) {
-    output = `**${output}**`;
-    prefixLength += 2;
-    suffixLength += 2;
-  }
-
-  if (textGradient) {
-    const wrapper = `:gradient[${output}]{preset=${textGradient}}`;
-    const beforeBracket = `:gradient[`.length;
-    const afterBracket = `]{preset=${textGradient}}`.length;
-    output = wrapper;
-    prefixLength += beforeBracket;
-    suffixLength += afterBracket;
-  } else if (color && darkColor) {
-    const wrapper = `:color[${output}]{color=${color} darkColor=${darkColor}}`;
-    const beforeBracket = `:color[`.length;
-    const afterBracket = `]{color=${color} darkColor=${darkColor}}`.length;
-    output = wrapper;
-    prefixLength += beforeBracket;
-    suffixLength += afterBracket;
-  }
-
-  if (highlight && typeof highlight === "string") {
-    const wrapper = `:highlight[${output}]{color=${highlight}}`;
-    const beforeBracket = `:highlight[`.length;
-    const afterBracket = `]{color=${highlight}}`.length;
-    output = wrapper;
-    prefixLength += beforeBracket;
-    suffixLength += afterBracket;
-  }
-
-  return { output, prefixLength, suffixLength };
-}
+const leafToMarkdownStructured = (leaf: FormattedText): LeafSerializationResult =>
+  currentExportConfig().textRegistry.serialize(leaf);
 
 /**
  * 带位置跟踪的序列化函数（重新设计）
@@ -373,7 +281,8 @@ function serializeElementWithTracking(
 
   children.forEach((node, index) => {
     if (isFormattedText(node)) {
-      if (isZeroWidthOnlyText(node.text || "")) {
+      const serialized = leafToMarkdownStructured(node);
+      if (isZeroWidthOnlyText(node.text || "") && !serialized.sourceOffsets) {
         const textPath = [...path, index];
         const leafStart = { ...childContext };
         const textMapping: TextMapping = {
@@ -395,7 +304,7 @@ function serializeElementWithTracking(
       const textPath = [...path, index];
       const leafStart = { ...childContext };
 
-      const { output, prefixLength, suffixLength } = leafToMarkdownStructured(node);
+      const { output, prefixLength, suffixLength, sourceOffsets } = serialized;
 
       childrenParts.push(output);
 
@@ -410,6 +319,7 @@ function serializeElementWithTracking(
         mdLength: output.length,
         prefixLength,
         suffixLength,
+        ...(sourceOffsets ? { sourceOffsets } : {}),
       };
 
       positionMap.addTextMapping(textMapping);

@@ -4,7 +4,7 @@
  * 确认框也必须接返回手势（AGENTS.md 移动端浮层规范），所以注册自己的实现。
  */
 import { create } from "zustand";
-import type { EditorConfirmOptions, EditorNotifier } from "@tau/editor/src";
+import type { EditorConfirmOptions, EditorNotifier } from "@tau/editor";
 import { MobileConfirmDialog } from "../components/MobileConfirmDialog";
 import { toast } from "../components/toast";
 

@@ -8,8 +8,8 @@
 
 import { useEffect, useState } from "react";
 import type { Descendant } from "slate";
-import type { EditorRef, HeaderElement } from "@tau/editor/src";
-import { ReactEditor } from "slate-react";
+import type { HeaderElement } from "@tau/editor-header";
+export { resolveHeaderAnchor as resolveEditorHeaderAnchor } from "@tau/editor-header";
 import { getInlineElementText } from "@/utils";
 import { cn } from "@tau/ui";
 
@@ -46,20 +46,6 @@ export function extractContentHeaders(content: Descendant[] | null | undefined):
     level: header.level,
     title: header.children.map(getInlineElementText).join(""),
   }));
-}
-
-export function resolveEditorHeaderAnchor(
-  editor: ReturnType<EditorRef["getEditor"]> | undefined,
-  index: number
-): HTMLElement | null {
-  if (!editor) return null;
-  const node = editor.children.filter(node => (node as { type?: string }).type === "header")[index];
-  if (!node) return null;
-  try {
-    return ReactEditor.toDOMNode(editor, node as never);
-  } catch {
-    return null;
-  }
 }
 
 export function ContentOutline({

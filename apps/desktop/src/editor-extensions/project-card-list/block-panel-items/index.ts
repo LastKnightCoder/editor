@@ -1,5 +1,5 @@
 import { LayoutList } from "lucide-react";
-import { IBlockPanelListItem } from "@tau/editor/src";
+import { IBlockPanelListItem } from "@tau/editor";
 import { insertProjectCardList } from "../utils.ts";
 
 const createBlockPanelItems = (projectId?: number): IBlockPanelListItem[] => {
@@ -9,7 +9,7 @@ const createBlockPanelItems = (projectId?: number): IBlockPanelListItem[] => {
       title: "项目列表",
       keywords: ["项目列表", "project-card-list", "xiangmu"],
       description: "项目列表",
-      onClick: (editor) => {
+      onClick: editor => {
         insertProjectCardList(editor, projectId);
       },
     },

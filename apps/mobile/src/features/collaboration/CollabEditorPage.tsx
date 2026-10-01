@@ -13,7 +13,7 @@ import {
   Users,
   WifiOff,
 } from "lucide-react";
-import { Editor, type EditorRef } from "@tau/editor/src";
+import { Editor, type EditorRef } from "@tau/editor";
 import { createYjsDocument } from "@tau/editor-collab";
 import { ActionSheet } from "../../components/ActionSheet";
 import { PageHeader, PageHeaderButton } from "../../components/PageHeader";

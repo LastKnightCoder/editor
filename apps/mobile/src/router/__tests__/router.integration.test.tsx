@@ -10,7 +10,6 @@ import {
   useBackHandler,
   usePage,
   usePageLifecycle,
-  useSheetBackDismiss,
   paramNumber,
 } from "../index";
 import { BottomSheet } from "../../components/BottomSheet";
@@ -18,6 +17,14 @@ import { MobileConfirmDialog } from "../../components/MobileConfirmDialog";
 import { EditorConfirmHost, mobileEditorNotifier } from "../../services/editorNotifier";
 import { clearPageDefinitionsForTest } from "../registry";
 import { clearPageMetasForTest } from "../core/pageMeta";
+import { MobileEditorOverlayDismiss } from "../../services/editorOverlayDismiss";
+import { createEditorKit } from "@tau/editor";
+import { IOverlayBackDismiss, OverlayBackDismiss } from "@tau/editor/api";
+import { EditorKitScope } from "../../../../../packages/editor/src/kit/context";
+
+const overlayKit = createEditorKit({
+  services: [register => register(IOverlayBackDismiss, { Layer: MobileEditorOverlayDismiss })],
+});
 
 function CounterPage() {
   const { params, navigator } = usePage<{ todoId: number }>();
@@ -71,10 +78,12 @@ function HandledPickerPage() {
 function SheetHostPage() {
   const [sheetAOpen, setSheetAOpen] = useState(false);
   const [sheetBOpen, setSheetBOpen] = useState(false);
-  useSheetBackDismiss(sheetAOpen, () => setSheetAOpen(false));
-  useSheetBackDismiss(sheetBOpen, () => setSheetBOpen(false));
   return (
     <div>
+      <EditorKitScope kit={overlayKit}>
+        <OverlayBackDismiss open={sheetAOpen} onDismiss={() => setSheetAOpen(false)} />
+        <OverlayBackDismiss open={sheetBOpen} onDismiss={() => setSheetBOpen(false)} />
+      </EditorKitScope>
       <span data-testid="sheet-a">{String(sheetAOpen)}</span>
       <span data-testid="sheet-b">{String(sheetBOpen)}</span>
       <button type="button" onClick={() => setSheetAOpen(true)}>
@@ -543,7 +552,7 @@ describe("返回仲裁（浮层优先）", () => {
     app.cleanup();
   });
 
-  it("useSheetBackDismiss：本地 Sheet 打开时返回只关 Sheet，页面保留", async () => {
+  it("编辑器浮层适配：本地 Sheet 打开时返回只关 Sheet，页面保留", async () => {
     const app = mountApp();
     act(() => {
       getNavigator().push("sheetHost", {});

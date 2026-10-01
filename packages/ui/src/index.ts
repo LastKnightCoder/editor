@@ -35,3 +35,5 @@ export * from "./primitives/ImagePreview";
 export * from "./primitives/Tabs";
 export * from "./primitives/FileDropZone";
 export * from "./primitives/LoadingOverlay";
+export { lockBodyScroll } from "./hooks/lockBodyScroll";
+export { mergeRefs } from "./primitives/mergeRefs";

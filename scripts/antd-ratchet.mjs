@@ -34,6 +34,8 @@ const args = new Set(process.argv.slice(2));
 const whitelist = JSON.parse(readFileSync(WHITELIST_FILE, "utf8"));
 const current = walk(join(ROOT, "apps"))
   .concat(walk(join(ROOT, "packages")))
+  .concat(walk(join(ROOT, "editor-extensions")))
+  .concat(walk(join(ROOT, "examples")))
   .sort();
 
 const added = current.filter(file => !whitelist.includes(file));

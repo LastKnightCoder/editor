@@ -1,4 +1,4 @@
-import type { FormattedText } from "@tau/editor/src";
+import type { FormattedText } from "@tau/editor";
 
 export interface ContentLinkElement {
   type: "content-link";

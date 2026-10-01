@@ -1,5 +1,5 @@
 import type { Editor } from "slate";
-import type { EditorCommand, EditorHotkey } from "@tau/editor/src";
+import type { EditorCommand, EditorHotkey } from "@tau/editor";
 import type { MentionPanelStoreType } from "./stores/MentionPanelContext";
 import { editorPanels, cleanupMentionPanel } from "./plugins/withMentionCommands";
 

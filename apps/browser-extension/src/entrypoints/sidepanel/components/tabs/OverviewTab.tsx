@@ -4,12 +4,8 @@ import { RefreshCw, Copy, Check, AlertTriangle, Unplug } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import type WebSocketClient from "../../../../utils/WebSocketClient";
 import WebSocketClientImpl from "../../../../utils/WebSocketClient";
-import {
-  AI_RUN_METHODS,
-  MarkdownRenderer,
-  createRunEventFilter,
-  type AiRunEventNotification,
-} from "@tau/shared";
+import { AI_RUN_METHODS, createRunEventFilter, type AiRunEventNotification } from "@tau/shared";
+import { MarkdownRenderer } from "@tau/chat-ui";
 import { useTheme } from "../../../../hooks/useTheme";
 import { diagramLanguageRenderers } from "@tau/editor-diagram/renderers";
 import { useThemeStore } from "../../../../stores/useThemeStore";

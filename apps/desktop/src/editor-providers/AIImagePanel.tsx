@@ -5,7 +5,8 @@ import { ImageIcon, Plus, Sparkles, WandSparkles, X } from "lucide-react";
 import { Button, Dialog, DialogBody, ImagePreview, Spinner, Textarea, cn, toast } from "@tau/ui";
 
 import { showMediaNode } from "./mediaModalHost";
-import type { CustomElement, MediaAction, MediaInsertSource } from "@tau/editor/src";
+import type { CustomElement } from "@tau/editor";
+import { type MediaAction, type MediaInsertSource } from "@tau/editor-media/services";
 import LocalImage from "@/components/LocalImage";
 import {
   createImageFileFromBase64,

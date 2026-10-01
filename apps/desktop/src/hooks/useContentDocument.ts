@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { ContentSessionTarget, SharedContent } from "@tau/collaboration";
 import { createYjsDocument, type EditorCollaborationBinding } from "@tau/editor-collab";
-import type { EditorDocument } from "@tau/editor/src";
+import type { EditorDocument } from "@tau/editor";
 import useCollaborationDocument from "@/hooks/useCollaborationDocument";
 import useContentSession from "@/hooks/useContentSession";
 import { registerContentBinding } from "@/services/contentBindings";

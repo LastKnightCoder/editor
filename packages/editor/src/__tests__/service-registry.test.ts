@@ -1,8 +1,60 @@
 import { describe, expect, it, vi } from "vitest";
 import { createServiceId } from "../../api/services.ts";
 import { createServiceRegistry, createChildRegistry } from "../services/registry";
+import {
+  IResourceService,
+  IFileService,
+  IOpenerService,
+  type ResourceService,
+} from "@tau/shared/host-services";
+import { createEditorKit } from "../kit/EditorKit";
 
 describe("服务注册表的迁移边界", () => {
+  it("共用宿主契约保留原 id，旧标识对象与新入口读取同一个实例", async () => {
+    const upload = vi.fn(async (file: File) => file.name);
+    const resource: ResourceService = { upload };
+    const kit = createEditorKit({
+      services: [register => register(IResourceService, resource)],
+    });
+    const oldIdentifier = createServiceId<ResourceService>("resourceService");
+    expect(kit.registry.get(oldIdentifier)).toBe(resource);
+    expect(kit.registry.get(IResourceService)).toBe(resource);
+    const file = new File(["内容"], "example.png");
+    expect(await kit.registry.get(IResourceService).upload(file)).toBe("example.png");
+    expect(upload).toHaveBeenCalledWith(file);
+    expect(kit.registry.tryGet(IFileService)).toBeUndefined();
+    expect(kit.registry.tryGet(IOpenerService)).toBeUndefined();
+  });
+
+  it("资源服务按协作场景派生覆盖，父服务和编辑器装配保持稳定", async () => {
+    const parentUpload = vi.fn(async () => "parent://file");
+    const childUpload = vi.fn(async () => "child://file");
+    const parent = createEditorKit({
+      services: [
+        register =>
+          register(IResourceService, {
+            upload: parentUpload,
+            resolveCdnUrl: () => "cdn://image",
+          }),
+      ],
+    });
+    const derived = parent.extend({
+      services: [
+        register =>
+          register(IResourceService, {
+            ...parent.registry.get(IResourceService),
+            upload: childUpload,
+          }),
+      ],
+    });
+    const file = new File(["内容"], "example.png");
+    expect(await derived.registry.get(IResourceService).upload(file)).toBe("child://file");
+    expect(parentUpload).not.toHaveBeenCalled();
+    expect(parent.registry.get(IResourceService).upload).toBe(parentUpload);
+    expect(derived.registry.get(IResourceService).resolveCdnUrl?.()).toBe("cdn://image");
+    expect(derived.assembly).toBe(parent.assembly);
+  });
+
   const dependency = createServiceId<{ value: string }>("test.dependency");
   const consumer = createServiceId<{ dependency: { value: string } }>("test.consumer");
 

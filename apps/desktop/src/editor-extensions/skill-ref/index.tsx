@@ -13,8 +13,8 @@ import {
   type EditorHotkey,
   type ElementBehaviors,
   type ElementRenderProps,
-} from "@tau/editor/src";
-import type { ParagraphElement } from "@tau/editor/src";
+} from "@tau/editor";
+import type { ParagraphElement } from "@tau/editor";
 import type { SkillRefElement } from "./types";
 import {
   closeSkillPicker,

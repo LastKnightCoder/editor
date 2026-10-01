@@ -7,7 +7,7 @@ import { ingestAccepts, type IngestSource } from "../ingest";
 import { withIngest, resolveFileDropPoint } from "../../plugins/withIngest";
 import { createCircuitBreaker, type ExtensionCircuitBreaker } from "../../kit/extensionGuard";
 import { defineElement, defineExtension } from "../extension";
-import { createBareEditorKit } from "../../index";
+import { createEditorKit } from "../../index";
 
 const text = (value: string) => ({ type: "formatted", text: value });
 const paragraph = (value: string) => ({ type: "paragraph", children: [text(value)] });
@@ -246,7 +246,7 @@ describe("装配：ingest 声明收集与冲突", () => {
       ],
     });
     // bare kit：全量 kit 的内置 audio/image 扩展已声明同名 accept，会撞冲突检测
-    const kit = createBareEditorKit({ extensions: [audioIngest, v2] });
+    const kit = createEditorKit({ extensions: [audioIngest, v2] });
     const accepts = kit.assembly.ingestSources.map(source => source.files?.accept);
     expect(accepts).toEqual(expect.arrayContaining(["audio/*", "image/*"]));
   });
@@ -274,6 +274,6 @@ describe("装配：ingest 声明收集与冲突", () => {
         }),
       ],
     });
-    expect(() => createBareEditorKit({ extensions: [a, b] })).toThrow(/image\/\*/);
+    expect(() => createEditorKit({ extensions: [a, b] })).toThrow(/image\/\*/);
   });
 });

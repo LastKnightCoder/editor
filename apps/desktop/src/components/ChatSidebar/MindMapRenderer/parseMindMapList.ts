@@ -2,7 +2,7 @@ import { importFromMarkdown } from "@/utils/markdown";
 import { MindMapNodeData } from "@/components/MindMap/types";
 import { v4 as uuid } from "uuid";
 import { Descendant } from "slate";
-import { ParagraphElement } from "@tau/editor/src";
+import { ParagraphElement } from "@tau/editor";
 
 interface ListItemNode {
   type: "list-item";

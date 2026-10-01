@@ -1,20 +1,16 @@
+import { IFileService, IResourceService } from "@tau/shared/host-services";
 import { forwardRef } from "react";
 import type { ImgHTMLAttributes } from "react";
+import { createServiceRegistry, type ServiceRegistration, type ServiceRegistry } from "@tau/editor";
 import {
-  createServiceRegistry,
   IEditorSlots,
-  IFileService,
   IVideoContentProviders,
-  IResourceService,
-  type ServiceRegistration,
-  type ServiceRegistry,
-  type ImageBorderRadiusPreset,
-  type ImageShadowPreset,
   type EditorSlots,
-  type ImageAppearanceConfig,
   type VideoSlotProps,
   type AudioSlotProps,
-} from "@tau/editor";
+} from "@tau/editor-media/services";
+import { type ImageBorderRadiusPreset, type ImageShadowPreset } from "@tau/editor-media/types";
+import { type ImageAppearanceConfig } from "@tau/editor-media";
 import { AudioPlayer, VideoPlayer } from "@tau/shared";
 import { blogVideoContentProviders } from "../editor-providers/videoProviders";
 

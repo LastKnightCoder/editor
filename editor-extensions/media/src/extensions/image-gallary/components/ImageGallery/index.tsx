@@ -1,0 +1,186 @@
+import { useEffect, useState } from "react";
+import { Transforms } from "slate";
+import { RenderElementProps, useReadOnly, useSlateStatic } from "slate-react";
+import { Button, Dialog, DialogBody, cn } from "@tau/ui";
+import { Plus } from "lucide-react";
+
+import ImageGallerySetting, { ISetting } from "../ImageGallerySetting/index";
+import { If } from "@tau/shared";
+import { AddParagraph, getCommandElementPath, OverlayBackDismiss } from "@tau/editor/api";
+import SwipeImageGallery from "../SwipeImageGallery/index";
+import HorizontalImageGallery from "../HorizontalImageGallery/index";
+import VerticalImageGallery from "../VerticalImageGallery/index";
+import { useIsLastElement } from "@tau/editor/api";
+import { type ImageGalleryElement } from "../../../../types/index";
+import { EGalleryMode } from "../../../../types/index";
+import { useImageAppearance, type ImageAppearanceOption } from "../../../image/appearanceOption";
+import { imageGalleryActionsMap } from "../../utils/menu";
+
+interface IImageGalleryProps {
+  attributes: RenderElementProps["attributes"];
+  element: ImageGalleryElement;
+  children: RenderElementProps["children"];
+  appearance?: ImageAppearanceOption;
+}
+
+const ImageGallery = (props: IImageGalleryProps) => {
+  const { attributes, element, children, appearance: appearanceOption } = props;
+  const {
+    images,
+    height = 200,
+    mode,
+    wider = false,
+    columnCount = 3,
+    margins = 8,
+    lastRow = "nojustify",
+    borderRadius,
+    shadow,
+  } = element;
+  const isLast = useIsLastElement(element);
+
+  const [settingModalOpen, setSettingModalOpen] = useState(false);
+  const [setting, setSetting] = useState<ISetting>({
+    mode,
+    height,
+    images,
+    wider,
+    columnCount,
+    margins,
+    lastRow,
+    objectFit: element.objectFit,
+    borderRadius,
+    shadow,
+  });
+
+  const editor = useSlateStatic();
+  const readOnly = useReadOnly();
+  const appearance = useImageAppearance(appearanceOption);
+  const effectiveBorderRadius = borderRadius ?? appearance?.borderRadius ?? "none";
+  const effectiveShadow = shadow ?? appearance?.shadow ?? "none";
+
+  // 注册 actions 供菜单项调用
+  useEffect(() => {
+    imageGalleryActionsMap.set(element, {
+      openSettings: () => {
+        if (!readOnly) setSettingModalOpen(true);
+      },
+    });
+    return () => {
+      imageGalleryActionsMap.delete(element);
+    };
+  }, [element, readOnly]);
+
+  useEffect(() => {
+    if (readOnly) setSettingModalOpen(false);
+  }, [readOnly]);
+
+  const updateGallery = (properties: Partial<ImageGalleryElement>) => {
+    const path = getCommandElementPath(editor, { element });
+    if (path) Transforms.setNodes(editor, properties, { at: path });
+  };
+
+  const onCancel = () => {
+    setSetting({
+      mode,
+      height,
+      images,
+      wider,
+      columnCount,
+      margins,
+      lastRow,
+      objectFit: element.objectFit,
+      borderRadius,
+      shadow,
+    });
+    setSettingModalOpen(false);
+  };
+
+  const onOk = () => {
+    setSettingModalOpen(false);
+
+    updateGallery(setting);
+  };
+
+  return (
+    <div className={cn("relative", wider && "w-[calc(100%+10em)] -translate-x-[5em]")}>
+      <div {...attributes}>
+        <If condition={images.length > 0}>
+          <div contentEditable={false}>
+            <If condition={mode === EGalleryMode.Horizontal}>
+              <HorizontalImageGallery
+                items={images}
+                height={height}
+                margins={margins}
+                lastRow={lastRow}
+                borderRadius={effectiveBorderRadius}
+                shadow={effectiveShadow}
+                onUpdateDimensions={updatedImages => {
+                  updateGallery({ images: updatedImages });
+                }}
+              />
+            </If>
+            <If condition={mode === EGalleryMode.Vertical}>
+              <VerticalImageGallery
+                items={images}
+                columnCount={columnCount}
+                gap={margins}
+                borderRadius={effectiveBorderRadius}
+                shadow={effectiveShadow}
+                onUpdateDimensions={updatedImages => {
+                  updateGallery({ images: updatedImages });
+                }}
+              />
+            </If>
+            <If condition={mode === EGalleryMode.Inline}>
+              <SwipeImageGallery
+                items={images}
+                objectFit={element.objectFit}
+                borderRadius={effectiveBorderRadius}
+                shadow={effectiveShadow}
+              />
+            </If>
+          </div>
+        </If>
+        <If condition={images.length === 0}>
+          <div
+            contentEditable={false}
+            className="flex h-[10em] cursor-pointer items-center justify-center rounded-[0.5em] border-2 border-dashed border-[var(--ed-border)] bg-[var(--ed-bg-page)] text-[16px] hover:bg-[var(--ed-bg-hover)]"
+            onClick={() => {
+              if (!readOnly) setSettingModalOpen(true);
+            }}
+          >
+            <div className="flex flex-col items-center gap-[0.625em]">
+              <Plus size="1em" className="text-[1.5em]" />
+              <div>上传图片</div>
+            </div>
+          </div>
+        </If>
+        {!(readOnly && isLast) && <AddParagraph element={element} />}
+        <Dialog
+          open={settingModalOpen && !readOnly}
+          onOpenChange={next => !next && onCancel()}
+          title="图集设置"
+          width={720}
+          footer={
+            <>
+              <Button variant="secondary" size="sm" onClick={onCancel}>
+                取消
+              </Button>
+              <Button variant="primary" size="sm" onClick={onOk}>
+                确定
+              </Button>
+            </>
+          }
+        >
+          <OverlayBackDismiss open={settingModalOpen && !readOnly} onDismiss={onCancel} />
+          <DialogBody>
+            <ImageGallerySetting setting={setting} onSettingChange={setSetting} />
+          </DialogBody>
+        </Dialog>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+export default ImageGallery;

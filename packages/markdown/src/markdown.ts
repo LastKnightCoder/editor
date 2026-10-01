@@ -6,7 +6,6 @@ import remarkCjkFriendlyGfmStrikethrough from "remark-cjk-friendly-gfm-strikethr
 import remarkMath from "remark-math";
 import remarkDirective from "remark-directive";
 import remarkRehype from "remark-rehype";
-import { RETIRED_TYPES } from "@tau/db-schema/src/retired-editor-blocks.ts";
 import {
   UNKNOWN_NODE_DIRECTIVE,
   isRestoredNode,
@@ -16,8 +15,9 @@ import {
 import remarkFrontmatter from "remark-frontmatter";
 import type { Descendant } from "slate";
 import { visit } from "unist-util-visit";
-import type { HighlightColor, FormattedText } from "./types.ts";
-import { TEXT_GRADIENT_PRESETS, type TextGradientPresetId } from "./text-gradient.ts";
+import type { FormattedText } from "./types.ts";
+import type { MarkdownTextRegistry } from "./textCodec.ts";
+import { encodeTextLabel, UNKNOWN_TEXT_PREFIX } from "./unknownText.ts";
 import { PositionMapper } from "./positionMapper.ts";
 import type { ElementMapping, MarkdownPosition, TextMapping } from "./positionMapper.ts";
 
@@ -170,43 +170,25 @@ function processBuffer(buffer: { node: MarkdownAstNode; parent: MarkdownAstNodeW
   parent.children.splice(startIndex, nodes.length, mergedNode);
 }
 
-const KBD_OPEN_TAG_REGEX = /^<kbd(?:\s+[^>]*)?>$/i;
-const KBD_CLOSE_TAG_REGEX = /^<\/kbd>$/i;
-const TEXT_GRADIENT_PRESET_SET = new Set<TextGradientPresetId>(
-  Object.keys(TEXT_GRADIENT_PRESETS) as TextGradientPresetId[]
-);
-const resolveTextGradientPreset = (preset: unknown): TextGradientPresetId | undefined => {
-  if (typeof preset !== "string") return undefined;
-  return TEXT_GRADIENT_PRESET_SET.has(preset as TextGradientPresetId)
-    ? (preset as TextGradientPresetId)
-    : undefined;
+const htmlTag = (node: MarkdownAstNode, closing = false): string | null => {
+  if (node.type !== "html" || typeof node.value !== "string") return null;
+  const pattern = closing ? /^<\/([a-z][a-z0-9-]*)>$/i : /^<([a-z][a-z0-9-]*)(?:\s+[^>]*)?>$/i;
+  return node.value.trim().match(pattern)?.[1].toLowerCase() ?? null;
 };
 
-const isKbdOpenTagNode = (node: unknown): boolean => {
-  if (!isMarkdownAstNode(node)) return false;
-  if (node.type !== "html" || typeof node.value !== "string") {
-    return false;
-  }
-  return KBD_OPEN_TAG_REGEX.test(node.value.trim());
-};
-
-const isKbdCloseTagNode = (node: unknown): boolean => {
-  if (!isMarkdownAstNode(node)) return false;
-  if (node.type !== "html" || typeof node.value !== "string") {
-    return false;
-  }
-  return KBD_CLOSE_TAG_REGEX.test(node.value.trim());
-};
-
-const findMatchingKbdCloseIndex = (astNodes: MarkdownAstNode[], startIndex: number) => {
+const findMatchingHtmlCloseIndex = (
+  astNodes: MarkdownAstNode[],
+  startIndex: number,
+  tag: string
+) => {
   let depth = 0;
   for (let i = startIndex; i < astNodes.length; i++) {
     const node = astNodes[i];
-    if (isKbdOpenTagNode(node)) {
+    if (htmlTag(node) === tag) {
       depth += 1;
       continue;
     }
-    if (isKbdCloseTagNode(node)) {
+    if (htmlTag(node, true) === tag) {
       depth -= 1;
       if (depth === 0) {
         return i;
@@ -223,6 +205,7 @@ const restoreUnknownNode = (node: MarkdownAstNode): Descendant | null => {
       ? node.children?.find(child => child.type === "code" && child.lang === "json")?.value
       : node.attributes?.json;
   const restored = parseUnknownNode(json);
+  if (restored && isFormattedNode(restored) && node.type !== "textDirective") return null;
   return restored ? markRestored(restored) : null;
 };
 
@@ -231,7 +214,6 @@ const markdownToDescendant = (
   parentAstNode: unknown = null,
   astChildrenOfParent: unknown[] = []
 ): Descendant | Descendant[] | null => {
-  if (node.type.endsWith("Directive") && RETIRED_TYPES.has(node.name)) return null;
   if (node.type.endsWith("Directive") && node.name === UNKNOWN_NODE_DIRECTIVE) {
     const restored = restoreUnknownNode(node);
     if (restored) return restored;
@@ -286,122 +268,11 @@ const markdownToDescendant = (
       text: `::${node.name}`,
     };
   } else if (node.type === "textDirective") {
-    const attributes = node.attributes || {};
     const customTextHandler = getCurrentParseContext().customDirectiveHandlers.get(node.name);
     if (customTextHandler) {
-      return customTextHandler(attributes);
+      return customTextHandler(node.attributes || {});
     }
-    const color = attributes.color || "";
-    const darkColor = attributes.darkColor || "";
-    const textGradient = resolveTextGradientPreset(attributes.preset);
-    if (node.name === "color") {
-      const colorAttributes = { color, darkColor };
-      return node.children
-        .map(markdownToDescendant)
-        .filter(Boolean)
-        .map((item: Descendant | Descendant[] | null) => {
-          if (!item) return undefined;
-          if (Array.isArray(item)) {
-            return item
-              .map(i => {
-                if (!isFormattedNode(i)) return undefined;
-                return { ...i, ...colorAttributes };
-              })
-              .filter(Boolean) as Descendant[];
-          }
-          if (!isFormattedNode(item)) return item;
-          return { ...item, ...colorAttributes };
-        })
-        .filter(Boolean)
-        .flat() as Descendant[];
-    } else if (node.name === "gradient") {
-      const gradientAttributes = textGradient ? { textGradient } : {};
-      return node.children
-        .map(markdownToDescendant)
-        .filter(Boolean)
-        .map((item: Descendant | Descendant[] | null) => {
-          if (!item) return undefined;
-          if (Array.isArray(item)) {
-            return item
-              .map(i => {
-                if (!isFormattedNode(i)) return undefined;
-                return { ...i, ...gradientAttributes };
-              })
-              .filter(Boolean) as Descendant[];
-          }
-          if (!isFormattedNode(item)) return item;
-          return { ...item, ...gradientAttributes };
-        })
-        .filter(Boolean)
-        .flat() as Descendant[];
-    } else if (node.name === "highlight") {
-      const highlightColor = attributes.color || "yellow";
-      return node.children
-        .map(markdownToDescendant)
-        .filter(Boolean)
-        .map((item: Descendant | Descendant[] | null) => {
-          if (!item) return undefined;
-          if (Array.isArray(item)) {
-            return item
-              .map(i => {
-                if (!isFormattedNode(i)) return undefined;
-                return { ...i, highlight: highlightColor };
-              })
-              .filter(Boolean) as Descendant[];
-          }
-          if (!isFormattedNode(item)) return item;
-          return { ...item, highlight: highlightColor };
-        })
-        .filter(Boolean)
-        .flat() as Descendant[];
-    }
-    return {
-      type: "formatted",
-      text: `:${node.name}`,
-    };
-  } else if (node.type === "inlineCode") {
-    return {
-      type: "formatted",
-      text: node.value,
-      code: true,
-    };
-  } else if (["strong", "emphasis", "delete"].includes(node.type)) {
-    const attributes: {
-      bold?: boolean;
-      italic?: boolean;
-      strikethrough?: boolean;
-    } = {};
-    if (node.type === "strong") {
-      attributes.bold = true;
-    } else if (node.type === "emphasis") {
-      attributes.italic = true;
-    } else if (node.type === "delete") {
-      attributes.strikethrough = true;
-    }
-    return node.children
-      .map(markdownToDescendant)
-      .filter(Boolean)
-      .map((item: Descendant | Descendant[] | null) => {
-        if (!item) return undefined;
-        if (Array.isArray(item)) {
-          return item
-            .map(i => {
-              if (!isFormattedNode(i)) return;
-              return {
-                ...i,
-                ...attributes,
-              };
-            })
-            .filter(Boolean) as Descendant[];
-        }
-        if (!isFormattedNode(item)) return;
-        return {
-          ...item,
-          ...attributes,
-        };
-      })
-      .filter(Boolean)
-      .flat() as Descendant[];
+    return { type: "formatted", text: `:${node.name}` };
   } else if (node.type === "footnoteDefinition") {
     // 脚注定义已经在第一次遍历中处理了，这里忽略；引用式链接定义（definition）
     // 同理——内容已折进 link 节点，此前落入未知兜底会造出 text 为 undefined 的
@@ -410,7 +281,6 @@ const markdownToDescendant = (
   } else if (node.type === "definition") {
     return null;
   } else {
-    console.log("unknown node", node);
     if (
       parentNode &&
       (parentNode.type === "paragraph" ||
@@ -419,17 +289,12 @@ const markdownToDescendant = (
     ) {
       return {
         type: "formatted",
-        text: node.value || "",
+        text: node.value || extractTextFromNode(node),
       };
     }
     return {
       type: "paragraph",
-      children: [
-        {
-          type: "formatted",
-          text: node.value,
-        },
-      ],
+      children: node.children?.length ? [] : [{ type: "formatted", text: node.value || "" }],
     } as Descendant;
   }
 };
@@ -441,12 +306,14 @@ export interface ImportFromMarkdownOptions {
 
 /** 单次导入的解析上下文：随导入调用入栈 / 出栈，嵌套导入（handler 内再次导入）互不干扰 */
 interface MarkdownParseContext {
+  textRegistry: MarkdownTextRegistry;
   footnoteDefinitions: Map<string, string>;
   customDirectiveHandlers: Map<string, CustomDirectiveHandler>;
   /** 位置映射只记元素级范围的类型 */
   voidTypes: ReadonlySet<string>;
   /** 子文本按整体范围记前后缀的 text directive 名 */
   inlineWrapperDirectives: ReadonlySet<string>;
+  inlineHtmlWrappers: ReadonlyMap<string, NonNullable<MarkdownCodec["inlineHtmlWrapper"]>>;
   /** 围栏语言 → 认领该语言的元素（type + 源码字段名） */
   fenceByLanguage: ReadonlyMap<string, { type: string; property: string }>;
   /** 通用 mdast 认领（按声明顺序，首个认领生效） */
@@ -461,9 +328,11 @@ interface MarkdownParseContext {
 
 /** 处理器级配置：宿主 codec 合并后的结果（框架不自带任何元素类型） */
 export interface ImportConfig {
+  textRegistry: MarkdownTextRegistry;
   directives: Record<string, CustomDirectiveHandler>;
   voidTypes: ReadonlySet<string>;
   inlineWrapperDirectives: ReadonlySet<string>;
+  inlineHtmlWrappers?: ReadonlyMap<string, NonNullable<MarkdownCodec["inlineHtmlWrapper"]>>;
   fenceByLanguage: ReadonlyMap<string, { type: string; property: string }>;
   importNodes?: readonly NonNullable<MarkdownCodec["importNode"]>[];
   fenceSourceProperties?: ReadonlyMap<string, string>;
@@ -487,6 +356,7 @@ const withParseContext = <T>(
   run: () => T
 ): T => {
   parseContextStack.push({
+    textRegistry: config.textRegistry,
     footnoteDefinitions: new Map(),
     // 调用时传入的 customDirectives 覆盖处理器级 codec
     customDirectiveHandlers: new Map(
@@ -494,6 +364,7 @@ const withParseContext = <T>(
     ),
     voidTypes: config.voidTypes,
     inlineWrapperDirectives: config.inlineWrapperDirectives,
+    inlineHtmlWrappers: config.inlineHtmlWrappers ?? new Map(),
     fenceByLanguage: config.fenceByLanguage ?? new Map(),
     importNodes: config.importNodes ?? [],
     fenceSourceProperties: config.fenceSourceProperties ?? new Map(),
@@ -519,19 +390,10 @@ const extractTextFromNode = (node: unknown): string => {
   return "";
 };
 
-type MarkContext = {
-  bold?: boolean;
-  italic?: boolean;
-  strikethrough?: boolean;
-  code?: boolean;
-  color?: string;
-  darkColor?: string;
-  textGradient?: TextGradientPresetId;
-  highlight?: boolean | HighlightColor;
-};
+type MarkContext = Readonly<Record<string, unknown>>;
 
 const applyMarks = (node: Descendant, marks: MarkContext): Descendant => {
-  if (!isFormattedNode(node)) return node;
+  if (!isFormattedNode(node) || isRestoredNode(node)) return node;
   return {
     ...node,
     ...marks,
@@ -653,15 +515,8 @@ export const importFromMarkdownWithPositionsUsing = (
 ): SlateWithPositions =>
   withParseContext(config, options, () => importWithPositionsInContext(markdown, ignoreTypes));
 
-const importWithPositionsInContext = (
-  markdown: string,
-  ignoreTypes: string[]
-): SlateWithPositions => {
-  const footnoteDefinitions = getCurrentParseContext().footnoteDefinitions;
-
-  const positionMap = new PositionMapper();
-
-  const parseResult = unified()
+const createMarkdownParser = () =>
+  unified()
     .use(remarkParse)
     .use(remarkRehype, { allowDangerousHtml: true })
     .use(remarkHtmlProcessor)
@@ -670,8 +525,18 @@ const importWithPositionsInContext = (
     .use(remarkCjkFriendlyGfmStrikethrough)
     .use(remarkMath)
     .use(remarkDirective)
-    .use(remarkFrontmatter, ["yaml"])
-    .parse(markdown);
+    .use(remarkFrontmatter, ["yaml"]);
+
+const importWithPositionsInContext = (
+  markdown: string,
+  ignoreTypes: string[],
+  trackPositions = true
+): SlateWithPositions => {
+  const footnoteDefinitions = getCurrentParseContext().footnoteDefinitions;
+
+  const positionMap = new PositionMapper();
+
+  const parseResult = createMarkdownParser().parse(markdown);
 
   // 首次遍历：收集所有脚注定义
   const collectFootnoteDefinitions = (nodes: typeof parseResult.children) => {
@@ -725,15 +590,64 @@ const importWithPositionsInContext = (
         continue;
       }
 
-      if (isKbdOpenTagNode(astChildNode)) {
-        const closeIndex = findMatchingKbdCloseIndex(astNodes, astNodeIndex);
+      const isCarrier =
+        astChildNode.type.endsWith("Directive") && astChildNode.name === UNKNOWN_NODE_DIRECTIVE;
+      const restored = isCarrier ? restoreUnknownNode(astChildNode) : null;
+      if (
+        isCarrier &&
+        astChildNode.type === "textDirective" &&
+        (!restored || isFormattedNode(restored))
+      ) {
+        const start = toMarkdownPosition(astChildNode.position?.start);
+        const end = toMarkdownPosition(astChildNode.position?.end);
+        const startOffset = getOffset(astChildNode.position?.start);
+        const endOffset = getOffset(astChildNode.position?.end);
+        const raw =
+          startOffset !== null && endOffset !== null
+            ? markdown.slice(startOffset, endOffset)
+            : `:${UNKNOWN_NODE_DIRECTIVE}`;
+        const item = restored ?? { type: "formatted" as const, text: raw, ...markContext };
+        const path = [...parentPath, slateResultArray.length];
+        slateResultArray.push(item);
+        if (trackPositions) {
+          const text = getFormattedText(item);
+          const encoded = encodeTextLabel(text);
+          const canonicalLabel =
+            Boolean(restored) &&
+            raw.startsWith(UNKNOWN_TEXT_PREFIX + encoded.label + "]") &&
+            start.line === end.line;
+          const sourceOffsets = canonicalLabel
+            ? encoded.offsets.map(offset => UNKNOWN_TEXT_PREFIX.length + offset)
+            : undefined;
+          const exactLiteral = !restored && start.line === end.line;
+          positionMap.addTextMapping({
+            type: "text",
+            slateTextPath: path,
+            slateOffset: 0,
+            slateLength: text.length,
+            mdLine: start.line,
+            mdCh: start.ch,
+            mdLength: raw.length,
+            prefixLength: canonicalLabel ? UNKNOWN_TEXT_PREFIX.length : 0,
+            suffixLength: canonicalLabel
+              ? raw.length - UNKNOWN_TEXT_PREFIX.length - encoded.label.length
+              : 0,
+            ...(sourceOffsets ? { sourceOffsets } : {}),
+            ...(!canonicalLabel && !exactLiteral ? { opaque: true, mdEnd: end } : {}),
+          });
+        }
+        astNodeIndex += 1;
+        continue;
+      }
+
+      const tag = htmlTag(astChildNode);
+      const htmlWrapper = tag ? getCurrentParseContext().inlineHtmlWrappers.get(tag) : undefined;
+      if (htmlWrapper && tag) {
+        const closeIndex = findMatchingHtmlCloseIndex(astNodes, astNodeIndex, tag);
         if (closeIndex > astNodeIndex) {
           const closeNode = astNodes[closeIndex];
           const innerAstNodes = astNodes.slice(astNodeIndex + 1, closeIndex);
-          const slateNode: Descendant = {
-            type: "kbd",
-            children: [],
-          } as Descendant;
+          const slateNode = htmlWrapper.create(astChildNode);
 
           const insertIndex = slateResultArray.length;
           slateResultArray.push(slateNode);
@@ -758,104 +672,22 @@ const importWithPositionsInContext = (
         }
       }
 
-      if (astChildNode.type === "strong") {
+      const textClaim = restored ? null : getCurrentParseContext().textRegistry.claim(astChildNode);
+      if (textClaim?.rule.content === "children") {
         dfsWithPositions(
           astChildNode.children || [],
           slateResultArray,
           ignoreTypes,
           astChildNode,
           parentPath,
-          { ...markContext, bold: true },
-          astChildNode.position
+          { ...markContext, ...textClaim.marks },
+          textClaim.rule.position === "inherit" ? wrapperPosition : astChildNode.position
         );
         astNodeIndex += 1;
         continue;
       }
 
-      if (astChildNode.type === "emphasis") {
-        dfsWithPositions(
-          astChildNode.children || [],
-          slateResultArray,
-          ignoreTypes,
-          astChildNode,
-          parentPath,
-          { ...markContext, italic: true },
-          astChildNode.position
-        );
-        astNodeIndex += 1;
-        continue;
-      }
-
-      if (astChildNode.type === "delete") {
-        dfsWithPositions(
-          astChildNode.children || [],
-          slateResultArray,
-          ignoreTypes,
-          astChildNode,
-          parentPath,
-          { ...markContext, strikethrough: true },
-          astChildNode.position
-        );
-        astNodeIndex += 1;
-        continue;
-      }
-
-      if (astChildNode.type === "textDirective") {
-        if (astChildNode.name === "color") {
-          const attributes = astChildNode.attributes || {};
-          dfsWithPositions(
-            astChildNode.children || [],
-            slateResultArray,
-            ignoreTypes,
-            astChildNode,
-            parentPath,
-            {
-              ...markContext,
-              color: attributes.color || "",
-              darkColor: attributes.darkColor || "",
-            },
-            wrapperPosition
-          );
-          astNodeIndex += 1;
-          continue;
-        }
-
-        if (astChildNode.name === "gradient") {
-          const attributes = astChildNode.attributes || {};
-          const textGradient = resolveTextGradientPreset(attributes.preset);
-          dfsWithPositions(
-            astChildNode.children || [],
-            slateResultArray,
-            ignoreTypes,
-            astChildNode,
-            parentPath,
-            textGradient ? { ...markContext, textGradient } : { ...markContext },
-            wrapperPosition
-          );
-          astNodeIndex += 1;
-          continue;
-        }
-
-        if (astChildNode.name === "highlight") {
-          const attributes = astChildNode.attributes || {};
-          dfsWithPositions(
-            astChildNode.children || [],
-            slateResultArray,
-            ignoreTypes,
-            astChildNode,
-            parentPath,
-            {
-              ...markContext,
-              highlight: (attributes.color || "yellow") as HighlightColor,
-            },
-            wrapperPosition
-          );
-          astNodeIndex += 1;
-          continue;
-        }
-      }
-
-      if (astChildNode.type === "text") {
+      if (astChildNode.type === "text" && !textClaim) {
         const slateNode: Descendant = {
           type: "formatted",
           text: astChildNode.value || "",
@@ -866,12 +698,14 @@ const importWithPositionsInContext = (
         slateResultArray.push(slateNode);
         const slatePath = [...parentPath, insertIndex];
 
-        const mapping = buildTextMapping({
-          slateTextPath: slatePath,
-          text: astChildNode.value || "",
-          textPosition: astChildNode.position,
-          wrapperPosition,
-        });
+        const mapping = trackPositions
+          ? buildTextMapping({
+              slateTextPath: slatePath,
+              text: astChildNode.value || "",
+              textPosition: astChildNode.position,
+              wrapperPosition,
+            })
+          : null;
         if (mapping) {
           positionMap.addTextMapping(mapping);
         }
@@ -879,12 +713,12 @@ const importWithPositionsInContext = (
         continue;
       }
 
-      if (astChildNode.type === "inlineCode") {
+      if (textClaim?.rule.content === "value") {
         const slateNode: Descendant = {
           type: "formatted",
           text: astChildNode.value || "",
           ...markContext,
-          code: true,
+          ...textClaim.marks,
         };
 
         const insertIndex = slateResultArray.length;
@@ -900,14 +734,16 @@ const importWithPositionsInContext = (
         const prefixLength = Math.floor(extra / 2);
         const suffixLength = extra - prefixLength;
 
-        const mapping = buildTextMapping({
-          slateTextPath: slatePath,
-          text: astChildNode.value || "",
-          textPosition: astChildNode.position,
-          wrapperPosition: astChildNode.position,
-          prefixLengthOverride: prefixLength,
-          suffixLengthOverride: suffixLength,
-        });
+        const mapping = trackPositions
+          ? buildTextMapping({
+              slateTextPath: slatePath,
+              text: astChildNode.value || "",
+              textPosition: astChildNode.position,
+              wrapperPosition: astChildNode.position,
+              prefixLengthOverride: prefixLength,
+              suffixLengthOverride: suffixLength,
+            })
+          : null;
         if (mapping) {
           positionMap.addTextMapping(mapping);
         }
@@ -932,16 +768,19 @@ const importWithPositionsInContext = (
         const slatePath = [...parentPath, insertIndex];
 
         if (isFormattedNode(node)) {
-          const mapping = buildTextMapping({
-            slateTextPath: slatePath,
-            text: getFormattedText(node),
-            textPosition: astChildNode.position,
-            wrapperPosition,
-          });
+          const mapping = trackPositions
+            ? buildTextMapping({
+                slateTextPath: slatePath,
+                text: getFormattedText(node),
+                textPosition: astChildNode.position,
+                wrapperPosition,
+              })
+            : null;
           if (mapping) {
             positionMap.addTextMapping(mapping);
           }
         } else if (
+          trackPositions &&
           astChildNode.position &&
           (isVoidSlateElementType(getNodeType(node)) || isRestoredNode(node))
         ) {
@@ -1041,7 +880,7 @@ const importWithPositionsInContext = (
           } as Descendant,
         ];
 
-  positionMap.pruneInvalidPaths(path => isPathInNodes(content, path));
+  if (trackPositions) positionMap.pruneInvalidPaths(path => isPathInNodes(content, path));
 
   return {
     content,
@@ -1056,135 +895,41 @@ export const importFromMarkdownUsing = (
   options?: ImportFromMarkdownOptions
 ): Descendant[] => withParseContext(config, options, () => importInContext(markdown, ignoreTypes));
 
-const importInContext = (markdown: string, ignoreTypes: string[]): Descendant[] => {
-  const footnoteDefinitions = getCurrentParseContext().footnoteDefinitions;
-  // 历史版本曾为绕过 CJK 加粗解析问题在 markdown 中驻留零宽空格，导入时剥离净化；
-  // importFromMarkdownWithPositions 因位置映射绑定原始串，不做剥离
-  const sanitized = markdown.replace(/\u200B/g, "");
-  const parseResult = unified()
-    .use(remarkParse)
-    .use(remarkRehype, { allowDangerousHtml: true })
-    .use(remarkHtmlProcessor)
-    .use(remarkGfm)
-    .use(remarkCjkFriendly)
-    .use(remarkCjkFriendlyGfmStrikethrough)
-    .use(remarkMath)
-    .use(remarkDirective)
-    .use(remarkFrontmatter, ["yaml"])
-    .parse(sanitized);
-
-  // 首次遍历：收集所有脚注定义
-  const collectFootnoteDefinitions = (nodes: typeof parseResult.children) => {
-    for (const node of nodes) {
-      if (node.type === "footnoteDefinition") {
-        // 提取脚注内容
-        const content = extractTextFromNode(node);
-        footnoteDefinitions.set(node.identifier, content);
-      }
+const stripLegacyZeroWidths = (markdown: string): string => {
+  if (!markdown.includes("\u200B")) return markdown;
+  if (!markdown.includes(UNKNOWN_NODE_DIRECTIVE)) return markdown.replace(/\u200B/g, "");
+  const ranges: Array<{ start: number; end: number }> = [];
+  const collect = (node: MarkdownAstNode) => {
+    const start = node.position?.start?.offset;
+    const end = node.position?.end?.offset;
+    if (
+      node.type.endsWith("Directive") &&
+      node.name === UNKNOWN_NODE_DIRECTIVE &&
+      typeof start === "number" &&
+      typeof end === "number"
+    ) {
+      ranges.push({ start, end });
+      return;
     }
+    for (const child of node.children ?? []) collect(child);
   };
-
-  collectFootnoteDefinitions(parseResult.children);
-
-  const editor: Descendant[] = [];
-
-  const dfs = (
-    astNodes: MarkdownAstNode[],
-    slateResultArray: Descendant[],
-    ignoreTypes: string[] = [],
-    parentAstNodeForChildren: MarkdownAstNode | null = null
-  ) => {
-    let astNodeIndex = 0;
-    let skipUntilIndex = -1;
-
-    for (const astChildNode of astNodes) {
-      if (astNodeIndex <= skipUntilIndex) {
-        astNodeIndex += 1;
-        continue;
-      }
-
-      while (
-        astChildNode.type === "link" &&
-        astChildNode.children &&
-        astChildNode.children.some((c: MarkdownAstNode) => c.type === "html")
-      ) {
-        const index = astChildNode.children.findIndex(
-          (child: MarkdownAstNode) => child.type === "html"
-        );
-        const paragraph = astChildNode.children[index];
-        paragraph.type = "text";
-      }
-      if (ignoreTypes.includes(astChildNode.type)) {
-        astNodeIndex += 1;
-        continue;
-      }
-
-      if (isKbdOpenTagNode(astChildNode)) {
-        const closeIndex = findMatchingKbdCloseIndex(astNodes, astNodeIndex);
-        if (closeIndex > astNodeIndex) {
-          const innerAstNodes = astNodes.slice(astNodeIndex + 1, closeIndex);
-          const kbdNode: Descendant = {
-            type: "kbd",
-            children: [],
-          } as Descendant;
-          slateResultArray.push(kbdNode);
-          dfs(innerAstNodes, getDescendantChildren(kbdNode), ignoreTypes, astChildNode);
-          skipUntilIndex = closeIndex;
-          astNodeIndex += 1;
-          continue;
-        }
-      }
-
-      const slateNode = markdownToDescendant(astChildNode, parentAstNodeForChildren, astNodes);
-      if (!slateNode) {
-        astNodeIndex += 1;
-        continue;
-      }
-      if (!Array.isArray(slateNode)) {
-        slateResultArray.push(slateNode);
-        if (astChildNode.children && !isFormattedNode(slateNode) && !isRestoredNode(slateNode)) {
-          dfs(astChildNode.children, getDescendantChildren(slateNode), ignoreTypes, astChildNode);
-        }
-      } else {
-        slateResultArray.push(...slateNode);
-      }
-
-      astNodeIndex += 1;
-    }
-  };
-
-  // 添加 footnoteDefinition 到忽略类型，因为我们已经手动处理了
-  const extendedIgnoreTypes = [...ignoreTypes, "footnoteDefinition"];
-  dfs(
-    parseResult.children as unknown as MarkdownAstNode[],
-    editor,
-    extendedIgnoreTypes,
-    parseResult as unknown as MarkdownAstNode
-  );
-
-  let beforeNormalize = editor;
-  let afterNormalize = normalizeEditorContent(editor);
-  let count = 10;
-  while (JSON.stringify(beforeNormalize) !== JSON.stringify(afterNormalize) && count > 0) {
-    beforeNormalize = afterNormalize;
-    afterNormalize = normalizeEditorContent(afterNormalize);
-    count -= 1;
+  collect(createMarkdownParser().parse(markdown) as unknown as MarkdownAstNode);
+  const parts: string[] = [];
+  let cursor = 0;
+  for (const range of ranges.sort((a, b) => a.start - b.start)) {
+    if (range.start < cursor) continue;
+    parts.push(
+      markdown.slice(cursor, range.start).replace(/\u200B/g, ""),
+      markdown.slice(range.start, range.end)
+    );
+    cursor = range.end;
   }
-  if (afterNormalize.length === 0) {
-    return [
-      {
-        type: "paragraph",
-        children: [
-          {
-            type: "formatted",
-            text: "",
-          },
-        ],
-      } as Descendant,
-    ];
-  }
-  return afterNormalize;
+  parts.push(markdown.slice(cursor).replace(/\u200B/g, ""));
+  return parts.join("");
 };
+
+const importInContext = (markdown: string, ignoreTypes: string[]): Descendant[] =>
+  importWithPositionsInContext(stripLegacyZeroWidths(markdown), ignoreTypes, false).content;
 
 const normalizeEditorContent = (
   editor: Descendant[],
@@ -1224,7 +969,8 @@ const normalizeEditorContent = (
       }
     }
     if (!isFormattedNode(element) && "children" in element) {
-      element.children = normalizeEditorContent(element.children, [], element);
+      const container = element as { children: Descendant[] };
+      container.children = normalizeEditorContent(getDescendantChildren(element), [], element);
     }
 
     result.push(element);

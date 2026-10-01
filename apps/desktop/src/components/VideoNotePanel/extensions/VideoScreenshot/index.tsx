@@ -7,11 +7,11 @@ import {
   type EditorCommand,
   type EditorHotkey,
   type ElementRenderProps,
-} from "@tau/editor/src";
+} from "@tau/editor";
 import { ReactEditor } from "slate-react";
 import VideoScreenshot from "./components/VideoScreenshot";
 import { formatTimestamp } from "../VideoTimestamp";
-import type { FormattedText } from "@tau/editor/src";
+import type { FormattedText } from "@tau/editor";
 
 export interface VideoScreenshotElement {
   type: "video-screenshot";

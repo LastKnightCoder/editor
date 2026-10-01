@@ -23,17 +23,7 @@ vi.mock("@/services/editorKit", () => ({
   getFlashcardKit: () => ({}),
   getArrowLabelKit: () => ({}),
 }));
-vi.mock("@tau/editor/src", async () => {
-  // 拖拽手柄 / 插入线是纯展示件，用真实实现；只桩掉依赖编辑器上下文的部分
-  const blockDrag = await vi.importActual<typeof import("@tau/editor/src/components/BlockDrag")>(
-    "@tau/editor/src/components/BlockDrag"
-  );
-  return {
-    ...blockDrag,
-    AddParagraph: () => null,
-    useDragAndDrop: () => ({ drag: vi.fn(), drop: vi.fn() }),
-  };
-});
+vi.mock("@tau/editor", () => ({ AddParagraph: () => null }));
 vi.mock("@/commands", () => ({
   getProjectItemById: async () => ({ children: [11, 12] }),
   getProjectItemsByIds: async () => [
@@ -97,7 +87,8 @@ describe("项目文档列表卡片导航", () => {
     });
 
     const cards = container.querySelectorAll('[contenteditable="false"]');
-    expect(cards.length).toBe(3);
+    expect(cards.length).toBe(2);
+    expect([...cards].map(card => card.textContent)).toEqual(["子文档一摘要一", "子文档二摘要二"]);
     for (const [target, itemId] of [
       [cards[0].firstElementChild!, 11],
       [cards[1].lastElementChild!, 12],

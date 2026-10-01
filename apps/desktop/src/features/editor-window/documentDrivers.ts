@@ -9,7 +9,7 @@
 import type { Descendant } from "slate";
 import { CreditCard, FileText, FolderOpen, type LucideIcon } from "lucide-react";
 import type { EditorWindowKind } from "@tau/platform";
-import type { AnyExtension } from "@tau/editor/src";
+import type { AnyExtension } from "@tau/editor";
 import { getCardById, updateCard } from "@/commands/card";
 import { findOneArticle, updateArticle } from "@/commands/article";
 import { getProjectItemById, updateProjectItem } from "@/commands/project";

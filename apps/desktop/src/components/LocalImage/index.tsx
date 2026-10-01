@@ -1,4 +1,5 @@
-﻿import React, { forwardRef, useState } from "react";
+import { IResourceService } from "@tau/shared/host-services";
+import React, { forwardRef, useState } from "react";
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import { remoteResourceToLocal } from "@/utils";
 import { getHomeDir } from "@/commands";
@@ -6,7 +7,7 @@ import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
 import useSettingStore from "@/stores/useSettingStore";
 import { addRemoteImageCacheEntry } from "@/commands/remote-image-cache";
 import { ASSET_PREFIX } from "@tau/collaboration";
-import { IResourceService, useOptionalService } from "@tau/editor/src";
+import { useOptionalService } from "@tau/editor";
 import {
   resolveLocalMediaPath,
   isDirectMediaUrl,

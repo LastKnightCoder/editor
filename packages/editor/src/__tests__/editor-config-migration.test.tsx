@@ -1,27 +1,23 @@
+import { IOpenerService } from "@tau/shared/host-services";
 // P4：EditorConfig 字段拆到服务 / 扩展参数后，钉住每个字段的新入口与默认行为。
-import { act } from "react";
+import { act, isValidElement, type FunctionComponent } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Descendant } from "slate";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
-import {
-  Editor,
-  type ImageAppearanceConfig,
-  type ImageAppearanceSource,
-  createEditorKit,
-  createHeaderExtension,
-  type EditorExtension,
-} from "../index";
-import { useImageAppearance } from "../extensions/image/appearanceOption";
-import { createImageExtensions } from "../extensions/image/createImageExtensions";
-import {
-  createDefaultEditorSlots,
-  IEditorSlots,
-  IOpenerService,
-  type ServiceRegistration,
-} from "../services";
+import { Editor, createEditorKit, type EditorExtension } from "../index";
+import type { ElementRenderProps } from "../api";
+import { createHeaderExtension } from "@tau/editor-header";
+import { type ImageAppearanceConfig, type ImageAppearanceSource } from "@tau/editor-media";
+import { useImageAppearance } from "../../../../editor-extensions/media/src/extensions/image/appearanceOption";
+import headerExtension from "@tau/editor-header";
+import { default as linkExtension } from "@tau/editor-link";
+import { createImageExtensions } from "@tau/editor-media";
+import { type ServiceRegistration } from "../services";
+import { createDefaultEditorSlots } from "@tau/editor-media/slots";
+import { IEditorSlots } from "@tau/editor-media/services";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -55,6 +51,7 @@ describe("P4 EditorConfig 拆解", () => {
 
   const mount = async (initValue: Descendant[], registrations: ServiceRegistration[] = []) => {
     const kit = createEditorKit({
+      extensions: [headerExtension, linkExtension],
       services: [register => register(IEditorSlots, createDefaultEditorSlots()), ...registrations],
     });
     container = document.createElement("div");
@@ -149,26 +146,21 @@ describe("P4 EditorConfig 拆解", () => {
     it("createImageExtensions 同时覆盖 image 与 image-gallery，并把参数交给块组件", () => {
       const appearance = { borderRadius: "md" as const };
       const extensions = createImageExtensions({ appearance });
-      // image 迁移前是旧 IExtension（type/render 在顶层）、迁移后在 elements 里
-      const typeOf = (extension: unknown) =>
-        (extension as { type?: string }).type ??
-        ((extension as { elements?: { type: string }[] }).elements?.[0].type as string);
+      const typeOf = (extension: EditorExtension) => extension.elements?.[0]?.type;
       expect(extensions.map(typeOf)).toEqual(["image", "image-gallery"]);
       for (const extension of extensions) {
-        // 旧 IExtension 的 render 是类方法（依赖 this），保持方法调用；v2 的在 elements[0]
+        const spec = extension.elements?.[0];
+        if (!spec) throw new Error("图片工厂未提供元素声明");
         const props = {
           attributes: {} as never,
           element: { type: typeOf(extension), children: [{ type: "formatted", text: "" }] },
           children: null,
         } as never;
-        const legacy = extension as { render?: (props: unknown) => unknown };
-        const element =
-          typeof legacy.render === "function"
-            ? legacy.render(props)
-            : (
-                extension as { elements: { render: (props: unknown) => unknown }[] }
-              ).elements[0].render(props);
-        expect((element.props as { appearance?: unknown }).appearance).toBe(appearance);
+        const render = spec.render as FunctionComponent<ElementRenderProps>;
+        const element = render(props);
+        if (!isValidElement<{ appearance?: unknown }>(element))
+          throw new Error("图片工厂必须返回元素");
+        expect(element.props.appearance).toBe(appearance);
       }
     });
   });
@@ -186,6 +178,7 @@ describe("P4 EditorConfig 拆解", () => {
 
     const mountWith = async (extensions?: EditorExtension[]) => {
       const kit = createEditorKit({
+        extensions: [headerExtension],
         services: [register => register(IEditorSlots, createDefaultEditorSlots())],
       });
       container = document.createElement("div");

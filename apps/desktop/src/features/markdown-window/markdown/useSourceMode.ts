@@ -18,7 +18,7 @@ import {
 import { ReactEditor } from "slate-react";
 import type { Editor as CodeMirrorEditor } from "codemirror";
 import { useMemoizedFn } from "ahooks";
-import type { EditorRef } from "@tau/editor/src";
+import type { EditorRef } from "@tau/editor";
 import { getCodeBlockController } from "@tau/editor-code-block/runtime";
 import { getMarkdownWithPositions, importFromMarkdownWithPositions } from "@/utils/markdown";
 

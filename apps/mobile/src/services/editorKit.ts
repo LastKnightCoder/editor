@@ -4,8 +4,10 @@
  *
  * 用函数延迟创建，避免与扩展模块的初始化顺序耦合（同 desktop，见 04 踩坑）。
  */
-import { createEditorKit, createImageExtensions, type EditorKit } from "@tau/editor/src";
-import { createMarkdownPasteImportExtension, type AnyExtension } from "@tau/editor/src";
+import { createEditorKit, type EditorKit } from "@tau/editor";
+import { createImageExtensions } from "@tau/editor-media";
+import { standardExtensions } from "../../../../editor-extensions/standard";
+import { createMarkdownPasteImportExtension, type AnyExtension } from "@tau/editor";
 import webviewExtension from "@tau/editor-webview";
 import customBlockExtension from "@tau/editor-custom-block";
 import { diagramExtensions } from "@tau/editor-diagram";
@@ -13,6 +15,7 @@ import { htmlExtensions } from "@tau/editor-html";
 import { previewMenuExtension } from "@tau/editor-source-view/menu";
 import codeBlockExtension from "@tau/editor-code-block";
 import { mathExtensions } from "@tau/editor-math";
+import emojiExtension from "@tau/editor-emoji";
 import { flashcardBlankExtension } from "../features/flashcard/blank/FlashcardBlankExtension";
 import { mobileCardPreviewExtensions } from "../features/cards/editorExtensions";
 import {
@@ -32,11 +35,13 @@ function createMobileKit(extras: readonly AnyExtension[] = []): EditorKit {
   if (!kit) {
     kit = createEditorKit({
       extensions: [
+        ...standardExtensions,
         ...diagramExtensions,
         ...htmlExtensions,
         previewMenuExtension,
         codeBlockExtension,
         ...mathExtensions,
+        emojiExtension,
         customBlockExtension,
         createMarkdownPasteImportExtension(mobileImportFromMarkdown),
         webviewExtension,

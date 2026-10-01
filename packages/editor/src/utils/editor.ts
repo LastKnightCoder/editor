@@ -18,6 +18,7 @@ import {
 } from "./element";
 import { ReactEditor } from "slate-react";
 import { ParagraphElement, BlockElement } from "../types";
+import { createParagraph } from "../model/paragraph";
 
 export const getCurrentTextNode = (editor: Editor) => {
   const [match] = Editor.nodes(editor, {
@@ -73,24 +74,27 @@ export const isAtParagraphStart = (editor: Editor) => {
   return Editor.isStart(editor, selection.anchor, curEle[1]);
 };
 
-export const insertParagraphAndFocus = (editor: Editor, node: Node) => {
-  if (!Element.isElement(node)) {
-    return;
+export const insertParagraphAndFocus = (editor: Editor, node: Element): Path | null => {
+  if (ReactEditor.isReadOnly(editor) || !Element.isElement(node)) {
+    return null;
   }
-  ReactEditor.focus(editor);
-  const path = ReactEditor.findPath(editor, node);
+  let path: Path;
+  try {
+    path = ReactEditor.findPath(editor, node);
+    if (!path.length || Node.get(editor, path) !== node) return null;
+    if (!ReactEditor.toDOMNode(editor, editor).isConnected) return null;
+  } catch {
+    // DOM 映射可能仍持有已删除、替换或卸载的目标。
+    return null;
+  }
   const nextPath = Path.next(path);
-  Transforms.insertNodes(
-    editor,
-    {
-      type: "paragraph",
-      children: [{ type: "formatted", text: "" }],
-    },
-    {
-      at: nextPath,
-      select: true,
-    }
-  );
+  Transforms.insertNodes(editor, createParagraph(), { at: nextPath, select: true });
+  try {
+    ReactEditor.focus(editor);
+  } catch {
+    // 内容已写入，DOM 焦点暂不可用不应把追加结果报告为失败。
+  }
+  return nextPath;
 };
 
 export const replaceNode = (editor: Editor, node: Node, match: NodeMatch<Node>, options = {}) => {

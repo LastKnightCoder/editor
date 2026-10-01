@@ -4,7 +4,7 @@ import { MdFullscreen, MdFullscreenExit } from "react-icons/md";
 import { createPortal } from "react-dom";
 import { ReactEditor, useSlateStatic } from "slate-react";
 import { Transforms } from "slate";
-import { AddParagraph, IExtensionBaseProps } from "@tau/editor/src";
+import { AddParagraph, type ElementRenderProps } from "@tau/editor/api";
 
 import { If } from "@tau/shared";
 import WhiteBoard, {
@@ -18,9 +18,9 @@ import { WhiteBoardContent } from "@/types";
 
 import { useMemoizedFn } from "ahooks";
 import { Loader2 } from "lucide-react";
-import useIsLastElement from "@tau/editor/src/hooks/useIsLastElement";
+import { useIsLastElement } from "@tau/editor/api";
 import type { WhiteboardElement } from "../../types";
-type IWhiteboardProps = IExtensionBaseProps<WhiteboardElement>;
+type IWhiteboardProps = ElementRenderProps<WhiteboardElement>;
 
 /** 右上角全屏 / 退出全屏按钮 */
 const FLOATING_BUTTON_CLASS =
@@ -240,7 +240,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
         style={{ height }}
         contentEditable={false}
       >
-        <p className="text-sm text-ink-3">白板不存在或者被删除</p>
+        <p className="text-ink-3 text-sm">白板不存在或者被删除</p>
       </div>
     );
   }

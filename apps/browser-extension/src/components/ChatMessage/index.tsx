@@ -1,19 +1,21 @@
 import { memo, useCallback, useMemo } from "react";
 import { toast } from "@tau/ui";
 import {
+  buildLegacyAssistantDisplayBlocks,
+  type ChatMessageType,
+  type ContentBlock,
+  type MessageContentItem,
+  type ToolCallExecutionState,
+} from "@tau/shared";
+import {
   ChatMessageView,
   type ChatMessageViewFile,
   type ChatMessageViewImage,
   type ChatMessageViewMarkdownRenderParams,
   ChatMarkdownRenderer,
   ChatToolCallDisplay,
-  buildLegacyAssistantDisplayBlocks,
-  type ChatMessageType,
   type CodeBlockPreviewPayload,
-  type ContentBlock,
-  type MessageContentItem,
-  type ToolCallExecutionState,
-} from "@tau/shared";
+} from "@tau/chat-ui";
 import type WebSocketClient from "../../utils/WebSocketClient";
 
 export type { ChatMessageType };
@@ -199,13 +201,7 @@ export function ChatMessage({
         messageApi={toast}
       />
     ),
-    [
-      handleLinkClick,
-      handlePreviewCodeBlock,
-      handleReferenceClick,
-      isDark,
-      wsClient?.isConnected,
-    ]
+    [handleLinkClick, handlePreviewCodeBlock, handleReferenceClick, isDark, wsClient?.isConnected]
   );
 
   return (

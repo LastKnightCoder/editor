@@ -7,7 +7,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Drawer, Loading, useRetainedValue } from "@tau/ui";
-import { EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor";
 import Editor from "@/components/ContentEditor";
 import useEditContent from "@/hooks/useEditContent";
 import { getEditorText } from "@/utils/editor";

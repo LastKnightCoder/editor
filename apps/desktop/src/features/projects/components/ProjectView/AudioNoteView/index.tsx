@@ -4,7 +4,7 @@ import { FileText, Pencil, ChevronDown, Sparkles } from "lucide-react";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
 import classNames from "classnames";
 import { Descendant } from "slate";
-import { EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor";
 import Editor from "@/components/ContentEditor";
 import { importFromMarkdown } from "@/utils/markdown";
 import ResizablePanel from "@/components/ResizablePanel";

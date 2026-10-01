@@ -4,7 +4,7 @@ import {
   focusPreviousBlock,
   getSiblingBlockEntry,
   hasBlockNavigation,
-  hasAncestorBlockType,
+  hasBlockNavigationBoundary,
 } from "../utils/blockNavigation";
 import { isBlockElementEmpty } from "../utils";
 import { BlockElement } from "../types";
@@ -46,7 +46,7 @@ const tryNavigatePrevious = (editor: Editor, removeIfEmpty: boolean) => {
     return false;
   }
 
-  if (hasAncestorBlockType(editor, blockEntry[1], ["tabs"])) {
+  if (hasBlockNavigationBoundary(editor, blockEntry[1])) {
     return false;
   }
 

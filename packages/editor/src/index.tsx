@@ -61,12 +61,13 @@ import type { EditorRef } from "./types/editor";
 import { builtinCommands, builtinHotkeys } from "./hotkeys";
 import { CommandRegistry, createCommandDispatcher } from "./api/command";
 import type { ResolvedHotkey } from "./utils/hotkey";
-import ImagesOverview from "./components/ImagesOverview";
+import ExtensionLayers from "./components/ExtensionLayers";
 import HoveringToolbar from "./components/HoveringToolbar";
 import BlockPanel from "./components/BlockPanel";
-import MediaUrlInputModal from "./components/MediaUrlInputModal";
 import ConfirmHost from "./components/ConfirmHost";
-import FormattedText from "./components/FormattedText";
+import LeafRenderer from "./components/LeafRenderer";
+import type { MarkRenderProps } from "./api/marks";
+import type { ComponentType } from "react";
 import { IConfigItem, IHotKeyConfig } from "./types";
 
 import "./theme/editor.css";
@@ -99,8 +100,8 @@ interface IEditorProps {
   placeHolder?: string;
   /** 自定义 decorate 函数（用于添加装饰，如 diff 高亮） */
   decorate?: (entry: [Node, Path]) => Range[];
-  /** 自定义 renderLeaf 函数（用于自定义叶子节点渲染） */
-  customRenderLeaf?: (props: RenderLeafProps) => React.ReactElement;
+  /** 包装已经应用标记的内容，不接管 Slate attributes。 */
+  leafWrapper?: ComponentType<MarkRenderProps>;
   /**
    * 聚焦模式：沿光标所在的文档路径，同级兄弟元素退后（其余顶层块、列表的其他项、表格的其他单元格…）。
    * 退后程度由宿主在容器上设置 `--ed-focus-dim`（缺省 0.26）。
@@ -108,13 +109,7 @@ interface IEditorProps {
   focusMode?: boolean;
 }
 
-const defaultPlugins: Plugin[] = [
-  withReact,
-  withHistory,
-  withNormalize,
-  withNormalizedCopy,
-  withSlashCommands,
-];
+const defaultPlugins: Plugin[] = [withReact, withHistory, withNormalize, withSlashCommands];
 
 /**
  * 可编辑区根样式。正文色继承容器（容器没设时一路继承到宿主 body 的主题文字色；
@@ -160,7 +155,7 @@ const Index = memo(
       onBlur,
       placeHolder,
       decorate,
-      customRenderLeaf,
+      leafWrapper,
       focusMode = false,
     } = props;
 
@@ -288,6 +283,7 @@ const Index = memo(
       // 若延迟到 useEffect 挂载，首次渲染时方法尚不存在
       const initialBinding = bindingRef.current;
       const slateEditor = initialBinding ? initialBinding.install(enhancedEditor) : enhancedEditor;
+      withNormalizedCopy(slateEditor, assembly.copyPolicies, breaker);
       slateEditor.getService = <T,>(id: ServiceIdentifier<T>): T => registryRef.current.get(id);
       slateEditor.tryGetService = <T,>(id: ServiceIdentifier<T>): T | undefined =>
         registryRef.current.tryGet(id);
@@ -384,19 +380,17 @@ const Index = memo(
       />
     ));
 
-    const renderLeaf = useMemoizedFn((props: RenderLeafProps) => {
-      {
-        const { attributes, children, leaf } = props;
-        if (customRenderLeaf) {
-          return customRenderLeaf(props);
-        }
-        return (
-          <FormattedText leaf={leaf} attributes={attributes}>
-            {children}
-          </FormattedText>
-        );
-      }
-    });
+    const reportExtensionRenderError = useMemoizedFn((owner: string, error: unknown) =>
+      breaker.report(owner, "render", error)
+    );
+    const renderLeaf = useMemoizedFn((props: RenderLeafProps) => (
+      <LeafRenderer
+        {...props}
+        marks={assembly.marks}
+        wrapper={leafWrapper}
+        onError={reportExtensionRenderError}
+      />
+    ));
 
     const syncSelectionSnapshot = useMemoizedFn(() => {
       const selection = editor.selection;
@@ -502,15 +496,6 @@ const Index = memo(
           editor.isResetValue = false;
         },
         getEditor: () => editor,
-        scrollHeaderIntoView: (index: number) => {
-          const headers = editor.children.filter((node: any) => node.type === "header");
-          const header = headers[index];
-          if (!header) return;
-          const dom = ReactEditor.toDOMNode(editor, header);
-          dom.scrollIntoView({
-            behavior: "smooth",
-          });
-        },
         isFocus: () => {
           return ReactEditor.isFocused(editor);
         },
@@ -622,9 +607,12 @@ const Index = memo(
                   className="pointer-events-none fixed z-[9998] h-[2px] rounded-full bg-[var(--ed-accent-text)]"
                 />
               </div>
-              <ImagesOverview />
+              <ExtensionLayers
+                layers={assembly.layers}
+                report={reportExtensionRenderError}
+                readOnly={readonly}
+              />
               <ConfirmHost />
-              {!readonly && <MediaUrlInputModal />}
               {!readonly && <HoveringToolbar configs={finalHoveringBarConfigs} />}
               {!readonly && <BlockPanel assembly={kit.assembly} />}
             </FocusModeContext.Provider>

@@ -1,4 +1,4 @@
-import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor/src";
+import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor";
 import Whiteboard from "./components/Whiteboard";
 import { withSetting } from "./plugins";
 import blockPanelItems from "./block-panel-items";

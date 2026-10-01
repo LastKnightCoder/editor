@@ -14,6 +14,6 @@
     "forceConsistentCasingInFileNames": true,
     "allowImportingTsExtensions": true
   },
-  "include": ["src", "../shared/src/components/Katex"],
+  "include": ["src", "api.ts", "api", "markdown.ts", "toolbar.ts", "../shared/styles.d.ts"],
   "exclude": ["../../apps/**/*"]
 }

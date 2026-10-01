@@ -5,8 +5,6 @@ import { useConfirmPrompt } from "../../../../hooks/useConfirmPrompt";
 import type WebSocketClient from "../../../../utils/WebSocketClient";
 import {
   ChatInputArea,
-  ChatContainerCore,
-  type ChatContainerCoreHandle,
   useChatAutoScroll,
   type ChatInputAreaProps,
   type ChatInputAreaHandle,
@@ -14,6 +12,7 @@ import {
   type MessageContentItem,
   type ThinkingLevel,
 } from "@tau/shared";
+import { ChatContainerCore, type ChatContainerCoreHandle } from "@tau/chat-ui";
 import { useAiChat } from "../../../../hooks/useAiChat";
 import { useChatSessions } from "../../../../hooks/useChatSessions";
 import { useLlmConfigs } from "../../../../hooks/useLlmConfigs";
@@ -257,19 +256,16 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
   );
 
   // 从这里建分支（M4-d）：回到这条回答之后，接下来发的消息成为新版本
-  const handleCreateBranch = useCallback(
-    (messageIndex: number) => {
-      if (isLoading) return;
-      if (messageIndex === messages.length - 1) {
-        toast.info("已经是最新的回答，直接发送消息即可继续");
-        return;
-      }
-      void createBranch(messageIndex).then(ok => {
-        if (ok) toast.success("已从这里分叉，发送的消息会成为新分支");
-      });
-    },
-    []
-  );
+  const handleCreateBranch = useCallback((messageIndex: number) => {
+    if (isLoading) return;
+    if (messageIndex === messages.length - 1) {
+      toast.info("已经是最新的回答，直接发送消息即可继续");
+      return;
+    }
+    void createBranch(messageIndex).then(ok => {
+      if (ok) toast.success("已从这里分叉，发送的消息会成为新分支");
+    });
+  }, []);
 
   const handleSwitchVersion = useCallback(
     (messageIndex: number, versionIndex: number) => {
@@ -390,89 +386,89 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
     <>
       {confirmDialog}
       <ChatContainerCore
-      ref={coreRef}
-      isDark={isDark}
-      isConnected={isConnected}
-      messages={liveMessages}
-      isLoading={isLoading}
-      error={error}
-      thinkingLevel={thinkingLevel}
-      onThinkingLevelChange={setThinkingLevel}
-      thinkingLevelDisabled={!currentModelConfig?.reasoning}
-      currentModelName={currentModelName}
-      modelSelectItems={modelSelectItems}
-      onModelSelect={handleModelSelect}
-      isSupportImage={isSupportImage}
+        ref={coreRef}
+        isDark={isDark}
+        isConnected={isConnected}
+        messages={liveMessages}
+        isLoading={isLoading}
+        error={error}
+        thinkingLevel={thinkingLevel}
+        onThinkingLevelChange={setThinkingLevel}
+        thinkingLevelDisabled={!currentModelConfig?.reasoning}
+        currentModelName={currentModelName}
+        modelSelectItems={modelSelectItems}
+        onModelSelect={handleModelSelect}
+        isSupportImage={isSupportImage}
 
-      createMessageLoading={false}
-      onCreateNewMessage={createSession}
-      onMcpManagerClick={handleMcpManagerClick}
-      currentPageUrl={url}
-      onSendMessageContent={handleSendMessageContent}
-      onUserSend={handleUserSend}
-      onStopGeneration={stopGeneration}
-      onClearMessages={clearMessages}
-      onDeleteMessage={handleDeleteMessage}
-      onRegenerateMessage={handleRegenerateMessage}
-      onCreateBranch={handleCreateBranch}
-      onCopySuccess={handleCopySuccess}
-      onCopyError={handleCopyError}
-      onDeleteConfirm={handleDeleteConfirm}
-      chatInputServices={chatInputServices}
-      chatHeader={chatHeader}
-      messagesContainerRef={messagesContainerRef}
-      messagesContainerClassName="tau-scrollbar border-t-12 border-b-12 border-transparent px-6 py-3 flex-1 min-h-0 box-border overflow-y-auto relative will-change-transform [-webkit-overflow-scrolling:touch]"
-      renderInputWrapper={inputNode => (
-        <div
-          className={classNames(
-            "bg-(--th-chat-input) border-(--th-chat-input-border) m-1 mt-3 box-border flex-none rounded-3xl border px-3 py-3 shadow-sm"
-          )}
-        >
-          {inputNode}
-        </div>
-      )}
-      renderChatInputArea={({ chatInputRef, inputProps }) => {
-        const resolvedProps = inputProps as ChatInputAreaProps;
-        return (
-          <div className="flex items-end gap-2">
-            <div className="min-w-0 flex-1">
-              <ToolApprovalBar
-                approvals={interactions.approvals}
-                isDark={isDark}
-                onDecide={approveTool}
-              />
-              {retryStatus && (
-                <div role="status" className="mb-2 text-xs text-amber-600">
-                  请求失败，正在重试（第 {retryStatus.attempt}/{retryStatus.maxAttempts} 次）…
-                </div>
-              )}
-              <ChatInputArea
-                ref={chatInputRef as Ref<ChatInputAreaHandle>}
-                className="min-w-0 flex-1"
-                {...resolvedProps}
-                services={chatInputServices}
-              />
-            </div>
+        createMessageLoading={false}
+        onCreateNewMessage={createSession}
+        onMcpManagerClick={handleMcpManagerClick}
+        currentPageUrl={url}
+        onSendMessageContent={handleSendMessageContent}
+        onUserSend={handleUserSend}
+        onStopGeneration={stopGeneration}
+        onClearMessages={clearMessages}
+        onDeleteMessage={handleDeleteMessage}
+        onRegenerateMessage={handleRegenerateMessage}
+        onCreateBranch={handleCreateBranch}
+        onCopySuccess={handleCopySuccess}
+        onCopyError={handleCopyError}
+        onDeleteConfirm={handleDeleteConfirm}
+        chatInputServices={chatInputServices}
+        chatHeader={chatHeader}
+        messagesContainerRef={messagesContainerRef}
+        messagesContainerClassName="tau-scrollbar border-t-12 border-b-12 border-transparent px-6 py-3 flex-1 min-h-0 box-border overflow-y-auto relative will-change-transform [-webkit-overflow-scrolling:touch]"
+        renderInputWrapper={inputNode => (
+          <div
+            className={classNames(
+              "bg-(--th-chat-input) border-(--th-chat-input-border) m-1 mt-3 box-border flex-none rounded-3xl border px-3 py-3 shadow-sm"
+            )}
+          >
+            {inputNode}
           </div>
-        );
-      }}
-      renderMessage={({ message, messageIndex }) => (
-        <div key={message.id} className="py-3">
-          <ChatMessage
-            message={message as ChatMessageType}
-            messageIndex={messageIndex}
-            isDark={isDark}
-            wsClient={aiWsClient}
-            onDeleteMessage={handleDeleteMessage}
-            onRegenerateMessage={handleRegenerateMessage}
-            onCreateBranch={handleCreateBranch}
-            {...(!isLoading ? { onSwitchVersion: handleSwitchVersion } : {})}
-            onCopySuccess={handleCopySuccess}
-            onCopyError={handleCopyError}
-            onDeleteConfirm={handleDeleteConfirm}
-          />
-        </div>
-      )}
+        )}
+        renderChatInputArea={({ chatInputRef, inputProps }) => {
+          const resolvedProps = inputProps as ChatInputAreaProps;
+          return (
+            <div className="flex items-end gap-2">
+              <div className="min-w-0 flex-1">
+                <ToolApprovalBar
+                  approvals={interactions.approvals}
+                  isDark={isDark}
+                  onDecide={approveTool}
+                />
+                {retryStatus && (
+                  <div role="status" className="mb-2 text-xs text-amber-600">
+                    请求失败，正在重试（第 {retryStatus.attempt}/{retryStatus.maxAttempts} 次）…
+                  </div>
+                )}
+                <ChatInputArea
+                  ref={chatInputRef as Ref<ChatInputAreaHandle>}
+                  className="min-w-0 flex-1"
+                  {...resolvedProps}
+                  services={chatInputServices}
+                />
+              </div>
+            </div>
+          );
+        }}
+        renderMessage={({ message, messageIndex }) => (
+          <div key={message.id} className="py-3">
+            <ChatMessage
+              message={message as ChatMessageType}
+              messageIndex={messageIndex}
+              isDark={isDark}
+              wsClient={aiWsClient}
+              onDeleteMessage={handleDeleteMessage}
+              onRegenerateMessage={handleRegenerateMessage}
+              onCreateBranch={handleCreateBranch}
+              {...(!isLoading ? { onSwitchVersion: handleSwitchVersion } : {})}
+              onCopySuccess={handleCopySuccess}
+              onCopyError={handleCopyError}
+              onDeleteConfirm={handleDeleteConfirm}
+            />
+          </div>
+        )}
       />
     </>
   );

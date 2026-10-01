@@ -1,3 +1,7 @@
+@import "@tau/editor-callout/styles.css";
+@import "@tau/editor-text-formatting/styles.css";
+@import "@tau/editor-comment/styles.css";
+@import "@tau/editor-list/styles.css";
 @import "../../../../desktop/src/styles/theme-colors.css";
 @import "tailwindcss";
 @import "@tau/themes/scale.css";
@@ -5,16 +9,37 @@
 @import "@tau/themes/tailwind.css";
 @import "./tau-tokens.css";
 @source "../../../../../packages/editor/src";
-@source "../../../../../packages/editor-custom-block/src";
-@source "../../../../../packages/editor-diagram/src";
-@source "../../../../../packages/editor-html/src";
+@source "../../../../../editor-extensions/media/src";
+@source "../../../../../editor-extensions/blockquote/src";
+@source "../../../../../editor-extensions/callout/src";
+@source "../../../../../editor-extensions/detail/src";
+@source "../../../../../editor-extensions/highlight-block/src";
+@source "../../../../../editor-extensions/tabs/src";
+@source "../../../../../editor-extensions/table/src";
+@source "../../../../../editor-extensions/list/src";
+@source "../../../../../editor-extensions/header/src";
+@source "../../../../../editor-extensions/link/src";
+@source "../../../../../editor-extensions/annotation/src";
+@source "../../../../../editor-extensions/comment/src";
+@source "../../../../../editor-extensions/kbd/src";
+@source "../../../../../editor-extensions/divide-line/src";
+@source "../../../../../editor-extensions/front-matter/src";
+@source "../../../../../editor-extensions/text-formatting/src";
+@source "../../../../../editor-extensions/underline/src";
+@source "../../../../../editor-extensions/styled-text/src";
+
+@source "../../../../../editor-extensions/custom-block/src";
+@source "../../../../../editor-extensions/diagram/src";
+@source "../../../../../editor-extensions/html/src";
 @source "../../../../../packages/editor-source-view/src";
-@source "../../../../../packages/editor-code-block/src";
-@source "../../../../../packages/editor-math/src";
-@source "../../../../../packages/editor-diagram/renderers.tsx";
-@source "../../../../../packages/editor-webview/src";
+@source "../../../../../editor-extensions/code-block/src";
+@source "../../../../../editor-extensions/math/src";
+@source "../../../../../editor-extensions/emoji/src";
+@source "../../../../../editor-extensions/diagram/renderers.tsx";
+@source "../../../../../editor-extensions/webview/src";
 @source "../../../../../packages/ui/src";
 @source "../../../../../packages/shared/src";
+@source "../../../../../packages/chat-ui/src";
 @source "../../../../../packages/themes/src";
 
 /* dark: 变体基于 .dark 类（与 desktop tailwind.css 一致） */

@@ -23,7 +23,7 @@
     "check": "pnpm --filter desktop exec tsc --noEmit",
     "check:blog": "pnpm --filter blog exec tsc --noEmit",
     "lint": "node scripts/quality.mjs lint",
-    "lint:all": "eslint apps packages --ext .ts,.tsx",
+    "lint:all": "eslint apps packages editor-extensions examples --ext .ts,.tsx",
     "format": "node scripts/quality.mjs format",
     "format:check": "node scripts/quality.mjs format:check",
     "test": "pnpm -r test",

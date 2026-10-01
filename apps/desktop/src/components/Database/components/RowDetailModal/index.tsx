@@ -3,7 +3,7 @@ import { Pencil, Plus, Trash2, GripVertical } from "lucide-react";
 import { ColumnDef, RowData, CellValue } from "../../types";
 import { PluginManager } from "../../PluginManager";
 import { getContentById, createContent } from "@/commands/content";
-import { EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor";
 import Editor from "@/components/ContentEditor";
 import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";

@@ -1,6 +1,6 @@
 import { getFlashcardKit } from "@/services/editorKit";
 import { Descendant } from "slate";
-import { Editor } from "@tau/editor/src";
+import { Editor } from "@tau/editor";
 
 interface RichTextRendererProps {
   content: Descendant[];

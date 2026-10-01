@@ -1,16 +1,8 @@
-import { IConfigItem } from "../../types";
+import type { IConfigItem } from "../../types";
 
 export const COMPACT_TEXT_STYLE_GROUP_ID = "__compact-text-style__";
 export const COMPACT_MORE_GROUP_ID = "__compact-more__";
 
-export const TEXT_STYLE_GROUP_IDS = new Set([
-  "bold",
-  "italic",
-  "strikethrough",
-  "code",
-  "kbd",
-]);
-export const MORE_GROUP_IDS = new Set(["comment", "content-link"]);
 export const MORE_GROUP_ORDER = Number.MAX_SAFE_INTEGER - 1;
 
 export type CompactGroupItem = {
@@ -33,22 +25,14 @@ function byOrder(a: CompactLayoutItem, b: CompactLayoutItem): number {
   return left - right;
 }
 
-export function buildCompactLayoutItems(
-  sortedConfigs: IConfigItem[],
-): CompactLayoutItem[] {
-  const textStyleConfigs = sortedConfigs.filter((config) =>
-    TEXT_STYLE_GROUP_IDS.has(config.id),
-  );
-  const moreConfigs = sortedConfigs.filter((config) =>
-    MORE_GROUP_IDS.has(config.id),
-  );
-  const baseConfigs = sortedConfigs.filter((config) => {
-    return (
-      !TEXT_STYLE_GROUP_IDS.has(config.id) && !MORE_GROUP_IDS.has(config.id)
-    );
+export function buildCompactLayoutItems(sortedConfigs: IConfigItem[]): CompactLayoutItem[] {
+  const textStyleConfigs = sortedConfigs.filter(config => config.compactGroup === "text-style");
+  const moreConfigs = sortedConfigs.filter(config => config.compactGroup === "more");
+  const baseConfigs = sortedConfigs.filter(config => {
+    return config.compactGroup !== "text-style" && config.compactGroup !== "more";
   });
 
-  const result: CompactLayoutItem[] = baseConfigs.map((config) => ({
+  const result: CompactLayoutItem[] = baseConfigs.map(config => ({
     kind: "item",
     config,
   }));
@@ -57,7 +41,7 @@ export function buildCompactLayoutItems(
     result.push({
       kind: "group",
       id: COMPACT_TEXT_STYLE_GROUP_ID,
-      order: Math.min(...textStyleConfigs.map((config) => config.order)),
+      order: Math.min(...textStyleConfigs.map(config => config.order)),
       items: textStyleConfigs,
     });
   }

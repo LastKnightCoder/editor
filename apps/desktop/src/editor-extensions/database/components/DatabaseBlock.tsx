@@ -3,8 +3,8 @@ import { memo, useMemo, useState, useRef, useEffect } from "react";
 import { RenderElementProps, ReactEditor, useSlateStatic, useReadOnly } from "slate-react";
 import { Transforms } from "slate";
 import { useEditDatabaseWithContext } from "@tau/shared";
-import { AddParagraph } from "@tau/editor/src";
-import useIsLastElement from "@tau/editor/src/hooks/useIsLastElement";
+import { AddParagraph } from "@tau/editor";
+import { useIsLastElement } from "@tau/editor/api";
 import Database from "@/components/Database";
 import type { DatabaseElement } from "../types";
 

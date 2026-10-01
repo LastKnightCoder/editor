@@ -1,10 +1,7 @@
+import { IResourceService } from "@tau/shared/host-services";
 import { useMemo } from "react";
-import {
-  IEditorSlots,
-  IResourceService,
-  type EditorKit,
-  type ServiceRegistration,
-} from "@tau/editor/src";
+import { type EditorKit, type ServiceRegistration } from "@tau/editor";
+import { IEditorSlots } from "@tau/editor-media/services";
 import type { EditorCollaborationBinding } from "@tau/editor-collab";
 import { getContentKit } from "@/services/editorKit";
 import { createAssetMedia } from "@/components/CollaborationUI/AssetMedia";

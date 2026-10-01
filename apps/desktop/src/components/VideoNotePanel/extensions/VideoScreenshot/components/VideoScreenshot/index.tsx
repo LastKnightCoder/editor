@@ -4,7 +4,7 @@ import classnames from "classnames";
 import LocalImage from "@/components/LocalImage";
 import useTheme from "@/hooks/useTheme";
 import { VideoScreenshotElement } from "../../";
-import { AddParagraph } from "@tau/editor/src";
+import { AddParagraph } from "@tau/editor";
 import { Editor, Path, Transforms } from "slate";
 import EditText from "@/components/EditText";
 

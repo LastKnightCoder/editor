@@ -158,8 +158,8 @@ export interface IPublishFaviconConfig {
 export interface IPublishAppearanceSettings {
   appearance?: {
     image?: {
-      borderRadius?: import("@tau/editor/src/types").ImageBorderRadiusPreset;
-      shadow?: import("@tau/editor/src/types").ImageShadowPreset | boolean;
+      borderRadius?: import("@tau/editor-media/types").ImageBorderRadiusPreset;
+      shadow?: import("@tau/editor-media/types").ImageShadowPreset | boolean;
     };
   };
 }

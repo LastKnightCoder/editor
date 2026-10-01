@@ -44,7 +44,7 @@ import {
   Users,
   Sparkles,
 } from "lucide-react";
-import type { EditorRef } from "@tau/editor/src";
+import type { EditorRef } from "@tau/editor";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import { isElectron } from "@/electron";
 import ContentEditor from "@/components/ContentEditor";
@@ -217,7 +217,7 @@ export function ArticleDetailView() {
 
   /* 目录锚点解析：编辑器 onChange 输出经 normalize 重建（props 里的节点引用与
      editor.children 脱钩，直接 toDOMNode 会抛错）——按序索引编辑器实时
-     children 再定位 DOM（口径同编辑器自带 scrollHeaderIntoView 的实现） */
+     children 再定位 DOM（由标题扩展统一解析） */
   const resolveAnchor = useCallback((_header: OutlineHeader, index: number): HTMLElement | null => {
     return resolveEditorHeaderAnchor(editorRef.current?.getEditor(), index);
   }, []);

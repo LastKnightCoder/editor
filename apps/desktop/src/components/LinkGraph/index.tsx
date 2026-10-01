@@ -14,7 +14,7 @@ import { getContentKit } from "@/services/editorKit";
 import classnames from "classnames";
 import { useMemoizedFn } from "ahooks";
 import { AnchoredPanel } from "@tau/ui";
-import { Editor, EditorRef } from "@tau/editor/src";
+import { Editor, EditorRef } from "@tau/editor";
 import { getCardById } from "@/commands";
 import Loading from "@/components/Loading";
 import type { KnowledgeMap } from "@/knowledge-map/types";

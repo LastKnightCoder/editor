@@ -1,4 +1,4 @@
-import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor/src";
+import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor";
 
 type FileAttachmentElement = {
   type: "file-attachment";

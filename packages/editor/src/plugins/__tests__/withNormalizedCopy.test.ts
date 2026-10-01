@@ -1,7 +1,25 @@
 import { createEditor, Descendant, Editor, Transforms } from "slate";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { withNormalizedCopy } from "../withNormalizedCopy";
+import { withNormalizedCopy as withCopyContributions } from "../withNormalizedCopy";
+import { createEditorKit } from "../../kit/EditorKit";
+import { standardExtensions } from "../../../../../editor-extensions/standard";
+import { createCircuitBreaker } from "../../kit/extensionGuard";
+
+const assembly = createEditorKit({ extensions: standardExtensions }).assembly;
+const report = vi.fn();
+afterEach(() => {
+  expect(report).not.toHaveBeenCalled();
+  report.mockClear();
+});
+const withNormalizedCopy = (editor: Editor) =>
+  withCopyContributions(
+    editor,
+    assembly.copyPolicies,
+    createCircuitBreaker(() => ({
+      report,
+    }))
+  );
 
 const createParagraph = (text: string) => ({
   type: "paragraph" as const,
@@ -19,7 +37,7 @@ const createCodeBlock = (code: string) => ({
 const selectRange = (
   editor: ReturnType<typeof createEditor>,
   anchor: { path: number[]; offset: number },
-  focus: { path: number[]; offset: number },
+  focus: { path: number[]; offset: number }
 ) => {
   Transforms.select(editor, { anchor, focus });
 };
@@ -40,11 +58,7 @@ describe("withNormalizedCopy", () => {
       },
     ] as Descendant[];
 
-    selectRange(
-      editor,
-      { path: [0, 0, 0, 0], offset: 0 },
-      { path: [0, 0, 0, 0], offset: 5 },
-    );
+    selectRange(editor, { path: [0, 0, 0, 0], offset: 0 }, { path: [0, 0, 0, 0], offset: 5 });
 
     expect(editor.getFragment()).toEqual([createParagraph("hello")]);
   });
@@ -68,11 +82,7 @@ describe("withNormalizedCopy", () => {
       },
     ] as Descendant[];
 
-    selectRange(
-      editor,
-      { path: [0, 0, 0, 0], offset: 0 },
-      { path: [0, 0, 0, 0], offset: 5 },
-    );
+    selectRange(editor, { path: [0, 0, 0, 0], offset: 0 }, { path: [0, 0, 0, 0], offset: 5 });
 
     expect(editor.getFragment()).toEqual([createParagraph("first")]);
   });
@@ -96,7 +106,7 @@ describe("withNormalizedCopy", () => {
     selectRange(
       editor,
       { path: [0, 0, 0, 0], offset: 0 },
-      { path: [0, 0, 1, 0], offset: codeBlock.children[0].text.length },
+      { path: [0, 0, 1, 0], offset: codeBlock.children[0].text.length }
     );
 
     expect(editor.getFragment()).toEqual([
@@ -138,11 +148,7 @@ describe("withNormalizedCopy", () => {
       },
     ] as Descendant[];
 
-    selectRange(
-      editor,
-      { path: [0, 0, 0, 0], offset: 0 },
-      { path: [0, 0, 1, 0, 0, 0], offset: 5 },
-    );
+    selectRange(editor, { path: [0, 0, 0, 0], offset: 0 }, { path: [0, 0, 1, 0, 0, 0], offset: 5 });
 
     expect(editor.getFragment()).toEqual([
       {
@@ -189,16 +195,12 @@ describe("withNormalizedCopy", () => {
       },
     ] as Descendant[];
 
-    selectRange(
-      editor,
-      { path: [0, 0, 0, 0, 0], offset: 0 },
-      { path: [0, 0, 0, 0, 0], offset: 6 },
-    );
+    selectRange(editor, { path: [0, 0, 0, 0, 0], offset: 0 }, { path: [0, 0, 0, 0, 0], offset: 6 });
 
     expect(editor.getFragment()).toEqual([createParagraph("nested")]);
   });
 
-  it("即使完整选中高亮块文本也不应保留高亮块结构", () => {
+  it("完整选中高亮块文本时保留高亮块结构", () => {
     let editor = createEditor();
     editor = withNormalizedCopy(editor);
     editor.children = [
@@ -209,11 +211,7 @@ describe("withNormalizedCopy", () => {
       },
     ] as Descendant[];
 
-    selectRange(
-      editor,
-      { path: [0, 0, 0], offset: 0 },
-      { path: [0, 0, 0], offset: 11 },
-    );
+    selectRange(editor, { path: [0, 0, 0], offset: 0 }, { path: [0, 0, 0], offset: 11 });
 
     expect(editor.getFragment()).toEqual([
       {
@@ -236,11 +234,7 @@ describe("withNormalizedCopy", () => {
       },
     ] as Descendant[];
 
-    selectRange(
-      editor,
-      { path: [0, 0, 0], offset: 0 },
-      { path: [0, 0, 0], offset: 4 },
-    );
+    selectRange(editor, { path: [0, 0, 0], offset: 0 }, { path: [0, 0, 0], offset: 4 });
 
     expect(editor.getFragment()).toEqual([
       {
@@ -262,11 +256,7 @@ describe("withNormalizedCopy", () => {
       },
     ] as Descendant[];
 
-    selectRange(
-      editor,
-      { path: [0, 0, 0], offset: 0 },
-      { path: [0, 0, 0], offset: 6 },
-    );
+    selectRange(editor, { path: [0, 0, 0], offset: 0 }, { path: [0, 0, 0], offset: 6 });
 
     expect(editor.getFragment()).toEqual([
       {
@@ -291,11 +281,7 @@ describe("withNormalizedCopy", () => {
       },
     ] as Descendant[];
 
-    selectRange(
-      editor,
-      { path: [0, 0, 0, 0], offset: 1 },
-      { path: [0, 0, 0, 0], offset: 4 },
-    );
+    selectRange(editor, { path: [0, 0, 0, 0], offset: 1 }, { path: [0, 0, 0, 0], offset: 4 });
 
     expect(editor.getFragment()).toEqual([{ text: "ell" }]);
   });
@@ -318,11 +304,7 @@ describe("withNormalizedCopy", () => {
       },
     ] as Descendant[];
 
-    selectRange(
-      editor,
-      { path: [0, 0, 0, 0], offset: 0 },
-      { path: [0, 0, 0, 0], offset: 4 },
-    );
+    selectRange(editor, { path: [0, 0, 0, 0], offset: 0 }, { path: [0, 0, 0, 0], offset: 4 });
 
     expect(editor.getFragment()).toEqual([
       {
@@ -358,11 +340,7 @@ describe("withNormalizedCopy", () => {
       },
     ] as Descendant[];
 
-    selectRange(
-      editor,
-      { path: [0, 0, 0, 0], offset: 0 },
-      { path: [0, 0, 0, 0], offset: 4 },
-    );
+    selectRange(editor, { path: [0, 0, 0, 0], offset: 0 }, { path: [0, 0, 0, 0], offset: 4 });
 
     expect(editor.getFragment()).toEqual([
       {
@@ -394,11 +372,7 @@ describe("withNormalizedCopy", () => {
       },
     ] as Descendant[];
 
-    selectRange(
-      editor,
-      { path: [0, 0, 0, 0], offset: 0 },
-      { path: [0, 0, 0, 0], offset: 4 },
-    );
+    selectRange(editor, { path: [0, 0, 0, 0], offset: 0 }, { path: [0, 0, 0, 0], offset: 4 });
 
     expect(editor.getFragment()).toEqual([
       {
@@ -430,11 +404,7 @@ describe("withNormalizedCopy", () => {
       },
     ] as Descendant[];
 
-    selectRange(
-      editor,
-      { path: [0, 0, 0, 0], offset: 1 },
-      { path: [0, 0, 0, 0], offset: 3 },
-    );
+    selectRange(editor, { path: [0, 0, 0, 0], offset: 1 }, { path: [0, 0, 0, 0], offset: 3 });
 
     expect(editor.getFragment()).toEqual([createParagraph("on")]);
   });
@@ -442,7 +412,7 @@ describe("withNormalizedCopy", () => {
   it("完整复制 contentId 5555 的真实内容时应保留原始结构", () => {
     const content = [
       createParagraph(
-        'Content-Disposition 字面意思是"内容的处置方式"，它的语义是：​告诉接收方应该如何对待这段内容。它本质上是一个元数据头，不描述内容，而是描述内容的用途和归属。',
+        'Content-Disposition 字面意思是"内容的处置方式"，它的语义是：​告诉接收方应该如何对待这段内容。它本质上是一个元数据头，不描述内容，而是描述内容的用途和归属。'
       ),
       createParagraph("它描述的信息取决于作为响应头还是请求头："),
       {
@@ -451,11 +421,9 @@ describe("withNormalizedCopy", () => {
           {
             type: "list-item",
             children: [
-              createParagraph(
-                "响应头：描述接收到内容如何处置，是直接显示还是存储到磁盘中（下载）",
-              ),
+              createParagraph("响应头：描述接收到内容如何处置，是直接显示还是存储到磁盘中（下载）"),
               createCodeBlock(
-                "Content-Disposition: inline\nContent-Disposition: attachment\nContent-Disposition: attachment; filename=\"report.pdf\"\nContent-Disposition: attachment; filename*=UTF-8''%E6%8A%A5%E5%91%8A.pdf",
+                "Content-Disposition: inline\nContent-Disposition: attachment\nContent-Disposition: attachment; filename=\"report.pdf\"\nContent-Disposition: attachment; filename*=UTF-8''%E6%8A%A5%E5%91%8A.pdf"
               ),
               {
                 type: "bulleted-list",
@@ -573,7 +541,7 @@ describe("withNormalizedCopy", () => {
                 ],
               },
               createCodeBlock(
-                "HTTP/1.1 200 OK\nContent-Type: application/pdf\nContent-Disposition: attachment; filename=\"fallback.pdf\"; filename*=UTF-8''%E6%8A%A5%E5%91%8A2024.pdf",
+                "HTTP/1.1 200 OK\nContent-Type: application/pdf\nContent-Disposition: attachment; filename=\"fallback.pdf\"; filename*=UTF-8''%E6%8A%A5%E5%91%8A2024.pdf"
               ),
             ],
           },
@@ -606,11 +574,11 @@ describe("withNormalizedCopy", () => {
                 ],
               },
               createCodeBlock(
-                'Content-Disposition: form-data; name="<字段名>"\nContent-Disposition: form-data; name="<字段名>"; filename="<文件名>"',
+                'Content-Disposition: form-data; name="<字段名>"\nContent-Disposition: form-data; name="<字段名>"; filename="<文件名>"'
               ),
               createParagraph("一个实际表单提交的示例"),
               createCodeBlock(
-                'POST /upload HTTP/1.1\nHost: localhost:3000\nContent-Type: multipart/form-data; boundary=----WebKitFormBoundaryABC123\nContent-Length: 348\n\n------WebKitFormBoundaryABC123\nContent-Disposition: form-data; name="username"\n\nalice\n------WebKitFormBoundaryABC123\nContent-Disposition: form-data; name="avatar"; filename="photo.jpg"\nContent-Type: image/jpeg\n\n<binary data of photo.jpg>\n------WebKitFormBoundaryABC123--',
+                'POST /upload HTTP/1.1\nHost: localhost:3000\nContent-Type: multipart/form-data; boundary=----WebKitFormBoundaryABC123\nContent-Length: 348\n\n------WebKitFormBoundaryABC123\nContent-Disposition: form-data; name="username"\n\nalice\n------WebKitFormBoundaryABC123\nContent-Disposition: form-data; name="avatar"; filename="photo.jpg"\nContent-Type: image/jpeg\n\n<binary data of photo.jpg>\n------WebKitFormBoundaryABC123--'
               ),
             ],
           },

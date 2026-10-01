@@ -1,4 +1,4 @@
-import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor/src";
+import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor";
 import type { FlashcardBlankElement } from "./types";
 import FlashcardBlank from "./components/FlashcardBlank";
 export type { FlashcardBlankElement } from "./types";

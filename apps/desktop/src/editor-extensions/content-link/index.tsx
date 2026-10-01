@@ -1,4 +1,4 @@
-import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor/src";
+import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor";
 
 import type { ContentLinkElement } from "./types";
 import ContentLink from "./components/ContentLink";

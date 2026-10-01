@@ -1,7 +1,7 @@
 import { useRef, useEffect, useCallback } from "react";
 import { getFlashcardKit } from "@/services/editorKit";
 import { Descendant } from "slate";
-import { Editor, EditorRef } from "@tau/editor/src";
+import { Editor, EditorRef } from "@tau/editor";
 import ClozeEditorToolbar from "../ClozeRichEditor/ClozeEditorToolbar";
 
 interface RichTextEditorProps {

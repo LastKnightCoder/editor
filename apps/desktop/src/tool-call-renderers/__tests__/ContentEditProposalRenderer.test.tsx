@@ -23,7 +23,7 @@ vi.mock("@/services/editorKit", () => ({
   getFlashcardKit: () => ({}),
   getArrowLabelKit: () => ({}),
 }));
-vi.mock("@tau/editor/src", () => ({
+vi.mock("@tau/editor", () => ({
   Editor: ({ initValue }: { initValue: unknown }) => (
     <div data-testid="editor-preview">{JSON.stringify(initValue)}</div>
   ),

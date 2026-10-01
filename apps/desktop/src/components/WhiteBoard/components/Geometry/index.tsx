@@ -5,8 +5,8 @@ import { Descendant } from "slate";
 import classnames from "classnames";
 
 import If from "@/components/If";
-import { Editor, EditorRef, EditorThemeOverride } from "@tau/editor/src";
-import type { IHotKeyConfig } from "@tau/editor/src";
+import { Editor, EditorRef, EditorThemeOverride } from "@tau/editor";
+import type { IHotKeyConfig } from "@tau/editor";
 import ResizeCircle from "../ResizeCircle";
 import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";

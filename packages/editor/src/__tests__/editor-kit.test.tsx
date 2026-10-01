@@ -6,10 +6,11 @@ import type { Descendant } from "slate";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
-import { Editor, createBareEditorKit, createEditorKit } from "../index";
+import { Editor, createEditorKit } from "../index";
 import type { EditorRef } from "../types/editor";
 import { defineExtension } from "../api";
-import { createDefaultEditorSlots, IEditorSlots } from "../services";
+import { createDefaultEditorSlots } from "@tau/editor-media/slots";
+import { IEditorSlots } from "@tau/editor-media/services";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -39,16 +40,17 @@ const docOf = (type: string): Descendant[] => [
 ];
 
 describe("createEditorKit", () => {
-  it("默认带上内置扩展", () => {
+  it("默认只提供基础段落，不隐式安装产品功能", () => {
     const kit = createEditorKit(slots);
     const types = kit.elementTypes;
-    expect(types).toContain("paragraph");
-    expect(types).toContain("header");
+    expect(types).toEqual(["paragraph"]);
+    expect(kit.assembly.marks).toHaveLength(0);
+    expect(kit.assembly.layers).toHaveLength(0);
   });
 
-  it("裸 kit 只含列出的扩展", () => {
-    const kit = createBareEditorKit({ ...slots, extensions: [markerExtension("marker", "a")] });
-    expect(kit.elementTypes).toEqual(["marker"]);
+  it("基础段落加上显式声明的扩展", () => {
+    const kit = createEditorKit({ ...slots, extensions: [markerExtension("marker", "a")] });
+    expect(kit.elementTypes).toEqual(["paragraph", "marker"]);
   });
 
   it("同 type 重复注册直接报错，不静默覆盖", () => {
@@ -57,16 +59,16 @@ describe("createEditorKit", () => {
     ).toThrow(/重复注册/);
   });
 
-  it("override: true 才允许按 type 替换内置实现", () => {
-    const kit = createEditorKit({
-      ...slots,
-      extensions: [markerExtension("paragraph", "custom")],
-      override: true,
-    });
-    expect(kit.assembly.hasElement("paragraph")).toBe(true);
-    expect(kit.elementTypes.filter(type => type === "paragraph")).toHaveLength(1);
-    // 内置 paragraph（tau.paragraph）被整体移除，只留覆盖者
-    expect(kit.extensions.filter(extension => extension.id === "tau.paragraph")).toHaveLength(0);
+  it("核心段落不能被 create 或 extend 覆盖，普通扩展仍可显式覆盖", () => {
+    const replacement = markerExtension("paragraph", "custom");
+    expect(() => createEditorKit({ extensions: [replacement], override: true })).toThrow(
+      /核心基础/
+    );
+    const base = createEditorKit({ extensions: [markerExtension("marker", "a")] });
+    expect(() => base.extend({ extensions: [replacement], override: true })).toThrow(/核心基础/);
+    const updated = base.extend({ extensions: [markerExtension("marker", "b")], override: true });
+    expect(updated.elementTypes).toEqual(["paragraph", "marker"]);
+    expect(updated.extensions.some(extension => extension.id === "tau.paragraph")).toBe(true);
   });
 
   it("extend 追加扩展不影响原 kit", () => {
@@ -74,6 +76,26 @@ describe("createEditorKit", () => {
     const derived = kit.extend({ extensions: [markerExtension("marker", "a")] });
     expect(derived.assembly.hasElement("marker")).toBe(true);
     expect(kit.assembly.hasElement("marker")).toBe(false);
+  });
+
+  it("元素覆盖不能连带丢失扩展根 UI，按扩展 id 整体替换才可移除", () => {
+    const extension = defineExtension({
+      ...markerExtension("marker", "a"),
+      layers: [() => null],
+    });
+    const kit = createEditorKit({ extensions: [extension] });
+    expect(() =>
+      kit.extend({
+        extensions: [markerExtension("marker", "b")],
+        override: true,
+      })
+    ).toThrow(/根 UI/);
+    const replaced = kit.extend({
+      extensions: [defineExtension({ id: extension.id })],
+      override: true,
+    });
+    expect(replaced.assembly.layers).toHaveLength(0);
+    expect(kit.assembly.layers).toHaveLength(1);
   });
 
   it("extend 对相同扩展实例返回同一个 kit（否则编辑器会被重建）", () => {
@@ -144,6 +166,20 @@ describe("<Editor kit> 与嵌套继承", () => {
     );
     expect(host.querySelector("[data-mark='instance']")).toBeTruthy();
     expect(host.querySelector("[data-mark='outer']")).toBeNull();
+  });
+
+  it("实例级追加不能绕过核心段落保护", async () => {
+    const kit = createEditorKit(slots);
+    await expect(
+      render(
+        <Editor
+          kit={kit}
+          initValue={docOf("paragraph")}
+          extensions={[markerExtension("paragraph", "instance")]}
+        />
+      )
+    ).rejects.toThrow(/核心基础/);
+    expect(kit.elementTypes).toEqual(["paragraph"]);
   });
 
   it("换成只覆盖服务的派生 kit 不重建编辑器（发起协作时 kit 会这样派生）", async () => {

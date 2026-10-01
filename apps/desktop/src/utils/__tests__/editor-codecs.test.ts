@@ -4,10 +4,14 @@ import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { createMarkdownProcessor } from "@tau/markdown";
+import { textFormattingCodec } from "@tau/editor-text-formatting/markdown";
 import { desktopCodecComposition as editorMarkdownCodecs } from "../markdown.ts";
 
 /** 内置扩展 codec 的处理器：宿主同样按「editor 列表 + 自己的业务 codec」合成 */
-const md = createMarkdownProcessor({ codecs: editorMarkdownCodecs });
+const md = createMarkdownProcessor({
+  codecs: editorMarkdownCodecs,
+  textCodecs: [textFormattingCodec],
+});
 
 describe("内置扩展 codec 覆盖", () => {
   it("类型不重复、覆盖完整（原内置序列化器 + void 表的并集）", () => {
@@ -508,9 +512,7 @@ describe("Node 原生加载桌面 codec 组合", () => {
     // 验证宿主组合与各包 codec 的完整加载链，禁止连带 React/DOM。
     const entryUrl = pathToFileURL(resolve(import.meta.dirname, "../markdown.ts")).href;
     const script = `
-      const { desktopCodecComposition: editorMarkdownCodecs } = await import(${JSON.stringify(entryUrl)});
-      const { createMarkdownProcessor } = await import("@tau/markdown");
-      const md = createMarkdownProcessor({ codecs: editorMarkdownCodecs });
+      const { desktopMarkdown: md } = await import(${JSON.stringify(entryUrl)});
       const value = md.importFromMarkdown(":::tip{ title=\\"提示\\"}\\n内容\\n:::");
       console.log(
         JSON.stringify([
@@ -550,6 +552,7 @@ describe("插件围栏能力（walker 去类型化）", () => {
   it("第三方 codec 声明 fence 即可接入新围栏语言，导入导出往返", () => {
     const plugin = createMarkdownProcessor({
       codecs: [...editorMarkdownCodecs, myDiagramCodec],
+      textCodecs: [textFormattingCodec],
     });
     const markdown = "```mylang\ndiagram A -> B\n```";
     const value = plugin.importFromMarkdown(markdown);

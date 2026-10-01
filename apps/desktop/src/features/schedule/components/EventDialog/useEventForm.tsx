@@ -12,7 +12,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getContentKit } from "@/services/editorKit";
 import dayjs from "dayjs";
 import type { Descendant } from "slate";
-import { Editor, type EditorRef } from "@tau/editor/src";
+import { Editor, type EditorRef } from "@tau/editor";
 import { AlarmClock, CalendarDays, NotebookText, Palette, Sun } from "lucide-react";
 import { DatePicker, Input, Select, Switch, cn, toast, type SelectOption } from "@tau/ui";
 import useCalendarStore from "@/stores/useCalendarStore";

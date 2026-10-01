@@ -1,5 +1,5 @@
-import type { IngestContext } from "@tau/editor/src";
-import { notifierOf } from "@tau/editor/src";
+import type { IngestContext } from "@tau/editor";
+import { notifierOf } from "@tau/editor";
 import { uploadResource } from "@/hooks/useUploadResource";
 import { insertFileAttachment } from "./utils";
 

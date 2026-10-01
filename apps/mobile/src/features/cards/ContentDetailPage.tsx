@@ -4,7 +4,7 @@ import { CornerUpRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { useEdgeFade } from "../../hooks/useScrollState";
-import { Editor, type EditorDocument, type EditorRef } from "@tau/editor/src";
+import { Editor, type EditorDocument, type EditorRef } from "@tau/editor";
 import * as tauri from "../../services/tauri";
 import type { ContentDetailResponse } from "../../types";
 import { formatDateTimeCompact } from "../../utils/formatTime";

@@ -1,4 +1,4 @@
-import { getCurrentTextNode } from "@tau/editor/src";
+import { getCurrentTextNode } from "@tau/editor";
 import { Editor, Element, Range, Transforms } from "slate";
 
 type ContentLinkElement = {
@@ -25,7 +25,7 @@ const MARK_KEYS = ["bold", "code", "italic", "underline", "highlight", "color"];
 
 export function isContentLinkActive(editor: Editor): boolean {
   const [contentLink] = Editor.nodes(editor, {
-    match: (node) =>
+    match: node =>
       !Editor.isEditor(node) &&
       Element.isElement(node) &&
       (node as { type?: string }).type === "content-link",
@@ -35,17 +35,14 @@ export function isContentLinkActive(editor: Editor): boolean {
 
 export function unwrapContentLink(editor: Editor): void {
   Transforms.unwrapNodes(editor, {
-    match: (node) =>
+    match: node =>
       !Editor.isEditor(node) &&
       Element.isElement(node) &&
       (node as { type?: string }).type === "content-link",
   });
 }
 
-export function wrapContentLink(
-  editor: Editor,
-  payload: WrapContentLinkPayload,
-): void {
+export function wrapContentLink(editor: Editor, payload: WrapContentLinkPayload): void {
   const { contentId, contentType, contentTitle, refId, displayText } = payload;
   const { selection } = editor;
   if (!selection) return;
@@ -59,7 +56,7 @@ export function wrapContentLink(
     (currentLeaf as { type?: string }).type === "formatted"
   ) {
     const selectedText = Editor.string(editor, selection);
-    MARK_KEYS.forEach((markKey) => {
+    MARK_KEYS.forEach(markKey => {
       Editor.removeMark(editor, markKey);
     });
     editor.deleteBackward("character");

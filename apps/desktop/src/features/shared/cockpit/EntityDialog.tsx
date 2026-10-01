@@ -8,7 +8,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Descendant } from "slate";
-import type { EditorRef } from "@tau/editor/src";
+import type { EditorRef } from "@tau/editor";
 import ContentEditor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { Button, Dialog, DialogBody, Input, toast } from "@tau/ui";

@@ -6,7 +6,8 @@ import { ReactEditor, useSlateStatic } from "slate-react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { Editor, createEditorKit, type EditorRef } from "@tau/editor";
-import { createDefaultEditorSlots, IEditorSlots } from "@tau/editor/src/services";
+import { createDefaultEditorSlots } from "@tau/editor-media/slots";
+import { IEditorSlots } from "@tau/editor-media/services";
 import {
   defineExtension,
   defineElement,
@@ -16,6 +17,7 @@ import {
 } from "@tau/editor/api";
 import { PreviewWithEditor } from "../index";
 import { previewMenuExtension } from "../../menu";
+import { IOverlayBackDismiss, type OverlayBackDismissProps } from "@tau/editor/api";
 
 type Cursor = { line: number; ch: number };
 interface FakeEditor {
@@ -41,8 +43,19 @@ interface CodeProps {
   editorWillUnmount(): void;
 }
 const observed = vi.hoisted(() => ({
+  dismiss: undefined as (() => void) | undefined,
   editors: [] as Array<{ props: CodeProps; editor: FakeEditor }>,
 }));
+const HostDismissLayer = ({ open, onDismiss }: OverlayBackDismissProps) => {
+  useEffect(() => {
+    if (!open) return;
+    observed.dismiss = onDismiss;
+    return () => {
+      if (observed.dismiss === onDismiss) observed.dismiss = undefined;
+    };
+  }, [open, onDismiss]);
+  return null;
+};
 
 // jsdom 无 CodeMirror 布局，只替换输入器，导航/菜单/Slate 回写使用真实实现。
 vi.mock("react-codemirror2", () => ({
@@ -153,7 +166,12 @@ describe("源码预览迁包后的行为", () => {
     const ref = createRef<EditorRef>();
     const kit = createEditorKit({
       extensions: [previewMenuExtension, fixture],
-      services: [register => register(IEditorSlots, createDefaultEditorSlots())],
+      services: [
+        register => {
+          register(IEditorSlots, createDefaultEditorSlots());
+          register(IOverlayBackDismiss, { Layer: HostDismissLayer });
+        },
+      ],
     });
     await act(async () =>
       root.render(
@@ -228,7 +246,8 @@ describe("源码预览迁包后的行为", () => {
     const overlay = document.querySelector("div.fixed.inset-0") as HTMLDivElement;
     expect(overlay).toBeTruthy();
     await changeSource("保存后的内容");
-    await act(async () => overlay.click());
+    expect(observed.dismiss).toBeTypeOf("function");
+    await act(async () => observed.dismiss?.());
     expect(document.querySelector("div.fixed.inset-0")).toBeNull();
     expect(editor.children[1]).toMatchObject({ source: "保存后的内容" });
     const current = observed.editors[0];

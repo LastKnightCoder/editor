@@ -4,7 +4,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getMobileFlashcardKit } from "../../services/editorKit";
-import { Editor, type EditorRef } from "@tau/editor/src";
+import { Editor, type EditorRef } from "@tau/editor";
 import type { Descendant } from "slate";
 import type { Editor as SlateEditor } from "slate";
 import { PageHeader } from "../../components/PageHeader";

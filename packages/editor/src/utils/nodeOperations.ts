@@ -1,99 +1,7 @@
 import { Editor, Element as SlateElement, Transforms, Node, Path } from "slate";
 import { ReactEditor } from "slate-react";
 import type { EditorFeedback } from "../services/notifier";
-
-/**
- * 节点类型转换配置
- */
-export type NodeType =
-  | "paragraph"
-  | "header"
-  | "bulleted-list"
-  | "numbered-list"
-  | "highlight-block"
-  | "detail"
-  | "callout"
-  | "blockquote";
-
-interface TransformOptions {
-  level?: 1 | 2 | 3 | 4 | 5 | 6; // 用于标题级别
-  calloutType?: "info" | "warning" | "tip" | "danger" | "note";
-  title?: string;
-  color?: "red" | "green" | "yellow" | "blue" | "orange" | "purple"; // 用于高亮块
-}
-
-/**
- * 通用节点类型转换
- */
-export function transformNodeType(
-  editor: Editor,
-  path: Path,
-  targetType: NodeType,
-  options: TransformOptions = {}
-): void {
-  Editor.withoutNormalizing(editor, () => {
-    // 处理列表类型 - 将 paragraph 包装到 list-item 中
-    if (targetType === "bulleted-list" || targetType === "numbered-list") {
-      // 1. 先将 paragraph 包装在 list-item 中
-      Transforms.wrapNodes(
-        editor,
-        {
-          type: "list-item",
-          children: [],
-        },
-        { at: path }
-      );
-
-      // 2. 再将 list-item 包装在列表容器中
-      Transforms.wrapNodes(
-        editor,
-        {
-          type: targetType,
-          children: [],
-        },
-        { at: path }
-      );
-    }
-    // 处理标题
-    else if (targetType === "header") {
-      Transforms.setNodes(
-        editor,
-        {
-          type: "header",
-          level: options.level || 1,
-        },
-        { at: path }
-      );
-    }
-    // 处理 Callout
-    else if (targetType === "callout") {
-      Transforms.setNodes(
-        editor,
-        {
-          type: "callout",
-          calloutType: options.calloutType || "info",
-          title: options.title || "提示",
-        },
-        { at: path }
-      );
-    }
-    // 处理高亮块
-    else if (targetType === "highlight-block") {
-      Transforms.setNodes(
-        editor,
-        {
-          type: "highlight-block",
-          color: options.color || "yellow",
-        },
-        { at: path }
-      );
-    }
-    // 其他简单块类型
-    else {
-      Transforms.setNodes(editor, { type: targetType }, { at: path });
-    }
-  });
-}
+import { createParagraph } from "../model/paragraph";
 
 /**
  * 复制节点到剪贴板
@@ -210,14 +118,7 @@ export function deleteNode(editor: Editor, path: Path): void {
 export function deleteVoidBlock(editor: Editor, path: Path): void {
   Editor.withoutNormalizing(editor, () => {
     Transforms.delete(editor, { at: path });
-    Transforms.insertNodes(
-      editor,
-      {
-        type: "paragraph",
-        children: [{ type: "formatted", text: "" }],
-      },
-      { at: path, select: true }
-    );
+    Transforms.insertNodes(editor, createParagraph(), { at: path, select: true });
   });
   setTimeout(() => {
     try {
@@ -228,72 +129,6 @@ export function deleteVoidBlock(editor: Editor, path: Path): void {
       // 节点已不存在时忽略聚焦恢复
     }
   }, 0);
-}
-
-/**
- * 解包容器块，将子节点提升到父级
- * 用于将 detail/callout/highlight-block/block-quote 转换为段落
- */
-export function unwrapContainerBlock(editor: Editor, path: Path): void {
-  Editor.withoutNormalizing(editor, () => {
-    // 提升所有子节点到当前位置
-    Transforms.unwrapNodes(editor, { at: path });
-  });
-}
-
-/**
- * 将容器块的子节点转换为列表
- * 每个子节点都会被包装在 list-item 中
- */
-export function convertChildrenToList(
-  editor: Editor,
-  path: Path,
-  listType: "bulleted-list" | "numbered-list"
-): void {
-  Editor.withoutNormalizing(editor, () => {
-    const node = Node.get(editor, path);
-
-    // 检查节点是否有 children 属性
-    if (!("children" in node) || !Array.isArray(node.children)) {
-      return;
-    }
-
-    const children = node.children;
-
-    // 如果只有一个子节点，直接转换为列表
-    if (children.length === 1) {
-      // 1. 先解包容器
-      Transforms.unwrapNodes(editor, { at: path });
-
-      // 2. 包装在 list-item 中
-      Transforms.wrapNodes(editor, { type: "list-item", children: [] }, { at: path });
-
-      // 3. 包装在列表容器中
-      Transforms.wrapNodes(editor, { type: listType, children: [] }, { at: path });
-    } else {
-      // 多个子节点：先提取子节点，然后为每个创建 list-item
-      const childrenNodes = [...children];
-
-      // 1. 删除原容器
-      Transforms.removeNodes(editor, { at: path });
-
-      // 2. 为每个子节点创建 list-item 并插入
-      const listItems = childrenNodes.map(child => ({
-        type: "list-item" as const,
-        children: [child as any], // Slate's wrapNodes will properly type check at runtime
-      })) as any;
-
-      // 3. 插入包含所有 list-item 的列表容器
-      Transforms.insertNodes(
-        editor,
-        {
-          type: listType,
-          children: listItems,
-        } as any,
-        { at: path }
-      );
-    }
-  });
 }
 
 /**

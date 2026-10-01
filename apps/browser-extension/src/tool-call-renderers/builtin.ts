@@ -1,4 +1,4 @@
-import { registerToolCallRenderers } from "@tau/shared";
+import { registerToolCallRenderers } from "@tau/chat-ui/renderers";
 import AskQuestionRenderer from "./AskQuestionRenderer";
 import { ASK_QUESTION_TOOL_NAME } from "@/tools/askQuestionTypes";
 

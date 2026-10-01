@@ -1,22 +1,15 @@
 import { createEditor, Descendant, Editor, Transforms } from "slate";
 import { describe, expect, it } from "vitest";
 
-import {
-  insertBlockquote,
-  insertBulletList,
-  insertNumberedList,
-} from "../insertElement";
+import { insertBlockquote } from "@tau/editor-blockquote";
+import { insertBulletList, insertNumberedList } from "@tau/editor-list";
 
 const createParagraph = (text = "") => ({
   type: "paragraph" as const,
   children: [{ text }],
 });
 
-const selectPath = (
-  editor: ReturnType<typeof createEditor>,
-  path: number[],
-  offset = 0,
-) => {
+const selectPath = (editor: ReturnType<typeof createEditor>, path: number[], offset = 0) => {
   Transforms.select(editor, {
     anchor: { path, offset },
     focus: { path, offset },
@@ -26,10 +19,7 @@ const selectPath = (
 describe("insertElement 列表插入焦点", () => {
   it("空段落替换为无序列表后应聚焦到首个列表项", () => {
     const editor = createEditor();
-    editor.children = [
-      createParagraph("上一个块"),
-      createParagraph(""),
-    ] as Descendant[];
+    editor.children = [createParagraph("上一个块"), createParagraph("")] as Descendant[];
 
     selectPath(editor, [1, 0]);
 
@@ -44,10 +34,7 @@ describe("insertElement 列表插入焦点", () => {
 
   it("空段落替换为有序列表后应聚焦到首个列表项", () => {
     const editor = createEditor();
-    editor.children = [
-      createParagraph("上一个块"),
-      createParagraph(""),
-    ] as Descendant[];
+    editor.children = [createParagraph("上一个块"), createParagraph("")] as Descendant[];
 
     selectPath(editor, [1, 0]);
 
@@ -80,10 +67,7 @@ describe("insertElement 列表插入焦点", () => {
 describe("insertElement 引用块插入", () => {
   it("空段落应替换为引用块", () => {
     const editor = createEditor();
-    editor.children = [
-      createParagraph("上一个块"),
-      createParagraph(""),
-    ] as Descendant[];
+    editor.children = [createParagraph("上一个块"), createParagraph("")] as Descendant[];
 
     selectPath(editor, [1, 0]);
 

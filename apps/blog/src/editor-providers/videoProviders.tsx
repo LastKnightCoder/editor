@@ -1,4 +1,4 @@
-import type { VideoContentProvider } from "@tau/editor";
+import { type VideoContentProvider } from "@tau/editor-media/services";
 
 /**
  * Blog（只读渲染）的视频内容源：均降级为提示信息。

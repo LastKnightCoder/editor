@@ -2,10 +2,10 @@
  * Desktop 各编辑器服务的实现（Electron 环境）。
  * 经 editorRegistry.ts 组合注册后由编辑器消费，实现间不感知注册机制。
  */
+import { type FileService, type ResourceService } from "@tau/shared/host-services";
 
-import type { FileService, ResourceService } from "@tau/editor/src/types/services";
 import type { TypstCompiler } from "@tau/editor-diagram/services";
-import type { EditorSlots } from "@tau/editor/src";
+import { type EditorSlots } from "@tau/editor-media/services";
 import useSettingStore from "@/stores/useSettingStore";
 import { selectFile, readTextFile, getHomeDir, convertFileSrc } from "@/commands/file";
 import { compileTypst } from "@/commands/typst";

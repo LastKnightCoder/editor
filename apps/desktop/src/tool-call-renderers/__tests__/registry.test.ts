@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getToolCallRenderer as getSharedToolCallRenderer } from "@tau/shared";
+import { getToolCallRenderer as getChatToolCallRenderer } from "@tau/chat-ui/renderers";
 import type { ToolCallCustomRenderer } from "../types";
 import {
   getToolCallRenderer,
@@ -62,14 +62,14 @@ describe("tool-call-renderers/registry", () => {
     expect(getToolCallRenderer(toolName)).toBeUndefined();
   });
 
-  it("桌面注册中心应与 shared 注册中心保持一致", () => {
+  it("桌面入口与聊天展示使用同一登记表", () => {
     const toolName = "registry_test_shared_bridge_tool";
     const renderer = createRenderer();
 
     registerToolCallRenderer(toolName, renderer);
 
     expect(getToolCallRenderer(toolName)).toBe(renderer);
-    expect(getSharedToolCallRenderer(toolName)).toBe(renderer);
+    expect(getChatToolCallRenderer(toolName)).toBe(renderer);
 
     unregisterToolCallRenderer(toolName);
   });

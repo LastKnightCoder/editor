@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Camera, Check, ChevronDown, Clock3, MoreHorizontal, Plus, Trash2 } from "lucide-react";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import type { Descendant } from "slate";
-import type { EditorRef } from "@tau/editor/src";
+import type { EditorRef } from "@tau/editor";
 import { Button, ConfirmDialog, IconButton, Loading, Menu, Tooltip, toast } from "@tau/ui";
 import Editor from "@/components/ContentEditor";
 import {

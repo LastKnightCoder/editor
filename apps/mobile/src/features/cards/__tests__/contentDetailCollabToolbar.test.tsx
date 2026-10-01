@@ -54,7 +54,7 @@ vi.mock("../editorExtensions/ContentLinkPickerSheet", () => ({
   __esModule: true,
   default: () => null,
 }));
-vi.mock("@tau/editor/src/components/HoveringToolbar/floatingPosition", () => ({
+vi.mock("@tau/editor/toolbar", () => ({
   calculateFloatingPosition: () => ({ left: 8, top: 8, placement: "top" }),
 }));
 
@@ -64,7 +64,7 @@ vi.mock("../../../services/editorKit", () => ({
   getMobileContentKit: () => ({}),
   getMobileFlashcardKit: () => ({}),
 }));
-vi.mock("@tau/editor/src", async importOriginal => {
+vi.mock("@tau/editor", async importOriginal => {
   const actual = await importOriginal<Record<string, unknown>>();
   const React = await import("react");
   const Editor = React.forwardRef(function MockEditor(

@@ -3,7 +3,7 @@ import { Transforms, type Node } from "slate";
 import { ReactEditor, RenderElementProps, useReadOnly, useSlateStatic } from "slate-react";
 
 import type { ContentLinkElement } from "../../types";
-import { InlineChromiumBugfix } from "@tau/editor/src";
+import { InlineChromiumBugfix } from "@tau/editor";
 import { useCollaboration } from "@tau/editor-collab";
 import Content from "../Content";
 import { AnchoredPanel, cn, toast } from "@tau/ui";

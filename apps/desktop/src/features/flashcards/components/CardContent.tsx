@@ -8,7 +8,7 @@
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { getFlashcardKit } from "@/services/editorKit";
 import type { FlashcardBlankElement } from "@/editor-extensions/flashcard-blank/types";
-import { Editor } from "@tau/editor/src";
+import { Editor } from "@tau/editor";
 import { cn } from "@tau/ui";
 import { Fragment, useMemo, type ReactNode } from "react";
 import type { Descendant } from "slate";

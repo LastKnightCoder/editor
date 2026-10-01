@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { normalizeEditorContent } from "../normalizeEditorContent";
 
 describe("normalizeEditorContent", () => {
-  it("加载时深度清理退役节点及隐藏标签页内容", () => {
+  it("加载时保留未知节点及其自定义字段", () => {
     const content = [
       {
         type: "tabs",
@@ -12,8 +12,8 @@ describe("normalizeEditorContent", () => {
       },
     ];
     const result = normalizeEditorContent(content);
-    expect(JSON.stringify(result)).not.toMatch(/question|chat-reference/);
-    expect(JSON.stringify(content)).toContain("question");
+    expect(result).toBe(content);
+    expect(result[0]).toEqual(content[0]);
   });
   it("空数组时应回退为默认空段落", () => {
     expect(normalizeEditorContent([])).toEqual([

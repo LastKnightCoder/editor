@@ -6,7 +6,7 @@ import {
   type EditorCommand,
   type ElementRenderProps,
   type Plugin,
-} from "@tau/editor/src";
+} from "@tau/editor";
 import { ReactEditor } from "slate-react";
 import VideoTimestamp from "./components/VideoTimestamp";
 

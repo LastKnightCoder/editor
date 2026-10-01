@@ -1,16 +1,12 @@
+import { unwrapLink, wrapLink } from "@tau/editor-link";
+import { wrapComment, unwrapComment } from "@tau/editor-comment";
+import { wrapKbd, unwrapKbd } from "@tau/editor-kbd";
+import { unwrapStyledText, wrapStyledText } from "@tau/editor-styled-text";
+import { unwrapUnderline, wrapUnderline } from "@tau/editor-underline";
 import {
-  unwrapLink,
-  unwrapStyledText,
-  unwrapUnderline,
-  wrapLink,
-  wrapComment,
-  wrapStyledText,
-  wrapUnderline,
-  unwrapComment,
-  wrapKbd,
-  unwrapKbd,
-} from "@tau/editor/src/utils/insertElement";
-import { TEXT_GRADIENT_PRESETS, type TextGradientPresetId } from "@tau/editor/src/constants";
+  TEXT_GRADIENT_PRESETS,
+  type TextGradientPresetId,
+} from "@tau/editor-text-formatting/palette";
 import { Editor, Element, Node, Path, Range, Transforms, type BaseSelection } from "slate";
 import { ReactEditor } from "slate-react";
 

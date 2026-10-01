@@ -9,7 +9,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Descendant } from "slate";
-import type { EditorRef } from "@tau/editor/src";
+import type { EditorRef } from "@tau/editor";
 import { Button, Dialog, DialogBody } from "@tau/ui";
 import ContentEditor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";

@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getMobileContentKit } from "../../services/editorKit";
 import { CalendarX2, Trash2 } from "lucide-react";
-import { Editor, type EditorRef } from "@tau/editor/src";
+import { Editor, type EditorRef } from "@tau/editor";
 import type { Descendant } from "slate";
 import {
   createEmptyEditorContent,

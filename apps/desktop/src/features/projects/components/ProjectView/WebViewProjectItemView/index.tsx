@@ -13,6 +13,7 @@
  */
 
 import { useState, useRef, useEffect, useMemo } from "react";
+import { scrollHeaderIntoView } from "@tau/editor-header";
 import {
   Loader2,
   RotateCw,
@@ -55,7 +56,7 @@ import {
   defaultProjectItemEventBus,
 } from "@/utils";
 import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
-import { EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor";
 import Editor from "@/components/ContentEditor";
 import EditorOutline from "@/components/EditorOutline";
 import EditorComment from "@/components/EditorComment";
@@ -89,7 +90,8 @@ import PodcastGenerationModal from "@/components/PodcastGenerationModal";
 import { usePage } from "@/page/PageProvider";
 import { useProjectContext } from "../ProjectContext";
 import { ReactEditor } from "slate-react";
-import type { CommentElement, CustomEditor } from "@tau/editor/src";
+import type { CustomEditor } from "@tau/editor";
+import { type CommentElement } from "@tau/editor-comment/types";
 import { toast, Tooltip, ConfirmDialog, Menu, Segmented, IconButton, Button } from "@tau/ui";
 
 interface WebViewProjectItemViewProps {
@@ -716,7 +718,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
 
   // 点击大纲标题跳转
   const onClickHeader = useMemoizedFn((index: number) => {
-    editorRef.current?.scrollHeaderIntoView(index);
+    scrollHeaderIntoView(editorRef.current?.getEditor(), index);
   });
 
   const handleSidebarCommentClick = useMemoizedFn((_element: CommentElement, path: Path) => {

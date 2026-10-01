@@ -2,7 +2,7 @@ import { useMemoizedFn } from "ahooks";
 import isHotkey from "is-hotkey";
 import { Board, MindNodeElement } from "../../../types";
 import { BoardUtil, MindUtil, PathUtil } from "../../../utils";
-import { EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor";
 import { produce } from "immer";
 
 // 定义快捷键处理器类型
@@ -121,9 +121,7 @@ const handleDeleteNode: KeyHandler = ({ board, element }) => {
     // 获取父节点和当前节点在父节点中的索引，用于删除后选择合适的节点
     const parent = MindUtil.getParent(oldRoot, element);
     if (!parent) return;
-    const currentIndex = parent.children.findIndex(
-      (child) => child.id === element.id,
-    );
+    const currentIndex = parent.children.findIndex(child => child.id === element.id);
 
     // 确定删除后要选择的节点
     let nodeToSelect: MindNodeElement | null = null;
@@ -176,12 +174,10 @@ const handleNavigateUp: KeyHandler = ({ board, element }) => {
 
   // 只考虑相同 direction 的兄弟节点
   const sameDirectionSiblings = parent.children.filter(
-    (child) => child.direction === element.direction,
+    child => child.direction === element.direction
   );
 
-  const currentIndex = sameDirectionSiblings.findIndex(
-    (child) => child.id === element.id,
-  );
+  const currentIndex = sameDirectionSiblings.findIndex(child => child.id === element.id);
 
   // 如果有上一个相同方向的兄弟节点，选择它
   if (currentIndex > 0) {
@@ -220,12 +216,10 @@ const handleNavigateDown: KeyHandler = ({ board, element }) => {
 
   // 只考虑相同 direction 的兄弟节点
   const sameDirectionSiblings = parent.children.filter(
-    (child) => child.direction === element.direction,
+    child => child.direction === element.direction
   );
 
-  const currentIndex = sameDirectionSiblings.findIndex(
-    (child) => child.id === element.id,
-  );
+  const currentIndex = sameDirectionSiblings.findIndex(child => child.id === element.id);
 
   // 如果有下一个相同方向的兄弟节点，选择它
   if (currentIndex < sameDirectionSiblings.length - 1) {
@@ -243,11 +237,9 @@ const handleNavigateDown: KeyHandler = ({ board, element }) => {
     const grandParent = MindUtil.getParent(oldRoot, parent);
     if (grandParent) {
       const parentSameDirectionSiblings = grandParent.children.filter(
-        (child) => child.direction === parent.direction,
+        child => child.direction === parent.direction
       );
-      const parentIndex = parentSameDirectionSiblings.findIndex(
-        (child) => child.id === parent.id,
-      );
+      const parentIndex = parentSameDirectionSiblings.findIndex(child => child.id === parent.id);
       if (parentIndex < parentSameDirectionSiblings.length - 1) {
         const parentNextSibling = parentSameDirectionSiblings[parentIndex + 1];
         board.apply({
@@ -359,7 +351,7 @@ const handleEnterEditMode: KeyHandler = ({ setIsEditing, editor, board }) => {
           },
         },
       ],
-      false,
+      false
     );
   }
 };
@@ -415,7 +407,7 @@ const handleToggleDirection =
     const oldRoot = MindUtil.getRoot(board, element);
     if (!oldRoot) return;
     // 找到当前节点并修改 direction
-    const changeedDirectionRoot = produce(oldRoot, (draft) => {
+    const changeedDirectionRoot = produce(oldRoot, draft => {
       const node = MindUtil.findNodeInTree(draft, element.id);
       if (node) node.direction = dir;
     });
@@ -430,9 +422,7 @@ const handleToggleDirection =
         properties: board.selection,
         newProperties: {
           selectArea: null,
-          selectedElements: [
-            MindUtil.findNodeInTree(newRoot, element.id) || element,
-          ],
+          selectedElements: [MindUtil.findNodeInTree(newRoot, element.id) || element],
         },
       },
     ];
@@ -500,20 +490,17 @@ export const useMindNodeKeyboardNavigation = (
   isSelected: boolean,
   isEditing: boolean,
   setIsEditing: (isEditing: boolean) => void,
-  editor: EditorRef | null,
+  editor: EditorRef | null
 ) => {
   const handleKeyDown = useMemoizedFn((e: KeyboardEvent) => {
     const onlyOneSelected =
-      board.selection.selectedElements &&
-      board.selection.selectedElements.length === 1;
+      board.selection.selectedElements && board.selection.selectedElements.length === 1;
 
     // 如果选中了当前节点且不在编辑状态：
     // 仅在命中本 hook 的快捷键时才拦截，其余按键放行给 Board
     // （如 mod+z 撤销等全局快捷键不能被误拦）
     if (isSelected && onlyOneSelected && !isEditing) {
-      for (const [hotkey, handler] of Object.entries(
-        NON_EDITING_KEYBOARD_CONFIG,
-      )) {
+      for (const [hotkey, handler] of Object.entries(NON_EDITING_KEYBOARD_CONFIG)) {
         if (isHotkey(hotkey, e)) {
           e.stopImmediatePropagation();
           e.preventDefault();

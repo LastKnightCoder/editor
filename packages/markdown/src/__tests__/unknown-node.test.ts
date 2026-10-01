@@ -102,4 +102,22 @@ describe("未知节点 Markdown 兜底", () => {
       importFromMarkdown(':::tau-node{type="x"}\n```json\n{不是 json\n```\n:::\n')
     ).not.toThrow();
   });
+
+  it("行内载体保留反斜线与零宽字符，不被 Markdown 属性解码和历史清理吞掉", () => {
+    const content = [
+      paragraph(
+        text("前"),
+        {
+          type: "future-inline",
+          source: 'C:\\new\\file \\" &quot;',
+          hidden: "a\u200Bb",
+          children: [text("带\u200B零宽")],
+        },
+        text("后")
+      ),
+    ] as unknown as Descendant[];
+    const source = getMarkdown(content);
+    expect(importFromMarkdown(source)).toEqual(content);
+    expect(importFromMarkdownWithPositions(source).content).toEqual(content);
+  });
 });

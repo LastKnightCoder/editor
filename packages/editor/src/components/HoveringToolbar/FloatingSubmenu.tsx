@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import classnames from "classnames";
+import OverlayBackDismiss from "../OverlayBackDismiss";
 
 import type { HoveringSubmenuTrigger } from "./context";
 import { calculateFloatingPosition, type FloatingPlacement } from "./floatingPosition";
@@ -264,6 +265,7 @@ const FloatingSubmenu = (props: FloatingSubmenuProps) => {
         {children}
       </span>
       {panelNode}
+      <OverlayBackDismiss open={open && isHoveringBarShow} onDismiss={() => onOpenChange(false)} />
     </>
   );
 };

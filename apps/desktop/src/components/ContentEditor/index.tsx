@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useRef, type ComponentProps, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
-import { Editor, type EditorRef } from "@tau/editor/src";
+import { Editor, type EditorRef } from "@tau/editor";
 import { useCollaborationKit } from "@/hooks/useCollaborationKit";
 import useCollaborationStore from "@/stores/useCollaborationStore";
 import useContentDocument from "@/hooks/useContentDocument";

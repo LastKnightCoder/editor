@@ -7,13 +7,14 @@ import { createEditor, Editor as SlateEditor, Transforms, type Descendant } from
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
-import { Editor, createBareEditorKit, type EditorKit } from "../../index";
+import { Editor, createEditorKit, type EditorKit } from "../../index";
 import type { EditorRef } from "../../types/editor";
-import { paragraph as paragraphExtension } from "../../extensions";
 import { CommandRegistry, createCommandDispatcher, type CommandGuard } from "../command";
 import { defineExtension } from "../extension";
 import { builtinCommands } from "../../hotkeys";
-import { createDefaultEditorSlots, IEditorSlots } from "../../services";
+import { textFormattingExtension } from "@tau/editor-text-formatting";
+import { createDefaultEditorSlots } from "@tau/editor-media/slots";
+import { IEditorSlots } from "@tau/editor-media/services";
 
 /** 直接喂给 registerHotKey 的键盘事件（is-hotkey 读 key 与修饰键；React 合成层不在单测范围） */
 const keyEvent = (key: string, which: number, modifiers: Record<string, boolean>) =>
@@ -33,8 +34,8 @@ const keyEvent = (key: string, which: number, modifiers: Record<string, boolean>
     ...modifiers,
   }) as unknown as React.KeyboardEvent<HTMLDivElement>;
 
-const text = (value: string) => ({ type: "formatted", text: value });
-const paragraph = (value: string) => ({ type: "paragraph", children: [text(value)] });
+const text = (value: string) => ({ type: "formatted" as const, text: value });
+const paragraph = (value: string) => ({ type: "paragraph" as const, children: [text(value)] });
 
 describe("CommandRegistry", () => {
   it("命令 id 重复注册直接报错", () => {
@@ -132,16 +133,17 @@ describe("CommandRegistry", () => {
 
 const fakeGuard = (): CommandGuard => ({ isDisabled: () => false, record: () => {} });
 
-/** 只含内核默认命令集的分发器（组件内的实例由装配生成，单测直接构造同构物） */
+/** 同时登记核心与格式扩展命令，模拟真实编辑器的分发器。 */
 const builtinDispatcher = () => {
   const registry = new CommandRegistry();
   registry.register("editor", builtinCommands);
+  registry.register(textFormattingExtension.id, textFormattingExtension.commands ?? []);
   return createCommandDispatcher(registry, fakeGuard());
 };
 
 const kitWith = (extensions: readonly unknown[]): EditorKit =>
-  createBareEditorKit({
-    extensions: extensions as never,
+  createEditorKit({
+    extensions: [...extensions, textFormattingExtension] as never,
     services: [register => register(IEditorSlots, createDefaultEditorSlots())],
   });
 
@@ -169,7 +171,7 @@ describe("命令热键端到端（mod+b → tau.mark.bold）", () => {
   it("内置热键经命令注册表触发格式命令，行为与迁移前一致", async () => {
     const ref = createRef<EditorRef>();
     const initial: Descendant[] = [paragraph("加粗我")];
-    await render(<Editor ref={ref} kit={kitWith([paragraphExtension])} initValue={initial} />);
+    await render(<Editor ref={ref} kit={kitWith([])} initValue={initial} readonly={false} />);
     const editor = ref.current!.getEditor()!;
 
     // 选中段落文本后触发 mod+b：React 合成键盘层在 jsdom 里接不到派发事件
@@ -192,11 +194,7 @@ describe("命令热键端到端（mod+b → tau.mark.bold）", () => {
   it("editor.commands 程序化执行内置命令（无键盘事件路径）", async () => {
     const ref = createRef<EditorRef>();
     await render(
-      <Editor
-        ref={ref}
-        kit={kitWith([paragraphExtension])}
-        initValue={[paragraph("甲"), paragraph("乙")]}
-      />
+      <Editor ref={ref} kit={kitWith([])} initValue={[paragraph("甲"), paragraph("乙")]} />
     );
     const editor = ref.current!.getEditor()!;
     expect(editor.commands).toBeTruthy();
@@ -214,11 +212,7 @@ describe("命令热键端到端（mod+b → tau.mark.bold）", () => {
     });
     const ref = createRef<EditorRef>();
     const host = await render(
-      <Editor
-        ref={ref}
-        kit={kitWith([paragraphExtension, counterExtension])}
-        initValue={[paragraph("正文")]}
-      />
+      <Editor ref={ref} kit={kitWith([counterExtension])} initValue={[paragraph("正文")]} />
     );
     const editor = ref.current!.getEditor()!;
     expect(editor.commands!.execute("test.counter.tick")).toBe(true);
@@ -248,13 +242,14 @@ describe("命令热键端到端（mod+b → tau.mark.bold）", () => {
   });
 });
 
-describe("内核 legacy 热键命令化（escape 清标记 / mod+方向兜底 / 块导航 / 面板键）", () => {
-  it("内核命令全部注册并绑热键：escape 清标记、mod+左右兜底、上下块导航、面板六键", async () => {
+describe("格式扩展与内核命令接线", () => {
+  it("格式清标记与核心导航/面板命令分别注册且可调用", async () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root: Root = createRoot(container);
     const ref = createRef<EditorRef>();
-    const kit = createBareEditorKit({
+    const kit = createEditorKit({
+      extensions: [textFormattingExtension],
       services: [register => register(IEditorSlots, createDefaultEditorSlots())],
     });
     await act(async () => {
@@ -278,7 +273,7 @@ describe("内核 legacy 热键命令化（escape 清标记 / mod+方向兜底 / 
     });
     const editor = ref.current!.getEditor();
 
-    // escape 清标记命令可执行（行为逻辑逐字搬运自旧热键，等价性由搬运保证）
+    // 清标记来自显式安装的格式扩展。
     Transforms.select(editor, { path: [0, 0], offset: 0 });
     expect(editor.commands.execute("tau.edit.clear-marks")).toBe(true);
 
@@ -286,7 +281,6 @@ describe("内核 legacy 热键命令化（escape 清标记 / mod+方向兜底 / 
     // 组件层的注册表，execute 成功即证明接线生效，这里钉住声明清单）
     const ids = builtinCommands.map(command => command.id);
     for (const expected of [
-      "tau.edit.clear-marks",
       "tau.edit.intercept-mod-right",
       "tau.edit.intercept-mod-left",
       "tau.edit.move-left",

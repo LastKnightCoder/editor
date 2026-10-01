@@ -1,5 +1,8 @@
 export { default as Editor } from "./index.tsx";
-export { createEditorKit, createBareEditorKit, createEditorKitFromRegistry } from "./kit/EditorKit";
+
+export type { MarkSpec, MarkRenderProps } from "./api/marks";
+export { createEditorKit } from "./kit/EditorKit";
+export { defaultMenuExtension } from "./menu/defaultMenu";
 export type { EditorKit, EditorKitOptions, EditorKitExtendOptions } from "./kit/EditorKit";
 export { createValueDocument } from "./document/EditorDocument";
 export type {
@@ -8,22 +11,8 @@ export type {
   ValueDocumentOptions,
 } from "./document/EditorDocument";
 
-export type { ResourceService, FileService, OpenerService } from "./types/services";
-
 // Service Registry DI
-export {
-  createServiceId,
-  IResourceService,
-  IFileService,
-  IOpenerService,
-  IMediaInsertSources,
-  IVideoContentProviders,
-  IMediaActions,
-  IMediaSelectors,
-  IEditorSlots,
-  IExtensionErrorReporter,
-  IEditorNotifier,
-} from "./services/tokens";
+export { createServiceId, IExtensionErrorReporter, IEditorNotifier } from "./services/tokens";
 export { defaultEditorNotifier } from "./services/notifier";
 export type {
   EditorNotifier,
@@ -33,44 +22,21 @@ export type {
 } from "./services/notifier";
 export { consoleErrorReporter } from "./services/errorReporter";
 export type { ExtensionErrorEvent, ExtensionErrorReporter } from "./services/errorReporter";
-export type {
-  MediaType,
-  MediaInsertPayload,
-  MediaInsertSource,
-  VideoContentProvider,
-  MediaAction,
-  MediaSelector,
-  SelectedMedia,
-} from "./services/mediaProviders";
+
 export type { ServiceIdentifier } from "./services/tokens";
 export { createServiceRegistry, createChildRegistry } from "./services/registry";
 export type { ServiceRegistry, ServiceRegister, ServiceRegistration } from "./services/registry";
-export {
-  useServiceRegistry,
-  useService,
-  useOptionalService,
-  useEditorSlots,
-  useNotifier,
-} from "./services/hooks";
+export { useServiceRegistry, useService, useOptionalService, useNotifier } from "./services/hooks";
 export { notifierOf } from "./services/editorNotifier";
-export type { EditorSlots, ImageSlotProps, VideoSlotProps, AudioSlotProps } from "./services/slots";
 
 export { default as useTheme } from "./hooks/useTheme";
 export { default as useIsLastElement } from "./hooks/useIsLastElement";
-export { default as useUploadResource } from "./hooks/useUploadResource";
+
 export { createMarkdownPasteImportExtension } from "./extensions/markdown-paste-import";
 export type { MarkdownImportFn } from "./extensions/markdown-paste-import";
 export { isMarkdownLikeText } from "./plugins/withMarkdownPasteImport";
 export type { ImportFromMarkdownOptions } from "./plugins/withMarkdownPasteImport";
-export { createImageExtensions } from "./extensions/image/createImageExtensions";
-export { default as headerExtension, createHeaderExtension } from "./extensions/header";
-export type { HeaderExtensionOptions } from "./extensions/header";
-export type {
-  ImageExtensionOptions,
-  ImageAppearanceOption,
-  ImageAppearanceSource,
-} from "./extensions/image/appearanceOption";
-export type { ImageAppearanceConfig } from "./extensions/image/utils/appearance";
+
 export { useEditorTheme, EditorThemeOverride } from "./theme/context";
 export type { EditorTheme } from "./theme/context";
 export { createDomThemeService, createStaticThemeService } from "./theme/ThemeService";
@@ -78,15 +44,16 @@ export type { ThemeService, EditorThemeMode } from "./theme/ThemeService";
 
 export * from "./utils/element";
 
-export type { IExtensionBaseProps } from "./extensions/types";
 export {
   defineExtension,
   defineElement,
   type EditorExtension,
   type AnyExtension,
   type ElementSpec,
+  type ElementEmptyContext,
   type ElementBehaviors,
   type ElementRenderProps,
+  type ExtensionLayerProps,
   type EditorCommand,
   type EditorCommandContext,
   type EditorHotkey,
@@ -109,12 +76,5 @@ export type {
   ElementIngestSpec,
 } from "./api/ingest";
 export { default as InlineChromiumBugfix } from "./components/InlineChromiumBugFix";
-export { default as EditorContextMenu } from "./components/EditorContextMenu";
 // 拖拽 chrome 已收进内核（BlockDragHost，01 §5.4）；类名常量供宿主样式与测试引用
 export { BLOCK_DRAG_GROUP } from "./components/BlockDrag";
-
-// Constants
-export * from "./constants";
-
-// Context Menu Types
-export type { ContextMenuItem, BuildMenuParams } from "./components/EditorContextMenu/types";

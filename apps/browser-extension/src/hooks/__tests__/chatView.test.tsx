@@ -5,13 +5,13 @@ const data = vi.hoisted(() => ({
   props: null as any,
   live: [{ id: "live", role: "assistant", content: "正在流式生成" }],
 }));
-vi.mock("@tau/shared", () => ({
+vi.mock("@tau/chat-ui", () => ({
   ChatContainerCore: (props: any) => {
     data.props = props;
     return null;
   },
-  useChatAutoScroll: () => ({}),
 }));
+vi.mock("@tau/shared", () => ({ useChatAutoScroll: () => ({}) }));
 vi.mock("antd", () => ({ App: { useApp: () => ({ message: {}, modal: {} }) } }));
 vi.mock("../useAiChat", () => ({
   useAiChat: () => ({

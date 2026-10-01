@@ -31,6 +31,6 @@
       "@tau/shared/*": ["../../packages/shared/*"]
     }
   },
-  "include": ["src", "src-electron", "../../packages/shared/src/components/Katex"],
+  "include": ["src", "src-electron"],
   "exclude": ["demos", "node_modules"]
 }

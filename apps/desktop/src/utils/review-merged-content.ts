@@ -1,5 +1,5 @@
 import type { Descendant } from "slate";
-import type { FormattedText } from "@tau/editor/src/types";
+import type { FormattedText } from "@tau/editor";
 import type { AppliedPatch } from "@/services/content-editing/types";
 import { importFromMarkdown } from "@/utils/markdown";
 import { computeCharDiff } from "./char-diff";

@@ -1,19 +1,14 @@
+import { IFileService, IOpenerService, IResourceService } from "@tau/shared/host-services";
 import { convertFileSrc as tauriConvertFileSrc } from "@tauri-apps/api/core";
 import { openUrl as tauriOpenUrl } from "@tauri-apps/plugin-opener";
 import {
   createServiceRegistry,
   IEditorNotifier,
-  IEditorSlots,
-  IFileService,
-  IVideoContentProviders,
-  IOpenerService,
-  IResourceService,
   type ServiceRegistration,
   type ServiceRegistry,
-  type EditorSlots,
-  type ImageAppearanceConfig,
-  type ImageAppearanceSource,
-} from "@tau/editor/src";
+} from "@tau/editor";
+import { IEditorSlots, IVideoContentProviders, type EditorSlots } from "@tau/editor-media/services";
+import { type ImageAppearanceConfig, type ImageAppearanceSource } from "@tau/editor-media";
 export { mobileImportFromMarkdown } from "./editorMarkdown";
 import LocalAudio from "../components/editor/LocalAudio";
 import LocalImage from "../components/editor/LocalImage";
@@ -29,6 +24,8 @@ import { mobileVideoContentProviders } from "../editor-providers/videoProviders"
 import { mobileEditorNotifier } from "./editorNotifier";
 import { arrayBufferToBase64 } from "../utils/base64";
 import { compressImageForUpload } from "../utils/imageCompress";
+import { IOverlayBackDismiss } from "@tau/editor/api";
+import { MobileEditorOverlayDismiss } from "./editorOverlayDismiss";
 
 const UNSUPPORTED_REASON = "移动端不支持该功能";
 
@@ -69,6 +66,7 @@ const mobileEditorSlots: EditorSlots = {
 
 /** Mobile 的服务注册项：kit 与 registry 共用同一份 */
 export const mobileEditorServices: ServiceRegistration = register => {
+  register(IOverlayBackDismiss, { Layer: MobileEditorOverlayDismiss });
   register(IResourceService, {
     upload: async file => {
       // 分步日志经 WebView console 进 logcat，用于真机排查上传链路

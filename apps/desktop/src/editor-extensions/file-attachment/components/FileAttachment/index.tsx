@@ -1,7 +1,7 @@
 import React from "react";
 import { RenderElementProps } from "slate-react";
 import { FileAttachmentElement } from "@/editor-extensions/file-attachment/types";
-import { AddParagraph, useNotifier, type EditorLoadingHandle } from "@tau/editor/src";
+import { AddParagraph, useNotifier, type EditorLoadingHandle } from "@tau/editor";
 import { showInFolder } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
 

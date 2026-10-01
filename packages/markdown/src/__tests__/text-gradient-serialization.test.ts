@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import type { Descendant } from "slate";
 import type { FormattedText } from "../types.ts";
-import { leafToMarkdown } from "../index.ts";
 import { fixtureProcessor } from "./fixtures.ts";
 
 const getMarkdown = fixtureProcessor.getMarkdown;
+const leafToMarkdown = fixtureProcessor.leafToMarkdown;
 const importFromMarkdown = fixtureProcessor.importFromMarkdown;
 
 describe("text gradient markdown serialization", () => {

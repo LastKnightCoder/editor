@@ -2,7 +2,7 @@ import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import FloatingSubmenu from "@tau/editor/src/components/HoveringToolbar/FloatingSubmenu";
+import { ToolbarSubmenu as FloatingSubmenu } from "@tau/editor/api";
 
 function setViewportSize(width: number, height: number) {
   Object.defineProperty(window, "innerWidth", {

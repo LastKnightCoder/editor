@@ -20,7 +20,7 @@ const plainText = (node: NodeLike): string =>
   typeof node.text === "string" ? node.text : (node.children ?? []).map(plainText).join("");
 
 const escapeAttribute = (value: string): string =>
-  value.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+  value.replace(/&/g, "&amp;").replace(/\\/g, "&#92;").replace(/"/g, "&quot;");
 
 const escapeLabel = (value: string): string =>
   value.replace(/[\r\n\u2028\u2029]+/g, " ").replace(/[\\[\]]/g, match => `\\${match}`);
@@ -44,7 +44,7 @@ export const serializeUnknownInline = (element: NodeLike): string => {
   return `:${UNKNOWN_NODE_DIRECTIVE}[${escapeLabel(plainText(element))}]{type="${type}" json="${json}"}`;
 };
 
-/** 解析出的节点必须是带 children 的元素，否则视为损坏、交回常规处理 */
+/** 元素沿用 children 协议，文本载体只接受基础 formatted 叶子。 */
 export const parseUnknownNode = (json: string | undefined): Descendant | null => {
   if (!json) return null;
   try {
@@ -52,7 +52,17 @@ export const parseUnknownNode = (json: string | undefined): Descendant | null =>
     if (
       node &&
       typeof node === "object" &&
+      (node as NodeLike).type === "formatted" &&
+      typeof (node as NodeLike).text === "string" &&
+      !("children" in node)
+    ) {
+      return node as Descendant;
+    }
+    if (
+      node &&
+      typeof node === "object" &&
       typeof (node as NodeLike).type === "string" &&
+      (node as NodeLike).type !== "formatted" &&
       Array.isArray((node as NodeLike).children)
     ) {
       return node as Descendant;

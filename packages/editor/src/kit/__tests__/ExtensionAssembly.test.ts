@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { defineElement, defineExtension } from "../../api";
+import {
+  defineElement,
+  defineExtension,
+  EXTENSION_API_VERSION,
+  type EditorExtension,
+  type Plugin,
+} from "../../api";
 import { ExtensionAssembly } from "../ExtensionAssembly";
 
 const createExtension = (type: string, label: string, plugins: unknown[] = []) =>
@@ -55,7 +61,8 @@ describe("ExtensionAssembly", () => {
 
   it("单个扩展装配抛错不影响其他扩展", () => {
     // v2 的贡献是静态声明，收集期几乎没有用户代码；用 getter 模拟「收集期访问贡献时抛错」
-    const broken = {
+    const broken: EditorExtension = {
+      apiVersion: EXTENSION_API_VERSION,
       id: "test.broken",
       elements: [
         {
@@ -64,7 +71,7 @@ describe("ExtensionAssembly", () => {
           render: () => null as never,
         },
       ],
-      get plugins() {
+      get plugins(): readonly Plugin[] {
         throw new Error("boom");
       },
     };

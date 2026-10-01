@@ -1,5 +1,5 @@
 import { Editor } from "slate";
-import { setOrInsertNode } from "@tau/editor/src";
+import { setOrInsertNode } from "@tau/editor";
 import { getFileBaseName } from "@/commands";
 import { v4 as getId } from "uuid";
 import type { FileAttachmentElement } from "./types";
@@ -8,7 +8,7 @@ export const insertFileAttachment = async (
   editor: Editor,
   filePath: string,
   isLocal: boolean,
-  fileName?: string,
+  fileName?: string
 ) => {
   const resolvedFileName = fileName || (await getFileBaseName(filePath));
   const uuid = getId();

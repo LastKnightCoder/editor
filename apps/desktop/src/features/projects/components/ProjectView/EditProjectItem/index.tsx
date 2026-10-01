@@ -6,7 +6,7 @@ import { cn, useEdgeFade } from "@tau/ui";
 import { useProjectContext } from "../ProjectContext";
 import useEdit from "./useEdit";
 import { formatDate, defaultProjectItemEventBus } from "@/utils";
-import { EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor";
 import Editor from "@/components/ContentEditor";
 import AddTag from "@/components/AddTag";
 import ContentCollaborationControl, {

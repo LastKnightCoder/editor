@@ -1,0 +1,9 @@
+:root,
+.tau-editor,
+.tau-editor-surface {
+  /* ── 批注（划线高亮 + 图标）── */
+  --ed-comment-bg: var(--tau-warn-soft);
+  --ed-comment-hover-bg: var(--tau-warn-soft);
+  --ed-comment-border: var(--tau-warn);
+  --ed-comment-icon: var(--tau-warn);
+}

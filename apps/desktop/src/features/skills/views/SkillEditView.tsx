@@ -36,7 +36,7 @@ import {
   cn,
   toast,
 } from "@tau/ui";
-import { Editor } from "@tau/editor/src";
+import { Editor } from "@tau/editor";
 import { FadeScroll } from "@/components/FadeScroll";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import useSkillStore from "@/stores/useSkillStore";
