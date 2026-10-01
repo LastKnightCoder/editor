@@ -251,6 +251,13 @@ export interface ISetting {
   agentShell: {
     path: string;
   };
+  /**
+   * AI 对话（对话页 / 停靠栏）的工作目录：新对话登记时以 defaultCwd 为准，之后每个对话各自记在目录行里。
+   * 空 = 应用数据目录（~/.editor）。
+   */
+  agentWorkspace: {
+    defaultCwd: string;
+  };
   llmUsageSettings: {
     chat: LLMUsageConfigV2 | null;
     titleSummary: LLMUsageConfigV2 | null;
@@ -418,6 +425,8 @@ interface IActions {
   setToolPermissionMode: (mode: ToolPermissionMode) => void;
   /** AI 执行命令用的 shell 路径（空串 = 交回自动检测） */
   setAgentShellPath: (path: string) => void;
+  /** 新对话的默认工作目录（空串 = 应用数据目录） */
+  setAgentDefaultCwd: (cwd: string) => void;
   updateBilibiliCredentials: (
     credentials: ISetting["integration"]["bilibili"]["credentials"]
   ) => void;
@@ -666,6 +675,9 @@ const initialState: IState = {
     agentShell: {
       path: "",
     },
+    agentWorkspace: {
+      defaultCwd: "",
+    },
     llmUsageSettings: {
       chat: null,
       titleSummary: null,
@@ -885,6 +897,14 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, draft => {
         draft.agentShell = { ...draft.agentShell, path };
+      }),
+    });
+  },
+  setAgentDefaultCwd: cwd => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, draft => {
+        draft.agentWorkspace = { ...draft.agentWorkspace, defaultCwd: cwd };
       }),
     });
   },

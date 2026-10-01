@@ -79,6 +79,8 @@ interface ChatSessionDescriptor {
   providerId: string;
   modelId: string;
   thinkingLevel?: PiThinkingLevel;
+  /** 宿主会话的工作目录（变化即重建，pi 的工具在装配时绑定 cwd） */
+  cwd: string;
   /** 交 pi 注册的工具全集指纹（变化才重建） */
   toolUniverse?: string;
   /** 最近一次推给宿主的活跃工具集（仅在真变化时推送，避免白丢提示缓存） */
@@ -125,6 +127,7 @@ class PiChatSessionManager {
       providerId: found.modelRef.providerId,
       modelId: found.modelRef.modelId,
       thinkingLevel: found.thinkingLevel,
+      cwd: found.cwd ?? "",
       toolUniverse: found.toolSpecs?.map(piToolDefinitionKey).join("\u0000"),
     });
     registerPiToolSessionContext(found.sessionId, {
@@ -144,7 +147,7 @@ class PiChatSessionManager {
   }
 
   /**
-   * 确保 chat 有可用 pi 会话：模型/档位变化自动重建；systemPrompt 每轮热替换。
+   * 确保 chat 有可用 pi 会话：模型/档位/工作目录变化自动重建；systemPrompt 每轮热替换。
    * 工具集变化分两档——启用/停用已注册的工具只切活跃集（不重建、保留本会话授权）；
    * 出现新的工具定义（新连 MCP 服务器、schema 变更）才重建，因为 pi 注册表装配后不可追加。
    * 重建不丢历史：pi 从会话文件恢复。
@@ -159,7 +162,8 @@ class PiChatSessionManager {
       existing &&
       existing.providerId === options.provider.id &&
       existing.modelId === options.model.id &&
-      existing.thinkingLevel === options.thinkingLevel
+      existing.thinkingLevel === options.thinkingLevel &&
+      existing.cwd === (options.cwd ?? "")
     ) {
       const loadout = buildToolLoadout(options);
       if (existing.toolUniverse !== undefined && existing.toolUniverse !== loadout.universe) {
@@ -247,6 +251,7 @@ class PiChatSessionManager {
       ...(options.databaseName ? { databaseName: options.databaseName } : {}),
       // scope 用会话键（`<scope前缀>:<chatId>`）：渲染层重载后 find-by-scope 靠它收养会话
       scope: key,
+      chatScope: options.chatScope,
       cwd: options.cwd ?? "",
       modelRef: { providerId: options.provider.id, modelId: options.model.id },
       systemPrompt: options.systemPrompt,
@@ -267,13 +272,17 @@ class PiChatSessionManager {
       toolScope: options.toolScope,
       scopedTools: loadout.tools.filter(tool => tool.source === options.toolScope),
       conversationKey: key,
-      ...(options.toolContext ? { toolContext: options.toolContext } : {}),
+      // 子代理沿用对话的工作目录（subagentTool 从 toolContext.cwd 读）
+      ...(options.toolContext || options.cwd
+        ? { toolContext: { ...options.toolContext, ...(options.cwd ? { cwd: options.cwd } : {}) } }
+        : {}),
     });
     this.sessions.set(key, {
       sessionId,
       ...(outcome.sessionFile ? { sessionFile: outcome.sessionFile } : {}),
       providerId: options.provider.id,
       modelId: options.model.id,
+      cwd: options.cwd ?? "",
       toolUniverse: loadout.universe,
       activeToolNames: loadout.activeToolNames,
       ...(options.thinkingLevel ? { thinkingLevel: options.thinkingLevel } : {}),

@@ -60,6 +60,7 @@ import {
   buildLineStartOffsets,
   parseRipgrepJsonLines,
   readMarkdownLines,
+  vibeLearningMarkdownDir,
 } from "./vibe-learning-resource-read-utils";
 
 const MAX_HIT_CONTEXT_RADIUS = 3;
@@ -1986,11 +1987,10 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     resourceName: string,
     content: string
   ): Promise<string> {
-    const dbNameWithoutExt = mainDbName.replace(/\.db$/, "");
     const baseName = this.getBaseFileName(resourceName);
     const safeBaseName = this.sanitizeFileName(baseName);
     const fileName = `${safeBaseName}-${resourceId}.md`;
-    const relativePath = `vibe-learning/${dbNameWithoutExt}/${projectId}/${fileName}`;
+    const relativePath = `${vibeLearningMarkdownDir(mainDbName, projectId)}/${fileName}`;
     const absolutePath = this.getAbsoluteMarkdownPath(relativePath);
 
     // 确保目录存在
