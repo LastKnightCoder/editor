@@ -665,30 +665,6 @@ importers:
       '@tau/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
-      '@tau/editor-blockquote':
-        specifier: workspace:*
-        version: link:../../editor-extensions/blockquote
-      '@tau/editor-callout':
-        specifier: workspace:*
-        version: link:../../editor-extensions/callout
-      '@tau/editor-detail':
-        specifier: workspace:*
-        version: link:../../editor-extensions/detail
-      '@tau/editor-header':
-        specifier: workspace:*
-        version: link:../../editor-extensions/header
-      '@tau/editor-highlight-block':
-        specifier: workspace:*
-        version: link:../../editor-extensions/highlight-block
-      '@tau/editor-list':
-        specifier: workspace:*
-        version: link:../../editor-extensions/list
-      '@tau/editor-table':
-        specifier: workspace:*
-        version: link:../../editor-extensions/table
-      '@tau/editor-tabs':
-        specifier: workspace:*
-        version: link:../../editor-extensions/tabs
       '@tau/rpc':
         specifier: workspace:*
         version: link:../../packages/rpc
@@ -852,6 +828,12 @@ importers:
       '@tau/editor-annotation':
         specifier: workspace:*
         version: link:../../editor-extensions/annotation
+      '@tau/editor-blockquote':
+        specifier: workspace:*
+        version: link:../../editor-extensions/blockquote
+      '@tau/editor-callout':
+        specifier: workspace:*
+        version: link:../../editor-extensions/callout
       '@tau/editor-code-block':
         specifier: workspace:*
         version: link:../../editor-extensions/code-block
@@ -864,6 +846,9 @@ importers:
       '@tau/editor-custom-block':
         specifier: workspace:*
         version: link:../../editor-extensions/custom-block
+      '@tau/editor-detail':
+        specifier: workspace:*
+        version: link:../../editor-extensions/detail
       '@tau/editor-diagram':
         specifier: workspace:*
         version: link:../../editor-extensions/diagram
@@ -876,6 +861,12 @@ importers:
       '@tau/editor-front-matter':
         specifier: workspace:*
         version: link:../../editor-extensions/front-matter
+      '@tau/editor-header':
+        specifier: workspace:*
+        version: link:../../editor-extensions/header
+      '@tau/editor-highlight-block':
+        specifier: workspace:*
+        version: link:../../editor-extensions/highlight-block
       '@tau/editor-html':
         specifier: workspace:*
         version: link:../../editor-extensions/html
@@ -885,6 +876,9 @@ importers:
       '@tau/editor-link':
         specifier: workspace:*
         version: link:../../editor-extensions/link
+      '@tau/editor-list':
+        specifier: workspace:*
+        version: link:../../editor-extensions/list
       '@tau/editor-math':
         specifier: workspace:*
         version: link:../../editor-extensions/math
@@ -897,6 +891,12 @@ importers:
       '@tau/editor-styled-text':
         specifier: workspace:*
         version: link:../../editor-extensions/styled-text
+      '@tau/editor-table':
+        specifier: workspace:*
+        version: link:../../editor-extensions/table
+      '@tau/editor-tabs':
+        specifier: workspace:*
+        version: link:../../editor-extensions/tabs
       '@tau/editor-text-formatting':
         specifier: workspace:*
         version: link:../../editor-extensions/text-formatting
