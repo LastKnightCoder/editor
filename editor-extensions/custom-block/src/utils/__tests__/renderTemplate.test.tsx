@@ -1,9 +1,18 @@
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { compileAndExecuteCustomBlock, rerenderCustomBlockTheme } from "../renderTemplate";
+import {
+  compileAndExecuteCustomBlock,
+  rerenderCustomBlockTheme,
+  type CustomBlockTheme,
+} from "../renderTemplate";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const createTheme = (isDark: boolean): CustomBlockTheme => ({
+  isDark,
+  token: word => `${isDark ? "dark" : "light"}:${word}`,
+});
 
 describe("custom-block renderTemplate", () => {
   let cleanup: (() => void) | undefined;
@@ -32,17 +41,16 @@ describe("custom-block renderTemplate", () => {
     const renderPromise = compileAndExecuteCustomBlock(
       `
 const Component = () => {
-  const { isDark, theme } = hooks.useTheme();
-  return <div data-theme={theme}>{isDark ? "dark" : "light"}</div>;
+  const { isDark, color } = useTokens();
+  return <div data-color={color("accent")}>{isDark ? "dark" : "light"}</div>;
 };
 `,
-      false,
+      createTheme(false),
       container,
-      {},
       { compile: tailwindRuntime }
     );
 
-    rerenderCustomBlockTheme(container, true);
+    rerenderCustomBlockTheme(container, createTheme(true));
 
     await act(async () => {
       resolveTailwindRuntime("");
@@ -50,14 +58,14 @@ const Component = () => {
     });
 
     expect(container.textContent).toBe("dark");
-    expect(container.querySelector("[data-theme]")?.getAttribute("data-theme")).toBe("dark");
+    expect(container.querySelector("[data-color]")?.getAttribute("data-color")).toBe("dark:accent");
   });
 
   const renderTemplate = async (code: string) => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     await act(async () => {
-      cleanup = await compileAndExecuteCustomBlock(code, false, container, {});
+      cleanup = await compileAndExecuteCustomBlock(code, createTheme(false), container);
     });
     return container;
   };
@@ -90,5 +98,47 @@ const Component = () => {
 const Component = () => <div className="p-2">新模板</div>;
 `);
     expect(container.textContent).toBe("新模板");
+  });
+
+  it(
+    "模板可用 ui 子集与 toast，主题切换后 useTokens 取色随之刷新",
+    { timeout: 20000 },
+    async () => {
+      const container = await renderTemplate(`
+const Component = () => {
+  const { color } = useTokens();
+  return (
+    <div>
+      <ui.Button variant="secondary" onClick={() => toast.success("已复制")}>复制</ui.Button>
+      <span data-color={color("ink-2")} />
+    </div>
+  );
+};
+`);
+      expect(container.querySelector("button")?.textContent).toBe("复制");
+      expect(container.querySelector("[data-color]")?.getAttribute("data-color")).toBe(
+        "light:ink-2"
+      );
+
+      await act(async () => {
+        rerenderCustomBlockTheme(container, createTheme(true));
+      });
+      expect(container.querySelector("[data-color]")?.getAttribute("data-color")).toBe(
+        "dark:ink-2"
+      );
+    }
+  );
+
+  it("存量模板的 hooks.useTheme() 仍可用，并提示迁移到 useTokens", { timeout: 20000 }, async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const container = await renderTemplate(`
+const Component = () => {
+  const { isDark, theme } = hooks.useTheme();
+  return <div data-theme={theme}>{isDark ? "dark" : "light"}</div>;
+};
+`);
+    expect(container.textContent).toBe("light");
+    expect(container.querySelector("[data-theme]")?.getAttribute("data-theme")).toBe("light");
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("useTokens"));
   });
 });

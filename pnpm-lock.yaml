@@ -1901,9 +1901,9 @@ importers:
       '@tau/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      ahooks:
-        specifier: ^3.7.7
-        version: 3.10.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@tau/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       lucide-react:
         specifier: ^0.399.0
         version: 0.399.0(react@19.2.0)
