@@ -82,10 +82,11 @@ const toTemplateTheme = ({ isDark, token }: CustomBlockTheme): TemplateTheme => 
 
 type TauUi = typeof import("@tau/ui");
 
-/** 模板可用的 @tau/ui 子集：只放文档内演示用得到的控件；浮层类组件与依赖图标的组件不进契约 */
+/** 模板可用的 @tau/ui 子集：文档内演示用的控件与非模态浮层；Dialog / Drawer 等模态浮层不进契约 */
 const pickTemplateUi = (ui: TauUi) =>
   Object.freeze({
     Button: ui.Button,
+    IconButton: ui.IconButton,
     Input: ui.Input,
     Textarea: ui.Textarea,
     NumberInput: ui.NumberInput,
@@ -96,6 +97,8 @@ const pickTemplateUi = (ui: TauUi) =>
     Select: ui.Select,
     Tag: ui.Tag,
     Spinner: ui.Spinner,
+    Tooltip: ui.Tooltip,
+    Popover: ui.Popover,
   });
 
 let legacyThemeHookWarned = false;
@@ -207,11 +210,12 @@ export const compileAndExecuteCustomBlock = async (
     }
 
     // 动态导入依赖
-    const [React, ReactDOM, Babel, TauUi] = await Promise.all([
+    const [React, ReactDOM, Babel, TauUi, icons] = await Promise.all([
       import("react"),
       import("react-dom/client"),
       import("@babel/standalone"),
       import("@tau/ui"),
+      import("lucide-react"),
     ]);
 
     if (shouldAbort()) {
@@ -262,6 +266,7 @@ export const compileAndExecuteCustomBlock = async (
       "ui",
       "toast",
       "useTokens",
+      "icons",
       "components",
       "hooks",
       compiledCode + "\nreturn typeof Component === 'function' ? Component : undefined;"
@@ -277,6 +282,7 @@ export const compileAndExecuteCustomBlock = async (
       pickTemplateUi(TauUi),
       TauUi.toast,
       useTokens,
+      icons,
       createTemplateComponents(),
       Object.freeze({ useTheme: useLegacyTheme })
     );

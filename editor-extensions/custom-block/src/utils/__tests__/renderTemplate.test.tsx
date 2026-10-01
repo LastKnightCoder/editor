@@ -101,7 +101,7 @@ const Component = () => <div className="p-2">新模板</div>;
   });
 
   it(
-    "模板可用 ui 子集与 toast，主题切换后 useTokens 取色随之刷新",
+    "模板可用 ui 子集、icons 与 toast，主题切换后 useTokens 取色随之刷新",
     { timeout: 20000 },
     async () => {
       const container = await renderTemplate(`
@@ -109,13 +109,20 @@ const Component = () => {
   const { color } = useTokens();
   return (
     <div>
-      <ui.Button variant="secondary" onClick={() => toast.success("已复制")}>复制</ui.Button>
+      <ui.Button variant="secondary" icon={icons.Copy} onClick={() => toast.success("已复制")}>
+        复制
+      </ui.Button>
+      <ui.Tooltip content="说明">
+        <span data-tooltip-anchor>悬停</span>
+      </ui.Tooltip>
       <span data-color={color("ink-2")} />
     </div>
   );
 };
 `);
       expect(container.querySelector("button")?.textContent).toBe("复制");
+      expect(container.querySelector("button svg")).not.toBeNull();
+      expect(container.querySelector("[data-tooltip-anchor]")?.textContent).toBe("悬停");
       expect(container.querySelector("[data-color]")?.getAttribute("data-color")).toBe(
         "light:ink-2"
       );
