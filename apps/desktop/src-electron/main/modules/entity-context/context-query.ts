@@ -1,0 +1,217 @@
+/**
+ * 组装一个实体的脉络：共用正文的身份、被引用（索引库 entity_refs）、相关问题。
+ *
+ * 显式链接 cards.links 与出链不在这里：卡片详情的「连接」区已经展示（KL-014、KL-015）。
+ */
+
+import type Database from "better-sqlite3";
+import {
+  ENTITY_REF_PRIORITY,
+  entityRefKey,
+  isSameEntityRef,
+  type EntityRef,
+  type EntityRefKind,
+} from "@/entity/ref";
+import type { InlineRefSnippet } from "@/entity/inline-refs";
+import type { EntityKind } from "@/types/entity";
+import type {
+  ContextBacklink,
+  ContextEntity,
+  ContextQuestion,
+  EntityContext,
+} from "@/types/entity-context";
+import type { QuestionLinkTargetType } from "@/types/question";
+import EntitySearchTable from "../tables/entity-search";
+
+/** 各分区最多返回的条数 */
+export const CONTEXT_LIMIT = 50;
+/** 每个来源最多带几段片段 */
+const SNIPPETS_PER_SOURCE = 3;
+
+const PICKER_KIND: Record<EntityRefKind, EntityKind> = {
+  card: "card",
+  article: "article",
+  "project-item": "project_item",
+  diary: "diary",
+};
+
+const QUESTION_TARGET: Partial<Record<EntityRefKind, QuestionLinkTargetType>> = {
+  card: "card",
+  article: "article",
+  "project-item": "project_item",
+};
+
+/** 实体对应的正文；日记有多段，全部算作它的正文 */
+function contentIdsOf(db: Database.Database, ref: EntityRef): number[] {
+  const one = (sql: string) =>
+    (db.prepare(sql).get(ref.id) as { content_id: number | null } | undefined)?.content_id;
+  let ids: Array<number | null | undefined>;
+  switch (ref.kind) {
+    case "card":
+      ids = [one(`SELECT content_id FROM cards WHERE id = ?`)];
+      break;
+    case "article":
+      ids = [one(`SELECT content_id FROM articles WHERE id = ? AND is_delete = 0`)];
+      break;
+    case "project-item":
+      ids = [one(`SELECT content_id FROM project_item WHERE id = ?`)];
+      break;
+    case "diary":
+      ids = (
+        db
+          .prepare(`SELECT content_id FROM diary_segments WHERE diary_id = ? ORDER BY id`)
+          .all(ref.id) as Array<{ content_id: number | null }>
+      ).map(row => row.content_id);
+      break;
+  }
+  return ids.filter((id): id is number => typeof id === "number" && id > 0);
+}
+
+function toContextEntity(db: Database.Database, ref: EntityRef): ContextEntity | null {
+  const candidate = EntitySearchTable.resolve(db, PICKER_KIND[ref.kind], ref.id, 0);
+  return candidate ? { ref, title: candidate.title, meta: candidate.meta } : null;
+}
+
+interface RefRow {
+  src_content_id: number;
+  snippet_before: string;
+  snippet_label: string;
+  snippet_after: string;
+}
+
+function backlinksOf(
+  mainDb: Database.Database,
+  indexDb: Database.Database,
+  self: EntityRef,
+  selfContentIds: number[]
+): { backlinks: ContextBacklink[]; total: number } {
+  const marks = selfContentIds.map(() => "?").join(",");
+  const byContent = selfContentIds.length ? `dst_content_id IN (${marks}) OR ` : "";
+  // 老节点可能缺 contentId，再按类型与 id 兜底
+  const rows = indexDb
+    .prepare(
+      `SELECT src_content_id, snippet_before, snippet_label, snippet_after FROM entity_refs
+       WHERE ${byContent}(dst_kind = ? AND dst_id = ?) ORDER BY rowid`
+    )
+    .all(...selfContentIds, self.kind, self.id) as RefRow[];
+  const selfContents = new Set(selfContentIds);
+  const external = rows.filter(row => !selfContents.has(row.src_content_id));
+  if (external.length === 0) return { backlinks: [], total: 0 };
+
+  const srcIds = [...new Set(external.map(row => row.src_content_id))];
+  const located = EntitySearchTable.locateAll(mainDb, srcIds);
+  const marksSrc = srcIds.map(() => "?").join(",");
+  const updateTimes = new Map(
+    (
+      mainDb
+        .prepare(`SELECT id, update_time FROM contents WHERE id IN (${marksSrc})`)
+        .all(...srcIds) as Array<{ id: number; update_time: number }>
+    ).map(row => [row.id, row.update_time])
+  );
+
+  // 一份来源正文被多个实体共用时，以优先级最高的身份展示
+  const groups = new Map<string, { ref: EntityRef; time: number; snippets: InlineRefSnippet[] }>();
+  for (const row of external) {
+    const ref = located.get(row.src_content_id)?.[0];
+    if (!ref || isSameEntityRef(ref, self)) continue;
+    const key = entityRefKey(ref);
+    const group = groups.get(key) ?? {
+      ref,
+      time: updateTimes.get(row.src_content_id) ?? 0,
+      snippets: [],
+    };
+    if (group.snippets.length < SNIPPETS_PER_SOURCE) {
+      group.snippets.push({
+        before: row.snippet_before,
+        label: row.snippet_label,
+        after: row.snippet_after,
+      });
+    }
+    groups.set(key, group);
+  }
+
+  const sorted = [...groups.values()].sort(
+    (a, b) => b.time - a.time || ENTITY_REF_PRIORITY[a.ref.kind] - ENTITY_REF_PRIORITY[b.ref.kind]
+  );
+  const backlinks: ContextBacklink[] = [];
+  for (const group of sorted) {
+    if (backlinks.length >= CONTEXT_LIMIT) break;
+    const source = toContextEntity(mainDb, group.ref);
+    if (source) backlinks.push({ source, snippets: group.snippets });
+  }
+  return { backlinks, total: groups.size };
+}
+
+function questionsOf(
+  db: Database.Database,
+  refs: EntityRef[],
+  contentIds: number[]
+): ContextQuestion[] {
+  const seen = new Map<number, ContextQuestion>();
+  const add = (rows: Array<{ id: number; question_content: string; status: string }>) => {
+    for (const row of rows) {
+      if (!seen.has(row.id)) {
+        seen.set(row.id, {
+          id: row.id,
+          title: row.question_content,
+          status: row.status as ContextQuestion["status"],
+        });
+      }
+    }
+  };
+  const byTarget = db.prepare(
+    `SELECT q.id, q.question_content, q.status FROM question_link l JOIN questions q ON q.id = l.question_id
+     WHERE l.target_type = ? AND l.target_id = ? ORDER BY q.update_time DESC`
+  );
+  for (const ref of refs) {
+    const targetType = QUESTION_TARGET[ref.kind];
+    if (targetType) add(byTarget.all(targetType, ref.id) as never);
+  }
+  // 问题的答案正文被投影成卡片等实体时，材料仍记为 answer:contentId
+  if (contentIds.length) {
+    const marks = contentIds.map(() => "?").join(",");
+    add(
+      db
+        .prepare(
+          `SELECT q.id, q.question_content, q.status FROM question_link l JOIN questions q ON q.id = l.question_id
+           WHERE l.target_type = 'answer' AND l.target_id IN (${marks}) ORDER BY q.update_time DESC`
+        )
+        .all(...contentIds) as never
+    );
+  }
+  return [...seen.values()].slice(0, CONTEXT_LIMIT);
+}
+
+/** 实体不存在时返回 null */
+export function getEntityContext(
+  mainDb: Database.Database,
+  indexDb: Database.Database,
+  ref: EntityRef
+): EntityContext | null {
+  const self = toContextEntity(mainDb, ref);
+  if (!self) return null;
+  const contentIds = contentIdsOf(mainDb, ref);
+  const located = EntitySearchTable.locateAll(mainDb, contentIds);
+  const projectionRefs: EntityRef[] = [];
+  const seen = new Set([entityRefKey(ref)]);
+  for (const id of contentIds) {
+    for (const other of located.get(id) ?? []) {
+      const key = entityRefKey(other);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      projectionRefs.push(other);
+    }
+  }
+  const projections = projectionRefs
+    .map(other => toContextEntity(mainDb, other))
+    .filter((entity): entity is ContextEntity => entity !== null)
+    .slice(0, CONTEXT_LIMIT);
+  const { backlinks, total } = backlinksOf(mainDb, indexDb, ref, contentIds);
+  return {
+    self,
+    projections,
+    backlinks,
+    backlinkTotal: total,
+    questions: questionsOf(mainDb, [ref, ...projectionRefs], contentIds),
+  };
+}
