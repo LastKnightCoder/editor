@@ -111,7 +111,6 @@ export const RightChatPanel = memo(
             </IconButton>
             {headerActions}
           </div>
-          {open && <WorkspaceBar chatId={currentChat.id} busy={sendLoading} />}
 
           <div className={open ? "min-h-0 flex-1" : "hidden"}>
             <Suspense fallback={<Loading minHeight={0} className="h-full" />}>
@@ -130,6 +129,7 @@ export const RightChatPanel = memo(
                 scrollPositionScope="right-chat-sidebar"
                 onChatCreated={select}
                 compact
+                composerAccessory={<WorkspaceBar chatId={currentChat.id} busy={sendLoading} />}
               />
             </Suspense>
           </div>

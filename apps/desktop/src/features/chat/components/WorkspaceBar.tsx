@@ -1,5 +1,5 @@
 /**
- * 对话工作目录栏：标题行下方显示 AI 执行命令、读写文件所在的目录，是仓库时显示当前分支。
+ * 对话工作目录栏：输入框正上方显示 AI 执行命令、读写文件所在的目录，是仓库时显示当前分支。
  * 在这里换目录只影响当前对话（下一轮起生效）；切分支直接作用于该仓库。
  * 对话进行中不允许切换，免得一轮命令跑到一半换了地方。
  */
@@ -41,7 +41,7 @@ export function WorkspaceBar({ chatId, busy }: { chatId: string; busy: boolean }
   if (!info) return null;
 
   return (
-    <div className="flex h-7 flex-none items-center gap-0.5 overflow-hidden px-3">
+    <div className="-ml-1.5 mb-1 flex h-7 min-w-0 items-center gap-0.5 overflow-hidden">
       <Menu
         className="w-[300px]"
         trigger={
