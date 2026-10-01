@@ -9,7 +9,6 @@ export type {
   MessageViewImage,
   MessageViewFile,
   MessageMarkdownParams,
-  MessageSaveTarget,
 } from "./MessageView";
 export { ReasoningBlock, formatElapsed } from "./ReasoningBlock";
 export { ToolCallBlock, ToolCallRow, toolStatusText, formatToolDuration } from "./ToolCallRow";
