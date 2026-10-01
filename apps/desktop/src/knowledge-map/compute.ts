@@ -954,6 +954,7 @@ export function computeKnowledgeMap(
   );
   // 合并与拆分后主题成分变了，名字要按新成员重取，并再做一次同名合并
   const labelOf = mergeByLabel(topicOf, labelFor);
+  const topLabels = new Set([...labelOf.values()].filter(Boolean));
   const groups = groupsOf(topicOf);
 
   // 3) 按规模重新编号（0 是最大的主题），并分子主题
@@ -989,7 +990,7 @@ export function computeKnowledgeMap(
     )) {
       const nodes = local.map(i => members[i]);
       const label =
-        subtopicLabel(nodes.map(labelMember), parentLabel) ||
+        subtopicLabel(nodes.map(labelMember), parentLabel, topLabels) ||
         // 取不出名字、且多数成员并不属于父主题：是挂在这里的杂项，明说「其它」，
         // 不让它冒充父主题的一部分；等同类内容攒够了会自己独立出去
         (headCoverage(nodes, parentLabel) < MISC_SUBTOPIC_SHARE ? MISC_SUBTOPIC_LABEL : "");

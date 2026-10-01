@@ -101,6 +101,12 @@ it.skipIf(!MAIN || !INDEX)(
 
     console.log(
       [
+        `子主题与大主题撞名：${
+          map.topics
+            .filter(t => t.parent !== -1 && t.label && tops.some(top => top.label === t.label))
+            .map(t => `${t.label}(于 ${nameOf.get(t.parent)})`)
+            .join(", ") || "无"
+        }`,
         `EVAL 节点=${items.length} 耗时=${ms}ms 大主题=${tops.length} 子主题=${map.topics.length - tops.length} 无名子主题=${map.topics.filter(t => t.parent !== -1 && !t.label).length} 未归类=${map.nodes.filter(n => n.topic === -1).length} 主题纯度=${(majority / Math.max(1, tagged)).toFixed(3)}`,
         ...lines,
         where(

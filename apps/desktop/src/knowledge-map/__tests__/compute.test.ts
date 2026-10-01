@@ -667,3 +667,20 @@ describe("promoteCohesiveLabels", () => {
     expect(new Set(assignment)).toEqual(new Set([0]));
   });
 });
+
+describe("subtopicLabel 避开大主题名", () => {
+  it("成员 tag 首段是别的大主题名时取下一段，不与任何大主题同名", () => {
+    const members = [
+      { tags: ["JavaScript/样式操作"] },
+      { tags: ["JavaScript/样式操作"] },
+      { tags: ["CSS/动画"] },
+    ];
+    expect(subtopicLabel(members, "CSS")).toBe("JavaScript");
+    expect(subtopicLabel(members, "CSS", new Set(["CSS", "JavaScript"]))).toBe("样式操作");
+  });
+
+  it("下一段也没有时取不到名字", () => {
+    const members = [{ tags: ["JavaScript"] }, { tags: ["JavaScript"] }];
+    expect(subtopicLabel(members, "CSS", new Set(["JavaScript"]))).toBe("");
+  });
+});
