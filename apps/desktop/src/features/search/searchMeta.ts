@@ -19,6 +19,7 @@ import {
   FileDown,
   Command,
   type LucideIcon,
+  Map as MapIcon,
 } from "lucide-react";
 import { NAV_SECTIONS, NAV_FOOTER } from "@/app/navigation";
 import { getPageMeta } from "@/page/core/pageMeta";
@@ -118,6 +119,16 @@ export function paletteCommands(): PaletteCommand[] {
   ];
   cached = [
     ...pages,
+    {
+      // 知识地图入口在标题栏，不在侧边栏（D-095）
+      id: "page:knowledge-map",
+      label: "知识地图",
+      section: "知识",
+      icon: MapIcon,
+      keywords: "map graph 图谱 地图 关联 主题",
+      kind: "page",
+      pageKey: "knowledge-map",
+    },
     {
       id: "action:cycle-theme",
       label: "切换深浅模式",
