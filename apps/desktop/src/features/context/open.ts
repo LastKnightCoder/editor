@@ -1,8 +1,10 @@
 /**
- * 打开脉络条目：正文实体走 openEntity，其余（对话、Notebook、闪卡卡组、白板、待办）打开各自的页面。
+ * 打开脉络条目：正文实体走 openEntity，外部材料走 openMaterialTarget，其余（对话、Notebook、闪卡卡组、
+ * 白板、待办）打开各自的页面。
  */
 
 import { openEntity } from "@/services/open-content";
+import { openMaterialTarget } from "@/services/open-material";
 import { openPage } from "@/services/page-navigation";
 import type { ContextOpenTarget } from "@/types/entity-context";
 
@@ -22,5 +24,7 @@ export async function openContextTarget(target: ContextOpenTarget): Promise<void
       return openPage("diary", { date: target.date, moment: String(target.momentId) });
     case "todos":
       return openPage("todos", { selectedId: target.selectedId });
+    case "material":
+      return openMaterialTarget(target.target);
   }
 }
