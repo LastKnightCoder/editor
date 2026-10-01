@@ -12,6 +12,7 @@ const htmlBlockExtension = defineExtension({
     defineElement<HTMLBlockElement>({
       type: "html-block",
       kind: "block",
+      drag: true,
       isVoid: true,
       isEmpty: element => element.html === "",
       render: ({ attributes, element, children }: ElementRenderProps<HTMLBlockElement>) => (

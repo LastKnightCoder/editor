@@ -118,6 +118,16 @@ const pruneCommonBuildArtifacts = nodeModulesDir => {
   ]);
 };
 
+const pruneJavaScriptSourceMaps = directory => {
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const file = path.join(directory, entry.name);
+    if (entry.isDirectory()) pruneJavaScriptSourceMaps(file);
+    else if (entry.isFile() && /\.[cm]?js\.map$/.test(entry.name)) fs.unlinkSync(file);
+  }
+};
+
+exports.pruneJavaScriptSourceMaps = pruneJavaScriptSourceMaps;
+
 /**
  * node-llama-cpp 为 ESM-only 且被 asarUnpack 解包。
  * pnpm 布局下其运行时依赖（chalk/ora/ipull 等）被 electron-builder 收进
@@ -363,4 +373,6 @@ exports.default = async context => {
   // 兜底清扫：显式清单漏掉的外来平台变体（如 @vscode/ripgrep-win32-x64）
   // 统一按 token 规则删除，保证产物能过 verify-native-runtime 的同款断言
   removeForeignPlatformPackages(nodeModulesDir, platform);
+  // afterPack 补复制的依赖也遵守与 files 相同的调试映射排除规则。
+  pruneJavaScriptSourceMaps(nodeModulesDir);
 };

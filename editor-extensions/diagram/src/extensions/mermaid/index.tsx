@@ -13,6 +13,7 @@ const mermaidExtension = defineExtension({
     defineElement<MermaidElement>({
       type: "mermaid",
       kind: "block",
+      drag: true,
       isVoid: true,
       isEmpty: element => element.chart === "",
       render: ({ attributes, element, children }: ElementRenderProps<MermaidElement>) => (

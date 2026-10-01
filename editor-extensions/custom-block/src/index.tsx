@@ -17,6 +17,7 @@ const customBlockExtension = defineExtension({
     defineElement<CustomBlockElement>({
       type: "custom-block",
       kind: "block",
+      drag: true,
       isVoid: true,
       isEmpty: element => element.content === "",
       render: ({ attributes, element, children }: ElementRenderProps<CustomBlockElement>) => (
