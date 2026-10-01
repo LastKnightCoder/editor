@@ -101,6 +101,7 @@ import {
 } from "../components/CardDetailLinks";
 import { CategoryBadge } from "../components/CardItemView";
 import { ContextBadge } from "@/features/context/components/ContextBadge";
+import { openEntity } from "@/services/open-content";
 
 /** copy utils 的 MessageApi 是结构类型，toast 同形适配（不引 antd message） */
 const toastAdapter = {
@@ -312,9 +313,15 @@ export function CardDetailView() {
                       <CardConnections
                         card={card}
                         cards={feed.cards}
-                        onNavigate={targetId => {
+                        onNavigate={ref => {
                           close();
-                          navigator.push("card-detail", { id: targetId });
+                          if (ref.kind === "card") {
+                            navigator.push("card-detail", { id: ref.id });
+                            return;
+                          }
+                          openEntity(ref).catch(error =>
+                            toast.error(error instanceof Error ? error.message : "无法打开内容")
+                          );
                         }}
                         onUnlink={targetId => void unlinkCard(targetId)}
                         onOpenAddDialog={() => {
