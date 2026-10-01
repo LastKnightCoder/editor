@@ -5,34 +5,20 @@ import Abc from "./Abc";
 
 import type { AbcElement } from "../../../types";
 import PreviewWithEditor from "../../../components/PreviewWithEditor";
+import { Music } from "lucide-react";
 
 interface AbcBlockProps {
   attributes: RenderElementProps["attributes"];
   element: AbcElement;
 }
 
-const AbcBlock: React.FC<PropsWithChildren<AbcBlockProps>> = (props) => {
+const AbcBlock: React.FC<PropsWithChildren<AbcBlockProps>> = props => {
   const { attributes, element, children } = props;
   const { content } = element;
   const editor = useSlateStatic();
 
-  const renderEmpty = () => {
-    return (
-      <div
-        contentEditable={false}
-        className="flex items-center justify-center h-14 text-[#99A1AF] cursor-pointer select-none"
-      >
-        点击编辑乐谱
-      </div>
-    );
-  };
-
   const onChange = (value: string) => {
-    Transforms.setNodes(
-      editor,
-      { content: value },
-      { at: ReactEditor.findPath(editor, element) },
-    );
+    Transforms.setNodes(editor, { content: value }, { at: ReactEditor.findPath(editor, element) });
   };
 
   return (
@@ -40,12 +26,14 @@ const AbcBlock: React.FC<PropsWithChildren<AbcBlockProps>> = (props) => {
       <div contentEditable={false}>
         <PreviewWithEditor
           mode={"text"}
+          title="乐谱"
+          icon={Music}
           initValue={content}
           onChange={onChange}
           element={element}
           center
         >
-          {content ? <Abc content={content} /> : renderEmpty()}
+          <Abc content={content} />
         </PreviewWithEditor>
       </div>
       {children}
