@@ -9,7 +9,7 @@ export default defineConfig({
     name: "Tau",
     description: "Tau 浏览器助手 - 网页笔记与 AI 助手",
     version: "0.1.0",
-    permissions: ["storage", "sidePanel", "tabs", "scripting", "activeTab"],
+    permissions: ["storage", "sidePanel", "tabs", "scripting", "activeTab", "alarms"],
     host_permissions: ["<all_urls>"],
     icons: {
       "16": "icon/16.png",
