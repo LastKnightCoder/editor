@@ -68,15 +68,15 @@ const Component = () => {
 
 **颜色只用语义类**，随主题自动切换。不写 `dark:`，也不按 `isDark` 分支选颜色：
 
-| 用途          | 类名                                                                           |
-| ------------- | ------------------------------------------------------------------------------ |
-| 舞台 / 区域底 | `bg-sunken`（演示舞台、画布底）、`bg-surface`（舞台上的卡片、方块）、`bg-page` |
-| 文字          | `text-ink-1` 正文、`text-ink-2` 次要、`text-ink-3` 注释与读数                  |
-| 描边          | `border-line-1` 常规、`border-line-2` 弱分隔                                   |
-| 强调          | `bg-accent text-ink-inverse` 实心、`bg-accent-soft text-accent-text` 轻量      |
-| 状态          | `ok` / `warn` / `danger` / `info`，底色加 `-soft`（`bg-ok-soft text-ok`）      |
-| 交互态        | `hover:bg-hover`、`active:bg-press`、选中 `bg-selected`                        |
-| 并列对象      | `tag-1` … `tag-5`（及 `-soft`），用于多个方块、多条曲线等需要互相区分的对象    |
+| 用途          | 类名                                                                                                                                                                       |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 舞台 / 区域底 | 默认透明，划区域用 `border border-line-1`；极浅底 `bg-hover`（读数区、序号圆点、代码标记）；`bg-surface`（舞台上的卡片、方块）。`bg-sunken` 颜色很重，只在确需深底对比时用 |
+| 文字          | `text-ink-1` 正文、`text-ink-2` 次要、`text-ink-3` 注释与读数                                                                                                              |
+| 描边          | `border-line-1` 常规、`border-line-2` 弱分隔                                                                                                                               |
+| 强调          | `bg-accent text-ink-inverse` 实心、`bg-accent-soft text-accent-text` 轻量                                                                                                  |
+| 状态          | `ok` / `warn` / `danger` / `info`，底色加 `-soft`（`bg-ok-soft text-ok`）                                                                                                  |
+| 交互态        | `hover:bg-hover`、`active:bg-press`、选中 `bg-selected`                                                                                                                    |
+| 并列对象      | `tag-1` … `tag-5`（及 `-soft`），用于多个方块、多条曲线等需要互相区分的对象                                                                                                |
 
 `<style>` 和 `style={{}}` 里同样只写 `var(--tau-*)`，词与上表一致，如 `var(--tau-accent)`、`var(--tau-bg-surface)`、`var(--tau-line-1)`。
 
@@ -92,9 +92,10 @@ const Component = () => {
 
 **版式**：
 
-- 编辑器已提供块的外框，不要再包一层带阴影或描边的大卡片。
+- 编辑器已提供块的外框，不要再包一层带阴影的大卡片，也不要给整块铺深色底。
 - 宽度跟随正文栏，不写死宽度；高度由内容撑开，Canvas 这类需要定高时用 `h-[200px]`。
-- 推荐骨架：舞台 `rounded-tau-md bg-sunken p-4`（放被演示对象）→ 控件行 `flex flex-wrap items-center gap-3` → 读数 `text-tau-meta text-ink-3 font-tau-mono`，整体 `flex flex-col gap-4`。
+- 侧栏、读数面板用弹性宽度（`grid-cols-[minmax(0,1fr)_minmax(240px,38%)]`），不写死窄宽；方法名、URL 这类不能断行的等宽长串加 `min-w-0 break-all`，避免撑出容器。
+- 推荐骨架：舞台 `rounded-tau-md border border-line-1 p-4`，不加底色（放被演示对象）→ 控件行 `flex flex-wrap items-center gap-3` → 读数 `text-tau-meta text-ink-3 font-tau-mono`，整体 `flex flex-col gap-4`。
 
 **样式隔离**：块内 `<style>` 一律包在无前缀的 `@scope { }` 里，它只作用于 `<style>` 父元素的子树，不会影响页面其他部分。`@keyframes` 不受 `@scope` 约束，名字加前缀，如 `cb-bounce`。
 
@@ -130,7 +131,7 @@ const Component = () => {
   return (
     <div className="flex flex-col gap-4">
       <div
-        className="flex h-28 items-center gap-2 rounded-tau-md bg-sunken p-4"
+        className="flex h-28 items-center gap-2 rounded-tau-md border border-line-1 p-4"
         style={{ justifyContent: justify }}
       >
         {BOXES.map((color, index) => (
@@ -178,7 +179,7 @@ const Component = () => {
       `}</style>
       <div
         data-snap={snap ? "on" : "off"}
-        className="track flex gap-3 overflow-x-auto rounded-tau-md bg-sunken p-4"
+        className="track flex gap-3 overflow-x-auto rounded-tau-md border border-line-1 p-4"
       >
         {SLIDES.map(n => (
           <div
@@ -253,7 +254,7 @@ const Component = () => {
     return () => observer.disconnect();
   }, [color]);
 
-  return <canvas ref={canvasRef} className="h-[200px] w-full rounded-tau-md bg-sunken" />;
+  return <canvas ref={canvasRef} className="h-[200px] w-full rounded-tau-md border border-line-1" />;
 };
 ```
 
@@ -278,7 +279,7 @@ const Component = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-tau-md bg-sunken p-4">
+      <div className="rounded-tau-md border border-line-1 p-4">
         <div className="h-40 rounded-tau-sm" style={{ backgroundImage: gradient }} />
       </div>
       <div className="flex flex-wrap items-center gap-3">
@@ -309,7 +310,7 @@ const Component = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 rounded-tau-md bg-sunken p-4">
+      <div className="flex flex-col gap-3 rounded-tau-md border border-line-1 p-4">
         {EASINGS.map(easing => (
           <div key={easing.name} className="flex items-center gap-3">
             <ui.Tooltip content={easing.value}>
