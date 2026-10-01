@@ -150,11 +150,51 @@ it.each(["connect", "download"])("%s：最后迁移失败拒绝连接，修复�
   }
 });
 
-it.skipIf(!process.env.PI_UPGRADE_BACKUP)(
-  "真实备份副本完整升级、重跑并与新库比对",
-  async () => {
+it.for(["合成旧库", "真实备份副本"])(
+  "%s完整升级、重跑并与新库比对",
+  { timeout: 120_000 },
+  async (source, context) => {
+    if (source === "真实备份副本" && !process.env.PI_UPGRADE_BACKUP) context.skip();
     paths.root = mkdtempSync(join(tmpdir(), "pi-upgrade-"));
-    copyFileSync(process.env.PI_UPGRADE_BACKUP!, join(paths.root, "data.db"));
+    const databasePath = join(paths.root, "data.db");
+    if (source === "真实备份副本") {
+      copyFileSync(process.env.PI_UPGRADE_BACKUP!, databasePath);
+    } else {
+      const fixture = new Database(databasePath);
+      try {
+        fixture.exec(`
+          CREATE TABLE chat_message (
+            id INTEGER PRIMARY KEY, create_time INTEGER, update_time INTEGER,
+            messages TEXT, parent_chat_id INTEGER
+          )
+        `);
+        const prefix = [
+          { role: "user", content: "共同问题" },
+          { role: "assistant", content: "共同回答" },
+        ];
+        const insert = fixture.prepare("INSERT INTO chat_message VALUES (?, 1, 2, ?, ?)");
+        insert.run(
+          1,
+          JSON.stringify([
+            ...prefix,
+            { role: "user", content: "主线问题" },
+            { role: "assistant", content: "主线回答" },
+          ]),
+          null
+        );
+        insert.run(
+          2,
+          JSON.stringify([
+            ...prefix,
+            { role: "user", content: "分支问题" },
+            { role: "assistant", content: "分支回答" },
+          ]),
+          1
+        );
+      } finally {
+        fixture.close();
+      }
+    }
     const { default: database } = await import("../database");
     const { default: indexManager } = await import("../main-content-index-db");
     const { loadSessionTranscript, transcriptOf } = await import("../pi-session-host-core");
@@ -213,7 +253,9 @@ it.skipIf(!process.env.PI_UPGRADE_BACKUP)(
           seen.add(source.id);
           const mark = legacy
             .prepare("SELECT value FROM migration_meta WHERE key=?")
-            .get(`${CHAT_SESSION_MIGRATION_KEY}:${source.table}:${source.id}`) as { value: string };
+            .get(`${CHAT_SESSION_MIGRATION_KEY}:${source.table}:${source.id}`) as {
+            value: string;
+          };
           expect(Boolean(mark), `缺少源行身份：${source.table}:${source.id}`).toBe(true);
           directory = legacy
             .prepare("SELECT session_file FROM chat_session WHERE id=?")
@@ -303,6 +345,5 @@ it.skipIf(!process.env.PI_UPGRADE_BACKUP)(
       database.databases.clear();
       rmSync(paths.root, { recursive: true, force: true });
     }
-  },
-  120_000
+  }
 );
