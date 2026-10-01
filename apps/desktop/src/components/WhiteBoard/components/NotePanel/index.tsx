@@ -28,9 +28,7 @@ function NoteBody({
   onTextChange: (text: string) => void;
 }) {
   const editorRef = useRef<EditorRef>(null);
-  const { content, throttleHandleEditorContentChange } = useEditContent(contentId, data => {
-    editorRef.current?.setEditorValue(data);
-  });
+  const { content, throttleHandleEditorContentChange } = useEditContent(contentId);
 
   const text = useMemo(() => (content ? getEditorText(content, 20).trim() : ""), [content]);
   useEffect(() => onTextChange(text), [text, onTextChange]);

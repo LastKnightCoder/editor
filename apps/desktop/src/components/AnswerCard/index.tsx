@@ -52,9 +52,7 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
     }
   }, [contentId]);
 
-  const { content, throttleHandleEditorContentChange } = useEditContent(contentId, data => {
-    editorRef.current?.setEditorValue(data);
-  });
+  const { content, throttleHandleEditorContentChange } = useEditContent(contentId);
 
   const reloadContentStatus = useMemoizedFn(async () => {
     if (!contentId) return;

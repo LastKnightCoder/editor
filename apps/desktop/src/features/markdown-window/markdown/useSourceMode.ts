@@ -1,10 +1,10 @@
 /**
  * 富文本 ⇄ 源码切换与光标双向映射（逻辑沿用旧 Markdown 窗口）：
- * - 富文本 → 源码：getMarkdownWithPositions 生成 Markdown 与位置表；光标在代码块内时取代码块
+ * - 富文本 → 源码：读取文档原文并解析位置表；光标在代码块内时取代码块
  *   内部控制器的光标换算，否则按 Slate 点映射；
  * - 源码 → 富文本：importFromMarkdownWithPositions 解析；落在代码块内时等代码块编辑器挂载后
  *   把光标放回代码块（最多等 2s），否则按映射点 / 进入源码前的位置聚焦（路径越界时就近夹取）。
- * 富文本编辑器在源码模式下卸载，切回时以 initValue 重建。
+ * 两个视图常驻，源码回写经同一文档会话进入 Y.Doc。
  */
 
 import { useEffect, useRef, useState, type RefObject } from "react";
@@ -20,7 +20,7 @@ import type { Editor as CodeMirrorEditor } from "codemirror";
 import { useMemoizedFn } from "ahooks";
 import type { EditorRef } from "@tau/editor";
 import { getCodeBlockController } from "@tau/editor-code-block/runtime";
-import { getMarkdownWithPositions, importFromMarkdownWithPositions } from "@/utils/markdown";
+import { importFromMarkdownWithPositions } from "@/utils/markdown";
 
 type SlatePoint = { path: number[]; offset: number };
 type SlateInstance = ReturnType<EditorRef["getEditor"]>;
@@ -79,12 +79,14 @@ function resolveSlatePoint(editor: SlateInstance, point: SlatePoint | null) {
 
 export function useSourceMode({
   editorRef,
-  getContent,
-  setContent,
+  getText,
+  applySource,
+  stopCapturing,
 }: {
   editorRef: RefObject<EditorRef | null>;
-  getContent: () => Descendant[];
-  setContent: (content: Descendant[]) => void;
+  getText: () => string;
+  applySource: (text: string) => boolean;
+  stopCapturing: () => void;
 }) {
   const [sourceMode, setSourceMode] = useState(false);
   const [focusRequest, setFocusRequest] = useState(0);
@@ -121,13 +123,20 @@ export function useSourceMode({
       ? { path: [...selection.focus.path], offset: selection.focus.offset }
       : null;
 
-    const { markdown, positionMap } = getMarkdownWithPositions(getContent());
+    stopCapturing();
+    const markdown = getText();
+    let positionMap: ReturnType<typeof importFromMarkdownWithPositions>["positionMap"] | undefined;
+    try {
+      positionMap = importFromMarkdownWithPositions(markdown).positionMap;
+    } catch {
+      // 原文解析失败时仍可进入源码修复，仅放弃本次光标映射。
+    }
     sourceTextRef.current = markdown;
     const source = sourceEditorRef.current;
     if (!source) return;
     source.setValue(markdown);
 
-    if (selection?.focus && editor) {
+    if (selection?.focus && editor && positionMap) {
       let target: { line: number; ch: number } | null = null;
       const codeBlock = SlateEditor.above(editor, {
         at: selection.focus,
@@ -163,7 +172,8 @@ export function useSourceMode({
   const leaveSource = () => {
     const cursor = sourceEditorRef.current?.getCursor();
     const { content, positionMap } = importFromMarkdownWithPositions(sourceTextRef.current);
-    setContent(content);
+    if (!applySource(sourceTextRef.current)) return;
+    stopCapturing();
 
     const hint = cursor ? positionMap.getElementPropertyByMarkdown(cursor) : null;
     if (hint?.mapping.elementType === "code-block") {
@@ -209,7 +219,7 @@ export function useSourceMode({
     }
   });
 
-  // 切回富文本后：编辑器以 initValue 重建完成再放光标
+  // 切回富文本后等待视图显示，再恢复光标。
   useEffect(() => {
     if (sourceMode || !pendingFocus.current || focusRequest === 0) return;
     const timer = setTimeout(() => {
@@ -261,5 +271,11 @@ export function useSourceMode({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusRequest, sourceMode]);
 
-  return { sourceMode, toggle, sourceEditorRef, sourceTextRef };
+  return {
+    sourceMode,
+    toggle,
+    showSource: useMemoizedFn(enterSource),
+    sourceEditorRef,
+    sourceTextRef,
+  };
 }

@@ -42,13 +42,7 @@ import {
 import { ElementErrorBoundary, UnknownElement } from "./components/ElementGuard";
 import { BlockDragHost } from "./components/BlockDrag/BlockDragHost";
 import { consoleErrorReporter } from "./services/errorReporter";
-import {
-  applyPlugin,
-  normalizeEditorContent,
-  registerHotKey,
-  Plugin,
-  updateNodeRecursively,
-} from "./utils";
+import { applyPlugin, normalizeEditorContent, registerHotKey, Plugin } from "./utils";
 import {
   withSlashCommands,
   withNormalize,
@@ -74,7 +68,6 @@ import {
   initializeSubmissionScope,
   beginSubmissionScope,
   endSubmissionScope,
-  renewSubmissionScope,
   notifySubmissionServices,
 } from "./kit/submissionScope";
 import { IConfigItem, IHotKeyConfig } from "./types";
@@ -309,7 +302,6 @@ const Index = memo(
       () => ({
         key: ++editorInstanceCounter,
         value: initValue,
-        pendingValueJson: null as string | null,
         selection: null as Range | null,
       }),
       [editor]
@@ -478,49 +470,12 @@ const Index = memo(
         deselect: () => {
           ReactEditor.deselect(editor);
         },
-        setEditorValue: (nodes: Descendant[]) => {
-          // 内容归文档源管（协作）时不接受整体覆盖
-          if (binding) return;
-          renewSubmissionScope(editor);
-          const normalizedNodes = normalizeEditorContent(nodes);
-          const domSelection = window.getSelection();
-          let shouldClearDomSelection = false;
-          if (domSelection && domSelection.rangeCount > 0) {
-            try {
-              const editorElement = ReactEditor.toDOMNode(editor, editor);
-              shouldClearDomSelection =
-                (!!domSelection.anchorNode && editorElement.contains(domSelection.anchorNode)) ||
-                (!!domSelection.focusNode && editorElement.contains(domSelection.focusNode));
-            } catch {
-              shouldClearDomSelection = false;
-            }
-          }
-          if (domSelection && shouldClearDomSelection) {
-            domSelection.removeAllRanges();
-          }
-          Transforms.deselect(editor);
-          editor.isResetValue = true;
-          Editor.withoutNormalizing(editor, () => {
-            updateNodeRecursively(
-              editor,
-              editor,
-              // @ts-ignore
-              {
-                // @ts-ignore
-                children: normalizedNodes,
-              },
-              []
-            );
-          });
-          instance.pendingValueJson = JSON.stringify(normalizeEditorContent(editor.children));
-          editor.isResetValue = false;
-        },
         getEditor: () => editor,
         isFocus: () => {
           return ReactEditor.isFocused(editor);
         },
       }),
-      [editor, binding, instance]
+      [editor]
     );
 
     const handleOnChange = (value: Descendant[]) => {
@@ -530,22 +485,7 @@ const Index = memo(
         onSelectionChange?.();
       }
       const valueChanged = JSON.stringify(instance.value) !== nextValueJson;
-      if (editor.isResetValue) {
-        if (valueChanged) {
-          instance.value = normalizedValue;
-        }
-        return;
-      }
-      const isSetEditorValueChange = instance.pendingValueJson === nextValueJson;
-      if (isSetEditorValueChange) {
-        if (valueChanged) {
-          instance.value = normalizedValue;
-        }
-        instance.pendingValueJson = null;
-        return;
-      }
       if (!valueChanged) return;
-      instance.pendingValueJson = null;
       instance.value = normalizedValue;
       onChange && onChange(normalizedValue, editor);
     };

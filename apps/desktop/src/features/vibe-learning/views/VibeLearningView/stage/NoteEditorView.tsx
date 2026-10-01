@@ -148,7 +148,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   // useEditContent 管理内容保存和同步
   const handleExternalContentChange = useMemoizedFn((newContent: Descendant[]) => {
     setContent(newContent);
-    editorRef.current?.setEditorValue(newContent);
   });
   const { throttleHandleEditorContentChange } = useEditContent(
     contentId || undefined,

@@ -1,5 +1,6 @@
 import { rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import tailwindcss from "@tailwindcss/vite";
@@ -10,6 +11,8 @@ import { createThemeBootstrapScript } from "@tau/themes";
 import * as path from "path";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const extensionRequire = (name: string) =>
+  createRequire(path.resolve(__dirname, `../../editor-extensions/${name}/package.json`));
 
 const runtimeDependencyExternals = [
   "7zip-min",
@@ -57,7 +60,12 @@ export default defineConfig(() => {
       },
     },
     plugins: [
-      { name: "tau-theme-bootstrap", transformIndexHtml: () => [{ tag: "script", children: createThemeBootstrapScript(), injectTo: "head-prepend" }] },
+      {
+        name: "tau-theme-bootstrap",
+        transformIndexHtml: () => [
+          { tag: "script", children: createThemeBootstrapScript(), injectTo: "head-prepend" },
+        ],
+      },
       react(),
       tailwindcss(),
       electron({
@@ -71,9 +79,7 @@ export default defineConfig(() => {
           },
           onstart(args) {
             if (process.env.VSCODE_DEBUG) {
-              console.log(
-                /* For `.vscode/.debug.script.mjs` */ "[startup] Electron App"
-              );
+              console.log(/* For `.vscode/.debug.script.mjs` */ "[startup] Electron App");
             } else {
               args.startup();
             }
@@ -85,10 +91,7 @@ export default defineConfig(() => {
                 "@tau/contracts": path.resolve(__dirname, "../../packages/contracts"),
                 "@tau/rpc": path.resolve(__dirname, "../../packages/rpc"),
                 "@tau/shared": path.resolve(__dirname, "../../packages/shared"),
-                "@tau/db-schema": path.resolve(
-                  __dirname,
-                  "../../packages/db-schema"
-                ),
+                "@tau/db-schema": path.resolve(__dirname, "../../packages/db-schema"),
               },
             },
             build: {
@@ -164,10 +167,7 @@ export default defineConfig(() => {
             resolve: {
               alias: {
                 "@": path.resolve(__dirname, "src"),
-                "@tau/db-schema": path.resolve(
-                  __dirname,
-                  "../../packages/db-schema"
-                ),
+                "@tau/db-schema": path.resolve(__dirname, "../../packages/db-schema"),
               },
             },
             build: {
@@ -207,9 +207,9 @@ export default defineConfig(() => {
             react: ["react"],
             "react-dom": ["react-dom"],
             "react-router-dom": ["react-router-dom"],
-            mermaid: ["mermaid"],
+            mermaid: [extensionRequire("diagram").resolve("mermaid")],
             katex: ["katex"],
-            "@babel/standalone": ["@babel/standalone"],
+            "@babel/standalone": [extensionRequire("custom-block").resolve("@babel/standalone")],
           },
         },
       },

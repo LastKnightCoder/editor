@@ -15,7 +15,8 @@ const createDefaultContent = (): Descendant[] => [
 
 const useEditContent = (
   contentId: number | undefined,
-  onContentChange: (content: Descendant[]) => void,
+  /** 可选的内容快照通知，用于宿主的字数或业务状态同步。 */
+  onContentChange?: (content: Descendant[]) => void,
   enabled = true
 ) => {
   const databaseName = useSettingStore(state => state.setting.database.active);
@@ -33,7 +34,7 @@ const useEditContent = (
     if (!enabled || !session?.value) return;
     const value = session.value.content as Descendant[];
     setContent(value);
-    onContentChangeRef.current(value);
+    onContentChangeRef.current?.(value);
   }, [session?.value, enabled]);
 
   useEffect(() => {
@@ -42,14 +43,14 @@ const useEditContent = (
     if (!contentId) {
       const nextContent = createDefaultContent();
       setContent(nextContent);
-      onContentChangeRef.current(nextContent);
+      onContentChangeRef.current?.(nextContent);
     }
     if (contentId) {
       getContentById(contentId).then(content => {
         if (!active || useContentSessionStore.getState().entries[sessionKey]?.value) return;
         const nextContent = content?.content || createDefaultContent();
         setContent(nextContent);
-        onContentChangeRef.current(nextContent);
+        onContentChangeRef.current?.(nextContent);
       });
     }
     return () => {
@@ -59,7 +60,7 @@ const useEditContent = (
 
   const handleSubscribeContentUpdate = useMemoizedFn((data: ContentEventData) => {
     if (session?.value) return;
-    onContentChangeRef.current(data.content.content);
+    onContentChangeRef.current?.(data.content.content);
     setContent(data.content.content);
   });
 

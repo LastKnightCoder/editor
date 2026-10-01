@@ -40,7 +40,6 @@ export function AnswerDialog({
   const { throttleHandleEditorContentChange, flush } = useEditContent(
     editing,
     value => {
-      editorRef.current?.setEditorValue(value);
       setContent(value);
     },
     editing != null

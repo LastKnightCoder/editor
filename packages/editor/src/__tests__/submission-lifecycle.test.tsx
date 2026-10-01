@@ -18,6 +18,7 @@ it.each(["只读", "隐藏", "换源", "整体重设", "服务更换", "主题�
     });
     const first = createValueDocument([createParagraph()], undefined, { lineage: "same" });
     const second = createValueDocument([createParagraph()], undefined, { lineage: "same" });
+    const reset = createValueDocument([createParagraph()]);
     const ref = createRef<EditorRef>();
     const host = document.createElement("div");
     document.body.appendChild(host);
@@ -29,7 +30,13 @@ it.each(["只读", "隐藏", "换源", "整体重设", "服务更换", "主题�
             <Activity mode={changed && scenario === "隐藏" ? "hidden" : "visible"}>
               <Editor
                 ref={ref}
-                document={changed && scenario === "换源" ? second : first}
+                document={
+                  changed && scenario === "整体重设"
+                    ? reset
+                    : changed && scenario === "换源"
+                      ? second
+                      : first
+                }
                 kit={
                   changed && scenario === "服务更换"
                     ? changedKit
@@ -51,10 +58,9 @@ it.each(["只读", "隐藏", "换源", "整体重设", "服务更换", "主题�
       if (target.type !== "paragraph") throw new Error("段落未挂载");
       const operation = captureElementSubmission(editor, { element: target, services: [service] });
       await render(true);
-      if (scenario === "整体重设")
-        await act(async () => ref.current?.setEditorValue([createParagraph()]));
       await render(false);
-      expect(ref.current?.getEditor()).toBe(editor);
+      if (scenario === "整体重设") expect(ref.current?.getEditor()).not.toBe(editor);
+      else expect(ref.current?.getEditor()).toBe(editor);
       let outcome: ReturnType<typeof operation.commit> | undefined;
       await act(async () => {
         outcome = operation.commit(({ path }) => {

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
 import { Descendant } from "slate";
 import { piStreamText, type PiChatHandle } from "@/services/piLLM";
@@ -43,8 +43,13 @@ export const useVideoEbookRewrite = (
   const [finalMarkdown, setFinalMarkdown] = useState<string | null>(null);
 
   const chatHandleRef = useRef<PiChatHandle | null>(null);
+  const requestVersion = useRef(0);
 
-  const { run: throttledParse, flush: flushParse } = useThrottleFn(
+  const {
+    run: throttledParse,
+    flush: flushParse,
+    cancel: cancelParse,
+  } = useThrottleFn(
     (markdown: string) => {
       try {
         const parsed = importFromMarkdown(markdown);
@@ -67,6 +72,9 @@ export const useVideoEbookRewrite = (
       return;
     }
 
+    const request = ++requestVersion.current;
+    chatHandleRef.current?.cancel();
+    cancelParse();
     setIsRewriting(true);
     setIsPending(true);
     setError(null);
@@ -93,6 +101,7 @@ export const useVideoEbookRewrite = (
     const handle = piStreamText(
       { provider, model, messages, source: { feature: "videoEbookRewrite" } },
       ({ text }) => {
+        if (request !== requestVersion.current) return;
         setIsPending(false);
         setStreamingMarkdown(text);
         throttledParse(text);
@@ -100,6 +109,9 @@ export const useVideoEbookRewrite = (
     );
     chatHandleRef.current = handle;
     void handle.result.then(result => {
+      if (request !== requestVersion.current) return;
+      requestVersion.current++;
+      chatHandleRef.current = null;
       if (result.ok && !result.aborted) {
         setIsRewriting(false);
         setIsPending(false);
@@ -132,11 +144,16 @@ export const useVideoEbookRewrite = (
   });
 
   const stopRewrite = useCallback(() => {
+    flushParse();
+    requestVersion.current++;
+    cancelParse();
     chatHandleRef.current?.cancel();
     chatHandleRef.current = null;
     setIsRewriting(false);
     setIsPending(false);
-  }, []);
+  }, [flushParse, cancelParse]);
+
+  useEffect(() => () => stopRewrite(), [stopRewrite]);
 
   const reset = useMemoizedFn(() => {
     stopRewrite();

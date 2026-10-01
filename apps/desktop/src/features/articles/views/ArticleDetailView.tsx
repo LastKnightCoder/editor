@@ -148,7 +148,6 @@ export function ArticleDetailView() {
   const { throttleHandleEditorContentChange } = useEditContent(
     editingArticle?.contentId,
     content => {
-      editorRef.current?.setEditorValue(content);
       if (editingArticle) onContentChange(content);
     }
   );

@@ -25,12 +25,15 @@ export function useTextFileSession({
   path,
   getText,
   applyExternalText,
+  ready = true,
 }: {
   path: string;
   /** 编辑器当前全文 */
   getText: () => string;
   /** 载入外部版本到编辑器 */
   applyExternalText: (text: string) => void;
+  /** 正文投影尚未完成初始化时，不允许自动保存空内容。 */
+  ready?: boolean;
 }) {
   const [initialText, setInitialText] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -40,9 +43,10 @@ export function useTextFileSession({
 
   const savedText = useRef("");
   const writing = useRef<Promise<void> | null>(null);
+  const writeVersion = useRef(0);
   const loaded = initialText !== null;
   const pausedRef = useRef(false);
-  pausedRef.current = !loaded || conflict !== null || missing;
+  pausedRef.current = !loaded || !ready || conflict !== null || missing;
 
   useEffect(() => {
     let alive = true;
@@ -61,6 +65,7 @@ export function useTextFileSession({
 
   const write = useCallback(
     async (text: string) => {
+      writeVersion.current++;
       const task = (async () => {
         setSaveState("saving");
         try {
@@ -100,16 +105,22 @@ export function useTextFileSession({
   // 外部修改监听
   useEffect(() => {
     if (!loaded) return;
+    let active = true;
+    let version = 0;
     void watchTextFile(path).catch(error => console.error("监听文件失败:", error));
     const onChanged = async (_event: unknown, payload: TextFileChangedPayload) => {
       if (payload?.filePath !== path || writing.current) return;
+      const request = ++version;
+      const beforeWrite = writeVersion.current;
       let text: string;
       try {
         text = await readTextFile(path);
       } catch {
-        setMissing(true);
+        if (active && request === version && beforeWrite === writeVersion.current) setMissing(true);
         return;
       }
+      if (!active || request !== version || beforeWrite !== writeVersion.current || writing.current)
+        return;
       setMissing(false);
       if (text === savedText.current) return;
       const current = getText();
@@ -128,6 +139,8 @@ export function useTextFileSession({
     };
     onTextFileChanged(onChanged);
     return () => {
+      active = false;
+      version++;
       offTextFileChanged(onChanged);
       void unwatchTextFile(path).catch(() => undefined);
     };

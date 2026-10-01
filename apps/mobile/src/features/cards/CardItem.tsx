@@ -2,10 +2,11 @@
 // 修改类型/删除等操作收进详情页 ⋯ 菜单。
 // 头部 = 彩点 + 彩色类型名 + 右侧时间；标签用品牌色 # chip。
 
-import { memo, useCallback, useMemo, useRef } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { getMobileContentKit } from "../../services/editorKit";
 import type { Descendant } from "slate";
-import { Editor, type EditorRef } from "@tau/editor";
+import { Editor, createValueDocument } from "@tau/editor";
+import { isEditorContentEmpty } from "./editorContentUtils";
 import { CardListItem } from "../../types";
 import { cardCategoryDotClass, cardCategoryLabel, cardCategoryTextClass } from "./cardCategory";
 import TagChips from "./TagChips";
@@ -41,20 +42,16 @@ interface CardItemProps {
 }
 
 const CardItem = memo(({ item, onPreviewCard }: CardItemProps) => {
-  const editorRef = useRef<EditorRef | null>(null);
-
   const editorContent = useMemo(() => {
     if (Array.isArray(item.content) && item.content.length > 0) {
       return item.content.slice(0, 3);
     }
     return [];
   }, [item.content]);
+  const [document, setDocument] = useState(() => createValueDocument(editorContent));
 
   const handleSyncedContent = useCallback((nextContent: Descendant[]) => {
-    if (!Array.isArray(nextContent) || nextContent.length === 0) {
-      return;
-    }
-    editorRef.current?.setEditorValue(nextContent.slice(0, 3));
+    setDocument(createValueDocument(nextContent.slice(0, 3)));
   }, []);
 
   useReadonlyContentSync(item.contentId, {
@@ -79,13 +76,12 @@ const CardItem = memo(({ item, onPreviewCard }: CardItemProps) => {
         </div>
 
         <div className="pointer-events-none min-w-0">
-          {editorContent.length > 0 ? (
+          {!isEditorContentEmpty(document.initialValue) ? (
             <Editor
               kit={getMobileContentKit()}
-              ref={editorRef}
               className="overflow-hidden"
               readonly={true}
-              initValue={editorContent}
+              document={document}
             />
           ) : (
             <p className="text-ink line-clamp-1 text-[14px] font-bold">

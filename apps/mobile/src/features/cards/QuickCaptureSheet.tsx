@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useMemoizedFn } from "ahooks";
 import { getMobileContentKit } from "../../services/editorKit";
 import { X } from "lucide-react";
 import { Editor, type EditorRef } from "@tau/editor";
@@ -31,7 +32,12 @@ type QuickCaptureSheetProps = {
 };
 
 export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
+  const wasOpen = useRef(false);
+  const notifyContentChange = useMemoizedFn((content: Descendant[]) =>
+    props.onContentChange?.(content)
+  );
   const editorRef = useRef<EditorRef | null>(null);
+  const [editorSession, setEditorSession] = useState({ revision: 0, value: EMPTY_EDITOR_CONTENT });
   const latestContentRef = useRef<Descendant[]>(EMPTY_EDITOR_CONTENT);
   const [cachedDraft, setCachedDraft] = useState<Descendant[] | null>(null);
   const [showDraftPrompt, setShowDraftPrompt] = useState(false);
@@ -41,20 +47,23 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
   });
 
   useEffect(() => {
-    if (!props.open) return;
+    if (!props.open) {
+      wasOpen.current = false;
+      return;
+    }
+    if (wasOpen.current) return;
+    wasOpen.current = true;
     const draft = readQuickCaptureDraft();
     setCachedDraft(draft);
     setShowDraftPrompt(Boolean(draft));
     latestContentRef.current = EMPTY_EDITOR_CONTENT;
-    props.onContentChange?.(EMPTY_EDITOR_CONTENT);
+    notifyContentChange(EMPTY_EDITOR_CONTENT);
 
-    const frame = window.requestAnimationFrame(() => {
-      editorRef.current?.setEditorValue(EMPTY_EDITOR_CONTENT);
-    });
-    return () => {
-      window.cancelAnimationFrame(frame);
-    };
-  }, [props.open, props.onContentChange]);
+    setEditorSession(previous => ({
+      revision: previous.revision + 1,
+      value: EMPTY_EDITOR_CONTENT,
+    }));
+  }, [props.open, notifyContentChange]);
 
   useEffect(() => {
     if (props.open) return;
@@ -99,7 +108,10 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
             <button
               type="button"
               onClick={() => {
-                editorRef.current?.setEditorValue(EMPTY_EDITOR_CONTENT);
+                setEditorSession(previous => ({
+                  revision: previous.revision + 1,
+                  value: EMPTY_EDITOR_CONTENT,
+                }));
                 latestContentRef.current = EMPTY_EDITOR_CONTENT;
                 props.onContentChange?.(EMPTY_EDITOR_CONTENT);
                 clearQuickCaptureDraft();
@@ -132,7 +144,10 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
                 type="button"
                 className="bg-butter rounded-full px-3.5 py-1 text-[11px] font-bold text-white"
                 onClick={() => {
-                  editorRef.current?.setEditorValue(cachedDraft);
+                  setEditorSession(previous => ({
+                    revision: previous.revision + 1,
+                    value: cachedDraft,
+                  }));
                   latestContentRef.current = cachedDraft;
                   props.onContentChange?.(cachedDraft);
                   writeQuickCaptureDraft(cachedDraft);
@@ -158,9 +173,10 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
 
         <SnapSheet.FixedFooterScroll className="px-4 pt-3">
           <Editor
+            key={editorSession.revision}
             kit={getMobileContentKit()}
             ref={editorRef}
-            initValue={EMPTY_EDITOR_CONTENT}
+            initValue={editorSession.value}
             readonly={false}
             placeHolder="记录你的想法..."
             className="mobile-card-editor-content min-h-[220px] outline-none ring-0 focus:outline-none focus:ring-0"

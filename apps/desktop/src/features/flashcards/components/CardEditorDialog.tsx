@@ -22,7 +22,13 @@ import { useEffect, useState } from "react";
 import { MOD } from "../overlay";
 import type { FlashcardMutations } from "../queries";
 
-import { emptyForm, formFromCard, validate, type FormState } from "../editorModel";
+import {
+  createFormReference,
+  emptyForm,
+  formFromCard,
+  validate,
+  type FormState,
+} from "../editorModel";
 import { CardEditorContent } from "./CardEditorContent";
 import { CardEditorProperties } from "./CardEditorProperties";
 
@@ -61,7 +67,10 @@ export function CardEditorDialog({
       card
         ? formFromCard(card)
         : deckId != null
-          ? { ...emptyForm(deckId, "qa"), references: initialReferences ?? [] }
+          ? {
+              ...emptyForm(deckId, "qa"),
+              references: (initialReferences ?? []).map(createFormReference),
+            }
           : null
     );
     setRevision(r => r + 1);
@@ -106,7 +115,9 @@ export function CardEditorDialog({
       data,
       difficulty: form.difficulty,
       tags: form.tags,
-      references: form.references.filter(ref => ref.title?.trim()),
+      references: form.references
+        .filter(ref => ref.title?.trim())
+        .map(({ formId: _formId, ...reference }) => reference),
     };
     setSaving(true);
     try {
@@ -118,7 +129,10 @@ export function CardEditorDialog({
         await mutations.createCard({ ...payload, deckId: form.deckId });
         if (continueNext) {
           toast.success("已保存，继续新建下一张");
-          setForm({ ...emptyForm(form.deckId, form.type), references: initialReferences ?? [] });
+          setForm({
+            ...emptyForm(form.deckId, form.type),
+            references: (initialReferences ?? []).map(createFormReference),
+          });
           setRevision(r => r + 1);
         } else {
           toast.success("已新建闪卡");

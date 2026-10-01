@@ -27,9 +27,7 @@ const ContentDetailModal = ({
   const [loading, setLoading] = useState(true);
   const [initValue, setInitValue] = useState<Descendant[] | null>(null);
 
-  const { throttleHandleEditorContentChange } = useEditContent(contentId, content => {
-    editorRef.current?.setEditorValue(content);
-  });
+  const { throttleHandleEditorContentChange } = useEditContent(contentId);
 
   useEffect(() => {
     if (!visible || !contentId) {

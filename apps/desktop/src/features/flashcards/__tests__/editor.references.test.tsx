@@ -63,7 +63,9 @@ describe("跨域制卡来源", () => {
           />
         )
       );
-      expect(document.querySelector("output")?.textContent).toBe(JSON.stringify([reference]));
+      const initialReferences = JSON.parse(document.querySelector("output")?.textContent ?? "[]");
+      expect(initialReferences).toEqual([expect.objectContaining(reference)]);
+      expect(initialReferences[0].formId).toEqual(expect.any(String));
       await act(async () => {
         click("填写题干");
       });
@@ -73,7 +75,9 @@ describe("跨域制卡来源", () => {
       expect(createCard).toHaveBeenCalledWith(
         expect.objectContaining({ deckId: 1, references: [reference] })
       );
-      expect(document.querySelector("output")?.textContent).toBe(JSON.stringify([reference]));
+      const nextReferences = JSON.parse(document.querySelector("output")?.textContent ?? "[]");
+      expect(nextReferences).toEqual([expect.objectContaining(reference)]);
+      expect(nextReferences[0].formId).not.toBe(initialReferences[0].formId);
       await act(async () => {
         click("填写题干");
       });

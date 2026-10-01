@@ -9,6 +9,12 @@ import { createEmptyFlashcardData, isEmptyContent, textToDescendants } from "@/u
 import type { Descendant } from "slate";
 import { blanksOf } from "./model";
 
+export type FormReference = FlashcardReferenceInput & { formId: string };
+export const createFormReference = (reference: FlashcardReferenceInput): FormReference => ({
+  ...reference,
+  formId: crypto.randomUUID(),
+});
+
 export interface FormState {
   deckId: number;
   type: FlashcardType;
@@ -17,7 +23,7 @@ export interface FormState {
   data: FlashcardData;
   difficulty: FlashcardDifficulty;
   tags: string[];
-  references: FlashcardReferenceInput[];
+  references: FormReference[];
 }
 
 export function emptyForm(deckId: number, type: FlashcardType): FormState {
@@ -42,12 +48,14 @@ export function formFromCard(card: Flashcard): FormState {
     data: card.data ?? createEmptyFlashcardData(card.type),
     difficulty: card.difficulty,
     tags: card.tags ?? [],
-    references: (card.references ?? []).map(ref => ({
-      refType: ref.refType,
-      title: ref.title,
-      contentId: ref.refType === "content" ? ref.contentId : undefined,
-      customContent: ref.refType === "custom" ? ref.content?.content : undefined,
-    })),
+    references: (card.references ?? []).map(ref =>
+      createFormReference({
+        refType: ref.refType,
+        title: ref.title,
+        contentId: ref.refType === "content" ? ref.contentId : undefined,
+        customContent: ref.refType === "custom" ? ref.content?.content : undefined,
+      })
+    ),
   };
 }
 

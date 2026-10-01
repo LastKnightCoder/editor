@@ -521,8 +521,7 @@ export function DescriptionSection({
   const editorRef = useRef<EditorRef>(null);
   const creating = useRef(false);
   const { throttleHandleEditorContentChange } = useEditContent(
-    entry.descriptionContentId ?? undefined,
-    content => editorRef.current?.setEditorValue(content)
+    entry.descriptionContentId ?? undefined
   );
 
   const handleChange = (content: Descendant[]) => {

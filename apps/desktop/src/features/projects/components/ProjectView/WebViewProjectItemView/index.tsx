@@ -55,7 +55,9 @@ import {
   defaultProjectItemEventBus,
 } from "@/utils";
 import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
-import { EditorRef } from "@tau/editor";
+import { Editor as LocalEditor, type EditorRef } from "@tau/editor";
+import { getContentKit } from "@/services/editorKit";
+import { useLocalEditorDocument } from "@/hooks/useLocalEditorDocument";
 import Editor from "@/components/ContentEditor";
 import {
   ContentOutline,
@@ -173,9 +175,27 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   // 已保存的解析结果
   const [savedWebClip, setSavedWebClip] = useState<WebClip | null>(null);
   const [parsedContent, setParsedContent] = useState<Descendant[]>(DEFAULT_CONTENT);
+  const [clipInput, setClipInput] = useState<Descendant[]>(DEFAULT_CONTENT);
+  const [draftRevision, setDraftRevision] = useState(0);
+  const clipDocument = useLocalEditorDocument(
+    `clip:${projectItemId}:${draftRevision}`,
+    setParsedContent
+  );
   const [isLocalClipping, setIsLocalClipping] = useState(false);
+  const [clipCompleting, setClipCompleting] = useState(false);
+  const clipRun = useRef(0);
   const [localClipError, setLocalClipError] = useState<string | null>(null);
   const localClipAbortRef = useRef<AbortController | null>(null);
+  useEffect(
+    () => () => {
+      clipRun.current++;
+      localClipAbortRef.current?.abort();
+      localClipAbortRef.current = null;
+      setIsLocalClipping(false);
+      setClipCompleting(false);
+    },
+    [projectItemId]
+  );
 
   // 编辑标题弹窗
   const [editTitleModalOpen, setEditTitleModalOpen] = useState(false);
@@ -214,9 +234,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         ...prev,
         [note.contentId]: content.content,
       }));
-      if (activeNoteId === note.id) {
-        noteEditorRef.current?.setEditorValue(content.content);
-      }
     } catch (error) {
       console.error("Failed to load note content:", error);
       toast.error("加载笔记内容失败");
@@ -311,10 +328,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
             const content = await getContentById(webClip.contentId);
             if (content && content.content) {
               setParsedContent(content.content);
-              // Editor 是非受控组件，内容到位后手动灌入
-              setTimeout(() => {
-                editorRef.current?.setEditorValue(content.content);
-              }, 200);
             }
           }
         }
@@ -328,7 +341,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
 
   // 使用 useEditContent hook 管理解析内容的编辑
   const { throttleHandleEditorContentChange } = useEditContent(savedWebClip?.contentId, content => {
-    editorRef.current?.setEditorValue(content);
     setParsedContent(content);
   });
 
@@ -343,21 +355,28 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   } = useWebClip({
     projectItemId,
     onProgress: (_markdown, content) => {
-      // 实时更新编辑器内容
-      editorRef.current?.setEditorValue(content);
+      setClipInput(content);
+      setParsedContent(content);
     },
     onComplete: async (_markdown, content, webClipId) => {
+      const run = clipRun.current;
+      setClipCompleting(true);
+      setClipInput(content);
       // Electron 侧已经保存了数据，前端只需更新状态
       setParsedContent(content);
 
-      if (webClipId) {
-        const updatedWebClip = await getWebClipById(webClipId);
-        if (updatedWebClip) {
-          setSavedWebClip(updatedWebClip);
+      try {
+        if (webClipId) {
+          const updatedWebClip = await getWebClipById(webClipId);
+          if (run !== clipRun.current) return;
+          if (updatedWebClip) setSavedWebClip(updatedWebClip);
         }
+        toast.success("网页解析完成");
+      } catch (error) {
+        if (run === clipRun.current) toast.error(`载入解析结果失败: ${String(error)}`);
+      } finally {
+        if (run === clipRun.current) setClipCompleting(false);
       }
-
-      toast.success("网页解析完成");
     },
     onError: error => {
       toast.error(`解析失败: ${error}`);
@@ -366,7 +385,11 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
 
   const isAnyClipping = isClipping || isLocalClipping;
   // 网页剪辑在保存前没有 contentId
-  const editorContentId = isAnyClipping ? undefined : savedWebClip?.contentId;
+  const editorContentId = isAnyClipping || clipCompleting ? undefined : savedWebClip?.contentId;
+  const ParsedEditor = editorContentId ? Editor : LocalEditor;
+  useEffect(() => {
+    if (!editorContentId) clipDocument.updateContent(clipInput, "external");
+  }, [clipDocument, editorContentId, clipInput]);
   const currentClipError = localClipError || clipError;
 
   const cancelLocalClip = useMemoizedFn(() => {
@@ -452,16 +475,21 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       return;
     }
 
+    const abortController = new AbortController();
+    clipRun.current++;
+    setClipCompleting(false);
+    localClipAbortRef.current = abortController;
     try {
       setMainView("parsed");
       resetClipState();
+      setDraftRevision(previous => previous + 1);
+      setClipInput(DEFAULT_CONTENT);
+      setParsedContent(DEFAULT_CONTENT);
       setLocalClipError(null);
       setIsLocalClipping(true);
 
-      const abortController = new AbortController();
-      localClipAbortRef.current = abortController;
-
       const html = await webviewRef.current?.getHTML();
+      if (abortController.signal.aborted || localClipAbortRef.current !== abortController) return;
       if (!html) {
         toast.error("获取网页内容失败");
         return;
@@ -487,20 +515,28 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         throw new Error("解析结果为空");
       }
 
+      if (abortController.signal.aborted || localClipAbortRef.current !== abortController) return;
+      setClipInput(parsed);
       await saveLocalClipResult(parsed);
+      if (abortController.signal.aborted || localClipAbortRef.current !== abortController) return;
       setParsedContent(parsed);
-      editorRef.current?.setEditorValue(parsed);
       toast.success("网页解析完成");
     } catch (error) {
-      if (error instanceof Error && error.message === "aborted") {
+      if (
+        abortController.signal.aborted ||
+        localClipAbortRef.current !== abortController ||
+        (error instanceof Error && error.message === "aborted")
+      ) {
         return;
       }
       const errorMessage = error instanceof Error ? error.message : "解析失败";
       setLocalClipError(errorMessage);
       toast.error(`解析失败: ${errorMessage}`);
     } finally {
-      localClipAbortRef.current = null;
-      setIsLocalClipping(false);
+      if (localClipAbortRef.current === abortController) {
+        localClipAbortRef.current = null;
+        setIsLocalClipping(false);
+      }
     }
   });
 
@@ -511,11 +547,14 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       return;
     }
 
+    const run = ++clipRun.current;
+    setClipCompleting(false);
     try {
       setMainView("parsed");
       setLocalClipError(null);
 
       const html = await webviewRef.current?.getHTML();
+      if (run !== clipRun.current) return;
       if (!html) {
         toast.error("获取网页内容失败");
         return;
@@ -524,6 +563,9 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       const contentHTML = getContentHTML(html);
 
       // 开始流式解析
+      setDraftRevision(previous => previous + 1);
+      setClipInput(DEFAULT_CONTENT);
+      setParsedContent(DEFAULT_CONTENT);
       void startClip(contentHTML, currentUrl, title || "", false);
     } catch (error) {
       console.error("Start clip error:", error);
@@ -533,7 +575,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
 
   /* 解析入口统一收口：已有解析文档时先确认覆盖 */
   const handleStartParse = useMemoizedFn(async (mode: "llm" | "smart") => {
-    if (isAnyClipping) return;
+    if (isAnyClipping || clipCompleting) return;
     const run = () => (mode === "llm" ? doStartClip() : doStartLocalClip("smart"));
     if (savedWebClip) {
       setPendingConfirm({
@@ -920,14 +962,16 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
                   {currentClipError}
                 </div>
               )}
-              <Editor
+              <ParsedEditor
+                kit={getContentKit()}
+                document={editorContentId ? undefined : clipDocument.document}
                 contentId={editorContentId}
                 className="mx-20"
                 key={`${projectItemId}-parsed`}
                 ref={editorRef}
                 initValue={currentParsedContent}
                 onChange={handleEditorChange}
-                readonly={isAnyClipping}
+                readonly={isAnyClipping || clipCompleting}
                 editingContext={{ entityType: "project-item", entityId: projectItemId }}
                 onInit={editorInstance => {
                   slateEditorRef.current = editorInstance as CustomEditor;

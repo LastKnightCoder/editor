@@ -14,7 +14,7 @@ import { getContentKit } from "@/services/editorKit";
 import classnames from "classnames";
 import { useMemoizedFn } from "ahooks";
 import { AnchoredPanel } from "@tau/ui";
-import { Editor, EditorRef } from "@tau/editor";
+import { Editor, createValueDocument, type EditorDocument } from "@tau/editor";
 import { getCardById } from "@/commands";
 import Loading from "@/components/Loading";
 import type { KnowledgeMap } from "@/knowledge-map/types";
@@ -109,7 +109,10 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     return earliest;
   }, [initCards]);
 
-  const editorRef = useRef<EditorRef>(null);
+  const [previewDocument, setPreviewDocument] = useState<{
+    id: number;
+    document: EditorDocument;
+  } | null>(null);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [previewId, setPreviewId] = useState<number | null>(null);
   // 锚点是一个零尺寸空 div：AnchoredPanel 要的是 DOM 元素，而我们只有 canvas 坐标
@@ -183,7 +186,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     getCardById(previewId)
       .then(card => {
         if (cancelled) return;
-        editorRef.current?.setEditorValue(card.content);
+        setPreviewDocument({ id: previewId, document: createValueDocument(card.content) });
       })
       .catch(() => {
         if (!cancelled) setAnchor(null);
@@ -238,7 +241,9 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
           onPointerLeave={handlePanelLeave}
         >
           <AnchoredPanel.Body className="max-h-[var(--graph-preview-max-h)]">
-            <Editor kit={getContentKit()} key={previewId} ref={editorRef} readonly />
+            {previewDocument?.id === previewId && (
+              <Editor kit={getContentKit()} document={previewDocument.document} readonly />
+            )}
           </AnchoredPanel.Body>
         </AnchoredPanel>
       )}

@@ -73,6 +73,9 @@ describe("EditorDocument", () => {
     );
     const current = ref.current!.getEditor();
     expect(current).not.toBe(original);
+    expect(current.selection).toBeNull();
+    expect(current.history.undos).toHaveLength(0);
+    expect(current.history.redos).toHaveLength(0);
     expect(SlateEditorValue.string(current, [])).toBe("第二篇");
     expect(host.textContent).toContain("第二篇");
     expect(host.textContent).not.toContain("第一篇");

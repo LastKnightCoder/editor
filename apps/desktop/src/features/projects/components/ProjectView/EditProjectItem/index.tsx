@@ -88,7 +88,6 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   const extensions = editorExtensions;
 
   const { throttleHandleEditorContentChange } = useEditContent(projectItem?.contentId, content => {
-    editorRef.current?.setEditorValue(content);
     onContentChangeFromEditProjectItem(content);
   });
   useRafInterval(async () => {

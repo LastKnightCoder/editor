@@ -91,6 +91,7 @@ export function useEventForm(
   }, [baselineToken]);
   const dirty = baseline !== null && snapshot !== baseline;
   const editorRef = useRef<EditorRef>(null);
+  const descriptionEdited = useRef(false);
 
   const isNew = !editingEvent || editingEvent.id === 0;
   const eventCalendar = editingEvent
@@ -101,6 +102,7 @@ export function useEventForm(
 
   useEffect(() => {
     if (!editingEvent) return;
+    descriptionEdited.current = false;
     setBaseline(null);
     setTitle(editingEvent.title);
     setCalendarId(editingEvent.calendarId);
@@ -115,9 +117,9 @@ export function useEventForm(
   useEffect(() => {
     if (!editingEvent) return;
     const apply = (content: Descendant[]) => {
+      if (descriptionEdited.current) return;
       setDescription(content);
       setBaselineToken(t => t + 1);
-      editorRef.current?.setEditorValue(content);
     };
     // 优先用预加载内容，缺失时按 id 拉取
     if (editingEvent.detailContent) {
@@ -362,11 +364,19 @@ export function useEventForm(
           )}
         >
           <Editor
+            key={baselineToken}
             kit={getContentKit()}
             ref={editorRef}
             initValue={description}
-            onChange={setDescription}
-            readonly={false}
+            onChange={content => {
+              descriptionEdited.current = true;
+              setDescription(content);
+            }}
+            readonly={Boolean(
+              editingEvent?.detailContentId &&
+              !editingEvent.detailContent &&
+              contentQuery.data === undefined
+            )}
             placeHolder="添加备注…"
           />
         </div>

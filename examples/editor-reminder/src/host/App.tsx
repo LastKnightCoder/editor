@@ -17,6 +17,7 @@ export function App() {
   const ref = useRef<EditorRef>(null);
   const [readonly, setReadonly] = useState(false);
   const [value, setValue] = useState<Descendant[]>(initialValue);
+  const [session, setSession] = useState({ revision: 0, initialValue });
   const markdown = useMemo(() => exampleMarkdown.getMarkdown(value), [value]);
   useLayoutEffect(() => theme.init({ forceMode: "light" }), []);
   const insert = () => {
@@ -52,7 +53,12 @@ export function App() {
         <button
           type="button"
           disabled={readonly}
-          onClick={() => ref.current?.setEditorValue(exampleMarkdown.importFromMarkdown(markdown))}
+          onClick={() =>
+            setSession(previous => ({
+              revision: previous.revision + 1,
+              initialValue: exampleMarkdown.importFromMarkdown(markdown),
+            }))
+          }
           className="border-line-1 rounded border px-3 py-2 disabled:opacity-50"
         >
           从 Markdown 重新载入
@@ -63,9 +69,10 @@ export function App() {
           <h2 className="mb-4 font-medium">编辑器</h2>
           <DndProvider backend={HTML5Backend}>
             <Editor
+              key={session.revision}
               ref={ref}
               kit={exampleKit}
-              initValue={initialValue}
+              initValue={session.initialValue}
               readonly={readonly}
               onChange={setValue}
             />

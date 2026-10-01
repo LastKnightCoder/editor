@@ -31,7 +31,6 @@ function createEditorRef(
   const ref: EditorRef = {
     focus: vi.fn(),
     deselect: vi.fn(),
-    setEditorValue: vi.fn(),
     getEditor: () => editor,
     isFocus: vi.fn(() => options?.isFocus?.() ?? true),
   };
