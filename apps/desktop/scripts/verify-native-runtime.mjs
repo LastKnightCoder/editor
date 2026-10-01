@@ -1,7 +1,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import pruneNativeModules from "./prune-packaged-native-modules.cjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -40,6 +40,14 @@ const resolvePackagePaths = () => {
 const packagePaths = resolvePackagePaths();
 
 const checks = [
+  {
+    name: "pi-runtime",
+    code: `
+      process.env.TAU_SMOKE_ASAR = require("node:path").resolve(${JSON.stringify(packagePaths?.appAsar ?? "")});
+      import(${JSON.stringify(pathToFileURL(path.join(__dirname, "pi-smoke.mjs")).href)})
+        .catch(error => { console.error(error); process.exit(1); });
+    `,
+  },
   {
     name: "better-sqlite3",
     code: `

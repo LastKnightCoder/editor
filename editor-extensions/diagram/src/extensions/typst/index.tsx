@@ -13,6 +13,7 @@ const typstExtension = defineExtension({
     defineElement<TypstElement>({
       type: "typst",
       kind: "block",
+      drag: true,
       isVoid: true,
       render: ({ attributes, element, children }: ElementRenderProps<TypstElement>) => (
         <Typst element={element} attributes={attributes}>

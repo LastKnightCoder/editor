@@ -24,7 +24,9 @@ beforeEach(() => {
       id INTEGER PRIMARY KEY, tags TEXT, links TEXT, content_id INTEGER,
       update_time INTEGER NOT NULL DEFAULT 0
     );
-    CREATE TABLE contents (id INTEGER PRIMARY KEY, content TEXT);
+    CREATE TABLE contents (
+      id INTEGER PRIMARY KEY, content TEXT, update_time INTEGER NOT NULL DEFAULT 0
+    );
   `);
   indexDb = new Database(":memory:");
   indexDb.exec(INDEX_SQL);
@@ -109,6 +111,24 @@ describe("KnowledgeMapTable", () => {
     insert.run(3, computedAt + 20); // 新建且已增量放置：只算一次
     KnowledgeMapTable.upsertNode(indexDb, { cardId: 3, x: 0, y: 0, topic: 0, subtopic: -1 });
     expect(KnowledgeMapTable.driftCount(mainDb, indexDb, computedAt)).toBe(2);
+  });
+
+  it("driftCount 把只改了正文（contents.update_time）的卡片也算作编辑过", () => {
+    const computedAt = Date.now() - 1000;
+    KnowledgeMapTable.save(indexDb, { ...sample, computedAt }, "fp");
+    mainDb
+      .prepare("INSERT INTO contents (id, content, update_time) VALUES (?, '[]', ?)")
+      .run(10, computedAt + 10); // 重算后改过正文
+    mainDb
+      .prepare("INSERT INTO contents (id, content, update_time) VALUES (?, '[]', ?)")
+      .run(11, computedAt - 5000); // 正文也是重算前改的
+    const insert = mainDb.prepare(
+      "INSERT INTO cards (id, tags, links, content_id, update_time) VALUES (?, '[]', '[]', ?, ?)"
+    );
+    insert.run(1, 10, computedAt - 5000); // 卡片元数据没动、正文动了：算
+    insert.run(2, 11, computedAt - 5000); // 两边都没动：不算
+    insert.run(3, null, computedAt - 5000); // 没有正文行：不算
+    expect(KnowledgeMapTable.driftCount(mainDb, indexDb, computedAt)).toBe(1);
   });
 
   it("没有向量表时 hasVectors 为 false、neighborsOf 为空，不抛错", () => {

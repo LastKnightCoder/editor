@@ -1,6 +1,7 @@
 /**
  * M0 前提冒烟：pi harness 在 Electron 主进程（ELECTRON_RUN_AS_NODE）下的可用性验证。
  * 用法（在 apps/desktop 下）：ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs
+ * 安装包验证：设置 TAU_SMOKE_ASAR 为包内 app.asar 的绝对路径，并用包内 Electron 执行。
  * 必须用 electron 而非系统 node 运行——验证的就是 Electron 内置 Node 与打包产物。
  *
  * 覆盖项：
@@ -10,24 +11,24 @@
  *  4. 内建 write/read 工具对中文文件名与中文路径的读写；
  *  5. 全程不写 ~/.pi（agentDir 与 cwd 均指到临时目录）。
  */
-import { mkdtempSync, rmSync, existsSync } from "node:fs";
+import { mkdtempSync, rmSync, existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
-import {
-  createAgentSession,
-  SessionManager,
-  ModelRuntime,
-  SettingsManager,
-} from "@earendil-works/pi-coding-agent";
-import {
-  createModels,
-  fauxProvider,
-  fauxAssistantMessage,
-  fauxText,
-  fauxThinking,
-  fauxToolCall,
-} from "@earendil-works/pi-ai";
+import { pathToFileURL } from "node:url";
+
+const loadPackage = name => {
+  if (!process.env.TAU_SMOKE_ASAR) return import(name);
+  const directory = join(process.env.TAU_SMOKE_ASAR, "node_modules", name);
+  const manifest = JSON.parse(readFileSync(join(directory, "package.json"), "utf8"));
+  return import(pathToFileURL(join(directory, manifest.exports["."].import)).href);
+};
+console.log(`[依赖来源] ${process.env.TAU_SMOKE_ASAR ?? "开发目录"}`);
+const { createAgentSession, SessionManager, ModelRuntime, SettingsManager } = await loadPackage(
+  "@earendil-works/pi-coding-agent"
+);
+const { createModels, fauxProvider, fauxAssistantMessage, fauxText, fauxThinking, fauxToolCall } =
+  await loadPackage("@earendil-works/pi-ai");
 
 const failures = [];
 const check = (name, ok, detail = "") => {
@@ -76,6 +77,7 @@ faux.setResponses([
 const detectBashPath = () => {
   if (process.env.PI_SMOKE_SHELL && existsSync(process.env.PI_SMOKE_SHELL))
     return process.env.PI_SMOKE_SHELL;
+  if (process.platform !== "win32") return "/bin/bash";
   for (const hive of ["HKLM\\SOFTWARE\\GitForWindows", "HKCU\\SOFTWARE\\GitForWindows"]) {
     const reg = spawnSync("reg", ["query", hive, "/v", "InstallPath"], { encoding: "utf8" });
     if (reg.status !== 0 || !reg.stdout) continue;

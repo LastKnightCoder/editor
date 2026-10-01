@@ -21,6 +21,7 @@ export const createPlantUMLExtension = (options: PlantUMLExtensionOptions = {}) 
       defineElement<PlantUMLElement>({
         type: "plantuml",
         kind: "block",
+        drag: true,
         isVoid: true,
         render: ({ attributes, element, children }: ElementRenderProps<PlantUMLElement>) => (
           <PlantUMLBlock
