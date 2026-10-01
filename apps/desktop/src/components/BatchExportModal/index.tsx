@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState, type ComponentType } from "react";
-import { Button, Checkbox, Dialog, DialogBody, Input, Select, cn, toast } from "@tau/ui";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Button, Dialog, Input, Select, Switch, cn, toast } from "@tau/ui";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
-import { MdDescription, MdFolderZip, MdMenuBook, MdPictureAsPdf } from "react-icons/md";
-import { Check } from "lucide-react";
+import { Download, Info } from "lucide-react";
 import {
   exportEpubWithDialog,
   exportPdfWithDialog,
@@ -26,6 +25,9 @@ import {
   loadScopeTree,
   type BatchExportTreeNode,
 } from "@/utils/batch-export";
+import ExportCheckTree, { ExportTreeEmpty } from "./ExportCheckTree";
+import FormatPicker from "./FormatPicker";
+import { FORMAT_OPTIONS } from "./formats";
 
 interface BatchExportModalProps {
   open: boolean;
@@ -46,106 +48,61 @@ const DEFAULT_SETTINGS: BatchExportSettings = {
   epubMeta: {},
 };
 
-type FormatKey = keyof BatchExportSettings["formats"];
-
-interface FormatCard {
-  key: FormatKey;
-  label: string;
-  description: string;
-  icon: ComponentType<{ className?: string }>;
-  iconClass: string;
-}
-
-const FORMAT_CARDS: FormatCard[] = [
-  {
-    key: "pdf",
-    label: "PDF",
-    description: "适合打印分享，支持目录导航",
-    icon: MdPictureAsPdf,
-    iconClass: "text-danger",
-  },
-  {
-    key: "epub",
-    label: "EPUB",
-    description: "电子书格式，阅读器中翻阅",
-    icon: MdMenuBook,
-    iconClass: "text-ok",
-  },
-  {
-    key: "markdown",
-    label: "Markdown",
-    description: "合并为单个 .md 文件",
-    icon: MdDescription,
-    iconClass: "text-info",
-  },
-  {
-    key: "markdownZip",
-    label: "Markdown ZIP",
-    description: "保持目录结构，逐篇打包",
-    icon: MdFolderZip,
-    iconClass: "text-warn",
-  },
-];
-
 const normalizeText = (value?: string) => (value || "").trim();
 
-/** 勾选子树内全部可导出条目的 id（与 collectExportableIds 同集） */
-const collectSubtreeExportableIds = (node: BatchExportTreeNode): number[] => [
-  ...(node.exportable ? [node.id] : []),
-  ...node.children.flatMap(collectSubtreeExportableIds),
-];
+interface SettingRowProps {
+  title: string;
+  description: string;
+  /** 仅对某种格式生效时的格式标签 */
+  formatTag?: string;
+  checked: boolean;
+  disabled?: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  /** 开关左侧的附加控件（点击不触发整行切换） */
+  extra?: ReactNode;
+}
 
-/**
- * 勾选树（antd Tree 的就地替代）：checkedKeys 语义与原实现一致——
- * 集合内容为「被勾选的 exportable 节点 id（父 + 子）」，勾父节点级联全选子树。
- * 非 exportable 节点禁勾，仅作分组展示（flattenSelectedChapters 按 hasSelectedDescendant 处理）。
- */
-const ExportCheckTree = ({
-  nodes,
-  checkedKeys,
-  onCheckedKeysChange,
-}: {
-  nodes: BatchExportTreeNode[];
-  checkedKeys: number[];
-  onCheckedKeysChange: (keys: number[]) => void;
-}) => {
-  const checkedSet = useMemo(() => new Set(checkedKeys), [checkedKeys]);
-
-  const stateOf = (node: BatchExportTreeNode): "checked" | "indeterminate" | "unchecked" => {
-    const ids = collectSubtreeExportableIds(node);
-    if (ids.length === 0) return "unchecked";
-    const hit = ids.filter(id => checkedSet.has(id)).length;
-    return hit === ids.length ? "checked" : hit > 0 ? "indeterminate" : "unchecked";
-  };
-
-  const toggle = (node: BatchExportTreeNode, next: boolean) => {
-    const ids = new Set(collectSubtreeExportableIds(node));
-    onCheckedKeysChange(
-      next ? [...new Set([...checkedKeys, ...ids])] : checkedKeys.filter(id => !ids.has(id))
-    );
-  };
-
-  const renderNode = (node: BatchExportTreeNode, level: number) => (
-    <div key={node.id}>
-      <div className="flex items-start gap-1.5 py-[3px]" style={{ paddingLeft: level * 18 }}>
-        <Checkbox
-          checked={stateOf(node) === "checked"}
-          indeterminate={stateOf(node) === "indeterminate"}
-          disabled={!node.exportable}
-          onChange={event => toggle(node, event.target.checked)}
-        />
-        <span
-          className={cn("text-[13px] leading-6", node.exportable ? "text-ink-1" : "text-ink-3")}
-        >
-          {node.exportable ? node.title : `${node.title}（${node.disabledReason || "不参与导出"}）`}
-        </span>
+/** 排版设置行：整行可点切换，开关在最右 */
+const SettingRow = ({
+  title,
+  description,
+  formatTag,
+  checked,
+  disabled,
+  onCheckedChange,
+  extra,
+}: SettingRowProps) => (
+  <div
+    className={cn("flex items-center gap-3 px-3.5 py-2.5", !disabled && "cursor-pointer")}
+    onClick={disabled ? undefined : () => onCheckedChange(!checked)}
+  >
+    <div className="min-w-0 flex-1">
+      <div
+        className={cn(
+          "text-tau-body flex items-center gap-[7px] font-medium",
+          disabled ? "text-ink-3" : "text-ink-1"
+        )}
+      >
+        {title}
+        {formatTag && (
+          <span className="font-tau-mono text-ink-2 border-line-1 rounded-[4px] border px-[5px] text-[10px] font-semibold leading-[1.5] tracking-[0.04em]">
+            {formatTag}
+          </span>
+        )}
       </div>
-      {node.children.map(child => renderNode(child, level + 1))}
+      <div className="text-ink-3 text-tau-sm mt-px">{description}</div>
     </div>
-  );
-
-  return <div>{nodes.map(node => renderNode(node, 0))}</div>;
-};
+    {extra && <div onClick={event => event.stopPropagation()}>{extra}</div>}
+    <Switch
+      size="sm"
+      checked={checked && !disabled}
+      disabled={disabled}
+      aria-label={title}
+      onClick={event => event.stopPropagation()}
+      onCheckedChange={onCheckedChange}
+    />
+  </div>
+);
 
 const BatchExportModal = (props: BatchExportModalProps) => {
   const { open, onClose, scope } = props;
@@ -223,12 +180,30 @@ const BatchExportModal = (props: BatchExportModalProps) => {
     [checkedKeys, exportableIds]
   );
 
-  const hasFormat = formats.pdf || formats.epub || formats.markdown || formats.markdownZip;
+  const selectedFormats = FORMAT_OPTIONS.filter(option => formats[option.key]);
   // 导出规则只作用于 PDF / EPUB / 合并 Markdown；仅选 ZIP 时不适用
   const rulesApplicable = formats.pdf || formats.epub || formats.markdown;
+  // 书名与作者写入 PDF / EPUB 元数据；只导 Markdown 时书名仅作文件名
+  const needsBookMeta = formats.pdf || formats.epub;
   const hasRule = !rulesApplicable || rule.pageBreak || rule.asHeading;
-  const canExport =
-    !loading && selectedCount > 0 && hasFormat && hasRule && normalizeText(bookTitle).length > 0;
+  const blockReason = loading
+    ? "正在加载内容..."
+    : exportableIds.length === 0
+      ? "这个项目里没有文档"
+      : selectedCount === 0
+        ? "至少勾选一篇内容"
+        : selectedFormats.length === 0
+          ? "至少选择一种格式"
+          : !hasRule
+            ? "至少开启一项排版规则"
+            : normalizeText(bookTitle).length === 0
+              ? `请填写${needsBookMeta ? "书名" : "文件名"}`
+              : "";
+  const canExport = !blockReason;
+  const impact = exporting
+    ? exportProgress?.label || "正在导出..."
+    : blockReason ||
+      `将导出 ${selectedCount} 篇 → ${selectedFormats.map(option => option.label).join("、")}`;
 
   const handleConfirm = useMemoizedFn(async () => {
     const title = normalizeText(bookTitle);
@@ -386,19 +361,21 @@ const BatchExportModal = (props: BatchExportModalProps) => {
     }
   });
 
-  const labelClass = "text-ink-2 text-tau-meta font-[550]";
-  const hintClass = "text-ink-3 text-tau-meta";
-  const boxClass = "bg-sunken border-line-1 rounded-tau-md border";
+  const labelClass = "text-ink-2 text-tau-sm font-semibold tracking-[0.02em]";
+  const hintClass = "text-ink-3 text-tau-sm";
+
+  const metaColumns = formats.epub ? "grid-cols-[1.3fr_1fr_0.7fr]" : "grid-cols-[1.3fr_1fr]";
 
   return (
     <Dialog
       title="整体导出"
       context={scope.title || "未命名"}
-      subtitle="勾选要导出的内容，可同时选择多种格式；排除项会按数据库记住，下次打开自动应用。"
       open={open}
       onOpenChange={next => !next && onClose()}
       locked={exporting}
-      width={880}
+      width={900}
+      height={640}
+      impact={impact}
       footer={
         <>
           <Button variant="secondary" size="sm" onClick={onClose} disabled={exporting}>
@@ -407,114 +384,92 @@ const BatchExportModal = (props: BatchExportModalProps) => {
           <Button
             variant="primary"
             size="sm"
+            icon={Download}
             loading={exporting}
             loadingText={`导出中 ${exportProgress?.percent ?? 0}%`}
             disabled={!canExport}
             onClick={handleConfirm}
           >
-            导出
+            {selectedFormats.length > 1 ? `导出 ${selectedFormats.length} 个文件` : "导出"}
           </Button>
         </>
       }
     >
-      <DialogBody>
-        <div className="grid grid-cols-[minmax(230px,290px)_1fr] items-start gap-5">
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
-              <label className={labelClass}>导出内容</label>
-              <span className={hintClass}>
-                已选 {selectedCount} / 共 {exportableIds.length} 篇
-              </span>
-            </div>
-            <div className={cn(boxClass, "max-h-[440px] min-h-[280px] overflow-y-auto px-3 py-2")}>
-              {loading ? (
-                <div className={cn(hintClass, "py-6 text-center")}>正在加载内容...</div>
-              ) : tree.length > 0 ? (
-                <ExportCheckTree
-                  nodes={tree}
-                  checkedKeys={checkedKeys}
-                  onCheckedKeysChange={setCheckedKeys}
-                />
-              ) : (
-                <div className={cn(hintClass, "py-6 text-center")}>暂无可导出的内容</div>
-              )}
-            </div>
+      <div className="mt-3.5 grid min-h-0 flex-1 grid-cols-[300px_minmax(0,1fr)]">
+        <div className="border-line-1 flex min-h-0 flex-col border-r">
+          <div className="flex items-center gap-2 pb-2 pl-6 pr-5">
+            <span className={labelClass}>导出内容</span>
+            <span className={cn(hintClass, "tabular-nums")}>
+              {selectedCount} / {exportableIds.length} 篇
+            </span>
+            {exportableIds.length > 0 && (
+              <button
+                type="button"
+                className="text-accent-text text-tau-sm ml-auto hover:underline"
+                onClick={() =>
+                  setCheckedKeys(selectedCount === exportableIds.length ? [] : exportableIds)
+                }
+              >
+                {selectedCount === exportableIds.length ? "全不选" : "全选"}
+              </button>
+            )}
           </div>
+          <div className="min-h-0 flex-1 overflow-y-auto pb-2 pl-4 pr-3">
+            {loading ? (
+              <div className={cn(hintClass, "py-6 text-center")}>正在加载内容...</div>
+            ) : exportableIds.length > 0 ? (
+              <ExportCheckTree
+                nodes={tree}
+                checkedKeys={checkedKeys}
+                onCheckedKeysChange={setCheckedKeys}
+              />
+            ) : tree.length > 0 ? (
+              <ExportTreeEmpty />
+            ) : (
+              <div className={cn(hintClass, "py-6 text-center")}>项目里还没有条目</div>
+            )}
+          </div>
+          {exportableIds.length > 0 && (
+            <p className="text-ink-3 text-tau-micro flex gap-1.5 px-6 pb-3 pt-2.5">
+              <Info className="mt-[3px] size-3 shrink-0" />
+              取消勾选的条目会在导出后记住，下次打开自动排除
+            </p>
+          )}
+        </div>
 
-          <div className="flex min-w-0 flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className={labelClass}>导出格式</label>
-              <div className="grid grid-cols-2 gap-2">
-                {FORMAT_CARDS.map(card => {
-                  const selected = formats[card.key];
-                  const Icon = card.icon;
-                  return (
-                    <button
-                      key={card.key}
-                      type="button"
-                      onClick={() =>
-                        setFormats(prev => ({
-                          ...prev,
-                          [card.key]: !prev[card.key],
-                        }))
-                      }
-                      aria-pressed={selected}
-                      className={cn(
-                        "rounded-tau-md ease-tau-out relative flex cursor-pointer items-start gap-2.5 border p-3 text-left transition-[background,border-color] duration-[140ms]",
-                        selected
-                          ? "border-accent bg-accent-soft"
-                          : "border-line-1 bg-surface hover:border-ink-3"
-                      )}
-                    >
-                      <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${card.iconClass}`} />
-                      <span className="flex min-w-0 flex-col gap-0.5">
-                        <span className="text-ink-1 text-[13px] font-[550]">{card.label}</span>
-                        <span className={hintClass}>{card.description}</span>
-                      </span>
-                      {selected && (
-                        <span className="bg-accent text-ink-inverse absolute right-2 top-2 grid size-[18px] place-items-center rounded-full">
-                          <Check className="size-3" strokeWidth={3} />
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+        <div className="flex min-h-0 flex-col gap-[18px] overflow-y-auto pb-5 pl-[22px] pr-6">
+          <section className="flex flex-col gap-2">
+            <div className="flex items-baseline gap-2">
+              <span className={labelClass}>格式</span>
+              <span className={hintClass}>可多选，每种生成一个文件</span>
             </div>
+            <FormatPicker
+              formats={formats}
+              onToggle={key => setFormats(prev => ({ ...prev, [key]: !prev[key] }))}
+            />
+          </section>
 
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <label className={labelClass}>导出规则</label>
-                {!rulesApplicable && (
-                  <span className={hintClass}>ZIP 按目录分文件导出，规则不适用</span>
-                )}
-              </div>
-              <div className={cn(boxClass, "flex flex-col gap-2 px-3.5 py-2.5")}>
-                <Checkbox
-                  checked={rule.pageBreak}
-                  disabled={!rulesApplicable}
-                  onChange={event =>
-                    setRule(prev => ({
-                      ...prev,
-                      pageBreak: event.target.checked,
-                    }))
-                  }
-                  label="每个文档分页（EPUB 中每个文档天然一章）"
-                />
-                <div className="flex items-center gap-3">
-                  <Checkbox
-                    checked={rule.asHeading}
-                    disabled={!rulesApplicable}
-                    onChange={event =>
-                      setRule(prev => ({
-                        ...prev,
-                        asHeading: event.target.checked,
-                      }))
-                    }
-                    label="文档标题作为标题插入正文"
-                  />
+          <section className="flex flex-col gap-2">
+            <span className={labelClass}>排版</span>
+            <div className="border-line-1 divide-line-1 rounded-tau-md divide-y border">
+              <SettingRow
+                title="每篇文档另起一页"
+                description="EPUB 中每篇天然是一章"
+                checked={rule.pageBreak}
+                disabled={!rulesApplicable}
+                onCheckedChange={pageBreak => setRule(prev => ({ ...prev, pageBreak }))}
+              />
+              <SettingRow
+                title="把文档标题写进正文"
+                description="顶层文档用所选级别，子文档逐级下沉"
+                checked={rule.asHeading}
+                disabled={!rulesApplicable}
+                onCheckedChange={asHeading => setRule(prev => ({ ...prev, asHeading }))}
+                extra={
                   <Select
-                    className="w-[80px]"
+                    size="sm"
+                    className="w-[72px]"
+                    aria-label="标题级别"
                     value={rule.headingLevel}
                     disabled={!rulesApplicable || !rule.asHeading}
                     onValueChange={value =>
@@ -529,89 +484,76 @@ const BatchExportModal = (props: BatchExportModalProps) => {
                       { value: 3, label: "H3" },
                     ]}
                   />
-                </div>
-              </div>
-            </div>
-
-            {formats.pdf && (
-              <div className="flex flex-col gap-1.5">
-                <label className={labelClass}>PDF 目录</label>
-                <div className={cn(boxClass, "flex flex-col gap-2 px-3.5 py-2.5")}>
-                  <Checkbox
+                }
+              />
+              {formats.pdf && (
+                <>
+                  <SettingRow
+                    title="书签导航"
+                    formatTag="PDF"
+                    description="阅读器侧边栏按标题层级展开"
                     checked={pdfSettings.outline}
-                    onChange={event =>
-                      setPdfSettings(prev => ({
-                        ...prev,
-                        outline: event.target.checked,
-                      }))
-                    }
-                    label="生成书签导航（PDF 阅读器侧边栏大纲，按标题层级展示）"
+                    onCheckedChange={outline => setPdfSettings(prev => ({ ...prev, outline }))}
                   />
-                  <Checkbox
-                    checked={pdfSettings.tocPage && rule.asHeading}
+                  <SettingRow
+                    title="目录页"
+                    formatTag="PDF"
+                    description={
+                      rule.asHeading
+                        ? "正文前单独一页，条目可点击跳转"
+                        : "需先开启「把文档标题写进正文」"
+                    }
+                    checked={pdfSettings.tocPage}
                     disabled={!rule.asHeading}
-                    onChange={event =>
-                      setPdfSettings(prev => ({
-                        ...prev,
-                        tocPage: event.target.checked,
-                      }))
-                    }
-                    label="插入目录页（正文开头单独一页，点击条目跳转）"
+                    onCheckedChange={tocPage => setPdfSettings(prev => ({ ...prev, tocPage }))}
                   />
-                  {!rule.asHeading && (
-                    <span className={hintClass}>目录页需开启“文档标题作为标题插入正文”</span>
-                  )}
-                </div>
-              </div>
+                </>
+              )}
+            </div>
+            {!rulesApplicable && (
+              <span className={cn(hintClass, "flex items-center gap-1.5")}>
+                <Info className="size-3 shrink-0" />
+                Markdown 包按目录逐篇保存，以上规则不适用
+              </span>
             )}
+          </section>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className={labelClass}>书名</label>
-                <Input
-                  value={bookTitle}
-                  placeholder="请输入书名"
-                  onChange={event => setBookTitle(event.target.value)}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className={labelClass}>作者</label>
+          <div className={cn("grid gap-3", metaColumns)}>
+            <label className="flex min-w-0 flex-col gap-1.5">
+              <span className={labelClass}>{needsBookMeta ? "书名" : "文件名"}</span>
+              <Input
+                value={bookTitle}
+                placeholder="必填"
+                onChange={event => setBookTitle(event.target.value)}
+              />
+            </label>
+            {needsBookMeta && (
+              <label className="flex min-w-0 flex-col gap-1.5">
+                <span className={labelClass}>
+                  作者 <span className="text-ink-3 font-normal tracking-normal">可选</span>
+                </span>
                 <Input
                   value={author}
-                  placeholder="可选"
+                  placeholder="写入书籍元数据"
                   onChange={event => setAuthor(event.target.value)}
                 />
-              </div>
-            </div>
-
+              </label>
+            )}
             {formats.epub && (
-              <div className="flex flex-col gap-1.5">
-                <label className={labelClass}>语言（EPUB）</label>
+              <label className="flex min-w-0 flex-col gap-1.5">
+                <span className={labelClass}>
+                  语言 <span className="text-ink-3 font-normal tracking-normal">EPUB</span>
+                </span>
                 <Input
                   value={language}
-                  placeholder="例如 zh-CN / en"
+                  placeholder="zh-CN"
                   onChange={event => setLanguage(event.target.value)}
                 />
-              </div>
+              </label>
             )}
           </div>
         </div>
-
-        {exporting && exportProgress && (
-          <div className="mt-4 flex flex-col gap-1.5">
-            <div className={cn(hintClass, "flex items-center justify-between gap-3")}>
-              <span className="min-w-0 truncate">{exportProgress.label || "正在导出..."}</span>
-              <span className="shrink-0 tabular-nums">{exportProgress.percent}%</span>
-            </div>
-            <div className="bg-track h-1.5 overflow-hidden rounded-full">
-              <div
-                className="bg-accent ease-tau-out h-full rounded-full transition-[width] duration-300"
-                style={{ width: `${exportProgress.percent}%` }}
-              />
-            </div>
-          </div>
-        )}
-      </DialogBody>
+      </div>
     </Dialog>
   );
 };
