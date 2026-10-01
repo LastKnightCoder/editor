@@ -1,6 +1,10 @@
 import { createReadStream, promises as fs } from "node:fs";
 import { createInterface } from "node:readline";
 
+/** 学习项目资料转换出的 Markdown 所在目录（相对应用数据目录），按库与项目分开 */
+export const vibeLearningMarkdownDir = (databaseName: string, projectId: number | string) =>
+  `vibe-learning/${databaseName.replace(/\.db$/, "")}/${projectId}`;
+
 export interface MarkdownLineReadOptions {
   startLine: number;
   endLine: number;
@@ -46,13 +50,10 @@ interface RipgrepJsonEvent {
 
 export async function readMarkdownLines(
   filePath: string,
-  options: MarkdownLineReadOptions,
+  options: MarkdownLineReadOptions
 ): Promise<MarkdownLineReadResult> {
   const requestedStartLine = Math.max(1, Math.floor(options.startLine));
-  const requestedEndLine = Math.max(
-    requestedStartLine,
-    Math.floor(options.endLine),
-  );
+  const requestedEndLine = Math.max(requestedStartLine, Math.floor(options.endLine));
   const selectedLines: string[] = [];
   let totalLines = 0;
   let chars = 0;
@@ -66,11 +67,7 @@ export async function readMarkdownLines(
   for await (const line of rl) {
     totalLines++;
 
-    if (
-      totalLines >= requestedStartLine &&
-      totalLines <= requestedEndLine &&
-      !truncated
-    ) {
+    if (totalLines >= requestedStartLine && totalLines <= requestedEndLine && !truncated) {
       const prefix = selectedLines.length > 0 ? "\n" : "";
       const nextLength = chars + prefix.length + line.length;
       if (nextLength > options.maxChars) {
@@ -90,10 +87,7 @@ export async function readMarkdownLines(
   return {
     content: selectedLines.join(""),
     startLine: requestedStartLine,
-    endLine: Math.max(
-      requestedStartLine,
-      Math.min(totalLines, requestedEndLine),
-    ),
+    endLine: Math.max(requestedStartLine, Math.min(totalLines, requestedEndLine)),
     totalLines,
     truncated,
   };
@@ -116,9 +110,7 @@ export function toCharOffset(lineText: string, byteOffset: number): number {
   return lineText.length;
 }
 
-export async function buildLineStartOffsets(
-  filePath: string,
-): Promise<number[]> {
+export async function buildLineStartOffsets(filePath: string): Promise<number[]> {
   const content = await fs.readFile(filePath, "utf-8");
   const offsets = [0];
   for (let i = 0; i < content.length; i++) {
@@ -185,10 +177,7 @@ export async function parseRipgrepJsonLines(params: {
       const startInLine = toCharOffset(lineText, submatch.start || 0);
       const endInLine = toCharOffset(lineText, submatch.end || 0);
       const previewStart = Math.max(0, startInLine - params.previewRadius);
-      const previewEnd = Math.min(
-        lineText.length,
-        endInLine + params.previewRadius,
-      );
+      const previewEnd = Math.min(lineText.length, endInLine + params.previewRadius);
 
       results.push({
         resourceId: resource.id,
