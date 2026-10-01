@@ -1,11 +1,4 @@
-/**
- * 模块分层守护 —— 防止「按需加载」重新退化成隐式契约。
- *
- * 背景：ON_DEMAND 层模块原先只由 `initModulesForWindow`（窗口类型 → 模块组）拉起，
- * 新壳层 AppShell 不经该入口，导致 39 个模块的 handler 从未注册（updater:check 报
- * "No handler registered"）。现统一为 BACKGROUND，随应用启动初始化，不依赖调用方。
- * 若确需新增按需模块，必须在渲染端用 ensureModule/withModule 接入兜底，否则本测试失败。
- */
+/** 模块只按应用启动阶段分层，不能依赖窗口入口隐式拉起。 */
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -32,9 +25,7 @@ function collectSources(dir: string, acc: string[] = []): string[] {
 
 // 读源码而非 import：module-config.ts 会连带拉起 50 个模块的重依赖树
 function parseModuleConfig(source: string): { name: string; layer: string }[] {
-  const entries = source.matchAll(
-    /name:\s*"([^"]+)",\s*group:\s*ModuleGroup\.\w+,\s*layer:\s*InitLayer\.(\w+)/g
-  );
+  const entries = source.matchAll(/name:\s*"([^"]+)",\s*layer:\s*InitLayer\.(\w+)/g);
   return [...entries].map(match => ({ name: match[1], layer: match[2] }));
 }
 
@@ -66,17 +57,7 @@ describe("模块分层守护", () => {
     expect(guarded.has("embedding-model-manager")).toBe(true);
   });
 
-  it("按需模块必须接入渲染端 ensureModule/withModule 兜底", () => {
-    const guarded = collectGuardedModules(collectSources(rendererSrcDir));
-    const uncovered = modules
-      .filter(m => m.layer === "ON_DEMAND")
-      .filter(m => !guarded.has(m.name))
-      .map(m => m.name);
-
-    expect(
-      uncovered,
-      "以下模块标为 ON_DEMAND 但没有调用方，其 IPC handler 不会注册：" +
-        "请改为 BACKGROUND，或在渲染端用 ensureModule/withModule 接入兜底"
-    ).toEqual([]);
+  it("所有模块都属于应用启动层级", () => {
+    expect(modules.filter(m => !["IMMEDIATE", "BACKGROUND"].includes(m.layer))).toEqual([]);
   });
 });

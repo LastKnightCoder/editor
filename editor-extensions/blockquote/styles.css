@@ -1,0 +1,8 @@
+:root,
+[data-mode] {
+  --ed-quote-text: var(--tau-ink-1);
+  --ed-quote-nested-text: var(--tau-ink-2);
+  --ed-quote-mark: var(--tau-accent);
+  --ed-quote-mark-font: Georgia, "Times New Roman", serif;
+  --ed-quote-bar: color-mix(in srgb, var(--tau-ink-1) 20%, transparent);
+}

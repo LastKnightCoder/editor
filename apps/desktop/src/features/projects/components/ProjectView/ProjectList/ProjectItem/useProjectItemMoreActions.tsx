@@ -4,19 +4,20 @@ import type { MenuEntryList } from "../../shared/menuEntries";
 import { produce } from "immer";
 
 import ContentExportModal from "@/components/ContentExportModal";
-import DeckSelectorModal from "@/components/DeckSelectorModal";
+import DeckSelectorModal from "@/features/flashcards/components/DeckSelectorDialog";
 import EditTitleModal from "@/components/EditTitleModal";
 import EpubExportModal from "@/components/EpubExportModal";
-import FlashcardEditor from "@/components/FlashcardEditor";
-import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
-import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModal";
+import FlashcardEditor from "@/features/flashcards/components/CreateFlashcardDialog";
+import FlashcardGenerationModal from "@/features/flashcards/components/FlashcardGenerationDialog";
+import GeneratedFlashcardEditModal from "@/features/flashcards/components/GeneratedFlashcardEditDialog";
 import PodcastGenerationModal from "@/components/PodcastGenerationModal";
 import PresentationMode from "@/components/PresentationMode";
 import { PdfExportModal } from "@/components/PdfExportModal";
-import useFlashcardCreation from "@/hooks/useFlashcardCreation";
+import useFlashcardCreation from "@/features/flashcards/hooks/useFlashcardCreation";
 import usePodcastAttachment from "@/hooks/usePodcastAttachment";
 import useProjectWebLinkMeta from "@/hooks/useProjectWebLinkMeta";
 import useSettingStore from "@/stores/useSettingStore";
+import { useThemeStore } from "@tau/themes/react";
 import { usePage } from "@/page/PageProvider";
 import { attachPodcastToProjectItem, detachPodcastFromProjectItem } from "@/commands/podcast";
 import {
@@ -27,7 +28,7 @@ import {
   updateProjectItem,
   updateWebLink,
 } from "@/commands";
-import useWhiteBoardStore from "@/stores/useWhiteBoardStore";
+import { useWhiteboardMutations } from "@/features/whiteboards/queries";
 import {
   copyMarkdownToClipboard,
   copyWechatHtmlToClipboard,
@@ -35,7 +36,7 @@ import {
   downloadMarkdown,
   getMarkdown,
 } from "@/utils";
-import { EProjectItemType, ProjectItem, WhiteBoardContent } from "@/types";
+import { EProjectItemType, ProjectItem } from "@/types";
 import { useMemoizedFn } from "ahooks";
 import useContentShared from "@/hooks/useContentShared";
 import { getProjectItemMoreMenuItems } from "./projectItemMoreMenuItems";
@@ -85,12 +86,10 @@ export const useProjectItemMoreActions = (
   const [editTitleModalOpen, setEditTitleModalOpen] = useState(false);
   const [isPresentation, setIsPresentation] = useState(false);
 
-  const darkMode = useSettingStore(state => state.setting.darkMode);
+  const darkMode = useThemeStore(state => state.mode === "dark");
   const { navigator } = usePage();
   const projectItemEventBus = useMemo(() => defaultProjectItemEventBus.createEditor(), []);
-  const { createWhiteBoard } = useWhiteBoardStore(state => ({
-    createWhiteBoard: state.createWhiteBoard,
-  }));
+  const whiteboardMutations = useWhiteboardMutations();
 
   const {
     title: projectItemTitle,
@@ -235,34 +234,12 @@ export const useProjectItemMoreActions = (
         return;
       }
       if (projectItem.refType === "white-board") return;
-      const createWhiteBoardData = {
-        title: projectItem.title,
-        description: projectItem.title,
-        tags: [],
-        whiteBoardContentList: [
-          {
-            name: projectItem.title,
-            data: {
-              children: [],
-              viewPort: {
-                zoom: 1,
-                minX: 0,
-                minY: 0,
-                width: 0,
-                height: 0,
-              },
-              selection: {
-                selectArea: null,
-                selectedElements: [],
-              },
-              presentationSequences: [],
-            },
-          } as Pick<WhiteBoardContent, "data" | "name">,
-        ],
-        snapshot: "",
-      };
       try {
-        const createdWhiteBoard = await createWhiteBoard(createWhiteBoardData);
+        const createdWhiteBoard = await whiteboardMutations.create({
+          title: projectItem.title,
+          description: projectItem.title,
+          tags: [],
+        });
         const nextProjectItem = produce(projectItem, draft => {
           draft.refId = createdWhiteBoard.id;
           draft.refType = "white-board";
@@ -389,10 +366,8 @@ export const useProjectItemMoreActions = (
       {flashcard.flashcardEditorOpen && flashcard.selectedDeck && (
         <FlashcardEditor
           open={flashcard.flashcardEditorOpen}
-          mode="create"
           activeDeckId={flashcard.selectedDeck.id}
           onClose={flashcard.closeFlashcardEditor}
-          isDark={darkMode}
           initialReferences={[flashcard.getReference()]}
         />
       )}

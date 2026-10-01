@@ -8,7 +8,13 @@
  */
 
 import useTheme from "@/hooks/useTheme";
-import type { Flashcard, FlashcardData, FlashcardDeck, FlashcardType } from "@/types";
+import type {
+  Flashcard,
+  FlashcardData,
+  FlashcardDeck,
+  FlashcardType,
+  FlashcardReferenceInput,
+} from "@/types";
 import { createEmptyFlashcardData } from "@/utils/flashcard";
 import { Button, Dialog, DialogBody, IconButton, Menu, toast } from "@tau/ui";
 import { CreditCard, MoreHorizontal, Pause, Play, Trash2 } from "lucide-react";
@@ -29,6 +35,7 @@ export function CardEditorDialog({
   mutations,
   onClose,
   onDelete,
+  initialReferences,
 }: {
   open: boolean;
   /** null = 新建 */
@@ -39,6 +46,7 @@ export function CardEditorDialog({
   mutations: FlashcardMutations;
   onClose(): void;
   onDelete(card: Flashcard): void;
+  initialReferences?: FlashcardReferenceInput[];
 }) {
   const { isDark } = useTheme();
   const [form, setForm] = useState<FormState | null>(null);
@@ -49,7 +57,13 @@ export function CardEditorDialog({
   useEffect(() => {
     if (!open) return;
     const deckId = defaultDeckId ?? decks[0]?.id;
-    setForm(card ? formFromCard(card) : deckId != null ? emptyForm(deckId, "qa") : null);
+    setForm(
+      card
+        ? formFromCard(card)
+        : deckId != null
+          ? { ...emptyForm(deckId, "qa"), references: initialReferences ?? [] }
+          : null
+    );
     setRevision(r => r + 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅在打开 / 换卡时初始化
   }, [open, card?.id]);
@@ -104,7 +118,7 @@ export function CardEditorDialog({
         await mutations.createCard({ ...payload, deckId: form.deckId });
         if (continueNext) {
           toast.success("已保存，继续新建下一张");
-          setForm(emptyForm(form.deckId, form.type));
+          setForm({ ...emptyForm(form.deckId, form.type), references: initialReferences ?? [] });
           setRevision(r => r + 1);
         } else {
           toast.success("已新建闪卡");

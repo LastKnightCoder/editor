@@ -48,11 +48,7 @@ export const focusInsertedPreviewElement = (editor: Editor, path?: Path, retry =
   focusEditor(retry);
 };
 
-export const setOrInsertNode = (
-  editor: Editor,
-  node: BlockElement,
-  options: InsertElementOptions = {}
-) => {
+const findInsertAnchor = (editor: Editor) => {
   if (!isCollapsed(editor)) {
     return;
   }
@@ -60,6 +56,18 @@ export const setOrInsertNode = (
     match: n => n.type === "paragraph",
     mode: "lowest",
   });
+  return match;
+};
+
+/** 当前选区能否 setOrInsertNode：需折叠且落在段落内（先问再弹输入框等场景用） */
+export const canSetOrInsertNode = (editor: Editor) => !!findInsertAnchor(editor);
+
+export const setOrInsertNode = (
+  editor: Editor,
+  node: BlockElement,
+  options: InsertElementOptions = {}
+) => {
+  const match = findInsertAnchor(editor);
   if (!match) {
     return;
   }

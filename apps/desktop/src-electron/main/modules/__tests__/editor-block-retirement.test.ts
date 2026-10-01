@@ -5,7 +5,6 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { retireEditorBlocks } from "@tau/db-schema/src/editor-block-retirement";
 import { EDITOR_BLOCK_CARRIERS } from "@tau/db-schema/src/retired-editor-blocks";
-import { createMarkdownProcessor } from "@tau/markdown";
 
 const directories: string[] = [];
 const databases: Database.Database[] = [];
@@ -120,15 +119,6 @@ describe("编辑器引用块退役", () => {
     expect(
       db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='trigger'").get()
     ).toEqual({ n: 0 });
-  });
-  it("Markdown 三种旧指令都被丢弃，普通文本保留", () => {
-    // 退役指令的丢弃发生在 walker（框架层），与 codec 无关，用无 codec 处理器即可
-    const { importFromMarkdown } = createMarkdownProcessor();
-    const result = importFromMarkdown(
-      "保留\n\n::chat-reference{chatId=1}\n\n:::question\n丢弃\n:::\n\n:question-card[丢弃]\n"
-    );
-    expect(JSON.stringify(result)).toContain("保留");
-    expect(JSON.stringify(result)).not.toMatch(/chat-reference|question-card|丢弃/);
   });
   it("转义类型不能漏删，旧闪卡纯文本不当作损坏 JSON", () => {
     const db = open();

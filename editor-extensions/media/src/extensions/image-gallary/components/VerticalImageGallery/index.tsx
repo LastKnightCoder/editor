@@ -1,11 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ImageGallery } from "@tau/shared";
-import { useEditorTheme as useTheme } from "@tau/editor/api";
-import {
-  ImageBorderRadiusPreset,
-  ImageGalleryItem,
-  ImageShadowPreset,
-} from "../../../../types/index";
+import { ImageBorderRadiusPreset, ImageGalleryItem, ImageShadowPreset } from "../../../../types";
 import {
   calculateMasonryLayout,
   toImageDimension,
@@ -22,6 +16,9 @@ interface IVerticalImageGalleryProps {
   borderRadius?: ImageBorderRadiusPreset;
   shadow?: ImageShadowPreset | boolean;
   onUpdateDimensions?: (items: ImageGalleryItem[]) => void;
+  /** 单击 / 双击某张图，参数为该图在 items 中的序号 */
+  onItemClick?: (index: number) => void;
+  onItemDoubleClick?: (index: number) => void;
 }
 
 const VerticalImageGallery = (props: IVerticalImageGalleryProps) => {
@@ -32,14 +29,13 @@ const VerticalImageGallery = (props: IVerticalImageGalleryProps) => {
     borderRadius = "none",
     shadow = false,
     onUpdateDimensions,
+    onItemClick,
+    onItemDoubleClick,
   } = props;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [imageDimensions, setImageDimensions] = useState<Map<string, ImageDimension>>(new Map());
-  const [showGallery, setShowGallery] = useState(false);
-  const [galleryIndex, setGalleryIndex] = useState(0);
-  const { mode: theme } = useTheme();
   const { Image } = useEditorSlots();
 
   // 监听容器宽度
@@ -144,13 +140,8 @@ const VerticalImageGallery = (props: IVerticalImageGalleryProps) => {
     });
   }, [items, imageDimensions, containerWidth, columnCount, gap]);
 
-  // 全屏浏览用的图片列表
-  const galleryImages = useMemo(() => items.map(item => item.url), [items]);
-
-  const handleImageClick = (index: number) => {
-    setGalleryIndex(index);
-    setShowGallery(true);
-  };
+  // 排版只含已加载尺寸的图，序号按 id 回到原列表
+  const indexOf = (id: string) => items.findIndex(item => item.id === id);
   const itemAppearanceStyle = useMemo(
     () => getImageAppearanceStyle({ borderRadius, shadow }),
     [borderRadius, shadow]
@@ -162,7 +153,7 @@ const VerticalImageGallery = (props: IVerticalImageGalleryProps) => {
       className="relative w-full"
       style={{ height: layout.totalHeight || "auto" }}
     >
-      {layout.items.map((item, index) => (
+      {layout.items.map(item => (
         <div
           key={item.id}
           className="absolute cursor-pointer overflow-hidden"
@@ -173,7 +164,8 @@ const VerticalImageGallery = (props: IVerticalImageGalleryProps) => {
             height: item.height,
             ...itemAppearanceStyle,
           }}
-          onClick={() => handleImageClick(index)}
+          onClick={() => onItemClick?.(indexOf(item.id))}
+          onDoubleClick={() => onItemDoubleClick?.(indexOf(item.id))}
         >
           {Image ? (
             <Image url={item.url} alt={item.desc || ""} className="h-full w-full object-cover" />
@@ -182,13 +174,6 @@ const VerticalImageGallery = (props: IVerticalImageGalleryProps) => {
           )}
         </div>
       ))}
-      <ImageGallery
-        images={galleryImages}
-        open={showGallery}
-        onClose={() => setShowGallery(false)}
-        defaultIndex={galleryIndex}
-        theme={theme}
-      />
     </div>
   );
 };

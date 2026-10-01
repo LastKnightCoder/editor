@@ -15,7 +15,6 @@ export default definePage({
   key: "articles",
   match: "single", // 列表页全局一份，重复进入原位激活
   label: "文章",
-  status: "new",
   params: schema.schema,
   component: ArticlesView,
 });

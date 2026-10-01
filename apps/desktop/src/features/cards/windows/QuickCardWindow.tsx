@@ -15,7 +15,6 @@ import { WindowMessage } from "@/features/editor-window/WindowMessage";
 import { DOCUMENT_DRIVERS } from "@/features/editor-window/documentDrivers";
 import { useEditorDocument } from "@/features/editor-window/useEditorDocument";
 import useSettingStore from "@/stores/useSettingStore";
-import useSyncFont from "@/hooks/useSyncFont";
 import { deleteCard, getCardById } from "@/commands/card";
 import { DEFAULT_CARD_CONTENT } from "@/constants/card";
 import { getContentLength } from "@/utils";
@@ -63,7 +62,6 @@ type BootState =
   | { phase: "ready"; cardId: number };
 
 export default function QuickCardWindow() {
-  useSyncFont();
   useThemeRuntime();
   useEffect(() => initScrollbarAutoHide(), []);
 

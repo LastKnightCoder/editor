@@ -1,7 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { measurePerformance } from "../../utils/performance";
 import { BiCopy } from "react-icons/bi";
-import styles from "./index.module.less";
+import "../animations.css";
+
+const styles = {
+  syntaxContainer: "relative",
+  copyButton:
+    "bg-hover text-ink-2 hover:bg-press absolute right-2 top-2 z-[2] flex size-7 cursor-pointer items-center justify-center rounded-tau-sm border-0 opacity-70 transition-colors hover:opacity-100",
+  copyTooltip:
+    "bg-accent text-ink-inverse absolute -top-[25px] right-0 whitespace-nowrap rounded-tau-sm px-2 py-0.5 text-tau-sm animate-[tau-shared-copy_0.3s]",
+};
 
 interface LazySyntaxHighlighterProps {
   language: string;
@@ -95,7 +103,7 @@ const LazySyntaxHighlighter: React.FC<LazySyntaxHighlighterProps> = ({
         setIsCopied(true);
         setTimeout(() => setIsCopied(false), 2000);
       })
-      .catch((err) => {
+      .catch(err => {
         console.error("Failed to copy code:", err);
       });
   };
@@ -127,11 +135,7 @@ const LazySyntaxHighlighter: React.FC<LazySyntaxHighlighterProps> = ({
 
   return (
     <div className={styles.syntaxContainer}>
-      <button
-        className={styles.copyButton}
-        onClick={handleCopyCode}
-        title="Copy code"
-      >
+      <button className={styles.copyButton} onClick={handleCopyCode} title="Copy code">
         <BiCopy />
         {isCopied && <span className={styles.copyTooltip}>已复制!</span>}
       </button>
@@ -144,9 +148,7 @@ const LazySyntaxHighlighter: React.FC<LazySyntaxHighlighterProps> = ({
           fontFamily: CODE_FONT_FAMILY,
         }}
         codeTagProps={{
-          className: normalizedLanguage
-            ? `language-${normalizedLanguage}`
-            : undefined,
+          className: normalizedLanguage ? `language-${normalizedLanguage}` : undefined,
           style: {
             ...codeBaseStyle,
             fontFamily: CODE_FONT_FAMILY,

@@ -1,0 +1,16 @@
+@keyframes tau-find-bar-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+::highlight(tau-global-find) {
+  background-color: color-mix(in srgb, var(--tau-accent) 9%, transparent);
+  color: inherit;
+}
+
+::highlight(tau-global-find-current) {
+  background-color: color-mix(in srgb, var(--tau-accent) 20%, transparent);
+  color: var(--tau-ink-1);
+}

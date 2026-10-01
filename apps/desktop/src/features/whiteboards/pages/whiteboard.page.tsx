@@ -16,7 +16,6 @@ export default definePage({
   key: "whiteboard",
   match: "single",
   label: "白板",
-  status: "new",
   params: schema.schema,
   component: WhiteboardsView,
 });

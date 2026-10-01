@@ -162,7 +162,7 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
           <Tooltip content="视频笔记">
             <button
               type="button"
-              className="absolute right-5 top-5 z-10 flex h-8 w-8 items-center justify-center rounded-md border border-black/10 bg-white/90 text-gray-600 opacity-0 shadow-sm transition-opacity hover:bg-white hover:text-[var(--th-accent)] group-hover:opacity-100 dark:border-white/10 dark:bg-zinc-900/90 dark:text-gray-300 dark:hover:bg-zinc-900"
+              className="absolute right-5 top-5 z-10 flex h-8 w-8 items-center justify-center rounded-md border border-black/10 bg-white/90 text-gray-600 opacity-0 shadow-sm transition-opacity hover:bg-white hover:text-[var(--tau-accent)] group-hover:opacity-100 dark:border-white/10 dark:bg-zinc-900/90 dark:text-gray-300 dark:hover:bg-zinc-900"
               style={{ display: isSelected ? "none" : undefined }}
               onClick={handleOpenVideoNote}
               onPointerDown={event => event.stopPropagation()}
@@ -233,7 +233,7 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
           <Tooltip content="视频笔记">
             <button
               type="button"
-              className="flex h-8 w-8 items-center justify-center rounded-md border border-black/10 bg-white text-gray-600 shadow-sm transition-colors hover:text-[var(--th-accent)] dark:border-white/10 dark:bg-zinc-900 dark:text-gray-300"
+              className="flex h-8 w-8 items-center justify-center rounded-md border border-black/10 bg-white text-gray-600 shadow-sm transition-colors hover:text-[var(--tau-accent)] dark:border-white/10 dark:bg-zinc-900 dark:text-gray-300"
               onClick={handleOpenVideoNote}
               onPointerDown={event => event.stopPropagation()}
               onMouseDown={event => event.stopPropagation()}

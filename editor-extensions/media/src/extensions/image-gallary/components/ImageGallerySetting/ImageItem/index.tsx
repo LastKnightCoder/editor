@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
-import { MdClose } from "react-icons/md";
-import { ImageGalleryItem } from "../../../../../types/index";
+import { Move, X } from "lucide-react";
+import { IconButton, cn } from "@tau/ui";
+import { ImageGalleryItem } from "../../../../../types";
 import useDragAndDrop from "./useDragAndDrop";
 import { useEditorSlots } from "../../../../../services/hooks";
 
@@ -27,7 +28,11 @@ const ImageItem = (props: IImageItemProps) => {
       ref={ref}
       layout
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className={`group relative aspect-square cursor-move overflow-hidden rounded-xl bg-gray-100 ring-2 ring-transparent transition-colors duration-200 dark:bg-zinc-800 ${isDragging ? "ring-dashed opacity-50 ring-indigo-400" : ""} ${isOver && canDrop ? "scale-105 ring-indigo-500" : ""} hover:ring-gray-300 dark:hover:ring-slate-600`}
+      className={cn(
+        "bg-sunken rounded-tau-md hover:ring-line-2 group relative aspect-square cursor-move overflow-hidden ring-2 ring-transparent transition-[box-shadow,opacity] duration-200",
+        isDragging && "ring-accent hover:ring-accent opacity-50",
+        isOver && canDrop && "ring-accent hover:ring-accent scale-105"
+      )}
     >
       {/* Image */}
       {Image ? (
@@ -44,28 +49,24 @@ const ImageItem = (props: IImageItemProps) => {
         />
       )}
 
-      {/* Hover Overlay */}
-      <div className="absolute inset-0 bg-black/0 transition-colors duration-200 group-hover:bg-black/20" />
+      <div className="group-hover:bg-overlay/50 pointer-events-none absolute inset-0 transition-colors duration-200" />
 
-      {/* Delete Button - Always visible with good contrast */}
-      <button
+      <IconButton
         onClick={e => {
           e.stopPropagation();
           onDelete(imageItem);
         }}
-        className="absolute right-1.5 top-1.5 flex h-6 w-6 scale-90 transform cursor-pointer items-center justify-center rounded-full border-none bg-black/60 text-white opacity-0 shadow-lg transition-all duration-200 hover:bg-red-500 group-hover:scale-100 group-hover:opacity-100"
+        aria-label="删除图片"
         title="删除图片"
+        className="bg-surface/90 text-ink-2 shadow-float enabled:hover:bg-danger enabled:hover:text-ink-inverse absolute right-1.5 top-1.5 size-6 rounded-full opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
       >
-        <MdClose className="h-4 w-4" />
-      </button>
+        <X className="size-3.5" />
+      </IconButton>
 
-      {/* Drag Indicator */}
       {isDragging && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-500/80">
-            <svg className="h-4 w-4 text-white" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M10 9h4V6h3l-5-5-5 5h3v3zm-1 1H6V7l-5 5 5 5v-3h3v-4zm14 2l-5-5v3h-3v4h3v3l5-5zm-9 3h-4v3H7l5 5 5-5h-3v-3z" />
-            </svg>
+        <div className="absolute inset-0 grid place-items-center">
+          <div className="bg-accent text-ink-inverse grid size-8 place-items-center rounded-full">
+            <Move className="size-4" />
           </div>
         </div>
       )}

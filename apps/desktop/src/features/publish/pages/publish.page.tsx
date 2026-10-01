@@ -9,7 +9,6 @@ export default definePage({
   key: "publish",
   match: "single",
   label: "发布",
-  status: "new",
   params: {},
   component: PublishView,
 });

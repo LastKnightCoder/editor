@@ -1,6 +1,6 @@
 import React from "react";
 import { CellPlugin, CellValue, ColumnDef } from "../../types";
-import CustomCheckbox from "@/components/CustomCheckbox";
+import { Checkbox } from "@tau/ui";
 import { SquareCheck } from "lucide-react";
 
 const Renderer: React.FC<{
@@ -34,7 +34,13 @@ const Renderer: React.FC<{
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
-      <CustomCheckbox checked={checked} onChange={handleToggle} readonly={readonly} />
+      <Checkbox
+        checked={checked}
+        disabled={readonly}
+        aria-label="勾选该记录"
+        onClick={event => event.stopPropagation()}
+        onChange={event => onCellValueChange(event.target.checked)}
+      />
     </div>
   );
 };

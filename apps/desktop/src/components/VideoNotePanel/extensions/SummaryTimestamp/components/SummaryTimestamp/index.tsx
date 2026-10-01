@@ -24,8 +24,8 @@ const SummaryTimestamp: React.FC<PropsWithChildren<SummaryTimestampProps>> = ({
       onClick={() => onSeek(start)}
       className={`inline-flex cursor-pointer items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-0.5 text-sm font-medium transition-colors ${
         isDark
-          ? "bg-[var(--th-accent)]/30 hover:bg-[var(--th-accent)]/40"
-          : "hover:bg-[var(--th-accent)]/15 bg-[var(--th-accent-soft)] text-[var(--th-active-text)]"
+          ? "bg-[var(--tau-accent)]/30 hover:bg-[var(--tau-accent)]/40"
+          : "hover:bg-[var(--tau-accent)]/15 bg-[var(--tau-accent-soft)] text-[var(--tau-accent-text)]"
       } `}
       contentEditable={false}
     >

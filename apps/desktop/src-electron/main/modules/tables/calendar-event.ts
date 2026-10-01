@@ -17,6 +17,7 @@ export default class CalendarEventTable {
       "calendar-event:delete": this.deleteEvent.bind(this),
       "calendar-event:get-by-id": this.getEventById.bind(this),
       "calendar-event:get-by-calendar-id": this.getEventsByCalendarId.bind(this),
+      "calendar-event:count-by-calendar-ids": this.countCalendarEvents.bind(this),
       "calendar-event:get-by-date-range": this.getEventsByDateRange.bind(this),
       "calendar-event:get-for-day": this.getEventsForDay.bind(this),
       "calendar-event:get-for-week": this.getEventsForWeek.bind(this),
@@ -310,6 +311,22 @@ export default class CalendarEventTable {
     );
     const rows = stmt.all(calendarId);
     return rows.map(row => this.parseCalendarEvent(row));
+  }
+
+  static countCalendarEvents(db: Database.Database, calendarIds: number[]): Record<number, number> {
+    const ids = [...new Set(calendarIds.filter(Number.isSafeInteger))];
+    if (!ids.length) return {};
+    const counts: Record<number, number> = Object.fromEntries(ids.map(id => [id, 0]));
+    const rows = db
+      .prepare(
+        `
+      SELECT calendar_id AS id, COUNT(*) AS count FROM calendar_event
+      WHERE calendar_id IN (${ids.map(() => "?").join(",")}) GROUP BY calendar_id
+    `
+      )
+      .all(...ids) as { id: number; count: number }[];
+    for (const row of rows) counts[row.id] = row.count;
+    return counts;
   }
 
   static async getEventsByDateRange(

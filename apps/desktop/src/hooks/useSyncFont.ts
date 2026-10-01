@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import useSettingStore from "@/stores/useSettingStore.ts";
 
 /**
- * tau 字号档位默认值——与 packages/ui tokens.css 的 :root 字面值层（--tau-text-*）
+ * tau 字号档位默认值——与 packages/themes/src/scale.css 的 :root 字面值层（--tau-text-*）
  * 同源，改档位/增删档位时两处同步（token 契约双写惯例）。
  */
 const TAU_TEXT_STEPS: Record<string, number> = {
@@ -34,6 +34,9 @@ const useSyncFont = () => {
     const { chineseFont, englishFont, fontSize, codeFont } = fontSetting;
     const font = `${englishFont}, ${chineseFont}`;
     const root = document.documentElement;
+    for (const token of ["--font", "--font-size", "--mono-font"]) {
+      document.body.style.removeProperty(token);
+    }
     const scale = 1 + (fontSize / BASE_FONT_SIZE - 1) * SHELL_UI_DAMPING;
 
     // 用户字体/字号 = 应用级默认（root 覆盖，2026-09-21 用户裁决全局生效）：

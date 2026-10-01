@@ -15,7 +15,6 @@ export default definePage({
   key: "cards",
   match: "single", // 列表页全局一份，重复进入原位激活
   label: "卡片库",
-  status: "new",
   params: schema.schema,
   component: CardsView,
 });

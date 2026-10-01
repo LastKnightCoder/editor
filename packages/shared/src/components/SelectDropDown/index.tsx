@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
-import styles from "./index.module.less";
+import { cn } from "@tau/ui";
+const styles = {
+  selectDropdown:
+    "bg-surface text-ink-1 rounded-tau-lg shadow-float fixed z-[9999] min-w-[180px] p-2 backdrop-blur-[18px]",
+  selectDropdownScroll: "overflow-x-hidden overflow-y-auto",
+  menuItem:
+    "hover:bg-hover rounded-tau-md mb-0.5 mx-1 flex min-h-9 cursor-pointer items-center px-3 py-2 text-tau-body transition-colors",
+  selected: "bg-selected text-accent hover:bg-selected",
+};
 
 interface SelectDropDownProps<T> {
   items: T[];
@@ -44,10 +52,7 @@ const SelectDropDown = <T,>({
     }
 
     const triggerRect = triggerElement.getBoundingClientRect();
-    const dropdownHeight = Math.min(
-      dropdownRef.current.scrollHeight,
-      maxHeight,
-    );
+    const dropdownHeight = Math.min(dropdownRef.current.scrollHeight, maxHeight);
 
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
@@ -87,10 +92,7 @@ const SelectDropDown = <T,>({
       left = triggerRect.right - width;
     } else {
       // 居中或尽可能靠左
-      left = Math.max(
-        gap,
-        Math.min(triggerRect.left, viewportWidth - width - gap),
-      );
+      left = Math.max(gap, Math.min(triggerRect.left, viewportWidth - width - gap));
     }
 
     // 边界限制
@@ -155,18 +157,15 @@ const SelectDropDown = <T,>({
           exit={{ opacity: 0, scale: 0.98, y: 6 }}
           transition={{ duration: 0.12, ease: "easeOut" }}
         >
-          <div
-            className={styles.selectDropdownScroll}
-            style={{ maxHeight: `${maxHeight}px` }}
-          >
-            {items.map((item) => {
+          <div className={styles.selectDropdownScroll} style={{ maxHeight: `${maxHeight}px` }}>
+            {items.map(item => {
               const key = getKey(item);
               const isSelected = key === selectedKey;
 
               return (
                 <div key={String(key)}>
                   <div
-                    className={`${styles.menuItem} ${isSelected ? styles.selected : ""}`}
+                    className={cn(styles.menuItem, isSelected && styles.selected)}
                     onClick={() => handleItemClick(item)}
                   >
                     <div className="w-full">{renderItem(item)}</div>
@@ -178,7 +177,7 @@ const SelectDropDown = <T,>({
         </motion.div>
       )}
     </AnimatePresence>,
-    document.body,
+    document.body
   );
 };
 

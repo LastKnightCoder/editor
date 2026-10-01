@@ -21,8 +21,10 @@ import {
   MEDIA_CORNER_HANDLE_CLASS,
   MEDIA_CORNER_POSITION_CLASS,
   MEDIA_RESIZE_INFO_CLASS,
+  MEDIA_SELECTED_OUTLINE_CLASS,
 } from "../../../../utils/mediaFrameClasses";
-import VideoSelectionToolbar, { WIDTH_PRESETS } from "./VideoSelectionToolbar";
+import VideoSelectionToolbar from "./VideoSelectionToolbar";
+import { WIDTH_PRESETS } from "../../../../utils/mediaWidth";
 
 const MIN_WIDTH = 200;
 
@@ -204,9 +206,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
         className={cn(
           "rounded-tau-md relative my-0 block w-fit max-w-full",
           MEDIA_ALIGN_CLASS[align],
-          isSelected &&
-            !readOnly &&
-            "outline-solid outline-2 outline-offset-[3px] outline-[var(--ed-accent)]"
+          isSelected && !readOnly && MEDIA_SELECTED_OUTLINE_CLASS
         )}
         style={{
           width: resize.size.width ? `${resize.size.width}px` : width ? `${width}px` : "auto",

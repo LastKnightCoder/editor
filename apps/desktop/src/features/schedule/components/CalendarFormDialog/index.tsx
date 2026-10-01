@@ -6,7 +6,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Button, Dialog, DialogBody, Input, Select, cn, toast, type SelectOption } from "@tau/ui";
-import useCalendarStore from "@/stores/useCalendarStore";
+import { useCalendarCatalog, useScheduleMutations } from "../../queries";
 import { PROJECT_COLORS, type ProjectColorName } from "@/constants/project-colors";
 import type { Calendar } from "@/types";
 import { TONE, toneStyle } from "../../eventTone";
@@ -26,8 +26,8 @@ const CalendarFormDialog = ({
   defaultGroupId,
   onClose,
 }: CalendarFormDialogProps) => {
-  const calendarGroups = useCalendarStore(s => s.calendarGroups);
-  const { createCalendar, updateCalendar, createCalendarGroup } = useCalendarStore.getState();
+  const { calendarGroups } = useCalendarCatalog();
+  const { createCalendar, updateCalendar, createCalendarGroup } = useScheduleMutations();
 
   const [title, setTitle] = useState("");
   const [color, setColor] = useState<ProjectColorName>("blue");

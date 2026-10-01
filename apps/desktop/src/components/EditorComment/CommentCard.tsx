@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import classNames from "classnames";
 import { Node } from "slate";
-import useThemeColors from "@/hooks/useThemeColors";
 import type { CommentPosition } from "./types";
 
 interface CommentCardProps {
@@ -10,14 +9,8 @@ interface CommentCardProps {
   onHeightChange: (height: number) => void;
 }
 
-const CommentCard: React.FC<CommentCardProps> = ({
-  position,
-  onClick,
-  onHeightChange,
-}) => {
+const CommentCard: React.FC<CommentCardProps> = ({ position, onClick, onHeightChange }) => {
   const cardRef = useRef<HTMLDivElement>(null);
-  const themeColors = useThemeColors();
-  const accentColor = themeColors.accentColor || "rgb(239, 68, 68)";
 
   useEffect(() => {
     if (!cardRef.current || typeof ResizeObserver === "undefined") {
@@ -25,7 +18,7 @@ const CommentCard: React.FC<CommentCardProps> = ({
       return;
     }
 
-    const observer = new ResizeObserver((entries) => {
+    const observer = new ResizeObserver(entries => {
       const entry = entries[0];
       onHeightChange(entry.contentRect.height);
     });
@@ -52,34 +45,22 @@ const CommentCard: React.FC<CommentCardProps> = ({
 
       <div
         onClick={onClick}
-        className={classNames(
-          "cursor-pointer rounded-xl border p-3",
-          themeColors.cardBorderClass,
-          themeColors.cardBgClass,
-        )}
+        className={classNames("cursor-pointer rounded-xl border p-3", "border-line-1 bg-surface")}
       >
         <div
           className={classNames(
-            "mb-2 rounded-r-md border-l-4 px-3 py-2 text-xs leading-relaxed wrap-break-word",
-            "bg-[var(--th-bg-hover)]",
-            themeColors.textClass,
+            "wrap-break-word mb-2 rounded-r-md border-l-4 px-3 py-2 text-xs leading-relaxed",
+            "border-l-accent bg-hover text-ink-1"
           )}
-          style={{ borderLeftColor: accentColor }}
         >
           {Node.string(position.element)}
         </div>
 
         {comments.length > 0 && (
-          <div
-            className={classNames("text-xs", themeColors.secondaryTextClass)}
-          >
-            <div className="leading-relaxed wrap-break-word">
-              {comments[0]?.content}
-            </div>
+          <div className="text-ink-2 text-xs">
+            <div className="wrap-break-word leading-relaxed">{comments[0]?.content}</div>
             {comments.length > 1 && (
-              <div className="mt-1 text-[11px] opacity-70">
-                +{comments.length - 1} 条回复
-              </div>
+              <div className="mt-1 text-[11px] opacity-70">+{comments.length - 1} 条回复</div>
             )}
           </div>
         )}

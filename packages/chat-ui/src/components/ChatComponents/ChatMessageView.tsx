@@ -1,12 +1,13 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
-import classNames from "classnames";
+import { cn as classNames } from "@tau/ui";
 import { BiCopy, BiEdit, BiGitBranch, BiRefresh, BiTrash } from "react-icons/bi";
 import { FileText, Lightbulb, Loader2 } from "lucide-react";
 import type { ContentBlock, ToolCallExecutionState } from "@tau/shared/chat-renderers";
 import ChatMarkdownRenderer, { type ChatMarkdownRendererProps } from "./ChatMarkdownRenderer";
 import ChatToolCallDisplay from "./ChatToolCallDisplay";
 import { getDisplayTextFromBlocks } from "@tau/shared/chat-renderers";
-import styles from "./ChatMessageView.module.less";
+import { messageClasses as styles } from "./classes";
+import "@tau/shared/src/components/animations.css";
 
 export interface ChatMessageViewImage {
   url: string;

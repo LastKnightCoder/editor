@@ -95,6 +95,61 @@ it("真实数据库 IPC 按会话库执行，checkpoint 被占用时拒绝关闭
   }
 });
 
+it.each(["connect", "download"])("%s：最后迁移失败拒绝连接，修复后重试完成退役", async source => {
+  paths.root = mkdtempSync(join(tmpdir(), "pi-last-upgrade-"));
+  const file = join(paths.root, "data.db");
+  const legacy = new Database(file);
+  legacy.exec(
+    "CREATE TABLE chat_message(id INTEGER PRIMARY KEY, create_time INTEGER, update_time INTEGER, messages TEXT); INSERT INTO chat_message VALUES(1, 1, 1, '{坏JSON')"
+  );
+  legacy.close();
+  const { default: database } = await import("../database");
+  const { default: indexManager } = await import("../main-content-index-db");
+  await database.init();
+  const open = vi.spyOn(database, "openDatabase");
+  const connect = () =>
+    source === "download"
+      ? database.reconnectForSync("data", "sync_download_reconnect")
+      : paths.handlers.get("create-or-connect-database")!({ sender: {} }, "data");
+  try {
+    await expect(Promise.all([connect(), connect()])).rejects.toThrow("聊天数据迁移失败");
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(database.databases.has("data")).toBe(false);
+    expect(database.windowToDatabase.has(1)).toBe(false);
+    const retry = new Database(file);
+    try {
+      expect(retry.prepare("SELECT messages FROM chat_message WHERE id=1").get()).toEqual({
+        messages: "{坏JSON",
+      });
+      expect(
+        retry.prepare("SELECT value FROM migration_meta WHERE key='chat-session-pi-jsonl:v1'").get()
+      ).toBeUndefined();
+      retry
+        .prepare("UPDATE chat_message SET messages=? WHERE id=1")
+        .run(JSON.stringify([{ role: "user", content: "已修复" }]));
+    } finally {
+      retry.close();
+    }
+    await Promise.all([connect(), connect()]);
+    expect(open).toHaveBeenCalledTimes(2);
+    const ready = database.databases.get("data")!;
+    expect(ready.open).toBe(true);
+    expect(
+      ready.prepare("SELECT name FROM sqlite_master WHERE name='chat_message'").get()
+    ).toBeUndefined();
+    expect(ready.prepare("SELECT COUNT(*) AS n FROM chat_session").get()).toEqual({ n: 1 });
+    await database.ensureIndexDatabaseReady("data");
+  } finally {
+    open.mockRestore();
+    indexManager.closeDatabase("data");
+    for (const db of database.databases.values()) if (db.open) db.close();
+    database.databases.clear();
+    database.windowToDatabase.clear();
+    paths.handlers.clear();
+    rmSync(paths.root, { recursive: true, force: true });
+  }
+});
+
 it.skipIf(!process.env.PI_UPGRADE_BACKUP)(
   "真实备份副本完整升级、重跑并与新库比对",
   async () => {

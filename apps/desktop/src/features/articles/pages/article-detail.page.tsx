@@ -14,7 +14,6 @@ export default definePage({
   match: "params",
   getId: params => `article-${params.id}`,
   label: "文章详情",
-  status: "new",
   params: schema.schema,
   component: ArticleDetailView,
 });

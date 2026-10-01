@@ -13,12 +13,10 @@ const stableOptions = {
 
 describe("wechat-html-processor code space protection", () => {
   it("应为整篇微信内容保留左右内边距", () => {
-    const html = processHtmlForWechat(
-      '<div class="wechat-content"><p>正文</p></div>',
-    );
+    const html = processHtmlForWechat('<div class="wechat-content"><p>正文</p></div>');
 
     expect(html).toContain(
-      '<section class="wechat-content" style="margin: 0; padding: 0; box-sizing: border-box; font-family: Optima, \'Microsoft YaHei\', PingFangSC-regular, serif; padding-left: 1em; padding-right: 1em;">',
+      '<section class="wechat-content" style="margin: 0; padding: 0; box-sizing: border-box; font-family: Optima, \'Microsoft YaHei\', PingFangSC-regular, serif; padding-left: 1em; padding-right: 1em;">'
     );
   });
 
@@ -26,7 +24,7 @@ describe("wechat-html-processor code space protection", () => {
     const html = processHtmlForWechat(
       '<pre><code class="shiki language-ts">  const a = 1\n    return a</code></pre>',
       "",
-      stableOptions,
+      stableOptions
     );
 
     expect(html).toContain("&nbsp;&nbsp;const a = 1");
@@ -37,7 +35,7 @@ describe("wechat-html-processor code space protection", () => {
     const html = processHtmlForWechat(
       '<pre><code class="hljs language-ts">  const a = 1\n    return a</code></pre>',
       "",
-      stableOptions,
+      stableOptions
     );
 
     expect(html).toContain("&nbsp;&nbsp;const a = 1");
@@ -51,7 +49,7 @@ describe("wechat-html-processor code space protection", () => {
       {
         ...stableOptions,
         convertLinksToFootnotes: true,
-      },
+      }
     );
 
     expect(html).toContain('<section id="fn1" class="footnote-item"');
@@ -60,20 +58,43 @@ describe("wechat-html-processor code space protection", () => {
   });
 
   it("脚注区应内联缩进、Serif 字体和更小字号", () => {
-    const html = processHtmlForWechat(
-      '<p><a href="https://a.com">A</a></p>',
-      "",
-      {
-        ...stableOptions,
-        convertLinksToFootnotes: true,
-      },
-    );
+    const html = processHtmlForWechat('<p><a href="https://a.com">A</a></p>', "", {
+      ...stableOptions,
+      convertLinksToFootnotes: true,
+    });
 
-    expect(html).toContain(
-      'class="footnotes-section" style="margin: 0; padding: 0 0 0 2.5em;',
-    );
+    expect(html).toContain('class="footnotes-section" style="margin: 0; padding: 0 0 0 2.5em;');
     expect(html).toContain("font-family: Georgia, 'Times New Roman'");
     expect(html).toContain("font-size: 13px");
     expect(html).toContain('class="footnote-url" style=');
+  });
+});
+
+describe("wechat-html-processor 引用块", () => {
+  const nestedQuote =
+    '<blockquote class="blockquote"><p class="paragraph">外层</p>' +
+    '<blockquote class="blockquote"><p class="paragraph">内层</p></blockquote></blockquote>';
+
+  it("大引号只内联到最外层，嵌套内层的伪元素隐藏", () => {
+    const html = processHtmlForWechat(nestedQuote);
+
+    expect(html.match(/>“</g)).toHaveLength(1);
+    expect(html).not.toContain("201C");
+    expect(html).toContain("display: none");
+  });
+
+  it("内层引用是最后一个子元素时不在外层底部多留间距", () => {
+    const [, nested = ""] = processHtmlForWechat(nestedQuote).match(/<blockquote[^>]*>/g) ?? [];
+
+    expect(nested).toContain("margin-bottom: 0;");
+    expect(nested).not.toMatch(/margin(-bottom)?: 0\.5em(;| 0)/);
+    expect(nested).toContain("margin-top: 0.5em");
+  });
+
+  it("不依赖会被公众号过滤的 position，竖线用 border-left", () => {
+    const html = processHtmlForWechat(nestedQuote);
+
+    expect(html).not.toContain("position");
+    expect(html).toContain("border-left: 2px solid rgba(0, 0, 0, 0.15)");
   });
 });

@@ -106,6 +106,7 @@ const DateEditor: React.FC<DateEditorProps> = memo(
           onValueChange={handleRangeChange}
           onOpenChange={handleOpenChange}
           open={open}
+          precision={showTime ? "minute" : "day"}
           clearable
           size="sm"
           placeholder="日期范围"

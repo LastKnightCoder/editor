@@ -5,23 +5,25 @@ import {
   AlignRight,
   Copy,
   Crop,
-  FileText,
+  Eye,
+  ImageUp,
   Link2,
   Maximize2,
-  Sparkles,
+  Palette,
+  Text,
 } from "lucide-react";
 import { Editor, Element, Transforms } from "slate";
-import { ReactEditor } from "slate-react";
 
 import { type EditorCommand } from "@tau/editor/api";
 import { type EditorMenuEntry, type EditorMenuContext } from "@tau/editor/api";
-import { notifierOf } from "@tau/editor/api";
+import { notifierOf, getCommandElementPath } from "@tau/editor/api";
 import { IMediaActions } from "../../../services/tokens";
 import {
   type ImageBorderRadiusPreset,
   type ImageElement,
   type ImageShadowPreset,
 } from "../../../types/index";
+import { openImageLightbox } from "../../../stores";
 import { imageActionsMap } from "./actionsMap";
 import {
   IMAGE_BORDER_RADIUS_OPTIONS,
@@ -35,11 +37,7 @@ const asImage = (element: Element | undefined): ImageElement | null =>
   element?.type === "image" ? (element as ImageElement) : null;
 
 const findPath = (editor: Editor, element: ImageElement) => {
-  try {
-    return ReactEditor.findPath(editor, element);
-  } catch {
-    return null;
-  }
+  return getCommandElementPath(editor, { element });
 };
 
 const resolveLocalPath = async (url: string, fileService?: FileService) => {
@@ -127,10 +125,35 @@ export const imageCommands: EditorCommand[] = [
   {
     id: "tau.image.fullscreen",
     title: "全屏预览",
+    run: (editor, ctx) => {
+      const element = asImage(ctx.element);
+      if (!element) return;
+      openImageLightbox(editor, element);
+    },
+  },
+  {
+    id: "tau.image.replace",
+    title: "替换图片",
     run: (_editor, ctx) => {
       const element = asImage(ctx.element);
       if (!element) return;
-      imageActionsMap.get(element)?.showOverview();
+      imageActionsMap.get(element)?.replaceImage();
+    },
+  },
+  {
+    id: "tau.image.edit-alt",
+    title: "替代文本",
+    run: async (editor, ctx) => {
+      const element = asImage(ctx.element);
+      if (!element) return;
+      const alt = await notifierOf(editor).prompt({
+        title: "替代文本",
+        placeholder: "描述图片内容，供读屏与导出使用",
+        defaultValue: element.alt ?? "",
+      });
+      if (alt == null) return;
+      const path = findPath(editor, element);
+      if (path) Transforms.setNodes(editor, { alt }, { at: path });
     },
   },
   {
@@ -165,7 +188,7 @@ export const imageCommands: EditorCommand[] = [
   },
   {
     id: "tau.image.edit-description",
-    title: "编辑描述",
+    title: "编辑说明",
     run: (_editor, ctx) => {
       const element = asImage(ctx.element);
       if (!element) return;
@@ -257,14 +280,26 @@ export const buildImageMenuItems = (appearance?: ImageAppearanceConfig): EditorM
   },
   {
     id: "tau.image.edit-description",
-    title: ctx => ((ctx.element as ImageElement).description ? "编辑描述" : "添加描述"),
-    icon: <FileText size={16} />,
+    title: ctx => ((ctx.element as ImageElement).description ? "编辑说明" : "添加说明"),
+    icon: <Text size={16} />,
     command: "tau.image.edit-description",
+  },
+  {
+    id: "tau.image.edit-alt",
+    title: "替代文本",
+    icon: <Eye size={16} />,
+    command: "tau.image.edit-alt",
+  },
+  {
+    id: "tau.image.replace",
+    title: "替换图片",
+    icon: <ImageUp size={16} />,
+    command: "tau.image.replace",
   },
   {
     id: "tau.image.set-appearance",
     title: "外观",
-    icon: <Sparkles size={16} />,
+    icon: <Palette size={16} />,
     children: [
       {
         id: "tau.image.set-appearance-radius",
@@ -303,7 +338,7 @@ export const buildImageMenuItems = (appearance?: ImageAppearanceConfig): EditorM
   },
   {
     id: "tau.image.copy-link",
-    title: "复制链接",
+    title: "复制地址",
     icon: <Link2 size={16} />,
     command: "tau.image.copy-link",
   },

@@ -41,7 +41,7 @@ export function Titlebar() {
   currentKeyRef.current = currentKey;
   const assistOwned = useAssistOwned(currentKey);
 
-  // Ctrl/⌘+J 开合 AI 对话停靠栏（D-047）；栈顶页面接管了对话开关时交给页面（D-070）。
+  // Ctrl/⌘+J 开合停靠栏；栈顶页面接管时交给页面（D-070）。
   // 输入框里同样生效——对话输入框本身就在栏内，收起不应要求先移走焦点。输入法组合期间不抢键
   useEffect(() => {
     const onKeydown = (e: KeyboardEvent) => {

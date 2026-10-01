@@ -1,5 +1,4 @@
 import React, { useRef } from "react";
-import styles from "./index.module.less";
 import { useMemoizedFn } from "ahooks";
 
 interface ResizeHandleProps {
@@ -33,10 +32,7 @@ const ResizeHandle: React.FC<ResizeHandleProps> = ({
 
   const handleResizeMove = useMemoizedFn((e: MouseEvent) => {
     const deltaY = e.clientY - resizeStartYRef.current;
-    const newHeight = Math.max(
-      minHeight,
-      Math.min(maxHeight, startHeightRef.current + deltaY),
-    );
+    const newHeight = Math.max(minHeight, Math.min(maxHeight, startHeightRef.current + deltaY));
     onHeightChange(newHeight);
   });
 
@@ -47,8 +43,11 @@ const ResizeHandle: React.FC<ResizeHandleProps> = ({
   });
 
   return (
-    <div className={styles.resizeHandle} onMouseDown={handleResizeStart}>
-      <div className={styles.resizeIndicator} />
+    <div
+      className="group absolute bottom-0 left-0 z-[2] flex h-[10px] w-full cursor-ns-resize items-center justify-center"
+      onMouseDown={handleResizeStart}
+    >
+      <div className="bg-line-1 h-1 w-10 rounded-[2px] opacity-50 transition-opacity duration-200 group-hover:opacity-100" />
     </div>
   );
 };

@@ -259,6 +259,29 @@ export const createDatabaseStore = (
           );
           return;
         }
+        if (command.type === "column.resize") {
+          if (
+            !Number.isFinite(command.width) ||
+            !get().columns.some(column => column.id === command.id)
+          )
+            return;
+          const width = Math.max(50, command.width);
+          if (get().columnWidths[command.id] === width) return;
+          commit(
+            state => ({
+              columns: state.columns.map(column =>
+                column.id === command.id ? { ...column, width } : column
+              ),
+              columnWidths: { ...state.columnWidths, [command.id]: width },
+              viewConfig: {
+                ...state.viewConfig,
+                columnWidths: { ...state.viewConfig.columnWidths, [command.id]: width },
+              },
+            }),
+            source
+          );
+          return;
+        }
         const changes =
           command.type === "rows.receive" ? diffRows(confirmedRows, command.rows) : command.changes;
         if (command.type === "rows.receive") confirmedRows = command.rows;

@@ -6,7 +6,8 @@ import type {
 } from "./ToolCallDisplay";
 import { ToolCallDisplay } from "./ToolCallDisplay";
 import type { ToolCallExecutionState } from "@tau/shared/chat-renderers";
-import styles from "./ChatToolCallDisplay.module.less";
+import { toolClasses as styles } from "./classes";
+import "@tau/shared/src/components/animations.css";
 
 export interface ChatToolCallDefaultItemProps {
   execution: ToolCallExecutionState;

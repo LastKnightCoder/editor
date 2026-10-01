@@ -1,6 +1,20 @@
 import React, { useState, useEffect } from "react";
-import classnames from "classnames";
-import styles from "./index.module.less";
+import "../animations.css";
+import { cn } from "@tau/ui";
+
+const styles = {
+  checkboxContainer: "relative mt-[0.2em] size-[1.25em] shrink-0 cursor-pointer",
+  checkbox: "size-full",
+  checkboxRect:
+    "fill-transparent stroke-[var(--checkbox-border-color,var(--tau-line-1))] transition-all duration-300 ease-[cubic-bezier(0.78,0.14,0.15,0.86)]",
+  checked:
+    "fill-[var(--checkbox-active-color,var(--tau-accent))] stroke-[var(--checkbox-active-color,var(--tau-accent))]",
+  checkmark:
+    "stroke-[var(--tau-ink-inverse)] [stroke-dasharray:20] [stroke-dashoffset:20] animate-[tau-checkbox-check_0.3s_cubic-bezier(0.65,0,0.45,1)_forwards]",
+  fireworks: "pointer-events-none absolute left-1/2 top-1/2 size-0",
+  particle:
+    "absolute size-[0.375em] origin-center rounded-full bg-[var(--checkbox-active-color,var(--tau-accent))] opacity-0 animate-[tau-checkbox-particle_0.4s_ease-out_forwards] [animation-delay:var(--delay,0s)]",
+};
 
 interface CustomCheckboxProps {
   checked: boolean;
@@ -23,7 +37,7 @@ const CustomCheckbox: React.FC<CustomCheckboxProps> = ({
 }) => {
   const [isChecked, setIsChecked] = useState(checked);
   const [showFireworks, setShowFireworks] = useState(false);
-  const checkboxAccentColor = accentColor || "#1890ff";
+  const checkboxAccentColor = accentColor || "var(--tau-accent)";
   const checkboxVars: CheckboxCSSVars = {
     "--checkbox-active-color": checkboxAccentColor,
   };
@@ -52,7 +66,7 @@ const CustomCheckbox: React.FC<CustomCheckboxProps> = ({
 
   return (
     <div
-      className={classnames(styles.checkboxContainer, className)}
+      className={cn(styles.checkboxContainer, className)}
       onClick={handleClick}
       style={checkboxVars}
     >
@@ -63,7 +77,7 @@ const CustomCheckbox: React.FC<CustomCheckboxProps> = ({
         xmlns="http://www.w3.org/2000/svg"
       >
         <rect
-          className={`${styles.checkboxRect} ${isChecked ? styles.checked : ""}`}
+          className={cn(styles.checkboxRect, isChecked && styles.checked)}
           x="2"
           y="2"
           width="20"

@@ -1,14 +1,7 @@
-import React, {
-  useEffect,
-  useRef,
-  useState,
-  forwardRef,
-  useImperativeHandle,
-  memo,
-} from "react";
+import React, { useEffect, useRef, useState, forwardRef, useImperativeHandle, memo } from "react";
 import { useMemoizedFn, useMutationObserver } from "ahooks";
-import cx from "classnames";
-import "./index.less";
+import { cn as cx } from "@tau/ui";
+import { EDIT_TEXT_PLACEHOLDER } from "../editTextClasses";
 
 interface IEditTextProps {
   id?: string;
@@ -162,26 +155,16 @@ const EditText = memo(
         characterData: true,
         childList: true,
         subtree: true,
-      },
+      }
     );
 
     const defaultKeyDownHandler = useMemoizedFn((e: KeyboardEvent) => {
-      if (
-        e.key === "Enter" &&
-        isEditing &&
-        !isComposing.current &&
-        !e.shiftKey
-      ) {
+      if (e.key === "Enter" && isEditing && !isComposing.current && !e.shiftKey) {
         e.preventDefault();
         e.stopPropagation();
         ref.current?.blur();
         onPressEnter?.();
-      } else if (
-        e.key === "Backspace" &&
-        isEditing &&
-        !isComposing.current &&
-        !innerText.current
-      ) {
+      } else if (e.key === "Backspace" && isEditing && !isComposing.current && !innerText.current) {
         e.preventDefault();
         e.stopPropagation();
         onDeleteEmpty?.();
@@ -189,16 +172,10 @@ const EditText = memo(
     });
 
     useEffect(() => {
-      document.addEventListener(
-        "keydown",
-        onKeyDown ? onKeyDown : defaultKeyDownHandler,
-      );
+      document.addEventListener("keydown", onKeyDown ? onKeyDown : defaultKeyDownHandler);
 
       return () => {
-        document.removeEventListener(
-          "keydown",
-          onKeyDown ? onKeyDown : defaultKeyDownHandler,
-        );
+        document.removeEventListener("keydown", onKeyDown ? onKeyDown : defaultKeyDownHandler);
       };
     }, [onKeyDown, defaultKeyDownHandler]);
 
@@ -219,8 +196,8 @@ const EditText = memo(
         ref={ref}
         className={cx(
           className,
-          placeholder ? "edit-text-with-placeholder" : undefined,
-          placeholderClassName,
+          placeholder ? EDIT_TEXT_PLACEHOLDER : undefined,
+          placeholderClassName
         )}
         style={{
           ...style,
@@ -244,7 +221,7 @@ const EditText = memo(
         {initValue}
       </div>
     );
-  }),
+  })
 );
 
 export default EditText;

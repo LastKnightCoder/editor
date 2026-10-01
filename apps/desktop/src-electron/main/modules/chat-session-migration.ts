@@ -144,7 +144,7 @@ const readMigrationMark = (db: Database.Database): string | undefined =>
 
 /**
  * 执行迁移。sessionDir 为当前库的会话目录；已迁移（migration_meta 有记录）直接返回 skipped。
- * 单行失败不中断整体：记入 failed 并在日志里列出，那一行的旧数据原样留在旧表里。
+ * 单行失败继续收集，但不记完成；旧数据与已迁行身份保留用于重试。
  */
 export async function migrateLegacyChatsToSessions(options: {
   db: Database.Database;
@@ -157,7 +157,12 @@ export async function migrateLegacyChatsToSessions(options: {
   const { db } = options;
   db.exec("CREATE TABLE IF NOT EXISTS migration_meta (key TEXT PRIMARY KEY, value TEXT)");
   ChatSessionTable.upgradeTable(db);
-  if (readMigrationMark(db)) return { skipped: true, migrated: 0, failed: [] };
+  const mark = readMigrationMark(db);
+  if (mark) {
+    const result = JSON.parse(mark) as { failed?: number };
+    if (!result.failed) return { skipped: true, migrated: 0, failed: [] };
+    db.prepare("DELETE FROM migration_meta WHERE key = ?").run(CHAT_SESSION_MIGRATION_KEY);
+  }
 
   const sources = LEGACY_CHAT_SOURCES.filter(source => tableExists(db, source.table));
   const total = sources.reduce(
@@ -290,10 +295,12 @@ export async function migrateLegacyChatsToSessions(options: {
     failed.push({ table: "chat_session", id: -1, error: `分支 ${failure.id}：${failure.error}` });
   }
 
-  db.prepare("INSERT OR REPLACE INTO migration_meta (key, value) VALUES (?, ?)").run(
-    CHAT_SESSION_MIGRATION_KEY,
-    JSON.stringify({ migrated, merged: tree.merged, failed: failed.length, at: Date.now() })
-  );
+  if (failed.length === 0) {
+    db.prepare("INSERT OR REPLACE INTO migration_meta (key, value) VALUES (?, ?)").run(
+      CHAT_SESSION_MIGRATION_KEY,
+      JSON.stringify({ migrated, merged: tree.merged, failed: 0, at: Date.now() })
+    );
+  }
   return {
     skipped: false,
     migrated,

@@ -13,6 +13,8 @@ import CalendarTable from "./tables/calendar";
 import CalendarEventTable from "./tables/calendar-event";
 import PomodoroCalendarMappingTable from "./tables/pomodoro-calendar-mapping";
 import databaseModule from "./database";
+import { basename } from "node:path";
+import { broadcastScheduleChange } from "./schedule-changes";
 
 interface CalendarEventSegment {
   startDate: number;
@@ -24,23 +26,20 @@ interface CalendarEventSegment {
 /**
  * 将可能跨天的番茄钟会话分割成多个日历事件段
  */
-function splitCrossDaySession(
-  startTimeMs: number,
-  endTimeMs: number,
-): CalendarEventSegment[] {
+function splitCrossDaySession(startTimeMs: number, endTimeMs: number): CalendarEventSegment[] {
   const startDate = new Date(startTimeMs);
   const endDate = new Date(endTimeMs);
 
   const startDayTimestamp = new Date(
     startDate.getFullYear(),
     startDate.getMonth(),
-    startDate.getDate(),
+    startDate.getDate()
   ).getTime();
 
   const endDayTimestamp = new Date(
     endDate.getFullYear(),
     endDate.getMonth(),
-    endDate.getDate(),
+    endDate.getDate()
   ).getTime();
 
   if (startDayTimestamp === endDayTimestamp) {
@@ -59,8 +58,7 @@ function splitCrossDaySession(
 
   const segments: CalendarEventSegment[] = [];
 
-  const firstDayStartMinutes =
-    startDate.getHours() * 60 + startDate.getMinutes();
+  const firstDayStartMinutes = startDate.getHours() * 60 + startDate.getMinutes();
   segments.push({
     startDate: startDayTimestamp,
     endDate: startDayTimestamp,
@@ -91,15 +89,7 @@ function splitCrossDaySession(
 }
 
 export type BackgroundSoundType =
-  | null
-  | "brook"
-  | "birds"
-  | "autumn"
-  | "tide"
-  | "summer"
-  | "wind-chime"
-  | "bonfire"
-  | "rain";
+  null | "brook" | "birds" | "autumn" | "tide" | "summer" | "wind-chime" | "bonfire" | "rain";
 
 class PomodoroModule {
   private backendServer: BackendWebSocketServer | null = null;
@@ -113,7 +103,7 @@ class PomodoroModule {
   async init(backendServer: BackendWebSocketServer) {
     this.backendServer = backendServer;
 
-    databaseModule.onDatabaseChange((dbName) => {
+    databaseModule.onDatabaseChange(dbName => {
       console.log(`Database changed to ${dbName}, clearing active session`);
       this.handleDatabaseChange();
     });
@@ -131,7 +121,7 @@ class PomodoroModule {
           error: null,
         };
         return res;
-      },
+      }
     );
 
     this.backendServer.addMessageHandler(
@@ -148,7 +138,7 @@ class PomodoroModule {
           error: null,
         };
         return res;
-      },
+      }
     );
 
     this.backendServer.addMessageHandler(
@@ -163,7 +153,7 @@ class PomodoroModule {
           error: null,
         };
         return res;
-      },
+      }
     );
 
     this.backendServer.addMessageHandler(
@@ -220,7 +210,7 @@ class PomodoroModule {
             },
           };
         }
-      },
+      }
     );
 
     this.backendServer.addMessageHandler(
@@ -266,7 +256,7 @@ class PomodoroModule {
             },
           };
         }
-      },
+      }
     );
 
     this.backendServer.addMessageHandler(
@@ -292,7 +282,7 @@ class PomodoroModule {
               last.end = now;
               this.activeSession.pauseTotalMs = pauses.reduce(
                 (acc, p) => acc + ((p.end ?? now) - p.start),
-                0,
+                0
               );
             }
           }
@@ -321,7 +311,7 @@ class PomodoroModule {
             },
           };
         }
-      },
+      }
     );
 
     this.backendServer.addMessageHandler(
@@ -330,12 +320,9 @@ class PomodoroModule {
         const { id, params, method } = message;
 
         try {
-          const payload = params as unknown as
-            | { asComplete?: boolean }
-            | undefined;
+          const payload = params as unknown as { asComplete?: boolean } | undefined;
 
-          const asComplete =
-            payload && payload.asComplete === false ? false : true;
+          const asComplete = payload && payload.asComplete === false ? false : true;
           const savedSession = await this.stopSession(asComplete);
 
           return {
@@ -357,7 +344,7 @@ class PomodoroModule {
             },
           };
         }
-      },
+      }
     );
 
     this.backendServer.addMessageHandler(
@@ -374,7 +361,7 @@ class PomodoroModule {
           },
           error: null,
         };
-      },
+      }
     );
 
     this.backendServer.addMessageHandler(
@@ -405,7 +392,7 @@ class PomodoroModule {
           },
           error: null,
         };
-      },
+      }
     );
   }
 
@@ -423,19 +410,13 @@ class PomodoroModule {
   private setSelectedPreset(preset: PomodoroPreset | null) {
     this.selectedPreset = preset;
     if (this.backendServer) {
-      this.backendServer.sendNotification(
-        "pomodoro:selected-preset-changed",
-        preset,
-      );
+      this.backendServer.sendNotification("pomodoro:selected-preset-changed", preset);
     }
   }
 
   private notifyActiveSessionChanged() {
     if (this.backendServer) {
-      this.backendServer.sendNotification(
-        "pomodoro:active-session-changed",
-        this.activeSession,
-      );
+      this.backendServer.sendNotification("pomodoro:active-session-changed", this.activeSession);
     }
   }
 
@@ -460,9 +441,7 @@ class PomodoroModule {
     }
   }
 
-  private async stopSession(
-    asComplete: boolean,
-  ): Promise<PomodoroSession | null> {
+  private async stopSession(asComplete: boolean): Promise<PomodoroSession | null> {
     if (!this.activeSession) {
       throw new Error("No active session");
     }
@@ -482,14 +461,8 @@ class PomodoroModule {
       }
     }
 
-    const pauseTotalMs = pauses.reduce(
-      (acc, p) => acc + ((p.end ?? now) - p.start),
-      0,
-    );
-    const focusMs = Math.max(
-      0,
-      now - this.activeSession.startTime - pauseTotalMs,
-    );
+    const pauseTotalMs = pauses.reduce((acc, p) => acc + ((p.end ?? now) - p.start), 0);
+    const focusMs = Math.max(0, now - this.activeSession.startTime - pauseTotalMs);
 
     // 如果专注时长小于 5 分钟，不保存记录，直接清除
     const FIVE_MINUTES_MS = 5 * 60 * 1000;
@@ -500,9 +473,7 @@ class PomodoroModule {
     }
 
     // 判断状态：正计时或倒计时完成为 completed，否则为 stopped
-    const status: "completed" | "stopped" = asComplete
-      ? "completed"
-      : "stopped";
+    const status: "completed" | "stopped" = asComplete ? "completed" : "stopped";
 
     const savedSession = PomodoroSessionTable.insertCompletedSession(db, {
       presetId: this.activeSession.presetId,
@@ -523,7 +494,7 @@ class PomodoroModule {
         savedSession.id,
         savedSession.presetId,
         savedSession.startTime,
-        savedSession.endTime || now,
+        savedSession.endTime || now
       );
     } catch (e) {
       console.error("Failed to create calendar event:", e);
@@ -544,17 +515,13 @@ class PomodoroModule {
 
         let pauseTotalMs = this.activeSession.pauseTotalMs;
         if (this.activeSession.status === "paused") {
-          const last =
-            this.activeSession.pauses[this.activeSession.pauses.length - 1];
+          const last = this.activeSession.pauses[this.activeSession.pauses.length - 1];
           if (last && last.end === undefined) {
             pauseTotalMs += now - last.start;
           }
         }
 
-        const elapsedMs = Math.max(
-          0,
-          now - this.activeSession.startTime - pauseTotalMs,
-        );
+        const elapsedMs = Math.max(0, now - this.activeSession.startTime - pauseTotalMs);
 
         let remainMs: number | undefined;
         if (this.activeSession.expectedMs) {
@@ -568,7 +535,7 @@ class PomodoroModule {
           ) {
             this.autoStopTriggered = true;
             // 异步执行停止操作，避免阻塞 tick
-            this.autoStopSession().catch((e) => {
+            this.autoStopSession().catch(e => {
               console.error("Failed to auto stop session:", e);
             });
           }
@@ -588,14 +555,14 @@ class PomodoroModule {
     sessionId: number,
     presetId: number,
     startTime: number,
-    endTime: number,
+    endTime: number
   ) {
     // 获取系统分组
     const systemGroup = CalendarGroupTable.getSystemGroup(db);
 
     // 查找番茄钟日历
     const pomodoroCalendars = CalendarTable.getAllCalendars(db).filter(
-      (cal) => cal.title === "番茄钟" && cal.groupId === systemGroup.id,
+      cal => cal.title === "番茄钟" && cal.groupId === systemGroup.id
     );
 
     if (pomodoroCalendars.length === 0) {
@@ -642,6 +609,7 @@ class PomodoroModule {
     // 创建映射关系
     if (eventIds.length > 0) {
       PomodoroCalendarMappingTable.createMappings(db, sessionId, eventIds);
+      broadcastScheduleChange(basename(db.name));
     }
   }
 }

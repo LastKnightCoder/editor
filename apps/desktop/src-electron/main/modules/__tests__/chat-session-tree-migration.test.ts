@@ -9,7 +9,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
-import { mergeChatSessionBranches } from "../chat-session-tree-migration";
+import {
+  CHAT_SESSION_TREE_MIGRATION_KEY,
+  mergeChatSessionBranches,
+} from "../chat-session-tree-migration";
 import { migrateLegacyChatsToSessions } from "../chat-session-migration";
 import { retireLegacyChats } from "../legacy-chat-retirement";
 import { graftSessionFile } from "../pi-session-graft";
@@ -278,6 +281,23 @@ describe.skipIf(!nativeAvailable)("目录表里的分支族合并", () => {
     expect(rows.map(row => row.id).sort()).toEqual(["root", "stray"]);
     expect(rows.every(row => parentOf(row.id) === null)).toBe(true);
     expect(readdirSync(sessionDir).sort()).toEqual([root, stray].sort());
+  });
+
+  it("分支读取失败保留关系、不记完成，修复后重试合并", () => {
+    const root = writeChat(sessionDir, "root", [["问一", "答一"]]);
+    const child = writeChat(sessionDir, "child", [["问一", "答二"]]);
+    register("root", root);
+    register("child", "../invalid.jsonl", "root");
+    expect(merge().failed).toHaveLength(1);
+    expect(parentOf("child")).toBe("root");
+    expect(
+      db
+        .prepare("SELECT value FROM migration_meta WHERE key=?")
+        .get(CHAT_SESSION_TREE_MIGRATION_KEY)
+    ).toBeUndefined();
+    db.prepare("UPDATE chat_session SET session_file=? WHERE id='child'").run(child);
+    expect(merge()).toMatchObject({ skipped: false, merged: 1, failed: [] });
+    expect(merge().skipped).toBe(true);
   });
 
   it("没落盘的分支（首轮没等到回答）：行删掉；没有分支时不备份", () => {

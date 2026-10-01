@@ -52,6 +52,17 @@ describe("待办增改删的日历一致性", () => {
 
   const mappings = (todoItemId: number) =>
     TodoCalendarMappingTable.getMappingsByTodoId(db, { todoItemId });
+
+  it("合并数量按日历聚合，只计目标集合并补零，不拉正文", () => {
+    const insert = db.prepare(`INSERT INTO calendar_event
+      (calendar_id, title, start_date, all_day, create_time, update_time)
+      VALUES (?, '日程', ?, 1, 0, 0)`);
+    insert.run(101, at(9, 30));
+    insert.run(101, at(10, 1));
+    insert.run(202, at(9, 30));
+    expect(CalendarEventTable.countCalendarEvents(db, [101, 303, 101])).toEqual({ 101: 2, 303: 0 });
+    expect(CalendarEventTable.countCalendarEvents(db, [])).toEqual({});
+  });
   const eventOf = (todoItemId: number) => {
     const [mapping] = mappings(todoItemId);
     return db.prepare(`SELECT * FROM calendar_event WHERE id = ?`).get(mapping.calendarEventId) as {

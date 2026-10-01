@@ -1,7 +1,7 @@
 import { invoke } from "@/electron";
 import { PomodoroPreset, PomodoroSession } from "@/types";
 import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
-import { BackgroundSoundType } from "@/stores/usePomodoroStore";
+import type { BackgroundSoundType } from "@/types/pomodoro";
 
 export const listPomodoroPresets = async (): Promise<PomodoroPreset[]> => {
   return invoke("pomodoro:list-presets");
@@ -24,16 +24,11 @@ export const updatePomodoroPreset = async (payload: {
   return invoke("pomodoro:update-preset", payload);
 };
 
-export const archivePomodoroPreset = async (
-  id: number,
-  archived: boolean,
-): Promise<number> => {
+export const archivePomodoroPreset = async (id: number, archived: boolean): Promise<number> => {
   return invoke("pomodoro:archive-preset", { id, archived });
 };
 
-export const reorderPomodoroPresets = async (
-  orderedIds: number[],
-): Promise<number> => {
+export const reorderPomodoroPresets = async (orderedIds: number[]): Promise<number> => {
   return invoke("pomodoro:reorder-presets", { orderedIds });
 };
 
@@ -41,30 +36,21 @@ export const deletePomodoroPreset = async (id: number): Promise<number> => {
   return invoke("pomodoro:delete-preset", id);
 };
 
-export const selectPomodoroPreset = async (
-  preset: PomodoroPreset,
-): Promise<void> => {
+export const selectPomodoroPreset = async (preset: PomodoroPreset): Promise<void> => {
   const client = useBackendWebsocketStore.getState().client;
   if (!client) throw new Error("Client not initialized");
-  return (await client.sendRequest(
-    "pomodoro:set-selected-preset",
-    preset,
-  )) as unknown as void;
+  return (await client.sendRequest("pomodoro:set-selected-preset", preset)) as unknown as void;
 };
 
-export const getActivePomodoroSession =
-  async (): Promise<PomodoroSession | null> => {
-    const client = useBackendWebsocketStore.getState().client;
-    if (!client) throw new Error("Client not initialized");
-    return (await client.sendRequest(
-      "pomodoro:get-active-session",
-      null,
-    )) as PomodoroSession | null;
-  };
+export const getActivePomodoroSession = async (): Promise<PomodoroSession | null> => {
+  const client = useBackendWebsocketStore.getState().client;
+  if (!client) throw new Error("Client not initialized");
+  return (await client.sendRequest("pomodoro:get-active-session", null)) as PomodoroSession | null;
+};
 
 export const startPomodoroSession = async (
   presetId: number,
-  expectedMs?: number,
+  expectedMs?: number
 ): Promise<PomodoroSession> => {
   const client = useBackendWebsocketStore.getState().client;
   if (!client) throw new Error("Client not initialized");
@@ -74,29 +60,19 @@ export const startPomodoroSession = async (
   })) as PomodoroSession;
 };
 
-export const pausePomodoroSession =
-  async (): Promise<PomodoroSession | null> => {
-    const client = useBackendWebsocketStore.getState().client;
-    if (!client) throw new Error("Client not initialized");
-    return (await client.sendRequest(
-      "pomodoro:pause-session",
-      null,
-    )) as PomodoroSession | null;
-  };
+export const pausePomodoroSession = async (): Promise<PomodoroSession | null> => {
+  const client = useBackendWebsocketStore.getState().client;
+  if (!client) throw new Error("Client not initialized");
+  return (await client.sendRequest("pomodoro:pause-session", null)) as PomodoroSession | null;
+};
 
-export const resumePomodoroSession =
-  async (): Promise<PomodoroSession | null> => {
-    const client = useBackendWebsocketStore.getState().client;
-    if (!client) throw new Error("Client not initialized");
-    return (await client.sendRequest(
-      "pomodoro:resume-session",
-      null,
-    )) as PomodoroSession | null;
-  };
+export const resumePomodoroSession = async (): Promise<PomodoroSession | null> => {
+  const client = useBackendWebsocketStore.getState().client;
+  if (!client) throw new Error("Client not initialized");
+  return (await client.sendRequest("pomodoro:resume-session", null)) as PomodoroSession | null;
+};
 
-export const stopPomodoroSession = async (
-  asComplete = true,
-): Promise<PomodoroSession | null> => {
+export const stopPomodoroSession = async (asComplete = true): Promise<PomodoroSession | null> => {
   const client = useBackendWebsocketStore.getState().client;
   if (!client) throw new Error("Client not initialized");
   return (await client.sendRequest("pomodoro:stop-session", {
@@ -129,21 +105,17 @@ export const summaryPomodoroTotal = async (): Promise<{
   return invoke("pomodoro:summary-total");
 };
 
-export const deletePomodoroSession = async (
-  sessionId: number,
-): Promise<number> => {
+export const deletePomodoroSession = async (sessionId: number): Promise<number> => {
   return invoke("pomodoro:delete-session", sessionId);
 };
 
-export const deletePomodoroSessions = async (
-  sessionIds: number[],
-): Promise<number> => {
+export const deletePomodoroSessions = async (sessionIds: number[]): Promise<number> => {
   return invoke("pomodoro:delete-sessions", sessionIds);
 };
 
 export const updatePomodoroSession = async (
   sessionId: number,
-  focusMs: number,
+  focusMs: number
 ): Promise<PomodoroSession> => {
   return invoke("pomodoro:update-session", { sessionId, focusMs });
 };
@@ -157,10 +129,7 @@ export const getBackgroundSound = async (): Promise<{
     throw new Error("Client not initialized");
   }
 
-  const result = await client.sendRequest(
-    "pomodoro:get-background-sound",
-    null,
-  );
+  const result = await client.sendRequest("pomodoro:get-background-sound", null);
   return result as {
     backgroundSound: BackgroundSoundType;
     backgroundVolume: number;
@@ -179,10 +148,7 @@ export const setBackgroundSound = async (params: {
     throw new Error("Client not initialized");
   }
 
-  const result = await client.sendRequest(
-    "pomodoro:set-background-sound",
-    params,
-  );
+  const result = await client.sendRequest("pomodoro:set-background-sound", params);
   return result as {
     backgroundSound: BackgroundSoundType;
     backgroundVolume: number;

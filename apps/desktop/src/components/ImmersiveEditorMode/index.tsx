@@ -20,7 +20,7 @@ import { useLatest, useMemoizedFn } from "ahooks";
 import { Focus, Minimize2, Minus, Moon, Plus, Sun, TextCursorInput } from "lucide-react";
 import { EditorThemeOverride, type EditorRef } from "@tau/editor";
 import type { AnyExtension } from "@tau/editor";
-import { cn } from "@tau/ui";
+import { cn, PortalScope } from "@tau/ui";
 import ContentEditor from "@/components/ContentEditor";
 import PortalToBody from "@/components/PortalToBody";
 import { useFindOwner } from "@/components/GlobalFindBar/findOwner";
@@ -277,107 +277,108 @@ export default function ImmersiveEditorMode({
         {...stageTheme.rootProps}
         className={cn(
           "app-region-no-drag bg-surface text-ink-1 fixed inset-0 z-[95] overflow-hidden",
-          stageTheme.scopeClass,
           typing && "cursor-none"
         )}
         onMouseMove={onMouseMove}
         onMouseLeave={() => setNearBottom(false)}
       >
-        <EditorThemeOverride mode={stageTheme.mode}>
-          <div
-            ref={setViewport}
-            className="absolute inset-0 overflow-y-auto overflow-x-hidden"
-            style={fadeMask(typewriter)}
-          >
-            {/* 留白在 zoom 之外：上下各留大半屏，首行与末行也能停在视线高度 */}
-            <div className={typewriter ? "pb-[55vh] pt-[45vh]" : "pb-[50vh] pt-[16vh]"}>
-              <div
-                ref={setColumn}
-                className="text-(length:--font-size) mx-auto"
-                style={
-                  {
-                    width: columnWidth(viewportWidth, zoom),
-                    zoom,
-                    "--ed-focus-dim": typewriter ? FOCUS_DIM_TYPEWRITER : FOCUS_DIM_SOFT,
-                  } as CSSProperties
-                }
-              >
-                <Surface
-                  editorRef={editorRef}
-                  contentId={contentId}
-                  extensions={extensions}
-                  initValue={initialValue}
-                  onChange={handleChange}
-                  onInit={handleInit}
-                  focusMode={focusMode}
-                />
+        <PortalScope>
+          <EditorThemeOverride mode={stageTheme.mode}>
+            <div
+              ref={setViewport}
+              className="absolute inset-0 overflow-y-auto overflow-x-hidden"
+              style={fadeMask(typewriter)}
+            >
+              {/* 留白在 zoom 之外：上下各留大半屏，首行与末行也能停在视线高度 */}
+              <div className={typewriter ? "pb-[55vh] pt-[45vh]" : "pb-[50vh] pt-[16vh]"}>
+                <div
+                  ref={setColumn}
+                  className="text-(length:--font-size) mx-auto"
+                  style={
+                    {
+                      width: columnWidth(viewportWidth, zoom),
+                      zoom,
+                      "--ed-focus-dim": typewriter ? FOCUS_DIM_TYPEWRITER : FOCUS_DIM_SOFT,
+                    } as CSSProperties
+                  }
+                >
+                  <Surface
+                    editorRef={editorRef}
+                    contentId={contentId}
+                    extensions={extensions}
+                    initValue={initialValue}
+                    onChange={handleChange}
+                    onInit={handleInit}
+                    focusMode={focusMode}
+                  />
+                </div>
               </div>
             </div>
-          </div>
 
-          <span
-            className={cn(
-              "text-tau-micro text-ink-3 ease-tau-out pointer-events-none absolute bottom-[26px] right-[30px] tabular-nums transition-opacity duration-500",
-              hudVisible ? "opacity-0" : typing ? "opacity-40" : "opacity-100"
-            )}
-          >
-            {count.toLocaleString()} 字
-          </span>
-
-          <StageHud
-            visible={hudVisible}
-            onMouseEnter={() => setHudHovered(true)}
-            onMouseLeave={() => setHudHovered(false)}
-            // 点控制条不抢编辑器焦点，光标留在原处
-            onMouseDown={e => e.preventDefault()}
-          >
-            <SessionStats count={count} base={base} startedAt={startedAt} />
-            <StageHudDivider />
-            <StageHudButton label="缩小" onClick={() => setAdjust(a => stepAdjust(a, -1))}>
-              <Minus className="size-4" strokeWidth={1.75} />
-            </StageHudButton>
-            <button
-              type="button"
-              title="恢复自适应大小"
-              onClick={() => setAdjust(1)}
-              className="text-ink-1 hover:bg-hover h-8 min-w-12 rounded-full px-1.5 tabular-nums"
-            >
-              {Math.round(zoom * 100)}%
-            </button>
-            <StageHudButton label="放大" onClick={() => setAdjust(a => stepAdjust(a, 1))}>
-              <Plus className="size-4" strokeWidth={1.75} />
-            </StageHudButton>
-            <StageHudDivider />
-            <StageHudButton
-              label="打字机滚动"
-              active={typewriter}
-              onClick={() => setTypewriter(on => !on)}
-            >
-              <TextCursorInput className="size-4" strokeWidth={1.75} />
-            </StageHudButton>
-            <StageHudButton
-              label="聚焦当前段落"
-              active={focusMode}
-              onClick={() => setFocusMode(on => !on)}
-            >
-              <Focus className="size-4" strokeWidth={1.75} />
-            </StageHudButton>
-            <StageHudButton
-              label={stageTheme.mode === "dark" ? "浅色画面" : "深色画面"}
-              onClick={stageTheme.toggle}
-            >
-              {stageTheme.mode === "dark" ? (
-                <Sun className="size-4" strokeWidth={1.75} />
-              ) : (
-                <Moon className="size-4" strokeWidth={1.75} />
+            <span
+              className={cn(
+                "text-tau-micro text-ink-3 ease-tau-out pointer-events-none absolute bottom-[26px] right-[30px] tabular-nums transition-opacity duration-500",
+                hudVisible ? "opacity-0" : typing ? "opacity-40" : "opacity-100"
               )}
-            </StageHudButton>
-            <StageHudDivider />
-            <StageHudButton label="退出沉浸" shortcut="Esc" onClick={handleExit}>
-              <Minimize2 className="size-4" strokeWidth={1.75} />
-            </StageHudButton>
-          </StageHud>
-        </EditorThemeOverride>
+            >
+              {count.toLocaleString()} 字
+            </span>
+
+            <StageHud
+              visible={hudVisible}
+              onMouseEnter={() => setHudHovered(true)}
+              onMouseLeave={() => setHudHovered(false)}
+              // 点控制条不抢编辑器焦点，光标留在原处
+              onMouseDown={e => e.preventDefault()}
+            >
+              <SessionStats count={count} base={base} startedAt={startedAt} />
+              <StageHudDivider />
+              <StageHudButton label="缩小" onClick={() => setAdjust(a => stepAdjust(a, -1))}>
+                <Minus className="size-4" strokeWidth={1.75} />
+              </StageHudButton>
+              <button
+                type="button"
+                title="恢复自适应大小"
+                onClick={() => setAdjust(1)}
+                className="text-ink-1 hover:bg-hover h-8 min-w-12 rounded-full px-1.5 tabular-nums"
+              >
+                {Math.round(zoom * 100)}%
+              </button>
+              <StageHudButton label="放大" onClick={() => setAdjust(a => stepAdjust(a, 1))}>
+                <Plus className="size-4" strokeWidth={1.75} />
+              </StageHudButton>
+              <StageHudDivider />
+              <StageHudButton
+                label="打字机滚动"
+                active={typewriter}
+                onClick={() => setTypewriter(on => !on)}
+              >
+                <TextCursorInput className="size-4" strokeWidth={1.75} />
+              </StageHudButton>
+              <StageHudButton
+                label="聚焦当前段落"
+                active={focusMode}
+                onClick={() => setFocusMode(on => !on)}
+              >
+                <Focus className="size-4" strokeWidth={1.75} />
+              </StageHudButton>
+              <StageHudButton
+                label={stageTheme.mode === "dark" ? "浅色画面" : "深色画面"}
+                onClick={stageTheme.toggle}
+              >
+                {stageTheme.mode === "dark" ? (
+                  <Sun className="size-4" strokeWidth={1.75} />
+                ) : (
+                  <Moon className="size-4" strokeWidth={1.75} />
+                )}
+              </StageHudButton>
+              <StageHudDivider />
+              <StageHudButton label="退出沉浸" shortcut="Esc" onClick={handleExit}>
+                <Minimize2 className="size-4" strokeWidth={1.75} />
+              </StageHudButton>
+            </StageHud>
+          </EditorThemeOverride>
+        </PortalScope>
       </div>
     </PortalToBody>
   );

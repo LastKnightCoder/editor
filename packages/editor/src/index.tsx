@@ -68,6 +68,7 @@ import ConfirmHost from "./components/ConfirmHost";
 import LeafRenderer from "./components/LeafRenderer";
 import type { MarkRenderProps } from "./api/marks";
 import type { ComponentType } from "react";
+import PromptHost from "./components/PromptHost";
 import { IConfigItem, IHotKeyConfig } from "./types";
 
 import "./theme/editor.css";
@@ -613,6 +614,7 @@ const Index = memo(
                 readOnly={readonly}
               />
               <ConfirmHost />
+              <PromptHost />
               {!readonly && <HoveringToolbar configs={finalHoveringBarConfigs} />}
               {!readonly && <BlockPanel assembly={kit.assembly} />}
             </FocusModeContext.Provider>

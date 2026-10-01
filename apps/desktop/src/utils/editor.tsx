@@ -52,7 +52,7 @@ const getParagraphContent = (paragraph: ParagraphElement): Array<ReactElement> =
           );
         case "link":
           return (
-            <a key={index} className="cursor-pointer text-[var(--th-accent)]">
+            <a key={index} className="cursor-pointer text-[var(--tau-accent)]">
               {node.children?.[0].text}
             </a>
           );

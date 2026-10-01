@@ -16,7 +16,6 @@ export default definePage({
   match: "params",
   getId: params => `vibe-learning-${params.id}`,
   label: "Notebook 详情",
-  status: "new",
   params: schema.schema,
   component: VibeLearningDetailView,
 });

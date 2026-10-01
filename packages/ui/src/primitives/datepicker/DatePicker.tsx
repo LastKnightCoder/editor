@@ -92,7 +92,13 @@ export function DatePickerPanel({
   });
   const [hl, setHl] = useState<Date | null>(() => parseValue(value ?? "") ?? new Date());
   const [pending, setPending] = useState<Date | null>(null); // minute：已点选未确认的日期
-  const [time, setTime] = useState(() => value?.slice(11) || "09:00");
+  const [time, setTimeState] = useState(() => value?.slice(11) || "09:00");
+  // TimeField 的 Enter 先回调新时刻再触发提交，提交需读到同一拍里的最新值
+  const latestTime = useRef(time);
+  const setTime = (next: string) => {
+    latestTime.current = next;
+    setTimeState(next);
+  };
 
   const valueDate = parseValue(value ?? "");
   /** minute 精度的当前日期展示位：挂起值优先（选了还没确认） */
@@ -118,7 +124,8 @@ export function DatePickerPanel({
   };
   const applyMinute = () => {
     if (!activeDate) return;
-    activeDate.setHours(Number(time.slice(0, 2)), Number(time.slice(3)), 0, 0);
+    const current = latestTime.current;
+    activeDate.setHours(Number(current.slice(0, 2)), Number(current.slice(3)), 0, 0);
     onCommit(formatValue(activeDate, precision));
   };
   const applyPresets = (preset: DatePickerPreset) => {

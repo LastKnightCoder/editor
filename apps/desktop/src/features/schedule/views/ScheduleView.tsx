@@ -4,16 +4,15 @@
  * 一整张纸：页头工具条 + 日历 chips（显隐 + 「管理日历」弹窗）+ 主视图（月 / 周 / 议程）占满宽度；
  * 当日时间线（快速添加）是纸内右侧的非模态抽屉（整张纸高度），由工具条末尾「今天 · N 项」按钮开关
  * （开合状态持久化）。点日程在同位打开详情抽屉（可直接编辑保存），新建进 EventDialog。
- * 数据仍走 useCalendarStore：切库与 MCP/AI 修改日历后自动重载。
+ * 数据按数据库和日期窗口查询；界面偏好与编辑状态归日程域。
  */
 
 import { useEffect } from "react";
 import { Drawer } from "@tau/ui";
+import { ErrorState } from "@/components/ErrorState";
 import { useOverlayDismiss, usePage, usePageParams } from "@/page/PageProvider";
-import { getCalendarEventById } from "@/commands/calendar";
-import useCalendarStore from "@/stores/useCalendarStore";
-import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
-import { subscribeCalendarMutationEvent } from "@/mcp/calendar/events";
+import { useScheduleStore } from "../uiStore";
+import { useCalendarEventDetail, useCalendarEvents } from "../queries";
 import CalendarHeader from "../components/CalendarHeader";
 import CalendarView from "../components/CalendarView";
 import EventDialog from "../components/EventDialog";
@@ -24,11 +23,11 @@ import { usePeekStore } from "../peekStore";
 import { useAppContextProvider } from "@/hooks/useAppContextProvider";
 
 export function ScheduleView() {
-  const init = useCalendarStore(s => s.init);
-  const showDayPanel = useCalendarStore(s => s.showDayPanel);
+  const { error, retry } = useCalendarEvents();
+  const showDayPanel = useScheduleStore(s => s.showDayPanel);
   // 日程详情抽屉与时间线同位：详情打开时暂代时间线，关掉回到时间线
   const peeking = usePeekStore(s => s.event !== null);
-  const closeDayPanel = () => useCalendarStore.getState().setShowDayPanel(false);
+  const closeDayPanel = () => useScheduleStore.getState().setShowDayPanel(false);
   useOverlayDismiss(closeDayPanel, showDayPanel && !peeking);
 
   // AI 上下文：详情抽屉当前查看的日程（pull 模式读取 store，抽屉关闭时为 null）
@@ -47,38 +46,21 @@ export function ScheduleView() {
     };
   });
 
-  // 在数据库连接或切换时自动重新加载日历数据
-  useDatabaseChangeEffect(() => {
-    init();
-  });
-
-  useEffect(() => {
-    return subscribeCalendarMutationEvent(() => {
-      void init();
-    });
-  }, [init]);
-
   /* 外部带 eventId 进入（今日页日程卡等）：翻到该日程所在日期并打开详情，参数随即消费掉（原位更新） */
   const { navigator } = usePage();
   const params = usePageParams<{ eventId?: number }>();
+  const detail = useCalendarEventDetail(params.eventId);
   useEffect(() => {
     const id = params.eventId;
     if (id == null) return;
-    getCalendarEventById(id)
-      .then(event => {
-        if (!event) return;
-        useCalendarStore.getState().setCurrentDate(event.startDate);
-        usePeekStore.getState().peek(event);
-      })
-      .catch(reason => console.warn("[schedule] 定位日程失败：", reason))
-      .finally(() => navigator.push("schedule", {}));
-  }, [params.eventId, navigator]);
-
-  // 方案 C 没有日视图：legacy 持久化的 day 迁到月视图
-  useEffect(() => {
-    const { currentView, setCurrentView } = useCalendarStore.getState();
-    if (currentView === "day") setCurrentView("month");
-  }, []);
+    if (!detail.isSuccess && !detail.isError) return;
+    if (detail.data) {
+      useScheduleStore.getState().setCurrentDate(detail.data.startDate);
+      usePeekStore.getState().peek(detail.data);
+    }
+    if (detail.error) console.warn("[schedule] 定位日程失败：", detail.error);
+    navigator.push("schedule", {});
+  }, [params.eventId, detail.data, detail.error, detail.isSuccess, detail.isError, navigator]);
 
   return (
     <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
@@ -91,7 +73,16 @@ export function ScheduleView() {
           </div>
           {/* 左 26px + 各视图 6px = 页头的 px-8；内容右侧留白由各视图自己补 */}
           <div className="flex min-h-0 flex-1 flex-col pl-[26px] pr-2">
-            <CalendarView />
+            {error ? (
+              <ErrorState
+                title="日程加载失败"
+                error={error}
+                description="请重试加载日历与日程。"
+                actions={[{ label: "重试", onClick: () => void retry() }]}
+              />
+            ) : (
+              <CalendarView />
+            )}
           </div>
         </div>
         <Drawer

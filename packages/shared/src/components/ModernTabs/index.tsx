@@ -29,9 +29,7 @@ const ModernTabs: React.FC<ModernTabsProps> = ({
   isDark: _isDark = false,
 }) => {
   const computedDefault = defaultActiveKey ?? items[0]?.key;
-  const [uncontrolledKey, setUncontrolledKey] = useState<string | undefined>(
-    computedDefault,
-  );
+  const [uncontrolledKey, setUncontrolledKey] = useState<string | undefined>(computedDefault);
   const tabsRef = useRef<HTMLDivElement>(null);
   const [indicatorStyle, setIndicatorStyle] = useState<React.CSSProperties>({});
 
@@ -45,13 +43,13 @@ const ModernTabs: React.FC<ModernTabsProps> = ({
 
   const activeItem = useMemo(() => {
     if (!items.length) return undefined;
-    return items.find((item) => item.key === activeKey) ?? items[0];
+    return items.find(item => item.key === activeKey) ?? items[0];
   }, [items, activeKey]);
 
   useEffect(() => {
     if (!tabsRef.current || !activeKey) return;
     const activeBtn = tabsRef.current.querySelector(
-      `[data-tab-key="${activeKey}"]`,
+      `[data-tab-key="${activeKey}"]`
     ) as HTMLElement | null;
     if (activeBtn) {
       setIndicatorStyle({
@@ -78,9 +76,9 @@ const ModernTabs: React.FC<ModernTabsProps> = ({
     <div className={classNames("flex flex-col", className)}>
       <div
         ref={tabsRef}
-        className="relative flex items-center gap-[0.125em] border-b border-gray-200 dark:border-zinc-700"
+        className="border-line-1 relative flex items-center gap-[0.125em] border-b"
       >
-        {items.map((item) => {
+        {items.map(item => {
           const isActive = item.key === activeKey;
           return (
             <button
@@ -88,8 +86,8 @@ const ModernTabs: React.FC<ModernTabsProps> = ({
               data-tab-key={item.key}
               type="button"
               className={classNames(
-                "px-[0.875em] py-[0.5em] text-[0.8125em] font-medium cursor-pointer transition-colors duration-150 border-none bg-transparent leading-normal",
-                isActive ? "text-text-1" : "text-text-3 hover:text-text-2",
+                "cursor-pointer border-none bg-transparent px-[0.875em] py-[0.5em] text-[0.8125em] font-medium leading-normal transition-colors duration-150",
+                isActive ? "text-ink-1" : "text-ink-3 hover:text-ink-2"
               )}
               onClick={() => handleSelect(item.key)}
             >
@@ -98,17 +96,15 @@ const ModernTabs: React.FC<ModernTabsProps> = ({
           );
         })}
         <span
-          className="absolute bottom-0 h-[0.125em] bg-[var(--th-btn-bg,var(--th-accent))] rounded-full transition-all duration-200"
+          className="bg-accent absolute bottom-0 h-[0.125em] rounded-full transition-all duration-200"
           style={indicatorStyle}
         />
       </div>
       <div
         className={classNames(
           "pt-[1em]",
-          isFlat
-            ? ""
-            : "border border-t-0 border-[var(--th-divide,#f0f0f0)] rounded-b-[0.75em] p-[1.25em] bg-bg-elevated dark:border-[var(--th-border,#2a2a2a)] dark:bg-[#222]",
-          panelClassName,
+          isFlat ? "" : "border-line-2 bg-surface rounded-b-[0.75em] border border-t-0 p-[1.25em]",
+          panelClassName
         )}
       >
         {activeItem?.children}

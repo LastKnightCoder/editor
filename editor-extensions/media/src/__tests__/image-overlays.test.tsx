@@ -4,36 +4,38 @@ import { Transforms, type Descendant } from "slate";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { expect, it, vi } from "vitest";
-import type { CropperTransform } from "@tau/shared";
+import type { ImageCropTransform } from "../components/ImageCropEditor/geometry";
 import { Editor, createEditorKit, type EditorRef } from "@tau/editor";
 import { IOverlayBackDismiss, type OverlayBackDismissProps } from "@tau/editor/api";
 import { IResourceService } from "@tau/shared/host-services";
-import { image, inlineImage } from "../index";
+import { image, inlineImage, openMediaUrlInput } from "../index";
 import { IMediaActions, IEditorSlots } from "../../services";
 import { createDefaultEditorSlots } from "../../slots";
 import { imageActionsMap } from "../extensions/image/utils/actionsMap";
 
 const controls = vi.hoisted(() => ({ tasks: [] as Promise<void>[] }));
 // jsdom 无实际裁剪画布；使用真实图片组件、动作和宿主仲裁，只替代像素处理 UI。
-vi.mock("@tau/shared", async importOriginal => ({
-  ...(await importOriginal<typeof import("@tau/shared")>()),
-  ImageCropper: ({
-    open,
+vi.mock("../components/ImageCropEditor", () => ({
+  default: ({
     onConfirm,
   }: {
-    open: boolean;
-    onConfirm: (transform: CropperTransform, blob: Blob) => Promise<void>;
-  }) =>
-    open ? (
-      <button
-        data-crop-confirm
-        onClick={() => {
-          controls.tasks.push(onConfirm({} as CropperTransform, new Blob(["crop"])));
-        }}
-      >
-        裁剪确认
-      </button>
-    ) : null,
+    onConfirm: (result: {
+      transform: ImageCropTransform;
+      blob: Blob;
+      ext: string;
+    }) => Promise<void>;
+  }) => (
+    <button
+      data-crop-confirm
+      onClick={() => {
+        controls.tasks.push(
+          onConfirm({ transform: {} as ImageCropTransform, blob: new Blob(["crop"]), ext: "png" })
+        );
+      }}
+    >
+      裁剪确认
+    </button>
+  ),
 }));
 
 async function mount(upload: (file: File) => Promise<string>, inline = false) {
@@ -125,6 +127,8 @@ it("图片裁剪和业务操作经宿主退场，只读不打开且不自动回�
     });
     expect(view.dismissals.size).toBe(0);
     await view.render(false);
+    for (const img of view.host.querySelectorAll("img"))
+      Object.defineProperty(img, "currentSrc", { configurable: true, value: img.src });
     await act(async () => view.actions()?.startCrop());
     expect(view.dismissals.size).toBe(1);
     await act(async () => [...view.dismissals][0]());
@@ -152,6 +156,8 @@ it("裁剪上传等待期间替换图片，不把结果写入同位置的新节�
   );
   try {
     await view.render(false);
+    for (const img of view.host.querySelectorAll("img"))
+      Object.defineProperty(img, "currentSrc", { configurable: true, value: img.src });
     await act(async () => view.actions()?.startCrop());
     await act(async () =>
       (view.host.querySelector("[data-crop-confirm]") as HTMLButtonElement).click()
@@ -179,6 +185,42 @@ it("裁剪上传等待期间替换图片，不把结果写入同位置的新节�
       previewUrl: "replacement",
     });
     expect(view.editor.children[0]).not.toHaveProperty("cropTransform");
+  } finally {
+    await view.dispose();
+  }
+});
+
+it("媒体更多菜单由核心聚合已有贡献并经命令执行", async () => {
+  const view = await mount(async () => "uploaded");
+  try {
+    await view.render(false);
+    const frame = view.host.querySelector(".cursor-pointer.relative.overflow-hidden");
+    if (!frame) throw new Error("图片选择区域缺失");
+    await act(async () => frame.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    const more = view.host.querySelector<HTMLButtonElement>('button[aria-label="更多"]');
+    expect(more).not.toBeNull();
+    await act(async () => more?.click());
+    const edit = [...document.body.querySelectorAll<HTMLButtonElement>("button")].find(
+      button => button.textContent === "添加说明"
+    );
+    expect(edit).toBeDefined();
+    const actions = view.actions();
+    if (!actions) throw new Error("图片动作未注册");
+    const editDescription = vi.spyOn(actions, "showDescEditor");
+    await act(async () => edit?.click());
+    expect(editDescription).toHaveBeenCalledOnce();
+  } finally {
+    await view.dispose();
+  }
+});
+
+it("只读编辑器不打开网络媒体输入，也不写入内容", async () => {
+  const view = await mount(async () => "uploaded");
+  try {
+    const before = structuredClone(view.editor.children);
+    await act(async () => openMediaUrlInput(view.editor, "image"));
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(view.editor.children).toEqual(before);
   } finally {
     await view.dispose();
   }

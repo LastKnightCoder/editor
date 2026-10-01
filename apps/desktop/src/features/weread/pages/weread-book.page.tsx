@@ -13,7 +13,6 @@ export default definePage({
   match: "params",
   getId: params => `weread-book-${params.bookId}`,
   label: "微信读书",
-  status: "new",
   params: schema.schema,
   component: WeReadBookView,
 });

@@ -28,7 +28,6 @@ definePage({
   key: "editor-overlay-integration",
   match: "single",
   label: "浮层集成",
-  status: "new",
   params: {},
   component: () => null,
 });

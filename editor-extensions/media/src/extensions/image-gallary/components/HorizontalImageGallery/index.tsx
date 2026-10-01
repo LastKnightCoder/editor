@@ -1,12 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ImageGallery } from "@tau/shared";
-import { useEditorTheme as useTheme } from "@tau/editor/api";
-import {
-  type ImageBorderRadiusPreset,
-  type ImageGalleryItem,
-  type LastRowMode,
-  type ImageShadowPreset,
-} from "../../../../types/index";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type {
+  ImageBorderRadiusPreset,
+  ImageGalleryItem,
+  LastRowMode,
+  ImageShadowPreset,
+} from "../../../../types";
 import {
   calculateLayout,
   toImageDimension,
@@ -24,6 +22,9 @@ interface IHorizontalImageGalleryProps {
   borderRadius?: ImageBorderRadiusPreset;
   shadow?: ImageShadowPreset | boolean;
   onUpdateDimensions?: (items: ImageGalleryItem[]) => void;
+  /** 单击 / 双击某张图，参数为该图在 items 中的序号 */
+  onItemClick?: (index: number) => void;
+  onItemDoubleClick?: (index: number) => void;
 }
 
 const HorizontalImageGallery = (props: IHorizontalImageGalleryProps) => {
@@ -35,15 +36,14 @@ const HorizontalImageGallery = (props: IHorizontalImageGalleryProps) => {
     borderRadius = "none",
     shadow = false,
     onUpdateDimensions,
+    onItemClick,
+    onItemDoubleClick,
   } = props;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
-  const [showGallery, setShowGallery] = useState(false);
-  const [galleryIndex, setGalleryIndex] = useState(0);
   const [dimensions, setDimensions] = useState<Map<string, ImageDimension>>(new Map());
 
-  const { mode: theme } = useTheme();
   const { Image: CustomImage } = useEditorSlots();
 
   // 监听容器宽度变化
@@ -159,14 +159,7 @@ const HorizontalImageGallery = (props: IHorizontalImageGalleryProps) => {
     });
   }, [dimensionsArray, containerWidth, height, margins, lastRow]);
 
-  // 全屏浏览的图片列表
-  const galleryImages = useMemo(() => items.map(item => item.url), [items]);
-
-  // 点击图片处理
-  const handleImageClick = useCallback((index: number) => {
-    setGalleryIndex(index);
-    setShowGallery(true);
-  }, []);
+  const indexOf = (id: string) => items.findIndex(item => item.id === id);
 
   // 检查是否所有图片都已加载
   const allLoaded = dimensionsArray.every(d => d.loaded);
@@ -181,7 +174,7 @@ const HorizontalImageGallery = (props: IHorizontalImageGalleryProps) => {
       className="relative w-full"
       style={{ height: layout.totalHeight > 0 ? layout.totalHeight : "auto" }}
     >
-      {layout.items.map((item, index) => (
+      {layout.items.map(item => (
         <div
           key={item.id}
           className="absolute cursor-pointer overflow-hidden"
@@ -192,7 +185,8 @@ const HorizontalImageGallery = (props: IHorizontalImageGalleryProps) => {
             left: item.left,
             ...itemAppearanceStyle,
           }}
-          onClick={() => handleImageClick(index)}
+          onClick={() => onItemClick?.(indexOf(item.id))}
+          onDoubleClick={() => onItemDoubleClick?.(indexOf(item.id))}
         >
           {CustomImage ? (
             <CustomImage
@@ -218,17 +212,11 @@ const HorizontalImageGallery = (props: IHorizontalImageGalleryProps) => {
 
       {/* 加载占位符 */}
       {!allLoaded && layout.items.length === 0 && (
-        <div className="flex h-48 items-center justify-center text-gray-400">Loading images...</div>
+        <div
+          className="h-48 animate-pulse rounded-[var(--tau-radius-sm)] bg-[var(--ed-bg-sunken)]"
+          aria-label="图片加载中"
+        />
       )}
-
-      {/* 全屏浏览 */}
-      <ImageGallery
-        images={galleryImages}
-        open={showGallery}
-        onClose={() => setShowGallery(false)}
-        defaultIndex={galleryIndex}
-        theme={theme}
-      />
     </div>
   );
 };

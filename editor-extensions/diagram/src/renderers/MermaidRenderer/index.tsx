@@ -203,7 +203,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
           <div
             ref={containerRef}
             dangerouslySetInnerHTML={{ __html: svgContent }}
-            className="flex min-h-[320px] items-center justify-center p-[20px] [&_svg]:h-auto [&_svg]:max-w-full"
+            className="flex min-h-[320px] items-center justify-center p-5 [&_svg]:h-auto [&_svg]:max-w-full"
           />
           {/* 隐藏的 mermaid 锚点 */}
           <code id={mermaidId} style={{ display: "none" }}></code>

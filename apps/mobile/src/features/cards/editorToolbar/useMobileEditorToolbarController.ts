@@ -306,10 +306,10 @@ export function useMobileEditorToolbarController(
         case "image-url":
         case "video-url":
         case "audio-url": {
-          // URL 输入弹窗由内核 Editor 自带（MediaUrlInputModal），提交时按当前选区插入
+          // 输入框经 IEditorNotifier.prompt 走 mobile 的 EditorPromptHost（BottomSheet，接返回手势），提交时按当前选区插入
           const mediaType =
             kind === "image-url" ? "image" : kind === "video-url" ? "video" : "audio";
-          openMediaUrlInput(editor, mediaType);
+          void openMediaUrlInput(editor, mediaType);
           break;
         }
         case "image-gallery":

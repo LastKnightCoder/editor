@@ -1,33 +1,10 @@
-import { useMutationObserver } from "ahooks";
-import { useMemo, useState } from "react";
-
-// 主题 runtime 写入 data-theme（主题族）+ data-mode（明暗），明暗信号看 <html>.dark 类；
-// data-theme="dark" 字面值仅作旧入口兼容
-const readTheme = (): "light" | "dark" => {
-  const root = document.documentElement;
-  return root.classList.contains("dark") || root.dataset.theme === "dark" ? "dark" : "light";
-};
+import { useThemeStore } from "@tau/themes/react";
 
 const useTheme = () => {
-  const [theme, setTheme] = useState<"light" | "dark">(readTheme);
-
-  useMutationObserver(
-    () => {
-      setTheme(readTheme());
-    },
-    document.documentElement,
-    {
-      attributes: true,
-    }
-  );
-
-  const isDark = useMemo(() => {
-    return theme === "dark";
-  }, [theme]);
-
+  const theme = useThemeStore(state => state.mode);
   return {
     theme,
-    isDark,
+    isDark: theme === "dark",
   };
 };
 

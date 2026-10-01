@@ -3,9 +3,11 @@ const state = vi.hoisted(() => {
   const invoke = vi.fn(async (channel: string): Promise<unknown> => {
     if (channel === "content:create") return 17;
     if (channel === "vl-note:create") return { id: 42, contentId: 17, projectId: 7, title: "大纲" };
+    if (channel === "vl-quiz:create-set") return { id: 21, projectId: 7, name: "测验" };
+    if (channel === "vl-quiz:create-items-batch") return [{ id: 1, quizSetId: 21 }];
     return {};
   });
-  window.electron = { platform: "darwin", invoke } as unknown as ElectronAPI;
+  window.electron = { platform: "darwin", invoke, on: vi.fn() } as unknown as ElectronAPI;
   return { invoke, finish: null as null | ((text: string) => void) };
 });
 vi.mock("@/commands", async () => await import("@/commands/content"));
@@ -47,6 +49,40 @@ vi.mock("@/utils", () => ({
 import { startVLTask } from "../runner";
 import { useVLTaskStore } from "../store";
 import { setChatDatabase } from "@/services/chatDatabase";
+import { quizKeys } from "../../../../quizQueries";
+import { queryClient } from "@/queryClient";
+
+it("后台测验切库后仍落原库，仅刷新原库缓存，不回写全局选择", async () => {
+  state.invoke.mockClear();
+  setChatDatabase("a");
+  queryClient.setQueryData(quizKeys.sets("a", 7), []);
+  queryClient.setQueryData(quizKeys.sets("b", 7), []);
+  const started = await startVLTask({
+    kind: "quiz",
+    projectId: 7,
+    mainDbName: "a",
+    resourceIds: [],
+    resourceNames: [],
+  });
+  setChatDatabase("b");
+  const finish = state.finish;
+  if (!finish) throw new Error("生成未启动");
+  finish('[{"type":"qa","prompt":"测试问题","detail":"答案"}]');
+  await vi.waitFor(() =>
+    expect(useVLTaskStore.getState().tasks[started.taskId].status).toBe("succeeded")
+  );
+  const calls = state.invoke.mock.calls as unknown as unknown[][];
+  for (const call of calls.filter(args => String(args[0]).startsWith("vl-quiz:"))) {
+    expect(call.at(-1)).toEqual({ toolDatabaseName: "a" });
+  }
+  expect(calls.some(args => args[0] === "vl-quiz:create-items-batch")).toBe(true);
+  expect(calls.some(args => args[0] === "vl-quiz:list-sets")).toBe(false);
+  expect(queryClient.getQueryState(quizKeys.sets("a", 7))?.isInvalidated).toBe(true);
+  expect(queryClient.getQueryState(quizKeys.sets("b", 7))?.isInvalidated).toBe(false);
+  queryClient.clear();
+  useVLTaskStore.getState().remove(started.taskId);
+  setChatDatabase("");
+});
 
 it("生成工具启动的真实后台任务在切库后仍把正文写回原库", async () => {
   setChatDatabase("a");

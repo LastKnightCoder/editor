@@ -51,6 +51,7 @@
   /* ── 浮层与阴影 ── */
   --ed-overlay: var(--tau-overlay);
   --ed-shadow-card: var(--tau-shadow-card);
+  --ed-shadow-lift: var(--tau-shadow-lift);
   --ed-shadow-float: var(--tau-shadow-float);
 
   /* ── 排版 ── */

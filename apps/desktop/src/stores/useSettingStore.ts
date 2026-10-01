@@ -2,15 +2,8 @@ import { create } from "zustand";
 import { produce } from "immer";
 import { merge } from "lodash";
 import { type ImageBorderRadiusPreset, type ImageShadowPreset } from "@tau/editor-media/types";
-import { useThemeStore } from "@tau/themes/react";
 
 import { EGithubCDN } from "@/constants/github";
-import {
-  DEFAULT_ACCENT,
-  LEGACY_BACKGROUND_TYPE_TO_ACCENT,
-  isAccentPreset,
-  type AccentPreset,
-} from "@/constants/accent";
 import type { WeReadSessionStatus } from "@/types/weread";
 import { ETTSProvider } from "@/types/tts";
 import type { EmbeddingProviderType } from "@/types/embedding";
@@ -137,20 +130,13 @@ const migrateLLMSettings = (
   delete setting.llmConfigs;
 };
 
-/** 旧 backgroundType(gradient1~9/solid)一次性迁移为 accent + 柔光开关 */
-const migrateAppearanceSetting = (setting: ISetting) => {
+const sanitizeAppearanceSetting = (setting: ISetting) => {
+  delete (setting as ISetting & { darkMode?: boolean }).darkMode;
   const appearance = setting.appearance as
-    (NonNullable<ISetting["appearance"]> & { backgroundType?: string }) | undefined;
+    (NonNullable<ISetting["appearance"]> & Record<string, unknown>) | undefined;
   if (!appearance) return;
-  const legacy = appearance.backgroundType;
-  if (legacy) {
-    appearance.accent = LEGACY_BACKGROUND_TYPE_TO_ACCENT[legacy] ?? DEFAULT_ACCENT;
-    delete appearance.backgroundType;
-  }
-  delete (appearance as { backgroundGlow?: unknown }).backgroundGlow;
-  delete (appearance as { backgroundAnimation?: unknown }).backgroundAnimation;
-  if (!isAccentPreset(appearance.accent)) {
-    appearance.accent = DEFAULT_ACCENT;
+  for (const field of ["accent", "backgroundType", "backgroundGlow", "backgroundAnimation"]) {
+    delete appearance[field];
   }
 };
 
@@ -165,7 +151,7 @@ export const mergeSettingWithDefaults = (setting: Partial<ISetting> | ISetting):
   if (imageGeneration) {
     mergedSetting.imageGeneration = imageGeneration;
   }
-  migrateAppearanceSetting(mergedSetting);
+  sanitizeAppearanceSetting(mergedSetting);
   sanitizeDeprecatedLLMUsageSettings(mergedSetting);
   migrateImageGenerationConfig(mergedSetting);
   normalizeTransientSettingState(mergedSetting);
@@ -186,7 +172,6 @@ export interface ISetting {
     codeFont: string;
   };
   appearance?: {
-    accent?: AccentPreset;
     image?: {
       borderRadius?: ImageBorderRadiusPreset;
       shadow?: ImageShadowPreset | boolean;
@@ -248,7 +233,6 @@ export interface ISetting {
       version: number;
     }>;
   };
-  darkMode: boolean;
   transcription: {
     currentModel: string;
     downloadSource: "modelscope" | "huggingface";
@@ -427,7 +411,6 @@ interface IState {
 interface IActions {
   initSetting: (clientId: string) => void;
   onFontSettingChange: (fontSetting: ISetting["fontSetting"]) => void;
-  onDarkModeChange: (darkMode: boolean) => void;
   updateLLMUsageSetting: (
     feature: keyof ISetting["llmUsageSettings"],
     config: LLMUsageConfigV2 | null
@@ -503,6 +486,7 @@ const normalizeWeReadTransientState = (weread: ISetting["integration"]["weread"]
 };
 
 const normalizeTransientSettingState = (setting: ISetting) => {
+  sanitizeAppearanceSetting(setting);
   normalizeWeReadTransientState(setting.integration.weread);
   return setting;
 };
@@ -551,6 +535,10 @@ const loadCachedSetting = (): Partial<ISetting> | null => {
     window.localStorage.removeItem("resource-store");
     window.localStorage.removeItem("rss-store");
     window.localStorage.removeItem("read-later-store");
+    window.localStorage.removeItem("cards-management");
+    window.localStorage.removeItem("small-component-sidebar");
+    window.localStorage.removeItem("flashcard-center");
+    window.localStorage.removeItem("vl-quiz-store");
     // pi 迁移遗留（M8）：旧聊天 store（M4 起事实源在 pi 会话文件）与渲染端提问 store（M3-b 起宿主原生）
     window.localStorage.removeItem("chat-message");
     window.localStorage.removeItem("ask-question-session");
@@ -580,24 +568,9 @@ const persistSettingCache = (setting: ISetting) => {
   }
 };
 
-const applyAppearanceFromSetting = (setting: ISetting) => {
-  if (typeof document === "undefined") {
-    return;
-  }
-
-  // 主题（data-theme/.dark）只由 @tau/ui 主题 runtime 写入，此处只应用字体
-  const target = document.body ?? document.documentElement;
-  const { chineseFont, englishFont, fontSize, codeFont } = setting.fontSetting;
-  const font = `${englishFont}, ${chineseFont}`;
-  target.style.setProperty("--font", font);
-  target.style.setProperty("--font-size", `${fontSize}px`);
-  target.style.setProperty("--mono-font", `${codeFont}, ${font}, monospace`);
-};
-
 const initialState: IState = {
   inited: false,
   setting: {
-    darkMode: false,
     fontSetting: {
       chineseFont: "华文楷体",
       englishFont: "American TypeWriter",
@@ -605,7 +578,6 @@ const initialState: IState = {
       fontSize: 16,
     },
     appearance: {
-      accent: DEFAULT_ACCENT,
       image: {
         borderRadius: "none",
         shadow: "none",
@@ -832,7 +804,6 @@ const cachedSetting = loadCachedSetting();
 if (cachedSetting) {
   initialState.setting = mergeSettingWithDefaults(cachedSetting);
 }
-applyAppearanceFromSetting(initialState.setting);
 
 let registeredSettingNotificationClient:
   ReturnType<typeof useBackendWebsocketStore.getState>["client"] | null = null;
@@ -908,16 +879,6 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
         draft.fontSetting = fontSetting;
       }),
     });
-  },
-  onDarkModeChange: darkMode => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, draft => {
-        draft.darkMode = darkMode;
-      }),
-    });
-    // 旧入口（legacy 侧边栏/演示模式等）转发到主题 runtime，保证 DOM 主题只有一个写者
-    useThemeStore.getState().setAppearance(darkMode ? "dark" : "light");
   },
   setAgentShellPath: path => {
     const { setting } = get();
@@ -1212,7 +1173,6 @@ if (typeof window !== "undefined") {
       prevPersistedSettingJson = nextPersistedSettingJson;
       persistSettingCache(state.setting);
     }
-    applyAppearanceFromSetting(state.setting);
   });
 }
 

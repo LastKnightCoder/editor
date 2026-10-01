@@ -13,8 +13,14 @@ export interface ImageSlotProps {
   className?: string;
   style?: React.CSSProperties;
   onClick?: React.MouseEventHandler<HTMLImageElement>;
+  onDoubleClick?: React.MouseEventHandler<HTMLImageElement>;
   onLoad?: (event: React.SyntheticEvent<HTMLImageElement>) => void;
+  /** 宿主的回退地址也加载失败后回调（编辑器据此显示失败态），不透传到 img */
+  onLoadError?: () => void;
   crossOrigin?: React.ImgHTMLAttributes<HTMLImageElement>["crossOrigin"];
+  /** 宿主默认懒加载；离屏解析（如裁剪前取原图）需要 eager */
+  loading?: "eager" | "lazy";
+  draggable?: boolean;
   ref?: Ref<HTMLImageElement>;
 }
 

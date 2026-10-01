@@ -35,6 +35,31 @@ h1, h2, h3, h4, h5, h6 {
 p, ul, ol, blockquote, pre, table {
   margin: 0.9em 0;
 }
+/* 阅读器对定位支持不一：引用块用文档流版本，竖线贴左满高、大引号独占首行 */
+blockquote {
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: 1.4em;
+  border-left: 2px solid rgba(17, 17, 17, 0.2);
+}
+blockquote::before {
+  content: "\\201C";
+  display: block;
+  height: 0.55em;
+  font: 400 2.9em/1 Georgia, "Times New Roman", serif;
+  color: rgba(15, 118, 110, 0.55);
+}
+blockquote > :last-child {
+  margin-bottom: 0;
+}
+blockquote blockquote {
+  margin: 0.5em 0;
+  padding-left: 1.1em;
+  color: #555;
+}
+blockquote blockquote::before {
+  content: none;
+}
 img {
   max-width: 100%;
   height: auto;

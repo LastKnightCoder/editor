@@ -19,7 +19,8 @@ import {
   type TagColor,
 } from "@tau/ui";
 
-import useVLQuizStore from "@/stores/useVLQuizStore";
+import { useQuizItems, useQuizMutations } from "../../../../quizQueries";
+import { ErrorState } from "@/components/ErrorState";
 import type { VLQuizSet, VLQuizItem, UpdateVLQuizItemInput } from "@/types";
 import type { FlashcardOption } from "@/types/flashcard";
 import { FLASHCARD_TYPE_META, extractPlainText } from "@/utils/flashcard";
@@ -62,16 +63,10 @@ function FieldLabel({ children, extra }: { children: string; extra?: ReactNode }
 const QuizEditModal = memo((props: QuizEditModalProps) => {
   const { open, quizSet, onClose } = props;
 
-  const {
-    itemsByQuizSet,
-    loadingItems,
-    fetchItems,
-    updateQuizSet,
-    updateItem,
-    deleteItem,
-    fetchQuizSets,
-    currentProjectId,
-  } = useVLQuizStore();
+  const itemsQuery = useQuizItems(quizSet?.id, open);
+  const items = itemsQuery.items;
+  const loadingItems = itemsQuery.isPending;
+  const { updateQuizSet, updateItem, deleteItem } = useQuizMutations();
 
   // 本地状态
   const [quizName, setQuizName] = useState("");
@@ -80,12 +75,6 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
   const [expandedItemId, setExpandedItemId] = useState<number | null>(null);
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
 
-  // 获取当前测验集的题目
-  const items = useMemo(() => {
-    if (!quizSet) return [];
-    return itemsByQuizSet[quizSet.id] ?? [];
-  }, [quizSet, itemsByQuizSet]);
-
   // 初始化
   useEffect(() => {
     if (open && quizSet) {
@@ -93,10 +82,8 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
       setIsEditingName(false);
       setExpandedItemId(null);
       setEditingItemId(null);
-      // 加载题目
-      fetchItems(quizSet.id);
     }
-  }, [open, quizSet, fetchItems]);
+  }, [open, quizSet]);
 
   // 保存测验集名称
   const handleSaveName = useMemoizedFn(async () => {
@@ -234,7 +221,13 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
               题目列表
             </FieldLabel>
 
-            {loadingItems ? (
+            {itemsQuery.isError ? (
+              <ErrorState
+                title="测验题加载失败"
+                error={itemsQuery.error}
+                actions={[{ label: "重试", onClick: () => void itemsQuery.refetch() }]}
+              />
+            ) : loadingItems ? (
               <div className="flex flex-col items-center justify-center gap-3 py-12">
                 <Spinner className="size-5" />
                 <p className="text-ink-3 text-tau-meta m-0">加载题目中...</p>
@@ -276,17 +269,14 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
           confirmText="删除"
           onConfirm={async () => {
             const item = deleteItemConfirm;
-            setDeleteItemConfirm(null);
             if (!item) return;
             try {
               await deleteItem(item.id);
+              setDeleteItemConfirm(null);
               toast.success("题目已删除");
-              // 刷新测验集列表以更新题目数量
-              if (currentProjectId) {
-                fetchQuizSets(currentProjectId);
-              }
             } catch (error) {
               toast.error("删除失败");
+              throw error;
             }
           }}
         />

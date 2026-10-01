@@ -1,6 +1,8 @@
 import { useMemoizedFn } from "ahooks";
 import { useRef, useState, type RefObject } from "react";
 
+import { snapWidth } from "../utils/mediaWidth";
+
 export type ResizeDirection = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 
 interface Size {
@@ -22,6 +24,10 @@ interface UseImageResizeOptions {
   readonly?: boolean;
   keepAspectRatio?: boolean;
   emElementRef?: RefObject<HTMLElement | null>;
+  /** 居中对齐的块：拖一侧时两侧同时伸缩，宽度变化取双倍，把手始终跟手 */
+  symmetric?: boolean;
+  /** 靠近 50% / 75% / 100% 可用宽度时吸附 */
+  snap?: boolean;
 }
 
 export function useImageResize({
@@ -36,9 +42,15 @@ export function useImageResize({
   readonly = false,
   keepAspectRatio = true,
   emElementRef,
+  symmetric = false,
+  snap = false,
 }: UseImageResizeOptions) {
   const [size, setSize] = useState<Size>(initialSize);
   const [isResizing, setIsResizing] = useState(false);
+  /** 拖动中命中的宽度预设（吸附提示用），未命中为 null */
+  const [snappedPreset, setSnappedPreset] = useState<number | null>(null);
+  /** 本次拖动的可用宽度（屏幕像素），用于显示「占比 · 像素」 */
+  const [availableWidth, setAvailableWidth] = useState(0);
   const sizeRef = useRef<Size>(initialSize);
 
   const handleResizeStart = useMemoizedFn((e: React.PointerEvent, direction: ResizeDirection) => {
@@ -67,6 +79,8 @@ export function useImageResize({
           (parseFloat(editorStyle.paddingRight) || 0)
         : maxWidth;
     const widthLimit = element ? availableWidth : maxWidth;
+    setAvailableWidth(Number.isFinite(widthLimit) ? widthLimit : 0);
+    const widthFactor = symmetric ? 2 : 1;
     let moved = false;
 
     // 捕获指针以确保即使离开元素也能获取事件
@@ -85,9 +99,9 @@ export function useImageResize({
 
       // 根据方向计算新的尺寸
       if (direction.includes("e")) {
-        newWidth = startWidth + deltaX;
+        newWidth = startWidth + deltaX * widthFactor;
       } else if (direction.includes("w")) {
-        newWidth = startWidth - deltaX;
+        newWidth = startWidth - deltaX * widthFactor;
       }
 
       if (direction.includes("s")) {
@@ -98,6 +112,11 @@ export function useImageResize({
 
       // 限制最小宽度和最大宽度
       newWidth = Math.max(minWidth, Math.min(newWidth, widthLimit));
+      if (snap && Number.isFinite(widthLimit)) {
+        const snapped = snapWidth(newWidth, widthLimit);
+        newWidth = snapped.width;
+        setSnappedPreset(snapped.preset);
+      }
       newHeight = Math.max(minHeight, Math.min(newHeight, maxHeight));
 
       // 如果需要保持宽高比
@@ -143,6 +162,7 @@ export function useImageResize({
       upEvent.preventDefault();
       upEvent.stopPropagation();
       setIsResizing(false);
+      setSnappedPreset(null);
 
       // 释放指针捕获
       (e.target as HTMLElement).releasePointerCapture(e.pointerId);
@@ -164,6 +184,8 @@ export function useImageResize({
     size,
     setSize,
     isResizing,
+    snappedPreset,
+    availableWidth,
     handleResizeStart,
   };
 }

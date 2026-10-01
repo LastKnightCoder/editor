@@ -38,8 +38,6 @@ export interface ActiveEditingSession {
   contentId: number;
   entityType: EntityType;
   entityId: number | string;
-  tabId?: string;
-  paneId?: string;
   tabType?: string;
   focused: boolean;
   selection: SerializedSelection | null;
@@ -255,8 +253,6 @@ export interface ResolvedContentTarget {
   entityId?: number | string;
   /** 激活编辑会话（active-session 来源）或旧宿主透传的标识 */
   sessionId?: string;
-  tabId?: string;
-  paneId?: string;
   /** 编辑宿主的种类标签（旧 Tab 体系遗留的自由字符串，仅作诊断透传） */
   tabType?: string;
   source: "explicit" | "active-session";

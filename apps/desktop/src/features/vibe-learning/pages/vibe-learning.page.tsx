@@ -13,7 +13,6 @@ export default definePage({
   key: "vibe-learning",
   match: "single", // 列表页全局一份，重复进入原位激活
   label: "Notebook",
-  status: "new",
   params: schema.schema,
   component: VibeLearningListView,
 });

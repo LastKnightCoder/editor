@@ -1,12 +1,5 @@
-import { type ExtensionLayerProps } from "@tau/editor/api";
-import ImagesOverview from "../../components/ImagesOverview/index";
-import MediaUrlInputModal from "../../components/MediaUrlInputModal/index";
+import ImageLightbox from "../../components/ImageLightbox";
 
-export default function MediaLayer({ readOnly }: ExtensionLayerProps) {
-  return (
-    <>
-      <ImagesOverview />
-      {!readOnly && <MediaUrlInputModal />}
-    </>
-  );
+export default function MediaLayer() {
+  return <ImageLightbox />;
 }

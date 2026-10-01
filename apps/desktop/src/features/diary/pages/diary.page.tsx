@@ -17,7 +17,6 @@ export default definePage({
   key: "diary",
   match: "single",
   label: "日记",
-  status: "new",
   params: schema.schema,
   component: DiaryView,
 });

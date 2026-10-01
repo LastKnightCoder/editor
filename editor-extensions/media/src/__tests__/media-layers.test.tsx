@@ -14,8 +14,7 @@ import {
 import { mediaUiExtension } from "../extensions/media-ui/index";
 import { createDefaultEditorSlots } from "../services/defaultSlots";
 import { IEditorSlots } from "../services/tokens";
-import { useImagesOverviewStore } from "../stores/useImagesOverviewStore";
-import useMediaUrlInputStore from "../stores/useMediaUrlInputStore";
+import { useImageLightboxStore } from "../stores/useImageLightboxStore";
 
 it("媒体浮层仅由所属编辑器挂载，返回/隐藏/卸载释放归属与滚动锁", async () => {
   const dismissals = new Set<() => void>();
@@ -80,7 +79,10 @@ it("媒体浮层仅由所属编辑器挂载，返回/隐藏/卸载释放归属�
         </DndProvider>
       )
     );
-  const preview = () => document.body.querySelectorAll("img.cursor-zoom-out");
+  const preview = () =>
+    Array.from(document.body.querySelectorAll('[role="dialog"][aria-label="图片预览"]')).map(
+      dialog => dialog.querySelector("img")!
+    );
   try {
     await render();
     const editors = refs.map(ref => {
@@ -91,9 +93,7 @@ it("媒体浮层仅由所属编辑器挂载，返回/隐藏/卸载释放归属�
     const openImage = (index: number) =>
       act(async () => {
         const editor = editors[index];
-        useImagesOverviewStore
-          .getState()
-          .showImageOverview(editor.children[0] as ImageElement, editor);
+        useImageLightboxStore.getState().open(editor, editor.children[0] as ImageElement);
       });
     await openImage(0);
     expect(preview()).toHaveLength(1);
@@ -103,41 +103,30 @@ it("媒体浮层仅由所属编辑器挂载，返回/隐藏/卸载释放归属�
     expect(preview()).toHaveLength(1);
     expect(preview()[0].getAttribute("src")).toBe(images[1].url);
     await render(false, false);
-    expect(useImagesOverviewStore.getState().editor).toBe(editors[1]);
+    expect(useImageLightboxStore.getState().editor).toBe(editors[1]);
     expect(preview()).toHaveLength(1);
     const unlockOtherOverlay = lockBodyScroll(document);
     await act(async () => [...dismissals][0]());
     expect(preview()).toHaveLength(0);
-    expect(useImagesOverviewStore.getState().editor).toBeNull();
+    expect(useImageLightboxStore.getState().editor).toBeNull();
     expect(document.body.style.overflow).toBe("hidden");
     unlockOtherOverlay();
     expect(document.body.style.overflow).toBe("scroll");
     await openImage(1);
     await render(true, false);
-    expect(useImagesOverviewStore.getState().editor).toBeNull();
+    expect(useImageLightboxStore.getState().editor).toBeNull();
     expect(dismissals.size).toBe(0);
     expect(document.body.style.overflow).toBe("scroll");
     await render(false, false);
     expect(preview()).toHaveLength(0);
-    await act(async () => useMediaUrlInputStore.getState().show(editors[1], "image"));
-    expect(document.body.querySelectorAll('[role="dialog"]')).toHaveLength(1);
-    expect(dismissals.size).toBe(1);
-    await act(async () => [...dismissals][0]());
-    expect(useMediaUrlInputStore.getState().editor).toBeNull();
-    await act(async () => useMediaUrlInputStore.getState().show(editors[1], "image"));
-    await render(false, false, true);
-    expect(useMediaUrlInputStore.getState().editor).toBeNull();
     await openImage(1);
     expect(preview()).toHaveLength(1);
-    await act(async () =>
-      useImagesOverviewStore.getState().showImageOverview({ ...images[0] }, editors[1])
-    );
-    expect(useImagesOverviewStore.getState().editor).toBe(editors[1]);
+    await act(async () => useImageLightboxStore.getState().open(editors[1], { ...images[0] }));
+    expect(useImageLightboxStore.getState().editor).toBe(editors[1]);
   } finally {
     await act(async () => root.unmount());
     host.remove();
-    expect(useImagesOverviewStore.getState().editor).toBeNull();
-    expect(useMediaUrlInputStore.getState().editor).toBeNull();
+    expect(useImageLightboxStore.getState().editor).toBeNull();
     expect(dismissals.size).toBe(0);
     expect(document.body.style.overflow).toBe("scroll");
     document.body.style.overflow = previousOverflow;

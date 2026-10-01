@@ -23,6 +23,9 @@
  * 不随正文滚动（元信息行、标签栏等）；工作台型弹窗（双栏树 + 预览等）不用
  * DialogBody，配合 height 定高由内容自行分栏滚动。
  *
+ * 自定义头部：`header` 整体替换内建标题行与 ×（工作台型弹窗自带导航头时用），
+ * 关闭入口由 header 自行提供；`title` 仍是对话框的无障碍名称。
+ *
  * 尺寸档是预设不是牢笼（D-011）：sm 380 / md 440（默认）/ lg 560，width 任意值覆盖；
  * 高度默认随内容（上限 78vh），height 定高（仍不超 82vh）。
  * 层级：遮罩容器 z-[340]（Toast 200 < Select/Menu 250 < Tooltip 300 之上）。
@@ -59,6 +62,8 @@ export interface DialogProps {
   /** 退场完成且内容卸载后调用，可在此清理业务草稿。 */
   onAfterClose?: () => void;
   title: string;
+  /** 替换内建标题行与 ×；关闭入口由调用方在 header 内提供，title 转为 aria-label */
+  header?: ReactNode;
   /** 标题左侧图标（16px、ink-2，随需出现；阻断通知等场景保持纯文字头部） */
   icon?: ReactNode;
   /** 标题下的次级说明行（meta 字号，随需出现） */
@@ -112,6 +117,7 @@ export function Dialog({
   onOpenChange,
   onAfterClose,
   title,
+  header,
   icon,
   subtitle,
   context,
@@ -245,7 +251,8 @@ export function Dialog({
           }}
           role="dialog"
           aria-modal="true"
-          aria-labelledby={titleId}
+          aria-labelledby={header ? undefined : titleId}
+          aria-label={header ? title : undefined}
           tabIndex={-1}
           onKeyDown={onCardKeyDown}
           style={{ width, height: height ? `min(82vh, ${height}px)` : undefined }}
@@ -261,38 +268,44 @@ export function Dialog({
             className
           )}
         >
-          {!critical && (
-            <IconButton
-              type="button"
-              aria-label="关闭"
-              disabled={locked}
-              onClick={requestClose}
-              className="absolute right-3 top-3 size-[28px] rounded-[8px]"
-            >
-              <X className="size-[14px]" />
-            </IconButton>
+          {header ?? (
+            <>
+              {!critical && (
+                <IconButton
+                  type="button"
+                  aria-label="关闭"
+                  disabled={locked}
+                  onClick={requestClose}
+                  className="absolute right-3 top-3 size-[28px] rounded-[8px]"
+                >
+                  <X className="size-[14px]" />
+                </IconButton>
+              )}
+              <div className="flex items-center gap-2 pl-6 pr-12 pt-[22px]">
+                {icon && (
+                  <span className="text-ink-2 flex size-4 shrink-0 items-center justify-center [&_svg]:size-4">
+                    {icon}
+                  </span>
+                )}
+                <h2
+                  id={titleId}
+                  title={title}
+                  className="text-ink-1 min-w-0 truncate text-[16px] font-[650] leading-[1.45] tracking-[-0.01em]"
+                >
+                  {title}
+                </h2>
+                {context && (
+                  <span className={CHIP_CLASS}>
+                    <span className="bg-accent size-[6px] shrink-0 rounded-full" />
+                    {context}
+                  </span>
+                )}
+              </div>
+              {subtitle && (
+                <p className="text-ink-3 text-tau-meta mt-[3px] pl-6 pr-12">{subtitle}</p>
+              )}
+            </>
           )}
-          <div className="flex items-center gap-2 pl-6 pr-12 pt-[22px]">
-            {icon && (
-              <span className="text-ink-2 flex size-4 shrink-0 items-center justify-center [&_svg]:size-4">
-                {icon}
-              </span>
-            )}
-            <h2
-              id={titleId}
-              title={title}
-              className="text-ink-1 min-w-0 truncate text-[16px] font-[650] leading-[1.45] tracking-[-0.01em]"
-            >
-              {title}
-            </h2>
-            {context && (
-              <span className={CHIP_CLASS}>
-                <span className="bg-accent size-[6px] shrink-0 rounded-full" />
-                {context}
-              </span>
-            )}
-          </div>
-          {subtitle && <p className="text-ink-3 text-tau-meta mt-[3px] pl-6 pr-12">{subtitle}</p>}
           <DialogContext value={{ hasFooter: Boolean(footer || impact) }}>{children}</DialogContext>
           {(footer || impact) && (
             <div

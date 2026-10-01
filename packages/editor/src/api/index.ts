@@ -57,6 +57,7 @@ export type {
   EditorFeedback,
   EditorLoadingHandle,
   EditorConfirmOptions,
+  EditorPromptOptions,
 } from "../services/notifier";
 
 // 主题
@@ -70,7 +71,12 @@ export type { IBlockPanelListItem, IConfigItem } from "../types";
 export type { CustomElement, InlineElement, BlockElement } from "../types/custom-element";
 
 // 源码预览块共用的编辑、聚焦与插入机制
-export { setOrInsertNode, focusInsertedPreviewElement } from "../utils/insertElement";
+export {
+  setOrInsertNode,
+  canSetOrInsertNode,
+  focusInsertedPreviewElement,
+} from "../utils/insertElement";
+export { default as ElementMenu, type ElementMenuProps } from "../components/ElementMenu";
 export { default as InlineChromiumBugfix } from "../components/InlineChromiumBugFix";
 export { default as useIsLastElement } from "../hooks/useIsLastElement";
 export {

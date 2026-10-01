@@ -25,7 +25,7 @@ export function getPageNavigation(): PageNavigationRuntime {
 export function openPage(key: string, params?: Record<string, unknown>) {
   const runtime = getPageNavigation();
   const meta = getPageMeta(key);
-  if (!meta || meta.status === "legacy") throw new Error("该页面尚未实现");
+  if (!meta) throw new Error("该页面尚未实现");
   const clean = sanitizeParams(meta.fields, params);
   if (!clean) throw new Error("页面参数无效");
   runtime.navigator.push(key, clean);
