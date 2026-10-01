@@ -41,6 +41,19 @@ const packagePaths = resolvePackagePaths();
 
 const checks = [
   {
+    name: "tau-cli",
+    code: `
+      const path = require("node:path");
+      const resources = path.resolve(path.dirname(${JSON.stringify(packagePaths?.appAsar ?? "")}));
+      const output = require("node:child_process").execFileSync(process.execPath, [path.join(resources, "cli", "index.js"), "--help"], {
+        env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", NODE_PATH: [path.join(resources, "app.asar.unpacked", "node_modules"), path.join(resources, "app.asar", "node_modules")].join(path.delimiter) },
+        encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 15000,
+      });
+      if (!output.includes("Usage: tau")) throw new Error("packaged Tau CLI failed to start");
+      console.log("tau-cli=ok");
+    `,
+  },
+  {
     name: "pi-runtime",
     code: `
       process.env.TAU_SMOKE_ASAR = require("node:path").resolve(${JSON.stringify(packagePaths?.appAsar ?? "")});
@@ -103,10 +116,14 @@ const checks = [
     name: "@node-rs/jieba",
     code: `
       const { Jieba } = require(${JSON.stringify(packagePaths?.appAsar ?? "")} + "/node_modules/@node-rs/jieba");
-      const jieba = new Jieba();
-      const words = jieba.cutForSearch("系统运行时校验", true);
-      if (!Array.isArray(words) || words.length === 0) {
-        throw new Error("jieba returned no tokens");
+      const { dict, idf } = require(${JSON.stringify(packagePaths?.appAsar ?? "")} + "/node_modules/@node-rs/jieba/dict");
+      if (dict.length < 1_000_000 || idf.length < 1_000_000) {
+        throw new Error("jieba dictionaries are missing or truncated");
+      }
+      const jieba = Jieba.withDict(dict);
+      const words = jieba.cutForSearch("南京市长江大桥", true);
+      if (!words.includes("南京市") || !words.includes("长江大桥")) {
+        throw new Error("jieba dictionary segmentation failed: " + words.join("/"));
       }
       console.log("jieba=ok");
     `,
