@@ -142,7 +142,6 @@ const ChatArea = memo(
               </IconButton>
               {headerActions}
             </div>
-            <WorkspaceBar chatId={currentChat.id} busy={sendLoading} />
 
             <div className="min-h-0 flex-1">
               <Suspense fallback={<Loading minHeight={0} className="h-full" />}>
@@ -160,6 +159,7 @@ const ChatArea = memo(
                   onChatCreated={chatId => onSelectChat(chatId)}
                   contentMaxWidth={READING_WIDTH}
                   emptyState={<EmptyHint />}
+                  composerAccessory={<WorkspaceBar chatId={currentChat.id} busy={sendLoading} />}
                 />
               </Suspense>
             </div>
