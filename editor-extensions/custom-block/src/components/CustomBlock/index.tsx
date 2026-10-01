@@ -17,12 +17,13 @@ interface CustomBlockProps {
 
 const CustomBlock = (props: { content: string }) => {
   const ref = useRef<HTMLDivElement>(null);
-  const { isDark } = useEditorTheme();
+  // 明暗、主题族或 token 变化时对象引用都会变，模板随之重渲染（只重渲染，不重编译）
+  const theme = useEditorTheme();
   const { content } = props;
   const editor = useSlateStatic();
   const compilerService = editor.tryGetService(IRuntimeStyleCompiler);
-  const latestThemeRef = useRef(isDark);
-  latestThemeRef.current = isDark;
+  const latestThemeRef = useRef(theme);
+  latestThemeRef.current = theme;
   // 失败时容器已被上一次的清理清空，没有可保留的旧结果
   const [error, setError] = useState<string | null>(null);
   useReportPreviewError(error, { stale: false });
@@ -38,9 +39,6 @@ const CustomBlock = (props: { content: string }) => {
       content,
       latestThemeRef.current,
       ref.current,
-      {
-        useTheme: useEditorTheme,
-      },
       compilerService,
       abortController.signal
     )
@@ -68,8 +66,8 @@ const CustomBlock = (props: { content: string }) => {
 
   useEffect(() => {
     if (!ref.current) return;
-    rerenderCustomBlockTheme(ref.current, isDark);
-  }, [isDark]);
+    rerenderCustomBlockTheme(ref.current, theme);
+  }, [theme]);
 
   return <div ref={ref}></div>;
 };

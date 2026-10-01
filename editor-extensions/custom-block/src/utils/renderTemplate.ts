@@ -1,6 +1,18 @@
-import * as ahooks from "ahooks";
 import type { Root } from "react-dom/client";
 import type { RuntimeStyleCompiler } from "@tau/shared/runtime-style";
+
+/** 宿主传入的主题：明暗 + 按 token 词取当前计算值（`accent` 取 --ed-accent，缺省回落 --tau-accent） */
+export interface CustomBlockTheme {
+  isDark: boolean;
+  token: (word: string) => string;
+}
+
+/** 模板经 useTokens() 拿到的主题；`theme` 字段只为旧模板的 hooks.useTheme() 保留 */
+interface TemplateTheme {
+  isDark: boolean;
+  theme: "dark" | "light";
+  color: (word: string) => string;
+}
 
 const CUSTOM_BLOCK_ROOT_KEY = "__customBlockRoot__";
 const CUSTOM_BLOCK_RUNTIME_KEY = "__customBlockRuntime__";
@@ -9,19 +21,17 @@ const CUSTOM_BLOCK_PENDING_THEME_KEY = "__customBlockPendingTheme__";
 
 interface CustomBlockRuntime {
   root?: Root;
-  renderWithTheme?: (isDark: boolean) => void;
+  renderWithTheme?: (theme: CustomBlockTheme) => void;
   styleCleanup?: () => void;
   content?: string;
-  pendingTheme?: boolean;
+  pendingTheme?: CustomBlockTheme;
   themeRenderQueued?: boolean;
 }
-
-type CustomBlockHookMap = Record<string, unknown>;
 
 type CustomBlockRuntimeContainer = HTMLElement & {
   [CUSTOM_BLOCK_ROOT_KEY]?: CustomBlockRuntime["root"];
   [CUSTOM_BLOCK_RUNTIME_KEY]?: CustomBlockRuntime;
-  [CUSTOM_BLOCK_PENDING_THEME_KEY]?: boolean;
+  [CUSTOM_BLOCK_PENDING_THEME_KEY]?: CustomBlockTheme;
 };
 
 /**
@@ -54,7 +64,7 @@ export const getCustomBlockRenderTemplate = () => {
 };
 
 const renderErrorMarkup = (error: unknown) =>
-  `<div class="text-red-500 p-4">渲染错误: ${escapeHtml(error instanceof Error ? error.message : String(error))}</div>`;
+  `<div class="text-tau-body text-danger p-4">渲染错误: ${escapeHtml(error instanceof Error ? error.message : String(error))}</div>`;
 
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, char => `&#${char.charCodeAt(0)};`);
 
@@ -64,10 +74,32 @@ export const generateExecutableCode = (content: string): string => {
   return `${prefix}${content}${suffix}`;
 };
 
-const getRuntimeTheme = (isDark: boolean) => ({
-  theme: isDark ? "dark" : "light",
+const toTemplateTheme = ({ isDark, token }: CustomBlockTheme): TemplateTheme => ({
   isDark,
+  theme: isDark ? "dark" : "light",
+  color: word => token(word),
 });
+
+type TauUi = typeof import("@tau/ui");
+
+/** 模板可用的 @tau/ui 子集：只放文档内演示用得到的控件，浮层类组件不进契约 */
+const pickTemplateUi = (ui: TauUi) =>
+  Object.freeze({
+    Button: ui.Button,
+    IconButton: ui.IconButton,
+    Input: ui.Input,
+    Textarea: ui.Textarea,
+    NumberInput: ui.NumberInput,
+    Switch: ui.Switch,
+    Checkbox: ui.Checkbox,
+    RadioGroup: ui.RadioGroup,
+    Radio: ui.Radio,
+    Select: ui.Select,
+    Tag: ui.Tag,
+    Spinner: ui.Spinner,
+  });
+
+let legacyThemeHookWarned = false;
 
 const getRuntimeContainer = (targetElement: HTMLElement) =>
   targetElement as CustomBlockRuntimeContainer;
@@ -90,16 +122,19 @@ const cleanupRuntime = (
   delete container[CUSTOM_BLOCK_PENDING_THEME_KEY];
 };
 
-const scheduleRuntimeThemeRender = (runtime: CustomBlockRuntime | undefined, isDark: boolean) => {
+const scheduleRuntimeThemeRender = (
+  runtime: CustomBlockRuntime | undefined,
+  theme: CustomBlockTheme
+) => {
   if (!runtime?.renderWithTheme) return;
 
-  runtime.pendingTheme = isDark;
+  runtime.pendingTheme = theme;
   if (runtime.themeRenderQueued) return;
 
   runtime.themeRenderQueued = true;
   const flushThemeRender = () => {
     runtime.themeRenderQueued = false;
-    runtime.renderWithTheme?.(runtime.pendingTheme ?? isDark);
+    runtime.renderWithTheme?.(runtime.pendingTheme ?? theme);
   };
 
   if (typeof queueMicrotask === "function") {
@@ -110,21 +145,20 @@ const scheduleRuntimeThemeRender = (runtime: CustomBlockRuntime | undefined, isD
   Promise.resolve().then(flushThemeRender);
 };
 
-export const rerenderCustomBlockTheme = (targetElement: HTMLElement, isDark: boolean) => {
+export const rerenderCustomBlockTheme = (targetElement: HTMLElement, theme: CustomBlockTheme) => {
   const container = getRuntimeContainer(targetElement);
   const runtime = container[CUSTOM_BLOCK_RUNTIME_KEY] as CustomBlockRuntime | undefined;
   if (!runtime?.renderWithTheme) {
-    container[CUSTOM_BLOCK_PENDING_THEME_KEY] = isDark;
+    container[CUSTOM_BLOCK_PENDING_THEME_KEY] = theme;
     return;
   }
-  scheduleRuntimeThemeRender(runtime, isDark);
+  scheduleRuntimeThemeRender(runtime, theme);
 };
 
 export const compileAndExecuteCustomBlock = async (
   content: string,
-  isDark: boolean,
+  theme: CustomBlockTheme,
   targetElement: HTMLElement,
-  hooks?: CustomBlockHookMap,
   compilerService?: RuntimeStyleCompiler,
   abortSignal?: AbortSignal
 ): Promise<(() => void) | undefined> => {
@@ -136,7 +170,7 @@ export const compileAndExecuteCustomBlock = async (
     existingRuntime.renderWithTheme &&
     existingRuntime.root
   ) {
-    existingRuntime.renderWithTheme(isDark);
+    existingRuntime.renderWithTheme(theme);
     return () => {
       cleanupRuntime(container, existingRuntime);
     };
@@ -174,10 +208,11 @@ export const compileAndExecuteCustomBlock = async (
     }
 
     // 动态导入依赖
-    const [React, ReactDOM, Babel] = await Promise.all([
+    const [React, ReactDOM, Babel, TauUi] = await Promise.all([
       import("react"),
       import("react-dom/client"),
       import("@babel/standalone"),
+      import("@tau/ui"),
     ]);
 
     if (shouldAbort()) {
@@ -185,11 +220,18 @@ export const compileAndExecuteCustomBlock = async (
     }
 
     // 编译期间主题可能已变化，优先消费等待生效的最新主题
-    const effectiveIsDark = container[CUSTOM_BLOCK_PENDING_THEME_KEY] ?? isDark;
+    const effectiveTheme = container[CUSTOM_BLOCK_PENDING_THEME_KEY] ?? theme;
     delete container[CUSTOM_BLOCK_PENDING_THEME_KEY];
 
-    const ThemeContext = React.createContext(getRuntimeTheme(effectiveIsDark));
-    const useRuntimeTheme = () => React.useContext(ThemeContext);
+    const ThemeContext = React.createContext(toTemplateTheme(effectiveTheme));
+    const useTokens = () => React.useContext(ThemeContext);
+    const useLegacyTheme = () => {
+      if (!legacyThemeHookWarned) {
+        legacyThemeHookWarned = true;
+        console.warn("[custom-block] hooks.useTheme() 已废弃，请改用 useTokens()");
+      }
+      return useTokens();
+    };
 
     const normalizedCode = generateExecutableCode(content);
     const compiledCode =
@@ -218,9 +260,11 @@ export const compileAndExecuteCustomBlock = async (
 
     const fn = new AsyncFunction(
       "React",
+      "ui",
+      "toast",
+      "useTokens",
       "components",
       "hooks",
-      "extraInfo",
       compiledCode + "\nreturn typeof Component === 'function' ? Component : undefined;"
     );
 
@@ -228,15 +272,14 @@ export const compileAndExecuteCustomBlock = async (
       return undefined;
     }
 
+    // components / hooks 只为存量模板保留（antd 访问报错、useTheme 告警），存量重写完成后删除
     const Component = await fn(
       React,
+      pickTemplateUi(TauUi),
+      TauUi.toast,
+      useTokens,
       createTemplateComponents(),
-      {
-        ...ahooks,
-        ...hooks,
-        useTheme: useRuntimeTheme,
-      },
-      getRuntimeTheme(effectiveIsDark)
+      Object.freeze({ useTheme: useLegacyTheme })
     );
 
     if (typeof Component !== "function") {
@@ -275,21 +318,15 @@ export const compileAndExecuteCustomBlock = async (
       }
     }
 
-    const renderWithTheme = (nextIsDark: boolean) => {
+    const renderWithTheme = (nextTheme: CustomBlockTheme) => {
       const root = ensureRoot();
       root?.render?.(
         React.createElement(
           ThemeContext.Provider,
-          { value: getRuntimeTheme(nextIsDark) },
+          { value: toTemplateTheme(nextTheme) },
           React.createElement(
             "div",
-            {
-              style: {
-                height: "100%",
-                fontSize: "var(--font-size)",
-                color: "var(--ed-text)",
-              },
-            },
+            { style: { height: "100%", color: "var(--ed-text)" } },
             React.createElement(TemplateErrorBoundary, null, React.createElement(Component))
           )
         )
@@ -297,7 +334,7 @@ export const compileAndExecuteCustomBlock = async (
       return root;
     };
 
-    const root = renderWithTheme(effectiveIsDark);
+    const root = renderWithTheme(effectiveTheme);
 
     const runtime: CustomBlockRuntime = {
       root,
