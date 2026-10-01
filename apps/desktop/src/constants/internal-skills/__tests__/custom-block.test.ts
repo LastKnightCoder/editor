@@ -26,6 +26,7 @@ const LEGACY_PATTERNS: Array<[string, RegExp]> = [
   ["isDark 选色", /isDark\s*\?/],
   ["Tailwind 调色板", /\b(?:bg|text|border|from|to|via)-[a-z]+-\d{2,3}\b/],
   ["拼接类名", /\b(?:bg|text|border)-[\w-]*\$\{/],
+  ["深色舞台 bg-sunken", /\bbg-sunken\b/],
 ];
 const LITERAL_COLOR = /#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(/;
 
