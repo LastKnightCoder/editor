@@ -3,7 +3,9 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const { tmpdir } = require("node:os");
 const path = require("node:path");
-const { pruneJavaScriptSourceMaps } = require("./prune-packaged-native-modules.cjs");
+const {
+  pruneJavaScriptSourceMaps,
+} = require("../apps/desktop/scripts/prune-packaged-native-modules.cjs");
 
 test("递归删除 JavaScript 调试映射，保留执行代码、类型、数据映射和二进制", () => {
   const root = fs.mkdtempSync(path.join(tmpdir(), "tau-package-maps-"));

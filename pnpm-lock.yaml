@@ -641,9 +641,6 @@ importers:
       '@firecrawl/anydoc':
         specifier: ^0.2.4
         version: 0.2.4
-      '@hocuspocus/provider':
-        specifier: 4.6.0
-        version: 4.6.0(y-protocols@1.0.7(yjs@13.6.32))(yjs@13.6.32)
       '@myriaddreamin/typst-ts-node-compiler':
         specifier: 0.6.1-rc3
         version: 0.6.1-rc3
@@ -656,39 +653,18 @@ importers:
       '@tailwindcss/oxide':
         specifier: ^4.1.17
         version: 4.1.18
-      '@tanstack/react-query':
-        specifier: ^5.101.0
-        version: 5.101.0(react@19.2.0)
-      '@tau/collaboration':
-        specifier: workspace:*
-        version: link:../../packages/collaboration
-      '@tau/contracts':
-        specifier: workspace:*
-        version: link:../../packages/contracts
-      '@tau/rpc':
-        specifier: workspace:*
-        version: link:../../packages/rpc
       '@vscode/ripgrep':
         specifier: ^1.15.14
         version: 1.18.0
       better-sqlite3:
         specifier: ^12.10.0
         version: 12.10.0(patch_hash=28e507a141733e7011377e4879c00f5fc51e4360f7736bbfeee8fe8ed0c8126f)
-      d3-force:
-        specifier: 3.0.0
-        version: 3.0.0
-      d3-quadtree:
-        specifier: 3.0.1
-        version: 3.0.1
       electron-updater:
         specifier: ^6.6.4
         version: 6.8.9
       font-list:
         specifier: ^1.5.1
         version: 1.6.0
-      fuse.js:
-        specifier: ^7.4.1
-        version: 7.4.1
       node-llama-cpp:
         specifier: 3.20.0
         version: 3.20.0(typescript@5.8.3)
@@ -698,21 +674,12 @@ importers:
       proxy-agent:
         specifier: ^5.0.0
         version: 5.0.0
-      remark-cjk-friendly:
-        specifier: ^2.3.1
-        version: 2.3.1(@types/mdast@4.0.4)(micromark-util-types@2.0.3)(micromark@4.0.2)(unified@11.0.5)
-      remark-cjk-friendly-gfm-strikethrough:
-        specifier: ^2.3.1
-        version: 2.3.1(@types/mdast@4.0.4)(micromark-util-types@2.0.3)(micromark@4.0.2)(unified@11.0.5)
       sharp:
         specifier: ^0.34.4
         version: 0.34.5
       sqlite-vec:
         specifier: 0.1.7-alpha.2
         version: 0.1.7-alpha.2
-      tailwind-merge:
-        specifier: ^3.7.0
-        version: 3.7.0
       tailwindcss:
         specifier: ^4.1.11
         version: 4.1.18
@@ -722,12 +689,6 @@ importers:
       ws:
         specifier: ^8.18.3
         version: 8.18.3
-      y-protocols:
-        specifier: 1.0.7
-        version: 1.0.7(yjs@13.6.32)
-      yjs:
-        specifier: 13.6.32
-        version: 13.6.32
     devDependencies:
       '@actions/github':
         specifier: ^6.0.0
@@ -795,6 +756,9 @@ importers:
       '@embedpdf/plugin-zoom':
         specifier: ^1.4.1
         version: 1.5.0(eeff7f0fa2e45b54b8bc8f9f204b4302)
+      '@hocuspocus/provider':
+        specifier: 4.6.0
+        version: 4.6.0(y-protocols@1.0.7(yjs@13.6.32))(yjs@13.6.32)
       '@loadable/component':
         specifier: ^5.15.3
         version: 5.16.7(react@19.2.0)
@@ -810,12 +774,21 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.1.17
         version: 4.1.18(vite@7.2.4(@types/node@20.19.27)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0))
+      '@tanstack/react-query':
+        specifier: ^5.101.0
+        version: 5.101.0(react@19.2.0)
       '@tanstack/react-virtual':
         specifier: 3.13.12
         version: 3.13.12(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@tau/chat-ui':
         specifier: workspace:*
         version: link:../../packages/chat-ui
+      '@tau/collaboration':
+        specifier: workspace:*
+        version: link:../../packages/collaboration
+      '@tau/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@tau/editor':
         specifier: workspace:*
         version: link:../../packages/editor
@@ -906,6 +879,9 @@ importers:
       '@tau/platform':
         specifier: workspace:*
         version: link:../../packages/platform
+      '@tau/rpc':
+        specifier: workspace:*
+        version: link:../../packages/rpc
       '@tau/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -1029,6 +1005,12 @@ importers:
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
+      d3-force:
+        specifier: 3.0.0
+        version: 3.0.0
+      d3-quadtree:
+        specifier: 3.0.1
+        version: 3.0.1
       dayjs:
         specifier: ^1.11.13
         version: 1.11.23
@@ -1095,6 +1077,9 @@ importers:
       fs-extra:
         specifier: ^11.3.0
         version: 11.4.0
+      fuse.js:
+        specifier: ^7.4.1
+        version: 7.4.1
       gsap:
         specifier: ^3.12.5
         version: 3.14.2
@@ -1197,6 +1182,12 @@ importers:
       rehype-katex:
         specifier: ^7.0.1
         version: 7.0.1
+      remark-cjk-friendly:
+        specifier: ^2.3.1
+        version: 2.3.1(@types/mdast@4.0.4)(micromark-util-types@2.0.3)(micromark@4.0.2)(unified@11.0.5)
+      remark-cjk-friendly-gfm-strikethrough:
+        specifier: ^2.3.1
+        version: 2.3.1(@types/mdast@4.0.4)(micromark-util-types@2.0.3)(micromark@4.0.2)(unified@11.0.5)
       remark-directive:
         specifier: ^3.0.1
         version: 3.0.1
@@ -1242,6 +1233,9 @@ importers:
       swiper:
         specifier: ^11.0.3
         version: 11.2.10
+      tailwind-merge:
+        specifier: ^3.7.0
+        version: 3.7.0
       typescript:
         specifier: ^5.0.4
         version: 5.8.3
@@ -1275,9 +1269,15 @@ importers:
       words-count:
         specifier: ^2.0.2
         version: 2.0.2
+      y-protocols:
+        specifier: 1.0.7
+        version: 1.0.7(yjs@13.6.32)
       yaml:
         specifier: ^2.7.1
         version: 2.9.0
+      yjs:
+        specifier: 13.6.32
+        version: 13.6.32
       zustand:
         specifier: ^4.3.8
         version: 4.5.7(@types/react@19.2.0)(immer@10.2.0)(react@19.2.0)
