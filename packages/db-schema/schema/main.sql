@@ -330,13 +330,15 @@ CREATE TABLE IF NOT EXISTS web_view_preference (
         project_item_id INTEGER PRIMARY KEY,
         preferred_content_id INTEGER
       );
-CREATE TABLE IF NOT EXISTS content_link (
-        id INTEGER PRIMARY KEY,
-        create_time INTEGER NOT NULL,
-        source_id INTEGER NOT NULL,
-        source_type TEXT NOT NULL,
-        target_id INTEGER NOT NULL,
-        target_type TEXT NOT NULL
+CREATE TABLE IF NOT EXISTS entity_lineage (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        src_kind TEXT NOT NULL,
+        src_id TEXT NOT NULL,
+        src_anchor TEXT,
+        dst_kind TEXT NOT NULL,
+        dst_id TEXT NOT NULL,
+        relation TEXT NOT NULL,
+        create_time INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS resource_sync_blacklist (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -703,9 +705,9 @@ CREATE INDEX IF NOT EXISTS idx_project_item_podcast_id ON project_item(podcast_i
 CREATE INDEX IF NOT EXISTS idx_web_link_source ON web_link(source_type);
 CREATE INDEX IF NOT EXISTS idx_web_clip_content_id ON web_clip(content_id);
 CREATE INDEX IF NOT EXISTS idx_web_note_project ON web_note(project_item_id);
-CREATE INDEX IF NOT EXISTS idx_content_link_source ON content_link(source_id, source_type);
-CREATE INDEX IF NOT EXISTS idx_content_link_target ON content_link(target_id, target_type);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_content_link_unique ON content_link(source_id, source_type, target_id, target_type);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_entity_lineage_unique
+      ON entity_lineage(src_kind, src_id, dst_kind, dst_id, relation);
+CREATE INDEX IF NOT EXISTS idx_entity_lineage_dst ON entity_lineage(dst_kind, dst_id);
 CREATE INDEX IF NOT EXISTS idx_resource_sync_blacklist_file_name ON resource_sync_blacklist(file_name);
 CREATE INDEX IF NOT EXISTS idx_publish_selections_type
       ON publish_selections(content_type);

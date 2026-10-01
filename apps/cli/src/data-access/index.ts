@@ -5,6 +5,7 @@ import { upgradeKnowledgeDatabase } from "@tau/db-schema/src/knowledge-migration
 import { retireSubscriptions } from "@tau/db-schema/src/subscription-retirement";
 import { retireFeatureTables } from "@tau/db-schema/src/feature-table-retirement";
 import { retireEditorBlocks } from "@tau/db-schema/src/editor-block-retirement";
+import { retireContentLink } from "@tau/db-schema/src/content-link-retirement";
 import { migrateKnowledgeIndex } from "@tau/db-schema/src/knowledge-index-migration";
 import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
@@ -39,6 +40,7 @@ export class DataAccess {
       retireSubscriptions(this.db, dbPath);
       retireFeatureTables(this.db, dbPath);
       upgradeKnowledgeDatabase(this.db, dbPath, { skipBackup: options.skipMigrationBackup });
+      retireContentLink(this.db, dbPath);
       retireEditorBlocks(this.db, dbPath);
       const indexPath = getIndexDbPath(dbName);
       if (options.migrateIndex !== false && existsSync(indexPath)) {

@@ -42,8 +42,8 @@ import {
   getHomeDir,
   createWebClip,
   updateWebClip,
-  createContentLink,
 } from "@/commands";
+import { findClippedWebClipId, recordWebClip } from "@/commands/lineage";
 import {
   remoteResourceToLocal,
   getContentHTML,
@@ -74,7 +74,6 @@ import {
   openExternal,
   updateProjectItem,
   updateWebLink,
-  queryContentLinkBySource,
   getWebClipById,
   getContentById,
   createContent,
@@ -293,14 +292,10 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   useEffect(() => {
     const loadExistingWebClip = async () => {
       try {
-        const links = await queryContentLinkBySource({
-          sourceId: projectItemId,
-          sourceType: "project_item",
-          targetType: "web_clip",
-        });
+        const webClipId = await findClippedWebClipId(projectItemId);
 
-        if (links.length > 0) {
-          const webClip = await getWebClipById(links[0].targetId);
+        if (webClipId) {
+          const webClip = await getWebClipById(webClipId);
           if (webClip) {
             setSavedWebClip(webClip);
             // 已解析过的网页默认进「文档」阅读
@@ -403,14 +398,10 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       throw new Error("无法获取网页 URL");
     }
 
-    const links = await queryContentLinkBySource({
-      sourceId: projectItemId,
-      sourceType: "project_item",
-      targetType: "web_clip",
-    });
+    const existingWebClipId = await findClippedWebClipId(projectItemId);
 
-    if (links.length > 0) {
-      const existingWebClip = await getWebClipById(links[0].targetId);
+    if (existingWebClipId) {
+      const existingWebClip = await getWebClipById(existingWebClipId);
       if (existingWebClip) {
         const previous = await getContentById(existingWebClip.contentId);
         await updateContent(existingWebClip.contentId, content, previous?.revision);
@@ -434,12 +425,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       url: currentUrl,
       title: title || "解析文档",
     });
-    await createContentLink({
-      sourceId: projectItemId,
-      sourceType: "project_item",
-      targetId: createdWebClip.id,
-      targetType: "web_clip",
-    });
+    await recordWebClip(projectItemId, createdWebClip.id);
     setSavedWebClip(createdWebClip);
     return createdWebClip;
   });
