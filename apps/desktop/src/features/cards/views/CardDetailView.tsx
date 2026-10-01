@@ -96,6 +96,7 @@ import {
 import { CATEGORY_COLORS } from "../categoryColors";
 import { AddCardLinkDialog, CardDetailLinks } from "../components/CardDetailLinks";
 import { CategoryBadge } from "../components/CardItemView";
+import { ContextBadge } from "@/features/context/components/ContextBadge";
 
 /** copy utils 的 MessageApi 是结构类型，toast 同形适配（不引 antd message） */
 const toastAdapter = {
@@ -298,6 +299,7 @@ export function CardDetailView() {
                   创建于 {formatDate(card.create_time, true)} · 最后修改{" "}
                   {formatDate(card.update_time, true)} · {card.count.toLocaleString("zh-CN")} 字
                 </span>
+                <ContextBadge entity={{ kind: "card", id: card.id }} />
 
                 {/* ⋯ 更多（时间右侧）：按频率排布——场景（演示/沉浸，高频）与连接在前，
                   复制/导出居中，生成类（制卡/播客，低频）收二级垫底，删除殿后。

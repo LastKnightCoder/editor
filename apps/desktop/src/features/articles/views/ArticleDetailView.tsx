@@ -90,6 +90,7 @@ import {
   resolveEditorHeaderAnchor,
   type OutlineHeader,
 } from "@/components/ContentOutline";
+import { ContextBadge } from "@/features/context/components/ContextBadge";
 
 /** copy utils 的 MessageApi 是结构类型，toast 同形适配（不引 antd message） */
 const toastAdapter = {
@@ -439,6 +440,7 @@ export function ArticleDetailView() {
             }}
             onChangeCover={() => void handleChangeCover()}
             changingCover={changingCover}
+            extraMeta={<ContextBadge entity={{ kind: "article", id: editingArticle.id }} />}
             actions={
               <span className="flex items-center gap-1">
                 {/* 协作：已共享时常驻成员条（点开成员 Popover）；未共享不占位，由 ⋯「发起协作」打开对话框 */}
