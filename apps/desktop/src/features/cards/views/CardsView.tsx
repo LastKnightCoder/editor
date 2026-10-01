@@ -408,6 +408,8 @@ export function CardsView() {
           if (!pendingDelete) return;
           try {
             await mutations.remove.mutateAsync(pendingDelete.id);
+            /* 删除的是正在预览的卡片时直接收起预览（不走关闭落盘，卡片已不存在） */
+            if (previewCardId === pendingDelete.id) setPreviewCardId(null);
             deleteBridge.current?.resolve();
             toast.success("已删除");
           } catch {
