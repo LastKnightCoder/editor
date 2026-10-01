@@ -190,15 +190,18 @@ export function CockpitRecentCard({
           className="text-[14.5px] font-semibold tracking-[-0.005em]"
         />
         {item.lastItemTitle && <LastItem title={item.lastItemTitle} className="mt-1" />}
-        <p className="text-ink-3 mt-1.5 text-[11.5px] tabular-nums">
-          {item.openedAt !== null && formatOpenedAt(item.openedAt)} · {item.metric}{" "}
-          {copy.metricUnit}
-        </p>
+        {/* 「继续」与 meta 同行、在文档行之下，不压住上次看到的标题 */}
+        <div className="mt-2 flex h-6 items-center gap-3">
+          <p className="text-ink-3 min-w-0 flex-1 truncate text-[11.5px] tabular-nums">
+            {item.openedAt !== null && formatOpenedAt(item.openedAt)} · {item.metric}{" "}
+            {copy.metricUnit}
+          </p>
+          <span className="bg-accent-soft text-accent-text inline-flex h-6 shrink-0 items-center gap-1 rounded-[7px] px-2.5 text-[12px] font-medium opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100">
+            继续
+            <ArrowRight className="size-[13px]" strokeWidth={1.75} />
+          </span>
+        </div>
       </div>
-      <span className="bg-accent-soft text-accent-text absolute bottom-3 right-3.5 inline-flex h-[26px] items-center gap-1 rounded-[8px] px-2.5 text-[12px] font-medium opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100">
-        继续
-        <ArrowRight className="size-[13px]" strokeWidth={1.75} />
-      </span>
     </article>
   );
 }
