@@ -7,13 +7,13 @@
 import React, { useMemo } from "react";
 import { EntityPicker } from "@/components/EntityPicker";
 import type { EntityCandidate, EntityKind } from "@/types/entity";
-import type { SearchResult, IndexType } from "@/types/search";
+import type { ContentIndexType, SearchResult } from "@/types/search";
 
 export interface ContentSelectorModalProps {
   open: boolean;
   onCancel: () => void;
   onSelect: (items: SearchResult | SearchResult[]) => void;
-  contentType: IndexType | IndexType[];
+  contentType: ContentIndexType | ContentIndexType[];
   multiple?: boolean;
   /** 按实体 id 排除（置灰「已关联」） */
   excludeIds?: number[];
@@ -27,14 +27,14 @@ export interface ContentSelectorModalProps {
   initialContents?: SearchResult[];
 }
 
-const INDEX_TO_KIND: Record<IndexType, EntityKind> = {
+const INDEX_TO_KIND: Record<ContentIndexType, EntityKind> = {
   card: "card",
   article: "article",
   "project-item": "project_item",
   "diary-daily": "diary",
 };
 
-const KIND_TO_INDEX: Partial<Record<EntityKind, IndexType>> = {
+const KIND_TO_INDEX: Partial<Record<EntityKind, ContentIndexType>> = {
   card: "card",
   article: "article",
   project_item: "project-item",

@@ -45,6 +45,8 @@ import {
   matchCommands,
   scopeLabel,
   scopeIcon,
+  scopeOfType,
+  scopeTypes,
   isReplayableVisit,
   type PaletteCommand,
   type PaletteScope,
@@ -56,7 +58,7 @@ import { toggleAssistFor } from "@/app/assistOwner";
 import { useThemeStore } from "@tau/themes/react";
 import { Spinner, toast } from "@tau/ui";
 import { openMarkdownInNewWindow } from "@/commands/file";
-import type { IndexType, SearchResult } from "@/types";
+import type { SearchResult } from "@/types";
 import { captureQuestion } from "@/commands/question";
 import { looksLikeQuestion, parseCapture } from "@/features/questions/capture";
 import { describeQuickAdd, parseQuickAdd as parseTodoQuickAdd } from "@/features/todos/quickAdd";
@@ -160,7 +162,7 @@ export function SearchPalette() {
   const debouncedQ = useDebouncedValue(trimmedQ, 250);
 
   const activeTypes = useMemo(() => {
-    const t = SCOPE_ORDER.filter(s => s !== "cmd" && scopes.has(s)) as IndexType[];
+    const t = SCOPE_ORDER.filter(s => scopes.has(s)).flatMap(scopeTypes);
     return t.length ? t : undefined;
   }, [scopes]);
 
@@ -655,7 +657,8 @@ export function SearchPalette() {
     if (!trimmedQ) return counts;
     counts.set("cmd", commands.length);
     (contentQuery.data ?? []).forEach(r => {
-      counts.set(r.type, (counts.get(r.type) ?? 0) + 1);
+      const scope = scopeOfType(r.type);
+      counts.set(scope, (counts.get(scope) ?? 0) + 1);
     });
     return counts;
   }, [trimmedQ, commands.length, contentQuery.data]);

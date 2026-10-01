@@ -27,6 +27,9 @@ const sample = (): MainContentIndexStats => ({
     article: counts(0, 0, 1),
     "project-item": counts(0, 0, 0),
     "diary-daily": counts(0, 0, 0),
+    excerpt: counts(0, 0, 0),
+    "pdf-annotation": counts(0, 0, 0),
+    "web-clip": counts(0, 0, 0),
   },
 });
 
