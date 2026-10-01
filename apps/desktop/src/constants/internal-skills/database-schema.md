@@ -354,16 +354,17 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ### `database_item`
 
-| 字段            | SQLite 定义                  |
-| --------------- | ---------------------------- |
-| `id`            | `INTEGER PRIMARY KEY`        |
-| `create_time`   | `INTEGER NOT NULL`           |
-| `update_time`   | `INTEGER NOT NULL`           |
-| `title`         | `TEXT NOT NULL`              |
-| `desc`          | `TEXT`                       |
-| `archived`      | `INTEGER DEFAULT 0`          |
-| `pinned`        | `INTEGER DEFAULT 0`          |
-| `data_table_id` | `INTEGER NOT NULL DEFAULT 0` |
+| 字段             | SQLite 定义                  |
+| ---------------- | ---------------------------- |
+| `id`             | `INTEGER PRIMARY KEY`        |
+| `create_time`    | `INTEGER NOT NULL`           |
+| `update_time`    | `INTEGER NOT NULL`           |
+| `title`          | `TEXT NOT NULL`              |
+| `desc`           | `TEXT`                       |
+| `archived`       | `INTEGER DEFAULT 0`          |
+| `pinned`         | `INTEGER DEFAULT 0`          |
+| `data_table_id`  | `INTEGER NOT NULL DEFAULT 0` |
+| `last_open_time` | `INTEGER`                    |
 
 ### `project`
 
@@ -793,15 +794,18 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ### `vibe_learning_project`
 
-| 字段          | SQLite 定义           |
-| ------------- | --------------------- |
-| `id`          | `INTEGER PRIMARY KEY` |
-| `create_time` | `INTEGER NOT NULL`    |
-| `update_time` | `INTEGER NOT NULL`    |
-| `title`       | `TEXT NOT NULL`       |
-| `desc`        | `TEXT`                |
-| `archived`    | `INTEGER DEFAULT 0`   |
-| `pinned`      | `INTEGER DEFAULT 0`   |
+| 字段                | SQLite 定义           |
+| ------------------- | --------------------- |
+| `id`                | `INTEGER PRIMARY KEY` |
+| `create_time`       | `INTEGER NOT NULL`    |
+| `update_time`       | `INTEGER NOT NULL`    |
+| `title`             | `TEXT NOT NULL`       |
+| `desc`              | `TEXT`                |
+| `archived`          | `INTEGER DEFAULT 0`   |
+| `pinned`            | `INTEGER DEFAULT 0`   |
+| `last_open_time`    | `INTEGER`             |
+| `last_open_kind`    | `TEXT`                |
+| `last_open_item_id` | `INTEGER`             |
 
 ### `vibe_learning_resources`
 

@@ -3,6 +3,7 @@
  * 列表全量轻表，变更后整域 ["vibe-learning"] 失效重拉。
  */
 
+import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   listVibeLearningProjects,
@@ -10,8 +11,13 @@ import {
   createVibeLearningProject,
   updateVibeLearningProject,
   deleteVibeLearningProject,
+  recordVibeLearningProjectOpen,
 } from "@/commands/vibe-learning-project";
-import type { VibeLearningProject, VibeLearningProjectSummary } from "@/types";
+import type {
+  VibeLearningOpenedItem,
+  VibeLearningProject,
+  VibeLearningProjectSummary,
+} from "@/types";
 import type { CockpitMutations } from "@/features/shared/cockpit/types";
 
 /* 空值兜底用模块级常量：?? [] 每次渲染新建引用会击穿下游 useMemo deps 链 */
@@ -28,6 +34,26 @@ export function useVibeLearningSnapshot(): {
     refetchOnWindowFocus: true,
   });
   return { items: query.data ?? EMPTY_ITEMS, loading: query.isPending };
+}
+
+/** 记录打开：进入 Notebook 或切换资料 / 笔记各记一次；item 缺省时保留上次打开的条目 */
+export function useRecordVibeLearningOpen(
+  id: number,
+  item: VibeLearningOpenedItem | undefined,
+  ready: boolean
+) {
+  const queryClient = useQueryClient();
+  const kind = item?.kind;
+  const itemId = item?.id;
+  useEffect(() => {
+    if (!ready) return;
+    recordVibeLearningProjectOpen(
+      id,
+      kind && itemId !== undefined ? { kind, id: itemId } : undefined
+    )
+      .then(() => queryClient.invalidateQueries({ queryKey: ["vibe-learning", "list"] }))
+      .catch(error => console.error("[vibe-learning] 记录打开失败", error));
+  }, [id, kind, itemId, ready, queryClient]);
 }
 
 export function useVibeLearningDetail(id: number): {

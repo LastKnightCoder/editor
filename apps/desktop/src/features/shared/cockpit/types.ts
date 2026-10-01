@@ -2,7 +2,7 @@
  * 「列表驾驶舱」共享契约。
  *
  * 项目 / 数据库 / Vibe Learning 原本是同一张 project 表的三种类型，拆成三个独立模块后
- * 列表页形态仍然一致（置顶 hero 段 + 全部网格 + 归档折叠段 + 新建/编辑弹窗），
+ * 列表页形态仍然一致（排序 + 网格 / 列表排布 + 最近打开 + 归档折叠段 + 新建/编辑弹窗），
  * 差异只在文案、类型色与「大数字」的口径，故以配置驱动同一套组件。
  */
 
@@ -16,9 +16,14 @@ export interface CockpitItem {
   desc: Descendant[];
   archived: boolean;
   pinned: boolean;
+  createTime: number;
   updateTime: number;
   /** 卡面大数字（项目=文档数，数据库=行数，学习=资源数） */
   metric: number;
+  /** 最近一次打开；从未打开为 null */
+  openedAt: number | null;
+  /** 上次看到的子条目标题（项目=文档，Notebook=资料或笔记）；没有记录或模块无子条目时为 null */
+  lastItemTitle: string | null;
 }
 
 /** 类型色与图标（原 projectTypeMeta 的一份，按模块各自持有） */
@@ -28,7 +33,7 @@ export interface CockpitVisual {
   softClass: string;
   /** 图标前景色 */
   textClass: string;
-  /** hero 卡顶缘 3px 身份线 */
+  /** 续读卡顶缘 3px 身份线 */
   barClass: string;
 }
 
@@ -41,12 +46,14 @@ export interface CockpitVisual {
 export interface CockpitCopy {
   /** 页面标题，也用作无标题条目的占位（`{title} #12`） */
   title: string;
-  /** hero 卡上的类型徽章 */
-  badgeLabel: string;
   /** 摘要行的条目单位，渲染为 `3 个 Notebook` */
   entityUnit: string;
   /** 大数字单位，渲染为 `12 份资料`（摘要行与卡面共用） */
   metricUnit: string;
+  /** 列表排布里大数字那一列的列头 */
+  metricLabel: string;
+  /** 「最近打开」段头的说明 */
+  recentHint: string;
   /** 主按钮与空态按钮 */
   createLabel: string;
   /** 新建 / 编辑弹窗标题 */

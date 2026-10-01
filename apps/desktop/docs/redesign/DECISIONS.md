@@ -1,13 +1,16 @@
 # 决策记录（轻量 ADR）
 
-## D-092 项目列表网格 / 列表排布与最近打开
+## D-092 驾驶舱列表（项目 / 数据库 / Notebook）网格 / 列表排布与最近打开
 
-（2026-10-01，用户确认 `mockups/projects/view-toggle.html` 方案 A）
+（2026-10-01，用户确认 `mockups/projects/view-toggle.html` 方案 A；同日追加数据库与 Notebook 同样改造）
 
-- 背景：项目页只有驾驶舱网格（置顶 hero 段 + 全部紧凑卡），无法换排布，也没有「最近打开」——回到上次看的项目只能靠记忆翻网格。参照 PDF / 微信读书书架补齐，取代 D-031 的「无排序 UI」与置顶 hero 段（仅项目页；数据库与 Vibe Learning 仍用驾驶舱默认形态）。
-- 选择：① **网格 / 列表两种排布**，切换入口在工具栏，用「按钮 + Menu」（命令项高亮当前项，不用 Segmented / Radio，同 D-024 追记口径），本机偏好；② **项目没有封面，网格即卡片**——标题、两行简介、「上次看到」文档条（有记录才显示）、meta 行，同行等高；③ **网格顶部「最近打开」续读行**（最近 3 个打开过的项目，显示上次看到的文档），列表不放这一段，由「上次打开」列承担；④ **排序**：最近打开（默认）/ 最近更新 / 名称 / 创建时间，置顶在任何排序下都排最前（带星标），原置顶 hero 段并入全部区；列表可点列头排序；⑤ **打开即续读**：从列表打开项目时，有上次停留的文档就带 `itemId` 定位过去。
-- 数据：`project` 表加 `last_open_time` / `last_open_item_id` 两个可空列（`30_project.sql`；桌面 `ProjectTable.upgradeTable` 补列，表 / 索引数不变）。`project:record-open`（项目详情页进入或切换文档时写；不带文档时只刷新时间、保留上次文档）**不改 update_time、不记 operation**——打开不是内容修改，「最近更新」排序与同步都不应被它扰动；`project:open-states` 返回 projectId → 打开时间 + 上次文档（文档已删除或移出项目时为 null），独立 queryKey，记录后只失效这一项。
-- 实现：驾驶舱 `EntityCockpit` 增加 `toolbar` / `renderActive` / `renderArchived` 扩展位（默认行为不变），项目页在其上装配；条目组件在 `features/projects/components/ProjectItems.tsx`，排序与时间展示是 `model.ts` 纯函数，偏好在 `prefs.ts`。
+- 背景：三个驾驶舱列表只有网格（置顶 hero 段 + 全部紧凑卡），无法换排布，也没有「最近打开」——回到上次看的条目只能靠记忆翻网格。参照 PDF / 微信读书书架补齐，取代 D-031 的「无排序 UI」与置顶 hero 段。
+- 选择：① **网格 / 列表两种排布**，切换入口在工具栏，用「按钮 + Menu」（命令项高亮当前项，不用 Segmented / Radio，同 D-024 追记口径），按模块存本机偏好；② **条目没有封面，网格即卡片**——标题、两行简介、「上次看到」条（有记录才显示）、meta 行，同行等高；③ **网格顶部「最近打开」续读行**（最近 3 个打开过的条目），列表不放这一段，由「上次打开」列承担；④ **排序**：最近打开（默认）/ 最近更新 / 名称 / 创建时间，置顶在任何排序下都排最前（带星标），原置顶 hero 段并入全部区；列表可点列头排序；⑤ **「上次看到」按模块取**：项目 = 上次停留的文档（从列表打开时带 `itemId` 定位过去）；Notebook = 上次打开的资料或笔记（详情页本就按 Notebook 在本机恢复上次打开的条目，列表只打开 Notebook）；数据库没有子条目，只记打开时间。
+- 数据：打开记录一律**不改 update_time、不记 operation**——打开不是内容修改，「最近更新」排序与同步都不应被它扰动；各表补列走 `upgradeTable`，表 / 索引数不变。
+  - 项目：`project` 加 `last_open_time` / `last_open_item_id`（`30_project.sql`）。`project:record-open` 在详情页进入或切换文档时写（不带文档只刷新时间、保留上次文档）；`project:open-states` 返回 projectId → 打开时间 + 上次文档（已删除或移出项目时为 null），独立 queryKey（`Project` 实体被广泛共用，不往里加字段）。
+  - 数据库：`database_item` 加 `last_open_time`（`31_module_split.sql`），`database-item:record-open` 在详情页进入时写，列表汇总直接带 `openedAt`。
+  - Notebook：`vibe_learning_project` 加 `last_open_time` / `last_open_kind`（resource / note）/ `last_open_item_id`，`vibe-learning-project:record-open` 随详情页打开的条目写（生成任务、新建笔记只刷新时间）；列表汇总按 kind 取资料名或笔记标题，条目不属于该 Notebook 或已删除时为 null。详情页的恢复仍读本机 `vibe-learning-opened-<id>`（含生成任务等临时位置），数据库这份只供列表展示。
+- 实现：形态收口共享驾驶舱——`EntityCockpit`（`prefsKey` 分区偏好）+ `EntityCards`（续读卡 / 网格卡 / 列表行）+ `CockpitToolbar`，排序与时间展示是 `model.ts` 纯函数，偏好在 `prefs.ts`；`CockpitItem` 增加 `createTime / openedAt / lastItemTitle`，`CockpitCopy` 增加 `metricLabel / recentHint`、去掉只给 hero 卡用的 `badgeLabel`。模块只提供数据、文案与身份色。
 - 未做：卡片菜单「从最近打开中移除」、用户自定义封面——有需求再议。
 
 ## D-091 最后数据升级必须完成后才能连接

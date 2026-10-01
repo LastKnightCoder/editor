@@ -285,7 +285,8 @@ CREATE TABLE IF NOT EXISTS database_item (
         desc TEXT,
         archived INTEGER DEFAULT 0,
         pinned INTEGER DEFAULT 0,
-        data_table_id INTEGER NOT NULL DEFAULT 0
+        data_table_id INTEGER NOT NULL DEFAULT 0,
+        last_open_time INTEGER
       );
 CREATE TABLE IF NOT EXISTS vibe_learning_project (
         id INTEGER PRIMARY KEY,
@@ -294,7 +295,10 @@ CREATE TABLE IF NOT EXISTS vibe_learning_project (
         title TEXT NOT NULL,
         desc TEXT,
         archived INTEGER DEFAULT 0,
-        pinned INTEGER DEFAULT 0
+        pinned INTEGER DEFAULT 0,
+        last_open_time INTEGER,
+        last_open_kind TEXT,
+        last_open_item_id INTEGER
       );
 
 -- 资源域表

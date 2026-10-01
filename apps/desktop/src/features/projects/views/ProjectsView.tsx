@@ -1,35 +1,31 @@
 /**
  * 项目页视图：共享驾驶舱（features/shared/cockpit）的项目模块装配。
  *
- * 项目即文档树。在驾驶舱纸面上扩展排序与网格 / 列表两种排布：网格顶部「最近打开」续读行，
- * 全部区按排序展示（置顶始终在前）；列表由「上次打开」列承担最近打开。
- * 打开项目时，有上次停留的文档就直接定位过去。
+ * 项目即文档树。打开项目时，有上次停留的文档就直接定位过去（续读）。
  */
 
 import { useMemo } from "react";
+import { FolderTree } from "lucide-react";
 import { usePage } from "@/page/PageProvider";
 import BatchExportModal from "@/components/BatchExportModal";
-import { CockpitSectionHead, EntityCockpit } from "@/features/shared/cockpit/EntityCockpit";
-import type { CockpitCardHandlers, CockpitCopy } from "@/features/shared/cockpit/types";
+import { EntityCockpit } from "@/features/shared/cockpit/EntityCockpit";
+import type { CockpitCopy, CockpitItem, CockpitVisual } from "@/features/shared/cockpit/types";
 import { useProjectsSnapshot, useProjectMutations } from "../queries";
-import { useProjectPrefs } from "../prefs";
-import {
-  PROJECT_SORTS,
-  recentProjects,
-  sortProjects,
-  type ProjectLayout,
-  type ProjectListItem,
-  type ProjectSort,
-} from "../model";
-import { ProjectGridCard, ProjectListRows, ProjectRecentCard } from "../components/ProjectItems";
-import { ProjectToolbar } from "../components/ProjectToolbar";
-import { PROJECT_VISUAL } from "../visual";
+
+/* 模块色沿用原 projectTypeMeta 的文档树青蓝（设计定稿的数据色，不进主题词表） */
+const VISUAL: CockpitVisual = {
+  icon: FolderTree,
+  softClass: "bg-[rgba(63,133,124,0.13)]",
+  textClass: "text-[#3f857c]",
+  barClass: "bg-gradient-to-r from-[#3f857c] to-transparent",
+};
 
 const COPY: CockpitCopy = {
   title: "项目",
-  badgeLabel: "文档树",
   entityUnit: "个项目",
   metricUnit: "个文档",
+  metricLabel: "文档",
+  recentHint: "从上次看到的文档继续",
   createLabel: "新建项目",
   createTitle: "新建项目",
   editTitle: "编辑项目",
@@ -45,15 +41,14 @@ export function ProjectsView() {
   const { navigator } = usePage();
   const snapshot = useProjectsSnapshot();
   const mutations = useProjectMutations();
-  const { layout, sort, setLayout, setSort } = useProjectPrefs();
 
-  const items: ProjectListItem[] = useMemo(
+  const items: CockpitItem[] = useMemo(
     () => snapshot.projects.map(project => ({ ...project, metric: project.itemCount })),
     [snapshot.projects]
   );
   const lastItemIds = useMemo(
-    () => new Map(items.map(item => [item.id, item.lastItemId])),
-    [items]
+    () => new Map(snapshot.projects.map(project => [project.id, project.lastItemId])),
+    [snapshot.projects]
   );
 
   const open = (id: number) => {
@@ -63,39 +58,14 @@ export function ProjectsView() {
 
   return (
     <EntityCockpit
+      prefsKey="projects"
       items={items}
       loading={snapshot.loading}
-      visual={PROJECT_VISUAL}
+      visual={VISUAL}
       copy={COPY}
       mutations={mutations}
       onOpen={open}
       onCreated={created => navigator.push("project-detail", { id: created.id })}
-      toolbar={
-        <ProjectToolbar
-          layout={layout}
-          sort={sort}
-          onLayoutChange={setLayout}
-          onSortChange={setSort}
-        />
-      }
-      renderActive={(active, handlers) => (
-        <ActiveSections
-          items={active}
-          layout={layout}
-          sort={sort}
-          onSort={setSort}
-          handlers={handlers}
-        />
-      )}
-      renderArchived={(archived, handlers) => (
-        <ProjectCollection
-          items={sortProjects(archived, sort)}
-          layout={layout}
-          sort={sort}
-          handlers={handlers}
-          showHead={false}
-        />
-      )}
       renderExport={(item, close) => (
         <BatchExportModal
           open
@@ -104,75 +74,5 @@ export function ProjectsView() {
         />
       )}
     />
-  );
-}
-
-interface SectionProps {
-  items: ProjectListItem[];
-  layout: ProjectLayout;
-  sort: ProjectSort;
-  onSort?(sort: ProjectSort): void;
-  handlers: CockpitCardHandlers;
-}
-
-function ActiveSections({ items, layout, sort, onSort, handlers }: SectionProps) {
-  const sorted = useMemo(() => sortProjects(items, sort), [items, sort]);
-  const recent = useMemo(() => (layout === "grid" ? recentProjects(items) : []), [items, layout]);
-  const sortLabel = PROJECT_SORTS.find(s => s.value === sort)?.label ?? "";
-
-  return (
-    <>
-      {recent.length > 0 && (
-        <section className="mb-[26px]">
-          <CockpitSectionHead label="最近打开" hint="从上次看到的文档继续" />
-          <div className="grid grid-cols-3 gap-3">
-            {recent.map(item => (
-              <ProjectRecentCard key={item.id} item={item} onOpen={handlers.onOpen} />
-            ))}
-          </div>
-        </section>
-      )}
-      <section className="mb-[26px]">
-        <CockpitSectionHead
-          label="全部"
-          hint={`${sorted.length} ${COPY.entityUnit} · 按${sortLabel}`}
-        />
-        <ProjectCollection
-          items={sorted}
-          layout={layout}
-          sort={sort}
-          onSort={onSort}
-          handlers={handlers}
-        />
-      </section>
-    </>
-  );
-}
-
-function ProjectCollection({
-  items,
-  layout,
-  sort,
-  onSort,
-  handlers,
-  showHead,
-}: SectionProps & { showHead?: boolean }) {
-  if (layout === "list") {
-    return (
-      <ProjectListRows
-        items={items}
-        sort={sort}
-        onSort={onSort}
-        handlers={handlers}
-        showHead={showHead}
-      />
-    );
-  }
-  return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
-      {items.map(item => (
-        <ProjectGridCard key={item.id} item={item} sort={sort} handlers={handlers} />
-      ))}
-    </div>
   );
 }

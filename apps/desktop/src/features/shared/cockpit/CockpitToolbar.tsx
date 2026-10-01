@@ -1,5 +1,5 @@
 /**
- * 项目列表工具栏扩展：排序 + 视图（网格 / 列表）。两者都是「按钮 + Menu」，浮层为命令项，
+ * 驾驶舱工具栏：排序 + 视图（网格 / 列表）。两者都是「按钮 + Menu」，浮层为命令项，
  * 当前项以 accent 图标 + 文字高亮标记（同卡片库视图速切器口径，D-024 追记）。
  */
 
@@ -15,16 +15,16 @@ import {
   ALargeSmall,
 } from "lucide-react";
 import { Button, Menu } from "@tau/ui";
-import { PROJECT_SORTS, type ProjectLayout, type ProjectSort } from "../model";
+import { COCKPIT_SORTS, type CockpitLayout, type CockpitSort } from "./model";
 
-const SORT_ICONS: Record<ProjectSort, LucideIcon> = {
+const SORT_ICONS: Record<CockpitSort, LucideIcon> = {
   opened: History,
   updated: PencilLine,
   name: ALargeSmall,
   created: CalendarPlus,
 };
 
-const LAYOUTS: { value: ProjectLayout; label: string; icon: LucideIcon }[] = [
+const LAYOUTS: { value: CockpitLayout; label: string; icon: LucideIcon }[] = [
   { value: "grid", label: "网格", icon: LayoutGrid },
   { value: "list", label: "列表", icon: List },
 ];
@@ -61,18 +61,18 @@ function triggerButton(icon: LucideIcon, label: string, title: string) {
   );
 }
 
-export function ProjectToolbar({
+export function CockpitToolbar({
   layout,
   sort,
   onLayoutChange,
   onSortChange,
 }: {
-  layout: ProjectLayout;
-  sort: ProjectSort;
-  onLayoutChange(layout: ProjectLayout): void;
-  onSortChange(sort: ProjectSort): void;
+  layout: CockpitLayout;
+  sort: CockpitSort;
+  onLayoutChange(layout: CockpitLayout): void;
+  onSortChange(sort: CockpitSort): void;
 }) {
-  const sortLabel = PROJECT_SORTS.find(s => s.value === sort)?.label ?? "";
+  const sortLabel = COCKPIT_SORTS.find(s => s.value === sort)?.label ?? "";
   const current = LAYOUTS.find(l => l.value === layout) ?? LAYOUTS[0];
   return (
     <>
@@ -81,7 +81,7 @@ export function ProjectToolbar({
         className="w-[168px]"
         trigger={triggerButton(ArrowDownUp, sortLabel, "排序（置顶始终在前）")}
       >
-        {PROJECT_SORTS.map(({ value, label }) => (
+        {COCKPIT_SORTS.map(({ value, label }) => (
           <CommandItem
             key={value}
             icon={SORT_ICONS[value]}

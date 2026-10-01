@@ -1,17 +1,22 @@
 /**
- * 驾驶舱卡片两形态（原 features/projects/components/ProjectCards.tsx，拆模块后配置化）：
- * - EntityHeroCard —— 置顶段升格大卡（类型色顶缘 + 大标题 + 两行摘要 + 大数字 + 行动位）；
- * - EntityMiniCard —— 全部网格紧凑卡（单行摘要 + meta 行）。
+ * 驾驶舱条目三形态（原 features/projects/components/ProjectCards.tsx，拆模块后配置化）：
+ * - CockpitRecentCard —— 「最近打开」续读卡（身份色顶缘 + 上次看到 + 打开时间）；
+ * - CockpitGridCard —— 网格卡（两行简介 + 上次看到 + meta，压底同行等高；条目没有封面，网格即卡片）；
+ * - CockpitListRows —— 列表排布（行式无横线，点列头排序）。
  *
  * 操作对齐 ArticleCard 口径：hover = 阴影加深 + 1px 描边亮起（无位移）；
  * 操作钮 hover/focus 显现；⋯ 菜单承载编辑/置顶/归档/整体导出/删除。
  */
 
+import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Archive,
   ArchiveRestore,
+  ArrowDown,
   ArrowRight,
+  ArrowUp,
+  FileText,
   MoreHorizontal,
   Pencil,
   Pin,
@@ -21,13 +26,12 @@ import {
 import { IconButton, Menu, cn } from "@tau/ui";
 import type { CockpitCardHandlers, CockpitCopy, CockpitItem, CockpitVisual } from "./types";
 import { cockpitExcerpt, cockpitRelativeTime } from "./text";
-import { CARD_HOVER } from "./styles";
+import { cockpitTimeMeta, formatDate, formatOpenedAt, type CockpitSort } from "./model";
 
-interface CardProps {
+interface ItemProps {
   item: CockpitItem;
   visual: CockpitVisual;
   copy: CockpitCopy;
-  handlers: CockpitCardHandlers;
 }
 
 /* Menu.Item 的 icon 槽统一 15px lucide 线性图标 */
@@ -41,8 +45,13 @@ function MenuIcon({ icon: Icon }: { icon: LucideIcon }) {
 const OPS_BTN =
   "shadow-card size-[23px] rounded-[7px] bg-surface-hover outline-1 -outline-offset-1 outline-line-1 enabled:hover:bg-surface-hover";
 
+/** 卡片落在列表页那张纸上：细描边分隔，hover 时 lift 轻抬阴影、描边隐去（同 Skill 页卡片；
+    纸上再叠阴影卡会糊成一片） */
+const CARD_HOVER =
+  "border border-line-1 transition-[box-shadow,border-color] duration-200 hover:shadow-lift hover:border-transparent";
+
 /** 悬停浮现的置顶 + ⋯ 菜单（宿主须带 group 与定位上下文；className 覆盖默认的右上角定位） */
-export function CardOps({
+function CardOps({
   item,
   handlers,
   className,
@@ -104,133 +113,252 @@ export function CardOps({
   );
 }
 
-export function PinnedStar() {
+const ICON_SIZES = {
+  sm: ["size-[26px] rounded-[8px]", "size-[14px]"],
+  md: ["size-8 rounded-[10px]", "size-4"],
+  lg: ["size-[42px] rounded-[12px]", "size-[19px]"],
+} as const;
+
+function EntityIcon({ visual, size }: { visual: CockpitVisual; size: keyof typeof ICON_SIZES }) {
+  const [box, glyph] = ICON_SIZES[size];
+  const Icon = visual.icon;
   return (
-    <Star
-      className="text-accent fill-accent size-[13px] shrink-0"
-      strokeWidth={1.75}
-      aria-label="已置顶"
-    />
+    <span
+      className={cn("grid shrink-0 place-items-center", box, visual.softClass, visual.textClass)}
+    >
+      <Icon className={glyph} strokeWidth={1.9} />
+    </span>
   );
 }
 
-/* ---------- hero 大卡 ---------- */
+function EntityTitle({
+  item,
+  copy,
+  className,
+}: {
+  item: CockpitItem;
+  copy: CockpitCopy;
+  className: string;
+}) {
+  return (
+    <h3 className={cn("flex min-w-0 items-center gap-1.5", className)}>
+      {item.pinned && (
+        <Star
+          className="text-accent fill-accent size-[13px] shrink-0"
+          strokeWidth={1.75}
+          aria-label="已置顶"
+        />
+      )}
+      <span className="truncate">{item.title || `${copy.title} #${item.id}`}</span>
+    </h3>
+  );
+}
 
-export function EntityHeroCard({ item, visual, copy, handlers }: CardProps) {
-  const Icon = visual.icon;
-  const excerpt = cockpitExcerpt(item.desc);
+function LastItem({ title, className }: { title: string; className?: string }) {
+  return (
+    <p className={cn("text-ink-2 flex min-w-0 items-center gap-1.5 text-[12px]", className)}>
+      <FileText className="text-ink-3 size-[13px] shrink-0" strokeWidth={1.75} />
+      <span className="text-ink-3 shrink-0">上次看到</span>
+      <span className="truncate">{title}</span>
+    </p>
+  );
+}
 
+/* ---------- 最近打开：续读卡 ---------- */
+
+export function CockpitRecentCard({
+  item,
+  visual,
+  copy,
+  onOpen,
+}: ItemProps & { onOpen(item: CockpitItem): void }) {
   return (
     <article
       tabIndex={0}
-      onClick={() => handlers.onOpen(item)}
+      onClick={() => onOpen(item)}
       className={cn(
-        "bg-surface ease-tau-out group relative flex cursor-pointer flex-col overflow-hidden rounded-[var(--tau-radius-lg)] px-[22px] pb-[17px] pt-[19px]",
-        CARD_HOVER,
-        item.archived && "opacity-60 hover:opacity-100"
+        "bg-surface ease-tau-out group relative flex cursor-pointer gap-3.5 overflow-hidden rounded-[var(--tau-radius-lg)] px-4 pb-3 pt-3.5",
+        CARD_HOVER
       )}
     >
-      {/* 类型色顶缘（3px 向右渐隐——卡片的类型身份线，替代无封面条目的封面位） */}
       <span aria-hidden className={cn("absolute inset-x-0 top-0 h-[3px]", visual.barClass)} />
-      <CardOps item={item} handlers={handlers} />
-      <div className="flex items-center gap-2.5">
-        <span
-          className={cn(
-            "grid size-10 place-items-center rounded-[12px]",
-            visual.softClass,
-            visual.textClass
-          )}
-        >
-          <Icon className="size-[19px]" strokeWidth={1.9} />
-        </span>
-        <span
-          className={cn(
-            "whitespace-nowrap rounded-full px-[9px] py-px text-[11px] font-medium",
-            visual.softClass,
-            visual.textClass
-          )}
-        >
-          {copy.badgeLabel}
-        </span>
-        <span className="text-ink-3 ml-auto pr-16 text-[11.5px] tabular-nums">
-          {cockpitRelativeTime(item.updateTime)}更新
-        </span>
-      </div>
-      <h2 className="mt-2.5 flex items-center gap-1.5 text-[17.5px] font-semibold leading-[1.4] tracking-[-0.01em]">
-        {item.pinned && <PinnedStar />}
-        <span className="truncate">{item.title || `${copy.title} #${item.id}`}</span>
-      </h2>
-      {excerpt && (
-        <p className="text-ink-2 mt-[5px] line-clamp-2 min-h-[41px] text-[12.5px] leading-[1.65]">
-          {excerpt}
+      <EntityIcon visual={visual} size="lg" />
+      <div className="min-w-0 flex-1">
+        <EntityTitle
+          item={item}
+          copy={copy}
+          className="text-[14.5px] font-semibold tracking-[-0.005em]"
+        />
+        {item.lastItemTitle && <LastItem title={item.lastItemTitle} className="mt-1" />}
+        <p className="text-ink-3 mt-1.5 text-[11.5px] tabular-nums">
+          {item.openedAt !== null && formatOpenedAt(item.openedAt)} · {item.metric}{" "}
+          {copy.metricUnit}
         </p>
-      )}
-      <div className="mt-auto flex items-end gap-5 pt-3.5">
-        <div>
-          <div className="text-[21px] font-[650] tabular-nums leading-[1.1] tracking-[-0.02em]">
-            {item.metric}
-          </div>
-          <div className="text-ink-3 mt-0.5 text-[11px]">{copy.metricUnit}</div>
-        </div>
-        <button
-          type="button"
-          onClick={e => {
-            e.stopPropagation();
-            handlers.onOpen(item);
-          }}
-          /* hover 档是 accent 定稿值的 alpha 派生（arbitrary 注明出处，同热力图色阶口径） */
-          className="bg-accent-soft text-accent-text ml-auto inline-flex h-[30px] items-center gap-1.5 rounded-[9px] px-[13px] text-[12.5px] font-medium transition-colors duration-150 hover:bg-[rgba(217,119,87,0.2)]"
-        >
-          进入
-          <ArrowRight className="size-[13px]" strokeWidth={1.75} />
-        </button>
       </div>
+      <span className="bg-accent-soft text-accent-text absolute bottom-3 right-3.5 inline-flex h-[26px] items-center gap-1 rounded-[8px] px-2.5 text-[12px] font-medium opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100">
+        继续
+        <ArrowRight className="size-[13px]" strokeWidth={1.75} />
+      </span>
     </article>
   );
 }
 
-/* ---------- 紧凑卡 ---------- */
+/* ---------- 网格卡：简介两行 + 上次看到 + meta（压底，同行等高） ---------- */
 
-export function EntityMiniCard({ item, visual, copy, handlers }: CardProps) {
-  const Icon = visual.icon;
+export function CockpitGridCard({
+  item,
+  visual,
+  copy,
+  sort,
+  handlers,
+}: ItemProps & { sort: CockpitSort; handlers: CockpitCardHandlers }) {
   const excerpt = cockpitExcerpt(item.desc);
-
   return (
     <article
       tabIndex={0}
       onClick={() => handlers.onOpen(item)}
       className={cn(
-        "bg-surface ease-tau-out group relative flex cursor-pointer flex-col rounded-[var(--tau-radius-md)] px-[13px] pb-[10px] pt-[11px]",
+        "bg-surface ease-tau-out group relative flex cursor-pointer flex-col rounded-[var(--tau-radius-md)] px-4 pb-[13px] pt-3.5",
         CARD_HOVER,
         item.archived && "opacity-60 hover:opacity-100"
       )}
     >
       <CardOps item={item} handlers={handlers} />
-      <div className="flex min-w-0 items-center gap-2">
-        <span
-          className={cn(
-            "grid size-[26px] shrink-0 place-items-center rounded-[8px]",
-            visual.softClass,
-            visual.textClass
-          )}
-        >
-          <Icon className="size-[14px]" strokeWidth={1.9} />
-        </span>
-        <h3 className="flex min-w-0 items-center gap-1.5 text-[13.5px] font-semibold tracking-[-0.005em]">
-          {item.pinned && <PinnedStar />}
-          <span className="truncate">{item.title || `${copy.title} #${item.id}`}</span>
-        </h3>
+      <div className="flex min-w-0 items-center gap-2.5 pr-14">
+        <EntityIcon visual={visual} size="md" />
+        <EntityTitle
+          item={item}
+          copy={copy}
+          className="text-[14.5px] font-semibold tracking-[-0.005em]"
+        />
       </div>
       {excerpt && (
-        <p className="text-ink-3 mt-[5px] truncate text-[12px] leading-[1.6]">{excerpt}</p>
+        <p className="text-ink-2 mt-2 line-clamp-2 text-[12.5px] leading-[1.6]">{excerpt}</p>
       )}
-      <p className="text-ink-3 mt-1.5 flex items-center gap-2 text-[11px] tabular-nums">
-        <span>
-          {item.metric} {copy.metricUnit}
-        </span>
-        <span className="bg-ink-3 size-[2.5px] rounded-full opacity-60" />
-        <span>更新于 {cockpitRelativeTime(item.updateTime)}</span>
-      </p>
+      <div className="mt-auto flex flex-col gap-2.5 pt-3">
+        {item.lastItemTitle && (
+          <LastItem
+            title={item.lastItemTitle}
+            className="bg-hover rounded-tau-sm h-[30px] px-2.5"
+          />
+        )}
+        <p className="text-ink-3 flex items-center gap-2 text-[11.5px] tabular-nums">
+          <span>
+            {item.metric} {copy.metricUnit}
+          </span>
+          <span className="bg-ink-3 size-[2.5px] rounded-full opacity-60" />
+          <span>{cockpitTimeMeta(item, sort)}</span>
+        </p>
+      </div>
     </article>
+  );
+}
+
+/* ---------- 列表：行式无横线，列头排序 ---------- */
+
+const LIST_COLS =
+  "grid grid-cols-[minmax(240px,1fr)_64px_minmax(150px,220px)_80px_96px_56px] items-center gap-4";
+
+export function CockpitListRows({
+  items,
+  visual,
+  copy,
+  sort,
+  onSort,
+  handlers,
+  showHead = true,
+}: {
+  items: CockpitItem[];
+  visual: CockpitVisual;
+  copy: CockpitCopy;
+  sort: CockpitSort;
+  onSort?(sort: CockpitSort): void;
+  handlers: CockpitCardHandlers;
+  /** 归档段沿用主列表的列宽，不重复列头 */
+  showHead?: boolean;
+}) {
+  const head = (key: CockpitSort, label: string) => {
+    const Arrow = key === "name" ? ArrowUp : ArrowDown;
+    return (
+      <button
+        type="button"
+        onClick={() => onSort?.(key)}
+        className={cn(
+          "hover:text-ink-1 inline-flex items-center gap-0.5 text-left",
+          sort === key && "text-ink-1 font-medium"
+        )}
+      >
+        {label}
+        {sort === key && <Arrow className="size-3" strokeWidth={2} />}
+      </button>
+    );
+  };
+  return (
+    <div className="-mx-3">
+      {showHead && (
+        <div className={cn(LIST_COLS, "text-tau-sm text-ink-3 px-3 py-2")}>
+          {head("name", "名称")}
+          <span className="text-right">{copy.metricLabel}</span>
+          {head("opened", "上次打开")}
+          {head("updated", "更新")}
+          {head("created", "创建")}
+          <span />
+        </div>
+      )}
+      {items.map(item => (
+        <ListRow key={item.id} item={item} visual={visual} copy={copy} handlers={handlers} />
+      ))}
+    </div>
+  );
+}
+
+function ListRow({ item, visual, copy, handlers }: ItemProps & { handlers: CockpitCardHandlers }) {
+  const excerpt = cockpitExcerpt(item.desc);
+  const cell = (children: ReactNode, className?: string) => (
+    <span className={cn("text-tau-sm text-ink-2 truncate tabular-nums", className)}>
+      {children}
+    </span>
+  );
+  return (
+    <div
+      tabIndex={0}
+      onClick={() => handlers.onOpen(item)}
+      onKeyDown={e => {
+        if (e.key === "Enter" && e.target === e.currentTarget) handlers.onOpen(item);
+      }}
+      className={cn(
+        LIST_COLS,
+        "hover:bg-hover group relative min-h-[54px] w-full cursor-pointer rounded-[var(--tau-radius-md)] px-3 py-2 outline-none focus-visible:shadow-[var(--tau-focus-ring)]",
+        item.archived && "opacity-60 hover:opacity-100"
+      )}
+    >
+      <div className="flex min-w-0 items-center gap-2.5">
+        <EntityIcon visual={visual} size="sm" />
+        <div className="min-w-0">
+          <EntityTitle item={item} copy={copy} className="text-[13.5px] font-medium" />
+          {excerpt && <p className="text-ink-3 truncate text-[11.5px]">{excerpt}</p>}
+        </div>
+      </div>
+      {cell(item.metric, "text-right")}
+      <span className="min-w-0">
+        {item.openedAt === null ? (
+          cell("未打开过", "text-ink-3 block")
+        ) : (
+          <>
+            {cell(formatOpenedAt(item.openedAt), "block")}
+            {item.lastItemTitle && (
+              <span className="text-ink-3 block truncate text-[11.5px]">{item.lastItemTitle}</span>
+            )}
+          </>
+        )}
+      </span>
+      {cell(cockpitRelativeTime(item.updateTime))}
+      {cell(formatDate(item.createTime))}
+      <CardOps
+        item={item}
+        handlers={handlers}
+        className="static justify-end has-[[aria-expanded=true]]:opacity-100"
+      />
+    </div>
   );
 }
