@@ -53,6 +53,9 @@ files:
   - "build/**/*"
   - "!build/publish-template.zip"
   - "node_modules/**/*"
+  - "!node_modules/**/*.js.map"
+  - "!node_modules/**/*.mjs.map"
+  - "!node_modules/**/*.cjs.map"
 
 nsis:
   oneClick: false
