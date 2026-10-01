@@ -108,6 +108,19 @@ export function extractInlineRefs(content: unknown): InlineRef[] {
   return out;
 }
 
+/** Slate 正文的纯文本（块之间以空格分隔，空白折叠），供标题、摘要等展示 */
+export function slatePlainText(content: unknown): string {
+  if (!Array.isArray(content)) return "";
+  return collapse(
+    content
+      .map(value => {
+        const node = asNode(value);
+        return node ? plainText(node) : "";
+      })
+      .join(" ")
+  ).trim();
+}
+
 /** 正文内联引用到的卡片 id（按出现顺序，含重复），供卡片链接与知识地图使用 */
 export function inlineCardIds(content: unknown): number[] {
   const ids: number[] = [];

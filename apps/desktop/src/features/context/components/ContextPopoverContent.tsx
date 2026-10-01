@@ -1,6 +1,6 @@
 /**
- * 脉络浮层内容：调用方的前置分区（如卡片的「连接」）、引用了、被引用（来源 + 原文片段，被引用的
- * 标题在句中点亮）、也出现在、相关问题。
+ * 脉络浮层内容，分区顺序（KL-023）：来源、调用方的前置分区（如卡片的「连接」）、引用了、
+ * 被引用（来源 + 原文片段，被引用的标题在句中点亮）、也出现在、衍生、被使用、相关问题。
  * 只负责展示与点击回调，数据与开合由 ContextBadge 管理。
  */
 
@@ -9,9 +9,16 @@ import { CircleHelp } from "lucide-react";
 import { cn } from "@tau/ui";
 import type { EntityRef } from "@/entity/ref";
 import type { InlineRefSnippet } from "@/entity/inline-refs";
-import type { ContextEntity, ContextQuestion, EntityContext } from "@/types/entity-context";
+import type {
+  ContextEntity,
+  ContextLineageItem,
+  ContextOpenTarget,
+  ContextQuestion,
+  ContextUsage,
+  EntityContext,
+} from "@/types/entity-context";
 import { STATUS_META } from "@/features/questions/model";
-import { ENTITY_KIND_META } from "../model";
+import { ENTITY_KIND_META, LINEAGE_KIND_META, USAGE_KIND_ICON } from "../model";
 import { ContextRow as Row, ContextSection as Section } from "./ContextList";
 
 interface ContextPopoverContentProps {
@@ -22,6 +29,7 @@ interface ContextPopoverContentProps {
   hideOutlinks?: boolean;
   onOpenEntity: (ref: EntityRef) => void;
   onOpenQuestion: (questionId: number) => void;
+  onOpenTarget: (target: ContextOpenTarget) => void;
 }
 
 const STATUS_TONE: Record<ContextQuestion["status"], string> = {
@@ -41,6 +49,72 @@ function SourceLine({ entity }: { entity: ContextEntity }) {
   );
 }
 
+function LineageLine({ item }: { item: ContextLineageItem }) {
+  const { icon: Icon, label } = LINEAGE_KIND_META[item.node.kind];
+  return (
+    <span className="text-ink-3 flex min-w-0 items-center gap-1.5 text-[12px]">
+      <Icon className="size-[13px] shrink-0" strokeWidth={1.75} />
+      {item.missing ? (
+        <span className="min-w-0 truncate">{label}已删除</span>
+      ) : (
+        <>
+          <b className="text-ink-2 min-w-0 truncate font-medium">{item.title}</b>
+          <span className="shrink-0">{item.meta}</span>
+        </>
+      )}
+    </span>
+  );
+}
+
+function LineageRows({
+  items,
+  onOpenTarget,
+}: {
+  items: ContextLineageItem[];
+  onOpenTarget: (target: ContextOpenTarget) => void;
+}) {
+  return items.map(item => {
+    const key = `${item.node.kind}:${item.node.id}`;
+    const { open } = item;
+    // 已删除的来源保留一行、不可点（KL-026）
+    return open ? (
+      <Row key={key} onClick={() => onOpenTarget(open)}>
+        <LineageLine item={item} />
+      </Row>
+    ) : (
+      <div key={key} className="px-2.5 py-[7px]">
+        <LineageLine item={item} />
+      </div>
+    );
+  });
+}
+
+function UsageLine({ usage }: { usage: ContextUsage }) {
+  const Icon = USAGE_KIND_ICON[usage.kind];
+  const meta =
+    usage.kind === "whiteboard"
+      ? usage.meta
+      : usage.kind === "todo"
+        ? usage.completed
+          ? "待办 · 已完成"
+          : "待办"
+        : "Notebook";
+  return (
+    <span className="text-ink-3 flex min-w-0 items-center gap-1.5 text-[12px]">
+      <Icon className="size-[13px] shrink-0" strokeWidth={1.75} />
+      <b
+        className={cn(
+          "text-ink-2 min-w-0 truncate font-medium",
+          usage.kind === "todo" && usage.completed && "line-through"
+        )}
+      >
+        {usage.title}
+      </b>
+      <span className="shrink-0">{meta}</span>
+    </span>
+  );
+}
+
 function Snippet({ snippet }: { snippet: InlineRefSnippet }) {
   return (
     <span className="text-ink-2 mt-0.5 block text-[13px] leading-[1.75]">
@@ -53,15 +127,16 @@ function Snippet({ snippet }: { snippet: InlineRefSnippet }) {
   );
 }
 
-const EMPTY: Pick<
-  EntityContext,
-  "outlinks" | "backlinks" | "backlinkTotal" | "projections" | "questions"
-> = {
+const EMPTY: Omit<EntityContext, "self"> = {
   outlinks: [],
   backlinks: [],
   backlinkTotal: 0,
   projections: [],
   questions: [],
+  sources: [],
+  derived: [],
+  notebookProjections: [],
+  usages: [],
 };
 
 export function ContextPopoverContent({
@@ -70,11 +145,27 @@ export function ContextPopoverContent({
   hideOutlinks = false,
   onOpenEntity,
   onOpenQuestion,
+  onOpenTarget,
 }: ContextPopoverContentProps) {
-  const { outlinks, backlinks, backlinkTotal, projections, questions } = context ?? EMPTY;
+  const {
+    outlinks,
+    backlinks,
+    backlinkTotal,
+    projections,
+    questions,
+    sources,
+    derived,
+    notebookProjections,
+    usages,
+  } = context ?? EMPTY;
   const hidden = backlinkTotal - backlinks.length;
   return (
     <div className="px-1.5 pb-2 pt-2.5">
+      {sources.length > 0 && (
+        <Section title="来源">
+          <LineageRows items={sources} onOpenTarget={onOpenTarget} />
+        </Section>
+      )}
       {leading}
       {!hideOutlinks && outlinks.length > 0 && (
         <Section title="引用了">
@@ -106,7 +197,7 @@ export function ContextPopoverContent({
           )}
         </Section>
       )}
-      {projections.length > 0 && (
+      {projections.length + notebookProjections.length > 0 && (
         <Section title="也出现在">
           {projections.map(entity => (
             <Row
@@ -114,6 +205,21 @@ export function ContextPopoverContent({
               onClick={() => onOpenEntity(entity.ref)}
             >
               <SourceLine entity={entity} />
+            </Row>
+          ))}
+          <LineageRows items={notebookProjections} onOpenTarget={onOpenTarget} />
+        </Section>
+      )}
+      {derived.length > 0 && (
+        <Section title="衍生">
+          <LineageRows items={derived} onOpenTarget={onOpenTarget} />
+        </Section>
+      )}
+      {usages.length > 0 && (
+        <Section title="被使用">
+          {usages.map(usage => (
+            <Row key={usage.key} onClick={() => onOpenTarget(usage.open)}>
+              <UsageLine usage={usage} />
             </Row>
           ))}
         </Section>

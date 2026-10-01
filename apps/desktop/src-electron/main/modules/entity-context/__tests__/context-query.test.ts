@@ -20,6 +20,14 @@ import DiaryTable from "../../tables/diary";
 import ProjectTable from "../../tables/project";
 import QuestionLinkTable from "../../tables/question-link";
 import QuestionTable from "../../tables/question";
+import ChatSessionTable from "../../tables/chat-session";
+import EntityLineageTable from "../../tables/entity-lineage";
+import FlashcardTable from "../../tables/flashcard";
+import TodoItemTable from "../../tables/todo-item";
+import TodoNoteLinkTable from "../../tables/todo-note-link";
+import VibeLearningProjectTable from "../../tables/vibe-learning-project";
+import VibeLearningResourceTable from "../../tables/vibe-learning-resource";
+import VLNoteTable from "../../tables/vl-note";
 import WhiteBoardContentTable from "../../tables/white-board-content";
 import WhiteboardTable from "../../tables/whiteboard";
 import { getEntityContext } from "../context-query";
@@ -243,6 +251,14 @@ describe("CONTEXT_WRITE_EVENTS", () => {
         QuestionTable,
         WhiteboardTable,
         WhiteBoardContentTable,
+        ChatSessionTable,
+        EntityLineageTable,
+        FlashcardTable,
+        TodoItemTable,
+        TodoNoteLinkTable,
+        VibeLearningProjectTable,
+        VibeLearningResourceTable,
+        VLNoteTable,
       ].flatMap(table => Object.keys(table.getListenEvents()))
     );
     const unknown = [...CONTEXT_WRITE_EVENTS, ...WHITEBOARD_CANVAS_EVENTS].filter(

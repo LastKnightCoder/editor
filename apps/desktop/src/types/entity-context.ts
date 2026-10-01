@@ -4,6 +4,7 @@
 
 import type { EntityRef } from "@/entity/ref";
 import type { InlineRefSnippet } from "@/entity/inline-refs";
+import type { LineageNode, LineageRelation } from "@/entity/lineage";
 import type { IQuestion } from "./question";
 
 export interface ContextEntity {
@@ -25,6 +26,34 @@ export interface ContextQuestion {
   status: IQuestion["status"];
 }
 
+/** 点击脉络条目打开到哪里；正文实体走 openEntity，其余各自的页面 */
+export type ContextOpenTarget =
+  | { page: "entity"; ref: EntityRef }
+  | { page: "chat"; id: string }
+  | { page: "vibe-learning-detail"; id: number }
+  | { page: "review"; deckId: number }
+  | { page: "whiteboard-detail"; id: number; pageId: number }
+  | { page: "todos"; selectedId: number };
+
+/** 谱系的一端：来源或衍生 */
+export interface ContextLineageItem {
+  node: LineageNode;
+  relation: LineageRelation;
+  /** 端点已删除时为空串 */
+  title: string;
+  /** 次级信息：「对话」「Notebook · 项目名」「闪卡 · 卡组名」 */
+  meta: string;
+  /** 端点已删除（只有来源会保留这种条目，见 KL-026） */
+  missing: boolean;
+  open: ContextOpenTarget | null;
+}
+
+/** 被使用：白板（含文档里嵌入的白板）、待办、Notebook 资源 */
+export type ContextUsage =
+  | { kind: "whiteboard"; key: string; title: string; meta: string; open: ContextOpenTarget }
+  | { kind: "todo"; key: string; title: string; completed: boolean; open: ContextOpenTarget }
+  | { kind: "notebook"; key: string; title: string; open: ContextOpenTarget };
+
 export interface EntityContext {
   self: ContextEntity;
   /** 我在正文里引用了谁（不含自身与共用正文的身份）；最多 50 条 */
@@ -37,4 +66,12 @@ export interface EntityContext {
   backlinkTotal: number;
   /** 我（或共用正文的身份）是哪些问题的材料 */
   questions: ContextQuestion[];
+  /** 我从哪来（谱系入边）；来源已删除的保留并标记 missing */
+  sources: ContextLineageItem[];
+  /** 我产生了什么（谱系出边 + 引用我正文的闪卡）；已删除的不返回 */
+  derived: ContextLineageItem[];
+  /** 共用正文的 Notebook 笔记（投影，KL-027） */
+  notebookProjections: ContextLineageItem[];
+  /** 谁在使用我：白板、待办、Notebook 资源 */
+  usages: ContextUsage[];
 }

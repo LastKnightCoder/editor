@@ -1,5 +1,6 @@
 /**
- * 组装一个实体的脉络：引用了（解析自身正文）、共用正文的身份、被引用（索引库 entity_refs）、相关问题。
+ * 组装一个实体的脉络：引用了（解析自身正文）、共用正文的身份、被引用（索引库 entity_refs）、相关问题，
+ * 以及来源、衍生、被使用（context-lineage）。
  *
  * 显式链接 cards.links 不在这里：卡片在浮层里有自己的「连接」分区（KL-014、KL-018）。
  */
@@ -22,6 +23,7 @@ import type {
 } from "@/types/entity-context";
 import type { QuestionLinkTargetType } from "@/types/question";
 import EntitySearchTable from "../tables/entity-search";
+import { derivedOf, notebookProjectionsOf, sourcesOf, usagesOf } from "./context-lineage";
 
 /** 各分区最多返回的条数 */
 export const CONTEXT_LIMIT = 50;
@@ -84,7 +86,7 @@ function backlinksOf(
   indexDb: Database.Database,
   self: EntityRef,
   selfContentIds: number[]
-): { backlinks: ContextBacklink[]; total: number } {
+): { backlinks: ContextBacklink[]; total: number; unresolved: number[] } {
   const marks = selfContentIds.map(() => "?").join(",");
   const byContent = selfContentIds.length ? `dst_content_id IN (${marks}) OR ` : "";
   // 老节点可能缺 contentId，再按类型与 id 兜底
@@ -96,7 +98,7 @@ function backlinksOf(
     .all(...selfContentIds, self.kind, self.id) as RefRow[];
   const selfContents = new Set(selfContentIds);
   const external = rows.filter(row => !selfContents.has(row.src_content_id));
-  if (external.length === 0) return { backlinks: [], total: 0 };
+  if (external.length === 0) return { backlinks: [], total: 0, unresolved: [] };
 
   const srcIds = [...new Set(external.map(row => row.src_content_id))];
   const located = EntitySearchTable.locateAll(mainDb, srcIds);
@@ -111,8 +113,11 @@ function backlinksOf(
 
   // 一份来源正文被多个实体共用时，以优先级最高的身份展示
   const groups = new Map<string, { ref: EntityRef; time: number; snippets: InlineRefSnippet[] }>();
+  // 解析不到身份的来源正文（白板文本块、思维导图节点的正文），交给「被使用 · 白板」归属
+  const unresolved = new Set<number>();
   for (const row of external) {
     const ref = located.get(row.src_content_id)?.[0];
+    if (!ref) unresolved.add(row.src_content_id);
     if (!ref || isSameEntityRef(ref, self)) continue;
     const key = entityRefKey(ref);
     const group = groups.get(key) ?? {
@@ -139,7 +144,7 @@ function backlinksOf(
     const source = toContextEntity(mainDb, group.ref);
     if (source) backlinks.push({ source, snippets: group.snippets });
   }
-  return { backlinks, total: groups.size };
+  return { backlinks, total: groups.size, unresolved: [...unresolved] };
 }
 
 function questionsOf(
@@ -240,13 +245,19 @@ export function getEntityContext(
     .map(other => toContextEntity(mainDb, other))
     .filter((entity): entity is ContextEntity => entity !== null)
     .slice(0, CONTEXT_LIMIT);
-  const { backlinks, total } = backlinksOf(mainDb, indexDb, ref, contentIds);
+  const { backlinks, total, unresolved } = backlinksOf(mainDb, indexDb, ref, contentIds);
+  const identities = [ref, ...projectionRefs];
+  const toEntity = (other: EntityRef) => toContextEntity(mainDb, other);
   return {
     self,
     outlinks: outlinksOf(mainDb, contentIds, seen),
     projections,
     backlinks,
     backlinkTotal: total,
-    questions: questionsOf(mainDb, [ref, ...projectionRefs], contentIds),
+    questions: questionsOf(mainDb, identities, contentIds),
+    sources: sourcesOf(mainDb, identities, toEntity),
+    derived: derivedOf(mainDb, identities, contentIds, toEntity),
+    notebookProjections: notebookProjectionsOf(mainDb, contentIds, toEntity),
+    usages: usagesOf(mainDb, indexDb, identities, contentIds, unresolved, toEntity),
   };
 }
