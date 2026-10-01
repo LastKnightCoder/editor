@@ -49,7 +49,11 @@ import {
   piSessionSteer,
   type PiSessionEdit,
 } from "@/commands/piSession";
-import useChatSessionStore, { bucketOfChatScope, isDraftChat } from "@/stores/useChatSessionStore";
+import useChatSessionStore, {
+  bucketOfChatScope,
+  isDraftChat,
+  resolveChatCwd,
+} from "@/stores/useChatSessionStore";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useSettingStore from "@/stores/useSettingStore";
 import useSkillStore from "@/stores/useSkillStore";
@@ -752,6 +756,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             provider: chatProviderConfig,
             model: chatModelConfig,
             systemPrompt,
+            // 只有主对话可选工作目录；学习项目由主进程按场景固定，PDF / 视频笔记在应用数据目录
+            cwd: chatScope === "main-chat" ? resolveChatCwd(actualCurrentChat.id) : "",
             ...(chatModelConfig.reasoning ? { thinkingLevel } : {}),
             ...(toolScope ? { toolScope } : {}),
             ...(options?.toolContext

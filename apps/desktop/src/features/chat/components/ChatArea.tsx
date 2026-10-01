@@ -21,6 +21,7 @@ import ChatDropdownSelector from "@/components/ChatDropdownSelector";
 import { useChatMarkdownComponents } from "@/components/ChatUI";
 import type { ChatContainerHandle } from "@/components/ChatSidebar/ChatContainer";
 import type { BlockData } from "@/types/block-preview";
+import { WorkspaceBar } from "./WorkspaceBar";
 
 const ChatContainer = lazy(() => import("@/components/ChatSidebar/ChatContainer"));
 
@@ -141,6 +142,7 @@ const ChatArea = memo(
               </IconButton>
               {headerActions}
             </div>
+            <WorkspaceBar chatId={currentChat.id} busy={sendLoading} />
 
             <div className="min-h-0 flex-1">
               <Suspense fallback={<Loading minHeight={0} className="h-full" />}>

@@ -240,6 +240,69 @@ describe("pi 会话工具集同步", () => {
   });
 });
 
+/**
+ * 对话换工作目录：pi 的内置工具在装配时绑定 cwd，只能按新目录从会话文件重建；
+ * 目录没变照常复用。子代理经工具上下文拿到同一目录。
+ */
+describe("对话工作目录", () => {
+  afterEach(async () => {
+    await piChatSessionManager.disposeAll();
+    vi.clearAllMocks();
+  });
+
+  it("目录变化时按新目录重建，历史从会话文件恢复", async () => {
+    const { sessionId: first } = await piChatSessionManager.ensureChatSession({
+      ...options,
+      cwd: "/repo/a",
+    });
+    expect(
+      (await piChatSessionManager.ensureChatSession({ ...options, cwd: "/repo/a" })).sessionId
+    ).toBe(first);
+
+    const { sessionId: second } = await piChatSessionManager.ensureChatSession({
+      ...options,
+      cwd: "/repo/b",
+    });
+    expect(second).not.toBe(first);
+    expect(piSessionDispose).toHaveBeenCalledWith(first);
+    expect(vi.mocked(piSessionCreate).mock.calls.at(-1)?.[1]).toMatchObject({
+      cwd: "/repo/b",
+      sessionFile: "f_chat-11.jsonl",
+    });
+    expect(registerPiToolSessionContext).toHaveBeenLastCalledWith(
+      second,
+      expect.objectContaining({ toolContext: { cwd: "/repo/b" } })
+    );
+  });
+
+  it("把带所属对象的聊天场景交给宿主（学习项目据此固定目录）", async () => {
+    await piChatSessionManager.ensureChatSession({
+      ...options,
+      chatId: "vl-chat",
+      chatScope: "vibe-learning-chat:12",
+    });
+    expect(vi.mocked(piSessionCreate).mock.calls.at(-1)?.[1]).toMatchObject({
+      chatScope: "vibe-learning-chat:12",
+      cwd: "",
+    });
+  });
+
+  it("收养的宿主带回请求时的目录，目录相同不重建", async () => {
+    vi.mocked(piSessionFindByScope).mockResolvedValueOnce({
+      ok: true,
+      sessionId: "adopted",
+      modelRef: { providerId: "provider-1", modelId: "model-1" },
+      thinkingLevel: "high",
+      cwd: "/repo/a",
+    });
+    await piChatSessionManager.adoptOrResolveSession("main-chat", chatId);
+    expect(
+      (await piChatSessionManager.ensureChatSession({ ...options, cwd: "/repo/a" })).sessionId
+    ).toBe("adopted");
+    expect(piSessionCreate).not.toHaveBeenCalled();
+  });
+});
+
 describe("宿主被主进程回收后（M4-e）", () => {
   afterEach(async () => {
     await piChatSessionManager.disposeAll();

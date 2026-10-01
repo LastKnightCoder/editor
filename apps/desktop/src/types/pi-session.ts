@@ -141,6 +141,8 @@ export interface PiSessionCreateRequestV2 {
   databaseName?: string;
   sessionId: string;
   scope: string;
+  /** 聊天场景（带所属对象，如 `vibe-learning-chat:12`）；学习项目对话据此固定工作目录 */
+  chatScope?: string;
   cwd: string;
   modelRef: { providerId: string; modelId: string };
   systemPrompt?: string;
@@ -170,4 +172,25 @@ export interface PiSessionCreateRequestV2 {
   interactive?: boolean;
   /** 用量审计归属；缺省时主进程按 scope 推导功能 */
   source?: UsageSource;
+}
+
+/** 对话工作目录的状态（pi-session:workspace-info） */
+export interface PiWorkspaceInfo {
+  /** 实际使用的目录（请求为空或不存在时为应用数据目录） */
+  path: string;
+  /** 是否落到了应用数据目录（未设置，或设置的目录不存在） */
+  isAppDir: boolean;
+  /** 请求的目录不存在、已退回应用数据目录 */
+  missing: boolean;
+  /** 不是 git 仓库（或本机没装 git）时为 null */
+  git: PiWorkspaceGit | null;
+}
+
+export interface PiWorkspaceGit {
+  /** 仓库根目录 */
+  root: string;
+  /** 当前分支；游离 HEAD 时为 null */
+  branch: string | null;
+  /** HEAD 短哈希（游离时展示用） */
+  head: string;
 }
