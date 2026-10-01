@@ -1,4 +1,5 @@
 import { basename } from "node:path";
+import { normalizeDiaryDay } from "@/utils/diary-day";
 import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
 import type { Descendant } from "slate";
@@ -138,16 +139,9 @@ export default class DiaryTable {
     return this.parseEntryDateMs(date, fallback);
   }
 
-  static getDiarySearchTitle(entry: Pick<DiaryEntry, "type" | "date">) {
-    switch (entry.type) {
-      case "weekly":
-        return `${entry.date} 周记`;
-      case "monthly":
-        return `${entry.date} 月记`;
-      case "daily":
-      default:
-        return `${entry.date} 日记`;
-    }
+  /** 日记只有按天的碎片；旧 weekly / monthly 条目按归属日显示，「周记」「月记」只是标签 */
+  static getDiarySearchTitle(entry: Pick<DiaryEntry, "date" | "createTime">) {
+    return `${normalizeDiaryDay(entry.date, entry.createTime)} 日记`;
   }
 
   private static tableExists(db: Database.Database, tableName: string) {

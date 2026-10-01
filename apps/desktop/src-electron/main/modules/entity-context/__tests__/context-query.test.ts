@@ -212,6 +212,35 @@ describe("getEntityContext", () => {
     expect(ctx.projections).toEqual([]);
   });
 
+  it("旧周记条目作为来源时按归属日显示，不出现「周记」，类型名只出现一次", async () => {
+    const seg = insertContent([p(text("本周小结"), link("card", 0, "占位"))]);
+    const diaryId = Number(
+      mainDb
+        .prepare(
+          `INSERT INTO diary_entries (create_time, update_time, type, date, content_id, tags) VALUES (?, ?, 'weekly', '2025-W46', NULL, '["周记"]')`
+        )
+        .run(clock, clock).lastInsertRowid
+    );
+    mainDb
+      .prepare(
+        `INSERT INTO diary_segments (create_time, update_time, diary_id, content_id) VALUES (?, ?, ?, ?)`
+      )
+      .run(clock, clock, diaryId, seg);
+    const cardContent = insertContent([p(text("期货"))]);
+    const cardId = insertCard(cardContent);
+    mainDb
+      .prepare(`UPDATE contents SET content = ? WHERE id = ?`)
+      .run(JSON.stringify([p(text("本周小结"), link("card", cardId, "期货", cardContent))]), seg);
+    await reconcileRefs(mainDb, indexDb);
+
+    const [backlink] = getEntityContext(mainDb, indexDb, { kind: "card", id: cardId })!.backlinks;
+    expect(backlink.source).toEqual({
+      ref: { kind: "diary", id: diaryId },
+      title: "2025-11-10",
+      meta: "日记",
+    });
+  });
+
   it("出链去重，排除自身、共用正文的身份与已删除的目标", () => {
     const targetContent = insertContent([p(text("目标"))]);
     const targetId = insertArticle("目标文章", targetContent);
