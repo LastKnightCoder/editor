@@ -122,3 +122,28 @@ export function knn(vectors: CardVector[], k: number, minSimilarity = 0.35): Nei
   }
   return result;
 }
+
+/**
+ * 去枢纽：每个向量最多被 cap 个向量选作近邻，超出时只保留相似度最高的入边。
+ *
+ * 多分块的长文取均值后落在语义空间的中心，会被大量节点选中（真实库里一篇文章被 147 个节点选中），
+ * 成为到处都连的「假桥」，把卡片之间本来的语义结构挤掉。限制入度后长文仍和最像的那些节点相连。
+ */
+export function capInDegree(neighbors: Neighbor[][], cap: number): Neighbor[][] {
+  const incoming = new Map<number, Array<{ from: number; similarity: number }>>();
+  neighbors.forEach((list, from) => {
+    for (const { index, similarity } of list) {
+      const arr = incoming.get(index);
+      if (arr) arr.push({ from, similarity });
+      else incoming.set(index, [{ from, similarity }]);
+    }
+  });
+  const dropped = new Set<string>();
+  for (const [to, arr] of incoming) {
+    if (arr.length <= cap) continue;
+    arr.sort((a, b) => b.similarity - a.similarity || a.from - b.from);
+    for (const edge of arr.slice(cap)) dropped.add(`${edge.from}>${to}`);
+  }
+  if (dropped.size === 0) return neighbors;
+  return neighbors.map((list, from) => list.filter(n => !dropped.has(`${from}>${n.index}`)));
+}

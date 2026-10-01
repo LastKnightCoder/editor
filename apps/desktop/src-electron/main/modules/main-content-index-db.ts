@@ -14,6 +14,7 @@ import {
   normalizeMainDbBase,
   scanLegacyDbFiles,
 } from "./utils/index-db-storage";
+import KnowledgeMapTable from "./tables/knowledge-map";
 
 export type IndexMigrationState = "init" | "copying" | "cutover" | "done";
 export type IndexRebuildState = "pending" | "building" | "ready" | "failed";
@@ -270,6 +271,8 @@ class MainContentIndexDBManager {
   private initSchema(indexDb: Database.Database) {
     const startedAt = Date.now();
     const schemaStartAt = Date.now();
+    // 旧版地图表以 card_id 为主键，CREATE IF NOT EXISTS 不会改它，先删掉（可重算）
+    KnowledgeMapTable.migrateLegacy(indexDb);
     indexDb.exec(INDEX_SCHEMA_SQL);
     log.info(
       `[MainContentIndexDB] initSchema base schema done: elapsedMs=${Date.now() - schemaStartAt}`

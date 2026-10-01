@@ -28,10 +28,10 @@ CREATE TABLE IF NOT EXISTS index_meta (
         updated_at INTEGER
       );
 
--- 知识地图（卡片图谱的离线结果）：由主进程按「显式链接 + 语义近邻」离线计算，
--- 图谱打开时直接读取。属于可再生的派生数据，丢了会自动重建，因此放在索引库。
+-- 知识地图的离线结果：由主进程按「显式链接 + 语义近邻」离线计算，地图打开时直接读取。
+-- 节点为卡片、文章、项目文档，node_key 形如 "card:12"。可再生的派生数据，放在索引库。
 CREATE TABLE IF NOT EXISTS knowledge_map_nodes (
-        card_id INTEGER PRIMARY KEY,
+        node_key TEXT PRIMARY KEY,
         x REAL NOT NULL,
         y REAL NOT NULL,
         topic INTEGER NOT NULL DEFAULT -1,

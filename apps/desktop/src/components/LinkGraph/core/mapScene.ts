@@ -39,7 +39,11 @@ export function buildMapScene(
 ): MapScene {
   // 复用链接图的建图（边、邻接、度数、标签），再用地图覆盖坐标与归属
   const base = buildScene(cards, getCardLinks);
-  const byCard = new Map(map.nodes.map(node => [node.cardId, node]));
+  // 地图节点以 "card:12" 为键；卡片库只画卡片，其余类型在这里跳过
+  const byCard = new Map<number, (typeof map.nodes)[number]>();
+  for (const node of map.nodes) {
+    if (node.key.startsWith("card:")) byCard.set(Number(node.key.slice(5)), node);
+  }
   const topics = map.topics.filter(topic => topic.parent === -1);
   const topicCluster = new Map(topics.map((topic, index) => [topic.id, index]));
 
@@ -108,9 +112,9 @@ export function buildMapScene(
       id: topic.id,
       cluster: topicCluster.get(topic.parent) ?? -1,
       label: topic.label,
-      members: map.nodes
-        .filter(node => node.subtopic === topic.id && base.nodeById.has(node.cardId))
-        .map(node => node.cardId),
+      members: [...byCard]
+        .filter(([id, node]) => node.subtopic === topic.id && base.nodeById.has(id))
+        .map(([id]) => id),
     }))
     .filter(sub => sub.cluster >= 0 && sub.members.length > 0);
 

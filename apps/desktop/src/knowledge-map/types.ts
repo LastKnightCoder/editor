@@ -7,10 +7,11 @@
  */
 
 export interface KnowledgeMapNode {
-  cardId: number;
+  /** 节点键，与 entityRefKey 一致："card:12" / "article:3" / "project-item:5" */
+  key: string;
   x: number;
   y: number;
-  /** 大主题 id；-1 = 未归类（语义上离谁都远的卡片） */
+  /** 大主题 id；-1 = 未归类（语义上离谁都远的节点） */
   topic: number;
   /** 子主题 id；-1 = 大主题内部没再细分 */
   subtopic: number;
@@ -36,9 +37,12 @@ export interface KnowledgeMap {
   computedAt: number;
 }
 
-/** 计算输入：卡片的最小必要信息（不含正文，正文已经在向量里了） */
-export interface KnowledgeMapCardInput {
+/** 计算输入：节点的最小必要信息（不含正文，正文已经在向量里了） */
+export interface KnowledgeMapNodeInput {
+  /** 计算用数值 id（读输入时分配的稠密下标），links 与向量都按它对应 */
   id: number;
+  key: string;
+  /** 命名用的标签路径（卡片 / 文章取 tag；无 tag 的项目文档取「项目名 / 上级文档」） */
   tags: string[];
   links: number[];
 }
