@@ -212,6 +212,39 @@ describe("getEntityContext", () => {
     expect(ctx.projections).toEqual([]);
   });
 
+  it("日记一天有多条时，被引用与引用了都打开到相关的那一条", async () => {
+    const diaryId = Number(
+      mainDb
+        .prepare(
+          `INSERT INTO diary_entries (create_time, update_time, type, date, content_id) VALUES (?, ?, 'daily', '2025-11-13', NULL)`
+        )
+        .run(clock, clock).lastInsertRowid
+    );
+    const insertSegment = (contentId: number) =>
+      Number(
+        mainDb
+          .prepare(
+            `INSERT INTO diary_segments (create_time, update_time, diary_id, content_id) VALUES (?, ?, ?, ?)`
+          )
+          .run(clock, clock, diaryId, contentId).lastInsertRowid
+      );
+    const cardContent = insertContent([p(text("期货"))]);
+    const cardId = insertCard(cardContent);
+    insertSegment(insertContent([p(text("上午"))]));
+    const secondContent = insertContent([p(link("card", cardId, "期货", cardContent))]);
+    const second = insertSegment(secondContent);
+    // 卡片反过来引用这一天的第二条
+    mainDb
+      .prepare(`UPDATE contents SET content = ? WHERE id = ?`)
+      .run(JSON.stringify([p(link("diary-daily", diaryId, "11 月 13 日", secondContent))]), cardContent);
+    await reconcileRefs(mainDb, indexDb);
+
+    const ctx = getEntityContext(mainDb, indexDb, { kind: "card", id: cardId })!;
+    const target = { page: "diary", date: "2025-11-13", momentId: second };
+    expect(ctx.backlinks[0].source.open).toEqual(target);
+    expect(ctx.outlinks[0].open).toEqual(target);
+  });
+
   it("旧周记条目作为来源时按归属日显示，不出现「周记」，类型名只出现一次", async () => {
     const seg = insertContent([p(text("本周小结"), link("card", 0, "占位"))]);
     const diaryId = Number(
@@ -234,10 +267,11 @@ describe("getEntityContext", () => {
     await reconcileRefs(mainDb, indexDb);
 
     const [backlink] = getEntityContext(mainDb, indexDb, { kind: "card", id: cardId })!.backlinks;
-    expect(backlink.source).toEqual({
+    expect(backlink.source).toMatchObject({
       ref: { kind: "diary", id: diaryId },
       title: "2025-11-10",
       meta: "日记",
+      open: { page: "diary", date: "2025-11-10" },
     });
   });
 

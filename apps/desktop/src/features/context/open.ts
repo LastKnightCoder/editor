@@ -18,6 +18,8 @@ export async function openContextTarget(target: ContextOpenTarget): Promise<void
       return openPage("review", { deckId: target.deckId });
     case "whiteboard-detail":
       return openPage("whiteboard-detail", { id: target.id, page: target.pageId });
+    case "diary":
+      return openPage("diary", { date: target.date, moment: String(target.momentId) });
     case "todos":
       return openPage("todos", { selectedId: target.selectedId });
   }
