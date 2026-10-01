@@ -5,6 +5,7 @@
 
 import Database from "better-sqlite3";
 import type { EntityCandidate, EntityKind, EntityLocation, EntitySearchParams } from "@/types";
+import { ENTITY_REF_PRIORITY, type EntityRef, type EntityRefKind } from "@/entity/ref";
 import ContentTable from "./content";
 import DiaryTable from "./diary";
 
@@ -30,6 +31,8 @@ const parseJsonArray = (raw: unknown): unknown[] => {
 };
 
 const EXCERPT = 160;
+/** IN 列表每批的正文数（一条语句里同一批参数要绑定 4 次，需低于 SQLite 变量上限） */
+const LOCATE_BATCH = 200;
 
 const SEARCH_SQL: Record<EntityKind, (kw: boolean) => string> = {
   card: kw => `SELECT c.id, c.update_time AS t FROM cards c LEFT JOIN contents ct ON ct.id = c.content_id
@@ -120,6 +123,41 @@ export default class EntitySearchTable {
       }
     }
     return null;
+  }
+
+  /**
+   * 一批正文各自对应的全部实体（一份正文可被卡片、文章、项目文档同时共用）。
+   * 已软删的文章不计；同一份正文内按 卡片 > 文章 > 项目文档 > 日记 排序。
+   */
+  static locateAll(db: Database.Database, contentIds: number[]): Map<number, EntityRef[]> {
+    const result = new Map<number, EntityRef[]>();
+    const ids = [...new Set(contentIds.filter(id => Number.isSafeInteger(id) && id > 0))];
+    for (let start = 0; start < ids.length; start += LOCATE_BATCH) {
+      const batch = ids.slice(start, start + LOCATE_BATCH);
+      const marks = batch.map(() => "?").join(",");
+      const rows = db
+        .prepare(
+          `SELECT 'card' AS kind, id, content_id AS contentId FROM cards WHERE content_id IN (${marks})
+           UNION ALL SELECT 'article', id, content_id FROM articles WHERE content_id IN (${marks}) AND is_delete = 0
+           UNION ALL SELECT 'project-item', id, content_id FROM project_item WHERE content_id IN (${marks})
+           UNION ALL SELECT DISTINCT 'diary', d.id, s.content_id FROM diary_segments s
+             JOIN diary_entries d ON d.id = s.diary_id WHERE s.content_id IN (${marks})`
+        )
+        .all(...batch, ...batch, ...batch, ...batch) as Array<{
+        kind: EntityRefKind;
+        id: number;
+        contentId: number;
+      }>;
+      for (const row of rows) {
+        const list = result.get(row.contentId) ?? [];
+        list.push({ kind: row.kind, id: row.id });
+        result.set(row.contentId, list);
+      }
+    }
+    for (const list of result.values()) {
+      list.sort((a, b) => ENTITY_REF_PRIORITY[a.kind] - ENTITY_REF_PRIORITY[b.kind] || a.id - b.id);
+    }
+    return result;
   }
 
   /** 单个实体的展示信息；已不存在返回 null */

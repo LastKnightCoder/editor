@@ -108,3 +108,8 @@ CREATE INDEX IF NOT EXISTS idx_vl_quiz_item_set ON vl_quiz_item(quiz_set_id);
 CREATE INDEX IF NOT EXISTS idx_vl_quiz_record_set ON vl_quiz_record(quiz_set_id);
 CREATE INDEX IF NOT EXISTS idx_vl_quiz_record_project ON vl_quiz_record(project_id);
 CREATE INDEX IF NOT EXISTS idx_flashcard_reviews_time ON flashcard_reviews(review_time);
+-- 由正文反查所属实体（一份正文可被多个实体共用）
+CREATE INDEX IF NOT EXISTS idx_cards_content_id ON cards(content_id);
+CREATE INDEX IF NOT EXISTS idx_articles_content_id ON articles(content_id);
+CREATE INDEX IF NOT EXISTS idx_project_item_content_id ON project_item(content_id);
+CREATE INDEX IF NOT EXISTS idx_diary_segments_content_id ON diary_segments(content_id);
