@@ -13,10 +13,15 @@ import {
   getCommandElementPath,
   OverlayBackDismiss,
   ElementMenu,
+  captureElementSubmission,
 } from "@tau/editor/api";
 import ImageCropEditor, { type ImageCropTransform } from "../../../../components/ImageCropEditor";
 import { useImageResize, type ResizeDirection } from "../../../../hooks/useImageResize";
-import { useUploadResource } from "../../../../hooks/useUploadResource";
+import {
+  beginMediaSubmission,
+  mediaResourceSnapshot,
+  useMediaUploading,
+} from "../../../../utils/mediaSubmission";
 import { IMediaActions } from "../../../../services/tokens";
 import { useEditorSlots } from "../../../../services/hooks";
 import { useNotifier, useOptionalService } from "@tau/editor/api";
@@ -75,7 +80,6 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
   const {
     url,
     alt = "",
-    pasteUploading = false,
     previewUrl,
     width,
     description,
@@ -89,7 +93,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
   const notifier = useNotifier();
-  const uploadResource = useUploadResource();
+  const uploading = useMediaUploading(editor, element);
   const appearance = useImageAppearance(appearanceOption);
   const { Image: ImageSlot } = useEditorSlots();
   const isLast = useIsLastElement(element);
@@ -108,7 +112,6 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
   const [status, setStatus] = useState<LoadStatus>("loading");
   const [reloadKey, setReloadKey] = useState(0);
   const [loadedSize, setLoadedSize] = useState<{ width: number; height: number } | null>(null);
-  const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [showDescEditor, setShowDescEditor] = useState(false);
   const [contentWidth, setContentWidth] = useState(0);
@@ -119,6 +122,14 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
   menuOpenRef.current = !!menu;
   const [cropOpen, setCropOpen] = useState(false);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const cropSessionRef = useRef<ReturnType<typeof captureElementSubmission<ImageElement>> | null>(
+    null
+  );
+  const cropSession = cropSessionRef.current;
+  useEffect(() => () => cropSessionRef.current?.dispose(), []);
+  useEffect(() => {
+    cropSessionRef.current?.check();
+  }, [url, previewUrl, element.cropTransform]);
 
   const imageActions = (useOptionalService(IMediaActions) ?? []).filter(
     action => action.mediaTypes.includes("image") && (action.isAvailable?.() ?? true)
@@ -200,40 +211,57 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
     );
   });
 
-  const replaceWithFile = useMemoizedFn(async (file: File) => {
-    if (readOnly) return;
-    const target = elementRef.current;
-    setUploading(true);
-    try {
-      const uploaded = await uploadResource(file);
-      if (!uploaded) {
-        notifier.error("图片上传失败");
-        return;
+  const replaceWithFile = useMemoizedFn(
+    async (file: File, pending?: ReturnType<typeof beginMediaSubmission>) => {
+      const submission = pending ?? beginMediaSubmission(editor, elementRef.current);
+      if (!submission) return;
+      try {
+        if (submission.check()) return;
+        let uploaded: string | undefined;
+        try {
+          uploaded = await submission.upload(file);
+          if (!uploaded) throw new Error("图片上传失败");
+        } catch (error) {
+          if (!submission.check()) {
+            console.error("替换图片失败:", error);
+            notifier.error("图片上传失败");
+          }
+          return;
+        }
+        // 换图保留宽度、对齐与说明，裁剪参数和原图尺寸随新图作废
+        submission.commit(({ path }) => {
+          Transforms.setNodes(
+            editor,
+            {
+              url: uploaded,
+              previewUrl: uploaded,
+              cropTransform: undefined,
+              naturalWidth: undefined,
+              naturalHeight: undefined,
+            },
+            { at: path }
+          );
+        });
+      } finally {
+        submission.dispose();
       }
-      if (!getCommandElementPath(editor, { element: target })) return;
-      // 换图保留宽度、对齐与说明，裁剪参数和原图尺寸随新图作废
-      setProps({
-        url: uploaded,
-        previewUrl: uploaded,
-        cropTransform: undefined,
-        naturalWidth: undefined,
-        naturalHeight: undefined,
-      });
-    } catch (error) {
-      console.error("替换图片失败:", error);
-      notifier.error("图片上传失败");
-    } finally {
-      setUploading(false);
     }
-  });
+  );
 
   const pickReplacement = useMemoizedFn(() => {
+    const submission = beginMediaSubmission(editor, elementRef.current);
+    if (!submission) return;
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*";
+    input.style.display = "none";
+    document.body.appendChild(input);
+    submission.signal.addEventListener("abort", () => input.remove(), { once: true });
+    input.oncancel = () => submission.dispose();
     input.onchange = () => {
       const file = input.files?.[0];
-      if (file) void replaceWithFile(file);
+      if (file) void replaceWithFile(file, submission);
+      else submission.dispose();
     };
     input.click();
   });
@@ -241,41 +269,82 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
   // ---- 裁剪 ----
   const startCrop = useMemoizedFn(() => {
     if (readOnly || !url) return;
+    cropSessionRef.current?.dispose();
+    const snapshot = mediaResourceSnapshot(element);
+    const session = captureElementSubmission(editor, {
+      element,
+      accept: current => mediaResourceSnapshot(current) === snapshot,
+    });
+    if (session.check()) {
+      session.dispose();
+      return;
+    }
+    cropSessionRef.current = session;
+    session.signal.addEventListener(
+      "abort",
+      () => {
+        if (cropSessionRef.current !== session) return;
+        cropSessionRef.current = null;
+        setCropOpen(false);
+        setCropSrc(null);
+      },
+      { once: true }
+    );
     // 未裁剪过：显示图就是原图，直接用它已解析的地址；裁剪过则另行解析原图（见下方隐藏的插槽图片）
     setCropSrc(!isCropped ? (displayImgRef.current?.currentSrc ?? null) : null);
     setCropOpen(true);
   });
 
   const closeCrop = useMemoizedFn(() => {
+    cropSessionRef.current?.dispose();
     setCropOpen(false);
     setCropSrc(null);
   });
 
   const handleCropConfirm = useMemoizedFn(
-    async ({
-      transform,
-      blob,
-      ext,
-    }: {
-      transform: ImageCropTransform;
-      blob: Blob;
-      ext: string;
-    }) => {
-      const target = elementRef.current;
-      if (!getCommandElementPath(editor, { element: target })) return;
-      const file = new File([blob], `crop-${Date.now()}.${ext}`, { type: blob.type });
-      const uploaded = await uploadResource(file);
-      if (!uploaded) {
-        throw new Error("裁剪结果上传失败，请重试");
-      }
-      if (!getCommandElementPath(editor, { element: target })) return;
-      setProps({
-        cropTransform: transform,
-        previewUrl: uploaded,
-        naturalWidth: Math.round(transform.cropWidth),
-        naturalHeight: Math.round(transform.cropHeight),
+    async (
+      {
+        transform,
+        blob,
+        ext,
+      }: {
+        transform: ImageCropTransform;
+        blob: Blob;
+        ext: string;
+      },
+      session: typeof cropSession
+    ) => {
+      if (!session || session.check()) return;
+      const submission = beginMediaSubmission(editor, elementRef.current, {
+        signal: session.signal,
       });
-      closeCrop();
+      if (!submission) return;
+      try {
+        const file = new File([blob], `crop-${Date.now()}.${ext}`, { type: blob.type });
+        let uploaded: string | undefined;
+        try {
+          uploaded = await submission.upload(file);
+          if (!uploaded) throw new Error("裁剪结果上传失败，请重试");
+        } catch (error) {
+          if (submission.check()) return;
+          throw error;
+        }
+        const outcome = submission.commit(({ path }) => {
+          Transforms.setNodes(
+            editor,
+            {
+              cropTransform: transform,
+              previewUrl: uploaded,
+              naturalWidth: Math.round(transform.cropWidth),
+              naturalHeight: Math.round(transform.cropHeight),
+            },
+            { at: path }
+          );
+        });
+        if (outcome.status === "committed") closeCrop();
+      } finally {
+        submission.dispose();
+      }
     }
   );
 
@@ -432,7 +501,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
     shadow: effectiveShadow,
   });
   const showHandles = !readOnly && isSelected && status !== "error";
-  const busy = uploading || pasteUploading;
+  const busy = uploading;
 
   const renderPlaceholder = () => {
     if (readOnly) return null;
@@ -711,7 +780,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
           originalUrl={url}
           initialTransform={element.cropTransform}
           onCancel={closeCrop}
-          onConfirm={handleCropConfirm}
+          onConfirm={result => handleCropConfirm(result, cropSession)}
         />
       )}
     </div>

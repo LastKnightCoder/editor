@@ -13,7 +13,11 @@ import { IMediaActions, IEditorSlots } from "../../services";
 import { createDefaultEditorSlots } from "../../slots";
 import { imageActionsMap } from "../extensions/image/utils/actionsMap";
 
-const controls = vi.hoisted(() => ({ tasks: [] as Promise<void>[] }));
+type CropResult = { transform: ImageCropTransform; blob: Blob; ext: string };
+const controls = vi.hoisted(() => ({
+  tasks: [] as Promise<void>[],
+  confirm: undefined as ((result: CropResult) => Promise<void>) | undefined,
+}));
 // jsdom 无实际裁剪画布；使用真实图片组件、动作和宿主仲裁，只替代像素处理 UI。
 vi.mock("../components/ImageCropEditor", () => ({
   default: ({
@@ -24,18 +28,21 @@ vi.mock("../components/ImageCropEditor", () => ({
       blob: Blob;
       ext: string;
     }) => Promise<void>;
-  }) => (
-    <button
-      data-crop-confirm
-      onClick={() => {
-        controls.tasks.push(
-          onConfirm({ transform: {} as ImageCropTransform, blob: new Blob(["crop"]), ext: "png" })
-        );
-      }}
-    >
-      裁剪确认
-    </button>
-  ),
+  }) => {
+    controls.confirm = onConfirm;
+    return (
+      <button
+        data-crop-confirm
+        onClick={() => {
+          controls.tasks.push(
+            onConfirm({ transform: {} as ImageCropTransform, blob: new Blob(["crop"]), ext: "png" })
+          );
+        }}
+      >
+        裁剪确认
+      </button>
+    );
+  },
 }));
 
 async function mount(upload: (file: File) => Promise<string>, inline = false) {
@@ -190,6 +197,100 @@ it("裁剪上传等待期间替换图片，不把结果写入同位置的新节�
   }
 });
 
+it("裁剪期间修改说明和宽度不会丢弃结果，也不会覆盖新属性", async () => {
+  let finish!: (url: string) => void;
+  const view = await mount(
+    () =>
+      new Promise<string>(resolve => {
+        finish = resolve;
+      })
+  );
+  try {
+    await view.render(false);
+    for (const img of view.host.querySelectorAll("img"))
+      Object.defineProperty(img, "currentSrc", { configurable: true, value: img.src });
+    await act(async () => view.actions()?.startCrop());
+    await act(async () =>
+      view.host.querySelector<HTMLButtonElement>("[data-crop-confirm]")?.click()
+    );
+    await act(async () =>
+      Transforms.setNodes(view.editor, { description: "新说明", width: 321 }, { at: [0] })
+    );
+    await act(async () => {
+      finish("cropped");
+      await controls.tasks[0];
+    });
+    expect(view.editor.children[0]).toMatchObject({
+      previewUrl: "cropped",
+      description: "新说明",
+      width: 321,
+    });
+    expect(view.editor.pathRefs().size).toBe(0);
+  } finally {
+    await view.dispose();
+  }
+});
+
+it("关闭再打开裁剪器，旧像素导出回调不能认领新会话", async () => {
+  const upload = vi.fn(async () => "cropped");
+  const view = await mount(upload);
+  try {
+    await view.render(false);
+    for (const img of view.host.querySelectorAll("img"))
+      Object.defineProperty(img, "currentSrc", { configurable: true, value: img.src });
+    await act(async () => view.actions()?.startCrop());
+    const oldConfirm = controls.confirm;
+    if (!oldConfirm) throw new Error("裁剪器未挂载");
+    await act(async () => [...view.dismissals][0]());
+    await act(async () => view.actions()?.startCrop());
+    await act(async () =>
+      oldConfirm({ transform: {} as ImageCropTransform, blob: new Blob(["old"]), ext: "png" })
+    );
+    expect(upload).not.toHaveBeenCalled();
+    expect(view.host.querySelector("[data-crop-confirm]")).not.toBeNull();
+  } finally {
+    await view.dispose();
+  }
+});
+
+it("关闭裁剪后可重试，旧上传晚于新上传返回也不会覆盖", async () => {
+  let finish!: (url: string) => void;
+  const upload = vi
+    .fn()
+    .mockImplementationOnce(
+      () =>
+        new Promise<string>(resolve => {
+          finish = resolve;
+        })
+    )
+    .mockResolvedValue("new-crop");
+  const view = await mount(upload);
+  try {
+    await view.render(false);
+    for (const img of view.host.querySelectorAll("img"))
+      Object.defineProperty(img, "currentSrc", { configurable: true, value: img.src });
+    await act(async () => view.actions()?.startCrop());
+    await act(async () =>
+      view.host.querySelector<HTMLButtonElement>("[data-crop-confirm]")?.click()
+    );
+    await act(async () => [...view.dismissals][0]());
+    await act(async () => view.actions()?.startCrop());
+    await act(async () =>
+      view.host.querySelector<HTMLButtonElement>("[data-crop-confirm]")?.click()
+    );
+    await act(async () => controls.tasks[1]);
+    await act(async () => {
+      finish("old-crop");
+      await controls.tasks[0];
+    });
+    expect(upload).toHaveBeenCalledTimes(2);
+    expect(view.editor.children[0]).toMatchObject({ previewUrl: "new-crop" });
+    expect(view.editor.pathRefs().size).toBe(0);
+  } finally {
+    await view.dispose();
+  }
+});
+
 it("媒体更多菜单由核心聚合已有贡献并经命令执行", async () => {
   const view = await mount(async () => "uploaded");
   try {
@@ -301,6 +402,43 @@ it("行内图片上传浮层接返回仲裁，只读不显示上传入口", asyn
     expect(view.dismissals.size).toBe(1);
     await act(async () => [...view.dismissals][0]());
     expect(view.dismissals.size).toBe(0);
+  } finally {
+    await view.dispose();
+  }
+});
+
+it("关闭行内上传面板后，迟到上传不写入原节点", async () => {
+  let finish!: (url: string) => void;
+  const upload = vi.fn(
+    () =>
+      new Promise<string>(resolve => {
+        finish = resolve;
+      })
+  );
+  const view = await mount(upload, true);
+  try {
+    await view.render(false);
+    const button = [...view.host.querySelectorAll("button")].find(
+      item => item.textContent?.trim() === "上传图片"
+    );
+    if (!button) throw new Error("上传入口缺失");
+    await act(async () => button.click());
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]');
+    if (!input) throw new Error("文件输入缺失");
+    Object.defineProperty(input, "files", {
+      configurable: true,
+      value: [new File(["x"], "a.png", { type: "image/png" })],
+    });
+    await act(async () => input.dispatchEvent(new Event("change", { bubbles: true })));
+    expect(upload).toHaveBeenCalledTimes(1);
+    const before = structuredClone(view.editor.children);
+    await act(async () => [...view.dismissals][0]());
+    await act(async () => {
+      finish("late-result");
+      await Promise.resolve();
+    });
+    expect(view.editor.children).toEqual(before);
+    expect(view.editor.pathRefs().size).toBe(0);
   } finally {
     await view.dispose();
   }

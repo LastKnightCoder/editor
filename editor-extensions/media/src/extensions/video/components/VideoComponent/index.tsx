@@ -16,6 +16,7 @@ import { IVideoContentProviders } from "../../../../services/tokens";
 import { useEditorSlots } from "../../../../services/hooks";
 import { useNotifier, useOptionalService } from "@tau/editor/api";
 import { openLocalMediaPicker } from "../../../../utils/mediaInsert";
+import { useMediaUploading } from "../../../../utils/mediaSubmission";
 import {
   MEDIA_ALIGN_CLASS,
   MEDIA_CORNER_HANDLE_CLASS,
@@ -58,7 +59,8 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     [videoProviders, element]
   );
 
-  const { src, uploading, playbackRate = 1, width, align = "center" } = element;
+  const { src, playbackRate = 1, width, align = "center" } = element;
+  const uploading = useMediaUploading(editor, element);
 
   // 底栏信息位：「来源 · 标题」，无标题的直链 / 本地文件退回文件名
   const info = useMemo(() => {

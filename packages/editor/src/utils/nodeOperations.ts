@@ -1,4 +1,4 @@
-import { Editor, Element as SlateElement, Transforms, Node, Path } from "slate";
+import { Editor, Transforms, Node, Path } from "slate";
 import { ReactEditor } from "slate-react";
 import type { EditorFeedback } from "../services/notifier";
 import { createParagraph } from "../model/paragraph";
@@ -11,8 +11,9 @@ export async function copyNodeToClipboard(
   _editor: Editor,
   element: Node,
   message?: EditorFeedback,
-  options: { allowPlainTextFallback?: boolean } = {}
+  options: { allowPlainTextFallback?: boolean; signal?: AbortSignal } = {}
 ): Promise<boolean> {
+  if (options.signal?.aborted) return false;
   const slateClipboardFormat = "application/x-slate-fragment";
   const plainText = Node.string(element);
 
@@ -37,9 +38,11 @@ export async function copyNodeToClipboard(
         ...clipboardData,
       }),
     ]);
+    if (options.signal?.aborted) return false;
     message?.success("复制成功");
     return true;
   } catch (error) {
+    if (options.signal?.aborted) return false;
     console.error("复制失败:", error);
     if (options.allowPlainTextFallback === false) {
       message?.error("复制失败，原内容已保留");
@@ -48,9 +51,11 @@ export async function copyNodeToClipboard(
     // 降级方案：使用旧的 API
     try {
       await navigator.clipboard.writeText(plainText);
+      if (options.signal?.aborted) return false;
       message?.success("复制成功");
       return true;
     } catch (fallbackError) {
+      if (options.signal?.aborted) return false;
       console.error("降级复制也失败:", fallbackError);
       message?.error("复制失败，请稍后重试");
       return false;
@@ -129,30 +134,4 @@ export function deleteVoidBlock(editor: Editor, path: Path): void {
       // 节点已不存在时忽略聚焦恢复
     }
   }, 0);
-}
-
-/**
- * 通过 uuid 查找并更新指定类型的节点。图片 / 行内图片的认领上传用它回填——
- * 上传是异步的，连续插入多个文件时路径会漂移，按 uuid 找节点才可靠。
- */
-export function updateNodeByUuid(
-  editor: Editor,
-  uuid: string,
-  type: string,
-  properties: Record<string, any>
-): boolean {
-  const nodeEntries = Array.from(
-    Editor.nodes(editor, {
-      at: [],
-      match: (n: any) => SlateElement.isElement(n) && n.type === type && (n as any).uuid === uuid,
-    })
-  );
-
-  if (nodeEntries.length > 0) {
-    const nodeEntry = nodeEntries[0];
-    Transforms.setNodes(editor, properties, { at: nodeEntry[1] });
-    return true;
-  }
-
-  return false;
 }

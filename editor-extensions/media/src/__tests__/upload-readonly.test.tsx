@@ -10,7 +10,7 @@ import { image, openLocalMediaPicker } from "../index";
 import { createDefaultEditorSlots } from "../../slots";
 import { IEditorSlots } from "../../services";
 
-const scenarios = ["只读", "隐藏", "卸载"].flatMap(state =>
+const scenarios = ["只读", "隐藏", "卸载", "只读后恢复", "隐藏后恢复"].flatMap(state =>
   [true, false].flatMap(target => [true, false].map(success => ({ state, target, success })))
 );
 
@@ -40,12 +40,12 @@ it.each(scenarios)(
       act(async () =>
         root.render(
           <DndProvider backend={HTML5Backend}>
-            <Activity mode={changed && state === "隐藏" ? "hidden" : "visible"}>
+            <Activity mode={changed && state.startsWith("隐藏") ? "hidden" : "visible"}>
               {!(changed && state === "卸载") && (
                 <Editor
                   ref={ref}
                   kit={kit}
-                  readonly={changed && state === "只读"}
+                  readonly={changed && state.startsWith("只读")}
                   initValue={[
                     ...(target
                       ? [
@@ -89,6 +89,7 @@ it.each(scenarios)(
       });
       const before = structuredClone(editor.children);
       await render(true);
+      if (state.endsWith("恢复")) await render(false);
       await act(async () => {
         if (success) finish("uploaded");
         else fail(new Error("上传失败"));

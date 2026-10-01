@@ -1,18 +1,17 @@
-import { IResourceService } from "@tau/shared/host-services";
-import { Editor, Element as SlateElement, Path, Transforms } from "slate";
-import { ReactEditor } from "slate-react";
+import { Editor, Node, Path, Transforms } from "slate";
 import { v4 as getUuid } from "uuid";
-import { notifierOf } from "@tau/editor/api";
+import { notifierOf, captureElementSubmission, captureInsertionSubmission } from "@tau/editor/api";
 import { Link, Plus, Upload } from "lucide-react";
 
 import { type IBlockPanelListItem } from "@tau/editor/api";
 import { type MediaInsertPayload, type MediaType } from "../services/mediaProviders";
 import { IMediaInsertSources, IVideoContentProviders } from "../services/tokens";
-import { canSetOrInsertNode, setOrInsertNode } from "@tau/editor/api";
-import { getCommandElementPath } from "@tau/editor/api";
+import { setOrInsertNode } from "@tau/editor/api";
 import type { ImageElement } from "../types/element/image";
 import type { VideoElement } from "../types/element/video";
 import type { AudioElement } from "../types/element/audio";
+import { beginMediaSubmission, mediaResourceSnapshot } from "./mediaSubmission";
+import { uploadMedia } from "./uploadMedia";
 
 /**
  * 媒体插入助手：slash 菜单二级入口的统一实现。
@@ -21,15 +20,6 @@ import type { AudioElement } from "../types/element/audio";
  */
 
 type AnyMediaElement = ImageElement | VideoElement | AudioElement;
-
-const canWriteMedia = (editor: Editor): boolean => {
-  if (ReactEditor.isReadOnly(editor)) return false;
-  try {
-    return ReactEditor.toDOMNode(editor, editor).isConnected;
-  } catch {
-    return false;
-  }
-};
 
 const MEDIA_TYPE_LABELS: Record<MediaType, string> = {
   image: "图片",
@@ -48,19 +38,6 @@ const getMediaTypeKeywords = (mediaType: MediaType) => [
   MEDIA_TYPE_LABELS[mediaType],
   ...MEDIA_TYPE_SEARCH_KEYWORDS[mediaType],
 ];
-
-/** 各媒体类型的"上传中"标志：空态占位组件依据它显示上传反馈并禁用重复触发 */
-const UPLOADING_FLAG: Record<MediaType, Record<string, unknown>> = {
-  image: { pasteUploading: true },
-  video: { uploading: true },
-  audio: { uploading: true },
-};
-
-const CLEAR_UPLOADING_FLAG: Record<MediaType, Record<string, unknown>> = {
-  image: { pasteUploading: false },
-  video: { uploading: false },
-  audio: { uploading: false },
-};
 
 const buildMediaElement = (mediaType: MediaType, payload: MediaInsertPayload): AnyMediaElement => {
   // attributes 属宿主透传字段，置于保留字段之前，避免覆盖媒体扩展字段
@@ -122,6 +99,7 @@ export const insertMediaPayloads = (
 // 常驻 DOM 的隐藏 input：Android WebView 对未挂载 input 的文件选择回调
 // 可能立即回收底层句柄，导致 onchange 后 arrayBuffer 挂起（桌面无此问题）
 let sharedPickerInput: HTMLInputElement | null = null;
+let releasePicker: (() => void) | null = null;
 function acquirePickerInput(): HTMLInputElement {
   if (!sharedPickerInput) {
     sharedPickerInput = document.createElement("input");
@@ -142,151 +120,69 @@ export const openLocalMediaPicker = (
   targetElement?: AnyMediaElement,
   options?: { capture?: boolean; onComplete?: () => void }
 ) => {
-  if (!canWriteMedia(editor)) return;
-  const input = acquirePickerInput();
-  input.accept = mediaType === "image" ? "image/*" : mediaType === "video" ? "video/*" : "audio/*";
-  if (options?.capture) {
-    input.setAttribute("capture", "environment");
-  } else {
-    input.removeAttribute("capture");
+  releasePicker?.();
+  const snapshot = targetElement ? mediaResourceSnapshot(targetElement) : null;
+  const target = targetElement
+    ? captureElementSubmission(editor, {
+        element: targetElement,
+        accept: current => mediaResourceSnapshot(current) === snapshot,
+      })
+    : null;
+  const anchor = targetElement ? null : captureInsertionSubmission(editor);
+  const request = target ?? anchor;
+  if (!request) return;
+  if (request.check()) {
+    request.dispose();
+    options?.onComplete?.();
+    return;
   }
-  // 重置以允许连续选择同一文件
+  const input = acquirePickerInput();
+  input.accept = `${mediaType}/*`;
+  if (options?.capture) input.setAttribute("capture", "environment");
+  else input.removeAttribute("capture");
   input.value = "";
-  input.oncancel = () => options?.onComplete?.();
+  const dispose = () => {
+    target?.dispose();
+    anchor?.dispose();
+    if (releasePicker === dispose) releasePicker = null;
+  };
+  releasePicker = dispose;
+  input.oncancel = () => {
+    dispose();
+    options?.onComplete?.();
+  };
   input.onchange = async () => {
     const file = input.files?.[0];
-    if (!file) {
-      options?.onComplete?.();
-      return;
-    }
     try {
-      await uploadAndInsertMedia(editor, mediaType, file, targetElement);
+      if (!file || request.check()) return;
+      if (target) {
+        let submission: ReturnType<typeof beginMediaSubmission> = null;
+        target.commit(({ element, path }) => {
+          if (element.type === mediaType)
+            submission = beginMediaSubmission(editor, element, { path });
+        });
+        await uploadMedia(editor, file, submission);
+      } else if (anchor) {
+        let submission: ReturnType<typeof beginMediaSubmission> = null;
+        anchor.commit(({ range }) => {
+          Transforms.select(editor, range);
+          const path = setOrInsertNode(
+            editor,
+            buildMediaElement(mediaType, { src: "", title: file.name })
+          );
+          if (path)
+            submission = beginMediaSubmission(editor, Node.get(editor, path) as AnyMediaElement, {
+              path,
+            });
+        });
+        await uploadMedia(editor, file, submission, "paragraph");
+      }
     } finally {
+      dispose();
       options?.onComplete?.();
     }
   };
   input.click();
-};
-
-const findMediaByUuid = (editor: Editor, mediaType: MediaType, uuid: string) => {
-  return Array.from(
-    Editor.nodes(editor, {
-      at: [],
-      match: n =>
-        SlateElement.isElement(n) && n.type === mediaType && (n as AnyMediaElement).uuid === uuid,
-    })
-  )[0];
-};
-
-/** 上传完成后的元素属性（清上传标志并写入最终地址） */
-const buildUploadedProperties = (
-  mediaType: MediaType,
-  url: string,
-  file: File,
-  currentTitle?: string
-) => {
-  if (mediaType === "image") {
-    return { url, pasteUploading: false };
-  }
-  if (mediaType === "video") {
-    return { src: url, uploading: false };
-  }
-  return { src: url, uploading: false, title: currentTitle || file.name };
-};
-
-const uploadAndInsertMedia = async (
-  editor: Editor,
-  mediaType: MediaType,
-  file: File,
-  targetElement?: AnyMediaElement
-) => {
-  if (!canWriteMedia(editor)) return;
-  if (targetElement) {
-    if (targetElement.type !== mediaType) return;
-    const startPath = getCommandElementPath(editor, { element: targetElement });
-    if (!startPath) return;
-    const target = Editor.pathRef(editor, startPath);
-    const currentPath = () => {
-      if (!canWriteMedia(editor)) return null;
-      const path = target.current;
-      return path && Editor.node(editor, path)[0].type === mediaType ? path : null;
-    };
-    try {
-      Transforms.setNodes(editor, UPLOADING_FLAG[mediaType], { at: startPath });
-      const url = await editor.getService(IResourceService).upload(file);
-      if (!canWriteMedia(editor)) return;
-      if (!url) {
-        throw new Error("上传失败");
-      }
-      const path = currentPath();
-      if (path)
-        Transforms.setNodes(
-          editor,
-          buildUploadedProperties(
-            mediaType,
-            url,
-            file,
-            targetElement.type === "audio" ? targetElement.title : undefined
-          ),
-          { at: path }
-        );
-    } catch (error) {
-      if (!canWriteMedia(editor)) return;
-      console.error("上传媒体失败:", error);
-      notifierOf(editor).error("上传失败");
-      const path = currentPath();
-      if (path) Transforms.setNodes(editor, CLEAR_UPLOADING_FLAG[mediaType], { at: path });
-    } finally {
-      target.unref();
-    }
-    return;
-  }
-
-  const placeholder = buildMediaElement(
-    mediaType,
-    mediaType === "audio" ? { src: "", title: file.name } : { src: "" }
-  );
-  const firstPath = setOrInsertNode(editor, {
-    ...placeholder,
-    ...UPLOADING_FLAG[mediaType],
-  } as AnyMediaElement);
-  if (!firstPath) {
-    return;
-  }
-  const uuid = placeholder.uuid!;
-
-  try {
-    const url = await editor.getService(IResourceService).upload(file);
-    if (!canWriteMedia(editor)) return;
-    if (!url) {
-      throw new Error("上传失败");
-    }
-    const entry = findMediaByUuid(editor, mediaType, uuid);
-    if (entry) {
-      Transforms.setNodes(editor, buildUploadedProperties(mediaType, url, file) as never, {
-        at: entry[1],
-      });
-    }
-  } catch (error) {
-    if (!canWriteMedia(editor)) return;
-    console.error("上传媒体失败:", error);
-    notifierOf(editor).error("上传失败");
-    const entry = findMediaByUuid(editor, mediaType, uuid);
-    if (entry) {
-      // 仅按 uuid 定位删除，避免上传期间文档被编辑导致静态 path 误删其它节点
-      Editor.withoutNormalizing(editor, () => {
-        Transforms.delete(editor, { at: entry[1] });
-        Transforms.insertNodes(
-          editor,
-          {
-            type: "paragraph",
-            children: [{ type: "formatted", text: "" }],
-          },
-          { at: entry[1], select: true }
-        );
-      });
-    }
-  }
 };
 
 const MEDIA_URL_PLACEHOLDERS: Record<MediaType, string> = {
@@ -299,30 +195,34 @@ const CANNOT_INSERT_HINT = "当前选区无法插入，请将光标置于正文�
 
 /** 打开"网络地址"输入框并在光标处插入；输入框由提示服务承接（桌面默认 Dialog，mobile 底部面板） */
 export const openMediaUrlInput = async (editor: Editor, mediaType: MediaType) => {
-  if (ReactEditor.isReadOnly(editor)) return;
+  const anchor = captureInsertionSubmission(editor);
   const notifier = notifierOf(editor);
-  const url = await notifier.prompt({
-    title: `插入网络${MEDIA_TYPE_LABELS[mediaType]}`,
-    placeholder: MEDIA_URL_PLACEHOLDERS[mediaType],
-    confirmText: "插入",
-    inputMode: "url",
-    validate: value => {
-      if (mediaType === "video" && isProviderSourceUrl(editor, value)) {
-        return "该地址属于特殊内容源，请通过对应入口创建视频";
-      }
-      if (ReactEditor.isReadOnly(editor) || !canSetOrInsertNode(editor)) {
-        return CANNOT_INSERT_HINT;
-      }
-    },
-  });
-  if (!url || ReactEditor.isReadOnly(editor)) return;
   try {
-    if (!ReactEditor.toDOMNode(editor, editor).isConnected) return;
-  } catch {
-    return;
-  }
-  if (!insertMediaByUrl(editor, mediaType, url)) {
-    notifier.warning(CANNOT_INSERT_HINT);
+    const reason = anchor.check();
+    if (reason) {
+      if (reason === "target-lost" || reason === "target-changed")
+        notifier.warning(CANNOT_INSERT_HINT);
+      return;
+    }
+    const url = await notifier.prompt({
+      signal: anchor.signal,
+      title: `插入网络${MEDIA_TYPE_LABELS[mediaType]}`,
+      placeholder: MEDIA_URL_PLACEHOLDERS[mediaType],
+      confirmText: "插入",
+      inputMode: "url",
+      validate: value => {
+        if (mediaType === "video" && isProviderSourceUrl(editor, value)) {
+          return "该地址属于特殊内容源，请通过对应入口创建视频";
+        }
+      },
+    });
+    if (!url) return;
+    anchor.commit(({ range }) => {
+      Transforms.select(editor, range);
+      if (!insertMediaByUrl(editor, mediaType, url)) notifier.warning(CANNOT_INSERT_HINT);
+    });
+  } finally {
+    anchor.dispose();
   }
 };
 

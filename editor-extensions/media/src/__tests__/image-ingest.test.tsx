@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { Editor as SlateEditor, Node, Transforms } from "slate";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Editor, createEditorKit, type EditorRef } from "@tau/editor";
 import { createParagraph, IEditorNotifier, type IngestContext } from "@tau/editor/api";
 import { IResourceService } from "@tau/shared/host-services";
@@ -27,13 +27,15 @@ async function mount(text: string, upload: (file: File) => Promise<string>) {
   const root = createRoot(host);
   const paragraph = createParagraph();
   paragraph.children = [{ type: "formatted", text }];
-  await act(async () =>
-    root.render(
-      <DndProvider backend={HTML5Backend}>
-        <Editor ref={ref} kit={kit} readonly={false} initValue={[paragraph]} />
-      </DndProvider>
-    )
-  );
+  const render = (readonly = false) =>
+    act(async () =>
+      root.render(
+        <DndProvider backend={HTML5Backend}>
+          <Editor ref={ref} kit={kit} readonly={readonly} initValue={[paragraph]} />
+        </DndProvider>
+      )
+    );
+  await render();
   const editor = ref.current?.getEditor();
   if (!editor) throw new Error("编辑器未挂载");
   await act(async () => Transforms.select(editor, SlateEditor.end(editor, [0])));
@@ -44,6 +46,7 @@ async function mount(text: string, upload: (file: File) => Promise<string>) {
     files: ["first.png", "second.png"].map(name => new File(["图片"], name, { type: "image/png" })),
   };
   return {
+    render,
     editor,
     context,
     dispose: async () => {
@@ -54,6 +57,42 @@ async function mount(text: string, upload: (file: File) => Promise<string>) {
 }
 
 describe("图片真实装配下的多文件与异步定位", () => {
+  it("批次取消后恢复编辑，不启动后续上传且释放占位忙态", async () => {
+    let finish!: (url: string) => void;
+    const upload = vi.fn(
+      () =>
+        new Promise<string>(resolve => {
+          finish = resolve;
+        })
+    );
+    const view = await mount("", upload);
+    try {
+      let task!: Promise<void>;
+      await act(async () => {
+        task = imageIngestSpec.files.run(view.context);
+      });
+      expect(upload).toHaveBeenCalledTimes(1);
+      expect(
+        view.editor.children.every(
+          node => !("pasteUploading" in node) || node.pasteUploading !== true
+        )
+      ).toBe(true);
+      await view.render(true);
+      await view.render(false);
+      await act(async () => {
+        finish("old-result");
+        await task;
+      });
+      expect(upload).toHaveBeenCalledTimes(1);
+      expect(
+        view.editor.children.filter(node => node.type === "image").every(node => node.url === "")
+      ).toBe(true);
+      expect(view.editor.pathRefs().size).toBe(0);
+    } finally {
+      await view.dispose();
+    }
+  });
+
   it.each(["drop", "paste"] as const)("%s 多文件保持块/行内落位与各自地址", async source => {
     const view = await mount(source === "drop" ? "" : "正文", async file => file.name);
     try {

@@ -6,6 +6,7 @@ import { expect, it } from "vitest";
 import { Editor, createEditorKit, createValueDocument, notifierOf, type EditorRef } from "../index";
 import { createParagraph } from "../model/paragraph";
 import usePromptStore from "../stores/usePromptStore";
+import { captureEditorSubmission } from "../api/submission";
 
 it.each(["隐藏", "卸载", "只读", "换源"])("多编辑器下发起者%s会取消自己的输入", async scenario => {
   const kit = createEditorKit();
@@ -38,6 +39,7 @@ it.each(["隐藏", "卸载", "只读", "换源"])("多编辑器下发起者%s会
     await render(false);
     const editor = ref.current?.getEditor();
     if (!editor) throw new Error("发起编辑器未挂载");
+    const operation = captureEditorSubmission(editor);
     let result!: Promise<string | null>;
     await act(async () => {
       result = notifierOf(editor).prompt({ title: "输入" });
@@ -48,6 +50,10 @@ it.each(["隐藏", "卸载", "只读", "换源"])("多编辑器下发起者%s会
     await expect(result).resolves.toBeNull();
     await render(false);
     expect(usePromptStore.getState().pending).toBeNull();
+    expect(operation.commit(() => undefined)).toEqual({
+      status: "discarded",
+      reason: "scope-ended",
+    });
     const otherEditor = otherRef.current?.getEditor();
     if (!otherEditor) throw new Error("其他编辑器未挂载");
     let otherResult!: Promise<string | null>;

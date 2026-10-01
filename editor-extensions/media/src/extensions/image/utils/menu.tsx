@@ -16,7 +16,7 @@ import { Editor, Element, Transforms } from "slate";
 
 import { type EditorCommand } from "@tau/editor/api";
 import { type EditorMenuEntry, type EditorMenuContext } from "@tau/editor/api";
-import { notifierOf, getCommandElementPath } from "@tau/editor/api";
+import { notifierOf, getCommandElementPath, captureElementSubmission } from "@tau/editor/api";
 import { IMediaActions } from "../../../services/tokens";
 import {
   type ImageBorderRadiusPreset,
@@ -146,14 +146,26 @@ export const imageCommands: EditorCommand[] = [
     run: async (editor, ctx) => {
       const element = asImage(ctx.element);
       if (!element) return;
-      const alt = await notifierOf(editor).prompt({
-        title: "替代文本",
-        placeholder: "描述图片内容，供读屏与导出使用",
-        defaultValue: element.alt ?? "",
+      const submission = captureElementSubmission(editor, {
+        element,
+        path: ctx.path,
+        accept: current => current.url === element.url && current.alt === element.alt,
       });
-      if (alt == null) return;
-      const path = findPath(editor, element);
-      if (path) Transforms.setNodes(editor, { alt }, { at: path });
+      try {
+        if (submission.check()) return;
+        const alt = await notifierOf(editor).prompt({
+          signal: submission.signal,
+          title: "替代文本",
+          placeholder: "描述图片内容，供读屏与导出使用",
+          defaultValue: element.alt ?? "",
+        });
+        if (alt == null) return;
+        submission.commit(({ path }) => {
+          Transforms.setNodes(editor, { alt }, { at: path });
+        });
+      } finally {
+        submission.dispose();
+      }
     },
   },
   {

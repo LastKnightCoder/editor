@@ -20,8 +20,10 @@ function setup(upload: () => Promise<string>) {
   following.children = [{ type: "formatted", text: "后文" }];
   editor.children = [createParagraph(), following];
   editor.isVoid = element => element.type === "video";
-  editor.getService = () => ({ upload }) as never;
-  editor.tryGetService = () => ({ error: vi.fn() }) as never;
+  const resource = { upload };
+  editor.getService = () => resource as never;
+  const notifier = { error: vi.fn() };
+  editor.tryGetService = id => (id.id === "resourceService" ? resource : notifier) as never;
   Transforms.select(editor, Editor.start(editor, [0]));
   const context: IngestContext = {
     editor,

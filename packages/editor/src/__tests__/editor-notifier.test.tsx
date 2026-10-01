@@ -201,13 +201,40 @@ describe("默认确认框", () => {
       expect(image).toMatchObject({ type: "image", url: "https://example.com/a.png" });
     });
 
-    it("网络地址插入：没有可插入的选区时就地提示，不插入", async () => {
+    it("网络地址确认固定原落点，不跟随期间切换的选区", async () => {
       const [editor] = await mount();
+      await act(async () => Transforms.select(editor, { path: [0, 0], offset: 2 }));
+      await act(async () => void openMediaUrlInput(editor, "image"));
+      await act(async () => {
+        Transforms.insertNodes(
+          editor,
+          { type: "paragraph", children: [{ type: "formatted", text: "另一处" }] },
+          { at: [1] }
+        );
+        Transforms.select(editor, { path: [1, 0], offset: 3 });
+      });
+      await type("https://example.com/original.png");
+      await act(async () => button("插入").click());
+      expect(editor.children[1]).toMatchObject({
+        type: "image",
+        url: "https://example.com/original.png",
+      });
+      expect(editor.children[2]).toMatchObject({
+        type: "paragraph",
+        children: [{ text: "另一处" }],
+      });
+      expect(editor.pathRefs().size).toBe(0);
+      expect(editor.rangeRefs().size).toBe(0);
+    });
+
+    it("网络地址插入：没有原始落点时提示且不打开输入框", async () => {
+      const [editor] = await mount();
+      const warning = vi.spyOn(notifierOf(editor), "warning").mockImplementation(() => undefined);
       await act(async () => Transforms.deselect(editor));
       await act(async () => void openMediaUrlInput(editor, "image"));
-      await type("https://example.com/a.png");
-      await act(async () => button("插入").click());
-      expect(dialog()?.querySelector('[role="alert"]')?.textContent).toContain("当前选区无法插入");
+      expect(dialog()).toBeNull();
+      expect(warning).toHaveBeenCalledWith(expect.stringContaining("当前选区无法插入"));
+      warning.mockRestore();
       expect(editor.children.some(node => (node as { type?: string }).type === "image")).toBe(
         false
       );

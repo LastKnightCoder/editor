@@ -89,7 +89,6 @@ export {
 } from "../utils/blockNavigation";
 export { isCollapsed, getCurrentTextNode } from "../utils/editor";
 export { deleteVoidBlock } from "../utils/nodeOperations";
-export { updateNodeByUuid } from "../utils/nodeOperations";
 export { getSelectionSnapshot, isSelectionSnapshotUnchanged } from "../utils/selectionSnapshot";
 
 export { createParagraph, isParagraphElement, type ParagraphElement } from "../model/paragraph";
@@ -99,6 +98,14 @@ export { isAtParagraphStart, isParagraphAndEmpty } from "../utils/editor";
 export { isNodeEmpty } from "../kit/elementEmpty";
 export { createBlockConversionMenu } from "../menu/conversion";
 export { getCommandElementPath } from "../utils/commandTarget";
+export {
+  captureEditorSubmission,
+  captureElementSubmission,
+  captureInsertionSubmission,
+  type Submission,
+  type SubmissionOutcome,
+  type SubmissionDiscardReason,
+} from "./submission";
 export { default as AddParagraph, type AddParagraphRef } from "../components/AddParagraph";
 
 // 编辑器浮层的宿主仲裁适配；不承载页面导航或浮层渲染。

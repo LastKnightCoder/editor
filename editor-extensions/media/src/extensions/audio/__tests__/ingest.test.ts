@@ -22,15 +22,16 @@ describe("音频异步上传定位", () => {
       Transforms.select(editor, { path: [0, 0], offset: 0 });
       let resolveUpload!: (url: string) => void;
       let rejectUpload!: (error: Error) => void;
-      editor.getService = () =>
-        ({
-          upload: () =>
-            new Promise<string>((resolve, reject) => {
-              resolveUpload = resolve;
-              rejectUpload = reject;
-            }),
-        }) as never;
-      editor.tryGetService = () => ({ error: vi.fn() }) as never;
+      const resource = {
+        upload: () =>
+          new Promise<string>((resolve, reject) => {
+            resolveUpload = resolve;
+            rejectUpload = reject;
+          }),
+      };
+      editor.getService = () => resource as never;
+      const notifier = { error: vi.fn() };
+      editor.tryGetService = id => (id.id === "resourceService" ? resource : notifier) as never;
       const dropping = scenario === "拖放失败";
       const context: IngestContext = {
         editor,
