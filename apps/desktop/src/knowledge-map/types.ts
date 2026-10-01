@@ -37,6 +37,22 @@ export interface KnowledgeMap {
   computedAt: number;
 }
 
+/** 地图上一个节点的展示信息：主进程随地图一起返回，渲染层不再分别拉各类列表 */
+export interface KnowledgeMapItem {
+  key: string;
+  kind: "card" | "article" | "project-item";
+  id: number;
+  contentId: number;
+  title: string;
+  createdAt: number;
+  tags: string[];
+  /** 显式边（卡片双向链接 + 正文内联引用），以节点键表示 */
+  links: string[];
+  /** 项目文档所在项目（筛选用） */
+  projectId: number | null;
+  projectTitle: string | null;
+}
+
 /** 计算输入：节点的最小必要信息（不含正文，正文已经在向量里了） */
 export interface KnowledgeMapNodeInput {
   /** 计算用数值 id（读输入时分配的稠密下标），links 与向量都按它对应 */

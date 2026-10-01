@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { graphMoment, milestoneOf } from "../graphMilestones";
+import { graphMoment, milestoneOf } from "../milestones";
 
 describe("图谱动画的时机", () => {
   it("里程碑越往后越稀：100 / 300 / 500 / 1000 / 2000 / 5000 / 10000 / 20000，之后按万", () => {

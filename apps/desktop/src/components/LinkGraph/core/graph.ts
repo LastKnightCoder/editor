@@ -1,5 +1,5 @@
 /**
- * 卡片集合 → GraphScene。
+ * 条目集合 → GraphScene。
  *
  * 坐标的初始猜测很重要：d3-force 从随机点起步会先「炸开」再收拢，观感很差。
  * 这里先按连通分量分组，用黄金角螺旋把每个分量铺在各自的圆盘里，
@@ -7,9 +7,8 @@
  */
 
 import type { Descendant } from "slate";
-import type { ICard } from "@/types";
 import { detectClusters } from "./cluster";
-import type { GraphEdge, GraphNode, GraphScene } from "./types";
+import type { GraphEdge, GraphItem, GraphNode, GraphScene } from "./types";
 
 /** 标签取正文前若干字符；过长在渲染时再截断 */
 const LABEL_LENGTH = 24;
@@ -23,7 +22,7 @@ export const nodeRadius = (degree: number): number => 6 + Math.sqrt(degree) * 4.
  * 不复用 utils/editor 的 getEditorText：那份在 .tsx 里、依赖 React，
  * 而 core 层要能整体搬进 Worker（批次 2），必须保持无 DOM 无 React。
  */
-const safeLabel = (content: Descendant[] | undefined): string => {
+export const labelFromContent = (content: Descendant[] | undefined): string => {
   if (!content || content.length === 0) return "";
   let text = "";
   const walk = (node: unknown) => {
@@ -123,18 +122,18 @@ function seedComponents(components: number[][], nodeById: Map<number, GraphNode>
   }
 }
 
-export function buildScene(cards: ICard[], getCardLinks: (card: ICard) => number[]): GraphScene {
-  const ids = new Set(cards.map(card => card.id));
+export function buildScene(items: GraphItem[]): GraphScene {
+  const ids = new Set(items.map(item => item.id));
   const adjacency = new Map<number, Set<number>>();
   for (const id of ids) adjacency.set(id, new Set());
 
   const edges: GraphEdge[] = [];
   const seen = new Set<string>();
-  for (const card of cards) {
-    for (const target of new Set(getCardLinks(card))) {
+  for (const item of items) {
+    for (const target of new Set(item.links)) {
       // 悬空链接（目标不在本次集合里）不成边；自环无意义
-      if (!ids.has(target) || target === card.id) continue;
-      const [a, b] = card.id < target ? [card.id, target] : [target, card.id];
+      if (!ids.has(target) || target === item.id) continue;
+      const [a, b] = item.id < target ? [item.id, target] : [target, item.id];
       const key = `${a}-${b}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -144,13 +143,13 @@ export function buildScene(cards: ICard[], getCardLinks: (card: ICard) => number
     }
   }
 
-  const nodes: GraphNode[] = cards.map(card => {
-    const degree = adjacency.get(card.id)!.size;
+  const nodes: GraphNode[] = items.map(item => {
+    const degree = adjacency.get(item.id)!.size;
     return {
-      id: card.id,
+      id: item.id,
       degree,
-      label: safeLabel(card.content),
-      createdAt: card.create_time ?? 0,
+      label: item.label.replace(/\s+/g, " ").trim().slice(0, LABEL_LENGTH),
+      createdAt: item.createdAt,
       x: 0,
       y: 0,
       vx: 0,
@@ -174,7 +173,7 @@ export function buildScene(cards: ICard[], getCardLinks: (card: ICard) => number
   };
 
   // 社区发现要先有边表与邻接表，拿到划分后回填到节点上
-  const detected = detectClusters(scene, cards);
+  const detected = detectClusters(scene, items);
   scene.clusters = detected.clusters;
   const bridges = new Set(detected.clusters.flatMap(cluster => cluster.bridges));
   for (const node of nodes) {

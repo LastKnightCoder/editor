@@ -7,10 +7,9 @@
 
 import { describe, expect, it } from "vitest";
 import type { ICard } from "@/types";
+import { toItems } from "./fixtures";
 import { buildScene, sceneBounds } from "../core/graph";
 import { ForceLayout } from "../core/layout";
-
-const links = (c: ICard) => c.links;
 
 /** 造一片有簇结构的卡片：每 20 张连成一小团，团与团之间偶尔搭一条桥 */
 const makeCards = (count: number): ICard[] =>
@@ -25,7 +24,7 @@ const makeCards = (count: number): ICard[] =>
 
 describe("ForceLayout", () => {
   it("收敛后节点散开，不再全挤在种子位", () => {
-    const scene = buildScene(makeCards(60), links);
+    const scene = buildScene(toItems(makeCards(60)));
     const before = sceneBounds(scene);
     const layout = new ForceLayout(scene);
     layout.runToSettle(200);
@@ -36,7 +35,7 @@ describe("ForceLayout", () => {
   });
 
   it("收敛后不产生 NaN 坐标", () => {
-    const scene = buildScene(makeCards(120), links);
+    const scene = buildScene(toItems(makeCards(120)));
     const layout = new ForceLayout(scene);
     layout.runToSettle(200);
     for (const node of scene.nodes) {
@@ -47,7 +46,7 @@ describe("ForceLayout", () => {
   });
 
   it("相连节点比不相连的更近（连线的吸引力真的生效）", () => {
-    const scene = buildScene(makeCards(200), links);
+    const scene = buildScene(toItems(makeCards(200)));
     const layout = new ForceLayout(scene);
     layout.runToSettle(300);
     const distance = (a: number, b: number) => {
@@ -61,7 +60,7 @@ describe("ForceLayout", () => {
   });
 
   it("拖拽固定节点，松手保留位置", () => {
-    const scene = buildScene(makeCards(20), links);
+    const scene = buildScene(toItems(makeCards(20)));
     const layout = new ForceLayout(scene);
     const node = scene.nodes[0];
     layout.dragTo(node, 1234, 5678);
@@ -78,7 +77,7 @@ describe("ForceLayout", () => {
   it("700 张卡片（当前真实量级）的建图 + 收敛在 3 秒内", () => {
     const cards = makeCards(700);
     const start = performance.now();
-    const scene = buildScene(cards, links);
+    const scene = buildScene(toItems(cards));
     const layout = new ForceLayout(scene);
     layout.runToSettle(300);
     const elapsed = performance.now() - start;
@@ -90,7 +89,7 @@ describe("ForceLayout", () => {
   it("2000 张卡片（M 档上界）的建图在 300ms 内", () => {
     const cards = makeCards(2000);
     const start = performance.now();
-    const scene = buildScene(cards, links);
+    const scene = buildScene(toItems(cards));
     const elapsed = performance.now() - start;
     expect(scene.nodes).toHaveLength(2000);
     expect(elapsed).toBeLessThan(300);

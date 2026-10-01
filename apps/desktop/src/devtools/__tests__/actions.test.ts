@@ -11,7 +11,7 @@ vi.mock("@/stores/useSettingStore", () => ({
   default: { getState: () => ({ setting: { database: { active: "data.db" } } }) },
 }));
 
-import { knowledgeMapKey } from "@/features/cards/queries";
+import { knowledgeMapKey } from "@/features/knowledge-map/queries";
 import { queryClient } from "@/queryClient";
 import { registerBuiltinDevActions } from "../actions";
 import { listDevActions } from "../registry";

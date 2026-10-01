@@ -9,14 +9,14 @@ afterEach(() => {
 
 it("重建状态后恢复视图和分类，两个数据库互不覆盖", async () => {
   const { update } = useCardsPreferencesStore.getState();
-  update("a", { view: "graph", category: ECardCategory.Literature });
+  update("a", { view: "database", category: ECardCategory.Literature });
   update("b", { view: "database", category: "all" });
   const persisted = localStorage.getItem("tau-cards-preferences")!;
   useCardsPreferencesStore.setState({ byDatabase: {} });
   localStorage.setItem("tau-cards-preferences", persisted);
   await useCardsPreferencesStore.persist.rehydrate();
   expect(useCardsPreferencesStore.getState().byDatabase).toEqual({
-    a: { view: "graph", category: ECardCategory.Literature },
+    a: { view: "database", category: ECardCategory.Literature },
     b: { view: "database", category: "all" },
   });
 });

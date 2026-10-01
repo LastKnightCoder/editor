@@ -11,6 +11,7 @@
 import type Database from "better-sqlite3";
 import type {
   KnowledgeMap,
+  KnowledgeMapItem,
   KnowledgeMapNode,
   KnowledgeMapNodeInput,
   KnowledgeMapTopic,
@@ -42,6 +43,25 @@ export interface MapEntity {
   tags: string[];
   /** max(实体, 正文) 的更新时间 */
   updateTime: number;
+  createdAt: number;
+  /** 文章、项目文档的标题；卡片没有标题列，展示时取正文首行 */
+  title: string;
+  projectId: number | null;
+}
+
+/** 卡片标题：正文首个非空块的纯文本 */
+function firstLine(raw: string | null): string {
+  const text = (node: unknown): string => {
+    if (!node || typeof node !== "object") return "";
+    const n = node as { text?: unknown; children?: unknown };
+    if (typeof n.text === "string") return n.text;
+    return Array.isArray(n.children) ? n.children.map(text).join("") : "";
+  };
+  for (const block of parseJson<unknown[]>(raw, [])) {
+    const line = text(block).replace(/\s+/g, " ").trim();
+    if (line) return line.slice(0, 80);
+  }
+  return "";
 }
 
 const parseJson = <T>(raw: unknown, fallback: T): T => {
@@ -122,13 +142,16 @@ export default class KnowledgeMapTable {
     const rows = mainDb
       .prepare(
         `SELECT 'card' AS kind, c.id, c.content_id AS contentId, c.tags,
-                MAX(c.update_time, COALESCE(ct.update_time, 0)) AS updateTime
+                MAX(c.update_time, COALESCE(ct.update_time, 0)) AS updateTime,
+                c.create_time AS createdAt, '' AS title, NULL AS projects
          FROM cards c LEFT JOIN contents ct ON ct.id = c.content_id
          UNION ALL
-         SELECT 'article', a.id, a.content_id, a.tags, MAX(a.update_time, COALESCE(ct.update_time, 0))
+         SELECT 'article', a.id, a.content_id, a.tags, MAX(a.update_time, COALESCE(ct.update_time, 0)),
+                a.create_time, a.title, NULL
          FROM articles a LEFT JOIN contents ct ON ct.id = a.content_id WHERE a.is_delete = 0
          UNION ALL
-         SELECT 'project-item', p.id, p.content_id, p.tags, MAX(p.update_time, COALESCE(ct.update_time, 0))
+         SELECT 'project-item', p.id, p.content_id, p.tags, MAX(p.update_time, COALESCE(ct.update_time, 0)),
+                p.create_time, p.title, p.projects
          FROM project_item p JOIN contents ct ON ct.id = p.content_id
          WHERE p.project_item_type = 'document' AND ct.count > 0
            AND (p.ref_type IS NULL OR p.ref_type NOT IN ('card', 'article', 'content'))`
@@ -139,6 +162,9 @@ export default class KnowledgeMapTable {
       contentId: number | null;
       tags: string | null;
       updateTime: number;
+      createdAt: number;
+      title: string | null;
+      projects: string | null;
     }>;
     rows.sort((a, b) => ENTITY_REF_PRIORITY[a.kind] - ENTITY_REF_PRIORITY[b.kind] || a.id - b.id);
     const byContent = new Set<number>();
@@ -160,17 +186,23 @@ export default class KnowledgeMapTable {
         contentId: row.contentId ?? 0,
         tags,
         updateTime: row.updateTime,
+        createdAt: row.createdAt,
+        title: row.title ?? "",
+        projectId: Number(parseJson<unknown[]>(row.projects, [])[0]) || null,
       });
     }
     return entities.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
   }
 
-  static readInputs(mainDb: Database.Database, indexDb: Database.Database): KnowledgeMapInputs {
-    const entities = this.listEntities(mainDb);
+  /** 显式边：卡片双向链接 + 引用索引 entity_refs（跨类型），按 entities 下标 */
+  private static collectLinks(
+    mainDb: Database.Database,
+    indexDb: Database.Database,
+    entities: MapEntity[]
+  ): Set<number>[] {
     const indexOfKey = new Map(entities.map((entity, index) => [entity.key, index]));
     const indexOfContent = new Map(entities.map((entity, index) => [entity.contentId, index]));
     const links = entities.map(() => new Set<number>());
-
     // 卡片的双向链接
     for (const row of mainDb.prepare("SELECT id, links FROM cards").all() as Array<{
       id: number;
@@ -203,6 +235,14 @@ export default class KnowledgeMapTable {
       }
     }
 
+    return links;
+  }
+
+  static readInputs(mainDb: Database.Database, indexDb: Database.Database): KnowledgeMapInputs {
+    const entities = this.listEntities(mainDb);
+    const indexOfKey = new Map(entities.map((entity, index) => [entity.key, index]));
+    const links = this.collectLinks(mainDb, indexDb, entities);
+
     const nodes: KnowledgeMapNodeInput[] = entities.map((entity, index) => ({
       id: index,
       key: entity.key,
@@ -233,6 +273,42 @@ export default class KnowledgeMapTable {
       }
     }
     return { nodes, chunks: [...chunks] };
+  }
+
+  /** 地图节点的展示信息（标题、创建时间、显式边），随地图一起返回给渲染层 */
+  static listItems(mainDb: Database.Database, indexDb: Database.Database): KnowledgeMapItem[] {
+    const entities = this.listEntities(mainDb);
+    const links = this.collectLinks(mainDb, indexDb, entities);
+    const cardContents = entities.filter(entity => entity.kind === "card" && entity.contentId);
+    const contentOf = new Map<number, string | null>();
+    for (let start = 0; start < cardContents.length; start += 400) {
+      const batch = cardContents.slice(start, start + 400).map(entity => entity.contentId);
+      const rows = mainDb
+        .prepare(`SELECT id, content FROM contents WHERE id IN (${batch.map(() => "?").join(",")})`)
+        .all(...batch) as Array<{ id: number; content: string | null }>;
+      for (const row of rows) contentOf.set(row.id, row.content);
+    }
+    const projectTitles = new Map(
+      (
+        mainDb.prepare("SELECT id, title FROM project").all() as Array<{
+          id: number;
+          title: string;
+        }>
+      ).map(row => [row.id, row.title])
+    );
+    return entities.map((entity, index) => ({
+      key: entity.key,
+      kind: entity.kind as KnowledgeMapItem["kind"],
+      id: entity.id,
+      contentId: entity.contentId,
+      title:
+        entity.kind === "card" ? firstLine(contentOf.get(entity.contentId) ?? null) : entity.title,
+      createdAt: entity.createdAt,
+      tags: entity.tags,
+      links: [...links[index]].map(target => entities[target].key),
+      projectId: entity.projectId,
+      projectTitle: entity.projectId ? (projectTitles.get(entity.projectId) ?? null) : null,
+    }));
   }
 
   static readFingerprint(indexDb: Database.Database): string {

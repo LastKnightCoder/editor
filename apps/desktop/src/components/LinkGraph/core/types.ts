@@ -30,6 +30,22 @@ export interface NodeVisualState {
   dimmed: boolean;
 }
 
+/** 图谱的输入条目：由宿主组装（知识地图页来自主进程，样板间来自合成数据） */
+export interface GraphItem {
+  /** 场景内的数值 id；links 按它对应 */
+  id: number;
+  /** 对外的节点键，与知识地图 node_key 一致（"card:12"） */
+  key: string;
+  label: string;
+  /** 创建时间（毫秒），入场播放按它排序 */
+  createdAt: number;
+  /** 分层标签，簇命名用 */
+  tags: string[];
+  links: number[];
+  /** 悬停预览读取的正文 */
+  contentId: number;
+}
+
 export interface GraphNode {
   id: number;
   /** 一度邻居数量，决定半径 */

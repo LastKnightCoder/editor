@@ -7,7 +7,8 @@
  */
 
 import { useMemo, useState } from "react";
-import LinkGraph from "@/components/LinkGraph";
+import LinkGraph, { type GraphItem } from "@/components/LinkGraph";
+import { labelFromContent } from "@/components/LinkGraph/core/graph";
 import type { KnowledgeMap, KnowledgeMapTopic } from "@/knowledge-map/types";
 import type { ICard } from "@/types";
 // 真实卡片库的离线知识地图导出（坐标、主题、显式链接为真，标题已替换为「主题 · 子主题 · 序号」）。
@@ -132,6 +133,19 @@ export default function LinkGraphSection() {
     () => fixture?.cards ?? makeCards(shape, meta.count),
     [fixture, shape, meta.count]
   );
+  const items = useMemo<GraphItem[]>(
+    () =>
+      cards.map(card => ({
+        id: card.id,
+        key: `card:${card.id}`,
+        label: labelFromContent(card.content),
+        createdAt: card.create_time,
+        tags: card.tags,
+        links: card.links,
+        contentId: card.contentId,
+      })),
+    [cards]
+  );
   const highlightIds = useMemo(() => [1, 16, 31], []);
 
   return (
@@ -160,13 +174,14 @@ export default function LinkGraphSection() {
         {/* 样板间没有 Electron 的 RPC，关掉悬停正文预览（悬停高亮仍生效） */}
         <LinkGraph
           key={shape}
-          initCards={cards}
+          items={items}
           currentCardIds={highlightIds}
           enableHoverPreview={false}
           persistKey={`showcase-${shape}`}
           knowledgeMap={fixture?.map ?? null}
-          // 左下角说明行，点一下播放生长动画（同卡片库）
+          // 左下角说明行，点一下播放生长动画（同知识地图页）
           caption
+          captionUnit={{ measure: "张", noun: "卡片" }}
         />
       </CanvasCard>
     </>

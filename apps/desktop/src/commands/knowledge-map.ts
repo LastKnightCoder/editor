@@ -1,5 +1,5 @@
 import { invoke } from "@/electron";
-import type { KnowledgeMap } from "@/knowledge-map/types";
+import type { KnowledgeMap, KnowledgeMapItem } from "@/knowledge-map/types";
 import { withModule } from "./module-init";
 
 export type KnowledgeMapStatus = "missing" | "stale" | "ready" | "building";
@@ -7,6 +7,8 @@ export type KnowledgeMapStatus = "missing" | "stale" | "ready" | "building";
 export interface KnowledgeMapPayload {
   status: KnowledgeMapStatus;
   map: KnowledgeMap | null;
+  /** 节点的展示信息；地图还没算出来时也有，渲染层据此先画链接图谱 */
+  items: KnowledgeMapItem[];
 }
 
 const call = <T>(channel: string, ...args: unknown[]) =>

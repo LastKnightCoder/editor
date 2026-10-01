@@ -5,14 +5,13 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { ICard } from "@/types";
+import { toItems } from "./fixtures";
 import { createLayout, WORKER_MIN_NODES } from "../core/createLayout";
 import { buildScene } from "../core/graph";
 import { ForceLayout } from "../core/layout";
 import { LayoutRunner } from "../core/layoutRunner";
 import type { LayoutRequest, LayoutResponse } from "../core/layoutTypes";
 import { WorkerLayout } from "../core/workerLayout";
-
-const links = (c: ICard) => c.links;
 
 /** d3-timer 的 tick 走 rAF，是异步的；等几帧真实时间再断言 */
 const frames = (ms = 60) => new Promise(resolve => setTimeout(resolve, ms));
@@ -120,7 +119,7 @@ describe("LayoutRunner", () => {
 
 describe("WorkerLayout", () => {
   it("坐标从 worker 回帧写回 GraphNode", async () => {
-    const scene = buildScene(cards(6), links);
+    const scene = buildScene(toItems(cards(6)));
     const { fakeWorker } = wire();
     const onTick = vi.fn();
     const layout = new WorkerLayout(scene, { onTick }, () => fakeWorker);
@@ -133,7 +132,7 @@ describe("WorkerLayout", () => {
   });
 
   it("正在拖的节点不被回帧覆盖（跟手优先）", async () => {
-    const scene = buildScene(cards(6), links);
+    const scene = buildScene(toItems(cards(6)));
     const { fakeWorker } = wire();
     const layout = new WorkerLayout(scene, {}, () => fakeWorker);
     const node = scene.nodes[0];
@@ -145,7 +144,7 @@ describe("WorkerLayout", () => {
   });
 
   it("松手不固定时放回自由态", () => {
-    const scene = buildScene(cards(4), links);
+    const scene = buildScene(toItems(cards(4)));
     const { fakeWorker } = wire();
     const layout = new WorkerLayout(scene, {}, () => fakeWorker);
     const node = scene.nodes[0];
@@ -156,7 +155,7 @@ describe("WorkerLayout", () => {
   });
 
   it("每帧消费完把缓冲还回去，稳态下不重复分配", async () => {
-    const scene = buildScene(cards(5), links);
+    const scene = buildScene(toItems(cards(5)));
     const { fakeWorker, sent } = wire();
     const layout = new WorkerLayout(scene, {}, () => fakeWorker);
     layout.start();
@@ -166,7 +165,7 @@ describe("WorkerLayout", () => {
   });
 
   it("destroy 后终止 worker 且不再收消息", () => {
-    const scene = buildScene(cards(4), links);
+    const scene = buildScene(toItems(cards(4)));
     const { fakeWorker, terminate } = wire();
     const layout = new WorkerLayout(scene, {}, () => fakeWorker);
     layout.destroy();
@@ -179,28 +178,28 @@ describe("createLayout 选实现", () => {
   const worker = () => wire().fakeWorker;
 
   it("小图留在主线程（跨线程开销大于收益）", () => {
-    const scene = buildScene(cards(20), links);
+    const scene = buildScene(toItems(cards(20)));
     const layout = createLayout(scene, { createWorker: worker });
     expect(layout).toBeInstanceOf(ForceLayout);
     layout.destroy();
   });
 
   it("超过阈值搬进 worker", () => {
-    const scene = buildScene(cards(WORKER_MIN_NODES + 1), links);
+    const scene = buildScene(toItems(cards(WORKER_MIN_NODES + 1)));
     const layout = createLayout(scene, { createWorker: worker });
     expect(layout).toBeInstanceOf(WorkerLayout);
     layout.destroy();
   });
 
   it("没有 worker 构造器时一律前台（测试环境、降级路径）", () => {
-    const scene = buildScene(cards(WORKER_MIN_NODES + 1), links);
+    const scene = buildScene(toItems(cards(WORKER_MIN_NODES + 1)));
     const layout = createLayout(scene);
     expect(layout).toBeInstanceOf(ForceLayout);
     layout.destroy();
   });
 
   it("worker 起不来时退回前台而不是让图谱瘫掉", () => {
-    const scene = buildScene(cards(WORKER_MIN_NODES + 1), links);
+    const scene = buildScene(toItems(cards(WORKER_MIN_NODES + 1)));
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const layout = createLayout(scene, {
       createWorker: () => {
@@ -214,7 +213,7 @@ describe("createLayout 选实现", () => {
   });
 
   it("mode 可强制指定，供样板间对照", () => {
-    const scene = buildScene(cards(10), links);
+    const scene = buildScene(toItems(cards(10)));
     const forced = createLayout(scene, { mode: "worker", createWorker: worker });
     expect(forced).toBeInstanceOf(WorkerLayout);
     forced.destroy();
@@ -223,7 +222,7 @@ describe("createLayout 选实现", () => {
 
 describe("规模", () => {
   it("2000 节点走 worker 协议，init + 若干帧在 2 秒内", async () => {
-    const scene = buildScene(cards(2000), links);
+    const scene = buildScene(toItems(cards(2000)));
     const { fakeWorker } = wire();
     const start = performance.now();
     const layout = new WorkerLayout(scene, {}, () => fakeWorker);
