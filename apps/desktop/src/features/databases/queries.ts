@@ -3,6 +3,7 @@
  * 列表全量轻表（数量级小，无分页窗口），变更后整域 ["databases"] 失效重拉。
  */
 
+import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   listDatabaseItems,
@@ -10,6 +11,7 @@ import {
   createDatabaseItem,
   updateDatabaseItem,
   deleteDatabaseItem,
+  recordDatabaseItemOpen,
 } from "@/commands/database-item";
 import type { DatabaseItem, DatabaseItemSummary } from "@/types";
 import type { CockpitMutations } from "@/features/shared/cockpit/types";
@@ -28,6 +30,17 @@ export function useDatabasesSnapshot(): {
     refetchOnWindowFocus: true,
   });
   return { items: query.data ?? EMPTY_ITEMS, loading: query.isPending };
+}
+
+/** 详情页记录打开：数据库存在时，每次进入记一次 */
+export function useRecordDatabaseOpen(id: number, ready: boolean) {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (!ready) return;
+    recordDatabaseItemOpen(id)
+      .then(() => queryClient.invalidateQueries({ queryKey: ["databases", "list"] }))
+      .catch(error => console.error("[databases] 记录打开失败", error));
+  }, [id, ready, queryClient]);
 }
 
 export function useDatabaseDetail(id: number): {

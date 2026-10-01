@@ -16,8 +16,8 @@ export interface DatabaseItem {
   dataTableId: number;
 }
 
-/** 列表条目：附带行数（驾驶舱卡片大数字），由主进程聚合 */
-export type DatabaseItemSummary = DatabaseItem & { rowCount: number };
+/** 列表条目：附带行数（驾驶舱卡片大数字）与打开时间（从未打开为 null），由主进程聚合 */
+export type DatabaseItemSummary = DatabaseItem & { rowCount: number; openedAt: number | null };
 
 export type CreateDatabaseItem = Pick<DatabaseItem, "title"> &
   Partial<Pick<DatabaseItem, "desc" | "archived" | "pinned">>;

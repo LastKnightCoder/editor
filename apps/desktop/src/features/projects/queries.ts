@@ -1,24 +1,26 @@
 /**
- * 项目页数据源：学习驾驶舱（方案 C 定稿，mockups/projects/plan-c-cockpit.html）。
- * - 列表：getProjectList 全量轻表（项目数量级小，无分页窗口）；
- * - 变更（置顶/归档/编辑/新建/删除）后整域失效重拉；
+ * 项目页数据源：学习驾驶舱 + 网格 / 列表排布。
+ * - 列表：getProjectList 全量轻表（项目数量级小，无分页窗口），合并条目计数与打开记录；
+ * - 变更（置顶/归档/编辑/新建/删除）后整域失效重拉；打开记录只失效 open-states；
  * - 摘要与相对时间是渲染派生，不落库。
  */
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Descendant } from "slate";
 import {
   getProjectList,
   getProjectItemCounts,
+  getProjectOpenStates,
   getProjectById,
   createProject,
   updateProject,
   deleteProject,
+  recordProjectOpen,
 } from "@/commands/project";
 import { getAllCards, getAllWhiteBoards } from "@/commands";
 import type { ICard, WhiteBoard } from "@/types";
-import type { Project, UpdateProject } from "@/types/project";
+import type { Project, ProjectOpenState, UpdateProject } from "@/types/project";
 import type { ProjectPageItem } from "./types";
 
 /* ---------- 查询 ---------- */
@@ -38,6 +40,37 @@ export function useProjectItemCounts(): {
   });
   /* 空值兜底用模块级常量：?? {} 每次渲染新建引用会击穿下游 useMemo deps 链 */
   return { counts: query.data ?? EMPTY_COUNTS };
+}
+
+/** 打开记录（最近打开 + 上次停留的文档）：独立 key，详情页记录后只失效这一项 */
+const projectOpenStatesKey = ["projects", "open-states"] as const;
+const EMPTY_OPEN_STATES: Record<number, ProjectOpenState> = {};
+
+export function useProjectOpenStates(): {
+  openStates: Record<number, ProjectOpenState>;
+} {
+  const query = useQuery({
+    queryKey: projectOpenStatesKey,
+    queryFn: getProjectOpenStates,
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+  });
+  return { openStates: query.data ?? EMPTY_OPEN_STATES };
+}
+
+/** 详情页记录打开：项目存在时，进入项目或切换文档各记一次 */
+export function useRecordProjectOpen(
+  projectId: number,
+  itemId: number | undefined,
+  ready: boolean
+) {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (!ready) return;
+    recordProjectOpen(projectId, itemId)
+      .then(() => queryClient.invalidateQueries({ queryKey: projectOpenStatesKey }))
+      .catch(error => console.error("[projects] 记录打开失败", error));
+  }, [projectId, itemId, ready, queryClient]);
 }
 
 /** 详情域文档树缓存 key 前缀（完整 key 末位拼接 children 指纹，见 useProjectTreeData） */
@@ -70,14 +103,21 @@ export function useProjectsSnapshot(): {
     refetchOnWindowFocus: true,
   });
   const { counts } = useProjectItemCounts();
+  const { openStates } = useProjectOpenStates();
   /* useMemo 稳定引用：下游 useMemo 派生（activeAll/状态栏读数）以本数组为 deps */
   const projects = useMemo(
     () =>
-      (query.data ?? []).map(project => ({
-        ...project,
-        itemCount: counts[project.id] ?? 0,
-      })),
-    [query.data, counts]
+      (query.data ?? []).map(project => {
+        const opened = openStates[project.id];
+        return {
+          ...project,
+          itemCount: counts[project.id] ?? 0,
+          openedAt: opened?.openedAt ?? null,
+          lastItemId: opened?.itemId ?? null,
+          lastItemTitle: opened?.itemTitle ?? null,
+        };
+      }),
+    [query.data, counts, openStates]
   );
   return {
     projects,

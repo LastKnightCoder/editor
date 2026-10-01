@@ -12,8 +12,14 @@ import { getNextModuleEntityId } from "./module-entity-id";
  * data_tables.ref_count 的持有者由 project 换成了这里。
  */
 export default class DatabaseItemTable {
-  static upgradeTable(_db: Database.Database) {
-    // 建表由 schema 分片（main/31_module_split.sql）负责，暂无列升级
+  static upgradeTable(db: Database.Database) {
+    // 建表由 schema 分片（main/31_module_split.sql）负责，这里只补后加的列
+    const columns = (db.pragma("table_info(database_item)") as Array<{ name: string }>).map(
+      c => c.name
+    );
+    if (!columns.includes("last_open_time")) {
+      db.exec("ALTER TABLE database_item ADD COLUMN last_open_time INTEGER");
+    }
   }
 
   static getListenEvents() {
@@ -23,6 +29,7 @@ export default class DatabaseItemTable {
       "database-item:delete": this.remove.bind(this),
       "database-item:get": this.getById.bind(this),
       "database-item:list": this.list.bind(this),
+      "database-item:record-open": this.recordOpen.bind(this),
     };
   }
 
@@ -45,7 +52,7 @@ export default class DatabaseItemTable {
     return this.parse(row as Record<string, unknown>);
   }
 
-  /** 列表：附带行数（卡片大数字），由 SQLite 直接数 JSON 数组长度，不把 rows 传到渲染层 */
+  /** 列表：附带行数（卡片大数字，由 SQLite 直接数 JSON 数组长度，不把 rows 传到渲染层）与打开时间 */
   static list(db: Database.Database): DatabaseItemSummary[] {
     const rows = db
       .prepare(
@@ -59,7 +66,13 @@ export default class DatabaseItemTable {
     return rows.map(row => ({
       ...this.parse(row),
       rowCount: Number(row.row_count || 0),
+      openedAt: (row.last_open_time as number | null) ?? null,
     }));
+  }
+
+  // 打开记录不是内容修改：不动 update_time（列表「最近更新」口径），也不记 operation
+  static recordOpen(db: Database.Database, id: number): void {
+    db.prepare("UPDATE database_item SET last_open_time = ? WHERE id = ?").run(Date.now(), id);
   }
 
   static create(db: Database.Database, payload: CreateDatabaseItem): DatabaseItem {

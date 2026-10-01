@@ -5,6 +5,7 @@ import log from "electron-log";
 import {
   VibeLearningProject,
   VibeLearningProjectSummary,
+  VibeLearningOpenedItem,
   CreateVibeLearningProject,
   UpdateVibeLearningProject,
 } from "@/types";
@@ -24,8 +25,20 @@ import { getNextModuleEntityId } from "./module-entity-id";
  * 原样从 ProjectTable.deleteProject 的 VibeLearning 分支搬来。
  */
 export default class VibeLearningProjectTable {
-  static upgradeTable(_db: Database.Database) {
-    // 建表由 schema 分片（main/31_module_split.sql）负责，暂无列升级
+  static upgradeTable(db: Database.Database) {
+    // 建表由 schema 分片（main/31_module_split.sql）负责，这里只补后加的列
+    const columns = (db.pragma("table_info(vibe_learning_project)") as Array<{ name: string }>).map(
+      c => c.name
+    );
+    for (const [column, type] of [
+      ["last_open_time", "INTEGER"],
+      ["last_open_kind", "TEXT"],
+      ["last_open_item_id", "INTEGER"],
+    ]) {
+      if (!columns.includes(column)) {
+        db.exec(`ALTER TABLE vibe_learning_project ADD COLUMN ${column} ${type}`);
+      }
+    }
   }
 
   static getListenEvents() {
@@ -35,6 +48,7 @@ export default class VibeLearningProjectTable {
       "vibe-learning-project:delete": this.remove.bind(this),
       "vibe-learning-project:get": this.getById.bind(this),
       "vibe-learning-project:list": this.list.bind(this),
+      "vibe-learning-project:record-open": this.recordOpen.bind(this),
     };
   }
 
@@ -56,13 +70,19 @@ export default class VibeLearningProjectTable {
     return this.parse(row as Record<string, unknown>);
   }
 
-  /** 列表：附带资源数（卡片大数字） */
+  /** 列表：附带资源数（卡片大数字）、打开时间与上次打开的资料 / 笔记标题（已删除时为 null） */
   static list(db: Database.Database): VibeLearningProjectSummary[] {
     const rows = db
       .prepare(
         `SELECT vlp.*,
                 (SELECT COUNT(*) FROM vibe_learning_resources vlr
-                  WHERE vlr.project_id = vlp.id) AS resource_count
+                  WHERE vlr.project_id = vlp.id) AS resource_count,
+                CASE vlp.last_open_kind
+                  WHEN 'resource' THEN (SELECT name FROM vibe_learning_resources
+                    WHERE id = vlp.last_open_item_id AND project_id = vlp.id)
+                  WHEN 'note' THEN (SELECT title FROM vl_note
+                    WHERE id = vlp.last_open_item_id AND project_id = vlp.id)
+                END AS last_item_title
          FROM vibe_learning_project vlp
          ORDER BY vlp.update_time DESC`
       )
@@ -70,7 +90,20 @@ export default class VibeLearningProjectTable {
     return rows.map(row => ({
       ...this.parse(row),
       resourceCount: Number(row.resource_count || 0),
+      openedAt: (row.last_open_time as number | null) ?? null,
+      lastItemTitle: (row.last_item_title as string | null) ?? null,
     }));
+  }
+
+  // 打开记录不是内容修改：不动 update_time，也不记 operation。
+  // item 缺省（停在生成任务等非资料 / 笔记位置）时保留上次打开的资料 / 笔记
+  static recordOpen(db: Database.Database, id: number, item?: VibeLearningOpenedItem | null): void {
+    db.prepare(
+      `UPDATE vibe_learning_project SET last_open_time = ?,
+         last_open_kind = COALESCE(?, last_open_kind),
+         last_open_item_id = COALESCE(?, last_open_item_id)
+       WHERE id = ?`
+    ).run(Date.now(), item?.kind ?? null, item?.id ?? null, id);
   }
 
   static create(db: Database.Database, payload: CreateVibeLearningProject): VibeLearningProject {
