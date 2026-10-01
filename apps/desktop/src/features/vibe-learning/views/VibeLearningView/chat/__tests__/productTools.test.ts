@@ -1,16 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { startVLTaskMock, getResourcesMock, createContentMock, createVLNoteMock } = vi.hoisted(
-  () => ({
+const { startVLTaskMock, getResourcesMock, createContentMock, createVLNoteMock, recordLineageMock } =
+  vi.hoisted(() => ({
     startVLTaskMock: vi.fn(),
     getResourcesMock: vi.fn(),
     createContentMock: vi.fn(),
     createVLNoteMock: vi.fn(),
-  })
-);
+    recordLineageMock: vi.fn(),
+  }));
 
 vi.mock("../../tasks/runner", () => ({ startVLTask: startVLTaskMock }));
 vi.mock("@/commands", () => ({ createContent: createContentMock }));
+vi.mock("@/commands/lineage", () => ({ recordLineage: recordLineageMock }));
 vi.mock("@/commands/vibe-learning", () => ({
   getVLResourcesByProjectId: getResourcesMock,
   createVLNote: createVLNoteMock,
@@ -34,8 +35,13 @@ interface Result {
 }
 const generate = async (args: Record<string, unknown>) =>
   (await generateTool.executor(args)) as unknown as Result;
-const saveNote = async (args: Record<string, unknown>) =>
-  (await saveNoteTool.executor(args)) as unknown as Result;
+const saveNote = async (args: Record<string, unknown>, conversationKey?: string) =>
+  (await saveNoteTool.executor(
+    args,
+    conversationKey
+      ? { toolCallId: "t", toolName: "vibe_learning_save_note", source: "test", conversationKey }
+      : undefined
+  )) as unknown as Result;
 
 const resources = [
   { id: 1, name: "第一章.pdf", markdownPath: "/a.md" },
@@ -133,5 +139,20 @@ describe("vibe_learning_save_note", () => {
     });
     expect(useVLTaskStore.getState().productVersion[7]).toBe(before + 1);
     expect(result.metadata.render.payload).toMatchObject({ noteId: 50, mode: "save" });
+    expect(recordLineageMock).not.toHaveBeenCalled();
+  });
+
+  it("在对话里保存时，产物记谱系 saved_from（对话 → Notebook 笔记）", async () => {
+    createContentMock.mockResolvedValue(9);
+    createVLNoteMock.mockResolvedValue({ id: 51 });
+    await saveNote(
+      { type: "note", title: "要点", markdown: "要点" },
+      "main\u0000vibe-learning-chat:chat-1"
+    );
+    expect(recordLineageMock).toHaveBeenCalledWith({
+      src: { kind: "chat-session", id: "chat-1" },
+      dst: { kind: "vl-note", id: 51 },
+      relation: "saved_from",
+    });
   });
 });

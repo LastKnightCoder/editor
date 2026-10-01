@@ -1029,6 +1029,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
         noteTitle={title}
         noteContent={content}
         sourceContentId={contentId}
+        {...(currentNote ? { source: { kind: "vl-note" as const, id: currentNote.id } } : {})}
         onCancel={() => setInsertProjectModalOpen(false)}
         onSuccess={() => setInsertProjectModalOpen(false)}
       />

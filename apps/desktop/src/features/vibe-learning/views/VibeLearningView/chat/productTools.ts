@@ -8,6 +8,8 @@
 
 import { createContent } from "@/commands";
 import { bindDatabaseCommands } from "@/services/command-context";
+import { recordLineage } from "@/commands/lineage";
+import { chatIdFromSessionKey } from "@/services/piChatSession";
 import { createVLNote, getVLResourcesByProjectId } from "@/commands/vibe-learning";
 import { PPT_TEMPLATES } from "@/constants/ppt-templates";
 import { REPORT_TEMPLATES } from "@/constants/report-templates";
@@ -225,7 +227,7 @@ function createSaveNoteTool(projectId: number, mainDbName: string): ToolDefiniti
     },
     executor: async (args, context) => {
       const commands = bindDatabaseCommands(
-        { createContent, createVLNote },
+        { createContent, createVLNote, recordLineage },
         { ...context, databaseName: mainDbName }
       );
       const meta = SAVE_TYPES.find(t => t.type === asString(args.type));
@@ -240,6 +242,15 @@ function createSaveNoteTool(projectId: number, mainDbName: string): ToolDefiniti
       const contentId = await commands.createContent(content, getContentLength(content));
       if (!contentId) return { content: "保存失败：创建内容失败" };
       const note = await commands.createVLNote({ projectId, contentId, title, type: meta.type });
+      const chatId = context?.conversationKey ? chatIdFromSessionKey(context.conversationKey) : null;
+      // 产物记得它存自哪段对话；工具调用拿不到所在消息的 entry id，只记会话
+      if (chatId) {
+        await commands.recordLineage({
+          src: { kind: "chat-session", id: chatId },
+          dst: { kind: "vl-note", id: note.id },
+          relation: "saved_from",
+        });
+      }
       useVLTaskStore.getState().bumpProducts(projectId);
       return productResult(
         {
