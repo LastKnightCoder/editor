@@ -3,7 +3,7 @@ use tauri::AppHandle;
 
 use super::flashcard_common::{
     empty_paragraph_text, format_db_error, now_millis, parse_card_row, query_card_by_id,
-    query_references_by_card_ids, CARD_COLUMNS,
+    query_references_by_card_ids, release_references, ReferenceScope, CARD_COLUMNS,
 };
 use super::flashcard_types::{
     CreateFlashcardPayload, DeleteFlashcardPayload, Flashcard, FlashcardReference,
@@ -56,18 +56,13 @@ fn serialize_value(value: &serde_json::Value) -> Result<String, String> {
 
 /// 重写卡片参考资料（create 时挂接）。移动端只创建 content 型引用——
 /// 直接指向已有 contents 行并递增其 ref_count；桌面端写入的 custom 型引用
-/// 在读取/展示路径（LEFT JOIN contents）仍兼容。已知存量缺陷（与桌面一致）：
-/// 重写时旧引用的 ref_count 不递减。
+/// 在读取/展示路径（LEFT JOIN contents）仍兼容。目前仅新建卡片时调用，
+/// 若将来用于更新，需先挂新引用再 release_references 释放旧引用，避免同一 content 被提前回收。
 fn replace_references(
     tx: &Transaction,
     card_id: i64,
     references: &[FlashcardReferenceInput],
 ) -> Result<Vec<FlashcardReference>, String> {
-    tx.execute(
-        "DELETE FROM flashcard_references WHERE card_id = ?1",
-        params![card_id],
-    )
-    .map_err(|e| format_db_error("FLASHCARD_SAVE_FAILED", "clear references", e))?;
     let now = now_millis();
     let mut inserted = vec![];
     for reference in references {
@@ -274,11 +269,7 @@ pub fn flashcard_delete_card(app: AppHandle, payload: DeleteFlashcardPayload) ->
     let tx = conn
         .transaction()
         .map_err(|e| format_db_error("FLASHCARD_DELETE_FAILED", "begin transaction", e))?;
-    tx.execute(
-        "DELETE FROM flashcard_references WHERE card_id = ?1",
-        params![payload.id],
-    )
-    .map_err(|e| format_db_error("FLASHCARD_DELETE_FAILED", "delete references", e))?;
+    release_references(&tx, ReferenceScope::Card(payload.id))?;
     tx.execute(
         "DELETE FROM flashcard_reviews WHERE card_id = ?1",
         params![payload.id],
