@@ -24,14 +24,17 @@ import { getMarkdown } from "@/utils/markdown";
 import { TextReader, Uint8ArrayWriter, ZipWriter, configure as configureZip } from "@zip.js/zip.js";
 
 /**
- * 整体导出选择树的节点（嵌套结构，直接映射 antd Tree）
+ * 整体导出选择树的节点（嵌套结构，与项目树同序）
  */
 export interface BatchExportTreeNode {
   id: number;
   title: string;
   depth: number;
+  itemType: EProjectItemType;
+  /** 只有文档条目可导出；PDF / 白板等类型仅作为分组保留层级 */
   exportable: boolean;
-  disabledReason?: string;
+  /** 文档没有正文：导出时只保留标题 */
+  empty?: boolean;
   content: Descendant[];
   children: BatchExportTreeNode[];
 }
@@ -81,19 +84,14 @@ const hasMeaningfulContent = (content: Descendant[]): boolean => {
 };
 
 const convertProjectNode = (node: ProjectTreeNode, depth: number): BatchExportTreeNode => {
-  const isDocumentItem = node.item.projectItemType === EProjectItemType.Document;
-  const hasContent = hasMeaningfulContent(node.item.content);
-  const exportable = isDocumentItem && hasContent;
+  const exportable = node.item.projectItemType === EProjectItemType.Document;
   return {
     id: node.item.id,
     title: node.item.title || `未命名条目 #${node.item.id}`,
     depth,
+    itemType: node.item.projectItemType,
     exportable,
-    disabledReason: exportable
-      ? undefined
-      : isDocumentItem
-        ? "无正文，不参与导出"
-        : "引用类型条目，不参与导出",
+    empty: exportable && !hasMeaningfulContent(node.item.content),
     content: node.item.content || [],
     children: node.children.map(child => convertProjectNode(child, depth + 1)),
   };
@@ -124,32 +122,37 @@ export const collectExportableIds = (tree: BatchExportTreeNode[]): number[] => {
   return ids;
 };
 
+const isSelectedNode = (node: BatchExportTreeNode, selectedIds: Set<number>) =>
+  node.exportable && selectedIds.has(node.id);
+
+const hasSelectedDescendant = (node: BatchExportTreeNode, selectedIds: Set<number>): boolean =>
+  node.children.some(
+    child => isSelectedNode(child, selectedIds) || hasSelectedDescendant(child, selectedIds)
+  );
+
 /**
  * 按勾选的 id 集合过滤并展平为章节列表（DFS 顺序）。
- * antd Tree 勾选是级联的：取消父节点会把整棵子树移出勾选集合，
- * 因此这里只需判断节点自身是否被勾选，无需检查祖先。
- * 无正文的文件夹条目自身不产生内容，但存在选中后代时会作为
- * isGroup 分组条目插入，保留目录与标题的层级结构。
+ * 选中且有正文的文档产出内容章节；其余存在选中后代的节点（未选中、无正文或非文档条目）
+ * 作为 isGroup 分组条目插入，保留目录与标题层级；选中但无正文、也无选中后代的文档
+ * 产出只有标题的空章节。
  */
 export const flattenSelectedChapters = (
   tree: BatchExportTreeNode[],
   selectedIds: Set<number>
 ): BatchExportChapter[] => {
   const chapters: BatchExportChapter[] = [];
-  const hasSelectedDescendant = (node: BatchExportTreeNode): boolean =>
-    node.children.some(
-      child => (child.exportable && selectedIds.has(child.id)) || hasSelectedDescendant(child)
-    );
   const walk = (nodes: BatchExportTreeNode[]) => {
     nodes.forEach(node => {
-      if (node.exportable && selectedIds.has(node.id)) {
+      const selected = isSelectedNode(node, selectedIds);
+      const asGroup = !(selected && !node.empty) && hasSelectedDescendant(node, selectedIds);
+      if (selected && !asGroup) {
         chapters.push({
           id: node.id,
           title: node.title,
           depth: node.depth,
-          content: node.content,
+          content: node.empty ? [] : node.content,
         });
-      } else if (!node.exportable && hasSelectedDescendant(node)) {
+      } else if (asGroup) {
         chapters.push({
           id: node.id,
           title: node.title,
@@ -238,6 +241,10 @@ export const buildBatchPdfPayload = async (input: {
     const heading = input.rule.asHeading
       ? getChapterHeadingHtml(chapter.title, chapter.depth, input.rule, getChapterAnchorId(index))
       : "";
+    // 空白文档在不注入标题时没有任何内容，跳过以免产生空白页
+    if (!heading && !serialized.trim()) {
+      continue;
+    }
     const body = pendingGroupHeadings.join("") + heading + serialized;
     pendingGroupHeadings = [];
     // 分页以"是否第一个内容章节"判断：首个章节可能排在分组条目（index > 0）
@@ -409,8 +416,9 @@ export const buildMergedMarkdown = (
       const heading = rule.asHeading
         ? getChapterHeadingMarkdown(chapter.title, chapter.depth, rule)
         : "";
-      return heading + getMarkdown(chapter.content || []).trim();
-    });
+      return (heading + getMarkdown(chapter.content || []).trim()).trim();
+    })
+    .filter(Boolean);
   const separator = rule.pageBreak ? "\n\n---\n\n" : "\n\n";
   return parts.join(separator) + "\n";
 };
@@ -427,8 +435,9 @@ const createUniqueNamer = () => {
 
 /**
  * 构建保持目录层级的 Markdown ZIP：
- * 每个可导出条目一个 .md 文件，子级放在同名文件夹下；
- * 无正文条目在存在选中后代时只作为文件夹保留层级。
+ * 每个选中的文档一个 .md 文件，子级放在同名文件夹下；
+ * 未选中、无正文或非文档条目在存在选中后代时只作为文件夹保留层级，
+ * 选中但无正文且无选中后代的文档导出为空文件。
  * ZIP 按目录分文件，导出规则（分页/标题）不适用，文件名即标题
  */
 export const buildMarkdownZipBytes = async (
@@ -439,28 +448,26 @@ export const buildMarkdownZipBytes = async (
   configureZip({ useWebWorkers: false });
   const zipWriter = new ZipWriter(new Uint8ArrayWriter());
   const includedNodeIds = new Set<number>();
+  const fileNodeIds = new Set<number>();
 
   const markIncludedNodes = (nodes: BatchExportTreeNode[]): boolean => {
     let hasIncludedNode = false;
     nodes.forEach(node => {
       const hasIncludedChild = markIncludedNodes(node.children);
-      const included = node.exportable ? selectedIds.has(node.id) : hasIncludedChild;
-      if (included) {
+      const selected = isSelectedNode(node, selectedIds);
+      if (selected || hasIncludedChild) {
         includedNodeIds.add(node.id);
         hasIncludedNode = true;
+      }
+      if (selected && !(node.empty && hasIncludedChild)) {
+        fileNodeIds.add(node.id);
       }
     });
     return hasIncludedNode;
   };
   markIncludedNodes(tree);
 
-  const countFiles = (nodes: BatchExportTreeNode[]): number =>
-    nodes.reduce(
-      (sum, node) =>
-        sum + (includedNodeIds.has(node.id) && node.exportable ? 1 : 0) + countFiles(node.children),
-      0
-    );
-  const totalFiles = countFiles(tree);
+  const totalFiles = fileNodeIds.size;
   let processedFiles = 0;
 
   const walk = async (nodes: BatchExportTreeNode[], dirSegments: string[]): Promise<void> => {
@@ -472,9 +479,9 @@ export const buildMarkdownZipBytes = async (
         continue;
       }
       const dirName = uniqueDirName(sanitizeFileName(node.title));
-      if (node.exportable) {
+      if (fileNodeIds.has(node.id)) {
         const fileName = uniqueFileName(sanitizeFileName(node.title));
-        const markdown = getMarkdown(node.content || []).trim() + "\n";
+        const markdown = node.empty ? "" : getMarkdown(node.content || []).trim() + "\n";
         await zipWriter.add([...dirSegments, `${fileName}.md`].join("/"), new TextReader(markdown));
         processedFiles += 1;
         onProgress?.(processedFiles, totalFiles, node.title);

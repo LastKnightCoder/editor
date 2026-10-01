@@ -9,7 +9,9 @@ import {
   flattenSelectedChapters,
   type BatchExportTreeNode,
 } from "../batch-export";
-import type { BatchExportChapter, BatchExportRule } from "@/types";
+import { EProjectItemType, type BatchExportChapter, type BatchExportRule } from "@/types";
+import { htmlSerializerRegistry } from "@/utils/html-serializers";
+import { getMarkdown } from "@/utils/markdown";
 
 vi.mock("@/utils/html-serializers", () => ({
   htmlSerializerRegistry: {
@@ -33,6 +35,7 @@ const createNode = (
   input: Partial<BatchExportTreeNode> & Pick<BatchExportTreeNode, "id" | "title" | "exportable">
 ): BatchExportTreeNode => ({
   depth: 0,
+  itemType: input.exportable ? EProjectItemType.Document : EProjectItemType.Pdf,
   content: input.exportable
     ? [
         {
@@ -418,5 +421,86 @@ describe("批量构建进度回调", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe("空白文档与未选中祖先", () => {
+  const readZipNames = async (zipBytes: Uint8Array) => {
+    configureZip({ useWebWorkers: false });
+    const zipReader = new ZipReader(new Uint8ArrayReader(zipBytes));
+    const entries = await zipReader.getEntries();
+    await zipReader.close();
+    return entries.map(entry => entry.filename);
+  };
+
+  const tree: BatchExportTreeNode[] = [
+    createNode({
+      id: 1,
+      title: "空白章节",
+      exportable: true,
+      empty: true,
+      content: [],
+      children: [createNode({ id: 2, title: "正文A", exportable: true })],
+    }),
+    createNode({
+      id: 3,
+      title: "有正文的父文档",
+      exportable: true,
+      children: [createNode({ id: 4, title: "正文B", exportable: true })],
+    }),
+    createNode({ id: 5, title: "空白草稿", exportable: true, empty: true, content: [] }),
+  ];
+
+  beforeAll(() => {
+    vi.stubGlobal("Blob", NodeBlob);
+  });
+
+  afterAll(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("有选中后代的空白文档作为分组，无后代的空白文档导出为空章节", () => {
+    const chapters = flattenSelectedChapters(tree, new Set([1, 2, 5]));
+    expect(
+      chapters.map(({ title, isGroup, content }) => [title, !!isGroup, content.length])
+    ).toEqual([
+      ["空白章节", true, 0],
+      ["正文A", false, 1],
+      ["空白草稿", false, 0],
+    ]);
+  });
+
+  it("未选中但有选中后代的文档作为分组保留层级", () => {
+    const chapters = flattenSelectedChapters(tree, new Set([4]));
+    expect(chapters.map(({ title, isGroup }) => [title, !!isGroup])).toEqual([
+      ["有正文的父文档", true],
+      ["正文B", false],
+    ]);
+  });
+
+  it("ZIP 保留未选中祖先的目录，空白文档有后代时只建文件夹、无后代时导出空文件", async () => {
+    const zipBytes = await buildMarkdownZipBytes(tree, new Set([1, 2, 4, 5]));
+    expect((await readZipNames(zipBytes)).sort()).toEqual(
+      ["有正文的父文档/正文B.md", "空白章节/正文A.md", "空白草稿.md"].sort()
+    );
+  });
+
+  it("标题不注入正文时，空白章节不产生空白页或多余分隔", async () => {
+    const chapters: BatchExportChapter[] = [
+      { id: 1, title: "空白", depth: 0, content: [] },
+      {
+        id: 2,
+        title: "正文",
+        depth: 0,
+        content: [{ type: "paragraph", children: [{ type: "formatted", text: "内容" }] }],
+      },
+    ];
+    const rule = { pageBreak: true, asHeading: false, headingLevel: 1 } as const;
+    // 空白章节序列化为空串（模块级 mock 恒返回正文）
+    vi.mocked(htmlSerializerRegistry.serializeAsync).mockResolvedValueOnce("");
+    vi.mocked(getMarkdown).mockReturnValueOnce("");
+    const payload = await buildBatchPdfPayload({ chapters, title: "书", rule });
+    expect(payload.html).not.toContain("page-break-before");
+    expect(buildMergedMarkdown(chapters, rule)).not.toContain("---");
   });
 });
