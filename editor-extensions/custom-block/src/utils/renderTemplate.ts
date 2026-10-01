@@ -82,11 +82,10 @@ const toTemplateTheme = ({ isDark, token }: CustomBlockTheme): TemplateTheme => 
 
 type TauUi = typeof import("@tau/ui");
 
-/** 模板可用的 @tau/ui 子集：只放文档内演示用得到的控件，浮层类组件不进契约 */
+/** 模板可用的 @tau/ui 子集：只放文档内演示用得到的控件；浮层类组件与依赖图标的组件不进契约 */
 const pickTemplateUi = (ui: TauUi) =>
   Object.freeze({
     Button: ui.Button,
-    IconButton: ui.IconButton,
     Input: ui.Input,
     Textarea: ui.Textarea,
     NumberInput: ui.NumberInput,
