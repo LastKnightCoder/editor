@@ -59,6 +59,8 @@ const CROSS_LINK_BOOST = 4;
  * 但那要求松弛跨岛进行。改成直接挪锚点后效果等价，松弛就能按岛切开跑（快得多）。
  */
 const BRIDGE_ANCHOR_SHIFT = 0.25;
+/** 子主题排布的向心力：比大主题的强，岛内排得紧凑，外接圆（即岛的大小）不至于虚胖 */
+const SUBTOPIC_CENTERING = 0.3;
 const RESOLUTIONS = [0.15, 0.25, 0.35, 0.5, 0.7, 1, 1.4];
 
 /**
@@ -873,7 +875,8 @@ function packDiscs(
   discs: Disc[],
   links: Array<{ source: number; target: number; weight: number }>,
   random: () => number,
-  gap: number
+  gap: number,
+  centering = 0.04
 ) {
   if (discs.length === 0) return;
   if (discs.length === 1) {
@@ -897,8 +900,8 @@ function packDiscs(
         .strength(l => 0.1 + 0.6 * (l.weight / maxWeight))
     )
     .force("collide", forceCollide<Disc>(d => d.radius + gap / 2).iterations(3))
-    .force("x", forceX<Disc>(0).strength(0.04))
-    .force("y", forceY<Disc>(0).strength(0.04))
+    .force("x", forceX<Disc>(0).strength(centering))
+    .force("y", forceY<Disc>(0).strength(centering))
     .stop();
   simulation.tick(300);
 }
@@ -1026,10 +1029,44 @@ export function computeKnowledgeMap(
     topicIndex,
     orderedTopics.map(([, members]) => members.length)
   );
-  const topicDiscs: Disc[] = orderedTopics.map(([, members], id) => ({
-    key: id,
-    radius: discRadius(members),
-  }));
+  // 子主题先在各自主题内排好（以主题中心为原点），主题圆盘的半径取它们实际占用的外接圆。
+  // 按全部成员估算的半径会偏小：几个子主题并排比一整团更占地方，伸出去的子主题会越过水道、
+  // 贴到别的岛边上（「软件使用文档 / 编辑器」被摆到 CSS 旁）
+  const subLayouts = orderedTopics.map(([, members], topicId) => {
+    const subs = subtopicsByTopic.get(topicId) ?? [];
+    const subDiscs: Disc[] = subs.map(sub => ({ key: sub.id, radius: discRadius(sub.members) }));
+    const interSub = new Map<string, { source: number; target: number; weight: number }>();
+    for (const edge of graph.edges) {
+      const a = subtopicIndex[edge.source];
+      const b = subtopicIndex[edge.target];
+      if (a < 0 || b < 0 || a === b || topicIndex[edge.source] !== topicId) continue;
+      const key = a < b ? `${a}-${b}` : `${b}-${a}`;
+      const entry = interSub.get(key) ?? {
+        source: Math.min(a, b),
+        target: Math.max(a, b),
+        weight: 0,
+      };
+      entry.weight += edge.weight;
+      interSub.set(key, entry);
+    }
+    packDiscs(subDiscs, [...interSub.values()], random, 18, SUBTOPIC_CENTERING);
+    // 以外接圆为准重新居中：packDiscs 只用弱向心力，排布不一定以原点为中心
+    if (subDiscs.length > 0) {
+      const minX = Math.min(...subDiscs.map(d => (d.x ?? 0) - d.radius));
+      const maxX = Math.max(...subDiscs.map(d => (d.x ?? 0) + d.radius));
+      const minY = Math.min(...subDiscs.map(d => (d.y ?? 0) - d.radius));
+      const maxY = Math.max(...subDiscs.map(d => (d.y ?? 0) + d.radius));
+      const cx = (minX + maxX) / 2;
+      const cy = (minY + maxY) / 2;
+      for (const disc of subDiscs) {
+        disc.x = (disc.x ?? 0) - cx;
+        disc.y = (disc.y ?? 0) - cy;
+      }
+    }
+    const enclosing = Math.max(0, ...subDiscs.map(d => Math.hypot(d.x ?? 0, d.y ?? 0) + d.radius));
+    return { subs, subDiscs, radius: Math.max(discRadius(members), enclosing) };
+  });
+  const topicDiscs: Disc[] = subLayouts.map(({ radius }, id) => ({ key: id, radius }));
   packDiscs(topicDiscs, strongestPairs(interTopic.values(), TOPIC_LAYOUT_NEIGHBORS), random, 70);
 
   // 颜色要等大主题摆好才能分：循环复用色槽时要知道谁和谁在地图上挨着。
@@ -1072,23 +1109,7 @@ export function computeKnowledgeMap(
   const anchorY = new Float64Array(cards.length);
   orderedTopics.forEach(([, members], topicId) => {
     const center = topicDiscs[topicId];
-    const subs = subtopicsByTopic.get(topicId) ?? [];
-    const subDiscs: Disc[] = subs.map(sub => ({ key: sub.id, radius: discRadius(sub.members) }));
-    const interSub = new Map<string, { source: number; target: number; weight: number }>();
-    for (const edge of graph.edges) {
-      const a = subtopicIndex[edge.source];
-      const b = subtopicIndex[edge.target];
-      if (a < 0 || b < 0 || a === b || topicIndex[edge.source] !== topicId) continue;
-      const key = a < b ? `${a}-${b}` : `${b}-${a}`;
-      const entry = interSub.get(key) ?? {
-        source: Math.min(a, b),
-        target: Math.max(a, b),
-        weight: 0,
-      };
-      entry.weight += edge.weight;
-      interSub.set(key, entry);
-    }
-    packDiscs(subDiscs, [...interSub.values()], random, 18);
+    const { subs, subDiscs } = subLayouts[topicId];
     // 岛内朝向：连向外部主题的子主题转到岛上面向那个主题的一侧。
     // 不转的话，「CSS/选择器」可能落在 CSS 岛背对 DOM 的一面，连线要横穿整个岛
     orientTowardOutside(

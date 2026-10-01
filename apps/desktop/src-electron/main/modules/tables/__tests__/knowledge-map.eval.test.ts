@@ -99,8 +99,40 @@ it.skipIf(!MAIN || !INDEX)(
           })
       : [];
 
+    // 越界：节点离自己主题的质心，比离最近的别的主题的质心还远（被摆到了别人的岛边）
+    const centroid = new Map<number, { x: number; y: number }>();
+    for (const top of tops) {
+      const ms = map.nodes.filter(node => node.topic === top.id);
+      centroid.set(top.id, {
+        x: ms.reduce((a, n) => a + n.x, 0) / ms.length,
+        y: ms.reduce((a, n) => a + n.y, 0) / ms.length,
+      });
+    }
+    let escaped = 0;
+    const escapedBySub = new Map<string, number>();
+    for (const node of map.nodes) {
+      if (node.topic < 0) continue;
+      const own = centroid.get(node.topic)!;
+      const dOwn = Math.hypot(node.x - own.x, node.y - own.y);
+      let dOther = Infinity;
+      for (const [id, c] of centroid)
+        if (id !== node.topic) dOther = Math.min(dOther, Math.hypot(node.x - c.x, node.y - c.y));
+      if (dOther < dOwn) {
+        escaped++;
+        const key = `${nameOf.get(node.topic)}/${node.subtopic >= 0 ? nameOf.get(node.subtopic) : "-"}`;
+        escapedBySub.set(key, (escapedBySub.get(key) ?? 0) + 1);
+      }
+    }
+
     console.log(
       [
+        `地图尺寸=${Math.round(Math.max(...map.nodes.map(n => n.x)) - Math.min(...map.nodes.map(n => n.x)))}×${Math.round(Math.max(...map.nodes.map(n => n.y)) - Math.min(...map.nodes.map(n => n.y)))} 越界节点=${escaped} ${[
+          ...escapedBySub,
+        ]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 8)
+          .map(([k, v]) => `${k}×${v}`)
+          .join(", ")}`,
         `子主题与大主题撞名：${
           map.topics
             .filter(t => t.parent !== -1 && t.label && tops.some(top => top.label === t.label))
