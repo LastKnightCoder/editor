@@ -3,9 +3,15 @@ import { existsSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pruneNativeModules from "./prune-packaged-native-modules.cjs";
+import { assertPiPackagingBoundary } from "./pi-packaging-boundary.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const desktopDir = path.resolve(__dirname, "..");
+
+assertPiPackagingBoundary(
+  path.join(desktopDir, "node_modules", "@earendil-works", "pi-coding-agent"),
+  [path.join(desktopDir, "src"), path.join(desktopDir, "src-electron")]
+);
 
 // 每个后端对应的 NODE_LLAMA_CPP_GPU 取值，用于缺失时显式指定补拉
 const llamaBackendGpuEnv = {

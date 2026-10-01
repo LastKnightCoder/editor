@@ -6,12 +6,12 @@
  *
  * 覆盖项：
  *  1. Electron 内置 Node ≥ 22.19（pi 三包 engines 门槛）；
- *  2. faux provider 驱动完整 agent loop（inMemory 会话，无需真实 API key）；
- *  3. 内建 bash 工具在 Windows 的真实执行（Git Bash 探测）；
+ *  2. faux provider 驱动完整 agent loop、JSONL 恢复与 TypeScript 扩展（无需真实 API key）；
+ *  3. 内建 shell 工具真实执行（Windows 使用系统 PowerShell）；
  *  4. 内建 write/read 工具对中文文件名与中文路径的读写；
  *  5. 全程不写 ~/.pi（agentDir 与 cwd 均指到临时目录）。
  */
-import { mkdtempSync, rmSync, existsSync, readFileSync } from "node:fs";
+import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -24,9 +24,8 @@ const loadPackage = name => {
   return import(pathToFileURL(join(directory, manifest.exports["."].import)).href);
 };
 console.log(`[依赖来源] ${process.env.TAU_SMOKE_ASAR ?? "开发目录"}`);
-const { createAgentSession, SessionManager, ModelRuntime, SettingsManager } = await loadPackage(
-  "@earendil-works/pi-coding-agent"
-);
+const { createAgentSession, DefaultResourceLoader, SessionManager, ModelRuntime, SettingsManager } =
+  await loadPackage("@earendil-works/pi-coding-agent");
 const { createModels, fauxProvider, fauxAssistantMessage, fauxText, fauxThinking, fauxToolCall } =
   await loadPackage("@earendil-works/pi-ai");
 
@@ -49,17 +48,53 @@ if (nodeMajor < 22 || (nodeMajor === 22 && nodeMinor < 19)) {
 // 2. 临时工作区（目录名带中文，顺带覆盖路径处理）
 const workDir = mkdtempSync(join(tmpdir(), "pi-冒烟-"));
 const agentDir = join(workDir, ".pi-agent");
+const sessionDir = join(workDir, "sessions");
+process.on("exit", () => rmSync(workDir, { recursive: true, force: true }));
 console.log(`[2] workdir：${workDir}`);
 
-// 3. faux provider：四轮脚本化响应（bash → write → read → 总结），驱动真实工具执行
+const extensionPath = join(workDir, "package-extension.ts");
+writeFileSync(
+  extensionPath,
+  `
+  import { Type } from "typebox";
+  export default function (pi) {
+    pi.registerTool({
+      name: "package_echo", label: "包内扩展", description: "包内扩展回归",
+      parameters: Type.Object({ text: Type.String() }),
+      async execute(_id, params) { return { content: [{ type: "text", text: params.text }] }; }
+    });
+  }
+`
+);
+const resourceLoader = new DefaultResourceLoader({
+  cwd: workDir,
+  agentDir,
+  noContextFiles: true,
+  noSkills: true,
+  noPromptTemplates: true,
+  noThemes: true,
+  additionalExtensionPaths: [extensionPath],
+});
+await resourceLoader.reload();
+if (resourceLoader.getExtensions().errors.length) {
+  throw new Error(JSON.stringify(resourceLoader.getExtensions().errors));
+}
+
+// 3. 脚本化响应驱动真实工具和动态扩展执行。
 const faux = fauxProvider({});
+const shellTool = process.platform === "win32" ? "powershell" : "bash";
 const models = createModels();
 models.setProvider(faux.provider);
 faux.setResponses([
   fauxAssistantMessage(
     [
       fauxThinking("先探测 shell 与工作目录。"),
-      fauxToolCall("bash", { command: "echo 你好世界 && echo shell=$0 && pwd" }),
+      fauxToolCall(shellTool, {
+        command:
+          process.platform === "win32"
+            ? "Write-Output '你好世界'; (Get-Location).Path"
+            : "echo 你好世界 && echo shell=$0 && pwd",
+      }),
     ],
     { stopReason: "toolUse" }
   ),
@@ -68,10 +103,13 @@ faux.setResponses([
     { stopReason: "toolUse" }
   ),
   fauxAssistantMessage([fauxToolCall("read", { path: "笔记-测试.md" })], { stopReason: "toolUse" }),
+  fauxAssistantMessage([fauxToolCall("package_echo", { text: "扩展回声" })], {
+    stopReason: "toolUse",
+  }),
   fauxAssistantMessage([fauxText("冒烟完成。")]),
 ]);
 
-// 4. 会话装配：inMemory 存储 + agentDir 隔离；faux 需要注册进 ModelRuntime 并给运行时假 key 过 auth 检查。
+// 4. 会话存储与 agentDir 均隔离；faux 使用运行时假 key 通过认证配置检查。
 //    bash 工具需要 shellPath：pi 只认 Program Files 与 Windows PATH，本机 Git 装在非标准路径时探测不到，
 //    这里按「环境变量 → 注册表 → 常见路径」探测（产品化后由首启检测写入，见 M3）。
 const detectBashPath = () => {
@@ -99,13 +137,20 @@ const modelRuntime = await ModelRuntime.create({
 });
 modelRuntime.registerNativeProvider(faux.provider);
 await modelRuntime.setRuntimeApiKey("faux", "smoke-key");
+const sessionManager = SessionManager.create(workDir, sessionDir);
 const { session } = await createAgentSession({
   cwd: workDir,
   agentDir,
   modelRuntime,
   model: faux.getModel(),
-  sessionManager: SessionManager.inMemory(workDir),
-  settingsManager: SettingsManager.inMemory(shellPath ? { shellPath } : {}),
+  sessionManager,
+  resourceLoader,
+  settingsManager: SettingsManager.inMemory({
+    ...(shellPath ? { shellPath } : {}),
+    ...(process.platform === "win32"
+      ? { defaultTools: ["read", "powershell", "edit", "write"] }
+      : {}),
+  }),
 });
 
 // 5. 订阅事件（M2 IPC 事件桥将桥接的就是这一层）
@@ -144,7 +189,7 @@ try {
 console.log("[3b] 运行中插话（steer）：");
 const steerText = "顺便把结论一句话总结";
 faux.setResponses([
-  fauxAssistantMessage([fauxToolCall("bash", { command: "echo 插话前的命令" })], {
+  fauxAssistantMessage([fauxToolCall(shellTool, { command: "echo 插话前的命令" })], {
     stopReason: "toolUse",
   }),
   fauxAssistantMessage([fauxText("插话已处理。")]),
@@ -184,13 +229,13 @@ try {
 
 // 6. 断言
 console.log("[4] 断言：");
-const bashRun = toolRuns.find(r => r.name === "bash");
+const bashRun = toolRuns.find(r => r.name === shellTool);
 check(
-  "bash 工具执行成功（Git Bash 探测）",
+  `${shellTool} 工具执行成功`,
   bashRun?.ok === true,
   bashRun?.result?.split("\n").slice(0, 2).join(" | ") ?? "未执行"
 );
-check("bash 中文输出未乱码", (bashRun?.result ?? "").includes("你好世界"));
+check("shell 中文输出未乱码", (bashRun?.result ?? "").includes("你好世界"));
 const writeRun = toolRuns.find(r => r.name === "write");
 const readRun = toolRuns.find(r => r.name === "read");
 check("write 写入中文文件名", writeRun?.ok === true && existsSync(join(workDir, "笔记-测试.md")));
@@ -217,6 +262,14 @@ check(
 );
 
 // 7. 清理
+const extensionRun = toolRuns.find(run => run.name === "package_echo");
+check(
+  "TypeScript 扩展加载与工具调用",
+  extensionRun?.ok === true && extensionRun.result === "扩展回声"
+);
+const restored = SessionManager.open(sessionManager.getSessionFile(), sessionDir, workDir);
+check("JSONL 恢复保持会话身份", restored.getHeader().id === sessionManager.getHeader().id);
+check("JSONL 恢复包含正文与插话", JSON.stringify(restored.getBranch()).includes(steerText));
 rmSync(workDir, { recursive: true, force: true });
 
 if (failures.length) {

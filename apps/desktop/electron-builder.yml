@@ -31,12 +31,6 @@ directories:
   buildResources: build
 
 extraResources:
-  - from: dist-electron/main/dict.txt
-    to: dict.txt
-    filter: ["**/*"]
-  - from: dist-electron/main/idf.txt
-    to: idf.txt
-    filter: ["**/*"]
   - from: ../cli/dist/index.js
     to: cli/index.js
   - from: ../cli/bin/tau.sh
@@ -56,6 +50,9 @@ files:
   - "!node_modules/**/*.js.map"
   - "!node_modules/**/*.mjs.map"
   - "!node_modules/**/*.cjs.map"
+  - "!node_modules/@earendil-works/pi-coding-agent/dist/bundle/**/*"
+  - "!node_modules/esbuild/**/*"
+  - "!node_modules/@esbuild/**/*"
 
 nsis:
   oneClick: false

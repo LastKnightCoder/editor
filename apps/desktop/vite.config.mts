@@ -21,6 +21,7 @@ const runtimeDependencyExternals = [
   "turndown",
   "@myriaddreamin/typst-ts-node-compiler",
   "@node-rs/jieba",
+  "@node-rs/jieba/dict",
   "@silvia-odwyer/photon-node",
   "@tailwindcss/oxide",
   "@vscode/ripgrep",
@@ -138,20 +139,6 @@ export default defineConfig(() => {
                       fs.copySync(
                         "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
                         "dist-electron/main/pdf.worker.mjs"
-                      );
-                    },
-                  },
-                  {
-                    name: "jieba-dict-copy",
-                    closeBundle() {
-                      // 构建完成后触发
-                      fs.copySync(
-                        "node_modules/@node-rs/jieba/dict.txt",
-                        "dist-electron/main/dict.txt" // 确保输出到这里
-                      );
-                      fs.copySync(
-                        "node_modules/@node-rs/jieba/idf.txt",
-                        "dist-electron/main/idf.txt" // 确保输出到这里
                       );
                     },
                   },
