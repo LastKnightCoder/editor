@@ -12,7 +12,7 @@ import { toast } from "../components/toast";
 
 interface PendingRequestState<TOptions, TResult> {
   pending: (TOptions & { resolve: (result: TResult) => void }) | null;
-  request: (options: TOptions) => Promise<TResult>;
+  request: (options: TOptions & { signal?: AbortSignal }) => Promise<TResult>;
   settle: (result: TResult) => void;
 }
 
@@ -22,8 +22,23 @@ function createPendingRequestStore<TOptions extends object, TResult>(cancelled: 
     pending: null,
     request: options =>
       new Promise<TResult>(resolve => {
+        if (options.signal?.aborted) {
+          resolve(cancelled);
+          return;
+        }
         get().pending?.resolve(cancelled);
-        set({ pending: { ...options, resolve } });
+        const abort = () => {
+          if (get().pending === pending) get().settle(cancelled);
+        };
+        const pending = {
+          ...options,
+          resolve: (result: TResult) => {
+            options.signal?.removeEventListener("abort", abort);
+            resolve(result);
+          },
+        };
+        options.signal?.addEventListener("abort", abort, { once: true });
+        set({ pending });
       }),
     settle: result => {
       const { pending } = get();

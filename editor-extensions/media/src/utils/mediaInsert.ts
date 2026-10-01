@@ -22,6 +22,15 @@ import type { AudioElement } from "../types/element/audio";
 
 type AnyMediaElement = ImageElement | VideoElement | AudioElement;
 
+const canWriteMedia = (editor: Editor): boolean => {
+  if (ReactEditor.isReadOnly(editor)) return false;
+  try {
+    return ReactEditor.toDOMNode(editor, editor).isConnected;
+  } catch {
+    return false;
+  }
+};
+
 const MEDIA_TYPE_LABELS: Record<MediaType, string> = {
   image: "图片",
   video: "视频",
@@ -133,6 +142,7 @@ export const openLocalMediaPicker = (
   targetElement?: AnyMediaElement,
   options?: { capture?: boolean; onComplete?: () => void }
 ) => {
+  if (!canWriteMedia(editor)) return;
   const input = acquirePickerInput();
   input.accept = mediaType === "image" ? "image/*" : mediaType === "video" ? "video/*" : "audio/*";
   if (options?.capture) {
@@ -190,18 +200,21 @@ const uploadAndInsertMedia = async (
   file: File,
   targetElement?: AnyMediaElement
 ) => {
+  if (!canWriteMedia(editor)) return;
   if (targetElement) {
     if (targetElement.type !== mediaType) return;
     const startPath = getCommandElementPath(editor, { element: targetElement });
     if (!startPath) return;
     const target = Editor.pathRef(editor, startPath);
     const currentPath = () => {
+      if (!canWriteMedia(editor)) return null;
       const path = target.current;
       return path && Editor.node(editor, path)[0].type === mediaType ? path : null;
     };
     try {
       Transforms.setNodes(editor, UPLOADING_FLAG[mediaType], { at: startPath });
       const url = await editor.getService(IResourceService).upload(file);
+      if (!canWriteMedia(editor)) return;
       if (!url) {
         throw new Error("上传失败");
       }
@@ -218,6 +231,7 @@ const uploadAndInsertMedia = async (
           { at: path }
         );
     } catch (error) {
+      if (!canWriteMedia(editor)) return;
       console.error("上传媒体失败:", error);
       notifierOf(editor).error("上传失败");
       const path = currentPath();
@@ -243,6 +257,7 @@ const uploadAndInsertMedia = async (
 
   try {
     const url = await editor.getService(IResourceService).upload(file);
+    if (!canWriteMedia(editor)) return;
     if (!url) {
       throw new Error("上传失败");
     }
@@ -253,6 +268,7 @@ const uploadAndInsertMedia = async (
       });
     }
   } catch (error) {
+    if (!canWriteMedia(editor)) return;
     console.error("上传媒体失败:", error);
     notifierOf(editor).error("上传失败");
     const entry = findMediaByUuid(editor, mediaType, uuid);

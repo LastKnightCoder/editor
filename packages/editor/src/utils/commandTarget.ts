@@ -7,7 +7,10 @@ export function getCommandElementPath(editor: Editor, context: EditorCommandCont
   if (ReactEditor.isReadOnly(editor) || !context.element || !Element.isElement(context.element))
     return null;
   try {
-    const path = context.path ?? ReactEditor.findPath(editor, context.element);
+    const hint = context.path;
+    if (hint?.length && Node.has(editor, hint) && Node.get(editor, hint) === context.element)
+      return hint;
+    const path = ReactEditor.findPath(editor, context.element);
     return path.length && Node.get(editor, path) === context.element ? path : null;
   } catch {
     return null;

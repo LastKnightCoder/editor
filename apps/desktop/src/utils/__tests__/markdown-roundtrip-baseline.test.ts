@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import type { Descendant } from "slate";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -25,6 +26,38 @@ const stable = (value: unknown) =>
   JSON.parse(JSON.stringify(value), (key, v) => (key === "uuid" && v !== "u-1" ? "<uuid>" : v));
 
 describe("Markdown 往返基准", () => {
+  it("表格内未知文本字段的竖线不增加列，正文与元数据均保真", () => {
+    const leaf = { type: "formatted", text: "a|b", vendor: { label: "x|y", literal: "&#124;" } };
+    const value = [
+      {
+        type: "table",
+        children: [
+          {
+            type: "table-row",
+            children: [
+              { type: "table-cell", children: [leaf] },
+              { type: "table-cell", children: [{ type: "formatted", text: "第二格" }] },
+            ],
+          },
+        ],
+      },
+    ] as Descendant[];
+    const source = getMarkdown(value);
+    const exported = getMarkdownWithPositions(value);
+    const imported = importFromMarkdownWithPositions(source);
+    expect(exported.markdown).toBe(source);
+    expect(importFromMarkdown(source)).toEqual(value);
+    expect(imported.content).toEqual(value);
+    for (let offset = 0; offset <= leaf.text.length; offset++) {
+      const point = { path: [0, 0, 0, 0], offset };
+      const location = exported.positionMap.slateToMarkdown(point);
+      expect(location).not.toBeNull();
+      if (!location) throw new Error("表格文本缺少映射");
+      expect(imported.positionMap.slateToMarkdown(point)).toEqual(location);
+      expect(imported.positionMap.markdownToSlate(location)).toEqual(point);
+    }
+  });
+
   it("导入 → 导出", () => {
     const value = importFromMarkdown(fixture);
     expect(stable(value)).toMatchSnapshot("value");

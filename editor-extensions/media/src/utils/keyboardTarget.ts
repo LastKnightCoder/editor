@@ -10,7 +10,7 @@ export const isTextTarget = (target: EventTarget | null) => {
 
 /** 按键目标在浮层里（灯箱、裁剪编辑器、对话框）：交给浮层自己处理 */
 export const isOverlayTarget = (target: EventTarget | null) =>
-  !!(target as HTMLElement | null)?.closest?.('[aria-modal="true"]');
+  !!(target as HTMLElement | null)?.closest?.('[aria-modal="true"], [role="menu"]');
 
 /**
  * 选中媒体块时的块级快捷键是否应忽略这次按键：输入法组合、浮层内、文本输入（如说明框）都不处理。

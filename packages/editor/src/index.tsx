@@ -69,6 +69,7 @@ import LeafRenderer from "./components/LeafRenderer";
 import type { MarkRenderProps } from "./api/marks";
 import type { ComponentType } from "react";
 import PromptHost from "./components/PromptHost";
+import { cancelEditorPrompts } from "./services/editorNotifier";
 import { IConfigItem, IHotKeyConfig } from "./types";
 
 import "./theme/editor.css";
@@ -307,6 +308,11 @@ const Index = memo(
     );
 
     useEffect(() => documentProp?.attach?.(editor), [documentProp, editor]);
+
+    useEffect(() => {
+      if (readonly) cancelEditorPrompts(editor);
+      return () => cancelEditorPrompts(editor);
+    }, [editor, readonly, documentProp, registry]);
 
     // 已经挂在这个 editor 上的文档源：区分「首次连接」与「换源」
     const attachedRef = useRef<{ editor: Editor; binding: EditorDocumentBinding } | null>(null);

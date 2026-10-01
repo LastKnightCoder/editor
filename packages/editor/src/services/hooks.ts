@@ -1,7 +1,8 @@
 import type { ServiceIdentifier } from "./tokens";
 import type { ServiceRegistry } from "./registry";
-import { IEditorNotifier } from "./tokens";
-import { defaultEditorNotifier, type EditorNotifier } from "./notifier";
+import { useSlateStatic } from "slate-react";
+import type { EditorNotifier } from "./notifier";
+import { notifierOf } from "./editorNotifier";
 
 import { useInheritedKit } from "../kit/context";
 
@@ -31,5 +32,5 @@ export function useOptionalService<T>(id: ServiceIdentifier<T>): T | undefined {
 
 /** 轻提示与确认：宿主没注册时用默认实现，编辑器组件不需要判空 */
 export function useNotifier(): EditorNotifier {
-  return useOptionalService(IEditorNotifier) ?? defaultEditorNotifier;
+  return notifierOf(useSlateStatic());
 }

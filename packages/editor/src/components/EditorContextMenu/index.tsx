@@ -1,7 +1,8 @@
 import { Fragment, memo, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronRight } from "lucide-react";
-import { cn } from "@tau/ui";
+import { cn, usePortalContainer } from "@tau/ui";
+import OverlayBackDismiss from "../OverlayBackDismiss";
 
 import { ContextMenuItem, EditorContextMenuProps } from "./types";
 import {
@@ -16,6 +17,16 @@ import {
 const EditorContextMenu = memo(
   ({ visible, position, items, onClose, readonly }: EditorContextMenuProps) => {
     const menuRef = useRef<HTMLDivElement>(null);
+    const portalContainer = usePortalContainer();
+    useEffect(() => {
+      if (!visible || readonly) return;
+      const previous = document.activeElement;
+      menuRef.current?.focus({ preventScroll: true });
+      return () => {
+        if (previous instanceof HTMLElement && previous.isConnected)
+          previous.focus({ preventScroll: true });
+      };
+    }, [visible, readonly]);
     const [openKeys, setOpenKeys] = useState<string[]>([]);
     const [calculatedPosition, setCalculatedPosition] = useState(position);
     const subMenuPositionsRef = useRef<Map<string, { left: boolean; top: string }>>(new Map());
@@ -282,6 +293,14 @@ const EditorContextMenu = memo(
     return createPortal(
       <div
         ref={menuRef}
+        role="menu"
+        tabIndex={-1}
+        onKeyDown={event => {
+          if (event.key !== "Escape" || event.nativeEvent.isComposing) return;
+          event.preventDefault();
+          event.stopPropagation();
+          onClose();
+        }}
         className={menuPanelClass}
         style={{
           left: `${calculatedPosition.x}px`,
@@ -294,6 +313,7 @@ const EditorContextMenu = memo(
         onContextMenu={stopAll}
         onWheel={stopPropagationOnly}
       >
+        <OverlayBackDismiss open onDismiss={onClose} />
         {items.length > 0 ? (
           renderMenu(items)
         ) : (
@@ -302,7 +322,7 @@ const EditorContextMenu = memo(
           </div>
         )}
       </div>,
-      document.body
+      portalContainer
     );
   }
 );

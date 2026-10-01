@@ -1,26 +1,14 @@
 import { ArrowDown, ArrowUp, Copy, Scissors, Trash2 } from "lucide-react";
 import { Editor, Node, Path, Transforms } from "slate";
-import { ReactEditor } from "slate-react";
 
 import { defineExtension } from "../api/extension";
-import type { EditorCommand, EditorCommandContext } from "../api/command";
+import type { EditorCommand } from "../api/command";
 import type { EditorMenuEntry } from "../api/menu";
 import { notifierOf } from "../services";
 import { copyNodeToClipboard, deleteNode, deleteVoidBlock } from "../utils/nodeOperations";
 import { getCommandElementPath } from "../utils/commandTarget";
 
 /** 通用块操作；领域转换由对应扩展的命令与 menuFor 贡献。 */
-
-/** 命令定位目标元素：菜单入口带了 path 就直接用，程序化调用时回退到 findPath */
-const findElementPath = (editor: Editor, ctx: EditorCommandContext) => {
-  if (ctx.path) return ctx.path;
-  if (!ctx.element) return null;
-  try {
-    return ReactEditor.findPath(editor as ReactEditor, ctx.element);
-  } catch {
-    return null;
-  }
-};
 
 /** 目标元素是否还有前/后兄弟可交换（上移/下移的 enablement）；path 未知时不拦截 */
 const hasSibling = (editor: Editor, path: Path | undefined, direction: -1 | 1): boolean => {
@@ -38,7 +26,7 @@ const moveCommand = (id: string, title: string, direction: -1 | 1): EditorComman
   id,
   title,
   run: (editor, ctx) => {
-    const path = findElementPath(editor, ctx);
+    const path = getCommandElementPath(editor, ctx);
     if (!path || !ctx.element) return;
     if (!hasSibling(editor, path, direction)) return;
     const to = direction < 0 ? Path.previous(path) : Path.next(path);
@@ -69,7 +57,7 @@ const commands: EditorCommand[] = [
     id: "tau.block.cut",
     title: "剪切",
     run: async (editor, ctx) => {
-      const path = findElementPath(editor, ctx);
+      const path = getCommandElementPath(editor, ctx);
       if (!path || !ctx.element) return;
       const target = Editor.pathRef(editor, path);
       try {
@@ -78,7 +66,11 @@ const commands: EditorCommand[] = [
         });
         const currentPath = target.current;
         // 等待期间被修改或替换的内容没有进入剪贴板，不能删除。
-        if (copied && currentPath && Node.get(editor, currentPath) === ctx.element) {
+        if (
+          copied &&
+          currentPath &&
+          getCommandElementPath(editor, { element: ctx.element, path: currentPath })
+        ) {
           if (editor.isVoid(ctx.element)) deleteVoidBlock(editor, currentPath);
           else deleteNode(editor, currentPath);
         }
@@ -99,7 +91,7 @@ const commands: EditorCommand[] = [
     id: "tau.block.delete",
     title: "删除",
     run: (editor, ctx) => {
-      const path = findElementPath(editor, ctx);
+      const path = getCommandElementPath(editor, ctx);
       if (!path) return;
       // void 块不可聚焦，删除后补空段落承接光标；可聚焦块直接删（最后一块清空保底）
       if (ctx.element && editor.isVoid(ctx.element)) deleteVoidBlock(editor, path);

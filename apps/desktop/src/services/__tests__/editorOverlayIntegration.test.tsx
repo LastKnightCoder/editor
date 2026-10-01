@@ -3,7 +3,9 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { Editor, createEditorKit, type EditorRef } from "@tau/editor";
+import { Editor, createEditorKit, defaultMenuExtension, type EditorRef } from "@tau/editor";
+import { image } from "@tau/editor-media";
+import { IResourceService } from "@tau/shared/host-services";
 import { IOverlayBackDismiss } from "@tau/editor/api";
 import { IEditorSlots } from "@tau/editor-media/services";
 import { createDefaultEditorSlots } from "@tau/editor-media/slots";
@@ -33,10 +35,17 @@ definePage({
 });
 
 const kit = createEditorKit({
-  extensions: [...mathExtensions, ...htmlExtensions, previewMenuExtension],
+  extensions: [
+    ...mathExtensions,
+    ...htmlExtensions,
+    previewMenuExtension,
+    image,
+    defaultMenuExtension,
+  ],
   services: [
     register => {
       register(IEditorSlots, createDefaultEditorSlots());
+      register(IResourceService, { upload: async () => "uploaded" });
       register(IOverlayBackDismiss, { Layer: DesktopEditorOverlayDismiss });
     },
   ],
@@ -62,6 +71,7 @@ function Content({ visible }: { visible: boolean }) {
           html: "<b>源码预览</b>",
           children: [{ type: "formatted", text: "" }],
         },
+        { type: "image", url: "original", children: [{ type: "formatted", text: "" }] },
       ]}
     />
   ) : null;
@@ -158,6 +168,22 @@ describe("真实编辑器浮层与页面仲裁", () => {
     const input = await openMath();
     await escape(input);
     expect(document.querySelector('input[placeholder="输入 LaTeX 公式..."]')).toBeNull();
+    expect(host.querySelector("[data-host-open]")?.textContent).toBe("true");
+    await escape();
+    expect(host.querySelector("[data-host-open]")?.textContent).toBe("false");
+  });
+
+  it("图片更多菜单优先消费宿主返回，第二次 Escape 才关闭下层浮层", async () => {
+    await render();
+    const frame = host.querySelector(".cursor-pointer.relative.overflow-hidden");
+    if (!frame) throw new Error("图片未挂载");
+    await act(async () => frame.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>('button[aria-label="更多"]')?.click()
+    );
+    expect(document.querySelector('[role="menu"]')).not.toBeNull();
+    await escape();
+    expect(document.querySelector('[role="menu"]')).toBeNull();
     expect(host.querySelector("[data-host-open]")?.textContent).toBe("true");
     await escape();
     expect(host.querySelector("[data-host-open]")?.textContent).toBe("false");
