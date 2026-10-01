@@ -9,6 +9,8 @@ interface ITypstProps {
   initialHtml?: string;
   compiledFrom?: string;
   onCompiled?: (html: string, compiledFrom: string) => void;
+  /** 传入时由调用方展示错误：编译失败回调错误信息并保留上一次成功的结果（hasPrevious），恢复时回调 null */
+  onError?: (error: string | null, hasPrevious?: boolean) => void;
 }
 
 const Typst = (props: ITypstProps) => {
@@ -20,13 +22,12 @@ const Typst = (props: ITypstProps) => {
     initialHtml = "",
     compiledFrom,
     onCompiled,
+    onError,
   } = props;
 
   const hasLegacyCache = !compiledFrom && !!initialHtml;
   const cacheMatches = compiledFrom === content && !!initialHtml;
-  const [html, setHtml] = useState<string>(
-    cacheMatches || hasLegacyCache ? initialHtml : "",
-  );
+  const [html, setHtml] = useState<string>(cacheMatches || hasLegacyCache ? initialHtml : "");
   const [error, setError] = useState<string>("");
   const [compileUnavailable, setCompileUnavailable] = useState(false);
 
@@ -52,12 +53,8 @@ const Typst = (props: ITypstProps) => {
       } catch (e: any) {
         const rawMsg = e?.message || "";
         const msg =
-          rawMsg
-            .replace(
-              "Error invoking remote method 'compile-typst': Error: ",
-              "",
-            )
-            .trim() || "编译 Typst 失败";
+          rawMsg.replace("Error invoking remote method 'compile-typst': Error: ", "").trim() ||
+          "编译 Typst 失败";
         const unsupported =
           /不支持\s*Typst/.test(rawMsg) ||
           /blog\s*模式\s*不支持/i.test(rawMsg) ||
@@ -72,10 +69,10 @@ const Typst = (props: ITypstProps) => {
           }
         }
         setError(msg);
-        setHtml("");
+        if (!onError) setHtml("");
       }
     },
-    { wait: 200 },
+    { wait: 200 }
   );
 
   useEffect(() => {
@@ -112,7 +109,7 @@ const Typst = (props: ITypstProps) => {
       return;
     }
 
-    setHtml("");
+    if (!onError) setHtml("");
     setError("");
     run(content);
   }, [
@@ -123,34 +120,38 @@ const Typst = (props: ITypstProps) => {
     hasLegacyCache,
     initialHtml,
     run,
+    onError,
   ]);
+
+  useEffect(() => {
+    onError?.(error || null, !!html);
+  }, [error, html, onError]);
 
   if (!content.trim()) {
     return (
       <div className={className}>
-        <div className="text-gray-400 dark:text-gray-500 py-3 text-center">
-          暂无 Typst 内容
-        </div>
+        <div className="py-3 text-center text-gray-400 dark:text-gray-500">暂无 Typst 内容</div>
       </div>
     );
   }
 
-  if (error) {
+  if (error && !onError) {
     return (
       <div
-        className={`text-red-600 dark:text-red-400 whitespace-pre-wrap font-mono text-sm w-full pl-5 ${className || ""}`}
+        className={`w-full whitespace-pre-wrap pl-5 font-mono text-sm text-red-600 dark:text-red-400 ${className || ""}`}
       >
         {error}
       </div>
     );
   }
 
+  // 交给调用方展示错误、又没有可保留的旧结果时留空，不显示「Loading」
+  if (!html && error) return <div className={className} />;
+
   if (!html) {
     return (
       <div className={className}>
-        <div className="text-gray-500 dark:text-gray-400 text-center">
-          Loading...
-        </div>
+        <div className="text-center text-gray-500 dark:text-gray-400">Loading...</div>
       </div>
     );
   }

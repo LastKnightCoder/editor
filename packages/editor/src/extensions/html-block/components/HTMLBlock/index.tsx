@@ -6,6 +6,7 @@ import { useTailwindRuntimeCss } from "../../../../hooks/useTailwindRuntimeCss";
 import { ICompilerService } from "../../../../services";
 import { Transforms } from "slate";
 import { ReactEditor, useSlateStatic } from "slate-react";
+import { CodeXml } from "lucide-react";
 
 interface HTMLBlockProps {
   attributes: RenderElementProps["attributes"];
@@ -22,34 +23,21 @@ const HTMLBlock: React.FC<PropsWithChildren<HTMLBlockProps>> = props => {
     Transforms.setNodes(editor, { html: code }, { at: ReactEditor.findPath(editor, element) });
   };
 
-  const renderEmpty = () => {
-    return (
-      <div
-        contentEditable={false}
-        className="flex h-[3.75em] cursor-pointer select-none items-center justify-center text-[var(--ed-text-tertiary)]"
-      >
-        点击编辑 HTML 内容
-      </div>
-    );
-  };
-
   return (
     <div {...attributes} className="h-auto cursor-pointer">
       <PreviewWithEditor
         mode={"htmlmixed"}
+        title="HTML"
+        icon={CodeXml}
         initValue={html}
         onChange={handleOnChange}
         element={element}
         extend
       >
-        {html ? (
-          <Fragment>
-            {tailwindCss ? <style dangerouslySetInnerHTML={{ __html: tailwindCss }} /> : null}
-            <div dangerouslySetInnerHTML={{ __html: html }} />
-          </Fragment>
-        ) : (
-          renderEmpty()
-        )}
+        <Fragment>
+          {tailwindCss ? <style dangerouslySetInnerHTML={{ __html: tailwindCss }} /> : null}
+          <div dangerouslySetInnerHTML={{ __html: html }} />
+        </Fragment>
       </PreviewWithEditor>
       {children}
     </div>

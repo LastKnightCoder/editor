@@ -2,6 +2,7 @@ import { useRef, useEffect, useState } from "react";
 import { useCreation, useMemoizedFn } from "ahooks";
 import { renderMermaidSvg } from "@tau/shared";
 import { useEditorTheme } from "../../../theme/context";
+import { useReportPreviewError } from "../../../components/PreviewWithEditor/previewError";
 
 interface IMermaidProps {
   chart: string;
@@ -20,6 +21,8 @@ const Mermaid = (props: IMermaidProps) => {
   const ref = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string>("");
   const [svgContent, setSvgContent] = useState<string>("");
+  // 在源码预览块内时错误交给块的错误条，这里保留上一次成功的图
+  const errorReported = useReportPreviewError(error || null, { stale: !!svgContent });
 
   const stableOnCompiled = useMemoizedFn(onCompiled ?? (() => {}));
 
@@ -67,7 +70,6 @@ const Mermaid = (props: IMermaidProps) => {
         if (!isMounted) return;
         const errorMsg = typeof e === "string" ? e : e instanceof Error ? e.message : "渲染失败";
         setError(errorMsg);
-        setSvgContent("");
       }
     };
 
@@ -81,17 +83,8 @@ const Mermaid = (props: IMermaidProps) => {
   return (
     <>
       <code id={mermaidId} style={{ display: "none" }}></code>
-      {error ? (
-        <div
-          style={{
-            color: "#e13238",
-            padding: "1em",
-            fontSize: "14px",
-            textAlign: "center",
-          }}
-        >
-          {error}
-        </div>
+      {error && !errorReported ? (
+        <div className="p-[1em] text-center text-[0.875em] text-[var(--ed-danger)]">{error}</div>
       ) : (
         <div
           ref={ref}
