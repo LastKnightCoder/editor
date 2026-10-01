@@ -1,23 +1,19 @@
-/** 项目列表域模型：排布、排序、最近打开与时间展示（纯函数） */
+/** 驾驶舱列表模型：排布、排序、最近打开与时间展示（纯函数，三模块共用） */
 
-import type { CockpitItem } from "@/features/shared/cockpit/types";
-import { cockpitRelativeTime } from "@/features/shared/cockpit/text";
-import type { ProjectPageItem } from "./types";
+import { cockpitRelativeTime } from "./text";
+import type { CockpitItem } from "./types";
 
-export type ProjectLayout = "grid" | "list";
-export type ProjectSort = "opened" | "updated" | "name" | "created";
+export type CockpitLayout = "grid" | "list";
+export type CockpitSort = "opened" | "updated" | "name" | "created";
 
-/** 驾驶舱条目 + 项目列表字段（metric = 文档数） */
-export type ProjectListItem = ProjectPageItem & CockpitItem;
-
-export const PROJECT_SORTS: { value: ProjectSort; label: string }[] = [
+export const COCKPIT_SORTS: { value: CockpitSort; label: string }[] = [
   { value: "opened", label: "最近打开" },
   { value: "updated", label: "最近更新" },
   { value: "name", label: "名称" },
   { value: "created", label: "创建时间" },
 ];
 
-const COMPARE: Record<ProjectSort, (a: ProjectListItem, b: ProjectListItem) => number> = {
+const COMPARE: Record<CockpitSort, (a: CockpitItem, b: CockpitItem) => number> = {
   // 从未打开的排在打开过的之后，组内按更新时间
   opened: (a, b) => (b.openedAt ?? 0) - (a.openedAt ?? 0) || b.updateTime - a.updateTime,
   updated: (a, b) => b.updateTime - a.updateTime,
@@ -26,12 +22,12 @@ const COMPARE: Record<ProjectSort, (a: ProjectListItem, b: ProjectListItem) => n
 };
 
 /** 置顶在任何排序下都排最前 */
-export function sortProjects(items: ProjectListItem[], sort: ProjectSort): ProjectListItem[] {
+export function sortCockpitItems<T extends CockpitItem>(items: T[], sort: CockpitSort): T[] {
   return [...items].sort((a, b) => Number(b.pinned) - Number(a.pinned) || COMPARE[sort](a, b));
 }
 
 /** 「最近打开」续读行：打开过的按打开时间取前 n 个（不受置顶影响） */
-export function recentProjects(items: ProjectListItem[], n = 3): ProjectListItem[] {
+export function recentCockpitItems<T extends CockpitItem>(items: T[], n = 3): T[] {
   return items
     .filter(item => item.openedAt !== null)
     .sort((a, b) => (b.openedAt ?? 0) - (a.openedAt ?? 0))
@@ -54,11 +50,7 @@ export function formatDate(ts: number, now = Date.now()): string {
 }
 
 /** 网格卡片的时间位跟随排序口径；按最近打开排时，没打开过的回落到更新时间 */
-export function projectTimeMeta(
-  item: ProjectListItem,
-  sort: ProjectSort,
-  now = Date.now()
-): string {
+export function cockpitTimeMeta(item: CockpitItem, sort: CockpitSort, now = Date.now()): string {
   if (sort === "created") return `创建于 ${formatDate(item.createTime, now)}`;
   if (sort === "opened" && item.openedAt !== null)
     return `${cockpitRelativeTime(item.openedAt, now)}打开`;
