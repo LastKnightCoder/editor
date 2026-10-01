@@ -3,7 +3,7 @@ use tauri::AppHandle;
 
 use super::flashcard_common::{
     format_db_error, now_millis, parse_deck_row, query_deck_by_id, query_deck_stats_map,
-    DECK_COLUMNS,
+    release_references, ReferenceScope, DECK_COLUMNS,
 };
 use super::flashcard_types::{
     CreateFlashcardDeckPayload, DeleteFlashcardDeckPayload, FlashcardDeck, UpdateFlashcardDeckPayload,
@@ -99,11 +99,7 @@ pub fn flashcard_delete_deck(app: AppHandle, payload: DeleteFlashcardDeckPayload
         .transaction()
         .map_err(|e| format_db_error("FLASHCARD_DELETE_FAILED", "begin transaction", e))?;
     // 级联清理：卡片 → 引用/复习历史 → 卡组（对齐桌面 deleteDeck）
-    tx.execute(
-        "DELETE FROM flashcard_references WHERE card_id IN (SELECT id FROM flashcards WHERE deck_id = ?1)",
-        params![payload.id],
-    )
-    .map_err(|e| format_db_error("FLASHCARD_DELETE_FAILED", "delete references", e))?;
+    release_references(&tx, ReferenceScope::Deck(payload.id))?;
     tx.execute(
         "DELETE FROM flashcard_reviews WHERE card_id IN (SELECT id FROM flashcards WHERE deck_id = ?1)",
         params![payload.id],

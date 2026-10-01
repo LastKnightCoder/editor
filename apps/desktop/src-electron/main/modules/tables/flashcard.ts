@@ -536,8 +536,10 @@ class FlashcardTable {
     cardId: number,
     references?: FlashcardReferenceInput[]
   ): FlashcardReference[] {
-    db.prepare(`DELETE FROM flashcard_references WHERE card_id = ?`).run(cardId);
+    // 旧引用延后释放：先挂上新引用再减旧计数，避免新旧引用同一 content 时被提前回收
+    const releaseOldReferences = this.detachReferences(db, [cardId]);
     if (!references || references.length === 0) {
+      releaseOldReferences();
       return [];
     }
 
@@ -547,7 +549,7 @@ class FlashcardTable {
     `);
     const now = Date.now();
 
-    return references.map(ref => {
+    const inserted = references.map(ref => {
       let contentId: number;
 
       // 对于 custom 类型：创建新的 content 记录
@@ -583,6 +585,31 @@ class FlashcardTable {
         updateTime: now,
       };
     });
+    releaseOldReferences();
+    return inserted;
+  }
+
+  /**
+   * 删除指定卡片的全部引用行，返回释放其 content 引用计数的回调。
+   * 释放走 ContentTable.deleteContent：计数减一，归零时按 contents 回收逻辑级联清理。
+   */
+  private static detachReferences(
+    db: Database.Database,
+    cardIds: number[],
+  ): () => void {
+    if (!cardIds.length) return () => {};
+    const placeholders = cardIds.map(() => "?").join(",");
+    const rows = db
+      .prepare(
+        `SELECT content_id FROM flashcard_references WHERE card_id IN (${placeholders})`,
+      )
+      .all(...cardIds) as { content_id: number }[];
+    db.prepare(
+      `DELETE FROM flashcard_references WHERE card_id IN (${placeholders})`,
+    ).run(...cardIds);
+    return () => {
+      rows.forEach((row) => ContentTable.deleteContent(db, row.content_id));
+    };
   }
 
   private static updateReferenceSummary(db: Database.Database, cardId: number) {
@@ -734,10 +761,8 @@ class FlashcardTable {
     }[];
     const cardIds = cardRows.map(row => row.id);
     if (cardIds.length) {
+      this.detachReferences(db, cardIds)();
       const placeholders = cardIds.map(() => "?").join(",");
-      db.prepare(`DELETE FROM flashcard_references WHERE card_id IN (${placeholders})`).run(
-        ...cardIds
-      );
       db.prepare(`DELETE FROM flashcard_reviews WHERE card_id IN (${placeholders})`).run(
         ...cardIds
       );
@@ -907,7 +932,7 @@ class FlashcardTable {
     cardId: number,
     ctx: CommandContext = fallbackCommandContext
   ): boolean {
-    db.prepare(`DELETE FROM flashcard_references WHERE card_id = ?`).run(cardId);
+    this.detachReferences(db, [cardId])();
     db.prepare(`DELETE FROM flashcard_reviews WHERE card_id = ?`).run(cardId);
     const result = db.prepare(`DELETE FROM flashcards WHERE id = ?`).run(cardId);
     const deleted = result.changes > 0;

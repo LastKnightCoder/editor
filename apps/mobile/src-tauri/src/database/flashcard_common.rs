@@ -219,6 +219,43 @@ pub(crate) fn query_deck_stats_map(
     Ok(map)
 }
 
+/// 待清理参考资料的卡片范围
+pub(crate) enum ReferenceScope {
+    Card(i64),
+    Deck(i64),
+}
+
+/// 删除范围内卡片的全部参考资料行，并逐个释放其 content 引用：
+/// 计数减一、归零回收（对齐桌面 FlashcardTable.detachReferences → ContentTable.deleteContent）
+pub(crate) fn release_references(conn: &Connection, scope: ReferenceScope) -> Result<(), String> {
+    let (filter, id) = match scope {
+        ReferenceScope::Card(card_id) => ("card_id = ?1", card_id),
+        ReferenceScope::Deck(deck_id) => (
+            "card_id IN (SELECT id FROM flashcards WHERE deck_id = ?1)",
+            deck_id,
+        ),
+    };
+    let content_ids: Vec<i64> = {
+        let mut stmt = conn
+            .prepare(&format!("SELECT content_id FROM flashcard_references WHERE {filter}"))
+            .map_err(|e| format_db_error("FLASHCARD_DELETE_FAILED", "prepare reference contents", e))?;
+        let rows = stmt
+            .query_map(params![id], |row| row.get::<_, i64>(0))
+            .map_err(|e| format_db_error("FLASHCARD_DELETE_FAILED", "query reference contents", e))?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|e| format_db_error("FLASHCARD_DELETE_FAILED", "parse reference contents", e))?
+    };
+    conn.execute(
+        &format!("DELETE FROM flashcard_references WHERE {filter}"),
+        params![id],
+    )
+    .map_err(|e| format_db_error("FLASHCARD_DELETE_FAILED", "delete references", e))?;
+    for content_id in content_ids {
+        crate::database::common::decrement_or_delete_content(conn, content_id)?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -252,5 +289,57 @@ mod tests {
         assert_eq!(content.update_time, 6);
         assert_eq!(content.count, 3);
         assert_eq!(content.ref_count, 2);
+    }
+
+    fn ref_count_of(conn: &Connection, content_id: i64) -> Option<i64> {
+        conn.query_row(
+            "SELECT ref_count FROM contents WHERE id = ?1",
+            params![content_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .unwrap()
+    }
+
+    /// 两张卡同属卡组 1：卡 10 引用文档 100（文档自身另持一份）+ 自建内容 200；卡 11 引用文档 100
+    fn seeded_database() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::database::migrator::ensure_main_schema(&conn).unwrap();
+        conn.execute_batch(
+            "INSERT INTO flashcard_decks (id, name, create_time, update_time) VALUES (1, '卡组', 0, 0);
+             INSERT INTO flashcards (id, deck_id, type, prompt, data, due_time, create_time, update_time) VALUES
+               (10, 1, 'basic', '[]', '{}', 0, 0, 0), (11, 1, 'basic', '[]', '{}', 0, 0, 0);
+             INSERT INTO contents (id, content, create_time, update_time, count, ref_count) VALUES
+               (100, '[]', 0, 0, 0, 3), (200, '[]', 0, 0, 0, 1);
+             INSERT INTO flashcard_references (card_id, content_id, ref_type, title, create_time, update_time) VALUES
+               (10, 100, 'content', '文档', 0, 0), (10, 200, 'custom', '摘录', 0, 0),
+               (11, 100, 'content', '文档', 0, 0);",
+        )
+        .unwrap();
+        conn
+    }
+
+    #[test]
+    fn release_card_references_decrements_and_recycles_contents() {
+        let conn = seeded_database();
+        release_references(&conn, ReferenceScope::Card(10)).unwrap();
+        assert_eq!(ref_count_of(&conn, 100), Some(2));
+        assert_eq!(ref_count_of(&conn, 200), None);
+        let remaining: i64 = conn
+            .query_row("SELECT COUNT(*) FROM flashcard_references", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(remaining, 1);
+    }
+
+    #[test]
+    fn release_deck_references_covers_every_card() {
+        let conn = seeded_database();
+        release_references(&conn, ReferenceScope::Deck(1)).unwrap();
+        assert_eq!(ref_count_of(&conn, 100), Some(1));
+        assert_eq!(ref_count_of(&conn, 200), None);
+        let remaining: i64 = conn
+            .query_row("SELECT COUNT(*) FROM flashcard_references", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(remaining, 0);
     }
 }
