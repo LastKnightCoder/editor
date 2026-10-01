@@ -6,6 +6,7 @@ import { useDebounce, useCreation } from "ahooks";
 import LazySyntaxHighlighter from "../LazySyntaxHighlighter";
 import FullscreenPortal from "../FullscreenPortal";
 import { renderMermaidSvg } from "../../utils/mermaid-render-core";
+import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 
 export interface MermaidRendererProps {
   code: string;
@@ -31,6 +32,8 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [internalRefreshKey, setInternalRefreshKey] = useState(0);
+  // 配色取 <html> 上的 --tau-*，主题族变化也要重绘
+  const documentTheme = useDocumentTheme();
   const debouncedCode = useDebounce(code, {
     wait: 500,
   });
@@ -82,7 +85,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [debouncedCode, isDark, mermaidId, refreshKey, internalRefreshKey]);
+  }, [debouncedCode, isDark, documentTheme, mermaidId, refreshKey, internalRefreshKey]);
 
   const handleRefresh = () => {
     setInternalRefreshKey(prev => prev + 1);
@@ -200,7 +203,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
       }
 
       return (
-        <div className="flex-1 overflow-auto bg-white dark:bg-black">
+        <div className="bg-surface flex-1 overflow-auto">
           <div
             ref={containerRef}
             dangerouslySetInnerHTML={{ __html: svgContent }}

@@ -15,7 +15,7 @@ vi.mock("mermaid", () => ({
 import { renderMermaidSvg } from "../../../../../packages/shared/src/utils/mermaid-render-core.ts";
 
 describe("mermaid-render-core", () => {
-  it("使用原生 mermaid 渲染 SVG，浅色使用 default 主题", async () => {
+  it("读不到主题 token 时回落官方主题：浅色 default", async () => {
     mockMermaidParse.mockResolvedValue(undefined);
     mockMermaidRender.mockResolvedValue({ svg: "<svg>diagram</svg>" });
 
@@ -33,7 +33,7 @@ describe("mermaid-render-core", () => {
     expect(svg).toBe("<svg>diagram</svg>");
   });
 
-  it("暗色模式下使用 dark 主题", async () => {
+  it("读不到主题 token 时回落官方主题：暗色 dark", async () => {
     mockMermaidParse.mockResolvedValue(undefined);
     mockMermaidRender.mockResolvedValue({ svg: "<svg>dark</svg>" });
 
@@ -44,5 +44,37 @@ describe("mermaid-render-core", () => {
     });
 
     expect(mockMermaidInitialize).toHaveBeenCalledWith(expect.objectContaining({ theme: "dark" }));
+  });
+
+  it("有主题 token 时用 base 主题取色，并给 SVG 根节点补卡片底色", async () => {
+    mockMermaidParse.mockResolvedValue(undefined);
+    mockMermaidRender.mockResolvedValue({ svg: '<svg id="m3" style="max-width: 10px;"></svg>' });
+    const tokens: Record<string, string> = {
+      "bg-surface": "#2e2820",
+      "ink-1": "#ece2d0",
+      accent: "#d9a066",
+      font: "sans-serif",
+    };
+
+    const svg = await renderMermaidSvg({
+      code: "graph TD\nA-->B",
+      mermaidId: "m3",
+      isDark: true,
+      token: word => tokens[word] ?? "",
+    });
+
+    expect(mockMermaidInitialize).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        theme: "base",
+        fontFamily: "sans-serif",
+        themeVariables: expect.objectContaining({
+          darkMode: true,
+          background: "#2e2820",
+          primaryBorderColor: "#d9a066",
+          primaryTextColor: "#ece2d0",
+        }),
+      })
+    );
+    expect(svg).toBe('<svg id="m3" style="background-color: #2e2820; max-width: 10px;"></svg>');
   });
 });
