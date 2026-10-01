@@ -17,6 +17,7 @@ import type {
 } from "@/types/entity-context";
 import EntityLineageTable, { type LineageEdge } from "../tables/entity-lineage";
 import EntitySearchTable from "../tables/entity-search";
+import MaterialTable from "../tables/material";
 
 /** 各分区最多返回的条数（与 context-query 一致） */
 const LIMIT = 50;
@@ -46,6 +47,8 @@ const KIND_LABEL: Record<LineageNode["kind"], string> = {
   article: "文章",
   "project-item": "项目文档",
   diary: "日记",
+  excerpt: "摘录",
+  "pdf-annotation": "PDF 标注",
   "chat-session": "对话",
   "vl-note": "Notebook 笔记",
   "web-clip": "解析文档",
@@ -106,6 +109,17 @@ function resolveNode(
     }
     case "web-clip":
       return null;
+    case "excerpt":
+    case "pdf-annotation": {
+      const info = MaterialTable.resolveOne(db, node);
+      if (!info) return null;
+      return {
+        title: info.title,
+        // 摘录源端删除后保留引文（KL-032），不可打开
+        meta: info.deleted ? `${info.meta} · 原划线已删除` : info.meta,
+        open: info.open ? { page: "material", target: info.open } : null,
+      };
+    }
     default: {
       const entity = toEntity(node);
       return entity
