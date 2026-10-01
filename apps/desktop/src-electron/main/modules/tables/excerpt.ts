@@ -6,6 +6,7 @@ import type {
   ExcerptSourceType,
   ExcerptSyncResult,
 } from "@/entity/excerpt/types";
+import { parseWebPagePayload } from "@/entity/excerpt/web";
 
 interface ExcerptRow {
   id: number;
@@ -61,7 +62,14 @@ export default class ExcerptTable {
   static getListenEvents() {
     return {
       "excerpt:get-by-ids": this.getByIds.bind(this),
+      "excerpt:sync-web-page": this.syncWebPage.bind(this),
     };
+  }
+
+  /** 浏览器插件按页发来的划线快照；参数在这里校验（来自无鉴权的 RPC，KL-035） */
+  static syncWebPage(db: Database.Database, payload: unknown): ExcerptSyncResult {
+    const { url, title, inputs } = parseWebPagePayload(payload);
+    return this.syncSource(db, "web", url, title, inputs);
   }
 
   /** 用一个来源当前的全部摘录覆盖该来源；调用方负责事务（syncSource 自带事务，可嵌套于外层事务） */

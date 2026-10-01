@@ -75,6 +75,26 @@ describe("ExcerptTable", () => {
     ]);
   });
 
+  it("插件按页快照：校验后按页同步；非法参数拒绝且不写库", () => {
+    const highlight = { id: "h1", text: "一句", note: "", color: "pink", createdAt: 1 };
+    expect(
+      ExcerptTable.syncWebPage(db, {
+        url: "https://a.com/x#t",
+        title: "A",
+        highlights: [highlight],
+      })
+    ).toEqual({ inserted: 1, updated: 0, deleted: 0 });
+    expect(rowsOf("https://a.com/x")).toHaveLength(1);
+    expect(() =>
+      ExcerptTable.syncWebPage(db, { url: "javascript:1", highlights: [highlight] })
+    ).toThrow();
+    expect(ExcerptTable.syncWebPage(db, { url: "https://a.com/x", highlights: [] })).toEqual({
+      inserted: 0,
+      updated: 0,
+      deleted: 1,
+    });
+  });
+
   it("deleteSource 软删除整个来源；anchor 读出为对象", () => {
     const anchor = { chapterUid: 3, chapterIdx: 2, chapterTitle: "第二章", range: "10-20" };
     ExcerptTable.syncSource(db, "weread", "b1", "书", [input("b1:1", "甲", { anchor })]);

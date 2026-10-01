@@ -43,6 +43,7 @@ import {
 } from "@/commands/file";
 import { uploadResource } from "@/hooks/useUploadResource";
 import { createContent, getContentById, updateContent } from "@/commands/content";
+import { syncExcerptWebPage } from "@/commands/excerpt";
 import { buildCardFromContent, isContentIsCard } from "@/commands/card";
 import { buildArticleFromContent, isContentIsArticle } from "@/commands/article";
 import { getContentLength, defaultContentEventBus } from "@/utils";
@@ -509,6 +510,11 @@ const handleSettingsGetCurrentDatabase = async () => {
   return { dbName: database.active };
 };
 
+/** 插件按页同步划线快照（KL-035）；参数由主进程校验，这里只转发 */
+const handleExcerptSyncPage = async (request: RpcRequestMessage) => {
+  return await syncExcerptWebPage(request.params);
+};
+
 const handleContentCreate = async (request: RpcRequestMessage) => {
   const params = request.params as unknown as {
     content: import("slate").Descendant[];
@@ -762,6 +768,7 @@ export const initAiServer = () => {
   // 注册内容/卡片/文章 RPC 处理器
   aiServer.addRequestHandler("settings.getCurrentDatabase", handleSettingsGetCurrentDatabase);
   aiServer.addRequestHandler("content.create", handleContentCreate);
+  aiServer.addRequestHandler("excerpt.syncPage", handleExcerptSyncPage);
   aiServer.addRequestHandler("content.getById", handleContentGetById);
   aiServer.addRequestHandler("content.subscription.set", handleContentSubscriptionSet);
   aiServer.addRequestHandler("content.update", handleContentUpdate);
