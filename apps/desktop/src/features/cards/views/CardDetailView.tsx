@@ -6,8 +6,7 @@
  * 面包屑静态（无速切器）经槽位注入壳层；无底部状态栏——字数并入卡头 meta，
  * 协作：未共享时入口在 ⋯ 菜单「发起协作」；已共享时 meta 行常驻成员条，菜单项改「协作成员」。
  *
- * 保存分工（对齐预览弹窗/文章详情的双链路）：正文走 useEditContent
- * （content 表节流 + content:updated 广播，缓存由 queries 按 contentId 并入），
+ * 保存分工：正文走 ContentEditor 文档会话，缓存由 queries 按 contentId 并入；
  * 元数据（标签/分类/置顶/链接）每次操作即时 patch（CardMetadataPatch），
  * 双向链接双边写（等价 legacy useEditCard）。
  *
@@ -69,7 +68,6 @@ import DeckSelectorModal from "@/features/flashcards/components/DeckSelectorDial
 import FlashcardGenerationModal from "@/features/flashcards/components/FlashcardGenerationDialog";
 import GeneratedFlashcardEditModal from "@/features/flashcards/components/GeneratedFlashcardEditDialog";
 import FlashcardEditor from "@/features/flashcards/components/CreateFlashcardDialog";
-import useEditContent from "@/hooks/useEditContent";
 import useFlashcardCreation from "@/features/flashcards/hooks/useFlashcardCreation";
 import usePodcastAttachment from "@/hooks/usePodcastAttachment";
 import useSettingStore from "@/stores/useSettingStore";
@@ -138,9 +136,6 @@ export function CardDetailView() {
   const [pendingDelete, setPendingDelete] = useState(false);
   const [addLinkOpen, setAddLinkOpen] = useState(false);
   const [exportKind, setExportKind] = useState<"image" | "epub" | "pdf" | null>(null);
-
-  /* 正文：content 表节流持久化，远端更新推回编辑器（字数/时间经 queries 并入缓存） */
-  const { throttleHandleEditorContentChange } = useEditContent(card?.contentId);
 
   /* 沉浸模式：进入记录选区，退出回传选区，正文 remount 后恢复光标（文章页同款） */
   const immersiveEntrySelectionRef = useRef<Range | null>(null);
@@ -501,8 +496,6 @@ export function CardDetailView() {
                   contentId={card.contentId}
                   key={`${card.id}-${editorRemountKey}`}
                   initValue={card.content}
-                  onLoadError={() => undefined}
-                  onChange={throttleHandleEditorContentChange}
                   readonly={false}
                   source={{ sourceType: "card", sourceId: card.id }}
                   editingContext={{ entityType: "card", entityId: card.id }}
@@ -658,7 +651,6 @@ export function CardDetailView() {
           contentId={card.contentId}
           initValue={card.content}
           initialSelection={immersiveEntrySelectionRef.current}
-          onChange={throttleHandleEditorContentChange}
           onExit={payload => {
             pendingSelectionRef.current = payload?.selection ?? null;
             setImmersive(false);

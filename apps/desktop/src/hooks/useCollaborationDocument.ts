@@ -16,7 +16,6 @@ import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from "y-protoc
 import { ASSET_PREFIX, readSharedContent, type SharedContent } from "@tau/collaboration";
 import type { EditorCollaborationBinding } from "@tau/editor-collab";
 import { on, off } from "@/electron";
-import { publishSessionValue } from "@/stores/useContentSessionStore";
 
 const IPC_ORIGIN = Symbol("main-process");
 
@@ -56,7 +55,6 @@ export default function useCollaborationDocument(documentId?: string) {
       if (!disposed) {
         const value = readSharedContent(doc, privateNodes);
         setArticle(value);
-        publishSessionValue(id, value);
       }
     };
     const sendUpdates = (): Promise<void> => {

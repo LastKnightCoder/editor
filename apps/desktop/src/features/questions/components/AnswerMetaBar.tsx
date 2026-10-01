@@ -2,7 +2,7 @@
  * 答案元信息行（AnswerDialog 编辑模式钉在正文之上，不随正文滚动）：
  * 左 = 创建 / 最后修改 / 字数，右 = 「创建为」菜单——把答案 content 投射为卡片 /
  * 文章 / 项目文档（共享同一份 content）。已是卡片 / 文章的项不再出现；文章与项目
- * 文档先经标题弹窗确认。投射前由 onBeforeCreate 落盘编辑中的内容。
+ * 文档先经标题弹窗确认；新实体引用同一份会话正文。
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -27,12 +27,10 @@ const TARGET_LABEL: Record<TitleTarget, string> = { article: "文章", project: 
 export function AnswerMetaBar({
   contentId,
   content,
-  onBeforeCreate,
 }: {
   contentId: number;
   /** 编辑器当前内容：实时字数与默认标题 */
   content: Descendant[];
-  onBeforeCreate(): void;
 }) {
   const [times, setTimes] = useState<{ create: number; update: number } | null>(null);
   const [status, setStatus] = useState({ isCard: false, isArticle: false });
@@ -81,7 +79,6 @@ export function AnswerMetaBar({
   );
 
   const buildCard = async () => {
-    onBeforeCreate();
     const card = await buildCardFromContent(contentId).catch(() => null);
     if (!card) return void toast.error("创建卡片失败");
     defaultCardEventBus.createEditor().publishCardEvent("card:created", card);
@@ -100,7 +97,6 @@ export function AnswerMetaBar({
     const title = draftTitle.trim();
     if (!title) return void toast.warning(`请输入${TARGET_LABEL[target]}标题`);
     setTitleOpen(false);
-    onBeforeCreate();
     if (target === "project") {
       useExtNoteInsertStore.getState().openModal({
         mode: "project",

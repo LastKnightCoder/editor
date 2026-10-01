@@ -88,7 +88,6 @@ import {
 } from "@/commands";
 import { type ProjectItem, WebClip, WebNote } from "@/types";
 import useProjectWebLinkMeta from "@/hooks/useProjectWebLinkMeta";
-import useEditContent from "@/hooks/useEditContent";
 import useWebClip from "@/hooks/useWebClip";
 import usePodcastAttachment from "@/hooks/usePodcastAttachment";
 import { attachPodcastToProjectItem, detachPodcastFromProjectItem } from "@/commands/podcast";
@@ -133,7 +132,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
   const webviewRef = useRef<WebviewRef>(null);
   const editorRef = useRef<EditorRef>(null);
-  const noteEditorRef = useRef<EditorRef>(null);
   const slateEditorRef = useRef<CustomEditor | null>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const [editorScrollEl, setEditorScrollEl] = useState<HTMLDivElement | null>(null);
@@ -201,7 +199,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const [editTitleModalOpen, setEditTitleModalOpen] = useState(false);
   const [creatingDocument, setCreatingDocument] = useState(false);
   const [notes, setNotes] = useState<WebNote[]>([]);
-  const [noteContents, setNoteContents] = useState<Record<number, Descendant[]>>({});
   const [activeNoteId, setActiveNoteId] = useState<number | null>(null);
   const [preferredNoteContentId, setPreferredNoteContentId] = useState<number | null>(null);
   const [renamingNote, setRenamingNote] = useState<WebNote | null>(null);
@@ -226,20 +223,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     setCurrentUrl(meta.url);
   }, [meta.url]);
 
-  const loadNoteContent = useMemoizedFn(async (note: WebNote) => {
-    try {
-      const content = await getContentById(note.contentId);
-      if (!content || !content.content) return;
-      setNoteContents(prev => ({
-        ...prev,
-        [note.contentId]: content.content,
-      }));
-    } catch (error) {
-      console.error("Failed to load note content:", error);
-      toast.error("加载笔记内容失败");
-    }
-  });
-
   useEffect(() => {
     let cancelled = false;
     const loadNotesAndPreference = async () => {
@@ -253,9 +236,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         setNotes(firstNote);
         const firstId = firstNote[0]?.id ?? null;
         setActiveNoteId(firstId);
-        if (firstNote[0]) {
-          loadNoteContent(firstNote[0]);
-        }
         setPreferredNoteContentId(preference?.preferredContentId ?? null);
       } catch (error) {
         console.error("Failed to load notes for project item:", error);
@@ -265,7 +245,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     return () => {
       cancelled = true;
     };
-  }, [projectItemId, loadNoteContent]);
+  }, [projectItemId]);
 
   useEffect(() => {
     if (notes.length === 0) {
@@ -338,11 +318,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
 
     loadExistingWebClip();
   }, [projectItemId]);
-
-  // 使用 useEditContent hook 管理解析内容的编辑
-  const { throttleHandleEditorContentChange } = useEditContent(savedWebClip?.contentId, content => {
-    setParsedContent(content);
-  });
 
   // 使用 useWebClip hook 管理解析流程
   const {
@@ -607,10 +582,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         title: `笔记 ${notes.length + 1}`,
       });
       setNotes([note]);
-      setNoteContents(prev => ({
-        ...prev,
-        [note.contentId]: emptyContent,
-      }));
       setActiveNoteId(note.id);
       await persistPreferredNote(note.contentId);
       return note;
@@ -629,11 +600,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     try {
       await deleteWebNote(noteId);
       setNotes(prev => prev.filter(item => item.id !== noteId));
-      setNoteContents(prev => {
-        const next = { ...prev };
-        delete next[note.contentId];
-        return next;
-      });
       await persistPreferredNote(null);
       toast.success("笔记已删除");
     } catch (error) {
@@ -758,18 +724,8 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   // 解析文档内容变化
   const handleEditorChange = useMemoizedFn((content: Descendant[]) => {
     if (savedWebClip && !isAnyClipping) {
-      throttleHandleEditorContentChange(content);
       setParsedContent(content);
     }
-  });
-
-  // 笔记内容变化（落盘由 ContentEditor 会话负责，这里只同步本地副本供重挂载回填）
-  const handleNoteChange = useMemoizedFn((content: Descendant[]) => {
-    if (!activeNote) return;
-    setNoteContents(prev => ({
-      ...prev,
-      [activeNote.contentId]: content,
-    }));
   });
 
   const handleSidebarCommentClick = useMemoizedFn((_element: CommentElement, path: Path) => {
@@ -1036,9 +992,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
           contentId={activeNote.contentId}
           className="mx-8"
           key={`${projectItemId}-note-${activeNote.id}`}
-          ref={noteEditorRef}
-          initValue={noteContents[activeNote.contentId] ?? createEmptyEditorContent()}
-          onChange={handleNoteChange}
           readonly={false}
         />
       </FadeScroll>

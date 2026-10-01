@@ -4,7 +4,7 @@
  * 标签增删改经既有 AddTag。无 footer；右上区（× 下方）平铺「进入详情」+
  * More 菜单（域内共享 CardActionMenu；「进入详情」菜单项与演示前落盘为预览
  * 特有差异，经 props 注入）。元数据由卡片查询同步，标签仅提交字段补丁；
- * 正文经 useEditContent 同步。「进入详情」落盘后交 actions.onOpenDetail
+ * 正文经 ContentEditor 文档会话同步。「进入详情」落盘后交 actions.onOpenDetail
  * （宿主演示为 navigator.push("card-detail")）。
  */
 
@@ -17,7 +17,6 @@ import type { EditorRef } from "@tau/editor";
 import AddTag from "@/components/AddTag";
 import ContentEditor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import useEditContent from "@/hooks/useEditContent";
 import { formatDate, getContentLength } from "@/utils";
 import { useCardsMutations } from "../queries";
 import type { ICard } from "@/types";
@@ -55,8 +54,6 @@ export function CardPreviewDialog({
   const prevRef = useRef<ICard | null>(null);
   const { patch } = useCardsMutations();
   const saving = useRef<Promise<ICard | null> | null>(null);
-  /* 正文会话与卡片元数据分别同步，避免标签保存覆盖正文或其他元数据。 */
-  const { throttleHandleEditorContentChange } = useEditContent(editing?.contentId);
 
   /* 打开 / 切卡：以传入卡片为基准，记录保存比对基线 */
   useEffect(() => {
@@ -125,7 +122,6 @@ export function CardPreviewDialog({
   };
 
   const handleContentChange = (content: Descendant[]) => {
-    throttleHandleEditorContentChange(content);
     setEditing(prev =>
       prev
         ? produce(prev, draft => {

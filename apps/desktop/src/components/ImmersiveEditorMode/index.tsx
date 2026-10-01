@@ -41,7 +41,7 @@ interface ImmersiveEditorModeProps {
   contentId?: number;
   initValue: Descendant[];
   initialSelection?: Range | null;
-  onChange: (content: Descendant[]) => void;
+  onChange?: (content: Descendant[]) => void;
   onInit?: (editor: SlateEditor, content: Descendant[]) => void;
   onExit: (payload: ImmersiveEditorExitPayload) => void;
 }
@@ -131,7 +131,7 @@ interface SurfaceProps {
   contentId?: number;
   extensions?: AnyExtension[];
   initValue: Descendant[];
-  onChange(content: Descendant[]): void;
+  onChange?(content: Descendant[]): void;
   onInit(editor: SlateEditor, content: Descendant[]): void;
   focusMode: boolean;
 }
@@ -203,7 +203,7 @@ export default function ImmersiveEditorMode({
   useFindOwner(ignoreFind, true);
 
   const handleChange = useMemoizedFn((content: Descendant[]) => {
-    onChange(content);
+    onChange?.(content);
     setCount(getContentLength(content));
   });
 

@@ -42,7 +42,6 @@ import { cleanReportHtmlContent } from "@/constants/prompts/report-generation";
 import { buildDefaultEpubMetadata, exportSlateToEpubWithDialog } from "@/utils/epub-export";
 import { exportSlateToPdfWithDialog } from "@/utils/pdf-export";
 import { usePage } from "@/page/PageProvider";
-import useEditContent from "@/hooks/useEditContent";
 import { toast, ConfirmDialog, Button, IconButton, Menu, Spinner } from "@tau/ui";
 import { NOTE_ICONS } from "../appMeta";
 import { StageHeader } from "@/components/StageHeader";
@@ -144,15 +143,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
 
   // 标题是否有变化
   const titleChangedRef = useRef(false);
-
-  // useEditContent 管理内容保存和同步
-  const handleExternalContentChange = useMemoizedFn((newContent: Descendant[]) => {
-    setContent(newContent);
-  });
-  const { throttleHandleEditorContentChange } = useEditContent(
-    contentId || undefined,
-    handleExternalContentChange
-  );
 
   // 是否是思维导图类型笔记
   const isMindMap = currentNote?.type === "mindmap";
@@ -322,7 +312,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   // 处理内容变化
   const handleContentChange = useMemoizedFn((newContent: Descendant[]) => {
     setContent(newContent);
-    throttleHandleEditorContentChange(newContent);
   });
 
   // 处理标题变化

@@ -56,7 +56,6 @@ export const useWebClip = (options: UseWebClipOptions): UseWebClipReturn => {
   const [content, setContent] = useState<Descendant[]>(DEFAULT_CONTENT);
   const [error, setError] = useState<string | null>(null);
 
-  const accumulatedMarkdownRef = useRef<string>("");
   const requestVersion = useRef(0);
   const accepting = useRef(true);
 
@@ -81,7 +80,6 @@ export const useWebClip = (options: UseWebClipOptions): UseWebClipReturn => {
   const handleProgress = useMemoizedFn((data: WebClipProgressData) => {
     if (data.projectItemId !== projectItemId || !accepting.current) return;
 
-    accumulatedMarkdownRef.current = data.markdown;
     setMarkdown(data.markdown);
     throttledParse(data.markdown);
   });
@@ -133,7 +131,6 @@ export const useWebClip = (options: UseWebClipOptions): UseWebClipReturn => {
       if (status && status.status === "processing") {
         setIsClipping(true);
         setMarkdown(status.markdown);
-        accumulatedMarkdownRef.current = status.markdown;
         if (status.markdown) {
           throttledParse(status.markdown);
         }
@@ -160,7 +157,6 @@ export const useWebClip = (options: UseWebClipOptions): UseWebClipReturn => {
       setError(null);
       setMarkdown("");
       setContent(DEFAULT_CONTENT);
-      accumulatedMarkdownRef.current = "";
 
       try {
         await startWebClip({
@@ -202,7 +198,6 @@ export const useWebClip = (options: UseWebClipOptions): UseWebClipReturn => {
     setMarkdown("");
     setContent(DEFAULT_CONTENT);
     setError(null);
-    accumulatedMarkdownRef.current = "";
   }, [cancelParse]);
 
   return {

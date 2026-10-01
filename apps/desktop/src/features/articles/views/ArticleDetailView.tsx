@@ -4,8 +4,7 @@
  * 面包屑（含速切器）经 usePageBreadcrumb 注入壳层；无底部状态栏：标题/元信息在封面之上，
  * ⋯ 菜单（含「发起协作」）贴元信息行右侧；不展示保存态与阅读进度。
  *
- * 保存分工（对齐 legacy EditArticle 的双链路设计）：正文持久化走 useEditContent
- * （1s 节流写 content 表 + content:updated 广播，多实例/多 tab 同步），元数据
+ * 保存分工：正文持久化和跨实例同步由 ContentEditor 的文档会话负责，元数据
  * （标题/标签/置顶等）走 useEditArticle.saveArticle（updateArticle 的类型
  * IUpdateArticle 本身不含 content）+ article:updated 广播。
  *
@@ -64,7 +63,6 @@ import FlashcardGenerationModal from "@/features/flashcards/components/Flashcard
 import GeneratedFlashcardEditModal from "@/features/flashcards/components/GeneratedFlashcardEditDialog";
 import FlashcardEditor from "@/features/flashcards/components/CreateFlashcardDialog";
 import useEditArticle from "@/hooks/useEditArticle";
-import useEditContent from "@/hooks/useEditContent";
 import useFlashcardCreation from "@/features/flashcards/hooks/useFlashcardCreation";
 import useUploadResource from "@/hooks/useUploadResource";
 import useSettingStore from "@/stores/useSettingStore";
@@ -144,14 +142,6 @@ export function ArticleDetailView() {
   const [changingCover, setChangingCover] = useState(false);
   const [exportKind, setExportKind] = useState<"image" | "epub" | "pdf" | null>(null);
 
-  /* 多实例同步：正文层（content 表 + content:updated 广播，远端/初始内容推给编辑器） */
-  const { throttleHandleEditorContentChange } = useEditContent(
-    editingArticle?.contentId,
-    content => {
-      if (editingArticle) onContentChange(content);
-    }
-  );
-
   /* 多实例同步：文章层（保存后广播，订阅远端更新本地态与标题）。
      订阅走 editor 实例（sourceUuid 过滤，收不到自己的广播） */
   const articleEventBus = useMemo(() => defaultArticleEventBus.createEditor(), []);
@@ -172,7 +162,7 @@ export function ArticleDetailView() {
     }),
   });
 
-  /* 定时落库（无变化时 saveArticle 内部跳过；正文另有 useEditContent 1s 节流链路）；
+  /* 元数据定时落库（无变化时 saveArticle 内部跳过；正文由文档会话保存）；
      离开页面/切换文章兜底保存；保存成功广播 article:updated（多实例同步） */
   const persistAndBroadcast = async () => {
     const updated = await saveArticle();
@@ -486,8 +476,6 @@ export function ArticleDetailView() {
                     initValue={editingArticle.content}
                     onInit={onInit}
                     onChange={content => {
-                      // 正文持久化 + 广播走 useEditContent（content 表），本地态供字数/目录
-                      throttleHandleEditorContentChange(content);
                       onContentChange(content);
                     }}
                     readonly={false}
@@ -611,7 +599,6 @@ export function ArticleDetailView() {
           initValue={editingArticle.content}
           initialSelection={immersiveEntrySelectionRef.current}
           onChange={content => {
-            throttleHandleEditorContentChange(content);
             onContentChange(content);
           }}
           onInit={onInit}

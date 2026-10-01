@@ -1,7 +1,7 @@
 /**
  * 独立答案编辑：只属于这个问题的结论（不进卡片库）。
  * 新建：本地编辑，保存时建 content 并挂上（问题独占首个引用）；空内容不保存。
- * 编辑：直接编辑已有 content，节流自动保存；正文上方钉元信息行（时间 / 字数 /「创建为」）。
+ * 编辑：已有正文通过文档会话自动保存；正文上方钉元信息行（时间 / 字数 /「创建为」）。
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -10,7 +10,6 @@ import type { EditorRef } from "@tau/editor";
 import { Button, Dialog, toast } from "@tau/ui";
 import ContentEditor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import useEditContent from "@/hooks/useEditContent";
 import { getContentLength } from "@/utils";
 import { AnswerMetaBar } from "./AnswerMetaBar";
 
@@ -37,13 +36,6 @@ export function AnswerDialog({
   const [saving, setSaving] = useState(false);
   const editorRef = useRef<EditorRef>(null);
   const editing = state?.mode === "edit" ? state.contentId : undefined;
-  const { throttleHandleEditorContentChange, flush } = useEditContent(
-    editing,
-    value => {
-      setContent(value);
-    },
-    editing != null
-  );
 
   useEffect(() => {
     if (!open) return;
@@ -100,9 +92,7 @@ export function AnswerDialog({
         )
       }
     >
-      {editing != null && (
-        <AnswerMetaBar contentId={editing} content={content} onBeforeCreate={flush} />
-      )}
+      {editing != null && <AnswerMetaBar contentId={editing} content={content} />}
       <div className="border-line-2 mt-[14px] min-h-0 flex-1 overflow-y-auto border-t px-6 py-4">
         {open && (
           <ErrorBoundary>
@@ -112,10 +102,7 @@ export function AnswerDialog({
               contentId={editing}
               initValue={EMPTY}
               readonly={false}
-              onChange={value => {
-                setContent(value);
-                if (editing != null) throttleHandleEditorContentChange(value);
-              }}
+              onChange={setContent}
               placeHolder="用自己的话回答这个问题…"
               className="text-tau-body min-h-full"
             />

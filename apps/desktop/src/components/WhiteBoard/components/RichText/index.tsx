@@ -3,7 +3,7 @@ import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
 import { EditorRef } from "@tau/editor";
 import Editor from "@/components/ContentEditor";
-import useEditContent from "@/hooks/useEditContent";
+import useContentDocument from "@/hooks/useContentDocument";
 import { createContent, updateContent } from "@/commands/content";
 import { getContentLength } from "@/utils";
 import If from "@/components/If";
@@ -97,6 +97,21 @@ interface RichTextProps {
 const EDGE_FADE_SIZE = 16;
 const isSameContent = (a: Descendant[], b: Descendant[]) => JSON.stringify(a) === JSON.stringify(b);
 
+/** 缩略显示没有挂载编辑器，但画布缓存仍需跟随文档快照。 */
+function ContentSnapshotObserver({
+  contentId,
+  onChange,
+}: {
+  contentId: number;
+  onChange(value: Descendant[]): void;
+}) {
+  const { article } = useContentDocument(contentId);
+  useEffect(() => {
+    if (article) onChange(article.content as Descendant[]);
+  }, [article, onChange]);
+  return null;
+}
+
 const Richtext = (props: RichTextProps) => {
   const {
     element,
@@ -150,14 +165,11 @@ const Richtext = (props: RichTextProps) => {
 
   useInertControl(containerRef, shouldInert);
 
-  const { throttleHandleEditorContentChange } = useEditContent(contentId, nextContent => {
-    if (!contentId) return;
-    if (focus && isSameContent(nextContent, latestContentRef.current)) {
-      return;
-    }
+  const syncContentSnapshot = useMemoizedFn((nextContent: Descendant[]) => {
+    if (isSameContent(nextContent, latestContentRef.current)) return;
     latestContentRef.current = nextContent;
     setInitialState(nextContent);
-    onElementChange?.(board, element, { content: nextContent });
+    if (contentId) onElementChange?.(board, element, { content: nextContent });
   });
 
   useEffect(() => {
@@ -270,12 +282,8 @@ const Richtext = (props: RichTextProps) => {
   });
 
   const handleOnContentChange = useMemoizedFn((value: Descendant[]) => {
-    latestContentRef.current = value;
+    syncContentSnapshot(value);
     onContentChange(board, element, value);
-    setInitialState(value);
-    if (contentId) {
-      throttleHandleEditorContentChange(value);
-    }
   });
 
   const handleOnEditorSizeChange = useMemoizedFn((width: number, height: number) => {
@@ -471,6 +479,13 @@ const Richtext = (props: RichTextProps) => {
                 />
               )}
             </div>
+          )}
+          {useSimplifiedRender && contentId && (
+            <ContentSnapshotObserver
+              key={contentId}
+              contentId={contentId}
+              onChange={syncContentSnapshot}
+            />
           )}
           {useSimplifiedRender && simplifiedSkeletonMeta ? (
             <div

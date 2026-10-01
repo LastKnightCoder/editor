@@ -2,7 +2,7 @@
  * 编辑窗口的内容驱动：把卡片 / 文章 / 项目文档三种实体映射成统一的「文档」视图，
  * 并提供读、写、进程内广播与订阅。窗口外壳只依赖 DocumentDriver，不感知具体实体。
  *
- * 保存分工同详情页：正文走 useEditContent（content 表 + Yjs 会话），这里只负责元数据
+ * 保存分工同详情页：正文走 ContentEditor 文档会话，这里只负责元数据
  * （标题 / 标签）；跨窗口同步由主进程 broadcastOthers → useItemUpdateListener 转进程内总线。
  */
 

@@ -323,7 +323,7 @@ export function useTodoMutations() {
       });
     },
 
-    /** 描述首次写入：建 content 并挂到任务上（之后的编辑由 useEditContent 直写 content） */
+    /** 描述首次写入时创建正文并挂到任务上，后续编辑由文档会话持久化。 */
     async attachDescription(entry: TodoEntry, content: Descendant[]) {
       const contentId = await createContent(content, getContentLength(content));
       if (!contentId) return;

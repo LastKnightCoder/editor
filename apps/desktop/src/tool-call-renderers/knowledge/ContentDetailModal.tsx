@@ -1,11 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Descendant } from "slate";
-import { useMemoizedFn } from "ahooks";
-import { EditorRef } from "@tau/editor";
 import { Dialog, DialogBody, Spinner } from "@tau/ui";
 import Editor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import useEditContent from "@/hooks/useEditContent";
 import { getContentById } from "@/commands/content";
 
 interface ContentDetailModalProps {
@@ -23,11 +20,8 @@ const ContentDetailModal = ({
   visible,
   onClose,
 }: ContentDetailModalProps) => {
-  const editorRef = useRef<EditorRef>(null);
   const [loading, setLoading] = useState(true);
   const [initValue, setInitValue] = useState<Descendant[] | null>(null);
-
-  const { throttleHandleEditorContentChange } = useEditContent(contentId);
 
   useEffect(() => {
     if (!visible || !contentId) {
@@ -41,10 +35,6 @@ const ContentDetailModal = ({
       setLoading(false);
     });
   }, [visible, contentId]);
-
-  const onContentChange = useMemoizedFn((content: Descendant[]) => {
-    throttleHandleEditorContentChange(content);
-  });
 
   return (
     <Dialog
@@ -68,9 +58,7 @@ const ContentDetailModal = ({
               <Editor
                 contentId={contentId}
                 key={contentId}
-                ref={editorRef}
                 initValue={initValue}
-                onChange={onContentChange}
                 readonly={false}
               />
             </ErrorBoundary>

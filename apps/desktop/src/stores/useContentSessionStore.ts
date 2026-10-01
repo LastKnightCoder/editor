@@ -4,34 +4,13 @@ import { on } from "@/electron";
 import type {
   ContentSessionSnapshot,
   ContentSessionTarget,
-  SharedContent,
   SourceBinding,
 } from "@tau/collaboration";
-
-export interface ContentSessionEntry extends ContentSessionSnapshot {
-  value?: SharedContent;
-}
-
-/** 键序无关的稳定序列化：投影产物是 plain object，普通 JSON.stringify 的键序
- *  在不同来源的副本间不保证一致，直接对比会漏更新 */
-function stableStringify(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
-  if (value && typeof value === "object") {
-    const entries = Object.keys(value as Record<string, unknown>)
-      .sort()
-      .map(
-        key =>
-          `${JSON.stringify(key)}:${stableStringify((value as Record<string, unknown>)[key])}`
-      );
-    return `{${entries.join(",")}}`;
-  }
-  return JSON.stringify(value) ?? "null";
-}
 
 export const contentSessionKey = (databaseName: string, contentId: number) =>
   `${databaseName}:${contentId}`;
 const useContentSessionStore = create<{
-  entries: Record<string, ContentSessionEntry>;
+  entries: Record<string, ContentSessionSnapshot>;
   revision: number;
 }>(() => ({ entries: {}, revision: 0 }));
 const pending = new Map<string, Promise<ContentSessionSnapshot>>();
@@ -93,10 +72,7 @@ export async function openContentSession(databaseName: string, target: ContentSe
           return {
             entries: {
               ...state.entries,
-              [key]: {
-                ...snapshot,
-                value: previous?.documentId === snapshot.documentId ? previous.value : undefined,
-              },
+              [key]: snapshot,
             },
           };
         });
@@ -106,23 +82,6 @@ export async function openContentSession(databaseName: string, target: ContentSe
     pending.set(key, request);
   }
   return request;
-}
-
-export function publishSessionValue(documentId: string, value: SharedContent) {
-  useContentSessionStore.setState(state => {
-    let changed = false;
-    const entries = { ...state.entries };
-    for (const [key, entry] of Object.entries(entries)) {
-      if (
-        entry.documentId !== documentId ||
-        stableStringify(entry.value) === stableStringify(value)
-      )
-        continue;
-      entries[key] = { ...entry, value, title: value.title };
-      changed = true;
-    }
-    return changed ? { entries } : state;
-  });
 }
 
 export default useContentSessionStore;

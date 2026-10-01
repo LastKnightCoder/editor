@@ -3,19 +3,16 @@
  * 文档（转换后的文本）。底部一行「基于这份资料」直接起生成，只预选当前这份。
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { ExternalLink, Loader2, MoreHorizontal } from "lucide-react";
-import { useMemoizedFn } from "ahooks";
 import type { Descendant } from "slate";
 import { Button, IconButton, Menu, Tooltip, toast } from "@tau/ui";
 
-import type { EditorRef } from "@tau/editor";
 import Editor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import LocalImage from "@/components/LocalImage";
 import { FadeScroll } from "@/components/FadeScroll";
 import { getContentById } from "@/commands";
-import useEditContent from "@/hooks/useEditContent";
 import type { NoteSourceMeta, VLResource } from "@/types/vibe-learning";
 
 import VideoPreview from "../ResourcePreview/VideoPreview";
@@ -102,14 +99,8 @@ function QuickGenerate({ onGenerate }: { onGenerate: (key: GenerateAppKey) => vo
 
 /** 来自笔记的资料：就地编辑原笔记（实时保存） */
 function NoteResourceBody({ meta }: { meta: NoteSourceMeta }) {
-  const editorRef = useRef<EditorRef>(null);
   const [content, setContent] = useState<Descendant[] | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const handleSync = useMemoizedFn((next: Descendant[]) => {
-    setContent(next);
-  });
-  const { throttleHandleEditorContentChange } = useEditContent(meta.contentId, handleSync);
 
   useEffect(() => {
     setLoading(true);
@@ -142,12 +133,10 @@ function NoteResourceBody({ meta }: { meta: NoteSourceMeta }) {
           <Editor
             key={meta.contentId}
             contentId={meta.contentId}
-            ref={editorRef}
             initValue={content}
             readonly={false}
             onChange={next => {
               setContent(next);
-              throttleHandleEditorContentChange(next);
             }}
             editingContext={{ entityType: "vl-resource", entityId: meta.originalId }}
           />
