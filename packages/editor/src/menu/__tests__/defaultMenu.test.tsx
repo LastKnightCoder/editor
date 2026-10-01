@@ -8,6 +8,7 @@ import { createEditorKit } from "../../kit/EditorKit";
 import { createCommandDispatcher } from "../../api/command";
 import { standardExtensions } from "../../../../../editor-extensions/standard";
 import { ReactEditor } from "slate-react";
+import { beginSubmissionScope } from "../../kit/submissionScope";
 
 const kit = createEditorKit({ extensions: standardExtensions });
 const dispatcher = createCommandDispatcher(kit.assembly.commands, {
@@ -75,7 +76,7 @@ describe("内核默认菜单 · block 组", () => {
     }
   );
 
-  it.each(["失败", "移动", "删除", "修改"] as const)(
+  it.each(["失败", "移动", "删除", "修改", "会话结束"] as const)(
     "剪切等待期间目标%s时只处理已复制的原节点",
     async scenario => {
       let finish!: () => void;
@@ -89,6 +90,7 @@ describe("内核默认菜单 · block 组", () => {
       vi.stubGlobal("ClipboardItem", class {});
       const report = vi.spyOn(console, "error").mockImplementation(() => {});
       const editor = withValue([paragraph("原文"), paragraph("后文")]);
+      const stop = beginSubmissionScope(editor);
       editor.tryGetService = () => ({ success: vi.fn(), error: vi.fn() }) as never;
       const original = editor.children[0] as Element;
       const command = commandsOf().find(item => item.id === "tau.block.cut")!;
@@ -101,6 +103,9 @@ describe("内核默认菜单 · block 组", () => {
           Transforms.insertNodes(editor, paragraph("替代内容"), { at: [0] });
         } else if (scenario === "修改") {
           Transforms.insertText(editor, "新", { at: { path: [0, 0], offset: 0 } });
+        } else if (scenario === "会话结束") {
+          stop();
+          beginSubmissionScope(editor);
         }
         if (scenario !== "失败") finish();
         await task;
@@ -109,11 +114,13 @@ describe("内核默认菜单 · block 组", () => {
           移动: "新增后文",
           删除: "替代内容后文",
           修改: "新原文后文",
+          会话结束: "原文后文",
         }[scenario];
         expect(Node.string(editor)).toBe(expected);
         expect(writeText).not.toHaveBeenCalled();
         expect(editor.pathRefs().size).toBe(0);
       } finally {
+        stop();
         vi.unstubAllGlobals();
         report.mockRestore();
       }

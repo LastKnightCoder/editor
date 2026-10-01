@@ -1,6 +1,6 @@
 import React, { memo, useEffect, useRef, useState } from "react";
 import { RenderElementProps, useSlateStatic, useReadOnly, ReactEditor } from "slate-react";
-import { Transforms, Editor, Element as SlateElement, NodeEntry } from "slate";
+import { Transforms } from "slate";
 import { useMemoizedFn } from "ahooks";
 import { cn, mergeRefs } from "@tau/ui";
 import { ImageOff } from "lucide-react";
@@ -8,7 +8,6 @@ import { ImageOff } from "lucide-react";
 import { InlineChromiumBugfix, getCommandElementPath } from "@tau/editor/api";
 import ImageUploader from "../../../../components/ImageUploader";
 import type { InlineImageElement } from "../../../../types";
-import { useUploadResource } from "../../../../hooks/useUploadResource";
 import { useImageResize, ResizeDirection } from "../../../../hooks/useImageResize";
 import { useEditorSlots } from "../../../../services/hooks";
 import { openImageLightbox } from "../../../../stores";
@@ -36,10 +35,9 @@ const RESIZE_HANDLES: { direction: ResizeDirection; cursor: string }[] = [
  */
 const InlineImageComponent: React.FC<InlineImageProps> = memo(props => {
   const { attributes, children, element } = props;
-  const { url, alt, uuid, width, height } = element;
+  const { url, alt, width, height } = element;
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
-  const uploadResource = useUploadResource();
   const { Image } = useEditorSlots();
   const imageRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLSpanElement>(null);
@@ -111,21 +109,6 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo(props => {
       document.removeEventListener("keydown", handleKeyDown, true);
     };
   }, [isSelected, readOnly, editor, element]);
-
-  // 图片上传成功时按 uuid 定位节点更新（上传期间节点对象可能已被替换）
-  const handleUploadSuccess = useMemoizedFn((uploadedUrl: string) => {
-    const nodeEntries = Array.from(
-      Editor.nodes(editor, {
-        at: [],
-        match: (n: any) =>
-          SlateElement.isElement(n) && n.type === "inline-image" && n.uuid === uuid,
-      })
-    );
-    if (nodeEntries.length > 0) {
-      const nodeEntry = nodeEntries[0] as NodeEntry<InlineImageElement>;
-      Transforms.setNodes(editor, { url: uploadedUrl }, { at: nodeEntry[1] });
-    }
-  });
 
   const handleClick = (event: React.MouseEvent) => {
     event.preventDefault();
@@ -199,11 +182,7 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo(props => {
           )}
         </span>
       ) : !readOnly ? (
-        <ImageUploader
-          inline={true}
-          onUploadSuccess={handleUploadSuccess}
-          uploadResource={uploadResource}
-        />
+        <ImageUploader inline={true} element={element} />
       ) : null}
       <InlineChromiumBugfix />
       {children}

@@ -10,6 +10,7 @@ import { Transforms } from "slate";
 
 import { useEditorSlots } from "../../../../services/hooks";
 import { openLocalMediaPicker } from "../../../../utils/mediaInsert";
+import { useMediaUploading } from "../../../../utils/mediaSubmission";
 
 const Audio = (props: IExtensionBaseProps<AudioElement>) => {
   const { attributes, element, children } = props;
@@ -31,7 +32,8 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
     />
   ) : undefined;
 
-  const { src, uploading } = element;
+  const { src } = element;
+  const uploading = useMediaUploading(editor, element);
 
   // 遗留空音频元素的最小占位（正常流程经 slash 菜单直接创建已填充的元素）
   const renderNoContent = () => {

@@ -2,6 +2,7 @@ import {
   useCallback,
   useState,
   useEffect,
+  useLayoutEffect,
   useSyncExternalStore,
   forwardRef,
   useImperativeHandle,
@@ -69,7 +70,13 @@ import LeafRenderer from "./components/LeafRenderer";
 import type { MarkRenderProps } from "./api/marks";
 import type { ComponentType } from "react";
 import PromptHost from "./components/PromptHost";
-import { cancelEditorPrompts } from "./services/editorNotifier";
+import {
+  initializeSubmissionScope,
+  beginSubmissionScope,
+  endSubmissionScope,
+  renewSubmissionScope,
+  notifySubmissionServices,
+} from "./kit/submissionScope";
 import { IConfigItem, IHotKeyConfig } from "./types";
 
 import "./theme/editor.css";
@@ -286,6 +293,7 @@ const Index = memo(
       const initialBinding = bindingRef.current;
       const slateEditor = initialBinding ? initialBinding.install(enhancedEditor) : enhancedEditor;
       withNormalizedCopy(slateEditor, assembly.copyPolicies, breaker);
+      initializeSubmissionScope(slateEditor);
       slateEditor.getService = <T,>(id: ServiceIdentifier<T>): T => registryRef.current.get(id);
       slateEditor.tryGetService = <T,>(id: ServiceIdentifier<T>): T | undefined =>
         registryRef.current.tryGet(id);
@@ -309,10 +317,14 @@ const Index = memo(
 
     useEffect(() => documentProp?.attach?.(editor), [documentProp, editor]);
 
-    useEffect(() => {
-      if (readonly) cancelEditorPrompts(editor);
-      return () => cancelEditorPrompts(editor);
-    }, [editor, readonly, documentProp, registry]);
+    useLayoutEffect(() => {
+      if (readonly) {
+        endSubmissionScope(editor);
+        return;
+      }
+      return beginSubmissionScope(editor);
+    }, [editor, readonly, documentProp, binding]);
+    useLayoutEffect(() => notifySubmissionServices(editor), [editor, registry]);
 
     // 已经挂在这个 editor 上的文档源：区分「首次连接」与「换源」
     const attachedRef = useRef<{ editor: Editor; binding: EditorDocumentBinding } | null>(null);
@@ -469,6 +481,7 @@ const Index = memo(
         setEditorValue: (nodes: Descendant[]) => {
           // 内容归文档源管（协作）时不接受整体覆盖
           if (binding) return;
+          renewSubmissionScope(editor);
           const normalizedNodes = normalizeEditorContent(nodes);
           const domSelection = window.getSelection();
           let shouldClearDomSelection = false;

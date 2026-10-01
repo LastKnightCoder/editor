@@ -7,6 +7,7 @@ import type { EditorMenuEntry } from "../api/menu";
 import { notifierOf } from "../services";
 import { copyNodeToClipboard, deleteNode, deleteVoidBlock } from "../utils/nodeOperations";
 import { getCommandElementPath } from "../utils/commandTarget";
+import { captureElementSubmission } from "../api/submission";
 
 /** 通用块操作；领域转换由对应扩展的命令与 menuFor 贡献。 */
 
@@ -59,23 +60,19 @@ const commands: EditorCommand[] = [
     run: async (editor, ctx) => {
       const path = getCommandElementPath(editor, ctx);
       if (!path || !ctx.element) return;
-      const target = Editor.pathRef(editor, path);
+      const submission = captureElementSubmission(editor, { element: ctx.element, path });
       try {
         const copied = await copyNodeToClipboard(editor, ctx.element, notifierOf(editor), {
           allowPlainTextFallback: false,
+          signal: submission.signal,
         });
-        const currentPath = target.current;
-        // 等待期间被修改或替换的内容没有进入剪贴板，不能删除。
-        if (
-          copied &&
-          currentPath &&
-          getCommandElementPath(editor, { element: ctx.element, path: currentPath })
-        ) {
-          if (editor.isVoid(ctx.element)) deleteVoidBlock(editor, currentPath);
-          else deleteNode(editor, currentPath);
-        }
+        if (copied)
+          submission.commit(({ element, path }) => {
+            if (editor.isVoid(element)) deleteVoidBlock(editor, path);
+            else deleteNode(editor, path);
+          });
       } finally {
-        target.unref();
+        submission.dispose();
       }
     },
   },

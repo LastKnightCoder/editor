@@ -1,74 +1,9 @@
-import { IResourceService } from "@tau/shared/host-services";
-import { Editor, Element, Transforms, type PathRef } from "slate";
-
-import { type IngestContext } from "@tau/editor/api";
-import { notifierOf } from "@tau/editor/api";
-
-import { createVideoElement } from "../../utils/insertElement";
-import { insertMediaBatch } from "../../utils/insertMediaBatch";
-
-/**
- * 视频的 drop / paste 认领（01 §5.4 ingest）。失败行为沿用旧双插件的差异：
- * 粘贴失败清掉占位并补空段落（光标有落点），拖放失败保留占位仅结束上传态。
- */
-async function ingestVideoFile(ctx: IngestContext, file: File, target: PathRef): Promise<void> {
-  const { editor, point } = ctx;
-  const currentPath = () => {
-    const path = target.current;
-    if (!path) return null;
-    const node = Editor.node(editor, path)[0];
-    return Element.isElement(node) &&
-      node.type === "video" &&
-      node.src === "" &&
-      node.uploading === true
-      ? path
-      : null;
-  };
-
-  try {
-    const url = await editor.getService(IResourceService).upload(file);
-    if (!url) throw new Error("上传失败");
-    const path = currentPath();
-    if (path) Transforms.setNodes(editor, { src: url, uploading: false }, { at: path });
-  } catch (error) {
-    console.error("视频上传失败:", error);
-    notifierOf(editor).error("视频上传失败");
-    const path = currentPath();
-    if (!path) return;
-    if (point) {
-      // 拖放：保留占位节点，结束上传态
-      Transforms.setNodes(editor, { uploading: false }, { at: path });
-      return;
-    }
-    // 粘贴：删占位、补空段落承接光标
-    Editor.withoutNormalizing(editor, () => {
-      Transforms.delete(editor, { at: path });
-      Transforms.insertNodes(
-        editor,
-        { type: "paragraph", children: [{ type: "formatted", text: "" }] },
-        { at: path, select: true }
-      );
-    });
-  } finally {
-    target.unref();
-  }
-}
+import type { IngestContext } from "@tau/editor/api";
+import { ingestMedia } from "../../utils/ingestMedia";
 
 export const videoIngestSpec = {
   files: {
     accept: "video/*",
-    run: async (ctx: IngestContext) => {
-      const files = ctx.files ?? [];
-      const targets = insertMediaBatch(
-        ctx.editor,
-        files.map(() => createVideoElement({ src: "", uploading: true }))
-      );
-      try {
-        for (const [index, target] of targets.entries())
-          await ingestVideoFile(ctx, files[index], target);
-      } finally {
-        for (const target of targets) target.unref();
-      }
-    },
+    run: (ctx: IngestContext) => ingestMedia(ctx, "video"),
   },
 };
