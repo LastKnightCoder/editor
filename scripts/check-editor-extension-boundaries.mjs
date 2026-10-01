@@ -61,9 +61,22 @@ const heavy = new Set([
 ]);
 const listDependencies = new Set(["@emoji-mart/react", "@emoji-mart/data"]);
 
+// 本地产物不参与源码边界检查，排除范围与 antd 门禁保持一致。
+const ignoredDirectories = new Set([
+  "node_modules",
+  "__tests__",
+  ".git",
+  "dist",
+  "dist-electron",
+  "output",
+  "release",
+  ".output",
+  ".wxt",
+]);
+
 const sourceFiles = directory =>
   readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
-    if (entry.name === "node_modules" || entry.name === "__tests__") return [];
+    if (entry.isDirectory() && ignoredDirectories.has(entry.name)) return [];
     const path = resolve(directory, entry.name);
     return entry.isDirectory() ? sourceFiles(path) : /\.tsx?$/.test(entry.name) ? [path] : [];
   });
