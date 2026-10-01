@@ -3,6 +3,7 @@ import { useMemoizedFn } from "ahooks";
 import { toast } from "@tau/ui";
 
 import useConversationFlashcardStore from "@/stores/useConversationFlashcardStore";
+import { recordLineage } from "@/commands/lineage";
 import { useFlashcardMutations } from "../queries";
 import useSettingStore from "@/stores/useSettingStore";
 import useFlashcardGeneration, { GeneratedFlashcard } from "../hooks/useFlashcardGeneration";
@@ -18,7 +19,8 @@ const ConversationFlashcardModal = () => {
   const { isDark } = useTheme();
 
   // Store 状态
-  const { isModalOpen, conversationContent, chatTitle, reset } = useConversationFlashcardStore();
+  const { isModalOpen, conversationContent, source, chatTitle, reset } =
+    useConversationFlashcardStore();
 
   // 本地状态
   const [deckSelectorOpen, setDeckSelectorOpen] = useState(false);
@@ -115,7 +117,7 @@ const ConversationFlashcardModal = () => {
       for (const card of selectedCards) {
         if (useSettingStore.getState().setting.database.active !== database) return;
         try {
-          await createFlashcard({
+          const created = await createFlashcard({
             deckId: selectedDeck.id,
             type: card.type,
             prompt: card.prompt,
@@ -125,6 +127,15 @@ const ConversationFlashcardModal = () => {
             data: card.data,
             references: [reference],
           });
+          // 参考资料是对话摘要的副本，记不住出处；谱系记下对话与消息（KL-025）
+          if (source) {
+            await recordLineage({
+              src: { kind: "chat-session", id: source.sessionId },
+              dst: { kind: "flashcard", id: created.id },
+              relation: "saved_from",
+              srcAnchor: { messageIds: source.messageIds },
+            });
+          }
           successCount++;
         } catch (err) {
           console.error("创建闪卡失败:", err);

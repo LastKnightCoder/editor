@@ -112,7 +112,7 @@ afterEach(() => {
 describe("来源与衍生", () => {
   it("从对话存下的卡片显示来源；对话删除后保留灰显一行", () => {
     run(
-      `INSERT INTO chat_session (id, scope, session_file, title, create_time, update_time) VALUES ('s1', 'global', 'f', '层叠上下文', 1, 1)`
+      `INSERT INTO chat_session (id, scope, session_file, title, create_time, update_time) VALUES ('s1', 'main-chat', 'f', '层叠上下文', 1, 1)`
     );
     const cardId = insertCard(insertContent([p(text("回答"))]));
     EntityLineageTable.record(mainDb, {
@@ -131,6 +131,12 @@ describe("来源与衍生", () => {
         missing: false,
         open: { page: "chat", id: "s1" },
       },
+    ]);
+
+    // PDF 里的对话随宿主打开：展示但不可点，也不算已删除
+    mainDb.exec(`UPDATE chat_session SET scope = 'pdf-chat' WHERE id = 's1'`);
+    expect(contextOf("card", cardId).sources).toEqual([
+      expect.objectContaining({ meta: "PDF 对话", missing: false, open: null }),
     ]);
 
     mainDb.exec(`DELETE FROM chat_session WHERE id = 's1'`);

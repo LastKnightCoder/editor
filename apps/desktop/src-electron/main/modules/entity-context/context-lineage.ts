@@ -30,8 +30,16 @@ const clip = (text: string) =>
 interface ResolvedNode {
   title: string;
   meta: string;
-  open: ContextOpenTarget;
+  /** 无法直接打开时为 null（仍展示，不算已删除） */
+  open: ContextOpenTarget | null;
 }
+
+const CHAT_SCOPE: Record<string, { label: string; openable: boolean }> = {
+  "main-chat": { label: "对话", openable: true },
+  "pdf-chat": { label: "PDF 对话", openable: false },
+  "video-note-chat": { label: "视频笔记对话", openable: false },
+  "vibe-learning-chat": { label: "Notebook 对话", openable: false },
+};
 
 const KIND_LABEL: Record<LineageNode["kind"], string> = {
   card: "卡片",
@@ -55,12 +63,17 @@ function resolveNode(
 ): ResolvedNode | null {
   switch (node.kind) {
     case "chat-session": {
-      const row = db.prepare(`SELECT title FROM chat_session WHERE id = ?`).get(node.id) as
-        | { title: string }
-        | undefined;
-      return row
-        ? { title: row.title || "未命名对话", meta: "对话", open: { page: "chat", id: node.id } }
-        : null;
+      const row = db
+        .prepare(`SELECT title, scope FROM chat_session WHERE id = ?`)
+        .get(node.id) as { title: string; scope: string } | undefined;
+      if (!row) return null;
+      const scope = CHAT_SCOPE[row.scope];
+      return {
+        title: row.title || "未命名对话",
+        meta: scope?.label ?? "对话",
+        // 只有主对话能经对话页打开；PDF / Notebook / 视频笔记里的对话随宿主打开，这里只展示
+        open: scope?.openable ? { page: "chat", id: node.id } : null,
+      };
     }
     case "vl-note": {
       const row = db
