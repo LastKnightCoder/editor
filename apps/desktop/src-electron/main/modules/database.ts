@@ -54,6 +54,8 @@ import WebClipTable from "./tables/web-clip";
 import WebNoteTable from "./tables/web-note";
 import WebViewPreferenceTable from "./tables/web-view-preference";
 import EntityLineageTable from "./tables/entity-lineage";
+import ExcerptTable from "./tables/excerpt";
+import MaterialTable from "./tables/material";
 import WeReadNotebookTable from "./tables/weread-notebook";
 import WereadViewCleanupTable from "./tables/weread-view-cleanup";
 import WeReadConfigTable from "./tables/weread-config";
@@ -279,6 +281,8 @@ class DatabaseModule implements Module {
       WebNoteTable,
       WebViewPreferenceTable,
       EntityLineageTable,
+      ExcerptTable,
+      MaterialTable,
       WeReadNotebookTable,
       WereadViewCleanupTable,
       WeReadConfigTable,

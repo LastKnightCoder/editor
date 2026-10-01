@@ -732,6 +732,26 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `value`      | `TEXT`             |
 | `updated_at` | `INTEGER NOT NULL` |
 
+### `excerpt`
+
+摘录：微信读书与浏览器插件的划线，一条一行；`is_deleted = 1` 表示源端已删除（保留原文）。
+
+| 字段           | SQLite 定义                         |
+| -------------- | ----------------------------------- |
+| `id`           | `INTEGER PRIMARY KEY AUTOINCREMENT` |
+| `source_type`  | `TEXT NOT NULL`                     |
+| `source_key`   | `TEXT NOT NULL`                     |
+| `source_title` | `TEXT NOT NULL DEFAULT ''`          |
+| `external_id`  | `TEXT NOT NULL`                     |
+| `quote`        | `TEXT NOT NULL`                     |
+| `note`         | `TEXT NOT NULL DEFAULT ''`          |
+| `anchor`       | `TEXT`                              |
+| `color`        | `TEXT`                              |
+| `source_time`  | `INTEGER`                           |
+| `create_time`  | `INTEGER NOT NULL`                  |
+| `update_time`  | `INTEGER NOT NULL`                  |
+| `is_deleted`   | `INTEGER NOT NULL DEFAULT 0`        |
+
 ### `flashcard_decks`
 
 | 字段          | SQLite 定义              |

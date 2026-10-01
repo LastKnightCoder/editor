@@ -5,6 +5,7 @@
 import type { EntityRef } from "@/entity/ref";
 import type { InlineRefSnippet } from "@/entity/inline-refs";
 import type { LineageNode, LineageRelation } from "@/entity/lineage";
+import type { MaterialOpenTarget } from "@/entity/material";
 import type { IQuestion } from "./question";
 
 export interface ContextEntity {
@@ -36,7 +37,8 @@ export type ContextOpenTarget =
   | { page: "review"; deckId: number }
   | { page: "diary"; date: string; momentId: number }
   | { page: "whiteboard-detail"; id: number; pageId: number }
-  | { page: "todos"; selectedId: number };
+  | { page: "todos"; selectedId: number }
+  | { page: "material"; target: MaterialOpenTarget };
 
 /** 谱系的一端：来源或衍生 */
 export interface ContextLineageItem {

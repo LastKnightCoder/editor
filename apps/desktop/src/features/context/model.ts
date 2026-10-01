@@ -7,6 +7,7 @@ import {
   FlaskConical,
   FolderKanban,
   Globe,
+  Highlighter,
   Layers,
   ListTodo,
   MessageCircle,
@@ -31,6 +32,8 @@ export const LINEAGE_KIND_META: Record<LineageNodeKind, { label: string; icon: L
   ...ENTITY_KIND_META,
   "chat-session": { label: "对话", icon: MessageCircle },
   "vl-note": { label: "Notebook 笔记", icon: FlaskConical },
+  excerpt: { label: "摘录", icon: Highlighter },
+  "pdf-annotation": { label: "PDF 标注", icon: FileText },
   "web-clip": { label: "解析文档", icon: Globe },
   flashcard: { label: "闪卡", icon: Repeat },
 };
