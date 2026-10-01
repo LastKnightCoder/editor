@@ -17,7 +17,7 @@ class BackendWebSocketServer {
   >;
 
   constructor(port: number) {
-    const url = `ws://localhost:${port}/backendServer?isServer=true`;
+    const url = `ws://127.0.0.1:${port}/backendServer?isServer=true`;
     this.server = new WebSocketServer<RpcRequestMessage, WebSocket>(url, {
       onMessage: this.onMessage.bind(this),
     });
@@ -26,7 +26,7 @@ class BackendWebSocketServer {
 
   addMessageHandler(
     method: string,
-    handler: (message: RpcRequestMessage) => Promise<RpcResponseMessage>,
+    handler: (message: RpcRequestMessage) => Promise<RpcResponseMessage>
   ) {
     if (this.messageHandlers[method]) {
       console.warn(`method ${method} is exists, override it`);
@@ -61,8 +61,7 @@ class BackendWebSocketServer {
         console.error("Fail to handle lancher method:", method, e);
         error = {
           code: (e as RpcErrorResponse).code || 1,
-          message:
-            (e as RpcErrorResponse).message || `Failed to handle ${method}`,
+          message: (e as RpcErrorResponse).message || `Failed to handle ${method}`,
         };
       }
 
