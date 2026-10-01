@@ -30,6 +30,59 @@ const CONTEXT: EntityContext = {
   ],
   backlinkTotal: 2,
   questions: [{ id: 9, title: "为什么 transform 不触发重排？", status: "in_progress" }],
+  sources: [],
+  derived: [],
+  notebookProjections: [],
+  usages: [],
+};
+
+/** 来源、衍生、被使用各一条，另有一条已删除的来源 */
+const LINEAGE: Pick<EntityContext, "sources" | "derived" | "notebookProjections" | "usages"> = {
+  sources: [
+    {
+      node: { kind: "chat-session", id: "s1" },
+      relation: "saved_from",
+      title: "层叠上下文",
+      meta: "对话",
+      missing: false,
+      open: { page: "chat", id: "s1" },
+    },
+    {
+      node: { kind: "vl-note", id: 4 },
+      relation: "derived",
+      title: "",
+      meta: "Notebook 笔记",
+      missing: true,
+      open: null,
+    },
+  ],
+  derived: [
+    {
+      node: { kind: "flashcard", id: 20 },
+      relation: "derived",
+      title: "什么是重排？",
+      meta: "闪卡 · 前端",
+      missing: false,
+      open: { page: "review", deckId: 2 },
+    },
+  ],
+  notebookProjections: [],
+  usages: [
+    {
+      kind: "whiteboard",
+      key: "whiteboard:3",
+      title: "前端图",
+      meta: "白板",
+      open: { page: "whiteboard-detail", id: 3, pageId: 5 },
+    },
+    {
+      kind: "todo",
+      key: "todo:6",
+      title: "整理笔记",
+      completed: true,
+      open: { page: "todos", selectedId: 6 },
+    },
+  ],
 };
 
 let container: HTMLDivElement;
@@ -66,6 +119,10 @@ describe("contextCount", () => {
     expect(contextCount(CONTEXT)).toBe(5);
     expect(contextCount(CONTEXT, { hideOutlinks: true })).toBe(4);
     expect(contextCount(null)).toBe(0);
+  });
+
+  it("来源（含已删除）、衍生、被使用都计入", () => {
+    expect(contextCount({ ...CONTEXT, ...LINEAGE })).toBe(10);
   });
 });
 
@@ -147,6 +204,29 @@ describe("ContextBadge", () => {
     render({ count: 0, render: () => <span>连接分区</span> });
     click(findButton("处关联"));
     expect(document.body.textContent).not.toContain("连接分区");
+  });
+
+  it("来源置顶，已删除的来源不可点；衍生与被使用打开各自页面", () => {
+    mocks.context = { ...CONTEXT, ...LINEAGE };
+    render();
+    click(findButton("处关联"));
+    const text = document.body.textContent ?? "";
+    expect(text.indexOf("来源")).toBeLessThan(text.indexOf("引用了"));
+    expect(text.indexOf("也出现在")).toBeLessThan(text.indexOf("衍生"));
+    expect(text.indexOf("衍生")).toBeLessThan(text.indexOf("被使用"));
+    expect(text.indexOf("被使用")).toBeLessThan(text.indexOf("相关问题"));
+    expect(text).toContain("Notebook 笔记已删除");
+    expect(findButton("Notebook 笔记已删除")).toBeUndefined();
+    expect(text).toContain("待办 · 已完成");
+
+    click(findButton("层叠上下文"));
+    expect(mocks.openPage).toHaveBeenCalledWith("chat", { id: "s1" });
+    click(findButton("处关联"));
+    click(findButton("什么是重排？"));
+    expect(mocks.openPage).toHaveBeenCalledWith("review", { deckId: 2 });
+    click(findButton("处关联"));
+    click(findButton("前端图"));
+    expect(mocks.openPage).toHaveBeenCalledWith("whiteboard-detail", { id: 3, page: 5 });
   });
 
   it("hideOutlinks 时不显示也不计入「引用了」", () => {

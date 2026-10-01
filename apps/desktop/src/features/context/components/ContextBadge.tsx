@@ -7,9 +7,10 @@ import { useState, type ReactNode } from "react";
 import { Waypoints } from "lucide-react";
 import { Popover, cn, toast } from "@tau/ui";
 import type { EntityRef } from "@/entity/ref";
-import { openEntity } from "@/services/open-content";
 import { openPage } from "@/services/page-navigation";
+import type { ContextOpenTarget } from "@/types/entity-context";
 import { contextCount } from "../model";
+import { openContextTarget } from "../open";
 import { useEntityContext } from "../queries";
 import { ContextPopoverContent } from "./ContextPopoverContent";
 
@@ -34,12 +35,13 @@ export function ContextBadge({ entity, leading, hideOutlinks, className }: Conte
   if (count === 0) return null;
   const close = () => setOpen(false);
 
-  const openRef = (ref: EntityRef) => {
+  const openTarget = (target: ContextOpenTarget) => {
     close();
-    openEntity(ref).catch(error =>
+    openContextTarget(target).catch(error =>
       toast.error(error instanceof Error ? error.message : "无法打开内容")
     );
   };
+  const openRef = (ref: EntityRef) => openTarget({ page: "entity", ref });
   const openQuestion = (questionId: number) => {
     close();
     openPage("questions", { selectedId: questionId });
@@ -74,6 +76,7 @@ export function ContextBadge({ entity, leading, hideOutlinks, className }: Conte
           hideOutlinks={hideOutlinks}
           onOpenEntity={openRef}
           onOpenQuestion={openQuestion}
+          onOpenTarget={openTarget}
         />
       </div>
     </Popover>
