@@ -3,7 +3,16 @@
  */
 
 import { useEffect, useRef } from "react";
-import { ArrowLeft, ArrowRight, MessageCircle, Monitor, Moon, Search, Sun } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Map as MapIcon,
+  MessageCircle,
+  Monitor,
+  Moon,
+  Search,
+  Sun,
+} from "lucide-react";
 import { isWinOrLinux } from "@/platform";
 import { usePage } from "@/page/PageProvider";
 import { getPageMeta } from "@/page/core/pageMeta";
@@ -102,6 +111,8 @@ export function Titlebar() {
           Ctrl K
         </kbd>
       </button>
+      {/* 知识地图：全局视角的入口（D-095），在内容详情里点会以当前内容为中心打开 */}
+      <KnowledgeMapToggle />
       {/* AI 对话停靠栏开关（对话页本身在栈顶、或页面自带对话栏时不显示） */}
       {currentKey !== "chat" && !assistOwned && <AssistToggle />}
       {/* 主题切换：浅色 → 深色 → 跟随系统 循环（完整外观设置在 M5 设置中心） */}
@@ -109,6 +120,44 @@ export function Titlebar() {
       {/* Windows/Linux 三键（Mac：自绘信号灯见 Sidebar 头部）；拖拽区行为见 header 类 */}
       <div className="app-region-no-drag">{isWinOrLinux && <WindowControls />}</div>
     </header>
+  );
+}
+
+/** 详情页 → 地图节点键；其余页面不带 focus */
+export function focusKeyOf(entry: { key: string; params: Record<string, unknown> } | undefined) {
+  if (!entry) return undefined;
+  const id = Number(entry.key === "project-detail" ? entry.params.itemId : entry.params.id);
+  if (!Number.isSafeInteger(id) || id <= 0) return undefined;
+  if (entry.key === "card-detail") return `card:${id}`;
+  if (entry.key === "article-detail") return `article:${id}`;
+  if (entry.key === "project-detail") return `project-item:${id}`;
+  return undefined;
+}
+
+/** 知识地图入口：在地图页时选中态，再点回到原处 */
+function KnowledgeMapToggle() {
+  const { navigator, state } = usePage();
+  const top = state.back[state.back.length - 1];
+  const active = top?.key === "knowledge-map";
+  return (
+    <div className="app-region-no-drag">
+      <IconButton
+        onClick={() => {
+          if (active) {
+            navigator.back();
+            return;
+          }
+          const focus = focusKeyOf(top);
+          navigator.push("knowledge-map", focus ? { focus } : {});
+        }}
+        title={active ? "返回" : "知识地图"}
+        aria-label="知识地图"
+        aria-pressed={active}
+        className={active ? "bg-selected text-accent-text hover:bg-selected" : undefined}
+      >
+        <MapIcon size={17} strokeWidth={1.75} />
+      </IconButton>
+    </div>
   );
 }
 
