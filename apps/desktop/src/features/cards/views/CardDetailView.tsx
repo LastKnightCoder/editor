@@ -307,6 +307,7 @@ export function CardDetailView() {
                 {/* 脉络入口：连接（links ∪ 内联引用）并入浮层首个分区（KL-018） */}
                 <ContextBadge
                   entity={{ kind: "card", id: card.id }}
+                  hideOutlinks
                   leading={{
                     count: cardConnectionCount(card),
                     render: close => (

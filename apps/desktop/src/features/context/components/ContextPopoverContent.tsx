@@ -1,6 +1,6 @@
 /**
- * 脉络浮层内容：调用方的前置分区（如卡片的「连接」）、被引用（来源 + 原文片段，被引用的标题
- * 在句中点亮）、也出现在、相关问题。
+ * 脉络浮层内容：调用方的前置分区（如卡片的「连接」）、引用了、被引用（来源 + 原文片段，被引用的
+ * 标题在句中点亮）、也出现在、相关问题。
  * 只负责展示与点击回调，数据与开合由 ContextBadge 管理。
  */
 
@@ -18,6 +18,8 @@ interface ContextPopoverContentProps {
   context: EntityContext | null;
   /** 排在最前的分区，由调用方提供 */
   leading?: ReactNode;
+  /** 不显示「引用了」（卡片的「连接」分区已包含出链） */
+  hideOutlinks?: boolean;
   onOpenEntity: (ref: EntityRef) => void;
   onOpenQuestion: (questionId: number) => void;
 }
@@ -51,7 +53,11 @@ function Snippet({ snippet }: { snippet: InlineRefSnippet }) {
   );
 }
 
-const EMPTY: Pick<EntityContext, "backlinks" | "backlinkTotal" | "projections" | "questions"> = {
+const EMPTY: Pick<
+  EntityContext,
+  "outlinks" | "backlinks" | "backlinkTotal" | "projections" | "questions"
+> = {
+  outlinks: [],
   backlinks: [],
   backlinkTotal: 0,
   projections: [],
@@ -61,14 +67,27 @@ const EMPTY: Pick<EntityContext, "backlinks" | "backlinkTotal" | "projections" |
 export function ContextPopoverContent({
   context,
   leading,
+  hideOutlinks = false,
   onOpenEntity,
   onOpenQuestion,
 }: ContextPopoverContentProps) {
-  const { backlinks, backlinkTotal, projections, questions } = context ?? EMPTY;
+  const { outlinks, backlinks, backlinkTotal, projections, questions } = context ?? EMPTY;
   const hidden = backlinkTotal - backlinks.length;
   return (
     <div className="px-1.5 pb-2 pt-2.5">
       {leading}
+      {!hideOutlinks && outlinks.length > 0 && (
+        <Section title="引用了">
+          {outlinks.map(entity => (
+            <Row
+              key={`${entity.ref.kind}:${entity.ref.id}`}
+              onClick={() => onOpenEntity(entity.ref)}
+            >
+              <SourceLine entity={entity} />
+            </Row>
+          ))}
+        </Section>
+      )}
       {backlinks.length > 0 && (
         <Section title="被引用">
           {backlinks.map(({ source, snippets }) => (

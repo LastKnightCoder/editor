@@ -27,6 +27,8 @@ export interface ContextQuestion {
 
 export interface EntityContext {
   self: ContextEntity;
+  /** 我在正文里引用了谁（不含自身与共用正文的身份）；最多 50 条 */
+  outlinks: ContextEntity[];
   /** 共用同一份正文的其他身份 */
   projections: ContextEntity[];
   /** 谁在正文里引用了我，按来源最近更新排序；最多 50 条 */

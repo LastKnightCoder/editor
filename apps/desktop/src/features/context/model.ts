@@ -13,8 +13,16 @@ export const ENTITY_KIND_META: Record<EntityRefKind, { label: string; icon: Luci
   diary: { label: "日记", icon: PenLine },
 };
 
-/** 元信息行显示的关联数：引用我的来源 + 共用正文的身份 + 相关问题 */
-export function contextCount(context: EntityContext | null | undefined): number {
+/** 元信息行显示的关联数：引用了 + 引用我的来源 + 共用正文的身份 + 相关问题 */
+export function contextCount(
+  context: EntityContext | null | undefined,
+  options: { hideOutlinks?: boolean } = {}
+): number {
   if (!context) return 0;
-  return context.backlinkTotal + context.projections.length + context.questions.length;
+  return (
+    (options.hideOutlinks ? 0 : context.outlinks.length) +
+    context.backlinkTotal +
+    context.projections.length +
+    context.questions.length
+  );
 }
