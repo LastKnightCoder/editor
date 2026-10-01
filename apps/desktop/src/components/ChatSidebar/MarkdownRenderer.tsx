@@ -13,9 +13,7 @@ import MarkdownContext, { useMarkdownContext, MarkdownMessageMeta } from "./Mark
 import { remarkDocumentReference } from "@tau/shared";
 import remarkPdfCitation from "@/utils/remark-pdf-citation";
 import { getRefTypeLabel } from "@/utils";
-import { getDiaryEntryById } from "@/commands/diary";
 import { openContent } from "@/services/open-content";
-import { openPage } from "@/services/page-navigation";
 import LocalImage from "@/components/LocalImage";
 import LocalImagePreviewPortal from "@/components/LocalImagePreviewPortal";
 import { MARKDOWN_BLOCK_CODE_ATTRIBUTE, MARKDOWN_BLOCK_CODE_VALUE } from "./codeBlockUtils";
@@ -46,11 +44,6 @@ const REF_ICONS: Record<string, LucideIcon> = {
 /** 文档引用在新壳层内打开（卡片 / 文章 / 项目文档 / 日记）；未就绪或不支持时 toast 说明 */
 async function openReference(id: number, type: string) {
   try {
-    if (type === "diary-daily") {
-      const entry = await getDiaryEntryById(id);
-      openPage("diary", { date: entry.date });
-      return;
-    }
     await openContent(type, id);
   } catch (error) {
     toast.error(error instanceof Error ? error.message : "无法打开引用内容");

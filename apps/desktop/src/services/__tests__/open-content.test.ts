@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { openContent } from "../open-content";
+import { openContent, openEntity } from "../open-content";
 
 const mocks = vi.hoisted(() => ({
   openPage: vi.fn(),
   getProjectItemById: vi.fn(),
+  getDiaryEntryById: vi.fn(),
   database: "main",
 }));
 vi.mock("../page-navigation", () => ({
@@ -13,6 +14,7 @@ vi.mock("../page-navigation", () => ({
   }),
 }));
 vi.mock("@/commands/project", () => ({ getProjectItemById: mocks.getProjectItemById }));
+vi.mock("@/commands/diary", () => ({ getDiaryEntryById: mocks.getDiaryEntryById }));
 vi.mock("@/stores/useSettingStore", () => ({
   default: { getState: () => ({ setting: { database: { active: mocks.database } } }) },
 }));
@@ -31,6 +33,24 @@ describe("内容打开入口", () => {
     mocks.getProjectItemById.mockResolvedValue({ projects: [8, 7] });
     await openContent("project-item", 5);
     expect(mocks.openPage).toHaveBeenLastCalledWith("project-detail", { id: 7, itemId: 5 });
+  });
+  it("日记按日期打开，存量写法 diary-daily 与 project_item 均可用", async () => {
+    mocks.getDiaryEntryById.mockResolvedValue({ date: "2026-09-18" });
+    await openEntity({ kind: "diary", id: 2 });
+    expect(mocks.openPage).toHaveBeenLastCalledWith("diary", { date: "2026-09-18" });
+    await openContent("diary-daily", 2);
+    expect(mocks.getDiaryEntryById).toHaveBeenLastCalledWith(2);
+    mocks.getProjectItemById.mockResolvedValue({ projects: [7] });
+    await openContent("project_item", 5);
+    expect(mocks.openPage).toHaveBeenLastCalledWith("project-detail", { id: 7, itemId: 5 });
+  });
+  it("日记查询期间切库不导航", async () => {
+    mocks.getDiaryEntryById.mockImplementation(async () => {
+      mocks.database = "other";
+      return { date: "2026-09-18" };
+    });
+    await expect(openEntity({ kind: "diary", id: 2 })).rejects.toThrow("数据库已切换");
+    expect(mocks.openPage).not.toHaveBeenCalled();
   });
   it("退役类型明确拒绝打开", async () => {
     await expect(openContent("document-item", 6)).rejects.toThrow("暂不支持");
