@@ -7,6 +7,7 @@ import ArticleTable from "./tables/article";
 import ProjectTable from "./tables/project";
 import DiaryTable from "./tables/diary";
 import VecDocumentTable from "./tables/vec-document";
+import { listMaterialIndexDocs, MATERIAL_INDEX_TYPES } from "./material-index";
 import { getMarkdown } from "@/utils/markdown.ts";
 import type { IndexType } from "@/types";
 import type { ResolvedEmbeddingConfig } from "../utils/embedding-config";
@@ -23,8 +24,14 @@ export type MainContentReconcileReason =
 /** 主内容队列的运行原因：自动 reconcile 之外还有用户手动发起 */
 export type MainContentIndexRunReason = MainContentReconcileReason | "manual" | "content_idle";
 
-/** 参与向量索引的主内容类型（与 collect 顺序一致） */
-export const MAIN_CONTENT_INDEX_TYPES = ["card", "article", "project-item", "diary-daily"] as const;
+/** 参与向量索引的主内容类型（与 collect 顺序一致）：正文实体 + 外部材料（KL-037） */
+export const MAIN_CONTENT_INDEX_TYPES = [
+  "card",
+  "article",
+  "project-item",
+  "diary-daily",
+  ...MATERIAL_INDEX_TYPES,
+] as const;
 export type MainContentIndexType = (typeof MAIN_CONTENT_INDEX_TYPES)[number];
 
 export interface MainContentVecIndexProgress {
@@ -518,7 +525,9 @@ class MainContentVecIndexQueue implements Module {
     forceReindex: boolean
   ): Promise<MainContentVecIndexTask[]> {
     const tasks: MainContentVecIndexTask[] = [];
+    const candidates = new Set<string>();
     await this.forEachCandidate(mainDb, task => {
+      candidates.add(`${task.type}:${task.id}`);
       if (forceReindex) {
         tasks.push(task);
         return;
@@ -528,10 +537,17 @@ class MainContentVecIndexQueue implements Module {
         tasks.push(task);
       }
     });
+    // 已不是候选的（实体已删、摘录软删、剪藏变孤儿、正文清空）删掉，检索不再命中
+    const removed = VecDocumentTable.removeIndexesNotIn(
+      indexDb,
+      candidates,
+      MAIN_CONTENT_INDEX_TYPES
+    );
+    if (removed) log.info(`[MainContentVecIndexQueue] Removed stale vectors: ${removed}`);
     return tasks;
   }
 
-  /** 遍历全部有正文的主内容（卡片 / 文章 / 项目文档 / 日记），期间定期让出事件循环 */
+  /** 遍历全部有正文的主内容（卡片 / 文章 / 项目文档 / 日记）与外部材料，期间定期让出事件循环 */
   private async forEachCandidate(
     mainDb: Database.Database,
     visit: (task: MainContentVecIndexTask) => void
@@ -582,6 +598,11 @@ class MainContentVecIndexQueue implements Module {
         content: getMarkdown(entry.content || []).trim(),
         updateTime: Number(entry.updateTime || 0),
       });
+    }
+    await yieldToEventLoop();
+
+    for (const doc of listMaterialIndexDocs(mainDb)) {
+      await handle(doc);
     }
   }
 }

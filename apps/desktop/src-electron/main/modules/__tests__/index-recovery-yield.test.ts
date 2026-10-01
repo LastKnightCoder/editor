@@ -56,11 +56,13 @@ const mockContext = vi.hoisted(() => {
       removeIndexesByType: vi.fn(() => 0),
       checkIndexExists: vi.fn(() => null),
       removeIndexByIdAndType: vi.fn(),
+      removeIndexesNotIn: vi.fn(() => 0),
       indexContent: vi.fn(() => true),
     },
     vecTableMock: {
       removeIndexesByType: vi.fn(() => 0),
       checkIndexExists: vi.fn(() => null),
+      removeIndexesNotIn: vi.fn(() => 0),
       indexContent: vi.fn(async () => true),
       clearTableData: vi.fn(),
       initTableByVecLength: vi.fn(),
@@ -112,6 +114,11 @@ vi.mock("../tables/fts", () => ({
 
 vi.mock("../tables/vec-document", () => ({
   default: mockContext.vecTableMock,
+}));
+
+vi.mock("../material-index", () => ({
+  MATERIAL_INDEX_TYPES: ["excerpt", "pdf-annotation", "web-clip"],
+  listMaterialIndexDocs: () => [],
 }));
 
 vi.mock("../video-note-index-db", () => ({

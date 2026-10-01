@@ -4,10 +4,7 @@ import type { EmbeddingProviderType } from "@/types/embedding";
 import OpenAI from "openai";
 import log from "electron-log";
 import localInference from "../local-inference";
-import CardTable from "./card";
-import ArticleTable from "./article";
-import ProjectTable from "./project";
-import DiaryTable from "./diary";
+import { searchResultDetails } from "../search-details";
 import { smartChunk } from "../../utils/smart-chunk";
 
 const LOCAL_EMBEDDING_CONFIG_ID = "embedding-default-local";
@@ -293,6 +290,27 @@ export default class VecDocumentTable {
     return results.every(Boolean);
   }
 
+  /**
+   * 对账清理：删除这些类型里不在 keep（`type:id`）中的索引——实体已删、摘录软删、剪藏变孤儿。
+   * 返回删除的文档数。
+   */
+  static removeIndexesNotIn(db: Database.Database, keep: Set<string>, types: readonly string[]) {
+    if (!this.hasTable(db, "vec_documents") || types.length === 0) return 0;
+    const rows = db
+      .prepare(
+        `SELECT DISTINCT prefixed_id FROM vec_documents WHERE type IN (${types.map(() => "?").join(",")})`
+      )
+      .all(...types) as Array<{ prefixed_id: string }>;
+    const remove = db.prepare(`DELETE FROM vec_documents WHERE prefixed_id = ?`);
+    let removed = 0;
+    for (const row of rows) {
+      if (keep.has(row.prefixed_id)) continue;
+      remove.run(row.prefixed_id);
+      removed += 1;
+    }
+    return removed;
+  }
+
   static removeIndexByIdAndType(db: Database.Database, id: number, type: IndexType) {
     if (!this.hasTable(db, "vec_documents")) {
       return true;
@@ -382,46 +400,22 @@ export default class VecDocumentTable {
         const processedIds = new Set<string>();
 
         for (const [doc, distance] of searchResults) {
-          let details = null;
           const uniqueKey = addTypePrefix(doc.id, doc.type);
           if (processedIds.has(uniqueKey)) {
             continue;
           }
           processedIds.add(uniqueKey);
 
-          switch (doc.type as IndexType) {
-            case "card":
-              details = CardTable.getCardById(mainDb, doc.id);
-              break;
-            case "article":
-              details = ArticleTable.getArticleById(mainDb, doc.id);
-              break;
-            case "project-item":
-              details = ProjectTable.getProjectItem(mainDb, doc.id);
-              break;
-            case "diary-daily": {
-              const diaryEntry = DiaryTable.getDiaryEntryById(mainDb, doc.id);
-              if (diaryEntry) {
-                details = {
-                  ...diaryEntry,
-                  contentId: diaryEntry.segments[0]?.contentId ?? 0,
-                  title: DiaryTable.getDiarySearchTitle(diaryEntry),
-                };
-              }
-              break;
-            }
-            default:
-              break;
-          }
+          const details = searchResultDetails(mainDb, doc.type as IndexType, doc.id);
 
           if (details) {
             results.push({
               id: doc.id,
               contentId: details.contentId,
               type: doc.type as IndexType,
-              // @ts-ignore
-              title: details.title || "",
-              content: details.content || [],
+              title: details.title,
+              content: details.content,
+              ...(details.material ? { material: details.material } : {}),
               source: "vec-document" as const,
               updateTime: doc.updateTime,
               // @ts-ignore
@@ -487,41 +481,16 @@ export default class VecDocumentTable {
     const results: SearchResult[] = [];
 
     for (const doc of vecDocuments) {
-      let details = null;
-
-      switch (doc.type as IndexType) {
-        case "card":
-          details = CardTable.getCardById(mainDb, doc.id);
-          break;
-        case "article":
-          details = ArticleTable.getArticleById(mainDb, doc.id);
-          break;
-        case "project-item":
-          details = ProjectTable.getProjectItem(mainDb, doc.id);
-          break;
-        case "diary-daily": {
-          const diaryEntry = DiaryTable.getDiaryEntryById(mainDb, doc.id);
-          if (diaryEntry) {
-            details = {
-              ...diaryEntry,
-              contentId: diaryEntry.segments[0]?.contentId ?? 0,
-              title: DiaryTable.getDiarySearchTitle(diaryEntry),
-            };
-          }
-          break;
-        }
-        default:
-          break;
-      }
+      const details = searchResultDetails(mainDb, doc.type as IndexType, doc.id);
 
       if (details) {
         results.push({
           id: doc.id,
           type: doc.type as IndexType,
           contentId: details.contentId,
-          // @ts-ignore
-          title: details.title || "",
-          content: details.content || [],
+          title: details.title,
+          content: details.content,
+          ...(details.material ? { material: details.material } : {}),
           source: "vec-document" as const,
           updateTime: doc.updateTime,
         });

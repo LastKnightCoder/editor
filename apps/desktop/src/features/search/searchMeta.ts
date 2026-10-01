@@ -11,6 +11,8 @@ import {
   FileText,
   PenLine,
   FolderKanban,
+  Globe,
+  Highlighter,
   SunMoon,
   MessageCircle,
   CircleHelp,
@@ -23,7 +25,8 @@ import {
 } from "lucide-react";
 import { NAV_SECTIONS, NAV_FOOTER } from "@/app/navigation";
 import { getPageMeta } from "@/page/core/pageMeta";
-import type { IndexType } from "@/types";
+import { isMaterialKind, MATERIAL_KINDS } from "@/entity/material";
+import type { ContentIndexType, IndexType } from "@/types";
 
 /** 内容实体类型 → 面板呈现（标签/类型色/图标）与跳转目标模块 */
 export const CONTENT_TYPES: Record<
@@ -39,9 +42,19 @@ export const CONTENT_TYPES: Record<
     icon: FolderKanban,
   },
   "diary-daily": { label: "日记", navKey: "diary", tag: "bg-warn-soft text-warn", icon: PenLine },
+  // 外部材料：命中后经 openMaterialTarget 打开到原处，navKey 只在无法定位时兜底
+  excerpt: { label: "划线", navKey: "weread", tag: "bg-tag-2-soft text-tag-2", icon: Highlighter },
+  "pdf-annotation": {
+    label: "PDF 标注",
+    navKey: "pdfs",
+    tag: "bg-tag-1-soft text-tag-1",
+    icon: FileText,
+  },
+  "web-clip": { label: "剪藏", navKey: "projects", tag: "bg-tag-3-soft text-tag-3", icon: Globe },
 };
 
-export type PaletteScope = IndexType | "cmd";
+/** 「摘录」一个范围覆盖三类外部材料 */
+export type PaletteScope = ContentIndexType | "material" | "cmd";
 
 /** chips 行顺序：全部由空 scopes 集表达，不单列 */
 export const SCOPE_ORDER: PaletteScope[] = [
@@ -49,15 +62,29 @@ export const SCOPE_ORDER: PaletteScope[] = [
   "article",
   "project-item",
   "diary-daily",
+  "material",
   "cmd",
 ];
 
+/** 范围 → 检索的索引类型（命令范围不检索内容） */
+export function scopeTypes(scope: PaletteScope): IndexType[] {
+  if (scope === "cmd") return [];
+  return scope === "material" ? [...MATERIAL_KINDS] : [scope];
+}
+
+/** 结果类型归到哪个范围 chip（三类材料都算「摘录」） */
+export function scopeOfType(type: IndexType): PaletteScope {
+  return isMaterialKind(type) ? "material" : type;
+}
+
 export function scopeLabel(scope: PaletteScope): string {
-  return scope === "cmd" ? "命令与页面" : CONTENT_TYPES[scope].label;
+  if (scope === "cmd") return "命令与页面";
+  return scope === "material" ? "摘录" : CONTENT_TYPES[scope].label;
 }
 
 export function scopeIcon(scope: PaletteScope): LucideIcon {
-  return scope === "cmd" ? Command : CONTENT_TYPES[scope].icon;
+  if (scope === "cmd") return Command;
+  return scope === "material" ? Highlighter : CONTENT_TYPES[scope].icon;
 }
 
 /* ---------- 命令源 ---------- */

@@ -48,6 +48,7 @@ const mockContext = vi.hoisted(() => {
         return row ? { updateTime: row.update_time } : null;
       }),
       indexContent: vi.fn(async () => true),
+      removeIndexesNotIn: vi.fn((_db: unknown, _keep: Set<string>, _types: readonly string[]) => 0),
       clearTableData: vi.fn(),
       initTableByVecLength: vi.fn(),
     },
@@ -66,6 +67,10 @@ vi.mock("../tables/article", () => ({
 vi.mock("../tables/project", () => ({ default: { getAllProjectItems: () => [] } }));
 vi.mock("../tables/diary", () => ({ default: { getAllDiaryEntries: () => [] } }));
 vi.mock("../tables/vec-document", () => ({ default: mockContext.vecTableMock }));
+vi.mock("../material-index", () => ({
+  MATERIAL_INDEX_TYPES: ["excerpt", "pdf-annotation", "web-clip"],
+  listMaterialIndexDocs: () => [{ id: 9, type: "excerpt", content: "一句划线", updateTime: 10 }],
+}));
 vi.mock("@/utils/markdown.ts", () => ({
   getMarkdown: (content: unknown) => (typeof content === "string" ? content : ""),
 }));
@@ -101,8 +106,9 @@ describe("MainContentVecIndexQueue 索引状态", () => {
   it("统计按 已索引 / 待更新 / 未索引 分桶，空正文不计入", async () => {
     const stats = await mainContentVecIndexQueue.getIndexStats("data.db");
 
-    expect(stats).toMatchObject({ total: 4, indexed: 2, outdated: 1, unindexed: 1 });
+    expect(stats).toMatchObject({ total: 5, indexed: 2, outdated: 1, unindexed: 2 });
     expect(stats?.byType.card).toEqual({ total: 3, indexed: 1, outdated: 1, unindexed: 1 });
+    expect(stats?.byType.excerpt).toEqual({ total: 1, indexed: 0, outdated: 0, unindexed: 1 });
     expect(stats?.byType.article).toEqual({ total: 1, indexed: 1, outdated: 0, unindexed: 0 });
   });
 
@@ -119,8 +125,12 @@ describe("MainContentVecIndexQueue 索引状态", () => {
     });
     unsubscribe();
 
-    expect(result).toMatchObject({ queued: 2, indexed: 2, stale: false });
-    expect(mockContext.vecTableMock.indexContent).toHaveBeenCalledTimes(2);
+    expect(result).toMatchObject({ queued: 3, indexed: 3, stale: false });
+    expect(mockContext.vecTableMock.indexContent).toHaveBeenCalledTimes(3);
+    // 对账清理：候选集合（含材料）之外的向量被删
+    const [, keep, types] = mockContext.vecTableMock.removeIndexesNotIn.mock.calls.at(-1)!;
+    expect([...keep].sort()).toEqual(["article:1", "card:1", "card:2", "card:3", "excerpt:9"]);
+    expect(types).toContain("web-clip");
     expect(phases[0]).toBe("collecting");
     expect(phases).toContain("indexing");
     expect(phases.at(-1)).toBe("done");
@@ -130,8 +140,8 @@ describe("MainContentVecIndexQueue 索引状态", () => {
     expect(lastRun).toMatchObject({
       reason: "manual",
       phase: "done",
-      queued: 2,
-      indexed: 2,
+      queued: 3,
+      indexed: 3,
       failed: 0,
     });
     expect(lastRun?.finishedAt).toBeTypeOf("number");

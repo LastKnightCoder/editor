@@ -39,9 +39,19 @@ const MAIN_CONTENT_WRITE_EVENTS = new Set([
   "create-diary-segment",
   "update-diary-segment",
   "create-diary-moment",
+  // 外部材料（KL-037）：摘录、PDF 标注、剪藏
+  "weread:excerpts-changed",
+  "excerpt:sync-web-page",
+  "add-pdf-annotation",
+  "update-pdf-annotation",
+  "delete-pdf-annotation",
+  "delete-pdf",
+  "web-clip:create",
+  "web-clip:update",
+  "lineage:record",
 ]);
 
-/** 会改变卡片 / 文章 / 项目文档 / 日记正文的写命令 */
+/** 会改变卡片 / 文章 / 项目文档 / 日记正文或外部材料的写命令 */
 export const isMainContentWriteEvent = (eventName: string) =>
   MAIN_CONTENT_WRITE_EVENTS.has(eventName);
 

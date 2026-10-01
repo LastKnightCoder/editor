@@ -8,6 +8,7 @@ import ArticleTable from "./article";
 import ProjectTable from "./project";
 import DiaryTable from "./diary";
 import VecDocumentTable from "./vec-document";
+import { searchResultDetails } from "../search-details";
 import { getMarkdown } from "@/utils/markdown.ts";
 import { smartChunk } from "../../utils/smart-chunk";
 import {
@@ -217,6 +218,27 @@ class FTSTable {
 
     stmt.run(prefixedId);
     return true;
+  }
+
+  /**
+   * 对账清理：删除这些类型里不在 keep（`type:id`）中的索引——实体已删、摘录软删、剪藏变孤儿。
+   * 返回删除的文档数。
+   */
+  static removeIndexesNotIn(db: Database.Database, keep: Set<string>, types: readonly string[]) {
+    if (!this.hasTable(db, "content_fts") || types.length === 0) return 0;
+    const rows = db
+      .prepare(
+        `SELECT DISTINCT prefixed_id FROM content_fts WHERE type IN (${types.map(() => "?").join(",")})`
+      )
+      .all(...types) as Array<{ prefixed_id: string }>;
+    const remove = db.prepare(`DELETE FROM content_fts WHERE prefixed_id = ?`);
+    let removed = 0;
+    for (const row of rows) {
+      if (keep.has(row.prefixed_id)) continue;
+      remove.run(row.prefixed_id);
+      removed += 1;
+    }
+    return removed;
   }
 
   static removeIndexByIdAndType(db: Database.Database, id: number, type: IndexType) {
@@ -484,41 +506,15 @@ class FTSTable {
     const detailedResults = [];
 
     for (const result of results) {
-      let details = null;
-
-      switch (result.type) {
-        case "card":
-          details = CardTable.getCardById(db, result.id);
-          break;
-        case "article":
-          details = ArticleTable.getArticleById(db, result.id);
-          break;
-        case "project-item":
-          details = ProjectTable.getProjectItem(db, result.id);
-          break;
-        case "diary-daily": {
-          const diaryEntry = DiaryTable.getDiaryEntryById(db, result.id);
-          if (diaryEntry) {
-            details = {
-              ...diaryEntry,
-              contentId: diaryEntry.segments[0]?.contentId ?? 0,
-              title: DiaryTable.getDiarySearchTitle(diaryEntry),
-            };
-          }
-          break;
-        }
-        default:
-          break;
-      }
+      const details = searchResultDetails(db, result.type, result.id);
 
       if (details) {
         detailedResults.push({
           ...result,
           ...details,
           type: result.type,
-          // @ts-ignore
-          title: details.title || "",
-          content: details.content || [],
+          title: details.title,
+          content: details.content,
           updateTime: result.updateTime,
         });
       }
