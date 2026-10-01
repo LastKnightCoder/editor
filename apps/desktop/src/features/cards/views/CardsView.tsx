@@ -1,13 +1,13 @@
 /**
  * 卡片库主视图 · 一整张纸（mockups/cards/plan-sheet.html 方案 B 定稿）：
- * 纸顶工具栏（标题 / 当前标签 + 摘要 + 导入 / 新建）→ 分类胶囊 → 纸内三视图（卡片墙 / 图谱 / 表格）。
+ * 纸顶工具栏（标题 / 当前标签 + 摘要 + 导入 / 新建）→ 分类胶囊 → 纸内两视图（卡片墙 / 表格）。
  *
  * 筛选：标签在侧栏「卡片库」入口的子项里（CardsNav 层级树，页面参数 id），页内不放标签树；
- * 分类（4 个，常用且少）留在纸顶胶囊组，按库记忆。两者叠加，三视图同一套筛选——
- * 卡片墙只列命中、图谱高亮命中其余淡出、表格经 CardDatabaseView 外部查询收窄。
+ * 分类（4 个，常用且少）留在纸顶胶囊组，按库记忆。两者叠加，两视图同一套筛选——
+ * 卡片墙只列命中、表格经 CardDatabaseView 外部查询收窄。
  *
  * 视图分工：卡片墙 = 等高网格 + 时间分组 + 行级虚拟滚动（本域实现）；
- * 图谱 = 既有 LinkGraph 复用；表格 = 既有 CardDatabaseView（Database 组件）复用。
+ * 表格 = 既有 CardDatabaseView（Database 组件）复用。图谱已移到全局知识地图（KL-022）。
  * 视图切换在标题栏面包屑（「卡片库 / [卡片墙 ▾]」，usePageBreadcrumb 注入）。
  * 不设页内搜索——卡片没有标题，语义检索由全局命令面板（Ctrl+K）承担。
  */
@@ -44,7 +44,6 @@ import { CardWallList } from "../components/CardWallList";
 import { CardPreviewDialog } from "../components/CardPreviewDialog";
 import { CardViewSwitcher } from "../components/CardViewSwitcher";
 import { CreateCardDialog } from "../components/CreateCardDialog";
-import { CardGraphSection } from "../components/CardGraphSection";
 import { CATEGORY_COLORS } from "../categoryColors";
 import type { CardFilter, CardItemActions } from "../types";
 import {
@@ -85,7 +84,6 @@ export function CardsView() {
   const clearTag = () => navigator.push("cards", { id: "" });
   const resetScrollKey = JSON.stringify([category, tag]);
   const [previewCardId, setPreviewCardId] = useState<number | null>(null);
-  const openPreview = useCallback((card: ICard) => setPreviewCardId(card.id), []);
   const [creating, setCreating] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ICard | null>(null);
   const [presenting, setPresenting] = useState<ICard | null>(null);
@@ -96,7 +94,7 @@ export function CardsView() {
   /** 数据库视图删除确认桥：其 onDeleteCard 约定 Promise resolve 即删行、reject 即取消 */
   const deleteBridge = useRef<{ resolve(): void; reject(error: Error): void } | null>(null);
 
-  /* sorted = 排序全集（图谱全集 / 表格 allCards），filtered = 分类 / 标签过滤结果 */
+  /* sorted = 排序全集（表格 allCards），filtered = 分类 / 标签过滤结果 */
   const sorted = useMemo(() => sortCards(feed.cards), [feed.cards]);
   const filtered = useMemo(() => filterCards(feed.cards, filter), [feed.cards, filter]);
   const categoryCount = useMemo(() => {
@@ -105,11 +103,6 @@ export function CardsView() {
     return counts;
   }, [feed.cards]);
   const filtering = category !== "all" || Boolean(tag);
-  /* 图谱的筛选命中：没在筛选（「全部」）时为 null，图谱就是平时的样子，不是「全员命中」 */
-  const highlightIds = useMemo(
-    () => (filtering ? filtered.map(card => card.id) : null),
-    [filtering, filtered]
-  );
   /* 摘要跟随筛选：筛选中读命中集，否则读全集 */
   const summaryCards = filtering ? filtered : feed.cards;
   const totalWords = useMemo(
@@ -334,22 +327,6 @@ export function CardsView() {
               <CardWallList cards={filtered} actions={actions} resetScrollKey={resetScrollKey} />
             )}
           </div>
-        )}
-        {view === "graph" && (
-          <CardGraphSection
-            cards={sorted}
-            highlightIds={highlightIds}
-            onOpenCard={openPreview}
-            enableHoverPreview={
-              previewCardId === null &&
-              !creating &&
-              pendingDelete === null &&
-              !presenting &&
-              !exportingImage &&
-              !exportingEpub &&
-              !exportingPdf
-            }
-          />
         )}
         {view === "database" && (
           <div className="flex min-h-0 flex-1 flex-col">

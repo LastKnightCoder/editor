@@ -1,5 +1,5 @@
 /**
- * 图谱入场动画的时机：第一次进入图谱自动播一次；之后卡片数每跨过一个里程碑，
+ * 知识地图入场动画的时机：第一次进入地图自动播一次；之后节点数每跨过一个里程碑，
  * 说明行换成一句邀请（点了才播，不自动播）。看过的里程碑按库记在本地，重启不重复。
  */
 
@@ -56,6 +56,6 @@ export const useGraphMilestoneStore = create<GraphMilestoneState>()(
           },
         })),
     }),
-    { name: "tau-cards-graph-milestones", version: 1 }
+    { name: "tau-knowledge-map-milestones", version: 1 }
   )
 );

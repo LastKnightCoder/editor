@@ -1,17 +1,16 @@
 /**
  * 卡片库视图速切器：经 usePageBreadcrumb 挂在标题栏面包屑位（「卡片库 / [卡片墙 ▾]」），
- * 三视图互斥。浮层走 Menu 命令项（选中即关并还焦，键盘导航 / Esc / 外点由 primitives 内建），
+ * 两视图互斥（图谱已移到全局知识地图）。浮层走 Menu 命令项（选中即关并还焦，键盘导航 / Esc / 外点由 primitives 内建），
  * 当前视图以 accent 图标 + 文字高亮标记。
  */
 
 import { useState } from "react";
-import { ChevronDown, Layers, Share2, Table2 } from "lucide-react";
+import { ChevronDown, Layers, Table2 } from "lucide-react";
 import { Menu, cn } from "@tau/ui";
 import type { CardsViewMode } from "../preferences";
 
 const VIEW_OPTIONS: { key: CardsViewMode; label: string; icon: typeof Layers }[] = [
   { key: "wall", label: "卡片墙", icon: Layers },
-  { key: "graph", label: "图谱", icon: Share2 },
   { key: "database", label: "表格", icon: Table2 },
 ];
 

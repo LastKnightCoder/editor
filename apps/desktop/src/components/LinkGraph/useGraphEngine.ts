@@ -11,7 +11,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import type { KnowledgeMap } from "@/knowledge-map/types";
-import type { ICard } from "@/types";
 import { Camera } from "./core/camera";
 import type { ClusterInfo } from "./core/cluster";
 import { createLayout } from "./core/createLayout";
@@ -35,7 +34,7 @@ import {
   type PositionBackend,
 } from "./core/positionStore";
 import { buildTimeline, revealAt, shownCount, timeAt, type Timeline } from "./core/timeline";
-import type { GraphNode, GraphPalette, GraphScene } from "./core/types";
+import type { GraphNode, GraphPalette, GraphScene, GraphItem } from "./core/types";
 import { Canvas2DRenderer } from "./renderers/Canvas2DRenderer";
 
 /** 超过这个位移才算拖拽，否则算点击（避免手抖吞掉点击） */
@@ -56,8 +55,7 @@ export const EMPHASIS_FADE_MS = 120;
 const PERSIST_DEBOUNCE = 800;
 
 export interface GraphEngineOptions {
-  cards: ICard[];
-  getCardLinks: (card: ICard) => number[];
+  items: GraphItem[];
   /** 当前卡片（通常一两张）：accent 强调 */
   currentCardIds?: number[];
   /** 筛选命中；null / 不传表示没有筛选。命中的保持主题色，未命中的降淡 */
@@ -76,7 +74,7 @@ export interface GraphEngineOptions {
    * 传了就直接用它的坐标与主题画，不跑力布局与社区发现；不传退回链接图谱。
    */
   knowledgeMap?: KnowledgeMap | null;
-  onClickNode?: (card: ICard) => void;
+  onClickNode?: (item: GraphItem) => void;
   /**
    * 簇划分算完后回调一次（含主题簇、桥接、孤立卡片、模块度）。
    * 宿主据此做洞见提示；批次 6 的 AI 分析也从这里取上下文。
@@ -144,8 +142,7 @@ export interface GraphEngineHandle {
 
 export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
   const {
-    cards,
-    getCardLinks,
+    items,
     currentCardIds,
     filterCardIds,
     fitView,
@@ -179,7 +176,7 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentIdsRef = useRef<Set<number>>(new Set());
   const filterIdsRef = useRef<Set<number> | null>(null);
-  const cardsRef = useRef<ICard[]>(cards);
+  const itemsRef = useRef<GraphItem[]>(items);
   const fitOnNextSettle = useRef(fitView);
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const backendRef = useRef<PositionBackend>(undefined as unknown as PositionBackend);
@@ -273,8 +270,8 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
   );
 
   useEffect(() => {
-    cardsRef.current = cards;
-  }, [cards]);
+    itemsRef.current = items;
+  }, [items]);
 
   useEffect(() => {
     currentIdsRef.current = new Set(currentCardIds ?? []);
@@ -385,23 +382,23 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
 
   // ---- 构建场景：卡片拓扑变化时重建，坐标从旧场景继承
   const topologyKey = useMemo(() => {
-    const ids = new Set(cards.map(card => card.id));
-    const parts = cards
-      .map(card => {
-        const links = [...new Set(getCardLinks(card))]
-          .filter(id => ids.has(id) && id !== card.id)
+    const ids = new Set(items.map(item => item.id));
+    const parts = items
+      .map(item => {
+        const links = [...new Set(item.links)]
+          .filter(id => ids.has(id) && id !== item.id)
           .sort((a, b) => a - b);
-        return `${card.id}:${links.join("-")}`;
+        return `${item.key}:${item.id}:${links.join("-")}`;
       })
       .sort();
     return parts.join("|");
-  }, [cards, getCardLinks]);
+  }, [items]);
 
   useEffect(() => {
     const previous = sceneRef.current;
     const scene = knowledgeMap
-      ? buildMapScene(cardsRef.current, getCardLinks, knowledgeMap)
-      : buildScene(cardsRef.current, getCardLinks);
+      ? buildMapScene(itemsRef.current, knowledgeMap)
+      : buildScene(itemsRef.current);
     if (previous && !knowledgeMap) inheritPositions(scene, previous);
     sceneRef.current = scene;
     // 卡片集变了，旧时间轴对不上新节点：结束播放，回到完整的图
@@ -490,10 +487,9 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
       layoutRef.current?.destroy();
       layoutRef.current = null;
     };
-    // topologyKey 覆盖 cards + getCardLinks 的有效变化，cards 本体变动（正文编辑）不重建
+    // topologyKey 覆盖条目与连线的有效变化，条目本体变动（标题编辑）不重建
   }, [
     topologyKey,
-    getCardLinks,
     knowledgeMap,
     fitView,
     fitViewPadding,
@@ -711,8 +707,8 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
       }
       // 未位移 = 点击
       if (drag.node) {
-        const card = cardsRef.current.find(item => item.id === drag.node!.id);
-        if (card) onClickNode?.(card);
+        const item = itemsRef.current.find(entry => entry.id === drag.node!.id);
+        if (item) onClickNode?.(item);
       } else {
         clearHover();
       }

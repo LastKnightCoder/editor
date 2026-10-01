@@ -25,7 +25,7 @@ import {
   syncPlaceLimit,
   WAIT_FIRST_BUILD_CARDS,
 } from "@/knowledge-map/schedule";
-import type { KnowledgeMap } from "@/knowledge-map/types";
+import type { KnowledgeMap, KnowledgeMapItem } from "@/knowledge-map/types";
 import type { Module } from "../types/module";
 import type { KnowledgeMapWorkerResult } from "../workers/knowledge-map.worker";
 import databaseModule from "./database";
@@ -39,6 +39,8 @@ export type KnowledgeMapStatus = "missing" | "stale" | "ready" | "building";
 export interface KnowledgeMapPayload {
   status: KnowledgeMapStatus;
   map: KnowledgeMap | null;
+  /** 节点的展示信息；地图还没算出来时也有，渲染层据此先画链接图谱 */
+  items: KnowledgeMapItem[];
 }
 
 function runWorker(inputs: ReturnType<typeof KnowledgeMapTable.readInputs>): Promise<KnowledgeMap> {
@@ -147,21 +149,22 @@ class KnowledgeMapBuilder implements Module {
       if (map && !force && !this.building.has(dbName))
         map = this.reconcile(mainDb, indexDb, dbName, map);
       const status = this.status(mainDb, indexDb, dbName, map);
+      const items = KnowledgeMapTable.listItems(mainDb, indexDb);
       if (map && !force) {
         if (status === "stale")
           void this.rebuild(mainDb, indexDb, dbName).catch(error =>
             log.error("[KnowledgeMapBuilder] background rebuild failed:", error)
           );
-        return { status, map };
+        return { status, map, items };
       }
       const task = this.rebuild(mainDb, indexDb, dbName);
       if (!force && KnowledgeMapTable.listEntities(mainDb).length > WAIT_FIRST_BUILD_CARDS) {
         // 不 await：渲染层拿到 building 后退回链接图谱，并轮询等这次算完
         task.catch(error => log.error("[KnowledgeMapBuilder] first build failed:", error));
-        return { status: "building", map: null };
+        return { status: "building", map: null, items };
       }
       const fresh = await task;
-      return { status: "ready", map: fresh };
+      return { status: "ready", map: fresh, items };
     });
   }
 
