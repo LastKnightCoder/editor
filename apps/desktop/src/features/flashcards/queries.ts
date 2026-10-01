@@ -58,12 +58,20 @@ export interface FlashcardSnapshot {
   cards: Flashcard[];
 }
 
-async function fetchSnapshot(commands: typeof flashcardCommands): Promise<FlashcardSnapshot> {
-  const [decks, cards] = await Promise.all([
-    commands.listFlashcardDecks(),
-    commands.listFlashcards({}),
-  ]);
-  return { decks, cards };
+async function fetchSnapshot(
+  commands: typeof flashcardCommands,
+  database: string
+): Promise<FlashcardSnapshot> {
+  try {
+    const [decks, cards] = await Promise.all([
+      commands.listFlashcardDecks(),
+      commands.listFlashcards({}),
+    ]);
+    return { decks, cards };
+  } catch (error) {
+    console.error("[flashcards] 加载失败", { database }, error);
+    throw error;
+  }
 }
 
 export function useFlashcardSnapshot() {
@@ -71,7 +79,7 @@ export function useFlashcardSnapshot() {
   const connected = useDatabaseConnected();
   const query = useQuery({
     queryKey: flashcardKeys.snapshot(database),
-    queryFn: () => fetchSnapshot(commands),
+    queryFn: () => fetchSnapshot(commands, database),
     enabled: connected,
     staleTime: 30_000,
     refetchOnMount: "always",
