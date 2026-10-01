@@ -23,7 +23,7 @@ export function encodeTextLabel(text: string): { label: string; offsets: number[
               : `u${code.toString(16).padStart(4, "0")}`;
       label += "\\\\" + escaped;
     } else {
-      label += /[\\[\]*_`~<>!:{}&]/.test(char) ? "\\" + char : char;
+      label += char === "|" ? "&#124;" : /[\\[\]*_`~<>!:{}&]/.test(char) ? "\\" + char : char;
     }
     offsets.push(label.length);
   }
@@ -65,6 +65,7 @@ export function serializeUnknownText(leaf: Readonly<FormattedText>): LeafSeriali
       char => `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`
     )
     .replace(/&/g, "&amp;")
+    .replace(/\|/g, "&#124;")
     .replace(/\\/g, "&#92;")
     .replace(/"/g, "&quot;");
   const suffix = `]{type="formatted" json="${json}"}`;

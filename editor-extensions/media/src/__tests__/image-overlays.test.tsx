@@ -5,7 +5,7 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { expect, it, vi } from "vitest";
 import type { ImageCropTransform } from "../components/ImageCropEditor/geometry";
-import { Editor, createEditorKit, type EditorRef } from "@tau/editor";
+import { Editor, createEditorKit, defaultMenuExtension, type EditorRef } from "@tau/editor";
 import { IOverlayBackDismiss, type OverlayBackDismissProps } from "@tau/editor/api";
 import { IResourceService } from "@tau/shared/host-services";
 import { image, inlineImage, openMediaUrlInput } from "../index";
@@ -50,7 +50,7 @@ async function mount(upload: (file: File) => Promise<string>, inline = false) {
     return null;
   }
   const kit = createEditorKit({
-    extensions: [image, inlineImage],
+    extensions: [image, inlineImage, defaultMenuExtension],
     services: [
       register => register(IResourceService, { upload }),
       register => register(IEditorSlots, createDefaultEditorSlots()),
@@ -209,6 +209,68 @@ it("媒体更多菜单由核心聚合已有贡献并经命令执行", async () =
     const editDescription = vi.spyOn(actions, "showDescEditor");
     await act(async () => edit?.click());
     expect(editDescription).toHaveBeenCalledOnce();
+  } finally {
+    await view.dispose();
+  }
+});
+
+it("更多菜单打开后目标移动，删除仍只作用于原图片", async () => {
+  const view = await mount(async () => "uploaded");
+  try {
+    await view.render(false);
+    const frame = view.host.querySelector(".cursor-pointer.relative.overflow-hidden");
+    if (!frame) throw new Error("图片未挂载");
+    await act(async () => frame.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    await act(async () =>
+      view.host.querySelector<HTMLButtonElement>('button[aria-label="更多"]')?.click()
+    );
+    await act(async () =>
+      Transforms.insertNodes(
+        view.editor,
+        {
+          type: "paragraph",
+          children: [{ type: "formatted", text: "保留新增正文" }],
+        },
+        { at: [0] }
+      )
+    );
+    const remove = [...document.querySelectorAll<HTMLButtonElement>("button")].find(
+      button => button.textContent === "删除"
+    );
+    if (!remove) throw new Error("删除菜单未挂载");
+    await act(async () => remove.click());
+    expect(view.editor.children.some(node => node.type === "image")).toBe(false);
+    expect(JSON.stringify(view.editor.children)).toContain("保留新增正文");
+  } finally {
+    await view.dispose();
+  }
+});
+
+it.each(["Escape", "宿主返回"])("更多菜单通过%s关闭，释放登记并归还焦点", async source => {
+  const view = await mount(async () => "uploaded");
+  try {
+    await view.render(false);
+    const frame = view.host.querySelector(".cursor-pointer.relative.overflow-hidden");
+    if (!frame) throw new Error("图片未挂载");
+    await act(async () => frame.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    const more = view.host.querySelector<HTMLButtonElement>('button[aria-label="更多"]');
+    if (!more) throw new Error("更多按钮未挂载");
+    await act(async () => more.focus());
+    await act(async () => more.click());
+    const menu = document.querySelector<HTMLElement>('[role="menu"]');
+    if (!menu) throw new Error("菜单未挂载");
+    expect(document.activeElement).toBe(menu);
+    expect(view.dismissals.size).toBe(1);
+    await act(async () => {
+      if (source === "Escape")
+        menu.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })
+        );
+      else [...view.dismissals][0]();
+    });
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+    expect(view.dismissals.size).toBe(0);
+    expect(document.activeElement).toBe(more);
   } finally {
     await view.dispose();
   }

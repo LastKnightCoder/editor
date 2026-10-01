@@ -8,7 +8,7 @@ export interface HostedRequestState<TOptions, TResult> {
   /** 已挂载的渲染点（按挂载顺序），队首负责渲染 */
   hosts: symbol[];
   /** 发起请求；已有未决的请求时按取消结算，只保留最新一次 */
-  request: (options: TOptions) => Promise<TResult>;
+  request: (options: TOptions & { signal?: AbortSignal }) => Promise<TResult>;
   settle: (result: TResult) => void;
   attachHost: (host: symbol) => void;
   detachHost: (host: symbol) => void;
@@ -24,12 +24,23 @@ export function createHostedRequestStore<TOptions extends object, TResult>(cance
     hosts: [],
     request: options =>
       new Promise<TResult>(resolve => {
-        if (get().hosts.length === 0) {
+        if (get().hosts.length === 0 || options.signal?.aborted) {
           resolve(cancelled);
           return;
         }
         get().pending?.resolve(cancelled);
-        set({ pending: { ...options, resolve } });
+        const abort = () => {
+          if (get().pending === pending) get().settle(cancelled);
+        };
+        const pending = {
+          ...options,
+          resolve: (result: TResult) => {
+            options.signal?.removeEventListener("abort", abort);
+            resolve(result);
+          },
+        };
+        options.signal?.addEventListener("abort", abort, { once: true });
+        set({ pending });
       }),
     settle: result => {
       const { pending } = get();

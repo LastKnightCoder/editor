@@ -7,6 +7,7 @@ import { resolveBlockMenuItems } from "../resolveMenu";
 import { createEditorKit } from "../../kit/EditorKit";
 import { createCommandDispatcher } from "../../api/command";
 import { standardExtensions } from "../../../../../editor-extensions/standard";
+import { ReactEditor } from "slate-react";
 
 const kit = createEditorKit({ extensions: standardExtensions });
 const dispatcher = createCommandDispatcher(kit.assembly.commands, {
@@ -54,6 +55,26 @@ const keysOf = (items: ReturnType<typeof resolveBlockMenuItems>): string[] =>
   items.flatMap(item => [item.key, ...(item.children ? keysOf(item.children) : [])]);
 
 describe("内核默认菜单 · block 组", () => {
+  it.each(["tau.block.delete", "tau.block.move-up", "tau.block.move-down"])(
+    "%s 拒绝被替代的目标和只读调用",
+    id => {
+      const editor = withValue([paragraph("前"), paragraph("目标"), paragraph("后")]);
+      const target = editor.children[1] as Element;
+      Transforms.removeNodes(editor, { at: [1] });
+      Transforms.insertNodes(editor, paragraph("替代内容"), { at: [1] });
+      const before = JSON.stringify(editor.children);
+      runCommand(editor, id, target, undefined, [1]);
+      expect(JSON.stringify(editor.children)).toBe(before);
+      const readonly = vi.spyOn(ReactEditor, "isReadOnly").mockReturnValue(true);
+      try {
+        runCommand(editor, id, editor.children[1] as Element, undefined, [1]);
+        expect(JSON.stringify(editor.children)).toBe(before);
+      } finally {
+        readonly.mockRestore();
+      }
+    }
+  );
+
   it.each(["失败", "移动", "删除", "修改"] as const)(
     "剪切等待期间目标%s时只处理已复制的原节点",
     async scenario => {

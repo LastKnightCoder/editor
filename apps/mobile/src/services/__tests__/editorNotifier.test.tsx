@@ -90,6 +90,25 @@ describe("mobileEditorNotifier", () => {
   });
 
   describe("输入", () => {
+    it("发起者取消只关闭对应请求，旧信号不影响后续输入", async () => {
+      const controller = new AbortController();
+      let first!: Promise<string | null>;
+      act(() => {
+        first = mobileEditorNotifier.prompt({ title: "输入", signal: controller.signal });
+      });
+      act(() => controller.abort());
+      await expect(first).resolves.toBeNull();
+      expect(useEditorPromptStore.getState().pending).toBeNull();
+      let next!: Promise<string | null>;
+      act(() => {
+        next = mobileEditorNotifier.prompt({ title: "下一次" });
+      });
+      act(() => controller.abort());
+      expect(useEditorPromptStore.getState().pending?.title).toBe("下一次");
+      act(() => useEditorPromptStore.getState().settle("完成"));
+      await expect(next).resolves.toBe("完成");
+    });
+
     let root: Root;
     let container: HTMLDivElement;
 

@@ -33,6 +33,8 @@ export interface EditorConfirmOptions {
 }
 
 export interface EditorPromptOptions {
+  /** 发起编辑器隐藏、卸载或换源时取消；宿主须关闭对应输入框并返回 null。 */
+  signal?: AbortSignal;
   title: string;
   placeholder?: string;
   defaultValue?: string;

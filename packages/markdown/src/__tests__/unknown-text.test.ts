@@ -19,6 +19,7 @@ const documentOf = (text: string, extra: Record<string, unknown> = {}): Descenda
 describe("未知文本字段保真", () => {
   it.each([
     "普通正文",
+    "a|b",
     "a[b]\\c*粗体*_下划线_`code`",
     '引号 " & <tag>',
     ":tag{key=value}&amp;",
@@ -41,7 +42,7 @@ describe("未知文本字段保真", () => {
     expect(md.getMarkdown(md.importFromMarkdown(normal))).toBe(normal);
   });
 
-  it.each(["a[b]\\c", "一\n\n二\r\n三\t四", "🙂中文", "\u200B\u200D", ""])(
+  it.each(["a[b]\\c", "a|b", "一\n\n二\r\n三\t四", "🙂中文", "\u200B\u200D", ""])(
     "转义标签每个 UTF-16 边界双向精确映射：%s",
     text => {
       const value = documentOf(text);
