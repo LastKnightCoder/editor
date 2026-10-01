@@ -79,7 +79,7 @@ export function mapNodeRadius(degree: number): number {
 
 /* ───────── 加权图 ───────── */
 
-interface WeightedGraph {
+export interface WeightedGraph {
   count: number;
   edges: Array<{ source: number; target: number; weight: number; explicit: boolean }>;
   /** 每个下标的加权邻接，合并阶段按边权找「最亲近」的主题用 */
@@ -389,6 +389,70 @@ function splitIncoherent(
     }
   }
 }
+
+/**
+ * 一个名字（tag 首段，或无 tag 项目文档的项目名）的成员里，至少这么多比例的连接权重要落在彼此之间，
+ * 才算「自成一体」，可以从所在大主题里独立出来。
+ */
+const LABEL_COHESION = 0.5;
+
+/**
+ * 按名字独立：大主题里某个名字有足够多的成员、且这些成员主要彼此相连，就独立成大主题。
+ *
+ * 补 splitIncoherent 的盲区：那里看「拆了之后整张图的名字准了多少」，块越小越拉不动整体，
+ * 于是 TypeScript、一整个 Docker 教程项目这类边界清楚的小主题，始终埋在 JavaScript 底下。
+ * 这里只看这群成员自己：够不够多、是不是主要连着彼此。与所在大主题同名的不动。
+ */
+export function promoteCohesiveLabels(
+  assignment: Int32Array,
+  graph: WeightedGraph,
+  headsOf: (node: number) => string[],
+  labelFor: (members: number[]) => string
+) {
+  let nextGroup = Math.max(-1, ...assignment) + 1;
+  const minTopic = minTopicSize(graph.count);
+  for (const [, members] of groupsOf(assignment)) {
+    if (members.length < minTopic * 2) continue;
+    const parentLabel = labelFor(members);
+    const byHead = new Map<string, number[]>();
+    for (const node of members) {
+      for (const head of new Set(headsOf(node))) {
+        if (!head || head === parentLabel) continue;
+        const list = byHead.get(head) ?? [];
+        list.push(node);
+        byHead.set(head, list);
+      }
+    }
+    const candidates = [...byHead.entries()]
+      .filter(([, nodes]) => nodes.length >= minTopic)
+      .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
+    const moved = new Set<number>();
+    for (const [, nodes] of candidates) {
+      const group = nodes.filter(node => !moved.has(node));
+      if (group.length < minTopic || members.length - moved.size - group.length < minTopic)
+        continue;
+      const inside = new Set(group);
+      let internal = 0;
+      let total = 0;
+      for (const node of group) {
+        for (const [other, weight] of graph.adjacency[node]) {
+          total += weight;
+          if (inside.has(other)) internal += weight;
+        }
+      }
+      if (total <= 0 || internal / total < LABEL_COHESION) continue;
+      const id = nextGroup++;
+      for (const node of group) {
+        assignment[node] = id;
+        moved.add(node);
+      }
+    }
+  }
+}
+
+/** 无名子主题里带父主题名的成员不到这个比例，就归为「其它」 */
+const MISC_SUBTOPIC_SHARE = 0.5;
+export const MISC_SUBTOPIC_LABEL = "其它";
 
 /** 命名后同名合并：两个都叫「JavaScript」的主题在用户眼里就是一个 */
 function mergeByLabel(
@@ -882,6 +946,12 @@ export function computeKnowledgeMap(
   mergeByLabel(topicOf, labelFor);
   mergeStronglyConnected(topicOf, graph);
   splitIncoherent(topicOf, graph, labelFor, headCoverage);
+  promoteCohesiveLabels(
+    topicOf,
+    graph,
+    node => cards[node].tags.map(tag => tagPath(tag)[0]),
+    labelFor
+  );
   // 合并与拆分后主题成分变了，名字要按新成员重取，并再做一次同名合并
   const labelOf = mergeByLabel(topicOf, labelFor);
   const groups = groupsOf(topicOf);
@@ -918,7 +988,11 @@ export function computeKnowledgeMap(
       (a, b) => b[1].length - a[1].length || a[0] - b[0]
     )) {
       const nodes = local.map(i => members[i]);
-      const label = subtopicLabel(nodes.map(labelMember), parentLabel);
+      const label =
+        subtopicLabel(nodes.map(labelMember), parentLabel) ||
+        // 取不出名字、且多数成员并不属于父主题：是挂在这里的杂项，明说「其它」，
+        // 不让它冒充父主题的一部分；等同类内容攒够了会自己独立出去
+        (headCoverage(nodes, parentLabel) < MISC_SUBTOPIC_SHARE ? MISC_SUBTOPIC_LABEL : "");
       if (!label) {
         unnamed.push(nodes);
         continue;

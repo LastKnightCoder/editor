@@ -5,7 +5,15 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { computeKnowledgeMap, placeIncrementally, topicAffinity, topicTarget } from "../compute";
+import {
+  MISC_SUBTOPIC_LABEL,
+  computeKnowledgeMap,
+  placeIncrementally,
+  promoteCohesiveLabels,
+  topicAffinity,
+  topicTarget,
+  type WeightedGraph,
+} from "../compute";
 import { subtopicLabel, tagPath, topicLabel } from "../labels";
 import { NO_COLOR_SLOT, TOPIC_PALETTE_SIZE, type KnowledgeMapNodeInput } from "../types";
 import { capInDegree, knn, meanPool, type CardVector } from "../vectors";
@@ -372,13 +380,13 @@ describe("computeKnowledgeMap：多种数据形状", () => {
     // 不丢卡：每张卡都在地图上，坐标有限
     expect(result.nodes.map(n => n.key).sort()).toEqual(cards.map(c => c.key).sort());
     for (const node of result.nodes) expect(Number.isFinite(node.x + node.y)).toBe(true);
-    // 名字只来自 tag：大主题名是某个 tag 首段，子主题名是某个 tag 的某一段
+    // 名字只来自 tag：大主题名是某个 tag 首段，子主题名是某个 tag 的某一段（或固定的「其它」）
     const heads = new Set(cards.flatMap(c => c.tags.map(t => tagPath(t)[0])));
     const parts = new Set(cards.flatMap(c => c.tags.flatMap(t => tagPath(t))));
     const tops = result.topics.filter(t => t.parent === -1);
     for (const t of tops) if (t.label) expect(heads.has(t.label)).toBe(true);
     for (const t of result.topics.filter(t => t.parent !== -1)) {
-      if (t.label) expect(parts.has(t.label)).toBe(true);
+      if (t.label && t.label !== MISC_SUBTOPIC_LABEL) expect(parts.has(t.label)).toBe(true);
     }
     // 色槽：每个主题都有颜色，前 TOPIC_PALETTE_SIZE 大的互不相同
     const ranked = [...tops].sort((a, b) => b.size - a.size || a.id - b.id);
@@ -614,5 +622,48 @@ describe("capInDegree", () => {
   it("没有超限时原样返回", () => {
     const neighbors = [[{ index: 1, similarity: 0.6 }], [{ index: 0, similarity: 0.6 }]];
     expect(capInDegree(neighbors, 2)).toBe(neighbors);
+  });
+});
+
+describe("promoteCohesiveLabels", () => {
+  /** 按给定边建一张图：组内两两相连权重 1，组间每对 weight */
+  const graphOf = (count: number, edges: Array<[number, number, number]>): WeightedGraph => {
+    const adjacency = Array.from({ length: count }, () => new Map<number, number>());
+    for (const [a, b, w] of edges) {
+      adjacency[a].set(b, (adjacency[a].get(b) ?? 0) + w);
+      adjacency[b].set(a, (adjacency[b].get(a) ?? 0) + w);
+    }
+    return {
+      count,
+      adjacency,
+      edges: edges.map(([source, target, weight]) => ({ source, target, weight, explicit: false })),
+      linkDegree: new Int32Array(count),
+    };
+  };
+  const clique = (from: number, to: number): Array<[number, number, number]> => {
+    const out: Array<[number, number, number]> = [];
+    for (let a = from; a < to; a++) for (let b = a + 1; b < to; b++) out.push([a, b, 1]);
+    return out;
+  };
+  // 20 个 JavaScript 节点 + 8 个 TypeScript 节点，同在一个主题里；最小主题规模为 4
+  const heads = (node: number) => [node < 20 ? "JavaScript" : "TypeScript"];
+  const labelFor = (members: number[]) =>
+    members.filter(n => n < 20).length >= members.length / 2 ? "JavaScript" : "TypeScript";
+
+  it("自成一体（连接主要在彼此之间）的名字独立成主题", () => {
+    const graph = graphOf(28, [...clique(0, 20), ...clique(20, 28), [0, 20, 1], [1, 21, 1]]);
+    const assignment = new Int32Array(28).fill(0);
+    promoteCohesiveLabels(assignment, graph, heads, labelFor);
+    expect(new Set(assignment.slice(20))).toEqual(new Set([1]));
+    expect(new Set(assignment.slice(0, 20))).toEqual(new Set([0]));
+  });
+
+  it("成员主要连向别处时不独立", () => {
+    const edges: Array<[number, number, number]> = [...clique(0, 20)];
+    for (let t = 20; t < 28; t++) for (let j = 0; j < 4; j++) edges.push([t, j, 1]);
+    const graph = graphOf(28, edges);
+    const assignment = new Int32Array(28).fill(0);
+    promoteCohesiveLabels(assignment, graph, heads, labelFor);
+    expect(new Set(assignment)).toEqual(new Set([0]));
   });
 });

@@ -215,6 +215,31 @@ export default class KnowledgeMapTable {
         if (to !== undefined && to !== from) links[from].add(to);
       }
     }
+    // 项目文档树：子文档连到最近的、在地图上的祖先（中间隔着空文档时跨过去）。
+    // 这是用户亲手搭的结构，比语义近邻更可靠地说明「它们属于同一处」
+    const parentOf = new Map(
+      (
+        mainDb.prepare("SELECT id, parents FROM project_item").all() as Array<{
+          id: number;
+          parents: string | null;
+        }>
+      ).map(row => [row.id, Number(parseJson<unknown[]>(row.parents, [])[0]) || 0])
+    );
+    for (const entity of entities) {
+      if (entity.kind !== "project-item") continue;
+      const from = indexOfKey.get(entity.key)!;
+      const seen = new Set([entity.id]);
+      let ancestor = parentOf.get(entity.id) ?? 0;
+      while (ancestor && !seen.has(ancestor)) {
+        const to = indexOfKey.get(`project-item:${ancestor}`);
+        if (to !== undefined) {
+          links[from].add(to);
+          break;
+        }
+        seen.add(ancestor);
+        ancestor = parentOf.get(ancestor) ?? 0;
+      }
+    }
     // 正文里的内联引用（迭代 1 的引用索引，覆盖全部类型）
     if (hasTable(indexDb, "entity_refs")) {
       for (const row of indexDb
