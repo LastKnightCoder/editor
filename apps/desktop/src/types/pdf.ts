@@ -76,7 +76,10 @@ export interface PdfAnnotation {
   areaData?: AreaAnnotationData;
 }
 
-export type CreatePdfAnnotation = Omit<PdfAnnotation, "id" | "createTime" | "updateTime">;
+export type CreatePdfAnnotation = Omit<PdfAnnotation, "id" | "createTime" | "updateTime"> & {
+  /** 撤销删除时带回原 id，摘录 / 谱系等按 id 的指向不断（KL-036）；被占用时退回新 id */
+  id?: number;
+};
 
 export interface PdfIndexStatus {
   pdfId: number;
