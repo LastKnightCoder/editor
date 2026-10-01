@@ -83,6 +83,8 @@ export interface ReaderLayoutProps {
   mainDbName: string;
   index: ReturnType<typeof usePdfIndex>;
   jumpTarget?: PdfCitationTarget | null;
+  /** 定位到某条标注（材料打开到原处）；标注加载、布局就绪后跳一次 */
+  jumpAnnotationId?: number | null;
   onPageChange?: (page: number) => void;
   /** 不传则隐藏所有「问 AI」入口 */
   onAskAI?: (quote: PdfQuote) => void;
@@ -129,6 +131,7 @@ export function ReaderLayout({
   mainDbName,
   index,
   jumpTarget,
+  jumpAnnotationId,
   onPageChange,
   onAskAI,
   leftToggleInHud,
@@ -303,6 +306,19 @@ export function ReaderLayout({
       annotationCap?.selectAnnotation(annotationPage(record) - 1, record.annotation.id);
     }
   });
+
+  const pendingAnnotation = useRef<number | null>(null);
+  useEffect(() => {
+    pendingAnnotation.current = jumpAnnotationId ?? null;
+  }, [jumpAnnotationId]);
+  useEffect(() => {
+    const id = pendingAnnotation.current;
+    if (id == null || !layoutReady) return;
+    const record = records.find(r => r.id === id);
+    if (!record) return;
+    pendingAnnotation.current = null;
+    jumpToRecord(record);
+  }, [jumpAnnotationId, layoutReady, records, jumpToRecord]);
 
   /* ───────── 书签 ───────── */
 

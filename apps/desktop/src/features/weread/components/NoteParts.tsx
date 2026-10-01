@@ -181,7 +181,10 @@ function Thought({ paragraphs, className }: { paragraphs: string[]; className?: 
 function NoteItem({ note }: { note: BookNote }) {
   const text = [...note.paragraphs, ...(note.review.length ? ["", ...note.review] : [])].join("\n");
   return (
-    <div className="bg-hover hover:bg-press group relative rounded-[var(--tau-radius-md)] px-4 py-3 transition-colors duration-150">
+    <div
+      data-note-id={note.id}
+      className="bg-hover hover:bg-press group relative rounded-[var(--tau-radius-md)] px-4 py-3 transition-colors duration-150"
+    >
       {note.paragraphs.length > 0 && (
         <div className={cn(SERIF, "text-ink-1 text-[15.5px] leading-[1.95]")}>
           {note.paragraphs.map((p, i) => (
