@@ -75,7 +75,9 @@ const ProjectView = ({ projectId, itemId }: ProjectViewProps) => {
   }
 
   // 文档树：文档树与正文同装一张抬起的纸面（纸外 = 应用导航，纸内 = 本项目），
-  // 靠纸面边缘与全局侧栏分界；纸内两栏同底，仅文档树右缘一条 1px 淡线兼作拖拽边界提示
+  // 靠纸面边缘与全局侧栏分界；纸内两栏同底，仅文档树右缘一条 1px 淡线兼作拖拽边界提示。
+  // 纸面外距用外层 padding 而非 margin：margin-top 会穿过 PageHost 的块级包装折叠出去，
+  // 把包装整体下推、撑出壳层 main 的滚动条
   return (
     <ProjectContext.Provider
       value={{
@@ -87,17 +89,19 @@ const ProjectView = ({ projectId, itemId }: ProjectViewProps) => {
         clearDocumentAction,
       }}
     >
-      <div
-        ref={containerRef}
-        className="tau-sheet bg-surface shadow-card rounded-tau-lg relative mx-4 mb-4 mt-1 flex h-[calc(100%-20px)] overflow-hidden"
-      >
-        <div className="h-full overflow-hidden">
-          <ProjectList />
-        </div>
+      <div className="h-full px-4 pb-4 pt-1">
+        <div
+          ref={containerRef}
+          className="tau-sheet bg-surface shadow-card rounded-tau-lg relative flex h-full overflow-hidden"
+        >
+          <div className="h-full overflow-hidden">
+            <ProjectList />
+          </div>
 
-        <div className="flex h-full flex-1 flex-col overflow-hidden">
-          <div className="w-full flex-1 overflow-hidden">
-            <EditProjectView />
+          <div className="flex h-full flex-1 flex-col overflow-hidden">
+            <div className="w-full flex-1 overflow-hidden">
+              <EditProjectView />
+            </div>
           </div>
         </div>
       </div>
