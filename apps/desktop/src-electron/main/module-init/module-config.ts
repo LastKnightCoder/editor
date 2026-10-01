@@ -42,6 +42,7 @@ import mainContentFtsIndexQueue from "../modules/main-content-fts-index-queue";
 import mainContentVecIndexQueue from "../modules/main-content-vec-index-queue";
 import embeddingIndexOrchestrator from "../modules/embedding-index-orchestrator";
 import knowledgeMapBuilder from "../modules/knowledge-map-builder";
+import entityContextModule from "../modules/entity-context";
 import updaterModule from "../modules/updater";
 import pdfIndexQueue from "../modules/pdf-index-queue";
 import pdfIndexOrchestrator from "../modules/pdf-index-orchestrator";
@@ -319,6 +320,12 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "database"],
     init: () => knowledgeMapBuilder.init(),
+  },
+  {
+    name: "entity-context",
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["logger", "database"],
+    init: () => entityContextModule.init(),
   },
   {
     name: "main-content-vec-index-queue",
