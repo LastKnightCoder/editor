@@ -40,23 +40,27 @@ const Component = () => {
 | `ui`          | 应用设计系统控件，见下表                                                                                                                                         |
 | `toast`       | 轻提示：`toast.success("已复制")`、`toast.error("失败")`、`toast.info(...)`                                                                                      |
 | `useTokens()` | 返回 `{ isDark, color(word) }`。`color("accent")` 得到当前主题下的实际色值，只用于 Canvas、SVG 属性、JS 计算颜色；主题切换时组件自动重渲染，`color` 引用随之变化 |
+| `icons`       | lucide 图标组件：`<icons.Copy className="size-4" />`，或作为 `ui.Button` 的 `icon={icons.Play}`；名称为 lucide 的 PascalCase 组件名                              |
 
 `ui` 控件：
 
-| 组件                      | 关键 props                                                                                                                                 |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ui.Button`               | `variant`: `primary`（每块至多一个）/ `secondary` / `soft` / `ghost` / `danger` / `danger-soft`；`size`: `sm` / `md`；`loading`；`block`   |
-| `ui.Input`                | 原生 input 属性；`size`; `clearable`                                                                                                       |
-| `ui.Textarea`             | 原生 textarea 属性                                                                                                                         |
-| `ui.NumberInput`          | `value: number \| null`、`onValueChange`、`min` / `max` / `step`、`size`                                                                   |
-| `ui.Switch`               | `checked`、`onCheckedChange(boolean)`、`label`、`size`                                                                                     |
-| `ui.Checkbox`             | 原生 checkbox 属性（`checked` + `onChange`）；`label`                                                                                      |
-| `ui.RadioGroup` + `Radio` | `RadioGroup`: `label`（必填，显示为组标题）、`value`、`onValueChange`、`orientation`: `horizontal` / `vertical`；`Radio`: `value`、`label` |
-| `ui.Select`               | `options: { value, label }[]`、`value`、`onValueChange`、`size`、`aria-label`                                                              |
-| `ui.Tag`                  | `color`: `red` / `orange` / `yellow` / `green` / `gray` / `blue` / `purple`                                                                |
-| `ui.Spinner`              | 加载指示                                                                                                                                   |
+| 组件                      | 关键 props                                                                                                                                                             |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ui.Button`               | `variant`: `primary`（每块至多一个）/ `secondary` / `soft` / `ghost` / `danger` / `danger-soft`；`size`: `sm` / `md`；`icon={icons.X}` 左位图标；`loading`；`block`    |
+| `ui.IconButton`           | 纯图标按钮，原生 button 属性；子元素放图标，必须给 `aria-label`                                                                                                        |
+| `ui.Input`                | 原生 input 属性；`size`; `clearable`                                                                                                                                   |
+| `ui.Textarea`             | 原生 textarea 属性                                                                                                                                                     |
+| `ui.NumberInput`          | `value: number \| null`、`onValueChange`、`min` / `max` / `step`、`size`                                                                                               |
+| `ui.Switch`               | `checked`、`onCheckedChange(boolean)`、`label`、`size`                                                                                                                 |
+| `ui.Checkbox`             | 原生 checkbox 属性（`checked` + `onChange`）；`label`                                                                                                                  |
+| `ui.RadioGroup` + `Radio` | `RadioGroup`: `label`（必填，显示为组标题）、`value`、`onValueChange`、`orientation`: `horizontal` / `vertical`；`Radio`: `value`、`label`                             |
+| `ui.Select`               | `options: { value, label }[]`、`value`、`onValueChange`、`size`、`aria-label`                                                                                          |
+| `ui.Tag`                  | `color`: `red` / `orange` / `yellow` / `green` / `gray` / `blue` / `purple`                                                                                            |
+| `ui.Spinner`              | 加载指示                                                                                                                                                               |
+| `ui.Tooltip`              | 悬停 / 聚焦说明，不可交互：`content`、`placement`（默认 `top`）；子元素为单个原生元素                                                                                  |
+| `ui.Popover`              | 点击打开、内容可继续操作：`trigger`（单个原生元素或 `ui.Button`）、`placement`、`className` 控宽；内容用 `ui.Popover.Header` / `ui.Popover.Body` / `ui.Popover.Footer` |
 
-没有图标库、对话框、抽屉、菜单：块是文档内容，不弹出应用级浮层。
+没有对话框、抽屉、菜单：块是文档内容，不弹出模态遮罩。悬停说明用 `ui.Tooltip`，点开查看或调整用 `ui.Popover`。
 
 ## 样式
 
@@ -281,6 +285,69 @@ const Component = () => {
       <code className="break-all font-tau-mono text-tau-meta text-ink-3">
         background-image: {gradient};
       </code>
+    </div>
+  );
+};
+```
+
+### 悬停说明与点开详情（`Tooltip` / `Popover` / `icons`）
+
+```custom-block
+const { useState } = React;
+
+const EASINGS = [
+  { name: "ease-out", value: "cubic-bezier(0.22, 1, 0.36, 1)", note: "先快后慢，适合进入" },
+  { name: "ease-in", value: "cubic-bezier(0.55, 0, 1, 0.45)", note: "先慢后快，适合离开" },
+  { name: "linear", value: "linear", note: "匀速，适合进度与旋转" },
+];
+
+const Component = () => {
+  const [playing, setPlaying] = useState(false);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3 rounded-tau-md bg-sunken p-4">
+        {EASINGS.map(easing => (
+          <div key={easing.name} className="flex items-center gap-3">
+            <ui.Tooltip content={easing.value}>
+              <span className="w-20 shrink-0 font-tau-mono text-tau-meta text-ink-2">{easing.name}</span>
+            </ui.Tooltip>
+            <div className="relative h-8 flex-1">
+              <div
+                className="absolute top-0 size-8 rounded-tau-sm bg-accent"
+                style={{
+                  left: playing ? "calc(100% - 2rem)" : "0",
+                  transition: `left 1.2s ${easing.value}`,
+                }}
+              />
+            </div>
+            <ui.Popover
+              placement="left"
+              className="w-[240px]"
+              trigger={
+                <ui.IconButton aria-label={`${easing.name} 说明`}>
+                  <icons.Info className="size-4" />
+                </ui.IconButton>
+              }
+            >
+              <ui.Popover.Header>{easing.name}</ui.Popover.Header>
+              <ui.Popover.Body>
+                <p className="text-tau-body text-ink-2">{easing.note}</p>
+              </ui.Popover.Body>
+            </ui.Popover>
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center gap-3">
+        <ui.Button
+          variant="secondary"
+          size="sm"
+          icon={playing ? icons.RotateCcw : icons.Play}
+          onClick={() => setPlaying(value => !value)}
+        >
+          {playing ? "复位" : "播放动画"}
+        </ui.Button>
+      </div>
     </div>
   );
 };

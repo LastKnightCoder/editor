@@ -49,13 +49,14 @@ describe("custom-block skill 示例", () => {
     vi.restoreAllMocks();
   });
 
-  it("覆盖输出格式与 4 类标准示例", () => {
+  it("覆盖输出格式与 5 类标准示例", () => {
     expect(examples.map(example => example.title)).toEqual([
       "输出格式",
       "控件驱动布局（并列对象用 tag 色）",
       "CSS 特性演示（`@scope` 隔离样式）",
       "Canvas（`useTokens` 取色，主题切换自动重绘）",
       "演示色（颜色就是演示内容）",
+      "悬停说明与点开详情（`Tooltip` / `Popover` / `icons`）",
     ]);
   });
 
