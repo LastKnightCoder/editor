@@ -54,6 +54,7 @@ export default function AppShell() {
 }
 
 function ShellBody() {
+  const settingInited = useSettingStore(state => state.inited);
   const [boot, setBoot] = useState<"connecting" | "failed" | "ready">("connecting");
   const [bootError, setBootError] = useState("");
 
@@ -68,10 +69,10 @@ function ShellBody() {
   }, []);
 
   useEffect(() => {
-    const stopScrollbars = initScrollbarAutoHide();
-    connect();
-    return stopScrollbars;
-  }, [connect]);
+    if (settingInited) connect();
+  }, [connect, settingInited]);
+
+  useEffect(() => initScrollbarAutoHide(), []);
 
   /* 页面缩放（Ctrl±/Ctrl+滚轮）压缩 CSS 视口，壳层 min-w 会超出视口被裁：zoom
      变化时上报主进程按 zoomFactor 放大窗口最小尺寸。zoom 变化必伴生 window
