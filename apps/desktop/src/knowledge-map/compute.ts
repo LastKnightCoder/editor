@@ -27,11 +27,11 @@ import {
   NO_COLOR_SLOT,
   TOPIC_PALETTE_SIZE,
   type KnowledgeMap,
-  type KnowledgeMapCardInput,
+  type KnowledgeMapNodeInput,
   type KnowledgeMapNode,
   type KnowledgeMapTopic,
 } from "./types";
-import { knn, type CardVector } from "./vectors";
+import { capInDegree, knn, type CardVector } from "./vectors";
 
 export interface ComputeOptions {
   /** 每张卡取几个语义近邻 */
@@ -45,6 +45,8 @@ export interface ComputeOptions {
 
 /** 显式链接的权重：用户亲手连的，比算法推测的语义相似更可信 */
 const LINK_WEIGHT = 1.5;
+/** 每个节点最多被「近邻数 × 该系数」个节点选作语义近邻（见 vectors.capInDegree） */
+const IN_DEGREE_CAP_FACTOR = 2;
 /**
  * 摆大主题时，跨主题的显式链接再额外放大这么多倍。
  * 跨主题链接很少（真实数据 324 条里只有 6 条），不放大就淹没在几百条语义边里；
@@ -87,7 +89,7 @@ interface WeightedGraph {
 }
 
 function buildWeightedGraph(
-  cards: KnowledgeMapCardInput[],
+  cards: KnowledgeMapNodeInput[],
   vectors: CardVector[],
   options: Required<Pick<ComputeOptions, "neighbors" | "minSimilarity">>
 ): WeightedGraph {
@@ -117,7 +119,10 @@ function buildWeightedGraph(
 
   // 语义近邻：权重按相似度在 [minSimilarity, 1] 上线性映射到 (0, 1]
   const vectorIndex = vectors.map(v => indexOf.get(v.id));
-  const neighbors = knn(vectors, options.neighbors, options.minSimilarity);
+  const neighbors = capInDegree(
+    knn(vectors, options.neighbors, options.minSimilarity),
+    options.neighbors * IN_DEGREE_CAP_FACTOR
+  );
   const span = Math.max(1e-6, 1 - options.minSimilarity);
   const semanticPairs = new Set<string>();
   neighbors.forEach((list, i) => {
@@ -851,7 +856,7 @@ interface MapNodeDatum extends SimulationNodeDatum {
 /* ───────── 入口 ───────── */
 
 export function computeKnowledgeMap(
-  cards: KnowledgeMapCardInput[],
+  cards: KnowledgeMapNodeInput[],
   vectors: CardVector[],
   options: ComputeOptions = {}
 ): KnowledgeMap {
@@ -1169,7 +1174,7 @@ export function computeKnowledgeMap(
   }
 
   const nodes: KnowledgeMapNode[] = cards.map((card, index) => ({
-    cardId: card.id,
+    key: card.key,
     // 存两位小数就够，库里省空间、diff 也稳定
     x: Math.round((datums[index].x ?? 0) * 100) / 100,
     y: Math.round((datums[index].y ?? 0) * 100) / 100,
@@ -1181,21 +1186,21 @@ export function computeKnowledgeMap(
 }
 
 /**
- * 增量放置：新卡片不重算全图，按语义近邻的坐标加权落位、按多数归属主题。
- * 近邻里没有已在图上的卡片时归入未归类并放到外圈。
+ * 增量放置：新节点不重算全图，按语义近邻的坐标加权落位、按多数归属主题。
+ * 近邻里没有已在图上的节点时归入未归类并放到外圈。seed 只用来错开角度（取数值 id 即可）。
  */
 export function placeIncrementally(
   map: KnowledgeMap,
-  card: { id: number; neighbors: Array<{ cardId: number; similarity: number }> }
+  card: { key: string; seed: number; neighbors: Array<{ key: string; similarity: number }> }
 ): KnowledgeMapNode {
-  const byId = new Map(map.nodes.map(node => [node.cardId, node]));
-  const placed = card.neighbors.filter(n => byId.has(n.cardId));
+  const byKey = new Map(map.nodes.map(node => [node.key, node]));
+  const placed = card.neighbors.filter(n => byKey.has(n.key));
   if (placed.length === 0) {
     let extent = 0;
     for (const node of map.nodes) extent = Math.max(extent, Math.hypot(node.x, node.y));
-    const angle = (((card.id * 2.39996) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    const angle = (((card.seed * 2.39996) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
     return {
-      cardId: card.id,
+      key: card.key,
       x: Math.cos(angle) * (extent + 60),
       y: Math.sin(angle) * (extent + 60),
       topic: -1,
@@ -1209,7 +1214,7 @@ export function placeIncrementally(
   const topicVotes = new Map<number, number>();
   const subtopicVotes = new Map<number, number>();
   for (const neighbor of placed) {
-    const node = byId.get(neighbor.cardId)!;
+    const node = byKey.get(neighbor.key)!;
     const weight = Math.max(1e-3, neighbor.similarity);
     totalWeight += weight;
     x += node.x * weight;
@@ -1226,9 +1231,9 @@ export function placeIncrementally(
     new Map([...subtopicVotes].filter(([id]) => topicOfSub.get(id) === topic)).set(-1, 0)
   );
   // 与质心错开一点，免得和某个近邻完全重合
-  const angle = (((card.id * 2.39996) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+  const angle = (((card.seed * 2.39996) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
   return {
-    cardId: card.id,
+    key: card.key,
     x: x / totalWeight + Math.cos(angle) * 8,
     y: y / totalWeight + Math.sin(angle) * 8,
     topic,

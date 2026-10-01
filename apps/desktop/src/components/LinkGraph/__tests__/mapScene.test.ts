@@ -24,11 +24,11 @@ const links = (c: ICard) => c.links;
 const map: KnowledgeMap = {
   computedAt: 1,
   nodes: [
-    { cardId: 1, x: -100, y: 0, topic: 0, subtopic: 2 },
-    { cardId: 2, x: -90, y: 5, topic: 0, subtopic: 2 },
-    { cardId: 3, x: -95, y: -8, topic: 0, subtopic: 2 },
-    { cardId: 4, x: 100, y: 0, topic: 1, subtopic: -1 },
-    { cardId: 5, x: 300, y: 300, topic: -1, subtopic: -1 },
+    { key: "card:1", x: -100, y: 0, topic: 0, subtopic: 2 },
+    { key: "card:2", x: -90, y: 5, topic: 0, subtopic: 2 },
+    { key: "card:3", x: -95, y: -8, topic: 0, subtopic: 2 },
+    { key: "card:4", x: 100, y: 0, topic: 1, subtopic: -1 },
+    { key: "card:5", x: 300, y: 300, topic: -1, subtopic: -1 },
   ],
   topics: [
     { id: 0, parent: -1, label: "JavaScript", colorSlot: 4, size: 3 },

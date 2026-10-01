@@ -113,7 +113,13 @@ function fixtureMap(): { cards: ICard[]; map: KnowledgeMap } | null {
     map: {
       computedAt: 1,
       topics: mapFixture.topics as KnowledgeMapTopic[],
-      nodes: nodes.map(([cardId, x, y, topic, subtopic]) => ({ cardId, x, y, topic, subtopic })),
+      nodes: nodes.map(([cardId, x, y, topic, subtopic]) => ({
+        key: `card:${cardId}`,
+        x,
+        y,
+        topic,
+        subtopic,
+      })),
     },
   };
 }

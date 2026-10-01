@@ -7,8 +7,8 @@
 import { describe, expect, it } from "vitest";
 import { computeKnowledgeMap, placeIncrementally, topicAffinity, topicTarget } from "../compute";
 import { subtopicLabel, tagPath, topicLabel } from "../labels";
-import { NO_COLOR_SLOT, TOPIC_PALETTE_SIZE, type KnowledgeMapCardInput } from "../types";
-import { knn, meanPool, type CardVector } from "../vectors";
+import { NO_COLOR_SLOT, TOPIC_PALETTE_SIZE, type KnowledgeMapNodeInput } from "../types";
+import { capInDegree, knn, meanPool, type CardVector } from "../vectors";
 
 const DIM = 32;
 
@@ -34,7 +34,7 @@ function syntheticLibrary(
   seed = 7
 ) {
   const random = seeded(seed);
-  const cards: KnowledgeMapCardInput[] = [];
+  const cards: KnowledgeMapNodeInput[] = [];
   const vectors: CardVector[] = [];
   let id = 1;
   topics.forEach((topic, t) => {
@@ -47,7 +47,7 @@ function syntheticLibrary(
       for (let i = 0; i < topic.perSub; i++) {
         const v = Float32Array.from(subDir, x => x + (random() - 0.5) * 0.25);
         vectors.push({ id, vector: normalize(v) });
-        cards.push({ id, tags: [`${topic.name}/${sub}`], links: [] });
+        cards.push({ id, key: `card:${id}`, tags: [`${topic.name}/${sub}`], links: [] });
         id++;
       }
     });
@@ -234,10 +234,10 @@ describe("computeKnowledgeMap", () => {
   });
 
   it("同一 tag 首段的卡片落在同一个大主题里", () => {
-    const topicByCard = new Map(map.nodes.map(n => [n.cardId, n.topic]));
+    const topicByCard = new Map(map.nodes.map(n => [n.key, n.topic]));
     for (const topic of LIBRARY) {
       const members = cards.filter(c => c.tags[0].startsWith(`${topic.name}/`));
-      const owners = new Set(members.map(c => topicByCard.get(c.id)));
+      const owners = new Set(members.map(c => topicByCard.get(c.key)));
       expect(owners.size).toBe(1);
     }
   });
@@ -314,8 +314,9 @@ describe("computeKnowledgeMap", () => {
   });
 
   it("没有向量的卡片（未配置 embedding）只靠显式链接也能跑，不抛错", () => {
-    const linked: KnowledgeMapCardInput[] = Array.from({ length: 30 }, (_, i) => ({
+    const linked: KnowledgeMapNodeInput[] = Array.from({ length: 30 }, (_, i) => ({
       id: i + 1,
+      key: `card:${i + 1}`,
       tags: [i < 15 ? "甲/一" : "乙/二"],
       links: i % 15 === 0 ? [] : [i],
     }));
@@ -366,12 +367,10 @@ function islandGap(map: ReturnType<typeof computeKnowledgeMap>, a: number, b: nu
 }
 
 describe("computeKnowledgeMap：多种数据形状", () => {
-  const invariants = (cards: KnowledgeMapCardInput[], vectors: CardVector[]) => {
+  const invariants = (cards: KnowledgeMapNodeInput[], vectors: CardVector[]) => {
     const result = computeKnowledgeMap(cards, vectors, { now: 0, ticks: 60 });
     // 不丢卡：每张卡都在地图上，坐标有限
-    expect(result.nodes.map(n => n.cardId).sort((a, b) => a - b)).toEqual(
-      cards.map(c => c.id).sort((a, b) => a - b)
-    );
+    expect(result.nodes.map(n => n.key).sort()).toEqual(cards.map(c => c.key).sort());
     for (const node of result.nodes) expect(Number.isFinite(node.x + node.y)).toBe(true);
     // 名字只来自 tag：大主题名是某个 tag 首段，子主题名是某个 tag 的某一段
     const heads = new Set(cards.flatMap(c => c.tags.map(t => tagPath(t)[0])));
@@ -538,10 +537,10 @@ describe("computeKnowledgeMap：主题摆放与跨主题连线", () => {
   it("桥接卡片落在岛上面向对方主题的一侧，连线远短于两岛中心距离", () => {
     const { cards, vectors, pairs } = linkedLibrary();
     const map = computeKnowledgeMap(cards, vectors, { now: 0, ticks: 80 });
-    const node = new Map(map.nodes.map(n => [n.cardId, n]));
+    const node = new Map(map.nodes.map(n => [n.key, n]));
     for (const [a, b] of pairs) {
-      const p = node.get(a.id)!;
-      const q = node.get(b.id)!;
+      const p = node.get(a.key)!;
+      const q = node.get(b.key)!;
       const cp = centerOf(map, p.topic);
       const cq = centerOf(map, q.topic);
       const span = Math.hypot(cq.x - cp.x, cq.y - cp.y);
@@ -563,8 +562,9 @@ describe("placeIncrementally", () => {
   it("落在语义近邻附近，并继承它们的多数主题", () => {
     const near = map.nodes.filter(n => n.topic === 0).slice(0, 5);
     const placed = placeIncrementally(map, {
-      id: 9999,
-      neighbors: near.map(n => ({ cardId: n.cardId, similarity: 0.8 })),
+      key: "card:9999",
+      seed: 9999,
+      neighbors: near.map(n => ({ key: n.key, similarity: 0.8 })),
     });
     expect(placed.topic).toBe(0);
     const cx = near.reduce((s, n) => s + n.x, 0) / near.length;
@@ -575,8 +575,9 @@ describe("placeIncrementally", () => {
   it("子主题只从选中的大主题里取", () => {
     const near = map.nodes.filter(n => n.topic === 0).slice(0, 4);
     const placed = placeIncrementally(map, {
-      id: 9998,
-      neighbors: near.map(n => ({ cardId: n.cardId, similarity: 0.9 })),
+      key: "card:9998",
+      seed: 9998,
+      neighbors: near.map(n => ({ key: n.key, similarity: 0.9 })),
     });
     if (placed.subtopic >= 0) {
       expect(map.topics.find(t => t.id === placed.subtopic)!.parent).toBe(placed.topic);
@@ -584,9 +585,34 @@ describe("placeIncrementally", () => {
   });
 
   it("没有已在图上的近邻时放到外圈、未归类", () => {
-    const placed = placeIncrementally(map, { id: 9997, neighbors: [] });
+    const placed = placeIncrementally(map, { key: "card:9997", seed: 9997, neighbors: [] });
     expect(placed.topic).toBe(-1);
     const extent = Math.max(...map.nodes.map(n => Math.hypot(n.x, n.y)));
     expect(Math.hypot(placed.x, placed.y)).toBeGreaterThan(extent);
+  });
+});
+
+describe("capInDegree", () => {
+  it("每个向量只保留相似度最高的 cap 条入边，其余入边删掉", () => {
+    const neighbors = [
+      [{ index: 3, similarity: 0.9 }],
+      [
+        { index: 3, similarity: 0.5 },
+        { index: 2, similarity: 0.4 },
+      ],
+      [{ index: 3, similarity: 0.7 }],
+      [],
+    ];
+    expect(capInDegree(neighbors, 2)).toEqual([
+      [{ index: 3, similarity: 0.9 }],
+      [{ index: 2, similarity: 0.4 }],
+      [{ index: 3, similarity: 0.7 }],
+      [],
+    ]);
+  });
+
+  it("没有超限时原样返回", () => {
+    const neighbors = [[{ index: 1, similarity: 0.6 }], [{ index: 0, similarity: 0.6 }]];
+    expect(capInDegree(neighbors, 2)).toBe(neighbors);
   });
 });

@@ -19,7 +19,7 @@ parentPort!.once("message", (inputs: KnowledgeMapInputs) => {
         inputs.chunks.map(([id, buffers]) => [id, buffers.map(buffer => new Float32Array(buffer))])
       )
     );
-    const map = computeKnowledgeMap(inputs.cards, vectors);
+    const map = computeKnowledgeMap(inputs.nodes, vectors);
     parentPort!.postMessage({ ok: true, map } satisfies KnowledgeMapWorkerResult);
   } catch (error) {
     parentPort!.postMessage({
