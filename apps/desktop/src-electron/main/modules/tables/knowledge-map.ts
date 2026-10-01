@@ -13,6 +13,7 @@ import type {
   KnowledgeMapNode,
   KnowledgeMapTopic,
 } from "@/knowledge-map/types";
+import { inlineCardIds } from "@/entity/inline-refs";
 
 /** 地图基于哪个 embedding 指纹算的；指纹变了（换模型）就整体重算 */
 export const KNOWLEDGE_MAP_FINGERPRINT_KEY = "knowledge_map_fingerprint";
@@ -23,31 +24,6 @@ export interface KnowledgeMapInputs {
   cards: KnowledgeMapCardInput[];
   /** 卡片 id → 分块向量（Float32 的原始字节，跨线程可转移） */
   chunks: Array<[number, ArrayBuffer[]]>;
-}
-
-/** 从正文里抽内联卡片链接（与渲染进程 utils/card.getInlineLinks 同义） */
-function inlineLinks(content: unknown): number[] {
-  const found: number[] = [];
-  const walk = (node: unknown) => {
-    if (!node || typeof node !== "object") return;
-    const element = node as {
-      type?: string;
-      contentType?: string;
-      refId?: number;
-      children?: unknown[];
-    };
-    if (
-      element.type === "content-link" &&
-      element.contentType === "card" &&
-      typeof element.refId === "number"
-    ) {
-      found.push(element.refId);
-      return;
-    }
-    if (Array.isArray(element.children)) element.children.forEach(walk);
-  };
-  if (Array.isArray(content)) content.forEach(walk);
-  return found;
 }
 
 const parseJson = <T>(raw: unknown, fallback: T): T => {
@@ -83,7 +59,7 @@ export default class KnowledgeMapTable {
       links: [
         ...new Set([
           ...parseJson<number[]>(row.links, []),
-          ...inlineLinks(parseJson<unknown>(row.content, [])),
+          ...inlineCardIds(parseJson<unknown>(row.content, [])),
         ]),
       ].filter(id => typeof id === "number"),
     }));
