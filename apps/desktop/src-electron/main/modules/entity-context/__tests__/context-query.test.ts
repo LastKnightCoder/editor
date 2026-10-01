@@ -144,7 +144,8 @@ describe("getEntityContext", () => {
     ]);
     expect(ctx.backlinks[1].snippets).toEqual([
       { before: "几何属性变了就会触发", label: "重排与重绘", after: "。" },
-      { before: "", label: "重排与重绘", after: "" },
+      // 第二段只有链接：以上一段作前文
+      { before: "几何属性变了就会触发重排与重绘。", label: "重排与重绘", after: "" },
     ]);
     expect(ctx.questions.map(q => [q.id, q.status])).toEqual([
       [q1, "in_progress"],

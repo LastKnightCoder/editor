@@ -91,6 +91,39 @@ describe("extractInlineRefs", () => {
   });
 });
 
+describe("extractInlineRefs：存量节点与独占一块的引用", () => {
+  const bareLink = (refId: number, shown: string) => ({
+    type: "content-link",
+    contentType: "card",
+    refId,
+    contentTitle: "",
+    children: [text(shown)],
+  });
+  const item = (...children: unknown[]) => ({ type: "list-item", children });
+  const list = (...items: unknown[]) => ({ type: "bulleted-list", children: items });
+
+  it("contentTitle 为空时用节点里显示的文字", () => {
+    const [ref] = extractInlineRefs([p(text("见"), bareLink(1, "期货的概念"))]);
+    expect(ref.snippet).toEqual({ before: "见", label: "期货的概念", after: "" });
+  });
+
+  it("引用独占一块时以上方有文字的块作前文；只含链接的块不算", () => {
+    const refs = extractInlineRefs([
+      p(text("本周小结：")),
+      list(
+        item(
+          p(text("写作")),
+          list(item(p(text(""), bareLink(1, "期货的概念"), text(""))), item(p(bareLink(2, "预热大脑"))))
+        )
+      ),
+    ]);
+    expect(refs.map(ref => ref.snippet)).toEqual([
+      { before: "写作", label: "期货的概念", after: "" },
+      { before: "写作", label: "预热大脑", after: "" },
+    ]);
+  });
+});
+
 describe("inlineCardIds", () => {
   it("只取卡片引用，保持出现顺序", () => {
     expect(
