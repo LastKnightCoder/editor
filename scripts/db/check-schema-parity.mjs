@@ -20,6 +20,8 @@ const INDEX_CORE_TABLES = [
   "index_meta",
   "knowledge_map_nodes",
   "knowledge_map_topics",
+  "entity_refs",
+  "entity_ref_sources",
 ];
 const REMOVED_TABLES = [
   "rss_feed",
