@@ -18,10 +18,11 @@ import {
 } from "lucide-react";
 import { Tooltip, toast } from "@tau/ui";
 import MarkdownContext, { useMarkdownContext, MarkdownMessageMeta } from "./MarkdownContext";
-import { remarkDocumentReference } from "@tau/shared";
+import remarkSectionReference from "@/utils/remark-section-reference";
 import remarkPdfCitation from "@/utils/remark-pdf-citation";
 import { getRefTypeLabel } from "@/utils";
-import { openContent } from "@/services/open-content";
+import { openContent, openEntity } from "@/services/open-content";
+import { normalizeEntityRefKind } from "@/entity/ref";
 import { openMaterial } from "@/services/open-material";
 import { isMaterialKind } from "@/entity/material";
 import LocalImage from "@/components/LocalImage";
@@ -39,7 +40,7 @@ const remarkPlugins = [
   remarkGfm,
   remarkCjkFriendly,
   remarkCjkFriendlyGfmStrikethrough,
-  remarkDocumentReference,
+  remarkSectionReference,
   remarkPdfCitation,
 ];
 const rehypePlugins = [rehypeKatex];
@@ -55,9 +56,15 @@ const REF_ICONS: Record<string, LucideIcon> = {
 };
 
 /** 文档引用在新壳层内打开（卡片 / 文章 / 项目文档 / 日记；外部材料打开到原处）；不支持时 toast 说明 */
-async function openReference(id: number, type: string) {
+async function openReference(id: number, type: string, block?: number) {
   try {
-    if (isMaterialKind(type)) await openMaterial({ kind: type, id });
+    const kind = normalizeEntityRefKind(type);
+    if (isMaterialKind(type)) {
+      if (Number.isSafeInteger(block) && block! >= 0)
+        await openMaterial({ kind: type, id }, { block: block! });
+      else await openMaterial({ kind: type, id });
+    } else if (kind && Number.isSafeInteger(block) && block! >= 0)
+      await openEntity({ kind, id }, { at: { block: block! } });
     else await openContent(type, id);
   } catch (error) {
     toast.error(error instanceof Error ? error.message : "无法打开引用内容");
@@ -142,6 +149,8 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
             const id = parseInt(props["data-id"], 10);
             const type = props["data-type"];
             const text = props["data-text"];
+            const block =
+              props["data-block"] === undefined ? undefined : Number(props["data-block"]);
             const Icon = REF_ICONS[type] ?? FileText;
 
             return (
@@ -150,9 +159,9 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
                   role="link"
                   tabIndex={0}
                   className="document-reference bg-accent-soft text-accent-text hover:bg-accent/20 ease-tau-out mx-px inline-flex cursor-pointer items-center gap-[3px] rounded-[6px] px-1.5 align-baseline text-[0.92em] font-medium leading-[1.55] transition-colors duration-[160ms]"
-                  onClick={() => void openReference(id, type)}
+                  onClick={() => void openReference(id, type, block)}
                   onKeyDown={event => {
-                    if (event.key === "Enter") void openReference(id, type);
+                    if (event.key === "Enter") void openReference(id, type, block);
                   }}
                 >
                   <Icon aria-hidden size="0.95em" strokeWidth={1.9} className="shrink-0" />

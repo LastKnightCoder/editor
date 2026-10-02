@@ -75,8 +75,8 @@ export function reindexContents(
   );
   const insertRef = indexDb.prepare(
     `INSERT INTO entity_refs
-       (src_content_id, dst_kind, dst_id, dst_content_id, snippet_before, snippet_label, snippet_after)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
+       (src_content_id, dst_kind, dst_id, dst_content_id, snippet_before, snippet_label, snippet_after, src_block)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   );
   const upsertSource = indexDb.prepare(
     `INSERT INTO entity_ref_sources (content_id, update_time) VALUES (?, ?)
@@ -107,7 +107,8 @@ export function reindexContents(
           ref.dstContentId,
           ref.snippet.before,
           ref.snippet.label,
-          ref.snippet.after
+          ref.snippet.after,
+          ref.blockIndex
         );
       }
       upsertSource.run(id, row.update_time);
@@ -146,10 +147,13 @@ export function diffSources(mainDb: Database.Database, indexDb: Database.Databas
  * 1 = 只有 content-link；2 = 加白板块（whiteboard_embeds）；
  * 3 = 链接文字为空时取显示文字、独占一块的引用以上一个文本块作前文
  */
-export const REF_INDEX_VERSION = "3";
+export const REF_INDEX_VERSION = "4";
 const REF_INDEX_VERSION_KEY = "entity-refs:version";
 
 function ensureIndexVersion(indexDb: Database.Database) {
+  const columns = indexDb.prepare("PRAGMA table_info(entity_refs)").all() as { name: string }[];
+  if (!columns.some(column => column.name === "src_block"))
+    indexDb.exec("ALTER TABLE entity_refs ADD COLUMN src_block INTEGER NOT NULL DEFAULT 0");
   const current = indexDb
     .prepare(`SELECT value FROM index_meta WHERE key = ?`)
     .get(REF_INDEX_VERSION_KEY) as { value: string } | undefined;

@@ -24,7 +24,8 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
   description:
     "搜索用户的个人知识库内容，包括卡片、文章、项目条目、日记，以及读书划线、网页划线、PDF 标注、剪藏网页等阅读材料。" +
     "当用户的问题可能涉及其已有的笔记、资料或知识时，使用此工具进行检索。" +
-    "返回匹配的内容列表（标题、完整内容、类型、ID 等），可在后续回答中引用。",
+    "返回匹配的内容列表（标题、命中节内容与标题路径、类型、ID 等），可在后续回答中引用；需要整篇时再读取全文。" +
+    "结果含 section 时引用使用 :ref[文字]{id=ID type=类型 block=section.blockStart的数值}，可打开到命中节。",
   parameters: {
     type: "object",
     properties: {
@@ -136,7 +137,8 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
         type: r.type,
         typeName: getTypeDisplayName(r.type),
         title: r.title || "无标题",
-        content: r.content ? getMarkdown(r.content as Descendant[]) : "",
+        content: r.section?.text ?? (r.content ? getMarkdown(r.content as Descendant[]) : ""),
+        ...(r.section ? { section: r.section } : {}),
         updateTime: r.updateTime,
         source: r.source,
         ...(r.date ? { date: r.date } : {}),

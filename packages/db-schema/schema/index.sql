@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS knowledge_map_topics (
 -- 可从主库重算的派生数据，丢了会在连接数据库时对账重建，因此放在索引库。
 CREATE TABLE IF NOT EXISTS entity_refs (
         src_content_id INTEGER NOT NULL,
+        src_block INTEGER NOT NULL DEFAULT 0,
         dst_kind TEXT NOT NULL,
         dst_id INTEGER NOT NULL,
         dst_content_id INTEGER,

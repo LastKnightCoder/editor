@@ -7,8 +7,12 @@ import { invoke } from "@/electron";
 import type { MaterialInfo, MaterialOpenTarget, MaterialRef } from "@/entity/material";
 import { openEntity } from "./open-content";
 import { openPage } from "./page-navigation";
+import type { EntityLocation } from "@/entity/locate";
 
-export async function openMaterialTarget(target: MaterialOpenTarget): Promise<void> {
+export async function openMaterialTarget(
+  target: MaterialOpenTarget,
+  at?: EntityLocation
+): Promise<void> {
   switch (target.page) {
     case "weread-book":
       openPage("weread-book", {
@@ -24,7 +28,8 @@ export async function openMaterialTarget(target: MaterialOpenTarget): Promise<vo
       return;
     case "project-web-clip":
       // 已剪藏的网页条目默认打开到「文档」分段
-      await openEntity({ kind: "project-item", id: target.itemId });
+      if (at) await openEntity({ kind: "project-item", id: target.itemId }, { at });
+      else await openEntity({ kind: "project-item", id: target.itemId });
       return;
   }
 }
@@ -33,9 +38,9 @@ export const resolveMaterials = (refs: MaterialRef[]): Promise<MaterialInfo[]> =
   invoke("material:resolve", refs);
 
 /** 按地址打开；已删除或无法定位时抛错，由调用方提示 */
-export async function openMaterial(ref: MaterialRef): Promise<void> {
+export async function openMaterial(ref: MaterialRef, at?: EntityLocation): Promise<void> {
   const [info] = await resolveMaterials([ref]);
   if (!info) throw new Error("材料已删除");
   if (!info.open) throw new Error(info.deleted ? "原划线已删除" : "无法打开到原处");
-  await openMaterialTarget(info.open);
+  await openMaterialTarget(info.open, at);
 }
