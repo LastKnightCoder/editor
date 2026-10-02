@@ -9,6 +9,7 @@ import type { Descendant } from "slate";
 import {
   ChevronDown,
   FileText,
+  FlaskConical,
   FolderKanban,
   Layers,
   Lightbulb,
@@ -58,6 +59,7 @@ export function QuestionDrawer({
   hiddenChats,
   onOpenChat,
   onUnlinkChat,
+  onOpenNotebook,
   onWriteCard,
   onWriteAnswer,
   onCreate,
@@ -83,6 +85,7 @@ export function QuestionDrawer({
   hiddenChats: ReadonlySet<number>;
   onOpenChat(chat: QuestionChat): void;
   onUnlinkChat(chat: QuestionChat): void;
+  onOpenNotebook(id: number): void;
   onWriteCard(): void;
   onWriteAnswer(): void;
   onCreate(kind: CreatableKind): void;
@@ -173,6 +176,7 @@ export function QuestionDrawer({
           hiddenChats={hiddenChats}
           onOpenChat={onOpenChat}
           onUnlinkChat={onUnlinkChat}
+          onOpenNotebook={onOpenNotebook}
           onWriteCard={onWriteCard}
           onWriteAnswer={onWriteAnswer}
           onCreate={onCreate}
@@ -196,6 +200,7 @@ function DetailBody({
   hiddenChats,
   onOpenChat,
   onUnlinkChat,
+  onOpenNotebook,
   onWriteCard,
   onWriteAnswer,
   onCreate,
@@ -211,6 +216,7 @@ function DetailBody({
   hiddenChats: ReadonlySet<number>;
   onOpenChat(chat: QuestionChat): void;
   onUnlinkChat(chat: QuestionChat): void;
+  onOpenNotebook(id: number): void;
   onWriteCard(): void;
   onWriteAnswer(): void;
   onCreate(kind: CreatableKind): void;
@@ -252,6 +258,17 @@ function DetailBody({
           );
         })}
       </div>
+
+      {detail.notebook && (
+        <button
+          type="button"
+          onClick={() => onOpenNotebook(detail.notebook!.id)}
+          className="text-ink-2 hover:text-ink-1 hover:bg-hover mt-2.5 flex w-full items-center gap-2 rounded-[9px] px-2.5 py-1.5 text-left text-[12.5px] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
+        >
+          <FlaskConical className="size-[14px] shrink-0" strokeWidth={1.75} />
+          <span className="min-w-0 truncate">已立项 · Notebook「{detail.notebook.title}」</span>
+        </button>
+      )}
 
       <SectionTitle>背景</SectionTitle>
       <DescriptionEditor

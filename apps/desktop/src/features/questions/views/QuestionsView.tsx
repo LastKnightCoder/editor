@@ -9,19 +9,26 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRightLeft, Layers, Link2, PenLine, Plus, Trash2 } from "lucide-react";
+import { ArrowRightLeft, FlaskConical, Layers, Link2, PenLine, Plus, Trash2 } from "lucide-react";
 import { MotionConfig } from "motion/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Button, Loading, Menu, toast } from "@tau/ui";
+import { Button, ConfirmDialog, Loading, Menu, toast } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
 import { isEditableTarget } from "@/page/dom";
 import { CreateCardDialog } from "@/features/cards/components/CreateCardDialog";
 import { EntityPicker } from "@/components/EntityPicker";
 import { openMaterialTarget } from "@/services/open-material";
 import {
+  planNotebookResources,
+  plannedResourceCount,
+  upgradeQuestionToNotebook,
+} from "@/services/question-to-notebook";
+import useSettingStore from "@/stores/useSettingStore";
+import {
   ECardCategory,
   type EntityKind,
   type QuestionChat,
+  type QuestionDetail as QuestionDetailData,
   type QuestionLinkTarget,
   type QuestionMaterial,
   type QuestionStatus,
@@ -82,6 +89,7 @@ export function QuestionsView() {
   const [cardOpen, setCardOpen] = useState(false);
   const [answerDialog, setAnswerDialog] = useState<AnswerDialogState | null>(null);
   const [preview, setPreview] = useState<QuestionMaterial | null>(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const captureRef = useRef<HTMLInputElement>(null);
   const deferred = useDeferredActions();
   const queryClient = useQueryClient();
@@ -217,6 +225,29 @@ export function QuestionsView() {
     }
   };
 
+  const openNotebook = (id: number) => navigator.push("vibe-learning-detail", { id });
+
+  const upgrade = async () => {
+    if (!detail) return;
+    if (detail.notebook) {
+      openNotebook(detail.notebook.id);
+      return;
+    }
+    try {
+      const { projectId, failed } = await upgradeQuestionToNotebook(
+        detail,
+        useSettingStore.getState().setting.database.active
+      );
+      void queryClient.invalidateQueries({ queryKey: ["questions"] });
+      if (failed) toast.warning(`已立项，${failed} 份材料没能带入，可在 Notebook 里手动添加`);
+      else toast.success("已立项");
+      openNotebook(projectId);
+    } catch {
+      toast.error("立项失败");
+      throw new Error("upgrade failed");
+    }
+  };
+
   const createMaterial = (kind: CreatableKind) => {
     if (!detail) return;
     createMaterialFor(detail.question.id, detail.question.questionContent, kind)
@@ -268,6 +299,15 @@ export function QuestionsView() {
         }}
       >
         关联已有材料…
+      </Menu.Item>
+      <Menu.Item
+        icon={<FlaskConical className="size-[15px]" strokeWidth={1.75} />}
+        onSelect={() => {
+          setSelectedId(question.id);
+          setUpgradeOpen(true);
+        }}
+      >
+        以此立项…
       </Menu.Item>
       <Menu.Separator />
       <Menu.Submenu label="状态" icon={<StatusRing status={question.status} size="sm" />}>
@@ -466,6 +506,7 @@ export function QuestionsView() {
                 )
               }
               onOpenChat={openChat}
+              onOpenNotebook={openNotebook}
               onUnlinkChat={unlinkChat}
               onWriteCard={() => setCardOpen(true)}
               onWriteAnswer={() =>
@@ -527,6 +568,12 @@ export function QuestionsView() {
               .catch(() => toast.error("卡片已保存，但挂到问题上失败"));
           }}
         />
+        <UpgradeDialog
+          open={upgradeOpen && detail != null}
+          detail={detail}
+          onOpenChange={setUpgradeOpen}
+          onConfirm={upgrade}
+        />
         <MaterialPreviewDialog
           material={preview}
           now={now}
@@ -544,6 +591,50 @@ export function QuestionsView() {
         />
       </div>
     </MotionConfig>
+  );
+}
+
+/** 以此立项确认：说明会带入几份资源、几项带不进去；已立项的直接打开 */
+function UpgradeDialog({
+  open,
+  detail,
+  onOpenChange,
+  onConfirm,
+}: {
+  open: boolean;
+  detail: QuestionDetailData | null;
+  onOpenChange(open: boolean): void;
+  onConfirm(): Promise<void>;
+}) {
+  const plan = detail ? planNotebookResources(detail) : null;
+  const count = plan ? plannedResourceCount(plan) : 0;
+  return (
+    <ConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={detail?.notebook ? "已经立项" : "以此立项"}
+      context={detail?.question.questionContent}
+      description={
+        detail?.notebook
+          ? `这个问题已立项为 Notebook「${detail.notebook.title}」。`
+          : "新建一个 Notebook 课题，以问题为标题、背景为描述，探究材料作为资料带入。之后问题新增的材料不会自动同步。"
+      }
+      impact={
+        detail?.notebook || !plan
+          ? undefined
+          : [
+              count ? `带入 ${count} 份资料` : "没有可带入的资料",
+              plan.skipped ? `${plan.skipped} 项（项目、白板、对话或已删除的材料）不会带入` : "",
+            ]
+              .filter(Boolean)
+              .join("；")
+      }
+      confirmText={detail?.notebook ? "打开 Notebook" : "立项"}
+      onConfirm={async () => {
+        await onConfirm();
+        onOpenChange(false);
+      }}
+    />
   );
 }
 

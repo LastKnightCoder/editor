@@ -1,3 +1,5 @@
+import type { MaterialRef } from "@/entity/material";
+
 export type VLResourceType =
   | "pdf"
   | "audio"
@@ -19,7 +21,8 @@ export type VLResourceSourceType =
   | "bilibili" // Bilibili 视频
   | "youtube" // YouTube 视频
   | "remote" // 远程 URL
-  | "note"; // 来自已有笔记
+  | "note" // 来自已有笔记
+  | "material"; // 外部材料快照（问题立项时带入的摘录 / PDF 标注 / 剪藏）
 
 export interface BilibiliSourceMeta {
   bvid: string;
@@ -48,8 +51,14 @@ export interface NoteSourceMeta {
   originalId: number; // 原笔记 ID
 }
 
+/** 外部材料资源：索引时按 refs 解析成一份 Markdown */
+export interface MaterialSourceMeta {
+  title: string;
+  refs: MaterialRef[];
+}
+
 export type VLResourceSourceMeta =
-  BilibiliSourceMeta | YoutubeSourceMeta | RemoteSourceMeta | NoteSourceMeta;
+  BilibiliSourceMeta | YoutubeSourceMeta | RemoteSourceMeta | NoteSourceMeta | MaterialSourceMeta;
 
 /**
  * 任务进度（chunk 拆分 / embedding 批次）

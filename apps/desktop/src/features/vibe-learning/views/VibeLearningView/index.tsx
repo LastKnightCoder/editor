@@ -26,6 +26,7 @@ import AddResourceModal from "./AddResourceModal";
 import GenerationHost, { type GenerationHostRef, type TaskStarted } from "./generate";
 import type { GenerateAppKey } from "./appMeta";
 import { ResourceGroup } from "./tree/ResourceGroup";
+import { SourceQuestionRow } from "./tree/SourceQuestionRow";
 import { OutputGroup, type OutputGroupRef } from "./tree/OutputGroup";
 import { TaskStage } from "./stage/TaskStage";
 import { useNoteTask, useVLTaskStore } from "./tasks/store";
@@ -262,6 +263,7 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
           className="h-full"
         >
           <FadeScroll className="h-full py-3 pl-2.5 pr-1">
+            <SourceQuestionRow projectId={projectId} />
             <ResourceGroup
               projectId={projectId}
               mainDbName={mainDbName}
