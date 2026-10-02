@@ -5,6 +5,7 @@ import type {
   IUpdateCard,
   CardMetadataPatch,
   CardDatabaseScope,
+  CardCreationOrigin,
 } from "@/types/card";
 
 /** 卡片内容按 id 批量取回的条目（供 AI 等消费方的受控摘要） */
@@ -28,7 +29,10 @@ export interface RandomCardsQuery {
 export const cardCommands = {
   getScoped: command<[CardDatabaseScope], ICard[]>("cards:get-scoped"),
   getScopedDetail: command<[CardDatabaseScope & { id: number }], ICard>("cards:get-scoped-card"),
-  createScoped: command<[CardDatabaseScope & { card: ICreateCard }], ICard>("cards:create-scoped"),
+  createScoped: command<
+    [CardDatabaseScope & { card: ICreateCard; origin?: CardCreationOrigin }],
+    ICard
+  >("cards:create-scoped"),
   patchScoped: command<[CardDatabaseScope & { id: number; patch: CardMetadataPatch }], ICard>(
     "cards:patch-scoped"
   ),
