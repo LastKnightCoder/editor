@@ -2,13 +2,17 @@ import {
   memo,
   lazy,
   Suspense,
+  useCallback,
   useRef,
+  useState,
   forwardRef,
   useImperativeHandle,
   type ReactNode,
 } from "react";
 import { useMemoizedFn } from "ahooks";
-import { AtSign, CornerDownLeft, FileText, SquarePen } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import type { MessageContentItem } from "@tau/shared";
+import { AtSign, CircleHelp, CornerDownLeft, FileText, SquarePen, X } from "lucide-react";
 import { IconButton, Loading, toast } from "@tau/ui";
 import "katex/dist/katex.min.css";
 
@@ -22,6 +26,12 @@ import { useChatMarkdownComponents } from "@/components/ChatUI";
 import type { ChatContainerHandle } from "@/components/ChatSidebar/ChatContainer";
 import type { BlockData } from "@/types/block-preview";
 import { WorkspaceBar } from "./WorkspaceBar";
+import {
+  applyQuestionSeed,
+  linkSeededChat,
+  loadQuestionSeed,
+  questionSeedText,
+} from "@/services/question-chat-seed";
 
 const ChatContainer = lazy(() => import("@/components/ChatSidebar/ChatContainer"));
 
@@ -35,6 +45,8 @@ export type ChatAreaHandle = {
 type ChatAreaProps = {
   /** 当前对话 id（页面参数）；null = 新对话草稿 */
   selectedChatId: string | null;
+  /** 围绕某个问题发起（只对新对话草稿生效） */
+  seedQuestionId?: number | null;
   onSelectChat: (chatId: string | null) => void;
   sendLoading: boolean;
   setSendLoading: (loading: boolean) => void;
@@ -46,6 +58,26 @@ type ChatAreaProps = {
   /** 标题行右侧的附加操作 */
   headerActions?: ReactNode;
 };
+
+/** 输入框上方「围绕问题：X」：首条消息会带上问题的背景与材料清单 */
+function SeedChip({ title, onRemove }: { title: string; onRemove: () => void }) {
+  return (
+    <div className="bg-surface border-line-1 rounded-tau-md mb-2 flex items-center gap-2 border px-2.5 py-1.5">
+      <CircleHelp className="text-ink-3 size-[14px] shrink-0" strokeWidth={1.75} />
+      <span className="text-tau-sm text-ink-2 min-w-0 flex-1 truncate">
+        围绕问题：<span className="text-ink-1">{title}</span>
+      </span>
+      <IconButton
+        aria-label="不带问题上下文"
+        title="不带问题上下文"
+        onClick={onRemove}
+        className="size-6"
+      >
+        <X size={13} strokeWidth={1.75} />
+      </IconButton>
+    </div>
+  );
+}
 
 function EmptyHint() {
   return (
@@ -78,6 +110,7 @@ const ChatArea = memo(
     (
       {
         selectedChatId,
+        seedQuestionId = null,
         onSelectChat,
         sendLoading,
         setSendLoading,
@@ -114,6 +147,38 @@ const ChatArea = memo(
         onOpenBlock,
         idPrefix: "page-block",
         liveChat: true,
+      });
+
+      // 围绕问题：草稿首条消息前置问题上下文，登记后挂到问题上；chip 可移除
+      const isDraft = !currentChat.sessionFile;
+      const [dismissedSeed, setDismissedSeed] = useState<number | null>(null);
+      const seedActive = isDraft && seedQuestionId != null && dismissedSeed !== seedQuestionId;
+      const { data: seedDetail } = useQuery({
+        queryKey: ["questions", "detail", seedQuestionId],
+        queryFn: () => loadQuestionSeed(seedQuestionId!),
+        enabled: seedActive,
+        staleTime: 30_000,
+      });
+      const seed = seedActive ? (seedDetail ?? null) : null;
+      const seedRef = useRef(seed);
+      seedRef.current = seed;
+      const sentSeedRef = useRef<number | null>(null);
+
+      const prepareUserContent = useCallback((content: MessageContentItem[]) => {
+        const current = seedRef.current;
+        if (!current) return content;
+        sentSeedRef.current = current.question.id;
+        return applyQuestionSeed(content, questionSeedText(current));
+      }, []);
+
+      const onChatCreated = useMemoizedFn((chatId: string) => {
+        const questionId = sentSeedRef.current;
+        sentSeedRef.current = null;
+        if (questionId != null)
+          linkSeededChat(questionId, chatId).catch(() =>
+            toast.error("对话已开始，但没能关联到问题")
+          );
+        onSelectChat(chatId);
       });
 
       useImperativeHandle(ref, () => ({
@@ -156,10 +221,21 @@ const ChatArea = memo(
                   titleRef={editTitleRef}
                   onCreateNewMessage={newChat}
                   createMessageLoading={false}
-                  onChatCreated={chatId => onSelectChat(chatId)}
+                  onChatCreated={onChatCreated}
+                  prepareUserContent={prepareUserContent}
                   contentMaxWidth={READING_WIDTH}
                   emptyState={<EmptyHint />}
-                  composerAccessory={<WorkspaceBar chatId={currentChat.id} busy={sendLoading} />}
+                  composerAccessory={
+                    <>
+                      {seed && (
+                        <SeedChip
+                          title={seed.question.questionContent}
+                          onRemove={() => setDismissedSeed(seedQuestionId)}
+                        />
+                      )}
+                      <WorkspaceBar chatId={currentChat.id} busy={sendLoading} />
+                    </>
+                  }
                 />
               </Suspense>
             </div>

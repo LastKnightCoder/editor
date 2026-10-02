@@ -14,6 +14,7 @@ import {
   Layers,
   Lightbulb,
   Link2,
+  MessageCircle,
   MoreHorizontal,
   PenLine,
   Plus,
@@ -60,6 +61,7 @@ export function QuestionDrawer({
   onOpenChat,
   onUnlinkChat,
   onOpenNotebook,
+  onDiscuss,
   onWriteCard,
   onWriteAnswer,
   onCreate,
@@ -86,6 +88,8 @@ export function QuestionDrawer({
   onOpenChat(chat: QuestionChat): void;
   onUnlinkChat(chat: QuestionChat): void;
   onOpenNotebook(id: number): void;
+  /** 围绕这个问题开一次新对话 */
+  onDiscuss(): void;
   onWriteCard(): void;
   onWriteAnswer(): void;
   onCreate(kind: CreatableKind): void;
@@ -177,6 +181,7 @@ export function QuestionDrawer({
           onOpenChat={onOpenChat}
           onUnlinkChat={onUnlinkChat}
           onOpenNotebook={onOpenNotebook}
+          onDiscuss={onDiscuss}
           onWriteCard={onWriteCard}
           onWriteAnswer={onWriteAnswer}
           onCreate={onCreate}
@@ -201,6 +206,7 @@ function DetailBody({
   onOpenChat,
   onUnlinkChat,
   onOpenNotebook,
+  onDiscuss,
   onWriteCard,
   onWriteAnswer,
   onCreate,
@@ -217,6 +223,8 @@ function DetailBody({
   onOpenChat(chat: QuestionChat): void;
   onUnlinkChat(chat: QuestionChat): void;
   onOpenNotebook(id: number): void;
+  /** 围绕这个问题开一次新对话 */
+  onDiscuss(): void;
   onWriteCard(): void;
   onWriteAnswer(): void;
   onCreate(kind: CreatableKind): void;
@@ -372,6 +380,9 @@ function DetailBody({
             独立答案
           </Menu.Item>
         </Menu>
+        <Button variant="secondary" size="sm" icon={MessageCircle} onClick={onDiscuss}>
+          围绕它聊
+        </Button>
         <Button variant="secondary" size="sm" icon={Link2} onClick={onLink}>
           关联已有
           <kbd className="bg-hover text-ink-2 ml-0.5 rounded-[4px] px-1 font-mono text-[10px]">

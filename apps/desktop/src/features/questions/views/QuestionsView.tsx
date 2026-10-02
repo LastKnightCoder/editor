@@ -227,6 +227,10 @@ export function QuestionsView() {
 
   const openNotebook = (id: number) => navigator.push("vibe-learning-detail", { id });
 
+  const discuss = () => {
+    if (detail) navigator.push("chat", { seedQuestion: detail.question.id });
+  };
+
   const upgrade = async () => {
     if (!detail) return;
     if (detail.notebook) {
@@ -507,6 +511,7 @@ export function QuestionsView() {
               }
               onOpenChat={openChat}
               onOpenNotebook={openNotebook}
+              onDiscuss={discuss}
               onUnlinkChat={unlinkChat}
               onWriteCard={() => setCardOpen(true)}
               onWriteAnswer={() =>
