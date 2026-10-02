@@ -10,6 +10,27 @@ export interface QuoteAnchor {
 }
 
 export const QUOTE_CONTEXT_LENGTH = 32;
+export function parseQuoteAnchor(value: unknown): QuoteAnchor | null {
+  try {
+    const anchor = typeof value === "string" ? JSON.parse(value) : value;
+    if (
+      !anchor ||
+      typeof anchor.exact !== "string" ||
+      typeof anchor.prefix !== "string" ||
+      typeof anchor.suffix !== "string"
+    )
+      return null;
+    return {
+      exact: anchor.exact,
+      prefix: anchor.prefix,
+      suffix: anchor.suffix,
+      ...(typeof anchor.heading === "string" ? { heading: anchor.heading } : {}),
+      ...(anchor.truncated === true ? { truncated: true } : {}),
+    };
+  } catch {
+    return null;
+  }
+}
 export const QUOTE_MAX_LENGTH = 2000;
 export const QUOTE_FUZZY_THRESHOLD = 0.75;
 
