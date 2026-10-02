@@ -27,6 +27,7 @@ interface MessageItemProps {
   regenerateLabel?: string;
   onEditMessage?: (messageIndex: number, content: string) => void;
   onCreateBranch?: (messageIndex: number) => void;
+  onToQuestion?: (messageIndex: number) => void;
   onSwitchVersion?: (messageIndex: number, versionIndex: number) => void;
   messageIndex: number;
   messageMeta?: MarkdownMessageMeta;
@@ -101,6 +102,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
     regenerateLabel,
     onEditMessage,
     onCreateBranch,
+    onToQuestion,
     onSwitchVersion,
     messageIndex,
     messageMeta,
@@ -173,6 +175,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
           regenerateLabel={regenerateLabel}
           onEditUserMessage={onEditMessage}
           onCreateBranch={onCreateBranch}
+          onToQuestion={onToQuestion}
           {...(versions ? { versions } : {})}
           onSwitchVersion={onSwitchVersion}
           onOpenFile={file => void openFileInExplorer(file)}

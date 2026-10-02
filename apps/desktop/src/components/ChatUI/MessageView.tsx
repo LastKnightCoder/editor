@@ -10,6 +10,7 @@ import { memo, useMemo, useState, type ReactNode } from "react";
 import {
   Check,
   ChevronLeft,
+  CircleHelp,
   ChevronRight,
   Copy,
   FileText,
@@ -55,6 +56,8 @@ export interface MessageViewProps {
   onRegenerate?: (messageIndex: number) => void;
   regenerateLabel?: string;
   onCreateBranch?: (messageIndex: number) => void;
+  /** 用户消息「转为问题」（提问即疑问）；不传则不显示 */
+  onToQuestion?: (messageIndex: number) => void;
   onEditUserMessage?: (messageIndex: number, content: string) => void;
   /** 会话树上这条用户消息的版本（编辑重发/重新生成/建分支产生）；有多个时显示 ‹ i/n › */
   versions?: { index: number; count: number };
@@ -95,6 +98,7 @@ export const MessageView = memo(function MessageView({
   onRegenerate,
   regenerateLabel = "重新生成",
   onCreateBranch,
+  onToQuestion,
   onEditUserMessage,
   versions,
   onSwitchVersion,
@@ -195,6 +199,11 @@ export const MessageView = memo(function MessageView({
       {isUser && onEditUserMessage && userText.trim() && (
         <Action label="编辑" onClick={() => onEditUserMessage(messageIndex, userText)}>
           <Pencil />
+        </Action>
+      )}
+      {isUser && onToQuestion && userText.trim() && (
+        <Action label="转为问题" onClick={() => onToQuestion(messageIndex)}>
+          <CircleHelp />
         </Action>
       )}
       {isUser && onRegenerate && (
