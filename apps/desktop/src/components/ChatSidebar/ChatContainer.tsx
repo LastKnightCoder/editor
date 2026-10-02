@@ -61,7 +61,8 @@ import type { EditTextHandle } from "@/components/EditText";
 import { FADE_SCROLL_CLASS, Popover, cn, toast, useEdgeFade } from "@tau/ui";
 import { useConversationTree } from "@/features/chat/useConversationTree";
 import { ConversationTreePanel } from "@/features/chat/components/ConversationTreePanel";
-import type { ConversationTreeRow } from "@/features/chat/conversationTree";
+import { conversationEntryTail, type ConversationTreeRow } from "@/features/chat/conversationTree";
+import { piSessionTree } from "@/commands/piSession";
 import {
   type ChatMessageType as CoreChatMessageType,
   type MessageContentItem,
@@ -658,9 +659,14 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           message.error(getErrorMessage(error) || "修改对话历史失败");
           return null;
         }
-        const next = adoptTranscript(actualChatRef.current, messages);
-        actualChatRef.current = next;
-        setUpdateCounter(prev => prev + 1);
+        const next = adoptTranscript(chat, messages);
+        if (
+          actualChatRef.current.id === chat.id &&
+          actualChatRef.current.databaseName === chat.databaseName
+        ) {
+          actualChatRef.current = next;
+          setUpdateCounter(prev => prev + 1);
+        }
         useChatSessionStore.getState().publishChat(next);
         return next;
       }
@@ -1425,6 +1431,49 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     });
 
     const locatedEntry = useRef<string | null>(null);
+    const switchedEntry = useRef<string | null>(null);
+    useEffect(
+      () => () => {
+        locatedEntry.current = null;
+        switchedEntry.current = null;
+      },
+      [sessionKey, entry, isVisible]
+    );
+    useEffect(() => {
+      if (
+        !entry ||
+        !isVisible ||
+        sendLoading ||
+        visibleMessages.some(message => message.piEntryIds?.includes(entry))
+      )
+        return;
+      const chat = actualChatRef.current;
+      const key = `${sessionKey}:${entry}`;
+      if (!chat.sessionFile || switchedEntry.current === key) return;
+      let cancelled = false;
+      void piSessionTree({ sessionFile: chat.sessionFile, databaseName: chat.databaseName })
+        .then(async result => {
+          if (cancelled || !result.ok) return;
+          const tail = conversationEntryTail(result.nodes ?? [], entry);
+          if (!tail) return;
+          switchedEntry.current = key;
+          await editSessionHistory({ kind: "switch", entryId: tail });
+        })
+        .catch(error => {
+          if (!cancelled) message.error(getErrorMessage(error));
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, [
+      actualChatRef,
+      entry,
+      sessionKey,
+      isVisible,
+      sendLoading,
+      visibleMessages,
+      editSessionHistory,
+    ]);
     useEffect(() => {
       const key = `${sessionKey}:${entry}`;
       if (!entry || locatedEntry.current === key || !isVisible) return;

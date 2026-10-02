@@ -10,6 +10,23 @@ vi.mock("@/utils/embedding-model-info", () => ({
 import { createKnowledgeSearchTool } from "../knowledgeSearchTool";
 
 describe("search_knowledge 覆盖外部材料（E2）", () => {
+  it("节索引尚未就绪时只返回片段，不回退整篇", async () => {
+    mocks.searchContent.mockResolvedValue([
+      {
+        id: 1,
+        type: "article",
+        title: "长文",
+        content: [
+          { type: "paragraph", children: [{ type: "formatted", text: "未定位的整篇正文" }] },
+        ],
+        snippet: "词面命中片段",
+      },
+    ]);
+    const result = await createKnowledgeSearchTool().executor({ query: "命中" }, {} as never);
+    const payload = JSON.parse((result as { content: string }).content);
+    expect(payload.results[0]).toMatchObject({ content: "词面命中片段", sectionUnavailable: true });
+    expect(JSON.stringify(payload)).not.toContain("未定位的整篇正文");
+  });
   it("长文只返回命中节与定位，不带整篇正文", async () => {
     mocks.searchContent.mockResolvedValue([
       {

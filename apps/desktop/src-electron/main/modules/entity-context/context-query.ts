@@ -186,6 +186,7 @@ function backlinksOf(
     const source = toContextEntity(mainDb, group.ref);
     if (!source) continue;
     const locatedSource = withDiaryMoment(mainDb, source, group.contentId);
+    if (locatedSource.open?.page === "diary") locatedSource.open.at = { block: group.block };
     if (source.ref.kind !== "diary") locatedSource.open = { page: "entity", ref: source.ref, at: { block: group.block } };
     backlinks.push({ source: locatedSource, snippets: group.snippets });
   }

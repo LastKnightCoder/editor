@@ -13,6 +13,7 @@ import { findOneArticle } from "@/commands/article";
 import { getProjectItemById } from "@/commands/project";
 import useSettingStore from "@/stores/useSettingStore";
 import type { ExtractSource } from "./extract-to-card";
+import { bindDatabaseCommands } from "./command-context";
 
 export type QuestionCaptureSource =
   | { kind: "material"; target: QuestionLinkTarget; databaseName?: string }
@@ -95,10 +96,19 @@ export async function submitQuestionCapture(
   title: string,
   groupHint: string | null
 ): Promise<{ question: IQuestion; groupTitle: string }> {
+  const databaseName = useSettingStore.getState().setting.database.active;
+  const commands = bindDatabaseCommands(
+    { captureQuestion, linkQuestionTargets, linkQuestionChat },
+    { databaseName }
+  );
   await assertSourceExists(source);
-  const result = await captureQuestion(title, groupHint, { mutationSource: "question-capture" });
+  if (useSettingStore.getState().setting.database.active !== databaseName)
+    throw new Error("数据库已切换，请重新选择来源");
+  const result = await commands.captureQuestion(title, groupHint, {
+    mutationSource: "question-capture",
+  });
   if (source.kind === "material") {
-    await linkQuestionTargets(
+    await commands.linkQuestionTargets(
       result.question.id,
       [source.target],
       {},
@@ -107,7 +117,7 @@ export async function submitQuestionCapture(
       }
     );
   } else {
-    await linkQuestionChat(
+    await commands.linkQuestionChat(
       result.question.id,
       { sessionId: source.sessionId, messageIds: source.messageIds },
       { mutationSource: "question-capture" }

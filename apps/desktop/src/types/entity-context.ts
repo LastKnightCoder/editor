@@ -36,7 +36,7 @@ export type ContextOpenTarget =
   | { page: "chat"; id: string }
   | { page: "vibe-learning-detail"; id: number }
   | { page: "review"; deckId: number }
-  | { page: "diary"; date: string; momentId: number }
+  | { page: "diary"; date: string; momentId: number; at?: EntityLocation }
   | { page: "whiteboard-detail"; id: number; pageId: number }
   | { page: "todos"; selectedId: number }
   | { page: "questions"; selectedId: number }

@@ -23,6 +23,7 @@ export function useContentLocation(
   });
   useEffect(() => {
     if (!editor || !at || (quoteId !== null && query.isPending)) return;
+    let markedElement: HTMLElement | null = null;
     const frame = requestAnimationFrame(() => {
       const target = parseEntityLocation(at);
       const block =
@@ -34,11 +35,17 @@ export function useContentLocation(
       const node = editor.children[block] ?? editor.children[0];
       if (!node) return;
       try {
-        scrollToAndFlash(ReactEditor.toDOMNode(editor, node));
+        const element = ReactEditor.toDOMNode(editor, node);
+        markedElement = element;
+        element.setAttribute("data-content-location", "");
+        scrollToAndFlash(element);
       } catch {
         /* 正文切换时旧节点可能已卸载。 */
       }
     });
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      markedElement?.removeAttribute("data-content-location");
+    };
   }, [editor, at, contentId, database, quoteId, query.isPending, query.data]);
 }

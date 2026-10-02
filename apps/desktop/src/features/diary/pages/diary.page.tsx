@@ -12,6 +12,7 @@ const schema = createPageSchema({
   id: paramOptional(paramString()),
   date: paramOptional(paramString()),
   moment: paramOptional(paramString()),
+  at: paramOptional(paramString()),
 });
 
 export default definePage({
