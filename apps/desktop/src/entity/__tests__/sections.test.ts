@@ -14,6 +14,18 @@ const header = (text: string, level: 1 | 2 = 1): Descendant => ({
 });
 
 describe("主内容按节切块", () => {
+  it("代码正文不因 Slate 文本叶子为空而被当作短节", () => {
+    const code: Descendant = {
+      type: "code-block",
+      uuid: "section-code-fixture",
+      code: "const value = 1;\n".repeat(10),
+      language: "javascript",
+      children: [{ type: "formatted", text: "" }],
+    };
+    expect(
+      splitSections([header("代码观点"), code, header("下一节"), paragraph("正文".repeat(80))], "")
+    ).toHaveLength(2);
+  });
   it("无标题短文与卡片保持整篇", () => {
     expect(splitSections([paragraph("短文")], "标题")).toHaveLength(1);
     expect(splitSections([paragraph("观点".repeat(2000))], "", true)).toHaveLength(1);

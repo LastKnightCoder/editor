@@ -1,4 +1,4 @@
-import { Node, Text, type Descendant } from "slate";
+import { Text, type Descendant } from "slate";
 import { getMarkdown } from "../utils/markdown";
 import { smartChunkWithRanges } from "../../src-electron/main/utils/smart-chunk";
 import { headingPaths } from "./quote-anchor";
@@ -20,7 +20,8 @@ export interface ContentSection {
 export function splitSections(
   content: Descendant[],
   title: string,
-  whole = false
+  whole = false,
+  limits = { minLength: SECTION_MIN_LENGTH, maxLength: SECTION_MAX_LENGTH }
 ): ContentSection[] {
   if (!content.length) return [];
   const paths = headingPaths(content);
@@ -52,9 +53,10 @@ export function splitSections(
     const range = { ...ranges[i] };
     while (
       i + 1 < ranges.length &&
-      content
+      markdown
         .slice(range.start, range.end + 1)
-        .reduce((sum, node) => sum + Node.string(node).length, 0) < SECTION_MIN_LENGTH
+        .join("\n\n")
+        .trim().length < limits.minLength
     ) {
       range.end = ranges[++i].end;
     }
@@ -74,8 +76,8 @@ export function splitSections(
     const chunks = whole
       ? [{ text: text.trim(), startOffset: 0, endOffset: text.length }]
       : smartChunkWithRanges(text, {
-          minLength: SECTION_MIN_LENGTH,
-          maxLength: SECTION_MAX_LENGTH,
+          minLength: limits.minLength,
+          maxLength: limits.maxLength,
           overlap: 0,
           splitter: "paragraph",
         });

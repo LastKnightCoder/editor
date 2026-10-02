@@ -234,7 +234,7 @@ describe("getEntityContext", () => {
     const cardContent = insertContent([p(text("期货"))]);
     const cardId = insertCard(cardContent);
     insertSegment(insertContent([p(text("上午"))]));
-    const secondContent = insertContent([p(link("card", cardId, "期货", cardContent))]);
+    const secondContent = insertContent([p(text("前置内容")), p(link("card", cardId, "期货", cardContent))]);
     const second = insertSegment(secondContent);
     // 卡片反过来引用这一天的第二条
     mainDb
@@ -244,7 +244,7 @@ describe("getEntityContext", () => {
 
     const ctx = getEntityContext(mainDb, indexDb, { kind: "card", id: cardId })!;
     const target = { page: "diary", date: "2025-11-13", momentId: second };
-    expect(ctx.backlinks[0].source.open).toEqual(target);
+    expect(ctx.backlinks[0].source.open).toEqual({ ...target, at: { block: 1 } });
     expect(ctx.outlinks[0].open).toEqual(target);
   });
 

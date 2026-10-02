@@ -152,7 +152,7 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
     }
     return (
       <>
-        {at && (
+        {at && !swapping && !frozen && (
           <ContentLocation
             at={at}
             contentId={contentId}

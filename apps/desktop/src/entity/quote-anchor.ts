@@ -161,10 +161,29 @@ export function resolveQuoteAnchor(
   let bestRank = -1;
   const minimumLength = Math.floor(anchor.exact.length * threshold);
   const maximumLength = Math.ceil(anchor.exact.length / threshold);
+  const quoteCounts = new Map<number, number>();
+  for (let i = 0; i < anchor.exact.length; i++) {
+    const character = anchor.exact.charCodeAt(i);
+    quoteCounts.set(character, (quoteCounts.get(character) ?? 0) + 1);
+  }
   for (let start = 0; start < content.length; start++) {
     let candidate = "";
+    const candidateCounts = new Map<number, number>();
+    let sharedUpperBound = 0;
     for (let end = start; end < content.length; end++) {
-      candidate += (end > start ? "\n" : "") + index.blocks[end];
+      const addition = (end > start ? "\n" : "") + index.blocks[end];
+      candidate += addition;
+      for (let i = 0; i < addition.length; i++) {
+        const character = addition.charCodeAt(i);
+        const count = (candidateCounts.get(character) ?? 0) + 1;
+        candidateCounts.set(character, count);
+        if (count <= (quoteCounts.get(character) ?? 0)) sharedUpperBound++;
+      }
+      // 字符交集是共同子序列的上界，无法过阈值的窗口不必执行昂贵的差分。
+      if (sharedUpperBound < minimumLength) {
+        if (candidate.length >= maximumLength) break;
+        continue;
+      }
       // 局部选区可能藏在长段落内，差分中的首尾新增文本不属于候选引文。
       const parts = diff(anchor.exact, candidate);
       const leading = parts[0]?.[0] === 1 ? parts[0][1].length : 0;

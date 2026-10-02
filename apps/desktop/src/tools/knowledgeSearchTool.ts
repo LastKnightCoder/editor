@@ -137,7 +137,16 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
         type: r.type,
         typeName: getTypeDisplayName(r.type),
         title: r.title || "无标题",
-        content: r.section?.text ?? (r.content ? getMarkdown(r.content as Descendant[]) : ""),
+        content:
+          r.section?.text ??
+          (["article", "project-item", "web-clip"].includes(r.type)
+            ? (r.snippet ?? "")
+            : r.content
+              ? getMarkdown(r.content as Descendant[])
+              : ""),
+        ...(!r.section && ["article", "project-item", "web-clip"].includes(r.type)
+          ? { sectionUnavailable: true }
+          : {}),
         ...(r.section ? { section: r.section } : {}),
         updateTime: r.updateTime,
         source: r.source,

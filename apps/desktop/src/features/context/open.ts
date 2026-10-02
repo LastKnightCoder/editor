@@ -7,6 +7,7 @@ import { openEntity } from "@/services/open-content";
 import { openMaterialTarget } from "@/services/open-material";
 import { openPage } from "@/services/page-navigation";
 import type { ContextOpenTarget } from "@/types/entity-context";
+import { serializeEntityLocation } from "@/entity/locate";
 
 export async function openContextTarget(target: ContextOpenTarget): Promise<void> {
   switch (target.page) {
@@ -21,7 +22,11 @@ export async function openContextTarget(target: ContextOpenTarget): Promise<void
     case "whiteboard-detail":
       return openPage("whiteboard-detail", { id: target.id, page: target.pageId });
     case "diary":
-      return openPage("diary", { date: target.date, moment: String(target.momentId) });
+      return openPage("diary", {
+        date: target.date,
+        moment: String(target.momentId),
+        ...(target.at ? { at: serializeEntityLocation(target.at) } : {}),
+      });
     case "todos":
       return openPage("todos", { selectedId: target.selectedId });
     case "questions":
