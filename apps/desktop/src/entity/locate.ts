@@ -1,4 +1,6 @@
-export type EntityLocation = { block: number } | { quote: number };
+import { parseQuoteAnchor, type QuoteAnchor } from "./quote-anchor";
+
+export type EntityLocation = { block: number } | { quote: number | QuoteAnchor };
 
 export function parseEntityLocation(value: string | undefined): EntityLocation | null {
   if (!value) return null;
@@ -7,6 +9,8 @@ export function parseEntityLocation(value: string | undefined): EntityLocation |
     if (!parsed || typeof parsed !== "object") return null;
     if (Number.isSafeInteger(parsed.block) && parsed.block >= 0) return { block: parsed.block };
     if (Number.isSafeInteger(parsed.quote) && parsed.quote > 0) return { quote: parsed.quote };
+    const quote = parseQuoteAnchor(parsed.quote);
+    if (quote) return { quote };
   } catch {
     /* 非法地址降级为文首。 */
   }

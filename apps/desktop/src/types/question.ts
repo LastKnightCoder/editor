@@ -51,7 +51,6 @@ export interface QuestionLink extends QuestionLinkTarget {
 
 /** 材料的展示投影（主进程统一解析；目标被删时 missing = true） */
 export interface QuestionMaterial extends QuestionLink {
-  anchorBlock?: number;
   anchorLost?: boolean;
   title: string;
   excerpt: string;

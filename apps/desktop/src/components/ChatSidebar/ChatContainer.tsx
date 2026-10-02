@@ -63,6 +63,7 @@ import { useConversationTree } from "@/features/chat/useConversationTree";
 import { ConversationTreePanel } from "@/features/chat/components/ConversationTreePanel";
 import { conversationEntryTail, type ConversationTreeRow } from "@/features/chat/conversationTree";
 import { piSessionTree } from "@/commands/piSession";
+import { useChatEntryLocation } from "./useChatEntryLocation";
 import {
   type ChatMessageType as CoreChatMessageType,
   type MessageContentItem,
@@ -153,6 +154,7 @@ interface HiddenPromptContextState {
 
 interface ChatContainerProps {
   entry?: string;
+  onEntryLocated?: () => void;
   /** 当前对话（统一会话 store 里已打开的对话；新对话是草稿：真 id、尚无 sessionFile） */
   currentChat: ChatMessage;
   isDark: boolean;
@@ -198,6 +200,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     {
       currentChat,
       entry,
+      onEntryLocated,
       isDark,
       markdownComponents,
       isVisible,
@@ -1430,61 +1433,26 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       }
     });
 
-    const locatedEntry = useRef<string | null>(null);
-    const switchedEntry = useRef<string | null>(null);
-    useEffect(
-      () => () => {
-        locatedEntry.current = null;
-        switchedEntry.current = null;
-      },
-      [sessionKey, entry, isVisible]
-    );
-    useEffect(() => {
-      if (
-        !entry ||
-        !isVisible ||
-        sendLoading ||
-        visibleMessages.some(message => message.piEntryIds?.includes(entry))
-      )
-        return;
-      const chat = actualChatRef.current;
-      const key = `${sessionKey}:${entry}`;
-      if (!chat.sessionFile || switchedEntry.current === key) return;
-      let cancelled = false;
-      void piSessionTree({ sessionFile: chat.sessionFile, databaseName: chat.databaseName })
-        .then(async result => {
-          if (cancelled || !result.ok) return;
-          const tail = conversationEntryTail(result.nodes ?? [], entry);
-          if (!tail) return;
-          switchedEntry.current = key;
-          await editSessionHistory({ kind: "switch", entryId: tail });
-        })
-        .catch(error => {
-          if (!cancelled) message.error(getErrorMessage(error));
-        });
-      return () => {
-        cancelled = true;
-      };
-    }, [
-      actualChatRef,
-      entry,
+    useChatEntryLocation({
       sessionKey,
-      isVisible,
-      sendLoading,
-      visibleMessages,
-      editSessionHistory,
-    ]);
-    useEffect(() => {
-      const key = `${sessionKey}:${entry}`;
-      if (!entry || locatedEntry.current === key || !isVisible) return;
-      const index = visibleMessages.findIndex(message => message.piEntryIds?.includes(entry));
-      if (index < 0) return;
-      const timer = setTimeout(() => {
-        coreRef.current?.scrollToIndex(index, { align: "start" });
-        locatedEntry.current = key;
-      }, 0);
-      return () => clearTimeout(timer);
-    }, [sessionKey, entry, isVisible, visibleMessages]);
+      entry,
+      visible: isVisible,
+      busy: sendLoading,
+      messages: visibleMessages,
+      findBranch: async target => {
+        const chat = actualChatRef.current;
+        if (!chat.sessionFile) return null;
+        const result = await piSessionTree({
+          sessionFile: chat.sessionFile,
+          databaseName: chat.databaseName,
+        });
+        return result.ok ? conversationEntryTail(result.nodes ?? [], target) : null;
+      },
+      switchBranch: tail => editSessionHistory({ kind: "switch", entryId: tail }),
+      scrollTo: index => coreRef.current?.scrollToIndex(index, { align: "start" }),
+      onLocated: onEntryLocated,
+      onError: error => message.error(getErrorMessage(error)),
+    });
 
     if (!currentChat) {
       return null;

@@ -15,7 +15,8 @@ export function useContentLocation(
 ) {
   const database = useSettingStore(state => state.setting.database.active);
   const location = parseEntityLocation(at);
-  const quoteId = location && "quote" in location ? location.quote : null;
+  const quoteId =
+    location && "quote" in location && typeof location.quote === "number" ? location.quote : null;
   const query = useQuery({
     queryKey: ["lineage-anchor", database, quoteId, contentId],
     queryFn: () => getLineageAnchor(quoteId!, contentId!),
@@ -26,11 +27,15 @@ export function useContentLocation(
     let markedElement: HTMLElement | null = null;
     const frame = requestAnimationFrame(() => {
       const target = parseEntityLocation(at);
+      const quote =
+        target && "quote" in target && typeof target.quote !== "number"
+          ? target.quote
+          : query.data?.quote;
       const block =
         target && "block" in target
           ? target.block
-          : query.data?.quote
-            ? resolveQuoteAnchor(editor.children, query.data.quote).blockStart
+          : quote
+            ? resolveQuoteAnchor(editor.children, quote).blockStart
             : 0;
       const node = editor.children[block] ?? editor.children[0];
       if (!node) return;

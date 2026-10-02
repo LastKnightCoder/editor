@@ -81,6 +81,7 @@ function ChatPaper() {
           ref={chatAreaRef}
           selectedChatId={chatId}
           entry={entry}
+          onEntryLocated={() => navigator.push("chat", { id, seedQuestion })}
           seedQuestionId={seedQuestion ?? null}
           onSelectChat={select}
           sendLoading={sendLoading}

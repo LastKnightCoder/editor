@@ -203,7 +203,7 @@ export function QuestionsView() {
           kind: material.targetType === "project_item" ? "project-item" : material.targetType,
           id: material.targetId,
         },
-        { at: { block: material.anchorBlock ?? 0 } }
+        { at: { quote: material.anchor } }
       ).catch(error => toast.error(String(error)));
       return;
     }

@@ -167,30 +167,44 @@ export function resolveQuoteAnchor(
     quoteCounts.set(character, (quoteCounts.get(character) ?? 0) + 1);
   }
   for (let start = 0; start < content.length; start++) {
-    let candidate = "";
-    const candidateCounts = new Map<number, number>();
-    let sharedUpperBound = 0;
     for (let end = start; end < content.length; end++) {
-      const addition = (end > start ? "\n" : "") + index.blocks[end];
-      candidate += addition;
-      for (let i = 0; i < addition.length; i++) {
-        const character = addition.charCodeAt(i);
+      const firstEnd = index.starts[start] + index.blocks[start].length;
+      // 首尾可只选一部分，只有必须完整跨过的中间块才能决定窗口是否过长。
+      if (end > start && index.starts[end] - firstEnd - 1 >= maximumLength) break;
+      const windowStart =
+        end === start
+          ? index.starts[start]
+          : Math.max(index.starts[start], firstEnd - maximumLength);
+      const windowEnd =
+        index.starts[end] +
+        (end === start
+          ? index.blocks[end].length
+          : Math.min(index.blocks[end].length, maximumLength));
+      const candidate = index.text.slice(windowStart, windowEnd);
+      const candidateCounts = new Map<number, number>();
+      let sharedUpperBound = 0;
+      for (let i = 0; i < candidate.length; i++) {
+        const character = candidate.charCodeAt(i);
         const count = (candidateCounts.get(character) ?? 0) + 1;
         candidateCounts.set(character, count);
         if (count <= (quoteCounts.get(character) ?? 0)) sharedUpperBound++;
       }
       // 字符交集是共同子序列的上界，无法过阈值的窗口不必执行昂贵的差分。
       if (sharedUpperBound < minimumLength) {
-        if (candidate.length >= maximumLength) break;
         continue;
       }
       // 局部选区可能藏在长段落内，差分中的首尾新增文本不属于候选引文。
       const parts = diff(anchor.exact, candidate);
-      const leading = parts[0]?.[0] === 1 ? parts[0][1].length : 0;
-      const trailing =
-        parts.length > 1 && parts[parts.length - 1][0] === 1
-          ? parts[parts.length - 1][1].length
-          : 0;
+      let leading = 0;
+      for (const [operation, text] of parts) {
+        if (operation === 0) break;
+        if (operation === 1) leading += text.length;
+      }
+      let trailing = 0;
+      for (let i = parts.length - 1; i >= 0; i--) {
+        if (parts[i][0] === 0) break;
+        if (parts[i][0] === 1) trailing += parts[i][1].length;
+      }
       const length = candidate.length - leading - trailing;
       if (length >= minimumLength && length <= maximumLength) {
         const shared = parts.reduce(
@@ -198,8 +212,8 @@ export function resolveQuoteAnchor(
           0
         );
         const score = shared / Math.max(anchor.exact.length, length);
-        const from = index.starts[start] + leading;
-        const to = index.starts[start] + candidate.length - trailing;
+        const from = windowStart + leading;
+        const to = windowEnd - trailing;
         const rank =
           score * 0.9 +
           contextScore(index.text, from, to, anchor) * 0.07 +
@@ -210,7 +224,6 @@ export function resolveQuoteAnchor(
           best = { status: "fuzzy", blockStart: blockAt(from), blockEnd: blockAt(to - 1), score };
         }
       }
-      if (candidate.length >= maximumLength) break;
     }
   }
   return best;

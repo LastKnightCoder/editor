@@ -139,7 +139,6 @@ describe("问题材料关联与探究轨迹", () => {
     expect(material).toMatchObject({
       anchor,
       excerpt: "选中观点",
-      anchorBlock: 0,
       anchorLost: false,
     });
     db.prepare("UPDATE contents SET content = ? WHERE id = ?").run(
