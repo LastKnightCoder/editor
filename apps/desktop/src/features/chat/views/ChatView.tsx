@@ -37,7 +37,7 @@ export function ChatView() {
 
 function ChatPaper() {
   const { navigator } = usePage();
-  const { id } = usePageParams<{ id?: string }>();
+  const { id, seedQuestion } = usePageParams<{ id?: string; seedQuestion?: number }>();
   // 会话删除后参数失效由 useScopedChat 处理（列表加载完查不到就退回新对话草稿）
   const chatId = parseChatId(id);
   const chatAreaRef = useRef<ChatAreaHandle>(null);
@@ -76,6 +76,7 @@ function ChatPaper() {
         <ChatArea
           ref={chatAreaRef}
           selectedChatId={chatId}
+          seedQuestionId={seedQuestion ?? null}
           onSelectChat={select}
           sendLoading={sendLoading}
           setSendLoading={setSendLoading}
