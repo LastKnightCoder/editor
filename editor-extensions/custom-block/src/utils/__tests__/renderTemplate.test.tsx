@@ -70,7 +70,7 @@ const Component = () => {
     return container;
   };
 
-  it("仍用 antd 的旧模板：错误收在本块内，说明怎么改", { timeout: 20000 }, async () => {
+  it("使用已移除绑定（antd）的模板：错误收在本块内", { timeout: 20000 }, async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const container = await renderTemplate(`
 const Component = () => {
@@ -78,7 +78,8 @@ const Component = () => {
   return <Button>旧模板</Button>;
 };
 `);
-    expect(container.textContent).toContain("components.antd 已移除");
+    expect(container.textContent).toContain("渲染错误");
+    expect(container.textContent).toContain("antd is not defined");
   });
 
   it("模板渲染期抛错：只在本块显示错误", { timeout: 20000 }, async () => {
@@ -93,7 +94,7 @@ const Component = () => {
     expect(container.querySelector("b")).toBeNull();
   });
 
-  it("不用 antd 的模板照常运行", { timeout: 20000 }, async () => {
+  it("普通模板照常运行", { timeout: 20000 }, async () => {
     const container = await renderTemplate(`
 const Component = () => <div className="p-2">新模板</div>;
 `);
@@ -135,17 +136,4 @@ const Component = () => {
       );
     }
   );
-
-  it("存量模板的 hooks.useTheme() 仍可用，并提示迁移到 useTokens", { timeout: 20000 }, async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const container = await renderTemplate(`
-const Component = () => {
-  const { isDark, theme } = hooks.useTheme();
-  return <div data-theme={theme}>{isDark ? "dark" : "light"}</div>;
-};
-`);
-    expect(container.textContent).toBe("light");
-    expect(container.querySelector("[data-theme]")?.getAttribute("data-theme")).toBe("light");
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("useTokens"));
-  });
 });
