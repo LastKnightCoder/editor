@@ -1448,8 +1448,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         });
         return result.ok ? conversationEntryTail(result.nodes ?? [], target) : null;
       },
-      switchBranch: tail => editSessionHistory({ kind: "switch", entryId: tail }),
       scrollTo: index => coreRef.current?.scrollToIndex(index, { align: "start" }),
+      onElsewhere: reason =>
+        reason === "other-branch"
+          ? message.info("这条消息在对话的另一个分支，可在对话树里切换过去")
+          : message.warning("原消息已不在这次对话里"),
       onLocated: onEntryLocated,
       onError: error => message.error(getErrorMessage(error)),
     });

@@ -1,3 +1,4 @@
+import { locatesSection } from "@/entity/section-location";
 import type { ToolDefinition } from "@/types/tool";
 import type { IndexType } from "@/types/search";
 import { searchContent } from "@/utils/search";
@@ -147,7 +148,7 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
         ...(!r.section && ["article", "project-item", "web-clip"].includes(r.type)
           ? { sectionUnavailable: true }
           : {}),
-        ...(r.section ? { section: r.section } : {}),
+        ...(r.section && locatesSection(r.type) ? { section: r.section } : {}),
         updateTime: r.updateTime,
         source: r.source,
         ...(r.date ? { date: r.date } : {}),

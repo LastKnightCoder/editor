@@ -119,6 +119,34 @@ function projectPaths(mainDb: Database.Database): Map<number, string> {
   return paths;
 }
 
+const NEIGHBOR_RECALL = 8;
+
+/** 多条 float32 向量（vec0 原始字节）取 L2 归一化均值；维度不一致的丢弃 */
+export function meanVector(blobs: Buffer[]): Buffer | null {
+  const vectors = blobs.map(
+    blob => new Float32Array(blob.buffer, blob.byteOffset, blob.byteLength / 4)
+  );
+  const dim = vectors[0]?.length ?? 0;
+  if (!dim) return null;
+  const sum = new Float64Array(dim);
+  let count = 0;
+  for (const vector of vectors) {
+    if (vector.length !== dim) continue;
+    let norm = 0;
+    for (let i = 0; i < dim; i++) norm += vector[i] * vector[i];
+    norm = Math.sqrt(norm) || 1;
+    for (let i = 0; i < dim; i++) sum[i] += vector[i] / norm;
+    count++;
+  }
+  let norm = 0;
+  for (let i = 0; i < dim; i++) norm += sum[i] * sum[i];
+  norm = Math.sqrt(norm);
+  if (!count || !norm) return null;
+  const out = new Float32Array(dim);
+  for (let i = 0; i < dim; i++) out[i] = sum[i] / norm;
+  return Buffer.from(out.buffer);
+}
+
 export default class KnowledgeMapTable {
   /**
    * 旧版地图表以 card_id 为主键；改为 node_key 后旧表直接删除（数据可重算），
@@ -461,23 +489,22 @@ export default class KnowledgeMapTable {
     const own = indexDb
       .prepare("SELECT vec_embedding FROM vec_documents WHERE prefixed_id = ?")
       .all(key) as Array<{ vec_embedding: Buffer }>;
-    if (own.length === 0) return [];
+    const query = meanVector(own.map(row => row.vec_embedding));
+    if (!query) return [];
+    // 长文按节有多条向量：取均值只查一次近邻（与地图按实体均值聚合同一口径），
+    // 邻居同样有多节，多取几倍再按实体去重
     const best = new Map<string, number>();
-    const statement = indexDb.prepare(
-      `SELECT prefixed_id, distance FROM vec_documents
-       WHERE vec_embedding MATCH ? AND k = ? AND type IN (${VECTOR_TYPE_SQL})`
-    );
-    for (const chunk of own) {
-      for (const row of statement.all(chunk.vec_embedding, k * 3) as Array<{
-        prefixed_id: string;
-        distance: number;
-      }>) {
-        if (row.prefixed_id === key) continue;
-        // cosine 距离 → 相似度
-        const similarity = 1 - row.distance;
-        if (similarity > (best.get(row.prefixed_id) ?? -Infinity)) {
-          best.set(row.prefixed_id, similarity);
-        }
+    const rows = indexDb
+      .prepare(
+        `SELECT prefixed_id, distance FROM vec_documents
+         WHERE vec_embedding MATCH ? AND k = ? AND type IN (${VECTOR_TYPE_SQL})`
+      )
+      .all(query, k * NEIGHBOR_RECALL) as Array<{ prefixed_id: string; distance: number }>;
+    for (const row of rows) {
+      if (row.prefixed_id === key) continue;
+      const similarity = 1 - row.distance;
+      if (similarity > (best.get(row.prefixed_id) ?? -Infinity)) {
+        best.set(row.prefixed_id, similarity);
       }
     }
     return [...best.entries()]

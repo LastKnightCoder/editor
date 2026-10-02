@@ -19,8 +19,8 @@ beforeEach(() => {
     busy: false,
     messages: [{ piEntryIds: ["a"] }, { piEntryIds: ["b"] }],
     findBranch: vi.fn(async () => "b-tail"),
-    switchBranch: vi.fn(async () => undefined),
     scrollTo: vi.fn(),
+    onElsewhere: vi.fn(),
     onLocated: vi.fn(),
     onError: vi.fn(),
   };
@@ -36,25 +36,33 @@ const render = async () => {
   });
 };
 
-it("定位后手动切兄弟分支不被拉回，清除 entry 后可以再次发起定位", async () => {
+it("目标在当前分支：滚过去一次；之后手动切分支不被拉回", async () => {
   await render();
   expect(options.scrollTo).toHaveBeenCalledWith(1);
   expect(options.onLocated).toHaveBeenCalledTimes(1);
   options.messages = [{ piEntryIds: ["c"] }];
   await render();
   expect(options.findBranch).not.toHaveBeenCalled();
-  options.visible = false;
+  expect(options.onElsewhere).not.toHaveBeenCalled();
+});
+
+it("目标在别的分支只提示、不切换；已删除提示原消息不在", async () => {
+  options.messages = [{ piEntryIds: ["a"] }];
   await render();
-  options.visible = true;
+  expect(options.onElsewhere).toHaveBeenLastCalledWith("other-branch");
+  expect(options.onLocated).toHaveBeenCalledTimes(1);
   await render();
-  expect(options.findBranch).not.toHaveBeenCalled();
+  expect(options.onElsewhere).toHaveBeenCalledTimes(1);
+
   options.entry = undefined;
   await render();
-  options.entry = "b";
+  options.entry = "gone";
+  options.findBranch = vi.fn(async () => null);
   await render();
-  expect(options.switchBranch).toHaveBeenCalledWith("b-tail");
+  expect(options.onElsewhere).toHaveBeenLastCalledWith("missing");
 });
-it("运行中等待；隐藏页面后忽略迟到的分支查找", async () => {
+
+it("运行中等待；隐藏页面后忽略迟到的查找", async () => {
   options.messages = [];
   options.busy = true;
   await render();
@@ -71,5 +79,5 @@ it("运行中等待；隐藏页面后忽略迟到的分支查找", async () => {
   options.visible = false;
   await render();
   await act(async () => resolve("b-tail"));
-  expect(options.switchBranch).not.toHaveBeenCalled();
+  expect(options.onElsewhere).not.toHaveBeenCalled();
 });

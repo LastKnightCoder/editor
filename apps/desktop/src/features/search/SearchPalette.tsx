@@ -40,6 +40,7 @@ import {
 import clsx from "clsx";
 import { openEntity } from "@/services/open-content";
 import { normalizeEntityRefKind } from "@/entity/ref";
+import { locatesSection } from "@/entity/section-location";
 import { usePage, useOverlayDismiss } from "@/page/PageProvider";
 import { useSearchStore, type VisitRecord } from "./searchStore";
 import {
@@ -414,7 +415,7 @@ export function SearchPalette() {
             if (!material.open) return navigator.push(meta.navKey);
             openMaterialTarget(
               material.open,
-              r.section ? { block: r.section.blockStart } : undefined
+              r.section && locatesSection(r.type) ? { block: r.section.blockStart } : undefined
             ).catch(error => toast.error(error instanceof Error ? error.message : "打开失败"));
           }),
       };
@@ -433,7 +434,7 @@ export function SearchPalette() {
           if (!kind) return navigator.push(meta.navKey);
           void openEntity(
             { kind, id: r.id },
-            r.section ? { at: { block: r.section.blockStart } } : {}
+            r.section && locatesSection(r.type) ? { at: { block: r.section.blockStart } } : {}
           ).catch(error => toast.error(error instanceof Error ? error.message : "打开失败"));
         }),
     };

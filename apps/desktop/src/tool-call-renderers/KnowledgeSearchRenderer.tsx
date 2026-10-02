@@ -16,6 +16,7 @@ import { Button, toast } from "@tau/ui";
 import { openEntity } from "@/services/open-content";
 import { normalizeEntityRefKind } from "@/entity/ref";
 import { isMaterialKind } from "@/entity/material";
+import { locatesSection } from "@/entity/section-location";
 import { openMaterial } from "@/services/open-material";
 
 interface KnowledgeSearchResultItem {
@@ -165,17 +166,18 @@ const KnowledgeSearchRenderer = ({
                   isDark={isDark}
                   onClick={() => {
                     const kind = normalizeEntityRefKind(item.type);
+                    const located = item.section && locatesSection(item.type);
                     if (isMaterialKind(item.type)) {
                       void openMaterial(
                         { kind: item.type, id: item.id },
-                        item.section ? { block: item.section.blockStart } : undefined
+                        located ? { block: item.section!.blockStart } : undefined
                       ).catch(error => toast.error(String(error)));
                       return;
                     }
-                    if (kind && item.section)
+                    if (kind && located)
                       void openEntity(
                         { kind, id: item.id },
-                        { at: { block: item.section.blockStart } }
+                        { at: { block: item.section!.blockStart } }
                       ).catch(error => toast.error(String(error)));
                     else setSelectedItem(item);
                   }}

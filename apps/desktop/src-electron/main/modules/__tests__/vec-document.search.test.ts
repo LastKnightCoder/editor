@@ -73,6 +73,8 @@ vi.mock("../tables/diary", () => ({
 
 import VecDocumentTable from "../tables/vec-document";
 
+let lastSearchArgs: unknown[] = [];
+
 function createIndexDb(params: {
   migrationState?: string;
   vecRebuildState?: string;
@@ -131,7 +133,10 @@ function createIndexDb(params: {
         sql.includes("FROM vec_documents")
       ) {
         return {
-          all: () => searchRows,
+          all: (...args: unknown[]) => {
+            lastSearchArgs = args;
+            return searchRows;
+          },
         };
       }
 
@@ -142,6 +147,35 @@ function createIndexDb(params: {
     }),
   } as any;
 }
+
+describe("VecDocumentTable 按块召回", () => {
+  it("多取几倍块再按实体去重，长文的多节不占满名额", async () => {
+    mockContext.createEmbeddings.mockResolvedValue({ data: [{ embedding: [0.1, 0.2, 0.3] }] });
+    const row = (id: number, distance: number) => ({
+      prefixed_id: `card:${id}`,
+      update_time: 1,
+      content: "命中内容",
+      distance,
+    });
+    const indexDb = createIndexDb({
+      searchRows: [row(1, 0.1), row(1, 0.11), row(1, 0.12), row(2, 0.2), row(3, 0.3)],
+    });
+    const results = await VecDocumentTable.searchContent({} as any, indexDb, {
+      query: "测试查询",
+      limit: 2,
+      types: ["card"],
+      modelInfo: {
+        providerType: "remote_openai",
+        key: "k",
+        baseUrl: "https://example.com/v1",
+        model: "m",
+        dimensions: 3,
+      },
+    } as any);
+    expect(results.map(result => result.id)).toEqual([1, 2]);
+    expect(lastSearchArgs.at(-1)).toBe(8);
+  });
+});
 
 describe("VecDocumentTable search gating", () => {
   beforeEach(() => {
