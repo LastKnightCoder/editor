@@ -1,8 +1,5 @@
 import { Descendant } from "slate";
 import { IPodcast } from "./podcast";
-import type { LineageRecord } from "@/entity/lineage";
-
-export type CardCreationOrigin = Pick<LineageRecord, "src" | "relation" | "srcAnchor">;
 
 export enum ECardCategory {
   Temporary = "temporary",

@@ -10,8 +10,7 @@ import ContentTable from "./content";
 import ProjectTable from "./project";
 
 import log from "electron-log";
-import type { CardDatabaseScope, CardMetadataPatch, CardCreationOrigin } from "@/types/card";
-import EntityLineageTable from "./entity-lineage";
+import type { CardDatabaseScope, CardMetadataPatch } from "@/types/card";
 
 /** 列表预览块口径：渲染取前 3 块、标题/拖拽取 ≤200 字文本，块数封顶防无文本块失控 */
 const CARD_PREVIEW_BLOCK_MIN = 3;
@@ -80,19 +79,10 @@ export default class CardTable {
 
   static createScopedCard(
     db: Database.Database,
-    request: CardDatabaseScope & { card: ICreateCard; origin?: CardCreationOrigin }
+    request: CardDatabaseScope & { card: ICreateCard }
   ) {
     this.assertDatabase(db, request);
-    return db.transaction(() => {
-      const card = this.createCard(db, request.card);
-      if (
-        request.origin &&
-        !EntityLineageTable.record(db, { ...request.origin, dst: { kind: "card", id: card.id } })
-      ) {
-        throw new Error("未能保存卡片来源，已取消创建");
-      }
-      return card;
-    })();
+    return this.createCard(db, request.card);
   }
 
   static patchScopedCard(

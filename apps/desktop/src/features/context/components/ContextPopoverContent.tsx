@@ -80,12 +80,10 @@ function LineageRows({
     return open ? (
       <Row key={key} onClick={() => onOpenTarget(open)}>
         <LineageLine item={item} />
-        {item.quote && <span className="text-ink-3 text-tau-sm mt-1 block line-clamp-3">{item.quote}</span>}
       </Row>
     ) : (
       <div key={key} className="px-2.5 py-[7px]">
         <LineageLine item={item} />
-        {item.quote && <span className="text-ink-3 text-tau-sm mt-1 block line-clamp-3">{item.quote}</span>}
       </div>
     );
   });

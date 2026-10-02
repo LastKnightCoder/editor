@@ -37,7 +37,6 @@ export type QuestionLinkTargetType =
 export type QuestionCompositionKind = QuestionLinkTargetType | "chat-session";
 
 export interface QuestionLinkTarget {
-  anchor?: import("@/entity/quote-anchor").QuoteAnchor;
   targetType: QuestionLinkTargetType;
   targetId: number;
 }
@@ -51,7 +50,6 @@ export interface QuestionLink extends QuestionLinkTarget {
 
 /** 材料的展示投影（主进程统一解析；目标被删时 missing = true） */
 export interface QuestionMaterial extends QuestionLink {
-  anchorLost?: boolean;
   title: string;
   excerpt: string;
   /** 附加元信息，如「3 篇文档」「2 页」「4.2k 字」 */

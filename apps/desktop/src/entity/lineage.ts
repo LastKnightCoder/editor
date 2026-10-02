@@ -7,7 +7,6 @@
 
 import { isMaterialKind, type MaterialRef } from "./material";
 import { type EntityRef, normalizeEntityRefKind } from "./ref";
-import type { QuoteAnchor } from "./quote-anchor";
 
 export type LineageNode =
   | EntityRef
@@ -39,7 +38,6 @@ export type LineageRelation = (typeof LINEAGE_RELATIONS)[number];
 /** 来源的位置：对话里的哪几条消息（一条回答由多个 pi entry 组成） */
 export interface LineageAnchor {
   messageIds?: string[];
-  quote?: QuoteAnchor;
 }
 
 export interface LineageRecord {

@@ -2,7 +2,7 @@ import { cardCommands } from "@/commands/contracts/card";
 import { openEditorWindow } from "@/commands/window";
 import type { CardContentResult } from "@/commands/contracts/card";
 import { ICard, ICreateCard, IUpdateCard } from "@/types";
-import type { CardMetadataPatch, CardCreationOrigin } from "@/types/card";
+import type { CardMetadataPatch } from "@/types/card";
 
 export type { CardContentResult };
 
@@ -14,12 +14,8 @@ export async function getScopedCard(databaseName: string, id: number): Promise<I
   return cardCommands.getScopedDetail.call({ databaseName, id });
 }
 
-export async function createScopedCard(
-  databaseName: string,
-  card: ICreateCard,
-  origin?: CardCreationOrigin
-): Promise<ICard> {
-  return cardCommands.createScoped.call({ databaseName, card, ...(origin ? { origin } : {}) });
+export async function createScopedCard(databaseName: string, card: ICreateCard): Promise<ICard> {
+  return cardCommands.createScoped.call({ databaseName, card });
 }
 
 export async function patchScopedCard(

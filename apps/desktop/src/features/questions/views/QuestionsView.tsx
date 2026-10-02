@@ -18,7 +18,6 @@ import { isEditableTarget } from "@/page/dom";
 import { CreateCardDialog } from "@/features/cards/components/CreateCardDialog";
 import { EntityPicker } from "@/components/EntityPicker";
 import { openMaterialTarget } from "@/services/open-material";
-import { openEntity } from "@/services/open-content";
 import {
   planNotebookResources,
   plannedResourceCount,
@@ -192,21 +191,6 @@ export function QuestionsView() {
   const openTarget = (target: OpenTarget) => navigator.push(target.key, target.params);
 
   const openMaterial = (material: QuestionMaterial) => {
-    if (
-      material.anchor &&
-      (material.targetType === "article" ||
-        material.targetType === "project_item" ||
-        material.targetType === "card")
-    ) {
-      void openEntity(
-        {
-          kind: material.targetType === "project_item" ? "project-item" : material.targetType,
-          id: material.targetId,
-        },
-        { at: { quote: material.anchor } }
-      ).catch(error => toast.error(String(error)));
-      return;
-    }
     switch (material.targetType) {
       case "card":
         return openTarget({ key: "card-detail", params: { id: material.targetId } });

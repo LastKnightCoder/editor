@@ -318,7 +318,6 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `content_id`  | `INTEGER`                    |
 | `sort_index`  | `INTEGER NOT NULL DEFAULT 0` |
 | `create_time` | `INTEGER NOT NULL`           |
-| `anchor`      | `TEXT`                      |
 
 ### `question_chat`
 

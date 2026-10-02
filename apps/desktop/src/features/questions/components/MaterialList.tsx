@@ -88,11 +88,7 @@ function MaterialRow({
           </div>
         )}
         <div className="text-ink-3 mt-1 text-[11.5px]">
-          {material.missing
-            ? "原内容已不存在，可解除关联"
-            : material.anchorLost
-              ? "原文已修改"
-              : info}
+          {material.missing ? "原内容已不存在，可解除关联" : info}
           {!material.missing &&
             material.projections?.map(ref => (
               <button

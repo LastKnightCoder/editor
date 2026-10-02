@@ -1,10 +1,9 @@
 import Database from "better-sqlite3";
 import * as sqliteVec from "sqlite-vec";
-import { Node, type Descendant } from "slate";
+import type { Descendant } from "slate";
 import { expect, it, vi } from "vitest";
 import indexSchema from "@tau/db-schema/schema/index.sql?raw";
 import { splitSections } from "@/entity/sections";
-import { buildQuoteAnchor, resolveQuoteAnchor } from "@/entity/quote-anchor";
 
 vi.mock("electron", () => ({
   BrowserWindow: { getAllWindows: () => [] },
@@ -16,7 +15,6 @@ vi.mock("../video-note-index-queue", () => ({
 }));
 import VecDocumentTable from "../tables/vec-document";
 import KnowledgeMapTable from "../tables/knowledge-map";
-import QuestionLinkTable from "../tables/question-link";
 
 const paragraph = (text: string): Descendant => ({
   type: "paragraph",
@@ -114,11 +112,10 @@ it.skipIf(!process.env.KL_SECTIONS_SCALE)(
 );
 
 it.skipIf(!process.env.KL_SECTIONS_MAIN)(
-  "真实库副本的节分布与编辑样本",
+  "真实库副本的节分布",
   async () => {
     const db = new Database(process.env.KL_SECTIONS_MAIN!);
     try {
-      QuestionLinkTable.upgradeTable(db);
       const rows = db
         .prepare(
           `SELECT 'card' AS kind, '' AS title, c.content FROM cards e JOIN contents c ON c.id=e.content_id
@@ -129,19 +126,11 @@ it.skipIf(!process.env.KL_SECTIONS_MAIN)(
       const started = performance.now();
       const counts: Record<string, number[]> = {},
         lengths: number[] = [];
-      const samples: { content: Descendant[]; block: number; text: string }[] = [];
       for (const row of rows) {
         const content = JSON.parse(row.content || "[]") as Descendant[];
         const sections = splitSections(content, row.title, row.kind === "card");
         (counts[row.kind] ??= []).push(sections.length);
         if (row.kind !== "card") lengths.push(...sections.map(section => section.charCount));
-        if (samples.length < 80 && row.kind !== "card") {
-          const block = content.findIndex(node => {
-            const length = Node.string(node).length;
-            return length >= 40 && length <= 500;
-          });
-          if (block >= 0) samples.push({ content, block, text: Node.string(content[block]) });
-        }
       }
       console.log(
         "KL_SECTIONS_REAL",
@@ -152,7 +141,6 @@ it.skipIf(!process.env.KL_SECTIONS_MAIN)(
             Object.entries(counts).map(([kind, values]) => [kind, summary(values)])
           ),
           sectionChars: summary(lengths),
-          samples: samples.length,
         })
       );
       const sectionCalibration = [];
@@ -175,84 +163,6 @@ it.skipIf(!process.env.KL_SECTIONS_MAIN)(
         sectionCalibration.push({ minLength, maxLength, sectionChars: summary(lengths) });
       }
       console.log("KL_SECTION_LIMITS", JSON.stringify(sectionCalibration));
-      const contextCalibration = [16, 32, 64].map(contextLength => {
-        let correct = 0;
-        for (const sample of samples) {
-          const blocks = sample.content.map(node => Node.string(node));
-          const before = blocks.slice(0, sample.block).join("\n") + (sample.block > 0 ? "\n" : "");
-          const after =
-            sample.block + 1 < blocks.length
-              ? "\n" + blocks.slice(sample.block + 1).join("\n")
-              : "";
-          const anchor = {
-            exact: sample.text,
-            prefix: before.slice(-contextLength),
-            suffix: after.slice(0, contextLength),
-          };
-          const duplicated = [
-            paragraph(sample.text),
-            paragraph("重复引文之间的分隔段落。"),
-            ...sample.content,
-          ];
-          if (resolveQuoteAnchor(duplicated, anchor).blockStart === sample.block + 2) correct++;
-        }
-        return { contextLength, correct, total: samples.length };
-      });
-      console.log("KL_QUOTE_CONTEXT", JSON.stringify(contextCalibration));
-      const calibration = [];
-      for (const threshold of [0.65, 0.7, 0.75, 0.8, 0.85, 0.9]) {
-        let recovered = 0,
-          positives = 0,
-          falsePositive = 0,
-          negatives = 0;
-        const times: number[] = [];
-        for (const sample of samples) {
-          await new Promise<void>(resolve => setImmediate(resolve));
-          const leaves = [...Node.texts(sample.content[sample.block])];
-          const first = leaves[0],
-            last = leaves.at(-1)!;
-          const anchor = buildQuoteAnchor(sample.content, {
-            start: { path: [sample.block, ...first[1]], offset: 0 },
-            end: { path: [sample.block, ...last[1]], offset: last[0].text.length },
-          });
-          const mid = Math.floor(sample.text.length / 2);
-          for (const [text, expected] of [
-            [sample.text, true],
-            [sample.text.slice(0, mid) + "改" + sample.text.slice(mid + 1), true],
-            [sample.text.slice(0, mid) + "这是补充说明。" + sample.text.slice(mid), true],
-            [
-              sample.text.slice(0, mid) +
-                sample.text.slice(mid + Math.max(1, Math.floor(sample.text.length * 0.15))),
-              true,
-            ],
-            ["天气晴朗，下午去公园散步，傍晚返回住所休息。", false],
-            [null, false],
-          ] as const) {
-            const edited = [...sample.content];
-            if (text === null) edited.splice(sample.block, 1);
-            else edited[sample.block] = paragraph(text);
-            const start = performance.now();
-            const found = resolveQuoteAnchor(edited, anchor, threshold);
-            times.push(performance.now() - start);
-            if (expected) {
-              positives++;
-              if (found.status !== "lost" && found.blockStart === sample.block) recovered++;
-            } else {
-              negatives++;
-              if (found.status !== "lost") falsePositive++;
-            }
-          }
-        }
-        calibration.push({
-          threshold,
-          recovered,
-          positives,
-          falsePositive,
-          negatives,
-          resolveMs: summary(times),
-        });
-      }
-      console.log("KL_ANCHOR_REAL", JSON.stringify(calibration));
     } finally {
       db.close();
     }
