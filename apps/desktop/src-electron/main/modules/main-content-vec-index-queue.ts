@@ -9,6 +9,7 @@ import DiaryTable from "./tables/diary";
 import VecDocumentTable from "./tables/vec-document";
 import { listMaterialIndexDocs, MATERIAL_INDEX_TYPES } from "./material-index";
 import { getMarkdown } from "@/utils/markdown.ts";
+import { splitSections, type ContentSection } from "@/entity/sections";
 import type { IndexType } from "@/types";
 import type { ResolvedEmbeddingConfig } from "../utils/embedding-config";
 import { yieldEvery, yieldToEventLoop } from "../utils/event-loop-yield";
@@ -98,6 +99,8 @@ interface MainContentVecIndexTask {
   type: IndexType;
   updateTime: number;
   content: string;
+  title?: string;
+  sections?: ContentSection[];
 }
 
 interface ReconcileByPolicyParams {
@@ -354,6 +357,8 @@ class MainContentVecIndexQueue implements Module {
           id: task.id,
           type: task.type,
           content: task.content,
+          title: task.title,
+          sections: task.sections,
           updateTime: task.updateTime,
           modelInfo,
         });
@@ -566,6 +571,7 @@ class MainContentVecIndexQueue implements Module {
         id: card.id,
         type: "card",
         content: getMarkdown(card.content || []).trim(),
+        sections: splitSections(card.content || [], "", true),
         updateTime: Number(card.update_time || 0),
       });
     }
@@ -576,6 +582,8 @@ class MainContentVecIndexQueue implements Module {
         id: article.id,
         type: "article",
         content: getMarkdown(article.content || []).trim(),
+        title: article.title,
+        sections: splitSections(article.content || [], article.title || ""),
         updateTime: Number(article.update_time || 0),
       });
     }
@@ -586,6 +594,8 @@ class MainContentVecIndexQueue implements Module {
         id: item.id,
         type: "project-item",
         content: getMarkdown(item.content || []).trim(),
+        title: item.title,
+        sections: splitSections(item.content || [], item.title || ""),
         updateTime: Number(item.updateTime || 0),
       });
     }
@@ -596,6 +606,7 @@ class MainContentVecIndexQueue implements Module {
         id: entry.id,
         type: "diary-daily",
         content: getMarkdown(entry.content || []).trim(),
+        sections: splitSections(entry.content || [], DiaryTable.getDiarySearchTitle(entry)),
         updateTime: Number(entry.updateTime || 0),
       });
     }

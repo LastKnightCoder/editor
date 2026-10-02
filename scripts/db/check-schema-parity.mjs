@@ -25,6 +25,7 @@ const INDEX_CORE_TABLES = [
   "whiteboard_refs",
   "whiteboard_ref_sources",
   "whiteboard_embeds",
+  "content_sections",
 ];
 const REMOVED_TABLES = [
   "rss_feed",

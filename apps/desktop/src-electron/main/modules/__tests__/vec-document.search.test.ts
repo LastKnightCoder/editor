@@ -127,7 +127,7 @@ function createIndexDb(params: {
       }
 
       if (
-        sql.includes("SELECT prefixed_id, update_time, content, distance") &&
+        sql.includes("SELECT prefixed_id, update_time, content, chunk_index, distance") &&
         sql.includes("FROM vec_documents")
       ) {
         return {

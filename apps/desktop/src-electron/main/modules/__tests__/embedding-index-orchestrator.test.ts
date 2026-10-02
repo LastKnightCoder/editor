@@ -114,6 +114,7 @@ import embeddingIndexOrchestrator, {
   IDLE_INDEX_DELAY_MS,
   isMainContentWriteEvent,
 } from "../embedding-index-orchestrator";
+import { mainEmbeddingFingerprint } from "@/entity/chunk-version";
 
 describe("EmbeddingIndexOrchestrator(video-note)", () => {
   beforeEach(() => {
@@ -169,7 +170,10 @@ describe("EmbeddingIndexOrchestrator(video-note)", () => {
   });
 
   it("上传重连且索引已 ready、指纹未变化时，应跳过所有 reconcile", async () => {
-    mockContext.metaStore.set("main_content_embedding_fingerprint", "fp-a");
+    mockContext.metaStore.set(
+      "main_content_embedding_fingerprint",
+      mainEmbeddingFingerprint("fp-a")
+    );
     mockContext.databaseModuleMock.getIndexRebuildState.mockReturnValue("ready");
 
     await (embeddingIndexOrchestrator as any).reconcileForCurrentDb(
@@ -184,7 +188,10 @@ describe("EmbeddingIndexOrchestrator(video-note)", () => {
   });
 
   it("下载重连即使指纹未变化也应继续 reconcile", async () => {
-    mockContext.metaStore.set("main_content_embedding_fingerprint", "fp-a");
+    mockContext.metaStore.set(
+      "main_content_embedding_fingerprint",
+      mainEmbeddingFingerprint("fp-a")
+    );
     mockContext.databaseModuleMock.getIndexRebuildState.mockReturnValue("ready");
 
     await (embeddingIndexOrchestrator as any).reconcileForCurrentDb(
@@ -203,7 +210,10 @@ describe("EmbeddingIndexOrchestrator(video-note)", () => {
   });
 
   it("上传重连时若索引状态不是 ready，则仍应执行 reconcile", async () => {
-    mockContext.metaStore.set("main_content_embedding_fingerprint", "fp-a");
+    mockContext.metaStore.set(
+      "main_content_embedding_fingerprint",
+      mainEmbeddingFingerprint("fp-a")
+    );
     mockContext.databaseModuleMock.getIndexRebuildState.mockReturnValue("pending");
 
     await (embeddingIndexOrchestrator as any).reconcileForCurrentDb(
@@ -222,7 +232,10 @@ describe("EmbeddingIndexOrchestrator(video-note)", () => {
   });
 
   it("上传重连时应只依据向量索引状态决定是否跳过", async () => {
-    mockContext.metaStore.set("main_content_embedding_fingerprint", "fp-a");
+    mockContext.metaStore.set(
+      "main_content_embedding_fingerprint",
+      mainEmbeddingFingerprint("fp-a")
+    );
     mockContext.databaseModuleMock.getIndexRebuildState.mockImplementation(
       (_dbName: string, target?: string) => (target === "vec" ? "pending" : "ready")
     );
