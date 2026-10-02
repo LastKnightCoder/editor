@@ -1,5 +1,1 @@
-export {
-  generateExecutableCode,
-  compileAndExecuteCustomBlock,
-  rerenderCustomBlockTheme,
-} from "./src/utils/renderTemplate";
+export { compileAndExecuteCustomBlock, rerenderCustomBlockTheme } from "./src/utils/renderTemplate";

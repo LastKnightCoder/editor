@@ -7,10 +7,9 @@ export interface CustomBlockTheme {
   token: (word: string) => string;
 }
 
-/** 模板经 useTokens() 拿到的主题；`theme` 字段只为旧模板的 hooks.useTheme() 保留 */
+/** 模板经 useTokens() 拿到的主题 */
 interface TemplateTheme {
   isDark: boolean;
-  theme: "dark" | "light";
   color: (word: string) => string;
 }
 
@@ -34,49 +33,13 @@ type CustomBlockRuntimeContainer = HTMLElement & {
   [CUSTOM_BLOCK_PENDING_THEME_KEY]?: CustomBlockTheme;
 };
 
-/**
- * 旧模板写过 `components.antd` / `components.antdIcons`（已移除）。访问时抛出带说明的错误，
- * 由本块自己显示，而不是得到 undefined 后在更深处报一个看不懂的错。
- */
-const REMOVED_COMPONENT_LIBRARIES = ["antd", "antdIcons"] as const;
-
-const createTemplateComponents = (): Record<string, unknown> => {
-  const components: Record<string, unknown> = {};
-  for (const name of REMOVED_COMPONENT_LIBRARIES) {
-    Object.defineProperty(components, name, {
-      enumerable: false,
-      get() {
-        throw new Error(`components.${name} 已移除，请改用原生元素与 Tailwind 类名重写该模板`);
-      },
-    });
-  }
-  return components;
-};
-
-export const getCustomBlockRenderTemplate = () => {
-  // 旧前缀是 `const { antd } = components;`，模板里直接写 `antd.Button`。保留同名绑定但惰性求值：
-  // 不用 antd 的模板照常运行，用到的在访问处报出说明
-  const prefix = `const antd = new Proxy({}, { get: () => components.antd });\n`;
-
-  const suffix = ``;
-
-  return { prefix, suffix };
-};
-
 const renderErrorMarkup = (error: unknown) =>
   `<div class="text-tau-body text-danger p-4">渲染错误: ${escapeHtml(error instanceof Error ? error.message : String(error))}</div>`;
 
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, char => `&#${char.charCodeAt(0)};`);
 
-// 生成完整的可执行代码（注意：不包含 return，由调用方在 AsyncFunction 中添加）
-export const generateExecutableCode = (content: string): string => {
-  const { prefix, suffix } = getCustomBlockRenderTemplate();
-  return `${prefix}${content}${suffix}`;
-};
-
 const toTemplateTheme = ({ isDark, token }: CustomBlockTheme): TemplateTheme => ({
   isDark,
-  theme: isDark ? "dark" : "light",
   color: word => token(word),
 });
 
@@ -100,8 +63,6 @@ const pickTemplateUi = (ui: TauUi) =>
     Tooltip: ui.Tooltip,
     Popover: ui.Popover,
   });
-
-let legacyThemeHookWarned = false;
 
 const getRuntimeContainer = (targetElement: HTMLElement) =>
   targetElement as CustomBlockRuntimeContainer;
@@ -228,17 +189,9 @@ export const compileAndExecuteCustomBlock = async (
 
     const ThemeContext = React.createContext(toTemplateTheme(effectiveTheme));
     const useTokens = () => React.useContext(ThemeContext);
-    const useLegacyTheme = () => {
-      if (!legacyThemeHookWarned) {
-        legacyThemeHookWarned = true;
-        console.warn("[custom-block] hooks.useTheme() 已废弃，请改用 useTokens()");
-      }
-      return useTokens();
-    };
 
-    const normalizedCode = generateExecutableCode(content);
     const compiledCode =
-      Babel.transform(normalizedCode, {
+      Babel.transform(content, {
         presets: [
           Babel.availablePresets["react"],
           [
@@ -267,8 +220,6 @@ export const compileAndExecuteCustomBlock = async (
       "toast",
       "useTokens",
       "icons",
-      "components",
-      "hooks",
       compiledCode + "\nreturn typeof Component === 'function' ? Component : undefined;"
     );
 
@@ -276,16 +227,7 @@ export const compileAndExecuteCustomBlock = async (
       return undefined;
     }
 
-    // components / hooks 只为存量模板保留（antd 访问报错、useTheme 告警），存量重写完成后删除
-    const Component = await fn(
-      React,
-      pickTemplateUi(TauUi),
-      TauUi.toast,
-      useTokens,
-      icons,
-      createTemplateComponents(),
-      Object.freeze({ useTheme: useLegacyTheme })
-    );
+    const Component = await fn(React, pickTemplateUi(TauUi), TauUi.toast, useTokens, icons);
 
     if (typeof Component !== "function") {
       return undefined;
