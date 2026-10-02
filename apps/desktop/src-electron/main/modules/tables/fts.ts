@@ -472,9 +472,11 @@ class FTSTable {
       if (details) {
         const section =
           indexDb && result.chunkIndex != null
-            ? splitSections(details.content, details.title, result.type === "card")[
-                result.chunkIndex
-              ]
+            ? splitSections(
+                details.content,
+                details.title,
+                ["card", "excerpt", "pdf-annotation"].includes(result.type)
+              )[result.chunkIndex]
             : undefined;
         detailedResults.push({
           ...result,

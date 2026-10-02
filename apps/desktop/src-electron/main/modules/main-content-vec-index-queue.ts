@@ -10,6 +10,7 @@ import VecDocumentTable from "./tables/vec-document";
 import { listMaterialIndexDocs, MATERIAL_INDEX_TYPES } from "./material-index";
 import { getMarkdown } from "@/utils/markdown.ts";
 import { splitSections, type ContentSection } from "@/entity/sections";
+import { MAIN_CHUNK_BUILD_KEY, mainEmbeddingFingerprint } from "@/entity/chunk-version";
 import type { IndexType } from "@/types";
 import type { ResolvedEmbeddingConfig } from "../utils/embedding-config";
 import { yieldEvery, yieldToEventLoop } from "../utils/event-loop-yield";
@@ -117,6 +118,7 @@ export interface MainContentReconcileResult {
   reinitialized: boolean;
   queued: number;
   indexed: number;
+  failed: number;
   stale: boolean;
   autoIndex: boolean;
 }
@@ -262,7 +264,8 @@ class MainContentVecIndexQueue implements Module {
         reinitialized: false,
         queued: 0,
         indexed: 0,
-        stale: false,
+        failed: 0,
+        stale: true,
         autoIndex: params.autoIndex,
       };
     }
@@ -277,7 +280,8 @@ class MainContentVecIndexQueue implements Module {
         reinitialized: false,
         queued: 0,
         indexed: 0,
-        stale: false,
+        failed: 0,
+        stale: true,
         autoIndex: params.autoIndex,
       };
     }
@@ -290,6 +294,19 @@ class MainContentVecIndexQueue implements Module {
         VecDocumentTable.initTableByVecLength(indexDb, params.embeddingConfig.dimensions);
       }
       reinitialized = true;
+      if (params.autoIndex) {
+        // 重试沿用已创建的向量表，成功写入的实体不应再次付费嵌入。
+        indexDb
+          .prepare(
+            `INSERT INTO vec_index_meta (key, value, updated_at) VALUES (?, ?, ?)
+          ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+          )
+          .run(
+            MAIN_CHUNK_BUILD_KEY,
+            mainEmbeddingFingerprint(params.embeddingConfig.fingerprint),
+            Date.now()
+          );
+      }
     } else if (params.autoIndex) {
       this.ensureVecTableReady(indexDb, params.embeddingConfig.dimensions);
     }
@@ -304,6 +321,7 @@ class MainContentVecIndexQueue implements Module {
         reinitialized,
         queued: 0,
         indexed: 0,
+        failed: 0,
         stale: false,
         autoIndex: false,
       };
@@ -348,6 +366,7 @@ class MainContentVecIndexQueue implements Module {
             reinitialized,
             queued: tasks.length,
             indexed,
+            failed,
             stale: true,
             autoIndex: true,
           };
@@ -385,8 +404,13 @@ class MainContentVecIndexQueue implements Module {
         await yieldToEventLoop();
       }
 
-      databaseModule.setIndexRebuildState(params.mainDbName, "ready", "vec");
-      this.finishProgress(indexDb, { phase: "done" });
+      databaseModule.setIndexRebuildState(params.mainDbName, failed ? "pending" : "ready", "vec");
+      this.finishProgress(
+        indexDb,
+        failed
+          ? { phase: "failed", error: `${failed} 个实体索引失败，等待补全` }
+          : { phase: "done" }
+      );
       log.info(
         `[MainContentVecIndexQueue] Reconcile done: reason=${params.reason}, generation=${generation}, queued=${tasks.length}, indexed=${indexed}, reinitialized=${reinitialized}, searchableDuringBuilding=true`
       );
@@ -396,6 +420,7 @@ class MainContentVecIndexQueue implements Module {
         reinitialized,
         queued: tasks.length,
         indexed,
+        failed,
         stale: false,
         autoIndex: true,
       };
