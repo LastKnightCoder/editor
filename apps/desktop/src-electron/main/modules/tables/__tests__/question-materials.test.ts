@@ -13,6 +13,7 @@ vi.mock("../../video-note-index-queue", () => ({
 }));
 
 import EntityLineageTable from "../entity-lineage";
+import EntitySearchTable from "../entity-search";
 import ExcerptTable from "../excerpt";
 import QuestionChatTable from "../question-chat";
 import QuestionLinkTable from "../question-link";
@@ -155,6 +156,34 @@ describe("问题的外部材料与探究对话", () => {
     const [material] = QuestionLinkTable.getDetail(db, questionId)!.materials;
     expect(material).toMatchObject({ targetType: "answer", targetId: answer.id });
     expect(material.projections).toEqual([{ kind: "card", id: cardId }]);
+  });
+
+  it("关联已有：能按引文搜到摘录、按标题搜到对话", () => {
+    ExcerptTable.syncSource(db, "weread", "b1", "置身事内", [
+      {
+        externalId: "b1:bm_1",
+        quote: "土地财政",
+        note: "",
+        anchor: null,
+        color: null,
+        sourceTime: null,
+      },
+      {
+        externalId: "b1:bm_2",
+        quote: "招商引资",
+        note: "",
+        anchor: null,
+        color: null,
+        sourceTime: null,
+      },
+    ]);
+    addSession(db, SESSION, "pdf-chat", "关于土地的追问");
+    const excerpts = EntitySearchTable.search(db, { kind: "excerpt", keyword: "土地" });
+    expect(excerpts.map(c => c.title)).toEqual(["土地财政"]);
+    expect(excerpts[0].meta).toContain("置身事内");
+    const chats = EntitySearchTable.search(db, { kind: "chat-session", keyword: "土地" });
+    expect(chats).toMatchObject([{ sessionId: SESSION, meta: "PDF 对话 · 4 条消息" }]);
+    expect(EntitySearchTable.search(db, { kind: "web-clip" })).toEqual([]);
   });
 
   it("删除问题时一并清理探究对话", () => {

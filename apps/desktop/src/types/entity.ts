@@ -3,11 +3,25 @@
  * 类型命名沿用问题材料（question_link.target_type）口径，另加日记。
  */
 
-export type EntityKind = "card" | "article" | "project_item" | "project" | "white_board" | "diary";
+export type EntityKind =
+  | "card"
+  | "article"
+  | "project_item"
+  | "project"
+  | "white_board"
+  | "diary"
+  // 外部材料与对话：只供问题「关联已有」选择（问题材料 / 探究对话），没有正文
+  | "excerpt"
+  | "pdf-annotation"
+  | "web-clip"
+  | "chat-session";
 
 export interface EntityCandidate {
   kind: EntityKind;
+  /** 实体主键；对话没有整数主键，为 0，地址在 sessionId */
   id: number;
+  /** 对话（chat-session）的会话 id */
+  sessionId?: string;
   /** 承载正文的 content（项目、白板没有） */
   contentId: number | null;
   title: string;

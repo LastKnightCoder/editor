@@ -8,6 +8,7 @@ import type { EntityCandidate, EntityKind, EntityLocation, EntitySearchParams } 
 import { ENTITY_REF_PRIORITY, type EntityRef, type EntityRefKind } from "@/entity/ref";
 import ContentTable from "./content";
 import DiaryTable from "./diary";
+import MaterialTable from "./material";
 
 /** Slate 文档按块取纯文本：第一块即卡片标题 */
 export const blockLines = (nodes: unknown): string[] => {
@@ -34,7 +35,9 @@ const EXCERPT = 160;
 /** IN 列表每批的正文数（一条语句里同一批参数要绑定 4 次，需低于 SQLite 变量上限） */
 const LOCATE_BATCH = 200;
 
-const SEARCH_SQL: Record<EntityKind, (kw: boolean) => string> = {
+type RowKind = Exclude<EntityKind, "chat-session">;
+
+const SEARCH_SQL: Record<RowKind, (kw: boolean) => string> = {
   card: kw => `SELECT c.id, c.update_time AS t FROM cards c LEFT JOIN contents ct ON ct.id = c.content_id
     ${kw ? "WHERE ct.content LIKE @kw" : ""} ORDER BY c.update_time DESC LIMIT @limit`,
   article:
@@ -58,6 +61,30 @@ const SEARCH_SQL: Record<EntityKind, (kw: boolean) => string> = {
              WHERE s.diary_id = d.id AND ct.content LIKE @kw)`
         : ""
     } ORDER BY d.date DESC, d.update_time DESC LIMIT @limit`,
+  // 摘录可达数万条：LIKE 全表扫 + LIMIT，规模实测见 entity-search-scale.eval.test.ts
+  excerpt: kw => `SELECT id, update_time AS t FROM excerpt WHERE is_deleted = 0
+    ${kw ? "AND (quote LIKE @kw OR note LIKE @kw OR source_title LIKE @kw)" : ""}
+    ORDER BY update_time DESC LIMIT @limit`,
+  "pdf-annotation":
+    kw => `SELECT a.id, a.update_time AS t FROM pdf_annotations a JOIN pdfs p ON p.id = a.pdf_id
+    ${kw ? "WHERE a.annotation_payload LIKE @kw OR a.notes LIKE @kw OR p.file_name LIKE @kw" : ""}
+    ORDER BY a.update_time DESC LIMIT @limit`,
+  // 只列仍挂在网页条目上的剪藏（孤儿剪藏打不开）
+  "web-clip": kw => `SELECT c.id, c.update_time AS t FROM web_clip c
+    WHERE EXISTS (SELECT 1 FROM entity_lineage l JOIN project_item i ON i.id = CAST(l.src_id AS INTEGER)
+      WHERE l.dst_kind = 'web-clip' AND l.dst_id = CAST(c.id AS TEXT)
+        AND l.relation = 'clipped_from' AND l.src_kind = 'project-item')
+    ${kw ? "AND (c.title LIKE @kw OR c.url LIKE @kw)" : ""}
+    ORDER BY c.update_time DESC LIMIT @limit`,
+};
+
+const MATERIAL_KINDS = new Set<EntityKind>(["excerpt", "pdf-annotation", "web-clip"]);
+
+const CHAT_SCOPE_LABEL: Record<string, string> = {
+  "main-chat": "对话",
+  "pdf-chat": "PDF 对话",
+  "video-note-chat": "视频笔记对话",
+  "vibe-learning-chat": "Notebook 对话",
 };
 
 export default class EntitySearchTable {
@@ -73,17 +100,71 @@ export default class EntitySearchTable {
   }
 
   static search(db: Database.Database, params: EntitySearchParams): EntityCandidate[] {
-    const build = SEARCH_SQL[params.kind];
-    if (!build) return [];
     const limit = Math.min(Math.max(params.limit ?? 40, 1), 100);
     const kw = params.keyword?.trim() ? `%${params.keyword.trim()}%` : null;
+    if (params.kind === "chat-session") return this.searchChats(db, kw, limit);
+    const build = SEARCH_SQL[params.kind];
+    if (!build) return [];
     const rows = db.prepare(build(kw != null)).all(kw ? { kw, limit } : { limit }) as {
       id: number;
       t: number;
     }[];
+    if (MATERIAL_KINDS.has(params.kind)) return this.resolveMaterials(db, params.kind, rows);
     return rows
       .map(row => this.resolve(db, params.kind, row.id, row.t))
       .filter((c): c is EntityCandidate => c !== null);
+  }
+
+  private static resolveMaterials(
+    db: Database.Database,
+    kind: EntityKind,
+    rows: { id: number; t: number }[]
+  ): EntityCandidate[] {
+    const time = new Map(rows.map(row => [row.id, row.t]));
+    const refs = rows.map(row => ({ kind: kind as "excerpt", id: row.id }));
+    return MaterialTable.resolve(db, refs).map(info => ({
+      kind,
+      id: info.ref.id,
+      contentId: null,
+      title: info.title,
+      excerpt: (info.ref.kind === "web-clip" ? "" : info.note).slice(0, EXCERPT),
+      meta: info.meta,
+      time: time.get(info.ref.id) ?? 0,
+    }));
+  }
+
+  private static searchChats(
+    db: Database.Database,
+    kw: string | null,
+    limit: number
+  ): EntityCandidate[] {
+    const rows = db
+      .prepare(
+        `SELECT id, title, scope, message_count, update_time FROM chat_session
+         ${kw ? "WHERE title LIKE @kw" : ""} ORDER BY update_time DESC LIMIT @limit`
+      )
+      .all(kw ? { kw, limit } : { limit }) as {
+      id: string;
+      title: string;
+      scope: string;
+      message_count: number;
+      update_time: number;
+    }[];
+    return rows.map(row => ({
+      kind: "chat-session",
+      id: 0,
+      sessionId: row.id,
+      contentId: null,
+      title: row.title || "未命名对话",
+      excerpt: "",
+      meta: [
+        row.scope === "main-chat" ? "" : (CHAT_SCOPE_LABEL[row.scope] ?? ""),
+        row.message_count ? `${row.message_count} 条消息` : "",
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      time: row.update_time,
+    }));
   }
 
   /** 由 content 反查所属实体；kind 缺省时依次尝试卡片 / 文章 / 项目文档 / 日记 */

@@ -20,6 +20,7 @@ import { EntityPicker } from "@/components/EntityPicker";
 import { openMaterialTarget } from "@/services/open-material";
 import {
   ECardCategory,
+  type EntityKind,
   type QuestionChat,
   type QuestionLinkTarget,
   type QuestionMaterial,
@@ -50,6 +51,19 @@ import {
   type OpenTarget,
 } from "../queries";
 import { useDeferredActions } from "../useDeferredActions";
+
+/** 「关联已有」可选的类型：我的笔记在前，外部材料与对话在后 */
+const PICKER_KINDS: EntityKind[] = [
+  "card",
+  "article",
+  "project_item",
+  "project",
+  "white_board",
+  "excerpt",
+  "pdf-annotation",
+  "web-clip",
+  "chat-session",
+];
 
 export function QuestionsView() {
   const { navigator } = usePage();
@@ -471,21 +485,31 @@ export function QuestionsView() {
           onClose={() => setPickerOpen(false)}
           title="关联已有材料"
           subtitle={detail?.question.questionContent}
-          kinds={["card", "article", "project_item", "project", "white_board"]}
+          kinds={PICKER_KINDS}
           isLinked={c =>
-            detail?.materials.some(m => m.targetType === c.kind && m.targetId === c.id) ?? false
+            c.kind === "chat-session"
+              ? (detail?.chats.some(chat => chat.sessionId === c.sessionId) ?? false)
+              : (detail?.materials.some(m => m.targetType === c.kind && m.targetId === c.id) ??
+                false)
           }
           onConfirm={async picked => {
             if (!detail) return;
             try {
+              const chats = picked.filter(c => c.kind === "chat-session" && c.sessionId);
               const added = await questionMutations.link(
                 detail.question.id,
-                picked.map(c => ({
-                  targetType: c.kind as QuestionLinkTarget["targetType"],
-                  targetId: c.id,
-                }))
+                picked
+                  .filter(c => c.kind !== "chat-session")
+                  .map(c => ({
+                    targetType: c.kind as QuestionLinkTarget["targetType"],
+                    targetId: c.id,
+                  }))
               );
-              toast.success(`已关联 ${added.length} 份材料`);
+              for (const chat of chats)
+                await questionMutations.linkChat(detail.question.id, {
+                  sessionId: chat.sessionId!,
+                });
+              toast.success(`已关联 ${added.length + chats.length} 份材料`);
             } catch {
               toast.error("关联失败");
               throw new Error("link failed");

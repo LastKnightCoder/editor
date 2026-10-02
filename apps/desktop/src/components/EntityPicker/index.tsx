@@ -1,7 +1,8 @@
 /**
  * EntityPicker —— 「关联已有」的公共检索弹窗：类型分段 + 关键字检索（空关键字按最近更新）。
  *
- * - 数据：主进程 `entity:search`（卡片 / 文章 / 项目文档 / 项目 / 白板 / 日记），调用方用 kinds 限定可选类型
+ * - 数据：主进程 `entity:search`（卡片 / 文章 / 项目文档 / 项目 / 白板 / 日记，以及问题页用的划线 / PDF 标注 / 剪藏 / 对话），调用方用 kinds 限定可选类型
+ * - 类型不超过 5 种用分段，更多时改为按钮 + 菜单（分段放不下）
  * - 多选（默认）：勾选跨类型累积，底部「已选 N 项」+ 确认；单选：点行即确认
  * - isLinked 判定的项置灰并标「已关联」，不可再选
  * - 键盘：焦点留在搜索框，↑↓ 移动、⏎ 勾选（单选即确认）、⌘/Ctrl+⏎ 确认
@@ -9,13 +10,25 @@
  */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Check, Search } from "lucide-react";
+import { Check, ChevronDown, Search } from "lucide-react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useDebounce } from "ahooks";
-import { Button, Dialog, DialogBody, Input, Loading, Segmented, cn, useEdgeFade } from "@tau/ui";
+import {
+  Button,
+  Dialog,
+  DialogBody,
+  Input,
+  Loading,
+  Menu,
+  Segmented,
+  cn,
+  useEdgeFade,
+} from "@tau/ui";
 import { searchEntities } from "@/commands";
 import type { EntityCandidate, EntityKind } from "@/types";
 import { ENTITY_KIND_META, entityKey, entityTime } from "./meta";
+
+const MAX_SEGMENTS = 5;
 
 export interface EntityPickerProps {
   open: boolean;
@@ -170,17 +183,42 @@ export function EntityPicker({
               lead={Search}
               wrapperClassName="flex-1"
             />
-            {kinds.length > 1 && (
-              <Segmented
-                label="类型"
-                size="sm"
-                value={kind}
-                onValueChange={(v: EntityKind) => setKind(v)}
+            {kinds.length > MAX_SEGMENTS ? (
+              <Menu
+                align="end"
+                trigger={
+                  <Button variant="secondary" size="sm" icon={meta.icon} className="shrink-0">
+                    {meta.label}
+                    <ChevronDown className="size-3" strokeWidth={1.75} />
+                  </Button>
+                }
               >
-                {kinds.map(k => (
-                  <Segmented.Item key={k} value={k} label={ENTITY_KIND_META[k].label} />
-                ))}
-              </Segmented>
+                {kinds.map(k => {
+                  const KindIcon = ENTITY_KIND_META[k].icon;
+                  return (
+                    <Menu.Item
+                      key={k}
+                      icon={<KindIcon className="size-[15px]" strokeWidth={1.75} />}
+                      onSelect={() => setKind(k)}
+                    >
+                      {ENTITY_KIND_META[k].label}
+                    </Menu.Item>
+                  );
+                })}
+              </Menu>
+            ) : (
+              kinds.length > 1 && (
+                <Segmented
+                  label="类型"
+                  size="sm"
+                  value={kind}
+                  onValueChange={(v: EntityKind) => setKind(v)}
+                >
+                  {kinds.map(k => (
+                    <Segmented.Item key={k} value={k} label={ENTITY_KIND_META[k].label} />
+                  ))}
+                </Segmented>
+              )
             )}
           </div>
           {/* 列表直接铺在弹窗正文上（不套卡片）；-mr/pr 借位把滚动条挪进正文右侧留白，
