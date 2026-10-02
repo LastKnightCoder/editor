@@ -381,6 +381,8 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
             projectId={projectId}
             mainDbName={mainDbName}
             resources={resources}
+            title={project.title}
+            desc={project.desc}
             docked={dockChat}
           />
         </div>
