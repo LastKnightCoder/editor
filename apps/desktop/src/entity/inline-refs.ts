@@ -19,6 +19,7 @@ export interface InlineRefSnippet {
 }
 
 export interface InlineRef {
+  blockIndex: number;
   dst: EntityRef;
   /** content-link 记录的目标正文 id；老节点可能缺失 */
   dstContentId: number | null;
@@ -89,7 +90,8 @@ function refsInBlock(
   block: JsonNode,
   out: InlineRef[],
   seen: Set<string>,
-  previousText: string
+  previousText: string,
+  blockIndex: number
 ) {
   const inline = childrenOf(block).map(asNode);
   const texts = inline.map(c => (!c ? "" : isContentLink(c) ? linkLabel(c) : plainText(c)));
@@ -104,6 +106,7 @@ function refsInBlock(
     const before = clipBefore(texts.slice(0, index).join(""));
     const after = clipAfter(texts.slice(index + 1).join(""));
     out.push({
+      blockIndex,
       dst: { kind, id: child.refId },
       dstContentId: typeof child.contentId === "number" ? child.contentId : null,
       snippet: {
@@ -119,12 +122,12 @@ export function extractInlineRefs(content: unknown): InlineRef[] {
   const out: InlineRef[] = [];
   // 文档顺序里上一个有自己文字的文本块（直接含文字叶子、且不只是链接）的纯文本
   let previousText = "";
-  const walk = (value: unknown) => {
+  const walk = (value: unknown, blockIndex: number) => {
     const node = asNode(value);
     if (!node || isContentLink(node)) return;
     const children = childrenOf(node);
     if (children.length === 0) return;
-    refsInBlock(node, out, new Set(), previousText);
+    refsInBlock(node, out, new Set(), previousText, blockIndex);
     const isTextBlock = children.some(child => typeof asNode(child)?.text === "string");
     if (isTextBlock) {
       // 只含链接的块不算：列表里一串链接都以它们上方的文字作前文
@@ -134,7 +137,7 @@ export function extractInlineRefs(content: unknown): InlineRef[] {
         .join("");
       if (collapse(ownText).trim()) previousText = collapse(plainText(node)).trim();
     }
-    children.forEach(walk);
+    children.forEach(child => walk(child, blockIndex));
   };
   if (Array.isArray(content)) content.forEach(walk);
   return out;

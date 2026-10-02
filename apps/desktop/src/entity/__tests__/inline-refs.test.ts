@@ -21,6 +21,7 @@ describe("extractInlineRefs", () => {
       {
         dst: { kind: "card", id: 12 },
         dstContentId: 99,
+        blockIndex: 0,
         snippet: { before: "几何属性变了，就会触发", label: "重排与重绘", after: "，代价更高。" },
       },
     ]);
@@ -61,6 +62,7 @@ describe("extractInlineRefs", () => {
       },
     ]);
     expect(refs.map(r => r.dst.id)).toEqual([8, 9]);
+    expect(refs.map(r => r.blockIndex)).toEqual([0, 1]);
     expect(refs[0].snippet.before).toBe("见");
   });
 

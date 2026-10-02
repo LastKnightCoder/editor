@@ -111,6 +111,7 @@ function withDiaryMoment(
 
 interface RefRow {
   src_content_id: number;
+  src_block: number;
   snippet_before: string;
   snippet_label: string;
   snippet_after: string;
@@ -127,7 +128,7 @@ function backlinksOf(
   // 老节点可能缺 contentId，再按类型与 id 兜底
   const rows = indexDb
     .prepare(
-      `SELECT src_content_id, snippet_before, snippet_label, snippet_after FROM entity_refs
+      `SELECT src_content_id, src_block, snippet_before, snippet_label, snippet_after FROM entity_refs
        WHERE ${byContent}(dst_kind = ? AND dst_id = ?) ORDER BY rowid`
     )
     .all(...selfContentIds, self.kind, self.id) as RefRow[];
@@ -150,7 +151,7 @@ function backlinksOf(
   // contentId：第一处引用所在的来源正文，用于打开到具体位置
   const groups = new Map<
     string,
-    { ref: EntityRef; time: number; contentId: number; snippets: InlineRefSnippet[] }
+    { ref: EntityRef; time: number; contentId: number; block: number; snippets: InlineRefSnippet[] }
   >();
   // 解析不到身份的来源正文（白板文本块、思维导图节点的正文），交给「被使用 · 白板」归属
   const unresolved = new Set<number>();
@@ -163,6 +164,7 @@ function backlinksOf(
       ref,
       time: updateTimes.get(row.src_content_id) ?? 0,
       contentId: row.src_content_id,
+      block: row.src_block,
       snippets: [],
     };
     if (group.snippets.length < SNIPPETS_PER_SOURCE) {
@@ -183,7 +185,9 @@ function backlinksOf(
     if (backlinks.length >= CONTEXT_LIMIT) break;
     const source = toContextEntity(mainDb, group.ref);
     if (!source) continue;
-    backlinks.push({ source: withDiaryMoment(mainDb, source, group.contentId), snippets: group.snippets });
+    const locatedSource = withDiaryMoment(mainDb, source, group.contentId);
+    if (source.ref.kind !== "diary") locatedSource.open = { page: "entity", ref: source.ref, at: { block: group.block } };
+    backlinks.push({ source: locatedSource, snippets: group.snippets });
   }
   return { backlinks, total: groups.size, unresolved: [...unresolved] };
 }

@@ -10,6 +10,31 @@ vi.mock("@/utils/embedding-model-info", () => ({
 import { createKnowledgeSearchTool } from "../knowledgeSearchTool";
 
 describe("search_knowledge 覆盖外部材料（E2）", () => {
+  it("长文只返回命中节与定位，不带整篇正文", async () => {
+    mocks.searchContent.mockResolvedValue([
+      {
+        id: 1,
+        type: "article",
+        contentId: 2,
+        title: "文章",
+        source: "fts",
+        updateTime: 1,
+        content: [{ type: "paragraph", children: [{ type: "formatted", text: "无关整篇内容" }] }],
+        section: {
+          chunkIndex: 1,
+          headingPath: "命中节",
+          text: "相关观点",
+          blockStart: 3,
+          blockEnd: 4,
+        },
+      },
+    ]);
+    const result = await createKnowledgeSearchTool().executor({ query: "观点" }, {} as never);
+    const payload = JSON.parse((result as { content: string }).content);
+    expect(payload.results[0].content).toBe("相关观点");
+    expect(payload.results[0].section.blockStart).toBe(3);
+    expect(JSON.stringify(payload)).not.toContain("无关整篇内容");
+  });
   beforeEach(() => vi.clearAllMocks());
 
   it("默认检索正文与三类材料；材料结果带出处", async () => {

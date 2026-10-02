@@ -59,6 +59,7 @@ import { Editor as LocalEditor, type EditorRef } from "@tau/editor";
 import { getContentKit } from "@/services/editorKit";
 import { useLocalEditorDocument } from "@/hooks/useLocalEditorDocument";
 import Editor from "@/components/ContentEditor";
+import { usePageParams } from "@/page/PageProvider";
 import {
   ContentOutline,
   extractContentHeaders,
@@ -128,6 +129,7 @@ const hasCommentNode = (nodes: Descendant[]): boolean =>
 
 const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const { projectItemId } = props;
+  const locationParams = usePageParams<{ itemId?: number; at?: string }>();
   const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
   const webviewRef = useRef<WebviewRef>(null);
   const editorRef = useRef<EditorRef>(null);
@@ -908,6 +910,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
                 kit={getContentKit()}
                 document={editorContentId ? undefined : clipDocument.document}
                 contentId={editorContentId}
+                at={locationParams.itemId === projectItemId ? locationParams.at : undefined}
                 className="mx-20"
                 key={`${projectItemId}-parsed`}
                 ref={editorRef}

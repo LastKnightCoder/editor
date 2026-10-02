@@ -38,6 +38,8 @@ import {
   X,
 } from "lucide-react";
 import clsx from "clsx";
+import { openEntity } from "@/services/open-content";
+import { normalizeEntityRefKind } from "@/entity/ref";
 import { usePage, useOverlayDismiss } from "@/page/PageProvider";
 import { useSearchStore, type VisitRecord } from "./searchStore";
 import {
@@ -404,15 +406,16 @@ export function SearchPalette() {
         key: `material:${r.type}:${r.id}`,
         icon: meta.icon,
         title: material.title,
-        sub: material.meta,
+        sub: r.section ? `${material.meta} · ${resultDisplay(r).snippet}` : material.meta,
         tag: { label: meta.label, cls: meta.tag },
         meta: relativeTime(r.updateTime),
         run: () =>
           closeAnd(() => {
             if (!material.open) return navigator.push(meta.navKey);
-            openMaterialTarget(material.open).catch(error =>
-              toast.error(error instanceof Error ? error.message : "打开失败")
-            );
+            openMaterialTarget(
+              material.open,
+              r.section ? { block: r.section.blockStart } : undefined
+            ).catch(error => toast.error(error instanceof Error ? error.message : "打开失败"));
           }),
       };
     }
@@ -424,8 +427,15 @@ export function SearchPalette() {
       sub: snippet,
       tag: { label: meta.label, cls: meta.tag },
       meta: relativeTime(r.updateTime),
-      // 详情页迁移前（D-003 注记）跳对应模块列表页
-      run: () => closeAnd(() => navigator.push(meta.navKey)),
+      run: () =>
+        closeAnd(() => {
+          const kind = normalizeEntityRefKind(r.type);
+          if (!kind) return navigator.push(meta.navKey);
+          void openEntity(
+            { kind, id: r.id },
+            r.section ? { at: { block: r.section.blockStart } } : {}
+          ).catch(error => toast.error(error instanceof Error ? error.message : "打开失败"));
+        }),
     };
   };
 
