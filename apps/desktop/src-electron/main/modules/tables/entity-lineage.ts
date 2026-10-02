@@ -11,6 +11,7 @@ import {
 } from "@/entity/lineage";
 
 export interface LineageEdge {
+  lineageId?: number;
   node: LineageNode;
   relation: LineageRelation;
   anchor: LineageAnchor | null;
@@ -18,6 +19,7 @@ export interface LineageEdge {
 }
 
 interface LineageRow {
+  lineage_id?: number;
   kind: string;
   id: string;
   relation: string;
@@ -42,6 +44,7 @@ const toEdges = (rows: LineageRow[]): LineageEdge[] =>
     return [
       {
         node,
+        lineageId: row.lineage_id,
         relation: row.relation,
         anchor: parseAnchor(row.src_anchor),
         createTime: row.create_time,
@@ -136,7 +139,7 @@ export default class EntityLineageTable {
     const where = endpointsWhere("dst", nodes);
     const rows = db
       .prepare(
-        `SELECT src_kind AS kind, src_id AS id, relation, src_anchor, create_time
+        `SELECT id AS lineage_id, src_kind AS kind, src_id AS id, relation, src_anchor, create_time
          FROM entity_lineage WHERE ${where.sql} ORDER BY create_time DESC, id DESC`
       )
       .all(...where.params) as LineageRow[];
