@@ -1,5 +1,6 @@
 /**
- * 脉络实测：在真实库副本上量 content_link 退役、引用与白板索引的首次对账、每个实体的脉络查询耗时，
+ * 脉络实测：在真实库副本上量 content_link 退役、引用与白板索引的首次对账、微信读书摘录回填与外部材料
+ * 索引候选、每个实体的脉络查询耗时，
  * 并统计各分区非空的实体数。默认跳过；需要时把主库复制到临时目录（含 -wal）再跑，主进程测试要用
  * Electron 内置 Node（见 docs/knowledge-loop/05 踩坑）：
  *
@@ -25,6 +26,8 @@ vi.mock("../../video-note-index-queue", () => ({
 
 import { retireContentLink } from "@tau/db-schema/src/content-link-retirement";
 import type { EntityRef } from "@/entity/ref";
+import { listMaterialIndexDocs } from "../../material-index";
+import { backfillWeReadExcerpts } from "../../tables/weread-excerpts";
 import { getEntityContext } from "../context-query";
 import { reconcileRefs } from "../ref-indexer";
 import { reconcileWhiteboardRefs } from "../whiteboard-indexer";
@@ -53,6 +56,13 @@ it.skipIf(!MAIN)(
     await timed("引用索引首次对账", () => reconcileRefs(main, index));
     await timed("白板索引首次对账", () => reconcileWhiteboardRefs(main, index));
     await timed("白板索引再次对账（无变化）", () => reconcileWhiteboardRefs(main, index));
+    await timed("微信读书摘录回填（是否有变化）", () => backfillWeReadExcerpts(main));
+    await timed("外部材料索引候选（按类型计数）", () =>
+      listMaterialIndexDocs(main).reduce<Record<string, number>>((counts, doc) => {
+        counts[doc.type] = (counts[doc.type] ?? 0) + 1;
+        return counts;
+      }, {})
+    );
 
     const refs: EntityRef[] = [
       ...(main.prepare(`SELECT id FROM cards`).all() as Array<{ id: number }>).map(
