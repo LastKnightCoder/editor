@@ -74,6 +74,7 @@ vi.mock("../material-index", () => ({
 vi.mock("@/utils/markdown.ts", () => ({
   getMarkdown: (content: unknown) => (typeof content === "string" ? content : ""),
 }));
+vi.mock("@/entity/sections", () => ({ splitSections: () => [] }));
 
 import mainContentVecIndexQueue from "../main-content-vec-index-queue";
 

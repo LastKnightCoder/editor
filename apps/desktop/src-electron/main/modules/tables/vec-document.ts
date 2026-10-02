@@ -5,7 +5,8 @@ import OpenAI from "openai";
 import log from "electron-log";
 import localInference from "../local-inference";
 import { searchResultDetails } from "../search-details";
-import { smartChunk } from "../../utils/smart-chunk";
+import { sectionsForIndex, writeContentSections, readContentSection } from "../content-sections";
+import FTSTable from "./fts";
 
 const LOCAL_EMBEDDING_CONFIG_ID = "embedding-default-local";
 
@@ -118,6 +119,7 @@ export default class VecDocumentTable {
         update_time FLOAT,
         content TEXT,
         type TEXT,
+        chunk_index INTEGER,
         vec_embedding FLOAT[${vecLength}] distance_metric=cosine
       )
     `);
@@ -179,6 +181,7 @@ export default class VecDocumentTable {
       id: parseInt(id),
       type,
       content: document.content,
+      chunkIndex: document.chunk_index,
     };
   }
 
@@ -204,7 +207,7 @@ export default class VecDocumentTable {
     const typeClause = types.length > 0 ? `AND type IN (${types.map(() => "?").join(",")})` : "";
 
     const searchQuery = `
-      SELECT prefixed_id, update_time, content, distance
+      SELECT prefixed_id, update_time, content, chunk_index, distance
       FROM vec_documents
       WHERE distance < ? AND vec_embedding match ? ${typeClause} AND k = ?
       ORDER BY distance
@@ -229,7 +232,7 @@ export default class VecDocumentTable {
   }
 
   static async indexContent(db: Database.Database, params: IndexParams): Promise<boolean> {
-    const { id, content, type, updateTime, modelInfo } = params;
+    const { id, type, updateTime, modelInfo } = params;
     if (!this.hasTable(db, "vec_documents")) {
       return false;
     }
@@ -237,35 +240,47 @@ export default class VecDocumentTable {
     if (modelInfo && modelInfo.model) {
       const prefixedId = addTypePrefix(id, type);
 
-      this.removeIndexByIdAndType(db, id, type);
-
-      const chunks = smartChunk(content, {
-        minLength: 500,
-        maxLength: 2000,
-        overlap: 0,
-        splitter: "paragraph",
-      });
+      const chunks = sectionsForIndex(params);
 
       try {
         const batchSize = modelInfo.batchSize || 8;
+        const allEmbeddings: number[][] = [];
         for (let i = 0; i < chunks.length; i += batchSize) {
           const chunkBatch = chunks.slice(i, i + batchSize);
-          const embeddings = await this.createEmbeddings(chunkBatch, modelInfo);
+          const embeddings = await this.createEmbeddings(
+            chunkBatch.map(chunk => chunk.embeddingText),
+            modelInfo
+          );
 
           if (embeddings.length !== chunkBatch.length) {
             throw new Error("Embedding 数量与分块数量不一致");
           }
 
+          allEmbeddings.push(...embeddings);
+        }
+        db.transaction(() => {
+          if (!FTSTable.indexContent(db, { ...params, sections: chunks })) {
+            throw new Error("节级全文索引写入失败");
+          }
+          this.removeIndexByIdAndType(db, id, type);
+          writeContentSections(db, prefixedId, chunks);
           const stmt = db.prepare(`
             INSERT INTO vec_documents
-            (prefixed_id, update_time, content, type, vec_embedding)
-            VALUES (?, ?, ?, ?, vec_f32(?))
+            (prefixed_id, update_time, content, type, chunk_index, vec_embedding)
+            VALUES (?, ?, ?, ?, ?, vec_f32(?))
           `);
 
-          for (let j = 0; j < chunkBatch.length; j++) {
-            stmt.run(prefixedId, updateTime, chunkBatch[j], type, JSON.stringify(embeddings[j]));
+          for (let j = 0; j < chunks.length; j++) {
+            stmt.run(
+              prefixedId,
+              updateTime,
+              chunks[j].text,
+              type,
+              BigInt(chunks[j].chunkIndex),
+              JSON.stringify(allEmbeddings[j])
+            );
           }
-        }
+        })();
 
         return true;
       } catch (error) {
@@ -415,6 +430,7 @@ export default class VecDocumentTable {
               type: doc.type as IndexType,
               title: details.title,
               content: details.content,
+              section: readContentSection(indexDb, uniqueKey, doc.chunkIndex, doc.content),
               ...(details.material ? { material: details.material } : {}),
               source: "vec-document" as const,
               updateTime: doc.updateTime,

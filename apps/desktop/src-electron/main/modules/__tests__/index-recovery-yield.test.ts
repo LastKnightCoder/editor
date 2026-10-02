@@ -169,7 +169,10 @@ describe("index recovery cooperative scheduling", () => {
   });
 
   it("主内容 FTS 任务收集会按批调用 yieldEvery", async () => {
-    const result = await (mainContentFtsIndexQueue as any).collectTasks({}, {});
+    const result = await (mainContentFtsIndexQueue as any).collectTasks(
+      {},
+      { prepare: () => ({ get: () => undefined }) }
+    );
 
     expect(result.tasks).toHaveLength(30);
     expect(mockContext.yieldEvery).toHaveBeenCalledWith(25, 25);

@@ -12,6 +12,7 @@ import type { Excerpt } from "@/entity/excerpt/types";
 import { MATERIAL_KINDS, type MaterialInfo, type MaterialKind } from "@/entity/material";
 import { pdfAnnotationNote, pdfAnnotationQuote } from "@/entity/pdf-annotation-text";
 import { getMarkdown } from "@/utils/markdown.ts";
+import { splitSections, type ContentSection } from "@/entity/sections";
 import ExcerptTable from "./tables/excerpt";
 import MaterialTable from "./tables/material";
 
@@ -22,6 +23,8 @@ export interface MaterialIndexDoc {
   type: MaterialKind;
   content: string;
   updateTime: number;
+  title?: string;
+  sections?: ContentSection[];
 }
 
 const hostOf = (url: string) => {
@@ -125,6 +128,8 @@ export function listMaterialIndexDocs(mainDb: Database.Database): MaterialIndexD
     docs.push({
       id: clip.id,
       type: "web-clip",
+      title: clip.title || hostOf(clip.url),
+      sections: splitSections(parseContent(row?.content ?? null), clip.title || hostOf(clip.url)),
       content: joinLines(clip.title || hostOf(clip.url), body),
       updateTime: Number(clip.update_time || 0),
     });

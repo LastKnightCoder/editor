@@ -1,6 +1,7 @@
 import { Descendant } from "slate";
 import type { MaterialInfo, MaterialKind } from "@/entity/material";
 import type { EmbeddingProviderType } from "./embedding";
+import type { ContentSection } from "@/entity/sections";
 
 /** 我的思考：卡片、文章、项目文档、日记 */
 export type ContentIndexType = "card" | "article" | "project-item" | "diary-daily";
@@ -21,6 +22,7 @@ export interface SearchResult {
   date?: string;
   score?: number;
   snippet?: string;
+  section?: Pick<ContentSection, "chunkIndex" | "headingPath" | "text" | "blockStart" | "blockEnd">;
   debug?: {
     rrfScore?: number;
     stage?: string;
@@ -30,6 +32,8 @@ export interface SearchResult {
 export interface IndexParams {
   id: number;
   content: string;
+  title?: string;
+  sections?: ContentSection[];
   type: IndexType;
   updateTime: number;
   modelInfo?: {
