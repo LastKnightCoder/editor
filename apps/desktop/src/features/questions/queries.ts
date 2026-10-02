@@ -16,9 +16,11 @@ import {
   addAnswer,
   deleteQuestion,
   getQuestionDetail,
+  linkQuestionChat,
   linkQuestionTargets,
   listQuestionSummaries,
   moveQuestionToGroup,
+  unlinkQuestionChat,
   unlinkQuestionTarget,
   updateQuestion,
   updateQuestionStatus,
@@ -35,7 +37,12 @@ import { createArticle } from "@/commands/article";
 import { createProject } from "@/commands/project";
 import { createWhiteBoard } from "@/commands/white-board";
 import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
-import type { QuestionLinkTarget, QuestionStatus, QuestionSummary } from "@/types";
+import type {
+  QuestionChatTarget,
+  QuestionLinkTarget,
+  QuestionStatus,
+  QuestionSummary,
+} from "@/types";
 
 const SNAPSHOT_KEY = ["questions", "snapshot"] as const;
 const SOURCE = "questions-page";
@@ -98,6 +105,8 @@ export const questionMutations = {
     // 卡片 / 文章 / 项目文档由库本身持有首个引用，关联时加一
     linkQuestionTargets(id, targets, { incRef: true, created }, opts),
   unlink: (id: number, target: QuestionLinkTarget) => unlinkQuestionTarget(id, target, opts),
+  linkChat: (id: number, target: QuestionChatTarget) => linkQuestionChat(id, target, opts),
+  unlinkChat: (id: number, sessionId: string) => unlinkQuestionChat(id, sessionId, opts),
   /** 独立答案：新建 content 由问题独占首个引用 */
   writeAnswer: async (id: number, content: Descendant[]) => {
     const answer = await createAnswer(content);

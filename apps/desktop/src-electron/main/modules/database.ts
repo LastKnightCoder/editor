@@ -26,6 +26,7 @@ import QuestionTable from "./tables/question";
 import QuestionLinkTable from "./tables/question-link";
 import EntitySearchTable from "./tables/entity-search";
 import QuestionEventTable from "./tables/question-event";
+import QuestionChatTable from "./tables/question-chat";
 import WhiteBoardContentTable from "./tables/white-board-content";
 import DataTableTable from "./tables/data-table";
 import DatabaseItemTable from "./tables/database-item";
@@ -262,6 +263,7 @@ class DatabaseModule implements Module {
       QuestionTable,
       QuestionEventTable,
       QuestionLinkTable,
+      QuestionChatTable,
       EntitySearchTable,
       GoalHardCleanupTable,
       DataTableTable,

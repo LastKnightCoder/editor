@@ -1,7 +1,13 @@
 import Database from "better-sqlite3";
+import {
+  isMaterialKind,
+  materialKey,
+  type MaterialInfo,
+  type MaterialRef,
+} from "@/entity/material";
+import type { EntityRef } from "@/entity/ref";
 import type {
   ActiveQuestionPreview,
-  IQuestion,
   QuestionDetail,
   QuestionEvent,
   QuestionLink,
@@ -11,6 +17,9 @@ import type {
   QuestionSummary,
 } from "@/types";
 import ContentTable from "./content";
+import EntitySearchTable from "./entity-search";
+import MaterialTable from "./material";
+import QuestionChatTable from "./question-chat";
 import QuestionEventTable from "./question-event";
 import QuestionGroupTable from "./question-group";
 import QuestionTable from "./question";
@@ -25,6 +34,9 @@ const TYPE_LABEL: Record<QuestionLinkTargetType, string> = {
   project: "项目",
   white_board: "白板",
   answer: "独立答案",
+  excerpt: "划线",
+  "pdf-annotation": "PDF 标注",
+  "web-clip": "剪藏",
 };
 
 interface LinkRow {
@@ -85,7 +97,7 @@ export default class QuestionLinkTable {
       "question:link-targets": this.linkTargets.bind(this),
       "question:unlink-target": this.unlinkTarget.bind(this),
       "question:reorder-links": this.reorderLinks.bind(this),
-      "question:list-links-by-target": this.listByTarget.bind(this),
+      "question:source-of-notebook": this.sourceOfNotebook.bind(this),
     } as const;
   }
 
@@ -108,17 +120,6 @@ export default class QuestionLinkTable {
 
   static list(db: Database.Database, questionId: number): QuestionLink[] {
     return this.rows(db, questionId).map(row => this.parse(row));
-  }
-
-  /** 引用了某个目标的问题（卡片 / 文章详情里反查「被哪些问题用到」） */
-  static listByTarget(db: Database.Database, target: QuestionLinkTarget): IQuestion[] {
-    const rows = db
-      .prepare(
-        `SELECT q.* FROM question_link l JOIN questions q ON q.id = l.question_id
-         WHERE l.target_type = ? AND l.target_id = ? ORDER BY q.update_time DESC`
-      )
-      .all(target.targetType, target.targetId);
-    return rows.map(row => QuestionTable.parseQuestion(row));
   }
 
   /** content id → 它投影出的实体（卡片 / 文章 / 项目文档），都不是则为独立答案 */
@@ -271,16 +272,28 @@ export default class QuestionLinkTable {
     return linkIds.length;
   }
 
-  /** 删除问题时：释放全部引用并清理关联与轨迹 */
+  /** 删除问题时：释放全部引用并清理关联、探究对话与轨迹 */
   static releaseAll(db: Database.Database, questionId: number) {
     this.rows(db, questionId).forEach(row => {
       if (row.content_id != null) ContentTable.deleteContent(db, row.content_id);
     });
     db.prepare(`DELETE FROM question_link WHERE question_id = ?`).run(questionId);
+    QuestionChatTable.deleteByQuestion(db, questionId);
     QuestionEventTable.deleteByQuestion(db, questionId);
   }
 
   static resolveMaterials(db: Database.Database, rows: LinkRow[]): QuestionMaterial[] {
+    const refs: MaterialRef[] = rows.flatMap(row =>
+      isMaterialKind(row.target_type) ? [{ kind: row.target_type, id: row.target_id }] : []
+    );
+    const materials = new Map<string, MaterialInfo>(
+      refs.length ? MaterialTable.resolve(db, refs).map(info => [materialKey(info.ref), info]) : []
+    );
+    // 答案不迁移到投影出的身份（KL-041）：按共用正文找出它「也是」哪些卡片 / 文章 / 项目文档
+    const answerIds = rows.filter(row => row.target_type === "answer").map(row => row.target_id);
+    const projections = answerIds.length
+      ? EntitySearchTable.locateAll(db, answerIds)
+      : new Map<number, EntityRef[]>();
     return rows.map(row => {
       const base: QuestionMaterial = {
         ...this.parse(row),
@@ -315,6 +328,13 @@ export default class QuestionLinkTable {
             title: first.slice(0, 80) || (row.target_type === "card" ? "无标题卡片" : "空白答案"),
             excerpt: rest.join(" ").slice(0, 160),
             words: c.count ?? 0,
+            ...(row.target_type === "answer"
+              ? {
+                  projections: (projections.get(row.target_id) ?? []).filter(
+                    r => r.kind !== "diary"
+                  ),
+                }
+              : {}),
           };
         }
         case "article": {
@@ -386,10 +406,54 @@ export default class QuestionLinkTable {
             boardContentId: board.active ?? boardPages[0] ?? null,
           };
         }
+        case "excerpt":
+        case "pdf-annotation":
+        case "web-clip": {
+          const info = materials.get(materialKey({ kind: row.target_type, id: row.target_id }));
+          if (!info) return { ...base, missing: true };
+          return {
+            ...base,
+            title: info.title,
+            excerpt: [info.quote, info.note].filter(Boolean).join(" · ").slice(0, 160),
+            meta: info.deleted ? `${info.meta} · 原划线已删除` : info.meta,
+            material: info,
+          };
+        }
         default:
           return { ...base, missing: true };
       }
     });
+  }
+
+  /** 问题立项出的 Notebook（谱系 upgraded_to）；Notebook 已删除时为 null */
+  static notebookOf(db: Database.Database, questionId: number): QuestionDetail["notebook"] {
+    const row = db
+      .prepare(
+        `SELECT p.id, p.title FROM entity_lineage l
+         JOIN vibe_learning_project p ON p.id = CAST(l.dst_id AS INTEGER)
+         WHERE l.src_kind = 'question' AND l.src_id = ? AND l.relation = 'upgraded_to'
+           AND l.dst_kind = 'vl-project'
+         ORDER BY l.id DESC LIMIT 1`
+      )
+      .get(String(questionId)) as { id: number; title: string } | undefined;
+    return row ? { id: row.id, title: row.title || "未命名 Notebook" } : null;
+  }
+
+  /** Notebook 由哪个问题立项；问题已删除时为 null */
+  static sourceOfNotebook(
+    db: Database.Database,
+    projectId: number
+  ): { id: number; title: string } | null {
+    const row = db
+      .prepare(
+        `SELECT q.id, q.question_content AS title FROM entity_lineage l
+         JOIN questions q ON q.id = CAST(l.src_id AS INTEGER)
+         WHERE l.dst_kind = 'vl-project' AND l.dst_id = ? AND l.relation = 'upgraded_to'
+           AND l.src_kind = 'question'
+         ORDER BY l.id DESC LIMIT 1`
+      )
+      .get(String(projectId)) as { id: number; title: string | null } | undefined;
+    return row ? { id: row.id, title: row.title || "未命名问题" } : null;
   }
 
   /**
@@ -402,7 +466,9 @@ export default class QuestionLinkTable {
     return {
       question,
       materials: this.resolveMaterials(db, this.rows(db, questionId)),
+      chats: QuestionChatTable.list(db, questionId),
       events: QuestionEventTable.list(db, questionId),
+      notebook: this.notebookOf(db, questionId),
     };
   }
 
@@ -418,6 +484,9 @@ export default class QuestionLinkTable {
       const counts = map.get(row.question_id) ?? {};
       counts[row.target_type] = row.n;
       map.set(row.question_id, counts);
+    });
+    QuestionChatTable.countsByQuestion(db).forEach((n, questionId) => {
+      map.set(questionId, { ...map.get(questionId), "chat-session": n });
     });
     return map;
   }

@@ -1,6 +1,6 @@
 /**
  * 打开脉络条目：正文实体走 openEntity，外部材料走 openMaterialTarget，其余（对话、Notebook、闪卡卡组、
- * 白板、待办）打开各自的页面。
+ * 白板、待办、问题）打开各自的页面。
  */
 
 import { openEntity } from "@/services/open-content";
@@ -24,6 +24,8 @@ export async function openContextTarget(target: ContextOpenTarget): Promise<void
       return openPage("diary", { date: target.date, moment: String(target.momentId) });
     case "todos":
       return openPage("todos", { selectedId: target.selectedId });
+    case "questions":
+      return openPage("questions", { selectedId: target.selectedId });
     case "material":
       return openMaterialTarget(target.target);
   }

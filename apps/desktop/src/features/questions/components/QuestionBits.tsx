@@ -5,7 +5,7 @@
 
 import { Check } from "lucide-react";
 import { cn } from "@tau/ui";
-import type { QuestionLinkTargetType, QuestionStatus } from "@/types";
+import type { QuestionCompositionKind, QuestionStatus } from "@/types";
 import { groupDotClass } from "@/utils/groupTone";
 import { COMPOSITION_ORDER, STATUS_META, TARGET_META } from "../model";
 
@@ -55,7 +55,7 @@ export function Composition({
   counts,
   className,
 }: {
-  counts: Partial<Record<QuestionLinkTargetType, number>>;
+  counts: Partial<Record<QuestionCompositionKind, number>>;
   className?: string;
 }) {
   const entries = COMPOSITION_ORDER.filter(type => counts[type]);

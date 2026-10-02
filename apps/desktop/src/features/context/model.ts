@@ -6,6 +6,7 @@ import {
   FileText,
   FlaskConical,
   FolderKanban,
+  CircleHelp,
   Globe,
   Highlighter,
   Layers,
@@ -36,6 +37,8 @@ export const LINEAGE_KIND_META: Record<LineageNodeKind, { label: string; icon: L
   "pdf-annotation": { label: "PDF 标注", icon: FileText },
   "web-clip": { label: "解析文档", icon: Globe },
   flashcard: { label: "闪卡", icon: Repeat },
+  question: { label: "问题", icon: CircleHelp },
+  "vl-project": { label: "Notebook", icon: FlaskConical },
 };
 
 export const USAGE_KIND_ICON: Record<ContextUsage["kind"], LucideIcon> = {
