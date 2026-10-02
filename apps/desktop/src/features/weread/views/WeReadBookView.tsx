@@ -13,6 +13,7 @@ import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import { scrollToAndFlash } from "@/utils/flash-element";
 import { findExcerptByExternal } from "@/commands/excerpt";
 import { convertMaterialToCard } from "@/services/material-to-card";
+import { requestMaterialQuestionCapture } from "@/services/question-capture";
 import {
   buildBookNotes,
   countNotes,
@@ -123,19 +124,35 @@ export function WeReadBookView() {
   }, [scrollEl, chapters, filter]);
 
   // 单书页的条目 id 是 bookmarkId（划线）或 reviewId（只有想法），对应摘录的两种外部 id
-  const toCard = useCallback(
+  const findExcerpt = useCallback(
     async (note: BookNote) => {
       const excerpt = await findExcerptByExternal("weread", [
         `${bookId}:${note.id}`,
         `${bookId}:review:${note.id}`,
       ]);
-      if (!excerpt) {
-        toast.error("这条划线还没有同步为摘录，请稍后重试");
-        return;
-      }
-      await convertMaterialToCard({ kind: "excerpt", id: excerpt.id });
+      if (!excerpt) toast.error("这条划线还没有同步为摘录，请稍后重试");
+      return excerpt;
     },
     [bookId]
+  );
+
+  const toCard = useCallback(
+    async (note: BookNote) => {
+      const excerpt = await findExcerpt(note);
+      if (excerpt) await convertMaterialToCard({ kind: "excerpt", id: excerpt.id });
+    },
+    [findExcerpt]
+  );
+
+  const toQuestion = useCallback(
+    async (note: BookNote) => {
+      const excerpt = await findExcerpt(note);
+      if (!excerpt) return;
+      await requestMaterialQuestionCapture({ kind: "excerpt", id: excerpt.id }).catch(() =>
+        toast.error("这条划线已不存在")
+      );
+    },
+    [findExcerpt]
   );
 
   const jump = useCallback(
@@ -222,6 +239,7 @@ export function WeReadBookView() {
                     chapter={chapter}
                     index={notes.chapters.findIndex(c => c.key === chapter.key)}
                     onToCard={toCard}
+                    onToQuestion={toQuestion}
                   />
                 ))}
               </>

@@ -1,6 +1,14 @@
 /** 笔记页的内容件：书头、书评、划线条目、过滤条、目录 */
 
-import { BookOpen, Copy, Layers, MessageSquareQuote, PenLine, RefreshCw } from "lucide-react";
+import {
+  BookOpen,
+  CircleHelp,
+  Copy,
+  Layers,
+  MessageSquareQuote,
+  PenLine,
+  RefreshCw,
+} from "lucide-react";
 import { Button, FilterPill, IconButton, Tooltip, cn, toast } from "@tau/ui";
 import {
   HIGHLIGHT_COLORS,
@@ -178,7 +186,15 @@ function Thought({ paragraphs, className }: { paragraphs: string[]; className?: 
   );
 }
 
-function NoteItem({ note, onToCard }: { note: BookNote; onToCard?: (note: BookNote) => void }) {
+function NoteItem({
+  note,
+  onToCard,
+  onToQuestion,
+}: {
+  note: BookNote;
+  onToCard?: (note: BookNote) => void;
+  onToQuestion?: (note: BookNote) => void;
+}) {
   const text = [...note.paragraphs, ...(note.review.length ? ["", ...note.review] : [])].join("\n");
   return (
     <div
@@ -210,6 +226,15 @@ function NoteItem({ note, onToCard }: { note: BookNote; onToCard?: (note: BookNo
             <Layers className="size-[13px]" strokeWidth={1.75} />
           </IconButton>
         )}
+        {onToQuestion && note.paragraphs.length > 0 && (
+          <IconButton
+            title="转为问题"
+            onClick={() => onToQuestion(note)}
+            className="bg-surface shadow-lift size-[26px] rounded-[8px]"
+          >
+            <CircleHelp className="size-[13px]" strokeWidth={1.75} />
+          </IconButton>
+        )}
         <IconButton
           title="复制"
           onClick={() => void copy(text)}
@@ -226,10 +251,12 @@ export function ChapterSection({
   chapter,
   index,
   onToCard,
+  onToQuestion,
 }: {
   chapter: NoteChapter;
   index: number;
   onToCard?: (note: BookNote) => void;
+  onToQuestion?: (note: BookNote) => void;
 }) {
   const count = chapter.notes.length + chapter.thoughts.length;
   return (
@@ -244,7 +271,7 @@ export function ChapterSection({
       {/* 条目之间靠留白分组（不画分隔线） */}
       <div className="flex flex-col gap-2.5">
         {chapter.notes.map(note => (
-          <NoteItem key={note.id} note={note} onToCard={onToCard} />
+          <NoteItem key={note.id} note={note} onToCard={onToCard} onToQuestion={onToQuestion} />
         ))}
       </div>
       {chapter.thoughts.map((t, i) => (
