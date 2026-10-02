@@ -118,7 +118,7 @@ export const getProjectItemMoreMenuItems = (
         icon: menuIcon(Wand2),
         children: compactMenuItems([
           projectItem?.refType !== "card"
-            ? { key: "to-card", label: "建立卡片", icon: menuIcon(Layers) }
+            ? { key: "to-card", label: "转为卡片（同一份正文）", icon: menuIcon(Layers) }
             : undefined,
           { key: "ai-flashcard", label: "AI 制卡（闪卡）", icon: menuIcon(Sparkles) },
           { key: "manual-flashcard", label: "手动制卡（闪卡）", icon: menuIcon(CreditCard) },

@@ -44,6 +44,8 @@ export type ContextOpenTarget =
 
 /** 谱系的一端：来源或衍生 */
 export interface ContextLineageItem {
+  quote?: string;
+  quoteLost?: boolean;
   node: LineageNode;
   relation: LineageRelation;
   /** 端点已删除时为空串 */
