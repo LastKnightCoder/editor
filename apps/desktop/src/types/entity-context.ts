@@ -7,6 +7,7 @@ import type { InlineRefSnippet } from "@/entity/inline-refs";
 import type { LineageNode, LineageRelation } from "@/entity/lineage";
 import type { MaterialOpenTarget } from "@/entity/material";
 import type { IQuestion } from "./question";
+import type { EntityLocation } from "@/entity/locate";
 
 export interface ContextEntity {
   ref: EntityRef;
@@ -31,7 +32,7 @@ export interface ContextQuestion {
 
 /** 点击脉络条目打开到哪里；正文实体走 openEntity，其余各自的页面 */
 export type ContextOpenTarget =
-  | { page: "entity"; ref: EntityRef }
+  | { page: "entity"; ref: EntityRef; at?: EntityLocation }
   | { page: "chat"; id: string }
   | { page: "vibe-learning-detail"; id: number }
   | { page: "review"; deckId: number }

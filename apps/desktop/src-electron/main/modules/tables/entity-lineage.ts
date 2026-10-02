@@ -72,7 +72,21 @@ export default class EntityLineageTable {
     return {
       "lineage:record": this.record.bind(this),
       "lineage:find-dst": this.findDst.bind(this),
+      "lineage:get-anchor": this.getAnchor.bind(this),
     };
+  }
+
+  static getAnchor(db: Database.Database, id: number, contentId: number): LineageAnchor | null {
+    const row = db
+      .prepare(
+        `SELECT src_anchor FROM entity_lineage l WHERE l.id = ? AND (
+      (src_kind = 'article' AND EXISTS (SELECT 1 FROM articles a WHERE a.id = CAST(l.src_id AS INTEGER) AND a.content_id = ?)) OR
+      (src_kind = 'card' AND EXISTS (SELECT 1 FROM cards c WHERE c.id = CAST(l.src_id AS INTEGER) AND c.content_id = ?)) OR
+      (src_kind = 'project-item' AND EXISTS (SELECT 1 FROM project_item p WHERE p.id = CAST(l.src_id AS INTEGER) AND p.content_id = ?))
+    )`
+      )
+      .get(id, contentId, contentId, contentId) as { src_anchor: string | null } | undefined;
+    return row ? parseAnchor(row.src_anchor) : null;
   }
 
   /** 幂等：同一 src、dst、relation 只记一次，返回是否新写入 */

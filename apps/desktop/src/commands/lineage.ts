@@ -1,10 +1,14 @@
 import { invoke } from "@/electron";
 import type {
+  LineageAnchor,
   LineageNode,
   LineageNodeKind,
   LineageRecord,
   LineageRelation,
 } from "@/entity/lineage";
+
+export const getLineageAnchor = (id: number, contentId: number): Promise<LineageAnchor | null> =>
+  invoke("lineage:get-anchor", id, contentId);
 
 /** 记一条谱系；幂等。谱系是附加信息，写失败只记日志，不影响调用方已完成的主操作 */
 export const recordLineage = async (record: LineageRecord): Promise<void> => {

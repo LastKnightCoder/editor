@@ -4,11 +4,16 @@
  * 异参原位更新（不弹栈）。
  */
 
-import { createPageSchema, paramNumber } from "@/page/core/paramsSchema";
+import {
+  createPageSchema,
+  paramNumber,
+  paramOptional,
+  paramString,
+} from "@/page/core/paramsSchema";
 import { definePage } from "@/page/definePage";
 import { CardDetailView } from "../views/CardDetailView";
 
-const schema = createPageSchema({ id: paramNumber() });
+const schema = createPageSchema({ id: paramNumber(), at: paramOptional(paramString()) });
 
 export default definePage({
   key: "card-detail",

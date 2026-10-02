@@ -123,7 +123,7 @@ const CATEGORY_KEYS = Object.keys(cardCategoryName) as ECardCategory[];
 export function CardDetailView() {
   const { navigator } = usePage();
   // 本实例 params（PageHost 按栈条目注入；勿读全局栈顶——多实例保活时会串台）
-  const { id } = usePageParams<{ id: number }>();
+  const { id, at } = usePageParams<{ id: number; at?: string }>();
 
   const detailQuery = useCardDetail(Number.isFinite(id) ? id : null);
   const card = detailQuery.data ?? null;
@@ -527,6 +527,7 @@ export function CardDetailView() {
               {/* 正文：常编辑态（无预览/编辑切换），协作绑定 card 源 */}
               <ErrorBoundary>
                 <ContentEditor
+                  at={at}
                   ref={editorRef}
                   contentId={card.contentId}
                   key={`${card.id}-${editorRemountKey}`}

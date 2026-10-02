@@ -4,9 +4,11 @@ import { normalizeEntityRefKind, type EntityRef } from "@/entity/ref";
 import useSettingStore from "@/stores/useSettingStore";
 import { normalizeDiaryDay } from "@/utils/diary-day";
 import { getPageNavigation, openPage } from "./page-navigation";
+import { serializeEntityLocation, type EntityLocation } from "@/entity/locate";
 
 /** 打开一个实体对应的 Page；异步查询期间切库则放弃导航 */
-export async function openEntity(ref: EntityRef) {
+export async function openEntity(ref: EntityRef, options: { at?: EntityLocation } = {}) {
+  const position = options.at ? { at: serializeEntityLocation(options.at) } : {};
   const { kind, id } = ref;
   if (!Number.isSafeInteger(id) || id <= 0) throw new Error("内容 ID 无效");
   const database = useSettingStore.getState().setting.database.active;
@@ -17,10 +19,10 @@ export async function openEntity(ref: EntityRef) {
   };
   switch (kind) {
     case "card":
-      openPage("card-detail", { id });
+      openPage("card-detail", { id, ...position });
       return;
     case "article":
-      openPage("article-detail", { id });
+      openPage("article-detail", { id, ...position });
       return;
     case "project-item": {
       const current = getPageNavigation().navigator.current();
@@ -33,7 +35,7 @@ export async function openEntity(ref: EntityRef) {
         currentProjectId && item.projects.includes(currentProjectId)
           ? currentProjectId
           : item.projects[0];
-      openPage("project-detail", { id: projectId, itemId: id });
+      openPage("project-detail", { id: projectId, itemId: id, ...position });
       return;
     }
     case "diary": {

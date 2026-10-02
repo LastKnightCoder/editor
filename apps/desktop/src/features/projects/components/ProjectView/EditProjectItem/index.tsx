@@ -28,6 +28,7 @@ import ImmersiveEditorMode, {
 
 import { createProjectCardListExtension } from "@/editor-extensions";
 import { ContextBadge } from "@/features/context/components/ContextBadge";
+import { usePageParams } from "@/page/PageProvider";
 
 const DOCUMENT_COLUMNS = "grid grid-cols-[minmax(0,720px)] items-start justify-center gap-7 px-6";
 
@@ -47,6 +48,7 @@ const cloneRange = (selection: Range | null): Range | null => {
 
 const EditProjectItem = (props: { projectItemId: number }) => {
   const { projectItemId } = props;
+  const locationParams = usePageParams<{ itemId?: number; at?: string }>();
   const editorRef = useRef<EditorRef>(null);
   const collaborationRef = useRef<ContentCollaborationControlHandle>(null);
   const { documentAction, clearDocumentAction } = useProjectContext();
@@ -248,6 +250,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
                   contentId={projectItem?.contentId}
                   key={`${projectItem.id}-${editorRemountKey}`}
                   ref={editorRef}
+                  at={locationParams.itemId === projectItemId ? locationParams.at : undefined}
                   initValue={projectItem.content}
                   onInit={onInit}
                   onChange={onContentChange}
