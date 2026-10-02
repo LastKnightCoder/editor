@@ -151,6 +151,7 @@ interface HiddenPromptContextState {
 }
 
 interface ChatContainerProps {
+  entry?: string;
   /** 当前对话（统一会话 store 里已打开的对话；新对话是草稿：真 id、尚无 sessionFile） */
   currentChat: ChatMessage;
   isDark: boolean;
@@ -195,6 +196,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
   (
     {
       currentChat,
+      entry,
       isDark,
       markdownComponents,
       isVisible,
@@ -1421,6 +1423,19 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         setTimeout(() => coreRef.current?.scrollToIndex(index, { align: "start" }), 0);
       }
     });
+
+    const locatedEntry = useRef<string | null>(null);
+    useEffect(() => {
+      const key = `${sessionKey}:${entry}`;
+      if (!entry || locatedEntry.current === key || !isVisible) return;
+      const index = visibleMessages.findIndex(message => message.piEntryIds?.includes(entry));
+      if (index < 0) return;
+      const timer = setTimeout(() => {
+        coreRef.current?.scrollToIndex(index, { align: "start" });
+        locatedEntry.current = key;
+      }, 0);
+      return () => clearTimeout(timer);
+    }, [sessionKey, entry, isVisible, visibleMessages]);
 
     if (!currentChat) {
       return null;

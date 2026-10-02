@@ -16,6 +16,7 @@ import { ChatView } from "../views/ChatView";
 
 const schema = createPageSchema({
   id: paramOptional(paramString()),
+  entry: paramOptional(paramString()),
   /** 围绕问题发起：新对话首条消息带上问题上下文，登记后挂成问题的探究对话 */
   seedQuestion: paramOptional(paramNumber()),
 });

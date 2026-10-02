@@ -43,6 +43,7 @@ export type ChatAreaHandle = {
 };
 
 type ChatAreaProps = {
+  entry?: string;
   /** 当前对话 id（页面参数）；null = 新对话草稿 */
   selectedChatId: string | null;
   /** 围绕某个问题发起（只对新对话草稿生效） */
@@ -110,6 +111,7 @@ const ChatArea = memo(
     (
       {
         selectedChatId,
+        entry,
         seedQuestionId = null,
         onSelectChat,
         sendLoading,
@@ -213,6 +215,7 @@ const ChatArea = memo(
                 <ChatContainer
                   ref={chatContainerRef}
                   currentChat={currentChat}
+                  entry={entry}
                   isDark={isDark}
                   markdownComponents={markdownComponents}
                   isVisible={true}

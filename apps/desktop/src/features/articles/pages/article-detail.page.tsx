@@ -3,11 +3,16 @@
  * 见 DECISIONS.md D-015 追记）。params 按 id 去重——同篇文章重复进入激活同一实例。
  */
 
-import { createPageSchema, paramNumber } from "@/page/core/paramsSchema";
+import {
+  createPageSchema,
+  paramNumber,
+  paramOptional,
+  paramString,
+} from "@/page/core/paramsSchema";
 import { definePage } from "@/page/definePage";
 import { ArticleDetailView } from "../views/ArticleDetailView";
 
-const schema = createPageSchema({ id: paramNumber() });
+const schema = createPageSchema({ id: paramNumber(), at: paramOptional(paramString()) });
 
 export default definePage({
   key: "article-detail",

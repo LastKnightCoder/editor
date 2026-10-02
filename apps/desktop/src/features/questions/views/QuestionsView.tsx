@@ -185,7 +185,7 @@ export function QuestionsView() {
     );
 
   const openChat = (chat: QuestionChat) => {
-    if (chat.openable) navigator.push("chat", { id: chat.sessionId });
+    if (chat.openable) navigator.push("chat", { id: chat.sessionId, entry: chat.messageIds?.[0] });
   };
 
   const openTarget = (target: OpenTarget) => navigator.push(target.key, target.params);

@@ -25,6 +25,12 @@ beforeEach(() => {
 });
 
 describe("内容打开入口", () => {
+  it("定位参数序列化后传入详情页", async () => {
+    await openEntity({ kind: "article", id: 1 }, { at: { block: 5 } });
+    expect(mocks.openPage).toHaveBeenLastCalledWith("article-detail", { id: 1, at: '{"block":5}' });
+    await openEntity({ kind: "card", id: 2 }, { at: { quote: 9 } });
+    expect(mocks.openPage).toHaveBeenLastCalledWith("card-detail", { id: 2, at: '{"quote":9}' });
+  });
   it("卡片、文章、项目文档定位至对应 Page", async () => {
     await openContent("card", 3);
     expect(mocks.openPage).toHaveBeenLastCalledWith("card-detail", { id: 3 });

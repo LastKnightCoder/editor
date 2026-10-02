@@ -11,7 +11,7 @@ import type { ContextOpenTarget } from "@/types/entity-context";
 export async function openContextTarget(target: ContextOpenTarget): Promise<void> {
   switch (target.page) {
     case "entity":
-      return openEntity(target.ref);
+      return target.at ? openEntity(target.ref, { at: target.at }) : openEntity(target.ref);
     case "chat":
       return openPage("chat", { id: target.id });
     case "vibe-learning-detail":
