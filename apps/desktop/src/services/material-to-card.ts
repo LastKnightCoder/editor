@@ -7,6 +7,7 @@ import { toast } from "@tau/ui";
 import { createScopedCard } from "@/commands/card";
 import { recordLineage } from "@/commands/lineage";
 import type { MaterialInfo, MaterialRef } from "@/entity/material";
+import { materialQuoteMarkdown } from "@/entity/material-markdown";
 import useSettingStore from "@/stores/useSettingStore";
 import { ECardCategory, type ICard } from "@/types";
 import { defaultCardEventBus } from "@/utils/event-bus/card-event-bus";
@@ -16,15 +17,8 @@ import { openEntity } from "./open-content";
 import { resolveMaterials } from "./open-material";
 
 /** 卡片正文的 Markdown：引用块原文，空一行写想法，末行出处 */
-export function materialCardMarkdown(info: Pick<MaterialInfo, "quote" | "note" | "meta">): string {
-  const quote = info.quote
-    .split("\n")
-    .map(line => line.trim())
-    .filter(Boolean)
-    .map(line => `> ${line}`)
-    .join("\n");
-  return [quote, info.note.trim(), `—— ${info.meta}`].filter(Boolean).join("\n\n");
-}
+export const materialCardMarkdown = (info: Pick<MaterialInfo, "quote" | "note" | "meta">) =>
+  materialQuoteMarkdown(info);
 
 export async function createCardFromMaterial(ref: MaterialRef): Promise<ICard> {
   const databaseName = useSettingStore.getState().setting.database.active;
