@@ -1,11 +1,23 @@
-import { Text, type Descendant } from "slate";
+import { Node, Text, type Descendant } from "slate";
 import { getMarkdown } from "../utils/markdown";
 import { smartChunkWithRanges } from "../../src-electron/main/utils/smart-chunk";
-import { headingPaths } from "./quote-anchor";
 
 export { MAIN_CHUNK_VERSION } from "./chunk-version";
 export const SECTION_MAX_LENGTH = 1200;
 export const SECTION_MIN_LENGTH = 80;
+
+/** 每个顶层块所在节的标题路径「一级 › 二级」（标题块包含自身） */
+export function headingPaths(content: Descendant[]): string[] {
+  const ancestors: { level: number; title: string }[] = [];
+  return content.map(node => {
+    if (!Text.isText(node) && node.type === "header") {
+      const level = Number(node.level);
+      while (ancestors.length && ancestors[ancestors.length - 1].level >= level) ancestors.pop();
+      ancestors.push({ level, title: Node.string(node) });
+    }
+    return ancestors.map(item => item.title).join(" › ");
+  });
+}
 
 export interface ContentSection {
   chunkIndex: number;

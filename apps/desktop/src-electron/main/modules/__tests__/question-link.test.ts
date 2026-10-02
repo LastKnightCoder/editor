@@ -115,40 +115,11 @@ describe("问题材料关联与探究轨迹", () => {
     `);
 
     expect(() => QuestionLinkTable.upgradeTable(db)).not.toThrow();
-    expect(() => QuestionLinkTable.upgradeTable(db)).not.toThrow();
-    expect(
-      (db.prepare("PRAGMA table_info(question_link)").all() as { name: string }[]).filter(
-        column => column.name === "anchor"
-      )
-    ).toHaveLength(1);
     expect(
       (db.prepare(`PRAGMA table_info(question_link)`).all() as { name: string }[]).some(
         column => column.name === "content_id"
       )
     ).toBe(true);
-  });
-
-  it("保存选区锚点，材料展示引文并找回当前块", () => {
-    const card = insertCard("选中观点");
-    const { question } = QuestionTable.captureQuestion(db, "为什么");
-    const anchor = { exact: "选中观点", prefix: "", suffix: "\n正文" };
-    QuestionLinkTable.linkTargets(db, question.id, [
-      { targetType: "card", targetId: card.cardId, anchor },
-    ]);
-    const material = QuestionLinkTable.getDetail(db, question.id)!.materials[0];
-    expect(material).toMatchObject({
-      anchor,
-      excerpt: "选中观点",
-      anchorLost: false,
-    });
-    db.prepare("UPDATE contents SET content = ? WHERE id = ?").run(
-      JSON.stringify(doc("无关内容")),
-      card.contentId
-    );
-    expect(QuestionLinkTable.getDetail(db, question.id)!.materials[0]).toMatchObject({
-      excerpt: "选中观点",
-      anchorLost: true,
-    });
   });
 
   it("回填：非已解答问题清空旧的「首个答案时间」", () => {

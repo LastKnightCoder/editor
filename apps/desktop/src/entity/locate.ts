@@ -1,6 +1,5 @@
-import { parseQuoteAnchor, type QuoteAnchor } from "./quote-anchor";
-
-export type EntityLocation = { block: number } | { quote: number | QuoteAnchor };
+/** 打开正文到某个顶层块（页面参数 at 的序列化形式）；非法值降级为文首 */
+export type EntityLocation = { block: number };
 
 export function parseEntityLocation(value: string | undefined): EntityLocation | null {
   if (!value) return null;
@@ -8,9 +7,6 @@ export function parseEntityLocation(value: string | undefined): EntityLocation |
     const parsed = JSON.parse(value);
     if (!parsed || typeof parsed !== "object") return null;
     if (Number.isSafeInteger(parsed.block) && parsed.block >= 0) return { block: parsed.block };
-    if (Number.isSafeInteger(parsed.quote) && parsed.quote > 0) return { quote: parsed.quote };
-    const quote = parseQuoteAnchor(parsed.quote);
-    if (quote) return { quote };
   } catch {
     /* 非法地址降级为文首。 */
   }

@@ -29,7 +29,6 @@ import ImmersiveEditorMode, {
 import { createProjectCardListExtension } from "@/editor-extensions";
 import { ContextBadge } from "@/features/context/components/ContextBadge";
 import { usePageParams } from "@/page/PageProvider";
-import { createExtractExtension } from "@/editor-extensions/extract";
 
 const DOCUMENT_COLUMNS = "grid grid-cols-[minmax(0,720px)] items-start justify-center gap-7 px-6";
 
@@ -85,10 +84,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   } = useEdit(projectItemId);
 
   const editorExtensions = useMemo(() => {
-    return [
-      createProjectCardListExtension(projectItemId),
-      createExtractExtension({ kind: "project-item", id: projectItemId }),
-    ];
+    return [createProjectCardListExtension(projectItemId)];
   }, [projectItemId]);
 
   const extensions = editorExtensions;

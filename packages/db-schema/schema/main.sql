@@ -220,8 +220,7 @@ CREATE TABLE IF NOT EXISTS question_link (
         target_id INTEGER NOT NULL,
         content_id INTEGER,
         sort_index INTEGER NOT NULL DEFAULT 0,
-        create_time INTEGER NOT NULL,
-        anchor TEXT
+        create_time INTEGER NOT NULL
       );
 -- 问题的探究对话：session_id = chat_session.id（pi 会话 UUID）；message_ids 为 JSON 数组，记录问题从哪几条消息转来（可空）。
 -- 弱引用：对话被删不级联，解析时降级；删除问题时一并删除。

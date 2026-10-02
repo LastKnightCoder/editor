@@ -6,18 +6,7 @@ import type { EditorRef } from "@tau/editor";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useContentLocation } from "../ContentEditor/useContentLocation";
 
-const mocks = vi.hoisted(() => ({
-  flash: vi.fn(),
-  data: null as null | { quote: { exact: string; prefix: string; suffix: string } },
-}));
-vi.mock("@tanstack/react-query", () => ({
-  useQuery: () => ({ data: mocks.data, isPending: false }),
-}));
-vi.mock("@/commands/lineage", () => ({ getLineageAnchor: vi.fn() }));
-vi.mock("@/stores/useSettingStore", () => ({
-  default: (selector: (state: { setting: { database: { active: string } } }) => unknown) =>
-    selector({ setting: { database: { active: "test" } } }),
-}));
+const mocks = vi.hoisted(() => ({ flash: vi.fn() }));
 vi.mock("@/utils/flash-element", () => ({ scrollToAndFlash: mocks.flash }));
 
 let host: HTMLDivElement;
@@ -36,7 +25,6 @@ const Probe = ({ at }: { at: string }) => {
 beforeEach(() => {
   vi.useFakeTimers();
   mocks.flash.mockClear();
-  mocks.data = null;
   host = document.createElement("div");
   root = createRoot(host);
   vi.spyOn(ReactEditor, "toDOMNode").mockImplementation((_, node) =>
@@ -62,29 +50,7 @@ it("实时块定位、同实例异参重新定位，越界退到首块", async (
   expect(mocks.flash).toHaveBeenLastCalledWith(first);
   expect(second.hasAttribute("data-content-location")).toBe(false);
 });
-it("谱系引文在当前正文找回后定位", async () => {
-  mocks.data = { quote: { exact: "第二块观点", prefix: "", suffix: "" } };
-  await render('{"quote":3}');
-  expect(mocks.flash).toHaveBeenLastCalledWith(second);
-});
-it("问题材料的缓存引文在打开时按编辑后的正文定位", async () => {
-  const previous = editor.children;
-  const quote = { exact: "第二块观点", prefix: "", suffix: "" };
-  editor.children = [
-    { type: "paragraph", children: [{ type: "formatted", text: "新增前置块" }] },
-    ...previous,
-  ];
-  try {
-    await render(JSON.stringify({ quote }));
-    expect(ReactEditor.toDOMNode).toHaveBeenLastCalledWith(editor, previous[1]);
-  } finally {
-    editor.children = previous;
-  }
-});
-it("丢失锚点和非法参数仍可打开文首", async () => {
-  mocks.data = { quote: { exact: "已删除的原文", prefix: "", suffix: "" } };
-  await render('{"quote":3}');
-  expect(mocks.flash).toHaveBeenLastCalledWith(first);
+it("非法参数仍可打开文首", async () => {
   await render("broken");
   expect(mocks.flash).toHaveBeenLastCalledWith(first);
 });

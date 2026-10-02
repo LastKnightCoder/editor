@@ -11,7 +11,6 @@ import {
 } from "@/entity/lineage";
 
 export interface LineageEdge {
-  lineageId?: number;
   node: LineageNode;
   relation: LineageRelation;
   anchor: LineageAnchor | null;
@@ -19,7 +18,6 @@ export interface LineageEdge {
 }
 
 interface LineageRow {
-  lineage_id?: number;
   kind: string;
   id: string;
   relation: string;
@@ -44,7 +42,6 @@ const toEdges = (rows: LineageRow[]): LineageEdge[] =>
     return [
       {
         node,
-        lineageId: row.lineage_id,
         relation: row.relation,
         anchor: parseAnchor(row.src_anchor),
         createTime: row.create_time,
@@ -75,21 +72,7 @@ export default class EntityLineageTable {
     return {
       "lineage:record": this.record.bind(this),
       "lineage:find-dst": this.findDst.bind(this),
-      "lineage:get-anchor": this.getAnchor.bind(this),
     };
-  }
-
-  static getAnchor(db: Database.Database, id: number, contentId: number): LineageAnchor | null {
-    const row = db
-      .prepare(
-        `SELECT src_anchor FROM entity_lineage l WHERE l.id = ? AND (
-      (src_kind = 'article' AND EXISTS (SELECT 1 FROM articles a WHERE a.id = CAST(l.src_id AS INTEGER) AND a.content_id = ?)) OR
-      (src_kind = 'card' AND EXISTS (SELECT 1 FROM cards c WHERE c.id = CAST(l.src_id AS INTEGER) AND c.content_id = ?)) OR
-      (src_kind = 'project-item' AND EXISTS (SELECT 1 FROM project_item p WHERE p.id = CAST(l.src_id AS INTEGER) AND p.content_id = ?))
-    )`
-      )
-      .get(id, contentId, contentId, contentId) as { src_anchor: string | null } | undefined;
-    return row ? parseAnchor(row.src_anchor) : null;
   }
 
   /** 幂等：同一 src、dst、relation 只记一次，返回是否新写入 */
@@ -139,7 +122,7 @@ export default class EntityLineageTable {
     const where = endpointsWhere("dst", nodes);
     const rows = db
       .prepare(
-        `SELECT id AS lineage_id, src_kind AS kind, src_id AS id, relation, src_anchor, create_time
+        `SELECT src_kind AS kind, src_id AS id, relation, src_anchor, create_time
          FROM entity_lineage WHERE ${where.sql} ORDER BY create_time DESC, id DESC`
       )
       .all(...where.params) as LineageRow[];

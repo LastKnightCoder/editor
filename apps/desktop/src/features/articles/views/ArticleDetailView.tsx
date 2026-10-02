@@ -47,7 +47,6 @@ import type { EditorRef } from "@tau/editor";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import { isElectron } from "@/electron";
 import ContentEditor from "@/components/ContentEditor";
-import { createExtractExtension } from "@/editor-extensions/extract";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { FadeScroll } from "@/components/FadeScroll";
 import PresentationMode from "@/components/PresentationMode";
@@ -112,7 +111,6 @@ export function ArticleDetailView() {
   const { navigator } = usePage();
   // 本实例 params（PageHost 按栈条目注入；勿读全局栈顶——多实例保活时会串台）
   const { id, at } = usePageParams<{ id: number; at?: string }>();
-  const extractExtensions = useMemo(() => [createExtractExtension({ kind: "article", id })], [id]);
 
   const {
     editingArticle,
@@ -474,7 +472,6 @@ export function ArticleDetailView() {
               <div className={editingArticle.podcast ? "mt-[30px]" : undefined}>
                 <ErrorBoundary>
                   <ContentEditor
-                    extensions={extractExtensions}
                     at={at}
                     ref={editorRef}
                     contentId={editingArticle.contentId}

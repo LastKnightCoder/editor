@@ -18,8 +18,6 @@ import type {
 import EntityLineageTable, { type LineageEdge } from "../tables/entity-lineage";
 import EntitySearchTable from "../tables/entity-search";
 import MaterialTable from "../tables/material";
-import { resolveQuoteAnchor } from "@/entity/quote-anchor";
-import { searchResultDetails } from "../search-details";
 
 /** 各分区最多返回的条数（与 context-query 一致） */
 const LIMIT = 50;
@@ -183,18 +181,7 @@ export function sourcesOf(
     seen.add(key);
     const resolved = resolveNode(db, edge.node, toEntity);
     if (!resolved && edge.node.kind === "web-clip") continue;
-    const item = toItem(edge, resolved);
-    if (edge.anchor?.quote && (edge.node.kind === "article" || edge.node.kind === "project-item")) {
-      const quote = edge.anchor.quote;
-      const details = searchResultDetails(db, edge.node.kind, edge.node.id);
-      const result = details ? resolveQuoteAnchor(details.content, quote) : null;
-      item.title = resolved ? `摘自《${resolved.title}》${quote.heading ? ` › ${quote.heading}` : ""}` : item.title;
-      item.quoteLost = !result || result.status === "lost";
-      item.quote = item.quoteLost ? quote.exact : undefined;
-      if (item.quoteLost) item.meta = "原文已修改";
-      if (resolved && edge.lineageId) item.open = { page: "entity", ref: edge.node, at: { quote: edge.lineageId } };
-    }
-    items.push(item);
+    items.push(toItem(edge, resolved));
     if (items.length >= LIMIT) break;
   }
   return items;

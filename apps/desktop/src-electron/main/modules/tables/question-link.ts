@@ -6,7 +6,6 @@ import {
   type MaterialRef,
 } from "@/entity/material";
 import type { EntityRef } from "@/entity/ref";
-import { parseQuoteAnchor, resolveQuoteAnchor } from "@/entity/quote-anchor";
 import type {
   ActiveQuestionPreview,
   QuestionDetail,
@@ -41,7 +40,6 @@ const TYPE_LABEL: Record<QuestionLinkTargetType, string> = {
 };
 
 interface LinkRow {
-  anchor?: string | null;
   id: number;
   question_id: number;
   target_type: QuestionLinkTargetType;
@@ -88,9 +86,6 @@ export default class QuestionLinkTable {
     if (!columns.some(column => column.name === "content_id")) {
       db.exec(`ALTER TABLE question_link ADD COLUMN content_id INTEGER`);
     }
-    if (!columns.some(column => column.name === "anchor")) {
-      db.exec(`ALTER TABLE question_link ADD COLUMN anchor TEXT`);
-    }
     this.backfill(db);
   }
 
@@ -114,7 +109,6 @@ export default class QuestionLinkTable {
       targetId: row.target_id,
       sortIndex: row.sort_index,
       createTime: row.create_time,
-      ...(parseQuoteAnchor(row.anchor) ? { anchor: parseQuoteAnchor(row.anchor)! } : {}),
     };
   }
 
@@ -197,7 +191,6 @@ export default class QuestionLinkTable {
       question_id: questionId,
       target_type: target.targetType,
       target_id: target.targetId,
-      anchor: target.anchor ? JSON.stringify(target.anchor) : null,
       content_id: contentId,
       sort_index: (max.m ?? 0) + SORT_STEP,
       create_time: now,
@@ -205,18 +198,11 @@ export default class QuestionLinkTable {
     row.id = Number(
       db
         .prepare(
-          `INSERT INTO question_link (question_id, target_type, target_id, content_id, sort_index, create_time, anchor)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`
+          `INSERT INTO question_link (question_id, target_type, target_id, content_id, sort_index, create_time)
+           VALUES (?, ?, ?, ?, ?, ?)`
         )
-        .run(
-          questionId,
-          target.targetType,
-          target.targetId,
-          contentId,
-          row.sort_index,
-          now,
-          row.anchor
-        ).lastInsertRowid
+        .run(questionId, target.targetType, target.targetId, contentId, row.sort_index, now)
+        .lastInsertRowid
     );
     const [material] = this.resolveMaterials(db, [row]);
     const event = QuestionEventTable.log(
@@ -308,148 +294,135 @@ export default class QuestionLinkTable {
     const projections = answerIds.length
       ? EntitySearchTable.locateAll(db, answerIds)
       : new Map<number, EntityRef[]>();
-    return rows
-      .map(row => {
-        const base: QuestionMaterial = {
-          ...this.parse(row),
-          title: `${TYPE_LABEL[row.target_type] ?? "材料"} #${row.target_id}`,
-          excerpt: "",
-          meta: "",
-          words: 0,
-          targetCreateTime: row.create_time,
-          contentId: row.content_id,
-          projectId: null,
-          boardContentId: null,
-          missing: false,
-        };
-        const content = (id: number | null) =>
-          id != null ? ContentTable.getContentById(db, id) : null;
-        const get = (sql: string) => db.prepare(sql).get(row.target_id) as any;
-        switch (row.target_type) {
-          case "card":
-          case "answer": {
-            if (row.target_type === "card") {
-              const card = get(`SELECT id, create_time, content_id FROM cards WHERE id = ?`);
-              if (!card) return { ...base, missing: true };
-              base.targetCreateTime = card.create_time;
-              base.contentId = card.content_id;
-            }
-            const c = content(base.contentId);
-            if (!c) return { ...base, missing: true };
-            const [first = "", ...rest] = blockLines(c.content);
-            if (row.target_type === "answer") base.targetCreateTime = c.createTime;
-            return {
-              ...base,
-              title: first.slice(0, 80) || (row.target_type === "card" ? "无标题卡片" : "空白答案"),
-              excerpt: rest.join(" ").slice(0, 160),
-              words: c.count ?? 0,
-              ...(row.target_type === "answer"
-                ? {
-                    projections: (projections.get(row.target_id) ?? []).filter(
-                      r => r.kind !== "diary"
-                    ),
-                  }
-                : {}),
-            };
+    return rows.map(row => {
+      const base: QuestionMaterial = {
+        ...this.parse(row),
+        title: `${TYPE_LABEL[row.target_type] ?? "材料"} #${row.target_id}`,
+        excerpt: "",
+        meta: "",
+        words: 0,
+        targetCreateTime: row.create_time,
+        contentId: row.content_id,
+        projectId: null,
+        boardContentId: null,
+        missing: false,
+      };
+      const content = (id: number | null) =>
+        id != null ? ContentTable.getContentById(db, id) : null;
+      const get = (sql: string) => db.prepare(sql).get(row.target_id) as any;
+      switch (row.target_type) {
+        case "card":
+        case "answer": {
+          if (row.target_type === "card") {
+            const card = get(`SELECT id, create_time, content_id FROM cards WHERE id = ?`);
+            if (!card) return { ...base, missing: true };
+            base.targetCreateTime = card.create_time;
+            base.contentId = card.content_id;
           }
-          case "article": {
-            const article = get(
-              `SELECT id, title, create_time, content_id, is_delete FROM articles WHERE id = ?`
-            );
-            if (!article || article.is_delete) return { ...base, missing: true };
-            const c = content(article.content_id);
-            return {
-              ...base,
-              title: article.title || "无标题文章",
-              excerpt: blockLines(c?.content).join(" ").slice(0, 160),
-              words: c?.count ?? 0,
-              targetCreateTime: article.create_time,
-              contentId: article.content_id,
-            };
-          }
-          case "project_item": {
-            const item = get(
-              `SELECT id, title, create_time, content_id, projects FROM project_item WHERE id = ?`
-            );
-            if (!item) return { ...base, missing: true };
-            const projectId = Number(parseJsonArray(item.projects)[0]) || null;
-            const project =
-              projectId != null
-                ? (db.prepare(`SELECT title FROM project WHERE id = ?`).get(projectId) as
-                    { title: string } | undefined)
-                : undefined;
-            const c = content(item.content_id);
-            return {
-              ...base,
-              title: item.title || "无标题文档",
-              excerpt: blockLines(c?.content).join(" ").slice(0, 160),
-              meta: project?.title ?? "",
-              words: c?.count ?? 0,
-              targetCreateTime: item.create_time,
-              contentId: item.content_id,
-              projectId,
-            };
-          }
-          case "project": {
-            const project = get(
-              `SELECT id, title, create_time, "desc" AS d, children FROM project WHERE id = ?`
-            );
-            if (!project) return { ...base, missing: true };
-            const docs = parseJsonArray(project.children).length;
-            return {
-              ...base,
-              title: project.title || "无标题项目",
-              excerpt: blockLines(parseJsonArray(project.d)).join(" ").slice(0, 160),
-              meta: `${docs} 篇文档`,
-              targetCreateTime: project.create_time,
-              projectId: project.id,
-            };
-          }
-          case "white_board": {
-            const board = get(
-              `SELECT id, title, description, create_time, white_board_content_ids, active_white_board_content_id AS active FROM white_boards WHERE id = ?`
-            );
-            if (!board) return { ...base, missing: true };
-            const boardPages = parseJsonArray(board.white_board_content_ids).map(Number);
-            const pages = boardPages.length;
-            return {
-              ...base,
-              title: board.title || "无标题白板",
-              excerpt: (board.description || "").slice(0, 160),
-              meta: pages > 1 ? `${pages} 页` : "",
-              targetCreateTime: board.create_time,
-              boardContentId: board.active ?? boardPages[0] ?? null,
-            };
-          }
-          case "excerpt":
-          case "pdf-annotation":
-          case "web-clip": {
-            const info = materials.get(materialKey({ kind: row.target_type, id: row.target_id }));
-            if (!info) return { ...base, missing: true };
-            return {
-              ...base,
-              title: info.title,
-              excerpt: [info.quote, info.note].filter(Boolean).join(" · ").slice(0, 160),
-              meta: info.deleted ? `${info.meta} · 原划线已删除` : info.meta,
-              material: info,
-            };
-          }
-          default:
-            return { ...base, missing: true };
+          const c = content(base.contentId);
+          if (!c) return { ...base, missing: true };
+          const [first = "", ...rest] = blockLines(c.content);
+          if (row.target_type === "answer") base.targetCreateTime = c.createTime;
+          return {
+            ...base,
+            title: first.slice(0, 80) || (row.target_type === "card" ? "无标题卡片" : "空白答案"),
+            excerpt: rest.join(" ").slice(0, 160),
+            words: c.count ?? 0,
+            ...(row.target_type === "answer"
+              ? {
+                  projections: (projections.get(row.target_id) ?? []).filter(
+                    r => r.kind !== "diary"
+                  ),
+                }
+              : {}),
+          };
         }
-      })
-      .map(material => {
-        if (!material.anchor) return material;
-        const content = material.contentId
-          ? ContentTable.getContentById(db, material.contentId)?.content
-          : [];
-        const resolved = resolveQuoteAnchor(content ?? [], material.anchor);
-        return {
-          ...material,
-          excerpt: material.anchor.exact,
-          anchorLost: resolved.status === "lost",
-        };
-      });
+        case "article": {
+          const article = get(
+            `SELECT id, title, create_time, content_id, is_delete FROM articles WHERE id = ?`
+          );
+          if (!article || article.is_delete) return { ...base, missing: true };
+          const c = content(article.content_id);
+          return {
+            ...base,
+            title: article.title || "无标题文章",
+            excerpt: blockLines(c?.content).join(" ").slice(0, 160),
+            words: c?.count ?? 0,
+            targetCreateTime: article.create_time,
+            contentId: article.content_id,
+          };
+        }
+        case "project_item": {
+          const item = get(
+            `SELECT id, title, create_time, content_id, projects FROM project_item WHERE id = ?`
+          );
+          if (!item) return { ...base, missing: true };
+          const projectId = Number(parseJsonArray(item.projects)[0]) || null;
+          const project =
+            projectId != null
+              ? (db.prepare(`SELECT title FROM project WHERE id = ?`).get(projectId) as
+                  { title: string } | undefined)
+              : undefined;
+          const c = content(item.content_id);
+          return {
+            ...base,
+            title: item.title || "无标题文档",
+            excerpt: blockLines(c?.content).join(" ").slice(0, 160),
+            meta: project?.title ?? "",
+            words: c?.count ?? 0,
+            targetCreateTime: item.create_time,
+            contentId: item.content_id,
+            projectId,
+          };
+        }
+        case "project": {
+          const project = get(
+            `SELECT id, title, create_time, "desc" AS d, children FROM project WHERE id = ?`
+          );
+          if (!project) return { ...base, missing: true };
+          const docs = parseJsonArray(project.children).length;
+          return {
+            ...base,
+            title: project.title || "无标题项目",
+            excerpt: blockLines(parseJsonArray(project.d)).join(" ").slice(0, 160),
+            meta: `${docs} 篇文档`,
+            targetCreateTime: project.create_time,
+            projectId: project.id,
+          };
+        }
+        case "white_board": {
+          const board = get(
+            `SELECT id, title, description, create_time, white_board_content_ids, active_white_board_content_id AS active FROM white_boards WHERE id = ?`
+          );
+          if (!board) return { ...base, missing: true };
+          const boardPages = parseJsonArray(board.white_board_content_ids).map(Number);
+          const pages = boardPages.length;
+          return {
+            ...base,
+            title: board.title || "无标题白板",
+            excerpt: (board.description || "").slice(0, 160),
+            meta: pages > 1 ? `${pages} 页` : "",
+            targetCreateTime: board.create_time,
+            boardContentId: board.active ?? boardPages[0] ?? null,
+          };
+        }
+        case "excerpt":
+        case "pdf-annotation":
+        case "web-clip": {
+          const info = materials.get(materialKey({ kind: row.target_type, id: row.target_id }));
+          if (!info) return { ...base, missing: true };
+          return {
+            ...base,
+            title: info.title,
+            excerpt: [info.quote, info.note].filter(Boolean).join(" · ").slice(0, 160),
+            meta: info.deleted ? `${info.meta} · 原划线已删除` : info.meta,
+            material: info,
+          };
+        }
+        default:
+          return { ...base, missing: true };
+      }
+    });
   }
 
   /** 问题立项出的 Notebook（谱系 upgraded_to）；Notebook 已删除时为 null */
