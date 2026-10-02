@@ -67,6 +67,20 @@ it("谱系引文在当前正文找回后定位", async () => {
   await render('{"quote":3}');
   expect(mocks.flash).toHaveBeenLastCalledWith(second);
 });
+it("问题材料的缓存引文在打开时按编辑后的正文定位", async () => {
+  const previous = editor.children;
+  const quote = { exact: "第二块观点", prefix: "", suffix: "" };
+  editor.children = [
+    { type: "paragraph", children: [{ type: "formatted", text: "新增前置块" }] },
+    ...previous,
+  ];
+  try {
+    await render(JSON.stringify({ quote }));
+    expect(ReactEditor.toDOMNode).toHaveBeenLastCalledWith(editor, previous[1]);
+  } finally {
+    editor.children = previous;
+  }
+});
 it("丢失锚点和非法参数仍可打开文首", async () => {
   mocks.data = { quote: { exact: "已删除的原文", prefix: "", suffix: "" } };
   await render('{"quote":3}');

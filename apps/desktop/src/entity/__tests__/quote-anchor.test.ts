@@ -25,6 +25,26 @@ const anchor = buildQuoteAnchor(original, {
 });
 
 describe("引述锚点", () => {
+  it("长段末尾跨到下一段开头的选区改字后仍找回", () => {
+    const first = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx";
+    const second = "0123456789".repeat(5);
+    const content = [paragraph("前".repeat(1000) + first), paragraph(second + "后".repeat(1000))];
+    const saved = buildQuoteAnchor(content, {
+      start: { path: [0, 0], offset: 1000 },
+      end: { path: [1, 0], offset: 50 },
+    });
+    expect(resolveQuoteAnchor(content, saved)).toMatchObject({
+      status: "exact",
+      blockStart: 0,
+      blockEnd: 1,
+    });
+    const edited = [paragraph("前".repeat(1000) + first.replace("A", "Z")), content[1]];
+    expect(resolveQuoteAnchor(edited, saved)).toMatchObject({
+      status: "fuzzy",
+      blockStart: 0,
+      blockEnd: 1,
+    });
+  });
   it("生成引文、前后文与祖先标题，不修改正文", () => {
     expect(anchor).toEqual({
       exact: quote,

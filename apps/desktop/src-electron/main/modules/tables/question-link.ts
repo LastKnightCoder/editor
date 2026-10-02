@@ -447,7 +447,6 @@ export default class QuestionLinkTable {
         return {
           ...material,
           excerpt: material.anchor.exact,
-          anchorBlock: resolved.blockStart,
           anchorLost: resolved.status === "lost",
         };
       });
