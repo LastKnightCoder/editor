@@ -7,6 +7,7 @@ import type {
   QuestionDetail,
   QuestionEvent,
   QuestionLink,
+  QuestionChatTarget,
   QuestionLinkTarget,
   QuestionSummary,
 } from "@/types";
@@ -259,10 +260,6 @@ export async function listActiveQuestions(limit = 5): Promise<ActiveQuestionPrev
   return invoke("question:list-active", limit);
 }
 
-export async function listQuestionsByTarget(target: QuestionLinkTarget): Promise<IQuestion[]> {
-  return invoke("question:list-links-by-target", target);
-}
-
 /**
  * 关联材料。incRef：为已有卡片 / 文章 / 项目文档增加引用（关联已有、从问题里新建卡片都传 true）；
  * created：轨迹记为「写下 / 新建」而非「关联」。
@@ -307,6 +304,50 @@ export async function unlinkQuestionTarget(
     });
   }
   return removed;
+}
+
+/** 关联对话（question_chat）；已关联的返回 false */
+export async function linkQuestionChat(
+  questionId: number,
+  target: QuestionChatTarget,
+  options?: QuestionMutationOptions
+): Promise<boolean> {
+  const added = await invoke<boolean>("question:link-chat", questionId, target);
+  if (added && !options?.suppressMutationEvent) {
+    emitQuestionMutation({
+      source: options?.mutationSource || "question-command",
+      entityType: "question-answer",
+      questionId,
+      action: QUESTION_MUTATION_ACTIONS.ATTACH_ANSWER,
+      changedFields: ["chats", "status"],
+    });
+  }
+  return added;
+}
+
+export async function unlinkQuestionChat(
+  questionId: number,
+  sessionId: string,
+  options?: QuestionMutationOptions
+): Promise<number> {
+  const removed = await invoke<number>("question:unlink-chat", questionId, sessionId);
+  if (!options?.suppressMutationEvent) {
+    emitQuestionMutation({
+      source: options?.mutationSource || "question-command",
+      entityType: "question-answer",
+      questionId,
+      action: QUESTION_MUTATION_ACTIONS.DETACH_ANSWER,
+      changedFields: ["chats"],
+    });
+  }
+  return removed;
+}
+
+/** Notebook 由哪个问题立项（谱系 upgraded_to）；没有或问题已删除时为 null */
+export async function getNotebookSourceQuestion(
+  projectId: number
+): Promise<{ id: number; title: string } | null> {
+  return invoke("question:source-of-notebook", projectId);
 }
 
 export async function reorderQuestionLinks(questionId: number, linkIds: number[]): Promise<number> {

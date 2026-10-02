@@ -53,6 +53,8 @@ const KIND_LABEL: Record<LineageNode["kind"], string> = {
   "vl-note": "Notebook 笔记",
   "web-clip": "解析文档",
   flashcard: "闪卡",
+  question: "问题",
+  "vl-project": "Notebook",
 };
 
 /**
@@ -106,6 +108,30 @@ function resolveNode(
         meta: `闪卡 · ${row.deck_name}`,
         open: { page: "review", deckId: row.deck_id },
       };
+    }
+    case "question": {
+      const row = db
+        .prepare(`SELECT question_content FROM questions WHERE id = ?`)
+        .get(node.id) as { question_content: string | null } | undefined;
+      return row
+        ? {
+            title: clip(row.question_content || "未命名问题"),
+            meta: "问题",
+            open: { page: "questions", selectedId: node.id },
+          }
+        : null;
+    }
+    case "vl-project": {
+      const row = db
+        .prepare(`SELECT title FROM vibe_learning_project WHERE id = ?`)
+        .get(node.id) as { title: string } | undefined;
+      return row
+        ? {
+            title: row.title || "未命名 Notebook",
+            meta: "Notebook",
+            open: { page: "vibe-learning-detail", id: node.id },
+          }
+        : null;
     }
     case "web-clip":
       return null;

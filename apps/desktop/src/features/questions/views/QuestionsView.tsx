@@ -17,8 +17,10 @@ import { usePage, usePageParams } from "@/page/PageProvider";
 import { isEditableTarget } from "@/page/dom";
 import { CreateCardDialog } from "@/features/cards/components/CreateCardDialog";
 import { EntityPicker } from "@/components/EntityPicker";
+import { openMaterialTarget } from "@/services/open-material";
 import {
   ECardCategory,
+  type QuestionChat,
   type QuestionLinkTarget,
   type QuestionMaterial,
   type QuestionStatus,
@@ -155,6 +157,15 @@ export function QuestionsView() {
         })
     );
 
+  const unlinkChat = (chat: QuestionChat) =>
+    deferred.schedule(`c:${chat.id}`, "已解除关联（对话仍保留）", () =>
+      questionMutations.unlinkChat(chat.questionId, chat.sessionId)
+    );
+
+  const openChat = (chat: QuestionChat) => {
+    if (chat.openable) navigator.push("chat", { id: chat.sessionId });
+  };
+
   const openTarget = (target: OpenTarget) => navigator.push(target.key, target.params);
 
   const openMaterial = (material: QuestionMaterial) => {
@@ -183,6 +194,12 @@ export function QuestionsView() {
             questionTitle: detail.question.questionContent,
             contentId: material.targetId,
           });
+        return;
+      case "excerpt":
+      case "pdf-annotation":
+      case "web-clip":
+        if (material.material?.open)
+          openMaterialTarget(material.material.open).catch(() => toast.error("打开失败"));
     }
   };
 
@@ -427,6 +444,15 @@ export function QuestionsView() {
                 canPreview(material) ? setPreview(material) : openMaterial(material)
               }
               onUnlink={unlink}
+              hiddenChats={
+                new Set(
+                  (detail?.chats ?? [])
+                    .filter(c => deferred.pending.has(`c:${c.id}`))
+                    .map(c => c.id)
+                )
+              }
+              onOpenChat={openChat}
+              onUnlinkChat={unlinkChat}
               onWriteCard={() => setCardOpen(true)}
               onWriteAnswer={() =>
                 detail &&

@@ -38,6 +38,7 @@ export type ContextOpenTarget =
   | { page: "diary"; date: string; momentId: number }
   | { page: "whiteboard-detail"; id: number; pageId: number }
   | { page: "todos"; selectedId: number }
+  | { page: "questions"; selectedId: number }
   | { page: "material"; target: MaterialOpenTarget };
 
 /** 谱系的一端：来源或衍生 */

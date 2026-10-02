@@ -307,6 +307,8 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ### `question_link`
 
+问题的探究材料。`target_type`：`card` / `article` / `project_item` / `project` / `white_board` / `answer`（`target_id` 为 `contents.id`）/ `excerpt` / `pdf-annotation` / `web-clip`；`target_id` 均为整数主键。对话关联在 `question_chat`。
+
 | 字段          | SQLite 定义                  |
 | ------------- | ---------------------------- |
 | `id`          | `INTEGER PRIMARY KEY`        |
@@ -316,6 +318,18 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `content_id`  | `INTEGER`                    |
 | `sort_index`  | `INTEGER NOT NULL DEFAULT 0` |
 | `create_time` | `INTEGER NOT NULL`           |
+
+### `question_chat`
+
+问题的探究对话。`session_id` 为 `chat_session.id`；`message_ids` 为 JSON 数组（问题从哪几条消息转来，可空）。
+
+| 字段          | SQLite 定义           |
+| ------------- | --------------------- |
+| `id`          | `INTEGER PRIMARY KEY` |
+| `question_id` | `INTEGER NOT NULL`    |
+| `session_id`  | `TEXT NOT NULL`       |
+| `message_ids` | `TEXT`                |
+| `create_time` | `INTEGER NOT NULL`    |
 
 ### `question_event`
 
@@ -450,6 +464,8 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `preferred_content_id` | `INTEGER`             |
 
 ### `entity_lineage`
+
+谱系：「A 衍生出 B」中推导不出的事实，`src_id` / `dst_id` 均为文本。`relation`：`derived` / `saved_from` / `clipped_from` / `excerpt_of` / `upgraded_to`（问题 → Notebook）/ `discussed_in`（问题 → 对话）；端点 kind 含 `question`、`vl-project`。
 
 | 字段          | SQLite 定义                         |
 | ------------- | ----------------------------------- |
@@ -830,6 +846,8 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `last_open_item_id` | `INTEGER`             |
 
 ### `vibe_learning_resources`
+
+`source_type`：`local` / `bilibili` / `youtube` / `remote` / `note`（已有笔记，`source_meta_info.contentId`）/ `material`（外部材料快照，`source_meta_info.refs` 为摘录 / PDF 标注 / 剪藏）。
 
 | 字段                  | SQLite 定义                  |
 | --------------------- | ---------------------------- |

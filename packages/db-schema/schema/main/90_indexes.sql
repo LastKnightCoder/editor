@@ -25,6 +25,8 @@ CREATE INDEX IF NOT EXISTS idx_questions_resolved_time ON questions(resolved_tim
 CREATE INDEX IF NOT EXISTS idx_questions_status ON questions(status);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_question_link_unique ON question_link(question_id, target_type, target_id);
 CREATE INDEX IF NOT EXISTS idx_question_link_target ON question_link(target_type, target_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_question_chat_unique ON question_chat(question_id, session_id);
+CREATE INDEX IF NOT EXISTS idx_question_chat_session ON question_chat(session_id);
 CREATE INDEX IF NOT EXISTS idx_question_event_question ON question_event(question_id, create_time);
 CREATE INDEX IF NOT EXISTS idx_data_table_views_table_id
       ON data_table_views(table_id);
