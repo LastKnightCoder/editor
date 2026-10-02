@@ -52,6 +52,24 @@ describe("search_knowledge 覆盖外部材料（E2）", () => {
     expect(payload.results[0].section.blockStart).toBe(3);
     expect(JSON.stringify(payload)).not.toContain("无关整篇内容");
   });
+  it("卡片整篇一节：给命中文本，不给定位", async () => {
+    mocks.searchContent.mockResolvedValue([
+      {
+        id: 5,
+        type: "card",
+        contentId: 6,
+        title: "卡片",
+        source: "vec-document",
+        updateTime: 1,
+        content: [],
+        section: { chunkIndex: 0, headingPath: "", text: "卡片正文", blockStart: 0, blockEnd: 0 },
+      },
+    ]);
+    const result = await createKnowledgeSearchTool().executor({ query: "卡片" }, {} as never);
+    const payload = JSON.parse((result as { content: string }).content);
+    expect(payload.results[0].content).toBe("卡片正文");
+    expect(payload.results[0].section).toBeUndefined();
+  });
   beforeEach(() => vi.clearAllMocks());
 
   it("默认检索正文与三类材料；材料结果带出处", async () => {

@@ -10,8 +10,12 @@ import DiaryTable from "./diary";
 import VecDocumentTable from "./vec-document";
 import { searchResultDetails } from "../search-details";
 import { getMarkdown } from "@/utils/markdown.ts";
-import { sectionsForIndex, writeContentSections, readContentSection } from "../content-sections";
-import { splitSections } from "@/entity/sections";
+import {
+  pruneContentSections,
+  readContentSection,
+  sectionsForIndex,
+  writeContentSections,
+} from "../content-sections";
 import {
   createMainContentAdapter,
   MainContentAdapterContext,
@@ -133,7 +137,7 @@ class FTSTable {
 
       db.transaction(() => {
         this.removeIndex(db, prefixedId);
-        writeContentSections(db, prefixedId, chunks);
+        writeContentSections(db, prefixedId, updateTime, chunks);
         const stmt = db.prepare(`
           INSERT INTO content_fts (prefixed_id, content, update_time, type, title, chunk_index)
           VALUES (?, ?, ?, ?, ?, ?)
@@ -150,6 +154,7 @@ class FTSTable {
             chunk.chunkIndex
           );
         });
+        pruneContentSections(db, prefixedId);
       })();
     } catch (error) {
       console.error("索引内容失败:", error);
@@ -172,11 +177,7 @@ class FTSTable {
     `);
 
     stmt.run(prefixedId);
-    db.prepare("DELETE FROM content_sections WHERE prefixed_id = ?").run(prefixedId);
-    // 节位置只有一份；正文重切后旧向量必须失效，避免匹配到新节的位置。
-    if (this.hasTable(db, "vec_documents")) {
-      db.prepare("DELETE FROM vec_documents WHERE prefixed_id = ?").run(prefixedId);
-    }
+    if (this.hasTable(db, "content_sections")) pruneContentSections(db, prefixedId);
     return true;
   }
 
@@ -470,30 +471,21 @@ class FTSTable {
       const details = searchResultDetails(db, result.type, result.id);
 
       if (details) {
-        const section =
-          indexDb && result.chunkIndex != null
-            ? splitSections(
-                details.content,
-                details.title,
-                ["card", "excerpt", "pdf-annotation"].includes(result.type)
-              )[result.chunkIndex]
-            : undefined;
+        const section = indexDb
+          ? readContentSection(
+              indexDb,
+              `${result.type}:${result.id}`,
+              result.updateTime,
+              result.chunkIndex
+            )
+          : undefined;
         detailedResults.push({
           ...result,
           ...details,
           type: result.type,
           title: details.title,
           content: details.content,
-          ...(indexDb && section
-            ? {
-                section: readContentSection(
-                  indexDb,
-                  `${result.type}:${result.id}`,
-                  result.chunkIndex,
-                  section.text
-                ),
-              }
-            : {}),
+          ...(section ? { section } : {}),
           updateTime: result.updateTime,
         });
       }

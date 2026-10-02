@@ -5,8 +5,16 @@ import OpenAI from "openai";
 import log from "electron-log";
 import localInference from "../local-inference";
 import { searchResultDetails } from "../search-details";
-import { sectionsForIndex, writeContentSections, readContentSection } from "../content-sections";
-import FTSTable from "./fts";
+import {
+  pruneContentSections,
+  readContentSection,
+  sectionsForIndex,
+  writeContentSections,
+} from "../content-sections";
+
+/** 一个实体可能有多个节命中：按块召回时多取几倍再按实体去重，避免长文占满名额 */
+const CHUNKS_PER_RESULT = 4;
+const MAX_CHUNK_RECALL = 200;
 
 const LOCAL_EMBEDDING_CONFIG_ID = "embedding-default-local";
 
@@ -259,11 +267,8 @@ export default class VecDocumentTable {
           allEmbeddings.push(...embeddings);
         }
         db.transaction(() => {
-          if (!FTSTable.indexContent(db, { ...params, sections: chunks })) {
-            throw new Error("节级全文索引写入失败");
-          }
           this.removeIndexByIdAndType(db, id, type);
-          writeContentSections(db, prefixedId, chunks);
+          writeContentSections(db, prefixedId, updateTime, chunks);
           const stmt = db.prepare(`
             INSERT INTO vec_documents
             (prefixed_id, update_time, content, type, chunk_index, vec_embedding)
@@ -280,6 +285,7 @@ export default class VecDocumentTable {
               JSON.stringify(allEmbeddings[j])
             );
           }
+          pruneContentSections(db, prefixedId);
         })();
 
         return true;
@@ -336,6 +342,7 @@ export default class VecDocumentTable {
         DELETE FROM vec_documents WHERE prefixed_id = ?
       `);
       stmt.run(prefixedId);
+      if (this.hasTable(db, "content_sections")) pruneContentSections(db, prefixedId);
       return true;
     } catch (error) {
       log.error("移除向量索引失败:", error);
@@ -402,7 +409,7 @@ export default class VecDocumentTable {
         const searchResults = this.searchVecDocuments(
           indexDb,
           queryEmbedding,
-          limit,
+          Math.min(limit * CHUNKS_PER_RESULT, MAX_CHUNK_RECALL),
           types,
           modelInfo.distance || 0.6
         );
@@ -415,6 +422,7 @@ export default class VecDocumentTable {
         const processedIds = new Set<string>();
 
         for (const [doc, distance] of searchResults) {
+          if (results.length >= limit) break;
           const uniqueKey = addTypePrefix(doc.id, doc.type);
           if (processedIds.has(uniqueKey)) {
             continue;
@@ -430,7 +438,7 @@ export default class VecDocumentTable {
               type: doc.type as IndexType,
               title: details.title,
               content: details.content,
-              section: readContentSection(indexDb, uniqueKey, doc.chunkIndex, doc.content),
+              section: readContentSection(indexDb, uniqueKey, doc.updateTime, doc.chunkIndex),
               ...(details.material ? { material: details.material } : {}),
               source: "vec-document" as const,
               updateTime: doc.updateTime,

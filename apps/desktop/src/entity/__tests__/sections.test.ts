@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Descendant } from "slate";
 import { splitSections } from "../sections";
-import { mainEmbeddingFingerprint } from "../chunk-version";
+import { MAIN_CHUNK_VERSION, mainEmbeddingFingerprint } from "../chunk-version";
 
 const paragraph = (text: string): Descendant => ({
   type: "paragraph",
@@ -26,9 +26,14 @@ describe("主内容按节切块", () => {
       splitSections([header("代码观点"), code, header("下一节"), paragraph("正文".repeat(80))], "")
     ).toHaveLength(2);
   });
-  it("无标题短文与卡片保持整篇", () => {
+  it("无标题短文与卡片整篇一节；超长卡片按长度切块，不超过嵌入上限", () => {
     expect(splitSections([paragraph("短文")], "标题")).toHaveLength(1);
-    expect(splitSections([paragraph("观点".repeat(2000))], "", true)).toHaveLength(1);
+    expect(splitSections([paragraph("观点".repeat(900))], "", true)).toHaveLength(1);
+    const long = splitSections([paragraph("观点".repeat(2000))], "", true);
+    expect(long.length).toBeGreaterThan(1);
+    expect(long.every(section => section.headingPath === "" && section.blockStart === 0)).toBe(
+      true
+    );
   });
   it("重复的最高级标题断节，保留祖先路径与块位置", () => {
     const result = splitSections(
@@ -73,6 +78,6 @@ describe("主内容按节切块", () => {
   it("切块版本与模型指纹共同确定主内容指纹", () => {
     expect(mainEmbeddingFingerprint("旧模型")).not.toBe("旧模型");
     expect(mainEmbeddingFingerprint("旧模型")).not.toBe(mainEmbeddingFingerprint("新模型"));
-    expect(JSON.parse(mainEmbeddingFingerprint("模型")).mainChunkVersion).toBe(1);
+    expect(JSON.parse(mainEmbeddingFingerprint("模型")).mainChunkVersion).toBe(MAIN_CHUNK_VERSION);
   });
 });

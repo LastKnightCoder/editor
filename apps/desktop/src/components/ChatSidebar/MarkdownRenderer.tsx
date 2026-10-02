@@ -18,13 +18,14 @@ import {
 } from "lucide-react";
 import { Tooltip, toast } from "@tau/ui";
 import MarkdownContext, { useMarkdownContext, MarkdownMessageMeta } from "./MarkdownContext";
-import remarkSectionReference from "@/utils/remark-section-reference";
+import { remarkDocumentReference } from "@tau/shared";
 import remarkPdfCitation from "@/utils/remark-pdf-citation";
 import { getRefTypeLabel } from "@/utils";
 import { openContent, openEntity } from "@/services/open-content";
 import { normalizeEntityRefKind } from "@/entity/ref";
 import { openMaterial } from "@/services/open-material";
 import { isMaterialKind } from "@/entity/material";
+import { locatesSection } from "@/entity/section-location";
 import LocalImage from "@/components/LocalImage";
 import LocalImagePreviewPortal from "@/components/LocalImagePreviewPortal";
 import { MARKDOWN_BLOCK_CODE_ATTRIBUTE, MARKDOWN_BLOCK_CODE_VALUE } from "./codeBlockUtils";
@@ -40,7 +41,7 @@ const remarkPlugins = [
   remarkGfm,
   remarkCjkFriendly,
   remarkCjkFriendlyGfmStrikethrough,
-  remarkSectionReference,
+  remarkDocumentReference,
   remarkPdfCitation,
 ];
 const rehypePlugins = [rehypeKatex];
@@ -60,10 +61,10 @@ async function openReference(id: number, type: string, block?: number) {
   try {
     const kind = normalizeEntityRefKind(type);
     if (isMaterialKind(type)) {
-      if (Number.isSafeInteger(block) && block! >= 0)
+      if (locatesSection(type) && Number.isSafeInteger(block) && block! >= 0)
         await openMaterial({ kind: type, id }, { block: block! });
       else await openMaterial({ kind: type, id });
-    } else if (kind && Number.isSafeInteger(block) && block! >= 0)
+    } else if (kind && locatesSection(type) && Number.isSafeInteger(block) && block! >= 0)
       await openEntity({ kind, id }, { at: { block: block! } });
     else await openContent(type, id);
   } catch (error) {

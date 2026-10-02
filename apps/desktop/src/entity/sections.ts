@@ -5,6 +5,9 @@ import { smartChunkWithRanges } from "../../src-electron/main/utils/smart-chunk"
 export { MAIN_CHUNK_VERSION } from "./chunk-version";
 export const SECTION_MAX_LENGTH = 1200;
 export const SECTION_MIN_LENGTH = 80;
+/** 卡片、摘录整篇一节，但超长时仍按长度切块：远程嵌入接口有单次输入上限 */
+export const WHOLE_MIN_LENGTH = 500;
+export const WHOLE_MAX_LENGTH = 2000;
 
 /** 每个顶层块所在节的标题路径「一级 › 二级」（标题块包含自身） */
 export function headingPaths(content: Descendant[]): string[] {
@@ -85,14 +88,12 @@ export function splitSections(
       while (block + 1 < starts.length && starts[block + 1] <= position) block++;
       return range.start + block;
     };
-    const chunks = whole
-      ? [{ text: text.trim(), startOffset: 0, endOffset: text.length }]
-      : smartChunkWithRanges(text, {
-          minLength: limits.minLength,
-          maxLength: limits.maxLength,
-          overlap: 0,
-          splitter: "paragraph",
-        });
+    const chunks = smartChunkWithRanges(text, {
+      minLength: whole ? WHOLE_MIN_LENGTH : limits.minLength,
+      maxLength: whole ? WHOLE_MAX_LENGTH : limits.maxLength,
+      overlap: 0,
+      splitter: "paragraph",
+    });
     for (const chunk of chunks) {
       if (!chunk.text.trim()) continue;
       const headingPath = paths[range.start];

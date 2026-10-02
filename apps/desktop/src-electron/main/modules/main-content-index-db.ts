@@ -5,6 +5,7 @@ import log from "electron-log";
 import PathUtil from "../utils/PathUtil";
 import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 import INDEX_SCHEMA_SQL from "@tau/db-schema/schema/index.sql?raw";
+import { migrateContentSections } from "./content-sections";
 import { migrateKnowledgeIndex } from "@tau/db-schema/src/knowledge-index-migration";
 import INDEX_VEC_TEMPLATE_SQL from "@tau/db-schema/schema/index/20_vec_template.sql?raw";
 import {
@@ -273,6 +274,7 @@ class MainContentIndexDBManager {
     const schemaStartAt = Date.now();
     // 旧版地图表以 card_id 为主键，CREATE IF NOT EXISTS 不会改它，先删掉（可重算）
     KnowledgeMapTable.migrateLegacy(indexDb);
+    migrateContentSections(indexDb);
     indexDb.exec(INDEX_SCHEMA_SQL);
     log.info(
       `[MainContentIndexDB] initSchema base schema done: elapsedMs=${Date.now() - schemaStartAt}`
