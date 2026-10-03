@@ -28,6 +28,7 @@ vi.mock("../user-setting", () => ({ default: {} }));
 import { contentPlainText, textDigest } from "@/entity/text-digest";
 import { ContentAiQueue, computeContentAiStatus } from "../content-ai-queue";
 import { relatedOf, ensureRelatedThreshold } from "../entity-context/context-related";
+import { findCandidates } from "../content-insights";
 import CardTable from "../tables/card";
 import ContentAiMetaTable, { contentTitles } from "../tables/content-ai-meta";
 
@@ -251,6 +252,34 @@ describe.skipIf(!process.env.KL_CONTENT_AI_SCALE)("迭代 7a 规模", () => {
     rows.push(
       `| 「相关」查询 30 次（卡片 / 长文混合） | 平均 ${avg.toFixed(1)} ms，p95 ${relatedTimes[Math.floor(relatedTimes.length * 0.95)].toFixed(1)} ms，最大 ${relatedTimes[relatedTimes.length - 1].toFixed(1)} ms |`
     );
+    // AI 洞见的本地候选：长文每节一次 KNN（8 节），卡片一次；不调模型
+    const candidateTimes: Record<"article" | "card", number[]> = { article: [], card: [] };
+    for (let i = 0; i < 20; i++) {
+      const kind = i % 2 === 0 ? "article" : "card";
+      const id = 1 + Math.floor(random() * (kind === "article" ? DOCS : CARDS));
+      const contentId = (
+        main
+          .prepare(
+            `SELECT content_id AS id FROM ${kind === "article" ? "articles" : "cards"} WHERE id = ?`
+          )
+          .get(id) as { id: number }
+      ).id;
+      const started = performance.now();
+      findCandidates(main, index, {
+        ref: { kind, id },
+        key: `${kind}:${id}`,
+        contentId,
+        title: "",
+        content: [],
+      });
+      candidateTimes[kind].push(performance.now() - started);
+    }
+    for (const kind of ["article", "card"] as const) {
+      const list = candidateTimes[kind].sort((a, b) => a - b);
+      rows.push(
+        `| AI 洞见本地候选：${kind === "article" ? `长文（${DOC_SECTIONS} 节）` : "卡片"} 10 次 | 平均 ${(list.reduce((a, b) => a + b, 0) / list.length).toFixed(1)} ms，最大 ${list[list.length - 1].toFixed(1)} ms |`
+      );
+    }
     console.log(["| 项目 | 耗时 |", "| --- | --- |", ...rows].join("\n"));
     main.close();
     index.close();
