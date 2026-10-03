@@ -22,6 +22,7 @@ export const useLLMConfig = (
     | "videoEbookRewrite"
     | "vibeLearningImageDescription"
     | "contentMetadata"
+    | "contentInsights"
 ): LLMConfigResult => {
   const llmProviders = useSettingStore(state => state.setting.llmProviders);
   const llmUsageSettings = useSettingStore(state => state.setting.llmUsageSettings);

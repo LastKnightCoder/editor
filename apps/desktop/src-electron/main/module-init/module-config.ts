@@ -44,6 +44,7 @@ import embeddingIndexOrchestrator from "../modules/embedding-index-orchestrator"
 import knowledgeMapBuilder from "../modules/knowledge-map-builder";
 import entityContextModule from "../modules/entity-context";
 import contentAiQueueModule from "../modules/content-ai-queue";
+import contentInsightsModule from "../modules/content-insights";
 import updaterModule from "../modules/updater";
 import pdfIndexQueue from "../modules/pdf-index-queue";
 import pdfIndexOrchestrator from "../modules/pdf-index-orchestrator";
@@ -333,6 +334,12 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "database", "pi-ai"],
     init: () => contentAiQueueModule.init(),
+  },
+  {
+    name: "content-insights",
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["logger", "database", "pi-ai"],
+    init: () => contentInsightsModule.init(),
   },
   {
     name: "main-content-vec-index-queue",
