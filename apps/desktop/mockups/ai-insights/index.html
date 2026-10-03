@@ -77,21 +77,19 @@
   .mk.link { background-image: linear-gradient(var(--info), var(--info)); }
   .mk.conflict { background-image: none; text-decoration: underline wavy transparent; text-underline-offset: 4px; text-decoration-thickness: 1px; transition: text-decoration-color .55s var(--ease); }
   .mk.conflict.drawn { text-decoration-color: var(--danger); }
+  .mk.dup { background-image: none; text-decoration: underline dotted transparent; text-underline-offset: 4px; text-decoration-thickness: 2px; transition: text-decoration-color .55s var(--ease); }
+  .mk.dup.drawn { text-decoration-color: var(--ink-3); }
   .mk:hover, .mk.cur { color: var(--ink-1); background-color: var(--accent-soft); border-radius: 3px; }
   .mk.connected { background-image: none; color: var(--accent-text); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent); text-underline-offset: 3px; background-color: transparent; }
   .mk.gone { background-size: 0% 2px !important; text-decoration-color: transparent !important; cursor: text; }
   .mk.gone:hover { background-color: transparent; color: inherit; }
-  /* 页边：重复的整节用一道竖线括起来，空白在段尾给一行淡注 */
-  .bracket { position: absolute; left: -22px; top: 6px; bottom: 6px; width: 2px; background: var(--ink-3); border-radius: 2px; opacity: 0; transform: scaleY(0); transform-origin: top; transition: opacity var(--normal), transform .55s var(--ease); cursor: pointer; }
-  .bracket.drawn { opacity: .5; transform: none; }
-  .bracket:hover, .bracket.cur { opacity: 1; background: var(--ink-2); }
-  .bracket span { position: absolute; left: -34px; top: 0; font-size: 11px; color: var(--ink-3); white-space: nowrap; }
+  /* 空白在段尾给一行淡注 */
   .gapnote { display: block; margin: -6px 0 14px; font-size: 12.5px; color: var(--ink-3); cursor: pointer; opacity: 0; transform: translateY(-3px); transition: opacity var(--normal), transform var(--normal); }
   .gapnote.drawn { opacity: 1; transform: none; }
   .gapnote:hover, .gapnote.cur { color: var(--accent-text); }
   .gapnote svg.lucide { width: 12px; height: 12px; vertical-align: -1px; margin-right: 3px; }
-  .dimrest .mk:not(.cur), .dimrest .bracket:not(.cur), .dimrest .gapnote:not(.cur) { opacity: .25; }
-  .fade-out .mk, .fade-out .bracket, .fade-out .gapnote { background-size: 0% 2px !important; text-decoration-color: transparent !important; opacity: 0 !important; }
+  .dimrest .mk:not(.cur), .dimrest .gapnote:not(.cur) { opacity: .25; }
+  .fade-out .mk, .fade-out .gapnote { background-size: 0% 2px !important; text-decoration-color: transparent !important; opacity: 0 !important; }
 
   /* 气泡 */
   .pop { position: absolute; z-index: 20; width: 340px; background: var(--surface); border-radius: var(--r-md); box-shadow: var(--shadow-float); padding: 12px 14px 10px; font-size: 13px; }
@@ -140,7 +138,7 @@
   <h3>点「✦ AI 洞见」→ 正文就地进入「洞见视图」：先读、再点亮、再一条条过；再点一次或 Esc 恢复原样（设计见 docs/knowledge-loop/15）</h3>
   <ul>
     <li><b>读</b>：一道光从上往下扫过正文，按钮显示「正在读」，正文下面一行说明它在做什么（对照多少份笔记、AI 在判断几处候选）。</li>
-    <li><b>点亮</b>：正文上方出现一张报告卡（位置两三句、各类数量、一张小关系图、可以继续想的问题）；同时正文里的标记<b>按顺序一处处画出来</b>：可连接 = 蓝色细线，矛盾 = 红色波浪线，重复 = 页边一道竖线括住那一节，空白 = 段尾一行淡注。</li>
+    <li><b>点亮</b>：正文上方出现一张报告卡（位置两三句、各类数量、一张小关系图、可以继续想的问题）；同时正文里的标记<b>按顺序一处处画出来</b>：可连接 = 蓝色细线，重复 = 灰色点线，矛盾 = 红色波浪线，空白 = 段尾一行淡注。</li>
     <li><b>处理</b>：悬停或点标记 → 一个气泡（对方是谁、原文片段、理由），按钮最多两个。「连接」后那几个字直接变成链接，报告里的小图多出一条线。也可以点报告里的「逐条看」，底部出现操作条，↑↓ 切换、回车连接、⌫ 不相关。</li>
     <li>洞见视图里正文只读，避免一边改一边错位；点正文外任意一处编辑或按 Esc 退出，标记淡出。分析过的再点直接点亮，不再读。</li>
   </ul>
@@ -186,21 +184,21 @@
 const COLOR = { link: "var(--info)", conflict: "var(--danger)", dup: "var(--ink-3)", gap: "var(--ink-3)" };
 const LABEL = { link: "可连接", conflict: "矛盾", dup: "重复", gap: "可以展开" };
 
-/* 正文：{id|文字} 是划线标记；[[dup:id]] 放在节里表示整节被括住；((gap:id)) 是段尾淡注 */
+/* 正文：{id|文字} 是划线标记；节上的 gap 是段尾淡注 */
 const PAGES = {
   article: {
     crumb: "文章", title: "浏览器是怎样把一页画出来的", words: "1,860 字", knownLinks: 2,
     sections: [
       { h: "", p: ["从拿到 HTML 到屏幕上出现像素，浏览器大致要走五步：解析、样式、布局、绘制、合成。这篇按顺序把每一步做了什么、代价在哪里写下来。"] },
       { h: "解析与样式", p: ["HTML 解析成 DOM，CSS 解析成 CSSOM，两者合在一起算出每个元素最终的样式。CSS 会阻塞渲染，所以样式表放在头部。", "脚本默认会阻塞解析，加上 defer 后推迟到解析完成，不再挡住{c|关键渲染路径}。"] },
-      { h: "布局", dup: "d", p: ["布局阶段算出每个盒子的位置和尺寸。几何属性一变，布局就要重来。", "读 offsetTop 这类属性时，如果布局已经失效，浏览器会立刻同步计算一次，也就是{a|强制同步布局}。"] },
+      { h: "布局", p: ["{d|布局阶段算出每个盒子的位置和尺寸}。几何属性一变，布局就要重来。", "读 offsetTop 这类属性时，如果布局已经失效，浏览器会立刻同步计算一次，也就是{a|强制同步布局}。"] },
       { h: "绘制与合成", p: ["绘制把盒子变成一组绘制指令，{b|合成线程}再把各个图层拼起来。", "{e|只改 transform 和 opacity 时，可以只走合成这一步}，动画就不会卡主线程。"], gap: "g" },
     ],
     marks: {
       a: { kind: "link", icon: "layers", t: "列表滚动掉帧的排查", at: "", x: "滚动回调里读了 offsetTop，每一帧都强制同步布局，掉到 30 帧；改成先批量读、再批量写后恢复。", why: "这里讲强制同步布局的机制，那张卡是你遇到过的真实案例。" },
       b: { kind: "link", icon: "layers", t: "合成层与 will-change", at: "", x: "will-change: transform 会提前把元素提升为合成层，变换交给合成线程处理……", why: "这里提到合成线程拼接图层，那张卡讲了元素怎样被提升为合成层。" },
       c: { kind: "link", icon: "layers", t: "关键渲染路径", at: "", x: "从接收 HTML 到首次绘制要经过的步骤，CSS 与同步脚本是其中的阻塞资源……", why: "这里第一次用到「关键渲染路径」这个说法，你有一张专门讲它的卡。" },
-      d: { kind: "dup", icon: "folder-kanban", t: "前端体系", at: "渲染篇 › 布局与重排", x: "布局（重排）计算元素的几何信息……几何属性变化会使布局失效……附：会触发布局的属性清单。", why: "这一节和项目里的「布局与重排」几乎是同一段内容，那边多了一份触发布局的属性清单。" },
+      d: { kind: "dup", icon: "folder-kanban", t: "前端体系", at: "渲染篇 › 布局与重排", mine: "布局阶段算出每个盒子的位置和尺寸。几何属性一变，布局就要重来。", theirs: "布局（重排）计算元素的几何信息；几何属性变化会使布局失效。附：会触发布局的属性清单。", why: "这一段和《前端体系》里的「布局与重排」说的是同一件事，那边多了一份会触发布局的属性清单。连过去，以后在这里就能直接看到那份清单。" },
       e: { kind: "conflict", icon: "file-text", t: "动画性能笔记", at: "transform-origin 的坑", mine: "只改 transform 和 opacity 时，可以只走合成这一步。", theirs: "改 transform-origin 时，Chrome 会让元素重新绘制，并不是只走合成。", why: "两处说法的条件不一样：变换的值变化可以只走合成，但 transform-origin、首次提升图层时会触发绘制。" },
       g: { kind: "gap", text: "这里可以展开：元素什么时候会被单独提升为合成层？", why: "全篇多次提到图层，但没写提升条件。常见的有 will-change、3D 变换、视频与 canvas、与已提升图层重叠。" },
     },
@@ -228,7 +226,6 @@ const P = () => PAGES[page];
 const markOrder = () => {
   const ids = [];
   for (const s of P().sections) {
-    if (s.dup) ids.push(s.dup);
     for (const p of s.p) for (const m of p.matchAll(/\{(\w)\|/g)) ids.push(m[1]);
     if (s.gap) ids.push(s.gap);
   }
@@ -243,8 +240,7 @@ function bodyHtml() {
       return `<span class="mk ${m.kind}${status[id] === "linked" ? " connected" : ""}${status[id] === "dismissed" || status[id] === "questioned" ? " gone" : ""}" data-mk="${id}">${t}</span>`;
     })}</p>`).join("");
     const gap = s.gap ? `<span class="gapnote" data-mk="${s.gap}"><i data-lucide="plus"></i>${P().marks[s.gap].text}</span>` : "";
-    const dup = s.dup ? `<span class="bracket" data-mk="${s.dup}"><span>重复</span></span>` : "";
-    return `<div class="sec">${dup}${s.h ? `<h2>${s.h}</h2>` : ""}${paras}${status[s.gap] ? "" : gap}</div>`;
+    return `<div class="sec">${s.h ? `<h2>${s.h}</h2>` : ""}${paras}${status[s.gap] ? "" : gap}</div>`;
   }).join("");
 }
 
@@ -262,7 +258,7 @@ function miniGraph(fresh) {
     const a = (Math.PI * 2 * i) / Math.max(known, 1) - Math.PI / 2;
     pts.push({ x: 84 + Math.cos(a) * 52, y: 70 + Math.sin(a) * 46, isNew: i >= P().knownLinks, id: linkedNow[i - P().knownLinks] });
   }
-  const cand = openIds().filter(id => P().marks[id].kind === "link").length;
+  const cand = openIds().filter(id => ["link", "dup"].includes(P().marks[id].kind)).length;
   const ghosts = Array.from({ length: cand }, (_, i) => {
     const a = (Math.PI * 2 * (i + 0.5)) / Math.max(cand + known, 1) + Math.PI / 3;
     return { x: 84 + Math.cos(a) * 66, y: 70 + Math.sin(a) * 58 };
@@ -378,11 +374,11 @@ function openPop(id) {
   box.style.left = `${Math.min(Math.max(0, r.left - a.left), a.width - 340)}px`;
   box.style.top = `${r.bottom - a.top + 8}px`;
   const target = m.t ? `<div class="tg"><div class="t"><i data-lucide="${m.icon}"></i>${m.t}${m.at ? `<span>› ${m.at}</span>` : ""}</div><div class="x">${m.x}</div></div>` : "";
-  const vs = m.kind === "conflict" ? `<div class="vs"><div><b>这里</b>${m.mine}</div><div><b>《${m.t}》</b>${m.theirs}</div></div>` : "";
-  const primary = m.kind === "link" ? `<span class="btn primary" data-do="link"><i data-lucide="link-2"></i>连接</span>`
-    : m.kind === "dup" ? `<span class="btn primary" data-do="link"><i data-lucide="link-2"></i>在这一节连过去</span>`
+  const vs = m.mine ? `<div class="vs"><div><b>这里</b>${m.mine}</div><div><b>《${m.t}》${m.at ? ` › ${m.at}` : ""}</b>${m.theirs}</div></div>` : "";
+  const primary = m.kind === "link" || m.kind === "dup"
+    ? `<span class="btn primary" data-do="link"><i data-lucide="link-2"></i>连接</span>`
     : `<span class="btn primary" data-do="q"><i data-lucide="circle-help"></i>记为问题</span>`;
-  box.innerHTML = `<div class="why">${m.why}</div>${m.kind === "conflict" ? vs : target}
+  box.innerHTML = `<div class="why">${m.why}</div>${m.mine ? vs : target}
     <div class="acts">${primary}<span class="btn ghost" data-do="no">不相关</span>${walking ? `<span class="kbd">回车 ${m.kind === "link" || m.kind === "dup" ? "连接" : "记为问题"} · ⌫ 不相关</span>` : ""}</div>`;
   art.appendChild(box);
   box.onclick = e => e.stopPropagation();
@@ -402,8 +398,8 @@ function resolve(id, how) {
   const el = document.querySelectorAll(`[data-mk="${id}"]`);
   el.forEach(x => {
     x.classList.remove("cur");
-    if (how === "link" && m.kind === "link") x.classList.add("connected");
-    else if (x.classList.contains("gapnote") || x.classList.contains("bracket")) x.style.opacity = 0;
+    if (how === "link") x.classList.add("connected");
+    else if (x.classList.contains("gapnote")) x.style.opacity = 0;
     else x.classList.add("gone");
   });
   document.getElementById("repInner").innerHTML = reportHtml(how === "link" ? id : null);
