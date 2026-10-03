@@ -51,6 +51,7 @@ import { TodayDrawer } from "../components/TodayDrawer";
 import { TodoDrawer } from "../components/TodoDrawer";
 import { GroupDot } from "../components/TodoBits";
 import { useAppContextProvider } from "@/hooks/useAppContextProvider";
+import { readSavedGroupFilter, saveGroupFilter } from "../preferences";
 
 const UNDO_MS = 5000;
 
@@ -61,6 +62,19 @@ export function TodosView() {
   const now = useNow();
 
   const params = usePageParams<{ id?: string; selectedId?: number }>();
+  /* 实例新建且未指定筛选（主入口/首页无参进入）时恢复上次的项目筛选偏好；
+     合并保留同帧的其他参数（如外部 selectedId 定位），不被恢复顶掉 */
+  useEffect(() => {
+    if (params.id !== undefined) return;
+    const saved = readSavedGroupFilter();
+    if (saved) navigator.push("todos", { ...params, id: saved });
+    // 仅挂载恢复一次：保活实例的参数一直在线
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  /* 筛选变化即记偏好（含显式回"全部"），侧栏子项与页内切换所有路径统一收口 */
+  useEffect(() => {
+    if (params.id !== undefined) saveGroupFilter(params.id);
+  }, [params.id]);
   const [mode, setMode] = useState<AgendaMode>("date");
   // 项目筛选 = 侧栏子项选中的项目（0 = 全部）；项目被归档 / 删除后自然回到全部
   const groupFilter =
