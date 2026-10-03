@@ -169,6 +169,26 @@ class KnowledgeMapBuilder implements Module {
   }
 
   /**
+   * 后台用（主题洞见）：对账，地图没有或过时就整体重算并等它算完。
+   * 地图平时只在打开地图页时更新，主题洞见读的主题划分不能比内容旧太多。库未就绪返回 null。
+   */
+  async ensureFresh(dbName: string): Promise<KnowledgeMap | null> {
+    const mainDb = databaseModule.getDatabase(dbName);
+    if (!mainDb?.open) return null;
+    await databaseModule.ensureIndexDatabaseReady(dbName, "knowledge-map:ensure-fresh");
+    const indexDb = databaseModule.getIndexDatabase(dbName);
+    if (!indexDb) return null;
+    const pending = this.building.get(dbName);
+    if (pending) return pending;
+    let map = KnowledgeMapTable.load(indexDb);
+    if (map) map = this.reconcile(mainDb, indexDb, dbName, map);
+    const status = this.status(mainDb, indexDb, dbName, map);
+    if (status === "building") return this.building.get(dbName) ?? map;
+    if (!map || status === "stale") return this.rebuild(mainDb, indexDb, dbName);
+    return map;
+  }
+
+  /**
    * 对账：删掉已不存在的卡片；库里新出现的卡片按语义近邻落位（有向量的才放，
    * 没向量的留给渲染层临时摆放）。新卡太多就交给后台整体重算。
    */

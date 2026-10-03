@@ -108,3 +108,13 @@ export type KnowledgeInsightsPhase =
   | { phase: "reading"; topics: number; stale: number; notes: number }
   | { phase: "thinking" }
   | { phase: "done" };
+
+/** knowledge-insights:get / analyze 的返回 */
+export interface KnowledgeInsightsPayload {
+  configured: boolean;
+  running: boolean;
+  /** 地图上的笔记里有元信息的比例 */
+  coverage: number;
+  global: KnowledgeInsightNode | null;
+  topics: KnowledgeInsightNode[];
+}
