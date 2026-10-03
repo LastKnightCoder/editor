@@ -73,22 +73,21 @@ export function TodosView() {
   const quickAddRef = useRef<HTMLInputElement>(null);
   const agendaAnchor = useRef<HTMLDivElement>(null);
 
-  /* 删除暂存：立即从视图消失，UNDO_MS 后真正落库；撤销即取消；离开页面时立刻落库 */
+  /* 删除暂存：立即从视图消失，UNDO_MS 后真正落库；撤销即取消；离开页面时立刻落库。
+     落库成功后不清暂存——条目由失效重拉从快照中消失，提前清除会在重拉完成前闪现（列表抖动） */
   const [pendingDelete, setPendingDelete] = useState<ReadonlySet<number>>(() => new Set());
   const deleteTimers = useRef(new Map<number, number>());
   const commitDelete = (id: number) => {
     window.clearTimeout(deleteTimers.current.get(id));
     deleteTimers.current.delete(id);
-    mutations
-      .remove(id)
-      .catch(() => toast.error("删除失败"))
-      .finally(() =>
-        setPendingDelete(prev => {
-          const next = new Set(prev);
-          next.delete(id);
-          return next;
-        })
-      );
+    mutations.remove(id).catch(() => {
+      toast.error("删除失败");
+      setPendingDelete(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    });
   };
   const commitRef = useRef(commitDelete);
   commitRef.current = commitDelete;
