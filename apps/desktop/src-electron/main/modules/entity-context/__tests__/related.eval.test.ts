@@ -20,12 +20,9 @@
 
 import Database from "better-sqlite3";
 import * as sqliteVec from "sqlite-vec";
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
+import { writeFileSync } from "node:fs";
 import { expect, it, vi } from "vitest";
 import mainSchema from "@tau/db-schema/schema/main.sql?raw";
-import indexSchema from "@tau/db-schema/schema/index.sql?raw";
 
 vi.mock("electron", () => ({
   BrowserWindow: { getAllWindows: () => [] },
@@ -37,15 +34,7 @@ vi.mock("../../video-note-index-queue", () => ({
 }));
 
 import { entityRefKey, type EntityRef } from "@/entity/ref";
-import { splitSections } from "@/entity/sections";
-import { mainEmbeddingFingerprint } from "@/entity/chunk-version";
-import type { IndexType } from "@/types";
-import { getMarkdown } from "@/utils/markdown";
-import { LOCAL_EMBEDDING_PIPELINE } from "../../../utils/embedding-config";
-import ArticleTable from "../../tables/article";
-import CardTable from "../../tables/card";
-import ProjectTable from "../../tables/project";
-import VecDocumentTable from "../../tables/vec-document";
+import { rebuildIndex, rng } from "./eval-index-rebuild";
 import EntitySearchTable from "../../tables/entity-search";
 import KnowledgeMapTable from "../../tables/knowledge-map";
 import {
@@ -62,138 +51,6 @@ const OUT = process.env.KL_RELATED_EVAL_OUT ?? "/tmp/kl7-related-eval.md";
 const SPOT_CHECKS = 20;
 const REBUILD = process.env.KL_RELATED_EVAL_REBUILD;
 
-/** 新建索引库并按队列口径重新嵌入卡片、文章、项目文档；返回耗时与条数 */
-async function rebuildIndex(main: Database.Database, path: string) {
-  rmSync(path, { force: true });
-  rmSync(`${path}-wal`, { force: true });
-  rmSync(`${path}-shm`, { force: true });
-  const db = new Database(path);
-  sqliteVec.load(db);
-  db.exec(indexSchema);
-  let modelInfo: Parameters<typeof VecDocumentTable.indexContent>[1]["modelInfo"];
-  let fingerprintPayload: Record<string, unknown>;
-  if (REBUILD === "local") {
-    modelInfo = {
-      configId: "embedding-default-local",
-      providerType: "local_python",
-      key: "",
-      baseUrl: "",
-      model: "bge-m3",
-      dimensions: 1024,
-      batchSize: 8,
-      devicePolicy: "auto",
-      localModelDir: process.env.KL_LOCAL_MODEL_DIR,
-    } as never;
-    fingerprintPayload = { model: "bge-m3", pipeline: LOCAL_EMBEDDING_PIPELINE };
-  } else {
-    const setting = JSON.parse(readFileSync(join(homedir(), ".editor", "setting.json"), "utf8"));
-    const config = setting.embeddingProvider.configs.find((c: { id: string }) => c.id === REBUILD);
-    expect(config, `setting.json 里没有嵌入配置 ${REBUILD}`).toBeTruthy();
-    const model = config.models.find((m: { name: string }) => m.name === config.currentModel);
-    modelInfo = {
-      configId: config.id,
-      providerType: config.providerType ?? "openai",
-      key: config.apiKey,
-      baseUrl: config.baseUrl,
-      model: config.currentModel,
-      dimensions: Number(process.env.KL_REMOTE_DIMENSIONS ?? 0) || undefined,
-      batchSize: config.batchSize ?? 16,
-    } as never;
-    fingerprintPayload = {
-      model: config.currentModel,
-      baseUrl: config.baseUrl,
-      contextLength: model?.contextLength,
-    };
-  }
-  // 只用于阈值按指纹缓存：与应用里的指纹格式无关
-  const fingerprint = mainEmbeddingFingerprint(JSON.stringify(fingerprintPayload));
-  const tasks: Array<{
-    id: number;
-    type: IndexType;
-    content: unknown[];
-    title: string;
-    whole: boolean;
-    updateTime: number;
-  }> = [];
-  for (const card of CardTable.getAllCards(main))
-    tasks.push({
-      id: card.id,
-      type: "card",
-      content: card.content || [],
-      title: "",
-      whole: true,
-      updateTime: Number(card.update_time),
-    });
-  for (const article of ArticleTable.getAllArticles(main))
-    tasks.push({
-      id: article.id,
-      type: "article",
-      content: article.content || [],
-      title: article.title || "",
-      whole: false,
-      updateTime: Number(article.update_time),
-    });
-  for (const item of ProjectTable.getAllProjectItems(main))
-    tasks.push({
-      id: item.id,
-      type: "project-item",
-      content: item.content || [],
-      title: item.title || "",
-      whole: false,
-      updateTime: Number(item.updateTime),
-    });
-  const started = performance.now();
-  let indexed = 0;
-  let failed = 0;
-  let dimensions = 0;
-  for (const task of tasks) {
-    const markdown = getMarkdown(task.content as never).trim();
-    if (!markdown) continue;
-    const sections = splitSections(task.content as never, task.title, task.whole);
-    if (!dimensions) {
-      // createEmbeddings 是私有方法：先嵌入一次探出维度再建表
-      const probe = await (
-        VecDocumentTable as unknown as {
-          createEmbeddings(texts: string[], info: unknown): Promise<number[][]>;
-        }
-      ).createEmbeddings([sections[0]?.embeddingText ?? markdown], modelInfo as never);
-      dimensions = probe[0]?.length ?? 0;
-      expect(dimensions, "嵌入维度为 0").toBeGreaterThan(0);
-      VecDocumentTable.initTableByVecLength(db, dimensions);
-    }
-    const ok = await VecDocumentTable.indexContent(db, {
-      id: task.id,
-      type: task.type,
-      content: markdown,
-      title: task.title || undefined,
-      sections,
-      updateTime: task.updateTime,
-      modelInfo,
-    } as never);
-    if (ok) indexed++;
-    else failed++;
-    if ((indexed + failed) % 100 === 0)
-      console.log(`[related-eval] 重建 ${indexed + failed} / ${tasks.length}`);
-  }
-  db.prepare(
-    `INSERT INTO vec_index_meta (key, value, updated_at) VALUES ('main_content_embedding_fingerprint', ?, ?)
-     ON CONFLICT(key) DO UPDATE SET value = excluded.value`
-  ).run(fingerprint, Date.now());
-  db.close();
-  return { indexed, failed, dimensions, seconds: (performance.now() - started) / 1000 };
-}
-
-function rng(seed: number) {
-  let state = seed >>> 0;
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let t = state;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 const percentile = (sorted: number[], p: number) =>
   sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))] ?? 0;
 const cell = (text: string) => text.replace(/\|/g, "\\|").replace(/\s+/g, " ").trim();
@@ -204,7 +61,7 @@ it.skipIf(!MAIN || !INDEX)(
     const main = new Database(MAIN!);
     // 副本可能早于本分支，补齐新表（含 content_ai_meta）
     main.exec(mainSchema);
-    const rebuilt = REBUILD ? await rebuildIndex(main, INDEX!) : null;
+    const rebuilt = REBUILD ? await rebuildIndex(main, INDEX!, REBUILD) : null;
     if (rebuilt) console.log("[related-eval] 重建完成", rebuilt);
     // 阈值会写进索引库副本的 index_meta
     const memory = new Database(INDEX!);

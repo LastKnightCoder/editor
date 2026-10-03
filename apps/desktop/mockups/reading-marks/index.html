@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>7b 阅读时标记 · 三种形态</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  .win { width: 1320px; }
+  .paper { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .scroll { flex: 1; min-height: 0; overflow: auto; }
+  .grid { display: grid; grid-template-columns: 1fr minmax(0, 720px) 1fr; align-items: start; padding: 40px 26px 72px; }
+  .page-card .grid { grid-template-columns: 1fr minmax(0, 640px) 1fr; }
+  .grid article { grid-column: 2; min-width: 0; }
+  .aside { grid-column: 3; position: sticky; top: 16px; margin-left: 32px; width: 200px; }
+  .title { font-size: 27px; font-weight: 600; line-height: 1.35; margin-bottom: 6px; }
+  .meta { display: flex; align-items: center; gap: 10px; color: var(--ink-3); font-size: 12.5px; position: relative; }
+  .meta i.sep { width: 3px; height: 3px; border-radius: 50%; background: var(--ink-3); opacity: .6; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 999px; color: var(--ink-2); cursor: pointer; }
+  .pill:hover, .pill.on { background: var(--hover); color: var(--ink-1); }
+  .pill svg.lucide { width: 13px; height: 13px; }
+  .toc { font-size: 12px; color: var(--ink-3); }
+  .toc div { padding: 4px 8px; border-left: 2px solid var(--line-1); }
+  .toc div.on { color: var(--accent-text); border-color: var(--accent); }
+
+  .prose { margin-top: 22px; font-size: 15.5px; line-height: 1.85; }
+  .prose p { margin: 0 0 14px; }
+  .prose h2 { font-size: 20px; margin: 30px 0 10px; font-weight: 600; }
+  .sec { position: relative; border-radius: var(--r-sm); transition: background var(--normal) var(--ease); }
+  .sec.lit { background: var(--accent-soft); box-shadow: 0 0 0 8px var(--accent-soft); }
+  .caret { display: inline-block; width: 1.5px; height: 1.1em; background: var(--ink-1); vertical-align: -0.18em; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* 展开卡（三种形态共用）：像微信读书的想法，就地展开在这一节下面 */
+  .expand { margin: 2px 0 18px; padding: 10px 12px 8px; border-left: 2px solid var(--accent); background: var(--surface-hover); border-radius: 0 var(--r-sm) var(--r-sm) 0; font-size: 13px; }
+  .expand .why { color: var(--ink-3); font-size: 12px; margin-bottom: 6px; }
+  .expand .row { display: flex; align-items: flex-start; gap: 8px; padding: 6px 4px; border-radius: var(--r-sm); cursor: pointer; }
+  .expand .row:hover { background: var(--hover); }
+  .expand .row svg.lucide { width: 13px; height: 13px; color: var(--ink-3); margin-top: 4px; flex: none; }
+  .expand .row .t { color: var(--ink-1); font-weight: 500; }
+  .expand .row .at { color: var(--ink-3); font-size: 12px; }
+  .expand .row .s { color: var(--ink-2); font-size: 12.5px; line-height: 1.6; }
+  .expand .acts { display: flex; gap: 4px; margin-left: auto; flex: none; opacity: 0; transition: opacity var(--fast); }
+  .expand .row:hover .acts { opacity: 1; }
+  .act { height: 22px; padding: 0 7px; border-radius: var(--r-sm); font-size: 12px; color: var(--ink-3); display: inline-flex; align-items: center; gap: 4px; }
+  .act:hover { background: var(--accent-soft); color: var(--accent-text); }
+  .act svg.lucide { width: 12px !important; height: 12px !important; margin: 0 !important; color: inherit !important; }
+  .expand .foot { display: flex; justify-content: flex-end; gap: 4px; margin-top: 4px; }
+
+  /* A · 段落右侧细点：版心右边线外 18px，一个 5px 的点；悬停点亮并提示 */
+  .dot { position: absolute; right: -26px; top: 12px; width: 18px; height: 18px; display: grid; place-items: center; cursor: pointer; }
+  .dot::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--ink-3); opacity: .45; transition: all var(--fast) var(--ease); }
+  .dot:hover::before, .dot.on::before { opacity: 1; background: var(--accent); transform: scale(1.25); }
+  .dot .tip { position: absolute; left: 22px; top: -3px; white-space: nowrap; font-size: 12px; color: var(--ink-2); background: var(--surface); box-shadow: var(--shadow-lift); padding: 3px 8px; border-radius: var(--r-sm); opacity: 0; pointer-events: none; transition: opacity var(--fast); }
+  .dot:hover .tip { opacity: 1; }
+
+  /* B · 节末一行：这一节最后一段之后一行小字 */
+  .tail { display: flex; align-items: center; gap: 8px; margin: -4px 0 14px; font-size: 12.5px; color: var(--ink-3); cursor: pointer; user-select: none; }
+  .tail::before { content: ""; width: 20px; height: 1px; background: var(--line-1); }
+  .tail:hover { color: var(--ink-2); }
+  .tail b { font-weight: 500; color: var(--ink-2); }
+  .tail svg.lucide { width: 12px; height: 12px; }
+
+  /* C · 只在浮层里：正文不加任何东西；「相关」行带「← 第 N 节」，悬停时正文那一节淡淡高亮 */
+  .pop { position: absolute; top: 30px; left: 0; width: 380px; background: var(--surface); border-radius: var(--r-md); box-shadow: var(--shadow-float); padding: 12px 6px 8px; z-index: 10; color: var(--ink-1); font-size: 13px; }
+  .pop .h { font-size: 12px; color: var(--ink-3); margin: 4px 10px 6px; }
+  .pop .r { padding: 7px 10px; border-radius: var(--r-sm); cursor: pointer; }
+  .pop .r:hover { background: var(--hover); }
+  .pop .r .l { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--ink-3); }
+  .pop .r .l b { color: var(--ink-2); font-weight: 500; }
+  .pop .r .l svg.lucide { width: 13px; height: 13px; }
+  .pop .r .s { color: var(--ink-2); font-size: 12.5px; margin-top: 2px; }
+  .pop .r .from { margin-left: auto; color: var(--accent-text); font-size: 11.5px; }
+  .pop .sec-sep { height: 1px; background: var(--line-2); margin: 8px 10px; }
+
+  .win:not(.plan-a) .only-a, .win:not(.plan-b) .only-b, .win:not(.plan-c) .only-c { display: none !important; }
+  .page-card .only-article, .page-article .only-card { display: none !important; }
+  .editing .mark { display: none !important; }
+</style>
+</head>
+<body>
+<div class="mock-bar">
+  <b>阅读时标记 mockup</b>
+  <span>形态</span>
+  <a href="#" data-plan="a" class="on">A 段落右侧细点</a>
+  <a href="#" data-plan="b">B 节末一行</a>
+  <a href="#" data-plan="c">C 只在浮层里</a>
+  <span style="margin-left:14px">页面</span>
+  <a href="#" data-page="article" class="on">文章</a>
+  <a href="#" data-page="card">卡片</a>
+  <span style="margin-left:14px">状态</span>
+  <a href="#" data-mode="read" class="on">阅读</a>
+  <a href="#" data-mode="edit">正在输入</a>
+  <span class="sp"></span>
+  <select id="theme"><option value="cream">cream</option><option value="cocoa">cocoa</option></select>
+</div>
+
+<div class="mock-note">
+  <h3>要回答的问题：读的时候提醒「这一节和别处在说同一件事」，又不打扰</h3>
+  <ul>
+    <li><b>A 段落右侧细点</b>：节首右侧页边一个很淡的点，悬停提示「和《X》相近」，点开在这一节下面就地展开。<span class="pro">位置精确到节，余光可见又几乎不占地方。</span><span class="con">页边窄时没地方放；点很小，容易被当成装饰忽略。</span></li>
+    <li><b>B 节末一行</b>：这一节读完时出现一行小字「这一节和《X》相近」。<span class="pro">出现在读完一节的停顿处，时机最自然；窄窗口也能放。</span><span class="con">占正文纵向空间，三处就是三行。</span></li>
+    <li><b>C 只在浮层里</b>：正文不加任何东西；打开「N 处关联」浮层，「相关」行带上「← 第 N 节」，悬停时正文那一节淡淡高亮。<span class="pro">零打扰，只是给 7a 的「相关」补上落点。</span><span class="con">不打开浮层就看不到，谈不上「阅读时」。</span></li>
+    <li>三种共用的约束（待确认，见 docs/knowledge-loop/15）：每篇最多 3 处；正在输入时隐藏，停下 2 秒后再出现；「忽略」只对这一条生效。卡片页只作对照：推荐卡片不出标记（整张一节，与浮层「相关」重复）；长文与卡片之间不能添加连接，展开卡里的「添加连接」只在卡片页出现。</li>
+  </ul>
+</div>
+
+<div class="stage">
+  <div class="win plan-a page-article" id="win">
+    <aside class="sb">
+      <div class="sb-head"><span class="sb-logo">T</span><span>Tau</span></div>
+      <div class="sb-scroll">
+        <div class="sb-group">
+          <div class="sb-gt">知识</div>
+          <div class="sb-item" data-nav="card"><i data-lucide="layers"></i><span>卡片库</span></div>
+          <div class="sb-item" data-nav="article"><i data-lucide="file-text"></i><span>文章</span></div>
+          <div class="sb-item"><i data-lucide="folder-kanban"></i><span>项目</span></div>
+        </div>
+      </div>
+    </aside>
+    <div class="col">
+      <div class="tb"><span class="crumb" id="crumb"></span><span class="sp"></span><span class="search"><i data-lucide="search"></i>搜索或跳转…</span></div>
+      <div class="main">
+        <section class="paper">
+          <div class="scroll">
+            <div class="grid">
+              <article>
+                <div class="title only-article">浏览器是怎样把一页画出来的</div>
+                <div class="meta" id="meta"></div>
+                <div class="prose" id="prose"></div>
+              </article>
+              <div class="aside" id="aside"></div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* 每节的标记：target 指向别处的某一节或某张卡，summary 为对方的 AI 要点（有元信息时） */
+const ARTICLE = [
+  { h: "", p: ["从拿到 HTML 到屏幕上出现像素，浏览器大致要走五步：解析、样式、布局、绘制、合成。这篇按顺序把每一步做了什么、代价在哪里写下来。"] },
+  { h: "解析与样式", p: ["HTML 解析成 DOM，CSS 解析成 CSSOM，两者合在一起算出每个元素最终的样式。", "CSS 会阻塞渲染，所以样式表放在头部；脚本默认会阻塞解析，加上 defer 后推迟到解析完成。"],
+    marks: [{ icon: "folder-kanban", t: "前端体系", at: "性能篇 › 首屏优化", s: "关键渲染路径上的阻塞资源决定首屏时间，CSS 内联首屏、脚本 defer。", card: false }] },
+  { h: "布局", p: ["布局阶段算出每个盒子的位置和尺寸。几何属性一变，布局就要重来。", "读 offsetTop 这类属性时，如果布局已经失效，浏览器会立刻同步计算一次。"],
+    marks: [
+      { icon: "layers", t: "列表滚动掉帧的排查", s: "滚动回调里读布局属性会强制同步布局，应先批量读再批量写。", card: true },
+      { icon: "layers", t: "虚拟列表只渲染视口内的行", s: "复用节点减少 DOM 插入，避免频繁布局。", card: true },
+    ] },
+  { h: "绘制与合成", p: ["绘制把盒子变成一组绘制指令，合成线程再把各个图层拼起来。", "只改 transform 和 opacity 时，可以只走合成这一步，动画就不会卡主线程。"],
+    marks: [{ icon: "file-text", t: "动画性能笔记", at: "为什么用 transform", s: "transform 交给合成线程处理，不触发布局与绘制。", card: false }] },
+];
+const CARD = [{ h: "", p: ["重排是重新计算元素的位置和尺寸，重绘只重新绘制像素。重排一定引起重绘，反过来不会。", "读 offsetTop 这类属性时，如果布局已经失效，浏览器会立刻同步计算一次，这就是强制同步布局。"],
+  marks: [
+    { icon: "layers", t: "列表滚动掉帧的排查", s: "滚动回调里读布局属性会强制同步布局，应先批量读再批量写。", card: true },
+    { icon: "file-text", t: "浏览器是怎样把一页画出来的", at: "布局", s: "布局阶段算出盒子的位置与尺寸，几何属性变化会让布局失效。", card: false },
+  ] }];
+
+let plan = "a", page = "article", mode = "read", open = -1, popOpen = false, lit = -1;
+
+const sections = () => (page === "article" ? ARTICLE : CARD);
+const firstMark = m => `《${m.t}》${m.at ? ` › ${m.at}` : ""}`;
+
+function expandCard(sec) {
+  const rows = sec.marks.map(m => `<div class="row"><i data-lucide="${m.icon}"></i>
+    <div><div><span class="t">${m.t}</span>${m.at ? `<span class="at"> › ${m.at}</span>` : ""}</div><div class="s">${m.s}</div></div>
+    <span class="acts">${m.card && page === "card" ? `<span class="act"><i data-lucide="link-2"></i>添加连接</span>` : ""}<span class="act"><i data-lucide="eye-off"></i>忽略</span></span></div>`).join("");
+  return `<div class="expand mark"><div class="why">这一节和下面的内容在说相近的事，还没有连接</div>${rows}</div>`;
+}
+
+function renderProse() {
+  return sections().map((sec, i) => {
+    const has = sec.marks?.length;
+    let html = `<div class="sec${lit === i ? " lit" : ""}" data-i="${i}">`;
+    if (sec.h) html += `<h2>${sec.h}</h2>`;
+    if (has && plan === "a") html += `<span class="dot mark${open === i ? " on" : ""}" data-open="${i}"><span class="tip">和${firstMark(sec.marks[0])}${sec.marks.length > 1 ? ` 等 ${sec.marks.length} 处` : ""}相近</span></span>`;
+    sec.p.forEach((p, j) => {
+      const caret = mode === "edit" && i === 2 && j === 1 ? `<span class="caret"></span>` : "";
+      html += `<p>${p}${caret}</p>`;
+    });
+    if (has && plan === "b") html += `<div class="tail mark" data-open="${i}"><i data-lucide="sparkle"></i>这一节和<b>${firstMark(sec.marks[0])}</b>${sec.marks.length > 1 ? ` 等 ${sec.marks.length} 处` : ""}相近<i data-lucide="${open === i ? "chevron-up" : "chevron-down"}"></i></div>`;
+    if (has && open === i && plan !== "c") html += expandCard(sec);
+    return html + `</div>`;
+  }).join("");
+}
+
+function renderPop() {
+  const rows = sections().flatMap((sec, i) => (sec.marks ?? []).map(m => ({ m, i, h: sec.h })));
+  return `<div class="pop">
+    <div class="h">被引用</div>
+    <div class="r"><div class="l"><i data-lucide="folder-kanban"></i><b>前端体系 · 总览</b><span>项目</span></div></div>
+    <div class="sec-sep"></div>
+    <div class="h">相关</div>
+    ${rows.map(({ m, i, h }) => `<div class="r" data-lit="${i}"><div class="l"><i data-lucide="${m.icon}"></i><b>${m.t}</b>${m.at ? `<span>› ${m.at}</span>` : ""}<span class="from">${page === "article" ? `← ${h}` : ""}</span></div><div class="s">${m.s}</div></div>`).join("")}
+  </div>`;
+}
+
+function render() {
+  const win = document.getElementById("win");
+  win.className = `win plan-${plan} page-${page}${mode === "edit" ? " editing" : ""}`;
+  document.querySelectorAll("[data-nav]").forEach(n => n.classList.toggle("on", n.dataset.nav === page));
+  document.getElementById("crumb").innerHTML = page === "card"
+    ? `卡片库 <span style="color:var(--ink-3)">/</span> <b>重排与重绘</b>`
+    : `文章 <span style="color:var(--ink-3)">/</span> <b>浏览器是怎样把一页画出来的</b>`;
+  document.getElementById("meta").innerHTML = `<span>2026-09-14 创建</span><i class="sep"></i><span>${page === "article" ? "1,860 字" : "212 字"}</span><i class="sep"></i>
+    <span class="pill${popOpen ? " on" : ""}" id="pill"><i data-lucide="waypoints"></i>1 处关联</span>${popOpen ? renderPop() : ""}`;
+  document.getElementById("prose").innerHTML = renderProse();
+  document.getElementById("aside").innerHTML = page === "article"
+    ? `<div class="toc"><div>解析与样式</div><div class="on">布局</div><div>绘制与合成</div></div>` : "";
+
+  document.querySelectorAll("[data-open]").forEach(el => el.onclick = e => {
+    e.stopPropagation();
+    const i = Number(el.dataset.open);
+    open = open === i ? -1 : i;
+    render();
+  });
+  document.getElementById("pill").onclick = e => { e.stopPropagation(); popOpen = !popOpen; lit = -1; render(); };
+  document.querySelectorAll("[data-lit]").forEach(el => {
+    el.onmouseenter = () => { if (plan === "c") { lit = Number(el.dataset.lit); document.querySelectorAll(".sec").forEach(s => s.classList.toggle("lit", Number(s.dataset.i) === lit)); } };
+    el.onmouseleave = () => { lit = -1; document.querySelectorAll(".sec").forEach(s => s.classList.remove("lit")); };
+  });
+  lucide.createIcons();
+}
+
+document.addEventListener("click", e => { if (popOpen && !e.target.closest(".pop")) { popOpen = false; render(); } });
+document.querySelectorAll(".mock-bar a").forEach(a => a.onclick = e => {
+  e.preventDefault();
+  const k = Object.keys(a.dataset)[0];
+  if (k === "plan") plan = a.dataset.plan;
+  if (k === "page") page = a.dataset.page;
+  if (k === "mode") mode = a.dataset.mode;
+  open = -1; popOpen = false; lit = -1;
+  document.querySelectorAll(`.mock-bar a[data-${k}]`).forEach(x => x.classList.toggle("on", x === a));
+  render();
+});
+document.getElementById("theme").onchange = e => document.documentElement.dataset.theme = e.target.value;
+render();
+</script>
+</body>
+</html>
