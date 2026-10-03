@@ -673,6 +673,27 @@ export async function runSubtopic(
 
 // ───────────────────────── 主题 ─────────────────────────
 
+/** 字符 bigram 集合（中文没有空格分词，按相邻两字比较） */
+const bigrams = (text: string) => {
+  const flat = text.replace(/^还缺[:：]\s*/, "").replace(/[\s，。、；：:？?「」《》（）()]/g, "");
+  const set = new Set<string>();
+  for (let i = 0; i < flat.length - 1; i++) set.add(flat.slice(i, i + 2));
+  return set;
+};
+
+/** 「还缺」和已挑中的「缺一环」空位说的是同一件事（bigram 重合过半）：只留缺一环 */
+export function repeatsChain(gap: string, picked: KnowledgeMark[]): boolean {
+  const own = bigrams(gap);
+  if (own.size === 0) return false;
+  return picked.some(mark => {
+    if (mark.kind !== "chain" || !mark.missing) return false;
+    const other = bigrams(mark.missing.text);
+    let both = 0;
+    for (const gram of own) if (other.has(gram)) both++;
+    return both / Math.min(own.size, other.size || 1) >= 0.5;
+  });
+}
+
 export async function runTopic(
   deps: TopicInsightsDeps,
   ctx: InsightsContext,
@@ -742,19 +763,22 @@ export async function runTopic(
     )
   );
   const byNo = new Map(candidates.map(item => [item.no, item.mark]));
+  const picked = parsed.pick.flatMap(no => {
+    const mark = byNo.get(no);
+    return mark ? [{ ...mark }] : [];
+  });
   const marks: KnowledgeMark[] = [
-    ...parsed.pick.flatMap(no => {
-      const mark = byNo.get(no);
-      return mark ? [{ ...mark }] : [];
-    }),
-    ...parsed.gaps.map(gap => ({
-      id: "",
-      kind: "gap" as const,
-      why: gap.why,
-      ends: [],
-      text: gap.text,
-      status: "open" as const,
-    })),
+    ...picked,
+    ...parsed.gaps
+      .filter(gap => !repeatsChain(gap.text, picked))
+      .map(gap => ({
+        id: "",
+        kind: "gap" as const,
+        why: gap.why,
+        ends: [],
+        text: gap.text,
+        status: "open" as const,
+      })),
   ].map((mark, index) => ({ ...mark, id: `t${index + 1}` }));
   const row = KnowledgeAiInsightsTable.save(
     ctx.mainDb,
@@ -806,7 +830,17 @@ export async function runGlobal(
   const linkCount = (key: string) => ctx.links.get(key)?.size ?? 0;
   const bridges =
     ctx.threshold != null
-      ? await bridgeCandidates(ctx.indexDb, ctx.topics, isLinked(ctx), linkCount, ctx.threshold)
+      ? await bridgeCandidates(
+          ctx.indexDb,
+          ctx.topics,
+          isLinked(ctx),
+          linkCount,
+          ctx.threshold,
+          key => {
+            const entity = ctx.byKey.get(key);
+            return entity ? (ctx.metas.get(entity.contentId)?.meta.concepts ?? []) : [];
+          }
+        )
       : [];
   const asked = ctx.threshold != null ? await askedCandidates(ctx.indexDb, ctx.threshold) : [];
 
@@ -915,6 +949,7 @@ export async function runGlobal(
       id: "",
       kind: "bridge",
       why: bridge.why,
+      text: bridge.principle,
       ends: [info.left, info.right].map(entity =>
         endpoint(
           ctx,

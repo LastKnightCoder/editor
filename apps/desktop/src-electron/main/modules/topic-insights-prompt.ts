@@ -180,8 +180,8 @@ export const SUBTOPIC_SYSTEM_PROMPT = `你是用户个人知识库的阅读助�
 - overview：这个子主题在讲什么、写到了什么程度（不超过 150 字），给上一层阅读用。
 - shift：用户关注点随时间的变化（不超过 60 字），例如「早期写语法细节，最近转向运行时机制」；看不出变化给空串。
 - pattern：用户在几份不同的笔记里反复使用同一种思路或分析办法（是「同一种办法」，不是「同一个话题」）。{"text":"这种思路的名字","notes":[3–5 个笔记编号],"why":"…"}，没有给 null。
-- chain：几份笔记构成一条论证或学习线（有先后依赖），中间明显缺了一环，读起来是跳着的。{"notes":[按顺序 3–5 个编号],"missing":{"before":缺口后面那份的编号,"text":"缺的是什么（不超过 20 字）"},"why":"…"}，没有给 null。
-- pairs：从给出的笔记对里挑出真正「重复」（说的是同一件事）或「矛盾」（主张互相冲突，或一处说总是、另一处给了例外；侧重点不同不算）的，最多 ${SUBTOPIC_MAX_PAIRS} 对。{"pair":"P1","type":"dup"|"conflict","why":"…","claims":["一方一句","另一方一句"],"anchors":{"笔记编号":"原文片段"}}。只是相关不算。
+- chain：几份笔记构成一条论证或学习线（后一份依赖前一份才能看懂），中间明显缺了一环，读起来是跳着的；缺的那一环要说得出具体是什么知识点，说不出就给 null。{"notes":[按顺序 3–5 个编号],"missing":{"before":缺口后面那份的编号,"text":"缺的是什么（不超过 20 字）"},"why":"…"}，没有给 null。
+- pairs：从给出的笔记对里挑出真正「重复」（说的是同一件事）或「矛盾」的，最多 ${SUBTOPIC_MAX_PAIRS} 对。矛盾必须是在同一个条件、同一个对象上说法相反，或一处说「总是 / 一定」、另一处在同样条件下给了反例；两处讲的条件、场景、对象不同（比如两数之和与三数之和、Windows 与 Linux 的命令、不同版本的说明）只是各说各的，不算矛盾。{"pair":"P1","type":"dup"|"conflict","why":"…","claims":["一方一句","另一方一句"],"anchors":{"笔记编号":"原文片段"}}。只是相关不算。
 
 规则：
 ${COMMON_RULES}
@@ -323,9 +323,10 @@ export const TOPIC_SYSTEM_PROMPT = `你是用户个人知识库的阅读助手�
 - overview：这个主题在讲什么、写到了什么程度（不超过 150 字），给上一层阅读用。
 - shift：用户在这个主题上关注点的变化（不超过 60 字），看不出给空串。
 - lead：给用户看的两三句话（不超过 150 字）：这个主题多大、怎样在长或停了多久、关注点怎么变、AI 看到了几处什么。主题很大、却很少有笔记在项目里时，可以提一句它还没有被系统整理过。不复述概述。
-- gaps：这个主题反复提到、却没有一份笔记展开的概念或问题（「还缺」），最多 ${TOPIC_MAX_GAPS} 条。{"text":"还缺：…（不超过 20 字）","why":"…"}。可以用你自己的知识判断「讲这个主题通常绕不开什么」。
-- asks：0 到 ${TOPIC_MAX_ASKS} 个值得继续想的问题，一句话。
-- pick：从候选里挑最值得告诉用户的编号（如 "M2"），连同 gaps 一共不超过 ${TOPIC_MAX_MARKS} 条；不值得的不要挑。
+- pick：从候选里挑真正值得告诉用户的编号（如 "M2"）。这是上限不是目标：多数主题挑 1–3 条，没有值得说的就给空数组，不要为了凑数挑。同一件事只挑一条；矛盾只挑在同一条件下说法相反的。
+- gaps：这个主题反复提到、却没有一份笔记展开的概念或问题（「还缺」），最多 ${TOPIC_MAX_GAPS} 条，没有就给空数组。{"text":"还缺：…（不超过 20 字）","why":"…"}。可以用你自己的知识判断「讲这个主题通常绕不开什么」。不要复述你挑中的「缺一环」里的空位——那一条已经会显示；gaps 要的是这个主题整体还没写到的那一块。
+- asks：0 到 ${TOPIC_MAX_ASKS} 个值得继续想的问题，一句话，不要复述 gaps。
+- pick 与 gaps 一共不超过 ${TOPIC_MAX_MARKS} 条。
 
 规则：
 ${COMMON_RULES}
@@ -412,7 +413,11 @@ export function parseTopicOutput(
 export const GLOBAL_SYSTEM_PROMPT = `你是用户个人知识库的阅读助手。给你用户知识地图上各主题的概述、每季度新写的笔记数、跨主题的笔记对（候选呼应），以及用户在 AI 对话里问过、但笔记里离得都不近的提问组，读完后输出：
 
 - lead：给用户看的两三句话（不超过 150 字）：版图多大、最近长在哪、哪里停了、你看到了几处呼应和几个问了没写的问题。
-- bridges：两份笔记分属看似无关的主题，其实在说同一个道理或用同一个机制（「呼应」），最多 ${GLOBAL_MAX_BRIDGES} 条。只是都提到同一个词、或都属于某一大类不算；说不出「同一个道理是什么」就不要给。{"candidate":"B1","why":"先点明那个共同的道理，再说两边各是怎么体现的","anchors":{"笔记编号":"原文片段"}}。
+- bridges：两份笔记分属看似无关的主题，其实在说同一个道理或用同一个机制（「呼应」），最多 ${GLOBAL_MAX_BRIDGES} 条，通常 0–1 条，没有就给空数组。要求：
+  1. 两边讲的不是同一个具体东西：同一门语言、同一个库、同一本书的内容只是被分进了不同主题，那是重复，不是呼应；一边是另一边的实现或用法（如数据结构与提供它的标准库模块）也不是。
+  2. 共同的道理要能脱离两边的领域单独说成一句话，而且读到它会让用户对两边都多懂一点；「都在讲排列 / 错误 / 优化 / 结构」这类泛泛的类比不算。
+  3. 说不出这句道理就不要给。
+  {"candidate":"B1","principle":"那个共同的道理（一句话，不提两边的具体名词）","why":"两边各是怎么体现这个道理的","anchors":{"笔记编号":"原文片段"}}。
 - asked：用户反复问过、笔记里确实还没写、而且值得写下来的问题，最多 ${GLOBAL_MAX_ASKED} 条。{"group":"A1","question":"把这组提问整理成一个问题（不超过 40 字）","why":"…"}。一次性的事务性提问（翻译、改格式、查命令）不要给。
 - asks：0 到 1 个关于整个知识版图值得想的问题。
 
@@ -468,7 +473,12 @@ export function buildGlobalPrompt(input: GlobalPromptInput): string {
 
 export interface ParsedGlobal {
   lead: string;
-  bridges: Array<{ candidate: number; why: string; anchors: Record<number, string> }>;
+  bridges: Array<{
+    candidate: number;
+    principle: string;
+    why: string;
+    anchors: Record<number, string>;
+  }>;
   asked: Array<{ group: number; question: string; why: string }>;
   asks: string[];
 }
@@ -486,9 +496,11 @@ export function parseGlobalOutput(
   >) {
     const candidate = refNo(raw?.candidate);
     if (!bridgeNos.has(candidate) || bridges.some(item => item.candidate === candidate)) continue;
+    const principle = str(raw.principle, WHY_MAX_CHARS);
     const why = str(raw.why, WHY_MAX_CHARS);
-    if (!why) continue;
-    bridges.push({ candidate, why, anchors: anchorsOf(raw.anchors) });
+    // 说不出共同道理的呼应多半是泛泛的类比：提示词要求必须给，没给就不要
+    if (!principle || !why) continue;
+    bridges.push({ candidate, principle, why, anchors: anchorsOf(raw.anchors) });
     if (bridges.length >= GLOBAL_MAX_BRIDGES) break;
   }
   const asked: ParsedGlobal["asked"] = [];

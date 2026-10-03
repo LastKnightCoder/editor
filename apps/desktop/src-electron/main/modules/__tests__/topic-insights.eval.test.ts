@@ -109,6 +109,8 @@ function describe(mark: KnowledgeMark): string {
     case "gap":
     case "thin":
       return mark.text ?? "";
+    case "bridge":
+      return `${ends.join(" ↔ ")}｜共同的道理：${mark.text ?? ""}`;
     default:
       return ends.join(" ↔ ") + (mark.claims ? `（${mark.claims.join(" / ")}）` : "");
   }

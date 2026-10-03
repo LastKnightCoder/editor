@@ -134,7 +134,8 @@ describe("topic-insights 提示词", () => {
       JSON.stringify({
         lead: "版图",
         bridges: [
-          { candidate: "B1", why: "都是提取练习" },
+          { candidate: "B1", principle: "主动回想比重读记得牢", why: "都是提取练习" },
+          { candidate: "B1", why: "没有共同道理的被丢掉" },
           { candidate: "B1", why: "重复" },
           { candidate: "B2", why: "不存在" },
           { candidate: "B1x", why: "" },
@@ -148,7 +149,9 @@ describe("topic-insights 提示词", () => {
       new Set([1]),
       new Set([1])
     )!;
-    expect(parsed.bridges.map(item => item.candidate)).toEqual([1]);
+    expect(parsed.bridges).toEqual([
+      { candidate: 1, principle: "主动回想比重读记得牢", why: "都是提取练习", anchors: {} },
+    ]);
     expect(parsed.asked).toEqual([{ group: 1, question: "事件循环和渲染时机", why: "问了 3 次" }]);
     expect(parsed.asks).toEqual(["q1"]);
   });
