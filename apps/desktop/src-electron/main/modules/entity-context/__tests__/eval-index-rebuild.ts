@@ -21,8 +21,14 @@ import ArticleTable from "../../tables/article";
 import CardTable from "../../tables/card";
 import ProjectTable from "../../tables/project";
 import VecDocumentTable from "../../tables/vec-document";
+import { listChatPromptDocs } from "../../chat-prompt-index";
 
-export async function rebuildIndex(main: Database.Database, path: string, mode: string) {
+export async function rebuildIndex(
+  main: Database.Database,
+  path: string,
+  mode: string,
+  options: { withChatPrompts?: boolean } = {}
+) {
   rmSync(path, { force: true });
   rmSync(`${path}-wal`, { force: true });
   rmSync(`${path}-shm`, { force: true });
@@ -101,6 +107,8 @@ export async function rebuildIndex(main: Database.Database, path: string, mode: 
       whole: false,
       updateTime: Number(item.updateTime),
     });
+  // 主对话的提问（7c「问了但没写」）：会话目录按主库文件名取，副本要命名成和原库同名（如 data.db）
+  const prompts = options.withChatPrompts ? listChatPromptDocs(main) : [];
   const started = performance.now();
   let indexed = 0;
   let failed = 0;
@@ -134,12 +142,25 @@ export async function rebuildIndex(main: Database.Database, path: string, mode: 
     if ((indexed + failed) % 100 === 0)
       console.log(`[eval-rebuild] 重建 ${indexed + failed} / ${tasks.length}`);
   }
+  for (const prompt of prompts) {
+    const ok = await VecDocumentTable.indexContent(db, { ...prompt, modelInfo } as never);
+    if (ok) indexed++;
+    else failed++;
+    if ((indexed + failed) % 100 === 0)
+      console.log(`[eval-rebuild] 重建 ${indexed + failed} / ${tasks.length + prompts.length}`);
+  }
   db.prepare(
     `INSERT INTO vec_index_meta (key, value, updated_at) VALUES ('main_content_embedding_fingerprint', ?, ?)
      ON CONFLICT(key) DO UPDATE SET value = excluded.value`
   ).run(fingerprint, Date.now());
   db.close();
-  return { indexed, failed, dimensions, seconds: (performance.now() - started) / 1000 };
+  return {
+    indexed,
+    failed,
+    dimensions,
+    prompts: prompts.length,
+    seconds: (performance.now() - started) / 1000,
+  };
 }
 
 /** 确定性随机数：同一副本多次评估结果可对照 */
