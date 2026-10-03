@@ -365,6 +365,22 @@ export function bestSection(
 
 // ───────────────────────── 跨主题的呼应候选 ─────────────────────────
 
+/** 两份笔记的概念重合度高于这个值，多半是同一份内容的两次记录（被分进了不同主题），算重复不算呼应 */
+export const BRIDGE_MAX_CONCEPT_OVERLAP = 0.4;
+
+/** 概念规整：去空白与大小写，「warnings 模块」与「warnings模块」算同一个 */
+const normalizeConcept = (concept: string) => concept.replace(/\s+/g, "").toLowerCase();
+
+/** 两组概念的 Jaccard 重合度；任一边没有概念时为 0（不据此排除） */
+export function conceptOverlap(a: string[], b: string[]): number {
+  const left = new Set(a.map(normalizeConcept).filter(Boolean));
+  const right = new Set(b.map(normalizeConcept).filter(Boolean));
+  if (!left.size || !right.size) return 0;
+  let both = 0;
+  for (const concept of left) if (right.has(concept)) both++;
+  return both / (left.size + right.size - both);
+}
+
 /** 每个主题取几份代表去查近邻（重度库也只是「主题数 × 这个数」次查询） */
 export const BRIDGE_REPRESENTATIVES = 30;
 export const BRIDGE_LIMIT = 30;
@@ -381,7 +397,8 @@ export async function bridgeCandidates(
   topics: MapTopicGroups[],
   linked: (a: string, b: string) => boolean,
   linkCount: (key: string) => number,
-  threshold: number
+  threshold: number,
+  conceptsOf: (key: string) => string[] = () => []
 ): Promise<NotePair[]> {
   const topicOf = new Map<string, number>();
   for (const topic of topics) {
@@ -409,6 +426,11 @@ export async function bridgeCandidates(
         const other = topicOf.get(row.prefixed_id);
         if (other === undefined || other === topic.topicId) continue;
         if (linked(rep.key, row.prefixed_id)) continue;
+        if (
+          conceptOverlap(conceptsOf(rep.key), conceptsOf(row.prefixed_id)) >
+          BRIDGE_MAX_CONCEPT_OVERLAP
+        )
+          continue;
         const [left, right] = [rep.key, row.prefixed_id].sort();
         const id = `${left}\u0000${right}`;
         if ((best.get(id)?.similarity ?? -Infinity) >= similarity) continue;

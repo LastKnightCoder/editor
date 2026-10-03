@@ -29,6 +29,7 @@ import {
   metaCoverage,
   nameUnlabeled,
   planInsights,
+  repeatsChain,
   readKnowledgeInsights,
   type TopicInsightsDeps,
 } from "../topic-insights";
@@ -37,7 +38,12 @@ import {
   SUBTOPIC_SYSTEM_PROMPT,
   TOPIC_SYSTEM_PROMPT,
 } from "../topic-insights-prompt";
-import { growthSeries, mapGroups, pairCandidates } from "../topic-insights-candidates";
+import {
+  conceptOverlap,
+  growthSeries,
+  mapGroups,
+  pairCandidates,
+} from "../topic-insights-candidates";
 
 const DIM = 8;
 const SLOT = { providerId: "deepseek", modelId: "flash" };
@@ -78,13 +84,14 @@ describe("topic-insights 分层阅读", () => {
       )
       .run(key, chunk, block, block, text.length, text);
   };
-  const setMeta = (name: string, summary: string) =>
+  // 默认每份笔记的概念各不相同（共同的「事件循环」之外带上自己的名字），概念重合不会把呼应排除掉
+  const setMeta = (name: string, summary: string, concepts = ["事件循环", name, `${name} 细节`]) =>
     ContentAiMetaTable.upsert(
       main,
       {
         contentId: contentIds[name],
         textDigest: "d",
-        meta: { title: name, summary, concepts: ["事件循环"], claims: [] },
+        meta: { title: name, summary, concepts, claims: [] },
         model: "m",
       },
       1
@@ -185,7 +192,9 @@ describe("topic-insights 分层阅读", () => {
       if (request.system === GLOBAL_SYSTEM_PROMPT) {
         return reply({
           lead: "版图两三句",
-          bridges: prompt.includes("B1：") ? [{ candidate: "B1", why: "同一个道理" }] : [],
+          bridges: prompt.includes("B1：")
+            ? [{ candidate: "B1", principle: "共同的道理", why: "同一个道理" }]
+            : [],
           asked: [],
           asks: [],
         });
@@ -290,6 +299,7 @@ describe("topic-insights 分层阅读", () => {
     expect(global.result.lead).toBe("版图两三句");
     const bridge = global.result.marks[0];
     expect(bridge.kind).toBe("bridge");
+    expect(bridge.text).toBe("共同的道理");
     expect(new Set(bridge.ends.map(end => end.topic))).toEqual(new Set(["JavaScript", "学习方法"]));
     expect(calls.find(call => call.system === GLOBAL_SYSTEM_PROMPT)!.prompt).toContain("候选呼应");
   });
@@ -451,5 +461,34 @@ describe("topic-insights 分层阅读", () => {
       metas as never
     );
     expect(topic.groups.map(group => group.label)).toEqual(["Promise", "Set", "其他"]);
+  });
+
+  it("概念高度重合的跨主题配对是重复，不进呼应候选", async () => {
+    // c12（学习方法）和事件循环那几张卡概念完全一样：只是被分进了不同主题
+    for (const name of ["c1", "c2", "c3", "c4", "c12"]) {
+      setMeta(name, `${name} 的要点`, ["事件循环", "微任务", "宏任务"]);
+    }
+    await run();
+    expect(calls.find(call => call.system === GLOBAL_SYSTEM_PROMPT)!.prompt).toContain(
+      "候选呼应：无"
+    );
+    expect(
+      conceptOverlap(["warnings 模块", "warn 函数"], ["warnings模块", "UserWarning"])
+    ).toBeCloseTo(1 / 3);
+    expect(conceptOverlap([], ["x"])).toBe(0);
+  });
+
+  it("「还缺」复述已挑中的缺一环空位时不再单列", () => {
+    const chain = {
+      id: "s1",
+      kind: "chain" as const,
+      why: "",
+      ends: [],
+      missing: { index: 1, text: "从作用域到原型链的桥梁" },
+      status: "open" as const,
+    };
+    expect(repeatsChain("还缺：作用域到原型链的桥", [chain])).toBe(true);
+    expect(repeatsChain("还缺：模块加载", [chain])).toBe(false);
+    expect(repeatsChain("还缺：作用域到原型链的桥", [])).toBe(false);
   });
 });
