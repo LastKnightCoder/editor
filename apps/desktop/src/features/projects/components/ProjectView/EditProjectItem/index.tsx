@@ -28,6 +28,7 @@ import ImmersiveEditorMode, {
 
 import { createProjectCardListExtension } from "@/editor-extensions";
 import { ContextBadge } from "@/features/context/components/ContextBadge";
+import { useInsightsView } from "@/features/insights/useInsightsView";
 import { usePageParams } from "@/page/PageProvider";
 
 const DOCUMENT_COLUMNS = "grid grid-cols-[minmax(0,720px)] items-start justify-center gap-7 px-6";
@@ -88,6 +89,13 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   }, [projectItemId]);
 
   const extensions = editorExtensions;
+  /* AI 洞见：元信息行入口 + 正文上方报告 + 就地标记（KL-058） */
+  const insights = useInsightsView({
+    ref: { kind: "project-item", id: projectItem?.id ?? 0 },
+    contentId: projectItem?.contentId ?? 0,
+    sourceLabel: `项目文档：${projectItem?.title || "无标题文档"}`,
+    getEditor: useCallback(() => editorRef.current?.getEditor(), []),
+  });
   useRafInterval(async () => {
     const updatedProjectItem = await saveProjectItem();
     if (updatedProjectItem) {
@@ -224,6 +232,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
                   <div className="tabular-nums">{projectItem.count.toLocaleString("zh-CN")} 字</div>
                 </div>
                 <ContextBadge entity={{ kind: "project-item", id: projectItem.id }} />
+                {insights.button}
                 {/* 协作：已共享时常驻成员条（点开成员 Popover）；未共享不占位，由列表菜单「发起协作」打开对话框 */}
                 <span className="ml-auto">
                   <ContentCollaborationControl
@@ -239,26 +248,30 @@ const EditProjectItem = (props: { projectItemId: number }) => {
                   />
                 </span>
               </div>
+              {insights.report && <div className="-mt-2 mb-6">{insights.report}</div>}
             </header>
             <EditCardContext.Provider
               value={{
                 cardId: -1,
               }}
             >
-              <ErrorBoundary>
-                <Editor
-                  contentId={projectItem?.contentId}
-                  key={`${projectItem.id}-${editorRemountKey}`}
-                  ref={editorRef}
-                  at={locationParams.itemId === projectItemId ? locationParams.at : undefined}
-                  initValue={projectItem.content}
-                  onInit={onInit}
-                  onChange={onContentChange}
-                  readonly={false}
-                  editingContext={{ entityType: "project-item", entityId: projectItem.id }}
-                  extensions={extensions}
-                />
-              </ErrorBoundary>
+              {insights.frame(
+                <ErrorBoundary>
+                  <Editor
+                    contentId={projectItem?.contentId}
+                    key={`${projectItem.id}-${editorRemountKey}`}
+                    ref={editorRef}
+                    at={locationParams.itemId === projectItemId ? locationParams.at : undefined}
+                    initValue={projectItem.content}
+                    onInit={onInit}
+                    onChange={onContentChange}
+                    readonly={false}
+                    editingContext={{ entityType: "project-item", entityId: projectItem.id }}
+                    extensions={extensions}
+                    {...insights.editorProps}
+                  />
+                </ErrorBoundary>
+              )}
             </EditCardContext.Provider>
             <AddTag
               className="mt-6"

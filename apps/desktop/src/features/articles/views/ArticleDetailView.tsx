@@ -91,6 +91,7 @@ import {
   type OutlineHeader,
 } from "@/components/ContentOutline";
 import { ContextBadge } from "@/features/context/components/ContextBadge";
+import { useInsightsView } from "@/features/insights/useInsightsView";
 
 /** copy utils 的 MessageApi 是结构类型，toast 同形适配（不引 antd message） */
 const toastAdapter = {
@@ -126,6 +127,13 @@ export function ArticleDetailView() {
   const editorRef = useRef<EditorRef>(null);
   const collaborationRef = useRef<ContentCollaborationControlHandle>(null);
   const shared = useContentShared(editingArticle?.contentId);
+  /* AI 洞见：标题栏下元信息行入口 + 正文上方报告 + 就地标记（KL-058） */
+  const insights = useInsightsView({
+    ref: { kind: "article", id: editingArticle?.id ?? 0 },
+    contentId: editingArticle?.contentId ?? 0,
+    sourceLabel: `文章：${editingArticle?.title || "无标题文章"}`,
+    getEditor: useCallback(() => editorRef.current?.getEditor(), []),
+  });
   const [pendingDelete, setPendingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const { remove } = useArticleMutations();
@@ -440,7 +448,12 @@ export function ArticleDetailView() {
             }}
             onChangeCover={() => void handleChangeCover()}
             changingCover={changingCover}
-            extraMeta={<ContextBadge entity={{ kind: "article", id: editingArticle.id }} />}
+            extraMeta={
+              <>
+                <ContextBadge entity={{ kind: "article", id: editingArticle.id }} />
+                {insights.button}
+              </>
+            }
             actions={
               <span className="flex items-center gap-1">
                 {/* 协作：已共享时常驻成员条（点开成员 Popover）；未共享不占位，由 ⋯「发起协作」打开对话框 */}
@@ -462,6 +475,7 @@ export function ArticleDetailView() {
 
           <div className="grid grid-cols-[1fr_minmax(0,720px)_1fr] items-start px-[26px] pb-10 pt-8">
             <article className="col-start-2 min-w-0">
+              {insights.report && <div className="mb-6">{insights.report}</div>}
               <ArticlePodcast
                 article={editingArticle}
                 modalOpen={podcastModalOpen}
@@ -470,21 +484,24 @@ export function ArticleDetailView() {
               />
 
               <div className={editingArticle.podcast ? "mt-[30px]" : undefined}>
-                <ErrorBoundary>
-                  <ContentEditor
-                    at={at}
-                    ref={editorRef}
-                    contentId={editingArticle.contentId}
-                    key={`${editingArticle.id}-${editorRemountKey}`}
-                    initValue={editingArticle.content}
-                    onInit={onInit}
-                    onChange={content => {
-                      onContentChange(content);
-                    }}
-                    readonly={false}
-                    editingContext={{ entityType: "article", entityId: editingArticle.id }}
-                  />
-                </ErrorBoundary>
+                {insights.frame(
+                  <ErrorBoundary>
+                    <ContentEditor
+                      at={at}
+                      ref={editorRef}
+                      contentId={editingArticle.contentId}
+                      key={`${editingArticle.id}-${editorRemountKey}`}
+                      initValue={editingArticle.content}
+                      onInit={onInit}
+                      onChange={content => {
+                        onContentChange(content);
+                      }}
+                      readonly={false}
+                      editingContext={{ entityType: "article", entityId: editingArticle.id }}
+                      {...insights.editorProps}
+                    />
+                  </ErrorBoundary>
+                )}
               </div>
 
               <ArticleTags
