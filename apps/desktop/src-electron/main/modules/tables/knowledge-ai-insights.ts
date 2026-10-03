@@ -91,6 +91,7 @@ function parseResult(raw: string): KnowledgeInsightResult {
     ...(Array.isArray(value.refs) ? { refs: value.refs } : {}),
     ...(value.home && typeof value.home === "object" ? { home: value.home } : {}),
     ...(Number.isFinite(value.outside) ? { outside: Number(value.outside) } : {}),
+    ...(Number.isFinite(value.seenAt) ? { seenAt: Number(value.seenAt) } : {}),
   };
 }
 
@@ -296,6 +297,17 @@ export default class KnowledgeAiInsightsTable {
   static setParent(db: Database.Database, ids: number[], parentId: number): void {
     const update = db.prepare(`UPDATE knowledge_ai_insights SET parent_id = ? WHERE id = ?`);
     for (const id of ids) update.run(parentId, id);
+  }
+
+  /** 记下用户看过这份结果（不动生成时间） */
+  static markSeen(db: Database.Database, id: number, now = Date.now()): boolean {
+    const row = this.get(db, id);
+    if (!row) return false;
+    db.prepare(`UPDATE knowledge_ai_insights SET result = ? WHERE id = ?`).run(
+      JSON.stringify({ ...row.result, seenAt: now }),
+      id
+    );
+    return true;
   }
 
   /** 改一条标记或问题的处理状态；找不到返回 false（结果已被重新生成替换） */

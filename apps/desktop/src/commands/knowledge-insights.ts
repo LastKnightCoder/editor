@@ -42,6 +42,11 @@ export function linkCardsMutually(a: number, b: number) {
   );
 }
 
+/** 记下看过一份结果（项目回顾） */
+export function markKnowledgeInsightSeen(id: number) {
+  return withModule("topic-insights", () => invoke<boolean>("knowledge-insights:seen", id));
+}
+
 export function cancelKnowledgeInsights() {
   return withModule("topic-insights", () => invoke<boolean>("knowledge-insights:cancel"));
 }

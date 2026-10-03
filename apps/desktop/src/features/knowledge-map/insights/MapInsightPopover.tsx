@@ -6,7 +6,7 @@
 import { ArrowRight, ArrowUpRight, CircleHelp, Link2 } from "lucide-react";
 import { AnchoredPanel, Button, cn } from "@tau/ui";
 import type { KnowledgeEndpoint, KnowledgeMark } from "@/types/knowledge-insights";
-import { MARK_META, bothCards, connectsByDefault } from "./model";
+import { MARK_META, bothCards, connectTarget, connectsByDefault } from "./model";
 
 export interface MapInsightPopoverProps {
   mark: KnowledgeMark;
@@ -61,6 +61,8 @@ export function MapInsightPopover({
   const meta = MARK_META[mark.kind];
   const connects = connectsByDefault(mark);
   const direct = connects && bothCards(mark);
+  // 长文那一端的原文片段没核对上时，只能打开看看
+  const connectLabel = direct ? "连接" : connectTarget(mark)?.anchor ? "去连接" : "打开看看";
   const chain =
     mark.kind === "chain" && mark.missing
       ? [
@@ -156,7 +158,7 @@ export function MapInsightPopover({
               icon={direct ? Link2 : ArrowUpRight}
               onClick={() => onConnect(mark)}
             >
-              {direct ? "连接" : "去连接"}
+              {connectLabel}
             </Button>
           ) : (
             <Button size="sm" variant="primary" icon={CircleHelp} onClick={() => onQuestion(mark)}>
@@ -168,7 +170,7 @@ export function MapInsightPopover({
           </Button>
           {walking && (
             <span className="text-ink-3 ml-auto text-[11px]">
-              回车{connects ? (direct ? "连接" : "去连接") : "记为问题"} · ⌫ 不相关
+              回车{connects ? connectLabel : "记为问题"} · ⌫ 不相关
             </span>
           )}
         </div>

@@ -49,7 +49,15 @@ function phaseText(phase: ContentInsightsPhase | null) {
 }
 
 /** 中间是这篇；实线 = 已连着的，虚线空心 = 还可以连的；最多各画 8 个点 */
-function MiniGraph({ known, pending, fresh }: { known: number; pending: number; fresh: boolean }) {
+export function MiniGraph({
+  known,
+  pending,
+  fresh,
+}: {
+  known: number;
+  pending: number;
+  fresh: boolean;
+}) {
   const solid = Math.min(known, 8);
   const dashed = Math.min(pending, 8);
   const total = Math.max(solid + dashed, 1);

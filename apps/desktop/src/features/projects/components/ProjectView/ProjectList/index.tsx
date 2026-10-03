@@ -1,9 +1,10 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useContext, useEffect, useState, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Network, House, ListTree, Plus } from "lucide-react";
 import { ChevronDown } from "lucide-react";
 import { DEFAULT_COLUMNS, DEFAULT_ROWS } from "@/constants";
 import ProjectItem from "./ProjectItem";
+import { ProjectReviewContext } from "../../../review/ProjectReviewContext";
 import If from "@/components/If";
 import For from "@/components/For";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
@@ -72,6 +73,7 @@ import { toast, Tooltip, Menu } from "@tau/ui";
 const Project = () => {
   const uploadResource = useUploadResource();
   const { projectId: id, itemId } = useProjectContext();
+  const reviewTree = useContext(ProjectReviewContext);
   const { navigator } = usePage();
   const { setting } = useSettingStore(state => ({ setting: state.setting }));
   const databaseName = setting.database.active;
@@ -629,7 +631,7 @@ const Project = () => {
               >
                 <House className="size-4" strokeWidth={1.75} />
               </button>
-              <div className="flex-1 overflow-hidden">
+              <div className="flex flex-1 items-center gap-1 overflow-hidden">
                 <Menu
                   open={projectMenuOpen}
                   onOpenChange={setProjectMenuOpen}
@@ -660,6 +662,7 @@ const Project = () => {
                     </Menu.Item>
                   ))}
                 </Menu>
+                {reviewTree?.button}
               </div>
             </div>
             <div className="flex items-center gap-3">

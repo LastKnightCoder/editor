@@ -39,7 +39,7 @@ const KINDS: MapItemKind[] = ["card", "article", "project-item"];
 const EMPTY_TOPICS: KnowledgeMapTopic[] = [];
 
 export function KnowledgeMapView() {
-  const params = usePageParams<{ focus?: string }>();
+  const params = usePageParams<{ focus?: string; insight?: string }>();
   const query = useKnowledgeMap(true);
   const items = useMemo(() => query.data?.items ?? [], [query.data]);
   const graphItems = useMemo(() => toGraphItems(items), [items]);
@@ -98,7 +98,7 @@ export function KnowledgeMapView() {
   }, [autoplay]);
 
   const captionHint = invite ? `长到 ${invite} 条了 · 看看它是怎么长出来的` : null;
-  const insights = useMapInsights(query.data?.map?.topics ?? EMPTY_TOPICS);
+  const insights = useMapInsights(query.data?.map?.topics ?? EMPTY_TOPICS, params.insight);
   const currentProject = projects.find(project => project.id === filter.projectId) ?? null;
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
 

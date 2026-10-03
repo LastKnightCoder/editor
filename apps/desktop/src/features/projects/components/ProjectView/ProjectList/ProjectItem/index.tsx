@@ -1,3 +1,4 @@
+import { ProjectReviewSlot } from "../../../../review/ProjectReviewContext";
 import { useState, useEffect, memo, useRef, useMemo } from "react";
 import classnames from "classnames";
 import { useCreation, useMemoizedFn } from "ahooks";
@@ -878,6 +879,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             />
           </div>
         </div>
+        <ProjectReviewSlot itemId={projectItem.id} />
       </div>
       <ContentSelectorModal
         title={"选择关联卡片"}

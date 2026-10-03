@@ -18,6 +18,8 @@ const schema = createPageSchema({
   // 定位到文档树具体条目（跨项目跳转/新建后定位；同项目内点击走域内 setActiveItemId）
   itemId: paramOptional(paramNumber()),
   at: paramOptional(paramString()),
+  // "1"：打开时展开项目回顾（今日页「洞见」卡的「打开回顾」）
+  review: paramOptional(paramString()),
 });
 
 export default definePage({
