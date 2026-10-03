@@ -6,6 +6,9 @@
  * frame（包住编辑器，提供定位容器、段尾淡注、气泡与逐条看操作条）。
  * 视图里不切编辑器只读：只读会撤掉 AI 编辑上下文登记与协作在线状态；改为「点正文或开始输入即退出」，
  * 连接走正常的编辑操作。
+ *
+ * 从知识地图「去连接」打开时（services/insight-focus），视图只画地图带来的那一处、不显示报告卡，
+ * 处理结果回写到地图那一条。
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -18,6 +21,11 @@ import { contextCount } from "@/features/context/model";
 import { useEntityContext } from "@/features/context/queries";
 import type { EntityRef } from "@/entity/ref";
 import { useOverlayDismiss } from "@/page/PageProvider";
+import {
+  subscribeInsightFocus,
+  takeInsightFocus,
+  type InsightFocus,
+} from "@/services/insight-focus";
 import { requestQuestionCapture } from "@/services/question-capture";
 import { openEntity } from "@/services/open-content";
 import type { InsightAsk, InsightKind, InsightMark } from "@/types/content-insights";
@@ -63,10 +71,14 @@ export function useInsightsView({
   const [walking, setWalking] = useState(false);
   const [freshLink, setFreshLink] = useState<string | null>(null);
   const [frameEl, setFrameEl] = useState<HTMLDivElement | null>(null);
+  const [focus, setFocus] = useState<InsightFocus | null>(null);
   const phase = useInsightsPhase(contentId, view === "reading");
   const on = view === "on";
 
-  const marks = useMemo(() => insights?.result.marks ?? [], [insights]);
+  const marks = useMemo(
+    () => (focus ? [focus.mark] : (insights?.result.marks ?? [])),
+    [focus, insights]
+  );
   const openMarks = useMemo(() => marks.filter(mark => mark.status === "open"), [marks]);
   // 逐条看的顺序：画在字上的按正文顺序，可以展开排在各自那一块之后
   const walkOrder = useMemo(
@@ -81,10 +93,25 @@ export function useInsightsView({
     setView("off");
     setCurrent(null);
     setWalking(false);
+    setFocus(null);
   }, []);
 
   // 切到另一篇时收起
   useEffect(() => exit(), [ref.kind, ref.id, exit]);
+
+  // 从知识地图「去连接」过来：只画那一处并弹出气泡
+  useEffect(() => {
+    const take = () => {
+      const next = takeInsightFocus({ kind: ref.kind, id: ref.id });
+      if (!next) return;
+      setFocus(next);
+      setWalking(false);
+      setView("on");
+      setCurrent(next.mark.id);
+    };
+    take();
+    return subscribeInsightFocus(take);
+  }, [ref.kind, ref.id]);
 
   const enter = useCallback(() => {
     const editor = getEditor();
@@ -129,6 +156,11 @@ export function useInsightsView({
     mark: InsightMark | InsightAsk,
     status: "linked" | "questioned" | "dismissed"
   ) => {
+    if (focus) {
+      if (status !== "questioned") focus.onResolved(status);
+      exit();
+      return;
+    }
     setStatus.mutate({ itemId: mark.id, status });
     if (walking) {
       const rest = walkOrder.filter(item => item.id !== mark.id);
@@ -275,15 +307,23 @@ export function useInsightsView({
       setAnchorEl(null);
       return;
     }
-    const raf = requestAnimationFrame(() =>
-      setAnchorEl(
-        frameEl.querySelector<HTMLElement>(
-          `[data-insight-mark="${currentMark.id}"], [data-insight-gap="${currentMark.id}"]`
-        )
-      )
-    );
+    // 从别处打开过来时正文可能还在加载：多等几帧再找
+    let tries = 0;
+    let raf = 0;
+    const find = () => {
+      const el = frameEl.querySelector<HTMLElement>(
+        `[data-insight-mark="${currentMark.id}"], [data-insight-gap="${currentMark.id}"]`
+      );
+      if (el || ++tries > 90) {
+        setAnchorEl(el);
+        if (el && focus) el.scrollIntoView({ block: "center" });
+        return;
+      }
+      raf = requestAnimationFrame(find);
+    };
+    raf = requestAnimationFrame(find);
     return () => cancelAnimationFrame(raf);
-  }, [currentMark, frameEl, gapPositions]);
+  }, [currentMark, frameEl, gapPositions, focus]);
 
   /* ── 渲染件 ── */
   const hasOpen = Boolean(insights && openMarks.length);
@@ -310,7 +350,7 @@ export function useInsightsView({
   ) : null;
 
   const report =
-    view === "off" ? null : (
+    view === "off" || focus ? null : (
       <InsightsReport
         insights={view === "reading" ? null : insights}
         reading={view === "reading"}

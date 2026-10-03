@@ -12,9 +12,10 @@ import { createPortal } from "react-dom";
 import { Loader2, Sparkles } from "lucide-react";
 import { Button, cn, toast } from "@tau/ui";
 import type { GraphOverlayApi } from "@/components/LinkGraph";
-import { linkCardsMutually } from "@/commands/knowledge-insights";
+import { linkCardsMutually, setKnowledgeInsightStatus } from "@/commands/knowledge-insights";
 import type { KnowledgeMapTopic } from "@/knowledge-map/types";
 import { useOverlayDismiss } from "@/page/PageProvider";
+import { requestInsightFocus } from "@/services/insight-focus";
 import { openEntity } from "@/services/open-content";
 import { requestQuestionCapture } from "@/services/question-capture";
 import type { InsightAsk } from "@/types/content-insights";
@@ -31,9 +32,11 @@ import {
   bothCards,
   connectTarget,
   connectsByDefault,
+  focusMarkOf,
   hasUnseen,
   nodeOfLevel,
   openMarks,
+  parseInsightParam,
   questionDraft,
   topicsWithFindings,
   visibleMarks,
@@ -46,7 +49,7 @@ const GLOBAL: MapLevel = { kind: "global" };
 /** 镜头飞进主题后再开始画，免得标记在飞行途中被拉着走 */
 const LEVEL_SWITCH_DELAY_MS = 450;
 
-export function useMapInsights(topics: KnowledgeMapTopic[]) {
+export function useMapInsights(topics: KnowledgeMapTopic[], initial?: string) {
   const { enabled, data, analyze, setStatus } = useKnowledgeInsights();
   const [api, setApi] = useState<GraphOverlayApi | null>(null);
   const [view, setView] = useState<ViewState>("off");
@@ -144,6 +147,32 @@ export function useMapInsights(topics: KnowledgeMapTopic[]) {
     else exit();
   }, view !== "off");
 
+  // 带着 insight 参数进来（今日页「去看看」）：直接点亮那一处；同一个参数只处理一次
+  const handledParam = useRef<string | null>(null);
+  useEffect(() => {
+    if (!initial || handledParam.current === initial || !data?.global || !api) return;
+    const target = parseInsightParam(initial);
+    handledParam.current = initial;
+    if (!target) return;
+    if (levelTimer.current) clearTimeout(levelTimer.current);
+    setWalking(false);
+    setView("on");
+    if (target.level.kind === "topic") {
+      setCurrent(null);
+      api.flyToTopic(target.level.topicId);
+      const next = target.level;
+      levelTimer.current = setTimeout(() => {
+        setLevel(next);
+        setRevealKey(key => key + 1);
+        setCurrent(target.markId);
+      }, LEVEL_SWITCH_DELAY_MS);
+    } else {
+      setLevel(GLOBAL);
+      setRevealKey(key => key + 1);
+      setCurrent(target.markId);
+    }
+  }, [initial, data, api]);
+
   /* ── 动作 ── */
   const resolveTo = (itemId: string, status: "linked" | "questioned" | "dismissed") => {
     if (node) setStatus.mutate({ nodeId: node.id, itemId, status });
@@ -173,9 +202,21 @@ export function useMapInsights(topics: KnowledgeMapTopic[]) {
         .catch(error => toast.error(error instanceof Error ? error.message : "连接失败"));
       return;
     }
-    // 有一端是长文：到那篇里、在那几个字上连（content-link）
+    // 有一端是长文：到那篇里、只画这一处，在那几个字上连（content-link），结果回写到这一条
     const target = connectTarget(mark);
-    if (target) open(target);
+    if (!target) return;
+    const focusMark = focusMarkOf(mark, target);
+    const nodeId = node?.id;
+    if (focusMark && nodeId !== undefined) {
+      requestInsightFocus({
+        ref: target.ref,
+        mark: focusMark,
+        onResolved: status => {
+          setKnowledgeInsightStatus(nodeId, mark.id, status).catch(() => undefined);
+        },
+      });
+    }
+    open(target);
   };
 
   const question = (mark: KnowledgeMark) => {

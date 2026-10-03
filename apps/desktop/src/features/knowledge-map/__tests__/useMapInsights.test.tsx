@@ -14,6 +14,8 @@ const mocks = vi.hoisted(() => ({
   setStatus: vi.fn(),
   capture: vi.fn(),
   link: vi.fn(async () => true),
+  setRemoteStatus: vi.fn(async () => true),
+  focus: vi.fn(),
   openEntity: vi.fn(async () => {}),
   dismiss: null as null | (() => void),
 }));
@@ -56,7 +58,11 @@ vi.mock("@/page/PageProvider", () => ({
 }));
 vi.mock("@/services/question-capture", () => ({ requestQuestionCapture: mocks.capture }));
 vi.mock("@/services/open-content", () => ({ openEntity: mocks.openEntity }));
-vi.mock("@/commands/knowledge-insights", () => ({ linkCardsMutually: mocks.link }));
+vi.mock("@/commands/knowledge-insights", () => ({
+  linkCardsMutually: mocks.link,
+  setKnowledgeInsightStatus: mocks.setRemoteStatus,
+}));
+vi.mock("@/services/insight-focus", () => ({ requestInsightFocus: mocks.focus }));
 
 import { useMapInsights } from "../insights/useMapInsights";
 
@@ -96,6 +102,7 @@ const fixture = (): KnowledgeInsightsPayload => ({
   configured: true,
   running: false,
   coverage: 1,
+  projects: [],
   global: node(1, "global", [
     {
       id: "g1",
@@ -243,9 +250,11 @@ describe("知识地图的洞见视图", () => {
     expect(container.textContent).toContain("全部主题");
     expect(container.querySelector('[data-map-mark="t1"]')).not.toBeNull();
 
+    // 长文一端没有核对过的原文片段：只能打开看看，不登记
     await click(container.querySelector('[data-map-mark="t1"]'));
-    await click(buttonByText("去连接"));
+    await click(buttonByText("打开看看"));
     expect(mocks.openEntity).toHaveBeenCalledWith({ kind: "article", id: 3 }, { at: { block: 3 } });
+    expect(mocks.focus).not.toHaveBeenCalled();
     expect(mocks.link).not.toHaveBeenCalled();
 
     // Esc：先关气泡，再回到全局，再退出
@@ -279,5 +288,31 @@ describe("知识地图的洞见视图", () => {
     expect(mocks.setStatus).toHaveBeenCalledWith({ nodeId: 1, itemId: "g2", status: "dismissed" });
     await act(async () => mocks.dismiss?.());
     expect(document.body.textContent).not.toContain("↑↓ 切换");
+  });
+
+  it("去连接：长文一端有原文片段时登记这一处，处理结果回写到地图那一条", async () => {
+    const data = fixture();
+    data.topics[0].result.marks[0].ends[1] = { ...end("article", 3), anchor: "词法环境" };
+    mocks.data = data;
+    await render();
+    await click(buttonByText("AI 洞见"));
+    await click(container.querySelector('[data-map-topic="5"]'));
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+    });
+    await click(container.querySelector('[data-map-mark="t1"]'));
+    await click(buttonByText("去连接"));
+    expect(mocks.focus).toHaveBeenCalledTimes(1);
+    const focus = mocks.focus.mock.calls[0][0];
+    expect(focus.ref).toEqual({ kind: "article", id: 3 });
+    expect(focus.mark).toMatchObject({
+      kind: "dup",
+      block: 3,
+      anchor: "词法环境",
+      target: { ref: { kind: "card", id: 1 } },
+    });
+    expect(mocks.openEntity).toHaveBeenCalledWith({ kind: "article", id: 3 }, { at: { block: 3 } });
+    focus.onResolved("linked");
+    expect(mocks.setRemoteStatus).toHaveBeenCalledWith(2, "t1", "linked");
   });
 });

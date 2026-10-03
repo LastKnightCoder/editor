@@ -85,6 +85,8 @@ export interface KnowledgeInsightResult {
   home?: { projectId: number; title: string };
   /** 项目回顾：和项目外笔记已有的连接数（小关系图） */
   outside?: number;
+  /** 用户看过这份结果的时间（打开回顾、今日卡点「知道了」）；重新生成后清空 */
+  seenAt?: number;
 }
 
 /** 给上一层读的部分 */
@@ -106,6 +108,8 @@ export interface KnowledgeInsightNode {
   label: string;
   /** 当前知识地图上的主题 id（对得上时）；全局与项目为 null */
   topicId: number | null;
+  /** 项目回顾的种类 */
+  reviewKind?: "growth" | "final";
   result: KnowledgeInsightResult;
   model: string;
   updateTime: number;
@@ -125,4 +129,6 @@ export interface KnowledgeInsightsPayload {
   coverage: number;
   global: KnowledgeInsightNode | null;
   topics: KnowledgeInsightNode[];
+  /** 项目回顾（生长 / 结项）；kind 见 reviewKind */
+  projects: KnowledgeInsightNode[];
 }

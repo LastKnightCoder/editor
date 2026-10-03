@@ -192,4 +192,26 @@ describe("KnowledgeAiInsightsTable", () => {
     expect(linkCardsMutually(db, a, 404)).toEqual([]);
     expect(linksOf(a)).toEqual([b]);
   });
+
+  it("记下看过不动生成时间；重新生成后清空", () => {
+    const row = KnowledgeAiInsightsTable.save(
+      db,
+      input([], { scope: "project", projectId: 3 }),
+      null,
+      100
+    );
+    expect(KnowledgeAiInsightsTable.markSeen(db, row.id, 200)).toBe(true);
+    expect(KnowledgeAiInsightsTable.get(db, row.id)).toMatchObject({
+      updateTime: 100,
+      result: { seenAt: 200 },
+    });
+    const next = KnowledgeAiInsightsTable.save(
+      db,
+      input([], { scope: "project", projectId: 3 }),
+      row.id,
+      300
+    );
+    expect(next.result.seenAt).toBeUndefined();
+    expect(KnowledgeAiInsightsTable.markSeen(db, 404)).toBe(false);
+  });
 });

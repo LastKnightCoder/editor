@@ -16,7 +16,7 @@ import { useProjectTreeStore } from "../projectTreeStore";
 import ProjectView from "../components/ProjectView";
 
 export function ProjectDetailView() {
-  const { id, itemId } = usePageParams<{ id: number; itemId?: number }>();
+  const { id, itemId, review } = usePageParams<{ id: number; itemId?: number; review?: string }>();
   const { project, loading } = useProjectDetail(id);
   useRecordProjectOpen(id, itemId, !!project);
   const { navigator } = usePage();
@@ -70,5 +70,5 @@ export function ProjectDetailView() {
     );
   }
 
-  return <ProjectView projectId={id} itemId={itemId} />;
+  return <ProjectView projectId={id} itemId={itemId} openReview={review === "1"} />;
 }

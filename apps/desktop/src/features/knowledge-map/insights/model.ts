@@ -4,6 +4,7 @@
  */
 
 import type { EntityRef } from "@/entity/ref";
+import type { InsightMark } from "@/types/content-insights";
 import type { QuestionCaptureSource } from "@/services/question-capture";
 import type {
   KnowledgeEndpoint,
@@ -42,6 +43,25 @@ export const KIND_ORDER: KnowledgeMarkKind[] = [
 export type MapLevel = { kind: "global" } | { kind: "topic"; topicId: number };
 
 export const endpointKey = (end: KnowledgeEndpoint) => `${end.ref.kind}:${end.ref.id}`;
+
+/** 页面参数 insight：打开地图时直接点亮的那一处 */
+export function parseInsightParam(
+  raw: string | undefined
+): { level: MapLevel; markId: string | null } | null {
+  if (!raw) return null;
+  const [scope, first, second] = raw.split(":");
+  if (scope === "global" && first) return { level: { kind: "global" }, markId: first };
+  const topicId = Number(first);
+  if (scope === "topic" && Number.isSafeInteger(topicId)) {
+    return { level: { kind: "topic", topicId }, markId: second || null };
+  }
+  return null;
+}
+
+export const insightParam = (level: MapLevel, markId?: string) =>
+  level.kind === "global"
+    ? `global:${markId ?? ""}`
+    : `topic:${level.topicId}${markId ? `:${markId}` : ""}`;
 
 /** 这一层对应的结果；主题层取不到（主题已不在地图上）时为 null */
 export function nodeOfLevel(
@@ -87,6 +107,33 @@ export function connectTarget(mark: KnowledgeMark): KnowledgeEndpoint | null {
     mark.ends.find(end => end.ref.kind !== "card") ??
     null
   );
+}
+
+/**
+ * 去连接时交给那篇文档洞见视图的一处：画在长文那一端的原文片段上，对方是另一端；
+ * 没有逐字核对过的片段时返回 null（只能打开看看）。
+ */
+export function focusMarkOf(mark: KnowledgeMark, here: KnowledgeEndpoint): InsightMark | null {
+  const other = mark.ends.find(end => end !== here);
+  if (!here.anchor || !other) return null;
+  return {
+    id: `map-${mark.id}`,
+    kind: mark.kind === "dup" ? "dup" : "link",
+    block: here.block,
+    anchor: here.anchor,
+    text: "",
+    why: mark.kind === "bridge" && mark.text ? `${mark.text}。${mark.why}` : mark.why,
+    target: {
+      ref: other.ref,
+      contentId: other.contentId,
+      title: other.title,
+      heading: other.heading,
+      block: other.block,
+      excerpt: other.excerpt,
+    },
+    ...(mark.kind === "dup" ? { mine: here.excerpt, theirs: other.excerpt } : {}),
+    status: "open",
+  };
 }
 
 const QUESTION_TARGET: Record<EntityRef["kind"], QuestionLinkTargetType | null> = {

@@ -149,6 +149,13 @@ class KnowledgeInsightsModule implements Module {
         return changed.length > 0;
       }
     );
+    // 打开回顾、今日卡点「知道了」：记下看过，按钮与今日卡上的小点随之消失
+    ipcMain.handle("knowledge-insights:seen", async (event, id: unknown) => {
+      const { mainDb, dbName } = await this.databases(event.sender);
+      const ok = KnowledgeAiInsightsTable.markSeen(mainDb, Number(id));
+      if (ok) broadcastDatabaseChange(KNOWLEDGE_INSIGHTS_CHANGED_EVENT, dbName);
+      return ok;
+    });
     ipcMain.handle("knowledge-insights:cancel", async () => {
       this.abort?.abort();
       return true;

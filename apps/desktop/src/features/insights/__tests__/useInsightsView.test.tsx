@@ -46,6 +46,7 @@ vi.mock("@/page/PageProvider", () => ({
 vi.mock("@/services/question-capture", () => ({ requestQuestionCapture: mocks.capture }));
 vi.mock("@/services/open-content", () => ({ openEntity: mocks.openEntity }));
 
+import { requestInsightFocus } from "@/services/insight-focus";
 import { InsightLeaf } from "../components/InsightLeaf";
 import { useInsightsView } from "../useInsightsView";
 
@@ -271,6 +272,30 @@ describe("洞见视图", () => {
     await act(async () => mocks.dismiss?.());
     expect(document.body.textContent).not.toContain("↑↓ 切换");
     await act(async () => mocks.dismiss?.());
+    expect(byText("AI 洞见")).toBeTruthy();
+  });
+
+  it("从知识地图去连接：只画带来的那一处、不显示报告卡，连接后回写到地图", async () => {
+    mocks.insights = fixture();
+    const onResolved = vi.fn();
+    await act(async () => {
+      requestInsightFocus({
+        ref: { kind: "article", id: 3 },
+        mark: { ...fixture().result.marks[0], id: "map-t1", why: "地图上的重复" },
+        onResolved,
+      });
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(20);
+    });
+    expect(byText("退出洞见")).toBeTruthy();
+    expect(document.body.textContent).not.toContain("这是渲染主题里的一篇。");
+    expect(document.querySelectorAll('[data-insight-mark="map-t1"]').length).toBeGreaterThan(0);
+    expect(document.querySelector('[data-insight-mark="m2"]')).toBeNull();
+    expect(document.body.textContent).toContain("地图上的重复");
+    click(inPopover("连接"));
+    expect(onResolved).toHaveBeenCalledWith("linked");
+    expect(mocks.setStatus).not.toHaveBeenCalled();
     expect(byText("AI 洞见")).toBeTruthy();
   });
 });

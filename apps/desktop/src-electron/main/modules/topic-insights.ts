@@ -18,6 +18,7 @@ import { splitSections } from "@/entity/sections";
 import type { KnowledgeMap } from "@/knowledge-map/types";
 import type {
   KnowledgeEndpoint,
+  KnowledgeInsightNode,
   KnowledgeInsightResult,
   KnowledgeInsightsPayload,
   KnowledgeInsightsPhase,
@@ -1120,7 +1121,11 @@ export async function analyzeKnowledge(
 
 // ───────────────────────── 读结果 ─────────────────────────
 
-const toNode = (row: KnowledgeAiInsightsRow, topicId: number | null, label?: string) => ({
+export const toNode = (
+  row: KnowledgeAiInsightsRow,
+  topicId: number | null,
+  label?: string
+): KnowledgeInsightNode => ({
   id: row.id,
   scope: row.scope,
   parentId: row.parentId,
@@ -1130,6 +1135,7 @@ const toNode = (row: KnowledgeAiInsightsRow, topicId: number | null, label?: str
   result: row.result,
   model: row.model,
   updateTime: row.updateTime,
+  ...(row.overview.kind ? { reviewKind: row.overview.kind } : {}),
 });
 
 export function readKnowledgeInsights(
@@ -1139,12 +1145,14 @@ export function readKnowledgeInsights(
 ): KnowledgeInsightsPayload {
   const rows = KnowledgeAiInsightsTable.list(mainDb);
   const globalRow = rows.find(row => row.scope === "global") ?? null;
+  const projects = rows.filter(row => row.scope === "project").map(row => toNode(row, null));
   if (!ctx) {
     return {
       ...state,
       coverage: 0,
       global: globalRow ? toNode(globalRow, null) : null,
       topics: [],
+      projects,
     };
   }
   const topicRows = rows.filter(row => row.scope === "topic");
@@ -1160,5 +1168,6 @@ export function readKnowledgeInsights(
     coverage: metaCoverage(ctx),
     global: globalRow ? toNode(globalRow, null) : null,
     topics: [...matched.entries()].map(([topic, row]) => toNode(row, topic.topicId, topic.label)),
+    projects,
   };
 }
