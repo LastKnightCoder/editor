@@ -70,4 +70,65 @@ describe("转为问题", () => {
       expect.anything()
     );
   });
+
+  it("多份材料、多段对话、没有来源", async () => {
+    mocks.resolveMaterials.mockResolvedValue([]);
+    await submitQuestionCapture(
+      {
+        kind: "materials",
+        targets: [
+          { targetType: "card", targetId: 1 },
+          { targetType: "article", targetId: 2 },
+        ],
+      },
+      "缺的那一环是什么",
+      null
+    );
+    expect(mocks.linkQuestionTargets).toHaveBeenCalledWith(
+      7,
+      [
+        { targetType: "card", targetId: 1 },
+        { targetType: "article", targetId: 2 },
+      ],
+      {},
+      expect.anything()
+    );
+
+    await submitQuestionCapture(
+      {
+        kind: "chats",
+        chats: [
+          { sessionId: "s1", messageIds: ["a"] },
+          { sessionId: "s2", messageIds: ["b", "c"] },
+        ],
+      },
+      "组播地址怎么分配",
+      null
+    );
+    expect(mocks.linkQuestionChat).toHaveBeenCalledTimes(2);
+    expect(mocks.linkQuestionChat).toHaveBeenLastCalledWith(
+      7,
+      { sessionId: "s2", messageIds: ["b", "c"] },
+      expect.anything()
+    );
+
+    vi.clearAllMocks();
+    mocks.captureQuestion.mockResolvedValue({ question, groupTitle: "默认" });
+    await submitQuestionCapture({ kind: "none" }, "还缺模块加载", null);
+    expect(mocks.captureQuestion).toHaveBeenCalledTimes(1);
+    expect(mocks.linkQuestionTargets).not.toHaveBeenCalled();
+    expect(mocks.linkQuestionChat).not.toHaveBeenCalled();
+  });
+
+  it("多份材料里有外部材料已不存在时不建问题", async () => {
+    mocks.resolveMaterials.mockResolvedValue([null]);
+    await expect(
+      submitQuestionCapture(
+        { kind: "materials", targets: [{ targetType: "excerpt", targetId: 9 }] },
+        "x",
+        null
+      )
+    ).rejects.toThrow("来源已不存在");
+    expect(mocks.captureQuestion).not.toHaveBeenCalled();
+  });
 });

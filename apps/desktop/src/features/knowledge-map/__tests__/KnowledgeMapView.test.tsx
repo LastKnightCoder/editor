@@ -73,6 +73,18 @@ vi.mock("../queries", () => ({
   useKnowledgeMap: () => ({ data: mocks.data, isPending: false, isFetching: false }),
 }));
 vi.mock("@/page/PageProvider", () => ({ usePageParams: () => mocks.params }));
+// 洞见视图有自己的测试（useMapInsights.test.tsx）；这里只看地图页本身
+vi.mock("../insights/useMapInsights", () => ({
+  useMapInsights: () => ({
+    enabled: false,
+    view: "off",
+    button: null,
+    report: null,
+    overlay: null,
+    overlayRef: () => undefined,
+    floating: null,
+  }),
+}));
 vi.mock("@/services/open-content", () => ({ openEntity: mocks.openEntity }));
 
 import { KnowledgeMapView } from "../views/KnowledgeMapView";

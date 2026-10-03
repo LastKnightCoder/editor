@@ -12,6 +12,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import type { KnowledgeMap } from "@/knowledge-map/types";
 import { Camera } from "./core/camera";
+import { clusterGeometry } from "./core/clusterGeometry";
 import type { ClusterInfo } from "./core/cluster";
 import { createLayout } from "./core/createLayout";
 import { buildScene, inheritPositions, sceneBounds } from "./core/graph";
@@ -35,7 +36,7 @@ import {
 } from "./core/positionStore";
 import { buildTimeline, revealAt, shownCount, timeAt, type Timeline } from "./core/timeline";
 import type { GraphNode, GraphPalette, GraphScene, GraphItem } from "./core/types";
-import { Canvas2DRenderer } from "./renderers/Canvas2DRenderer";
+import { Canvas2DRenderer, MAP_SUBTOPIC_LABEL_SCALE } from "./renderers/Canvas2DRenderer";
 
 /** 超过这个位移才算拖拽，否则算点击（避免手抖吞掉点击） */
 const DRAG_THRESHOLD = 3;
@@ -124,6 +125,35 @@ export interface GraphInsight {
   modularity: number;
 }
 
+/** 画布坐标里的一个圆（主题岛）：x、y 为圆心，radius 为半径（都已乘相机缩放） */
+export interface CanvasCircle {
+  x: number;
+  y: number;
+  radius: number;
+}
+
+/**
+ * 覆盖层用的坐标换算：宿主在画布上叠自己的 DOM / SVG（如 AI 洞见的标记），
+ * 每帧（平移、缩放、飞行后）重新取位置。都返回画布坐标，取不到为 null。
+ */
+export interface GraphOverlayApi {
+  /** 每次重绘后回调；返回取消订阅 */
+  subscribeFrame: (listener: () => void) => () => void;
+  /** 节点（按条目 key，如 "card:12"）的画布位置 */
+  project: (key: string) => { x: number; y: number } | null;
+  /** 地图大主题（地图里的主题 id）的岛 */
+  topicShape: (topicId: number) => CanvasCircle | null;
+  /** 地图子主题的成员中心 */
+  subtopicCenter: (subtopicId: number) => { x: number; y: number } | null;
+  /** 当前缩放；主题名在 scale ≥ subtopicLabelScale 时挪到岛的上沿 */
+  scale: () => number;
+  subtopicLabelScale: number;
+  /** 镜头飞到某个主题，让它占满视口的大半 */
+  flyToTopic: (topicId: number) => void;
+  /** 镜头回到全图 */
+  flyToAll: () => void;
+}
+
 export interface GraphEngineHandle {
   containerRef: React.RefObject<HTMLDivElement | null>;
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -138,6 +168,7 @@ export interface GraphEngineHandle {
   clearHover: () => void;
   /** 按创建时间的入场播放 */
   playback: PlaybackControls;
+  overlay: GraphOverlayApi;
 }
 
 export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
@@ -168,6 +199,11 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
   const clusterColorsRef = useRef<Map<number, string>>(new Map());
   const frameRef = useRef(0);
   const dirtyRef = useRef(true);
+  const frameListenersRef = useRef(new Set<() => void>());
+  const geometryCacheRef = useRef<{
+    scene: GraphScene;
+    shapes: ReturnType<typeof clusterGeometry>;
+  } | null>(null);
   const hoveredRef = useRef<number | null>(null);
   /** 降淡的中心与强调程度：悬停结束后中心保留到淡出完成 */
   const focusRef = useRef<number | null>(null);
@@ -358,6 +394,7 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
       adjacentIds: focusId === null ? new Set() : (scene.adjacency.get(focusId) ?? new Set()),
       clusterColors: clusterColorsRef.current,
     });
+    for (const listener of frameListenersRef.current) listener();
   });
 
   /** 推进悬停强调的渐变；还没到终点返回 true，raf 循环据此继续画 */
@@ -778,6 +815,102 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
     dirtyRef.current = true;
   });
 
+  const keyToId = useMemo(() => new Map(items.map(item => [item.key, item.id])), [items]);
+  const shapesOf = (scene: GraphScene) => {
+    const cached = geometryCacheRef.current;
+    if (cached?.scene === scene) return cached.shapes;
+    const shapes = clusterGeometry(scene);
+    geometryCacheRef.current = { scene, shapes };
+    return shapes;
+  };
+  const worldTopic = useMemoizedFn((topicId: number) => {
+    const scene = sceneRef.current;
+    if (!scene || !isMapScene(scene)) return null;
+    const cluster = scene.topicCluster.get(topicId);
+    return cluster === undefined ? null : (shapesOf(scene).get(cluster) ?? null);
+  });
+  const overlay = useMemo<GraphOverlayApi>(
+    () => ({
+      subscribeFrame: listener => {
+        frameListenersRef.current.add(listener);
+        dirtyRef.current = true;
+        return () => frameListenersRef.current.delete(listener);
+      },
+      project: key => {
+        const id = keyToId.get(key);
+        const node = id === undefined ? null : sceneRef.current?.nodeById.get(id);
+        const camera = cameraRef.current;
+        if (!node || !camera) return null;
+        const [x, y] = camera.toCanvas(node.x, node.y);
+        return { x, y };
+      },
+      topicShape: topicId => {
+        const shape = worldTopic(topicId);
+        const camera = cameraRef.current;
+        if (!shape || !camera) return null;
+        const [x, y] = camera.toCanvas(shape.x, shape.y);
+        return { x, y, radius: shape.radius * camera.scale };
+      },
+      subtopicCenter: subtopicId => {
+        const scene = sceneRef.current;
+        const camera = cameraRef.current;
+        if (!scene || !camera || !isMapScene(scene)) return null;
+        const sub = scene.subtopics.find(item => item.id === subtopicId);
+        if (!sub?.members.length) return null;
+        let sumX = 0;
+        let sumY = 0;
+        let count = 0;
+        for (const id of sub.members) {
+          const node = scene.nodeById.get(id);
+          if (!node) continue;
+          sumX += node.x;
+          sumY += node.y;
+          count += 1;
+        }
+        if (!count) return null;
+        const [x, y] = camera.toCanvas(sumX / count, sumY / count);
+        return { x, y };
+      },
+      scale: () => cameraRef.current?.scale ?? 1,
+      subtopicLabelScale: MAP_SUBTOPIC_LABEL_SCALE,
+      flyToTopic: topicId => {
+        const shape = worldTopic(topicId);
+        const camera = cameraRef.current;
+        const container = containerRef.current;
+        if (!shape || !camera || !container) return;
+        const viewport = Math.min(container.clientWidth, container.clientHeight) || 600;
+        // 岛的直径占视口短边的七成；最少放大到能看清子主题名
+        const scale = Math.max(
+          MAP_SUBTOPIC_LABEL_SCALE * 1.05,
+          (viewport * 0.7) / Math.max(1, shape.radius * 2)
+        );
+        camera.flyTo({ x: shape.x, y: shape.y, scale }, 700);
+        dirtyRef.current = true;
+      },
+      flyToAll: () => {
+        const scene = sceneRef.current;
+        const camera = cameraRef.current;
+        const container = containerRef.current;
+        if (!scene || !camera || !container) return;
+        // 先算出全图视角，再从当前视角飞过去（fit 是瞬移）
+        const from = { ...camera.current };
+        camera.fit(sceneBounds(scene), fitViewPadding);
+        const target = camera.current;
+        camera.restore(from);
+        camera.flyTo(
+          {
+            x: container.clientWidth / 2 / target.scale - target.offsetX,
+            y: container.clientHeight / 2 / target.scale - target.offsetY,
+            scale: target.scale,
+          },
+          700
+        );
+        dirtyRef.current = true;
+      },
+    }),
+    [keyToId, worldTopic, fitViewPadding]
+  );
+
   const playback = useMemo<PlaybackControls>(
     () => ({ state: playbackState, play, stop: stopPlayback }),
     [playbackState, play, stopPlayback]
@@ -792,5 +925,6 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
     anchorOf,
     clearHover,
     playback,
+    overlay,
   };
 }

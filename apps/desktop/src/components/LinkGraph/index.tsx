@@ -20,9 +20,15 @@ import Loading from "@/components/Loading";
 import type { KnowledgeMap } from "@/knowledge-map/types";
 import { GraphCaption } from "./GraphCaption";
 import type { GraphItem } from "./core/types";
-import { useGraphEngine, type GraphInsight, type PlaybackState } from "./useGraphEngine";
+import {
+  useGraphEngine,
+  type CanvasCircle,
+  type GraphInsight,
+  type GraphOverlayApi,
+  type PlaybackState,
+} from "./useGraphEngine";
 
-export type { GraphInsight, GraphItem, PlaybackState };
+export type { CanvasCircle, GraphInsight, GraphItem, GraphOverlayApi, PlaybackState };
 
 /** 宿主手里的动画把手：用于「第一次进入自动播一次」这类时机触发 */
 export interface LinkGraphPlaybackHandle {
@@ -73,6 +79,13 @@ interface ILinkGraphProps {
   playbackRef?: Ref<LinkGraphPlaybackHandle>;
   /** 播放开始 / 结束 */
   onPlaybackChange?: (state: PlaybackState) => void;
+  /**
+   * 叠在画布上的宿主内容（如 AI 洞见的标记）。容器不接指针事件，里面需要点的元素自己开 pointer-events；
+   * 位置经 overlayRef 拿到的 GraphOverlayApi 每帧换算。
+   */
+  overlay?: React.ReactNode;
+  /** 覆盖层坐标换算与镜头控制 */
+  overlayRef?: Ref<GraphOverlayApi>;
 }
 
 const defaultFitViewPadding = [40];
@@ -101,6 +114,8 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     captionHint = null,
     playbackRef,
     onPlaybackChange,
+    overlay,
+    overlayRef,
   } = props;
 
   // 说明行的「始于」：最早一个条目的创建时间
@@ -173,6 +188,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     () => ({ play: engine.playback.play, stop: engine.playback.stop }),
     [engine.playback.play, engine.playback.stop]
   );
+  useImperativeHandle(overlayRef, () => engine.overlay, [engine.overlay]);
   const playbackActive = engine.playback.state.active;
   const emitPlayback = useMemoizedFn(() => onPlaybackChange?.(engine.playback.state));
   useEffect(emitPlayback, [playbackActive, emitPlayback]);
@@ -228,6 +244,9 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     >
       <canvas ref={engine.canvasRef} className="block h-full w-full touch-none" />
       <div ref={anchorRef} className="pointer-events-none absolute h-0 w-0" />
+      {overlay && engine.ready && (
+        <div className="pointer-events-none absolute inset-0">{overlay}</div>
+      )}
       {caption && engine.ready && (
         <GraphCaption
           playback={engine.playback}

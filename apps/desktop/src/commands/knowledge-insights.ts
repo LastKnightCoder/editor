@@ -35,6 +35,13 @@ export function reviewProject(projectId: number) {
   );
 }
 
+/** 两张卡片互相连接（双向链接）；已经连着返回 false */
+export function linkCardsMutually(a: number, b: number) {
+  return withModule("topic-insights", () =>
+    invoke<boolean>("knowledge-insights:link-cards", { a, b })
+  );
+}
+
 export function cancelKnowledgeInsights() {
   return withModule("topic-insights", () => invoke<boolean>("knowledge-insights:cancel"));
 }

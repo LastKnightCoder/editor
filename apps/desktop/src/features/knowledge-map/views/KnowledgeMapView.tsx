@@ -6,6 +6,8 @@
  *
  * 入场动画的时机见 milestones：这个库第一次进入地图时自动播一次；之后节点数跨过里程碑，
  * 左下角说明行换成邀请语，点了才播。
+ *
+ * 标题行右侧「✦ AI 洞见」进入洞见视图（insights/useMapInsights）：报告卡插在筛选行下面，标记画在地图的覆盖层上。
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -13,6 +15,7 @@ import { ChevronDown, FolderKanban } from "lucide-react";
 import { FilterPill, Menu, cn, toast } from "@tau/ui";
 import LinkGraph, { type LinkGraphPlaybackHandle } from "@/components/LinkGraph";
 import { normalizeEntityRefKind } from "@/entity/ref";
+import type { KnowledgeMapTopic } from "@/knowledge-map/types";
 import { usePageParams } from "@/page/PageProvider";
 import { openEntity } from "@/services/open-content";
 import useSettingStore from "@/stores/useSettingStore";
@@ -27,11 +30,13 @@ import {
   type MapFilter,
   type MapItemKind,
 } from "../model";
+import { useMapInsights } from "../insights/useMapInsights";
 import { useKnowledgeMap } from "../queries";
 
 /** 等地图画出第一帧再自动播：刚挂载时画布尺寸与相机还没就绪 */
 const AUTOPLAY_DELAY = 400;
 const KINDS: MapItemKind[] = ["card", "article", "project-item"];
+const EMPTY_TOPICS: KnowledgeMapTopic[] = [];
 
 export function KnowledgeMapView() {
   const params = usePageParams<{ focus?: string }>();
@@ -93,6 +98,7 @@ export function KnowledgeMapView() {
   }, [autoplay]);
 
   const captionHint = invite ? `长到 ${invite} 条了 · 看看它是怎么长出来的` : null;
+  const insights = useMapInsights(query.data?.map?.topics ?? EMPTY_TOPICS);
   const currentProject = projects.find(project => project.id === filter.projectId) ?? null;
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
 
@@ -106,6 +112,7 @@ export function KnowledgeMapView() {
           <span className="text-tau-meta text-ink-2 w-0 flex-1 truncate whitespace-nowrap tabular-nums">
             {KINDS.map(kind => `${KIND_LABEL[kind]} ${counts[kind]}`).join(" · ")}
           </span>
+          {query.data?.map && insights.button}
         </div>
         <div className="flex flex-none items-center gap-1.5 px-8 pb-3">
           <FilterPill
@@ -169,6 +176,7 @@ export function KnowledgeMapView() {
             </Menu>
           )}
         </div>
+        {insights.report}
         <div className="border-line-2 min-h-0 min-w-0 flex-1 overflow-hidden border-t">
           {graphShown && items.length === 0 ? (
             <div className="text-ink-3 text-tau-meta flex h-full items-center justify-center">
@@ -202,11 +210,14 @@ export function KnowledgeMapView() {
                 // 地图还没算出来时退回链接图谱，其布局坐标跨重启保持
                 persistKey="knowledge-map"
                 knowledgeMap={query.data?.map ?? null}
+                overlay={insights.overlay}
+                overlayRef={insights.overlayRef}
               />
             )
           )}
         </div>
       </div>
+      {insights.floating}
     </div>
   );
 }

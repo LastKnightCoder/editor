@@ -4,6 +4,7 @@ import schema from "@tau/db-schema/schema/main.sql?raw";
 import type { KnowledgeInsightResult, KnowledgeMark } from "@/types/knowledge-insights";
 import KnowledgeAiInsightsTable, {
   emptyResult,
+  linkCardsMutually,
   markKey,
   memberChange,
   memberOverlap,
@@ -167,5 +168,28 @@ describe("KnowledgeAiInsightsTable", () => {
     KnowledgeAiInsightsTable.save(db, input([], { scope: "project", projectId: 404 }));
     expect(KnowledgeAiInsightsTable.removeOrphans(db)).toBe(2);
     expect(KnowledgeAiInsightsTable.list(db).map(row => row.scope)).toEqual(["subtopic", "global"]);
+  });
+
+  it("两张卡片互相连接：两边各补一条，已连着的不重复，卡片不存在时不写", () => {
+    const card = (links: number[]) =>
+      Number(
+        db
+          .prepare(
+            `INSERT INTO cards (create_time, update_time, tags, links) VALUES (1, 1, '[]', ?)`
+          )
+          .run(JSON.stringify(links)).lastInsertRowid
+      );
+    const a = card([]);
+    const b = card([a]);
+    const linksOf = (id: number) =>
+      JSON.parse(
+        (db.prepare(`SELECT links FROM cards WHERE id = ?`).get(id) as { links: string }).links
+      );
+    expect(linkCardsMutually(db, a, b, 9)).toEqual([a]);
+    expect(linksOf(a)).toEqual([b]);
+    expect(linksOf(b)).toEqual([a]);
+    expect(linkCardsMutually(db, a, b)).toEqual([]);
+    expect(linkCardsMutually(db, a, 404)).toEqual([]);
+    expect(linksOf(a)).toEqual([b]);
   });
 });

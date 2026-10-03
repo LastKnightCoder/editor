@@ -1,0 +1,157 @@
+import { describe, expect, it } from "vitest";
+import type { KnowledgeEndpoint, KnowledgeMark } from "@/types/knowledge-insights";
+import {
+  bothCards,
+  connectTarget,
+  curvePath,
+  markGeometry,
+  questionDraft,
+  topicLabelPoint,
+  walkOrder,
+  type Projector,
+} from "../insights/model";
+
+const end = (kind: "card" | "article", id: number, extra: Partial<KnowledgeEndpoint> = {}) => ({
+  ref: { kind, id },
+  contentId: id * 10,
+  title: `${kind}-${id}`,
+  topic: "JavaScript",
+  heading: "",
+  block: 2,
+  excerpt: "",
+  ...extra,
+});
+const mark = (kind: KnowledgeMark["kind"], extra: Partial<KnowledgeMark> = {}): KnowledgeMark => ({
+  id: `${kind}-1`,
+  kind,
+  why: "理由",
+  ends: [],
+  status: "open",
+  ...extra,
+});
+
+const positions: Record<string, { x: number; y: number }> = {
+  "card:1": { x: 0, y: 0 },
+  "card:2": { x: 100, y: 0 },
+  "article:3": { x: 100, y: 100 },
+};
+const projector = (scale = 1): Projector => ({
+  project: key => positions[key] ?? null,
+  topicShape: topicId => (topicId === 7 ? { x: 50, y: 50, radius: 40 } : null),
+  scale: () => scale,
+  subtopicLabelScale: 1.3,
+});
+const context = {
+  topicId: 7,
+  topicByLabel: (label: string) => (label === "JS" ? 7 : null),
+  gapIndex: 0,
+};
+
+describe("地图洞见的模型", () => {
+  it("呼应是一道弧：控制点在中垂线上，锚点在弧顶", () => {
+    const { d, apex } = curvePath({ x: 0, y: 0 }, { x: 100, y: 0 });
+    expect(d).toMatch(/^M0 0 Q50 \d+(\.\d+)? 100 0$/);
+    expect(apex.x).toBe(50);
+    expect(apex.y).toBeGreaterThan(0);
+  });
+
+  it("各类标记的几何；涉及的笔记不在地图上时不画", () => {
+    const dup = markGeometry(
+      mark("dup", { ends: [end("card", 1), end("card", 2)] }),
+      projector(),
+      context
+    );
+    expect(dup).toMatchObject({ kind: "line", anchor: { x: 50, y: 0 } });
+    expect(
+      markGeometry(
+        mark("conflict", { ends: [end("card", 1), end("card", 404)] }),
+        projector(),
+        context
+      )
+    ).toBeNull();
+    const chain = markGeometry(
+      mark("chain", {
+        ends: [end("card", 1), end("card", 2), end("article", 3)],
+        missing: { index: 1, text: "缺的" },
+      }),
+      projector(),
+      context
+    );
+    expect(chain).toMatchObject({ kind: "chain", ghost: { x: 50, y: 0 } });
+    expect(markGeometry(mark("asked", { topicLabel: "JS" }), projector(), context)).toMatchObject({
+      kind: "pin",
+      at: { x: 50 + 40 * 0.72, y: 50 - 40 * 0.72 },
+    });
+    expect(markGeometry(mark("asked", { topicLabel: "别的" }), projector(), context)).toBeNull();
+    // 还缺：远景在主题名下，进入子主题层后主题名挪到岛的上沿，淡注跟着走、多条往下排
+    expect(markGeometry(mark("gap"), projector(), { ...context, gapIndex: 1 })).toMatchObject({
+      kind: "note",
+      at: { x: 50, y: 50 + 22 + 20 },
+    });
+    expect(topicLabelPoint(projector(2), 7)).toEqual({ x: 50, y: 50 - 40 * 0.72 });
+  });
+
+  it("连接：两端都是卡片才直接连，否则去有原文片段的长文那一端", () => {
+    const cards = mark("bridge", { ends: [end("card", 1), end("card", 2)] });
+    const mixed = mark("dup", { ends: [end("card", 1), end("article", 3, { anchor: "原文" })] });
+    expect(bothCards(cards)).toBe(true);
+    expect(bothCards(mixed)).toBe(false);
+    expect(connectTarget(mixed)?.ref).toEqual({ kind: "article", id: 3 });
+    expect(connectTarget(cards)).toBeNull();
+  });
+
+  it("记为问题的来源：问了没写按会话合并；缺一环以空位后那份为主；还缺没有来源", () => {
+    const asked = questionDraft(
+      mark("asked", {
+        text: "组播地址怎么分配",
+        prompts: [
+          { sessionId: "s1", messageId: "a", text: "x", time: 3 },
+          { sessionId: "s2", messageId: "b", text: "y", time: 2 },
+          { sessionId: "s1", messageId: "c", text: "z", time: 1 },
+        ],
+      }),
+      "JS"
+    );
+    expect(asked.source).toEqual({
+      kind: "chats",
+      chats: [
+        { sessionId: "s1", messageIds: ["a", "c"] },
+        { sessionId: "s2", messageIds: ["b"] },
+      ],
+    });
+    expect(asked.defaultTitle).toBe("组播地址怎么分配");
+
+    const chain = questionDraft(
+      mark("chain", {
+        ends: [end("card", 1), end("article", 3)],
+        missing: { index: 1, text: "微任务检查点" },
+      }),
+      "JS"
+    );
+    expect(chain.source).toEqual({
+      kind: "materials",
+      targets: [
+        { targetType: "article", targetId: 3 },
+        { targetType: "card", targetId: 1 },
+      ],
+    });
+    expect(chain.defaultTitle).toBe("微任务检查点");
+
+    const gap = questionDraft(mark("gap", { text: "还缺：模块加载" }), "JavaScript");
+    expect(gap).toEqual({
+      source: { kind: "none" },
+      sourceLabel: "主题：JavaScript",
+      defaultTitle: "模块加载",
+    });
+  });
+
+  it("逐条看的顺序按类型，同类按原顺序", () => {
+    const marks = [
+      mark("gap", { id: "g" }),
+      mark("dup", { id: "d1" }),
+      mark("conflict", { id: "c" }),
+      mark("dup", { id: "d2" }),
+    ];
+    expect(walkOrder(marks).map(item => item.id)).toEqual(["c", "d1", "d2", "g"]);
+  });
+});
