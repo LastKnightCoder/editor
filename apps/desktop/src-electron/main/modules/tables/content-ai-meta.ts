@@ -7,6 +7,9 @@
 
 import type Database from "better-sqlite3";
 
+/** 元信息写入后的写事件（经 notifyExternalWrite 补发，进脉络写事件白名单），也是渲染端的广播频道 */
+export const CONTENT_AI_META_CHANGED_EVENT = "content-ai-meta:changed";
+
 /** 元信息结构版本：加字段时升版本，低版本的行补齐 */
 export const CONTENT_AI_META_SCHEMA_VER = 1;
 

@@ -5,6 +5,7 @@
  * 命中时通知渲染端刷新脉络（引用本身的变化由引用索引器负责通知）。
  */
 
+import { CONTENT_AI_META_CHANGED_EVENT } from "../tables/content-ai-meta";
 import { WEREAD_EXCERPTS_CHANGED_EVENT } from "../tables/excerpt";
 
 export const CONTEXT_WRITE_EVENTS: ReadonlySet<string> = new Set([
@@ -65,6 +66,8 @@ export const CONTEXT_WRITE_EVENTS: ReadonlySet<string> = new Set([
   "update-pdf-annotation",
   "delete-pdf-annotation",
   "delete-pdf",
+  // AI 元信息（卡片标题与「相关」的要点），由 content-ai-queue 经 notifyExternalWrite 补发
+  CONTENT_AI_META_CHANGED_EVENT,
   // 待办关联
   "todoNote:attachExisting",
   "todoNote:createAndAttach",
