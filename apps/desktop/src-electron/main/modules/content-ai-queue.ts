@@ -51,9 +51,9 @@ const MAX_ATTEMPTS = 3;
 const ABORT_AFTER_CONSECUTIVE_FAILURES = 5;
 const NOTIFY_THROTTLE_MS = 2_000;
 const MAX_FAILURE_RECORDS = 200;
-/** token 估算：每字约 1 token，另加提示词与输出 */
-const TOKENS_PER_CHAR = 1;
-const TOKENS_OVERHEAD = 400;
+/** token 估算（deepseek-flash 120 份实测折算）：每字约 0.6 token，另加提示词与输出约 250 */
+const TOKENS_PER_CHAR = 0.6;
+const TOKENS_OVERHEAD = 250;
 
 const KIND_BY_RANK: ContentAiKind[] = ["card", "article", "project-item"];
 const EMPTY_META = { title: "", summary: "", concepts: [], claims: [] };
