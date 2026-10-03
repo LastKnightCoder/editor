@@ -24,6 +24,7 @@ import { resolveUsageSlot, type LlmRef, type SettingForLlmSlots } from "./llm-us
 import PiAiRuntimeModule from "./pi-ai-runtime";
 import { projectsDue, reviewProject } from "./project-review";
 import KnowledgeAiInsightsTable, {
+  linkCardsMutually,
   type KnowledgeAiInsightsRow,
 } from "./tables/knowledge-ai-insights";
 import KnowledgeMapTable from "./tables/knowledge-map";
@@ -132,6 +133,22 @@ class KnowledgeInsightsModule implements Module {
         return projectNode(row);
       });
     });
+    // 地图上的呼应 / 重复两端都是卡片时直接连上
+    ipcMain.handle(
+      "knowledge-insights:link-cards",
+      async (event, input: { a: number; b: number }) => {
+        const { mainDb, dbName } = await this.databases(event.sender);
+        const changed = linkCardsMutually(mainDb, Number(input?.a), Number(input?.b));
+        for (const cardId of changed) {
+          broadcastDatabaseChange("card:updated", dbName, { cardId });
+        }
+        // 引用索引、脉络与知识地图都订阅写事件
+        if (changed.length && databaseModule.getCurrentDatabaseName() === dbName) {
+          databaseModule.notifyExternalWrite("update-card");
+        }
+        return changed.length > 0;
+      }
+    );
     ipcMain.handle("knowledge-insights:cancel", async () => {
       this.abort?.abort();
       return true;

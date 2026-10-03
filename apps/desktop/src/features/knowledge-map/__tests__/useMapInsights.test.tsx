@@ -1,0 +1,283 @@
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { GraphOverlayApi } from "@/components/LinkGraph";
+import type {
+  KnowledgeEndpoint,
+  KnowledgeInsightNode,
+  KnowledgeInsightsPayload,
+} from "@/types/knowledge-insights";
+
+const mocks = vi.hoisted(() => ({
+  data: null as KnowledgeInsightsPayload | null,
+  analyze: vi.fn(),
+  setStatus: vi.fn(),
+  capture: vi.fn(),
+  link: vi.fn(async () => true),
+  openEntity: vi.fn(async () => {}),
+  dismiss: null as null | (() => void),
+}));
+
+vi.mock("../insightsQueries", () => ({
+  useKnowledgeInsights: () => ({
+    enabled: true,
+    data: mocks.data,
+    analyze: { mutate: mocks.analyze },
+    setStatus: {
+      mutate: (input: { nodeId: number; itemId: string; status: string }) => {
+        mocks.setStatus(input);
+        const patch = (node: KnowledgeInsightNode | null) =>
+          node && node.id === input.nodeId
+            ? {
+                ...node,
+                result: {
+                  ...node.result,
+                  marks: node.result.marks.map(mark =>
+                    mark.id === input.itemId ? { ...mark, status: input.status as never } : mark
+                  ),
+                },
+              }
+            : node;
+        if (mocks.data)
+          mocks.data = {
+            ...mocks.data,
+            global: patch(mocks.data.global),
+            topics: mocks.data.topics.map(topic => patch(topic)!),
+          };
+      },
+    },
+  }),
+  useKnowledgeInsightsPhase: () => null,
+}));
+vi.mock("@/page/PageProvider", () => ({
+  useOverlayDismiss: (dismiss: () => void, active: boolean) => {
+    mocks.dismiss = active ? dismiss : null;
+  },
+}));
+vi.mock("@/services/question-capture", () => ({ requestQuestionCapture: mocks.capture }));
+vi.mock("@/services/open-content", () => ({ openEntity: mocks.openEntity }));
+vi.mock("@/commands/knowledge-insights", () => ({ linkCardsMutually: mocks.link }));
+
+import { useMapInsights } from "../insights/useMapInsights";
+
+const end = (kind: "card" | "article", id: number): KnowledgeEndpoint => ({
+  ref: { kind, id },
+  contentId: id,
+  title: `${kind}-${id}`,
+  topic: "学习方法",
+  heading: "",
+  block: 3,
+  excerpt: "要点",
+});
+const node = (
+  id: number,
+  scope: "global" | "topic",
+  marks: KnowledgeInsightNode["result"]["marks"],
+  topicId: number | null = null
+): KnowledgeInsightNode => ({
+  id,
+  scope,
+  parentId: null,
+  projectId: null,
+  label: scope === "topic" ? "JavaScript" : "",
+  topicId,
+  model: "m",
+  updateTime: 1,
+  result: {
+    lead: scope === "global" ? "版图两三句" : "主题两三句",
+    marks,
+    asks: [],
+    growth: [1, 2, 3],
+    candidates: 4,
+    dismissed: [],
+  },
+});
+const fixture = (): KnowledgeInsightsPayload => ({
+  configured: true,
+  running: false,
+  coverage: 1,
+  global: node(1, "global", [
+    {
+      id: "g1",
+      kind: "bridge",
+      why: "两边都在说提取练习",
+      text: "主动回想比重读记得牢",
+      ends: [end("card", 1), end("card", 2)],
+      status: "open",
+    },
+    {
+      id: "g2",
+      kind: "asked",
+      why: "问了三次",
+      text: "组播地址怎么分配",
+      ends: [],
+      prompts: [{ sessionId: "s1", messageId: "a", text: "组播是什么", time: 1 }],
+      topicLabel: "JavaScript",
+      status: "open",
+    },
+  ]),
+  topics: [
+    node(
+      2,
+      "topic",
+      [
+        {
+          id: "t1",
+          kind: "dup",
+          why: "说的是同一件事",
+          ends: [end("card", 1), end("article", 3)],
+          status: "open",
+        },
+      ],
+      5
+    ),
+  ],
+});
+
+const api: GraphOverlayApi = {
+  subscribeFrame: () => () => undefined,
+  project: key =>
+    ({ "card:1": { x: 10, y: 10 }, "card:2": { x: 200, y: 10 }, "article:3": { x: 60, y: 90 } })[
+      key
+    ] ?? null,
+  topicShape: topicId => (topicId === 5 ? { x: 100, y: 100, radius: 60 } : null),
+  subtopicCenter: () => null,
+  scale: () => 1,
+  subtopicLabelScale: 1.3,
+  flyToTopic: vi.fn(),
+  flyToAll: vi.fn(),
+};
+
+let root: Root;
+let container: HTMLDivElement;
+
+function Harness() {
+  const insights = useMapInsights([
+    { id: 5, parent: -1, label: "JavaScript", colorSlot: 0, size: 3 },
+  ]);
+  return (
+    <div>
+      {insights.button}
+      {insights.report}
+      <div ref={() => insights.overlayRef(api)}>{insights.overlay}</div>
+      {insights.floating}
+    </div>
+  );
+}
+
+const render = () => act(() => root.render(<Harness />));
+const click = (el: Element | null) =>
+  act(() => {
+    el!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+const buttonByText = (text: string) =>
+  [...document.querySelectorAll("button")].find(button => button.textContent?.includes(text)) ??
+  null;
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.clearAllMocks();
+  mocks.data = null;
+  mocks.dismiss = null;
+  container = document.createElement("div");
+  document.body.appendChild(container);
+  root = createRoot(container);
+});
+afterEach(() => {
+  act(() => root.unmount());
+  container.remove();
+  document.body.innerHTML = "";
+  vi.useRealTimers();
+});
+
+describe("知识地图的洞见视图", () => {
+  it("第一次：读 → 点亮，画出呼应与问了没写，报告卡带共同的道理", async () => {
+    await render();
+    mocks.analyze.mockImplementation((_: unknown, options: { onSuccess(): void }) => {
+      mocks.data = fixture();
+      options.onSuccess();
+    });
+    await click(buttonByText("AI 洞见"));
+    expect(mocks.analyze).toHaveBeenCalledTimes(1);
+    await render();
+    expect(container.textContent).toContain("版图两三句");
+    expect(container.querySelectorAll("[data-map-mark]")).toHaveLength(2);
+    expect(container.querySelector('[data-map-topic="5"]')).not.toBeNull();
+
+    // 点呼应：气泡里有共同的道理，两端都是卡片 → 直接连
+    await click(container.querySelector('[data-map-mark="g1"]'));
+    expect(document.body.textContent).toContain("主动回想比重读记得牢");
+    await act(async () => {
+      buttonByText("连接")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(mocks.link).toHaveBeenCalledWith(1, 2);
+    expect(mocks.setStatus).toHaveBeenCalledWith({ nodeId: 1, itemId: "g1", status: "linked" });
+  });
+
+  it("分析过就直接点亮；问了没写记为问题时带上对话", async () => {
+    mocks.data = fixture();
+    await render();
+    await click(buttonByText("AI 洞见"));
+    expect(mocks.analyze).not.toHaveBeenCalled();
+    await click(container.querySelector('[data-map-mark="g2"]'));
+    await click(buttonByText("记为问题"));
+    expect(mocks.capture).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: { kind: "chats", chats: [{ sessionId: "s1", messageIds: ["a"] }] },
+        defaultTitle: "组播地址怎么分配",
+      })
+    );
+    expect(mocks.setStatus).toHaveBeenCalledWith({ nodeId: 1, itemId: "g2", status: "questioned" });
+  });
+
+  it("点主题名飞进去画主题层；长文一端的重复是去那篇连；Esc 按层退出", async () => {
+    mocks.data = fixture();
+    await render();
+    await click(buttonByText("AI 洞见"));
+    await click(container.querySelector('[data-map-topic="5"]'));
+    expect(api.flyToTopic).toHaveBeenCalledWith(5);
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(container.textContent).toContain("主题两三句");
+    expect(container.textContent).toContain("全部主题");
+    expect(container.querySelector('[data-map-mark="t1"]')).not.toBeNull();
+
+    await click(container.querySelector('[data-map-mark="t1"]'));
+    await click(buttonByText("去连接"));
+    expect(mocks.openEntity).toHaveBeenCalledWith({ kind: "article", id: 3 }, { at: { block: 3 } });
+    expect(mocks.link).not.toHaveBeenCalled();
+
+    // Esc：先关气泡，再回到全局，再退出
+    await click(container.querySelector('[data-map-mark="t1"]'));
+    await act(async () => mocks.dismiss?.());
+    expect(document.querySelector("[data-map-insight-popover]")).toBeNull();
+    await act(async () => {
+      mocks.dismiss?.();
+      vi.advanceTimersByTime(500);
+    });
+    expect(api.flyToAll).toHaveBeenCalled();
+    expect(container.textContent).toContain("版图两三句");
+    await act(async () => mocks.dismiss?.());
+    expect(container.textContent).not.toContain("版图两三句");
+    expect(buttonByText("AI 洞见")).not.toBeNull();
+  });
+
+  it("逐条看：↓ 切换、⌫ 不相关、Esc 结束", async () => {
+    mocks.data = fixture();
+    await render();
+    await click(buttonByText("AI 洞见"));
+    await click(buttonByText("逐条看"));
+    expect(document.body.textContent).toContain("1 / 2");
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }));
+    });
+    expect(document.body.textContent).toContain("2 / 2");
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace" }));
+    });
+    expect(mocks.setStatus).toHaveBeenCalledWith({ nodeId: 1, itemId: "g2", status: "dismissed" });
+    await act(async () => mocks.dismiss?.());
+    expect(document.body.textContent).not.toContain("↑↓ 切换");
+  });
+});

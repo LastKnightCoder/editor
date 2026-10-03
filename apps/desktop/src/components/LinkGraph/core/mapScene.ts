@@ -27,6 +27,8 @@ export interface MapScene extends GraphScene {
   /** 大主题 id（簇 id）→ 色槽；没有色槽的主题不在表里（用中性色画） */
   colorSlots: Map<number, number>;
   subtopics: MapSubtopic[];
+  /** 地图大主题 id → 簇 id（scene.clusters 的下标） */
+  topicCluster: Map<number, number>;
 }
 
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
@@ -127,6 +129,7 @@ export function buildMapScene(items: GraphItem[], map: KnowledgeMap): MapScene {
       )
     ),
     subtopics,
+    topicCluster,
   };
 }
 

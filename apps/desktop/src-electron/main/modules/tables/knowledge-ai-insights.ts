@@ -187,6 +187,35 @@ export function memberChange(previous: MemberSnapshot, next: MemberSnapshot): nu
   return changed / previous.length;
 }
 
+/**
+ * 两张卡片互相连接（卡片双向链接，KL-018）：一个事务里两边各补一条，已连着的不重复。
+ * 返回实际改动的卡片 id；任一张不存在时不写。
+ */
+export function linkCardsMutually(db: Database.Database, a: number, b: number, now = Date.now()) {
+  if (a === b) return [];
+  return db.transaction(() => {
+    const read = db.prepare(`SELECT links FROM cards WHERE id = ?`);
+    const rows = [a, b].map(id => read.get(id) as { links: string | null } | undefined);
+    if (rows.some(row => !row)) return [];
+    const write = db.prepare(`UPDATE cards SET links = ?, update_time = ? WHERE id = ?`);
+    const changed: number[] = [];
+    [a, b].forEach((id, index) => {
+      const other = index === 0 ? b : a;
+      let links: number[] = [];
+      try {
+        const parsed = JSON.parse(rows[index]!.links || "[]");
+        links = Array.isArray(parsed) ? parsed.map(Number).filter(Number.isSafeInteger) : [];
+      } catch {
+        links = [];
+      }
+      if (links.includes(other)) return;
+      write.run(JSON.stringify([...links, other]), now, id);
+      changed.push(id);
+    });
+    return changed;
+  })();
+}
+
 export default class KnowledgeAiInsightsTable {
   static get(db: Database.Database, id: number): KnowledgeAiInsightsRow | null {
     const row = db.prepare(`SELECT * FROM knowledge_ai_insights WHERE id = ?`).get(id) as
