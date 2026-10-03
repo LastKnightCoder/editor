@@ -6,20 +6,14 @@
 import Database from "better-sqlite3";
 import type { EntityCandidate, EntityKind, EntityLocation, EntitySearchParams } from "@/types";
 import { ENTITY_REF_PRIORITY, type EntityRef, type EntityRefKind } from "@/entity/ref";
+import { contentBlockLines } from "@/entity/text-digest";
+import { contentTitles } from "./content-ai-meta";
 import ContentTable from "./content";
 import DiaryTable from "./diary";
 import MaterialTable from "./material";
 
-/** Slate 文档按块取纯文本：第一块即卡片标题 */
-export const blockLines = (nodes: unknown): string[] => {
-  const text = (node: any): string => {
-    if (!node) return "";
-    if (typeof node.text === "string") return node.text;
-    if (typeof node.code === "string") return node.code;
-    return Array.isArray(node.children) ? node.children.map(text).join("") : "";
-  };
-  return Array.isArray(nodes) ? nodes.map(node => text(node).trim()).filter(Boolean) : [];
-};
+/** Slate 文档按块取纯文本：第一块即卡片的开头 */
+export const blockLines = contentBlockLines;
 
 const parseJsonArray = (raw: unknown): unknown[] => {
   if (typeof raw !== "string") return Array.isArray(raw) ? raw : [];
@@ -256,12 +250,14 @@ export default class EntitySearchTable {
       case "card": {
         const card = get(`SELECT content_id FROM cards WHERE id = ?`);
         if (!card) return null;
-        const [first = "", ...rest] = blockLines(content(card.content_id)?.content);
+        const lines = blockLines(content(card.content_id)?.content);
+        const aiTitle = contentTitles(db, [card.content_id], 0).get(card.content_id);
+        // 有 AI 标题时开头那一块也是正文的一部分，留在摘要里
         return {
           ...base,
           contentId: card.content_id,
-          title: first.slice(0, 80) || "无标题卡片",
-          excerpt: rest.join(" ").slice(0, EXCERPT),
+          title: aiTitle || lines[0]?.slice(0, 80) || "无标题卡片",
+          excerpt: (aiTitle ? lines : lines.slice(1)).join(" ").slice(0, EXCERPT),
         };
       }
       case "article": {

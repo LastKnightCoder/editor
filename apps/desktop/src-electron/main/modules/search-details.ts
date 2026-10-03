@@ -32,7 +32,8 @@ export function searchResultDetails(
       return card
         ? {
             ...card,
-            title: String((card as { title?: unknown }).title ?? ""),
+            // 卡片没有标题列：有 AI 标题（详情查询已 LEFT JOIN 元信息）时作标题，否则留空由展示端取正文开头
+            title: card.aiTitle ?? "",
             content: card.content || [],
           }
         : null;

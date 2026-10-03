@@ -61,12 +61,12 @@ import {
   getMarkdown,
 } from "@/utils";
 import { formatDate } from "@/utils/time";
-import { getEditorText } from "@/utils/editor";
 import type { DocumentDriver, DocumentFields, EditorDocument } from "./documentDrivers";
 import type { SaveState } from "./useEditorDocument";
 import { useEditorWindowPrefs } from "./editorWindowPrefs";
 import { EditorWindowTitlebar } from "./EditorWindowTitlebar";
 import { EditorStatusBar } from "./EditorStatusBar";
+import { cardTitle } from "@/utils/card-title";
 
 /** 低于该宽度大纲不再常驻右栏，改由标题栏按钮弹出 */
 const OUTLINE_COLUMN_MIN_WIDTH = 900;
@@ -135,7 +135,7 @@ export function EditorWindow({
 
   const title = driver.hasTitle
     ? doc.title || "未命名"
-    : getEditorText(doc.content, 20) || `${driver.label} #${doc.id}`;
+    : cardTitle(doc, 20) || `${driver.label} #${doc.id}`;
   useEffect(() => {
     document.title = title;
   }, [title]);

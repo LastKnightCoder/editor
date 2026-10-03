@@ -11,6 +11,7 @@ import ProjectTable from "./project";
 
 import log from "electron-log";
 import type { CardDatabaseScope, CardMetadataPatch } from "@/types/card";
+import { parseContentAiMeta } from "./content-ai-meta";
 
 /** 列表预览块口径：渲染取前 3 块、标题/拖拽取 ≤200 字文本，块数封顶防无文本块失控 */
 const CARD_PREVIEW_BLOCK_MIN = 3;
@@ -58,9 +59,10 @@ export default class CardTable {
     // 列表轻表：不 JOIN podcasts、content 截为预览块，全量数据经 getScopedCard 按需单卡获取
     const stmt = db.prepare(`
       SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top, c.podcast_id,
-             ct.content, ct.count, ct.update_time as content_update_time
+             ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
+      LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
       ORDER BY c.is_top DESC, c.create_time DESC
     `);
     return (stmt.all() as any[]).map(row => {
@@ -190,6 +192,7 @@ export default class CardTable {
       isTop: !!card.is_top,
       podcastId: card.podcast_id || undefined,
       podcast,
+      aiTitle: parseContentAiMeta(card.ai_meta)?.title || undefined,
     };
   }
 
@@ -216,10 +219,11 @@ export default class CardTable {
   static getAllCards(db: Database.Database) {
     const stmt = db.prepare(`
       SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top, c.podcast_id,
-             ct.content, ct.count, ct.update_time as content_update_time,
+             ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta,
              p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
+      LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
       LEFT JOIN podcasts p ON c.podcast_id = p.id
       ORDER BY c.is_top DESC, c.create_time DESC
     `);
@@ -230,10 +234,11 @@ export default class CardTable {
   static getCardById(db: Database.Database, cardId: number | bigint): ICard | null {
     const stmt = db.prepare(`
       SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top, c.podcast_id,
-             ct.content, ct.count, ct.update_time as content_update_time,
+             ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta,
              p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
+      LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
       LEFT JOIN podcasts p ON c.podcast_id = p.id
       WHERE c.id = ?
     `);
@@ -250,10 +255,11 @@ export default class CardTable {
     const placeholders = cardIds.map(() => "?").join(",");
     const stmt = db.prepare(`
       SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top, c.podcast_id,
-             ct.content, ct.count, ct.update_time as content_update_time,
+             ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta,
              p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
+      LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
       LEFT JOIN podcasts p ON c.podcast_id = p.id
       WHERE c.id IN (${placeholders})
     `);
@@ -427,9 +433,10 @@ export default class CardTable {
     // 获取所有永久卡片
     const stmt = db.prepare(`
       SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top,
-             ct.content, ct.count, ct.update_time as content_update_time 
+             ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta 
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
+      LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
       WHERE c.category = 'permanent' AND ct.content IS NOT NULL
     `);
 
@@ -469,9 +476,10 @@ export default class CardTable {
     // 获取最新的闪念笔记和文献笔记
     const stmt = db.prepare(`
       SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top,
-             ct.content, ct.count, ct.update_time as content_update_time 
+             ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta 
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
+      LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
       WHERE (c.category = 'temporary' OR c.category = 'literature') AND ct.content IS NOT NULL
       ORDER BY c.update_time ASC
       LIMIT ?
@@ -544,10 +552,11 @@ export default class CardTable {
     const placeholders = dates.map(() => "?").join(",");
     const stmt = db.prepare(`
       SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top, c.podcast_id,
-             ct.content, ct.count, ct.update_time as content_update_time,
+             ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta,
              p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
+      LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
       LEFT JOIN podcasts p ON c.podcast_id = p.id
       WHERE date(c.update_time/1000, 'unixepoch') IN (${placeholders})
       ORDER BY c.update_time DESC
@@ -578,10 +587,11 @@ export default class CardTable {
 
     const stmt = db.prepare(`
       SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top, c.podcast_id,
-             ct.content, ct.count, ct.update_time as content_update_time,
+             ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta,
              p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
+      LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
       LEFT JOIN podcasts p ON c.podcast_id = p.id
       WHERE c.update_time >= ? AND c.update_time <= ?
       ORDER BY c.update_time DESC

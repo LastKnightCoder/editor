@@ -21,6 +21,8 @@ export interface ICard {
   isTop: boolean;
   podcastId?: number;
   podcast?: IPodcast;
+  /** AI 生成的精简标题（content_ai_meta），没有时取正文开头，见 utils/card-title */
+  aiTitle?: string;
 }
 
 export type ICreateCard = Omit<ICard, "id" | "create_time" | "update_time" | "contentId">;

@@ -35,8 +35,8 @@ function fmix32(value: number): number {
   return h >>> 0;
 }
 
-/** 正文按块取纯文本（代码块读 code 属性），块之间换行 */
-export function contentPlainText(content: Descendant[] | null | undefined): string {
+/** 正文按顶层块取纯文本（代码块读 code 属性），去掉空块；第一块即卡片的「开头」 */
+export function contentBlockLines(content: Descendant[] | unknown): string[] {
   const text = (node: unknown): string => {
     if (!node || typeof node !== "object") return "";
     const n = node as { text?: unknown; code?: unknown; children?: unknown };
@@ -44,12 +44,12 @@ export function contentPlainText(content: Descendant[] | null | undefined): stri
     if (typeof n.code === "string") return n.code;
     return Array.isArray(n.children) ? n.children.map(text).join("") : "";
   };
-  return Array.isArray(content)
-    ? content
-        .map(node => text(node).trim())
-        .filter(Boolean)
-        .join("\n")
-    : "";
+  return Array.isArray(content) ? content.map(node => text(node).trim()).filter(Boolean) : [];
+}
+
+/** 正文纯文本，块之间换行 */
+export function contentPlainText(content: Descendant[] | null | undefined): string {
+  return contentBlockLines(content).join("\n");
 }
 
 function shingles(text: string): Set<number> {

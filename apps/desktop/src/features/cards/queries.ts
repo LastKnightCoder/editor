@@ -19,6 +19,9 @@ import {
   getScopedCards,
   patchScopedCard,
 } from "@/commands/card";
+import { getContentAiTitles } from "@/commands/content-ai";
+import { on } from "@/electron";
+import { queryClient as appQueryClient } from "@/queryClient";
 import { ECardCategory, type ICard } from "@/types";
 import type { CardMetadataPatch, ICreateCard } from "@/types/card";
 import useSettingStore from "@/stores/useSettingStore";
@@ -52,6 +55,41 @@ function mergeCardIntoCache(
     queryClient.setQueryData(cardDetailKey(databaseName, card.id), card);
   }
 }
+
+const sameDatabase = (a: unknown, b: string) =>
+  typeof a === "string" && a.replace(/\.db$/, "") === b.replace(/\.db$/, "");
+
+/**
+ * 主进程写入元信息后（已节流）按正文取新标题，原地补进列表与详情缓存：
+ * 首轮处理全库时每隔几秒就有一批，整表重拉代价太大。
+ */
+export async function patchCardAiTitles(
+  queryClient: QueryClient,
+  databaseName: string,
+  contentIds: number[]
+) {
+  if (!contentIds.length) return;
+  const titles = await getContentAiTitles(contentIds);
+  const changed = new Set(contentIds);
+  const update = (card: ICard): ICard =>
+    changed.has(card.contentId) ? { ...card, aiTitle: titles[card.contentId] || undefined } : card;
+  const matches = {
+    predicate: (query: { queryKey: readonly unknown[] }) =>
+      query.queryKey[0] === "cards" && sameDatabase(query.queryKey[1], databaseName),
+  };
+  queryClient.setQueriesData<ICard[] | ICard>(matches, data =>
+    Array.isArray(data) ? data.map(update) : data && "contentId" in data ? update(data) : data
+  );
+}
+
+on(
+  "content-ai-meta:changed",
+  (_event, payload: { databaseName: string; contentIds?: number[] }) => {
+    void patchCardAiTitles(appQueryClient, payload.databaseName, payload.contentIds ?? []).catch(
+      () => undefined
+    );
+  }
+);
 
 /* ---------- 查询 ---------- */
 
