@@ -82,16 +82,16 @@ export function TodoDrawer({
       }
       title={current && <TitleField key={current.id} entry={current} mutations={mutations} />}
       subtitle={
-        <span className="flex items-center gap-1.5 text-[11.5px]">
-          <GroupDot color={group?.color} className="size-[7px]" />
-          <span className="text-ink-2">{group?.title ?? "未归类"}</span>
+        <span className="flex min-w-0 items-center gap-1.5 text-[11.5px]">
+          <GroupDot color={group?.color} className="size-[7px] shrink-0" />
+          <span className="text-ink-2 truncate">{group?.title ?? "未归类"}</span>
           {parent && (
             <>
-              <ChevronRight className="size-3" strokeWidth={1.75} />
+              <ChevronRight className="size-3 shrink-0" strokeWidth={1.75} />
               <button
                 type="button"
                 onClick={() => onOpen(parent)}
-                className="text-ink-2 hover:text-accent-text truncate"
+                className="text-ink-2 hover:text-accent-text min-w-0 truncate"
               >
                 {parent.title}
               </button>
