@@ -62,6 +62,7 @@ import {
   parseGlobalOutput,
   parseSubtopicOutput,
   parseTopicOutput,
+  fixRefsDeep,
   type PromptNote,
   type PromptPair,
 } from "./topic-insights-prompt";
@@ -112,6 +113,36 @@ export interface InsightsContext {
   threshold: number | null;
 }
 
+/**
+ * 地图上没起名的主题与子主题（命名来自 tag，成员 tag 太散时为空）：用成员元信息里最常见、
+ * 和主题名不同、同一主题内没用过的概念起名；都没有时叫「其他」。
+ */
+export function nameUnlabeled(topics: MapTopicGroups[], metas: Map<number, ContentAiMetaRow>) {
+  const conceptsOf = (members: MapEntity[], exclude: Set<string>) => {
+    const counts = new Map<string, number>();
+    for (const member of members) {
+      for (const concept of metas.get(member.contentId)?.meta.concepts ?? []) {
+        const name = concept.trim();
+        if (name && !exclude.has(name)) counts.set(name, (counts.get(name) ?? 0) + 1);
+      }
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([name]) => name);
+  };
+  for (const topic of topics) {
+    if (!topic.label.trim()) topic.label = conceptsOf(topic.members, new Set())[0] ?? "其他";
+    const used = new Set([
+      topic.label,
+      ...topic.groups.map(group => group.label.trim()).filter(Boolean),
+    ]);
+    for (const group of topic.groups) {
+      if (group.label.trim()) continue;
+      group.label = conceptsOf(group.members, used)[0] ?? "其他";
+      used.add(group.label);
+    }
+  }
+  return topics;
+}
+
 export function buildContext(
   mainDb: Database.Database,
   indexDb: Database.Database,
@@ -130,16 +161,17 @@ export function buildContext(
       link(target, item.key);
     }
   }
+  const metas = ContentAiMetaTable.getMany(
+    mainDb,
+    entities.map(entity => entity.contentId)
+  );
   return {
     mainDb,
     indexDb,
     map,
-    topics: mapGroups(map, entities),
+    topics: nameUnlabeled(mapGroups(map, entities), metas),
     byKey: new Map(entities.map(entity => [entity.key, entity])),
-    metas: ContentAiMetaTable.getMany(
-      mainDb,
-      entities.map(entity => entity.contentId)
-    ),
+    metas,
     titles: new Map(items.map(item => [item.key, item.title])),
     links,
     threshold: ensureRelatedThreshold(indexDb)?.value ?? null,
@@ -539,7 +571,19 @@ export async function runSubtopic(
     `subtopic:${group.key}`,
     text => parseSubtopicOutput(text, new Set(byNo.keys()), new Set(pairInfo.keys())),
     signal
-  );
+  ).then(value => {
+    const noteTitle = (entity: MapEntity | undefined) =>
+      entity ? promptNote(ctx, entity, 0).title : null;
+    return fixRefsDeep(
+      value,
+      (prefix, no) => {
+        if (!prefix) return noteTitle(byNo.get(no));
+        const pair = pairInfo.get(no);
+        return pair ? `《${noteTitle(pair.left)}》与《${noteTitle(pair.right)}》` : null;
+      },
+      "P"
+    );
+  });
 
   const marks: KnowledgeMark[] = [];
   const ends = (nos: number[]) =>
@@ -660,6 +704,10 @@ export async function runTopic(
     total: topic.members.length,
     inProjects: topic.members.filter(member => member.projectId != null).length,
     growth,
+    rank: {
+      position: ctx.topics.filter(other => other.members.length > topic.members.length).length + 1,
+      of: ctx.topics.length,
+    },
     subtopics: subtopicRows.map(({ group, row }) => ({
       label: group.label,
       total: group.members.length,
@@ -680,6 +728,18 @@ export async function runTopic(
     `topic:${topic.topicId}`,
     text => parseTopicOutput(text, new Set(candidates.map(item => item.no))),
     signal
+  ).then(value =>
+    fixRefsDeep(
+      value,
+      (prefix, no) => {
+        const mark = prefix === "M" ? candidates.find(item => item.no === no)?.mark : undefined;
+        if (!mark) return null;
+        return mark.ends.length
+          ? mark.ends.map(end => `《${end.title}》`).join("与")
+          : (mark.text ?? null);
+      },
+      "M"
+    )
   );
   const byNo = new Map(candidates.map(item => [item.no, item.mark]));
   const marks: KnowledgeMark[] = [
@@ -830,6 +890,23 @@ export async function runGlobal(
         new Set(asked.map((_, index) => index + 1))
       ),
     signal
+  ).then(value =>
+    fixRefsDeep(
+      value,
+      (prefix, no) => {
+        const noteTitle = (entity: MapEntity) => promptNote(ctx, entity, 0).title;
+        if (!prefix) {
+          const entity = notes[no - 1];
+          return entity ? noteTitle(entity) : null;
+        }
+        if (prefix === "B") {
+          const info = bridgeInfo.get(no);
+          return info ? `《${noteTitle(info.left)}》与《${noteTitle(info.right)}》` : null;
+        }
+        return prefix === "A" && asked[no - 1] ? "你问过的那几个问题" : null;
+      },
+      "AB"
+    )
   );
   const marks: KnowledgeMark[] = [];
   for (const bridge of parsed.bridges) {

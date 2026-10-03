@@ -27,6 +27,7 @@ import {
   analyzeKnowledge,
   buildContext,
   metaCoverage,
+  nameUnlabeled,
   planInsights,
   readKnowledgeInsights,
   type TopicInsightsDeps,
@@ -415,5 +416,40 @@ describe("topic-insights 分层阅读", () => {
     expect(outcome.failures).toBe(3);
     expect(KnowledgeAiInsightsTable.list(main)).toHaveLength(0);
     await expect(analyzeKnowledge(failing, ctx, SLOT, { force: true })).rejects.toThrow("额度用尽");
+  });
+
+  it("没起名的主题与子主题用成员最常见的概念起名，不和主题名、同主题的其他子主题重名", () => {
+    const meta = (concepts: string[]) => ({
+      contentId: 0,
+      schemaVer: 1,
+      textDigest: "",
+      model: "",
+      createTime: 0,
+      updateTime: 0,
+      meta: { title: "", summary: "", concepts, claims: [] },
+    });
+    const member = (contentId: number) => ({ key: `card:${contentId}`, contentId }) as never;
+    const metas = new Map([
+      [1, meta(["JavaScript", "Promise", "事件循环"])],
+      [2, meta(["Promise", "async"])],
+      [3, meta(["Promise", "Set"])],
+      [4, meta(["Set", "Map"])],
+    ]);
+    const [topic] = nameUnlabeled(
+      [
+        {
+          topicId: 0,
+          label: "JavaScript",
+          members: [member(1), member(2), member(3), member(4)],
+          groups: [
+            { key: "0:1", topicId: 0, subtopicId: 1, label: "", members: [member(1), member(2)] },
+            { key: "0:2", topicId: 0, subtopicId: 2, label: "", members: [member(3)] },
+            { key: "0:3", topicId: 0, subtopicId: 3, label: " ", members: [] },
+          ],
+        },
+      ],
+      metas as never
+    );
+    expect(topic.groups.map(group => group.label)).toEqual(["Promise", "Set", "其他"]);
   });
 });

@@ -106,9 +106,71 @@ function anchorsOf(value: unknown): Record<number, string> {
   return result;
 }
 
+/** 季度生长：最后一季还没过完，数字少不等于停了 */
+function growthLine(growth: Array<{ quarter: string; count: number }>): string {
+  if (!growth.length) return "无";
+  return `${growth
+    .map((item, index) =>
+      index === growth.length - 1
+        ? `${item.quarter}（本季，还没过完）${item.count}`
+        : `${item.quarter} ${item.count}`
+    )
+    .join("，")}`;
+}
+
+/**
+ * 模型偶尔仍把编号写进给用户看的文字：[3]、笔记3、D12、《P1》……换成标题。
+ * resolve(prefix, no)：prefix 为字母前缀（方括号与「笔记」记为空串）。方括号与「笔记 N」查不到就去掉；
+ * 带字母的查不到保留原样——正文里本来就有 S3、H5 这类词。
+ */
+export function replaceRefs(
+  text: string,
+  resolve: (prefix: string, no: number) => string | null,
+  prefixes = "A-Z"
+): string {
+  if (!text) return text;
+  const name = (prefix: string, no: string) => {
+    const title = resolve(prefix, Number(no));
+    if (!title) return "";
+    // 已经带书名号的（如「《A》与《B》」）原样用
+    return title.includes("《") ? title : `《${title}》`;
+  };
+  return text
+    .replace(/《?\[(\d+)\]》?/g, (_, no) => name("", no))
+    .replace(/《?笔记\s?(\d+)》?/g, (_, no) => name("", no))
+    .replace(
+      new RegExp(`(《?)\\b([${prefixes}])(\\d+)\\b(》?)`, "g"),
+      (whole, _open, prefix, no) => (resolve(prefix, Number(no)) ? name(prefix, no) : whole)
+    )
+    .replace(/《》/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+/** 对解析结果里给用户看的字符串字段做 replaceRefs；anchors 是逐字原文，不动 */
+export function fixRefsDeep<T>(
+  value: T,
+  resolve: (prefix: string, no: number) => string | null,
+  prefixes: string
+): T {
+  const walk = (item: unknown, key = ""): unknown => {
+    if (key === "anchors") return item;
+    if (typeof item === "string") return replaceRefs(item, resolve, prefixes);
+    if (Array.isArray(item)) return item.map(child => walk(child));
+    if (item && typeof item === "object") {
+      return Object.fromEntries(
+        Object.entries(item as Record<string, unknown>).map(([k, v]) => [k, walk(v, k)])
+      );
+    }
+    return item;
+  };
+  return walk(value) as T;
+}
+
 const COMMON_RULES = `- 宁缺毋滥：只给用户会觉得「这个提醒有用」的，没有就给空数组或 null。
 - why 用一两句话说清理由（不超过 70 字），要具体到笔记里的内容，不说空话。
 - 只能引用给你的编号；anchors 里的原文片段必须逐字摘自给出的那一节原文（2–30 字），不能改写；没给节原文的笔记不要给 anchor。
+- 给用户看的文字（lead、why、text、question、asks 等）里不要出现编号（[3]、M2、D12、P1 这类），提到笔记写《标题》，提到主题写主题名。
 - 用笔记本身的语言输出。只输出一个 JSON 对象，不要解释或代码块。`;
 
 // ───────────────────────── 子主题 ─────────────────────────
@@ -274,6 +336,8 @@ ${COMMON_RULES}
 export interface TopicPromptInput {
   topic: string;
   total: number;
+  /** 按笔记数在全部主题里排第几、一共几个主题（模型只看得到这一个主题，不给就会自称「最大」） */
+  rank: { position: number; of: number };
   /** 主题里有几份在项目里 */
   inProjects: number;
   growth: Array<{ quarter: string; count: number }>;
@@ -284,12 +348,12 @@ export interface TopicPromptInput {
 
 export function buildTopicPrompt(input: TopicPromptInput): string {
   return [
-    `主题：${input.topic}（共 ${input.total} 份笔记，其中 ${input.inProjects} 份在项目里）`,
-    `每季度新写：${input.growth.map(item => `${item.quarter} ${item.count}`).join("，") || "无"}`,
+    `主题：${input.topic}（共 ${input.total} 份笔记，其中 ${input.inProjects} 份在项目里；按笔记数在 ${input.rank.of} 个主题里排第 ${input.rank.position}）`,
+    `每季度新写：${growthLine(input.growth)}`,
     `子主题：\n${input.subtopics
       .map(
-        (sub, index) =>
-          `S${index + 1} ${sub.label}（${sub.total} 份）：${sub.overview || "（还没有概述）"}${
+        sub =>
+          `- ${sub.label}（${sub.total} 份）：${sub.overview || "（还没有概述）"}${
             sub.shift ? `｜变化：${sub.shift}` : ""
           }`
       )
@@ -376,11 +440,11 @@ export function buildGlobalPrompt(input: GlobalPromptInput): string {
   ]);
   return [
     `版图：${input.totals.notes} 份笔记、${input.totals.topics} 个主题`,
-    `每季度新写：${input.growth.map(item => `${item.quarter} ${item.count}`).join("，") || "无"}`,
+    `每季度新写：${growthLine(input.growth)}`,
     `主题：\n${input.topics
       .map(
-        (topic, index) =>
-          `T${index + 1} ${topic.label}（${topic.total} 份，最近一年新写 ${topic.recent}）：${
+        topic =>
+          `- ${topic.label}（${topic.total} 份，最近一年新写 ${topic.recent}）：${
             topic.overview || "（还没有概述）"
           }${topic.shift ? `｜变化：${topic.shift}` : ""}`
       )
@@ -490,7 +554,8 @@ export interface ProjectPromptInput {
 export function buildProjectPrompt(input: ProjectPromptInput): string {
   return [
     `项目：${input.title}`,
-    input.lastReview ? `上次回顾：${input.lastReview}` : "",
+    // 第一次回顾也要写明，否则模型会照着说明写「自上次回顾以来」
+    `上次回顾：${input.lastReview || "无（这是第一次回顾）"}`,
     `文档树：\n${input.docs
       .map(
         doc =>
