@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>AI 洞见 · 左图右文的洞见页</title>
+<!-- 视觉参考，非导出源（D-001）。设计见 docs/knowledge-loop/15。 -->
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  .win { width: 1400px; height: 860px; }
+  .main { position: relative; display: flex; gap: 12px; padding: 0 12px 12px; }
+  .tb .crumb b { font-weight: 500; }
+  .modes { display: inline-flex; gap: 2px; margin-left: 14px; }
+  .modes span { height: 26px; padding: 0 10px; border-radius: var(--r-sm); display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--ink-3); cursor: pointer; }
+  .modes span:hover { background: var(--hover); color: var(--ink-1); }
+  .modes span.on { background: var(--hover); color: var(--ink-1); font-weight: 500; }
+  .modes svg.lucide { width: 13px; height: 13px; }
+
+  /* 左：关系图 */
+  .stage-l { flex: 1.15; min-width: 0; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); position: relative; overflow: hidden; }
+  .stage-l svg { width: 100%; height: 100%; display: block; }
+  .status { position: absolute; left: 16px; top: 14px; font-size: 12px; color: var(--ink-3); display: flex; align-items: center; gap: 6px; }
+  .status svg.lucide { width: 13px; height: 13px; }
+  .status .spin { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .legend { position: absolute; left: 16px; bottom: 14px; display: flex; gap: 14px; font-size: 11.5px; color: var(--ink-3); }
+  .legend i { display: inline-block; width: 18px; height: 0; border-top: 2px solid; vertical-align: middle; margin-right: 5px; }
+  .focus-chip { position: absolute; right: 16px; top: 12px; font-size: 12px; color: var(--ink-2); background: var(--hover); border-radius: 999px; padding: 3px 10px; display: none; }
+  .write .focus-chip { display: block; }
+
+  .node { cursor: pointer; transition: opacity var(--normal) var(--ease); }
+  .node .disc { transition: r var(--fast) var(--ease); }
+  .node text { font-size: 12px; fill: var(--ink-2); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
+  .node.self text { font-size: 13.5px; font-weight: 600; fill: var(--ink-1); }
+  .node:hover .disc { r: 9; }
+  .edge { transition: opacity var(--normal) var(--ease); fill: none; }
+  .dim { opacity: .14; }
+  .pending { opacity: 0; }
+  .ghost .disc { fill: var(--surface); stroke-dasharray: 3 3; }
+
+  /* 节点气泡 */
+  .bubble { position: absolute; width: 300px; background: var(--surface); box-shadow: var(--shadow-float); border-radius: var(--r-md); padding: 12px 14px 10px; font-size: 13px; z-index: 10; }
+  .bubble .bt { display: flex; gap: 6px; align-items: center; font-weight: 500; color: var(--ink-1); }
+  .bubble .bt svg.lucide { width: 14px; height: 14px; color: var(--ink-3); }
+  .bubble .why { margin-top: 6px; color: var(--ink-2); line-height: 1.65; }
+  .bubble .pv { margin-top: 8px; padding: 8px 10px; background: var(--surface-hover); border-radius: var(--r-sm); font-size: 12.5px; line-height: 1.7; color: var(--ink-2); }
+  .bubble .acts { margin-top: 10px; display: flex; gap: 6px; }
+
+  .btn { height: 26px; padding: 0 10px; border-radius: var(--r-sm); font-size: 12px; color: var(--ink-2); display: inline-flex; align-items: center; gap: 5px; cursor: pointer; background: var(--hover); }
+  .btn:hover { background: var(--press); color: var(--ink-1); }
+  .btn.primary { background: var(--accent); color: var(--ink-inv); }
+  .btn.primary:hover { background: var(--accent-hover); }
+  .btn.ghost { background: none; color: var(--ink-3); }
+  .btn svg.lucide { width: 12px; height: 12px; }
+
+  /* 右：分析 / 写作 */
+  .stage-r { flex: 1; min-width: 0; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); overflow: auto; }
+  .ana { padding: 26px 30px 30px; }
+  .ana .lead { font-size: 15px; line-height: 1.85; color: var(--ink-1); }
+  .ana .lead b { font-weight: 500; }
+  .ana h4 { margin: 26px 0 8px; font-size: 12px; font-weight: 500; color: var(--ink-3); }
+  .find { padding: 9px 10px; border-radius: var(--r-md); cursor: pointer; display: grid; grid-template-columns: 8px 1fr auto; gap: 10px; align-items: start; }
+  .find:hover, .find.on { background: var(--surface-hover); }
+  .find .k { width: 8px; height: 8px; border-radius: 50%; margin-top: 8px; }
+  .find .tx { font-size: 13.5px; line-height: 1.7; color: var(--ink-1); }
+  .find .tx q { quotes: "「" "」"; color: var(--ink-1); box-shadow: inset 0 -0.42em 0 var(--accent-soft); }
+  .find .more { display: none; margin-top: 4px; font-size: 12.5px; color: var(--ink-2); line-height: 1.7; }
+  .find.on .more { display: block; }
+  .find .act { opacity: 0; transition: opacity var(--fast); }
+  .find:hover .act, .find.on .act { opacity: 1; }
+  .find.done .tx { color: var(--ink-3); }
+  .find.done .act { opacity: 1; }
+  .ask { padding: 8px 10px; font-size: 13.5px; color: var(--ink-1); display: flex; gap: 8px; align-items: baseline; border-radius: var(--r-md); }
+  .ask:hover { background: var(--surface-hover); }
+  .ask svg.lucide { width: 13px; height: 13px; color: var(--ink-3); flex: none; transform: translateY(2px); }
+  .ask .act { margin-left: auto; opacity: 0; }
+  .ask:hover .act { opacity: 1; }
+  .foot { margin-top: 24px; font-size: 12px; color: var(--ink-3); display: flex; gap: 10px; align-items: center; }
+  .foot span.re { cursor: pointer; display: inline-flex; gap: 4px; align-items: center; }
+  .foot span.re:hover { color: var(--ink-1); }
+  .foot svg.lucide { width: 12px; height: 12px; }
+
+  .doc { padding: 30px 40px 40px; font-size: 15.5px; line-height: 1.85; }
+  .doc .title { font-size: 24px; font-weight: 600; margin-bottom: 18px; }
+  .doc h2 { font-size: 19px; margin: 26px 0 8px; font-weight: 600; }
+  .doc .sec { border-radius: var(--r-sm); padding: 2px 6px; margin: 0 -6px; transition: background var(--normal); cursor: text; }
+  .doc .sec.cur { background: color-mix(in srgb, var(--accent-soft) 45%, transparent); }
+  .doc p { margin: 0 0 12px; }
+  .doc .anchor { transition: box-shadow var(--fast); }
+  .doc .anchor.hl { box-shadow: inset 0 -0.45em 0 var(--accent-soft); }
+  .doc a.lnk { color: var(--accent-text); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent); text-underline-offset: 3px; }
+  .caret { display: inline-block; width: 1.5px; height: 1.1em; background: var(--ink-1); vertical-align: -0.18em; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .ana-only, .write-only { display: none; }
+  .mode-ana .ana-only, .mode-write .write-only { display: block; }
+
+  .toast { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); background: var(--ink-1); color: var(--ink-inv); font-size: 12.5px; padding: 7px 14px; border-radius: var(--r-md); opacity: 0; transition: opacity var(--fast); pointer-events: none; z-index: 30; }
+  .toast.on { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="mock-bar">
+  <b>AI 洞见 mockup</b>
+  <span>页面</span>
+  <a href="#" data-page="article" class="on">文章</a>
+  <a href="#" data-page="card">卡片</a>
+  <span class="sp"></span>
+  <a href="#" id="replay">重播「分析过程」</a>
+  <select id="theme"><option value="cream">cream</option><option value="cocoa">cocoa</option></select>
+</div>
+
+<div class="mock-note">
+  <h3>正文里什么都不出现；你点「AI 洞见」才进入这一页：左边一张关系图，右边分析或写作，两边联动</h3>
+  <ul>
+    <li><b>左：关系图</b>。中间是这篇；AI 确认过的关系按类型分在四个方向：可连接（右）、重复（上）、矛盾（下）、空白（左，虚线圈 = 你还没写过）。灰色细线是已有的连接，只作参照。进入时先画出本地候选（淡），AI 判断后留下成立的，不成立的淡出（点顶部「重播」看过程）。</li>
+    <li><b>右：分析</b>。先用两三句话说这篇在你的知识里处在什么位置，然后是最多 5 条发现、2 条可以继续想的问题。一行一条，悬停时左边只亮相关的节点；点开才看理由。每条只有一个动作。</li>
+    <li><b>右：写作</b>（创作模式）。右边换成正文，可以接着写；光标所在的那一节决定左边亮哪些节点。点节点看对方、把它连到光标处，连接就是在正文里生成链接。</li>
+    <li>联动：悬停发现 ↔ 节点 ↔ 正文里那几个字，三处同时高亮；在任何一处建立连接，三处同步变成「已连接」。</li>
+  </ul>
+</div>
+
+<div class="stage">
+  <div class="win mode-ana" id="win">
+    <aside class="sb">
+      <div class="sb-head"><span class="sb-logo">T</span><span>Tau</span></div>
+      <div class="sb-scroll">
+        <div class="sb-group">
+          <div class="sb-gt">知识</div>
+          <div class="sb-item"><i data-lucide="layers"></i><span>卡片库</span></div>
+          <div class="sb-item on"><i data-lucide="file-text"></i><span>文章</span></div>
+          <div class="sb-item"><i data-lucide="folder-kanban"></i><span>项目</span></div>
+        </div>
+      </div>
+    </aside>
+    <div class="col">
+      <div class="tb">
+        <span class="crumb" id="crumb"></span>
+        <span class="modes"><span data-mode="ana" class="on"><i data-lucide="sparkles"></i>分析</span><span data-mode="write"><i data-lucide="pen-line"></i>写作</span></span>
+        <span class="sp"></span>
+      </div>
+      <div class="main">
+        <div class="stage-l" id="graphBox">
+          <div class="status" id="status"></div>
+          <div class="focus-chip" id="focusChip"></div>
+          <svg id="graph" viewBox="0 0 760 680"></svg>
+          <div class="legend">
+            <span><i style="border-color:var(--info)"></i>可连接</span>
+            <span><i style="border-color:var(--ink-3);border-top-style:dotted"></i>重复</span>
+            <span><i style="border-color:var(--danger)"></i>矛盾</span>
+            <span><i style="border-color:var(--ink-3);border-top-style:dashed"></i>空白</span>
+            <span><i style="border-color:var(--line-1);border-top-width:1px"></i>已有连接</span>
+          </div>
+        </div>
+        <div class="stage-r" id="right"></div>
+        <div class="toast" id="toast"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CX = 380, CY = 330;
+const KIND = {
+  link: { color: "var(--info)", dash: "", label: "可连接" },
+  dup: { color: "var(--ink-3)", dash: "2 4", label: "重复" },
+  conflict: { color: "var(--danger)", dash: "", label: "矛盾" },
+  gap: { color: "var(--ink-3)", dash: "5 4", label: "空白" },
+  known: { color: "var(--line-1)", dash: "", label: "已有连接" },
+};
+
+/* 每个节点：所属关系、落在本文哪一节、本文的哪几个字（可连接时） */
+const PAGES = {
+  article: {
+    crumb: `文章 <span style="color:var(--ink-3)">/</span> 浏览器是怎样把一页画出来的 <span style="color:var(--ink-3)">/</span> <b>AI 洞见</b>`,
+    self: "浏览器是怎样把一页画出来的",
+    nodes: [
+      { id: "a", kind: "link", icon: "layers", t: "列表滚动掉帧的排查", x: 610, y: 250, sec: "布局", anchor: "强制同步布局",
+        why: "这一节讲强制同步布局的机制，那张卡记的是你遇到的真实案例：滚动回调里读 offsetTop 导致掉帧。",
+        pv: "滚动回调里读了 offsetTop，每一帧都强制同步布局，掉到 30 帧。改成先批量读、再批量写后恢复。" },
+      { id: "b", kind: "link", icon: "layers", t: "合成层与 will-change", x: 640, y: 380, sec: "绘制与合成", anchor: "合成线程",
+        why: "这里提到合成线程拼接图层，那张卡解释了元素怎样被提升为合成层。",
+        pv: "will-change: transform 会提前把元素提升为合成层，变换交给合成线程处理……" },
+      { id: "c", kind: "dup", icon: "folder-kanban", t: "前端体系 › 渲染篇", x: 380, y: 95, sec: "布局",
+        why: "「布局」一节和项目里的「布局与重排」几乎是同一段内容，那边多了一份会触发布局的属性清单。",
+        pv: "布局（重排）计算元素的几何信息……几何属性变化会使布局失效，需要在下一帧重新计算……" },
+      { id: "d", kind: "conflict", icon: "file-text", t: "动画性能笔记", x: 230, y: 560, sec: "绘制与合成", anchor: "只改 transform 和 opacity",
+        why: "这里说只改 transform 就只走合成；你在《动画性能笔记》里写过改 transform-origin 会触发重绘。两处的条件不一样。",
+        pv: "改 transform-origin 时，Chrome 会让元素重新绘制，并不是只走合成……" },
+      { id: "e", kind: "gap", icon: "circle-dashed", t: "合成层怎么划分", x: 120, y: 300, sec: "绘制与合成", ghost: true,
+        why: "全篇多次提到图层，但没写元素什么时候会被单独提升。常见条件有 will-change、3D 变换、视频与 canvas、与已提升的图层重叠。" },
+      { id: "f", kind: "gap", icon: "circle-help", t: "rAF 和渲染帧是什么关系？", x: 170, y: 170, sec: "绘制与合成", question: true,
+        why: "这是你记过的一个问题，还在探究中。这篇讲渲染流程，可以作为它的一份材料。" },
+      { id: "k1", kind: "known", icon: "layers", t: "重排与重绘", x: 540, y: 560 },
+      { id: "k2", kind: "known", icon: "folder-kanban", t: "前端体系 · 总览", x: 600, y: 120 },
+    ],
+    lead: `这是你「前端 · 渲染」里写得最完整的一篇，已经连着 <b>2</b> 处。它和《前端体系 › 渲染篇》覆盖的范围几乎一样；「布局」和「合成」两节还有没连上的笔记，合成这一块也是你写得最少的地方。`,
+    finds: [
+      { node: "a", text: `<q>强制同步布局</q> 可以连到《列表滚动掉帧的排查》`, act: "连接" },
+      { node: "b", text: `<q>合成线程</q> 可以连到《合成层与 will-change》`, act: "连接" },
+      { node: "c", text: `「布局」一节和《前端体系 › 渲染篇》几乎重复`, act: "并排看" },
+      { node: "d", text: `<q>只改 transform 和 opacity</q> 和《动画性能笔记》的说法不一致`, act: "记为问题" },
+      { node: "e", text: `合成层是怎么划分的，全篇没写`, act: "记为问题" },
+    ],
+    asks: ["CSS 阻塞渲染却不阻塞 DOM 解析，为什么？", "如果只能保留一个渲染优化习惯，会是哪个？"],
+    sections: [
+      { h: "", p: ["从拿到 HTML 到屏幕上出现像素，浏览器大致要走五步：解析、样式、布局、绘制、合成。"] },
+      { h: "布局", p: ["布局阶段算出每个盒子的位置和尺寸。几何属性一变，布局就要重来。", "读 offsetTop 这类属性时，如果布局已经失效，浏览器会立刻同步计算一次，也就是{a|强制同步布局}。"] },
+      { h: "绘制与合成", p: ["绘制把盒子变成一组绘制指令，{b|合成线程}再把各个图层拼起来。", "{d|只改 transform 和 opacity} 时，可以只走合成这一步，动画就不会卡主线程。"] },
+    ],
+  },
+  card: {
+    crumb: `卡片库 <span style="color:var(--ink-3)">/</span> 重排与重绘 <span style="color:var(--ink-3)">/</span> <b>AI 洞见</b>`,
+    self: "重排与重绘",
+    nodes: [
+      { id: "a", kind: "link", icon: "layers", t: "列表滚动掉帧的排查", x: 610, y: 280, sec: "正文", anchor: "强制同步布局",
+        why: "两张卡一张讲机制、一张讲案例，连起来更容易记住。", pv: "滚动回调里读了 offsetTop，每一帧都强制同步布局……" },
+      { id: "c", kind: "dup", icon: "file-text", t: "浏览器是怎样把一页画出来的", x: 380, y: 100, sec: "正文",
+        why: "那篇文章的「布局」一节和这张卡讲的是同一件事，写得更长。", pv: "布局阶段算出每个盒子的位置和尺寸……" },
+      { id: "e", kind: "gap", icon: "circle-dashed", t: "visibility 与 display", x: 140, y: 330, sec: "正文", ghost: true,
+        why: "「重排一定引起重绘」在元素不可见时并不完全成立，visibility: hidden 仍参与布局，display: none 则不参与。" },
+      { id: "k1", kind: "known", icon: "layers", t: "关键渲染路径", x: 560, y: 560 },
+    ],
+    lead: `这张卡是你「前端 · 渲染」里被引用最多的一张，已经连着 <b>1</b> 处。它讲的是机制，你还有一张讲真实案例的卡没连上。`,
+    finds: [
+      { node: "a", text: `<q>强制同步布局</q> 可以连到《列表滚动掉帧的排查》`, act: "连接" },
+      { node: "c", text: `和《浏览器是怎样把一页画出来的》› 布局 几乎重复`, act: "并排看" },
+      { node: "e", text: `「重排一定引起重绘」在元素不可见时成立吗？`, act: "记为问题" },
+    ],
+    asks: ["哪些属性只引起重绘、不引起重排？"],
+    sections: [
+      { h: "", p: ["重排是重新计算元素的位置和尺寸，重绘只重新绘制像素。重排一定引起重绘，反过来不会。", "读 offsetTop 这类属性时，如果布局已经失效，浏览器会立刻同步计算一次，这就是{a|强制同步布局}。"] },
+    ],
+  },
+};
+
+let page = "article", mode = "ana", hover = null, active = null, bubble = null, curSec = null;
+const linked = new Set(), done = new Set();
+let revealed = null; // null = 全部显示；Set = 分析过程中已确认的
+
+const P = () => PAGES[page];
+const nodeById = id => P().nodes.find(n => n.id === id);
+
+function relevant(n) {
+  if (hover) return n.id === hover;
+  if (mode === "write" && curSec) return n.kind === "known" || n.sec === curSec || n.sec === "正文";
+  return true;
+}
+
+function drawGraph() {
+  const svg = document.getElementById("graph");
+  const nodes = P().nodes;
+  let edges = "", dots = "";
+  for (const n of nodes) {
+    const k = linked.has(n.id) ? KIND.known : KIND[n.kind];
+    const dim = !relevant(n) ? " dim" : "";
+    const pend = revealed && n.kind !== "known" && !revealed.has(n.id) ? " pending" : "";
+    const mx = (CX + n.x) / 2, my = (CY + n.y) / 2;
+    edges += `<g class="edge${dim}${pend}"><path d="M${CX},${CY} Q${mx + (n.y - CY) * 0.12},${my - (n.x - CX) * 0.12} ${n.x},${n.y}" stroke="${k.color}" stroke-width="${n.kind === "known" || linked.has(n.id) ? 1.2 : 1.8}" stroke-dasharray="${linked.has(n.id) ? "" : k.dash}" />
+      ${n.kind === "conflict" && !linked.has(n.id) ? `<text x="${mx + (n.y - CY) * 0.06}" y="${my - (n.x - CX) * 0.06 + 4}" font-size="13" fill="var(--danger)" text-anchor="middle">≠</text>` : ""}</g>`;
+    const fill = n.kind === "known" || linked.has(n.id) ? "var(--ink-3)" : k.color;
+    const lw = n.t.length * 12.5;
+    const left = n.x < CX - 40;
+    dots += `<g class="node${dim}${pend}${n.ghost ? " ghost" : ""}" data-node="${n.id}">
+      <circle class="disc" cx="${n.x}" cy="${n.y}" r="${n.kind === "known" ? 5 : 7}" fill="${n.ghost ? "var(--surface)" : fill}" stroke="${n.ghost ? k.color : "none"}" stroke-width="1.5" />
+      ${n.question ? `<text x="${n.x}" y="${n.y + 4}" font-size="9" text-anchor="middle" style="fill:var(--ink-inv);stroke:none">?</text>` : ""}
+      <text x="${left ? n.x - 12 : n.x + 12}" y="${n.y + 4}" text-anchor="${left ? "end" : "start"}">${n.t}${linked.has(n.id) ? " · 已连接" : ""}</text></g>`;
+  }
+  svg.innerHTML = `${edges}<g class="node self"><circle cx="${CX}" cy="${CY}" r="16" fill="var(--accent)" /><text x="${CX}" y="${CY + 36}" text-anchor="middle">${P().self}</text></g>${dots}`;
+  svg.querySelectorAll("[data-node]").forEach(el => {
+    el.onmouseenter = () => setHover(el.dataset.node);
+    el.onmouseleave = () => setHover(null);
+    el.onclick = e => { e.stopPropagation(); openBubble(el.dataset.node); };
+  });
+  document.getElementById("focusChip").textContent = curSec ? `当前写到：${curSec}` : "光标所在的一节决定亮哪些";
+}
+
+function openBubble(id) {
+  const n = nodeById(id);
+  if (!n || n.kind === "known") return;
+  bubble = id;
+  const box = document.getElementById("graphBox");
+  document.querySelector(".bubble")?.remove();
+  const el = document.createElement("div");
+  el.className = "bubble";
+  const sx = box.clientWidth / 760, sy = box.clientHeight / 680, s = Math.min(sx, sy);
+  const ox = (box.clientWidth - 760 * s) / 2, oy = (box.clientHeight - 680 * s) / 2;
+  let left = ox + n.x * s + 16, top = oy + n.y * s - 20;
+  if (left + 300 > box.clientWidth - 12) left = ox + n.x * s - 316;
+  el.style.left = `${Math.max(12, left)}px`;
+  el.style.top = `${Math.min(top, box.clientHeight - 230)}px`;
+  const primary = n.kind === "link" && !linked.has(id)
+    ? `<span class="btn primary" data-do="link" data-id="${id}"><i data-lucide="link-2"></i>${mode === "write" ? "连到光标处" : `连到「${n.anchor}」`}</span>`
+    : n.kind === "dup" ? `<span class="btn" data-do="side"><i data-lucide="columns-2"></i>并排看</span>`
+    : n.kind === "conflict" || n.kind === "gap" ? `<span class="btn" data-do="q" data-id="${id}"><i data-lucide="circle-help"></i>${n.question ? "加为材料" : "记为问题"}</span>` : "";
+  el.innerHTML = `<div class="bt"><i data-lucide="${n.icon}"></i>${n.t}</div><div class="why">${n.why}</div>${n.pv ? `<div class="pv">${n.pv}</div>` : ""}
+    <div class="acts">${primary}${n.ghost ? "" : `<span class="btn ghost" data-do="open"><i data-lucide="arrow-up-right"></i>打开</span>`}<span class="btn ghost" data-do="dismiss" data-id="${id}">不相关</span></div>`;
+  box.appendChild(el);
+  el.onclick = e => e.stopPropagation();
+  el.querySelectorAll("[data-do]").forEach(b => b.onclick = () => act(b.dataset.do, b.dataset.id));
+  lucide.createIcons();
+}
+
+function act(what, id) {
+  if (what === "link") { linked.add(id); done.add(id); toast("已在正文中建立连接"); }
+  if (what === "q") { done.add(id); toast("已打开命令面板：记为问题（来源：本文）"); }
+  if (what === "side") toast("对方在右侧并排打开（只读）");
+  if (what === "open") toast("在新标签打开对方");
+  if (what === "dismiss") { done.add(id); toast("不再推荐这一条"); }
+  document.querySelector(".bubble")?.remove();
+  bubble = null;
+  render();
+}
+
+function setHover(id) {
+  hover = id;
+  drawGraph();
+  document.querySelectorAll(".find").forEach(f => f.classList.toggle("on", f.dataset.node === id || f.dataset.node === active));
+  document.querySelectorAll(".anchor").forEach(a => a.classList.toggle("hl", a.dataset.node === id));
+}
+
+function rightHtml() {
+  const p = P();
+  if (mode === "ana") {
+    const finds = p.finds.map(f => {
+      const n = nodeById(f.node);
+      const isDone = done.has(f.node);
+      const doneLabel = linked.has(f.node) ? "已连接" : "已处理";
+      return `<div class="find${isDone ? " done" : ""}" data-node="${f.node}">
+        <span class="k" style="background:${KIND[n.kind].color}"></span>
+        <div><div class="tx">${f.text}</div><div class="more">${n.why}</div></div>
+        <span class="act">${isDone ? `<span class="btn ghost">${doneLabel}</span>` : `<span class="btn${n.kind === "link" ? " primary" : ""}" data-do="${n.kind === "link" ? "link" : n.kind === "dup" ? "side" : "q"}" data-id="${f.node}">${f.act}</span>`}</span></div>`;
+    }).join("");
+    return `<div class="ana"><div class="lead">${p.lead}</div><h4>发现</h4>${finds}<h4>可以继续想</h4>
+      ${p.asks.map(a => `<div class="ask"><i data-lucide="circle-help"></i>${a}<span class="act"><span class="btn" data-do="q">记为问题</span></span></div>`).join("")}
+      <div class="foot"><span>10 月 3 日 14:20 · 读了 15 份候选，留下 ${p.finds.length} 条</span><span class="re" id="re"><i data-lucide="refresh-cw"></i>重新分析</span></div></div>`;
+  }
+  const secs = p.sections.map(s => {
+    const sec = s.h || "正文";
+    const paras = s.p.map((t, i) => {
+      let html = t.replace(/\{(\w)\|([^}]+)\}/g, (_, id, text) => linked.has(id) ? `<a class="lnk">${text}</a>` : `<span class="anchor" data-node="${id}">${text}</span>`);
+      if (curSec === sec && i === s.p.length - 1) html += `<span class="caret"></span>`;
+      return `<p>${html}</p>`;
+    }).join("");
+    return `<div class="sec${curSec === sec ? " cur" : ""}" data-sec="${sec}">${s.h ? `<h2>${s.h}</h2>` : ""}${paras}</div>`;
+  }).join("");
+  return `<div class="doc">${page === "article" ? `<div class="title">${p.self}</div>` : ""}${secs}</div>`;
+}
+
+function render() {
+  document.getElementById("win").className = `win mode-${mode}${mode === "write" ? " write" : ""}`;
+  document.getElementById("crumb").innerHTML = P().crumb;
+  document.querySelectorAll(".modes [data-mode]").forEach(m => m.classList.toggle("on", m.dataset.mode === mode));
+  const right = document.getElementById("right");
+  right.innerHTML = rightHtml();
+  right.querySelectorAll(".find").forEach(f => {
+    f.onmouseenter = () => setHover(f.dataset.node);
+    f.onmouseleave = () => setHover(null);
+    f.onclick = () => { active = active === f.dataset.node ? null : f.dataset.node; setHover(null); };
+  });
+  right.querySelectorAll("[data-do]").forEach(b => b.onclick = e => { e.stopPropagation(); act(b.dataset.do, b.dataset.id); });
+  right.querySelectorAll("[data-sec]").forEach(s => s.onclick = () => { curSec = s.dataset.sec; render(); });
+  right.querySelectorAll(".anchor").forEach(a => {
+    a.onmouseenter = () => setHover(a.dataset.node);
+    a.onmouseleave = () => setHover(null);
+  });
+  const re = document.getElementById("re");
+  if (re) re.onclick = replay;
+  document.getElementById("status").innerHTML = revealed
+    ? `<i data-lucide="loader" class="spin"></i>AI 正在读 15 份候选…`
+    : `<i data-lucide="sparkles"></i>${P().nodes.filter(n => n.kind !== "known").length} 处关系 · ${linked.size ? `已连接 ${linked.size} 处` : "悬停或点击节点"}`;
+  drawGraph();
+  lucide.createIcons();
+}
+
+function replay() {
+  revealed = new Set();
+  render();
+  const ids = P().nodes.filter(n => n.kind !== "known").map(n => n.id);
+  ids.forEach((id, i) => setTimeout(() => {
+    revealed.add(id);
+    if (i === ids.length - 1) setTimeout(() => { revealed = null; render(); }, 600);
+    else render();
+  }, 500 + i * 420));
+}
+
+function toast(text) {
+  const t = document.getElementById("toast");
+  t.textContent = text;
+  t.classList.add("on");
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => t.classList.remove("on"), 1800);
+}
+
+document.addEventListener("click", () => { if (bubble) { document.querySelector(".bubble")?.remove(); bubble = null; } });
+document.querySelectorAll(".modes [data-mode]").forEach(m => m.onclick = () => {
+  mode = m.dataset.mode;
+  curSec = mode === "write" ? (page === "article" ? "布局" : "正文") : null;
+  render();
+});
+document.querySelectorAll(".mock-bar a[data-page]").forEach(a => a.onclick = e => {
+  e.preventDefault();
+  page = a.dataset.page;
+  linked.clear(); done.clear(); curSec = mode === "write" ? (page === "article" ? "布局" : "正文") : null;
+  document.querySelectorAll(".mock-bar a[data-page]").forEach(x => x.classList.toggle("on", x === a));
+  render();
+});
+document.getElementById("replay").onclick = e => { e.preventDefault(); replay(); };
+document.getElementById("theme").onchange = e => (document.documentElement.dataset.theme = e.target.value);
+render();
+</script>
+</body>
+</html>
