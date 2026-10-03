@@ -61,6 +61,13 @@ export type ContextUsage =
   | { kind: "todo"; key: string; title: string; completed: boolean; open: ContextOpenTarget }
   | { kind: "notebook"; key: string; title: string; open: ContextOpenTarget };
 
+/** 脉络「相关」的一条：语义相近但还没有关系的内容（KL-057），不显示相似度 */
+export interface ContextRelated {
+  entity: ContextEntity;
+  /** AI 一句话要点；没有元信息时为空串 */
+  summary: string;
+}
+
 export interface EntityContext {
   self: ContextEntity;
   /** 我在正文里引用了谁（不含自身与共用正文的身份）；最多 50 条 */

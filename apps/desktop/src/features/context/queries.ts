@@ -4,7 +4,7 @@
  */
 
 import { useQuery, type QueryClient } from "@tanstack/react-query";
-import { getEntityContext } from "@/commands/entity-context";
+import { getEntityContext, getEntityRelated } from "@/commands/entity-context";
 import { on } from "@/electron";
 import type { EntityRef } from "@/entity/ref";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
@@ -17,6 +17,8 @@ export const entityContextKeys = {
   root: (database: string) => ["entity-context", databaseId(database)] as const,
   entity: (database: string, ref: EntityRef) =>
     [...entityContextKeys.root(database), ref.kind, ref.id] as const,
+  related: (database: string, ref: EntityRef) =>
+    [...entityContextKeys.entity(database, ref), "related"] as const,
 };
 
 export function invalidateEntityContext(client: QueryClient, database: string) {
@@ -38,5 +40,19 @@ export function useEntityContext(ref: EntityRef | null) {
     enabled: connected && ref !== null && ref.id > 0,
     staleTime: 30_000,
     refetchOnWindowFocus: true,
+  });
+}
+
+/** 「相关」只在浮层打开时取：要查一次向量近邻，不随元信息行常驻 */
+export function useEntityRelated(ref: EntityRef | null, enabled: boolean) {
+  const database = useSettingStore(state => state.setting.database.active);
+  const connected = useDatabaseConnected();
+  return useQuery({
+    queryKey: ref
+      ? entityContextKeys.related(database, ref)
+      : [...entityContextKeys.root(database), "none", "related"],
+    queryFn: () => getEntityRelated(ref!),
+    enabled: enabled && connected && ref !== null && ref.id > 0,
+    staleTime: 60_000,
   });
 }

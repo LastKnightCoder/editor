@@ -3,19 +3,21 @@
  *
  * - 数据库连接时整库对账（切库即作废进行中的一轮），引用索引与白板引用索引各一轮；
  * - 正文写入总线触发增量重建，2 秒防抖；白板写事件触发白板对账，同样防抖；
- * - 引用或实体、问题材料变化后广播 entity-context:changed，渲染端据此失效查询。
+ * - 引用或实体、问题材料变化后广播 entity-context:changed，渲染端据此失效查询；
+ * - 「相关」（entity-context:related）单独取，只在浮层打开时查；阈值连库时按需重新抽样。
  */
 
 import type Database from "better-sqlite3";
 import { BrowserWindow, ipcMain } from "electron";
 import log from "electron-log";
 import { normalizeEntityRefKind, type EntityRef } from "@/entity/ref";
-import type { EntityContext } from "@/types/entity-context";
+import type { ContextRelated, EntityContext } from "@/types/entity-context";
 import type { Module } from "../../types/module";
 import { onContentWritten } from "../content-events";
 import databaseModule from "../database";
 import { broadcastDatabaseChange } from "../database-notifications";
 import { getEntityContext } from "./context-query";
+import { ensureRelatedThreshold, relatedOf } from "./context-related";
 import { reconcileRefs, reindexContents } from "./ref-indexer";
 import { reconcileWhiteboardRefs } from "./whiteboard-indexer";
 import { CONTEXT_WRITE_EVENTS, WHITEBOARD_CANVAS_EVENTS } from "./write-events";
@@ -37,10 +39,14 @@ class EntityContextModule implements Module {
     ipcMain.handle("entity-context:get", (event, ref: unknown) =>
       this.handleGet(event.sender, ref)
     );
+    ipcMain.handle("entity-context:related", (event, ref: unknown) =>
+      this.handleRelated(event.sender, ref)
+    );
     databaseModule.onDatabaseConnected(dbName => {
       const generation = ++this.generation;
       this.enqueue(() => this.reconcile(dbName, generation));
       this.enqueue(() => this.reconcileWhiteboards(dbName, generation));
+      this.enqueue(() => this.refreshRelatedThreshold(dbName, generation));
     });
     onContentWritten(({ dbName, contentId }) => this.schedule(dbName, contentId));
     databaseModule.onDatabaseWrite((dbName, eventName) => {
@@ -140,20 +146,50 @@ class EntityContextModule implements Module {
     if (changed > 0) broadcastDatabaseChange(ENTITY_CONTEXT_CHANGED, dbName);
   }
 
-  private async handleGet(
-    sender: Electron.WebContents,
-    raw: unknown
-  ): Promise<EntityContext | null> {
+  /** 「相关」的相似度阈值：嵌入指纹或向量规模变化后重新抽样 */
+  private async refreshRelatedThreshold(dbName: string, generation: number) {
+    const dbs = await this.databases(dbName, "entity-related:threshold");
+    if (!dbs || generation !== this.generation) return;
+    const startedAt = Date.now();
+    const threshold = ensureRelatedThreshold(dbs.indexDb);
+    log.info(
+      `[EntityContext] related threshold db=${dbName} value=${threshold?.value.toFixed(3) ?? "none"} pairs=${threshold?.pairs ?? 0} elapsedMs=${Date.now() - startedAt}`
+    );
+  }
+
+  private parseRef(raw: unknown): EntityRef {
     const input = raw as Partial<EntityRef> | null;
     const kind = normalizeEntityRefKind(input?.kind);
     const id = Number(input?.id);
     if (!kind || !Number.isSafeInteger(id) || id <= 0) throw new Error("实体地址无效");
+    return { kind, id };
+  }
+
+  private async senderDatabases(sender: Electron.WebContents, reason: string) {
     const win = BrowserWindow.fromWebContents(sender);
     const dbName = win ? databaseModule.windowToDatabase.get(win.id) : undefined;
     if (!dbName) throw new Error("No database name found");
-    const dbs = await this.databases(dbName, "ipc:entity-context");
+    const dbs = await this.databases(dbName, reason);
     if (!dbs) throw new Error("数据库未就绪");
-    return getEntityContext(dbs.mainDb, dbs.indexDb, { kind, id });
+    return dbs;
+  }
+
+  private async handleRelated(
+    sender: Electron.WebContents,
+    raw: unknown
+  ): Promise<ContextRelated[]> {
+    const ref = this.parseRef(raw);
+    const dbs = await this.senderDatabases(sender, "ipc:entity-related");
+    return relatedOf(dbs.mainDb, dbs.indexDb, ref);
+  }
+
+  private async handleGet(
+    sender: Electron.WebContents,
+    raw: unknown
+  ): Promise<EntityContext | null> {
+    const ref = this.parseRef(raw);
+    const dbs = await this.senderDatabases(sender, "ipc:entity-context");
+    return getEntityContext(dbs.mainDb, dbs.indexDb, ref);
   }
 }
 
