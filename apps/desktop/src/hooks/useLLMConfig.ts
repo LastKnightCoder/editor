@@ -20,6 +20,8 @@ export const useLLMConfig = (
     | "transcriptionOptimization"
     | "videoSummary"
     | "videoEbookRewrite"
+    | "vibeLearningImageDescription"
+    | "contentMetadata"
 ): LLMConfigResult => {
   const llmProviders = useSettingStore(state => state.setting.llmProviders);
   const llmUsageSettings = useSettingStore(state => state.setting.llmUsageSettings);
