@@ -7,6 +7,8 @@ import type { ContentSection } from "@/entity/sections";
 export type ContentIndexType = "card" | "article" | "project-item" | "diary-daily";
 /** 主库向量 / 全文索引的类型：正文实体 + 外部材料（摘录、PDF 标注、剪藏，KL-037） */
 export type IndexType = ContentIndexType | MaterialKind;
+/** 只进向量、不进全文与检索结果的类型：主对话里的用户提问（KL-064），id 为「会话 id#消息 id」 */
+export type ChatPromptIndexType = "chat-prompt";
 
 export interface SearchResult {
   id: number;
@@ -27,6 +29,12 @@ export interface SearchResult {
     rrfScore?: number;
     stage?: string;
   };
+}
+
+/** 写向量的参数：比 IndexParams 多容纳只进向量的提问（字符串 id） */
+export interface VecIndexParams extends Omit<IndexParams, "id" | "type"> {
+  id: number | string;
+  type: IndexType | ChatPromptIndexType;
 }
 
 export interface IndexParams {

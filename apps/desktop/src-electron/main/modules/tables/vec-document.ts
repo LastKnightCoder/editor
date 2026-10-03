@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { VecDocument, IndexParams, SearchParams, SearchResult, IndexType } from "@/types";
+import type { ChatPromptIndexType, VecIndexParams } from "@/types/search";
 import type { EmbeddingProviderType } from "@/types/embedding";
 import OpenAI from "openai";
 import log from "electron-log";
@@ -17,8 +18,9 @@ const CHUNKS_PER_RESULT = 4;
 const MAX_CHUNK_RECALL = 200;
 
 const LOCAL_EMBEDDING_CONFIG_ID = "embedding-default-local";
+const CHAT_PROMPT_TYPE: ChatPromptIndexType = "chat-prompt";
 
-const addTypePrefix = (id: number, type: string): string => {
+const addTypePrefix = (id: number | string, type: string): string => {
   return `${type}:${id}`;
 };
 
@@ -212,7 +214,11 @@ export default class VecDocumentTable {
       return [];
     }
 
-    const typeClause = types.length > 0 ? `AND type IN (${types.map(() => "?").join(",")})` : "";
+    // 不限类型时也不召回只进向量的提问：它们不是检索结果，还会占掉近邻名额
+    const typeClause =
+      types.length > 0
+        ? `AND type IN (${types.map(() => "?").join(",")})`
+        : `AND type != '${CHAT_PROMPT_TYPE}'`;
 
     const searchQuery = `
       SELECT prefixed_id, update_time, content, chunk_index, distance
@@ -239,7 +245,7 @@ export default class VecDocumentTable {
     return res;
   }
 
-  static async indexContent(db: Database.Database, params: IndexParams): Promise<boolean> {
+  static async indexContent(db: Database.Database, params: VecIndexParams): Promise<boolean> {
     const { id, type, updateTime, modelInfo } = params;
     if (!this.hasTable(db, "vec_documents")) {
       return false;
@@ -332,7 +338,11 @@ export default class VecDocumentTable {
     return removed;
   }
 
-  static removeIndexByIdAndType(db: Database.Database, id: number, type: IndexType) {
+  static removeIndexByIdAndType(
+    db: Database.Database,
+    id: number | string,
+    type: IndexType | ChatPromptIndexType
+  ) {
     if (!this.hasTable(db, "vec_documents")) {
       return true;
     }
@@ -460,8 +470,8 @@ export default class VecDocumentTable {
 
   static checkIndexExists(
     db: Database.Database,
-    id: number,
-    type: IndexType
+    id: number | string,
+    type: IndexType | ChatPromptIndexType
   ): { updateTime: number } | null {
     if (!this.hasTable(db, "vec_documents")) {
       return null;
@@ -493,9 +503,7 @@ export default class VecDocumentTable {
       FROM vec_documents
     `;
 
-    if (type) {
-      query += ` WHERE type = ?`;
-    }
+    query += type ? ` WHERE type = ?` : ` WHERE type != '${CHAT_PROMPT_TYPE}'`;
 
     query += ` GROUP BY prefixed_id`;
 
