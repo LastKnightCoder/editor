@@ -59,6 +59,20 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `create_time` | `INTEGER NOT NULL`    |
 | `update_time` | `INTEGER NOT NULL`    |
 
+### `content_ai_insights`
+
+正文的 AI 洞见（用户在详情页点「AI 洞见」时生成），主键即 `contents.id`。`result` 为 JSON：`lead`（位置概述）、`marks`（可连接 / 重复 / 矛盾 / 可以展开，带原文片段、对方与处理状态）、`asks`；`text_digest` 为分析时的正文指纹。
+
+| 字段          | SQLite 定义           |
+| ------------- | --------------------- |
+| `content_id`  | `INTEGER PRIMARY KEY` |
+| `schema_ver`  | `INTEGER NOT NULL`    |
+| `text_digest` | `TEXT NOT NULL`       |
+| `result`      | `TEXT NOT NULL`       |
+| `model`       | `TEXT NOT NULL`       |
+| `create_time` | `INTEGER NOT NULL`    |
+| `update_time` | `INTEGER NOT NULL`    |
+
 ### `white_board_contents`
 
 | 字段          | SQLite 定义                    |
