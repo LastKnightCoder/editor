@@ -259,6 +259,12 @@ export default class KnowledgeAiInsightsTable {
     ).run(JSON.stringify(members), label, parentId, id);
   }
 
+  /** 子主题行挂到所属主题行下（主题行可能晚于子主题生成） */
+  static setParent(db: Database.Database, ids: number[], parentId: number): void {
+    const update = db.prepare(`UPDATE knowledge_ai_insights SET parent_id = ? WHERE id = ?`);
+    for (const id of ids) update.run(parentId, id);
+  }
+
   /** 改一条标记或问题的处理状态；找不到返回 false（结果已被重新生成替换） */
   static setStatus(
     db: Database.Database,
