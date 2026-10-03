@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   buildGlobalPrompt,
   buildSubtopicPrompt,
+  buildTopicPrompt,
+  fixRefsDeep,
   parseFinalReviewOutput,
   parseGlobalOutput,
   parseGrowthReviewOutput,
   parseSubtopicOutput,
   parseTopicOutput,
+  replaceRefs,
 } from "../topic-insights-prompt";
 
 const note = (no: number) => ({
@@ -177,5 +180,47 @@ describe("topic-insights 提示词", () => {
       new Set([1])
     )!;
     expect(final).toEqual({ lead: "留下 3 个观点", core: [1, 3], asks: ["为什么"], home: null });
+  });
+
+  it("主题提示词带排名，最后一季标成「本季，还没过完」", () => {
+    const prompt = buildTopicPrompt({
+      topic: "CSS",
+      total: 127,
+      inProjects: 3,
+      rank: { position: 4, of: 19 },
+      growth: [
+        { quarter: "2026Q3", count: 6 },
+        { quarter: "2026Q4", count: 0 },
+      ],
+      subtopics: [{ label: "定位", total: 20, overview: "讲定位", shift: "" }],
+      concepts: [],
+      candidates: [],
+    });
+    expect(prompt).toContain("按笔记数在 19 个主题里排第 4");
+    expect(prompt).toContain("2026Q3 6，2026Q4（本季，还没过完）0");
+    // 子主题不再带 S# 编号：模型用不到，还会和正文里的 S3 之类撞名
+    expect(prompt).toContain("- 定位（20 份）：讲定位");
+  });
+
+  it("编号回填：查得到的换成标题，方括号查不到去掉，带字母的查不到保留原样", () => {
+    const resolve = (prefix: string, no: number) =>
+      prefix === "" && no === 2 ? "闭包的定义" : prefix === "D" && no === 3 ? "布局与重排" : null;
+    expect(replaceRefs("[2] 说 A，[9] 说 B；笔记2 也提到", resolve, "D")).toBe(
+      "《闭包的定义》 说 A， 说 B；《闭包的定义》 也提到"
+    );
+    expect(replaceRefs("D3 写得最完整，《D3》也是", resolve, "D")).toBe(
+      "《布局与重排》 写得最完整，《布局与重排》也是"
+    );
+    // 正文里的 S3（存储）、D9（查不到）、2026Q2 都不动
+    expect(replaceRefs("WebDav、S3、D9、2026Q2", resolve, "DS")).toBe("WebDav、S3、D9、2026Q2");
+    const fixed = fixRefsDeep(
+      { lead: "[2] 很好", pairs: [{ why: "D3 重复", anchors: { 2: "[2] 原文" } }] },
+      resolve,
+      "D"
+    );
+    expect(fixed).toEqual({
+      lead: "《闭包的定义》 很好",
+      pairs: [{ why: "《布局与重排》 重复", anchors: { 2: "[2] 原文" } }],
+    });
   });
 });

@@ -28,6 +28,7 @@ import {
   FINAL_REVIEW_SYSTEM_PROMPT,
   GROWTH_REVIEW_SYSTEM_PROMPT,
   buildProjectPrompt,
+  fixRefsDeep,
   parseFinalReviewOutput,
   parseGrowthReviewOutput,
 } from "./topic-insights-prompt";
@@ -323,6 +324,19 @@ export async function reviewProject(
     return entity ? endpoint(ctx, entity, topic) : null;
   };
   const byDocNo = new Map(docs.map(item => [docNo.get(item.id)!, item]));
+  // D# → 文档，C# → 候选笔记，P# → 进行中的项目
+  const resolveRef = (prefix: string, no: number): string | null => {
+    if (prefix === "D") return byDocNo.get(no)?.title ?? null;
+    if (prefix === "C") {
+      const candidate = candidates[no - 1];
+      return candidate ? promptNote(ctx, candidate.entity, 0).title : null;
+    }
+    if (prefix === "P") {
+      const home = homes[no - 1];
+      return home ? `「${home.title}」` : null;
+    }
+    return null;
+  };
   let result = { ...emptyResult(), outside: outsideKeys.size };
   if (kind === "growth") {
     const parsed = await callModel(
@@ -338,7 +352,7 @@ export async function reviewProject(
           new Set(byDocNo.keys())
         ),
       signal
-    );
+    ).then(value => fixRefsDeep(value, resolveRef, "CDP"));
     const marks: KnowledgeMark[] = [
       ...parsed.belong.map(item => ({
         id: "",
@@ -379,7 +393,7 @@ export async function reviewProject(
           new Set(homes.map((_, index) => index + 1))
         ),
       signal
-    );
+    ).then(value => fixRefsDeep(value, resolveRef, "CDP"));
     const home = parsed.home ? homes[parsed.home - 1] : null;
     result = {
       ...result,

@@ -211,6 +211,7 @@ describe("项目回顾", () => {
     const row = (await reviewProject(deps, ctx(), ids["浏览器渲染"], SLOT))!;
     const prompt = prompts[0].prompt;
     expect(prompts[0].system).toBe(GROWTH_REVIEW_SYSTEM_PROMPT);
+    expect(prompt).toContain("上次回顾：无（这是第一次回顾）");
     expect(prompt).toContain("C1 卡片《");
     expect(prompt).not.toContain("已经引用的卡片 的要点｜");
     expect(prompt).not.toContain("无关的卡片");
