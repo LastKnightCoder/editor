@@ -49,6 +49,20 @@ CREATE TABLE IF NOT EXISTS content_ai_insights (
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL
       );
+CREATE TABLE IF NOT EXISTS knowledge_ai_insights (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        scope TEXT NOT NULL,
+        parent_id INTEGER,
+        project_id INTEGER,
+        label TEXT NOT NULL,
+        members TEXT NOT NULL,
+        overview TEXT NOT NULL,
+        result TEXT NOT NULL,
+        increments INTEGER NOT NULL DEFAULT 0,
+        model TEXT NOT NULL,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      );
 CREATE TABLE IF NOT EXISTS white_board_contents (
         id INTEGER PRIMARY KEY NOT NULL,
         create_time INTEGER NOT NULL,
@@ -841,3 +855,4 @@ CREATE INDEX IF NOT EXISTS idx_cards_content_id ON cards(content_id);
 CREATE INDEX IF NOT EXISTS idx_articles_content_id ON articles(content_id);
 CREATE INDEX IF NOT EXISTS idx_project_item_content_id ON project_item(content_id);
 CREATE INDEX IF NOT EXISTS idx_diary_segments_content_id ON diary_segments(content_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_ai_insights_scope ON knowledge_ai_insights(scope, project_id);
