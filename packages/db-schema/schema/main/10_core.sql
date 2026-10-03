@@ -17,6 +17,19 @@ CREATE TABLE IF NOT EXISTS contents (
         count INTEGER DEFAULT 0,
         ref_count INTEGER DEFAULT 0
       );
+-- 正文的 AI 元信息（卡片 / 文章 / 项目文档，按 content_id，共用正文的投影共用一份）。
+-- meta 为 JSON：{ title, summary, concepts[], claims[] }；schema_ver 低于当前的只补缺字段；
+-- text_digest 为生成时正文纯文本的 MinHash 指纹，正文大改才重算；model = providerId/modelId。
+-- 正文真正删除时同事务删除，连库对账兜底清理孤儿行。
+CREATE TABLE IF NOT EXISTS content_ai_meta (
+        content_id INTEGER PRIMARY KEY,
+        schema_ver INTEGER NOT NULL,
+        text_digest TEXT NOT NULL,
+        meta TEXT NOT NULL,
+        model TEXT NOT NULL,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      );
 CREATE TABLE IF NOT EXISTS white_board_contents (
         id INTEGER PRIMARY KEY NOT NULL,
         create_time INTEGER NOT NULL,
