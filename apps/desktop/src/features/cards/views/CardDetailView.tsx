@@ -17,7 +17,7 @@
  * 图谱入口不做（卡片库列表页已有）。
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Descendant, Range } from "slate";
 import { Transforms } from "slate";
@@ -102,6 +102,7 @@ import { CategoryBadge } from "../components/CardItemView";
 import { ContextBadge } from "@/features/context/components/ContextBadge";
 import { openEntity } from "@/services/open-content";
 import { cardTitle as titleOfCard } from "@/utils/card-title";
+import { useInsightsView } from "@/features/insights/useInsightsView";
 
 /** copy utils 的 MessageApi 是结构类型，toast 同形适配（不引 antd message） */
 const toastAdapter = {
@@ -167,6 +168,14 @@ export function CardDetailView() {
     () => (card ? titleOfCard(card, 20) || `卡片 #${card.id}` : ""),
     [card]
   );
+
+  /* AI 洞见：元信息行入口 + 正文上方报告 + 就地标记（KL-058） */
+  const insights = useInsightsView({
+    ref: { kind: "card", id: card?.id ?? 0 },
+    contentId: card?.contentId ?? 0,
+    sourceLabel: `卡片：${cardTitle}`,
+    getEditor: useCallback(() => editorRef.current?.getEditor(), []),
+  });
 
   /* 制卡：闪卡引用指向卡片正文（refType content，与文章制卡同链路） */
   const flashcard = useFlashcardCreation({
@@ -334,6 +343,7 @@ export function CardDetailView() {
                     ),
                   }}
                 />
+                {insights.button}
 
                 {/* ⋯ 更多（时间右侧）：按频率排布——场景（演示/沉浸，高频）与连接在前，
                   复制/导出居中，生成类（制卡/播客，低频）收二级垫底，删除殿后。
@@ -525,20 +535,25 @@ export function CardDetailView() {
                 </div>
               )}
 
+              {insights.report && <div className="-mt-1 mb-5">{insights.report}</div>}
+
               {/* 正文：常编辑态（无预览/编辑切换），协作绑定 card 源 */}
-              <ErrorBoundary>
-                <ContentEditor
-                  at={at}
-                  ref={editorRef}
-                  contentId={card.contentId}
-                  key={`${card.id}-${editorRemountKey}`}
-                  initValue={card.content}
-                  readonly={false}
-                  source={{ sourceType: "card", sourceId: card.id }}
-                  editingContext={{ entityType: "card", entityId: card.id }}
-                  className="min-h-[80px]"
-                />
-              </ErrorBoundary>
+              {insights.frame(
+                <ErrorBoundary>
+                  <ContentEditor
+                    at={at}
+                    ref={editorRef}
+                    contentId={card.contentId}
+                    key={`${card.id}-${editorRemountKey}`}
+                    initValue={card.content}
+                    readonly={false}
+                    source={{ sourceType: "card", sourceId: card.id }}
+                    editingContext={{ entityType: "card", entityId: card.id }}
+                    className="min-h-[80px]"
+                    {...insights.editorProps}
+                  />
+                </ErrorBoundary>
+              )}
 
               {/* 标签行（正文末）：每次操作即时 patch */}
               <AddTag
