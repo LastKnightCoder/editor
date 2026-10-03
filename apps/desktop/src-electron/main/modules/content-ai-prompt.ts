@@ -12,6 +12,7 @@ import type { ContentAiMeta } from "./tables/content-ai-meta";
 /** 正文输入截断长度（字符） */
 export const INPUT_MAX_CHARS = 6000;
 const OUTLINE_MAX_LINES = 60;
+/** 标题上限按显示宽度计：汉字与标点各算 1，连续的英文、数字（含 . _ - + #）算 1 个词 */
 export const TITLE_MAX_CHARS = 24;
 const SUMMARY_MAX_CHARS = 60;
 
@@ -27,7 +28,7 @@ export interface ContentAiInput {
 export const CONTENT_AI_SYSTEM_PROMPT = `你是用户个人知识库的整理助手，为一份笔记生成元信息，只输出一个 JSON 对象，不要任何解释或 Markdown 代码块。
 
 字段：
-- "title"：概括这份笔记的核心观点，不是复述开头；不加引号、句号；不超过 ${TITLE_MAX_CHARS} 个字。
+- "title"：概括这份笔记的核心观点，不是复述开头；不加引号、句号；不超过 ${TITLE_MAX_CHARS} 个字（一个英文单词或数字算 1 个字）。
 - "summary"：一句话说清要点，不超过 ${SUMMARY_MAX_CHARS} 个字。
 - "concepts"：3 到 8 个关键概念（名词或短语）。
 - "claims"：笔记里明确提出的主要主张，0 到 3 条，每条一句；没有明确主张就给空数组。
@@ -64,6 +65,11 @@ export function buildContentAiUserPrompt(input: ContentAiInput): string | null {
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+/** 按显示宽度计长：连续的英文、数字算 1，空白不计，其余字符各算 1 */
+export function titleDisplayLength(text: string): number {
+  return (text.replace(/\s+/g, "").match(/[A-Za-z0-9_.+#-]+|./gu) ?? []).length;
 }
 
 const cleanTitle = (value: string) =>

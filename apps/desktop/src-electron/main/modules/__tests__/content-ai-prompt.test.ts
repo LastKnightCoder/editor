@@ -4,6 +4,7 @@ import {
   INPUT_MAX_CHARS,
   buildContentAiUserPrompt,
   parseContentAiOutput,
+  titleDisplayLength,
 } from "../content-ai-prompt";
 
 const block = (type: string, text: string, extra: Record<string, unknown> = {}) =>
@@ -48,5 +49,11 @@ describe("content-ai-prompt", () => {
     expect(parseContentAiOutput('{"summary":"只有要点"}')).toBeNull();
     expect(parseContentAiOutput("标题：xxx")).toBeNull();
     expect(parseContentAiOutput("{bad json}")).toBeNull();
+  });
+
+  it("标题按显示宽度计长：英文单词与数字串各算 1", () => {
+    expect(titleDisplayLength("用 extractContents 替代 surroundContents 处理跨标签选区")).toBe(12);
+    expect(titleDisplayLength("宇宙由5%常规物质")).toBe(9);
+    expect(titleDisplayLength("Node.js 与 ES2025")).toBe(3);
   });
 });

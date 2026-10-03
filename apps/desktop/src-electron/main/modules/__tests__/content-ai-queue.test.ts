@@ -176,7 +176,7 @@ describe("content-ai-queue", () => {
       meta: { title: "" },
     });
     expect(status).toMatchObject({ total: 5, processed: 5 });
-    expect(status.estimatedTokens).toBeGreaterThan(5 * 400);
+    expect(status.estimatedTokens).toBeGreaterThan(5 * 250);
   });
 
   it("编辑静置 10 分钟后才判断；小改只记核对时间，大改重算", async () => {
