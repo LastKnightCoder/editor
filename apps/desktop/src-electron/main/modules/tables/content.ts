@@ -12,6 +12,7 @@ import WhiteBoardContentTable from "./white-board-content";
 import CardTable from "./card";
 import QuestionTable from "./question";
 import ContentAiMetaTable from "./content-ai-meta";
+import ContentAiInsightsTable from "./content-ai-insights";
 import { assertContentIsLocal } from "../collaboration-guard";
 import { emitContentWritten } from "../content-events";
 import {
@@ -285,6 +286,7 @@ export default class ContentTable {
       });
 
       ContentAiMetaTable.delete(db, contentId);
+      ContentAiInsightsTable.delete(db, contentId);
       const changes = deleteStmt.run(contentId).changes;
       emitContentWritten(db, contentId, "delete");
       return changes;

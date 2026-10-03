@@ -37,6 +37,18 @@ CREATE TABLE IF NOT EXISTS content_ai_meta (
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL
       );
+-- 正文的 AI 洞见（用户点「AI 洞见」时生成，按 content_id）：result 为 JSON（lead、marks[]、asks[]，
+-- 每条带处理状态 open / linked / questioned / dismissed）；text_digest 为分析时的正文指纹。
+-- 删除与孤儿清理同 content_ai_meta。
+CREATE TABLE IF NOT EXISTS content_ai_insights (
+        content_id INTEGER PRIMARY KEY,
+        schema_ver INTEGER NOT NULL,
+        text_digest TEXT NOT NULL,
+        result TEXT NOT NULL,
+        model TEXT NOT NULL,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      );
 CREATE TABLE IF NOT EXISTS white_board_contents (
         id INTEGER PRIMARY KEY NOT NULL,
         create_time INTEGER NOT NULL,
