@@ -50,6 +50,7 @@ import userSettingModule from "./user-setting";
 
 export const CONTENT_INSIGHTS_SLOT = "contentInsights";
 export const CANDIDATE_LIMIT = 15;
+const PARSE_ATTEMPTS = 2;
 /** 每节查近邻的块数：长文多节，邻居也多节，多取再按实体去重 */
 const KNN_CHUNKS = 200;
 /** 去掉代码、图片、链接后不足这么多字的节不查近邻（参考链接、截图节、代码节是主要噪音） */
@@ -333,20 +334,24 @@ export async function analyzeContent(
     candidates: candidates.map(candidate => candidate.prompt),
   });
   onPhase({ contentId: self.contentId, phase: "thinking" });
-  const response = await deps.complete(
-    {
-      providerId: slot.providerId,
-      modelId: slot.modelId,
-      system: CONTENT_INSIGHTS_SYSTEM_PROMPT,
-      messages: [{ role: "user", content: prompt }],
-      thinking: "off",
-      source: { feature: CONTENT_INSIGHTS_SLOT, entityId: String(self.contentId) },
-    },
-    signal
-  );
-  if (!response.ok || response.error) throw new Error(response.error || "模型请求失败");
   const byNo = new Map(candidates.map(candidate => [candidate.no, candidate]));
-  const parsed = parseInsightsOutput(response.text, self.content, used, new Set(byNo.keys()));
+  // 偶尔输出不是合法 JSON（逗号写成分号等）：同样的请求再试一次，仍不行才报错
+  let parsed: ReturnType<typeof parseInsightsOutput> = null;
+  for (let attempt = 0; attempt < PARSE_ATTEMPTS && !parsed; attempt++) {
+    const response = await deps.complete(
+      {
+        providerId: slot.providerId,
+        modelId: slot.modelId,
+        system: CONTENT_INSIGHTS_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: prompt }],
+        thinking: "off",
+        source: { feature: CONTENT_INSIGHTS_SLOT, entityId: String(self.contentId) },
+      },
+      signal
+    );
+    if (!response.ok || response.error) throw new Error(response.error || "模型请求失败");
+    parsed = parseInsightsOutput(response.text, self.content, used, new Set(byNo.keys()));
+  }
   if (!parsed) throw new Error("模型输出无法解析，请重新分析");
 
   const marks: InsightMark[] = parsed.marks.map((mark, index) => {

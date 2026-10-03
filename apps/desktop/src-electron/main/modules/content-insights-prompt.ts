@@ -13,6 +13,8 @@ import type { InsightKind, InsightMark } from "@/types/content-insights";
 export const INSIGHT_BODY_MAX_CHARS = 6000;
 export const INSIGHT_MAX_MARKS = 6;
 export const INSIGHT_MAX_ASKS = 2;
+/** 「可以展开」每篇最多几条：它不需要候选、最容易写，多了会把连接挤掉 */
+export const INSIGHT_MAX_GAPS = 2;
 /** 片段不能落在上面的位置（行内元素、代码）在块文字里的占位字符 */
 export const INLINE_PLACEHOLDER = "\u0001";
 const ANCHOR_MAX_CHARS = 40;
@@ -53,13 +55,13 @@ export interface PromptSection {
 export const CONTENT_INSIGHTS_SYSTEM_PROMPT = `你是用户个人知识库的阅读助手。给你一篇用户自己写的笔记（分节编号）和从用户其他笔记里找到的候选，找出值得告诉用户的地方。只输出一个 JSON 对象，不要解释或代码块。
 
 标记类型：
-- "link"：本文某处说的事，候选里有直接相关、值得互相连接的笔记。anchor 取本文里最能代表这件事的几个字（2–20 字）。
+- "link"：本文某处说的事，候选里有一篇在讲同一个具体对象、机制或例子，读到这里时翻过去确实有帮助。只是「主题相近」「都属于某一类」不算；说不出具体关联就不要给。anchor 取本文里最能代表这件事的几个字（2–20 字）。
 - "dup"：本文某一句和某个候选说的是同一件事（是重复，不只是相关）。anchor 取本文那一句（不超过 40 字）。
-- "conflict"：本文的某个说法和某个候选的主张不一致，或成立的条件不同。anchor 取本文那句话；mine、theirs 各用一句话概括双方的说法。
-- "gap"：本文提到了、却没有展开、值得补写的概念或问题；可以用你自己的知识说明。不需要候选，anchor 留空，text 写「可以展开什么」（不超过 30 字）。
+- "conflict"：本文的某个说法和某个候选的主张互相冲突，或者一处说「总是」、另一处给了例外。只是侧重点不同不算。anchor 取本文那句话；mine、theirs 各用一句话概括双方的说法。
+- "gap"：本文提到了、却没有展开、最值得补写的概念或问题；可以用你自己的知识说明。不需要候选，anchor 留空，text 写「可以展开什么」（不超过 30 字）。最多 ${INSIGHT_MAX_GAPS} 条，只挑最重要的。
 
 规则：
-- 宁缺毋滥：只给用户会觉得「这个提醒有用」的，没有就少给，最多 ${INSIGHT_MAX_MARKS} 条。
+- 宁缺毋滥：只给用户会觉得「这个提醒有用」的，没有就少给，最多 ${INSIGHT_MAX_MARKS} 条。优先给 conflict、dup、link，gap 放最后。
 - link、dup、conflict 必须给出候选编号 candidate；anchor 必须逐字摘自 section 指定的那一节原文，不能改写。
 - 不要推荐已有连接里的笔记。
 - why 用一两句话说清理由（不超过 60 字），说「为什么值得连 / 哪里重复 / 哪里不一致 / 为什么值得展开」。
@@ -212,7 +214,7 @@ export function parseInsightsOutput(
     const why = str(raw.why, WHY_MAX_CHARS);
     if (kind === "gap") {
       const note = str(raw.text, 40) || why;
-      if (!note) continue;
+      if (!note || marks.filter(mark => mark.kind === "gap").length >= INSIGHT_MAX_GAPS) continue;
       marks.push({ kind, block: section.blockEnd, anchor: "", text: note, why, candidate: null });
       continue;
     }

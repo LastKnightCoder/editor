@@ -222,16 +222,17 @@ describe("content-insights", () => {
     expect(readInsights(main, article.ref)!.stale).toBe(true);
   });
 
-  it("模型失败或输出无法解析时报错，不写入", async () => {
+  it("模型失败时报错；输出无法解析时再试一次仍不行才报错，不写入", async () => {
     const article = addArticle();
     const failing = { complete: async () => ({ ok: false, text: "", error: "401" }), now: () => 1 };
     await expect(
       analyzeContent(failing, main, index, article.ref, { providerId: "p", modelId: "m" })
     ).rejects.toThrow("401");
-    const garbage = { complete: async () => ({ ok: true, text: "抱歉" }), now: () => 1 };
+    const garbage = { complete: vi.fn(async () => ({ ok: true, text: "抱歉" })), now: () => 1 };
     await expect(
       analyzeContent(garbage, main, index, article.ref, { providerId: "p", modelId: "m" })
     ).rejects.toThrow("无法解析");
+    expect(garbage.complete).toHaveBeenCalledTimes(2);
     expect(readInsights(main, article.ref)).toBeNull();
   });
 });

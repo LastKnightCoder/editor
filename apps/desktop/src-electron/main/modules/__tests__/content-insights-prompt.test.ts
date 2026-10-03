@@ -90,17 +90,37 @@ describe("content-insights-prompt", () => {
     expect(parsed.asks).toEqual(["问一"]);
   });
 
-  it("容忍代码块包裹；超过上限截断；无法解析返回 null", () => {
-    const many = Array.from({ length: 10 }, (_, i) => ({
+  it("「可以展开」每篇最多 2 条，其余类型不受影响", () => {
+    const gaps = Array.from({ length: 4 }, (_, i) => ({
       type: "gap",
       section: 1,
       text: `展开 ${i}`,
     }));
     const parsed = parseInsightsOutput(
+      out([
+        ...gaps,
+        { type: "link", section: 1, anchor: "强制同步布局", candidate: 1, why: "理由" },
+      ]),
+      CONTENT,
+      SECTIONS,
+      new Set([1])
+    )!;
+    expect(parsed.marks.map(m => m.kind)).toEqual(["gap", "gap", "link"]);
+  });
+
+  it("容忍代码块包裹；超过上限截断；无法解析返回 null", () => {
+    const many = Array.from({ length: 10 }, (_, i) => ({
+      type: "link",
+      section: 1,
+      anchor: "强制同步布局",
+      candidate: i + 1,
+      why: "理由",
+    }));
+    const parsed = parseInsightsOutput(
       "```json\n" + out(many) + "\n```",
       CONTENT,
       SECTIONS,
-      new Set()
+      new Set(many.map(m => m.candidate))
     )!;
     expect(parsed.marks).toHaveLength(INSIGHT_MAX_MARKS);
     expect(parseInsightsOutput("不是 JSON", CONTENT, SECTIONS, new Set())).toBeNull();
