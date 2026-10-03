@@ -483,7 +483,8 @@ export interface ProjectPromptInput {
   docs: Array<{ no: number; depth: number; title: string; summary: string; fresh: boolean }>;
   outside: string[];
   candidates: Array<{ note: PromptNote; branch: string }>;
-  homes: Array<{ no: number; title: string; overlap: number }>;
+  /** 进行中、内容相近的项目；similarity 为两个项目整体向量的余弦 */
+  homes: Array<{ no: number; title: string; similarity: number }>;
 }
 
 export function buildProjectPrompt(input: ProjectPromptInput): string {
@@ -511,7 +512,7 @@ export function buildProjectPrompt(input: ProjectPromptInput): string {
       : "",
     input.homes.length
       ? `进行中、内容最接近的项目：\n${input.homes
-          .map(home => `P${home.no} ${home.title}（重合 ${Math.round(home.overlap * 100)}%）`)
+          .map(home => `P${home.no} ${home.title}（相近度 ${home.similarity.toFixed(2)}）`)
           .join("\n")}`
       : "",
   ]

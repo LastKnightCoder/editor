@@ -1,6 +1,10 @@
 import { invoke, off, on } from "@/electron";
 import type { InsightStatus } from "@/types/content-insights";
-import type { KnowledgeInsightsPayload, KnowledgeInsightsPhase } from "@/types/knowledge-insights";
+import type {
+  KnowledgeInsightNode,
+  KnowledgeInsightsPayload,
+  KnowledgeInsightsPhase,
+} from "@/types/knowledge-insights";
 import { withModule } from "./module-init";
 
 /** 已有的主题与全局层洞见（后台按变化量生成） */
@@ -14,6 +18,20 @@ export function getKnowledgeInsights() {
 export function analyzeKnowledgeInsights() {
   return withModule("topic-insights", () =>
     invoke<KnowledgeInsightsPayload>("knowledge-insights:analyze")
+  );
+}
+
+/** 项目的回顾（生长回顾或结项回顾）；没写过为 null */
+export function getProjectReview(projectId: number) {
+  return withModule("topic-insights", () =>
+    invoke<KnowledgeInsightNode | null>("knowledge-insights:project", projectId)
+  );
+}
+
+/** 立即写一次项目回顾（归档的项目写结项回顾） */
+export function reviewProject(projectId: number) {
+  return withModule("topic-insights", () =>
+    invoke<KnowledgeInsightNode>("knowledge-insights:review-project", projectId)
   );
 }
 

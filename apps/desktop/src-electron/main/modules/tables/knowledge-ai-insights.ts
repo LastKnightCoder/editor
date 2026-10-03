@@ -88,6 +88,9 @@ function parseResult(raw: string): KnowledgeInsightResult {
     growth: Array.isArray(value.growth) ? value.growth.map(Number) : [],
     candidates: Number(value.candidates) || 0,
     dismissed: Array.isArray(value.dismissed) ? value.dismissed.map(String) : [],
+    ...(Array.isArray(value.refs) ? { refs: value.refs } : {}),
+    ...(value.home && typeof value.home === "object" ? { home: value.home } : {}),
+    ...(Number.isFinite(value.outside) ? { outside: Number(value.outside) } : {}),
   };
 }
 
@@ -106,6 +109,7 @@ function parseOverview(raw: string): KnowledgeOverview {
   return {
     overview: typeof value.overview === "string" ? value.overview : "",
     shift: typeof value.shift === "string" ? value.shift : "",
+    ...(value.kind === "growth" || value.kind === "final" ? { kind: value.kind } : {}),
   };
 }
 
