@@ -73,6 +73,25 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `create_time` | `INTEGER NOT NULL`    |
 | `update_time` | `INTEGER NOT NULL`    |
 
+### `knowledge_ai_insights`
+
+主题与全局层的 AI 洞见（后台按知识地图主题分层生成）与项目回顾。`scope` 取 `subtopic` / `topic` / `global` / `project`；`members` 为 JSON 成员快照 `[[contentId, 元信息指纹]]`（主题身份对应与变化量都靠它）；`overview` 为给上一层读的概述 JSON；`result` 为 JSON：`lead`、`marks`（呼应 / 问了没写 / 重复 / 矛盾 / 缺一环 / 同一思路 / 还缺 / 可能属于这里 / 还薄，带处理状态）、`asks`；`increments` 为连续增量改写的次数。
+
+| 字段          | SQLite 定义                         |
+| ------------- | ----------------------------------- |
+| `id`          | `INTEGER PRIMARY KEY AUTOINCREMENT` |
+| `scope`       | `TEXT NOT NULL`                     |
+| `parent_id`   | `INTEGER`                           |
+| `project_id`  | `INTEGER`                           |
+| `label`       | `TEXT NOT NULL`                     |
+| `members`     | `TEXT NOT NULL`                     |
+| `overview`    | `TEXT NOT NULL`                     |
+| `result`      | `TEXT NOT NULL`                     |
+| `increments`  | `INTEGER NOT NULL DEFAULT 0`        |
+| `model`       | `TEXT NOT NULL`                     |
+| `create_time` | `INTEGER NOT NULL`                  |
+| `update_time` | `INTEGER NOT NULL`                  |
+
 ### `white_board_contents`
 
 | 字段          | SQLite 定义                    |

@@ -117,3 +117,4 @@ CREATE INDEX IF NOT EXISTS idx_cards_content_id ON cards(content_id);
 CREATE INDEX IF NOT EXISTS idx_articles_content_id ON articles(content_id);
 CREATE INDEX IF NOT EXISTS idx_project_item_content_id ON project_item(content_id);
 CREATE INDEX IF NOT EXISTS idx_diary_segments_content_id ON diary_segments(content_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_ai_insights_scope ON knowledge_ai_insights(scope, project_id);
