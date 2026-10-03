@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * 脉络「相关」评估（13 §11.2）：真实库副本 + 索引库副本，只读。
  *
@@ -10,24 +11,41 @@
  * - 抽查：随机 20 个有向量的实体，列出「相关」给用户判断是否值得看；
  * - 阈值：随机对 p95 与分布；查询耗时。
  * 两个库都必须是副本：WAL 模式的副本只读打不开，阈值也会写进索引库副本的 index_meta。
+ *
+ * 重建向量再测（KL_RELATED_EVAL_REBUILD）：在 KL_RELATED_EVAL_INDEX 指定的路径新建索引库，
+ * 按主内容向量队列的口径（splitSections + VecDocumentTable.indexContent）为卡片、文章、项目文档重新嵌入：
+ *   - `local`：本地 bge-m3（当前分支的补 <s> + 分窗管线），模型目录用 KL_LOCAL_MODEL_DIR；
+ *   - 其他值：setting.json 里该 id 的远端嵌入配置（按量计费）。
  */
 
 import Database from "better-sqlite3";
 import * as sqliteVec from "sqlite-vec";
-import { writeFileSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { expect, it, vi } from "vitest";
 import mainSchema from "@tau/db-schema/schema/main.sql?raw";
+import indexSchema from "@tau/db-schema/schema/index.sql?raw";
 
 vi.mock("electron", () => ({
   BrowserWindow: { getAllWindows: () => [] },
   ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
+  app: { getPath: () => process.env.KL_LOCAL_USER_DATA ?? "/tmp" },
 }));
 vi.mock("../../video-note-index-queue", () => ({
   default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
 }));
 
 import { entityRefKey, type EntityRef } from "@/entity/ref";
+import { splitSections } from "@/entity/sections";
+import { mainEmbeddingFingerprint } from "@/entity/chunk-version";
+import type { IndexType } from "@/types";
+import { getMarkdown } from "@/utils/markdown";
+import { LOCAL_EMBEDDING_PIPELINE } from "../../../utils/embedding-config";
+import ArticleTable from "../../tables/article";
+import CardTable from "../../tables/card";
+import ProjectTable from "../../tables/project";
+import VecDocumentTable from "../../tables/vec-document";
 import EntitySearchTable from "../../tables/entity-search";
 import KnowledgeMapTable from "../../tables/knowledge-map";
 import {
@@ -42,6 +60,128 @@ const MAIN = process.env.KL_RELATED_EVAL_MAIN;
 const INDEX = process.env.KL_RELATED_EVAL_INDEX;
 const OUT = process.env.KL_RELATED_EVAL_OUT ?? "/tmp/kl7-related-eval.md";
 const SPOT_CHECKS = 20;
+const REBUILD = process.env.KL_RELATED_EVAL_REBUILD;
+
+/** 新建索引库并按队列口径重新嵌入卡片、文章、项目文档；返回耗时与条数 */
+async function rebuildIndex(main: Database.Database, path: string) {
+  rmSync(path, { force: true });
+  rmSync(`${path}-wal`, { force: true });
+  rmSync(`${path}-shm`, { force: true });
+  const db = new Database(path);
+  sqliteVec.load(db);
+  db.exec(indexSchema);
+  let modelInfo: Parameters<typeof VecDocumentTable.indexContent>[1]["modelInfo"];
+  let fingerprintPayload: Record<string, unknown>;
+  if (REBUILD === "local") {
+    modelInfo = {
+      configId: "embedding-default-local",
+      providerType: "local_python",
+      key: "",
+      baseUrl: "",
+      model: "bge-m3",
+      dimensions: 1024,
+      batchSize: 8,
+      devicePolicy: "auto",
+      localModelDir: process.env.KL_LOCAL_MODEL_DIR,
+    } as never;
+    fingerprintPayload = { model: "bge-m3", pipeline: LOCAL_EMBEDDING_PIPELINE };
+  } else {
+    const setting = JSON.parse(readFileSync(join(homedir(), ".editor", "setting.json"), "utf8"));
+    const config = setting.embeddingProvider.configs.find((c: { id: string }) => c.id === REBUILD);
+    expect(config, `setting.json 里没有嵌入配置 ${REBUILD}`).toBeTruthy();
+    const model = config.models.find((m: { name: string }) => m.name === config.currentModel);
+    modelInfo = {
+      configId: config.id,
+      providerType: config.providerType ?? "openai",
+      key: config.apiKey,
+      baseUrl: config.baseUrl,
+      model: config.currentModel,
+      dimensions: Number(process.env.KL_REMOTE_DIMENSIONS ?? 0) || undefined,
+      batchSize: config.batchSize ?? 16,
+    } as never;
+    fingerprintPayload = {
+      model: config.currentModel,
+      baseUrl: config.baseUrl,
+      contextLength: model?.contextLength,
+    };
+  }
+  // 只用于阈值按指纹缓存：与应用里的指纹格式无关
+  const fingerprint = mainEmbeddingFingerprint(JSON.stringify(fingerprintPayload));
+  const tasks: Array<{
+    id: number;
+    type: IndexType;
+    content: unknown[];
+    title: string;
+    whole: boolean;
+    updateTime: number;
+  }> = [];
+  for (const card of CardTable.getAllCards(main))
+    tasks.push({
+      id: card.id,
+      type: "card",
+      content: card.content || [],
+      title: "",
+      whole: true,
+      updateTime: Number(card.update_time),
+    });
+  for (const article of ArticleTable.getAllArticles(main))
+    tasks.push({
+      id: article.id,
+      type: "article",
+      content: article.content || [],
+      title: article.title || "",
+      whole: false,
+      updateTime: Number(article.update_time),
+    });
+  for (const item of ProjectTable.getAllProjectItems(main))
+    tasks.push({
+      id: item.id,
+      type: "project-item",
+      content: item.content || [],
+      title: item.title || "",
+      whole: false,
+      updateTime: Number(item.updateTime),
+    });
+  const started = performance.now();
+  let indexed = 0;
+  let failed = 0;
+  let dimensions = 0;
+  for (const task of tasks) {
+    const markdown = getMarkdown(task.content as never).trim();
+    if (!markdown) continue;
+    const sections = splitSections(task.content as never, task.title, task.whole);
+    if (!dimensions) {
+      // createEmbeddings 是私有方法：先嵌入一次探出维度再建表
+      const probe = await (
+        VecDocumentTable as unknown as {
+          createEmbeddings(texts: string[], info: unknown): Promise<number[][]>;
+        }
+      ).createEmbeddings([sections[0]?.embeddingText ?? markdown], modelInfo as never);
+      dimensions = probe[0]?.length ?? 0;
+      expect(dimensions, "嵌入维度为 0").toBeGreaterThan(0);
+      VecDocumentTable.initTableByVecLength(db, dimensions);
+    }
+    const ok = await VecDocumentTable.indexContent(db, {
+      id: task.id,
+      type: task.type,
+      content: markdown,
+      title: task.title || undefined,
+      sections,
+      updateTime: task.updateTime,
+      modelInfo,
+    } as never);
+    if (ok) indexed++;
+    else failed++;
+    if ((indexed + failed) % 100 === 0)
+      console.log(`[related-eval] 重建 ${indexed + failed} / ${tasks.length}`);
+  }
+  db.prepare(
+    `INSERT INTO vec_index_meta (key, value, updated_at) VALUES ('main_content_embedding_fingerprint', ?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`
+  ).run(fingerprint, Date.now());
+  db.close();
+  return { indexed, failed, dimensions, seconds: (performance.now() - started) / 1000 };
+}
 
 function rng(seed: number) {
   let state = seed >>> 0;
@@ -60,10 +200,12 @@ const cell = (text: string) => text.replace(/\|/g, "\\|").replace(/\s+/g, " ").t
 
 it.skipIf(!MAIN || !INDEX)(
   "「相关」召回与抽查（真实库副本）",
-  () => {
+  async () => {
     const main = new Database(MAIN!);
     // 副本可能早于本分支，补齐新表（含 content_ai_meta）
     main.exec(mainSchema);
+    const rebuilt = REBUILD ? await rebuildIndex(main, INDEX!) : null;
+    if (rebuilt) console.log("[related-eval] 重建完成", rebuilt);
     // 阈值会写进索引库副本的 index_meta
     const memory = new Database(INDEX!);
     sqliteVec.load(memory);
@@ -184,6 +326,9 @@ it.skipIf(!MAIN || !INDEX)(
     const report = [
       `# 脉络「相关」评估`,
       "",
+      rebuilt
+        ? `- 向量：重建（${REBUILD}），${rebuilt.indexed} 个实体成功、${rebuilt.failed} 个失败，${rebuilt.dimensions} 维，用时 ${Math.round(rebuilt.seconds)} 秒`
+        : `- 向量：现有索引库副本`,
       `- 有向量的实体 ${hasVectors.size} 个；阈值（随机对 p${Math.round(0.95 * 100)}）${threshold!.value.toFixed(3)}，样本 ${threshold!.pairs} 对，抽样 ${Math.round(thresholdMs)} ms`,
       `- 召回：双向链接卡片对 ${pairs.size} 对，藏起 ${hidden.length} 对；在前 ${NEIGHBOR_K} 近邻 ${inNeighbors}（${((inNeighbors / Math.max(1, hidden.length)) * 100).toFixed(1)}%），近邻里高于阈值 ${aboveThreshold}（${((aboveThreshold / Math.max(1, hidden.length)) * 100).toFixed(1)}%），**进入「相关」前 ${RELATED_LIMIT} 条 ${inTop5}（${((inTop5 / Math.max(1, hidden.length)) * 100).toFixed(1)}%）**；因引用等其他关系本就被排除 ${excludedByOther}`,
       `- 抽查 ${SPOT_CHECKS} 个实体：「相关」条数分布 ${counts.join(" / ")}`,
@@ -202,5 +347,5 @@ it.skipIf(!MAIN || !INDEX)(
     main.close();
     memory.close();
   },
-  600_000
+  7_200_000
 );
