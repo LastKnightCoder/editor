@@ -11,6 +11,7 @@ import Operation from "./operation";
 import WhiteBoardContentTable from "./white-board-content";
 import CardTable from "./card";
 import QuestionTable from "./question";
+import ContentAiMetaTable from "./content-ai-meta";
 import { assertContentIsLocal } from "../collaboration-guard";
 import { emitContentWritten } from "../content-events";
 import {
@@ -242,6 +243,11 @@ export default class ContentTable {
 
   static deleteContent(db: Database.Database, contentId: number): number {
     assertContentIsLocal(db, contentId);
+    // 元信息与正文同生同灭：引用计数归零时在同一事务里一并删除
+    return db.transaction(() => this.releaseContent(db, contentId))();
+  }
+
+  private static releaseContent(db: Database.Database, contentId: number): number {
     // 先减少引用计数
     const decrementStmt = db.prepare("UPDATE contents SET ref_count = ref_count - 1 WHERE id = ?");
     decrementStmt.run(contentId);
@@ -278,6 +284,7 @@ export default class ContentTable {
         QuestionTable.deleteQuestion(db, id);
       });
 
+      ContentAiMetaTable.delete(db, contentId);
       const changes = deleteStmt.run(contentId).changes;
       emitContentWritten(db, contentId, "delete");
       return changes;

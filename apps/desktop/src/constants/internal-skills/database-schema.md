@@ -45,6 +45,20 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `count`       | `INTEGER DEFAULT 0`   |
 | `ref_count`   | `INTEGER DEFAULT 0`   |
 
+### `content_ai_meta`
+
+正文的 AI 元信息（卡片 / 文章 / 项目文档），主键即 `contents.id`。`meta` 为 JSON：`title`（卡片标题）、`summary`（一句话要点）、`concepts`、`claims`；`text_digest` 为生成时正文的 MinHash 指纹；`model` 为 `providerId/modelId`。
+
+| 字段          | SQLite 定义           |
+| ------------- | --------------------- |
+| `content_id`  | `INTEGER PRIMARY KEY` |
+| `schema_ver`  | `INTEGER NOT NULL`    |
+| `text_digest` | `TEXT NOT NULL`       |
+| `meta`        | `TEXT NOT NULL`       |
+| `model`       | `TEXT NOT NULL`       |
+| `create_time` | `INTEGER NOT NULL`    |
+| `update_time` | `INTEGER NOT NULL`    |
+
 ### `white_board_contents`
 
 | 字段          | SQLite 定义                    |
