@@ -74,16 +74,22 @@ export async function askedCandidates(
     .prepare(`SELECT 1 FROM sqlite_master WHERE name = 'vec_documents'`)
     .get();
   if (!hasVectors) return [];
+  // 一次扫出全部提问（vec0 按 prefixed_id 逐条取会每次扫全表）
   const recent = (
     indexDb
-      .prepare(`SELECT prefixed_id, update_time FROM vec_documents WHERE type = ?`)
-      .all(CHAT_PROMPT_TYPE) as Array<{ prefixed_id: string; update_time: number }>
+      .prepare(
+        `SELECT prefixed_id, update_time, content, vec_embedding FROM vec_documents
+         WHERE type = ? AND chunk_index = 0`
+      )
+      .all(CHAT_PROMPT_TYPE) as Array<{
+      prefixed_id: string;
+      update_time: number;
+      content: string;
+      vec_embedding: Buffer;
+    }>
   )
     .sort((a, b) => b.update_time - a.update_time)
     .slice(0, options.recent ?? ASKED_RECENT_LIMIT);
-  const own = indexDb.prepare(
-    `SELECT content, vec_embedding FROM vec_documents WHERE prefixed_id = ? AND chunk_index = 0`
-  );
   const knn = indexDb.prepare(
     `SELECT prefixed_id, distance FROM vec_documents
      WHERE vec_embedding MATCH ? AND k = 3 AND type IN (${NOTE_TYPES_SQL})`
@@ -92,19 +98,17 @@ export async function askedCandidates(
   for (let i = 0; i < recent.length; i++) {
     const row = recent[i];
     const key = parseChatPromptKey(row.prefixed_id);
-    const vector = own.get(row.prefixed_id) as
-      { content: string; vec_embedding: Buffer } | undefined;
-    if (!key || !vector) continue;
-    const near = knn.all(vector.vec_embedding) as Array<{ prefixed_id: string; distance: number }>;
+    if (!key) continue;
+    const near = knn.all(row.vec_embedding) as Array<{ prefixed_id: string; distance: number }>;
     const nearest = near.length ? 1 - near[0].distance : 0;
     if (nearest < threshold + ASKED_NEAR_MARGIN) {
       unwritten.push({
         ...key,
-        text: vector.content,
+        text: row.content,
         time: row.update_time,
         nearest,
         nearestKey: near[0]?.prefixed_id ?? "",
-        vector: new Float32Array(toFloats(vector.vec_embedding)),
+        vector: new Float32Array(toFloats(row.vec_embedding)),
       });
     }
     if (i % 50 === 49) await yieldToEventLoop();
@@ -132,15 +136,6 @@ export async function askedCandidates(
       times: group.members.length,
       last: group.members[0].time,
     }));
-}
-
-/** 一组节向量的 L2 归一化均值（笔记的整体向量），没有向量返回 null */
-export function noteVector(indexDb: Database.Database, key: string): Float32Array | null {
-  const rows = indexDb
-    .prepare(`SELECT vec_embedding FROM vec_documents WHERE prefixed_id = ?`)
-    .all(key) as Array<{ vec_embedding: Buffer }>;
-  const mean = meanVector(rows.map(row => row.vec_embedding));
-  return mean ? new Float32Array(toFloats(mean)) : null;
 }
 
 // ───────────────────────── 地图分组与成员快照 ─────────────────────────
@@ -262,21 +257,40 @@ export interface NoteVectors {
   chunks: Array<{ chunk: number; updateTime: number; vector: Float32Array }>;
 }
 
+/** vec0 按 prefixed_id 过滤不走索引、每条语句都扫全表：一批 key 合进一条 IN 查询 */
+const VECTOR_BATCH = 400;
+
 /** 一批笔记的节向量与均值；没有向量的不在结果里 */
 export function loadNoteVectors(
   indexDb: Database.Database,
   keys: string[]
 ): Map<string, NoteVectors> {
-  const result = new Map<string, NoteVectors>();
-  const select = indexDb.prepare(
-    `SELECT chunk_index, update_time, vec_embedding FROM vec_documents WHERE prefixed_id = ?`
-  );
-  for (const key of keys) {
-    const rows = select.all(key) as Array<{
+  const rowsByKey = new Map<
+    string,
+    Array<{ chunk_index: number; update_time: number; vec_embedding: Buffer }>
+  >();
+  const unique = [...new Set(keys)];
+  for (let start = 0; start < unique.length; start += VECTOR_BATCH) {
+    const batch = unique.slice(start, start + VECTOR_BATCH);
+    const rows = indexDb
+      .prepare(
+        `SELECT prefixed_id, chunk_index, update_time, vec_embedding FROM vec_documents
+         WHERE prefixed_id IN (${batch.map(() => "?").join(",")})`
+      )
+      .all(...batch) as Array<{
+      prefixed_id: string;
       chunk_index: number;
       update_time: number;
       vec_embedding: Buffer;
     }>;
+    for (const row of rows) {
+      const list = rowsByKey.get(row.prefixed_id);
+      if (list) list.push(row);
+      else rowsByKey.set(row.prefixed_id, [row]);
+    }
+  }
+  const result = new Map<string, NoteVectors>();
+  for (const [key, rows] of rowsByKey) {
     const mean = meanVector(rows.map(row => row.vec_embedding));
     if (!mean) continue;
     result.set(key, {
@@ -409,12 +423,19 @@ export async function bridgeCandidates(
      WHERE vec_embedding MATCH ? AND k = ? AND type IN (${NOTE_TYPES_SQL})`
   );
   const best = new Map<string, NotePair>();
-  for (const topic of topics) {
-    const reps = [...topic.members]
+  const repsByTopic = topics.map(topic => ({
+    topic,
+    reps: [...topic.members]
       .sort((a, b) => linkCount(b.key) - linkCount(a.key) || b.updateTime - a.updateTime)
-      .slice(0, BRIDGE_REPRESENTATIVES);
+      .slice(0, BRIDGE_REPRESENTATIVES),
+  }));
+  const repVectors = loadNoteVectors(
+    indexDb,
+    repsByTopic.flatMap(item => item.reps.map(rep => rep.key))
+  );
+  for (const { topic, reps } of repsByTopic) {
     for (const rep of reps) {
-      const vector = noteVector(indexDb, rep.key);
+      const vector = repVectors.get(rep.key)?.mean;
       if (!vector) continue;
       const rows = knn.all(Buffer.from(vector.buffer), BRIDGE_KNN_CHUNKS) as Array<{
         prefixed_id: string;
