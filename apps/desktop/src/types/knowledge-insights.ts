@@ -79,6 +79,12 @@ export interface KnowledgeInsightResult {
   candidates: number;
   /** 不相关过的标记身份：以后重新生成也不再出现 */
   dismissed: string[];
+  /** 结项回顾：最能代表核心观点的文档 */
+  refs?: KnowledgeEndpoint[];
+  /** 结项回顾：结论适合归入的进行中项目 */
+  home?: { projectId: number; title: string };
+  /** 项目回顾：和项目外笔记已有的连接数（小关系图） */
+  outside?: number;
 }
 
 /** 给上一层读的部分 */
@@ -86,6 +92,8 @@ export interface KnowledgeOverview {
   overview: string;
   /** 关注点的变化（子主题、主题），可空 */
   shift: string;
+  /** 项目回顾的种类：生长回顾 / 结项回顾 */
+  kind?: "growth" | "final";
 }
 
 /** 一个主题层级（或全局 / 项目回顾）的结果 */

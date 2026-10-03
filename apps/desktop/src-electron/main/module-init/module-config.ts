@@ -45,7 +45,7 @@ import knowledgeMapBuilder from "../modules/knowledge-map-builder";
 import entityContextModule from "../modules/entity-context";
 import contentAiQueueModule from "../modules/content-ai-queue";
 import contentInsightsModule from "../modules/content-insights";
-import topicInsightsModule from "../modules/topic-insights";
+import knowledgeInsightsModule from "../modules/knowledge-insights-module";
 import updaterModule from "../modules/updater";
 import pdfIndexQueue from "../modules/pdf-index-queue";
 import pdfIndexOrchestrator from "../modules/pdf-index-orchestrator";
@@ -346,7 +346,7 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     name: "topic-insights",
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "database", "pi-ai", "knowledge-map-builder"],
-    init: () => topicInsightsModule.init(),
+    init: () => knowledgeInsightsModule.init(),
   },
   {
     name: "main-content-vec-index-queue",

@@ -11,13 +11,11 @@
  */
 
 import type Database from "better-sqlite3";
-import { BrowserWindow, ipcMain } from "electron";
 import log from "electron-log";
 import type { Descendant } from "slate";
 import { normalizeEntityRefKind, type EntityRef } from "@/entity/ref";
 import { splitSections } from "@/entity/sections";
 import type { KnowledgeMap } from "@/knowledge-map/types";
-import type { InsightStatus } from "@/types/content-insights";
 import type {
   KnowledgeEndpoint,
   KnowledgeInsightResult,
@@ -26,14 +24,9 @@ import type {
   KnowledgeMark,
 } from "@/types/knowledge-insights";
 import type { PiSingleShotRequest } from "@/types/pi-llm";
-import type { Module } from "../types/module";
 import { locateAnchor, promptSectionsOf } from "./content-insights-prompt";
-import databaseModule from "./database";
-import { broadcastDatabaseChange } from "./database-notifications";
 import { ensureRelatedThreshold } from "./entity-context/context-related";
-import knowledgeMapBuilder from "./knowledge-map-builder";
-import { resolveUsageSlot, type LlmRef, type SettingForLlmSlots } from "./llm-usage-slot";
-import PiAiRuntimeModule from "./pi-ai-runtime";
+import type { LlmRef } from "./llm-usage-slot";
 import ContentAiMetaTable, { type ContentAiMetaRow } from "./tables/content-ai-meta";
 import ContentTable from "./tables/content";
 import KnowledgeAiInsightsTable, {
@@ -72,7 +65,6 @@ import {
   type PromptNote,
   type PromptPair,
 } from "./topic-insights-prompt";
-import userSettingModule from "./user-setting";
 
 export const TOPIC_INSIGHTS_SLOT = "contentInsights";
 export const KNOWLEDGE_INSIGHTS_CHANGED_EVENT = "knowledge-insights:changed";
@@ -161,7 +153,7 @@ export function metaCoverage(ctx: InsightsContext): number {
   return members.filter(member => ctx.metas.has(member.contentId)).length / members.length;
 }
 
-const isLinked = (ctx: InsightsContext) => (a: string, b: string) =>
+export const isLinked = (ctx: InsightsContext) => (a: string, b: string) =>
   ctx.links.get(a)?.has(b) ?? false;
 
 // ───────────────────────── 计划：身份对应与三档 ─────────────────────────
@@ -277,7 +269,7 @@ const monthOf = (time: number) => {
 const isLongDoc = (entity: MapEntity) =>
   entity.kind === "article" || entity.kind === "project-item";
 
-function promptNote(ctx: InsightsContext, entity: MapEntity, no: number): PromptNote {
+export function promptNote(ctx: InsightsContext, entity: MapEntity, no: number): PromptNote {
   const meta = ctx.metas.get(entity.contentId)?.meta;
   return {
     no,
@@ -310,13 +302,13 @@ export function verifyAnchor(
   return section ? locateAnchor(content, section, anchor) : -1;
 }
 
-interface SectionHit {
+export interface SectionHit {
   heading: string;
   blockStart: number;
   text: string;
 }
 
-function endpoint(
+export function endpoint(
   ctx: InsightsContext,
   entity: MapEntity,
   topic: string,
@@ -371,7 +363,7 @@ function buildPair(
   return { prompt, sections };
 }
 
-async function callModel<T>(
+export async function callModel<T>(
   deps: TopicInsightsDeps,
   slot: LlmRef,
   system: string,
@@ -399,7 +391,7 @@ async function callModel<T>(
   throw new Error("模型输出无法解析");
 }
 
-const modelName = (slot: LlmRef) => `${slot.providerId}/${slot.modelId}`;
+export const modelName = (slot: LlmRef) => `${slot.providerId}/${slot.modelId}`;
 
 // ───────────────────────── 子主题 ─────────────────────────
 
@@ -1058,166 +1050,3 @@ export function readKnowledgeInsights(
     topics: [...matched.entries()].map(([topic, row]) => toNode(row, topic.topicId, topic.label)),
   };
 }
-
-// ───────────────────────── 模块：调度与 IPC ─────────────────────────
-
-/** 连库后等这么久再检查一次（让元信息队列与向量先跑） */
-const CONNECT_DELAY_MS = 2 * 60_000;
-const CHECK_INTERVAL_MS = 30 * 60_000;
-
-class TopicInsightsModule implements Module {
-  name = "topic-insights";
-  private slot: LlmRef | null = null;
-  private dbName: string | null = null;
-  private generation = 0;
-  private chain: Promise<unknown> = Promise.resolve();
-  private abort: AbortController | null = null;
-  private running = false;
-  private connectTimer: NodeJS.Timeout | null = null;
-  private readonly deps: TopicInsightsDeps = {
-    complete: (request, signal) => PiAiRuntimeModule.complete(request, signal),
-    now: () => Date.now(),
-  };
-
-  async init() {
-    const applySetting = (setting: SettingForLlmSlots) => {
-      const next = resolveUsageSlot(setting, TOPIC_INSIGHTS_SLOT);
-      if (next?.providerId === this.slot?.providerId && next?.modelId === this.slot?.modelId)
-        return;
-      this.slot = next;
-      this.invalidate();
-    };
-    applySetting(await userSettingModule.getSettingSnapshot());
-    userSettingModule.onSettingChanged(({ newSetting }) => applySetting(newSetting));
-    databaseModule.onDatabaseConnected(dbName => this.onConnected(dbName));
-    const current = databaseModule.getCurrentDatabase();
-    if (current?.open) this.onConnected(databaseModule.getCurrentDatabaseName());
-    setInterval(() => this.scheduleBackground(), CHECK_INTERVAL_MS).unref?.();
-
-    ipcMain.handle("knowledge-insights:get", async event => {
-      const { mainDb, indexDb } = await this.databases(event.sender);
-      const map = KnowledgeMapTable.load(indexDb);
-      return readKnowledgeInsights(map ? buildContext(mainDb, indexDb, map) : null, mainDb, {
-        configured: this.slot !== null,
-        running: this.running,
-      });
-    });
-    ipcMain.handle("knowledge-insights:analyze", async event => {
-      if (!this.slot) throw new Error("还没有为「AI 洞见」配置模型");
-      const sender = event.sender;
-      const { dbName } = await this.databases(sender);
-      return this.enqueue(async () => {
-        const result = await this.run(dbName, true, phase => {
-          if (!sender.isDestroyed()) sender.send("knowledge-insights:phase", phase);
-        });
-        if (!result) throw new Error("知识地图还没有准备好");
-        return result;
-      });
-    });
-    ipcMain.handle("knowledge-insights:cancel", async () => {
-      this.abort?.abort();
-      return true;
-    });
-    ipcMain.handle(
-      "knowledge-insights:set-status",
-      async (event, input: { id: number; itemId: string; status: InsightStatus }) => {
-        const { mainDb, dbName } = await this.databases(event.sender);
-        const ok = KnowledgeAiInsightsTable.setStatus(
-          mainDb,
-          Number(input?.id),
-          String(input?.itemId),
-          input?.status
-        );
-        if (ok) broadcastDatabaseChange(KNOWLEDGE_INSIGHTS_CHANGED_EVENT, dbName);
-        return ok;
-      }
-    );
-    log.info("[TopicInsights] Module initialized");
-  }
-
-  private onConnected(dbName: string) {
-    this.dbName = dbName;
-    this.invalidate();
-    const mainDb = databaseModule.getDatabase(dbName);
-    if (mainDb?.open) {
-      const removed = KnowledgeAiInsightsTable.removeOrphans(mainDb);
-      if (removed) log.info(`[TopicInsights] 清理孤儿结果 ${removed} 行`);
-    }
-    if (this.connectTimer) clearTimeout(this.connectTimer);
-    this.connectTimer = setTimeout(() => this.scheduleBackground(), CONNECT_DELAY_MS);
-    this.connectTimer.unref?.();
-  }
-
-  private invalidate() {
-    this.generation++;
-    this.abort?.abort();
-    this.abort = null;
-  }
-
-  private enqueue<T>(task: () => Promise<T>): Promise<T> {
-    const next = this.chain.then(task);
-    this.chain = next.catch(() => undefined);
-    return next;
-  }
-
-  private scheduleBackground() {
-    const dbName = this.dbName;
-    if (!this.slot || !dbName) return;
-    void this.enqueue(() => this.run(dbName, false)).catch(error =>
-      log.warn("[TopicInsights] 后台分析失败", error)
-    );
-  }
-
-  /** 一轮分析；地图不可用返回 null。后台时元信息覆盖率不够就不跑 */
-  private async run(
-    dbName: string,
-    force: boolean,
-    onPhase?: (phase: KnowledgeInsightsPhase) => void
-  ): Promise<KnowledgeInsightsPayload | null> {
-    const slot = this.slot;
-    if (!slot) return null;
-    const generation = this.generation;
-    const map = await knowledgeMapBuilder.ensureFresh(dbName);
-    const mainDb = databaseModule.getDatabase(dbName);
-    const indexDb = databaseModule.getIndexDatabase(dbName);
-    if (!map || !mainDb?.open || !indexDb || generation !== this.generation) return null;
-    const ctx = buildContext(mainDb, indexDb, map);
-    if (!force && metaCoverage(ctx) < COVERAGE_GATE) return null;
-    const abort = new AbortController();
-    this.abort = abort;
-    this.running = true;
-    const startedAt = Date.now();
-    try {
-      const outcome = await analyzeKnowledge(this.deps, ctx, slot, {
-        force,
-        onPhase,
-        signal: abort.signal,
-        stale: () => generation !== this.generation || !mainDb.open,
-      });
-      log.info(
-        `[TopicInsights] ${force ? "点击" : "后台"} db=${dbName} subtopics=${outcome.subtopics} topics=${outcome.topics} global=${outcome.global} failures=${outcome.failures} elapsedMs=${Date.now() - startedAt}`
-      );
-      if (outcome.subtopics || outcome.topics || outcome.global) {
-        broadcastDatabaseChange(KNOWLEDGE_INSIGHTS_CHANGED_EVENT, dbName);
-      }
-    } finally {
-      if (this.abort === abort) this.abort = null;
-      this.running = false;
-    }
-    return readKnowledgeInsights(ctx, mainDb, { configured: true, running: false });
-  }
-
-  private async databases(sender: Electron.WebContents) {
-    const win = BrowserWindow.fromWebContents(sender);
-    const dbName = win ? databaseModule.windowToDatabase.get(win.id) : undefined;
-    if (!dbName) throw new Error("No database name found");
-    const mainDb = databaseModule.getDatabase(dbName);
-    if (!mainDb?.open) throw new Error("数据库未就绪");
-    await databaseModule.ensureIndexDatabaseReady(dbName, "topic-insights");
-    const indexDb = databaseModule.getIndexDatabase(dbName);
-    if (!indexDb) throw new Error("索引库未就绪");
-    return { mainDb, indexDb, dbName };
-  }
-}
-
-export default new TopicInsightsModule();
