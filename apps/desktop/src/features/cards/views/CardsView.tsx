@@ -30,7 +30,6 @@ import { PdfExportModal } from "@/components/PdfExportModal";
 import { getScopedCard, openCardInNewWindow } from "@/commands/card";
 import { readTextFile, selectFile } from "@/commands";
 import { downloadMarkdown, getContentLength, getMarkdown, importFromMarkdown } from "@/utils";
-import { getEditorText } from "@/utils/editor";
 import { Button, cn, ConfirmDialog, Loading, toast } from "@tau/ui";
 import {
   cardDetailKey,
@@ -51,6 +50,7 @@ import {
   useCardsPreferencesStore,
   type CardsViewMode,
 } from "../preferences";
+import { cardTitle as titleOfCard } from "@/utils/card-title";
 
 const CATEGORY_ORDER: ("all" | ECardCategory)[] = [
   "all",
@@ -218,7 +218,7 @@ export function CardsView() {
     );
 
   const cardTitle = (card: ICard | null) =>
-    card ? getEditorText(card.content, 20) || `卡片 #${card.id}` : "";
+    card ? titleOfCard(card, 20) || `卡片 #${card.id}` : "";
 
   return (
     <div className="mx-auto flex h-full min-h-0 w-full min-w-0 max-w-[1760px] flex-col px-4 pb-4 pt-1">

@@ -37,6 +37,7 @@ import { resolveUsageSlot, type LlmRef, type SettingForLlmSlots } from "./llm-us
 import ContentAiMetaTable, {
   CONTENT_AI_META_CHANGED_EVENT,
   CONTENT_AI_META_SCHEMA_VER,
+  contentTitles,
 } from "./tables/content-ai-meta";
 import ContentTable from "./tables/content";
 
@@ -88,8 +89,8 @@ export interface ContentAiDeps {
     request: Omit<PiSingleShotRequest, "requestId">,
     signal: AbortSignal
   ): Promise<{ ok: boolean; text: string; error?: string }>;
-  /** 元信息有变化（节流后调用） */
-  notifyChanged(dbName: string): void;
+  /** 元信息有变化（节流后调用）；contentIds 为这段时间内新写入元信息的正文 */
+  notifyChanged(dbName: string, contentIds: number[]): void;
   sleep(ms: number): Promise<void>;
   now(): number;
 }
@@ -166,6 +167,7 @@ export class ContentAiQueue {
   private sweepTimer: NodeJS.Timeout | null = null;
   private notifyTimer: NodeJS.Timeout | null = null;
   private notifyDirty = false;
+  private changedIds = new Set<number>();
   private lastNotifyAt = 0;
   private running = false;
 
@@ -306,7 +308,7 @@ export class ContentAiQueue {
           }
         } else {
           consecutiveFailures = 0;
-          if (result.outcome === "generated") this.requestNotify(dbName);
+          if (result.outcome === "generated") this.requestNotify(dbName, task.id);
         }
         await yieldToEventLoop();
       }
@@ -433,8 +435,9 @@ export class ContentAiQueue {
   }
 
   /** 首轮可能每秒写一份：渲染端的失效节流到 NOTIFY_THROTTLE_MS 一次 */
-  private requestNotify(dbName: string) {
+  private requestNotify(dbName: string, contentId?: number) {
     this.notifyDirty = true;
+    if (contentId !== undefined) this.changedIds.add(contentId);
     if (this.notifyTimer) return;
     const wait = Math.max(0, this.lastNotifyAt + NOTIFY_THROTTLE_MS - this.deps.now());
     this.notifyTimer = setTimeout(() => {
@@ -442,7 +445,9 @@ export class ContentAiQueue {
       if (!this.notifyDirty) return;
       this.notifyDirty = false;
       this.lastNotifyAt = this.deps.now();
-      this.deps.notifyChanged(dbName);
+      const contentIds = [...this.changedIds];
+      this.changedIds.clear();
+      this.deps.notifyChanged(dbName, contentIds);
     }, wait);
     this.notifyTimer.unref?.();
   }
@@ -460,11 +465,11 @@ class ContentAiQueueModule implements Module {
         return { mainDb, indexDb: databaseModule.getIndexDatabase(dbName) ?? null };
       },
       complete: (request, signal) => PiAiRuntimeModule.complete(request, signal),
-      notifyChanged: dbName => {
-        if (databaseModule.getCurrentDatabaseName() === dbName) {
+      notifyChanged: (dbName, contentIds) => {
+        if (contentIds.length && databaseModule.getCurrentDatabaseName() === dbName) {
           databaseModule.notifyExternalWrite(CONTENT_AI_META_CHANGED_EVENT);
         }
-        broadcastDatabaseChange(CONTENT_AI_META_CHANGED_EVENT, dbName);
+        broadcastDatabaseChange(CONTENT_AI_META_CHANGED_EVENT, dbName, { contentIds });
       },
       sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
       now: () => Date.now(),
@@ -473,6 +478,12 @@ class ContentAiQueueModule implements Module {
       const mainDb = databaseModule.getCurrentDatabase();
       if (!mainDb?.open) return null;
       return computeContentAiStatus(mainDb, queue.getSlot() !== null, queue.isRunning());
+    });
+    // 渲染端收到变更通知后按正文批量取新标题，原地补进卡片缓存，不整表重拉
+    ipcMain.handle("content-ai:titles", async (_event, contentIds: unknown) => {
+      const mainDb = databaseModule.getCurrentDatabase();
+      if (!mainDb?.open || !Array.isArray(contentIds)) return {};
+      return Object.fromEntries(contentTitles(mainDb, contentIds.map(Number), 0));
     });
     userSettingModule.onSettingChanged(({ newSetting }) => queue.applySetting(newSetting));
     databaseModule.onDatabaseConnected(dbName => queue.onDatabaseConnected(dbName));

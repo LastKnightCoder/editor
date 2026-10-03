@@ -306,7 +306,7 @@ describe("content-ai-queue", () => {
     queue.onDatabaseConnected("a.db");
     await queue.idle();
     await vi.runAllTimersAsync();
-    expect(notifyChanged).toHaveBeenCalledWith("a.db");
+    expect(notifyChanged).toHaveBeenCalledWith("a.db", [card]);
 
     queue.applySetting({
       llmProviders: [{ id: "p", models: [{ id: "m" }, { id: "n" }] }],

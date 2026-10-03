@@ -82,7 +82,6 @@ import {
   formatDate,
   getMarkdown,
 } from "@/utils";
-import { getEditorText } from "@/utils/editor";
 import { ECardCategory, type ICard } from "@/types";
 import { cardCategoryName } from "@/constants/card";
 import { Button, ConfirmDialog, Loading, Menu, toast } from "@tau/ui";
@@ -102,6 +101,7 @@ import {
 import { CategoryBadge } from "../components/CardItemView";
 import { ContextBadge } from "@/features/context/components/ContextBadge";
 import { openEntity } from "@/services/open-content";
+import { cardTitle as titleOfCard } from "@/utils/card-title";
 
 /** copy utils 的 MessageApi 是结构类型，toast 同形适配（不引 antd message） */
 const toastAdapter = {
@@ -164,7 +164,7 @@ export function CardDetailView() {
   }, [editorRemountKey, immersive]);
 
   const cardTitle = useMemo(
-    () => (card ? getEditorText(card.content, 20) || `卡片 #${card.id}` : ""),
+    () => (card ? titleOfCard(card, 20) || `卡片 #${card.id}` : ""),
     [card]
   );
 

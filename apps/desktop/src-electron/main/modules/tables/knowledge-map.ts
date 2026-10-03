@@ -17,6 +17,7 @@ import type {
   KnowledgeMapTopic,
 } from "@/knowledge-map/types";
 import { ENTITY_REF_PRIORITY, normalizeEntityRefKind, type EntityRefKind } from "@/entity/ref";
+import { contentTitles } from "./content-ai-meta";
 
 /** 地图基于哪个 embedding 指纹算的；指纹变了（换模型）就整体重算 */
 export const KNOWLEDGE_MAP_FINGERPRINT_KEY = "knowledge_map_fingerprint";
@@ -44,24 +45,9 @@ export interface MapEntity {
   /** max(实体, 正文) 的更新时间 */
   updateTime: number;
   createdAt: number;
-  /** 文章、项目文档的标题；卡片没有标题列，展示时取正文首行 */
+  /** 文章、项目文档的标题；卡片没有标题列，展示时取 AI 标题或正文首行 */
   title: string;
   projectId: number | null;
-}
-
-/** 卡片标题：正文首个非空块的纯文本 */
-function firstLine(raw: string | null): string {
-  const text = (node: unknown): string => {
-    if (!node || typeof node !== "object") return "";
-    const n = node as { text?: unknown; children?: unknown };
-    if (typeof n.text === "string") return n.text;
-    return Array.isArray(n.children) ? n.children.map(text).join("") : "";
-  };
-  for (const block of parseJson<unknown[]>(raw, [])) {
-    const line = text(block).replace(/\s+/g, " ").trim();
-    if (line) return line.slice(0, 80);
-  }
-  return "";
 }
 
 const parseJson = <T>(raw: unknown, fallback: T): T => {
@@ -332,15 +318,11 @@ export default class KnowledgeMapTable {
   static listItems(mainDb: Database.Database, indexDb: Database.Database): KnowledgeMapItem[] {
     const entities = this.listEntities(mainDb);
     const links = this.collectLinks(mainDb, indexDb, entities);
-    const cardContents = entities.filter(entity => entity.kind === "card" && entity.contentId);
-    const contentOf = new Map<number, string | null>();
-    for (let start = 0; start < cardContents.length; start += 400) {
-      const batch = cardContents.slice(start, start + 400).map(entity => entity.contentId);
-      const rows = mainDb
-        .prepare(`SELECT id, content FROM contents WHERE id IN (${batch.map(() => "?").join(",")})`)
-        .all(...batch) as Array<{ id: number; content: string | null }>;
-      for (const row of rows) contentOf.set(row.id, row.content);
-    }
+    const cardTitles = contentTitles(
+      mainDb,
+      entities.filter(entity => entity.kind === "card").map(entity => entity.contentId),
+      80
+    );
     const projectTitles = new Map(
       (
         mainDb.prepare("SELECT id, title FROM project").all() as Array<{
@@ -354,8 +336,7 @@ export default class KnowledgeMapTable {
       kind: entity.kind as KnowledgeMapItem["kind"],
       id: entity.id,
       contentId: entity.contentId,
-      title:
-        entity.kind === "card" ? firstLine(contentOf.get(entity.contentId) ?? null) : entity.title,
+      title: entity.kind === "card" ? (cardTitles.get(entity.contentId) ?? "") : entity.title,
       createdAt: entity.createdAt,
       tags: entity.tags,
       links: [...links[index]].map(target => entities[target].key),

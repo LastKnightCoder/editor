@@ -17,6 +17,7 @@ import type {
   QuestionSummary,
 } from "@/types";
 import ContentTable from "./content";
+import { contentTitle } from "./content-ai-meta";
 import EntitySearchTable from "./entity-search";
 import MaterialTable from "./material";
 import QuestionChatTable from "./question-chat";
@@ -321,12 +322,20 @@ export default class QuestionLinkTable {
           }
           const c = content(base.contentId);
           if (!c) return { ...base, missing: true };
-          const [first = "", ...rest] = blockLines(c.content);
+          const lines = blockLines(c.content);
           if (row.target_type === "answer") base.targetCreateTime = c.createTime;
+          // AI 标题只用于卡片（KL-056）；答案仍取开头
+          const aiTitle =
+            row.target_type === "card" && base.contentId != null
+              ? contentTitle(db, base.contentId, 0)
+              : "";
           return {
             ...base,
-            title: first.slice(0, 80) || (row.target_type === "card" ? "无标题卡片" : "空白答案"),
-            excerpt: rest.join(" ").slice(0, 160),
+            title:
+              aiTitle ||
+              lines[0]?.slice(0, 80) ||
+              (row.target_type === "card" ? "无标题卡片" : "空白答案"),
+            excerpt: (aiTitle ? lines : lines.slice(1)).join(" ").slice(0, 160),
             words: c.count ?? 0,
             ...(row.target_type === "answer"
               ? {

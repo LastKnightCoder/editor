@@ -11,7 +11,6 @@ import { useMemo, useState } from "react";
 import { Link2, Plus, Search, TextQuote, X } from "lucide-react";
 import type { ICard } from "@/types";
 import { getInlineLinks } from "@/utils/card";
-import { getEditorText } from "@/utils/editor";
 import { cardCategoryName } from "@/constants/card";
 import { resultDisplay, useSearchContent } from "@/features/search/queries";
 import { Dialog, DialogBody, useEdgeFade } from "@tau/ui";
@@ -21,6 +20,7 @@ import { ContextRow, ContextSection } from "@/features/context/components/Contex
 import { ENTITY_KIND_META } from "@/features/context/model";
 import { extractInlineRefs } from "@/entity/inline-refs";
 import { entityRefKey, type EntityRef } from "@/entity/ref";
+import { cardTitle } from "@/utils/card-title";
 
 /** links ∪ 内联引用，去重并排除自身；返回 id 与「是否仅来自正文内联」 */
 function mergedLinks(card: ICard): { id: number; inlineOnly: boolean }[] {
@@ -94,7 +94,7 @@ export function CardConnections({
       {linked.map(({ ref, inlineOnly, label, target }) => {
         const isCard = ref.kind === "card";
         const title = isCard
-          ? (target && getEditorText(target.content, 26)) || label || `卡片 #${ref.id}`
+          ? (target && cardTitle(target, 26)) || label || `卡片 #${ref.id}`
           : label || ENTITY_KIND_META[ref.kind].label;
         const LinkIcon = inlineOnly ? TextQuote : Link2;
         const KindIcon = ENTITY_KIND_META[ref.kind].icon;
@@ -201,7 +201,7 @@ export function AddCardLinkDialog({
           .filter(item => item.id !== card.id && !linked.has(item.id))
           .map(item => ({
             id: item.id,
-            title: getEditorText(item.content, 26) || `卡片 #${item.id}`,
+            title: cardTitle(item, 26) || `卡片 #${item.id}`,
             category: item.category,
           })),
       };

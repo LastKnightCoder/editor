@@ -6,6 +6,7 @@
  */
 
 import type Database from "better-sqlite3";
+import { contentBlockLines } from "@/entity/text-digest";
 
 /** 元信息写入后的写事件（经 notifyExternalWrite 补发，进脉络写事件白名单），也是渲染端的广播频道 */
 export const CONTENT_AI_META_CHANGED_EVENT = "content-ai-meta:changed";
@@ -144,4 +145,59 @@ export default class ContentAiMetaTable {
       )
       .run().changes;
   }
+}
+
+const parseJsonOrNull = (raw: string | null): unknown => {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * 卡片标题（KL-056）：AI 标题优先，否则正文第一块的前 fallbackLength 字（fallbackLength = 0 时只给 AI 标题）。
+ * 按批 LEFT JOIN 取元信息，只有缺 AI 标题的才读正文；没有标题也没有文字的不在结果里。
+ */
+export function contentTitles(
+  db: Database.Database,
+  contentIds: number[],
+  fallbackLength: number
+): Map<number, string> {
+  const result = new Map<number, string>();
+  const ids = [...new Set(contentIds.filter(id => Number.isSafeInteger(id) && id > 0))];
+  const missing: number[] = [];
+  const marks = (batch: number[]) => batch.map(() => "?").join(",");
+  for (let start = 0; start < ids.length; start += BATCH) {
+    const batch = ids.slice(start, start + BATCH);
+    const rows = db
+      .prepare(
+        `SELECT ct.id, m.meta FROM contents ct LEFT JOIN content_ai_meta m ON m.content_id = ct.id
+         WHERE ct.id IN (${marks(batch)})`
+      )
+      .all(...batch) as Array<{ id: number; meta: string | null }>;
+    for (const row of rows) {
+      const aiTitle = parseContentAiMeta(row.meta)?.title;
+      if (aiTitle) result.set(row.id, aiTitle);
+      else missing.push(row.id);
+    }
+  }
+  if (fallbackLength <= 0) return result;
+  for (let start = 0; start < missing.length; start += BATCH) {
+    const batch = missing.slice(start, start + BATCH);
+    const rows = db
+      .prepare(`SELECT id, content FROM contents WHERE id IN (${marks(batch)})`)
+      .all(...batch) as Array<{ id: number; content: string | null }>;
+    for (const row of rows) {
+      const first = contentBlockLines(parseJsonOrNull(row.content))[0];
+      if (first) result.set(row.id, first.replace(/\s+/g, " ").slice(0, fallbackLength));
+    }
+  }
+  return result;
+}
+
+/** 单份卡片正文的标题，规则同 contentTitles；都没有时为空串 */
+export function contentTitle(db: Database.Database, contentId: number, fallbackLength: number) {
+  return contentTitles(db, [contentId], fallbackLength).get(contentId) ?? "";
 }

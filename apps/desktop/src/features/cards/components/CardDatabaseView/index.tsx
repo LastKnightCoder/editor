@@ -11,12 +11,12 @@ import Database, {
 } from "@/components/Database";
 import { useCardDatabasePreferences } from "../../databasePreferences";
 import { ICard, ECardCategory, DataTableView, CreateDataTableView } from "@/types";
-import { getEditorText } from "@/utils/editor";
 import { cardCategoryName } from "@/constants";
 import CardLinksPlugin from "./plugins/CardLinksPlugin";
 import { DateValue } from "@/components/Database/plugins/DatePlugin";
 import useTheme from "@/hooks/useTheme";
 import type { CardMetadataPatch } from "@/types/card";
+import { cardTitle } from "@/utils/card-title";
 
 interface CardDatabaseViewProps {
   databaseName: string;
@@ -66,7 +66,7 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
     initializeDefaultView();
   }, [initializeDefaultView]);
 
-  const getCardText = useMemoizedFn((card: ICard) => getEditorText(card.content, 50));
+  const getCardText = useMemoizedFn((card: ICard) => cardTitle(card, 50));
 
   // 收集所有标签
   const allTags = useMemo(() => {

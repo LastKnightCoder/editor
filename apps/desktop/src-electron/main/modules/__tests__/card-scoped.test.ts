@@ -18,6 +18,8 @@ beforeEach(() => {
     CREATE TABLE cards (id INTEGER PRIMARY KEY, create_time INTEGER, update_time INTEGER,
       tags TEXT, links TEXT, category TEXT, content_id INTEGER, is_top INTEGER, podcast_id INTEGER);
     CREATE TABLE contents (id INTEGER PRIMARY KEY, content TEXT, count INTEGER, update_time INTEGER);
+    CREATE TABLE content_ai_meta (content_id INTEGER PRIMARY KEY, schema_ver INTEGER, text_digest TEXT,
+      meta TEXT, model TEXT, create_time INTEGER, update_time INTEGER);
     CREATE TABLE podcasts (id INTEGER PRIMARY KEY, name TEXT, audio_url TEXT, script TEXT,
       script_lines TEXT, duration INTEGER, speakers TEXT);
     INSERT INTO contents VALUES (10, '[]', 0, 0);
