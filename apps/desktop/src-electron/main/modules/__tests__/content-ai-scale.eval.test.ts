@@ -4,7 +4,8 @@
  *
  * 夹具：2 万张卡（约 500 字）+ 3000 篇长文（约 6000 字、8 节）；元信息覆盖全部正文；
  * 索引库 2 万 + 3000 × 8 = 4.4 万条 1024 维向量（按主题聚成团的随机向量），引用与链接各若干。
- * 量：元信息对账（不调模型）、进度统计、卡片标题批量查询、卡片列表轻表、「相关」查询。
+ * 量：元信息对账（不调模型）、进度统计、卡片标题批量查询、卡片列表轻表、「相关」查询；
+ * 7c 主题洞见的本地部分（合成一张 25 主题 × 8 子主题的地图、2000 条提问向量，不调模型）。
  */
 
 import Database from "better-sqlite3";
@@ -29,6 +30,15 @@ import { contentPlainText, textDigest } from "@/entity/text-digest";
 import { ContentAiQueue, computeContentAiStatus } from "../content-ai-queue";
 import { relatedOf, ensureRelatedThreshold } from "../entity-context/context-related";
 import { findCandidates } from "../content-insights";
+import KnowledgeAiInsightsTable, { emptyResult } from "../tables/knowledge-ai-insights";
+import KnowledgeMapTable from "../tables/knowledge-map";
+import { buildContext, planInsights } from "../topic-insights";
+import {
+  askedCandidates,
+  bridgeCandidates,
+  loadNoteVectors,
+  pairCandidates,
+} from "../topic-insights-candidates";
 import CardTable from "../tables/card";
 import ContentAiMetaTable, { contentTitles } from "../tables/content-ai-meta";
 
@@ -280,6 +290,140 @@ describe.skipIf(!process.env.KL_CONTENT_AI_SCALE)("迭代 7a 规模", () => {
         `| AI 洞见本地候选：${kind === "article" ? `长文（${DOC_SECTIONS} 节）` : "卡片"} 10 次 | 平均 ${(list.reduce((a, b) => a + b, 0) / list.length).toFixed(1)} ms，最大 ${list[list.length - 1].toFixed(1)} ms |`
       );
     }
+    // ── 7c：合成地图（向量团 t → 主题 t % 25、子主题 t），2000 条提问向量 ──
+    const MAP_TOPICS = 25;
+    const topicOfCluster = (cluster: number) => cluster % MAP_TOPICS;
+    const nodes: Array<{ key: string; x: number; y: number; topic: number; subtopic: number }> = [];
+    for (const row of main.prepare(`SELECT id FROM cards ORDER BY id`).all() as Array<{
+      id: number;
+    }>) {
+      const cluster = (row.id - 1) % TOPICS;
+      nodes.push({
+        key: `card:${row.id}`,
+        x: 0,
+        y: 0,
+        topic: topicOfCluster(cluster),
+        subtopic: MAP_TOPICS + cluster,
+      });
+    }
+    for (const row of main.prepare(`SELECT id FROM articles ORDER BY id`).all() as Array<{
+      id: number;
+    }>) {
+      const cluster = (row.id - 1) % TOPICS;
+      nodes.push({
+        key: `article:${row.id}`,
+        x: 0,
+        y: 0,
+        topic: topicOfCluster(cluster),
+        subtopic: MAP_TOPICS + cluster,
+      });
+    }
+    const map = {
+      computedAt: 1,
+      nodes,
+      topics: [
+        ...Array.from({ length: MAP_TOPICS }, (_, id) => ({
+          id,
+          parent: -1,
+          label: `主题${id}`,
+          colorSlot: id % 10,
+          size: 0,
+        })),
+        ...Array.from({ length: TOPICS }, (_, cluster) => ({
+          id: MAP_TOPICS + cluster,
+          parent: topicOfCluster(cluster),
+          label: `子主题${cluster}`,
+          colorSlot: 0,
+          size: 0,
+        })),
+      ],
+    };
+    KnowledgeMapTable.save(index, map, "scale");
+    index.transaction(() => {
+      for (let i = 0; i < 2000; i++) {
+        index
+          .prepare(
+            `INSERT INTO vec_documents (prefixed_id, update_time, content, type, chunk_index, vec_embedding)
+             VALUES (?, ?, ?, 'chat-prompt', 0, ?)`
+          )
+          .run(`chat-prompt:s${i % 300}#m${i}`, i + 1.0, `提问 ${i}`, vectorNear((i * 7) % TOPICS));
+      }
+    })();
+
+    const ctx = await timed(
+      "7c：读一次上下文（实体、链接、元信息、主题分组）",
+      () => buildContext(main, index, map),
+      rows
+    );
+    const firstPlan = await timed(
+      "7c：身份对应与三档（还没有结果）",
+      () => planInsights(ctx),
+      rows
+    );
+    expect(firstPlan.topics).toHaveLength(MAP_TOPICS);
+    // 每个子主题与主题都有一行旧结果时再对应一次
+    main.transaction(() => {
+      for (const topic of firstPlan.topics) {
+        KnowledgeAiInsightsTable.save(main, {
+          scope: "topic",
+          parentId: null,
+          projectId: null,
+          label: topic.topic.label,
+          members: topic.snapshot,
+          overview: { overview: "", shift: "" },
+          result: emptyResult(),
+          increments: 0,
+          model: "p/m",
+        });
+        for (const sub of topic.subtopics) {
+          KnowledgeAiInsightsTable.save(main, {
+            scope: "subtopic",
+            parentId: null,
+            projectId: null,
+            label: sub.group.label,
+            members: sub.snapshot,
+            overview: { overview: "", shift: "" },
+            result: emptyResult(),
+            increments: 0,
+            model: "p/m",
+          });
+        }
+      }
+    })();
+    const secondPlan = await timed(
+      `7c：身份对应与三档（已有 ${MAP_TOPICS} 主题 + ${TOPICS} 子主题的结果）`,
+      () => planInsights(buildContext(main, index, map)),
+      rows
+    );
+    expect(secondPlan.orphans).toHaveLength(0);
+    const threshold = ensureRelatedThreshold(index)!.value;
+    const linked = () => false;
+    await timed(
+      `7c：组内相近对（全部 ${TOPICS} 个子主题，每组约 ${Math.round((CARDS + DOCS) / TOPICS)} 份）`,
+      () => {
+        for (const topic of ctx.topics) {
+          for (const group of topic.groups) {
+            const vectors = loadNoteVectors(
+              index,
+              group.members.map(member => member.key)
+            );
+            pairCandidates([...vectors.values()], linked, threshold, 20);
+          }
+        }
+      },
+      rows
+    );
+    await timed(
+      `7c：跨主题呼应候选（${MAP_TOPICS} 主题 × 30 份代表）`,
+      () => bridgeCandidates(index, ctx.topics, linked, () => 0, threshold),
+      rows
+    );
+    await timed(
+      "7c：问了但没写的候选（2000 条提问）",
+      () => askedCandidates(index, threshold),
+      rows
+    );
+
     console.log(["| 项目 | 耗时 |", "| --- | --- |", ...rows].join("\n"));
     main.close();
     index.close();
