@@ -81,6 +81,11 @@ const ASSIGNMENT_CATEGORIES: Array<{ label: string; features: FeatureDef[] }> = 
       { key: "titleSummary", label: "标题总结", desc: "笔记与文档的命名摘要" },
       { key: "webClip", label: "网页剪藏", desc: "剪藏页面的正文抽取与清洗" },
       { key: "contentMetadata", label: "笔记元信息", desc: <ContentMetadataDescription /> },
+      {
+        key: "contentInsights",
+        label: "AI 洞见",
+        desc: "在卡片、文章、项目文档里点「AI 洞见」时，对照你的其他笔记分析这一篇：可以连接、重复、矛盾与可以展开的地方。只在点击时调用，一篇长文约 1 万 token；配合「笔记元信息」效果更好",
+      },
     ],
   },
   {

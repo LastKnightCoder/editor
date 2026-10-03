@@ -24,6 +24,9 @@ vi.mock("electron", () => ({
   ipcMain: { handle: vi.fn() },
   app: { getPath: () => "/tmp" },
 }));
+vi.mock("../../database", () => ({ default: {} }));
+vi.mock("../../pi-ai-runtime", () => ({ default: {} }));
+vi.mock("../../user-setting", () => ({ default: {} }));
 vi.mock("../../video-note-index-queue", () => ({
   default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
 }));
@@ -31,6 +34,7 @@ vi.mock("../../video-note-index-queue", () => ({
 import { normalizeEntityRefKind, type EntityRef } from "@/entity/ref";
 import EntitySearchTable from "../../tables/entity-search";
 import { relatedExclusions } from "../context-related";
+import { proseOf } from "../../content-insights";
 import { rebuildIndex, rng } from "./eval-index-rebuild";
 
 const MAIN = process.env.KL_MARKS_EVAL_MAIN;
@@ -48,19 +52,6 @@ const FILTER = process.env.KL_MARKS_FILTER === "1";
 const MIN_PROSE = 80;
 /** KL_MARKS_SAME_PROJECT=1：同一项目里的文档互不标记（项目树本身就是用户搭的结构） */
 const SKIP_SAME_PROJECT = process.env.KL_MARKS_SAME_PROJECT === "1";
-
-/** 节文本（Markdown）里的「文字」：去掉代码块、行内代码、图片、链接网址与 HTML 标签 */
-export function proseOf(markdown: string): string {
-  return markdown
-    .replace(/```[\s\S]*?```/g, "")
-    .replace(/`[^`]*`/g, "")
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/https?:\/\/\S+/g, "")
-    .replace(/<[^>]+>/g, "")
-    .replace(/[#>*_\-|]/g, "")
-    .replace(/\s+/g, "");
-}
 
 interface Mark {
   section: number;
