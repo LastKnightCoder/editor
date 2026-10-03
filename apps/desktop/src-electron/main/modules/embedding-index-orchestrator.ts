@@ -55,6 +55,9 @@ const MAIN_CONTENT_WRITE_EVENTS = new Set([
   "web-clip:create",
   "web-clip:update",
   "lineage:record",
+  // 主对话的提问只进向量（KL-064）：每轮结束会话行会更新
+  "chat-session:update",
+  "chat-session:delete",
 ]);
 
 /** 会改变卡片 / 文章 / 项目文档 / 日记正文或外部材料的写命令 */

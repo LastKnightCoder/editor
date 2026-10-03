@@ -5,11 +5,13 @@ import {
   WHOLE_MIN_LENGTH,
   type ContentSection,
 } from "@/entity/sections";
-import type { IndexParams, SearchResult } from "@/types/search";
+import type { SearchResult, VecIndexParams } from "@/types/search";
 import { importFromMarkdown } from "@/utils/markdown";
 import { smartChunkWithRanges } from "../utils/smart-chunk";
 
-export function sectionsForIndex(params: IndexParams): ContentSection[] {
+export function sectionsForIndex(
+  params: Pick<VecIndexParams, "sections" | "type" | "content" | "title">
+): ContentSection[] {
   if (params.sections) return params.sections;
   if (params.type === "excerpt" || params.type === "pdf-annotation") {
     if (!params.content.trim()) return [];
