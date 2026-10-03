@@ -27,8 +27,8 @@ export function ContentMetadataDescription() {
   );
 }
 
-/** 主题洞见首轮：每份笔记的元信息在子主题里读一次，加上主题、全局与输出，按每份约 230 token 估 */
-const TOPIC_TOKENS_PER_NOTE = 230;
+/** 主题洞见首轮：每份笔记的元信息在子主题里读一次，加上主题、全局与输出；deepseek-flash 真实库实测约 300 / 份 */
+const TOPIC_TOKENS_PER_NOTE = 300;
 
 export function ContentInsightsDescription() {
   const { data } = useContentAiStatus();
