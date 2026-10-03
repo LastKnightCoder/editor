@@ -1,11 +1,12 @@
 /**
  * 脉络浮层内容，分区顺序（KL-023）：来源、调用方的前置分区（如卡片的「连接」）、引用了、
- * 被引用（来源 + 原文片段，被引用的标题在句中点亮）、也出现在、衍生、被使用、相关问题。
+ * 被引用（来源 + 原文片段，被引用的标题在句中点亮）、也出现在、衍生、被使用、相关问题，
+ * 末尾「相关」（KL-057，语义相近但还没有关系，不计入关联数）。
  * 只负责展示与点击回调，数据与开合由 ContextBadge 管理。
  */
 
 import type { ReactNode } from "react";
-import { CircleHelp } from "lucide-react";
+import { CircleHelp, Link2 } from "lucide-react";
 import { cn } from "@tau/ui";
 import type { EntityRef } from "@/entity/ref";
 import type { InlineRefSnippet } from "@/entity/inline-refs";
@@ -14,6 +15,7 @@ import type {
   ContextLineageItem,
   ContextOpenTarget,
   ContextQuestion,
+  ContextRelated,
   ContextUsage,
   EntityContext,
 } from "@/types/entity-context";
@@ -30,6 +32,10 @@ interface ContextPopoverContentProps {
   onOpenEntity: (ref: EntityRef) => void;
   onOpenQuestion: (questionId: number) => void;
   onOpenTarget: (target: ContextOpenTarget) => void;
+  /** 「相关」分区；未取到时不显示 */
+  related?: ContextRelated[];
+  /** 给「相关」里的卡片添加连接（只有卡片之间可连，KL-018）；缺省不显示动作 */
+  onConnect?: (ref: EntityRef) => void;
 }
 
 const STATUS_TONE: Record<ContextQuestion["status"], string> = {
@@ -146,6 +152,8 @@ export function ContextPopoverContent({
   onOpenEntity,
   onOpenQuestion,
   onOpenTarget,
+  related = [],
+  onConnect,
 }: ContextPopoverContentProps) {
   const {
     outlinks,
@@ -234,6 +242,34 @@ export function ContextPopoverContent({
                   {STATUS_META[question.status].label}
                 </span>
               </span>
+            </Row>
+          ))}
+        </Section>
+      )}
+      {related.length > 0 && (
+        <Section title="相关">
+          {related.map(({ entity, summary }) => (
+            <Row
+              key={`${entity.ref.kind}:${entity.ref.id}`}
+              onClick={() => openEntityRow(entity)}
+              action={
+                onConnect && entity.ref.kind === "card" ? (
+                  <button
+                    type="button"
+                    title="添加连接"
+                    aria-label={`与「${entity.title}」添加连接`}
+                    onClick={() => onConnect(entity.ref)}
+                    className="text-ink-3 hover:bg-accent-soft hover:text-accent-text rounded-tau-sm grid size-[22px] place-items-center"
+                  >
+                    <Link2 className="size-[12px]" strokeWidth={1.75} />
+                  </button>
+                ) : undefined
+              }
+            >
+              <SourceLine entity={entity} />
+              {summary && (
+                <span className="text-ink-2 mt-0.5 block truncate text-[12.5px]">{summary}</span>
+              )}
             </Row>
           ))}
         </Section>

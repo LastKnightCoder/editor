@@ -1,0 +1,206 @@
+/**
+ * 脉络「相关」评估（13 §11.2）：真实库副本 + 索引库副本，只读。
+ *
+ *   cp ~/.editor/data.db /tmp/kl7-real.db; cp ~/.editor/index/data/data.index.db /tmp/kl7-index.db
+ *   KL_RELATED_EVAL_MAIN=/tmp/kl7-real.db KL_RELATED_EVAL_INDEX=/tmp/kl7-index.db \
+ *     KL_RELATED_EVAL_OUT=/tmp/kl7-related-eval.md \
+ *     npx vitest run src-electron/main/modules/entity-context/__tests__/related.eval.test.ts
+ *
+ * - 召回：藏起 20% 的卡片双向链接（从排除集合里拿掉），看对方是否出现在「相关」前 5 条（另报前 50 近邻与过阈值的比例）；
+ * - 抽查：随机 20 个有向量的实体，列出「相关」给用户判断是否值得看；
+ * - 阈值：随机对 p95 与分布；查询耗时。
+ * 两个库都必须是副本：WAL 模式的副本只读打不开，阈值也会写进索引库副本的 index_meta。
+ */
+
+import Database from "better-sqlite3";
+import * as sqliteVec from "sqlite-vec";
+import { writeFileSync } from "node:fs";
+import { expect, it, vi } from "vitest";
+import mainSchema from "@tau/db-schema/schema/main.sql?raw";
+
+vi.mock("electron", () => ({
+  BrowserWindow: { getAllWindows: () => [] },
+  ipcMain: { handle: vi.fn() },
+  app: { getPath: () => "/tmp" },
+}));
+vi.mock("../../video-note-index-queue", () => ({
+  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
+}));
+
+import { entityRefKey, type EntityRef } from "@/entity/ref";
+import EntitySearchTable from "../../tables/entity-search";
+import KnowledgeMapTable from "../../tables/knowledge-map";
+import {
+  NEIGHBOR_K,
+  RELATED_LIMIT,
+  ensureRelatedThreshold,
+  relatedExclusions,
+  relatedOf,
+} from "../context-related";
+
+const MAIN = process.env.KL_RELATED_EVAL_MAIN;
+const INDEX = process.env.KL_RELATED_EVAL_INDEX;
+const OUT = process.env.KL_RELATED_EVAL_OUT ?? "/tmp/kl7-related-eval.md";
+const SPOT_CHECKS = 20;
+
+function rng(seed: number) {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const percentile = (sorted: number[], p: number) =>
+  sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))] ?? 0;
+const cell = (text: string) => text.replace(/\|/g, "\\|").replace(/\s+/g, " ").trim();
+
+it.skipIf(!MAIN || !INDEX)(
+  "「相关」召回与抽查（真实库副本）",
+  () => {
+    const main = new Database(MAIN!);
+    // 副本可能早于本分支，补齐新表（含 content_ai_meta）
+    main.exec(mainSchema);
+    // 阈值会写进索引库副本的 index_meta
+    const memory = new Database(INDEX!);
+    sqliteVec.load(memory);
+
+    const thresholdStarted = performance.now();
+    const threshold = ensureRelatedThreshold(memory);
+    const thresholdMs = performance.now() - thresholdStarted;
+    expect(threshold, "没有向量或样本不足").not.toBeNull();
+
+    const hasVectors = new Set(
+      (
+        memory
+          .prepare(
+            `SELECT DISTINCT prefixed_id FROM vec_documents WHERE type IN ('card','article','project-item')`
+          )
+          .all() as Array<{ prefixed_id: string }>
+      ).map(row => row.prefixed_id)
+    );
+
+    // 召回：双向链接的卡片对，按无序对去重后随机藏 20%
+    const random = rng(20261003);
+    const pairs = new Map<string, [number, number]>();
+    for (const row of main.prepare(`SELECT id, links FROM cards`).all() as Array<{
+      id: number;
+      links: string | null;
+    }>) {
+      let links: unknown[] = [];
+      try {
+        links = JSON.parse(row.links ?? "[]");
+      } catch {
+        links = [];
+      }
+      for (const other of links) {
+        if (typeof other !== "number" || other === row.id) continue;
+        const [a, b] = row.id < other ? [row.id, other] : [other, row.id];
+        if (hasVectors.has(`card:${a}`) && hasVectors.has(`card:${b}`))
+          pairs.set(`${a}-${b}`, [a, b]);
+      }
+    }
+    const hidden = [...pairs.values()].filter(() => random() < 0.2);
+    let inTop5 = 0;
+    let inNeighbors = 0;
+    let aboveThreshold = 0;
+    let excludedByOther = 0;
+    const misses: string[] = [];
+    for (const [a, b] of hidden) {
+      const ref: EntityRef = { kind: "card", id: a };
+      const target = `card:${b}`;
+      const contentId = (
+        main.prepare(`SELECT content_id FROM cards WHERE id = ?`).get(a) as { content_id: number }
+      ).content_id;
+      const exclusions = relatedExclusions(main, memory, [ref], [contentId]);
+      // 藏起这条链接：从排除集合里拿掉对方（若对方因引用、谱系等别的关系被排除，单独计数）
+      exclusions.keys.delete(target);
+      const neighbors = KnowledgeMapTable.neighborsOf(memory, entityRefKey(ref), NEIGHBOR_K);
+      const found = neighbors.find(neighbor => neighbor.key === target);
+      if (found) inNeighbors++;
+      if (found && found.similarity > threshold!.value) aboveThreshold++;
+      const otherContent = (
+        main.prepare(`SELECT content_id FROM cards WHERE id = ?`).get(b) as { content_id: number }
+      ).content_id;
+      if (exclusions.contents.has(otherContent)) {
+        excludedByOther++;
+        continue;
+      }
+      const top = neighbors
+        .filter(
+          neighbor => neighbor.similarity > threshold!.value && !exclusions.keys.has(neighbor.key)
+        )
+        .slice(0, RELATED_LIMIT)
+        .map(neighbor => neighbor.key);
+      if (top.includes(target)) inTop5++;
+      else if (misses.length < 10)
+        misses.push(`${a} → ${b}（近邻相似度 ${found?.similarity.toFixed(3) ?? "不在前 50"}）`);
+    }
+
+    // 抽查与耗时：随机 20 个有向量的实体
+    const keys = [...hasVectors].sort();
+    const chosen = keys
+      .map(key => ({ key, order: random() }))
+      .sort((x, y) => x.order - y.order)
+      .slice(0, SPOT_CHECKS)
+      .map(item => item.key);
+    const times: number[] = [];
+    const lines: string[] = [];
+    const counts: number[] = [];
+    for (const key of chosen) {
+      const [kind, id] = key.split(":");
+      const ref = { kind, id: Number(id) } as EntityRef;
+      const started = performance.now();
+      const related = relatedOf(main, memory, ref);
+      times.push(performance.now() - started);
+      counts.push(related.length);
+      const picker = kind === "project-item" ? "project_item" : kind;
+      const self = EntitySearchTable.resolve(main, picker as "card", ref.id, 0);
+      lines.push(`### ${cell(self?.title ?? key)}（${key}）`, "");
+      if (!related.length) lines.push("（无）", "");
+      else {
+        lines.push(`| # | 相关 | 要点 | 值得看？ |`, `| --- | --- | --- | --- |`);
+        related.forEach((item, i) =>
+          lines.push(
+            `| ${i + 1} | ${cell(item.entity.title)}（${item.entity.ref.kind}） | ${cell(item.summary)} |  |`
+          )
+        );
+        lines.push("");
+      }
+    }
+    // 另外量全部有向量的卡片（最多 300 个）的查询耗时
+    const timingKeys = keys.filter(key => key.startsWith("card:")).slice(0, 300);
+    const allTimes: number[] = [];
+    for (const key of timingKeys) {
+      const started = performance.now();
+      relatedOf(main, memory, { kind: "card", id: Number(key.split(":")[1]) });
+      allTimes.push(performance.now() - started);
+    }
+    allTimes.sort((x, y) => x - y);
+
+    const report = [
+      `# 脉络「相关」评估`,
+      "",
+      `- 有向量的实体 ${hasVectors.size} 个；阈值（随机对 p${Math.round(0.95 * 100)}）${threshold!.value.toFixed(3)}，样本 ${threshold!.pairs} 对，抽样 ${Math.round(thresholdMs)} ms`,
+      `- 召回：双向链接卡片对 ${pairs.size} 对，藏起 ${hidden.length} 对；在前 ${NEIGHBOR_K} 近邻 ${inNeighbors}（${((inNeighbors / Math.max(1, hidden.length)) * 100).toFixed(1)}%），近邻里高于阈值 ${aboveThreshold}（${((aboveThreshold / Math.max(1, hidden.length)) * 100).toFixed(1)}%），**进入「相关」前 ${RELATED_LIMIT} 条 ${inTop5}（${((inTop5 / Math.max(1, hidden.length)) * 100).toFixed(1)}%）**；因引用等其他关系本就被排除 ${excludedByOther}`,
+      `- 抽查 ${SPOT_CHECKS} 个实体：「相关」条数分布 ${counts.join(" / ")}`,
+      `- 查询耗时（${allTimes.length} 张卡）：平均 ${(allTimes.reduce((a, b) => a + b, 0) / Math.max(1, allTimes.length)).toFixed(1)} ms，p95 ${percentile(allTimes, 0.95).toFixed(1)} ms，最大 ${(allTimes[allTimes.length - 1] ?? 0).toFixed(1)} ms`,
+      "",
+      `## 未找回的样例（最多 10 条）`,
+      "",
+      ...misses.map(miss => `- ${miss}`),
+      "",
+      `## 抽查（请在「值得看？」列标 是 / 否）`,
+      "",
+      ...lines,
+    ];
+    writeFileSync(OUT, report.join("\n") + "\n");
+    console.log(`[related-eval] 报告已写入 ${OUT}`);
+    main.close();
+    memory.close();
+  },
+  600_000
+);

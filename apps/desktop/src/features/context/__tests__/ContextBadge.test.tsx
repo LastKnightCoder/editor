@@ -1,16 +1,23 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { EntityContext } from "@/types/entity-context";
+import type { ContextRelated, EntityContext } from "@/types/entity-context";
 
 const mocks = vi.hoisted(() => ({
   context: null as EntityContext | null,
+  related: [] as ContextRelated[],
+  relatedEnabled: false,
+  refetchRelated: vi.fn(),
   openEntity: vi.fn(async () => {}),
   openPage: vi.fn(),
 }));
 
 vi.mock("../queries", () => ({
   useEntityContext: () => ({ data: mocks.context }),
+  useEntityRelated: (_ref: unknown, enabled: boolean) => {
+    mocks.relatedEnabled = enabled;
+    return { data: enabled ? mocks.related : undefined, refetch: mocks.refetchRelated };
+  },
 }));
 vi.mock("@/services/open-content", () => ({ openEntity: mocks.openEntity }));
 vi.mock("@/services/page-navigation", () => ({ openPage: mocks.openPage }));
@@ -105,6 +112,8 @@ beforeEach(() => {
   document.body.appendChild(container);
   root = createRoot(container);
   mocks.context = null;
+  mocks.related = [];
+  mocks.relatedEnabled = false;
   vi.clearAllMocks();
 });
 
@@ -259,5 +268,35 @@ describe("ContextBadge", () => {
     expect(container.textContent).toContain("4 处关联");
     click(findButton("处关联"));
     expect(document.body.textContent).not.toContain("引用了");
+  });
+
+  it("「相关」只在浮层打开时取，排在末尾、不计入关联数；卡片行可添加连接，文章不给动作", async () => {
+    mocks.context = CONTEXT;
+    mocks.related = [
+      {
+        entity: { ref: { kind: "card", id: 21 }, title: "合成层与 GPU", meta: "" },
+        summary: "transform 走合成层，不触发重排",
+      },
+      { entity: { ref: { kind: "article", id: 22 }, title: "渲染流水线", meta: "" }, summary: "" },
+    ];
+    const onConnect = vi.fn(async () => {});
+    act(() => {
+      root.render(<ContextBadge entity={{ kind: "card", id: 1 }} onConnect={onConnect} />);
+    });
+    expect(mocks.relatedEnabled).toBe(false);
+    expect(findButton("处关联")?.textContent).toContain("5 处关联");
+    click(findButton("处关联"));
+    expect(mocks.relatedEnabled).toBe(true);
+    const headings = [...document.querySelectorAll("h5")].map(h => h.textContent);
+    expect(headings[headings.length - 1]).toBe("相关");
+    expect(document.body.textContent).toContain("transform 走合成层，不触发重排");
+    expect(document.body.textContent).not.toMatch(/0\.\d{2}/);
+    const connectButtons = document.querySelectorAll('button[title="添加连接"]');
+    expect(connectButtons).toHaveLength(1);
+    await act(async () => {
+      (connectButtons[0] as HTMLElement).click();
+    });
+    expect(onConnect).toHaveBeenCalledWith({ kind: "card", id: 21 });
+    expect(mocks.refetchRelated).toHaveBeenCalled();
   });
 });

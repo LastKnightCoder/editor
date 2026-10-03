@@ -308,6 +308,7 @@ export function CardDetailView() {
                 <ContextBadge
                   entity={{ kind: "card", id: card.id }}
                   hideOutlinks
+                  onConnect={ref => linkCards([ref.id])}
                   leading={{
                     count: cardConnectionCount(card),
                     render: close => (
