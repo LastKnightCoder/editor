@@ -1072,6 +1072,8 @@ export async function analyzeKnowledge(
     const subRows: Array<{ group: MapGroup; row: KnowledgeAiInsightsRow | null }> = [];
     let changed = false;
     for (const sub of topicPlan.subtopics) {
+      // 连续失败即停对内层同样生效：密钥失效等全局问题下，不再对剩余子主题逐个发出注定失败的请求
+      if (consecutive >= ABORT_AFTER_FAILURES || options.stale?.()) break;
       if (sub.tier === "full" || sub.tier === "incremental") {
         thinking();
         const row = await attempt(() => runSubtopic(deps, ctx, sub, slot, options.signal));

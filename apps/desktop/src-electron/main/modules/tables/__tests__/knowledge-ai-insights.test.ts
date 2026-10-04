@@ -191,6 +191,12 @@ describe("KnowledgeAiInsightsTable", () => {
     expect(linkCardsMutually(db, a, b)).toEqual([]);
     expect(linkCardsMutually(db, a, 404)).toEqual([]);
     expect(linksOf(a)).toEqual([b]);
+    // 实际改动的卡片各记一条编辑记录，未改动与不存在的不再记
+    expect(
+      db
+        .prepare(`SELECT operation_id, operation_action, operation_time FROM operation ORDER BY id`)
+        .all()
+    ).toEqual([{ operation_id: a, operation_action: "update", operation_time: 9 }]);
   });
 
   it("记下看过不动生成时间；重新生成后清空", () => {

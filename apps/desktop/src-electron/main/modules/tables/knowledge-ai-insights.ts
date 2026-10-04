@@ -7,6 +7,7 @@
  */
 
 import type Database from "better-sqlite3";
+import Operation from "./operation";
 import type { InsightAsk, InsightStatus } from "@/types/content-insights";
 import type {
   KnowledgeInsightResult,
@@ -211,6 +212,7 @@ export function linkCardsMutually(db: Database.Database, a: number, b: number, n
       }
       if (links.includes(other)) return;
       write.run(JSON.stringify([...links, other]), now, id);
+      Operation.insertOperation(db, "card", "update", id, now);
       changed.push(id);
     });
     return changed;

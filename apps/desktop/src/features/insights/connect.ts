@@ -8,17 +8,18 @@ import type { ContentLinkElement } from "@/editor-extensions/content-link/types"
 import type { InsightMark } from "@/types/content-insights";
 import { anchorSpan } from "./anchors";
 
-/** 成功返回 true；正文已改、找不到原文片段或片段已在链接里时返回 false */
+/** 成功返回 true；正文已改、找不到原文片段或片段与既有链接相交时返回 false */
 export function connectInsightMark(editor: Editor, mark: InsightMark): boolean {
   const target = mark.target;
   if (!target || !mark.anchor) return false;
   const range = anchorSpan(editor, mark.block, mark.anchor);
   if (!range) return false;
-  const inLink = Editor.above(editor, {
-    at: range.anchor,
+  // 只查片段起点会漏掉尾部压进链接的部分重叠——那会把旧链接整个包进新链接，这里与链接有任何相交都不连
+  const overlapsLink = Editor.nodes(editor, {
+    at: range,
     match: node => Element.isElement(node) && node.type === "content-link",
   });
-  if (inLink) return false;
+  if (!overlapsLink.next().done) return false;
   const link: Omit<ContentLinkElement, "children"> & { children: [] } = {
     type: "content-link",
     refId: target.ref.id,
