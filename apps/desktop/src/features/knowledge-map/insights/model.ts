@@ -246,6 +246,8 @@ export function questionDraft(
 export interface Point {
   x: number;
   y: number;
+  /** 节点此刻画出来的半径；标记的圈随它缩放（非节点处的点没有） */
+  r?: number;
 }
 
 export interface Circle extends Point {
@@ -269,7 +271,11 @@ export type MarkGeometry =
   | { kind: "pin"; at: Point; anchor: Point }
   | { kind: "note"; at: Point; anchor: Point };
 
-const mid = (a: Point, b: Point): Point => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+const mid = (a: Point, b: Point): Point => ({
+  x: (a.x + b.x) / 2,
+  y: (a.y + b.y) / 2,
+  ...(a.r !== undefined && b.r !== undefined ? { r: (a.r + b.r) / 2 } : {}),
+});
 
 /** 二次曲线：控制点在中垂线上，弯度随两端距离走，两端靠得近时也看得出是一道弧 */
 export function curvePath(a: Point, b: Point, bend = 0.22): { d: string; apex: Point } {

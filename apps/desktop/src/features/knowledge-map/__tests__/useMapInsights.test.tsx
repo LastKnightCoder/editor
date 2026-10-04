@@ -150,16 +150,25 @@ const fixture = (): KnowledgeInsightsPayload => ({
   ],
 });
 
+const view = { scale: 1 };
 const api: GraphOverlayApi = {
   subscribeFrame: () => () => undefined,
-  project: key =>
-    ({ "card:1": { x: 10, y: 10 }, "card:2": { x: 200, y: 10 }, "article:3": { x: 60, y: 90 } })[
-      key
-    ] ?? null,
+  // 节点半径随缩放：基础半径 6
+  project: key => {
+    const at = (
+      {
+        "card:1": { x: 10, y: 10 },
+        "card:2": { x: 200, y: 10 },
+        "article:3": { x: 60, y: 90 },
+      } as Record<string, { x: number; y: number }>
+    )[key];
+    return at ? { ...at, r: 6 * view.scale } : null;
+  },
   topicShape: topicId => (topicId === 5 ? { x: 100, y: 100, radius: 60 } : null),
   subtopicCenter: () => null,
-  scale: () => 1,
+  scale: () => view.scale,
   subtopicLabelScale: 1.3,
+  nodeLabelScale: 2.4,
   flyToTopic: vi.fn(),
   flyToAll: vi.fn(),
   flyToItems: vi.fn(),
@@ -172,7 +181,10 @@ function Harness() {
   const insights = useMapInsights(
     [{ id: 5, parent: -1, label: "JavaScript", colorSlot: 0, size: 3 }],
     undefined,
-    mocks.preview
+    {
+      preview: mocks.preview,
+      placeOf: end => (end.ref.kind === "card" ? "卡片" : "项目文档 · 战斗细胞"),
+    }
   );
   return (
     <div>
@@ -198,6 +210,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.data = null;
   mocks.dismiss = null;
+  view.scale = 1;
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -232,10 +245,25 @@ describe("知识地图的洞见视图", () => {
     expect(container.querySelector('[data-map-mark="g2"]')?.getAttribute("class")).toContain(
       "opacity-20"
     );
+    // 放大地图：圈随节点变大；地图自己画标题时不再重复标题签
+    const ringOf = () =>
+      Number(
+        container.querySelector("svg > circle[stroke='var(--tau-accent)']")?.getAttribute("r")
+      );
+    expect(ringOf()).toBe(10);
+    view.scale = 6;
+    await render();
+    expect(ringOf()).toBe(40);
+    expect(container.querySelector("[data-map-involved]")).toBeNull();
+    view.scale = 1;
+    await render();
+
     // 关闭按钮与 Esc 第一层一样收起气泡；再点开继续
     await click(document.querySelector('[data-map-insight-popover] button[aria-label="关闭"]'));
     expect(document.querySelector("[data-map-insight-popover]")).toBeNull();
     await click(container.querySelector('[data-map-mark="g1"]'));
+    // 呼应跨主题：在哪之后加上大主题
+    expect(document.querySelector("[data-end-place]")?.textContent).toBe("卡片 · 学习方法");
     // 点气泡里的笔记：交给地图页预览，不跳转
     await click(buttonByText("《card-2》"));
     expect(mocks.preview).toHaveBeenCalledWith(
@@ -281,6 +309,10 @@ describe("知识地图的洞见视图", () => {
 
     // 长文一端没有核对过的原文片段：只能打开看看，不登记
     await click(container.querySelector('[data-map-mark="t1"]'));
+    // 重复两端在同一主题：顶部只写各自在哪，不重复主题名
+    expect(
+      [...document.querySelectorAll("[data-end-place]")].map(place => place.textContent)
+    ).toEqual(["卡片", "项目文档 · 战斗细胞"]);
     await click(buttonByText("打开看看"));
     expect(mocks.openEntity).toHaveBeenCalledWith({ kind: "article", id: 3 }, { at: { block: 3 } });
     expect(mocks.focus).not.toHaveBeenCalled();

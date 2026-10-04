@@ -4,6 +4,9 @@
  *
  * 选中一处时其余标记降淡，涉及的每篇笔记加一圈强调并在旁边标出标题。
  *
+ * 落在节点上的圈与点按节点此刻的半径缩放（放大地图时跟着变大）；地图放大到自己画节点标题时，
+ * 涉及笔记的标题签不再重复画。
+ *
  * 坐标随地图平移缩放：订阅 LinkGraph 的每帧回调，按帧重新算一遍（每层最多 6 处，开销可以忽略）。
  * 容器不接指针事件，只有标记与主题名的点击区接。
  */
@@ -59,6 +62,11 @@ function useFrame(api: GraphOverlayApi) {
   }, [api]);
 }
 
+/** 节点中心的实心点：节点画大时跟着变大，至少 base */
+const dotRadius = (point: Point, base: number) => Math.max(base, (point.r ?? 0) * 0.35);
+/** 套在节点外的圈：比节点大一圈，至少 base */
+const ringRadius = (point: Point, base: number) => Math.max(base, (point.r ?? 0) + 4);
+
 const delay = (index: number): CSSProperties => ({
   animationDelay: `${DRAW_LEAD_MS + index * DRAW_STAGGER_MS}ms`,
 });
@@ -90,6 +98,7 @@ export function MapInsightsOverlay({
   }));
   const currentMark = shapes.find(item => item.mark.id === current);
   const currentAnchor: Point | null = currentMark?.shape?.anchor ?? null;
+  const graphShowsTitles = api.scale() >= api.nodeLabelScale;
   const involved = (currentMark?.mark.ends ?? []).flatMap(end => {
     const at = api.project(endpointKey(end));
     return at ? [{ key: endpointKey(end), title: end.title, at }] : [];
@@ -137,7 +146,7 @@ export function MapInsightsOverlay({
                       key={i}
                       cx={point.x}
                       cy={point.y}
-                      r={shape.kind === "curve" ? 4.5 : 3}
+                      r={dotRadius(point, shape.kind === "curve" ? 4.5 : 3)}
                       fill={linked ? "var(--tau-ink-3)" : strokeColor}
                       className="animate-fadeIn"
                       style={delay(index)}
@@ -160,12 +169,18 @@ export function MapInsightsOverlay({
                     style={{ ...delay(index), ...glow }}
                   />
                   {shape.dots.map((point, i) => (
-                    <circle key={i} cx={point.x} cy={point.y} r={3} fill="var(--tau-ink-2)" />
+                    <circle
+                      key={i}
+                      cx={point.x}
+                      cy={point.y}
+                      r={dotRadius(point, 3)}
+                      fill="var(--tau-ink-2)"
+                    />
                   ))}
                   <circle
                     cx={shape.ghost.x}
                     cy={shape.ghost.y}
-                    r={7}
+                    r={Math.max(7, (shape.ghost.r ?? 0) * 0.8)}
                     fill="var(--tau-bg-surface)"
                     stroke="var(--tau-accent)"
                     strokeWidth={1.4}
@@ -180,11 +195,16 @@ export function MapInsightsOverlay({
                 <g key={mark.id} className={common} onClick={pick} data-map-mark={mark.id}>
                   {shape.rings.map((point, i) => (
                     <g key={i}>
-                      <circle cx={point.x} cy={point.y} r={14} fill="transparent" />
                       <circle
                         cx={point.x}
                         cy={point.y}
-                        r={10}
+                        r={ringRadius(point, 10) + 4}
+                        fill="transparent"
+                      />
+                      <circle
+                        cx={point.x}
+                        cy={point.y}
+                        r={ringRadius(point, 10)}
                         fill="none"
                         stroke={meta.stroke}
                         strokeWidth={1.5}
@@ -252,7 +272,7 @@ export function MapInsightsOverlay({
             key={item.key}
             cx={item.at.x}
             cy={item.at.y}
-            r={7}
+            r={ringRadius(item.at, 7)}
             fill="none"
             stroke="var(--tau-accent)"
             strokeWidth={2}
@@ -261,16 +281,17 @@ export function MapInsightsOverlay({
         ))}
       </svg>
 
-      {involved.map(item => (
-        <div
-          key={item.key}
-          className="bg-surface shadow-float text-ink-1 animate-fadeIn absolute max-w-[180px] -translate-x-1/2 -translate-y-full truncate rounded-full px-2 py-px text-[12px]"
-          style={{ left: item.at.x, top: item.at.y - 11 }}
-          data-map-involved={item.key}
-        >
-          {item.title}
-        </div>
-      ))}
+      {!graphShowsTitles &&
+        involved.map(item => (
+          <div
+            key={item.key}
+            className="bg-surface shadow-float text-ink-1 animate-fadeIn absolute max-w-[180px] -translate-x-1/2 -translate-y-full truncate rounded-full px-2 py-px text-[12px]"
+            style={{ left: item.at.x, top: item.at.y - ringRadius(item.at, 7) - 4 }}
+            data-map-involved={item.key}
+          >
+            {item.title}
+          </div>
+        ))}
 
       {/* 全局层：有发现的主题名可以点，名字后一个小点 */}
       {topics.map(topic => {

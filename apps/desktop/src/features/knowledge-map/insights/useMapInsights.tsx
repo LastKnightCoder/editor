@@ -50,13 +50,18 @@ const GLOBAL: MapLevel = { kind: "global" };
 /** 镜头飞进主题后再开始画，免得标记在飞行途中被拉着走 */
 const LEVEL_SWITCH_DELAY_MS = 450;
 
-/**
- * onPreview：气泡里点某篇笔记时交给地图页预览（Drawer）；「去连接」仍直接打开那篇。
- */
+/** 地图页提供给洞见视图的能力 */
+export interface MapInsightsHost {
+  /** 气泡里点某篇笔记：交给地图页预览（Drawer）；「去连接」仍直接打开那篇 */
+  preview(end: KnowledgeEndpoint): void;
+  /** 这篇笔记在哪（卡片 / 文章 / 项目文档 · 项目名）；不在地图上返回 null */
+  placeOf(end: KnowledgeEndpoint): string | null;
+}
+
 export function useMapInsights(
   topics: KnowledgeMapTopic[],
   initial: string | undefined,
-  onPreview: (end: KnowledgeEndpoint) => void
+  host: MapInsightsHost
 ) {
   const { enabled, data, analyze, setStatus } = useKnowledgeInsights();
   const [api, setApi] = useState<GraphOverlayApi | null>(null);
@@ -361,7 +366,8 @@ export function useMapInsights(
           onQuestion={question}
           onAcknowledge={mark => resolveTo(mark.id, "seen")}
           onDismiss={mark => resolveTo(mark.id, "dismissed")}
-          onOpen={onPreview}
+          onOpen={host.preview}
+          placeOf={host.placeOf}
           onClose={() => {
             setWalking(false);
             setCurrent(null);

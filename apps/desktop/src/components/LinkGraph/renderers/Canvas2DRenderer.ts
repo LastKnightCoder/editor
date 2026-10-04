@@ -56,7 +56,7 @@ const CLUSTER_LABEL_MAX_SCALE = 0.55;
  * 标题才放得下。
  */
 export const MAP_SUBTOPIC_LABEL_SCALE = 1.3;
-const MAP_CARD_LABEL_SCALE = 2.4;
+export const MAP_CARD_LABEL_SCALE = 2.4;
 /** 簇背景色块的不透明度：只做「这一片是一起的」的暗示，不能盖住节点 */
 const CLUSTER_BLOB_ALPHA = 0.1;
 

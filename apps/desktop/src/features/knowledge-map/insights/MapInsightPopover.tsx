@@ -26,6 +26,7 @@ export interface MapInsightPopoverProps {
   onAcknowledge(mark: KnowledgeMark): void;
   onDismiss(mark: KnowledgeMark): void;
   onOpen(end: KnowledgeEndpoint): void;
+  placeOf(end: KnowledgeEndpoint): string | null;
   /** 关闭气泡（逐条看时一并结束），与 Esc 第一层相同 */
   onClose(): void;
 }
@@ -41,12 +42,35 @@ const day = (time: number) => {
   return `${date.getMonth() + 1} 月 ${date.getDate()} 日`;
 };
 
+/**
+ * 端框顶部那一行：这篇在哪（卡片 / 文章 / 项目文档 · 项目名）。呼应是跨主题的，再加上所属大主题；
+ * 其余类型两端在同一主题里，主题名两边一样，不显示。
+ */
+function endPlace(
+  mark: KnowledgeMark,
+  end: KnowledgeEndpoint,
+  placeOf: (end: KnowledgeEndpoint) => string | null
+) {
+  const place = placeOf(end) ?? REF_KIND_LABEL[end.ref.kind];
+  const topic = mark.kind === "bridge" ? end.topic.split(" › ")[0] : "";
+  return topic ? `${place} · ${topic}` : place;
+}
+
+const REF_KIND_LABEL: Record<KnowledgeEndpoint["ref"]["kind"], string> = {
+  card: "卡片",
+  article: "文章",
+  "project-item": "项目文档",
+  diary: "日记",
+};
+
 function EndBox({
   end,
+  place,
   claim,
   onOpen,
 }: {
   end: KnowledgeEndpoint;
+  place: string;
   claim?: string;
   onOpen(end: KnowledgeEndpoint): void;
 }) {
@@ -56,11 +80,12 @@ function EndBox({
       onClick={() => onOpen(end)}
       className="bg-surface-hover rounded-tau-sm hover:bg-hover text-tau-meta min-w-0 px-2.5 py-2 text-left leading-[1.65]"
     >
-      {end.topic && (
-        <span className="bg-surface text-ink-3 mb-0.5 inline-block max-w-full truncate rounded px-1.5 text-[10.5px]">
-          {end.topic}
-        </span>
-      )}
+      <span
+        className="bg-surface text-ink-3 mb-0.5 inline-block max-w-full truncate rounded px-1.5 text-[10.5px]"
+        data-end-place
+      >
+        {place}
+      </span>
       <span className="text-ink-1 block truncate font-medium">《{end.title}》</span>
       <span className="text-ink-2 line-clamp-3 block">{claim || end.excerpt}</span>
     </button>
@@ -76,6 +101,7 @@ export function MapInsightPopover({
   onAcknowledge,
   onDismiss,
   onOpen,
+  placeOf,
   onClose,
 }: MapInsightPopoverProps) {
   const meta = MARK_META[mark.kind];
@@ -123,7 +149,13 @@ export function MapInsightPopover({
           mark.ends.length === 2 && (
             <div className="mt-2 grid grid-cols-2 gap-2">
               {mark.ends.map((end, index) => (
-                <EndBox key={index} end={end} claim={mark.claims?.[index]} onOpen={onOpen} />
+                <EndBox
+                  key={index}
+                  end={end}
+                  place={endPlace(mark, end, placeOf)}
+                  claim={mark.claims?.[index]}
+                  onOpen={onOpen}
+                />
               ))}
             </div>
           )}
