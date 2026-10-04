@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   focus: vi.fn(),
   openEntity: vi.fn(async () => {}),
   dismiss: null as null | (() => void),
+  preview: vi.fn(),
 }));
 
 vi.mock("../insightsQueries", () => ({
@@ -135,6 +136,14 @@ const fixture = (): KnowledgeInsightsPayload => ({
           ends: [end("card", 1), end("article", 3)],
           status: "open",
         },
+        {
+          id: "t2",
+          kind: "pattern",
+          why: "三处都先画状态机",
+          text: "先画状态机再写代码",
+          ends: [end("card", 1), end("card", 2)],
+          status: "open",
+        },
       ],
       5
     ),
@@ -153,15 +162,18 @@ const api: GraphOverlayApi = {
   subtopicLabelScale: 1.3,
   flyToTopic: vi.fn(),
   flyToAll: vi.fn(),
+  flyToItems: vi.fn(),
 };
 
 let root: Root;
 let container: HTMLDivElement;
 
 function Harness() {
-  const insights = useMapInsights([
-    { id: 5, parent: -1, label: "JavaScript", colorSlot: 0, size: 3 },
-  ]);
+  const insights = useMapInsights(
+    [{ id: 5, parent: -1, label: "JavaScript", colorSlot: 0, size: 3 }],
+    undefined,
+    mocks.preview
+  );
   return (
     <div>
       {insights.button}
@@ -211,9 +223,26 @@ describe("知识地图的洞见视图", () => {
     expect(container.querySelectorAll("[data-map-mark]")).toHaveLength(2);
     expect(container.querySelector('[data-map-topic="5"]')).not.toBeNull();
 
-    // 点呼应：气泡里有共同的道理，两端都是卡片 → 直接连
+    // 点呼应：气泡里有共同的道理；涉及的两篇在地图上标出标题、镜头让它们进入视口，其余标记降淡
     await click(container.querySelector('[data-map-mark="g1"]'));
     expect(document.body.textContent).toContain("主动回想比重读记得牢");
+    expect(container.querySelector('[data-map-involved="card:1"]')?.textContent).toBe("card-1");
+    expect(container.querySelector('[data-map-involved="card:2"]')).not.toBeNull();
+    expect(api.flyToItems).toHaveBeenCalledWith(["card:1", "card:2"]);
+    expect(container.querySelector('[data-map-mark="g2"]')?.getAttribute("class")).toContain(
+      "opacity-20"
+    );
+    // 关闭按钮与 Esc 第一层一样收起气泡；再点开继续
+    await click(document.querySelector('[data-map-insight-popover] button[aria-label="关闭"]'));
+    expect(document.querySelector("[data-map-insight-popover]")).toBeNull();
+    await click(container.querySelector('[data-map-mark="g1"]'));
+    // 点气泡里的笔记：交给地图页预览，不跳转
+    await click(buttonByText("《card-2》"));
+    expect(mocks.preview).toHaveBeenCalledWith(
+      expect.objectContaining({ ref: { kind: "card", id: 2 } })
+    );
+    expect(mocks.openEntity).not.toHaveBeenCalled();
+    // 两端都是卡片 → 直接连
     await act(async () => {
       buttonByText("连接")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
@@ -257,6 +286,13 @@ describe("知识地图的洞见视图", () => {
     expect(mocks.focus).not.toHaveBeenCalled();
     expect(mocks.link).not.toHaveBeenCalled();
 
+    // 同一思路是观察：主按钮「知道了」，不记问题
+    await click(container.querySelector('[data-map-mark="t2"]'));
+    expect(buttonByText("记为问题")).toBeNull();
+    await click(buttonByText("知道了"));
+    expect(mocks.setStatus).toHaveBeenCalledWith({ nodeId: 2, itemId: "t2", status: "seen" });
+    expect(mocks.capture).not.toHaveBeenCalled();
+
     // Esc：先关气泡，再回到全局，再退出
     await click(container.querySelector('[data-map-mark="t1"]'));
     await act(async () => mocks.dismiss?.());
@@ -270,6 +306,37 @@ describe("知识地图的洞见视图", () => {
     await act(async () => mocks.dismiss?.());
     expect(container.textContent).not.toContain("版图两三句");
     expect(buttonByText("AI 洞见")).not.toBeNull();
+  });
+
+  it("有发现的主题用菜单切换：按还剩几处排序，主题层顶部的主题名也能直接换", async () => {
+    const data = fixture();
+    const other = node(
+      3,
+      "topic",
+      [
+        { id: "u1", kind: "gap", why: "缺", text: "还缺：A", ends: [], status: "open" },
+        { id: "u2", kind: "gap", why: "缺", text: "还缺：B", ends: [], status: "open" },
+        { id: "u3", kind: "gap", why: "缺", text: "还缺：C", ends: [], status: "open" },
+      ],
+      6
+    );
+    mocks.data = { ...data, topics: [...data.topics, { ...other, label: "Python" }] };
+    await render();
+    await click(buttonByText("AI 洞见"));
+
+    await click(buttonByText("有发现的主题 2"));
+    const options = [...document.querySelectorAll("[data-map-topic-option]")];
+    expect(options.map(option => option.textContent)).toEqual(["Python3", "JavaScript2"]);
+    await click(options[1]);
+    expect(api.flyToTopic).toHaveBeenCalledWith(5);
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(container.textContent).toContain("主题两三句");
+
+    await click(container.querySelector('button[title="切换到其他有发现的主题"]'));
+    await click(document.querySelector('[data-map-topic-option="6"]'));
+    expect(api.flyToTopic).toHaveBeenLastCalledWith(6);
   });
 
   it("逐条看：↓ 切换、⌫ 不相关、Esc 结束", async () => {

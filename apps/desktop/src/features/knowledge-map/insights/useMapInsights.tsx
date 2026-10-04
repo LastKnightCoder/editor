@@ -2,7 +2,7 @@
  * 知识地图的洞见视图（KL-060）：点「✦ AI 洞见」→ 读（扫光 + 真实阶段说明）→ 点亮（报告卡 + 地图上依次画出）
  * → 点有发现的主题名飞进主题层 → 气泡处理 / 逐条看 → Esc 按层退出（气泡 → 逐条看 → 回到全局 → 退出）。
  *
- * 地图页拿到几样东西摆到自己的位置：button（标题行）、report（筛选行下面）、overlay（交给 LinkGraph）、
+ * 地图页拿到几样东西摆到自己的位置：button（标题行）、report（地图右侧的侧栏）、overlay（交给 LinkGraph）、
  * overlayRef（LinkGraph 回传坐标换算）、floating（气泡与逐条看操作条）。
  * 结果由后台按变化量生成；分析过就直接点亮，第一次（还没有全局结果）或「重新分析」时才调用。
  */
@@ -31,14 +31,15 @@ import { MapInsightsReport } from "./MapInsightsReport";
 import {
   bothCards,
   connectTarget,
-  connectsByDefault,
+  endpointKey,
   focusMarkOf,
   hasUnseen,
   nodeOfLevel,
   openMarks,
   parseInsightParam,
+  primaryAction,
   questionDraft,
-  topicsWithFindings,
+  findingTopicList,
   visibleMarks,
   walkOrder,
   type MapLevel,
@@ -49,7 +50,14 @@ const GLOBAL: MapLevel = { kind: "global" };
 /** 镜头飞进主题后再开始画，免得标记在飞行途中被拉着走 */
 const LEVEL_SWITCH_DELAY_MS = 450;
 
-export function useMapInsights(topics: KnowledgeMapTopic[], initial?: string) {
+/**
+ * onPreview：气泡里点某篇笔记时交给地图页预览（Drawer）；「去连接」仍直接打开那篇。
+ */
+export function useMapInsights(
+  topics: KnowledgeMapTopic[],
+  initial: string | undefined,
+  onPreview: (end: KnowledgeEndpoint) => void
+) {
   const { enabled, data, analyze, setStatus } = useKnowledgeInsights();
   const [api, setApi] = useState<GraphOverlayApi | null>(null);
   const [view, setView] = useState<ViewState>("off");
@@ -72,10 +80,7 @@ export function useMapInsights(topics: KnowledgeMapTopic[], initial?: string) {
   const node = nodeOfLevel(data, level);
   const marks = useMemo(() => visibleMarks(node), [node]);
   const order = useMemo(() => walkOrder(openMarks(node)), [node]);
-  const findingTopics = useMemo(
-    () => topicsWithFindings(data).map(topic => ({ topicId: topic.topicId!, label: topic.label })),
-    [data]
-  );
+  const findingTopics = useMemo(() => findingTopicList(data), [data]);
   const topicLabel =
     level.kind === "topic"
       ? (data?.topics.find(topic => topic.topicId === level.topicId)?.label ?? "")
@@ -147,6 +152,13 @@ export function useMapInsights(topics: KnowledgeMapTopic[], initial?: string) {
     else exit();
   }, view !== "off");
 
+  // 选中一处时镜头让涉及的笔记都进入视口（已经都在就不动）
+  useEffect(() => {
+    if (!api || !current) return;
+    const mark = marks.find(item => item.id === current);
+    if (mark?.ends.length) api.flyToItems(mark.ends.map(endpointKey));
+  }, [api, current, marks]);
+
   // 带着 insight 参数进来（今日页「去看看」）：直接点亮那一处；同一个参数只处理一次
   const handledParam = useRef<string | null>(null);
   useEffect(() => {
@@ -174,7 +186,7 @@ export function useMapInsights(topics: KnowledgeMapTopic[], initial?: string) {
   }, [initial, data, api]);
 
   /* ── 动作 ── */
-  const resolveTo = (itemId: string, status: "linked" | "questioned" | "dismissed") => {
+  const resolveTo = (itemId: string, status: "linked" | "questioned" | "seen" | "dismissed") => {
     if (node) setStatus.mutate({ nodeId: node.id, itemId, status });
     if (walking) {
       const rest = order.filter(item => item.id !== itemId);
@@ -257,7 +269,9 @@ export function useMapInsights(topics: KnowledgeMapTopic[], initial?: string) {
         if (next) setCurrent(next.id);
       } else if (event.key === "Enter" && mark) {
         event.preventDefault();
-        if (connectsByDefault(mark)) connect(mark);
+        const action = primaryAction(mark);
+        if (action === "connect") connect(mark);
+        else if (action === "acknowledge") resolveTo(mark.id, "seen");
         else question(mark);
       } else if (event.key === "Backspace" && mark) {
         event.preventDefault();
@@ -299,13 +313,11 @@ export function useMapInsights(topics: KnowledgeMapTopic[], initial?: string) {
         reading={view === "reading"}
         phase={phase}
         topicLabel={topicLabel}
-        topicsWithFindings={findingTopics.length}
+        findingTopics={findingTopics}
+        currentTopicId={level.kind === "topic" ? level.topicId : null}
         onBack={() => switchLevel(GLOBAL)}
         onJumpKind={jumpKind}
-        onJumpTopic={() => {
-          const first = findingTopics[0];
-          if (first) switchLevel({ kind: "topic", topicId: first.topicId });
-        }}
+        onPickTopic={topicId => switchLevel({ kind: "topic", topicId })}
         onAsk={askQuestion}
         onReanalyze={run}
         onWalk={startWalk}
@@ -328,7 +340,6 @@ export function useMapInsights(topics: KnowledgeMapTopic[], initial?: string) {
             topicByLabel={topicByLabel}
             topics={level.kind === "global" ? findingTopics : []}
             current={current}
-            walking={walking}
             revealKey={revealKey}
             onPick={id => setCurrent(previous => (previous === id ? null : id))}
             onPickTopic={topicId => switchLevel({ kind: "topic", topicId })}
@@ -348,8 +359,13 @@ export function useMapInsights(topics: KnowledgeMapTopic[], initial?: string) {
           walking={walking}
           onConnect={connect}
           onQuestion={question}
+          onAcknowledge={mark => resolveTo(mark.id, "seen")}
           onDismiss={mark => resolveTo(mark.id, "dismissed")}
-          onOpen={open}
+          onOpen={onPreview}
+          onClose={() => {
+            setWalking(false);
+            setCurrent(null);
+          }}
         />
       )}
       {walking &&

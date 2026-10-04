@@ -85,6 +85,20 @@ export function topicsWithFindings(data: KnowledgeInsightsPayload | null) {
   return (data?.topics ?? []).filter(topic => topic.topicId !== null && openMarks(topic).length);
 }
 
+export interface FindingTopic {
+  topicId: number;
+  label: string;
+  /** 还没处理的发现数 */
+  open: number;
+}
+
+/** 切换主题的菜单：有发现的主题按还剩几处从多到少，同数保持原顺序 */
+export function findingTopicList(data: KnowledgeInsightsPayload | null): FindingTopic[] {
+  return topicsWithFindings(data)
+    .map(topic => ({ topicId: topic.topicId!, label: topic.label, open: openMarks(topic).length }))
+    .sort((a, b) => b.open - a.open);
+}
+
 /** 有还没看的：按钮上的小点 */
 export function hasUnseen(data: KnowledgeInsightsPayload | null) {
   return Boolean(
@@ -96,9 +110,14 @@ export function hasUnseen(data: KnowledgeInsightsPayload | null) {
 export const bothCards = (mark: KnowledgeMark) =>
   mark.ends.length === 2 && mark.ends.every(end => end.ref.kind === "card");
 
-/** 呼应与重复的主动作是连接，其余是记为问题 */
-export const connectsByDefault = (mark: KnowledgeMark) =>
-  mark.kind === "bridge" || mark.kind === "dup";
+/** 气泡的主动作：呼应与重复是连接；同一思路是观察，看到就够了；其余是记为问题 */
+export type MarkAction = "connect" | "acknowledge" | "question";
+export const primaryAction = (mark: KnowledgeMark): MarkAction =>
+  mark.kind === "bridge" || mark.kind === "dup"
+    ? "connect"
+    : mark.kind === "pattern"
+      ? "acknowledge"
+      : "question";
 
 /** 去连接时打开哪一端：有原文片段的长文优先 */
 export function connectTarget(mark: KnowledgeMark): KnowledgeEndpoint | null {
@@ -134,6 +153,39 @@ export function focusMarkOf(mark: KnowledgeMark, here: KnowledgeEndpoint): Insig
     ...(mark.kind === "dup" ? { mine: here.excerpt, theirs: other.excerpt } : {}),
     status: "open",
   };
+}
+
+const stripGapPrefix = (text: string) => text.replace(/^(还缺|这里还薄)[:：]\s*/, "");
+
+/** 气泡开头那一句：直白说出这一处是什么、涉及谁 */
+export function markSummary(mark: KnowledgeMark): string {
+  const [a, b] = mark.ends.map(end => `《${end.title}》`);
+  switch (mark.kind) {
+    case "bridge":
+      return mark.text ? `${a}和${b}说的是同一个道理：${mark.text}` : `${a}和${b}遥相呼应`;
+    case "dup":
+      return `${a}和${b}写的几乎是同一件事`;
+    case "conflict":
+      return `${a}和${b}在同一件事上说法相反`;
+    case "chain": {
+      const index = mark.missing?.index ?? 1;
+      const from = mark.ends[index - 1];
+      const to = mark.ends[index];
+      const missing = mark.missing?.text ? `「${mark.missing.text}」` : "一环";
+      return from && to
+        ? `从《${from.title}》到《${to.title}》之间少了${missing}`
+        : `这条线上少了${missing}`;
+    }
+    case "pattern":
+      return `这 ${mark.ends.length} 篇都用了「${mark.text ?? ""}」这个思路`;
+    case "asked":
+      return `你问过 ${mark.prompts?.length ?? 0} 次「${mark.text ?? ""}」，还没写成笔记`;
+    case "gap":
+    case "thin":
+      return `这个主题还缺：${stripGapPrefix(mark.text ?? "")}`;
+    default:
+      return mark.text || mark.why;
+  }
 }
 
 const QUESTION_TARGET: Record<EntityRef["kind"], QuestionLinkTargetType | null> = {
@@ -174,12 +226,10 @@ export function questionDraft(
   });
   const title =
     mark.kind === "gap" || mark.kind === "thin"
-      ? (mark.text ?? "").replace(/^(还缺|这里还薄)[:：]\s*/, "")
+      ? stripGapPrefix(mark.text ?? "")
       : mark.kind === "chain"
         ? `${mark.missing?.text ?? ""}`
-        : mark.kind === "pattern"
-          ? `「${mark.text ?? ""}」这种办法什么时候不管用？`
-          : mark.why;
+        : mark.why;
   if (!targets.length) {
     return { source: { kind: "none" }, sourceLabel: `主题：${topicLabel}`, defaultTitle: title };
   }

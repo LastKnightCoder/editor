@@ -5,6 +5,8 @@ import {
   connectTarget,
   curvePath,
   markGeometry,
+  markSummary,
+  primaryAction,
   questionDraft,
   topicLabelPoint,
   walkOrder,
@@ -143,6 +145,41 @@ describe("地图洞见的模型", () => {
       sourceLabel: "主题：JavaScript",
       defaultTitle: "模块加载",
     });
+  });
+
+  it("主动作：呼应与重复连接，同一思路知道了，其余记为问题", () => {
+    expect(primaryAction(mark("bridge"))).toBe("connect");
+    expect(primaryAction(mark("dup"))).toBe("connect");
+    expect(primaryAction(mark("pattern"))).toBe("acknowledge");
+    expect(primaryAction(mark("conflict"))).toBe("question");
+    expect(primaryAction(mark("gap"))).toBe("question");
+  });
+
+  it("气泡开头一句直白说出是什么、涉及谁", () => {
+    const pair = [end("card", 1), end("card", 2)];
+    expect(markSummary(mark("bridge", { ends: pair, text: "主动回想比重读记得牢" }))).toBe(
+      "《card-1》和《card-2》说的是同一个道理：主动回想比重读记得牢"
+    );
+    expect(markSummary(mark("dup", { ends: pair }))).toBe(
+      "《card-1》和《card-2》写的几乎是同一件事"
+    );
+    expect(
+      markSummary(
+        mark("chain", {
+          ends: [end("card", 1), end("article", 3)],
+          missing: { index: 1, text: "微任务检查点" },
+        })
+      )
+    ).toBe("从《card-1》到《article-3》之间少了「微任务检查点」");
+    expect(markSummary(mark("gap", { text: "还缺：模块加载" }))).toBe("这个主题还缺：模块加载");
+    expect(
+      markSummary(
+        mark("asked", {
+          text: "组播地址怎么分配",
+          prompts: [{ sessionId: "s1", messageId: "a", text: "x", time: 1 }],
+        })
+      )
+    ).toBe("你问过 1 次「组播地址怎么分配」，还没写成笔记");
   });
 
   it("逐条看的顺序按类型，同类按原顺序", () => {

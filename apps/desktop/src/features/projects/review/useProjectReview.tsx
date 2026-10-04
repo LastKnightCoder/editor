@@ -6,8 +6,8 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Sparkles, CornerDownRight, CircleHelp } from "lucide-react";
-import { AnchoredPanel, Button, cn, toast } from "@tau/ui";
+import { Loader2, Sparkles, CornerDownRight, CircleHelp, X } from "lucide-react";
+import { AnchoredPanel, Button, IconButton, cn, toast } from "@tau/ui";
 import { addChildProjectItem } from "@/commands";
 import { useOverlayDismiss, usePage } from "@/page/PageProvider";
 import { openEntity } from "@/services/open-content";
@@ -239,7 +239,7 @@ export function useProjectReview(options: {
           className="text-tau-body text-ink-1 px-3.5 pb-2.5 pt-3 leading-[1.7]"
           onMouseDown={event => event.stopPropagation()}
         >
-          <div className="text-ink-3 mb-1 flex items-center gap-1.5 text-[11.5px]">
+          <div className="text-ink-3 -mr-1.5 -mt-1 mb-0.5 flex items-center gap-1.5 text-[11.5px]">
             <i
               className={cn(
                 "size-[7px] rounded-full",
@@ -247,6 +247,14 @@ export function useProjectReview(options: {
               )}
             />
             {mark.kind === "belong" ? "可能属于这里" : "还薄"}
+            <IconButton
+              className="ml-auto size-6"
+              title="关闭 (Esc)"
+              aria-label="关闭"
+              onClick={() => setCurrent(null)}
+            >
+              <X className="size-3.5" strokeWidth={1.75} />
+            </IconButton>
           </div>
           {mark.kind === "thin" && mark.text && <p className="font-medium">{mark.text}</p>}
           <p className={cn(mark.kind === "thin" && "text-ink-2 text-tau-meta")}>{mark.why}</p>

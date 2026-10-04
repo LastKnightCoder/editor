@@ -152,6 +152,8 @@ export interface GraphOverlayApi {
   flyToTopic: (topicId: number) => void;
   /** 镜头回到全图 */
   flyToAll: () => void;
+  /** 让这几个节点都进入视口：都在视口里时不动，放不下时拉远，不会拉近 */
+  flyToItems: (keys: string[]) => void;
 }
 
 export interface GraphEngineHandle {
@@ -904,6 +906,44 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
             scale: target.scale,
           },
           700
+        );
+        dirtyRef.current = true;
+      },
+      flyToItems: keys => {
+        const scene = sceneRef.current;
+        const camera = cameraRef.current;
+        const container = containerRef.current;
+        if (!scene || !camera || !container) return;
+        const nodes = keys.flatMap(key => {
+          const id = keyToId.get(key);
+          const node = id === undefined ? undefined : scene.nodeById.get(id);
+          return node ? [node] : [];
+        });
+        if (!nodes.length) return;
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+        // 留出标题签与气泡的位置
+        const margin = 90;
+        const inView = nodes.every(node => {
+          const [x, y] = camera.toCanvas(node.x, node.y);
+          return x >= margin && x <= width - margin && y >= margin && y <= height - margin;
+        });
+        if (inView) return;
+        const xs = nodes.map(node => node.x);
+        const ys = nodes.map(node => node.y);
+        const spanX = Math.max(...xs) - Math.min(...xs);
+        const spanY = Math.max(...ys) - Math.min(...ys);
+        const fitScale = Math.min(
+          (width - margin * 2) / Math.max(1, spanX),
+          (height - margin * 2) / Math.max(1, spanY)
+        );
+        camera.flyTo(
+          {
+            x: (Math.max(...xs) + Math.min(...xs)) / 2,
+            y: (Math.max(...ys) + Math.min(...ys)) / 2,
+            scale: Math.min(camera.scale, fitScale),
+          },
+          500
         );
         dirtyRef.current = true;
       },

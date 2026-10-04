@@ -434,6 +434,10 @@ export function useInsightsView({
           onQuestion={questionMark}
           onDismiss={mark => resolveTo(mark, "dismissed")}
           onOpenTarget={openTarget}
+          onClose={() => {
+            setWalking(false);
+            setCurrent(null);
+          }}
         />
       )}
       {on &&
