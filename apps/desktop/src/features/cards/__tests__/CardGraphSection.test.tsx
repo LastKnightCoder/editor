@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { beforeEach, expect, it, vi } from "vitest";
 import { CardGraphSection } from "../components/CardGraphSection";
 import { useGraphMilestoneStore } from "../graphMilestones";
-import { ECardCategory, type ICard } from "@/types/card";
+import { type ICard } from "@/types/card";
 
 const mocks = vi.hoisted(() => ({ graph: vi.fn(), play: vi.fn() }));
 vi.mock("@/components/LinkGraph", async () => {
@@ -34,7 +34,6 @@ const makeCards = (count: number): ICard[] =>
     count: 0,
     tags: [],
     links: [],
-    category: ECardCategory.Temporary,
     isTop: false,
     create_time: i,
     update_time: 0,
@@ -104,7 +103,6 @@ it("悬停随浮层开关恢复，筛选只改变高亮而不删除图谱节点"
     count: 0,
     tags: [],
     links: [2],
-    category: ECardCategory.Temporary,
     isTop: false,
     create_time: 0,
     update_time: 0,

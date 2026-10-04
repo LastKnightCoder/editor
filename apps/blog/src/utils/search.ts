@@ -310,7 +310,14 @@ function firstLine(text: string): string {
 }
 
 function isCardData(content: InitData["content"]): content is CardData {
-  return "category" in content && "content" in content && Array.isArray(content.content);
+  // 卡片页无 title（区别于文章），有 tags 数组（区别于文档/问题页）
+  return (
+    "tags" in content &&
+    Array.isArray(content.tags) &&
+    "content" in content &&
+    Array.isArray(content.content) &&
+    !("title" in content)
+  );
 }
 
 function isArticleData(content: InitData["content"]): content is ArticleData {

@@ -18,7 +18,6 @@ import { isEditableTarget } from "@/page/dom";
 import { CreateCardDialog } from "@/features/cards/components/CreateCardDialog";
 import { EntityPicker } from "@/components/EntityPicker";
 import {
-  ECardCategory,
   type QuestionLinkTarget,
   type QuestionMaterial,
   type QuestionStatus,
@@ -468,7 +467,6 @@ export function QuestionsView() {
         />
         <CreateCardDialog
           open={cardOpen}
-          defaultCategory={ECardCategory.Temporary}
           onClose={() => setCardOpen(false)}
           onCreated={card => {
             if (!detail) return;

@@ -1,4 +1,4 @@
-// 闪念（快速捕获）控制器：600ms 防抖落库、草稿 localStorage 持久化、
+// 快速捕获控制器：600ms 防抖落库、草稿 localStorage 持久化、
 // 清空即删卡。原先寄生在 AppShell 的约 300 行逻辑下沉至此。
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -14,7 +14,6 @@ import {
 } from "../editorContentUtils";
 import { clearQuickCaptureDraft, hasQuickCaptureDraft } from "../quickCaptureDraft";
 import { toast } from "../../../components/toast";
-import type { KnownCardCategory } from "../cardCategory";
 
 const QUICK_CAPTURE_DEBOUNCE_MS = 600;
 
@@ -25,10 +24,8 @@ export type QuickCaptureControllerDeps = {
 
 export function useQuickCaptureController(deps: QuickCaptureControllerDeps) {
   const [saving, setSaving] = useState(false);
-  const [category, setCategory] = useState<KnownCardCategory>("temporary");
 
   const contentRef = useRef<Descendant[]>(EMPTY_EDITOR_CONTENT);
-  const categoryRef = useRef<KnownCardCategory>("temporary");
   const cardIdRef = useRef<number | null>(null);
   const contentIdRef = useRef<number | null>(null);
   const debounceTimerRef = useRef<number | null>(null);
@@ -37,14 +34,10 @@ export function useQuickCaptureController(deps: QuickCaptureControllerDeps) {
 
   const { presentError, refreshCards } = deps;
 
-  useEffect(() => {
-    categoryRef.current = category;
-  }, [category]);
-
-  // 页面挂载 = 闪念打开：重置会话；存在未完成草稿时提示恢复
+  // 页面挂载 = 快速捕获打开：重置会话；存在未完成草稿时提示恢复
   useEffect(() => {
     if (hasQuickCaptureDraft()) {
-      toast.info("检测到未完成闪念草稿，可点击 + 继续编辑");
+      toast.info("检测到未完成的快速捕获草稿，可点击 + 继续编辑");
     }
     return () => {
       clearDebounceTimer();
@@ -69,8 +62,6 @@ export function useQuickCaptureController(deps: QuickCaptureControllerDeps) {
     dirtyRef.current = false;
     lastSavedSnapshotRef.current = "";
     contentRef.current = EMPTY_EDITOR_CONTENT;
-    categoryRef.current = "temporary";
-    setCategory("temporary");
   });
 
   const persist = useMemoizedFn(async (): Promise<boolean> => {
@@ -81,29 +72,9 @@ export function useQuickCaptureController(deps: QuickCaptureControllerDeps) {
     }
 
     const contentKey = JSON.stringify(normalizedContent);
-    const currentCategory = categoryRef.current;
-    const nextSnapshot = JSON.stringify({
-      contentKey,
-      category: currentCategory,
-    });
-    if (nextSnapshot === lastSavedSnapshotRef.current) {
+    if (contentKey === lastSavedSnapshotRef.current) {
       clearQuickCaptureDraft();
       return true;
-    }
-
-    let lastSavedContentKey = "";
-    let lastSavedCategory: KnownCardCategory | null = null;
-    if (lastSavedSnapshotRef.current) {
-      try {
-        const parsed = JSON.parse(lastSavedSnapshotRef.current) as {
-          contentKey?: string;
-          category?: KnownCardCategory;
-        };
-        lastSavedContentKey = parsed.contentKey ?? "";
-        lastSavedCategory = parsed.category ?? null;
-      } catch {
-        // ignore malformed snapshot
-      }
     }
 
     setSaving(true);
@@ -111,7 +82,7 @@ export function useQuickCaptureController(deps: QuickCaptureControllerDeps) {
       let cardId = cardIdRef.current;
       let contentId = contentIdRef.current;
       if (cardId === null) {
-        const created = await tauri.createTemporaryCard({
+        const created = await tauri.createQuickCard({
           content: normalizedContent,
           count: getContentLength(normalizedContent),
         });
@@ -119,32 +90,24 @@ export function useQuickCaptureController(deps: QuickCaptureControllerDeps) {
         contentId = created.contentId;
         cardIdRef.current = cardId;
         contentIdRef.current = contentId;
-        if (currentCategory !== "temporary") {
-          await tauri.updateCardCategory({ id: cardId, category: currentCategory });
-        }
       } else {
-        if (lastSavedContentKey !== contentKey) {
-          if (!contentId || contentId <= 0) {
-            const detail = await tauri.getCardDetail(cardId);
-            contentId = detail.contentId;
-            contentIdRef.current = contentId;
-          }
-          await tauri.updateContent({
-            contentId,
-            content: normalizedContent,
-            count: getContentLength(normalizedContent),
-          });
+        if (!contentId || contentId <= 0) {
+          const detail = await tauri.getCardDetail(cardId);
+          contentId = detail.contentId;
+          contentIdRef.current = contentId;
         }
-        if (lastSavedCategory !== currentCategory) {
-          await tauri.updateCardCategory({ id: cardId, category: currentCategory });
-        }
+        await tauri.updateContent({
+          contentId,
+          content: normalizedContent,
+          count: getContentLength(normalizedContent),
+        });
       }
 
-      lastSavedSnapshotRef.current = nextSnapshot;
+      lastSavedSnapshotRef.current = contentKey;
       clearQuickCaptureDraft();
       return true;
     } catch (error) {
-      presentError(error, "闪念实时保存失败，请稍后重试");
+      presentError(error, "快速捕获保存失败，请稍后重试");
       return false;
     } finally {
       setSaving(false);
@@ -186,14 +149,6 @@ export function useQuickCaptureController(deps: QuickCaptureControllerDeps) {
     schedulePersist();
   });
 
-  const handleCategoryChange = useMemoizedFn((next: KnownCardCategory) => {
-    if (categoryRef.current === next) return;
-    categoryRef.current = next;
-    setCategory(next);
-    dirtyRef.current = true;
-    schedulePersist();
-  });
-
   const handleClear = useMemoizedFn(() => {
     if (saving) return;
     clearDebounceTimer();
@@ -216,7 +171,7 @@ export function useQuickCaptureController(deps: QuickCaptureControllerDeps) {
         contentIdRef.current = null;
         await refreshCards();
       } catch (error) {
-        presentError(error, "清空闪念失败，请稍后重试");
+        presentError(error, "清空快速捕获内容失败，请稍后重试");
       } finally {
         setSaving(false);
       }
@@ -245,7 +200,7 @@ export function useQuickCaptureController(deps: QuickCaptureControllerDeps) {
           throw new Error("CARD_NOT_FOUND: card does not exist");
         }
       } catch (error) {
-        presentError(error, "删除空白闪念卡片失败");
+        presentError(error, "删除空白捕获卡片失败");
         return false;
       } finally {
         setSaving(false);
@@ -271,12 +226,10 @@ export function useQuickCaptureController(deps: QuickCaptureControllerDeps) {
   return useMemo(
     () => ({
       saving,
-      category,
       onContentChange: handleContentChange,
-      onCategoryChange: handleCategoryChange,
       onClear: handleClear,
       requestClose,
     }),
-    [saving, category, handleContentChange, handleCategoryChange, handleClear, requestClose]
+    [saving, handleContentChange, handleClear, requestClose]
   );
 }

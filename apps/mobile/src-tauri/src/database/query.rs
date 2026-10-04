@@ -12,7 +12,6 @@ pub struct RawCardRow {
     pub id: i64,
     pub content_id: i64,
     pub update_time: i64,
-    pub category: String,
     pub tags_raw: Option<String>,
     pub content_raw: Option<String>,
 }
@@ -133,22 +132,12 @@ fn extract_excerpt(content_json: Option<String>) -> String {
     result
 }
 
-fn normalize_category(category: Option<&str>) -> String {
-    let value = category.unwrap_or_default().trim();
-    if value.eq_ignore_ascii_case("all") {
-        String::new()
-    } else {
-        value.to_string()
-    }
-}
-
 fn normalize_query(query: Option<&str>) -> String {
     query.unwrap_or_default().trim().to_string()
 }
 
 fn query_cards_plain(
     conn: &Connection,
-    category: &str,
     limit: i64,
     offset: i64,
 ) -> Result<(u64, Vec<RawCardRow>), String> {
@@ -157,9 +146,8 @@ fn query_cards_plain(
             "
             SELECT COUNT(1)
             FROM cards c
-            WHERE (?1 = '' OR c.category = ?1)
             ",
-            params![category],
+            [],
             |row| row.get(0),
         )
         .map_err(|e| format!("DB_OPEN_FAILED: count query failed: {e}"))?;
@@ -167,18 +155,17 @@ fn query_cards_plain(
     let mut stmt = conn
         .prepare(
             "
-            SELECT c.id, c.content_id, c.update_time, c.category, c.tags, ct.content
+            SELECT c.id, c.content_id, c.update_time, c.tags, ct.content
             FROM cards c
             LEFT JOIN contents ct ON c.content_id = ct.id
-            WHERE (?1 = '' OR c.category = ?1)
             ORDER BY c.is_top DESC, c.create_time DESC
-            LIMIT ?2 OFFSET ?3
+            LIMIT ?1 OFFSET ?2
             ",
         )
         .map_err(|e| format!("DB_OPEN_FAILED: card query prepare failed: {e}"))?;
 
     let mut rows = stmt
-        .query(params![category, limit, offset])
+        .query(params![limit, offset])
         .map_err(|e| format!("DB_OPEN_FAILED: card query failed: {e}"))?;
     let mut items = vec![];
     while let Some(row) = rows
@@ -195,14 +182,11 @@ fn query_cards_plain(
             update_time: row
                 .get(2)
                 .map_err(|e| format!("DB_OPEN_FAILED: row update_time parse failed: {e}"))?,
-            category: row
-                .get(3)
-                .map_err(|e| format!("DB_OPEN_FAILED: row category parse failed: {e}"))?,
             tags_raw: row
-                .get(4)
+                .get(3)
                 .map_err(|e| format!("DB_OPEN_FAILED: row tags parse failed: {e}"))?,
             content_raw: row
-                .get(5)
+                .get(4)
                 .map_err(|e| format!("DB_OPEN_FAILED: row content parse failed: {e}"))?,
         });
     }
@@ -216,7 +200,6 @@ fn to_card_items(rows: Vec<RawCardRow>) -> Vec<CardListItem> {
             id: row.id,
             content_id: row.content_id,
             update_time: row.update_time,
-            category: row.category,
             tags: parse_tags(row.tags_raw),
             excerpt: extract_excerpt(row.content_raw.clone()),
             content: parse_content(row.content_raw),
@@ -231,7 +214,7 @@ pub fn query_cards_by_ids(conn: &Connection, ids: &[i64]) -> Result<Vec<CardList
     }
     let placeholders = vec!["?"; ids.len()].join(", ");
     let sql = format!(
-        "SELECT c.id, c.content_id, c.update_time, c.category, c.tags, ct.content
+        "SELECT c.id, c.content_id, c.update_time, c.tags, ct.content
         FROM cards c
         LEFT JOIN contents ct ON c.content_id = ct.id
         WHERE c.id IN ({placeholders})
@@ -260,14 +243,11 @@ pub fn query_cards_by_ids(conn: &Connection, ids: &[i64]) -> Result<Vec<CardList
             update_time: row.get(2).map_err(|e| {
                 format!("DB_OPEN_FAILED: cards by ids update_time parse failed: {e}")
             })?,
-            category: row
-                .get(3)
-                .map_err(|e| format!("DB_OPEN_FAILED: cards by ids category parse failed: {e}"))?,
             tags_raw: row
-                .get(4)
+                .get(3)
                 .map_err(|e| format!("DB_OPEN_FAILED: cards by ids tags parse failed: {e}"))?,
             content_raw: row
-                .get(5)
+                .get(4)
                 .map_err(|e| format!("DB_OPEN_FAILED: cards by ids content parse failed: {e}"))?,
         });
     }
@@ -284,7 +264,6 @@ pub fn query_card_detail(conn: &Connection, card_id: i64) -> Result<CardDetailRe
               c.content_id,
               c.create_time,
               c.update_time,
-              c.category,
               c.tags,
               c.links,
               ct.content,
@@ -320,26 +299,22 @@ pub fn query_card_detail(conn: &Connection, card_id: i64) -> Result<CardDetailRe
     let update_time: i64 = row
         .get(3)
         .map_err(|e| format!("DB_OPEN_FAILED: card detail update_time parse failed: {e}"))?;
-    let category: String = row
-        .get(4)
-        .map_err(|e| format!("DB_OPEN_FAILED: card detail category parse failed: {e}"))?;
     let tags_raw: Option<String> = row
-        .get(5)
+        .get(4)
         .map_err(|e| format!("DB_OPEN_FAILED: card detail tags parse failed: {e}"))?;
     let links_raw: Option<String> = row
-        .get(6)
+        .get(5)
         .map_err(|e| format!("DB_OPEN_FAILED: card detail links parse failed: {e}"))?;
     let content_raw: Option<String> = row
-        .get(7)
+        .get(6)
         .map_err(|e| format!("DB_OPEN_FAILED: card detail content parse failed: {e}"))?;
-    let count: i64 = row.get(8).unwrap_or(0);
+    let count: i64 = row.get(7).unwrap_or(0);
 
     Ok(CardDetailResponse {
         id,
         content_id,
         create_time,
         update_time,
-        category,
         tags: parse_tags(tags_raw),
         links: parse_links(links_raw),
         content: parse_content(content_raw),
@@ -363,7 +338,6 @@ pub fn query_content_detail(
               c.id,
               c.create_time,
               c.update_time,
-              c.category,
               c.tags,
               c.links
             FROM contents ct
@@ -406,20 +380,16 @@ pub fn query_content_detail(
     let card = if let Some(card_id) = card_id {
         let card_create_time: i64 = row.get(6).unwrap_or(0);
         let card_update_time: i64 = row.get(7).unwrap_or(0);
-        let card_category: Option<String> = row.get(8).map_err(|e| {
-            format!("DB_OPEN_FAILED: content detail card category parse failed: {e}")
-        })?;
         let card_tags_raw: Option<String> = row
-            .get(9)
+            .get(8)
             .map_err(|e| format!("DB_OPEN_FAILED: content detail card tags parse failed: {e}"))?;
         let card_links_raw: Option<String> = row
-            .get(10)
+            .get(9)
             .map_err(|e| format!("DB_OPEN_FAILED: content detail card links parse failed: {e}"))?;
         Some(ContentCardMeta {
             id: card_id,
             create_time: card_create_time,
             update_time: card_update_time,
-            category: card_category.unwrap_or_default(),
             tags: parse_tags(card_tags_raw),
             links: parse_links(card_links_raw),
         })
@@ -442,7 +412,6 @@ pub fn query_cards_overview(
     page: u32,
     page_size: u32,
     query: Option<&str>,
-    category: Option<&str>,
 ) -> Result<CardsOverviewResponse, String> {
     let page = if page == 0 { 1 } else { page };
     let page_size = page_size.clamp(1, 100);
@@ -450,13 +419,12 @@ pub fn query_cards_overview(
     let limit = page_size as i64;
 
     let query = normalize_query(query);
-    let category = normalize_category(category);
 
     let (search_mode, total, rows) = if query.is_empty() {
-        let (total, rows) = query_cards_plain(conn, &category, limit, offset)?;
+        let (total, rows) = query_cards_plain(conn, limit, offset)?;
         ("none".to_string(), total, rows)
     } else {
-        let result = search::query_cards_by_search(conn, &query, &category, limit, offset)?;
+        let result = search::query_cards_by_search(conn, &query, limit, offset)?;
         (result.mode.to_string(), result.total, result.rows)
     };
 
@@ -465,7 +433,6 @@ pub fn query_cards_overview(
         page,
         page_size,
         query,
-        category,
         search_mode,
         items: to_card_items(rows),
     })

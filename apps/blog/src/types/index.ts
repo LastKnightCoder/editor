@@ -38,7 +38,6 @@ export interface CardListItem {
   id: number;
   summary: string; // 卡片摘要（前几行文字）
   href: string;
-  category: "temporary" | "permanent" | "theme" | "literature";
   createTime: number;
 }
 
@@ -57,7 +56,6 @@ export interface LinkedCardInfo {
   href: string;
   summary: string;
   tags: string[];
-  category: "temporary" | "permanent" | "theme" | "literature";
 }
 
 // 卡片数据
@@ -65,7 +63,6 @@ export interface CardData {
   id: number;
   content: Descendant[];
   tags: string[];
-  category: "temporary" | "permanent" | "theme" | "literature";
   createTime: number;
   updateTime: number;
   // 关联卡片（通过链接）

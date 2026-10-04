@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Layers, Check, ChevronRight, Copy, Ellipsis, Link2, Tags, Trash2 } from "lucide-react";
+import { Layers, ChevronRight, Copy, Ellipsis, Link2, Trash2 } from "lucide-react";
 import { ContentDetailPage } from "../ContentDetailPage";
 import { PageHeaderButton } from "../../../components/PageHeader";
 import { ActionSheet } from "../../../components/ActionSheet";
@@ -12,12 +12,6 @@ import * as tauri from "../../../services/tauri";
 import type { CardDetailResponse } from "../../../types";
 import { useContentCollabEntry } from "../../collaboration/useContentCollabEntry";
 import { richTextPlainText } from "../../../utils/richTextText";
-import {
-  CARD_CATEGORY_OPTIONS,
-  cardCategoryIcon,
-  cardCategoryLabel,
-  cardCategoryTagClass,
-} from "../cardCategory";
 import {
   createPageSchema,
   definePage,
@@ -48,14 +42,13 @@ const contentDetailSchema = createPageSchema({
 });
 type ContentDetailParams = typeof contentDetailSchema.type;
 
-/** 卡片入口：cardId → contentId / 分类解析 + ⋯ 操作（修改类型 / 关联卡片 / 复制正文 / 删除） */
+/** 卡片入口：cardId → contentId 解析 + ⋯ 操作（关联卡片 / 复制正文 / 删除） */
 function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
   const navigator = useNavigator();
   const app = useAppContext();
   const [card, setCard] = useState<CardDetailResponse | null>(null);
   const [resolving, setResolving] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [categorySheetOpen, setCategorySheetOpen] = useState(false);
   const [linksSheetOpen, setLinksSheetOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -137,11 +130,6 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
     <>
       <ContentDetailPage
         contentId={card.contentId}
-        contentType={cardCategoryLabel(card.category)}
-        contentTypeBadge={{
-          icon: cardCategoryIcon(card.category),
-          className: cardCategoryTagClass(card.category),
-        }}
         refreshKey={props.refreshKey + linksRev}
         collaboration={collab.collaboration}
         onCollaborationEnded={collab.onCollaborationEnded}
@@ -158,17 +146,9 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
 
       <ActionSheet
         open={menuOpen}
-        title={cardCategoryLabel(card.category)}
         kind="卡片"
         onClose={() => setMenuOpen(false)}
         items={[
-          {
-            label: "修改类型",
-            icon: <Tags size={18} />,
-            tone: "sky",
-            trailing: <ChevronRight strokeWidth={2} />,
-            onClick: () => setCategorySheetOpen(true),
-          },
           {
             label: "关联卡片",
             icon: <Link2 size={18} />,
@@ -208,20 +188,6 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
             onClick: () => setDeleteOpen(true),
           },
         ]}
-      />
-
-      <ActionSheet
-        open={categorySheetOpen}
-        title="修改卡片类型"
-        items={CARD_CATEGORY_OPTIONS.map(option => ({
-          label: option.label,
-          trailing: card.category === option.value ? <Check strokeWidth={2.6} /> : undefined,
-          onClick: async () => {
-            await app.handleUpdateCardCategory(props.cardId, option.value);
-            setCard(prev => (prev ? { ...prev, category: option.value } : prev));
-          },
-        }))}
-        onClose={() => setCategorySheetOpen(false)}
       />
 
       <CardLinksSheet

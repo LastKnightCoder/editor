@@ -16,64 +16,34 @@ interface CardRow {
   create_time: number;
   update_time: number;
   tags: string;
-  category: string;
   is_top: number;
   content: string | null;
 }
 
-const CATEGORIES = ["all", "permanent", "temporary", "theme", "literature"];
-const CATEGORY_LABELS: Record<string, string> = {
-  all: "全部",
-  permanent: "永久",
-  temporary: "闪念",
-  theme: "主题",
-  literature: "文献",
-};
 const PAGE_SIZE = 15;
 
-function getCategoryColor(category: string): string {
-  switch (category) {
-    case "permanent":
-      return "green";
-    case "temporary":
-      return "yellow";
-    case "theme":
-      return "cyan";
-    case "literature":
-      return "magenta";
-    default:
-      return "gray";
-  }
-}
-
-function queryCards(category: string, tagFilter: string): CardRow[] {
+function queryCards(tagFilter: string): CardRow[] {
   const dbName = getActiveDbName();
   const da = getDataAccess(dbName);
 
   let sql = `
-    SELECT c.id, c.create_time, c.update_time, c.tags, c.category, c.is_top,
+    SELECT c.id, c.create_time, c.update_time, c.tags, c.is_top,
            ct.content
     FROM cards c
     LEFT JOIN contents ct ON c.content_id = ct.id
   `;
-  const params: unknown[] = [];
-
-  if (category !== "all") {
-    sql += " WHERE c.category = ?";
-    params.push(category);
-  }
 
   sql += " ORDER BY c.is_top DESC, c.update_time DESC";
   sql += " LIMIT 200";
 
-  let cards = da.query<CardRow>(sql, ...params);
+  let cards = da.query<CardRow>(sql);
 
   if (tagFilter) {
     const filter = tagFilter.toLowerCase();
-    cards = cards.filter((card) => {
+    cards = cards.filter(card => {
       try {
         const tags = JSON.parse(card.tags) as string[];
-        return tags.some((t) => t.toLowerCase().includes(filter));
+        return tags.some(t => t.toLowerCase().includes(filter));
       } catch {
         return false;
       }
@@ -93,23 +63,20 @@ export function CardListView({
   const [cards, setCards] = useState<CardRow[]>([]);
   const [cursor, setCursor] = useState(0);
   const [page, setPage] = useState(0);
-  const [categoryIndex, setCategoryIndex] = useState(0);
   const [tagSearch, setTagSearch] = useState("");
   const [searchMode, setSearchMode] = useState(false);
   const [message, setMessage] = useState("");
 
-  const category = CATEGORIES[categoryIndex];
-
   const loadCards = useCallback(() => {
     try {
-      const result = queryCards(category, tagSearch);
+      const result = queryCards(tagSearch);
       setCards(result);
       setCursor(0);
       setPage(0);
     } catch (e: any) {
       setMessage(`Error: ${e.message}`);
     }
-  }, [category, tagSearch]);
+  }, [tagSearch]);
 
   useEffect(() => {
     loadCards();
@@ -125,11 +92,11 @@ export function CardListView({
         return;
       }
       if (key.backspace || key.delete) {
-        setTagSearch((s) => s.slice(0, -1));
+        setTagSearch(s => s.slice(0, -1));
         return;
       }
       if (input && !key.ctrl) {
-        setTagSearch((s) => s + input);
+        setTagSearch(s => s + input);
       }
       return;
     }
@@ -147,21 +114,19 @@ export function CardListView({
     }
 
     if (key.upArrow || input === "k") {
-      setCursor((c) => (c > 0 ? c - 1 : pageCards.length - 1));
+      setCursor(c => (c > 0 ? c - 1 : pageCards.length - 1));
     } else if (key.downArrow || input === "j") {
-      setCursor((c) => (c < pageCards.length - 1 ? c + 1 : 0));
+      setCursor(c => (c < pageCards.length - 1 ? c + 1 : 0));
     } else if (input === "n" || key.pageDown) {
       if (page < totalPages - 1) {
-        setPage((p) => p + 1);
+        setPage(p => p + 1);
         setCursor(0);
       }
     } else if (input === "p" || key.pageUp) {
       if (page > 0) {
-        setPage((p) => p - 1);
+        setPage(p => p - 1);
         setCursor(0);
       }
-    } else if (input === "f") {
-      setCategoryIndex((i) => (i + 1) % CATEGORIES.length);
     } else if (input === "/") {
       setSearchMode(true);
     } else if (key.return) {
@@ -190,11 +155,7 @@ export function CardListView({
         <Text bold color="cyan">
           Card List
         </Text>
-        <Text dimColor> ({cards.length} cards) [Category: </Text>
-        <Text color={getCategoryColor(category)}>
-          {CATEGORY_LABELS[category]}
-        </Text>
-        <Text dimColor>]</Text>
+        <Text dimColor> ({cards.length} cards)</Text>
         {tagSearch && <Text dimColor> [Tag: {tagSearch}]</Text>}
         <Text dimColor>
           {" "}
@@ -235,9 +196,6 @@ export function CardListView({
                 <Text color={isSelected ? "cyan" : undefined} bold={isSelected}>
                   {isSelected ? "❯" : " "} {padEnd(`#${card.id}`, 6)}
                 </Text>
-                <Text color={getCategoryColor(card.category)}>
-                  {padEnd(CATEGORY_LABELS[card.category] || card.category, 5)}
-                </Text>
                 <Text color={isSelected ? "white" : undefined}>
                   {" "}
                   {padEnd(preview || "(empty)", 45)}
@@ -255,8 +213,7 @@ export function CardListView({
         <Text color="green">{message}</Text>
       ) : (
         <Text dimColor>
-          ↑↓/jk navigate · Enter view · e edit · f filter · / search tag · n/p
-          page · r refresh · Esc back
+          ↑↓/jk navigate · Enter view · e edit · / search tag · n/p page · r refresh · Esc back
         </Text>
       )}
     </Box>

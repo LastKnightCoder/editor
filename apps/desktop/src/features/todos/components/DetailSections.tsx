@@ -33,7 +33,7 @@ import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
 import { CreateCardDialog } from "@/features/cards/components/CreateCardDialog";
 import { usePage } from "@/page/PageProvider";
 import { clampText, richTextPlainText } from "@/utils/richTextText";
-import { ECardCategory, type EntityCandidate, type EntityKind, type TodoNoteLink } from "@/types";
+import { type EntityCandidate, type EntityKind, type TodoNoteLink } from "@/types";
 import {
   doneToday,
   habitCells,
@@ -396,7 +396,6 @@ export function NoteLinksSection({
 
       <CreateCardDialog
         open={cardOpen}
-        defaultCategory={ECardCategory.Temporary}
         onClose={() => setCardOpen(false)}
         onCreated={card =>
           void mutations

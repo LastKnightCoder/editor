@@ -16,11 +16,6 @@ export interface CardContentResult {
   metadata: Record<string, any>;
 }
 
-export interface RandomCardsQuery {
-  seed: number;
-  count?: number;
-}
-
 /**
  * 卡片域命令契约。主进程注册在 database.ts 通用包装层（tables 模式），
  * 本契约当前约束渲染侧调用的 channel 与类型；主进程注册点契约化随 tables 批次推进。
@@ -42,8 +37,6 @@ export const cardCommands = {
   getTagsById: command<[number], string[]>("get-tags-by-id"),
   getGroupedByTag: command<[], Record<string, ICard[]>>("get-cards-group-by-tag"),
   getAllGlobalTags: command<[], string[]>("get-all-global-tags"),
-  getRandomPermanent: command<[RandomCardsQuery], ICard[]>("get-random-permanent-cards"),
-  getRecentTempLit: command<[number?], ICard[]>("get-recent-temp-lit-cards"),
   isContentIsCard: command<[number], boolean>("is-content-is-card"),
   getByContentId: command<[number], ICard | null>("get-card-by-content-id"),
   buildFromContent: command<[number], ICard>("build-card-from-content"),

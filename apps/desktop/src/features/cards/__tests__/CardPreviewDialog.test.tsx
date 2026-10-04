@@ -2,7 +2,7 @@ import React, { act, useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { CardPreviewDialog } from "../components/CardPreviewDialog";
-import { ECardCategory, type ICard } from "@/types/card";
+import { type ICard } from "@/types/card";
 import type { CardItemActions } from "../types";
 
 const mocks = vi.hoisted(() => ({
@@ -94,10 +94,6 @@ function Harness() {
       serverCard = { ...serverCard, isTop: !serverCard.isTop };
       update(serverCard);
     },
-    onChangeCategory: (_card: ICard, category: ECardCategory) => {
-      serverCard = { ...serverCard, category };
-      update(serverCard);
-    },
   };
   return (
     <CardPreviewDialog
@@ -130,7 +126,6 @@ beforeEach(async () => {
     count: 0,
     tags: [],
     links: [],
-    category: ECardCategory.Temporary,
     isTop: false,
     create_time: 0,
     update_time: 0,
@@ -150,16 +145,15 @@ afterEach(async () => {
   vi.useRealTimers();
 });
 
-it("未保存标签在分类与置顶刷新后仍保留，保存只提交标签", async () => {
+it("未保存标签在置顶刷新后仍保留，保存只提交标签", async () => {
   await click("标签：");
-  await click("永久笔记");
   await click("设置置顶");
   expect(host.textContent).toContain("标签：标签1");
   expect(host.textContent).toContain("取消置顶");
   await act(async () => mocks.tick());
   expect(mocks.patch).toHaveBeenCalledWith({ id: 1, patch: { tags: ["标签1"] } });
   expect(mocks.saved).toHaveBeenCalledWith(
-    expect.objectContaining({ category: ECardCategory.Permanent, isTop: true, tags: ["标签1"] })
+    expect.objectContaining({ isTop: true, tags: ["标签1"] })
   );
 });
 

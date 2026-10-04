@@ -122,7 +122,6 @@ interface ILinkedCardInfo {
   href: string;
   summary: string;
   tags: string[];
-  category: ICard["category"];
 }
 
 interface CardTagTreeNode {
@@ -678,7 +677,6 @@ export class PublishSiteGenerator {
           id: card.id,
           content: card.content || [],
           tags: card.tags || [],
-          category: card.category,
           createTime: card.create_time,
           updateTime: card.update_time,
           linkedCards,
@@ -912,7 +910,6 @@ export class PublishSiteGenerator {
       href: `/cards/${card.id}.html`,
       summary: this.buildSummary(card.content || []),
       tags: card.tags || [],
-      category: card.category,
     };
   }
 
@@ -1899,7 +1896,6 @@ export class PublishSiteGenerator {
       id: card.id,
       summary: this.buildSummary(card.content || []),
       href: `/cards/${card.id}.html`,
-      category: card.category,
       createTime: card.create_time,
     };
   }

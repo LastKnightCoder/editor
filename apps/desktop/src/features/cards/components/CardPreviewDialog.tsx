@@ -20,7 +20,6 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { formatDate, getContentLength } from "@/utils";
 import { useCardsMutations } from "../queries";
 import type { ICard } from "@/types";
-import { cardCategoryName } from "@/constants/card";
 import { CardActionMenu } from "./CardActionMenu";
 import type { CardItemActions } from "../types";
 import { Dialog, DialogBody, IconButton, Button } from "@tau/ui";
@@ -173,7 +172,6 @@ export function CardPreviewDialog({
       }}
       locked={patch.isPending}
       title={editing ? `卡片 #${editing.id}` : "卡片预览"}
-      context={editing ? cardCategoryName[editing.category] : undefined}
       width={680}
     >
       {!card && displayError && (
