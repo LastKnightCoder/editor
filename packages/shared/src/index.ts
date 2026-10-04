@@ -12,6 +12,7 @@ export {
 export {
   default as AudioPlayer,
   type AudioPlayerProps,
+  type AudioPlayerFooterContext,
 } from "./components/MediaPlayer/AudioPlayer";
 export { formatTime } from "./components/MediaPlayer/formatTime";
 export { default as CustomCheckbox } from "./components/CustomCheckbox";

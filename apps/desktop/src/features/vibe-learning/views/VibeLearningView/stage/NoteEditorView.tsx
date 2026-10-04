@@ -984,13 +984,8 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
               <div className="space-y-4">
                 {/* 播客播放器 */}
                 {podcast && (
-                  <PodcastPlayer
-                    defaultPodcast={podcast}
-                    onDelete={async () => {
-                      // 播客类型笔记不允许单独删除播客，需要删除整个笔记
-                      toast.info("请通过删除笔记来删除播客");
-                    }}
-                  />
+                  // 播客类型笔记不单独删除播客（随笔记删除），故不传 onDelete
+                  <PodcastPlayer podcast={podcast} />
                 )}
                 {!podcast && currentNote?.podcastId && (
                   <div className="bg-warn-soft text-tau-meta text-warn rounded-tau-sm px-4 py-2.5">

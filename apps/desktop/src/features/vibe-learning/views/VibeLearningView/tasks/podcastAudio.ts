@@ -2,10 +2,9 @@
 
 import type { PodcastScriptLine } from "@/types/podcast";
 import {
-  arrayBufferToAudioBuffer,
-  mergeAudioBuffers,
-  audioBufferToBlob,
-  getAudioDuration,
+  loadSpeechSegment,
+  mergeSpeechSegments,
+  type SpeechSegment,
 } from "@/utils/audio-processor";
 import { uploadResource } from "@/hooks/useUploadResource";
 import { TTSProviderFactory } from "@/utils/tts";
@@ -28,7 +27,7 @@ export async function synthesizePodcast(
   if (!tts || !tts.isConfigured()) throw new Error("请先配置 TTS 服务提供商");
 
   const audioContext = new AudioContext();
-  const buffers: AudioBuffer[] = [];
+  const segments: SpeechSegment[] = [];
   const timed = lines.map(line => ({ ...line }));
   let cursor = 0;
 
@@ -36,28 +35,29 @@ export async function synthesizePodcast(
     if (hooks.signal.aborted) throw new DOMException("已停止", "AbortError");
     try {
       const data = await tts.synthesizeSpeech(timed[i].text, timed[i].voiceId);
-      const buffer = await arrayBufferToAudioBuffer(audioContext, data);
+      const segment = await loadSpeechSegment(audioContext, data);
       timed[i].startTime = cursor;
-      timed[i].duration = buffer.duration;
-      cursor += buffer.duration;
-      buffers.push(buffer);
+      timed[i].duration = segment.duration;
+      cursor += segment.duration;
+      segments.push(segment);
     } catch (error) {
       // 单句失败跳过，不中断整期
       console.error(`合成第 ${i + 1} 句失败:`, error);
     }
     hooks.onProgress(i + 1, timed.length);
   }
-  if (buffers.length === 0) throw new Error("没有成功合成任何语音");
+  if (segments.length === 0) throw new Error("没有成功合成任何语音");
 
   hooks.onPhase("合并音频");
-  const merged = await mergeAudioBuffers(audioContext, buffers);
-  const blob = await audioBufferToBlob(merged);
+  const merged = await mergeSpeechSegments(audioContext, segments);
 
   hooks.onPhase("上传音频");
   const audioUrl = await uploadResource(
-    new File([blob], `podcast_${Date.now()}.wav`, { type: "audio/wav" })
+    new File([merged.blob], `podcast_${Date.now()}.${merged.ext}`, {
+      type: merged.blob.type || "audio/wav",
+    })
   );
   if (!audioUrl) throw new Error("音频上传失败");
 
-  return { audioUrl, duration: Math.floor(getAudioDuration(merged)), lines: timed };
+  return { audioUrl, duration: Math.floor(merged.duration), lines: timed };
 }

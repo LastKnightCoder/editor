@@ -70,6 +70,19 @@ export const getFileExtension = async (url: string): Promise<string> => {
   return lastSegment.slice(dotIndex + 1);
 };
 
+/** WebDAV 资源需鉴权下载，不能直接交给 <audio>/<img> 流式加载 */
+export const isWebDavResource = (url: string) => {
+  const webdavUrl = useSettingStore.getState().setting.integration.webdav.url;
+  return !!webdavUrl && url.startsWith(webdavUrl.replace(/\/$/, ""));
+};
+
+/** 查询远程资源的本地缓存路径，未缓存或缓存文件已丢失返回 null（不触发下载） */
+export const getCachedRemoteResource = async (url: string): Promise<string | null> => {
+  const { config } = await ensureRemoteResourceConfig();
+  const cached = config[url];
+  return cached && (await pathExists(cached)) ? cached : null;
+};
+
 export const remoteResourceToLocal = async (url: string, fileName?: string) => {
   if (!fileName) {
     fileName = await getFileBaseName(url);
@@ -104,12 +117,8 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
 
   let remoteContent: ArrayBuffer;
 
-  // 检查是否是 WebDAV 资源
-  const { setting } = useSettingStore.getState();
-  const webdavConfig = setting.integration.webdav;
-  const isWebDav = webdavConfig.url && url.startsWith(webdavConfig.url.replace(/\/$/, ""));
-
-  if (isWebDav) {
+  if (isWebDavResource(url)) {
+    const webdavConfig = useSettingStore.getState().setting.integration.webdav;
     // 使用 WebDAV 下载
     try {
       const remotePath = url.replace(webdavConfig.url.replace(/\/$/, ""), "");

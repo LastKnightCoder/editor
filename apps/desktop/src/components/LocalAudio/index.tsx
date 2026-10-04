@@ -1,6 +1,7 @@
-﻿import { useState, useRef, memo, forwardRef, useCallback } from "react";
+import { useState, useRef, memo, forwardRef, useCallback } from "react";
 import { useAsyncEffect } from "ahooks";
 import { remoteResourceToLocal } from "@/utils";
+import { getCachedRemoteResource, isWebDavResource } from "@/utils/resouce";
 import { getHomeDir, readBinaryFile } from "@/commands";
 import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
 import useSettingStore from "@/stores/useSettingStore";
@@ -16,21 +17,42 @@ type LocalAudioProps = AudioPlayerProps & {
   src: string;
 };
 
+/** 下载远程音频到本地缓存并登记，返回本地文件路径 */
+const cacheRemoteAudio = async (url: string) => {
+  const localPath = await remoteResourceToLocal(url);
+  await addRemoteAudioCacheEntry({ url, localPath });
+  return localPath;
+};
+
 const LocalAudio = memo(
   forwardRef<HTMLAudioElement, LocalAudioProps>((props, ref) => {
-    const { src, ...rest } = props;
+    const { src, onError, ...rest } = props;
     const normalizedSrc = useGithubCdnUrl(src) ?? src;
 
     const [previewUrl, setPreviewUrl] = useState<string>("");
     // 解析出的本地文件路径：波形直接经 IPC 读文件（ltoh:// 协议不支持 fetch）
     const [localFilePath, setLocalFilePath] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    // 远程流式播放中（未命中缓存时先播远程地址，后台缓存）
+    const [streaming, setStreaming] = useState(false);
+    const [streamFailed, setStreamFailed] = useState(false);
     const innerRef = useRef<HTMLAudioElement>(null);
+    const resolveIdRef = useRef(0);
     const autoCacheRemoteAudio = useSettingStore(state => state.setting.misc.audio.autoCacheRemote);
 
+    const applyLocalFile = useCallback(async (path: string) => {
+      const { url } = await toLocalMediaPreviewUrl(path);
+      setLocalFilePath(path);
+      setPreviewUrl(url);
+    }, []);
+
     useAsyncEffect(async () => {
+      const resolveId = ++resolveIdRef.current;
+      const isStale = () => resolveId !== resolveIdRef.current;
       setLoading(true);
       setLocalFilePath(null);
+      setStreaming(false);
+      setStreamFailed(false);
       try {
         if (!normalizedSrc) {
           setPreviewUrl("");
@@ -50,14 +72,23 @@ const LocalAudio = memo(
               setPreviewUrl(resolvedSrc);
               return;
             }
-            const localUrl = await remoteResourceToLocal(resolvedSrc);
-            await addRemoteAudioCacheEntry({
-              url: resolvedSrc,
-              localPath: localUrl,
-            });
-            const { url: localPreviewUrl } = await toLocalMediaPreviewUrl(localUrl);
-            setLocalFilePath(localUrl);
-            setPreviewUrl(localPreviewUrl);
+            const cached = await getCachedRemoteResource(resolvedSrc);
+            if (cached) {
+              await applyLocalFile(cached);
+              return;
+            }
+            if (isWebDavResource(resolvedSrc)) {
+              await applyLocalFile(await cacheRemoteAudio(resolvedSrc));
+              return;
+            }
+            // 未缓存：大文件整段下载要等很久，先流式播放远程地址，缓存完成后供波形读取、下次直接走本地
+            setPreviewUrl(resolvedSrc);
+            setStreaming(true);
+            void cacheRemoteAudio(resolvedSrc)
+              .then(localPath => {
+                if (!isStale()) setLocalFilePath(localPath);
+              })
+              .catch(error => console.error("[LocalAudio] 后台缓存失败", error));
           } catch (error) {
             console.error(error);
             setPreviewUrl(resolvedSrc);
@@ -67,17 +98,30 @@ const LocalAudio = memo(
           const absolutePath = resolvedSrc.startsWith("~")
             ? `${homeDir}${resolvedSrc.slice(1)}`
             : resolvedSrc;
-          const { url: localPreviewUrl } = await toLocalMediaPreviewUrl(absolutePath);
-          setLocalFilePath(absolutePath);
-          setPreviewUrl(localPreviewUrl);
+          await applyLocalFile(absolutePath);
         }
       } catch (e) {
         console.error(e);
         setPreviewUrl(normalizedSrc);
       } finally {
-        setLoading(false);
+        if (!isStale()) setLoading(false);
       }
     }, [normalizedSrc, autoCacheRemoteAudio]);
+
+    // 远程地址播不了（跨域、鉴权等）时，等后台缓存就绪后改播本地文件
+    useAsyncEffect(async () => {
+      if (!streaming || !streamFailed || !localFilePath) return;
+      setStreaming(false);
+      await applyLocalFile(localFilePath);
+    }, [streaming, streamFailed, localFilePath]);
+
+    const handleError = useCallback<NonNullable<AudioPlayerProps["onError"]>>(
+      event => {
+        if (streaming) setStreamFailed(true);
+        onError?.(event);
+      },
+      [streaming, onError]
+    );
 
     const loadWaveformData = useCallback(async () => {
       if (!localFilePath) {
@@ -97,6 +141,7 @@ const LocalAudio = memo(
         crossOrigin={"anonymous"}
         persistKey={normalizedSrc}
         loadWaveformData={localFilePath ? loadWaveformData : undefined}
+        onError={handleError}
         {...rest}
       />
     );

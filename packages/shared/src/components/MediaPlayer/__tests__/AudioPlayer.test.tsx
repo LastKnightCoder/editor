@@ -123,4 +123,30 @@ describe("AudioPlayer", () => {
     expect(el.querySelector("[aria-label=播放进度]")).toBeNull();
     fetchSpy.mockRestore();
   });
+  it("元数据就绪前先显示已知时长", async () => {
+    const el = await mount(<AudioPlayer src="podcast.mp3" label="播客" durationHint={756} />);
+    expect(el.textContent).toContain("12:36");
+  });
+
+  it("附加操作与底部内容：底部可从指定位置开始播放", async () => {
+    const el = await mount(
+      <AudioPlayer
+        src="podcast.mp3"
+        actions={<button type="button">更多</button>}
+        footer={({ currentTime, playFrom }) => (
+          <button type="button" onClick={() => playFrom(42)}>
+            跳到第二句 {Math.floor(currentTime)}
+          </button>
+        )}
+      />
+    );
+    const audio = el.querySelector("audio")!;
+    await loadMetadata(audio, 120);
+    const play = vi.spyOn(audio, "play").mockResolvedValue(undefined);
+    expect(buttonByText(el, "更多")).toBeTruthy();
+
+    await act(async () => buttonByText(el, "跳到第二句")!.click());
+    expect(audio.currentTime).toBe(42);
+    expect(play).toHaveBeenCalled();
+  });
 });
