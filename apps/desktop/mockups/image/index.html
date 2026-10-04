@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>图片 · 组件 UI 与编辑器交互升级 mockup</title>
+<style>
+  /* 取值同 packages/themes/src/tokens.css（mint / paper × light / dark） */
+  [data-theme="mint"][data-mode="light"] {
+    --page:#eef4ee; --surface:#fbfefb; --sunken:#d9e6da; --track:#d4dfd5; --surface-hover:#f3f8f3;
+    --hover:rgba(46,61,49,.05); --press:rgba(46,61,49,.09);
+    --ink-1:#2e3d31; --ink-2:#526350; --ink-3:#a5b3a3; --ink-inv:#f6fbf7;
+    --line-1:#dfe9df;
+    --accent:hsl(153 40% 33%); --accent-hover:hsl(153 40% 26%); --accent-soft:hsla(153,40%,33%,.12); --accent-text:#2f6b50;
+    --ring:0 0 0 3px rgba(74,157,120,.28);
+    --danger:#b0584f; --danger-soft:#f5e3e0;
+    --shadow-float:0 16px 40px -12px rgba(60,90,70,.4); --shadow-card:0 1px 2px rgba(60,90,70,.06),0 10px 24px -14px rgba(60,90,70,.2);
+    --shadow-lift:0 2px 4px rgba(60,90,70,.07),0 16px 32px -14px rgba(60,90,70,.28);
+    --tip-bg:#2e3d31; --tip-ink:#f6fbf7;
+  }
+  [data-theme="mint"][data-mode="dark"] {
+    --page:#151b18; --surface:#1e2521; --sunken:#0a0f0c; --track:#34403a; --surface-hover:#252d28;
+    --hover:rgba(224,234,227,.06); --press:rgba(224,234,227,.11);
+    --ink-1:#e0eae3; --ink-2:#98a69c; --ink-3:#728078; --ink-inv:#0f1612;
+    --line-1:#29322d;
+    --accent:hsl(155 36% 58%); --accent-hover:hsl(155 36% 65%); --accent-soft:hsla(155,36%,58%,.16); --accent-text:hsl(155 42% 64%);
+    --ring:0 0 0 3px hsla(155,36%,58%,.4);
+    --danger:#df8a80; --danger-soft:#35211e;
+    --shadow-float:0 16px 40px -12px rgba(0,0,0,.65); --shadow-card:0 1px 2px rgba(0,0,0,.24),0 10px 24px -14px rgba(0,0,0,.5);
+    --shadow-lift:0 2px 4px rgba(0,0,0,.3),0 16px 32px -14px rgba(0,0,0,.6);
+    --tip-bg:#e0eae3; --tip-ink:#0f1612;
+  }
+  [data-theme="paper"][data-mode="light"] {
+    --page:#f3eee2; --surface:#fffdf9; --sunken:#e7dbc8; --track:#e0d6c3; --surface-hover:#f8f3ea;
+    --hover:rgba(67,57,44,.05); --press:rgba(67,57,44,.09);
+    --ink-1:#43392c; --ink-2:#6a5c49; --ink-3:#a89a85; --ink-inv:#fff8ef;
+    --line-1:#e9e1d2;
+    --accent:hsl(22 58% 42%); --accent-hover:hsl(22 58% 35%); --accent-soft:hsla(22,58%,42%,.12); --accent-text:#a05236;
+    --ring:0 0 0 3px rgba(217,119,87,.28);
+    --danger:#b0564d; --danger-soft:#f6e3e0;
+    --shadow-float:0 16px 40px -12px rgba(120,100,70,.4); --shadow-card:0 1px 2px rgba(120,100,70,.05),0 10px 24px -14px rgba(120,100,70,.18);
+    --shadow-lift:0 2px 4px rgba(120,100,70,.06),0 16px 32px -14px rgba(120,100,70,.26);
+    --tip-bg:#43392c; --tip-ink:#fff8ef;
+  }
+  [data-theme="paper"][data-mode="dark"] {
+    --page:#221d16; --surface:#2e2820; --sunken:#100d08; --track:#463d31; --surface-hover:#362f26;
+    --hover:rgba(236,226,208,.06); --press:rgba(236,226,208,.11);
+    --ink-1:#ece2d0; --ink-2:#a89a85; --ink-3:#857768; --ink-inv:#241a10;
+    --line-1:#3a3227;
+    --accent:hsl(22 62% 65%); --accent-hover:hsl(22 62% 72%); --accent-soft:hsla(22,62%,65%,.16); --accent-text:hsl(22 66% 70%);
+    --ring:0 0 0 3px hsla(22,62%,65%,.4);
+    --danger:#d97e66; --danger-soft:#34201a;
+    --shadow-float:0 16px 40px -12px rgba(0,0,0,.65); --shadow-card:0 1px 2px rgba(0,0,0,.24),0 10px 24px -14px rgba(0,0,0,.5);
+    --shadow-lift:0 2px 4px rgba(0,0,0,.3),0 16px 32px -14px rgba(0,0,0,.6);
+    --tip-bg:#ece2d0; --tip-ink:#241a10;
+  }
+
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html { background:var(--page); color:var(--ink-1); }
+  body { font:14px/1.7 -apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif; -webkit-font-smoothing:antialiased; padding:36px 5vw 160px; transition:background .2s; }
+  .mono { font-family:ui-monospace,"Cascadia Mono",Consolas,Menlo,monospace; }
+  button { font:inherit; color:inherit; background:none; border:0; cursor:pointer; }
+  svg { display:block; flex:none; }
+
+  .top { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+  .top h1 { font-size:21px; font-weight:600; }
+  .top p { color:var(--ink-2); font-size:13.5px; margin-top:4px; max-width:92ch; }
+  .switch { display:flex; gap:4px; padding:3px; border-radius:10px; border:1px solid var(--line-1); background:var(--surface); }
+  .switch button { padding:3px 12px; border-radius:7px; font-size:12.5px; color:var(--ink-2); }
+  .switch button.on { background:var(--accent-soft); color:var(--accent-text); font-weight:500; }
+  .switches { display:flex; gap:10px; }
+
+  .part { margin-top:80px; padding-top:28px; }
+  .part > .ptitle { font-size:19px; font-weight:600; display:flex; align-items:baseline; gap:12px; }
+  .part > .ptitle .no { font:600 13px ui-monospace,monospace; color:var(--accent-text); }
+  .part > .pdesc { color:var(--ink-2); font-size:13.5px; margin-top:4px; max-width:92ch; }
+  section { margin-top:52px; }
+  section > h2 { font-size:16px; font-weight:600; display:flex; align-items:baseline; gap:10px; }
+  section > h2 .no { font:600 12.5px ui-monospace,monospace; color:var(--accent-text); }
+  .desc { color:var(--ink-2); font-size:13.5px; max-width:92ch; margin:6px 0 22px; }
+  .desc b { color:var(--ink-1); font-weight:600; }
+  .desc kbd, .keys kbd, .hint kbd { font:500 11.5px ui-monospace,monospace; padding:1px 6px; border-radius:5px; background:var(--surface); border:1px solid var(--line-1); color:var(--ink-2); }
+  .notes { color:var(--ink-2); font-size:13px; padding-left:18px; max-width:92ch; margin-top:22px; }
+  .notes li { margin:3px 0; } .notes b { color:var(--ink-1); font-weight:600; }
+  .hint { font-size:12.5px; color:var(--ink-3); margin-top:16px; }
+
+  .paper { background:var(--surface); border-radius:16px; box-shadow:var(--shadow-card); padding:40px 0 44px; }
+  .doc { max-width:720px; margin:0 auto; padding:0 32px; font-size:15px; line-height:1.9; }
+  .doc h3 { font-size:20px; font-weight:600; margin-bottom:10px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(400px,1fr)); gap:36px 32px; margin-top:28px; align-items:start; }
+  .grid.g3 { grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); }
+  .spec > .lbl { font-size:13px; font-weight:600; margin-bottom:2px; }
+  .spec > .sub { font-size:12.5px; color:var(--ink-2); margin-bottom:12px; min-height:1.7em; }
+  .specbox { background:var(--surface); border-radius:14px; box-shadow:var(--shadow-card); padding:28px 24px; }
+  .cols2 { display:grid; grid-template-columns:1fr 1fr; gap:32px; }
+  @media (max-width:1100px) { .cols2 { grid-template-columns:1fr; } }
+
+  /* ════ 示意图片（CSS 场景） ════ */
+  .scene { position:absolute; inset:0; background:
+    radial-gradient(circle at 70% 32%, #ffe9c2 0 4.4%, transparent 4.8%),
+    radial-gradient(circle at 70% 32%, rgba(255,226,170,.45) 0 11%, transparent 18%),
+    radial-gradient(120% 60% at 18% 106%, #3a473d 0 40%, transparent 40.5%),
+    radial-gradient(90% 55% at 86% 112%, #29332d 0 45%, transparent 45.5%),
+    radial-gradient(140% 70% at 52% 122%, #55665a 0 42%, transparent 42.5%),
+    linear-gradient(180deg, #f1c7a1 0%, #e6a384 34%, #9c7189 66%, #4a4a66 100%); }
+  .scene.v1 { filter:hue-rotate(160deg) saturate(.8); }
+  .scene.v2 { filter:hue-rotate(60deg); }
+  .scene.v3 { filter:hue-rotate(250deg) brightness(1.05); }
+  .scene.v4 { filter:grayscale(.6) brightness(1.1); }
+
+  /* ════ 图片块（新） ════ */
+  .img { position:relative; margin:22px auto; width:100%; max-width:100%; user-select:none; }
+  .img.al-left { margin-left:0; } .img.al-right { margin-right:0; }
+  .fwrap { position:relative; }
+  .img .frame { position:relative; aspect-ratio:3/2; overflow:hidden; cursor:default; }
+  .r-none .frame { border-radius:0; } .r-sm .frame { border-radius:8px; } .r-md .frame { border-radius:12px; } .r-lg .frame { border-radius:16px; }
+  .s-card .frame { box-shadow:var(--shadow-card); } .s-lift .frame { box-shadow:var(--shadow-lift); } .s-float .frame { box-shadow:var(--shadow-float); }
+  .img.sel .frame { outline:2px solid var(--accent); outline-offset:3px; }
+  .cap { margin-top:8px; text-align:center; font-size:13px; color:var(--ink-3); line-height:1.6; min-height:1.6em; border-radius:6px; outline:none; }
+  .cap:empty::before { content:attr(data-ph); color:var(--ink-3); opacity:.7; }
+  .img:not(.sel) .cap:empty { display:none; }
+  .img.sel .cap[contenteditable]:hover { background:var(--hover); }
+  .cap:focus { background:var(--surface); box-shadow:0 0 0 1px var(--line-1),var(--ring); color:var(--ink-2); }
+  .hd { position:absolute; width:12px; height:12px; border-radius:50%; background:var(--surface); border:2px solid var(--accent); z-index:4; display:none; }
+  .img.sel .hd { display:block; }
+  .hd.nw { left:-9px; top:-9px; cursor:nwse-resize; } .hd.ne { right:-9px; top:-9px; cursor:nesw-resize; }
+  .hd.sw { left:-9px; bottom:-9px; cursor:nesw-resize; } .hd.se { right:-9px; bottom:-9px; cursor:nwse-resize; }
+  .hd.e, .hd.w { width:6px; height:28px; border-radius:4px; top:50%; margin-top:-14px; cursor:ew-resize; }
+  .hd.e { right:-7px; } .hd.w { left:-7px; }
+  .rs-info { position:absolute; left:50%; bottom:12px; transform:translateX(-50%); padding:2px 10px; border-radius:99px; background:var(--tip-bg); color:var(--tip-ink); font-size:11.5px; z-index:5; display:none; white-space:nowrap; }
+  .img.resizing .rs-info { display:block; }
+  .snapline { position:absolute; top:-12px; bottom:-12px; width:0; border-left:1px dashed var(--accent); display:none; z-index:3; pointer-events:none; }
+  .img.snapped .snapline { display:block; }
+
+  /* 工具条通用 */
+  .tb { display:flex; align-items:center; gap:2px; padding:4px; border-radius:10px; background:var(--surface); box-shadow:var(--shadow-float); white-space:nowrap; z-index:6; }
+  .tb .gap { width:8px; }
+  .tb .b { height:30px; min-width:30px; padding:0 7px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; gap:5px; color:var(--ink-2); font-size:12.5px; position:relative; }
+  .tb .b:hover { background:var(--hover); color:var(--ink-1); }
+  .tb .b.on { background:var(--accent-soft); color:var(--accent-text); }
+  .tb .b.mono { font-family:ui-monospace,monospace; font-size:12px; }
+  .tb .b.danger:hover { color:var(--danger); background:var(--danger-soft); }
+  .tb .b[data-tip]:hover::after { content:attr(data-tip); position:absolute; top:calc(100% + 8px); left:50%; transform:translateX(-50%); padding:3px 8px; border-radius:6px; background:var(--tip-bg); color:var(--tip-ink); font-size:11.5px; white-space:nowrap; pointer-events:none; z-index:9; }
+  .tb .b[data-tip] kbd { font:500 10.5px ui-monospace,monospace; opacity:.7; }
+  .menu { position:absolute; min-width:210px; padding:5px; border-radius:12px; background:var(--surface); box-shadow:var(--shadow-float); z-index:10; display:none; font-size:13px; }
+  .menu.open { display:block; }
+  .menu .mi { display:flex; align-items:center; gap:10px; width:100%; padding:6px 9px; border-radius:7px; color:var(--ink-1); text-align:left; }
+  .menu .mi:hover { background:var(--hover); }
+  .menu .mi svg { color:var(--ink-2); }
+  .menu .mi .k { margin-left:auto; color:var(--ink-3); font:11.5px ui-monospace,monospace; }
+  .menu .mi.danger, .menu .mi.danger svg { color:var(--danger); }
+  .menu .sep { height:8px; }
+  .menu .mlabel { font-size:11.5px; color:var(--ink-3); padding:6px 9px 2px; }
+  .swrow { display:flex; gap:6px; padding:4px 9px 6px; }
+  .sw { width:40px; height:30px; border-radius:6px; background:var(--sunken); position:relative; overflow:hidden; border:2px solid transparent; }
+  .sw.on { border-color:var(--accent); }
+  .sw i { position:absolute; inset:6px 8px; background:var(--surface); }
+
+  /* A：上方浮条 */
+  .ta .tb { position:absolute; bottom:calc(100% + 14px); left:50%; transform:translateX(-50%); display:none; }
+  .ta.sel .tb { display:flex; }
+  .ta .menu { top:calc(100% + 6px); right:0; }
+  /* B：下方停靠条 */
+  .tbar-b { display:none; margin-top:10px; align-items:center; gap:8px; padding:5px 5px 5px 12px; border-radius:12px; background:var(--surface); box-shadow:var(--shadow-card), 0 0 0 1px var(--line-1); }
+  .tbb.sel .tbar-b { display:flex; }
+  .tbb.sel > .cap { display:none; }
+  .tbar-b .capin { flex:1; min-width:0; font-size:13px; color:var(--ink-2); outline:none; border-radius:6px; padding:3px 6px; }
+  .tbar-b .capin:empty::before { content:"添加图片说明…"; color:var(--ink-3); }
+  .tbar-b .capin:focus { background:var(--hover); }
+  .tbar-b .tb { box-shadow:none; padding:0; background:none; }
+  .tbar-b .b[data-tip]:hover::after { top:auto; bottom:calc(100% + 8px); }
+  .tbb .menu { bottom:calc(100% + 6px); right:0; }
+
+  /* ════ 状态 ════ */
+  .skel { position:absolute; inset:0; background:linear-gradient(100deg, var(--sunken) 30%, var(--surface-hover) 50%, var(--sunken) 70%); background-size:300% 100%; animation:shimmer 1.6s ease-in-out infinite; }
+  @keyframes shimmer { 0% { background-position:100% 0; } 100% { background-position:0 0; } }
+  .err { position:absolute; inset:0; display:grid; place-items:center; background:var(--sunken); }
+  .err .in { display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center; padding:0 20px; }
+  .err .ico { width:36px; height:36px; border-radius:50%; background:var(--surface); color:var(--ink-2); display:grid; place-items:center; }
+  .err .t { font-size:13.5px; font-weight:500; color:var(--ink-1); }
+  .err .p { font-size:12px; color:var(--ink-3); max-width:36ch; word-break:break-all; }
+  .err .btns { display:flex; gap:6px; margin-top:4px; }
+  .btn { height:28px; padding:0 12px; border-radius:8px; font-size:12.5px; display:inline-flex; align-items:center; gap:6px; }
+  .btn.pri { background:var(--accent); color:var(--ink-inv); } .btn.pri:hover { background:var(--accent-hover); }
+  .btn.sec { background:var(--surface); color:var(--ink-1); box-shadow:0 0 0 1px var(--line-1); } .btn.sec:hover { background:var(--hover); }
+  .btn.ghost { color:var(--ink-2); } .btn.ghost:hover { background:var(--hover); color:var(--ink-1); }
+  .upl { position:absolute; left:12px; right:12px; bottom:12px; display:flex; align-items:center; gap:10px; padding:7px 12px; border-radius:10px; background:var(--surface); box-shadow:var(--shadow-float); font-size:12px; color:var(--ink-2); }
+  .upl .bar { flex:1; height:4px; border-radius:99px; background:var(--track); overflow:hidden; }
+  .upl .bar i { display:block; height:100%; width:64%; background:var(--accent); border-radius:99px; }
+  .upl-blur .scene { filter:blur(6px) saturate(.7); transform:scale(1.05); }
+  .drop { position:absolute; inset:0; display:grid; place-items:center; background:color-mix(in srgb,var(--accent) 16%,transparent); outline:2px dashed var(--accent); outline-offset:-8px; color:var(--accent-text); font-weight:600; font-size:13.5px; border-radius:inherit; }
+  .drop span { background:var(--surface); padding:6px 14px; border-radius:99px; box-shadow:var(--shadow-float); }
+  .empty { display:flex; align-items:center; justify-content:center; gap:10px; aspect-ratio:3/1; border-radius:12px; background:var(--surface); box-shadow:0 0 0 1px var(--line-1); color:var(--ink-2); font-size:13px; }
+  .empty .ico { width:34px; height:34px; border-radius:50%; background:var(--accent-soft); color:var(--accent-text); display:grid; place-items:center; }
+  .appear-row { display:flex; gap:18px; flex-wrap:wrap; align-items:flex-end; }
+  .appear-row .it { width:120px; text-align:center; font-size:12px; color:var(--ink-2); }
+  .appear-row .it .img { margin:0 0 8px; }
+
+  /* ════ 灯箱 ════ */
+  .lbx { position:relative; height:560px; border-radius:16px; overflow:hidden; box-shadow:var(--shadow-card); }
+  /* A 暗房 */
+  .lba { background:#0e0e0f; color:#f2f2f2; display:flex; flex-direction:column; }
+  .lba .bar { display:flex; align-items:center; gap:4px; padding:10px 12px 10px 18px; font-size:12.5px; }
+  .lba .bar .name { color:rgba(255,255,255,.88); } .lba .bar .cnt { color:rgba(255,255,255,.5); margin-right:auto; margin-left:10px; font-family:ui-monospace,monospace; }
+  .lba .ib { width:32px; height:32px; border-radius:8px; display:grid; place-items:center; color:rgba(255,255,255,.75); }
+  .lba .ib:hover { background:rgba(255,255,255,.1); color:#fff; }
+  .lba .zoomv { min-width:52px; text-align:center; font-family:ui-monospace,monospace; font-size:12px; color:rgba(255,255,255,.75); }
+  .lba .stage { position:relative; flex:1; min-height:0; overflow:hidden; display:grid; place-items:center; cursor:grab; }
+  .lba .stage.panning { cursor:grabbing; }
+  .lba .pic { position:relative; width:62%; aspect-ratio:3/2; transform-origin:center; transition:transform .18s cubic-bezier(.22,1,.36,1); }
+  .lba .pic.nt { transition:none; }
+  .lba .capt { text-align:center; font-size:12.5px; color:rgba(255,255,255,.6); padding:2px 0 10px; }
+  .lba .nav { position:absolute; top:50%; width:40px; height:40px; margin-top:-20px; border-radius:50%; display:grid; place-items:center; background:rgba(255,255,255,.08); color:#fff; }
+  .lba .nav:hover { background:rgba(255,255,255,.16); }
+  .lba .nav.l { left:14px; } .lba .nav.r { right:14px; }
+  .lba .film { display:flex; justify-content:center; gap:8px; padding:4px 0 14px; }
+  .lba .th { position:relative; width:54px; height:36px; border-radius:6px; overflow:hidden; opacity:.5; outline:2px solid transparent; outline-offset:2px; }
+  .lba .th.on { opacity:1; outline-color:var(--accent); }
+  .lba .th:hover { opacity:.85; }
+  /* B 纸面 */
+  .lbb { background:color-mix(in srgb,var(--page) 88%,transparent); backdrop-filter:blur(14px); display:grid; grid-template-columns:1fr 300px; }
+  .lbb .main { position:relative; display:grid; place-items:center; overflow:hidden; }
+  .lbb .pic { position:relative; width:78%; aspect-ratio:3/2; border-radius:10px; overflow:hidden; box-shadow:var(--shadow-float); transition:transform .18s cubic-bezier(.22,1,.36,1); }
+  .lbb .nav { position:absolute; top:50%; width:38px; height:38px; margin-top:-19px; border-radius:50%; display:grid; place-items:center; background:var(--surface); color:var(--ink-2); box-shadow:var(--shadow-card); }
+  .lbb .nav:hover { color:var(--ink-1); }
+  .lbb .nav.l { left:16px; } .lbb .nav.r { right:16px; }
+  .lbb .zoombar { position:absolute; bottom:16px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:2px; padding:4px; border-radius:10px; background:var(--surface); box-shadow:var(--shadow-float); }
+  .lbb .zoombar .ib { width:30px; height:30px; border-radius:8px; display:grid; place-items:center; color:var(--ink-2); }
+  .lbb .zoombar .ib:hover { background:var(--hover); color:var(--ink-1); }
+  .lbb .zoomv { min-width:48px; text-align:center; font:12px ui-monospace,monospace; color:var(--ink-2); }
+  .lbb .side { background:var(--surface); box-shadow:var(--shadow-card); padding:18px 18px; display:flex; flex-direction:column; gap:14px; }
+  .lbb .side .hdr { display:flex; align-items:center; justify-content:space-between; }
+  .lbb .side .hdr b { font-size:13px; font-weight:600; }
+  .lbb .side .cnt { font:12px ui-monospace,monospace; color:var(--ink-3); }
+  .lbb .side .close { width:28px; height:28px; border-radius:7px; display:grid; place-items:center; color:var(--ink-2); }
+  .lbb .side .close:hover { background:var(--hover); }
+  .lbb .kv { font-size:12.5px; display:grid; grid-template-columns:64px 1fr; gap:6px 10px; color:var(--ink-2); }
+  .lbb .kv span:nth-child(odd) { color:var(--ink-3); }
+  .lbb .capbox { font-size:13px; color:var(--ink-1); line-height:1.7; }
+  .lbb .acts { display:flex; flex-direction:column; gap:2px; margin-top:auto; }
+  .lbb .acts button { display:flex; align-items:center; gap:10px; padding:7px 8px; border-radius:8px; font-size:13px; color:var(--ink-1); }
+  .lbb .acts button:hover { background:var(--hover); }
+  .lbb .acts svg { color:var(--ink-2); }
+  .lbb .thumbs { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+  .lbb .thumbs .th { position:relative; aspect-ratio:3/2; border-radius:6px; overflow:hidden; outline:2px solid transparent; outline-offset:1px; opacity:.75; }
+  .lbb .thumbs .th.on { outline-color:var(--accent); opacity:1; }
+
+  /* ════ 裁剪 ════ */
+  /* 通用：裁剪框 */
+  .cropwrap { position:relative; }
+  .cbox { position:absolute; box-shadow:0 0 0 9999px rgba(12,10,8,.55); outline:1px solid rgba(255,255,255,.9); cursor:move; touch-action:none; }
+  .cbox .g { position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .15s;
+    background:
+      linear-gradient(90deg, transparent calc(33.33% - .5px), rgba(255,255,255,.55) calc(33.33% - .5px) calc(33.33% + .5px), transparent calc(33.33% + .5px) calc(66.66% - .5px), rgba(255,255,255,.55) calc(66.66% - .5px) calc(66.66% + .5px), transparent calc(66.66% + .5px)),
+      linear-gradient(180deg, transparent calc(33.33% - .5px), rgba(255,255,255,.55) calc(33.33% - .5px) calc(33.33% + .5px), transparent calc(33.33% + .5px) calc(66.66% - .5px), rgba(255,255,255,.55) calc(66.66% - .5px) calc(66.66% + .5px), transparent calc(66.66% + .5px)); }
+  .cbox.drag .g, .gridon .cbox .g { opacity:1; }
+  .ch { position:absolute; width:18px; height:18px; touch-action:none; }
+  .ch::before { content:""; position:absolute; border:3px solid #fff; }
+  .ch.nw { left:-3px; top:-3px; cursor:nwse-resize; } .ch.nw::before { inset:0 auto auto 0; width:14px; height:14px; border-right:0; border-bottom:0; }
+  .ch.ne { right:-3px; top:-3px; cursor:nesw-resize; } .ch.ne::before { inset:0 0 auto auto; width:14px; height:14px; border-left:0; border-bottom:0; }
+  .ch.sw { left:-3px; bottom:-3px; cursor:nesw-resize; } .ch.sw::before { inset:auto auto 0 0; width:14px; height:14px; border-right:0; border-top:0; }
+  .ch.se { right:-3px; bottom:-3px; cursor:nwse-resize; } .ch.se::before { inset:auto 0 0 auto; width:14px; height:14px; border-left:0; border-top:0; }
+  .ch.n, .ch.s { left:50%; margin-left:-12px; width:24px; height:10px; cursor:ns-resize; } .ch.n { top:-4px; } .ch.s { bottom:-4px; }
+  .ch.n::before, .ch.s::before { left:0; right:0; top:3px; height:0; border-width:3px 0 0; }
+  .ch.e, .ch.w { top:50%; margin-top:-12px; width:10px; height:24px; cursor:ew-resize; } .ch.e { right:-4px; } .ch.w { left:-4px; }
+  .ch.e::before, .ch.w::before { top:0; bottom:0; left:3px; width:0; border-width:0 0 0 3px; }
+  .csize { position:absolute; left:50%; top:calc(100% + 8px); transform:translateX(-50%); padding:2px 8px; border-radius:6px; background:rgba(0,0,0,.65); color:#fff; font:11px ui-monospace,monospace; white-space:nowrap; pointer-events:none; }
+  .chips { display:flex; gap:2px; }
+  .chip { height:28px; padding:0 9px; border-radius:7px; font-size:12.5px; color:var(--ink-2); display:inline-flex; align-items:center; gap:5px; }
+  .chip:hover { background:var(--hover); color:var(--ink-1); }
+  .chip.on { background:var(--accent-soft); color:var(--accent-text); font-weight:500; }
+  /* A：就地裁剪 */
+  .cia { position:relative; margin:22px auto; }
+  .cia .frame { position:relative; aspect-ratio:3/2; overflow:hidden; border-radius:4px; }
+  .cia .tb { position:absolute; bottom:calc(100% + 14px); left:50%; transform:translateX(-50%); }
+  .cia .tb .b.pri { background:var(--accent); color:var(--ink-inv); padding:0 12px; }
+  .cia .tb .b.pri:hover { background:var(--accent-hover); }
+  .cia .tb .b.pri kbd { opacity:.75; font:500 10.5px ui-monospace,monospace; }
+  /* B：全屏编辑器 */
+  .ceb { position:relative; height:600px; border-radius:16px; overflow:hidden; background:#111113; color:#eee; display:flex; flex-direction:column; box-shadow:var(--shadow-card); }
+  .ceb .top2 { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; font-size:13px; }
+  .ceb .top2 .ttl { color:rgba(255,255,255,.75); }
+  .ceb .top2 .btn.ghost { color:rgba(255,255,255,.75); } .ceb .top2 .btn.ghost:hover { background:rgba(255,255,255,.08); color:#fff; }
+  .ceb .stage { flex:1; min-height:0; display:grid; place-items:center; position:relative; overflow:hidden; }
+  .ceb .canvas { position:relative; width:64%; aspect-ratio:3/2; }
+  .ceb .canvas .scene { transition:transform .15s; }
+  .ceb .dock { padding:10px 16px 16px; display:flex; flex-direction:column; align-items:center; gap:12px; }
+  .dial { position:relative; width:min(520px,80%); height:38px; cursor:ew-resize; touch-action:none; }
+  .dial .ticks { position:absolute; inset:14px 0 0; background:repeating-linear-gradient(90deg, rgba(255,255,255,.35) 0 1px, transparent 1px 10px); mask:linear-gradient(90deg,transparent,#000 20%,#000 80%,transparent); }
+  .dial .zero { position:absolute; left:50%; top:10px; width:2px; height:18px; margin-left:-1px; background:rgba(255,255,255,.7); }
+  .dial .needle { position:absolute; top:6px; width:2px; height:26px; margin-left:-1px; background:var(--accent); border-radius:1px; }
+  .dial .val { position:absolute; left:50%; top:-14px; transform:translateX(-50%); font:12px ui-monospace,monospace; color:#fff; }
+  .ceb .row { display:flex; align-items:center; gap:14px; flex-wrap:wrap; justify-content:center; }
+  .ceb .chip { color:rgba(255,255,255,.7); } .ceb .chip:hover { background:rgba(255,255,255,.08); color:#fff; }
+  .ceb .chip.on { background:rgba(255,255,255,.14); color:#fff; }
+  .ceb .ib { width:32px; height:32px; border-radius:8px; display:grid; place-items:center; color:rgba(255,255,255,.75); }
+  .ceb .ib:hover { background:rgba(255,255,255,.1); color:#fff; }
+  .ceb .vsep { width:1px; height:18px; background:rgba(255,255,255,.14); }
+
+  /* 现状复刻 */
+  .cur { position:relative; width:100%; max-width:520px; }
+  .cur .frame { position:relative; aspect-ratio:3/2; }
+  .cur .acts { position:absolute; right:10px; top:10px; display:flex; border-radius:8px; background:rgba(38,38,38,.6); color:#fff; }
+  .cur .acts span { width:2em; height:2em; display:grid; place-items:center; }
+  .cur .acts i { width:1px; margin:auto 3px; height:1.1em; background:rgba(255,255,255,.1); }
+  .cur .cp { margin-top:8px; text-align:center; font-size:.875em; color:rgba(0,0,0,.65); }
+  .curcrop { margin-top:18px; border-radius:12px; background:var(--surface); box-shadow:var(--shadow-card); padding:14px 16px; max-width:520px; font-size:12px; color:var(--ink-2); }
+  .curcrop .tools { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  .curcrop .sel { border:1px solid var(--line-1); border-radius:6px; padding:1px 8px; }
+  .curcrop .cv { margin-top:10px; aspect-ratio:3/1.4; border-radius:8px; background:var(--sunken); position:relative; overflow:hidden; }
+  .curcrop .cv .scene { inset:10% 22%; }
+  .curcrop .cv .sb { position:absolute; inset:24% 34%; outline:1px dashed #39f; box-shadow:0 0 0 9999px rgba(0,0,0,.4); }
+  .cur-wrap { display:grid; grid-template-columns:minmax(360px,520px) 1fr; gap:36px; align-items:start; }
+  .issues { color:var(--ink-2); font-size:13px; padding-left:18px; }
+  .issues li { margin:4px 0; } .issues b { color:var(--ink-1); font-weight:600; }
+  .issues h4 { font-size:13px; color:var(--ink-1); margin:10px 0 2px -18px; }
+
+  .keys { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:10px 28px; background:var(--surface); border-radius:14px; box-shadow:var(--shadow-card); padding:20px 24px; font-size:13px; }
+  .keys div { display:flex; justify-content:space-between; gap:12px; color:var(--ink-2); }
+  .keys div span:last-child { display:flex; gap:4px; }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div>
+    <h1>图片 · 组件 UI 与编辑器交互升级</h1>
+    <p>两部分：<b>① 组件 UI</b>——图片本身的加载 / 失败 / 上传 / 说明 / 外观，以及全屏预览（灯箱），编辑与只读都受益；<b>② 编辑器交互</b>——选中、工具条、缩放、裁剪编辑。每一处给出 A / B 两个方向，末尾是与方向无关的通用细节。标 ▶ 的都可以直接点、拖、用键盘。</p>
+  </div>
+  <div class="switches">
+    <div class="switch" data-k="theme"><button data-v="paper" class="on">paper</button><button data-v="mint">mint</button></div>
+    <div class="switch" data-k="mode"><button data-v="light" class="on">浅色</button><button data-v="dark">深色</button></div>
+  </div>
+</div>
+
+<!-- ─── 现状 ─── -->
+<section>
+  <h2><span class="no">00</span>现状</h2>
+  <p class="desc">按当前代码复刻：悬停出现的右上角操作条，以及裁剪弹窗。</p>
+  <div class="cur-wrap">
+    <div id="cur"></div>
+    <ul class="issues">
+      <h4>组件 UI</h4>
+      <li><b>加载会跳</b>：LocalImage 解析地址期间返回 null，块先塌成 0 高再被图片撑开；没有骨架也不预留比例。</li>
+      <li><b>失败无兜底</b>：最终失败只剩浏览器破图标，没有重试、没有替换入口。</li>
+      <li><b>说明文字写死颜色</b>：inline <span class="mono">rgba(0,0,0,.65)</span>，深色主题下几乎看不见；阴影预设也是写死的 rgba，不吃主题。</li>
+      <li><b>灯箱简陋</b>：固定黑遮罩 + 左右切换，不能缩放 / 拖动看细节，没有张数、说明、缩略条；点图片本身就关闭，想放大反而退出。</li>
+      <h4>编辑器交互</h4>
+      <li><b>右上角操作条看不懂</b>：深色半透明条压在图片上（违反「悬浮控件不要半透明叠在内容上」），6 个图标里只有对齐有提示；「说明」用文件图标，AI 编辑是魔棒，对齐按钮点一下轮换一个方向，看不出下一步是什么。</li>
+      <li><b>悬停就出现</b>：鼠标路过图片就弹出操作条，阅读时也会被打扰。</li>
+      <li><b>隐藏手势</b>：选中后「再点一次」才是预览，没有任何提示。</li>
+      <li><b>裁剪难用</b>：大弹窗里是下拉框 + 复选框 + 一排 react-icons 按钮；裁剪框与图片缩放两套拖动混在一起；输出一律转 JPEG（PNG 透明底丢失）并重新上传。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ═══════════ 第一部分 ═══════════ -->
+<div class="part">
+  <div class="ptitle"><span class="no">PART 1</span>组件 UI</div>
+  <p class="pdesc">图片本身怎么呈现。这一部分大多是「补齐与规范」，只有灯箱需要选方向。</p>
+</div>
+
+<section>
+  <h2><span class="no">1.1</span>状态与外观（统一方案）</h2>
+  <p class="desc">首次加载成功后把原图宽高写进节点（新增 <span class="mono">naturalWidth / naturalHeight</span>），之后每次打开都能<b>按真实比例预留位置</b>，骨架淡出、图片淡入，正文不跳。</p>
+  <div class="grid g3" id="states"></div>
+  <div class="specbox" style="margin-top:36px">
+    <div class="spec"><div class="lbl">外观预设改用主题尺度</div><div class="sub">圆角对齐 rounded-tau（8 / 12 / 16），阴影对齐 shadow-card / lift / float——跟随主题明暗，不再写死 rgba。菜单里用缩略样片选择，而不是「小圆角 / 中阴影」这类文字。</div></div>
+    <div class="appear-row" id="appear"></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="no">1.2</span>全屏预览（灯箱）▶</h2>
+  <p class="desc">两者共同能力：<b>滚轮 / 触控板缩放、放大后拖动平移、双击在「适应」与「100%」间切换</b>、<kbd>←</kbd><kbd>→</kbd> 切换、<kbd>+</kbd><kbd>−</kbd><kbd>0</kbd> 缩放、<kbd>Esc</kbd> 关闭（经浮层仲裁），点图片本身不再关闭。</p>
+  <div class="cols2">
+    <div class="spec"><div class="lbl">A 暗房</div><div class="sub">深色全屏，照片最出彩；顶栏张数 + 文件名 + 缩放与操作，底部缩略条（文档里的所有图片）。</div><div id="lba"></div></div>
+    <div class="spec"><div class="lbl">B 纸面</div><div class="sub">主题纸色 + 模糊透出文档，右侧信息栏（说明、尺寸、格式、操作、缩略图）；和应用其他浮层同一语言。</div><div id="lbb"></div></div>
+  </div>
+  <ul class="notes">
+    <li><b>A</b>：看图体验最好，适合截图 / 照片类笔记；代价是与应用浅色主题反差大（但灯箱本来就是「离开页面」的时刻）。</li>
+    <li><b>B</b>：更像应用的一部分，信息更全（尺寸、格式、原始路径）；代价是图片可视面积小约 25%，浅色纸底上看深色截图对比弱。</li>
+  </ul>
+</section>
+
+<!-- ═══════════ 第二部分 ═══════════ -->
+<div class="part">
+  <div class="ptitle"><span class="no">PART 2</span>编辑器内的图片交互</div>
+  <p class="pdesc">共同原则：<b>悬停不出任何控件</b>（只有指针变化）；<b>单击选中、双击预览</b>；控件只在选中后出现，且不叠在图片上；每个按钮都有名字（文字或悬停提示 + 快捷键）。</p>
+</div>
+
+<section>
+  <h2><span class="no">2.1</span>选中与工具条 ▶</h2>
+  <p class="desc">点图片选中，试试工具条、「⋯」菜单、拖动四角 / 两侧缩放（靠近 50% / 75% / 100% 会吸附）、点下方说明直接编辑。</p>
+  <div class="cols2">
+    <div class="spec"><div class="lbl">A 上方浮条</div><div class="sub">与视频块同款：选中后浮在图片上方，主操作带文字（裁剪 / AI 编辑），其余进「⋯」。说明就地写在图片下方。</div><div class="paper" style="padding:64px 0 28px"><div class="doc" id="tba"></div></div></div>
+    <div class="spec"><div class="lbl">B 下方停靠条</div><div class="sub">工具条停靠在图片下方、与说明输入合为一行：左边写说明，右边是图标操作。控件永远不遮图片，也不越过上一段正文。</div><div class="paper" style="padding:28px 0 28px"><div class="doc" id="tbb"></div></div></div>
+  </div>
+  <ul class="notes">
+    <li><b>A</b>：和视频块一致（D-076 的属性条），用户学一次到处通用；主操作有文字、一眼能懂；代价是浮条压在上一段正文上方（文档顶部第一张图时翻到下方）。</li>
+    <li><b>B</b>：说明与操作同一行，「给图片写说明」变成显眼的主动作；不遮任何内容；代价是和视频块的形态不一致，选中时图片下方多出一行，正文会下移 ~44px（取消选中复位）。</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="no">2.2</span>裁剪编辑（完全重写）▶</h2>
+  <p class="desc">两者共同的数据策略：<b>原图永远保留</b>（<span class="mono">url</span>），裁剪参数记在节点（<span class="mono">cropTransform</span>），导出一张结果图给显示和导出链路用（<span class="mono">previewUrl</span>）——下游（博客、PDF、公众号导出）不需要改；<b>按原格式输出</b>（PNG 保持 PNG，不再一律 JPEG 丢透明）；再次裁剪从原图开始并恢复上次的框。</p>
+  <div class="cols2">
+    <div class="spec"><div class="lbl">A 就地裁剪</div><div class="sub">不开弹窗，图片块原地进入裁剪态：框外压暗，拖八个把手或拖框移动；上方同位置换成裁剪条。<kbd>Enter</kbd> 完成、<kbd>Esc</kbd> 取消。</div><div class="paper" style="padding:64px 0 36px"><div class="doc" id="cia"></div></div></div>
+    <div class="spec"><div class="lbl">B 全屏编辑器</div><div class="sub">像相册的编辑：深色全屏，裁剪框固定、拖动 / 滚轮移动缩放图片；底部拨盘微调角度（±45°），比例、旋转、翻转一行排开。</div><div id="ceb"></div></div>
+  </div>
+  <ul class="notes">
+    <li><b>A</b>：最轻、所见即所得（直接在文档宽度里看裁完的效果），90% 的场景是「切掉截图多余的边」，A 最快；代价是没有角度微调，大图细裁时画面较小。</li>
+    <li><b>B</b>：能力最全（拉直歪照、放大细裁），操作手感像手机相册；代价是离开文档语境，简单的切边也要进出一次全屏。</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="no">2.3</span>通用交互细节</h2>
+  <p class="desc">与上面选哪个方向无关。</p>
+  <div class="grid g3" id="common"></div>
+  <h2 style="margin-top:44px"><span class="no">⌨</span>快捷键（图片选中时）</h2>
+  <p class="desc">正文光标在文字里时不拦截；只在图片块被选中（非编辑说明）时生效。</p>
+  <div class="keys">
+    <div><span>全屏预览</span><span><kbd>Space</kbd> / 双击</span></div>
+    <div><span>裁剪</span><span><kbd>C</kbd></span></div>
+    <div><span>编辑说明</span><span><kbd>Enter</kbd></span></div>
+    <div><span>左 / 中 / 右对齐</span><span><kbd>⌘⇧L</kbd><kbd>⌘⇧E</kbd><kbd>⌘⇧R</kbd></span></div>
+    <div><span>复制图片</span><span><kbd>⌘C</kbd></span></div>
+    <div><span>粘贴图片替换</span><span><kbd>⌘V</kbd></span></div>
+    <div><span>删除</span><span><kbd>Delete</kbd> / <kbd>⌫</kbd></span></div>
+    <div><span>取消选中</span><span><kbd>Esc</kbd></span></div>
+  </div>
+</section>
+
+<script>
+const svg = (d, { size = 16, fill = false, cls = "", sw = 2 } = {}) =>
+  `<svg class="${cls}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="${fill ? "currentColor" : "none"}" stroke="${fill ? "none" : "currentColor"}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const P = {
+  al: '<path d="M15 12H3"/><path d="M17 18H3"/><path d="M21 6H3"/>',
+  ac: '<path d="M17 12H7"/><path d="M19 18H5"/><path d="M21 6H3"/>',
+  ar: '<path d="M21 12H9"/><path d="M21 18H7"/><path d="M21 6H3"/>',
+  crop: '<path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/>',
+  wand: '<path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/>',
+  more: '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
+  max: '<path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/>',
+  text: '<path d="M17 6.1H3"/><path d="M21 12.1H3"/><path d="M15.1 18H3"/>',
+  trash: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
+  copy: '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  replace: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  dl: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
+  folder: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+  alt: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  left: '<path d="m15 18-6-6 6-6"/>', right: '<path d="m9 18 6-6-6-6"/>',
+  zin: '<circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="11" x2="11" y1="8" y2="14"/><line x1="8" x2="14" y1="11" y2="11"/>',
+  zout: '<circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="8" x2="14" y1="11" y2="11"/>',
+  fit: '<path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>',
+  rot: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+  flip: '<path d="M8 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h3"/><path d="M16 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3"/><path d="M12 20v2"/><path d="M12 14v2"/><path d="M12 8v2"/><path d="M12 2v2"/>',
+  reset: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+  img: '<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21"/>',
+  imgoff: '<line x1="2" x2="22" y1="2" y2="22"/><path d="M10.41 10.41a2 2 0 1 1-2.83-2.83"/><line x1="13.5" x2="6" y1="13.5" y2="21"/><line x1="18" x2="21" y1="12" y2="15"/><path d="M3.59 3.59A1.99 1.99 0 0 0 3 5v14a2 2 0 0 0 2 2h14c.55 0 1.052-.22 1.41-.59"/><path d="M21 15V5a2 2 0 0 0-2-2H9"/>',
+  upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+};
+const scene = (v = "") => `<div class="scene ${v}"></div>`;
+const CAP = "傍晚的山谷，远处是第三天要翻过去的垭口";
+
+/* ── 现状复刻 ── */
+document.getElementById("cur").innerHTML = `
+  <div class="cur"><div class="frame">${scene()}
+    <div class="acts"><span>${svg(P.max, { size: 13 })}</span><i></i><span>${svg(P.ac, { size: 13 })}</span><i></i><span>${svg('<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>', { size: 13 })}</span><i></i><span>${svg(P.wand, { size: 13 })}</span><i></i><span>${svg(P.crop, { size: 13 })}</span><i></i><span>${svg(P.trash, { size: 13 })}</span></div>
+  </div><div class="cp">${CAP}</div></div>
+  <div class="curcrop"><div class="tools"><span>宽高比 <span class="sel">1:1 (正方形) ▾</span></span><span>旋转 ⟲ ⟳</span><span>缩放 ⊕ ⊖</span><span>翻转 ⇋ ⇵</span><span>☑ 网格 ☐ 十字线</span><span style="margin-left:auto">↻</span></div>
+    <div class="cv">${scene()}<div class="sb"></div></div>
+    <div style="text-align:right;margin-top:8px">取消　<b style="color:var(--accent-text)">确定</b></div></div>`;
+
+/* ── 1.1 状态 ── */
+const imgBlock = (inner, { cls = "r-md s-card", cap = "" } = {}) =>
+  `<div class="img ${cls}"><div class="frame">${inner}</div>${cap ? `<div class="cap">${cap}</div>` : ""}</div>`;
+const spec = (lbl, sub, body) => `<div class="spec"><div class="lbl">${lbl}</div><div class="sub">${sub}</div>${body}</div>`;
+document.getElementById("states").innerHTML = [
+  spec("加载中", "按存下的原图比例预留位置，主题色骨架微光；就绪后图片淡入，高度不变", imgBlock('<div class="skel"></div>')),
+  spec("上传中", "本地预览先显示（模糊处理），底部进度条；失败时同位变成失败态", imgBlock(`<div class="upl-blur" style="position:absolute;inset:0;overflow:hidden">${scene()}</div><div class="upl">${svg(P.upload, { size: 14 })}上传中 64%<span class="bar"><i></i></span></div>`)),
+  spec("加载失败", "说明原因 + 原始地址；可重试、可直接替换成别的图片（编辑态）", imgBlock(`<div class="err"><div class="in"><span class="ico">${svg(P.imgoff, { size: 17 })}</span><span class="t">图片加载失败</span><span class="p mono">~/Documents/notes/assets/IMG_2041.png 不存在或已被移动</span><span class="btns"><button class="btn sec">重试</button><button class="btn ghost">替换图片</button></span></div></div>`)),
+  spec("图片说明", "居中淡墨小字，跟随主题；阅读态没有说明就不占位", imgBlock(scene(), { cap: CAP })),
+  spec("拖入 / 粘贴替换", "选中图片时拖入或 ⌘V 一张新图，即替换（保留宽度、对齐、说明）", imgBlock(`${scene("v1")}<div class="drop"><span>松开以替换这张图片</span></div>`)),
+  spec("空图片（遗留节点）", "正常流程不会出现；出现时是一张可点的纸面占位，而非灰色虚线框", `<div class="empty"><span class="ico">${svg(P.img, { size: 16 })}</span>选择图片，或把图片拖到这里</div>`),
+].join("");
+const APPEAR = [["r-none", "直角"], ["r-sm", "圆角 8"], ["r-md", "圆角 12"], ["r-lg", "圆角 16"], ["r-md s-card", "card 阴影"], ["r-md s-lift", "lift 阴影"], ["r-md s-float", "float 阴影"]];
+document.getElementById("appear").innerHTML = APPEAR.map(([c, l]) => `<div class="it">${imgBlock(scene(), { cls: c })}${l}</div>`).join("");
+
+/* ── 1.2 灯箱 ── */
+const IMGS = [
+  { v: "", name: "IMG_2041.png", cap: CAP, size: "3024 × 2016", fmt: "PNG · 4.2 MB" },
+  { v: "v1", name: "IMG_2044.png", cap: "营地的清晨", size: "3024 × 2016", fmt: "PNG · 3.9 MB" },
+  { v: "v2", name: "截图 2026-09-28.png", cap: "", size: "2880 × 1920", fmt: "PNG · 1.1 MB" },
+  { v: "v3", name: "IMG_2051.jpg", cap: "垭口上的经幡", size: "4032 × 2688", fmt: "JPEG · 2.7 MB" },
+  { v: "v4", name: "IMG_2060.jpg", cap: "下山路", size: "4032 × 2688", fmt: "JPEG · 3.1 MB" },
+];
+function lightbox(el, kind) {
+  let idx = 0, zoom = 1, px = 0, py = 0;
+  const render = () => {
+    const it = IMGS[idx];
+    if (kind === "a") {
+      el.innerHTML = `<div class="lbx lba" tabindex="0">
+        <div class="bar"><span class="name">${it.name}</span><span class="cnt">${idx + 1} / ${IMGS.length}</span>
+          <button class="ib" data-z="-1" title="缩小 (−)">${svg(P.zout)}</button><span class="zoomv">${Math.round(zoom * 100)}%</span><button class="ib" data-z="1" title="放大 (+)">${svg(P.zin)}</button>
+          <button class="ib" data-fit title="适应窗口 (0)">${svg(P.fit)}</button><span style="width:10px"></span>
+          <button class="ib" title="复制图片">${svg(P.copy)}</button><button class="ib" title="下载">${svg(P.dl)}</button><button class="ib" title="在文件夹中显示">${svg(P.folder)}</button><span style="width:10px"></span>
+          <button class="ib" title="关闭 (Esc)">${svg(P.x)}</button></div>
+        <div class="stage"><div class="pic" style="transform:translate(${px}px,${py}px) scale(${zoom})">${scene(it.v)}</div>
+          <button class="nav l" data-nav="-1">${svg(P.left)}</button><button class="nav r" data-nav="1">${svg(P.right)}</button></div>
+        <div class="capt">${it.cap || "&nbsp;"}</div>
+        <div class="film">${IMGS.map((m, i) => `<button class="th ${i === idx ? "on" : ""}" data-i="${i}">${scene(m.v)}</button>`).join("")}</div></div>`;
+    } else {
+      el.innerHTML = `<div class="lbx lbb" tabindex="0">
+        <div class="main"><div class="stage" style="position:absolute;inset:0;display:grid;place-items:center"><div class="pic" style="transform:translate(${px}px,${py}px) scale(${zoom})">${scene(it.v)}</div></div>
+          <button class="nav l" data-nav="-1">${svg(P.left)}</button><button class="nav r" data-nav="1">${svg(P.right)}</button>
+          <div class="zoombar"><button class="ib" data-z="-1">${svg(P.zout)}</button><span class="zoomv">${Math.round(zoom * 100)}%</span><button class="ib" data-z="1">${svg(P.zin)}</button><button class="ib" data-fit>${svg(P.fit)}</button></div></div>
+        <div class="side"><div class="hdr"><b>${it.name}</b><button class="close">${svg(P.x)}</button></div>
+          <div class="cnt">第 ${idx + 1} 张，共 ${IMGS.length} 张</div>
+          <div class="capbox">${it.cap || '<span style="color:var(--ink-3)">没有说明</span>'}</div>
+          <div class="kv"><span>尺寸</span><span class="mono">${it.size}</span><span>格式</span><span>${it.fmt}</span><span>位置</span><span class="mono" style="word-break:break-all">assets/${it.name}</span></div>
+          <div class="thumbs">${IMGS.map((m, i) => `<button class="th ${i === idx ? "on" : ""}" data-i="${i}">${scene(m.v)}</button>`).join("")}</div>
+          <div class="acts"><button>${svg(P.copy)}复制图片</button><button>${svg(P.dl)}下载原图</button><button>${svg(P.folder)}在文件夹中显示</button></div></div></div>`;
+    }
+    bind();
+  };
+  const setZoom = z => { zoom = Math.min(4, Math.max(0.5, z)); if (zoom <= 1) { px = 0; py = 0; } render(); el.querySelector(".lbx").focus(); };
+  const go = d => { idx = (idx + d + IMGS.length) % IMGS.length; zoom = 1; px = py = 0; render(); el.querySelector(".lbx").focus(); };
+  function bind() {
+    const box = el.querySelector(".lbx"), stage = el.querySelector(".stage"), pic = el.querySelector(".pic");
+    el.querySelectorAll("[data-nav]").forEach(b => b.onclick = () => go(+b.dataset.nav));
+    el.querySelectorAll("[data-i]").forEach(b => b.onclick = () => { idx = +b.dataset.i; zoom = 1; px = py = 0; render(); });
+    el.querySelectorAll("[data-z]").forEach(b => b.onclick = () => setZoom(zoom * (+b.dataset.z > 0 ? 1.25 : 0.8)));
+    el.querySelectorAll("[data-fit]").forEach(b => b.onclick = () => setZoom(1));
+    stage.addEventListener("wheel", e => { e.preventDefault(); zoom = Math.min(4, Math.max(0.5, zoom * (e.deltaY < 0 ? 1.1 : 0.9))); if (zoom <= 1) { px = py = 0; } pic.style.transform = `translate(${px}px,${py}px) scale(${zoom})`; el.querySelector(".zoomv").textContent = Math.round(zoom * 100) + "%"; }, { passive: false });
+    pic.addEventListener("dblclick", () => setZoom(zoom > 1 ? 1 : 2));
+    let drag = null;
+    stage.addEventListener("pointerdown", e => { if (zoom <= 1 || e.target.closest("button")) return; drag = { x: e.clientX - px, y: e.clientY - py }; stage.setPointerCapture(e.pointerId); stage.classList.add("panning"); pic.classList.add("nt"); });
+    stage.addEventListener("pointermove", e => { if (!drag) return; px = e.clientX - drag.x; py = e.clientY - drag.y; pic.style.transform = `translate(${px}px,${py}px) scale(${zoom})`; });
+    stage.addEventListener("pointerup", () => { drag = null; stage.classList.remove("panning"); pic.classList.remove("nt"); });
+    box.onkeydown = e => {
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); go(e.key === "ArrowLeft" ? -1 : 1); }
+      else if (e.key === "+" || e.key === "=") setZoom(zoom * 1.25);
+      else if (e.key === "-") setZoom(zoom * 0.8);
+      else if (e.key === "0") setZoom(1);
+    };
+  }
+  render();
+}
+lightbox(document.getElementById("lba"), "a");
+lightbox(document.getElementById("lbb"), "b");
+
+/* ── 2.1 选中与工具条 ── */
+const alignBtns = cur => [["left", P.al, "左对齐", "⌘⇧L"], ["center", P.ac, "居中", "⌘⇧E"], ["right", P.ar, "右对齐", "⌘⇧R"]]
+  .map(([a, p, t, k]) => `<button class="b ${cur === a ? "on" : ""}" data-align="${a}" data-tip="${t} ${k}">${svg(p, { size: 15 })}</button>`).join("");
+const widthBtns = () => [50, 75, 100].map(w => `<button class="b mono" data-w="${w}">${w}%</button>`).join("");
+const moreMenu = () => `
+  <div class="menu">
+    <div class="mlabel">圆角</div><div class="swrow">${[0, 8, 12, 16].map((r, i) => `<button class="sw ${i === 2 ? "on" : ""}" style="border-radius:${Math.max(r / 2, 4)}px"><i style="border-radius:${r / 2}px"></i></button>`).join("")}</div>
+    <div class="mlabel">阴影</div><div class="swrow">${["none", "var(--shadow-card)", "var(--shadow-lift)", "var(--shadow-float)"].map((s, i) => `<button class="sw ${i === 1 ? "on" : ""}" style="background:var(--surface-hover)"><i style="border-radius:3px;box-shadow:${s}"></i></button>`).join("")}</div>
+    <div class="sep"></div>
+    <button class="mi">${svg(P.replace, { size: 15 })}替换图片</button>
+    <button class="mi">${svg(P.alt, { size: 15 })}替代文本</button>
+    <button class="mi">${svg(P.copy, { size: 15 })}复制图片<span class="k">⌘C</span></button>
+    <button class="mi">${svg(P.link, { size: 15 })}复制地址</button>
+    <button class="mi">${svg(P.folder, { size: 15 })}在文件夹中显示</button>
+    <div class="sep"></div>
+    <button class="mi danger">${svg(P.trash, { size: 15 })}删除<span class="k">⌫</span></button>
+  </div>`;
+const docText = (before, block, after) => `<p>${before}</p>${block}<p>${after}</p>
+  <div class="hint">单击选中 · 双击预览 · 选中后 <kbd>C</kbd> 裁剪、<kbd>Enter</kbd> 写说明、<kbd>Esc</kbd> 取消</div>`;
+
+document.getElementById("tba").innerHTML = docText(
+  "第三天的路线最难：早上六点出发，翻过垭口之前几乎没有平路。",
+  `<div class="img ta r-md s-card al-center" style="width:100%" data-block>
+    <div class="tb">
+      ${alignBtns("center")}<span class="gap"></span>${widthBtns()}<span class="gap"></span>
+      <button class="b" data-crop>${svg(P.crop, { size: 15 })}裁剪</button>
+      <button class="b">${svg(P.wand, { size: 15 })}AI 编辑</button>
+      <button class="b" data-tip="全屏预览 Space">${svg(P.max, { size: 15 })}</button>
+      <span class="gap"></span><button class="b" data-more data-tip="更多">${svg(P.more, { size: 15 })}</button>
+      ${moreMenu()}
+    </div>
+    <div class="fwrap"><div class="frame">${scene()}</div>
+    <i class="hd nw"></i><i class="hd ne"></i><i class="hd sw"></i><i class="hd se"></i><i class="hd e"></i><i class="hd w"></i>
+    <i class="snapline"></i><span class="rs-info mono"></span></div>
+    <div class="cap" contenteditable="plaintext-only" data-ph="添加图片说明…">${CAP}</div>
+  </div>`,
+  "下山时天已经黑了，头灯的电一定要留够。");
+
+document.getElementById("tbb").innerHTML = docText(
+  "第三天的路线最难：早上六点出发，翻过垭口之前几乎没有平路。",
+  `<div class="img tbb r-md s-card al-center" style="width:100%" data-block>
+    <div class="fwrap"><div class="frame">${scene()}</div>
+    <i class="hd nw"></i><i class="hd ne"></i><i class="hd sw"></i><i class="hd se"></i><i class="hd e"></i><i class="hd w"></i>
+    <i class="snapline"></i><span class="rs-info mono"></span></div>
+    <div class="cap">${CAP}</div>
+    <div class="tbar-b" style="position:relative">
+      <span class="capin" contenteditable="plaintext-only">${CAP}</span>
+      <div class="tb">
+        ${alignBtns("center")}<button class="b mono" data-tip="宽度">100%</button>
+        <button class="b" data-crop data-tip="裁剪 C">${svg(P.crop, { size: 15 })}</button>
+        <button class="b" data-tip="AI 编辑">${svg(P.wand, { size: 15 })}</button>
+        <button class="b" data-tip="全屏预览 Space">${svg(P.max, { size: 15 })}</button>
+        <button class="b" data-more data-tip="更多">${svg(P.more, { size: 15 })}</button>
+      </div>
+      ${moreMenu()}
+    </div>
+  </div>`,
+  "下山时天已经黑了，头灯的电一定要留够。");
+
+document.querySelectorAll("[data-block]").forEach(block => {
+  const frame = block.querySelector(".frame");
+  const doc = block.closest(".doc");
+  frame.addEventListener("click", () => block.classList.add("sel"));
+  frame.addEventListener("dblclick", () => document.getElementById("lba").scrollIntoView({ behavior: "smooth", block: "center" }));
+  document.addEventListener("pointerdown", e => { if (!block.contains(e.target)) { block.classList.remove("sel"); block.querySelectorAll(".menu").forEach(m => m.classList.remove("open")); } });
+  block.querySelectorAll("[data-align]").forEach(b => b.onclick = () => {
+    block.classList.remove("al-left", "al-center", "al-right"); block.classList.add("al-" + b.dataset.align);
+    block.querySelectorAll("[data-align]").forEach(x => x.classList.toggle("on", x === b));
+  });
+  block.querySelectorAll("[data-w]").forEach(b => b.onclick = () => { block.style.width = b.dataset.w + "%"; syncW(); });
+  block.querySelectorAll("[data-more]").forEach(b => b.onclick = e => { e.stopPropagation(); block.querySelectorAll(".menu").forEach(m => m.classList.toggle("open")); });
+  block.querySelectorAll("[data-crop]").forEach(b => b.onclick = () => document.getElementById("cia").scrollIntoView({ behavior: "smooth", block: "center" }));
+  const syncW = () => {
+    const pct = Math.round((block.offsetWidth / (doc.clientWidth - 64)) * 100);
+    block.querySelectorAll("[data-w]").forEach(x => x.classList.toggle("on", Math.abs(+x.dataset.w - pct) <= 1));
+  };
+  syncW();
+  // 缩放：四角 / 两侧，靠近 50/75/100% 吸附
+  block.querySelectorAll(".hd").forEach(h => h.addEventListener("pointerdown", e => {
+    e.preventDefault(); h.setPointerCapture(e.pointerId);
+    const startX = e.clientX, startW = block.offsetWidth, full = doc.clientWidth - 64;
+    const dir = h.classList.contains("w") || h.classList.contains("nw") || h.classList.contains("sw") ? -1 : 1;
+    const centered = block.classList.contains("al-center");
+    block.classList.add("resizing");
+    const info = block.querySelector(".rs-info"), line = block.querySelector(".snapline");
+    const move = ev => {
+      let w = startW + (ev.clientX - startX) * dir * (centered ? 2 : 1);
+      w = Math.max(120, Math.min(full, w));
+      let pct = (w / full) * 100, snapped = null;
+      for (const s of [50, 75, 100]) if (Math.abs(pct - s) < 2.2) snapped = s;
+      if (snapped) { pct = snapped; w = (full * snapped) / 100; }
+      block.style.width = pct + "%";
+      block.classList.toggle("snapped", !!snapped);
+      line.style.left = dir > 0 ? "100%" : "0";
+      info.textContent = `${snapped ? snapped + "% · " : Math.round(pct) + "% · "}${Math.round(w)} px`;
+    };
+    const up = () => { h.removeEventListener("pointermove", move); h.removeEventListener("pointerup", up); block.classList.remove("resizing", "snapped"); syncW(); };
+    h.addEventListener("pointermove", move); h.addEventListener("pointerup", up);
+  }));
+});
+
+/* ── 2.2 裁剪 ── */
+const RATIOS = [["原始", 1.5], ["自由", 0], ["1:1", 1], ["4:3", 4 / 3], ["3:2", 1.5], ["16:9", 16 / 9], ["3:4", 3 / 4]];
+function cropBox(host, { natural = [3024, 2016], onChange } = {}) {
+  // 以百分比记录 {x,y,w,h}
+  let r = { x: 8, y: 10, w: 84, h: 78 }, ratio = 0;
+  host.insertAdjacentHTML("beforeend", `<div class="cbox"><div class="g"></div>${["nw", "n", "ne", "e", "se", "s", "sw", "w"].map(d => `<i class="ch ${d}" data-d="${d}"></i>`).join("")}<span class="csize"></span></div>`);
+  const box = host.querySelector(".cbox"), size = box.querySelector(".csize");
+  const paint = () => {
+    Object.assign(box.style, { left: r.x + "%", top: r.y + "%", width: r.w + "%", height: r.h + "%" });
+    size.textContent = `${Math.round((natural[0] * r.w) / 100)} × ${Math.round((natural[1] * r.h) / 100)}`;
+    onChange?.(r);
+  };
+  const hostRatio = () => host.clientWidth / host.clientHeight;
+  const applyRatio = () => {
+    if (!ratio) return;
+    // 在当前框中心按比例取最大框
+    const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+    let w = r.w, h = (w * hostRatio()) / ratio;
+    if (h > r.h) { h = r.h; w = (h * ratio) / hostRatio(); }
+    r = { x: Math.max(0, cx - w / 2), y: Math.max(0, cy - h / 2), w, h };
+  };
+  let drag = null;
+  box.addEventListener("pointerdown", e => {
+    e.preventDefault(); e.stopPropagation(); box.setPointerCapture(e.pointerId);
+    drag = { d: e.target.dataset.d || "move", x: e.clientX, y: e.clientY, r: { ...r } }; box.classList.add("drag");
+  });
+  box.addEventListener("pointermove", e => {
+    if (!drag) return;
+    const dx = ((e.clientX - drag.x) / host.clientWidth) * 100, dy = ((e.clientY - drag.y) / host.clientHeight) * 100, o = drag.r, d = drag.d;
+    let { x, y, w, h } = o;
+    if (d === "move") { x = Math.min(100 - w, Math.max(0, o.x + dx)); y = Math.min(100 - h, Math.max(0, o.y + dy)); }
+    else {
+      if (d.includes("e")) w = Math.min(100 - o.x, Math.max(8, o.w + dx));
+      if (d.includes("w")) { const nx = Math.min(o.x + o.w - 8, Math.max(0, o.x + dx)); w = o.w + (o.x - nx); x = nx; }
+      if (d.includes("s")) h = Math.min(100 - o.y, Math.max(8, o.h + dy));
+      if (d.includes("n")) { const ny = Math.min(o.y + o.h - 8, Math.max(0, o.y + dy)); h = o.h + (o.y - ny); y = ny; }
+      if (ratio) {
+        const hr = hostRatio();
+        if (d === "n" || d === "s") w = (h * ratio) / hr; else h = (w * hr) / ratio;
+        if (d.includes("n")) y = o.y + o.h - h;
+        if (d.includes("w")) x = o.x + o.w - w;
+        if (x < 0 || y < 0 || x + w > 100 || y + h > 100) return;
+      }
+    }
+    r = { x, y, w, h }; paint();
+  });
+  box.addEventListener("pointerup", () => { drag = null; box.classList.remove("drag"); });
+  paint();
+  return {
+    setRatio(v) { ratio = v; if (ratio) applyRatio(); paint(); },
+    reset() { r = { x: 0, y: 0, w: 100, h: 100 }; ratio = 0; paint(); },
+  };
+}
+const ratioChips = (on = 0) => `<div class="chips">${RATIOS.map(([l, v], i) => `<button class="chip ${i === on ? "on" : ""}" data-ratio="${v}">${l}</button>`).join("")}</div>`;
+
+// A 就地
+document.getElementById("cia").innerHTML = docText(
+  "第三天的路线最难：早上六点出发，翻过垭口之前几乎没有平路。",
+  `<div class="cia">
+    <div class="tb">
+      ${ratioChips(1).replace('class="chips"', 'class="chips" style="gap:0"').replaceAll('class="chip', 'class="b chip')}
+      <span class="gap"></span>
+      <button class="b" data-tip="向左旋转 90°" data-rot>${svg(P.rot, { size: 15 })}</button>
+      <button class="b" data-tip="水平翻转" data-flip>${svg(P.flip, { size: 15 })}</button>
+      <button class="b" data-tip="还原为原图" data-reset>还原</button>
+      <span class="gap"></span>
+      <button class="b" data-tip="Esc">取消</button>
+      <button class="b pri">${svg(P.check, { size: 14 })}完成 <kbd>↵</kbd></button>
+    </div>
+    <div class="frame cropwrap">${scene()}</div>
+  </div>`,
+  "下山时天已经黑了，头灯的电一定要留够。");
+{
+  const host = document.querySelector("#cia .cropwrap");
+  const api = cropBox(host);
+  const root = document.querySelector("#cia");
+  let rot = 0, flip = 1;
+  root.querySelectorAll("[data-ratio]").forEach(b => b.onclick = () => { root.querySelectorAll("[data-ratio]").forEach(x => x.classList.toggle("on", x === b)); api.setRatio(+b.dataset.ratio); });
+  root.querySelector("[data-reset]").onclick = () => { api.reset(); rot = 0; flip = 1; host.querySelector(".scene").style.transform = ""; root.querySelectorAll("[data-ratio]").forEach((x, i) => x.classList.toggle("on", i === 0)); };
+  root.querySelector("[data-rot]").onclick = () => { rot -= 90; host.querySelector(".scene").style.transform = `rotate(${rot}deg) scaleX(${flip})`; };
+  root.querySelector("[data-flip]").onclick = () => { flip *= -1; host.querySelector(".scene").style.transform = `rotate(${rot}deg) scaleX(${flip})`; };
+}
+
+// B 全屏编辑器
+document.getElementById("ceb").innerHTML = `
+  <div class="ceb">
+    <div class="top2"><button class="btn ghost">取消</button><span class="ttl">裁剪与旋转</span><button class="btn pri">${svg(P.check, { size: 14 })}完成</button></div>
+    <div class="stage"><div class="canvas cropwrap gridon">${scene()}</div></div>
+    <div class="dock">
+      <div class="dial" data-dial><div class="ticks"></div><i class="zero"></i><i class="needle" style="left:50%"></i><span class="val">0°</span></div>
+      <div class="row">${ratioChips(0)}<span class="vsep"></span>
+        <button class="ib" title="向左旋转 90°" data-rot>${svg(P.rot)}</button><button class="ib" title="水平翻转" data-flip>${svg(P.flip)}</button>
+        <span class="vsep"></span><button class="chip" data-reset>还原</button></div>
+    </div>
+  </div>`;
+{
+  const root = document.querySelector("#ceb"), host = root.querySelector(".cropwrap"), sc = host.querySelector(".scene");
+  const api = cropBox(host);
+  let angle = 0, rot = 0, flip = 1, zoom = 1;
+  const paintImg = () => { const cover = 1 + Math.abs(angle) / 45 * 0.45; sc.style.transform = `rotate(${rot + angle}deg) scaleX(${flip}) scale(${cover * zoom})`; };
+  root.querySelectorAll("[data-ratio]").forEach(b => b.onclick = () => { root.querySelectorAll("[data-ratio]").forEach(x => x.classList.toggle("on", x === b)); api.setRatio(+b.dataset.ratio); });
+  root.querySelector("[data-rot]").onclick = () => { rot -= 90; paintImg(); };
+  root.querySelector("[data-flip]").onclick = () => { flip *= -1; paintImg(); };
+  root.querySelector("[data-reset]").onclick = () => { api.reset(); angle = rot = 0; flip = zoom = 1; paintImg(); setDial(0); };
+  host.addEventListener("wheel", e => { e.preventDefault(); zoom = Math.min(3, Math.max(1, zoom * (e.deltaY < 0 ? 1.06 : 0.94))); paintImg(); }, { passive: false });
+  const dial = root.querySelector("[data-dial]"), needle = dial.querySelector(".needle"), val = dial.querySelector(".val");
+  const setDial = a => { angle = a; needle.style.left = 50 + (a / 45) * 50 + "%"; val.textContent = `${a > 0 ? "+" : ""}${a.toFixed(1)}°`; paintImg(); };
+  let dragging = false;
+  const fromEvent = e => { const r = dial.getBoundingClientRect(); return Math.round(Math.max(-45, Math.min(45, ((e.clientX - r.left) / r.width - 0.5) * 90)) * 2) / 2; };
+  dial.addEventListener("pointerdown", e => { dragging = true; dial.setPointerCapture(e.pointerId); setDial(fromEvent(e)); });
+  dial.addEventListener("pointermove", e => dragging && setDial(fromEvent(e)));
+  dial.addEventListener("pointerup", () => dragging = false);
+  dial.addEventListener("dblclick", () => setDial(0));
+}
+
+/* ── 2.3 通用 ── */
+document.getElementById("common").innerHTML = [
+  spec("悬停：什么都不出现", "阅读时路过图片不弹任何控件；只有指针在可编辑态变成可点击。控件只属于「选中」这个明确意图", imgBlock(scene("v2"))),
+  spec("选中：圆角描边 + 把手", "描边随图片圆角、外扩 3px；四角等比缩放，两侧中点单向拖宽；拖动时显示「75% · 540 px」并吸附 50 / 75 / 100%",
+    `<div class="img r-md s-card sel" style="margin:14px auto;width:86%"><div class="frame">${scene("v2")}</div><i class="hd nw"></i><i class="hd ne"></i><i class="hd sw"></i><i class="hd se"></i><i class="hd e"></i><i class="hd w"></i><span class="rs-info mono" style="display:block">75% · 540 px</span></div>`),
+  spec("说明就地编辑", "选中后下方出现「添加图片说明…」占位，点击即写；常态与编辑同底色，编辑时细线 + 焦点环；回车结束",
+    `<div class="img r-md s-card sel"><div class="frame">${scene("v3")}</div><div class="cap" contenteditable="plaintext-only" data-ph="添加图片说明…" style="background:var(--surface);box-shadow:0 0 0 1px var(--line-1),var(--ring);color:var(--ink-2)">垭口上的经幡|</div></div>`),
+].join("");
+
+document.querySelectorAll(".switch").forEach(sw => sw.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  sw.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+  document.documentElement.dataset[sw.dataset.k] = b.dataset.v;
+}));
+</script>
+</body>
+</html>
