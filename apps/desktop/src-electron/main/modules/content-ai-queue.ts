@@ -28,7 +28,6 @@ import PiAiRuntimeModule from "./pi-ai-runtime";
 import userSettingModule from "./user-setting";
 import {
   CONTENT_AI_SYSTEM_PROMPT,
-  INPUT_MAX_CHARS,
   buildContentAiUserPrompt,
   parseContentAiOutput,
   type ContentAiKind,
@@ -52,9 +51,6 @@ const MAX_ATTEMPTS = 3;
 const ABORT_AFTER_CONSECUTIVE_FAILURES = 5;
 const NOTIFY_THROTTLE_MS = 2_000;
 const MAX_FAILURE_RECORDS = 200;
-/** token 估算（deepseek-flash 120 份实测折算）：每字约 0.6 token，另加提示词与输出约 250 */
-const TOKENS_PER_CHAR = 0.6;
-const TOKENS_OVERHEAD = 250;
 
 const KIND_BY_RANK: ContentAiKind[] = ["card", "article", "project-item"];
 const EMPTY_META = { title: "", summary: "", concepts: [], claims: [] };
@@ -138,13 +134,10 @@ export function computeContentAiStatus(
 ): ContentAiStatus {
   const candidates = listCandidates(mainDb);
   let processed = 0;
-  let estimatedTokens = 0;
   for (const candidate of candidates) {
     if (candidate.metaTime !== null) processed++;
-    estimatedTokens +=
-      Math.min(candidate.count, INPUT_MAX_CHARS) * TOKENS_PER_CHAR + TOKENS_OVERHEAD;
   }
-  return { configured, running, total: candidates.length, processed, estimatedTokens };
+  return { configured, running, total: candidates.length, processed };
 }
 
 function documentTitle(mainDb: Database.Database, kind: ContentAiKind, contentId: number): string {
