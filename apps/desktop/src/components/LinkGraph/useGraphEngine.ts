@@ -36,7 +36,11 @@ import {
 } from "./core/positionStore";
 import { buildTimeline, revealAt, shownCount, timeAt, type Timeline } from "./core/timeline";
 import type { GraphNode, GraphPalette, GraphScene, GraphItem } from "./core/types";
-import { Canvas2DRenderer, MAP_SUBTOPIC_LABEL_SCALE } from "./renderers/Canvas2DRenderer";
+import {
+  Canvas2DRenderer,
+  MAP_CARD_LABEL_SCALE,
+  MAP_SUBTOPIC_LABEL_SCALE,
+} from "./renderers/Canvas2DRenderer";
 
 /** 超过这个位移才算拖拽，否则算点击（避免手抖吞掉点击） */
 const DRAG_THRESHOLD = 3;
@@ -139,8 +143,8 @@ export interface CanvasCircle {
 export interface GraphOverlayApi {
   /** 每次重绘后回调；返回取消订阅 */
   subscribeFrame: (listener: () => void) => () => void;
-  /** 节点（按条目 key，如 "card:12"）的画布位置 */
-  project: (key: string) => { x: number; y: number } | null;
+  /** 节点（按条目 key，如 "card:12"）的画布位置与此刻画出来的半径 */
+  project: (key: string) => { x: number; y: number; r: number } | null;
   /** 地图大主题（地图里的主题 id）的岛 */
   topicShape: (topicId: number) => CanvasCircle | null;
   /** 地图子主题的成员中心 */
@@ -148,6 +152,8 @@ export interface GraphOverlayApi {
   /** 当前缩放；主题名在 scale ≥ subtopicLabelScale 时挪到岛的上沿 */
   scale: () => number;
   subtopicLabelScale: number;
+  /** scale ≥ 它时地图自己画出节点标题 */
+  nodeLabelScale: number;
   /** 镜头飞到某个主题，让它占满视口的大半 */
   flyToTopic: (topicId: number) => void;
   /** 镜头回到全图 */
@@ -844,7 +850,7 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
         const camera = cameraRef.current;
         if (!node || !camera) return null;
         const [x, y] = camera.toCanvas(node.x, node.y);
-        return { x, y };
+        return { x, y, r: Math.max(1.2, node.radius * camera.scale) };
       },
       topicShape: topicId => {
         const shape = worldTopic(topicId);
@@ -875,6 +881,7 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
       },
       scale: () => cameraRef.current?.scale ?? 1,
       subtopicLabelScale: MAP_SUBTOPIC_LABEL_SCALE,
+      nodeLabelScale: MAP_CARD_LABEL_SCALE,
       flyToTopic: topicId => {
         const shape = worldTopic(topicId);
         const camera = cameraRef.current;

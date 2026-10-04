@@ -28,6 +28,7 @@ import {
   countByKind,
   filterHits,
   indexOfKey,
+  placeLabel,
   toGraphItems,
   type MapFilter,
   type MapItemKind,
@@ -130,11 +131,13 @@ export function KnowledgeMapView() {
   }, [autoplay]);
 
   const captionHint = invite ? `长到 ${invite} 条了 · 看看它是怎么长出来的` : null;
-  const insights = useMapInsights(
-    query.data?.map?.topics ?? EMPTY_TOPICS,
-    params.insight,
-    previewEndpoint
-  );
+  const insights = useMapInsights(query.data?.map?.topics ?? EMPTY_TOPICS, params.insight, {
+    preview: previewEndpoint,
+    placeOf: end => {
+      const item = items.find(entry => entry.key === `${end.ref.kind}:${end.ref.id}`);
+      return item ? placeLabel(item) : null;
+    },
+  });
   const currentProject = projects.find(project => project.id === filter.projectId) ?? null;
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
 

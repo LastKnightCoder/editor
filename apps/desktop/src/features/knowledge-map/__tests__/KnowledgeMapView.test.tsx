@@ -84,8 +84,8 @@ vi.mock("@/components/ContentEditor", () => ({
 }));
 // 洞见视图有自己的测试（useMapInsights.test.tsx）；这里只看地图页本身
 vi.mock("../insights/useMapInsights", () => ({
-  useMapInsights: (_topics: unknown, _initial: unknown, onPreview: unknown) => {
-    mocks.onPreview = onPreview as typeof mocks.onPreview;
+  useMapInsights: (_topics: unknown, _initial: unknown, host: { preview: unknown }) => {
+    mocks.onPreview = host.preview as typeof mocks.onPreview;
     return {
       enabled: false,
       view: "off",
