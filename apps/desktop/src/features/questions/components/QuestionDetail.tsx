@@ -59,6 +59,7 @@ export function QuestionDrawer({
   onUnlink,
   hiddenChats,
   onOpenChat,
+  onOpenChatPage,
   onUnlinkChat,
   onOpenNotebook,
   onDiscuss,
@@ -85,7 +86,10 @@ export function QuestionDrawer({
   onUnlink(material: QuestionMaterial): void;
   /** 解除关联暂存中的对话 */
   hiddenChats: ReadonlySet<number>;
+  /** 在右侧停靠栏打开对话 */
   onOpenChat(chat: QuestionChat): void;
+  /** 在对话页打开（定位到转出问题的那条消息） */
+  onOpenChatPage(chat: QuestionChat): void;
   onUnlinkChat(chat: QuestionChat): void;
   onOpenNotebook(id: number): void;
   /** 围绕这个问题开一次新对话 */
@@ -179,6 +183,7 @@ export function QuestionDrawer({
           onUnlink={onUnlink}
           hiddenChats={hiddenChats}
           onOpenChat={onOpenChat}
+          onOpenChatPage={onOpenChatPage}
           onUnlinkChat={onUnlinkChat}
           onOpenNotebook={onOpenNotebook}
           onDiscuss={onDiscuss}
@@ -204,6 +209,7 @@ function DetailBody({
   onUnlink,
   hiddenChats,
   onOpenChat,
+  onOpenChatPage,
   onUnlinkChat,
   onOpenNotebook,
   onDiscuss,
@@ -220,7 +226,10 @@ function DetailBody({
   onClickMaterial(material: QuestionMaterial): void;
   onUnlink(material: QuestionMaterial): void;
   hiddenChats: ReadonlySet<number>;
+  /** 在右侧停靠栏打开对话 */
   onOpenChat(chat: QuestionChat): void;
+  /** 在对话页打开（定位到转出问题的那条消息） */
+  onOpenChatPage(chat: QuestionChat): void;
   onUnlinkChat(chat: QuestionChat): void;
   onOpenNotebook(id: number): void;
   /** 围绕这个问题开一次新对话 */
@@ -338,7 +347,13 @@ function DetailBody({
       {chats.length > 0 && (
         <>
           <SectionTitle count={chats.length}>探究对话</SectionTitle>
-          <ChatList chats={chats} now={now} onOpen={onOpenChat} onUnlink={onUnlinkChat} />
+          <ChatList
+            chats={chats}
+            now={now}
+            onOpen={onOpenChat}
+            onOpenPage={onOpenChatPage}
+            onUnlink={onUnlinkChat}
+          />
         </>
       )}
       <div className="mt-2.5 flex flex-wrap gap-1.5">
@@ -402,7 +417,9 @@ function DetailBody({
       </SectionTitle>
       <Trajectory
         events={events}
+        chats={detail.chats}
         now={now}
+        onOpenChat={onOpenChat}
         onAddNote={async text => {
           await questionMutations.addNote(question.id, text);
         }}

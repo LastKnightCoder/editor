@@ -17,6 +17,7 @@ import { usePage, usePageParams } from "@/page/PageProvider";
 import { isEditableTarget } from "@/page/dom";
 import { CreateCardDialog } from "@/features/cards/components/CreateCardDialog";
 import { EntityPicker } from "@/components/EntityPicker";
+import { openChatInDock } from "@/features/chat/openInDock";
 import { openMaterialTarget } from "@/services/open-material";
 import {
   planNotebookResources,
@@ -183,7 +184,13 @@ export function QuestionsView() {
       questionMutations.unlinkChat(chat.questionId, chat.sessionId)
     );
 
+  // 点对话：在右侧停靠栏打开，留在问题页接着聊
   const openChat = (chat: QuestionChat) => {
+    if (chat.openable && !chat.missing) openChatInDock(chat.sessionId);
+  };
+
+  // 在对话页打开：问题从某条消息转来时定位到那条
+  const openChatPage = (chat: QuestionChat) => {
     if (chat.openable) navigator.push("chat", { id: chat.sessionId, entry: chat.messageIds?.[0] });
   };
 
@@ -509,6 +516,7 @@ export function QuestionsView() {
                 )
               }
               onOpenChat={openChat}
+              onOpenChatPage={openChatPage}
               onOpenNotebook={openNotebook}
               onDiscuss={discuss}
               onUnlinkChat={unlinkChat}
