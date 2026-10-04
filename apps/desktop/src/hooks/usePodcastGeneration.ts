@@ -6,10 +6,10 @@ import type { TTSVoice } from "@/types/tts";
 import { ETTSProvider } from "@/types/tts";
 import { parseScript } from "@/services/podcast";
 import {
-  arrayBufferToAudioBuffer,
-  mergeAudioBuffers,
-  audioBufferToBlob,
-  getAudioDuration,
+  loadSpeechSegment,
+  mergeSpeechSegments,
+  speechSegmentToBlob,
+  type SpeechSegment,
 } from "@/utils/audio-processor";
 import { useLLMConfig } from "@/hooks/useLLMConfig";
 import useUploadResource from "@/hooks/useUploadResource";
@@ -291,7 +291,7 @@ export const usePodcastGeneration = () => {
         });
 
         const audioContext = new AudioContext();
-        const audioBuffers: AudioBuffer[] = [];
+        const segments: SpeechSegment[] = [];
         const segmentAudios: Blob[] = [];
         let currentTime = 0;
 
@@ -306,18 +306,16 @@ export const usePodcastGeneration = () => {
 
           try {
             const audioData = await ttsProvider.synthesizeSpeech(line.text, line.voiceId);
-            const audioBuffer = await arrayBufferToAudioBuffer(audioContext, audioData);
+            const segment = await loadSpeechSegment(audioContext, audioData);
 
             // 记录时间信息
-            const duration = audioBuffer.duration;
             currentLines[i].startTime = currentTime;
-            currentLines[i].duration = duration;
-            currentTime += duration;
+            currentLines[i].duration = segment.duration;
+            currentTime += segment.duration;
 
             // 保存音频数据
-            audioBuffers.push(audioBuffer);
-            const segmentBlob = await audioBufferToBlob(audioBuffer);
-            segmentAudios.push(segmentBlob);
+            segments.push(segment);
+            segmentAudios.push(speechSegmentToBlob(segment));
 
             updateProgress({
               ttsCompleted: i + 1,
@@ -333,7 +331,7 @@ export const usePodcastGeneration = () => {
           }
         }
 
-        if (audioBuffers.length === 0) {
+        if (segments.length === 0) {
           throw new Error("没有成功合成任何语音");
         }
 
@@ -343,22 +341,18 @@ export const usePodcastGeneration = () => {
         addLog("开始合并音频...");
         updateProgress({ stage: "merging", stageProgress: 0 });
 
-        const mergedBuffer = await mergeAudioBuffers(audioContext, audioBuffers);
-        const totalDuration = getAudioDuration(mergedBuffer);
+        const merged = await mergeSpeechSegments(audioContext, segments);
+        const totalDuration = merged.duration;
 
-        updateProgress({ stageProgress: 50 });
+        updateProgress({ stageProgress: 75 });
         addLog(`音频合并完成，总时长: ${Math.floor(totalDuration)} 秒`);
 
-        // 6. 转换为 Blob
-        updateProgress({ stageProgress: 75 });
-        const audioBlob = await audioBufferToBlob(mergedBuffer);
-
-        // 7. 上传音频
+        // 6. 上传音频
         addLog("开始上传音频...");
         updateProgress({ stage: "upload", stageProgress: 0 });
 
-        const audioFile = new File([audioBlob], `podcast_${Date.now()}.wav`, {
-          type: "audio/wav",
+        const audioFile = new File([merged.blob], `podcast_${Date.now()}.${merged.ext}`, {
+          type: merged.blob.type || "audio/wav",
         });
         const audioUrl = await uploadResource(audioFile);
 
@@ -369,7 +363,7 @@ export const usePodcastGeneration = () => {
         updateProgress({ stageProgress: 100 });
         addLog("音频上传完成");
 
-        // 8. 完成
+        // 7. 完成
         setState(prev => ({
           ...prev,
           status: "complete",
@@ -422,14 +416,12 @@ export const usePodcastGeneration = () => {
         );
 
         const audioContext = new AudioContext();
-        const audioBuffer = await arrayBufferToAudioBuffer(audioContext, audioData);
-        const newDuration = audioBuffer.duration;
-        const newSegmentBlob = await audioBufferToBlob(audioBuffer);
+        const newSegment = await loadSpeechSegment(audioContext, audioData);
+        const newDuration = newSegment.duration;
+        const newSegmentBlob = speechSegmentToBlob(newSegment);
 
         // 2. 保存新片段到临时文件 (通过后端)
-        // 需要先将 Blob 转为 ArrayBuffer
-        const arrayBuffer = await newSegmentBlob.arrayBuffer();
-        const { tempPath: newSegmentPath } = await saveTempSegment(arrayBuffer);
+        const { tempPath: newSegmentPath } = await saveTempSegment(newSegment.data);
 
         // 3. 获取原始音频路径
         let localAudioPath = "";
@@ -467,21 +459,17 @@ export const usePodcastGeneration = () => {
           }
 
           // 重新合并所有
-          // 需要重新从 blobs 转 buffers
-          const newBuffers = await Promise.all(
-            newSegmentAudios.map(async blob => {
-              const ab = await blob.arrayBuffer();
-              return await arrayBufferToAudioBuffer(audioContext, ab);
-            })
+          const newSegments = await Promise.all(
+            newSegmentAudios.map(async blob =>
+              loadSpeechSegment(audioContext, await blob.arrayBuffer())
+            )
           );
-
-          const mergedBuffer = await mergeAudioBuffers(audioContext, newBuffers);
-          const totalDuration = getAudioDuration(mergedBuffer);
-          const mergedBlob = await audioBufferToBlob(mergedBuffer);
+          const merged = await mergeSpeechSegments(audioContext, newSegments);
+          const totalDuration = merged.duration;
 
           // 重新上传
-          const audioFile = new File([mergedBlob], `podcast_updated_${Date.now()}.wav`, {
-            type: "audio/wav",
+          const audioFile = new File([merged.blob], `podcast_updated_${Date.now()}.${merged.ext}`, {
+            type: merged.blob.type || "audio/wav",
           });
           const newAudioUrl = await uploadResource(audioFile);
 

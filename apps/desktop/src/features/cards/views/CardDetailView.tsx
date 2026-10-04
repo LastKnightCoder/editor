@@ -500,7 +500,7 @@ export function CardDetailView() {
               {card.podcast && (
                 <div className="mb-[30px]">
                   <PodcastPlayer
-                    defaultPodcast={card.podcast}
+                    podcast={card.podcast}
                     onDelete={podcast.handleDeletePodcast}
                     onEdit={podcast.openPodcastModal}
                   />
