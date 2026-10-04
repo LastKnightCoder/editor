@@ -74,7 +74,7 @@ describe("洞见标记定位", () => {
     ];
     expect(orderedTextMarks(marks).map(m => m.id)).toEqual(["a", "b"]);
     const value = doc();
-    const decorate = createInsightDecorate(marks, () => value);
+    const decorate = createInsightDecorate(marks);
     expect(decorate([value[1] as Node, [1, 0]])).toEqual([]);
     const ranges = decorate([value[1] as Node, [1]]);
     expect(

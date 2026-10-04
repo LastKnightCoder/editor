@@ -204,11 +204,11 @@ export function InsightsReport({
             ))}
           </div>
         )}
-        <div className="text-ink-3 mt-2.5 flex flex-wrap items-center gap-3 text-[12px]">
+        <div className="text-ink-3 mt-2.5 flex items-center gap-3 whitespace-nowrap text-[12px]">
           {insights.stale ? (
-            <span className="text-warn">正文在分析后改动较大</span>
+            <span className="text-warn min-w-0 truncate">正文在分析后改动较大</span>
           ) : (
-            <span>
+            <span className="min-w-0 truncate">
               {formatTime(insights.analyzedAt)} · 读了 {result.candidates} 份候选，留下{" "}
               {result.marks.length} 处
             </span>
@@ -216,7 +216,7 @@ export function InsightsReport({
           <button
             type="button"
             onClick={onReanalyze}
-            className="hover:text-ink-1 inline-flex items-center gap-1"
+            className="hover:text-ink-1 inline-flex shrink-0 items-center gap-1"
           >
             <RefreshCw className="size-3" strokeWidth={1.75} />
             重新分析
@@ -225,7 +225,7 @@ export function InsightsReport({
             <button
               type="button"
               onClick={onWalk}
-              className="text-accent-text ml-auto inline-flex items-center gap-1"
+              className="text-accent-text ml-auto inline-flex shrink-0 items-center gap-1"
             >
               <ListChecks className="size-3" strokeWidth={1.75} />
               逐条看

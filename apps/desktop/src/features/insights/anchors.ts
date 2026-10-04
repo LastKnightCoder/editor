@@ -35,7 +35,14 @@ export function anchorRanges(
   blockIndex: number,
   anchor: string
 ): Range[] | null {
-  const block = children[blockIndex];
+  return blockAnchorRanges(children[blockIndex], blockIndex, anchor);
+}
+
+function blockAnchorRanges(
+  block: Node | undefined,
+  blockIndex: number,
+  anchor: string
+): Range[] | null {
   if (!block || !anchor || !Element.isElement(block)) return null;
   const parts = textsOf(block, blockIndex);
   const full = parts.map(part => part.text).join("");
@@ -71,22 +78,22 @@ export function orderedTextMarks(marks: InsightMark[]): InsightMark[] {
 
 /**
  * 编辑器 decorate：只在顶层块上返回 Range（Slate 会把祖先的装饰下发给覆盖到的叶子）。
- * marks 为需要画的标记，按正文顺序给出序号。
+ * marks 为需要画的标记，按正文顺序给出序号。片段只在 Slate 传入的块节点里找，不读编辑器实例。
  */
-export function createInsightDecorate(marks: InsightMark[], children: () => Descendant[]) {
+export function createInsightDecorate(marks: InsightMark[]) {
   const byBlock = new Map<number, Array<{ mark: InsightMark; order: number }>>();
   orderedTextMarks(marks).forEach((mark, order) => {
     const list = byBlock.get(mark.block) ?? [];
     list.push({ mark, order });
     byBlock.set(mark.block, list);
   });
-  return ([, path]: [Node, Path]): Range[] => {
+  return ([node, path]: [Node, Path]): Range[] => {
     if (path.length !== 1) return [];
     const list = byBlock.get(path[0]);
     if (!list) return [];
     const result: LeafRange[] = [];
     for (const { mark, order } of list) {
-      for (const range of anchorRanges(children(), path[0], mark.anchor) ?? []) {
+      for (const range of blockAnchorRanges(node, path[0], mark.anchor) ?? []) {
         result.push({ ...range, insightId: mark.id, insightKind: mark.kind, insightOrder: order });
       }
     }

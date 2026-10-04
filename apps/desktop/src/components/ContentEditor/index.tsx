@@ -88,6 +88,16 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
     const callback = useRef(props.onChange);
     const editorRef = useRef<EditorRef | null>(null);
     callback.current = props.onChange;
+    const forwardedRef = useRef(ref);
+    forwardedRef.current = ref;
+    // 回调 ref 必须稳定：Editor 的 useImperativeHandle 以 ref 为依赖，换身份时会先置空再挂回，
+    // 期间编辑器内部的 layout effect（如 decorate 变化后的装饰重算）经外部 ref 读到的是 null
+    const setEditorRef = useCallback((value: EditorRef | null) => {
+      editorRef.current = value;
+      const target = forwardedRef.current;
+      if (typeof target === "function") target(value);
+      else if (target) target.current = value;
+    }, []);
     const presence = useCollaborationPresence(binding, readonly || frozen);
     // 场景 kit 要经协作派生（共享模式下资源与音视频服务被覆盖），不能让 props.kit 直接覆盖
     const kit = useCollaborationKit(binding, props.kit);
@@ -170,11 +180,7 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
           {...props}
           kit={kit}
           onInit={handleInit}
-          ref={value => {
-            editorRef.current = value;
-            if (typeof ref === "function") ref(value);
-            else if (ref) ref.current = value;
-          }}
+          ref={setEditorRef}
           document={document}
           readonly={
             readonly || frozen || swapping || Boolean(session && session.status !== "active")
