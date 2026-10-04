@@ -1,32 +1,39 @@
 /**
  * 探究对话行：对话图标 + 标题 + 场景 / 消息数 / 最近更新；从这个问题发起的标「由此发起」。
- * 点行打开对话（只有主对话可打开），悬停时右上角叠加「打开 / 解除关联」；对话已删除的灰显，只能解除。
+ * 点行在右侧停靠栏打开对话（只有主对话可打开），悬停时右上角叠加「在对话页打开 / 解除关联」；
+ * 对话已删除的灰显，只能解除。标题取对话的实时标题（自动生成的标题随时更新）。
  */
 
 import { ExternalLink, MessageCircle, Unlink } from "lucide-react";
 import { IconButton, cn } from "@tau/ui";
 import type { QuestionChat } from "@/types";
+import { useChatTitle } from "@/features/chat/openInDock";
 import { relativeDay } from "../model";
 
 export function ChatList({
   chats,
   now,
   onOpen,
+  onOpenPage,
   onUnlink,
 }: {
   chats: QuestionChat[];
   now: number;
   onOpen(chat: QuestionChat): void;
+  onOpenPage(chat: QuestionChat): void;
   onUnlink(chat: QuestionChat): void;
 }) {
+  const titleOf = useChatTitle();
   return (
     <div className="flex flex-col gap-1.5">
       {chats.map(chat => (
         <ChatRow
           key={chat.id}
           chat={chat}
+          title={titleOf(chat.sessionId) || chat.title}
           now={now}
           onOpen={() => onOpen(chat)}
+          onOpenPage={() => onOpenPage(chat)}
           onUnlink={() => onUnlink(chat)}
         />
       ))}
@@ -36,13 +43,17 @@ export function ChatList({
 
 function ChatRow({
   chat,
+  title,
   now,
   onOpen,
+  onOpenPage,
   onUnlink,
 }: {
   chat: QuestionChat;
+  title: string;
   now: number;
   onOpen(): void;
+  onOpenPage(): void;
   onUnlink(): void;
 }) {
   const openable = chat.openable && !chat.missing;
@@ -74,7 +85,7 @@ function ChatRow({
       </span>
       <div className="min-w-0 flex-1">
         <div className="text-[13px] font-medium leading-normal">
-          {chat.missing ? "对话已删除" : chat.title}
+          {chat.missing ? "对话已删除" : title}
         </div>
         <div className="text-ink-3 mt-1 text-[11.5px]">
           {chat.missing ? "原对话已不存在，可解除关联" : info}
@@ -83,10 +94,10 @@ function ChatRow({
       <div className="bg-surface absolute right-2 top-2 flex gap-0.5 rounded-[8px] opacity-0 transition-opacity duration-150 group-focus-within/chat:opacity-100 group-hover/chat:opacity-100">
         {openable && (
           <IconButton
-            title="打开对话"
+            title="在对话页打开"
             onClick={e => {
               e.stopPropagation();
-              onOpen();
+              onOpenPage();
             }}
             className="size-[22px] rounded-[6px]"
           >
