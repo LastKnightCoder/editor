@@ -3,7 +3,6 @@ import clsx from "clsx";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Eye, Layers } from "lucide-react";
 import { CardTagNode, CardListItem, PublishContentType, SelectionFilter } from "../../types";
-import { CARD_CATEGORY_LABEL } from "../../constants";
 import { collectCardsFromTagNode, matchesSelectionFilter, selectionFilterLabel } from "../../utils";
 import { SelectionCheckbox } from "../SelectionCheckbox";
 import { SearchToolbar } from "../SearchToolbar";
@@ -150,7 +149,6 @@ export const CardSelector = memo<CardSelectorProps>(
             contentKey={previewCard.id}
             onClose={handleClosePreview}
             meta={{
-              category: CARD_CATEGORY_LABEL[previewCard.category],
               updateTime: previewCard.updateTime,
             }}
             icon={<Layers size={16} strokeWidth={1.75} />}

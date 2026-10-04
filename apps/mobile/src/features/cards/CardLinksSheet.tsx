@@ -9,7 +9,6 @@ import { SnapSheet } from "../../components/SnapSheet";
 import * as tauri from "../../services/tauri";
 import type { CardListItem } from "../../types";
 import { formatTimeDisplay } from "../../utils/formatTime";
-import { cardCategoryLabel } from "./cardCategory";
 
 const PAGE_SIZE = 20;
 
@@ -28,7 +27,7 @@ function resolveTitle(item: CardListItem): string {
 }
 
 function resolveSubtitle(item: CardListItem): string {
-  return `${cardCategoryLabel(item.category)}卡 · ${formatTimeDisplay(item.updateTime)}`;
+  return formatTimeDisplay(item.updateTime);
 }
 
 export function CardLinksSheet({
@@ -64,7 +63,6 @@ export function CardLinksSheet({
         page: 1,
         pageSize: PAGE_SIZE,
         query: trimmed,
-        category: "",
       });
       if (requestSeqRef.current !== requestSeq) {
         return;

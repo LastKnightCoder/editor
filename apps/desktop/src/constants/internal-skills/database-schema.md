@@ -73,17 +73,16 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ### `cards`
 
-| 字段          | SQLite 定义                |
-| ------------- | -------------------------- |
-| `id`          | `INTEGER PRIMARY KEY`      |
-| `create_time` | `INTEGER NOT NULL`         |
-| `update_time` | `INTEGER NOT NULL`         |
-| `tags`        | `TEXT`                     |
-| `links`       | `TEXT`                     |
-| `category`    | `TEXT DEFAULT 'permanent'` |
-| `content_id`  | `INTEGER`                  |
-| `is_top`      | `INTEGER DEFAULT 0`        |
-| `podcast_id`  | `INTEGER DEFAULT NULL`     |
+| 字段          | SQLite 定义            |
+| ------------- | ---------------------- |
+| `id`          | `INTEGER PRIMARY KEY`  |
+| `create_time` | `INTEGER NOT NULL`     |
+| `update_time` | `INTEGER NOT NULL`     |
+| `tags`        | `TEXT`                 |
+| `links`       | `TEXT`                 |
+| `content_id`  | `INTEGER`              |
+| `is_top`      | `INTEGER DEFAULT 0`    |
+| `podcast_id`  | `INTEGER DEFAULT NULL` |
 
 ### `articles`
 

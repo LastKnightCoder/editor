@@ -12,10 +12,8 @@ import { Link2, Plus, Search, TextQuote, X } from "lucide-react";
 import type { ICard } from "@/types";
 import { getInlineLinks } from "@/utils/card";
 import { getEditorText } from "@/utils/editor";
-import { cardCategoryName } from "@/constants/card";
 import { resultDisplay, useSearchContent } from "@/features/search/queries";
 import { Dialog, DialogBody, useEdgeFade } from "@tau/ui";
-import { CATEGORY_COLORS } from "../categoryColors";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
 /** links ∪ 内联引用，去重并排除自身；返回 id 与「是否仅来自正文内联」 */
@@ -72,7 +70,6 @@ export function CardDetailLinks({
       <div className="flex flex-wrap gap-1.5">
         {linked.map(({ target, id, inlineOnly }) => {
           const title = target ? getEditorText(target.content, 18) || `卡片 #${id}` : `卡片 #${id}`;
-          const dotColor = target ? CATEGORY_COLORS[target.category].text : "var(--tau-ink-3)";
           return (
             /* chip = 跳转与解除两个并列按钮（键盘可分别 Tab 到达），容器承载整体 hover 视觉 */
             <div
@@ -85,10 +82,7 @@ export function CardDetailLinks({
                 onClick={() => onNavigate(id)}
                 className="flex min-w-0 flex-1 items-center gap-1.5 px-2.5 py-0 text-left"
               >
-                <span
-                  className="size-[7px] shrink-0 rounded-full"
-                  style={{ background: dotColor }}
-                />
+                <span className="bg-ink-3 size-[7px] shrink-0 rounded-full" />
                 <span className="min-w-0 truncate">{title}</span>
                 {inlineOnly ? (
                   <TextQuote
@@ -141,7 +135,6 @@ export interface AddCardLinkDialogProps {
 interface CandidateRow {
   id: number;
   title: string;
-  category: ICard["category"];
 }
 
 export function AddCardLinkDialog({
@@ -177,7 +170,6 @@ export function AddCardLinkDialog({
           .map(item => ({
             id: item.id,
             title: getEditorText(item.content, 26) || `卡片 #${item.id}`,
-            category: item.category,
           })),
       };
     }
@@ -190,7 +182,7 @@ export function AddCardLinkDialog({
       const target = byId.get(result.id);
       if (!target) continue; // 索引脏数据 / 已删除卡
       seen.add(result.id);
-      rows.push({ id: result.id, title: resultDisplay(result).title, category: target.category });
+      rows.push({ id: result.id, title: resultDisplay(result).title });
     }
     return {
       fetching: searchQuery.isFetching,
@@ -241,29 +233,20 @@ export function AddCardLinkDialog({
               </p>
             )}
             {!candidates.error &&
-              candidates.rows.map(item => {
-                const color = CATEGORY_COLORS[item.category];
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => {
-                      onLink([item.id]);
-                      onOpenChange(false);
-                    }}
-                    className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm text-tau-meta flex w-full items-center gap-2 px-2.5 py-2 text-left transition-colors"
-                  >
-                    <span
-                      className="size-[7px] shrink-0 rounded-full"
-                      style={{ background: color.text }}
-                    />
-                    <span className="min-w-0 flex-1 truncate">{item.title}</span>
-                    <span className="text-ink-3 shrink-0 text-[11px]">
-                      {cardCategoryName[item.category]}
-                    </span>
-                  </button>
-                );
-              })}
+              candidates.rows.map(item => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    onLink([item.id]);
+                    onOpenChange(false);
+                  }}
+                  className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm text-tau-meta flex w-full items-center gap-2 px-2.5 py-2 text-left transition-colors"
+                >
+                  <span className="bg-ink-3 size-[7px] shrink-0 rounded-full" />
+                  <span className="min-w-0 flex-1 truncate">{item.title}</span>
+                </button>
+              ))}
             {!candidates.error && !candidates.fetching && candidates.rows.length === 0 && (
               <p className="text-ink-3 py-8 text-center text-[12.5px]">没有可连接的卡片</p>
             )}

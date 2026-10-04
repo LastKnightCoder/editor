@@ -38,7 +38,6 @@ pub struct CardListItem {
     pub id: i64,
     pub content_id: i64,
     pub update_time: i64,
-    pub category: String,
     pub tags: Vec<String>,
     pub excerpt: String,
     pub content: serde_json::Value,
@@ -51,7 +50,6 @@ pub struct CardDetailResponse {
     pub content_id: i64,
     pub create_time: i64,
     pub update_time: i64,
-    pub category: String,
     pub tags: Vec<String>,
     pub links: Vec<i64>,
     pub content: serde_json::Value,
@@ -64,7 +62,6 @@ pub struct ContentCardMeta {
     pub id: i64,
     pub create_time: i64,
     pub update_time: i64,
-    pub category: String,
     pub tags: Vec<String>,
     pub links: Vec<i64>,
 }
@@ -87,7 +84,6 @@ pub struct CardsOverviewResponse {
     pub page: u32,
     pub page_size: u32,
     pub query: String,
-    pub category: String,
     pub search_mode: String,
     pub items: Vec<CardListItem>,
 }

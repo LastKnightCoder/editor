@@ -21,7 +21,6 @@ function mergePages(pages: CardsPage[]): CardsOverviewResponse {
       page: 1,
       pageSize: DEFAULT_PAGE_SIZE,
       query: "",
-      category: "",
       searchMode: "none",
       items: [],
     };
@@ -37,14 +36,13 @@ export function useCardsQuery() {
   const queryClient = useQueryClient();
   const [queryState, setQueryState] = useState<CardsQueryState>({
     query: "",
-    category: "",
     page: 1,
     pageSize: DEFAULT_PAGE_SIZE,
   });
 
   const queryKey = useMemo(
-    () => ["cards", { query: queryState.query, category: queryState.category }] as const,
-    [queryState.query, queryState.category]
+    () => ["cards", { query: queryState.query }] as const,
+    [queryState.query]
   );
 
   const infiniteQuery = useInfiniteQuery({
@@ -54,7 +52,6 @@ export function useCardsQuery() {
         page: pageParam,
         pageSize: queryState.pageSize,
         query: queryState.query,
-        category: queryState.category,
       }),
     initialPageParam: 1,
     getNextPageParam: (lastPage, allPages) => {
@@ -90,14 +87,12 @@ export function useCardsQuery() {
   const refreshCards = useMemoizedFn(
     async (overrides?: Partial<CardsQueryState>): Promise<CardsOverviewResponse | null> => {
       const nextState = { ...queryState, ...overrides };
-      const conditionChanged =
-        nextState.query !== queryState.query || nextState.category !== queryState.category;
+      const conditionChanged = nextState.query !== queryState.query;
 
       if (conditionChanged) {
         setQueryState(prev => ({
           ...prev,
           query: nextState.query ?? prev.query,
-          category: nextState.category ?? prev.category,
           page: 1,
         }));
         return cards;

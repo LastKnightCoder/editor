@@ -17,7 +17,6 @@ vi.mock("../editorToolbar/useMobileEditorToolbarController", () => ({
 vi.mock("../editorToolbar/MobileEditorBottomToolbar", () => ({
   MobileEditorBottomToolbar: () => null,
 }));
-vi.mock("../../settings/components/ActionSheet", () => ({ ActionSheet: () => null }));
 vi.mock("../../../components/SnapSheet", () => ({
   SnapSheet: Object.assign(
     ({ open, children }: { open: boolean; children: ReactNode }) => (open ? children : null),
@@ -52,9 +51,7 @@ it("恢复草稿与清空建立新会话，关闭取得当前内容", async () =
   };
   try {
     await act(async () =>
-      root.render(
-        <QuickCaptureSheet open saving={false} category="temporary" onRequestClose={close} />
-      )
+      root.render(<QuickCaptureSheet open saving={false} onRequestClose={close} />)
     );
     const original = host.querySelector("output");
     await click("恢复草稿");
@@ -65,19 +62,18 @@ it("恢复草稿与清空建立新会话，关闭取得当前内容", async () =
         <QuickCaptureSheet
           open
           saving={false}
-          category="temporary"
           onContentChange={() => undefined}
           onRequestClose={close}
         />
       )
     );
     expect(host.querySelector("output")?.textContent).toContain("保留的草稿");
-    await click("关闭闪念抽屉");
+    await click("关闭快速捕获");
     expect(close).toHaveBeenLastCalledWith(content);
     await click("清空");
     expect(host.querySelector("output")?.textContent).not.toContain("保留的草稿");
     expect(draft.clear).toHaveBeenCalled();
-    await click("关闭闪念抽屉");
+    await click("关闭快速捕获");
     expect(JSON.stringify(close.mock.calls[close.mock.calls.length - 1])).not.toContain(
       "保留的草稿"
     );
