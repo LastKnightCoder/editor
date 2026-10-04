@@ -46,6 +46,17 @@ interface ShikiOverlayEditorProps {
   magicMoveTheme?: string;
   enableMagicMovePreview?: boolean;
   highlightLines?: string;
+  /** 左侧行号栏 */
+  lineNumbers?: boolean;
+  /** 自动换行；调用方保证不与 magic-move 同时开启（token 为 inline-block，折行对不齐） */
+  wrap?: boolean;
+  /** 需要短暂标出的行（0 起），配合 changedLinesVisible 淡入淡出 */
+  changedLines?: ReadonlySet<number> | null;
+  changedLinesVisible?: boolean;
+  /** 点击行号（1 起） */
+  onLineNumberClick?: (line: number, event: React.MouseEvent) => void;
+  /** 每个逻辑行的顶部偏移（含上内边距），折行时一行可能占多个视觉行 */
+  onLineTopsChange?: (tops: number[]) => void;
   onChange: (value: string) => void;
   onBlur?: () => void;
   onDidMount?: (controller: CodeBlockController) => void;
@@ -108,6 +119,14 @@ const cursorToOffset = (value: string, cursor: CodeCursorPosition): number => {
   return offset + clamp(cursor.ch, 0, targetLineText.length);
 };
 
+interface LineBox {
+  top: number;
+  height: number;
+}
+
+const isSameLayout = (a: LineBox[], b: LineBox[]) =>
+  a.length === b.length && a.every((box, i) => box.top === b[i].top && box.height === b[i].height);
+
 const clampSelectionSnapshot = (snapshot: SelectionSnapshot, value: string): SelectionSnapshot => {
   return {
     ...snapshot,
@@ -132,6 +151,12 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
   magicMoveTheme,
   enableMagicMovePreview = false,
   highlightLines,
+  lineNumbers = false,
+  wrap = false,
+  changedLines = null,
+  changedLinesVisible = false,
+  onLineNumberClick,
+  onLineTopsChange,
   onChange,
   onBlur,
   onDidMount,
@@ -142,6 +167,11 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const codeLayerRef = useRef<HTMLDivElement | null>(null);
   const measureRef = useRef<HTMLPreElement | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const linesMeasureRef = useRef<HTMLDivElement | null>(null);
+  const gutterInnerRef = useRef<HTMLDivElement | null>(null);
+  const decoInnerRef = useRef<HTMLDivElement | null>(null);
+  const [lineLayout, setLineLayout] = useState<LineBox[]>([]);
   const valueRef = useRef(value);
   const [codeHtml, setCodeHtml] = useState("");
   const [editorHeight, setEditorHeight] = useState(0);
@@ -150,6 +180,13 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
   const selectionSnapshotRef = useRef<SelectionSnapshot | null>(null);
 
   valueRef.current = value;
+  const lines = useMemo(() => getLines(value), [value]);
+  const hasChangedLines = Boolean(changedLines && changedLines.size > 0);
+  const needsLineLayout = lineNumbers || hasChangedLines || Boolean(onLineTopsChange);
+  const highlightedLineSet = useMemo(
+    () => parseHighlightLinesToSet(highlightLines, lines.length),
+    [highlightLines, lines.length]
+  );
   const shikiLanguage = useMemo(() => resolveShikiLanguage(language), [language]);
   const shikiTheme = magicMoveTheme || "github-light";
   const magicMoveKey = useMemo(() => `${shikiTheme}:${shikiLanguage}`, [shikiTheme, shikiLanguage]);
@@ -185,6 +222,43 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
     },
     []
   );
+
+  const measureLineLayout = useCallback(() => {
+    const box = linesMeasureRef.current;
+    if (!box) return;
+    const next = Array.from(box.children, child => {
+      const element = child as HTMLElement;
+      return { top: element.offsetTop, height: element.offsetHeight };
+    });
+    setLineLayout(previous => (isSameLayout(previous, next) ? previous : next));
+  }, []);
+
+  useLayoutEffect(() => {
+    if (needsLineLayout) measureLineLayout();
+  }, [needsLineLayout, measureLineLayout, value, wrap, lineNumbers, isDark]);
+
+  useEffect(() => {
+    // 换行时宽度变化会改变折行，需要重新测量
+    const root = rootRef.current;
+    if (!needsLineLayout || !wrap || !root || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => measureLineLayout());
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, [needsLineLayout, wrap, measureLineLayout]);
+
+  useEffect(() => {
+    onLineTopsChange?.(lineLayout.map(box => box.top));
+  }, [lineLayout, onLineTopsChange]);
+
+  const syncDecorationScroll = useCallback((scrollTop: number) => {
+    const transform = scrollTop ? `translateY(${-scrollTop}px)` : "";
+    if (gutterInnerRef.current) gutterInnerRef.current.style.transform = transform;
+    if (decoInnerRef.current) decoInnerRef.current.style.transform = transform;
+  }, []);
+
+  useLayoutEffect(() => {
+    syncDecorationScroll(textareaRef.current?.scrollTop ?? 0);
+  });
 
   const syncHeight = useCallback(() => {
     const textarea = textareaRef.current;
@@ -422,13 +496,17 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
     };
   }, [controller, saveSelectionSnapshot]);
 
-  const syncScrollPosition = useCallback((source: HTMLElement, target: HTMLElement | null) => {
-    if (!target) {
-      return;
-    }
-    target.scrollTop = source.scrollTop;
-    target.scrollLeft = source.scrollLeft;
-  }, []);
+  const syncScrollPosition = useCallback(
+    (source: HTMLElement, target: HTMLElement | null) => {
+      if (!target) {
+        return;
+      }
+      target.scrollTop = source.scrollTop;
+      target.scrollLeft = source.scrollLeft;
+      syncDecorationScroll(source.scrollTop);
+    },
+    [syncDecorationScroll]
+  );
 
   const handleModWheelScroll = useCallback(
     (event: React.WheelEvent<HTMLElement>) => {
@@ -456,21 +534,80 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
 
   return (
     <div
+      ref={rootRef}
       className={classnames(className)}
-      style={{
-        height: `${displayHeight ?? editorHeight}px`,
-      }}
+      data-line-numbers={lineNumbers || undefined}
+      data-wrap={wrap || undefined}
+      style={
+        {
+          height: `${displayHeight ?? editorHeight}px`,
+          "--ed-code-gutter-digits": Math.max(String(lines.length).length, 2),
+        } as React.CSSProperties
+      }
     >
       <pre ref={measureRef} className="code-block-shiki-measure" aria-hidden={true}>
         {measureContent}
       </pre>
+      {needsLineLayout && (
+        <div ref={linesMeasureRef} className="code-block-shiki-measure" aria-hidden={true}>
+          {lines.map((line, index) => (
+            <div key={index}>{line || "\u200b"}</div>
+          ))}
+        </div>
+      )}
+      {hasChangedLines && (
+        <div
+          className="code-block-shiki-deco"
+          data-visible={changedLinesVisible || undefined}
+          aria-hidden={true}
+        >
+          <div ref={decoInnerRef}>
+            {[...changedLines!].map(index => {
+              const box = lineLayout[index];
+              return box ? (
+                <div
+                  key={index}
+                  className="code-block-shiki-changed-line"
+                  style={{ top: box.top, height: box.height }}
+                />
+              ) : null;
+            })}
+          </div>
+        </div>
+      )}
+      {lineNumbers && (
+        <div className="code-block-shiki-gutter" aria-hidden={true}>
+          <div ref={gutterInnerRef}>
+            {lineLayout.map((box, index) => (
+              <div
+                key={index}
+                className={classnames("code-block-shiki-line-number", {
+                  "is-highlighted": highlightedLineSet.has(index + 1),
+                  "is-changed": changedLinesVisible && changedLines?.has(index),
+                  "is-clickable": !readOnly && onLineNumberClick,
+                })}
+                style={{ top: box.top }}
+                onMouseDown={event => {
+                  // 保留 textarea 的焦点与选区
+                  if (!readOnly) event.preventDefault();
+                }}
+                onClick={event => {
+                  if (!readOnly) onLineNumberClick?.(index + 1, event);
+                }}
+              >
+                {index + 1}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div
         ref={codeLayerRef}
         className={classnames("code-block-shiki-layer", {
           "code-block-shiki-layer-readonly": readOnly,
         })}
         style={{
-          overflowX: "auto",
+          overflowX: wrap ? "hidden" : "auto",
           overflowY: allowScroll ? "auto" : "hidden",
         }}
         onScroll={event => {
@@ -504,12 +641,12 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
         value={value}
         className="code-block-shiki-input"
         spellCheck={false}
-        wrap="off"
+        wrap={wrap ? "soft" : "off"}
         readOnly={readOnly}
         style={{
           background: "transparent",
           WebkitTextFillColor: "transparent",
-          overflowX: "auto",
+          overflowX: wrap ? "hidden" : "auto",
           overflowY: allowScroll ? "auto" : "hidden",
         }}
         onChange={event => {
