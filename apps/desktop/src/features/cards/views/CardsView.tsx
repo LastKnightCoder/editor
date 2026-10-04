@@ -1,11 +1,12 @@
 /**
  * 卡片库主视图 · 一整张纸（mockups/cards/plan-sheet.html 方案 B 定稿）：
- * 纸顶工具栏（标题 / 当前标签 + 摘要 + 导入 / 新建）→ 纸内两视图（卡片墙 / 表格）。
+ * 纸顶工具栏（标题 / 当前标签 + 摘要 + 导入 / 新建）→ 纸内三视图（卡片墙 / 列表 / 表格）。
  *
  * 筛选：标签在侧栏「卡片库」入口的子项里（CardsNav 层级树，页面参数 id），页内不放标签树；
- * 两视图同一套筛选——卡片墙只列命中、表格经 CardDatabaseView 外部查询收窄。
+ * 三视图同一套筛选——卡片墙与列表只列命中、表格经 CardDatabaseView 外部查询收窄。
  *
  * 视图分工：卡片墙 = 等高网格 + 时间分组 + 行级虚拟滚动（本域实现）；
+ * 列表 = 平铺行 + 列头排序（D-105，mockups/cards/list-view.html）；
  * 表格 = 既有 CardDatabaseView（Database 组件）复用。图谱已移到全局知识地图（KL-022）。
  * 视图切换在标题栏面包屑（「卡片库 / [卡片墙 ▾]」，usePageBreadcrumb 注入）。
  * 不设页内搜索——卡片标题由元信息承担（D-100），语义检索由全局命令面板（Ctrl+K）承担。
@@ -38,10 +39,12 @@ import {
   useCardsMutations,
 } from "../queries";
 import { CardWallList } from "../components/CardWallList";
+import { CardListView } from "../components/CardListView";
 import { CardPreviewDialog } from "../components/CardPreviewDialog";
 import { CardViewSwitcher } from "../components/CardViewSwitcher";
 import { CreateCardDialog } from "../components/CreateCardDialog";
 import type { CardFilter, CardItemActions } from "../types";
+import type { CardListSort } from "../listModel";
 import {
   DEFAULT_CARDS_PREFERENCES,
   useCardsPreferencesStore,
@@ -58,16 +61,15 @@ export function CardsView() {
   const queryClient = useQueryClient();
   const databaseName = useSettingStore(state => state.setting.database.active);
 
-  const preferences = useCardsPreferencesStore(
-    state => state.byDatabase[databaseName] ?? DEFAULT_CARDS_PREFERENCES
-  );
+  const storedPreferences = useCardsPreferencesStore(state => state.byDatabase[databaseName]);
   const updatePreferences = useCardsPreferencesStore(state => state.update);
-  const { view } = preferences;
+  const { view, listSort } = { ...DEFAULT_CARDS_PREFERENCES, ...storedPreferences };
   const filter = useMemo<CardFilter>(() => ({ tag }), [tag]);
   const setView = useCallback(
     (next: CardsViewMode) => updatePreferences(databaseName, { view: next }),
     [updatePreferences, databaseName]
   );
+  const setListSort = (next: CardListSort) => updatePreferences(databaseName, { listSort: next });
   const clearTag = () => navigator.push("cards", { id: "" });
   const resetScrollKey = tag;
   const [previewCardId, setPreviewCardId] = useState<number | null>(null);
@@ -243,8 +245,8 @@ export function CardsView() {
           </Button>
         </div>
 
-        {/* 主体三视图 */}
-        {view === "wall" && (
+        {/* 主体三视图：卡片墙与列表共用空态 */}
+        {(view === "wall" || view === "list") && (
           <div className="flex min-h-0 flex-1 flex-col pb-4 pl-8 pr-8">
             {filtered.length === 0 ? (
               <div className="flex flex-col items-center gap-2 px-0 py-20 text-center">
@@ -252,6 +254,14 @@ export function CardsView() {
                 <p className="text-ink-2 text-[15px] font-medium">没有匹配的卡片</p>
                 <p className="text-ink-3 text-[12.5px]">清除标签筛选，或用 Ctrl+K 全局搜索</p>
               </div>
+            ) : view === "list" ? (
+              <CardListView
+                cards={filtered}
+                sort={listSort}
+                onSortChange={setListSort}
+                actions={actions}
+                resetScrollKey={resetScrollKey}
+              />
             ) : (
               <CardWallList cards={filtered} actions={actions} resetScrollKey={resetScrollKey} />
             )}
