@@ -96,16 +96,30 @@ export default class EntitySearchTable {
   static search(db: Database.Database, params: EntitySearchParams): EntityCandidate[] {
     const limit = Math.min(Math.max(params.limit ?? 40, 1), 100);
     const kw = params.keyword?.trim() ? `%${params.keyword.trim()}%` : null;
-    if (params.kind === "chat-session") return this.searchChats(db, kw, limit);
-    const build = SEARCH_SQL[params.kind];
+    if (!Array.isArray(params.kind)) return this.searchKind(db, params.kind, kw, limit);
+    // 每种类型各取前 limit 条再合并，保证合并后的前 limit 条按时间正确
+    return [...new Set(params.kind)]
+      .flatMap(kind => this.searchKind(db, kind, kw, limit))
+      .sort((a, b) => b.time - a.time)
+      .slice(0, limit);
+  }
+
+  private static searchKind(
+    db: Database.Database,
+    kind: EntityKind,
+    kw: string | null,
+    limit: number
+  ): EntityCandidate[] {
+    if (kind === "chat-session") return this.searchChats(db, kw, limit);
+    const build = SEARCH_SQL[kind];
     if (!build) return [];
     const rows = db.prepare(build(kw != null)).all(kw ? { kw, limit } : { limit }) as {
       id: number;
       t: number;
     }[];
-    if (MATERIAL_KINDS.has(params.kind)) return this.resolveMaterials(db, params.kind, rows);
+    if (MATERIAL_KINDS.has(kind)) return this.resolveMaterials(db, kind, rows);
     return rows
-      .map(row => this.resolve(db, params.kind, row.id, row.t))
+      .map(row => this.resolve(db, kind, row.id, row.t))
       .filter((c): c is EntityCandidate => c !== null);
   }
 
