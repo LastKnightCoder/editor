@@ -401,9 +401,10 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
     <PreviewErrorContext.Provider value={setInlineError}>
       <div
         className={cn(
-          "box-border min-h-[2.5em] whitespace-normal transition-opacity duration-150",
+          // 内容矮于最小高度时垂直居中，单行公式上下留白一致；3em 恰好容纳居中的悬浮操作条
+          "box-border min-h-[3em] whitespace-normal transition-opacity duration-150",
           extend && "py-[0.3125em]",
-          center && "flex items-center justify-center",
+          center ? "flex items-center justify-center" : "flex flex-col justify-center",
           inlineError?.stale && "opacity-40"
         )}
       >
@@ -514,8 +515,8 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
           showSource={showFullscreenSource}
           onToggleSource={() => setShowFullscreenSource(show => !show)}
           error={fullscreenError}
-          onClose={closeFullscreen}
           contentWidth={fullscreenWidth}
+          onClose={closeFullscreen}
           source={
             <CodeEditor
               key="fullscreen-editor"
