@@ -37,6 +37,8 @@ interface IPreviewWithEditorProps {
   element: CustomElement;
   center?: boolean;
   extend?: boolean;
+  /** 内容随容器宽度流式布局（如自定义块）：全屏画布沿用文档内宽度，避免按内容自身宽度收缩后挤成一列 */
+  fluid?: boolean;
 }
 
 const codeMirrorOptions = (mode: string, readOnly: boolean, lineNumbers: boolean) =>
@@ -61,10 +63,12 @@ const codeMirrorOptions = (mode: string, readOnly: boolean, lineNumbers: boolean
   }) as EditorConfiguration;
 
 const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = memo(props => {
-  const { mode, title, icon, initValue, onChange, children, element, center, extend } = props;
+  const { mode, title, icon, initValue, onChange, children, element, center, extend, fluid } =
+    props;
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(initValue);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fullscreenWidth, setFullscreenWidth] = useState<number>();
   const [showFullscreenSource, setShowFullscreenSource] = useState(true);
   const [copied, setCopied] = useState(false);
   const [inlineError, setInlineError] = useState<PreviewError | null>(null);
@@ -361,6 +365,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
     fullscreenEditorRef.current?.setValue(currentValue);
     setEditing(false);
     setShowFullscreenSource(!readOnly);
+    setFullscreenWidth(fluid ? ref.current?.clientWidth : undefined);
     setIsFullscreen(true);
   });
 
@@ -510,6 +515,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
           onToggleSource={() => setShowFullscreenSource(show => !show)}
           error={fullscreenError}
           onClose={closeFullscreen}
+          contentWidth={fullscreenWidth}
           source={
             <CodeEditor
               key="fullscreen-editor"
