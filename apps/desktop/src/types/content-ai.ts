@@ -8,6 +8,4 @@ export interface ContentAiStatus {
   total: number;
   /** 已有元信息的 */
   processed: number;
-  /** 按当前库估算的首轮（全部处理一遍）token 数 */
-  estimatedTokens: number;
 }
