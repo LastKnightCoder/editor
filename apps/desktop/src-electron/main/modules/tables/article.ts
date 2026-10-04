@@ -7,6 +7,7 @@ import {
   IUpdateArticle,
   IArticle,
   ArticlePageItem,
+  ArticlePageSort,
   ArticleTagCount,
 } from "@/types";
 import Operation from "./operation";
@@ -17,6 +18,20 @@ import VecDocumentTable from "./vec-document";
 import ContentTable from "./content";
 import ProjectTable from "./project";
 import log from "electron-log";
+
+/** 分页排序白名单（拼进 ORDER BY，不接受任意字符串）；同值按更新时间兜底 */
+const ARTICLE_PAGE_ORDER: Record<ArticlePageSort, string> = {
+  updated: "a.update_time DESC",
+  created: "a.create_time DESC",
+  words: "COALESCE(ct.count, 0) DESC, a.update_time DESC",
+};
+
+/** 只认自有键：原型链上的键（constructor 等）与 IPC 尾部追加的命令上下文都回落到更新时间 */
+function articlePageOrder(sort: unknown): string {
+  return typeof sort === "string" && Object.hasOwn(ARTICLE_PAGE_ORDER, sort)
+    ? ARTICLE_PAGE_ORDER[sort as ArticlePageSort]
+    : ARTICLE_PAGE_ORDER.updated;
+}
 
 export default class ArticleTable {
   static upgradeTable(db: Database.Database) {
@@ -419,14 +434,15 @@ export default class ArticleTable {
   }
 
   // 文章页轻量分页列表：不取正文全文（摘要由 contents.content 前缀在渲染端派生），
-  // 排序 置顶优先 + 最近编辑，供月刊列表的无限滚动窗口消费。
+  // 排序 置顶优先 + sort（默认最近编辑），供月刊网格与列表的无限滚动窗口消费。
   // tag = 标签筛选（侧栏子项），query = 标题关键词（页内搜索框），两者可叠加
   static getArticlePage(
     db: Database.Database,
     offset: number,
     limit: number,
     tag?: string,
-    query?: string
+    query?: string,
+    sort: ArticlePageSort = "updated"
   ): { items: ArticlePageItem[]; total: number; totalWords: number } {
     const conditions = ["a.is_delete = 0"];
     const params: string[] = [];
@@ -460,7 +476,7 @@ export default class ArticleTable {
          FROM articles a
          LEFT JOIN contents ct ON a.content_id = ct.id
          ${where}
-         ORDER BY a.is_top DESC, a.update_time DESC
+         ORDER BY a.is_top DESC, ${articlePageOrder(sort)}, a.id DESC
          LIMIT ? OFFSET ?`
       )
       .all(...params, limit, offset) as Record<string, unknown>[];

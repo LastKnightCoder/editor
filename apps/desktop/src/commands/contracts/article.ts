@@ -4,6 +4,7 @@ import type {
   ICreateArticle,
   IUpdateArticle,
   ArticlePageItem,
+  ArticlePageSort,
   ArticleTagCount,
 } from "@/types";
 
@@ -29,7 +30,7 @@ export const articleCommands = {
   getById: command<[number], IArticle>("get-article-by-id"),
   getAll: command<[], IArticle[]>("get-all-articles"),
   listPage: command<
-    [number, number, (string | undefined)?, (string | undefined)?],
+    [number, number, string | undefined, string | undefined, ArticlePageSort],
     { items: ArticlePageItem[]; total: number; totalWords: number }
   >("get-article-page"),
   tagCounts: command<[], ArticleTagCount[]>("get-article-tag-counts"),
