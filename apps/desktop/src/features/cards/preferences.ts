@@ -1,19 +1,23 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { CardListSort } from "./listModel";
 
-export type CardsViewMode = "wall" | "database";
+export type CardsViewMode = "wall" | "list" | "database";
 
-/** 按库记忆视图；标签筛选走页面参数（侧栏「卡片库」子项），不在此持久化 */
-interface CardsPreferences {
+/** 按库记忆视图与列表排序；标签筛选走页面参数（侧栏「卡片库」子项），不在此持久化 */
+export interface CardsPreferences {
   view: CardsViewMode;
+  listSort: CardListSort;
 }
 
 export const DEFAULT_CARDS_PREFERENCES: CardsPreferences = {
   view: "wall",
+  listSort: "created",
 };
 
 interface CardsPreferencesState {
-  byDatabase: Record<string, CardsPreferences>;
+  /** 早于 listSort 存下的条目没有该字段，读取方按 DEFAULT_CARDS_PREFERENCES 补齐 */
+  byDatabase: Record<string, Partial<CardsPreferences>>;
   update(databaseName: string, patch: Partial<CardsPreferences>): void;
 }
 
@@ -26,7 +30,8 @@ export const useCardsPreferencesStore = create<CardsPreferencesState>()(
           byDatabase: {
             ...state.byDatabase,
             [databaseName]: {
-              ...(state.byDatabase[databaseName] ?? DEFAULT_CARDS_PREFERENCES),
+              ...DEFAULT_CARDS_PREFERENCES,
+              ...state.byDatabase[databaseName],
               ...patch,
             },
           },
@@ -47,7 +52,7 @@ export const useCardsPreferencesStore = create<CardsPreferencesState>()(
               name,
               {
                 view:
-                  (view as string) === "graph" ? "wall" : view ?? DEFAULT_CARDS_PREFERENCES.view,
+                  (view as string) === "graph" ? "wall" : (view ?? DEFAULT_CARDS_PREFERENCES.view),
               },
             ])
           ),

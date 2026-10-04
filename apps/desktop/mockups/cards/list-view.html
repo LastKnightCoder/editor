@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>卡片库 · 列表视图</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  .sb { background: transparent; padding: 10px 8px; display: flex; flex-direction: column; min-height: 0; }
+  .sb-head { display: flex; align-items: center; gap: 9px; padding: 6px 10px 14px; font-weight: 600; }
+  .sb-logo { width: 24px; height: 24px; border-radius: 7px; background: var(--accent); color: var(--ink-inv); display: grid; place-items: center; font-size: 13px; }
+  .sb-scroll { flex: 1; overflow: auto; }
+  .sb-gt { font-size: 11px; color: var(--ink-3); padding: 10px 10px 4px; }
+  .sb-item { display: flex; align-items: center; gap: 9px; height: 30px; padding: 0 10px; border-radius: var(--r-sm); color: var(--ink-2); font-size: 13px; }
+  .sb-item.on { background: var(--selected); color: var(--accent-text); font-weight: 500; }
+  .sb-sub { display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 10px 0 32px; border-radius: var(--r-sm); color: var(--ink-2); font-size: 12.5px; }
+  .sb-sub .n { margin-left: auto; color: var(--ink-3); font-size: 11px; }
+  .sb-sub.on { background: var(--selected); color: var(--accent-text); font-weight: 500; }
+
+  .cl-paper { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .cl-head { flex: none; display: flex; align-items: center; gap: 12px; height: 40px; margin: 20px 32px 8px; }
+  .cl-head h1 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+  .cl-head .sum { flex: 1; min-width: 0; color: var(--ink-2); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cl-head .sum b { color: var(--ink-1); font-weight: 600; }
+  .chip-f { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 6px 0 10px; border-radius: 999px; background: var(--selected); color: var(--accent-text); font-size: 12px; font-weight: 500; }
+  .chip-f svg.lucide { width: 12px; height: 12px; }
+  .dot-sep { color: var(--ink-3); margin: 0 6px; }
+  .btn .cv { width: 13px; height: 13px; color: var(--ink-3); margin-left: -2px; }
+  .btn.ghost.on { background: var(--hover); color: var(--ink-1); }
+  .dd { position: relative; }
+
+  .menu { position: absolute; z-index: 30; top: calc(100% + 4px); right: 0; min-width: 168px; padding: 4px; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-float); border: 1px solid var(--line-1); }
+  .menu .mi { display: flex; align-items: center; gap: 9px; height: 30px; padding: 0 10px; border-radius: 8px; font-size: 12.5px; color: var(--ink-1); cursor: pointer; white-space: nowrap; }
+  .menu .mi:hover { background: var(--hover); }
+  .menu .mi svg.lucide { width: 15px; height: 15px; color: var(--ink-2); }
+  .menu .mi.on { color: var(--accent-text); font-weight: 500; }
+  .menu .mi.on svg.lucide { color: var(--accent); }
+  .menu .mi .new { margin-left: auto; font-size: 10.5px; color: var(--accent-text); background: var(--accent-soft); border-radius: 5px; padding: 0 5px; line-height: 17px; }
+  .menu .sep { height: 1px; background: var(--line-1); margin: 4px 6px; }
+  .menu .cap { font-size: 11px; color: var(--ink-3); padding: 6px 10px 2px; }
+  .menu .mi.danger, .menu .mi.danger svg.lucide { color: var(--danger); }
+
+  .tb { position: relative; z-index: 20; }
+  .tb .crumb .vsw { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 7px; border-radius: 7px; color: var(--ink-1); font-weight: 500; cursor: pointer; }
+  .tb .crumb .vsw:hover, .tb .crumb .vsw.on { background: var(--hover); }
+  .tb .crumb .vsw svg.lucide { width: 14px; height: 14px; }
+  .tb .crumb .vsw .cv { width: 12px; height: 12px; color: var(--ink-3); }
+  .tb .crumb .dd .menu { left: 0; right: auto; }
+
+  .cl-scroll { flex: 1; min-height: 0; overflow: auto; padding: 0 26px 24px 32px; margin: 0 6px 16px 0; }
+  .sec { margin-bottom: 22px; }
+  .sec-h { position: sticky; top: 30px; z-index: 2; display: flex; align-items: baseline; gap: 10px; padding: 8px 12px 6px; background: var(--surface); }
+  .sec-h .l { font-size: 13px; font-weight: 600; }
+  .sec-h .h { font-size: 11.5px; color: var(--ink-3); }
+
+  /* ── 列表：行式无横线，列头粘顶 + 排序 ── */
+  .lst { --cols: minmax(0, 1fr) 200px 56px 64px 92px 92px 58px; }
+  .lst.no-tags { --cols: minmax(0, 1fr) 56px 64px 92px 92px 58px; }
+  .lh, .lr { display: grid; grid-template-columns: var(--cols); align-items: center; gap: 14px; padding: 0 12px; }
+  .lh { height: 30px; font-size: 11.5px; color: var(--ink-3); position: sticky; top: 0; z-index: 3; background: var(--surface); box-shadow: 0 1px 0 var(--line-2); }
+  .lh span { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+  .lh span[data-sort] { cursor: pointer; }
+  .lh span[data-sort]:hover { color: var(--ink-1); }
+  .lh span.on { color: var(--ink-1); font-weight: 500; }
+  .lh span svg.lucide { width: 12px; height: 12px; }
+  .r { justify-content: flex-end; text-align: right; }
+  .lr { position: relative; height: 56px; border-radius: 10px; cursor: pointer; }
+  .lst.compact .lr { height: 36px; }
+  .lr:hover, .lr.sel { background: var(--hover); }
+  .lr .nm { min-width: 0; }
+  .lr .t { display: flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 500; min-width: 0; }
+  .lr .t span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lr .p { margin-top: 2px; font-size: 12px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lst.compact .lr .p { display: none; }
+  .lst.compact .lr .t .inl { color: var(--ink-3); font-weight: 400; font-size: 12px; }
+  .lr .c { font-size: 12.5px; color: var(--ink-2); white-space: nowrap; }
+  .lr .c.mute { color: var(--ink-3); }
+  .lr .tgs { display: flex; gap: 4px; min-width: 0; overflow: hidden; }
+  .tg { flex: none; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--hover); color: var(--ink-2); border-radius: 5px; padding: 0 7px; font-size: 11px; line-height: 19px; }
+  .lr:hover .tg { background: var(--surface); }
+  .tg.more { color: var(--ink-3); }
+  .lk { display: inline-flex; align-items: center; gap: 4px; }
+  .lk svg.lucide { width: 12px; height: 12px; color: var(--ink-3); }
+  .star { width: 13px !important; height: 13px !important; color: var(--accent); fill: var(--accent); flex: none; }
+  .pod { width: 12px !important; height: 12px !important; color: var(--ink-3); flex: none; }
+
+  .ops { display: flex; gap: 2px; justify-content: flex-end; opacity: 0; transition: opacity var(--fast); }
+  .lr:hover .ops, .ops.on { opacity: 1; }
+  .ops .ib { width: 23px; height: 23px; border-radius: 7px; }
+  .ops .ib:hover { background: var(--surface); }
+  .ops .ib svg.lucide { width: 13px; height: 13px; }
+
+  /* 预览浮层示意 */
+  .scrim { position: absolute; inset: 0; z-index: 40; background: rgba(40, 32, 24, 0.18); display: grid; place-items: center; }
+  .dlg { width: 640px; max-height: 70%; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-float); padding: 22px 28px; }
+  .dlg .hd { display: flex; align-items: center; gap: 8px; color: var(--ink-3); font-size: 12px; margin-bottom: 14px; }
+  .dlg .hd .sp { flex: 1; }
+  .dlg .kb { display: inline-flex; gap: 4px; align-items: center; }
+  .dlg .kb kbd { font-family: var(--mono); font-size: 10.5px; border: 1px solid var(--line-1); border-radius: 4px; padding: 0 4px; color: var(--ink-2); }
+  .dlg h2 { margin: 0 0 10px; font-size: 18px; }
+  .dlg p { margin: 0 0 10px; color: var(--ink-2); font-size: 13.5px; line-height: 1.75; }
+
+  .empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 80px 0; text-align: center; }
+  .empty svg.lucide { width: 24px; height: 24px; color: var(--ink-3); }
+  .empty b { font-size: 15px; font-weight: 500; color: var(--ink-2); }
+  .empty p { margin: 0; color: var(--ink-3); font-size: 12.5px; }
+</style>
+</head>
+<body>
+<div class="mock-note">
+  <h3>卡片库 · 列表视图（第 4 个视图）</h3>
+  卡片墙适合浏览，但卡片一多就很难按字数、链接数、更新时间来找和整理。列表视图是同一份数据的行式排布，与项目列表的列表排布口径一致。
+  <ul>
+    <li><b>入口</b>：面包屑视图速切器里加一项「列表」，放在卡片墙之后：<code>卡片墙 / 列表 / 图谱 / 表格</code>。偏好按库记忆（<code>CardsViewMode</code> 加 <code>list</code>）。侧栏的标签筛选三个视图通用，现在四个视图也一样。</li>
+    <li><b>行</b>：卡片没有标题，就把<b>正文首行当标题</b>（加粗），第二行放摘要（灰色）；之后依次是标签、链接数、字数、更新、创建、悬停操作（置顶 + ⋯，复用 CardActionMenu）。点行打开预览弹窗，和卡片墙一样。</li>
+    <li><b>与「表格」的分工</b>：表格是可编辑的 Database（加属性、行内改标签），列表只读、轻量、跟随卡片墙的筛选和操作。列表不做行内编辑，避免和表格重复。</li>
+    <li><b>可选项（控制条切换）</b>：① 分组：<b>按时间分段</b>（同卡片墙：置顶 / 今天 / 本周 / 本月 / 更早，段内按创建时间）还是<b>平铺 + 列头排序</b>（置顶始终在前）；② 密度：两行（标题 + 摘要）还是紧凑单行。</li>
+    <li><b>性能</b>：卡片全集本来就在内存里（<code>useCardsFeed</code>），排序是纯前端操作；行高固定，复用 CardWallList 的行级虚拟滚动。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { titlebar, anno, icons } from "../chat/shared.js?v=3";
+
+/* ── 数据：d = 创建距今天数，u = 更新距今天数 ── */
+const C = [
+  { id: 1, t: "间隔重复的本质是对抗遗忘曲线", p: "每次在即将遗忘时复习，记忆稳定性按倍数增长；FSRS 用稳定性 / 难度 / 可提取性三参数建模。", tags: ["学习方法/记忆", "算法"], l: 6, w: 320, d: 12, u: 0, top: 1 },
+  { id: 2, t: "主题：知识管理工作流", p: "收集 → 临时卡片 → 文献卡片 → 永久卡片 → 主题卡片串联，形成可生长的网络。", tags: ["学习方法"], l: 14, w: 680, d: 40, u: 3, top: 1 },
+  { id: 3, t: "《置身事内》：土地财政", p: "地方政府以土地出让金撬动城投融资，基础设施先行，再以税收回收。", tags: ["读书/经济"], l: 3, w: 540, d: 0, u: 0, pod: 1 },
+  { id: 4, t: "容器查询 cqw 单位", p: "1cqw = 容器宽度的 1%，比 vw 更适合组件内部排版。", tags: ["前端/CSS"], l: 0, w: 120, d: 0, u: 0 },
+  { id: 5, t: "CRDT 与 OT 的核心区别", p: "OT 依赖中心服务器变换操作，CRDT 让数据结构本身可交换合并，天然支持离线。", tags: ["编辑器/协同", "算法", "分布式"], l: 5, w: 410, d: 1, u: 1 },
+  { id: 6, t: "IPC 监听忘记解绑", p: "ipcRenderer.on 返回后未 removeListener，窗口重开后监听叠加导致内存泄漏。", tags: ["前端/Electron"], l: 1, w: 150, d: 1, u: 1 },
+  { id: 7, t: "React use() 读取 Promise", p: "use(promise) 在渲染中挂起，最近的 Suspense 边界展示 fallback。", tags: ["前端/React"], l: 2, w: 260, d: 3, u: 2 },
+  { id: 8, t: "费曼技巧不是「讲给别人听」", p: "关键在于发现讲不清的地方——那就是理解的断点，回到原材料补齐。", tags: ["学习方法"], l: 4, w: 290, d: 4, u: 4 },
+  { id: 9, t: "Raft 选举超时为什么要随机", p: "固定超时会让多个 follower 同时转 candidate，瓜分选票导致反复选举。", tags: ["分布式", "论文/Raft"], l: 3, w: 230, d: 5, u: 5 },
+  { id: 10, t: "", p: "（空卡片）", tags: [], l: 0, w: 0, d: 6, u: 6 },
+  { id: 11, t: "复利思维在学习中的体现", p: "早期积累看不出差距，网络效应出现后知识互相解释，增长加速。", tags: ["学习方法", "思考"], l: 7, w: 380, d: 11, u: 9 },
+  { id: 12, t: "Tailwind 类合并顺序陷阱", p: "clsx 只拼字符串，冲突类的胜负取决于 CSS 生成顺序而非书写顺序，需 tailwind-merge。", tags: ["前端/CSS"], l: 1, w: 210, d: 15, u: 15 },
+  { id: 13, t: "《思考，快与慢》：锚定效应", p: "先出现的数字会影响后续估计，即使明知它与问题无关。", tags: ["读书/心理学"], l: 2, w: 470, d: 22, u: 20 },
+  { id: 14, t: "Rust 的 Pin 解决了什么", p: "自引用结构移动后指针悬空；Pin 承诺值不再移动，async 状态机依赖它。", tags: ["Rust"], l: 2, w: 350, d: 34, u: 30 },
+  { id: 15, t: "番茄钟失效的三种情况", p: "任务粒度过大、被动打断、休息时刷手机——本质是注意力没有真正切换。", tags: ["效率"], l: 0, w: 180, d: 48, u: 48 },
+  { id: 16, t: "向量检索的召回与精排", p: "ANN 先粗召回 top-k，再用 cross-encoder 精排；两阶段平衡速度与质量。", tags: ["AI/检索", "算法"], l: 4, w: 430, d: 75, u: 61 },
+];
+const titleOf = c => c.t || `卡片 #${c.id}`;
+const DAY = d => (d === 0 ? "今天" : d === 1 ? "昨天" : d < 7 ? `${d} 天前` : (() => { const t = new Date(2026, 9, 4 - d); return `${t.getMonth() + 1}月${t.getDate()}日`; })());
+const groupOf = c => (c.top ? "top" : c.d === 0 ? "today" : c.d === 1 ? "yesterday" : c.d < 7 ? "week" : c.d < 30 ? "month" : "earlier");
+const GROUPS = [["top", "置顶"], ["today", "今天"], ["yesterday", "昨天"], ["week", "本周"], ["month", "本月"], ["earlier", "更早"]];
+
+const VIEWS = [
+  ["wall", "卡片墙", "layers"],
+  ["list", "列表", "list", true],
+  ["graph", "图谱", "share-2"],
+  ["database", "表格", "table-2"],
+];
+const SORTS = { created: (a, b) => a.d - b.d, updated: (a, b) => a.u - b.u, words: (a, b) => b.w - a.w, links: (a, b) => b.l - a.l };
+const sortItems = (list, key) => [...list].sort((a, b) => (b.top || 0) - (a.top || 0) || SORTS[key](a, b));
+
+const state = {
+  m: "normal",
+  group: localStorage.getItem("cl-mock-group") || "time",
+  density: localStorage.getItem("cl-mock-density") || "two",
+  tag: false,
+  sort: "created",
+  menu: null,
+  more: null,
+};
+
+/* ── 控制条 ── */
+const bar = document.createElement("div");
+bar.className = "mock-bar";
+const seg = (id, items, cur) => `<span class="seg" id="${id}">${items.map(([k, l]) => `<button data-v="${k}" class="mb-btn" style="${k === cur ? "background:#d97757;color:#fff;border-color:#d97757" : ""}">${l}</button>`).join("")}</span>`;
+function renderBar() {
+  bar.innerHTML = `
+    <b>卡片库 · 列表</b>
+    <span>分组</span>${seg("mb-group", [["time", "按时间分段"], ["flat", "平铺 + 列头排序"]], state.group)}
+    <span>密度</span>${seg("mb-density", [["two", "两行"], ["one", "紧凑单行"]], state.density)}
+    <span>状态</span>${seg("mb-m", [["normal", "默认"], ["tag", "标签筛选中"], ["viewmenu", "视图菜单"], ["preview", "点开预览"], ["empty", "无匹配"]], state.m)}
+    <span class="sp"></span>
+    <span style="opacity:.7">缩放 <span id="mb-zoom">100%</span></span>
+    <label>窗口宽 <select id="mb-width"><option value="1280">1280</option><option value="1440">1440</option><option value="1680">1680</option></select></label>
+    <button class="mb-btn" id="mb-theme">切换深浅</button>
+    <button class="mb-btn" id="mb-note">方案说明</button>
+    <button class="mb-btn" id="mb-anno">标注</button>`;
+  const bind = (id, fn) => bar.querySelectorAll(`#${id} button`).forEach(b => (b.onclick = () => { fn(b.dataset.v); renderBar(); render(); }));
+  bind("mb-group", v => { state.group = v; localStorage.setItem("cl-mock-group", v); });
+  bind("mb-density", v => { state.density = v; localStorage.setItem("cl-mock-density", v); });
+  bind("mb-m", v => { state.m = v; state.menu = v === "viewmenu" ? "view" : null; });
+  bar.querySelector("#mb-theme").onclick = () => {
+    const next = document.documentElement.dataset.theme === "cream" ? "cocoa" : "cream";
+    document.documentElement.dataset.theme = next;
+    localStorage.setItem("chat-mock-theme", next);
+  };
+  bar.querySelector("#mb-anno").onclick = () => document.body.classList.toggle("no-anno");
+  bar.querySelector("#mb-note").onclick = () => { document.body.classList.toggle("no-note"); fit(); };
+  const sel = bar.querySelector("#mb-width");
+  sel.value = localStorage.getItem("chat-mock-width") || "1440";
+  if (!sel.value) sel.value = "1440";
+  sel.onchange = () => { localStorage.setItem("chat-mock-width", sel.value); applyWidth(); };
+}
+document.body.prepend(bar);
+document.documentElement.dataset.theme = localStorage.getItem("chat-mock-theme") || "cream";
+
+const win = document.getElementById("win");
+function fit() {
+  if (window.innerWidth < 100 || window.innerHeight < 100) return;
+  const w = +(localStorage.getItem("chat-mock-width") || 1440);
+  const top = bar.offsetHeight + (document.body.classList.contains("no-note") ? 0 : (document.querySelector(".mock-note")?.offsetHeight || 0) + 18);
+  const z = Math.min(1, (window.innerWidth - 24) / w, Math.max(0.35, (window.innerHeight - top - 24) / 820));
+  win.style.zoom = z;
+  const ro = bar.querySelector("#mb-zoom");
+  if (ro) ro.textContent = Math.round(z * 100) + "%";
+}
+function applyWidth() {
+  win.style.width = (localStorage.getItem("chat-mock-width") || 1440) + "px";
+  fit();
+}
+window.addEventListener("resize", fit);
+
+/* ── 侧栏（卡片库子项 = 标签树） ── */
+function sidebar() {
+  const tagOn = state.m === "tag";
+  const groups = [
+    ["工作台", [["flame", "今日"], ["calendar", "日程"], ["list-todo", "待办"]]],
+    ["知识", [["layers", "卡片库", !tagOn], ["file-text", "文章"], ["pen-line", "日记"], ["presentation", "白板"]]],
+    ["学习", [["folder-tree", "项目"], ["repeat", "闪卡复习"], ["book-marked", "PDF"]]],
+  ];
+  const subs = [["学习方法", 4], ["前端", 4], ["算法", 4], ["读书", 2], ["分布式", 2]];
+  return `<aside class="sb"><div class="sb-head"><div class="sb-logo">τ</div><span>Tau</span></div><div class="sb-scroll">${groups
+    .map(([g, items]) => `<div class="sb-gt">${g}</div>${items
+      .map(([ic, l, on]) => `<div class="sb-item ${on ? "on" : ""}"><i data-lucide="${ic}"></i><span>${l}</span></div>${l === "卡片库" ? subs.map(([s, n]) => `<div class="sb-sub ${tagOn && s === "学习方法" ? "on" : ""}"><span>${s}</span><span class="n num">${n}</span></div>`).join("") : ""}`)
+      .join("")}`)
+    .join("")}</div><div class="sb-item"><i data-lucide="sliders-horizontal"></i><span>设置</span></div></aside>`;
+}
+
+/* ── 面包屑视图速切器 ── */
+function crumb() {
+  const cur = VIEWS[1];
+  const menu = state.menu === "view"
+    ? `<div class="menu">${VIEWS.map(([k, l, ic, isNew]) => `<div class="mi ${k === "list" ? "on" : ""}"><i data-lucide="${ic}"></i>${l}${isNew ? '<span class="new">新</span>' : ""}</div>`).join("")}</div>`
+    : "";
+  return `<span>卡片库</span><span style="color:var(--ink-3)">/</span><div class="dd"><span class="vsw ${state.menu === "view" ? "on" : ""}" data-menu="view"><i data-lucide="${cur[2]}"></i>${cur[1]}<i data-lucide="chevron-down" class="cv"></i></span>${menu}</div>`;
+}
+
+/* ── 行 ── */
+const moreMenu = c =>
+  state.more === c.id
+    ? `<div class="menu" style="top:28px">
+        <div class="mi"><i data-lucide="maximize-2"></i>打开详情</div>
+        <div class="mi"><i data-lucide="app-window"></i>窗口打开</div>
+        <div class="mi"><i data-lucide="play"></i>演示模式</div>
+        <div class="sep"></div>
+        <div class="mi"><i data-lucide="download"></i>导出 Markdown</div>
+        <div class="mi"><i data-lucide="image"></i>导出图片</div>
+        <div class="sep"></div>
+        <div class="mi danger"><i data-lucide="trash-2"></i>删除</div></div>`
+    : "";
+const ops = c => `<div class="ops ${state.more === c.id ? "on" : ""}">
+    <button class="ib" title="${c.top ? "取消置顶" : "置顶"}"><i data-lucide="pin"></i></button>
+    <div class="dd"><button class="ib" data-more="${c.id}" title="更多操作"><i data-lucide="more-horizontal"></i></button>${moreMenu(c)}</div>
+  </div>`;
+const tags = c => {
+  if (!c.tags.length) return `<div class="tgs"><span class="c mute">—</span></div>`;
+  const shown = c.tags.slice(0, 2);
+  const rest = c.tags.length - shown.length;
+  return `<div class="tgs">${shown.map(t => `<span class="tg">${t}</span>`).join("")}${rest ? `<span class="tg more">+${rest}</span>` : ""}</div>`;
+};
+const compact = () => state.density === "one";
+const row = c => `<div class="lr ${state.m === "preview" && c.id === 5 ? "sel" : ""}">
+    <div class="nm">
+      <div class="t">${c.top ? '<i data-lucide="star" class="star"></i>' : ""}<span>${titleOf(c)}${compact() && c.t ? `<span class="inl">　${c.p}</span>` : ""}</span>${c.pod ? '<i data-lucide="headphones" class="pod" title="有播客"></i>' : ""}</div>
+      ${c.t ? `<div class="p">${c.p}</div>` : `<div class="p">空卡片</div>`}
+    </div>
+    ${state.m === "tag" ? "" : tags(c)}
+    <span class="c r num ${c.l ? "" : "mute"}"><span class="lk"><i data-lucide="link-2"></i>${c.l}</span></span>
+    <span class="c r num ${c.w ? "" : "mute"}">${c.w ? c.w.toLocaleString() : "—"}</span>
+    <span class="c num">${DAY(c.u)}</span>
+    <span class="c num">${DAY(c.d)}</span>
+    ${ops(c)}
+  </div>`;
+
+function listHead() {
+  const sortable = state.group === "flat";
+  const col = (k, l, cls = "") => {
+    const on = state.sort === k && (sortable || k === "created");
+    const attr = sortable ? `data-sort="${k}"` : "";
+    return `<span ${attr} class="${cls} ${on ? "on" : ""}">${l}${on ? `<i data-lucide="arrow-down"></i>` : ""}</span>`;
+  };
+  return `<div class="lh"><span>内容</span>${state.m === "tag" ? "" : "<span>标签</span>"}${col("links", "链接", "r")}${col("words", "字数", "r")}${col("updated", "更新")}${col("created", "创建")}<span></span></div>`;
+}
+
+function body() {
+  const data = state.m === "tag" ? C.filter(c => c.tags.some(t => t.startsWith("学习方法"))) : C;
+  const words = data.reduce((s, c) => s + c.w, 0);
+  const head = `<div class="cl-head">
+    <h1>卡片库</h1>
+    ${state.m === "tag" ? '<span class="chip-f">学习方法<i data-lucide="x"></i></span>' : ""}
+    <span class="sum">${state.m === "tag" ? "找到" : "共"} <b class="num">${state.m === "empty" ? 0 : data.length}</b> 张 · 累计 <b class="num">${state.m === "empty" ? 0 : words.toLocaleString()}</b> 字</span>
+    <button class="btn"><i data-lucide="import"></i>导入</button>
+    <button class="btn primary"><i data-lucide="plus"></i>新建卡片</button>
+  </div>`;
+  if (state.m === "empty")
+    return `${head}<div class="cl-scroll"><div class="empty"><i data-lucide="layers"></i><b>没有匹配的卡片</b><p>清除标签筛选，或用 Ctrl+K 全局搜索</p></div></div>`;
+
+  const cls = `lst ${compact() ? "compact" : ""} ${state.m === "tag" ? "no-tags" : ""}`;
+  let rows;
+  if (state.group === "time") {
+    rows = GROUPS.map(([k, l]) => {
+      const list = data.filter(c => groupOf(c) === k).sort(SORTS.created);
+      if (!list.length) return "";
+      const w = list.reduce((s, c) => s + c.w, 0);
+      return `<section class="sec"><div class="sec-h"><span class="l">${l}</span><span class="h num">${list.length} 张 · ${w.toLocaleString()} 字</span></div>${list.map(row).join("")}</section>`;
+    }).join("");
+  } else {
+    rows = sortItems(data, state.sort).map(row).join("");
+  }
+  return `${head}<div class="cl-scroll"><div class="${cls}">${listHead()}${rows}</div></div>`;
+}
+
+function preview() {
+  if (state.m !== "preview") return "";
+  const c = C.find(x => x.id === 5);
+  return `<div class="scrim"><div class="dlg">
+    <div class="hd"><span>${DAY(c.d)}创建 · ${c.w} 字 · ${c.l} 个链接</span><span class="sp"></span><span class="kb"><kbd>↑</kbd><kbd>↓</kbd>上一张 / 下一张</span></div>
+    <h2>${c.t}</h2><p>${c.p}</p><p>OT 的正确性证明依赖变换函数满足 TP1/TP2，实际工程中几乎只在有中心服务器时可靠；CRDT 把冲突消解前移到数据结构设计……</p>
+  </div></div>`;
+}
+
+function render() {
+  const sc = win.querySelector(".cl-scroll");
+  const keep = sc ? sc.scrollTop : 0;
+  const normal = state.m === "normal";
+  win.innerHTML = `
+    ${sidebar()}
+    <div class="col" style="position:relative">
+      ${titlebar(crumb())}
+      <div class="main"><section class="paper cl-paper">${body()}</section></div>
+      ${preview()}
+    </div>
+    ${normal ? anno(1, "视图速切器加「列表」，放在卡片墙之后", "left:300px;top:44px") + anno(2, "正文首行当标题，第二行摘要；紧凑密度合成一行", "left:330px;top:150px") + anno(3, state.group === "flat" ? "平铺：点列头排序（创建 / 更新 / 字数 / 链接），置顶始终在前" : "按时间分段：段头吸顶，同卡片墙口径，列头不排序", "left:880px;top:118px") + anno(4, "悬停：置顶 + ⋯（复用 CardActionMenu）", "right:60px;top:190px") : ""}
+    ${state.m === "preview" ? anno(1, "点行打开预览弹窗（同卡片墙）；可加 ↑↓ 按列表顺序翻卡", "left:620px;top:240px") : ""}
+    ${state.m === "tag" ? anno(1, "标签筛选时标签列隐去（行内只剩冗余信息），空出宽度给摘要", "left:520px;top:118px") : ""}`;
+  icons();
+  const nsc = win.querySelector(".cl-scroll");
+  if (nsc) nsc.scrollTop = keep;
+
+  const on = (sel, fn) => win.querySelectorAll(sel).forEach(el => (el.onclick = e => { e.stopPropagation(); fn(el); renderBar(); render(); }));
+  on("[data-menu]", el => { state.more = null; state.menu = state.menu === el.dataset.menu ? null : el.dataset.menu; });
+  on("[data-sort]", el => (state.sort = el.dataset.sort));
+  on("[data-more]", el => { state.menu = null; state.more = state.more === +el.dataset.more ? null : +el.dataset.more; });
+}
+win.onclick = () => {
+  if (state.menu || state.more) {
+    state.menu = null;
+    state.more = null;
+    if (state.m === "viewmenu") state.m = "normal";
+    renderBar();
+    render();
+  }
+};
+
+renderBar();
+render();
+requestAnimationFrame(applyWidth);
+</script>
+</body>
+</html>

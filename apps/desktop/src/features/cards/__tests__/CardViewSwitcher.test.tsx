@@ -39,7 +39,7 @@ it("面包屑触发器回显当前视图，展开后可切到其余视图并即�
   const menu = document.querySelector('[role="menu"]') as HTMLElement;
   expect(menu.hasAttribute("inert")).toBe(false);
   const items = menuItems();
-  expect(items.map(item => item.textContent)).toEqual(["卡片墙", "表格"]);
+  expect(items.map(item => item.textContent)).toEqual(["卡片墙", "列表", "表格"]);
   // 当前视图靠高亮标记（accent 色接管 ink-1，非 radio 语义）
   expect(items[0].className).toContain("text-accent-text");
   expect(items[0].className).not.toContain("text-ink-1");
@@ -47,7 +47,7 @@ it("面包屑触发器回显当前视图，展开后可切到其余视图并即�
   expect(items[1].className).not.toContain("text-accent-text");
 
   click(items[1]);
-  expect(onChange).toHaveBeenCalledExactlyOnceWith("database");
+  expect(onChange).toHaveBeenCalledExactlyOnceWith("list");
   // 命令项触发即关（不是 radio 的“不关闭”语义），焦点还给触发器
   expect(menu.hasAttribute("inert")).toBe(true);
   expect(document.activeElement).toBe(trigger);
@@ -60,11 +60,11 @@ it("选中项跟着 value 走，Esc 关闭浮层", async () => {
 
   click(trigger);
   const items = menuItems();
-  expect(items[1].className).toContain("text-accent-text");
+  expect(items[2].className).toContain("text-accent-text");
   expect(items[0].className).not.toContain("text-accent-text");
 
   act(() => {
-    items[1].dispatchEvent(
+    items[2].dispatchEvent(
       new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })
     );
   });

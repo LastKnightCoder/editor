@@ -1,7 +1,8 @@
 /**
  * 文章页数据源：月刊形态（A3 定稿，mockups/articles/plan-a3-journal.html）。
  * - 列表：getArticlePage 分页窗口（轻量条目，不取正文全文）+ useInfiniteQuery
- *   承载无限滚动；按月归段的展示分组是纯前端派生（分桶不断数据流，翻页与分段解耦）。
+ *   承载无限滚动；网格按月归段的展示分组是纯前端派生（分桶不断数据流，翻页与分段解耦），
+ *   列表排布平铺，排序下推到主进程（D-105）。
  * - 筛选：标签（侧栏子项）+ 标题关键词（页内搜索框）都下推到 getArticlePage，
  *   分页 / 总数 / 字数统计随筛选结果；标签计数 getArticleTagCounts 供侧栏子项。
  * - 变更（置顶/删除/新建/导入）后整域失效重拉。
@@ -23,10 +24,11 @@ import {
 } from "@/commands/article";
 import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
 import { clampText, richTextPlainText } from "@/utils/richTextText";
-import type { ArticlePageItem, IArticle } from "@/types";
+import type { ArticlePageItem, ArticlePageSort, IArticle } from "@/types";
 import type { ArticleMonthSection } from "./types";
 
-const PAGE_SIZE = 12;
+/** 每页条数：网格卡高、列表行矮，列表一页要多取才填得满首屏 */
+export const ARTICLE_PAGE_SIZE = { grid: 12, list: 30 } as const;
 const DAY_MS = 86_400_000;
 
 /* ---------- 派生 ---------- */
@@ -80,10 +82,17 @@ export function bucketByMonths(items: ArticlePageItem[]): ArticleMonthSection[] 
 
 /* ---------- 查询 ---------- */
 
-export function useArticleFeed(
-  tag: string,
-  keyword = ""
-): {
+export function useArticleFeed({
+  tag,
+  keyword,
+  sort,
+  pageSize,
+}: {
+  tag: string;
+  keyword: string;
+  sort: ArticlePageSort;
+  pageSize: number;
+}): {
   items: ArticlePageItem[];
   total: number;
   totalWords: number;
@@ -94,9 +103,9 @@ export function useArticleFeed(
   refresh(): void;
 } {
   const query = useInfiniteQuery({
-    queryKey: ["articles", "feed", tag, keyword],
+    queryKey: ["articles", "feed", tag, keyword, sort, pageSize],
     queryFn: ({ pageParam }) =>
-      getArticlePage(pageParam, PAGE_SIZE, tag || undefined, keyword || undefined),
+      getArticlePage(pageParam, pageSize, tag || undefined, keyword || undefined, sort),
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
       const loaded = allPages.reduce((sum, page) => sum + page.items.length, 0);

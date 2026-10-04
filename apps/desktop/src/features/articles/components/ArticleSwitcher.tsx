@@ -27,7 +27,7 @@ import EpubExportModal from "@/components/EpubExportModal";
 import { PdfExportModal } from "@/components/PdfExportModal";
 import { IconButton, Menu, Popover, cn } from "@tau/ui";
 
-import { bucketByMonths, useArticleFeed, useArticleMutations } from "../queries";
+import { ARTICLE_PAGE_SIZE, bucketByMonths, useArticleFeed, useArticleMutations } from "../queries";
 
 type ExportKind = "image" | "epub" | "pdf";
 
@@ -70,7 +70,12 @@ export function ArticleSwitcher({
     kind: ExportKind;
   } | null>(null);
 
-  const feed = useArticleFeed("");
+  const feed = useArticleFeed({
+    tag: "",
+    keyword: "",
+    sort: "updated",
+    pageSize: ARTICLE_PAGE_SIZE.grid,
+  });
   const { toggleTop, remove } = useArticleMutations();
   const databaseName = useSettingStore(state => state.setting.database.active);
 
