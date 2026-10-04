@@ -1,7 +1,7 @@
 // 回归测试：quickCapture 关闭链路。曾因 backHandler 无条件 return true 且内嵌 goBack，
 // 与 router「handler 返回 true = 已消费不弹栈」的语义互喂成死循环：浮层永远关不掉、
 // refreshCards 无限重放、IPC 风暴直至卡死（2026-09-10 真机复现）。
-// 测试用真实 RouterProvider + 真实页面定义驱动，仅 mock 闪念抽屉视图层与 Tauri IPC。
+// 测试用真实 RouterProvider + 真实页面定义驱动，仅 mock 快速捕获抽屉视图层与 Tauri IPC。
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -51,9 +51,8 @@ vi.mock("../../QuickCaptureSheet", () => {
 });
 
 const tauriMocks = vi.hoisted(() => ({
-  createTemporaryCard: vi.fn(async () => ({ id: 101, contentId: 201 })),
+  createQuickCard: vi.fn(async () => ({ id: 101, contentId: 201 })),
   updateContent: vi.fn(async () => ({})),
-  updateCardCategory: vi.fn(async () => ({})),
   deleteCard: vi.fn(async () => 1),
   getCardDetail: vi.fn(async () => ({ id: 101, contentId: 201 })),
 }));
@@ -160,7 +159,7 @@ describe("quickCapture 关闭链路", () => {
     await typeContent();
     await closeAndAwaitGone(() => queryTestid("qc-close")!.click());
     expect(queryTestid("qc-sheet")).toBeNull();
-    expect(tauriMocks.createTemporaryCard).toHaveBeenCalledTimes(1);
+    expect(tauriMocks.createQuickCard).toHaveBeenCalledTimes(1);
     expect(appMocks.refreshCardsSafe).toHaveBeenCalledTimes(1);
   });
 
@@ -172,12 +171,12 @@ describe("quickCapture 关闭链路", () => {
       void getNavigator().goBack("android");
     });
     expect(queryTestid("qc-sheet")).toBeNull();
-    expect(tauriMocks.createTemporaryCard).toHaveBeenCalledTimes(1);
+    expect(tauriMocks.createQuickCard).toHaveBeenCalledTimes(1);
     expect(appMocks.refreshCardsSafe).toHaveBeenCalledTimes(1);
   });
 
   it("落库失败：浮层保留并提示错误，不弹栈", async () => {
-    tauriMocks.createTemporaryCard.mockRejectedValueOnce(new Error("db locked"));
+    tauriMocks.createQuickCard.mockRejectedValueOnce(new Error("db locked"));
     renderUi();
     await openQuickCapture();
     await typeContent();
@@ -199,7 +198,7 @@ describe("quickCapture 关闭链路", () => {
       closeBtn.click();
       await until(() => queryTestid("qc-close") === null, "浮层弹栈");
     });
-    expect(tauriMocks.createTemporaryCard).toHaveBeenCalledTimes(1);
+    expect(tauriMocks.createQuickCard).toHaveBeenCalledTimes(1);
     expect(appMocks.refreshCardsSafe).toHaveBeenCalledTimes(1);
   });
 });

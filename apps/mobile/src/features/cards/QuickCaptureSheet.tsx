@@ -5,13 +5,6 @@ import { X } from "lucide-react";
 import { Editor, type EditorRef } from "@tau/editor";
 import type { Descendant } from "slate";
 import { SnapSheet } from "../../components/SnapSheet";
-import { ActionSheet } from "../settings/components/ActionSheet";
-import {
-  CARD_CATEGORY_OPTIONS,
-  cardCategoryTagClass,
-  isKnownCardCategory,
-  type KnownCardCategory,
-} from "./cardCategory";
 import { MobileEditorBottomToolbar } from "./editorToolbar/MobileEditorBottomToolbar";
 import { useMobileEditorToolbarController } from "./editorToolbar/useMobileEditorToolbarController";
 import { EMPTY_EDITOR_CONTENT } from "./editorContentUtils";
@@ -24,10 +17,8 @@ import {
 type QuickCaptureSheetProps = {
   open: boolean;
   saving: boolean;
-  category: KnownCardCategory;
   onRequestClose: (content: Descendant[]) => void;
   onContentChange?: (content: Descendant[]) => void;
-  onCategoryChange?: (category: KnownCardCategory) => void;
   onClear?: () => void;
 };
 
@@ -41,7 +32,6 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
   const latestContentRef = useRef<Descendant[]>(EMPTY_EDITOR_CONTENT);
   const [cachedDraft, setCachedDraft] = useState<Descendant[] | null>(null);
   const [showDraftPrompt, setShowDraftPrompt] = useState(false);
-  const [categorySheetOpen, setCategorySheetOpen] = useState(false);
   const toolbarController = useMobileEditorToolbarController({
     editorRef,
   });
@@ -65,18 +55,10 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
     }));
   }, [props.open, notifyContentChange]);
 
-  useEffect(() => {
-    if (props.open) return;
-    setCategorySheetOpen(false);
-  }, [props.open]);
-
   const handleCloseRequest = () => {
     if (props.saving) return;
     props.onRequestClose(latestContentRef.current);
   };
-  const categoryLabel =
-    CARD_CATEGORY_OPTIONS.find(item => item.value === props.category)?.label ?? "闪念";
-  const categoryTitle = `${categoryLabel}卡片`;
 
   return (
     <SnapSheet
@@ -91,19 +73,7 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
       <>
         <SnapSheet.Handle />
 
-        <header className="quick-capture-sheet-header border-line flex items-center justify-between gap-2 border-b border-dashed px-4 pb-3">
-          <div className="min-w-0">
-            <button
-              type="button"
-              disabled={props.saving}
-              onClick={() => {
-                setCategorySheetOpen(true);
-              }}
-              className={`rounded-full px-3.5 py-1.5 text-[12.5px] font-bold transition-transform active:scale-95 disabled:opacity-50 ${cardCategoryTagClass(props.category)}`}
-            >
-              {categoryTitle}
-            </button>
-          </div>
+        <header className="quick-capture-sheet-header border-line flex items-center justify-end gap-2 border-b border-dashed px-4 pb-3">
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -129,7 +99,7 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
               onClick={handleCloseRequest}
               disabled={props.saving}
               className="text-ink-3 active:bg-press flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:opacity-40"
-              aria-label="关闭闪念抽屉"
+              aria-label="关闭快速捕获"
             >
               <X size={18} aria-hidden="true" />
             </button>
@@ -195,19 +165,6 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
           />
         </SnapSheet.FixedFooterScroll>
 
-        <ActionSheet
-          open={categorySheetOpen}
-          title="选择卡片类型"
-          value={props.category}
-          options={CARD_CATEGORY_OPTIONS}
-          onClose={() => setCategorySheetOpen(false)}
-          onSelect={value => {
-            if (!isKnownCardCategory(value)) {
-              return;
-            }
-            props.onCategoryChange?.(value);
-          }}
-        />
         <MobileEditorBottomToolbar controller={toolbarController} />
       </>
     </SnapSheet>

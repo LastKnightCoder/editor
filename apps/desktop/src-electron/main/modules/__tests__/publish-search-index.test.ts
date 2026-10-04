@@ -84,7 +84,6 @@ describe("publish-search-index", () => {
             },
           ] as any,
           tags: ["发布"],
-          category: "permanent",
           create_time: 1,
           update_time: 2,
         } as any,

@@ -1,7 +1,6 @@
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import CardTable from "../tables/card";
-import { ECardCategory } from "@/types/card";
 
 vi.mock("@/utils/markdown.ts", () => ({ getMarkdown: vi.fn() }));
 vi.mock("../tables/operation", () => ({ default: { insertOperation: vi.fn() } }));
@@ -16,29 +15,23 @@ beforeEach(() => {
   db = new Database(":memory:");
   db.exec(`
     CREATE TABLE cards (id INTEGER PRIMARY KEY, create_time INTEGER, update_time INTEGER,
-      tags TEXT, links TEXT, category TEXT, content_id INTEGER, is_top INTEGER, podcast_id INTEGER);
+      tags TEXT, links TEXT, content_id INTEGER, is_top INTEGER, podcast_id INTEGER);
     CREATE TABLE contents (id INTEGER PRIMARY KEY, content TEXT, count INTEGER, update_time INTEGER);
     CREATE TABLE content_ai_meta (content_id INTEGER PRIMARY KEY, schema_ver INTEGER, text_digest TEXT,
       meta TEXT, model TEXT, create_time INTEGER, update_time INTEGER);
     CREATE TABLE podcasts (id INTEGER PRIMARY KEY, name TEXT, audio_url TEXT, script TEXT,
       script_lines TEXT, duration INTEGER, speakers TEXT);
     INSERT INTO contents VALUES (10, '[]', 0, 0);
-    INSERT INTO cards VALUES (1, 1, 1, '["原标签"]', '[2]', 'temporary', 10, 0, NULL);
+    INSERT INTO cards VALUES (1, 1, 1, '["原标签"]', '[2]', 10, 0, NULL);
   `);
 });
 afterEach(() => db.close());
 
 describe("卡片数据库作用域命令", () => {
-  it("修改分类、置顶后保存标签不会覆盖先前修改", () => {
-    CardTable.patchScopedCard(db, {
-      ...scope,
-      id: 1,
-      patch: { category: ECardCategory.Permanent },
-    });
+  it("置顶后保存标签不会覆盖先前修改", () => {
     CardTable.patchScopedCard(db, { ...scope, id: 1, patch: { isTop: true } });
     const saved = CardTable.patchScopedCard(db, { ...scope, id: 1, patch: { tags: ["新标签"] } });
     expect(saved).toMatchObject({
-      category: "permanent",
       isTop: true,
       tags: ["新标签"],
       links: [2],

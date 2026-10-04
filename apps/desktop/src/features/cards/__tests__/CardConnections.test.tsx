@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ECardCategory, type ICard } from "@/types/card";
+import type { ICard } from "@/types/card";
 
 vi.mock("@/features/search/queries", () => ({
   useSearchContent: () => ({ data: [], isFetching: false, error: null }),
@@ -26,7 +26,6 @@ const makeCard = (id: number, content: unknown[], links: number[] = []) =>
     content,
     links,
     tags: [],
-    category: ECardCategory.Temporary,
     create_time: 0,
     update_time: 0,
     count: 0,

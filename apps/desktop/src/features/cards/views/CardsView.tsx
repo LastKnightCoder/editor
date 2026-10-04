@@ -1,15 +1,14 @@
 /**
  * 卡片库主视图 · 一整张纸（mockups/cards/plan-sheet.html 方案 B 定稿）：
- * 纸顶工具栏（标题 / 当前标签 + 摘要 + 导入 / 新建）→ 分类胶囊 → 纸内两视图（卡片墙 / 表格）。
+ * 纸顶工具栏（标题 / 当前标签 + 摘要 + 导入 / 新建）→ 纸内两视图（卡片墙 / 表格）。
  *
  * 筛选：标签在侧栏「卡片库」入口的子项里（CardsNav 层级树，页面参数 id），页内不放标签树；
- * 分类（4 个，常用且少）留在纸顶胶囊组，按库记忆。两者叠加，两视图同一套筛选——
- * 卡片墙只列命中、表格经 CardDatabaseView 外部查询收窄。
+ * 两视图同一套筛选——卡片墙只列命中、表格经 CardDatabaseView 外部查询收窄。
  *
  * 视图分工：卡片墙 = 等高网格 + 时间分组 + 行级虚拟滚动（本域实现）；
  * 表格 = 既有 CardDatabaseView（Database 组件）复用。图谱已移到全局知识地图（KL-022）。
  * 视图切换在标题栏面包屑（「卡片库 / [卡片墙 ▾]」，usePageBreadcrumb 注入）。
- * 不设页内搜索——卡片没有标题，语义检索由全局命令面板（Ctrl+K）承担。
+ * 不设页内搜索——卡片标题由元信息承担（D-100），语义检索由全局命令面板（Ctrl+K）承担。
  */
 
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -18,8 +17,7 @@ import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import { Import, Layers, Plus, X } from "lucide-react";
 import type { Descendant } from "slate";
 import "../cards.css";
-import { ECardCategory, type ICard } from "@/types";
-import { cardCategoryName } from "@/constants/card";
+import { type ICard } from "@/types";
 import { isElectron } from "@/electron";
 import useSettingStore from "@/stores/useSettingStore";
 import PresentationMode from "@/components/PresentationMode";
@@ -30,7 +28,7 @@ import { PdfExportModal } from "@/components/PdfExportModal";
 import { getScopedCard, openCardInNewWindow } from "@/commands/card";
 import { readTextFile, selectFile } from "@/commands";
 import { downloadMarkdown, getContentLength, getMarkdown, importFromMarkdown } from "@/utils";
-import { Button, cn, ConfirmDialog, Loading, toast } from "@tau/ui";
+import { Button, ConfirmDialog, Loading, toast } from "@tau/ui";
 import {
   cardDetailKey,
   filterCards,
@@ -43,7 +41,6 @@ import { CardWallList } from "../components/CardWallList";
 import { CardPreviewDialog } from "../components/CardPreviewDialog";
 import { CardViewSwitcher } from "../components/CardViewSwitcher";
 import { CreateCardDialog } from "../components/CreateCardDialog";
-import { CATEGORY_COLORS } from "../categoryColors";
 import type { CardFilter, CardItemActions } from "../types";
 import {
   DEFAULT_CARDS_PREFERENCES,
@@ -51,14 +48,6 @@ import {
   type CardsViewMode,
 } from "../preferences";
 import { cardTitle as titleOfCard } from "@/utils/card-title";
-
-const CATEGORY_ORDER: ("all" | ECardCategory)[] = [
-  "all",
-  ECardCategory.Temporary,
-  ECardCategory.Literature,
-  ECardCategory.Permanent,
-  ECardCategory.Theme,
-];
 
 export function CardsView() {
   const { navigator } = usePage();
@@ -73,16 +62,14 @@ export function CardsView() {
     state => state.byDatabase[databaseName] ?? DEFAULT_CARDS_PREFERENCES
   );
   const updatePreferences = useCardsPreferencesStore(state => state.update);
-  const { view, category } = preferences;
-  const filter = useMemo<CardFilter>(() => ({ category, tag }), [category, tag]);
+  const { view } = preferences;
+  const filter = useMemo<CardFilter>(() => ({ tag }), [tag]);
   const setView = useCallback(
     (next: CardsViewMode) => updatePreferences(databaseName, { view: next }),
     [updatePreferences, databaseName]
   );
-  const setCategory = (next: CardFilter["category"]) =>
-    updatePreferences(databaseName, { category: next });
   const clearTag = () => navigator.push("cards", { id: "" });
-  const resetScrollKey = JSON.stringify([category, tag]);
+  const resetScrollKey = tag;
   const [previewCardId, setPreviewCardId] = useState<number | null>(null);
   const [creating, setCreating] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ICard | null>(null);
@@ -90,28 +77,19 @@ export function CardsView() {
   const [exportingImage, setExportingImage] = useState<ICard | null>(null);
   const [exportingEpub, setExportingEpub] = useState<ICard | null>(null);
   const [exportingPdf, setExportingPdf] = useState<ICard | null>(null);
-  const [createDefaultCategory, setCreateDefaultCategory] = useState<ECardCategory | null>(null);
   /** 数据库视图删除确认桥：其 onDeleteCard 约定 Promise resolve 即删行、reject 即取消 */
   const deleteBridge = useRef<{ resolve(): void; reject(error: Error): void } | null>(null);
 
-  /* sorted = 排序全集（表格 allCards），filtered = 分类 / 标签过滤结果 */
+  /* sorted = 排序全集（表格 allCards），filtered = 标签过滤结果 */
   const sorted = useMemo(() => sortCards(feed.cards), [feed.cards]);
   const filtered = useMemo(() => filterCards(feed.cards, filter), [feed.cards, filter]);
-  const categoryCount = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const card of feed.cards) counts.set(card.category, (counts.get(card.category) ?? 0) + 1);
-    return counts;
-  }, [feed.cards]);
-  const filtering = category !== "all" || Boolean(tag);
+  const filtering = Boolean(tag);
   /* 摘要跟随筛选：筛选中读命中集，否则读全集 */
   const summaryCards = filtering ? filtered : feed.cards;
   const totalWords = useMemo(
     () => summaryCards.reduce((sum, card) => sum + card.count, 0),
     [summaryCards]
   );
-  /* 新建 / 导入的默认分类：跟随当前分类筛选（三视图同一套筛选，表格也不例外） */
-  const defaultCategory =
-    category === "all" ? ECardCategory.Temporary : (category as ECardCategory);
   /* 弹窗基准卡 = 单卡全量按需拉取（列表缓存只有预览块，弹窗可编辑需全文） */
   const previewCardQuery = useCardDetail(previewCardId);
   const previewCard = previewCardId == null ? null : (previewCardQuery.data ?? null);
@@ -176,7 +154,6 @@ export function CardsView() {
     onExportPdf: card => {
       void requireFullCard(card).then(full => full && setExportingPdf(full));
     },
-    onChangeCategory: (card, category) => mutations.changeCategory.mutate({ card, category }),
     ...(isElectron && databaseName
       ? { onOpenWindow: (card: ICard) => void openCardInNewWindow(databaseName, card.id) }
       : {}),
@@ -197,7 +174,6 @@ export function CardsView() {
           content,
           tags: [],
           links: [],
-          category: defaultCategory,
           count: getContentLength(content),
           isTop: false,
         });
@@ -222,7 +198,7 @@ export function CardsView() {
 
   return (
     <div className="mx-auto flex h-full min-h-0 w-full min-w-0 max-w-[1760px] flex-col px-4 pb-4 pt-1">
-      {/* 一整张纸：工具栏与分类胶囊固定在纸顶，视图在纸内滚动 */}
+      {/* 一整张纸：工具栏固定在纸顶，视图在纸内滚动 */}
       <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
         {/* 工具栏：标题 / 当前标签 + 摘要 + 导入 / 新建 */}
         <div className="mb-2 mt-5 flex h-10 flex-none items-center gap-3 px-8">
@@ -267,51 +243,6 @@ export function CardsView() {
           </Button>
         </div>
 
-        {/* 分类胶囊：三视图共用（表格也跟随）；单选，选中取分类软底 + 同色字，未选描边 */}
-        <div
-          role="radiogroup"
-          aria-label="卡片分类"
-          className="mb-3 flex flex-none flex-wrap items-center gap-2 px-8"
-        >
-          {CATEGORY_ORDER.map(key => {
-            const active = category === key;
-            const color = key === "all" ? null : CATEGORY_COLORS[key];
-            return (
-              <button
-                key={key}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                onClick={() => setCategory(key)}
-                className={cn(
-                  "text-tau-meta inline-flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-3 outline-none transition-colors",
-                  "focus-visible:shadow-[var(--tau-focus-ring)]",
-                  active
-                    ? cn("border-transparent font-medium", !color && "bg-selected text-accent-text")
-                    : "border-line-1 text-ink-2 hover:bg-hover hover:text-ink-1"
-                )}
-                style={active && color ? { background: color.soft, color: color.text } : undefined}
-              >
-                {color && (
-                  <span
-                    className="size-[7px] shrink-0 rounded-full"
-                    style={{ background: color.text }}
-                  />
-                )}
-                {key === "all" ? "全部" : cardCategoryName[key].slice(0, 2)}
-                <span
-                  className={cn(
-                    "text-[11px] font-normal tabular-nums",
-                    active ? "opacity-70" : "text-ink-3"
-                  )}
-                >
-                  {key === "all" ? feed.cards.length : (categoryCount.get(key) ?? 0)}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
         {/* 主体三视图 */}
         {view === "wall" && (
           <div className="flex min-h-0 flex-1 flex-col pb-4 pl-8 pr-8">
@@ -319,9 +250,7 @@ export function CardsView() {
               <div className="flex flex-col items-center gap-2 px-0 py-20 text-center">
                 <Layers className="text-ink-3 size-6" strokeWidth={1.75} />
                 <p className="text-ink-2 text-[15px] font-medium">没有匹配的卡片</p>
-                <p className="text-ink-3 text-[12.5px]">
-                  清除分类 / 标签筛选，或用 Ctrl+K 全局搜索
-                </p>
+                <p className="text-ink-3 text-[12.5px]">清除标签筛选，或用 Ctrl+K 全局搜索</p>
               </div>
             ) : (
               <CardWallList cards={filtered} actions={actions} resetScrollKey={resetScrollKey} />
@@ -334,13 +263,9 @@ export function CardsView() {
               databaseName={databaseName}
               bare
               cards={sorted}
-              selectCategory={category}
               tag={tag}
               onCardClick={card => setPreviewCardId(card.id)}
-              onOpenCreateCard={defaultCategory => {
-                setCreateDefaultCategory(defaultCategory);
-                setCreating(true);
-              }}
+              onOpenCreateCard={() => setCreating(true)}
               onDeleteCard={handleDatabaseDelete}
               onUpdateCard={(id, patch) => mutations.patch.mutateAsync({ id, patch })}
             />
@@ -359,14 +284,7 @@ export function CardsView() {
           if (!open) setPreviewCardId(null);
         }}
       />
-      <CreateCardDialog
-        open={creating}
-        defaultCategory={createDefaultCategory ?? defaultCategory}
-        onClose={() => {
-          setCreating(false);
-          setCreateDefaultCategory(null);
-        }}
-      />
+      <CreateCardDialog open={creating} onClose={() => setCreating(false)} />
       <ConfirmDialog
         open={pendingDelete !== null}
         onOpenChange={open => {

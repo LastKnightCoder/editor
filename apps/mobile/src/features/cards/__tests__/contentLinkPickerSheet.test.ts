@@ -7,7 +7,6 @@ function createCardItem(partial?: Partial<CardListItem>): CardListItem {
     id: 12,
     contentId: 1201,
     updateTime: 1_736_000_000_000,
-    category: "temporary",
     tags: [],
     excerpt: "第一行摘要\n第二行",
     content: [],

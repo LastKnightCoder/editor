@@ -148,8 +148,8 @@ describe("问题的外部材料与探究对话", () => {
     const cardId = Number(
       db
         .prepare(
-          `INSERT INTO cards (create_time, update_time, tags, links, content_id, category)
-           VALUES (?, ?, '[]', '[]', ?, 'permanent')`
+          `INSERT INTO cards (create_time, update_time, tags, links, content_id)
+           VALUES (?, ?, '[]', '[]', ?)`
         )
         .run(now, now, answer.id).lastInsertRowid
     );

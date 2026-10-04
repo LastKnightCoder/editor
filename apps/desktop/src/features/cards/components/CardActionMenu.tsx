@@ -1,7 +1,7 @@
 /**
  * 卡片条目操作菜单（⋯）：卡面 CardItemView 与预览 CardPreviewDialog 共用的
  * 单一实现，替代两处重复维护的等价菜单。菜单项 = 窗口打开（Electron）/ 置顶 /
- * 进入详情（可选）/ 演示模式 / 导出×4 / 编辑分类 / 删除；两处消费的差异经
+ * 进入详情（可选）/ 演示模式 / 导出×4 / 删除；两处消费的差异经
  * props 表达——预览在菜单内提供「进入详情」且演示前需落盘并收起弹窗。
  */
 
@@ -13,17 +13,14 @@ import {
   FileType,
   FileText,
   Image as ImageIcon,
-  Layers,
   Maximize2,
   Pin,
   Play,
   Trash2,
 } from "lucide-react";
 import type { ReactElement } from "react";
-import type { ECardCategory, ICard } from "@/types";
-import { cardCategoryName } from "@/constants/card";
+import type { ICard } from "@/types";
 import { Menu } from "@tau/ui";
-import { CATEGORY_COLORS } from "../categoryColors";
 import type { CardItemActions } from "../types";
 
 function MenuIcon({ icon: Icon }: { icon: LucideIcon }) {
@@ -96,23 +93,6 @@ export function CardActionMenu({
         <Menu.Item onSelect={() => actions.onExportPdf(card)} icon={<MenuIcon icon={FileType} />}>
           PDF
         </Menu.Item>
-      </Menu.Submenu>
-      <Menu.Submenu label="编辑分类" icon={<MenuIcon icon={Layers} />}>
-        {(Object.keys(cardCategoryName) as ECardCategory[]).map(key => (
-          <Menu.Item
-            key={key}
-            disabled={card.category === key}
-            onSelect={() => actions.onChangeCategory(card, key)}
-            icon={
-              <span
-                className="size-[7px] shrink-0 rounded-full"
-                style={{ background: CATEGORY_COLORS[key].text }}
-              />
-            }
-          >
-            {cardCategoryName[key]}
-          </Menu.Item>
-        ))}
       </Menu.Submenu>
       <Menu.Separator />
       <Menu.Item danger onSelect={() => actions.onDelete(card)} icon={<MenuIcon icon={Trash2} />}>

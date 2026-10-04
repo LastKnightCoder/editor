@@ -2,6 +2,7 @@ import { CODE_BLOCK_LANGUAGE_OPTIONS, normalizeCodeBlockLanguageDisplayName } fr
 import { For } from "@tau/shared";
 import React, { useState } from "react";
 import { Popover, cn } from "@tau/ui";
+import { ChevronDown } from "lucide-react";
 
 interface SelectLanguageProps {
   value: string;
@@ -31,19 +32,20 @@ const SelectLanguage = (props: SelectLanguageProps) => {
       arrow={false}
       className="p-1"
       trigger={
-        <div
-          style={{
-            ...style,
-            color: "var(--ed-text)",
-          }}
+        <button
+          type="button"
+          style={style}
           className={cn(
-            "w-fit rounded-[0.25em] p-[0.5em] font-[family-name:var(--ed-font-mono)] text-[0.8em] opacity-50",
-            readonly ? "cursor-default" : "cursor-pointer hover:bg-[var(--ed-bg-hover)]",
+            "inline-flex h-[1.75em] shrink-0 items-center gap-[0.25em] rounded-[0.375em] px-[0.5em] text-[0.75em] font-medium text-[var(--ed-text-secondary)]",
+            readonly
+              ? "cursor-default"
+              : "cursor-pointer transition-colors duration-150 hover:bg-[var(--ed-bg-hover)] hover:text-[var(--ed-text)]",
             className
           )}
         >
           {normalizedValue}
-        </div>
+          {!readonly && <ChevronDown size="1.1em" strokeWidth={2} className="opacity-60" />}
+        </button>
       }
     >
       <div className="flex h-[400px] flex-col gap-1 overflow-auto">

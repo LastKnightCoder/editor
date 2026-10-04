@@ -1,6 +1,5 @@
 import { Layers, FileText, MessageSquare, Folder } from "lucide-react";
 import { PublishContentType } from "@/types/publish";
-import { ECardCategory } from "@/types/card";
 import { TabConfig } from "./types";
 
 /**
@@ -32,16 +31,6 @@ export const TABS: TabConfig[] = [
     icon: Folder,
   },
 ];
-
-/**
- * 卡片分类标签映射
- */
-export const CARD_CATEGORY_LABEL: Record<ECardCategory, string> = {
-  [ECardCategory.Temporary]: "临时卡片",
-  [ECardCategory.Permanent]: "永久卡片",
-  [ECardCategory.Theme]: "主题卡片",
-  [ECardCategory.Literature]: "文献卡片",
-};
 
 /**
  * 内容类型中文名称

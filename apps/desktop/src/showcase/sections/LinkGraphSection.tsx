@@ -86,7 +86,6 @@ function makeCards(shape: Shape, count: number): ICard[] {
       count: 120,
       contentId: id,
       isTop: false,
-      category: "permanent",
     } as unknown as ICard;
   });
 }
@@ -107,7 +106,6 @@ function fixtureMap(): { cards: ICard[]; map: KnowledgeMap } | null {
     count: 0,
     contentId: id,
     isTop: false,
-    category: "permanent",
   })) as unknown as ICard[];
   return {
     cards,
