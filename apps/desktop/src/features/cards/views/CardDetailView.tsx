@@ -1,13 +1,12 @@
 /**
  * 卡片详情视图（mockups/card-detail/plan-a-plain.html v2 定稿落地）：
- * 单栏正文列（640）在整张纸（bg-surface 卡面）内恒居中，卡头一行 meta（分类 Tag 只读展示 · 时间 · ⋯ 菜单；
- * 分类切换与编号语言 2026-09-21 裁决：切换收进 ⋯ 菜单「编辑分类」，#id 与置顶操作移除），
+ * 单栏正文列（640）在整张纸（bg-surface 卡面）内恒居中，卡头一行 meta（时间 · ⋯ 菜单），
  * 标签行在正文末，连接区仅在有连接时渲染（空卡不堆区块）。
  * 面包屑静态（无速切器）经槽位注入壳层；无底部状态栏——字数并入卡头 meta，
  * 协作：未共享时入口在 ⋯ 菜单「发起协作」；已共享时 meta 行常驻成员条，菜单项改「协作成员」。
  *
  * 保存分工：正文走 ContentEditor 文档会话，缓存由 queries 按 contentId 并入；
- * 元数据（标签/分类/置顶/链接）每次操作即时 patch（CardMetadataPatch），
+ * 元数据（标签/置顶/链接）每次操作即时 patch（CardMetadataPatch），
  * 双向链接双边写（等价 legacy useEditCard）。
  *
  * 搬用（§6.1 共存期复用，legacy 组件直接消费）：ContentEditor / AddTag /
@@ -33,7 +32,6 @@ import {
   FileType,
   FileText,
   Image as ImageIcon,
-  Layers,
   Link2,
   Maximize2,
   MessageSquare,
@@ -82,8 +80,7 @@ import {
   formatDate,
   getMarkdown,
 } from "@/utils";
-import { ECardCategory, type ICard } from "@/types";
-import { cardCategoryName } from "@/constants/card";
+import type { ICard } from "@/types";
 import { Button, ConfirmDialog, Loading, Menu, toast } from "@tau/ui";
 import {
   cardsKey,
@@ -92,13 +89,11 @@ import {
   useCardsFeed,
   useCardsMutations,
 } from "../queries";
-import { CATEGORY_COLORS } from "../categoryColors";
 import {
   AddCardLinkDialog,
   CardConnections,
   cardConnectionCount,
 } from "../components/CardDetailLinks";
-import { CategoryBadge } from "../components/CardItemView";
 import { ContextBadge } from "@/features/context/components/ContextBadge";
 import { openEntity } from "@/services/open-content";
 import { cardTitle as titleOfCard } from "@/utils/card-title";
@@ -118,8 +113,6 @@ function cloneRange(selection: Range | null): Range | null {
     focus: { path: [...selection.focus.path], offset: selection.focus.offset },
   };
 }
-
-const CATEGORY_KEYS = Object.keys(cardCategoryName) as ECardCategory[];
 
 export function CardDetailView() {
   const { navigator } = usePage();
@@ -305,10 +298,9 @@ export function CardDetailView() {
         <FadeScroll className="my-4 min-h-0 flex-1">
           <div className="grid grid-cols-[1fr_minmax(0,640px)_1fr] items-start px-[26px] pb-8 pt-6">
             <article className="col-start-2 min-w-0">
-              {/* 卡头 meta：分类 Tag（只读展示，切换在 ⋯ 菜单「编辑分类」）· 时间 ·
-                ⋯ 菜单（时间右侧）；置顶操作在列表页承担（2026-09-21 裁决，详情页不做） */}
+              {/* 卡头 meta：时间 · ⋯ 菜单（时间右侧）；置顶操作在列表页承担
+                （2026-09-21 裁决，详情页不做） */}
               <div className="mb-5 flex items-center gap-2.5">
-                <CategoryBadge category={card.category} full />
                 <span className="text-tau-meta text-ink-3 tabular-nums">
                   创建于 {formatDate(card.create_time, true)} · 最后修改{" "}
                   {formatDate(card.update_time, true)} · {card.count.toLocaleString("zh-CN")} 字
@@ -420,26 +412,6 @@ export function CardDetailView() {
                     >
                       {shared ? "协作成员" : "发起协作"}
                     </Menu.Item>
-                    <Menu.Submenu
-                      label="编辑分类"
-                      icon={<Layers className="size-[15px] shrink-0" strokeWidth={1.75} />}
-                    >
-                      {CATEGORY_KEYS.map(key => (
-                        <Menu.Item
-                          key={key}
-                          disabled={card.category === key}
-                          onSelect={() => mutations.changeCategory.mutate({ card, category: key })}
-                          icon={
-                            <span
-                              className="size-[8px] shrink-0 rounded-full"
-                              style={{ background: CATEGORY_COLORS[key].text }}
-                            />
-                          }
-                        >
-                          {cardCategoryName[key]}
-                        </Menu.Item>
-                      ))}
-                    </Menu.Submenu>
                     <Menu.Submenu
                       label="复制"
                       icon={<Copy className="size-[15px] shrink-0" strokeWidth={1.75} />}

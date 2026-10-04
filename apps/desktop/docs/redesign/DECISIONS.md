@@ -1,5 +1,15 @@
 # 决策记录（轻量 ADR）
 
+## D-104 移除卡片分类概念（闪念 / 文献 / 永久 / 主题）
+
+（2026-10-04，用户裁决：卡片不再区分分类，全端清理；master 上原编号 D-095，合并 feat/ai-insights 时与本分支 D-095 撞号改用空号）
+
+- 背景：卡片自 v0.4.18 起带四分类（temporary 闪念 / permanent 永久 / theme 主题 / literature 文献），实际使用中分类维度冗余，标签树与时间分组已承载组织需求。
+- 范围：全端——桌面（ECardCategory / cardCategoryName / categoryColors、列表分类胶囊、详情与行内「编辑分类」、表格视图分类列、发布链路）、移动端（cardCategory.ts、列表分类 chips、详情「修改类型」、快速捕获类型切换、Rust 查询与 IPC 模型）、博客模板（类型、侧边栏分类小标签、mock、isCardData 守卫）、CLI（-c 选项、类型列、TUI 筛选）。浏览器插件建卡走 `card.buildFromContent` 从不传分类，无需改动。
+- 数据：`cards.category` 列经声明式退休删除——桌面 / CLI / 同步校验共用 `packages/db-schema/src/feature-table-retirement.ts` 的 RETIRED_COLUMNS，移动端 Rust 侧 `main_upgrade.rs` 的 RETIRED_FEATURE_COLUMNS 同步登记；开库自动 `DROP COLUMN`，删前 VACUUM 备份，幂等。`DATA_MODEL_VERSION` 维持 1（与 vibe_learning 列退休先例一致）。
+- 随分类一并下线的行为：① 旧「temporary 卡超一个月未更新自动清理」规则（原寄生在 cards 升级逻辑，用户裁决随分类删除，卡片不再有任何自动清理）；② `get-random-permanent-cards` / `get-recent-temp-lit-cards` 两个无 UI 调用方的查询命令整链删除（注册、契约、封装）；③ 移动端快速捕获建卡命令 `create_temporary_card` 更名 `create_quick_card`（用户裁决，概念清零，应用内部 IPC 无兼容负担）；④ 发布产物 `_INIT_DATA_` 不再写 category，博客模板 `isCardData` 守卫改用「有 tags 数组 + content 数组 + 无 title」判别（文章有 title、文档无 tags、问题页无 content，互斥成立）；旧已发布站点 JSON 里的残留字段无害，重新发布后消失。
+- 保留：快速捕获功能本体（桌面 QuickCardWindow、移动端 quickCapture overlay）不依赖分类，原样保留；置顶卡原借用的闪念分类色改用 accent 语义色（同文章置顶惯例）；卡片偏好持久化升 v2 丢弃 category 字段。
+
 ## D-103 本地服务 24678 只对本机与可信来源开放
 
 （2026-10-02，用户确认先按来源收口，暂不加 token 与配对；master 上原编号 D-094，合并 feat/ai-insights 时与本分支 D-094 撞号改用空号）

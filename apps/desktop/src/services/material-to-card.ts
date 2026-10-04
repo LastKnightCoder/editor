@@ -9,7 +9,7 @@ import { recordLineage } from "@/commands/lineage";
 import type { MaterialInfo, MaterialRef } from "@/entity/material";
 import { materialQuoteMarkdown } from "@/entity/material-markdown";
 import useSettingStore from "@/stores/useSettingStore";
-import { ECardCategory, type ICard } from "@/types";
+import type { ICard } from "@/types";
 import { defaultCardEventBus } from "@/utils/event-bus/card-event-bus";
 import { getContentLength } from "@/utils/helper";
 import { importFromMarkdown } from "@/utils/markdown";
@@ -30,7 +30,6 @@ export async function createCardFromMaterial(ref: MaterialRef): Promise<ICard> {
     count: getContentLength(content),
     tags: [],
     links: [],
-    category: ECardCategory.Literature,
     isTop: false,
   });
   if (useSettingStore.getState().setting.database.active === databaseName) {

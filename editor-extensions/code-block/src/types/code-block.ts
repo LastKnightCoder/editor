@@ -20,6 +20,12 @@ export interface CodeBlockElement {
   uuid: string;
   magicMove?: CodeBlockMagicMove;
   highlightLines?: string;
+  /** 标题栏显示的文件名 */
+  filename?: string;
+  /** 自动换行；分步演示中不生效 */
+  wrap?: boolean;
+  /** 行号，缺省显示 */
+  lineNumbers?: boolean;
   isFold?: boolean;
   foldHeight?: number;
   children: Descendant[];

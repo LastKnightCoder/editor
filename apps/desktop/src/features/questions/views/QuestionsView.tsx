@@ -25,7 +25,6 @@ import {
 } from "@/services/question-to-notebook";
 import useSettingStore from "@/stores/useSettingStore";
 import {
-  ECardCategory,
   type EntityKind,
   type QuestionChat,
   type QuestionDetail as QuestionDetailData,
@@ -564,7 +563,6 @@ export function QuestionsView() {
         />
         <CreateCardDialog
           open={cardOpen}
-          defaultCategory={ECardCategory.Temporary}
           onClose={() => setCardOpen(false)}
           onCreated={card => {
             if (!detail) return;

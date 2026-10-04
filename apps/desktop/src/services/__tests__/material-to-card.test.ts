@@ -44,7 +44,7 @@ describe("外部材料转为卡片（E4）", () => {
 
     expect(mocks.createScopedCard).toHaveBeenCalledWith(
       "main",
-      expect.objectContaining({ category: "literature", content: [{ md: "> 原文\n\n—— 出处" }] })
+      expect.objectContaining({ content: [{ md: "> 原文\n\n—— 出处" }] })
     );
     expect(mocks.recordLineage).toHaveBeenCalledWith({
       src: { kind: "pdf-annotation", id: 5 },

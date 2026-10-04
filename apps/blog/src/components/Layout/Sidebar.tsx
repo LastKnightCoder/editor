@@ -3,13 +3,6 @@ import classNames from "classnames";
 import { SidebarItem, ArticleListItem, CardListItem, CardTagTree } from "@blog/types";
 import { joinPath, formatDate } from "@blog/utils";
 
-const categoryLabels: Record<string, string> = {
-  temporary: "闪念",
-  permanent: "永久",
-  theme: "主题",
-  literature: "文献",
-};
-
 // ==================== 文档模式侧边栏 ====================
 interface DocSidebarItemProps {
   item: SidebarItem;
@@ -352,9 +345,6 @@ export const CardSidebar = memo(
                   : "hover:bg-[var(--color-bg-canvas)]"
               )}
             >
-              <div className="mb-1 text-xs text-[var(--color-text-tertiary)]">
-                {categoryLabels[card.category] || card.category}
-              </div>
               <div
                 className={classNames("line-clamp-2 text-sm leading-relaxed", {
                   "font-medium text-[var(--color-text-primary)]": currentId === card.id,

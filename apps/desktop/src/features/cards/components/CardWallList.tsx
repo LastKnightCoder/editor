@@ -15,10 +15,9 @@ import type { ICard } from "@/types";
 import { CardContentPreview } from "./CardContentPreview";
 import { cn, useEdgeFade, IconButton, Tag } from "@tau/ui";
 import { bucketByTimeGroups } from "../queries";
-import { CardItemView, CategoryBadge, formatMonthDay } from "./CardItemView";
+import { CardItemView, formatMonthDay } from "./CardItemView";
 import { FadeWhenOverflow } from "./FadeWhenOverflow";
 import type { CardItemActions } from "../types";
-import { CATEGORY_COLORS } from "../categoryColors";
 
 const MIN_CARD_WIDTH = 288;
 const GAP = 16;
@@ -225,7 +224,7 @@ function SectionHead({
   );
 }
 
-/** 置顶横卡：双列宽，左缘分类色脊，正文 Editor 只读预览（同条目卡口径） */
+/** 置顶横卡：双列宽，左缘置顶色脊，正文 Editor 只读预览（同条目卡口径） */
 function FeaturedCard({
   card,
   actions,
@@ -235,7 +234,6 @@ function FeaturedCard({
   actions: CardItemActions;
   previewMaxHeight: number;
 }) {
-  const color = CATEGORY_COLORS[card.category];
   return (
     <article
       tabIndex={0}
@@ -245,19 +243,14 @@ function FeaturedCard({
         "hover:shadow-lift transition-[box-shadow,border-color] duration-200 hover:border-transparent"
       )}
     >
-      <span className="absolute inset-y-0 left-0 w-1" style={{ background: color.text }} />
+      <span className="absolute inset-y-0 left-0 w-1" style={{ background: "var(--tau-accent)" }} />
       <span
-        className="absolute right-3.5 top-3 grid size-[22px] place-items-center rounded-full"
-        style={{
-          background: CATEGORY_COLORS.temporary.soft,
-          color: CATEGORY_COLORS.temporary.text,
-        }}
+        className="bg-accent-soft text-accent absolute right-3.5 top-3 grid size-[22px] place-items-center rounded-full"
         title="已置顶"
       >
         <Pin className="size-3" strokeWidth={1.75} />
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-2.5">
-        <CategoryBadge category={card.category} />
         <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
           <FadeWhenOverflow style={{ maxHeight: previewMaxHeight }}>
             <CardContentPreview content={card.content} />

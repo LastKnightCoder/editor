@@ -2,7 +2,7 @@ import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import { CardWallList } from "../components/CardWallList";
-import { ECardCategory, type ICard } from "@/types/card";
+import { type ICard } from "@/types/card";
 import type { CardItemActions } from "../types";
 
 const { scrollToOffset } = vi.hoisted(() => ({ scrollToOffset: vi.fn() }));
@@ -83,7 +83,6 @@ it("置顶与时间分组同现，props 更新跟随渲染，回顶按钮与筛�
     count: 0,
     tags: [],
     links: [],
-    category: ECardCategory.Temporary,
     isTop,
     create_time: Date.now(),
     update_time: 0,
@@ -98,7 +97,6 @@ it("置顶与时间分组同现，props 更新跟随渲染，回顶按钮与筛�
     onExportEpub: vi.fn(),
     onExportPdf: vi.fn(),
     onToggleTop: vi.fn(),
-    onChangeCategory: vi.fn(),
   };
   try {
     await act(async () => root.render(<CardWallList cards={cards} actions={actions} />));

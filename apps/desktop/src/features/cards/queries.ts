@@ -4,9 +4,9 @@
  * 数据：getScopedCards 轻表拉取（content 为主进程截好的预览块，不含播客对象），
  * react-query 承载缓存与窗口聚焦刷新；单卡全文/播客经 useCardDetail 按需获取。
  * 写入与跨窗口事件按 id 单卡并入缓存，不做整域失效——全量重拉只剩显式 refresh
- * 与窗口聚焦。分类 / 标签树 / 时间分组全部前端派生（旧版同口径）。
+ * 与窗口聚焦。标签树 / 时间分组全部前端派生（旧版同口径）。
  *
- * 派生：filterCards（分类 + 标签前缀）→ bucketByTimeGroups
+ * 派生：filterCards（标签前缀）→ bucketByTimeGroups
  * （置顶优先 → 创建时间降序的分组呈现）→ buildTagTree（层级计数）。
  */
 
@@ -22,7 +22,7 @@ import {
 import { getContentAiTitles } from "@/commands/content-ai";
 import { on } from "@/electron";
 import { queryClient as appQueryClient } from "@/queryClient";
-import { ECardCategory, type ICard } from "@/types";
+import { type ICard } from "@/types";
 import type { CardMetadataPatch, ICreateCard } from "@/types/card";
 import useSettingStore from "@/stores/useSettingStore";
 import useGlobalStateStore from "@/stores/useGlobalStateStore";
@@ -218,10 +218,6 @@ export function useCardsMutations() {
     mutationFn: ({ card, isTop }: { card: ICard; isTop: boolean }) =>
       patch.mutateAsync({ id: card.id, patch: { isTop } }),
   });
-  const changeCategory = useMutation({
-    mutationFn: ({ card, category }: { card: ICard; category: ECardCategory }) =>
-      patch.mutateAsync({ id: card.id, patch: { category } }),
-  });
   const remove = useMutation({
     mutationFn: (id: number) => {
       assertActive();
@@ -237,7 +233,7 @@ export function useCardsMutations() {
       }
     },
   });
-  return { toggleTop, changeCategory, remove, patch, create };
+  return { toggleTop, remove, patch, create };
 }
 
 /* ---------- 派生 ---------- */
@@ -249,10 +245,9 @@ export function sortCards(cards: ICard[]): ICard[] {
   );
 }
 
-/** 分类与标签过滤后，按置顶优先、创建时间降序排列。 */
+/** 标签过滤后，按置顶优先、创建时间降序排列。 */
 export function filterCards(cards: ICard[], filter: CardFilter): ICard[] {
   const filtered = cards.filter(card => {
-    if (filter.category !== "all" && card.category !== filter.category) return false;
     if (filter.tag && !card.tags.some(t => t === filter.tag || t.startsWith(filter.tag + "/")))
       return false;
     return true;

@@ -67,7 +67,6 @@ export function ContentLinkPickerSheet(props: ContentLinkPickerSheetProps) {
         page: 1,
         pageSize: DEFAULT_PAGE_SIZE,
         query: trimmed,
-        category: "",
       });
       if (requestSeqRef.current !== requestSeq) {
         return;
@@ -189,12 +188,6 @@ export function ContentLinkPickerSheet(props: ContentLinkPickerSheetProps) {
                     <p className="text-ink line-clamp-1 text-[15px] font-medium">{displayText}</p>
                     <div className="text-ink-3 mt-2 flex items-center gap-2 text-xs">
                       <span>Card #{item.id}</span>
-                      {item.category ? (
-                        <>
-                          <span>·</span>
-                          <span>{item.category}</span>
-                        </>
-                      ) : null}
                     </div>
                   </button>
                 );

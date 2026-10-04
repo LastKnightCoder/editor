@@ -2,46 +2,24 @@ import React from "react";
 import { render, Box, Text } from "ink";
 import { getDataAccess, closeDataAccess } from "../../data-access/index.js";
 import { getActiveDbName } from "../../utils/path.js";
-import {
-  formatRelativeTime,
-  extractPlainText,
-  truncateToWidth,
-  padEnd,
-} from "../../utils/text.js";
+import { formatRelativeTime, extractPlainText, truncateToWidth, padEnd } from "../../utils/text.js";
 
 interface CardRow {
   id: number;
   create_time: number;
   update_time: number;
   tags: string;
-  category: string;
   is_top: number;
   content: string | null;
   count: number | null;
 }
 
 interface ListOptions {
-  category?: string;
   tag?: string;
   limit?: string;
 }
 
-function getCategoryBadge(category: string): { text: string; color: string } {
-  switch (category) {
-    case "permanent":
-      return { text: "永久", color: "green" };
-    case "temporary":
-      return { text: "闪念", color: "yellow" };
-    case "theme":
-      return { text: "主题", color: "cyan" };
-    case "literature":
-      return { text: "文献", color: "magenta" };
-    default:
-      return { text: category, color: "gray" };
-  }
-}
-
-const COL = { id: 6, category: 6, content: 40, tags: 24, time: 10 };
+const COL = { id: 6, content: 40, tags: 24, time: 10 };
 
 function CardListView({ cards }: { cards: CardRow[] }) {
   if (cards.length === 0) {
@@ -52,12 +30,11 @@ function CardListView({ cards }: { cards: CardRow[] }) {
     );
   }
 
-  const headerLine = `┌${"─".repeat(COL.id + 2)}┬${"─".repeat(COL.category + 2)}┬${"─".repeat(COL.content + 2)}┬${"─".repeat(COL.tags + 2)}┬${"─".repeat(COL.time + 2)}┐`;
-  const sepLine = `├${"─".repeat(COL.id + 2)}┼${"─".repeat(COL.category + 2)}┼${"─".repeat(COL.content + 2)}┼${"─".repeat(COL.tags + 2)}┼${"─".repeat(COL.time + 2)}┤`;
-  const footerLine = `└${"─".repeat(COL.id + 2)}┴${"─".repeat(COL.category + 2)}┴${"─".repeat(COL.content + 2)}┴${"─".repeat(COL.tags + 2)}┴${"─".repeat(COL.time + 2)}┘`;
+  const headerLine = `┌${"─".repeat(COL.id + 2)}┬${"─".repeat(COL.content + 2)}┬${"─".repeat(COL.tags + 2)}┬${"─".repeat(COL.time + 2)}┐`;
+  const sepLine = `├${"─".repeat(COL.id + 2)}┼${"─".repeat(COL.content + 2)}┼${"─".repeat(COL.tags + 2)}┼${"─".repeat(COL.time + 2)}┤`;
+  const footerLine = `└${"─".repeat(COL.id + 2)}┴${"─".repeat(COL.content + 2)}┴${"─".repeat(COL.tags + 2)}┴${"─".repeat(COL.time + 2)}┘`;
 
-  const rows = cards.map((card) => {
-    const badge = getCategoryBadge(card.category);
+  const rows = cards.map(card => {
     const tags = (() => {
       try {
         return JSON.parse(card.tags);
@@ -72,7 +49,6 @@ function CardListView({ cards }: { cards: CardRow[] }) {
     const truncatedTags = truncateToWidth(tagStr, COL.tags);
     return {
       id: card.id,
-      badge,
       preview: truncatedPreview,
       time,
       tags: truncatedTags,
@@ -92,8 +68,6 @@ function CardListView({ cards }: { cards: CardRow[] }) {
         <Text dimColor>│</Text>
         <Text bold>{padEnd(" ID", COL.id + 2)}</Text>
         <Text dimColor>│</Text>
-        <Text bold>{padEnd(" 类型", COL.category + 2)}</Text>
-        <Text dimColor>│</Text>
         <Text bold>{padEnd(" 内容", COL.content + 2)}</Text>
         <Text dimColor>│</Text>
         <Text bold>{padEnd(" 标签", COL.tags + 2)}</Text>
@@ -107,11 +81,6 @@ function CardListView({ cards }: { cards: CardRow[] }) {
           <Text>
             <Text dimColor>│</Text>
             <Text> {padEnd(`#${row.id}`, COL.id + 1)}</Text>
-            <Text dimColor>│</Text>
-            <Text color={row.badge.color}>
-              {" "}
-              {padEnd(row.badge.text, COL.category + 1)}
-            </Text>
             <Text dimColor>│</Text>
             <Text> {padEnd(row.preview, COL.content + 1)}</Text>
             <Text dimColor>│</Text>
@@ -133,38 +102,25 @@ export async function runCardList(options: ListOptions) {
   const da = getDataAccess(dbName);
 
   let sql = `
-    SELECT c.id, c.create_time, c.update_time, c.tags, c.category, c.is_top,
+    SELECT c.id, c.create_time, c.update_time, c.tags, c.is_top,
            ct.content, ct.count
     FROM cards c
     LEFT JOIN contents ct ON c.content_id = ct.id
   `;
 
-  const conditions: string[] = [];
-  const params: unknown[] = [];
-
-  if (options.category) {
-    conditions.push("c.category = ?");
-    params.push(options.category);
-  }
-
-  if (conditions.length > 0) {
-    sql += " WHERE " + conditions.join(" AND ");
-  }
-
   sql += " ORDER BY c.is_top DESC, c.update_time DESC";
 
   const limit = parseInt(options.limit || "20", 10);
   sql += ` LIMIT ?`;
-  params.push(limit);
 
-  let cards = da.query<CardRow>(sql, ...params);
+  let cards = da.query<CardRow>(sql, limit);
 
   if (options.tag) {
     const tagFilter = options.tag.toLowerCase();
-    cards = cards.filter((card) => {
+    cards = cards.filter(card => {
       try {
         const tags = JSON.parse(card.tags) as string[];
-        return tags.some((t) => t.toLowerCase().includes(tagFilter));
+        return tags.some(t => t.toLowerCase().includes(tagFilter));
       } catch {
         return false;
       }

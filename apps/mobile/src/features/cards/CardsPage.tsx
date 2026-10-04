@@ -31,7 +31,7 @@ export function CardsPage(props: CardsPageProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const pendingPageRef = useRef<number | null>(null);
   const previewOpenRef = useRef(props.isPreviewOpen);
-  const queryKeyRef = useRef(`${props.queryState.query}::${props.queryState.category}`);
+  const queryKeyRef = useRef(props.queryState.query);
   const [scrollMargin, setScrollMargin] = useState(0);
 
   // scrollMargin = 列表顶部相对滚动容器内容顶部的距离（虚拟化坐标系原点）
@@ -116,12 +116,12 @@ export function CardsPage(props: CardsPageProps) {
   }, [applyScrollMargin, props.isPreviewOpen]);
 
   useEffect(() => {
-    const queryKey = `${props.queryState.query}::${props.queryState.category}`;
+    const queryKey = props.queryState.query;
     if (queryKeyRef.current !== queryKey) {
       queryKeyRef.current = queryKey;
       pendingPageRef.current = null;
     }
-  }, [props.queryState.category, props.queryState.query]);
+  }, [props.queryState.query]);
 
   useEffect(() => {
     if (pendingPageRef.current !== null && props.queryState.page >= pendingPageRef.current) {

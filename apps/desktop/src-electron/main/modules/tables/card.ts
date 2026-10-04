@@ -1,7 +1,7 @@
 import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
 import { getMarkdown } from "@/utils/markdown.ts";
-import { ICreateCard, IUpdateCard, ICard, ECardCategory } from "@/types";
+import { ICreateCard, IUpdateCard, ICard } from "@/types";
 import Operation from "./operation";
 import { basename } from "node:path";
 import FTSTable from "./fts";
@@ -35,8 +35,6 @@ export default class CardTable {
       "get-all-global-tags": this.getAllGlobalTags.bind(this),
       "get-all-cards": this.getAllCards.bind(this),
       "get-card-by-id": this.getCardById.bind(this),
-      "get-random-permanent-cards": this.getRandomPermanentCards.bind(this),
-      "get-recent-temp-lit-cards": this.getRecentTemporaryAndLiteratureCards.bind(this),
       "is-content-is-card": this.isContentIsCard.bind(this),
       "get-card-by-content-id": this.getCardByContentId.bind(this),
       "build-card-from-content": this.buildCardFromContent.bind(this),
@@ -58,7 +56,7 @@ export default class CardTable {
     this.assertDatabase(db, scope);
     // 列表轻表：不 JOIN podcasts、content 截为预览块，全量数据经 getScopedCard 按需单卡获取
     const stmt = db.prepare(`
-      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top, c.podcast_id,
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.content_id, c.is_top, c.podcast_id,
              ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
@@ -95,14 +93,13 @@ export default class CardTable {
     this.assertDatabase(db, request);
     const card = this.getCardById(db, request.id);
     if (!card) throw new Error("卡片不存在");
-    const { tags, links, category, isTop } = request.patch;
+    const { tags, links, isTop } = request.patch;
     return this.updateCard(
       db,
       {
         ...card,
         tags: tags ?? card.tags,
         links: links ?? card.links,
-        category: category ?? card.category,
         isTop: isTop ?? card.isTop,
       },
       ctx
@@ -125,20 +122,6 @@ export default class CardTable {
       db.exec(`ALTER TABLE cards ADD COLUMN podcast_id INTEGER DEFAULT NULL;`);
       db.exec(`CREATE INDEX IF NOT EXISTS idx_cards_podcast_id ON cards(podcast_id);`);
       log.info("已添加 podcast_id 字段到 cards 表");
-    }
-
-    // 清理过期临时卡片
-    const cards = this.getAllCards(db);
-    const now = Date.now();
-    const ONE_MONTH = 30 * 24 * 60 * 60 * 1000;
-    for (const card of cards) {
-      if (!card.content || !card.content.length) continue;
-
-      // 检查并删除过期的临时卡片
-      if (card.category === ECardCategory.Temporary && now - card.update_time > ONE_MONTH) {
-        log.info(`删除过期临时卡片: ${card.id}`);
-        this.deleteCard(db, card.id);
-      }
     }
   }
 
@@ -186,7 +169,6 @@ export default class CardTable {
       tags: JSON.parse(card.tags),
       links: JSON.parse(card.links),
       content: content,
-      category: card.category,
       count: count,
       contentId: card.content_id,
       isTop: !!card.is_top,
@@ -218,7 +200,7 @@ export default class CardTable {
 
   static getAllCards(db: Database.Database) {
     const stmt = db.prepare(`
-      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top, c.podcast_id,
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.content_id, c.is_top, c.podcast_id,
              ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta,
              p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
       FROM cards c
@@ -233,7 +215,7 @@ export default class CardTable {
 
   static getCardById(db: Database.Database, cardId: number | bigint): ICard | null {
     const stmt = db.prepare(`
-      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top, c.podcast_id,
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.content_id, c.is_top, c.podcast_id,
              ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta,
              p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
       FROM cards c
@@ -254,7 +236,7 @@ export default class CardTable {
 
     const placeholders = cardIds.map(() => "?").join(",");
     const stmt = db.prepare(`
-      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top, c.podcast_id,
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.content_id, c.is_top, c.podcast_id,
              ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta,
              p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
       FROM cards c
@@ -268,7 +250,7 @@ export default class CardTable {
   }
 
   static createCard(db: Database.Database, card: ICreateCard): ICard {
-    const { tags, links, content, category, count, isTop } = card;
+    const { tags, links, content, count, isTop } = card;
 
     // 创建content记录
     const contentId = ContentTable.createContent(db, {
@@ -278,7 +260,7 @@ export default class CardTable {
 
     // 创建card记录
     const stmt = db.prepare(
-      "INSERT INTO cards (create_time, update_time, tags, links, content_id, category, is_top) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      "INSERT INTO cards (create_time, update_time, tags, links, content_id, is_top) VALUES (?, ?, ?, ?, ?, ?)"
     );
     const now = Date.now();
     const res = stmt.run(
@@ -287,7 +269,6 @@ export default class CardTable {
       JSON.stringify(tags),
       JSON.stringify(links),
       contentId,
-      category,
       isTop ? 1 : 0
     );
     const createdCardId = res.lastInsertRowid;
@@ -306,18 +287,10 @@ export default class CardTable {
     ContentTable.incrementRefCount(db, contentId);
 
     const stmt = db.prepare(
-      "INSERT INTO cards (create_time, update_time, tags, links, content_id, category, is_top) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      "INSERT INTO cards (create_time, update_time, tags, links, content_id, is_top) VALUES (?, ?, ?, ?, ?, ?)"
     );
     const now = Date.now();
-    const res = stmt.run(
-      now,
-      now,
-      JSON.stringify([]),
-      JSON.stringify([]),
-      contentId,
-      "permanent",
-      0
-    );
+    const res = stmt.run(now, now, JSON.stringify([]), JSON.stringify([]), contentId, 0);
     const createdCardId = res.lastInsertRowid;
 
     Operation.insertOperation(db, "card", "insert", createdCardId, now);
@@ -329,14 +302,14 @@ export default class CardTable {
     card: IUpdateCard,
     ctx: CommandContext = fallbackCommandContext
   ): ICard {
-    const { tags, links, category, id, isTop } = card;
+    const { tags, links, id, isTop } = card;
 
     // 更新card记录
     const stmt = db.prepare(
-      "UPDATE cards SET update_time = ?, tags = ?, links = ?, category = ?, is_top = ? WHERE id = ?"
+      "UPDATE cards SET update_time = ?, tags = ?, links = ?, is_top = ? WHERE id = ?"
     );
     const now = Date.now();
-    stmt.run(now, JSON.stringify(tags), JSON.stringify(links), category, isTop ? 1 : 0, id);
+    stmt.run(now, JSON.stringify(tags), JSON.stringify(links), isTop ? 1 : 0, id);
 
     Operation.insertOperation(db, "card", "update", card.id, now);
 
@@ -426,69 +399,6 @@ export default class CardTable {
     return Array.from(tagSet).sort();
   }
 
-  static getRandomPermanentCards(
-    db: Database.Database,
-    { seed = Date.now(), count = 5 }: { seed: number; count: number }
-  ): ICard[] {
-    // 获取所有永久卡片
-    const stmt = db.prepare(`
-      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top,
-             ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta 
-      FROM cards c
-      LEFT JOIN contents ct ON c.content_id = ct.id
-      LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
-      WHERE c.category = 'permanent' AND ct.content IS NOT NULL
-    `);
-
-    const allPermanentCards = stmt.all().map(card => this.parseCard(card));
-
-    if (allPermanentCards.length === 0) {
-      return [];
-    }
-
-    // 使用种子生成伪随机数，种子不变，随机数也不变
-    const random = (max: number, index: number) => {
-      const random = Math.abs(Math.sin(seed + index));
-      return Math.floor(random * max);
-    };
-
-    // 随机选择卡片
-    const result: ICard[] = [];
-    const selectedIndices = new Set<number>();
-
-    // 如果卡片数量不足，则返回所有卡片
-    const targetCount = Math.min(count, allPermanentCards.length);
-
-    let index = 0;
-    while (result.length < targetCount) {
-      const randomIndex = random(allPermanentCards.length, index);
-      if (!selectedIndices.has(randomIndex)) {
-        selectedIndices.add(randomIndex);
-        result.push(allPermanentCards[randomIndex]);
-      }
-      index++;
-    }
-
-    return result;
-  }
-
-  static getRecentTemporaryAndLiteratureCards(db: Database.Database, count = 10): ICard[] {
-    // 获取最新的闪念笔记和文献笔记
-    const stmt = db.prepare(`
-      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top,
-             ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta 
-      FROM cards c
-      LEFT JOIN contents ct ON c.content_id = ct.id
-      LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
-      WHERE (c.category = 'temporary' OR c.category = 'literature') AND ct.content IS NOT NULL
-      ORDER BY c.update_time ASC
-      LIMIT ?
-    `);
-
-    const cards = stmt.all(count);
-    return cards.map(card => this.parseCard(card));
-  }
-
   static isContentIsCard(db: Database.Database, contentId: number): boolean {
     const stmt = db.prepare("SELECT id FROM cards WHERE content_id = ?");
     const result = stmt.get(contentId);
@@ -511,18 +421,10 @@ export default class CardTable {
       return this.getCardById(db, existing.id) as ICard;
     }
     const insertStmt = db.prepare(
-      "INSERT INTO cards (create_time, update_time, tags, links, content_id, category, is_top) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      "INSERT INTO cards (create_time, update_time, tags, links, content_id, is_top) VALUES (?, ?, ?, ?, ?, ?)"
     );
     const now = Date.now();
-    const res = insertStmt.run(
-      now,
-      now,
-      JSON.stringify([]),
-      JSON.stringify([]),
-      contentId,
-      "permanent",
-      0
-    );
+    const res = insertStmt.run(now, now, JSON.stringify([]), JSON.stringify([]), contentId, 0);
     const cardId = res.lastInsertRowid;
     ContentTable.incrementRefCount(db, contentId);
     Operation.insertOperation(db, "card", "insert", cardId, now);
@@ -551,7 +453,7 @@ export default class CardTable {
 
     const placeholders = dates.map(() => "?").join(",");
     const stmt = db.prepare(`
-      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top, c.podcast_id,
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.content_id, c.is_top, c.podcast_id,
              ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta,
              p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
       FROM cards c
@@ -586,7 +488,7 @@ export default class CardTable {
     const endTimestamp = new Date(endDate + " 23:59:59").getTime();
 
     const stmt = db.prepare(`
-      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top, c.podcast_id,
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.content_id, c.is_top, c.podcast_id,
              ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta,
              p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
       FROM cards c
@@ -663,7 +565,6 @@ export default class CardTable {
         originalLength,
         metadata: {
           tags: card.tags,
-          category: card.category,
           createTime: card.create_time,
           updateTime: card.update_time,
           wordCount: card.count,

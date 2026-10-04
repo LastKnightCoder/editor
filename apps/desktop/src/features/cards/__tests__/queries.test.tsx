@@ -2,7 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ECardCategory, type ICard } from "@/types/card";
+import { type ICard } from "@/types/card";
 import useSettingStore from "@/stores/useSettingStore";
 import useGlobalStateStore from "@/stores/useGlobalStateStore";
 import { defaultCardEventBus } from "@/utils/event-bus/card-event-bus";
@@ -43,7 +43,6 @@ const card = (id: number, patch: Partial<ICard> = {}): ICard => ({
   count: 0,
   create_time: 0,
   update_time: 0,
-  category: ECardCategory.Temporary,
   tags: [],
   links: [],
   isTop: false,
@@ -102,15 +101,14 @@ afterEach(async () => {
 });
 
 describe("卡片派生", () => {
-  it("分类与标签过滤后按置顶优先、创建时间降序排列", () => {
+  it("标签前缀过滤后按置顶优先、创建时间降序排列", () => {
     const cards = [
       card(1, { isTop: true, create_time: 100, tags: ["读书"] }),
       card(2, { create_time: 90, tags: ["读书/历史"] }),
       card(3, { create_time: 80, tags: ["读书/历史"] }),
-      card(4, { category: ECardCategory.Literature, tags: ["读书"] }),
+      card(4, { create_time: 70, tags: ["写作"] }),
     ];
-    const filter = { category: ECardCategory.Temporary, tag: "读书" };
-    expect(filterCards(cards, filter).map(card => card.id)).toEqual([1, 2, 3]);
+    expect(filterCards(cards, { tag: "读书" }).map(card => card.id)).toEqual([1, 2, 3]);
   });
   it("按本地自然日、周、月分组，昨天白天不进入今天", () => {
     vi.useFakeTimers();
@@ -150,12 +148,12 @@ describe("卡片派生", () => {
     const tree = buildTagTree(cards);
     expect(tree[0].count).toBe(2);
     expect(tree[0].children.map(node => node.count)).toEqual([2, 1]);
-    expect(filterCards(cards, { category: "all", tag: "读书" })).toHaveLength(2);
+    expect(filterCards(cards, { tag: "读书" })).toHaveLength(2);
   });
   it("筛选结果不改变关联解析使用的排序全集", () => {
-    const cards = [card(1, { links: [2] }), card(2, { category: ECardCategory.Literature })];
+    const cards = [card(1, { links: [2] }), card(2)];
     const all = sortCards(cards);
-    expect(filterCards(cards, { category: ECardCategory.Temporary, tag: "" })).toHaveLength(1);
+    expect(filterCards(cards, { tag: "" })).toHaveLength(2);
     expect(all.find(card => card.id === all[0].links[0])?.id).toBe(2);
   });
 });
@@ -235,21 +233,16 @@ describe("卡片查询与写入", () => {
     await waitFor(() => expect(detail.data?.content).toEqual(blocks));
     expect(getScopedCard).toHaveBeenCalledWith("a", 1);
   });
-  it("修改分类只发送分类补丁，并同步确认快照", async () => {
+  it("置顶补丁只发送 isTop 字段，并同步确认快照", async () => {
     await mount();
     await waitFor(() => expect(feed.cards).toHaveLength(1));
-    const updated = card(1, { category: ECardCategory.Permanent, isTop: true });
+    const updated = card(1, { isTop: true });
     vi.mocked(patchScopedCard).mockResolvedValue(updated);
     vi.mocked(getScopedCards).mockResolvedValue([updated]);
     await act(async () => {
-      await mutations.changeCategory.mutateAsync({
-        card: card(1),
-        category: ECardCategory.Permanent,
-      });
+      await mutations.toggleTop.mutateAsync({ card: card(1), isTop: true });
     });
-    expect(patchScopedCard).toHaveBeenCalledWith("a", 1, { category: ECardCategory.Permanent });
-    await waitFor(() =>
-      expect(feed.cards[0]).toMatchObject({ category: ECardCategory.Permanent, isTop: true })
-    );
+    expect(patchScopedCard).toHaveBeenCalledWith("a", 1, { isTop: true });
+    await waitFor(() => expect(feed.cards[0]).toMatchObject({ isTop: true }));
   });
 });

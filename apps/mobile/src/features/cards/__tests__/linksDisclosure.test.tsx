@@ -15,7 +15,6 @@ const tauriMocks = vi.hoisted(() => ({
         id,
         contentId: id * 100,
         updateTime: 1_736_000_000_000 + idx,
-        category: "permanent",
         tags: [],
         excerpt: `关联卡片 ${id} 的摘要`,
         content: [],

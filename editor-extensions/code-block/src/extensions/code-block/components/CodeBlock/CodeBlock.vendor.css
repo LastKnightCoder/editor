@@ -4,6 +4,7 @@
  * Tailwind 任意变体表达成本过高，保留为普通 CSS（03 指南 §4 白名单第 ④ 类）。
  *
  * 作用域：.ed-code-overlay（块内与全屏共用）；内边距经 --ed-code-pad-* 由调用方给。
+ * 行号栏、改动行标记按测量层给出的每行 top 绝对定位，换行时也能对齐逻辑行。
  */
 
 .ed-code-overlay {
@@ -11,6 +12,11 @@
   font-size: 0.8em;
   line-height: 1.8;
   font-family: var(--ed-font-mono);
+}
+
+.ed-code-overlay[data-line-numbers] {
+  --ed-code-gutter-width: calc(var(--ed-code-gutter-digits) * 1ch + 1.25em);
+  --ed-code-pad-left: calc(var(--ed-code-gutter-width) + 0.75em);
 }
 
 .ed-code-overlay .code-block-shiki-layer,
@@ -78,6 +84,79 @@
   background: var(--ed-code-selection);
 }
 
+/* 自动换行：输入层与渲染层、测量层同一断行规则，保证光标对齐 */
+.ed-code-overlay[data-wrap] .code-block-shiki-layer,
+.ed-code-overlay[data-wrap] .code-block-shiki-input,
+.ed-code-overlay[data-wrap] .code-block-shiki-measure,
+.ed-code-overlay[data-wrap] .code-block-shiki-layer pre,
+.ed-code-overlay[data-wrap] .code-block-shiki-layer code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.ed-code-overlay .code-block-shiki-gutter,
+.ed-code-overlay .code-block-shiki-deco {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ed-code-overlay .code-block-shiki-gutter {
+  right: auto;
+  z-index: 3;
+  width: var(--ed-code-gutter-width);
+}
+
+.ed-code-overlay .code-block-shiki-line-number {
+  position: absolute;
+  left: 0;
+  right: 0;
+  padding-right: 0.75em;
+  text-align: right;
+  color: var(--ed-text-tertiary);
+  opacity: 0.7;
+  user-select: none;
+  transition:
+    color 0.2s,
+    opacity 0.2s;
+}
+
+.ed-code-overlay .code-block-shiki-line-number.is-clickable {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.ed-code-overlay .code-block-shiki-line-number.is-clickable:hover {
+  color: var(--ed-text);
+  opacity: 1;
+}
+
+.ed-code-overlay .code-block-shiki-line-number.is-highlighted,
+.ed-code-overlay .code-block-shiki-line-number.is-changed {
+  color: var(--ed-accent-text);
+  opacity: 1;
+}
+
+.ed-code-overlay .code-block-shiki-deco {
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 0.6s var(--tau-ease-out);
+}
+
+.ed-code-overlay .code-block-shiki-deco[data-visible] {
+  opacity: 1;
+  transition-duration: 0.2s;
+}
+
+.ed-code-overlay .code-block-shiki-changed-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: linear-gradient(90deg, var(--ed-accent-soft), transparent 75%);
+  box-shadow: inset 3px 0 0 var(--ed-accent);
+}
+
 .ed-code-overlay .code-block-shiki-input[readonly] {
   pointer-events: none;
   opacity: 0;
@@ -114,7 +193,7 @@
   line-height: inherit;
 }
 
-/* 行高亮（highlightLines）：被高亮行撑满整行，其余行降淡 */
+/* 行高亮（highlightLines）：被高亮行撑满整行，其余行降淡但保留可读的上下文 */
 .ed-code-overlay .code-block-shiki-html .highlighted {
   display: inline-block;
   width: 100%;
@@ -123,9 +202,9 @@
 .ed-code-overlay .code-block-shiki-html .dishonored {
   display: inline-block;
   width: 100%;
-  opacity: 0.3;
+  opacity: 0.45;
 }
 
 .ed-code-overlay .code-block-shiki-magic .dishonored {
-  opacity: 0.3;
+  opacity: 0.45;
 }

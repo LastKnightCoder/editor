@@ -1,40 +1,18 @@
 /**
  * 卡片墙条目卡（等高网格卡）。
  *
- * 结构 = 分类徽标（四分类色，域内数据色，不进主题词表）+ 正文预览（tau Editor
- * 只读渲染前 3 个 block，限高截断保格式——同旧版 CardItem 口径）+ 标签行贴底
- * （同行等高由行容器 stretch 保证）。hover 平铺「详情 / 更多」；更多菜单走域内
- * 共享的 CardActionMenu（与预览 ⋯ 菜单同源）。
+ * 结构 = 正文预览（tau Editor 只读渲染前 3 个 block，限高截断保格式——同旧版
+ * CardItem 口径）+ 标签行贴底（同行等高由行容器 stretch 保证）。hover 平铺
+ * 「详情 / 更多」；更多菜单走域内共享的 CardActionMenu（与预览 ⋯ 菜单同源）。
  */
 
 import { Maximize2, MoreHorizontal, Pin } from "lucide-react";
-import { ECardCategory, type ICard } from "@/types";
-import { cardCategoryName } from "@/constants/card";
+import type { ICard } from "@/types";
 import { CardContentPreview } from "./CardContentPreview";
 import { FadeWhenOverflow } from "./FadeWhenOverflow";
 import { IconButton, cn, Tag } from "@tau/ui";
-import { CATEGORY_COLORS } from "../categoryColors";
 import { CardActionMenu } from "./CardActionMenu";
 import type { CardItemActions } from "../types";
-
-export function CategoryBadge({
-  category,
-  full = false,
-}: {
-  category: ECardCategory;
-  full?: boolean;
-}) {
-  const color = CATEGORY_COLORS[category];
-  return (
-    <span
-      className="inline-flex w-fit shrink-0 items-center gap-[5px] whitespace-nowrap rounded-full px-[8px] py-px text-[10.5px] leading-[1.6]"
-      style={{ background: color.soft, color: color.text }}
-    >
-      <span className="size-[5px] shrink-0 rounded-full" style={{ background: color.text }} />
-      {full ? cardCategoryName[category] : cardCategoryName[category].slice(0, 2)}
-    </span>
-  );
-}
 
 export interface CardItemViewProps {
   card: ICard;
@@ -44,8 +22,6 @@ export interface CardItemViewProps {
 }
 
 export function CardItemView({ card, actions, previewMaxHeight = 150 }: CardItemViewProps) {
-  const isLiterature = card.category === ECardCategory.Literature;
-
   return (
     <article
       tabIndex={0}
@@ -55,18 +31,11 @@ export function CardItemView({ card, actions, previewMaxHeight = 150 }: CardItem
         // 落在卡片库那张纸上：细描边分隔（同文章卡），hover = lift 轻抬阴影 + 描边隐去
         "hover:shadow-lift transition-[box-shadow,border-color] duration-200 hover:border-transparent"
       )}
-      style={
-        card.isTop ? { borderColor: CATEGORY_COLORS[ECardCategory.Temporary].text } : undefined
-      }
+      style={card.isTop ? { borderColor: "var(--tau-accent)" } : undefined}
     >
       <div className="flex items-center gap-1.5 text-[11px]">
-        <CategoryBadge category={card.category} />
         {card.isTop && (
-          <Pin
-            className="size-3 shrink-0"
-            strokeWidth={1.75}
-            style={{ color: CATEGORY_COLORS[ECardCategory.Temporary].text }}
-          />
+          <Pin className="text-accent size-3 shrink-0" strokeWidth={1.75} aria-label="已置顶" />
         )}
         <span className="flex-1" />
         <div
@@ -93,17 +62,7 @@ export function CardItemView({ card, actions, previewMaxHeight = 150 }: CardItem
       </div>
 
       {/* 正文预览保留格式，限高避免长内容撑开卡片；溢出时底部一行渐隐替代硬切 */}
-      <div
-        className={cn(
-          "min-h-0 min-w-0 flex-1 overflow-hidden",
-          isLiterature && "border-l-2 pl-[10px]"
-        )}
-        style={
-          isLiterature
-            ? { borderLeftColor: CATEGORY_COLORS[ECardCategory.Literature].soft }
-            : undefined
-        }
-      >
+      <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
         <FadeWhenOverflow style={{ maxHeight: previewMaxHeight }}>
           <CardContentPreview content={card.content} />
         </FadeWhenOverflow>
