@@ -20,8 +20,8 @@
     "@loadable/component": "^5.15.3",
     "@tau/markdown": "workspace:*",
     "@tau/shared": "workspace:*",
-    "ahooks": "^3.7.7",
-    "lucide-react": "^0.399.0"
+    "lucide-react": "^0.399.0",
+    "@tau/ui": "workspace:*"
   },
   "peerDependencies": {
     "@tau/editor": "workspace:*",

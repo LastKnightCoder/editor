@@ -2,10 +2,11 @@ import { ipcMain } from "electron";
 import { Module } from "../types/module";
 import { ChildProcess, fork } from "node:child_process";
 import path from "node:path";
+// 运行时类名与应用同一套语义词表；worker 是独立进程，读不到 workspace 包，由这里随任务传入
+import TAU_TAILWIND_THEME_CSS from "@tau/themes/tailwind.css?raw";
 
 type WorkerResponse =
-  | { ok: true; id: number; css: string }
-  | { ok: false; id: number; error?: string };
+  { ok: true; id: number; css: string } | { ok: false; id: number; error?: string };
 
 class CustomBlockTailwindModule implements Module {
   name: string;
@@ -28,11 +29,9 @@ class CustomBlockTailwindModule implements Module {
       async (_event, payload: { content: string; extension?: string }) => {
         return this.compileTailwindCss(
           typeof payload?.content === "string" ? payload.content : "",
-          typeof payload?.extension === "string"
-            ? payload.extension
-            : undefined,
+          typeof payload?.extension === "string" ? payload.extension : undefined
         );
-      },
+      }
     );
   }
 
@@ -41,11 +40,7 @@ class CustomBlockTailwindModule implements Module {
       return;
     }
 
-    const workerPath = path.join(
-      __dirname,
-      "workers",
-      "tailwind-runtime-worker.js",
-    );
+    const workerPath = path.join(__dirname, "workers", "tailwind-runtime-worker.js");
 
     this.worker = fork(workerPath, {
       stdio: ["pipe", "pipe", "pipe", "ipc"],
@@ -55,7 +50,7 @@ class CustomBlockTailwindModule implements Module {
     const prefix = "[custom-block:tailwind]";
 
     this.worker.stdout?.setEncoding("utf8");
-    this.worker.stdout?.on("data", (chunk) => {
+    this.worker.stdout?.on("data", chunk => {
       const text = chunk.toString();
       if (text.trim().length > 0) {
         console.log(`${prefix} ${text}`);
@@ -64,7 +59,7 @@ class CustomBlockTailwindModule implements Module {
 
     let stderrBuffer = "";
     this.worker.stderr?.setEncoding("utf8");
-    this.worker.stderr?.on("data", (chunk) => {
+    this.worker.stderr?.on("data", chunk => {
       const text = chunk.toString();
       stderrBuffer += text;
       if (text.trim().length > 0) {
@@ -81,27 +76,23 @@ class CustomBlockTailwindModule implements Module {
       if (message.ok) {
         handler.resolve(message.css);
       } else {
-        handler.reject(
-          new Error(
-            message.error ?? "Tailwind compiler worker returned an error",
-          ),
-        );
+        handler.reject(new Error(message.error ?? "Tailwind compiler worker returned an error"));
       }
     });
 
-    this.worker.on("error", (error) => {
+    this.worker.on("error", error => {
       console.error(`${prefix} worker error`, error);
       this.rejectAll(error);
       this.disposeWorker();
     });
 
-    this.worker.on("close", (code) => {
+    this.worker.on("close", code => {
       const detail =
         stderrBuffer.trim().length > 0
           ? `${stderrBuffer.trim()}`
           : "Tailwind compiler worker exited unexpectedly";
       const error = new Error(
-        `Tailwind compiler worker exited with code ${code}${detail ? `: ${detail}` : ""}`,
+        `Tailwind compiler worker exited with code ${code}${detail ? `: ${detail}` : ""}`
       );
       console.error(`${prefix} ${error.message}`);
       this.rejectAll(error);
@@ -123,10 +114,7 @@ class CustomBlockTailwindModule implements Module {
     this.pending.clear();
   }
 
-  async compileTailwindCss(
-    content: string,
-    extension?: string,
-  ): Promise<string> {
+  async compileTailwindCss(content: string, extension?: string): Promise<string> {
     const trimmed = content?.trim();
     if (!trimmed) {
       return "";
@@ -134,10 +122,7 @@ class CustomBlockTailwindModule implements Module {
     return this.compileInternal(trimmed, extension);
   }
 
-  private async compileInternal(
-    content: string,
-    extension?: string,
-  ): Promise<string> {
+  private async compileInternal(content: string, extension?: string): Promise<string> {
     this.ensureWorker();
     if (!this.worker) {
       throw new Error("Tailwind compiler worker is unavailable");
@@ -145,7 +130,7 @@ class CustomBlockTailwindModule implements Module {
     const id = ++this.requestId;
     return new Promise<string>((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
-      this.worker?.send({ id, content, extension });
+      this.worker?.send({ id, content, extension, themeCss: TAU_TAILWIND_THEME_CSS });
     });
   }
 }

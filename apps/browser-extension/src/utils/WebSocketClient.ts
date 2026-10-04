@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { isRpcNotificationMessage, isRpcResponseMessage } from "./rpc";
 import { RpcMessageType, type RpcNotificationMessage } from "./types";
+import type { WebSocketLike } from "./wsRelay";
 
 type NotificationHandler = (data: unknown) => void;
 
@@ -12,21 +13,28 @@ interface PendingRequest {
 
 export type ConnectionEventHandler = () => void;
 
+/** 默认直连；content script 需传入经后台转发的连接（见 wsRelay） */
+export type WebSocketFactory = (url: string) => WebSocketLike;
+
+const directWebSocket: WebSocketFactory = url => new WebSocket(url);
+
 /**
  * WebSocket 客户端，复用桌面端 RPC 协议
  * 增加了连接状态回调和自动重连能力
  */
 class WebSocketClient {
-  private ws: WebSocket | null = null;
+  private ws: WebSocketLike | null = null;
   private notificationHandlers: Record<string, NotificationHandler[]> = {};
   private pendingRequests: Map<string, PendingRequest> = new Map();
   private url: string;
+  private createSocket: WebSocketFactory;
 
   private _onOpen: ConnectionEventHandler | null = null;
   private _onClose: ConnectionEventHandler | null = null;
 
-  constructor(url: string) {
+  constructor(url: string, createSocket: WebSocketFactory = directWebSocket) {
     this.url = url;
+    this.createSocket = createSocket;
   }
 
   /** 设置连接成功的回调 */
@@ -42,7 +50,7 @@ class WebSocketClient {
   /** 建立连接 */
   connect() {
     try {
-      this.ws = new WebSocket(this.url);
+      this.ws = this.createSocket(this.url);
       this.ws.addEventListener("message", this.handleMessage.bind(this));
       this.ws.addEventListener("open", this.handleOpen.bind(this));
       this.ws.addEventListener("close", this.handleClose.bind(this));
@@ -75,7 +83,7 @@ class WebSocketClient {
   unregisterNotificationHandler(method: string, handler: NotificationHandler) {
     const handlers = this.notificationHandlers[method];
     if (Array.isArray(handlers)) {
-      this.notificationHandlers[method] = handlers.filter((h) => h !== handler);
+      this.notificationHandlers[method] = handlers.filter(h => h !== handler);
     }
   }
 
