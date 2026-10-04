@@ -529,6 +529,7 @@ export function CardDetailView() {
 
               {/* 标签行（正文末）：每次操作即时 patch */}
               <AddTag
+                divided
                 tags={card.tags}
                 addTag={tag => {
                   if (card.tags.includes(tag)) return;

@@ -42,7 +42,7 @@ import {
   type OutlineHeader,
 } from "@/components/ContentOutline";
 import { ThemeToggle } from "@/app/Titlebar";
-import { ArticleTags } from "@/features/articles/components/ArticleTags";
+import AddTag from "@/components/AddTag";
 import useContentSession from "@/hooks/useContentSession";
 import useCollaborationDocument from "@/hooks/useCollaborationDocument";
 import useCollaborationStore from "@/stores/useCollaborationStore";
@@ -446,12 +446,18 @@ export function EditorWindow({
                   />
                 </ErrorBoundary>
               </div>
-              {/* 标签独占一行（样式同文章详情页） */}
+              {/* 标签独占一行（正文末统一口径） */}
               {driver.hasTags && (
-                <ArticleTags
+                <AddTag
+                  divided
                   tags={doc.tags ?? []}
-                  onAdd={tag => updateFields({ tags: [...(doc.tags ?? []), tag] })}
-                  onDelete={tag => updateFields({ tags: (doc.tags ?? []).filter(t => t !== tag) })}
+                  addTag={tag => updateFields({ tags: [...(doc.tags ?? []), tag] })}
+                  removeTag={tag => updateFields({ tags: (doc.tags ?? []).filter(t => t !== tag) })}
+                  editTag={(oldTag, newTag) =>
+                    updateFields({
+                      tags: (doc.tags ?? []).map(tag => (tag === oldTag ? newTag : tag)),
+                    })
+                  }
                 />
               )}
             </div>

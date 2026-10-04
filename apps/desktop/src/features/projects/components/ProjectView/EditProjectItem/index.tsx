@@ -274,7 +274,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
               )}
             </EditCardContext.Provider>
             <AddTag
-              className="mt-6"
+              divided
               tags={projectItem.tags ?? []}
               addTag={tag =>
                 setProjectItem(current =>

@@ -77,12 +77,12 @@ import {
   getMarkdown,
 } from "@/utils";
 import type { IArticle } from "@/types";
+import AddTag from "@/components/AddTag";
 import { ConfirmDialog, Loading, Menu, toast } from "@tau/ui";
 
 import { useArticleMutations } from "../queries";
 import { ArticlePodcast } from "../components/ArticlePodcast";
 import { ArticleHero } from "../components/ArticleHero";
-import { ArticleTags } from "../components/ArticleTags";
 import { ArticleSwitcher } from "../components/ArticleSwitcher";
 import {
   ContentOutline,
@@ -120,6 +120,7 @@ export function ArticleDetailView() {
     onTitleChange,
     onAddTag,
     onDeleteTag,
+    onTagsChange,
     saveArticle,
     setEditingArticle,
   } = useEditArticle(id);
@@ -504,14 +505,14 @@ export function ArticleDetailView() {
                 )}
               </div>
 
-              <ArticleTags
+              <AddTag
+                divided
                 tags={editingArticle.tags}
-                onAdd={tag => {
-                  onAddTag(tag);
-                }}
-                onDelete={tag => {
-                  onDeleteTag(tag);
-                }}
+                addTag={onAddTag}
+                removeTag={onDeleteTag}
+                editTag={(oldTag, newTag) =>
+                  onTagsChange(editingArticle.tags.map(tag => (tag === oldTag ? newTag : tag)))
+                }
               />
             </article>
 
