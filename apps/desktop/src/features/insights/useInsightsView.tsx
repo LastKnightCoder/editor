@@ -387,7 +387,16 @@ export function useInsightsView({
         exit();
       }}
       onKeyDownCapture={event => {
-        if (on && !walking && !event.metaKey && !event.ctrlKey) exit();
+        // Alt+方向键让位导航、输入法组合键不算「开始输入」
+        if (
+          on &&
+          !walking &&
+          !event.metaKey &&
+          !event.ctrlKey &&
+          !event.altKey &&
+          !event.nativeEvent.isComposing
+        )
+          exit();
       }}
     >
       {view === "reading" && (

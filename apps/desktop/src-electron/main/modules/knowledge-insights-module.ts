@@ -197,6 +197,11 @@ class KnowledgeInsightsModule implements Module {
     this.generation++;
     this.abort?.abort();
     this.abort = null;
+    // 挂起的后台检查一并清掉，避免旧库挂的 timer 缩短新库的连库静置
+    if (this.timer) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
   }
 
   private enqueue<T>(task: () => Promise<T>): Promise<T> {
@@ -266,7 +271,16 @@ class KnowledgeInsightsModule implements Module {
     onPhase?: (phase: KnowledgeInsightsPhase) => void
   ): Promise<KnowledgeInsightsPayload | null> {
     const generation = this.generation;
-    const map = await knowledgeMapBuilder.ensureFresh(dbName);
+    // 地图重算在 worker 线程里无法中断：等待也挂在 abort 上，切库/取消时放弃等待、释放串行链，
+    // 不让旧库的重算卡住排在后面的任务（重算本身照常跑完，正确性由下面的 generation 检查兜底）
+    const map = await this.withAbort(signal =>
+      Promise.race([
+        knowledgeMapBuilder.ensureFresh(dbName),
+        new Promise<null>(resolve =>
+          signal.addEventListener("abort", () => resolve(null), { once: true })
+        ),
+      ])
+    );
     const mainDb = databaseModule.getDatabase(dbName);
     const indexDb = databaseModule.getIndexDatabase(dbName);
     if (!map || !mainDb?.open || !indexDb || generation !== this.generation) return null;

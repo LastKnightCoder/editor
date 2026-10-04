@@ -105,6 +105,8 @@ describe("洞见标记定位", () => {
     expect(link.children.map(c => c.text).join("")).toBe("强制同步布局");
     expect(link.children.find(c => c.text === "强制同步")?.bold).toBe(true);
     expect(connectInsightMark(editor, mark("a", 1, "强制同步布局"))).toBe(false);
+    // 片段从链接前开始、尾部压进既有链接（部分重叠）：与链接相交即拒绝，避免把旧链接包进新链接
+    expect(connectInsightMark(editor, mark("b", 1, "触发强制同步"))).toBe(false);
     expect(connectInsightMark(editor, mark("x", 2, "改过的原文"))).toBe(false);
   });
 });

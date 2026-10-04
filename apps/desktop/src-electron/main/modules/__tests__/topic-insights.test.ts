@@ -428,6 +428,44 @@ describe("topic-insights 分层阅读", () => {
     await expect(analyzeKnowledge(failing, ctx, SLOT, { force: true })).rejects.toThrow("额度用尽");
   });
 
+  it("同一主题内连续 3 次失败即停：剩余子主题、主题与全局不再发出注定失败的请求", async () => {
+    // 单主题 4 个子主题（各 3 成员），密钥失效时第 4 个子主题不应再被调用
+    KnowledgeMapTable.save(
+      index,
+      {
+        computedAt: now,
+        topics: [
+          { id: 0, parent: -1, label: "JavaScript", colorSlot: 0, size: 12 },
+          { id: 10, parent: 0, label: "事件循环", colorSlot: 0, size: 3 },
+          { id: 11, parent: 0, label: "闭包", colorSlot: 0, size: 3 },
+          { id: 12, parent: 0, label: "DOM", colorSlot: 0, size: 3 },
+          { id: 13, parent: 0, label: "模块", colorSlot: 0, size: 3 },
+        ],
+        nodes: [
+          ...["c1", "c2", "c9"].map(name => ({ key: keys[name], x: 0, y: 0, topic: 0, subtopic: 10 })),
+          ...["c3", "c4", "c10"].map(name => ({ key: keys[name], x: 0, y: 0, topic: 0, subtopic: 11 })),
+          ...["c5", "a1", "c11"].map(name => ({ key: keys[name], x: 0, y: 0, topic: 0, subtopic: 12 })),
+          ...["c6", "c7", "c12"].map(name => ({ key: keys[name], x: 0, y: 0, topic: 0, subtopic: 13 })),
+        ],
+      },
+      "model-a"
+    );
+    calls = [];
+    let invoked = 0;
+    const failing: TopicInsightsDeps = {
+      now: () => now,
+      complete: async () => {
+        invoked++;
+        return { ok: false, text: "", error: "额度用尽" };
+      },
+    };
+    const ctx = buildContext(main, index, KnowledgeMapTable.load(index)!);
+    const outcome = await analyzeKnowledge(failing, ctx, SLOT, { force: false });
+    expect(outcome.failures).toBe(3);
+    expect(invoked).toBe(3);
+    expect(KnowledgeAiInsightsTable.list(main)).toHaveLength(0);
+  });
+
   it("没起名的主题与子主题用成员最常见的概念起名，不和主题名、同主题的其他子主题重名", () => {
     const meta = (concepts: string[]) => ({
       contentId: 0,
