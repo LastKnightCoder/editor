@@ -2,7 +2,8 @@
  * EntityPicker —— 「关联已有」的公共检索弹窗：类型分段 + 关键字检索（空关键字按最近更新）。
  *
  * - 数据：主进程 `entity:search`（卡片 / 文章 / 项目文档 / 项目 / 白板 / 日记，以及问题页用的划线 / PDF 标注 / 剪藏 / 对话），调用方用 kinds 限定可选类型
- * - 类型不超过 5 种用分段，更多时改为按钮 + 菜单（分段放不下）
+ * - 多种类型时首项为「全部」（各类型合并按最近更新），默认选中
+ * - 选项（含「全部」）不超过 5 个用分段，更多时改为按钮 + 菜单（分段放不下）
  * - 多选（默认）：勾选跨类型累积，底部「已选 N 项」+ 确认；单选：点行即确认
  * - isLinked 判定的项置灰并标「已关联」，不可再选
  * - 键盘：焦点留在搜索框，↑↓ 移动、⏎ 勾选（单选即确认）、⌘/Ctrl+⏎ 确认
@@ -10,7 +11,7 @@
  */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Check, ChevronDown, Search } from "lucide-react";
+import { Check, ChevronDown, LayoutGrid, Search } from "lucide-react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useDebounce } from "ahooks";
 import {
@@ -29,6 +30,12 @@ import type { EntityCandidate, EntityKind } from "@/types";
 import { ENTITY_KIND_META, entityKey, entityTime } from "./meta";
 
 const MAX_SEGMENTS = 5;
+
+const ALL = "all";
+type KindTab = EntityKind | typeof ALL;
+const ALL_META = { label: "全部", noun: "内容", icon: LayoutGrid };
+const tabMeta = (tab: KindTab) =>
+  tab === ALL ? ALL_META : { ...ENTITY_KIND_META[tab], noun: ENTITY_KIND_META[tab].label };
 
 export interface EntityPickerProps {
   open: boolean;
@@ -60,7 +67,8 @@ export function EntityPicker({
   hint,
   onConfirm,
 }: EntityPickerProps) {
-  const [kind, setKind] = useState<EntityKind>(kinds[0]);
+  const tabs: KindTab[] = kinds.length > 1 ? [ALL, ...kinds] : kinds;
+  const [kind, setKind] = useState<KindTab>(tabs[0]);
   const [keyword, setKeyword] = useState("");
   const debounced = useDebounce(keyword, { wait: 200 });
   const [picked, setPicked] = useState<Map<string, EntityCandidate>>(() => new Map());
@@ -71,20 +79,23 @@ export function EntityPicker({
   const now = useRef(Date.now());
 
   const { data, isPending } = useQuery({
-    queryKey: ["entity-search", kind, debounced],
-    queryFn: () => searchEntities({ kind, keyword: debounced }),
+    queryKey: ["entity-search", kind === ALL ? kinds : kind, debounced],
+    queryFn: async () => ({
+      kind,
+      list: await searchEntities({ kind: kind === ALL ? kinds : kind, keyword: debounced }),
+    }),
     enabled: open,
     staleTime: 10_000,
     placeholderData: keepPreviousData,
   });
   // 切类型时旧类型的结果不作占位（keepPreviousData 只用于连续输入）
-  const items = data && data.every(c => c.kind === kind) ? data : undefined;
+  const items = data?.kind === kind ? data.list : undefined;
 
   useEffect(() => {
     if (!open) return;
     setKeyword("");
     setPicked(new Map());
-    setKind(kinds[0]);
+    setKind(tabs[0]);
     now.current = Date.now();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -137,7 +148,7 @@ export function EntityPicker({
     }
   };
 
-  const meta = ENTITY_KIND_META[kind];
+  const meta = tabMeta(kind);
 
   return (
     <Dialog
@@ -178,12 +189,12 @@ export function EntityPicker({
               value={keyword}
               onChange={e => setKeyword(e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder={`搜索${meta.label}…`}
-              aria-label={`搜索${meta.label}`}
+              placeholder={`搜索${meta.noun}…`}
+              aria-label={`搜索${meta.noun}`}
               lead={Search}
               wrapperClassName="flex-1"
             />
-            {kinds.length > MAX_SEGMENTS ? (
+            {tabs.length > MAX_SEGMENTS ? (
               <Menu
                 align="end"
                 trigger={
@@ -193,29 +204,29 @@ export function EntityPicker({
                   </Button>
                 }
               >
-                {kinds.map(k => {
-                  const KindIcon = ENTITY_KIND_META[k].icon;
+                {tabs.map(k => {
+                  const { label, icon: KindIcon } = tabMeta(k);
                   return (
                     <Menu.Item
                       key={k}
                       icon={<KindIcon className="size-[15px]" strokeWidth={1.75} />}
                       onSelect={() => setKind(k)}
                     >
-                      {ENTITY_KIND_META[k].label}
+                      {label}
                     </Menu.Item>
                   );
                 })}
               </Menu>
             ) : (
-              kinds.length > 1 && (
+              tabs.length > 1 && (
                 <Segmented
                   label="类型"
                   size="sm"
                   value={kind}
-                  onValueChange={(v: EntityKind) => setKind(v)}
+                  onValueChange={(v: KindTab) => setKind(v)}
                 >
-                  {kinds.map(k => (
-                    <Segmented.Item key={k} value={k} label={ENTITY_KIND_META[k].label} />
+                  {tabs.map(k => (
+                    <Segmented.Item key={k} value={k} label={tabMeta(k).label} />
                   ))}
                 </Segmented>
               )
@@ -233,7 +244,7 @@ export function EntityPicker({
               <Loading />
             ) : !items.length ? (
               <p className="text-ink-3 py-10 text-center text-[12.5px]">
-                {debounced ? `没有匹配的${meta.label}` : `还没有${meta.label}`}
+                {debounced ? `没有匹配的${meta.noun}` : `还没有${meta.noun}`}
               </p>
             ) : (
               items.map((candidate, index) => {

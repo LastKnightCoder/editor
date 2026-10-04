@@ -33,7 +33,8 @@ export interface EntityCandidate {
 }
 
 export interface EntitySearchParams {
-  kind: EntityKind;
+  /** 单个类型，或多个类型合并（按更新时间倒序取前 limit 条，即「全部」） */
+  kind: EntityKind | EntityKind[];
   keyword?: string;
   limit?: number;
 }
