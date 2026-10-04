@@ -4,28 +4,31 @@ const fs = require("fs");
 const os = require("os");
 const PREFIX = "[tailwind-worker]";
 const nodeRequire = createRequire(__filename);
-const tailwindPackageRoot = path.dirname(
-  nodeRequire.resolve("tailwindcss/package.json"),
-);
-const tailwindRequire = createRequire(
-  path.join(tailwindPackageRoot, "package.json"),
-);
+const tailwindPackageRoot = path.dirname(nodeRequire.resolve("tailwindcss/package.json"));
+const tailwindRequire = createRequire(path.join(tailwindPackageRoot, "package.json"));
 const { compile: compileTailwind } = nodeRequire("tailwindcss");
 const { Scanner } = nodeRequire("@tailwindcss/oxide");
 
 if (typeof compileTailwind !== "function") {
   console.error(
-    `${PREFIX} Missing tailwindcss compile API. Please ensure tailwindcss@4+ is installed.`,
+    `${PREFIX} Missing tailwindcss compile API. Please ensure tailwindcss@4+ is installed.`
   );
   process.exit(1);
 }
 
-const BASE_CSS = `@import "tailwindcss";
+/**
+ * 只产出 theme + utilities：宿主页面已有 preflight，逐块重复注入会互相覆盖。
+ * themeCss 是 @tau/themes/tailwind.css 的语义类映射（bg-surface / text-ink-1 …），由主进程随任务传入。
+ */
+const buildBaseCss = (themeCss = "") => `@layer theme, base, components, utilities;
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+${themeCss}
 @custom-variant dark (.dark &);
 `;
 
 /**
- * @typedef {{ id: number; content: string; extension?: string }} CompileJob
+ * @typedef {{ id: number; content: string; extension?: string; themeCss?: string }} CompileJob
  */
 
 const queue = [];
@@ -36,12 +39,10 @@ fs.mkdirSync(tempDir, { recursive: true });
 async function runJob(job) {
   const content = job.content ?? "";
   const extension = normalizeExtension(job.extension);
-  const nonce = `${process.pid}-${Date.now()}-${Math.random()
-    .toString(16)
-    .slice(2)}`;
+  const nonce = `${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const tempFilePath = path.join(tempDir, `custom-block-${nonce}.${extension}`);
   const normalizedPath = tempFilePath.replace(/\\/g, "/");
-  const runtimeCss = `${BASE_CSS}\n@source "${normalizedPath}";\n`;
+  const runtimeCss = `${buildBaseCss(job.themeCss)}\n@source "${normalizedPath}";\n`;
 
   try {
     await fs.promises.mkdir(tempDir, { recursive: true });
@@ -85,9 +86,7 @@ async function runJob(job) {
           extension,
         },
       ])
-      .map((entry) =>
-        typeof entry === "string" ? entry : (entry?.candidate ?? ""),
-      )
+      .map(entry => (typeof entry === "string" ? entry : (entry?.candidate ?? "")))
       .filter(Boolean);
 
     const css = builder.build(candidates);
@@ -95,8 +94,7 @@ async function runJob(job) {
       process.send({ ok: true, id: job.id, css });
     }
   } catch (error) {
-    const message =
-      error && error.stack ? String(error.stack) : String(error ?? "Unknown");
+    const message = error && error.stack ? String(error.stack) : String(error ?? "Unknown");
     console.error(`${PREFIX} compile error:\n${message}`);
     if (process.send) {
       process.send({
@@ -126,16 +124,16 @@ function flush() {
     });
 }
 
-process.on("message", (msg) => {
+process.on("message", msg => {
   queue.push(msg);
   flush();
 });
 
-process.on("uncaughtException", (error) => {
+process.on("uncaughtException", error => {
   console.error(`${PREFIX} uncaught exception`, error);
 });
 
-process.on("unhandledRejection", (reason) => {
+process.on("unhandledRejection", reason => {
   console.error(`${PREFIX} unhandled rejection`, reason);
 });
 
@@ -144,8 +142,7 @@ function resolveStylesheet(id, base = process.cwd()) {
     throw new Error("Unknown stylesheet request");
   }
 
-  const isTailwindImport =
-    id === "tailwindcss" || id.startsWith("tailwindcss/");
+  const isTailwindImport = id === "tailwindcss" || id.startsWith("tailwindcss/");
   if (isTailwindImport) {
     const suffix = id === "tailwindcss" ? "index.css" : `${id.slice(12)}.css`;
     const candidate = path.join(tailwindPackageRoot, suffix);
@@ -154,9 +151,7 @@ function resolveStylesheet(id, base = process.cwd()) {
     }
   }
 
-  const absolute = path.isAbsolute(id)
-    ? id
-    : path.resolve(base || process.cwd(), id);
+  const absolute = path.isAbsolute(id) ? id : path.resolve(base || process.cwd(), id);
 
   if (!fs.existsSync(absolute)) {
     throw new Error(`Unable to resolve stylesheet "${id}" from "${base}"`);

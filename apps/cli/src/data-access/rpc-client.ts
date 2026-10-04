@@ -20,7 +20,7 @@ export async function rpcRequest<T = unknown>(
   const id = randomUUID();
 
   return new Promise((resolve, reject) => {
-    const url = `ws://localhost:${RPC_PORT}${RPC_PATH}`;
+    const url = `ws://127.0.0.1:${RPC_PORT}${RPC_PATH}`;
     const ws = new WebSocket(url);
 
     const timeout = setTimeout(() => {

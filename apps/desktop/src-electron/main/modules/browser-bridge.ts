@@ -216,7 +216,7 @@ class BrowserBridgeModule {
   private registry: BrowserRunRegistry | null = null;
 
   public init(): void {
-    const base = `ws://localhost:${RPC_SERVER_PORT}`;
+    const base = `ws://127.0.0.1:${RPC_SERVER_PORT}`;
     this.extTools = new RpcEndpoint(`${base}/extToolServer`);
     this.registry = new BrowserRunRegistry(this.driver(), notification =>
       this.aiEndpoint?.notify(AI_RUN_METHODS.event, notification satisfies AiRunEventNotification)

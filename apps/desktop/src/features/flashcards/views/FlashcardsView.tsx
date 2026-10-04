@@ -196,6 +196,12 @@ export function FlashcardsView() {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3">
         <p className="text-danger">闪卡加载失败</p>
+        <p
+          role="alert"
+          className="text-ink-2 text-tau-body max-w-xl select-text break-words px-6 text-center"
+        >
+          {error.message || "无法读取闪卡数据，请重试"}
+        </p>
         <Button variant="secondary" onClick={() => void retry()}>
           重试
         </Button>

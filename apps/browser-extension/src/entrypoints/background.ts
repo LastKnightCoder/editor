@@ -1,6 +1,7 @@
 import { STORAGE_KEY_PREFIX } from "@/content/types";
 import { AI_SERVER_WS_URL } from "@/utils/aiServerAddress";
 import WebSocketClient from "@/utils/WebSocketClient";
+import { installWsRelay } from "@/utils/wsRelay";
 import { syncHighlightsToDesktop } from "@/services/excerptSync";
 
 const EXCERPT_SYNC_ALARM = "tau-excerpt-sync";
@@ -68,6 +69,8 @@ function scheduleSync() {
 export default defineBackground(() => {
   // 点击扩展图标时直接打开 sidePanel
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+  // 划词问答等 content script 的桌面连接经后台转发
+  installWsRelay();
 
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;

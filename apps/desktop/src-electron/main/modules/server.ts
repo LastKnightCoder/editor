@@ -12,6 +12,12 @@ import {
   isRpcResponseMessage,
   isRpcNotificationMessage,
 } from "@/utils/rpc";
+import {
+  isAllowedWsOrigin,
+  isServableStaticPath,
+  resolveCorsOrigin,
+  resolveDevServerOrigin,
+} from "./server-access";
 
 interface WsServer extends WebSocketServer {
   server: {
@@ -32,6 +38,8 @@ interface WsServer extends WebSocketServer {
 export const RPC_SERVER_PORT = 24678;
 
 const PORT = RPC_SERVER_PORT;
+// 只对本机开放：静态目录与 WS 中转都不应暴露给局域网
+const HOST = "127.0.0.1";
 
 class ServerModule implements Module {
   name: string;
@@ -54,9 +62,14 @@ class ServerModule implements Module {
 
     return new Promise<void>((resolve, reject) => {
       const appDir = PathUtil.getAppDir();
+      const devServerOrigin = resolveDevServerOrigin(process.env.VITE_DEV_SERVER_URL);
 
-      const applyCorsHeaders = (res: Response) => {
-        res.setHeader("Access-Control-Allow-Origin", "*");
+      // 只对插件与开发期渲染端回显 CORS；打包渲染端（file://）的请求不带 Origin，无需 CORS
+      const applyCorsHeaders = (req: Request, res: Response) => {
+        res.setHeader("Vary", "Origin");
+        const allowOrigin = resolveCorsOrigin(req.headers.origin, devServerOrigin);
+        if (!allowOrigin) return;
+        res.setHeader("Access-Control-Allow-Origin", allowOrigin);
         res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
         res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Range");
         res.setHeader(
@@ -67,18 +80,21 @@ class ServerModule implements Module {
 
       // 处理跨域预检请求（WaveSurfer 可能携带 Range 头触发 OPTIONS）
       this.app.use((req: Request, res: Response, next: NextFunction) => {
-        applyCorsHeaders(res);
+        applyCorsHeaders(req, res);
         if (req.method === "OPTIONS") {
           res.status(204).end();
           return;
         }
+        // 应用目录里有库文件、设置（含模型密钥）、会话与凭据，只放行资源类文件
+        if (!isServableStaticPath(req.path)) {
+          res.status(404);
+          res.setHeader("Content-Type", "text/plain; charset=utf-8");
+          res.end("Not Found");
+          return;
+        }
         next();
       });
-      this.app.use(
-        Express.static(appDir, {
-          setHeaders: res => applyCorsHeaders(res),
-        })
-      );
+      this.app.use(Express.static(appDir));
       this.app.use(
         (
           err: { status?: number; statusCode?: number; message?: string } | undefined,
@@ -119,6 +135,13 @@ class ServerModule implements Module {
         console.log("upgrade", request.url);
         if (!request.url) {
           console.error("[ws upgrade] url is not exist");
+          socket.destroy();
+          return;
+        }
+        // 浏览器里的任意网页都能连 ws://localhost，靠浏览器不可伪造的 Origin 拒绝
+        if (!isAllowedWsOrigin(request.headers.origin, devServerOrigin)) {
+          console.warn(`[ws upgrade] 拒绝来源 ${request.headers.origin} 的连接: ${request.url}`);
+          socket.end("HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n");
           return;
         }
 
@@ -154,7 +177,7 @@ class ServerModule implements Module {
         }
         reject(error);
       });
-      this.server.listen(PORT, () => {
+      this.server.listen(PORT, HOST, () => {
         resolve();
       });
     });

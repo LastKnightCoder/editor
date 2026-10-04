@@ -68,10 +68,13 @@ export function replace(
 
 /**
  * 单实例去重：命中谓词的条目激活之，不新建。
- *  - 命中条目在栈中：移到栈顶（视作新导航，清空 forward），参数有变化则一并更新；
+ *  - 命中条目在 back 栈：移到栈顶（视作新导航，清空 forward），参数有变化则一并更新；
+ *  - 命中条目只在 forward 缓冲（back 离开后未再进入）：复活压回栈顶，同样清空 forward；
  *  - 命中条目已在栈顶：参数相同则原样返回（同引用，调用方派发即无操作），
  *    参数有变化则原位更新（replace 语义，清空 forward）——否则 push 会重复入栈，
  *    出现"点当前页 → 后退按钮亮起但按了没反应"的假历史。
+ *  - params 为空对象 = 调用方未指定任何字段（如侧栏主入口 push(key)）：沿用命中条目
+ *    现有参数——无参进入不清掉 single 页的筛选；显式置空/改参必须带字段（整体替换）。
  */
 export function activateExisting(
   state: StackMachineState,
@@ -79,22 +82,33 @@ export function activateExisting(
   params: Record<string, unknown>
 ): StackMachineState | null {
   const index = state.back.findIndex(predicate);
-  if (index === -1) return null;
-  if (index === state.back.length - 1) {
-    const top = state.back[index];
-    if (sameParams(top.params, params)) return state;
+  if (index !== -1) {
+    const nextParams = Object.keys(params).length > 0 ? params : state.back[index].params;
+    if (index === state.back.length - 1) {
+      const top = state.back[index];
+      if (sameParams(top.params, nextParams)) return state;
+      const back = [...state.back];
+      back[index] = { ...top, params: nextParams, lastActiveAt: Date.now() };
+      return { back, forward: [] };
+    }
     const back = [...state.back];
-    back[index] = { ...top, params, lastActiveAt: Date.now() };
-    return { back, forward: [] };
+    const [entry] = back.splice(index, 1);
+    // 带参激活（如协作页指定当前内容）：参数随激活更新，否则会停在旧参数上
+    const moved = sameParams(entry.params, nextParams) ? entry : { ...entry, params: nextParams };
+    return {
+      back: touchAll([...back, moved]),
+      forward: [], // 激活历史条目视作新导航
+    };
   }
-  const back = [...state.back];
-  const [entry] = back.splice(index, 1);
-  // 带参激活（如协作页指定当前内容）：参数随激活更新，否则会停在旧参数上
-  const moved = sameParams(entry.params, params) ? entry : { ...entry, params };
-  return {
-    back: touchAll([...back, moved]),
-    forward: [], // 激活历史条目视作新导航
-  };
+  const fwdIndex = state.forward.findIndex(predicate);
+  if (fwdIndex === -1) return null;
+  // forward 里的同实例复活：组件已随弹出卸载，但参数（筛选）仍在条目上，压回栈顶沿用
+  const revived = state.forward[fwdIndex];
+  const nextParams = Object.keys(params).length > 0 ? params : revived.params;
+  const entry = sameParams(revived.params, nextParams)
+    ? revived
+    : { ...revived, params: nextParams };
+  return { back: touchAll([...state.back, entry]), forward: [] };
 }
 
 /** params 值均为 schema 净化后的原始类型，浅比较即可 */
