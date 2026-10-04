@@ -249,10 +249,7 @@ export function useInsightsView({
   };
 
   /* ── 编辑器装饰 ── */
-  const decorate = useMemo(
-    () => (on ? createInsightDecorate(marks, () => getEditor()?.children ?? []) : undefined),
-    [on, marks, getEditor]
-  );
+  const decorate = useMemo(() => (on ? createInsightDecorate(marks) : undefined), [on, marks]);
 
   /* ── 段尾淡注：给块留出一行位置，淡注定位在块下面 ── */
   const gaps = useMemo(
@@ -317,13 +314,17 @@ export function useInsightsView({
       if (el || ++tries > 90) {
         setAnchorEl(el);
         if (el && focus) el.scrollIntoView({ block: "center" });
+        if (!el) {
+          toast.warning("原文已经改动，找不到这一处，可以重新分析");
+          if (!walking) setCurrent(null);
+        }
         return;
       }
       raf = requestAnimationFrame(find);
     };
     raf = requestAnimationFrame(find);
     return () => cancelAnimationFrame(raf);
-  }, [currentMark, frameEl, gapPositions, focus]);
+  }, [currentMark, frameEl, gapPositions, focus, walking]);
 
   /* ── 渲染件 ── */
   const hasOpen = Boolean(insights && openMarks.length);

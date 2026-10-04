@@ -112,6 +112,8 @@ const fixture = (): ContentInsights => ({
 });
 
 let editor: ReturnType<typeof withReact>;
+/** 编辑器实例暂不可取（如外部 ref 在提交期间短暂为空）时，装饰也不能依赖它 */
+let editorReachable = true;
 function Harness() {
   const [instance] = useState(() => {
     const e = withReact(createEditor());
@@ -124,7 +126,7 @@ function Harness() {
     ref: { kind: "article", id: 3 },
     contentId: 1,
     sourceLabel: "文章：渲染",
-    getEditor: () => instance,
+    getEditor: () => (editorReachable ? instance : null),
   });
   return (
     <div>
@@ -173,6 +175,7 @@ beforeEach(async () => {
   } as never;
   window.HTMLElement.prototype.scrollIntoView = () => {};
   mocks.insights = null;
+  editorReachable = true;
   vi.clearAllMocks();
   host = document.createElement("div");
   document.body.appendChild(host);
@@ -207,6 +210,22 @@ describe("洞见视图", () => {
     expect(document.querySelector('[data-insight-gap="m3"]')?.textContent).toContain(
       "合成层怎么划分"
     );
+  });
+
+  it("装饰只用 Slate 传入的块节点：取不到编辑器实例时照样画线，点「可连接」出气泡", async () => {
+    mocks.insights = fixture();
+    editorReachable = false;
+    await rerender();
+    click(byText("AI 洞见"));
+    await act(async () => {
+      vi.advanceTimersByTime(20);
+    });
+    expect(document.querySelectorAll('[data-insight-mark="m1"]').length).toBeGreaterThan(0);
+    click(byText("可连接"));
+    await act(async () => {
+      vi.advanceTimersByTime(20);
+    });
+    expect(document.body.textContent).toContain("那张卡是真实案例");
   });
 
   it("点标记出气泡；连接后那几个字变成 content-link，状态记为已连接", async () => {
