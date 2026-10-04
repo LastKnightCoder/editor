@@ -6,108 +6,28 @@
  * 派生色纯色块。banner 加载失败按「无 banner」处理（不露裂图）。派生色板是设计定稿的数据色（与热力图色阶同性质），不进主题词表。
  */
 
-import type { LucideIcon } from "lucide-react";
-import { useState } from "react";
-import { Download, ImagePlus, MonitorUp, MoreHorizontal, Play, Star, Trash2 } from "lucide-react";
+import { Star } from "lucide-react";
 import LocalImage from "@/components/LocalImage";
-import { IconButton, Menu, cn } from "@tau/ui";
+import { cn } from "@tau/ui";
 import { articleExcerpt } from "../queries";
 import { coverGradientOf } from "@/utils/cover";
 import type { ArticlePageItem } from "@/types";
+import { ArticleItemOps, type ArticleItemActions } from "../components/ArticleItemOps";
+import { useArticleBanner } from "../components/useArticleBanner";
 
 /** 文字封面的前景（粉彩底上的定稿对比色，出处同上） */
 const TEXT_ON_COVER = "rgba(67,57,44,0.82)";
 const QUOTE_ON_COVER = "rgba(255,248,239,0.6)";
 
-/* Menu.Item 的 icon 槽统一 15px lucide 线性图标 */
-function MenuIcon({ icon: Icon }: { icon: LucideIcon }) {
-  return <Icon className="size-[15px] shrink-0" strokeWidth={1.75} />;
-}
-
-export interface ArticleCardProps {
+export interface ArticleCardProps extends ArticleItemActions {
   article: ArticlePageItem;
-  onOpen(article: ArticlePageItem): void;
-  onToggleTop(article: ArticlePageItem): void;
-  onDelete(article: ArticlePageItem): void;
-  onPresent(article: ArticlePageItem): void;
-  onExportMarkdown(article: ArticlePageItem): void;
-  onChangeCover(article: ArticlePageItem): void;
-  /** Electron 专属能力：未传则不渲染该菜单项（Web 端不显示入口） */
-  onOpenWindow?(article: ArticlePageItem): void;
-}
-
-/** 封面 hover 浮现的操作（主题实底置顶按钮 + 更多菜单） */
-function CoverOps(props: ArticleCardProps) {
-  const { article } = props;
-  return (
-    <div
-      className="absolute right-2 top-2 z-[1] flex gap-0.5 opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100"
-      onClick={e => e.stopPropagation()}
-    >
-      <IconButton
-        title={article.isTop ? "取消置顶" : "置顶"}
-        onClick={() => props.onToggleTop(article)}
-        className="bg-surface-hover shadow-card enabled:hover:bg-surface-hover size-[23px] rounded-[7px]"
-      >
-        <Star
-          className={cn("size-[13px]", article.isTop && "fill-accent text-accent")}
-          strokeWidth={1.75}
-        />
-      </IconButton>
-      <Menu
-        align="end"
-        trigger={
-          <IconButton
-            title="更多操作"
-            className="bg-surface-hover shadow-card enabled:hover:bg-surface-hover size-[23px] rounded-[7px]"
-          >
-            <MoreHorizontal className="size-[13px]" strokeWidth={1.75} />
-          </IconButton>
-        }
-      >
-        <Menu.Item onSelect={() => props.onPresent(article)} icon={<MenuIcon icon={Play} />}>
-          演示模式
-        </Menu.Item>
-        <Menu.Item
-          onSelect={() => props.onExportMarkdown(article)}
-          icon={<MenuIcon icon={Download} />}
-        >
-          导出 Markdown
-        </Menu.Item>
-        <Menu.Item
-          onSelect={() => props.onChangeCover(article)}
-          icon={<MenuIcon icon={ImagePlus} />}
-        >
-          换封面
-        </Menu.Item>
-        {props.onOpenWindow && (
-          <Menu.Item
-            onSelect={() => props.onOpenWindow?.(article)}
-            icon={<MenuIcon icon={MonitorUp} />}
-          >
-            窗口打开
-          </Menu.Item>
-        )}
-        <Menu.Separator />
-        <Menu.Item
-          danger
-          onSelect={() => props.onDelete(article)}
-          icon={<MenuIcon icon={Trash2} />}
-        >
-          删除文章
-        </Menu.Item>
-      </Menu>
-    </div>
-  );
 }
 
 export function ArticleCard(props: ArticleCardProps) {
   const { article } = props;
   const excerpt = articleExcerpt(article.excerpt);
   const gradient = coverGradientOf(article.id);
-  // 记失败的 url 而非布尔：换封面后自动重试新图
-  const [failedBanner, setFailedBanner] = useState<string>();
-  const banner = article.bannerBg && article.bannerBg !== failedBanner ? article.bannerBg : "";
+  const { banner, onBannerError } = useArticleBanner(article);
 
   return (
     <article
@@ -128,7 +48,7 @@ export function ArticleCard(props: ArticleCardProps) {
             url={banner}
             className="absolute inset-0 h-full w-full object-cover"
             style={{ objectPosition: article.bannerPosition === "top" ? "top" : "center" }}
-            onLoadError={() => setFailedBanner(banner)}
+            onLoadError={onBannerError}
           />
         ) : excerpt ? (
           <div
@@ -157,7 +77,12 @@ export function ArticleCard(props: ArticleCardProps) {
             <Star className="fill-accent size-[13px]" strokeWidth={1.75} />
           </span>
         )}
-        <CoverOps {...props} />
+        <ArticleItemOps
+          article={article}
+          actions={props}
+          className="absolute right-2 top-2 z-[1]"
+          buttonClassName="bg-surface-hover shadow-card enabled:hover:bg-surface-hover"
+        />
       </div>
 
       {/* 主体 */}

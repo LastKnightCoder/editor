@@ -6,17 +6,27 @@ afterEach(() => {
   useCardsPreferencesStore.persist.clearStorage();
 });
 
-it("重建状态后恢复视图，两个数据库互不覆盖", async () => {
+it("重建状态后恢复视图与列表排序，两个数据库互不覆盖", async () => {
   const { update } = useCardsPreferencesStore.getState();
   update("a", { view: "database" });
-  update("b", { view: "wall" });
+  update("b", { view: "list" });
+  update("b", { listSort: "words" });
   const persisted = localStorage.getItem("tau-cards-preferences")!;
   useCardsPreferencesStore.setState({ byDatabase: {} });
   localStorage.setItem("tau-cards-preferences", persisted);
   await useCardsPreferencesStore.persist.rehydrate();
   expect(useCardsPreferencesStore.getState().byDatabase).toEqual({
-    a: { view: "database" },
-    b: { view: "wall" },
+    a: { view: "database", listSort: "created" },
+    b: { view: "list", listSort: "words" },
+  });
+});
+
+it("早于列表排序存下的条目更新时补齐默认值", () => {
+  useCardsPreferencesStore.setState({ byDatabase: { a: { view: "database" } } });
+  useCardsPreferencesStore.getState().update("a", { view: "list" });
+  expect(useCardsPreferencesStore.getState().byDatabase.a).toEqual({
+    view: "list",
+    listSort: "created",
   });
 });
 
