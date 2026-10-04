@@ -2,6 +2,8 @@
  * 洞见视图叠在地图上的那一层：标记按顺序画出来（呼应蓝弧线、问了没写黄虚线圈「?」、重复灰点线、
  * 矛盾红波浪线、缺一环链 + 虚线空位、同一思路淡紫圈、还缺主题名下的淡注），全局层有发现的主题名后一个小点。
  *
+ * 选中一处时其余标记降淡，涉及的每篇笔记加一圈强调并在旁边标出标题。
+ *
  * 坐标随地图平移缩放：订阅 LinkGraph 的每帧回调，按帧重新算一遍（每层最多 6 处，开销可以忽略）。
  * 容器不接指针事件，只有标记与主题名的点击区接。
  */
@@ -10,7 +12,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { cn } from "@tau/ui";
 import type { GraphOverlayApi } from "@/components/LinkGraph";
 import type { KnowledgeMark } from "@/types/knowledge-insights";
-import { MARK_META, markGeometry, topicLabelPoint, type Point } from "./model";
+import { MARK_META, endpointKey, markGeometry, topicLabelPoint, type Point } from "./model";
 
 /** 每处标记依次出现的间隔 */
 export const DRAW_STAGGER_MS = 320;
@@ -30,7 +32,6 @@ export interface MapInsightsOverlayProps {
   /** 全局层：有发现的主题（名字后一个小点，点了飞进去） */
   topics: OverlayTopic[];
   current: string | null;
-  walking: boolean;
   /** 变了就重新播放画出的动画（进入视图、换一层） */
   revealKey: number;
   onPick(markId: string): void;
@@ -69,7 +70,6 @@ export function MapInsightsOverlay({
   topicByLabel,
   topics,
   current,
-  walking,
   revealKey,
   onPick,
   onPickTopic,
@@ -88,8 +88,12 @@ export function MapInsightsOverlay({
       gapIndex: mark.kind === "gap" ? gapIndex++ : 0,
     }),
   }));
-  const currentAnchor: Point | null =
-    shapes.find(item => item.mark.id === current)?.shape?.anchor ?? null;
+  const currentMark = shapes.find(item => item.mark.id === current);
+  const currentAnchor: Point | null = currentMark?.shape?.anchor ?? null;
+  const involved = (currentMark?.mark.ends ?? []).flatMap(end => {
+    const at = api.project(endpointKey(end));
+    return at ? [{ key: endpointKey(end), title: end.title, at }] : [];
+  });
 
   return (
     <div className="absolute inset-0" data-map-insights>
@@ -98,7 +102,7 @@ export function MapInsightsOverlay({
           if (!shape) return null;
           const meta = MARK_META[mark.kind];
           const linked = mark.status === "linked";
-          const dim = walking && current !== mark.id;
+          const dim = current !== null && current !== mark.id;
           const active = current === mark.id;
           const common = cn(
             "pointer-events-auto cursor-pointer transition-opacity duration-200",
@@ -162,7 +166,7 @@ export function MapInsightsOverlay({
                     cx={shape.ghost.x}
                     cy={shape.ghost.y}
                     r={7}
-                    fill="var(--tau-surface)"
+                    fill="var(--tau-bg-surface)"
                     stroke="var(--tau-accent)"
                     strokeWidth={1.4}
                     strokeDasharray="3 2.5"
@@ -202,7 +206,7 @@ export function MapInsightsOverlay({
                       cx={shape.at.x}
                       cy={shape.at.y}
                       r={14}
-                      fill="var(--tau-surface)"
+                      fill="var(--tau-bg-surface)"
                       stroke={meta.stroke}
                       strokeWidth={1.5}
                       strokeDasharray="4 3"
@@ -231,7 +235,7 @@ export function MapInsightsOverlay({
                     textAnchor="middle"
                     fontSize={12.5}
                     fill={active ? "var(--tau-accent-text)" : "var(--tau-ink-3)"}
-                    stroke="var(--tau-surface)"
+                    stroke="var(--tau-bg-surface)"
                     strokeWidth={3}
                     paintOrder="stroke"
                     className="animate-fadeIn hover:fill-[var(--tau-accent-text)]"
@@ -243,7 +247,30 @@ export function MapInsightsOverlay({
               );
           }
         })}
+        {involved.map(item => (
+          <circle
+            key={item.key}
+            cx={item.at.x}
+            cy={item.at.y}
+            r={7}
+            fill="none"
+            stroke="var(--tau-accent)"
+            strokeWidth={2}
+            className="animate-insight-ring origin-center [transform-box:fill-box]"
+          />
+        ))}
       </svg>
+
+      {involved.map(item => (
+        <div
+          key={item.key}
+          className="bg-surface shadow-float text-ink-1 animate-fadeIn absolute max-w-[180px] -translate-x-1/2 -translate-y-full truncate rounded-full px-2 py-px text-[12px]"
+          style={{ left: item.at.x, top: item.at.y - 11 }}
+          data-map-involved={item.key}
+        >
+          {item.title}
+        </div>
+      ))}
 
       {/* 全局层：有发现的主题名可以点，名字后一个小点 */}
       {topics.map(topic => {

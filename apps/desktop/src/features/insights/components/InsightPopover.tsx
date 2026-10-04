@@ -3,8 +3,8 @@
  * 逐条看时附一行快捷键提示。
  */
 
-import { CircleHelp, FileText, FolderKanban, Layers, Link2 } from "lucide-react";
-import { AnchoredPanel, Button } from "@tau/ui";
+import { CircleHelp, FileText, FolderKanban, Layers, Link2, X } from "lucide-react";
+import { AnchoredPanel, Button, IconButton } from "@tau/ui";
 import type { InsightMark } from "@/types/content-insights";
 
 const TARGET_ICON = {
@@ -22,6 +22,8 @@ export interface InsightPopoverProps {
   onQuestion(mark: InsightMark): void;
   onDismiss(mark: InsightMark): void;
   onOpenTarget(mark: InsightMark): void;
+  /** 关闭气泡（逐条看时一并结束），与 Esc 第一层相同 */
+  onClose(): void;
 }
 
 export const connectsByDefault = (mark: InsightMark) => mark.kind === "link" || mark.kind === "dup";
@@ -34,6 +36,7 @@ export function InsightPopover({
   onQuestion,
   onDismiss,
   onOpenTarget,
+  onClose,
 }: InsightPopoverProps) {
   const target = mark.target;
   const Icon = target ? TARGET_ICON[target.ref.kind] : Layers;
@@ -42,10 +45,18 @@ export function InsightPopover({
     <AnchoredPanel anchor={anchor} placement="bottom-start" className="w-[360px] max-w-[360px]">
       <div
         data-insight-popover
-        className="text-tau-body text-ink-1 px-3.5 pb-2.5 pt-3 leading-[1.7]"
+        className="text-tau-body text-ink-1 relative px-3.5 pb-2.5 pt-3 leading-[1.7]"
         onMouseDown={event => event.stopPropagation()}
       >
-        <p>{mark.kind === "gap" ? mark.text : mark.why}</p>
+        <IconButton
+          className="absolute right-1.5 top-1.5 size-6"
+          title="关闭 (Esc)"
+          aria-label="关闭"
+          onClick={onClose}
+        >
+          <X className="size-3.5" strokeWidth={1.75} />
+        </IconButton>
+        <p className="pr-5">{mark.kind === "gap" ? mark.text : mark.why}</p>
         {mark.kind === "gap" && mark.why && (
           <p className="text-ink-2 text-tau-meta mt-1">{mark.why}</p>
         )}

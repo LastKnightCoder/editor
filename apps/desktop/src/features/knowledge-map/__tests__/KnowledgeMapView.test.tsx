@@ -61,6 +61,7 @@ const mocks = vi.hoisted(() => ({
   params: {} as { focus?: string },
   openEntity: vi.fn(async () => {}),
   data: null as unknown,
+  onPreview: null as null | ((end: Record<string, unknown>) => void),
 }));
 
 vi.mock("@/components/LinkGraph", () => ({
@@ -72,18 +73,29 @@ vi.mock("@/components/LinkGraph", () => ({
 vi.mock("../queries", () => ({
   useKnowledgeMap: () => ({ data: mocks.data, isPending: false, isFetching: false }),
 }));
-vi.mock("@/page/PageProvider", () => ({ usePageParams: () => mocks.params }));
+vi.mock("@/page/PageProvider", () => ({
+  usePageParams: () => mocks.params,
+  useOverlayDismiss: () => undefined,
+}));
+vi.mock("@/components/ContentEditor", () => ({
+  default: ({ contentId, at }: { contentId: number; at?: string }) => (
+    <div data-preview-content={contentId} data-at={at} />
+  ),
+}));
 // 洞见视图有自己的测试（useMapInsights.test.tsx）；这里只看地图页本身
 vi.mock("../insights/useMapInsights", () => ({
-  useMapInsights: () => ({
-    enabled: false,
-    view: "off",
-    button: null,
-    report: null,
-    overlay: null,
-    overlayRef: () => undefined,
-    floating: null,
-  }),
+  useMapInsights: (_topics: unknown, _initial: unknown, onPreview: unknown) => {
+    mocks.onPreview = onPreview as typeof mocks.onPreview;
+    return {
+      enabled: false,
+      view: "off",
+      button: null,
+      report: null,
+      overlay: null,
+      overlayRef: () => undefined,
+      floating: null,
+    };
+  },
 }));
 vi.mock("@/services/open-content", () => ({ openEntity: mocks.openEntity }));
 
@@ -126,13 +138,37 @@ describe("KnowledgeMapView", () => {
     expect(mocks.graphProps!.filterCardIds).toBeNull();
   });
 
-  it("focus 参数对准并强调对应节点；点击节点打开对应详情", () => {
+  it("focus 参数对准并强调对应节点；点击节点先在 Drawer 预览，点「打开」才进详情", () => {
+    mocks.openEntity.mockClear();
     mocks.params = { focus: "project-item:5" };
     render();
     expect(mocks.graphProps!.focusId).toBe(2);
     expect(mocks.graphProps!.currentCardIds).toEqual([2]);
     act(() => mocks.graphProps!.onClickItem({ key: "article:3" }));
-    expect(mocks.openEntity).toHaveBeenCalledWith({ kind: "article", id: 3 });
+    expect(mocks.openEntity).not.toHaveBeenCalled();
+    expect(mocks.graphProps!.currentCardIds).toEqual([2, 0]);
+    const contentId = ITEMS.find(item => item.key === "article:3")!.contentId;
+    expect(container.querySelector(`[data-preview-content="${contentId}"]`)).not.toBeNull();
+    act(() => button("打开").click());
+    expect(mocks.openEntity).toHaveBeenCalledWith({ kind: "article", id: 3 }, {});
+  });
+
+  it("洞见气泡里的笔记：在地图上的进 Drawer 并定位到那一节，打开时带着位置；不在地图上的直接打开", () => {
+    mocks.openEntity.mockClear();
+    render();
+    act(() => mocks.onPreview!({ ref: { kind: "card", id: 1 }, block: 4 }));
+    expect(mocks.openEntity).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-preview-content="10"]')?.getAttribute("data-at")).toBe(
+      JSON.stringify({ block: 4 })
+    );
+    act(() => button("打开").click());
+    expect(mocks.openEntity).toHaveBeenCalledWith({ kind: "card", id: 1 }, { at: { block: 4 } });
+
+    act(() => mocks.onPreview!({ ref: { kind: "card", id: 404 }, block: 0 }));
+    expect(mocks.openEntity).toHaveBeenLastCalledWith(
+      { kind: "card", id: 404 },
+      { at: { block: 0 } }
+    );
   });
 
   it("没有内容时显示空态", () => {

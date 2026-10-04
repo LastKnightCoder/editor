@@ -80,6 +80,13 @@ describe("knowledge_ai_insights 纯函数", () => {
     expect(later.marks).toHaveLength(0);
   });
 
+  it("知道了：重新生成时沿用、照样不画，但不算不相关", () => {
+    const previous = result([mark("m1", [1, 2], { kind: "pattern", status: "seen" })]);
+    const merged = mergeResults(previous, result([mark("x1", [2, 1], { kind: "pattern" })]));
+    expect(merged.marks[0]).toMatchObject({ id: "x1", status: "seen" });
+    expect(merged.dismissed).toEqual([]);
+  });
+
   it("成员重合度与变化量", () => {
     const a: Array<[number, string]> = [
       [1, "a"],
@@ -115,6 +122,7 @@ describe("KnowledgeAiInsightsTable", () => {
     expect(row).toMatchObject({ scope: "subtopic", label: "事件循环", createTime: 1000 });
     expect(KnowledgeAiInsightsTable.setStatus(db, row.id, "m1", "dismissed")).toBe(true);
     expect(KnowledgeAiInsightsTable.setStatus(db, row.id, "q1", "questioned")).toBe(true);
+    expect(() => KnowledgeAiInsightsTable.setStatus(db, row.id, "m1", "bogus" as never)).toThrow();
     expect(KnowledgeAiInsightsTable.setStatus(db, row.id, "nope", "linked")).toBe(false);
     expect(KnowledgeAiInsightsTable.get(db, row.id)!.updateTime).toBe(1000);
 

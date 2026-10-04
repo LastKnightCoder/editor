@@ -395,8 +395,8 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
                         theme === "dark" ? "text-white" : "text-black"
                       } ${
                         active
-                          ? "shadow-[0_0_0_2px_var(--tau-surface),0_0_0_4px_var(--tau-accent)]"
-                          : "hover:shadow-[0_0_0_2px_var(--tau-surface),0_0_0_3.5px_var(--tau-ink-3)]"
+                          ? "shadow-[0_0_0_2px_var(--tau-bg-surface),0_0_0_4px_var(--tau-accent)]"
+                          : "hover:shadow-[0_0_0_2px_var(--tau-bg-surface),0_0_0_3.5px_var(--tau-ink-3)]"
                       }`}
                       style={{ background: preset.background }}
                     >
