@@ -1,4 +1,4 @@
-import { Board, BoardElement, Operation, Path } from "../types";
+import { Board, BoardElement, Operation, PageSketch, Path } from "../types";
 import PathUtil from "./PathUtil";
 
 const NORMALIZED_OPERATION = Symbol("BoardOperationsNormalizedOperation");
@@ -19,9 +19,8 @@ export class BoardOperations {
   // 仅用于测试/诊断：允许通过全局变量强制指定“是否 DEV”。
   // 线上不应设置该值；未设置时仍以 import.meta.env.DEV 为准。
   private static isDevEnvironment(): boolean {
-    const forced = (
-      globalThis as unknown as { __TAU_WHITEBOARD_FORCE_DEV__?: unknown }
-    ).__TAU_WHITEBOARD_FORCE_DEV__;
+    const forced = (globalThis as unknown as { __TAU_WHITEBOARD_FORCE_DEV__?: unknown })
+      .__TAU_WHITEBOARD_FORCE_DEV__;
     if (typeof forced === "boolean") return forced;
     return Boolean((import.meta as any).env?.DEV);
   }
@@ -31,15 +30,15 @@ export class BoardOperations {
 
   private static warnIfSetNodeContainsChildren(
     op: Extract<Operation, { type: "set_node" }>,
-    node: BoardElement,
+    node: BoardElement
   ): void {
     const hasChildrenInProps = Object.prototype.hasOwnProperty.call(
       op.properties ?? {},
-      "children",
+      "children"
     );
     const hasChildrenInNewProps = Object.prototype.hasOwnProperty.call(
       op.newProperties ?? {},
-      "children",
+      "children"
     );
     if (!hasChildrenInProps && !hasChildrenInNewProps) return;
 
@@ -52,7 +51,7 @@ export class BoardOperations {
     // - 生产环境：打印一次 warning，便于线上回溯但不中断用户操作
     if (isDev) {
       const error = new Error(
-        "[WhiteBoard][BoardOperations] 禁止 set_node(children)：请使用 insert_node/remove_node/move_node 表达结构变化；set_node 仅用于 patch 当前节点自身属性。",
+        "[WhiteBoard][BoardOperations] 禁止 set_node(children)：请使用 insert_node/remove_node/move_node 表达结构变化；set_node 仅用于 patch 当前节点自身属性。"
       );
       (error as any).detail = {
         elementId: node.id,
@@ -79,14 +78,11 @@ export class BoardOperations {
         propertiesKeys: propsKeys,
         newPropertiesKeys: newPropsKeys,
         stack,
-      },
+      }
     );
   }
 
-  private static dfsElement(
-    node: BoardElement,
-    visit: (node: BoardElement) => void,
-  ): void {
+  private static dfsElement(node: BoardElement, visit: (node: BoardElement) => void): void {
     visit(node);
     const children = node.children;
     if (!children || children.length === 0) return;
@@ -97,20 +93,24 @@ export class BoardOperations {
 
   private static hasChildrenMutation(operations: Operation[]): boolean {
     return operations.some(
-      (operation) =>
+      operation =>
         operation.type === "set_node" ||
         operation.type === "insert_node" ||
         operation.type === "remove_node" ||
-        operation.type === "move_node",
+        operation.type === "move_node"
     );
   }
 
   private static hasViewPortMutation(operations: Operation[]): boolean {
-    return operations.some((operation) => operation.type === "set_viewport");
+    return operations.some(operation => operation.type === "set_viewport");
+  }
+
+  private static hasSketchMutation(operations: Operation[]): boolean {
+    return operations.some(operation => operation.type === "set_sketch");
   }
 
   private static hasSelectionMutation(operations: Operation[]): boolean {
-    return operations.some((operation) => operation.type === "set_selection");
+    return operations.some(operation => operation.type === "set_selection");
   }
 
   private static createChildrenMutationContext(): ChildrenMutationContext {
@@ -133,18 +133,20 @@ export class BoardOperations {
       children: BoardElement[];
       viewPort?: Board["viewPort"];
       selection?: Board["selection"];
+      sketch?: PageSketch;
     },
     operations: Operation[],
     options: {
       readonly?: boolean;
       skipViewPortOperations?: boolean;
       skipSelectionOperations?: boolean;
-    } = {},
+    } = {}
   ): {
     data: {
       children: BoardElement[];
       viewPort?: Board["viewPort"];
       selection?: Board["selection"];
+      sketch?: PageSketch;
     };
     metadata: OperationMetadata;
     operations: Operation[];
@@ -158,11 +160,10 @@ export class BoardOperations {
     // 按操作类型做选择性克隆，避免 set_selection / set_viewport 高频场景下全量克隆 children。
     const shouldCloneChildren = BoardOperations.hasChildrenMutation(operations);
     const shouldCloneViewPort =
-      !skipViewPortOperations &&
-      BoardOperations.hasViewPortMutation(operations);
+      !skipViewPortOperations && BoardOperations.hasViewPortMutation(operations);
+    const shouldCloneSketch = BoardOperations.hasSketchMutation(operations);
     const shouldCloneSelection =
-      (!skipSelectionOperations &&
-        BoardOperations.hasSelectionMutation(operations)) ||
+      (!skipSelectionOperations && BoardOperations.hasSelectionMutation(operations)) ||
       shouldCloneChildren;
     const childrenMutationContext = shouldCloneChildren
       ? BoardOperations.createChildrenMutationContext()
@@ -180,6 +181,7 @@ export class BoardOperations {
           ? { ...data.selection }
           : data.selection
         : undefined,
+      sketch: data.sketch && shouldCloneSketch ? { ...data.sketch } : data.sketch,
     };
 
     // 元数据收集
@@ -194,12 +196,12 @@ export class BoardOperations {
       return { data: result, metadata, operations: [] };
     }
 
-    const operationsAreNormalized = operations.every((op) =>
-      BoardOperations.isNormalizedOperation(op),
+    const operationsAreNormalized = operations.every(op =>
+      BoardOperations.isNormalizedOperation(op)
     );
 
     const preparedOps = operationsAreNormalized
-      ? operations.map((op) => BoardOperations.cloneOperation(op, true))
+      ? operations.map(op => BoardOperations.cloneOperation(op, true))
       : BoardOperations.preprocessOperations(operations);
 
     const executedOperations: Operation[] = [];
@@ -214,7 +216,7 @@ export class BoardOperations {
       },
       executedOperations,
       !operationsAreNormalized,
-      childrenMutationContext,
+      childrenMutationContext
     );
 
     return { data: result, metadata, operations: executedOperations };
@@ -227,7 +229,7 @@ export class BoardOperations {
       readonly?: boolean;
       skipViewPortOperations?: boolean;
       skipSelectionOperations?: boolean;
-    } = {},
+    } = {}
   ): BoardElement[] {
     const result = this.applyOperations({ children }, operations, {
       skipViewPortOperations: true,
@@ -242,14 +244,9 @@ export class BoardOperations {
    * 专门用于应用 diff 算法生成的操作
    * 这些操作已经经过预处理，需要按原始顺序直接执行
    */
-  static applyDiffOperations(
-    children: BoardElement[],
-    operations: Operation[],
-  ): BoardElement[] {
-    const normalizedOps = operations.map((op) =>
-      BoardOperations.cloneOperation(op, true),
-    );
-    normalizedOps.forEach((op) => BoardOperations.markAsNormalized(op));
+  static applyDiffOperations(children: BoardElement[], operations: Operation[]): BoardElement[] {
+    const normalizedOps = operations.map(op => BoardOperations.cloneOperation(op, true));
+    normalizedOps.forEach(op => BoardOperations.markAsNormalized(op));
 
     const result = this.applyOperations({ children }, normalizedOps, {
       skipViewPortOperations: true,
@@ -267,15 +264,15 @@ export class BoardOperations {
     if (operations.length === 0) return [];
 
     // 第一步：过滤无效操作
-    const validOps = PathUtil.filterValidOperations(operations, (op) =>
-      BoardOperations.isNormalizedOperation(op),
+    const validOps = PathUtil.filterValidOperations(operations, op =>
+      BoardOperations.isNormalizedOperation(op)
     );
     if (validOps.length === 0) return [];
 
     // 第二步：简化排序（只对插入操作按深度排序）
     const sortedOps = PathUtil.sortOperationsForExecution(validOps);
 
-    return sortedOps.map((op) => BoardOperations.cloneOperation(op, true));
+    return sortedOps.map(op => BoardOperations.cloneOperation(op, true));
   }
 
   private static executeOperations(
@@ -283,6 +280,7 @@ export class BoardOperations {
       children: BoardElement[];
       viewPort?: Board["viewPort"];
       selection?: Board["selection"];
+      sketch?: PageSketch;
     },
     operations: Operation[],
     metadata: OperationMetadata,
@@ -293,22 +291,16 @@ export class BoardOperations {
     },
     executedOperations: Operation[],
     enablePathTracking: boolean,
-    childrenMutationContext: ChildrenMutationContext | null,
+    childrenMutationContext: ChildrenMutationContext | null
   ): void {
     if (operations.length === 0) return;
 
     if (!enablePathTracking) {
       for (const op of operations) {
         const cloned = BoardOperations.cloneOperation(op, true);
-        const applied = BoardOperations.applySingleOperation(
-          state,
-          cloned,
-          metadata,
-          options,
-          {
-            childrenMutationContext,
-          },
-        );
+        const applied = BoardOperations.applySingleOperation(state, cloned, metadata, options, {
+          childrenMutationContext,
+        });
 
         if (applied) {
           BoardOperations.markAsNormalized(cloned);
@@ -319,19 +311,17 @@ export class BoardOperations {
     }
 
     const manager = new OperationPathRefManager();
-    const operationRefs = operations.map((op) =>
+    const operationRefs = operations.map(op =>
       BoardOperations.isNormalizedOperation(op)
         ? { pathRef: null, newPathRef: null }
-        : BoardOperations.createOperationRefs(op, manager),
+        : BoardOperations.createOperationRefs(op, manager)
     );
 
     for (let i = 0; i < operations.length; i++) {
       const template = operations[i];
       const cloned = BoardOperations.cloneOperation(template, true);
       const { pathRef, newPathRef } = operationRefs[i];
-      const originalPath = BoardOperations.operationHasPath(template)
-        ? [...template.path]
-        : null;
+      const originalPath = BoardOperations.operationHasPath(template) ? [...template.path] : null;
       const originalNewPath =
         template.type === "move_node"
           ? [...(template as Extract<Operation, { type: "move_node" }>).newPath]
@@ -341,17 +331,11 @@ export class BoardOperations {
         // if (process.env.DEBUG_BOARD_OPS) {
         //   console.log("Applying normalized", cloned.type, "at path", (cloned as any).path);
         // }
-        const applied = BoardOperations.applySingleOperation(
-          state,
-          cloned,
-          metadata,
-          options,
-          {
-            originalPath,
-            originalNewPath,
-            childrenMutationContext,
-          },
-        );
+        const applied = BoardOperations.applySingleOperation(state, cloned, metadata, options, {
+          originalPath,
+          originalNewPath,
+          childrenMutationContext,
+        });
 
         pathRef?.unref();
         newPathRef?.unref();
@@ -381,26 +365,18 @@ export class BoardOperations {
           continue;
         }
 
-        (cloned as Extract<Operation, { type: "move_node" }>).newPath = [
-          ...newPathRef.current,
-        ];
+        (cloned as Extract<Operation, { type: "move_node" }>).newPath = [...newPathRef.current];
       }
 
       // if (process.env.DEBUG_BOARD_OPS) {
       //   console.log("Applying", cloned.type, "at path", (cloned as any).path);
       // }
 
-      const applied = BoardOperations.applySingleOperation(
-        state,
-        cloned,
-        metadata,
-        options,
-        {
-          originalPath,
-          originalNewPath,
-          childrenMutationContext,
-        },
-      );
+      const applied = BoardOperations.applySingleOperation(state, cloned, metadata, options, {
+        originalPath,
+        originalNewPath,
+        childrenMutationContext,
+      });
 
       pathRef?.unref();
       newPathRef?.unref();
@@ -438,6 +414,7 @@ export class BoardOperations {
       children: BoardElement[];
       viewPort?: Board["viewPort"];
       selection?: Board["selection"];
+      sketch?: PageSketch;
     },
     op: Operation,
     metadata: OperationMetadata,
@@ -450,7 +427,7 @@ export class BoardOperations {
       originalPath?: Path | null;
       originalNewPath?: Path | null;
       childrenMutationContext?: ChildrenMutationContext | null;
-    },
+    }
   ): boolean {
     const childrenMutationContext = context?.childrenMutationContext ?? null;
 
@@ -459,11 +436,7 @@ export class BoardOperations {
         if (options.readonly) return false;
         if (!childrenMutationContext) return false;
 
-        const node = BoardOperations.ensureMutableNode(
-          state,
-          op.path,
-          childrenMutationContext,
-        );
+        const node = BoardOperations.ensureMutableNode(state, op.path, childrenMutationContext);
         if (!node) return false;
 
         const setOp = op as Extract<Operation, { type: "set_node" }>;
@@ -481,16 +454,16 @@ export class BoardOperations {
 
         const hasChildrenInProps = Object.prototype.hasOwnProperty.call(
           setOp.properties ?? {},
-          "children",
+          "children"
         );
         const hasChildrenInNewProps = Object.prototype.hasOwnProperty.call(
           setOp.newProperties ?? {},
-          "children",
+          "children"
         );
         // 迁移期兼容：只有当 set_node 明确携带 children（老逻辑）时才 DFS 记录子树变化。
         // 新逻辑下 set_node 只做 patch，此处只记录当前节点，避免大量 set_node 导致 O(n^2) 的 metadata 采集成本。
         if (hasChildrenInProps || hasChildrenInNewProps) {
-          BoardOperations.dfsElement(node, (child) => {
+          BoardOperations.dfsElement(node, child => {
             metadata.changedElements.push(child);
           });
         } else {
@@ -507,20 +480,18 @@ export class BoardOperations {
           state,
           op.path,
           childrenMutationContext,
-          true,
+          true
         );
         if (!containerInfo) return false;
 
         let index = op.path[op.path.length - 1];
         const originalIndex =
-          context?.originalPath &&
-          context.originalPath.length === op.path.length
+          context?.originalPath && context.originalPath.length === op.path.length
             ? context.originalPath[context.originalPath.length - 1]
             : null;
         if (index > containerInfo.container.length) {
           const canAppend =
-            originalIndex != null &&
-            originalIndex <= containerInfo.container.length;
+            originalIndex != null && originalIndex <= containerInfo.container.length;
           if (canAppend) {
             index = containerInfo.container.length;
             op.path = [...op.path];
@@ -534,15 +505,11 @@ export class BoardOperations {
           }
         }
 
-        containerInfo.container.splice(
-          index,
-          0,
-          BoardOperations.cloneElement(op.node),
-        );
+        containerInfo.container.splice(index, 0, BoardOperations.cloneElement(op.node));
         const inserted = containerInfo.container[index];
         if (inserted) {
           // insertedElements 记录“扁平化后的子树”，便于全局 insert 事件/资源统计/参考线清理等场景按节点粒度处理。
-          BoardOperations.dfsElement(inserted, (n) => {
+          BoardOperations.dfsElement(inserted, n => {
             metadata.insertedElements.push(n);
           });
         }
@@ -556,7 +523,7 @@ export class BoardOperations {
         const containerInfo = BoardOperations.resolveContainer(
           state,
           op.path,
-          childrenMutationContext,
+          childrenMutationContext
         );
         if (!containerInfo) return false;
 
@@ -571,7 +538,7 @@ export class BoardOperations {
         }
 
         // removedElements 记录“扁平化后的子树”，避免只移除根节点导致子节点参考线/资源统计遗漏。
-        BoardOperations.dfsElement(removed, (n) => {
+        BoardOperations.dfsElement(removed, n => {
           metadata.removedElements.push(n);
         });
         metadata.hasChanges = true;
@@ -584,7 +551,7 @@ export class BoardOperations {
         const sourceInfo = BoardOperations.resolveContainer(
           state,
           op.path,
-          childrenMutationContext,
+          childrenMutationContext
         );
         if (!sourceInfo) return false;
 
@@ -612,7 +579,7 @@ export class BoardOperations {
           state,
           adjustedNewPath,
           childrenMutationContext,
-          true,
+          true
         );
 
         if (!targetInfo) {
@@ -650,12 +617,14 @@ export class BoardOperations {
         metadata.hasChanges = true;
         return true;
       }
+      case "set_sketch": {
+        if (options.readonly || !state.sketch) return false;
+        Object.assign(state.sketch, op.newProperties);
+        metadata.hasChanges = true;
+        return true;
+      }
       case "set_selection": {
-        if (
-          options.readonly ||
-          options.skipSelectionOperations ||
-          !state.selection
-        ) {
+        if (options.readonly || options.skipSelectionOperations || !state.selection) {
           return false;
         }
 
@@ -689,10 +658,7 @@ export class BoardOperations {
     return Boolean((operation as any)[NORMALIZED_OPERATION]);
   }
 
-  private static cloneOperation(
-    operation: Operation,
-    preserveNormalization = false,
-  ): Operation {
+  private static cloneOperation(operation: Operation, preserveNormalization = false): Operation {
     const cloned = { ...operation } as Operation;
 
     if (BoardOperations.operationHasPath(cloned)) {
@@ -703,10 +669,7 @@ export class BoardOperations {
       cloned.newPath = [...cloned.newPath];
     }
 
-    if (
-      preserveNormalization &&
-      BoardOperations.isNormalizedOperation(operation)
-    ) {
+    if (preserveNormalization && BoardOperations.isNormalizedOperation(operation)) {
       BoardOperations.markAsNormalized(cloned);
     }
 
@@ -725,7 +688,7 @@ export class BoardOperations {
     state: {
       children: BoardElement[];
     },
-    context: ChildrenMutationContext,
+    context: ChildrenMutationContext
   ): BoardElement[] {
     if (context.mutableContainers.has(state.children)) {
       return state.children;
@@ -740,7 +703,7 @@ export class BoardOperations {
   private static ensureMutableNodeAt(
     container: BoardElement[],
     index: number,
-    context: ChildrenMutationContext,
+    context: ChildrenMutationContext
   ): BoardElement | null {
     const node = container[index];
     if (!node) return null;
@@ -758,7 +721,7 @@ export class BoardOperations {
   private static ensureMutableChildrenContainer(
     parent: BoardElement,
     context: ChildrenMutationContext,
-    createChildren = false,
+    createChildren = false
   ): BoardElement[] | null {
     if (!parent.children) {
       if (!createChildren) return null;
@@ -784,7 +747,7 @@ export class BoardOperations {
     },
     path: Path,
     context: ChildrenMutationContext,
-    createChildren = false,
+    createChildren = false
   ): { container: BoardElement[]; parent?: BoardElement } | null {
     if (path.length === 0) {
       return null;
@@ -802,11 +765,7 @@ export class BoardOperations {
         return null;
       }
 
-      const mutableParent = BoardOperations.ensureMutableNodeAt(
-        container,
-        index,
-        context,
-      );
+      const mutableParent = BoardOperations.ensureMutableNodeAt(container, index, context);
       if (!mutableParent) {
         return null;
       }
@@ -816,7 +775,7 @@ export class BoardOperations {
       const nextContainer = BoardOperations.ensureMutableChildrenContainer(
         mutableParent,
         context,
-        shouldCreateChildren,
+        shouldCreateChildren
       );
       if (!nextContainer) {
         return null;
@@ -833,27 +792,17 @@ export class BoardOperations {
       children: BoardElement[];
     },
     path: Path,
-    context: ChildrenMutationContext,
+    context: ChildrenMutationContext
   ): BoardElement | null {
     if (path.length === 0) return null;
 
-    const containerInfo = BoardOperations.resolveContainer(
-      state,
-      path,
-      context,
-    );
+    const containerInfo = BoardOperations.resolveContainer(state, path, context);
     if (!containerInfo) return null;
     const index = path[path.length - 1];
-    return BoardOperations.ensureMutableNodeAt(
-      containerInfo.container,
-      index,
-      context,
-    );
+    return BoardOperations.ensureMutableNodeAt(containerInfo.container, index, context);
   }
 
-  static operationHasPath(
-    operation: Operation,
-  ): operation is Extract<Operation, { path: Path }> {
+  static operationHasPath(operation: Operation): operation is Extract<Operation, { path: Path }> {
     return (
       operation.type === "insert_node" ||
       operation.type === "remove_node" ||
@@ -864,20 +813,18 @@ export class BoardOperations {
 
   private static createOperationRefs(
     operation: Operation,
-    manager: OperationPathRefManager,
+    manager: OperationPathRefManager
   ): {
     pathRef: OperationPathRef | null;
     newPathRef: OperationPathRef | null;
   } {
     const shouldTrackPath = BoardOperations.operationHasPath(operation);
-    const pathRef = shouldTrackPath
-      ? manager.track((operation as any).path, operation.type)
-      : null;
+    const pathRef = shouldTrackPath ? manager.track((operation as any).path, operation.type) : null;
     const newPathRef =
       operation.type === "move_node"
         ? manager.track(
             (operation as Extract<Operation, { type: "move_node" }>).newPath,
-            operation.type,
+            operation.type
           )
         : null;
 
@@ -924,11 +871,7 @@ class OperationPathRefManager {
     for (const ref of refs) {
       if (!ref.current) continue;
 
-      const next = PathUtil.transformPath(
-        ref.current,
-        operation,
-        ref.targetType,
-      );
+      const next = PathUtil.transformPath(ref.current, operation, ref.targetType);
       if (next === null) {
         ref.current = null;
         this.refs.delete(ref);

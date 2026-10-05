@@ -1,7 +1,8 @@
 import { Selection } from "./selection.ts";
-import { BoardElement, BoardTheme } from "./board.ts";
+import { BoardElement } from "./board.ts";
 import { ViewPort } from "./viewport.ts";
 import { Path } from "./path.ts";
+import { PageSketch } from "./sketch.ts";
 
 // set_node 只允许 patch 当前节点自身属性，禁止通过 children 修改结构。
 // 结构变化必须使用 insert_node/remove_node/move_node。
@@ -46,10 +47,11 @@ export type SetViewportOperation = {
   newProperties: Partial<ViewPort>;
 };
 
-export type SetThemeOperation = {
-  type: "set_theme";
-  properties: Partial<BoardTheme>;
-  newProperties: Partial<BoardTheme>;
+/** 页级画风（D-106），进撤销历史 */
+export type SetSketchOperation = {
+  type: "set_sketch";
+  properties: Partial<PageSketch>;
+  newProperties: Partial<PageSketch>;
 };
 
 export type SetMovingOperation = {
@@ -66,4 +68,4 @@ export type Operation =
   | SetViewportOperation
   | SetSelectionOperation
   | SetMovingOperation
-  | SetThemeOperation;
+  | SetSketchOperation;

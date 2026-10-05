@@ -60,6 +60,7 @@ const WhiteBoardProjectView = memo((props: { projectItemId: number }) => {
       initSelection={data.selection}
       initViewPort={data.viewPort}
       initPresentationSequences={data.presentationSequences}
+      initSketch={data.sketch}
       onChange={onWhiteBoardChange}
     />
   );
