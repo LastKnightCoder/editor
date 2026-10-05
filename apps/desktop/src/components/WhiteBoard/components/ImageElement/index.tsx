@@ -342,7 +342,6 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
       <ArrowConnectPointGroup
         element={element}
         points={arrowConnectExtendPoints}
-        proximityBounds={{ x, y, width, height }}
         isSelected={isSelected}
         disabled={isMoveArrowClosing}
       />

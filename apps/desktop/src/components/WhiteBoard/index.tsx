@@ -44,7 +44,13 @@ import {
   PointerViewportStoreContext,
   type PointerViewportStore,
 } from "./context";
-import { BOARD_TO_CONTAINER, FIT_VIEW_PADDING } from "./constants";
+import {
+  ARROW_CONNECT_PROXIMITY_HIDE_DELAY,
+  ARROW_CONNECT_PROXIMITY_RADIUS,
+  BOARD_TO_CONTAINER,
+  FIT_VIEW_PADDING,
+} from "./constants";
+import { createConnectPointOwnerStore } from "./utils/ConnectPointOwner";
 import {
   BoardElement,
   Point,
@@ -263,6 +269,23 @@ const WhiteBoard = memo(
         },
       };
     }, []);
+    const connectPointOwnerStore = useCreation(
+      () =>
+        createConnectPointOwnerStore({
+          radius: ARROW_CONNECT_PROXIMITY_RADIUS,
+          hideDelay: ARROW_CONNECT_PROXIMITY_HIDE_DELAY,
+        }),
+      []
+    );
+    useEffect(() => {
+      const unsubscribe = pointerViewportStore.subscribe(() => {
+        connectPointOwnerStore.setPointer(pointerViewportStore.getSnapshot());
+      });
+      return () => {
+        unsubscribe();
+        connectPointOwnerStore.dispose();
+      };
+    }, [connectPointOwnerStore, pointerViewportStore]);
 
     // 网格设置
     const { gridVisible, gridSize, handleGridVisibleChange, handleGridSizeChange } =
@@ -1111,6 +1134,7 @@ const WhiteBoard = memo(
                   isMoving: isElementsMoving,
                   movingStore,
                   simplifiedRenderZoomThreshold,
+                  connectPointOwnerStore,
                 }}
               >
                 <ArrowConnectPointOverlayContext.Provider value={connectPointOverlayRef}>

@@ -29,14 +29,14 @@ interface WhiteBoardElementProps {
     startPoint: Point,
     endPoint: Point,
     isPreserveRatio?: boolean,
-    isAdsorb?: boolean,
+    isAdsorb?: boolean
   ) => void;
   onResizeEnd?: (
     board: Board,
     element: WhiteBoardElement,
     position: EHandlerPosition,
     startPoint: Point,
-    endPoint: Point,
+    endPoint: Point
   ) => void;
 }
 
@@ -47,12 +47,8 @@ const WhiteBoardElementComponent = memo((props: WhiteBoardElementProps) => {
 
   const { isSelected } = useSelectState(id);
 
-  const {
-    isMoveArrowClosing,
-    activeConnectId,
-    arrowConnectPoints,
-    arrowConnectExtendPoints,
-  } = useDropArrow(element);
+  const { isMoveArrowClosing, activeConnectId, arrowConnectPoints, arrowConnectExtendPoints } =
+    useDropArrow(element);
 
   // 只获取左右两侧的 resize points（Left 和 Right）
   const [resizePoints] = useMemo(() => {
@@ -82,24 +78,16 @@ const WhiteBoardElementComponent = memo((props: WhiteBoardElementProps) => {
       startPoint: Point,
       endPoint: Point,
       isPreserveRatio?: boolean,
-      isAdsorb?: boolean,
+      isAdsorb?: boolean
     ) => {
-      onResize(
-        board,
-        element,
-        position,
-        startPoint,
-        endPoint,
-        isPreserveRatio,
-        isAdsorb,
-      );
-    },
+      onResize(board, element, position, startPoint, endPoint, isPreserveRatio, isAdsorb);
+    }
   );
 
   const handleOnResizeEnd = useMemoizedFn(
     (position: EHandlerPosition, startPoint: Point, endPoint: Point) => {
       onResizeEnd?.(board, element, position, startPoint, endPoint);
-    },
+    }
   );
 
   return (
@@ -143,13 +131,12 @@ const WhiteBoardElementComponent = memo((props: WhiteBoardElementProps) => {
       <ArrowConnectPointGroup
         element={element}
         points={arrowConnectExtendPoints}
-        proximityBounds={{ x, y, width, height }}
         isSelected={isSelected}
         disabled={isMoveArrowClosing}
       />
       {/* 箭头放置连接点 */}
       <If condition={isMoveArrowClosing}>
-        {arrowConnectPoints.map((point) => (
+        {arrowConnectPoints.map(point => (
           <ArrowDropConnectPoint
             key={point.connectId}
             cx={point.point.x}
