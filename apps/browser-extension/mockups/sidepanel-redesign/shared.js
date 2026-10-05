@@ -14,6 +14,7 @@
     ["b-stream.html", "B 阅读伴侣"],
     ["c-chat.html", "C 对话为主"],
     ["theme-sync.html", "主题同步"],
+    ["dark-tone.html", "深色调亮"],
   ];
   const root = document.documentElement;
   const theme = localStorage.getItem("mk-ext-theme") || "paper";
