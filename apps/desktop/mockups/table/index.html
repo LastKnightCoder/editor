@@ -1,0 +1,1048 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>表格 · UI 与交互重设计 mockup</title>
+<style>
+  /* 取值同 packages/themes/src/tokens.css（mint / paper × light / dark） */
+  [data-theme="mint"][data-mode="light"] {
+    --page:#eef4ee; --surface:#fbfefb; --sunken:#d9e6da; --track:#d4dfd5; --surface-hover:#f3f8f3;
+    --hover:rgba(46,61,49,.05); --press:rgba(46,61,49,.09);
+    --ink-1:#2e3d31; --ink-2:#526350; --ink-3:#a5b3a3; --ink-inv:#f6fbf7;
+    --line-1:#dfe9df;
+    --accent:hsl(153 40% 33%); --accent-hover:hsl(153 40% 26%); --accent-soft:hsla(153,40%,33%,.12); --accent-text:#2f6b50;
+    --ring:0 0 0 3px rgba(74,157,120,.28);
+    --danger:#b0584f; --danger-soft:#f5e3e0;
+    --shadow-float:0 16px 40px -12px rgba(60,90,70,.4); --shadow-card:0 1px 2px rgba(60,90,70,.06),0 10px 24px -14px rgba(60,90,70,.2);
+    --shadow-lift:0 2px 4px rgba(60,90,70,.07),0 16px 32px -14px rgba(60,90,70,.28);
+    --tip-bg:#2e3d31; --tip-ink:#f6fbf7;
+  }
+  [data-theme="mint"][data-mode="dark"] {
+    --page:#151b18; --surface:#1e2521; --sunken:#0a0f0c; --track:#34403a; --surface-hover:#252d28;
+    --hover:rgba(224,234,227,.06); --press:rgba(224,234,227,.11);
+    --ink-1:#e0eae3; --ink-2:#98a69c; --ink-3:#728078; --ink-inv:#0f1612;
+    --line-1:#29322d;
+    --accent:hsl(155 36% 58%); --accent-hover:hsl(155 36% 65%); --accent-soft:hsla(155,36%,58%,.16); --accent-text:hsl(155 42% 64%);
+    --ring:0 0 0 3px hsla(155,36%,58%,.4);
+    --danger:#df8a80; --danger-soft:#35211e;
+    --shadow-float:0 16px 40px -12px rgba(0,0,0,.65); --shadow-card:0 1px 2px rgba(0,0,0,.24),0 10px 24px -14px rgba(0,0,0,.5);
+    --shadow-lift:0 2px 4px rgba(0,0,0,.3),0 16px 32px -14px rgba(0,0,0,.6);
+    --tip-bg:#e0eae3; --tip-ink:#0f1612;
+  }
+  [data-theme="paper"][data-mode="light"] {
+    --page:#f3eee2; --surface:#fffdf9; --sunken:#e7dbc8; --track:#e0d6c3; --surface-hover:#f8f3ea;
+    --hover:rgba(67,57,44,.05); --press:rgba(67,57,44,.09);
+    --ink-1:#43392c; --ink-2:#6a5c49; --ink-3:#a89a85; --ink-inv:#fff8ef;
+    --line-1:#e9e1d2;
+    --accent:hsl(22 58% 42%); --accent-hover:hsl(22 58% 35%); --accent-soft:hsla(22,58%,42%,.12); --accent-text:#a05236;
+    --ring:0 0 0 3px rgba(217,119,87,.28);
+    --danger:#b0564d; --danger-soft:#f6e3e0;
+    --shadow-float:0 16px 40px -12px rgba(120,100,70,.4); --shadow-card:0 1px 2px rgba(120,100,70,.05),0 10px 24px -14px rgba(120,100,70,.18);
+    --shadow-lift:0 2px 4px rgba(120,100,70,.06),0 16px 32px -14px rgba(120,100,70,.26);
+    --tip-bg:#43392c; --tip-ink:#fff8ef;
+  }
+  [data-theme="paper"][data-mode="dark"] {
+    --page:#221d16; --surface:#2e2820; --sunken:#100d08; --track:#463d31; --surface-hover:#362f26;
+    --hover:rgba(236,226,208,.06); --press:rgba(236,226,208,.11);
+    --ink-1:#ece2d0; --ink-2:#a89a85; --ink-3:#857768; --ink-inv:#241a10;
+    --line-1:#3a3227;
+    --accent:hsl(22 62% 65%); --accent-hover:hsl(22 62% 72%); --accent-soft:hsla(22,62%,65%,.16); --accent-text:hsl(22 66% 70%);
+    --ring:0 0 0 3px hsla(22,62%,65%,.4);
+    --danger:#d97e66; --danger-soft:#34201a;
+    --shadow-float:0 16px 40px -12px rgba(0,0,0,.65); --shadow-card:0 1px 2px rgba(0,0,0,.24),0 10px 24px -14px rgba(0,0,0,.5);
+    --shadow-lift:0 2px 4px rgba(0,0,0,.3),0 16px 32px -14px rgba(0,0,0,.6);
+    --tip-bg:#ece2d0; --tip-ink:#241a10;
+  }
+
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html { background:var(--page); color:var(--ink-1); }
+  body { font:14px/1.7 -apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif; -webkit-font-smoothing:antialiased; padding:36px 5vw 200px; transition:background .2s; }
+  button { font:inherit; color:inherit; background:none; border:0; cursor:pointer; }
+  svg { flex:none; }
+  code { font:12.5px ui-monospace,Menlo,monospace; background:var(--hover); padding:1px 5px; border-radius:4px; }
+
+  .top { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+  .top h1 { font-size:21px; font-weight:600; }
+  .top p { color:var(--ink-2); font-size:13.5px; margin-top:4px; max-width:92ch; }
+  .switch { display:flex; gap:4px; padding:3px; border-radius:10px; border:1px solid var(--line-1); background:var(--surface); }
+  .switch button { padding:3px 12px; border-radius:7px; font-size:12.5px; color:var(--ink-2); }
+  .switch button.on { background:var(--accent-soft); color:var(--accent-text); font-weight:500; }
+  .switches { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+
+  section { margin-top:64px; }
+  section > h2 { font-size:17px; font-weight:600; display:flex; align-items:baseline; gap:10px; }
+  section > h2 .no { font:600 12.5px ui-monospace,monospace; color:var(--accent-text); }
+  .desc { color:var(--ink-2); font-size:13.5px; max-width:96ch; margin:6px 0 22px; }
+  .desc b, .notes b { color:var(--ink-1); font-weight:600; }
+  kbd { font:500 11.5px ui-monospace,monospace; padding:1px 6px; border-radius:5px; background:var(--surface); border:1px solid var(--line-1); color:var(--ink-2); }
+  .notes { color:var(--ink-2); font-size:13px; padding-left:18px; max-width:96ch; }
+  .notes li { margin:5px 0; }
+
+  .grid { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(300px,1fr); gap:32px; align-items:start; }
+  .grid3 { display:grid; grid-template-columns:repeat(auto-fill,minmax(360px,1fr)); gap:28px; align-items:start; }
+  .spec > .lbl { font-size:13.5px; font-weight:600; margin-bottom:2px; display:flex; align-items:center; gap:8px; }
+  .spec > .sub { font-size:12.5px; color:var(--ink-2); margin-bottom:12px; }
+  .tag { font:500 11px/1 -apple-system,sans-serif; padding:3px 7px; border-radius:99px; background:var(--accent-soft); color:var(--accent-text); }
+  .tag.bad { background:var(--danger-soft); color:var(--danger); }
+  .tag.new { background:var(--sunken); color:var(--ink-2); }
+  .specbox { background:var(--surface); border-radius:14px; box-shadow:var(--shadow-card); padding:30px 40px 26px 54px; font-size:15px; line-height:1.85; }
+  .specbox > p { margin:0 0 4px; }
+  .specbox > p.after { margin-top:8px; color:var(--ink-2); }
+  .pc { list-style:none; font-size:12.5px; color:var(--ink-2); margin-top:10px; }
+  .pc li { padding-left:16px; position:relative; margin:3px 0; }
+  .pc li::before { position:absolute; left:0; font-weight:700; }
+  .pc li.p::before { content:"+"; color:var(--accent-text); }
+  .pc li.c::before { content:"−"; color:var(--danger); }
+  .try { font-size:12.5px; color:var(--ink-2); background:var(--surface); border:1px dashed var(--line-1); border-radius:10px; padding:10px 14px; margin-bottom:14px; line-height:1.8; }
+  .try b { color:var(--accent-text); font-weight:600; }
+  .h4 { font-size:13px; font-weight:600; margin:16px 0 4px; }
+  .q-mark { position:absolute; width:17px; height:17px; border-radius:99px; background:var(--danger); color:#fff; font:600 10.5px/17px -apple-system,sans-serif; text-align:center; z-index:6; box-shadow:0 0 0 2px var(--surface); }
+
+  /* ════ 表格公共：视觉样式由最近的 [data-tstyle] 决定 ════ */
+  .blk { position:relative; margin:14px 0 10px; }
+  .tw { position:relative; }
+  .tclip { overflow-x:auto; }
+  table.t { border-collapse:separate; border-spacing:0; width:100%; font-size:14.5px; line-height:1.6; }
+  table.t td { padding:7px 12px; vertical-align:top; text-align:left; outline:none; min-width:72px; word-break:break-word; caret-color:var(--accent); }
+  table.t tr:first-child td { font-weight:600; }
+  table.t td[data-al="center"] { text-align:center; }
+  table.t td[data-al="right"] { text-align:right; }
+
+  [data-tstyle="grid"] .tclip { border:1px solid var(--line-1); border-radius:10px; }
+  [data-tstyle="grid"] table.t td { border-right:1px solid var(--line-1); border-bottom:1px solid var(--line-1); }
+  [data-tstyle="grid"] table.t td:last-child { border-right:0; }
+  [data-tstyle="grid"] table.t tr:last-child td { border-bottom:0; }
+  [data-tstyle="grid"] table.t tr:first-child td { background:var(--surface-hover); }
+
+  [data-tstyle="rule"] table.t td { border-bottom:1px solid var(--line-1); }
+  [data-tstyle="rule"] table.t tr:first-child td { border-bottom:1.5px solid var(--ink-3); font-size:13px; color:var(--ink-2); }
+  [data-tstyle="rule"] table.t tr:last-child td { border-bottom:0; }
+
+  [data-tstyle="card"] .tclip { border-radius:12px; background:var(--surface); box-shadow:0 0 0 1px var(--line-1), var(--shadow-card); }
+  [data-tstyle="card"] table.t td { border-bottom:1px solid var(--line-1); }
+  [data-tstyle="card"] table.t td + td { box-shadow:inset 1px 0 0 var(--line-1); }
+  [data-tstyle="card"] table.t tr:last-child td { border-bottom:0; }
+  [data-tstyle="card"] table.t tr:first-child td { font-size:12.5px; letter-spacing:.02em; color:var(--ink-2); background:var(--page); padding-top:6px; padding-bottom:6px; }
+
+  /* 格选区 */
+  .sel { position:absolute; pointer-events:none; border-radius:3px; box-shadow:0 0 0 1.5px var(--accent); background:var(--accent-soft); z-index:3; display:none; }
+  .tw.cellsel { user-select:none; }
+  .tw.cellsel td { caret-color:transparent; }
+  .gone { color:var(--ink-3); font-size:14px; display:flex; align-items:center; gap:10px; min-height:40px; }
+
+  /* 块手柄（与其它块一致） */
+  .bh { position:absolute; left:-32px; top:3px; width:20px; height:24px; border-radius:6px; display:flex; align-items:center; justify-content:center; color:var(--ink-3); opacity:0; transition:opacity .15s; cursor:grab; z-index:5; }
+  .blk:hover > .bh, .force-hover .bh { opacity:1; }
+  .bh:hover { background:var(--hover); color:var(--ink-1); }
+
+  /* 通用小按钮 / 浮层 */
+  .ib { height:26px; min-width:26px; padding:0 6px; border-radius:7px; display:inline-flex; align-items:center; justify-content:center; gap:4px; color:var(--ink-2); font-size:12.5px; position:relative; transition:background .15s, color .15s; white-space:nowrap; }
+  .ib:hover { background:var(--hover); color:var(--ink-1); }
+  .ib.on { color:var(--accent-text); background:var(--accent-soft); }
+  .ib.danger:hover { color:var(--danger); background:var(--danger-soft); }
+  .ib[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%); padding:3px 8px; border-radius:6px; background:var(--tip-bg); color:var(--tip-ink); font:11.5px/1.5 -apple-system,"PingFang SC",sans-serif; white-space:nowrap; pointer-events:none; z-index:40; }
+  .vdiv { width:1px; height:16px; background:var(--line-1); margin:0 3px; }
+
+  .pm { position:absolute; z-index:50; min-width:196px; padding:5px; border-radius:11px; background:var(--surface); box-shadow:0 0 0 1px var(--line-1), var(--shadow-float); display:none; font-size:13px; }
+  .pm .it { display:flex; align-items:center; gap:9px; width:100%; height:30px; padding:0 9px; border-radius:7px; color:var(--ink-1); text-align:left; }
+  .pm .it:hover { background:var(--hover); }
+  .pm .it svg { color:var(--ink-2); }
+  .pm .it .kb { margin-left:auto; font:11.5px ui-monospace,monospace; color:var(--ink-3); }
+  .pm .it.danger:hover { background:var(--danger-soft); color:var(--danger); }
+  .pm .it.danger:hover svg { color:var(--danger); }
+  .pm .it[disabled] { opacity:.38; pointer-events:none; }
+  .pm .sep { height:1px; background:var(--line-1); margin:4px 6px; }
+  .pm .hd { font-size:11.5px; color:var(--ink-3); padding:3px 9px 3px; }
+  .pm .seg { display:flex; align-items:center; gap:2px; padding:1px 4px 1px 9px; }
+  .pm .seg .lab { font-size:13px; margin-right:auto; }
+
+  .toast { position:fixed; left:50%; bottom:28px; transform:translate(-50%,12px); padding:7px 14px; border-radius:9px; background:var(--tip-bg); color:var(--tip-ink); font-size:12.5px; opacity:0; transition:opacity .18s, transform .18s; pointer-events:none; z-index:60; }
+  .toast.on { opacity:1; transform:translate(-50%,0); }
+
+  /* ════ A 边缘手柄 ════ */
+  .gA { position:absolute; z-index:6; display:none; align-items:center; justify-content:center; border-radius:6px; color:var(--ink-3); background:var(--surface); box-shadow:0 0 0 1px var(--line-1), 0 1px 3px rgba(0,0,0,.06); cursor:grab; transition:background .12s,color .12s; }
+  .gA:hover, .gA.on { background:var(--accent); color:var(--ink-inv); box-shadow:none; }
+  .gA.col { width:26px; height:14px; }
+  .gA.row { width:14px; height:26px; }
+  .addA { position:absolute; z-index:4; display:flex; align-items:center; justify-content:center; color:var(--ink-3); border-radius:6px; opacity:0; transition:opacity .15s, background .15s, color .15s; }
+  .tw:hover .addA, .force-hover .addA { opacity:1; }
+  .addA:hover { background:var(--hover); color:var(--ink-1); }
+  .addA.r { top:0; right:-24px; width:18px; bottom:0; }
+  .addA.b { left:0; right:0; bottom:-24px; height:18px; }
+  .dropline { position:absolute; z-index:7; background:var(--accent); border-radius:2px; display:none; pointer-events:none; }
+
+  /* ════ B 插入点 + 选区浮条 ════ */
+  .dotB { position:absolute; z-index:6; width:18px; height:18px; margin:-9px 0 0 -9px; border-radius:99px; display:none; align-items:center; justify-content:center; background:var(--surface); color:var(--ink-2); box-shadow:0 0 0 1px var(--line-1), 0 1px 3px rgba(0,0,0,.08); transition:background .12s, color .12s, transform .12s; }
+  .dotB:hover { background:var(--accent); color:var(--ink-inv); box-shadow:none; transform:scale(1.15); }
+  .guideB { position:absolute; z-index:5; background:var(--accent); display:none; pointer-events:none; border-radius:2px; }
+  .barB { position:absolute; z-index:8; display:none; align-items:center; gap:1px; padding:3px; border-radius:10px; background:var(--surface); box-shadow:0 0 0 1px var(--line-1), var(--shadow-float); }
+  .barB .ct { font:11.5px ui-monospace,monospace; color:var(--ink-3); padding:0 6px 0 5px; }
+
+  /* ════ C 坐标栏 ════ */
+  .barsC { position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .18s; z-index:4; }
+  .tw.focus .barsC, .force-hover .barsC { opacity:1; }
+  .tw.focus .barsC .segC, .force-hover .barsC .segC { pointer-events:auto; }
+  .segC { position:absolute; background:var(--sunken); opacity:.6; display:flex; align-items:center; justify-content:center; color:transparent; transition:opacity .12s, background .12s, color .12s; cursor:pointer; border-radius:3px; }
+  .segC:hover { opacity:1; color:var(--ink-2); }
+  .segC.on { background:var(--accent); opacity:1; color:var(--ink-inv); }
+  .segC.col { top:-17px; height:12px; }
+  .segC.row { left:-17px; width:12px; }
+  .segC.corner { top:-17px; left:-17px; width:12px; height:12px; }
+  .segC.plus { background:transparent; opacity:1; color:var(--ink-3); }
+  .segC.plus:hover { background:var(--hover); color:var(--ink-1); }
+
+  /* ════ 现状复刻 ════ */
+  .old { position:relative; }
+  .old .obar { height:2.5em; display:flex; justify-content:flex-end; align-items:center; gap:.5em; position:relative; }
+  .old .obar span.b { width:30px; height:30px; border-radius:99px; display:flex; align-items:center; justify-content:center; color:var(--ink-2); }
+  .old .obar span.on { background:var(--hover); }
+  .old table { width:100%; border-collapse:collapse; font-size:14.5px; }
+  .old td { border:1px solid var(--line-1); padding:.75em 1em; }
+  .old tr:first-child { font-weight:700; }
+  .old tr:nth-child(odd) { background:var(--hover); }
+  .old .omenu { position:absolute; right:38px; top:36px; width:190px; padding:6px 8px; border-radius:10px; background:var(--surface); box-shadow:0 0 0 1px var(--line-1), var(--shadow-float); z-index:5; font-size:13px; line-height:1.4; }
+  .old .omenu .t { font-size:12px; color:var(--ink-3); border-bottom:1px solid var(--line-1); padding:3px 0; margin:4px 0; }
+  .old .omenu .i { height:34px; display:flex; align-items:center; gap:8px; padding:0 8px; border-radius:7px; }
+  .old .omenu .i.hl { background:var(--hover); }
+  .old .caret { display:inline-block; width:1.5px; height:1.1em; background:var(--ink-1); vertical-align:-.2em; }
+
+  .mat { width:100%; border-collapse:collapse; font-size:13px; background:var(--surface); border-radius:12px; box-shadow:var(--shadow-card); overflow:hidden; }
+  .mat th, .mat td { text-align:left; padding:9px 14px; border-bottom:1px solid var(--line-1); vertical-align:top; }
+  .mat tr:last-child td { border-bottom:0; }
+  .mat th { color:var(--ink-2); font-weight:500; font-size:12.5px; }
+  .mat td:first-child { white-space:nowrap; font-weight:500; }
+  .mat .y { color:var(--accent-text); } .mat .n { color:var(--ink-3); }
+  .q { background:var(--surface); border-radius:12px; box-shadow:var(--shadow-card); padding:16px 20px; font-size:13.5px; }
+  .q h4 { font-size:14px; font-weight:600; margin-bottom:6px; }
+  .q p { color:var(--ink-2); font-size:13px; }
+  .q .rec { margin-top:8px; font-size:12.5px; color:var(--accent-text); }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div>
+    <h1>表格 · UI 与交互重设计</h1>
+    <p>三个交互方向（02–04）× 三种视觉样式（05）可以独立组合。表格都能真的操作：点格子输入、跨格拖选、按 <kbd>⌫</kbd>、用手柄 / 插入点 / 坐标栏增删移动行列。左侧块手柄 <kbd>⋮⋮</kbd> 是表格级菜单。</p>
+  </div>
+  <div class="switches">
+    <div class="switch" id="sw-tstyle"><button data-v="grid" class="on">细框线</button><button data-v="rule">只用横线</button><button data-v="card">浮起卡片</button></div>
+    <div class="switch" id="sw-theme"><button data-v="paper" class="on">Paper</button><button data-v="mint">Mint</button></div>
+    <div class="switch" id="sw-mode"><button data-v="light" class="on">浅色</button><button data-v="dark">深色</button></div>
+    <div class="switch" id="sw-hover"><button data-v="0" class="on">真实悬停</button><button data-v="1">常显悬停态</button></div>
+  </div>
+</div>
+
+<!-- ════════ 00 现状 ════════ -->
+<section>
+  <h2><span class="no">00</span>现状 &amp; 问题</h2>
+  <p class="desc">复刻光标在表格里、点开 <kbd>⋮</kbd> 菜单时的样子。红点对应右侧问题。</p>
+  <div class="grid">
+    <div class="spec">
+      <div class="specbox">
+        <p>本周推进：</p>
+        <div class="old">
+          <div class="obar">
+            <span class="q-mark" style="left:0;top:8px">1</span>
+            <span class="b on">⋮</span>
+            <span class="b"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></span>
+          </div>
+          <div class="omenu">
+            <span class="q-mark" style="left:-8px;top:40px">2</span>
+            <div class="t">插入</div>
+            <div class="i hl">⌄ 向下插入行</div><div class="i">⌃ 向上插入行</div><div class="i">‹ 向左插入列</div><div class="i">› 向右插入列</div>
+            <div class="t">删除</div>
+            <div class="i">⌄ 删除下一行</div><div class="i" style="color:var(--ink-3)">… 共 9 项，需滚动</div>
+          </div>
+          <table>
+            <tr><td>阶段</td><td>负责人</td><td>状态</td></tr>
+            <tr><td>调研现有交互<span class="caret"></span></td><td>阿树</td><td>进行中</td></tr>
+            <tr><td>出 mockup</td><td>Claude</td><td></td></tr>
+          </table>
+          <span class="q-mark" style="right:8px;bottom:8px">5</span>
+          <span class="q-mark" style="left:-8px;top:96px">6</span>
+        </div>
+        <p class="after">↑ 最后一行少了一格：跨行删除 / 删列失败后结构不再对齐。</p>
+      </div>
+    </div>
+    <div class="spec">
+      <ol class="notes" style="font-size:13.5px;line-height:1.85;margin-top:4px">
+        <li><b>聚焦时顶部挤出一条 2.5em 的工具栏</b>，正文整体下跳；而且它在表格<em>上方</em>，其它块的操作都在左侧拖拽手柄菜单里，不一致。</li>
+        <li><b>菜单是「相对光标」的</b>：「删除下一行 / 删除左一列」——先得把光标放进正确的格子，再心算方向；9 个条目 + 3 个标题要滚动。</li>
+        <li><b>12 个快捷键</b>：<kbd>⌘←→↑↓</kbd> 插入、<kbd>⌘⇧←→↑↓</kbd> 删除。记不住，且 mac 上 <kbd>⌘←</kbd> 本是「行首」、<kbd>⌘⇧←</kbd> 是「选到行首」，直接冲突。</li>
+        <li><b>没有「格选区」</b>：跨格拖选得到的是文本选区，删除时被 <code>deleteGuard</code> 整个吞掉（什么都不发生）；全选删除后再补一个段落。这是 hack，不是语义。</li>
+        <li><b>结构不变式没人守</b>：没有 normalize 保证「每行格数相同、至少 1×1」，增删行列是<b>整表替换节点</b>（撤销粒度粗、协同易冲突）→ 出现缺格。</li>
+        <li><b>视觉</b>：斑马纹 + 首行加粗 + <code>1em / .75em</code> 大内边距，信息密度低；行拖拽手柄塞在首格里，列不能拖；列对齐不支持（Markdown 导入时 <code>:---:</code> 被丢掉）。</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ 01 底座 ════════ -->
+<section>
+  <h2><span class="no">01</span>共同底座（与方向无关，选哪个都要做）</h2>
+  <p class="desc">问题 4、5 是逻辑层的，换 UI 不能解决。下面这些是三个方向共用的模型与交互约定。</p>
+  <div class="grid3">
+    <div class="q">
+      <h4>① 结构不变式交给 normalize</h4>
+      <p>table → row → cell 三层严格；每行补齐 / 截断到同列数；至少 1×1；删到 0 行或 0 列 = 删除整张表、原位置回到空段落。任何操作出错都会被拉回合法形态，<b>根治缺格</b>。</p>
+    </div>
+    <div class="q">
+      <h4>② 细粒度变换，不再整表替换</h4>
+      <p>插入 / 删除 / 移动行列改用 <code>insertNodes / removeNodes / moveNodes</code>：一次操作 = 一步撤销，协同时只冲突在真正改动的行列上。</p>
+    </div>
+    <div class="q">
+      <h4>③ 格选区是一等公民</h4>
+      <p>拖过第二个格子即切换为<b>格选区</b>（矩形高亮，不再是文本选区）。<kbd>⌫</kbd> = 清空所选格内容，结构不动；<b>整行 / 整列</b>被选中时 <kbd>⌫</kbd> = 删除行 / 列。<kbd>⌘C</kbd> 复制为 TSV + HTML 表格。取代 deleteGuard 吞键。</p>
+    </div>
+    <div class="q">
+      <h4>④ 表格级操作回到块手柄</h4>
+      <p>复制表格、复制为 Markdown、删除表格放进左侧 <kbd>⋮⋮</kbd> 菜单，和其它块一致；表格上方<b>不再有工具栏</b>，聚焦不跳动。</p>
+    </div>
+    <div class="q">
+      <h4>⑤ 操作对象明确</h4>
+      <p>菜单作用于「这一行 / 这一列 / 这块选区」，文案是「在上方插入行」「删除 2 行」，不再有「删除下一行」。</p>
+    </div>
+    <div class="q">
+      <h4>⑥ 快捷键收敛到 6 个</h4>
+      <p><kbd>Tab</kbd>/<kbd>⇧Tab</kbd> 左右格（末格 Tab 新增一行）、<kbd>Enter</kbd> 下一行同列、<kbd>⇧Enter</kbd> 格内换行、<kbd>Esc</kbd> 选中当前格（再按退出）、<kbd>⌫</kbd> 见③。<b>删掉全部 ⌘ 方向键</b>。外加 GFM 列对齐首次接入。</p>
+    </div>
+  </div>
+</section>
+
+<main id="demos" data-tstyle="grid">
+
+<!-- ════════ ★ 定稿 ════════ -->
+<section>
+  <h2><span class="no">★</span>定稿 · 方向 A 边缘手柄 + 细框线 <span class="tag">定稿</span></h2>
+  <p class="desc">即方向 A：悬停格子时，该列顶边、该行左边各出现一个手柄。<b>点手柄</b> = 选中整行 / 整列并弹出菜单，<b>拖手柄</b> = 排序；右侧 / 底部「+」追加。不做插入点与选区浮条。</p>
+  <div class="grid">
+    <div class="spec">
+      <div class="try">试试：悬停格子 → 点<b>顶边手柄</b>（列菜单，含对齐）/ 点<b>左边手柄</b>（行菜单）· <b>拖手柄</b>排序 · 先跨格拖选几行再点左边手柄 → 「删除 n 行」· <kbd>Enter</kbd> 下一行 / <kbd>⇧Enter</kbd> 格内换行 · 把下面的数据复制后<b>粘贴进任意格</b>（自动扩行扩列）</div>
+      <div class="specbox">
+        <p>本周推进：</p>
+        <div class="blk" data-mode="A" data-seed="plan"></div>
+        <p class="after">表格后面的段落，聚焦表格时它不会跳动。</p>
+      </div>
+      <div class="sub" style="margin-top:14px">可复制的电子表格数据（制表符分隔，等同从 Excel / Numbers 复制）：</div>
+      <textarea readonly rows="3" style="width:100%;margin-top:6px;font:12.5px ui-monospace,monospace;padding:8px 10px;border-radius:8px;border:1px solid var(--line-1);background:var(--surface);color:var(--ink-2);resize:none" onclick="this.select()">联调	阿树	10/18	未开始
+灰度发布	Claude	10/22	未开始
+复盘	阿树	10/25	未开始</textarea>
+    </div>
+    <div class="spec">
+      <div class="h4" style="margin-top:0">手柄菜单</div>
+      <ul class="notes">
+        <li><b>列</b>（顶边手柄）：左侧插入 · 右侧插入 · 对齐（左 / 中 / 右）· 清空内容 · 删除列</li>
+        <li><b>行</b>（左边手柄）：上方插入 · 下方插入 · 清空内容 · 删除行</li>
+        <li>已有格选区时点手柄，作用于选区覆盖的全部行 / 列（「删除 2 行」）。</li>
+        <li>选区下 <kbd>⌫</kbd>：整行 / 整列 = 删除；任意格 = 清空内容。</li>
+        <li>表格级操作（复制、复制为 Markdown、删除表格）在左侧块手柄 <kbd>⋮⋮</kbd>。</li>
+      </ul>
+      <div class="h4">粘贴</div>
+      <ul class="notes">
+        <li>格内粘贴多格数据：从光标格起按格填充，不够就扩行扩列，粘完选中粘贴区域。</li>
+        <li>正文里粘贴多格数据：直接生成一张新表（首行作表头）。</li>
+        <li>单格纯文本：照常作为文字插入。</li>
+      </ul>
+      <div class="h4">已定</div>
+      <ul class="notes">
+        <li>视觉样式：细框线。不做列宽调整；表头始终保留（删除首行 → 下一行升为表头）。</li>
+        <li>暂不适配移动端。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ 02 A ════════ -->
+<section>
+  <h2><span class="no">02</span>方向 A · 边缘手柄 <span class="tag">推荐</span></h2>
+  <p class="desc">悬停哪个格子，就在<b>它这一列的顶边</b>和<b>这一行的左边</b>各浮出一个小手柄。手柄 = 选中整行/整列 + 菜单 + 拖动排序，一个控件三件事。右边、下边贴一条细「+」用于追加。心智模型同 Notion / Craft。</p>
+  <div class="grid">
+    <div class="spec">
+      <div class="try">试试：悬停格子 → 点<b>顶边小手柄</b>（列菜单，含对齐）· 点<b>左边小手柄</b>后按 <kbd>⌫</kbd> 删行 · <b>拖动手柄</b>换行列顺序 · 右侧 / 底部「+」追加 · 跨格拖选后 <kbd>⌫</kbd> 只清内容</div>
+      <div class="specbox">
+        <p>本周推进：</p>
+        <div class="blk" data-mode="A" data-seed="plan"></div>
+        <p class="after">表格后面的段落，聚焦表格时它不会跳动。</p>
+      </div>
+    </div>
+    <div class="spec">
+      <ul class="pc">
+        <li class="p">常驻零装饰：不悬停时就是一张干净的表；手柄只出现在当前行列，噪音最小。</li>
+        <li class="p">手柄同时承担选中 / 菜单 / 拖动，学一次就会；列也能拖了。</li>
+        <li class="p">整行整列选中 + <kbd>⌫</kbd> 删除，与格选区规则统一。</li>
+        <li class="c">「在中间某处插入」要两步（点手柄 → 在上方插入）；没有 B 那种一步到位的插入点。</li>
+        <li class="c">手柄跨在边框上，"细框线"以外的样式里需要靠阴影才看得清（已处理）。</li>
+      </ul>
+      <div class="h4">菜单内容</div>
+      <ul class="notes">
+        <li><b>列</b>：左侧插入 · 右侧插入 · 对齐（左/中/右）· 清空内容 · 删除列</li>
+        <li><b>行</b>：上方插入 · 下方插入 · 清空内容 · 删除行</li>
+        <li>多选（拖选多格后再点手柄）时文案变「删除 2 行」，作用于选区覆盖的全部行。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ 03 B ════════ -->
+<section>
+  <h2><span class="no">03</span>方向 B · 插入点 + 选区浮条</h2>
+  <p class="desc">边框上就是插入点：鼠标在表头行附近，最近的<b>列边界</b>顶端出现「+」；在首列附近，最近的<b>行边界</b>左端出现「+」，悬停显示插入线，一点即插。其它一切操作都从<b>格选区</b>出发：拖选后上方浮出和文字浮动工具栏同族的操作条。</p>
+  <div class="grid">
+    <div class="spec">
+      <div class="try">试试：鼠标移到<b>表头行</b>，沿顶边左右滑 · 移到<b>首列</b>，沿左边上下滑 · 点「+」插入 · <b>跨格拖选</b>看浮条（对齐 / 插入 / 删除 n 行 / 删除 n 列）· <kbd>⇧</kbd>+点击扩选 · 格内按 <kbd>Esc</kbd> 选中当前格</div>
+      <div class="specbox">
+        <p>在读书单：</p>
+        <div class="blk" data-mode="B" data-seed="books"></div>
+        <p class="after">表格后面的段落。</p>
+      </div>
+    </div>
+    <div class="spec">
+      <ul class="pc">
+        <li class="p">插入一步到位，而且位置所见即所得（插入线），中间插列最快。</li>
+        <li class="p">操作条与文字浮动工具栏同族，「选中 → 操作」的心智和正文一致。</li>
+        <li class="p">删行删列不必先精确选整行，选区碰到哪些行就删哪些。</li>
+        <li class="c">行列<b>不能拖动排序</b>（没有可抓的东西）；要排序得另加手柄，就回到 A 了。</li>
+        <li class="c">插入点只在表头行 / 首列附近出现，第一次不容易发现。</li>
+        <li class="c">浮条盖住选区上方一行的内容。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ 04 C ════════ -->
+<section>
+  <h2><span class="no">04</span>方向 C · 坐标栏</h2>
+  <p class="desc">表格<b>获得焦点</b>时，顶部和左侧淡入两条细「坐标栏」（电子表格的行号列标，去掉了字母数字）。点一段 = 选中整列/整行并弹菜单，在栏上拖 = 连选多列/多行，左上角 = 全选，栏尾「+」= 追加。</p>
+  <div class="grid">
+    <div class="spec">
+      <div class="try">试试：点进任意格子 → 顶部 / 左侧出现坐标栏 · 点一段弹菜单（列菜单含对齐、左移右移）· 在栏上<b>拖过几段</b>连选 · 点<b>左上角</b>全选</div>
+      <div class="specbox">
+        <p>方案对比：</p>
+        <div class="blk" data-mode="C" data-seed="cmp"></div>
+        <p class="after">表格后面的段落。</p>
+      </div>
+    </div>
+    <div class="spec">
+      <ul class="pc">
+        <li class="p">所有行列的入口同时可见、位置固定，批量选多行多列最顺手（栏上一拖）。</li>
+        <li class="p">重度表格用户熟悉的电子表格心智；全选整表有明确入口。</li>
+        <li class="c">聚焦即出现两条栏，视觉存在感最强，和「笔记里的小表格」气质不太合。</li>
+        <li class="c">排序靠菜单里的上移 / 下移，不如拖动直接（也可以在栏上加拖动，成本更高）。</li>
+        <li class="c">栏占据表格外侧 17px，窄屏 / 嵌套容器里需要让位。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ════════ 05 视觉 ════════ -->
+<section>
+  <h2><span class="no">05</span>视觉样式</h2>
+  <p class="desc">与交互方向独立；顶部「细框线 / 只用横线 / 浮起卡片」开关会同时切换 02–04 的表格。共同点：去掉斑马纹，内边距收到 <code>7px 12px</code>，表头用底色或字号区分而不只是加粗。</p>
+  <div class="grid3">
+    <div class="spec" data-tstyle="grid">
+      <div class="lbl">① 细框线 <span class="tag">推荐</span></div>
+      <div class="sub">圆角外框 + 浅内线，表头一层浅底。最像「表格」，结构最清楚，手柄跨在边框上也自然。</div>
+      <div class="specbox"><div class="blk" data-mode="none" data-seed="keys"></div></div>
+    </div>
+    <div class="spec" data-tstyle="rule">
+      <div class="lbl">② 只用横线</div>
+      <div class="sub">无竖线、无外框，表头下一条深线。最轻、最"排版"，适合文字多的说明表；列多时对齐靠留白。</div>
+      <div class="specbox"><div class="blk" data-mode="none" data-seed="keys"></div></div>
+    </div>
+    <div class="spec" data-tstyle="card">
+      <div class="lbl">③ 浮起卡片</div>
+      <div class="sub">像一张嵌在文中的卡片，表头小字号沉底色。存在感强，与代码块 / 标注块的卡片质感一致。</div>
+      <div class="specbox"><div class="blk" data-mode="none" data-seed="keys"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ 06 对比 ════════ -->
+<section>
+  <h2><span class="no">06</span>三个方向对比</h2>
+  <p class="desc">「实现成本」只算交互层；01 的底座三者一样。</p>
+  <table class="mat">
+    <tr><th></th><th>A 边缘手柄</th><th>B 插入点 + 浮条</th><th>C 坐标栏</th></tr>
+    <tr><td>常驻视觉噪音</td><td class="y">最低（只在当前行列）</td><td class="y">低（只在边缘附近）</td><td class="n">聚焦即两条栏</td></tr>
+    <tr><td>在中间插入</td><td>两步（手柄 → 菜单）</td><td class="y">一步，带插入线</td><td>两步（栏 → 菜单）</td></tr>
+    <tr><td>行列排序</td><td class="y">拖手柄</td><td class="n">不支持</td><td>菜单上移 / 下移</td></tr>
+    <tr><td>批量行列</td><td>先拖选格，再点手柄</td><td class="y">拖选即可</td><td class="y">栏上一拖</td></tr>
+    <tr><td>可发现性</td><td>悬停即见</td><td class="n">要摸到边缘</td><td class="y">聚焦即见</td></tr>
+    <tr><td>与编辑器其它块一致</td><td class="y">同块手柄心智</td><td class="y">同文字浮条心智</td><td>新概念</td></tr>
+    <tr><td>实现成本</td><td>中（手柄定位 + 行列拖拽）</td><td>中（边界命中 + 浮条）</td><td>中低（栏渲染 + 菜单）</td></tr>
+  </table>
+</section>
+
+<!-- ════════ 07 待裁决 ════════ -->
+<section>
+  <h2><span class="no">07</span>需要你拍板的点</h2>
+  <p class="desc">除了选方向和样式，下面几件会影响模型或范围。</p>
+  <div class="grid3">
+    <div class="q">
+      <h4>1. 列宽要不要能拖？</h4>
+      <p>GFM 没有列宽，要存就得在节点上加属性，导出 Markdown 时丢失；源码视图 / 协同也要跟着处理。</p>
+      <div class="rec">建议：不做，列宽按内容自适应（mockup 即如此）。</div>
+    </div>
+    <div class="q">
+      <h4>2. 表头行能否关掉？</h4>
+      <p>GFM 表格必须有表头。允许关闭就只能"首行仍是表头、只是视觉上不突出"，导出后会和编辑器里看到的不一致。</p>
+      <div class="rec">建议：始终有表头；删除首行时下一行自动升为表头。</div>
+    </div>
+    <div class="q">
+      <h4>3. Enter 的语义</h4>
+      <p>现在 Enter = 下一行、格内无法换行。新方案：Enter 下一行同列（末行则新增一行），⇧Enter 格内换行（序列化为 <code>&lt;br&gt;</code>）。</p>
+      <div class="rec">建议：按新方案；或者反过来（Enter 换行、Tab 走格），看你习惯。</div>
+    </div>
+    <div class="q">
+      <h4>4. 粘贴电子表格数据</h4>
+      <p>从 Excel / Numbers / 网页复制一块区域粘进来：在正文里自动生成表格，在表格里则按格填充（必要时扩行扩列）。这是新入口。</p>
+      <div class="rec">要不要这一期一起做？</div>
+    </div>
+    <div class="q">
+      <h4>5. 格内内容范围</h4>
+      <p>保持现状：只允许行内内容（文字、行内代码、链接、公式等），不支持格内列表 / 图片块。与 GFM 一致。</p>
+      <div class="rec">建议：保持。</div>
+    </div>
+    <div class="q">
+      <h4>6. 移动端</h4>
+      <p>本 mockup 只覆盖桌面端。移动端表格可以只做"点格编辑 + 长按格子弹 ActionSheet（行列操作）"，按浮层规范接返回手势。</p>
+      <div class="rec">要不要一起出移动端稿？</div>
+    </div>
+  </div>
+</section>
+
+<div class="pm"></div>
+<div class="toast"></div>
+
+<script>
+const S = (p, w = 15) => `<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const dots = (pts, w) => `<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="currentColor">${pts.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.8"/>`).join("")}</svg>`;
+const IC = {
+  grip: (w = 12) => dots([[9, 6], [15, 6], [9, 12], [15, 12], [9, 18], [15, 18]], w),
+  gripH: dots([[6, 9], [12, 9], [18, 9], [6, 15], [12, 15], [18, 15]], 14),
+  dotsH: dots([[7, 12], [12, 12], [17, 12]], 12),
+  dotsV: dots([[12, 7], [12, 12], [12, 17]], 12),
+  plus: S('<path d="M12 5v14M5 12h14"/>', 14),
+  plusS: S('<path d="M12 6v12M6 12h12"/>', 11),
+  up: S('<path d="M12 19V5M5 12l7-7 7 7"/>'),
+  down: S('<path d="M12 5v14M19 12l-7 7-7-7"/>'),
+  left: S('<path d="M19 12H5M12 19l-7-7 7-7"/>'),
+  right: S('<path d="M5 12h14M12 5l7 7-7 7"/>'),
+  alleft: S('<path d="M4 6h16M4 12h10M4 18h14"/>'),
+  alcenter: S('<path d="M4 6h16M7 12h10M5 18h14"/>'),
+  alright: S('<path d="M4 6h16M10 12h10M6 18h14"/>'),
+  erase: S('<path d="m7 21-4.3-4.3a2.4 2.4 0 0 1 0-3.4l9.6-9.6a2.4 2.4 0 0 1 3.4 0l5.6 5.6a2.4 2.4 0 0 1 0 3.4L13 21"/><path d="M22 21H7M5 11l9 9"/>'),
+  trash: S('<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>'),
+  copy: S('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>'),
+  md: S('<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 15V9l3 3 3-3v6M16 9v6M14 13l2 2 2-2"/>'),
+  all: S('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/>'),
+  chev: S('<path d="m6 9 6 6 6-6"/>', 12),
+};
+const AL_NAME = { left: "左对齐", center: "居中", right: "右对齐" };
+
+const SEEDS = {
+  plan: { rows: [["阶段", "负责人", "截止", "状态"], ["调研现有表格交互", "阿树", "10/08", "进行中"], ["出 mockup 方案", "Claude", "10/09", "待评审"], ["实现格选区与 normalize", "", "10/15", "未开始"]] },
+  books: { rows: [["书名", "作者", "进度", "评分"], ["深入理解计算机系统", "Bryant", "62%", "★★★★★"], ["设计心理学", "Norman", "100%", "★★★★"], ["人月神话", "Brooks", "35%", "★★★★"]], al: ["left", "left", "right", "center"] },
+  cmp: { rows: [["方案", "上手", "噪音", "排序"], ["A 边缘手柄", "低", "最低", "拖动"], ["B 插入点", "中", "低", "—"], ["C 坐标栏", "低", "较高", "菜单"]], al: ["left", "center", "center", "center"] },
+  keys: { rows: [["操作", "按键", "说明"], ["左右格", "Tab / ⇧Tab", "末格 Tab 新增一行"], ["下一行", "Enter", "同列；末行新增"], ["格内换行", "⇧Enter", "导出为 <br>"]] },
+};
+const clone = v => JSON.parse(JSON.stringify(v));
+const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/\n/g, "<br>");
+
+const tables = [];
+let drag = null;   // 格拖选
+let gdrag = null;  // A 手柄拖动
+let segDrag = null; // C 坐标栏拖选
+const pm = document.querySelector(".pm");
+const toastEl = document.querySelector(".toast");
+
+function toast(msg) {
+  toastEl.textContent = msg; toastEl.classList.add("on");
+  clearTimeout(toastEl._t); toastEl._t = setTimeout(() => toastEl.classList.remove("on"), 1600);
+}
+
+/* ─── 模型操作 ─── */
+const R = st => st.rows.length, C = st => st.rows[0]?.length ?? 0;
+const insRow = (st, i) => st.rows.splice(i, 0, st.rows[0].map(() => ""));
+const insCol = (st, i) => { st.rows.forEach(row => row.splice(i, 0, "")); st.al.splice(i, 0, "left"); };
+const delRows = (st, a, b) => { st.rows.splice(a, b - a + 1); };
+const delCols = (st, a, b) => { st.rows.forEach(row => row.splice(a, b - a + 1)); st.al.splice(a, b - a + 1); if (!C(st)) st.rows = []; };
+const mv = (arr, from, to) => { const [x] = arr.splice(from, 1); arr.splice(to, 0, x); };
+const moveRow = (st, from, to) => mv(st.rows, from, to);
+const moveCol = (st, from, to) => { st.rows.forEach(row => mv(row, from, to)); mv(st.al, from, to); };
+const clearRange = (st, r0, c0, r1, c1) => { for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) st.rows[r][c] = ""; };
+
+/* ─── 渲染 ─── */
+function mk(blk) {
+  const seed = SEEDS[blk.dataset.seed];
+  const st = { blk, mode: blk.dataset.mode, seed, rows: clone(seed.rows), al: seed.al ? [...seed.al] : seed.rows[0].map(() => "left"), sel: null, kind: null, caret: null, hr: 0, hc: 0 };
+  tables.push(st); render(st);
+}
+const cell = (st, r, c) => st.table?.rows[r]?.cells[c];
+const M = st => MODES[st.mode] || {};
+
+function render(st) {
+  const hadFocus = st.tw?.classList.contains("focus");
+  const { blk } = st;
+  if (!R(st)) {
+    st.tw = st.table = null; st.sel = null;
+    blk.innerHTML = `<p class="gone">（表格已删除 → 原位置变成空段落，光标落在这里）<button class="ib js-reset">恢复示例</button></p>`;
+    blk.querySelector(".js-reset").onclick = () => { st.rows = clone(st.seed.rows); st.al = st.seed.al ? [...st.seed.al] : st.rows[0].map(() => "left"); render(st); };
+    return;
+  }
+  blk.innerHTML = `<span class="bh" title="拖动 · 点击打开块菜单">${IC.grip(14)}</span>
+    <div class="tw"><div class="tclip"><table class="t"><tbody>${st.rows.map((row, r) => `<tr>${row.map((v, c) =>
+      `<td contenteditable="true" spellcheck="false" data-r="${r}" data-c="${c}" data-al="${st.al[c]}">${esc(v)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+    <div class="sel"></div>${M(st).html || ""}</div>`;
+  st.tw = blk.querySelector(".tw"); st.table = blk.querySelector("table"); st.selEl = blk.querySelector(".sel");
+  if (hadFocus) st.tw.classList.add("focus");
+  bindCommon(st);
+  M(st).bind?.(st);
+}
+
+/* 结构变更后统一出口：清选区 → 重渲染 → 恢复选区或光标 */
+function commit(st, { focus, sel } = {}) {
+  st.sel = null; st.kind = null;
+  render(st);
+  if (!R(st)) return;
+  if (sel) setSel(st, ...sel);
+  else if (focus) placeCaret(cell(st, Math.min(focus[0], R(st) - 1), Math.min(focus[1], C(st) - 1)));
+}
+
+function placeCaret(td) {
+  if (!td) return;
+  td.focus();
+  const range = document.createRange(); range.selectNodeContents(td); range.collapse(false);
+  const s = window.getSelection(); s.removeAllRanges(); s.addRange(range);
+}
+
+function geo(st) {
+  const tr = st.tw.getBoundingClientRect();
+  const rows = [...st.table.rows].map(row => { const b = row.getBoundingClientRect(); return { t: b.top - tr.top, b: b.bottom - tr.top }; });
+  const cols = [...st.table.rows[0].cells].map(td => { const b = td.getBoundingClientRect(); return { l: b.left - tr.left, r: b.right - tr.left }; });
+  return { rows, cols, w: cols.at(-1).r, h: rows.at(-1).b, tr };
+}
+
+/* ─── 格选区 ─── */
+function setSel(st, r0, c0, r1, c1, kind = "cells") {
+  tables.forEach(t => t !== st && t.sel && clearSel(t));
+  st.sel = { r0: Math.min(r0, r1), r1: Math.max(r0, r1), c0: Math.min(c0, c1), c1: Math.max(c0, c1) };
+  st.kind = kind;
+  st.tw.classList.add("cellsel");
+  window.getSelection().removeAllRanges();
+  if (st.tw.contains(document.activeElement)) document.activeElement.blur();
+  drawSel(st);
+  M(st).onSel?.(st);
+  if (!drag && !segDrag && !gdrag) M(st).selDone?.(st);
+}
+function clearSel(st) {
+  st.sel = null; st.kind = null;
+  if (!st.tw) return;
+  st.tw.classList.remove("cellsel");
+  drawSel(st);
+  M(st).onSel?.(st);
+}
+function drawSel(st) {
+  const el = st.selEl, s = st.sel;
+  if (!s) { el.style.display = "none"; return; }
+  const g = geo(st);
+  Object.assign(el.style, {
+    display: "block", left: g.cols[s.c0].l + "px", top: g.rows[s.r0].t + "px",
+    width: g.cols[s.c1].r - g.cols[s.c0].l + "px", height: g.rows[s.r1].b - g.rows[s.r0].t + "px",
+  });
+}
+
+function bindCommon(st) {
+  const tb = st.table;
+  tb.addEventListener("mousedown", e => {
+    const td = e.target.closest("td"); if (!td) return;
+    const r = +td.dataset.r, c = +td.dataset.c;
+    if (e.shiftKey && st.caret) { e.preventDefault(); setSel(st, st.caret[0], st.caret[1], r, c); return; }
+    if (st.sel) clearSel(st);
+    drag = { st, r, c };
+  });
+  tb.addEventListener("mouseover", e => {
+    const td = e.target.closest("td"); if (!td) return;
+    const r = +td.dataset.r, c = +td.dataset.c;
+    if (drag && drag.st === st && (drag.r !== r || drag.c !== c || st.sel)) setSel(st, drag.r, drag.c, r, c);
+    M(st).hover?.(st, r, c);
+  });
+  tb.addEventListener("input", e => {
+    const td = e.target.closest("td"); if (!td) return;
+    st.rows[+td.dataset.r][+td.dataset.c] = td.innerText.replace(/\n$/, "");
+    M(st).relayout?.(st);
+  });
+  tb.addEventListener("focusin", e => {
+    const td = e.target.closest("td"); if (!td) return;
+    st.caret = [+td.dataset.r, +td.dataset.c];
+    st.tw.classList.add("focus");
+  });
+  tb.addEventListener("keydown", e => cellKeys(st, e));
+  tb.addEventListener("paste", e => {
+    const td = e.target.closest("td"); if (!td) return;
+    const text = e.clipboardData.getData("text/plain").replace(/\r/g, "").replace(/\n$/, "");
+    if (!/[\t\n]/.test(text)) return;
+    e.preventDefault();
+    const grid = text.split("\n").map(line => line.split("\t"));
+    const r0 = +td.dataset.r, c0 = +td.dataset.c;
+    const r1 = r0 + grid.length - 1, c1 = c0 + Math.max(...grid.map(g => g.length)) - 1;
+    while (R(st) <= r1) insRow(st, R(st));
+    while (C(st) <= c1) insCol(st, C(st));
+    grid.forEach((line, i) => line.forEach((v, j) => { st.rows[r0 + i][c0 + j] = v; }));
+    commit(st, { sel: [r0, c0, r1, c1, "cells"] });
+    toast(`已粘贴 ${grid.length}×${c1 - c0 + 1} 格`);
+  });
+  st.blk.querySelector(".bh").addEventListener("click", e => { e.stopPropagation(); tableMenu(st, e.currentTarget.getBoundingClientRect()); });
+}
+
+function cellKeys(st, e) {
+  const td = e.target.closest("td"); if (!td) return;
+  const r = +td.dataset.r, c = +td.dataset.c;
+  const go = (rr, cc) => { e.preventDefault(); placeCaret(cell(st, rr, cc)); };
+  if (e.key === "Tab") {
+    if (!e.shiftKey) {
+      if (c < C(st) - 1) go(r, c + 1);
+      else if (r < R(st) - 1) go(r + 1, 0);
+      else { e.preventDefault(); insRow(st, R(st)); commit(st, { focus: [R(st) - 1, 0] }); }
+    } else {
+      if (c > 0) go(r, c - 1); else if (r > 0) go(r - 1, C(st) - 1); else e.preventDefault();
+    }
+  } else if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+    if (r < R(st) - 1) go(r + 1, c);
+    else { e.preventDefault(); insRow(st, R(st)); commit(st, { focus: [R(st) - 1, c] }); }
+  } else if ((e.key === "ArrowUp" || e.key === "ArrowDown") && !e.shiftKey && !st.rows[r][c].includes("\n")) {
+    const rr = r + (e.key === "ArrowUp" ? -1 : 1);
+    if (rr >= 0 && rr < R(st)) go(rr, c);
+  } else if (e.key === "Escape") {
+    e.preventDefault(); e.stopPropagation();
+    setSel(st, r, c, r, c);
+  }
+}
+
+/* ─── 弹出菜单 ─── */
+function openMenu(rect, items) {
+  pm.innerHTML = items.map((it, i) => {
+    if (it === "-") return `<div class="sep"></div>`;
+    if (it.hd) return `<div class="hd">${it.hd}</div>`;
+    if (it.seg) return `<div class="seg"><span class="lab">${it.seg}</span>${it.btns.map((b, j) =>
+      `<button class="ib ${b.on ? "on" : ""}" data-i="${i}" data-j="${j}" data-tip="${b.tip}">${b.icon}</button>`).join("")}</div>`;
+    return `<button class="it ${it.danger ? "danger" : ""}" data-i="${i}" ${it.disabled ? "disabled" : ""}>${it.icon}<span>${it.label}</span>${it.kb ? `<span class="kb">${it.kb}</span>` : ""}</button>`;
+  }).join("");
+  pm.onmousedown = e => e.preventDefault();
+  pm.onclick = e => {
+    const b = e.target.closest("button"); if (!b) return;
+    const it = items[+b.dataset.i];
+    if (it.seg) { it.btns[+b.dataset.j].fn(); return; }
+    closeMenu(); it.fn();
+  };
+  pm.style.display = "block";
+  const w = pm.offsetWidth;
+  let left = rect.left + window.scrollX;
+  left = Math.min(left, window.scrollX + document.documentElement.clientWidth - w - 12);
+  pm.style.left = left + "px";
+  pm.style.top = rect.bottom + window.scrollY + 6 + "px";
+}
+const closeMenu = () => { pm.style.display = "none"; };
+
+function rowMenu(st, a, b, rect) {
+  const n = b - a + 1, cMax = C(st) - 1;
+  const items = [
+    { hd: n > 1 ? `已选 ${n} 行` : a === 0 ? "表头行" : `第 ${a} 行` },
+    { icon: IC.up, label: "在上方插入行", fn: () => { insRow(st, a); commit(st, { focus: [a, 0] }); } },
+    { icon: IC.down, label: "在下方插入行", fn: () => { insRow(st, b + 1); commit(st, { focus: [b + 1, 0] }); } },
+  ];
+  if (st.mode === "C") items.push("-",
+    { icon: IC.up, label: "上移", disabled: n > 1 || a === 0, fn: () => { moveRow(st, a, a - 1); commit(st, { sel: [a - 1, 0, a - 1, cMax, "row"] }); } },
+    { icon: IC.down, label: "下移", disabled: n > 1 || b === R(st) - 1, fn: () => { moveRow(st, a, a + 1); commit(st, { sel: [a + 1, 0, a + 1, cMax, "row"] }); } });
+  items.push("-",
+    { icon: IC.erase, label: "清空内容", fn: () => { clearRange(st, a, 0, b, cMax); commit(st, { sel: [a, 0, b, cMax, "row"] }); } },
+    { icon: IC.trash, label: n > 1 ? `删除 ${n} 行` : "删除行", kb: "⌫", danger: true, fn: () => { delRows(st, a, b); commit(st, { focus: [a, 0] }); toast(a === 0 ? "已删除；下一行升为表头" : `已删除 ${n} 行`); } });
+  openMenu(rect, items);
+}
+
+function colMenu(st, a, b, rect) {
+  const n = b - a + 1, rMax = R(st) - 1;
+  const als = st.al.slice(a, b + 1), same = als.every(x => x === als[0]) ? als[0] : null;
+  const items = [
+    { hd: n > 1 ? `已选 ${n} 列` : `第 ${a + 1} 列` },
+    { icon: IC.left, label: "在左侧插入列", fn: () => { insCol(st, a); commit(st, { focus: [0, a] }); } },
+    { icon: IC.right, label: "在右侧插入列", fn: () => { insCol(st, b + 1); commit(st, { focus: [0, b + 1] }); } },
+    "-",
+    { seg: "对齐", btns: ["left", "center", "right"].map(al => ({ icon: IC["al" + al], tip: AL_NAME[al], on: same === al, fn: () => {
+      for (let c = a; c <= b; c++) st.al[c] = al;
+      commit(st, { sel: [0, a, rMax, b, "col"] }); colMenu(st, a, b, rect);
+    } })) },
+  ];
+  if (st.mode === "C") items.push("-",
+    { icon: IC.left, label: "左移", disabled: n > 1 || a === 0, fn: () => { moveCol(st, a, a - 1); commit(st, { sel: [0, a - 1, rMax, a - 1, "col"] }); } },
+    { icon: IC.right, label: "右移", disabled: n > 1 || b === C(st) - 1, fn: () => { moveCol(st, a, a + 1); commit(st, { sel: [0, a + 1, rMax, a + 1, "col"] }); } });
+  items.push("-",
+    { icon: IC.erase, label: "清空内容", fn: () => { clearRange(st, 0, a, rMax, b); commit(st, { sel: [0, a, rMax, b, "col"] }); } },
+    { icon: IC.trash, label: n > 1 ? `删除 ${n} 列` : "删除列", kb: "⌫", danger: true, fn: () => { delCols(st, a, b); commit(st, { focus: [0, a] }); toast(`已删除 ${n} 列`); } });
+  openMenu(rect, items);
+}
+
+function tableMenu(st, rect) {
+  openMenu(rect, [
+    { hd: `表格 · ${R(st)} 行 × ${C(st)} 列` },
+    { icon: IC.copy, label: "复制表格", fn: () => toast("已复制（富文本为表格，纯文本为 TSV）") },
+    { icon: IC.md, label: "复制为 Markdown", fn: () => toast("已复制 Markdown（含 :---: 对齐行）") },
+    { icon: IC.all, label: "选中所有单元格", fn: () => setSel(st, 0, 0, R(st) - 1, C(st) - 1, "all") },
+    "-",
+    { icon: IC.trash, label: "删除表格", danger: true, fn: () => { st.rows = []; commit(st); } },
+  ]);
+}
+
+/* ─── 三个方向 ─── */
+const MODES = {
+  A: {
+    html: `<span class="gA col" title="点击：列菜单 · 拖动：排序">${IC.gripH}</span><span class="gA row" title="点击：行菜单 · 拖动：排序">${IC.grip(12)}</span>
+      <button class="addA r" title="添加列">${IC.plus}</button><button class="addA b" title="添加行">${IC.plus}</button><div class="dropline"></div>`,
+    bind(st) {
+      st.gc = st.tw.querySelector(".gA.col"); st.gr = st.tw.querySelector(".gA.row");
+      st.tw.addEventListener("mouseleave", () => { if (!gdrag && !(st.sel && (st.kind === "row" || st.kind === "col"))) hideA(st); });
+      st.tw.querySelector(".addA.r").onclick = () => { insCol(st, C(st)); commit(st, { focus: [0, C(st) - 1] }); };
+      st.tw.querySelector(".addA.b").onclick = () => { insRow(st, R(st)); commit(st, { focus: [R(st) - 1, 0] }); };
+      st.gc.addEventListener("mousedown", e => gripDown(st, "col", e));
+      st.gr.addEventListener("mousedown", e => gripDown(st, "row", e));
+    },
+    hover(st, r, c) {
+      if (gdrag) return;
+      if (st.sel && (st.kind === "row" || st.kind === "col")) return;
+      st.hr = r; st.hc = c; placeA(st);
+    },
+    onSel(st) {
+      if (st.kind === "col") { st.hc = st.sel.c1; placeA(st); }
+      if (st.kind === "row") { st.hr = st.sel.r1; placeA(st); }
+      st.gc.classList.toggle("on", st.kind === "col");
+      st.gr.classList.toggle("on", st.kind === "row");
+      if (!st.sel && !st.tw.matches(":hover")) hideA(st);
+    },
+    relayout(st) { if (st.gc.style.display === "flex") placeA(st); drawSel(st); },
+  },
+  B: {
+    html: `<button class="dotB col" title="在此插入列">${IC.plusS}</button><button class="dotB row" title="在此插入行">${IC.plusS}</button><div class="guideB"></div><div class="barB"></div>`,
+    bind(st) {
+      const q = s => st.tw.querySelector(s);
+      const dc = q(".dotB.col"), dr = q(".dotB.row"), guide = q(".guideB"), bar = q(".barB");
+      const nearest = (arr, v) => arr.reduce((bi, x, i) => Math.abs(x - v) < Math.abs(arr[bi] - v) ? i : bi, 0);
+      st.tw.addEventListener("mousemove", e => {
+        if (drag || e.target.closest(".barB")) return;
+        const g = geo(st), x = e.clientX - g.tr.left, y = e.clientY - g.tr.top;
+        if (!dc.matches(":hover")) {
+          if (y >= -12 && y <= g.rows[0].b) {
+            const xs = [g.cols[0].l, ...g.cols.map(c => c.r)], bi = nearest(xs, x);
+            dc.dataset.b = bi; Object.assign(dc.style, { display: "flex", left: xs[bi] + "px", top: "0px" });
+          } else dc.style.display = "none";
+        }
+        if (!dr.matches(":hover")) {
+          if (x >= -12 && x <= g.cols[0].r) {
+            const ys = [g.rows[0].t, ...g.rows.map(r => r.b)], bi = Math.max(1, nearest(ys, y));
+            dr.dataset.b = bi; Object.assign(dr.style, { display: "flex", left: "0px", top: ys[bi] + "px" });
+          } else dr.style.display = "none";
+        }
+      });
+      st.tw.addEventListener("mouseleave", () => { dc.style.display = dr.style.display = guide.style.display = "none"; });
+      dc.onmouseenter = () => {
+        const g = geo(st), b = +dc.dataset.b, x = b < g.cols.length ? g.cols[b].l : g.w;
+        Object.assign(guide.style, { display: "block", left: x - 1 + "px", top: "0px", width: "2px", height: g.h + "px" });
+      };
+      dr.onmouseenter = () => {
+        const g = geo(st), b = +dr.dataset.b, y = b < g.rows.length ? g.rows[b].t : g.h;
+        Object.assign(guide.style, { display: "block", left: "0px", top: y - 1 + "px", width: g.w + "px", height: "2px" });
+      };
+      dc.onmouseleave = dr.onmouseleave = () => { guide.style.display = "none"; };
+      dc.onmousedown = dr.onmousedown = e => e.preventDefault();
+      dc.onclick = () => { const b = +dc.dataset.b; insCol(st, b); commit(st, { focus: [st.caret?.[0] ?? 0, b] }); };
+      dr.onclick = () => { const b = +dr.dataset.b; insRow(st, b); commit(st, { focus: [b, st.caret?.[1] ?? 0] }); };
+      bar.onmousedown = e => e.preventDefault();
+      bar.onclick = e => {
+        const b = e.target.closest("button"); if (!b) return;
+        const s = st.sel, rMax = R(st) - 1, cMax = C(st) - 1, kind = st.kind;
+        if (b.dataset.al) { for (let c = s.c0; c <= s.c1; c++) st.al[c] = b.dataset.al; commit(st, { sel: [s.r0, s.c0, s.r1, s.c1, kind] }); }
+        else if (b.dataset.act === "ins") {
+          const rowsIns = [
+            { icon: IC.up, label: "在上方插入行", fn: () => { insRow(st, s.r0); commit(st, { focus: [s.r0, s.c0] }); } },
+            { icon: IC.down, label: "在下方插入行", fn: () => { insRow(st, s.r1 + 1); commit(st, { focus: [s.r1 + 1, s.c0] }); } },
+          ];
+          const colsIns = [
+            { icon: IC.left, label: "在左侧插入列", fn: () => { insCol(st, s.c0); commit(st, { focus: [s.r0, s.c0] }); } },
+            { icon: IC.right, label: "在右侧插入列", fn: () => { insCol(st, s.c1 + 1); commit(st, { focus: [s.r0, s.c1 + 1] }); } },
+          ];
+          openMenu(b.getBoundingClientRect(), [...rowsIns, ...colsIns]);
+        }
+        else if (b.dataset.act === "clear") { clearRange(st, s.r0, s.c0, s.r1, s.c1); commit(st, { sel: [s.r0, s.c0, s.r1, s.c1, kind] }); }
+        else if (b.dataset.act === "dr") { delRows(st, s.r0, s.r1); commit(st, { focus: [s.r0, s.c0] }); toast(`已删除 ${s.r1 - s.r0 + 1} 行`); }
+        else if (b.dataset.act === "dc") { delCols(st, s.c0, s.c1); commit(st, { focus: [s.r0, s.c0] }); toast(`已删除 ${s.c1 - s.c0 + 1} 列`); }
+        void rMax; void cMax;
+      };
+    },
+    onSel(st) { if (!st.sel || drag) st.tw.querySelector(".barB").style.display = "none"; },
+    selDone(st) { showBarB(st); },
+    relayout(st) { drawSel(st); },
+  },
+  C: {
+    html: `<div class="barsC"></div>`,
+    bind(st) {
+      const bars = st.tw.querySelector(".barsC");
+      requestAnimationFrame(() => layoutC(st));
+      bars.addEventListener("mousedown", e => {
+        const s = e.target.closest(".segC"); if (!s) return;
+        e.preventDefault(); st.tw.classList.add("focus");
+        const k = s.dataset.k, i = +s.dataset.i;
+        if (k === "addc") { insCol(st, C(st)); commit(st, { focus: [0, C(st) - 1] }); return; }
+        if (k === "addr") { insRow(st, R(st)); commit(st, { focus: [R(st) - 1, 0] }); return; }
+        if (k === "all") { setSel(st, 0, 0, R(st) - 1, C(st) - 1, "all"); tableMenu(st, s.getBoundingClientRect()); return; }
+        segDrag = { st, k, a: i, b: i };
+        selSeg(st, k, i, i);
+      });
+      bars.addEventListener("mouseover", e => {
+        if (!segDrag || segDrag.st !== st) return;
+        const s = e.target.closest(".segC"); if (!s || s.dataset.k !== segDrag.k) return;
+        segDrag.b = +s.dataset.i; selSeg(st, segDrag.k, segDrag.a, segDrag.b);
+      });
+    },
+    onSel(st) { markC(st); },
+    relayout(st) { layoutC(st); drawSel(st); },
+  },
+};
+
+function placeA(st) {
+  const g = geo(st);
+  const col = g.cols[Math.min(st.hc, g.cols.length - 1)], row = g.rows[Math.min(st.hr, g.rows.length - 1)];
+  Object.assign(st.gc.style, { display: "flex", left: (col.l + col.r) / 2 - 13 + "px", top: "-7px" });
+  Object.assign(st.gr.style, { display: "flex", left: "-7px", top: (row.t + row.b) / 2 - 13 + "px" });
+}
+const hideA = st => { st.gc.style.display = st.gr.style.display = "none"; };
+
+function gripDown(st, kind, e) {
+  e.preventDefault(); e.stopPropagation();
+  const from = kind === "col" ? st.hc : st.hr;
+  const line = st.tw.querySelector(".dropline");
+  gdrag = { x0: e.clientX, y0: e.clientY, moved: false, b: null };
+  const move = ev => {
+    if (!gdrag.moved && Math.hypot(ev.clientX - gdrag.x0, ev.clientY - gdrag.y0) < 4) return;
+    if (!gdrag.moved) { gdrag.moved = true; kind === "col" ? setSel(st, 0, from, R(st) - 1, from, "col") : setSel(st, from, 0, from, C(st) - 1, "row"); }
+    const g = geo(st);
+    if (kind === "col") {
+      const x = ev.clientX - g.tr.left, b = g.cols.filter(c => (c.l + c.r) / 2 < x).length, lx = b < g.cols.length ? g.cols[b].l : g.w;
+      gdrag.b = b; Object.assign(line.style, { display: "block", left: lx - 1.5 + "px", top: "0px", width: "3px", height: g.h + "px" });
+    } else {
+      const y = ev.clientY - g.tr.top, b = g.rows.filter(r => (r.t + r.b) / 2 < y).length, ly = b < g.rows.length ? g.rows[b].t : g.h;
+      gdrag.b = b; Object.assign(line.style, { display: "block", left: "0px", top: ly - 1.5 + "px", width: g.w + "px", height: "3px" });
+    }
+  };
+  const up = () => {
+    document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up);
+    line.style.display = "none";
+    const d = gdrag; gdrag = null;
+    if (d.moved) {
+      if (d.b !== null && d.b !== from && d.b !== from + 1) {
+        const to = d.b > from ? d.b - 1 : d.b;
+        if (kind === "col") { moveCol(st, from, to); commit(st, { sel: [0, to, R(st) - 1, to, "col"] }); }
+        else { moveRow(st, from, to); commit(st, { sel: [to, 0, to, C(st) - 1, "row"] }); toast(to === 0 || from === 0 ? "表头随首行变化" : "已移动"); }
+      } else clearSel(st);
+      return;
+    }
+    // 单击：在已有格选区内点手柄，作用于选区覆盖的全部行/列
+    const s = st.sel;
+    if (kind === "col") {
+      const [a, b] = s && st.kind === "cells" && from >= s.c0 && from <= s.c1 ? [s.c0, s.c1] : [from, from];
+      setSel(st, 0, a, R(st) - 1, b, "col"); colMenu(st, a, b, st.gc.getBoundingClientRect());
+    } else {
+      const [a, b] = s && st.kind === "cells" && from >= s.r0 && from <= s.r1 ? [s.r0, s.r1] : [from, from];
+      setSel(st, a, 0, b, C(st) - 1, "row"); rowMenu(st, a, b, st.gr.getBoundingClientRect());
+    }
+  };
+  document.addEventListener("mousemove", move); document.addEventListener("mouseup", up);
+}
+
+function showBarB(st) {
+  const bar = st.tw.querySelector(".barB"), s = st.sel; if (!s) return;
+  const g = geo(st), nr = s.r1 - s.r0 + 1, nc = s.c1 - s.c0 + 1;
+  const als = st.al.slice(s.c0, s.c1 + 1), same = als.every(a => a === als[0]) ? als[0] : null;
+  bar.innerHTML = `<span class="ct">${nr}×${nc}</span>` +
+    ["left", "center", "right"].map(a => `<button class="ib ${same === a ? "on" : ""}" data-al="${a}" data-tip="${AL_NAME[a]}（整列）">${IC["al" + a]}</button>`).join("") +
+    `<span class="vdiv"></span><button class="ib" data-act="ins">插入 ${IC.chev}</button><button class="ib" data-act="clear" data-tip="清空内容 ⌫">${IC.erase}</button>` +
+    `<span class="vdiv"></span><button class="ib danger" data-act="dr">删除 ${nr} 行</button><button class="ib danger" data-act="dc">删除 ${nc} 列</button>`;
+  bar.style.display = "flex";
+  const w = bar.offsetWidth;
+  const left = Math.max(-20, Math.min((g.cols[s.c0].l + g.cols[s.c1].r) / 2 - w / 2, g.w - w + 20));
+  Object.assign(bar.style, { left: left + "px", top: g.rows[s.r0].t - 42 + "px" });
+}
+
+function layoutC(st) {
+  if (!st.tw) return;
+  const g = geo(st), bars = st.tw.querySelector(".barsC"); if (!bars) return;
+  bars.innerHTML = `<span class="segC corner" data-k="all" title="选中整张表"></span>` +
+    g.cols.map((c, i) => `<span class="segC col" data-k="col" data-i="${i}" style="left:${c.l + 1}px;width:${c.r - c.l - 2}px">${IC.dotsH}</span>`).join("") +
+    `<span class="segC col plus" data-k="addc" title="添加列" style="left:${g.w + 3}px;width:14px">${IC.plusS}</span>` +
+    g.rows.map((r, i) => `<span class="segC row" data-k="row" data-i="${i}" style="top:${r.t + 1}px;height:${r.b - r.t - 2}px">${IC.dotsV}</span>`).join("") +
+    `<span class="segC row plus" data-k="addr" title="添加行" style="top:${g.h + 3}px;height:14px">${IC.plusS}</span>`;
+  markC(st);
+}
+function selSeg(st, k, a, b) {
+  const lo = Math.min(a, b), hi = Math.max(a, b);
+  k === "col" ? setSel(st, 0, lo, R(st) - 1, hi, "col") : setSel(st, lo, 0, hi, C(st) - 1, "row");
+}
+function markC(st) {
+  const s = st.sel;
+  st.tw.querySelectorAll(".segC.col[data-i]").forEach(el => { const i = +el.dataset.i; el.classList.toggle("on", !!s && (st.kind === "col" || st.kind === "all") && i >= s.c0 && i <= s.c1); });
+  st.tw.querySelectorAll(".segC.row[data-i]").forEach(el => { const i = +el.dataset.i; el.classList.toggle("on", !!s && (st.kind === "row" || st.kind === "all") && i >= s.r0 && i <= s.r1); });
+}
+
+/* ─── 全局事件 ─── */
+document.addEventListener("mouseup", () => {
+  if (drag) { const st = drag.st; drag = null; if (st.sel) M(st).selDone?.(st); }
+  if (segDrag) {
+    const { st, k, a, b } = segDrag; segDrag = null;
+    const lo = Math.min(a, b), hi = Math.max(a, b);
+    const anchor = st.tw.querySelector(`.segC[data-k="${k}"][data-i="${hi}"]`).getBoundingClientRect();
+    k === "col" ? colMenu(st, lo, hi, anchor) : rowMenu(st, lo, hi, anchor);
+  }
+});
+document.addEventListener("mousedown", e => {
+  if (pm.contains(e.target)) return;
+  closeMenu();
+  tables.forEach(st => {
+    if (!st.tw || st.blk.contains(e.target)) return;
+    st.tw.classList.remove("focus");
+    if (st.sel) clearSel(st);
+  });
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && pm.style.display === "block") { closeMenu(); return; }
+  const st = tables.find(t => t.sel); if (!st) return;
+  const s = st.sel;
+  if (e.key === "Escape") { clearSel(st); placeCaret(cell(st, s.r0, s.c0)); }
+  else if (e.key === "Backspace" || e.key === "Delete") {
+    e.preventDefault(); closeMenu();
+    if (st.kind === "row") { delRows(st, s.r0, s.r1); commit(st, { focus: [s.r0, 0] }); toast(`已删除 ${s.r1 - s.r0 + 1} 行`); }
+    else if (st.kind === "col") { delCols(st, s.c0, s.c1); commit(st, { focus: [0, s.c0] }); toast(`已删除 ${s.c1 - s.c0 + 1} 列`); }
+    else { const kind = st.kind; clearRange(st, s.r0, s.c0, s.r1, s.c1); commit(st, { sel: [s.r0, s.c0, s.r1, s.c1, kind] }); }
+  } else if ((e.metaKey || e.ctrlKey) && e.key === "c") {
+    toast(`已复制 ${s.r1 - s.r0 + 1}×${s.c1 - s.c0 + 1} 格（纯文本 TSV / 富文本表格）`);
+  }
+});
+window.addEventListener("resize", () => tables.forEach(st => st.tw && (M(st).relayout?.(st), drawSel(st))));
+
+/* ─── 顶部开关 ─── */
+const bindSwitch = (id, fn) => document.getElementById(id).addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  b.parentElement.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+  fn(b.dataset.v);
+  requestAnimationFrame(() => tables.forEach(st => st.tw && (M(st).relayout?.(st), drawSel(st))));
+});
+bindSwitch("sw-tstyle", v => document.getElementById("demos").dataset.tstyle = v);
+bindSwitch("sw-theme", v => document.documentElement.dataset.theme = v);
+bindSwitch("sw-mode", v => document.documentElement.dataset.mode = v);
+bindSwitch("sw-hover", v => document.body.classList.toggle("force-hover", v === "1"));
+
+document.querySelectorAll(".blk[data-mode]").forEach(mk);
+</script>
+</body>
+</html>

@@ -9,6 +9,7 @@ import TableCell from "./components/TableCell";
 import { tableCellBehaviors, tableForParagraph } from "./behaviors";
 import { tableCommands, tableHotkeys } from "./commands";
 import { withTableDeleteGuard } from "./deleteGuard";
+import { tableCellNormalize, tableNormalize, tableRowNormalize } from "./normalize";
 import blockPanelItems from "./block-panel-items";
 
 export const tableExtension = defineExtension({
@@ -22,6 +23,7 @@ export const tableExtension = defineExtension({
           row.children.every(cell => cell.children.every(context.isEmpty))
         ),
       render: Table,
+      behaviors: tableNormalize,
       copy: ({ element, fullySelected }) =>
         fullySelected ||
         (element.children.length > 0 && element.children.every(child => child.type === "table-row"))
@@ -46,6 +48,7 @@ export const tableRowExtension = defineExtension({
       type: "table-row",
       kind: "block",
       render: TableRow,
+      behaviors: tableRowNormalize,
       copy: ({ element, fullySelected }) =>
         fullySelected ||
         (element.children.length > 0 &&
@@ -63,7 +66,7 @@ export const tableCellExtension = defineExtension({
       type: "table-cell",
       kind: "block",
       render: TableCell,
-      behaviors: tableCellBehaviors,
+      behaviors: { ...tableCellBehaviors, ...tableCellNormalize },
       copy: ({ fullySelected }) => (fullySelected ? "keep" : "unwrap"),
     }),
   ],
@@ -72,6 +75,7 @@ export const tableCellExtension = defineExtension({
 });
 
 export const tableExtensions = [tableExtension, tableRowExtension, tableCellExtension] as const;
-export type { TableElement, TableRowElement, TableCellElement } from "./types";
+export type { TableElement, TableRowElement, TableCellElement, TableAlign } from "./types";
 export * from "./operations";
+export * from "./transforms";
 export { insertTable } from "./insertTable";
