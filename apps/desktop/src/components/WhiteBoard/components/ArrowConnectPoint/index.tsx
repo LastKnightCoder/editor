@@ -58,11 +58,7 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
   const { run: handlePointerMove, cancel: cancelPointerMove } = useThrottleFn(
     (e: PointerEvent) => {
       if (!startPoint.current) return;
-      currentPoint.current = PointUtil.screenToViewPort(
-        board,
-        e.clientX,
-        e.clientY,
-      );
+      currentPoint.current = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
       if (!currentPoint.current) return;
       if (!isMoved.current) {
         const diffX = currentPoint.current.x - startPoint.current.x;
@@ -101,8 +97,6 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
           themeColorId: preset.themeColorId,
           dashed: preset.dashed,
           dashArray: preset.dashArray,
-          sketchEnabled: preset.sketchEnabled,
-          roughness: preset.roughness,
           animated: preset.animated,
           animationSpeed: preset.animationSpeed,
         };
@@ -116,19 +110,19 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
               node: createArrow,
             },
           ],
-          false,
+          false
         );
       } else {
         const updateArrowElement = getUpdateArrowElement(
           createdArrow.current,
           currentPoint.current,
-          createdArrow.current.points.length - 1,
+          createdArrow.current.points.length - 1
         );
 
         const ops = BoardUtil.diffNodePatchOnly(
           createdArrow.current,
           updateArrowElement,
-          createdArrowPath.current,
+          createdArrowPath.current
         );
         if (ops.length > 0) {
           board.apply(ops, false);
@@ -142,7 +136,7 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
         });
       }
     },
-    { wait: 25 },
+    { wait: 25 }
   );
 
   const cancelPointerMoveSafely = useMemoizedFn(() => {
@@ -176,7 +170,7 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
             node: createdArrow.current,
           },
         ],
-        false,
+        false
       );
       board.apply(
         [
@@ -186,7 +180,7 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
             node: createdArrow.current,
           },
         ],
-        true,
+        true
       );
     }
 
@@ -200,26 +194,21 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
     removeDragListeners(handlePointerUp);
   });
 
-  const handlePointerDown: PointerEventHandler<SVGCircleElement> =
-    useMemoizedFn((e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      onConnectStart?.();
-      const boardContainer = BOARD_TO_CONTAINER.get(board);
-      if (!boardContainer) return;
+  const handlePointerDown: PointerEventHandler<SVGCircleElement> = useMemoizedFn(e => {
+    e.stopPropagation();
+    e.preventDefault();
+    onConnectStart?.();
+    const boardContainer = BOARD_TO_CONTAINER.get(board);
+    if (!boardContainer) return;
 
-      startPoint.current = PointUtil.screenToViewPort(
-        board,
-        e.clientX,
-        e.clientY,
-      );
-      if (!startPoint.current) return;
+    startPoint.current = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
+    if (!startPoint.current) return;
 
-      boardContainer.addEventListener("pointermove", handlePointerMove);
-      document.addEventListener("pointerup", handlePointerUp);
-      document.addEventListener("pointercancel", handlePointerUp);
-      window.addEventListener("blur", handlePointerUp);
-    });
+    boardContainer.addEventListener("pointermove", handlePointerMove);
+    document.addEventListener("pointerup", handlePointerUp);
+    document.addEventListener("pointercancel", handlePointerUp);
+    window.addEventListener("blur", handlePointerUp);
+  });
 
   useEffect(() => {
     return () => {
