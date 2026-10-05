@@ -4,12 +4,13 @@ import If from "@/components/If";
 import ResizeCircle from "../ResizeCircle";
 import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
+import SketchRect from "../SketchPaths/SketchRect";
 
 import { cn as classnames } from "@tau/ui";
 
 import { Board, EHandlerPosition, Point, ImageElement } from "../../types";
 import { PointUtil } from "../../utils";
-import { useBoard, useSelectState, useDropArrow } from "../../hooks";
+import { useBoard, useSelectState, useDropArrow, useSketch } from "../../hooks";
 import {
   SELECT_RECT_STROKE,
   SELECT_RECT_STROKE_WIDTH,
@@ -17,6 +18,7 @@ import {
   RESIZE_CIRCLE_FILL,
   RESIZE_CIRCLE_RADIUS,
   getShadowStyle,
+  SKETCH_MEDIA_FRAME,
 } from "../../constants";
 import {
   IMAGE_DESCRIPTION_HEIGHT,
@@ -96,6 +98,7 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
 
   const board = useBoard();
   const { isSelected } = useSelectState(id);
+  const sketch = useSketch(element);
 
   const { isMoveArrowClosing, activeConnectId, arrowConnectPoints, arrowConnectExtendPoints } =
     useDropArrow(element);
@@ -250,12 +253,18 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
               defaultFocus={isEditingDescription}
               className={classnames(styles.descriptionText, styles[descriptionAlignment], {
                 "hidden!": !isEditingDescription && !description.trim(),
+                "font-tau-hand": sketch.enabled,
               })}
               style={descriptionTextStyle}
               onBlur={handleDescriptionPressEnter}
             />
             {!isEditingDescription && !description.trim() && (
-              <span style={descriptionTextStyle}>{IMAGE_DESCRIPTION_PLACEHOLDER}</span>
+              <span
+                className={classnames(sketch.enabled && "font-tau-hand")}
+                style={descriptionTextStyle}
+              >
+                {IMAGE_DESCRIPTION_PLACEHOLDER}
+              </span>
             )}
           </div>
         </foreignObject>
@@ -286,6 +295,19 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
           }}
         />
       </foreignObject>
+      {sketch.enabled && (
+        <SketchRect
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          radius={4}
+          stroke={SKETCH_MEDIA_FRAME}
+          strokeWidth={1.5}
+          level={sketch.level}
+          seed={sketch.seed}
+        />
+      )}
 
       <If condition={isSelected}>
         <g>

@@ -1,7 +1,7 @@
 import type { ElementSketch, PageSketch, ResolvedSketch } from "../../types/sketch";
 import { hashSeed } from "./random";
 
-/** 一期跟随手绘的元素类型；媒体类（image / video / webview / audio / whiteboard）在二期加入 */
+/** 跟随手绘的元素类型；手写本来就是墨迹，不在其列 */
 const SKETCHABLE_TYPES = new Set([
   "geometry",
   "arrow",
@@ -10,7 +10,15 @@ const SKETCHABLE_TYPES = new Set([
   "richtext",
   "card",
   "mind-node",
+  "image",
+  "video",
+  "webview",
+  "audio",
+  "whiteboard",
 ]);
+
+/** 该类型是否跟随手绘（与当前画风无关，只看类型） */
+export const isSketchableType = (type: string) => SKETCHABLE_TYPES.has(type);
 
 interface SketchCarrier {
   id: string;

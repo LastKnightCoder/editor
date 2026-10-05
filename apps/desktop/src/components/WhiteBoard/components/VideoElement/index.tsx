@@ -14,16 +14,18 @@ import { isYoutubeUrl } from "@/utils/youtube/parser";
 import ResizeCircle from "../ResizeCircle";
 import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
+import SketchRect from "../SketchPaths/SketchRect";
 
 import { Board, EHandlerPosition, Point, VideoElement } from "../../types";
 import { PointUtil } from "../../utils";
-import { useBoard, useSelectState, useDropArrow } from "../../hooks";
+import { useBoard, useSelectState, useDropArrow, useSketch } from "../../hooks";
 import {
   SELECT_RECT_STROKE,
   SELECT_RECT_STROKE_WIDTH,
   SELECT_RECT_FILL_OPACITY,
   RESIZE_CIRCLE_FILL,
   RESIZE_CIRCLE_RADIUS,
+  SKETCH_MEDIA_FRAME,
 } from "../../constants";
 import useSettingStore from "@/stores/useSettingStore";
 import { shouldUseLocalVideoCache } from "@/utils/video";
@@ -90,6 +92,7 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
 
   const board = useBoard();
   const { isSelected } = useSelectState(id);
+  const sketch = useSketch(element);
   const setVideoRef = useCallback(
     (video: HTMLVideoElement | null) => {
       board.emit("video-note:element-ref", {
@@ -222,6 +225,19 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
           </If>
         </div>
       </foreignObject>
+      {sketch.enabled && (
+        <SketchRect
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          radius={8}
+          stroke={SKETCH_MEDIA_FRAME}
+          strokeWidth={1.5}
+          level={sketch.level}
+          seed={sketch.seed}
+        />
+      )}
       <If condition={isSelected}>
         <foreignObject
           x={x + width - 44}

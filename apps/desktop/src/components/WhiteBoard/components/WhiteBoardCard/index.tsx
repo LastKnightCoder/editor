@@ -13,6 +13,9 @@ import { Presentation } from "lucide-react";
 import { cn, toast } from "@tau/ui";
 
 import { Board } from "../../types";
+import { SKETCH_MEDIA_FRAME } from "../../constants";
+import { useSketch } from "../../hooks";
+import SketchRect from "../SketchPaths/SketchRect";
 import { WhiteBoardElement } from "../../plugins/WhiteBoardPlugin";
 import LocalImage from "@/components/LocalImage";
 import { PageSchematic } from "../../schematic/PageSchematic";
@@ -35,6 +38,7 @@ const CANVAS_BG =
 
 const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
   const { element, board } = props;
+  const sketch = useSketch(element);
   const nav = useContext(WhiteboardNavContext);
   const [flash, setFlash] = useState(false);
 
@@ -109,50 +113,72 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
         : "独立画布";
 
   return (
-    <foreignObject x={x} y={y} width={width} height={height} className="overflow-visible">
-      <div
-        onDoubleClick={handleDoubleClick}
-        title="双击打开白板"
-        className={cn(
-          "bg-surface border-line-1 flex size-full cursor-move items-center gap-2.5 overflow-hidden rounded-[12px] border p-2",
-          "ease-tau-out transition-[box-shadow,border-color] duration-300",
-          flash
-            ? "border-accent shadow-[0_0_0_4px_color-mix(in_srgb,var(--tau-accent)_28%,transparent)]"
-            : "shadow-card hover:shadow-lift",
-          missing && "opacity-60"
-        )}
-      >
+    <>
+      <foreignObject x={x} y={y} width={width} height={height} className="overflow-visible">
         <div
+          onDoubleClick={handleDoubleClick}
+          title="双击打开白板"
           className={cn(
-            "relative aspect-[16/10] h-full shrink-0 overflow-hidden rounded-[8px] shadow-[inset_0_0_0_1px_var(--tau-line-2)]",
-            CANVAS_BG
+            "bg-surface border-line-1 flex size-full cursor-move items-center gap-2.5 overflow-hidden rounded-[12px] border p-2",
+            "ease-tau-out transition-[box-shadow,border-color] duration-300",
+            flash
+              ? "border-accent shadow-[0_0_0_4px_color-mix(in_srgb,var(--tau-accent)_28%,transparent)]"
+              : sketch.enabled
+                ? "border-transparent"
+                : "shadow-card hover:shadow-lift",
+            sketch.enabled && "font-tau-hand",
+            missing && "opacity-60"
           )}
         >
-          {cover ? (
-            <LocalImage
-              url={cover}
-              className="absolute inset-0 size-full select-none object-cover"
-              draggable={false}
-              onLoadError={() => setFailedCover(cover)}
-            />
-          ) : firstPage && firstPage.elementCount > 0 ? (
-            <PageSchematic
-              elements={firstPage.elements}
-              aspect={16 / 10}
-              className="absolute inset-0 size-full"
-            />
-          ) : (
-            <Presentation className="text-ink-3 absolute inset-0 m-auto size-5" strokeWidth={1.5} />
-          )}
+          <div
+            className={cn(
+              "relative aspect-[16/10] h-full shrink-0 overflow-hidden rounded-[8px] shadow-[inset_0_0_0_1px_var(--tau-line-2)]",
+              CANVAS_BG
+            )}
+          >
+            {cover ? (
+              <LocalImage
+                url={cover}
+                className="absolute inset-0 size-full select-none object-cover"
+                draggable={false}
+                onLoadError={() => setFailedCover(cover)}
+              />
+            ) : firstPage && firstPage.elementCount > 0 ? (
+              <PageSchematic
+                elements={firstPage.elements}
+                aspect={16 / 10}
+                className="absolute inset-0 size-full"
+              />
+            ) : (
+              <Presentation
+                className="text-ink-3 absolute inset-0 m-auto size-5"
+                strokeWidth={1.5}
+              />
+            )}
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="text-ink-1 truncate text-[14px] font-semibold leading-[1.4]">
+              {title}
+            </span>
+            <span className="text-ink-3 truncate text-[12px] tabular-nums">{meta}</span>
+          </div>
         </div>
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="text-ink-1 truncate text-[14px] font-semibold leading-[1.4]">
-            {title}
-          </span>
-          <span className="text-ink-3 truncate text-[12px] tabular-nums">{meta}</span>
-        </div>
-      </div>
-    </foreignObject>
+      </foreignObject>
+      {/* 定位闪烁是交互反馈，保持普通描边 */}
+      {sketch.enabled && !flash && (
+        <SketchRect
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          radius={12}
+          stroke={SKETCH_MEDIA_FRAME}
+          strokeWidth={1.5}
+          level={sketch.level}
+          seed={sketch.seed}
+        />
+      )}
+    </>
   );
 });
 
