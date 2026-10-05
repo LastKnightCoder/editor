@@ -25,7 +25,8 @@
   --tau-ink-1: var(--color-text-primary);
   --tau-ink-2: var(--color-text-secondary);
   --tau-ink-3: var(--color-text-tertiary);
-  --tau-ink-inverse: var(--button-primary-text);
+  /* 反白墨 = 压在 ink-1 / accent 上的字色（tooltip、发送钮），须随明暗取反，不能恒为白 */
+  --tau-ink-inverse: var(--color-bg-container);
 
   /* line */
   --tau-line-1: var(--color-border-primary);
