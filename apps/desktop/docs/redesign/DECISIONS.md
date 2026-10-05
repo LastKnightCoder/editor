@@ -9,6 +9,7 @@
 - 范围：一期形状、连线、画框、分栏、文本、卡片、思维导图；二期图片 / 视频 / 网页 / 音频 / 白板引用的墨迹外框、内置字体与导出内嵌、多选批量改笔触。画布 chrome（选中框、控制点、参考线）永远普通（D-049）。
 - 页级切换走 `set_sketch` Operation（进撤销历史）；删除只有类型没有实现的 `set_theme` 空壳。
 - 旧数据：不升级。旧字段 `sketchEnabled / sketchOptions / roughness` 不再读取，原开草图的元素显示为普通。
+- 追记（同日，二期）：① 手写字体定为 **Shantell Sans（拉丁）+ 小赖 SC（中文）**，用户在 `mockups/whiteboard-sketch/fonts.html` 九款候选中选定（不用 Excalifont）；Shantell 的随性度轴与笔触档位联动。② 内置方式：`src/assets/fonts/hand/` 提交子集化产物（Shantell 135 KB + 小赖按通用规范 8105 字分 43 片约 2.07 MiB，按需加载），脚本 `scripts/build-hand-font.py`；OFL 许可随包附带，「关于与更新」署名。③ 导出：snapdom 在 `file://` 下取不到本地字体，改由 `utils/bundled-font-embed.ts` 把已加载分片读成 data URL 经 `localFonts` 传入，因 snapdom 按 family 去重，小赖每片用独立 family。④ 图片 / 视频 / 网页 / 音频 / 白板引用跟随手绘（内容之上叠墨迹框）；多选可批量改笔触。
 
 ## D-105 卡片库与文章的列表排布
 

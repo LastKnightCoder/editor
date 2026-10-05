@@ -19,6 +19,7 @@ import {
   RESIZE_CIRCLE_FILL,
   RESIZE_CIRCLE_RADIUS,
 } from "../../constants";
+import { handTextClass } from "../../utils/sketch";
 
 const getReadableTextColor = (hex: string): string => {
   const m = hex.replace("#", "");
@@ -227,7 +228,7 @@ const Frame = memo(
                 isInlineTitle
                   ? "flex h-full w-fit min-w-5 cursor-pointer select-none items-center pl-2.5 pr-3 text-center text-xs font-semibold tracking-wide outline-none hover:opacity-95"
                   : "flex h-full w-fit min-w-5 cursor-pointer select-none items-center rounded-lg px-2 py-1 text-center text-sm font-medium outline-none hover:opacity-90",
-                sketch.enabled && "font-tau-hand"
+                handTextClass(sketch)
               )}
               style={{
                 background: borderColor,

@@ -36,6 +36,7 @@ import {
 import EditText, { EditTextHandle } from "@/components/EditText";
 import useTheme from "@/hooks/useTheme";
 import LocalImage from "@/components/LocalImage";
+import { handTextClass } from "../../utils/sketch";
 
 const styles = {
   descriptionContainer: "flex size-full items-center overflow-visible",
@@ -251,18 +252,19 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
               onPressEnter={handleDescriptionPressEnter}
               contentEditable={isEditingDescription}
               defaultFocus={isEditingDescription}
-              className={classnames(styles.descriptionText, styles[descriptionAlignment], {
-                "hidden!": !isEditingDescription && !description.trim(),
-                "font-tau-hand": sketch.enabled,
-              })}
+              className={classnames(
+                styles.descriptionText,
+                styles[descriptionAlignment],
+                {
+                  "hidden!": !isEditingDescription && !description.trim(),
+                },
+                handTextClass(sketch)
+              )}
               style={descriptionTextStyle}
               onBlur={handleDescriptionPressEnter}
             />
             {!isEditingDescription && !description.trim() && (
-              <span
-                className={classnames(sketch.enabled && "font-tau-hand")}
-                style={descriptionTextStyle}
-              >
+              <span className={handTextClass(sketch)} style={descriptionTextStyle}>
                 {IMAGE_DESCRIPTION_PLACEHOLDER}
               </span>
             )}

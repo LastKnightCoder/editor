@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>白板手绘模式 · 手写字体对比</title>
+<link rel="stylesheet" href="../whiteboards/base.css">
+<link rel="stylesheet" href="sketch.css">
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+  main { padding: 20px 24px 60px; }
+  .note { color: var(--ink-2); font-size: 13px; max-width: 112ch; margin-bottom: 6px; }
+  .note b { color: var(--ink-1); font-weight: 600; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 14px; margin-top: 16px; }
+  .card { background: var(--bg-surface); border-radius: 16px; box-shadow: var(--shadow-card); overflow: hidden; display: flex; flex-direction: column; }
+  .card.rec { outline: 1.5px solid color-mix(in srgb, var(--accent) 45%, transparent); }
+  .card header { padding: 14px 18px 2px; }
+  .card h3 { font-size: 14.5px; font-weight: 600; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .card h3 small { font-size: 12px; font-weight: 400; color: var(--ink-3); }
+  .card h3 em { font-style: normal; font-size: 11px; font-weight: 500; color: var(--accent-text); background: var(--accent-soft); padding: 0 7px; border-radius: 6px; line-height: 18px; }
+  .card .meta { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+  .paper { margin: 10px 12px 0; border-radius: 12px; background-color: var(--sk-paper); background-image: radial-gradient(var(--sk-dot) 1px, transparent 1.2px); background-size: 12px 12px; }
+  .paper svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .paper text { fill: var(--sk-ink); }
+  .sample { margin: 10px 18px 0; color: var(--sk-ink); font-size: calc(16px * var(--sz, 1)); line-height: 1.6; }
+  .sample .read { margin-top: 4px; font-size: calc(19px * var(--sz, 1)); letter-spacing: 0.04em; }
+  .verdict { margin: 10px 18px 16px; font-size: 12.5px; display: flex; flex-direction: column; gap: 2px; }
+  .verdict .good { color: var(--ok); } .verdict .bad { color: var(--danger); }
+  .card.variable { font-variation-settings: var(--shantell-vars); }
+</style>
+</head>
+<body class="doc">
+<div class="demo">
+  <div class="title"><a href="index.html">← 总览</a>手写字体对比</div>
+  <div class="grp"><span>字号</span><button class="chip" data-sz="0.85">小</button><button class="chip on" data-sz="1">中</button><button class="chip" data-sz="1.25">大</button></div>
+  <div class="grp" id="infm"><span>Shantell 随性度</span><button class="chip" data-infm="0">0</button><button class="chip on" data-infm="50">50</button><button class="chip" data-infm="100">100</button></div>
+  <div class="grp" id="wght"><span>Shantell 粗细</span><button class="chip" data-wght="400">400</button><button class="chip on" data-wght="480">480</button><button class="chip" data-wght="560">560</button></div>
+  <div class="spacer"></div>
+  <div class="grp"><button class="chip" id="theme">☾ cocoa</button></div>
+</div>
+<main>
+  <p class="note">中文统一用 <b>小赖 SC</b>（OFL，濑户字体派生，通用规范 8105 字全含），对比不同的<b>拉丁 / 数字</b>搭配；另放两款「中英一体」的字体和一期的系统回退作对照。每张卡是同一块迷你白板（墨水笔触）+ 一段中英混排 + 一行易混字符（<code>1 l I</code>、<code>0 O o</code>、<code>rn m</code>）。字体文件只裁了本页用到的字，体积一栏是完整字体的大小。</p>
+  <p class="note">对比时可以重点看：拉丁字母和小赖的<b>粗细、字面高度</b>是否协调；数字、公式符号（√ Σ ×）是否清楚；字号缩小后是否还易读。</p>
+  <div class="grid" id="grid"></div>
+</main>
+
+<script id="samples" type="application/json">
+{
+  "scene": ["Query", "Key", "Value", "Softmax 归一化", "加权求和 Σ", "权重 0.72", "残差", "注意力变体", "Multi-Head ×8", "稀疏 Sparse", "线性 Linear O(n)"],
+  "note": "为什么要除以 √d？维度大时点积方差大，softmax 会饱和。",
+  "para": "Transformer 的核心是 Attention：softmax(QKᵀ/√d)·V，2017 年由 Google 提出，参数量 65M。",
+  "read": "1 l I | 0 O o | rn m | 5 S 8 B | 2Z 6G 9g"
+}
+</script>
+<script src="vendor/rough.js"></script>
+<script src="vendor/perfect-freehand.js"></script>
+<script src="sketch.js"></script>
+<script>
+const S = JSON.parse(document.getElementById("samples").textContent);
+const CANDIDATES = [
+  { id: "xiaolai", name: "小赖 SC", sub: "单字体", family: '"SK Xiaolai"', size: "21.2 MB（裁到 8105 字约 2.5 MB）",
+    good: ["中英天然协调，1/l/I、0/O 最清楚", "零额外体积"], bad: ["拉丁偏日系、手写味一般，大写偏矮"] },
+  { id: "shantell", name: "Shantell Sans + 小赖", sub: "可变字体", family: '"SK Shantell", "SK Xiaolai"', size: "拉丁 1.25 MB", rec: true, variable: true,
+    good: ["马克笔手写，随性度可调（INFM 轴），手绘模式的「档位」可以联动它", "x 高与小赖接近，数字清楚"], bad: ["体积比其他拉丁大；默认字重 300 偏细，需显式设字重"] },
+  { id: "patrick", name: "Patrick Hand + 小赖", sub: "", family: '"SK Patrick", "SK Xiaolai"', size: "拉丁 210 KB",
+    good: ["粗细、x 高与小赖几乎一致，手写感强又不毛糙", "字形偏窄，省空间，适合标签"], bad: ["0 和 O 区分弱"] },
+  { id: "itim", name: "Itim + 小赖", sub: "", family: '"SK Itim", "SK Xiaolai"', size: "拉丁 363 KB",
+    good: ["粗圆马克笔，便签和导图节点很活泼"], bad: ["比小赖略粗，长段落显重"] },
+  { id: "delius", name: "Delius + 小赖", sub: "本页未内嵌 Delius，装了才能看到", family: '"Delius", "SK Xiaolai"', size: "拉丁 76 KB",
+    good: ["干净的圆体手写，可读性好"], bad: ["笔画比小赖细，手写感偏弱"] },
+  { id: "shortstack", name: "Short Stack + 小赖", sub: "本页未内嵌 Short Stack，装了才能看到", family: '"Short Stack", "SK Xiaolai"', size: "拉丁 67 KB",
+    good: ["宽体圆润，童趣"], bad: ["字面偏宽，混排时拉丁显大"] },
+  { id: "yozai", name: "悠哉 Yozai", sub: "单字体 · 中英一体（本页未内嵌，装了才能看到）", family: '"Yozai", "Kaiti SC", "KaiTi"', size: "14.9 MB",
+    good: ["专门优化过西文与标点，通用规范 8105 字全含"], bad: ["笔画细，缩小后发虚", "许可保留「Y.Oz / YOz」字样作字体名"] },
+  { id: "wenkai", name: "霞鹜文楷 GB Lite", sub: "单字体 · 中英一体（本页未内嵌，装了才能看到）", family: '"LXGW WenKai GB Lite", "LXGW WenKai", "Kaiti SC", "KaiTi"', size: "13.5 MB",
+    good: ["可读性最好"], bad: ["楷书笔意，更像书面而不是随手写", "保留字体名「霞鹜」：子集化属于修改，不能沿用原名分发"] },
+  { id: "system", name: "系统回退（一期现状）", sub: "macOS 手札体 / Windows 楷体", family: '"Hannotate SC", "HanziPen SC", "Kaiti SC", "KaiTi", cursive', size: "不可打包",
+    good: ["零体积"], bad: ["系统字体不能随应用分发；Windows 上退成楷体，各平台不一致"] },
+];
+
+const grid = document.getElementById("grid");
+const cards = CANDIDATES.map(c => {
+  const card = document.createElement("section");
+  card.className = "card" + (c.rec ? " rec" : "") + (c.variable ? " variable" : "");
+  card.style.fontFamily = c.family;
+  card.innerHTML = `
+    <header style="font-family: var(--font)">
+      <h3>${c.name}${c.sub ? `<small>${c.sub}</small>` : ""}${c.rec ? "<em>推荐</em>" : ""}</h3>
+      <div class="meta">${c.size}</div>
+    </header>
+    <div class="paper"></div>
+    <div class="sample"><div>${S.para}</div><div>${S.note}</div><div class="read">${S.read}</div></div>
+    <div class="verdict" style="font-family: var(--font)">${c.good.map(t => `<span class="good">＋ ${t}</span>`).join("")}${c.bad.map(t => `<span class="bad">－ ${t}</span>`).join("")}</div>`;
+  grid.appendChild(card);
+  return { c, card };
+});
+
+function scene(svgHost, family) {
+  svgHost.replaceChildren();
+  const svg = SK.node("svg", { viewBox: "0 0 420 220" }, svgHost);
+  const shape = (x, y, w, h, kind, fill, seed, label, size = 15) => {
+    const g = SK.node("g", { transform: `translate(${x} ${y})` }, svg);
+    SK.renderShape(g, { shape: kind, w, h, sw: 2, fill: fill ? { type: "wash", color: fill } : { type: "none" }, seed }, "b", { level: "natural" });
+    const t = SK.node("text", { x: w / 2, y: h / 2 + size * 0.36, "text-anchor": "middle", "font-size": size, style: `font-family:${family}` }, g);
+    t.textContent = label;
+  };
+  const arrow = (pts, seed, curve) => SK.renderArrow(svg, { sw: 2, seed, pts, curve }, "b", { level: "natural" });
+  const label = (x, y, text, size = 13) => {
+    const t = SK.node("text", { x, y, "text-anchor": "middle", "font-size": size, style: `font-family:${family}`, fill: "var(--ink-2)" }, svg);
+    t.textContent = text;
+  };
+  shape(14, 16, 84, 40, { kind: "rect" }, "#8fb3e6", 1, S.scene[0]);
+  shape(14, 90, 84, 40, { kind: "rect" }, "#9cc79a", 2, S.scene[1]);
+  shape(14, 164, 84, 40, { kind: "rect" }, "#b9a3dd", 3, S.scene[2]);
+  shape(140, 52, 120, 50, { kind: "ellipse" }, null, 4, S.scene[3], 14);
+  shape(150, 150, 112, 46, { kind: "rect", radius: 10 }, "#ec9f94", 5, S.scene[4], 14);
+  arrow([[100, 36], [140, 70]], 11);
+  arrow([[100, 110], [140, 84]], 12);
+  arrow([[100, 184], [150, 173]], 13);
+  arrow([[200, 104], [206, 148]], 14);
+  label(232, 130, S.scene[5], 12.5);
+  // 导图
+  shape(296, 92, 110, 34, { kind: "rect", radius: 17 }, "#f0c55a", 6, S.scene[7], 13.5);
+  const branch = (y, seed, text) => {
+    SK.renderArrow(svg, { sw: 1.5, seed, pts: [[352, y < 109 ? 92 : 126], [352, y]], heads: {} }, "b", { level: "natural" });
+    const t = SK.node("text", { x: 352, y: y + (y < 109 ? -6 : 18), "text-anchor": "middle", "font-size": 13, style: `font-family:${family}` }, svg);
+    t.textContent = text;
+  };
+  branch(46, 21, S.scene[8]);
+  branch(166, 22, S.scene[9]);
+  const t = SK.node("text", { x: 352, y: 210, "text-anchor": "middle", "font-size": 12, style: `font-family:${family}`, fill: "var(--ink-2)" }, svg);
+  t.textContent = S.scene[10];
+}
+
+function drawAll() {
+  cards.forEach(({ c, card }) => scene(card.querySelector(".paper"), c.family));
+}
+drawAll();
+document.fonts.ready.then(drawAll);
+
+const shantell = { wght: 480, infm: 50 };
+function applyShantell() {
+  document.documentElement.style.setProperty("--shantell-vars", `"wght" ${shantell.wght}, "INFM" ${shantell.infm}`);
+}
+applyShantell();
+const pick = (sel, fn) => document.querySelectorAll(sel).forEach(b => b.onclick = () => {
+  document.querySelectorAll(sel).forEach(x => x.classList.toggle("on", x === b));
+  fn(b);
+});
+pick("[data-sz]", b => document.documentElement.style.setProperty("--sz", b.dataset.sz));
+pick("[data-infm]", b => { shantell.infm = +b.dataset.infm; applyShantell(); });
+pick("[data-wght]", b => { shantell.wght = +b.dataset.wght; applyShantell(); });
+document.getElementById("theme").onclick = e => {
+  const r = document.documentElement;
+  const dark = r.dataset.theme === "cream";
+  r.dataset.theme = dark ? "cocoa" : "cream";
+  e.currentTarget.textContent = dark ? "☀ cream" : "☾ cocoa";
+};
+</script>
+</body>
+</html>

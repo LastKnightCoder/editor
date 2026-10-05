@@ -28,6 +28,7 @@ import { ECreateBoardElementType, EMarkerType, MindNodeElement } from "../../typ
 import { createContent, incrementContentRefCount } from "@/commands/content";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import { SearchResult } from "@/types/search";
+import { handTextClass } from "../../utils/sketch";
 
 interface MindNodeProps {
   element: MindNodeElement;
@@ -531,10 +532,7 @@ const MindNode = (props: MindNodeProps) => {
                 ref={editorRef}
                 initValue={text}
                 readonly={!isEditing}
-                className={cn(
-                  "box-border w-fit rounded-[4px] p-4",
-                  sketch.enabled && "font-tau-hand"
-                )}
+                className={cn("box-border w-fit rounded-[4px] p-4", handTextClass(sketch))}
                 style={editorStyle}
                 onChange={onContentChange}
                 onBlur={handleBlur}
