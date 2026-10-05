@@ -22,6 +22,7 @@ import { broadcastDatabaseChange } from "./database-notifications";
 import knowledgeMapBuilder from "./knowledge-map-builder";
 import { resolveUsageSlot, type LlmRef, type SettingForLlmSlots } from "./llm-usage-slot";
 import PiAiRuntimeModule from "./pi-ai-runtime";
+import { createPatternCard, discardPatternCard } from "./pattern-card";
 import { projectsDue, reviewProject } from "./project-review";
 import KnowledgeAiInsightsTable, {
   linkCardsMutually,
@@ -149,6 +150,30 @@ class KnowledgeInsightsModule implements Module {
         return changed.length > 0;
       }
     );
+    // 同一思路「写成卡片」：建一张空卡片连上用到它的几处；离开时还空着就撤回
+    ipcMain.handle(
+      "knowledge-insights:write-pattern-card",
+      async (event, input: { id: number; itemId: string }) => {
+        const { mainDb, dbName } = await this.databases(event.sender);
+        const result = createPatternCard(mainDb, Number(input?.id), String(input?.itemId));
+        this.afterPatternCard(dbName, result.changed, "create-card");
+        return result.card;
+      }
+    );
+    ipcMain.handle(
+      "knowledge-insights:discard-pattern-card",
+      async (event, input: { id: number; itemId: string; cardId: number }) => {
+        const { mainDb, dbName } = await this.databases(event.sender);
+        const result = discardPatternCard(
+          mainDb,
+          Number(input?.id),
+          String(input?.itemId),
+          Number(input?.cardId)
+        );
+        if (result) this.afterPatternCard(dbName, result.changed, "delete-card");
+        return result?.card ?? null;
+      }
+    );
     // 打开回顾、今日卡点「知道了」：记下看过，按钮与今日卡上的小点随之消失
     ipcMain.handle("knowledge-insights:seen", async (event, id: unknown) => {
       const { mainDb, dbName } = await this.databases(event.sender);
@@ -175,6 +200,17 @@ class KnowledgeInsightsModule implements Module {
       }
     );
     log.info("[KnowledgeInsights] Module initialized");
+  }
+
+  /** 写成卡片 / 撤回之后：其他卡片的链接、标记状态、脉络与引用索引都要知道 */
+  private afterPatternCard(dbName: string, changed: number[], eventName: string) {
+    for (const cardId of changed) broadcastDatabaseChange("card:updated", dbName, { cardId });
+    broadcastDatabaseChange(KNOWLEDGE_INSIGHTS_CHANGED_EVENT, dbName);
+    if (databaseModule.getCurrentDatabaseName() === dbName) {
+      databaseModule.notifyExternalWrite(eventName);
+      if (changed.length) databaseModule.notifyExternalWrite("update-card");
+      databaseModule.notifyExternalWrite("lineage:record");
+    }
   }
 
   private requireSlot(): LlmRef {

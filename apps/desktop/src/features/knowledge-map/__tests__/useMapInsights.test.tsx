@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   link: vi.fn(async () => true),
   setRemoteStatus: vi.fn(async () => true),
   focus: vi.fn(),
+  writeCard: vi.fn(async () => {}),
   openEntity: vi.fn(async () => {}),
   dismiss: null as null | (() => void),
   preview: vi.fn(),
@@ -64,6 +65,7 @@ vi.mock("@/commands/knowledge-insights", () => ({
   setKnowledgeInsightStatus: mocks.setRemoteStatus,
 }));
 vi.mock("@/services/insight-focus", () => ({ requestInsightFocus: mocks.focus }));
+vi.mock("@/services/pattern-card", () => ({ startPatternCard: mocks.writeCard }));
 
 import { useMapInsights } from "../insights/useMapInsights";
 
@@ -318,12 +320,16 @@ describe("知识地图的洞见视图", () => {
     expect(mocks.focus).not.toHaveBeenCalled();
     expect(mocks.link).not.toHaveBeenCalled();
 
-    // 同一思路是观察：主按钮「知道了」，不记问题
+    // 同一思路：主按钮「写成卡片」，状态由建卡一并记下，不记问题、没有「知道了」
     await click(container.querySelector('[data-map-mark="t2"]'));
     expect(buttonByText("记为问题")).toBeNull();
-    await click(buttonByText("知道了"));
-    expect(mocks.setStatus).toHaveBeenCalledWith({ nodeId: 2, itemId: "t2", status: "seen" });
+    expect(buttonByText("知道了")).toBeNull();
+    const statusCalls = mocks.setStatus.mock.calls.length;
+    await click(buttonByText("写成卡片"));
+    expect(mocks.writeCard).toHaveBeenCalledWith(2, expect.objectContaining({ id: "t2" }));
+    expect(mocks.setStatus.mock.calls.length).toBe(statusCalls);
     expect(mocks.capture).not.toHaveBeenCalled();
+    expect(document.querySelector("[data-map-insight-popover]")).toBeNull();
 
     // Esc：先关气泡，再回到全局，再退出
     await click(container.querySelector('[data-map-mark="t1"]'));
