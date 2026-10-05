@@ -4,7 +4,6 @@ import { Button, ConfirmDialog, IconButton, Menu, Popover, Tooltip } from "@tau/
 
 import { PresentationSequence, SketchLevel, SketchMode } from "../../types";
 import {
-  GRID_SIZE_OPTIONS,
   SKETCH_LEVEL_OPTIONS,
   SKETCH_MODE_OPTIONS,
   ZOOM_PRESETS,
@@ -22,11 +21,9 @@ import { ChromeBar, ChromeButton, ChromeGap, stopCanvasEvents } from "../../chro
 
 interface StatusBarProps {
   gridVisible?: boolean;
-  gridSize?: number;
   zoom: number;
   sequences: PresentationSequence[];
   onGridVisibleChange: (visible: boolean) => void;
-  onGridSizeChange: (size: number) => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onZoomTo: (zoomValue: number) => void;
@@ -40,18 +37,16 @@ interface StatusBarProps {
 
 /**
  * 右下状态栏：画风（D-107）· − 缩放百分比 ＋ · 全览 · 演示（D-111）。
- * 百分比点开是「视图」菜单：适应全部 / 适应选中 / 缩放档位 / 点阵开关与点距——
+ * 百分比点开是「视图」菜单：适应全部 / 适应选中 / 缩放档位 / 点阵开关——
  * 低频的背景设置收进菜单，顶层只留缩放与全览。
  * 「演示」一个入口收拢演示序列：点序列即放映，悬停出编辑 / 删除，底部「新建演示序列」。
  */
 const StatusBar = memo((props: StatusBarProps) => {
   const {
     gridVisible = false,
-    gridSize,
     zoom,
     sequences,
     onGridVisibleChange,
-    onGridSizeChange,
     onZoomIn,
     onZoomOut,
     onZoomTo,
@@ -110,18 +105,6 @@ const StatusBar = memo((props: StatusBarProps) => {
         <Menu.CheckboxItem checked={gridVisible} onCheckedChange={onGridVisibleChange}>
           显示点阵
         </Menu.CheckboxItem>
-        <Menu.Submenu label="点距" disabled={!gridVisible}>
-          <Menu.RadioGroup
-            value={String(gridSize ?? "")}
-            onValueChange={v => onGridSizeChange(Number(v))}
-          >
-            {GRID_SIZE_OPTIONS.map(o => (
-              <Menu.RadioItem key={o.value} value={String(o.value)} kbd={String(o.value)}>
-                {o.label}
-              </Menu.RadioItem>
-            ))}
-          </Menu.RadioGroup>
-        </Menu.Submenu>
       </Menu>
       <ChromeButton label="放大" kbd="⌘＋" tooltipPlacement="top" onClick={onZoomIn}>
         <Plus strokeWidth={1.75} />

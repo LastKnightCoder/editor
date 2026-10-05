@@ -18,7 +18,6 @@ interface BoardContentProps extends SVGProps<SVGSVGElement> {
   noneCenterConnectArrows: BoardElement[];
   centerConnectAndSelectedArrows: BoardElement[];
   gridVisible?: boolean;
-  gridSize?: number;
   disableViewportFilter?: boolean;
   isolateStaticSelection?: boolean;
   showAssistLayers?: boolean;
@@ -44,7 +43,6 @@ const BoardContent = memo(
       noneCenterConnectArrows,
       centerConnectAndSelectedArrows,
       gridVisible = false,
-      gridSize = 20,
       disableViewportFilter = false,
       isolateStaticSelection = false,
       showAssistLayers = true,
@@ -98,7 +96,7 @@ const BoardContent = memo(
           <rect x={minX} y={minY} width={width} height={height} fill={backgroundColor} />
         )}
         <ArrowMarkers />
-        <Grid visible={gridVisible} gridSize={gridSize} />
+        <Grid visible={gridVisible} />
         <SelectionContext.Provider value={staticLayerSelection}>
           {/* 1. 中心连接且未选中的箭头（最底层） */}
           <g data-layer="center-connect-arrows">{visibleCenterConnectArrows}</g>
