@@ -19,6 +19,7 @@ import { getContentById } from "@/commands/content";
 import Loading from "@/components/Loading";
 import type { KnowledgeMap } from "@/knowledge-map/types";
 import { GraphCaption } from "./GraphCaption";
+import { placePreview, type PreviewPlace } from "./core/previewPlacement";
 import type { GraphItem } from "./core/types";
 import {
   useGraphEngine,
@@ -27,6 +28,7 @@ import {
   type GraphOverlayApi,
   type PlaybackState,
 } from "./useGraphEngine";
+import type { Box } from "./renderers/Canvas2DRenderer";
 
 export type { CanvasCircle, GraphInsight, GraphItem, GraphOverlayApi, PlaybackState };
 
@@ -134,27 +136,42 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
   } | null>(null);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [previewId, setPreviewId] = useState<number | null>(null);
-  // 锚点是一个零尺寸空 div：AnchoredPanel 要的是 DOM 元素，而我们只有 canvas 坐标
+  const [place, setPlace] = useState<PreviewPlace | null>(null);
+  // 锚点是一个盖住节点与标题的空 div：AnchoredPanel 要的是 DOM 元素，而我们只有 canvas 坐标
   const anchorRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
 
   const padding = fitViewPadding[0] ?? 40;
 
-  const handleHoverNode = useMemoizedFn(
-    (payload: { id: number; canvasX: number; canvasY: number } | null) => {
-      if (!payload) {
-        setAnchor(null);
-        setPreviewId(null);
-        return;
-      }
-      const element = anchorRef.current;
-      if (!element) return;
-      element.style.left = `${payload.canvasX}px`;
-      element.style.top = `${payload.canvasY}px`;
-      setPreviewId(payload.id);
-      setAnchor(element);
+  const handleHoverNode = useMemoizedFn((payload: { id: number; box: Box } | null) => {
+    if (!payload) {
+      setAnchor(null);
+      setPreviewId(null);
+      return;
     }
-  );
+    const element = anchorRef.current;
+    const canvasRect = engine.canvasRef.current?.getBoundingClientRect();
+    if (!element || !canvasRect) return;
+    const { box } = payload;
+    element.style.left = `${box.left}px`;
+    element.style.top = `${box.top}px`;
+    element.style.width = `${box.right - box.left}px`;
+    element.style.height = `${box.bottom - box.top}px`;
+    setPlace(
+      placePreview(
+        {
+          left: canvasRect.left + box.left,
+          right: canvasRect.left + box.right,
+          top: canvasRect.top + box.top,
+          bottom: canvasRect.top + box.bottom,
+        },
+        { width: cardWidth, maxHeight: cardMaxHeight },
+        { width: window.innerWidth, height: window.innerHeight }
+      )
+    );
+    setPreviewId(payload.id);
+    setAnchor(element);
+  });
 
   const handleClickNode = useMemoizedFn((item: GraphItem) => {
     setAnchor(null);
@@ -228,9 +245,9 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
       ({
         width: cardWidth,
         fontSize: cardFontSize,
-        "--graph-preview-max-h": `${cardMaxHeight}px`,
+        "--graph-preview-max-h": `${place?.maxHeight ?? cardMaxHeight}px`,
       }) as React.CSSProperties,
-    [cardWidth, cardFontSize, cardMaxHeight]
+    [cardWidth, cardFontSize, cardMaxHeight, place]
   );
 
   return (
@@ -243,7 +260,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
       style={style}
     >
       <canvas ref={engine.canvasRef} className="block h-full w-full touch-none" />
-      <div ref={anchorRef} className="pointer-events-none absolute h-0 w-0" />
+      <div ref={anchorRef} className="pointer-events-none absolute" />
       {overlay && engine.ready && (
         <div className="pointer-events-none absolute inset-0">{overlay}</div>
       )}
@@ -265,7 +282,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
         <AnchoredPanel
           ref={panelRef}
           anchor={anchor}
-          placement="bottom-start"
+          placement={place?.placement ?? "bottom-start"}
           style={panelStyle}
           onPointerLeave={handlePanelLeave}
         >
