@@ -11,6 +11,38 @@ import { TEXT_BOX, TextBoxPadding, toCssPadding } from "../constants/text-style"
 /** 与 RichText 的 .richTextContainer 保持一致（静态 Tailwind 类），改那边要同步这里 */
 const RICH_TEXT_BLOCK_DISTANCE = "10px";
 
+/** 影响折行的可继承排版属性：在屏容器从白板祖先继承，克隆挂到 body 下会丢 */
+const INHERITED_TYPOGRAPHY_PROPS = [
+  "font-family",
+  "font-size",
+  "font-weight",
+  "font-style",
+  "font-stretch",
+  "font-variation-settings",
+  "font-feature-settings",
+  "font-kerning",
+  "line-height",
+  "letter-spacing",
+  "word-spacing",
+  "text-transform",
+  "word-break",
+  "line-break",
+  "--block-distance",
+];
+
+/** 让测量 wrapper 复现 source 处的排版环境 */
+const inheritTypography = (source: Element | null, target: HTMLElement) => {
+  if (!source) return;
+  const computed = getComputedStyle(source);
+  for (const prop of INHERITED_TYPOGRAPHY_PROPS) {
+    target.style.setProperty(prop, computed.getPropertyValue(prop));
+  }
+};
+
+/** 离屏渲染没有在屏容器可参照：字号/行高取白板画布处的继承值，元素滚出视口时画布仍在 */
+const inheritBoardTypography = (target: HTMLElement) =>
+  inheritTypography(document.querySelector("[data-whiteboard-canvas]"), target);
+
 const DEFAULT_PADDING: TextBoxPadding = {
   top: TEXT_BOX.paddingY,
   right: TEXT_BOX.paddingX,
@@ -67,21 +99,22 @@ export class DOMSizeMeasurer {
     content: Descendant[],
     targetWidth: number,
     padding: TextBoxPadding = DEFAULT_PADDING,
-    contentId?: number
+    contentId?: number,
+    /** 手绘字体等文字容器类名，仅离屏渲染用；克隆时直接继承在屏容器 */
+    textClassName = ""
   ): Promise<number> {
     // 策略1：尝试克隆已存在的 DOM 元素
     // 修复：使用正确的 ID 格式 rich-text-container-${elementId}
     const existingHeight = await this.measureByCloning(
       `rich-text-container-${elementId}`,
-      targetWidth,
-      padding
+      targetWidth
     );
     if (existingHeight !== null) {
       return existingHeight;
     }
 
     // 策略2：使用 Editor 渲染测量
-    return this.measureByRendering(content, targetWidth, padding, contentId);
+    return this.measureByRendering(content, targetWidth, padding, contentId, textClassName);
   }
 
   /**
@@ -99,7 +132,8 @@ export class DOMSizeMeasurer {
     elementId: string,
     content: Descendant[],
     padding: TextBoxPadding = DEFAULT_PADDING,
-    contentId?: number
+    contentId?: number,
+    textClassName = ""
   ): Promise<number> {
     // 策略1：尝试克隆已存在的 DOM 元素
     const existingWidth = await this.measureWidthByCloning(
@@ -111,7 +145,7 @@ export class DOMSizeMeasurer {
     }
 
     // 策略2：使用 Editor 渲染测量
-    return this.measureWidthByRendering(content, padding, contentId);
+    return this.measureWidthByRendering(content, padding, contentId, textClassName);
   }
 
   /**
@@ -119,8 +153,7 @@ export class DOMSizeMeasurer {
    */
   private static async measureByCloning(
     containerId: string,
-    targetWidth: number,
-    padding: TextBoxPadding
+    targetWidth: number
   ): Promise<number | null> {
     // 查找已渲染的元素
     const existingElement = document.getElementById(containerId);
@@ -133,14 +166,14 @@ export class DOMSizeMeasurer {
     const container = this.getContainer();
     const measureId = `measure-${++this.measurementId}`;
 
-    // 创建测量包装器
+    // 内边距由克隆的 slate 节点自带的 inline padding 提供，wrapper 不再重复加
     const wrapper = document.createElement("div");
     wrapper.id = measureId;
     wrapper.style.cssText = `
       width: ${targetWidth}px;
-      padding: 0 ${padding.right}px 0 ${padding.left}px;
       box-sizing: border-box;
     `;
+    inheritTypography(existingElement, wrapper);
 
     // 克隆 slate editor
     const clonedEditor = slateEditor.cloneNode(true) as HTMLElement;
@@ -196,6 +229,7 @@ export class DOMSizeMeasurer {
     wrapper.style.cssText = `
       width: 99999px;
     `;
+    inheritTypography(existingElement, wrapper);
 
     // 克隆 slate editor：fit-content shrink-to-fit 到文字自然宽度
     // 显式清除 inline width/maxWidth 封顶，保留 normal 换行取最长行
@@ -233,7 +267,8 @@ export class DOMSizeMeasurer {
     content: Descendant[],
     targetWidth: number,
     padding: TextBoxPadding,
-    contentId?: number
+    contentId: number | undefined,
+    textClassName: string
   ): Promise<number> {
     const container = this.getContainer();
     const measureId = `measure-${++this.measurementId}`;
@@ -245,6 +280,7 @@ export class DOMSizeMeasurer {
       width: ${targetWidth}px;
       box-sizing: border-box;
     `;
+    inheritBoardTypography(wrapper);
 
     container.appendChild(wrapper);
 
@@ -274,6 +310,7 @@ export class DOMSizeMeasurer {
         <DndProvider backend={HTML5Backend}>
           <div
             id={innerContainerId}
+            className={textClassName}
             style={{
               width: "100%",
               padding: toCssPadding(padding),
@@ -373,7 +410,8 @@ export class DOMSizeMeasurer {
   private static async measureWidthByRendering(
     content: Descendant[],
     padding: TextBoxPadding,
-    contentId?: number
+    contentId: number | undefined,
+    textClassName: string
   ): Promise<number> {
     const container = this.getContainer();
     const measureId = `measure-width-${++this.measurementId}`;
@@ -384,6 +422,7 @@ export class DOMSizeMeasurer {
     wrapper.style.cssText = `
       width: 99999px;
     `;
+    inheritBoardTypography(wrapper);
 
     container.appendChild(wrapper);
 
@@ -409,6 +448,7 @@ export class DOMSizeMeasurer {
         <DndProvider backend={HTML5Backend}>
           <div
             id={innerContainerId}
+            className={textClassName}
             style={{
               width: "fit-content",
               maxWidth: "none",

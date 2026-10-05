@@ -103,11 +103,7 @@ export class CapabilityService {
   /**
    * 对于 RootOnly 类型，整体移动所有子元素
    */
-  snapMoveAll(
-    element: BoardElement,
-    dx: number,
-    dy: number,
-  ): BoardElement | null {
+  snapMoveAll(element: BoardElement, dx: number, dy: number): BoardElement | null {
     const snap = this.getSnapCapability(element.type);
     if (snap.behavior === SnapBehavior.RootOnly && snap.moveAll) {
       return snap.moveAll(element, dx, dy);
@@ -186,10 +182,7 @@ export class CapabilityService {
    * 供创建流程等尚无容器元素的场合预判准入）。
    */
   canBeContainedByType(element: BoardElement, containerType: string): boolean {
-    return this.canContain(
-      { id: "", type: containerType } as BoardElement,
-      element,
-    );
+    return this.canContain({ id: "", type: containerType } as BoardElement, element);
   }
 
   // ===========================================================================
@@ -245,7 +238,7 @@ export class CapabilityService {
   buildElementMoveOps(
     originElement: BoardElement,
     targetElement: BoardElement,
-    path: number[],
+    path: number[]
   ): Operation[] {
     if (
       this.shouldTranslateAsSubtree(targetElement) &&
@@ -258,7 +251,7 @@ export class CapabilityService {
         originElement,
         path,
         targetElement.x - originElement.x,
-        targetElement.y - originElement.y,
+        targetElement.y - originElement.y
       );
     }
     return BoardUtil.diffNodePatchOnly(originElement, targetElement, path);
@@ -268,18 +261,14 @@ export class CapabilityService {
    * 检查元素是否需要带着子元素一起移动
    */
   shouldMoveWithChildren(element: BoardElement): boolean {
-    return (
-      this.getMovementBehavior(element) === MovementBehavior.MoveWithChildren
-    );
+    return this.getMovementBehavior(element) === MovementBehavior.MoveWithChildren;
   }
 
   /**
    * 检查元素移动后是否需要重新布局
    */
   requiresRelayout(element: BoardElement): boolean {
-    return (
-      this.getMovementBehavior(element) === MovementBehavior.RequiresRelayout
-    );
+    return this.getMovementBehavior(element) === MovementBehavior.RequiresRelayout;
   }
 
   /**
@@ -311,10 +300,7 @@ export class CapabilityService {
   /**
    * 过滤渲染期可见的子元素（未声明能力时全部可见）
    */
-  getVisibleChildren(
-    element: BoardElement,
-    children: BoardElement[],
-  ): BoardElement[] {
+  getVisibleChildren(element: BoardElement, children: BoardElement[]): BoardElement[] {
     const render = this.getRenderCapability(element.type);
     if (render.filterVisibleChildren) {
       return render.filterVisibleChildren(element, children);
@@ -326,9 +312,7 @@ export class CapabilityService {
    * 子元素是否应该反向渲染
    */
   shouldReverseChildren(element: BoardElement): boolean {
-    return (
-      this.getChildrenRenderOrder(element) === ChildrenRenderOrder.Reversed
-    );
+    return this.getChildrenRenderOrder(element) === ChildrenRenderOrder.Reversed;
   }
 
   /**
@@ -392,13 +376,10 @@ export class CapabilityService {
   /**
    * 测量元素在指定宽度下的高度
    */
-  async measureElementHeight(
-    element: BoardElement,
-    targetWidth: number,
-  ): Promise<number> {
+  async measureElementHeight(element: BoardElement, targetWidth: number): Promise<number> {
     const measCap = this.getMeasurementCapability(element.type);
     if (measCap.measureHeightForWidth) {
-      return measCap.measureHeightForWidth(element, targetWidth);
+      return measCap.measureHeightForWidth(element, targetWidth, this.board);
     }
     // 降级：保持当前高度
     return element.height || 50;
@@ -415,16 +396,11 @@ export class CapabilityService {
   isElementInContainer(
     container: BoardElement,
     element: BoardElement,
-    pointerPosition?: Point,
+    pointerPosition?: Point
   ): boolean {
     const caps = this.getContainmentCapability(container.type);
     if (caps.isElementInContainer) {
-      return caps.isElementInContainer(
-        this.board,
-        container,
-        element,
-        pointerPosition,
-      );
+      return caps.isElementInContainer(this.board, container, element, pointerPosition);
     }
     return false;
   }
@@ -437,18 +413,14 @@ export class CapabilityService {
     if (caps.isChildInContainer) {
       return caps.isChildInContainer(container, child);
     }
-    return container.children?.some((c) => c.id === child.id) ?? false;
+    return container.children?.some(c => c.id === child.id) ?? false;
   }
 
   /**
    * 获取插入索引
    * @param excludeElementId - 排除某个元素（用于同一容器内拖拽）
    */
-  getDropIndex(
-    container: BoardElement,
-    dropY: number,
-    excludeElementId?: string,
-  ): number {
+  getDropIndex(container: BoardElement, dropY: number, excludeElementId?: string): number {
     const caps = this.getContainmentCapability(container.type);
     if (caps.getDropIndex) {
       return caps.getDropIndex(this.board, container, dropY, excludeElementId);
@@ -461,7 +433,7 @@ export class CapabilityService {
    */
   async prepareElementForInsertion(
     container: BoardElement,
-    element: BoardElement,
+    element: BoardElement
   ): Promise<BoardElement> {
     const caps = this.getContainmentCapability(container.type);
     if (caps.prepareElementForInsertion) {
@@ -483,10 +455,7 @@ export class CapabilityService {
    * @param container 容器元素
    * @param removedChild 被移除的子元素（可选，用于恢复属性等）
    */
-  notifyChildRemoved(
-    container: BoardElement,
-    removedChild?: BoardElement,
-  ): void {
+  notifyChildRemoved(container: BoardElement, removedChild?: BoardElement): void {
     const caps = this.getContainmentCapability(container.type);
     caps.onChildRemoved?.(this.board, container, removedChild);
   }
@@ -495,9 +464,7 @@ export class CapabilityService {
    * 是否为有序容器（子元素位置由容器布局管理）
    */
   hasOrderedChildren(container: BoardElement): boolean {
-    return (
-      this.getContainmentCapability(container.type).orderedChildren === true
-    );
+    return this.getContainmentCapability(container.type).orderedChildren === true;
   }
 
   /**
@@ -506,16 +473,11 @@ export class CapabilityService {
   buildChildDragFeedbackOps(
     container: BoardElement,
     childId: string,
-    position: { x: number; y: number },
+    position: { x: number; y: number }
   ): Operation[] {
     const caps = this.getContainmentCapability(container.type);
     if (!caps.buildChildDragFeedbackOps) return [];
-    return caps.buildChildDragFeedbackOps(
-      this.board,
-      container,
-      childId,
-      position,
-    );
+    return caps.buildChildDragFeedbackOps(this.board, container, childId, position);
   }
 
   /**
@@ -523,7 +485,7 @@ export class CapabilityService {
    */
   buildDragFeedbackOps(
     container: BoardElement,
-    feedback: ContainerDragFeedback | null,
+    feedback: ContainerDragFeedback | null
   ): Operation[] {
     const caps = this.getContainmentCapability(container.type);
     if (!caps.buildDragFeedbackOps) return [];
@@ -542,7 +504,7 @@ export class CapabilityService {
    * 重算容器的外包 bounds（无声明返回 null，表示容器不自适应）
    */
   calculateContainerBounds(
-    container: BoardElement,
+    container: BoardElement
   ): { x: number; y: number; width: number; height: number } | null {
     const caps = this.getContainmentCapability(container.type);
     return caps.calculateBounds?.(this.board, container) ?? null;
