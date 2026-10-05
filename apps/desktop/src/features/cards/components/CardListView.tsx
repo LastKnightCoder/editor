@@ -6,7 +6,7 @@
  * 列头在滚动容器内吸顶（scrollMargin 让出列头高度）。
  */
 
-import { useLayoutEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Link2, Maximize2, MoreHorizontal, Star } from "lucide-react";
 import type { ICard } from "@/types";
@@ -16,7 +16,9 @@ import { cockpitRelativeTime } from "@/features/shared/cockpit/text";
 import { formatDate } from "@/features/shared/cockpit/model";
 import { cardListText, sortCardList, type CardListSort } from "../listModel";
 import { CardActionMenu } from "./CardActionMenu";
+import { useScrollTopOnChange } from "./useScrollTopOnChange";
 import type { CardItemActions } from "../types";
+import { cardMorphKey } from "../morph";
 
 const ROW_HEIGHT = 56;
 const HEAD_HEIGHT = 32;
@@ -43,9 +45,7 @@ export function CardListView({
   useEdgeFade(scrollEl, { top: false });
   const rows = useMemo(() => sortCardList(cards, sort), [cards, sort]);
 
-  useLayoutEffect(() => {
-    if (scrollEl) scrollEl.scrollTop = 0;
-  }, [scrollEl, resetScrollKey, sort]);
+  useScrollTopOnChange(scrollEl, `${resetScrollKey ?? ""}\n${sort}`);
 
   const virtualizer = useVirtualizer({
     count: rows.length,
@@ -113,6 +113,8 @@ function CardListRow({
   return (
     <div
       tabIndex={0}
+      data-morph-key={cardMorphKey(card.id)}
+      onPointerEnter={() => actions.onPrefetch?.(card)}
       onClick={() => actions.onOpen(card)}
       onKeyDown={e => {
         if (e.key === "Enter" && e.target === e.currentTarget) actions.onOpen(card);

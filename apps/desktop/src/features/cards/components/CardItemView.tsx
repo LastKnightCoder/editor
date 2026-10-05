@@ -13,6 +13,7 @@ import { FadeWhenOverflow } from "./FadeWhenOverflow";
 import { IconButton, cn, Tag } from "@tau/ui";
 import { CardActionMenu } from "./CardActionMenu";
 import type { CardItemActions } from "../types";
+import { cardMorphKey } from "../morph";
 
 export interface CardItemViewProps {
   card: ICard;
@@ -25,6 +26,8 @@ export function CardItemView({ card, actions, previewMaxHeight = 150 }: CardItem
   return (
     <article
       tabIndex={0}
+      data-morph-key={cardMorphKey(card.id)}
+      onPointerEnter={() => actions.onPrefetch?.(card)}
       onClick={() => actions.onOpen(card)}
       className={cn(
         "bg-surface border-line-1 ease-tau-out group flex cursor-pointer flex-col gap-2 rounded-[var(--tau-radius-md)] border p-[13px] pb-[11px]",
