@@ -147,6 +147,8 @@ export {
   type AiRunStateResult,
 } from "./chat-core/aiRunProtocol";
 
+export { APPEARANCE_METHODS, type AppearanceThemePayload } from "./appearanceProtocol";
+
 export type {
   ColumnDef,
   CellValue,

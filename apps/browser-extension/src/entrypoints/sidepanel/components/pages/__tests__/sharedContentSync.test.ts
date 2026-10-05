@@ -9,7 +9,7 @@ describe("resolveRemoteSyncRequirement", () => {
         lastSyncedContentUpdateTime: null,
         localContentUpdatedAt: 200,
         contentMatchesRemote: true,
-      }),
+      })
     ).toBe("none");
   });
 
@@ -20,7 +20,7 @@ describe("resolveRemoteSyncRequirement", () => {
         lastSyncedContentUpdateTime: 200,
         localContentUpdatedAt: 200,
         contentMatchesRemote: false,
-      }),
+      })
     ).toBe("pull-remote");
   });
 
@@ -31,7 +31,7 @@ describe("resolveRemoteSyncRequirement", () => {
         lastSyncedContentUpdateTime: null,
         localContentUpdatedAt: 250,
         contentMatchesRemote: false,
-      }),
+      })
     ).toBe("confirm-sync");
   });
 
@@ -42,7 +42,7 @@ describe("resolveRemoteSyncRequirement", () => {
         lastSyncedContentUpdateTime: 200,
         localContentUpdatedAt: 350,
         contentMatchesRemote: false,
-      }),
+      })
     ).toBe("confirm-sync");
   });
 });

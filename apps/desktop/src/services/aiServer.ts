@@ -6,6 +6,8 @@ import { installBrowserBridgeRenderer } from "@/services/browserBridgeRenderer";
 import { piStreamChat, piTextOf, piThinkingOf } from "@/services/piLLM";
 import {
   AI_RUN_METHODS,
+  APPEARANCE_METHODS,
+  type AppearanceThemePayload,
   type AiRunEvent,
   type AiRunEventNotification,
   type AiRunStartParams,
@@ -16,6 +18,7 @@ import useSkillStore from "@/stores/useSkillStore";
 import { openContent } from "./open-content";
 import { openPage } from "./page-navigation";
 import { produce } from "immer";
+import { useThemeStore } from "@tau/themes/react";
 import { ensureToolingReady } from "@/tools";
 import { Role } from "@/constants";
 import type { RequestMessage, ToolCallPayload } from "@/types";
@@ -75,6 +78,7 @@ interface RemoteContentUpdatedNotificationData {
 }
 
 let aiServer: WebSocketServer | null = null;
+let disposeThemeForwarder: (() => void) | null = null;
 let extToolClient: WebSocketClient | null = null;
 let isInitialized = false;
 let disposeContentRemoteUpdateForwarder: (() => void) | null = null;
@@ -778,6 +782,17 @@ export const initAiServer = () => {
   aiServer.addRequestHandler("article.isContentIsArticle", handleArticleIsContentIsArticle);
   aiServer.addRequestHandler("note.showInsertModal", handleNoteShowInsertModal);
   aiServer.addRequestHandler("mcp.manager.open", handleMcpManagerOpen);
+
+  // 主题同步：扩展只跟随主题族，明暗各自决定（任一窗口换主题都会经 storage 事件同步到本窗口）
+  aiServer.addRequestHandler(APPEARANCE_METHODS.getTheme, async () => ({
+    theme: useThemeStore.getState().theme,
+  }));
+  disposeThemeForwarder = useThemeStore.subscribe((state, previous) => {
+    if (state.theme === previous.theme) return;
+    aiServer?.sendNotification<AppearanceThemePayload>(APPEARANCE_METHODS.themeChanged, {
+      theme: state.theme,
+    });
+  });
   aiServer.addRequestHandler("block.preview.open", handleBlockPreviewOpen);
 
   // 内容引用打开使用当前内容入口，不保留旧 Tab 协议。
@@ -827,6 +842,8 @@ export const initAiServer = () => {
  * 关闭 AI 服务端
  */
 export const closeAiServer = () => {
+  disposeThemeForwarder?.();
+  disposeThemeForwarder = null;
   disposeContentRemoteUpdateForwarder?.();
   disposeContentRemoteUpdateForwarder = null;
   contentSubscriptionRegistry.clear();
