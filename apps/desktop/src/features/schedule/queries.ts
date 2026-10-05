@@ -29,7 +29,12 @@ import type {
   TodoCalendarEventSource,
 } from "@/types";
 import { useScheduleStore } from "./uiStore";
-import { buildCalendarKinds, type EventSourceKind } from "./eventTone";
+import {
+  buildCalendarKinds,
+  buildCalendarRoles,
+  type CalendarRole,
+  type EventSourceKind,
+} from "./eventTone";
 
 const databaseId = (database: string) => database.replace(/\.db$/, "");
 export const scheduleKeys = {
@@ -272,6 +277,12 @@ export function useScheduleMutations() {
       },
     };
   }, [client, database, commands, assertCurrentDatabase]);
+}
+
+/** calendarId → 系统日历角色（番茄钟 / 截止 / 计划 / 周期），随日历与分组变化重算 */
+export function useCalendarRoles(): Map<number, CalendarRole> {
+  const { calendars, calendarGroups } = useCalendarCatalog();
+  return useMemo(() => buildCalendarRoles(calendars, calendarGroups), [calendars, calendarGroups]);
 }
 
 /** calendarId → 来源类型（番茄钟 / 待办），随日历与分组变化重算 */

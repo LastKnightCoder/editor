@@ -1,8 +1,9 @@
 /**
  * 当日时间线（方案 C，承载在日程页右侧非模态抽屉里）：选中日 = store.currentDate（月视图点格子 / 周视图点日期头切换）。
  *
- * 大号日期 → 全天条 → 定时日程时间线（08:00–22:00 内 ≥1 小时的空档显示「点击安排」，
- * 今天插入「现在」）→ 底部自然语言快速添加（quickAdd.ts 解析，回车直接创建）。
+ * 大号日期 → 标记区（全天日程、截止、周期打卡）→ 定时日程时间线 → 底部自然语言快速添加（quickAdd.ts 解析，回车直接创建）。
+ * 时间线按账本呈现（ledger.ts）：已结束 = 记录（实心），未开始 = 计划（空心），跨过现在在现在处切开；
+ * 过去两条日程之间 ≥15 分钟的空隙可就地补记；今天之后 08:00–22:00 内 ≥1 小时的空档显示「点击安排」。
  */
 
 import { useMemo, useState } from "react";
@@ -10,27 +11,28 @@ import { ChevronLeft, ChevronRight, CornerDownLeft, Plus } from "lucide-react";
 import { IconButton, cn, toast } from "@tau/ui";
 import { FadeScroll } from "@/components/FadeScroll";
 import { useScheduleStore } from "../uiStore";
-import { useCalendarCatalog, useCalendarEvents, useScheduleMutations } from "../queries";
+import {
+  useCalendarCatalog,
+  useCalendarEvents,
+  useCalendarRoles,
+  useScheduleMutations,
+} from "../queries";
 import { formatTime, getDateStart } from "@/utils/calendar";
 import type { Calendar, CalendarEvent } from "@/types";
-import { TONE, TONE_SOFT_BG, eventToneStyle } from "../eventTone";
+import { PLAN_OUTLINE, TONE, TONE_SOFT_BG, eventToneStyle, ledgerFill } from "../eventTone";
+import { buildDayTimeline, isMarker, type TimelineItem } from "../ledger";
 import { usePeekStore } from "../peekStore";
-import { parseQuickAdd } from "../quickAdd";
+import { extractCalendarTag, parseQuickAdd } from "../quickAdd";
 import { AllDayBar } from "./EventChips";
 import { EventTitle, useEventDecor } from "./EventTitle";
 import { useNowMinutes } from "./TimeGridParts";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
-const DAY_FROM = 8 * 60;
-const DAY_TO = 22 * 60;
-const MIN_GAP = 60;
-
-type TimelineItem =
-  | { kind: "event"; event: CalendarEvent; start: number; end: number }
-  | { kind: "gap"; start: number; end: number }
-  | { kind: "now"; at: number };
 
 const hours = (minutes: number) => `${Number((minutes / 60).toFixed(1))} 小时`;
+
+/** 标记排序：全天在前，定时标记（截止时刻）按时刻在后 */
+const markerOrder = (event: CalendarEvent) => (event.allDay ? -1 : (event.startTime ?? 0));
 
 /** 选中日（store.currentDate）及其日程：当日时间线与工具条的当日按钮共用 */
 export function useDayEvents() {
@@ -50,47 +52,38 @@ export function useDayEvents() {
   return { day, isToday, dayEvents };
 }
 
+/** 可写入的用户日历（排除系统日历与已归档），首个为默认 */
+function useWritableCalendars() {
+  const { calendars } = useCalendarCatalog();
+  return useMemo(() => calendars.filter(c => !c.isInSystemGroup && !c.archived), [calendars]);
+}
+
 export function DayColumn() {
   const { calendars } = useCalendarCatalog();
+  const writable = useWritableCalendars();
+  const roles = useCalendarRoles();
+  const { createEvent } = useScheduleMutations();
   const { setCurrentDate, setEditingEvent } = useScheduleStore.getState();
   const peek = usePeekStore(s => s.peek);
   const nowMinutes = useNowMinutes();
   const { day, isToday, dayEvents } = useDayEvents();
   const date = new Date(day);
   const decorOf = useEventDecor(dayEvents);
-  const allDay = dayEvents.filter(e => e.allDay);
+  // 分钟精度，随 useNowMinutes 的 tick 推进
+  const nowMs = getDateStart(Date.now()) + nowMinutes * 60_000;
 
-  const items = useMemo(() => {
-    const timed = dayEvents
-      .filter(e => !e.allDay && e.startTime !== null)
-      .map(e => ({ event: e, start: e.startTime!, end: e.endTime ?? e.startTime! + 60 }))
-      .sort((a, b) => a.start - b.start);
-    const list: TimelineItem[] = [];
-    let nowPlaced = !isToday;
-    // 今天已过去的时段不再提示安排：空档从当前时间（向上取整到 15 分）起算
-    const nowSlot = Math.ceil(nowMinutes / 15) * 15;
-    const pushGap = (from: number, to: number) => {
-      const start = Math.max(from, DAY_FROM, isToday ? nowSlot : 0);
-      const end = Math.min(to, DAY_TO);
-      if (end - start >= MIN_GAP) list.push({ kind: "gap", start, end });
-    };
-    const pushNowBefore = (at: number) => {
-      if (!nowPlaced && nowMinutes < at) {
-        list.push({ kind: "now", at: nowMinutes });
-        nowPlaced = true;
-      }
-    };
-    let cursor = 0;
-    for (const item of timed) {
-      pushNowBefore(Math.max(item.start, cursor));
-      pushGap(cursor, item.start);
-      list.push({ kind: "event", ...item });
-      cursor = Math.max(cursor, item.end);
-    }
-    pushNowBefore(24 * 60);
-    pushGap(cursor, DAY_TO);
-    return list;
-  }, [dayEvents, isToday, nowMinutes]);
+  const { markers, blocks } = useMemo(() => {
+    const markers: CalendarEvent[] = [];
+    const blocks: CalendarEvent[] = [];
+    for (const event of dayEvents) (isMarker(event, roles) ? markers : blocks).push(event);
+    markers.sort((a, b) => markerOrder(a) - markerOrder(b));
+    return { markers, blocks };
+  }, [dayEvents, roles]);
+
+  const items = useMemo(
+    () => buildDayTimeline({ day, events: blocks, nowMs }),
+    [day, blocks, nowMs]
+  );
 
   const busy = items.reduce(
     (sum, item) => (item.kind === "event" ? sum + item.end - item.start : sum),
@@ -98,7 +91,7 @@ export function DayColumn() {
   );
   const total = dayEvents.length;
 
-  const defaultCalendar = calendars.find(c => !c.isInSystemGroup && !c.archived);
+  const defaultCalendar = writable[0];
 
   const scheduleGap = (start: number) => {
     if (!defaultCalendar) {
@@ -119,6 +112,39 @@ export function DayColumn() {
       color: null,
       allDay: false,
     });
+  };
+
+  /** 补记过去空隙：时间以空隙为准，文本只摘 `#日历`，其余原样作标题 */
+  const recordGap = async (start: number, end: number, text: string) => {
+    const { rest, calendarId } = extractCalendarTag(text, writable);
+    const title = rest.replace(/\s+/g, " ").trim();
+    const calendar = writable.find(c => c.id === calendarId) ?? defaultCalendar;
+    if (!title) {
+      toast.warning("请写上做了什么");
+      return false;
+    }
+    if (!calendar) {
+      toast.warning("请先创建一个日历");
+      return false;
+    }
+    try {
+      await createEvent({
+        title,
+        calendarId: calendar.id,
+        detailContentId: 0,
+        startDate: day,
+        endDate: day,
+        startTime: start,
+        endTime: end,
+        color: null,
+        allDay: false,
+      });
+      return true;
+    } catch (error) {
+      console.error("Failed to record gap:", error);
+      toast.error("补记失败");
+      return false;
+    }
   };
 
   return (
@@ -166,9 +192,9 @@ export function DayColumn() {
 
       {/* FadeScroll 右侧 6px 透明边 + pr-[18px] = 24px，与标题行的 px-6 对齐 */}
       <FadeScroll className="mb-4 min-h-0 flex-1 pb-1 pl-6 pr-[18px]">
-        {allDay.length > 0 && (
+        {markers.length > 0 && (
           <div className="flex flex-col gap-1 pb-2.5 pl-[70px]">
-            {allDay.map(event => (
+            {markers.map(event => (
               <AllDayBar
                 key={event.id}
                 event={event}
@@ -181,17 +207,19 @@ export function DayColumn() {
         )}
         {items.map((item, index) => (
           <TimelineRow
-            key={item.kind === "event" ? `e${item.event.id}` : `${item.kind}${index}`}
+            key={
+              item.kind === "event"
+                ? `e${item.event.id}`
+                : item.kind === "now"
+                  ? "now"
+                  : `${item.kind}${item.start}`
+            }
             item={item}
             first={index === 0}
             last={index === items.length - 1}
-            past={
-              isToday
-                ? item.kind !== "now" && item.end <= nowMinutes
-                : day < getDateStart(Date.now())
-            }
             onPeek={peek}
             onSchedule={scheduleGap}
+            onRecord={recordGap}
             calendars={calendars}
             decorOf={decorOf}
           />
@@ -207,23 +235,24 @@ function TimelineRow({
   item,
   first,
   last,
-  past,
   onPeek,
   onSchedule,
+  onRecord,
   calendars,
   decorOf,
 }: {
   item: TimelineItem;
   first: boolean;
   last: boolean;
-  past: boolean;
   onPeek: (event: CalendarEvent, anchor: HTMLElement) => void;
   onSchedule: (start: number) => void;
+  onRecord: (start: number, end: number, text: string) => Promise<boolean>;
   calendars: Calendar[];
   decorOf: ReturnType<typeof useEventDecor>;
 }) {
   const at = item.kind === "now" ? item.at : item.start;
-  // 已过日程只淡化时间、圆点与卡片，不淡化整行：竖线整条保持同一明度，不断成一截一截
+  const gap = item.kind === "record-gap" || item.kind === "plan-gap";
+  const recorded = item.kind === "event" && item.phase.kind === "record";
   const rail = (
     <span className="relative flex justify-center">
       <span
@@ -237,12 +266,15 @@ function TimelineRow({
       {item.kind === "event" && (
         <i
           className={cn(
-            "relative mt-[11px] size-2.5 rounded-full bg-[var(--cal)] shadow-[0_0_0_3px_var(--tau-bg-surface)]",
-            past && "opacity-55"
+            "relative mt-[11px] size-2.5 rounded-full",
+            // 记录实心圆点，计划 / 进行中空心环
+            recorded
+              ? "bg-[var(--cal)] shadow-[0_0_0_3px_var(--tau-bg-surface)]"
+              : "bg-surface shadow-[inset_0_0_0_1.5px_var(--cal),0_0_0_3px_var(--tau-bg-surface)]"
           )}
         />
       )}
-      {item.kind === "gap" && (
+      {gap && (
         <i className="bg-surface relative mt-[11px] size-2.5 rounded-full shadow-[inset_0_0_0_1.5px_var(--tau-bg-track),0_0_0_3px_var(--tau-bg-surface)]" />
       )}
       {item.kind === "now" && (
@@ -262,45 +294,32 @@ function TimelineRow({
       <span
         className={cn(
           "font-tau-mono pt-[9px] text-right text-[11.5px] tabular-nums",
-          past && item.kind === "event" && "opacity-55",
-          item.kind === "now"
-            ? "text-accent-text font-semibold"
-            : item.kind === "gap"
-              ? "text-ink-3"
-              : "text-ink-2"
+          item.kind === "now" ? "text-accent-text font-semibold" : gap ? "text-ink-3" : "text-ink-2"
         )}
       >
         {formatTime(at)}
       </span>
       {rail}
       {item.kind === "event" && (
-        <div
-          onClick={e => onPeek(item.event, e.currentTarget)}
-          className={cn(
-            // 白底细描边落在淡暖底上（不再色块叠色块）；日历色由时间线圆点承担
-            "bg-surface border-line-1 ease-tau-out hover:shadow-lift my-[3px] cursor-pointer rounded-[10px] border px-2.5 py-1.5 transition-[box-shadow,border-color] duration-200 hover:border-transparent",
-            past && "opacity-55"
-          )}
-        >
-          <EventTitle
-            event={item.event}
-            decor={decorOf(item.event)}
-            className="text-tau-body font-medium"
-          />
-          <span className="text-ink-2 font-tau-mono text-[11px] tabular-nums">
-            {formatTime(item.start)} – {formatTime(item.end)} ·{" "}
-            {calendars.find(c => c.id === item.event.calendarId)?.title}
-          </span>
-        </div>
+        <EventCard
+          item={item}
+          recorded={recorded}
+          onPeek={onPeek}
+          calendars={calendars}
+          decorOf={decorOf}
+        />
       )}
-      {item.kind === "gap" && (
+      {item.kind === "plan-gap" && (
         <button
           type="button"
           onClick={() => onSchedule(item.start)}
-          className="text-ink-3 hover:text-ink-2 hover:bg-hover text-tau-sm my-[3px] rounded-[10px] border border-dashed border-[var(--tau-bg-track)] px-2.5 py-[5px] text-left"
+          className={cn("text-ink-3 hover:text-ink-2 hover:bg-hover text-left", GAP_FRAME)}
         >
           空档 {hours(item.end - item.start)} · 点击安排
         </button>
+      )}
+      {item.kind === "record-gap" && (
+        <RecordGap start={item.start} end={item.end} onRecord={onRecord} />
       )}
       {item.kind === "now" && (
         <span className="text-accent-text font-tau-mono pt-[9px] text-[11.5px] font-semibold">
@@ -311,18 +330,121 @@ function TimelineRow({
   );
 }
 
+const GAP_FRAME =
+  "text-tau-sm my-[3px] rounded-[10px] border border-dashed border-[var(--tau-bg-track)] px-2.5 py-[5px]";
+
+function EventCard({
+  item,
+  recorded,
+  onPeek,
+  calendars,
+  decorOf,
+}: {
+  item: Extract<TimelineItem, { kind: "event" }>;
+  recorded: boolean;
+  onPeek: (event: CalendarEvent, anchor: HTMLElement) => void;
+  calendars: Calendar[];
+  decorOf: ReturnType<typeof useEventDecor>;
+}) {
+  const fill = ledgerFill(item.phase);
+  return (
+    <div
+      onClick={e => onPeek(item.event, e.currentTarget)}
+      // 计划描边取数据色；记录无描边，软底即边界
+      style={{ ...fill.style, borderColor: recorded ? "transparent" : PLAN_OUTLINE }}
+      className={cn(
+        "ease-tau-out hover:shadow-lift my-[3px] cursor-pointer rounded-[10px] border px-2.5 py-1.5 transition-shadow duration-200",
+        fill.className
+      )}
+    >
+      <EventTitle
+        event={item.event}
+        decor={decorOf(item.event)}
+        className="text-tau-body font-medium"
+      />
+      <span className="text-ink-2 font-tau-mono text-[11px] tabular-nums">
+        {formatTime(item.start)} – {formatTime(item.end)} ·{" "}
+        {calendars.find(c => c.id === item.event.calendarId)?.title}
+      </span>
+    </div>
+  );
+}
+
+/** 过去空隙：点击原位输入，回车按空隙起止补记一条日程 */
+function RecordGap({
+  start,
+  end,
+  onRecord,
+}: {
+  start: number;
+  end: number;
+  onRecord: (start: number, end: number, text: string) => Promise<boolean>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState("");
+  const [saving, setSaving] = useState(false);
+  const range = `${formatTime(start)}–${formatTime(end)}`;
+
+  const cancel = () => {
+    setEditing(false);
+    setText("");
+  };
+
+  const submit = async () => {
+    if (saving) return;
+    setSaving(true);
+    const ok = await onRecord(start, end, text);
+    setSaving(false);
+    if (ok) cancel();
+  };
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        className={cn("text-ink-3 hover:text-ink-2 hover:bg-hover text-left", GAP_FRAME)}
+      >
+        + 补记 {range}
+      </button>
+    );
+  }
+  return (
+    <input
+      autoFocus
+      value={text}
+      disabled={saving}
+      aria-label={`补记 ${range}`}
+      placeholder={`${range} 做了什么？回车补记`}
+      onChange={e => setText(e.target.value)}
+      onKeyDown={e => {
+        if (e.key === "Enter" && !e.nativeEvent.isComposing) void submit();
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          cancel();
+        }
+      }}
+      // 失焦时空内容收起；已写的内容保留在输入态，不丢字
+      onBlur={() => {
+        if (!text.trim()) cancel();
+      }}
+      className={cn(
+        "bg-surface text-tau-body placeholder:text-ink-3 border-accent text-ink-1 border-solid outline-none",
+        GAP_FRAME
+      )}
+    />
+  );
+}
+
 /** 底部快速添加：输入即解析，命中片段以标签回显；回车创建 */
 function QuickAdd({ day }: { day: number }) {
   const { calendars } = useCalendarCatalog();
+  const candidates = useWritableCalendars();
   const { createEvent } = useScheduleMutations();
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
   const [focused, setFocused] = useState(false);
 
-  const candidates = useMemo(
-    () => calendars.filter(c => !c.isInSystemGroup && !c.archived),
-    [calendars]
-  );
   const parsed = useMemo(
     () => (text.trim() ? parseQuickAdd(text, { baseDate: day, calendars: candidates }) : null),
     [text, day, candidates]

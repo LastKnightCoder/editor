@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>时间账本 · 待办 / 日历 / 番茄联动</title>
+<style>
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-sunken: #e7dbc8; --bg-track: #e0d6c3;
+    --bg-hover: rgba(67, 57, 44, 0.05); --bg-selected: rgba(217, 119, 87, 0.12);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+    --line-1: #e9e1d2; --line-dash: #cdbfa8;
+    --accent: hsl(22 58% 42%); --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+    --t1: #61795f; --t1s: #e5ede2; --t2: #5c7d99; --t2s: #e2ebf3; --t3: #8a7aa6; --t3s: #ebe6f3; --t4: #a38c4d; --t4s: #f6efd6; --t5: #b06a5e; --t5s: #f6e3e0;
+    --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+    --shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  .dark {
+    --bg-page: #221d16; --bg-surface: #2e2820; --bg-sunken: #100d08; --bg-track: #463d31;
+    --bg-hover: rgba(236, 226, 208, 0.06); --bg-selected: hsla(22, 62%, 65%, 0.2);
+    --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768; --ink-inverse: #241a10;
+    --line-1: #3a3227; --line-dash: #5a4e3f;
+    --accent: hsl(22 62% 65%); --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+    --t1: #8cab87; --t1s: #243023; --t2: #83aecf; --t2s: #1e2a35; --t3: #a596c8; --t3s: #292335; --t4: #c4a458; --t4s: #302917; --t5: #d0806a; --t5s: #30211b;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+    --shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #e8e1d1; color: #43392c; font: 14px/1.6 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; -webkit-font-smoothing: antialiased; padding: 36px 3vw 80px; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  input { font: inherit; color: inherit; }
+
+  .intro { max-width: 1180px; }
+  .intro h1 { font-size: 22px; font-weight: 600; }
+  .intro .lead { color: #6a5c49; margin-top: 6px; font-size: 13.5px; max-width: 100ch; }
+  .note-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+  .note { background: #fffdf9; border-radius: 14px; box-shadow: 0 1px 2px rgba(120,100,70,.05), 0 10px 24px -14px rgba(120,100,70,.18); padding: 12px 14px; font-size: 12.5px; color: #6a5c49; }
+  .note h4 { font-size: 13px; font-weight: 600; color: #43392c; margin-bottom: 4px; }
+  .note code { font: 11.5px var(--mono); }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin: 22px 0 12px; font-size: 12.5px; color: #6a5c49; }
+  .controls button { padding: 4px 12px; border-radius: 99px; background: rgba(255,253,249,.6); }
+  .controls button.on { background: #43392c; color: #fff8ef; }
+  .controls input[type=range] { width: 260px; accent-color: #a05236; }
+  .controls .now-val { font: 12px var(--mono); color: #43392c; min-width: 44px; }
+
+  /* 窗口 */
+  .win { height: 760px; border-radius: 14px; overflow: hidden; background: var(--bg-page); color: var(--ink-1); position: relative; display: flex; font-size: 13px;
+    box-shadow: 0 2px 6px rgba(67,57,44,.08), 0 20px 50px rgba(67,57,44,.12); }
+  .appnav { width: 168px; flex: none; padding: 12px 10px; color: var(--ink-2); font-size: 12.5px; }
+  .appnav .dots { display: flex; gap: 7px; padding: 4px 6px 14px; } .appnav .dots i { width: 11px; height: 11px; border-radius: 50%; background: var(--bg-track); }
+  .appnav .grp { font-size: 11px; color: var(--ink-3); margin: 12px 8px 3px; }
+  .appnav .it { padding: 5px 8px; border-radius: 7px; }
+  .appnav .it.on { background: var(--bg-selected); color: var(--ink-1); font-weight: 500; }
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--bg-surface); border-radius: 12px 0 0 0; margin-top: 8px; box-shadow: var(--shadow-card); }
+  .head { display: flex; align-items: baseline; gap: 10px; padding: 16px 22px 10px; }
+  .head h2 { font-size: 17px; font-weight: 600; }
+  .head .sub { color: var(--ink-3); font-size: 12px; }
+  .body { flex: 1; min-height: 0; display: flex; }
+
+  /* 当日时间线 */
+  .day { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .markers { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 22px 10px 74px; border-bottom: 1px solid var(--line-1); }
+  .marker { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 2px 10px 2px 6px; border-radius: 99px; background: var(--bg-hover); color: var(--ink-2); }
+  .marker .k { font-size: 11px; color: var(--ink-3); }
+  .marker.done { opacity: .5; } .marker.done .t { text-decoration: line-through; }
+  .chk { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid currentColor; flex: none; display: inline-grid; place-items: center; cursor: pointer; opacity: .8; }
+  .chk.on { background: currentColor; }
+  .chk.on::after { content: ""; width: 6px; height: 3px; border: solid var(--bg-surface); border-width: 0 0 1.5px 1.5px; transform: rotate(-45deg) translate(0.5px, -0.5px); }
+  .scroll { flex: 1; overflow-y: auto; position: relative; }
+  .grid { position: relative; margin: 8px 22px 24px 0; }
+  .hour { position: absolute; left: 0; right: 0; height: 0; border-top: 1px solid var(--line-1); }
+  .hour span { position: absolute; left: 22px; top: -8px; width: 40px; font: 11px var(--mono); color: var(--ink-3); background: var(--bg-surface); }
+  .lane { position: absolute; left: 74px; right: 0; top: 0; bottom: 0; }
+  .lane.drop { background: var(--accent-soft); border-radius: 8px; }
+
+  .blk { position: absolute; left: 0; right: 0; border-radius: 8px; padding: 4px 26px 4px 10px; overflow: hidden; font-size: 12.5px; line-height: 1.35;
+    border: 1px solid var(--tone); color: var(--ink-1); }
+  .blk .row { display: flex; align-items: center; gap: 6px; color: var(--tone); }
+  .blk .row .title { color: var(--ink-1); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .blk .time { font: 11px var(--mono); color: var(--ink-3); }
+  .blk.done .title { text-decoration: line-through; color: var(--ink-3); }
+  .blk .x { position: absolute; top: 3px; right: 4px; width: 18px; height: 18px; border-radius: 5px; color: var(--ink-3); opacity: 0; font-size: 13px; line-height: 18px; }
+  .blk:hover .x { opacity: 1; } .blk .x:hover { background: var(--bg-hover); }
+  .blk .tag { font-size: 10.5px; color: var(--ink-3); margin-left: auto; flex: none; }
+  .focus { position: absolute; right: 6px; width: 5px; border-radius: 3px; background: var(--t5); }
+  .focus.live { animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .45; } }
+
+  .gap { position: absolute; left: 0; right: 0; border: 1px dashed var(--line-dash); border-radius: 8px; display: flex; align-items: center; padding: 0 10px; color: var(--ink-3); font-size: 11.5px; cursor: text; }
+  .gap:hover { background: var(--bg-hover); color: var(--ink-2); }
+  .gap input { width: 100%; border: 0; outline: 0; background: transparent; font-size: 12.5px; color: var(--ink-1); }
+
+  .nowline { position: absolute; left: 66px; right: 0; height: 0; border-top: 1.5px solid var(--accent); z-index: 5; pointer-events: none; }
+  .nowline::before { content: ""; position: absolute; left: -4px; top: -4.5px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+  .nowline span { position: absolute; left: -62px; top: -9px; font: 600 11px var(--mono); color: var(--accent-text); background: var(--bg-surface); padding-right: 4px; }
+
+  /* 待安排面板 */
+  .side { width: 248px; flex: none; border-left: 1px solid var(--line-1); padding: 4px 14px 14px; overflow-y: auto; }
+  .side h3 { font-size: 12.5px; font-weight: 600; margin: 4px 0 2px; }
+  .side .hint { font-size: 11.5px; color: var(--ink-3); margin-bottom: 10px; }
+  .side .grp { font-size: 11px; color: var(--ink-3); margin: 12px 0 4px; }
+  .todo { display: flex; gap: 8px; align-items: flex-start; padding: 6px 8px; border-radius: 8px; cursor: grab; font-size: 12.5px; }
+  .todo:hover { background: var(--bg-hover); }
+  .todo .chk { color: var(--ink-3); margin-top: 3px; }
+  .todo .meta { font-size: 11px; color: var(--ink-3); }
+
+  .toast { position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--ink-1); color: var(--ink-inverse); border-radius: 10px; padding: 8px 14px; font-size: 12.5px; box-shadow: var(--shadow-float); display: none; gap: 14px; z-index: 20; }
+  .toast.show { display: flex; } .toast button { color: var(--ink-inverse); font-weight: 600; text-decoration: underline; }
+
+  /* 底部附图 */
+  .extras { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 22px; max-width: 1180px; }
+  .card { border-radius: 14px; background: var(--bg-surface); color: var(--ink-1); box-shadow: var(--shadow-card); padding: 16px 18px; font-size: 13px; }
+  .card .cap { font-size: 11.5px; color: var(--ink-3); margin-bottom: 10px; }
+  .card h4 { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+  .presets { display: flex; gap: 6px; margin-bottom: 12px; }
+  .presets span { padding: 3px 10px; border-radius: 99px; background: var(--bg-hover); font-size: 12px; color: var(--ink-2); }
+  .presets span.on { background: var(--accent-soft); color: var(--accent-text); }
+  .pick { border: 1px solid var(--line-1); border-radius: 10px; }
+  .pick .q { padding: 8px 12px; color: var(--ink-3); border-bottom: 1px solid var(--line-1); font-size: 12.5px; }
+  .pick .opt { padding: 6px 12px; display: flex; gap: 8px; align-items: center; font-size: 12.5px; cursor: pointer; }
+  .pick .opt:hover, .pick .opt.on { background: var(--bg-hover); }
+  .pick .opt .src { margin-left: auto; font-size: 11px; color: var(--ink-3); }
+  .pick .skip { padding: 6px 12px 8px; font-size: 11.5px; color: var(--ink-3); }
+  .startbtn { margin-top: 12px; width: 100%; padding: 8px; border-radius: 10px; background: var(--accent); color: var(--ink-inverse); font-weight: 600; }
+  .fields { display: grid; grid-template-columns: 72px 1fr; gap: 8px 12px; font-size: 12.5px; }
+  .fields dt { color: var(--ink-3); } .fields dd { color: var(--ink-1); }
+  .fields dd.soft { color: var(--ink-2); }
+  .pill { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; padding: 1px 8px; border-radius: 99px; background: var(--bg-hover); color: var(--ink-2); margin: 0 6px 4px 0; }
+</style>
+</head>
+<body>
+<section class="intro">
+  <h1>时间账本 · 当日时间线</h1>
+  <p class="lead">日历是时间的唯一账本：现在线以上是已经发生的记录（实心），以下是计划（空心）。番茄自动往里写专注；待办是备忘池，从右侧拖进时间轴才有时间；番茄记不到的空隙显示成虚线槽，点一下就能补记。方案见 <code>docs/time-ledger/01-方案.md</code>。</p>
+  <div class="note-grid">
+    <div class="note"><h4>计划 / 记录（TL-002）</h4>按现在线推断，不加状态、不确认。拖动下方「现在」滑块看块从空心变实心。</div>
+    <div class="note"><h4>约定型 / 任务型（TL-004）</h4>带勾选圈的是从待办拖进来的任务型，勾选即完成待办；其余是日历里直接建的约定型。</div>
+    <div class="note"><h4>专注条（TL-006）</h4>绑定某事件的番茄画成块内右侧细条；未绑定事件的番茄单独成块（🍅）。</div>
+    <div class="note"><h4>空白槽（TL-007）</h4>只在过去时段、≥15 分钟才显示。点击输入标题回车即补记，起止时间自动填好。</div>
+  </div>
+</section>
+
+<div class="controls">
+  <span>主题</span><button id="th-light" class="on">浅色</button><button id="th-dark">深色</button>
+  <span style="width:14px"></span>
+  <span>现在</span><input id="now" type="range" min="420" max="1380" step="5" value="920"><span class="now-val" id="nowVal"></span>
+  <span style="color:#a89a85">· 拖右侧待办进时间轴 · 悬停块点 × 删除</span>
+</div>
+
+<div class="win" id="win">
+  <nav class="appnav">
+    <div class="dots"><i></i><i></i><i></i></div>
+    <div class="grp">日常</div>
+    <div class="it">今日</div><div class="it on">日程</div><div class="it">待办</div><div class="it">日记</div><div class="it">番茄专注</div>
+  </nav>
+  <div class="main">
+    <div class="head"><h2>10 月 5 日 周日</h2><span class="sub">当日时间线</span></div>
+    <div class="body">
+      <div class="day">
+        <div class="markers" id="markers"></div>
+        <div class="scroll" id="scroll"><div class="grid" id="grid"><div class="lane" id="lane"></div></div></div>
+      </div>
+      <aside class="side">
+        <h3>待安排</h3>
+        <div class="hint">拖进时间轴 = 给它一段时间。没做完不会消失，可以再拖。</div>
+        <div id="todos"></div>
+      </aside>
+    </div>
+    <div class="toast" id="toast"><span id="toastText"></span><button id="undo">撤销</button></div>
+  </div>
+</div>
+
+<div class="extras" id="extras">
+  <div class="card">
+    <div class="cap">番茄页 · 开始前（TL-006）</div>
+    <h4>开始专注</h4>
+    <div class="presets"><span class="on">25 分钟</span><span>50 分钟</span><span>正计时</span></div>
+    <div class="pick">
+      <div class="q">专注于…（可选）</div>
+      <div class="opt on"><span class="chk" style="color:var(--t2)"></span>读论文<span class="src">日程 15:00–16:30</span></div>
+      <div class="opt"><span class="chk" style="color:var(--t2)"></span>写季度报告 · 第二部分<span class="src">日程 19:30</span></div>
+      <div class="opt"><span class="chk" style="color:var(--ink-3)"></span>整理 Rust 所有权笔记<span class="src">待办</span></div>
+      <div class="skip">不选也能直接开始，记录照旧</div>
+    </div>
+    <button class="startbtn">开始 · 读论文</button>
+  </div>
+  <div class="card">
+    <div class="cap">待办页 · 详情抽屉（TL-005 / TL-006，只读行）</div>
+    <h4>写季度报告</h4>
+    <dl class="fields">
+      <dt>项目</dt><dd>工作</dd>
+      <dt>截止</dt><dd>今天 18:00</dd>
+      <dt>安排</dt><dd class="soft"><span class="pill">今天 9:00–11:00 · 已过</span><span class="pill">今天 19:30–21:00</span></dd>
+      <dt>已投入</dt><dd class="soft">2 🍅 · 1h30m</dd>
+    </dl>
+    <p style="margin-top:12px;font-size:11.5px;color:var(--ink-3)">安排与投入只在详情里出现，列表行不挂徽章。安排都已过去而未完成时显示「上次安排 · …」，不标红。</p>
+  </div>
+</div>
+
+<script>
+const PX = 56, START = 7 * 60, END = 23 * 60;
+const hm = m => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
+const y = m => (m - START) / 60 * PX;
+
+let now = 920;
+let seq = 100;
+// kind: appt 约定型 / task 任务型 / pomo 未绑定事件的番茄
+let blocks = [
+  { id: 1, kind: "appt", title: "早饭 · 通勤", start: 510, end: 540, tone: 4 },
+  { id: 2, kind: "task", title: "写季度报告", start: 540, end: 660, tone: 2, focus: [[550, 595], [605, 650]] },
+  { id: 3, kind: "appt", title: "午饭", start: 700, end: 750, tone: 4 },
+  { id: 4, kind: "pomo", title: "整理 Rust 所有权笔记", start: 780, end: 805, tone: 5 },
+  { id: 5, kind: "appt", title: "产品评审会", start: 840, end: 900, tone: 3 },
+  { id: 6, kind: "task", title: "读论文", start: 900, end: 990, tone: 2, focus: [[905, null]] },
+  { id: 7, kind: "appt", title: "健身", start: 1020, end: 1080, tone: 1 },
+  { id: 8, kind: "task", title: "写季度报告 · 第二部分", start: 1170, end: 1260, tone: 2 },
+];
+let markers = [
+  { kind: "截止", title: "提交季度报告", time: "18:00", done: false },
+  { kind: "打卡", title: "每天读书 30 分钟", done: true },
+  { kind: "打卡", title: "背单词", done: false },
+];
+let todos = [
+  { id: "t1", title: "整理 Rust 所有权笔记", meta: "上次安排 · 周五" },
+  { id: "t2", title: "回复 Alex 的设计反馈", meta: "截止 周二" },
+  { id: "t3", title: "研究向量检索的分片方案", meta: "" },
+  { id: "t4", title: "换灯泡", meta: "" },
+];
+let gapEditing = null, undoStack = null, toastTimer = null;
+
+function tone(n) { return { c: `var(--t${n})`, s: `var(--t${n}s)` }; }
+
+function fillFor(b) {
+  // 现在线以上（过去）实心，以下（未来）空心；跨线则在现在处切开
+  const { s } = tone(b.tone);
+  const p = Math.max(0, Math.min(1, (now - b.start) / (b.end - b.start))) * 100;
+  return `linear-gradient(to bottom, ${s} 0%, ${s} ${p}%, var(--bg-surface) ${p}%, var(--bg-surface) 100%)`;
+}
+
+function gaps() {
+  const past = blocks.filter(b => b.start < now).sort((a, b) => a.start - b.start);
+  const out = [];
+  for (let i = 0; i < past.length - 1; i++) {
+    const s = Math.max(...past.slice(0, i + 1).map(b => b.end)), e = Math.min(past[i + 1].start, now);
+    if (e - s >= 15) out.push([s, e]);
+  }
+  return out;
+}
+
+function render() {
+  document.getElementById("nowVal").textContent = hm(now);
+  const grid = document.getElementById("grid"), lane = document.getElementById("lane");
+  grid.style.height = y(END) + "px";
+  grid.querySelectorAll(".hour,.nowline").forEach(n => n.remove());
+  for (let h = START / 60; h <= END / 60; h++) {
+    const d = document.createElement("div"); d.className = "hour"; d.style.top = y(h * 60) + "px";
+    d.innerHTML = `<span>${String(h).padStart(2, "0")}:00</span>`; grid.appendChild(d);
+  }
+  const nl = document.createElement("div"); nl.className = "nowline"; nl.style.top = y(now) + "px";
+  nl.innerHTML = `<span>${hm(now)}</span>`; grid.appendChild(nl);
+
+  lane.innerHTML = "";
+  for (const [s, e] of gaps()) {
+    const g = document.createElement("div"); g.className = "gap";
+    g.style.top = y(s) + 2 + "px"; g.style.height = y(e) - y(s) - 4 + "px";
+    if (gapEditing && gapEditing[0] === s) {
+      g.innerHTML = `<input placeholder="${hm(s)}–${hm(e)} 做了什么？回车补记">`;
+      const inp = g.querySelector("input");
+      setTimeout(() => inp.focus());
+      inp.onkeydown = ev => {
+        if (ev.key === "Enter" && inp.value.trim()) { blocks.push({ id: seq++, kind: "appt", title: inp.value.trim(), start: s, end: e, tone: 4 }); gapEditing = null; render(); }
+        if (ev.key === "Escape") { gapEditing = null; render(); }
+      };
+      inp.onblur = () => { gapEditing = null; render(); };
+    } else {
+      g.textContent = `+ 补记 ${hm(s)}–${hm(e)}`;
+      g.onclick = () => { gapEditing = [s, e]; render(); };
+    }
+    lane.appendChild(g);
+  }
+  for (const b of blocks) {
+    const t = tone(b.tone), el = document.createElement("div");
+    el.className = "blk" + (b.done ? " done" : "");
+    el.style.cssText = `--tone:${t.c};top:${y(b.start) + 1}px;height:${y(b.end) - y(b.start) - 2}px;background:${fillFor(b)}`;
+    const lead = b.kind === "task" ? `<span class="chk${b.done ? " on" : ""}"></span>` : b.kind === "pomo" ? "🍅" : "";
+    const tag = b.kind === "task" ? "待办" : b.kind === "pomo" ? "专注" : "";
+    el.innerHTML = `<div class="row">${lead}<span class="title">${b.title}</span><span class="tag">${tag}</span></div>
+      <div class="time">${hm(b.start)}–${hm(b.end)}</div><button class="x" title="删除">×</button>`;
+    for (const [fs, fe0] of b.focus || []) {
+      if (fs >= now) continue;
+      const fe = fe0 == null ? now : Math.min(fe0, now), f = document.createElement("div");
+      f.className = "focus" + (fe0 == null ? " live" : "");
+      f.style.top = y(fs) - y(b.start) + "px"; f.style.height = Math.max(3, y(fe) - y(fs)) + "px";
+      f.title = `专注 ${hm(fs)}–${hm(fe)}`; el.appendChild(f);
+    }
+    const chk = el.querySelector(".chk");
+    if (chk) chk.onclick = () => { b.done = !b.done; render(); };
+    el.querySelector(".x").onclick = () => remove(b);
+    lane.appendChild(el);
+  }
+
+  const mk = document.getElementById("markers"); mk.innerHTML = "";
+  markers.forEach(m => {
+    const el = document.createElement("span"); el.className = "marker" + (m.done ? " done" : "");
+    el.innerHTML = `<span class="chk${m.done ? " on" : ""}" style="color:var(--t2)"></span><span class="k">${m.kind}</span><span class="t">${m.title}</span>${m.time ? `<span class="k">${m.time}</span>` : ""}`;
+    el.querySelector(".chk").onclick = () => { m.done = !m.done; render(); };
+    mk.appendChild(el);
+  });
+
+  const td = document.getElementById("todos"); td.innerHTML = `<div class="grp">工作</div>`;
+  todos.forEach((t, i) => {
+    if (i === 3) td.insertAdjacentHTML("beforeend", `<div class="grp">生活</div>`);
+    const el = document.createElement("div"); el.className = "todo"; el.draggable = true;
+    el.innerHTML = `<span class="chk"></span><div><div>${t.title}</div>${t.meta ? `<div class="meta">${t.meta}</div>` : ""}</div>`;
+    el.ondragstart = ev => ev.dataTransfer.setData("text/plain", t.id);
+    td.appendChild(el);
+  });
+}
+
+function remove(b) {
+  blocks = blocks.filter(x => x !== b); undoStack = b; render();
+  const toast = document.getElementById("toast");
+  document.getElementById("toastText").textContent = `已删除「${b.title}」`;
+  toast.classList.add("show"); clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove("show"), 5000);
+}
+document.getElementById("undo").onclick = () => {
+  if (undoStack) { blocks.push(undoStack); undoStack = null; render(); }
+  document.getElementById("toast").classList.remove("show");
+};
+
+const lane = document.getElementById("lane");
+lane.ondragover = ev => { ev.preventDefault(); lane.classList.add("drop"); };
+lane.ondragleave = () => lane.classList.remove("drop");
+lane.ondrop = ev => {
+  ev.preventDefault(); lane.classList.remove("drop");
+  const t = todos.find(x => x.id === ev.dataTransfer.getData("text/plain")); if (!t) return;
+  const top = ev.clientY - lane.getBoundingClientRect().top;
+  const start = Math.round((START + top / PX * 60) / 15) * 15;
+  blocks.push({ id: seq++, kind: "task", title: t.title, start, end: Math.min(start + 60, END), tone: 2 });
+  t.meta = `已安排 · 今天 ${hm(start)}`;
+  render();
+};
+
+document.getElementById("now").oninput = ev => { now = +ev.target.value; render(); };
+const setTheme = dark => {
+  for (const id of ["win", "extras"]) document.getElementById(id).classList.toggle("dark", dark);
+  document.getElementById("th-dark").classList.toggle("on", dark);
+  document.getElementById("th-light").classList.toggle("on", !dark);
+};
+document.getElementById("th-light").onclick = () => setTheme(false);
+document.getElementById("th-dark").onclick = () => setTheme(true);
+
+render();
+document.getElementById("scroll").scrollTop = y(8 * 60);
+</script>
+</body>
+</html>
