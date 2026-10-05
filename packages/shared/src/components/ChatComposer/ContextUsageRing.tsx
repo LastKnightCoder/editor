@@ -4,7 +4,8 @@
  */
 
 import { Popover } from "@tau/ui";
-import { formatTokenCount, getContextUsageSummary, type ChatContextUsage } from "@tau/shared";
+import type { ChatContextUsage } from "../ChatInputArea/types";
+import { formatTokenCount, getContextUsageSummary } from "./contextUsage";
 
 const RING_R = 6.5;
 const RING_C = 2 * Math.PI * RING_R;

@@ -14,7 +14,6 @@ import { CornerDownRight, GitBranch, Pencil, RotateCw, Trash2, TriangleAlert } f
 
 import ChatInputArea from "@/components/ChatInputArea";
 import type { ChatInputAreaHandle } from "@/components/ChatInputArea";
-import { COMPOSER_ANCHOR_ATTR } from "@/components/ChatInputArea/ComposerPanel";
 
 import { measurePerformance } from "./hooks/usePerformanceMonitor";
 import MessageItem from "./MessageItem";
@@ -65,6 +64,7 @@ import { conversationEntryTail, type ConversationTreeRow } from "@/features/chat
 import { piSessionTree } from "@/commands/piSession";
 import { useChatEntryLocation } from "./useChatEntryLocation";
 import {
+  COMPOSER_ANCHOR_ATTR,
   type ChatMessageType as CoreChatMessageType,
   type MessageContentItem,
   useChatAutoScroll,
@@ -1553,7 +1553,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           )}
           <ChatContainerCore
             ref={coreRef}
-            isDark={isDark}
             isConnected={true}
             messages={coreMessages}
             isLoading={sendLoading}
@@ -1741,7 +1740,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             )}
             renderChatInputArea={({ chatInputRef, inputProps }) => {
               const {
-                services: _services,
                 onMcpManagerClick: _onMcpManagerClick,
                 modelSelectItems: _modelSelectItems,
                 onModelSelect: _onModelSelect,
@@ -1764,9 +1762,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                 />
               );
             }}
-            onDeleteMessage={handleDeleteMessage}
-            onRegenerateMessage={handleRegenerateMessage}
-            onCreateBranch={handleCreateBranch}
             renderMessage={({ messageIndex }) => {
               const item = visibleMessages[messageIndex];
               if (!item) return null;

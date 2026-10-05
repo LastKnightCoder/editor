@@ -1,5 +1,5 @@
 /**
- * 单条消息（D-048，桌面版，取代 @tau/shared 的 ChatMessageView——shared 版仍供浏览器扩展使用）：
+ * 单条消息（D-048，桌面与浏览器扩展共用）：
  *  - 用户：右对齐气泡（accent-soft 轻染，右下角收尖），附件在气泡上方；
  *  - 助手：无气泡通栏正文（气泡与背景同色、只靠阴影才分得出，反而显糊），思考 / 工具调用为轻量折叠行，按内容块原序排列；
  *  - 操作：消息下方固定高度一行，悬停原位淡入（不顶开布局）；
@@ -24,7 +24,7 @@ import {
   getDisplayTextFromBlocks,
   type ContentBlock,
   type ToolCallExecutionState,
-} from "@tau/shared";
+} from "@tau/shared/chat-renderers";
 import { IconButton, Tooltip, cn, toast } from "@tau/ui";
 import { ReasoningBlock } from "./ReasoningBlock";
 

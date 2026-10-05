@@ -1,5 +1,14 @@
 # 决策记录（轻量 ADR）
 
+## D-108 对话 UI 收口 @tau/chat-ui，桌面与浏览器扩展共用
+
+（2026-10-05，用户裁决：浏览器扩展的对话输入框与消息区对齐桌面，旧聊天样式删除，「清空对话」按钮删除）
+
+- 背景：桌面对话 UI（D-048）在 `src/components/ChatUI`，扩展沿用 shared / chat-ui 的旧组件（灰阶 + `isDark` 分支），两端外观分叉；扩展深色下 tooltip 不可读、输入框与桌面不一致。
+- 选择：① 与宿主能力无关的部件移入 `@tau/chat-ui`（`components/Message/`）：MessageView、ReasoningBlock、FoldRow、ToolCallRow、ToolCallBlock、CodeBlock、tauPrismTheme、markdown 排版组件（`markdownTypographyComponents` 与行内代码 / 链接 / 文档引用类名）；② 输入框部件移入 `@tau/shared`（`components/ChatComposer/`）：＋ 添加面板、上下文用量环、工具行 chip、ComposerPanel；③ 依赖宿主的留在各端：桌面的工具确认条经 `ToolCallBlock` 的 `renderApproval` 注入，markdown 代码块预览 / 链接打开、文档引用跳转各端自理；④ 两端输入框组件仍各一份（桌面是 Slate 编辑器 + 桌面专属面板，扩展是 textarea），靠共用部件保持外观一致。
+- 删除：chat-ui 的 ChatMessage / ChatMessageView / ChatToolCallDisplay / ReasoningDisplay / StatusBadge，ToolCallDisplay 的旧默认项（缺省落到 ToolCallRow），ChatContainerCore 的默认输入外框 / 默认输入区 / 默认消息 / 清空按钮及 `isDark`、`chatInputServices`、`onSendTextMessage` 等无人使用的入参；shared 的 ContextUsageIndicator 与新建对话 Tooltip 状态机。
+- 不做：扩展的工具审批仍在输入框上方集中显示（不像桌面挂在工具行下），避免流式中工具行尚未渲染时审批不可见。
+
 ## D-107 白板手绘模式：页级画风 + 墨水笔迹（方案 B）
 
 （2026-10-05，用户确认 `mockups/whiteboard-sketch/` 方案 B「墨水」与技术方案 `docs/whiteboard/手绘模式技术方案.md`；分支上原编号 D-106，合并时与 master 的 D-106 撞号改用 D-107）

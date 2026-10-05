@@ -12,21 +12,17 @@ import React, {
   type Ref,
   type RefObject,
 } from "react";
-import { Tooltip } from "@tau/ui";
+import { cn } from "@tau/ui";
 import type { ChatDropdownItem } from "@tau/shared";
-import { Trash2, AlertTriangle, LoaderCircle, Unplug } from "lucide-react";
-import classNames from "classnames";
+import { MessageSquare, RotateCw, TriangleAlert, Unplug } from "lucide-react";
 import { useVirtualizer, type VirtualItem, type Virtualizer } from "@tanstack/react-virtual";
 import {
-  ChatInputArea,
   type ChatInputAreaProps,
   type ChatInputAreaHandle,
-  type ChatInputAreaServices,
   type MessageContentItem,
   type ThinkingLevel,
   type ChatContextUsage,
 } from "@tau/shared";
-import { ChatMessage } from "./components/ChatComponents";
 import type { ChatMessageType } from "@tau/shared/chat-renderers";
 import { DEFAULT_CHAT_INPUT_PLACEHOLDER, resolveChatInputPlaceholder } from "@tau/shared";
 
@@ -101,14 +97,11 @@ export interface ChatContainerCoreMessageRendererParams {
 
 export interface ChatContainerCoreInputRendererParams {
   chatInputRef: RefObject<ChatInputAreaHandle | null>;
-  inputProps: Omit<ChatInputAreaProps, "services"> & {
-    services?: ChatInputAreaServices;
-  };
+  inputProps: Omit<ChatInputAreaProps, "services">;
 }
 
 export interface ChatContainerCoreEmptyStateRenderParams {
   currentPageUrl?: string | null;
-  isDark: boolean;
 }
 
 export interface ChatContainerCoreHandle {
@@ -129,7 +122,6 @@ export interface ChatContainerCoreHandle {
 }
 
 export interface ChatContainerCoreProps {
-  isDark?: boolean;
   isConnected: boolean;
   messages: ChatMessageType[];
   isLoading: boolean;
@@ -150,8 +142,6 @@ export interface ChatContainerCoreProps {
   className?: string;
   forceScrollToBottomKey?: string | number;
   messagesContainerClassName?: string;
-  inputWrapperClassName?: string;
-  chatInputClassName?: string;
   chatHeader?: ReactNode;
   extraToolbarButtons?: ReactNode;
   modelSelectItems?: ChatDropdownItem[];
@@ -162,29 +152,21 @@ export interface ChatContainerCoreProps {
   onMcpManagerClick?: () => void;
   onThinkingLevelChange?: (value: ThinkingLevel) => void;
   onModelSelect?: (info: { key: string }) => void;
-  onSendTextMessage?: (content: string) => void | Promise<void>;
   onSendMessageContent?: (content: MessageContentItem[]) => void | Promise<void>;
   onUserSend?: () => void;
   onStopGeneration?: () => void;
-  onClearMessages?: () => void;
-  onDeleteMessage?: (messageIndex: number) => void;
-  onRegenerateMessage?: (messageIndex: number) => void;
-  onCreateBranch?: (messageIndex: number) => void;
-  onCopySuccess?: () => void;
-  onCopyError?: () => void;
-  onDeleteConfirm?: () => Promise<boolean>;
-  chatInputServices?: ChatInputAreaServices;
   inputRef?: RefObject<ChatInputAreaHandle | null>;
   messagesContainerRef?: Ref<HTMLDivElement>;
-  renderMessage?: (params: ChatContainerCoreMessageRendererParams) => ReactNode;
+  renderMessage: (params: ChatContainerCoreMessageRendererParams) => ReactNode;
   renderEmptyState?: (params: ChatContainerCoreEmptyStateRenderParams) => ReactNode;
+  /** 输入框外框（外观由宿主决定）；缺省直接渲染输入区 */
   renderInputWrapper?: (inputNode: ReactNode) => ReactNode;
   /** 覆盖默认的重试 / 错误提示条（宿主自定义外观；返回 null 即不显示） */
   renderStatusBanner?: (params: {
     retryStatus?: { attempt: number; maxRetries: number } | null;
     error?: string | null;
   }) => ReactNode;
-  renderChatInputArea?: (params: ChatContainerCoreInputRendererParams) => ReactNode;
+  renderChatInputArea: (params: ChatContainerCoreInputRendererParams) => ReactNode;
 }
 
 const extractTextContent = (messageContent: MessageContentItem[]): string =>
@@ -196,7 +178,6 @@ const extractTextContent = (messageContent: MessageContentItem[]): string =>
 export const ChatContainerCore = React.forwardRef<ChatContainerCoreHandle, ChatContainerCoreProps>(
   function ChatContainerCore(
     {
-      isDark = false,
       isConnected,
       messages,
       isLoading,
@@ -217,8 +198,6 @@ export const ChatContainerCore = React.forwardRef<ChatContainerCoreHandle, ChatC
       className,
       forceScrollToBottomKey,
       messagesContainerClassName,
-      inputWrapperClassName,
-      chatInputClassName,
       chatHeader,
       extraToolbarButtons,
       modelSelectItems = [],
@@ -229,18 +208,9 @@ export const ChatContainerCore = React.forwardRef<ChatContainerCoreHandle, ChatC
       onMcpManagerClick,
       onThinkingLevelChange,
       onModelSelect,
-      onSendTextMessage,
       onSendMessageContent,
       onUserSend,
       onStopGeneration,
-      onClearMessages,
-      onDeleteMessage,
-      onRegenerateMessage,
-      onCreateBranch,
-      onCopySuccess,
-      onCopyError,
-      onDeleteConfirm,
-      chatInputServices,
       inputRef,
       messagesContainerRef,
       renderMessage,
@@ -463,8 +433,6 @@ export const ChatContainerCore = React.forwardRef<ChatContainerCoreHandle, ChatC
 
       if (onSendMessageContent) {
         void Promise.resolve(onSendMessageContent(messageContent));
-      } else if (onSendTextMessage && textContent.trim()) {
-        void Promise.resolve(onSendTextMessage(textContent));
       } else {
         return;
       }
@@ -476,32 +444,10 @@ export const ChatContainerCore = React.forwardRef<ChatContainerCoreHandle, ChatC
       isLoading,
       onUserSend,
       onSendMessageContent,
-      onSendTextMessage,
       resolvedChatInputRef,
     ]);
 
-    const defaultToolbarButton = useMemo(() => {
-      if (!onClearMessages || messages.length === 0 || isLoading) {
-        return null;
-      }
-      return (
-        <Tooltip content="清空对话">
-          <button
-            type="button"
-            onClick={onClearMessages}
-            className="rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-zinc-800"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </Tooltip>
-      );
-    }, [isLoading, messages.length, onClearMessages]);
-
-    const toolbarButtons = extraToolbarButtons ?? defaultToolbarButton ?? undefined;
-    const inputProps: Omit<ChatInputAreaProps, "services"> & {
-      services?: ChatInputAreaServices;
-    } = {
-      className: chatInputClassName,
+    const inputProps: Omit<ChatInputAreaProps, "services"> = {
       placeholder: resolvedPlaceholder,
       contentEditable: !isLoading || allowSendWhileLoading,
       sendLoading: isLoading,
@@ -523,46 +469,31 @@ export const ChatContainerCore = React.forwardRef<ChatContainerCoreHandle, ChatC
       onThinkingLevelChange,
       thinkingLevelDisabled,
       onMcpManagerClick,
-      extraToolbarButtons: toolbarButtons,
+      extraToolbarButtons,
     };
 
-    const chatInputNode = renderChatInputArea ? (
-      renderChatInputArea({
-        chatInputRef: resolvedChatInputRef,
-        inputProps,
-      })
-    ) : chatInputServices ? (
-      <ChatInputArea ref={resolvedChatInputRef} services={chatInputServices} {...inputProps} />
-    ) : null;
+    const chatInputNode = renderChatInputArea({
+      chatInputRef: resolvedChatInputRef,
+      inputProps,
+    });
 
     if (!isConnected) {
       if (!showConnectingUI) return null;
       return (
         <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-yellow-500/10">
-            <Unplug className="h-6 w-6 text-yellow-500" />
+          <div className="bg-warn-soft text-warn mb-4 grid size-12 place-items-center rounded-full">
+            <Unplug size={22} strokeWidth={1.75} />
           </div>
-          <h3 className="mb-1 text-sm font-medium text-gray-900 dark:text-[#e6edf3]">
-            正在连接 AI 服务...
-          </h3>
-          <p className="text-center text-xs text-gray-400 dark:text-[#484f58]">
-            请确保桌面端已启动
-          </p>
+          <h3 className="text-tau-body text-ink-1 mb-1 font-medium">正在连接 AI 服务...</h3>
+          <p className="text-tau-sm text-ink-3 text-center">请确保桌面端已启动</p>
         </div>
       );
     }
 
     return (
-      <div className={classNames("flex h-full flex-1 flex-col overflow-hidden", className)}>
+      <div className={cn("flex h-full flex-1 flex-col overflow-hidden", className)}>
         {chatHeader ? (
-          <div
-            className={classNames(
-              "shrink-0 border-b p-3",
-              isDark ? "border-gray-800 bg-zinc-900/50" : "border-gray-200 bg-white"
-            )}
-          >
-            {chatHeader}
-          </div>
+          <div className="border-line-1 shrink-0 border-b p-3">{chatHeader}</div>
         ) : null}
 
         <div
@@ -571,35 +502,16 @@ export const ChatContainerCore = React.forwardRef<ChatContainerCoreHandle, ChatC
         >
           {messages.length === 0 ? (
             renderEmptyState ? (
-              renderEmptyState({
-                currentPageUrl,
-                isDark,
-              })
+              renderEmptyState({ currentPageUrl })
             ) : (
               <div className="flex flex-col items-center px-6 pt-12">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10">
-                  <svg
-                    className="h-6 w-6 text-blue-500"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={1.5}
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z"
-                    />
-                  </svg>
+                <div className="bg-accent-soft text-accent-text mb-4 grid size-12 place-items-center rounded-full">
+                  <MessageSquare size={22} strokeWidth={1.75} />
                 </div>
-                <h3 className="mb-2 text-sm font-medium text-gray-900 dark:text-[#e6edf3]">
-                  开始对话
-                </h3>
-                <p className="text-center text-xs text-gray-400 dark:text-[#484f58]">
-                  与 AI 探讨当前网页内容
-                </p>
+                <h3 className="text-tau-body text-ink-1 mb-2 font-medium">开始对话</h3>
+                <p className="text-tau-sm text-ink-3 text-center">与 AI 探讨当前网页内容</p>
                 {currentPageUrl ? (
-                  <p className="mt-4 max-w-full truncate px-4 text-xs text-gray-400 dark:text-[#484f58]">
+                  <p className="text-tau-sm text-ink-3 mt-4 max-w-full truncate px-4">
                     当前页面: {currentPageUrl}
                   </p>
                 ) : null}
@@ -625,24 +537,7 @@ export const ChatContainerCore = React.forwardRef<ChatContainerCoreHandle, ChatC
                     isLast={isLast}
                     onResize={isLast ? scrollToBottomIfSticky : undefined}
                   >
-                    {renderMessage ? (
-                      renderMessage({
-                        message,
-                        messageIndex: virtualItem.index,
-                      })
-                    ) : (
-                      <ChatMessage
-                        message={message}
-                        messageIndex={virtualItem.index}
-                        isDark={isDark}
-                        onDeleteMessage={onDeleteMessage}
-                        onRegenerateMessage={onRegenerateMessage}
-                        onCreateBranch={onCreateBranch}
-                        onCopySuccess={onCopySuccess}
-                        onCopyError={onCopyError}
-                        onDeleteConfirm={onDeleteConfirm}
-                      />
-                    )}
+                    {renderMessage({ message, messageIndex: virtualItem.index })}
                   </VirtualMessageItem>
                 );
               })}
@@ -652,39 +547,37 @@ export const ChatContainerCore = React.forwardRef<ChatContainerCoreHandle, ChatC
 
         {renderStatusBanner ? (
           renderStatusBanner({ retryStatus, error })
-        ) : retryStatus ? (
-          <div className="border-t border-yellow-500/20 bg-yellow-500/10 px-4 py-2">
-            <div className="flex items-center gap-2 text-xs text-yellow-600 dark:text-yellow-400">
-              <LoaderCircle className="h-3.5 w-3.5 shrink-0 animate-spin" />
-              <span>
-                请求失败，正在重试（第 {retryStatus.attempt}/{retryStatus.maxRetries} 次）...
-              </span>
-            </div>
-          </div>
-        ) : error ? (
-          <div className="border-t border-red-500/20 bg-red-500/10 px-4 py-2">
-            <div className="flex items-center gap-2 text-xs text-red-500">
-              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-              <span>{error}</span>
+        ) : retryStatus || error ? (
+          <div className="px-3 pt-2">
+            <div
+              role="status"
+              className={cn(
+                "text-tau-sm rounded-tau-sm flex items-center gap-2 px-3 py-2",
+                retryStatus ? "bg-warn-soft text-warn" : "bg-danger-soft text-danger"
+              )}
+            >
+              {retryStatus ? (
+                <>
+                  <RotateCw size={13} strokeWidth={1.75} className="shrink-0 animate-spin" />
+                  <span>
+                    请求失败，正在重试（第 {retryStatus.attempt}/{retryStatus.maxRetries} 次）…
+                  </span>
+                </>
+              ) : (
+                <>
+                  <TriangleAlert size={13} strokeWidth={1.75} className="shrink-0" />
+                  <span className="min-w-0 break-words">{error}</span>
+                </>
+              )}
             </div>
           </div>
         ) : null}
 
-        {!hideInput && chatInputNode ? (
-          renderInputWrapper ? (
-            renderInputWrapper(chatInputNode)
-          ) : (
-            <div
-              className={classNames(
-                "mx-3 mb-3 mt-2 box-border shrink-0 rounded-3xl border px-3 py-3 shadow-sm",
-                isDark ? "border-gray-800 bg-zinc-950" : "border-gray-200 bg-white",
-                inputWrapperClassName
-              )}
-            >
-              {chatInputNode}
-            </div>
-          )
-        ) : null}
+        {!hideInput
+          ? renderInputWrapper
+            ? renderInputWrapper(chatInputNode)
+            : chatInputNode
+          : null}
       </div>
     );
   }

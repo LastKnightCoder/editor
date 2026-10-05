@@ -57,6 +57,12 @@ const unmount = async (root: Root, container: HTMLElement) => {
   container.remove();
 };
 
+// 选项是 tau Radio / Checkbox：按选项文案找到所在 label 里的原生 input
+const findOptionInput = (container: HTMLElement, label: string) =>
+  Array.from(container.querySelectorAll("label"))
+    .find(item => item.textContent?.includes(label))
+    ?.querySelector("input");
+
 describe("extension AskQuestionRenderer", () => {
   beforeEach(() => {
     resetRunInteractions();
@@ -140,9 +146,7 @@ describe("extension AskQuestionRenderer", () => {
       />
     );
 
-    const optionButton = Array.from(container.querySelectorAll("button")).find(button =>
-      button.textContent?.includes("方案 A")
-    );
+    const optionButton = findOptionInput(container, "方案 A");
     expect(optionButton).toBeTruthy();
     await act(async () => {
       optionButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -300,16 +304,14 @@ describe("extension AskQuestionRenderer", () => {
       );
     });
 
-    const firstOptionButton = Array.from(container.querySelectorAll("button")).find(button =>
-      button.textContent?.includes("方案 A")
-    );
+    const firstOptionButton = findOptionInput(container, "方案 A");
     expect(firstOptionButton).toBeTruthy();
     await act(async () => {
       firstOptionButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
     expect(container.textContent).toContain("问题一");
-    expect(firstOptionButton?.className).toContain("border-sky-300");
+    expect(firstOptionButton?.checked).toBe(true);
 
     await act(async () => {
       root.render(
@@ -322,12 +324,10 @@ describe("extension AskQuestionRenderer", () => {
       );
     });
 
-    const secondOptionButton = Array.from(container.querySelectorAll("button")).find(button =>
-      button.textContent?.includes("方案 A")
-    );
+    const secondOptionButton = findOptionInput(container, "方案 A");
     expect(container.textContent).toContain("问题二");
     expect(container.textContent).toContain("新的问题");
-    expect(secondOptionButton?.className).not.toContain("border-sky-300");
+    expect(secondOptionButton?.checked).toBe(false);
 
     await unmount(root, container);
   });
