@@ -628,6 +628,9 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `status`         | `TEXT NOT NULL`              |
 | `create_time`    | `INTEGER NOT NULL`           |
 | `update_time`    | `INTEGER NOT NULL`           |
+| `bound_event_id` | `INTEGER`                    |
+| `bound_todo_id`  | `INTEGER`                    |
+| `bound_title`    | `TEXT`                       |
 
 ### `pomodoro_calendar_mapping`
 

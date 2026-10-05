@@ -1,6 +1,6 @@
 /**
  * 日程详情抽屉（非模态 Drawer，纸内右侧整高，不压暗日历）：点任一视图里的日程打开，
- * 头部 = 标题 · 日期时间 · 日历，正文即可编辑的表单（useEventForm），底栏删除 / 保存。
+ * 头部 = 标题 · 日期时间 · 日历 + 「开始专注」（定时、非番茄日程），正文即可编辑的表单（useEventForm），底栏删除 / 保存。
  * 与当日时间线抽屉同位：打开时暂代它，关掉回到时间线。Esc 经页面浮层仲裁关闭。
  *
  * 未保存修改守卫：所有关闭 / 换条请求（×、关闭、Esc、点别的日程）都经 peekStore，抽屉只在
@@ -17,6 +17,7 @@ import { TONE, eventToneStyle } from "../eventTone";
 import { usePeekStore } from "../peekStore";
 import { eventTimeLabel } from "./AgendaRow";
 import { useEventForm } from "./EventDialog/useEventForm";
+import { FocusStartButton } from "@/features/pomodoro/components/FocusStartButton";
 import { EventTitle, useEventDecor } from "./EventTitle";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
@@ -83,6 +84,13 @@ export function EventDrawer() {
               decor={decorOf(event)}
               className="min-w-0 flex-1 truncate font-semibold"
             />
+          )
+        }
+        actions={
+          event &&
+          !event.allDay &&
+          decorOf(event).kind !== "pomodoro" && (
+            <FocusStartButton target={{ kind: "event", eventId: event.id }} title={event.title} />
           )
         }
         subtitle={

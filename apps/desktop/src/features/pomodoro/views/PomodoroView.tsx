@@ -8,6 +8,7 @@
  * 计时在主进程：页面只镜像会话（timerStore），离开页面计时照常，侧栏入口挂实时计时。
  * 删除（记录 / 预设）不二次确认：立即从视图消失 + Toast 撤销，UNDO_MS 后才落库，离开页面立即落库。
  * 键盘（仅本页在栈顶、焦点不在输入 / 按钮上）：空格暂停继续、1–9 开始第 N 个预设、I 进入沉浸。
+ * 「专注于…」的选择在开始前暂存在本页（随保活保留），任何开始入口都带上它，开始后清空。
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -59,6 +60,7 @@ import { RangeNav } from "../components/RangeNav";
 import { PresetDot } from "../components/PomodoroBits";
 import { PresetEditorPopover } from "../components/PresetEditorPopover";
 import { SessionPeekPopover } from "../components/SessionPeekPopover";
+import type { BindChoice } from "../components/BindPicker";
 
 const UNDO_MS = 5000;
 /** 账本视图：按天窗口（快捷项滚动跟随今天，手选为固定起止）或「全部」概览 */
@@ -135,6 +137,18 @@ export function PomodoroView() {
   const earliest = useEarliestDay();
   const mutations = usePomodoroMutations();
   useInvalidateOnSessionEnd();
+  const [pendingBind, setPendingBind] = useState<BindChoice | null>(null);
+  // 有事件先去日程（任务型事件也在那里）；事件已删时日程页安全兜底
+  const openBinding = (session: PomodoroSession) => {
+    if (session.boundEventId != null) navigator.push("schedule", { eventId: session.boundEventId });
+    else if (session.boundTodoId != null)
+      navigator.push("todos", { selectedId: session.boundTodoId });
+  };
+  const startPreset = (preset: PomodoroPreset) =>
+    void pomodoroActions
+      .start(preset, pendingBind?.target)
+      .then(() => setPendingBind(null))
+      .catch(() => toast.error("开始专注失败"));
 
   const [ledger, setLedger] = useState<LedgerView>(() => ({
     kind: "days",
@@ -173,8 +187,8 @@ export function PomodoroView() {
   }, [lastResult, presets.byId]);
 
   /* ---------- 键盘 ---------- */
-  const keyState = useRef({ live, active: presets.active });
-  keyState.current = { live, active: presets.active };
+  const keyState = useRef({ live, active: presets.active, start: startPreset });
+  keyState.current = { live, active: presets.active, start: startPreset };
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.isComposing) return;
@@ -186,13 +200,13 @@ export function PomodoroView() {
           target.closest("button, [role=button], [role=menu], [role=dialog], [data-float-card]"))
       )
         return;
-      const { live: current, active } = keyState.current;
+      const { live: current, active, start } = keyState.current;
       if (e.key === " " && current) {
         e.preventDefault();
         void pomodoroActions.toggle();
       } else if (/^[1-9]$/.test(e.key) && !current) {
         const preset = active[Number(e.key) - 1];
-        if (preset) void pomodoroActions.start(preset);
+        if (preset) start(preset);
       } else if ((e.key === "i" || e.key === "I") && current && isElectron) {
         void openPomodoroImmersiveWindow();
       }
@@ -402,6 +416,9 @@ export function PomodoroView() {
               timing={timing}
               presetName={liveName}
               openPresetId={openPresetId}
+              bind={pendingBind}
+              onBind={setPendingBind}
+              onStart={startPreset}
               onOpen={togglePreset}
               onCreate={anchor => setEditor({ preset: null, anchor })}
               onEdit={(preset, anchor) => setEditor({ preset, anchor })}
@@ -475,7 +492,7 @@ export function PomodoroView() {
               live={live}
               liveTiming={timing}
               onClose={() => setOpenPresetId(null)}
-              onStart={preset => void pomodoroActions.start(preset)}
+              onStart={startPreset}
               onEdit={(preset, anchor) => setEditor({ preset, anchor })}
               onArchive={preset => {
                 if (archivePreset(preset)) setOpenPresetId(null);
@@ -513,6 +530,7 @@ export function PomodoroView() {
         onClose={() => setPeek(null)}
         onEditFocus={(session, anchor) => setFocusEdit({ session, anchor })}
         onDelete={deleteSession}
+        onOpenBinding={openBinding}
       />
     </div>
   );

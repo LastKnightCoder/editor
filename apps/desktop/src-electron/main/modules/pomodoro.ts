@@ -1,4 +1,5 @@
 import {
+  PomodoroBindTarget,
   PomodoroPreset,
   PomodoroSession,
   RpcMessageType,
@@ -8,85 +9,9 @@ import {
 import BackendWebSocketServer from "../utils/BackendWebSocketServer";
 import PomodoroSessionTable from "./tables/pomodoro-session";
 import PomodoroPresetTable from "./tables/pomodoro-preset";
-import CalendarGroupTable from "./tables/calendar-group";
-import CalendarTable from "./tables/calendar";
-import CalendarEventTable from "./tables/calendar-event";
-import PomodoroCalendarMappingTable from "./tables/pomodoro-calendar-mapping";
 import databaseModule from "./database";
 import { basename } from "node:path";
 import { broadcastScheduleChange } from "./schedule-changes";
-
-interface CalendarEventSegment {
-  startDate: number;
-  endDate: number | null;
-  startTime: number;
-  endTime: number;
-}
-
-/**
- * 将可能跨天的番茄钟会话分割成多个日历事件段
- */
-function splitCrossDaySession(startTimeMs: number, endTimeMs: number): CalendarEventSegment[] {
-  const startDate = new Date(startTimeMs);
-  const endDate = new Date(endTimeMs);
-
-  const startDayTimestamp = new Date(
-    startDate.getFullYear(),
-    startDate.getMonth(),
-    startDate.getDate()
-  ).getTime();
-
-  const endDayTimestamp = new Date(
-    endDate.getFullYear(),
-    endDate.getMonth(),
-    endDate.getDate()
-  ).getTime();
-
-  if (startDayTimestamp === endDayTimestamp) {
-    const startMinutes = startDate.getHours() * 60 + startDate.getMinutes();
-    const endMinutes = endDate.getHours() * 60 + endDate.getMinutes();
-
-    return [
-      {
-        startDate: startDayTimestamp,
-        endDate: null,
-        startTime: startMinutes,
-        endTime: endMinutes,
-      },
-    ];
-  }
-
-  const segments: CalendarEventSegment[] = [];
-
-  const firstDayStartMinutes = startDate.getHours() * 60 + startDate.getMinutes();
-  segments.push({
-    startDate: startDayTimestamp,
-    endDate: startDayTimestamp,
-    startTime: firstDayStartMinutes,
-    endTime: 1439,
-  });
-
-  let currentDayTimestamp = startDayTimestamp + 24 * 60 * 60 * 1000;
-  while (currentDayTimestamp < endDayTimestamp) {
-    segments.push({
-      startDate: currentDayTimestamp,
-      endDate: currentDayTimestamp,
-      startTime: 0,
-      endTime: 1439,
-    });
-    currentDayTimestamp += 24 * 60 * 60 * 1000;
-  }
-
-  const lastDayEndMinutes = endDate.getHours() * 60 + endDate.getMinutes();
-  segments.push({
-    startDate: endDayTimestamp,
-    endDate: endDayTimestamp,
-    startTime: 0,
-    endTime: lastDayEndMinutes,
-  });
-
-  return segments;
-}
 
 export type BackgroundSoundType =
   null | "brook" | "birds" | "autumn" | "tide" | "summer" | "wind-chime" | "bonfire" | "rain";
@@ -169,7 +94,17 @@ class PomodoroModule {
           const payload = params as unknown as {
             presetId: number;
             expectedMs?: number;
+            target?: PomodoroBindTarget | null;
           };
+          const db = this.getDatabase();
+          if (!db) throw new Error("Database not connected");
+          const preset = PomodoroPresetTable.getById(db, payload.presetId);
+          if (!preset) throw new Error(`Preset ${payload.presetId} not found`);
+          // 跨域入口只传预设：倒计时时长按预设补算
+          const expectedMs =
+            payload.expectedMs ??
+            (preset.mode === "countdown" ? preset.durationMin * 60_000 : undefined);
+          const binding = PomodoroSessionTable.resolveBinding(db, payload.target);
 
           const now = Date.now();
           this.activeSession = {
@@ -177,7 +112,7 @@ class PomodoroModule {
             presetId: payload.presetId,
             startTime: now,
             endTime: undefined,
-            expectedMs: payload.expectedMs,
+            expectedMs,
             focusMs: 0,
             pauseTotalMs: 0,
             pauseCount: 0,
@@ -185,6 +120,7 @@ class PomodoroModule {
             status: "running",
             createTime: now,
             updateTime: now,
+            ...binding,
           };
 
           this.autoStopTriggered = false;
@@ -309,6 +245,44 @@ class PomodoroModule {
               code: 1,
               message: error.message || "Failed to resume session",
             },
+          };
+        }
+      }
+    );
+
+    this.backendServer.addMessageHandler(
+      "pomodoro:update-binding",
+      async (message: RpcRequestMessage) => {
+        const { id, params, method } = message;
+        try {
+          if (!this.activeSession) throw new Error("No active session");
+          const db = this.getDatabase();
+          if (!db) throw new Error("Database not connected");
+          const { target } = params as unknown as { target: PomodoroBindTarget | null };
+          const binding = PomodoroSessionTable.resolveBinding(db, target);
+          // 三列整体覆盖：清除绑定时也要把旧值置空
+          this.activeSession = {
+            ...this.activeSession,
+            boundEventId: binding.boundEventId,
+            boundTodoId: binding.boundTodoId,
+            boundTitle: binding.boundTitle,
+            updateTime: Date.now(),
+          };
+          this.notifyActiveSessionChanged();
+          return {
+            type: RpcMessageType.Response,
+            id,
+            method,
+            result: this.activeSession,
+            error: null,
+          };
+        } catch (error: any) {
+          return {
+            type: RpcMessageType.Response,
+            id,
+            method,
+            result: null,
+            error: { code: 1, message: error.message || "Failed to update binding" },
           };
         }
       }
@@ -475,7 +449,9 @@ class PomodoroModule {
     // 判断状态：正计时或倒计时完成为 completed，否则为 stopped
     const status: "completed" | "stopped" = asComplete ? "completed" : "stopped";
 
+    const { boundEventId, boundTodoId, boundTitle } = this.activeSession;
     const savedSession = PomodoroSessionTable.insertCompletedSession(db, {
+      ...PomodoroSessionTable.refreshBinding(db, { boundEventId, boundTodoId, boundTitle }),
       presetId: this.activeSession.presetId,
       startTime: this.activeSession.startTime,
       endTime: now,
@@ -489,13 +465,9 @@ class PomodoroModule {
 
     // 创建日历事件
     try {
-      this.createCalendarEventForSession(
-        db,
-        savedSession.id,
-        savedSession.presetId,
-        savedSession.startTime,
-        savedSession.endTime || now
-      );
+      if (PomodoroSessionTable.writeCalendarEvents(db, savedSession.id).length > 0) {
+        broadcastScheduleChange(basename(db.name));
+      }
     } catch (e) {
       console.error("Failed to create calendar event:", e);
     }
@@ -548,69 +520,6 @@ class PomodoroModule {
         });
       }
     }, 1000);
-  }
-
-  private createCalendarEventForSession(
-    db: any,
-    sessionId: number,
-    presetId: number,
-    startTime: number,
-    endTime: number
-  ) {
-    // 获取系统分组
-    const systemGroup = CalendarGroupTable.getSystemGroup(db);
-
-    // 查找番茄钟日历
-    const pomodoroCalendars = CalendarTable.getAllCalendars(db).filter(
-      cal => cal.title === "番茄钟" && cal.groupId === systemGroup.id
-    );
-
-    if (pomodoroCalendars.length === 0) {
-      console.error("Pomodoro calendar not found");
-      return;
-    }
-
-    const pomodoroCalendar = pomodoroCalendars[0];
-
-    // 获取预设名称
-    let presetName = "未知";
-    try {
-      const preset = PomodoroPresetTable.getById(db, presetId);
-      if (preset) {
-        presetName = preset.name;
-      }
-    } catch (e) {
-      // 预设可能已被删除
-    }
-
-    // 生成标题
-    const title = `🍅 ${presetName}`;
-
-    // 分割跨天会话
-    const segments = splitCrossDaySession(startTime, endTime);
-
-    // 为每个段创建日历事件并建立映射关系
-    const eventIds: number[] = [];
-    for (const segment of segments) {
-      const event = CalendarEventTable.createEvent(db, {
-        calendarId: pomodoroCalendar.id,
-        title,
-        detailContentId: 0,
-        startDate: segment.startDate,
-        endDate: segment.endDate,
-        startTime: segment.startTime,
-        endTime: segment.endTime,
-        allDay: false,
-        color: null,
-      });
-      eventIds.push(event.id);
-    }
-
-    // 创建映射关系
-    if (eventIds.length > 0) {
-      PomodoroCalendarMappingTable.createMappings(db, sessionId, eventIds);
-      broadcastScheduleChange(basename(db.name));
-    }
   }
 }
 

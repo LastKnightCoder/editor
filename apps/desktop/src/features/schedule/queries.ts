@@ -4,6 +4,7 @@ import * as calendarCommands from "@/commands/calendar";
 import * as groupCommands from "@/commands/calendar-group";
 import * as todoCommands from "@/commands/todo";
 import * as contentCommands from "@/commands/content";
+import { getPomodoroEventBindings } from "@/commands/pomodoro";
 import { on } from "@/electron";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
@@ -26,6 +27,7 @@ import type {
   CreateCalendarGroup,
   CreateCalendarEvent,
   UpdateCalendarEvent,
+  PomodoroEventBinding,
   TodoCalendarEventSource,
 } from "@/types";
 import { useScheduleStore } from "./uiStore";
@@ -47,6 +49,9 @@ export const scheduleKeys = {
   content: (database: string, id: number) =>
     [...scheduleKeys.root(database), "content", id] as const,
   sources: (database: string) => [...scheduleKeys.root(database), "todo-sources"] as const,
+  day: (database: string, day: number) => [...scheduleKeys.root(database), "day", day] as const,
+  pomodoroBindings: (database: string) =>
+    [...scheduleKeys.root(database), "pomodoro-bindings"] as const,
 };
 
 export function invalidateSchedule(client: QueryClient, database: string) {
@@ -72,6 +77,7 @@ export function useScheduleCommands() {
           ...groupCommands,
           ...todoCommands,
           ...contentCommands,
+          getPomodoroEventBindings,
         },
         { databaseName: database }
       ),
@@ -334,4 +340,41 @@ export function useToggleTodoEvent() {
     onSuccess: () => invalidateSchedule(queryClient, database),
   });
   return mutation.mutate;
+}
+
+/** 某一天的日程（不依赖日程页视图状态，供番茄「专注于…」等域外入口用）；随 schedule:changed 失效 */
+export function useEventsOfDay(day: number, enabled = true): CalendarEvent[] {
+  const { database, commands } = useScheduleCommands();
+  const connected = useDatabaseConnected();
+  const query = useQuery({
+    queryKey: scheduleKeys.day(database, day),
+    queryFn: () => commands.getEventsForDay(day),
+    enabled: enabled && connected,
+    staleTime: 30_000,
+  });
+  return query.data ?? EMPTY_EVENTS;
+}
+
+const EMPTY_BINDINGS: Record<number, PomodoroEventBinding> = {};
+
+/** 可见日程里番茄事件所属会话的绑定（番茄事件 id → 绑定），用于把专注收进绑定事件 */
+export function usePomodoroBindings(events: CalendarEvent[]) {
+  const { database, commands } = useScheduleCommands();
+  const connected = useDatabaseConnected();
+  const roles = useCalendarRoles();
+  const ids = useMemo(
+    () =>
+      events
+        .filter(e => roles.get(e.calendarId) === "pomodoro")
+        .map(e => e.id)
+        .sort((a, b) => a - b),
+    [events, roles]
+  );
+  const query = useQuery({
+    queryKey: [...scheduleKeys.pomodoroBindings(database), ids],
+    queryFn: () => commands.getPomodoroEventBindings(ids),
+    enabled: connected && ids.length > 0,
+    staleTime: 30_000,
+  });
+  return query.data ?? EMPTY_BINDINGS;
 }

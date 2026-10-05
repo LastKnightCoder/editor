@@ -1,10 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import dayjs from "dayjs";
 import { cn, toast } from "@tau/ui";
 import { FadeScroll } from "@/components/FadeScroll";
 import { useScheduleStore } from "../../uiStore";
-import { useCalendarCatalog, useCalendarEvents, useCalendarRoles } from "../../queries";
-import { eventPhase, isMarker } from "../../ledger";
+import {
+  useCalendarCatalog,
+  useCalendarEvents,
+  useCalendarRoles,
+  usePomodoroBindings,
+} from "../../queries";
+import { absorbFocus, eventPhase, isMarker, type FocusSpan } from "../../ledger";
+import { toneStyle } from "../../eventTone";
 import { useTimeSlotDrag } from "@/hooks/useTimeSlotDrag";
 import { useEventOverlap } from "@/hooks/useEventOverlap";
 import { getWeekStart, isToday, getDateStart } from "@/utils/calendar";
@@ -50,6 +56,12 @@ const WeekView = () => {
   const nowMinutes = useNowMinutes();
   const scrollRef = useScrollToNow(currentDate);
   const decorOf = useEventDecor(events);
+  const bindings = usePomodoroBindings(events);
+  // 专注条取番茄钟日历色
+  const focusTone = useMemo(() => {
+    const calendar = calendars.find(c => roles.get(c.id) === "pomodoro");
+    return calendar ? toneStyle(calendar.color) : undefined;
+  }, [calendars, roles]);
 
   // 当编辑对话框关闭时，清除待创建事件高亮
   useEffect(() => {
@@ -91,16 +103,20 @@ const WeekView = () => {
     });
   };
 
-  // 定时日程按天分列（标记不进时间网格）
+  // 定时日程按天分列（标记不进时间网格）；绑定日程内的番茄收进日程画专注条
   const dayTimedEventsLists = useMemo(
     () =>
       weekDays.map(day => {
         const dayDate = getDateStart(day.getTime());
-        return (events ?? []).filter(
-          event => !isMarker(event, roles) && getDateStart(event.startDate) === dayDate
+        return absorbFocus(
+          (events ?? []).filter(
+            event => !isMarker(event, roles) && getDateStart(event.startDate) === dayDate
+          ),
+          bindings,
+          roles
         );
       }),
-    [weekDays, events, roles]
+    [weekDays, events, roles, bindings]
   );
 
   // 全天车道放全部标记（全天日程、截止、周期打卡）：跨天条与单日条共用一套分层
@@ -202,7 +218,9 @@ const WeekView = () => {
             <WeekDayColumn
               key={dayIndex}
               day={day}
-              events={dayTimedEventsLists[dayIndex]}
+              events={dayTimedEventsLists[dayIndex].blocks}
+              focus={dayTimedEventsLists[dayIndex].focus}
+              focusTone={focusTone}
               calendars={calendars}
               decorOf={decorOf}
               nowMinutes={nowMinutes}
@@ -222,6 +240,8 @@ const WeekView = () => {
 function WeekDayColumn({
   day,
   events,
+  focus,
+  focusTone,
   calendars,
   decorOf,
   nowMinutes,
@@ -232,6 +252,8 @@ function WeekDayColumn({
 }: {
   day: Date;
   events: CalendarEvent[];
+  focus: Map<number, FocusSpan[]>;
+  focusTone: CSSProperties | undefined;
   calendars: Calendar[];
   decorOf: (event: CalendarEvent) => EventDecor;
   nowMinutes: number;
@@ -282,6 +304,8 @@ function WeekDayColumn({
             onClick={anchor => onOpen(event, anchor)}
             compact={height < 36}
             phase={eventPhase(event, nowMs)}
+            focus={focus.get(event.id)}
+            focusTone={focusTone}
             style={{
               top: minutesToPx(start),
               height,

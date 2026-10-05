@@ -1,11 +1,22 @@
 /**
- * 抽屉详情 · 属性区：项目 / 类型 / 时间（截止 · 计划起止）/ 重复规则 / 提醒 / 日程同步说明。
+ * 抽屉详情 · 属性区：项目 / 类型 / 时间（截止 · 计划起止）/ 重复规则 / 提醒 / 日程同步说明 / 已投入专注（只读）。
  * 每项即改即存（无保存按钮）；日历同步由主进程 updateItem 内部完成。
  * 重复规则可改（legacy 创建后只读）：类型 / 间隔 / 周几 / 每月几号 / 排除节假日。
  */
 
 import dayjs from "dayjs";
-import { Bell, CalendarDays, ChevronDown, Clock, Flag, Folder, List, Repeat } from "lucide-react";
+import {
+  Bell,
+  CalendarDays,
+  ChevronDown,
+  Clock,
+  Flag,
+  Folder,
+  List,
+  Repeat,
+  Timer,
+} from "lucide-react";
+import { useTodoFocusSummary } from "@/features/pomodoro/queries";
 import {
   DatePicker,
   Menu,
@@ -203,7 +214,26 @@ export function DetailFields({
           </span>
         </Field>
       )}
+
+      <FocusField todoId={entry.id} />
     </div>
+  );
+}
+
+/** 已投入：绑定到这条待办（含其日程）的番茄；没有时不显示 */
+function FocusField({ todoId }: { todoId: number }) {
+  const summary = useTodoFocusSummary(todoId);
+  if (!summary?.count) return null;
+  const minutes = Math.round(summary.focusMs / 60_000);
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return (
+    <Field icon={Timer} label="专注">
+      <span className="text-ink-2 text-[12px] tabular-nums">
+        {summary.count} 🍅 · {h ? `${h}h` : ""}
+        {m || !h ? `${m}m` : ""}
+      </span>
+    </Field>
   );
 }
 

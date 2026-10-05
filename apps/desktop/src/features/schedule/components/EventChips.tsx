@@ -3,7 +3,8 @@
  * - AllDayBar：全天 / 跨天 / 标记（截止、周期打卡）= 数据色软底条，文字取数据色偏墨，跨行续接处去圆角；
  *   定时标记带时刻，已完成的标记整体变淡；
  * - TimedChip：月视图单日定时 = 透明底 + 色点 + mono 时间；
- * - TimedBlock：时间网格块 = 左缘 3px 色条 + 账本底色（记录实心、计划空心描边、进行中在现在处切开）。
+ * - TimedBlock：时间网格块 = 左缘 3px 色条 + 账本底色（记录实心、计划空心描边、进行中在现在处切开）；
+ *   收进来的番茄画成块内右侧的专注竖条。
  * 位置由调用方（布局算法）通过 style 给出，这里只管皮。
  */
 
@@ -12,7 +13,7 @@ import { cn } from "@tau/ui";
 import { formatTime } from "@/utils/calendar";
 import type { Calendar, CalendarEvent } from "@/types";
 import { PLAN_OUTLINE, TONE, TONE_SOFT_BG, eventToneStyle, ledgerFill } from "../eventTone";
-import type { LedgerPhase } from "../ledger";
+import { eventEndMinutes, spanPercent, type FocusSpan, type LedgerPhase } from "../ledger";
 import { EventTitle, type EventDecor } from "./EventTitle";
 
 interface ChipProps {
@@ -108,7 +109,15 @@ export function TimedBlock({
   className,
   compact,
   phase,
-}: ChipProps & { compact?: boolean; phase: LedgerPhase }) {
+  focus,
+  focusTone,
+}: ChipProps & {
+  compact?: boolean;
+  phase: LedgerPhase;
+  focus?: FocusSpan[];
+  /** 专注条色（番茄钟日历） */
+  focusTone?: CSSProperties;
+}) {
   const fill = ledgerFill(phase);
   const planned = phase.kind !== "record";
   const range =
@@ -152,6 +161,24 @@ export function TimedBlock({
           <EventTitle event={event} decor={decor} className="font-medium" />
           <div className="text-ink-2 font-tau-mono text-[10.5px] tabular-nums">{range}</div>
         </>
+      )}
+      {focus && focus.length > 0 && (
+        <div style={focusTone} className={cn("absolute inset-y-0 right-[3px] w-1", TONE)}>
+          {focus.map(span => {
+            const { offset, size } = spanPercent(
+              span,
+              event.startTime ?? 0,
+              eventEndMinutes(event)
+            );
+            return (
+              <i
+                key={span.start}
+                className="absolute inset-x-0 rounded-full bg-[var(--cal)]"
+                style={{ top: `${offset}%`, height: `${size}%` }}
+              />
+            );
+          })}
+        </div>
       )}
     </div>
   );

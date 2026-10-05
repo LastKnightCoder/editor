@@ -9,6 +9,7 @@
 import { useEffect, useMemo } from "react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  summaryPomodoroByTodo,
   summaryPomodoroTotal,
   archivePomodoroPreset,
   createPomodoroPreset,
@@ -24,12 +25,30 @@ import type { PomodoroMode, PomodoroPreset, PomodoroSession } from "@/types";
 import { DAY_MS, startOfDay } from "./model";
 import { addDays, type DayWindow } from "./range";
 import { usePomodoroTimer } from "./timerStore";
+import { on } from "@/electron";
+import { queryClient as globalQueryClient } from "@/queryClient";
 
 /** 会话窗口天数：覆盖账本最长区间，连续天数超过即显示「N+」 */
 export const WINDOW_DAYS = 90;
 
 const PRESETS_KEY = ["pomodoro", "presets"] as const;
 const SESSIONS_KEY = ["pomodoro", "sessions"] as const;
+const BY_TODO_KEY = ["pomodoro", "by-todo"] as const;
+
+/* 番茄落库 / 改时长 / 删除都会广播 schedule:changed：页面不在时也刷新待办的「已投入」 */
+on("schedule:changed", () => {
+  void globalQueryClient.invalidateQueries({ queryKey: BY_TODO_KEY });
+});
+
+/** 某待办累计投入的专注（绑定该待办或其日程的番茄） */
+export function useTodoFocusSummary(todoId: number) {
+  const query = useQuery({
+    queryKey: [...BY_TODO_KEY, todoId],
+    queryFn: () => summaryPomodoroByTodo(todoId),
+    staleTime: 30_000,
+  });
+  return query.data;
+}
 
 /** enabled：辅助窗口在数据库连上之前不查 */
 export function usePomodoroPresets(enabled = true) {

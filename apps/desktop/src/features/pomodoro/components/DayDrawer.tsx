@@ -117,7 +117,7 @@ export function DayDrawer({
         <SessionRow
           key={s.id}
           session={s}
-          name={nameOf(s.presetId)}
+          name={s.boundTitle ? `${nameOf(s.presetId)} · ${s.boundTitle}` : nameOf(s.presetId)}
           exists={presetsById.has(s.presetId)}
           onEditFocus={onEditFocus}
           onDelete={onDelete}
