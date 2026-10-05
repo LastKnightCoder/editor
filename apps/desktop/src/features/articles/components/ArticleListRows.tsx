@@ -18,6 +18,7 @@ import { articleExcerpt } from "../queries";
 import { formatWords } from "../views/ArticleCard";
 import { useArticleBanner } from "./useArticleBanner";
 import { ArticleItemOps, type ArticleItemActions } from "./ArticleItemOps";
+import { articleMorphKey } from "../morph";
 
 const COLS =
   "grid grid-cols-[minmax(260px,1fr)_minmax(120px,200px)_64px_80px_96px_56px] items-center gap-4";
@@ -76,6 +77,7 @@ function ArticleListRow({
   return (
     <div
       tabIndex={0}
+      data-morph-key={articleMorphKey(article.id)}
       onClick={() => actions.onOpen(article)}
       onKeyDown={e => {
         if (e.key === "Enter" && e.target === e.currentTarget) actions.onOpen(article);

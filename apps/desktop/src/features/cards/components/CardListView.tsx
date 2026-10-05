@@ -16,7 +16,7 @@ import { cockpitRelativeTime } from "@/features/shared/cockpit/text";
 import { formatDate } from "@/features/shared/cockpit/model";
 import { cardListText, sortCardList, type CardListSort } from "../listModel";
 import { CardActionMenu } from "./CardActionMenu";
-import { useScrollTopOnChange } from "./useScrollTopOnChange";
+import { useScrollTopOnChange } from "@/hooks/useScrollTopOnChange";
 import type { CardItemActions } from "../types";
 import { cardMorphKey } from "../morph";
 

@@ -6,7 +6,7 @@
 import { act, Activity, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
-import { useScrollTopOnChange } from "../components/useScrollTopOnChange";
+import { useScrollTopOnChange } from "../useScrollTopOnChange";
 
 function Scroller({ scrollKey, onReset }: { scrollKey: string; onReset: () => void }) {
   const [el, setEl] = useState<HTMLDivElement | null>(null);
