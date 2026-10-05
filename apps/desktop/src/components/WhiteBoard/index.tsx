@@ -701,8 +701,14 @@ const WhiteBoard = memo(
     } = useElementsSorting(filteredChildren, selection);
 
     // 获取视口控制函数
-    const { handleContainerResize, handleZoomIn, handleZoomOut, handleZoomTo, handleFitElements } =
-      useViewPortControls(board, zoom);
+    const {
+      handleContainerResize,
+      handleZoomIn,
+      handleZoomOut,
+      handleZoomTo,
+      handleFitAll,
+      handleFitSelection,
+    } = useViewPortControls(board, zoom);
 
     // 暴露 ref 方法
     useImperativeHandle(
@@ -1111,11 +1117,6 @@ const WhiteBoard = memo(
       board.presentationManager.deleteSequence(sequenceId);
     });
 
-    // 全览功能
-    const handleFitAll = useMemoizedFn((e: React.MouseEvent<HTMLElement>) => {
-      return handleFitElements(FIT_VIEW_PADDING, true)(e);
-    });
-
     const handleCloseImagePreview = useMemoizedFn(() => {
       setImagePreview({
         open: false,
@@ -1201,7 +1202,8 @@ const WhiteBoard = memo(
                             onZoomIn={handleZoomIn}
                             onZoomOut={handleZoomOut}
                             onZoomTo={handleZoomTo}
-                            onFitElements={handleFitAll}
+                            onFitAll={handleFitAll}
+                            onFitSelection={handleFitSelection}
                             onStartPresentation={handleStartPresentation}
                             onEditSequence={handleEditSequence}
                             onDeleteSequence={handleDeleteSequence}
