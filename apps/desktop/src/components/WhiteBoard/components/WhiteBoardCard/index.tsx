@@ -23,6 +23,7 @@ import { openPage } from "@/services/page-navigation";
 import { useWhiteboardDetail, useWhiteboardOwner } from "@/features/whiteboards/queries";
 import { displayTitle, enterBoard, formatTrail, toItem } from "@/features/whiteboards/model";
 import { WhiteboardNavContext, requestReveal } from "@/features/whiteboards/navigation";
+import { handTextClass } from "../../utils/sketch";
 
 interface WhiteBoardCardProps {
   board: Board;
@@ -126,7 +127,7 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
               : sketch.enabled
                 ? "border-transparent"
                 : "shadow-card hover:shadow-lift",
-            sketch.enabled && "font-tau-hand",
+            handTextClass(sketch),
             missing && "opacity-60"
           )}
         >

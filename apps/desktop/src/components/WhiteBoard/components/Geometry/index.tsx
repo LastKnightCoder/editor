@@ -25,6 +25,7 @@ import {
   RESIZE_CIRCLE_RADIUS,
 } from "../../constants";
 import { registerGeometryRenderers } from "./registerGeometryRenderers";
+import { handTextClass } from "../../utils/sketch";
 const styles = {
   textContainer: "box-border flex size-full items-center justify-center p-3 text-center",
   left: "justify-start text-left",
@@ -272,10 +273,14 @@ const Geometry = memo((props: GeometryProps) => {
       </svg>
       <foreignObject x={x} y={y} width={width} height={height} className="border-none">
         <div
-          className={classnames(styles.textContainer, styles[text.align], {
-            [styles.readonly]: !isEditing,
-            "font-tau-hand": sketch.enabled,
-          })}
+          className={classnames(
+            styles.textContainer,
+            styles[text.align],
+            {
+              [styles.readonly]: !isEditing,
+            },
+            handTextClass(sketch)
+          )}
           style={{ color }}
         >
           {/* 图形可单独指定文字明暗（深色填充配浅色字），未指定时跟随宿主 */}

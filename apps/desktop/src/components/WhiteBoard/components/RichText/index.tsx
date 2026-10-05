@@ -58,6 +58,7 @@ const styles = {
 };
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 import SketchRect from "../SketchPaths/SketchRect";
+import { handTextClass } from "../../utils/sketch";
 
 type RichTextNodeType = Omit<RichTextElement, "type"> & any;
 
@@ -454,7 +455,7 @@ const Richtext = (props: RichTextProps) => {
       >
         <div
           id={`rich-text-container-${elementId}`}
-          className={cn(styles.richTextContainer, sketch.enabled && "font-tau-hand")}
+          className={cn(styles.richTextContainer, handTextClass(sketch))}
           ref={containerRef}
           style={containerStyle}
           onDoubleClick={e => {

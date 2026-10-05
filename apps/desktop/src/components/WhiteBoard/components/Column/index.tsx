@@ -15,6 +15,7 @@ import If from "@/components/If";
 import EditText, { EditTextHandle } from "@/components/EditText";
 
 import { SELECT_RECT_STROKE, SELECT_RECT_STROKE_WIDTH } from "../../constants";
+import { handTextClass } from "../../utils/sketch";
 
 const PLACEHOLDER_KEY = "__placeholder__";
 const APPEND_BUTTON_HEIGHT = 32;
@@ -315,7 +316,7 @@ const Column = memo(
               defaultValue={title || "Column"}
               className={cn(
                 "text-tau-body-lg min-w-5 max-w-full cursor-pointer select-none truncate font-semibold leading-5 outline-none",
-                sketch.enabled && "font-tau-hand"
+                handTextClass(sketch)
               )}
               style={{ color: COLUMN_COLORS.title }}
               contentEditable={isEditingTitle}

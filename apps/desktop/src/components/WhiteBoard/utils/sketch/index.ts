@@ -6,3 +6,4 @@ export { inkSize } from "./levels";
 export { createRandom, hashSeed } from "./random";
 export { flattenPath } from "./geometry";
 export { patchSketch, getSketchTargets, buildSketchOps } from "./batch";
+export { handTextClass } from "./handText";

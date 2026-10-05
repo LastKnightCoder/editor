@@ -4,6 +4,8 @@
   --font: sans-serif;
   --mono-font: monospace;
   --font-size: 16px;
+  /* 白板手绘模式（D-106）：内置 Shantell Sans（拉丁）+ 小赖 SC（中文），@font-face 见 assets/fonts/hand */
+  --tau-font-hand: var(--tau-font-hand-faces), "Hannotate SC", "KaiTi", var(--tau-font);
 }
 
 html,

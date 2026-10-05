@@ -21,6 +21,7 @@ import {
 } from "../../constants";
 import { AUDIO_CARD_HEIGHT } from "../../constants/audio";
 import useTheme from "@/hooks/useTheme";
+import { handTextClass } from "../../utils/sketch";
 
 const slider =
   "h-1 appearance-none cursor-pointer rounded-[2px] outline-none transition-[height] hover:h-[5px] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:size-[var(--thumb-size)] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-current [&::-webkit-slider-thumb]:bg-surface [&::-webkit-slider-thumb]:shadow-card [&::-moz-range-thumb]:size-[var(--thumb-size)] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-current [&::-moz-range-thumb]:bg-surface";
@@ -239,7 +240,7 @@ const AudioElementComponent = memo((props: AudioElementProps) => {
         }}
       >
         <div
-          className={cn(styles.audioCard, isDark && styles.dark, sketch.enabled && "font-tau-hand")}
+          className={cn(styles.audioCard, isDark && styles.dark, handTextClass(sketch))}
           style={{ width: width, height: height }}
           onDoubleClick={stopAllPropagation}
         >

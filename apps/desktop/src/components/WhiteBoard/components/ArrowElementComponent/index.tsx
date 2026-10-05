@@ -15,6 +15,7 @@ import { ArrowUtil, BoardUtil, PathUtil } from "../../utils";
 import { getArrowDisplayColor } from "../../utils/color";
 import useTheme from "@/hooks/useTheme";
 import { getLabelAnchorByPath, offsetAnchorAlongNormal } from "./labelGeometry";
+import { handTextClass } from "../../utils/sketch";
 const styles = {
   descriptionContainer: "pointer-events-auto inline-flex h-fit w-fit items-center justify-start",
   descriptionEditor: "min-h-9 w-fit rounded-tau-sm",
@@ -610,9 +611,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
               readonly={!isEditingDescription}
               hotkeyConfigs={descriptionHotkeyConfigs}
               kit={getArrowLabelKit()}
-              className={classNames(styles.descriptionEditor, {
-                "font-tau-hand": sketch.enabled,
-              })}
+              className={classNames(styles.descriptionEditor, handTextClass(sketch))}
               style={descriptionEditorStyle}
             />
           </div>
