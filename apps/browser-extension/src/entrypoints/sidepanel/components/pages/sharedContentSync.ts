@@ -8,7 +8,7 @@ export interface ResolveRemoteSyncRequirementInput {
 }
 
 export function resolveRemoteSyncRequirement(
-  input: ResolveRemoteSyncRequirementInput,
+  input: ResolveRemoteSyncRequirementInput
 ): RemoteSyncRequirement {
   const {
     remoteUpdateTime,

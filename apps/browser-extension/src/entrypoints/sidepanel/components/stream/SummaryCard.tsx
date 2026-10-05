@@ -1,20 +1,19 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { Tooltip } from "@tau/ui";
-import { RefreshCw, Copy, Check, AlertTriangle, Unplug } from "lucide-react";
+import { useState, useEffect, useCallback, useRef, useLayoutEffect } from "react";
+import { Button, IconButton, Tooltip, cn } from "@tau/ui";
+import { RefreshCw, Copy, Check, Sparkles, ChevronDown } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import type WebSocketClient from "../../../../utils/WebSocketClient";
 import WebSocketClientImpl from "../../../../utils/WebSocketClient";
 import { AI_RUN_METHODS, createRunEventFilter, type AiRunEventNotification } from "@tau/shared";
 import { MarkdownRenderer } from "@tau/chat-ui";
-import { useTheme } from "../../../../hooks/useTheme";
 import { diagramLanguageRenderers } from "@tau/editor-diagram/renderers";
-import { useThemeStore } from "../../../../stores/useThemeStore";
+import { useIsDark } from "../../../../stores/useExtensionTheme";
 import { useSettingsStore } from "../../../../stores/useSettingsStore";
 import { useSummaryCache } from "../../../../hooks/useSummaryCache";
 import { BROWSER_TOOLS } from "../../../../services/extToolServer";
 import { AI_SERVER_WS_URL } from "../../../../utils/aiServerAddress";
 
-interface OverviewTabProps {
+interface SummaryCardProps {
   wsClient: WebSocketClient | null;
   url: string | null;
 }
@@ -27,31 +26,19 @@ interface ExtClipperExtractResult {
   error?: string;
 }
 
-/** 通用 loading spinner */
-function Spinner({ className = "h-5 w-5" }: { className?: string }) {
-  return (
-    <svg className={`animate-spin ${className}`} viewBox="0 0 24 24" fill="none">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-      <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-      />
-    </svg>
-  );
-}
+/** 折叠态的正文高度上限（约 5 行），超出时出「展开」 */
+const COLLAPSED_MAX_HEIGHT = 120;
 
 /**
- * 概览 Tab - AI 网页总结
- * 自动获取当前网页内容并生成 AI 总结
+ * 本页流顶部的 AI 总结卡：有缓存直接显示，否则按设置自动生成或等手动生成；
+ * 默认折叠到约 5 行，不挤占下方的高亮与笔记。
  */
-export default function OverviewTab({ wsClient: _wsClient, url }: OverviewTabProps) {
+export default function SummaryCard({ wsClient: _wsClient, url }: SummaryCardProps) {
   // 状态
   const [summary, setSummary] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [showConnectingUI, setShowConnectingUI] = useState(false);
   const [copied, setCopied] = useState(false);
   const [lastUrl, setLastUrl] = useState<string | null>(null);
 
@@ -65,9 +52,10 @@ export default function OverviewTab({ wsClient: _wsClient, url }: OverviewTabPro
   urlRef.current = url;
 
   // 获取主题和设置
-  const { themeMode } = useThemeStore();
-  const resolvedTheme = useTheme(themeMode);
-  const isDark = resolvedTheme === "dark";
+  const isDark = useIsDark();
+  const [expanded, setExpanded] = useState(false);
+  const [overflowing, setOverflowing] = useState(false);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const { autoSummaryEnabled } = useSettingsStore();
   const { getSummary, saveSummary, clearSummary } = useSummaryCache();
 
@@ -141,16 +129,6 @@ export default function OverviewTab({ wsClient: _wsClient, url }: OverviewTabPro
       client.disconnect();
     };
   }, []);
-
-  // 延迟展示连接中 UI，避免短暂闪烁
-  useEffect(() => {
-    if (!isConnected) {
-      const timer = setTimeout(() => setShowConnectingUI(true), 800);
-      return () => clearTimeout(timer);
-    } else {
-      setShowConnectingUI(false);
-    }
-  }, [isConnected]);
 
   // URL 变化时检查缓存或自动生成总结
   useEffect(() => {
@@ -338,137 +316,109 @@ export default function OverviewTab({ wsClient: _wsClient, url }: OverviewTabPro
     }
   }, [summary]);
 
-  // 如果未连接，显示连接状态（延迟展示，避免短暂闪烁）
-  if (!isConnected) {
-    if (!showConnectingUI) return null;
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
-        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-yellow-500/10">
-          <Unplug className="h-6 w-6 text-yellow-500" />
-        </div>
-        <h3 className="mb-1 text-sm font-medium text-gray-900 dark:text-[#e6edf3]">
-          正在连接 AI 服务...
-        </h3>
-        <p className="text-center text-xs text-gray-400 dark:text-[#484f58]">请确保桌面端已启动</p>
-      </div>
-    );
-  }
+  // 正文超出折叠高度才给「展开」
+  useLayoutEffect(() => {
+    const element = bodyRef.current;
+    if (!element) return;
+    const measure = () => setOverflowing(element.scrollHeight > COLLAPSED_MAX_HEIGHT + 4);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [summary]);
+
+  useEffect(() => setExpanded(false), [url]);
+
+  const busy = isLoading && !summary;
 
   return (
-    <div className="flex h-full flex-1 flex-col overflow-hidden">
-      {/* 内容区域 */}
-      <div className="tau-scrollbar flex flex-1 flex-col overflow-y-auto">
-        {/* URL + 操作栏 */}
-        {url && (
-          <div className="sticky top-0 z-10 flex shrink-0 items-center gap-2 bg-white/80 px-4 py-2.5 backdrop-blur-sm dark:bg-[#161b22]/80">
-            <span className="min-w-0 flex-1 truncate text-xs text-gray-400 dark:text-[#484f58]">
-              {url}
-            </span>
-            <div className="flex shrink-0 items-center gap-0.5">
-              {summary && (
-                <Tooltip content={copied ? "已复制" : "复制内容"}>
-                  <button
-                    onClick={handleCopy}
-                    className="rounded-md p-1.5 text-gray-400 transition-colors hover:bg-black/5 hover:text-gray-600 dark:text-[#484f58] dark:hover:bg-white/10 dark:hover:text-[#8b949e]"
-                  >
-                    {copied ? (
-                      <Check className="h-3.5 w-3.5 text-green-500" />
-                    ) : (
-                      <Copy className="h-3.5 w-3.5" />
-                    )}
-                  </button>
-                </Tooltip>
-              )}
-              <Tooltip content="重新生成">
-                <button
-                  onClick={handleRegenerate}
-                  disabled={isLoading}
-                  className="rounded-md p-1.5 text-gray-400 transition-colors hover:bg-black/5 hover:text-gray-600 disabled:opacity-50 dark:text-[#484f58] dark:hover:bg-white/10 dark:hover:text-[#8b949e]"
-                >
-                  <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
-                </button>
-              </Tooltip>
-            </div>
-          </div>
+    <section className="border-line-1 bg-surface rounded-tau-md border px-3.5 pb-2.5 pt-2.5">
+      <div className="text-tau-sm text-ink-3 flex h-7 items-center gap-1.5">
+        <Sparkles size={14} strokeWidth={1.75} className="text-accent-text shrink-0" />
+        <span className="flex-1">{busy ? "正在总结这一页…" : "AI 总结"}</span>
+        {summary && !isLoading && (
+          <Tooltip content={copied ? "已复制" : "复制"}>
+            <IconButton
+              aria-label="复制总结"
+              className="size-7 [&_svg]:size-3.5"
+              onClick={handleCopy}
+            >
+              {copied ? <Check className="text-ok" /> : <Copy />}
+            </IconButton>
+          </Tooltip>
         )}
-
-        {/* 加载状态 */}
-        {isLoading && !summary && (
-          <div className="flex flex-1 flex-col items-center justify-center px-6">
-            <Spinner className="h-5 w-5 text-gray-400 dark:text-[#484f58]" />
-            <p className="mt-3 text-sm text-gray-400 dark:text-[#484f58]">正在分析页面内容...</p>
-          </div>
+        {(summary || error) && (
+          <Tooltip content="重新生成">
+            <IconButton
+              aria-label="重新生成总结"
+              className="size-7 [&_svg]:size-3.5"
+              disabled={isLoading || !isConnected}
+              onClick={handleRegenerate}
+            >
+              <RefreshCw className={cn(isLoading && "animate-spin")} />
+            </IconButton>
+          </Tooltip>
         )}
+      </div>
 
-        {/* 错误提示 */}
-        {error && !isLoading && (
-          <div className="mx-4 mt-4 rounded-lg bg-red-50 p-3 dark:bg-red-900/10">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-400 dark:text-red-400/80" />
-              <div>
-                <span className="text-sm text-red-600 dark:text-red-400/90">{error}</span>
-                <button
-                  onClick={generateSummary}
-                  className="mt-1.5 block text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-[#6e7681] dark:hover:text-[#8b949e]"
-                >
-                  重试
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 总结内容 */}
-        {summary && (
-          <div className="px-4 pb-4 text-sm text-gray-700 dark:text-[#c9d1d9]">
+      {!isConnected ? (
+        <p className="text-tau-sm text-ink-3 pb-1">正在连接 AI 服务…</p>
+      ) : busy ? (
+        <div className="space-y-2 pb-1.5 pt-1" aria-hidden>
+          <div className="bg-hover h-2.5 w-[92%] animate-pulse rounded-full" />
+          <div className="bg-hover h-2.5 w-[78%] animate-pulse rounded-full" />
+          <div className="bg-hover h-2.5 w-[54%] animate-pulse rounded-full" />
+        </div>
+      ) : summary ? (
+        <>
+          <div
+            ref={bodyRef}
+            className={cn(
+              "text-tau-body-lg text-ink-1 relative overflow-hidden",
+              !expanded &&
+                overflowing &&
+                "[mask-image:linear-gradient(to_bottom,black_70%,transparent)]"
+            )}
+            style={expanded ? undefined : { maxHeight: COLLAPSED_MAX_HEIGHT }}
+          >
             <MarkdownRenderer
               content={summary}
               isDark={isDark}
               codeLanguageRenderers={diagramLanguageRenderers}
             />
           </div>
-        )}
-
-        {/* 空状态 */}
-        {!isLoading && !summary && !error && (
-          <div className="flex flex-1 flex-col items-center justify-center px-6">
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-gray-50 dark:bg-[#0d1117]">
-              <svg
-                className="h-5 w-5 text-gray-300 dark:text-[#484f58]"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
-                />
-              </svg>
-            </div>
-            <p className="mb-4 text-center text-xs text-gray-400 dark:text-[#484f58]">
-              {autoSummaryEnabled
-                ? "点击下方按钮生成页面总结"
-                : "自动总结已关闭，点击下方按钮手动生成"}
-            </p>
+          {overflowing && (
             <button
-              onClick={generateSummary}
-              className="rounded-lg border border-gray-200 bg-white px-4 py-1.5 text-sm text-gray-700 transition-colors hover:bg-gray-50 active:bg-gray-100 dark:border-[#30363d] dark:bg-[#21262d] dark:text-[#c9d1d9] dark:hover:bg-[#30363d] dark:active:bg-[#3a424b]"
+              type="button"
+              onClick={() => setExpanded(value => !value)}
+              className="text-tau-sm text-accent-text mt-1 inline-flex items-center gap-0.5"
             >
-              生成总结
+              {expanded ? "收起" : "展开全部"}
+              <ChevronDown
+                size={13}
+                strokeWidth={1.75}
+                className={cn("transition-transform", expanded && "rotate-180")}
+              />
             </button>
-          </div>
-        )}
-
-        {/* 加载中的渐进显示 */}
-        {isLoading && summary && (
-          <div className="flex items-center gap-2 px-4 pb-4 text-xs text-gray-400 dark:text-[#484f58]">
-            <Spinner className="h-3.5 w-3.5" />
-            <span>正在生成...</span>
-          </div>
-        )}
-      </div>
-    </div>
+          )}
+        </>
+      ) : error ? (
+        <div className="text-tau-sm flex items-center gap-2 pb-1">
+          <span className="text-danger min-w-0 flex-1">{error}</span>
+          <Button size="sm" variant="ghost" onClick={generateSummary}>
+            重试
+          </Button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 pb-1">
+          <span className="text-tau-sm text-ink-3 min-w-0 flex-1">
+            {autoSummaryEnabled ? "这一页还没有总结" : "自动总结已关闭"}
+          </span>
+          <Button size="sm" variant="secondary" onClick={generateSummary}>
+            生成总结
+          </Button>
+        </div>
+      )}
+    </section>
   );
 }

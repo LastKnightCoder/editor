@@ -38,25 +38,10 @@ export interface RpcNotificationMessage<D = unknown> {
   data: D;
 }
 
-export type RpcMessage =
-  | RpcRequestMessage
-  | RpcResponseMessage
-  | RpcNotificationMessage;
-
-/** 主题模式（sidePanel 下无法访问宿主页面 DOM，去掉 auto） */
-export type ThemeMode = "system" | "light" | "dark";
-
-/** 解析后的实际主题 */
-export type ResolvedTheme = "light" | "dark";
+export type RpcMessage = RpcRequestMessage | RpcResponseMessage | RpcNotificationMessage;
 
 /** WebSocket 连接状态 */
 export type ConnectionStatus = "connecting" | "connected" | "disconnected";
-
-/** Tab 类型 */
-export type TabType = "overview" | "chat" | "notes" | "highlights";
-
-/** 导航页面类型 */
-export type PageType = "main" | "settings" | "allNotes";
 
 /** 笔记元数据 */
 export interface NoteMetadata {

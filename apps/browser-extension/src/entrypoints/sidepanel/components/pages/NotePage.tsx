@@ -2,47 +2,30 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { getExtensionKit } from "../../../../services/editorKit";
 import { useMemoizedFn } from "ahooks";
 import { v4 as uuidv4 } from "uuid";
-import {
-  ChevronDown,
-  Plus,
-  Trash2,
-  StickyNote,
-  MoreHorizontal,
-  CreditCard,
-  FileText,
-  FolderInput,
-  RefreshCw,
-} from "lucide-react";
-import { toast } from "@tau/ui";
+import { Trash2, MoreHorizontal, CreditCard, FileText, FolderInput, RefreshCw } from "lucide-react";
+import { IconButton, Menu, cn, toast } from "@tau/ui";
 import { useConfirmPrompt } from "../../../../hooks/useConfirmPrompt";
 import { Editor } from "@tau/editor";
 import webviewExtension from "@tau/editor-webview";
-import { SelectDropDown, EditText } from "@tau/shared";
+import { EditText } from "@tau/shared";
 import type { EditTextHandle } from "@tau/shared";
 import type { Descendant } from "slate";
 import type WebSocketClient from "../../../../utils/WebSocketClient";
-import type { ResolvedTheme } from "../../../../utils/types";
-import type { PendingNoteSelection } from "../MainLayout";
+import { SubpageHeader } from "../SubpageHeader";
 import { extensionImportFromMarkdown } from "../../../../services/editorRegistry";
 
 import { useAiServerWebSocket } from "../../../../hooks/useAiServerWebSocket";
 import { useNotes } from "../../../../hooks/useNotes";
 import { resolveRemoteSyncRequirement } from "./sharedContentSync";
 
-interface NotesTabProps {
-  wsClient: WebSocketClient | null;
-  resolvedTheme: ResolvedTheme;
-  url: string | null;
-  pendingNoteRef?: React.MutableRefObject<PendingNoteSelection | null>;
-}
+/** 进入笔记页的目的：打开某篇，或新建一篇 */
+export type NoteIntent = { type: "open"; noteId: string } | { type: "new" };
 
-/** 笔记选择器下拉菜单项 */
-interface NoteMenuItem {
-  key: string;
-  type: "new" | "note";
-  noteId?: string;
-  title: string;
-  isActive?: boolean;
+interface NotePageProps {
+  wsClient: WebSocketClient | null;
+  url: string | null;
+  intent: NoteIntent;
+  onBack: () => void;
 }
 
 /** More 菜单项 */
@@ -78,7 +61,11 @@ interface SyncHintState {
   spinning?: boolean;
 }
 
-export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef }: NotesTabProps) {
+/**
+ * 笔记二级页：整页编辑一篇本页笔记；与应用内卡片 / 文章的同步状态在标题右侧，
+ * 创建卡片 / 文章、插入到项目、删除在 ⋯ 里。
+ */
+export default function NotePage({ wsClient, url, intent, onBack }: NotePageProps) {
   // 连接 aiServer，用于 settings/content/card/article 等 RPC 调用
   const { client: aiWsClient, status: aiWsStatus } = useAiServerWebSocket();
   const { confirm: confirmPrompt, confirmDialog } = useConfirmPrompt();
@@ -94,10 +81,7 @@ export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef 
   });
   const remoteSyncInFlightRef = useRef<Promise<void> | null>(null);
   const syncHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [showDropdown, setShowDropdown] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const dropdownTriggerRef = useRef<HTMLDivElement>(null);
-  const moreButtonRef = useRef<HTMLButtonElement>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [isCard, setIsCard] = useState(false);
   const [isArticle, setIsArticle] = useState(false);
@@ -120,22 +104,17 @@ export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef 
     replaceActiveNoteContent,
   } = useNotes(url);
 
-  // 从全部笔记页面跳转过来时，自动选中对应笔记
+  // 进入时按目的选中或新建一次（之后的切换由返回本页流再进入完成）
+  const intentAppliedRef = useRef(false);
   useEffect(() => {
-    if (
-      !isLoading &&
-      pendingNoteRef?.current &&
-      url === pendingNoteRef.current.url &&
-      notes.length > 0
-    ) {
-      const pending = pendingNoteRef.current;
-      pendingNoteRef.current = null;
-      const noteExists = notes.some(n => n.id === pending.noteId);
-      if (noteExists && pending.noteId !== activeNoteId) {
-        selectNote(pending.noteId);
-      }
+    if (isLoading || intentAppliedRef.current || !url) return;
+    intentAppliedRef.current = true;
+    if (intent.type === "new") {
+      void createNote();
+    } else if (intent.noteId !== activeNoteId && notes.some(n => n.id === intent.noteId)) {
+      void selectNote(intent.noteId);
     }
-  }, [isLoading, url, notes, activeNoteId, selectNote, pendingNoteRef]);
+  }, [activeNoteId, createNote, intent, isLoading, notes, selectNote, url]);
 
   const editorKit = getExtensionKit(wsClient);
 
@@ -751,115 +730,41 @@ export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef 
     handleInsertToProject,
   ]);
 
-  // More 菜单项选择
-  const handleMoreMenuSelect = useMemoizedFn((item: MoreMenuItem) => {
-    item.onClick();
-  });
-
-  // 打开 More 菜单时刷新数据库名和卡片/文章关联状态
-  const handleToggleMoreMenu = useMemoizedFn(async () => {
-    if (!showMoreMenu) {
-      const dbName = await fetchCurrentDbName();
-      // 查询卡片/文章关联状态
-      if (dbName && aiWsClient) {
-        const cid = getContentId(dbName);
-        setHasSharedContent(Boolean(cid));
-        if (cid) {
-          const [cardRes, articleRes] = await Promise.all([
-            aiWsClient.sendRequest("card.isContentIsCard", { contentId: cid }),
-            aiWsClient.sendRequest("article.isContentIsArticle", {
-              contentId: cid,
-            }),
-          ]);
-          setIsCard((cardRes as { isCard: boolean }).isCard);
-          setIsArticle((articleRes as { isArticle: boolean }).isArticle);
-        } else {
-          setIsCard(false);
-          setIsArticle(false);
-        }
+  // 打开 ⋯ 时刷新数据库名和卡片 / 文章关联状态，决定显示「创建」还是「更新内容」
+  const handleMoreMenuOpenChange = useMemoizedFn(async (open: boolean) => {
+    setShowMoreMenu(open);
+    if (!open) return;
+    const dbName = await fetchCurrentDbName();
+    if (dbName && aiWsClient) {
+      const cid = getContentId(dbName);
+      setHasSharedContent(Boolean(cid));
+      if (cid) {
+        const [cardRes, articleRes] = await Promise.all([
+          aiWsClient.sendRequest("card.isContentIsCard", { contentId: cid }),
+          aiWsClient.sendRequest("article.isContentIsArticle", { contentId: cid }),
+        ]);
+        setIsCard((cardRes as { isCard: boolean }).isCard);
+        setIsArticle((articleRes as { isArticle: boolean }).isArticle);
       } else {
-        setHasSharedContent(false);
+        setIsCard(false);
+        setIsArticle(false);
       }
+    } else {
+      setHasSharedContent(false);
     }
-    setShowMoreMenu(prev => !prev);
   });
 
-  // 构建笔记选择器下拉菜单项
-  const menuItems: NoteMenuItem[] = useMemo(() => {
-    const items: NoteMenuItem[] = [];
-
-    // 新建笔记项
-    items.push({
-      key: "new",
-      type: "new",
-      title: "新建笔记",
-    });
-
-    // 笔记列表（按更新时间倒序）
-    const sortedNotes = [...notes].sort((a, b) => b.updatedAt - a.updatedAt);
-
-    sortedNotes.forEach(note => {
-      items.push({
-        key: `note-${note.id}`,
-        type: "note",
-        noteId: note.id,
-        title: note.title,
-        isActive: note.id === activeNoteId,
-      });
-    });
-
-    return items;
-  }, [notes, activeNoteId]);
-
-  const handleMenuSelect = useMemoizedFn((item: NoteMenuItem) => {
-    if (item.type === "new") {
-      createNote();
-    } else if (item.noteId) {
-      selectNote(item.noteId);
-    }
-    setShowDropdown(false);
-  });
-
-  const handleDeleteClick = useMemoizedFn(async (e: React.MouseEvent, noteId: string) => {
-    e.stopPropagation();
-
+  const handleDeleteNote = useMemoizedFn(async () => {
+    if (!activeNoteId) return;
     const ok = await confirmPrompt({
       title: "删除笔记",
       description: "确定删除这个笔记吗？",
       danger: true,
       confirmText: "删除",
     });
-    if (ok) deleteNote(noteId);
-  });
-
-  const renderMenuItem = useMemoizedFn((item: NoteMenuItem) => {
-    if (item.type === "new") {
-      return (
-        <div className="flex items-center gap-2">
-          <Plus size={14} />
-          <span>新建笔记</span>
-        </div>
-      );
-    }
-
-    return (
-      <div className="group flex w-full items-center justify-between gap-2">
-        <span
-          className={`flex-1 truncate ${item.isActive ? "font-medium text-blue-500 dark:text-blue-400" : ""}`}
-        >
-          {item.title}
-        </span>
-        {item.noteId && (
-          <button
-            onClick={e => handleDeleteClick(e, item.noteId!)}
-            className="shrink-0 rounded p-1 text-red-500 opacity-0 transition-opacity hover:bg-red-50 group-hover:opacity-100 dark:text-red-400 dark:hover:bg-red-900/20"
-            title="删除笔记"
-          >
-            <Trash2 size={14} />
-          </button>
-        )}
-      </div>
-    );
+    if (!ok) return;
+    await deleteNote(activeNoteId);
+    onBack();
   });
 
   const handleEditorChange = useMemoizedFn((value: Descendant[]) => {
@@ -872,84 +777,41 @@ export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef 
     }
   });
 
-  const syncHintClassName = useMemo(() => {
-    switch (syncHint?.tone) {
-      case "success":
-        return "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300";
-      case "warning":
-        return "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-300";
-      case "error":
-        return "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-300";
-      default:
-        return "bg-gray-50 text-gray-500 dark:bg-[#0d1117] dark:text-[#8b949e]";
-    }
-  }, [syncHint?.tone]);
+  const syncHintClassName =
+    syncHint?.tone === "success"
+      ? "text-ok"
+      : syncHint?.tone === "warning"
+        ? "text-warn"
+        : syncHint?.tone === "error"
+          ? "text-danger"
+          : "text-ink-3";
 
-  if (!url) {
+  if (!url || isLoading || !activeNote || !content) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
-        <p className="text-center text-sm text-gray-400 dark:text-[#484f58]">等待页面加载...</p>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
-        <p className="text-center text-sm text-gray-400 dark:text-[#484f58]">加载中...</p>
-      </div>
-    );
-  }
-
-  // 无笔记时显示空状态
-  if (notes.length === 0 || !activeNote || !content) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
-        <StickyNote size={48} className="mb-4 text-gray-300 dark:text-[#484f58]" />
-        <p className="mb-6 text-center text-sm text-gray-400 dark:text-[#484f58]">
-          还没有笔记，开始记录吧
+      <div className="flex h-full flex-col">
+        {confirmDialog}
+        <SubpageHeader title="笔记" onBack={onBack} />
+        <p className="text-tau-sm text-ink-3 px-6 pt-16 text-center">
+          {!url
+            ? "等待页面加载…"
+            : isLoading || intent.type === "new"
+              ? "加载中…"
+              : "这篇笔记已不存在"}
         </p>
-        <button
-          onClick={createNote}
-          className="flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
-        >
-          <Plus size={16} />
-          <span>新建笔记</span>
-        </button>
       </div>
     );
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="bg-surface flex h-full flex-col">
       {confirmDialog}
-      <div className="flex h-12 shrink-0 items-center border-b border-gray-100 px-4 dark:border-[#21262d]">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <div
-            ref={dropdownTriggerRef}
-            className="flex cursor-pointer items-center gap-1 rounded px-1 py-1 transition-colors hover:bg-gray-100 dark:hover:bg-zinc-700"
-            onClick={() => setShowDropdown(!showDropdown)}
-          >
-            <ChevronDown size={16} className="shrink-0 opacity-60" />
-          </div>
-
-          <SelectDropDown<NoteMenuItem>
-            items={menuItems}
-            selectedKey={`note-${activeNoteId}`}
-            show={showDropdown}
-            onClose={() => setShowDropdown(false)}
-            onSelect={handleMenuSelect}
-            triggerElement={dropdownTriggerRef.current}
-            getKey={(item: NoteMenuItem) => item.key}
-            renderItem={renderMenuItem}
-            width={220}
-            maxHeight={360}
-            preferredPlacement="bottom"
-          />
+      <SubpageHeader
+        onBack={onBack}
+        title={
           <EditText
             key={activeNoteId}
             ref={titleRef}
-            className="min-w-0 flex-1 truncate rounded px-1 py-1 text-sm font-semibold text-gray-900 outline-none dark:text-[#e6edf3]"
+            className="min-w-0 truncate rounded px-1 outline-none"
             defaultValue={activeNote.title}
             contentEditable
             onBlur={() => {
@@ -957,46 +819,51 @@ export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef 
               handleTitleChange(value);
             }}
           />
-
-          {syncHint ? (
-            <span
-              className={`flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] ${syncHintClassName}`}
+        }
+        actions={
+          <>
+            {syncHint ? (
+              <span
+                className={cn(
+                  "text-tau-tiny flex max-w-[45%] shrink-0 items-center gap-1 truncate",
+                  syncHintClassName
+                )}
+              >
+                {syncHint.spinning ? <RefreshCw className="size-3 shrink-0 animate-spin" /> : null}
+                <span className="truncate">{syncHint.text}</span>
+              </span>
+            ) : null}
+            <Menu
+              align="end"
+              className="w-[180px]"
+              open={showMoreMenu}
+              onOpenChange={open => void handleMoreMenuOpenChange(open)}
+              trigger={
+                <IconButton
+                  aria-label="更多操作"
+                  title="更多操作"
+                  className="size-8"
+                  disabled={actionLoading}
+                >
+                  <MoreHorizontal size={16} strokeWidth={1.75} />
+                </IconButton>
+              }
             >
-              {syncHint.spinning ? <RefreshCw className="h-3 w-3 animate-spin" /> : null}
-              <span>{syncHint.text}</span>
-            </span>
-          ) : null}
+              {moreMenuItems.map(item => (
+                <Menu.Item key={item.key} icon={item.icon} onSelect={item.onClick}>
+                  {item.label}
+                </Menu.Item>
+              ))}
+              <Menu.Separator />
+              <Menu.Item danger icon={<Trash2 />} onSelect={() => void handleDeleteNote()}>
+                删除笔记
+              </Menu.Item>
+            </Menu>
+          </>
+        }
+      />
 
-          {/* More 按钮 */}
-          <button
-            ref={moreButtonRef}
-            className="flex shrink-0 cursor-pointer items-center justify-center rounded border-none bg-transparent p-1 transition-colors hover:bg-gray-100 dark:hover:bg-zinc-700"
-            onClick={handleToggleMoreMenu}
-            disabled={actionLoading}
-          >
-            <MoreHorizontal size={16} className="opacity-60" />
-          </button>
-          <SelectDropDown<MoreMenuItem>
-            items={moreMenuItems}
-            selectedKey=""
-            show={showMoreMenu}
-            onClose={() => setShowMoreMenu(false)}
-            onSelect={handleMoreMenuSelect}
-            triggerElement={moreButtonRef.current}
-            getKey={(item: MoreMenuItem) => item.key}
-            width={160}
-            renderItem={(item: MoreMenuItem) => (
-              <div className="flex items-center gap-2">
-                {item.icon}
-                <span>{item.label}</span>
-              </div>
-            )}
-          />
-        </div>
-      </div>
-
-      {/* 编辑器区域 */}
-      <div className="tau-scrollbar flex-1 overflow-y-auto">
+      <div className="tau-scrollbar min-h-0 flex-1 overflow-y-auto">
         <Editor
           kit={editorKit}
           key={editorKey}
@@ -1006,8 +873,8 @@ export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef 
           placeHolder="在这里记录笔记..."
           style={{
             minHeight: "100%",
-            padding: "16px 32px",
-            fontSize: "16px",
+            padding: "16px 22px",
+            fontSize: "15px",
           }}
         />
       </div>
