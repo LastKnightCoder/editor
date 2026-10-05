@@ -1,18 +1,26 @@
 import Database from "better-sqlite3";
 import { VecDocument, IndexParams, SearchParams, SearchResult, IndexType } from "@/types";
+import type { ChatPromptIndexType, VecIndexParams } from "@/types/search";
 import type { EmbeddingProviderType } from "@/types/embedding";
 import OpenAI from "openai";
 import log from "electron-log";
 import localInference from "../local-inference";
-import CardTable from "./card";
-import ArticleTable from "./article";
-import ProjectTable from "./project";
-import DiaryTable from "./diary";
-import { smartChunk } from "../../utils/smart-chunk";
+import { searchResultDetails } from "../search-details";
+import {
+  pruneContentSections,
+  readContentSection,
+  sectionsForIndex,
+  writeContentSections,
+} from "../content-sections";
+
+/** 一个实体可能有多个节命中：按块召回时多取几倍再按实体去重，避免长文占满名额 */
+const CHUNKS_PER_RESULT = 4;
+const MAX_CHUNK_RECALL = 200;
 
 const LOCAL_EMBEDDING_CONFIG_ID = "embedding-default-local";
+const CHAT_PROMPT_TYPE: ChatPromptIndexType = "chat-prompt";
 
-const addTypePrefix = (id: number, type: string): string => {
+const addTypePrefix = (id: number | string, type: string): string => {
   return `${type}:${id}`;
 };
 
@@ -121,6 +129,7 @@ export default class VecDocumentTable {
         update_time FLOAT,
         content TEXT,
         type TEXT,
+        chunk_index INTEGER,
         vec_embedding FLOAT[${vecLength}] distance_metric=cosine
       )
     `);
@@ -182,6 +191,7 @@ export default class VecDocumentTable {
       id: parseInt(id),
       type,
       content: document.content,
+      chunkIndex: document.chunk_index,
     };
   }
 
@@ -204,10 +214,14 @@ export default class VecDocumentTable {
       return [];
     }
 
-    const typeClause = types.length > 0 ? `AND type IN (${types.map(() => "?").join(",")})` : "";
+    // 不限类型时也不召回只进向量的提问：它们不是检索结果，还会占掉近邻名额
+    const typeClause =
+      types.length > 0
+        ? `AND type IN (${types.map(() => "?").join(",")})`
+        : `AND type != '${CHAT_PROMPT_TYPE}'`;
 
     const searchQuery = `
-      SELECT prefixed_id, update_time, content, distance
+      SELECT prefixed_id, update_time, content, chunk_index, distance
       FROM vec_documents
       WHERE distance < ? AND vec_embedding match ? ${typeClause} AND k = ?
       ORDER BY distance
@@ -231,8 +245,8 @@ export default class VecDocumentTable {
     return res;
   }
 
-  static async indexContent(db: Database.Database, params: IndexParams): Promise<boolean> {
-    const { id, content, type, updateTime, modelInfo } = params;
+  static async indexContent(db: Database.Database, params: VecIndexParams): Promise<boolean> {
+    const { id, type, updateTime, modelInfo } = params;
     if (!this.hasTable(db, "vec_documents")) {
       return false;
     }
@@ -240,35 +254,45 @@ export default class VecDocumentTable {
     if (modelInfo && modelInfo.model) {
       const prefixedId = addTypePrefix(id, type);
 
-      this.removeIndexByIdAndType(db, id, type);
-
-      const chunks = smartChunk(content, {
-        minLength: 500,
-        maxLength: 2000,
-        overlap: 0,
-        splitter: "paragraph",
-      });
+      const chunks = sectionsForIndex(params);
 
       try {
         const batchSize = modelInfo.batchSize || 8;
+        const allEmbeddings: number[][] = [];
         for (let i = 0; i < chunks.length; i += batchSize) {
           const chunkBatch = chunks.slice(i, i + batchSize);
-          const embeddings = await this.createEmbeddings(chunkBatch, modelInfo);
+          const embeddings = await this.createEmbeddings(
+            chunkBatch.map(chunk => chunk.embeddingText),
+            modelInfo
+          );
 
           if (embeddings.length !== chunkBatch.length) {
             throw new Error("Embedding 数量与分块数量不一致");
           }
 
+          allEmbeddings.push(...embeddings);
+        }
+        db.transaction(() => {
+          this.removeIndexByIdAndType(db, id, type);
+          writeContentSections(db, prefixedId, updateTime, chunks);
           const stmt = db.prepare(`
             INSERT INTO vec_documents
-            (prefixed_id, update_time, content, type, vec_embedding)
-            VALUES (?, ?, ?, ?, vec_f32(?))
+            (prefixed_id, update_time, content, type, chunk_index, vec_embedding)
+            VALUES (?, ?, ?, ?, ?, vec_f32(?))
           `);
 
-          for (let j = 0; j < chunkBatch.length; j++) {
-            stmt.run(prefixedId, updateTime, chunkBatch[j], type, JSON.stringify(embeddings[j]));
+          for (let j = 0; j < chunks.length; j++) {
+            stmt.run(
+              prefixedId,
+              updateTime,
+              chunks[j].text,
+              type,
+              BigInt(chunks[j].chunkIndex),
+              JSON.stringify(allEmbeddings[j])
+            );
           }
-        }
+          pruneContentSections(db, prefixedId);
+        })();
 
         return true;
       } catch (error) {
@@ -293,7 +317,32 @@ export default class VecDocumentTable {
     return results.every(Boolean);
   }
 
-  static removeIndexByIdAndType(db: Database.Database, id: number, type: IndexType) {
+  /**
+   * 对账清理：删除这些类型里不在 keep（`type:id`）中的索引——实体已删、摘录软删、剪藏变孤儿。
+   * 返回删除的文档数。
+   */
+  static removeIndexesNotIn(db: Database.Database, keep: Set<string>, types: readonly string[]) {
+    if (!this.hasTable(db, "vec_documents") || types.length === 0) return 0;
+    const rows = db
+      .prepare(
+        `SELECT DISTINCT prefixed_id FROM vec_documents WHERE type IN (${types.map(() => "?").join(",")})`
+      )
+      .all(...types) as Array<{ prefixed_id: string }>;
+    const remove = db.prepare(`DELETE FROM vec_documents WHERE prefixed_id = ?`);
+    let removed = 0;
+    for (const row of rows) {
+      if (keep.has(row.prefixed_id)) continue;
+      remove.run(row.prefixed_id);
+      removed += 1;
+    }
+    return removed;
+  }
+
+  static removeIndexByIdAndType(
+    db: Database.Database,
+    id: number | string,
+    type: IndexType | ChatPromptIndexType
+  ) {
     if (!this.hasTable(db, "vec_documents")) {
       return true;
     }
@@ -303,6 +352,7 @@ export default class VecDocumentTable {
         DELETE FROM vec_documents WHERE prefixed_id = ?
       `);
       stmt.run(prefixedId);
+      if (this.hasTable(db, "content_sections")) pruneContentSections(db, prefixedId);
       return true;
     } catch (error) {
       log.error("移除向量索引失败:", error);
@@ -369,7 +419,7 @@ export default class VecDocumentTable {
         const searchResults = this.searchVecDocuments(
           indexDb,
           queryEmbedding,
-          limit,
+          Math.min(limit * CHUNKS_PER_RESULT, MAX_CHUNK_RECALL),
           types,
           modelInfo.distance || 0.6
         );
@@ -382,46 +432,24 @@ export default class VecDocumentTable {
         const processedIds = new Set<string>();
 
         for (const [doc, distance] of searchResults) {
-          let details = null;
+          if (results.length >= limit) break;
           const uniqueKey = addTypePrefix(doc.id, doc.type);
           if (processedIds.has(uniqueKey)) {
             continue;
           }
           processedIds.add(uniqueKey);
 
-          switch (doc.type as IndexType) {
-            case "card":
-              details = CardTable.getCardById(mainDb, doc.id);
-              break;
-            case "article":
-              details = ArticleTable.getArticleById(mainDb, doc.id);
-              break;
-            case "project-item":
-              details = ProjectTable.getProjectItem(mainDb, doc.id);
-              break;
-            case "diary-daily": {
-              const diaryEntry = DiaryTable.getDiaryEntryById(mainDb, doc.id);
-              if (diaryEntry) {
-                details = {
-                  ...diaryEntry,
-                  contentId: diaryEntry.segments[0]?.contentId ?? 0,
-                  title: DiaryTable.getDiarySearchTitle(diaryEntry),
-                };
-              }
-              break;
-            }
-            default:
-              break;
-          }
+          const details = searchResultDetails(mainDb, doc.type as IndexType, doc.id);
 
           if (details) {
             results.push({
               id: doc.id,
               contentId: details.contentId,
               type: doc.type as IndexType,
-              // @ts-ignore
-              title: details.title || "",
-              content: details.content || [],
+              title: details.title,
+              content: details.content,
+              section: readContentSection(indexDb, uniqueKey, doc.updateTime, doc.chunkIndex),
+              ...(details.material ? { material: details.material } : {}),
               source: "vec-document" as const,
               updateTime: doc.updateTime,
               // @ts-ignore
@@ -442,8 +470,8 @@ export default class VecDocumentTable {
 
   static checkIndexExists(
     db: Database.Database,
-    id: number,
-    type: IndexType
+    id: number | string,
+    type: IndexType | ChatPromptIndexType
   ): { updateTime: number } | null {
     if (!this.hasTable(db, "vec_documents")) {
       return null;
@@ -475,9 +503,7 @@ export default class VecDocumentTable {
       FROM vec_documents
     `;
 
-    if (type) {
-      query += ` WHERE type = ?`;
-    }
+    query += type ? ` WHERE type = ?` : ` WHERE type != '${CHAT_PROMPT_TYPE}'`;
 
     query += ` GROUP BY prefixed_id`;
 
@@ -487,41 +513,16 @@ export default class VecDocumentTable {
     const results: SearchResult[] = [];
 
     for (const doc of vecDocuments) {
-      let details = null;
-
-      switch (doc.type as IndexType) {
-        case "card":
-          details = CardTable.getCardById(mainDb, doc.id);
-          break;
-        case "article":
-          details = ArticleTable.getArticleById(mainDb, doc.id);
-          break;
-        case "project-item":
-          details = ProjectTable.getProjectItem(mainDb, doc.id);
-          break;
-        case "diary-daily": {
-          const diaryEntry = DiaryTable.getDiaryEntryById(mainDb, doc.id);
-          if (diaryEntry) {
-            details = {
-              ...diaryEntry,
-              contentId: diaryEntry.segments[0]?.contentId ?? 0,
-              title: DiaryTable.getDiarySearchTitle(diaryEntry),
-            };
-          }
-          break;
-        }
-        default:
-          break;
-      }
+      const details = searchResultDetails(mainDb, doc.type as IndexType, doc.id);
 
       if (details) {
         results.push({
           id: doc.id,
           type: doc.type as IndexType,
           contentId: details.contentId,
-          // @ts-ignore
-          title: details.title || "",
-          content: details.content || [],
+          title: details.title,
+          content: details.content,
+          ...(details.material ? { material: details.material } : {}),
           source: "vec-document" as const,
           updateTime: doc.updateTime,
         });

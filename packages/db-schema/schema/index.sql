@@ -28,10 +28,10 @@ CREATE TABLE IF NOT EXISTS index_meta (
         updated_at INTEGER
       );
 
--- 知识地图（卡片图谱的离线结果）：由主进程按「显式链接 + 语义近邻」离线计算，
--- 图谱打开时直接读取。属于可再生的派生数据，丢了会自动重建，因此放在索引库。
+-- 知识地图的离线结果：由主进程按「显式链接 + 语义近邻」离线计算，地图打开时直接读取。
+-- 节点为卡片、文章、项目文档，node_key 形如 "card:12"。可再生的派生数据，放在索引库。
 CREATE TABLE IF NOT EXISTS knowledge_map_nodes (
-        card_id INTEGER PRIMARY KEY,
+        node_key TEXT PRIMARY KEY,
         x REAL NOT NULL,
         y REAL NOT NULL,
         topic INTEGER NOT NULL DEFAULT -1,
@@ -44,4 +44,64 @@ CREATE TABLE IF NOT EXISTS knowledge_map_topics (
         label TEXT NOT NULL,
         color_slot INTEGER NOT NULL DEFAULT 0,
         size INTEGER NOT NULL DEFAULT 0
+      );
+
+-- 正文里的内联引用（content-link）：由主进程从主库正文解析，脉络的「被引用」从这里查。
+-- 可从主库重算的派生数据，丢了会在连接数据库时对账重建，因此放在索引库。
+CREATE TABLE IF NOT EXISTS entity_refs (
+        src_content_id INTEGER NOT NULL,
+        src_block INTEGER NOT NULL DEFAULT 0,
+        dst_kind TEXT NOT NULL,
+        dst_id INTEGER NOT NULL,
+        dst_content_id INTEGER,
+        snippet_before TEXT NOT NULL DEFAULT '',
+        snippet_label TEXT NOT NULL DEFAULT '',
+        snippet_after TEXT NOT NULL DEFAULT ''
+      );
+CREATE INDEX IF NOT EXISTS idx_entity_refs_src ON entity_refs(src_content_id);
+CREATE INDEX IF NOT EXISTS idx_entity_refs_dst ON entity_refs(dst_kind, dst_id);
+CREATE INDEX IF NOT EXISTS idx_entity_refs_dst_content ON entity_refs(dst_content_id);
+-- 每份正文最后一次解析时的 contents.update_time，对账时与主库比较
+CREATE TABLE IF NOT EXISTS entity_ref_sources (
+        content_id INTEGER PRIMARY KEY,
+        update_time INTEGER NOT NULL
+      );
+
+-- 白板对笔记的使用：由主进程按元素类型解析白板页画布，脉络的「被使用 · 白板」从这里查。
+-- 可从主库重算的派生数据，丢了会在连接数据库时对账重建，因此放在索引库。
+-- dst_kind：card / article / project-item / diary（按实体）或 content（按正文 id）；
+-- via：card（卡片元素）/ richtext（文本块）/ mind-node（思维导图节点关联的笔记）/
+--      entity（元素的通用 entityRef）/ inline（元素文字里的引用）
+CREATE TABLE IF NOT EXISTS whiteboard_refs (
+        page_id INTEGER NOT NULL,
+        dst_kind TEXT NOT NULL,
+        dst_id INTEGER NOT NULL,
+        via TEXT NOT NULL,
+        PRIMARY KEY (page_id, dst_kind, dst_id, via)
+      );
+CREATE INDEX IF NOT EXISTS idx_whiteboard_refs_dst ON whiteboard_refs(dst_kind, dst_id);
+-- 每个白板页最后一次解析时的 white_board_contents.update_time，对账时与主库比较
+CREATE TABLE IF NOT EXISTS whiteboard_ref_sources (
+        page_id INTEGER PRIMARY KEY,
+        update_time INTEGER NOT NULL
+      );
+-- 文档正文里嵌入的白板块：宿主正文 → 白板页。由引用索引器随 entity_refs 一起维护
+CREATE TABLE IF NOT EXISTS whiteboard_embeds (
+        host_content_id INTEGER NOT NULL,
+        page_id INTEGER NOT NULL,
+        PRIMARY KEY (host_content_id, page_id)
+      );
+CREATE INDEX IF NOT EXISTS idx_whiteboard_embeds_page ON whiteboard_embeds(page_id);
+
+-- 节位置可从正文重算。按（实体, 正文版本 update_time）存：全文与向量可能各自停在不同版本的正文上。
+CREATE TABLE IF NOT EXISTS content_sections (
+        prefixed_id TEXT NOT NULL,
+        update_time INTEGER NOT NULL,
+        chunk_index INTEGER NOT NULL,
+        heading_path TEXT NOT NULL,
+        block_start INTEGER NOT NULL,
+        block_end INTEGER NOT NULL,
+        char_count INTEGER NOT NULL,
+        text TEXT NOT NULL,
+        PRIMARY KEY (prefixed_id, update_time, chunk_index)
       );

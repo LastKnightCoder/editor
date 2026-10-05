@@ -1,4 +1,4 @@
-// 快速闪念 overlay：持久化/草稿/清空逻辑由 useQuickCaptureController 承载，
+// 快速捕获 overlay：持久化/草稿/清空逻辑由 useQuickCaptureController 承载，
 // 页面组件只做组装。控制器随页面实例创建、关闭即销毁。
 
 import { QuickCaptureSheet } from "../QuickCaptureSheet";
@@ -26,9 +26,7 @@ function QuickCaptureScreen() {
     <QuickCaptureSheet
       open
       saving={controller.saving}
-      category={controller.category}
       onContentChange={controller.onContentChange}
-      onCategoryChange={controller.onCategoryChange}
       onClear={controller.onClear}
       onRequestClose={() => {
         void navigator.goBack("ui");

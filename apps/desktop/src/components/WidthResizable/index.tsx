@@ -22,6 +22,8 @@ interface IWidthResizableProps {
   handleOffset?: number; // 拖拽条偏移量（像素），正值向外偏移
   /** 常驻 1px 淡分隔线标出可拖拽边界；hover / 拖拽时加粗为 2px 强调色 */
   showDivider?: boolean;
+  /** 以 flex 铺满父级剩余空间，忽略宽度上下限（配合外层 flex 容器使用） */
+  fillRemaining?: boolean;
 }
 
 const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = props => {
@@ -36,6 +38,7 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = props 
     disableResize = false,
     handleOffset = 0,
     showDivider = false,
+    fillRemaining = false,
   } = props;
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -134,12 +137,10 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = props 
 
   return (
     <div
-      className={cn("relative", className)}
+      className={cn("relative", fillRemaining && "w-full min-w-0", className)}
       style={{
         ...style,
-        width,
-        minWidth,
-        maxWidth,
+        ...(fillRemaining ? {} : { width, minWidth, maxWidth }),
       }}
       ref={containerRef}
     >

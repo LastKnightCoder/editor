@@ -9,12 +9,8 @@ import { FileText, RotateCw, Square } from "lucide-react";
 import { useThrottle } from "ahooks";
 import { Button, cn, toast } from "@tau/ui";
 import { FadeScroll } from "@/components/FadeScroll";
-import {
-  ReasoningBlock,
-  ToolCallBlock,
-  formatElapsed,
-  useChatMarkdownComponents,
-} from "@/components/ChatUI";
+import { ReasoningBlock, formatElapsed } from "@tau/chat-ui";
+import { ToolCallBlock, useChatMarkdownComponents } from "@/components/ChatUI";
 import useTheme from "@/hooks/useTheme";
 import { MarkdownProvider } from "@/components/ChatSidebar/MarkdownContext";
 import MarkdownRenderer from "@/components/ChatSidebar/MarkdownRenderer";

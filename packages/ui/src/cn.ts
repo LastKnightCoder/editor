@@ -27,7 +27,7 @@ export const SCALE_WORDS = {
     "tau-micro",
     "tau-tiny",
   ],
-  fontFamily: ["tau", "tau-mono"],
+  fontFamily: ["tau", "tau-mono", "tau-hand"],
   radius: ["tau-sm", "tau-md", "tau-lg"],
   shadow: ["card", "lift", "float"],
   ease: ["tau-out"],

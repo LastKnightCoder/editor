@@ -2,12 +2,15 @@ import React, { MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { getContentKit } from "@/services/editorKit";
 import { Editor, EditorRef, EditorThemeOverride } from "@tau/editor";
 import If from "@/components/If";
+import { cn } from "@tau/ui";
 
 import { useMemoizedFn } from "ahooks";
 import { Descendant } from "slate";
 import { produce } from "immer";
 
 import CurveArrow from "../../components/Arrow/CurveArrow";
+import SketchRect from "../SketchPaths/SketchRect";
+import { hashSeed } from "../../utils/sketch";
 import {
   useArrowMove,
   useBoard,
@@ -15,6 +18,7 @@ import {
   useElementMoving,
   useInertControl,
   useSelectState,
+  useSketch,
 } from "../../hooks";
 import { BoardUtil, MindThemeUtil, MindUtil, PathUtil } from "../../utils";
 import { useMindMode, useMindTheme } from "../../hooks/useMindTheme";
@@ -24,6 +28,7 @@ import { ECreateBoardElementType, EMarkerType, MindNodeElement } from "../../typ
 import { createContent, incrementContentRefCount } from "@/commands/content";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import { SearchResult } from "@/types/search";
+import { handTextClass } from "../../utils/sketch";
 
 interface MindNodeProps {
   element: MindNodeElement;
@@ -87,6 +92,13 @@ const MindNode = (props: MindNodeProps) => {
       element.level === 1 ? MindThemeUtil.getBranchIndex(root, childId) : branchIndex,
       mindMode
     );
+
+  // 整棵导图共用根节点的画风覆盖
+  const sketch = useSketch(element, root);
+  const branchSketch = (childId: string) =>
+    sketch.enabled
+      ? { level: sketch.level, seed: (sketch.seed ^ hashSeed(childId)) >>> 0 }
+      : undefined;
 
   const background = nodeStyle.background;
   const textColor = nodeStyle.textColor;
@@ -472,6 +484,22 @@ const MindNode = (props: MindNodeProps) => {
             strokeWidth={2}
           />
         </If>
+        {/* 手绘：底色与外框由墨迹框承担，放在文字之下 */}
+        {sketch.enabled && (
+          <SketchRect
+            x={x}
+            y={y}
+            width={width}
+            height={height}
+            radius={nodeStyle.borderRadius}
+            fill={background || undefined}
+            washAlpha={1}
+            stroke={nodeStyle.borderWidth > 0 ? nodeStyle.borderColor : background || undefined}
+            strokeWidth={Math.max(1.2, nodeStyle.borderWidth)}
+            level={sketch.level}
+            seed={sketch.seed}
+          />
+        )}
         <foreignObject
           x={x}
           y={y}
@@ -489,8 +517,10 @@ const MindNode = (props: MindNodeProps) => {
             <div
               className="absolute left-0 top-0 z-[-1] box-border"
               style={{
-                background: background || "transparent",
-                border: `${nodeStyle.borderWidth}px solid ${nodeStyle.borderColor}`,
+                background: (!sketch.enabled && background) || "transparent",
+                border: sketch.enabled
+                  ? "none"
+                  : `${nodeStyle.borderWidth}px solid ${nodeStyle.borderColor}`,
                 borderRadius: nodeStyle.borderRadius,
                 width,
                 height,
@@ -502,7 +532,7 @@ const MindNode = (props: MindNodeProps) => {
                 ref={editorRef}
                 initValue={text}
                 readonly={!isEditing}
-                className="box-border w-fit rounded-[4px] p-4"
+                className={cn("box-border w-fit rounded-[4px] p-4", handTextClass(sketch))}
                 style={editorStyle}
                 onChange={onContentChange}
                 onBlur={handleBlur}
@@ -546,6 +576,7 @@ const MindNode = (props: MindNodeProps) => {
                 },
               ]}
               forceVertical
+              sketch={branchSketch(point.id)}
             />
           );
         })}
@@ -572,6 +603,7 @@ const MindNode = (props: MindNodeProps) => {
                 },
               ]}
               forceVertical
+              sketch={branchSketch(point.id)}
             />
           );
         })}

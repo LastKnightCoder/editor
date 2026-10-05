@@ -11,6 +11,12 @@ export function getRefTypeLabel(type: string): string {
       return "项目";
     case "diary-daily":
       return "日记";
+    case "excerpt":
+      return "划线";
+    case "pdf-annotation":
+      return "PDF 标注";
+    case "web-clip":
+      return "剪藏";
     default:
       return type;
   }

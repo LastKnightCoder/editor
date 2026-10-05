@@ -40,8 +40,8 @@ export function collaborationKit(
       const slots = base.get(IEditorSlots);
       return {
         ...slots,
-        Video: createAssetMedia(slots.Video, binding),
-        Audio: createAssetMedia(slots.Audio, binding),
+        Video: createAssetMedia(slots.Video, binding, "视频"),
+        Audio: createAssetMedia(slots.Audio, binding, "音频"),
       };
     });
   };

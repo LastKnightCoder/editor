@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { Descendant } from "slate";
-import { ICard, ECardCategory } from "@/types/card";
+import { ICard } from "@/types/card";
 import { IArticle } from "@/types/article";
 import { Project, ProjectItem, EProjectItemType } from "@/types/project";
 import { PublishContentType } from "@/types/publish";
@@ -15,7 +15,6 @@ export interface CardListItem {
   title: string;
   summary: string;
   tags: string[];
-  category: ECardCategory;
   updateTime: number;
   raw: ICard;
 }
@@ -124,6 +123,6 @@ export interface CardTagNodeBuilder {
 }
 
 // 重导出相关类型
-export type { ICard, ECardCategory, IArticle, IQuestion, Project, ProjectItem, PublishContentType };
+export type { ICard, IArticle, IQuestion, Project, ProjectItem, PublishContentType };
 
 export { EProjectItemType };

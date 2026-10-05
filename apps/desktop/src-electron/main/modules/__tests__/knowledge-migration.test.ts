@@ -377,7 +377,8 @@ describe("知识库迁移", () => {
     databases.push(index);
     index.loadExtension(sqliteVec.getLoadablePath());
     index.exec(indexSchema);
-    index.exec(vectorSchema.replaceAll("__VEC_DIMENSION__", "3"));
+    // 迁移输入是升级前的向量结构，节级列只在随后重建时出现。
+    index.exec(vectorSchema.replaceAll("__VEC_DIMENSION__", "3").replace("chunk_index INTEGER,", ""));
     index
       .prepare(
         "INSERT INTO content_fts(prefixed_id,type,content,title,update_time,chunk_index) VALUES('document-item:2','document-item','正文','标题',18,0)"

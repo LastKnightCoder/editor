@@ -43,6 +43,7 @@ import {
 } from "@/commands/file";
 import { uploadResource } from "@/hooks/useUploadResource";
 import { createContent, getContentById, updateContent } from "@/commands/content";
+import { syncExcerptWebPage } from "@/commands/excerpt";
 import { buildCardFromContent, isContentIsCard } from "@/commands/card";
 import { buildArticleFromContent, isContentIsArticle } from "@/commands/article";
 import { getContentLength, defaultContentEventBus } from "@/utils";
@@ -464,7 +465,7 @@ const handleSettingsSetLlmUsage = async (request: RpcRequestMessage) => {
   const params = request.params as unknown as {
     feature: keyof ISetting["llmUsageSettings"];
     providerId: string;
-    modelName: string;
+    modelId: string;
   };
 
   useSettingStore.setState(
@@ -472,11 +473,11 @@ const handleSettingsSetLlmUsage = async (request: RpcRequestMessage) => {
       if (!draft.setting.llmUsageSettings[params.feature]) {
         draft.setting.llmUsageSettings[params.feature] = {
           providerId: "",
-          modelName: "",
+          modelId: "",
         };
       }
       draft.setting.llmUsageSettings[params.feature].providerId = params.providerId;
-      draft.setting.llmUsageSettings[params.feature].modelName = params.modelName;
+      draft.setting.llmUsageSettings[params.feature].modelId = params.modelId;
     })
   );
 
@@ -507,6 +508,11 @@ const handleSettingsGetEmbeddingModelInfo = async () => {
 const handleSettingsGetCurrentDatabase = async () => {
   const { database } = useSettingStore.getState().setting;
   return { dbName: database.active };
+};
+
+/** 插件按页同步划线快照（KL-035）；参数由主进程校验，这里只转发 */
+const handleExcerptSyncPage = async (request: RpcRequestMessage) => {
+  return await syncExcerptWebPage(request.params);
 };
 
 const handleContentCreate = async (request: RpcRequestMessage) => {
@@ -762,6 +768,7 @@ export const initAiServer = () => {
   // 注册内容/卡片/文章 RPC 处理器
   aiServer.addRequestHandler("settings.getCurrentDatabase", handleSettingsGetCurrentDatabase);
   aiServer.addRequestHandler("content.create", handleContentCreate);
+  aiServer.addRequestHandler("excerpt.syncPage", handleExcerptSyncPage);
   aiServer.addRequestHandler("content.getById", handleContentGetById);
   aiServer.addRequestHandler("content.subscription.set", handleContentSubscriptionSet);
   aiServer.addRequestHandler("content.update", handleContentUpdate);

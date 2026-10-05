@@ -47,7 +47,8 @@ const mockContext = vi.hoisted(() => {
         const row = state.indexedRows.find(r => r.prefixed_id === `${type}:${id}`);
         return row ? { updateTime: row.update_time } : null;
       }),
-      indexContent: vi.fn(async () => true),
+      indexContent: vi.fn(async (_db: unknown, _params: { id: number; type: string }) => true),
+      removeIndexesNotIn: vi.fn((_db: unknown, _keep: Set<string>, _types: readonly string[]) => 0),
       clearTableData: vi.fn(),
       initTableByVecLength: vi.fn(),
     },
@@ -66,11 +67,17 @@ vi.mock("../tables/article", () => ({
 vi.mock("../tables/project", () => ({ default: { getAllProjectItems: () => [] } }));
 vi.mock("../tables/diary", () => ({ default: { getAllDiaryEntries: () => [] } }));
 vi.mock("../tables/vec-document", () => ({ default: mockContext.vecTableMock }));
+vi.mock("../material-index", () => ({
+  MATERIAL_INDEX_TYPES: ["excerpt", "pdf-annotation", "web-clip"],
+  listMaterialIndexDocs: () => [{ id: 9, type: "excerpt", content: "一句划线", updateTime: 10 }],
+}));
 vi.mock("@/utils/markdown.ts", () => ({
   getMarkdown: (content: unknown) => (typeof content === "string" ? content : ""),
 }));
+vi.mock("@/entity/sections", () => ({ splitSections: () => [] }));
 
 import mainContentVecIndexQueue from "../main-content-vec-index-queue";
+import { MAIN_CHUNK_BUILD_KEY, mainEmbeddingFingerprint } from "@/entity/chunk-version";
 
 const embeddingConfig = {
   configId: "embedding-default-local",
@@ -101,8 +108,9 @@ describe("MainContentVecIndexQueue 索引状态", () => {
   it("统计按 已索引 / 待更新 / 未索引 分桶，空正文不计入", async () => {
     const stats = await mainContentVecIndexQueue.getIndexStats("data.db");
 
-    expect(stats).toMatchObject({ total: 4, indexed: 2, outdated: 1, unindexed: 1 });
+    expect(stats).toMatchObject({ total: 5, indexed: 2, outdated: 1, unindexed: 2 });
     expect(stats?.byType.card).toEqual({ total: 3, indexed: 1, outdated: 1, unindexed: 1 });
+    expect(stats?.byType.excerpt).toEqual({ total: 1, indexed: 0, outdated: 0, unindexed: 1 });
     expect(stats?.byType.article).toEqual({ total: 1, indexed: 1, outdated: 0, unindexed: 0 });
   });
 
@@ -119,8 +127,12 @@ describe("MainContentVecIndexQueue 索引状态", () => {
     });
     unsubscribe();
 
-    expect(result).toMatchObject({ queued: 2, indexed: 2, stale: false });
-    expect(mockContext.vecTableMock.indexContent).toHaveBeenCalledTimes(2);
+    expect(result).toMatchObject({ queued: 3, indexed: 3, stale: false });
+    expect(mockContext.vecTableMock.indexContent).toHaveBeenCalledTimes(3);
+    // 对账清理：候选集合（含材料）之外的向量被删
+    const [, keep, types] = mockContext.vecTableMock.removeIndexesNotIn.mock.calls.at(-1)!;
+    expect([...keep].sort()).toEqual(["article:1", "card:1", "card:2", "card:3", "excerpt:9"]);
+    expect(types).toContain("web-clip");
     expect(phases[0]).toBe("collecting");
     expect(phases).toContain("indexing");
     expect(phases.at(-1)).toBe("done");
@@ -130,8 +142,8 @@ describe("MainContentVecIndexQueue 索引状态", () => {
     expect(lastRun).toMatchObject({
       reason: "manual",
       phase: "done",
-      queued: 2,
-      indexed: 2,
+      queued: 3,
+      indexed: 3,
       failed: 0,
     });
     expect(lastRun?.finishedAt).toBeTypeOf("number");
@@ -158,6 +170,61 @@ describe("MainContentVecIndexQueue 索引状态", () => {
     expect(lastRun?.phase).toBe("failed");
     expect(lastRun?.failed).toBe(3);
     expect(lastRun?.error).toContain("连续失败");
+    mockContext.vecTableMock.indexContent.mockResolvedValue(true);
+  });
+
+  it("部分失败保留 pending，重试不会重嵌已成功的实体", async () => {
+    mockContext.vecTableMock.clearTableData.mockClear();
+    mockContext.vecTableMock.indexContent
+      .mockImplementationOnce(async () => {
+        mockContext.state.indexedRows = mockContext.state.indexedRows.map(row =>
+          row.prefixed_id === "card:2" ? { ...row, update_time: 300 } : row
+        );
+        return true;
+      })
+      .mockResolvedValueOnce(false)
+      .mockImplementationOnce(async () => {
+        mockContext.state.indexedRows.push({ prefixed_id: "excerpt:9", update_time: 10 });
+        return true;
+      });
+    const options = {
+      mainDbName: "data.db",
+      embeddingConfig,
+      fingerprintChanged: false,
+      autoIndex: true,
+      reason: "startup_reconcile" as const,
+    };
+    const first = await mainContentVecIndexQueue.reconcileByPolicy(options);
+    expect(first).toMatchObject({ queued: 3, indexed: 2, failed: 1, stale: false });
+    expect(mockContext.databaseModuleMock.setIndexRebuildState).toHaveBeenLastCalledWith(
+      "data.db",
+      "pending",
+      "vec"
+    );
+    mockContext.vecTableMock.indexContent.mockClear();
+    const second = await mainContentVecIndexQueue.reconcileByPolicy(options);
+    expect(second).toMatchObject({ queued: 1, indexed: 1, failed: 0 });
+    expect(mockContext.vecTableMock.indexContent.mock.calls[0][1]).toMatchObject({
+      id: 3,
+      type: "card",
+    });
+    expect(mockContext.vecTableMock.clearTableData).not.toHaveBeenCalled();
+  });
+
+  it("重建失败仍保存已准备的口径，供编排器恢复同一张表", async () => {
+    mockContext.vecTableMock.indexContent.mockResolvedValue(false);
+    await expect(
+      mainContentVecIndexQueue.reconcileByPolicy({
+        mainDbName: "data.db",
+        embeddingConfig,
+        fingerprintChanged: true,
+        autoIndex: true,
+        reason: "startup_reconcile",
+      })
+    ).rejects.toThrow("连续失败");
+    expect(mockContext.meta.get(MAIN_CHUNK_BUILD_KEY)).toBe(
+      mainEmbeddingFingerprint(embeddingConfig.fingerprint)
+    );
     mockContext.vecTableMock.indexContent.mockResolvedValue(true);
   });
 });

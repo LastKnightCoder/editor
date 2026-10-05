@@ -1,0 +1,148 @@
+/* 白板手绘风格 mockup · 公共样式。视觉参考，非导出源（D-001） */
+[data-theme="cream"] {
+  --sk-ink: #3a3129;
+  --sk-frame: #a89a85;
+  --sk-frame-bg: rgba(255, 253, 249, 0.6);
+  --sk-paper: #fbf7ef;
+  --sk-dot: rgba(67, 57, 44, 0.13);
+}
+[data-theme="cocoa"] {
+  --sk-ink: #ece3d3;
+  --sk-frame: #8d7f6b;
+  --sk-frame-bg: rgba(46, 40, 32, 0.6);
+  --sk-paper: #27211a;
+  --sk-dot: rgba(236, 227, 211, 0.1);
+}
+* {
+  box-sizing: border-box;
+  margin: 0;
+}
+body {
+  background: var(--bg-page);
+  color: var(--ink-1);
+  font: 14px/1.7 var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+code {
+  font: 12px/1.5 var(--mono);
+  background: var(--bg-surface);
+  border: 1px solid var(--line-1);
+  padding: 1px 6px;
+  border-radius: 5px;
+  color: var(--accent-text);
+}
+kbd {
+  font: 11px/1 var(--mono);
+  background: var(--bg-hover);
+  border-radius: 4px;
+  padding: 2px 5px;
+  color: var(--ink-2);
+}
+
+/* 笔触质感 */
+.sk-wash {
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+}
+[data-theme="cocoa"] .sk-wash {
+  mix-blend-mode: screen;
+  opacity: 0.32;
+}
+/* 线类填充（斜线 / 交叉 / 涂鸦）退一步，不压文字 */
+.sk-lines {
+  opacity: 0.8;
+}
+[data-theme="cocoa"] .sk-lines {
+  opacity: 0.45;
+}
+.hand {
+  font-family: "Hannotate SC", "HanziPen SC", "Kaiti SC", "STKaiti", "华文楷体", "KaiTi", cursive;
+}
+
+/* 顶部演示条（mock 专用控件） */
+.demo {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  padding: 10px 24px;
+  background: var(--bg-page);
+  box-shadow: 0 1px 0 var(--line-1);
+  font-size: 12.5px;
+}
+.demo .title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-right: 8px;
+}
+.demo .title a {
+  color: var(--ink-3);
+  font-weight: 400;
+  text-decoration: none;
+  margin-right: 6px;
+}
+.demo .grp {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.demo .grp > span {
+  color: var(--ink-3);
+  margin-right: 4px;
+}
+.chip {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 8px;
+  color: var(--ink-2);
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.chip:hover {
+  background: var(--bg-hover);
+  color: var(--ink-1);
+}
+.chip.on {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-weight: 500;
+}
+.chip .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+.demo .spacer {
+  flex: 1;
+}
+
+/* 文档型页面：base.css 的应用壳把 html/body 锁成 100% 高且不滚动，这里放开 */
+html:has(body.doc),
+body.doc {
+  height: auto;
+  overflow: auto;
+  min-width: 0;
+}
+
+/* 手绘虚线流动：只动遮罩的 dashoffset，一个周期 = 一段实 + 一段空 */
+.sk-dash-flow {
+  animation: sk-dash-flow linear infinite;
+}
+@keyframes sk-dash-flow {
+  to {
+    stroke-dashoffset: calc(-1 * var(--sk-dash-cycle));
+  }
+}

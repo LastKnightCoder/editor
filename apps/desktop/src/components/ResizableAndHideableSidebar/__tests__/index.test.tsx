@@ -105,4 +105,31 @@ describe("ResizableAndHideableSidebar", () => {
 
     await unmount(root, container);
   });
+
+  it("fillRemaining 时内外层都不锁定宽度，改以 flex 铺满", async () => {
+    const { root, container } = await mount(
+      <ResizableAndHideableSidebar
+        width={420}
+        open={true}
+        minWidth={280}
+        maxWidth={560}
+        fillRemaining
+      >
+        <div>content</div>
+      </ResizableAndHideableSidebar>
+    );
+
+    const sidebarRoot = container.firstElementChild as HTMLElement;
+    const viewportWrapper = sidebarRoot.firstElementChild as HTMLElement;
+    const resizable = viewportWrapper.firstElementChild as HTMLElement;
+
+    expect(sidebarRoot.style.width).toBe("");
+    expect(sidebarRoot.className).toContain("flex-1");
+    expect(sidebarRoot.className).toContain("min-w-0");
+    expect(resizable.style.width).toBe("");
+    expect(resizable.style.minWidth).toBe("");
+    expect(resizable.style.maxWidth).toBe("");
+
+    await unmount(root, container);
+  });
 });

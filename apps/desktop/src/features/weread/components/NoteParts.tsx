@@ -1,6 +1,14 @@
 /** 笔记页的内容件：书头、书评、划线条目、过滤条、目录 */
 
-import { BookOpen, Copy, MessageSquareQuote, PenLine, RefreshCw } from "lucide-react";
+import {
+  BookOpen,
+  CircleHelp,
+  Copy,
+  Layers,
+  MessageSquareQuote,
+  PenLine,
+  RefreshCw,
+} from "lucide-react";
 import { Button, FilterPill, IconButton, Tooltip, cn, toast } from "@tau/ui";
 import {
   HIGHLIGHT_COLORS,
@@ -178,10 +186,21 @@ function Thought({ paragraphs, className }: { paragraphs: string[]; className?: 
   );
 }
 
-function NoteItem({ note }: { note: BookNote }) {
+function NoteItem({
+  note,
+  onToCard,
+  onToQuestion,
+}: {
+  note: BookNote;
+  onToCard?: (note: BookNote) => void;
+  onToQuestion?: (note: BookNote) => void;
+}) {
   const text = [...note.paragraphs, ...(note.review.length ? ["", ...note.review] : [])].join("\n");
   return (
-    <div className="bg-hover hover:bg-press group relative rounded-[var(--tau-radius-md)] px-4 py-3 transition-colors duration-150">
+    <div
+      data-note-id={note.id}
+      className="bg-hover hover:bg-press group relative rounded-[var(--tau-radius-md)] px-4 py-3 transition-colors duration-150"
+    >
       {note.paragraphs.length > 0 && (
         <div className={cn(SERIF, "text-ink-1 text-[15.5px] leading-[1.95]")}>
           {note.paragraphs.map((p, i) => (
@@ -197,18 +216,48 @@ function NoteItem({ note }: { note: BookNote }) {
       )}
       {note.review.length > 0 && <Thought paragraphs={note.review} className="mt-2.5" />}
       {/* 固定槽位淡入，不顶开布局 */}
-      <IconButton
-        title="复制"
-        onClick={() => void copy(text)}
-        className="bg-surface shadow-lift absolute right-1.5 top-1.5 size-[26px] rounded-[8px] opacity-0 transition-opacity duration-150 focus-visible:opacity-100 group-hover:opacity-100"
-      >
-        <Copy className="size-[13px]" strokeWidth={1.75} />
-      </IconButton>
+      <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
+        {onToCard && note.paragraphs.length > 0 && (
+          <IconButton
+            title="转为卡片"
+            onClick={() => onToCard(note)}
+            className="bg-surface shadow-lift size-[26px] rounded-[8px]"
+          >
+            <Layers className="size-[13px]" strokeWidth={1.75} />
+          </IconButton>
+        )}
+        {onToQuestion && note.paragraphs.length > 0 && (
+          <IconButton
+            title="转为问题"
+            onClick={() => onToQuestion(note)}
+            className="bg-surface shadow-lift size-[26px] rounded-[8px]"
+          >
+            <CircleHelp className="size-[13px]" strokeWidth={1.75} />
+          </IconButton>
+        )}
+        <IconButton
+          title="复制"
+          onClick={() => void copy(text)}
+          className="bg-surface shadow-lift size-[26px] rounded-[8px]"
+        >
+          <Copy className="size-[13px]" strokeWidth={1.75} />
+        </IconButton>
+      </div>
     </div>
   );
 }
 
-export function ChapterSection({ chapter, index }: { chapter: NoteChapter; index: number }) {
+export function ChapterSection({
+  chapter,
+  index,
+  onToCard,
+  onToQuestion,
+}: {
+  chapter: NoteChapter;
+  index: number;
+  onToCard?: (note: BookNote) => void;
+  onToQuestion?: (note: BookNote) => void;
+}) {
   const count = chapter.notes.length + chapter.thoughts.length;
   return (
     <section data-chapter={chapter.key} className="mt-9 scroll-mt-14">
@@ -222,7 +271,7 @@ export function ChapterSection({ chapter, index }: { chapter: NoteChapter; index
       {/* 条目之间靠留白分组（不画分隔线） */}
       <div className="flex flex-col gap-2.5">
         {chapter.notes.map(note => (
-          <NoteItem key={note.id} note={note} />
+          <NoteItem key={note.id} note={note} onToCard={onToCard} onToQuestion={onToQuestion} />
         ))}
       </div>
       {chapter.thoughts.map((t, i) => (

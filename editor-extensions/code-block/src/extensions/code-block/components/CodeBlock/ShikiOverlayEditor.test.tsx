@@ -199,4 +199,56 @@ describe("ShikiOverlayEditor selection", () => {
     expect(codeLayer.scrollLeft).toBe(84);
     expect(textarea.scrollLeft).toBe(84);
   });
+
+  it("行号栏按逻辑行渲染，高亮行着色，点击回调 1 起的行号", async () => {
+    const onLineNumberClick = vi.fn();
+    await renderEditor("a\nb\nc", { lineNumbers: true, highlightLines: "2", onLineNumberClick });
+
+    const numbers = Array.from(
+      container!.querySelectorAll<HTMLElement>(".code-block-shiki-line-number")
+    );
+    expect(numbers.map(node => node.textContent)).toEqual(["1", "2", "3"]);
+    expect(numbers[1].classList.contains("is-highlighted")).toBe(true);
+    expect(numbers[0].classList.contains("is-highlighted")).toBe(false);
+
+    await act(async () => {
+      numbers[2].dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(onLineNumberClick).toHaveBeenCalledWith(3, expect.anything());
+  });
+
+  it("只读时行号不可点击，关闭行号时不渲染行号栏", async () => {
+    const onLineNumberClick = vi.fn();
+    await renderEditor("a\nb", { lineNumbers: true, readOnly: true, onLineNumberClick });
+    const first = container!.querySelector<HTMLElement>(".code-block-shiki-line-number")!;
+    expect(first.classList.contains("is-clickable")).toBe(false);
+    await act(async () => {
+      first.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(onLineNumberClick).not.toHaveBeenCalled();
+
+    await renderEditor("a\nb", { lineNumbers: false });
+    expect(container!.querySelector(".code-block-shiki-gutter")).toBeNull();
+  });
+
+  it("自动换行时 textarea 软换行且取消横向滚动", async () => {
+    const textarea = await renderEditor("const a = 1;", { wrap: true });
+    expect(textarea.getAttribute("wrap")).toBe("soft");
+    expect(textarea.style.overflowX).toBe("hidden");
+    expect(container!.firstElementChild?.hasAttribute("data-wrap")).toBe(true);
+
+    const unwrapped = await renderEditor("const a = 1;", { wrap: false });
+    expect(unwrapped.getAttribute("wrap")).toBe("off");
+  });
+
+  it("改动行标记只给传入的行渲染", async () => {
+    await renderEditor("a\nb\nc", {
+      changedLines: new Set([0, 2]),
+      changedLinesVisible: true,
+    });
+    expect(container!.querySelectorAll(".code-block-shiki-changed-line")).toHaveLength(2);
+    expect(container!.querySelector(".code-block-shiki-deco")?.hasAttribute("data-visible")).toBe(
+      true
+    );
+  });
 });

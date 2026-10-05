@@ -1,0 +1,830 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>AI 洞见 · 主题与全局层（7c）</title>
+<!-- 视觉参考，非导出源（D-001）。设计见 docs/knowledge-loop/17。 -->
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  .win { width: 1320px; height: 900px; }
+  .main { position: relative; }
+  .paper { flex: 1; display: flex; flex-direction: column; overflow: hidden; margin: 4px 16px 16px; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); position: relative; }
+  .head { display: flex; align-items: center; gap: 12px; padding: 20px 30px 0; height: 52px; flex: none; }
+  .head h1 { font-size: 22px; font-weight: 600; margin: 0; }
+  .head .stat { color: var(--ink-2); font-size: 12.5px; }
+  .head .sp { flex: 1; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border-radius: 999px; color: var(--ink-2); cursor: pointer; user-select: none; font-size: 12.5px; }
+  .pill:hover { background: var(--hover); color: var(--ink-1); }
+  .pill.on { background: var(--accent-soft); color: var(--accent-text); }
+  .pill svg.lucide { width: 13px; height: 13px; }
+  .pill .spin { animation: spin 1s linear infinite; }
+  .pill .seen { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); opacity: .75; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .filters { display: flex; gap: 6px; padding: 8px 30px 10px; flex: none; font-size: 12.5px; color: var(--ink-2); }
+  .filters span { height: 26px; padding: 0 10px; border-radius: var(--r-sm); display: inline-flex; align-items: center; }
+  .filters span.on { background: var(--selected); color: var(--accent-text); font-weight: 500; }
+  .phase { height: 0; overflow: hidden; font-size: 12.5px; color: var(--ink-3); padding: 0 30px; transition: height var(--normal) var(--ease); flex: none; }
+  .phase.on { height: 26px; }
+
+  /* 报告卡（同 7b）：只在洞见视图里展开 */
+  .report { margin: 0 30px; border-radius: var(--r-lg); background: var(--surface-hover); overflow: hidden; display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--normal) var(--ease), margin var(--normal); flex: none; }
+  .report.on { grid-template-rows: 1fr; margin-bottom: 12px; }
+  .report > div { overflow: hidden; }
+  .rep { padding: 14px 18px 12px; display: grid; grid-template-columns: 1fr 190px; gap: 18px; transition: opacity var(--fast); }
+  .rep.swap { opacity: 0; }
+  .rep .crumb2 { font-size: 12px; color: var(--ink-3); margin-bottom: 4px; display: flex; gap: 6px; align-items: center; }
+  .rep .crumb2 a { color: var(--accent-text); cursor: pointer; }
+  .rep .lead { font-size: 14px; line-height: 1.8; color: var(--ink-1); }
+  .rep .lead b { font-weight: 600; }
+  .rep .lead .ref { color: var(--accent-text); cursor: pointer; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .chip { height: 24px; padding: 0 9px; border-radius: 999px; font-size: 12px; color: var(--ink-2); background: var(--surface); display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  .chip:hover { color: var(--ink-1); box-shadow: 0 0 0 1px var(--line-1); }
+  .chip i { width: 7px; height: 7px; border-radius: 50%; }
+  .asks { margin-top: 10px; border-top: 1px solid var(--line-2); padding-top: 8px; }
+  .asks .h { font-size: 12px; color: var(--ink-3); margin-bottom: 2px; }
+  .ask { display: flex; gap: 8px; align-items: baseline; font-size: 13px; color: var(--ink-1); padding: 3px 0; }
+  .ask svg.lucide { width: 13px; height: 13px; color: var(--ink-3); flex: none; transform: translateY(2px); }
+  .ask .a { margin-left: auto; font-size: 12px; color: var(--ink-3); cursor: pointer; opacity: 0; white-space: nowrap; }
+  .ask:hover .a { opacity: 1; }
+  .ask .a:hover { color: var(--accent-text); }
+  .ask.done { color: var(--ink-3); text-decoration: line-through; }
+  .foot { display: flex; gap: 12px; align-items: center; margin-top: 8px; font-size: 12px; color: var(--ink-3); }
+  .foot .l { cursor: pointer; display: inline-flex; gap: 4px; align-items: center; }
+  .foot .l:hover { color: var(--ink-1); }
+  .foot svg.lucide { width: 12px; height: 12px; }
+  .foot .walk { margin-left: auto; color: var(--accent-text); }
+  .side { align-self: center; }
+  .side svg { width: 190px; height: 92px; display: block; }
+  .side .cap { text-align: center; font-size: 11.5px; color: var(--ink-3); margin-top: 4px; }
+  .side .bar { transition: height .5s var(--ease), y .5s var(--ease); }
+
+  /* 地图 */
+  .mapwrap { flex: 1; min-height: 0; position: relative; border-top: 1px solid var(--line-2); overflow: hidden; }
+  .mapwrap svg.map { width: 100%; height: 100%; display: block; }
+  #cam { transition: transform .8s var(--ease); transform-origin: 0 0; }
+  .blob { transition: opacity var(--normal); }
+  .node { fill: var(--ink-3); transition: opacity var(--normal); }
+  .tlabel { font-weight: 600; font-size: 15px; fill: var(--ink-1); text-anchor: middle; cursor: default; transition: opacity var(--normal); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+  .insights-on .tlabel.has { cursor: pointer; }
+  .insights-on .tlabel.has:hover { fill: var(--accent-text); }
+  .tdot { fill: var(--accent); opacity: 0; transition: opacity var(--normal); }
+  .insights-on .tdot { opacity: .8; }
+  .slabel { font-size: 5px; fill: var(--ink-2); text-anchor: middle; opacity: 0; transition: opacity var(--normal); paint-order: stroke; stroke: var(--surface); stroke-width: 1.2px; }
+  .zoomed .slabel.in { opacity: 1; }
+  .zoomed .tlabel.other, .zoomed .blob.other { opacity: .25; }
+  .reading .node { opacity: .45; }
+  .dimrest .mk:not(.cur) { opacity: .2; }
+  .sweep { position: absolute; top: 0; bottom: 0; width: 160px; pointer-events: none; background: linear-gradient(90deg, transparent, var(--accent-soft) 45%, var(--accent-soft) 55%, transparent); opacity: 0; }
+  .sweep.run { animation: sweepx 2.2s var(--ease) forwards; }
+  @keyframes sweepx { 0% { left: -160px; opacity: 0; } 12% { opacity: .95; } 88% { opacity: .95; } 100% { left: 100%; opacity: 0; } }
+
+  /* 标记：都画在地图上 */
+  .mk { cursor: pointer; transition: opacity var(--normal); }
+  .mk .hit { stroke: transparent; stroke-width: 10; fill: none; }
+  .mk path.draw, .mk line.draw { fill: none; transition: stroke-dashoffset .7s var(--ease); }
+  .mk.bridge path.draw { stroke: var(--info); stroke-width: 1.6; }
+  .mk.dup line.draw { stroke: var(--ink-3); stroke-width: .9; stroke-dasharray: 1.2 1.6; opacity: 0; transition: opacity .6s var(--ease); }
+  .mk.dup.drawn line.draw { opacity: 1; }
+  .mk.conflict path.draw { stroke: var(--danger); stroke-width: .7; }
+  .mk.chain line.draw { stroke: var(--ink-2); stroke-width: .7; }
+  .mk.chain .ghost { fill: var(--surface); stroke: var(--accent); stroke-width: .6; stroke-dasharray: 1.2 1; opacity: 0; transition: opacity .5s var(--ease) .5s; }
+  .mk.chain.drawn .ghost { opacity: 1; }
+  .mk .end { fill: var(--accent); opacity: 0; transition: opacity .4s var(--ease) .5s; }
+  .mk.drawn .end { opacity: 1; }
+  .mk.pattern circle.ring { fill: none; stroke: var(--tag-3); stroke-width: .7; opacity: 0; transform-box: fill-box; transform-origin: center; }
+  .mk.pattern.drawn circle.ring { animation: ringin .6s var(--ease) forwards; }
+  @keyframes ringin { from { opacity: 0; transform: scale(.4); } to { opacity: 1; transform: scale(1); } }
+  .mk.asked circle.pin { fill: var(--surface); stroke: var(--warn); stroke-width: 1.3; stroke-dasharray: 3 2; opacity: 0; transition: opacity .5s; }
+  .mk.asked text { font-size: 13px; font-weight: 600; fill: var(--warn); text-anchor: middle; opacity: 0; transition: opacity .5s; }
+  .mk.asked.drawn circle.pin, .mk.asked.drawn text { opacity: 1; }
+  .mk.asked.drawn circle.pin { animation: breathe 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes breathe { 50% { transform: scale(1.12); } }
+  .mk.gap text { font-size: 5.6px; fill: var(--ink-3); opacity: 0; transition: opacity .5s; }
+  .mk.gap.drawn text { opacity: 1; }
+  .mk.gap:hover text, .mk.gap.cur text { fill: var(--accent-text); }
+  .mk:hover .draw, .mk.cur .draw { filter: drop-shadow(0 0 2px var(--accent-soft)); }
+  .mk.linked.bridge path.draw { stroke: var(--ink-3); stroke-dasharray: none !important; }
+  .mk.gone { opacity: 0 !important; pointer-events: none; }
+  .fade-out .mk { opacity: 0 !important; }
+
+  /* 气泡（同 7b） */
+  .pop { position: absolute; z-index: 20; width: 350px; background: var(--surface); border-radius: var(--r-md); box-shadow: var(--shadow-float); padding: 12px 14px 10px; font-size: 13px; }
+  .pop .kind { font-size: 11.5px; color: var(--ink-3); margin-bottom: 4px; display: flex; gap: 6px; align-items: center; }
+  .pop .kind i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  .pop .why { color: var(--ink-1); line-height: 1.7; }
+  .pop .vs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .pop .vs > div { padding: 8px 10px; background: var(--surface-hover); border-radius: var(--r-sm); font-size: 12.5px; line-height: 1.65; color: var(--ink-2); }
+  .pop .vs b { display: block; font-size: 11.5px; color: var(--ink-3); font-weight: 400; margin-bottom: 2px; }
+  .pop .vs .tp { display: inline-block; font-size: 10.5px; color: var(--ink-3); background: var(--surface); border-radius: 4px; padding: 0 5px; margin-bottom: 3px; }
+  .pop .chainrow { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 8px; font-size: 12px; color: var(--ink-2); }
+  .pop .chainrow span { padding: 3px 8px; background: var(--surface-hover); border-radius: var(--r-sm); }
+  .pop .chainrow span.miss { background: none; border: 1px dashed var(--accent); color: var(--accent-text); }
+  .pop .chainrow svg.lucide { width: 12px; height: 12px; color: var(--ink-3); }
+  .pop .times { margin-top: 8px; padding: 8px 10px; background: var(--surface-hover); border-radius: var(--r-sm); font-size: 12.5px; line-height: 1.75; color: var(--ink-2); }
+  .pop .times div { display: flex; gap: 8px; }
+  .pop .times small { color: var(--ink-3); flex: none; width: 52px; }
+  .pop .acts { display: flex; gap: 6px; margin-top: 10px; align-items: center; }
+  .pop .kbd { margin-left: auto; font-size: 11px; color: var(--ink-3); }
+  .btn { height: 26px; padding: 0 10px; border-radius: var(--r-sm); font-size: 12px; color: var(--ink-2); display: inline-flex; align-items: center; gap: 5px; cursor: pointer; background: var(--hover); white-space: nowrap; }
+  .btn:hover { background: var(--press); color: var(--ink-1); }
+  .btn.primary { background: var(--accent); color: var(--ink-inv); }
+  .btn.primary:hover { background: var(--accent-hover); }
+  .btn.ghost { background: none; color: var(--ink-3); }
+  .btn svg.lucide { width: 12px; height: 12px; }
+
+  .walkbar { position: absolute; left: 50%; bottom: 22px; transform: translate(-50%, 12px); opacity: 0; pointer-events: none; background: var(--surface); box-shadow: var(--shadow-float); border-radius: 999px; padding: 6px 8px 6px 16px; display: flex; gap: 10px; align-items: center; font-size: 12.5px; color: var(--ink-2); transition: all var(--normal) var(--ease); z-index: 25; }
+  .walkbar.on { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
+  .walkbar .n { font-variant-numeric: tabular-nums; color: var(--ink-1); }
+  .walkbar .k { font-size: 11px; color: var(--ink-3); }
+  .toast { position: absolute; left: 50%; bottom: 76px; transform: translateX(-50%); background: var(--ink-1); color: var(--ink-inv); font-size: 12.5px; padding: 7px 14px; border-radius: var(--r-md); opacity: 0; transition: opacity var(--fast); pointer-events: none; z-index: 30; white-space: nowrap; }
+  .toast.on { opacity: 1; }
+
+  /* 今日页 */
+  .home { flex: 1; min-height: 0; overflow: auto; padding: 4px 30px 30px; }
+  .sec-h { font-size: 13px; color: var(--ink-3); margin: 14px 0 8px; font-weight: 500; letter-spacing: .02em; }
+  .panels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .panel { border: 1px solid var(--line-2); border-radius: var(--r-lg); padding: 12px 14px; }
+  .panel .pt { display: flex; align-items: baseline; gap: 8px; font-weight: 600; font-size: 13.5px; margin-bottom: 8px; }
+  .panel .pt small { font-weight: 400; color: var(--ink-3); font-size: 12px; }
+  .panel .pt .r { margin-left: auto; font-weight: 400; color: var(--ink-3); font-size: 12px; display: inline-flex; gap: 2px; align-items: center; }
+  .panel .row { font-size: 13px; color: var(--ink-1); padding: 6px 4px; border-radius: var(--r-sm); }
+  .panel .row small { color: var(--ink-3); margin-left: 6px; }
+  .ins { border: 1px solid var(--line-2); border-radius: var(--r-lg); padding: 12px 14px 12px 16px; display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; }
+  .ins .pt { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13.5px; margin-bottom: 6px; }
+  .ins .pt svg.lucide { width: 14px; height: 14px; color: var(--accent); }
+  .ins .pt small { font-weight: 400; color: var(--ink-3); font-size: 12px; }
+  .ins .pg { margin-left: 8px; display: inline-flex; gap: 2px; align-items: center; color: var(--ink-3); font-weight: 400; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .ins .pg span.b { cursor: pointer; display: inline-flex; padding: 2px; border-radius: 4px; }
+  .ins .pg span.b:hover { background: var(--hover); color: var(--ink-1); }
+  .ins .pg svg.lucide { width: 13px; height: 13px; }
+  .ins .say { font-size: 14px; line-height: 1.75; color: var(--ink-1); transition: opacity var(--fast), transform var(--fast); }
+  .ins .say.swap { opacity: 0; transform: translateY(3px); }
+  .ins .say .k { font-size: 11.5px; color: var(--ink-3); margin-right: 8px; }
+  .ins .say em { font-style: normal; background-repeat: no-repeat; background-position: 0 100%; background-size: 0% 2px; background-image: linear-gradient(var(--info), var(--info)); transition: background-size .7s var(--ease) .15s; }
+  .ins .say.drawn em { background-size: 100% 2px; }
+  .ins .say.asked em { background-image: linear-gradient(var(--warn), var(--warn)); }
+  .ins .say.review em { background-image: linear-gradient(var(--accent), var(--accent)); }
+  .ins .acts { display: flex; gap: 6px; }
+
+  /* 项目页 */
+  .proj { flex: 1; min-height: 0; display: grid; grid-template-columns: 270px 1fr; }
+  .tree { border-right: 1px solid var(--line-2); padding: 16px 10px 16px 14px; overflow: auto; position: relative; }
+  .tree .ph { display: flex; align-items: center; gap: 6px; padding: 0 4px 10px; }
+  .tree .ph b { font-size: 15px; flex: 1; }
+  .tree .ph .arch { font-size: 11px; color: var(--ink-3); border: 1px solid var(--line-1); border-radius: 4px; padding: 0 5px; }
+  .trow { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 6px; border-radius: var(--r-sm); font-size: 13px; color: var(--ink-1); transition: opacity var(--normal); }
+  .trow svg.lucide { width: 14px; height: 14px; color: var(--ink-3); flex: none; }
+  .trow.on { background: var(--selected); }
+  .trow.l1 { padding-left: 24px; }
+  .trow.l2 { padding-left: 42px; }
+  .ghost-row { height: 0; overflow: hidden; opacity: 0; transition: height .4s var(--ease), opacity .4s var(--ease); }
+  .ghost-row.drawn { height: 32px; opacity: 1; }
+  .ghost-row .trow { border: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent); color: var(--ink-2); cursor: pointer; margin: 1px 0; height: 28px; }
+  .ghost-row .trow:hover, .ghost-row .trow.cur { background: var(--accent-soft); color: var(--ink-1); }
+  .ghost-row .trow svg.lucide.sp { color: var(--accent); }
+  .ghost-row.done .trow { border-style: solid; border-color: transparent; color: var(--ink-1); cursor: default; background: none; }
+  .tgap { font-size: 12px; color: var(--ink-3); padding: 0 0 4px 42px; cursor: pointer; opacity: 0; height: 0; overflow: hidden; transition: opacity .4s, height .4s; }
+  .tgap.drawn { opacity: 1; height: 20px; }
+  .tgap:hover, .tgap.cur { color: var(--accent-text); }
+  .tgap svg.lucide { width: 11px; height: 11px; vertical-align: -1px; }
+  .reading-tree .trow { color: var(--ink-3); }
+  .tree .sweepy { position: absolute; left: 0; right: 0; height: 90px; pointer-events: none; background: linear-gradient(180deg, transparent, var(--accent-soft) 45%, var(--accent-soft) 55%, transparent); opacity: 0; }
+  .tree .sweepy.run { animation: sweepy 1.6s var(--ease) forwards; }
+  @keyframes sweepy { 0% { top: -40px; opacity: 0; } 15% { opacity: .9; } 85% { opacity: .9; } 100% { top: 100%; opacity: 0; } }
+  .docpane { overflow: auto; padding: 20px 40px; position: relative; }
+  .docpane .report { margin: 0 0 0; }
+  .docpane .report.on { margin-bottom: 18px; }
+  .docpane .dt { font-size: 24px; font-weight: 600; margin: 8px 0 4px; }
+  .docpane .dm { font-size: 12.5px; color: var(--ink-3); margin-bottom: 14px; }
+  .docpane p { font-size: 15px; line-height: 1.9; margin: 0 0 12px; color: var(--ink-1); }
+  .mini svg { width: 168px; height: 130px; display: block; }
+  .mini .new { animation: grow .6s var(--ease); }
+  @keyframes grow { from { stroke-dashoffset: 60; } to { stroke-dashoffset: 0; } }
+</style>
+</head>
+<body>
+<div class="mock-bar">
+  <b>AI 洞见 · 主题与全局层 mockup</b>
+  <span>页面</span>
+  <a href="#" data-page="map" class="on">知识地图</a>
+  <a href="#" data-page="home">今日</a>
+  <a href="#" data-page="project">项目</a>
+  <span style="margin-left:14px">地图</span>
+  <a href="#" data-mstate="first" class="on">第一次点</a>
+  <a href="#" data-mstate="cached">分析过</a>
+  <span style="margin-left:14px">项目</span>
+  <a href="#" data-pstate="growing" class="on">生长中</a>
+  <a href="#" data-pstate="archived">刚归档</a>
+  <span class="sp"></span>
+  <select id="theme"><option value="cream">cream</option><option value="cocoa">cocoa</option></select>
+</div>
+
+<div class="mock-note">
+  <h3>7b 的路子用到地图、今日页和项目上：点一下 → 读（看得见）→ 一处处画出来 → 一处一个气泡、最多两个按钮 → Esc 恢复（设计见 docs/knowledge-loop/17）</h3>
+  <ul>
+    <li><b>知识地图</b>：标题栏右边「✦ AI 洞见」。读：一道光从左往右扫过地图；点亮：标题下展开一张报告卡（版图两三句 + 数量签 + 生长条），地图上画出<b>呼应</b>（两个主题之间的蓝色弧线）和<b>问了但没写</b>（虚线圈「?」）。有发现的主题名后有个小点，<b>点主题名</b>镜头飞进去，报告换成这个主题的（关注点变化、生长），主题里画出重复（灰点线）、矛盾（红波浪）、缺一环（链 + 虚线空位）、同一思路（紫色圈）、还缺（标签下淡注）。Esc 先退回全局，再退出。</li>
+    <li><b>今日</b>：「继续」段首一张「洞见」卡，一次只说一件事（‹ › 换一条），两个按钮：去看看（地图就地点亮那一处、弹出气泡 / 打开项目回顾）、不相关。</li>
+    <li><b>项目</b>：项目树上方「✦ 回顾」。生长中 = 生长回顾：最近长了什么、新连上哪里、哪里还薄（树里淡注），<b>可能属于这里</b>的笔记以虚线行一行行长进树里（引用到这里 / 不相关）。刚归档 = 结项回顾：留下了哪些观点、连上了哪里、没解决的问题（记为问题）、可以归进哪个体系项目。</li>
+    <li>平时什么都不出现：地图、项目树都和现在一样，只有按钮旁一个小点表示「有还没看的」。</li>
+  </ul>
+</div>
+
+<div class="stage">
+  <div class="win" id="win">
+    <aside class="sb">
+      <div class="sb-head"><span class="sb-logo">T</span><span>Tau</span></div>
+      <div class="sb-scroll">
+        <div class="sb-group">
+          <div class="sb-item" data-nav="home"><i data-lucide="sun"></i><span>今日</span></div>
+        </div>
+        <div class="sb-group">
+          <div class="sb-gt">知识</div>
+          <div class="sb-item"><i data-lucide="layers"></i><span>卡片库</span></div>
+          <div class="sb-item"><i data-lucide="file-text"></i><span>文章</span></div>
+          <div class="sb-item" data-nav="project"><i data-lucide="folder-kanban"></i><span>项目</span></div>
+        </div>
+      </div>
+    </aside>
+    <div class="col">
+      <div class="tb"><span class="crumb" id="crumb"></span><span class="sp"></span>
+        <span class="search"><i data-lucide="search"></i>搜索或跳转…</span>
+        <span class="pill" data-nav="map" title="知识地图" style="margin-left:8px"><i data-lucide="map"></i></span>
+      </div>
+      <div class="main" id="mainArea"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ───────── 数据 ───────── */
+const COLOR = { bridge: "var(--info)", asked: "var(--warn)", dup: "var(--ink-3)", conflict: "var(--danger)", chain: "var(--accent)", pattern: "var(--tag-3)", gap: "var(--ink-3)", belong: "var(--accent)", thin: "var(--ink-3)" };
+const LABEL = { bridge: "呼应", asked: "问了没写", dup: "重复", conflict: "矛盾", chain: "缺一环", pattern: "同一思路", gap: "还缺", belong: "可能属于这里", thin: "还薄" };
+const PRIMARY = { bridge: "link", dup: "link", belong: "ref" };
+
+const TOPICS = [
+  { id: "js", label: "JavaScript", x: 270, y: 260, r: 125, n: 46, tint: "var(--accent)", subs: [["事件循环", 225, 300], ["作用域与闭包", 230, 205], ["异步", 320, 245], ["原型", 300, 330]] },
+  { id: "css", label: "CSS", x: 545, y: 175, r: 95, n: 30, tint: "var(--info)", subs: [["布局", 520, 160], ["动画", 580, 210]] },
+  { id: "learn", label: "学习方法", x: 770, y: 320, r: 85, n: 26, tint: "var(--ok)", subs: [["记忆", 750, 300], ["输出", 800, 350]] },
+  { id: "lc", label: "LeetCode", x: 470, y: 445, r: 80, n: 22, tint: "var(--warn)", subs: [] },
+  { id: "py", label: "Python", x: 170, y: 500, r: 70, n: 18, tint: "var(--tag-3)", subs: [] },
+  { id: "3d", label: "3D 学习", x: 700, y: 545, r: 70, n: 18, tint: "var(--danger)", subs: [] },
+  { id: "pkm", label: "《第二大脑》", x: 905, y: 170, r: 60, n: 12, tint: "var(--info)", subs: [] },
+  { id: "doc", label: "软件使用文档", x: 975, y: 470, r: 72, n: 20, tint: "var(--ink-3)", subs: [] },
+];
+
+/* 每个视图的标记：坐标是地图世界坐标 */
+const LEVELS = {
+  global: {
+    lead: `你的版图有 <b>19</b> 个主题、<b>1,298</b> 条笔记。最近三个月新写的一半在「3D 学习」和「Python」，「CSS」已经半年没长了。AI 看到 <b>2</b> 处看似无关、其实是同一个道理的地方；还有 1 个你在对话里问过几次、却没写下来的问题。`,
+    asks: ["「学习方法」里的提取练习，除了刷题你还用在了哪里？"],
+    bars: [18, 26, 31, 22, 40, 52, 38, 61, 47, 70, 66, 88], barsCap: "每季度新写的笔记 · 最近一季 88",
+    marks: [
+      { id: "b1", kind: "bridge", a: [748, 296], b: [492, 428], bend: -60,
+        why: "两处都在说<b>提取练习</b>：主动回想比重读更能记住。「学习方法」里讲的是原理，「LeetCode」里是你自己的做法。",
+        mine: ["学习方法 › 记忆", "间隔重复为什么有效", "每次回想都在加固提取路径，隔一段时间再想效果最好。"],
+        theirs: ["LeetCode", "刷过的题隔一周再做一遍", "第二遍不看答案重写，比重看题解记得牢得多。"], both: "card" },
+      { id: "b2", kind: "bridge", a: [895, 190], b: [690, 530], bend: 70,
+        why: "都是<b>先粗后细、用到再加工</b>：渐进式归纳先只划重点、需要时再提炼；建模先搭白模、确定比例后再加细节。",
+        mine: ["《第二大脑》", "渐进式归纳", "第一遍只加粗，第二遍在加粗里高亮，用到时才写摘要。"],
+        theirs: ["3D 学习 › 文章", "建模流程：从白模开始", "先用方块搭出比例和剪影，确认没问题再细化。"], both: "article" },
+      { id: "a1", kind: "asked", at: [372, 140],
+        why: "你在对话里问过 3 次<b>事件循环和渲染时机的关系</b>，「JavaScript › 事件循环」里还没有一条写到它。",
+        times: [["9 月 28 日", "requestAnimationFrame 的回调在微任务之前还是之后？"], ["8 月 2 日", "为什么 Promise 里改 DOM 不会马上重绘"], ["5 月 17 日", "事件循环每一轮都会渲染吗"]] },
+    ],
+  },
+  js: {
+    crumb: "JavaScript",
+    lead: `「JavaScript」是你最大的主题（<b>295</b> 条）。早期写得多的是语法细节，最近一年转向运行时机制（事件循环、内存）。你在 4 处用了同一种分析办法；「事件循环」这条线中间缺了一环。这个主题还没有项目系统整理过。`,
+    asks: ["await 之后的代码到底在哪一轮执行？"],
+    bars: [12, 20, 24, 15, 9, 8, 6, 11, 14, 19, 17, 22], barsCap: "这个主题每季度新写 · 最近一年 +72",
+    marks: [
+      { id: "d1", kind: "dup", a: [228, 214], b: [252, 194],
+        why: "这张卡和《JavaScript 作用域》里的「闭包」一节说的是同一件事，那边多了一个循环里用 var 的反例。",
+        mine: ["卡片", "闭包的定义", "函数记住了它被创建时的词法环境，即使在外面调用也能访问。"],
+        theirs: ["文章 › 闭包", "JavaScript 作用域", "闭包 = 函数 + 创建时的词法环境。附：for 循环里 var 与 let 的区别。"], both: "article" },
+      { id: "c1", kind: "conflict", a: [318, 236], b: [336, 262],
+        why: "两张卡对 await 的说法相反：一张说 await 之后的代码会同步接着执行，另一张说它会作为微任务排到后面。",
+        mine: ["卡片", "async 函数的执行顺序", "await 一个已完成的 Promise 时，后面的代码会同步接着执行。"],
+        theirs: ["卡片", "微任务队列", "await 之后的代码总是作为微任务，等当前同步代码执行完才继续。"] },
+      { id: "k1", kind: "chain", pts: [[196, 286], [214, 312], [238, 322], [262, 312]], miss: 2,
+        why: "这几张卡构成一条线：调用栈 → 任务队列 → <b>？</b> → requestAnimationFrame。中间缺了「微任务检查点与渲染时机」，所以后面那张读起来是跳着的。",
+        chain: ["调用栈", "任务队列", "？渲染时机", "requestAnimationFrame"] },
+      { id: "p1", kind: "pattern", pts: [[186, 232], [246, 248], [296, 300], [330, 210]],
+        why: "你在 4 张卡里都用了<b>先画执行时序表</b>来分析（闭包、事件循环、Promise 链、防抖）。这是你理解运行时问题的固定办法。" },
+      { id: "g1", kind: "gap", at: [270, 151], text: "＋ 还缺：模块加载",
+        why: "全主题没有一条讲模块：ESM 与 CommonJS 的加载时机、循环依赖。你在「Python」里写过 import 的机制，这边是空的。" },
+    ],
+  },
+  css: {
+    crumb: "CSS",
+    lead: `「CSS」有 <b>135</b> 条，集中写于两年前，之后几乎没再长。布局写得最完整；动画只有零散的几条。`,
+    asks: [], bars: [30, 34, 28, 20, 9, 6, 3, 2, 1, 0, 1, 0], barsCap: "这个主题每季度新写 · 最近半年 +1",
+    marks: [
+      { id: "d2", kind: "dup", a: [525, 158], b: [548, 150],
+        why: "两张卡都在讲 BFC 的触发条件，几乎一字不差。",
+        mine: ["卡片", "BFC 是什么", "触发：overflow 非 visible、float、绝对定位、display: flow-root…"],
+        theirs: ["卡片", "清除浮动的几种办法", "让父元素形成 BFC：overflow: hidden、display: flow-root…"], both: "card" },
+    ],
+  },
+  learn: {
+    crumb: "学习方法",
+    lead: `「学习方法」有 <b>142</b> 条，大多来自读书笔记。讲「输入」的远多于「输出」。`,
+    asks: [], bars: [10, 14, 9, 12, 16, 11, 9, 13, 10, 8, 12, 9], barsCap: "这个主题每季度新写",
+    marks: [
+      { id: "g2", kind: "gap", at: [770, 247], text: "＋ 还缺：怎样检验学会了",
+        why: "这里有很多「怎么学」，但没有一条写「怎么知道自己学会了」。费曼技巧那张卡提到了，没展开。" },
+    ],
+  },
+};
+
+const PROJECT = {
+  growing: {
+    lead: `自上次回顾（8 月 30 日）以来长了 <b>8</b> 篇，集中在「渲染流水线」下面。新连上了「CSS › 动画」里的 3 张卡。「性能测量」下面只有 1 篇，讲了工具没讲怎么读结果。`,
+    asks: ["一帧里样式、布局、绘制各占多少，怎么测？"],
+    marks: [
+      { id: "r1", kind: "belong", under: "render", label: "合成层与 will-change", icon: "layers",
+        why: "这张卡讲的就是「渲染流水线 › 合成」这一节的内容，现在散在卡片库里。",
+        mine: ["卡片", "合成层与 will-change", "will-change: transform 会提前把元素提升为合成层……"] },
+      { id: "r2", kind: "belong", under: "render", label: "列表滚动掉帧的排查", icon: "layers",
+        why: "这是「强制同步布局」的真实案例，放在「布局」旁边正好互相印证。",
+        mine: ["卡片", "列表滚动掉帧的排查", "滚动回调里读了 offsetTop，每一帧都强制同步布局……"] },
+      { id: "t1", kind: "thin", under: "perf", text: "＋ 这里还薄：只讲了工具，没讲怎么读结果",
+        why: "「性能测量」只有一篇 Performance 面板的用法；火焰图怎么读、长任务怎么定位都还没写。" },
+    ],
+  },
+  archived: {
+    lead: `这个课题留下 <b>3</b> 个核心观点：<span class="ref">《渲染的五个阶段》</span>、<span class="ref">《只改 transform 的动画》</span>、<span class="ref">《强制同步布局》</span>。它和「CSS」「JavaScript」连上了 <b>4</b> 处。还有 2 个问题没解决。内容和体系项目<span class="ref">「前端体系」</span>重合最多，结论可以归进那里。`,
+    asks: ["合成层太多时为什么反而变慢？", "Safari 的渲染流水线和 Chrome 有哪些不同？"],
+    marks: [],
+  },
+};
+
+const HOME_ITEMS = [
+  { kind: "bridge", go: ["map", "global", "b1"], say: `「学习方法」和「LeetCode」其实在说同一件事：<em>主动回想比重读更能记住</em>。`, btn: "在地图上看" },
+  { kind: "asked", go: ["map", "global", "a1"], say: `你在对话里问过 3 次<em>事件循环和渲染时机的关系</em>，笔记里还没写。`, btn: "在地图上看" },
+  { kind: "review", go: ["project", "growing"], say: `「浏览器渲染」最近长了 8 篇，<em>有 2 张散落的卡片可能属于这里</em>。`, btn: "打开回顾" },
+  { kind: "review", go: ["project", "archived"], say: `「读《高性能动画》」已结项：<em>留下 3 个核心观点，还有 2 个问题没解决</em>。`, btn: "打开回顾" },
+];
+
+/* ───────── 状态 ───────── */
+let page = "map", mstate = "first", pstate = "growing";
+let view = "off", level = "global", walking = false, cur = 0, homeIdx = 0;
+const status = {};
+const $ = id => document.getElementById(id);
+const icons = () => window.lucide && lucide.createIcons();
+
+/* ───────── 地图 ───────── */
+function rng(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+
+function mapSvg() {
+  let blobs = "", nodes = "", labels = "", subs = "";
+  TOPICS.forEach((t, ti) => {
+    blobs += `<circle class="blob" data-t="${t.id}" cx="${t.x}" cy="${t.y}" r="${t.r}" fill="${t.tint}" opacity=".07"/>`;
+    const r = rng(ti * 97 + 13);
+    for (let i = 0; i < t.n; i++) {
+      const a = r() * Math.PI * 2, d = Math.sqrt(r()) * t.r * .85;
+      nodes += `<circle class="node" data-t="${t.id}" cx="${(t.x + Math.cos(a) * d).toFixed(1)}" cy="${(t.y + Math.sin(a) * d).toFixed(1)}" r="${(2 + r() * 2.2).toFixed(1)}" fill-opacity=".55" style="fill:${t.tint}"/>`;
+    }
+    const has = LEVELS[t.id] ? " has" : "";
+    labels += `<text class="tlabel${has}" data-t="${t.id}" x="${t.x}" y="${t.y - t.r + 4}">${t.label}</text>`;
+    if (has) labels += `<circle class="tdot" cx="${t.x + t.label.length * 4.6 + 10}" cy="${t.y - t.r - 1}" r="2.6"/>`;
+    t.subs.forEach(([l, x, y]) => (subs += `<text class="slabel" data-t="${t.id}" x="${x}" y="${y}">${l}</text>`));
+  });
+  return `<svg class="map" viewBox="0 0 1100 640" preserveAspectRatio="xMidYMid meet"><g id="cam">${blobs}${nodes}${subs}${labels}<g id="marks"></g></g></svg>`;
+}
+
+function wavy(a, b) {
+  const [x1, y1] = a, [x2, y2] = b, len = Math.hypot(x2 - x1, y2 - y1), n = Math.max(4, Math.round(len / 3));
+  const ux = (x2 - x1) / len, uy = (y2 - y1) / len, px = -uy, py = ux;
+  let d = `M${x1} ${y1}`;
+  for (let i = 1; i <= n; i++) {
+    const t = i / n, off = (i % 2 ? 1 : -1) * 1.4;
+    d += ` L${(x1 + ux * len * t + px * off).toFixed(2)} ${(y1 + uy * len * t + py * off).toFixed(2)}`;
+  }
+  return d;
+}
+
+function markSvg(m) {
+  const cls = `mk ${m.kind}${status[m.id] === "linked" ? " linked" : ""}${["dismissed", "questioned"].includes(status[m.id]) ? " gone" : ""}`;
+  if (m.kind === "bridge") {
+    const [x1, y1] = m.a, [x2, y2] = m.b, mx = (x1 + x2) / 2, my = (y1 + y2) / 2, len = Math.hypot(x2 - x1, y2 - y1);
+    const cx = mx + (-(y2 - y1) / len) * m.bend, cy = my + ((x2 - x1) / len) * m.bend;
+    const d = `M${x1} ${y1} Q${cx.toFixed(1)} ${cy.toFixed(1)} ${x2} ${y2}`;
+    return `<g class="${cls}" data-mk="${m.id}"><path class="hit" d="${d}"/><path class="draw" d="${d}"/><circle class="end" cx="${x1}" cy="${y1}" r="4"/><circle class="end" cx="${x2}" cy="${y2}" r="4"/></g>`;
+  }
+  if (m.kind === "dup") return `<g class="${cls}" data-mk="${m.id}"><line class="hit" x1="${m.a[0]}" y1="${m.a[1]}" x2="${m.b[0]}" y2="${m.b[1]}"/><line class="draw" x1="${m.a[0]}" y1="${m.a[1]}" x2="${m.b[0]}" y2="${m.b[1]}"/><circle class="end" cx="${m.a[0]}" cy="${m.a[1]}" r="1.8"/><circle class="end" cx="${m.b[0]}" cy="${m.b[1]}" r="1.8"/></g>`;
+  if (m.kind === "conflict") { const d = wavy(m.a, m.b); return `<g class="${cls}" data-mk="${m.id}"><path class="hit" d="${d}"/><path class="draw" d="${d}"/><circle class="end" cx="${m.a[0]}" cy="${m.a[1]}" r="1.8" style="fill:var(--danger)"/><circle class="end" cx="${m.b[0]}" cy="${m.b[1]}" r="1.8" style="fill:var(--danger)"/></g>`; }
+  if (m.kind === "chain") {
+    let s = "";
+    for (let i = 0; i < m.pts.length - 1; i++) { const [a, b] = [m.pts[i], m.pts[i + 1]]; s += `<line class="draw" x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}"/>`; }
+    const dots = m.pts.map((p, i) => i === m.miss ? `<circle class="ghost" cx="${p[0]}" cy="${p[1]}" r="3.2"/>` : `<circle class="end" cx="${p[0]}" cy="${p[1]}" r="1.8"/>`).join("");
+    return `<g class="${cls}" data-mk="${m.id}"><polyline class="hit" points="${m.pts.map(p => p.join(",")).join(" ")}"/>${s}${dots}</g>`;
+  }
+  if (m.kind === "pattern") return `<g class="${cls}" data-mk="${m.id}">${m.pts.map((p, i) => `<circle class="hit" cx="${p[0]}" cy="${p[1]}" r="6" style="stroke-width:4"/><circle class="ring" cx="${p[0]}" cy="${p[1]}" r="4.5" style="animation-delay:${i * .15}s"/><circle class="end" cx="${p[0]}" cy="${p[1]}" r="1.6" style="fill:var(--tag-3)"/>`).join("")}</g>`;
+  if (m.kind === "asked") return `<g class="${cls}" data-mk="${m.id}"><circle class="pin" cx="${m.at[0]}" cy="${m.at[1]}" r="14"/><text x="${m.at[0]}" y="${m.at[1] + 4.5}">?</text></g>`;
+  if (m.kind === "gap") return `<g class="${cls}" data-mk="${m.id}"><text x="${m.at[0]}" y="${m.at[1]}" text-anchor="middle">${m.text}</text></g>`;
+  return "";
+}
+
+function levelMarks() { return LEVELS[level].marks; }
+function openMarks() { return levelMarks().filter(m => !status[m.id]); }
+
+function drawMarks(fresh = true) {
+  $("marks").innerHTML = levelMarks().map(markSvg).join("");
+  $("marks").querySelectorAll(".mk").forEach(g => {
+    g.querySelectorAll("path.draw, line.draw").forEach(p => {
+      const len = typeof p.getTotalLength === "function" ? p.getTotalLength() : 200;
+      if (g.classList.contains("dup")) return;
+      p.style.strokeDasharray = `${len} ${len}`;
+      p.style.strokeDashoffset = fresh ? len : 0;
+    });
+    g.onclick = e => { e.stopPropagation(); if (view === "on" && !status[g.dataset.mk]) openPop(g.dataset.mk); };
+  });
+  const ids = openMarks().map(m => m.id);
+  ids.forEach((id, i) => setTimeout(() => {
+    const g = document.querySelector(`[data-mk="${id}"]`);
+    if (!g) return;
+    g.classList.add("drawn");
+    g.querySelectorAll("path.draw, line.draw").forEach((p, j) => setTimeout(() => (p.style.strokeDashoffset = 0), j * 160));
+  }, fresh ? 250 + i * 320 : 0));
+  levelMarks().filter(m => status[m.id] === "linked").forEach(m => document.querySelector(`[data-mk="${m.id}"]`)?.classList.add("drawn"));
+}
+
+function camera() {
+  const cam = $("cam"); if (!cam) return;
+  const t = TOPICS.find(x => x.id === level);
+  const win = $("win");
+  if (!t) { cam.style.transform = "translate(0px, 0px) scale(1)"; win.classList.remove("zoomed"); }
+  else {
+    const s = 2.3, tx = 550 - t.x * s, ty = 330 - t.y * s;
+    cam.style.transform = `translate(${tx}px, ${ty}px) scale(${s})`;
+    win.classList.add("zoomed");
+  }
+  document.querySelectorAll(".slabel").forEach(e => e.classList.toggle("in", e.dataset.t === level));
+  document.querySelectorAll(".tlabel, .blob").forEach(e => e.classList.toggle("other", !!t && e.dataset.t !== level));
+}
+
+function bars(list, cap) {
+  const max = Math.max(...list, 1);
+  const w = 190 / list.length;
+  return `<svg viewBox="0 0 190 92">${list.map((v, i) => { const h = (v / max) * 76; return `<rect class="bar" x="${(i * w + 2).toFixed(1)}" y="${(84 - h).toFixed(1)}" width="${(w - 4).toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="${i >= list.length - 4 ? "var(--accent)" : "var(--line-1)"}"/>`; }).join("")}<line x1="0" y1="85" x2="190" y2="85" stroke="var(--line-2)"/></svg><div class="cap">${cap}</div>`;
+}
+
+function counts(marks) {
+  const c = {};
+  for (const m of marks) if (!status[m.id]) c[m.kind] = (c[m.kind] || 0) + 1;
+  return c;
+}
+
+function mapReport() {
+  const L = LEVELS[level];
+  const c = counts(L.marks);
+  let chips = Object.entries(c).map(([k, n]) => `<span class="chip" data-chip="${k}"><i style="background:${COLOR[k]}"></i>${LABEL[k]} ${n}</span>`).join("");
+  if (level === "global") chips += `<span class="chip" data-zoom="js"><i style="background:var(--accent)"></i>有发现的主题 3</span>`;
+  if (!chips) chips = `<span class="chip">都处理完了</span>`;
+  const crumb = level === "global" ? "" : `<div class="crumb2"><a id="backGlobal">全部主题</a><span>›</span><span>${L.crumb}</span></div>`;
+  const asks = L.asks.length ? `<div class="asks"><div class="h">可以继续想</div>${L.asks.map((a, i) => `<div class="ask${status["ask-" + level + i] ? " done" : ""}"><i data-lucide="circle-help"></i>${a}<span class="a" data-ask="${i}">记为问题</span></div>`).join("")}</div>` : "";
+  return `<div class="rep" id="rep"><div>${crumb}<div class="lead">${L.lead}</div><div class="chips">${chips}</div>${asks}
+    <div class="foot"><span>10 月 3 日 14:20 · 读了 ${level === "global" ? "19 个主题的概述、24 组候选" : "这个主题 295 条的要点"}</span>
+    <span class="l" id="redo"><i data-lucide="refresh-cw"></i>重新分析</span>${openMarks().length ? `<span class="l walk" id="walk"><i data-lucide="list-checks"></i>逐条看</span>` : ""}</div></div>
+    <div class="side">${bars(L.bars, L.barsCap)}</div></div>`;
+}
+
+function renderMap() {
+  $("crumb").innerHTML = "知识地图";
+  const on = view !== "off";
+  const label = view === "reading" ? `<i data-lucide="loader" class="spin"></i>正在读` : on ? `<i data-lucide="sparkles"></i>退出洞见` : `<i data-lucide="sparkles"></i>AI 洞见${mstate !== "first" && openAll().length ? `<span class="seen" title="有还没看的"></span>` : ""}`;
+  $("mainArea").innerHTML = `<section class="paper">
+    <div class="head"><h1>知识地图</h1><span class="stat">卡片 1,140 · 文章 76 · 项目文档 82</span><span class="sp"></span><span class="pill${on ? " on" : ""}" id="aiBtn">${label}</span></div>
+    <div class="filters"><span class="on">全部</span><span>卡片</span><span>文章</span><span>项目文档</span><span>全部项目 ▾</span></div>
+    <div class="phase" id="phase"></div>
+    <div class="report" id="report"><div id="repInner"></div></div>
+    <div class="mapwrap" id="mapwrap">${mapSvg()}<div class="sweep" id="sweep"></div></div>
+    <div class="walkbar" id="walkbar"></div><div class="toast" id="toast"></div></section>`;
+  $("aiBtn").onclick = e => { e.stopPropagation(); view === "off" ? enterMap() : exitMap(); };
+  document.querySelectorAll(".tlabel.has").forEach(t => (t.onclick = e => { e.stopPropagation(); if (view === "on") zoomTo(t.dataset.t); }));
+  $("mapwrap").onclick = () => closePop();
+  icons();
+}
+
+function openAll() { return Object.values(LEVELS).flatMap(l => l.marks).filter(m => !status[m.id]); }
+
+function setReport(swap) {
+  const inner = $("repInner");
+  const apply = () => { inner.innerHTML = mapReport(); bindMapReport(); icons(); };
+  if (!swap || !$("rep")) return apply();
+  $("rep").classList.add("swap");
+  setTimeout(apply, 160);
+}
+
+function enterMap(target) {
+  closePop();
+  if (mstate === "first") {
+    view = "reading"; renderMap(); $("win").classList.add("reading");
+    const phase = $("phase"); phase.classList.add("on");
+    phase.textContent = "按主题读 1,298 条笔记的要点（读过的跳过），对照 19 个主题之间 24 组可能有关的笔记…";
+    const sweep = $("sweep"); sweep.classList.remove("run"); void sweep.offsetWidth; sweep.classList.add("run");
+    setTimeout(() => (phase.textContent = "AI 正在判断哪些值得告诉你…"), 1300);
+    setTimeout(() => { phase.classList.remove("on"); $("win").classList.remove("reading"); mstate = "cached"; syncBar(); reveal(target); }, 2700);
+  } else reveal(target);
+}
+
+function reveal(target) {
+  view = "on"; level = target?.level ?? "global";
+  renderMap(); $("win").classList.add("insights-on");
+  setReport(false); $("report").classList.add("on");
+  camera(); drawMarks(true);
+  if (target?.mark) setTimeout(() => openPop(target.mark), 900);
+}
+
+function zoomTo(id) {
+  closePop(); stopWalk();
+  level = id; camera(); setReport(true); setTimeout(() => drawMarks(true), 500);
+}
+
+function exitMap() {
+  closePop(); stopWalk();
+  document.querySelector(".mapwrap")?.classList.add("fade-out");
+  $("report").classList.remove("on");
+  setTimeout(() => { view = "off"; level = "global"; $("win").classList.remove("insights-on", "zoomed"); renderMap(); }, 420);
+}
+
+function bindMapReport() {
+  document.querySelectorAll("[data-chip]").forEach(c => (c.onclick = () => { const m = openMarks().find(x => x.kind === c.dataset.chip); if (m) focusMark(m.id); }));
+  document.querySelectorAll("[data-zoom]").forEach(c => (c.onclick = () => zoomTo(c.dataset.zoom)));
+  document.querySelectorAll("[data-ask]").forEach(a => (a.onclick = () => { status["ask-" + level + a.dataset.ask] = "questioned"; toast("已打开命令面板：记为问题"); setReport(false); }));
+  $("backGlobal") && ($("backGlobal").onclick = () => zoomTo("global"));
+  $("redo").onclick = () => { mstate = "first"; enterMap({ level }); };
+  $("walk") && ($("walk").onclick = startWalk);
+}
+
+/* ───────── 气泡 ───────── */
+function findMark(id) {
+  if (page === "project") return PROJECT[pstate].marks.find(m => m.id === id);
+  return Object.values(LEVELS).flatMap(l => l.marks).find(m => m.id === id);
+}
+
+function popHtml(m) {
+  const pair = (side, label) => `<div><b>${label ?? side[0]}</b>${label ? `<span class="tp">${side[0]}</span><br>` : ""}<span style="color:var(--ink-1)">${side[1]}</span><br>${side[2]}</div>`;
+  let body = "";
+  if (m.mine && m.theirs) body = `<div class="vs">${pair(m.mine)}${pair(m.theirs)}</div>`;
+  else if (m.mine) body = `<div class="vs" style="grid-template-columns:1fr">${pair(m.mine)}</div>`;
+  if (m.chain) body = `<div class="chainrow">${m.chain.map(s => `<span class="${s.startsWith("？") ? "miss" : ""}">${s.replace("？", "")}${s.startsWith("？") ? "？" : ""}</span>`).join(`<i data-lucide="arrow-right"></i>`)}</div>`;
+  if (m.times) body = `<div class="times">${m.times.map(([d, q]) => `<div><small>${d}</small><span>${q}</span></div>`).join("")}</div>`;
+  const kind = PRIMARY[m.kind];
+  const primary = kind === "link"
+    ? (m.both === "card" ? `<span class="btn primary" data-do="link"><i data-lucide="link-2"></i>连接</span>` : `<span class="btn primary" data-do="goto"><i data-lucide="arrow-up-right"></i>去连接</span>`)
+    : kind === "ref" ? `<span class="btn primary" data-do="ref"><i data-lucide="corner-down-right"></i>引用到这里</span>`
+    : `<span class="btn primary" data-do="q"><i data-lucide="circle-help"></i>记为问题</span>`;
+  const hint = walking ? `<span class="kbd">回车 处理 · ⌫ 不相关</span>` : "";
+  return `<div class="kind"><i style="background:${COLOR[m.kind]}"></i>${LABEL[m.kind]}</div><div class="why">${m.why}</div>${body}<div class="acts">${primary}<span class="btn ghost" data-do="no">不相关</span>${hint}</div>`;
+}
+
+function openPop(id) {
+  closePop();
+  const m = findMark(id);
+  const el = document.querySelector(`[data-mk="${id}"]`);
+  const host = page === "project" ? $("projRoot") : document.querySelector(".paper");
+  if (!m || !el || !host) return;
+  el.classList.add("cur");
+  const r = el.getBoundingClientRect(), a = host.getBoundingClientRect();
+  const box = document.createElement("div");
+  box.className = "pop";
+  const left = page === "project" ? r.right - a.left + 10 : Math.min(Math.max(10, r.left - a.left + r.width / 2 - 175), a.width - 370);
+  const top = page === "project" ? r.top - a.top - 6 : Math.min(r.bottom - a.top + 10, a.height - 270);
+  box.style.left = `${left}px`; box.style.top = `${Math.max(10, top)}px`;
+  box.innerHTML = popHtml(m);
+  host.appendChild(box);
+  box.onclick = e => e.stopPropagation();
+  box.querySelectorAll("[data-do]").forEach(b => (b.onclick = () => resolve(id, b.dataset.do)));
+  icons();
+}
+
+function closePop() {
+  document.querySelector(".pop")?.remove();
+  document.querySelectorAll(".cur").forEach(x => x.classList.remove("cur"));
+}
+
+function resolve(id, how) {
+  const m = findMark(id);
+  if (how === "link") { status[id] = "linked"; toast("已连接（卡片双向链接）"); }
+  if (how === "goto") { status[id] = "linked"; toast("打开《" + m.theirs[1].replace(/^《|》$/g, "") + "》，在那一节画出这处，点「连接」包成链接"); }
+  if (how === "ref") { status[id] = "linked"; toast("已在「渲染流水线」下引用这张卡"); }
+  if (how === "q") { status[id] = "questioned"; toast("已打开命令面板：记为问题（来源已带上）"); }
+  if (how === "no") status[id] = "dismissed";
+  closePop();
+  if (page === "project") return projAfterResolve(id, how);
+  const g = document.querySelector(`[data-mk="${id}"]`);
+  if (how === "link" || how === "goto") g?.classList.add("linked"); else g?.classList.add("gone");
+  setReport(false);
+  if (walking) { const ids = openMarks(); if (ids.length) { cur = Math.min(cur, ids.length - 1); focusMark(ids[cur].id); syncBar(); } else stopWalk(); }
+}
+
+/* ───────── 逐条看 ───────── */
+function focusMark(id) { closePop(); setTimeout(() => openPop(id), 30); }
+function currentOpen() { return page === "project" ? PROJECT[pstate].marks.filter(m => !status[m.id]) : openMarks(); }
+function startWalk() {
+  walking = true; cur = 0;
+  (page === "project" ? $("tree") : $("mapwrap")).classList.add("dimrest");
+  focusMark(currentOpen()[0].id); syncBar();
+}
+function stopWalk() {
+  if (walking) closePop();
+  walking = false;
+  document.querySelectorAll(".dimrest").forEach(x => x.classList.remove("dimrest"));
+  syncBar();
+}
+function syncBar() {
+  const bar = $("walkbar"); if (!bar) return;
+  const ids = currentOpen();
+  bar.classList.toggle("on", walking && ids.length > 0);
+  if (!walking) return;
+  bar.innerHTML = `<span class="n">${cur + 1} / ${ids.length}</span><span class="k">↑↓ 切换 · 回车 处理 · ⌫ 不相关 · Esc 结束</span>
+    <span class="btn ghost" id="prev"><i data-lucide="chevron-up"></i></span><span class="btn ghost" id="next"><i data-lucide="chevron-down"></i></span><span class="btn" id="stop">结束</span>`;
+  $("prev").onclick = () => step(-1); $("next").onclick = () => step(1); $("stop").onclick = stopWalk;
+  icons();
+}
+function step(d) { const ids = currentOpen(); cur = (cur + d + ids.length) % ids.length; focusMark(ids[cur].id); syncBar(); }
+
+document.addEventListener("keydown", e => {
+  if (view !== "on") return;
+  if (e.key === "Escape") {
+    if (document.querySelector(".pop") && !walking) return closePop();
+    if (walking) return stopWalk();
+    if (page === "map" && level !== "global") return zoomTo("global");
+    return page === "map" ? exitMap() : exitProject();
+  }
+  if (!walking) return;
+  if (e.key === "ArrowDown") { e.preventDefault(); step(1); }
+  if (e.key === "ArrowUp") { e.preventDefault(); step(-1); }
+  const m = currentOpen()[cur]; if (!m) return;
+  if (e.key === "Enter") resolve(m.id, PRIMARY[m.kind] === "link" ? (m.both === "card" ? "link" : "goto") : PRIMARY[m.kind] === "ref" ? "ref" : "q");
+  if (e.key === "Backspace") resolve(m.id, "no");
+});
+
+/* ───────── 今日页 ───────── */
+function renderHome() {
+  $("crumb").innerHTML = "今日";
+  const items = HOME_ITEMS.filter(it => !it.gone);
+  $("mainArea").innerHTML = `<section class="paper">
+    <div class="head" style="align-items:baseline"><h1>下午好</h1><span class="stat">10 月 3 日 周六</span><span class="sp"></span><span class="stat">已专注 <b style="color:var(--accent-text)">1h 20m</b> · 写下 <b style="color:var(--accent-text)">1,204</b> 字</span></div>
+    <div class="home">
+      <div class="sec-h">今天</div>
+      <div class="panels">
+        <div class="panel"><div class="pt">复习<small>12 张到期</small></div><div class="row">前端基础<small>8</small></div><div class="row">Python<small>4</small></div></div>
+        <div class="panel"><div class="pt">待办<small>3 项未完成</small></div><div class="row">整理渲染篇的图</div><div class="row">回复评论</div></div>
+        <div class="panel"><div class="pt">日程<small>今天 1 项</small></div><div class="row">19:00 读书会</div></div>
+      </div>
+      <div class="sec-h">继续</div>
+      ${items.length ? `<div class="ins" id="ins"><div>
+        <div class="pt"><i data-lucide="sparkles"></i>洞见<small>AI 从你的知识版图里看到的</small>
+          <span class="pg"><span class="b" id="hprev"><i data-lucide="chevron-left"></i></span><span id="hn">${homeIdx + 1} / ${items.length}</span><span class="b" id="hnext"><i data-lucide="chevron-right"></i></span></span></div>
+        <div class="say" id="say"></div></div>
+        <div class="acts"><span class="btn primary" id="hgo"></span><span class="btn ghost" id="hno">不相关</span></div></div>` : ""}
+      <div class="panel" style="margin-top:12px"><div class="pt">最近编辑</div><div class="row">浏览器是怎样把一页画出来的<small>文章 · 今天</small></div><div class="row">间隔重复为什么有效<small>卡片 · 昨天</small></div><div class="row">建模流程：从白模开始<small>文章 · 9 月 30 日</small></div></div>
+    </div><div class="toast" id="toast"></div></section>`;
+  if (!items.length) return icons();
+  const show = () => {
+    homeIdx = (homeIdx + items.length) % items.length;
+    const it = items[homeIdx], say = $("say");
+    say.className = `say swap ${it.kind}`;
+    setTimeout(() => {
+      say.innerHTML = `<span class="k">${it.kind === "review" ? "回顾" : LABEL[it.kind]}</span>${it.say}`;
+      say.className = `say ${it.kind}`; void say.offsetWidth; say.classList.add("drawn");
+      $("hn").textContent = `${homeIdx + 1} / ${items.length}`;
+      $("hgo").innerHTML = `<i data-lucide="${it.kind === "review" ? "folder-open" : "map"}"></i>${it.btn}`; icons();
+    }, 140);
+  };
+  $("hprev").onclick = () => { homeIdx--; show(); };
+  $("hnext").onclick = () => { homeIdx++; show(); };
+  $("hno").onclick = () => { items[homeIdx].gone = true; HOME_ITEMS.find(x => x === items[homeIdx]).gone = true; renderHome(); };
+  $("hgo").onclick = () => {
+    const [p, a, b] = items[homeIdx].go;
+    if (p === "map") { mstate = "cached"; go("map"); enterMap({ level: a, mark: b }); }
+    else { pstate = a; go("project"); setTimeout(enterProject, 200); }
+  };
+  show(); icons();
+}
+
+/* ───────── 项目页 ───────── */
+const TREE = [
+  ["l0", "render", "渲染流水线", "folder"],
+  ["l1", "", "解析与样式", "file-text"],
+  ["l1", "", "布局与重排", "file-text", true],
+  ["l1", "", "绘制与合成", "file-text"],
+  ["l0", "perf", "性能测量", "folder"],
+  ["l1", "", "Performance 面板", "file-text"],
+  ["l0", "", "参考资料", "folder"],
+];
+
+function renderProject() {
+  const arch = pstate === "archived";
+  $("crumb").innerHTML = `项目 <span style="color:var(--ink-3)">/</span> <b>${arch ? "读《高性能动画》" : "浏览器渲染"}</b>`;
+  const on = view !== "off";
+  const label = view === "reading" ? `<i data-lucide="loader" class="spin"></i>正在读` : on ? `<i data-lucide="sparkles"></i>收起回顾` : `<i data-lucide="sparkles"></i>${arch ? "结项回顾" : "回顾"}<span class="seen"></span>`;
+  const rows = TREE.map(([lv, key, t, ic, sel]) => {
+    let html = `<div class="trow ${lv}${sel ? " on" : ""}"><i data-lucide="${ic}"></i>${t}</div>`;
+    if (!arch && key) for (const m of PROJECT.growing.marks.filter(x => x.under === key)) {
+      if (m.kind === "belong") html += `<div class="ghost-row${status[m.id] === "linked" ? " drawn done" : ""}" data-mk="${m.id}"><div class="trow l1"><i data-lucide="${status[m.id] === "linked" ? "link-2" : "sparkle"}" class="sp"></i>${m.label}</div></div>`;
+      if (m.kind === "thin") html += `<div class="tgap" data-mk="${m.id}"><i data-lucide="plus"></i>${m.text.replace("＋ ", "")}</div>`;
+    }
+    return html;
+  }).join("");
+  $("mainArea").innerHTML = `<section class="paper" id="projRoot"><div class="proj">
+    <div class="tree" id="tree"><div class="ph"><b>${arch ? "读《高性能动画》" : "浏览器渲染"}</b>${arch ? `<span class="arch">已归档</span>` : ""}<span class="pill${on ? " on" : ""}" id="pBtn">${label}</span></div>${rows}<div class="sweepy" id="sweepy"></div></div>
+    <div class="docpane"><div class="report" id="report"><div id="repInner"></div></div>
+      <div class="dt">布局与重排</div><div class="dm">2026-09-14 创建 · 1,240 字</div>
+      <p>布局阶段算出每个盒子的位置和尺寸。几何属性一变，布局就要重来。</p>
+      <p>读 offsetTop 这类属性时，如果布局已经失效，浏览器会立刻同步计算一次，也就是强制同步布局。</p>
+      <p>批量读、批量写可以避免它；用 requestAnimationFrame 把写操作推到下一帧之前也行。</p>
+    </div></div><div class="walkbar" id="walkbar"></div><div class="toast" id="toast"></div></section>`;
+  $("pBtn").onclick = e => { e.stopPropagation(); view === "off" ? enterProject() : exitProject(); };
+  document.querySelectorAll("#tree [data-mk]").forEach(el => (el.onclick = e => { e.stopPropagation(); if (view === "on" && !status[el.dataset.mk]) openPop(el.dataset.mk); }));
+  $("projRoot").onclick = () => closePop();
+  icons();
+}
+
+function projMini(fresh) {
+  const known = 4 + PROJECT.growing.marks.filter(m => status[m.id] === "linked").length;
+  const pts = Array.from({ length: known }, (_, i) => { const a = (Math.PI * 2 * i) / known - Math.PI / 2; return [84 + Math.cos(a) * 50, 62 + Math.sin(a) * 42, i >= 4]; });
+  return `<svg viewBox="0 0 168 130">${pts.map(([x, y, n], i) => `<line class="${n && fresh && i === known - 1 ? "new" : ""}" x1="84" y1="62" x2="${x}" y2="${y}" stroke="var(--ink-3)" stroke-width="1.2" stroke-dasharray="60"/><circle cx="${x}" cy="${y}" r="4" fill="${n ? "var(--accent)" : "var(--ink-3)"}"/>`).join("")}<circle cx="84" cy="62" r="9" fill="var(--accent)"/></svg><div class="cap" style="text-align:center;font-size:11.5px;color:var(--ink-3)">和项目外连着 ${known} 处</div>`;
+}
+
+function projReport(fresh) {
+  const P = PROJECT[pstate];
+  const c = counts(P.marks);
+  const chips = Object.entries(c).map(([k, n]) => `<span class="chip" data-chip="${k}"><i style="background:${COLOR[k]}"></i>${LABEL[k]} ${n}</span>`).join("");
+  return `<div class="rep" style="grid-template-columns:1fr 168px"><div><div class="crumb2">${pstate === "archived" ? "结项回顾 · 归档于 10 月 3 日" : "生长回顾 · 自 8 月 30 日"}</div>
+    <div class="lead">${P.lead}</div>${chips ? `<div class="chips">${chips}</div>` : ""}
+    ${P.asks.length ? `<div class="asks"><div class="h">${pstate === "archived" ? "还没解决" : "可以继续想"}</div>${P.asks.map((a, i) => `<div class="ask${status["pask" + i] ? " done" : ""}"><i data-lucide="circle-help"></i>${a}<span class="a" data-pask="${i}">记为问题</span></div>`).join("")}</div>` : ""}
+    <div class="foot"><span>读了 23 篇文档的要点、项目外 16 份候选</span><span class="l"><i data-lucide="refresh-cw"></i>重新回顾</span>${P.marks.filter(m => !status[m.id]).length ? `<span class="l walk" id="walk"><i data-lucide="list-checks"></i>逐条看</span>` : ""}</div></div>
+    <div class="mini">${projMini(fresh)}</div></div>`;
+}
+
+function setProjReport(fresh) {
+  $("repInner").innerHTML = projReport(fresh);
+  document.querySelectorAll("[data-pask]").forEach(a => (a.onclick = () => { status["pask" + a.dataset.pask] = "questioned"; toast("已打开命令面板：记为问题（来源：本项目）"); setProjReport(false); }));
+  document.querySelectorAll("[data-chip]").forEach(c => (c.onclick = () => { const m = PROJECT[pstate].marks.find(x => x.kind === c.dataset.chip && !status[x.id]); if (m) focusMark(m.id); }));
+  $("walk") && ($("walk").onclick = startWalk);
+  icons();
+}
+
+function enterProject() {
+  closePop();
+  view = "reading"; renderProject();
+  $("tree").classList.add("reading-tree");
+  const sw = $("sweepy"); sw.classList.remove("run"); void sw.offsetWidth; sw.classList.add("run");
+  setTimeout(() => {
+    view = "on"; renderProject();
+    setProjReport(false); $("report").classList.add("on");
+    const ids = PROJECT[pstate].marks.filter(m => !status[m.id]).map(m => m.id);
+    ids.forEach((id, i) => setTimeout(() => document.querySelector(`[data-mk="${id}"]`)?.classList.add("drawn"), 300 + i * 320));
+  }, 1700);
+}
+
+function exitProject() {
+  closePop(); stopWalk();
+  document.querySelectorAll("#tree .ghost-row:not(.done), #tree .tgap").forEach(x => x.classList.remove("drawn"));
+  $("report")?.classList.remove("on");
+  setTimeout(() => { view = "off"; renderProject(); }, 420);
+}
+
+function projAfterResolve(id, how) {
+  const el = document.querySelector(`[data-mk="${id}"]`);
+  if (how === "ref") { el?.classList.add("done"); el.querySelector("svg, i") && (el.querySelector(".trow").innerHTML = `<i data-lucide="link-2" class="sp"></i>${findMark(id).label}`); }
+  else el?.classList.remove("drawn");
+  setProjReport(how === "ref");
+  if (walking) { const ids = currentOpen(); if (ids.length) { cur = Math.min(cur, ids.length - 1); focusMark(ids[cur].id); syncBar(); } else stopWalk(); }
+}
+
+/* ───────── 公共 ───────── */
+function toast(text) {
+  const t = $("toast"); if (!t) return;
+  t.textContent = text; t.classList.add("on");
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => t.classList.remove("on"), 2200);
+}
+
+function go(p) {
+  page = p; view = "off"; level = "global"; walking = false; closePop();
+  $("win").className = "win";
+  document.querySelectorAll("[data-nav]").forEach(n => n.classList.toggle("on", n.dataset.nav === p));
+  document.querySelectorAll(".mock-bar a[data-page]").forEach(x => x.classList.toggle("on", x.dataset.page === p));
+  ({ map: renderMap, home: renderHome, project: renderProject })[p]();
+}
+
+document.querySelectorAll("[data-nav]").forEach(n => (n.onclick = () => go(n.dataset.nav)));
+document.querySelectorAll(".mock-bar a").forEach(a => (a.onclick = e => {
+  e.preventDefault();
+  const k = Object.keys(a.dataset)[0];
+  if (k === "mstate") { mstate = a.dataset.mstate; Object.keys(status).forEach(s => delete status[s]); }
+  if (k === "pstate") pstate = a.dataset.pstate;
+  document.querySelectorAll(`.mock-bar a[data-${k}]`).forEach(x => x.classList.toggle("on", x === a));
+  go(k === "page" ? a.dataset.page : k === "mstate" ? "map" : "project");
+}));
+$("theme").onchange = e => (document.documentElement.dataset.theme = e.target.value);
+go("map");
+</script>
+</body>
+</html>

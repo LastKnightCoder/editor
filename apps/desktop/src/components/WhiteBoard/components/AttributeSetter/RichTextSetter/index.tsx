@@ -23,6 +23,7 @@ import {
   type SwatchLook,
   type SwatchOption,
 } from "@/components/WhiteBoard/chrome";
+import SketchPopover from "../SketchPopover";
 
 interface RichTextSetterProps {
   element: RichTextElement;
@@ -152,6 +153,7 @@ const RichTextSetter = (props: RichTextSetterProps) => {
         icon={<FoldHorizontal strokeWidth={1.75} />}
         onClick={handleFitWidth}
       />
+      <SketchPopover target={element} onChange={onChange} />
     </>
   );
 };

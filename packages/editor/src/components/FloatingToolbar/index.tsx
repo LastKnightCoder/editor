@@ -6,6 +6,7 @@ import type { LucideIcon } from "lucide-react";
  * 块右上角的悬浮操作条（代码块、源码预览块共用）：浅色实底 + 描边 + 浮起投影，随主题。
  * 显隐交给调用方的 group-hover 类（Tailwind 需要静态类名），例如
  * `group-hover/code:pointer-events-auto group-hover/code:translate-y-0 group-hover/code:opacity-100`。
+ * 定位取 min(右上角, 垂直居中)：块较矮（如单行）时居中，较高时贴右上角。
  */
 export const FloatingToolbar = ({
   className,
@@ -16,7 +17,7 @@ export const FloatingToolbar = ({
 }) => (
   <div
     className={cn(
-      "pointer-events-none absolute right-[0.5em] top-[0.5em] z-[4] flex -translate-y-[2px] items-center gap-px rounded-[0.5625em] bg-[var(--ed-bg-surface)] p-[2px] text-[var(--ed-text-tertiary)] opacity-0 shadow-[inset_0_0_0_1px_var(--ed-border),var(--ed-shadow-lift)] transition-[opacity,transform] duration-150 ease-[var(--tau-ease-out)]",
+      "pointer-events-none absolute right-[0.5em] top-[min(0.5em,calc(50%_-_0.875em_-_2px))] z-[4] flex -translate-y-[2px] items-center gap-px rounded-[0.5625em] bg-[var(--ed-bg-surface)] p-[2px] text-[var(--ed-text-tertiary)] opacity-0 shadow-[inset_0_0_0_1px_var(--ed-border),var(--ed-shadow-lift)] transition-[opacity,transform] duration-150 ease-[var(--tau-ease-out)]",
       className
     )}
     onClick={e => e.stopPropagation()}

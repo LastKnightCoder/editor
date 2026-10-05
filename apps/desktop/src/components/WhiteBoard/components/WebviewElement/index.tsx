@@ -6,6 +6,7 @@ import If from "@/components/If";
 import ResizeCircle from "../ResizeCircle";
 import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
+import SketchRect from "../SketchPaths/SketchRect";
 import { Webview } from "@tau/shared";
 import type { WebviewRef } from "@tau/shared";
 import { convertFileSrc, getHomeDir } from "@/commands";
@@ -14,13 +15,21 @@ import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
 
 import { Board, EHandlerPosition, Point, WebviewElement } from "../../types";
 import { PointUtil } from "../../utils";
-import { useBoard, useSelectState, useDropArrow, useSelection, useBoardState } from "../../hooks";
+import {
+  useBoard,
+  useSelectState,
+  useDropArrow,
+  useSelection,
+  useBoardState,
+  useSketch,
+} from "../../hooks";
 import {
   SELECT_RECT_STROKE,
   SELECT_RECT_STROKE_WIDTH,
   SELECT_RECT_FILL_OPACITY,
   RESIZE_CIRCLE_FILL,
   RESIZE_CIRCLE_RADIUS,
+  SKETCH_MEDIA_FRAME,
 } from "../../constants";
 import useUploadResource from "@/hooks/useUploadResource";
 import { selectFile, readTextFile, getFileBaseName } from "@/commands";
@@ -71,6 +80,7 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
 
   const board = useBoard();
   const { isSelected } = useSelectState(id);
+  const sketch = useSketch(element);
   const selection = useSelection();
   const isSelecting = Boolean(selection && selection.selectArea);
 
@@ -299,6 +309,19 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
           </div>
         </If>
       </foreignObject>
+      {sketch.enabled && (
+        <SketchRect
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          radius={4}
+          stroke={SKETCH_MEDIA_FRAME}
+          strokeWidth={1.5}
+          level={sketch.level}
+          seed={sketch.seed}
+        />
+      )}
 
       <If condition={isSelected}>
         <g>
@@ -331,7 +354,6 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
       <ArrowConnectPointGroup
         element={element}
         points={arrowConnectExtendPoints}
-        proximityBounds={{ x, y, width, height }}
         isSelected={isSelected}
         disabled={isMoveArrowClosing}
       />

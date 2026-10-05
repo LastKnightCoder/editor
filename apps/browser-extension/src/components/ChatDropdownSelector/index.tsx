@@ -1,192 +1,202 @@
-import { memo, useMemo, useState, useRef } from "react";
-import { ChevronDown, MoreHorizontal, Plus, Trash2 } from "lucide-react";
-import { Menu, toast } from "@tau/ui";
-import { SelectDropDown, EditText } from "@tau/shared";
-import { useConfirmPrompt } from "../../hooks/useConfirmPrompt";
+import { memo, useMemo, useRef, useState } from "react";
+import { Check, ChevronDown, MoreHorizontal, Pencil, Search, Trash2 } from "lucide-react";
+import { ConfirmDialog, IconButton, Menu, Popover, cn, toast } from "@tau/ui";
+import { EditText } from "@tau/shared";
 import type { EditTextHandle } from "@tau/shared";
 import type { ChatSession } from "../../types/chat-session";
-import styles from "./index.module.css";
 
 interface ChatDropdownSelectorProps {
   chats: ChatSession[];
   currentChat: ChatSession;
   onChatSelect: (chatId: string) => void;
   onTitleChange: (title: string) => void;
-  onCreateNewChat: () => void;
   onChatDelete?: (chatId: string) => void;
   disabled?: boolean;
   titleRef?: React.RefObject<EditTextHandle>;
 }
 
-interface MenuItem {
-  key: string;
-  type: "new" | "chat";
-  chatId?: string;
-  title: string;
-  isCurrentChat?: boolean;
-}
-
+/**
+ * 对话标题行（与桌面对话标题行同构）：标题 ▾ = 会话切换 Popover（搜索 + 按更新时间排序的列表；
+ * 新建对话走输入框 ＋）；⋯ = 重命名 / 删除。分支在用户消息的 ‹ i/n › 切换，不在这里。
+ */
 const ChatDropdownSelector = memo(
   ({
     chats,
     currentChat,
     onChatSelect,
     onTitleChange,
-    onCreateNewChat,
     onChatDelete,
     disabled,
     titleRef,
   }: ChatDropdownSelectorProps) => {
-    const [showDropdown, setShowDropdown] = useState(false);
-    const triggerRef = useRef<HTMLDivElement>(null);
-    const { confirm: confirmPrompt, confirmDialog } = useConfirmPrompt();
+    const [listOpen, setListOpen] = useState(false);
+    const [query, setQuery] = useState("");
+    const [renaming, setRenaming] = useState(false);
+    const draftTitle = useRef("");
+    const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+    const hasChat = !currentChat.draft;
 
-    // 构建菜单项（分支在对话内部的会话树上，在用户消息的 ‹ i/n › 切换，M4-d）
-    const menuItems: MenuItem[] = useMemo(() => {
-      const items: MenuItem[] = [];
-
-      // 新建对话选项
-      items.push({
-        key: "new",
-        type: "new",
-        title: "新建对话",
-      });
-
-      // 按更新时间排序的对话列表
-      [...chats]
+    const rows = useMemo(() => {
+      const q = query.trim().toLowerCase();
+      return [...chats]
         .sort((a, b) => b.updateTime - a.updateTime)
-        .forEach(chat => {
-          items.push({
-            key: `chat-${chat.id}`,
-            type: "chat",
-            chatId: chat.id,
-            title: chat.title,
-            isCurrentChat: currentChat.id === chat.id,
-          });
-        });
+        .filter(chat => !q || (chat.title || "").toLowerCase().includes(q));
+    }, [chats, query]);
 
-      return items;
-    }, [chats, currentChat]);
-
-    const handleSelect = (item: MenuItem) => {
-      if (item.type === "new") {
-        onCreateNewChat();
-      } else if (item.chatId) {
-        onChatSelect(item.chatId);
-      }
+    const select = (chatId: string) => {
+      setListOpen(false);
+      setQuery("");
+      if (chatId !== currentChat.id) onChatSelect(chatId);
     };
 
-    const handleDeleteClick = async (chatId: string) => {
-      if (!onChatDelete) return;
-      const ok = await confirmPrompt({
-        title: "删除对话",
-        description: "对话里的所有版本会一起删除。",
-        danger: true,
-        confirmText: "删除",
-      });
-      if (!ok) return;
-      try {
-        await onChatDelete(chatId);
-        toast.success("对话删除成功");
-      } catch (error) {
-        toast.error("删除对话失败");
-        console.error(error);
-      }
-    };
-
-    const renderMenuItem = (item: MenuItem) => {
-      if (item.type === "new") {
-        return (
-          <div className="flex items-center gap-2">
-            <Plus size={14} />
-            <span>{item.title}</span>
-          </div>
-        );
-      }
-
-      return (
-        <div className={`group flex w-full items-center justify-between gap-2 ${styles.menuItem}`}>
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <span
-              className={`truncate ${item.isCurrentChat ? `font-medium text-blue-500 ${styles.currentChat}` : ""}`}
-            >
-              {item.title}
-            </span>
-          </div>
-        </div>
-      );
-    };
+    const title = hasChat ? currentChat.title || "新对话" : "新对话";
 
     return (
-      <div
-        className={`flex w-full items-center justify-between gap-2 ${styles.chatDropdownSelector}`}
-      >
-        {confirmDialog}
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <div
-            ref={triggerRef}
-            className={`flex cursor-pointer items-center gap-1 ${styles.dropdownTrigger}`}
-            onClick={() => setShowDropdown(!showDropdown)}
-          >
-            <ChevronDown
-              size={15}
-              className={`shrink-0 opacity-60 ${styles.icon}`}
+      <div className="flex w-full min-w-0 items-center gap-0.5">
+        {renaming && hasChat ? (
+          <div className="text-tau-body text-ink-1 min-w-0 flex-1 px-1.5 font-semibold">
+            <EditText
+              key={currentChat.id}
+              ref={titleRef}
+              defaultValue={currentChat.title}
+              // 逐字变化只记草稿，失焦才落库
+              onChange={value => {
+                draftTitle.current = value;
+              }}
+              onBlur={() => {
+                const next = draftTitle.current.trim();
+                if (next && next !== currentChat.title) onTitleChange(next);
+                setRenaming(false);
+              }}
+              contentEditable={!disabled}
+              defaultFocus
             />
           </div>
-
-          <SelectDropDown<MenuItem>
-            items={menuItems}
-            selectedKey={`chat-${currentChat.id}`}
-            show={showDropdown}
-            onClose={() => setShowDropdown(false)}
-            onSelect={handleSelect}
-            triggerElement={triggerRef.current}
-            getKey={(item: MenuItem) => item.key}
-            renderItem={renderMenuItem}
-            width={220}
-            maxHeight={360}
-            preferredPlacement="bottom"
-          />
-
-          <div className={`min-w-0 flex-1 font-bold ${styles.titleEditor}`}>
-            {!currentChat.draft ? (
-              <EditText
-                key={currentChat.id}
-                ref={titleRef}
-                defaultValue={currentChat.title}
-                onChange={onTitleChange}
-                contentEditable={!disabled}
-              />
-            ) : (
-              <span className="text-gray-500 dark:text-gray-400">新对话</span>
-            )}
-          </div>
-
-          {onChatDelete && !currentChat.draft && (
-            <Menu
-              align="end"
-              trigger={
-                <button
-                  className={`shrink-0 rounded p-1 text-gray-500 dark:text-gray-400 ${styles.headerActionButton}`}
-                  title="更多操作"
-                  onClick={e => e.stopPropagation()}
-                >
-                  <MoreHorizontal size={14} />
-                </button>
-              }
-            >
-              <Menu.Item
-                danger
-                icon={<Trash2 size={14} />}
-                onSelect={() => {
-                  if (!currentChat.draft) void handleDeleteClick(currentChat.id);
-                }}
+        ) : (
+          <Popover
+            open={listOpen}
+            onOpenChange={open => {
+              setListOpen(open);
+              if (!open) setQuery("");
+            }}
+            placement="bottom-start"
+            arrow={false}
+            className="w-[290px] p-1.5"
+            trigger={
+              <button
+                type="button"
+                disabled={disabled}
+                title="切换对话"
+                className="hover:bg-hover aria-expanded:bg-hover text-tau-body text-ink-1 ease-tau-out -ml-1 flex min-w-0 max-w-full items-center gap-1 rounded-[8px] px-1.5 py-1 font-semibold transition-colors duration-[160ms]"
               >
-                删除对话
-              </Menu.Item>
-            </Menu>
-          )}
-        </div>
+                <span className="min-w-0 truncate">{title}</span>
+                <ChevronDown size={14} strokeWidth={1.75} className="text-ink-3 shrink-0" />
+              </button>
+            }
+          >
+            <div className="border-line-1 bg-surface mb-1 flex h-8 items-center gap-2 rounded-[8px] border px-2.5">
+              <Search size={13} strokeWidth={1.75} className="text-ink-3 shrink-0" />
+              <input
+                autoFocus
+                value={query}
+                onChange={event => setQuery(event.target.value)}
+                placeholder="搜索对话"
+                className="text-tau-meta text-ink-1 placeholder:text-ink-3 min-w-0 flex-1 bg-transparent outline-none"
+              />
+            </div>
+            <div className="tau-scrollbar max-h-[320px] overflow-y-auto">
+              {rows.length === 0 ? (
+                <p className="text-tau-sm text-ink-3 px-2.5 py-3">没有匹配的对话</p>
+              ) : (
+                rows.map(chat => {
+                  const active = chat.id === currentChat.id;
+                  return (
+                    <button
+                      type="button"
+                      key={chat.id}
+                      onClick={() => select(chat.id)}
+                      className={cn(
+                        "text-tau-meta flex h-8 w-full items-center gap-2 rounded-[7px] px-2.5 text-left",
+                        active
+                          ? "bg-selected text-ink-1 font-medium"
+                          : "text-ink-2 hover:bg-hover hover:text-ink-1"
+                      )}
+                    >
+                      <span className="min-w-0 flex-1 truncate">{chat.title || "新对话"}</span>
+                      {active && (
+                        <Check size={13} strokeWidth={2} className="text-accent-text shrink-0" />
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </Popover>
+        )}
+
+        <span className="min-w-0 flex-1" />
+
+        {hasChat && (
+          <Menu
+            align="end"
+            className="w-[168px]"
+            trigger={
+              <IconButton
+                aria-label="更多操作"
+                title="更多操作"
+                className="size-7"
+                disabled={disabled}
+              >
+                <MoreHorizontal size={16} strokeWidth={1.75} />
+              </IconButton>
+            }
+          >
+            <Menu.Item
+              icon={<Pencil />}
+              onSelect={() => {
+                draftTitle.current = currentChat.title;
+                setRenaming(true);
+              }}
+            >
+              重命名
+            </Menu.Item>
+            {onChatDelete && (
+              <>
+                <Menu.Separator />
+                <Menu.Item
+                  danger
+                  icon={<Trash2 />}
+                  onSelect={() => setPendingDelete(currentChat.id)}
+                >
+                  删除对话
+                </Menu.Item>
+              </>
+            )}
+          </Menu>
+        )}
+
+        <ConfirmDialog
+          open={pendingDelete !== null}
+          onOpenChange={open => !open && setPendingDelete(null)}
+          title="删除这个对话？"
+          context={currentChat.title}
+          description="对话里的所有版本会一起删除，删除后无法恢复。"
+          confirmText="删除"
+          danger
+          size="sm"
+          onConfirm={async () => {
+            if (!pendingDelete || !onChatDelete) return;
+            try {
+              await onChatDelete(pendingDelete);
+              toast.success("对话已删除");
+            } catch (error) {
+              toast.error("删除对话失败");
+              console.error(error);
+            } finally {
+              setPendingDelete(null);
+            }
+          }}
+        />
       </div>
     );
   }

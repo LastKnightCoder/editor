@@ -7,13 +7,18 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { searchHybridContent } from "@/commands";
 import useSettingStore from "@/stores/useSettingStore";
 import { resolveEmbeddingModelInfoFromSetting } from "@/utils/embedding-model-info";
-import type { IndexType, SearchResult } from "@/types";
+import type { ContentIndexType, SearchResult } from "@/types";
 
-export const SHAREABLE_TYPES: IndexType[] = ["article", "card", "project-item", "diary-daily"];
+export const SHAREABLE_TYPES: ContentIndexType[] = [
+  "article",
+  "card",
+  "project-item",
+  "diary-daily",
+];
 
 const LIMIT = 30;
 
-export function useShareCandidates(query: string, type: IndexType | "all") {
+export function useShareCandidates(query: string, type: ContentIndexType | "all") {
   const keyword = query.trim();
   return useQuery({
     queryKey: ["collaboration", "share-candidates", keyword, type],

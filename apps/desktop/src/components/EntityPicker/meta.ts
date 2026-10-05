@@ -3,8 +3,12 @@ import {
   File,
   FileText,
   FolderKanban,
+  Globe,
+  Highlighter,
   Layers,
+  MessageCircle,
   Presentation,
+  ScrollText,
   type LucideIcon,
 } from "lucide-react";
 import type { EntityKind } from "@/types";
@@ -17,9 +21,14 @@ export const ENTITY_KIND_META: Record<EntityKind, { label: string; icon: LucideI
   project: { label: "项目", icon: FolderKanban },
   white_board: { label: "白板", icon: Presentation },
   diary: { label: "日记", icon: CalendarDays },
+  excerpt: { label: "划线", icon: Highlighter },
+  "pdf-annotation": { label: "PDF 标注", icon: ScrollText },
+  "web-clip": { label: "剪藏", icon: Globe },
+  "chat-session": { label: "对话", icon: MessageCircle },
 };
 
-export const entityKey = (c: { kind: EntityKind; id: number }) => `${c.kind}:${c.id}`;
+export const entityKey = (c: { kind: EntityKind; id: number; sessionId?: string }) =>
+  `${c.kind}:${c.sessionId ?? c.id}`;
 
 /** 列表右侧时间：今天 / 昨天 / N 天前 / M月D日 / YYYY年M月 */
 export function entityTime(ts: number, now = Date.now()): string {

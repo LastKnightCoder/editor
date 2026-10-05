@@ -95,7 +95,7 @@ function mapResultToCandidate(
   query: ParsedQuery
 ): SearchCandidate<SearchResult> {
   const key = `${result.type}:${result.id}`;
-  const text = getMarkdown(result.content || []).trim();
+  const text = result.section?.text ?? getMarkdown(result.content || []).trim();
   const enriched = result as SearchResultWithRank;
   const lexicalScore = calculateLexicalScore(query, text);
   const retrievalScore =

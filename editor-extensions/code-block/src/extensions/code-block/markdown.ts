@@ -2,8 +2,42 @@ import { v4 as uuid } from "uuid";
 import type { Descendant } from "slate";
 import type { MarkdownCodec } from "@tau/markdown";
 import { normalizeCodeBlockLanguageDisplayName } from "@tau/shared/code-block-language";
+import { normalizeCodeBlockFilename } from "./utils/filename.ts";
 
 const MAGIC_MOVE_META_PREFIX = "smm=";
+const TITLE_META_REGEX = /(?:^|\s)title="([^"]*)"/;
+const WRAP_META_TOKEN = "wrap";
+const NO_LINE_NUMBERS_META_TOKEN = "noLineNumbers";
+
+interface DisplayMeta {
+  filename?: string;
+  wrap: boolean;
+  lineNumbers?: false;
+  /** 去掉 title 后的其余 meta，避免文件名里的 `{1}`、`smm=` 被误认 */
+  rest: string;
+}
+
+const parseDisplayMeta = (meta: unknown): DisplayMeta => {
+  if (typeof meta !== "string" || !meta.trim()) return { wrap: false, rest: "" };
+  const titleMatch = meta.match(TITLE_META_REGEX);
+  const rest = titleMatch ? meta.replace(titleMatch[0], " ") : meta;
+  const tokens = rest.split(/\s+/);
+  return {
+    filename: normalizeCodeBlockFilename(titleMatch?.[1]),
+    wrap: tokens.includes(WRAP_META_TOKEN),
+    ...(tokens.includes(NO_LINE_NUMBERS_META_TOKEN) ? { lineNumbers: false as const } : {}),
+    rest,
+  };
+};
+
+const createDisplayMeta = (element: any): string[] => {
+  const filename = normalizeCodeBlockFilename(element.filename);
+  return [
+    filename ? `title="${filename}"` : "",
+    element.wrap === true ? WRAP_META_TOKEN : "",
+    element.lineNumbers === false ? NO_LINE_NUMBERS_META_TOKEN : "",
+  ];
+};
 
 interface MagicMoveStep {
   id: string;
@@ -161,7 +195,9 @@ const resolveActiveCode = (element: any): { code: string; fence: string } => {
   const code = activeStep?.code ?? element.code ?? "";
   const magicMoveMeta = createMagicMoveMeta(magicMove);
   const highlightMeta = createHighlightMeta(activeStep?.highlightLines ?? element.highlightLines);
-  const fence = [language, highlightMeta, magicMoveMeta].filter(Boolean).join(" ");
+  const fence = [language, ...createDisplayMeta(element), highlightMeta, magicMoveMeta]
+    .filter(Boolean)
+    .join(" ");
   return { code, fence };
 };
 
@@ -172,8 +208,9 @@ export const codeBlockCodec: MarkdownCodec = {
   importNode: node => {
     if (node.type !== "code") return null;
     const source = node.value ?? "";
-    const magicMove = parseMagicMoveMeta(node.meta, source);
-    let highlightLines = parseHighlightMeta(node.meta);
+    const { rest: meta, filename, wrap, lineNumbers } = parseDisplayMeta(node.meta);
+    const magicMove = parseMagicMoveMeta(meta, source);
+    let highlightLines = parseHighlightMeta(meta);
     if (magicMove) {
       const safeStep = Math.min(
         Math.max(Number(magicMove.activeStep) || 0, 0),
@@ -194,6 +231,9 @@ export const codeBlockCodec: MarkdownCodec = {
       uuid: uuid(),
       ...(magicMove ? { magicMove } : {}),
       ...(highlightLines ? { highlightLines } : {}),
+      ...(filename ? { filename } : {}),
+      ...(wrap ? { wrap } : {}),
+      ...(lineNumbers === false ? { lineNumbers } : {}),
       children: [{ type: "formatted", text: "" }],
     } as Descendant;
   },

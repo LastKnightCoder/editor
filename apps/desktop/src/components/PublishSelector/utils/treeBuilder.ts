@@ -51,7 +51,6 @@ export function buildCardTagTree(cards: ICard[]): CardTagNode[] {
       title: card.tags[0] || `卡片 #${card.id}`,
       summary: buildPlainText(card.content) || "暂无内容",
       tags: card.tags || [],
-      category: card.category,
       updateTime: card.update_time,
       raw: card,
     };

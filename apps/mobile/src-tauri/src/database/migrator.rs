@@ -189,6 +189,19 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
                 .map_err(|e| format!("FEATURE_TABLE_RETIREMENT_FAILED: 备份数据库失败: {e}"))?;
         }
     }
+    // content_link 迁入谱系：删前备份，与桌面同一文件名
+    if super::content_link_retirement::has_table(conn)
+        .map_err(|e| format!("CONTENT_LINK_RETIREMENT_FAILED: {e}"))?
+    {
+        if let Some(path) = conn.path().filter(|path| !path.is_empty() && *path != ":memory:") {
+            let backup = format!(
+                "{path}.pre-content-link-retirement-v1-{}.bak",
+                uuid::Uuid::new_v4()
+            );
+            conn.execute("VACUUM INTO ?1", [&backup])
+                .map_err(|e| format!("CONTENT_LINK_RETIREMENT_FAILED: 备份数据库失败: {e}"))?;
+        }
+    }
     conn.execute_batch(
         "
         PRAGMA journal_mode = WAL;
@@ -229,6 +242,8 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
     super::main_upgrade::retire_feature_tables(&tx)
         .map_err(|e| format!("FEATURE_TABLE_RETIREMENT_FAILED: {e}"))?;
     super::knowledge_migration::migrate(&tx)?;
+    super::content_link_retirement::retire(&tx)
+        .map_err(|e| format!("CONTENT_LINK_RETIREMENT_FAILED: {e}"))?;
     super::main_upgrade::validate(&tx, &baseline)?;
     let broken_reference = tx
         .prepare("PRAGMA foreign_key_check")

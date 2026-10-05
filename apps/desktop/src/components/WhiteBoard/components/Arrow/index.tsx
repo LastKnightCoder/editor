@@ -1,6 +1,6 @@
 import { memo, useRef, useEffect } from "react";
 
-import { EMarkerType, Point, EArrowLineType, CustomOffset } from "../../types";
+import { EMarkerType, Point, EArrowLineType, CustomOffset, ResolvedSketch } from "../../types";
 import { ArrowUtil } from "@/components/WhiteBoard/utils";
 import SketchArrow from "./SketchArrow";
 
@@ -15,8 +15,8 @@ interface ArrowProps {
   targetConnectId?: string;
   sourceCustomOffset?: CustomOffset;
   targetCustomOffset?: CustomOffset;
-  sketchEnabled?: boolean;
-  roughness?: number;
+  /** 生效画风；手绘时改由 SketchArrow 渲染 */
+  sketch?: ResolvedSketch;
   dashed?: boolean;
   dashArray?: number[];
   animated?: boolean;
@@ -49,8 +49,7 @@ const Arrow = memo((props: ArrowProps) => {
     targetMarker,
     lineColor,
     lineWidth,
-    sketchEnabled = false,
-    roughness = 1,
+    sketch,
     dashed = false,
     dashArray,
     animated = false,
@@ -72,10 +71,7 @@ const Arrow = memo((props: ArrowProps) => {
 
     if (dashed) {
       // 虚线流动动画 - 更快的节奏
-      const dashLength = (dashArray || [5, 5]).reduce(
-        (sum, val) => sum + val,
-        0,
-      );
+      const dashLength = (dashArray || [5, 5]).reduce((sum, val) => sum + val, 0);
       pathElement.style.animation = `dashFlow-${speed} ${dashDuration}s linear infinite`;
       pathElement.style.strokeDashoffset = `${dashLength}px`;
     } else {
@@ -85,17 +81,14 @@ const Arrow = memo((props: ArrowProps) => {
 
       // 清除之前的流光
       const existingFlows = svgRef.current.querySelectorAll(".flow-light");
-      existingFlows.forEach((flow) => flow.remove());
+      existingFlows.forEach(flow => flow.remove());
 
       // 创建流光效果
       for (let i = 0; i < flowCount; i++) {
         const delay = (i / flowCount) * flowDuration;
 
         // 创建流光组
-        const flowGroup = document.createElementNS(
-          "http://www.w3.org/2000/svg",
-          "g",
-        );
+        const flowGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
         flowGroup.setAttribute("class", "flow-light");
         flowGroup.setAttribute("opacity", "0");
 
@@ -103,20 +96,14 @@ const Arrow = memo((props: ArrowProps) => {
         const brightColor = getBrighterColor(lineColor);
 
         // 主光点 - 更大更亮
-        const mainDot = document.createElementNS(
-          "http://www.w3.org/2000/svg",
-          "ellipse",
-        );
+        const mainDot = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
         mainDot.setAttribute("rx", `${Math.max(5, lineWidth * 1.5)}`);
         mainDot.setAttribute("ry", `${Math.max(2.5, lineWidth * 0.75)}`);
         mainDot.setAttribute("fill", brightColor);
         mainDot.setAttribute("filter", "url(#strongGlow)");
 
         // 拖尾光点1 - 更大
-        const tail1 = document.createElementNS(
-          "http://www.w3.org/2000/svg",
-          "ellipse",
-        );
+        const tail1 = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
         tail1.setAttribute("rx", `${Math.max(3, lineWidth * 1.0)}`);
         tail1.setAttribute("ry", `${Math.max(1.5, lineWidth * 0.5)}`);
         tail1.setAttribute("fill", brightColor);
@@ -125,10 +112,7 @@ const Arrow = memo((props: ArrowProps) => {
         tail1.setAttribute("transform", "translate(-10, 0)");
 
         // 拖尾光点2 - 更大
-        const tail2 = document.createElementNS(
-          "http://www.w3.org/2000/svg",
-          "ellipse",
-        );
+        const tail2 = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
         tail2.setAttribute("rx", `${Math.max(2, lineWidth * 0.7)}`);
         tail2.setAttribute("ry", `${Math.max(1, lineWidth * 0.35)}`);
         tail2.setAttribute("fill", brightColor);
@@ -143,7 +127,7 @@ const Arrow = memo((props: ArrowProps) => {
         // 创建沿路径移动的动画
         const animateMotion = document.createElementNS(
           "http://www.w3.org/2000/svg",
-          "animateMotion",
+          "animateMotion"
         );
         animateMotion.setAttribute("dur", `${flowDuration}s`);
         animateMotion.setAttribute("repeatCount", "indefinite");
@@ -152,10 +136,7 @@ const Arrow = memo((props: ArrowProps) => {
         animateMotion.setAttribute("rotate", "auto"); // 自动旋转跟随路径方向
 
         // 创建透明度动画 - 更明显的亮度变化
-        const animateOpacity = document.createElementNS(
-          "http://www.w3.org/2000/svg",
-          "animate",
-        );
+        const animateOpacity = document.createElementNS("http://www.w3.org/2000/svg", "animate");
         animateOpacity.setAttribute("attributeName", "opacity");
         animateOpacity.setAttribute("values", "0;1;1;0");
         animateOpacity.setAttribute("keyTimes", "0;0.2;0.8;1");
@@ -187,12 +168,10 @@ const Arrow = memo((props: ArrowProps) => {
       // 清理流光元素
       if (svgRef.current) {
         const flows = svgRef.current.querySelectorAll(".flow-light");
-        flows.forEach((flow) => flow.remove());
+        flows.forEach(flow => flow.remove());
         // 移除所有辉光滤镜
-        const filters = svgRef.current.querySelectorAll(
-          "#strongGlow, #mediumGlow, #lightGlow",
-        );
-        filters.forEach((filter) => filter.remove());
+        const filters = svgRef.current.querySelectorAll("#strongGlow, #mediumGlow, #lightGlow");
+        filters.forEach(filter => filter.remove());
         const defs = svgRef.current.querySelector("defs");
         if (defs && defs.children.length === 0) {
           defs.remove();
@@ -201,10 +180,20 @@ const Arrow = memo((props: ArrowProps) => {
     };
   }, [animated, dashed, dashArray, animationSpeed, lineColor, lineWidth]);
 
-  // 如果启用了草图风格，使用 SketchArrow 组件
-  if (sketchEnabled) {
+  if (sketch?.enabled) {
     return (
-      <SketchArrow {...props} sketchEnabled={true} roughness={roughness} />
+      <SketchArrow
+        d={ArrowUtil.getArrowPath(props)}
+        sourceMarker={sourceMarker}
+        targetMarker={targetMarker}
+        lineColor={lineColor}
+        lineWidth={lineWidth}
+        sketch={sketch}
+        dashed={dashed}
+        dashArray={dashArray}
+        animated={animated}
+        animationSpeed={animationSpeed}
+      />
     );
   }
 
@@ -218,9 +207,7 @@ const Arrow = memo((props: ArrowProps) => {
     const style = document.createElement("style");
     style.id = styleId;
 
-    const dashLength = dashArray
-      ? dashArray.reduce((sum, val) => sum + val, 0)
-      : 10;
+    const dashLength = dashArray ? dashArray.reduce((sum, val) => sum + val, 0) : 10;
 
     style.textContent = `
       @keyframes dashFlow-${speed} {
@@ -266,36 +253,21 @@ const Arrow = memo((props: ArrowProps) => {
     }
 
     // 强辉光滤镜
-    const strongFilter = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "filter",
-    );
+    const strongFilter = document.createElementNS("http://www.w3.org/2000/svg", "filter");
     strongFilter.setAttribute("id", "strongGlow");
     strongFilter.setAttribute("x", "-100%");
     strongFilter.setAttribute("y", "-100%");
     strongFilter.setAttribute("width", "300%");
     strongFilter.setAttribute("height", "300%");
 
-    const strongBlur = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "feGaussianBlur",
-    );
+    const strongBlur = document.createElementNS("http://www.w3.org/2000/svg", "feGaussianBlur");
     strongBlur.setAttribute("stdDeviation", "4");
     strongBlur.setAttribute("result", "coloredBlur");
 
-    const strongMerge = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "feMerge",
-    );
-    const strongMergeNode1 = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "feMergeNode",
-    );
+    const strongMerge = document.createElementNS("http://www.w3.org/2000/svg", "feMerge");
+    const strongMergeNode1 = document.createElementNS("http://www.w3.org/2000/svg", "feMergeNode");
     strongMergeNode1.setAttribute("in", "coloredBlur");
-    const strongMergeNode2 = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "feMergeNode",
-    );
+    const strongMergeNode2 = document.createElementNS("http://www.w3.org/2000/svg", "feMergeNode");
     strongMergeNode2.setAttribute("in", "SourceGraphic");
 
     strongMerge.appendChild(strongMergeNode1);
@@ -304,36 +276,21 @@ const Arrow = memo((props: ArrowProps) => {
     strongFilter.appendChild(strongMerge);
 
     // 中等辉光滤镜
-    const mediumFilter = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "filter",
-    );
+    const mediumFilter = document.createElementNS("http://www.w3.org/2000/svg", "filter");
     mediumFilter.setAttribute("id", "mediumGlow");
     mediumFilter.setAttribute("x", "-75%");
     mediumFilter.setAttribute("y", "-75%");
     mediumFilter.setAttribute("width", "250%");
     mediumFilter.setAttribute("height", "250%");
 
-    const mediumBlur = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "feGaussianBlur",
-    );
+    const mediumBlur = document.createElementNS("http://www.w3.org/2000/svg", "feGaussianBlur");
     mediumBlur.setAttribute("stdDeviation", "3");
     mediumBlur.setAttribute("result", "coloredBlur");
 
-    const mediumMerge = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "feMerge",
-    );
-    const mediumMergeNode1 = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "feMergeNode",
-    );
+    const mediumMerge = document.createElementNS("http://www.w3.org/2000/svg", "feMerge");
+    const mediumMergeNode1 = document.createElementNS("http://www.w3.org/2000/svg", "feMergeNode");
     mediumMergeNode1.setAttribute("in", "coloredBlur");
-    const mediumMergeNode2 = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "feMergeNode",
-    );
+    const mediumMergeNode2 = document.createElementNS("http://www.w3.org/2000/svg", "feMergeNode");
     mediumMergeNode2.setAttribute("in", "SourceGraphic");
 
     mediumMerge.appendChild(mediumMergeNode1);
@@ -342,36 +299,21 @@ const Arrow = memo((props: ArrowProps) => {
     mediumFilter.appendChild(mediumMerge);
 
     // 轻度辉光滤镜
-    const lightFilter = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "filter",
-    );
+    const lightFilter = document.createElementNS("http://www.w3.org/2000/svg", "filter");
     lightFilter.setAttribute("id", "lightGlow");
     lightFilter.setAttribute("x", "-50%");
     lightFilter.setAttribute("y", "-50%");
     lightFilter.setAttribute("width", "200%");
     lightFilter.setAttribute("height", "200%");
 
-    const lightBlur = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "feGaussianBlur",
-    );
+    const lightBlur = document.createElementNS("http://www.w3.org/2000/svg", "feGaussianBlur");
     lightBlur.setAttribute("stdDeviation", "2");
     lightBlur.setAttribute("result", "coloredBlur");
 
-    const lightMerge = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "feMerge",
-    );
-    const lightMergeNode1 = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "feMergeNode",
-    );
+    const lightMerge = document.createElementNS("http://www.w3.org/2000/svg", "feMerge");
+    const lightMergeNode1 = document.createElementNS("http://www.w3.org/2000/svg", "feMergeNode");
     lightMergeNode1.setAttribute("in", "coloredBlur");
-    const lightMergeNode2 = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "feMergeNode",
-    );
+    const lightMergeNode2 = document.createElementNS("http://www.w3.org/2000/svg", "feMergeNode");
     lightMergeNode2.setAttribute("in", "SourceGraphic");
 
     lightMerge.appendChild(lightMergeNode1);
@@ -393,16 +335,8 @@ const Arrow = memo((props: ArrowProps) => {
         strokeWidth={lineWidth}
         fill={"none"}
         strokeDasharray={dashed ? (dashArray || [5, 5]).join(",") : "none"}
-        markerEnd={
-          targetMarker !== EMarkerType.None
-            ? getMarkerUrl(targetMarker)
-            : "none"
-        }
-        markerStart={
-          sourceMarker !== EMarkerType.None
-            ? getMarkerUrl(sourceMarker)
-            : "none"
-        }
+        markerEnd={targetMarker !== EMarkerType.None ? getMarkerUrl(targetMarker) : "none"}
+        markerStart={sourceMarker !== EMarkerType.None ? getMarkerUrl(sourceMarker) : "none"}
       />
     </g>
   );

@@ -9,6 +9,7 @@
  */
 
 import type { Camera } from "../core/camera";
+import { clusterGeometry } from "../core/clusterGeometry";
 import { isMapScene, type MapScene } from "../core/mapScene";
 import type { GraphNode, GraphPalette, GraphScene } from "../core/types";
 import { withAlpha } from "../core/palette";
@@ -54,8 +55,8 @@ const CLUSTER_LABEL_MAX_SCALE = 0.55;
  * 这时只该看大主题；放到 1.3 左右子主题的范围才看得清；到 2.4 卡片间距约 30px，
  * 标题才放得下。
  */
-const MAP_SUBTOPIC_LABEL_SCALE = 1.3;
-const MAP_CARD_LABEL_SCALE = 2.4;
+export const MAP_SUBTOPIC_LABEL_SCALE = 1.3;
+export const MAP_CARD_LABEL_SCALE = 2.4;
 /** 簇背景色块的不透明度：只做「这一片是一起的」的暗示，不能盖住节点 */
 const CLUSTER_BLOB_ALPHA = 0.1;
 
@@ -112,7 +113,7 @@ export class Canvas2DRenderer {
     const emphasis = focusId !== null ? Math.min(1, Math.max(0, state.emphasis ?? 1)) : 0;
     const dimming = emphasis > 0;
     const scale = camera.scale;
-    const geometry = this.clusterGeometry(scene);
+    const geometry = clusterGeometry(scene);
     const mapMode = isMapScene(scene);
     const filter = state.filterIds ?? null;
     const filteredOut = (id: number) => filter !== null && !filter.has(id);
@@ -558,40 +559,6 @@ export class Canvas2DRenderer {
     if (typeof ctx.roundRect === "function") ctx.roundRect(x, y, width, height, 4);
     else ctx.rect(x, y, width, height);
     ctx.fill();
-  }
-
-  /**
-   * 每簇的质心与半径（世界坐标）。半径取成员到质心距离的 90 分位再放宽，
-   * 用分位数而不是最大值：一个跑远的成员不该把整个色块拉大。
-   */
-  private clusterGeometry(scene: GraphScene) {
-    const groups = new Map<number, { x: number; y: number; radius: number }>();
-    if (scene.clusters.length === 0) return groups;
-
-    for (const cluster of scene.clusters) {
-      let sumX = 0;
-      let sumY = 0;
-      let count = 0;
-      for (const id of cluster.members) {
-        const node = scene.nodeById.get(id);
-        if (!node) continue;
-        sumX += node.x;
-        sumY += node.y;
-        count += 1;
-      }
-      if (count === 0) continue;
-      const x = sumX / count;
-      const y = sumY / count;
-      const distances: number[] = [];
-      for (const id of cluster.members) {
-        const node = scene.nodeById.get(id);
-        if (node) distances.push(Math.hypot(node.x - x, node.y - y));
-      }
-      distances.sort((a, b) => a - b);
-      const percentile = distances[Math.floor(distances.length * 0.9)] ?? 0;
-      groups.set(cluster.id, { x, y, radius: percentile * 1.35 + 24 });
-    }
-    return groups;
   }
 
   /** 两端都在视口外且不跨视口时跳过（粗判，够省掉大部分远处连线） */

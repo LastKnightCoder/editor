@@ -20,7 +20,9 @@ import { MarkdownProvider } from "@/components/ChatSidebar/MarkdownContext";
 import { useChatMarkdownComponents } from "@/components/ChatUI";
 import type { ChatContainerHandle } from "@/components/ChatSidebar/ChatContainer";
 
+import type { Descendant } from "slate";
 import type { VLResource } from "@/types/vibe-learning";
+import { buildVLGoalSection } from "./chatGoal";
 
 import { useVibeLearningChat } from "./useVibeLearningChat";
 import { IconButton, Loading, cn, toast } from "@tau/ui";
@@ -29,9 +31,9 @@ const ChatContainer = lazy(() => import("@/components/ChatSidebar/ChatContainer"
 
 /**
  * 构建 VL 系统提示词
- * 根据资源列表动态注入项目资源元信息，帮助模型在对话开始时就了解文档结构
+ * 注入课题目标（标题 + 目标描述）与项目资源元信息，帮助模型在对话开始时就知道要解决什么、资料有哪些
  */
-const buildVLSystemPrompt = (resources: VLResource[]): string => {
+const buildVLSystemPrompt = (resources: VLResource[], goalSection: string): string => {
   const basePrompt = `你是一个基于用户资料库进行回答的学习助手。你的首要任务不是尽快回答，而是先判断现有证据是否足够；如果证据不足，必须继续探索资料，再基于充分证据回答。
 
 ## 可用工具
@@ -99,7 +101,7 @@ const buildVLSystemPrompt = (resources: VLResource[]): string => {
 
   // 动态注入当前项目的资源元信息
   if (resources.length === 0) {
-    return basePrompt;
+    return basePrompt + goalSection;
   }
 
   const resourceLines = resources.map(r => {
@@ -111,18 +113,28 @@ const buildVLSystemPrompt = (resources: VLResource[]): string => {
   resourceSection +=
     "\n\n> 长文档请先使用 vibe_learning_query 的 search 或 grep 定位，再用 read_lines 或 read_range 补读原文上下文。优先使用 resourceId 作为稳定定位锚点。";
 
-  return basePrompt + resourceSection;
+  return basePrompt + goalSection + resourceSection;
 };
 
 interface ChatPanelProps {
   projectId: number;
   mainDbName: string;
   resources: VLResource[];
+  /** 课题标题与目标描述（项目的 title / desc） */
+  title: string;
+  desc?: Descendant[];
   /** 停靠在阅读区右侧（窄栏）；否则占满纸面中间 */
   docked?: boolean;
 }
 
-const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources, docked }) => {
+const ChatPanel: React.FC<ChatPanelProps> = ({
+  projectId,
+  mainDbName,
+  resources,
+  title,
+  desc,
+  docked,
+}) => {
   const { isDark } = useTheme();
   const editTitleRef = useRef<EditTextHandle>(null);
   const chatContainerRef = useRef<ChatContainerHandle>(null);
@@ -132,8 +144,12 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources,
   // 注册项目专属搜索工具（只给本页对话）
   const toolScope = useVibeLearningChat(projectId, mainDbName);
 
-  // 根据资源列表动态构建系统提示词
-  const systemPrompt = useMemo(() => buildVLSystemPrompt(resources), [resources]);
+  // 根据课题目标与资源列表动态构建系统提示词（每次发送都会带上最新的）
+  const goalSection = useMemo(() => buildVLGoalSection(title, desc), [title, desc]);
+  const systemPrompt = useMemo(
+    () => buildVLSystemPrompt(resources, goalSection),
+    [resources, goalSection]
+  );
 
   // 本项目的对话（统一会话 store 按 vibe-learning-chat + projectId 分桶）
   const bucket = useMemo(

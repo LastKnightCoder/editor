@@ -18,6 +18,7 @@ mod calendar_time;
 mod calendar_holidays;
 mod collaboration;
 mod common;
+mod content_link_retirement;
 mod diary;
 mod editor_block_retirement;
 mod flashcard;
@@ -53,16 +54,9 @@ pub use todo::*;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateTemporaryCardPayload {
+pub struct CreateQuickCardPayload {
     pub content: Value,
     pub count: i64,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct UpdateCardCategoryPayload {
-    pub id: i64,
-    pub category: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -184,14 +178,6 @@ fn write_content_snapshot(
     Ok(content_changed as i64)
 }
 
-fn normalize_card_category(category: &str) -> Option<String> {
-    let normalized = category.trim().to_ascii_lowercase();
-    match normalized.as_str() {
-        "temporary" | "permanent" | "theme" | "literature" => Some(normalized),
-        _ => None,
-    }
-}
-
 #[tauri::command]
 pub fn list_databases(app: AppHandle) -> Result<DatabaseListResponse, String> {
     let setting = load_or_init_setting(&app)?;
@@ -308,16 +294,9 @@ pub fn get_cards_overview(
     page: u32,
     page_size: u32,
     query: Option<String>,
-    category: Option<String>,
 ) -> Result<CardsOverviewResponse, String> {
     let conn = schema::open_active_database(&app)?;
-    query::query_cards_overview(
-        &conn,
-        page,
-        page_size,
-        query.as_deref(),
-        category.as_deref(),
-    )
+    query::query_cards_overview(&conn, page, page_size, query.as_deref())
 }
 
 #[tauri::command]
@@ -359,9 +338,9 @@ pub fn get_content_detail(
 }
 
 #[tauri::command]
-pub fn create_temporary_card(
+pub fn create_quick_card(
     app: AppHandle,
-    payload: CreateTemporaryCardPayload,
+    payload: CreateQuickCardPayload,
 ) -> Result<CardDetailResponse, String> {
     let mut conn = schema::open_active_database(&app)?;
     let normalized_content = if payload.content.is_array() {
@@ -393,8 +372,8 @@ pub fn create_temporary_card(
 
     tx.execute(
         "
-        INSERT INTO cards (create_time, update_time, tags, links, content_id, category, is_top)
-        VALUES (?1, ?2, ?3, ?4, ?5, 'temporary', 0)
+        INSERT INTO cards (create_time, update_time, tags, links, content_id, is_top)
+        VALUES (?1, ?2, ?3, ?4, ?5, 0)
         ",
         params![now, now, "[]", "[]", content_id],
     )
@@ -461,56 +440,6 @@ pub fn update_content(
     reconcile::trigger_reconcile(&app, &db_name);
 
     query::query_content_detail(&conn, payload.content_id)
-}
-
-#[tauri::command]
-pub fn update_card_category(
-    app: AppHandle,
-    payload: UpdateCardCategoryPayload,
-) -> Result<CardDetailResponse, String> {
-    let normalized_category = normalize_card_category(&payload.category)
-        .ok_or_else(|| "CARD_CATEGORY_INVALID: invalid card category".to_string())?;
-    let mut conn = schema::open_active_database(&app)?;
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|duration| duration.as_millis() as i64)
-        .unwrap_or(0);
-
-    let tx = conn
-        .transaction()
-        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to begin transaction: {e}"))?;
-
-    let changed = tx
-        .execute(
-            "
-            UPDATE cards
-            SET category = ?1, update_time = ?2
-            WHERE id = ?3
-            ",
-            params![normalized_category, now, payload.id],
-        )
-        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to update card category: {e}"))?;
-    if changed == 0 {
-        return Err("CARD_NOT_FOUND: card does not exist".to_string());
-    }
-
-    tx.execute(
-        "
-        INSERT INTO operation (operation_time, operation_id, operation_content_type, operation_action)
-        VALUES (?1, ?2, 'card', 'update')
-        ",
-        params![now, payload.id],
-    )
-    .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to write card operation: {e}"))?;
-
-    tx.commit()
-        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to commit transaction: {e}"))?;
-
-    let setting = load_or_init_setting(&app)?;
-    let db_name = get_active_database_name(&setting);
-    reconcile::trigger_reconcile(&app, &db_name);
-
-    query::query_card_detail(&conn, payload.id)
 }
 
 fn normalize_card_tags(tags: Vec<String>) -> Result<String, String> {

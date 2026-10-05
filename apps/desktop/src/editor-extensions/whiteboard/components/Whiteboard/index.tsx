@@ -7,12 +7,7 @@ import { Transforms } from "slate";
 import { AddParagraph, type ElementRenderProps } from "@tau/editor/api";
 
 import { If } from "@tau/shared";
-import WhiteBoard, {
-  BoardElement,
-  Selection,
-  ViewPort,
-  PresentationSequence,
-} from "@/components/WhiteBoard";
+import WhiteBoard, { ViewPort } from "@/components/WhiteBoard";
 import { getWhiteBoardContentById, updateSubWhiteBoard } from "@/commands";
 import { WhiteBoardContent } from "@/types";
 
@@ -26,12 +21,7 @@ type IWhiteboardProps = ElementRenderProps<WhiteboardElement>;
 const FLOATING_BUTTON_CLASS =
   "absolute right-[0.625em] top-[0.625em] z-10 flex cursor-pointer items-center justify-center rounded-[0.25em] bg-[rgba(38,38,38,0.6)] p-[0.25em] text-white transition-all duration-200";
 
-interface WhiteboardData {
-  children: BoardElement[];
-  viewPort: ViewPort;
-  selection: Selection;
-  presentationSequences?: PresentationSequence[];
-}
+type WhiteboardData = WhiteBoardContent["data"];
 
 const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(props => {
   const { attributes, children, element } = props;
@@ -126,7 +116,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
     const updatedContent = await updateSubWhiteBoard(
       whiteBoardContent.id,
       whiteBoardContent.name,
-      data as WhiteBoardContent["data"]
+      data
     );
     setWhiteBoardContent(updatedContent);
   });
@@ -160,12 +150,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
         data.viewPort.zoom
       );
       // 更新白板数据
-      await updateWhiteboardData({
-        children: data.children as BoardElement[],
-        viewPort: newViewport,
-        selection: data.selection,
-        presentationSequences: (data.presentationSequences || []) as PresentationSequence[],
-      });
+      await updateWhiteboardData({ ...data, viewPort: newViewport });
     } else {
       // 获取当前的中心坐标
       const { centerX, centerY } = calculateViewportCenter(data.viewPort);
@@ -178,12 +163,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
         data.viewPort.zoom
       );
       // 更新白板数据
-      await updateWhiteboardData({
-        children: data.children as BoardElement[],
-        viewPort: newViewport,
-        selection: data.selection,
-        presentationSequences: (data.presentationSequences || []) as PresentationSequence[],
-      });
+      await updateWhiteboardData({ ...data, viewPort: newViewport });
     }
     setTimeout(() => {
       setIsFullscreen(isFullscreen);
@@ -262,6 +242,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
                 initViewPort={whiteboardData.viewPort}
                 initSelection={whiteboardData.selection}
                 initPresentationSequences={whiteboardData.presentationSequences || []}
+                initSketch={whiteboardData.sketch}
                 style={{ width: "100%", height: "100%" }}
                 readonly={readOnly}
                 onChange={handleWhiteboardChange}
@@ -297,6 +278,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
                   initViewPort={whiteboardData.viewPort}
                   initSelection={whiteboardData.selection}
                   initPresentationSequences={whiteboardData.presentationSequences || []}
+                  initSketch={whiteboardData.sketch}
                   style={{ width: "100%", height: "100%" }}
                   readonly={readOnly}
                   onChange={handleWhiteboardChange}

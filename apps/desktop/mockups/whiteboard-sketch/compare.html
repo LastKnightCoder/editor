@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>白板手绘风格 · 并排对比（现状 / A / B / C）</title>
+<link rel="stylesheet" href="../whiteboards/base.css">
+<link rel="stylesheet" href="sketch.css">
+<style>
+  main { padding: 20px 24px 60px; }
+  .note { color: var(--ink-2); font-size: 13px; max-width: 110ch; margin-bottom: 16px; }
+  .note b { color: var(--ink-1); font-weight: 600; }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 14px; }
+  .col { background: var(--bg-surface); border-radius: 16px; box-shadow: var(--shadow-card); overflow: hidden; }
+  .col header { padding: 14px 18px 4px; }
+  .col h3 { font-size: 14.5px; font-weight: 600; display: flex; align-items: baseline; gap: 8px; }
+  .col h3 small { font-size: 12px; font-weight: 400; color: var(--ink-3); }
+  .col p { font-size: 12.5px; color: var(--ink-2); margin-top: 2px; min-height: 3.4em; }
+  .col.cur h3 { color: var(--ink-2); }
+  .col.rec { outline: 1.5px solid color-mix(in srgb, var(--accent) 45%, transparent); }
+  .col.rec h3::after { content: "推荐"; font-size: 11px; font-weight: 500; color: var(--accent-text); background: var(--accent-soft); padding: 0 7px; border-radius: 6px; line-height: 18px; }
+  .paper { background-color: var(--sk-paper); background-image: radial-gradient(var(--sk-dot) 1px, transparent 1.2px); background-size: 12px 12px; margin: 8px 12px 12px; border-radius: 12px; }
+  .paper svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .rowlabel { font: 11.5px var(--font); fill: var(--ink-3); }
+  .shape-text { font-size: 14px; fill: var(--sk-ink); }
+  .shape-text.ui { font-family: var(--font); font-size: 13px; }
+  .shape-text.hand { font-size: 16px; }
+  .issues { margin: 0 18px 16px; padding-left: 18px; font-size: 12.5px; color: var(--ink-2); }
+  .issues li + li { margin-top: 2px; }
+  .issues .bad { color: var(--danger); }
+  .issues .good { color: var(--ok); }
+</style>
+</head>
+<body class="doc">
+<div class="demo">
+  <div class="title"><a href="index.html">← 总览</a>并排对比</div>
+  <div class="grp"><span>笔触</span><button class="chip" data-level="neat">工整</button><button class="chip on" data-level="natural">自然</button><button class="chip" data-level="loose">潦草</button></div>
+  <div class="grp"><span>线宽</span><button class="chip" data-sw="1">1</button><button class="chip on" data-sw="2">2</button><button class="chip" data-sw="3">3</button><button class="chip" data-sw="4">4</button></div>
+  <div class="grp" id="fills"><span>填充色</span></div>
+  <div class="grp" id="strokes"><span>描边</span></div>
+  <div class="grp"><button class="chip" id="reseed">🎲 换一笔</button><button class="chip" id="drag">▶ 模拟拖动</button></div>
+  <div class="spacer"></div>
+  <div class="grp"><button class="chip" id="theme">☾ cocoa</button></div>
+</div>
+<main>
+  <p class="note">同一组元素、同一组参数，四列分别用<b>现状</b>（忠实复刻 <code>getRoughOptions</code> / <code>SketchArrow</code> 的参数：填充角 0°、间距固定 8、透明度丢失、圆角喂 Q 曲线、箭头随机 seed + 实心头 <code>max(10, 8×线宽)</code>）和三个方向渲染。点「模拟拖动」看连线跟随时的稳定性；切线宽到 4 看箭头头部；切「潦草」看小尺寸形状。</p>
+  <div class="cols" id="cols"></div>
+</main>
+<script src="vendor/rough.js"></script>
+<script src="vendor/perfect-freehand.js"></script>
+<script src="sketch.js"></script>
+<script>
+const FILL_COLORS = { 蓝: "#8fb3e6", 绿: "#9cc79a", 黄: "#f0c55a", 粉: "#ec9f94", 紫: "#b9a3dd" };
+const STROKES = { 墨: "var(--sk-ink)", 蓝: "#3d6aa8", 朱: "#b5483b" };
+const COLS = [
+  { mode: "current", name: "现状", sub: "rough.js 默认", desc: "rough.js 默认参数 + 几处反向调参。", cls: "cur",
+    issues: [["bad", "水平排线、固定间距，像扫描纹不像笔"], ["bad", "实心填充满饱和（fillOpacity 丢失）"], ["bad", "圆角/心形喂曲线，抖成麻花"], ["bad", "文字仍是印刷体"], ["bad", "拖动时连线整体抖动；粗线箭头巨大"]] },
+  { mode: "a", name: "A · 纸笔", sub: "rough.js 调优", desc: "保留 rough.js，单笔描边 + -41° 排线 + 间距随线宽，圆角/心形先采样再抖；箭头开口两笔。最像 Excalidraw，改动最小。",
+    issues: [["good", "成本最低：参数与轮廓采样"], ["good", "用户熟悉的白板手绘语言"], ["bad", "等宽线条，「电脑模拟手绘」感仍在"]] },
+  { mode: "b", name: "B · 墨水", sub: "rough 骨架 + perfect-freehand 墨迹", desc: "一笔绕一圈、收尾搭接；起笔重收笔轻的变宽墨迹，填充像马克笔淡涂（套色错位、multiply 叠纸）。与现有「手写」工具同一套墨水引擎。", cls: "rec",
+    issues: [["good", "最像真人用笔，和手写笔迹统一"], ["good", "淡涂填充不抢文字"], ["bad", "需自写轮廓采样与描边（约 300 行纯函数）"]] },
+  { mode: "c", name: "C · 铅笔", sub: "多遍细线 + 出头", desc: "直边按边拆笔、两端出头交叉，两遍细线叠出铅笔灰度；填充是彩铅排线。最有「草图/速写」味。",
+    issues: [["good", "建筑草图式的结构感"], ["bad", "细线在缩小/深色主题下发虚"], ["bad", "元素一多显得「脏」，不适合信息密集板"]] },
+];
+
+const state = { level: "natural", sw: 2, fill: "#8fb3e6", stroke: "var(--sk-ink)", seed: 1, t: 0 };
+
+function makeChips(id, map, key) {
+  const box = document.getElementById(id);
+  Object.entries(map).forEach(([name, val]) => {
+    const b = document.createElement("button");
+    b.className = "chip" + (state[key] === val ? " on" : "");
+    b.innerHTML = `<i class="dot" style="background:${val}"></i>${name}`;
+    b.onclick = () => { state[key] = val; box.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", c === b)); draw(); };
+    box.appendChild(b);
+  });
+}
+makeChips("fills", FILL_COLORS, "fill");
+makeChips("strokes", STROKES, "stroke");
+
+document.querySelectorAll("[data-level]").forEach(b => b.onclick = () => { state.level = b.dataset.level; sel("[data-level]", b); draw(); });
+document.querySelectorAll("[data-sw]").forEach(b => b.onclick = () => { state.sw = +b.dataset.sw; sel("[data-sw]", b); draw(); });
+function sel(q, on) { document.querySelectorAll(q).forEach(c => c.classList.toggle("on", c === on)); }
+document.getElementById("reseed").onclick = () => { state.seed = Math.floor(Math.random() * 9999) + 1; draw(); };
+let timer = null;
+document.getElementById("drag").onclick = e => {
+  if (timer) { clearInterval(timer); timer = null; e.currentTarget.textContent = "▶ 模拟拖动"; e.currentTarget.classList.remove("on"); return; }
+  e.currentTarget.textContent = "■ 停止拖动"; e.currentTarget.classList.add("on");
+  timer = setInterval(() => { state.t += 0.12; draw(); }, 60);
+};
+document.getElementById("theme").onclick = e => {
+  const r = document.documentElement;
+  const dark = r.dataset.theme === "cream";
+  r.dataset.theme = dark ? "cocoa" : "cream";
+  e.currentTarget.textContent = dark ? "☀ cream" : "☾ cocoa";
+};
+
+const cols = document.getElementById("cols");
+const svgs = COLS.map(c => {
+  const col = document.createElement("section");
+  col.className = "col " + (c.cls || "");
+  col.innerHTML = `<header><h3>${c.name}<small>${c.sub}</small></h3><p>${c.desc}</p></header><div class="paper"></div><ul class="issues">${c.issues.map(([k, t]) => `<li class="${k}">${t}</li>`).join("")}</ul>`;
+  cols.appendChild(col);
+  const svg = SK.node("svg", { viewBox: "0 0 340 560" }, col.querySelector(".paper"));
+  return { svg, mode: c.mode };
+});
+
+function shapeAt(svg, mode, x, y, el, label) {
+  const g = SK.node("g", { transform: `translate(${x} ${y})` }, svg);
+  SK.renderShape(g, { sw: state.sw, stroke: state.stroke, ...el, seed: (el.seed || 1) * 97 + state.seed }, mode, { level: state.level });
+  if (label) {
+    const hand = SK.MODES[mode].hand;
+    const t = SK.node("text", { x: el.w / 2, y: el.h / 2 + 5, "text-anchor": "middle", class: "shape-text " + (hand ? "hand" : "ui") }, g);
+    t.textContent = label;
+  }
+}
+function label(svg, x, y, text) { SK.node("text", { x, y, class: "rowlabel" }, svg).textContent = text; }
+
+function drawCol({ svg, mode }) {
+  svg.replaceChildren();
+  const o = { level: state.level };
+  const d = Math.sin(state.t) * 14;
+  const d2 = Math.cos(state.t * 0.8) * 10;
+  const fill = state.fill;
+
+  label(svg, 10, 14, "形状 · 文字");
+  shapeAt(svg, mode, 12, 26, { shape: { kind: "rect" }, w: 92, h: 58, fill: { type: "wash", color: fill }, seed: 1 }, "Query");
+  shapeAt(svg, mode, 124, 26, { shape: { kind: "rect", radius: 14 }, w: 92, h: 58, fill: { type: "hatch", color: "#f0c55a" }, seed: 2 }, "Softmax");
+  shapeAt(svg, mode, 236, 22, { shape: { kind: "ellipse" }, w: 92, h: 66, seed: 3 }, "加权求和");
+  shapeAt(svg, mode, 14, 102, { shape: { kind: "triangle" }, w: 78, h: 54, seed: 4 }, "");
+  shapeAt(svg, mode, 118, 100, { shape: { kind: "heart" }, w: 62, h: 58, fill: { type: "wash", color: "#ec9f94" }, seed: 5 }, "");
+  shapeAt(svg, mode, 204, 112, { shape: { kind: "rect" }, w: 40, h: 28, fill: { type: "cross", color: fill }, seed: 6 }, "");
+  shapeAt(svg, mode, 262, 112, { shape: { kind: "ellipse" }, w: 40, h: 28, seed: 7 }, "");
+  label(svg, 204, 158, "小尺寸 40×28");
+
+  label(svg, 10, 192, "填充");
+  ["none", "wash", "hatch", "cross", "scribble"].forEach((type, i) => {
+    shapeAt(svg, mode, 12 + i * 65, 202, { shape: { kind: "rect" }, w: 52, h: 44, fill: { type, color: fill }, seed: 10 + i }, "");
+    label(svg, 12 + i * 65 + 14, 264, SK.FILLS[type]);
+  });
+
+  label(svg, 10, 298, "连线（拖动时观察）");
+  const ag = SK.node("g", {}, svg);
+  const A = (a, seed) => SK.renderArrow(ag, { sw: state.sw, stroke: state.stroke, seed: seed * 53 + state.seed, ...a }, mode, o);
+  A({ pts: [[14, 322], [150 + d, 322 + d2 * 0.4]] }, 1);
+  A({ pts: [[184, 314], [252 + d * 0.5, 314], [252 + d * 0.5, 368], [326, 368]] }, 2);
+  A({ pts: [[16, 360], [160 + d, 400 + d2]], curve: [[70, 340], [110 + d, 420]] }, 3);
+  A({ pts: [[184, 410], [326 + d * 0.4, 410 + d2 * 0.3]], dashed: true, heads: { start: true, end: true } }, 4);
+  label(svg, 186, 398, "虚线 · 双向");
+
+  label(svg, 10, 450, "粗线 4px");
+  shapeAt(svg, mode, 12, 462, { shape: { kind: "rect", radius: 8 }, w: 120, h: 70, sw: 4, fill: { type: "wash", color: "#9cc79a" }, seed: 20 }, "Value");
+  SK.renderArrow(ag, { sw: 4, stroke: state.stroke, seed: 77 + state.seed, pts: [[150, 497], [326 + d * 0.4, 497 + d2 * 0.4]] }, mode, o);
+}
+function draw() { svgs.forEach(drawCol); }
+draw();
+document.fonts && document.fonts.ready.then(draw);
+</script>
+</body>
+</html>

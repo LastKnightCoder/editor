@@ -93,6 +93,41 @@ describe("activateExisting 单实例去重", () => {
     expect(s1.back[1].id).toBe(s0TopId);
     expect(s1.back[1].params).toEqual({ cardId: 42 });
   });
+
+  it("无参激活（空 params）沿用实例现有参数——主入口进入不清筛选", () => {
+    const s0 = push(push(initialState(), "todos", { id: "3" }), "home", {});
+    const s1 = activateExisting(s0, e => e.key === "todos", {})!;
+    expect(s1.back.map(e => e.key)).toEqual(["home", "todos"]);
+    expect(current(s1)!.params).toEqual({ id: "3" });
+  });
+
+  it("无参激活命中栈顶：沿用参数即同参，返回原引用", () => {
+    const s0 = push(initialState(), "todos", { id: "3" });
+    expect(activateExisting(s0, e => e.key === "todos", {})).toBe(s0);
+  });
+
+  it("带参激活仍整体替换（空串字段 = 显式回到全部）", () => {
+    const s0 = push(initialState(), "todos", { id: "3" });
+    const s1 = activateExisting(s0, e => e.key === "todos", { id: "" })!;
+    expect(current(s1)!.params).toEqual({ id: "" });
+  });
+
+  it("back 离开后无参激活：从 forward 复活并沿用参数", () => {
+    const s0 = push(push(initialState(), "home", {}), "todos", { id: "3" });
+    const s1 = back(s0)!; // back=[home] forward=[todos]
+    const s2 = activateExisting(s1, e => e.key === "todos", {})!;
+    expect(s2.back.map(e => e.key)).toEqual(["home", "todos"]);
+    expect(current(s2)!.params).toEqual({ id: "3" });
+    expect(s2.forward).toHaveLength(0);
+  });
+
+  it("back 离开后带参激活：复活并更新参数", () => {
+    const s0 = push(push(initialState(), "home", {}), "todos", { id: "3" });
+    const s1 = back(s0)!;
+    const s2 = activateExisting(s1, e => e.key === "todos", { id: "" })!;
+    expect(s2.back.map(e => e.key)).toEqual(["home", "todos"]);
+    expect(current(s2)!.params).toEqual({ id: "" });
+  });
 });
 
 describe("LRU 驱逐候选", () => {

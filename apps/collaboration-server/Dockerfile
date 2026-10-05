@@ -5,9 +5,11 @@ RUN corepack enable && corepack prepare pnpm@11.9.0 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY patches ./patches
 COPY packages/collaboration/package.json packages/collaboration/package.json
+COPY packages/db-schema/package.json packages/db-schema/package.json
 COPY apps/collaboration-server/package.json apps/collaboration-server/package.json
 RUN pnpm install --filter @tau/collaboration-server... --frozen-lockfile --ignore-scripts
 COPY packages/collaboration packages/collaboration
+COPY packages/db-schema packages/db-schema
 COPY apps/collaboration-server apps/collaboration-server
 RUN pnpm rebuild better-sqlite3 --filter @tau/collaboration-server...
 RUN pnpm --filter @tau/collaboration-server build

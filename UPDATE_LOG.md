@@ -1247,6 +1247,8 @@
 
 ## v0.54.0（未发布）
 
+- refactor(cards): 移除卡片分类概念（闪念/文献/永久/主题）——全端清理：桌面（类型常量、列表分类胶囊、编辑分类菜单、表格分类列、发布链路）、移动端（TS+Rust 查询与 IPC）、博客模板、CLI；`cards.category` 列经声明式退休自动迁移（D-095）
+- refactor(cards): 随分类下线「闪念卡超一个月自动清理」规则与 get-random-permanent-cards / get-recent-temp-lit-cards 查询命令；移动端快速捕获建卡命令改名 create_quick_card，功能本体保留
 - refactor(mobile): 页面栈架构重写——新增 `src/router/` 框架层（纯函数栈机 + definePage 协议 + PageHost/OverlayHost），替代旧 navigation 三栈 store
 - feat(mobile): React 19.2 `<Activity>` 页面保活（state+DOM 保留、effect 自动卸载）+ LRU 上限淘汰
 - feat(mobile): 页面生命周期三层事件（onInit/onEnter/onResume…）+ useBackHandler 返回消费 + usePageGuard/canLeave 离开守卫

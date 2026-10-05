@@ -12,7 +12,7 @@ import {
   readSharedContent,
   setSharedValue,
 } from "./document";
-import { CollaborationError, type ContentNode } from "./protocol";
+import { CollaborationError, isLocalAssetReference, type ContentNode } from "./protocol";
 
 const UPGRADE_ORIGIN = "session-upgrade";
 
@@ -124,6 +124,7 @@ export function upgradeLocalDocument(
 /**
  * 共享会话就地降级为本机（结束共享）：占位换回私有块真身、资源引用按 `resources`
  * 换回本地路径、`meta.mode` 切为 local。文档对象不变，渲染端同样不必重建编辑器。
+ * 仍是仅本机引用的视频（其他成员插入、本机无从还原）直接删除，不留失效节点。
  */
 export function downgradeSharedDocument(
   doc: Y.Doc,
@@ -139,6 +140,9 @@ export function downgradeSharedDocument(
         const restored = prepareNodes(doc, [{ ...privateNodes.get(collabId)!, collabId }])[0];
         return { replaceWith: embedFor(restored) };
       }
+      const src = typeof attributes.src === "string" ? attributes.src : "";
+      if (attributes.type === "video" && isLocalAssetReference(src) && !resources.has(src))
+        return { remove: true };
       for (const key of Object.keys(attributes))
         rewriteAttribute(node, key, attributes[key], resources);
       return {};
@@ -151,18 +155,22 @@ export function downgradeSharedDocument(
   }, UPGRADE_ORIGIN);
 }
 
-/** 深度遍历正文里的元素节点；回调返回 replaceWith 时用它替换该节点（不再深入） */
+/**
+ * 深度遍历正文里的元素节点；回调返回 replaceWith 时用它替换该节点、返回 remove 时删除
+ * 该节点（均不再深入）
+ */
 function visitBody(
   doc: Y.Doc,
   container: Y.XmlText,
-  visit: (node: Y.XmlText) => { replaceWith?: Y.XmlText }
+  visit: (node: Y.XmlText) => { replaceWith?: Y.XmlText; remove?: boolean }
 ) {
-  const replacements: { offset: number; node: Y.XmlText }[] = [];
+  const replacements: { offset: number; node?: Y.XmlText }[] = [];
   let offset = 0;
   for (const part of container.toDelta() as { insert: unknown }[]) {
     if (part.insert instanceof Y.XmlText) {
       const result = visit(part.insert);
-      if (result.replaceWith) replacements.push({ offset, node: result.replaceWith });
+      if (result.replaceWith || result.remove)
+        replacements.push({ offset, node: result.replaceWith });
       else visitBody(doc, part.insert, visit);
       offset += 1;
     } else offset += String(part.insert).length;
@@ -170,7 +178,7 @@ function visitBody(
   // 倒序替换，前面的替换不会挪动后面的偏移
   for (const replacement of replacements.reverse()) {
     container.delete(replacement.offset, 1);
-    container.insertEmbed(replacement.offset, replacement.node);
+    if (replacement.node) container.insertEmbed(replacement.offset, replacement.node);
   }
 }
 

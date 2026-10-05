@@ -13,7 +13,6 @@ interface ContentPreviewModalProps {
   contentKey?: string | number; // key for forcing Editor refresh
   onClose: () => void;
   meta?: {
-    category?: string;
     updateTime?: number;
     createTime?: number;
   };
@@ -36,11 +35,6 @@ export const ContentPreviewModal = memo<ContentPreviewModalProps>(
           <div className="flex flex-col" style={{ height: "60vh", maxHeight: "60vh" }}>
             {meta && (
               <div className="border-line-2 text-ink-3 mb-4 flex items-center gap-3 border-b pb-3 text-[11.5px]">
-                {meta.category && (
-                  <span className="bg-hover text-ink-2 rounded-full px-2 py-0.5">
-                    {meta.category}
-                  </span>
-                )}
                 {meta.createTime && <span>创建于 {formatDate(meta.createTime, true)}</span>}
                 {meta.updateTime && <span>更新于 {formatDate(meta.updateTime, true)}</span>}
                 {content && <span>字数：{getContentLength(content)}</span>}

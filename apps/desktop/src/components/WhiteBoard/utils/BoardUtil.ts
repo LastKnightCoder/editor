@@ -728,7 +728,7 @@ export class BoardUtil {
         break;
       }
 
-      case "set_theme": {
+      case "set_sketch": {
         const { properties, newProperties } = op;
         inverse = {
           ...op,

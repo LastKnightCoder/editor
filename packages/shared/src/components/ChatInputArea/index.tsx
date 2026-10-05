@@ -7,24 +7,28 @@ import React, {
   useMemo,
 } from "react";
 import { useMemoizedFn } from "ahooks";
-import { Menu, Popover, Tooltip, toast } from "@tau/ui";
+import { IconButton, ImagePreview, Menu, Popover, Tooltip, cn, toast } from "@tau/ui";
 import {
-  Check,
+  ArrowUp,
+  AtSign,
+  Brain,
   FileText,
-  Image as ImageIcon,
-  Loader2,
-  MessageSquarePlus,
+  ImagePlus,
   Plug,
-  Send,
-  Settings,
   Square,
+  SquarePen,
   X,
 } from "lucide-react";
-import classnames from "classnames";
 import { v4 as uuid } from "uuid";
-import { LuBrain } from "react-icons/lu";
-import PortalToBody from "../PortalToBody";
-import ContextUsageIndicator from "./ContextUsageIndicator";
+import {
+  ChipCaret,
+  ComposerAddMenu,
+  ComposerPanel,
+  ComposerPanelItem,
+  ContextUsageRing,
+  ToolbarChip,
+  type ComposerAddItem,
+} from "../ChatComposer";
 import {
   extractMentionRefsFromText,
   findActiveMentionQuery,
@@ -51,11 +55,6 @@ export type {
   MentionEntityType,
   MentionRef,
 } from "./types";
-export {
-  ContextUsageIndicator,
-  getContextUsageSummary,
-  formatTokenCount,
-} from "./ContextUsageIndicator";
 export type { ChatContextUsage, ChatDropdownItem } from "./types";
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
@@ -63,6 +62,8 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024;
 interface ThinkingLevelOption {
   value: ThinkingLevel;
   label: string;
+  /** 侧边栏宽度有限，工具行上显示两字短名 */
+  short: string;
   description: string;
 }
 
@@ -71,36 +72,43 @@ const THINKING_LEVEL_OPTIONS: ThinkingLevelOption[] = [
   {
     value: "off",
     label: "立答如流",
+    short: "立答",
     description: "关闭思考以提升响应速度",
   },
   {
     value: "minimal",
     label: "极简思考",
+    short: "极简",
     description: "只做最低限度的思考",
   },
   {
     value: "low",
     label: "略作沉吟",
+    short: "略思",
     description: "轻量推理，少量思考即可作答",
   },
   {
     value: "medium",
     label: "细致推演",
+    short: "细致",
     description: "平衡速度与质量，保持稳健分析",
   },
   {
     value: "high",
     label: "穷尽求索",
+    short: "穷尽",
     description: "深度推理，适合复杂任务",
   },
   {
     value: "xhigh",
     label: "远谋深算",
+    short: "远谋",
     description: "长程推演，适合复杂代理任务",
   },
   {
     value: "max",
     label: "极尽推演",
+    short: "极尽",
     description: "使用模型允许的最高推理强度",
   },
 ];
@@ -120,37 +128,11 @@ interface ChatFileItem {
   path: string;
 }
 
-interface NewChatTooltipStateOptions {
-  createMessageLoading: boolean;
-  sendLoading: boolean;
-  contentEditable: boolean;
-}
-
-interface NewChatTooltipOpenOptions extends NewChatTooltipStateOptions {
-  requestedOpen: boolean;
-  reopenLocked: boolean;
-}
-
 interface MentionQueryState {
   query: string;
   start: number;
   end: number;
 }
-
-export const resolveNewChatTooltipOpen = ({
-  requestedOpen,
-  createMessageLoading,
-  sendLoading,
-  contentEditable,
-  reopenLocked,
-}: NewChatTooltipOpenOptions) =>
-  requestedOpen && !createMessageLoading && !sendLoading && contentEditable && !reopenLocked;
-
-export const shouldCloseNewChatTooltip = ({
-  createMessageLoading,
-  sendLoading,
-  contentEditable,
-}: NewChatTooltipStateOptions) => createMessageLoading || sendLoading || !contentEditable;
 
 const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
   (
@@ -167,6 +149,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       createMessageLoading = false,
       onCreateNewMessage,
       modelSelectItems = [],
+      currentModelKey,
       onModelSelect,
       currentModelName,
       contextWindowK,
@@ -191,7 +174,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     const [textContent, setTextContent] = useState("");
     const [images, setImages] = useState<ChatImageItem[]>([]);
     const [files, setFiles] = useState<ChatFileItem[]>([]);
-    const [previewImage, setPreviewImage] = useState<string | null>(null);
+    const [previewIndex, setPreviewIndex] = useState<number | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
     const [uploadingPdf, setUploadingPdf] = useState(false);
     const [mentionCandidates, setMentionCandidates] = useState<MentionRef[]>([]);
@@ -199,8 +182,6 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     const [mentionPanelLoading, setMentionPanelLoading] = useState(false);
     const [mentionActiveIndex, setMentionActiveIndex] = useState(0);
     const [mentionQueryState, setMentionQueryState] = useState<MentionQueryState | null>(null);
-    const [isNewChatTooltipOpen, setIsNewChatTooltipOpen] = useState(false);
-    const [isNewChatTooltipReopenLocked, setIsNewChatTooltipReopenLocked] = useState(false);
     const mentionRequestSeqRef = useRef(0);
     const composerMentions = useMemo(() => extractMentionRefsFromText(textContent), [textContent]);
     const showThinkingLevelControl =
@@ -212,18 +193,6 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       option => option.value === thinkingLevel
     );
     const thinkingControlDisabled = thinkingLevelDisabled || sendLoading || !contentEditable;
-
-    useEffect(() => {
-      if (
-        shouldCloseNewChatTooltip({
-          createMessageLoading,
-          sendLoading,
-          contentEditable,
-        })
-      ) {
-        setIsNewChatTooltipOpen(false);
-      }
-    }, [contentEditable, createMessageLoading, sendLoading]);
 
     useEffect(() => {
       if (!contentEditable || !services.searchMentionRefs || !mentionQueryState) {
@@ -363,6 +332,20 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         textArea.focus();
         textArea.setSelectionRange(nextCursor, nextCursor);
       }, 0);
+    });
+
+    // 等同于在光标处输入 @：交给 @ 引用面板
+    const insertMentionTrigger = useMemoizedFn(() => {
+      const textArea = textAreaRef.current;
+      if (!textArea) return;
+      const cursor = textArea.selectionStart ?? textContent.length;
+      const nextText = `${textContent.slice(0, cursor)}@${textContent.slice(cursor)}`;
+      setTextContent(nextText);
+      syncMentionStateFromText(nextText, cursor + 1);
+      window.requestAnimationFrame(() => {
+        textArea.focus();
+        textArea.setSelectionRange(cursor + 1, cursor + 1);
+      });
     });
 
     const removeMentionMarkup = useMemoizedFn((mention: MentionRef) => {
@@ -554,114 +537,236 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           return;
         }
 
-        if (e.key === "Enter" && !e.shiftKey && mentionCandidates.length > 0) {
+        if (e.key === "Enter" && !e.nativeEvent.isComposing && mentionCandidates.length > 0) {
           e.preventDefault();
           insertMentionAtCursor(mentionCandidates[mentionActiveIndex]!);
           return;
         }
       }
 
-      if (e.key === "Enter" && !e.shiftKey) {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !e.nativeEvent.isComposing) {
         e.preventDefault();
         onPressEnter?.();
       }
     });
 
-    const handleCreateNewMessageClick = useMemoizedFn(() => {
-      setIsNewChatTooltipOpen(false);
-      setIsNewChatTooltipReopenLocked(true);
-      onCreateNewMessage?.();
-    });
+    const attachDisabled = !contentEditable || sendLoading;
+    const addItems: ComposerAddItem[] = [
+      ...(isSupportImage
+        ? [
+            {
+              key: "image",
+              group: "添加",
+              icon: <ImagePlus />,
+              label: "图片",
+              description: "PNG / JPG / WebP，也可直接粘贴",
+              disabled: attachDisabled || uploadingImage,
+              onSelect: () => imageFileInputRef.current?.click(),
+            },
+          ]
+        : []),
+      ...(isSupportFile
+        ? [
+            {
+              key: "file",
+              group: "添加",
+              icon: <FileText />,
+              label: "PDF",
+              description: "小于 50MB",
+              disabled: attachDisabled || uploadingPdf,
+              onSelect: () => pdfFileInputRef.current?.click(),
+            },
+          ]
+        : []),
+      ...(services.searchMentionRefs
+        ? [
+            {
+              key: "mention",
+              group: "添加",
+              icon: <AtSign />,
+              label: "引用内容",
+              description: "卡片、文章、项目文档",
+              kbd: "@",
+              disabled: !contentEditable,
+              onSelect: insertMentionTrigger,
+            },
+          ]
+        : []),
+      ...(onCreateNewMessage
+        ? [
+            {
+              key: "new-chat",
+              group: "对话",
+              icon: <SquarePen />,
+              label: "新建对话",
+              description: "当前对话保留在会话列表里",
+              disabled: createMessageLoading,
+              onSelect: onCreateNewMessage,
+            },
+          ]
+        : []),
+      ...(onMcpManagerClick
+        ? [
+            {
+              key: "mcp",
+              group: "工具",
+              icon: <Plug />,
+              label: "MCP 管理中心",
+              description: "在桌面端打开",
+              disabled: sendLoading,
+              onSelect: onMcpManagerClick,
+            },
+          ]
+        : []),
+    ];
 
-    const handleNewChatTooltipMouseLeave = useMemoizedFn(() => {
-      setIsNewChatTooltipOpen(false);
-      setIsNewChatTooltipReopenLocked(false);
-    });
+    const hasText = textContent.trim().length > 0;
+    const canSend =
+      (hasText || images.length > 0 || files.length > 0) && (!sendLoading || allowSendWhileLoading);
+
+    const modelMenu =
+      modelSelectItems.length > 0 && onModelSelect ? (
+        <Menu
+          align="end"
+          className="w-[260px]"
+          trigger={
+            <ToolbarChip
+              disabled={sendLoading}
+              title={currentModelName || "选择模型"}
+              className="max-w-[160px] shrink"
+            >
+              <span className="min-w-0 truncate font-medium">{currentModelName || "选择模型"}</span>
+              <ChipCaret />
+            </ToolbarChip>
+          }
+        >
+          <Menu.RadioGroup value={currentModelKey} onValueChange={key => onModelSelect({ key })}>
+            {modelSelectItems.map((item, index) =>
+              item.group ? (
+                <div key={item.key}>
+                  {index > 0 && <Menu.Separator />}
+                  <Menu.Group>{item.label}</Menu.Group>
+                </div>
+              ) : (
+                <Menu.RadioItem key={item.key} value={item.key} disabled={item.disabled}>
+                  <span className="truncate">{item.label}</span>
+                </Menu.RadioItem>
+              )
+            )}
+          </Menu.RadioGroup>
+        </Menu>
+      ) : null;
+
+    const thinkingMenu = showThinkingLevelControl ? (
+      <Menu
+        align="end"
+        // 双行选项超出 Menu 默认 300px 上限；选项数固定，放开高度免出滚动条
+        className="max-h-none w-[240px]"
+        trigger={
+          <ToolbarChip disabled={thinkingControlDisabled} title="思考强度">
+            <Brain size={15} strokeWidth={1.75} className="text-ink-2" />
+            <span className="min-w-0 truncate">{currentThinkingOption?.short ?? "立答"}</span>
+            <ChipCaret />
+          </ToolbarChip>
+        }
+      >
+        <Menu.Group>思考强度</Menu.Group>
+        <Menu.RadioGroup
+          value={thinkingLevel}
+          onValueChange={value => onThinkingLevelChange?.(value as ThinkingLevel)}
+        >
+          {availableThinkingLevelOptions.map(option => (
+            <Menu.RadioItem key={option.value} value={option.value} className="h-auto py-1.5">
+              <span className="flex min-w-0 flex-col">
+                <span>{option.label}</span>
+                <span className="text-tau-tiny text-ink-3 truncate">{option.description}</span>
+              </span>
+            </Menu.RadioItem>
+          ))}
+        </Menu.RadioGroup>
+      </Menu>
+    ) : null;
 
     return (
-      <div className={classnames("flex flex-col p-2", className)}>
-        {images.length > 0 && (
+      <div className={cn("flex flex-col", className)}>
+        {(images.length > 0 || files.length > 0) && (
           <div className="mb-2 flex flex-wrap gap-2">
             {images.map((image, index) => (
-              <div key={image.id} className="group/image relative h-12 w-12">
+              <div key={image.id} className="group/att relative size-14">
                 <img
                   src={image.previewUrl}
                   alt={`预览 ${index + 1}`}
-                  className="h-12 w-12 cursor-zoom-in rounded-lg border border-gray-200 object-cover"
-                  onClick={() => setPreviewImage(image.previewUrl)}
+                  className="border-line-1 rounded-tau-sm size-14 cursor-zoom-in border object-cover"
+                  onClick={() => setPreviewIndex(index)}
                 />
-                <X
-                  size={12}
-                  className="absolute right-1 top-1 cursor-pointer rounded-full bg-black/40 p-0.5 text-white opacity-0 transition-opacity duration-200 hover:bg-gray-500 group-hover/image:opacity-100"
+                <button
+                  type="button"
+                  aria-label="移除图片"
                   onClick={() => removeImage(image.id)}
-                />
+                  className="bg-ink-1/70 text-ink-inverse absolute -right-1.5 -top-1.5 grid size-[18px] place-items-center rounded-full opacity-0 transition-opacity group-hover/att:opacity-100"
+                >
+                  <X size={11} strokeWidth={2.25} />
+                </button>
               </div>
             ))}
-          </div>
-        )}
-
-        {files.length > 0 && (
-          <div className="mb-2 flex flex-col gap-2">
             {files.map(file => (
               <div
                 key={file.id}
-                className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-zinc-800"
+                className="border-line-1 bg-surface group/att rounded-tau-sm flex h-8 max-w-[240px] items-center gap-1.5 border pl-2 pr-1"
               >
-                <div className="flex items-center gap-2 overflow-hidden">
-                  <FileText size={14} className="shrink-0 text-red-500" />
-                  <span className="truncate text-sm text-gray-800 dark:text-gray-100">
-                    {file.name}
-                  </span>
-                </div>
-                <X
-                  size={14}
-                  className="cursor-pointer text-gray-400 hover:text-gray-700"
+                <FileText size={14} strokeWidth={1.75} className="text-danger shrink-0" />
+                <span className="text-tau-sm text-ink-1 min-w-0 truncate">{file.name}</span>
+                <IconButton
+                  aria-label="移除文件"
+                  className="size-5 [&_svg]:size-3"
                   onClick={() => removeFile(file.id)}
-                />
+                >
+                  <X strokeWidth={2} />
+                </IconButton>
               </div>
             ))}
           </div>
         )}
 
         {composerMentions.length > 0 && (
-          <div className="mb-2 flex flex-col gap-2">
+          <div className="mb-2 flex flex-wrap gap-1.5">
             {composerMentions.map((mention, index) => (
               <Popover
                 key={`${mention.entityType}-${mention.entityId}-${mention.contentId}-${index}`}
                 placement="top-start"
                 trigger={
-                  <div className="group flex items-start justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-left dark:border-blue-500/20 dark:bg-blue-500/10">
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-blue-700 dark:text-blue-200">
-                        @{mention.title}
-                      </div>
-                      <div className="truncate text-xs text-blue-600/80 dark:text-blue-200/70">
-                        {mention.previewText || "暂无摘要"}
-                      </div>
-                    </div>
-                    <X
-                      size={12}
-                      className="mt-0.5 text-blue-500/70 opacity-0 transition-opacity group-hover:opacity-100 dark:text-blue-200/70"
+                  <div className="bg-accent-soft text-accent-text rounded-tau-sm group flex h-7 max-w-[240px] items-center gap-1 pl-2 pr-1">
+                    <span className="text-tau-sm min-w-0 truncate font-medium">
+                      @{mention.title}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="移除引用"
+                      className="grid size-4 shrink-0 place-items-center opacity-0 transition-opacity group-hover:opacity-100"
                       onClick={event => {
                         event.stopPropagation();
                         removeMentionMarkup(mention);
                       }}
-                    />
+                    >
+                      <X size={11} strokeWidth={2.25} />
+                    </button>
                   </div>
                 }
               >
-                <div className="max-w-[320px] p-2 text-sm leading-6">
-                  <div className="font-medium text-gray-900">{mention.title}</div>
-                  <div className="mt-1 whitespace-pre-wrap text-gray-600">
-                    {mention.previewText || "暂无摘要"}
+                <Popover.Body>
+                  <div className="text-tau-sm max-w-[320px] leading-6">
+                    <div className="text-ink-1 font-medium">{mention.title}</div>
+                    <div className="text-ink-2 mt-1 whitespace-pre-wrap">
+                      {mention.previewText || "暂无摘要"}
+                    </div>
                   </div>
-                </div>
+                </Popover.Body>
               </Popover>
             ))}
           </div>
         )}
 
-        <div className="mb-2">
+        <div className={cn("px-0.5", !contentEditable && "opacity-60")}>
           <textarea
             ref={textAreaRef}
             value={textContent}
@@ -682,277 +787,120 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
             placeholder={resolvedPlaceholder}
             disabled={!contentEditable}
             rows={1}
-            className="text-ink-1 placeholder:text-ink-3 w-full resize-none border-none bg-transparent px-0 text-base focus:outline-none focus:ring-0"
+            className="text-tau-body-lg text-ink-1 placeholder:text-ink-3 block w-full resize-none border-none bg-transparent p-0 focus:outline-none focus:ring-0"
           />
           {mentionPanelOpen && (
-            <div className="mt-2 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-zinc-900">
-              {mentionPanelLoading ? (
-                <div className="px-3 py-3 text-sm text-gray-500 dark:text-gray-400">
-                  正在搜索引用...
-                </div>
-              ) : mentionCandidates.length > 0 ? (
-                mentionCandidates.map((mention, index) => (
-                  <button
-                    key={`${mention.entityType}-${mention.entityId}-${mention.contentId}`}
-                    type="button"
-                    className={classnames(
-                      "flex w-full items-start justify-between gap-3 px-3 py-2.5 text-left transition-colors",
-                      index === mentionActiveIndex
-                        ? "bg-blue-50 dark:bg-blue-500/10"
-                        : "hover:bg-gray-50 dark:hover:bg-white/5"
-                    )}
-                    onMouseDown={event => {
-                      event.preventDefault();
-                      insertMentionAtCursor(mention);
-                    }}
-                  >
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {mention.title}
-                      </div>
-                      <div className="truncate text-xs text-gray-500 dark:text-gray-400">
-                        {mention.previewText || "暂无摘要"}
-                      </div>
-                    </div>
-                    <span className="shrink-0 rounded-md bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500 dark:bg-white/5 dark:text-gray-400">
-                      {mention.entityType}
-                    </span>
-                  </button>
-                ))
-              ) : (
-                <div className="px-3 py-3 text-sm text-gray-500 dark:text-gray-400">
-                  没有找到相关内容
-                </div>
-              )}
-            </div>
+            <ComposerPanel className="mt-2">
+              <div className="max-h-[280px] min-h-0 overflow-y-auto p-1.5">
+                {mentionPanelLoading ? (
+                  <div className="text-tau-sm text-ink-3 px-2.5 py-2">正在搜索引用...</div>
+                ) : mentionCandidates.length > 0 ? (
+                  mentionCandidates.map((mention, index) => (
+                    <ComposerPanelItem
+                      key={`${mention.entityType}-${mention.entityId}-${mention.contentId}`}
+                      icon={<AtSign />}
+                      label={mention.title}
+                      description={mention.previewText || "暂无摘要"}
+                      active={index === mentionActiveIndex}
+                      onHover={() => setMentionActiveIndex(index)}
+                      onSelect={() => insertMentionAtCursor(mention)}
+                    />
+                  ))
+                ) : (
+                  <div className="text-tau-sm text-ink-3 px-2.5 py-2">没有找到相关内容</div>
+                )}
+              </div>
+            </ComposerPanel>
           )}
         </div>
 
-        <div className="mt-1 flex items-center justify-between">
-          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-            {onCreateNewMessage && (
-              <Tooltip
-                content="新建对话"
-                open={isNewChatTooltipOpen}
-                onOpenChange={open => {
-                  setIsNewChatTooltipOpen(
-                    resolveNewChatTooltipOpen({
-                      requestedOpen: open,
-                      createMessageLoading,
-                      sendLoading,
-                      contentEditable,
-                      reopenLocked: isNewChatTooltipReopenLocked,
-                    })
-                  );
-                }}
-              >
-                <button
-                  type="button"
-                  onMouseDown={() => {
-                    setIsNewChatTooltipOpen(false);
-                    setIsNewChatTooltipReopenLocked(true);
-                  }}
-                  onMouseLeave={handleNewChatTooltipMouseLeave}
-                  onClick={handleCreateNewMessageClick}
-                  disabled={sendLoading || createMessageLoading}
-                  className="flex cursor-pointer items-center rounded-md p-1 text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-default disabled:opacity-40 dark:text-gray-400 dark:hover:bg-white/10"
-                >
-                  {createMessageLoading ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <MessageSquarePlus size={14} />
-                  )}
-                </button>
-              </Tooltip>
-            )}
-
-            {modelSelectItems.length > 0 && onModelSelect && (
-              <Menu
-                align="start"
-                trigger={
-                  <button
-                    type="button"
-                    title={currentModelName || "选择模型"}
-                    disabled={sendLoading}
-                    className="flex cursor-pointer items-center rounded-md p-1 text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-default disabled:opacity-40 dark:text-gray-400 dark:hover:bg-white/10"
-                  >
-                    <Settings size={14} />
-                  </button>
-                }
-              >
-                {modelSelectItems.map(item =>
-                  item.group ? (
-                    <Menu.Group key={item.key}>{item.label}</Menu.Group>
-                  ) : (
-                    <Menu.Item
-                      key={item.key}
-                      disabled={item.disabled}
-                      onSelect={() => onModelSelect?.({ key: item.key })}
-                    >
-                      {item.label}
-                    </Menu.Item>
-                  )
-                )}
-              </Menu>
-            )}
-            {showThinkingLevelControl && (
-              <Menu
-                align="start"
-                trigger={
-                  <button
-                    type="button"
-                    disabled={thinkingControlDisabled}
-                    className="flex cursor-pointer items-center gap-1.5 rounded-md p-1 text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-default disabled:opacity-40 dark:text-gray-400 dark:hover:bg-white/10"
-                  >
-                    <LuBrain className="text-base" />
-                    <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                      {currentThinkingOption?.label ?? "立答如流"}
-                    </span>
-                  </button>
-                }
-              >
-                {availableThinkingLevelOptions.map(option => (
-                  <Menu.Item
-                    key={option.value}
-                    onSelect={() => onThinkingLevelChange?.(option.value)}
-                  >
-                    <div
-                      className={classnames(
-                        "flex min-w-[180px] items-center justify-between gap-3",
-                        { "text-blue-600": option.value === thinkingLevel }
-                      )}
-                    >
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium">{option.label}</span>
-                        <span className="text-xs text-gray-500">{option.description}</span>
-                      </div>
-                      {option.value === thinkingLevel && (
-                        <Check size={14} className="text-blue-500" />
-                      )}
-                    </div>
-                  </Menu.Item>
-                ))}
-              </Menu>
-            )}
-            {onMcpManagerClick && (
-              <Tooltip content="MCP 管理中心">
-                <button
-                  type="button"
-                  disabled={sendLoading}
-                  onClick={onMcpManagerClick}
-                  className="flex cursor-pointer items-center rounded-md p-1 text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-default disabled:opacity-40 dark:text-gray-400 dark:hover:bg-white/10"
-                >
-                  <Plug size={14} />
-                </button>
-              </Tooltip>
-            )}
-            <ContextUsageIndicator contextWindowK={contextWindowK} usage={contextUsage} />
-            <input
-              ref={imageFileInputRef}
-              type="file"
-              accept="image/png, image/jpeg, image/webp"
-              className="hidden"
-              disabled={!contentEditable || sendLoading || uploadingImage}
-              onChange={event => {
-                const file = event.target.files?.[0];
-                if (file) void handleImageUpload(file);
-                event.target.value = "";
-              }}
-            />
-            {isSupportImage && (
-              <Tooltip content="上传图片">
-                <button
-                  type="button"
-                  disabled={!contentEditable || sendLoading || uploadingImage}
-                  onClick={() => imageFileInputRef.current?.click()}
-                  className="flex cursor-pointer items-center rounded-md p-1 text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-default disabled:opacity-40 dark:text-gray-400 dark:hover:bg-white/10"
-                >
-                  {uploadingImage ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <ImageIcon size={14} />
-                  )}
-                </button>
-              </Tooltip>
-            )}
-            <input
-              ref={pdfFileInputRef}
-              type="file"
-              accept="application/pdf"
-              className="hidden"
-              disabled={!contentEditable || sendLoading || uploadingPdf}
-              onChange={event => {
-                const file = event.target.files?.[0];
-                if (file) void handlePdfUpload(file);
-                event.target.value = "";
-              }}
-            />
-            {isSupportFile && (
-              <Tooltip content="上传 PDF">
-                <button
-                  type="button"
-                  disabled={!contentEditable || sendLoading || uploadingPdf}
-                  onClick={() => pdfFileInputRef.current?.click()}
-                  className="flex cursor-pointer items-center rounded-md p-1 text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-default disabled:opacity-40 dark:text-gray-400 dark:hover:bg-white/10"
-                >
-                  {uploadingPdf ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <FileText size={14} />
-                  )}
-                </button>
-              </Tooltip>
-            )}
-            {extraToolbarButtons}
-          </div>
-
-          <div className="flex items-center gap-1">
-            {sendLoading && (
+        <div className="mt-2.5 flex items-center gap-1">
+          <ComposerAddMenu
+            items={addItems}
+            busy={uploadingImage || uploadingPdf}
+            disabled={!contentEditable}
+          />
+          {extraToolbarButtons}
+          <span className="min-w-1 flex-1" />
+          <ContextUsageRing contextWindowK={contextWindowK} usage={contextUsage} />
+          {modelMenu}
+          {thinkingMenu}
+          {sendLoading && (
+            <Tooltip content="停止生成" placement="top" delay={300}>
               <button
                 type="button"
+                aria-label="停止生成"
                 onClick={onStop}
-                title="停止生成"
-                className="flex cursor-pointer items-center rounded p-1 text-gray-600 transition-colors hover:bg-red-50 hover:text-red-500 dark:text-gray-400 dark:hover:bg-red-900/20"
+                className="bg-ink-1 text-surface ml-1 grid size-[30px] shrink-0 place-items-center rounded-[10px] hover:opacity-90"
               >
-                <Square size={14} />
+                <Square size={11} strokeWidth={0} fill="currentColor" />
               </button>
-            )}
-            {(!sendLoading || allowSendWhileLoading) && (
-              <span className="relative inline-flex">
-                <button
-                  type="button"
-                  onClick={onPressEnter}
-                  title={sendLoading ? "加入发送队列" : "发送"}
-                  className="flex cursor-pointer items-center rounded p-1 text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10"
-                >
-                  <Send size={14} />
-                </button>
+            </Tooltip>
+          )}
+          {(!sendLoading || allowSendWhileLoading) && (
+            <Tooltip
+              content={sendLoading ? "加入发送队列（⌘/Ctrl + Enter）" : "发送（⌘/Ctrl + Enter）"}
+              placement="top"
+              delay={300}
+            >
+              <button
+                type="button"
+                aria-label={sendLoading ? "加入发送队列" : "发送"}
+                onClick={onPressEnter}
+                disabled={!canSend}
+                className={cn(
+                  "ease-tau-out relative ml-1 grid size-[30px] shrink-0 place-items-center rounded-[10px] transition-[background,color] duration-[160ms]",
+                  "bg-accent text-ink-inverse enabled:hover:bg-accent-hover disabled:bg-hover disabled:text-ink-3 disabled:cursor-default"
+                )}
+              >
+                <ArrowUp size={16} strokeWidth={2.25} />
                 {queuedMessageCount > 0 && (
-                  <span className="absolute -right-1.5 -top-1.5 min-w-4 rounded-full bg-blue-500 px-1 text-center text-[10px] leading-4 text-white">
+                  <span className="bg-ink-1 text-ink-inverse absolute -right-1.5 -top-1.5 min-w-4 rounded-full px-1 text-center text-[10px] font-semibold tabular-nums leading-4">
                     {queuedMessageCount}
                   </span>
                 )}
-              </span>
-            )}
-          </div>
-        </div>
-        <PortalToBody>
-          {previewImage && (
-            <div
-              className="fixed inset-0 flex cursor-zoom-out items-center justify-center bg-black bg-opacity-50"
-              style={{ zIndex: 9999 }}
-              onClick={() => setPreviewImage(null)}
-            >
-              <div className="-z-1 absolute inset-0 bg-black bg-opacity-50" />
-              <img src={previewImage} alt="预览" className="max-h-full max-w-full" />
-              <X
-                size={16}
-                className="absolute right-4 top-4 cursor-pointer rounded-full bg-black/40 p-1 text-white transition-colors duration-200 hover:bg-gray-500"
-                onClick={() => setPreviewImage(null)}
-              />
-            </div>
+              </button>
+            </Tooltip>
           )}
-        </PortalToBody>
+        </div>
+
+        {isSupportImage && (
+          <input
+            ref={imageFileInputRef}
+            type="file"
+            accept="image/png, image/jpeg, image/webp"
+            className="hidden"
+            onChange={event => {
+              const file = event.target.files?.[0];
+              if (file) void handleImageUpload(file);
+              event.target.value = "";
+            }}
+          />
+        )}
+        {isSupportFile && (
+          <input
+            ref={pdfFileInputRef}
+            type="file"
+            accept="application/pdf"
+            className="hidden"
+            onChange={event => {
+              const file = event.target.files?.[0];
+              if (file) void handlePdfUpload(file);
+              event.target.value = "";
+            }}
+          />
+        )}
+
+        <ImagePreview
+          images={images.map((image, index) => ({
+            src: image.previewUrl,
+            alt: `预览 ${index + 1}`,
+          }))}
+          index={previewIndex ?? 0}
+          onIndexChange={setPreviewIndex}
+          open={previewIndex !== null}
+          onOpenChange={open => !open && setPreviewIndex(null)}
+        />
       </div>
     );
   }

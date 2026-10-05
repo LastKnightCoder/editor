@@ -5,8 +5,11 @@ import { basename, extname, isAbsolute, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   ASSET_PREFIX,
+  LOCAL_ASSET_PREFIX,
   PRIVATE_BLOCKS,
   RESOURCE_FIELDS,
+  isLocalAssetReference,
+  isSafeResource,
   type DeviceIdentity,
   type SharedContent,
 } from "@tau/collaboration";
@@ -18,8 +21,13 @@ export interface ResourceRow {
   name: string;
   mime: string;
   path: string;
+  /** PENDING / UPLOADED / LOCAL_ONLY */
   uploaded: number;
 }
+const PENDING = 0;
+const UPLOADED = 1;
+/** 仅本机资源：不上传；path 是本机缓存文件或共享前的原始引用 */
+const LOCAL_ONLY = 2;
 const MAX_BYTES = 25 * 1024 * 1024;
 const MIME_EXTENSIONS: Record<string, string> = {
   "image/png": ".png",
@@ -27,12 +35,36 @@ const MIME_EXTENSIONS: Record<string, string> = {
   "image/gif": ".gif",
   "image/webp": ".webp",
   "image/avif": ".avif",
+  "image/svg+xml": ".svg",
   "audio/mpeg": ".mp3",
   "audio/wav": ".wav",
   "audio/ogg": ".ogg",
+  "audio/mp4": ".m4a",
+  "audio/aac": ".aac",
+  "audio/flac": ".flac",
   "video/mp4": ".mp4",
   "video/webm": ".webm",
+  "video/quicktime": ".mov",
+  "video/x-matroska": ".mkv",
   "application/pdf": ".pdf",
+};
+const EXTENSION_MIMES: Record<string, string> = {
+  ...Object.fromEntries(Object.entries(MIME_EXTENSIONS).map(([mime, ext]) => [ext, mime])),
+  ".jpeg": "image/jpeg",
+};
+// 视频体积大，共享时一律不上传服务器
+const VIDEO_EXTENSIONS = new Set([".mp4", ".webm", ".mov", ".m4v", ".mkv", ".avi", ".ogv"]);
+
+export const isVideoFile = (file: { name: string; mime: string }) =>
+  file.mime.startsWith("video/") || VIDEO_EXTENSIONS.has(extname(file.name).toLowerCase());
+
+const isUploadableFile = async (path: string) => {
+  try {
+    const info = await stat(path);
+    return info.isFile() && info.size <= MAX_BYTES;
+  } catch {
+    return false;
+  }
 };
 
 async function mapResources(
@@ -65,7 +97,8 @@ export class CollaborationAssetService {
   private localPath(value: string): string | null {
     if (value.startsWith("file:")) return fileURLToPath(value);
     if (value.startsWith("ltoh:///")) return decodeURIComponent(value.slice("ltoh:///".length));
-    if (value.startsWith("~/")) return join(resolve(this.appDirectory, ".."), value.slice(2));
+    if (value.startsWith("~/") || value.startsWith("~\\"))
+      return join(resolve(this.appDirectory, ".."), value.slice(2));
     if (isAbsolute(value)) return value;
     let url: URL;
     try {
@@ -97,17 +130,28 @@ export class CollaborationAssetService {
   hasPending(documentId: string) {
     return Boolean(
       this.store.db
-        .prepare("SELECT 1 FROM resources WHERE document_id=? AND uploaded=0 LIMIT 1")
-        .get(documentId)
+        .prepare("SELECT 1 FROM resources WHERE document_id=? AND uploaded=? LIMIT 1")
+        .get(documentId, PENDING)
     );
   }
 
-  async enqueue(documentId: string, file: { name: string; mime: string; bytes: Uint8Array }) {
-    if (file.bytes.byteLength > MAX_BYTES) throw new Error("文件超过 25 MB");
+  private get cacheDirectory() {
+    return join(this.appDirectory, "collaboration", "assets");
+  }
+
+  private async cache(
+    documentId: string,
+    file: { name: string; mime: string; bytes: Uint8Array },
+    uploaded: number
+  ) {
     const id = randomUUID();
-    const directory = join(this.appDirectory, "collaboration", "assets", documentId);
+    const directory = join(this.cacheDirectory, documentId);
     await mkdir(directory, { recursive: true });
-    const path = join(directory, id + (MIME_EXTENSIONS[file.mime] || ".bin"));
+    // 视频按原扩展名缓存，本机播放依赖扩展名识别格式
+    const extension = extname(file.name).toLowerCase();
+    const suffix =
+      MIME_EXTENSIONS[file.mime] || (VIDEO_EXTENSIONS.has(extension) ? extension : ".bin");
+    const path = join(directory, id + suffix);
     await writeFile(path, file.bytes, { mode: 0o600 });
     this.record({
       id,
@@ -115,9 +159,33 @@ export class CollaborationAssetService {
       name: basename(file.name),
       mime: file.mime,
       path,
-      uploaded: 0,
+      uploaded,
     });
-    return ASSET_PREFIX + id;
+    return id;
+  }
+
+  async enqueue(documentId: string, file: { name: string; mime: string; bytes: Uint8Array }) {
+    if (file.bytes.byteLength > MAX_BYTES) throw new Error("文件超过 25 MB");
+    return ASSET_PREFIX + (await this.cache(documentId, file, PENDING));
+  }
+
+  /** 协作中插入的视频不上传：文件只缓存在本机，文档里放仅本机引用 */
+  async keepLocalFile(documentId: string, file: { name: string; mime: string; bytes: Uint8Array }) {
+    return LOCAL_ASSET_PREFIX + (await this.cache(documentId, file, LOCAL_ONLY));
+  }
+
+  /** 共享前的原始引用只记在本机，文档里换成不透明标识，不泄露本地路径 */
+  private keepLocalReference(documentId: string, reference: string) {
+    const id = randomUUID();
+    this.record({
+      id,
+      document_id: documentId,
+      name: "",
+      mime: "",
+      path: reference,
+      uploaded: LOCAL_ONLY,
+    });
+    return LOCAL_ASSET_PREFIX + id;
   }
 
   private async upload(url: string, resource: ResourceRow) {
@@ -138,25 +206,35 @@ export class CollaborationAssetService {
     if (!response.ok) throw new Error("资源上传失败，请检查网络和资源配额");
     const uploaded = (await response.json()) as { id: string };
     if (uploaded.id !== resource.id) throw new Error("服务器资源标识不匹配");
-    this.record({ ...resource, uploaded: 1 });
+    this.record({ ...resource, uploaded: UPLOADED });
   }
 
-  /** 上传单个本地资源引用，返回资产引用；不是本地路径时原样返回（会话升级逐引用调用） */
-  async uploadReference(url: string, documentId: string, reference: string) {
-    const path = this.localPath(reference);
-    if (!path) return reference;
-    if ((await stat(path)).size > MAX_BYTES) throw new Error(`资源超过 25 MB：${basename(path)}`);
-    const mime =
-      Object.entries(MIME_EXTENSIONS).find(
-        ([, extension]) => extension === extname(path).toLowerCase()
-      )?.[0] || "application/octet-stream";
+  /**
+   * 发起共享时逐引用调用（会话升级）：可上传的本地资源换资产引用；视频、丢失、超限或
+   * 无法识别的本地资源换仅本机引用，不阻止共享；远程地址原样返回。
+   */
+  async shareReference(url: string, documentId: string, reference: string, field = "") {
+    if (reference.startsWith(ASSET_PREFIX) || isLocalAssetReference(reference)) return reference;
+    let path: string | null;
+    try {
+      path = this.localPath(reference);
+    } catch {
+      return this.keepLocalReference(documentId, reference);
+    }
+    if (!path)
+      return isSafeResource(reference, field)
+        ? reference
+        : this.keepLocalReference(documentId, reference);
+    const extension = extname(path).toLowerCase();
+    if (VIDEO_EXTENSIONS.has(extension) || !(await isUploadableFile(path)))
+      return this.keepLocalReference(documentId, reference);
     const resource: ResourceRow = {
       id: randomUUID(),
       document_id: documentId,
       name: basename(path),
-      mime,
+      mime: EXTENSION_MIMES[extension] || "application/octet-stream",
       path,
-      uploaded: 0,
+      uploaded: PENDING,
     };
     await this.upload(url, resource);
     return ASSET_PREFIX + resource.id;
@@ -164,9 +242,31 @@ export class CollaborationAssetService {
 
   async flush(url: string, documentId: string) {
     const resources = this.store.db
-      .prepare("SELECT * FROM resources WHERE document_id=? AND uploaded=0")
-      .all(documentId) as ResourceRow[];
+      .prepare("SELECT * FROM resources WHERE document_id=? AND uploaded=?")
+      .all(documentId, PENDING) as ResourceRow[];
     for (const resource of resources) await this.upload(url, resource);
+  }
+
+  /** 资源引用解析为本机文件路径；仅本机引用只在记录它的设备上可解析 */
+  async resolveReference(url: string, documentId: string, reference: string) {
+    if (reference.startsWith(ASSET_PREFIX))
+      return this.resolve(url, documentId, reference.slice(ASSET_PREFIX.length));
+    const row = isLocalAssetReference(reference) ? this.localRow(documentId, reference) : undefined;
+    let path: string | null = null;
+    try {
+      path = row ? this.localPath(row.path) : null;
+    } catch {
+      path = null;
+    }
+    if (!path || !existsSync(path)) throw new Error("资源仅在分享者本机可用");
+    return path;
+  }
+
+  private localRow(documentId: string, reference: string) {
+    return this.store.db
+      .prepare("SELECT * FROM resources WHERE id=? AND document_id=? AND uploaded=?")
+      .get(reference.slice(LOCAL_ASSET_PREFIX.length), documentId, LOCAL_ONLY) as
+      ResourceRow | undefined;
   }
 
   resolve(url: string, documentId: string, assetId: string): Promise<string> {
@@ -206,18 +306,38 @@ export class CollaborationAssetService {
       parts.push(result.value);
     }
     const mime = response.headers.get("content-type")?.split(";")[0] || "application/octet-stream";
-    const directory = join(this.appDirectory, "collaboration", "assets", documentId);
+    const directory = join(this.cacheDirectory, documentId);
     await mkdir(directory, { recursive: true });
     const path = join(directory, assetId + (MIME_EXTENSIONS[mime] || ".bin"));
     await writeFile(path, Buffer.concat(parts), { mode: 0o600 });
-    this.record({ id: assetId, document_id: documentId, name: assetId, mime, path, uploaded: 1 });
+    this.record({
+      id: assetId,
+      document_id: documentId,
+      name: assetId,
+      mime,
+      path,
+      uploaded: UPLOADED,
+    });
     return path;
   }
 
-  /** 把单个资产引用取回本机，返回本地路径；不是资产引用时原样返回（会话降级逐引用调用） */
+  /**
+   * 把单个资源引用取回本机（会话降级逐引用调用）：资产引用下载后转存；仅本机引用还原为
+   * 共享前的原始引用，本机找不到记录（其他成员插入的视频）时原样返回，由降级删除该节点；
+   * 其余原样返回。
+   */
   async localizeReference(url: string, documentId: string, reference: string) {
+    if (isLocalAssetReference(reference)) {
+      const row = this.localRow(documentId, reference);
+      if (!row) return reference;
+      return row.path.startsWith(this.cacheDirectory + sep) ? this.persist(row.path) : row.path;
+    }
     if (!reference.startsWith(ASSET_PREFIX)) return reference;
-    const cached = await this.resolve(url, documentId, reference.slice(ASSET_PREFIX.length));
+    return this.persist(await this.resolve(url, documentId, reference.slice(ASSET_PREFIX.length)));
+  }
+
+  /** 协作缓存文件转存到资源目录（按内容去重），会话缓存目录随结束共享清理 */
+  private async persist(cached: string) {
     const directory = join(this.appDirectory, "resources", "collaboration");
     await mkdir(directory, { recursive: true });
     const bytes = await readFile(cached);

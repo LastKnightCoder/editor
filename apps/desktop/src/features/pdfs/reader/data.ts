@@ -193,10 +193,11 @@ export function useReaderAnnotations(pdfId: number) {
         return updated;
       },
 
-      /** 撤销删除：按原样（含笔记与颜色）重新落一条记录 */
+      /** 撤销删除：按原样（含笔记、颜色与原 id）重新落一条记录 */
       restore: async (record: PdfAnnotation) => {
         const created = revive(
           await addPdfAnnotation({
+            id: record.id,
             pdfId,
             annotation: record.annotation,
             color: record.color,

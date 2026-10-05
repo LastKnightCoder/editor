@@ -1,5 +1,6 @@
-import { EArrowLineType, EMarkerType, Point } from "../../types";
+import { EArrowLineType, EMarkerType, Point, SketchLevel } from "../../types";
 import { ArrowUtil } from "../../utils";
+import SketchStroke from "../SketchPaths/SketchStroke";
 
 interface CurveArrowProps {
   sourceMarker: EMarkerType;
@@ -8,6 +9,8 @@ interface CurveArrowProps {
   lineWidth: number;
   points: Point[];
   forceVertical?: boolean;
+  /** 手绘时传入（思维导图分支线），只画线身，不画端点 */
+  sketch?: { level: SketchLevel; seed: number };
 }
 
 // 获取箭头标记的URL
@@ -30,29 +33,29 @@ const getMarkerUrl = (markerType: EMarkerType): string => {
 };
 
 const CurveArrow = (props: CurveArrowProps) => {
-  const { sourceMarker, targetMarker, lineColor, lineWidth, forceVertical } =
-    props;
+  const { sourceMarker, targetMarker, lineColor, lineWidth, forceVertical, sketch } = props;
+
+  if (sketch) {
+    return (
+      <SketchStroke
+        d={ArrowUtil.getArrowPath({ ...props, lineType: EArrowLineType.CURVE }, forceVertical)}
+        color={lineColor}
+        strokeWidth={lineWidth}
+        level={sketch.level}
+        seed={sketch.seed}
+      />
+    );
+  }
 
   return (
     <g>
       <path
-        d={ArrowUtil.getArrowPath(
-          { ...props, lineType: EArrowLineType.CURVE },
-          forceVertical,
-        )}
+        d={ArrowUtil.getArrowPath({ ...props, lineType: EArrowLineType.CURVE }, forceVertical)}
         stroke={lineColor}
         strokeWidth={lineWidth}
         fill={"none"}
-        markerEnd={
-          targetMarker !== EMarkerType.None
-            ? getMarkerUrl(targetMarker)
-            : "none"
-        }
-        markerStart={
-          sourceMarker !== EMarkerType.None
-            ? getMarkerUrl(sourceMarker)
-            : "none"
-        }
+        markerEnd={targetMarker !== EMarkerType.None ? getMarkerUrl(targetMarker) : "none"}
+        markerStart={sourceMarker !== EMarkerType.None ? getMarkerUrl(sourceMarker) : "none"}
       />
     </g>
   );

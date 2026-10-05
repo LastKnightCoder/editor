@@ -905,28 +905,13 @@ export class MindPlugin implements IBoardPlugin {
 
       // 吸附优先级：有合并候选时优先合并吸附；无候选且未按 Alt 时
       // 与其他元素对齐吸附（与通用拖拽管线同规则）
-      let snapX = nextX;
-      let snapY = nextY;
-      if (!target && !altKey) {
-        board.refLine.setCurrentRects([
-          {
-            key: draggedNode.id,
-            x: nextX,
-            y: nextY,
-            width: latestRoot.width,
-            height: latestRoot.height,
-          },
-        ]);
-        const newCurrent = board.refLine.getUpdateCurrent(true, 5 / board.viewPort.zoom);
-        const snappedRect = newCurrent.rects.find(rect => rect.key === draggedNode.id);
-        if (snappedRect) {
-          snapX = snappedRect.x;
-          snapY = snappedRect.y;
-        }
-        board.refLine.setCurrent(newCurrent);
-      } else {
-        board.clearRefLines();
-      }
+      const { dx, dy } = board.snap.move({
+        elements: [latestRoot],
+        bounds: { x: nextX, y: nextY, width: latestRoot.width, height: latestRoot.height },
+        enabled: !target && !altKey,
+      });
+      const snapX = nextX + dx;
+      const snapY = nextY + dy;
 
       if (currentTarget?.direction !== target?.direction) {
         const desiredRoot = MindUtil.createRootDragLayout(
@@ -1152,7 +1137,7 @@ export class MindPlugin implements IBoardPlugin {
   private cleanup(board: Board) {
     this.cancelScheduledPointerMove();
     // 清除拖拽期间的对齐参考线
-    board.clearRefLines();
+    board.snap.end();
     this.setDragState(EMPTY_MIND_DRAG_STATE);
   }
 

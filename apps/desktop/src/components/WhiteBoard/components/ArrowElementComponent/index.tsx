@@ -6,7 +6,7 @@ import classNames from "classnames";
 import { Descendant, Node } from "slate";
 import { useEffect, memo, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { useSelectState, useBoard } from "../../hooks";
+import { useSelectState, useBoard, useSketch } from "../../hooks";
 import { ArrowElement, BoardElement, Point } from "../../types";
 import Arrow from "../Arrow";
 import ArrowActivePoint from "./ArrowActivePoint";
@@ -15,6 +15,7 @@ import { ArrowUtil, BoardUtil, PathUtil } from "../../utils";
 import { getArrowDisplayColor } from "../../utils/color";
 import useTheme from "@/hooks/useTheme";
 import { getLabelAnchorByPath, offsetAnchorAlongNormal } from "./labelGeometry";
+import { handTextClass } from "../../utils/sketch";
 const styles = {
   descriptionContainer: "pointer-events-auto inline-flex h-fit w-fit items-center justify-start",
   descriptionEditor: "min-h-9 w-fit rounded-tau-sm",
@@ -117,8 +118,6 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
     lineType,
     source,
     target,
-    sketchEnabled,
-    roughness,
     dashed,
     dashArray,
     animated,
@@ -129,6 +128,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
 
   const board = useBoard();
   const { isSelected } = useSelectState(element.id);
+  const sketch = useSketch(element);
   const { isDark } = useTheme();
   const editorRef = useRef<EditorRef>(null);
   const descriptionContainerRef = useRef<HTMLDivElement>(null);
@@ -537,7 +537,8 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
     return () => {
       cancelAnimationFrame(frameId);
     };
-  }, [draftDescription, measureDescriptionBox, shouldRenderDescription]);
+    // 画风切换会换字体，标签尺寸要重新测量
+  }, [draftDescription, measureDescriptionBox, shouldRenderDescription, sketch.enabled]);
 
   useEffect(() => {
     if (!isEditingDescription) return;
@@ -570,8 +571,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
         targetConnectId={target.connectId}
         sourceCustomOffset={source.customOffset}
         targetCustomOffset={target.customOffset}
-        sketchEnabled={sketchEnabled}
-        roughness={roughness}
+        sketch={sketch}
         dashed={dashed}
         dashArray={dashArray}
         animated={animated}
@@ -611,7 +611,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
               readonly={!isEditingDescription}
               hotkeyConfigs={descriptionHotkeyConfigs}
               kit={getArrowLabelKit()}
-              className={styles.descriptionEditor}
+              className={classNames(styles.descriptionEditor, handTextClass(sketch))}
               style={descriptionEditorStyle}
             />
           </div>

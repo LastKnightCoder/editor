@@ -13,6 +13,7 @@ import fs from "node:fs";
 import log from "electron-log";
 import type { Llama, LlamaModel, LlamaEmbeddingContext } from "node-llama-cpp";
 import { getEmbeddingModelEntry, GgufModelEntry } from "./model-registry";
+import { averageNormalized, toEmbeddingWindows } from "./embedding-input";
 
 export type DevicePolicy = "auto" | "cpu" | "cuda";
 
@@ -133,10 +134,21 @@ class EmbeddingRuntime extends LlamaRuntimeBase {
         this.context = await model.createEmbeddingContext();
       }
 
+      const context = this.context;
+      // 手动补 <s> 并按窗口嵌入，原因见 embedding-input.ts
+      const bos = model.tokens.shouldPrependBosToken ? model.tokens.bos : null;
       const embeddings: number[][] = [];
       for (const text of texts) {
-        const embedding = await this.context.getEmbeddingFor(text);
-        embeddings.push(Array.from(embedding.vector));
+        const windows = toEmbeddingWindows(model.tokenize(text), bos);
+        if (windows.length === 0) {
+          embeddings.push(Array.from((await context.getEmbeddingFor(text)).vector));
+          continue;
+        }
+        const vectors: number[][] = [];
+        for (const window of windows) {
+          vectors.push(Array.from((await context.getEmbeddingFor(window)).vector));
+        }
+        embeddings.push(averageNormalized(vectors));
       }
 
       if (!this.dimensions && embeddings.length) {

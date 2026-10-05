@@ -11,7 +11,6 @@ import CardDatabaseView from "..";
 const mocks = vi.hoisted(() => ({ dispatch: vi.fn(), props: null as DatabaseProps | null }));
 const { dispatch } = mocks;
 vi.mock("@/utils/editor", () => ({ getEditorText: () => "标题" }));
-vi.mock("@/constants", () => ({ cardCategoryName: {} }));
 vi.mock("@/hooks/useTheme", () => ({ default: () => ({ isDark: false }) }));
 vi.mock("../plugins/CardLinksPlugin", () => ({ default: { type: "card-links" } }));
 vi.mock("@/components/Database", () => ({
@@ -30,7 +29,6 @@ let root: Root | undefined;
 let host: HTMLDivElement;
 const callbacks = {
   cards: [],
-  selectCategory: "all" as const,
   onCardClick: vi.fn(),
   onOpenCreateCard: vi.fn(),
   onDeleteCard: vi.fn(),

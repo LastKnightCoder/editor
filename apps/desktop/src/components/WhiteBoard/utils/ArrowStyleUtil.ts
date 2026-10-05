@@ -11,8 +11,6 @@ export interface ArrowStylePreset {
   themeColorId: string;
   dashed: boolean;
   dashArray: number[];
-  sketchEnabled: boolean;
-  roughness: number;
   animated: boolean;
   animationSpeed: number;
 }
@@ -25,8 +23,6 @@ const DEFAULT_ARROW_STYLE_PRESET: ArrowStylePreset = {
   themeColorId: getDefaultThemeColorId(),
   dashed: false,
   dashArray: [5, 5],
-  sketchEnabled: false,
-  roughness: 1,
   animated: false,
   animationSpeed: 3,
 };
@@ -40,15 +36,10 @@ const getStorage = (): Storage | null => {
 };
 
 const getNumberOrDefault = (value: unknown, defaultValue: number): number => {
-  return typeof value === "number" && Number.isFinite(value)
-    ? value
-    : defaultValue;
+  return typeof value === "number" && Number.isFinite(value) ? value : defaultValue;
 };
 
-const getBooleanOrDefault = (
-  value: unknown,
-  defaultValue: boolean,
-): boolean => {
+const getBooleanOrDefault = (value: unknown, defaultValue: boolean): boolean => {
   return typeof value === "boolean" ? value : defaultValue;
 };
 
@@ -58,8 +49,8 @@ const getDashArrayOrDefault = (value: unknown): number[] => {
   }
 
   const dashArray = value
-    .map((item) => (typeof item === "number" ? item : Number.NaN))
-    .filter((item) => Number.isFinite(item) && item > 0);
+    .map(item => (typeof item === "number" ? item : Number.NaN))
+    .filter(item => Number.isFinite(item) && item > 0);
 
   if (dashArray.length === 0) {
     return [...DEFAULT_ARROW_STYLE_PRESET.dashArray];
@@ -68,9 +59,7 @@ const getDashArrayOrDefault = (value: unknown): number[] => {
   return dashArray;
 };
 
-const normalizePreset = (
-  value: Partial<ArrowStylePreset> | null | undefined,
-): ArrowStylePreset => {
+const normalizePreset = (value: Partial<ArrowStylePreset> | null | undefined): ArrowStylePreset => {
   if (!value || typeof value !== "object") {
     return getDefaultArrowStylePreset();
   }
@@ -85,34 +74,17 @@ const normalizePreset = (
     targetMarker: MARKER_TYPE_SET.has(value.targetMarker as EMarkerType)
       ? (value.targetMarker as EMarkerType)
       : DEFAULT_ARROW_STYLE_PRESET.targetMarker,
-    lineWidth: getNumberOrDefault(
-      value.lineWidth,
-      DEFAULT_ARROW_STYLE_PRESET.lineWidth,
-    ),
+    lineWidth: getNumberOrDefault(value.lineWidth, DEFAULT_ARROW_STYLE_PRESET.lineWidth),
     themeColorId:
       typeof value.themeColorId === "string" && value.themeColorId
         ? value.themeColorId
         : DEFAULT_ARROW_STYLE_PRESET.themeColorId,
-    dashed: getBooleanOrDefault(
-      value.dashed,
-      DEFAULT_ARROW_STYLE_PRESET.dashed,
-    ),
+    dashed: getBooleanOrDefault(value.dashed, DEFAULT_ARROW_STYLE_PRESET.dashed),
     dashArray: getDashArrayOrDefault(value.dashArray),
-    sketchEnabled: getBooleanOrDefault(
-      value.sketchEnabled,
-      DEFAULT_ARROW_STYLE_PRESET.sketchEnabled,
-    ),
-    roughness: getNumberOrDefault(
-      value.roughness,
-      DEFAULT_ARROW_STYLE_PRESET.roughness,
-    ),
-    animated: getBooleanOrDefault(
-      value.animated,
-      DEFAULT_ARROW_STYLE_PRESET.animated,
-    ),
+    animated: getBooleanOrDefault(value.animated, DEFAULT_ARROW_STYLE_PRESET.animated),
     animationSpeed: getNumberOrDefault(
       value.animationSpeed,
-      DEFAULT_ARROW_STYLE_PRESET.animationSpeed,
+      DEFAULT_ARROW_STYLE_PRESET.animationSpeed
     ),
   };
 };
@@ -151,8 +123,6 @@ export const saveArrowStylePresetFromElement = (element: ArrowElement) => {
       themeColorId: element.themeColorId,
       dashed: element.dashed,
       dashArray: element.dashArray,
-      sketchEnabled: element.sketchEnabled,
-      roughness: element.roughness,
       animated: element.animated,
       animationSpeed: element.animationSpeed,
     });

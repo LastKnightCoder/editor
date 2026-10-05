@@ -45,16 +45,23 @@ vi.mock("@/services/piLLM", () => ({
   piThinkingOf: () => "",
 }));
 vi.mock("@/services/browserBridgeRenderer", () => ({ installBrowserBridgeRenderer: vi.fn() }));
-vi.mock("@/stores/useSettingStore", () => ({
-  default: {
-    getState: () => ({
-      setting: {
-        llmProviders: [{ id: "p1", models: [{ id: "m1" }] }],
-        llmUsageSettings: { chat: { providerId: "p1", modelId: "m1" } },
+vi.mock("@/stores/useSettingStore", () => {
+  let state = {
+    setting: {
+      llmProviders: [{ id: "p1", models: [{ id: "m1" }, { id: "qwen2.5:7b" }] }],
+      llmUsageSettings: { chat: { providerId: "p1", modelId: "m1" } } as Record<string, unknown>,
+    },
+  };
+  return {
+    default: {
+      getState: () => state,
+      setState: (recipe: (draft: typeof state) => typeof state | void) => {
+        const draft = structuredClone(state);
+        state = recipe(draft) ?? draft;
       },
-    }),
-  },
-}));
+    },
+  };
+});
 vi.mock("@/stores/useSkillStore", () => ({ default: { getState: () => ({ skills: [] }) } }));
 vi.mock("@/tools", () => ({ ensureToolingReady: vi.fn() }));
 vi.mock("@/utils/WebSocketServer", () => ({
@@ -92,6 +99,23 @@ import { __aiServerTestUtils, closeAiServer, initAiServer } from "../aiServer";
 import { openContent } from "../open-content";
 
 const { handleRunStart, handleRunAbort } = __aiServerTestUtils;
+
+describe("设置 RPC", () => {
+  beforeEach(() => {
+    mocks.handlers.clear();
+    initAiServer();
+  });
+  afterEach(() => closeAiServer());
+
+  it("扩展选模型：按 modelId 写入聊天用量，随后读回所选模型", async () => {
+    const params = { feature: "chat", providerId: "p1", modelId: "qwen2.5:7b" };
+    await mocks.handlers.get("settings.setLlmUsage")!(request("settings.setLlmUsage", params));
+    const result = (await mocks.handlers.get("settings.getChatModelConfig")!(
+      request("settings.getChatModelConfig", {})
+    )) as { model: { id: string } | null };
+    expect(result.model?.id).toBe("qwen2.5:7b");
+  });
+});
 
 describe("内容打开 RPC", () => {
   beforeEach(() => {
