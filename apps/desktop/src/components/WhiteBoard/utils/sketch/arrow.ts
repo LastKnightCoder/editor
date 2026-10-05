@@ -1,6 +1,15 @@
 import { EMarkerType } from "../../types/arrow";
 import type { SketchLevel } from "../../types/sketch";
-import { clamp, distance, flattenPath, polylineToD, resample, wobble, type Vec } from "./geometry";
+import {
+  clamp,
+  distance,
+  flattenPath,
+  lengthOf,
+  polylineToD,
+  resample,
+  wobble,
+  type Vec,
+} from "./geometry";
 import { inkOutline } from "./ink";
 import { WOBBLE_AMPLITUDE, inkSize } from "./levels";
 import { createRandom } from "./random";
@@ -24,6 +33,8 @@ export interface SketchArrowOutput {
   paths: SketchPath[];
   /** 摆动后的中心线：流动点沿它运动，虚线遮罩也沿它描 */
   centerline: string;
+  /** 中心线长度（px） */
+  length: number;
 }
 
 /** 端点标记长度：随线宽增长，封顶避免粗线配大黑三角 */
@@ -132,7 +143,7 @@ export function sketchArrow(input: SketchArrowInput): SketchArrowOutput {
   const { d, color, strokeWidth, level, seed, dashed } = input;
   const lines = flattenPath(d);
   const points = lines.flatMap((line, i) => (i === 0 ? line.points : line.points.slice(1)));
-  if (points.length < 2) return { paths: [], centerline: "" };
+  if (points.length < 2) return { paths: [], centerline: "", length: 0 };
 
   const random = createRandom(seed);
   const size = inkSize(strokeWidth);
@@ -163,5 +174,6 @@ export function sketchArrow(input: SketchArrowInput): SketchArrowOutput {
       ...marker(input.sourceMarker, body, false, input, random),
     ],
     centerline,
+    length: lengthOf(body),
   };
 }
