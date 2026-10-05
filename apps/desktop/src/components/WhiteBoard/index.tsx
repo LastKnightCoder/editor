@@ -302,7 +302,6 @@ const WhiteBoard = memo(
     const isArrowMoving = useListenArrowMove(board);
     const { isMoving: isElementsMoving, movingStore } = useElementsMoving(board);
     const { markInteracting } = usePreventTextSelection(containerRef);
-    const [refLineVersion, setRefLineVersion] = useState(0);
 
     // 右键菜单触发的弹窗状态
     const [contextMenuModal, setContextMenuModal] = useState<ContextMenuModalPayload | null>(null);
@@ -984,14 +983,8 @@ const WhiteBoard = memo(
     });
 
     useEffect(() => {
-      const handleRefLineChange = () => {
-        setRefLineVersion(value => value + 1);
-      };
-      board.on("ref-line:change", handleRefLineChange);
-      return () => {
-        board.off("ref-line:change", handleRefLineChange);
-      };
-    }, [board]);
+      board.snap.setGridSize(gridVisible ? gridSize : null);
+    }, [board, gridVisible, gridSize]);
 
     useEffect(() => {
       const handleOpenImagePreview = (payload: { src: string; alt?: string }) => {
@@ -1069,18 +1062,10 @@ const WhiteBoard = memo(
           statusBar.removeEventListener("mouseup", stopPropagation, true);
         }
 
-        board.clearRefLines();
-
         observer.disconnect();
         board.destroy();
       };
     }, [board, handleContainerResize]);
-
-    // 获取参考线
-    const refLines = useMemo(
-      () => board.refLine.matchRefLines(15 / zoom),
-      [board, zoom, refLineVersion]
-    );
 
     // 演示相关处理函数
     const handleStartPresentation = useMemoizedFn((sequenceId: string) => {
@@ -1164,7 +1149,6 @@ const WhiteBoard = memo(
                             isolateStaticSelection={isolateStaticSelection}
                             gridVisible={gridVisible}
                             gridSize={gridSize}
-                            refLines={refLines}
                             connectPointOverlayRef={connectPointOverlayRef}
                           />
 

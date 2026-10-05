@@ -239,23 +239,16 @@ export class RichTextPlugin extends CommonPlugin {
     const path = PathUtil.getPathByElement(board, newElement);
     if (!path) return;
 
-    board.refLine.setCurrentRects([
-      {
-        key: newElement.id,
-        ...newBBox,
-      },
-    ]);
-    const updateElement = board.refLine.getUpdateCurrent(
-      isAdsorb,
-      5 / board.viewPort.zoom,
-      true,
-      position
-    );
-    board.refLine.setCurrent(updateElement);
-    newElement.x = updateElement.rects[0].x;
-    newElement.y = updateElement.rects[0].y;
-    newElement.width = updateElement.rects[0].width;
-    newElement.height = updateElement.rects[0].height;
+    const snapped = board.snap.resize({
+      element: newElement,
+      bounds: newBBox,
+      position,
+      enabled: isAdsorb,
+    });
+    Object.assign(newElement, snapped, {
+      maxWidth: snapped.width,
+      maxHeight: snapped.height,
+    });
     const ops = BoardUtil.diffNodePatchOnly(element, newElement, path);
     if (ops.length > 0) {
       board.apply(ops, false);

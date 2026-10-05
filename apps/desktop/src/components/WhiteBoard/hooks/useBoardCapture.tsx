@@ -43,7 +43,6 @@ interface CaptureRenderState {
   centerConnectAndSelectedArrows: BoardElement[];
 }
 
-const EMPTY_REF_LINES: Array<{ key: string; x1: number; y1: number; x2: number; y2: number }> = [];
 const EMPTY_SELECTION: Selection = { selectArea: null, selectedElements: [] };
 
 const splitElementsForRender = (elements: BoardElement[], selectedIds: Set<string>) => {
@@ -275,7 +274,6 @@ export function useBoardCapture(board: Board): {
         noneCenterConnectArrows={state.noneCenterConnectArrows}
         centerConnectAndSelectedArrows={state.centerConnectAndSelectedArrows}
         gridVisible={false}
-        refLines={EMPTY_REF_LINES}
         disableViewportFilter={true}
         isolateStaticSelection={state.isolateSelection}
         showAssistLayers={false}

@@ -1,37 +1,33 @@
-import { memo } from "react";
+import { memo, useSyncExternalStore } from "react";
+import type Board from "../../Board";
 import GradientLine from "../GradientLine";
 
 interface ReferenceLinesProps {
-  lines: Array<{
-    key: string;
-    x1: number;
-    y1: number;
-    x2: number;
-    y2: number;
-  }>;
+  board: Board;
   zoom: number;
 }
 
 /**
- * 渲染参考线的组件
+ * 渲染吸附参考线：直接订阅 board.snap，避免参考线变化带动整块画板重渲染
  */
 const ReferenceLines = memo((props: ReferenceLinesProps) => {
-  const { lines, zoom } = props;
+  const { board, zoom } = props;
+  const guides = useSyncExternalStore(board.snap.subscribe, board.snap.getGuides);
 
-  if (lines.length === 0) {
+  if (guides.length === 0) {
     return null;
   }
 
   return (
     <g>
-      {lines.map(line => (
+      {guides.map(guide => (
         <GradientLine
-          key={line.key}
-          gradientId={line.key}
-          x1={line.x1}
-          y1={line.y1}
-          x2={line.x2}
-          y2={line.y2}
+          key={guide.key}
+          gradientId={`snap-guide-${guide.key}`}
+          x1={guide.x1}
+          y1={guide.y1}
+          x2={guide.x2}
+          y2={guide.y2}
           startColor="var(--tau-accent)"
           stopColor="var(--tau-accent)"
           strokeWidth={2 / zoom}

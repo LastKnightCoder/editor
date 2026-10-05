@@ -41,14 +41,6 @@ const EMPTY_SELECTION: Selection = {
   selectedElements: [],
 };
 
-const EMPTY_REF_LINES: Array<{
-  key: string;
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-}> = [];
-
 const mountStats = {
   image: { mount: 0, unmount: 0 },
   webview: { mount: 0, unmount: 0 },
@@ -186,7 +178,6 @@ const RenderHarness = ({
             isolateStaticSelection={isolateStaticSelection}
             gridVisible={false}
             showAssistLayers={false}
-            refLines={EMPTY_REF_LINES}
           />
         </ViewPortContext.Provider>
       </SelectionContext.Provider>
