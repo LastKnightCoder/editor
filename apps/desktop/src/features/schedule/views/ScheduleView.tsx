@@ -4,11 +4,12 @@
  * 一整张纸：页头工具条 + 日历 chips（显隐 + 「管理日历」弹窗）+ 主视图（月 / 周 / 议程）占满宽度；
  * 当日时间线（快速添加）是纸内右侧的非模态抽屉（整张纸高度），由工具条末尾「今天 · N 项」按钮开关
  * （开合状态持久化）。点日程在同位打开详情抽屉（可直接编辑保存），新建进 EventDialog。
+ * 「待安排」面板是纸内右侧常驻栏（开合持久化）：开着时两个抽屉左移一栏让位，面板与当日时间线可同屏拖放。
  * 数据按数据库和日期窗口查询；界面偏好与编辑状态归日程域。
  */
 
 import { useEffect } from "react";
-import { Drawer } from "@tau/ui";
+import { Drawer, cn } from "@tau/ui";
 import { ErrorState } from "@/components/ErrorState";
 import { useOverlayDismiss, usePage, usePageParams } from "@/page/PageProvider";
 import { useScheduleStore } from "../uiStore";
@@ -19,12 +20,20 @@ import EventDialog from "../components/EventDialog";
 import { CalendarChips } from "../components/CalendarChips";
 import { DayColumn } from "../components/DayColumn";
 import { EventDrawer } from "../components/EventDrawer";
+import { TodoPanel } from "../components/TodoPanel";
+import { flushEventDeletes } from "../pendingDeleteStore";
 import { usePeekStore } from "../peekStore";
 import { useAppContextProvider } from "@/hooks/useAppContextProvider";
+
+/** 待安排栏 248px + 抽屉原本的 12px 边距 */
+const DRAWER_BESIDE_PANEL = "right-[260px] max-w-[calc(100%-272px)]";
 
 export function ScheduleView() {
   const { error, retry } = useCalendarEvents();
   const showDayPanel = useScheduleStore(s => s.showDayPanel);
+  const showTodoPanel = useScheduleStore(s => s.showTodoPanel);
+  // 离开日程页时延迟删除立即落库
+  useEffect(() => flushEventDeletes, []);
   // 日程详情抽屉与时间线同位：详情打开时暂代时间线，关掉回到时间线
   const peeking = usePeekStore(s => s.event !== null);
   const closeDayPanel = () => useScheduleStore.getState().setShowDayPanel(false);
@@ -85,6 +94,9 @@ export function ScheduleView() {
             )}
           </div>
         </div>
+        {showTodoPanel && (
+          <TodoPanel onClose={() => useScheduleStore.getState().setShowTodoPanel(false)} />
+        )}
         <Drawer
           modal={false}
           open={showDayPanel && !peeking}
@@ -92,10 +104,11 @@ export function ScheduleView() {
           label="当日时间线"
           width={360}
           fill
+          className={cn(showTodoPanel && DRAWER_BESIDE_PANEL)}
         >
           <DayColumn />
         </Drawer>
-        <EventDrawer />
+        <EventDrawer className={cn(showTodoPanel && DRAWER_BESIDE_PANEL)} />
       </div>
       <EventDialog />
     </div>

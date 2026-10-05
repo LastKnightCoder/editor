@@ -412,13 +412,16 @@ class PomodoroSessionTable {
       return { boundTodoId: target.todoId, boundTitle: todo.title };
     }
     const event = db
-      .prepare("SELECT title, calendar_id FROM calendar_event WHERE id = ?")
-      .get(target.eventId) as { title: string; calendar_id: number } | undefined;
+      .prepare("SELECT title, calendar_id, todo_item_id FROM calendar_event WHERE id = ?")
+      .get(target.eventId) as
+      { title: string; calendar_id: number; todo_item_id: number | null } | undefined;
     if (!event) throw new Error(`Calendar event ${target.eventId} not found`);
     if (event.calendar_id === this.getPomodoroCalendarId(db)) {
       throw new Error("Cannot bind a pomodoro event");
     }
-    const todoId = TodoCalendarMappingTable.getTodoIdByEventId(db, target.eventId);
+    // 安排（任务型事件）直接带待办；系统日历物化事件经映射反查
+    const todoId =
+      event.todo_item_id ?? TodoCalendarMappingTable.getTodoIdByEventId(db, target.eventId);
     return {
       boundEventId: target.eventId,
       boundTodoId: todoId ?? undefined,

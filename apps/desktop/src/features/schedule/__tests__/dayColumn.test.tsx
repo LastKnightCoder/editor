@@ -5,8 +5,9 @@ import type { Calendar, CalendarEvent } from "@/types";
 import type { CalendarRole } from "../eventTone";
 
 const DAY = new Date(2026, 9, 5).getTime();
-const { createEvent, state } = vi.hoisted(() => ({
+const { createEvent, scheduleTodo, state } = vi.hoisted(() => ({
   createEvent: vi.fn(),
+  scheduleTodo: vi.fn(),
   state: { events: [] as CalendarEvent[] },
 }));
 
@@ -27,7 +28,7 @@ vi.mock("../queries", () => ({
   useTodoEventSources: () => ({}),
   useToggleTodoEvent: () => () => undefined,
   usePomodoroBindings: () => ({}),
-  useScheduleMutations: () => ({ createEvent }),
+  useScheduleMutations: () => ({ createEvent, scheduleTodo, deleteEvent: vi.fn() }),
 }));
 
 import { useScheduleStore } from "../uiStore";
@@ -59,6 +60,8 @@ beforeEach(() => {
   vi.setSystemTime(new Date(2026, 9, 5, 15, 0));
   createEvent.mockReset();
   createEvent.mockResolvedValue(1);
+  scheduleTodo.mockReset();
+  scheduleTodo.mockResolvedValue({ id: 99, title: "换灯泡" });
   useScheduleStore.setState({ currentDate: DAY });
   state.events = [ev(9 * 60, 10 * 60), ev(10 * 60 + 30, null, 9), ev(11 * 60, 12 * 60)];
 });
@@ -148,5 +151,30 @@ describe("当日时间线补记", () => {
     await act(async () => input().blur());
     expect(gapInput()?.value).toBe("读书");
     expect(createEvent).not.toHaveBeenCalled();
+  });
+});
+
+it("把待办拖到补记空隙上 = 安排进该空隙（最长 1 小时）", async () => {
+  await mount();
+  const row = gapButton()!.closest("div.grid") as HTMLElement;
+  const dataTransfer = {
+    types: ["application/x-tau-todo"],
+    getData: () => "5",
+    dropEffect: "",
+  };
+  const fire = (type: string) => {
+    const e = new Event(type, { bubbles: true, cancelable: true });
+    Object.defineProperty(e, "dataTransfer", { value: dataTransfer });
+    row.dispatchEvent(e);
+    return e;
+  };
+  await act(async () => void fire("dragover"));
+  expect(row.className).toContain("bg-accent-soft");
+  await act(async () => void fire("drop"));
+  expect(scheduleTodo).toHaveBeenCalledWith({
+    todoItemId: 5,
+    startDate: DAY,
+    startTime: 600,
+    endTime: 660,
   });
 });

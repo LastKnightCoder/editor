@@ -12,14 +12,12 @@ import holidayServiceModule from "../holiday-service";
 const TODO_CALENDAR_GROUP_NAME = "待办清单";
 const TODO_CALENDARS = [
   { type: "deadline" as const, title: "截止任务", color: "red" },
-  { type: "planned" as const, title: "计划任务", color: "blue" },
   { type: "recurring" as const, title: "周期任务", color: "green" },
 ];
 
 interface TodoCalendars {
   groupId: number;
   deadline: number;
-  planned: number;
   recurring: number;
 }
 
@@ -31,7 +29,6 @@ export default class TodoCalendarSyncTable {
       "todo-calendar:sync-item": this.syncTodoItem.bind(this),
       "todo-calendar:remove-item": this.removeTodoItem.bind(this),
       "todo-calendar:get-calendars": this.getTodoCalendars.bind(this),
-      "todo-calendar:sync-from-event": this.syncFromCalendarEvent.bind(this),
       "todo-calendar:cleanup-orphaned": this.cleanupOrphanedEvents.bind(this),
     } as const;
   }
@@ -158,8 +155,6 @@ export default class TodoCalendarSyncTable {
     switch (type) {
       case "deadline":
         return calendars.deadline;
-      case "planned":
-        return calendars.planned;
       case "recurring":
         return calendars.recurring;
       default:
@@ -239,9 +234,9 @@ export default class TodoCalendarSyncTable {
     recurrenceDate?: number
   ): CreateCalendarEvent | null {
     let startDate: number;
-    let endDate: number | null = null;
+    const endDate: number | null = null;
     let startTime: number | null = null;
-    let endTime: number | null = null;
+    const endTime: number | null = null;
     let allDay = true;
 
     switch (todoItem.type) {
@@ -253,30 +248,6 @@ export default class TodoCalendarSyncTable {
         if (dueTime > 0) {
           startTime = dueTime;
           allDay = false;
-        }
-        break;
-      }
-
-      case "planned": {
-        if (!todoItem.startAt && !todoItem.dueAt) return null;
-        startDate = this.getDatePart(todoItem.startAt || todoItem.dueAt!);
-        if (todoItem.dueAt && todoItem.startAt !== todoItem.dueAt) {
-          endDate = this.getDatePart(todoItem.dueAt);
-        }
-        // 如果有具体时间
-        if (todoItem.startAt) {
-          const start = this.getTimePart(todoItem.startAt);
-          if (start > 0) {
-            startTime = start;
-            allDay = false;
-          }
-        }
-        if (todoItem.dueAt) {
-          const end = this.getTimePart(todoItem.dueAt);
-          if (end > 0) {
-            endTime = end;
-            allDay = false;
-          }
         }
         break;
       }
@@ -314,15 +285,6 @@ export default class TodoCalendarSyncTable {
   private static getTimePart(timestamp: number): number {
     const date = new Date(timestamp);
     return date.getHours() * 60 + date.getMinutes();
-  }
-
-  // 从时间戳构建完整日期时间
-  private static buildTimestamp(datePart: number, timePart: number | null): number {
-    const date = new Date(datePart);
-    if (timePart !== null) {
-      date.setHours(Math.floor(timePart / 60), timePart % 60, 0, 0);
-    }
-    return date.getTime();
   }
 
   // 删除待办项的日历事件
@@ -364,71 +326,6 @@ export default class TodoCalendarSyncTable {
     }
 
     return TodoCalendarMappingTable.deleteMappingsByTodoId(db, { todoItemId });
-  }
-
-  // 从日历事件反向同步到待办（当用户在日历上修改事件时调用）
-  static syncFromCalendarEvent(
-    db: Database.Database,
-    params: { calendarEventId: number }
-  ): boolean {
-    const { calendarEventId } = params;
-
-    // 查找映射
-    const mapping = TodoCalendarMappingTable.getMappingByEventId(db, {
-      calendarEventId,
-    });
-
-    if (!mapping) return false;
-
-    // 获取事件数据
-    let event;
-    try {
-      event = CalendarEventTable.getEventById(db, calendarEventId);
-    } catch (e) {
-      return false;
-    }
-
-    // 获取待办项
-    const todoItem = db
-      .prepare(`SELECT * FROM todo_item WHERE id = ?`)
-      .get(mapping.todoItemId) as any;
-
-    if (!todoItem) return false;
-
-    // 根据同步类型更新待办项
-    const now = Date.now();
-    let updateSql = "";
-    const updateParams: any[] = [];
-
-    switch (mapping.syncType) {
-      case "deadline": {
-        const dueAt = this.buildTimestamp(event.startDate, event.startTime);
-        updateSql = `UPDATE todo_item SET title = ?, due_at = ?, update_time = ? WHERE id = ?`;
-        updateParams.push(event.title, dueAt, now, mapping.todoItemId);
-        break;
-      }
-
-      case "planned": {
-        const startAt = this.buildTimestamp(event.startDate, event.startTime);
-        const endAt = event.endDate ? this.buildTimestamp(event.endDate, event.endTime) : null;
-        updateSql = `UPDATE todo_item SET title = ?, start_at = ?, due_at = ?, update_time = ? WHERE id = ?`;
-        updateParams.push(event.title, startAt, endAt || startAt, now, mapping.todoItemId);
-        break;
-      }
-
-      case "recurring":
-        // 周期任务只更新标题
-        updateSql = `UPDATE todo_item SET title = ?, update_time = ? WHERE id = ?`;
-        updateParams.push(event.title, now, mapping.todoItemId);
-        break;
-    }
-
-    if (updateSql) {
-      db.prepare(updateSql).run(...updateParams);
-      return true;
-    }
-
-    return false;
   }
 
   // 批量同步周期任务到日历（用于显示日历视图时）
@@ -537,7 +434,7 @@ export default class TodoCalendarSyncTable {
   // 清理孤立的日历事件（待办任务已删除但日历事件仍存在）
   static cleanupOrphanedEvents(db: Database.Database): number {
     const calendars = this.getTodoCalendars(db);
-    const todoCalendarIds = [calendars.deadline, calendars.planned, calendars.recurring];
+    const todoCalendarIds = [calendars.deadline, calendars.recurring];
 
     let cleanedCount = 0;
 
@@ -590,6 +487,19 @@ export default class TodoCalendarSyncTable {
         }
       }
     }
+
+    // 方法3：安排（calendar_event.todo_item_id）指向已不存在的待办 → 解除关联，事件留作记录
+    //（旧版移动端 / CLI 删除待办时不处理这一列）
+    cleanedCount += Number(
+      (
+        db
+          .prepare(
+            `UPDATE calendar_event SET todo_item_id = NULL
+             WHERE todo_item_id IS NOT NULL AND todo_item_id NOT IN (SELECT id FROM todo_item)`
+          )
+          .run() as { changes: number }
+      ).changes
+    );
 
     return cleanedCount;
   }

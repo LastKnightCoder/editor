@@ -5,9 +5,10 @@
  * 时间线按账本呈现（ledger.ts）：已结束 = 记录（实心），未开始 = 计划（空心），跨过现在在现在处切开；
  * 绑定到某日程且完整落在其时间内的番茄收进该日程，画成卡片底部的专注细轨；
  * 过去两条日程之间 ≥15 分钟的空隙可就地补记；今天之后 08:00–22:00 内 ≥1 小时的空档显示「点击安排」。
+ * 待安排面板里的待办可拖到空档 / 补记行上 = 安排进该空隙（列表形态算不出任意落点，只接受这两种行）。
  */
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties, type DragEvent } from "react";
 import { ChevronLeft, ChevronRight, CornerDownLeft, Plus } from "lucide-react";
 import { IconButton, cn, toast } from "@tau/ui";
 import { FadeScroll } from "@/components/FadeScroll";
@@ -39,6 +40,7 @@ import {
   type TimelineItem,
 } from "../ledger";
 import { usePeekStore } from "../peekStore";
+import { DROP_MINUTES, isTodoDrag, readTodoDrag, useScheduleTodo } from "../todoDrop";
 import { extractCalendarTag, parseQuickAdd } from "../quickAdd";
 import { AllDayBar } from "./EventChips";
 import { EventTitle, useEventDecor } from "./EventTitle";
@@ -80,6 +82,7 @@ export function DayColumn() {
   const writable = useWritableCalendars();
   const roles = useCalendarRoles();
   const { createEvent } = useScheduleMutations();
+  const scheduleTodo = useScheduleTodo();
   const { setCurrentDate, setEditingEvent } = useScheduleStore.getState();
   const peek = usePeekStore(s => s.peek);
   const nowMinutes = useNowMinutes();
@@ -243,6 +246,9 @@ export function DayColumn() {
             onPeek={peek}
             onSchedule={scheduleGap}
             onRecord={recordGap}
+            onDropTodo={(todoId, start, end) =>
+              void scheduleTodo(todoId, day, start, Math.min(DROP_MINUTES, end - start))
+            }
             calendars={calendars}
             decorOf={decorOf}
             focus={item.kind === "event" ? focus.get(item.event.id) : undefined}
@@ -263,6 +269,7 @@ function TimelineRow({
   onPeek,
   onSchedule,
   onRecord,
+  onDropTodo,
   calendars,
   decorOf,
   focus,
@@ -274,6 +281,7 @@ function TimelineRow({
   onPeek: (event: CalendarEvent, anchor: HTMLElement) => void;
   onSchedule: (start: number) => void;
   onRecord: (start: number, end: number, text: string) => Promise<boolean>;
+  onDropTodo: (todoId: number, start: number, end: number) => void;
   calendars: Calendar[];
   decorOf: ReturnType<typeof useEventDecor>;
   focus?: FocusSpan[];
@@ -281,6 +289,26 @@ function TimelineRow({
 }) {
   const at = item.kind === "now" ? item.at : item.start;
   const gap = item.kind === "record-gap" || item.kind === "plan-gap";
+  const [dropping, setDropping] = useState(false);
+  // 空档 / 补记行接受待办拖入：安排进这段空隙
+  const dropHandlers = gap
+    ? {
+        onDragOver: (e: DragEvent) => {
+          if (!isTodoDrag(e)) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+          setDropping(true);
+        },
+        onDragLeave: () => setDropping(false),
+        onDrop: (e: DragEvent) => {
+          setDropping(false);
+          const todoId = readTodoDrag(e);
+          if (todoId == null) return;
+          e.preventDefault();
+          onDropTodo(todoId, item.start, item.end);
+        },
+      }
+    : undefined;
   const recorded = item.kind === "event" && item.phase.kind === "record";
   const rail = (
     <span className="relative flex justify-center">
@@ -315,9 +343,11 @@ function TimelineRow({
   return (
     <div
       style={item.kind === "event" ? eventToneStyle(item.event, calendars) : undefined}
+      {...dropHandlers}
       className={cn(
-        "grid min-h-10 grid-cols-[46px_14px_minmax(0,1fr)] gap-2.5",
-        item.kind === "event" && TONE
+        "grid min-h-10 grid-cols-[46px_14px_minmax(0,1fr)] gap-2.5 rounded-[10px]",
+        item.kind === "event" && TONE,
+        dropping && "bg-accent-soft"
       )}
     >
       <span

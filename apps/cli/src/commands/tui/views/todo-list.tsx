@@ -33,7 +33,7 @@ interface GroupRef {
 }
 
 type StatusFilter = "pending" | "completed" | "overdue" | "all";
-type TypeFilter = "all" | "normal" | "deadline" | "planned" | "recurring";
+type TypeFilter = "all" | "normal" | "deadline" | "recurring";
 type InputMode = null | "create" | "confirm-delete";
 
 const STATUS_LABELS: Record<StatusFilter, string> = {
@@ -47,14 +47,12 @@ const TYPE_LABELS: Record<TypeFilter, string> = {
   all: "全部",
   normal: "普通",
   deadline: "截止",
-  planned: "计划",
   recurring: "周期",
 };
 
 const TYPE_COLORS: Record<string, string> = {
   normal: "gray",
   deadline: "red",
-  planned: "blue",
   recurring: "magenta",
 };
 
@@ -63,7 +61,6 @@ const TYPE_CYCLE: TypeFilter[] = [
   "all",
   "normal",
   "deadline",
-  "planned",
   "recurring",
 ];
 const PAGE_SIZE = 15;

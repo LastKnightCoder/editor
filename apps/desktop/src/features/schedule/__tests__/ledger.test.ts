@@ -73,17 +73,17 @@ describe("buildCalendarRoles / isMarker", () => {
   const calendars = [
     { id: 10, title: "番茄钟", groupId: 1 },
     { id: 11, title: "截止任务", groupId: 2 },
-    { id: 12, title: "计划任务", groupId: 2 },
+    { id: 12, title: "不认识的", groupId: 2 },
     { id: 13, title: "周期任务", groupId: 2 },
     { id: 20, title: "工作", groupId: undefined },
   ] as Calendar[];
   const roles = buildCalendarRoles(calendars, groups);
 
-  it("细分系统日历角色，普通日历不在表内", () => {
+  it("细分系统日历角色；待办清单下不认识的按截止（标记）；普通日历不在表内", () => {
     expect([...roles]).toEqual([
       [10, "pomodoro"],
       [11, "deadline"],
-      [12, "planned"],
+      [12, "deadline"],
       [13, "recurring"],
     ]);
   });
@@ -95,11 +95,11 @@ describe("buildCalendarRoles / isMarker", () => {
       [13, "todo"],
     ]);
   });
-  it("全天、截止、周期是标记；计划、番茄、普通定时日程不是", () => {
+  it("全天、截止、周期是标记；番茄、安排、普通定时日程不是", () => {
     expect(isMarker(ev(null, null, { calendarId: 20 }), roles)).toBe(true);
     expect(isMarker(ev(hm(18), null, { calendarId: 11 }), roles)).toBe(true);
     expect(isMarker(ev(null, null, { calendarId: 13 }), roles)).toBe(true);
-    expect(isMarker(ev(hm(9), hm(10), { calendarId: 12 }), roles)).toBe(false);
+    expect(isMarker(ev(hm(9), hm(10), { calendarId: 20, todoItemId: 7 }), roles)).toBe(false);
     expect(isMarker(ev(hm(9), hm(10), { calendarId: 10 }), roles)).toBe(false);
     expect(isMarker(ev(hm(9), hm(10), { calendarId: 20 }), roles)).toBe(false);
   });

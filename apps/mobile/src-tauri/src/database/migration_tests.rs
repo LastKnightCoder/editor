@@ -270,6 +270,20 @@ fn historical_schemas_upgrade_and_repeat_without_missing_columns() {
             Some(crate::database::migrator::MAIN_SCHEMA_VERSION.to_string())
         );
         conn.prepare("SELECT tags FROM diary_entries").unwrap();
+        // 时间账本：安排关联列及其索引、番茄绑定三列（桌面新增，移动端按基线补齐）
+        conn.prepare("SELECT todo_item_id FROM calendar_event").unwrap();
+        conn.prepare("SELECT bound_event_id, bound_todo_id, bound_title FROM pomodoro_sessions")
+            .unwrap();
+        assert_eq!(
+            conn.query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_calendar_event_todo_item'",
+                [],
+                |r| r.get::<_, i64>(0)
+            )
+            .unwrap(),
+            1,
+            "{reference}"
+        );
         // 旧聊天表已不在基线里（桌面迁到 pi 会话后删除，pi 迁移 M8）：移动端不补列，原样留给桌面迁移
         conn.prepare("SELECT messages FROM chat_message").unwrap();
         conn.prepare("SELECT id FROM chat_session").unwrap();

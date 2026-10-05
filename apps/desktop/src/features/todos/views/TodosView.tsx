@@ -176,8 +176,8 @@ export function TodosView() {
     const datedChildren = live.filter(
       e =>
         e.parentId != null &&
-        (e.type === "deadline" || e.type === "planned") &&
-        (e.dueAt ?? e.startAt) != null &&
+        e.type === "deadline" &&
+        e.dueAt != null &&
         (!groupFilter || e.groupId === groupFilter)
     );
     const timed = [...roots, ...datedChildren];
@@ -243,13 +243,9 @@ export function TodosView() {
   };
 
   const reschedule = (entry: TodoEntry, day: number) => {
-    const base = entry.type === "planned" ? entry.startAt : entry.dueAt;
+    const base = entry.dueAt;
     const timeOfDay = base != null ? base - startOfDay(base) : 0;
-    if (entry.type === "planned" && entry.startAt != null) {
-      const length = (entry.dueAt ?? entry.startAt) - entry.startAt;
-      const startAt = day + timeOfDay;
-      void mutations.updateItem(entry, { startAt, dueAt: startAt + length });
-    } else if (entry.type === "deadline") {
+    if (entry.type === "deadline") {
       void mutations.updateItem(entry, { dueAt: day + timeOfDay });
     } else {
       // 普通任务改期 = 转为截止任务（全天）

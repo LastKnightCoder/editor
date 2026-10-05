@@ -1,5 +1,6 @@
 import { invoke } from "@/electron";
 import {
+  CalendarEvent,
   TodoGroup,
   CreateTodoGroup,
   UpdateTodoGroup,
@@ -77,6 +78,13 @@ export const listTodoItemsByType = async (type: TodoItemType | "all"): Promise<T
 
 export const createTodoItem = async (payload: CreateTodoItem): Promise<TodoItem> => {
   return invoke("todo:create-item", payload);
+};
+
+/** 建普通待办并同时安排进某个时段（快速添加写了时段时） */
+export const createTodoWithSchedule = async (
+  payload: CreateTodoItem & { schedule: { startDate: number; startTime: number; endTime: number } }
+): Promise<{ item: TodoItem; event: CalendarEvent }> => {
+  return invoke("todo:create-with-schedule", payload);
 };
 
 export const createTodoItemRelative = async (
@@ -299,7 +307,6 @@ export const updateNoteTitleSnapshot = async (linkId: number, title: string): Pr
 interface TodoCalendars {
   groupId: number;
   deadline: number;
-  planned: number;
   recurring: number;
 }
 
@@ -319,10 +326,6 @@ export const removeTodoItemFromCalendar = async (
   recurrenceDate?: number
 ): Promise<number> => {
   return invoke("todo-calendar:remove-item", { todoItemId, recurrenceDate });
-};
-
-export const syncFromCalendarEvent = async (calendarEventId: number): Promise<boolean> => {
-  return invoke("todo-calendar:sync-from-event", { calendarEventId });
 };
 
 export const cleanupOrphanedCalendarEvents = async (): Promise<number> => {

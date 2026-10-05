@@ -90,7 +90,7 @@ export function CalendarEventDetailPage({
 
   const isPomodoroEvent = event.isInSystemEvent && calendarTitle === "番茄钟";
   const isTodoEvent =
-    event.isInSystemEvent && ["截止任务", "计划任务", "周期任务"].includes(calendarTitle);
+    event.isInSystemEvent && ["截止任务", "周期任务"].includes(calendarTitle);
   const hasDetail = !isEditorContentEmpty(event.detailContent);
   const crossDay = event.endDate !== null && event.endDate !== event.startDate;
   const timeMain = crossDay

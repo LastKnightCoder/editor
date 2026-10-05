@@ -1,9 +1,9 @@
 /**
  * 待办域小件：圆形勾选（一次性任务 = 完成；周期任务虚线圈 = 今日打卡，打卡后 ok 绿）、
- * 项目色点、类型图标（截止 warn 旗 / 计划 info 钟 / 周期 ok 循环）。
+ * 项目色点、类型图标（截止 warn 旗 / 周期 ok 循环）。
  */
 
-import { Check, Clock, Flag, Repeat, type LucideIcon } from "lucide-react";
+import { Check, Flag, Repeat, type LucideIcon } from "lucide-react";
 import { cn } from "@tau/ui";
 import type { TodoItemType } from "@/types";
 import { groupDotClass } from "@/utils/groupTone";
@@ -74,14 +74,12 @@ export function GroupDot({ color, className }: { color?: string | null; classNam
 
 const TYPE_ICON: Partial<Record<TodoItemType, { icon: LucideIcon; className: string }>> = {
   deadline: { icon: Flag, className: "text-warn" },
-  planned: { icon: Clock, className: "text-info" },
   recurring: { icon: Repeat, className: "text-ok" },
 };
 
 const TYPE_LABEL: Record<TodoItemType, string> = {
   normal: "普通",
   deadline: "截止",
-  planned: "计划",
   recurring: "周期",
 };
 

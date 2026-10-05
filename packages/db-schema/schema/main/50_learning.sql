@@ -131,7 +131,8 @@ CREATE TABLE IF NOT EXISTS calendar_event (
         start_time INTEGER,
         end_time INTEGER,
         color TEXT,
-        all_day INTEGER DEFAULT 0
+        all_day INTEGER DEFAULT 0,
+        todo_item_id INTEGER
       );
 CREATE TABLE IF NOT EXISTS weread_notebook (
         book_id TEXT PRIMARY KEY,

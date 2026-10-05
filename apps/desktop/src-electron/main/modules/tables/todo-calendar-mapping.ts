@@ -121,6 +121,30 @@ export default class TodoCalendarMappingTable {
           : Boolean(row.is_completed),
       };
     }
+
+    // 安排：用户日历里关联待办的事件（calendar_event.todo_item_id）
+    const linked = db
+      .prepare(
+        `SELECT e.id AS calendar_event_id, e.todo_item_id, ti.is_completed
+        FROM calendar_event e
+        JOIN todo_item ti ON ti.id = e.todo_item_id
+        WHERE e.id IN (${placeholders})`
+      )
+      .all(...ids) as Array<{
+      calendar_event_id: number;
+      todo_item_id: number;
+      is_completed: number;
+    }>;
+    for (const row of linked) {
+      result[row.calendar_event_id] ??= {
+        calendarEventId: row.calendar_event_id,
+        todoItemId: row.todo_item_id,
+        syncType: "linked",
+        recurrenceDate: null,
+        recurrenceId: null,
+        isCompleted: Boolean(row.is_completed),
+      };
+    }
     return result;
   }
 

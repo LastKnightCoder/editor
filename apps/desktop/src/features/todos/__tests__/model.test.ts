@@ -12,7 +12,6 @@ import {
   nextOccurrence,
   openRoots,
   recurrenceText,
-  sortKey,
   streakOf,
 } from "../model";
 import type { OccurrenceMark, TodoEntry, TodoSnapshot } from "../types";
@@ -78,18 +77,6 @@ describe("bucketOf", () => {
     expect(bucketOf(entry({ type: "deadline", dueAt: at(9, 27) }), NOW)).toBe("week");
     expect(bucketOf(entry({ type: "deadline", dueAt: at(9, 28) }), NOW)).toBe("later");
     expect(bucketOf(entry(), NOW)).toBe("none");
-  });
-
-  it("计划任务进行中归今天，已结束归逾期", () => {
-    const running = entry({ type: "planned", startAt: at(9, 23, 10), dueAt: at(9, 26, 18) });
-    expect(bucketOf(running, NOW)).toBe("today");
-    expect(sortKey(running, NOW)).toBe(at(9, 24));
-    expect(bucketOf(entry({ type: "planned", startAt: at(9, 22), dueAt: at(9, 23) }), NOW)).toBe(
-      "overdue"
-    );
-    expect(
-      bucketOf(entry({ type: "planned", startAt: at(9, 25, 20), dueAt: at(9, 25, 22) }), NOW)
-    ).toBe("tomorrow");
   });
 
   it("周期任务按下一次计划日分段", () => {

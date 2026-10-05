@@ -68,6 +68,7 @@ fn create_item_with_payload(
     payload: &CreateTodoItemPayload,
     time_zone: crate::database::calendar_time::CalendarTimeZone,
 ) -> Result<TodoItem, String> {
+    reject_retired_type(&payload.item_type)?;
     let item_type = normalize_item_type(payload.item_type.clone());
     let sort_index = query_max_sort_index(tx, payload.group_id, payload.parent_id)? + 1024;
     let now = now_millis();
@@ -482,6 +483,7 @@ pub fn todo_update_item(
     let current = get_item_by_id(&tx, payload.id)?
         .ok_or_else(|| "TODO_NOT_FOUND: todo item does not exist".to_string())?;
     let now = now_millis();
+    reject_retired_type(&payload.item_type)?;
     let next_type = normalize_item_type(
         payload
             .item_type

@@ -30,14 +30,12 @@ import {
   isDateOnly,
   isOpen,
   isOverdue,
-  isRunning,
   monthDay,
   nextOccurrence,
   recurrenceText,
   remindText,
   scheduledToday,
   sortKey,
-  startOfDay,
   streakOf,
   WEEKDAY_CN,
   DAY_MS,
@@ -194,9 +192,7 @@ export function AgendaPanel({
       )}
       {sections.map(section => {
         const nowLineAt =
-          section.bucket === "today"
-            ? section.open.findIndex(e => !isRunning(e, now) && sortKey(e, now) > now)
-            : -1;
+          section.bucket === "today" ? section.open.findIndex(e => sortKey(e, now) > now) : -1;
         const isFoldOpen = foldOpen.has(section.key);
         // 时间槽列只在按日期的带日期段出现（列宽按模式固定，不随数据跳动）；
         // 按项目时时间进元信息行，无日期段本就无时间可显示
@@ -486,22 +482,6 @@ function slotOf(
       main = dateOnly ? "全天" : hm(entry.dueAt);
       sub = "截止";
       if (bucket === "today") tone = "now";
-    }
-  } else if (entry.type === "planned" && (entry.startAt ?? entry.dueAt) != null) {
-    const start = entry.startAt ?? entry.dueAt!;
-    const end = entry.dueAt ?? start;
-    if (bucket === "overdue") {
-      main = monthDay(end);
-      sub = `逾期 ${-dayDiff(end, now)} 天`;
-      tone = "overdue";
-    } else if (far) {
-      main = dayWord(start, now);
-      sub = `${hm(start)} 开始`;
-    } else {
-      const running = isRunning(entry, now);
-      main = running && dayDiff(start, now) < 0 ? "进行中" : hm(start);
-      sub = startOfDay(start) === startOfDay(end) ? `至 ${hm(end)}` : `至${dayWord(end, now)}`;
-      if (running) tone = "now";
     }
   } else if (entry.type === "recurring" && entry.recurrence) {
     if (mode === "group") {
