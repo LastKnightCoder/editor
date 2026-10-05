@@ -76,6 +76,7 @@ const StatusBar = memo((props: StatusBarProps) => {
       </ChromeButton>
       <Menu
         align="end"
+        fit
         className="w-[220px]"
         trigger={
           <button
