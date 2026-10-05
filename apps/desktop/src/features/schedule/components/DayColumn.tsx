@@ -3,10 +3,11 @@
  *
  * 大号日期 → 标记区（全天日程、截止、周期打卡）→ 定时日程时间线 → 底部自然语言快速添加（quickAdd.ts 解析，回车直接创建）。
  * 时间线按账本呈现（ledger.ts）：已结束 = 记录（实心），未开始 = 计划（空心），跨过现在在现在处切开；
+ * 绑定到某日程且完整落在其时间内的番茄收进该日程，画成卡片底部的专注细轨；
  * 过去两条日程之间 ≥15 分钟的空隙可就地补记；今天之后 08:00–22:00 内 ≥1 小时的空档显示「点击安排」。
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { ChevronLeft, ChevronRight, CornerDownLeft, Plus } from "lucide-react";
 import { IconButton, cn, toast } from "@tau/ui";
 import { FadeScroll } from "@/components/FadeScroll";
@@ -15,12 +16,28 @@ import {
   useCalendarCatalog,
   useCalendarEvents,
   useCalendarRoles,
+  usePomodoroBindings,
   useScheduleMutations,
 } from "../queries";
 import { formatTime, getDateStart } from "@/utils/calendar";
 import type { Calendar, CalendarEvent } from "@/types";
-import { PLAN_OUTLINE, TONE, TONE_SOFT_BG, eventToneStyle, ledgerFill } from "../eventTone";
-import { buildDayTimeline, isMarker, type TimelineItem } from "../ledger";
+import {
+  PLAN_OUTLINE,
+  TONE,
+  TONE_SOFT_BG,
+  eventToneStyle,
+  ledgerFill,
+  toneStyle,
+} from "../eventTone";
+import {
+  absorbFocus,
+  buildDayTimeline,
+  focusLabel,
+  isMarker,
+  spanPercent,
+  type FocusSpan,
+  type TimelineItem,
+} from "../ledger";
 import { usePeekStore } from "../peekStore";
 import { extractCalendarTag, parseQuickAdd } from "../quickAdd";
 import { AllDayBar } from "./EventChips";
@@ -72,13 +89,19 @@ export function DayColumn() {
   // 分钟精度，随 useNowMinutes 的 tick 推进
   const nowMs = getDateStart(Date.now()) + nowMinutes * 60_000;
 
-  const { markers, blocks } = useMemo(() => {
+  const bindings = usePomodoroBindings(dayEvents);
+  const { markers, blocks, focus } = useMemo(() => {
     const markers: CalendarEvent[] = [];
-    const blocks: CalendarEvent[] = [];
-    for (const event of dayEvents) (isMarker(event, roles) ? markers : blocks).push(event);
+    const timed: CalendarEvent[] = [];
+    for (const event of dayEvents) (isMarker(event, roles) ? markers : timed).push(event);
     markers.sort((a, b) => markerOrder(a) - markerOrder(b));
-    return { markers, blocks };
-  }, [dayEvents, roles]);
+    return { markers, ...absorbFocus(timed, bindings, roles) };
+  }, [dayEvents, roles, bindings]);
+  // 专注条取番茄钟日历色
+  const focusTone = useMemo(() => {
+    const calendar = calendars.find(c => roles.get(c.id) === "pomodoro");
+    return calendar ? toneStyle(calendar.color) : undefined;
+  }, [calendars, roles]);
 
   const items = useMemo(
     () => buildDayTimeline({ day, events: blocks, nowMs }),
@@ -222,6 +245,8 @@ export function DayColumn() {
             onRecord={recordGap}
             calendars={calendars}
             decorOf={decorOf}
+            focus={item.kind === "event" ? focus.get(item.event.id) : undefined}
+            focusTone={focusTone}
           />
         ))}
       </FadeScroll>
@@ -240,6 +265,8 @@ function TimelineRow({
   onRecord,
   calendars,
   decorOf,
+  focus,
+  focusTone,
 }: {
   item: TimelineItem;
   first: boolean;
@@ -249,6 +276,8 @@ function TimelineRow({
   onRecord: (start: number, end: number, text: string) => Promise<boolean>;
   calendars: Calendar[];
   decorOf: ReturnType<typeof useEventDecor>;
+  focus?: FocusSpan[];
+  focusTone?: CSSProperties;
 }) {
   const at = item.kind === "now" ? item.at : item.start;
   const gap = item.kind === "record-gap" || item.kind === "plan-gap";
@@ -307,6 +336,8 @@ function TimelineRow({
           onPeek={onPeek}
           calendars={calendars}
           decorOf={decorOf}
+          focus={focus}
+          focusTone={focusTone}
         />
       )}
       {item.kind === "plan-gap" && (
@@ -339,12 +370,16 @@ function EventCard({
   onPeek,
   calendars,
   decorOf,
+  focus,
+  focusTone,
 }: {
   item: Extract<TimelineItem, { kind: "event" }>;
   recorded: boolean;
   onPeek: (event: CalendarEvent, anchor: HTMLElement) => void;
   calendars: Calendar[];
   decorOf: ReturnType<typeof useEventDecor>;
+  focus?: FocusSpan[];
+  focusTone?: CSSProperties;
 }) {
   const fill = ledgerFill(item.phase);
   return (
@@ -366,6 +401,26 @@ function EventCard({
         {formatTime(item.start)} – {formatTime(item.end)} ·{" "}
         {calendars.find(c => c.id === item.event.calendarId)?.title}
       </span>
+      {focus && focus.length > 0 && (
+        // 专注细轨：整条 = 日程起止，实段 = 收进来的番茄
+        <div style={focusTone} className={cn("mt-1 flex items-center gap-2", TONE)}>
+          <div className="bg-track relative h-[3px] flex-1 overflow-hidden rounded-full">
+            {focus.map(span => {
+              const { offset, size } = spanPercent(span, item.start, item.end);
+              return (
+                <i
+                  key={span.start}
+                  className="absolute inset-y-0 rounded-full bg-[var(--cal)]"
+                  style={{ left: `${offset}%`, width: `${size}%` }}
+                />
+              );
+            })}
+          </div>
+          <span className="text-ink-3 font-tau-mono shrink-0 text-[10.5px] tabular-nums">
+            {focusLabel(focus)}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

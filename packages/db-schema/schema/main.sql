@@ -468,7 +468,10 @@ CREATE TABLE IF NOT EXISTS pomodoro_sessions (
         pauses TEXT NOT NULL DEFAULT '[]',
         status TEXT NOT NULL,
         create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL
+        update_time INTEGER NOT NULL,
+        bound_event_id INTEGER,
+        bound_todo_id INTEGER,
+        bound_title TEXT
       );
 CREATE TABLE IF NOT EXISTS pomodoro_calendar_mapping (
         id INTEGER PRIMARY KEY,

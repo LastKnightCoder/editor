@@ -118,3 +118,55 @@ export function buildDayTimeline({
   const position = (item: TimelineItem) => (item.kind === "now" ? item.at : item.start);
   return items.sort((a, b) => position(a) - position(b) || RANK[a.kind] - RANK[b.kind]);
 }
+
+/** 事件内的专注段（分钟，相对事件开始日 0 点） */
+export interface FocusSpan {
+  start: number;
+  end: number;
+}
+
+const absStart = (e: CalendarEvent) => e.startDate + (e.startTime ?? 0) * MINUTE;
+const absEnd = (e: CalendarEvent) => (e.endDate ?? e.startDate) + eventEndMinutes(e) * MINUTE;
+
+/**
+ * 把绑定了某事件、且专注时段完整落在该事件时间内的番茄块收进事件（画成专注条），不设容差：
+ * 超出一点、未绑定、绑定待办无对应事件、绑定事件不在这批里，都按真实时间独立成块。
+ */
+export function absorbFocus(
+  blocks: CalendarEvent[],
+  bindings: Record<number, { boundEventId: number | null }>,
+  roles: Map<number, CalendarRole>
+): { blocks: CalendarEvent[]; focus: Map<number, FocusSpan[]> } {
+  const byId = new Map(blocks.map(e => [e.id, e]));
+  const focus = new Map<number, FocusSpan[]>();
+  const kept = blocks.filter(block => {
+    if (roles.get(block.calendarId) !== "pomodoro") return true;
+    const hostId = bindings[block.id]?.boundEventId;
+    const host = hostId != null ? byId.get(hostId) : undefined;
+    if (!host || absStart(block) < absStart(host) || absEnd(block) > absEnd(host)) return true;
+    const spans = focus.get(host.id) ?? [];
+    spans.push({ start: block.startTime ?? 0, end: eventEndMinutes(block) });
+    focus.set(
+      host.id,
+      spans.sort((a, b) => a.start - b.start)
+    );
+    return false;
+  });
+  return { blocks: kept, focus };
+}
+
+/** 专注总时长文案：「专注 1h20m」「专注 45m」 */
+export function focusLabel(spans: FocusSpan[]): string {
+  const minutes = spans.reduce((sum, span) => sum + Math.max(0, span.end - span.start), 0);
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `专注 ${h ? `${h}h` : ""}${m || !h ? `${m}m` : ""}`;
+}
+
+/** 专注段在宿主区间内的百分比位置（越界裁剪） */
+export function spanPercent(span: FocusSpan, hostStart: number, hostEnd: number) {
+  const total = Math.max(1, hostEnd - hostStart);
+  const from = Math.min(Math.max(span.start, hostStart), hostEnd);
+  const to = Math.min(Math.max(span.end, hostStart), hostEnd);
+  return { offset: ((from - hostStart) / total) * 100, size: ((to - from) / total) * 100 };
+}

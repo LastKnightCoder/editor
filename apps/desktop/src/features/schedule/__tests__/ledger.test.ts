@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { Calendar, CalendarEvent, CalendarGroup } from "@/types";
-import { buildCalendarKinds, buildCalendarRoles } from "../eventTone";
-import { buildDayTimeline, eventPhase, isMarker, type TimelineItem } from "../ledger";
+import { buildCalendarKinds, buildCalendarRoles, type CalendarRole } from "../eventTone";
+import {
+  absorbFocus,
+  buildDayTimeline,
+  focusLabel,
+  spanPercent,
+  eventPhase,
+  isMarker,
+  type TimelineItem,
+} from "../ledger";
 
 const DAY = new Date(2026, 9, 5).getTime();
 const at = (h: number, m = 0, day = DAY) => day + (h * 60 + m) * 60_000;
@@ -173,4 +181,56 @@ describe("buildDayTimeline", () => {
       "plan-gap:555-1320",
     ]);
   });
+});
+
+describe("absorbFocus", () => {
+  const roles = new Map<number, CalendarRole>([[9, "pomodoro"]]);
+  const host = ev(hm(9), hm(11), { id: 500 });
+  const pomo = (start: number, end: number, id: number) => ev(start, end, { id, calendarId: 9 });
+
+  it("完整落在绑定事件内的番茄收进事件，多段按时间排序", () => {
+    const blocks = [host, pomo(hm(10), hm(10, 50), 2), pomo(hm(9, 5), hm(9, 55), 1)];
+    const bindings = { 1: { boundEventId: 500 }, 2: { boundEventId: 500 } };
+    const { blocks: kept, focus } = absorbFocus(blocks, bindings, roles);
+    expect(kept.map(b => b.id)).toEqual([500]);
+    expect(focus.get(500)).toEqual([
+      { start: hm(9, 5), end: hm(9, 55) },
+      { start: hm(10), end: hm(10, 50) },
+    ]);
+  });
+
+  it("诚实展示：超出一点、未绑定、绑定的事件不在这批里，都独立成块", () => {
+    const blocks = [
+      host,
+      pomo(hm(10, 40), hm(11, 5), 3),
+      pomo(hm(9), hm(9, 30), 4),
+      pomo(hm(9), hm(9, 30), 5),
+    ];
+    const bindings = {
+      3: { boundEventId: 500 },
+      4: { boundEventId: null },
+      5: { boundEventId: 999 },
+    };
+    const { blocks: kept, focus } = absorbFocus(blocks, bindings, roles);
+    expect(kept.map(b => b.id)).toEqual([500, 3, 4, 5]);
+    expect(focus.size).toBe(0);
+  });
+
+  it("非番茄块原样保留", () => {
+    const other = ev(hm(9, 10), hm(9, 40), { id: 6 });
+    expect(absorbFocus([host, other], { 6: { boundEventId: 500 } }, roles).blocks).toHaveLength(2);
+  });
+});
+
+it("focusLabel / spanPercent", () => {
+  expect(focusLabel([{ start: 0, end: 45 }])).toBe("专注 45m");
+  expect(
+    focusLabel([
+      { start: 0, end: 50 },
+      { start: 60, end: 90 },
+    ])
+  ).toBe("专注 1h20m");
+  expect(focusLabel([{ start: 0, end: 120 }])).toBe("专注 2h");
+  expect(spanPercent({ start: 570, end: 600 }, 540, 660)).toEqual({ offset: 25, size: 25 });
+  expect(spanPercent({ start: 500, end: 560 }, 540, 660).offset).toBe(0);
 });

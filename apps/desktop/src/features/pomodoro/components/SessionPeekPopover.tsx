@@ -1,5 +1,5 @@
 /**
- * 账本色块详情（Popover）：起止时刻、专注 / 预期、暂停分布条，操作 = 修改时长 / 删除。
+ * 账本色块详情（Popover）：起止时刻、专注 / 预期、暂停分布条、关联对象（可跳转），操作 = 修改时长 / 删除。
  */
 
 import { Clock, Trash2 } from "lucide-react";
@@ -24,6 +24,7 @@ export function SessionPeekPopover({
   onClose,
   onEditFocus,
   onDelete,
+  onOpenBinding,
 }: {
   session: PomodoroSession | null;
   anchor: HTMLElement | null;
@@ -32,6 +33,8 @@ export function SessionPeekPopover({
   onClose(): void;
   onEditFocus(session: PomodoroSession, anchor: HTMLElement): void;
   onDelete(session: PomodoroSession): void;
+  /** 跳到关联的日程 / 待办 */
+  onOpenBinding(session: PomodoroSession): void;
 }) {
   const end = session ? (session.endTime ?? session.startTime) : 0;
   const span = session ? Math.max(1, end - session.startTime) : 1;
@@ -81,6 +84,24 @@ export function SessionPeekPopover({
                 {formatDurationCN(session.focusMs)}
                 {session.expectedMs ? ` / ${Math.round(session.expectedMs / MINUTE_MS)} 分钟` : ""}
               </dd>
+              {session.boundTitle && (
+                <>
+                  <dt className="text-ink-2">关联</dt>
+                  <dd className="min-w-0 text-right">
+                    <button
+                      type="button"
+                      title={`打开「${session.boundTitle}」`}
+                      onClick={() => {
+                        onClose();
+                        onOpenBinding(session);
+                      }}
+                      className="text-accent-text max-w-full truncate hover:underline"
+                    >
+                      {session.boundTitle}
+                    </button>
+                  </dd>
+                </>
+              )}
               <dt className="text-ink-2">暂停</dt>
               <dd className="text-ink-1 text-right">
                 {session.pauseCount

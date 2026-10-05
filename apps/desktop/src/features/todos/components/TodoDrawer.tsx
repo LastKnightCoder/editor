@@ -12,6 +12,7 @@ import { dayWord, doneToday, hm, isOverdue, monthDay } from "../model";
 import type { TodoMutations } from "../queries";
 import type { TodoEntry, TodoSnapshot } from "../types";
 import { DetailFields } from "./DetailFields";
+import { FocusStartButton } from "@/features/pomodoro/components/FocusStartButton";
 import {
   DescriptionSection,
   HabitSection,
@@ -93,9 +94,18 @@ export function TodoDrawer({
       }
       actions={
         current && (
-          <IconButton title="删除（可撤销）" onClick={() => onDelete(current)}>
-            <Trash2 className="size-[15px]" strokeWidth={1.75} />
-          </IconButton>
+          <>
+            {!current.isCompleted && (
+              <FocusStartButton
+                target={{ kind: "todo", todoId: current.id }}
+                title={current.title}
+                label="专注"
+              />
+            )}
+            <IconButton title="删除（可撤销）" onClick={() => onDelete(current)}>
+              <Trash2 className="size-[15px]" strokeWidth={1.75} />
+            </IconButton>
+          </>
         )
       }
     >

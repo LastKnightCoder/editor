@@ -26,6 +26,7 @@ vi.mock("../queries", () => ({
   useCalendarKinds: () => new Map([[9, "todo"]]),
   useTodoEventSources: () => ({}),
   useToggleTodoEvent: () => () => undefined,
+  usePomodoroBindings: () => ({}),
   useScheduleMutations: () => ({ createEvent }),
 }));
 
