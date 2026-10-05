@@ -1,10 +1,10 @@
 import { useState } from "react";
-import classNames from "classnames";
+import { ShieldAlert } from "lucide-react";
 import type { AiRunApprovalRequest } from "@tau/shared";
+import { Button } from "@tau/ui";
 
 interface ToolApprovalBarProps {
   approvals: AiRunApprovalRequest[];
-  isDark?: boolean;
   onDecide: (requestId: string, choice: "allow" | "allow-session" | "deny") => Promise<void>;
 }
 
@@ -29,7 +29,7 @@ const previewInput = (input: string) => {
  * 工具审批条（M5：扩展对话的审批走桌面宿主原生）。桌面按「工具权限」设置判定哪些调用要确认，
  * 在等时这里逐条显示，允许 / 本会话始终允许 / 拒绝经 ai.run.approve 发回同一轮运行。
  */
-export default function ToolApprovalBar({ approvals, isDark, onDecide }: ToolApprovalBarProps) {
+export default function ToolApprovalBar({ approvals, onDecide }: ToolApprovalBarProps) {
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState("");
   if (approvals.length === 0) return null;
@@ -47,56 +47,40 @@ export default function ToolApprovalBar({ approvals, isDark, onDecide }: ToolApp
   return (
     <div role="region" aria-label="等待确认的工具调用" className="mb-2 space-y-2">
       {approvals.map(request => (
-        <div
-          key={request.requestId}
-          className={classNames(
-            "rounded-xl border px-3 py-2 text-xs",
-            isDark
-              ? "border-amber-400/30 bg-amber-400/10 text-slate-200"
-              : "border-amber-300 bg-amber-50 text-slate-700"
-          )}
-        >
-          <div className="font-medium">
-            模型想要{RISK_LABEL[request.risk] ?? "调用"}：{request.toolName}
+        <div key={request.requestId} className="bg-warn-soft rounded-tau-md px-3 py-2.5">
+          <div className="text-tau-meta text-ink-1 flex items-center gap-2">
+            <ShieldAlert className="text-warn size-4 shrink-0" strokeWidth={1.75} />
+            <span className="min-w-0 flex-1">
+              AI 想要<b className="font-semibold">{RISK_LABEL[request.risk] ?? "调用"}</b>
+              <span className="font-tau-mono"> {request.toolName}</span>，需要你确认
+            </span>
           </div>
-          <div
-            className={classNames(
-              "mt-1 break-all font-mono",
-              isDark ? "text-slate-400" : "text-slate-500"
-            )}
-          >
+          <pre className="font-tau-mono text-ink-1 bg-surface rounded-tau-sm m-0 mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-all px-2.5 py-1.5 text-[12px] leading-[1.6]">
             {previewInput(request.input)}
-          </div>
-          <div className="mt-2 flex gap-2">
+          </pre>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {(
               [
-                ["allow", "允许"],
-                ["allow-session", "本会话始终允许"],
-                ["deny", "拒绝"],
+                ["allow", "允许", "primary"],
+                ["allow-session", "本会话始终允许", "secondary"],
+                ["deny", "拒绝", "ghost"],
               ] as const
-            ).map(([choice, label]) => (
-              <button
+            ).map(([choice, label, variant]) => (
+              <Button
                 key={choice}
-                type="button"
+                size="sm"
+                variant={variant}
                 disabled={pending === request.requestId}
                 onClick={() => decide(request.requestId, choice)}
-                className={classNames(
-                  "rounded-md px-2 py-1 disabled:opacity-50",
-                  choice === "deny"
-                    ? isDark
-                      ? "bg-white/10 hover:bg-white/15"
-                      : "bg-white hover:bg-slate-100"
-                    : "bg-sky-600 text-white hover:bg-sky-500"
-                )}
               >
                 {label}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
       ))}
       {error && (
-        <div role="alert" className="text-xs text-red-500">
+        <div role="alert" className="text-tau-sm text-danger">
           {error}
         </div>
       )}

@@ -45,6 +45,35 @@ fn feature_table_retirement_drops_leftovers_and_keeps_data() {
 }
 
 #[test]
+fn content_link_retirement_moves_rows_into_lineage_and_repeats() {
+    let conn = Connection::open_in_memory().unwrap();
+    ensure_main_schema(&conn).unwrap();
+    conn.execute_batch(include_str!("../../../../../packages/db-schema/fixtures/content-link-retirement.sql")).unwrap();
+    ensure_main_schema(&conn).unwrap();
+    ensure_main_schema(&conn).unwrap();
+    let left: i64 = conn.query_row("SELECT COUNT(*) FROM sqlite_master WHERE name IN ('content_link','idx_content_link_unique')", [], |r| r.get(0)).unwrap();
+    assert_eq!(left, 0);
+    let rows = conn.prepare("SELECT src_kind,src_id,dst_kind,dst_id,relation,create_time FROM entity_lineage ORDER BY id").unwrap()
+        .query_map([], |r| Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?,r.get::<_,String>(3)?,r.get::<_,String>(4)?,r.get::<_,i64>(5)?)))
+        .unwrap().collect::<rusqlite::Result<Vec<_>>>().unwrap();
+    assert_eq!(rows, vec![
+        ("project-item".into(),"5".into(),"web-clip".into(),"9".into(),"clipped_from".into(),100),
+        ("project-item".into(),"6".into(),"web-clip".into(),"10".into(),"clipped_from".into(),200),
+    ]);
+}
+
+#[test]
+fn content_link_retirement_rejects_unknown_rows() {
+    let conn = Connection::open_in_memory().unwrap();
+    ensure_main_schema(&conn).unwrap();
+    conn.execute_batch(include_str!("../../../../../packages/db-schema/fixtures/content-link-retirement.sql")).unwrap();
+    conn.execute_batch("INSERT INTO content_link VALUES (3, 300, 7, 'card', 11, 'web_clip')").unwrap();
+    assert!(ensure_main_schema(&conn).unwrap_err().starts_with("CONTENT_LINK_RETIREMENT_FAILED"));
+    let kept: i64 = conn.query_row("SELECT COUNT(*) FROM content_link", [], |r| r.get(0)).unwrap();
+    assert_eq!(kept, 3);
+}
+
+#[test]
 fn subscription_retirement_failure_rolls_back() {
     let conn = Connection::open_in_memory().unwrap();
     ensure_main_schema(&conn).unwrap();

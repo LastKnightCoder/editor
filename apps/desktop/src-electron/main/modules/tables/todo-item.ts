@@ -141,7 +141,7 @@ export default class TodoItemTable {
     } as const;
   }
 
-  /** 「计划任务」已退役（D-113）：计划时段改由关联待办的日历事件表达，拒绝再写入 planned */
+  /** 「计划任务」已退役（D-114）：计划时段改由关联待办的日历事件表达，拒绝再写入 planned */
   static assertType(type: string | undefined) {
     if (type !== undefined && !["normal", "deadline", "recurring"].includes(type)) {
       throw new Error(`Unsupported todo type: ${type}`);

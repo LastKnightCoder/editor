@@ -30,7 +30,7 @@ class ToolCallRendererErrorBoundary extends React.Component<
     if (this.state.hasError) {
       return (
         <>
-          <div className="px-1 py-1.5 text-[11px] text-slate-400">渲染出错，已回退到默认视图</div>
+          <div className="text-tau-tiny text-ink-3 px-1 py-1.5">渲染出错，已回退到默认视图</div>
           {this.props.fallback}
         </>
       );

@@ -77,19 +77,23 @@ import {
   getMarkdown,
 } from "@/utils";
 import type { IArticle } from "@/types";
+import AddTag from "@/components/AddTag";
 import { ConfirmDialog, Loading, Menu, toast } from "@tau/ui";
 
 import { useArticleMutations } from "../queries";
 import { ArticlePodcast } from "../components/ArticlePodcast";
 import { ArticleHero } from "../components/ArticleHero";
-import { ArticleTags } from "../components/ArticleTags";
 import { ArticleSwitcher } from "../components/ArticleSwitcher";
+import { ArticleBodyFallback } from "../components/ArticleBodyFallback";
+import { articleMorphKey } from "../morph";
 import {
   ContentOutline,
   extractContentHeaders,
   resolveEditorHeaderAnchor,
   type OutlineHeader,
 } from "@/components/ContentOutline";
+import { ContextBadge } from "@/features/context/components/ContextBadge";
+import { useInsightsView } from "@/features/insights/useInsightsView";
 
 /** copy utils 的 MessageApi 是结构类型，toast 同形适配（不引 antd message） */
 const toastAdapter = {
@@ -109,7 +113,7 @@ function cloneRange(selection: Range | null): Range | null {
 export function ArticleDetailView() {
   const { navigator } = usePage();
   // 本实例 params（PageHost 按栈条目注入；勿读全局栈顶——多实例保活时会串台）
-  const { id } = usePageParams<{ id: number }>();
+  const { id, at } = usePageParams<{ id: number; at?: string }>();
 
   const {
     editingArticle,
@@ -118,6 +122,7 @@ export function ArticleDetailView() {
     onTitleChange,
     onAddTag,
     onDeleteTag,
+    onTagsChange,
     saveArticle,
     setEditingArticle,
   } = useEditArticle(id);
@@ -125,6 +130,13 @@ export function ArticleDetailView() {
   const editorRef = useRef<EditorRef>(null);
   const collaborationRef = useRef<ContentCollaborationControlHandle>(null);
   const shared = useContentShared(editingArticle?.contentId);
+  /* AI 洞见：标题栏下元信息行入口 + 正文上方报告 + 就地标记（KL-058） */
+  const insights = useInsightsView({
+    ref: { kind: "article", id: editingArticle?.id ?? 0 },
+    contentId: editingArticle?.contentId ?? 0,
+    sourceLabel: `文章：${editingArticle?.title || "无标题文章"}`,
+    getEditor: useCallback(() => editorRef.current?.getEditor(), []),
+  });
   const [pendingDelete, setPendingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const { remove } = useArticleMutations();
@@ -430,7 +442,11 @@ export function ArticleDetailView() {
     <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
       {/* 一整张纸（同卡片详情）：封面内衬在纸顶，版心恒居中（hero 与正文列同轴）；
           滚动区贴满纸面（不留上下外边距），封面才能与纸边等距 10px；面包屑由壳层槽位渲染 */}
-      <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
+      {/* 纸面是形变目标（D-106）：文章读到才声明，切换文章的原位更新期间不认旧文章 */}
+      <div
+        data-morph-key={editingArticle.id === id ? articleMorphKey(id) : undefined}
+        className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden"
+      >
         <FadeScroll scrollRef={setScrollEl} className="min-h-0 flex-1 border-r-[3px]">
           <ArticleHero
             article={editingArticle}
@@ -439,6 +455,12 @@ export function ArticleDetailView() {
             }}
             onChangeCover={() => void handleChangeCover()}
             changingCover={changingCover}
+            extraMeta={
+              <>
+                <ContextBadge entity={{ kind: "article", id: editingArticle.id }} />
+                {insights.button}
+              </>
+            }
             actions={
               <span className="flex items-center gap-1">
                 {/* 协作：已共享时常驻成员条（点开成员 Popover）；未共享不占位，由 ⋯「发起协作」打开对话框 */}
@@ -460,6 +482,7 @@ export function ArticleDetailView() {
 
           <div className="grid grid-cols-[1fr_minmax(0,720px)_1fr] items-start px-[26px] pb-10 pt-8">
             <article className="col-start-2 min-w-0">
+              {insights.report && <div className="mb-6">{insights.report}</div>}
               <ArticlePodcast
                 article={editingArticle}
                 modalOpen={podcastModalOpen}
@@ -468,30 +491,35 @@ export function ArticleDetailView() {
               />
 
               <div className={editingArticle.podcast ? "mt-[30px]" : undefined}>
-                <ErrorBoundary>
-                  <ContentEditor
-                    ref={editorRef}
-                    contentId={editingArticle.contentId}
-                    key={`${editingArticle.id}-${editorRemountKey}`}
-                    initValue={editingArticle.content}
-                    onInit={onInit}
-                    onChange={content => {
-                      onContentChange(content);
-                    }}
-                    readonly={false}
-                    editingContext={{ entityType: "article", entityId: editingArticle.id }}
-                  />
-                </ErrorBoundary>
+                {insights.frame(
+                  <ErrorBoundary>
+                    <ContentEditor
+                      at={at}
+                      ref={editorRef}
+                      contentId={editingArticle.contentId}
+                      key={`${editingArticle.id}-${editorRemountKey}`}
+                      initValue={editingArticle.content}
+                      fallback={<ArticleBodyFallback content={editingArticle.content} />}
+                      onInit={onInit}
+                      onChange={content => {
+                        onContentChange(content);
+                      }}
+                      readonly={false}
+                      editingContext={{ entityType: "article", entityId: editingArticle.id }}
+                      {...insights.editorProps}
+                    />
+                  </ErrorBoundary>
+                )}
               </div>
 
-              <ArticleTags
+              <AddTag
+                divided
                 tags={editingArticle.tags}
-                onAdd={tag => {
-                  onAddTag(tag);
-                }}
-                onDelete={tag => {
-                  onDeleteTag(tag);
-                }}
+                addTag={onAddTag}
+                removeTag={onDeleteTag}
+                editTag={(oldTag, newTag) =>
+                  onTagsChange(editingArticle.tags.map(tag => (tag === oldTag ? newTag : tag)))
+                }
               />
             </article>
 

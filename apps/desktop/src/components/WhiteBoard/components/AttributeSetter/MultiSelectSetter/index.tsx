@@ -22,14 +22,19 @@ import {
   isValid,
 } from "@/components/WhiteBoard/utils";
 import { AttrAction, ChromeGap } from "@/components/WhiteBoard/chrome";
+import { MultiSketchPopover } from "../SketchPopover";
 
 interface MultiSelectSetterProps {
+  /** 可对齐元素（已剔除连线与容器内部元素） */
   elements: BoardElement[];
+  /** 批量笔触的作用范围：全部选中元素 */
+  sketchTargets: BoardElement[];
   onChange: (elements: BoardElement[]) => void;
 }
 
 const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
-  const { elements, onChange } = props;
+  const { elements, sketchTargets, onChange } = props;
+  const canAlign = elements.length > 1;
 
   const { zoom } = useViewPort();
   const board = useBoard();
@@ -198,36 +203,40 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
 
   return (
     <>
-      <AttrAction
-        label="左对齐"
-        icon={<AlignStartVertical strokeWidth={1.75} />}
-        onClick={handleAlignLeft}
-      />
-      <AttrAction
-        label="右对齐"
-        icon={<AlignEndVertical strokeWidth={1.75} />}
-        onClick={handleAlignRight}
-      />
-      <AttrAction
-        label="顶部对齐"
-        icon={<AlignStartHorizontal strokeWidth={1.75} />}
-        onClick={handleAlignTop}
-      />
-      <AttrAction
-        label="底部对齐"
-        icon={<AlignEndHorizontal strokeWidth={1.75} />}
-        onClick={handleAlignBottom}
-      />
-      <AttrAction
-        label="横向均分"
-        icon={<AlignHorizontalDistributeCenter strokeWidth={1.75} />}
-        onClick={handleDistributeHorizontal}
-      />
-      <AttrAction
-        label="纵向均分"
-        icon={<AlignVerticalDistributeCenter strokeWidth={1.75} />}
-        onClick={handleDistributeVertical}
-      />
+      {canAlign && (
+        <>
+          <AttrAction
+            label="左对齐"
+            icon={<AlignStartVertical strokeWidth={1.75} />}
+            onClick={handleAlignLeft}
+          />
+          <AttrAction
+            label="右对齐"
+            icon={<AlignEndVertical strokeWidth={1.75} />}
+            onClick={handleAlignRight}
+          />
+          <AttrAction
+            label="顶部对齐"
+            icon={<AlignStartHorizontal strokeWidth={1.75} />}
+            onClick={handleAlignTop}
+          />
+          <AttrAction
+            label="底部对齐"
+            icon={<AlignEndHorizontal strokeWidth={1.75} />}
+            onClick={handleAlignBottom}
+          />
+          <AttrAction
+            label="横向均分"
+            icon={<AlignHorizontalDistributeCenter strokeWidth={1.75} />}
+            onClick={handleDistributeHorizontal}
+          />
+          <AttrAction
+            label="纵向均分"
+            icon={<AlignVerticalDistributeCenter strokeWidth={1.75} />}
+            onClick={handleDistributeVertical}
+          />
+        </>
+      )}
       {/* 手写合并 / 拆分只在选区满足条件时出现，不摆禁用态 */}
       {(canMergeHandwrite || canSplitHandwrite) && <ChromeGap />}
       {canMergeHandwrite && (
@@ -244,6 +253,8 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
           onClick={handleSplitHandwriteGroup}
         />
       )}
+      {canAlign && <ChromeGap />}
+      <MultiSketchPopover elements={sketchTargets} />
     </>
   );
 });

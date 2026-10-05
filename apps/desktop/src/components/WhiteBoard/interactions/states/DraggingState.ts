@@ -1,11 +1,9 @@
 import type Board from "../../Board";
 import { BoardElement, ECreateBoardElementType, Operation } from "../../types";
-import { SnapBehavior } from "../../types/capabilities";
 import {
   BoardUtil,
   PointUtil,
   PathUtil,
-  Rect,
   isValid,
   collectGroupMembers,
   expandSelectionByGroup,
@@ -13,6 +11,7 @@ import {
   getElementGroupId,
 } from "../../utils";
 import type { InteractionState } from "../InteractionState";
+import { hasSnapBounds, unionBounds } from "../../utils/snap/SnapGeometry";
 
 /**
  * 元素拖拽状态（原 MovePlugin 的指针手势部分）。
@@ -122,7 +121,7 @@ export class DraggingState implements InteractionState {
     let movedElements: BoardElement[] = [];
 
     if (!this.moveElements || !this.startPoint) {
-      board.clearRefLines();
+      board.snap.end();
       return {
         movedElements,
       };
@@ -130,85 +129,42 @@ export class DraggingState implements InteractionState {
 
     const endPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!endPoint) {
-      board.clearRefLines();
+      board.snap.end();
       return {
         movedElements,
       };
     }
 
-    const offsetX = endPoint.x - this.startPoint.x;
-    const offsetY = endPoint.y - this.startPoint.y;
+    const rawOffsetX = endPoint.x - this.startPoint.x;
+    const rawOffsetY = endPoint.y - this.startPoint.y;
+    const moveAll = (dx: number, dy: number) =>
+      this.moveElements!.map(element => board.moveElement(element, dx, dy)).filter(isValid);
 
-    this.moveElements.forEach(element => {
-      const movedElement = board.moveElement(element, offsetX, offsetY);
-      if (movedElement) {
-        movedElements.push(movedElement);
-      }
-    });
+    movedElements = moveAll(rawOffsetX, rawOffsetY);
 
-    // 更新正在移动的元素，这些元素的边界不会显示为参考线
+    // 以参与吸附元素的并集包围盒求一次偏移，再整体回放到全部运动元素，保证选区内相对位置不变
     const capService = board.capabilityService;
-    const currentMoved: Rect[] = movedElements
-      .map(me => {
-        // 使用能力查询判断是否参与参考线
-        if (!capService.shouldParticipateInRefLines(me)) return;
-        return {
-          key: me.id,
-          x: me.x,
-          y: me.y,
-          width: me.width,
-          height: me.height,
-        };
-      })
-      .filter(isValid);
-    // 获取所有需要带子元素一起移动的容器（含其自身与后代，均不作为参考线）
-    const containers = movedElements.filter(el => capService.shouldMoveWithChildren(el));
-    const containerChildren = containers
-      .flatMap(container => capService.collectMoveSubtree(container))
-      .map(ele => {
-        if (!capService.shouldParticipateInRefLines(ele)) return;
-        return {
-          key: ele.id,
-          x: ele.x,
-          y: ele.y,
-          width: ele.width,
-          height: ele.height,
-        };
-      })
-      .filter(isValid);
-
-    board.refLine.setCurrentRects([...currentMoved, ...containerChildren]);
+    const snapBounds = unionBounds(
+      movedElements
+        .filter(
+          me => capService.shouldElementSnap(me) && capService.shouldParticipateInRefLines(me)
+        )
+        .filter(hasSnapBounds)
+    );
+    if (!snapBounds) {
+      board.snap.end();
+      return { movedElements };
+    }
 
     // 按下 altKey 表示不吸附
-    const isAdsorb = !e.altKey;
-
-    // 获取吸附后的元素的位置
-    const newCurrent = board.refLine.getUpdateCurrent(isAdsorb, 5 / board.viewPort.zoom);
-
-    // 如果使用吸附，则根据吸附的结果 newCurrent 更新 movedElements
-    if (isAdsorb) {
-      movedElements = movedElements
-        .map(me => {
-          // 使用能力查询判断是否参与吸附
-          if (!capService.shouldElementSnap(me)) return me;
-          const rect = newCurrent.rects.find(rect => rect.key === me.id);
-          if (!rect) return;
-          // 对于 RootOnly 类型的吸附（如 mind-node），需要整体移动
-          const snapCap = capService.getSnapCapability(me.type);
-          if (snapCap.behavior === SnapBehavior.RootOnly && snapCap.moveAll) {
-            const diffX = rect.x - me.x;
-            const diffY = rect.y - me.y;
-            return snapCap.moveAll(me, diffX, diffY);
-          }
-          return {
-            ...me,
-            x: rect.x,
-            y: rect.y,
-          };
-        })
-        .filter(isValid);
+    const { dx, dy } = board.snap.move({
+      elements: this.moveElements,
+      bounds: snapBounds,
+      enabled: !e.altKey,
+    });
+    if (dx !== 0 || dy !== 0) {
+      movedElements = moveAll(rawOffsetX + dx, rawOffsetY + dy);
     }
-    board.refLine.setCurrent(newCurrent);
 
     return {
       movedElements,
@@ -356,7 +312,7 @@ export class DraggingState implements InteractionState {
 
     if (!this.isMoved) {
       // 如果没有移动，也要清除参考线
-      board.clearRefLines();
+      board.snap.end();
       board.emit("element:move-end");
       return;
     }
@@ -416,7 +372,7 @@ export class DraggingState implements InteractionState {
     }
 
     // 确保清除参考线
-    board.clearRefLines();
+    board.snap.end();
 
     if (operations.length > 0) {
       // selection 等 UI 状态不应进入 history

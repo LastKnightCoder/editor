@@ -8,9 +8,9 @@ import { createDomThemeService, type EditorThemeMode, type ThemeService } from "
  * 最近一层 EditorThemeOverride / 外层编辑器 → 服务注册表的 IThemeService → DOM 默认实现
  * （读 <html> 的 data-mode / data-theme）。
  *
- * 局部强制明暗（白板思维导图节点、导出预览等自带底色的容器）用 <EditorThemeOverride mode>
- * 包住编辑器；编辑器发现生效明暗与 <html> 不同时，在根节点补 data-theme + data-mode，
- * 让 --tau-* 数据块在子树重算。嵌套编辑器经同一个 Context 继承。
+ * 局部强制明暗 / 主题族（白板思维导图节点、导出图片等自带底色的容器）用
+ * <EditorThemeOverride mode themeKey> 包住编辑器；编辑器发现生效明暗或主题族与 <html> 不同时，
+ * 在根节点补 data-theme + data-mode，让 --tau-* 数据块在子树重算。嵌套编辑器经同一个 Context 继承。
  */
 const EditorThemeContext = createContext<ThemeService | null>(null);
 
@@ -51,28 +51,38 @@ function useResolvedService(registered?: ThemeService): ThemeService {
   return useContext(EditorThemeContext) ?? registered ?? getDomService();
 }
 
-/** 固定明暗、其余（主题族、token、订阅）沿用外层服务 */
-function forceMode(parent: ThemeService, mode: EditorThemeMode): ThemeService {
+/** 固定明暗和 / 或主题族，未给定的维度与 token、订阅沿用外层服务 */
+function forceTheme(
+  parent: ThemeService,
+  override: { mode?: EditorThemeMode; themeKey?: string }
+): ThemeService {
   return {
-    mode,
+    get mode() {
+      return override.mode ?? parent.mode;
+    },
     get themeKey() {
-      return parent.themeKey;
+      return override.themeKey ?? parent.themeKey;
     },
     token: word => parent.token(word),
     subscribe: listener => parent.subscribe(listener),
   };
 }
 
-/** 宿主用：让子树里的编辑器按给定明暗渲染，不跟随宿主；mode 缺省时不覆盖 */
+/** 宿主用：让子树里的编辑器按给定明暗 / 主题族渲染，不跟随宿主；缺省的维度不覆盖 */
 export function EditorThemeOverride({
   mode,
+  themeKey,
   children,
 }: {
   mode?: EditorThemeMode;
+  themeKey?: string;
   children: ReactNode;
 }) {
   const parent = useResolvedService();
-  const service = useMemo(() => (mode ? forceMode(parent, mode) : parent), [parent, mode]);
+  const service = useMemo(
+    () => (mode || themeKey ? forceTheme(parent, { mode, themeKey }) : parent),
+    [parent, mode, themeKey]
+  );
   return <EditorThemeContext.Provider value={service}>{children}</EditorThemeContext.Provider>;
 }
 
@@ -86,15 +96,15 @@ export function EditorThemeScope({
   children: (scope: { themeKey: string; mode: EditorThemeMode; overridden: boolean }) => ReactNode;
 }) {
   const resolved = useResolvedService(service);
-  const { mode } = useServiceSnapshot(resolved);
+  const { mode, themeKey } = useServiceSnapshot(resolved);
   const dom = getDomService();
-  const { mode: documentMode } = useServiceSnapshot(dom);
+  const { mode: documentMode, themeKey: documentThemeKey } = useServiceSnapshot(dom);
   return (
     <EditorThemeContext.Provider value={resolved}>
       {children({
-        themeKey: resolved.themeKey || dom.themeKey,
+        themeKey: themeKey || documentThemeKey,
         mode,
-        overridden: mode !== documentMode,
+        overridden: mode !== documentMode || (!!themeKey && themeKey !== documentThemeKey),
       })}
     </EditorThemeContext.Provider>
   );

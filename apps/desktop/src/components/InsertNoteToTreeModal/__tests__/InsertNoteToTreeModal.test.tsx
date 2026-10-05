@@ -16,10 +16,9 @@ const commandMocks = vi.hoisted(() => ({
   addRootProjectItem: vi.fn(),
   addChildProjectItem: vi.fn(),
   createSharedProjectItemFromContent: vi.fn(),
-  createWebLink: vi.fn(),
-  createEmptyVideoNote: vi.fn(),
   getProjectItemsByIds: vi.fn(),
   getContentById: vi.fn(),
+  recordLineage: vi.fn(),
 }));
 
 vi.mock("@/commands/project", () => ({
@@ -30,12 +29,8 @@ vi.mock("@/commands/project", () => ({
   getProjectItemsByIds: commandMocks.getProjectItemsByIds,
 }));
 
-vi.mock("@/commands/web-link", () => ({
-  createWebLink: commandMocks.createWebLink,
-}));
-
-vi.mock("@/commands/video-notes", () => ({
-  createEmptyVideoNote: commandMocks.createEmptyVideoNote,
+vi.mock("@/commands/lineage", () => ({
+  recordLineage: commandMocks.recordLineage,
 }));
 
 vi.mock("@/commands", () => ({
@@ -91,38 +86,23 @@ describe("InsertNoteToTreeModal", () => {
       },
     ]);
     commandMocks.getProjectItemsByIds.mockResolvedValue([]);
-    commandMocks.createEmptyVideoNote.mockResolvedValue({
-      id: 9,
-      createTime: 1,
-      updateTime: 1,
-      metaInfo: { type: "bilibili", bvid: "BV1abc", cid: "123", quality: 80 },
-    });
+    commandMocks.getContentById.mockResolvedValue({ content: [{ type: "paragraph" }] });
     commandMocks.addRootProjectItem.mockResolvedValue([
       { id: 1, title: "项目" },
-      { id: 22, title: "视频标题" },
+      { id: 22, title: "渲染笔记" },
     ]);
   });
 
-  it("视频笔记模式应创建 video-note 项目项", async () => {
+  it("复制模式按来源正文新建文档，并为来源记谱系 derived", async () => {
     const onSuccess = vi.fn();
-    const metaInfo = {
-      type: "bilibili" as const,
-      bvid: "BV1abc",
-      cid: "123",
-      quality: 80,
-    };
-
     const { root, container } = await mount(
       <InsertNoteToTreeModal
         mode="project"
         open
-        noteTitle="视频标题"
+        noteTitle="渲染笔记"
         noteContent={[]}
-        insertMode="video-note"
-        videoNotePayload={{
-          title: "视频标题",
-          metaInfo,
-        }}
+        sourceContentId={30}
+        source={{ kind: "vl-note", id: 4 }}
         onCancel={vi.fn()}
         onSuccess={onSuccess}
       />
@@ -140,29 +120,33 @@ describe("InsertNoteToTreeModal", () => {
     });
     await flush();
     await flush();
-    expect(document.body.textContent).toContain("添加到根目录");
+    expect(document.body.textContent).toContain("插入到根目录");
 
-    const addButton = Array.from(document.body.querySelectorAll("button")).find(
-      button => button.textContent?.trim() === "添加"
+    const insertButton = Array.from(document.body.querySelectorAll("button")).find(
+      button => button.textContent?.trim() === "插入"
     ) as HTMLButtonElement | undefined;
-    expect(addButton).toBeTruthy();
-    expect(addButton?.disabled).toBe(false);
+    expect(insertButton?.disabled).toBe(false);
     await act(async () => {
-      addButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      insertButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
     await flush();
 
-    expect(commandMocks.createEmptyVideoNote).toHaveBeenCalledWith(metaInfo);
+    expect(commandMocks.getContentById).toHaveBeenCalledWith(30);
     expect(commandMocks.addRootProjectItem).toHaveBeenCalledWith(
       1,
       expect.objectContaining({
-        title: "视频标题",
-        refType: "video-note",
-        refId: 9,
-        projectItemType: EProjectItemType.VideoNote,
+        title: "渲染笔记",
+        content: [{ type: "paragraph" }],
+        refType: "",
+        projectItemType: EProjectItemType.Document,
       })
     );
-    expect(onSuccess).toHaveBeenCalledWith({ id: 22, title: "视频标题" });
+    expect(commandMocks.recordLineage).toHaveBeenCalledWith({
+      src: { kind: "vl-note", id: 4 },
+      dst: { kind: "project-item", id: 22 },
+      relation: "derived",
+    });
+    expect(onSuccess).toHaveBeenCalled();
 
     await unmount(root, container);
   });

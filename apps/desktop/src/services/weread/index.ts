@@ -2,6 +2,7 @@ import dayjs from "dayjs";
 import useSettingStore from "@/stores/useSettingStore";
 import { nodeFetch } from "@/commands/extra";
 import {
+  chaptersFromHighlights,
   parseChapterHighlightReview,
   parseChapterResp,
   parseChapterReviews,
@@ -149,6 +150,14 @@ export interface IncrementalSyncResult extends MetadataListResult {
   removedBookIds: string[];
   /** 本次逐本补拉详情的书数 */
   requested: number;
+  /** 有笔记的书的笔记指纹（笔记本概览的 sort 与笔记总数）；不在其中的书没有笔记 */
+  noteFingerprints: Record<string, NoteFingerprint>;
+}
+
+/** 笔记指纹：存进 synckeys.highlights（sort）与 synckeys.reviews（笔记总数），变化即重新拉划线 */
+export interface NoteFingerprint {
+  sort: number;
+  count: number;
 }
 
 export interface MetadataSyncProgress {
@@ -432,6 +441,9 @@ class WeReadService {
         archiveName: archiveInfo[meta.bookId]?.archiveName,
         synckeys: {
           ...base.synckeys,
+          // 笔记指纹由拉划线那一步维护，补拉详情不能把它清掉
+          highlights: prev?.synckeys?.highlights ?? base.synckeys?.highlights ?? 0,
+          reviews: prev?.synckeys?.reviews ?? base.synckeys?.reviews ?? 0,
           progress: retryLater.has(meta.bookId)
             ? (prev?.synckeys?.progress ?? 0)
             : fingerprintOf(meta.bookId),
@@ -449,6 +461,30 @@ class WeReadService {
       bookArchiveInfo: archiveInfo,
       removedBookIds: cached.map(m => m.bookId).filter(bookId => !bookIds.has(bookId)),
       requested: toEnrich.length,
+      noteFingerprints: Object.fromEntries(
+        summaries
+          .map(s => [s.bookId, { sort: s.sort, count: s.noteCount + s.reviewCount }] as const)
+          .filter(([, fingerprint]) => fingerprint.count > 0)
+      ),
+    };
+  }
+
+  /**
+   * 只拉一本书的划线与想法（书架同步补全摘录用，KL-034）：2 个请求，章节取划线接口自带的章节，
+   * 不请求详情、进度与章节接口。
+   */
+  async fetchNotes(bookId: string): Promise<Pick<Notebook, "chapterHighlights" | "bookReview">> {
+    const [highlights, reviews] = await Promise.all([
+      this.getNotebookHighlights(bookId),
+      this.getNotebookReviews(bookId),
+    ]);
+    return {
+      chapterHighlights: parseChapterHighlightReview(
+        chaptersFromHighlights(highlights),
+        parseHighlights(highlights, reviews),
+        parseReviews(reviews)
+      ),
+      bookReview: parseChapterReviews(reviews),
     };
   }
 

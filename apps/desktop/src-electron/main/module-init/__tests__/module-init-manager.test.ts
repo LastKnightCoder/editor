@@ -10,7 +10,6 @@ vi.mock("electron", () => ({ ipcMain: { handle: mocks.handle } }));
 vi.mock("../module-config", () => ({ MODULE_CONFIGS: mocks.configs }));
 vi.mock("../../modules/user-setting", () => ({ default: {} }));
 vi.mock("../../modules/pomodoro", () => ({ default: {} }));
-vi.mock("../../modules/web-clip", () => ({ default: {} }));
 vi.mock("../../modules/resource-sync", () => ({ default: {} }));
 vi.mock("../../modules/publish", () => ({ default: {} }));
 

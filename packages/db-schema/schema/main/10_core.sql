@@ -17,6 +17,45 @@ CREATE TABLE IF NOT EXISTS contents (
         count INTEGER DEFAULT 0,
         ref_count INTEGER DEFAULT 0
       );
+-- 正文的 AI 元信息（卡片 / 文章 / 项目文档，按 content_id，共用正文的投影共用一份）。
+-- meta 为 JSON：{ title, summary, concepts[], claims[] }；schema_ver 低于当前的只补缺字段；
+-- text_digest 为生成时正文纯文本的 MinHash 指纹，正文大改才重算；model = providerId/modelId。
+-- 正文真正删除时同事务删除，连库对账兜底清理孤儿行。
+CREATE TABLE IF NOT EXISTS content_ai_meta (
+        content_id INTEGER PRIMARY KEY,
+        schema_ver INTEGER NOT NULL,
+        text_digest TEXT NOT NULL,
+        meta TEXT NOT NULL,
+        model TEXT NOT NULL,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      );
+-- 正文的 AI 洞见（用户点「AI 洞见」时生成，按 content_id）：result 为 JSON（lead、marks[]、asks[]，
+-- 每条带处理状态 open / linked / questioned / dismissed）；text_digest 为分析时的正文指纹。
+-- 删除与孤儿清理同 content_ai_meta。
+CREATE TABLE IF NOT EXISTS content_ai_insights (
+        content_id INTEGER PRIMARY KEY,
+        schema_ver INTEGER NOT NULL,
+        text_digest TEXT NOT NULL,
+        result TEXT NOT NULL,
+        model TEXT NOT NULL,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      );
+CREATE TABLE IF NOT EXISTS knowledge_ai_insights (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        scope TEXT NOT NULL,
+        parent_id INTEGER,
+        project_id INTEGER,
+        label TEXT NOT NULL,
+        members TEXT NOT NULL,
+        overview TEXT NOT NULL,
+        result TEXT NOT NULL,
+        increments INTEGER NOT NULL DEFAULT 0,
+        model TEXT NOT NULL,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      );
 CREATE TABLE IF NOT EXISTS white_board_contents (
         id INTEGER PRIMARY KEY NOT NULL,
         create_time INTEGER NOT NULL,
@@ -40,7 +79,7 @@ CREATE TABLE IF NOT EXISTS cards (
             update_time INTEGER NOT NULL,
             tags TEXT,
             links TEXT,
-            category TEXT DEFAULT 'permanent', content_id INTEGER, is_top INTEGER DEFAULT 0, podcast_id INTEGER DEFAULT NULL);
+            content_id INTEGER, is_top INTEGER DEFAULT 0, podcast_id INTEGER DEFAULT NULL);
 CREATE TABLE IF NOT EXISTS articles (
             id INTEGER PRIMARY KEY,
             title TEXT NOT NULL,

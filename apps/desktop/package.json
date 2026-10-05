@@ -242,7 +242,6 @@
     "remark-math": "^6.0.0",
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.1",
-    "roughjs": "^4.6.6",
     "shiki": "^3.22.0",
     "shiki-magic-move": "^1.2.1",
     "simple-git": "^3.30.0",

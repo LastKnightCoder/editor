@@ -19,6 +19,8 @@ interface ArticleHeroProps {
   /** hover「更换封面」点击（文件选择与上传流程在调用方） */
   onChangeCover: () => void;
   changingCover?: boolean;
+  /** 元信息行末尾的附加信息（如关联计数） */
+  extraMeta?: ReactNode;
   /** 元信息行右侧操作（⋯ 菜单等） */
   actions?: ReactNode;
   className?: string;
@@ -36,6 +38,7 @@ export function ArticleHero({
   onTitleChange,
   onChangeCover,
   changingCover,
+  extraMeta,
   actions,
   className,
 }: ArticleHeroProps) {
@@ -102,6 +105,7 @@ export function ArticleHero({
           <span>{formatDate(article.update_time, true)} 编辑</span>
           <span className="bg-ink-3 size-[3px] rounded-full opacity-60" />
           <span>{words} 字</span>
+          {extraMeta}
           {actions && <span className="ml-auto flex items-center">{actions}</span>}
         </div>
       </div>

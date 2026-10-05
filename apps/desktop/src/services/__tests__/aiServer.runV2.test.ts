@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   singleResolve: null as ((result: unknown) => void) | null,
   singleCancel: vi.fn(),
   handlers: new Map<string, (request: RpcRequestMessage) => Promise<unknown>>(),
+  notifications: [] as Array<{ method: string; data: unknown }>,
 }));
 
 vi.mock("@/constants", () => ({
@@ -45,22 +46,32 @@ vi.mock("@/services/piLLM", () => ({
   piThinkingOf: () => "",
 }));
 vi.mock("@/services/browserBridgeRenderer", () => ({ installBrowserBridgeRenderer: vi.fn() }));
-vi.mock("@/stores/useSettingStore", () => ({
-  default: {
-    getState: () => ({
-      setting: {
-        llmProviders: [{ id: "p1", models: [{ id: "m1" }] }],
-        llmUsageSettings: { chat: { providerId: "p1", modelId: "m1" } },
+vi.mock("@/stores/useSettingStore", () => {
+  let state = {
+    setting: {
+      llmProviders: [{ id: "p1", models: [{ id: "m1" }, { id: "qwen2.5:7b" }] }],
+      llmUsageSettings: { chat: { providerId: "p1", modelId: "m1" } } as Record<string, unknown>,
+    },
+  };
+  return {
+    default: {
+      getState: () => state,
+      setState: (recipe: (draft: typeof state) => typeof state | void) => {
+        const draft = structuredClone(state);
+        state = recipe(draft) ?? draft;
       },
-    }),
-  },
-}));
+    },
+  };
+});
 vi.mock("@/stores/useSkillStore", () => ({ default: { getState: () => ({ skills: [] }) } }));
 vi.mock("@/tools", () => ({ ensureToolingReady: vi.fn() }));
 vi.mock("@/utils/WebSocketServer", () => ({
   default: class {
     addRequestHandler(name: string, handler: (request: RpcRequestMessage) => Promise<unknown>) {
       mocks.handlers.set(name, handler);
+    }
+    sendNotification(method: string, data: unknown) {
+      mocks.notifications.push({ method, data });
     }
     close() {}
   },
@@ -90,8 +101,56 @@ vi.mock("@/utils/embedding-model-info", () => ({ resolveEmbeddingModelInfoFromSe
 
 import { __aiServerTestUtils, closeAiServer, initAiServer } from "../aiServer";
 import { openContent } from "../open-content";
+import { useThemeStore } from "@tau/themes/react";
 
 const { handleRunStart, handleRunAbort } = __aiServerTestUtils;
+
+describe("设置 RPC", () => {
+  beforeEach(() => {
+    mocks.handlers.clear();
+    initAiServer();
+  });
+  afterEach(() => closeAiServer());
+
+  it("扩展选模型：按 modelId 写入聊天用量，随后读回所选模型", async () => {
+    const params = { feature: "chat", providerId: "p1", modelId: "qwen2.5:7b" };
+    await mocks.handlers.get("settings.setLlmUsage")!(request("settings.setLlmUsage", params));
+    const result = (await mocks.handlers.get("settings.getChatModelConfig")!(
+      request("settings.getChatModelConfig", {})
+    )) as { model: { id: string } | null };
+    expect(result.model?.id).toBe("qwen2.5:7b");
+  });
+});
+
+describe("主题同步 RPC", () => {
+  beforeEach(() => {
+    mocks.handlers.clear();
+    mocks.notifications.length = 0;
+    useThemeStore.getState().setTheme("paper");
+    initAiServer();
+  });
+  afterEach(() => closeAiServer());
+
+  it("读取当前主题族，换主题时只推送主题 key", async () => {
+    await expect(
+      mocks.handlers.get("appearance.getTheme")!(request("appearance.getTheme", {}))
+    ).resolves.toEqual({ theme: "paper" });
+
+    useThemeStore.getState().setAppearance("dark");
+    expect(mocks.notifications.filter(n => n.method === "appearance.themeChanged")).toEqual([]);
+
+    useThemeStore.getState().setTheme("sakura");
+    expect(mocks.notifications.filter(n => n.method === "appearance.themeChanged")).toEqual([
+      { method: "appearance.themeChanged", data: { theme: "sakura" } },
+    ]);
+  });
+
+  it("关闭服务后不再推送", () => {
+    closeAiServer();
+    useThemeStore.getState().setTheme("mint");
+    expect(mocks.notifications).toEqual([]);
+  });
+});
 
 describe("内容打开 RPC", () => {
   beforeEach(() => {

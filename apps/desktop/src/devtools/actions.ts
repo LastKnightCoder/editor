@@ -3,7 +3,7 @@
  */
 
 import { getKnowledgeMap } from "@/commands/knowledge-map";
-import { setKnowledgeMapCache } from "@/features/cards/queries";
+import { setKnowledgeMapCache } from "@/features/knowledge-map/queries";
 import { queryClient } from "@/queryClient";
 import useSettingStore from "@/stores/useSettingStore";
 import { registerDevAction } from "./registry";

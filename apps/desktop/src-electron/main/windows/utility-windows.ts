@@ -6,7 +6,7 @@ import { initialBounds, rememberBounds } from "./window-state";
 
 const QUICK_CARD_KEY = "quick-card";
 
-/** 快捷卡片窗口：打开即新建一张闪念笔记；单例，再次唤起聚焦已有窗口（不重复建卡） */
+/** 快捷卡片窗口：打开即新建一张卡片；单例，再次唤起聚焦已有窗口（不重复建卡） */
 export function createQuickCardWindow() {
   if (focusExisting(QUICK_CARD_KEY)) return;
   const win = createWindow({

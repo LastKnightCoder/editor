@@ -179,6 +179,22 @@ CREATE TABLE IF NOT EXISTS weread_config (
         value TEXT,
         updated_at INTEGER NOT NULL
       );
+-- 摘录：来源不是主库行的划线（微信读书、浏览器插件）。源端删除即软删除，保留引文
+CREATE TABLE IF NOT EXISTS excerpt (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        source_type TEXT NOT NULL,            -- weread | web
+        source_key TEXT NOT NULL,             -- weread: bookId；web: 去掉 hash 的 URL
+        source_title TEXT NOT NULL DEFAULT '',
+        external_id TEXT NOT NULL,            -- weread: bookId:bookmarkId / bookId:review:reviewId；web: 划线 uuid
+        quote TEXT NOT NULL,
+        note TEXT NOT NULL DEFAULT '',
+        anchor TEXT,                          -- JSON：来源原生定位
+        color TEXT,
+        source_time INTEGER,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        is_deleted INTEGER NOT NULL DEFAULT 0
+      );
 CREATE TABLE IF NOT EXISTS flashcard_decks (
         id INTEGER PRIMARY KEY,
         name TEXT NOT NULL,

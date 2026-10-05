@@ -13,9 +13,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   Archive,
   ArchiveRestore,
-  ArrowDown,
   ArrowRight,
-  ArrowUp,
   FileText,
   MoreHorizontal,
   Pencil,
@@ -24,6 +22,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { IconButton, Menu, cn } from "@tau/ui";
+import { SortHeader } from "../list/ListControls";
 import type { CockpitCardHandlers, CockpitCopy, CockpitItem, CockpitVisual } from "./types";
 import { cockpitExcerpt, cockpitRelativeTime } from "./text";
 import { cockpitTimeMeta, formatDate, formatOpenedAt, type CockpitSort } from "./model";
@@ -280,22 +279,14 @@ export function CockpitListRows({
   /** 归档段沿用主列表的列宽，不重复列头 */
   showHead?: boolean;
 }) {
-  const head = (key: CockpitSort, label: string) => {
-    const Arrow = key === "name" ? ArrowUp : ArrowDown;
-    return (
-      <button
-        type="button"
-        onClick={() => onSort?.(key)}
-        className={cn(
-          "hover:text-ink-1 inline-flex items-center gap-0.5 text-left",
-          sort === key && "text-ink-1 font-medium"
-        )}
-      >
-        {label}
-        {sort === key && <Arrow className="size-3" strokeWidth={2} />}
-      </button>
-    );
-  };
+  const head = (key: CockpitSort, label: string) => (
+    <SortHeader
+      label={label}
+      active={sort === key}
+      ascending={key === "name"}
+      onSort={onSort && (() => onSort(key))}
+    />
+  );
   return (
     <div className="-mx-3">
       {showHead && (

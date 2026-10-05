@@ -25,7 +25,7 @@ import {
   syncPlaceLimit,
   WAIT_FIRST_BUILD_CARDS,
 } from "@/knowledge-map/schedule";
-import type { KnowledgeMap } from "@/knowledge-map/types";
+import type { KnowledgeMap, KnowledgeMapItem } from "@/knowledge-map/types";
 import type { Module } from "../types/module";
 import type { KnowledgeMapWorkerResult } from "../workers/knowledge-map.worker";
 import databaseModule from "./database";
@@ -39,6 +39,8 @@ export type KnowledgeMapStatus = "missing" | "stale" | "ready" | "building";
 export interface KnowledgeMapPayload {
   status: KnowledgeMapStatus;
   map: KnowledgeMap | null;
+  /** 节点的展示信息；地图还没算出来时也有，渲染层据此先画链接图谱 */
+  items: KnowledgeMapItem[];
 }
 
 function runWorker(inputs: ReturnType<typeof KnowledgeMapTable.readInputs>): Promise<KnowledgeMap> {
@@ -99,8 +101,12 @@ class KnowledgeMapBuilder implements Module {
     ) {
       return "stale";
     }
-    // 漂移 = 增量放置 ∪ 编辑过的卡片（按行时间戳算，重启后仍准）
-    const drift = KnowledgeMapTable.driftCount(mainDb, indexDb, map.computedAt);
+    // 漂移 = 增量放置 ∪ 编辑过的节点（按行时间戳算，重启后仍准）
+    const drift = KnowledgeMapTable.driftCount(
+      KnowledgeMapTable.listEntities(mainDb),
+      indexDb,
+      map.computedAt
+    );
     if (map.nodes.length > 0 && drift / map.nodes.length > REBUILD_DRIFT_RATIO) return "stale";
     return "ready";
   }
@@ -117,7 +123,7 @@ class KnowledgeMapBuilder implements Module {
         if (databaseModule.getIndexDatabase(dbName) !== indexDb) return map;
         KnowledgeMapTable.save(indexDb, map, fingerprint);
         log.info(
-          `[KnowledgeMapBuilder] rebuilt db=${dbName} cards=${map.nodes.length} topics=${
+          `[KnowledgeMapBuilder] rebuilt db=${dbName} nodes=${map.nodes.length} topics=${
             map.topics.filter(t => t.parent === -1).length
           } elapsedMs=${Date.now() - startedAt}`
         );
@@ -143,22 +149,43 @@ class KnowledgeMapBuilder implements Module {
       if (map && !force && !this.building.has(dbName))
         map = this.reconcile(mainDb, indexDb, dbName, map);
       const status = this.status(mainDb, indexDb, dbName, map);
+      const items = KnowledgeMapTable.listItems(mainDb, indexDb);
       if (map && !force) {
         if (status === "stale")
           void this.rebuild(mainDb, indexDb, dbName).catch(error =>
             log.error("[KnowledgeMapBuilder] background rebuild failed:", error)
           );
-        return { status, map };
+        return { status, map, items };
       }
       const task = this.rebuild(mainDb, indexDb, dbName);
-      if (!force && KnowledgeMapTable.cardIds(mainDb).length > WAIT_FIRST_BUILD_CARDS) {
+      if (!force && KnowledgeMapTable.listEntities(mainDb).length > WAIT_FIRST_BUILD_CARDS) {
         // 不 await：渲染层拿到 building 后退回链接图谱，并轮询等这次算完
         task.catch(error => log.error("[KnowledgeMapBuilder] first build failed:", error));
-        return { status: "building", map: null };
+        return { status: "building", map: null, items };
       }
       const fresh = await task;
-      return { status: "ready", map: fresh };
+      return { status: "ready", map: fresh, items };
     });
+  }
+
+  /**
+   * 后台用（主题洞见）：对账，地图没有或过时就整体重算并等它算完。
+   * 地图平时只在打开地图页时更新，主题洞见读的主题划分不能比内容旧太多。库未就绪返回 null。
+   */
+  async ensureFresh(dbName: string): Promise<KnowledgeMap | null> {
+    const mainDb = databaseModule.getDatabase(dbName);
+    if (!mainDb?.open) return null;
+    await databaseModule.ensureIndexDatabaseReady(dbName, "knowledge-map:ensure-fresh");
+    const indexDb = databaseModule.getIndexDatabase(dbName);
+    if (!indexDb) return null;
+    const pending = this.building.get(dbName);
+    if (pending) return pending;
+    let map = KnowledgeMapTable.load(indexDb);
+    if (map) map = this.reconcile(mainDb, indexDb, dbName, map);
+    const status = this.status(mainDb, indexDb, dbName, map);
+    if (status === "building") return this.building.get(dbName) ?? map;
+    if (!map || status === "stale") return this.rebuild(mainDb, indexDb, dbName);
+    return map;
   }
 
   /**
@@ -171,29 +198,31 @@ class KnowledgeMapBuilder implements Module {
     dbName: string,
     map: KnowledgeMap
   ): KnowledgeMap {
-    const existing = new Set(KnowledgeMapTable.cardIds(mainDb));
-    const onMap = new Set(map.nodes.map(node => node.cardId));
-    const removed = map.nodes.filter(node => !existing.has(node.cardId));
-    const missing = [...existing].filter(
-      id => !onMap.has(id) && KnowledgeMapTable.hasVectors(indexDb, id)
+    const entities = KnowledgeMapTable.listEntities(mainDb);
+    const existing = new Map(entities.map(entity => [entity.key, entity]));
+    const onMap = new Set(map.nodes.map(node => node.key));
+    const removed = map.nodes.filter(node => !existing.has(node.key));
+    const missing = entities.filter(
+      entity => !onMap.has(entity.key) && KnowledgeMapTable.hasVectors(indexDb, entity.key)
     );
     if (removed.length === 0 && missing.length === 0) return map;
 
-    for (const node of removed) KnowledgeMapTable.removeNode(indexDb, node.cardId);
+    for (const node of removed) KnowledgeMapTable.removeNode(indexDb, node.key);
     if (missing.length > syncPlaceLimit(map.nodes.length)) {
       void this.rebuild(mainDb, indexDb, dbName).catch(error =>
         log.error("[KnowledgeMapBuilder] background rebuild failed:", error)
       );
       return KnowledgeMapTable.load(indexDb) ?? map;
     }
-    const current = { ...map, nodes: map.nodes.filter(node => existing.has(node.cardId)) };
-    for (const cardId of missing) {
+    const current = { ...map, nodes: map.nodes.filter(node => existing.has(node.key)) };
+    for (const entity of missing) {
       const node = placeIncrementally(current, {
-        id: cardId,
-        neighbors: KnowledgeMapTable.neighborsOf(indexDb, cardId, NEIGHBORS),
+        key: entity.key,
+        seed: entity.id,
+        neighbors: KnowledgeMapTable.neighborsOf(indexDb, entity.key, NEIGHBORS),
       });
       KnowledgeMapTable.upsertNode(indexDb, node);
-      // 后放的卡可以挨着先放的卡（同一批新写的主题）
+      // 后放的节点可以挨着先放的（同一批新写的主题）
       current.nodes.push(node);
     }
     log.info(

@@ -18,19 +18,11 @@ interface BoardContentProps extends SVGProps<SVGSVGElement> {
   noneCenterConnectArrows: BoardElement[];
   centerConnectAndSelectedArrows: BoardElement[];
   gridVisible?: boolean;
-  gridSize?: number;
   disableViewportFilter?: boolean;
   isolateStaticSelection?: boolean;
   showAssistLayers?: boolean;
   backgroundColor?: string | null;
   renderElementsOverride?: BoardElement[];
-  refLines: Array<{
-    key: string;
-    x1: number;
-    y1: number;
-    x2: number;
-    y2: number;
-  }>;
   connectPointOverlayRef?: RefObject<SVGGElement | null>;
 }
 
@@ -51,22 +43,18 @@ const BoardContent = memo(
       noneCenterConnectArrows,
       centerConnectAndSelectedArrows,
       gridVisible = false,
-      gridSize = 20,
       disableViewportFilter = false,
       isolateStaticSelection = false,
       showAssistLayers = true,
       backgroundColor = null,
       renderElementsOverride,
-      refLines,
       connectPointOverlayRef,
       ...svgProps
     } = props;
 
     const { minX, minY, width, height, zoom } = viewPort;
     const selection = useContext(SelectionContext);
-    const staticLayerSelection = isolateStaticSelection
-      ? STATIC_LAYER_SELECTION
-      : selection;
+    const staticLayerSelection = isolateStaticSelection ? STATIC_LAYER_SELECTION : selection;
 
     const elementsToRender = renderElementsOverride ?? noneCenterConnectArrows;
 
@@ -75,10 +63,7 @@ const BoardContent = memo(
       if (disableViewportFilter) {
         return board.renderElements(centerConnectArrows);
       }
-      const visibleElements = board.filterElementsInViewport(
-        centerConnectArrows,
-        100,
-      );
+      const visibleElements = board.filterElementsInViewport(centerConnectArrows, 100);
       return board.renderVisibleElements(visibleElements);
     }, [board, centerConnectArrows, disableViewportFilter, viewPort]);
 
@@ -86,10 +71,7 @@ const BoardContent = memo(
       if (disableViewportFilter) {
         return board.renderElements(elementsToRender);
       }
-      const visibleElements = board.filterElementsInViewport(
-        elementsToRender,
-        100,
-      );
+      const visibleElements = board.filterElementsInViewport(elementsToRender, 100);
       return board.renderVisibleElements(visibleElements);
     }, [board, disableViewportFilter, elementsToRender, viewPort]);
 
@@ -97,17 +79,9 @@ const BoardContent = memo(
       if (disableViewportFilter) {
         return board.renderElements(centerConnectAndSelectedArrows);
       }
-      const visibleElements = board.filterElementsInViewport(
-        centerConnectAndSelectedArrows,
-        100,
-      );
+      const visibleElements = board.filterElementsInViewport(centerConnectAndSelectedArrows, 100);
       return board.renderVisibleElements(visibleElements);
-    }, [
-      board,
-      centerConnectAndSelectedArrows,
-      disableViewportFilter,
-      viewPort,
-    ]);
+    }, [board, centerConnectAndSelectedArrows, disableViewportFilter, viewPort]);
 
     return (
       <svg
@@ -119,16 +93,10 @@ const BoardContent = memo(
         viewBox={`${minX} ${minY} ${width} ${height}`}
       >
         {backgroundColor && (
-          <rect
-            x={minX}
-            y={minY}
-            width={width}
-            height={height}
-            fill={backgroundColor}
-          />
+          <rect x={minX} y={minY} width={width} height={height} fill={backgroundColor} />
         )}
         <ArrowMarkers />
-        <Grid visible={gridVisible} gridSize={gridSize} />
+        <Grid visible={gridVisible} />
         <SelectionContext.Provider value={staticLayerSelection}>
           {/* 1. 中心连接且未选中的箭头（最底层） */}
           <g data-layer="center-connect-arrows">{visibleCenterConnectArrows}</g>
@@ -140,9 +108,7 @@ const BoardContent = memo(
         {/* 自定义连接点：常驻标记 + 拖拽时吸附反馈，通过 overlay 上下文 portal 到上方覆盖层 */}
         <ArrowCustomConnectOverlay />
         {/* 3. 中心连接且被选中的箭头（最顶层） */}
-        <g data-layer="selected-interaction-elements">
-          {visibleCenterConnectAndSelectedArrows}
-        </g>
+        <g data-layer="selected-interaction-elements">{visibleCenterConnectAndSelectedArrows}</g>
         <MindDragOverlay board={board} />
         {showAssistLayers && (
           <>
@@ -153,13 +119,13 @@ const BoardContent = memo(
               <GroupSelectionBounds />
             </g>
             <g data-export-ignore="true">
-              <ReferenceLines lines={refLines} zoom={zoom} />
+              <ReferenceLines board={board} zoom={zoom} />
             </g>
           </>
         )}
       </svg>
     );
-  }),
+  })
 );
 
 export default BoardContent;

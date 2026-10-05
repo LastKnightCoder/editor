@@ -77,7 +77,7 @@ export default function ToolCallSection() {
         title="对话工具渲染"
         en="ToolCallBlock · tool-call-renderers"
         duty="聊天里每条工具调用的两级渲染：注册表命中的工具走域内富卡片（任务 / 日历 / 问题 / 知识检索 / 内容编辑 / 追问 / 图像 / 子代理 / 结构化结果），未注册工具统一落缺省折叠行；状态只用语义色（成功 ok、失败 danger、重试 warn、执行中 accent、等待 / 取消 ink-3）。"
-        src="apps/desktop/src/tool-call-renderers/ · apps/desktop/src/components/ChatUI/ToolCallRow.tsx"
+        src="apps/desktop/src/tool-call-renderers/ · packages/chat-ui/src/components/Message/ToolCallRow.tsx"
       />
 
       <BlockTitle en="ToolCallRow · 未注册工具的兜底">缺省折叠行</BlockTitle>

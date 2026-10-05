@@ -1,6 +1,6 @@
 // 卡片列表项（v2 模板）：整卡可点开详情页，不设 more 按钮——
-// 修改类型/删除等操作收进详情页 ⋯ 菜单。
-// 头部 = 彩点 + 彩色类型名 + 右侧时间；标签用品牌色 # chip。
+// 删除等操作收进详情页 ⋯ 菜单。
+// 头部 = 右侧时间；标签用品牌色 # chip。
 
 import { memo, useCallback, useMemo, useState } from "react";
 import { getMobileContentKit } from "../../services/editorKit";
@@ -8,7 +8,6 @@ import type { Descendant } from "slate";
 import { Editor, createValueDocument } from "@tau/editor";
 import { isEditorContentEmpty } from "./editorContentUtils";
 import { CardListItem } from "../../types";
-import { cardCategoryDotClass, cardCategoryLabel, cardCategoryTextClass } from "./cardCategory";
 import TagChips from "./TagChips";
 import { useReadonlyContentSync } from "../../hooks/useReadonlyContentSync";
 
@@ -63,13 +62,6 @@ const CardItem = memo(({ item, onPreviewCard }: CardItemProps) => {
     <article className="card pop-in rounded-card relative w-full overflow-hidden px-4 pb-3.5 pt-3 transition-transform duration-200 active:scale-[0.97]">
       <button type="button" onClick={() => onPreviewCard(item.id)} className="w-full text-left">
         <div className="mb-2.5 flex items-center gap-2">
-          <span
-            className={`h-[7px] w-[7px] shrink-0 rounded-full ${cardCategoryDotClass(item.category)}`}
-            aria-hidden
-          />
-          <span className={`text-[11.5px] font-bold ${cardCategoryTextClass(item.category)}`}>
-            {cardCategoryLabel(item.category)}
-          </span>
           <span className="text-meta-ink ml-auto text-[11.5px] tabular-nums">
             {formatTimeDisplay(item.updateTime)}
           </span>

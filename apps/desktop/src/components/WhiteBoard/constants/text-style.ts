@@ -64,17 +64,27 @@ export const toCssPadding = (p: TextBoxPadding) =>
 
 const toneOf = (tone?: TextTone) => TEXT_TONES.find(t => t.value === tone);
 
-/** 底板的底色与发丝线色；none 返回 null。卡片不用阴影，只靠发丝线分层 */
-export function getTextSurface(style: TextStyle): { background: string; edge: string } | null {
+/**
+ * 底板的底色与发丝线色；none 返回 null。卡片不用阴影，只靠发丝线分层。
+ * sketchEdge：手绘模式下的墨迹框色——发丝线太淡，墨迹需要可辨的颜色（D-107）
+ */
+export function getTextSurface(
+  style: TextStyle
+): { background: string; edge: string; sketchEdge: string } | null {
   if (style.variant === "none") return null;
   const tone = toneOf(style.tone);
   if (style.variant === "tinted" && tone) {
     return {
       background: tone.soft,
       edge: `color-mix(in srgb, ${tone.solid} 22%, transparent)`,
+      sketchEdge: tone.solid,
     };
   }
-  return { background: TEXT_COLORS.surface, edge: TEXT_COLORS.line };
+  return {
+    background: TEXT_COLORS.surface,
+    edge: TEXT_COLORS.line,
+    sketchEdge: "var(--tau-ink-3)",
+  };
 }
 
 /** 顶部色带颜色；非 band 或无色调返回 null */

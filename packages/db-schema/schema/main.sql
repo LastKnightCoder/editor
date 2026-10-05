@@ -24,6 +24,45 @@ CREATE TABLE IF NOT EXISTS contents (
         count INTEGER DEFAULT 0,
         ref_count INTEGER DEFAULT 0
       );
+-- 正文的 AI 元信息（卡片 / 文章 / 项目文档，按 content_id，共用正文的投影共用一份）。
+-- meta 为 JSON：{ title, summary, concepts[], claims[] }；schema_ver 低于当前的只补缺字段；
+-- text_digest 为生成时正文纯文本的 MinHash 指纹，正文大改才重算；model = providerId/modelId。
+-- 正文真正删除时同事务删除，连库对账兜底清理孤儿行。
+CREATE TABLE IF NOT EXISTS content_ai_meta (
+        content_id INTEGER PRIMARY KEY,
+        schema_ver INTEGER NOT NULL,
+        text_digest TEXT NOT NULL,
+        meta TEXT NOT NULL,
+        model TEXT NOT NULL,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      );
+-- 正文的 AI 洞见（用户点「AI 洞见」时生成，按 content_id）：result 为 JSON（lead、marks[]、asks[]，
+-- 每条带处理状态 open / linked / questioned / dismissed）；text_digest 为分析时的正文指纹。
+-- 删除与孤儿清理同 content_ai_meta。
+CREATE TABLE IF NOT EXISTS content_ai_insights (
+        content_id INTEGER PRIMARY KEY,
+        schema_ver INTEGER NOT NULL,
+        text_digest TEXT NOT NULL,
+        result TEXT NOT NULL,
+        model TEXT NOT NULL,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      );
+CREATE TABLE IF NOT EXISTS knowledge_ai_insights (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        scope TEXT NOT NULL,
+        parent_id INTEGER,
+        project_id INTEGER,
+        label TEXT NOT NULL,
+        members TEXT NOT NULL,
+        overview TEXT NOT NULL,
+        result TEXT NOT NULL,
+        increments INTEGER NOT NULL DEFAULT 0,
+        model TEXT NOT NULL,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      );
 CREATE TABLE IF NOT EXISTS white_board_contents (
         id INTEGER PRIMARY KEY NOT NULL,
         create_time INTEGER NOT NULL,
@@ -47,7 +86,7 @@ CREATE TABLE IF NOT EXISTS cards (
             update_time INTEGER NOT NULL,
             tags TEXT,
             links TEXT,
-            category TEXT DEFAULT 'permanent', content_id INTEGER, is_top INTEGER DEFAULT 0, podcast_id INTEGER DEFAULT NULL);
+            content_id INTEGER, is_top INTEGER DEFAULT 0, podcast_id INTEGER DEFAULT NULL);
 CREATE TABLE IF NOT EXISTS articles (
             id INTEGER PRIMARY KEY,
             title TEXT NOT NULL,
@@ -209,9 +248,10 @@ CREATE TABLE IF NOT EXISTS questions (
         question_content TEXT,
         answers TEXT DEFAULT '[]'
       , group_id INTEGER, sort_index INTEGER NOT NULL DEFAULT 0, resolved_time INTEGER, status TEXT NOT NULL DEFAULT 'not_started', description TEXT);
--- 问题的探究材料：多态关联（target_type = card | article | project_item | project | white_board | answer；
--- answer 的 target_id 为 contents.id，其余为各实体表主键）。content_id = 本关联持有引用计数的 contents.id
--- （卡片 / 文章 / 项目文档 / 独立答案有值，项目与白板为 NULL），目标实体被删后仍可据此释放引用。
+-- 问题的探究材料：多态关联（target_type = card | article | project_item | project | white_board | answer
+-- | excerpt | pdf-annotation | web-clip；answer 的 target_id 为 contents.id，其余为各实体表主键，均为整数）。
+-- content_id = 本关联持有引用计数的 contents.id（卡片 / 文章 / 项目文档 / 独立答案有值，项目、白板与外部材料为 NULL），
+-- 目标实体被删后仍可据此释放引用。对话不在此表，见 question_chat。
 CREATE TABLE IF NOT EXISTS question_link (
         id INTEGER PRIMARY KEY,
         question_id INTEGER NOT NULL,
@@ -219,6 +259,15 @@ CREATE TABLE IF NOT EXISTS question_link (
         target_id INTEGER NOT NULL,
         content_id INTEGER,
         sort_index INTEGER NOT NULL DEFAULT 0,
+        create_time INTEGER NOT NULL
+      );
+-- 问题的探究对话：session_id = chat_session.id（pi 会话 UUID）；message_ids 为 JSON 数组，记录问题从哪几条消息转来（可空）。
+-- 弱引用：对话被删不级联，解析时降级；删除问题时一并删除。
+CREATE TABLE IF NOT EXISTS question_chat (
+        id INTEGER PRIMARY KEY,
+        question_id INTEGER NOT NULL,
+        session_id TEXT NOT NULL,
+        message_ids TEXT,
         create_time INTEGER NOT NULL
       );
 -- 问题的探究轨迹：type = create | status | link | unlink | note，payload 为 JSON
@@ -330,13 +379,15 @@ CREATE TABLE IF NOT EXISTS web_view_preference (
         project_item_id INTEGER PRIMARY KEY,
         preferred_content_id INTEGER
       );
-CREATE TABLE IF NOT EXISTS content_link (
-        id INTEGER PRIMARY KEY,
-        create_time INTEGER NOT NULL,
-        source_id INTEGER NOT NULL,
-        source_type TEXT NOT NULL,
-        target_id INTEGER NOT NULL,
-        target_type TEXT NOT NULL
+CREATE TABLE IF NOT EXISTS entity_lineage (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        src_kind TEXT NOT NULL,
+        src_id TEXT NOT NULL,
+        src_anchor TEXT,
+        dst_kind TEXT NOT NULL,
+        dst_id TEXT NOT NULL,
+        relation TEXT NOT NULL,
+        create_time INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS resource_sync_blacklist (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -560,6 +611,22 @@ CREATE TABLE IF NOT EXISTS weread_config (
         value TEXT,
         updated_at INTEGER NOT NULL
       );
+-- 摘录：来源不是主库行的划线（微信读书、浏览器插件）。源端删除即软删除，保留引文
+CREATE TABLE IF NOT EXISTS excerpt (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        source_type TEXT NOT NULL,            -- weread | web
+        source_key TEXT NOT NULL,             -- weread: bookId；web: 去掉 hash 的 URL
+        source_title TEXT NOT NULL DEFAULT '',
+        external_id TEXT NOT NULL,            -- weread: bookId:bookmarkId / bookId:review:reviewId；web: 划线 uuid
+        quote TEXT NOT NULL,
+        note TEXT NOT NULL DEFAULT '',
+        anchor TEXT,                          -- JSON：来源原生定位
+        color TEXT,
+        source_time INTEGER,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        is_deleted INTEGER NOT NULL DEFAULT 0
+      );
 CREATE TABLE IF NOT EXISTS flashcard_decks (
         id INTEGER PRIMARY KEY,
         name TEXT NOT NULL,
@@ -700,6 +767,8 @@ CREATE INDEX IF NOT EXISTS idx_questions_resolved_time ON questions(resolved_tim
 CREATE INDEX IF NOT EXISTS idx_questions_status ON questions(status);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_question_link_unique ON question_link(question_id, target_type, target_id);
 CREATE INDEX IF NOT EXISTS idx_question_link_target ON question_link(target_type, target_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_question_chat_unique ON question_chat(question_id, session_id);
+CREATE INDEX IF NOT EXISTS idx_question_chat_session ON question_chat(session_id);
 CREATE INDEX IF NOT EXISTS idx_question_event_question ON question_event(question_id, create_time);
 CREATE INDEX IF NOT EXISTS idx_data_table_views_table_id
       ON data_table_views(table_id);
@@ -707,9 +776,9 @@ CREATE INDEX IF NOT EXISTS idx_project_item_podcast_id ON project_item(podcast_i
 CREATE INDEX IF NOT EXISTS idx_web_link_source ON web_link(source_type);
 CREATE INDEX IF NOT EXISTS idx_web_clip_content_id ON web_clip(content_id);
 CREATE INDEX IF NOT EXISTS idx_web_note_project ON web_note(project_item_id);
-CREATE INDEX IF NOT EXISTS idx_content_link_source ON content_link(source_id, source_type);
-CREATE INDEX IF NOT EXISTS idx_content_link_target ON content_link(target_id, target_type);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_content_link_unique ON content_link(source_id, source_type, target_id, target_type);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_entity_lineage_unique
+      ON entity_lineage(src_kind, src_id, dst_kind, dst_id, relation);
+CREATE INDEX IF NOT EXISTS idx_entity_lineage_dst ON entity_lineage(dst_kind, dst_id);
 CREATE INDEX IF NOT EXISTS idx_resource_sync_blacklist_file_name ON resource_sync_blacklist(file_name);
 CREATE INDEX IF NOT EXISTS idx_publish_selections_type
       ON publish_selections(content_type);
@@ -771,6 +840,8 @@ CREATE INDEX IF NOT EXISTS idx_weread_notebook_title ON weread_notebook(title);
 CREATE INDEX IF NOT EXISTS idx_weread_notebook_reading_status ON weread_notebook(reading_status);
 CREATE INDEX IF NOT EXISTS idx_weread_notebook_last_read_date ON weread_notebook(last_read_date);
 CREATE INDEX IF NOT EXISTS idx_weread_notebook_updated_at ON weread_notebook(updated_at);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_excerpt_external ON excerpt(source_type, external_id);
+CREATE INDEX IF NOT EXISTS idx_excerpt_source ON excerpt(source_type, source_key);
 CREATE INDEX IF NOT EXISTS idx_flashcards_deck ON flashcards(deck_id);
 CREATE INDEX IF NOT EXISTS idx_flashcards_due_time ON flashcards(due_time);
 CREATE INDEX IF NOT EXISTS idx_flashcard_reviews_card ON flashcard_reviews(card_id);
@@ -784,3 +855,9 @@ CREATE INDEX IF NOT EXISTS idx_vl_quiz_item_set ON vl_quiz_item(quiz_set_id);
 CREATE INDEX IF NOT EXISTS idx_vl_quiz_record_set ON vl_quiz_record(quiz_set_id);
 CREATE INDEX IF NOT EXISTS idx_vl_quiz_record_project ON vl_quiz_record(project_id);
 CREATE INDEX IF NOT EXISTS idx_flashcard_reviews_time ON flashcard_reviews(review_time);
+-- 由正文反查所属实体（一份正文可被多个实体共用）
+CREATE INDEX IF NOT EXISTS idx_cards_content_id ON cards(content_id);
+CREATE INDEX IF NOT EXISTS idx_articles_content_id ON articles(content_id);
+CREATE INDEX IF NOT EXISTS idx_project_item_content_id ON project_item(content_id);
+CREATE INDEX IF NOT EXISTS idx_diary_segments_content_id ON diary_segments(content_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_ai_insights_scope ON knowledge_ai_insights(scope, project_id);

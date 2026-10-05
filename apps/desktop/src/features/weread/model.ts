@@ -260,6 +260,40 @@ export function hasNotes(notebook: Notebook): boolean {
   return notes.chapters.length > 0 || notes.bookReviews.length > 0;
 }
 
+/** 笔记指纹：笔记本概览的 sort 与笔记总数（与 services/weread 的 NoteFingerprint 同形） */
+export interface NoteFingerprintLike {
+  sort: number;
+  count: number;
+}
+
+/**
+ * 书架同步后哪些书要拉划线（KL-034）：有笔记且指纹（存在 synckeys.highlights / reviews）变了的书拉取；
+ * 上次拉到过笔记、现在概览里已没有笔记的书清空（源端删光了）。full = 有笔记的书全部重拉。
+ */
+export function planNoteSync(
+  notebooks: Notebook[],
+  fingerprints: Record<string, NoteFingerprintLike>,
+  full = false
+): { fetch: string[]; clear: string[] } {
+  const fetch: string[] = [];
+  const clear: string[] = [];
+  for (const { metaData } of notebooks) {
+    const fingerprint = fingerprints[metaData.bookId];
+    const synckeys = metaData.synckeys ?? {};
+    if (fingerprint) {
+      if (
+        full ||
+        synckeys.highlights !== fingerprint.sort ||
+        synckeys.reviews !== fingerprint.count
+      )
+        fetch.push(metaData.bookId);
+    } else if ((synckeys.reviews ?? 0) > 0) {
+      clear.push(metaData.bookId);
+    }
+  }
+  return { fetch, clear };
+}
+
 /** 网关返回空详情（限流、临时失败）时保留已有缓存 */
 export function preferNonEmpty(current: Notebook, next: Notebook): Notebook {
   if (!hasNotes(next) && hasNotes(current)) return { ...current, metaData: next.metaData };

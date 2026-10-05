@@ -29,10 +29,13 @@ import {
 } from "../model";
 import type { DiaryMutations } from "../queries";
 import { TagPicker } from "./TagPicker";
+import { parseEntityLocation } from "@/entity/locate";
+import { scrollToAndFlash } from "@/utils/flash-element";
 
 const ICON = { className: "size-[14px]", strokeWidth: 1.75 } as const;
 
 export interface MomentItemProps {
+  location?: { moment: string; at: string } | null;
   moment: DiaryMoment;
   today: string;
   tags: DiaryTag[];
@@ -46,6 +49,7 @@ export interface MomentItemProps {
 
 export const MomentItem = memo(function MomentItem({
   moment,
+  location,
   today,
   tags,
   counts,
@@ -57,6 +61,27 @@ export const MomentItem = memo(function MomentItem({
 }: MomentItemProps) {
   const [editing, setEditing] = useState(false);
   const readerRef = useRef<EditorRef | null>(null);
+  const at = location?.moment === String(moment.id) ? location.at : undefined;
+  useEffect(() => {
+    const target = parseEntityLocation(at);
+    if (!target || !("block" in target) || editing) return;
+    let markedElement: HTMLElement | null = null;
+    const frame = requestAnimationFrame(() => {
+      const editor = readerRef.current?.getEditor();
+      if (!editor) return;
+      const node = editor.children[target.block] ?? editor.children[0];
+      if (node) {
+        const element = ReactEditor.toDOMNode(editor, node);
+        markedElement = element;
+        element.setAttribute("data-content-location", "");
+        scrollToAndFlash(element);
+      }
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      markedElement?.removeAttribute("data-content-location");
+    };
+  }, [at, editing]);
   /** 点进编辑时的落点（阅读态 Slate 坐标），编辑器就绪后把光标放回这里 */
   const caretRef = useRef<BasePoint | null>(null);
   const [flash, setFlash] = useState(fresh);
@@ -185,6 +210,7 @@ export const MomentItem = memo(function MomentItem({
         >
           <MomentEditor
             moment={moment}
+            at={at}
             caret={caretRef}
             onChange={save}
             fallback={<MomentReader content={moment.content} revision={moment.updateTime} />}
@@ -257,11 +283,13 @@ const MomentReader = forwardRef<EditorRef, { content: Descendant[]; revision: nu
 
 function MomentEditor({
   moment,
+  at,
   caret,
   fallback,
   onChange,
 }: {
   moment: DiaryMoment;
+  at?: string;
   caret: React.RefObject<BasePoint | null>;
   fallback: React.ReactNode;
   onChange: (content: Descendant[]) => void;
@@ -272,6 +300,7 @@ function MomentEditor({
   return (
     <ErrorBoundary>
       <ContentEditor
+        at={at}
         ref={editorRef}
         contentId={moment.contentId}
         initValue={initValue}

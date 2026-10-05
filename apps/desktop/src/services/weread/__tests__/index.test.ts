@@ -16,14 +16,14 @@ describe("services/weread validateSession", () => {
   afterEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();
-    useSettingStore.setState((state) => ({
+    useSettingStore.setState(state => ({
       ...state,
       setting: structuredClone(initialSetting),
     }));
   });
 
   it("API Key 校验成功后应标记为 valid", async () => {
-    useSettingStore.setState((state) => ({
+    useSettingStore.setState(state => ({
       ...state,
       setting: {
         ...state.setting,
@@ -60,7 +60,7 @@ describe("services/weread validateSession", () => {
         },
         isRaw: true,
         allowHttpErrorStatus: true,
-      }),
+      })
     );
 
     const weread = useSettingStore.getState().setting.integration.weread;
@@ -70,7 +70,7 @@ describe("services/weread validateSession", () => {
   });
 
   it("回包附带 upgrade_info 时不应中断同步，仅输出警告", async () => {
-    useSettingStore.setState((state) => ({
+    useSettingStore.setState(state => ({
       ...state,
       setting: {
         ...state.setting,
@@ -106,15 +106,13 @@ describe("services/weread validateSession", () => {
     const result = await weReadService.getBookProgress("book-1");
 
     expect(result?.book.readingTime).toBe(3600);
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Skill 版本待升级"),
-    );
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("Skill 版本待升级"));
 
     warnSpy.mockRestore();
   });
 
   it("API Key 缺失时应返回 false 并重置状态", async () => {
-    useSettingStore.setState((state) => ({
+    useSettingStore.setState(state => ({
       ...state,
       setting: {
         ...state.setting,
@@ -140,7 +138,7 @@ describe("services/weread validateSession", () => {
   });
 
   it("同一个 API Key 并发校验时应复用同一次请求", async () => {
-    useSettingStore.setState((state) => ({
+    useSettingStore.setState(state => ({
       ...state,
       setting: {
         ...state.setting,
@@ -156,9 +154,9 @@ describe("services/weread validateSession", () => {
 
     let resolveResponse: (value: any) => void = () => {};
     nodeFetchMock.mockReturnValue(
-      new Promise((resolve) => {
+      new Promise(resolve => {
         resolveResponse = resolve;
-      }),
+      })
     );
 
     const firstValidation = weReadService.validateSession();
@@ -173,13 +171,11 @@ describe("services/weread validateSession", () => {
       },
     });
 
-    await expect(
-      Promise.all([firstValidation, secondValidation]),
-    ).resolves.toEqual([true, true]);
+    await expect(Promise.all([firstValidation, secondValidation])).resolves.toEqual([true, true]);
   });
 
   it("应把书架里无笔记的书也纳入 metadata 列表", async () => {
-    useSettingStore.setState((state) => ({
+    useSettingStore.setState(state => ({
       ...state,
       setting: {
         ...state.setting,
@@ -270,7 +266,7 @@ describe("services/weread validateSession", () => {
   });
 
   it("recordReadingTime 为 0 时应使用 readingTime 作为阅读时长", async () => {
-    useSettingStore.setState((state) => ({
+    useSettingStore.setState(state => ({
       ...state,
       setting: {
         ...state.setting,
@@ -299,16 +295,14 @@ describe("services/weread validateSession", () => {
       },
     });
 
-    const result = await weReadService.getBookProgress(
-      "book-with-reading-time",
-    );
+    const result = await weReadService.getBookProgress("book-with-reading-time");
 
     expect(result?.book.readingTime).toBe(22981);
     expect(result?.book.startReadingTime).toBe(1700000000);
   });
 
   it("补全元数据失败时应保留基础数据并继续上报同步进度", async () => {
-    useSettingStore.setState((state) => ({
+    useSettingStore.setState(state => ({
       ...state,
       setting: {
         ...state.setting,
@@ -359,7 +353,7 @@ describe("services/weread validateSession", () => {
       });
 
     const result = await weReadService.getMetadataList({
-      onProgress: (progress) => progressUpdates.push(progress),
+      onProgress: progress => progressUpdates.push(progress),
     });
 
     expect(result.failedBookIds).toEqual([]);
@@ -379,7 +373,7 @@ describe("services/weread validateSession", () => {
 
   it("遇到 499 限速时应等待退避后重试", async () => {
     vi.useFakeTimers();
-    useSettingStore.setState((state) => ({
+    useSettingStore.setState(state => ({
       ...state,
       setting: {
         ...state.setting,
@@ -476,7 +470,7 @@ describe("services/weread validateSession", () => {
   });
 
   it("评论分页游标不前进时应停止继续请求", async () => {
-    useSettingStore.setState((state) => ({
+    useSettingStore.setState(state => ({
       ...state,
       setting: {
         ...state.setting,
@@ -515,5 +509,31 @@ describe("services/weread validateSession", () => {
     expect(nodeFetchMock).toHaveBeenCalledTimes(1);
     expect(result.reviews).toHaveLength(1);
     expect(result.hasMore).toBe(0);
+  });
+});
+
+describe("services/weread parser：章节列表外的划线", () => {
+  it("归入「其他」章节而不是丢弃", async () => {
+    const { parseChapterHighlightReview } = await import("../parser");
+    const base = {
+      created: 0,
+      createTime: "",
+      chapterIdx: 0,
+      chapterTitle: "",
+      markText: "x",
+      style: 0,
+      colorStyle: 1,
+    };
+    const result = parseChapterHighlightReview(
+      [{ chapterUid: 1, chapterIdx: 1, title: "一", updateTime: 0, isMPChapter: 0, level: 1 }],
+      [
+        { ...base, bookmarkId: "a", chapterUid: 1, range: "1-2" },
+        { ...base, bookmarkId: "b", chapterUid: 99, range: "3-4" },
+      ]
+    );
+    expect(result.map(c => [c.chapterTitle, c.highlights?.map(h => h.bookmarkId)])).toEqual([
+      ["一", ["a"]],
+      ["其他", ["b"]],
+    ]);
   });
 });

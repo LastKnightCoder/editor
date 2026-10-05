@@ -9,6 +9,7 @@
 import type { Descendant } from "slate";
 import { TAG_COLORS, type TagColor } from "@tau/ui";
 import type { DiarySegmentItem, DiaryTagSetting } from "@/types/diary";
+import { dayKey, normalizeDiaryDay } from "@/utils/diary-day";
 
 export const DAY_MS = 86_400_000;
 
@@ -35,10 +36,7 @@ export interface DiaryTag {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-export function dayKey(ts: number): string {
-  const d = new Date(ts);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
+export { dayKey };
 
 export function keyDate(key: string): Date {
   const [y, m, d] = key.split("-").map(Number);
@@ -56,21 +54,8 @@ export function diffDays(a: string, b: string): number {
   return Math.round((keyDate(a).getTime() - keyDate(b).getTime()) / DAY_MS);
 }
 
-/** 旧格式 YYYY-Www / YYYY-MM 归一到首日；无效时回落到 createTime 当天 */
-export function normalizeDay(entryDate: string, createTime: number): string {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(entryDate)) return entryDate;
-  const week = entryDate.match(/^(\d{4})-W(\d{2})$/);
-  if (week) {
-    // ISO 周：1 月 4 日所在周为第 1 周，周一起
-    const jan4 = new Date(Number(week[1]), 0, 4);
-    const monday = new Date(jan4);
-    monday.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7) + (Number(week[2]) - 1) * 7);
-    return dayKey(monday.getTime());
-  }
-  const month = entryDate.match(/^(\d{4})-(\d{2})$/);
-  if (month) return `${month[1]}-${month[2]}-01`;
-  return dayKey(createTime);
-}
+/** 旧格式 YYYY-Www / YYYY-MM 归一到首日（实现与主进程共用，见 utils/diary-day） */
+export const normalizeDay = normalizeDiaryDay;
 
 const WEEK = ["日", "一", "二", "三", "四", "五", "六"];
 export const weekdayOf = (key: string) => `周${WEEK[keyDate(key).getDay()]}`;

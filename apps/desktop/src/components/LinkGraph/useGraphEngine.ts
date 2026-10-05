@@ -11,8 +11,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import type { KnowledgeMap } from "@/knowledge-map/types";
-import type { ICard } from "@/types";
 import { Camera } from "./core/camera";
+import { clusterGeometry } from "./core/clusterGeometry";
 import type { ClusterInfo } from "./core/cluster";
 import { createLayout } from "./core/createLayout";
 import { buildScene, inheritPositions, sceneBounds } from "./core/graph";
@@ -35,8 +35,13 @@ import {
   type PositionBackend,
 } from "./core/positionStore";
 import { buildTimeline, revealAt, shownCount, timeAt, type Timeline } from "./core/timeline";
-import type { GraphNode, GraphPalette, GraphScene } from "./core/types";
-import { Canvas2DRenderer } from "./renderers/Canvas2DRenderer";
+import type { GraphNode, GraphPalette, GraphScene, GraphItem } from "./core/types";
+import {
+  Canvas2DRenderer,
+  MAP_CARD_LABEL_SCALE,
+  MAP_SUBTOPIC_LABEL_SCALE,
+  type Box,
+} from "./renderers/Canvas2DRenderer";
 
 /** 超过这个位移才算拖拽，否则算点击（避免手抖吞掉点击） */
 const DRAG_THRESHOLD = 3;
@@ -56,8 +61,7 @@ export const EMPHASIS_FADE_MS = 120;
 const PERSIST_DEBOUNCE = 800;
 
 export interface GraphEngineOptions {
-  cards: ICard[];
-  getCardLinks: (card: ICard) => number[];
+  items: GraphItem[];
   /** 当前卡片（通常一两张）：accent 强调 */
   currentCardIds?: number[];
   /** 筛选命中；null / 不传表示没有筛选。命中的保持主题色，未命中的降淡 */
@@ -76,14 +80,17 @@ export interface GraphEngineOptions {
    * 传了就直接用它的坐标与主题画，不跑力布局与社区发现；不传退回链接图谱。
    */
   knowledgeMap?: KnowledgeMap | null;
-  onClickNode?: (card: ICard) => void;
+  onClickNode?: (item: GraphItem) => void;
   /**
    * 簇划分算完后回调一次（含主题簇、桥接、孤立卡片、模块度）。
    * 宿主据此做洞见提示；批次 6 的 AI 分析也从这里取上下文。
    */
   onClusters?: (insight: GraphInsight) => void;
-  /** 悬停达到延迟后回调，宿主据此挂预览面板；id 为 null 表示收起 */
-  onHoverNode?: (payload: { id: number; canvasX: number; canvasY: number } | null) => void;
+  /**
+   * 悬停达到延迟后回调，宿主据此挂预览面板；id 为 null 表示收起。
+   * box 是节点圆连同其标题的占位框（画布坐标），面板须避开它，否则会盖住节点没法点
+   */
+  onHoverNode?: (payload: { id: number; box: Box } | null) => void;
   /**
    * 指针离开画布时，去往的元素若返回 true 就保持悬停（宿主用来放行自己的预览面板）。
    * 保持期间悬停的结束由宿主调 clearHover 决定
@@ -126,6 +133,39 @@ export interface GraphInsight {
   modularity: number;
 }
 
+/** 画布坐标里的一个圆（主题岛）：x、y 为圆心，radius 为半径（都已乘相机缩放） */
+export interface CanvasCircle {
+  x: number;
+  y: number;
+  radius: number;
+}
+
+/**
+ * 覆盖层用的坐标换算：宿主在画布上叠自己的 DOM / SVG（如 AI 洞见的标记），
+ * 每帧（平移、缩放、飞行后）重新取位置。都返回画布坐标，取不到为 null。
+ */
+export interface GraphOverlayApi {
+  /** 每次重绘后回调；返回取消订阅 */
+  subscribeFrame: (listener: () => void) => () => void;
+  /** 节点（按条目 key，如 "card:12"）的画布位置与此刻画出来的半径 */
+  project: (key: string) => { x: number; y: number; r: number } | null;
+  /** 地图大主题（地图里的主题 id）的岛 */
+  topicShape: (topicId: number) => CanvasCircle | null;
+  /** 地图子主题的成员中心 */
+  subtopicCenter: (subtopicId: number) => { x: number; y: number } | null;
+  /** 当前缩放；主题名在 scale ≥ subtopicLabelScale 时挪到岛的上沿 */
+  scale: () => number;
+  subtopicLabelScale: number;
+  /** scale ≥ 它时地图自己画出节点标题 */
+  nodeLabelScale: number;
+  /** 镜头飞到某个主题，让它占满视口的大半 */
+  flyToTopic: (topicId: number) => void;
+  /** 镜头回到全图 */
+  flyToAll: () => void;
+  /** 让这几个节点都进入视口：都在视口里时不动，放不下时拉远，不会拉近 */
+  flyToItems: (keys: string[]) => void;
+}
+
 export interface GraphEngineHandle {
   containerRef: React.RefObject<HTMLDivElement | null>;
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -140,12 +180,12 @@ export interface GraphEngineHandle {
   clearHover: () => void;
   /** 按创建时间的入场播放 */
   playback: PlaybackControls;
+  overlay: GraphOverlayApi;
 }
 
 export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
   const {
-    cards,
-    getCardLinks,
+    items,
     currentCardIds,
     filterCardIds,
     fitView,
@@ -171,6 +211,11 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
   const clusterColorsRef = useRef<Map<number, string>>(new Map());
   const frameRef = useRef(0);
   const dirtyRef = useRef(true);
+  const frameListenersRef = useRef(new Set<() => void>());
+  const geometryCacheRef = useRef<{
+    scene: GraphScene;
+    shapes: ReturnType<typeof clusterGeometry>;
+  } | null>(null);
   const hoveredRef = useRef<number | null>(null);
   /** 降淡的中心与强调程度：悬停结束后中心保留到淡出完成 */
   const focusRef = useRef<number | null>(null);
@@ -179,7 +224,7 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentIdsRef = useRef<Set<number>>(new Set());
   const filterIdsRef = useRef<Set<number> | null>(null);
-  const cardsRef = useRef<ICard[]>(cards);
+  const itemsRef = useRef<GraphItem[]>(items);
   const fitOnNextSettle = useRef(fitView);
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const backendRef = useRef<PositionBackend>(undefined as unknown as PositionBackend);
@@ -273,8 +318,8 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
   );
 
   useEffect(() => {
-    cardsRef.current = cards;
-  }, [cards]);
+    itemsRef.current = items;
+  }, [items]);
 
   useEffect(() => {
     currentIdsRef.current = new Set(currentCardIds ?? []);
@@ -361,6 +406,7 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
       adjacentIds: focusId === null ? new Set() : (scene.adjacency.get(focusId) ?? new Set()),
       clusterColors: clusterColorsRef.current,
     });
+    for (const listener of frameListenersRef.current) listener();
   });
 
   /** 推进悬停强调的渐变；还没到终点返回 true，raf 循环据此继续画 */
@@ -385,23 +431,23 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
 
   // ---- 构建场景：卡片拓扑变化时重建，坐标从旧场景继承
   const topologyKey = useMemo(() => {
-    const ids = new Set(cards.map(card => card.id));
-    const parts = cards
-      .map(card => {
-        const links = [...new Set(getCardLinks(card))]
-          .filter(id => ids.has(id) && id !== card.id)
+    const ids = new Set(items.map(item => item.id));
+    const parts = items
+      .map(item => {
+        const links = [...new Set(item.links)]
+          .filter(id => ids.has(id) && id !== item.id)
           .sort((a, b) => a - b);
-        return `${card.id}:${links.join("-")}`;
+        return `${item.key}:${item.id}:${links.join("-")}`;
       })
       .sort();
     return parts.join("|");
-  }, [cards, getCardLinks]);
+  }, [items]);
 
   useEffect(() => {
     const previous = sceneRef.current;
     const scene = knowledgeMap
-      ? buildMapScene(cardsRef.current, getCardLinks, knowledgeMap)
-      : buildScene(cardsRef.current, getCardLinks);
+      ? buildMapScene(itemsRef.current, knowledgeMap)
+      : buildScene(itemsRef.current);
     if (previous && !knowledgeMap) inheritPositions(scene, previous);
     sceneRef.current = scene;
     // 卡片集变了，旧时间轴对不上新节点：结束播放，回到完整的图
@@ -490,10 +536,9 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
       layoutRef.current?.destroy();
       layoutRef.current = null;
     };
-    // topologyKey 覆盖 cards + getCardLinks 的有效变化，cards 本体变动（正文编辑）不重建
+    // topologyKey 覆盖条目与连线的有效变化，条目本体变动（标题编辑）不重建
   }, [
     topologyKey,
-    getCardLinks,
     knowledgeMap,
     fitView,
     fitViewPadding,
@@ -578,6 +623,22 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
     if (!node || !camera) return null;
     const [x, y] = camera.toCanvas(node.x, node.y);
     return { x, y: y + node.radius * camera.scale };
+  });
+
+  /** 节点圆与悬停标题的并集（画布坐标） */
+  const hoverBoxOf = useMemoizedFn((id: number): Box | null => {
+    const node = sceneRef.current?.nodeById.get(id);
+    const camera = cameraRef.current;
+    if (!node || !camera) return null;
+    const [x, y] = camera.toCanvas(node.x, node.y);
+    const r = node.radius * camera.scale;
+    const label = rendererRef.current?.hoverLabelBox();
+    return {
+      left: Math.min(x - r, label?.left ?? Infinity),
+      top: y - r,
+      right: Math.max(x + r, label?.right ?? -Infinity),
+      bottom: Math.max(y + r, label?.bottom ?? -Infinity),
+    };
   });
 
   // ---- 指针交互
@@ -680,15 +741,8 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
       hoverTimerRef.current = setTimeout(() => {
         hoverTimerRef.current = null;
         if (hoveredRef.current !== nextId) return;
-        // 预览面板挂在标题下方而不是光标处：挂在光标处时面板正好压在标题上，
-        // 鼠标一碰面板画布就收到 pointerleave，悬停断开、面板消失，又回到悬停……
-        const box = rendererRef.current?.hoverLabelBox();
-        const below = anchorOf(nextId);
-        onHoverNode?.({
-          id: nextId,
-          canvasX: box?.left ?? below?.x ?? x,
-          canvasY: box?.bottom ?? below?.y ?? y,
-        });
+        const box = hoverBoxOf(nextId);
+        if (box) onHoverNode?.({ id: nextId, box });
       }, HOVER_DELAY);
     };
 
@@ -711,8 +765,8 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
       }
       // 未位移 = 点击
       if (drag.node) {
-        const card = cardsRef.current.find(item => item.id === drag.node!.id);
-        if (card) onClickNode?.(card);
+        const item = itemsRef.current.find(entry => entry.id === drag.node!.id);
+        if (item) onClickNode?.(item);
       } else {
         clearHover();
       }
@@ -753,7 +807,15 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
       canvas.removeEventListener("pointerleave", onPointerLeave);
       canvas.removeEventListener("wheel", onWheel);
     };
-  }, [anchorOf, clearHover, enableHoverPreview, keepHoverOnLeave, onClickNode, onHoverNode]);
+  }, [
+    anchorOf,
+    clearHover,
+    enableHoverPreview,
+    hoverBoxOf,
+    keepHoverOnLeave,
+    onClickNode,
+    onHoverNode,
+  ]);
 
   useEffect(() => {
     if (enableHoverPreview) return;
@@ -782,6 +844,141 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
     dirtyRef.current = true;
   });
 
+  const keyToId = useMemo(() => new Map(items.map(item => [item.key, item.id])), [items]);
+  const shapesOf = (scene: GraphScene) => {
+    const cached = geometryCacheRef.current;
+    if (cached?.scene === scene) return cached.shapes;
+    const shapes = clusterGeometry(scene);
+    geometryCacheRef.current = { scene, shapes };
+    return shapes;
+  };
+  const worldTopic = useMemoizedFn((topicId: number) => {
+    const scene = sceneRef.current;
+    if (!scene || !isMapScene(scene)) return null;
+    const cluster = scene.topicCluster.get(topicId);
+    return cluster === undefined ? null : (shapesOf(scene).get(cluster) ?? null);
+  });
+  const overlay = useMemo<GraphOverlayApi>(
+    () => ({
+      subscribeFrame: listener => {
+        frameListenersRef.current.add(listener);
+        dirtyRef.current = true;
+        return () => frameListenersRef.current.delete(listener);
+      },
+      project: key => {
+        const id = keyToId.get(key);
+        const node = id === undefined ? null : sceneRef.current?.nodeById.get(id);
+        const camera = cameraRef.current;
+        if (!node || !camera) return null;
+        const [x, y] = camera.toCanvas(node.x, node.y);
+        return { x, y, r: Math.max(1.2, node.radius * camera.scale) };
+      },
+      topicShape: topicId => {
+        const shape = worldTopic(topicId);
+        const camera = cameraRef.current;
+        if (!shape || !camera) return null;
+        const [x, y] = camera.toCanvas(shape.x, shape.y);
+        return { x, y, radius: shape.radius * camera.scale };
+      },
+      subtopicCenter: subtopicId => {
+        const scene = sceneRef.current;
+        const camera = cameraRef.current;
+        if (!scene || !camera || !isMapScene(scene)) return null;
+        const sub = scene.subtopics.find(item => item.id === subtopicId);
+        if (!sub?.members.length) return null;
+        let sumX = 0;
+        let sumY = 0;
+        let count = 0;
+        for (const id of sub.members) {
+          const node = scene.nodeById.get(id);
+          if (!node) continue;
+          sumX += node.x;
+          sumY += node.y;
+          count += 1;
+        }
+        if (!count) return null;
+        const [x, y] = camera.toCanvas(sumX / count, sumY / count);
+        return { x, y };
+      },
+      scale: () => cameraRef.current?.scale ?? 1,
+      subtopicLabelScale: MAP_SUBTOPIC_LABEL_SCALE,
+      nodeLabelScale: MAP_CARD_LABEL_SCALE,
+      flyToTopic: topicId => {
+        const shape = worldTopic(topicId);
+        const camera = cameraRef.current;
+        const container = containerRef.current;
+        if (!shape || !camera || !container) return;
+        const viewport = Math.min(container.clientWidth, container.clientHeight) || 600;
+        // 岛的直径占视口短边的七成；最少放大到能看清子主题名
+        const scale = Math.max(
+          MAP_SUBTOPIC_LABEL_SCALE * 1.05,
+          (viewport * 0.7) / Math.max(1, shape.radius * 2)
+        );
+        camera.flyTo({ x: shape.x, y: shape.y, scale }, 700);
+        dirtyRef.current = true;
+      },
+      flyToAll: () => {
+        const scene = sceneRef.current;
+        const camera = cameraRef.current;
+        const container = containerRef.current;
+        if (!scene || !camera || !container) return;
+        // 先算出全图视角，再从当前视角飞过去（fit 是瞬移）
+        const from = { ...camera.current };
+        camera.fit(sceneBounds(scene), fitViewPadding);
+        const target = camera.current;
+        camera.restore(from);
+        camera.flyTo(
+          {
+            x: container.clientWidth / 2 / target.scale - target.offsetX,
+            y: container.clientHeight / 2 / target.scale - target.offsetY,
+            scale: target.scale,
+          },
+          700
+        );
+        dirtyRef.current = true;
+      },
+      flyToItems: keys => {
+        const scene = sceneRef.current;
+        const camera = cameraRef.current;
+        const container = containerRef.current;
+        if (!scene || !camera || !container) return;
+        const nodes = keys.flatMap(key => {
+          const id = keyToId.get(key);
+          const node = id === undefined ? undefined : scene.nodeById.get(id);
+          return node ? [node] : [];
+        });
+        if (!nodes.length) return;
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+        // 留出标题签与气泡的位置
+        const margin = 90;
+        const inView = nodes.every(node => {
+          const [x, y] = camera.toCanvas(node.x, node.y);
+          return x >= margin && x <= width - margin && y >= margin && y <= height - margin;
+        });
+        if (inView) return;
+        const xs = nodes.map(node => node.x);
+        const ys = nodes.map(node => node.y);
+        const spanX = Math.max(...xs) - Math.min(...xs);
+        const spanY = Math.max(...ys) - Math.min(...ys);
+        const fitScale = Math.min(
+          (width - margin * 2) / Math.max(1, spanX),
+          (height - margin * 2) / Math.max(1, spanY)
+        );
+        camera.flyTo(
+          {
+            x: (Math.max(...xs) + Math.min(...xs)) / 2,
+            y: (Math.max(...ys) + Math.min(...ys)) / 2,
+            scale: Math.min(camera.scale, fitScale),
+          },
+          500
+        );
+        dirtyRef.current = true;
+      },
+    }),
+    [keyToId, worldTopic, fitViewPadding]
+  );
+
   const playback = useMemo<PlaybackControls>(
     () => ({ state: playbackState, play, stop: stopPlayback }),
     [playbackState, play, stopPlayback]
@@ -796,5 +993,6 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
     anchorOf,
     clearHover,
     playback,
+    overlay,
   };
 }

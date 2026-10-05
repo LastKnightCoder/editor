@@ -4,7 +4,7 @@
  */
 
 import { Fragment, useEffect, useState } from "react";
-import { ChevronRight, Trash2 } from "lucide-react";
+import { ChevronRight, CornerUpLeft, Trash2 } from "lucide-react";
 import { Drawer, IconButton, useRetainedValue } from "@tau/ui";
 import { useOverlayDismiss } from "@/page/PageProvider";
 import type { TodoGroup } from "@/types";
@@ -62,29 +62,37 @@ export function TodoDrawer({
       className="top-0"
       icon={
         current && (
-          <TodoCheck
-            size="lg"
-            className="mt-1"
-            checked={checked}
-            recurring={recurring}
-            overdue={isOverdue(current, now)}
-            label={recurring ? "今日打卡" : checked ? "标记未完成" : "完成"}
-            onToggle={() => onToggle(current)}
-          />
+          <div className="flex items-start gap-1">
+            {/* 子任务详情：返回上级父任务（与正文的父任务路径链接互补，这里给显眼入口） */}
+            {parent && (
+              <IconButton title="返回上级任务" onClick={() => onOpen(parent)}>
+                <CornerUpLeft className="size-[15px]" strokeWidth={1.75} />
+              </IconButton>
+            )}
+            <TodoCheck
+              size="lg"
+              className="mt-1"
+              checked={checked}
+              recurring={recurring}
+              overdue={isOverdue(current, now)}
+              label={recurring ? "今日打卡" : checked ? "标记未完成" : "完成"}
+              onToggle={() => onToggle(current)}
+            />
+          </div>
         )
       }
       title={current && <TitleField key={current.id} entry={current} mutations={mutations} />}
       subtitle={
-        <span className="flex items-center gap-1.5 text-[11.5px]">
-          <GroupDot color={group?.color} className="size-[7px]" />
-          <span className="text-ink-2">{group?.title ?? "未归类"}</span>
+        <span className="flex min-w-0 items-center gap-1.5 text-[11.5px]">
+          <GroupDot color={group?.color} className="size-[7px] shrink-0" />
+          <span className="text-ink-2 truncate">{group?.title ?? "未归类"}</span>
           {parent && (
             <>
-              <ChevronRight className="size-3" strokeWidth={1.75} />
+              <ChevronRight className="size-3 shrink-0" strokeWidth={1.75} />
               <button
                 type="button"
                 onClick={() => onOpen(parent)}
-                className="text-ink-2 hover:text-accent-text truncate"
+                className="text-ink-2 hover:text-accent-text min-w-0 truncate"
               >
                 {parent.title}
               </button>

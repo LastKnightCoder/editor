@@ -51,6 +51,7 @@ import { TodayDrawer } from "../components/TodayDrawer";
 import { TodoDrawer } from "../components/TodoDrawer";
 import { GroupDot } from "../components/TodoBits";
 import { useAppContextProvider } from "@/hooks/useAppContextProvider";
+import { readSavedGroupFilter, readSavedMode, saveGroupFilter, saveMode } from "../preferences";
 
 const UNDO_MS = 5000;
 
@@ -61,7 +62,20 @@ export function TodosView() {
   const now = useNow();
 
   const params = usePageParams<{ id?: string; selectedId?: number }>();
-  const [mode, setMode] = useState<AgendaMode>("date");
+  /* 实例新建且未指定筛选（主入口/首页无参进入）时恢复上次的项目筛选偏好；
+     合并保留同帧的其他参数（如外部 selectedId 定位），不被恢复顶掉 */
+  useEffect(() => {
+    if (params.id !== undefined) return;
+    const saved = readSavedGroupFilter();
+    if (saved) navigator.push("todos", { ...params, id: saved });
+    // 仅挂载恢复一次：保活实例的参数一直在线
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  /* 筛选变化即记偏好（含显式回"全部"），侧栏子项与页内切换所有路径统一收口 */
+  useEffect(() => {
+    if (params.id !== undefined) saveGroupFilter(params.id);
+  }, [params.id]);
+  const [mode, setMode] = useState<AgendaMode>(readSavedMode);
   // 项目筛选 = 侧栏子项选中的项目（0 = 全部）；项目被归档 / 删除后自然回到全部
   const groupFilter =
     params.id && snapshot?.groups.some(g => g.id === Number(params.id)) ? Number(params.id) : 0;
@@ -73,22 +87,21 @@ export function TodosView() {
   const quickAddRef = useRef<HTMLInputElement>(null);
   const agendaAnchor = useRef<HTMLDivElement>(null);
 
-  /* 删除暂存：立即从视图消失，UNDO_MS 后真正落库；撤销即取消；离开页面时立刻落库 */
+  /* 删除暂存：立即从视图消失，UNDO_MS 后真正落库；撤销即取消；离开页面时立刻落库。
+     落库成功后不清暂存——条目由失效重拉从快照中消失，提前清除会在重拉完成前闪现（列表抖动） */
   const [pendingDelete, setPendingDelete] = useState<ReadonlySet<number>>(() => new Set());
   const deleteTimers = useRef(new Map<number, number>());
   const commitDelete = (id: number) => {
     window.clearTimeout(deleteTimers.current.get(id));
     deleteTimers.current.delete(id);
-    mutations
-      .remove(id)
-      .catch(() => toast.error("删除失败"))
-      .finally(() =>
-        setPendingDelete(prev => {
-          const next = new Set(prev);
-          next.delete(id);
-          return next;
-        })
-      );
+    mutations.remove(id).catch(() => {
+      toast.error("删除失败");
+      setPendingDelete(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    });
   };
   const commitRef = useRef(commitDelete);
   commitRef.current = commitDelete;
@@ -402,7 +415,10 @@ export function TodosView() {
               <Segmented
                 label="分段方式"
                 value={mode}
-                onValueChange={(v: AgendaMode) => setMode(v)}
+                onValueChange={(v: AgendaMode) => {
+                  setMode(v);
+                  saveMode(v);
+                }}
               >
                 <Segmented.Item value="date" icon={CalendarDays} label="按日期" />
                 <Segmented.Item value="group" icon={Folder} label="按项目" />

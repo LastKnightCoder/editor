@@ -1,9 +1,11 @@
+import { concatMp3, parseMp3, type Mp3Stream } from "./mp3";
+
 /**
  * 将多个 AudioBuffer 合并成一个
  */
 export async function mergeAudioBuffers(
   audioContext: AudioContext,
-  buffers: AudioBuffer[],
+  buffers: AudioBuffer[]
 ): Promise<AudioBuffer> {
   if (buffers.length === 0) {
     throw new Error("没有可合并的音频");
@@ -21,11 +23,7 @@ export async function mergeAudioBuffers(
   const numberOfChannels = buffers[0].numberOfChannels;
 
   // 创建合并后的 buffer
-  const mergedBuffer = audioContext.createBuffer(
-    numberOfChannels,
-    totalLength,
-    sampleRate,
-  );
+  const mergedBuffer = audioContext.createBuffer(numberOfChannels, totalLength, sampleRate);
 
   // 合并所有音频数据
   let offset = 0;
@@ -45,7 +43,7 @@ export async function mergeAudioBuffers(
  */
 export async function arrayBufferToAudioBuffer(
   audioContext: AudioContext,
-  arrayBuffer: ArrayBuffer,
+  arrayBuffer: ArrayBuffer
 ): Promise<AudioBuffer> {
   return await audioContext.decodeAudioData(arrayBuffer);
 }
@@ -55,7 +53,7 @@ export async function arrayBufferToAudioBuffer(
  */
 export async function audioBufferToBlob(
   audioBuffer: AudioBuffer,
-  mimeType = "audio/wav",
+  mimeType = "audio/wav"
 ): Promise<Blob> {
   const numberOfChannels = audioBuffer.numberOfChannels;
   const length = audioBuffer.length * numberOfChannels * 2;
@@ -103,7 +101,7 @@ function writeString(view: DataView, offset: number, string: string) {
 export function applyFadeInOut(
   audioBuffer: AudioBuffer,
   fadeInDuration = 0.5,
-  fadeOutDuration = 0.5,
+  fadeOutDuration = 0.5
 ): AudioBuffer {
   const sampleRate = audioBuffer.sampleRate;
   const fadeInSamples = Math.floor(fadeInDuration * sampleRate);
@@ -135,18 +133,14 @@ export async function mixAudioBuffers(
   audioContext: AudioContext,
   mainBuffer: AudioBuffer,
   bgmBuffer: AudioBuffer,
-  bgmVolume = 0.2,
+  bgmVolume = 0.2
 ): Promise<AudioBuffer> {
   const sampleRate = mainBuffer.sampleRate;
   const numberOfChannels = mainBuffer.numberOfChannels;
   const length = mainBuffer.length;
 
   // 创建混合后的 buffer
-  const mixedBuffer = audioContext.createBuffer(
-    numberOfChannels,
-    length,
-    sampleRate,
-  );
+  const mixedBuffer = audioContext.createBuffer(numberOfChannels, length, sampleRate);
 
   for (let channel = 0; channel < numberOfChannels; channel++) {
     const mainData = mainBuffer.getChannelData(channel);
@@ -179,4 +173,58 @@ export async function mixAudioBuffers(
  */
 export function getAudioDuration(audioBuffer: AudioBuffer): number {
   return audioBuffer.length / audioBuffer.sampleRate;
+}
+
+/** 一段 TTS 语音：MP3 直接按帧解析（不解码），其它格式解码为 PCM */
+export interface SpeechSegment {
+  data: ArrayBuffer;
+  duration: number;
+  mp3: Mp3Stream | null;
+  buffer: AudioBuffer | null;
+}
+
+export async function loadSpeechSegment(
+  audioContext: AudioContext,
+  data: ArrayBuffer
+): Promise<SpeechSegment> {
+  const mp3 = parseMp3(data);
+  if (mp3) {
+    return { data, duration: mp3.duration, mp3, buffer: null };
+  }
+  // decodeAudioData 会转移（清空）入参，留一份原始数据给片段预览与重新合并
+  const buffer = await arrayBufferToAudioBuffer(audioContext, data.slice(0));
+  return { data, duration: buffer.duration, mp3: null, buffer };
+}
+
+/** 片段预览用的 Blob（MP3 标明类型，其它交给浏览器嗅探） */
+export function speechSegmentToBlob(segment: SpeechSegment): Blob {
+  return new Blob([segment.data], segment.mp3 ? { type: "audio/mpeg" } : undefined);
+}
+
+/**
+ * 合并多段语音：全部是同采样率 MP3 时直接帧拼接（体积约为 WAV 的 1/6 - 1/12），
+ * 否则解码后合并为 WAV。
+ */
+export async function mergeSpeechSegments(
+  audioContext: AudioContext,
+  segments: SpeechSegment[]
+): Promise<{ blob: Blob; ext: "mp3" | "wav"; duration: number }> {
+  if (segments.length === 0) {
+    throw new Error("没有可合并的音频");
+  }
+  const streams = segments.map(segment => segment.mp3);
+  if (streams.every((stream): stream is Mp3Stream => stream != null)) {
+    const blob = concatMp3(streams);
+    if (blob) {
+      const duration = streams.reduce((sum, stream) => sum + stream.duration, 0);
+      return { blob, ext: "mp3", duration };
+    }
+  }
+  const buffers = await Promise.all(
+    segments.map(
+      segment => segment.buffer ?? arrayBufferToAudioBuffer(audioContext, segment.data.slice(0))
+    )
+  );
+  const merged = await mergeAudioBuffers(audioContext, buffers);
+  return { blob: await audioBufferToBlob(merged), ext: "wav", duration: getAudioDuration(merged) };
 }

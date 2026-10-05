@@ -67,6 +67,8 @@ import {
   type ReaderOverlay,
 } from "./readerContext";
 import { useReaderPrefs } from "./readerPrefs";
+import { convertMaterialToCard } from "@/services/material-to-card";
+import { requestMaterialQuestionCapture } from "@/services/question-capture";
 import { useAnnotationSync } from "./useAnnotationSync";
 import { usePinchZoom } from "./usePinchZoom";
 import { AnnotationMenu, type SelectionMenuProps } from "./components/AnnotationMenu";
@@ -83,6 +85,8 @@ export interface ReaderLayoutProps {
   mainDbName: string;
   index: ReturnType<typeof usePdfIndex>;
   jumpTarget?: PdfCitationTarget | null;
+  /** 定位到某条标注（材料打开到原处）；标注加载、布局就绪后跳一次 */
+  jumpAnnotationId?: number | null;
   onPageChange?: (page: number) => void;
   /** 不传则隐藏所有「问 AI」入口 */
   onAskAI?: (quote: PdfQuote) => void;
@@ -129,6 +133,7 @@ export function ReaderLayout({
   mainDbName,
   index,
   jumpTarget,
+  jumpAnnotationId,
   onPageChange,
   onAskAI,
   leftToggleInHud,
@@ -303,6 +308,19 @@ export function ReaderLayout({
       annotationCap?.selectAnnotation(annotationPage(record) - 1, record.annotation.id);
     }
   });
+
+  const pendingAnnotation = useRef<number | null>(null);
+  useEffect(() => {
+    pendingAnnotation.current = jumpAnnotationId ?? null;
+  }, [jumpAnnotationId]);
+  useEffect(() => {
+    const id = pendingAnnotation.current;
+    if (id == null || !layoutReady) return;
+    const record = records.find(r => r.id === id);
+    if (!record) return;
+    pendingAnnotation.current = null;
+    jumpToRecord(record);
+  }, [jumpAnnotationId, layoutReady, records, jumpToRecord]);
 
   /* ───────── 书签 ───────── */
 
@@ -754,6 +772,14 @@ export function ReaderLayout({
           bookmarks={bookmarks}
           onJumpPage={page => scroll?.scrollToPage({ pageNumber: page, behavior: "smooth" })}
           onJumpAnnotation={jumpToRecord}
+          onAnnotationToCard={record =>
+            void convertMaterialToCard({ kind: "pdf-annotation", id: record.id })
+          }
+          onAnnotationToQuestion={record =>
+            void requestMaterialQuestionCapture({ kind: "pdf-annotation", id: record.id }).catch(
+              () => toast.error("这条标注已不存在")
+            )
+          }
           onRemoveBookmark={bookmark => void bookmarkStore.remove(bookmark)}
         />
         <div

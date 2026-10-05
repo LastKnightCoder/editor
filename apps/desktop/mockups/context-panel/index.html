@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>脉络 · 关联在详情页的四种形态</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  .win { width: 1320px; }
+
+  /* ── 纸与版心（同卡片 / 文章详情） ── */
+  .paper { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .scroll { flex: 1; min-height: 0; overflow: auto; border-right: 6px solid transparent;
+    -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 20px, #000 calc(100% - 20px), transparent);
+            mask-image: linear-gradient(180deg, transparent 0, #000 20px, #000 calc(100% - 20px), transparent); }
+  .grid { display: grid; grid-template-columns: 1fr minmax(0, var(--measure, 640px)) 1fr; align-items: start; padding: 40px 26px 56px; }
+  .page-article .grid { --measure: 720px; }
+  .grid article { grid-column: 2; min-width: 0; }
+  .aside { grid-column: 3; position: sticky; top: 16px; margin-left: 32px; width: 208px; min-width: 0; }
+
+  .title { font-size: 27px; font-weight: 600; line-height: 1.35; letter-spacing: -0.01em; margin-bottom: 6px; }
+  .meta { display: flex; align-items: center; gap: 10px; color: var(--ink-3); font-size: 12.5px; font-variant-numeric: tabular-nums; position: relative; }
+  .meta i.sep { width: 3px; height: 3px; border-radius: 50%; background: var(--ink-3); opacity: .6; }
+  .meta .more { margin-left: auto; width: 26px; height: 26px; display: grid; place-items: center; border-radius: var(--r-sm); }
+  .meta .more:hover { background: var(--hover); color: var(--ink-1); }
+  .cat { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); }
+  .cat::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--info); }
+
+  .prose { margin-top: 22px; font-size: 15.5px; line-height: 1.85; }
+  .prose p { margin: 0 0 14px; }
+  .prose h2 { font-size: 20px; margin: 28px 0 10px; font-weight: 600; }
+  .prose .lnk { color: var(--accent-text); border-bottom: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); cursor: pointer; }
+  .prose .ph { color: var(--ink-3); }
+  .tags { margin-top: 26px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .tags span { background: var(--hover); color: var(--ink-2); border-radius: 6px; padding: 0 9px; font-size: 12px; line-height: 24px; }
+
+  /* 现有「连接」区（卡片专有，保持现状） */
+  .linked { margin-top: 26px; }
+  .linked .h { display: flex; align-items: baseline; gap: 8px; padding: 0 2px 10px; font-size: 12.5px; }
+  .linked .h b { font-weight: 600; }
+  .linked .h small { color: var(--ink-3); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: var(--r-sm); background: var(--hover); color: var(--ink-2); font-size: 12px; cursor: pointer; }
+  .chip:hover { background: var(--press); color: var(--ink-1); }
+  .chip .d { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+  .chip svg.lucide { width: 12px; height: 12px; color: var(--ink-3); }
+  .chip.add { background: none; border: 1px dashed var(--line-1); color: var(--ink-3); }
+
+  .toc { font-size: 12px; color: var(--ink-3); }
+  .toc div { padding: 4px 8px; border-left: 2px solid var(--line-1); }
+  .toc div.on { color: var(--accent-text); border-color: var(--accent); }
+
+  /* ── 共用：被引用的片段 ──
+     这是全套设计唯一「用力」的地方：别人怎么写到你——来源那句话原样摆出来，你的标题在句中被点亮 */
+  .quote { font-size: 13px; line-height: 1.75; color: var(--ink-2); }
+  .quote mark { background: none; color: var(--ink-1); font-weight: 500; box-shadow: inset 0 -0.42em 0 var(--accent-soft); border-radius: 2px; padding: 0 1px; }
+  .src { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-3); }
+  .src b { font-weight: 500; color: var(--ink-2); }
+  .src svg.lucide { width: 13px; height: 13px; }
+  .q-status { margin-left: auto; font-size: 11.5px; color: var(--warn); }
+  .q-status.done { color: var(--ok); }
+
+  /* ── A · 完整分区（对照：设计稿 06 §7.2 的原方案） ── */
+  .pa { margin-top: 34px; border-top: 1px solid var(--line-1); padding-top: 18px; }
+  .pa h4 { margin: 0 0 14px; font-size: 13px; font-weight: 600; }
+  .pa .sec { margin-bottom: 18px; }
+  .pa .sec-h { font-size: 12px; color: var(--ink-3); margin-bottom: 8px; }
+  .pa .row { padding: 8px 10px; border-radius: var(--r-sm); cursor: pointer; }
+  .pa .row:hover { background: var(--hover); }
+  .pa .row .quote { margin-top: 2px; }
+
+  /* ── B · 脚注一行：正文结束后一行小字，点开就地展开 ── */
+  .pb { margin-top: 30px; }
+  .pb .line { display: flex; align-items: center; gap: 14px; font-size: 12.5px; color: var(--ink-3); cursor: pointer; padding: 6px 0; user-select: none; }
+  .pb .line::before { content: ""; width: 28px; height: 1px; background: var(--line-1); flex: none; transition: width var(--normal) var(--ease); }
+  .pb .line:hover { color: var(--ink-2); }
+  .pb .line:hover::before { width: 40px; }
+  .pb .line span { display: inline-flex; align-items: center; gap: 5px; }
+  .pb .line span svg.lucide { width: 13px; height: 13px; }
+  .pb .line .chev { margin-left: auto; transition: transform var(--fast) var(--ease); }
+  .pb.open .line .chev { transform: rotate(180deg); }
+  .pb .body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--normal) var(--ease); }
+  .pb.open .body { grid-template-rows: 1fr; }
+  .pb .body > div { overflow: hidden; }
+  .pb .item { margin: 12px 0 0 42px; padding-left: 12px; border-left: 2px solid var(--line-1); cursor: pointer; }
+  .pb .item:hover { border-color: var(--accent); }
+  .pb .grp { margin: 18px 0 0 42px; font-size: 12px; color: var(--ink-3); }
+  .pb .grp + .item { margin-top: 8px; }
+  .pb .plain { margin: 6px 0 0 42px; font-size: 13px; color: var(--ink-2); display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .pb .plain:hover { color: var(--ink-1); }
+  .pb .plain svg.lucide { width: 14px; height: 14px; color: var(--ink-3); }
+
+  /* ── C · 页边批注：右侧空白处，像书页边写的小字 ── */
+  .pc { font-size: 12px; }
+  .pc .note { padding: 0 0 14px 12px; border-left: 1px solid var(--line-1); position: relative; cursor: pointer; }
+  .pc .note::before { content: ""; position: absolute; left: -3px; top: 7px; width: 5px; height: 5px; border-radius: 50%; background: var(--line-1); transition: background var(--fast); }
+  .pc .note:hover::before { background: var(--accent); }
+  .pc .note .quote { font-size: 12px; line-height: 1.7; margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .pc .lab { font-size: 11.5px; color: var(--ink-3); margin: 0 0 8px 12px; }
+  .pc .more-n { margin-left: 12px; color: var(--ink-3); cursor: pointer; }
+  .pc .more-n:hover { color: var(--ink-2); }
+  .pc + .toc, .toc + .pc { margin-top: 26px; }
+  .pc .note.qn .quote { color: var(--ink-1); }
+
+  /* ── D · 元信息行入口：一个计数，点开浮层 ── */
+  .pd-pill { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 999px; color: var(--ink-2); cursor: pointer; }
+  .pd-pill:hover, .pd-pill.on { background: var(--hover); color: var(--ink-1); }
+  .pd-pill svg.lucide { width: 13px; height: 13px; }
+  .pop { position: absolute; top: 30px; right: 0; width: 380px; max-height: 460px; overflow: auto; background: var(--surface); border-radius: var(--r-md); box-shadow: var(--shadow-float); padding: 14px 6px 8px; z-index: 10; color: var(--ink-1); font-size: 13px;
+    opacity: 0; transform: translateY(-4px); pointer-events: none; transition: opacity var(--fast) var(--ease), transform var(--fast) var(--ease); }
+  .pop.on { opacity: 1; transform: none; pointer-events: auto; }
+  .pop .sec-h { font-size: 12px; color: var(--ink-3); margin: 4px 10px 6px; }
+  .pop .row { padding: 7px 10px; border-radius: var(--r-sm); cursor: pointer; }
+  .pop .row:hover { background: var(--hover); }
+  .pop .sec + .sec { margin-top: 10px; }
+
+  .win:not(.plan-a) .only-a, .win:not(.plan-b) .only-b, .win:not(.plan-c) .only-c, .win:not(.plan-d) .only-d { display: none !important; }
+  .page-card .only-article, .page-article .only-card { display: none !important; }
+</style>
+</head>
+<body>
+<div class="mock-bar">
+  <b>脉络 mockup</b>
+  <span>形态</span>
+  <a href="#" data-plan="a">A 完整分区</a>
+  <a href="#" data-plan="b" class="on">B 脚注一行</a>
+  <a href="#" data-plan="c">C 页边批注</a>
+  <a href="#" data-plan="d">D 元信息入口</a>
+  <span style="margin-left:14px">关联</span>
+  <a href="#" data-state="none">新卡片（无关联）</a>
+  <a href="#" data-state="few" class="on">少量</a>
+  <a href="#" data-state="many">很多</a>
+  <span style="margin-left:14px">页面</span>
+  <a href="#" data-page="card" class="on">卡片</a>
+  <a href="#" data-page="article">文章</a>
+  <span class="sp"></span>
+  <select id="theme"><option value="cream">cream</option><option value="cocoa">cocoa</option></select>
+</div>
+
+<div class="mock-note">
+  <h3>要回答的问题：关联多了不重、没有时不显、想看时一眼能看全</h3>
+  <ul>
+    <li><b>A 完整分区</b>：06 设计稿的原方案，作对照。<span class="con">关联多时正文后面拖一大段，卡片短时比正文还长。</span></li>
+    <li><b>B 脚注一行</b>：正文结束后一行小字概括，点开就地展开。<span class="pro">收起时只占一行；没有关联时什么都没有。</span><span class="con">要点一下才看到片段。</span></li>
+    <li><b>C 页边批注</b>：放进右侧本来空着的页边，像书页边写的小字。<span class="pro">不占正文的纵向空间，读正文时余光可见。</span><span class="con">窗口窄时页边会被收掉，需要退回 B；文章页要和目录分享右栏。</span></li>
+    <li><b>D 元信息入口</b>：元信息行一个计数，点开浮层。<span class="pro">最轻。</span><span class="con">最容易被忽略，和「看得见关联」的目标有冲突。</span></li>
+    <li>四种形态共用同一个视觉重点：<b>被引用时，把对方那句话原样摆出来，你的标题在句中被点亮</b>。其余元素一律压低。</li>
+  </ul>
+</div>
+
+<div class="stage">
+  <div class="win plan-b page-card" id="win">
+    <aside class="sb">
+      <div class="sb-head"><span class="sb-logo">T</span><span>Tau</span></div>
+      <div class="sb-scroll">
+        <div class="sb-group">
+          <div class="sb-gt">日常</div>
+          <div class="sb-item"><i data-lucide="flame"></i><span>今日</span></div>
+          <div class="sb-item"><i data-lucide="pen-line"></i><span>日记</span></div>
+        </div>
+        <div class="sb-group">
+          <div class="sb-gt">知识</div>
+          <div class="sb-item" data-nav="card"><i data-lucide="layers"></i><span>卡片库</span></div>
+          <div class="sb-item" data-nav="article"><i data-lucide="file-text"></i><span>文章</span></div>
+          <div class="sb-item"><i data-lucide="folder-kanban"></i><span>项目</span></div>
+        </div>
+        <div class="sb-group">
+          <div class="sb-gt">学习</div>
+          <div class="sb-item"><i data-lucide="circle-help"></i><span>问题管理</span></div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="col">
+      <div class="tb"><span class="crumb" id="crumb"></span><span class="sp"></span><span class="search"><i data-lucide="search"></i>搜索或跳转…</span></div>
+      <div class="main">
+        <section class="paper">
+          <div class="scroll">
+            <div class="grid">
+              <article>
+                <div class="title only-article">浏览器是怎样把一页画出来的</div>
+                <div class="meta" id="meta"></div>
+                <div class="prose" id="prose"></div>
+                <div class="tags" id="tags"></div>
+                <div class="linked only-card" id="linked"></div>
+                <div id="bottom"></div>
+              </article>
+              <div class="aside" id="aside"></div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── 数据 ── */
+const SELF = { card: "重排与重绘", article: "浏览器是怎样把一页画出来的" };
+
+const DATA = {
+  card: {
+    few: {
+      backlinks: [
+        { kind: "file-text", from: "浏览器是怎样把一页画出来的", type: "文章",
+          q: ["布局阶段算出每个盒子的位置。之后只要几何属性变了，就会触发", "，代价远高于只改颜色。"] },
+        { kind: "layers", from: "事件循环里的渲染时机", type: "卡片",
+          q: ["一轮宏任务结束、微任务清空之后，浏览器才可能进入渲染，这时才真正执行", "。"] },
+      ],
+      projections: [{ from: "前端体系 · 渲染篇", type: "项目" }],
+      questions: [{ q: "为什么 transform 动画不会触发重排？", s: "探究中" }],
+    },
+    many: {
+      backlinks: [
+        { kind: "file-text", from: "浏览器是怎样把一页画出来的", type: "文章",
+          q: ["布局阶段算出每个盒子的位置。之后只要几何属性变了，就会触发", "，代价远高于只改颜色。"] },
+        { kind: "layers", from: "事件循环里的渲染时机", type: "卡片",
+          q: ["一轮宏任务结束、微任务清空之后，浏览器才可能进入渲染，这时才真正执行", "。"] },
+        { kind: "layers", from: "合成层与 will-change", type: "卡片",
+          q: ["提升为合成层之后，元素的变换交给合成线程，绕开了主线程上的", "。"] },
+        { kind: "folder-kanban", from: "前端体系 · 性能篇", type: "项目",
+          q: ["列表滚动卡顿，十有八九是在滚动回调里读了 offsetTop，强制同步", "。"] },
+        { kind: "pen-line", from: "9 月 18 日", type: "日记",
+          q: ["今天排查了一下午的掉帧，最后发现是动画里改了 width，复习了一遍", "。"] },
+        { kind: "layers", from: "虚拟列表的实现思路", type: "卡片",
+          q: ["只渲染视口内的几十行，滚动时复用节点，避免大量 DOM 插入带来的", "。"] },
+      ],
+      projections: [{ from: "前端体系 · 渲染篇", type: "项目" }, { from: "面试复习清单", type: "项目" }],
+      questions: [
+        { q: "为什么 transform 动画不会触发重排？", s: "探究中" },
+        { q: "getBoundingClientRect 一定会强制布局吗？", s: "待探究" },
+        { q: "requestAnimationFrame 和渲染帧是什么关系？", s: "已解答", done: true },
+      ],
+    },
+  },
+  article: {
+    few: {
+      backlinks: [
+        { kind: "folder-kanban", from: "前端体系 · 总览", type: "项目",
+          q: ["渲染这一块先读", "，再按里面的五个阶段分别展开。"] },
+      ],
+      projections: [],
+      questions: [{ q: "合成线程和主线程具体是怎么分工的？", s: "待探究" }],
+    },
+    many: {
+      backlinks: [
+        { kind: "folder-kanban", from: "前端体系 · 总览", type: "项目",
+          q: ["渲染这一块先读", "，再按里面的五个阶段分别展开。"] },
+        { kind: "layers", from: "重排与重绘", type: "卡片",
+          q: ["阶段划分参照", "，这里只记布局与绘制之间的代价差异。"] },
+        { kind: "layers", from: "关键渲染路径", type: "卡片",
+          q: ["CSS 会阻塞渲染，但不阻塞 DOM 解析。完整流程见", "。"] },
+        { kind: "pen-line", from: "9 月 21 日", type: "日记",
+          q: ["把", "从头改了一遍，补上了合成那一节。"] },
+      ],
+      projections: [{ from: "前端体系 · 渲染篇", type: "项目" }],
+      questions: [
+        { q: "合成线程和主线程具体是怎么分工的？", s: "待探究" },
+        { q: "为什么 transform 动画不会触发重排？", s: "探究中" },
+      ],
+    },
+  },
+};
+
+const PROSE = {
+  card: {
+    full: `<p>重排（reflow）是重新计算元素的几何信息：位置和尺寸。改 <code>width</code>、<code>top</code>、增删节点，都会让布局失效，下一帧必须重新布局。</p>
+<p>重绘（repaint）只重新绘制像素，比如改颜色、背景。它不碰布局，所以比重排便宜。</p>
+<p>重排一定会引起重绘，反过来不会。读 <span class="lnk">offsetTop</span> 这类布局属性时，如果布局已经失效，浏览器会立刻同步计算一次，这就是强制同步布局。</p>`,
+    empty: `<p>重排是重新计算元素的位置和尺寸，重绘只重新绘制像素。<span class="ph">（刚写下的一张卡）</span></p>`,
+  },
+  article: {
+    full: `<p>从拿到 HTML 到屏幕上出现像素，浏览器大致要走五步：解析、样式、布局、绘制、合成。这篇按顺序把每一步做了什么、代价在哪里写下来。</p>
+<h2>解析与样式</h2>
+<p>HTML 解析成 DOM，CSS 解析成 CSSOM，两者合在一起算出每个元素最终的样式。CSS 会阻塞渲染，所以样式表放在头部。</p>
+<h2>布局</h2>
+<p>布局阶段算出每个盒子的位置和尺寸。几何属性一变，布局就要重来，见 <span class="lnk">重排与重绘</span>。</p>
+<h2>绘制与合成</h2>
+<p>绘制把盒子变成一组绘制指令，合成线程再把各个图层拼起来。只改 <code>transform</code> 和 <code>opacity</code> 时，可以只走合成这一步。</p>`,
+    empty: `<p>从拿到 HTML 到屏幕上出现像素，浏览器大致要走五步。<span class="ph">（刚开始写的一篇）</span></p>`,
+  },
+};
+
+let plan = "b", state = "few", page = "card", popOpen = false;
+
+const esc = s => s;
+const quote = (b, self) => `<div class="quote">${b.q[0]}<mark>${self}</mark>${b.q[1]}</div>`;
+const srcLine = (b) => `<div class="src"><i data-lucide="${b.kind}"></i><b>${b.from}</b><span>${b.type}</span></div>`;
+const statusCls = q => q.done ? "q-status done" : "q-status";
+
+function counts(d) {
+  return { back: d.backlinks.length, proj: d.projections.length, q: d.questions.length };
+}
+
+/* A：完整分区 */
+function renderA(d, self) {
+  const sec = (h, inner) => `<div class="sec"><div class="sec-h">${h}</div>${inner}</div>`;
+  let html = `<div class="pa"><h4>脉络</h4>`;
+  if (d.backlinks.length) html += sec(`被引用 ${d.backlinks.length}`, d.backlinks.map(b => `<div class="row">${srcLine(b)}${quote(b, self)}</div>`).join(""));
+  if (d.projections.length) html += sec("也出现在", d.projections.map(p => `<div class="row"><div class="src"><i data-lucide="folder-kanban"></i><b>${p.from}</b></div></div>`).join(""));
+  if (d.questions.length) html += sec(`相关问题 ${d.questions.length}`, d.questions.map(q => `<div class="row"><div class="src"><i data-lucide="circle-help"></i><b>${q.q}</b><span class="${statusCls(q)}">${q.s}</span></div></div>`).join(""));
+  return html + `</div>`;
+}
+
+/* B：脚注一行 */
+function renderB(d, self) {
+  const c = counts(d);
+  const parts = [];
+  if (c.back) parts.push(`<span><i data-lucide="quote"></i>被 ${c.back} 处引用</span>`);
+  if (c.proj) parts.push(`<span><i data-lucide="folder-kanban"></i>也在${d.projections[0].from.split(" · ")[0]}${c.proj > 1 ? ` 等 ${c.proj} 处` : ""}</span>`);
+  if (c.q) parts.push(`<span><i data-lucide="circle-help"></i>${c.q} 个问题</span>`);
+  let body = "";
+  if (c.back) body += d.backlinks.map(b => `<div class="item">${srcLine(b)}${quote(b, self)}</div>`).join("");
+  if (c.proj) body += `<div class="grp">也出现在</div>` + d.projections.map(p => `<div class="plain"><i data-lucide="folder-kanban"></i>${p.from}</div>`).join("");
+  if (c.q) body += `<div class="grp">相关问题</div>` + d.questions.map(q => `<div class="plain"><i data-lucide="circle-help"></i>${q.q}<span class="${statusCls(q)}">${q.s}</span></div>`).join("");
+  return `<div class="pb${state === "few" ? "" : ""}" id="pb"><div class="line">${parts.join("")}<i data-lucide="chevron-down" class="chev"></i></div><div class="body"><div>${body}<div style="height:6px"></div></div></div></div>`;
+}
+
+/* C：页边批注 */
+function renderC(d, self) {
+  const MAX = 3;
+  let html = `<div class="pc">`;
+  if (d.backlinks.length) {
+    html += `<div class="lab">被引用</div>`;
+    html += d.backlinks.slice(0, MAX).map(b => `<div class="note">${srcLine(b)}${quote(b, self)}</div>`).join("");
+    if (d.backlinks.length > MAX) html += `<div class="more-n">还有 ${d.backlinks.length - MAX} 处</div>`;
+  }
+  if (d.questions.length) {
+    html += `<div class="lab" style="margin-top:14px">相关问题</div>`;
+    html += d.questions.slice(0, 2).map(q => `<div class="note qn"><div class="quote">${q.q}</div><div class="src"><span class="${statusCls(q)}" style="margin-left:0">${q.s}</span></div></div>`).join("");
+  }
+  if (d.projections.length) {
+    html += `<div class="lab" style="margin-top:14px">也出现在</div>`;
+    html += d.projections.map(p => `<div class="note"><div class="src"><i data-lucide="folder-kanban"></i><b>${p.from}</b></div></div>`).join("");
+  }
+  return html + `</div>`;
+}
+
+/* D：元信息入口 + 浮层 */
+function renderDPill(d) {
+  const n = d.backlinks.length + d.projections.length + d.questions.length;
+  return `<span class="pd-pill${popOpen ? " on" : ""}" id="pdpill"><i data-lucide="waypoints"></i>${n} 处关联</span>`;
+}
+function renderDPop(d, self) {
+  let html = `<div class="pop${popOpen ? " on" : ""}" id="pop">`;
+  if (d.backlinks.length) html += `<div class="sec"><div class="sec-h">被引用</div>${d.backlinks.map(b => `<div class="row">${srcLine(b)}${quote(b, self)}</div>`).join("")}</div>`;
+  if (d.projections.length) html += `<div class="sec"><div class="sec-h">也出现在</div>${d.projections.map(p => `<div class="row"><div class="src"><i data-lucide="folder-kanban"></i><b>${p.from}</b></div></div>`).join("")}</div>`;
+  if (d.questions.length) html += `<div class="sec"><div class="sec-h">相关问题</div>${d.questions.map(q => `<div class="row"><div class="src"><i data-lucide="circle-help"></i><b>${q.q}</b><span class="${statusCls(q)}">${q.s}</span></div></div>`).join("")}</div>`;
+  return html + `</div>`;
+}
+
+function render() {
+  const win = document.getElementById("win");
+  win.className = `win plan-${plan} page-${page}`;
+  document.querySelectorAll("[data-nav]").forEach(n => n.classList.toggle("on", n.dataset.nav === page));
+  const self = SELF[page];
+  const d = state === "none" ? { backlinks: [], projections: [], questions: [] } : DATA[page][state];
+  const has = d.backlinks.length + d.projections.length + d.questions.length > 0;
+
+  document.getElementById("crumb").innerHTML = page === "card"
+    ? `卡片库 <span style="color:var(--ink-3)">/</span> <b>${self}</b>`
+    : `文章 <span style="color:var(--ink-3)">/</span> <b>${self}</b>`;
+
+  const metaBase = page === "card"
+    ? `<span class="cat">知识</span><i class="sep"></i><span>${state === "none" ? "刚刚创建" : "2026-08-02 创建"}</span><i class="sep"></i><span>${state === "none" ? "48 字" : "212 字"}</span>`
+    : `<span>${state === "none" ? "刚刚创建" : "2026-09-14 创建"}</span><i class="sep"></i><span>${state === "none" ? "36 字" : "1,860 字"}</span>`;
+  document.getElementById("meta").innerHTML = metaBase
+    + (plan === "d" && has ? `<i class="sep"></i>${renderDPill(d)}` : "")
+    + `<span class="more"><i data-lucide="more-horizontal"></i></span>`
+    + (plan === "d" && has ? renderDPop(d, self) : "");
+
+  document.getElementById("prose").innerHTML = PROSE[page][state === "none" ? "empty" : "full"];
+  document.getElementById("tags").innerHTML = state === "none" ? "" : (page === "card" ? "<span>#前端/渲染</span><span>#性能</span>" : "<span>#前端/渲染</span>");
+
+  document.getElementById("linked").innerHTML = state === "none" ? "" :
+    `<div class="h"><b>连接</b><small>${state === "many" ? 3 : 2}</small></div><div class="chips">
+      <span class="chip"><span class="d"></span>关键渲染路径<i data-lucide="link-2"></i></span>
+      <span class="chip"><span class="d"></span>强制同步布局<i data-lucide="text-quote"></i></span>
+      ${state === "many" ? `<span class="chip"><span class="d"></span>合成层与 will-change<i data-lucide="link-2"></i></span>` : ""}
+      <span class="chip add"><i data-lucide="plus"></i>添加连接</span></div>`;
+
+  const bottom = document.getElementById("bottom");
+  bottom.innerHTML = !has ? "" : plan === "a" ? renderA(d, self) : plan === "b" ? renderB(d, self) : "";
+
+  const aside = document.getElementById("aside");
+  const toc = page === "article" && state !== "none" ? `<div class="toc"><div class="on">解析与样式</div><div>布局</div><div>绘制与合成</div></div>` : "";
+  aside.innerHTML = plan === "c" && has ? (page === "article" ? toc + renderC(d, self) : renderC(d, self)) : toc;
+
+  const pb = document.getElementById("pb");
+  if (pb) pb.querySelector(".line").onclick = () => pb.classList.toggle("open");
+  const pill = document.getElementById("pdpill");
+  if (pill) pill.onclick = e => { e.stopPropagation(); popOpen = !popOpen; render(); };
+
+  lucide.createIcons();
+}
+
+document.addEventListener("click", e => {
+  if (popOpen && !e.target.closest("#pop")) { popOpen = false; render(); }
+});
+document.querySelectorAll(".mock-bar a").forEach(a => a.onclick = e => {
+  e.preventDefault();
+  const k = Object.keys(a.dataset)[0];
+  if (k === "plan") plan = a.dataset.plan;
+  if (k === "state") state = a.dataset.state;
+  if (k === "page") page = a.dataset.page;
+  popOpen = false;
+  document.querySelectorAll(`.mock-bar a[data-${k}]`).forEach(x => x.classList.toggle("on", x === a));
+  render();
+});
+document.getElementById("theme").onchange = e => document.documentElement.dataset.theme = e.target.value;
+render();
+</script>
+</body>
+</html>

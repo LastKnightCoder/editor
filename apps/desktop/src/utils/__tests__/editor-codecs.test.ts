@@ -108,6 +108,47 @@ describe("导出：块级", () => {
     expect(markdown).toMatch(/smm=/);
   });
 
+  it("code-block 文件名、换行、关闭行号写进围栏 meta 并能读回", () => {
+    const markdown = exportOne({
+      type: "code-block",
+      language: "ts",
+      code: "const a = 1;",
+      highlightLines: "1",
+      filename: 'api/"user".ts',
+      wrap: true,
+      lineNumbers: false,
+      children: [{ type: "formatted", text: "" }],
+    });
+    expect(markdown).toContain('```ts title="api/user.ts" wrap noLineNumbers {1}\n');
+    expect(md.importFromMarkdown(markdown)[0]).toMatchObject({
+      type: "code-block",
+      filename: "api/user.ts",
+      wrap: true,
+      lineNumbers: false,
+      highlightLines: "1",
+    });
+  });
+
+  it("code-block 默认显示行号、不换行时 meta 不多写", () => {
+    const markdown = exportOne({
+      type: "code-block",
+      language: "ts",
+      code: "x",
+      children: [{ type: "formatted", text: "" }],
+    });
+    expect(markdown).toContain("```ts\nx\n```");
+    const imported = md.importFromMarkdown(markdown)[0] as unknown as Record<string, unknown>;
+    expect(imported).not.toHaveProperty("filename");
+    expect(imported).not.toHaveProperty("wrap");
+    expect(imported).not.toHaveProperty("lineNumbers");
+  });
+
+  it("code-block 文件名里的花括号不被当成高亮行", () => {
+    const [block] = md.importFromMarkdown('```ts title="{1}.ts"\nx\n```');
+    expect(block).toMatchObject({ filename: "{1}.ts" });
+    expect(block).not.toHaveProperty("highlightLines");
+  });
+
   it("callout 有标题用标题，没标题用默认标题", () => {
     const titled = exportOne({
       type: "callout",

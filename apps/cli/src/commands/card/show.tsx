@@ -13,7 +13,6 @@ interface CardRow {
   update_time: number;
   tags: string;
   links: string;
-  category: string;
   is_top: number;
   content: string | null;
   count: number | null;
@@ -43,17 +42,9 @@ function CardShowView({ card, nodes }: { card: CardRow; nodes: any[] | null }) {
       <Box flexDirection="column" gap={0} marginBottom={1}>
         <Box>
           <Box width={14}>
-            <Text dimColor>Category</Text>
-          </Box>
-          <Text>{card.category}</Text>
-        </Box>
-        <Box>
-          <Box width={14}>
             <Text dimColor>Tags</Text>
           </Box>
-          <Text color="blue">
-            {tags.length > 0 ? tags.join(", ") : "(none)"}
-          </Text>
+          <Text color="blue">{tags.length > 0 ? tags.join(", ") : "(none)"}</Text>
         </Box>
         <Box>
           <Box width={14}>
@@ -88,11 +79,7 @@ function CardShowView({ card, nodes }: { card: CardRow; nodes: any[] | null }) {
       </Box>
       <Divider width={60} />
       <Box marginTop={1}>
-        {nodes ? (
-          <SlateRenderer nodes={nodes} />
-        ) : (
-          <Text dimColor>(empty content)</Text>
-        )}
+        {nodes ? <SlateRenderer nodes={nodes} /> : <Text dimColor>(empty content)</Text>}
       </Box>
     </Box>
   );
@@ -103,12 +90,12 @@ export async function runCardShow(cardId: number) {
   const da = getDataAccess(dbName);
 
   const card = da.queryOne<CardRow>(
-    `SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.is_top, c.content_id,
+    `SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.is_top, c.content_id,
             ct.content, ct.count
      FROM cards c
      LEFT JOIN contents ct ON c.content_id = ct.id
      WHERE c.id = ?`,
-    cardId,
+    cardId
   );
 
   closeDataAccess();
@@ -117,7 +104,7 @@ export async function runCardShow(cardId: number) {
     render(
       <Box paddingX={1}>
         <Text color="red">Card #{cardId} not found.</Text>
-      </Box>,
+      </Box>
     );
     return;
   }
@@ -130,7 +117,7 @@ export async function runCardShow(cardId: number) {
       <Box paddingX={1} flexDirection="column">
         <Header>Card #{card.id}</Header>
         <Text color="red">({result.message})</Text>
-      </Box>,
+      </Box>
     );
     return;
   }

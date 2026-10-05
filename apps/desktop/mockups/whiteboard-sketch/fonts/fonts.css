@@ -1,0 +1,45 @@
+/* 由 build.py 生成：仅含 fonts.html 用到的字 */
+@font-face {
+  font-family: "SK Xiaolai";
+  src: url("sk-xiaolai.woff2") format("woff2");
+  font-weight: 400;
+  font-display: block;
+}
+@font-face {
+  font-family: "SK Shantell";
+  src: url("sk-shantell.woff2") format("woff2");
+  font-weight: 300 800;
+  font-display: block;
+}
+@font-face {
+  font-family: "SK Patrick";
+  src: url("sk-patrick.woff2") format("woff2");
+  font-weight: 400;
+  font-display: block;
+}
+@font-face {
+  font-family: "SK Itim";
+  src: url("sk-itim.woff2") format("woff2");
+  font-weight: 400;
+  font-display: block;
+}
+@font-face {
+  src: url("sk-delius.woff2") format("woff2");
+  font-weight: 400;
+  font-display: block;
+}
+@font-face {
+  src: url("sk-shortstack.woff2") format("woff2");
+  font-weight: 400;
+  font-display: block;
+}
+@font-face {
+  src: url("sk-yozai.woff2") format("woff2");
+  font-weight: 400;
+  font-display: block;
+}
+@font-face {
+  src: url("sk-wenkai.woff2") format("woff2");
+  font-weight: 400;
+  font-display: block;
+}

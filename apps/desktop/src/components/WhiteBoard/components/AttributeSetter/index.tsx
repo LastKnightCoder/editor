@@ -92,12 +92,16 @@ const AttributeSetter = () => {
   const containerDescendantIds = BoardUtil.getContainerDescendantIds(board);
   const alignElements = noArrowElements.filter(el => !containerDescendantIds.has(el.id));
 
-  // 多选元素的情况
-  if (alignElements.length > 1) {
+  // 多选元素的情况：对齐 / 均分只作用于可对齐元素，笔触作用于全部选中元素（含连线）
+  if (validElements.length > 1) {
     const MultiSelectComponent = setterConfig.multiselect.component;
     return (
-      <FloatingAttrBar elements={alignElements}>
-        <MultiSelectComponent elements={alignElements} onChange={onMultiElementsChange} />
+      <FloatingAttrBar elements={validElements}>
+        <MultiSelectComponent
+          elements={alignElements}
+          sketchTargets={validElements}
+          onChange={onMultiElementsChange}
+        />
       </FloatingAttrBar>
     );
   }

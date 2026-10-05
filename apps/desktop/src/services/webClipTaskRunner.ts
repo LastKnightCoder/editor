@@ -1,7 +1,7 @@
 import { Role } from "@/constants";
 import { buildWebClipConvertPrompt } from "@/constants/prompts/web-clip";
 import { createContent, updateContent } from "@/commands/content";
-import { createContentLink, queryContentLinkBySource } from "@/commands/content-link";
+import { findClippedWebClipId, recordWebClip } from "@/commands/lineage";
 import { createWebClip, getWebClipById, updateWebClip } from "@/commands/web-clip";
 import { piStreamChat, piTextOf, type PiChatHandle } from "@/services/piLLM";
 import useSettingStore from "@/stores/useSettingStore";
@@ -122,14 +122,10 @@ const saveWebClipToDatabase = async (params: {
   title: string;
 }): Promise<SavedWebClipResult | null> => {
   const content = parseMarkdownToContent(params.markdown);
-  const existingLinks = await queryContentLinkBySource({
-    sourceId: params.projectItemId,
-    sourceType: "project_item",
-    targetType: "web_clip",
-  });
+  const existingWebClipId = await findClippedWebClipId(params.projectItemId);
 
-  if (existingLinks.length > 0) {
-    const existingWebClip = await getWebClipById(existingLinks[0].targetId);
+  if (existingWebClipId) {
+    const existingWebClip = await getWebClipById(existingWebClipId);
     if (existingWebClip) {
       await updateContent(existingWebClip.contentId, content);
       const updatedWebClip = await updateWebClip({
@@ -154,12 +150,7 @@ const saveWebClipToDatabase = async (params: {
     url: params.url,
     title: params.title || "解析文档",
   });
-  await createContentLink({
-    sourceId: params.projectItemId,
-    sourceType: "project_item",
-    targetId: createdWebClip.id,
-    targetType: "web_clip",
-  });
+  await recordWebClip(params.projectItemId, createdWebClip.id);
 
   return {
     webClipId: createdWebClip.id,

@@ -66,17 +66,9 @@ export async function getAllGlobalTags(): Promise<string[]> {
   return cardCommands.getAllGlobalTags.call();
 }
 
-export async function getRandomPermanentCards(seed: number, count = 5): Promise<ICard[]> {
-  return cardCommands.getRandomPermanent.call({ seed, count });
-}
-
 export const openCardInNewWindow = (databaseName: string, cardId: number) => {
   return openEditorWindow({ kind: "card", databaseName, id: cardId });
 };
-
-export async function getRecentTemporaryAndLiteratureCards(count = 10): Promise<ICard[]> {
-  return cardCommands.getRecentTempLit.call(count);
-}
 
 export async function isContentIsCard(contentId: number): Promise<boolean> {
   return cardCommands.isContentIsCard.call(contentId);

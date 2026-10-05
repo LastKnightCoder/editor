@@ -45,6 +45,53 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `count`       | `INTEGER DEFAULT 0`   |
 | `ref_count`   | `INTEGER DEFAULT 0`   |
 
+### `content_ai_meta`
+
+正文的 AI 元信息（卡片 / 文章 / 项目文档），主键即 `contents.id`。`meta` 为 JSON：`title`（卡片标题）、`summary`（一句话要点）、`concepts`、`claims`；`text_digest` 为生成时正文的 MinHash 指纹；`model` 为 `providerId/modelId`。
+
+| 字段          | SQLite 定义           |
+| ------------- | --------------------- |
+| `content_id`  | `INTEGER PRIMARY KEY` |
+| `schema_ver`  | `INTEGER NOT NULL`    |
+| `text_digest` | `TEXT NOT NULL`       |
+| `meta`        | `TEXT NOT NULL`       |
+| `model`       | `TEXT NOT NULL`       |
+| `create_time` | `INTEGER NOT NULL`    |
+| `update_time` | `INTEGER NOT NULL`    |
+
+### `content_ai_insights`
+
+正文的 AI 洞见（用户在详情页点「AI 洞见」时生成），主键即 `contents.id`。`result` 为 JSON：`lead`（位置概述）、`marks`（可连接 / 重复 / 矛盾 / 可以展开，带原文片段、对方与处理状态）、`asks`；`text_digest` 为分析时的正文指纹。
+
+| 字段          | SQLite 定义           |
+| ------------- | --------------------- |
+| `content_id`  | `INTEGER PRIMARY KEY` |
+| `schema_ver`  | `INTEGER NOT NULL`    |
+| `text_digest` | `TEXT NOT NULL`       |
+| `result`      | `TEXT NOT NULL`       |
+| `model`       | `TEXT NOT NULL`       |
+| `create_time` | `INTEGER NOT NULL`    |
+| `update_time` | `INTEGER NOT NULL`    |
+
+### `knowledge_ai_insights`
+
+主题与全局层的 AI 洞见（后台按知识地图主题分层生成）与项目回顾。`scope` 取 `subtopic` / `topic` / `global` / `project`；`members` 为 JSON 成员快照 `[[contentId, 元信息指纹]]`（主题身份对应与变化量都靠它）；`overview` 为给上一层读的概述 JSON；`result` 为 JSON：`lead`、`marks`（呼应 / 问了没写 / 重复 / 矛盾 / 缺一环 / 同一思路 / 还缺 / 可能属于这里 / 还薄，带处理状态）、`asks`；`increments` 为连续增量改写的次数。
+
+| 字段          | SQLite 定义                         |
+| ------------- | ----------------------------------- |
+| `id`          | `INTEGER PRIMARY KEY AUTOINCREMENT` |
+| `scope`       | `TEXT NOT NULL`                     |
+| `parent_id`   | `INTEGER`                           |
+| `project_id`  | `INTEGER`                           |
+| `label`       | `TEXT NOT NULL`                     |
+| `members`     | `TEXT NOT NULL`                     |
+| `overview`    | `TEXT NOT NULL`                     |
+| `result`      | `TEXT NOT NULL`                     |
+| `increments`  | `INTEGER NOT NULL DEFAULT 0`        |
+| `model`       | `TEXT NOT NULL`                     |
+| `create_time` | `INTEGER NOT NULL`                  |
+| `update_time` | `INTEGER NOT NULL`                  |
+
 ### `white_board_contents`
 
 | 字段          | SQLite 定义                    |
@@ -73,17 +120,16 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ### `cards`
 
-| 字段          | SQLite 定义                |
-| ------------- | -------------------------- |
-| `id`          | `INTEGER PRIMARY KEY`      |
-| `create_time` | `INTEGER NOT NULL`         |
-| `update_time` | `INTEGER NOT NULL`         |
-| `tags`        | `TEXT`                     |
-| `links`       | `TEXT`                     |
-| `category`    | `TEXT DEFAULT 'permanent'` |
-| `content_id`  | `INTEGER`                  |
-| `is_top`      | `INTEGER DEFAULT 0`        |
-| `podcast_id`  | `INTEGER DEFAULT NULL`     |
+| 字段          | SQLite 定义            |
+| ------------- | ---------------------- |
+| `id`          | `INTEGER PRIMARY KEY`  |
+| `create_time` | `INTEGER NOT NULL`     |
+| `update_time` | `INTEGER NOT NULL`     |
+| `tags`        | `TEXT`                 |
+| `links`       | `TEXT`                 |
+| `content_id`  | `INTEGER`              |
+| `is_top`      | `INTEGER DEFAULT 0`    |
+| `podcast_id`  | `INTEGER DEFAULT NULL` |
 
 ### `articles`
 
@@ -307,6 +353,8 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ### `question_link`
 
+问题的探究材料。`target_type`：`card` / `article` / `project_item` / `project` / `white_board` / `answer`（`target_id` 为 `contents.id`）/ `excerpt` / `pdf-annotation` / `web-clip`；`target_id` 均为整数主键。对话关联在 `question_chat`。
+
 | 字段          | SQLite 定义                  |
 | ------------- | ---------------------------- |
 | `id`          | `INTEGER PRIMARY KEY`        |
@@ -316,6 +364,18 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `content_id`  | `INTEGER`                    |
 | `sort_index`  | `INTEGER NOT NULL DEFAULT 0` |
 | `create_time` | `INTEGER NOT NULL`           |
+
+### `question_chat`
+
+问题的探究对话。`session_id` 为 `chat_session.id`；`message_ids` 为 JSON 数组（问题从哪几条消息转来，可空）。
+
+| 字段          | SQLite 定义           |
+| ------------- | --------------------- |
+| `id`          | `INTEGER PRIMARY KEY` |
+| `question_id` | `INTEGER NOT NULL`    |
+| `session_id`  | `TEXT NOT NULL`       |
+| `message_ids` | `TEXT`                |
+| `create_time` | `INTEGER NOT NULL`    |
 
 ### `question_event`
 
@@ -449,16 +509,20 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `project_item_id`      | `INTEGER PRIMARY KEY` |
 | `preferred_content_id` | `INTEGER`             |
 
-### `content_link`
+### `entity_lineage`
 
-| 字段          | SQLite 定义           |
-| ------------- | --------------------- |
-| `id`          | `INTEGER PRIMARY KEY` |
-| `create_time` | `INTEGER NOT NULL`    |
-| `source_id`   | `INTEGER NOT NULL`    |
-| `source_type` | `TEXT NOT NULL`       |
-| `target_id`   | `INTEGER NOT NULL`    |
-| `target_type` | `TEXT NOT NULL`       |
+谱系：「A 衍生出 B」中推导不出的事实，`src_id` / `dst_id` 均为文本。`relation`：`derived` / `saved_from` / `clipped_from` / `excerpt_of` / `upgraded_to`（问题 → Notebook）/ `discussed_in`（问题 → 对话）/ `distilled_from`（用到同一思路的笔记 → 据此新写的卡片）；端点 kind 含 `question`、`vl-project`。
+
+| 字段          | SQLite 定义                         |
+| ------------- | ----------------------------------- |
+| `id`          | `INTEGER PRIMARY KEY AUTOINCREMENT` |
+| `src_kind`    | `TEXT NOT NULL`                     |
+| `src_id`      | `TEXT NOT NULL`                     |
+| `src_anchor`  | `TEXT`                              |
+| `dst_kind`    | `TEXT NOT NULL`                     |
+| `dst_id`      | `TEXT NOT NULL`                     |
+| `relation`    | `TEXT NOT NULL`                     |
+| `create_time` | `INTEGER NOT NULL`                  |
 
 ### `resource_sync_blacklist`
 
@@ -734,6 +798,26 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `value`      | `TEXT`             |
 | `updated_at` | `INTEGER NOT NULL` |
 
+### `excerpt`
+
+摘录：微信读书与浏览器插件的划线，一条一行；`is_deleted = 1` 表示源端已删除（保留原文）。
+
+| 字段           | SQLite 定义                         |
+| -------------- | ----------------------------------- |
+| `id`           | `INTEGER PRIMARY KEY AUTOINCREMENT` |
+| `source_type`  | `TEXT NOT NULL`                     |
+| `source_key`   | `TEXT NOT NULL`                     |
+| `source_title` | `TEXT NOT NULL DEFAULT ''`          |
+| `external_id`  | `TEXT NOT NULL`                     |
+| `quote`        | `TEXT NOT NULL`                     |
+| `note`         | `TEXT NOT NULL DEFAULT ''`          |
+| `anchor`       | `TEXT`                              |
+| `color`        | `TEXT`                              |
+| `source_time`  | `INTEGER`                           |
+| `create_time`  | `INTEGER NOT NULL`                  |
+| `update_time`  | `INTEGER NOT NULL`                  |
+| `is_deleted`   | `INTEGER NOT NULL DEFAULT 0`        |
+
 ### `flashcard_decks`
 
 | 字段          | SQLite 定义              |
@@ -812,6 +896,8 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `last_open_item_id` | `INTEGER`             |
 
 ### `vibe_learning_resources`
+
+`source_type`：`local` / `bilibili` / `youtube` / `remote` / `note`（已有笔记，`source_meta_info.contentId`）/ `material`（外部材料快照，`source_meta_info.refs` 为摘录 / PDF 标注 / 剪藏）。
 
 | 字段                  | SQLite 定义                  |
 | --------------------- | ---------------------------- |

@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 import type { ConversationTreeNode } from "@/types/pi-session";
-import { layoutConversationTree } from "../conversationTree";
+import { layoutConversationTree, conversationEntryTail } from "../conversationTree";
 
 const node = (
   id: string,
@@ -23,6 +23,12 @@ const node = (
 });
 
 describe("layoutConversationTree", () => {
+  it("消息定位只选目标的后继分支，忽略别的分支与已删除目标", () => {
+    const nodes = [node("a", null, 1), node("b", "a", 2), node("c", "b", 3), node("d", "a", 9)];
+    expect(conversationEntryTail(nodes, "b")).toBe("c");
+    expect(conversationEntryTail(nodes, "missing")).toBeNull();
+    expect(conversationEntryTail([node("a", null, 1, { omitted: true })], "a")).toBeNull();
+  });
   it("没有分叉：整条对话压成一行，1 条分支，没有分叉点", () => {
     const { rows, branchCount, forkPoints } = layoutConversationTree([
       node("a", null, 1, { onPath: true }),

@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { piChatSessionManager, type EnsureChatSessionOptions } from "../piChatSession";
+import {
+  chatIdFromSessionKey,
+  chatSessionKey,
+  piChatSessionManager,
+  type EnsureChatSessionOptions,
+} from "../piChatSession";
 import { registerPiToolSessionContext } from "../piToolBridge";
 import {
   piSessionCreate,
@@ -353,5 +358,16 @@ describe("额外工具的风险声明", () => {
       risk?: string;
     }>;
     expect(specs.find(spec => spec.name === "get_page_content")?.risk).toBe("read");
+  });
+});
+
+describe("chatIdFromSessionKey", () => {
+  it("从会话键取回对话 id", () => {
+    expect(chatIdFromSessionKey(chatSessionKey("vibe-learning-chat:7", "c-1", "data.db"))).toBe(
+      "c-1"
+    );
+    expect(chatIdFromSessionKey(chatSessionKey("main-chat", "c-2", ""))).toBe("c-2");
+    expect(chatIdFromSessionKey("main-chat:")).toBeNull();
+    expect(chatIdFromSessionKey("没有分隔")).toBeNull();
   });
 });

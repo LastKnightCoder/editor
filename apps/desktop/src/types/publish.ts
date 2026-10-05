@@ -61,7 +61,6 @@ export interface IPublishCardListItem {
   id: number;
   summary: string;
   href: string;
-  category: "temporary" | "permanent" | "theme" | "literature";
   createTime: number;
 }
 

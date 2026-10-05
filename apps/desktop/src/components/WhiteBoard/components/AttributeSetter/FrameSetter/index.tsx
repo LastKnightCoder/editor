@@ -7,6 +7,7 @@ import { FrameElement, FRAME_DEFAULT_STYLES, FrameTitlePosition } from "../../..
 import { useBoard } from "../../../hooks";
 import { FrameUtil } from "../../../utils";
 import { AttrAction, AttrPopover, Seg, SwatchRow } from "../../../chrome";
+import SketchPopover from "../SketchPopover";
 
 interface FrameSetterProps {
   element: FrameElement;
@@ -89,6 +90,7 @@ const FrameSetter = memo(({ element, onChange }: FrameSetterProps) => {
         icon={<Ungroup strokeWidth={1.75} />}
         onClick={() => FrameUtil.unwrapFrame(board, element)}
       />
+      <SketchPopover target={element} onChange={onChange} />
     </>
   );
 });

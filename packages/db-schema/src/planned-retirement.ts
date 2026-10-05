@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { MigrationDatabase } from "./knowledge-migration";
 
 /**
- * 「计划任务」退役（D-113）：待办的计划时段改由「用户日历里关联待办的事件」表达。
+ * 「计划任务」退役（D-114）：待办的计划时段改由「用户日历里关联待办的事件」表达。
  *
  * - 补 calendar_event.todo_item_id（须在 MAIN_SCHEMA_SQL 之前：其上的索引写在 schema 里）；
  * - 每条 type='planned' 的待办：系统「计划任务」日历里的物化事件原行移入默认用户日历并关联待办

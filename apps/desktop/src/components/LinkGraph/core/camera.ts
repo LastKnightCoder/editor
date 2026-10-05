@@ -134,6 +134,12 @@ export class Camera {
     return true;
   }
 
+  /** 直接设回某个视角（先算目标视角、再从原视角飞过去时用） */
+  restore(transform: CameraTransform) {
+    this.cancelFlight();
+    this.transform = { ...transform };
+  }
+
   private cancelFlight() {
     this.flight = null;
   }

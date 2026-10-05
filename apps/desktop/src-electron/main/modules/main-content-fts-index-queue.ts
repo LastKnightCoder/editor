@@ -7,7 +7,10 @@ import ArticleTable from "./tables/article";
 import ProjectTable from "./tables/project";
 import DiaryTable from "./tables/diary";
 import FTSTable from "./tables/fts";
+import { listMaterialIndexDocs } from "./material-index";
+import { MAIN_CONTENT_INDEX_TYPES } from "./main-content-vec-index-queue";
 import { getMarkdown } from "@/utils/markdown.ts";
+import { MAIN_CHUNK_VERSION, splitSections, type ContentSection } from "@/entity/sections";
 import type { IndexType } from "@/types";
 import { yieldEvery, yieldToEventLoop } from "../utils/event-loop-yield";
 
@@ -16,6 +19,8 @@ interface MainContentFtsIndexTask {
   type: IndexType;
   updateTime: number;
   content: string;
+  title?: string;
+  sections?: ContentSection[];
 }
 
 interface CollectTasksResult {
@@ -84,6 +89,7 @@ class MainContentFtsIndexQueue implements Module {
       );
 
       let indexed = 0;
+      let failed = false;
 
       for (const task of tasks) {
         if (this.isStale(generation)) {
@@ -98,12 +104,15 @@ class MainContentFtsIndexQueue implements Module {
           id: task.id,
           type: task.type,
           content: task.content,
+          title: task.title,
+          sections: task.sections,
           updateTime: task.updateTime,
         });
 
         if (ok) {
           indexed += 1;
         } else {
+          failed = true;
           log.warn(`[MainContentFtsIndexQueue] Index failed: type=${task.type}, id=${task.id}`);
         }
 
@@ -112,7 +121,13 @@ class MainContentFtsIndexQueue implements Module {
         });
       }
 
-      databaseModule.setIndexRebuildState(dbName, "ready", "fts");
+      if (!failed)
+        indexDb
+          .prepare(
+            "INSERT OR REPLACE INTO index_meta (key, value, updated_at) VALUES ('main_fts_chunk_version', ?, ?)"
+          )
+          .run(String(MAIN_CHUNK_VERSION), Date.now());
+      databaseModule.setIndexRebuildState(dbName, failed ? "pending" : "ready", "fts");
       log.info(
         `[MainContentFtsIndexQueue] Reconcile done: db=${dbName}, reason=${reason}, generation=${generation}, queued=${tasks.length}, indexed=${indexed}, removed=${removed}`
       );
@@ -127,14 +142,16 @@ class MainContentFtsIndexQueue implements Module {
     indexDb: Database.Database
   ): Promise<CollectTasksResult> {
     const tasks: MainContentFtsIndexTask[] = [];
+    const keep = new Set<string>();
     let removed = 0;
     let processed = 0;
 
     for (const card of CardTable.getAllCards(mainDb)) {
-      removed += this.appendTask(indexDb, tasks, {
+      removed += this.appendTask(indexDb, tasks, keep, {
         id: card.id,
         type: "card",
         content: getMarkdown(card.content || []).trim(),
+        sections: splitSections(card.content || [], "", true),
         updateTime: Number(card.update_time || 0),
       });
       processed += 1;
@@ -143,10 +160,12 @@ class MainContentFtsIndexQueue implements Module {
     await yieldToEventLoop();
 
     for (const article of ArticleTable.getAllArticles(mainDb)) {
-      removed += this.appendTask(indexDb, tasks, {
+      removed += this.appendTask(indexDb, tasks, keep, {
         id: article.id,
         type: "article",
         content: getMarkdown(article.content || []).trim(),
+        title: article.title,
+        sections: splitSections(article.content || [], article.title || ""),
         updateTime: Number(article.update_time || 0),
       });
       processed += 1;
@@ -155,10 +174,12 @@ class MainContentFtsIndexQueue implements Module {
     await yieldToEventLoop();
 
     for (const item of ProjectTable.getAllProjectItems(mainDb)) {
-      removed += this.appendTask(indexDb, tasks, {
+      removed += this.appendTask(indexDb, tasks, keep, {
         id: item.id,
         type: "project-item",
         content: getMarkdown(item.content || []).trim(),
+        title: item.title,
+        sections: splitSections(item.content || [], item.title || ""),
         updateTime: Number(item.updateTime || 0),
       });
       processed += 1;
@@ -167,15 +188,26 @@ class MainContentFtsIndexQueue implements Module {
     await yieldToEventLoop();
 
     for (const entry of DiaryTable.getAllDiaryEntries(mainDb)) {
-      removed += this.appendTask(indexDb, tasks, {
+      removed += this.appendTask(indexDb, tasks, keep, {
         id: entry.id,
         type: "diary-daily",
         content: getMarkdown(entry.content || []).trim(),
+        sections: splitSections(entry.content || [], DiaryTable.getDiarySearchTitle(entry)),
         updateTime: Number(entry.updateTime || 0),
       });
       processed += 1;
       await yieldEvery(processed, MainContentFtsIndexQueue.COLLECT_YIELD_EVERY);
     }
+    await yieldToEventLoop();
+
+    for (const doc of listMaterialIndexDocs(mainDb)) {
+      removed += this.appendTask(indexDb, tasks, keep, doc);
+      processed += 1;
+      await yieldEvery(processed, MainContentFtsIndexQueue.COLLECT_YIELD_EVERY);
+    }
+
+    // 已不是候选的（实体已删、摘录软删、剪藏变孤儿）删掉，检索不再命中
+    removed += FTSTable.removeIndexesNotIn(indexDb, keep, MAIN_CONTENT_INDEX_TYPES);
 
     return { tasks, removed };
   }
@@ -183,8 +215,10 @@ class MainContentFtsIndexQueue implements Module {
   private appendTask(
     indexDb: Database.Database,
     tasks: MainContentFtsIndexTask[],
+    keep: Set<string>,
     task: MainContentFtsIndexTask
   ): number {
+    if (task.content) keep.add(`${task.type}:${task.id}`);
     const indexInfo = FTSTable.checkIndexExists(indexDb, task.id, task.type);
 
     if (!task.content) {
@@ -195,7 +229,14 @@ class MainContentFtsIndexQueue implements Module {
       return 0;
     }
 
-    if (!indexInfo || indexInfo.updateTime < task.updateTime) {
+    const version = indexDb
+      .prepare("SELECT value FROM index_meta WHERE key = 'main_fts_chunk_version'")
+      .get() as { value: string } | undefined;
+    if (
+      version?.value !== String(MAIN_CHUNK_VERSION) ||
+      !indexInfo ||
+      indexInfo.updateTime < task.updateTime
+    ) {
       tasks.push(task);
     }
 

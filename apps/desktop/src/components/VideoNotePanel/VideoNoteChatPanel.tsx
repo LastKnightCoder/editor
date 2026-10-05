@@ -43,7 +43,7 @@ function ChatEmptyState({
               key={prompt}
               type="button"
               onClick={() => onPick(prompt)}
-              className="bg-sunken text-tau-meta text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm ease-tau-out px-3 py-2 text-left transition-colors duration-[160ms]"
+              className="border-line-1 text-tau-meta text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm ease-tau-out border px-3 py-2 text-left transition-colors duration-[160ms]"
             >
               {prompt}
             </button>

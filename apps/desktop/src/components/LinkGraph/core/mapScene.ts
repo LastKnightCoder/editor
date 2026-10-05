@@ -8,12 +8,11 @@
  *     没有邻居就放外圈——下次打开图谱时主进程会按语义把它放到正确的位置。
  */
 
-import type { ICard } from "@/types";
 import { mapNodeRadius } from "@/knowledge-map/compute";
 import type { KnowledgeMap } from "@/knowledge-map/types";
 import type { ClusterInfo } from "./cluster";
 import { buildScene } from "./graph";
-import type { GraphScene } from "./types";
+import type { GraphScene, GraphItem } from "./types";
 
 /** 子主题（渲染层用于中等缩放下的标签） */
 export interface MapSubtopic {
@@ -28,18 +27,22 @@ export interface MapScene extends GraphScene {
   /** 大主题 id（簇 id）→ 色槽；没有色槽的主题不在表里（用中性色画） */
   colorSlots: Map<number, number>;
   subtopics: MapSubtopic[];
+  /** 地图大主题 id → 簇 id（scene.clusters 的下标） */
+  topicCluster: Map<number, number>;
 }
 
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 
-export function buildMapScene(
-  cards: ICard[],
-  getCardLinks: (card: ICard) => number[],
-  map: KnowledgeMap
-): MapScene {
+export function buildMapScene(items: GraphItem[], map: KnowledgeMap): MapScene {
   // 复用链接图的建图（边、邻接、度数、标签），再用地图覆盖坐标与归属
-  const base = buildScene(cards, getCardLinks);
-  const byCard = new Map(map.nodes.map(node => [node.cardId, node]));
+  const base = buildScene(items);
+  // 地图节点以 "card:12" 为键，按条目的 key 对回场景里的数值 id
+  const idOfKey = new Map(items.map(item => [item.key, item.id]));
+  const byCard = new Map<number, (typeof map.nodes)[number]>();
+  for (const node of map.nodes) {
+    const id = idOfKey.get(node.key);
+    if (id !== undefined) byCard.set(id, node);
+  }
   const topics = map.topics.filter(topic => topic.parent === -1);
   const topicCluster = new Map(topics.map((topic, index) => [topic.id, index]));
 
@@ -108,9 +111,9 @@ export function buildMapScene(
       id: topic.id,
       cluster: topicCluster.get(topic.parent) ?? -1,
       label: topic.label,
-      members: map.nodes
-        .filter(node => node.subtopic === topic.id && base.nodeById.has(node.cardId))
-        .map(node => node.cardId),
+      members: [...byCard]
+        .filter(([id, node]) => node.subtopic === topic.id && base.nodeById.has(id))
+        .map(([id]) => id),
     }))
     .filter(sub => sub.cluster >= 0 && sub.members.length > 0);
 
@@ -126,6 +129,7 @@ export function buildMapScene(
       )
     ),
     subtopics,
+    topicCluster,
   };
 }
 

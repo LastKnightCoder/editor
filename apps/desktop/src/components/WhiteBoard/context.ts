@@ -2,6 +2,7 @@ import { createContext } from "react";
 import type { RefObject } from "react";
 import { Board, Point, Selection, ViewPort } from "./types";
 import { MovingElementsStore } from "./hooks/useElementsMoving";
+import type { ConnectPointOwnerStore } from "./utils/ConnectPointOwner";
 
 export interface PointerViewportStore {
   getSnapshot: () => Point | null;
@@ -23,6 +24,8 @@ export const BoardStateContext = createContext<{
   isMoving: boolean;
   movingStore: MovingElementsStore;
   simplifiedRenderZoomThreshold: number;
+  /** 连接点归属仲裁：同一时刻只有一个元素显示悬停连接点 */
+  connectPointOwnerStore: ConnectPointOwnerStore | null;
 }>({
   isMoving: false,
   movingStore: {
@@ -31,10 +34,11 @@ export const BoardStateContext = createContext<{
     getElementMoving: () => false,
   },
   simplifiedRenderZoomThreshold: 0.3,
+  connectPointOwnerStore: null,
 });
 
-export const ArrowConnectPointOverlayContext =
-  createContext<RefObject<SVGGElement | null> | null>(null);
+export const ArrowConnectPointOverlayContext = createContext<RefObject<SVGGElement | null> | null>(
+  null
+);
 
-export const PointerViewportStoreContext =
-  createContext<PointerViewportStore | null>(null);
+export const PointerViewportStoreContext = createContext<PointerViewportStore | null>(null);

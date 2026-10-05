@@ -22,14 +22,13 @@ interface IContentLinkProps {
 const OPEN_DELAY = 450;
 const CLOSE_GRACE = 160;
 
+/** 与网页链接同一套样式：accent 字色 + 淡下划线，内部引用用点线区分 */
 const LINK =
-  "cursor-pointer text-ink-1 underline decoration-dotted decoration-ink-3 underline-offset-4 " +
-  "transition-colors duration-[160ms] hover:text-accent-text hover:decoration-accent " +
-  "after:ml-px after:inline-block after:align-super after:text-[0.68em] after:font-semibold " +
-  "after:leading-none after:text-accent after:content-['↗'] " +
-  "after:transition-transform after:duration-[160ms] hover:after:translate-x-px hover:after:-translate-y-px";
-const LINK_ACTIVE = "text-accent-text decoration-accent after:translate-x-px after:-translate-y-px";
-const LINK_BROKEN = "cursor-default text-ink-3 line-through decoration-ink-3";
+  "cursor-pointer text-accent-text underline decoration-dotted decoration-[1.5px] underline-offset-[3px] " +
+  "decoration-[color:color-mix(in_srgb,var(--tau-accent)_38%,transparent)] " +
+  "transition-[color,text-decoration-color] duration-300 hover:decoration-accent";
+const LINK_ACTIVE = "decoration-accent";
+const LINK_BROKEN = "cursor-default text-ink-3 line-through decoration-solid decoration-ink-3";
 
 const ContentLink = memo((props: IContentLinkProps) => {
   const { attributes, children, element } = props;
@@ -107,7 +106,7 @@ const ContentLink = memo((props: IContentLinkProps) => {
           else schedule(true, OPEN_DELAY);
         }}
         onMouseLeave={() => schedule(false, open ? CLOSE_GRACE : 0)}
-        className={cn(LINK, open && LINK_ACTIVE, broken && LINK_BROKEN, broken && "after:hidden")}
+        className={cn(LINK, open && LINK_ACTIVE, broken && LINK_BROKEN)}
       >
         <InlineChromiumBugfix />
         {children}

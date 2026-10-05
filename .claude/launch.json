@@ -134,6 +134,26 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--dir", "apps/blog", "exec", "vite", "--port", "6233", "--strictPort"],
       "port": 6233
+    },
+    {
+      "name": "export-image-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8831",
+        "-b",
+        "127.0.0.1",
+        "-d",
+        "apps/desktop/mockups/export-image"
+      ],
+      "port": 8831
+    },
+    {
+      "name": "ext-sidepanel-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8815", "--bind", "127.0.0.1", "-d", "."],
+      "port": 8815
     }
   ]
 }

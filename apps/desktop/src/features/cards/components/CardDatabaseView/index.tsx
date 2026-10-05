@@ -10,21 +10,19 @@ import Database, {
   FilterGroup,
 } from "@/components/Database";
 import { useCardDatabasePreferences } from "../../databasePreferences";
-import { ICard, ECardCategory, DataTableView, CreateDataTableView } from "@/types";
-import { getEditorText } from "@/utils/editor";
-import { cardCategoryName } from "@/constants";
+import { ICard, DataTableView, CreateDataTableView } from "@/types";
 import CardLinksPlugin from "./plugins/CardLinksPlugin";
 import { DateValue } from "@/components/Database/plugins/DatePlugin";
 import useTheme from "@/hooks/useTheme";
 import type { CardMetadataPatch } from "@/types/card";
+import { cardTitle } from "@/utils/card-title";
 
 interface CardDatabaseViewProps {
   databaseName: string;
   cards: ICard[];
   tag?: string;
-  selectCategory: ECardCategory | "all";
   onCardClick: (card: ICard) => void;
-  onOpenCreateCard: (defaultCategory: ECardCategory) => void;
+  onOpenCreateCard: () => void;
   onDeleteCard: (cardId: number) => Promise<void>;
   onUpdateCard: (cardId: number, patch: CardMetadataPatch) => Promise<ICard>;
   /** 透传 Database：铺在页面纸上，去掉自身卡片外壳 */
@@ -36,7 +34,6 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
     databaseName,
     cards,
     tag = "",
-    selectCategory,
     onCardClick,
     onOpenCreateCard,
     onDeleteCard,
@@ -66,7 +63,7 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
     initializeDefaultView();
   }, [initializeDefaultView]);
 
-  const getCardText = useMemoizedFn((card: ICard) => getEditorText(card.content, 50));
+  const getCardText = useMemoizedFn((card: ICard) => cardTitle(card, 50));
 
   // 收集所有标签
   const allTags = useMemo(() => {
@@ -79,12 +76,6 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
 
   // 构建列定义
   const columns = useMemo((): ColumnDef[] => {
-    const categoryOptions = Object.entries(cardCategoryName).map(([key, name]) => ({
-      id: key,
-      name,
-      color: "blue" as const,
-    }));
-
     const tagOptions = allTags.map(tag => ({
       id: tag,
       name: tag,
@@ -98,15 +89,6 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
         type: "text",
         width: columnWidths["title"] || 300,
         isPrimary: true,
-      },
-      {
-        id: "category",
-        title: "分类",
-        type: "select",
-        width: columnWidths["category"] || 150,
-        config: {
-          options: categoryOptions,
-        },
       },
       {
         id: "tags",
@@ -155,7 +137,6 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
       const row: RowData = {
         id: String(card.id),
         title: getCardText(card),
-        category: card.category,
         tags: card.tags,
         links: card.links,
         create_time: {
@@ -181,14 +162,6 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
 
   useEffect(() => {
     const filters: FilterGroup = { id: "card-query", type: "group", logic: "and", children: [] };
-    if (selectCategory !== "all")
-      filters.children.push({
-        id: "category",
-        type: "condition",
-        fieldId: "category",
-        operator: "是",
-        value: selectCategory,
-      });
     if (tag)
       filters.children.push({
         id: "tag",
@@ -200,7 +173,7 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
     databaseRef.current?.setQuery({
       filters,
     });
-  }, [selectCategory, tag, allTags, currentView?.id]);
+  }, [tag, allTags, currentView?.id]);
 
   useEffect(() => {
     for (const column of columns) {
@@ -310,17 +283,9 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
     [databaseName, columnWidths, currentView?.id, currentView?.config.columnWidths, receiveWidths]
   );
 
-  const handleRowAdd = useMemoizedFn((defaultData?: Partial<RowData>) => {
-    // 提取默认分类
-    let defaultCategory: ECardCategory = ECardCategory.Temporary;
-    if (defaultData && defaultData.category) {
-      defaultCategory = defaultData.category as ECardCategory;
-    } else if (selectCategory !== "all") {
-      defaultCategory = selectCategory as ECardCategory;
-    }
-
+  const handleRowAdd = useMemoizedFn(() => {
     // 打开 CreateCard
-    onOpenCreateCard(defaultCategory);
+    onOpenCreateCard();
   });
 
   const handleDataChange = useMemoizedFn(async (data: DatabaseData, change: DatabaseChange) => {
@@ -333,7 +298,6 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
       const card = cards.find(card => card.id === id);
       if (!card) continue;
       const patch: CardMetadataPatch = {};
-      if ("category" in row) patch.category = row.category as ECardCategory;
       if ("tags" in row) patch.tags = Array.isArray(row.tags) ? (row.tags as string[]) : [];
       if ("links" in row) patch.links = Array.isArray(row.links) ? (row.links as number[]) : [];
       if (!Object.keys(patch).length) continue;

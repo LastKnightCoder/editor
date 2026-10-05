@@ -6,7 +6,7 @@ import { getHomeDir } from "@/commands";
 import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
 import useSettingStore from "@/stores/useSettingStore";
 import { addRemoteImageCacheEntry } from "@/commands/remote-image-cache";
-import { ASSET_PREFIX } from "@tau/collaboration";
+import { isCollaborationResource } from "@tau/collaboration";
 import { useOptionalService } from "@tau/editor";
 import {
   resolveLocalMediaPath,
@@ -74,7 +74,7 @@ const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>((props, ref) =
         return;
       }
 
-      if (cdnUrl.startsWith(ASSET_PREFIX) && remoteResourceToLocalService) {
+      if (isCollaborationResource(cdnUrl) && remoteResourceToLocalService) {
         const localPath = await remoteResourceToLocalService(cdnUrl);
         const localPreview = await toLocalMediaPreviewUrl(localPath);
         setResolved(localPreview.url);
