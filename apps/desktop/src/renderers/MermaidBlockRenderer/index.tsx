@@ -13,7 +13,8 @@ import {
 import { InlineBlockShell } from "@/features/previews/components/InlineBlockShell";
 import { ZoomSurface } from "@/features/previews/components/ZoomSurface";
 import { usePreviewActions } from "@/features/previews/components/previewActions";
-import { downloadBlob, svgToPngBlob, safeFileName } from "@/features/previews/exportImage";
+import { downloadBlob, svgToPngBlob } from "@/features/previews/exportImage";
+import { sanitizeFileName } from "@/utils/file-name";
 import { MermaidDiagram } from "./MermaidDiagram";
 
 function MermaidInline({ block, generating, onExpand }: BlockInlineProps) {
@@ -26,7 +27,7 @@ function MermaidInline({ block, generating, onExpand }: BlockInlineProps) {
 
 function MermaidPreview({ block, generating }: BlockPreviewProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const name = safeFileName(block.metadata.title || "mermaid");
+  const name = sanitizeFileName(block.metadata.title, "mermaid");
   const svg = () => ref.current?.querySelector("svg") ?? null;
 
   usePreviewActions({

@@ -12,7 +12,8 @@ import { copyElementsToClipboard } from "@/utils/clipboardHelpers";
 import { captureBlobWithSnapdom } from "@/utils/snapdom-export";
 import { defineBlockRenderer, type BlockPreviewProps } from "@/types/block-preview";
 import { usePreviewActions } from "@/features/previews/components/previewActions";
-import { downloadBlob, safeFileName } from "@/features/previews/exportImage";
+import { downloadBlob } from "@/features/previews/exportImage";
+import { sanitizeFileName } from "@/utils/file-name";
 
 const nextFrame = () =>
   new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
@@ -80,7 +81,7 @@ function MindMapPreview({ block }: BlockPreviewProps) {
           setBusy(true);
           try {
             const blob = await captureCanvas(boxRef.current);
-            downloadBlob(blob, `${safeFileName(block.metadata.title || "思维导图")}.png`);
+            downloadBlob(blob, `${sanitizeFileName(block.metadata.title, "思维导图")}.png`);
             toast.success("图片已导出");
           } finally {
             setBusy(false);
