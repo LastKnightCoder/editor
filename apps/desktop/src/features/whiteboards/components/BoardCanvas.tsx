@@ -98,6 +98,7 @@ export function BoardCanvas({
         initSelection={content.data.selection}
         initViewPort={content.data.viewPort}
         initPresentationSequences={content.data.presentationSequences}
+        initSketch={content.data.sketch}
         onChange={onChange}
         showSidebar
         onPresentationModeChange={onPresentationModeChange}

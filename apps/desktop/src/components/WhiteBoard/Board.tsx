@@ -20,6 +20,8 @@ import {
   ContextMenuContext,
   PluginContextMenuItem,
   CustomOffset,
+  PageSketch,
+  DEFAULT_PAGE_SKETCH,
 } from "./types";
 import { isValid, executeSequence, BoardUtil } from "./utils";
 
@@ -55,6 +57,8 @@ class Board {
   public children: BoardElement[];
   public viewPort: ViewPort;
   public selection: Selection;
+  /** 页级画风（D-106）；变化时 emit("sketchChange") */
+  public sketch: PageSketch;
   public undos: Array<Operation[]>;
   public redos: Array<Operation[]>;
   public isEditingElements: string[] = [];
@@ -65,6 +69,7 @@ class Board {
     viewPort: ViewPort;
     selection: Selection;
     presentationSequences: PresentationSequence[];
+    sketch: PageSketch;
   };
 
   private _currentCreateType: ECreateBoardElementType = ECreateBoardElementType.None;
@@ -78,7 +83,8 @@ class Board {
     selection: Selection,
     plugins: IBoardPlugin[] = [],
     presentationSequences: PresentationSequence[] = [],
-    readonly = false
+    readonly = false,
+    sketch: PageSketch = DEFAULT_PAGE_SKETCH
   ) {
     this.boardFlag = boardFlag;
     this.isDestroyed = false;
@@ -86,6 +92,7 @@ class Board {
     this.eventEmitter = new EventEmitter();
     this.viewPort = viewPort;
     this.selection = selection;
+    this.sketch = sketch;
     this.undos = [];
     this.redos = [];
     this.snapshot = {
@@ -93,6 +100,7 @@ class Board {
       viewPort: this.viewPort,
       selection: this.selection,
       presentationSequences: presentationSequences,
+      sketch: this.sketch,
     };
 
     this.initPlugins(plugins);
@@ -415,6 +423,7 @@ class Board {
         children: this.children,
         viewPort: this.viewPort,
         selection: this.selection,
+        sketch: this.sketch,
       },
       ops,
       {
@@ -434,6 +443,7 @@ class Board {
     );
     const hasViewPortMutation = executedOps.some(op => op.type === "set_viewport");
     const hasSelectionMutation = executedOps.some(op => op.type === "set_selection");
+    const hasSketchMutation = executedOps.some(op => op.type === "set_sketch");
     const hasSelectedElementsToRebind = Boolean(
       hasElementMutation && data.selection?.selectedElements?.length
     );
@@ -473,6 +483,7 @@ class Board {
     let childrenChanged = false;
     let viewPortChanged = false;
     let selectionChanged = false;
+    let sketchChanged = false;
 
     // 更新 children：由执行过的元素操作驱动，避免 JSON.stringify 大对象比较。
     if (hasElementMutation && data.children !== this.children) {
@@ -499,6 +510,12 @@ class Board {
       this.selection = data.selection;
       changed = true;
       selectionChanged = true;
+    }
+
+    if (hasSketchMutation && data.sketch && data.sketch !== this.sketch) {
+      this.sketch = data.sketch;
+      changed = true;
+      sketchChanged = true;
     }
 
     // 更新参考线（参与与否由各元素的 refLine 能力声明决定）
@@ -557,6 +574,9 @@ class Board {
       if (selectionChanged) {
         this.emit("onSelectionChange", this.selection);
       }
+      if (sketchChanged) {
+        this.emit("sketchChange", this.sketch);
+      }
 
       if (metadata.changedElements.length > 0) {
         this.emit("element:change", metadata.changedElements);
@@ -574,6 +594,7 @@ class Board {
           selection: this.selection,
           viewPort: this.viewPort,
           presentationSequences: this.presentationManager.sequences,
+          sketch: this.sketch,
         };
         this.emit("change");
       }

@@ -55,6 +55,8 @@ import {
   ContextMenuModalPayload,
   MindNodeElement,
   VideoElement,
+  PageSketch,
+  DEFAULT_PAGE_SKETCH,
 } from "./types";
 import Toolbar from "./components/Toolbar";
 import AttributeSetter from "./components/AttributeSetter";
@@ -108,12 +110,15 @@ interface WhiteBoardProps {
   initViewPort?: ViewPort;
   initSelection?: Selection;
   initPresentationSequences?: PresentationSequence[];
+  /** 页级画风（D-106），缺省为普通 */
+  initSketch?: PageSketch;
   readonly?: boolean;
   onChange?: (data: {
     children: BoardElement[];
     viewPort: ViewPort;
     selection: Selection;
     presentationSequences?: PresentationSequence[];
+    sketch: PageSketch;
   }) => void;
   showSidebar?: boolean;
   showToolbar?: boolean;
@@ -187,6 +192,7 @@ const WhiteBoard = memo(
       initViewPort = DEFAULT_VIEW_PORT,
       initSelection = DEFAULT_SELECTION,
       initPresentationSequences = DEFAULT_PRESENTATION_SEQUENCES,
+      initSketch = DEFAULT_PAGE_SKETCH,
       readonly,
       onChange,
       showSidebar = false,
@@ -292,7 +298,8 @@ const WhiteBoard = memo(
         initSelection,
         plugins,
         initPresentationSequences,
-        readonly
+        readonly,
+        initSketch
       );
     }, []);
 

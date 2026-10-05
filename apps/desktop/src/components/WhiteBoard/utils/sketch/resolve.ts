@@ -31,7 +31,11 @@ export function resolveSketch(
   const idSeed = hashSeed(element.id);
   // 共用种子时与各自 id 混合，同尺寸的导图节点不会画成一模一样
   const seed =
-    own.seed === undefined ? idSeed : owner === element ? own.seed : (own.seed ^ idSeed) >>> 0;
+    own.seed === undefined
+      ? idSeed
+      : owner.id === element.id
+        ? own.seed
+        : (own.seed ^ idSeed) >>> 0;
   return {
     enabled: SKETCHABLE_TYPES.has(element.type) && (own.mode ?? page.mode) === "sketch",
     level: own.level ?? page.level,

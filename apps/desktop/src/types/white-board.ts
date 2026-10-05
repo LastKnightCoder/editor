@@ -3,6 +3,7 @@ import {
   ViewPort,
   Selection,
   PresentationSequence,
+  PageSketch,
 } from "@/components/WhiteBoard";
 
 export interface WhiteBoard {
@@ -41,5 +42,7 @@ export interface WhiteBoardContent {
     viewPort: ViewPort;
     selection: Selection;
     presentationSequences?: PresentationSequence[];
+    /** 页级画风（D-106），缺省为普通 */
+    sketch?: PageSketch;
   };
 }
