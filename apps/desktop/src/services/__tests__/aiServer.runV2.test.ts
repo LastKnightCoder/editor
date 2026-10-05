@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   singleResolve: null as ((result: unknown) => void) | null,
   singleCancel: vi.fn(),
   handlers: new Map<string, (request: RpcRequestMessage) => Promise<unknown>>(),
+  notifications: [] as Array<{ method: string; data: unknown }>,
 }));
 
 vi.mock("@/constants", () => ({
@@ -69,6 +70,9 @@ vi.mock("@/utils/WebSocketServer", () => ({
     addRequestHandler(name: string, handler: (request: RpcRequestMessage) => Promise<unknown>) {
       mocks.handlers.set(name, handler);
     }
+    sendNotification(method: string, data: unknown) {
+      mocks.notifications.push({ method, data });
+    }
     close() {}
   },
 }));
@@ -97,6 +101,7 @@ vi.mock("@/utils/embedding-model-info", () => ({ resolveEmbeddingModelInfoFromSe
 
 import { __aiServerTestUtils, closeAiServer, initAiServer } from "../aiServer";
 import { openContent } from "../open-content";
+import { useThemeStore } from "@tau/themes/react";
 
 const { handleRunStart, handleRunAbort } = __aiServerTestUtils;
 
@@ -114,6 +119,36 @@ describe("设置 RPC", () => {
       request("settings.getChatModelConfig", {})
     )) as { model: { id: string } | null };
     expect(result.model?.id).toBe("qwen2.5:7b");
+  });
+});
+
+describe("主题同步 RPC", () => {
+  beforeEach(() => {
+    mocks.handlers.clear();
+    mocks.notifications.length = 0;
+    useThemeStore.getState().setTheme("paper");
+    initAiServer();
+  });
+  afterEach(() => closeAiServer());
+
+  it("读取当前主题族，换主题时只推送主题 key", async () => {
+    await expect(
+      mocks.handlers.get("appearance.getTheme")!(request("appearance.getTheme", {}))
+    ).resolves.toEqual({ theme: "paper" });
+
+    useThemeStore.getState().setAppearance("dark");
+    expect(mocks.notifications.filter(n => n.method === "appearance.themeChanged")).toEqual([]);
+
+    useThemeStore.getState().setTheme("sakura");
+    expect(mocks.notifications.filter(n => n.method === "appearance.themeChanged")).toEqual([
+      { method: "appearance.themeChanged", data: { theme: "sakura" } },
+    ]);
+  });
+
+  it("关闭服务后不再推送", () => {
+    closeAiServer();
+    useThemeStore.getState().setTheme("mint");
+    expect(mocks.notifications).toEqual([]);
   });
 });
 
