@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>深色调亮 · 浏览器插件</title>
+<link rel="stylesheet" href="shared.css" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  /*
+   * 只改插件的深色：主题块之上叠一层，按主题自身的墨色把纸面往亮处混，色相跟着主题走。
+   * 外层 .base 带 data-theme（取原值并起别名），内层 .tone-* 用别名重算 --tau-*。
+   */
+  .base {
+    --b-page: var(--tau-bg-page);
+    --b-surface: var(--tau-bg-surface);
+    --b-surface-hover: var(--tau-bg-surface-hover);
+    --b-line1: var(--tau-line-1);
+    --b-ink1: var(--tau-ink-1);
+    --b-ink2: var(--tau-ink-2);
+  }
+  .tone-a {
+    --tau-bg-page: color-mix(in srgb, var(--b-page), var(--b-ink1) 6%);
+    --tau-bg-surface: color-mix(in srgb, var(--b-surface), var(--b-ink1) 7%);
+    --tau-bg-surface-hover: color-mix(in srgb, var(--b-surface-hover), var(--b-ink1) 7%);
+    --tau-line-1: color-mix(in srgb, var(--b-line1), var(--b-ink1) 7%);
+    /* 卡片变亮后次文字要跟着提一点，保住 AA */
+    --tau-ink-2: color-mix(in srgb, var(--b-ink2), var(--b-ink1) 18%);
+  }
+  .tone-b {
+    --tau-bg-page: color-mix(in srgb, var(--b-page), var(--b-ink1) 11%);
+    --tau-bg-surface: color-mix(in srgb, var(--b-surface), var(--b-ink1) 12%);
+    --tau-bg-surface-hover: color-mix(in srgb, var(--b-surface-hover), var(--b-ink1) 12%);
+    --tau-line-1: color-mix(in srgb, var(--b-line1), var(--b-ink1) 11%);
+    --tau-ink-2: color-mix(in srgb, var(--b-ink2), var(--b-ink1) 34%);
+  }
+  .tone-c {
+    --tau-bg-page: color-mix(in srgb, var(--b-page), var(--b-ink1) 7%);
+    --tau-bg-surface: color-mix(in srgb, var(--b-surface), var(--b-ink1) 6%);
+    --tau-bg-surface-hover: color-mix(in srgb, var(--b-surface-hover), var(--b-ink1) 6%);
+    --tau-line-1: color-mix(in srgb, var(--b-line1), var(--b-ink1) 4%);
+    --tau-ink-1: color-mix(in srgb, var(--b-ink1), var(--b-page) 14%);
+    --tau-ink-2: color-mix(in srgb, var(--b-ink2), var(--b-ink1) 8%);
+    --tau-shadow-card: none;
+  }
+
+  .grid { display: grid; grid-template-columns: 110px repeat(4, 300px); gap: 14px 16px; align-items: start; }
+  .colh { font-size: 13px; font-weight: 600; padding: 0 2px 2px; }
+  .colh span { display: block; font-weight: 400; font-size: 11.5px; color: var(--tau-ink-3); margin-top: 2px; line-height: 1.5; }
+  .rowh { font-size: 13px; font-weight: 600; padding-top: 12px; }
+  .mini {
+    width: 300px; height: 420px; overflow: hidden; display: flex; flex-direction: column;
+    background: var(--tau-bg-page); color: var(--tau-ink-1); border-radius: 12px; border: 1px solid var(--tau-line-1);
+  }
+  .mini .ctx { padding: 10px 10px 8px 12px; }
+  .mini .ctx .t b { font-size: 12.5px; }
+  .mini .body { display: flex; flex-direction: column; gap: 6px; padding: 0 10px; flex: 1; min-height: 0; }
+  .mini .sec-h { display: flex; align-items: center; gap: 5px; padding: 6px 2px 0; font-size: 11.5px; font-weight: 600; color: var(--tau-ink-2); }
+  .mini .sec-h svg { width: 13px; height: 13px; color: var(--tau-ink-3); }
+  .mini .sum { padding: 9px 11px; font-size: 12px; line-height: 1.7; }
+  .mini .sum .h { display: flex; gap: 5px; align-items: center; font-size: 11px; color: var(--tau-ink-3); margin-bottom: 3px; }
+  .mini .sum .h svg { width: 12px; height: 12px; color: var(--tau-accent-text); }
+  .mini .hls .hl { padding: 7px 10px; gap: 8px; }
+  .mini .hls .hl + .hl { border-top: 1px solid var(--tau-line-2); }
+  .mini .hls q { font-size: 12px; line-height: 1.6; }
+  .mini .hls .th { font-size: 11.5px; margin-top: 2px; }
+  .mini .note { padding: 8px 11px; }
+  .mini .note b { font-size: 12.5px; }
+  .mini .note p { margin: 2px 0 0; font-size: 11.5px; color: var(--tau-ink-2); line-height: 1.6; }
+  .mini .cmp { margin: 6px 8px 8px; padding: 8px 8px 7px 12px; }
+  .mini .cmp .ph { font-size: 12px; min-height: 18px; }
+  .mini .cmp .bar { margin-top: 6px; }
+  .mini .cmp .plus, .mini .cmp .send { width: 26px; height: 26px; }
+  .cr { margin-top: 6px; font-size: 11px; color: var(--tau-ink-3); font-family: var(--tau-font-mono); }
+  .cr b { font-weight: 600; }
+  .cr .bad { color: var(--tau-danger); }
+
+  /* ── 页面内划线 UI（与 entrypoints/content/style.css 同构，颜色只取 --tau-*） ── */
+  .page {
+    position: relative; width: 370px; padding: 14px 16px 16px; border-radius: 12px;
+    /* 宿主网页的颜色不属于主题：多数网页是浅底 */
+    background: #ffffff; color: #1f2328; border: 1px solid #e3e3e3;
+    font-size: 13px; line-height: 1.8;
+  }
+  .page.dark-site { background: #0d1117; color: #c9d1d9; border-color: #30363d; }
+  .page mark { background: rgba(251, 146, 60, 0.32); color: inherit; border-radius: 3px; padding: 1px 2px; }
+  #grid-tb { grid-template-columns: 90px repeat(4, 370px); }
+  .tb {
+    display: inline-flex; align-items: center; gap: 2px; padding: 4px 6px; margin: 10px 0 0;
+    background: var(--tau-bg-surface); border: 1px solid var(--tau-line-1); border-radius: 8px;
+    box-shadow: var(--tau-shadow-float);
+  }
+  .tb button { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 6px; color: var(--tau-ink-2); }
+  .tb button svg { width: 16px; height: 16px; }
+  .tb button.on { background: var(--tau-bg-selected); color: var(--tau-accent-text); }
+  .tb i.div { width: 1px; height: 18px; background: var(--tau-line-1); margin: 0 2px; }
+  .cp {
+    display: inline-flex; align-items: center; gap: 7px; padding: 6px 10px; margin-top: 8px;
+    background: var(--tau-bg-surface); border: 1px solid var(--tau-line-1); border-radius: 8px;
+    box-shadow: var(--tau-shadow-float);
+  }
+  .cp span { width: 18px; height: 18px; border-radius: 50%; border: 2px solid transparent; }
+  .cp span.sel { border-color: var(--tau-ink-1); }
+  .th-panel {
+    margin-top: 10px; border-radius: 16px; overflow: hidden;
+    background: var(--tau-bg-surface); border: 1px solid var(--tau-line-1); box-shadow: var(--tau-shadow-float);
+    color: var(--tau-ink-1); font-size: 12.5px; line-height: 1.6;
+  }
+  .th-panel .hd { display: flex; align-items: center; gap: 6px; padding: 10px 12px 6px; font-weight: 600; font-size: 13px; }
+  .th-panel .hd svg { width: 14px; height: 14px; color: var(--tau-accent-text); }
+  .th-panel .hd .x { margin-left: auto; color: var(--tau-ink-3); }
+  .th-panel .ta { margin: 2px 12px 10px; padding: 9px 11px; min-height: 54px; border-radius: 10px; border: 1px solid var(--tau-accent); background: var(--tau-bg-surface); }
+  .th-panel .ft { display: flex; align-items: center; padding: 8px 12px 10px; border-top: 1px solid var(--tau-line-2); }
+  .th-panel .ft .hint { font-size: 11px; color: var(--tau-ink-3); }
+  .th-panel .ft .save { margin-left: auto; padding: 5px 16px; border-radius: 14px; background: var(--tau-accent); color: var(--tau-ink-inverse); font-size: 12px; font-weight: 500; }
+</style>
+</head>
+<body>
+<main>
+  <div class="intro">
+    <h1>插件深色调亮：四档对比</h1>
+    只改插件，桌面不动。调法是把每个主题的底色 / 卡片 / 描边按它自己的墨色往亮处混，所以色相仍跟着主题；顶栏可切六个主题（深浅按钮不影响本页，固定看深色）。
+    <ul>
+      <li><b>现状</b>：与桌面完全一致。</li>
+      <li><b>A 提亮一档</b>：底色、卡片各亮约 6–7%，次文字跟着提一点（保住对比度）。</li>
+      <li><b>B 提亮两档</b>：亮约 11–12%，接近「深灰」而不是「近黑」；次文字同样跟着提。</li>
+      <li><b>C 柔和反差</b>：底色只亮一档，同时把主文字压暗一点、卡片去掉投影——不刺眼，但没那么「亮」。</li>
+    </ul>
+    每块下方是对比度：主文字 / 次文字对卡片（AA 要求次文字 ≥ 4.5）。
+  </div>
+
+  <h2 class="sec">六个主题 × 四档</h2>
+  <div class="grid" id="grid"></div>
+
+  <h2 class="sec">页面内的工具条（划线 / 取色 / 写想法）</h2>
+  <p class="cap" style="max-width:900px">工具条浮在网页上，所以每格放了一段网页：前三行是浅色网页（大多数站点），后三行是深色网页。工具条跟侧栏用同一档调亮。</p>
+  <div class="grid" id="grid-tb"></div>
+</main>
+<script>
+  (function () {
+    const themes = [["paper", "暖纸"], ["ocean", "海盐"], ["mint", "薄荷"], ["wisteria", "紫藤"], ["sakura", "樱花"], ["ink", "水墨"]];
+    const tones = [
+      ["", "现状", "与桌面一致"],
+      ["tone-a", "A 提亮一档", "底色 / 卡片 +6–7%"],
+      ["tone-b", "B 提亮两档", "底色 / 卡片 +11–12%"],
+      ["tone-c", "C 柔和反差", "提亮一档 + 文字略压暗、去投影"],
+    ];
+    const current = localStorage.getItem("mk-ext-theme") || "paper";
+    const order = [themes.find(t => t[0] === current), ...themes.filter(t => t[0] !== current)];
+
+    const panel = () => `
+      <div class="ctx"><div class="fav">S</div><div class="t"><b>为什么间隔重复比反复阅读更有效</b><span>sspai.com</span></div><button class="ib"><i data-lucide="ellipsis"></i></button></div>
+      <div class="body">
+        <div class="card sum"><div class="h"><i data-lucide="sparkles"></i>AI 总结</div><b>一句话：</b>快要忘记时再回想，记得更久；长期保持率是连续重读的两到三倍。</div>
+        <div class="sec-h"><i data-lucide="highlighter"></i>高亮 5</div>
+        <div class="card hls">
+          <div class="hl"><span class="bar c1"></span><div><q>每一次成功的提取，都会让下一次遗忘来得更晚。</q><div class="th">和卡片复习的间隔算法是一回事。</div></div></div>
+          <div class="hl"><span class="bar c3"></span><div><q>重读带来的流畅感是一种错觉。</q></div></div>
+        </div>
+        <div class="sec-h"><i data-lucide="notebook-pen"></i>笔记</div>
+        <div class="card note"><b>间隔重复读书笔记</b><p>重读≠记住，只是熟悉感。</p></div>
+      </div>
+      <div class="cmp"><div class="ph">问这一页…</div><div class="bar"><span class="plus"><i data-lucide="plus"></i></span><span class="sp"></span><span class="send off"><i data-lucide="arrow-up"></i></span></div></div>`;
+
+    const grid = document.getElementById("grid");
+    grid.innerHTML =
+      `<div></div>` +
+      tones.map(([, name, sub]) => `<div class="colh">${name}<span>${sub}</span></div>`).join("") +
+      order.map(([key, name]) =>
+        `<div class="rowh">${name}</div>` +
+        tones.map(([cls]) => `
+          <div>
+            <div class="base" data-theme="${key}" data-mode="dark" style="background:none">
+              <div class="mini ${cls}">${panel()}</div>
+            </div>
+            <div class="cr" data-cr></div>
+          </div>`).join("")
+      ).join("");
+
+    // 对比度：读计算后的颜色（color-mix 计算值为 color(srgb …) 或 rgb(…)）
+    const parse = value => {
+      const m = value.match(/color\(srgb ([\d.]+) ([\d.]+) ([\d.]+)/);
+      if (m) return m.slice(1, 4).map(Number);
+      const r = value.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+      return r ? r.slice(1, 4).map(n => Number(n) / 255) : [0, 0, 0];
+    };
+    const lum = ([r, g, b]) => {
+      const f = c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+      return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+    };
+    const ratio = (a, b) => {
+      const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+      return (hi + 0.05) / (lo + 0.05);
+    };
+    document.querySelectorAll(".mini").forEach(mini => {
+      const probe = document.createElement("span");
+      mini.appendChild(probe);
+      const read = v => { probe.style.color = `var(${v})`; return parse(getComputedStyle(probe).color); };
+      const surface = read("--tau-bg-surface");
+      const r1 = ratio(read("--tau-ink-1"), surface);
+      const r2 = ratio(read("--tau-ink-2"), surface);
+      probe.remove();
+      mini.parentElement.parentElement.querySelector("[data-cr]").innerHTML =
+        `主 <b>${r1.toFixed(1)}</b> · 次 <b class="${r2 < 4.5 ? "bad" : ""}">${r2.toFixed(1)}</b>`;
+    });
+    if (window.lucide) window.lucide.createIcons();
+  })();
+</script>
+<script>
+  // 页面内划线 UI：同样六个主题 × 四档
+  (function () {
+    const themes = [["paper", "暖纸"], ["ocean", "海盐"], ["mint", "薄荷"], ["wisteria", "紫藤"], ["sakura", "樱花"], ["ink", "水墨"]];
+    const tones = [["", "现状"], ["tone-a", "A 提亮一档"], ["tone-b", "B 提亮两档"], ["tone-c", "C 柔和反差"]];
+    const current = localStorage.getItem("mk-ext-theme") || "paper";
+    const order = [themes.find(t => t[0] === current), ...themes.filter(t => t[0] !== current)];
+    const colors = ["#f472b6", "#a78bfa", "#60a5fa", "#4ade80", "#fb923c"];
+    const cell = darkSite => `
+      <div class="page ${darkSite ? "dark-site" : ""}">
+        间隔重复之所以有效，是因为<mark>每一次成功的提取，都会让下一次遗忘来得更晚</mark>。
+        <div class="tb">
+          <button><i data-lucide="copy"></i></button><i class="div"></i>
+          <button class="on"><i data-lucide="highlighter"></i></button><button><i data-lucide="waves"></i></button><button><i data-lucide="minus"></i></button><button><i data-lucide="trash-2"></i></button><i class="div"></i>
+          <button><i data-lucide="message-square-text"></i></button><button><i data-lucide="sparkles"></i></button><i class="div"></i>
+          <button><i data-lucide="ellipsis"></i></button>
+        </div>
+        <div><div class="cp">${colors.map((c, i) => `<span class="${i === 4 ? "sel" : ""}" style="background:${c}"></span>`).join("")}</div></div>
+        <div class="th-panel">
+          <div class="hd"><i data-lucide="message-square-text"></i>写想法<i class="x" data-lucide="x"></i></div>
+          <div class="ta">和卡片复习的间隔算法是一回事。</div>
+          <div class="ft"><span class="hint">Enter 保存 · Esc 关闭</span><span class="save">保存</span></div>
+        </div>
+      </div>`;
+    document.getElementById("grid-tb").innerHTML =
+      `<div></div>` + tones.map(([, name]) => `<div class="colh">${name}</div>`).join("") +
+      order.map(([key, name], row) =>
+        `<div class="rowh">${name}<span class="muted" style="display:block;font-weight:400;font-size:11px">${row < 3 ? "浅色网页" : "深色网页"}</span></div>` +
+        tones.map(([cls]) => `<div class="base" data-theme="${key}" data-mode="dark"><div class="${cls}">${cell(row >= 3)}</div></div>`).join("")
+      ).join("");
+  })();
+</script>
+<script src="shared.js"></script>
+</body>
+</html>

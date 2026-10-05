@@ -18,6 +18,7 @@
 - 选择：① 去掉页签，主界面是当前网页的一张纸：顶栏 = 站点图标 + 标题 + 域名（全部笔记、设置、重新连接收进 ⋯），从上到下 AI 总结（默认折叠约 5 行）→ 最近 3 条高亮（「全部」进二级页）→ 本页笔记卡片 + 新建 → 上次对话，底部常驻「问这一页」输入框；② 对话、笔记编辑、全部高亮、全部笔记、设置都是从右侧滑入的二级页，顶栏「←」返回本页；本页流输入框发送后进入对话页并把消息发进当前对话；③ 笔记二级页按打开时的页面 URL 绑定，编辑途中切换标签页不会串到别的页面。
 - 主题：扩展直接使用 `@tau/themes` 的 tokens.css（六个主题族 × 深浅），删除私有配色与桥接；主题族默认跟随桌面——aiServer 新增 `appearance.getTheme` 请求与 `appearance.themeChanged` 通知（协议常量 `APPEARANCE_METHODS` 在 `@tau/shared`，只带主题 key），设置里可关掉跟随后自选；深浅只在扩展里设置（跟随系统 / 浅 / 深），默认跟随系统。偏好存扩展页 localStorage（`tau-ext-theme` / `tau-ext-appearance` / `tau-ext-theme-follow`），`main.tsx` 渲染前就位，桌面未连接时沿用上次同步到的主题。
 - 页面内划线 UI（工具条 / 取色 / 想法 / 问 AI，content script 的 shadow DOM）同主题：侧栏把生效的主题族与明暗偏好镜像到 `chrome.storage.local`（`tau-ext-content-theme`，网页里读不到扩展页 localStorage），`content/theme.ts` 写到根容器的 data-theme / data-mode，「跟随系统」按页面所在系统解析；原先恒为深色的面板改为主题纸面。
+- 深色调亮（同日追记，用户在 `mockups/sidepanel-redesign/dark-tone.html` 四档中选 A）：插件深色比桌面亮一档——底色 / 卡片 / 描边按主题自己的 ink-1 混入 6–7%，ink-2 混入 18% 保住 AA；只覆盖插件（`src/styles/dark-tone.css`，由 `darkTone.ts` 计算、测试守护与主题定义一致），侧栏与页面内划线 UI 同用，桌面不变。
 - 不做 / 后续：高亮仍按创建时间倒序，不按原文位置排；网页上定位高亮时的闪烁描边仍是固定蓝色（画在宿主页面上，不在主题容器内）。
 
 ## D-109 导出图片：样式由应用主题推导，弹窗改为右侧设置栏

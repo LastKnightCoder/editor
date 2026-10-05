@@ -5,6 +5,8 @@
 @import "tailwindcss";
 /* 与桌面同一套主题数据块（含尺度层）：<html data-theme data-mode> 决定取值 */
 @import "@tau/themes/tokens.css";
+/* 插件深色调亮（只作用于插件），须紧跟 tokens.css */
+@import "../../styles/dark-tone.css";
 /* 语义类（bg-page / text-ink-1 …）经 @tau/themes 的映射取 --tau-* */
 @import "@tau/themes/tailwind.css";
 @source "../../../../../packages/editor/src";
