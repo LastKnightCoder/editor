@@ -1,7 +1,7 @@
 import { useMemoizedFn } from "ahooks";
 import Board from "../Board";
 import { ViewPortTransforms } from "../transforms";
-import { MIN_ZOOM, MAX_ZOOM } from "../constants";
+import { MIN_ZOOM, MAX_ZOOM, FIT_VIEW_PADDING } from "../constants";
 
 /**
  * 视口控制相关 hook
@@ -27,27 +27,16 @@ const useViewPortControls = (board: Board, zoom: number) => {
     ViewPortTransforms.updateZoom(board, zoomValue);
   });
 
-  // 全览功能（视图适应所有元素或选中元素）
-  const handleFitElements = useMemoizedFn((padding = 50, selectedOnly = true, elements?: any[]) => {
-    // 只用到 stopPropagation / preventDefault，与事件源元素类型无关
-    return (e: React.MouseEvent<HTMLElement>) => {
-      // 阻止事件冒泡和默认行为
-      e.stopPropagation();
-      e.preventDefault();
+  // 全览：视图适应全部元素
+  const handleFitAll = useMemoizedFn(() => {
+    ViewPortTransforms.fitAllElements(board, FIT_VIEW_PADDING, true);
+  });
 
-      if (selectedOnly && board.selection.selectedElements.length > 0) {
-        // 如果有选中的元素且需要只关注选中元素，则全览选中的元素
-        ViewPortTransforms.fitAllElements(board, padding, true, [
-          ...board.selection.selectedElements,
-        ]);
-      } else if (elements && elements.length > 0) {
-        // 如果指定了元素且有元素，全览这些指定的元素
-        ViewPortTransforms.fitAllElements(board, padding, true, elements);
-      } else {
-        // 否则全览所有元素
-        ViewPortTransforms.fitAllElements(board, padding, true);
-      }
-    };
+  // 适应选中：视图适应当前选区，无选区时不动
+  const handleFitSelection = useMemoizedFn(() => {
+    const selected = board.selection.selectedElements;
+    if (selected.length === 0) return;
+    ViewPortTransforms.fitAllElements(board, FIT_VIEW_PADDING, true, [...selected]);
   });
 
   return {
@@ -55,7 +44,8 @@ const useViewPortControls = (board: Board, zoom: number) => {
     handleZoomIn,
     handleZoomOut,
     handleZoomTo,
-    handleFitElements,
+    handleFitAll,
+    handleFitSelection,
   };
 };
 

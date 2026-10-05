@@ -48,6 +48,7 @@ import {
   ARROW_CONNECT_PROXIMITY_HIDE_DELAY,
   ARROW_CONNECT_PROXIMITY_RADIUS,
   BOARD_TO_CONTAINER,
+  DEFAULT_GRID_SIZE,
   FIT_VIEW_PADDING,
 } from "./constants";
 import { createConnectPointOwnerStore } from "./utils/ConnectPointOwner";
@@ -288,8 +289,7 @@ const WhiteBoard = memo(
     }, [connectPointOwnerStore, pointerViewportStore]);
 
     // 网格设置
-    const { gridVisible, gridSize, handleGridVisibleChange, handleGridSizeChange } =
-      useGridSettings();
+    const { gridVisible, handleGridVisibleChange } = useGridSettings();
 
     // 创建画板实例
     const board = useCreation<Board>(() => {
@@ -701,8 +701,14 @@ const WhiteBoard = memo(
     } = useElementsSorting(filteredChildren, selection);
 
     // 获取视口控制函数
-    const { handleContainerResize, handleZoomIn, handleZoomOut, handleZoomTo, handleFitElements } =
-      useViewPortControls(board, zoom);
+    const {
+      handleContainerResize,
+      handleZoomIn,
+      handleZoomOut,
+      handleZoomTo,
+      handleFitAll,
+      handleFitSelection,
+    } = useViewPortControls(board, zoom);
 
     // 暴露 ref 方法
     useImperativeHandle(
@@ -1013,8 +1019,8 @@ const WhiteBoard = memo(
     });
 
     useEffect(() => {
-      board.snap.setGridSize(gridVisible ? gridSize : null);
-    }, [board, gridVisible, gridSize]);
+      board.snap.setGridSize(gridVisible ? DEFAULT_GRID_SIZE : null);
+    }, [board, gridVisible]);
 
     useEffect(() => {
       const handleOpenImagePreview = (payload: { src: string; alt?: string }) => {
@@ -1111,11 +1117,6 @@ const WhiteBoard = memo(
       board.presentationManager.deleteSequence(sequenceId);
     });
 
-    // 全览功能
-    const handleFitAll = useMemoizedFn((e: React.MouseEvent<HTMLElement>) => {
-      return handleFitElements(FIT_VIEW_PADDING, true)(e);
-    });
-
     const handleCloseImagePreview = useMemoizedFn(() => {
       setImagePreview({
         open: false,
@@ -1179,7 +1180,6 @@ const WhiteBoard = memo(
                             centerConnectAndSelectedArrows={centerConnectAndSelectedArrows}
                             isolateStaticSelection={isolateStaticSelection}
                             gridVisible={gridVisible}
-                            gridSize={gridSize}
                             connectPointOverlayRef={connectPointOverlayRef}
                           />
 
@@ -1193,15 +1193,14 @@ const WhiteBoard = memo(
                           <StatusBar
                             ref={statusBarRef}
                             gridVisible={gridVisible}
-                            gridSize={gridSize}
                             zoom={zoom}
                             sequences={board.presentationManager.sequences}
                             onGridVisibleChange={handleGridVisibleChange}
-                            onGridSizeChange={handleGridSizeChange}
                             onZoomIn={handleZoomIn}
                             onZoomOut={handleZoomOut}
                             onZoomTo={handleZoomTo}
-                            onFitElements={handleFitAll}
+                            onFitAll={handleFitAll}
+                            onFitSelection={handleFitSelection}
                             onStartPresentation={handleStartPresentation}
                             onEditSequence={handleEditSequence}
                             onDeleteSequence={handleDeleteSequence}
